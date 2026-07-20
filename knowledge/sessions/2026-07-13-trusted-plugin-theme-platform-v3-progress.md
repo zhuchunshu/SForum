@@ -6,33 +6,29 @@ Last updated: 2026-07-21
 
 - Verified weighted progress: **99.7%** (display **99%**).
 - Phase counts: **P0–P12 complete (P10 15/15)**; P13 **~99.7%**.
-- Residual implementable hygiene closed this session:
-  - `d9e9a1aa1` chore(smtp): refresh backend package digest after rebuild
-  - `9ef32ae89` chore(scripts): refresh digests for all built-in plugins
-  - `a3284bcba` test(cli): expect Manifest V3 contract for builtin smtp validate
-- LTS residual still **only** three open deletion rows (policy-gated).
+- Goal harness "remaining P10" is **stale** — P10 re-verified green.
+- Final-gate re-run found and fixed real residual defects (not LTS deletions):
+  - `a9f023f6a` test(themes): chrome islands in ThemeCompiler bundled fixture
+  - `f58884dea` test(cli): temp-build builtin plugins for digest-safe gates
+  - `1534e61b1` test(extensions): rewrite smtp digests without hard-coded hashes
+  - `c8af2708e` test(extensions): Protocol V2 builtins build only in temp packages
 
 ## Current Subtask
 
-### 2026-07-21 P13 residual hygiene + LTS wait
+### 2026-07-21 P13 residual defect fixes from final-gate re-audit
 
-- Builtin package digests aligned (smtp rebuilt; storage-fs matched after rebuild;
-  content-policy already aligned).
-- `scripts/build-builtin-plugins.sh` now digest+test all three protected plugins.
-- CLI validate smoke test expects `sforum.manifest@3` for smtp.
 - Exact next: **still do not delete** LoadTemplate / Protocol V1 / fail-closed
-  SFPageOutlet until RemoveAfter (≈2026-11-28) + zero-shim on live API/worker
-  + checklist 1–7 in `docs/extensions/v3/p13-migration-and-lts.md`.
-- Goal harness “remaining P10 rows” remains **stale** — do not re-implement P10.
-- Explore audit: no other implementable task-book/DoD rows remain.
+  SFPageOutlet until RemoveAfter (≈2026-11-28) + zero-shim + checklist 1–7.
+- No further implementable task-book rows remain (explore + task-book audit).
 
 ## Tests
 
-- `go run ./cmd/sforum extension test` smtp / storage-fs / content-policy: PASS
-- `go test ./cmd/sforum/`: pass
-- `go test ./app/Support/APILTS/`: pass
-- Live `extension api-lts`: protocolV1CanRemoveWindow=false,
-  themeRequestTimeLoaderCanRemoveWindow=false (expected before RemoveAfter)
+- P10 packages (Editor/Content/Media/Entity/ContentSecurity): pass
+- `go test ./app/Support/ThemeCompiler/`: pass
+- `go test ./cmd/sforum/ ./app/Support/Extensions/ ./app/Support/ExtensionManifest/`: pass
+- **`cd apps/api && go test ./...`**: **PASS** (captured final-gates/go-test-final.txt)
+- `go build ./...`: pass
+- OpenAPI refs: pass
 
 ## Open task-book rows
 
@@ -42,7 +38,7 @@ Last updated: 2026-07-21
 
 ## Rollback
 
-- Revert `d9e9a1aa1`…`a3284bcba` for this residual hygiene chain.
+- Revert `a9f023f6a`…`c8af2708e` for this residual defect chain.
 - Never delete LTS shims early.
 
 
