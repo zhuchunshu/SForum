@@ -736,6 +736,25 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	if err != nil {
 		return nil, err
 	}
+	externalLinkStore := identity.NewPostgresExternalIdentityLinkStore(pool)
+	authProviderFlow, err := newAuthProviderFlow(
+		lifecycleStack.RuntimeManager, lifecycleStack.IdentityRegistry, externalLinkStore,
+	)
+	if err != nil {
+		return nil, err
+	}
+	profileProviderComposer, err := newProfileProviderComposer(
+		lifecycleStack.RuntimeManager, lifecycleStack.IdentityRegistry,
+	)
+	if err != nil {
+		return nil, err
+	}
+	recoveryProviderFlow, err := newRecoveryProviderFlow(
+		lifecycleStack.RuntimeManager, lifecycleStack.IdentityRegistry,
+	)
+	if err != nil {
+		return nil, err
+	}
 	identityStore.WithAuthorityMutationGate(lifecycleStack.SessionPolicyStore)
 	identityAuthorityGate.Set(lifecycleStack.SessionPolicyStore)
 	sessionPolicyRenewal.Set(sessionPolicyEvaluator)
@@ -743,6 +762,9 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		WithIdentityRegistryStore(identityReviewStore).
 		WithSessionPolicyEvaluator(sessionPolicyEvaluator).
 		WithRiskEvaluator(riskEvaluator).
+		WithAuthProviderFlow(authProviderFlow).
+		WithProfileProviderComposer(profileProviderComposer).
+		WithRecoveryProviderFlow(recoveryProviderFlow).
 		WithAPITokens(apiTokenService)
 	notificationsProvider := providers.NewNotificationsProvider(notificationStore, identityStore, authSessions)
 	mailProvider := providers.NewMailProvider(extensionStore, notificationStore, extensionsruntime.NewMailProviderRegistry(extensionStore), identityStore, authSessions, optionsService)

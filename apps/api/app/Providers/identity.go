@@ -110,6 +110,30 @@ func (p *IdentityProvider) WithRiskEvaluator(evaluator *identity.RiskEvaluator) 
 	return p
 }
 
+// WithAuthProviderFlow wires Host-owned external auth start/complete consumers.
+func (p *IdentityProvider) WithAuthProviderFlow(flow *identity.AuthProviderFlow) *IdentityProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithAuthProviderFlow(flow)
+	}
+	return p
+}
+
+// WithProfileProviderComposer wires Host-owned profile section composition.
+func (p *IdentityProvider) WithProfileProviderComposer(composer *identity.ProfileProviderComposer) *IdentityProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithProfileProviderComposer(composer)
+	}
+	return p
+}
+
+// WithRecoveryProviderFlow wires Host-owned recovery start/complete consumers.
+func (p *IdentityProvider) WithRecoveryProviderFlow(flow *identity.RecoveryProviderFlow) *IdentityProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithRecoveryProviderFlow(flow)
+	}
+	return p
+}
+
 func (p *IdentityProvider) RegisterRoutes(api fiber.Router) {
 	p.controller.RegisterRoutes(api)
 }

@@ -2,8 +2,6 @@ package extensionsruntime_test
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"os"
 	"os/exec"
@@ -345,9 +343,3 @@ func referenceMembershipFixtureRoot(t *testing.T) string {
 	return filepath.Clean(filepath.Join(filepath.Dir(file), "../../../../../extensions/fixtures/plugins/sforum-membership-reference"))
 }
 
-// subjectDigest mirrors the membership fixture plugin's subject hashing so
-// tests can assert exact external identity digests when needed.
-func membershipSubjectDigest(subject string) string {
-	sum := sha256.Sum256([]byte("sforum.membership-reference:" + subject))
-	return hex.EncodeToString(sum[:])
-}

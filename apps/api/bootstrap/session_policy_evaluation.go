@@ -105,3 +105,67 @@ func newRiskEvaluator(
 	}
 	return identity.NewRiskEvaluator(identity.RegistryRiskProviderSource{Registry: registry}, invoker)
 }
+
+// newIdentityProviderExactInvoker builds the shared Host→plugin invoker used by
+// session, risk, auth, profile, and recovery consumers.
+func newIdentityProviderExactInvoker(
+	manager *extensionsruntime.Manager,
+	registry *identityregistry.Registry,
+) (*extensionsruntime.IdentitySessionEvaluateInvoker, error) {
+	if manager == nil || registry == nil {
+		return nil, identity.ErrAuthProviderFlowUnavailable
+	}
+	runtime, err := extensionsruntime.NewIdentityProviderRuntime(manager, registry)
+	if err != nil {
+		return nil, err
+	}
+	return extensionsruntime.NewIdentitySessionEvaluateInvoker(runtime)
+}
+
+// newAuthProviderFlow builds Host-owned external auth start/complete over the
+// exact Identity Registry and optional external-link store.
+func newAuthProviderFlow(
+	manager *extensionsruntime.Manager,
+	registry *identityregistry.Registry,
+	links identity.ExternalIdentityLinkStore,
+) (*identity.AuthProviderFlow, error) {
+	invoker, err := newIdentityProviderExactInvoker(manager, registry)
+	if err != nil {
+		return nil, err
+	}
+	return identity.NewAuthProviderFlow(
+		identity.RegistryAuthProviderSource{Registry: registry},
+		invoker,
+		links,
+	)
+}
+
+// newProfileProviderComposer builds Host-owned profile section composition.
+func newProfileProviderComposer(
+	manager *extensionsruntime.Manager,
+	registry *identityregistry.Registry,
+) (*identity.ProfileProviderComposer, error) {
+	invoker, err := newIdentityProviderExactInvoker(manager, registry)
+	if err != nil {
+		return nil, err
+	}
+	return identity.NewProfileProviderComposer(
+		identity.RegistryProfileProviderSource{Registry: registry},
+		invoker,
+	)
+}
+
+// newRecoveryProviderFlow builds Host-owned recovery start/complete.
+func newRecoveryProviderFlow(
+	manager *extensionsruntime.Manager,
+	registry *identityregistry.Registry,
+) (*identity.RecoveryProviderFlow, error) {
+	invoker, err := newIdentityProviderExactInvoker(manager, registry)
+	if err != nil {
+		return nil, err
+	}
+	return identity.NewRecoveryProviderFlow(
+		identity.RegistryRecoveryProviderSource{Registry: registry},
+		invoker,
+	)
+}

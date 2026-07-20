@@ -45,6 +45,11 @@ type Controller struct {
 	// riskPolicy 在密码校验成功后、会话签发前组合全部活跃 risk 提供方。
 	// 为 nil 时跳过（无插件 risk 面时的 Core 默认）。
 	riskPolicy *identity.RiskEvaluator
+	// authFlow / profileComposer / recoveryFlow 是 Host 拥有的 Identity 提供方消费者。
+	// 为 nil 时外部 auth/profile/recovery 路径保持不可用。
+	authFlow         *identity.AuthProviderFlow
+	profileComposer  *identity.ProfileProviderComposer
+	recoveryFlow     *identity.RecoveryProviderFlow
 }
 
 // optionsResolver 只暴露密码策略、mail-test 需要的站点名/管理员邮箱，避免全量依赖 options.Service。
@@ -114,6 +119,30 @@ func (h *Controller) WithSessionPolicyEvaluator(evaluator *identity.SessionPolic
 func (h *Controller) WithRiskEvaluator(evaluator *identity.RiskEvaluator) *Controller {
 	if h != nil {
 		h.riskPolicy = evaluator
+	}
+	return h
+}
+
+// WithAuthProviderFlow injects Host-owned external auth start/complete consumers.
+func (h *Controller) WithAuthProviderFlow(flow *identity.AuthProviderFlow) *Controller {
+	if h != nil {
+		h.authFlow = flow
+	}
+	return h
+}
+
+// WithProfileProviderComposer injects Host-owned profile section composition.
+func (h *Controller) WithProfileProviderComposer(composer *identity.ProfileProviderComposer) *Controller {
+	if h != nil {
+		h.profileComposer = composer
+	}
+	return h
+}
+
+// WithRecoveryProviderFlow injects Host-owned recovery start/complete consumers.
+func (h *Controller) WithRecoveryProviderFlow(flow *identity.RecoveryProviderFlow) *Controller {
+	if h != nil {
+		h.recoveryFlow = flow
 	}
 	return h
 }
