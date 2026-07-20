@@ -984,8 +984,8 @@ with required/deprecated cells and LTS shim telemetry proof.
 ### Final gates
 
 - [ ] `cd apps/api && go test ./...`
-- [ ] `cd apps/api && go build ./...`
-- [ ] `ruby scripts/validate-openapi-refs.rb`
+- [x] `cd apps/api && go build ./...`
+- [x] `ruby scripts/validate-openapi-refs.rb`
 - [ ] `cd apps/web && bun run typecheck`
 - [ ] `cd apps/web && bun run build`
 - [ ] `./scripts/test.sh`
@@ -997,9 +997,11 @@ with required/deprecated cells and LTS shim telemetry proof.
       component replacement, L2 failure, and theme switch evidence.
 - [ ] Five-reference-plugin matrix proves every Extension Surface Matrix family
       and all 99 authoritative current-to-target rows without core product edits.
-- [ ] Performance/memory regression report against P0 baseline.
-- [ ] Security review for custom guards, raw DB, route replacement, L2, files,
+- [x] Performance/memory regression report against P0 baseline.
+      (`docs/extensions/v3/performance-p13-regression.md`)
+- [x] Security review for custom guards, raw DB, route replacement, L2, files,
       secrets, HTTP, OpenAPI, and plugin-to-plugin authority.
+      (`docs/extensions/v3/p13-security-review.md`)
 
 ## Post-V3 Deferred Follow-up - API Memory And Runtime Hygiene
 
