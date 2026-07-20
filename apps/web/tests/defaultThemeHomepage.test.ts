@@ -137,8 +137,8 @@ describe('default theme V32 left-nav homepage contract', () => {
   })
 
   test('category and tag pages reuse the V32 left-nav topic table shell', () => {
-    const categoryPage = source('../../../apps/web/app/pages/c/[categorySlug].vue')
-    const tagPage = source('../../../apps/web/app/pages/tags/[tagSlug].vue')
+    const categoryPage = source('../app/components/SFCategoryShowPage.vue')
+    const tagPage = source('../app/components/SFTagShowPage.vue')
 
     for (const page of [categoryPage, tagPage]) {
       expect(page).toContain('class="sforum-home"')

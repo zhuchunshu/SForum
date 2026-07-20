@@ -1,11 +1,20 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 
+// 呈现已迁到 body 岛；路由页仅为 SEO/outlet 壳。
 const tagsPage = () => readFileSync(
-  new URL('../../../apps/web/app/pages/tags/index.vue', import.meta.url),
+  new URL('../../../apps/web/app/components/SFTagIndexPage.vue', import.meta.url),
   'utf8'
 )
 const categoriesPage = () => readFileSync(
+  new URL('../../../apps/web/app/components/SFCategoryIndexPage.vue', import.meta.url),
+  'utf8'
+)
+const tagsRoute = () => readFileSync(
+  new URL('../../../apps/web/app/pages/tags/index.vue', import.meta.url),
+  'utf8'
+)
+const categoriesRoute = () => readFileSync(
   new URL('../../../apps/web/app/pages/categories/index.vue', import.meta.url),
   'utf8'
 )
@@ -18,6 +27,17 @@ const zh = () => JSON.parse(readFileSync(new URL('../i18n/locales/zh-CN.json', i
 const en = () => JSON.parse(readFileSync(new URL('../i18n/locales/en-US.json', import.meta.url), 'utf8'))
 
 describe('public taxonomy list pages (T01 + C04)', () => {
+  test('taxonomy routes are thin outlet shells with island fallbacks', () => {
+    expect(tagsRoute()).toContain('SFPageOutlet')
+    expect(tagsRoute()).toContain('page="forum.tag.index"')
+    expect(tagsRoute()).toContain('<SFTagIndexPage')
+    expect(tagsRoute()).not.toContain('sforum-taxonomy__cloud')
+    expect(categoriesRoute()).toContain('SFPageOutlet')
+    expect(categoriesRoute()).toContain('page="forum.category.index"')
+    expect(categoriesRoute()).toContain('<SFCategoryIndexPage')
+    expect(categoriesRoute()).not.toContain('sforum-taxonomy__tile')
+  })
+
   test('tags index uses listTags, public_pages gate, cloud buckets, and tag detail links', () => {
     const source = tagsPage()
     expect(source).toContain('forumApi.listTags()')
