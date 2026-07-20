@@ -981,7 +981,7 @@ with required/deprecated cells and LTS shim telemetry proof.
       (`db29579bc`…`6b49b59f1`). Nuxt `layouts/default.vue` is pass-through;
       fail-closed uses `SFHostPublicChrome`. Host island CSS under
       `apps/web/app/assets` remains Host-owned for interactive body islands.
-      `moderation.review`/`dev.components` stay non-replaceable by catalog.))
+      `moderation.review`/`dev.components` stay non-replaceable by catalog.)
 - [ ] Remove request-time template loader/regex renderer and legacy Page Outlet
       behavior after parity gates.
       (Fail-closed `SFPageOutlet` never fully removed; loader retained until LTS.)

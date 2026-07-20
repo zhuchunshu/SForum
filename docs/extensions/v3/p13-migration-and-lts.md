@@ -10,7 +10,7 @@ may delete compatibility paths. It does **not** delete legacy code.
 | Protocol V1 (net/rpc) built-ins (SMTP/storage) | Supported | Metrics + fixtures remain green | After published LTS window + zero shim telemetry |
 | Manifest V1 normalization | Supported for unambiguous packages | Reject ambiguous; prefer V3 | After all built-ins migrate to V3 + LTS window |
 | Theme.json synthetic template identity | Supported for legacy packages | `RequireDeclaredTemplates=false` path | After default presentation parity gates |
-| Core Nuxt public pages | Effective default presentation | Theme L1 replace wraps HostPageIsland | After JS-disabled + browser parity for all public pages |
+| Core Nuxt public pages | Thin shells + Host body islands | Theme L1 owns shells/chrome (`sf-navbar`/`sf-footer`); fail-closed `SFHostPublicChrome` | Host island CSS residual; fail-closed Page Outlet never removed |
 | Legacy Page Outlet fallback to core slot | Required safety | Emergency fallback remains | Never fully remove fail-closed fallback |
 
 Authoritative LTS telemetry lives in `apps/api/app/Support/APILTS`.
@@ -67,8 +67,9 @@ enable with trust). They must not require core product route or schema edits.
 6. APILTS shim usage telemetry shows zero for the target contract for one full LTS window.
 7. Security review for guards, raw DB, route replace, L2, files, secrets, HTTP, OpenAPI, plugin-to-plugin authority signed off.
 
-Until then: **keep** v1 adapters, core Nuxt presentation, emergency Page Outlet
-fallback, and migration ledgers.
+Until then: **keep** v1 adapters, request-time template loader residual paths,
+emergency Page Outlet fallback, and migration ledgers. Public presentation page
++ chrome ownership is already theme L1 (2026-07-21).
 
 ## Rollback
 

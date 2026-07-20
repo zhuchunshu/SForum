@@ -4,7 +4,7 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-21 Trusted Plugin And Theme Platform V3 P13 residual (overall 99.5%)**
+- **2026-07-21 Trusted Plugin And Theme Platform V3 P13 residual (overall 99.6%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Identity/automation authority:
     `knowledge/decisions/2026-07-19-identity-provider-automation-authority.md`
@@ -25,8 +25,8 @@ This is the entry point for project memory.
   - P0-P12 complete. P13 **~99%**: command gates, reference packages, live
     API/ready, Baiduspider SSR green; production APILTS wiring; **SMTP** and
     **storage-fs** Protocol V2; **pages + public chrome** owned by theme L1 (navbar/footer islands) with
-    Host fail-closed chrome (`5b26b80fe`…`6b49b59f1`). Weighted **99.5%**.
-    Open: LTS-blocked loader/v1 deletions only. Evidence:
+    Host fail-closed chrome (`5b26b80fe`…`6b49b59f1`). Weighted **99.6%**.
+    Open: LTS-blocked loader/v1/compatibility deletions only (RemoveAfter≈2026-11-28 + zero-shim). Evidence:
     `docs/extensions/v3/p13-final-gates-evidence.md`.
   - Prior P11 closure handoff:
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p11-closure.md`

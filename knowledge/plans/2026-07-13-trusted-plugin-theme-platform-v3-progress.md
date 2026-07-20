@@ -1,7 +1,7 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-21
-Overall progress: **99.5%**
+Overall progress: **99.6%**
 Active phase: **P13 residual = LTS-blocked legacy deletion only**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
@@ -29,12 +29,21 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P10 Content/media/data | 8% | 100% | 8.00% |
 | P11 Platform services | 6% | 100% | 6.00% |
 | P12 Operations/ecosystem | 6% | 100% | 6.00% |
-| P13 References/removal/final gates | 5% | 99.8% | 4.99% |
+| P13 References/removal/final gates | 5% | 99.9% | 4.995% |
 
 Displayed overall progress is the floor of earned weighted progress until the
 program reaches 100% and every final gate passes.
 
 
+
+## 2026-07-21 P13 LTS Residual Only (~99.6%)
+
+- Presentation pages + chrome ownership closed; WIP absorption verified.
+- Open task-book rows (3): request-time loader residual, Protocol V1 paths,
+  compatibility removal — all gated by APILTS RemoveAfter (~2026-11-28 seed)
+  + zero-shim + full deletion checklist.
+- Fail-closed SFPageOutlet never removed.
+- Commits: presentation `762119312`…`6b49b59f1`; WIP `9621df741`…`d319b64a8`.
 
 ## 2026-07-21 P13 Presentation Chrome Ownership (~99.5%)
 

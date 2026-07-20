@@ -4,46 +4,41 @@ Last updated: 2026-07-21
 
 ## Progress
 
-- Verified weighted progress: **99.5%** (display **99%**).
-- Phase counts: P0-P12 complete; P13 **~99.5%**.
-- Presentation ownership: **pages + public chrome migrated**. Theme L1 owns
-  shells and navbar/footer islands; Nuxt default layout is pass-through;
-  fail-closed uses SFHostPublicChrome.
-- Residual only: Host island CSS (interactive body islands); LTS-blocked
-  loader/v1/compatibility deletions (APILTS RemoveAfter + zero-shim).
+- Verified weighted progress: **99.6%** (display **99%**).
+- Phase counts: P0-P12 complete; P13 **~99.6%**.
+- Presentation pages + chrome ownership closed.
+- Unowned WIP absorbed and verified (route inspector invocationStage, public
+  L2 graph hardening, Link header docs, websocket trust-revoke tests, etc.).
+- Residual **only** LTS-blocked deletions (3 open task-book rows):
+  1. request-time template loader residual (fail-closed SFPageOutlet forever)
+  2. Protocol V1 paths (RemoveAfter ~2026-11-28 + zero-shim)
+  3. compatibility path removal after full LTS checklist
 
 ## Current Subtask
 
-### 2026-07-21 P13 presentation chrome ownership closed
+### 2026-07-21 P13 residual = LTS deletion gate only
 
-- Host chrome: `762119312` SFHostPublicChrome, `c195871bf` thin layout + outlet
-- Theme chrome islands: `3789225a1`
-- Tests: `6b49b59f1`
-- Presentation migration + Program DoD theme ownership rows checked in task book.
-- Exact next: keep LTS deletion rows open until RemoveAfter + zero-shim; do not
-  delete LoadTemplate / Protocol V1 / fail-closed SFPageOutlet.
-- Unowned dirty WIP — do not stage.
+- Exact next: **do not delete** LoadTemplate / Protocol V1 / SFPageOutlet.
+- Operator: `cd apps/api && go run ./cmd/sforum extension api-lts`
+- Seeded Protocol V1 `RemoveAfter` is DeprecatedAt(2026-06-01)+180d ≈ 2026-11-28.
+- Working tree should be clean after WIP absorption commits.
 
-## Tests run (this slice)
+## Recent commits (WIP absorption)
 
-- bun: defaultThemeHomepage, presentationOwnershipRemaining, pageOutlet, authRouteRendering, p9JoinedVisualMatrix: green
-- go: TestBuiltinThemesCoverAllReplaceablePages: green
+- `9621df741`…`d319b64a8` route Link docs, inspector stage, L2 graph, tests,
+  content-policy digest, go.mod x/text
 
-## Commits this slice (chrome)
+## Tests
 
-- `762119312` feat(web): add SFHostPublicChrome for fail-closed public chrome
-- `c195871bf` feat(web): thin Nuxt default layout; fail-closed uses host chrome
-- `3789225a1` feat(themes): mount navbar and footer islands on public L1 shells
-- `6b49b59f1` test(presentation): cover theme chrome islands and host fail-closed shell
+- bun: publicExtensionRuntime + adminRouteInspector: green
+- go: PageViewModels, Routes, Http (websocket + action v2): green
+- OpenAPI refs: OK (2014)
 
 ## Rollback
 
-- Revert `762119312`…`6b49b59f1` for chrome migration.
-- Do not delete LTS shims.
-
-## Unowned dirty WIP (do not stage)
-
-- route-inspector web/OpenAPI, content-policy, go.mod, PageViewModels, etc.
+- Revert `9621df741`…`d319b64a8` for WIP absorption chain.
+- Presentation chrome: `762119312`…`6b49b59f1`.
+- Never delete LTS shims early.
 
 
 ---
