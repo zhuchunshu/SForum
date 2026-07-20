@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-21
-Overall progress: **94.0%**
-Active phase: **P12 nearly closed; P13 open**
+Overall progress: **97.0%**
+Active phase: **P13 in progress (~40%)**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -28,11 +28,34 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P9 Components/assets/L2 | 8% | 100% | 8.00% |
 | P10 Content/media/data | 8% | 100% | 8.00% |
 | P11 Platform services | 6% | 100% | 6.00% |
-| P12 Operations/ecosystem | 6% | 90% | 5.40% |
-| P13 References/removal/final gates | 5% | 0% | 0% |
+| P12 Operations/ecosystem | 6% | 100% | 6.00% |
+| P13 References/removal/final gates | 5% | 40% | 2.00% |
 
 Displayed overall progress is the floor of earned weighted progress until the
 program reaches 100% and every final gate passes.
+
+
+## 2026-07-21 P13 Reference Themes And Five Plugin Classes Landed (~40%)
+
+- Themes: default + nocturne full replaceable Page Registry L1 (21 pages),
+  layouts/partials, Nocturne settings + plugin override, host body islands.
+  Gate: `TestBuiltinThemesCoverAllReplaceablePages` (`47e927071`).
+- SEO multi-kind Protocol V2 fixture + product gate (`0131a6f98`).
+- Identity privacy export/erase on membership reference (`c88638a28`).
+- Custom-content / media-optimize / commerce-workflow(+ext) fixtures +
+  product gates (`a4bd0928d`…`d14cdf387`) and inventory matrix (`c446408f1`).
+- Open: full commerce route matrix depth, media scan/CDN/admin bulk,
+  custom-content import/export/search execution, migration/legacy removal,
+  and final gates (`go test ./...`, typecheck, browser, perf/security).
+- Exact next: deepen remaining reference surfaces, then migration policy
+  docs without premature legacy deletion, then final gates.
+
+## 2026-07-21 P12 Closed At 100%
+
+- Overall advances to **95.0%** after flooring (exact ≈ `89 + 6 = 95.0`).
+- All P12 Tasks and Tests rows checked. Compat farm v0 + rollout/marketplace/
+  privacy/LTS/system tier/package CLI landed.
+- Exact next: P13 reference themes/plugins, migration, legacy removal, final gates.
 
 ## 2026-07-21 P12 Ops Packages Landed (~90%)
 

@@ -4,6 +4,37 @@ Last updated: 2026-07-21
 
 ## Progress
 
+- Verified weighted progress: **97.0%** (display **97.0%**).
+- Phase counts: P0-P12 complete; P13 **~40%** (reference themes + five plugin
+  classes landed; migration/legacy removal and final gates open).
+
+## Current Subtask
+
+### 2026-07-21 P13 Reference Packages Landed — Deepen Surfaces + Final Gates
+
+- Commits: themes `47e927071`, SEO `0131a6f98`, custom-content `a4bd0928d`,
+  media `bf5e734f0`, commerce `d14cdf387`, matrix `c446408f1`, membership
+  privacy `c88638a28`.
+- Focused gates green: theme completeness, SEO multi-kind subprocess,
+  custom/media/commerce product tests, membership privacy, Pages/ThemeCompiler/
+  SEO/Privacy/CompatFarm package tests, `go build ./...`.
+- Exact next: expand commerce/media/custom-content remaining surface depth,
+  document migration/LTS (no premature legacy delete), then final gates.
+- Unowned dirty WIP (do not stage): route-inspector web/OpenAPI, content-policy,
+  PageViewModels, go.mod, host-api-v2, websocket revoke test, ADR noise.
+- Rollback: revert `c88638a28`…`47e927071` chain for P13 reference slices.
+
+---
+
+
+## Prior Ledger Archive
+
+# Trusted Plugin And Theme Platform V3 Progress Ledger
+
+Last updated: 2026-07-21
+
+## Progress
+
 - Verified weighted progress: **89.30%** (display **89.0%**).
 - Phase counts: P0-P11 complete; P12 ~5%, P13 open.
 
