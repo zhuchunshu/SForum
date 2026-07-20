@@ -8,8 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
-	"strings"
 	"testing"
 	"time"
 
@@ -125,47 +123,38 @@ func buildProtocolV2StorageBuiltin(t *testing.T, repositoryRoot string) extensio
 	sourceRoot := filepath.Join(repositoryRoot, "extensions", "builtin", "plugins", packageName)
 	moduleRoot := filepath.Join(sourceRoot, "backend")
 
-	sourceBinary := filepath.Join(moduleRoot, "plugin")
-	command := exec.Command("go", "build", "-trimpath", "-buildvcs=false", "-o", sourceBinary, ".")
+	// 始终在临时包中构建，避免污染源码树 gitignored backend/plugin。
+	packageRoot := filepath.Join(t.TempDir(), packageName)
+	if err := copyTree(sourceRoot, packageRoot); err != nil {
+		t.Fatalf("copy package: %v", err)
+	}
+	_ = os.Remove(filepath.Join(packageRoot, "backend", "plugin"))
+	binaryPath := filepath.Join(packageRoot, "backend", "plugin")
+	command := exec.Command("go", "build", "-trimpath", "-buildvcs=false", "-o", binaryPath, ".")
 	command.Dir = moduleRoot
 	command.Env = append(os.Environ(), "GOWORK="+temporaryPluginWorkspace(t, repositoryRoot, moduleRoot))
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("build storage-fs v2 binary: %v\n%s", err, output)
 	}
-	body, err := os.ReadFile(sourceBinary)
+	body, err := os.ReadFile(binaryPath)
 	if err != nil {
 		t.Fatalf("read binary: %v", err)
 	}
 	sum := sha256.Sum256(body)
 	digest := hex.EncodeToString(sum[:])
 
-	manifest, err := extensionmanifest.LoadPackage(sourceRoot)
+	manifestPath := filepath.Join(packageRoot, extensions.ManifestFileName)
+	raw, err := os.ReadFile(manifestPath)
 	if err != nil {
-		packageRoot := filepath.Join(t.TempDir(), packageName)
-		if err := copyTree(sourceRoot, packageRoot); err != nil {
-			t.Fatalf("copy package: %v", err)
-		}
-		manifestPath := filepath.Join(packageRoot, extensions.ManifestFileName)
-		raw, err := os.ReadFile(manifestPath)
-		if err != nil {
-			t.Fatalf("read manifest: %v", err)
-		}
-		updated := replaceStorageDigests(raw, digest)
-		if err := os.WriteFile(manifestPath, updated, 0o644); err != nil {
-			t.Fatalf("write manifest: %v", err)
-		}
-		manifest, err = extensionmanifest.LoadPackage(packageRoot)
-		if err != nil {
-			t.Fatalf("load storage-fs v2 package after digest rewrite: %v", err)
-		}
-		sourceRoot = packageRoot
-	} else if manifest.Backend.Digest != digest {
-		manifest.Backend.Digest = digest
-		for i := range manifest.PackageFiles {
-			if manifest.PackageFiles[i].Path == "backend/plugin" {
-				manifest.PackageFiles[i].Digest = digest
-			}
-		}
+		t.Fatalf("read manifest: %v", err)
+	}
+	// 复用 JSON 级 digest 改写（与 SMTP 相同，不硬编码历史摘要）。
+	if err := os.WriteFile(manifestPath, replaceSMTPDigests(raw, digest), 0o644); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	manifest, err := extensionmanifest.LoadPackage(packageRoot)
+	if err != nil {
+		t.Fatalf("load storage-fs v2 package after digest rewrite: %v", err)
 	}
 	if manifest.Backend.ProtocolVersion != 2 {
 		t.Fatalf("default storage-fs package must be protocol v2: %#v", manifest.Backend)
@@ -173,19 +162,6 @@ func buildProtocolV2StorageBuiltin(t *testing.T, repositoryRoot string) extensio
 	return extensions.Extension{
 		ID: manifest.ID, Name: manifest.Name, Version: manifest.Version, Type: manifest.Type,
 		Status: extensions.StatusEnabled, Source: extensions.SourceBuiltin,
-		Manifest: manifest, PackagePath: sourceRoot, PackageDigest: digest,
+		Manifest: manifest, PackagePath: packageRoot, PackageDigest: digest,
 	}
 }
-
-func replaceStorageDigests(raw []byte, digest string) []byte {
-	// 测试辅助：把已提交 digest 替换为本次构建值。
-	const committed = "2117bbae31c81d13d3a69843592496be39d11c6a8984895477bc49812581bbe9"
-	text := string(raw)
-	if strings.Contains(text, committed) {
-		return []byte(strings.ReplaceAll(text, committed, digest))
-	}
-	// 回退：替换 backend/packageFiles 中 64 位 hex digest（仅测试路径）。
-	return storageDigestPattern.ReplaceAll(raw, []byte(`"digest": "`+digest+`"`))
-}
-
-var storageDigestPattern = regexp.MustCompile(`"digest"\s*:\s*"[0-9a-f]{64}"`)

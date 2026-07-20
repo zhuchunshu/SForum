@@ -64,53 +64,38 @@ func buildProtocolV2SMTPBuiltin(t *testing.T, repositoryRoot string) extensions.
 	sourceRoot := filepath.Join(repositoryRoot, "extensions", "builtin", "plugins", packageName)
 	moduleRoot := filepath.Join(sourceRoot, "backend")
 
-	// 在源码树构建可执行文件，使 manifest packageFiles digest 校验通过。
-	sourceBinary := filepath.Join(moduleRoot, "plugin")
-	command := exec.Command("go", "build", "-trimpath", "-buildvcs=false", "-o", sourceBinary, ".")
+	// 始终在临时包中构建，避免污染源码树 gitignored backend/plugin 与已提交 digest。
+	packageRoot := filepath.Join(t.TempDir(), packageName)
+	if err := copyTree(sourceRoot, packageRoot); err != nil {
+		t.Fatalf("copy package: %v", err)
+	}
+	// 丢弃可能从源树拷入的本地产物。
+	_ = os.Remove(filepath.Join(packageRoot, "backend", "plugin"))
+	binaryPath := filepath.Join(packageRoot, "backend", "plugin")
+	command := exec.Command("go", "build", "-trimpath", "-buildvcs=false", "-o", binaryPath, ".")
 	command.Dir = moduleRoot
 	command.Env = append(os.Environ(), "GOWORK="+temporaryPluginWorkspace(t, repositoryRoot, moduleRoot))
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("build smtp v2 binary: %v\n%s", err, output)
 	}
-	body, err := os.ReadFile(sourceBinary)
+	body, err := os.ReadFile(binaryPath)
 	if err != nil {
 		t.Fatalf("read binary: %v", err)
 	}
 	sum := sha256.Sum256(body)
 	digest := hex.EncodeToString(sum[:])
 
-	// 若提交的 digest 与本机构建不一致，仍用实际 digest 启动（制品一致性由 CI 机器对齐）。
-	manifest, err := extensionmanifest.LoadPackage(sourceRoot)
+	manifestPath := filepath.Join(packageRoot, extensions.ManifestFileName)
+	raw, err := os.ReadFile(manifestPath)
 	if err != nil {
-		// digest 漂移时改写临时副本再加载。
-		packageRoot := filepath.Join(t.TempDir(), packageName)
-		if err := copyTree(sourceRoot, packageRoot); err != nil {
-			t.Fatalf("copy package: %v", err)
-		}
-		manifestPath := filepath.Join(packageRoot, extensions.ManifestFileName)
-		raw, err := os.ReadFile(manifestPath)
-		if err != nil {
-			t.Fatalf("read manifest: %v", err)
-		}
-		// 简单替换 digest 字段为本次构建值。
-		updated := replaceSMTPDigests(raw, digest)
-		if err := os.WriteFile(manifestPath, updated, 0o644); err != nil {
-			t.Fatalf("write manifest: %v", err)
-		}
-		manifest, err = extensionmanifest.LoadPackage(packageRoot)
-		if err != nil {
-			t.Fatalf("load smtp v2 package after digest rewrite: %v", err)
-		}
-		sourceRoot = packageRoot
-		sourceBinary = filepath.Join(packageRoot, "backend", "plugin")
-	} else if manifest.Backend.Digest != digest {
-		// 已通过校验但 digest 不同：强制以构建产物为准。
-		manifest.Backend.Digest = digest
-		for i := range manifest.PackageFiles {
-			if manifest.PackageFiles[i].Path == "backend/plugin" {
-				manifest.PackageFiles[i].Digest = digest
-			}
-		}
+		t.Fatalf("read manifest: %v", err)
+	}
+	if err := os.WriteFile(manifestPath, replaceSMTPDigests(raw, digest), 0o644); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	manifest, err := extensionmanifest.LoadPackage(packageRoot)
+	if err != nil {
+		t.Fatalf("load smtp v2 package after digest rewrite: %v", err)
 	}
 	if manifest.Backend.ProtocolVersion != 2 {
 		t.Fatalf("default smtp package must be protocol v2: %#v", manifest.Backend)
@@ -118,7 +103,7 @@ func buildProtocolV2SMTPBuiltin(t *testing.T, repositoryRoot string) extensions.
 	return extensions.Extension{
 		ID: manifest.ID, Name: manifest.Name, Version: manifest.Version, Type: manifest.Type,
 		Status: extensions.StatusEnabled, Source: extensions.SourceBuiltin,
-		Manifest: manifest, PackagePath: sourceRoot, PackageDigest: digest,
+		Manifest: manifest, PackagePath: packageRoot, PackageDigest: digest,
 	}
 }
 

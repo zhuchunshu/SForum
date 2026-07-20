@@ -1,6 +1,11 @@
 package extensionmanifest
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -13,7 +18,35 @@ func TestBuiltinSMTPManifestValidatesWithSchemaActions(t *testing.T) {
 	}
 	// apps/api/app/Support/ExtensionManifest -> repo root
 	root := filepath.Clean(filepath.Join(filepath.Dir(file), "../../../../../"))
-	packageRoot := filepath.Join(root, "extensions/builtin/plugins/sforum-smtp")
+	sourceRoot := filepath.Join(root, "extensions/builtin/plugins/sforum-smtp")
+	// 临时构建 + digest，避免依赖源码树 gitignored binary 是否与已提交摘要一致。
+	packageRoot := filepath.Join(t.TempDir(), "sforum-smtp")
+	if err := copyDirForSMTPTest(sourceRoot, packageRoot); err != nil {
+		t.Fatalf("copy smtp package: %v", err)
+	}
+	_ = os.Remove(filepath.Join(packageRoot, "backend", "plugin"))
+	binary := filepath.Join(packageRoot, "backend", "plugin")
+	build := exec.Command("go", "build", "-trimpath", "-buildvcs=false", "-o", binary, ".")
+	build.Dir = filepath.Join(sourceRoot, "backend")
+	build.Env = append(os.Environ(), "CGO_ENABLED=0", "GOOS="+runtime.GOOS, "GOARCH="+runtime.GOARCH)
+	if output, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("build smtp backend: %v\n%s", err, output)
+	}
+	body, err := os.ReadFile(binary)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(body)
+	digest := hex.EncodeToString(sum[:])
+	manifestPath := filepath.Join(packageRoot, ManifestFileName)
+	raw, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(manifestPath, rewriteExecutableDigests(raw, digest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
 	// LoadPackage 支持单文件与 includes 多文件；SMTP 迁移后仍走此路径。
 	normalized, err := LoadPackage(packageRoot)
 	if err != nil {
@@ -45,4 +78,58 @@ func TestBuiltinSMTPManifestValidatesWithSchemaActions(t *testing.T) {
 	if LocalizedDisplay(normalized, "zh-CN").Name != "SForum SMTP" {
 		t.Fatalf("unexpected zh-CN name: %q", LocalizedDisplay(normalized, "zh-CN").Name)
 	}
+}
+
+func rewriteExecutableDigests(raw []byte, digest string) []byte {
+	var root map[string]any
+	if err := json.Unmarshal(raw, &root); err != nil {
+		return raw
+	}
+	if backend, ok := root["backend"].(map[string]any); ok {
+		backend["digest"] = digest
+		root["backend"] = backend
+	}
+	if files, ok := root["packageFiles"].([]any); ok {
+		for _, item := range files {
+			file, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			path, _ := file["path"].(string)
+			kind, _ := file["kind"].(string)
+			if path == "backend/plugin" || kind == "executable" {
+				file["digest"] = digest
+			}
+		}
+		root["packageFiles"] = files
+	}
+	encoded, err := json.MarshalIndent(root, "", "  ")
+	if err != nil {
+		return raw
+	}
+	return append(encoded, '\n')
+}
+
+func copyDirForSMTPTest(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+		if info.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return err
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(target, data, info.Mode())
+	})
 }
