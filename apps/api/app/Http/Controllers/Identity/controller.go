@@ -668,6 +668,13 @@ func (h *Controller) sessionUserID(c fiber.Ctx) (int64, bool, error) {
 	return h.authSessions.CurrentUserID(c)
 }
 
+func (h *Controller) sessionUserIDWithoutRenewal(c fiber.Ctx) (int64, bool, error) {
+	if userID, ok := apitokens.UserIDFromContext(c.Context()); ok {
+		return userID, true, nil
+	}
+	return h.authSessions.CurrentUserIDWithoutRenewal(c)
+}
+
 // runSessionIssue keeps the Host issue mutation inside exact policy admission.
 // Nil evaluator preserves the Core default and executes the effect directly.
 func (h *Controller) runSessionIssue(
@@ -706,6 +713,15 @@ func (h *Controller) beginSessionIssue(
 
 func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
 	userID, ok, err := h.sessionUserID(c)
+	return h.actorForUserID(c, userID, ok, err)
+}
+
+func (h *Controller) actorWithoutSessionRenewal(c fiber.Ctx) (identity.Actor, error) {
+	userID, ok, err := h.sessionUserIDWithoutRenewal(c)
+	return h.actorForUserID(c, userID, ok, err)
+}
+
+func (h *Controller) actorForUserID(c fiber.Ctx, userID int64, ok bool, err error) (identity.Actor, error) {
 	if err != nil {
 		return identity.Actor{}, err
 	}
@@ -797,7 +813,7 @@ func (h *Controller) listSessions(c fiber.Ctx) error {
 // 越权保护：传别人的 sid 会因 store 层 user_id 不匹配返回 ErrSessionNotFound → 404，
 // 不泄漏该 sid 是否属于他人。
 func (h *Controller) revokeSession(c fiber.Ctx) error {
-	userID, ok, err := h.sessionUserID(c)
+	userID, ok, err := h.sessionUserIDWithoutRenewal(c)
 	if err != nil {
 		return err
 	}
@@ -816,7 +832,7 @@ func (h *Controller) revokeSession(c fiber.Ctx) error {
 
 // revokeOtherSessions 下线除当前设备外的所有其他设备。
 func (h *Controller) revokeOtherSessions(c fiber.Ctx) error {
-	userID, ok, err := h.sessionUserID(c)
+	userID, ok, err := h.sessionUserIDWithoutRenewal(c)
 	if err != nil {
 		return err
 	}
@@ -835,7 +851,7 @@ func (h *Controller) revokeOtherSessions(c fiber.Ctx) error {
 // 权限：user.manage；禁止对自己操作（下线自己请用 logout）。
 // 鉴权在 service 层为权威，此处 actor 解析失败返回 401/403。
 func (h *Controller) adminRevokeUserSessions(c fiber.Ctx) error {
-	actor, err := h.actor(c)
+	actor, err := h.actorWithoutSessionRenewal(c)
 	if err != nil {
 		return err
 	}

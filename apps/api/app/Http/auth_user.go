@@ -19,6 +19,19 @@ func ResolveUserID(c fiber.Ctx, sessions *authsession.Manager) (int64, bool, err
 	return sessions.CurrentUserID(c)
 }
 
+// ResolveUserIDWithoutRenewal authenticates the current credential without
+// rotating a cookie. Host-owned logout/revocation routes use this path so a
+// third-party renew policy cannot veto the recovery action.
+func ResolveUserIDWithoutRenewal(c fiber.Ctx, sessions *authsession.Manager) (int64, bool, error) {
+	if userID, ok := apitokens.UserIDFromContext(c.Context()); ok {
+		return userID, true, nil
+	}
+	if sessions == nil {
+		return 0, false, nil
+	}
+	return sessions.CurrentUserIDWithoutRenewal(c)
+}
+
 // LoadActor 加载 Actor，并在 PAT 请求上按「当前权限 ∩ scopes」收窄。
 func LoadActor(c fiber.Ctx, sessions *authsession.Manager, users identity.ActorStore) (identity.Actor, error) {
 	userID, ok, err := ResolveUserID(c, sessions)
@@ -43,7 +56,26 @@ func LoadActor(c fiber.Ctx, sessions *authsession.Manager, users identity.ActorS
 
 // OptionalActor 解析可选登录主体：匿名返回零值 Actor；PAT 同样按 scopes 收窄。
 func OptionalActor(c fiber.Ctx, sessions *authsession.Manager, users identity.ActorStore) (identity.Actor, error) {
-	userID, ok, err := ResolveUserID(c, sessions)
+	return optionalActor(c, sessions, users, false)
+}
+
+// OptionalActorWithoutRenewal is restricted to Host-owned security recovery
+// routes. Ordinary requests must keep normal renewal behavior.
+func OptionalActorWithoutRenewal(c fiber.Ctx, sessions *authsession.Manager, users identity.ActorStore) (identity.Actor, error) {
+	return optionalActor(c, sessions, users, true)
+}
+
+func optionalActor(
+	c fiber.Ctx,
+	sessions *authsession.Manager,
+	users identity.ActorStore,
+	withoutRenewal bool,
+) (identity.Actor, error) {
+	resolve := ResolveUserID
+	if withoutRenewal {
+		resolve = ResolveUserIDWithoutRenewal
+	}
+	userID, ok, err := resolve(c, sessions)
 	if err != nil {
 		return identity.Actor{}, err
 	}

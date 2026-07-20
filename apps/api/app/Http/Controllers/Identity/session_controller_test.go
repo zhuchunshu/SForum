@@ -8,6 +8,7 @@ import (
 	nethttp "net/http"
 	"net/http/httptest"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -350,6 +351,31 @@ func newSessionTestApp(t *testing.T) (*fiber.App, *sessionTestStore) {
 	return app, store
 }
 
+func newDueRenewalSessionTestApp(t *testing.T) (*fiber.App, *sessionTestStore, *atomic.Int32) {
+	t.Helper()
+	store := newSessionTestStore()
+	service := identity.NewService(store)
+	gateCalls := &atomic.Int32{}
+	manager := authsession.NewManager(
+		session.NewStore(session.Config{IdleTimeout: time.Hour}),
+		authsession.Config{
+			HashSecret:      "due-renewal-test-secret",
+			SessionStore:    store,
+			TokenVersion:    store.GetUserTokenVersion,
+			RenewalInterval: time.Nanosecond,
+			RenewalEffectGate: func(context.Context, int64, int64, authsession.RenewalEffect) error {
+				gateCalls.Add(1)
+				return errors.New("test renewal policy denied")
+			},
+		},
+	)
+	controller := NewControllerWithAuthSessions(service, manager, nil)
+	app := apphttp.NewApp(config.Config{CSRFEnabled: false}, nil, apphttp.Dependencies{
+		RouteProviders: []apphttp.RouteProvider{controller},
+	})
+	return app, store, gateCalls
+}
+
 type loginRiskTestLockout struct {
 	required bool
 }
@@ -559,6 +585,82 @@ func TestRevokeOtherSessionsSucceeds(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != nethttp.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+}
+
+func TestHostSessionRecoveryControllersBypassDueRenewal(t *testing.T) {
+	t.Run("ordinary session control", func(t *testing.T) {
+		app, _, gateCalls := newDueRenewalSessionTestApp(t)
+		cookie := registerAndLogin(t, app)
+		req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/auth/session", nil)
+		req.AddCookie(cookie)
+		resp, err := app.Test(req)
+		if err != nil {
+			t.Fatalf("ordinary session request failed: %v", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != nethttp.StatusUnauthorized || gateCalls.Load() != 1 {
+			t.Fatalf("ordinary session status=%d renewal calls=%d", resp.StatusCode, gateCalls.Load())
+		}
+	})
+
+	for _, test := range []struct {
+		name       string
+		method     string
+		path       func(*sessionTestStore) string
+		prepare    func(*sessionTestStore)
+		wantStatus int
+	}{
+		{
+			name: "logout", method: nethttp.MethodPost,
+			path:       func(*sessionTestStore) string { return "/api/v1/auth/logout" },
+			wantStatus: nethttp.StatusOK,
+		},
+		{
+			name: "single session", method: nethttp.MethodDelete,
+			path: func(store *sessionTestStore) string {
+				store.mu.Lock()
+				defer store.mu.Unlock()
+				return "/api/v1/auth/sessions/" + store.sessions[0].sid
+			},
+			wantStatus: nethttp.StatusOK,
+		},
+		{
+			name: "other sessions", method: nethttp.MethodPost,
+			path:       func(*sessionTestStore) string { return "/api/v1/auth/sessions/revoke-others" },
+			wantStatus: nethttp.StatusOK,
+		},
+		{
+			name: "admin revoke all", method: nethttp.MethodPost,
+			path: func(*sessionTestStore) string { return "/api/v1/users/2/sessions/revoke" },
+			prepare: func(store *sessionTestStore) {
+				store.mu.Lock()
+				defer store.mu.Unlock()
+				actor := store.users[1]
+				actor.Permissions = append(actor.Permissions, identity.PermissionUserManage)
+				store.users[1] = actor
+				store.sessions = append(store.sessions, sessionTestRow{userID: 2, sid: "target-session", lastSeenAt: time.Now()})
+			},
+			wantStatus: nethttp.StatusOK,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			app, store, gateCalls := newDueRenewalSessionTestApp(t)
+			cookie := registerAndLogin(t, app)
+			if test.prepare != nil {
+				test.prepare(store)
+			}
+			req := httptest.NewRequest(test.method, test.path(store), nil)
+			req.AddCookie(cookie)
+			resp, err := app.Test(req)
+			if err != nil {
+				t.Fatalf("recovery request failed: %v", err)
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != test.wantStatus || gateCalls.Load() != 0 {
+				t.Fatalf("status=%d want=%d renewal calls=%d", resp.StatusCode, test.wantStatus, gateCalls.Load())
+			}
+		})
 	}
 }
 

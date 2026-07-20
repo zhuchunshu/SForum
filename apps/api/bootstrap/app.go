@@ -926,7 +926,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		RoutePlans:      lifecycleStack.RouteProviders,
 		RouteDispatcher: routeDispatcher,
 		RouteActors: func(c fiber.Ctx) (identity.Actor, error) {
-			return httpserver.OptionalActor(c, authSessions, identityStore)
+			return loadSessionPolicyAwareRouteActor(c, authSessions, identityStore)
 		},
 		Options:      optionsService,
 		Storage:      redisStorage,
