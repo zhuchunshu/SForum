@@ -18,11 +18,11 @@ This is the entry point for project memory.
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p13-apilts-handoff.md`
   - Prior P13 residual handoff:
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p13-handoff.md`
-  - P0-P12 complete. P13 **~98.5%**: command gates, reference packages, live
-    API/ready, Baiduspider SSR green; **production APILTS Protocol V1 shim
-    telemetry wired** (`e10eeae15`…`9bf9d93fb`). Weighted progress **99.0%**.
-    Only LTS-blocked legacy **deletion** remains open by policy
-    (`p13-migration-and-lts.md`). Evidence:
+  - P0-P12 complete. P13 **~99%**: command gates, reference packages, live
+    API/ready, Baiduspider SSR green; production APILTS wiring; **SMTP default
+    Protocol V2** (`f1abc8d0f`); home HostPageIsland parity (`c1fdce6b4`).
+    Weighted progress **99.0%**. Open by policy: three LTS deletion rows;
+    `sforum.storage-fs` stays V1 until Host storage V2 RPCs exist. Evidence:
     `docs/extensions/v3/p13-final-gates-evidence.md`.
   - Prior P11 closure handoff:
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p11-closure.md`
