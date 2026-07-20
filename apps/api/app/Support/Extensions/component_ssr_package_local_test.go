@@ -119,6 +119,182 @@ func TestPackageLocalComponentSSRPublishAndRender(t *testing.T) {
 	}
 }
 
+func TestPackageLocalFilterTemplatesTransformPropsAndResult(t *testing.T) {
+	root := t.TempDir()
+	propsBody := `{"scope":{{json (printf "%s-filtered" (index .Props "scope"))}}}`
+	resultBody := `{"html":{{json (printf "%s-filtered" (index .Result "html"))}}}`
+	writePackageLocalTestFile(t, root, "templates/filter-props.json.tmpl", propsBody)
+	writePackageLocalTestFile(t, root, "templates/filter-result.json.tmpl", resultBody)
+	propsDigest := sha256.Sum256([]byte(propsBody))
+	resultDigest := sha256.Sum256([]byte(resultBody))
+	packageDigest := strings.Repeat("e", 64)
+	extension := extensions.Extension{
+		ID: "demo.filter", Version: "1.0.0", Type: extensions.TypePlugin,
+		PackageDigest: packageDigest, PackagePath: root,
+		Manifest: extensions.Manifest{
+			ManifestVersion: 3, ID: "demo.filter", Version: "1.0.0", Type: extensions.TypePlugin,
+			Components: []extensions.ManifestComponent{
+				{
+					ID: "demo.filter.component.props", ContractVersion: "demo.filter.component.props@1",
+					Action: extensionmanifest.ComponentActionFilterProps, TargetID: componentTestCoreTarget,
+					TargetContractVersion: componentTestCoreContract, Priority: 20,
+					SSRTemplate: "demo.filter.template.props", PropsSchema: "demo.filter.schema.props@1",
+				},
+				{
+					ID: "demo.filter.component.result", ContractVersion: "demo.filter.component.result@1",
+					Action: extensionmanifest.ComponentActionFilterResult, TargetID: componentTestCoreTarget,
+					TargetContractVersion: componentTestCoreContract, Priority: 10,
+					SSRTemplate: "demo.filter.template.result", ResultSchema: "demo.filter.schema.result@1",
+				},
+			},
+			Templates: []extensions.ManifestTemplate{
+				{
+					ID: "demo.filter.template.props", ContractVersion: "demo.filter.template.props@1",
+					Action: "add", Path: "templates/filter-props.json.tmpl",
+					Digest: hex.EncodeToString(propsDigest[:]), ViewModelSchema: "demo.filter.schema.props@1",
+				},
+				{
+					ID: "demo.filter.template.result", ContractVersion: "demo.filter.template.result@1",
+					Action: "add", Path: "templates/filter-result.json.tmpl",
+					Digest: hex.EncodeToString(resultDigest[:]), ViewModelSchema: "demo.filter.schema.result@1",
+				},
+			},
+		},
+	}
+	renderer := NewPackageLocalComponentSSRRenderer()
+	if err := renderer.Publish(extension); err != nil {
+		t.Fatal(err)
+	}
+	artifact := HookArtifact{
+		ExtensionID: "demo.filter", ExtensionVersion: "1.0.0",
+		PackageDigest: packageDigest, RuntimeInstanceID: "host-component-package:demo.filter",
+	}
+	propsOut, err := renderer.RenderComponent(context.Background(), ComponentRenderCall{
+		TargetID: componentTestCoreTarget, Artifact: artifact,
+		Contribution: ComponentContribution{
+			ID: "demo.filter.component.props", Action: extensionmanifest.ComponentActionFilterProps,
+			SSRTemplate: "demo.filter.template.props", Artifact: artifact,
+		},
+		Props: map[string]any{"scope": "home"},
+	})
+	if err != nil || propsOut.Document["scope"] != "home-filtered" || len(propsOut.Fragments) != 0 {
+		t.Fatalf("filter props = %#v err=%v", propsOut, err)
+	}
+	resultOut, err := renderer.RenderComponent(context.Background(), ComponentRenderCall{
+		TargetID: componentTestCoreTarget, Artifact: artifact,
+		Contribution: ComponentContribution{
+			ID: "demo.filter.component.result", Action: extensionmanifest.ComponentActionFilterResult,
+			SSRTemplate: "demo.filter.template.result", Artifact: artifact,
+		},
+		Result: map[string]any{"html": "body"},
+	})
+	if err != nil || resultOut.Document["html"] != "body-filtered" || len(resultOut.Fragments) != 0 {
+		t.Fatalf("filter result = %#v err=%v", resultOut, err)
+	}
+}
+
+func TestProductionComponentCompositionAppliesPackageLocalFilterMatrix(t *testing.T) {
+	id := "production.package.filters"
+	packageDigest := strings.Repeat("f", 64)
+	// 分离 HTML before 与 filter 模板，避免 Publish 时 kind 冲突。
+	propsFilter := componentTestContribution(
+		id, "filter-props", extensionmanifest.ComponentActionFilterProps, 80,
+		componentTestCoreTarget, componentTestCoreContract,
+	)
+	propsFilter.SSRTemplate = id + ".template.filter-props"
+	resultFilter := componentTestContribution(
+		id, "filter-result", extensionmanifest.ComponentActionFilterResult, 10,
+		componentTestCoreTarget, componentTestCoreContract,
+	)
+	resultFilter.SSRTemplate = id + ".template.filter-result"
+	before := componentTestContribution(
+		id, "before", extensionmanifest.ComponentActionBefore, 50,
+		componentTestCoreTarget, componentTestCoreContract,
+	)
+	before.SSRTemplate = id + ".template.before"
+	extension := componentTestExtension(t, id, extensions.TypePlugin, propsFilter, before, resultFilter)
+	extension.PackageDigest = packageDigest
+
+	propsBody := `{"scope":{{json (printf "%s-filtered" (index .Props "scope"))}}}`
+	resultBody := `{"html":{{json (printf "%s-filtered" (index .Result "html"))}}}`
+	beforeBody := `<div class="plugin-before">{{index .Props "scope"}}</div>`
+	writePackageLocalTestFile(t, extension.PackagePath, "templates/filter-props.json.tmpl", propsBody)
+	writePackageLocalTestFile(t, extension.PackagePath, "templates/filter-result.json.tmpl", resultBody)
+	writePackageLocalTestFile(t, extension.PackagePath, "templates/before.html", beforeBody)
+	propsDigest := sha256.Sum256([]byte(propsBody))
+	resultDigest := sha256.Sum256([]byte(resultBody))
+	beforeDigest := sha256.Sum256([]byte(beforeBody))
+	extension.Manifest.Templates = []extensions.ManifestTemplate{
+		{
+			ID: id + ".template.filter-props", ContractVersion: id + ".template.filter-props@1",
+			Action: "add", Path: "templates/filter-props.json.tmpl",
+			Digest: hex.EncodeToString(propsDigest[:]), ViewModelSchema: id + ".schema.props@1",
+		},
+		{
+			ID: id + ".template.filter-result", ContractVersion: id + ".template.filter-result@1",
+			Action: "add", Path: "templates/filter-result.json.tmpl",
+			Digest: hex.EncodeToString(resultDigest[:]), ViewModelSchema: id + ".schema.result@1",
+		},
+		{
+			ID: id + ".template.before", ContractVersion: id + ".template.before@1",
+			Action: "add", Path: "templates/before.html",
+			Digest: hex.EncodeToString(beforeDigest[:]), ViewModelSchema: id + ".schema.props@1",
+		},
+	}
+
+	registry := NewComponentRegistry()
+	if err := registry.ReplaceRuntime(extension, componentPackageRuntimeInstanceID(extension)); err != nil {
+		t.Fatal(err)
+	}
+	service, err := NewProductionComponentComposition(ProductionComponentCompositionConfig{
+		Registry: registry,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.PublishPackageSSR(extension); err != nil {
+		t.Fatal(err)
+	}
+	// 过滤器要求目标契约显式声明可写字段；生产页面目标由 Host binding 提供。
+	binding := ComponentTargetBinding{
+		Contract: ComponentCompositionContract{
+			ValidateProps: allowAnyComponentDocument, ValidateResult: allowAnyComponentDocument,
+			MutablePropsFields: []string{"scope"}, MutableResultFields: []string{"html"},
+			RetainPrimaryContent: true,
+		},
+		Fallback: func(_ context.Context, _ ComponentFallbackCall) (ComponentRenderResponse, error) {
+			return ComponentRenderResponse{
+				Document:  map[string]any{"html": "core-body"},
+				Fragments: []ComponentRenderFragment{{Text: "core", PrimaryContent: true}},
+			}, nil
+		},
+	}
+	input := map[string]any{"scope": "home"}
+	result, err := service.Compose(context.Background(), ComponentCompositionRequest{
+		TargetID: componentTestCoreTarget, TargetContractVersion: componentTestCoreContract,
+		Props: input, Binding: binding,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 输入不被就地修改；组合结果 props/result 经过 filter 变换。
+	if input["scope"] != "home" {
+		t.Fatalf("input mutated: %#v", input)
+	}
+	if result.Props["scope"] != "home-filtered" {
+		t.Fatalf("filtered props = %#v", result.Props)
+	}
+	// Core primary 结果经 filter_result 追加后缀。
+	html, _ := result.Result["html"].(string)
+	if !strings.Contains(html, "filtered") {
+		t.Fatalf("filtered result = %#v", result.Result)
+	}
+	joined := flattenComponentHTML(result.Segments)
+	if !strings.Contains(joined, "plugin-before") || !strings.Contains(joined, "home-filtered") {
+		t.Fatalf("composed HTML=%q", joined)
+	}
+}
+
 func TestProductionComponentCompositionUsesPackageLocalSSRByDefault(t *testing.T) {
 	id := "production.package.ssr"
 	packageDigest := strings.Repeat("c", 64)

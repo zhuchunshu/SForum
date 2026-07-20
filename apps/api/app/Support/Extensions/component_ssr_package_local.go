@@ -5,12 +5,14 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	texttemplate "text/template"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
@@ -21,11 +23,17 @@ import (
 // 不再访问包文件系统。
 //
 // 这是生产 PluginRenderer 的第一阶段：覆盖 package-local html/template 片段，
-// 不依赖 Protocol V2 子进程。子进程渲染可在后续阶段替换同一接口。
+// 以及 filter_props/filter_result 的 text/template JSON 文档变换。
+// Protocol V2 子进程渲染可在后续阶段替换同一接口。
 type PackageLocalComponentSSRRenderer struct {
 	mu    sync.RWMutex
 	byKey map[string]*packageLocalCompiledTemplate // packageDigest + "\x00" + templateID
 }
+
+const (
+	packageLocalTemplateKindHTML   = "html"
+	packageLocalTemplateKindFilter = "filter_json"
+)
 
 type packageLocalCompiledTemplate struct {
 	extensionID   string
@@ -33,7 +41,11 @@ type packageLocalCompiledTemplate struct {
 	templateID    string
 	path          string
 	digest        string
-	compiled      *template.Template
+	kind          string
+	// compiled 用于 HTML 片段（html/template，上下文转义）。
+	compiled *template.Template
+	// filter 用于 filter_props/filter_result 的 JSON 文档（text/template）。
+	filter *texttemplate.Template
 }
 
 // packageLocalTemplateData 是模板执行的固定数据契约。
@@ -65,6 +77,8 @@ func (r *PackageLocalComponentSSRRenderer) Publish(extension extensions.Extensio
 	if root == "" {
 		return fmt.Errorf("%w: package path is required", ErrComponentCompositionInvalid)
 	}
+	// kindByTemplate 按引用该模板的组件动作分类；同一模板不得混用 HTML 与 filter。
+	kindByTemplate := map[string]string{}
 	needed := map[string]extensions.ManifestTemplate{}
 	for _, component := range extension.Manifest.Components {
 		templateID := strings.TrimSpace(component.SSRTemplate)
@@ -75,6 +89,16 @@ func (r *PackageLocalComponentSSRRenderer) Publish(extension extensions.Extensio
 		if !ok {
 			return fmt.Errorf("%w: template %s is not declared", ErrComponentCompositionInvalid, templateID)
 		}
+		kind := packageLocalTemplateKindHTML
+		action := strings.TrimSpace(component.Action)
+		if action == extensionmanifest.ComponentActionFilterProps ||
+			action == extensionmanifest.ComponentActionFilterResult {
+			kind = packageLocalTemplateKindFilter
+		}
+		if existing, ok := kindByTemplate[templateID]; ok && existing != kind {
+			return fmt.Errorf("%w: template %s mixes HTML and filter actions", ErrComponentCompositionInvalid, templateID)
+		}
+		kindByTemplate[templateID] = kind
 		needed[templateID] = declared
 	}
 	compiled := make(map[string]*packageLocalCompiledTemplate, len(needed))
@@ -83,17 +107,32 @@ func (r *PackageLocalComponentSSRRenderer) Publish(extension extensions.Extensio
 		if err != nil {
 			return fmt.Errorf("%w: template %s: %v", ErrComponentCompositionInvalid, templateID, err)
 		}
-		// 仅允许 . / 字母数字与基础控制结构；html/template 自带上下文转义。
-		tpl, err := template.New(templateID).Option("missingkey=zero").Parse(string(body))
-		if err != nil {
-			return fmt.Errorf("%w: template %s parse: %v", ErrComponentCompositionInvalid, templateID, err)
+		kind := kindByTemplate[templateID]
+		item := &packageLocalCompiledTemplate{
+			extensionID: extension.ID, packageDigest: packageDigest,
+			templateID: templateID, path: declared.Path, digest: declared.Digest, kind: kind,
+		}
+		switch kind {
+		case packageLocalTemplateKindFilter:
+			// filter 输出 JSON 对象；提供 json 辅助函数安全嵌入任意值。
+			tpl, err := texttemplate.New(templateID).
+				Funcs(texttemplate.FuncMap{"json": packageLocalJSON}).
+				Option("missingkey=zero").
+				Parse(string(body))
+			if err != nil {
+				return fmt.Errorf("%w: filter template %s parse: %v", ErrComponentCompositionInvalid, templateID, err)
+			}
+			item.filter = tpl
+		default:
+			// HTML 片段：html/template 自带上下文转义。
+			tpl, err := template.New(templateID).Option("missingkey=zero").Parse(string(body))
+			if err != nil {
+				return fmt.Errorf("%w: template %s parse: %v", ErrComponentCompositionInvalid, templateID, err)
+			}
+			item.compiled = tpl
 		}
 		key := packageLocalTemplateKey(packageDigest, templateID)
-		compiled[key] = &packageLocalCompiledTemplate{
-			extensionID: extension.ID, packageDigest: packageDigest,
-			templateID: templateID, path: declared.Path, digest: declared.Digest,
-			compiled: tpl,
-		}
+		compiled[key] = item
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -167,8 +206,33 @@ func (r *PackageLocalComponentSSRRenderer) RenderComponent(
 	if isHostCoreComponentArtifact(call.Artifact) {
 		return coreComponentRenderResponse(call), nil
 	}
+	action := strings.TrimSpace(call.Contribution.Action)
 	templateID := strings.TrimSpace(call.Contribution.SSRTemplate)
 	packageDigest := strings.TrimSpace(call.Artifact.PackageDigest)
+
+	// filter 无 SSR 模板时透传 Document（可选过滤器）；有模板则执行 JSON 变换。
+	if action == extensionmanifest.ComponentActionFilterProps ||
+		action == extensionmanifest.ComponentActionFilterResult {
+		if templateID == "" {
+			if action == extensionmanifest.ComponentActionFilterProps {
+				return ComponentRenderResponse{
+					Artifact: call.Artifact, Document: cloneComponentDocumentMust(call.Props),
+				}, nil
+			}
+			return ComponentRenderResponse{
+				Artifact: call.Artifact, Document: cloneComponentDocumentMust(call.Result),
+			}, nil
+		}
+		if packageDigest == "" {
+			return ComponentRenderResponse{}, ErrComponentCompositionCrash
+		}
+		document, err := r.executeFilterTemplate(packageDigest, templateID, call)
+		if err != nil {
+			return ComponentRenderResponse{}, err
+		}
+		return ComponentRenderResponse{Artifact: call.Artifact, Document: document}, nil
+	}
+
 	if templateID == "" || packageDigest == "" {
 		return ComponentRenderResponse{}, ErrComponentCompositionCrash
 	}
@@ -176,23 +240,8 @@ func (r *PackageLocalComponentSSRRenderer) RenderComponent(
 	r.mu.RLock()
 	item := r.byKey[key]
 	r.mu.RUnlock()
-	if item == nil || item.compiled == nil {
+	if item == nil || item.kind != packageLocalTemplateKindHTML || item.compiled == nil {
 		return ComponentRenderResponse{}, ErrComponentCompositionCrash
-	}
-	// filter_props / filter_result 只改 Document，不产生 HTML 片段。
-	// 包本地阶段默认透传输入；需要变换时由后续 Protocol V2 渲染器接管。
-	action := strings.TrimSpace(call.Contribution.Action)
-	if action == extensionmanifest.ComponentActionFilterProps {
-		return ComponentRenderResponse{
-			Artifact: call.Artifact,
-			Document: cloneComponentDocumentMust(call.Props),
-		}, nil
-	}
-	if action == extensionmanifest.ComponentActionFilterResult {
-		return ComponentRenderResponse{
-			Artifact: call.Artifact,
-			Document: cloneComponentDocumentMust(call.Result),
-		}, nil
 	}
 	childrenHTML, err := packageLocalChildrenHTML(call.Children)
 	if err != nil {
@@ -216,6 +265,49 @@ func (r *PackageLocalComponentSSRRenderer) RenderComponent(
 		Document:  cloneComponentDocumentMust(call.Result),
 		Fragments: []ComponentRenderFragment{{ReviewedHTML: html}},
 	}, nil
+}
+
+// executeFilterTemplate 执行 text/template 并解析为 JSON object Document。
+func (r *PackageLocalComponentSSRRenderer) executeFilterTemplate(
+	packageDigest, templateID string,
+	call ComponentRenderCall,
+) (map[string]any, error) {
+	key := packageLocalTemplateKey(packageDigest, templateID)
+	r.mu.RLock()
+	item := r.byKey[key]
+	r.mu.RUnlock()
+	if item == nil || item.kind != packageLocalTemplateKindFilter || item.filter == nil {
+		return nil, ErrComponentCompositionCrash
+	}
+	data := packageLocalTemplateData{
+		Props: call.Props, Result: call.Result,
+		Contribution: call.Contribution.ID, TargetID: call.TargetID,
+	}
+	var buf bytes.Buffer
+	if err := item.filter.Execute(&buf, data); err != nil {
+		return nil, fmt.Errorf("%w: execute filter %s: %v", ErrComponentCompositionCrash, templateID, err)
+	}
+	raw := bytes.TrimSpace(buf.Bytes())
+	if len(raw) == 0 || raw[0] != '{' {
+		return nil, fmt.Errorf("%w: filter %s must emit a JSON object", ErrComponentCompositionCrash, templateID)
+	}
+	var document map[string]any
+	if err := json.Unmarshal(raw, &document); err != nil {
+		return nil, fmt.Errorf("%w: filter %s json: %v", ErrComponentCompositionCrash, templateID, err)
+	}
+	if document == nil {
+		return nil, fmt.Errorf("%w: filter %s returned null object", ErrComponentCompositionCrash, templateID)
+	}
+	return document, nil
+}
+
+// packageLocalJSON 供 filter 模板安全嵌入 JSON 字面量（含引号与转义）。
+func packageLocalJSON(value any) (string, error) {
+	body, err := json.Marshal(value)
+	if err != nil {
+		return "", err
+	}
+	return string(body), nil
 }
 
 func packageLocalTemplateKey(packageDigest, templateID string) string {
