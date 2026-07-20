@@ -306,6 +306,17 @@ func wrapLifecycleIdentityError(action string, err error) error {
 	return fmt.Errorf("%s: %w", action, err)
 }
 
+// BuildLifecycleIdentityPublication constructs the exact lifecycle Identity
+// Registry publication used by enable/restore paths. Integration tests call this
+// to prove the same Schema/provider metadata path without driving the full
+// coordinator.
+func BuildLifecycleIdentityPublication(
+	extension extensions.Extension,
+	binding extensions.LifecycleRuntimeBinding,
+) (*identityregistry.Publication, error) {
+	return buildLifecycleIdentityPublication(extension, binding)
+}
+
 func buildLifecycleIdentityPublication(
 	extension extensions.Extension,
 	binding extensions.LifecycleRuntimeBinding,

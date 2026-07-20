@@ -1,0 +1,324 @@
+{
+  "manifestVersion": 3,
+  "id": "sforum.membership-reference",
+  "name": "SForum Membership Reference",
+  "description": "Protocol V2 reference plugin for Identity/Auth/Profile/Recovery/session/risk surfaces and trusted automation capabilities.",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "author": {
+    "name": "SForum",
+    "url": "https://github.com/zhuchunshu/sforum"
+  },
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": ">=0.1.0",
+  "capabilities": [
+    "host.api",
+    "extensions.read",
+    "extensions.call",
+    "extensions.manage"
+  ],
+  "backend": {
+    "entry": "backend/plugin",
+    "rpc": "hashicorp-go-plugin",
+    "protocolVersion": 2,
+    "hostApiVersion": "sforum.host@2",
+    "digest": "__BACKEND_DIGEST__"
+  },
+  "permissionDefinitions": [
+    {
+      "key": "sforum.membership-reference.manage",
+      "contractVersion": "sforum.membership-reference.permission.manage@1",
+      "label": "Manage membership reference",
+      "description": "Read and write membership reference user fields and profile sections.",
+      "recommendedRoles": ["administrator"],
+      "assignmentPolicy": "host"
+    }
+  ],
+  "identity": {
+    "contractVersion": "sforum.membership-reference.identity@1",
+    "sessionPolicy": "sforum.membership-reference.session",
+    "riskHooks": ["sforum.membership-reference.risk"],
+    "userFields": [
+      {
+        "id": "sforum.membership-reference.tier",
+        "contractVersion": "sforum.membership-reference.tier@1",
+        "type": "string",
+        "schema": "schemas/user-field.tier.json",
+        "readPermission": "sforum.membership-reference.manage",
+        "writePermission": "sforum.membership-reference.manage"
+      }
+    ],
+    "providers": [
+      {
+        "id": "sforum.membership-reference.auth",
+        "contractVersion": "sforum.membership-reference.auth@1",
+        "kind": "auth",
+        "handler": "sforum.membership-reference.identity",
+        "priority": 100,
+        "operations": [
+          {
+            "name": "registration.start",
+            "inputSchema": "schemas/start.input.json",
+            "outputSchema": "schemas/start.output.json",
+            "timeoutMs": 1000,
+            "failurePolicy": "fail_closed"
+          },
+          {
+            "name": "registration.complete",
+            "inputSchema": "schemas/complete.input.json",
+            "outputSchema": "schemas/auth.complete.output.json",
+            "timeoutMs": 1000,
+            "failurePolicy": "fail_closed"
+          },
+          {
+            "name": "login.start",
+            "inputSchema": "schemas/start.input.json",
+            "outputSchema": "schemas/start.output.json",
+            "timeoutMs": 1000,
+            "failurePolicy": "fail_closed"
+          },
+          {
+            "name": "login.complete",
+            "inputSchema": "schemas/complete.input.json",
+            "outputSchema": "schemas/auth.complete.output.json",
+            "timeoutMs": 1000,
+            "failurePolicy": "fail_closed"
+          },
+          {
+            "name": "link.start",
+            "inputSchema": "schemas/start.input.json",
+            "outputSchema": "schemas/start.output.json",
+            "timeoutMs": 1000,
+            "failurePolicy": "fail_closed"
+          },
+          {
+            "name": "link.complete",
+            "inputSchema": "schemas/complete.input.json",
+            "outputSchema": "schemas/auth.complete.output.json",
+            "timeoutMs": 1000,
+            "failurePolicy": "fail_closed"
+          }
+        ]
+      },
+      {
+        "id": "sforum.membership-reference.profile",
+        "contractVersion": "sforum.membership-reference.profile@1",
+        "kind": "profile",
+        "handler": "sforum.membership-reference.identity",
+        "priority": 100,
+        "operations": [
+          {
+            "name": "sections.list",
+            "inputSchema": "schemas/profile.list.input.json",
+            "outputSchema": "schemas/profile.list.output.json",
+            "timeoutMs": 1000,
+            "failurePolicy": "omit"
+          },
+          {
+            "name": "section.read",
+            "inputSchema": "schemas/profile.section.input.json",
+            "outputSchema": "schemas/profile.section.output.json",
+            "timeoutMs": 1000,
+            "failurePolicy": "omit"
+          },
+          {
+            "name": "section.update",
+            "inputSchema": "schemas/profile.section.input.json",
+            "outputSchema": "schemas/profile.section.output.json",
+            "timeoutMs": 1000,
+            "failurePolicy": "fail_closed"
+          },
+          {
+            "name": "account.read",
+            "inputSchema": "schemas/profile.account.input.json",
+            "outputSchema": "schemas/profile.account.output.json",
+            "timeoutMs": 1000,
+            "failurePolicy": "fail_closed"
+          },
+          {
+            "name": "account.update",
+            "inputSchema": "schemas/profile.account.input.json",
+            "outputSchema": "schemas/profile.account.output.json",
+            "timeoutMs": 1000,
+            "failurePolicy": "fail_closed"
+          }
+        ]
+      },
+      {
+        "id": "sforum.membership-reference.recovery",
+        "contractVersion": "sforum.membership-reference.recovery@1",
+        "kind": "recovery",
+        "handler": "sforum.membership-reference.identity",
+        "priority": 50,
+        "operations": [
+          {
+            "name": "recovery.start",
+            "inputSchema": "schemas/start.input.json",
+            "outputSchema": "schemas/start.output.json",
+            "timeoutMs": 1000,
+            "failurePolicy": "fail_closed"
+          },
+          {
+            "name": "recovery.complete",
+            "inputSchema": "schemas/complete.input.json",
+            "outputSchema": "schemas/recovery.complete.output.json",
+            "timeoutMs": 1000,
+            "failurePolicy": "fail_closed"
+          }
+        ]
+      },
+      {
+        "id": "sforum.membership-reference.session",
+        "contractVersion": "sforum.membership-reference.session@1",
+        "kind": "session",
+        "handler": "sforum.membership-reference.identity",
+        "priority": 100,
+        "operations": [
+          {
+            "name": "session.evaluate",
+            "inputSchema": "schemas/session.evaluate.input.json",
+            "outputSchema": "schemas/session.evaluate.output.json",
+            "timeoutMs": 1000,
+            "failurePolicy": "fail_closed"
+          }
+        ]
+      },
+      {
+        "id": "sforum.membership-reference.risk",
+        "contractVersion": "sforum.membership-reference.risk@1",
+        "kind": "risk",
+        "handler": "sforum.membership-reference.identity",
+        "priority": 100,
+        "operations": [
+          {
+            "name": "risk.evaluate",
+            "inputSchema": "schemas/risk.evaluate.input.json",
+            "outputSchema": "schemas/risk.evaluate.output.json",
+            "timeoutMs": 1000,
+            "failurePolicy": "fail_closed"
+          }
+        ]
+      }
+    ]
+  },
+  "packageFiles": [
+    {
+      "id": "sforum.membership-reference.file.backend",
+      "kind": "executable",
+      "path": "backend/plugin",
+      "digest": "__BACKEND_DIGEST__"
+    },
+    {
+      "id": "sforum.membership-reference.schema.start.input",
+      "kind": "schema",
+      "path": "schemas/start.input.json",
+      "version": "1",
+      "digest": "__DIGEST_start.input__"
+    },
+    {
+      "id": "sforum.membership-reference.schema.start.output",
+      "kind": "schema",
+      "path": "schemas/start.output.json",
+      "version": "1",
+      "digest": "__DIGEST_start.output__"
+    },
+    {
+      "id": "sforum.membership-reference.schema.complete.input",
+      "kind": "schema",
+      "path": "schemas/complete.input.json",
+      "version": "1",
+      "digest": "__DIGEST_complete.input__"
+    },
+    {
+      "id": "sforum.membership-reference.schema.auth.complete.output",
+      "kind": "schema",
+      "path": "schemas/auth.complete.output.json",
+      "version": "1",
+      "digest": "__DIGEST_auth.complete.output__"
+    },
+    {
+      "id": "sforum.membership-reference.schema.recovery.complete.output",
+      "kind": "schema",
+      "path": "schemas/recovery.complete.output.json",
+      "version": "1",
+      "digest": "__DIGEST_recovery.complete.output__"
+    },
+    {
+      "id": "sforum.membership-reference.schema.profile.list.input",
+      "kind": "schema",
+      "path": "schemas/profile.list.input.json",
+      "version": "1",
+      "digest": "__DIGEST_profile.list.input__"
+    },
+    {
+      "id": "sforum.membership-reference.schema.profile.list.output",
+      "kind": "schema",
+      "path": "schemas/profile.list.output.json",
+      "version": "1",
+      "digest": "__DIGEST_profile.list.output__"
+    },
+    {
+      "id": "sforum.membership-reference.schema.profile.section.input",
+      "kind": "schema",
+      "path": "schemas/profile.section.input.json",
+      "version": "1",
+      "digest": "__DIGEST_profile.section.input__"
+    },
+    {
+      "id": "sforum.membership-reference.schema.profile.section.output",
+      "kind": "schema",
+      "path": "schemas/profile.section.output.json",
+      "version": "1",
+      "digest": "__DIGEST_profile.section.output__"
+    },
+    {
+      "id": "sforum.membership-reference.schema.profile.account.input",
+      "kind": "schema",
+      "path": "schemas/profile.account.input.json",
+      "version": "1",
+      "digest": "__DIGEST_profile.account.input__"
+    },
+    {
+      "id": "sforum.membership-reference.schema.profile.account.output",
+      "kind": "schema",
+      "path": "schemas/profile.account.output.json",
+      "version": "1",
+      "digest": "__DIGEST_profile.account.output__"
+    },
+    {
+      "id": "sforum.membership-reference.schema.session.evaluate.input",
+      "kind": "schema",
+      "path": "schemas/session.evaluate.input.json",
+      "version": "1",
+      "digest": "__DIGEST_session.evaluate.input__"
+    },
+    {
+      "id": "sforum.membership-reference.schema.session.evaluate.output",
+      "kind": "schema",
+      "path": "schemas/session.evaluate.output.json",
+      "version": "1",
+      "digest": "__DIGEST_session.evaluate.output__"
+    },
+    {
+      "id": "sforum.membership-reference.schema.risk.evaluate.input",
+      "kind": "schema",
+      "path": "schemas/risk.evaluate.input.json",
+      "version": "1",
+      "digest": "__DIGEST_risk.evaluate.input__"
+    },
+    {
+      "id": "sforum.membership-reference.schema.risk.evaluate.output",
+      "kind": "schema",
+      "path": "schemas/risk.evaluate.output.json",
+      "version": "1",
+      "digest": "__DIGEST_risk.evaluate.output__"
+    },
+    {
+      "id": "sforum.membership-reference.schema.user-field.tier",
+      "kind": "schema",
+      "path": "schemas/user-field.tier.json",
+      "version": "1",
+      "digest": "__DIGEST_user-field.tier__"
+    }
+  ]
+}

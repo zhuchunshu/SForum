@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["sectionId", "targetUserId"],
+  "properties": {
+    "sectionId": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "targetUserId": { "type": "integer", "minimum": 1 },
+    "actorUserId": { "type": "integer", "minimum": 0 },
+    "fields": { "type": "object" }
+  },
+  "additionalProperties": false
+}

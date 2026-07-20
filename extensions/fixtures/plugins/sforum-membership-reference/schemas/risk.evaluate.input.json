@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["userId", "purpose"],
+  "properties": {
+    "userId": { "type": "integer", "minimum": 1 },
+    "purpose": { "type": "string", "enum": ["login", "register", "recovery"] },
+    "correlationId": { "type": "string" },
+    "deviceFingerprint": { "type": "string" },
+    "clientClass": { "type": "string" }
+  },
+  "additionalProperties": false
+}

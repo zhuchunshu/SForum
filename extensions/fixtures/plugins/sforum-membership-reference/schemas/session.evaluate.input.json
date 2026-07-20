@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["purpose", "userId"],
+  "properties": {
+    "purpose": { "type": "string", "enum": ["issue", "renew"] },
+    "userId": { "type": "integer", "minimum": 1 },
+    "correlationId": { "type": "string" },
+    "deviceFingerprint": { "type": "string" },
+    "tokenVersion": { "type": "integer" }
+  },
+  "additionalProperties": false
+}
