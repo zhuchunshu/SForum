@@ -5,6 +5,35 @@ Last updated: 2026-07-21
 ## Progress
 
 - Verified weighted progress: **99.0%** (display **99.0%**).
+- Phase counts: P0-P12 complete; P13 **~99%** — implementable protocol residuals
+  closed; presentation ownership started at forum.home; LTS deletions still open.
+
+## Current Subtask
+
+### 2026-07-21 P13 forum.home presentation ownership (partial)
+
+- Extracted home body UI into `SFHomePage` island (`5b26b80fe`).
+- Theme L1 maps `forum.component.home_page` → `SFHomePage` (not HostPageIsland).
+- Default + Nocturne home templates mark `data-theme-owned="presentation"`
+  (`e7fb57ed7`); tests (`65181c354`).
+- pages/index.vue is SEO + SFPageOutlet fail-closed shell only.
+- Exact next: continue same pattern for remaining public pages (topic, auth,
+  taxonomy, profile, …) OR stop at policy residual. **Do not** delete
+  LoadTemplate / Protocol V1 / SFPageOutlet fail-closed until LTS checklist.
+- Unowned dirty WIP still present — do not stage.
+
+---
+
+
+## Prior Ledger Archive
+
+# Trusted Plugin And Theme Platform V3 Progress Ledger
+
+Last updated: 2026-07-21
+
+## Progress
+
+- Verified weighted progress: **99.0%** (display **99.0%**).
 - Phase counts: P0-P12 complete; P13 **~99%** — SMTP and storage-fs defaults
   are Protocol V2; three LTS deletion rows still open by policy.
 

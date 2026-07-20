@@ -20,11 +20,10 @@ This is the entry point for project memory.
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p13-handoff.md`
   - P0-P12 complete. P13 **~99%**: command gates, reference packages, live
     API/ready, Baiduspider SSR green; production APILTS wiring; **SMTP** and
-    **storage-fs** defaults are Protocol V2 (`f1abc8d0f`, `12b2feb62`); home
-    HostPageIsland parity (`c1fdce6b4`). Weighted progress **99.0%**. Open by
-    policy only: three LTS deletion rows (core Nuxt presentation, request-time
-    loader, v1 paths) until zero-shim telemetry. Evidence:
-    `docs/extensions/v3/p13-final-gates-evidence.md`.
+    **storage-fs** Protocol V2; **forum.home presentation ownership** started
+    (`5b26b80fe` SFHomePage island + theme-owned L1 shells). Weighted **99.0%**.
+    Open: remaining fat public pages; LTS-blocked loader/v1 deletions until
+    zero-shim window. Evidence: `docs/extensions/v3/p13-final-gates-evidence.md`.
   - Prior P11 closure handoff:
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p11-closure.md`
   - Prior P11 progress handoff:

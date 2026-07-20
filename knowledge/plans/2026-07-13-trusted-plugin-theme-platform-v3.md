@@ -976,10 +976,15 @@ with required/deprecated cells and LTS shim telemetry proof.
       fixtures retained via `sforum.extension.v1.json` + `-tags protocol_v1`;
       policy `docs/extensions/v3/p13-migration-and-lts.md`.)
 - [ ] Move default public presentation out of core Nuxt pages/layouts/CSS.
+      (**Partial:** `forum.home` body lives in `SFHomePage` island; route shell
+      is thin SEO+outlet; default/nocturne L1 shells mark theme-owned.
+      Remaining public pages still fat Host Vue.)
 - [ ] Remove request-time template loader/regex renderer and legacy Page Outlet
       behavior after parity gates.
+      (Fail-closed `SFPageOutlet` never fully removed; loader retained until LTS.)
 - [ ] Remove v1 route/capability/migration-ledger-only paths only after published
       compatibility policy and migration tooling exist.
+      (APILTS RemoveAfter window not open; zero-shim gate required.)
 - [x] Regenerate all catalogs/docs/scaffolds and update examples.
       (Catalog regen + 244-route inventory gate; scaffolds via existing CLI.)
 
