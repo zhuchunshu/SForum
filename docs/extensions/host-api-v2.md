@@ -194,6 +194,79 @@ and reject later health, readiness, and business requests carrying a different
 runtime identity. A repeated handshake is valid only when token, identity, and
 `host_broker_id` all match the existing binding.
 
+## Route invocation contract
+
+`InvokeRoute` executes one Host-selected stage of an immutable Route Registry
+plan. The plugin must treat `route_action`, `invocation_stage`, schema refs, and
+mutable-field lists as frozen inputs rather than selecting or widening them.
+The accepted stage/action and response shapes are:
+
+| `invocation_stage` | Route actions | Valid plugin result |
+| --- | --- | --- |
+| `ROUTE_INVOCATION_STAGE_HANDLER` | `add`, `replace` | A terminal status, headers, and typed body, or a validated `stream_follows` preflight. Patches, `prior_response`, and mutable-field lists are forbidden. |
+| `ROUTE_INVOCATION_STAGE_REQUEST` | `global_middleware`, `before`, `filter`, `wrap` | `request_patch` only. Terminal status/headers/body, `stream_follows`, `prior_response`, and `response_patch` are forbidden. |
+| `ROUTE_INVOCATION_STAGE_RESPONSE` | `filter`, `wrap`, `after` | `response_patch` only, against the Host-supplied `prior_response`. Terminal status/headers/body, `stream_follows`, and `request_patch` are forbidden. |
+
+`mutable_request_fields` and `mutable_response_fields` are the exact ordered
+RFC 6901 allowlists frozen with the route declaration. Every patch path must
+match an entry byte-for-byte in the corresponding list; changing or reordering
+the transmitted allowlist, patching an undeclared path, or returning the wrong
+patch direction fails the invocation closed. The Host validates and applies
+the ordered RFC 6902 `add`, `replace`, and `remove` subset authoritatively.
+`Location` and `Link` are Host-owned response-mutation fields and cannot appear
+in a response mutation allowlist. An `add` or `replace` terminal handler may
+return `Location` as part of its complete response; declarative redirects and
+response modifiers cannot author it. `Link` is stricter: plugin terminal and
+streaming responses have the complete header removed. Canonical, preload,
+pagination, and other link relations must use a versioned Host surface; route
+alias, redirect, rewrite, and SEO policy remain the only canonical authorities.
+
+For patch values, `RoutePatchOperation.value_json` is the authoritative wire
+representation. `add` and `replace` require the bytes of one complete valid
+JSON value, while `remove` requires `value_json` to be empty. Do not set the
+deprecated `google.protobuf.Value value` field: the Host rejects any legacy
+`value`, even when `value_json` is also present, because the legacy field can
+round JSON integers through IEEE-754 doubles.
+
+Queries have two compatible wire representations. Field 17
+`query_parameter_values` is lossless: the Host sorts entries by key and
+preserves every key's value order, including empty-string values. Legacy field
+8 `query_parameters` remains populated with each key's first value. A
+legacy-only query is emitted in both forms; when both forms are supplied, their
+first values must match, and a key with no values is invalid.
+
+An unsafe buffered HTTP operation that declares `required.24h@1` may compose
+with request modifiers. The Host records every request stage, including an
+empty patch, as an encrypted, plan-bound transcript. A replay evaluates the
+current guard and request schema, reapplies only the previously Host-validated
+patches under the current allowlists, and returns the stored response without
+invoking any modifier or handler plugin again. The order of repeated query
+values is part of the request fingerprint.
+
+Credential-bearing request fields (`Cookie`, `Authorization`, proxy
+authorization, API/auth/CSRF tokens, and `Idempotency-Key`) cannot be mutable in
+a required-replay chain. Lifecycle publication and the runtime Dispatcher both
+reject that combination before plugin execution. Mutation transcripts use a
+dedicated HKDF-derived AES-256-GCM key rooted in `APP_OPTION_ENC_KEY`; plaintext
+patch values are never stored in the replay record. Rotating that key makes
+existing encrypted mutation transcripts fail closed until their 24-hour TTL
+expires or the records are removed. The Host never re-executes plugins to
+recover them. Response-only V1/V2 replay records contain no mutation transcript
+and remain readable across this key rotation.
+
+The request `path` is the immutable normalized transport path selected by the
+execution plan. A Host-authorized `/params/*` mutation changes only subsequent
+`path_parameters`; it never rewrites `path` or triggers route selection again.
+Plugin handlers may therefore receive the original `path` with a different,
+Host-proven parameter value. Core, alias, redirect, and rewrite terminals reject
+parameter mutation, and the private Host provenance bit is never sent on wire.
+
+Streaming composition is not available. `stream_follows` is valid only for an
+exact handler-stage plugin route and cannot accompany a buffered body. The Host
+rejects composed streaming chains and rejects terminal or streaming fields from
+request/response mutation stages, so `before`, `filter`, `wrap`, `after`, and
+global middleware cannot be composed around a stream.
+
 ## Limits, deadlines, and cancellation
 
 Current host-owned defaults are part of the compatibility test surface:

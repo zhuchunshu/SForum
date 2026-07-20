@@ -420,6 +420,12 @@ authority after an additional high-risk confirmation. Once a route uses a
 plugin-owned guard or replacement handler, SForum cannot claim that core policy
 protects that route.
 
+The HTTP `Link` response header is Host-owned. Route mutations cannot declare
+`/headers/link`, and plugin terminal or streaming responses have the complete
+header removed. This deliberately preserves Core-owned canonical and SEO policy
+without relying on incomplete RFC 8288 parsers; future plugin link relations
+must use a versioned Host surface.
+
 The HTTP recovery control plane is not the safety boundary. Recovery remains
 available out of band through safe-mode startup and CLI disable commands even
 when a plugin breaks all normal application and admin routes.
