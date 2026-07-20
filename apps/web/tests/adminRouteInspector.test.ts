@@ -300,6 +300,7 @@ describe('route inspector snapshot parser', () => {
         revision: 3,
         stepIndex: 1,
         phase: 'handler',
+        invocationStage: 'handler',
         action: 'replace',
         routeId: longRouteId,
         contractVersion: 'demo.route.replace@1',
@@ -323,6 +324,7 @@ describe('route inspector snapshot parser', () => {
     expect(snapshot?.provider.desired?.selectedByUserId).toBe(0)
     expect(snapshot?.conflicts[0]?.candidates).toHaveLength(2)
     expect(snapshot?.traces[0]?.durationMicros).toBe(1250)
+    expect(snapshot?.traces[0]?.invocationStage).toBe('handler')
     expect(JSON.stringify(snapshot)).not.toContain('token=')
     expect(JSON.stringify(snapshot)).not.toContain('Authorization')
   })
@@ -397,6 +399,7 @@ describe('route inspector snapshot parser', () => {
         revision: 3,
         stepIndex: 0,
         phase: 'handler',
+        invocationStage: 'handler',
         action: 'add',
         routeId: 'core.route.topic.list',
         contractVersion: 'sforum.route.topic.list@1',
@@ -419,6 +422,7 @@ describe('route inspector snapshot parser', () => {
         revision: 3,
         stepIndex: 0,
         phase: 'handler',
+        invocationStage: 'handler',
         action: 'add',
         routeId: 'core.route.topic.list',
         contractVersion: 'sforum.route.topic.list@1',
@@ -433,6 +437,30 @@ describe('route inspector snapshot parser', () => {
         requestBody: 'secret'
       }]
     })).toBeNull()
+    for (const invocationStage of [undefined, '', 'forged']) {
+      expect(parseRouteInspectorSnapshot({
+        ...validSnapshot(),
+        traces: [{
+          sequence: 1,
+          observedAt: '2026-07-16T03:00:00Z',
+          revision: 3,
+          stepIndex: 0,
+          phase: 'handler',
+          invocationStage,
+          action: 'add',
+          routeId: 'core.route.topic.list',
+          contractVersion: 'sforum.route.topic.list@1',
+          method: 'GET',
+          pathSignature: '/api/v1/topics',
+          mode: 'http',
+          fallback: '',
+          outcome: 'succeeded',
+          durationMicros: 1,
+          commitState: 'committed',
+          provider: { kind: 'core' }
+        }]
+      })).toBeNull()
+    }
   })
 
   test('matched step is only the terminal chain entry for resolved snapshots', () => {
@@ -552,6 +580,7 @@ describe('route inspector page, nav, and i18n contracts', () => {
     expect(page).toContain('route-inspector-step-${step.index}-response-fields')
     expect(page).toContain('matched.mutableRequestFields?.length')
     expect(page).toContain('step.mutableResponseFields?.length')
+    expect(page).toContain('labelInvocationStage(trace.invocationStage)')
     expect(page).toContain('admin.extensions.routeInspector.readOnlyHint')
     expect(page).not.toContain('selectProvider')
     expect(page).not.toContain('resetProvider')
@@ -608,6 +637,9 @@ describe('route inspector page, nav, and i18n contracts', () => {
       expect(locale).toContain('"provider_selection"')
       expect(locale).toContain('"schema_rejected"')
       expect(locale).toContain('"side_effect_started"')
+      expect(locale).toContain('"invocationStage"')
+      expect(locale).toContain('"request"')
+      expect(locale).toContain('"response"')
       expect(locale).toContain('"packageDigest"')
       expect(locale).toContain('"declaredPath"')
       expect(locale).toContain('"mutableRequestFields"')
