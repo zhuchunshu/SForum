@@ -24,6 +24,9 @@ cd apps/api && go run ./cmd/sforum extension docs generate --check
 | `audit.append` | medium | Append audit events | 追加审计记录 | Append structured audit events under this extension's namespace. |
 | `net.outbound` | high | Outbound network | 出站网络 | Open outbound network connections (HTTP, SMTP, etc.) from the plugin process or via Host helpers. |
 | `users.read` | high | Read user profiles | 读取用户信息 | Read safe, non-secret user fields through the Host API. |
+| `extensions.read` | medium | Read extension inventory | 读取扩展清单 | Read a redacted extension inventory and public runtime/contract state. Never exposes secrets, trust tokens, package paths, or credentials. |
+| `extensions.call` | medium | Call extension services | 调用扩展服务 | Invoke declared plugin services or providers through Host Service Discovery with live exact-artifact admission. |
+| `extensions.manage` | high | Manage trusted extensions | 管理受信任扩展 | Perform allowlisted settings update/reset/action and disable of already-trusted non-system non-self plugins via Host Commands. Never replaces super_admin trust confirmation. |
 
 ### Risk tiers
 

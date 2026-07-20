@@ -34,6 +34,8 @@ cd apps/api && go run ./cmd/sforum extension docs generate --check
 | `database` | object \| null | no | yes |
 | `dependencies` | array \| null | no | yes |
 | `description` | string | yes | no |
+| `editor` | array \| null | no | yes |
+| `entities` | array \| null | no | yes |
 | `events` | array \| null | no | yes |
 | `guards` | array \| null | no | yes |
 | `hooks` | array \| null | no | yes |
