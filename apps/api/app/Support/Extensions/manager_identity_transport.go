@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
@@ -46,12 +45,14 @@ type IdentityProviderInvocationResult struct {
 // IdentityProviderCommitFence is a one-shot final admission validation. Accept
 // must call it inside its Host transaction immediately before committing the
 // effect and audit. It does not provide a cross-system CAS: the Host store must
-// keep its own exact-artifact checks and commit rollback-capable.
+// keep its own exact-artifact checks and commit rollback-capable. The fence and
+// transaction must remain synchronous and must not escape the Accept callback.
 type IdentityProviderCommitFence func() error
 
 // IdentityProviderAccept applies the Host-owned effect and audit while the
 // exact runtime admission lease is still held. The callback must keep its own
-// transaction rollback-capable when the fence rejects and must honor ctx.
+// transaction rollback-capable when the fence rejects, honor ctx, and wait for
+// every fence/effect operation before returning.
 type IdentityProviderAccept func(
 	context.Context,
 	IdentityProviderInvocationResult,
@@ -260,13 +261,7 @@ func (r *IdentityProviderRuntime) invoke(
 		Output:           output,
 	}
 	accepted := cloneIdentityProviderResult(result)
-	var fenceCalls atomic.Int32
-	var fenceOpen atomic.Bool
-	fenceOpen.Store(true)
-	fence := IdentityProviderCommitFence(func() error {
-		if !fenceOpen.Load() || fenceCalls.Add(1) != 1 {
-			return ErrIdentityProviderInvocationInvalid
-		}
+	fence := newIdentityProviderCommitFenceState(func() error {
 		if cause := context.Cause(lease.Context); cause != nil {
 			return cause
 		}
@@ -276,15 +271,18 @@ func (r *IdentityProviderRuntime) invoke(
 		_, err := r.manager.exactIdentityManagedRuntime(identity, provider.Artifact)
 		return err
 	})
-	acceptErr := accept(lease.Context, accepted, fence)
-	fenceOpen.Store(false)
-	if acceptErr != nil {
-		return IdentityProviderInvocationResult{}, errors.Join(ErrIdentityProviderAcceptFailed, acceptErr)
+	acceptErr, acceptPanic := runIdentityProviderAccept(accept, lease.Context, accepted, fence)
+	fenceOutcome := fence.Finish()
+	if acceptPanic != nil {
+		panic(acceptPanic)
 	}
-	if fenceCalls.Load() != 1 {
+	if fenceOutcome.panicValue != nil {
+		panic(fenceOutcome.panicValue)
+	}
+	if combined := errors.Join(acceptErr, fenceOutcome.result, fenceOutcome.violation); combined != nil {
 		return IdentityProviderInvocationResult{}, errors.Join(
 			ErrIdentityProviderAcceptFailed,
-			fmt.Errorf("%w: commit fence must be called exactly once", ErrIdentityProviderInvocationInvalid),
+			combined,
 		)
 	}
 	// Accept success is the Host transaction's terminal result. A Registry or
