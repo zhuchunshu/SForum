@@ -13,13 +13,14 @@ import (
 	assetregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/AssetRegistry"
 	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
 	contentregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentRegistry"
+	editorregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EditorRegistry"
+	entityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EntityRegistry"
 	extensionopenapi "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionOpenAPI"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
-	editorregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EditorRegistry"
-mediaregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/MediaRegistry"
+	mediaregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/MediaRegistry"
 	navigationregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/NavigationRegistry"
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	queryregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/QueryRegistry"
@@ -88,6 +89,8 @@ type productionLifecycleStack struct {
 	MediaRegistry *mediaregistry.Registry
 	// EditorRegistry is the P10 Tiptap node/mark/command/toolbar graph.
 	EditorRegistry *editorregistry.Registry
+	// EntityRegistry is the P10 Entity Type / Taxonomy / Field Schema graph.
+	EntityRegistry *entityregistry.Registry
 	RouteProviders *routes.ProviderSelectionAPI
 	ProviderSlots      *extensionsruntime.ProviderSlotSelectionAPI
 	RegistryRepository *extensionsruntime.PostgresLifecycleRegistryPublicationRepository
@@ -260,6 +263,14 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 			return nil, fmt.Errorf("%w: enter editor registry safe mode: %v", errProductionLifecycleDependency, err)
 		}
 	}
+	// Entity Registry：P10 Entity/Taxonomy/Field；Safe Mode 从首个 snapshot 起拒绝第三方。
+	entityRegistry := entityregistry.New()
+	if config.SafeMode {
+		snapshot := entityRegistry.Snapshot()
+		if _, err := entityRegistry.ReplaceAllIfRevision(snapshot.Revision, snapshot.Publications, true); err != nil {
+			return nil, fmt.Errorf("%w: enter entity registry safe mode: %v", errProductionLifecycleDependency, err)
+		}
+	}
 	// Identity root policy and permanent leaf ownership must converge from the
 	// durable PostgreSQL ledger before the process-local graph becomes visible.
 	// Default PostgreSQL store binds the production TrustImpact digest verifier
@@ -302,7 +313,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 			Assets: assetRegistry, Caches: cacheRegistry, Queries: queryRegistry,
 			SEO: seoRegistry, Identity: identityRegistry, IdentityStore: identityStore,
 			Navigation: navigationRegistry, Content: contentRegistry, Media: mediaRegistry, Editor: editorRegistry,
-			AssetAuthority: assetAuthority, AssetAdmission: config.Trust,
+			Entity: entityRegistry, AssetAuthority: assetAuthority, AssetAdmission: config.Trust,
 		},
 	)
 	state := extensionsruntime.NewPostgresLifecycleBoundaryState(config.Store)
@@ -333,7 +344,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 		QueryRegistry:      queryRegistry, QueryCoreCatalog: queryCoreCatalog,
 		SEORegistry: seoRegistry, NavigationRegistry: navigationRegistry,
 		ContentRegistry: contentRegistry, MediaRegistry: mediaRegistry, EditorRegistry: editorRegistry,
-		RouteProviders: routeProviders,
+		EntityRegistry: entityRegistry, RouteProviders: routeProviders,
 		ProviderSlots:      providerSlots,
 		RegistryRepository: registryRepository, Registries: registries,
 		State: state, PublicationJournal: journal, Cleanup: cleanup,
@@ -348,7 +359,8 @@ func (s *productionLifecycleStack) bindService(service *extensions.Service) erro
 		s.Repository == nil || s.CleanupFinalizer == nil || s.RouteProviders == nil || s.ProviderSlots == nil ||
 		s.ComponentRegistry == nil || s.AssetRegistry == nil || s.CacheRegistry == nil || s.QueryRegistry == nil ||
 		s.QueryCoreCatalog == nil || s.SEORegistry == nil || s.NavigationRegistry == nil ||
-		s.ContentRegistry == nil || s.MediaRegistry == nil || s.EditorRegistry == nil || s.IdentityRegistry == nil || s.IdentityStore == nil || s.Registries == nil {
+		s.ContentRegistry == nil || s.MediaRegistry == nil || s.EditorRegistry == nil || s.EntityRegistry == nil ||
+		s.IdentityRegistry == nil || s.IdentityStore == nil || s.Registries == nil {
 		return errProductionLifecycleDependency
 	}
 	extensions.WithLifecycleCoordinator(s.Coordinator, s.StaticPreflight, s.Repository)(service)

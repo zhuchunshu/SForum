@@ -14,11 +14,12 @@ import (
 	assetregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/AssetRegistry"
 	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
 	contentregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentRegistry"
+	editorregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EditorRegistry"
+	entityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EntityRegistry"
 	extensionopenapi "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionOpenAPI"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
-	editorregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EditorRegistry"
-mediaregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/MediaRegistry"
+	mediaregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/MediaRegistry"
 	navigationregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/NavigationRegistry"
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	queryregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/QueryRegistry"
@@ -95,7 +96,9 @@ type LifecycleRegistryBoundaryConfig struct {
 	// Media is the P10 Media Pipeline Registry (MIME policy/processors/variants).
 	Media *mediaregistry.Registry
 	// Editor is the P10 Tiptap node/mark/command/toolbar registry.
-	Editor         *editorregistry.Registry
+	Editor *editorregistry.Registry
+	// Entity is the P10 Entity Type / Taxonomy / Field Schema registry.
+	Entity         *entityregistry.Registry
 	AssetAuthority LifecycleAssetAuthority
 	AssetAdmission LifecycleAssetAdmission
 }
@@ -129,6 +132,7 @@ type PostgresLifecycleBoundaryRegistries struct {
 	content        *contentregistry.Registry
 	media          *mediaregistry.Registry
 	editor         *editorregistry.Registry
+	entity         *entityregistry.Registry
 	assetAuthority LifecycleAssetAuthority
 	assetAdmission LifecycleAssetAdmission
 }
@@ -161,7 +165,8 @@ func NewPostgresLifecycleBoundaryRegistries(config LifecycleRegistryBoundaryConf
 		navigation:     config.Navigation,
 		content:        config.Content,
 		media:          config.Media,
-	editor:         config.Editor,
+		editor:         config.Editor,
+		entity:         config.Entity,
 		assetAuthority: config.AssetAuthority,
 		assetAdmission: config.AssetAdmission,
 	}
@@ -275,6 +280,9 @@ func (b *PostgresLifecycleBoundaryRegistries) RestoreRoutePublications(
 		return err
 	}
 	if err := b.restoreEditorPublications(ctx, items, safeMode); err != nil {
+		return err
+	}
+	if err := b.restoreEntityPublications(ctx, items, safeMode); err != nil {
 		return err
 	}
 	if err := b.restoreAssetPublications(ctx, items, safeMode); err != nil {
@@ -468,6 +476,9 @@ func (b *PostgresLifecycleBoundaryRegistries) validatePreparedLifecycleRegistrie
 	if err := b.validateEditorTransition(source, target); err != nil {
 		return err
 	}
+	if err := b.validateEntityTransition(source, target); err != nil {
+		return err
+	}
 	if err := b.validateIdentityTransition(source, target); err != nil {
 		return err
 	}
@@ -569,6 +580,7 @@ type lifecycleRegistryMaterial struct {
 	contentPublication    *contentregistry.Publication
 	mediaPublication      *mediaregistry.Publication
 	editorPublication     *editorregistry.Publication
+	entityPublication     *entityregistry.Publication
 	assetAdmitted         bool
 	digest                string
 	legacyDigest          string
@@ -623,6 +635,9 @@ func (b *PostgresLifecycleBoundaryRegistries) prepareMaterial(
 		return lifecyclePublicationFence{}, nil, nil, err
 	}
 	if err := b.freezeEditorMaterials(ctx, request, source, target); err != nil {
+		return lifecyclePublicationFence{}, nil, nil, err
+	}
+	if err := b.freezeEntityMaterials(ctx, request, source, target); err != nil {
 		return lifecyclePublicationFence{}, nil, nil, err
 	}
 	return fence, source, target, nil
@@ -813,6 +828,9 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileLocalRegistries(
 		return err
 	}
 	if err := b.reconcileEditor(ctx, request.TargetExtension.ID, source, target, desired); err != nil {
+		return err
+	}
+	if err := b.reconcileEntity(ctx, request.TargetExtension.ID, source, target, desired); err != nil {
 		return err
 	}
 	if err := b.applyAssetPlan(ctx, assetPlan, phase); err != nil {

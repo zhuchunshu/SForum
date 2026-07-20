@@ -193,6 +193,7 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 		"content registry":    stack.ContentRegistry != nil,
 		"media registry":      stack.MediaRegistry != nil,
 		"editor registry":     stack.EditorRegistry != nil,
+		"entity registry":     stack.EntityRegistry != nil,
 		"route providers":     stack.RouteProviders != nil,
 		"registry repository": stack.RegistryRepository != nil, "registries": stack.Registries != nil,
 		"state": stack.State != nil, "journal": stack.PublicationJournal != nil,
@@ -236,6 +237,9 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 	if stack.Registries.EditorRegistry() != stack.EditorRegistry {
 		t.Fatal("lifecycle boundary and production stack use different Editor Registry instances")
 	}
+	if stack.Registries.EntityRegistry() != stack.EntityRegistry {
+		t.Fatal("lifecycle boundary and production stack use different Entity Registry instances")
+	}
 	navigationSnapshot := stack.NavigationRegistry.Snapshot()
 	if navigationSnapshot.SafeMode || len(navigationSnapshot.Publications) != 1 ||
 		!navigationSnapshot.Publications[0].Artifact.Core {
@@ -252,6 +256,10 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 	editorSnapshot := stack.EditorRegistry.Snapshot()
 	if editorSnapshot.SafeMode || len(editorSnapshot.Publications) != 0 {
 		t.Fatalf("production editor registry snapshot = %#v", editorSnapshot)
+	}
+	entitySnapshot := stack.EntityRegistry.Snapshot()
+	if entitySnapshot.SafeMode || len(entitySnapshot.Publications) != 0 {
+		t.Fatalf("production entity registry snapshot = %#v", entitySnapshot)
 	}
 	snapshot := stack.RouteRegistry.Snapshot()
 	if snapshot.Revision != 1 || snapshot.SafeMode || len(snapshot.Routes) != len(routes.CoreRouteCatalog()) ||

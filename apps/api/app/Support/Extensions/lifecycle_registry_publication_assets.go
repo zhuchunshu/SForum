@@ -17,10 +17,11 @@ import (
 	assetregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/AssetRegistry"
 	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
 	contentregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentRegistry"
+	editorregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EditorRegistry"
+	entityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EntityRegistry"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
-	editorregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EditorRegistry"
-mediaregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/MediaRegistry"
+	mediaregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/MediaRegistry"
 	navigationregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/NavigationRegistry"
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	queryregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/QueryRegistry"
@@ -51,6 +52,7 @@ type lifecycleRegistryDigestDocument struct {
 	Content            *contentregistry.Publication    `json:"content,omitempty"`
 	Media              *mediaregistry.Publication      `json:"media,omitempty"`
 	Editor             *editorregistry.Publication     `json:"editor,omitempty"`
+	Entity             *entityregistry.Publication     `json:"entity,omitempty"`
 	ProductionFamilies []string                        `json:"productionFamilies"`
 	FoundationFamilies []string                        `json:"foundationFamilies"`
 }
@@ -188,6 +190,18 @@ func refreshLifecycleRegistryMaterialDigest(material *lifecycleRegistryMaterial)
 		material.legacyDigest = legacyDigest
 		material.compatibleDigests = appendLifecycleCompatibleDigest(priorAliases, priorDigest, editorDigest)
 	}
+	if material.entityPublication != nil {
+		// Entity/Taxonomy/Field Registry is additive @11 (P10 data plane).
+		priorDigest := material.digest
+		priorAliases := append([]string(nil), material.compatibleDigests...)
+		entityDigest, entityErr := encodeLifecycleRegistryMaterialDigestV11(material)
+		if entityErr != nil {
+			return entityErr
+		}
+		material.digest = entityDigest
+		material.legacyDigest = legacyDigest
+		material.compatibleDigests = appendLifecycleCompatibleDigest(priorAliases, priorDigest, entityDigest)
+	}
 	return nil
 }
 
@@ -208,35 +222,39 @@ func encodeLifecycleRegistryMaterialDigest(
 	includeAsset bool,
 	includeQuery bool,
 ) (string, error) {
-	return encodeLifecycleRegistryMaterialDigestVersion(material, includeAsset, includeQuery, false, false, false, false, false, false, false)
+	return encodeLifecycleRegistryMaterialDigestVersion(material, includeAsset, includeQuery, false, false, false, false, false, false, false, false)
 }
 
 func encodeLifecycleRegistryMaterialDigestV4(material *lifecycleRegistryMaterial) (string, error) {
-	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, false, false, false, false, false, false)
+	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, false, false, false, false, false, false, false)
 }
 
 func encodeLifecycleRegistryMaterialDigestV5(material *lifecycleRegistryMaterial) (string, error) {
-	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true, false, false, false, false, false)
+	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true, false, false, false, false, false, false)
 }
 
 func encodeLifecycleRegistryMaterialDigestV6(material *lifecycleRegistryMaterial) (string, error) {
-	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true, true, false, false, false, false)
+	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true, true, false, false, false, false, false)
 }
 
 func encodeLifecycleRegistryMaterialDigestV7(material *lifecycleRegistryMaterial) (string, error) {
-	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true, true, true, false, false, false)
+	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true, true, true, false, false, false, false)
 }
 
 func encodeLifecycleRegistryMaterialDigestV8(material *lifecycleRegistryMaterial) (string, error) {
-	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true, true, true, true, false, false)
+	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true, true, true, true, false, false, false)
 }
 
 func encodeLifecycleRegistryMaterialDigestV9(material *lifecycleRegistryMaterial) (string, error) {
-	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true, true, true, true, true, false)
+	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true, true, true, true, true, false, false)
 }
 
 func encodeLifecycleRegistryMaterialDigestV10(material *lifecycleRegistryMaterial) (string, error) {
-	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true, true, true, true, true, true)
+	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true, true, true, true, true, true, false)
+}
+
+func encodeLifecycleRegistryMaterialDigestV11(material *lifecycleRegistryMaterial) (string, error) {
+	return encodeLifecycleRegistryMaterialDigestVersion(material, true, true, true, true, true, true, true, true, true, true)
 }
 
 func encodeLifecycleRegistryMaterialDigestVersion(
@@ -250,6 +268,7 @@ func encodeLifecycleRegistryMaterialDigestVersion(
 	includeContent bool,
 	includeMedia bool,
 	includeEditor bool,
+	includeEntity bool,
 ) (string, error) {
 	extension := material.extension
 	binding := material.binding
@@ -335,12 +354,20 @@ func encodeLifecycleRegistryMaterialDigestVersion(
 			productionFamilies = append(productionFamilies, "editor.v1")
 		}
 	}
+	var entity *entityregistry.Publication
+	if includeEntity {
+		schema = "sforum.lifecycle.registry-plan@11"
+		entity = material.entityPublication
+		if entity != nil {
+			productionFamilies = append(productionFamilies, "entity.v1")
+		}
+	}
 	// @1 remains byte-for-byte compatible with pre-P9 in-flight rows. New
 	// asset-bearing operations persist @2. Query-bearing operations persist @3;
 	// cache-bearing operations persist @4 and SEO-bearing operations persist @5.
 	// Identity-bearing operations persist @6; navigation-bearing operations persist @7;
 	// content-bearing operations persist @8; media-bearing operations persist @9;
-	// editor-bearing operations persist @10.
+	// editor-bearing operations persist @10; entity-bearing operations persist @11.
 	// Earlier versions are accepted only as explicit recovery aliases computed
 	// from the same exact material.
 	document := lifecycleRegistryDigestDocument{
@@ -361,6 +388,7 @@ func encodeLifecycleRegistryMaterialDigestVersion(
 		Content:            content,
 		Media:              media,
 		Editor:             editor,
+		Entity:             entity,
 		ProductionFamilies: productionFamilies,
 		FoundationFamilies: []string{"routes.v1-foundation"},
 	}
