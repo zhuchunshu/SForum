@@ -28,6 +28,8 @@ describe('legal page presentation ownership', () => {
         const tpl = read(`../../extensions/builtin/themes/${theme}/templates/${slug}.html`)
         expect(tpl).toContain('data-theme-owned="presentation"')
         expect(tpl).toContain(`data-page="${pageId}"`)
+        expect(tpl).toContain('<sf-navbar')
+        expect(tpl).toContain('<sf-footer')
       }
     })
 

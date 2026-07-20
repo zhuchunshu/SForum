@@ -79,4 +79,22 @@ describe('public taxonomy list pages (T01 + C04)', () => {
     expect(en().taxonomy.tags.title).toBe('All tags')
     expect(en().taxonomy.categories.title).toBe('All categories')
   })
+
+  test('theme L1 taxonomy shells mark presentation ownership and chrome islands', () => {
+    const root = new URL('../../../extensions/builtin/themes/', import.meta.url)
+    for (const theme of ['sforum-default', 'sforum-nocturne']) {
+      for (const [file, pageId] of [
+        ['tag-index.html', 'forum.tag.index'],
+        ['category-index.html', 'forum.category.index'],
+        ['tag-show.html', 'forum.tag.show'],
+        ['category-show.html', 'forum.category.show'],
+      ] as const) {
+        const tpl = readFileSync(new URL(`${theme}/templates/${file}`, root), 'utf8')
+        expect(tpl).toContain('data-theme-owned="presentation"')
+        expect(tpl).toContain(`data-page="${pageId}"`)
+        expect(tpl).toContain('<sf-navbar')
+        expect(tpl).toContain('<sf-footer')
+      }
+    }
+  })
 })

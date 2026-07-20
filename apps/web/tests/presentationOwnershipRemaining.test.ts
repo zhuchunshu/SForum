@@ -41,6 +41,11 @@ describe('remaining public presentation ownership', () => {
         const tpl = read(`../../extensions/builtin/themes/${theme}/templates/${template}`)
         expect(tpl).toContain('data-theme-owned="presentation"')
         expect(tpl).toContain(`data-page="${pageId}"`)
+        // auth 使用 auth layout；非 auth 公开页必须挂导航/页脚岛。
+        if (!pageId.startsWith('auth.')) {
+          expect(tpl).toContain('<sf-navbar')
+          expect(tpl).toContain('<sf-footer')
+        }
       }
     })
   }
