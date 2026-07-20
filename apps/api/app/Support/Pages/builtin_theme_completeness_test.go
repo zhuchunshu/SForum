@@ -69,6 +69,10 @@ func TestBuiltinThemesCoverAllReplaceablePages(t *testing.T) {
 				if !strings.Contains(string(raw), "<"+tag) {
 					t.Fatalf("%s template %s missing required island <%s>", page.ID, decl.Template, tag)
 				}
+				// L1 壳层必须声明主题呈现所有权，避免宿主路由继续承载默认产品布局。
+				if !strings.Contains(string(raw), `data-theme-owned="presentation"`) {
+					t.Fatalf("%s template %s missing data-theme-owned=presentation", page.ID, decl.Template)
+				}
 				bindings.PageViewModels[decl.Template] = themecompiler.PageTemplateBinding{
 					PageID: page.ID, SchemaVersion: page.ContractVersion,
 				}
