@@ -16,6 +16,7 @@ import (
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	pageviewmodels "github.com/zhuchunshu/sforum/apps/api/app/Models/PageViewModels"
+	apilts "github.com/zhuchunshu/sforum/apps/api/app/Support/APILTS"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
@@ -275,7 +276,8 @@ func (h *Controller) resolve(c fiber.Ctx) error {
 	}
 
 	// Unmigrated plugin/add contracts retain the explicit legacy L1 path until
-	// P13. An exact compiled snapshot never falls back to request-time IO.
+	// LTS RemoveAfter + zero-shim. An exact compiled snapshot never falls back
+	// to request-time IO (and must not record loader telemetry).
 	if resolved.Provider != pages.ProviderCore && resolved.TemplatePath != "" && h.themes != nil {
 		if !runtimeCovered {
 			extID := resolved.ExtensionID
@@ -285,6 +287,8 @@ func (h *Controller) resolve(c fiber.Ctx) error {
 			if theme, terr := h.themes.Get(c.Context(), extID); terr == nil {
 				root := extensions.PackageContentRoot(theme)
 				if root != "" {
+					// 请求路径残留：记 APILTS 遥测，供 LTS 删除门禁观察。
+					apilts.Process().RecordShimCall(apilts.ThemeRequestTimeLoaderContractID)
 					if html, lerr := pages.LoadTemplate(root, resolved.TemplatePath); lerr == nil {
 						vars := map[string]string{"locale": locale}
 						if rendered, rerr := pages.RenderTemplate(html, vars); rerr == nil {
@@ -668,11 +672,12 @@ func (h *Controller) resolvePath(c fiber.Ctx) error {
 		}
 	}
 
-	// 加载模板（注入 route params）
+	// 加载模板（注入 route params）— 仅无 snapshot 覆盖时；记 LTS 遥测。
 	if !runtimeCovered && contrib.Template != "" && h.themes != nil {
 		if theme, terr := h.themes.Get(c.Context(), contrib.ExtensionID); terr == nil {
 			root := extensions.PackageContentRoot(theme)
 			if root != "" {
+				apilts.Process().RecordShimCall(apilts.ThemeRequestTimeLoaderContractID)
 				if html, lerr := pages.LoadTemplate(root, contrib.Template); lerr == nil {
 					vars := map[string]string{"locale": locale}
 					for k, v := range match.Params {
