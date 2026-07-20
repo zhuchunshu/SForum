@@ -955,3 +955,11 @@ template while retaining Schema fallback fields.
   downstream extension, vet/build, diff, and 1,842-reference OpenAPI gates.
   Component actions, provider priority/conflicts, runtime publication,
   templates/assets/L2, inspectors, and visual/failure exits remain open P9 work.
+
+## V3 P9 closure (16/16)
+
+- P9 is **complete**. CSP→Nuxt (`8aa675626`), joined component action matrix,
+  joined public L2 trust matrix (admit/revoke/byte-drift/Safe Mode), and
+  desktop/mobile visual gates are production-accepted. Public L2 stays
+  production-default off (`SFORUM_V3_PUBLIC_L2`). See progress ledger and
+  `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p9-closure.md`.

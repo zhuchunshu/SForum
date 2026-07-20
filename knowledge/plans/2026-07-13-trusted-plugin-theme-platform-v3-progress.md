@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
-Date: 2026-07-20
-Overall progress: **74.0%**
-Active phase: **P9 active (14/16); P10-P12 production closure slices remain open**
+Date: 2026-07-21
+Overall progress: **75.0%**
+Active phase: **P9 complete (16/16); P10 next; P11-P13 remain open**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -25,7 +25,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P6 Routes/middleware | 10% | 100% | 10.00% |
 | P7 Workflow/admin/query/identity | 10% | 100% | 10.00% |
 | P8 Theme compiler/runtime | 8% | 100% | 8% |
-| P9 Components/assets/L2 | 8% | 88% | 7.00% |
+| P9 Components/assets/L2 | 8% | 100% | 8.00% |
 | P10 Content/media/data | 8% | 0% | 0% |
 | P11 Platform services | 6% | 6% | 0.38% |
 | P12 Operations/ecosystem | 6% | 5% | 0.27% |
@@ -33,6 +33,32 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 
 Displayed overall progress is the floor of earned weighted progress until the
 program reaches 100% and every final gate passes.
+
+## 2026-07-21 P9 Closed (16/16) — Joined Matrix + Visual + CSP→Nuxt
+
+- Overall advances to **75.0%** after flooring. Exact earned weight is
+  `67 + 8*(16/16) + 0.38 + 0.27 = 75.65` → display **75%**. P9 is **16/16 (100%)**.
+- Credited remaining P9 exits with production evidence:
+  1. **CSP→Nuxt** (already committed `8aa675626`, previously unledgered): Host
+     `PublicPagePolicy` / soft-ref `PublicPagePolicyForComponents` + Nuxt
+     `SFThemeTemplate` applies `DocumentPolicy.HeaderValue` on SSR when L2
+     islands are present. Catalogs **244 routes** / **127 UI**.
+  2. **Joined component action matrix** (`TestP9JoinedComponentActionMatrix`):
+     every component action, priority/conflict/provider selection, package-local
+     SSR, composition crash primary retention, digest upgrade drop, Safe Mode.
+     Theme override remains covered by
+     `plugin_theme_override_fixture_test.go` + composition matrix.
+  3. **Joined public L2 trust matrix** (`TestP9JoinedPublicL2TrustMatrix`):
+     admit → page CSP policy → revoke → byte-drift quarantine → Safe Mode.
+  4. **Desktop/mobile visual gates** (`p9JoinedVisualMatrix.test.ts`): high-traffic
+     chrome contracts + happy-dom mount/unmount at 1280px / 390px. Full Playwright
+     remains optional (env may lack playwright-cli); structural + mount gates are
+     the accepted row.
+- Public L2 remains production-default **off** (`SFORUM_V3_PUBLIC_L2`) until
+  operators opt in.
+- Next: **P10** content/editor/entity/taxonomy/media/render pipelines.
+- Preserve unrelated dirty WIP: route inspector web, content-policy, PageViewModels,
+  go.mod, host-api-v2, websocket revoke test, ADR noise.
 
 ## 2026-07-20 P9 Public Page CSP Service (not yet Nuxt-wired)
 

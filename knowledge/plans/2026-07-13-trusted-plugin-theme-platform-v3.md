@@ -1,6 +1,6 @@
 # Trusted Plugin And Theme Platform V3 - Implementation Task Book
 
-Status: **active implementation; P0-P8 complete; P9 active (14/16)**
+Status: **active implementation; P0-P9 complete; P10 next**
 Date: 2026-07-13  
 Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
 
@@ -673,12 +673,12 @@ falls back without changing plugin business or numeric semantics.
 
 ### Tests
 
-- [ ] Every component action, priority/conflict/provider selection, theme plugin
+- [x] Every component action, priority/conflict/provider selection, theme plugin
       override, SSR fallback, hydration, mount/unmount, CSS cleanup, L2 crash,
       digest upgrade, trust revoke, and safe mode.
 - [x] Navigation and region contributions remain deterministic, permission-safe,
       SSR-complete, cache-correct, and usable when a provider is disabled.
-- [ ] Desktop/mobile visual and interaction checks for replaced high-traffic
+- [x] Desktop/mobile visual and interaction checks for replaced high-traffic
       components.
 - [x] L2 failure never removes primary content or breaks unrelated navigation.
 
@@ -687,9 +687,12 @@ The Asset Registry and exact frontend-safety rows closed through
 production upload/mount/restart/revoke proof retained in `86d112ef5`. One shared
 immutable Registry now owns bounded declarations, dependency plans, exact
 artifact/revision fences, lifecycle cleanup, restart/Safe Mode restore, and
-request-path delivery. CSP declarations are validated and returned, but
-page-scoped aggregation into Nuxt SSR response headers remains open; public L2
-therefore stays production-default off.
+request-path delivery. Page-scoped CSP aggregation into Nuxt SSR headers is
+production-wired via `GET /api/v1/extensions/runtime/page-policy` and
+`SFThemeTemplate` (`8aa675626`); public L2 remains production-default off
+(`SFORUM_V3_PUBLIC_L2`) until operators opt in. Joined production matrix rows:
+`TestP9JoinedComponentActionMatrix`, `TestP9JoinedPublicL2TrustMatrix`, and
+`p9JoinedVisualMatrix.test.ts`.
 
 ### Rollback
 
