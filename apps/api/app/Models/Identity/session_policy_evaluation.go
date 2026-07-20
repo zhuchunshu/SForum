@@ -48,6 +48,9 @@ type SessionEvaluationInput struct {
 	CorrelationID string
 	// DeviceFingerprint is a Host-derived opaque device class, never a raw UA.
 	DeviceFingerprint string
+	// StepUpEvidenceToken is Host-minted one-use evidence from a prior step_up.
+	// When set, the Host consumes it and must not re-invoke the provider.
+	StepUpEvidenceToken string
 }
 
 // SessionEvaluationResult is the Host disposition after exact resolution and
@@ -65,6 +68,10 @@ type SessionEvaluationResult struct {
 	// Host rechecks it immediately before the session effect.
 	SelectionRevision int64
 	Output            map[string]any
+	// StepUpToken is plaintext one-use Host evidence returned only when the
+	// provider disposition is step_up and no prior evidence was supplied.
+	StepUpToken     string
+	StepUpExpiresAt time.Time
 }
 
 // SessionPolicyProviderResolution freezes one coherent selected policy claim
@@ -100,6 +107,7 @@ type SessionPolicyEvaluator struct {
 	store       IdentitySessionPolicyStore
 	effectStore IdentitySessionPolicyEffectStore
 	invoker     SessionPolicyEvaluateInvoker
+	stepUp      SessionPolicyStepUpStore
 }
 
 func NewSessionPolicyEvaluator(
@@ -111,6 +119,15 @@ func NewSessionPolicyEvaluator(
 	}
 	effectStore, _ := store.(IdentitySessionPolicyEffectStore)
 	return &SessionPolicyEvaluator{store: store, effectStore: effectStore, invoker: invoker}, nil
+}
+
+// WithStepUpStore enables Host-owned one-use step_up evidence mint/consume.
+// Without a store, step_up still denies the effect but cannot complete a retry.
+func (e *SessionPolicyEvaluator) WithStepUpStore(store SessionPolicyStepUpStore) *SessionPolicyEvaluator {
+	if e != nil {
+		e.stepUp = store
+	}
+	return e
 }
 
 // ProviderResolution freezes the effective selected session policy and its
@@ -227,6 +244,9 @@ func (e *SessionPolicyEvaluator) RequireAllowAndRun(
 	if effect == nil {
 		return SessionEvaluationResult{}, ErrSessionPolicyEvaluationInvalid
 	}
+	if strings.TrimSpace(input.StepUpEvidenceToken) != "" {
+		return e.completeStepUpAndRun(ctx, input, effect)
+	}
 	resolution, err := e.ProviderResolution(ctx)
 	if err != nil {
 		return SessionEvaluationResult{}, err
@@ -236,6 +256,97 @@ func (e *SessionPolicyEvaluator) RequireAllowAndRun(
 		return result, err
 	}
 	return result, requireSessionPolicyAllow(result.Disposition)
+}
+
+// completeStepUpAndRun consumes Host-owned one-use evidence and runs the Host
+// effect without re-invoking the plugin provider for that claim.
+func (e *SessionPolicyEvaluator) completeStepUpAndRun(
+	ctx context.Context,
+	input SessionEvaluationInput,
+	effect SessionPolicyHostEffect,
+) (SessionEvaluationResult, error) {
+	if e == nil || e.stepUp == nil {
+		return SessionEvaluationResult{}, ErrSessionPolicyStepUpStore
+	}
+	resolution, err := e.ProviderResolution(ctx)
+	if err != nil {
+		return SessionEvaluationResult{}, err
+	}
+	prepared, err := prepareSessionEvaluationInput(input)
+	if err != nil {
+		return SessionEvaluationResult{}, err
+	}
+	if err := validateSessionPolicyProviderResolution(resolution); err != nil {
+		return SessionEvaluationResult{}, err
+	}
+	switch resolution.Source {
+	case IdentitySessionPolicySourceCore, IdentitySessionPolicySourceSafeMode:
+		// Core never issues step_up evidence; a presented token is invalid.
+		return SessionEvaluationResult{}, ErrSessionPolicyStepUpInvalid
+	case IdentitySessionPolicySourcePlugin:
+	default:
+		return SessionEvaluationResult{}, ErrSessionPolicyEvaluationUnavailable
+	}
+
+	result := SessionEvaluationResult{
+		Disposition:       SessionPolicyDispositionAllow,
+		PolicyID:          resolution.PolicyID,
+		Source:            resolution.Source,
+		Selection:         cloneSessionPolicySelection(resolution.Selection),
+		Provider:          cloneSessionPolicyProvider(resolution.Provider),
+		RegistryRevision:  resolution.RegistryRevision,
+		RegistryDigest:    resolution.RegistryDigest,
+		SelectionRevision: selectionRevision(resolution.Selection),
+	}
+	claim, err := normalizeSessionPolicyStepUpClaim(sessionPolicyStepUpClaimFromResult(result, prepared))
+	if err != nil {
+		return SessionEvaluationResult{}, err
+	}
+	tokenHash, err := hashSessionPolicyStepUpToken(input.StepUpEvidenceToken)
+	if err != nil {
+		return SessionEvaluationResult{}, err
+	}
+	if err := e.stepUp.ConsumeForEffect(ctx, tokenHash, claim); err != nil {
+		return SessionEvaluationResult{}, err
+	}
+	if err := e.runEffectIfCurrent(
+		ctx,
+		resolution.IdentitySessionPolicyResolution,
+		IdentitySessionAuthority{UserID: prepared.UserID, TokenVersion: prepared.TokenVersion},
+		func(admittedCtx context.Context) error {
+			effectCtx, cancelEffect := sessionPolicyEffectContext(admittedCtx)
+			defer cancelEffect()
+			return effect(effectCtx)
+		},
+	); err != nil {
+		return result, err
+	}
+	return result, nil
+}
+
+func (e *SessionPolicyEvaluator) mintStepUpEvidence(
+	ctx context.Context,
+	result SessionEvaluationResult,
+	input preparedSessionEvaluationInput,
+) (SessionEvaluationResult, error) {
+	if e == nil || e.stepUp == nil {
+		return result, nil
+	}
+	claim, err := normalizeSessionPolicyStepUpClaim(sessionPolicyStepUpClaimFromResult(result, input))
+	if err != nil {
+		return SessionEvaluationResult{}, err
+	}
+	plaintext, tokenHash, err := newSessionPolicyStepUpToken()
+	if err != nil {
+		return SessionEvaluationResult{}, err
+	}
+	expiresAt := time.Now().UTC().Add(sessionPolicyStepUpTTL)
+	if err := e.stepUp.Issue(ctx, claim, expiresAt, tokenHash); err != nil {
+		return SessionEvaluationResult{}, err
+	}
+	result.StepUpToken = plaintext
+	result.StepUpExpiresAt = expiresAt
+	return result, nil
 }
 
 func requireSessionPolicyAllow(disposition string) error {
@@ -349,6 +460,14 @@ func (e *SessionPolicyEvaluator) invokePluginSessionEvaluate(
 			if decisionErr := requireSessionPolicyAllow(disposition); decisionErr != nil {
 				if err := e.recheckSelectionBeforeEffect(admissionCtx, result); err != nil {
 					return err
+				}
+				// step_up mints Host-owned one-use evidence; deny does not.
+				if disposition == SessionPolicyDispositionStepUp {
+					minted, mintErr := e.mintStepUpEvidence(admissionCtx, result, input)
+					if mintErr != nil {
+						return mintErr
+					}
+					result = minted
 				}
 				return nil
 			}
