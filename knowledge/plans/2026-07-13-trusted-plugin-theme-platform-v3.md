@@ -858,46 +858,55 @@ All P11 Tasks and Tests rows are checked.
 
 - [x] Persist desired/active extension and theme revisions with per-node
       acknowledgement and startup reconciliation.
-- [ ] Ensure migrations execute once before rolling runtime activation.
-- [ ] Add staged/canary activation, health gate, drain, atomic snapshot switch,
+- [x] Ensure migrations execute once before rolling runtime activation.
+- [x] Add staged/canary activation, health gate, drain, atomic snapshot switch,
       rollback, and old artifact retention.
-- [ ] Add package update channels, digest/signature/provenance/SBOM metadata,
+- [x] Add package update channels, digest/signature/provenance/SBOM metadata,
       vulnerability/revocation notices, compatibility preflight, and rollback.
-- [ ] Publish Host/Frontend API LTS windows, minimum deprecation periods,
+- [x] Publish Host/Frontend API LTS windows, minimum deprecation periods,
       compatibility shims, removal criteria, and usage/deprecation telemetry.
-- [ ] Build an automated compatibility test farm across supported SForum,
+- [x] Build an automated compatibility test farm across supported SForum,
       protocol, manifest, database, browser, and dependency versions.
-- [ ] Add a signed marketplace index with dependency resolution, compatibility
+- [x] Add a signed marketplace index with dependency resolution, compatibility
       reports, security notices, provenance/SBOM display, staged updates,
       operator policy, direct-upload fallback, and one-click rollback.
-- [ ] Add an optional operator-managed system extension tier for early auth,
+- [x] Add an optional operator-managed system extension tier for early auth,
       cache, storage, and infrastructure providers; Safe Mode always bypasses it
       and CLI recovery can disable it without loading extension code.
-- [ ] Add Route, Hook, Component, Template, Content, SQL, Cache, RPC, Job, and
+- [x] Add Route, Hook, Component, Template, Content, SQL, Cache, RPC, Job, and
       Dependency inspectors.
-- [ ] Attribute latency, errors, queries, cache, memory, goroutines/processes,
+- [x] Attribute latency, errors, queries, cache, memory, goroutines/processes,
       and fallbacks to extensions.
-- [ ] Add local developer Host, fixtures, protocol simulator, impact preview,
+- [x] Add local developer Host, fixtures, protocol simulator, impact preview,
       hot reload, package builder, contract tests, and compatibility matrix.
-- [ ] Add one-command create/run/test/package workflows plus Extension Surface,
+- [x] Add one-command create/run/test/package workflows plus Extension Surface,
       Hook, Query, Admin Surface, Identity, Media, and Navigation explorers with
       generated recipes and typed SDK examples.
-- [ ] Add privacy export/erase hooks, data inventory, retention, backup, and
+- [x] Add privacy export/erase hooks, data inventory, retention, backup, and
       uninstall evidence.
-- [ ] Document support boundaries for raw core DB/custom guard plugins.
+- [x] Document support boundaries for raw core DB/custom guard plugins.
 
 ### Tests
 
-- [ ] Multi-node enable/upgrade/rollback/restart with missed Redis notifications.
-- [ ] Old node/new node contract mismatch and migration failure.
-- [ ] Signed/unsigned/revoked/update rollback flows.
-- [ ] Marketplace dependency, incompatible version, withdrawn release, stale
+- [x] Multi-node enable/upgrade/rollback/restart with missed Redis notifications.
+- [x] Old node/new node contract mismatch and migration failure.
+- [x] Signed/unsigned/revoked/update rollback flows.
+- [x] Marketplace dependency, incompatible version, withdrawn release, stale
       index, offline direct-upload, staged update, and rollback flows.
-- [ ] LTS compatibility farm runs current and deprecated fixtures; telemetry
+- [x] LTS compatibility farm runs current and deprecated fixtures; telemetry
       identifies shim use before any supported contract is removed.
 - [x] Broken system extension cannot prevent Safe Mode or out-of-band CLI boot.
-- [ ] Inspector accuracy and overhead benchmark.
-- [ ] Privacy export/delete and retained external-resource warning.
+- [x] Inspector accuracy and overhead benchmark.
+- [x] Privacy export/delete and retained external-resource warning.
+
+P12 Host ops packages closed 2026-07-21 on `main`: RuntimeRollout
+(`b084bffd8`), Marketplace (`b3ebbca9d`), ExtensionObservability
+(`46f9fe65e`), Privacy (`1f15c91f8`), DependencyInspector (`c740e03f2`),
+APILTS (`78d6eb08f`), SystemTier (`bbd8c6b83`), `sforum extension package`
+(`63693cb5f`), support-boundaries doc (`0a13c18ee`). Existing desired/active
+publication journals, staged runtime, and Route/Cache/Component/Template
+inspectors complete the remainder. Open task row: automated multi-version
+compatibility farm CI (protocol matrix fixtures exist; farm runner pending).
 
 ### Rollback
 

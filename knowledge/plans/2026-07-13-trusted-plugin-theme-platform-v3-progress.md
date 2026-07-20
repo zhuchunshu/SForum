@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-21
-Overall progress: **89.0%**
-Active phase: **P11 complete (16/16); P12-P13 remain open**
+Overall progress: **94.0%**
+Active phase: **P12 nearly closed; P13 open**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -28,11 +28,21 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P9 Components/assets/L2 | 8% | 100% | 8.00% |
 | P10 Content/media/data | 8% | 100% | 8.00% |
 | P11 Platform services | 6% | 100% | 6.00% |
-| P12 Operations/ecosystem | 6% | 5% | 0.30% |
+| P12 Operations/ecosystem | 6% | 90% | 5.40% |
 | P13 References/removal/final gates | 5% | 0% | 0% |
 
 Displayed overall progress is the floor of earned weighted progress until the
 program reaches 100% and every final gate passes.
+
+## 2026-07-21 P12 Ops Packages Landed (~90%)
+
+- Overall advances to **94.0%** after flooring (exact ≈ `89 + 5.40 = 94.40`).
+- RuntimeRollout, Marketplace, ExtensionObservability, Privacy, DependencyInspector,
+  APILTS, SystemTier, `sforum extension package`, support-boundaries doc.
+- Open P12 row: automated multi-version compatibility farm CI runner.
+- Exact next: close compat farm row if feasible, then P13 reference plugins/themes
+  and final gates.
+
 
 ## 2026-07-21 P11 Closed At 16/16
 

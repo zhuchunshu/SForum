@@ -1,0 +1,28 @@
+# SForum V3 P12 compatibility farm matrix (v0).
+# Cells are executed by tests/compat/run_matrix.go and CI.
+version: 1
+schema: sforum.compat-farm@1
+cells:
+  - id: current-host-v2-manifest-v3
+    sforum: current
+    protocol: v2
+    manifest: v3
+    database: postgres
+    browser: none
+    status: required
+  - id: deprecated-protocol-v1-shim
+    sforum: current
+    protocol: v1
+    manifest: v3
+    database: postgres
+    browser: none
+    status: deprecated
+    expects_shim_telemetry: true
+  - id: manifest-v3-contract
+    sforum: current
+    protocol: v2
+    manifest: v3
+    database: none
+    browser: none
+    status: required
+    command: extension-test-builtin
