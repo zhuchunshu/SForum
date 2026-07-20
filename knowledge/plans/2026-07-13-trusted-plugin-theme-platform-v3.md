@@ -972,7 +972,8 @@ with required/deprecated cells and LTS shim telemetry proof.
 
 - [x] Migrate built-in/reference v1 plugins to v2 while keeping compatibility
       fixtures for the published Host/Frontend API LTS window.
-      (content-policy on V2; SMTP/storage-fs remain V1 under LTS; policy
+      (content-policy + **SMTP on V2**; storage-fs remains V1 until Host storage
+      V2 transport exists; V1 rollback fixtures retained; policy
       `docs/extensions/v3/p13-migration-and-lts.md`.)
 - [ ] Move default public presentation out of core Nuxt pages/layouts/CSS.
 - [ ] Remove request-time template loader/regex renderer and legacy Page Outlet
@@ -1140,55 +1141,59 @@ Suggested commit boundary pattern per phase:
 
 The program is complete only when all statements are true:
 
-- [ ] Enabling uploaded executable code requires exact-artifact `super_admin`
+- [x] Enabling uploaded executable code requires exact-artifact `super_admin`
       confirmation; static package install runs no code, and executable install
       hooks run only inside the confirmed first-enable transaction.
-- [ ] Safe mode and CLI recovery work when normal routes, DB-backed admin, Nuxt,
+- [x] Safe mode and CLI recovery work when normal routes, DB-backed admin, Nuxt,
       and plugin processes are broken.
-- [ ] Every accepted route action and streaming mode works with deterministic
+- [x] Every accepted route action and streaming mode works with deterministic
       providers, arbitrary declared paths/methods, contracts, tracing, and
       fail-closed unsafe behavior.
-- [ ] Plugins can own schemas, execute migrations, transact, use stable core
+- [x] Plugins can own schemas, execute migrations, transact, use stable core
       APIs/views, and explicitly obtain raw core DB authority.
-- [ ] Plugins can define/consume hooks, services, providers, routes, components,
+- [x] Plugins can define/consume hooks, services, providers, routes, components,
       content types, cache surfaces, jobs, schedules, and commands.
-- [ ] Every core module has a reviewed Extension Surface Matrix and CI detects
+- [x] Every core module has a reviewed Extension Surface Matrix and CI detects
       undocumented route/hook/query/component/permission/media/navigation/cache/
       job/lifecycle coverage regressions.
-- [ ] Admin Surface Registry covers navigation, dashboards, lists, filters,
+- [x] Admin Surface Registry covers navigation, dashboards, lists, filters,
       row/bulk actions, forms, notices, editor/detail regions, import, and export.
-- [ ] Query Registry composes typed plans while preserving permission, cost,
+- [x] Query Registry composes typed plans while preserving permission, cost,
       pagination, result-schema, and cache correctness.
 - [x] Identity/Permission/Auth/Profile surfaces support real membership plugins;
       declarations and role suggestions never grant authority silently.
-- [ ] Media Pipeline and Navigation/Region registries support complete processing
+- [x] Media Pipeline and Navigation/Region registries support complete processing
       and presentation workflows with source/fallback preservation.
-- [ ] Transactional Host Commands support common multi-module atomic writes so
+- [x] Transactional Host Commands support common multi-module atomic writes so
       reference plugins do not require raw core DB for ordinary workflows.
 - [ ] Themes own all public presentation and can override plugin templates.
-- [ ] Theme overrides cannot alter plugin business data contracts, and standard
+      (L1 replace covers all replaceable pages; **core Nuxt still effective
+      default presentation** — open P13 migration row.)
+- [x] Theme overrides cannot alter plugin business data contracts, and standard
       template control actions work with a restricted FuncMap.
-- [ ] Core/plugin/theme components support add/before/after/wrap/replace/hide.
-- [ ] Trusted L2 is buildless for operators, digest-bound, quarantined on error,
+- [x] Core/plugin/theme components support add/before/after/wrap/replace/hide.
+- [x] Trusted L2 is buildless for operators, digest-bound, quarantined on error,
       and never required for primary SEO content.
-- [ ] Body, lists, comments, links, and pagination remain complete with
+- [x] Body, lists, comments, links, and pagination remain complete with
       JavaScript disabled.
-- [ ] Blocks/editor/content rendering remain stable across plugin disable and
+- [x] Blocks/editor/content rendering remain stable across plugin disable and
       schema upgrades without losing source content.
-- [ ] Cache, SEO, secrets, files, HTTP, localization, OpenAPI, dependency, update,
+- [x] Cache, SEO, secrets, files, HTTP, localization, OpenAPI, dependency, update,
       and privacy surfaces are usable by a reference product plugin.
-- [ ] Lifecycle plan/execute hooks are idempotent, resumable, audited, and own
+- [x] Lifecycle plan/execute hooks are idempotent, resumable, audited, and own
       business/external uninstall cleanup.
-- [ ] Multi-node activation, migration once, queued-job versioning, restart,
+- [x] Multi-node activation, migration once, queued-job versioning, restart,
       rollback, and forced recovery converge honestly.
-- [ ] Host/Frontend API LTS, compatibility test farm, signed marketplace index,
+- [x] Host/Frontend API LTS, compatibility test farm, signed marketplace index,
       dependency/update policy, and Safe-Mode-compatible system extensions work.
-- [ ] Inspectors attribute behavior and performance to the responsible plugin.
-- [ ] Default and contrasting themes plus independent SEO, identity,
+      (LTS telemetry production-wired; **deletion still gated**.)
+- [x] Inspectors attribute behavior and performance to the responsible plugin.
+- [x] Default and contrasting themes plus independent SEO, identity,
       custom-content, media, and commerce/workflow reference plugins prove the
       entire author/operator workflow without modifying core product code.
 - [ ] Compatibility paths are removed only after parity, migration tooling,
       published deprecation, full test gates, and a security review.
+      (Policy + tooling live; **removals not executed** until LTS checklist.)
 
 ## Open Questions To Resolve During P0/P2
 

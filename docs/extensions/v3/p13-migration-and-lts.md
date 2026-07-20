@@ -41,8 +41,8 @@ Authoritative LTS telemetry lives in `apps/api/app/Support/APILTS`.
 | Package | Protocol | Status |
 | --- | --- | --- |
 | `sforum.content-policy` | V2 | Primary workflow reference; V1 rollback fixture retained until final gates |
-| `sforum.smtp` | V1 | Mail provider slot; keep until V2 mail reference or LTS expiry |
-| `sforum.storage-fs` | V1 | Attachment storage; keep until V2 storage reference or LTS expiry |
+| `sforum.smtp` | **V2** (default) | Mail provider via known-slot `ProviderCall` probe/send; V1 rollback via `sforum.extension.v1.json` + `-tags protocol_v1` |
+| `sforum.storage-fs` | V1 | Attachment storage; Host still lacks Protocol V2 storage RPC transport (`protocolV2Client` embeds `ProtocolNoop` for Storage*). Keep V1 until host storage stream lands. |
 
 ## Reference plugins (installable fixtures)
 
