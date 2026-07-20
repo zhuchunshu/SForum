@@ -102,8 +102,11 @@ func buildReferenceAdminExtension(t *testing.T) extensions.Extension {
 	}
 	binaryPath := filepath.Join(packageRoot, "backend", "plugin")
 	build := exec.Command("go", "build", "-trimpath", "-buildvcs=false", "-o", binaryPath, ".")
-	build.Dir = filepath.Join(fixtureRoot, "backend")
-	build.Env = append(os.Environ(), "CGO_ENABLED=0")
+	moduleRoot := filepath.Join(fixtureRoot, "backend")
+	build.Dir = moduleRoot
+	build.Env = append(os.Environ(), "CGO_ENABLED=0", "GOWORK="+temporaryPluginWorkspace(
+		t, filepath.Clean(filepath.Join(fixtureRoot, "../../../..")), moduleRoot,
+	))
 	if output, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build reference plugin: %v\n%s", err, output)
 	}
