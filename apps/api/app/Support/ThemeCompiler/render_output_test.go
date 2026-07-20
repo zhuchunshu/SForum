@@ -249,7 +249,7 @@ func TestBundledThemeTemplatesCompileAndPreserveNestedHomeIsland(t *testing.T) {
 		t.Fatal("resolve test source path")
 	}
 	repositoryRoot := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "../../../../../"))
-	// 完整公开页 L1 包会引用全部宿主 body 岛；编译夹具必须提供同一映射。
+	// 完整公开页 L1 包会引用 body 岛 + chrome 岛；夹具必须与 productionThemeIslandBindings 同步。
 	bundledIslands := map[string]IslandBinding{
 		"sf-home-page":              {ComponentID: "forum.component.home_page"},
 		"sf-category-index-page":    {ComponentID: "forum.component.category_index"},
@@ -265,6 +265,10 @@ func TestBundledThemeTemplatesCompileAndPreserveNestedHomeIsland(t *testing.T) {
 		"sf-privacy-page":           {ComponentID: "site.component.privacy"},
 		"sf-guidelines-page":        {ComponentID: "site.component.guidelines"},
 		"sf-not-found-page":         {ComponentID: "system.component.not_found"},
+		// 主题 L1 公开 chrome：导航/页脚岛（presentation ownership）。
+		"sf-navbar":                 {ComponentID: "navigation.component.navbar"},
+		"sf-footer":                 {ComponentID: "navigation.component.footer"},
+		"sf-home-navigation":        {ComponentID: "navigation.component.home"},
 		"sf-topic-composer":         {ComponentID: "forum.component.topic_composer"},
 		"sf-profile-settings":       {ComponentID: "profile.component.settings_form"},
 		"sf-security-settings":      {ComponentID: "identity.component.security_settings"},
@@ -272,6 +276,14 @@ func TestBundledThemeTemplatesCompileAndPreserveNestedHomeIsland(t *testing.T) {
 		"sf-register-form":          {ComponentID: "identity.component.register_form"},
 		"sf-recovery-request":       {ComponentID: "identity.component.recovery_request_form"},
 		"sf-recovery-confirm":       {ComponentID: "identity.component.recovery_confirm_form"},
+		"sf-extension-widget": {
+			ComponentID:   "core.component.shared.sfextension_widget",
+			AllowFallback: true,
+			Props: []IslandPropContract{
+				{Name: "extension-id", Type: IslandPropString, Required: true},
+				{Name: "component-id", Type: IslandPropString, Required: true},
+			},
+		},
 	}
 	for _, themeID := range []string{"sforum-default", "sforum-nocturne"} {
 		t.Run(themeID, func(t *testing.T) {
@@ -313,13 +325,22 @@ func TestBundledThemeTemplatesCompileAndPreserveNestedHomeIsland(t *testing.T) {
 			for _, segment := range output.HTMLSegments() {
 				rendered.WriteString(segment.String())
 			}
-			if !strings.Contains(rendered.String(), `<div class="sf-page`) ||
-				!strings.Contains(rendered.String(), `data-sforum-island="forum.component.home_page:1"`) ||
-				!strings.Contains(rendered.String(), `</template>`) || !strings.Contains(rendered.String(), `</div>`) {
-				t.Fatalf("bundled theme structure was not preserved: %s", rendered.String())
+			html := rendered.String()
+			// 岛序号按文档出现顺序递增：navbar → home body → footer。
+			for _, marker := range []string{
+				`<div class="sf-page`,
+				`data-sforum-island="navigation.component.navbar:1"`,
+				`data-sforum-island="forum.component.home_page:2"`,
+				`data-sforum-island="navigation.component.footer:3"`,
+				`</template>`,
+				`</div>`,
+			} {
+				if !strings.Contains(html, marker) {
+					t.Fatalf("bundled theme structure missing %q: %s", marker, html)
+				}
 			}
-			if themeID == "sforum-nocturne" && !strings.Contains(rendered.String(), ">SForum</p>") {
-				t.Fatalf("siteName compatibility binding missing: %s", rendered.String())
+			if themeID == "sforum-nocturne" && !strings.Contains(html, ">SForum</p>") {
+				t.Fatalf("siteName compatibility binding missing: %s", html)
 			}
 		})
 	}
