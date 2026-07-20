@@ -1,7 +1,7 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-20
-Overall progress: **69.0%**
+Overall progress: **70.0%**
 Active phase: **P9 active; P10-P12 production closure slices remain open**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
@@ -25,7 +25,7 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P6 Routes/middleware | 10% | 100% | 10.00% |
 | P7 Workflow/admin/query/identity | 10% | 100% | 10.00% |
 | P8 Theme compiler/runtime | 8% | 100% | 8% |
-| P9 Components/assets/L2 | 8% | 25% | 2.00% |
+| P9 Components/assets/L2 | 8% | 44% | 3.50% |
 | P10 Content/media/data | 8% | 0% | 0% |
 | P11 Platform services | 6% | 6% | 0.38% |
 | P12 Operations/ecosystem | 6% | 5% | 0.27% |
@@ -33,6 +33,37 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 
 Displayed overall progress is the floor of earned weighted progress until the
 program reaches 100% and every final gate passes.
+
+## 2026-07-20 P9 Inspectors, Theme Override Proof, Package-Local SSR
+
+- Overall advances to **70.0%** after flooring. Exact earned weight is
+  `67 + 8*(7/16) + 0.38 + 0.27 = 71.15` → display **70%**. P9 is **7/16 (44%)**.
+- Closed three additional P9 task-book rows with production evidence:
+  1. **Plugin SSR template fragments** via Host package-local `html/template`
+     cache (`23918a8a3`): digest-fenced Publish, request-path zero package I/O,
+     default production `PluginRenderer`, lifecycle publish/remove, declarative
+     `host-component-package:*` admission without a process Manager.
+  2. **Theme overrides under `templates/plugins/{pluginId}`** with contract and
+     digest checks (`05ce3b01a`): durable fixtures
+     `extensions/fixtures/plugins/sforum-plugin-page-business-e2e` and
+     `extensions/fixtures/themes/sforum-plugin-override-e2e-theme`, Pages fixture
+     test, and HTTP `resolve-path` proof of `source=active_theme_override`.
+  3. **Reject contract-breaking theme overrides**: key/schema drift soft-skips to
+     the plugin template; extra payload fields fail closed to
+     `host_emergency` without leaking loaderData (controller + fixture matrix).
+- Inspectors advanced but **not yet credited as the full row** (Template
+  inspector still missing):
+  - Component + Navigation inspector APIs (`c6a324cbb`) and admin UI
+    (`88d99290b`)
+  - Asset Registry inspector API + admin UI (`625542c2b`)
+  - Catalog now **242 routes / 126 UI surfaces**
+- Still open on P9: Navigation/Region full production exits, full component
+  action production matrix (filter transforms still pass-through in package-local
+  SSR), trusted-browser honesty UI/docs, primary SEO credit, Template inspector,
+  CSP→Nuxt aggregation, browser visual gates.
+- Commits this slice: `88d99290b`, `05ce3b01a`, `625542c2b`, `23918a8a3`.
+- Preserve unrelated dirty WIP: route inspector web, `public_frontend_policy*`,
+  content-policy extension, PageViewModels, go.mod, host-api-v2 ADR noise.
 
 ## Completed P0 Evidence
 

@@ -1,6 +1,6 @@
 # Trusted Plugin And Theme Platform V3 - Implementation Task Book
 
-Status: **active implementation; P0-P8 complete; P9 active**
+Status: **active implementation; P0-P8 complete; P9 active (7/16)**
 Date: 2026-07-13  
 Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
 
@@ -656,10 +656,10 @@ falls back without changing plugin business or numeric semantics.
       permission filtering, fallback, and cache invalidation.
 - [ ] Implement component `add`, `before`, `after`, `wrap`, `replace`, `hide`,
       prop filters, and result filters with deterministic priority/providers.
-- [ ] Implement plugin SSR template fragments and typed render segments.
-- [ ] Implement theme overrides under `templates/plugins/{pluginId}` with
+- [x] Implement plugin SSR template fragments and typed render segments.
+- [x] Implement theme overrides under `templates/plugins/{pluginId}` with
       contract and digest checks.
-- [ ] Reject theme overrides that declare or infer a different plugin business
+- [x] Reject theme overrides that declare or infer a different plugin business
       data contract.
 - [x] Build Asset Registry for handles, dependencies, versions, modules,
       loading strategy, integrity, CSP, scope, deduplication, and cleanup.
