@@ -5,40 +5,36 @@ Last updated: 2026-07-21
 ## Progress
 
 - Verified weighted progress: **99.6%** (display **99%**).
-- Phase counts: P0-P12 complete; P13 **~99.6%**.
-- Presentation pages + chrome ownership closed.
-- Unowned WIP absorbed and verified (route inspector invocationStage, public
-  L2 graph hardening, Link header docs, websocket trust-revoke tests, etc.).
-- Residual **only** LTS-blocked deletions (3 open task-book rows):
-  1. request-time template loader residual (fail-closed SFPageOutlet forever)
-  2. Protocol V1 paths (RemoveAfter ~2026-11-28 + zero-shim)
-  3. compatibility path removal after full LTS checklist
+- Phase counts: **P0–P12 complete (including P10 15/15)**; P13 **~99.6%**.
+- Implementable residual closed: presentation pages+chrome; WIP absorption.
+- Residual **only** three LTS-gated deletion rows (task book still open).
 
 ## Current Subtask
 
-### 2026-07-21 P13 residual = LTS deletion gate only
+### 2026-07-21 P13 residual = LTS deletion gate only (no premature delete)
 
-- Exact next: **do not delete** LoadTemplate / Protocol V1 / SFPageOutlet.
-- Operator: `cd apps/api && go run ./cmd/sforum extension api-lts`
-- Seeded Protocol V1 `RemoveAfter` is DeprecatedAt(2026-06-01)+180d ≈ 2026-11-28.
-- Working tree should be clean after WIP absorption commits.
+- Live CLI evidence (`go run ./cmd/sforum extension api-lts --json`):
+  - `sforum.protocol.v1` status=deprecated, shimEnabled=true
+  - `removeAfter=2026-11-28T00:00:00Z`
+  - `protocolV1CanRemoveWindow=false`
+  - `protocolV1CanRemoveWithZeroShim=false`
+  - CLI process `protocolV1Calls=0` (live counters only in API/worker)
+- Exact next: **do not delete** LoadTemplate / Protocol V1 / fail-closed
+  SFPageOutlet until RemoveAfter + zero-shim on live process + checklist 1–7.
+- Goal harness “remaining P10 rows” is **stale** — P10 closed in
+  `2026-07-21-…-p10-closure.md` (all `[x]`).
+- Working tree clean after docs evidence commit.
 
-## Recent commits (WIP absorption)
+## Open task-book rows
 
-- `9621df741`…`d319b64a8` route Link docs, inspector stage, L2 graph, tests,
-  content-policy digest, go.mod x/text
-
-## Tests
-
-- bun: publicExtensionRuntime + adminRouteInspector: green
-- go: PageViewModels, Routes, Http (websocket + action v2): green
-- OpenAPI refs: OK (2014)
+1. Remove request-time template loader / legacy Page Outlet residual
+2. Remove v1 route/capability/migration-ledger-only paths
+3. Compatibility path removal after LTS checklist
 
 ## Rollback
 
-- Revert `9621df741`…`d319b64a8` for WIP absorption chain.
-- Presentation chrome: `762119312`…`6b49b59f1`.
-- Never delete LTS shims early.
+- Never delete LTS shims early. Presentation/WIP chains documented in prior
+  ledger archive and handoffs.
 
 
 ---

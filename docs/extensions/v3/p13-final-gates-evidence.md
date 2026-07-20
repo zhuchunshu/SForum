@@ -45,6 +45,8 @@ It does **not** authorize legacy deletion (see `p13-migration-and-lts.md`).
 | Live compose stack (API+worker+Redis+PG+Meili+Mailpit) | green (2026-07-21) | After building builtin plugins, fixing Nocturne settings contract, and using absolute extension roots: API `:8081` `/api/v1/health` 200 and `/api/v1/ready` ready with postgres/redis/meilisearch ok; embedded worker started. Docker deps: postgres :15432, redis :16379, meili :17700, mailpit mapped. Note: local probes must bypass `http_proxy` (`curl --noproxy '*'`). |
 | Browser desktop/mobile + JS-disabled + Baiduspider | green with residual honesty | Live Nuxt `:3000` Baiduspider `/` `/login` `/register` 200 with titles; home includes JSON-LD. Unit: `SEORegistry/product_js_disabled_test.go`. Historical Playwright: P8 crawler session. Residual: mobile viewport matrix and L2 failure UI not a CI Playwright suite. |
 | Legacy deletion | blocked | Requires APILTS zero telemetry for full LTS window (`p13-migration-and-lts.md` checklist items 1–7) |
+| APILTS inspect (2026-07-21 CLI) | window closed | `go run ./cmd/sforum extension api-lts --json`: `sforum.protocol.v1` status=deprecated, `removeAfter=2026-11-28T00:00:00Z`, `protocolV1CanRemoveWindow=false`, `protocolV1CanRemoveWithZeroShim=false`. CLI process shim calls=0 (live counters only in API/worker). |
+| Presentation ownership (2026-07-21) | pages+chrome done | Theme L1 `data-theme-owned=presentation` + `sf-navbar`/`sf-footer`; Nuxt default layout pass-through; fail-closed `SFHostPublicChrome`. Fail-closed `SFPageOutlet` retained forever. |
 
 ## Security and performance
 
