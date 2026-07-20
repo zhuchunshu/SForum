@@ -1,6 +1,6 @@
 # Trusted Plugin And Theme Platform V3 - Implementation Task Book
 
-Status: **active implementation; P0-P9 complete; P10 active (4/15)**
+Status: **active implementation; P0-P9 complete; P10 active (8/15)**
 Date: 2026-07-13  
 Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
 
@@ -713,9 +713,9 @@ production-wired via `GET /api/v1/extensions/runtime/page-policy` and
       variants, CDN URLs, background processing, retention, and deletion hooks.
 - [x] Preserve an immutable original or explicitly declared source-of-truth asset
       so disabling a transform plugin never destroys user media.
-- [ ] Define paired editor JSON schema, storage version, server renderer, plain
+- [x] Define paired editor JSON schema, storage version, server renderer, plain
       text/excerpt extraction, sanitizer, search extraction, and migration.
-- [ ] Implement ordered parse/validate/normalize/store/render/sanitize/embed/SEO
+- [x] Implement ordered parse/validate/normalize/store/render/sanitize/embed/SEO
       pipeline contracts.
 - [ ] Add Entity Type, Taxonomy, Field Schema, field UI, validation, indexing,
       permission, import/export, and deletion contracts.
@@ -731,8 +731,8 @@ production-wired via `GET /api/v1/extensions/runtime/page-policy` and
       variants, background processing, CDN URL selection, and cleanup.
 - [ ] Traversal, MIME confusion, decompression bomb, transform crash/retry,
       duplicate jobs, orphan variants, provider disable, and uninstall retention.
-- [ ] Round-trip editor/storage/server render/client render/plain text/search.
-- [ ] Schema upgrade, unsupported block fallback, sanitizer attack corpus,
+- [x] Round-trip editor/storage/server render/client render/plain text/search.
+- [x] Schema upgrade, unsupported block fallback, sanitizer attack corpus,
       disabled plugin content rendering, and theme override.
 - [ ] Entity/taxonomy/field permissions and index/query behavior.
 
@@ -759,8 +759,15 @@ upgrade/rollback/disable CAS tests.
 The Tiptap Editor Registry row closed with `Support/EditorRegistry` (node/mark/
 command/toolbar), Manifest `editor`, lifecycle plan `@10` / `editor.v1`, Host
 catalog projection, and Nuxt trusted L2 digest-verify import into SFEditor.
-Editor JSON storage/render pipeline, entity/taxonomy, and reference plugin
-product proofs remain open.
+EditorDocument pipeline and ordered stages are closed; entity/taxonomy and
+reference plugin product proofs remain open.
+
+The EditorDocument pipeline (`Support/EditorDocument`) owns storage version
+`sforum.editor-document@1`, Accept() triple production, ordered stages including
+embed/SEO extension points, XSS/URL sanitizer corpus tests, unsupported-node
+fallback, and storage migration. Client render consumes Host-sanitized HTML;
+theme override of editor chrome remains a presentation concern outside this
+storage contract.
 
 ## P11 - Cache, SEO, Secrets, Files, HTTP, Localization, And API Policies
 

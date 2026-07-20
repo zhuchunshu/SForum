@@ -4,6 +4,29 @@ Last updated: 2026-07-21
 
 ## Progress
 
+- Verified weighted progress: **79.92%** (display **79.0%**).
+- Phase counts: P0-P9 complete; P10 **8/15**. P11 ~6%, P12 ~5%, P13 open.
+
+## Current Subtask
+
+### 2026-07-21 P10 Editor Document Pipeline Closed — Next Entity/Taxonomy
+
+- Commit `2cc754041` EditorDocument Accept + ordered stages + corpus tests.
+- Exact next step: Entity Type / Taxonomy / Field Schema contracts (UI,
+  validation, indexing, permission, import/export, deletion).
+- Unowned dirty WIP must not be staged.
+
+---
+
+
+## Prior Ledger Archive
+
+# Trusted Plugin And Theme Platform V3 Progress Ledger
+
+Last updated: 2026-07-21
+
+## Progress
+
 - Verified weighted progress: **77.78%** (display **77.0%**).
 - Phase counts: P0-P9 complete; P10 **4/15** after Content `@8` + Media `@9` +
   Tiptap Editor `@10` / trusted L2. P11 ~6%, P12 ~5%, P13 open.

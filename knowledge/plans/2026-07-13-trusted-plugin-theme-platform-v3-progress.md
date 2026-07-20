@@ -1,8 +1,8 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Date: 2026-07-21
-Overall progress: **77.0%**
-Active phase: **P10 active (4/15); P9 complete; P11-P13 remain open**
+Overall progress: **79.0%**
+Active phase: **P10 active (8/15); P9 complete; P11-P13 remain open**
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
@@ -26,13 +26,25 @@ scaffolding, or demo-only code cannot satisfy a runtime exit criterion.
 | P7 Workflow/admin/query/identity | 10% | 100% | 10.00% |
 | P8 Theme compiler/runtime | 8% | 100% | 8% |
 | P9 Components/assets/L2 | 8% | 100% | 8.00% |
-| P10 Content/media/data | 8% | 27% | 2.13% |
+| P10 Content/media/data | 8% | 53% | 4.27% |
 | P11 Platform services | 6% | 6% | 0.38% |
 | P12 Operations/ecosystem | 6% | 5% | 0.27% |
 | P13 References/removal/final gates | 5% | 0% | 0% |
 
 Displayed overall progress is the floor of earned weighted progress until the
 program reaches 100% and every final gate passes.
+
+## 2026-07-21 P10 Editor Document Pipeline And Ordered Stages (8/15)
+
+- Overall advances to **79.0%** after flooring (exact ≈ `67 + 8 + 8*(8/15) + 0.38 +
+  0.27 = 79.92`). P10 is **8/15 (~53%)**.
+- Commit: `2cc754041` feat(editor): add Host editor document pipeline and storage triple.
+- Closed paired editor storage triple + ordered parse→…→SEO stage contracts with
+  sanitizer corpus, unsupported-node fallback, disabled-plugin re-accept, and
+  storage migration tests under `Support/EditorDocument`.
+- Still open on P10: entity/taxonomy/field contracts, plugin-extend-plugin
+  content types, attachment/XSS authority product binding, reference
+  blocks/media plugin proofs, media attack surface matrix.
 
 ## 2026-07-21 P10 Tiptap Editor Registry And Trusted L2 Load (4/15)
 
