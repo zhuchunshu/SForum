@@ -20,6 +20,8 @@ const props = withDefaults(defineProps<{
   error?: string
   maxCharacters?: number
   submitLabel?: string
+  // Host-admitted trusted L2 Tiptap extensions (digest-verified before pass-in).
+  trustedExtensions?: unknown[]
 }>(), {
   modelValue: '',
   placeholder: '写下你的回复...',
@@ -28,7 +30,8 @@ const props = withDefaults(defineProps<{
   disabled: false,
   error: undefined,
   maxCharacters: 12000,
-  submitLabel: '发布回复'
+  submitLabel: '发布回复',
+  trustedExtensions: () => []
 })
 
 const emit = defineEmits<{
@@ -104,7 +107,8 @@ onMounted(() => {
     editable: !props.disabled,
     extensions: createSFEditorExtensions({
       placeholder: props.placeholder,
-      maxCharacters: props.maxCharacters
+      maxCharacters: props.maxCharacters,
+      trustedExtensions: props.trustedExtensions
     }),
     onCreate: ({ editor: createdEditor }) => {
       syncFromEditor(createdEditor)

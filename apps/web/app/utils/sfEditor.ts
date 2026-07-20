@@ -134,7 +134,13 @@ export const sforumEditorEmojiItems: SForumEmojiItem[] = [
 export function createSFEditorExtensions(options: {
   placeholder: string
   maxCharacters: number
+  // Trusted L2 plugin extensions already digest-verified by Host loader.
+  // Failures must be filtered before calling this helper so core stays usable.
+  trustedExtensions?: unknown[]
 }) {
+  const trusted = Array.isArray(options.trustedExtensions)
+    ? options.trustedExtensions.filter(Boolean)
+    : []
   return [
     StarterKit.configure({
       link: false,
@@ -175,7 +181,10 @@ export function createSFEditorExtensions(options: {
         gfm: true,
         breaks: false
       }
-    })
+    }),
+    // Plugin L2 extensions append after Host core so core marks/nodes win on
+    // name conflicts inside Tiptap's extension manager.
+    ...trusted
   ]
 }
 
