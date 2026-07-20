@@ -972,9 +972,9 @@ with required/deprecated cells and LTS shim telemetry proof.
 
 - [x] Migrate built-in/reference v1 plugins to v2 while keeping compatibility
       fixtures for the published Host/Frontend API LTS window.
-      (content-policy + **SMTP on V2**; storage-fs remains V1 until Host storage
-      V2 transport exists; V1 rollback fixtures retained; policy
-      `docs/extensions/v3/p13-migration-and-lts.md`.)
+      (content-policy + **SMTP** + **storage-fs** on V2 defaults; V1 rollback
+      fixtures retained via `sforum.extension.v1.json` + `-tags protocol_v1`;
+      policy `docs/extensions/v3/p13-migration-and-lts.md`.)
 - [ ] Move default public presentation out of core Nuxt pages/layouts/CSS.
 - [ ] Remove request-time template loader/regex renderer and legacy Page Outlet
       behavior after parity gates.
