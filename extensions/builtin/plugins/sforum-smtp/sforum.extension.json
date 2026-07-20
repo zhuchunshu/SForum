@@ -4,12 +4,34 @@
   "description": "Protected built-in SMTP mail delivery provider.",
   "url": "https://github.com/zhuchunshu/sforum",
   "author": { "name": "SForum", "url": "https://github.com/zhuchunshu/sforum" },
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "plugin",
   "sforumVersion": ">=0.1.0",
+  "manifestVersion": 3,
   "capabilities": ["host.api", "settings.own", "net.outbound"],
-  "backend": { "entry": "backend/plugin", "rpc": "hashicorp-go-plugin", "protocolVersion": 1 },
-  "providers": [{ "slot": "mail.provider", "label": "SMTP", "timeoutMs": 15000 }],
+  "backend": {
+    "entry": "backend/plugin",
+    "digest": "fc20b752646e0ca76e1cfde53cf8163166cda6767a37d64132e3a9828cc1ecba",
+    "rpc": "hashicorp-go-plugin",
+    "protocolVersion": 2,
+    "hostApiVersion": "sforum.host@2"
+  },
+  "packageFiles": [
+    {
+      "id": "sforum.smtp.file.backend",
+      "kind": "executable",
+      "path": "backend/plugin",
+      "digest": "fc20b752646e0ca76e1cfde53cf8163166cda6767a37d64132e3a9828cc1ecba"
+    }
+  ],
+  "providers": [{
+    "id": "sforum.smtp.provider.mail",
+    "contractVersion": "sforum.smtp.provider.mail@1",
+    "slot": "mail.provider",
+    "label": "SMTP",
+    "handler": "smtp.mail",
+    "timeoutMs": 15000
+  }],
   "includes": {
     "langs": "manifest/langs",
     "admin": "manifest/admin.json",

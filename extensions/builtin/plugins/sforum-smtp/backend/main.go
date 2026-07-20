@@ -1,5 +1,9 @@
+//go:build !protocol_v1
+
 package main
 
-import extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+import pluginv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2"
 
-func main() { extensionsruntime.ServeProtocolPlugin(smtpPlugin{}) }
+func main() {
+	pluginv2.Serve(newSMTPPluginV2())
+}

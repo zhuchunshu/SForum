@@ -1,0 +1,18 @@
+{
+  "id": "sforum.smtp",
+  "name": "SForum SMTP",
+  "description": "Protected built-in SMTP mail delivery provider (Protocol V1 rollback fixture).",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "author": { "name": "SForum", "url": "https://github.com/zhuchunshu/sforum" },
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": ">=0.1.0",
+  "capabilities": ["host.api", "settings.own", "net.outbound"],
+  "backend": { "entry": "backend/plugin", "rpc": "hashicorp-go-plugin", "protocolVersion": 1 },
+  "providers": [{ "slot": "mail.provider", "label": "SMTP", "timeoutMs": 15000 }],
+  "includes": {
+    "langs": "manifest/langs",
+    "admin": "manifest/admin.json",
+    "settings": "manifest/settings.json"
+  }
+}

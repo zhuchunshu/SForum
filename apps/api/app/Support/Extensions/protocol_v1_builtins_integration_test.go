@@ -38,7 +38,9 @@ func TestProtocolV1BuiltInCompatibilityPackages(t *testing.T) {
 		setup        func(*testing.T) (protocolV1BuiltinSettings, func(*testing.T, context.Context, *extensionsruntime.ProtocolStarter, extensions.Extension))
 	}{
 		{
-			name: "smtp", packageName: "sforum-smtp", manifestName: extensions.ManifestFileName,
+			// 默认制品已迁 Protocol V2；本行验证 LTS 回滚二进制仍可构建并提供 mail.provider。
+			name: "smtp rollback", packageName: "sforum-smtp",
+			manifestName: "sforum.extension.v1.json", buildTags: "protocol_v1",
 			setup: protocolV1SMTPFixture,
 		},
 		{
@@ -138,7 +140,9 @@ func buildProtocolV1Builtin(t *testing.T, repositoryRoot, packageName, manifestN
 	}
 	arguments = append(arguments, ".")
 	command := exec.Command("go", arguments...)
-	command.Dir = filepath.Join(sourceRoot, "backend")
+	moduleRoot := filepath.Join(sourceRoot, "backend")
+	command.Dir = moduleRoot
+	command.Env = append(os.Environ(), "GOWORK="+temporaryPluginWorkspace(t, repositoryRoot, moduleRoot))
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("build %s protocol v1 binary: %v\n%s", packageName, err, output)
 	}
@@ -330,4 +334,22 @@ func protocolV1RepositoryRoot(t *testing.T) string {
 		t.Fatal("resolve protocol v1 fixture path")
 	}
 	return filepath.Clean(filepath.Join(filepath.Dir(file), "../../../../.."))
+}
+
+func temporaryPluginWorkspace(t *testing.T, repositoryRoot, pluginModuleRoot string) string {
+	t.Helper()
+	goVersion := strings.TrimPrefix(runtime.Version(), "go")
+	if goVersion == runtime.Version() || strings.ContainsAny(goVersion, " \t\r\n") {
+		t.Fatalf("unsupported Go runtime version %q", runtime.Version())
+	}
+	body := fmt.Sprintf("go %s\n\nuse (\n\t%s\n\t%s\n)\n",
+		goVersion,
+		strconv.Quote(filepath.ToSlash(filepath.Join(repositoryRoot, "apps/api"))),
+		strconv.Quote(filepath.ToSlash(pluginModuleRoot)),
+	)
+	path := filepath.Join(t.TempDir(), "go.work")
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatalf("write temporary plugin workspace: %v", err)
+	}
+	return path
 }
