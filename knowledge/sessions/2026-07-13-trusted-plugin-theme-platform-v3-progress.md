@@ -5,6 +5,55 @@ Last updated: 2026-07-21
 ## Progress
 
 - Verified weighted progress: **99.7%** (display **99%**).
+- Phase counts: **P0–P12 complete (P10 15/15 platform)**; P13 **~99.7%**.
+- Goal harness "remaining P10" is **stale as a phase reopen**; product-path
+  adoption residual is being closed without re-credit of P10 checkboxes.
+- Product-path adoption shipped this session:
+  - `635d48360` public editor-catalog HTTP + OpenAPI
+  - `dec967e27` forum `sourceFormat=editor-document` → EditorDocument Accept
+  - `93cd5dfea` SFEditor catalog admit + composer/reply editor-document submit
+  - media MIME gate + Attachments product path (see latest commits)
+- Prior non-LTS hygiene: `7ca7353e1`…`1435c1556`
+
+## Current Subtask
+
+### 2026-07-21 product-path adoption (post-P10 honesty)
+
+- Exact next: optional ContentRegistry execution on forum render; entity
+  import/export execution remains plan-level.
+- **Still do not delete** LoadTemplate / Protocol V1 / fail-closed SFPageOutlet
+  until RemoveAfter (≈2026-11-28) + zero-shim.
+
+## Tests
+
+- `go test` Extensions EditorCatalog: pass
+- `go test` Forum RenderEditorDocument: pass
+- `bun test` editorL2Load + forumContentFromEditorPayload: pass
+- `ruby scripts/validate-openapi-refs.rb`: pass
+- `go test` MediaRegistry CheckUploadMIME + Attachments MediaRegistry: pass
+
+## Open task-book rows
+
+1. Remove request-time template loader residual (instrumented; not deleted)
+2. Remove Protocol V1 paths
+3. Compatibility path removal after LTS checklist
+
+## Rollback
+
+- Revert product-path commits from `635d48360` forward for editor/media wiring.
+- Never delete LTS shims early.
+
+
+---
+
+
+# Trusted Plugin And Theme Platform V3 Progress Ledger
+
+Last updated: 2026-07-21
+
+## Progress
+
+- Verified weighted progress: **99.7%** (display **99%**).
 - Phase counts: **P0–P12 complete (P10 15/15)**; P13 **~99.7%**.
 - Goal harness "remaining P10" remains **stale** — do not re-implement P10.
 - Non-LTS residual hygiene closed (`7ca7353e1`…`ffbec31e6`):
