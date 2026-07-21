@@ -492,3 +492,62 @@ func (f *fakeOwnedProductionQueryInvalidator) snapshot() (int, int) {
 	defer f.mu.Unlock()
 	return f.calls, f.closes
 }
+
+// TestQueryResultCacheStageHandoffMatchesAssemblyOwnership 覆盖 wire→finish 拆分后的
+// 真实所有权协议：HandOff 前 CloseUnlessHandedOff 必须关闭 Redis client；HandOff 后
+// 不得关闭，以便 API.close 继续持有。
+func TestQueryResultCacheStageHandoffMatchesAssemblyOwnership(t *testing.T) {
+	t.Parallel()
+
+	t.Run("stage_failure_closes_client", func(t *testing.T) {
+		t.Parallel()
+		client := redis.NewClient(&redis.Options{Addr: "127.0.0.1:1"})
+		t.Cleanup(func() { _ = client.Close() })
+		runtime := &productionQueryResultCacheRuntime{client: client}
+		ownership := newQueryResultCacheStageHandoff(runtime, nil)
+		// 模拟 wireAPICoreStack 失败路径：defer CloseUnlessHandedOff 且未 HandOff。
+		ownership.CloseUnlessHandedOff()
+		if err := client.Ping(context.Background()).Err(); !errors.Is(err, redis.ErrClosed) {
+			t.Fatalf("expected closed client after stage failure close, ping=%v", err)
+		}
+	})
+
+	t.Run("hand_off_keeps_client_for_next_stage", func(t *testing.T) {
+		t.Parallel()
+		client := redis.NewClient(&redis.Options{Addr: "127.0.0.1:1"})
+		t.Cleanup(func() { _ = client.Close() })
+		runtime := &productionQueryResultCacheRuntime{client: client}
+		// Stage A 成功移交（wireAPICoreStack → finishAPIHTTP）。
+		stageA := newQueryResultCacheStageHandoff(runtime, nil)
+		handed := stageA.HandOff()
+		stageA.CloseUnlessHandedOff() // wire 函数返回时的 defer：不得关闭
+		if handed != runtime {
+			t.Fatalf("HandOff runtime mismatch: got %#v want %#v", handed, runtime)
+		}
+		if err := client.Ping(context.Background()).Err(); errors.Is(err, redis.ErrClosed) {
+			t.Fatal("stage A CloseUnlessHandedOff closed client after HandOff")
+		}
+		// Stage B 承接后 defer；成功时再 HandOff 给 API.close。
+		stageB := newQueryResultCacheStageHandoff(handed, nil)
+		_ = stageB.HandOff()
+		stageB.CloseUnlessHandedOff()
+		if err := client.Ping(context.Background()).Err(); errors.Is(err, redis.ErrClosed) {
+			t.Fatal("stage B CloseUnlessHandedOff closed client after HandOff to API.close")
+		}
+		// API.close 路径：最终关闭一次。
+		handed.Close(nil)
+		if err := client.Ping(context.Background()).Err(); !errors.Is(err, redis.ErrClosed) {
+			t.Fatalf("expected closed client after API.close, ping=%v", err)
+		}
+	})
+
+	t.Run("double_close_is_safe", func(t *testing.T) {
+		t.Parallel()
+		client := redis.NewClient(&redis.Options{Addr: "127.0.0.1:1"})
+		runtime := &productionQueryResultCacheRuntime{client: client}
+		ownership := newQueryResultCacheStageHandoff(runtime, nil)
+		ownership.CloseUnlessHandedOff()
+		ownership.CloseUnlessHandedOff()
+		runtime.Close(nil)
+	})
+}

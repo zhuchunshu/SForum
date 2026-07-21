@@ -1,0 +1,914 @@
+package extensions
+
+import (
+	"archive/zip"
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	capabilities "github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
+	crypto "github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
+)
+
+func (s *Service) compensateThemeActivationTrust(
+	ctx context.Context,
+	actor identity.Actor,
+	receipt executableTrustGrantReceipt,
+	activationTarget Extension,
+	previous *Extension,
+	activationErr error,
+) error {
+	if !receipt.created || s.executableTrust == nil {
+		return activationErr
+	}
+	base := ctx
+	if base == nil {
+		base = context.Background()
+	} else {
+		base = context.WithoutCancel(base)
+	}
+	compensationCtx, cancel := context.WithTimeout(base, themeTrustCompensationTimeout)
+	defer cancel()
+	// 如果另一个节点已经成功激活同一 exact artifact，本次 grant 已被正式采用，
+	// 失败请求不能再把它当作孤儿授权撤销。激活前本来就是同一制品时不适用。
+	previousWasTarget := previous != nil && sameThemeExactArtifact(*previous, activationTarget)
+	if !previousWasTarget {
+		if active, err := s.store.ActiveTheme(compensationCtx); err == nil && sameThemeExactArtifact(active, activationTarget) {
+			return activationErr
+		}
+	}
+	if err := s.executableTrust.compensateEnable(compensationCtx, actor, receipt, "theme_activation_failed"); err != nil {
+		combined := errors.Join(activationErr, fmt.Errorf("compensate exact executable trust grant: %w", err))
+		s.recordEnableFailure(compensationCtx, actor, receipt.impact.ExtensionID, combined)
+		return combined
+	}
+	return activationErr
+}
+
+func sameThemeExactArtifact(left, right Extension) bool {
+	return left.ID == right.ID && left.Type == TypeTheme && right.Type == TypeTheme &&
+		left.Version == right.Version && strings.EqualFold(left.PackageDigest, right.PackageDigest)
+}
+
+func themeRuntimePublicationSourceMatches(publication ThemeRuntimePublication, source *Extension) bool {
+	if source == nil {
+		return publication.SourceThemeID == "" && publication.SourceThemeVersion == "" &&
+			publication.SourcePackageDigest == ""
+	}
+	return publication.SourceThemeID == source.ID && publication.SourceThemeVersion == source.Version &&
+		strings.EqualFold(publication.SourcePackageDigest, source.PackageDigest)
+}
+
+func themeIDOrEmpty(e *Extension) string {
+	if e == nil {
+		return ""
+	}
+	return e.ID
+}
+
+// RestoreActiveThemeRegistry API 启动时恢复活动主题 + 已启用插件的页面贡献。
+// 无效/缺失主题时安全回退默认主题并写诊断事件。
+func (s *Service) RestoreActiveThemeRegistry(ctx context.Context) error {
+	if s == nil || (s.pageRegistry == nil && s.assetRegistry == nil) {
+		return nil
+	}
+	s.assetPublicationMu.Lock()
+	defer s.assetPublicationMu.Unlock()
+	assetBefore := s.captureAssetPublicationSnapshot()
+	// 恢复已启用插件页面贡献
+	items, err := s.store.List(ctx)
+	if err != nil {
+		return err
+	}
+	if s.pageRegistry == nil {
+		_, err = s.restoreEnabledAssetPublications(ctx, assetBefore, items, false)
+		return err
+	}
+	for _, item := range items {
+		if item.Type != TypePlugin || item.Status != StatusEnabled {
+			continue
+		}
+		if err := s.pageRegistry.RegisterPluginPackage(ctx, item); err != nil {
+			// 插件页面失败不阻断启动；清掉该扩展贡献并记事件
+			s.pageRegistry.ClearExtension(item.ID)
+			_, _ = s.store.CreateEvent(ctx, EventInput{
+				ExtensionID: item.ID,
+				Action:      EventEnableFailed,
+				Message:     "restore plugin page contributions failed: " + err.Error(),
+			})
+		}
+	}
+
+	active, err := s.store.ActiveTheme(ctx)
+	if err != nil {
+		// 无活动主题 → 尝试默认
+		if def, derr := s.EnsureDefaultThemeActive(ctx); derr == nil {
+			active = def
+		} else {
+			return derr
+		}
+	}
+	if active.ID != DefaultThemeID {
+		defaultTheme, defaultErr := s.store.Get(ctx, DefaultThemeID)
+		if defaultErr != nil {
+			return defaultErr
+		}
+		if defaultErr = s.pageRegistry.RegisterDefaultThemeFallback(ctx, defaultTheme); defaultErr != nil {
+			return fmt.Errorf("restore default theme fallback: %w", defaultErr)
+		}
+	}
+	if err := s.pageRegistry.PreflightThemePackage(ctx, active, ""); err != nil {
+		// 无效主题 → 回退默认
+		repaired, repairErr := s.repairActiveThemeAfterRestoreFailure(ctx, active, err)
+		if repairErr != nil {
+			return repairErr
+		}
+		active = repaired
+	}
+	staleThemeIDs := make([]string, 0)
+	for _, item := range items {
+		if item.Type == TypeTheme && item.ID != active.ID {
+			staleThemeIDs = append(staleThemeIDs, item.ID)
+		}
+	}
+	if err := s.pageRegistry.RegisterThemePackageRestoring(ctx, active, staleThemeIDs); err != nil {
+		// 包目录被手动删除、digest 漂移等：与 preflight 失败同样尝试回退，避免阻断启动。
+		repaired, repairErr := s.repairActiveThemeAfterRestoreFailure(ctx, active, err)
+		if repairErr != nil {
+			return fmt.Errorf("restore active theme registry: %w", err)
+		}
+		active = repaired
+		staleThemeIDs = staleThemeIDs[:0]
+		for _, item := range items {
+			if item.Type == TypeTheme && item.ID != active.ID {
+				staleThemeIDs = append(staleThemeIDs, item.ID)
+			}
+		}
+		if retryErr := s.pageRegistry.RegisterThemePackageRestoring(ctx, active, staleThemeIDs); retryErr != nil {
+			return fmt.Errorf("restore active theme registry: %w", retryErr)
+		}
+	}
+	items, err = s.store.List(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = s.restoreEnabledAssetPublications(ctx, assetBefore, items, false)
+	return err
+}
+
+// repairActiveThemeAfterRestoreFailure 在 preflight/注册失败时尽量回退到受保护默认主题，
+// 避免非默认主题包被手动删除后阻断页面注册恢复。
+func (s *Service) repairActiveThemeAfterRestoreFailure(
+	ctx context.Context,
+	active Extension,
+	cause error,
+) (Extension, error) {
+	_, _ = s.store.CreateEvent(ctx, EventInput{
+		ExtensionID: active.ID,
+		Action:      EventEnableFailed,
+		Message:     "active theme registry restore failed, falling back to default: " + cause.Error(),
+	})
+	s.pageRegistry.ClearExtension(active.ID)
+	if active.ID == DefaultThemeID {
+		// 默认主题自身损坏时不在此处强行改 active 版本（需 theme activation 路径）；
+		// 返回当前 active 让上层记录失败（bootstrap 对该错误已是 WARN）。
+		return active, nil
+	}
+	result, err := s.store.ActivateTheme(ctx, DefaultThemeID)
+	if err != nil {
+		return Extension{}, err
+	}
+	return result.Extension, nil
+}
+
+// RestoreSafeModeThemeRegistry 忽略数据库 desired theme 与全部插件贡献，只加载受保护默认主题。
+func (s *Service) RestoreSafeModeThemeRegistry(ctx context.Context) error {
+	if s == nil || (s.pageRegistry == nil && s.assetRegistry == nil) {
+		return nil
+	}
+	s.themeActivationMu.Lock()
+	defer s.themeActivationMu.Unlock()
+	return s.restoreSafeModeThemeRegistry(ctx)
+}
+
+// FailClosedThemeRuntime permanently closes theme mutation admission for this
+// process before installing the protected default. A healthy process restart is
+// required to reopen admission after durable watcher ownership is lost.
+func (s *Service) FailClosedThemeRuntime(ctx context.Context) error {
+	if s == nil {
+		return nil
+	}
+	s.themeActivationMu.Lock()
+	defer s.themeActivationMu.Unlock()
+	s.themeRuntimeUnavailable = true
+	return s.restoreSafeModeThemeRegistry(ctx)
+}
+
+func (s *Service) restoreSafeModeThemeRegistry(ctx context.Context) error {
+	if s.pageRegistry == nil && s.assetRegistry == nil {
+		return nil
+	}
+	s.assetPublicationMu.Lock()
+	defer s.assetPublicationMu.Unlock()
+	assetBefore := s.captureAssetPublicationSnapshot()
+	if s.assetRegistry != nil {
+		if _, err := s.restoreEnabledAssetPublications(ctx, assetBefore, nil, true); err != nil {
+			return err
+		}
+	}
+	if s.pageRegistry == nil {
+		return nil
+	}
+	items, err := s.store.List(ctx)
+	if err != nil {
+		return err
+	}
+	for _, item := range items {
+		s.pageRegistry.ClearExtension(item.ID)
+	}
+	defaultTheme, err := s.store.Get(ctx, DefaultThemeID)
+	if err != nil {
+		return err
+	}
+	if defaultTheme.Type != TypeTheme || defaultTheme.Source != SourceBuiltin || !defaultTheme.IsSystem {
+		return ErrInvalidManifest
+	}
+	if err := s.pageRegistry.PreflightThemePackage(ctx, defaultTheme, ""); err != nil {
+		return err
+	}
+	if err := s.pageRegistry.RegisterThemePackage(ctx, defaultTheme); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Service) EnsureDefaultThemeActive(ctx context.Context) (Extension, error) {
+	active, err := s.store.ActiveTheme(ctx)
+	if err == nil && active.ID == DefaultThemeID && active.Source == SourceBuiltin {
+		return active, nil
+	}
+	defaultTheme, getErr := s.store.Get(ctx, DefaultThemeID)
+	if getErr != nil {
+		if err != nil {
+			return Extension{}, err
+		}
+		return Extension{}, getErr
+	}
+	if defaultTheme.Type != TypeTheme || defaultTheme.Source != SourceBuiltin {
+		return Extension{}, ErrInvalidManifest
+	}
+	result, err := s.store.ActivateTheme(ctx, DefaultThemeID)
+	return result.Extension, err
+}
+
+func (s *Service) verifyExtension(ctx context.Context, extension Extension) error {
+	if err := validateInstalledPackage(extension); err != nil {
+		if extension.Type == TypeTheme {
+			return fmt.Errorf("%w: %v", ErrBuildFailed, err)
+		}
+		return fmt.Errorf("%w: %v", ErrPreflightFailed, err)
+	}
+	if extension.Type == TypePlugin && extension.Manifest.Backend.Entry != "" && s.runtime != nil {
+		if err := s.runtime.Check(ctx, extension); err != nil {
+			return fmt.Errorf("%w: %v", ErrPreflightFailed, err)
+		}
+	}
+	if extension.Type == TypeTheme {
+		if !themeRuntimePackagePresent(extension.PackagePath) {
+			return fmt.Errorf("%w: theme requires theme.json/assets (L0/L1)", ErrBuildFailed)
+		}
+	}
+	return nil
+}
+
+// themeRuntimePackagePresent 检测 L0/L1 运行时主题包。
+func themeRuntimePackagePresent(packagePath string) bool {
+	root := strings.TrimSpace(packagePath)
+	if root == "" {
+		return false
+	}
+	// 与 PackageContentRoot 一致：zip 旁 files/、同级目录或内容寻址目录。
+	candidates := []string{root}
+	if st, err := os.Stat(root); err == nil && !st.IsDir() {
+		candidates = []string{
+			filepath.Join(filepath.Dir(root), "files"),
+			filepath.Dir(root),
+		}
+	}
+	for _, base := range candidates {
+		for _, name := range []string{"theme.json", "assets/theme.css", "assets"} {
+			if st, err := os.Stat(filepath.Join(base, name)); err == nil {
+				if name == "assets" && !st.IsDir() {
+					continue
+				}
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func validateInstalledPackage(extension Extension) error {
+	packagePath := strings.TrimSpace(extension.PackagePath)
+	if packagePath == "" {
+		return fmt.Errorf("extension package path is empty")
+	}
+	if strings.TrimSpace(extension.PackageDigest) != "" {
+		info, err := os.Lstat(packagePath)
+		if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+			return fmt.Errorf("extension package snapshot %s is not available", packagePath)
+		}
+		if err := requireInstalledManifest(packagePath); err != nil {
+			return err
+		}
+		digest, err := extensionpackage.DigestTree(packagePath)
+		if err != nil {
+			return fmt.Errorf("extension package snapshot %s is invalid: %w", packagePath, err)
+		}
+		if digest != extension.PackageDigest {
+			return fmt.Errorf("extension package snapshot %s digest does not match its installed version", packagePath)
+		}
+		return nil
+	}
+	if extension.Source == SourceBuiltin {
+		info, err := os.Stat(packagePath)
+		if err != nil || !info.IsDir() {
+			return fmt.Errorf("builtin extension package %s is not available", packagePath)
+		}
+		return requireInstalledManifest(packagePath)
+	}
+
+	info, err := os.Stat(packagePath)
+	if err != nil || info.IsDir() {
+		return fmt.Errorf("extension archive %s is not available", packagePath)
+	}
+	return requireInstalledManifest(filepath.Dir(packagePath))
+}
+
+func requireInstalledManifest(root string) error {
+	manifestPath := filepath.Join(root, ManifestFileName)
+	info, err := os.Stat(manifestPath)
+	if err != nil || info.IsDir() {
+		return fmt.Errorf("extension manifest %s is not available", manifestPath)
+	}
+	return nil
+}
+
+func (s *Service) recordEnableFailure(ctx context.Context, actor identity.Actor, extensionID string, cause error) {
+	_, _ = s.store.CreateEvent(ctx, EventInput{
+		ExtensionID: extensionID,
+		ActorUserID: actor.ID,
+		Action:      EventEnableFailed,
+		Message:     cause.Error(),
+	})
+}
+
+func (s *Service) decorateRuntime(ctx context.Context, item Extension) Extension {
+	if item.Type == TypePlugin {
+		item.CapabilityGrants = extensionmanifest.CapabilityGrants(item.Manifest)
+		if s.runtime != nil {
+			status := s.runtime.Status(ctx, item)
+			item.Runtime = &status
+		}
+	}
+	return item
+}
+
+// CapabilitiesFor 返回已启用插件的有效能力集合（Host API CapabilitySource）。
+func (s *Service) CapabilitiesFor(ctx context.Context, extensionID string) (capabilities.Set, error) {
+	if s.safeMode {
+		return nil, ErrExtensionDisabled
+	}
+	extension, err := s.store.Get(ctx, normalizeID(extensionID))
+	if err != nil {
+		return nil, err
+	}
+	if extension.Type != TypePlugin {
+		return nil, ErrExtensionNotFound
+	}
+	if extension.Status != StatusEnabled {
+		return nil, ErrExtensionDisabled
+	}
+	keys, _ := extensionmanifest.ResolvedCapabilities(extension.Manifest)
+	return capabilities.NewSet(keys), nil
+}
+
+// DeclaredJobKinds 返回插件 manifest 声明的 job names。
+func (s *Service) DeclaredJobKinds(ctx context.Context, extensionID string) ([]string, error) {
+	if s.safeMode {
+		return []string{}, nil
+	}
+	extension, err := s.store.Get(ctx, normalizeID(extensionID))
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(extension.Manifest.Jobs))
+	for _, job := range extension.Manifest.Jobs {
+		if name := strings.TrimSpace(job.Name); name != "" {
+			out = append(out, name)
+		}
+	}
+	return out, nil
+}
+
+// CapabilityCatalog 返回宿主能力目录（管理端审查文案）。
+func (s *Service) CapabilityCatalog(_ context.Context, actor identity.Actor) ([]capabilities.Definition, error) {
+	if !canViewExtensions(actor) && !canManagePlugins(actor) {
+		return nil, identity.ErrPermissionDenied
+	}
+	return capabilities.Catalog(), nil
+}
+
+type archiveFile struct {
+	name string
+	mode os.FileMode
+	body []byte
+}
+
+func readArchive(data []byte) (Manifest, []archiveFile, error) {
+	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		return Manifest{}, nil, ErrInvalidArchive
+	}
+	// 中央目录本身也会占内存；目录条目同样计数，避免空文件/目录绕过字节上限。
+	if len(reader.File) > maxArchiveEntries {
+		return Manifest{}, nil, ErrInvalidArchive
+	}
+
+	var rootBody []byte
+	files := []archiveFile{}
+	fileMap := extensionmanifest.FileMapFS{}
+	seen := map[string]struct{}{}
+	var total uint64
+	for _, file := range reader.File {
+		name, ok := safeArchivePath(file.Name)
+		if !ok {
+			return Manifest{}, nil, ErrInvalidArchive
+		}
+		if file.Mode()&os.ModeSymlink != 0 {
+			return Manifest{}, nil, ErrInvalidArchive
+		}
+		if file.FileInfo().IsDir() {
+			continue
+		}
+		if _, duplicate := seen[name]; duplicate {
+			return Manifest{}, nil, ErrInvalidArchive
+		}
+		seen[name] = struct{}{}
+		// 不信任 UncompressedSize64：zip bomb 可虚报小体积。按真实读出字节累计并硬顶。
+		remaining := int64(maxArchiveBytes) - int64(total)
+		if remaining <= 0 {
+			return Manifest{}, nil, ErrInvalidArchive
+		}
+		body, err := readZipFileLimited(file, remaining)
+		if err != nil {
+			return Manifest{}, nil, ErrInvalidArchive
+		}
+		total += uint64(len(body))
+		if total > maxArchiveBytes {
+			return Manifest{}, nil, ErrInvalidArchive
+		}
+		fileMap[name] = body
+		if name == ManifestFileName {
+			rootBody = body
+			continue
+		}
+		files = append(files, archiveFile{name: name, mode: file.Mode(), body: body})
+	}
+	if rootBody == nil {
+		return Manifest{}, nil, ErrInvalidArchive
+	}
+	// 合并 includes partials 后再交给校验与快照；files 仍保留除入口外的原文。
+	manifest, err := extensionmanifest.LoadRootBytes(rootBody, fileMap)
+	if err != nil {
+		return Manifest{}, nil, ErrInvalidManifest
+	}
+	return manifest, files, nil
+}
+
+// readZipFileLimited 读取 zip 条目，最多 maxBytes 字节；超出视为炸弹/恶意包。
+func readZipFileLimited(file *zip.File, maxBytes int64) ([]byte, error) {
+	if maxBytes <= 0 {
+		return nil, ErrInvalidArchive
+	}
+	reader, err := file.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+	// +1 探测是否超过上限，避免无界 ReadAll。
+	limited := io.LimitReader(reader, maxBytes+1)
+	body, err := io.ReadAll(limited)
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(body)) > maxBytes {
+		return nil, ErrInvalidArchive
+	}
+	return body, nil
+}
+
+func writeManifest(versionDir string, manifest Manifest) error {
+	body, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(versionDir, ManifestFileName), body, 0o600)
+}
+
+// PackageContentRoot 返回扩展包内可读文件的目录根。
+// - 内容寻址快照 / builtin：PackagePath 本身就是目录。
+// - 旧版上传包：PackagePath 指向 package.zip，解压内容在同级 files/。
+// 主题 L0/L1 预检、皮肤资源与模板加载都必须走这里，不能直接拼 package.zip 路径。
+func PackageContentRoot(extension Extension) string {
+	path := strings.TrimSpace(extension.PackagePath)
+	if path == "" {
+		return ""
+	}
+	path = filepath.Clean(path)
+	// 有 digest 的快照或内置包：PackagePath 即为内容根目录。
+	if strings.TrimSpace(extension.PackageDigest) != "" || extension.Source == SourceBuiltin {
+		return path
+	}
+	if info, err := os.Stat(path); err == nil && info.IsDir() {
+		return path
+	}
+	// 旧上传布局：.../1.0.0/package.zip + .../1.0.0/files/*
+	files := filepath.Join(filepath.Dir(path), "files")
+	if info, err := os.Stat(files); err == nil && info.IsDir() {
+		return files
+	}
+	// 兜底：zip 同级目录（manifest 等同级时）
+	return filepath.Dir(path)
+}
+
+func installedFilePath(extension Extension, manifestPath string) (string, bool) {
+	name, ok := safeArchivePath(manifestPath)
+	if !ok {
+		return "", false
+	}
+	root := PackageContentRoot(extension)
+	if root == "" {
+		return "", false
+	}
+	target := filepath.Join(root, filepath.FromSlash(name))
+	return target, strings.HasPrefix(target, root+string(os.PathSeparator))
+}
+
+func InstalledFilePathForRuntime(extension Extension, manifestPath string) (string, bool) {
+	return installedFilePath(extension, manifestPath)
+}
+
+func validateManifest(manifest Manifest) error {
+	return extensionmanifest.Validate(manifest)
+}
+
+func ValidateManifest(manifest Manifest) error {
+	return extensionmanifest.Validate(manifest)
+}
+
+func normalizeManifest(manifest Manifest) Manifest {
+	return extensionmanifest.Normalize(manifest)
+}
+
+func normalizeID(id string) string {
+	return extensionmanifest.NormalizeID(id)
+}
+
+func safeArchivePath(name string) (string, bool) {
+	return extensionmanifest.SafeArchivePath(name)
+}
+
+func normalizeRoutePath(value string) string {
+	return extensionmanifest.NormalizeRoutePath(value)
+}
+
+func extensionInjectsAdminNavigation(extension Extension) bool {
+	if extension.Type == TypePlugin {
+		return extension.Status == StatusEnabled
+	}
+	return extension.Type == TypeTheme && extension.Status == StatusEnabled
+}
+
+func normalizedAdminPages(manifest Manifest) []ManifestAdminPage {
+	pages := make([]ManifestAdminPage, 0, len(extensionmanifest.EffectiveAdminPages(manifest))+1)
+	pages = append(pages, ManifestAdminPage{
+		Path:        "/about",
+		Label:       manifest.Name,
+		Description: manifest.Description,
+		Icon:        defaultExtensionIcon(manifest.Type),
+		View:        "about",
+		Order:       0,
+	})
+	for _, page := range extensionmanifest.EffectiveAdminPages(manifest) {
+		if strings.TrimSpace(page.Path) == "" {
+			continue
+		}
+		pages = append(pages, normalizeAdminPageForDisplay(manifest.Type, page))
+	}
+	sort.SliceStable(pages, func(left, right int) bool {
+		if pages[left].Order == pages[right].Order {
+			return pages[left].Path < pages[right].Path
+		}
+		return pages[left].Order < pages[right].Order
+	})
+	return pages
+}
+
+func normalizedMenuAdminPages(manifest Manifest) []ManifestAdminPage {
+	pages := make([]ManifestAdminPage, 0, len(extensionmanifest.MenuAdminPages(manifest)))
+	for _, page := range extensionmanifest.MenuAdminPages(manifest) {
+		if strings.TrimSpace(page.Path) == "" {
+			continue
+		}
+		pages = append(pages, normalizeAdminPageForDisplay(manifest.Type, page))
+	}
+	sort.SliceStable(pages, func(left, right int) bool {
+		if pages[left].Order == pages[right].Order {
+			return pages[left].Path < pages[right].Path
+		}
+		return pages[left].Order < pages[right].Order
+	})
+	return pages
+}
+
+func normalizeAdminPageForDisplay(extensionType string, page ManifestAdminPage) ManifestAdminPage {
+	page.Path = extensionmanifest.NormalizeRoutePath(page.Path)
+	page.Label = strings.TrimSpace(page.Label)
+	page.Description = strings.TrimSpace(page.Description)
+	page.Icon = strings.TrimSpace(page.Icon)
+	page.View = strings.TrimSpace(page.View)
+	page.Permission = strings.TrimSpace(page.Permission)
+	if page.Icon == "" {
+		page.Icon = defaultExtensionIcon(extensionType)
+	}
+	if page.View == "" {
+		page.View = "about"
+	}
+	return page
+}
+
+func defaultExtensionIcon(extensionType string) string {
+	if extensionType == TypeTheme {
+		return "i-lucide-palette"
+	}
+	return "i-lucide-plug"
+}
+
+func resolveExtensionSettings(extension Extension, values map[string]string, locale string) ExtensionSettings {
+	items := make([]ExtensionSettingValue, 0, len(extension.Manifest.Settings))
+	for _, setting := range extension.Manifest.Settings {
+		value := setting.Default
+		secretSet := false
+		if values != nil {
+			if stored, ok := values[setting.Key]; ok {
+				value = stored
+				secretSet = setting.Type == "secret" && stored != ""
+			}
+		}
+		if setting.Type == "secret" {
+			value = ""
+		}
+		// API 响应始终返回当前 locale 下的纯字符串，避免前端处理 locale map。
+		presentation := extensionmanifest.ResolveSettingPresentation(setting, locale)
+		options := make([]ExtensionSettingOption, 0, len(presentation.Options))
+		for _, option := range presentation.Options {
+			options = append(options, ExtensionSettingOption{
+				Value:       option.Value,
+				Label:       option.Label,
+				Description: option.Description,
+			})
+		}
+		items = append(items, ExtensionSettingValue{
+			Key:              setting.Key,
+			Label:            presentation.Label,
+			Description:      presentation.Description,
+			Type:             setting.Type,
+			Default:          setting.Default,
+			Value:            value,
+			Placeholder:      presentation.Placeholder,
+			RecommendedValue: setting.RecommendedValue,
+			Width:            setting.Width,
+			Group:            presentation.Group,
+			GroupID:          setting.GroupID,
+			Column:           setting.Column,
+			Options:          options,
+			SecretSet:        secretSet,
+		})
+	}
+	document := extension.Manifest.SettingsDocument
+	renderer := ExtensionSettingsRenderer{Mode: document.UI.Mode, Layout: document.UI.Layout, Source: "document", Fallback: "schema"}
+	if !document.Explicit {
+		renderer.Source = "legacy_array"
+	}
+	if document.UI.Component != nil {
+		component := document.UI.Component
+		renderer.Component = &ExtensionSettingsComponent{ID: component.ID, Kind: "prebuilt", APIVersion: component.APIVersion, Entry: component.Entry, CSS: component.CSS}
+	}
+	tabs := make([]ExtensionSettingsTab, 0, len(document.UI.Tabs))
+	for _, tab := range document.UI.Tabs {
+		tabs = append(tabs, ExtensionSettingsTab{ID: tab.ID, Label: tab.Label.Resolve(locale), Description: tab.Description.Resolve(locale), Groups: append([]string(nil), tab.Groups...)})
+	}
+	groups := make([]ExtensionSettingsGroup, 0, len(document.UI.Groups))
+	for _, group := range document.UI.Groups {
+		groups = append(groups, ExtensionSettingsGroup{ID: group.ID, Label: group.Label.Resolve(locale), Description: group.Description.Resolve(locale), Columns: group.Columns})
+	}
+	callouts := make([]ExtensionSettingsCallout, 0, len(document.UI.Callouts))
+	for _, callout := range document.UI.Callouts {
+		callouts = append(callouts, ExtensionSettingsCallout{ID: callout.ID, Tone: callout.Tone, Title: callout.Title.Resolve(locale), Body: callout.Body.Resolve(locale), Tab: callout.Tab, Group: callout.Group})
+	}
+	actions := make([]ExtensionSettingsAction, 0, len(document.Actions))
+	for _, action := range document.Actions {
+		available := extension.Type == TypePlugin && extension.Manifest.Backend.Entry != "" && len(extension.Manifest.Providers) > 0
+		reason := ""
+		if !available {
+			reason = "extension.settings_action_unavailable"
+		}
+		actions = append(actions, ExtensionSettingsAction{
+			ID: action.ID, Kind: action.Kind, Label: action.Label.Resolve(locale), Description: action.Description.Resolve(locale),
+			Placement: action.Placement, UseDraftValues: action.UseDraftValues, Fields: append([]string(nil), action.Fields...),
+			Available: available, UnavailableReason: reason,
+		})
+	}
+	return ExtensionSettings{
+		ExtensionID: extension.ID, ExtensionType: extension.Type, ExtensionVersion: extension.Version, ExtensionStatus: extension.Status,
+		Renderer: renderer, Tabs: tabs, Groups: groups, Callouts: callouts, Items: items, Actions: actions,
+	}
+}
+
+// sanitizeSettingValues 将 PUT 解析为完整候选集：提交值 → 已存值 → 默认。
+// 省略的 secret 始终保留已存值；未知 key 拒绝且不写库。
+func sanitizeSettingValues(manifest Manifest, input, current map[string]string) (map[string]string, error) {
+	allowed := map[string]ManifestSetting{}
+	for _, setting := range manifest.Settings {
+		allowed[setting.Key] = setting
+	}
+	// 先拒绝未知键，避免部分写入。
+	for key := range input {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			continue
+		}
+		if _, ok := allowed[key]; !ok {
+			return nil, ErrInvalidManifest
+		}
+	}
+	values := map[string]string{}
+	for _, setting := range manifest.Settings {
+		key := setting.Key
+		if submitted, ok := input[key]; ok {
+			normalized := strings.TrimSpace(submitted)
+			if setting.Type == "secret" && normalized == "" {
+				if cur, has := current[key]; has {
+					values[key] = cur
+				}
+				// 无已存 secret 且提交空：不写入覆盖行。
+				continue
+			}
+			values[key] = normalized
+			continue
+		}
+		// 未提交：保留已存；无已存则不写入（运行时用 default）。
+		if cur, has := current[key]; has {
+			values[key] = cur
+		}
+	}
+	return values, nil
+}
+
+// listDecryptedSettings 读取并解密 secret；错误密文 fail closed（不交给插件/API 明文路径）。
+// 历史明文在 cipher 启用时异步迁移写回密文。
+func (s *Service) listDecryptedSettings(ctx context.Context, extension Extension) (map[string]string, error) {
+	raw, err := s.store.ListSettings(ctx, extension.ID)
+	if err != nil {
+		return nil, err
+	}
+	return s.decryptSettingsMap(ctx, extension, raw)
+}
+
+func (s *Service) decryptSettingsMap(ctx context.Context, extension Extension, raw map[string]string) (map[string]string, error) {
+	if raw == nil {
+		return map[string]string{}, nil
+	}
+	secretKeys := secretSettingKeys(extension.Manifest)
+	out := make(map[string]string, len(raw))
+	for key, value := range raw {
+		if !secretKeys[key] {
+			out[key] = value
+			continue
+		}
+		plain, migrated, err := s.decryptSecretValue(value)
+		if err != nil {
+			// 错误密钥/损坏密文：禁止静默清空，也禁止把密文交给插件。
+			return nil, fmt.Errorf("%w: setting %s", err, key)
+		}
+		out[key] = plain
+		if migrated {
+			enc, encErr := s.encryptSecretValue(plain)
+			if encErr != nil {
+				return nil, fmt.Errorf("encrypt legacy secret setting %s: %w", key, encErr)
+			}
+			if _, casErr := s.store.CompareAndSwapSetting(ctx, extension.ID, key, value, enc); casErr != nil {
+				return nil, fmt.Errorf("migrate legacy secret setting %s: %w", key, casErr)
+			}
+		}
+	}
+	return out, nil
+}
+
+func secretSettingKeys(manifest Manifest) map[string]bool {
+	out := map[string]bool{}
+	for _, setting := range manifest.Settings {
+		if setting.Type == "secret" {
+			out[setting.Key] = true
+		}
+	}
+	return out
+}
+
+func (s *Service) encryptSecretSettings(manifest Manifest, values map[string]string) (map[string]string, error) {
+	if values == nil {
+		return map[string]string{}, nil
+	}
+	secretKeys := secretSettingKeys(manifest)
+	out := make(map[string]string, len(values))
+	for key, value := range values {
+		if secretKeys[key] && value != "" {
+			enc, err := s.encryptSecretValue(value)
+			if err != nil {
+				return nil, err
+			}
+			out[key] = enc
+			continue
+		}
+		out[key] = value
+	}
+	return out, nil
+}
+
+func (s *Service) encryptSecretValue(plaintext string) (string, error) {
+	if s == nil || s.cipher == nil {
+		return plaintext, nil
+	}
+	return s.cipher.Encrypt(plaintext)
+}
+
+// decryptSecretValue 返回明文；migrated=true 表示存储仍是历史明文且 cipher 已启用，应回写。
+func (s *Service) decryptSecretValue(stored string) (plain string, migrated bool, err error) {
+	if stored == "" {
+		return "", false, nil
+	}
+	if s == nil || s.cipher == nil || !s.cipher.Enabled() {
+		// 透明模式：密文前缀也无法解密，fail closed。
+		if crypto.IsEncrypted(stored) {
+			return "", false, fmt.Errorf("extensions: encrypted secret requires option encryption key")
+		}
+		return stored, false, nil
+	}
+	if !crypto.IsEncrypted(stored) {
+		// 历史明文：可读，并标记迁移。
+		return stored, true, nil
+	}
+	plain, err = s.cipher.Decrypt(stored)
+	if err != nil {
+		return "", false, fmt.Errorf("extensions: secret decrypt failed: %w", err)
+	}
+	return plain, false, nil
+}
+
+// ListSettingsForRuntime 供插件子进程注入：返回解密后的设置；解密失败则错误。
+func (s *Service) ListSettingsForRuntime(ctx context.Context, extensionID string) (map[string]string, error) {
+	extension, err := s.store.Get(ctx, normalizeID(extensionID))
+	if err != nil {
+		return nil, err
+	}
+	return s.listDecryptedSettings(ctx, extension)
+}
+
+// ListSettings 实现插件 ProtocolStarter 与 Host API 共用的只读设置接口。
+// 所有运行时读取必须经过这里，禁止直接把 Store 注入插件边界。
+func (s *Service) ListSettings(ctx context.Context, extensionID string) (map[string]string, error) {
+	return s.ListSettingsForRuntime(ctx, extensionID)
+}
+
+func manifestEvents(manifest Manifest) []ManifestEvent {
+	return extensionmanifest.DeclaredEvents(manifest)
+}
+
+func DeclaredManifestEvents(manifest Manifest) []ManifestEvent {
+	return extensionmanifest.DeclaredEvents(manifest)
+}
+
+func errorsIsNotExist(err error) bool {
+	return err != nil && os.IsNotExist(err)
+}

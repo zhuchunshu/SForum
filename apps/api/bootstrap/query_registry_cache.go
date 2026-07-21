@@ -235,6 +235,50 @@ func (r *productionQueryResultCacheRuntime) Close(logger *slog.Logger) {
 	})
 }
 
+// queryResultCacheStageHandoff 跨 NewAPI 装配阶段持有 Query result cache 的关闭所有权。
+// Stage A（wireAPICoreStack）defer CloseUnlessHandedOff；成功时 HandOff 给 Stage B
+// （finishAPIHTTP），Stage B 再 defer 并在 API 句柄接管后 HandOff，最终由 API.close 关闭。
+// 若 Stage A 在 HandOff 前就 return，defer 会关掉 runtime，避免泄漏。
+type queryResultCacheStageHandoff struct {
+	runtime   *productionQueryResultCacheRuntime
+	handedOff bool
+	logger    *slog.Logger
+}
+
+func newQueryResultCacheStageHandoff(
+	runtime *productionQueryResultCacheRuntime,
+	logger *slog.Logger,
+) *queryResultCacheStageHandoff {
+	return &queryResultCacheStageHandoff{runtime: runtime, logger: logger}
+}
+
+// CloseUnlessHandedOff 仅在尚未移交所有权时关闭 runtime（供 defer 使用）。
+func (h *queryResultCacheStageHandoff) CloseUnlessHandedOff() {
+	if h == nil || h.handedOff {
+		return
+	}
+	if h.runtime != nil {
+		h.runtime.Close(h.logger)
+	}
+}
+
+// HandOff 将所有权交给下一阶段或 API.close，并返回同一 runtime 引用。
+func (h *queryResultCacheStageHandoff) HandOff() *productionQueryResultCacheRuntime {
+	if h == nil {
+		return nil
+	}
+	h.handedOff = true
+	return h.runtime
+}
+
+// Runtime 返回当前 runtime（不改变所有权）。
+func (h *queryResultCacheStageHandoff) Runtime() *productionQueryResultCacheRuntime {
+	if h == nil {
+		return nil
+	}
+	return h.runtime
+}
+
 func (r *productionQueryInvalidationRuntime) Invalidator() queryregistry.SemanticCacheInvalidator {
 	if r == nil || r.invalidator == nil {
 		return nil

@@ -61,7 +61,7 @@ async function loadAll() {
     entities.value = entityCatalog
     media.value = mediaCatalog
     if (!dryRunEntityId.value && entityCatalog.entities.length > 0) {
-      dryRunEntityId.value = entityCatalog.entities[0].id
+      dryRunEntityId.value = entityCatalog.entities[0]?.id ?? ''
     }
   } catch (err) {
     error.value = apiErrorMessage(err)
@@ -189,7 +189,7 @@ useSeoMeta({ title: t('admin.extensions.registryCatalogs.metaTitle') })
           :variant="tab === 'entity' ? 'solid' : 'soft'"
           color="neutral"
           data-testid="registry-catalogs-tab-entity"
-          @click="tab = 'entity'"
+          @click="() => { tab = 'entity' }"
         >
           {{ t('admin.extensions.registryCatalogs.tabEntity') }}
         </UButton>
@@ -197,7 +197,7 @@ useSeoMeta({ title: t('admin.extensions.registryCatalogs.metaTitle') })
           :variant="tab === 'content' ? 'solid' : 'soft'"
           color="neutral"
           data-testid="registry-catalogs-tab-content"
-          @click="tab = 'content'"
+          @click="() => { tab = 'content' }"
         >
           {{ t('admin.extensions.registryCatalogs.tabContent') }}
         </UButton>
@@ -205,7 +205,7 @@ useSeoMeta({ title: t('admin.extensions.registryCatalogs.metaTitle') })
           :variant="tab === 'media' ? 'solid' : 'soft'"
           color="neutral"
           data-testid="registry-catalogs-tab-media"
-          @click="tab = 'media'"
+          @click="() => { tab = 'media' }"
         >
           {{ t('admin.extensions.registryCatalogs.tabMedia') }}
         </UButton>

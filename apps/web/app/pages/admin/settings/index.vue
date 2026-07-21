@@ -17,6 +17,7 @@ import {
   recommendedPasswordPolicy
 } from '~/composables/useWebOptions'
 import { useAdminPage } from '~/composables/useAdminPage'
+import { useSettingsSection } from '~/composables/useSettingsSection'
 import {
   commonSiteTimezones,
   normalizeSiteDateFormat,
@@ -47,13 +48,21 @@ const toast = useToast()
 const { options, fetchAdminEnvelope, saveMany } = useWebOptions()
 const adminPage = useAdminPage('/settings')
 
+// 各 tab 独立 section runner：共享 saving/toast 外壳，校验与 payload 仍在 section 内。
+const basicSection = useSettingsSection()
+const accountSecuritySection = useSettingsSection()
+const registrationSection = useSettingsSection()
+const newcomersSection = useSettingsSection()
+const maintenanceSection = useSettingsSection()
+const verificationSection = useSettingsSection()
+const savingBasic = basicSection.saving
+const savingAccountSecurity = accountSecuritySection.saving
+const savingRegistration = registrationSection.saving
+const savingNewcomers = newcomersSection.saving
+const savingMaintenance = maintenanceSection.saving
+const savingVerification = verificationSection.saving
+
 const activeTab = ref<SettingsTab>('basic')
-const savingBasic = ref(false)
-const savingAccountSecurity = ref(false)
-const savingRegistration = ref(false)
-const savingNewcomers = ref(false)
-const savingMaintenance = ref(false)
-const savingVerification = ref(false)
 const showAltchaSecret = ref(false)
 
 type VerificationScenarioConfig = {
@@ -464,9 +473,10 @@ function applyAdminOptions(items: AdminWebOption[]) {
 }
 
 async function saveBasicSettings() {
-  savingBasic.value = true
-  try {
-    await saveAndApply([
+  await basicSection.runSave({
+    successTitle: t('admin.settings.saved'),
+    failureTitle: t('admin.settings.saveFailed'),
+    save: () => saveAndApply([
       { name: 'site.name', value: form.siteName },
       { name: 'site.url', value: form.siteUrl },
       { name: 'site.default_locale', value: form.defaultLocale },
@@ -478,37 +488,27 @@ async function saveBasicSettings() {
       { name: 'site.time_format', value: form.timeFormat },
       { name: 'site.start_of_week', value: String(form.startOfWeek) }
     ])
-    toast.add({
-      color: 'success',
-      icon: 'i-lucide-check',
-      title: t('admin.settings.saved')
-    })
-  } catch (error) {
-    toast.add({
-      color: 'error',
-      icon: 'i-lucide-triangle-alert',
-      title: apiErrorMessage(error) || t('admin.settings.saveFailed')
-    })
-  } finally {
-    savingBasic.value = false
-  }
+  })
 }
 
 // 账号安全(密码策略)独立保存,提交 identity.password.* 选项
 async function saveAccountSecuritySettings() {
-  form.passwordMinLength = boundedInteger(form.passwordMinLength, recommendedPasswordPolicy.minLength, 8, 128)
-  form.passwordMaxLength = boundedInteger(form.passwordMaxLength, recommendedPasswordPolicy.maxLength, 64, 512)
-  if (form.passwordMaxLength < form.passwordMinLength) {
-    form.passwordMaxLength = form.passwordMinLength
-  }
-  // 最大活跃设备数 clamp 到 1-20。
-  form.sessionsMaxDevices = boundedInteger(form.sessionsMaxDevices, 5, 1, 20)
-  form.sessionsKeepDays = boundedInteger(form.sessionsKeepDays, 30, 1, 365)
-  form.loginMaxFailures = boundedInteger(form.loginMaxFailures, 10, 0, 50)
-  form.loginLockoutMinutes = boundedInteger(form.loginLockoutMinutes, 15, 0, 1440)
-  savingAccountSecurity.value = true
-  try {
-    await saveAndApply([
+  await accountSecuritySection.runSave({
+    successTitle: t('admin.settings.saved'),
+    failureTitle: t('admin.settings.saveFailed'),
+    prepare: () => {
+      form.passwordMinLength = boundedInteger(form.passwordMinLength, recommendedPasswordPolicy.minLength, 8, 128)
+      form.passwordMaxLength = boundedInteger(form.passwordMaxLength, recommendedPasswordPolicy.maxLength, 64, 512)
+      if (form.passwordMaxLength < form.passwordMinLength) {
+        form.passwordMaxLength = form.passwordMinLength
+      }
+      // 最大活跃设备数 clamp 到 1-20。
+      form.sessionsMaxDevices = boundedInteger(form.sessionsMaxDevices, 5, 1, 20)
+      form.sessionsKeepDays = boundedInteger(form.sessionsKeepDays, 30, 1, 365)
+      form.loginMaxFailures = boundedInteger(form.loginMaxFailures, 10, 0, 50)
+      form.loginLockoutMinutes = boundedInteger(form.loginLockoutMinutes, 15, 0, 1440)
+    },
+    save: () => saveAndApply([
       { name: 'identity.password.min_length', value: String(form.passwordMinLength) },
       { name: 'identity.password.max_length', value: String(form.passwordMaxLength) },
       { name: 'identity.password.require_lowercase', value: enabledOptionValue(form.passwordRequireLowercase) },
@@ -520,37 +520,27 @@ async function saveAccountSecuritySettings() {
       { name: 'identity.login.max_failures', value: String(form.loginMaxFailures) },
       { name: 'identity.login.lockout_minutes', value: String(form.loginLockoutMinutes) }
     ])
-    toast.add({
-      color: 'success',
-      icon: 'i-lucide-check',
-      title: t('admin.settings.saved')
-    })
-  } catch (error) {
-    toast.add({
-      color: 'error',
-      icon: 'i-lucide-triangle-alert',
-      title: apiErrorMessage(error) || t('admin.settings.saveFailed')
-    })
-  } finally {
-    savingAccountSecurity.value = false
-  }
+  })
 }
 
 async function saveRegistrationSettings() {
-  form.usernameMinLength = boundedInteger(form.usernameMinLength, 3, 2, 32)
-  form.usernameMaxLength = boundedInteger(form.usernameMaxLength, 20, 2, 64)
-  if (form.usernameMaxLength < form.usernameMinLength) {
-    form.usernameMaxLength = form.usernameMinLength
-  }
-  // mode 与 enabled 同步：closed → enabled=false；open → 尊重 registrationEnabled。
-  if (form.registrationMode === 'closed') {
-    form.registrationEnabled = false
-  } else if (form.registrationMode === 'open' && !form.registrationEnabled) {
-    form.registrationMode = 'closed'
-  }
-  savingRegistration.value = true
-  try {
-    await saveAndApply([
+  await registrationSection.runSave({
+    successTitle: t('admin.settings.saved'),
+    failureTitle: t('admin.settings.saveFailed'),
+    prepare: () => {
+      form.usernameMinLength = boundedInteger(form.usernameMinLength, 3, 2, 32)
+      form.usernameMaxLength = boundedInteger(form.usernameMaxLength, 20, 2, 64)
+      if (form.usernameMaxLength < form.usernameMinLength) {
+        form.usernameMaxLength = form.usernameMinLength
+      }
+      // mode 与 enabled 同步：closed → enabled=false；open → 尊重 registrationEnabled。
+      if (form.registrationMode === 'closed') {
+        form.registrationEnabled = false
+      } else if (form.registrationMode === 'open' && !form.registrationEnabled) {
+        form.registrationMode = 'closed'
+      }
+    },
+    save: () => saveAndApply([
       { name: 'identity.registration.enabled', value: enabledOptionValue(form.registrationEnabled && form.registrationMode === 'open') },
       { name: 'identity.registration.mode', value: form.registrationMode },
       { name: 'identity.registration.require_email_verification', value: enabledOptionValue(form.requireEmailVerification) },
@@ -560,23 +550,21 @@ async function saveRegistrationSettings() {
       { name: 'identity.username.charset', value: form.usernameCharset },
       { name: 'identity.username.reserved', value: form.usernameReserved.trim() }
     ])
-    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('admin.settings.saved'), duration: 10000 })
-  } catch (error) {
-    toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.settings.saveFailed') })
-  } finally {
-    savingRegistration.value = false
-  }
+  })
 }
 
 async function saveNewcomersSettings() {
-  form.trustNewUserDays = boundedInteger(form.trustNewUserDays, 7, 0, 365)
-  form.trustTopicCooldown = boundedInteger(form.trustTopicCooldown, 300, 0, 86400)
-  form.trustCommentCooldown = boundedInteger(form.trustCommentCooldown, 60, 0, 86400)
-  form.trustDailyTopicLimit = boundedInteger(form.trustDailyTopicLimit, 3, 0, 10000)
-  form.trustDailyCommentLimit = boundedInteger(form.trustDailyCommentLimit, 30, 0, 10000)
-  savingNewcomers.value = true
-  try {
-    await saveAndApply([
+  await newcomersSection.runSave({
+    successTitle: t('admin.settings.saved'),
+    failureTitle: t('admin.settings.saveFailed'),
+    prepare: () => {
+      form.trustNewUserDays = boundedInteger(form.trustNewUserDays, 7, 0, 365)
+      form.trustTopicCooldown = boundedInteger(form.trustTopicCooldown, 300, 0, 86400)
+      form.trustCommentCooldown = boundedInteger(form.trustCommentCooldown, 60, 0, 86400)
+      form.trustDailyTopicLimit = boundedInteger(form.trustDailyTopicLimit, 3, 0, 10000)
+      form.trustDailyCommentLimit = boundedInteger(form.trustDailyCommentLimit, 30, 0, 10000)
+    },
+    save: () => saveAndApply([
       { name: 'trust.new_user_days', value: String(form.trustNewUserDays) },
       { name: 'trust.new_user.topic_cooldown_seconds', value: String(form.trustTopicCooldown) },
       { name: 'trust.new_user.comment_cooldown_seconds', value: String(form.trustCommentCooldown) },
@@ -585,70 +573,53 @@ async function saveNewcomersSettings() {
       { name: 'trust.new_user.forbid_outbound_links', value: enabledOptionValue(form.trustForbidOutboundLinks) },
       { name: 'trust.new_user.forbid_attachments', value: enabledOptionValue(form.trustForbidAttachments) }
     ])
-    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('admin.settings.saved'), duration: 10000 })
-  } catch (error) {
-    toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.settings.saveFailed') })
-  } finally {
-    savingNewcomers.value = false
-  }
+  })
 }
 
 async function saveMaintenanceSettings() {
-  savingMaintenance.value = true
-  try {
-    await saveAndApply([
+  await maintenanceSection.runSave({
+    successTitle: t('admin.settings.saved'),
+    failureTitle: t('admin.settings.saveFailed'),
+    save: () => saveAndApply([
       { name: 'site.maintenance.enabled', value: enabledOptionValue(form.maintenanceEnabled) },
       { name: 'site.maintenance.message', value: form.maintenanceMessage.trim() }
     ])
-    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('admin.settings.saved'), duration: 10000 })
-  } catch (error) {
-    toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.settings.saveFailed') })
-  } finally {
-    savingMaintenance.value = false
-  }
+  })
 }
 
 async function saveVerificationSettings() {
-  form.altchaChallengeTTLMinutes = positiveInteger(form.altchaChallengeTTLMinutes, 10)
-  form.altchaCost = positiveInteger(form.altchaCost, 1000)
-  form.altchaWidgetWorkers = boundedInteger(form.altchaWidgetWorkers, 2, 1, 16)
-  form.altchaWidgetMinDuration = boundedInteger(form.altchaWidgetMinDuration, 500, 0, 10000)
-  savingVerification.value = true
-  try {
-    const payload: WebOption[] = [
-      { name: 'human_verification.provider', value: form.humanVerificationProvider },
-      ...verificationScenarios.value.map((scenario) => ({
-        name: humanVerificationScenarioOptionName(scenario.key),
-        value: enabledOptionValue(form.humanVerificationScenarios[scenario.key])
-      })),
-      { name: 'human_verification.altcha.challenge_ttl', value: `${form.altchaChallengeTTLMinutes}m` },
-      { name: 'human_verification.altcha.cost', value: String(form.altchaCost) },
-      { name: 'human_verification.altcha.widget.type', value: form.altchaWidgetType },
-      { name: 'human_verification.altcha.widget.auto', value: form.altchaWidgetAuto },
-      { name: 'human_verification.altcha.widget.display', value: form.altchaWidgetDisplay },
-      { name: 'human_verification.altcha.widget.hide_logo', value: enabledOptionValue(form.altchaWidgetHideLogo) },
-      { name: 'human_verification.altcha.widget.hide_footer', value: enabledOptionValue(form.altchaWidgetHideFooter) },
-      { name: 'human_verification.altcha.widget.workers', value: String(form.altchaWidgetWorkers) },
-      { name: 'human_verification.altcha.widget.min_duration_ms', value: String(form.altchaWidgetMinDuration) }
-    ]
-    if (form.altchaSecret.trim() !== '') {
-      payload.push({ name: 'human_verification.altcha.secret', value: form.altchaSecret })
+  await verificationSection.runSave({
+    successTitle: t('admin.settings.saved'),
+    failureTitle: t('admin.settings.saveFailed'),
+    prepare: () => {
+      form.altchaChallengeTTLMinutes = positiveInteger(form.altchaChallengeTTLMinutes, 10)
+      form.altchaCost = positiveInteger(form.altchaCost, 1000)
+      form.altchaWidgetWorkers = boundedInteger(form.altchaWidgetWorkers, 2, 1, 16)
+      form.altchaWidgetMinDuration = boundedInteger(form.altchaWidgetMinDuration, 500, 0, 10000)
+    },
+    save: async () => {
+      const payload: WebOption[] = [
+        { name: 'human_verification.provider', value: form.humanVerificationProvider },
+        ...verificationScenarios.value.map((scenario) => ({
+          name: humanVerificationScenarioOptionName(scenario.key),
+          value: enabledOptionValue(form.humanVerificationScenarios[scenario.key])
+        })),
+        { name: 'human_verification.altcha.challenge_ttl', value: `${form.altchaChallengeTTLMinutes}m` },
+        { name: 'human_verification.altcha.cost', value: String(form.altchaCost) },
+        { name: 'human_verification.altcha.widget.type', value: form.altchaWidgetType },
+        { name: 'human_verification.altcha.widget.auto', value: form.altchaWidgetAuto },
+        { name: 'human_verification.altcha.widget.display', value: form.altchaWidgetDisplay },
+        { name: 'human_verification.altcha.widget.hide_logo', value: enabledOptionValue(form.altchaWidgetHideLogo) },
+        { name: 'human_verification.altcha.widget.hide_footer', value: enabledOptionValue(form.altchaWidgetHideFooter) },
+        { name: 'human_verification.altcha.widget.workers', value: String(form.altchaWidgetWorkers) },
+        { name: 'human_verification.altcha.widget.min_duration_ms', value: String(form.altchaWidgetMinDuration) }
+      ]
+      if (form.altchaSecret.trim() !== '') {
+        payload.push({ name: 'human_verification.altcha.secret', value: form.altchaSecret })
+      }
+      await saveAndApply(payload)
     }
-    await saveAndApply(payload)
-    toast.add({
-      color: 'success',
-      icon: 'i-lucide-check',
-      title: t('admin.settings.saved')
-    })
-  } catch (error) {
-    toast.add({
-      color: 'error',
-      icon: 'i-lucide-triangle-alert',
-      title: apiErrorMessage(error) || t('admin.settings.saveFailed')
-    })
-  } finally {
-    savingVerification.value = false
-  }
+  })
 }
 
 async function saveAndApply(items: WebOption[]) {
@@ -676,14 +647,14 @@ function resetBasicForm() {
 
 // 一键恢复时区/日期时间推荐默认值（不改站点名与语言）。
 function restoreRecommendedDateTimeSettings() {
-  form.timezone = recommendedSiteDateTimeSettings.timezone
-  form.dateFormat = recommendedSiteDateTimeSettings.dateFormat
-  form.timeFormat = recommendedSiteDateTimeSettings.timeFormat
-  form.startOfWeek = recommendedSiteDateTimeSettings.startOfWeek
-  toast.add({
-    color: 'success',
-    icon: 'i-lucide-rotate-ccw',
-    title: t('admin.settings.basic.restoreDateTimeDefaults')
+  basicSection.runRestore({
+    title: t('admin.settings.basic.restoreDateTimeDefaults'),
+    apply: () => {
+      form.timezone = recommendedSiteDateTimeSettings.timezone
+      form.dateFormat = recommendedSiteDateTimeSettings.dateFormat
+      form.timeFormat = recommendedSiteDateTimeSettings.timeFormat
+      form.startOfWeek = recommendedSiteDateTimeSettings.startOfWeek
+    }
   })
 }
 
@@ -707,21 +678,22 @@ function resetAccountSecurityForm() {
 }
 
 function restoreRecommendedPasswordPolicy() {
-  form.passwordMinLength = recommendedPasswordPolicy.minLength
-  form.passwordMaxLength = recommendedPasswordPolicy.maxLength
-  form.passwordRequireLowercase = recommendedPasswordPolicy.requireLowercase
-  form.passwordRequireUppercase = recommendedPasswordPolicy.requireUppercase
-  form.passwordRequireNumber = recommendedPasswordPolicy.requireNumber
-  form.passwordRequireSymbol = recommendedPasswordPolicy.requireSymbol
-  // 同时恢复会话与登录锁定推荐默认值。
-  form.sessionsMaxDevices = 5
-  form.sessionsKeepDays = 30
-  form.loginMaxFailures = 10
-  form.loginLockoutMinutes = 15
-  toast.add({
+  accountSecuritySection.runRestore({
     color: 'neutral',
-    icon: 'i-lucide-rotate-ccw',
-    title: t('admin.settings.basic.restorePasswordDefaults')
+    title: t('admin.settings.basic.restorePasswordDefaults'),
+    apply: () => {
+      form.passwordMinLength = recommendedPasswordPolicy.minLength
+      form.passwordMaxLength = recommendedPasswordPolicy.maxLength
+      form.passwordRequireLowercase = recommendedPasswordPolicy.requireLowercase
+      form.passwordRequireUppercase = recommendedPasswordPolicy.requireUppercase
+      form.passwordRequireNumber = recommendedPasswordPolicy.requireNumber
+      form.passwordRequireSymbol = recommendedPasswordPolicy.requireSymbol
+      // 同时恢复会话与登录锁定推荐默认值。
+      form.sessionsMaxDevices = 5
+      form.sessionsKeepDays = 30
+      form.loginMaxFailures = 10
+      form.loginLockoutMinutes = 15
+    }
   })
 }
 
@@ -742,19 +714,18 @@ function resetRegistrationForm() {
 }
 
 function restoreRecommendedRegistration() {
-  form.registrationMode = 'open'
-  form.registrationEnabled = true
-  form.requireEmailVerification = false
-  form.blockPostingUntilVerified = true
-  form.usernameMinLength = 3
-  form.usernameMaxLength = 20
-  form.usernameCharset = 'unicode_letters_numbers'
-  form.usernameReserved = 'admin,administrator,system,sforum,root,support,moderator,mod,official,null,undefined'
-  toast.add({
-    color: 'success',
-    icon: 'i-lucide-rotate-ccw',
+  registrationSection.runRestore({
     title: t('admin.settings.registration.restoreDefaults'),
-    duration: 10000
+    apply: () => {
+      form.registrationMode = 'open'
+      form.registrationEnabled = true
+      form.requireEmailVerification = false
+      form.blockPostingUntilVerified = true
+      form.usernameMinLength = 3
+      form.usernameMaxLength = 20
+      form.usernameCharset = 'unicode_letters_numbers'
+      form.usernameReserved = 'admin,administrator,system,sforum,root,support,moderator,mod,official,null,undefined'
+    }
   })
 }
 
@@ -774,18 +745,17 @@ function resetNewcomersForm() {
 }
 
 function restoreRecommendedNewcomers() {
-  form.trustNewUserDays = 7
-  form.trustTopicCooldown = 300
-  form.trustCommentCooldown = 60
-  form.trustDailyTopicLimit = 3
-  form.trustDailyCommentLimit = 30
-  form.trustForbidOutboundLinks = true
-  form.trustForbidAttachments = false
-  toast.add({
-    color: 'success',
-    icon: 'i-lucide-rotate-ccw',
+  newcomersSection.runRestore({
     title: t('admin.settings.newcomers.restoreDefaults'),
-    duration: 10000
+    apply: () => {
+      form.trustNewUserDays = 7
+      form.trustTopicCooldown = 300
+      form.trustCommentCooldown = 60
+      form.trustDailyTopicLimit = 3
+      form.trustDailyCommentLimit = 30
+      form.trustForbidOutboundLinks = true
+      form.trustForbidAttachments = false
+    }
   })
 }
 
