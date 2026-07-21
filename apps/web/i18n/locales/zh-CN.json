@@ -99,6 +99,8 @@
       "repliesColumn": "回复",
       "activityColumn": "活动",
       "latestActivity": "最新活动",
+      "latestTitle": "最新讨论",
+      "subtitle": "看看社区里正在发生什么",
       "replyCount": "{count} 回复",
       "topicCountMeta": "{count} 个主题",
       "topicCountMetaApprox": "约 {count} 个主题",
@@ -607,7 +609,16 @@
       "restarted": "插件运行时已重启。",
       "verified": "扩展预检已通过。",
       "themeActivated": "主题已激活，公开 Page Registry 与静态资源已切换。",
-      "confirmThemeActivation": "激活 {name}？本次精确预览会新增 {addCount} 个页面，并请求替换 {replaceCount} 个核心页面。核心页面替换仍需超级管理员明确批准。",
+      "confirmThemeActivationTitle": "确认激活主题",
+      "confirmThemeReactivationTitle": "确认重新激活主题",
+      "confirmThemeActivation": "激活「{name}」？本次精确预览会新增 {addCount} 个页面，并请求替换 {replaceCount} 个核心页面。核心页面替换仍需超级管理员明确批准。",
+      "confirmThemeActivationCoreWarning": "本次预览包含核心页面替换请求。若你不是超级管理员，或未明确批准，核心替换不会生效。",
+      "confirmThemeActivationImpacts": "页面影响（{count}）",
+      "confirmThemeActivationConflicts": "冲突：{conflicts}",
+      "confirmThemeActivationNoImpacts": "本次预览未报告页面增删改影响。",
+      "confirmThemeActivationCancel": "取消",
+      "confirmThemeActivationAction": "确认激活",
+      "confirmThemeReactivationAction": "确认重新激活",
       "themeActivationUnavailable": "主题激活失败。",
       "actionFailed": "扩展操作失败。",
       "settingsProfiles": {
@@ -756,6 +767,8 @@
       "manage": "管理",
       "verify": "验证",
       "activateTheme": "激活主题",
+      "reactivateTheme": "重新激活",
+      "reactivateThemeHint": "重新应用当前主题的页面注册与静态资源（不会切换到其他主题）",
       "restoreDefaultTheme": "恢复默认主题",
       "activeTheme": "当前主题",
       "source": {
@@ -3515,6 +3528,7 @@
       "locked": "已锁定"
     },
     "commentsTitle": "评论 ({count})",
+    "discussionContinues": "讨论继续",
     "viewTree": "树状",
     "viewFlat": "平铺",
     "edited": "已编辑",
@@ -3578,7 +3592,7 @@
     "replyTopic": "回复主题",
     "linkCopied": "链接已复制",
     "copyLinkHint": "复制链接",
-    "side": {
+      "side": {
       "title": "主题信息",
       "status": "状态",
       "statusActive": "讨论中",
@@ -3587,7 +3601,11 @@
       "views": "浏览",
       "participants": "参与者",
       "tags": "标签",
-      "extensions": "扩展"
+      "extensions": "扩展",
+      "pageNav": "本页",
+      "topicContent": "主题内容",
+      "discussion": "评论讨论",
+      "joinDiscussion": "参与讨论"
     },
     "progress": {
       "label": "阅读进度",

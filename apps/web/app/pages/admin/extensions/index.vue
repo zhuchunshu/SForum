@@ -2,6 +2,7 @@
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
 import {
+  canRestartPlugin,
   capabilityCount,
   extensionEventPage,
   extensionLocalizedDisplay,
@@ -78,10 +79,16 @@ const {
   selectLifecycleOperation,
   recoverLifecycleOperation,
   disableExtension,
+  restartExtension,
   activateTheme,
   themeActivateTrustMode,
   themeActivateConfirmOpen,
+  themePreviewConfirmOpen,
   themeActivateConfirmItem,
+  themeActivatePreview,
+  themePreviewAddCount,
+  themePreviewReplaceCount,
+  themePreviewReactivating,
   themeActivateTrustStatus,
   themeActivateTrustChallenge,
   themeActivateTrustError,
@@ -89,6 +96,8 @@ const {
   issueThemeActivateTrustChallenge,
   confirmThemeActivate,
   cancelThemeActivate,
+  confirmThemePreviewActivate,
+  cancelThemePreviewActivate,
   loadEvents,
   statusColor,
   typeLabel,
@@ -324,8 +333,10 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
                 color="neutral"
                 variant="ghost"
                 icon="i-lucide-refresh-cw"
-                disabled
-                :title="t('admin.extensions.restartUnavailable')"
+                :disabled="!canRestartPlugin(item)"
+                :loading="busyId === item.id && canRestartPlugin(item)"
+                :title="canRestartPlugin(item) ? t('admin.extensions.restart') : t('admin.extensions.restartUnavailable')"
+                @click="restartExtension(item)"
               >
                 {{ t('admin.extensions.restart') }}
               </UButton>
@@ -350,12 +361,14 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
               <UButton
                 v-else
                 size="sm"
-                color="primary"
+                color="neutral"
                 variant="subtle"
-                icon="i-lucide-check-circle-2"
-                disabled
+                icon="i-lucide-refresh-cw"
+                :loading="busyId === item.id"
+                :title="t('admin.extensions.reactivateThemeHint')"
+                @click="activateTheme(item)"
               >
-                {{ t('admin.extensions.activeTheme') }}
+                {{ t('admin.extensions.reactivateTheme') }}
               </UButton>
               <UButton
                 v-if="item.isDeletable && item.source !== 'builtin' && !item.isSystem && (item.status !== 'enabled' || isLifecycleV2Plugin(item))"
@@ -520,6 +533,19 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
       @cancel="cancelEnableExtension"
       @issue-challenge="issueEnableTrustChallenge"
       @confirm="confirmEnableExtension"
+    />
+
+    <!-- L0/L1 与 trust_not_required：页面预览确认 Modal（替代原生 confirm）。 -->
+    <SFAdminThemeActivateDialog
+      v-model:open="themePreviewConfirmOpen"
+      :extension="themeActivateConfirmItem"
+      :impacts="themeActivatePreview?.impacts || []"
+      :add-count="themePreviewAddCount"
+      :replace-count="themePreviewReplaceCount"
+      :reactivating="themePreviewReactivating"
+      :busy="Boolean(themeActivateConfirmItem && busyId === themeActivateConfirmItem.id)"
+      @cancel="cancelThemePreviewActivate"
+      @confirm="confirmThemePreviewActivate"
     />
 
     <!-- Executable (L2) theme activation reuses the exact trust challenge dialog pattern (shared with plugins enable). -->

@@ -58,6 +58,8 @@
     "dock": {
       "title": "Community activity",
       "latestActivity": "Latest activity",
+      "latestTitle": "Latest discussions",
+      "subtitle": "See what the community is discussing",
       "overview": "Community overview",
       "topics": "Topics",
       "categories": "Categories",
@@ -607,7 +609,16 @@
       "restarted": "Plugin runtime restarted.",
       "verified": "Extension preflight verified.",
       "themeActivated": "Theme activated. The public Page Registry and static assets have switched.",
-      "confirmThemeActivation": "Activate {name}? This exact preview adds {addCount} pages and requests {replaceCount} core page replacements. Core replacements still require explicit super administrator approval.",
+      "confirmThemeActivationTitle": "Confirm theme activation",
+      "confirmThemeReactivationTitle": "Confirm theme reactivation",
+      "confirmThemeActivation": "Activate “{name}”? This exact preview adds {addCount} pages and requests {replaceCount} core page replacements. Core replacements still require explicit super administrator approval.",
+      "confirmThemeActivationCoreWarning": "This preview includes core page replacement requests. They will not take effect unless you are a super administrator and explicitly approve them.",
+      "confirmThemeActivationImpacts": "Page impacts ({count})",
+      "confirmThemeActivationConflicts": "Conflicts: {conflicts}",
+      "confirmThemeActivationNoImpacts": "This preview reports no page add/replace impacts.",
+      "confirmThemeActivationCancel": "Cancel",
+      "confirmThemeActivationAction": "Confirm activation",
+      "confirmThemeReactivationAction": "Confirm reactivation",
       "themeActivationUnavailable": "Theme activation failed.",
       "actionFailed": "Extension action failed.",
       "settingsProfiles": {
@@ -756,6 +767,8 @@
       "manage": "Manage",
       "verify": "Verify",
       "activateTheme": "Activate theme",
+      "reactivateTheme": "Reactivate",
+      "reactivateThemeHint": "Re-apply this theme’s page registry and static assets without switching to another theme",
       "restoreDefaultTheme": "Restore default theme",
       "activeTheme": "Active theme",
       "source": {
@@ -3515,6 +3528,7 @@
       "locked": "Locked"
     },
     "commentsTitle": "Comments ({count})",
+    "discussionContinues": "Continue the discussion",
     "viewTree": "Tree",
     "viewFlat": "Flat",
     "edited": "edited",
@@ -3587,7 +3601,11 @@
       "views": "Views",
       "participants": "Participants",
       "tags": "Tags",
-      "extensions": "Extensions"
+      "extensions": "Extensions",
+      "pageNav": "On this page",
+      "topicContent": "Topic content",
+      "discussion": "Discussion",
+      "joinDiscussion": "Join the discussion"
     },
     "progress": {
       "label": "Reading progress",

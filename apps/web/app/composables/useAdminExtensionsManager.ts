@@ -334,12 +334,23 @@ export const useAdminExtensionsManager = async () => {
   }
   const themeActivateTrustMode = ref<ExtensionEnableTrustMode>('exact')
   const themeActivateConfirmOpen = ref(false)
+  // L0/L1（及 trust_not_required 回落）用预览确认 Modal，不再走原生 confirm。
+  const themePreviewConfirmOpen = ref(false)
   const themeActivateConfirmItem = ref<AdminExtension | null>(null)
   const themeActivatePreview = ref<ThemeActivationPreview | null>(null)
   const themeActivateTrustStatus = ref<ExecutableTrustStatus | null>(null)
   const themeActivateTrustChallenge = ref<ExecutableTrustChallenge | null>(null)
   const themeActivateTrustError = ref('')
   const themeActivateTrustBusy = ref(false)
+
+  const themePreviewAddCount = computed(() =>
+    (themeActivatePreview.value?.impacts || []).filter(impact => impact.contribution.action === 'add').length
+  )
+  const themePreviewReplaceCount = computed(() =>
+    (themeActivatePreview.value?.impacts || []).filter(impact => impact.contribution.action === 'replace').length
+  )
+  // 当前已激活主题再次走激活流程时，UI 使用「重新激活」文案。
+  const themePreviewReactivating = computed(() => themeActivateConfirmItem.value?.status === 'enabled')
 
   // 与 ThemeActivationRequest 对齐：完整 preview 元组 + 可选的一次性 confirmationToken。
   function themeActivationRequestBody(preview: ThemeActivationPreview, confirmationToken?: string) {
@@ -358,15 +369,10 @@ export const useAdminExtensionsManager = async () => {
     return body
   }
 
-  function themeActivationConfirmMessage(item: AdminExtension, preview: ThemeActivationPreview) {
-    const replaceCount = preview.impacts.filter(impact => impact.contribution.action === 'replace').length
-    const addCount = preview.impacts.filter(impact => impact.contribution.action === 'add').length
-    const impactDetails = preview.impacts.map((impact) => {
-      const destination = impact.contribution.target || impact.contribution.path || impact.contribution.id
-      const conflicts = (impact.conflicts || []).map(conflict => `${conflict.extensionId}:${conflict.id}`).join(', ')
-      return `${impact.contribution.action.toUpperCase()}  ${destination}${conflicts ? `  [${conflicts}]` : ''}`
-    }).join('\n')
-    return `${t('admin.extensions.confirmThemeActivation', { name: item.name, replaceCount, addCount })}\n\n${impactDetails}`
+  function openThemePreviewConfirm(item: AdminExtension, preview: ThemeActivationPreview) {
+    themeActivateConfirmItem.value = item
+    themeActivatePreview.value = preview
+    themePreviewConfirmOpen.value = true
   }
 
   function resetEnableTrust() {
@@ -598,6 +604,22 @@ export const useAdminExtensionsManager = async () => {
     themeActivateTrustBusy.value = false
   }
 
+  async function confirmThemePreviewActivate() {
+    const item = themeActivateConfirmItem.value
+    const preview = themeActivatePreview.value
+    if (!item || !preview) {
+      return
+    }
+    themePreviewConfirmOpen.value = false
+    await performActivateTheme(item, preview)
+  }
+
+  function cancelThemePreviewActivate() {
+    themePreviewConfirmOpen.value = false
+    themeActivateConfirmItem.value = null
+    themeActivatePreview.value = null
+  }
+
   async function disableExtension(item: AdminExtension) {
     await lifecycle(item, 'disable')
   }
@@ -656,6 +678,7 @@ export const useAdminExtensionsManager = async () => {
   async function activateTheme(item: AdminExtension) {
     busyId.value = item.id
     resetThemeActivateTrust()
+    themePreviewConfirmOpen.value = false
     try {
       const preview = await request<ThemeActivationPreview>(`/admin/pages/activate-preview/${item.id}`)
 
@@ -665,11 +688,8 @@ export const useAdminExtensionsManager = async () => {
         trustStatus = await request<ExecutableTrustStatus>(`/admin/extensions/${item.id}/trust`)
       } catch (err) {
         if (apiErrorReason(err) === 'extension.trust_not_required') {
-          // V3 迁移门关闭：保持既有 page-registry 预览确认，零 challenge、零构建。
-          if (!globalThis.confirm(themeActivationConfirmMessage(item, preview))) {
-            return
-          }
-          await performActivateTheme(item, preview)
+          // V3 迁移门关闭：page-registry 预览确认走 Modal，零 challenge、零构建。
+          openThemePreviewConfirm(item, preview)
           return
         }
         throw err
@@ -677,10 +697,7 @@ export const useAdminExtensionsManager = async () => {
 
       // trustRequired=false 仅表示普通 L0/L1（或制品不需要可执行信任）。已授权 L2 仍为 trustRequired=true。
       if (!trustStatus.trustRequired) {
-        if (!globalThis.confirm(themeActivationConfirmMessage(item, preview))) {
-          return
-        }
-        await performActivateTheme(item, preview)
+        openThemePreviewConfirm(item, preview)
         return
       }
 
@@ -922,8 +939,12 @@ export const useAdminExtensionsManager = async () => {
     isSuperAdmin,
     themeActivateTrustMode,
     themeActivateConfirmOpen,
+    themePreviewConfirmOpen,
     themeActivateConfirmItem,
     themeActivatePreview,
+    themePreviewAddCount,
+    themePreviewReplaceCount,
+    themePreviewReactivating,
     themeActivateTrustStatus,
     themeActivateTrustChallenge,
     themeActivateTrustError,
@@ -931,6 +952,8 @@ export const useAdminExtensionsManager = async () => {
     issueThemeActivateTrustChallenge,
     confirmThemeActivate,
     cancelThemeActivate,
+    confirmThemePreviewActivate,
+    cancelThemePreviewActivate,
     openUninstallExtension,
     confirmUninstallExtension,
     cancelUninstallExtension,

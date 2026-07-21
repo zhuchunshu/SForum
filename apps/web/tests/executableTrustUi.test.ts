@@ -104,11 +104,12 @@ describe('V3 exact-artifact trust operator flow', () => {
   })
 
   test('executable uploaded themes reuse exact trust challenge for activate and send confirmationToken with preview tuple', () => {
-    // Ordinary L0/L1 (or V3 gate off) stays operator-buildless: page preview confirm, no challenge issue step.
+    // Ordinary L0/L1 (or V3 gate off) stays operator-buildless: page preview Modal, no challenge issue step.
     expect(manager).toContain("apiErrorReason(err) === 'extension.trust_not_required'")
     expect(manager).toContain('!trustStatus.trustRequired')
-    expect(manager).toContain('themeActivationConfirmMessage(item, preview)')
+    expect(manager).toContain('openThemePreviewConfirm(item, preview)')
     expect(manager).toContain('await performActivateTheme(item, preview)')
+    expect(manager).not.toContain('globalThis.confirm')
     // L2 path: open exact dialog only when trustRequired; challenge is super_admin-gated.
     expect(manager).toContain('themeActivateConfirmOpen.value = true')
     expect(manager).toContain('if (!item || !isSuperAdmin.value) return')
@@ -136,9 +137,14 @@ describe('V3 exact-artifact trust operator flow', () => {
     expect(manager).toContain('duration: 0')
     // Dialog surfaces: activate purpose, no raw token render, super_admin gate, disabled confirm until ready.
     expect(overview).toContain('purpose="activate"')
+    expect(overview).toContain('<SFAdminThemeActivateDialog')
+    expect(overview).toContain('reactivateTheme')
     expect(themesPage).toContain('purpose="activate"')
+    expect(themesPage).toContain('<SFAdminThemeActivateDialog')
+    expect(themesPage).toContain('reactivateTheme')
     expect(themesPage).toContain('confirmThemeActivate')
     expect(themesPage).toContain('issueThemeActivateTrustChallenge')
+    expect(themesPage).toContain('confirmThemePreviewActivate')
     expect(dialog).toContain("purpose?: 'enable' | 'activate'")
     expect(dialog).toContain('blockingErrorActivate')
     expect(dialog).not.toContain('challenge.token')

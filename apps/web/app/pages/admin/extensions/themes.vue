@@ -24,7 +24,12 @@ const {
   activateTheme,
   themeActivateTrustMode,
   themeActivateConfirmOpen,
+  themePreviewConfirmOpen,
   themeActivateConfirmItem,
+  themeActivatePreview,
+  themePreviewAddCount,
+  themePreviewReplaceCount,
+  themePreviewReactivating,
   themeActivateTrustStatus,
   themeActivateTrustChallenge,
   themeActivateTrustError,
@@ -32,6 +37,8 @@ const {
   issueThemeActivateTrustChallenge,
   confirmThemeActivate,
   cancelThemeActivate,
+  confirmThemePreviewActivate,
+  cancelThemePreviewActivate,
   isSuperAdmin,
   openUninstallExtension,
   confirmUninstallExtension,
@@ -181,12 +188,14 @@ useSeoMeta({
           <UButton
             v-else
             size="sm"
-            color="primary"
+            color="neutral"
             variant="subtle"
-            icon="i-lucide-check-circle-2"
-            disabled
+            icon="i-lucide-refresh-cw"
+            :loading="busyId === item.id"
+            :title="t('admin.extensions.reactivateThemeHint')"
+            @click="activateTheme(item)"
           >
-            {{ t('admin.extensions.activeTheme') }}
+            {{ t('admin.extensions.reactivateTheme') }}
           </UButton>
           <UButton
             v-if="item.isDeletable && item.source !== 'builtin' && !item.isSystem && item.status !== 'enabled'"
@@ -211,6 +220,19 @@ useSeoMeta({
       :error="uninstallError"
       @cancel="cancelUninstallExtension"
       @confirm="confirmUninstallExtension"
+    />
+
+    <!-- L0/L1 与 trust_not_required：页面预览确认 Modal（替代原生 confirm）。 -->
+    <SFAdminThemeActivateDialog
+      v-model:open="themePreviewConfirmOpen"
+      :extension="themeActivateConfirmItem"
+      :impacts="themeActivatePreview?.impacts || []"
+      :add-count="themePreviewAddCount"
+      :replace-count="themePreviewReplaceCount"
+      :reactivating="themePreviewReactivating"
+      :busy="Boolean(themeActivateConfirmItem && busyId === themeActivateConfirmItem.id)"
+      @cancel="cancelThemePreviewActivate"
+      @confirm="confirmThemePreviewActivate"
     />
 
     <!-- Executable (L2) theme activation reuses the exact trust challenge dialog pattern. -->
