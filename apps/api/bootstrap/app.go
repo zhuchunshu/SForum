@@ -38,6 +38,7 @@ import (
 	avatar "github.com/zhuchunshu/sforum/apps/api/app/Support/Avatar"
 	cache "github.com/zhuchunshu/sforum/apps/api/app/Support/Cache"
 	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
+	contentregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentRegistry"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
@@ -813,7 +814,9 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		providers.NewExtensionTopicSurfaceProvider(extensionService),
 		providers.NewExtensionComposerToolbarProvider(extensionService),
 		providers.NewModerationPublicationPolicy(moderationStore, optionsService),
-	).WithIdempotency(idempotencyStore)
+	).WithIdempotency(idempotencyStore).WithContentPostFilter(forum.ContentRegistryBridge{
+		Inner: contentregistry.NewForumPostFilter(lifecycleStack.ContentRegistry),
+	})
 	// 头像与附件管理共用带存储候选目录的服务实例。
 	avatarAttachmentService := attachmentService
 	profileProvider := providers.NewProfileProviderWithAvatarAndTabs(
@@ -849,6 +852,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		WithAssetInspector(lifecycleStack.AssetRegistry).
 		WithThemeRuntimeInspector(themeRuntime).
 		WithEditorRegistry(lifecycleStack.EditorRegistry).
+		WithEntityRegistry(lifecycleStack.EntityRegistry).
 		WithAdminSurfaces(extensionRuntime, auditWriter)
 	webhooksProvider := providers.NewWebhooksProvider(webhookService, identityStore, authSessions)
 	// PageDataLoader 网关：仅从运行中插件 RouteTarget 拉数据（严格 loopback）。

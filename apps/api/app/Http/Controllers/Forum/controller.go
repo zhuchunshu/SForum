@@ -104,6 +104,14 @@ func NewControllerWithSearch(service *forum.Service, searchSvc SearchService, re
 }
 
 // WithIdempotency 启用选定写路由的 Idempotency-Key 去重。
+// WithContentPostFilter wires the optional ContentRegistry post-render seam.
+func (h *Controller) WithContentPostFilter(filter forum.ContentPostFilter) *Controller {
+	if h != nil && h.service != nil {
+		h.service.WithContentPostFilter(filter)
+	}
+	return h
+}
+
 func (h *Controller) WithIdempotency(store *idempotency.Store) *Controller {
 	if h != nil {
 		h.idempotency = store

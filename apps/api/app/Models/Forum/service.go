@@ -26,6 +26,8 @@ type Service struct {
 	indexer TopicSearchIndexer
 	// trust 可选新人信任阶梯；nil 时不叠加新人限制。
 	trust TrustPolicyResolver
+	// contentFilter 可选：Host Render 之后的 ContentRegistry 后置缝合；nil 为恒等。
+	contentFilter ContentPostFilter
 }
 
 // WithComposerToolbar 注入 composer 工具栏贡献解析（F4.3）。
@@ -578,6 +580,10 @@ func (s *Service) CreateTopic(ctx context.Context, actor identity.Actor, input C
 	if err != nil {
 		return TopicDetail{}, err
 	}
+	content, err = s.applyContentPostFilter(ctx, content, "topic", "new")
+	if err != nil {
+		return TopicDetail{}, err
+	}
 	attachmentIDs, _, err := normalizeContentAttachmentIDs(input.Content.AttachmentIDs)
 	if err != nil {
 		return TopicDetail{}, err
@@ -714,6 +720,10 @@ func (s *Service) UpdateTopic(ctx context.Context, actor identity.Actor, input U
 			return TopicDetail{}, ErrOutboundLinkForbidden
 		}
 		content, err := RenderContentWithExcerptLimit(*input.Content, settings.ExcerptRuneLimit)
+		if err != nil {
+			return TopicDetail{}, err
+		}
+		content, err = s.applyContentPostFilter(ctx, content, "topic", strconv.FormatInt(input.TopicID, 10))
 		if err != nil {
 			return TopicDetail{}, err
 		}
@@ -934,6 +944,10 @@ func (s *Service) CreateComment(ctx context.Context, actor identity.Actor, input
 	}
 
 	content, err := RenderContentWithExcerptLimit(input.Content, settings.ExcerptRuneLimit)
+	if err != nil {
+		return Comment{}, err
+	}
+	content, err = s.applyContentPostFilter(ctx, content, "comment", "new")
 	if err != nil {
 		return Comment{}, err
 	}
@@ -1328,6 +1342,10 @@ func (s *Service) UpdateComment(ctx context.Context, actor identity.Actor, input
 		return Comment{}, ErrOutboundLinkForbidden
 	}
 	content, err := RenderContentWithExcerptLimit(input.Content, settings.ExcerptRuneLimit)
+	if err != nil {
+		return Comment{}, err
+	}
+	content, err = s.applyContentPostFilter(ctx, content, "comment", strconv.FormatInt(input.CommentID, 10))
 	if err != nil {
 		return Comment{}, err
 	}

@@ -89,6 +89,15 @@ func (p *ForumProvider) WithIdempotency(store *idempotency.Store) *ForumProvider
 	return p
 }
 
+// WithContentPostFilter injects the optional ContentRegistry post-render seam.
+// Nil filter keeps Host RenderContent identity behavior.
+func (p *ForumProvider) WithContentPostFilter(filter forum.ContentPostFilter) *ForumProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithContentPostFilter(filter)
+	}
+	return p
+}
+
 // TrustPolicyAdapter 把 options.TrustPolicy 适配为 forum.TrustPolicyResolver。
 type TrustPolicyAdapter struct {
 	options *options.Service
