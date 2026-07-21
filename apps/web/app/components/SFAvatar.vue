@@ -1,5 +1,8 @@
 <script setup lang="ts">
-type AvatarSize = 'sm' | 'md' | 'lg'
+import { forumAvatarToneClass } from '~/utils/forumListPresentation'
+
+/** sm/md/lg 通用；list 为话题列表等密集行（36px） */
+type AvatarSize = 'list' | 'sm' | 'md' | 'lg'
 type AvatarShape = 'circle' | 'square'
 type AvatarStatus = 'online' | 'idle' | 'offline'
 type AvatarView = {
@@ -26,17 +29,41 @@ const props = withDefaults(defineProps<{
   status: undefined
 })
 
-// 头像尺寸到像素的映射，用于 NuxtImg 的 width/height 和 sizes 预设。
+// NuxtImg width/height 像素预设（list 与视觉 size-9 对齐）
 const sizePixels: Record<AvatarSize, number> = {
+  list: 36,
   sm: 48,
   md: 96,
   lg: 256
+}
+
+const sizeClass: Record<AvatarSize, string> = {
+  list: 'size-9 text-[13px]',
+  sm: 'size-8 text-[0.72rem]',
+  md: 'size-10 text-[0.85rem]',
+  lg: 'size-14 text-[1.05rem]'
+}
+
+const shapeClass: Record<AvatarShape, string> = {
+  circle: 'rounded-full',
+  square: 'rounded-lg'
+}
+
+const statusClass: Record<AvatarStatus, string> = {
+  online: 'bg-green-500',
+  idle: 'bg-amber-500',
+  offline: 'bg-slate-400'
 }
 
 const initials = computed(() => {
   const source = props.name.trim()
   if (!source) {
     return 'U'
+  }
+  // 中文名：取首字（种子用户N →「种」）
+  const first = source[0] || 'U'
+  if (/[\u3400-\u9fff\uf900-\ufaff]/.test(first)) {
+    return first
   }
   return source
     .split(/\s+/)
@@ -46,33 +73,126 @@ const initials = computed(() => {
     .toUpperCase()
 })
 
-const avatarClass = computed(() => [
-  'sf-avatar',
-  `sf-avatar--${props.size}`,
-  `sf-avatar--${props.shape}`
-].join(' '))
+const toneSeed = computed(() => {
+  const fromAvatar = props.avatar?.alt || ''
+  return (fromAvatar || props.name || 'user').trim() || 'user'
+})
 
-const imageSrc = computed(() => props.avatar?.url || props.src || '')
+// 原样使用 AvatarView / src
+const imageSrc = computed(() => `${props.avatar?.url || props.src || ''}`.trim())
+const isRemoteImage = computed(() => /^https?:\/\//i.test(imageSrc.value))
+
+/**
+ * 远程图（Gravatar 等）必须先探测成功再挂 <img>，
+ * 否则 SSR/挂起/被墙时会露出浏览器裂图（蓝底电源图标）。
+ * 同源上传路径可直接渲染。
+ */
+const imageReady = ref(false)
+const imageFailed = ref(false)
+let probe: HTMLImageElement | null = null
+
+const showImage = computed(() => Boolean(imageSrc.value) && imageReady.value && !imageFailed.value)
+
+const avatarClass = computed(() => {
+  // sf-avatar：稳定钩子；尺寸/色板走 Tailwind
+  const classes = [
+    'sf-avatar',
+    'relative inline-flex shrink-0 select-none items-center justify-center overflow-hidden font-semibold leading-none text-white',
+    sizeClass[props.size],
+    shapeClass[props.shape]
+  ]
+  if (showImage.value) {
+    classes.push('bg-[var(--sf-accent)]')
+  } else {
+    classes.push(forumAvatarToneClass(toneSeed.value))
+  }
+  return classes.join(' ')
+})
+
 const imageAlt = computed(() => props.alt ?? props.avatar?.alt ?? props.name)
 const isDecorative = computed(() => props.alt === '')
-const usePlainImage = computed(() => /^https?:\/\//i.test(imageSrc.value))
+
+function abortProbe() {
+  if (probe) {
+    probe.onload = null
+    probe.onerror = null
+    probe.src = ''
+    probe = null
+  }
+}
+
+function resolveImage() {
+  abortProbe()
+  imageReady.value = false
+  imageFailed.value = false
+
+  const src = imageSrc.value
+  if (!src) {
+    return
+  }
+
+  // 同源 / 相对路径：可直接出图（上传头像）
+  if (!isRemoteImage.value) {
+    imageReady.value = true
+    return
+  }
+
+  // 远程：仅客户端探测；SSR 先字头，避免裂图
+  if (!import.meta.client) {
+    return
+  }
+
+  const img = new Image()
+  probe = img
+  img.referrerPolicy = 'no-referrer'
+  img.onload = () => {
+    if (probe === img) {
+      imageReady.value = true
+      imageFailed.value = false
+    }
+  }
+  img.onerror = () => {
+    if (probe === img) {
+      imageReady.value = false
+      imageFailed.value = true
+    }
+  }
+  img.src = src
+}
+
+watch(imageSrc, () => {
+  resolveImage()
+}, { immediate: true })
+
+onMounted(() => {
+  // SSR 时 remote 未探测；挂载后再探
+  if (imageSrc.value && isRemoteImage.value && !imageReady.value && !imageFailed.value) {
+    resolveImage()
+  }
+})
+
+onBeforeUnmount(() => {
+  abortProbe()
+})
 </script>
 
 <template>
   <span :class="avatarClass" :aria-hidden="isDecorative ? 'true' : undefined">
+    <!-- 远程图未就绪时字头垫底；就绪后换真图，永不挂裂图 <img> -->
     <img
-      v-if="imageSrc && usePlainImage"
-      class="sf-avatar__image"
+      v-if="showImage && imageSrc && isRemoteImage"
+      class="size-full object-cover"
       :src="imageSrc"
       :alt="imageAlt"
       :width="sizePixels[size]"
       :height="sizePixels[size]"
       loading="lazy"
       decoding="async"
+      referrerpolicy="no-referrer"
     >
     <NuxtImg
-      v-else-if="imageSrc"
-      class="sf-avatar__image"
+      v-else-if="showImage && imageSrc"
+      class="size-full object-cover"
       :src="imageSrc"
       :alt="imageAlt"
       :width="sizePixels[size]"
@@ -81,11 +201,13 @@ const usePlainImage = computed(() => /^https?:\/\//i.test(imageSrc.value))
       format="webp"
       loading="lazy"
       decoding="async"
+      @error="imageFailed = true; imageReady = false"
     />
-    <span v-else>{{ initials }}</span>
+    <span v-else class="grid size-full place-items-center">{{ initials }}</span>
     <span
       v-if="status"
-      :class="['sf-avatar__status', `sf-avatar__status--${status}`]"
+      class="absolute right-0 bottom-0 size-2.5 rounded-full border-2 border-[var(--sf-card,#fff)]"
+      :class="statusClass[status]"
       aria-hidden="true"
     />
   </span>

@@ -406,72 +406,8 @@
   color: var(--sf-fg-tertiary);
 }
 
-.sf-avatar {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  flex: 0 0 auto;
-  background: var(--sf-accent);
-  color: #ffffff;
-  font-weight: 800;
-  line-height: 1;
-}
-
-.sf-avatar--sm {
-  width: 2rem;
-  height: 2rem;
-  font-size: 0.72rem;
-}
-
-.sf-avatar--md {
-  width: 2.5rem;
-  height: 2.5rem;
-  font-size: 0.85rem;
-}
-
-.sf-avatar--lg {
-  width: 3.5rem;
-  height: 3.5rem;
-  font-size: 1.05rem;
-}
-
-.sf-avatar--circle {
-  border-radius: 999px;
-}
-
-.sf-avatar--square {
-  border-radius: 8px;
-}
-
-.sf-avatar__image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.sf-avatar__status {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 0.62rem;
-  height: 0.62rem;
-  border: 2px solid var(--sf-card);
-  border-radius: 999px;
-}
-
-.sf-avatar__status--online {
-  background: #22c55e;
-}
-
-.sf-avatar__status--idle {
-  background: #f59e0b;
-}
-
-.sf-avatar__status--offline {
-  background: #94a3b8;
-}
+/* SFAvatar 尺寸/字头色板/状态点已迁入组件 Tailwind；此处仅保留兼容钩子注释。
+ * 外壳（如 .sf-profile-avatar-ring .sf-avatar）仍可用 class 钩子选中根节点。 */
 
 .sf-input {
   display: grid;
