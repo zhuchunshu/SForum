@@ -1,5 +1,53 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
+Last updated: 2026-07-21 (final residual hunt + gates re-green)
+
+## Progress
+
+- Weighted **99.7%** (display **99%**). **P0–P12 complete**; P13 LTS residual only.
+- HEAD `92f708a32`. Worktree clean.
+- Final residual explore: **ZERO non-LTS implementable** (task book / 99-row /
+  product paths / catalogs / reference packages).
+- APILTS (UTC 2026-07-21): `CanRemoveWindow=false`,
+  `CanRemoveWithZeroShim=false` both contracts; `RemoveAfter` ≈ **2026-11-28**
+  (~129 days). **Deletion policy-blocked.**
+
+## Current Subtask
+
+### LTS wait only (policy-blocked)
+
+- Exact next: **do not delete** LoadTemplate residual / Protocol V1 /
+  fail-closed SFPageOutlet until RemoveAfter + live zero-shim + checklist 1–7.
+- Product boundary for 100%: wait for calendar **or** user-approved LTS window
+  change. Do not invent thin work from harness auto-continue.
+
+## Tests (this turn)
+
+- catalogs 249/150/99; OpenAPI OK
+- go test APILTS, Pages, EditorRegistry, EditorDocument, EntityRegistry,
+  ContentRegistry, MediaRegistry — EXIT 0
+- bun editorL2Load + adminRegistryCatalogs — 12 pass
+- Evidence: implementer scratch `resume-audit.txt`,
+  `final-gates/lts-wait-gates.log`
+
+## Open task-book rows
+
+1. Remove request-time template loader residual
+2. Remove Protocol V1 paths
+3. Compatibility path removal after LTS checklist
+
+## Rollback
+
+- Never delete LTS shims early.
+
+## Unowned worktree
+
+- None.
+
+---
+
+# Trusted Plugin And Theme Platform V3 Progress Ledger
+
 Last updated: 2026-07-21 (LTS residual re-confirm; window closed)
 
 ## Progress
