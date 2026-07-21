@@ -133,7 +133,8 @@ func (s *Service) Upload(ctx context.Context, actor identity.Actor, input Upload
 	if err != nil {
 		return Attachment{}, err
 	}
-	if err := s.applyMediaRegistryMIME(metadata); err != nil {
+	// purpose=general：通用附件上传；无已发布策略时 no-op。
+	if err := s.applyMediaRegistryMIME("general", metadata); err != nil {
 		return Attachment{}, err
 	}
 	return s.storePreparedUpload(ctx, actor, settings, preparedUpload{
@@ -163,6 +164,10 @@ func (s *Service) UploadAvatar(ctx context.Context, actor identity.Actor, input 
 	if err != nil {
 		return Attachment{}, err
 	}
+	// purpose=avatar：头像路径与 general 策略分离；未声明 avatar 时回退 *。
+	if err := s.applyMediaRegistryMIME("avatar", prepared.Metadata); err != nil {
+		return Attachment{}, err
+	}
 	prepared.Visibility = VisibilityPublic
 	return s.storePreparedUpload(ctx, actor, settings, prepared)
 }
@@ -185,6 +190,10 @@ func (s *Service) UploadSEOImage(ctx context.Context, actor identity.Actor, inpu
 	metadata, err := inspectUpload(input, settings)
 	if err != nil || !strings.HasPrefix(metadata.ContentType, "image/") {
 		return Attachment{}, ErrInvalidAttachment
+	}
+	// purpose=seo：SEO 社交图路径；未声明 seo 时回退 *。
+	if err := s.applyMediaRegistryMIME("seo", metadata); err != nil {
+		return Attachment{}, err
 	}
 	return s.storePreparedUpload(ctx, actor, settings, preparedUpload{
 		Reader: input.File, SizeBytes: input.SizeBytes, Metadata: metadata, Visibility: VisibilityPublic,
@@ -715,13 +724,17 @@ type uploadMetadata struct {
 }
 
 // applyMediaRegistryMIME 在 Host allowlist 通过后叠加插件 MIME 策略。
-// 无已发布策略时为 no-op；拒绝映射为 ErrInvalidAttachment 保持对外错误面稳定。
-func (s *Service) applyMediaRegistryMIME(metadata uploadMetadata) error {
+// purpose 区分 general/avatar/seo 等路径；无已发布策略时 no-op。
+// 拒绝映射为 ErrInvalidAttachment，保持对外错误面稳定。
+func (s *Service) applyMediaRegistryMIME(purpose string, metadata uploadMetadata) error {
 	if s == nil || s.mediaRegistry == nil {
 		return nil
 	}
+	if strings.TrimSpace(purpose) == "" {
+		purpose = "general"
+	}
 	ext := strings.TrimPrefix(strings.ToLower(metadata.Extension), ".")
-	if err := s.mediaRegistry.CheckUploadMIME("general", metadata.ContentType, ext); err != nil {
+	if err := s.mediaRegistry.CheckUploadMIME(purpose, metadata.ContentType, ext); err != nil {
 		if errors.Is(err, mediaregistry.ErrMediaRejected) || errors.Is(err, mediaregistry.ErrInvalid) {
 			return ErrInvalidAttachment
 		}
