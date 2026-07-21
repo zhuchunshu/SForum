@@ -464,6 +464,22 @@ func wireAPICoreStack(ctx context.Context, cfg config.Config, logger *slog.Logge
 		return nil, fmt.Errorf("Host platform services setup failed: %w", err)
 	}
 	_ = hostPlatform
+	// P12 ops：RuntimeRollout / SystemTier / Marketplace / Privacy 绑定 PostgreSQL。
+	p12Ops, err := bindProductionP12Ops(cfg, pool, logger)
+	if err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		extensionRuntime.Close(ctx)
+		_ = hostAPIGateway.Close()
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("P12 ops services setup failed: %w", err)
+	}
+	_ = p12Ops
 	if err := bindProtocolV2ProviderBroker(hostAPIGateway, lifecycleRuntime); err != nil {
 		extensionRuntime.Close(ctx)
 		sharedRedisClient.Close()

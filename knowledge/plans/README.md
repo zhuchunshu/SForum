@@ -14,13 +14,14 @@ Task books, blueprints, and progress ledgers. Every plan must declare a
 | `cancelled` | Explicitly stopped |
 | `superseded` | Replaced by another plan/decision; historical only |
 
-## Status table (2026-07-21 cleanup)
+## Status table (2026-07-22)
 
 | Plan | Status |
 | --- | --- |
 | `2026-07-13-trusted-plugin-theme-platform-v3.md` | **active** — P13 LTS residual only |
 | `2026-07-13-trusted-plugin-theme-platform-v3-progress.md` | **active** — durable % ledger |
 | `2026-07-13-trusted-plugin-theme-platform-v3-traceability.md` | **generated** — catalog matrix (do not hand-edit) |
+| `2026-07-22-social-login-provider-plugins.md` | **ready** — Core auth completion + unified admin/user UI + GitHub/Google/Discord/Telegram plugins |
 | `2026-07-21-million-scale-read-path.md` | **completed** — M0–M7 (M7 decision doc only); D1–D4 law |
 | `2026-07-12-iteration-a-engagement-loop.md` | **ready** — view counts / likes / bookmarks (M2 shares view-count WS) |
 | `2026-07-12-admin-settings-richness.md` | **blueprint** — Waves 1–2 landed; later waves open |

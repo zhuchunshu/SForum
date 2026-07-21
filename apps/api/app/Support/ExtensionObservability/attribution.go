@@ -1,5 +1,6 @@
 // Package extensionobservability attributes Host latency, errors, queries,
 // cache, memory, and fallbacks to exact extension artifacts for V3 P12.
+// Production writers are Route/Hook/SQL/Cache/RPC/Job paths via Process().
 package extensionobservability
 
 import (
@@ -13,11 +14,24 @@ import (
 // SchemaVersion is the attribution snapshot contract.
 const SchemaVersion = "sforum.extension-observability@1"
 
+// Surface constants for real Host paths.
+const (
+	SurfaceRoute = "route"
+	SurfaceHook  = "hook"
+	SurfaceQuery = "query"
+	SurfaceSQL   = "sql"
+	SurfaceCache = "cache"
+	SurfaceRPC   = "rpc"
+	SurfaceJob   = "job"
+	SurfaceMedia = "media"
+	SurfaceSEO   = "seo"
+)
+
 // Event is one attributed observation (never includes secrets or bodies).
 type Event struct {
 	ExtensionID   string        `json:"extensionId"`
 	PackageDigest string        `json:"packageDigest,omitempty"`
-	Surface       string        `json:"surface"` // route|hook|query|cache|job|rpc|media|seo
+	Surface       string        `json:"surface"` // route|hook|query|sql|cache|job|rpc|media|seo
 	Name          string        `json:"name,omitempty"`
 	Duration      time.Duration `json:"duration,omitempty"`
 	ErrorClass    string        `json:"errorClass,omitempty"`
@@ -27,13 +41,13 @@ type Event struct {
 
 // Aggregate is per-extension rolled-up metrics.
 type Aggregate struct {
-	ExtensionID   string        `json:"extensionId"`
-	PackageDigest string        `json:"packageDigest,omitempty"`
-	Events        uint64        `json:"events"`
-	Errors        uint64        `json:"errors"`
-	Fallbacks     uint64        `json:"fallbacks"`
-	TotalLatency  time.Duration `json:"totalLatency"`
-	AvgLatency    time.Duration `json:"avgLatency"`
+	ExtensionID   string            `json:"extensionId"`
+	PackageDigest string            `json:"packageDigest,omitempty"`
+	Events        uint64            `json:"events"`
+	Errors        uint64            `json:"errors"`
+	Fallbacks     uint64            `json:"fallbacks"`
+	TotalLatency  time.Duration     `json:"totalLatency"`
+	AvgLatency    time.Duration     `json:"avgLatency"`
 	BySurface     map[string]uint64 `json:"bySurface,omitempty"`
 }
 
@@ -72,7 +86,7 @@ func New(maxRecent int) *Recorder {
 	return &Recorder{maxRecent: maxRecent, agg: make(map[string]*aggState)}
 }
 
-// Observe records an attributed event.
+// Observe records an attributed event from a real Host path.
 func (r *Recorder) Observe(event Event) {
 	if r == nil {
 		return
@@ -122,6 +136,18 @@ func (r *Recorder) Observe(event Event) {
 	state.surfaceMu.Unlock()
 }
 
+// ObserveSurface is a convenience for real Route/Hook/SQL/Cache/RPC/Job writers.
+func (r *Recorder) ObserveSurface(extensionID, packageDigest, surface, name string, duration time.Duration, err error) {
+	event := Event{
+		ExtensionID: extensionID, PackageDigest: packageDigest,
+		Surface: surface, Name: name, Duration: duration, At: time.Now().UTC(),
+	}
+	if err != nil {
+		event.ErrorClass = "error"
+	}
+	r.Observe(event)
+}
+
 // Snapshot returns aggregates and recent events.
 func (r *Recorder) Snapshot() Snapshot {
 	if r == nil {
@@ -162,4 +188,57 @@ func (r *Recorder) Snapshot() Snapshot {
 		return out[i].PackageDigest < out[j].PackageDigest
 	})
 	return Snapshot{SchemaVersion: SchemaVersion, Aggregates: out, Recent: recent}
+}
+
+// processRecorder is the API/worker process-local attribution store.
+var (
+	processMu       sync.Mutex
+	processRecorder *Recorder
+)
+
+// Process returns the process-local recorder used by real Host paths.
+func Process() *Recorder {
+	processMu.Lock()
+	defer processMu.Unlock()
+	if processRecorder == nil {
+		processRecorder = New(512)
+	}
+	return processRecorder
+}
+
+// ResetProcessForTest replaces the process recorder (tests only).
+func ResetProcessForTest(r *Recorder) {
+	processMu.Lock()
+	processRecorder = r
+	processMu.Unlock()
+}
+
+// ObserveRoute records a Route path attribution on the process recorder.
+func ObserveRoute(extensionID, packageDigest, name string, duration time.Duration, err error) {
+	Process().ObserveSurface(extensionID, packageDigest, SurfaceRoute, name, duration, err)
+}
+
+// ObserveHook records a Hook path attribution.
+func ObserveHook(extensionID, packageDigest, name string, duration time.Duration, err error) {
+	Process().ObserveSurface(extensionID, packageDigest, SurfaceHook, name, duration, err)
+}
+
+// ObserveSQL records a SQL path attribution.
+func ObserveSQL(extensionID, packageDigest, name string, duration time.Duration, err error) {
+	Process().ObserveSurface(extensionID, packageDigest, SurfaceSQL, name, duration, err)
+}
+
+// ObserveCache records a Cache path attribution.
+func ObserveCache(extensionID, packageDigest, name string, duration time.Duration, err error) {
+	Process().ObserveSurface(extensionID, packageDigest, SurfaceCache, name, duration, err)
+}
+
+// ObserveRPC records an RPC path attribution.
+func ObserveRPC(extensionID, packageDigest, name string, duration time.Duration, err error) {
+	Process().ObserveSurface(extensionID, packageDigest, SurfaceRPC, name, duration, err)
+}
+
+// ObserveJob records a Job path attribution.
+func ObserveJob(extensionID, packageDigest, name string, duration time.Duration, err error) {
+	Process().ObserveSurface(extensionID, packageDigest, SurfaceJob, name, duration, err)
 }

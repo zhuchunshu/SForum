@@ -1,8 +1,10 @@
-# SForum V3 P12 compatibility farm matrix (v0).
-# Cells are executed by tests/compat/run_matrix.go and CI.
+# SForum V3 P12 compatibility farm matrix.
+# Cells are executed by tests/compat/run_matrix.go (and ./scripts/test.sh).
+# Missing matrix, skip, or fail of any cell fails the gate.
 version: 1
 schema: sforum.compat-farm@1
 cells:
+  # Current Host + Protocol V2 + Manifest V3 (LTS seed + builtin package).
   - id: current-host-v2-manifest-v3
     sforum: current
     protocol: v2
@@ -10,6 +12,7 @@ cells:
     database: postgres
     browser: none
     status: required
+  # Deprecated Protocol V1 shim must record APILTS telemetry before removal.
   - id: deprecated-protocol-v1-shim
     sforum: current
     protocol: v1
@@ -18,6 +21,7 @@ cells:
     browser: none
     status: deprecated
     expects_shim_telemetry: true
+  # Manifest V3 + SDK contract on a shipped builtin plugin.
   - id: manifest-v3-contract
     sforum: current
     protocol: v2

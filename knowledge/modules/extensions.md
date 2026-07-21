@@ -10,14 +10,13 @@ book is `../plans/2026-07-13-trusted-plugin-theme-platform-v3.md`. Progress:
 P11 remediation; see progress ledger).
 
 **Live program state (2026-07-22):** P0–P12 closed on `main` with **P11 platform
-services remediations landed** (SecretStore Postgres + Protocol V2 Secret/File/
-HTTP, SettingsLifecycle on extension_settings, bootstrap bind). P13 final gates
-and reference packages remain green. The only open task-book rows are
-LTS-blocked deletions (`sforum.protocol.v1`,
-`sforum.theme.l1.request-time-loader`) until APILTS `RemoveAfter` ≈ 2026-11-28 +
-live zero-shim + checklist 1–7. Fail-closed `SFPageOutlet` is never fully
-removed. Optional non-task-book depth (Protocol content-filter lease, Media
-Plan/Execute product authority, EntityStore I/O) is not V3 residual.
+services** and **P12 ops production bindings** landed. P13 final gates and
+reference packages remain green. The only open task-book rows are LTS-blocked
+deletions (`sforum.protocol.v1`, `sforum.theme.l1.request-time-loader`) until
+APILTS `RemoveAfter` ≈ 2026-11-28 + live zero-shim + checklist 1–7. Fail-closed
+`SFPageOutlet` is never fully removed. Optional non-task-book depth (Protocol
+content-filter lease, Media Plan/Execute product authority, EntityStore I/O) is
+not V3 residual.
 
 ### P11 Platform Services (production assembly)
 
@@ -29,8 +28,20 @@ Plan/Execute product authority, EntityStore I/O) is not V3 residual.
 | PluginFiles | Protocol V2 `FileService`; private/temp/static/user kinds; default uninstall retains user data |
 | Bootstrap | `bindProductionHostPlatform` in `api_assembly` binds all three Protocol V2 servers before broker freeze |
 
-Do **not** credit P11 from Support unit tests alone — require production
-bootstrap bind + Protocol V2 + durable store evidence.
+### P12 Ops (production assembly)
+
+| Service | Production path |
+| --- | --- |
+| CompatFarm | `RunMatrix` + `tests/compat/run_matrix.go` in `./scripts/test.sh`; skip/missing fail |
+| Marketplace | Ed25519 index verify; deep-copy; recursive deps; Installer stage/activate/rollback |
+| RuntimeRollout | Postgres `runtime_rollout_plans`; multi-node one-winner Create; restart recovery |
+| SystemTier | Postgres `system_tier_members`; CLI `extension system-tier`; Safe Mode bypass |
+| Privacy | Permission + audit + deadline + partial; `PublishContribution` for inventory |
+| Observability | `Process()` writers on real Hook/Job (`ProtocolStarter`) paths |
+| Bootstrap | `bindProductionP12Ops` in `api_assembly` |
+
+Do **not** credit P11/P12 from Support unit tests alone — require production
+bootstrap bind + durable store / CI executor evidence.
 
 The remainder of this module note describes the current implementation unless a
 section is explicitly labeled as target behavior.

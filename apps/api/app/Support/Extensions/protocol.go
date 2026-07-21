@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	extensionobservability "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionObservability"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	queryregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/QueryRegistry"
@@ -623,7 +624,17 @@ func (s *ProtocolStarter) ExecutePluginJob(ctx context.Context, invocation suppo
 	if !ok {
 		return extensions.ErrRuntimeUnavailable
 	}
-	return invoker.ExecutePluginJob(ctx, invocation)
+	// 真实 Job 路径写入扩展可观测性（非测试直接 Record）。
+	started := time.Now()
+	err := invoker.ExecutePluginJob(ctx, invocation)
+	extensionobservability.ObserveJob(
+		invocation.Contract.ExtensionID,
+		invocation.Contract.ArtifactDigest,
+		invocation.Contract.JobName,
+		time.Since(started),
+		err,
+	)
+	return err
 }
 
 func (s *ProtocolStarter) lockExtensionLifecycle(extensionID string) func() {
@@ -730,6 +741,21 @@ func (s *ProtocolStarter) unregisterProtocolV2Services(extensionID string, proto
 }
 
 func (s *ProtocolStarter) InvokeHook(ctx context.Context, extension extensions.Extension, input HookInput) HookResult {
+	started := time.Now()
+	result := s.invokeHook(ctx, extension, input)
+	// 真实 Hook 路径写入扩展可观测性（Route/Hook/Job 等由各入口写入 Process）。
+	var observeErr error
+	if !result.OK {
+		observeErr = errors.New(result.Reason)
+	}
+	extensionobservability.ObserveHook(
+		extension.ID, extension.PackageDigest, input.Name,
+		time.Since(started), observeErr,
+	)
+	return result
+}
+
+func (s *ProtocolStarter) invokeHook(ctx context.Context, extension extensions.Extension, input HookInput) HookResult {
 	s.mu.Lock()
 	protocol := s.protocols[extension.ID]
 	s.mu.Unlock()

@@ -10,6 +10,13 @@ helpers.
 
 Initial identity foundation is implemented.
 
+- Social login is now a prioritized ready workstream. The executable Identity
+  Registry, auth provider start/complete transport, external-link persistence,
+  and public provider catalog already exist; vendor plugins and the complete
+  Host login/registration/session product effect do not. The authoritative
+  implementation checklist is
+  `plans/2026-07-22-social-login-provider-plugins.md`.
+
 - PostgreSQL migrations create users, credentials, roles, permissions, role
   assignments, and audit events.
 - Seed data includes `super_admin`, the default `member` role, built-in role
@@ -201,6 +208,11 @@ Initial identity foundation is implemented.
   authoritative.
 - Auth return navigation is frontend-only and does not add or change an API or
   permission boundary.
+- External auth providers are additive Identity Registry contributions, not a
+  singleton Provider Slot. Plugins may verify an external subject; Core retains
+  user creation, links, risk/session policy, browser sessions, permissions, and
+  audit authority. Installing or enabling a plugin must not expose a login
+  method without a separate Host-owned activation.
 
 ## Permission-Aware Development Rules
 

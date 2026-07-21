@@ -127,12 +127,23 @@ program reaches 100% and every final gate passes.
 - Exact next: deepen remaining reference surfaces, then migration policy
   docs without premature legacy deletion, then final gates.
 
+## 2026-07-22 P12 Ops Production Binding (reopen → close)
+
+- Reopened Support-only P12 ops (CompatFarm loader, process-local rollout/tier,
+  shallow marketplace/privacy/observability) then closed on production evidence.
+- Compat farm executor in `./scripts/test.sh`; Marketplace Ed25519 + install
+  binding; RuntimeRollout/SystemTier Postgres; Privacy audit/partial; Observability
+  on real Hook/Job paths; `bindProductionP12Ops`.
+- Handoff: `sessions/2026-07-22-p12-ops-production-binding-handoff.md`.
+- P12 remains **100%** of task-book weight; credit is now production-bound.
+
 ## 2026-07-21 P12 Closed At 100%
 
 - Overall advances to **95.0%** after flooring (exact ≈ `89 + 6 = 95.0`).
 - All P12 Tasks and Tests rows checked. Compat farm v0 + rollout/marketplace/
   privacy/LTS/system tier/package CLI landed.
 - Exact next: P13 reference themes/plugins, migration, legacy removal, final gates.
+  *(Superseded for ops honesty by 2026-07-22 production binding.)*
 
 ## 2026-07-21 P12 Ops Packages Landed (~90%)
 

@@ -6,6 +6,21 @@ session archive.
 
 ## Latest Handoff
 
+- **2026-07-22 P12 ops production binding**
+  - CompatFarm executor + `./scripts/test.sh`; Marketplace Ed25519 + deps +
+    install binding; RuntimeRollout/SystemTier Postgres; Privacy/Observability
+    real paths; bootstrap `bindProductionP12Ops`
+  - Plan: P12 Support-only rows reopened then closed on production evidence
+  - Handoff: `sessions/2026-07-22-p12-ops-production-binding-handoff.md`
+  - Decision: `decisions/2026-07-22-marketplace-ed25519-signing.md`
+  - Module: `modules/extensions.md`
+
+- **2026-07-22 Social login provider task book**
+  - Ready plan: `plans/2026-07-22-social-login-provider-plugins.md`
+  - Core-owned accounts/sessions + plugin-owned GitHub/Google/Discord/Telegram
+  - Handoff: `sessions/2026-07-22-social-login-provider-plan-handoff.md`
+  - Module: `modules/identity.md`
+
 - **2026-07-22 P11 platform services remediation**
   - SecretStore Postgres + audit; SettingsLifecycle durable KV; Protocol V2
     Secret/File/HTTP; bootstrap `bindProductionHostPlatform`
@@ -140,6 +155,9 @@ lives in archived sessions and dated decisions.
 
 ### Open / next (product, not V3 LTS)
 
+- **Social login provider plugins ready:** Core completion + unified admin/user
+  surfaces + GitHub/Google/Discord/Telegram —
+  `plans/2026-07-22-social-login-provider-plugins.md`
 - **Iteration A** engagement loop still open: view-count increment, likes/reactions, bookmarks — `plans/2026-07-12-iteration-a-engagement-loop.md`
 - **Million-scale read path** task book (**M0–M5 done**, M6 next): cache sharding — `plans/2026-07-21-million-scale-read-path.md`
 - Admin settings richness: Waves 1–2 landed; later waves remain blueprint — `plans/2026-07-12-admin-settings-richness.md`
@@ -149,7 +167,7 @@ lives in archived sessions and dated decisions.
 ### Explicitly deferred / not current focus
 
 - Horizontal scale / multi-node / read replicas (after M0–M6 single-node proof in million-scale plan)
-- Payments, marketplace, OAuth social login (unless product prioritizes)
+- Payments, marketplace
 - Full re-score of `architecture-maturity-audit.md` (stamped pre-V3 completion)
 
 ## Navigation
@@ -170,6 +188,7 @@ lives in archived sessions and dated decisions.
 ### Active plans (read first)
 
 - `plans/2026-07-13-trusted-plugin-theme-platform-v3.md` + `-progress.md` — V3 residual
+- `plans/2026-07-22-social-login-provider-plugins.md` — ready social login implementation task book
 - `plans/2026-07-21-million-scale-read-path.md` — single-node 1M-class read path (M0 done)
 - `plans/2026-07-12-iteration-a-engagement-loop.md` — product engagement (WS1 view count done with M2; likes/bookmarks open)
 - `plans/2026-07-12-admin-settings-richness.md` — settings blueprint

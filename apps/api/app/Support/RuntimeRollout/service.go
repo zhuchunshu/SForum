@@ -1,41 +1,56 @@
 package runtimerollout
 
 import (
+	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"sort"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"time"
 )
 
-// Service is the process-local Host rollout coordinator.
-// Production multi-node durability reuses plugin_runtime publication journals;
-// this service owns the phase machine, canary selection, health gate, and
-// retention policy that those journals enforce.
+// Service is the Host rollout coordinator backed by a durable PlanStore.
+// Production multi-node durability reuses PostgreSQL authority (same class as
+// plugin_runtime publication journals): node acks, migration-once, health gate,
+// drain, promote, and rollback all persist and recover after API/worker restart.
 type Service struct {
-	mu     sync.Mutex
-	plans  map[string]Plan
-	seq    atomic.Uint64
+	store PlanStore
 	// now is injectable for tests.
 	now func() time.Time
 }
 
-// New builds a rollout coordinator.
+// New builds a coordinator with an in-memory store (tests / single-process only).
+// Production must use NewWithStore(NewPostgresStore(pool)).
 func New() *Service {
+	return NewWithStore(NewMemoryStore())
+}
+
+// NewWithStore builds a coordinator on a durable plan store.
+func NewWithStore(store PlanStore) *Service {
+	if store == nil {
+		store = NewMemoryStore()
+	}
 	return &Service{
-		plans: make(map[string]Plan),
+		store: store,
 		now:   func() time.Time { return time.Now().UTC() },
 	}
 }
 
 // CreatePlan starts a staged rollout. MigrationReady must be false until
 // MarkMigrationReady is called (migration-once before activation).
-func (s *Service) CreatePlan(extensionID, sourceDigest, targetDigest, actor string, canaryPercent, retain int) (Plan, error) {
-	if s == nil {
+// Multi-API concurrent Create for the same extension: only one winner.
+func (s *Service) CreatePlan(
+	ctx context.Context,
+	extensionID, sourceDigest, targetDigest, actor string,
+	canaryPercent, retain int,
+) (Plan, error) {
+	if s == nil || s.store == nil {
 		return Plan{}, ErrInvalid
+	}
+	if ctx == nil {
+		ctx = context.Background()
 	}
 	extensionID = strings.ToLower(strings.TrimSpace(extensionID))
 	sourceDigest = strings.ToLower(strings.TrimSpace(sourceDigest))
@@ -56,30 +71,35 @@ func (s *Service) CreatePlan(extensionID, sourceDigest, targetDigest, actor stri
 	if retain <= 0 {
 		retain = DefaultRetainVersions
 	}
+	// PlanID 必须跨 API 节点全局唯一；进程内 seq 在并发 Create 时会撞车。
+	planID, err := newPlanID()
+	if err != nil {
+		return Plan{}, err
+	}
 	plan := Plan{
-		SchemaVersion: SchemaVersion,
-		PlanID:        fmt.Sprintf("rollout-%d", s.seq.Add(1)),
-		ExtensionID:   extensionID,
-		SourceDigest:  sourceDigest,
-		TargetDigest:  targetDigest,
-		CanaryPercent: canaryPercent,
-		Phase:         PhasePending,
-		RetainVersions: retain,
-		Actor:         actor,
-		UpdatedAt:     s.now(),
-		NodeAcks:      map[string]NodeAck{},
+		SchemaVersion:   SchemaVersion,
+		PlanID:          planID,
+		ExtensionID:     extensionID,
+		SourceDigest:    sourceDigest,
+		TargetDigest:    targetDigest,
+		CanaryPercent:   canaryPercent,
+		Phase:           PhasePending,
+		RetainVersions:  retain,
+		Actor:           actor,
+		UpdatedAt:       s.now(),
+		NodeAcks:        map[string]NodeAck{},
 		RetainedDigests: []string{sourceDigest},
 	}
-	s.mu.Lock()
-	s.plans[plan.PlanID] = clonePlan(plan)
-	s.mu.Unlock()
-	return clonePlan(plan), nil
+	created, err := s.store.Create(ctx, plan)
+	if err != nil {
+		return Plan{}, err
+	}
+	return clonePlan(created), nil
 }
 
 // MarkMigrationReady records that Host migration-once proof succeeded.
-// Runtime activation is forbidden until this returns successfully.
-func (s *Service) MarkMigrationReady(planID, actor string) (Plan, error) {
-	return s.transition(planID, actor, func(plan *Plan) error {
+func (s *Service) MarkMigrationReady(ctx context.Context, planID, actor string) (Plan, error) {
+	return s.transition(ctx, planID, actor, func(plan *Plan) error {
 		if plan.Phase != PhasePending && plan.Phase != PhaseMigrating {
 			return ErrPhase
 		}
@@ -90,8 +110,9 @@ func (s *Service) MarkMigrationReady(planID, actor string) (Plan, error) {
 	})
 }
 
-// AckNode records a node's phase acknowledgement and health.
-func (s *Service) AckNode(planID, nodeID, phase, health string, canary bool) (Plan, error) {
+// AckNode records a node's phase acknowledgement and health (durable).
+// Missed Redis notifications are recovered by reloading plan state from store.
+func (s *Service) AckNode(ctx context.Context, planID, nodeID, phase, health string, canary bool) (Plan, error) {
 	nodeID = strings.TrimSpace(nodeID)
 	phase = strings.ToLower(strings.TrimSpace(phase))
 	health = strings.ToLower(strings.TrimSpace(health))
@@ -101,7 +122,7 @@ func (s *Service) AckNode(planID, nodeID, phase, health string, canary bool) (Pl
 	if health == "" {
 		health = HealthUnknown
 	}
-	return s.transition(planID, "node:"+nodeID, func(plan *Plan) error {
+	return s.transition(ctx, planID, "node:"+nodeID, func(plan *Plan) error {
 		if plan.NodeAcks == nil {
 			plan.NodeAcks = map[string]NodeAck{}
 		}
@@ -112,9 +133,27 @@ func (s *Service) AckNode(planID, nodeID, phase, health string, canary bool) (Pl
 	})
 }
 
+// MarkNodeLost marks a node unhealthy after lease expiry / disconnect.
+func (s *Service) MarkNodeLost(ctx context.Context, planID, nodeID, actor string) (Plan, error) {
+	return s.transition(ctx, planID, actor, func(plan *Plan) error {
+		if plan.NodeAcks == nil {
+			return ErrInvalid
+		}
+		ack, ok := plan.NodeAcks[nodeID]
+		if !ok {
+			return ErrInvalid
+		}
+		ack.Health = HealthUnhealthy
+		ack.At = s.now()
+		plan.NodeAcks[nodeID] = ack
+		plan.LastError = "node lost: " + nodeID
+		return nil
+	})
+}
+
 // SelectCanary marks the canary cohort from currently known nodes.
-func (s *Service) SelectCanary(planID, actor string) (Plan, error) {
-	return s.transition(planID, actor, func(plan *Plan) error {
+func (s *Service) SelectCanary(ctx context.Context, planID, actor string) (Plan, error) {
+	return s.transition(ctx, planID, actor, func(plan *Plan) error {
 		if !plan.MigrationReady || plan.Phase != PhaseStaged {
 			return ErrPhase
 		}
@@ -147,8 +186,8 @@ func (s *Service) SelectCanary(planID, actor string) (Plan, error) {
 }
 
 // HealthGate checks canary (or all) nodes are healthy before promote.
-func (s *Service) HealthGate(planID, actor string, canaryOnly bool) (Plan, error) {
-	return s.transition(planID, actor, func(plan *Plan) error {
+func (s *Service) HealthGate(ctx context.Context, planID, actor string, canaryOnly bool) (Plan, error) {
+	return s.transition(ctx, planID, actor, func(plan *Plan) error {
 		if plan.Phase != PhaseCanary && plan.Phase != PhaseDraining && plan.Phase != PhasePromoting {
 			return ErrPhase
 		}
@@ -171,12 +210,11 @@ func (s *Service) HealthGate(planID, actor string, canaryOnly bool) (Plan, error
 }
 
 // BeginDrain marks draining before atomic promote.
-func (s *Service) BeginDrain(planID, actor string) (Plan, error) {
-	return s.transition(planID, actor, func(plan *Plan) error {
+func (s *Service) BeginDrain(ctx context.Context, planID, actor string) (Plan, error) {
+	return s.transition(ctx, planID, actor, func(plan *Plan) error {
 		if plan.Phase != PhaseCanary {
 			return ErrPhase
 		}
-		// Require canary healthy first.
 		for _, ack := range plan.NodeAcks {
 			if ack.Canary && ack.Health != HealthHealthy {
 				return ErrHealthGate
@@ -188,15 +226,15 @@ func (s *Service) BeginDrain(planID, actor string) (Plan, error) {
 }
 
 // PromoteAtomic switches the active snapshot after drain + full health gate.
-func (s *Service) PromoteAtomic(planID, actor string) (Plan, error) {
-	return s.transition(planID, actor, func(plan *Plan) error {
+// Callers must also advance plugin/theme runtime publication to target digest.
+func (s *Service) PromoteAtomic(ctx context.Context, planID, actor string) (Plan, error) {
+	return s.transition(ctx, planID, actor, func(plan *Plan) error {
 		if !plan.MigrationReady {
 			return ErrMigration
 		}
 		if plan.Phase != PhaseDraining && plan.Phase != PhaseCanary {
 			return ErrPhase
 		}
-		// Full-cluster health required for final promote.
 		for _, ack := range plan.NodeAcks {
 			if ack.Health != HealthHealthy {
 				plan.LastError = "node " + ack.NodeID + " not healthy for promote"
@@ -206,7 +244,6 @@ func (s *Service) PromoteAtomic(planID, actor string) (Plan, error) {
 		plan.Phase = PhasePromoting
 		sum := sha256.Sum256([]byte(plan.PlanID + "\x00" + plan.TargetDigest + "\x00" + plan.UpdatedAt.Format(time.RFC3339Nano)))
 		plan.SnapshotID = "snap-" + hex.EncodeToString(sum[:8])
-		// Retention: keep source + prior retained, capped.
 		retained := append([]string{}, plan.RetainedDigests...)
 		retained = append(retained, plan.SourceDigest)
 		plan.RetainedDigests = uniqueCap(retained, plan.RetainVersions)
@@ -217,8 +254,8 @@ func (s *Service) PromoteAtomic(planID, actor string) (Plan, error) {
 }
 
 // Rollback reverts desired pointer to source digest and keeps target retained.
-func (s *Service) Rollback(planID, actor, reason string) (Plan, error) {
-	return s.transition(planID, actor, func(plan *Plan) error {
+func (s *Service) Rollback(ctx context.Context, planID, actor, reason string) (Plan, error) {
+	return s.transition(ctx, planID, actor, func(plan *Plan) error {
 		switch plan.Phase {
 		case PhaseCanary, PhaseDraining, PhasePromoting, PhaseActive, PhaseFailed:
 		default:
@@ -226,7 +263,6 @@ func (s *Service) Rollback(planID, actor, reason string) (Plan, error) {
 		}
 		plan.Phase = PhaseRollingBack
 		plan.Reason = strings.TrimSpace(reason)
-		// Target becomes retained; source is active again (caller flips desired).
 		retained := append([]string{}, plan.RetainedDigests...)
 		retained = append(retained, plan.TargetDigest)
 		plan.RetainedDigests = uniqueCap(retained, plan.RetainVersions)
@@ -236,71 +272,73 @@ func (s *Service) Rollback(planID, actor, reason string) (Plan, error) {
 	})
 }
 
-// Fail marks a terminal failure without promote.
-func (s *Service) Fail(planID, actor, message string) (Plan, error) {
-	return s.transition(planID, actor, func(plan *Plan) error {
+// Fail marks a terminal failure without promote (e.g. migration failed).
+func (s *Service) Fail(ctx context.Context, planID, actor, message string) (Plan, error) {
+	return s.transition(ctx, planID, actor, func(plan *Plan) error {
 		plan.Phase = PhaseFailed
 		plan.LastError = strings.TrimSpace(message)
 		return nil
 	})
 }
 
-// Get returns a plan by id.
-func (s *Service) Get(planID string) (Plan, error) {
-	if s == nil {
+// Get returns a plan by id (reloadable after process restart).
+func (s *Service) Get(ctx context.Context, planID string) (Plan, error) {
+	if s == nil || s.store == nil {
 		return Plan{}, ErrInvalid
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	plan, ok := s.plans[strings.TrimSpace(planID)]
-	if !ok {
-		return Plan{}, ErrNotFound
+	if ctx == nil {
+		ctx = context.Background()
 	}
-	return clonePlan(plan), nil
+	return s.store.Get(ctx, strings.TrimSpace(planID))
 }
 
 // List returns all plans sorted by plan id.
-func (s *Service) List() []Plan {
-	if s == nil {
-		return nil
+func (s *Service) List(ctx context.Context) ([]Plan, error) {
+	if s == nil || s.store == nil {
+		return nil, ErrInvalid
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	out := make([]Plan, 0, len(s.plans))
-	for _, plan := range s.plans {
-		out = append(out, clonePlan(plan))
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	out, err := s.store.List(ctx, "")
+	if err != nil {
+		return nil, err
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].PlanID < out[j].PlanID })
-	return out
+	return out, nil
 }
 
-func (s *Service) transition(planID, actor string, fn func(*Plan) error) (Plan, error) {
-	if s == nil {
+func (s *Service) transition(ctx context.Context, planID, actor string, fn func(*Plan) error) (Plan, error) {
+	if s == nil || s.store == nil {
 		return Plan{}, ErrInvalid
+	}
+	if ctx == nil {
+		ctx = context.Background()
 	}
 	planID = strings.TrimSpace(planID)
 	actor = strings.TrimSpace(actor)
 	if planID == "" || actor == "" {
 		return Plan{}, ErrPermissionDenied
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	plan, ok := s.plans[planID]
-	if !ok {
-		return Plan{}, ErrNotFound
+	plan, err := s.store.Get(ctx, planID)
+	if err != nil {
+		return Plan{}, err
 	}
 	next := clonePlan(plan)
 	if err := fn(&next); err != nil {
-		// Persist last error on health/migration failures when set by fn.
 		if next.LastError != "" {
-			s.plans[planID] = next
+			next.UpdatedAt = s.now()
+			_, _ = s.store.Save(ctx, next)
 		}
 		return clonePlan(next), err
 	}
 	next.Actor = actor
 	next.UpdatedAt = s.now()
-	s.plans[planID] = next
-	return clonePlan(next), nil
+	saved, err := s.store.Save(ctx, next)
+	if err != nil {
+		return Plan{}, err
+	}
+	return clonePlan(saved), nil
 }
 
 func nodeIDs(acks map[string]NodeAck) []string {
@@ -328,7 +366,6 @@ func uniqueCap(values []string, max int) []string {
 			break
 		}
 	}
-	// reverse to chronological-ish
 	for i, j := 0, len(out)-1; i < j; i, j = i+1, j-1 {
 		out[i], out[j] = out[j], out[i]
 	}
@@ -347,4 +384,12 @@ func clonePlan(plan Plan) Plan {
 		out.RetainedDigests = append([]string(nil), plan.RetainedDigests...)
 	}
 	return out
+}
+
+func newPlanID() (string, error) {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "", fmt.Errorf("%w: plan id: %v", ErrInvalid, err)
+	}
+	return "rollout-" + hex.EncodeToString(b[:]), nil
 }

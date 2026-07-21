@@ -39,6 +39,8 @@ var (
 	ErrHealthGate       = errors.New("runtime rollout health gate failed")
 	ErrMigration        = errors.New("runtime rollout migration not ready")
 	ErrCanary           = errors.New("runtime rollout canary cohort failed")
+	// ErrConflict is returned when multi-API concurrent Create races; one winner.
+	ErrConflict = errors.New("runtime rollout plan conflict")
 )
 
 // Plan is one extension rollout across the cluster.

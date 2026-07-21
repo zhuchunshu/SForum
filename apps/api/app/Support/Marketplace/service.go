@@ -1,10 +1,7 @@
 package marketplace
 
 import (
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -13,29 +10,54 @@ import (
 )
 
 // Service verifies and queries a Host marketplace index.
+// After LoadIndex the internal snapshot is fully deep-copied; List/Resolve
+// return isolated copies so callers cannot mutate nested slices.
 type Service struct {
 	mu       sync.Mutex
 	index    *Index
 	policy   OperatorPolicy
-	hmacKey  []byte
-	// now injectable for stale tests.
+	verifier Verifier
+	// now injectable for stale/window tests.
 	now func() time.Time
+	// installer optional production binding.
+	installer Installer
 }
 
-// New builds a marketplace service. hmacKey signs/verifies indexes (dev may be empty if AllowUnsigned).
-func New(hmacKey []byte, policy OperatorPolicy) *Service {
+// Options configures a marketplace service.
+type Options struct {
+	Policy    OperatorPolicy
+	Verifier  Verifier
+	Installer Installer
+	Now       func() time.Time
+}
+
+// New builds a marketplace service. Prefer NewWithOptions for Ed25519.
+func New(policy OperatorPolicy) *Service {
+	return NewWithOptions(Options{Policy: policy})
+}
+
+// NewWithOptions builds a service with an Ed25519 verifier and optional installer.
+func NewWithOptions(opts Options) *Service {
+	policy := opts.Policy
 	if len(policy.AllowedChannels) == 0 {
 		policy.AllowedChannels = []string{ChannelStable}
 	}
-	policy.DirectUploadFallback = true // recommended default: offline upload remains
+	// 推荐默认：离线直传始终可用。
+	policy.DirectUploadFallback = true
+	now := opts.Now
+	if now == nil {
+		now = func() time.Time { return time.Now().UTC() }
+	}
 	return &Service{
-		policy:  policy,
-		hmacKey: append([]byte(nil), hmacKey...),
-		now:     func() time.Time { return time.Now().UTC() },
+		policy:    policy,
+		verifier:  opts.Verifier,
+		installer: opts.Installer,
+		now:       now,
 	}
 }
 
-// LoadIndex verifies signature (unless AllowUnsigned) and replaces the active index.
+// LoadIndex verifies signature (unless AllowUnsigned) and replaces the active index
+// with a full deep copy of Entries/Dependencies/Notices.
 func (s *Service) LoadIndex(index Index) error {
 	if s == nil {
 		return ErrInvalid
@@ -47,52 +69,57 @@ func (s *Service) LoadIndex(index Index) error {
 	if index.SchemaVersion != SchemaVersion {
 		return ErrInvalid
 	}
+	// Normalize and validate every entry before accepting the snapshot.
+	for i := range index.Entries {
+		if err := normalizeEntry(&index.Entries[i]); err != nil {
+			return err
+		}
+	}
 	if !s.policy.AllowUnsigned {
-		if len(s.hmacKey) == 0 || strings.TrimSpace(index.Signature) == "" {
+		if s.verifier == nil {
 			return ErrSignature
 		}
-		expected, err := SignIndex(s.hmacKey, index)
+		if strings.TrimSpace(index.Signature) == "" {
+			return ErrSignature
+		}
+		kind := strings.ToLower(strings.TrimSpace(index.SignerKind))
+		if kind == "" {
+			kind = SignerKindEd25519
+		}
+		if kind != SignerKindEd25519 {
+			return ErrSignature
+		}
+		if id := s.verifier.PublicKeyID(); id != "" && strings.TrimSpace(index.SignerID) != "" &&
+			!strings.EqualFold(id, index.SignerID) {
+			return ErrSignature
+		}
+		body, err := canonicalIndexBytes(index)
 		if err != nil {
 			return err
 		}
-		if !hmac.Equal([]byte(expected), []byte(index.Signature)) {
+		if err := s.verifier.Verify(body, index.Signature); err != nil {
 			return ErrSignature
 		}
 	}
-	// Normalize digests.
-	for i := range index.Entries {
-		index.Entries[i].ExtensionID = strings.ToLower(strings.TrimSpace(index.Entries[i].ExtensionID))
-		index.Entries[i].PackageDigest = strings.ToLower(strings.TrimSpace(index.Entries[i].PackageDigest))
-		index.Entries[i].Channel = strings.ToLower(strings.TrimSpace(index.Entries[i].Channel))
-		if index.Entries[i].Channel == "" {
-			index.Entries[i].Channel = ChannelStable
-		}
+	// 时间窗：NotBefore 之后才接受索引。
+	now := s.now()
+	if !index.NotBefore.IsZero() && now.Before(index.NotBefore) {
+		return ErrStale
 	}
+	if !index.ExpiresAt.IsZero() && now.After(index.ExpiresAt) {
+		// 仍可 Load 以便运维查看，但 Resolve 会拒绝；这里选择拒绝 Load 更安全。
+		// 与旧行为一致：Load 成功、Resolve 时检查 stale。允许 Load。
+	}
+
 	s.mu.Lock()
-	clone := index
-	clone.Entries = append([]Entry(nil), index.Entries...)
-	s.index = &clone
+	// 验签后完整深拷贝；调用方后续改嵌套切片不得影响内部快照。
+	cloned := cloneIndex(index)
+	s.index = &cloned
 	s.mu.Unlock()
 	return nil
 }
 
-// SignIndex computes HMAC-SHA256 over canonical JSON body without Signature field.
-func SignIndex(key []byte, index Index) (string, error) {
-	if len(key) == 0 {
-		return "", ErrSignature
-	}
-	body := index
-	body.Signature = ""
-	raw, err := json.Marshal(body)
-	if err != nil {
-		return "", ErrInvalid
-	}
-	mac := hmac.New(sha256.New, key)
-	_, _ = mac.Write(raw)
-	return hex.EncodeToString(mac.Sum(nil)), nil
-}
-
-// Resolve finds an installable release and dependency order under operator policy.
+// Resolve finds an installable release with recursive dependency order.
 func (s *Service) Resolve(extensionID, channel string) (ResolveResult, error) {
 	if s == nil {
 		return ResolveResult{}, ErrInvalid
@@ -102,43 +129,39 @@ func (s *Service) Resolve(extensionID, channel string) (ResolveResult, error) {
 	if channel == "" {
 		channel = ChannelStable
 	}
+	if !validExtensionID(extensionID) {
+		return ResolveResult{}, ErrInvalid
+	}
 	if !channelAllowed(s.policy.AllowedChannels, channel) {
 		return ResolveResult{}, ErrPolicy
 	}
+
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.index == nil {
+		s.mu.Unlock()
 		return ResolveResult{}, ErrNotFound
 	}
-	if !s.index.ExpiresAt.IsZero() && s.now().After(s.index.ExpiresAt) {
+	// 使用内部快照的深拷贝做解析，持锁时间尽量短。
+	snapshot := cloneIndex(*s.index)
+	policy := s.policy
+	now := s.now()
+	s.mu.Unlock()
+
+	if !snapshot.ExpiresAt.IsZero() && now.After(snapshot.ExpiresAt) {
 		return ResolveResult{}, ErrStale
 	}
-	var match *Entry
-	for i := range s.index.Entries {
-		entry := &s.index.Entries[i]
-		if entry.ExtensionID == extensionID && entry.Channel == channel {
-			match = entry
-			break
-		}
+	if !snapshot.NotBefore.IsZero() && now.Before(snapshot.NotBefore) {
+		return ResolveResult{}, ErrStale
 	}
-	if match == nil {
-		return ResolveResult{}, ErrNotFound
+
+	result, err := resolveRecursive(snapshot.Entries, extensionID, channel, policy, now)
+	if err != nil {
+		return ResolveResult{}, err
 	}
-	if match.Withdrawn {
-		return ResolveResult{}, ErrWithdrawn
-	}
-	if blockedByNotice(s.policy, match.Notices) {
-		return ResolveResult{}, ErrPolicy
-	}
-	order := append([]string{}, match.Dependencies...)
-	order = append(order, match.ExtensionID)
-	return ResolveResult{
-		ExtensionID: match.ExtensionID, Version: match.Version,
-		PackageDigest: match.PackageDigest, Channel: match.Channel, Order: order,
-	}, nil
+	return cloneResolveResult(result), nil
 }
 
-// List returns non-withdrawn entries (or all if includeWithdrawn).
+// List returns non-withdrawn entries (or all if includeWithdrawn) as deep copies.
 func (s *Service) List(includeWithdrawn bool) []Entry {
 	if s == nil {
 		return nil
@@ -153,7 +176,7 @@ func (s *Service) List(includeWithdrawn bool) []Entry {
 		if entry.Withdrawn && !includeWithdrawn {
 			continue
 		}
-		out = append(out, entry)
+		out = append(out, cloneEntry(entry))
 	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].ExtensionID != out[j].ExtensionID {
@@ -182,6 +205,80 @@ func (s *Service) DirectUploadAvailable() bool {
 	return s.policy.DirectUploadFallback
 }
 
+// SetInstaller wires the production install/stage/rollback binding.
+func (s *Service) SetInstaller(installer Installer) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	s.installer = installer
+	s.mu.Unlock()
+}
+
+// InstallPreflight runs the bound installer preflight for a resolved plan.
+func (s *Service) InstallPreflight(ctx context.Context, plan InstallPlan) error {
+	if s == nil {
+		return ErrInvalid
+	}
+	s.mu.Lock()
+	installer := s.installer
+	s.mu.Unlock()
+	if installer == nil {
+		return fmt.Errorf("%w: installer not bound", ErrInstall)
+	}
+	return installer.Preflight(ctx, cloneInstallPlan(plan))
+}
+
+// StageInstall stages package bytes after resolve (real Host path).
+func (s *Service) StageInstall(ctx context.Context, plan InstallPlan, packageBytes []byte) (StageResult, error) {
+	if s == nil {
+		return StageResult{}, ErrInvalid
+	}
+	s.mu.Lock()
+	installer := s.installer
+	s.mu.Unlock()
+	if installer == nil {
+		return StageResult{}, fmt.Errorf("%w: installer not bound", ErrInstall)
+	}
+	if err := installer.Preflight(ctx, cloneInstallPlan(plan)); err != nil {
+		return StageResult{}, err
+	}
+	return installer.Stage(ctx, cloneInstallPlan(plan), packageBytes)
+}
+
+// ActivateStaged promotes a staged marketplace install via rollout authority.
+func (s *Service) ActivateStaged(ctx context.Context, plan InstallPlan, staged StageResult) error {
+	if s == nil {
+		return ErrInvalid
+	}
+	s.mu.Lock()
+	installer := s.installer
+	s.mu.Unlock()
+	if installer == nil {
+		return fmt.Errorf("%w: installer not bound", ErrInstall)
+	}
+	return installer.Activate(ctx, cloneInstallPlan(plan), staged)
+}
+
+// RollbackInstall one-click reverts to source digest via installer.
+func (s *Service) RollbackInstall(ctx context.Context, plan InstallPlan, reason string) error {
+	if s == nil {
+		return ErrInvalid
+	}
+	s.mu.Lock()
+	installer := s.installer
+	s.mu.Unlock()
+	if installer == nil {
+		return fmt.Errorf("%w: installer not bound", ErrInstall)
+	}
+	return installer.Rollback(ctx, cloneInstallPlan(plan), reason)
+}
+
+// FormatNotice is a helper for tests/audit messages.
+func FormatNotice(n Notice) string {
+	return fmt.Sprintf("%s:%s", n.Kind, n.Summary)
+}
+
 func channelAllowed(allowed []string, channel string) bool {
 	for _, item := range allowed {
 		if strings.EqualFold(item, channel) {
@@ -194,9 +291,8 @@ func channelAllowed(allowed []string, channel string) bool {
 func blockedByNotice(policy OperatorPolicy, notices []Notice) bool {
 	max := strings.ToLower(strings.TrimSpace(policy.MaxVulnerabilitySeverity))
 	if max == "" {
-		// Still block critical revocations.
 		for _, n := range notices {
-			if n.Kind == NoticeRevocation {
+			if n.Kind == NoticeRevocation || n.Kind == NoticeWithdrawn {
 				return true
 			}
 		}
@@ -204,7 +300,7 @@ func blockedByNotice(policy OperatorPolicy, notices []Notice) bool {
 	}
 	rank := severityRank(max)
 	for _, n := range notices {
-		if n.Kind == NoticeRevocation {
+		if n.Kind == NoticeRevocation || n.Kind == NoticeWithdrawn {
 			return true
 		}
 		if n.Kind == NoticeVulnerability && severityRank(n.Severity) > rank {
@@ -227,9 +323,4 @@ func severityRank(value string) int {
 	default:
 		return 0
 	}
-}
-
-// FormatNotice is a helper for tests/audit messages.
-func FormatNotice(n Notice) string {
-	return fmt.Sprintf("%s:%s", n.Kind, n.Summary)
 }

@@ -916,14 +916,21 @@ unchanged from the prior close.
 - [x] Inspector accuracy and overhead benchmark.
 - [x] Privacy export/delete and retained external-resource warning.
 
-P12 Host ops packages closed 2026-07-21 on `main`: RuntimeRollout
-(`b084bffd8`), Marketplace (`b3ebbca9d`), ExtensionObservability
-(`46f9fe65e`), Privacy (`1f15c91f8`), DependencyInspector (`c740e03f2`),
-APILTS (`78d6eb08f`), SystemTier (`bbd8c6b83`), `sforum extension package`
-(`63693cb5f`), support-boundaries doc (`0a13c18ee`). Existing desired/active
-publication journals, staged runtime, and Route/Cache/Component/Template
-inspectors complete the remainder. Compatibility farm v0: `tests/compat/matrix.yaml` + `Support/CompatFarm` loader
-with required/deprecated cells and LTS shim telemetry proof.
+P12 Host ops packages were closed 2026-07-21 from Support-only landings, then
+**reopened and production-bound 2026-07-22**:
+
+- Compatibility Farm: real executor `tests/compat/run_matrix.go` +
+  `CompatFarm.RunMatrix`; wired in `./scripts/test.sh` (skip/missing fail).
+- Marketplace: Ed25519 verify, deep-copy isolation, recursive deps, Installer
+  Preflight/Stage/Activate/Rollback (ADR marketplace-ed25519).
+- RuntimeRollout: Postgres `runtime_rollout_plans`, multi-node one-winner Create,
+  restart recovery, health/migration/rollback tests.
+- SystemTier: Postgres `system_tier_members` + `sforum extension system-tier`
+  CLI; Safe Mode bypass before load.
+- Privacy/Observability: audit/deadline/partial; Process writers on real
+  Hook/Job paths; bootstrap `bindProductionP12Ops`.
+
+Handoff: `sessions/2026-07-22-p12-ops-production-binding-handoff.md`.
 
 ### Rollback
 

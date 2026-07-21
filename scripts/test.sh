@@ -7,6 +7,16 @@ cd "$ROOT_DIR"
 echo "Running Go tests..."
 (cd apps/api && go test ./...)
 
+echo "Running V3 P12 compatibility farm (required cells; skip/missing fail)..."
+# tests/compat/run_matrix.go is the authoritative executor. Missing matrix or any
+# non-pass outcome exits non-zero so the gate cannot be silently skipped.
+(
+  cd tests/compat
+  go mod tidy
+  # Empty -matrix uses <repo>/tests/compat/matrix.yaml; skip/missing/fail exit 1.
+  go run .
+)
+
 echo "Running Protobuf lint and generated SDK drift validation..."
 ./scripts/proto.sh check
 

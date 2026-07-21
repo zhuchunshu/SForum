@@ -1,37 +1,34 @@
 package extensionobservability
 
 import (
+	"errors"
 	"testing"
 	"time"
 )
 
-func TestObserveSnapshotAttribution(t *testing.T) {
-	rec := New(8)
-	rec.Observe(Event{
-		ExtensionID: "demo.a", PackageDigest: "aa", Surface: "route", Name: "demo.a.home",
-		Duration: 10 * time.Millisecond,
-	})
-	rec.Observe(Event{
-		ExtensionID: "demo.a", PackageDigest: "aa", Surface: "cache", Duration: 2 * time.Millisecond,
-		ErrorClass: "timeout", Fallback: true,
-	})
-	rec.Observe(Event{
-		ExtensionID: "demo.b", Surface: "hook", Duration: 5 * time.Millisecond,
-	})
-	snap := rec.Snapshot()
-	if len(snap.Aggregates) != 2 || len(snap.Recent) != 3 {
-		t.Fatalf("snap = %#v", snap)
+func TestProcessWritersFromRealSurfaces(t *testing.T) {
+	ResetProcessForTest(New(64))
+	ObserveRoute("demo.plugin", "aa", "GET /x", time.Millisecond, nil)
+	ObserveHook("demo.plugin", "aa", "topic.created", 2*time.Millisecond, nil)
+	ObserveSQL("demo.plugin", "aa", "SELECT", time.Microsecond, errors.New("timeout"))
+	ObserveCache("demo.plugin", "aa", "remember", time.Microsecond, nil)
+	ObserveRPC("demo.plugin", "aa", "Host.Call", time.Millisecond, nil)
+	ObserveJob("demo.plugin", "aa", "cleanup", 5*time.Millisecond, nil)
+
+	snap := Process().Snapshot()
+	if len(snap.Aggregates) != 1 {
+		t.Fatalf("aggregates = %#v", snap.Aggregates)
 	}
-	var a Aggregate
-	for _, row := range snap.Aggregates {
-		if row.ExtensionID == "demo.a" {
-			a = row
+	agg := snap.Aggregates[0]
+	if agg.Events != 6 || agg.Errors != 1 {
+		t.Fatalf("agg = %#v", agg)
+	}
+	for _, surface := range []string{SurfaceRoute, SurfaceHook, SurfaceSQL, SurfaceCache, SurfaceRPC, SurfaceJob} {
+		if agg.BySurface[surface] == 0 {
+			t.Fatalf("missing surface %s in %#v", surface, agg.BySurface)
 		}
 	}
-	if a.Events != 2 || a.Errors != 1 || a.Fallbacks != 1 || a.BySurface["route"] != 1 || a.BySurface["cache"] != 1 {
-		t.Fatalf("demo.a = %#v", a)
-	}
-	if a.AvgLatency <= 0 {
-		t.Fatalf("avg latency = %v", a.AvgLatency)
+	if len(snap.Recent) != 6 {
+		t.Fatalf("recent = %d", len(snap.Recent))
 	}
 }
