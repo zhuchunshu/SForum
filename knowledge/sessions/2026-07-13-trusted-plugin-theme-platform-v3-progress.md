@@ -6,12 +6,13 @@ Last updated: 2026-07-21
 
 - Verified weighted progress: **99.7%** (display **99%**).
 - Phase counts: **P0–P12 complete (including P10 15/15)**; P13 **~99.7%**.
-- Goal harness “remaining P10 / P11 / P12” checklist is **stale** — do not
-  reopen those phases. Authoritative open rows are the 3 LTS deletions only.
-- Product-path residual + gate repair this line:
-  - `a155ed44d`…`4c339a5e1` MIME/catalog/dry-run product path
-  - `6b4f42abf` i18n for entity dry-run API error codes (unblocked `go test ./...`)
-- Independent audit: **0 material non-LTS implementable gaps** remaining.
+- Goal harness “remaining P10” is **stale** — do not reopen P10.
+- Catalog honesty repair after product-path routes:
+  - Reviewed identities for editor/entity/content catalogs + entity dry-run
+  - Inventory gate **244 → 248** routes; `validate-v3-p0-catalogs.mjs` green
+  - 99-row traceability still **99/99** complete as capability targets
+- Content Protocol filter dispatch re-audited: **blocked** (L; needs SEO-style
+  Protocol lease stack) — not thin wiring; not a task-book open row.
 
 ## Current Subtask
 
@@ -20,21 +21,15 @@ Last updated: 2026-07-21
 - Exact next: **do not delete** LoadTemplate residual / Protocol V1 /
   fail-closed SFPageOutlet until APILTS `RemoveAfter` ≈ **2026-11-28** +
   live zero-shim + deletion checklist 1–7.
-- `go run ./cmd/sforum extension api-lts --json`:
-  `protocolV1CanRemoveWithZeroShim=false`,
-  `themeRequestTimeLoaderCanRemoveWithZeroShim=false` (window not open).
-- Large deferred planes (not task-book open rows): Protocol-leased content
-  filter dispatch; Media Plan/Execute/Receipt product authority; EntityStore
-  durable I/O. Do not re-label as incomplete P10.
+- Product boundary: early LTS deletion would violate published policy; wait
+  or user-approved RemoveAfter change is required for 100%.
 
-## Tests (final-gate re-verification)
+## Tests
 
-- `cd apps/api && go test ./...` — **EXIT 0** after i18n fix (was FAIL on
-  Localization `entity.*` codes before `6b4f42abf`)
-- `cd apps/api && go build ./...` — EXIT 0
-- `ruby scripts/validate-openapi-refs.rb` — EXIT 0 (2025 refs)
-- Localization package: pass
-- Evidence: `docs/extensions/v3/p13-final-gates-evidence.md` refreshed
+- `node tests/validate-v3-p0-catalogs.mjs` — **248 routes**, 149 UI, 99 rows
+- `node scripts/v3-catalog/generate.mjs --check` — current
+- `go test ./app/Support/Routes/` CoreRouteCatalog — pass
+- Prior: full `go test ./...` green after i18n fix
 
 ## Open task-book rows
 
@@ -44,12 +39,12 @@ Last updated: 2026-07-21
 
 ## Rollback
 
-- Revert product-path `a155ed44d`…`6b4f42abf` if needed.
+- Revert catalog identity + regen commits if needed.
 - Never delete LTS shims early.
 
 ## Unowned worktree
 
-- None expected after evidence/docs commit.
+- None expected after catalog commits.
 
 
 ---
