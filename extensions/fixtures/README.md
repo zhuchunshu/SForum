@@ -4,6 +4,8 @@ These packages are repository-owned test inputs used by CI, `go test`, CLI
 validation, and production-style browser tests. They lock extension contracts
 and must remain reproducible from a fresh clone.
 
+Parent layout map (not product install): [../README.md](../README.md).
+
 | Package | Purpose |
 | --- | --- |
 | `plugins/page-registry-demo` | Page Registry lifecycle, templates, outlets, and L1 fallback |

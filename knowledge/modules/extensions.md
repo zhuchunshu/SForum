@@ -664,6 +664,14 @@ Both make commands support interactive Huh forms and `--no-interaction`
 flag-driven generation. Default output is `extensions/dev/{plugins,themes}/{id}`;
 `--builtin` targets `extensions/builtin/{plugins,themes}/{id}`.
 
+**Directory duties (author map):** only `extensions/builtin/` is boot-scanned
+by `SyncBuiltins` into the admin list. `extensions/dev/` is gitignored scaffold
+scratch and is never auto-registered. `optional/` ships in git but requires
+operator install; `fixtures/` is CI-only. Dev auto-build via
+`scripts/build-builtin-plugins.sh` covers only hard-coded plugin ids staged to
+`storage/builtin-dev`. Canonical write-up: `extensions/README.md` and
+`docs/extensions/authoring-guide.md` § Where to put your package.
+
 `make:plugin --complex` scaffolds a multi-file package:
 
 - thin `sforum.extension.json` with `includes`

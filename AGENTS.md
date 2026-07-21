@@ -50,9 +50,11 @@ knowledge base, and tests.
 - `contracts/` — modular OpenAPI contract. `openapi.yaml` is the entrypoint
   index only; paths in `openapi/paths/<module>.yaml`, schemas in
   `openapi/schemas/<module>.yaml`, shared components in `openapi/components/`.
-- `extensions/` — `builtin/` (protected built-in plugins/themes, including
-  the default theme `sforum-default`) and `dev/` (development extensions).
-  Container images copy built-in themes to `/app/extensions/builtin`.
+- `extensions/` — package trees; only `builtin/` is boot-scanned into the
+  admin list (`SyncBuiltins`). Also `dev/` (gitignored scaffolds),
+  `optional/` (ship-with-repo, operator install), `fixtures/` (CI).
+  Layout map: `extensions/README.md`. Container images copy built-ins to
+  `/app/extensions/builtin`.
 - `knowledge/` — project memory: `index.md`, `modules/`, `decisions/`,
   `sessions/`, `glossary.md`, `research.md`. Read before sensitive work.
 - `tests/` — repo-level validation scripts (Playwright/Node) that hit the

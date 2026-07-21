@@ -97,7 +97,9 @@ deploy/runtime/
 
 .superpowers
 .worktrees/
-extensions/dev
+# 本地脚手架默认输出；仅保留 README 说明目录职责
+extensions/dev/*
+!extensions/dev/README.md
 # 可选扩展：仓库不提交；本地打包上传即可（如 Meilisearch search.provider）
 extensions/optional/
 extensions/builtin/plugins/*/backend/plugin

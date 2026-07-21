@@ -4,6 +4,12 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-21 Extension directory author docs**
+  - `extensions/README.md` + `extensions/dev/README.md`
+  - Authoring: `docs/extensions/authoring-guide.md` § Where to put your package
+  - Handoff: `knowledge/sessions/2026-07-21-extension-directory-docs-handoff.md`
+  - Only `builtin/` boot-scans via `SyncBuiltins`; `dev/` is gitignored scaffold
+
 - **2026-07-21 Search framework + protected site-search default**
   - Decision: `knowledge/decisions/2026-07-21-search-framework-site-default.md`
     (supersedes default-no-engine in optional-meilisearch decision; Meili still optional)

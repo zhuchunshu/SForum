@@ -21,10 +21,55 @@ schedules.
 third-party plugin. Built-in SMTP still uses internal packages for historical
 reasons; new plugins should follow the SDK path shown by the Host API fixture.
 
+## Where to put your package
+
+Repository layout lives under [`extensions/`](../../extensions/README.md).
+**Only `extensions/builtin/` is boot-scanned into the admin extension list.**
+
+| Goal | Directory | Boot scan | Notes |
+| --- | --- | --- | --- |
+| Protected built-in (ship in product, auto list) | `extensions/builtin/plugins/<dir>/` | **Yes** (`SyncBuiltins`) | Themes: `…/themes/`. Backend build is **not** automatic for new ids — see below. |
+| Local experiment (default scaffold) | `extensions/dev/plugins/<id>/` | No | Gitignored; never appears in admin by itself. |
+| Ship in git, operator installs | `extensions/optional/plugins/<dir>/` | No | See [`extensions/optional/README.md`](../../extensions/optional/README.md). |
+| CI / contract lock | `extensions/fixtures/…` | No | Test inputs only. |
+| Production site | Admin upload → `EXTENSION_ROOT` | No | Operator trust + enable path. |
+
+### Auto scan vs auto build
+
+- **Auto register:** API/worker boot runs `SyncBuiltins` over
+  `BUILTIN_EXTENSION_ROOT` (default `extensions/builtin`, or
+  `storage/builtin-dev` when using `./scripts/api-dev.sh`). Every
+  `plugins/*` and `themes/*` child directory with a valid package is
+  written into the extension store and shows up under admin Themes/Plugins.
+- **Auto build (dev only):** `scripts/build-builtin-plugins.sh` (invoked by
+  `api-dev` / `worker-dev`) stages builtins into `storage/builtin-dev` and
+  `go build`s **only the plugin ids hard-coded in that script**. A new
+  builtin package is scanned after restart once it is present under the
+  active builtin root, but you must either extend the script or build +
+  `extension digest --write` yourself before enable.
+
+Scaffold defaults:
+
+```bash
+cd apps/api
+# Local scratch (gitignored) — does NOT auto-register
+go run ./cmd/sforum make:plugin --id acme.demo --name "Acme Demo" \
+  --description "…" --backend --no-interaction
+# → ../../extensions/dev/plugins/acme.demo
+
+# Protected built-in — SyncBuiltins will pick it up after restart
+go run ./cmd/sforum make:plugin --id sforum.foo --name "Foo" \
+  --description "…" --backend --builtin --no-interaction
+# → ../../extensions/builtin/plugins/sforum.foo
+```
+
+Full map: [`extensions/README.md`](../../extensions/README.md).
+
 ## Quick start
 
 ```bash
-# Scaffold (from repo root)
+# Scaffold (from apps/api). Prefer --out for a disposable path, or omit --out
+# to land under extensions/dev (gitignored). Use --builtin for SyncBuiltins.
 cd apps/api
 go run ./cmd/sforum make:plugin \
   --id acme.demo \
