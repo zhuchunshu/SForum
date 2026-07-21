@@ -11,16 +11,16 @@ read models.
 Backend foundation implemented on 2026-07-06. Real taxonomy slice implemented
 on 2026-07-07.
 
-- **Million-scale read path (M0+M1 done):** task book
+- **Million-scale read path (M0–M2 done):** task book
   `plans/2026-07-21-million-scale-read-path.md` — **M0** seed + `tests/perf` +
-  baseline `reports/2026-07-21-perf-baseline.md`. **M1** ListTopics cold path:
-  page-CTE slim select (`left(plain_text)` only for page rows), D1 totals
-  (cat/tag `topic_count`; home `SUM` + `totalApproximate`; no public
-  `COUNT(*)`), list ILIKE removed, `topics_public_activity_idx` for home,
-  category path uses `topics_category_activity_idx` with LIMIT stop. After
-  report `reports/2026-07-21-perf-m1-list-topics.md` (home cold ~11.5× vs M0;
-  warm p99 ~29 ms). Next **M2** view count + `hot_score` (product path still
-  Iteration A WS1).
+  baseline. **M1** ListTopics slim + D1 totals
+  (`reports/2026-07-21-perf-m1-list-topics.md`). **M2** view count (D3 /
+  Iteration A WS1: GET detail side-effect, 30m Redis SETNX dedup, INCR +
+  River `forum.flush_view_counts` 45s, no POST `/view`) + `topics.hot_score`
+  column/indexes + `sort=hot` column order. After
+  `reports/2026-07-21-perf-m2-view-hot.md` (flood: PG view_count flat during
+  100 concurrent GETs; flush +51; hot EXPLAIN uses `topics_*_hot_idx`).
+  Next **M3** ListComments bounds + cache (D2).
 
 - `categories` owns public forum sections. The first seed category is
   `general` / `综合讨论`.

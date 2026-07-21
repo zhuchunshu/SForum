@@ -6,12 +6,16 @@ session archive.
 
 ## Latest Handoff
 
-- **2026-07-21 Million-scale read path — M1 complete**
-  - Plan: `plans/2026-07-21-million-scale-read-path.md` (M0+M1 done; next M2)
-  - After: `reports/2026-07-21-perf-m1-list-topics.md` (home cold ~11.5×, warm p99 ~29 ms)
-  - Baseline: `reports/2026-07-21-perf-baseline.md`
-  - Handoff: `sessions/2026-07-21-million-scale-read-path-m1-handoff.md`
+- **2026-07-21 Million-scale read path — M2 complete**
+  - Plan: `plans/2026-07-21-million-scale-read-path.md` (M0–M2 done; next M3)
+  - After: `reports/2026-07-21-perf-m2-view-hot.md` (view flood 0 per-req UPDATE; hot index)
+  - Iteration A WS1 view path landed with M2 (do not dual-implement)
+  - Handoff: `sessions/2026-07-21-million-scale-read-path-m2-handoff.md`
   - Module: `modules/forum.md`
+
+- **2026-07-21 Million-scale read path — M1 complete**
+  - After: `reports/2026-07-21-perf-m1-list-topics.md` (home cold ~11.5×, warm p99 ~29 ms)
+  - Handoff: `sessions/2026-07-21-million-scale-read-path-m1-handoff.md`
 
 - **2026-07-21 Forum settings Search provider tab**
   - Handoff: `sessions/2026-07-21-forum-settings-search-provider-tab-handoff.md`
@@ -92,7 +96,7 @@ lives in archived sessions and dated decisions.
 ### Open / next (product, not V3 LTS)
 
 - **Iteration A** engagement loop still open: view-count increment, likes/reactions, bookmarks — `plans/2026-07-12-iteration-a-engagement-loop.md`
-- **Million-scale read path** task book (**M0+M1 done**, M2 next): view+hot_score / comments / detail / keyset — `plans/2026-07-21-million-scale-read-path.md`
+- **Million-scale read path** task book (**M0–M2 done**, M3 next): comments bounds+cache / detail / keyset — `plans/2026-07-21-million-scale-read-path.md`
 - Admin settings richness: Waves 1–2 landed; later waves remain blueprint — `plans/2026-07-12-admin-settings-richness.md`
 - Extension surface density: E1–E6 largely landed; product north-star slots continue under V3 provider model — `plans/2026-07-12-extension-surface-density.md`
 - V3 P13: **do not** delete LTS-gated shims early — wait for APILTS window
@@ -122,7 +126,7 @@ lives in archived sessions and dated decisions.
 
 - `plans/2026-07-13-trusted-plugin-theme-platform-v3.md` + `-progress.md` — V3 residual
 - `plans/2026-07-21-million-scale-read-path.md` — single-node 1M-class read path (M0 done)
-- `plans/2026-07-12-iteration-a-engagement-loop.md` — product engagement (view count shared with M2)
+- `plans/2026-07-12-iteration-a-engagement-loop.md` — product engagement (WS1 view count done with M2; likes/bookmarks open)
 - `plans/2026-07-12-admin-settings-richness.md` — settings blueprint
 - `plans/2026-07-12-development-directions.md` — strategy context
 - `plans/2026-07-12-extension-surface-density.md` — remaining density / slots

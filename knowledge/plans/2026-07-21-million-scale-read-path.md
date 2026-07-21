@@ -1,7 +1,7 @@
 # Million-Scale Read Path — Task Book
 
-Status: **in progress** — M0 + **M1 complete** (ListTopics slim + D1 totals +
-indexes; after report); next M2  
+Status: **in progress** — M0 + M1 + **M2 complete** (view count D3 + hot_score;
+after report); next M3  
 Date: 2026-07-21  
 Last decision pass: 2026-07-21 (four open questions → resolved defaults)  
 Goal: make public forum **read paths** safe for ~1M topics / large hot
@@ -47,10 +47,10 @@ Public operators should observe:
 | Comment flat SQL LIMIT/OFFSET | **Done** | `listCommentsFlat` |
 | Comment tree roots page + all descendants | **Partial** | descendants unbounded |
 | `topics.view_count` column + display | **Done** | schema + UI |
-| View count increment / Redis flush | **Missing** | Iteration A WS1 |
+| View count increment / Redis flush | **Done (M2 / D3)** | Iteration A WS1 + flush job |
 | Keyset / cursor public pagination | **Missing** | page+offset only |
 | Approximate / denormalized list totals | **Done (M1 / D1)** | cat/tag `topic_count`; home sum + `totalApproximate` |
-| `hot_score` / popular precompute | **Missing** | expression sort in SQL |
+| `hot_score` / popular precompute | **Done (M2)** | column + indexes; list hot sort |
 | ListComments in CachedStore | **Missing** | every detail re-hits PG on miss path |
 | Load-test suite / capacity numbers | **Missing** | audit B6 |
 | Read replicas / multi-node | **Out of scope** | later plan if needed |
@@ -278,29 +278,32 @@ vs baseline on same hardware; EXPLAIN shows no sequential scan of posts for defa
 
 ### 2.1 Complete Iteration A view path (D3)
 
-- [ ] Implement all checkboxes under Iteration A Workstream 1 (schema/jobs/API/dedup/tests)
-- [ ] Count on **both** `GET /topics/:id` and `GET /topics/by-slug/:slug` after public resolve
-- [ ] Dedup 30m; skip list/search/admin; skip non-public statuses
-- [ ] FE: one detail API per navigation (payload reuse); no mounted re-fetch that double-counts
-- [ ] No separate `POST /topics/:id/view` in v1
-- [ ] Cross-link commits in both plan files when done
+- [x] Implement all checkboxes under Iteration A Workstream 1 (schema/jobs/API/dedup/tests)
+- [x] Count on **both** `GET /topics/:id` and `GET /topics/by-slug/:slug` after public resolve
+- [x] Dedup 30m; skip list/search/admin; skip non-public statuses
+- [x] FE: one detail API per navigation (payload reuse); no mounted re-fetch that double-counts
+- [x] No separate `POST /topics/:id/view` in v1
+- [x] Cross-link commits in both plan files when done
 
 ### 2.2 hot_score
 
-- [ ] Migration: `topics.hot_score BIGINT NOT NULL DEFAULT 0`
-- [ ] Backfill: `hot_score = comment_count * 5 + view_count` (batched)
-- [ ] Index: e.g. `(is_pinned DESC, hot_score DESC, id DESC)` partial active/locked — validate cardinality
-- [ ] Update on: view flush batch, comment create/delete (and moderation count paths)
-- [ ] Replace SQL expression sort with `ORDER BY is_pinned DESC, hot_score DESC, id DESC`
-- [ ] Search index field: optional sync on flush batch (not every view)
+- [x] Migration: `topics.hot_score BIGINT NOT NULL DEFAULT 0`
+- [x] Backfill: `hot_score = comment_count * 5 + view_count` (batched)
+- [x] Index: e.g. `(is_pinned DESC, hot_score DESC, id DESC)` partial active/locked — validate cardinality
+  (`topics_public_hot_idx` + `topics_category_hot_idx`)
+- [x] Update on: view flush batch, comment create/delete (and moderation count paths)
+- [x] Replace SQL expression sort with `ORDER BY is_pinned DESC, hot_score DESC, id DESC`
+- [ ] Search index field: optional sync on flush batch (not every view) — deferred optional
 
 ### 2.3 Perf acceptance
 
-- [ ] k6 view flood: assert no row-level view update storm (pg_stat_statements or log probe)
-- [ ] popular list EXPLAIN uses hot_score index
+- [x] k6 view flood: assert no row-level view update storm (pg_stat_statements or log probe)
+  (LIGHT-class concurrent probe; PG view_count flat during flood — see report)
+- [x] popular list EXPLAIN uses hot_score index
 
 **Exit criteria:** Iteration A view exit criteria met **and** popular list no longer
 sorts by live expression; view flood scenario passes.
+**Met:** `knowledge/reports/2026-07-21-perf-m2-view-hot.md`.
 
 ---
 
@@ -523,3 +526,4 @@ Still free to decide during implementation (not product blockers):
 | 2026-07-21 | Resolved D1–D4 (total semantics, tree cap 50, view on public GET+30m dedup, seed in `cmd/sforum` + `tests/perf`). Open questions closed; milestones M0–M5 updated to match. |
 | 2026-07-21 | **M0 done:** `seed:forum --profile=perf-1m` / `seed:perf` bulk seed; `tests/perf` k6 + `LIGHT=1`; baseline `knowledge/reports/2026-07-21-perf-baseline.md` (1e6 topics + 50k hot comments on `sforum_perf`). Next: M1 ListTopics slim + D1 totals. |
 | 2026-07-21 | **M1 done:** ListTopics page-CTE slim select + D1 totals + no list ILIKE; `topics_public_activity_idx`; OpenAPI `totalApproximate` + FE「约」; report `knowledge/reports/2026-07-21-perf-m1-list-topics.md` (home cold ~11.5×, warm p99 ~29 ms). Next: **M2** view count + `hot_score` (Iteration A WS1). |
+| 2026-07-21 | **M2 done:** D3 view count (GET detail + 30m Redis dedup + INCR + `forum.flush_view_counts` 45s); `topics.hot_score` + hot indexes; list `sort=hot` column; Iteration A WS1 checkboxes; report `knowledge/reports/2026-07-21-perf-m2-view-hot.md` (flood 0 per-req UPDATE; hot Index Scan). Next: **M3** ListComments bounds + cache. |

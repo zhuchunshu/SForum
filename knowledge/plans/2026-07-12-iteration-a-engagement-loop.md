@@ -92,49 +92,52 @@ do not fork a second view-count design.
 
 ### 1.1 Schema / jobs
 
-- [ ] Confirm `topics.view_count` remains source of truth after flush
-- [ ] Add River job kind e.g. `forum.flush_view_counts` (or reuse maintenance
+- [x] Confirm `topics.view_count` remains source of truth after flush
+- [x] Add River job kind e.g. `forum.flush_view_counts` (or reuse maintenance
   queue) that:
   - reads Redis keys `forum:topic:views:delta:{topicID}` (or a set of dirty IDs)
   - `UPDATE topics SET view_count = view_count + $delta`
   - clears delta keys
-- [ ] Register job in worker bootstrap
-- [ ] Schedule: every 30–60s or on N dirty keys threshold
+  (also `hot_score += delta` for million-scale M2)
+- [x] Register job in worker bootstrap
+- [x] Schedule: every 30–60s or on N dirty keys threshold (**45s**)
 
 ### 1.2 API
 
-- [ ] On `GET /topics/:id` and `GET /topics/by-slug/:slug` **after** successful
+- [x] On `GET /topics/:id` and `GET /topics/by-slug/:slug` **after** successful
   public detail resolve, call `RecordTopicView(ctx, topicID, visitorKey)`
-- [ ] Do **not** count admin-only / non-public statuses
-- [ ] Optional: return still-stale `viewCount` (pre-flush) — acceptable
-- [ ] OpenAPI: no new endpoint required if counting is side effect of GET;
+- [x] Do **not** count admin-only / non-public statuses
+  (only after public GetTopic success; search/list/admin not wired)
+- [x] Optional: return still-stale `viewCount` (pre-flush) — acceptable
+- [x] OpenAPI: no new endpoint required if counting is side effect of GET;
   document behavior in path description
-- [ ] If you prefer explicit client call instead: `POST /topics/:id/view` with
-  rate limit — only if SSR double-count is hard to control
+- [x] No `POST /topics/:id/view` in v1 (D3)
 
 **Recommended:** server-side record inside GET detail for SSR + client
-navigations that hit the API once.
+navigations that hit the API once. **Done.**
 
 ### 1.3 Dedup store
 
-- [ ] Redis key `forum:topic:viewed:{topicID}:{visitorHash}` TTL 30m
-- [ ] Only INCR delta when SETNX succeeds
+- [x] Redis key `forum:topic:viewed:{topicID}:{visitorHash}` TTL 30m
+- [x] Only INCR delta when SETNX succeeds
 
 ### 1.4 Tests
 
-- [ ] Unit: first view increments delta; second within TTL does not
-- [ ] Unit: flush applies sum to store
-- [ ] Integration-style service test with fake Redis/cache
-- [ ] Ensure detail still 200 when Redis unavailable
+- [x] Unit: first view increments delta; second within TTL does not
+- [x] Unit: flush applies sum to store
+- [x] Integration-style service test with fake Redis/cache (MemoryTopicViewCounter)
+- [x] Ensure detail still 200 when Redis unavailable (FailRecord / nil recorder)
 
 ### 1.5 Frontend
 
-- [ ] No UI change required beyond existing eye icon + count
-- [ ] Optional: after navigation, show count+1 optimistic only if product wants
+- [x] No UI change required beyond existing eye icon + count
+- [x] Optional: after navigation, show count+1 optimistic only if product wants
   (default: no optimism; wait for next fetch)
+  (useAsyncData single detail GET; no POST /view)
 
 **Exit criteria:** refreshing a topic within 30m does not +N; after flush job,
 PG `view_count` and list UI increase for unique visitors.
+**Met** (see `reports/2026-07-21-perf-m2-view-hot.md`; landed with million-scale M2).
 
 ---
 
