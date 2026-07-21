@@ -41,6 +41,12 @@ Quick paths:
 cd apps/web && bun run dev       # Nuxt on :3000
 ```
 
+Background jobs: development defaults to `EMBED_WORKER_IN_API=true`, so the API process consumes the River queue. For **production split** process development (`EMBED_WORKER_IN_API=false`), run a standalone worker:
+
+```sh
+./scripts/worker-dev.sh          # optional; only when the API does not embed the worker
+```
+
 Useful URLs:
 
 - Web: http://127.0.0.1:3000  
