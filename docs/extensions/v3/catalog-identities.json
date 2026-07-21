@@ -320,6 +320,12 @@
       "path": "/api/v1/admin/extensions/contributions"
     },
     {
+      "id": "core.route.extensions.entity_import_export_dry_run",
+      "contractVersion": "sforum.route.extensions.entity_import_export_dry_run@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/entity-catalog/:entityId/import-export-dry-run"
+    },
+    {
       "id": "core.route.extensions.event_definitions",
       "contractVersion": "sforum.route.extensions.event_definitions@1",
       "method": "GET",
@@ -1050,6 +1056,24 @@
       "contractVersion": "sforum.route.extensions.public_frontend_package_asset@1",
       "method": "GET",
       "path": "/api/v1/extensions/runtime/:extensionId/packages/:packageDigest/*"
+    },
+    {
+      "id": "core.route.extensions.public_content_catalog",
+      "contractVersion": "sforum.route.extensions.public_content_catalog@1",
+      "method": "GET",
+      "path": "/api/v1/extensions/runtime/content-catalog"
+    },
+    {
+      "id": "core.route.extensions.public_editor_catalog",
+      "contractVersion": "sforum.route.extensions.public_editor_catalog@1",
+      "method": "GET",
+      "path": "/api/v1/extensions/runtime/editor-catalog"
+    },
+    {
+      "id": "core.route.extensions.public_entity_catalog",
+      "contractVersion": "sforum.route.extensions.public_entity_catalog@1",
+      "method": "GET",
+      "path": "/api/v1/extensions/runtime/entity-catalog"
     },
     {
       "id": "core.route.extensions.public_frontend_page_policy",
