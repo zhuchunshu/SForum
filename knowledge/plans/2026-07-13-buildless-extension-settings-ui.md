@@ -1,8 +1,8 @@
 # Buildless Extension Settings UI — Implementation Task Book
 
-Status: **completed (P0–P6)**
-Date: 2026-07-13
-Audience: a new AI/human session implementing the complete track
+Status: **completed** (P0–P6)  
+Date: 2026-07-13  
+Audience: historical task book; do not re-implement
 
 Decision:
 `knowledge/decisions/2026-07-13-buildless-extension-settings-ui.md`

@@ -1,7 +1,14 @@
 # Architecture Maturity Audit: Modularization & Performance
 
-Status: living audit  
-Last reviewed: 2026-07-12  
+Status: **stale pending re-audit** — scores below reflect the codebase as of
+**2026-07-12**, before Trusted Plugin/Theme Platform V3 closed P0–P12 (~99.7%
+with LTS residual only). Do **not** cite these scores as current maturity without
+a fresh pass against `main`.
+
+Last full review: 2026-07-12  
+Knowledge-base stamp: 2026-07-21 (cleanup; content not re-scored)  
+Authoritative extension platform status:  
+`plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`  
 Audience: humans and AI sessions deciding whether SForum has “already achieved”
 the modular, performance-first architecture described in docs and decisions.
 

@@ -1,6 +1,9 @@
 # Development Directions (2026-07-12)
 
-Status: accepted working guidance for near-term planning  
+Status: **blueprint** — strategic context from 2026-07-12; still useful for
+effort mix and depriorities, but platform spine is now V3 (P0–P12 complete).  
+Date: 2026-07-12  
+Last status pass: 2026-07-21 knowledge cleanup  
 Audience: humans and AI sessions choosing what to build next
 
 This document captures the **strategic recommendations** discussed after the

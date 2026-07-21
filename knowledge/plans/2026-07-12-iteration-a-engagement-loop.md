@@ -1,7 +1,9 @@
 # Iteration A — Engagement Loop Checklist
 
-Status: ready to implement  
+Status: **ready** — product checklist still open (view-count increment, likes,
+bookmarks); moderation lock/pin/hide already shipped  
 Date: 2026-07-12  
+Last status pass: 2026-07-21 knowledge cleanup  
 Goal: turn “can read/post” into “can operate a living community” without
 starting payments, marketplace, or horizontal scale work.
 

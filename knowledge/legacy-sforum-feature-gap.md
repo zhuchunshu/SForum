@@ -1,5 +1,15 @@
 # Legacy SForum Feature Gap
 
+Status: **partially stale** — last substantive review **2026-07-07 / 2026-07-10**.
+Many “current rewrite baseline” rows below have since expanded (V3 platform,
+site-search default, Page Registry themes, engagement still incomplete).  
+Before using this for migration or prioritization: re-check the gap table against
+`knowledge/modules/` and `main`, and prefer product plans
+(`plans/2026-07-12-iteration-a-engagement-loop.md`,
+`plans/2026-07-12-admin-settings-richness.md`) for near-term work.
+
+Knowledge-base stamp: 2026-07-21 (cleanup; gap table not fully re-verified).
+
 This note tracks features that exist in `/Users/inkedus/Code/github/SForum-old`
 but are not yet implemented, or are only partially implemented, in the current
 SForum rewrite. It is intended to guide implementation before importing

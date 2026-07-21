@@ -1,7 +1,14 @@
 # Research Notes
 
+Status: **historical** — early stack comparisons (mostly 2026-07-03–07).
+Accepted outcomes live in `knowledge/decisions/`. Prefer decisions and module
+notes for “what we use now”; keep this file for why options were rejected.
+
+Knowledge-base stamp: 2026-07-21.
+
 Use this file to capture short comparisons before choosing third-party
-libraries, frameworks, or services.
+libraries, frameworks, or services. New research entries should date the
+section and link the resulting decision when one is recorded.
 
 ## Frontend Rendering And UI
 

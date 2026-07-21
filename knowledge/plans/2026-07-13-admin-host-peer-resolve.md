@@ -2,7 +2,13 @@
 
 ## Status
 
-**Implemented** on `main` (see session handoff).
+**completed** on `main` (2026-07-13). Later, runtime Web Release / trusted Vue
+build paths were removed
+(`decisions/2026-07-13-remove-legacy-web-release.md`); keep this plan only as
+history of host-peer resolve for the period when admin compose still linked peers.
+
+Session (archived):  
+`knowledge/sessions/archive/2026-07/2026-07-13-admin-host-peer-resolve.md`
 
 ## Goal
 

@@ -1,14 +1,20 @@
 # Theme Switch Runtime Closure — Implementation Task Book
 
-Status: **technically reviewed draft; awaiting user approval; implementation not started**
-Date: 2026-07-13
-Audience: the human reviewer and the next AI/human implementation session
+Status: **superseded** — do not implement  
+Date: 2026-07-13  
+Superseded by: synchronous Page Registry activation, removal of runtime theme
+release/supervisor paths, and Trusted Plugin/Theme Platform V3 theme work
+(`plans/2026-07-13-trusted-plugin-theme-platform-v3.md`,
+`decisions/2026-07-13-runtime-page-registry-themes.md`,
+`decisions/2026-07-13-remove-legacy-web-release.md`).
+
+Audience: historical only
 
 Related accepted architecture:
 
 - `knowledge/decisions/2026-07-13-runtime-page-registry-themes.md`
 - `knowledge/plans/2026-07-13-runtime-page-registry-themes.md`
-- `knowledge/sessions/2026-07-13-runtime-page-registry-round2-remediation.md`
+- `knowledge/sessions/archive/2026-07/2026-07-13-runtime-page-registry-round2-remediation.md`
 
 ## Review Gate
 

@@ -1,5 +1,7 @@
 # 2026-07-12 Security Audit Fix Batch
 
+Status: **completed** on `main` (2026-07-12); historical task book only.
+
 > **Goal:** 在一次新对话中，按优先级修完 2026-07-12 全量安全审计的 P0–P2 项。  
 > **工作区：** 直接在 `main` 上改。  
 > **Git：** 每个逻辑修复单独 commit（见下方 commit 计划）；不要把无关重构塞进同批。  

@@ -1,9 +1,11 @@
 # Framework Hardening Waves (Phased)
 
-Status: accepted planning backlog  
+Status: **completed** — Waves F1–F4 landed on main (2026-07-12); further host
+platform work continues under Trusted Plugin/Theme Platform V3  
 Related decision: `knowledge/decisions/2026-07-12-host-platform-capabilities.md`  
 Product strategy: `knowledge/plans/2026-07-12-development-directions.md`  
-Maturity baseline: `knowledge/architecture-maturity-audit.md`
+Maturity baseline: `knowledge/architecture-maturity-audit.md` (stamped 2026-07-12)  
+Successor: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
 
 This file is the **implementation checklist** for host-platform work. Do not
 attempt all waves at once. Finish or explicitly park a wave before starting the

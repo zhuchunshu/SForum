@@ -1,33 +1,40 @@
 # Modules
 
-Module notes live here. Create one file per feature area when planning or implementation begins.
+One living note per feature area. Prefer these over session archive prose when
+implementing or debugging.
 
-Current planned modules:
+## Active module notes
 
-- `frontend.md`
-- `backend.md`
-- `forum.md`
-- `identity.md`
-- `jobs.md`
-- `localization.md`
-- `options.md`
-- `search.md`
+| File | Owns |
+| --- | --- |
+| `frontend.md` | Nuxt app, Page Registry themes, admin UI, SF components, SSR |
+| `backend.md` | Go API layout, bootstrap, cross-cutting HTTP/runtime |
+| `forum.md` | Topics, comments, taxonomy, content model, public read models |
+| `identity.md` | Users, sessions, RBAC, registration/login, verification |
+| `profile.md` | Public profiles and self-center |
+| `attachments.md` | Uploads, storage providers, governance, orphan cleanup |
+| `options.md` | Runtime `web_options`, personalization, site chrome |
+| `search.md` | Search framework, site PG FTS default, optional Meili |
+| `mail.md` | Mail provider slot and core mail framework |
+| `notifications.md` | In-app notifications + email projection |
+| `moderation.md` | Reports, pre-publication review, moderator workbench |
+| `jobs.md` | River queue, schedules, worker ops |
+| `localization.md` | i18n rules, locales, language packs |
+| `extensions.md` | Plugins/themes, Manifest V3, trust, Host registries |
 
-Possible future modules:
-
-- `users.md`
-- `categories.md`
-- `topics.md`
-- `posts.md`
-- `moderation.md`
-- `notifications.md`
-- `admin.md`
+## Note structure
 
 Each module note should include:
 
-- Purpose.
-- Current status.
-- Important files.
-- Dependencies.
-- Open questions.
-- Next steps.
+- Purpose
+- Current status
+- Important files
+- Dependencies
+- Open questions
+- Next steps
+
+## Conventions
+
+- Update the module note when finishing work in that area.
+- Do not invent parallel module files for sub-features; nest sections instead.
+- Generated or giant catalogs belong under `docs/`, not here.

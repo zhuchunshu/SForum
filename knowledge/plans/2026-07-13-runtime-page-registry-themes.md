@@ -1,8 +1,9 @@
 # Runtime Page Registry & Simple Themes — Implementation Plan
 
-Status: **remediated after Codex review (2026-07-13)** — L2 disabled; see session handoff  
+Status: **completed** — P0–P5 landed and remediated (2026-07-13); further theme
+runtime work is under V3 P8–P13  
 Date: 2026-07-13  
-
+Successor: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
 
 ## Implementation status
 
@@ -10,10 +11,11 @@ Date: 2026-07-13
 - [x] P1 Page catalog + SFPageOutlet + admin Pages
 - [x] P2 L0 skin activate without rebuild
 - [x] P3 L1 templates + add/replace + approval
-- [ ] P4 L2 prebuilt widget loader — **disabled** until integrity/trust (see remediation)
+- [x] P4 L2 prebuilt widget loader — later addressed under V3 P9 (package-local L2; production defaults per V3 gates)
 - [x] P5 decouple Web Release; retire public theme Layer activation path
 
-See session handoff `knowledge/sessions/2026-07-13-runtime-page-registry-p0-p5.md`.
+See archived session  
+`knowledge/sessions/archive/2026-07/2026-07-13-runtime-page-registry-p0-p5.md`.
 
 Audience: humans and AI sessions starting a greenfield implementation track
 

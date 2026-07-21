@@ -1,6 +1,9 @@
 # Admin Settings Richness Blueprint (2026-07-12)
 
-Status: accepted working product blueprint for operator-facing configuration  
+Status: **blueprint** — Waves 1–2 (community policy + brand/public chrome) landed;
+later waves remain open product guidance, not a single sprint  
+Date: 2026-07-12  
+Last status pass: 2026-07-21 knowledge cleanup  
 Audience: humans and AI sessions expanding admin settings without ad-hoc sprawl
 
 Related:

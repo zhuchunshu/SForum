@@ -1,8 +1,11 @@
 # Extension Surface Density — Implementation Plan
 
-Status: ready to implement  
+Status: **active (partial)** — E1–E6 largely landed (hooks, contributions,
+content-policy, storage plugin path); remaining north-star service slots
+continue via V3 provider/registry model. Do not restart E1–E5 from scratch.  
 Date: 2026-07-12  
-Audience: humans and AI sessions executing framework work after F4.3
+Last status pass: 2026-07-21 knowledge cleanup  
+Audience: humans and AI sessions extending provider slots / contribution density
 
 **Goal (two layers):**
 

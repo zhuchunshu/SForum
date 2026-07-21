@@ -1,6 +1,6 @@
 # API Memory & Runtime Hygiene (P0–P2)
 
-Status: **P0 done; P1/P2 cancelled (not needed for now)**  
+Status: **completed** (P0 done; P1/P2 **cancelled** — not needed for now)  
 Date: 2026-07-12  
 Related: memory investigation session (dev `sforum-api` ~70–84 MB footprint;
 SMTP plugin started twice under `EMBED_WORKER_IN_API=true`)

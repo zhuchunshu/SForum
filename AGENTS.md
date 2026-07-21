@@ -326,21 +326,29 @@ Examples:
 
 ## Knowledge Base Workflow
 
-The `knowledge/` directory is the project memory. It exists so a new AI session or human contributor can quickly understand where the project stands.
+The `knowledge/` directory is the project memory. It exists so a new AI session or human contributor can quickly understand where the project stands. Keep `knowledge/index.md` slim; do not append long changelogs there.
 
 When starting work:
 
-1. Read `knowledge/index.md`.
+1. Read `knowledge/index.md` (Latest Handoff + Current Project State).
 2. Read the relevant module note under `knowledge/modules/`.
-3. Read recent handoffs under `knowledge/sessions/`.
-4. Read relevant decisions under `knowledge/decisions/`.
+3. Read **hot** handoffs under `knowledge/sessions/` (not the full archive).
+4. For active programs, open the plan listed in `knowledge/plans/README.md`.
+5. Read relevant decisions under `knowledge/decisions/` when changing architecture.
+6. Use `knowledge/sessions/archive/` only to recover historical evidence—not as current status.
 
 When finishing work:
 
-1. Update `knowledge/index.md` if navigation or project status changed.
-2. Add or update module notes when a feature area changes.
-3. Add a decision record for important technical/product choices.
-4. Add a short session handoff when the next session will need context.
+1. Update the relevant `knowledge/modules/` note when a feature area changes.
+2. Add or replace a short **hot** handoff under `knowledge/sessions/`; keep only
+   actionable workstreams at the top level (see `knowledge/sessions/README.md`).
+3. Point `knowledge/index.md` Latest Handoff at the new hot handoff; remove
+   completed intermediate bullets instead of stacking history.
+4. Add a decision record for important technical/product choices.
+5. Update plan **Status** in the plan file and `knowledge/plans/README.md` when
+   a task book completes, cancels, or is superseded.
+6. After multi-day checkpoint spam, move intermediate sessions to
+   `knowledge/sessions/archive/YYYY-MM/`.
 
 Recommended handoff format:
 

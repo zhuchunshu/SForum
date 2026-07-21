@@ -1,5 +1,6 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
+Status: **active** — durable percentage and context-compaction checkpoint  
 Date: 2026-07-21
 Overall progress: **99.7%**
 Active phase: **P13 residual = LTS-blocked legacy deletion only**
