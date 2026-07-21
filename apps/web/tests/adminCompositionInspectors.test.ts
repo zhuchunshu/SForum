@@ -51,13 +51,22 @@ describe('composition inspector snapshot parsing', () => {
     expect(parseComponentCompositionSnapshot(null)).toBeNull()
     expect(parseComponentCompositionSnapshot(componentSnapshot({ revision: '3' }))).toBeNull()
     expect(parseComponentCompositionSnapshot(componentSnapshot({ safeMode: 'no' }))).toBeNull()
-    expect(parseComponentCompositionSnapshot(componentSnapshot({ conflicts: null }))).toBeNull()
+    expect(parseComponentCompositionSnapshot(componentSnapshot({ conflicts: 'x' }))).toBeNull()
     expect(parseComponentCompositionSnapshot(componentSnapshot({ traces: 'x' }))).toBeNull()
 
     expect(parseNavigationInspectorSnapshot({})).toBeNull()
     expect(parseNavigationInspectorSnapshot(navigationSnapshot({ digest: 1 }))).toBeNull()
     expect(parseNavigationInspectorSnapshot(navigationSnapshot({ regionCount: '1' }))).toBeNull()
     expect(parseNavigationInspectorSnapshot(navigationSnapshot({ traces: {} }))).toBeNull()
+  })
+
+  test('accepts null conflicts/traces as empty arrays (legacy empty-slice JSON)', () => {
+    const component = parseComponentCompositionSnapshot(componentSnapshot({ conflicts: null, traces: null }))
+    expect(component?.conflicts).toEqual([])
+    expect(component?.traces).toEqual([])
+
+    const navigation = parseNavigationInspectorSnapshot(navigationSnapshot({ traces: null }))
+    expect(navigation?.traces).toEqual([])
   })
 })
 

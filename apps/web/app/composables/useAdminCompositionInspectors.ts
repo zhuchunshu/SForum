@@ -42,6 +42,13 @@ function asObjectArray(value: unknown): Array<Record<string, unknown>> {
   return value.filter((item): item is Record<string, unknown> => !!item && typeof item === 'object' && !Array.isArray(item))
 }
 
+/** 接受 [] 或 null/缺省（兼容旧后端把空 slice 编成 null）。 */
+function asOptionalObjectArray(value: unknown): Array<Record<string, unknown>> | null {
+  if (value == null) return []
+  if (!Array.isArray(value)) return null
+  return asObjectArray(value)
+}
+
 /** 解析组件组合检查器响应；形状非法时返回 null（不抛异常）。 */
 export function parseComponentCompositionSnapshot(raw: unknown): ComponentCompositionInspectorSnapshot | null {
   const data = asObject(raw)
@@ -51,14 +58,16 @@ export function parseComponentCompositionSnapshot(raw: unknown): ComponentCompos
   if (typeof data.targetCount !== 'number' || !Number.isFinite(data.targetCount)) return null
   if (typeof data.contributionCount !== 'number' || !Number.isFinite(data.contributionCount)) return null
   if (typeof data.safeMode !== 'boolean') return null
-  if (!Array.isArray(data.conflicts) || !Array.isArray(data.traces)) return null
+  const conflicts = asOptionalObjectArray(data.conflicts)
+  const traces = asOptionalObjectArray(data.traces)
+  if (conflicts == null || traces == null) return null
   return {
     revision: asNumber(data.revision),
     safeMode: asBoolean(data.safeMode),
     targetCount: asNumber(data.targetCount),
     contributionCount: asNumber(data.contributionCount),
-    conflicts: asObjectArray(data.conflicts),
-    traces: asObjectArray(data.traces)
+    conflicts,
+    traces
   }
 }
 
@@ -72,7 +81,8 @@ export function parseNavigationInspectorSnapshot(raw: unknown): NavigationInspec
   if (typeof data.navigationCount !== 'number' || !Number.isFinite(data.navigationCount)) return null
   if (typeof data.regionCount !== 'number' || !Number.isFinite(data.regionCount)) return null
   if (typeof data.providerConflicts !== 'number' || !Number.isFinite(data.providerConflicts)) return null
-  if (!Array.isArray(data.traces)) return null
+  const traces = asOptionalObjectArray(data.traces)
+  if (traces == null) return null
   return {
     revision: asNumber(data.revision),
     digest: asString(data.digest),
@@ -80,7 +90,7 @@ export function parseNavigationInspectorSnapshot(raw: unknown): NavigationInspec
     navigationCount: asNumber(data.navigationCount),
     regionCount: asNumber(data.regionCount),
     providerConflicts: asNumber(data.providerConflicts),
-    traces: asObjectArray(data.traces)
+    traces
   }
 }
 
@@ -104,7 +114,13 @@ export function useAdminCompositionInspectors() {
       }
       return snapshot
     } catch (error) {
-      throw new Error(apiErrorMessage(error) || apiErrorReason(error) || 'component inspector failed')
+      // 保留 plain Error.message；不要用空 envelope 覆盖成无意义的 failed。
+      const message =
+        apiErrorMessage(error)
+        || apiErrorReason(error)
+        || (error instanceof Error && error.message.trim() ? error.message : '')
+        || 'component inspector failed'
+      throw new Error(message)
     }
   }
 
@@ -118,7 +134,12 @@ export function useAdminCompositionInspectors() {
       }
       return snapshot
     } catch (error) {
-      throw new Error(apiErrorMessage(error) || apiErrorReason(error) || 'navigation inspector failed')
+      const message =
+        apiErrorMessage(error)
+        || apiErrorReason(error)
+        || (error instanceof Error && error.message.trim() ? error.message : '')
+        || 'navigation inspector failed'
+      throw new Error(message)
     }
   }
 

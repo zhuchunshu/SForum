@@ -63,13 +63,16 @@ func (h *Controller) inspectComponentComposition(c fiber.Ctx) error {
 	if limit > 0 && len(traces) > limit {
 		traces = traces[len(traces)-limit:]
 	}
+	// 始终返回 [] 而非 null，避免前端 Array.isArray 校验把空注册表当成非法响应。
+	conflicts := append([]extensionsruntime.ComponentProviderConflict{}, snapshot.Conflicts...)
+	traceCopy := append([]extensionsruntime.ComponentCompositionTrace{}, traces...)
 	return apphttp.OK(c, ComponentCompositionInspectorSnapshot{
 		Revision:          snapshot.Revision,
 		SafeMode:          snapshot.SafeMode,
 		TargetCount:       len(snapshot.Targets),
 		ContributionCount: len(snapshot.Contributions),
-		Conflicts:         append([]extensionsruntime.ComponentProviderConflict(nil), snapshot.Conflicts...),
-		Traces:            append([]extensionsruntime.ComponentCompositionTrace(nil), traces...),
+		Conflicts:         conflicts,
+		Traces:            traceCopy,
 	})
 }
 
@@ -89,6 +92,8 @@ func (h *Controller) inspectNavigation(c fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusServiceUnavailable, navigationInspectorUnavailable)
 	}
+	// 空 traces 也返回 JSON 数组，保持与 component inspector 契约一致。
+	traces := append([]navigationregistry.TraceRecord{}, inspection.Traces...)
 	return apphttp.OK(c, NavigationInspectorSnapshot{
 		Revision:          inspection.Snapshot.Revision,
 		Digest:            inspection.Snapshot.Digest,
@@ -96,7 +101,7 @@ func (h *Controller) inspectNavigation(c fiber.Ctx) error {
 		NavigationCount:   len(inspection.Snapshot.Navigation),
 		RegionCount:       len(inspection.Snapshot.Regions),
 		ProviderConflicts: len(inspection.Snapshot.NavigationConflicts) + len(inspection.Snapshot.RegionConflicts),
-		Traces:            append([]navigationregistry.TraceRecord(nil), inspection.Traces...),
+		Traces:            traces,
 	})
 }
 

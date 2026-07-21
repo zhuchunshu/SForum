@@ -37,6 +37,22 @@ func TestCompositionAndNavigationInspectorsAllowExtensionView(t *testing.T) {
 		if envelope.Data == nil {
 			t.Fatalf("%s empty data", path)
 		}
+		// 空注册表也必须是 JSON 数组，不能是 null（前端 Array.isArray 契约）。
+		if conflicts, ok := envelope.Data["conflicts"]; ok {
+			if _, isArr := conflicts.([]any); !isArr && conflicts != nil {
+				t.Fatalf("%s conflicts must be array, got %T", path, conflicts)
+			}
+			if conflicts == nil {
+				t.Fatalf("%s conflicts must not be null", path)
+			}
+		}
+		traces, ok := envelope.Data["traces"]
+		if !ok {
+			t.Fatalf("%s missing traces", path)
+		}
+		if _, isArr := traces.([]any); !isArr {
+			t.Fatalf("%s traces must be array, got %T (%v)", path, traces, traces)
+		}
 	}
 }
 
