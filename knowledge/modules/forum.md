@@ -11,9 +11,9 @@ read models.
 Backend foundation implemented on 2026-07-06. Real taxonomy slice implemented
 on 2026-07-07.
 
-- **Million-scale read path (M0–M6 done):** task book
-  `plans/2026-07-21-million-scale-read-path.md` — **M0** seed + `tests/perf` +
-  baseline. **M1** ListTopics slim + D1 totals
+- **Million-scale read path (M0–M7 complete):** task book
+  `plans/2026-07-21-million-scale-read-path.md` (**completed**). **M0** seed +
+  `tests/perf` + baseline. **M1** ListTopics slim + D1 totals
   (`reports/2026-07-21-perf-m1-list-topics.md`). **M2** view count (D3 /
   Iteration A WS1) + `topics.hot_score` + `sort=hot`
   (`reports/2026-07-21-perf-m2-view-hot.md`). **M3** ListComments D2 tree cap
@@ -33,8 +33,12 @@ on 2026-07-07.
   `forum:gen:topics:global` / `cat:{slug}` / `tag:{slug}`; write paths bump only
   affected scopes (cat A write does not miss cat B list cache); public COUNT
   audit residual documented
-  (`reports/2026-07-21-perf-m6-cache-sharding.md`). Next **M7** replica design
-  doc only.
+  (`reports/2026-07-21-perf-m6-cache-sharding.md`). **M7** horizontal scale is
+  **doc only**: single primary + shared Redis default; multi-API OK with Redis
+  sessions/CachedStore; read-replica thresholds and future constraints in
+  `decisions/2026-07-21-read-replica-and-api-horizontal-scale.md` +
+  `reports/2026-07-21-perf-m7-horizontal-scale.md` (**no** `DATABASE_READ_URL`
+  code).
 
 - `categories` owns public forum sections. The first seed category is
   `general` / `综合讨论`.

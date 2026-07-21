@@ -1,7 +1,7 @@
 # Million-Scale Read Path — Task Book
 
-Status: **in progress** — M0–**M6 complete** (cache sharding + COUNT audit);
-next M7 (doc only)  
+Status: **completed** — M0–**M7** done (M7 = horizontal-scale decision doc only;
+no replica code)  
 Date: 2026-07-21  
 Last decision pass: 2026-07-21 (four open questions → resolved defaults)  
 Goal: make public forum **read paths** safe for ~1M topics / large hot
@@ -18,6 +18,7 @@ deployment, with reproducible load evidence.
 | `plans/2026-07-12-iteration-a-engagement-loop.md` | **Owns product view-count** (INCR + flush + dedup). This plan **requires** that workstream and adds load acceptance + `hot_score` coupling. Do not dual-implement view count. |
 | `decisions/2026-07-08-search-cache-deep-pagination.md` | Existing cache / page clamp / search split — extend, do not rip out. |
 | `decisions/2026-07-08-performance-hardening.md` | Comment SQL pagination, pools, SWR — baseline. |
+| `decisions/2026-07-21-read-replica-and-api-horizontal-scale.md` | **M7** — replica thresholds + multi-API assumptions; no code until thresholds. |
 | `architecture-maturity-audit.md` Part D | Highest-value performance gaps; this plan operationalizes them. |
 | `plans/2026-07-12-development-directions.md` | Strategy: capacity proof after daily community paths; this is the capacity track. |
 
@@ -54,7 +55,7 @@ Public operators should observe:
 | ListComments in CachedStore | **Done (M3)** | topic gen + short TTL; skip viewer-scoped |
 | Topics list gen sharding | **Done (M6)** | global / cat / tag gens; scoped write bump |
 | Load-test suite / capacity numbers | **Partial** | `tests/perf` + LIGHT reports M0–M6 |
-| Read replicas / multi-node | **Out of scope** | M7 doc only unless needed |
+| Read replicas / multi-node | **Doc only (M7)** | decision thresholds; no code |
 
 ## Out Of Scope
 
@@ -479,9 +480,17 @@ contract validated; FE uses cursor on primary surfaces.
 
 ## M7 — Horizontal Scale (doc only unless product demands)
 
-- [ ] Decision note: when to add read replica (metrics threshold)
-- [ ] Session/Redis already shared — document API stateless assumptions
-- [ ] Explicitly **no code** until M0–M6 numbers show single-node ceiling
+- [x] Decision note: when to add read replica (metrics threshold)
+  (`decisions/2026-07-21-read-replica-and-api-horizontal-scale.md`)
+- [x] Session/Redis already shared — document API stateless assumptions
+  (same decision §2: Redis sessions, shared CachedStore gens, no sticky required)
+- [x] Explicitly **no code** until M0–M6 numbers show single-node ceiling
+  (M0–M6 do **not** prove single-node ceiling; replica deferred; report
+  `reports/2026-07-21-perf-m7-horizontal-scale.md`)
+
+**Exit criteria:** operators know when to open a replica plan; multi-API is
+documented as safe with shared Redis/PG; no accidental half-implemented split.
+**Met:** decision + M7 report; zero application code.
 
 ---
 
@@ -507,11 +516,12 @@ Full `./scripts/test.sh` when milestone is large or contract-heavy.
 
 ## Knowledge Updates When Finishing A Milestone
 
-- [ ] `knowledge/modules/forum.md` — cache, pagination, view, comment bounds
-- [ ] This plan status / checkbox progress
-- [ ] `knowledge/plans/README.md` if status changes
-- [ ] Short hot handoff under `knowledge/sessions/` when a multi-day slice lands
-- [ ] No new ADR required for D1–D4 unless implementation diverges; this plan section is the product policy source until then
+- [x] `knowledge/modules/forum.md` — cache, pagination, view, comment bounds
+- [x] This plan status / checkbox progress
+- [x] `knowledge/plans/README.md` if status changes
+- [x] Short hot handoff under `knowledge/sessions/` when a multi-day slice lands
+- [x] No new ADR required for D1–D4 unless implementation diverges; this plan section is the product policy source until then
+  (M7 adds horizontal-scale decision; D1–D4 unchanged)
 
 ## Suggested PR Slice Size
 
@@ -555,3 +565,4 @@ Still free to decide during implementation (not product blockers):
 | 2026-07-21 | **M4 done:** GetTopic profile (slug unique index); CachedStore id+slug dual-write + reverse-map invalidate; no composite page cache (evidence); FE parallel topic+comments; `/t/**` anonymous SWR + auth/edit gate; report `knowledge/reports/2026-07-21-perf-m4-topic-detail.md` (by-slug warm p99 ~21 ms). Next: **M5** keyset pagination. |
 | 2026-07-21 | **M5 done:** public ListTopics / ListComments flat `after` keyset + `hasMore`/`nextCursor`; cursor > page; pin-stable seek SQL; FE home infinite scroll; report `knowledge/reports/2026-07-21-perf-m5-keyset.md` (100-step cursor p99 ~19 ms). Next: **M6** cache sharding. |
 | 2026-07-21 | **M6 done:** CachedStore topics gen shard global/cat/tag; write bumps only affected scopes; COUNT audit (no new hot-path COUNT); report `knowledge/reports/2026-07-21-perf-m6-cache-sharding.md`. Next: **M7** replica design doc only. |
+| 2026-07-21 | **M7 done / plan completed:** decision `decisions/2026-07-21-read-replica-and-api-horizontal-scale.md` (replica thresholds + API multi-instance assumptions); report `reports/2026-07-21-perf-m7-horizontal-scale.md`; **no code**. Task book closed. |

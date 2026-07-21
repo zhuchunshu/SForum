@@ -6,17 +6,22 @@ session archive.
 
 ## Latest Handoff
 
+- **2026-07-21 Million-scale read path — M7 complete (task book closed)**
+  - Plan: `plans/2026-07-21-million-scale-read-path.md` (**completed**, M0–M7)
+  - Decision: `decisions/2026-07-21-read-replica-and-api-horizontal-scale.md`
+  - Report: `reports/2026-07-21-perf-m7-horizontal-scale.md` (doc only; no code)
+  - Multi-API + shared Redis OK; read replica deferred to metrics thresholds
+  - Handoff: `sessions/2026-07-21-million-scale-read-path-m7-handoff.md`
+  - Module: `modules/forum.md`
+
 - **2026-07-21 Theme staged startup repair (API boot)**
   - Active builtin theme stuck on old digest with retired `sf-my-home-page`
   - Startup promotes healthy staged package + new theme runtime publication
   - Handoff: `sessions/2026-07-21-theme-staged-startup-repair-handoff.md`
 
 - **2026-07-21 Million-scale read path — M6 complete**
-  - Plan: `plans/2026-07-21-million-scale-read-path.md` (M0–M6 done; next M7 doc)
   - After: `reports/2026-07-21-perf-m6-cache-sharding.md` (scoped gen; multi-cat warm)
-  - Topics list gen global/cat/tag; cat A write does not miss cat B list cache
   - Handoff: `sessions/2026-07-21-million-scale-read-path-m6-handoff.md`
-  - Module: `modules/forum.md`
 
 - **2026-07-21 Million-scale read path — M5 complete**
   - After: `reports/2026-07-21-perf-m5-keyset.md` (100-step cursor p99 ~19 ms)
