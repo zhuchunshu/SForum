@@ -18,6 +18,7 @@
 | `core.admin.page.extensions_pages` | `apps/web/app/pages/admin/extensions/pages.vue` | yes | no | yes | no | no | yes | no | yes | yes | no | no | yes | no |
 | `core.admin.page.extensions_plugins` | `apps/web/app/pages/admin/extensions/plugins.vue` | yes | no | yes | no | yes | no | no | yes | yes | no | no | yes | no |
 | `core.admin.page.extensions_provider_slots` | `apps/web/app/pages/admin/extensions/provider-slots.vue` | yes | no | yes | no | yes | no | no | yes | yes | no | no | yes | no |
+| `core.admin.page.extensions_registry_catalogs` | `apps/web/app/pages/admin/extensions/registry-catalogs.vue` | yes | no | yes | no | no | no | no | yes | yes | no | no | yes | yes |
 | `core.admin.page.extensions_route_inspector` | `apps/web/app/pages/admin/extensions/route-inspector.vue` | yes | no | yes | no | yes | no | no | yes | no | no | no | yes | no |
 | `core.admin.page.extensions_route_providers` | `apps/web/app/pages/admin/extensions/route-providers.vue` | yes | no | yes | no | yes | no | no | yes | yes | no | no | yes | no |
 | `core.admin.page.extensions_settings` | `apps/web/app/pages/admin/extensions/settings.vue` | yes | no | yes | no | no | no | no | no | yes | no | no | yes | no |

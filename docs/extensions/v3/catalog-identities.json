@@ -2473,6 +2473,16 @@
       "source": "apps/web/app/pages/admin/extensions/navigation-inspector.vue"
     },
     {
+      "id": "core.component.page.admin.extensions.registry.catalogs",
+      "contractVersion": "sforum.component.page.admin.extensions.registry.catalogs@1",
+      "kind": "page",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/pages/admin/extensions/registry-catalogs.vue"
+    },
+    {
       "id": "core.component.page.admin.extensions.pages",
       "contractVersion": "sforum.component.page.admin.extensions.pages@1",
       "kind": "page",

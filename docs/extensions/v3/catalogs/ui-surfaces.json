@@ -365,6 +365,17 @@
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
+    "id": "core.component.page.admin.extensions.registry.catalogs",
+    "contractVersion": "sforum.component.page.admin.extensions.registry.catalogs@1",
+    "kind": "page",
+    "route": "/admin/extensions/registry-catalogs",
+    "source": "apps/web/app/pages/admin/extensions/registry-catalogs.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7 Admin Surface Registry"
+  },
+  {
     "id": "core.component.page.admin.extensions.route.inspector",
     "contractVersion": "sforum.component.page.admin.extensions.route.inspector@1",
     "kind": "page",
