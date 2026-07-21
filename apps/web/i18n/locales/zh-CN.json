@@ -108,9 +108,9 @@
       "topicCountMeta": "{count} 个主题",
       "topicCountMetaApprox": "约 {count} 个主题",
       "views": "浏览",
-      "activityMinutes": "{count} 分钟",
-      "activityHours": "{count} 小时",
-      "activityDays": "{count} 天"
+      "activityMinutes": "{count} 分钟前",
+      "activityHours": "{count} 小时前",
+      "activityDays": "{count} 天前"
     },
     "sidebar": {
       "navTitle": "导航",

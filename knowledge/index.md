@@ -6,6 +6,12 @@ session archive.
 
 ## Latest Handoff
 
+- **2026-07-22 Hybrid demo fidelity polish (default theme UI)**
+  - Fonts/weights, topbar active underline, topic list 最近活动, left-nav colored category icons
+  - Demo: `tmp/demos/sforum-hybrid-topic-list/`
+  - Handoff: `sessions/2026-07-22-hybrid-demo-fidelity-polish-handoff.md`
+  - Module: `modules/frontend.md`
+
 - **2026-07-22 extension.hook_failed on post/comment**
   - Host Protocol V2 now JSON-normalizes hook payloads before `structpb`
   - Content-policy reads content object `plainText`/`rawContent`

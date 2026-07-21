@@ -137,6 +137,24 @@ function isExternalHref(href: string) {
   return href.startsWith('http://') || href.startsWith('https://')
 }
 
+/** 顶栏 active 与 demo 一致：首页精确匹配，其它路径前缀匹配。 */
+function isDesktopNavActive(href: string) {
+  if (isExternalHref(href)) {
+    return false
+  }
+  const resolved = resolveNavTo(href)
+  if (typeof resolved !== 'string' || !resolved.startsWith('/')) {
+    return false
+  }
+  const targetPath = resolved.split('?')[0]?.replace(/\/$/, '') || '/'
+  const currentPath = route.path.replace(/\/$/, '') || '/'
+  const homePath = String(localePath('/')).replace(/\/$/, '') || '/'
+  if (targetPath === homePath) {
+    return currentPath === homePath
+  }
+  return currentPath === targetPath || currentPath.startsWith(`${targetPath}/`)
+}
+
 // 导航栏注册入口以 registration-status 为准（含 bootstrap 覆盖）。
 type RegistrationStatus = {
   nextUserIsInitialSuperAdmin: boolean
@@ -382,6 +400,7 @@ async function logout() {
             v-if="item.openInNewTab || isExternalHref(item.href)"
             :href="resolveNavTo(item.href)"
             class="navbar__nav-link"
+            :class="{ 'is-active': isDesktopNavActive(item.href) }"
             :target="item.openInNewTab || isExternalHref(item.href) ? '_blank' : undefined"
             :rel="item.openInNewTab || isExternalHref(item.href) ? 'noopener noreferrer' : undefined"
           >
@@ -392,6 +411,9 @@ async function logout() {
             v-else
             :to="resolveNavTo(item.href)"
             class="navbar__nav-link"
+            :class="{ 'is-active': isDesktopNavActive(item.href) }"
+            active-class=""
+            exact-active-class=""
           >
             <UIcon v-if="item.icon" :name="item.icon" class="size-3.5" aria-hidden="true" />
             {{ item.label }}
@@ -644,17 +666,28 @@ async function logout() {
   min-height: 100%;
   padding: 0;
   border-radius: 0;
-  color: var(--sf-public-text-muted, #64748b);
+  color: var(--sf-public-text-secondary, #4f5869);
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 600;
   text-decoration: none;
   cursor: pointer;
 }
 
 .navbar__nav-link:hover,
-.navbar__nav-link.router-link-active {
-  color: var(--sf-accent);
+.navbar__nav-link.is-active {
+  color: var(--sf-public-text, #151922);
   background: transparent;
+}
+
+/* demo .top-nav a.is-active::after：底边 2px 强调色下划线 */
+.navbar__nav-link.is-active::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: var(--sf-accent);
 }
 
 .navbar__new-topic,
@@ -666,7 +699,7 @@ async function logout() {
   color: #fff;
   background: var(--sf-accent);
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 700;
   text-decoration: none;
 }
 
@@ -871,9 +904,13 @@ async function logout() {
 }
 
 .dark .navbar__nav-link:hover,
-.dark .navbar__nav-link.router-link-active {
-  color: var(--sf-accent-dark);
-  background: rgb(var(--sf-accent-rgb) / 0.2);
+.dark .navbar__nav-link.is-active {
+  color: #f4f4f5;
+  background: transparent;
+}
+
+.dark .navbar__nav-link.is-active::after {
+  background: var(--sf-accent-dark);
 }
 
 .dark .navbar__auth-link--quiet {

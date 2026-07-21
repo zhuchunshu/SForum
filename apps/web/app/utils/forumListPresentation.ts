@@ -15,14 +15,12 @@ export const FORUM_AVATAR_TONE_CLASSES = [
   'bg-[#51cf66]'
 ] as const
 
-/** demo .chip.blue / green / sky / amber / violet / rose */
+/** hybrid demo variant B .topic-category.tone-* */
 export const FORUM_CATEGORY_CHIP_TONE_CLASSES = [
-  'bg-[#edf2ff] text-[#3b5bdb]',
-  'bg-[#e6fcf5] text-[#0b7285]',
-  'bg-[#e7f5ff] text-[#1864ab]',
-  'bg-[#fff9db] text-[#e67700]',
-  'bg-[#f3f0ff] text-[#5f3dc4]',
-  'bg-[#fff0f6] text-[#a61e4d]'
+  'bg-[#eaf2ff] text-[#1467d9]',
+  'bg-[#edf8ef] text-[#29934d]',
+  'bg-[#fff0f0] text-[#dc4b4b]',
+  'bg-[#fff4e8] text-[#e1761d]'
 ] as const
 
 export function hashStableTone(seed: string, modulo: number): number {

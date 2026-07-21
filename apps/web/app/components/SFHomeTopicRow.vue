@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
  * 话题列表行（宿主岛子组件）。
- * 呈现用 Tailwind + 公共 token；主题换肤走 L0 变量，深度定制走 Component Registry / L2，
- * 不要在 theme.css 镜像本组件 class。
+ * 结构对齐 tmp/demos/sforum-hybrid-topic-list：头像 | 标题+meta | 分类 | 回复 | 最近活动。
+ * 呈现用 Tailwind + 公共 token；主题换肤走 L0 变量，深度定制走 Component Registry / L2。
  */
 import type { ForumTopicExtensionBadge, ForumTopicSummary } from '~/utils/forumTaxonomy'
 import { forumAuthorName, forumTopicExtensionLabel } from '~/utils/forumTaxonomy'
@@ -24,8 +24,6 @@ const localePath = useLocalePath()
 
 const authorName = computed(() => forumAuthorName(props.topic.author, props.topic.authorUserId))
 const listBadges = computed(() => props.extensionListBadges || [])
-/** 列表 meta 最多 2 个标签，避免行高失控 */
-const previewTags = computed(() => (props.topic.tags || []).slice(0, 2))
 
 const categoryChipClass = computed(() => {
   const seed = props.topic.categorySlug || props.topic.categoryName || 'c'
@@ -46,8 +44,6 @@ function listBadgeHref(badge: ForumTopicExtensionBadge) {
 
 const pillBase =
   'inline-flex h-[18px] shrink-0 items-center rounded-[3px] px-1.5 text-[11px] font-semibold leading-[18px]'
-const chipBase =
-  'inline-flex h-[18px] items-center rounded-[3px] px-1.5 text-[11px] font-medium leading-[18px] no-underline'
 </script>
 
 <template>
@@ -79,8 +75,8 @@ const chipBase =
       />
     </div>
 
-    <div class="min-w-0">
-      <div class="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+    <div class="sf-home-topic-row__copy min-w-0">
+      <div class="sf-home-topic-row__title-line flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
         <span
           v-if="topic.isPinned"
           :class="[pillBase, 'bg-[#fff3bf] text-[#9a6700]']"
@@ -110,7 +106,7 @@ const chipBase =
             {{ listBadgeLabel(badge) }}
           </span>
         </template>
-        <h2 class="m-0 min-w-0 flex-1 text-sm font-semibold leading-snug text-[var(--sf-public-text)] [overflow-wrap:anywhere]">
+        <h2 class="sf-home-topic-row__title m-0 min-w-0 flex-1 truncate text-sm font-semibold leading-snug text-[var(--sf-public-text)]">
           <NuxtLink
             :to="to"
             class="text-inherit no-underline hover:text-[var(--sf-accent)]"
@@ -120,26 +116,22 @@ const chipBase =
         </h2>
       </div>
 
-      <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-[var(--sf-public-text-muted)]">
-        <NuxtLink
-          v-for="tag in previewTags"
-          :key="tag.id"
-          :to="localePath(`/tags/${tag.slug}`)"
-          :class="[chipBase, 'border border-[var(--sf-public-border)] bg-transparent text-[var(--sf-public-text-muted)]']"
-        >
-          {{ tag.name }}
-        </NuxtLink>
-        <NuxtLink
-          v-if="topic.author"
-          class="font-medium text-[var(--sf-public-text-muted)] no-underline hover:text-[var(--sf-accent)]"
-          :to="localePath(`/u/${topic.author.username}`)"
-        >
-          {{ authorName }}
-        </NuxtLink>
-        <span class="text-[#d0d4db]" aria-hidden="true">·</span>
-        <time :datetime="topic.lastActivityAt || topic.createdAt">
-          {{ activityLabel }}
-        </time>
+      <!-- demo .topic-meta：作者 · 时间；移动端附回复数 -->
+      <div class="sf-home-topic-row__meta mt-[5px] flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] font-medium text-[var(--sf-public-text-muted)]">
+        <span class="inline-flex min-w-0 items-center gap-1">
+          <NuxtLink
+            v-if="topic.author"
+            class="truncate font-medium text-[var(--sf-public-text-muted)] no-underline hover:text-[var(--sf-accent)]"
+            :to="localePath(`/u/${topic.author.username}`)"
+          >
+            {{ authorName }}
+          </NuxtLink>
+          <span v-else class="truncate">{{ authorName }}</span>
+          <span aria-hidden="true">·</span>
+          <time :datetime="topic.lastActivityAt || topic.createdAt">
+            {{ activityLabel }}
+          </time>
+        </span>
         <span class="sf-home-topic-row__mobile-replies hidden max-[720px]:inline-flex">
           {{ t('home.feed.replyCount', { count: topic.commentCount }) }}
         </span>
@@ -148,25 +140,33 @@ const chipBase =
 
     <NuxtLink
       :to="localePath(`/c/${topic.categorySlug}`)"
-      :class="[chipBase, categoryChipClass, 'sf-home-topic-row__category justify-self-start max-[1120px]:hidden']"
+      class="sf-home-topic-row__category inline-flex h-auto min-h-[22px] items-center justify-self-start rounded-[5px] px-2 py-1 text-[9px] font-semibold leading-[14px] no-underline max-[1120px]:hidden"
+      :class="categoryChipClass"
     >
       {{ topic.categoryName }}
     </NuxtLink>
 
-    <div class="sf-home-topic-row__replies text-right text-[11px] leading-snug text-[var(--sf-public-text-muted)] max-[720px]:hidden">
-      <b class="block text-sm font-semibold tabular-nums text-[var(--sf-public-text-secondary)]">
+    <div class="sf-home-topic-row__replies flex flex-col items-center gap-[3px] text-[10px] leading-snug text-[var(--sf-public-text-muted)] max-[720px]:hidden">
+      <strong class="text-sm font-bold tabular-nums text-[var(--sf-public-text)]">
         {{ topic.commentCount }}
-      </b>
+      </strong>
       <span>{{ t('home.feed.repliesColumn') }}</span>
     </div>
 
-    <div class="text-right text-[11px] leading-snug whitespace-nowrap text-[var(--sf-public-text-muted)] max-[720px]:hidden">
-      <span
+    <!-- demo .topic-author：最近活动（当前合同仅有 author + lastActivityAt） -->
+    <div class="sf-home-topic-row__activity flex flex-col items-start gap-[3px] text-[10px] leading-snug text-[var(--sf-public-text-muted)] max-[720px]:hidden">
+      <strong
         v-if="topic.author"
-        class="block font-medium text-[var(--sf-public-text-secondary)]"
+        class="max-w-[94px] truncate font-semibold text-[var(--sf-public-text)]"
       >
         {{ authorName }}
-      </span>
+      </strong>
+      <strong
+        v-else
+        class="max-w-[94px] truncate font-semibold text-[var(--sf-public-text)]"
+      >
+        {{ t('home.feed.activityColumn') }}
+      </strong>
       <time :datetime="topic.lastActivityAt || topic.createdAt">{{ activityLabel }}</time>
     </div>
   </article>

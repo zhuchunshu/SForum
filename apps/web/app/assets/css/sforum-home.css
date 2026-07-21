@@ -463,13 +463,13 @@
   display: inline-flex;
   min-width: 0;
   align-items: center;
-  gap: 0;
+  gap: 10px;
 }
 
 .sf-home-navigation__count {
   color: var(--sf-public-text-muted);
-  font-size: 12px;
-  font-weight: 400;
+  font-size: 11px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
@@ -477,14 +477,19 @@
   color: color-mix(in srgb, var(--sf-accent) 55%, #fff);
 }
 
-/* demo .cat-dot：8px 方角，非圆形 */
-.sf-home-navigation__cat-dot {
-  width: 8px;
-  height: 8px;
-  flex: 0 0 8px;
-  margin-right: 8px;
-  border-radius: 2px;
-  background: var(--sf-accent);
+/* 分类/标签：管理端配置的彩色 icon（icon + iconColor） */
+.sf-home-navigation__cat-icon {
+  display: inline-grid;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  place-items: center;
+  color: var(--sf-accent);
+}
+
+.sf-home-navigation__cat-icon :deep(svg) {
+  width: 18px;
+  height: 18px;
 }
 
 .sf-home-navigation__mobile {
@@ -646,8 +651,9 @@
   gap: 8px;
   margin: 0;
   color: var(--sf-public-text);
-  font-size: 20px;
-  font-weight: 600;
+  font-family: "Noto Serif SC", "Songti SC", "Noto Sans SC", serif;
+  font-size: 27px;
+  font-weight: 700;
   line-height: 1.25;
   letter-spacing: 0;
 }
@@ -799,6 +805,11 @@
     grid-template-columns: 38px minmax(0, 1fr) auto;
     padding: 11px 12px;
   }
+
+  .sf-page.sf-theme--default .sf-home-topic-row__replies,
+  .sf-page.sf-theme--default .sf-home-topic-row__activity {
+    display: none;
+  }
 }
 
 @media (max-width: 560px) {
@@ -808,7 +819,8 @@
   }
 
   .sf-page.sf-theme--default .sf-home-topic-row__category,
-  .sf-page.sf-theme--default .sf-home-topic-row__replies {
+  .sf-page.sf-theme--default .sf-home-topic-row__replies,
+  .sf-page.sf-theme--default .sf-home-topic-row__activity {
     display: none;
   }
 }

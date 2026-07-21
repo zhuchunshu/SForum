@@ -623,23 +623,28 @@
   display: inline-flex;
   min-width: 0;
   align-items: center;
-  gap: 0;
+  gap: 10px;
 }
 
 .sf-home-navigation__count {
   color: var(--sf-public-text-faint);
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
-.sf-home-navigation__cat-dot {
-  width: 8px;
-  height: 8px;
-  flex: 0 0 8px;
-  margin-right: 8px;
-  border-radius: 50%;
-  background: var(--sf-accent);
+.sf-home-navigation__cat-icon {
+  display: inline-grid;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  place-items: center;
+  color: var(--sf-accent);
+}
+
+.sf-home-navigation__cat-icon svg {
+  width: 18px;
+  height: 18px;
 }
 
 .sf-home-navigation__mobile {

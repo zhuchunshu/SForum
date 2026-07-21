@@ -31,6 +31,15 @@ describe('default theme shared navbar contract', () => {
     expect(source).not.toContain('scrollToHomeSection')
   })
 
+  test('marks desktop nav active with exact home match and underline class', () => {
+    expect(source).toContain('function isDesktopNavActive')
+    expect(source).toContain("class=\"navbar__nav-link\"")
+    expect(source).toContain(":class=\"{ 'is-active': isDesktopNavActive(item.href) }\"")
+    expect(source).toContain('active-class=""')
+    expect(source).toContain('exact-active-class=""')
+    expect(source).toContain('.navbar__nav-link.is-active::after')
+  })
+
   test('orders the desktop identity, home nav, search, compose action, and session controls', () => {
     const identityIndex = source.indexOf('class="navbar__logo"')
     const navIndex = source.indexOf('class="navbar__desktop-nav"')

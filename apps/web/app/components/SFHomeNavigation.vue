@@ -59,8 +59,17 @@ function selectFromMenu(event: Event) {
   selectCategory((event.target as HTMLSelectElement).value)
 }
 
-function categoryDotColor(category: ForumCategory) {
-  return category.iconColor || 'var(--sf-accent)'
+function categoryIconColor(category: ForumCategory) {
+  return category.iconColor?.trim() || 'var(--sf-accent)'
+}
+
+/** 管理端配置的 Iconify 名（i-lucide-* / i-tabler-*）；否则回退 folder。 */
+function categoryIconName(category: ForumCategory) {
+  const icon = category.icon?.trim() || ''
+  if (icon.startsWith('i-')) {
+    return icon
+  }
+  return 'i-lucide-folder'
 }
 </script>
 
@@ -114,7 +123,7 @@ function categoryDotColor(category: ForumCategory) {
         :class="{ 'is-active': !selectedCategorySlug }"
       >
         <span class="sf-home-navigation__link-main">
-          <UIcon name="i-lucide-rows-3" class="size-4" aria-hidden="true" />
+          <UIcon name="i-lucide-layout-list" class="size-[18px]" aria-hidden="true" />
           {{ t('home.allTopics') }}
         </span>
         <span v-if="navShowCounts" class="sf-home-navigation__count">{{ totalTopics }}</span>
@@ -128,7 +137,7 @@ function categoryDotColor(category: ForumCategory) {
         @click="selectCategory('')"
       >
         <span class="sf-home-navigation__link-main">
-          <UIcon name="i-lucide-rows-3" class="size-4" aria-hidden="true" />
+          <UIcon name="i-lucide-layout-list" class="size-[18px]" aria-hidden="true" />
           {{ t('home.allTopics') }}
         </span>
         <span v-if="navShowCounts" class="sf-home-navigation__count">{{ totalTopics }}</span>
@@ -136,13 +145,13 @@ function categoryDotColor(category: ForumCategory) {
 
       <NuxtLink :to="localePath('/categories')" class="sf-home-navigation__link">
         <span class="sf-home-navigation__link-main">
-          <UIcon name="i-lucide-layout-grid" class="size-4" aria-hidden="true" />
+          <UIcon name="i-lucide-layout-grid" class="size-[18px]" aria-hidden="true" />
           {{ t('home.categories') }}
         </span>
       </NuxtLink>
       <NuxtLink :to="localePath('/tags')" class="sf-home-navigation__link">
         <span class="sf-home-navigation__link-main">
-          <UIcon name="i-lucide-tags" class="size-4" aria-hidden="true" />
+          <UIcon name="i-lucide-tags" class="size-[18px]" aria-hidden="true" />
           {{ t('home.tags') }}
         </span>
       </NuxtLink>
@@ -161,10 +170,12 @@ function categoryDotColor(category: ForumCategory) {
         >
           <span class="sf-home-navigation__link-main">
             <span
-              class="sf-home-navigation__cat-dot"
-              :style="{ background: categoryDotColor(category) }"
+              class="sf-home-navigation__cat-icon"
+              :style="{ color: categoryIconColor(category) }"
               aria-hidden="true"
-            />
+            >
+              <UIcon :name="categoryIconName(category)" class="size-[18px]" />
+            </span>
             {{ category.name }}
           </span>
           <span v-if="navShowCounts" class="sf-home-navigation__count">{{ category.topicCount }}</span>
@@ -182,10 +193,12 @@ function categoryDotColor(category: ForumCategory) {
         >
           <span class="sf-home-navigation__link-main">
             <span
-              class="sf-home-navigation__cat-dot"
-              :style="{ background: categoryDotColor(category) }"
+              class="sf-home-navigation__cat-icon"
+              :style="{ color: categoryIconColor(category) }"
               aria-hidden="true"
-            />
+            >
+              <UIcon :name="categoryIconName(category)" class="size-[18px]" />
+            </span>
             {{ category.name }}
           </span>
           <span v-if="navShowCounts" class="sf-home-navigation__count">{{ category.topicCount }}</span>

@@ -1,3 +1,6 @@
+/* 标题衬线与 demo 一致；无外网时回退 Songti SC / Source Han Serif SC。 */
+@import url("https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700&display=swap");
+
 @font-face {
   font-family: "DM Sans";
   src: url("/api/v1/site/theme-assets/sforum.default-theme/assets/fonts/DM-Sans-variable.ttf") format("truetype-variations");
@@ -291,10 +294,14 @@
   color-scheme: light;
   background: #fff;
   color: #25252b;
-  font-family: "DM Sans", "Noto Sans SC", system-ui, sans-serif;
+  font-family: "DM Sans", "Noto Sans SC", system-ui, sans-serif !important;
+  font-synthesis: none;
 }
 
-.sf-theme-template[data-extension-id="sforum.default-theme"] :where(button, input, select, textarea) {
+/* 覆盖 :root Inter，保证公开页字重/字形与 demo 一致 */
+.sf-theme-template[data-extension-id="sforum.default-theme"] :where(
+  button, input, select, textarea, a, p, span, h1, h2, h3, h4, li, label, strong, b, small, time
+) {
   font-family: inherit;
   letter-spacing: 0;
 }
@@ -323,10 +330,25 @@
   color: #25252b !important;
 }
 
-.sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__nav-link.router-link-active,
+/* demo top-nav：active 为正文色 + 底边下划线，不是强调色文字 */
+.sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__nav-link {
+  font-weight: 600 !important;
+}
+
+.sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__nav-link.is-active,
 .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__nav-link:hover {
   background: transparent !important;
-  color: #d94763 !important;
+  color: #25252b !important;
+}
+
+.sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__nav-link.is-active::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: #d94763;
 }
 
 .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__logo-mark {

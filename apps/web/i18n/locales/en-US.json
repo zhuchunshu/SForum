@@ -108,9 +108,9 @@
       "topicCountMeta": "{count} topics",
       "topicCountMetaApprox": "About {count} topics",
       "views": "views",
-      "activityMinutes": "{count} min",
-      "activityHours": "{count} h",
-      "activityDays": "{count} d"
+      "activityMinutes": "{count} min ago",
+      "activityHours": "{count} h ago",
+      "activityDays": "{count} d ago"
     },
     "sidebar": {
       "navTitle": "Navigation",
