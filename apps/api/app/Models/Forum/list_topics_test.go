@@ -66,6 +66,24 @@ func TestTopicListOrderBy_ActiveUsesActivityColumns(t *testing.T) {
 	}
 }
 
+func TestTopicListOrderBy_HotUsesHotScoreColumn(t *testing.T) {
+	t.Parallel()
+	// M2：hot 走 hot_score 列，禁止再表达式排序 comment_count*5+view_count。
+	order := topicListOrderBy("hot")
+	for _, frag := range []string{
+		"topics.is_pinned DESC",
+		"topics.hot_score DESC",
+		"topics.id DESC",
+	} {
+		if !strings.Contains(order, frag) {
+			t.Fatalf("hot order missing %q in %q", frag, order)
+		}
+	}
+	if strings.Contains(order, "comment_count") || strings.Contains(order, "view_count") {
+		t.Fatalf("hot order must not use live expression: %q", order)
+	}
+}
+
 func TestTopicSummarySQL_UsesPlainTextPrefixNotFullBody(t *testing.T) {
 	t.Parallel()
 	sql := topicSummarySQL()

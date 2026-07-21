@@ -452,6 +452,34 @@ func (s *PostgresStore) AutoLockIdleTopics(ctx context.Context, idleDays int, li
 	return int(tag.RowsAffected()), nil
 }
 
+// ApplyViewCountDeltas 将 Redis 刷盘增量写入 view_count，并同步 hot_score（+delta）。
+// 禁止在公开 GET 详情路径调用；仅供 forum.flush_view_counts job。
+func (s *PostgresStore) ApplyViewCountDeltas(ctx context.Context, deltas map[int64]int64) (int, error) {
+	if len(deltas) == 0 {
+		return 0, nil
+	}
+	updated := 0
+	for topicID, delta := range deltas {
+		if topicID <= 0 || delta <= 0 {
+			continue
+		}
+		tag, err := s.pool.Exec(ctx, `
+			UPDATE topics
+			SET view_count = view_count + $2,
+			    hot_score = hot_score + $2,
+			    updated_at = now()
+			WHERE id = $1
+		`, topicID, delta)
+		if err != nil {
+			return updated, fmt.Errorf("apply view delta topic %d: %w", topicID, err)
+		}
+		if tag.RowsAffected() > 0 {
+			updated++
+		}
+	}
+	return updated, nil
+}
+
 func (s *PostgresStore) attachActiveTagsToTopicSummaries(ctx context.Context, items []TopicSummary) error {
 	if len(items) == 0 {
 		return nil

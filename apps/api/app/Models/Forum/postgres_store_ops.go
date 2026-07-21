@@ -151,9 +151,13 @@ func (s *PostgresStore) CreateComment(ctx context.Context, input CreateCommentRe
 		}
 	}
 	if input.Status == CommentStatusActive {
+		// hot_score = comment_count*5 + view_count；+1 评论 → +5。
 		if _, err := tx.Exec(ctx, `
 			UPDATE topics
-			SET comment_count = comment_count + 1, last_activity_at = now(), updated_at = now()
+			SET comment_count = comment_count + 1,
+			    hot_score = (comment_count + 1) * 5 + view_count,
+			    last_activity_at = now(),
+			    updated_at = now()
 			WHERE id = $1
 		`, input.TopicID); err != nil {
 			return Comment{}, fmt.Errorf("update topic comment count: %w", err)
@@ -321,7 +325,9 @@ func (s *PostgresStore) UpdateComment(ctx context.Context, input UpdateCommentRe
 			}
 			if _, err := tx.Exec(ctx, `
 				UPDATE topics
-				SET comment_count = GREATEST(comment_count - 1, 0), updated_at = now()
+				SET comment_count = GREATEST(comment_count - 1, 0),
+				    hot_score = GREATEST(comment_count - 1, 0) * 5 + view_count,
+				    updated_at = now()
 				WHERE id = $1
 			`, topicID); err != nil {
 				return Comment{}, fmt.Errorf("decrement topic comment count on requeue: %w", err)
@@ -409,7 +415,9 @@ func (s *PostgresStore) DeleteComment(ctx context.Context, commentID int64) (Com
 		}
 		if _, err := tx.Exec(ctx, `
 			UPDATE topics
-			SET comment_count = GREATEST(comment_count - 1, 0), updated_at = now()
+			SET comment_count = GREATEST(comment_count - 1, 0),
+			    hot_score = GREATEST(comment_count - 1, 0) * 5 + view_count,
+			    updated_at = now()
 			WHERE id = $1
 		`, topicID); err != nil {
 			return Comment{}, fmt.Errorf("decrement topic comment count: %w", err)
@@ -844,15 +852,15 @@ func topicSummarySQL() string {
 }
 
 // topicListOrderBy：置顶始终优先，再按运营默认排序。
-// latest=创建时间；active=最后活跃（默认行为，可走 topics_category_activity_idx）；
-// hot=评论数+浏览量表达式（M2 前 best-effort，无专用索引）。
+// latest=创建时间；active=最后活跃（可走 topics_category_activity_idx / topics_public_activity_idx）；
+// hot=topics.hot_score（M2 列 + topics_*_hot_idx）。
 func topicListOrderBy(sort string) string {
 	switch strings.TrimSpace(strings.ToLower(sort)) {
 	case "latest":
 		return `ORDER BY topics.is_pinned DESC, topics.created_at DESC, topics.id DESC`
 	case "hot":
-		// M2 前表达式排序；正式 hot_score 列与索引在 million-scale M2。
-		return `ORDER BY topics.is_pinned DESC, (topics.comment_count * 5 + topics.view_count) DESC, topics.last_activity_at DESC, topics.id DESC`
+		// 与 topics_public_hot_idx / topics_category_hot_idx 对齐（is_pinned, hot_score, id）。
+		return `ORDER BY topics.is_pinned DESC, topics.hot_score DESC, topics.id DESC`
 	default: // active — 与 topics_category_activity_idx (category_id, is_pinned DESC, last_activity_at DESC, id DESC) 对齐
 		return `ORDER BY topics.is_pinned DESC, topics.last_activity_at DESC, topics.id DESC`
 	}

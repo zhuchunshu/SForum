@@ -390,7 +390,14 @@ func applyPendingCommentDecision(ctx context.Context, tx pgx.Tx, input DecisionI
 				return nil, fmt.Errorf("increment approved reply count: %w", err)
 			}
 		}
-		if _, err := tx.Exec(ctx, `UPDATE topics SET comment_count = comment_count + 1, last_activity_at = now(), updated_at = now() WHERE id = $1`, topicID); err != nil {
+		if _, err := tx.Exec(ctx, `
+			UPDATE topics
+			SET comment_count = comment_count + 1,
+			    hot_score = (comment_count + 1) * 5 + view_count,
+			    last_activity_at = now(),
+			    updated_at = now()
+			WHERE id = $1
+		`, topicID); err != nil {
 			return nil, fmt.Errorf("increment approved comment count: %w", err)
 		}
 		if _, err := tx.Exec(ctx, `UPDATE categories SET comment_count = comment_count + 1, updated_at = now() WHERE id = $1`, categoryID); err != nil {
@@ -491,7 +498,10 @@ func applyReportedCommentState(ctx context.Context, tx pgx.Tx, commentID int64, 
 			}
 		}
 		if _, err := tx.Exec(ctx, `
-			UPDATE topics SET comment_count = GREATEST(comment_count - 1, 0), updated_at = now()
+			UPDATE topics
+			SET comment_count = GREATEST(comment_count - 1, 0),
+			    hot_score = GREATEST(comment_count - 1, 0) * 5 + view_count,
+			    updated_at = now()
 			WHERE id = $1
 		`, topicID); err != nil {
 			return fmt.Errorf("decrement reported topic comment count: %w", err)
