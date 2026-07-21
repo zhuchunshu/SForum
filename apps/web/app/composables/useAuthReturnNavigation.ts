@@ -1,7 +1,9 @@
 export function useAuthReturnNavigation(options?: { explicitRedirect: unknown }) {
-  const route = useRoute()
+  // 路由中间件必须使用传入的 to；只有页面组件调用时才读取 Nuxt 当前路由。
+  const route = options ? null : useRoute()
   const localePath = useLocalePath()
   const referrerPath = ref<string>()
+  const redirect = computed(() => options ? options.explicitRedirect : route?.query.redirect)
 
   if (import.meta.client && document.referrer) {
     try {
@@ -16,7 +18,7 @@ export function useAuthReturnNavigation(options?: { explicitRedirect: unknown })
 
   const destination = computed(() =>
     resolveAuthReturnPath(
-      options ? options.explicitRedirect : route.query.redirect,
+      redirect.value,
       referrerPath.value,
       localePath('/')
     )
@@ -24,7 +26,7 @@ export function useAuthReturnNavigation(options?: { explicitRedirect: unknown })
 
   const returnFromAuth = () => navigateTo(destination.value, { replace: true })
   const authPageLink = (path: string) =>
-    buildAuthPageLink(localePath(path), route.query.redirect)
+    buildAuthPageLink(localePath(path), redirect.value)
 
   return { destination, returnFromAuth, authPageLink }
 }

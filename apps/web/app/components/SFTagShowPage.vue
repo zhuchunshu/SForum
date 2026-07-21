@@ -14,7 +14,12 @@ import {
   type ForumTopicSummary
 } from '~/utils/forumTaxonomy'
 
-const { t } = useI18n()
+// 使用 composer 闭包，避免模板直接绑定 $setup.t（async setup + 主题岛 SSR 下偶发非函数）
+const i18n = useI18n()
+const translate = (key: string, params?: Record<string, unknown>) => {
+  const value = params ? i18n.t(key, params) : i18n.t(key)
+  return typeof value === 'string' ? value : key
+}
 const localePath = useLocalePath()
 const route = useRoute()
 const { seoSettings, webOption } = useWebOptions()
@@ -44,18 +49,42 @@ if (!publicTagPagesEnabled.value) {
   })
 }
 
-const { data: categoryGroups, pending: categoriesPending } = await useAsyncData(
-  'forum-tag-page-category-groups',
-  () => forumApi.listCategoryGroups(),
-  { default: () => [] as ForumCategoryGroup[] }
-)
+// 三个公开读请求互不依赖，并发启动可避免 SSR 首屏按接口耗时逐个累加。
+const [categoryGroupsResult, activeTagsResult, topicListResult] = await Promise.all([
+  useAsyncData(
+    'forum-tag-page-category-groups',
+    () => forumApi.listCategoryGroups(),
+    { default: () => [] as ForumCategoryGroup[] }
+  ),
+  useAsyncData(
+    'forum-tag-page-tags',
+    async () => (await forumApi.listTags()).filter((item) => item.status === 'active'),
+    { default: () => [] as ForumTag[] }
+  ),
+  useAsyncData(
+    () => `forum-tag-page-topics:${tagSlug.value}:${currentPage.value}`,
+    () => forumApi.listTopics({
+      tagSlug: tagSlug.value,
+      page: currentPage.value
+    }),
+    {
+      default: emptyTopicList,
+      watch: [currentPage, tagSlug]
+    }
+  )
+] as const)
 
-const { data: activeTags } = await useAsyncData(
-  'forum-tag-page-tags',
-  async () => (await forumApi.listTags()).filter((item) => item.status === 'active'),
-  { default: () => [] as ForumTag[] }
-)
+const { data: categoryGroupsData, pending: categoriesPending } = categoryGroupsResult
+const { data: activeTagsData } = activeTagsResult
+const { data: topicListData, pending: topicsPending } = topicListResult
 
+// HMR 与响应式 key 切换期间 AsyncData 可能短暂清空；模板始终只读取稳定形状。
+const categoryGroups = computed(() => categoryGroupsData.value || [])
+const activeTags = computed(() => activeTagsData.value || [])
+const topicList = computed<ForumTopicList>(() => {
+  const value = topicListData.value
+  return value && Array.isArray(value.items) ? value : emptyTopicList()
+})
 const categories = computed(() => categoryGroups.value.flatMap((group) => group.categories || []))
 const totalTopics = computed(() => categories.value.reduce((sum, item) => sum + item.topicCount, 0))
 const tag = computed(() => activeTags.value.find((item) => item.slug === tagSlug.value))
@@ -68,20 +97,15 @@ if (!tag.value) {
   })
 }
 
-const { data: topicList, pending: topicsPending } = await useAsyncData(
-  () => `forum-tag-page-topics:${tagSlug.value}:${currentPage.value}`,
-  () => forumApi.listTopics({
-    tagSlug: tagSlug.value,
-    page: currentPage.value
-  }),
-  {
-    default: emptyTopicList,
-    watch: [currentPage, tagSlug]
-  }
-)
-
 const topics = computed(() => topicList.value.items)
 const totalPages = computed(() => Math.ceil(topicList.value.total / Math.max(topicList.value.perPage, 1)) || 1)
+const hasActiveTags = computed(() => activeTags.value.length > 0)
+const hasTopics = computed(() => topics.value.length > 0)
+const showPagination = computed(() => hasTopics.value && totalPages.value > 1)
+const tagsHeading = computed(() => translate('home.tags'))
+const topicListTotalLabel = computed(() => formatForumTopicListTotal(topicList.value, translate))
+const emptyStateTitle = computed(() => translate('home.emptyState.title'))
+const emptyStateDescription = computed(() => translate('home.emptyState.description'))
 
 useSForumSeo(computed(() => ({
   type: 'tag',
@@ -120,13 +144,13 @@ function topicActivity(topic: ForumTopicSummary) {
   const day = 24 * hour
 
   if (diffMs >= 0 && diffMs < hour) {
-    return t('home.feed.activityMinutes', { count: Math.max(1, Math.floor(diffMs / minute)) })
+    return translate('home.feed.activityMinutes', { count: Math.max(1, Math.floor(diffMs / minute)) })
   }
   if (diffMs >= 0 && diffMs < day) {
-    return t('home.feed.activityHours', { count: Math.max(1, Math.floor(diffMs / hour)) })
+    return translate('home.feed.activityHours', { count: Math.max(1, Math.floor(diffMs / hour)) })
   }
   if (diffMs >= 0 && diffMs < 7 * day) {
-    return t('home.feed.activityDays', { count: Math.max(1, Math.floor(diffMs / day)) })
+    return translate('home.feed.activityDays', { count: Math.max(1, Math.floor(diffMs / day)) })
   }
 
   return date.toISOString().slice(0, 10)
@@ -164,15 +188,15 @@ function topicActivity(topic: ForumTopicSummary) {
         </div>
 
         <header class="sforum-home__page-header">
-          <p class="sforum-home__page-group">{{ t('home.tags') }}</p>
+          <p class="sforum-home__page-group">{{ tagsHeading }}</p>
           <h1 id="tag-page-title">#{{ tag?.name }}</h1>
           <p v-if="tag?.description">{{ tag.description }}</p>
           <div class="sforum-home__page-meta">
-            {{ formatForumTopicListTotal(topicList, t) }}
+            {{ topicListTotalLabel }}
           </div>
         </header>
 
-        <div v-if="activeTags.length" class="sforum-home__filters">
+        <div v-if="hasActiveTags" class="sforum-home__filters">
           <div class="sforum-home__tag-list">
             <NuxtLink
               v-for="item in activeTags"
@@ -200,7 +224,7 @@ function topicActivity(topic: ForumTopicSummary) {
             </div>
           </template>
 
-          <template v-else-if="topics.length">
+          <template v-else-if="hasTopics">
             <SFHomeTopicRow
               v-for="topic in topics"
               :key="topic.id"
@@ -213,13 +237,13 @@ function topicActivity(topic: ForumTopicSummary) {
 
           <div v-else class="px-4 py-10 text-center">
             <SFEmptyState
-              :title="t('home.emptyState.title')"
-              :description="t('home.emptyState.description')"
+              :title="emptyStateTitle"
+              :description="emptyStateDescription"
             />
           </div>
         </div>
 
-        <div v-if="topics.length > 0 && !topicsPending && totalPages > 1" class="mt-3">
+        <div v-if="showPagination && !topicsPending" class="mt-3">
           <SFPagination
             :page="currentPage"
             :total-pages="totalPages"

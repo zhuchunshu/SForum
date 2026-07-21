@@ -82,7 +82,7 @@ describe('useAuthReturnNavigation source contract', () => {
       'utf8'
     )
 
-    expect(source).toContain('const route = useRoute()')
+    expect(source).toContain('const route = options ? null : useRoute()')
     expect(source).toContain('const localePath = useLocalePath()')
     expect(source).toContain('const referrerPath = ref<string>()')
     expect(source).toContain('if (import.meta.client && document.referrer)')
@@ -91,11 +91,11 @@ describe('useAuthReturnNavigation source contract', () => {
     )
     expect(referrerHandling).not.toBeNull()
     expect(referrerHandling?.[1]).not.toMatch(/\b(?:throw|navigateTo)\b/)
-    expect(source).toContain('options ? options.explicitRedirect : route.query.redirect')
+    expect(source).toContain('const redirect = computed(() => options ? options.explicitRedirect : route?.query.redirect)')
     expect(source).toContain('referrerPath.value')
     expect(source).toContain("localePath('/')")
     expect(source).toContain('navigateTo(destination.value, { replace: true })')
-    expect(source).toContain('buildAuthPageLink(localePath(path), route.query.redirect)')
+    expect(source).toContain('buildAuthPageLink(localePath(path), redirect.value)')
     expect(source).toContain('return { destination, returnFromAuth, authPageLink }')
   })
 })

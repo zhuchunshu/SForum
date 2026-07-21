@@ -31,7 +31,7 @@ describe('remaining public presentation ownership', () => {
 
     test(`${pageId} ThemeTemplate maps to ${island}`, () => {
       const templateSrc = read('app/components/SFThemeTemplate.vue')
-      expect(templateSrc).toContain(`'${componentId}': resolveComponent('${island}')`)
+      expect(templateSrc).toContain(`'${componentId}': resolveComponent('Lazy${island}')`)
     })
 
     test(`${pageId} theme shells mark presentation ownership`, () => {
@@ -50,10 +50,10 @@ describe('remaining public presentation ownership', () => {
 
   test('auth credential forms are Host body islands (not theme-executable)', () => {
     const template = read('app/components/SFThemeTemplate.vue')
-    expect(template).toContain("'identity.component.login_form': resolveComponent('SFLoginFormPage')")
-    expect(template).toContain("'identity.component.register_form': resolveComponent('SFRegisterFormPage')")
-    expect(template).toContain("'identity.component.recovery_request_form': resolveComponent('SFRecoveryRequestPage')")
-    expect(template).toContain("'identity.component.recovery_confirm_form': resolveComponent('SFRecoveryConfirmPage')")
+    expect(template).toContain("'identity.component.login_form': resolveComponent('LazySFLoginFormPage')")
+    expect(template).toContain("'identity.component.register_form': resolveComponent('LazySFRegisterFormPage')")
+    expect(template).toContain("'identity.component.recovery_request_form': resolveComponent('LazySFRecoveryRequestPage')")
+    expect(template).toContain("'identity.component.recovery_confirm_form': resolveComponent('LazySFRecoveryConfirmPage')")
     // system.not_found 仍走 HostPageIsland：error.vue 需把 NuxtError 注入 SFErrorPageContent。
     expect(template).toContain("'system.component.not_found': HostPageIsland")
   })

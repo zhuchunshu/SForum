@@ -48,9 +48,9 @@ describe('SFPageOutlet catalog wiring', () => {
     expect(outlet).not.toContain('isConstrained')
     expect(outlet).toContain('<slot />')
     // Auth forms are Host body islands (Host code, not theme-executable).
-    expect(template).toContain("'identity.component.login_form': resolveComponent('SFLoginFormPage')")
-    expect(template).toContain("'forum.component.topic_composer': resolveComponent('SFTopicComposerPage')")
-    expect(template).toContain("'forum.component.home_page': resolveComponent('SFHomePage')")
+    expect(template).toContain("'identity.component.login_form': resolveComponent('LazySFLoginFormPage')")
+    expect(template).toContain("'forum.component.topic_composer': resolveComponent('LazySFTopicComposerPage')")
+    expect(template).toContain("'forum.component.home_page': resolveComponent('LazySFHomePage')")
     expect(template).toContain("'system.component.not_found': HostPageIsland")
     expect(template).toContain('slots.default?.()')
     // fail-closed 公开页走宿主 chrome；主题成功路径不套 Host chrome。

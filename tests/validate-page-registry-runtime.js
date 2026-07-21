@@ -81,16 +81,16 @@ function validateOfflineContracts() {
   assertIncludes(template, '禁止客户端再请求插件 route', 'template must document no client plugin fetch')
   // V3 presentation ownership：公开 body 岛为自包含 Host 组件，不再经 HostPageIsland 嵌回 route slot。
   // 登录/发帖等凭证或写路径岛仍必须是 Host 组件（不可被主题 L2 替换为可执行包代码）。
-  assertIncludes(template, "'identity.component.login_form': resolveComponent('SFLoginFormPage')", 'login form must stay a Host body island')
-  assertIncludes(template, "'forum.component.topic_composer': resolveComponent('SFTopicComposerPage')", 'topic composer must stay a Host body island')
-  assertIncludes(template, "'forum.component.home_page': resolveComponent('SFHomePage')", 'home body must stay a Host body island')
+  assertIncludes(template, "'identity.component.login_form': resolveComponent('LazySFLoginFormPage')", 'login form must stay a Host body island')
+  assertIncludes(template, "'forum.component.topic_composer': resolveComponent('LazySFTopicComposerPage')", 'topic composer must stay a Host body island')
+  assertIncludes(template, "'forum.component.home_page': resolveComponent('LazySFHomePage')", 'home body must stay a Host body island')
   assertIncludes(template, "'system.component.not_found': HostPageIsland", 'not_found may remain HostPageIsland for error.vue slot')
   assertIncludes(template, "'navigation.component.navbar': resolveComponent('SFNavbar')", 'theme chrome navbar is Host-owned')
   assertIncludes(template, "'navigation.component.footer': resolveComponent('SFFooter')", 'theme chrome footer is Host-owned')
   // Themes may name only the reviewed Host island. Package code loading remains
   // inside the exact-artifact runtime rather than accepting a template URL.
   assert.ok(!/\bimport\s*\(/.test(template), 'SFThemeTemplate must not import package code directly')
-  assertIncludes(template, "'core.component.shared.sfextension_widget': resolveComponent('SFExtensionWidget')", 'trusted L2 must use the reviewed Host island')
+  assertIncludes(template, "'core.component.shared.sfextension_widget': resolveComponent('LazySFExtensionWidget')", 'trusted L2 must use the reviewed Host island')
   assertIncludes(template, 'fallbackComponents', 'public L2 must retain its typed SSR fallback')
   const widget = read('apps/web/app/components/SFExtensionWidget.vue')
   const publicAssets = read('apps/web/app/runtime/public-extensions/assets.ts')
