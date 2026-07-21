@@ -159,6 +159,8 @@ func (s *Service) ListComments(ctx context.Context, input CommentListInput) (Com
 		defaultPerPage = settings.CommentsPerPage
 	}
 	input.Page, input.PerPage = normalizePageWithDefault(input.Page, input.PerPage, defaultPerPage)
+	// M5：非空 after 优先于 page（flat keyset）。
+	input.After = strings.TrimSpace(input.After)
 	// D2：tree 子孙 cap 由运营选项控制；未配置时 store 仍回落推荐默认 50。
 	if input.TreeDescendantsPerRoot <= 0 {
 		input.TreeDescendantsPerRoot = settings.TreeDescendantsPerRoot

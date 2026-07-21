@@ -219,11 +219,12 @@ func (s *PostgresStore) ListRecentTopics(ctx context.Context, userID int64, limi
 		limit = 5
 	}
 	// plain_text 前缀供 ScanTopicSummary 派生 excerpt（posts.excerpt 已删除）。
+	// hot_score 与 forum.ScanTopicSummary 列布局对齐（M5 keyset 字段，不暴露 JSON）。
 	rows, err := s.pool.Query(ctx, `
 		SELECT topics.id, topics.category_id, categories.slug, categories.name,
 		  topics.author_user_id, users.username, users.display_name,
 		  topics.title, topics.slug, topics.status, topics.is_pinned,
-		  topics.comment_count, topics.view_count, left(posts.plain_text, 2000),
+		  topics.comment_count, topics.view_count, topics.hot_score, left(posts.plain_text, 2000),
 		  EXISTS (SELECT 1 FROM post_revisions WHERE post_id = posts.id),
 		  topics.created_at, topics.updated_at, topics.last_activity_at
 		FROM topics

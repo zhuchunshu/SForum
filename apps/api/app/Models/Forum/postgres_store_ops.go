@@ -446,30 +446,58 @@ func (s *PostgresStore) DeleteComment(ctx context.Context, commentID int64) (Com
 
 func (s *PostgresStore) ListComments(ctx context.Context, input CommentListInput) (CommentList, error) {
 	input.Page, input.PerPage = normalizePage(input.Page, input.PerPage)
-	offset := (input.Page - 1) * input.PerPage
 
 	if input.View == "flat" {
-		return s.listCommentsFlat(ctx, input, offset)
+		return s.listCommentsFlat(ctx, input)
 	}
+	offset := (input.Page - 1) * input.PerPage
 	return s.listCommentsTree(ctx, input, offset)
 }
 
-// listCommentsFlat 直接对全部 active 评论按 path_key 做 SQL 分页。
+// listCommentsFlat 对 active 评论按 path_key 分页（M5：支持 after keyset）。
 // 复用 comments_topic_path_idx(topic_id, path_key)。
-// 公开路径 Total 用 topics.comment_count（写路径维护），避免热帖 COUNT(*)；含软删扩展查询时仍精确计数。
-func (s *PostgresStore) listCommentsFlat(ctx context.Context, input CommentListInput, offset int) (CommentList, error) {
+// 公开路径 Total 用 topics.comment_count；含软删扩展查询时仍精确计数。
+func (s *PostgresStore) listCommentsFlat(ctx context.Context, input CommentListInput) (CommentList, error) {
 	total, err := s.commentListTotalFlat(ctx, input)
 	if err != nil {
 		return CommentList{}, err
 	}
 
-	rows, err := s.pool.Query(ctx, commentSelectSQL()+`
-		WHERE comments.topic_id = $1
-		  AND (comments.status = 'active' OR ($2::boolean AND comments.status = 'deleted'
-		    AND ($3::bigint = 0 OR comments.author_user_id = $3)))
-		ORDER BY comments.path_key ASC, comments.id ASC
-		LIMIT $4 OFFSET $5
-	`, input.TopicID, input.IncludeDeleted, input.DeletedAuthorUserID, input.PerPage, offset)
+	var cursor *commentListCursor
+	if after := strings.TrimSpace(input.After); after != "" {
+		decoded, decErr := decodeCommentListCursor(after)
+		if decErr != nil {
+			return CommentList{}, ErrInvalidCursor
+		}
+		cursor = &decoded
+		input.Page = 1
+	}
+
+	fetchLimit := input.PerPage + 1
+	var rows pgx.Rows
+	if cursor != nil {
+		// path_key ASC, id ASC：之后 = 更大的字典序
+		rows, err = s.pool.Query(ctx, commentSelectSQL()+`
+			WHERE comments.topic_id = $1
+			  AND (comments.status = 'active' OR ($2::boolean AND comments.status = 'deleted'
+			    AND ($3::bigint = 0 OR comments.author_user_id = $3)))
+			  AND (
+			    comments.path_key > $4
+			    OR (comments.path_key = $4 AND comments.id > $5)
+			  )
+			ORDER BY comments.path_key ASC, comments.id ASC
+			LIMIT $6
+		`, input.TopicID, input.IncludeDeleted, input.DeletedAuthorUserID, cursor.Path, cursor.ID, fetchLimit)
+	} else {
+		offset := (input.Page - 1) * input.PerPage
+		rows, err = s.pool.Query(ctx, commentSelectSQL()+`
+			WHERE comments.topic_id = $1
+			  AND (comments.status = 'active' OR ($2::boolean AND comments.status = 'deleted'
+			    AND ($3::bigint = 0 OR comments.author_user_id = $3)))
+			ORDER BY comments.path_key ASC, comments.id ASC
+			LIMIT $4 OFFSET $5
+		`, input.TopicID, input.IncludeDeleted, input.DeletedAuthorUserID, fetchLimit, offset)
+	}
 	if err != nil {
 		return CommentList{}, fmt.Errorf("list comments: %w", err)
 	}
@@ -479,7 +507,21 @@ func (s *PostgresStore) listCommentsFlat(ctx context.Context, input CommentListI
 	if err != nil {
 		return CommentList{}, err
 	}
-	return CommentList{Items: items, Total: total, Page: input.Page, PerPage: input.PerPage, View: "flat"}, nil
+	hasMore := len(items) > input.PerPage
+	if hasMore {
+		items = items[:input.PerPage]
+	}
+	var nextCursor string
+	if hasMore && len(items) > 0 {
+		nextCursor, err = commentCursorFromItem(items[len(items)-1])
+		if err != nil {
+			return CommentList{}, err
+		}
+	}
+	return CommentList{
+		Items: items, Total: total, Page: input.Page, PerPage: input.PerPage,
+		View: "flat", HasMore: hasMore, NextCursor: nextCursor,
+	}, nil
 }
 
 // commentListTotalFlat 公开 active-only 用 denormalized comment_count；含 deleted 范围时精确 COUNT。
@@ -535,7 +577,7 @@ func (s *PostgresStore) listCommentsTree(ctx context.Context, input CommentListI
 		return CommentList{}, err
 	}
 	if len(roots) == 0 {
-		return CommentList{Items: []Comment{}, Total: total, Page: input.Page, PerPage: input.PerPage, View: "tree"}, nil
+		return CommentList{Items: []Comment{}, Total: total, Page: input.Page, PerPage: input.PerPage, View: "tree", HasMore: false}, nil
 	}
 
 	rootIDs := make([]int64, 0, len(roots))
@@ -601,7 +643,13 @@ func (s *PostgresStore) listCommentsTree(ctx context.Context, input CommentListI
 			tree[i].HasMoreChildren = true
 		}
 	}
-	return CommentList{Items: tree, Total: total, Page: input.Page, PerPage: input.PerPage, View: "tree"}, nil
+	// tree 根分页仍用 OFFSET；hasMore 由 total 推导（根数可 COUNT）。
+	loadedThrough := int64((input.Page-1)*input.PerPage + len(roots))
+	hasMore := loadedThrough < total
+	return CommentList{
+		Items: tree, Total: total, Page: input.Page, PerPage: input.PerPage,
+		View: "tree", HasMore: hasMore,
+	}, nil
 }
 
 // commentListTotalRoots tree 视图 total = 根评论数（公开路径仅 active）。
@@ -949,6 +997,7 @@ func nullablePositiveInt64(value int64) any {
 
 func topicSummarySQL() string {
 	// plain_text 前缀供读路径派生 excerpt（列已删除，避免列表拉全量正文）。
+	// hot_score 供 M5 keyset 编码（json:"-"，不暴露公开 JSON）。
 	return `
 		SELECT topics.id, topics.category_id, categories.slug, categories.name,
 		  topics.author_user_id, users.username, users.display_name, users.email,
@@ -956,7 +1005,7 @@ func topicSummarySQL() string {
 		  author_attachments.id, author_attachments.public_id, author_attachments.owner_user_id,
 		  author_attachments.content_type, author_attachments.status,
 		  topics.title, topics.slug, topics.status, topics.is_pinned,
-		  topics.comment_count, topics.view_count, ` + plainTextPrefixSQL("posts.plain_text") + `,
+		  topics.comment_count, topics.view_count, topics.hot_score, ` + plainTextPrefixSQL("posts.plain_text") + `,
 		  EXISTS (SELECT 1 FROM post_revisions WHERE post_id = posts.id),
 		  topics.created_at, topics.updated_at, topics.last_activity_at
 		FROM topics
@@ -1029,6 +1078,7 @@ func scanTopicSummary(row RowScanner) (TopicSummary, error) {
 		&topic.IsPinned,
 		&topic.CommentCount,
 		&topic.ViewCount,
+		&topic.HotScore,
 		&plainPrefix,
 		&topic.ContentEdited,
 		&topic.CreatedAt,
@@ -1131,6 +1181,7 @@ func scanTopicSummaryWithAvatar(row RowScanner, builder *avatar.ViewBuilder) (To
 		&topic.IsPinned,
 		&topic.CommentCount,
 		&topic.ViewCount,
+		&topic.HotScore,
 		&plainPrefix,
 		&topic.ContentEdited,
 		&topic.CreatedAt,

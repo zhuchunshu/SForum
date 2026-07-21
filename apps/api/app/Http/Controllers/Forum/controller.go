@@ -251,6 +251,8 @@ func (h *Controller) topics(c fiber.Ctx) error {
 	list, err := h.service.ListTopics(c.Context(), forum.TopicListInput{
 		Page:         queryInt(c, "page"),
 		PerPage:      queryInt(c, "perPage"),
+		// M5：after 优先于 page（service/store 忽略 page when after set）
+		After:        c.Query("after"),
 		CategorySlug: c.Query("categorySlug"),
 		TagSlug:      c.Query("tagSlug"),
 		Query:        c.Query("query"),
@@ -470,7 +472,9 @@ func (h *Controller) comments(c fiber.Ctx) error {
 		View:    c.Query("view", "tree"),
 		Page:    queryInt(c, "page"),
 		PerPage: queryInt(c, "perPage"),
-		Viewer:  viewer,
+		// M5：flat keyset；非空 after 优先于 page
+		After:  c.Query("after"),
+		Viewer: viewer,
 	})
 	if err != nil {
 		return mapForumError(err)
@@ -630,6 +634,8 @@ func mapForumError(err error) error {
 		return fiber.NewError(fiber.StatusUnauthorized, forum.CodeGuestLoginRequired)
 	case errors.Is(err, forum.ErrUseSearchEndpoint):
 		return fiber.NewError(fiber.StatusBadRequest, forum.CodeUseSearch)
+	case errors.Is(err, forum.ErrInvalidCursor):
+		return fiber.NewError(fiber.StatusBadRequest, forum.CodeInvalidCursor)
 	default:
 		return err
 	}

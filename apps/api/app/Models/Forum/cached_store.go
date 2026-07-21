@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Cache"
@@ -195,8 +196,9 @@ func (s *CachedStore) TopicSlugExists(ctx context.Context, slug string, excludeT
 
 func (s *CachedStore) ListTopics(ctx context.Context, input TopicListInput) (TopicList, error) {
 	gen := s.currentGen(ctx, genTopics)
-	// key 含 sort：不同排序不能共用同一缓存条目。
-	key := fmt.Sprintf("%s%s:%s:%s:%s:%d:%d", prefixTopicsList, gen, input.CategorySlug, input.TagSlug, input.Sort, input.Page, input.PerPage)
+	// key 含 sort + after：不同排序/游标不能共用同一缓存条目。
+	after := strings.TrimSpace(input.After)
+	key := fmt.Sprintf("%s%s:%s:%s:%s:%d:%d:%s", prefixTopicsList, gen, input.CategorySlug, input.TagSlug, input.Sort, input.Page, input.PerPage, after)
 	var out TopicList
 	if s.loadJSON(ctx, key, &out) {
 		return out, nil
@@ -207,7 +209,7 @@ func (s *CachedStore) ListTopics(ctx context.Context, input TopicListInput) (Top
 	}
 	// 首页/分类第一页更热；稍长 TTL 降低冷路径压力（generation 写路径仍失效）。
 	ttl := ttlList
-	if input.Page <= 1 {
+	if input.Page <= 1 && after == "" {
 		ttl = ttlListPage1
 	}
 	s.saveJSON(ctx, key, out, ttl)
@@ -215,7 +217,7 @@ func (s *CachedStore) ListTopics(ctx context.Context, input TopicListInput) (Top
 }
 
 // ListComments 缓存公开评论列表（不含 soft-delete 扩展范围）。
-// key 含 topic 级 generation、view/page/perPage/tree cap，写路径 bump 后旧 key 自然过期。
+// key 含 topic 级 generation、view/page|after/perPage/tree cap，写路径 bump 后旧 key 自然过期。
 func (s *CachedStore) ListComments(ctx context.Context, input CommentListInput) (CommentList, error) {
 	// 含软删墓碑的结果与 viewer 相关，禁止共享缓存。
 	if input.IncludeDeleted || input.DeletedAuthorUserID != 0 {
@@ -226,7 +228,8 @@ func (s *CachedStore) ListComments(ctx context.Context, input CommentListInput) 
 	if capN <= 0 {
 		capN = RecommendedTreeDescendantsPerRoot
 	}
-	key := fmt.Sprintf("%s%s:%d:%s:%d:%d:%d", prefixCommentsList, gen, input.TopicID, input.View, input.Page, input.PerPage, capN)
+	after := strings.TrimSpace(input.After)
+	key := fmt.Sprintf("%s%s:%d:%s:%d:%d:%d:%s", prefixCommentsList, gen, input.TopicID, input.View, input.Page, input.PerPage, capN, after)
 	var out CommentList
 	if s.loadJSON(ctx, key, &out) {
 		return out, nil
@@ -236,7 +239,7 @@ func (s *CachedStore) ListComments(ctx context.Context, input CommentListInput) 
 		return CommentList{}, err
 	}
 	ttl := ttlComments
-	if input.Page <= 1 {
+	if input.Page <= 1 && after == "" {
 		ttl = ttlCommentsP1
 	}
 	s.saveJSON(ctx, key, out, ttl)

@@ -3,6 +3,7 @@ package forum
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestClassifyListTopicsTotal_D1Modes(t *testing.T) {
@@ -98,7 +99,10 @@ func TestTopicSummarySQL_UsesPlainTextPrefixNotFullBody(t *testing.T) {
 
 func TestListTopicsPageSQL_CategoryUsesCategoryIDEquality(t *testing.T) {
 	t.Parallel()
-	sql, args := listTopicsPageSQL("general", "", "active", 1, 20)
+	sql, args, err := listTopicsPageSQL("general", "", "active", 1, 20, 21, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !strings.Contains(sql, "topics.category_id =") {
 		t.Fatalf("category list should filter by category_id equality for index order, got:\n%s", sql)
 	}
@@ -108,14 +112,18 @@ func TestListTopicsPageSQL_CategoryUsesCategoryIDEquality(t *testing.T) {
 	if len(args) != 4 {
 		t.Fatalf("category page args len=%d want 4", len(args))
 	}
-	if args[0] != "general" || args[2] != 20 || args[3] != 0 {
+	// fetchLimit=21, offset=0
+	if args[0] != "general" || args[2] != 21 || args[3] != 0 {
 		t.Fatalf("unexpected args %#v", args)
 	}
 }
 
 func TestListTopicsPageSQL_HomeNoFullCount(t *testing.T) {
 	t.Parallel()
-	sql, args := listTopicsPageSQL("", "", "active", 1, 20)
+	sql, args, err := listTopicsPageSQL("", "", "active", 1, 20, 21, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	upper := strings.ToUpper(sql)
 	if strings.Contains(upper, "COUNT(*)") {
 		t.Fatalf("page SQL must not COUNT(*)")
@@ -129,4 +137,59 @@ func TestListTopicsPageSQL_HomeNoFullCount(t *testing.T) {
 	if len(args) != 3 {
 		t.Fatalf("home page args len=%d want 3", len(args))
 	}
+}
+
+func TestListTopicsPageSQL_KeysetNoOffset(t *testing.T) {
+	t.Parallel()
+	cur := &topicListCursor{V: 1, Sort: "active", Pin: 0, Key: "2026-01-01T00:00:00Z", ID: 99}
+	sql, args, err := listTopicsPageSQL("general", "", "active", 1, 20, 21, cur)
+	if err != nil {
+		t.Fatal(err)
+	}
+	upper := strings.ToUpper(sql)
+	if strings.Contains(upper, "OFFSET") {
+		t.Fatalf("keyset page SQL must not use OFFSET, got:\n%s", sql)
+	}
+	if !strings.Contains(sql, "topics.is_pinned") {
+		t.Fatalf("keyset must include is_pinned predicate")
+	}
+	// categorySlug, tagSlug, pin, key, id, limit
+	if len(args) != 6 {
+		t.Fatalf("keyset args len=%d want 6: %#v", len(args), args)
+	}
+}
+
+func TestTopicListCursor_RoundTripAndSortBinding(t *testing.T) {
+	t.Parallel()
+	item := TopicSummary{
+		ID:             42,
+		IsPinned:       true,
+		LastActivityAt: mustParseTime(t, "2026-07-21T12:00:00Z"),
+		CreatedAt:      mustParseTime(t, "2026-07-20T12:00:00Z"),
+		HotScore:       100,
+	}
+	token, err := topicCursorFromSummary("active", item)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := decodeTopicListCursor(token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decoded.ID != 42 || decoded.Pin != 1 || decoded.Sort != "active" {
+		t.Fatalf("decoded %#v", decoded)
+	}
+	// 篡改 / 空
+	if _, err := decodeTopicListCursor("not-a-cursor"); err != ErrInvalidCursor {
+		t.Fatalf("want ErrInvalidCursor, got %v", err)
+	}
+}
+
+func mustParseTime(t *testing.T, s string) time.Time {
+	t.Helper()
+	ts, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ts
 }

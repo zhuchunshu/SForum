@@ -65,6 +65,8 @@ const (
 	CodeInvalidSettings       = "forum.settings_invalid"
 	CodeInvalidAction         = "forum.topic_action_invalid"
 	CodeUseSearch             = "forum.use_search_endpoint"
+	// 非法/过期/与 sort 不匹配的 keyset 游标。
+	CodeInvalidCursor = "forum.cursor_invalid"
 	CodeReindexRunning        = "forum.reindex_running"    // 已有重建在进行
 	CodeReindexNoRun          = "forum.reindex_no_run"     // 尚无重建记录
 	CodeSearchUnavailable     = "forum.search_unavailable" // 搜索服务不可用
@@ -116,6 +118,8 @@ var (
 	ErrTagMinRequired        = errors.New("forum: tag minimum required")
 	// ErrUseSearchEndpoint 表示 topics 列表不再支持关键词检索，应改用专用搜索端点。
 	ErrUseSearchEndpoint = errors.New("forum: use search endpoint")
+	// ErrInvalidCursor 表示 after 游标非法、损坏或与当前 sort 不匹配。
+	ErrInvalidCursor = errors.New("forum: invalid list cursor")
 	// ErrGuestLoginRequired 游客阅读关闭时，匿名读请求被拒绝。
 	ErrGuestLoginRequired = errors.New("forum: guest login required")
 	// ErrDuplicateTitle 站点 duplicateTitlePolicy=block 时拒绝重复标题。
@@ -227,6 +231,8 @@ type UserSummary struct {
 type TopicListInput struct {
 	Page         int
 	PerPage      int
+	// After 非空时走 keyset，忽略 Page（cursor 优先于 page，M5）。
+	After        string
 	CategorySlug string
 	TagSlug      string
 	Query        string
@@ -238,12 +244,17 @@ type TopicList struct {
 	Items []TopicSummary `json:"items"`
 	// Total 公开列表总数：分类/标签为冗余 topic_count（可短暂陈旧）；
 	// 首页/多过滤为近似值。禁止依赖其为严格实时全表精确值（见 D1）。
+	// Infinite scroll 应优先 HasMore / NextCursor。
 	Total int64 `json:"total"`
 	// TotalApproximate 为 true 时 total 为估计/交集近似（首页、多过滤）；
 	// 单分类/单标签为 false（冗余计数，UI 不显示「约」）。
 	TotalApproximate bool `json:"totalApproximate,omitempty"`
 	Page             int  `json:"page"`
 	PerPage          int  `json:"perPage"`
+	// HasMore 是否还有下一页（M5 公开列表必填语义）。
+	HasMore bool `json:"hasMore"`
+	// NextCursor 有下一页时的 opaque after 游标；无则空。
+	NextCursor string `json:"nextCursor,omitempty"`
 	// ExtensionListBadges 来自 forum.topic.list.badges（E2.4）；列表级一次返回。
 	ExtensionListBadges []TopicExtensionBadge `json:"extensionListBadges,omitempty"`
 }
@@ -261,6 +272,8 @@ type TopicSummary struct {
 	IsPinned       bool              `json:"isPinned"`
 	CommentCount   int64             `json:"commentCount"`
 	ViewCount      int64             `json:"viewCount"`
+	// HotScore 仅服务端 keyset 编码使用，不序列化到公开 JSON。
+	HotScore       int64             `json:"-"`
 	Tags           []TopicTagSummary `json:"tags,omitempty"`
 	Excerpt        string            `json:"excerpt"`
 	CreatedAt      time.Time         `json:"createdAt"`
@@ -580,6 +593,8 @@ type CommentListInput struct {
 	View    string
 	Page    int
 	PerPage int
+	// After 非空时 flat 走 path_key keyset，忽略 Page（cursor 优先）。
+	After string
 	// TreeDescendantsPerRoot view=tree 时每个根下最多拉取的子孙数；0 时 store 用推荐默认 50。
 	TreeDescendantsPerRoot int
 	// Viewer 可选：用于 softDeleteVisibility 判定是否展示软删墓碑。
@@ -597,12 +612,16 @@ type CommentReplyListInput struct {
 }
 
 type CommentList struct {
-	Items   []Comment `json:"items"`
+	Items []Comment `json:"items"`
 	// Total：flat 为主题评论总数（公开路径优先 topics.comment_count）；tree 为根评论数。
-	Total   int64     `json:"total"`
-	Page    int       `json:"page"`
-	PerPage int       `json:"perPage"`
-	View    string    `json:"view"`
+	// 深翻优先 HasMore / NextCursor。
+	Total   int64  `json:"total"`
+	Page    int    `json:"page"`
+	PerPage int    `json:"perPage"`
+	View    string `json:"view"`
+	HasMore bool   `json:"hasMore"`
+	// NextCursor flat keyset 续页；tree 可空（用 page）。
+	NextCursor string `json:"nextCursor,omitempty"`
 	// ExtensionActions 列表级评论行扩展动作（E2.2）；不复制到每条 Comment。
 	ExtensionActions []CommentExtensionAction `json:"extensionActions,omitempty"`
 }

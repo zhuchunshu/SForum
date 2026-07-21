@@ -431,6 +431,8 @@ func (s *Service) ListTopics(ctx context.Context, input TopicListInput) (TopicLi
 	default:
 		input.Sort = "latest"
 	}
+	// M5：非空 after 优先于 page；非法游标在 store 校验。
+	input.After = strings.TrimSpace(input.After)
 	list, err := s.store.ListTopics(ctx, input)
 	if err != nil {
 		return TopicList{}, err
