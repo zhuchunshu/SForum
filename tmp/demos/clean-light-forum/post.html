@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SForum 插件化架构演进：如何设计低耦合的 Extension 机制？ - SForum</title>
+  <meta name="description" content="SForum 帖子内容页与多级评论区展示 Demo，包含文章富文本排版、作者信息卡片、点赞互动与嵌套回复评论树。">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 1. 顶部 Header 导航栏 -->
+  <header class="navbar">
+    <div class="navbar-container">
+      <a href="index.html" class="brand" id="nav-brand-logo">
+        <div class="brand-icon">S</div>
+        <span>SForum <span style="font-weight:400; font-size:0.85rem; color:var(--text-muted);">Showcase</span></span>
+      </a>
+
+      <div class="search-box">
+        <svg class="search-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+        </svg>
+        <input type="text" class="search-input" placeholder="搜索帖子、标签或用户...">
+      </div>
+
+      <div class="nav-actions">
+        <button class="btn btn-secondary btn-icon" title="通知消息">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+        </button>
+        
+        <button class="btn btn-primary btn-open-modal">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          发布新帖
+        </button>
+
+        <img class="avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=AdminUser" alt="User Avatar">
+      </div>
+    </div>
+  </header>
+
+  <!-- 2. 主体 3 栏 Layout -->
+  <div class="app-container">
+
+    <!-- 2.1 左侧 Navigation Sidebar -->
+    <aside class="left-nav">
+      <div>
+        <div class="nav-group-title">发现</div>
+        <ul class="nav-list">
+          <li class="nav-item">
+            <a href="index.html">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              论坛首页
+            </a>
+          </li>
+          <li class="nav-item active">
+            <a href="#">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              帖子详情页
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="#">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+              我的收藏
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <div>
+        <div class="nav-group-title">当前分类</div>
+        <ul class="nav-list">
+          <li class="nav-item active">
+            <a href="#">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg>
+              技术讨论
+            </a>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- 2.2 中央帖子详情与评论区 -->
+    <main class="feed-container">
+      
+      <!-- 面包屑导航 -->
+      <nav style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;">
+        <a href="index.html" style="color:var(--accent);">首页</a> &nbsp;/&nbsp; 
+        <a href="#" style="color:var(--text-secondary);">技术讨论</a> &nbsp;/&nbsp; 
+        <span>正文内容</span>
+      </nav>
+
+      <!-- 文章卡片容器 -->
+      <article class="card">
+        
+        <!-- 文章头部 -->
+        <header class="article-header">
+          <h1 class="article-title">SForum 插件化架构演进：如何设计低耦合的 Extension 机制？</h1>
+          
+          <div class="article-author-row">
+            <div class="author-info">
+              <img class="avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Chunshu" alt="Avatar" style="width:44px; height:44px;">
+              <div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span class="author-name" style="font-size:1rem;">Chunshu</span>
+                  <span class="author-badge">核心贡献者</span>
+                </div>
+                <span class="post-time">发布于 2026-07-21 23:45 · 预计阅读 5 分钟</span>
+              </div>
+            </div>
+
+            <button class="btn btn-secondary btn-sm" id="btn-follow-author">+ 关注作者</button>
+          </div>
+        </header>
+
+        <!-- 文章正文内容 -->
+        <div class="article-body">
+          <p>
+            在开源论坛系统的演进过程中，如何既能保持核心框架（Core）的轻量与高效，又能赋予开发者无限的定制扩展能力？SForum 给出的答案是：<strong>Plugin-First（插件优先）</strong> 架构设计。
+          </p>
+
+          <h2>1. 核心契约与生命周期 (Core Extension Contracts)</h2>
+          <p>
+            Core 仅作为宿主框架存在，不硬编码特定厂商或商业逻辑。扩展包统一存放在 <code>extensions/</code> 目录下，分为内置插件（Built-in）、可选插件（Optional）与开发套件。
+          </p>
+
+          <pre><code>// Go 后端扩展挂载契约示例
+type ExtensionProvider interface {
+    Name() string
+    Version() string
+    OnBoot(app *bootstrap.Application) error
+    RegisterRoutes(router *fiber.App)
+}</code></pre>
+
+          <h2>2. 安全与信任边界 (Security & Trust Boundary)</h2>
+          <blockquote>
+            “任何包含可执行代码的插件在安装/启用时，必须要求具有 exact-artifact 属性并经由 super_admin 显式确认。”
+          </blockquote>
+          <p>
+            上传静态扩展包仅会进行校验、预览与保存，绝对不会直接执行未受信任的代码。只有在通过全局安全审计与信任确认后，路由替换表（Trusted Route Registry）才会允许插件注册对应的钩子。
+          </p>
+
+          <div class="tag-list" style="margin-top:24px;">
+            <span class="tag">#Go1.25</span>
+            <span class="tag">#PluginSystem</span>
+            <span class="tag">#SForumCore</span>
+            <span class="tag">#Architecture</span>
+          </div>
+        </div>
+
+        <!-- 帖子底部互动栏 -->
+        <div class="post-action-bar">
+          <div class="action-group">
+            <button class="btn-vote active" id="btn-vote-main-post">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+              <span class="vote-count">42</span>
+            </button>
+            
+            <button class="btn btn-secondary btn-bookmark active" style="color:var(--accent);" id="btn-bookmark-main-post">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+              已收藏
+            </button>
+          </div>
+
+          <div style="font-size:0.85rem; color:var(--text-muted); display:flex; gap:16px;">
+            <span>浏览 1,280 次</span>
+            <a href="#comments" style="color:var(--accent); font-weight:600;">跳至评论区 (3)</a>
+          </div>
+        </div>
+
+      </article>
+
+      <!-- 3. 多级评论区 (Comment Section) -->
+      <section class="comments-section" id="comments">
+        
+        <div class="comments-header">
+          <h2 class="comments-count">全部评论 (3)</h2>
+          <div class="sort-tabs">
+            <span class="sort-tab active">最新排序</span>
+            <span class="sort-tab">高赞优先</span>
+          </div>
+        </div>
+
+        <!-- 一级评论发表框 (Primary Composer) -->
+        <div class="comment-composer">
+          <form id="primaryCommentForm">
+            <textarea class="composer-textarea" placeholder="撰写您的看法，支持 Markdown 格式..." required></textarea>
+            <div class="composer-toolbar">
+              <div class="composer-actions">
+                <button type="button" class="btn btn-secondary btn-sm" title="粗体"><b>B</b></button>
+                <button type="button" class="btn btn-secondary btn-sm" title="代码块">&lt;/&gt;</button>
+                <button type="button" class="btn btn-secondary btn-sm" title="插入图片">📷</button>
+              </div>
+              <button type="submit" class="btn btn-primary btn-sm">发表评论</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- 评论列表与多级嵌套树 -->
+        <div class="comment-list" id="commentList">
+          
+          <!-- 一级评论卡片 1 -->
+          <div class="comment-card" id="comment-1">
+            <div class="comment-header">
+              <div class="author-info">
+                <img class="avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=TechLead_Zhang" alt="Avatar">
+                <div>
+                  <span class="author-name">TechLead_Zhang</span>
+                  <span class="author-badge">核心成员</span>
+                </div>
+              </div>
+              <span class="post-time">15 分钟前</span>
+            </div>
+            
+            <div class="comment-content">
+              非常赞同插件强卡 <code>super_admin</code> 信任授权的原则！这种设计避免了第三方未经授权的扩展隐蔽篡改核心路由数据。
+            </div>
+
+            <div class="comment-footer">
+              <button class="btn-vote active">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                <span class="vote-count">12</span>
+              </button>
+              <button class="btn-reply">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                回复
+              </button>
+            </div>
+
+            <!-- 二级嵌套评论 (Level 2 Nested Tree) -->
+            <div class="comment-nested-tree">
+              <div class="comment-card nested" id="comment-1-nested-1">
+                <div class="comment-header">
+                  <div class="author-info">
+                    <img class="avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Chunshu" alt="Avatar">
+                    <div>
+                      <span class="author-name">Chunshu</span>
+                      <span class="author-badge" style="background:#dbeafe; color:#1e40af;">作者</span>
+                    </div>
+                  </div>
+                  <span class="post-time">10 分钟前</span>
+                </div>
+
+                <div class="comment-content">
+                  <span class="reply-to-tag">@TechLead_Zhang</span>
+                  是的，保持 Core 边界清晰，让插件必须透明且可审计，是开箱即用的框架能够长期维护的根基。
+                </div>
+
+                <div class="comment-footer">
+                  <button class="btn-vote">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                    <span class="vote-count">4</span>
+                  </button>
+                  <button class="btn-reply">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    回复
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- 一级评论卡片 2 -->
+          <div class="comment-card" id="comment-2">
+            <div class="comment-header">
+              <div class="author-info">
+                <img class="avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Dev_Lin" alt="Avatar">
+                <div>
+                  <span class="author-name">Dev_Lin</span>
+                  <span class="author-badge">社区极客</span>
+                </div>
+              </div>
+              <span class="post-time">30 分钟前</span>
+            </div>
+
+            <div class="comment-content">
+              请问插件注册自定义公网 API 路由时，中间件链（Middleware Chain）的继承机制是怎样的？会继承 Core 的 Auth Guard 吗？
+            </div>
+
+            <div class="comment-footer">
+              <button class="btn-vote">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                <span class="vote-count">5</span>
+              </button>
+              <button class="btn-reply">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                回复
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- 2.3 右侧 Sidebar Widgets (作者信息与相关推荐) -->
+    <aside class="right-sidebar">
+      
+      <!-- 作者个人信息组件 -->
+      <div class="card">
+        <div class="widget-title">
+          <span>✍️ 关于作者</span>
+        </div>
+        <div style="text-align:center; padding:12px 0;">
+          <img class="avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Chunshu" alt="Avatar" style="width:64px; height:64px; margin-bottom:8px;">
+          <h3 style="font-size:1.05rem; font-weight:700;">Chunshu</h3>
+          <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:12px;">SForum 架构发起人 & Core Maintainer</p>
+          
+          <div style="display:flex; justify-content:space-around; border-top:1px solid var(--border-color); padding-top:12px; font-size:0.8rem;">
+            <div>
+              <div style="font-weight:700; font-size:1rem; color:var(--text-primary);">42</div>
+              <div style="color:var(--text-muted);">发布主题</div>
+            </div>
+            <div>
+              <div style="font-weight:700; font-size:1rem; color:var(--text-primary);">1.8k</div>
+              <div style="color:var(--text-muted);">获得点赞</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 相关推荐文章 -->
+      <div class="card">
+        <div class="widget-title">
+          <span>📌 相关主题推荐</span>
+        </div>
+        <ul class="trending-list">
+          <li class="trending-item" style="flex-direction:column; align-items:flex-start; gap:2px;">
+            <a href="#" style="font-weight:600; color:var(--text-secondary); font-size:0.875rem;">Go 1.25 后端架构与 River Durable Queue</a>
+            <span style="font-size:0.75rem; color:var(--text-muted);">15 点赞 · 4 评论</span>
+          </li>
+          <li class="trending-item" style="flex-direction:column; align-items:flex-start; gap:2px; margin-top:8px;">
+            <a href="#" style="font-weight:600; color:var(--text-secondary); font-size:0.875rem;">Nuxt 4 / Vue 3 在 SSR 架构下的最佳实践</a>
+            <span style="font-size:0.75rem; color:var(--text-muted);">29 点赞 · 9 评论</span>
+          </li>
+        </ul>
+      </div>
+
+    </aside>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
