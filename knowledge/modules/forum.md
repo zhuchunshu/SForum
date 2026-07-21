@@ -11,7 +11,7 @@ read models.
 Backend foundation implemented on 2026-07-06. Real taxonomy slice implemented
 on 2026-07-07.
 
-- **Million-scale read path (M0–M4 done):** task book
+- **Million-scale read path (M0–M5 done):** task book
   `plans/2026-07-21-million-scale-read-path.md` — **M0** seed + `tests/perf` +
   baseline. **M1** ListTopics slim + D1 totals
   (`reports/2026-07-21-perf-m1-list-topics.md`). **M2** view count (D3 /
@@ -22,11 +22,14 @@ on 2026-07-07.
   `topics.comment_count`, `CachedStore.ListComments` topic-scoped gen
   (`reports/2026-07-21-perf-m3-list-comments.md`). **M4** topic detail assembly:
   GetTopic slug → UNIQUE `topics_slug_idx`; CachedStore dual-write id+slug +
-  reverse-map invalidate on comment write; **no** composite topic-page cache
-  (warm by-slug already under budget); FE parallel topic+comments when URL has
-  id; `/t/**` anonymous `swr: 60` with session/`?edit=` no-store middleware.
-  After `reports/2026-07-21-perf-m4-topic-detail.md` (by-slug warm p99 ~21 ms).
-  Next **M5** keyset pagination.
+  reverse-map invalidate on comment write; **no** composite topic-page cache;
+  FE parallel topic+comments; `/t/**` anonymous SWR gate
+  (`reports/2026-07-21-perf-m4-topic-detail.md`). **M5** keyset pagination:
+  public `GET /topics` and flat comments accept `after` (cursor **wins over**
+  `page`); response `hasMore` + `nextCursor`; ListTopics pin-stable seek SQL
+  (`is_pinned` first dimension); home infinite scroll uses cursor; deep scroll
+  report `reports/2026-07-21-perf-m5-keyset.md` (100-step cursor p99 ~19 ms).
+  Next **M6** cache sharding.
 
 - `categories` owns public forum sections. The first seed category is
   `general` / `综合讨论`.
@@ -64,12 +67,17 @@ on 2026-07-07.
   `forum.pagination.comments_per_page` both default to 20 and accept 1-100.
   Omitted `perPage` values use the relevant setting; explicit positive values
   remain caller overrides capped at 100. Admin and internal lists are excluded.
-- **Comment list (M3):** `view=tree` pages roots and loads at most
+- **Comment list (M3 + M5):** `view=tree` pages roots and loads at most
   `treeDescendantsPerRoot` descendants per root (path_key order); truncated
   roots set `hasMoreChildren`. Public flat `total` uses denormalized
-  `topics.comment_count`; tree `total` is root count. `CachedStore` caches
-  public `ListComments` (topic-scoped generation on create/update/delete);
-  viewer-scoped soft-delete lists are not cached.
+  `topics.comment_count`; tree `total` is root count. Flat lists support
+  keyset `after` (`path_key` + id) with `hasMore` / `nextCursor` (cursor wins
+  over `page`). `CachedStore` caches public `ListComments` (topic-scoped
+  generation; key includes after); viewer-scoped soft-delete lists are not
+  cached.
+- **Topic list pagination (M5):** shallow `page` (1–200 OFFSET) retained; deep
+  scroll uses opaque `after` keyset. Sort binds cursor; pins are first keyset
+  dimension (`is_pinned DESC`). Responses always include `hasMore`.
 - Content limits are Unicode-rune based and enforced in the forum service on
   topic/comment create and update: title/body min-max, comment min-max,
   comment max nesting depth, optional author edit windows, create cooldowns,

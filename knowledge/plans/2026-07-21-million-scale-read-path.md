@@ -1,7 +1,7 @@
 # Million-Scale Read Path — Task Book
 
-Status: **in progress** — M0–**M4 complete** (topic detail assembly; after
-report); next M5  
+Status: **in progress** — M0–**M5 complete** (keyset pagination; after report);
+next M6  
 Date: 2026-07-21  
 Last decision pass: 2026-07-21 (four open questions → resolved defaults)  
 Goal: make public forum **read paths** safe for ~1M topics / large hot
@@ -48,7 +48,7 @@ Public operators should observe:
 | Comment tree roots page + all descendants | **Done (M3 / D2)** | cap default 50 + `hasMoreChildren` |
 | `topics.view_count` column + display | **Done** | schema + UI |
 | View count increment / Redis flush | **Done (M2 / D3)** | Iteration A WS1 + flush job |
-| Keyset / cursor public pagination | **Missing** | page+offset only |
+| Keyset / cursor public pagination | **Done (M5)** | `after` + hasMore/nextCursor |
 | Approximate / denormalized list totals | **Done (M1 / D1)** | cat/tag `topic_count`; home sum + `totalApproximate` |
 | `hot_score` / popular precompute | **Done (M2)** | column + indexes; list hot sort |
 | ListComments in CachedStore | **Done (M3)** | topic gen + short TTL; skip viewer-scoped |
@@ -414,30 +414,35 @@ combined first screen comments-bound (M3 residual).
 
 ### 5.1 Contract
 
-- [ ] OpenAPI: `cursor` / `after` query params; response `nextCursor`, `hasMore`
-- [ ] Document `total` per D1 (not guaranteed exact on public home)
-- [ ] Document precedence: cursor wins over page when both sent
-- [ ] Version note in path description; no silent break of page for p1–p200
+- [x] OpenAPI: `cursor` / `after` query params; response `nextCursor`, `hasMore`
+- [x] Document `total` per D1 (not guaranteed exact on public home)
+- [x] Document precedence: cursor wins over page when both sent
+- [x] Version note in path description; no silent break of page for p1–p200
 
 ### 5.2 Store
 
-- [ ] ListTopics keyset for default and category sorts (pinned bucket carefully)
-- [ ] ListComments flat keyset on path_key
-- [ ] Pinned topics: define stable algorithm (pins first page only vs interleaved)
+- [x] ListTopics keyset for default and category sorts (pinned bucket carefully)
+- [x] ListComments flat keyset on path_key
+- [x] Pinned topics: define stable algorithm (pins first page only vs interleaved)
+  (pins as first keyset dimension `is_pinned DESC`, not first-page-only)
 
 ### 5.3 Frontend
 
-- [ ] Home infinite scroll uses cursor if available
-- [ ] SFPagination: either shallow page only or hybrid
-- [ ] i18n: “约 {n}” only for approximate totals (D1); taxonomy counts stay plain
+- [x] Home infinite scroll uses cursor if available
+- [x] SFPagination: either shallow page only or hybrid
+  (home keeps shallow page links + cursor infinite load)
+- [x] i18n: “约 {n}” only for approximate totals (D1); taxonomy counts stay plain
 
 ### 5.4 Tests
 
-- [ ] Deterministic cursor continuation; no dup/skip under concurrent insert (document limitation)
-- [ ] k6 deep scroll scenario (many pages) p99 stable
+- [x] Deterministic cursor continuation; no dup/skip under concurrent insert (document limitation)
+  (100-step walk 0 dups; concurrent insert may skip/dup — documented limitation)
+- [x] k6 deep scroll scenario (many pages) p99 stable
+  (`tests/perf/deep_scroll.js` + LIGHT Python report)
 
 **Exit criteria:** scrolling far into a large category does not use large OFFSET;
 contract validated; FE uses cursor on primary surfaces.
+**Met:** `knowledge/reports/2026-07-21-perf-m5-keyset.md` (100-step cursor p99 ~19 ms).
 
 ---
 
@@ -542,3 +547,4 @@ Still free to decide during implementation (not product blockers):
 | 2026-07-21 | **M2 done:** D3 view count (GET detail + 30m Redis dedup + INCR + `forum.flush_view_counts` 45s); `topics.hot_score` + hot indexes; list `sort=hot` column; Iteration A WS1 checkboxes; report `knowledge/reports/2026-07-21-perf-m2-view-hot.md` (flood 0 per-req UPDATE; hot Index Scan). Next: **M3** ListComments bounds + cache. |
 | 2026-07-21 | **M3 done:** D2 tree cap (`forum.comments.tree_descendants_per_root` default 50) + `hasMoreChildren` + FE load more; flat total via `comment_count`; ListComments CachedStore topic gen; report `knowledge/reports/2026-07-21-perf-m3-list-comments.md` (warm tree p50 ~44 ms; max desc/root 50). Next: **M4** topic detail assembly. |
 | 2026-07-21 | **M4 done:** GetTopic profile (slug unique index); CachedStore id+slug dual-write + reverse-map invalidate; no composite page cache (evidence); FE parallel topic+comments; `/t/**` anonymous SWR + auth/edit gate; report `knowledge/reports/2026-07-21-perf-m4-topic-detail.md` (by-slug warm p99 ~21 ms). Next: **M5** keyset pagination. |
+| 2026-07-21 | **M5 done:** public ListTopics / ListComments flat `after` keyset + `hasMore`/`nextCursor`; cursor > page; pin-stable seek SQL; FE home infinite scroll; report `knowledge/reports/2026-07-21-perf-m5-keyset.md` (100-step cursor p99 ~19 ms). Next: **M6** cache sharding. |

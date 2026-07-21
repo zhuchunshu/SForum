@@ -24,7 +24,8 @@ for script in \
   comments_flat.js \
   comments_tree.js \
   mixed_read_write.js \
-  view_flood.js
+  view_flood.js \
+  deep_scroll.js
 do
   echo "======== $script ========"
   "$K6_BIN" run "tests/perf/$script"

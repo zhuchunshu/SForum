@@ -70,6 +70,8 @@ k6 run tests/perf/comments_flat.js
 k6 run tests/perf/comments_tree.js
 k6 run tests/perf/mixed_read_write.js
 k6 run tests/perf/view_flood.js
+# M5 deep scroll: keyset `after` vs deep OFFSET `page` (category list)
+MODE=both DEEP_STEPS=25 k6 run tests/perf/deep_scroll.js
 
 # Suite wrapper (sequential)
 LIGHT=1 ./tests/perf/run-all.sh
