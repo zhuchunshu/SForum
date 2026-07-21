@@ -71,9 +71,10 @@
       "id": "sforum.commerce-workflow.route.orders-alias",
       "contractVersion": "sforum.commerce-workflow.route.orders-alias@1",
       "action": "alias",
-      "targetId": "sforum.commerce-workflow.route.orders",
-      "path": "/api/commerce-workflow/v1/orders",
+      "targetId": "core.route.forum.topics",
+      "path": "/api/commerce-workflow/v1/topics-alias",
       "methods": ["GET"],
+      "guard": "core.guard.inherit",
       "fallback": "closed",
       "mode": "http"
     },
@@ -92,9 +93,10 @@
       "id": "sforum.commerce-workflow.route.orders-rewrite",
       "contractVersion": "sforum.commerce-workflow.route.orders-rewrite@1",
       "action": "rewrite",
-      "targetId": "sforum.commerce-workflow.route.orders",
-      "path": "/api/commerce-workflow/rewrite/orders",
+      "targetId": "core.route.forum.topics",
+      "path": "/api/commerce-workflow/rewrite/topics",
       "methods": ["GET"],
+      "guard": "core.guard.inherit",
       "fallback": "closed",
       "mode": "http"
     },
@@ -133,7 +135,7 @@
       "mode": "http",
       "handler": "sforum.commerce-workflow.route.topics-filter",
       "responseSchema": "sforum.route.forum.topics.response@1",
-      "mutableResponseFields": ["/body"]
+      "mutableResponseFields": ["/body/commerceFiltered"]
     },
     {
       "id": "sforum.commerce-workflow.route.create-topic-wrap",
@@ -147,8 +149,8 @@
       "handler": "sforum.commerce-workflow.route.create-topic-wrap",
       "requestSchema": "sforum.route.forum.create_topic.request@1",
       "responseSchema": "sforum.route.forum.create_topic.response@1",
-      "mutableRequestFields": ["/body"],
-      "mutableResponseFields": ["/body"]
+      "mutableRequestFields": ["/body/commerceWrapped"],
+      "mutableResponseFields": ["/body/commerceWrapResult"]
     },
     {
       "id": "sforum.commerce-workflow.route.create-topic-replace",
@@ -264,6 +266,36 @@
 
   "lifecycle": {
     "contractVersion": "sforum.commerce-workflow.lifecycle@1",
+    "install": {
+      "plan": "sforum.commerce-workflow.lifecycle.install.plan",
+      "execute": "sforum.commerce-workflow.lifecycle.install.execute",
+      "progressSchema": "sforum.commerce-workflow.lifecycle.progress@1",
+      "checkpointSchema": "sforum.commerce-workflow.lifecycle.checkpoint@1"
+    },
+    "enable": {
+      "plan": "sforum.commerce-workflow.lifecycle.enable.plan",
+      "execute": "sforum.commerce-workflow.lifecycle.enable.execute",
+      "progressSchema": "sforum.commerce-workflow.lifecycle.progress@1",
+      "checkpointSchema": "sforum.commerce-workflow.lifecycle.checkpoint@1"
+    },
+    "disable": {
+      "plan": "sforum.commerce-workflow.lifecycle.disable.plan",
+      "execute": "sforum.commerce-workflow.lifecycle.disable.execute",
+      "progressSchema": "sforum.commerce-workflow.lifecycle.progress@1",
+      "checkpointSchema": "sforum.commerce-workflow.lifecycle.checkpoint@1"
+    },
+    "upgrade": {
+      "plan": "sforum.commerce-workflow.lifecycle.upgrade.plan",
+      "execute": "sforum.commerce-workflow.lifecycle.upgrade.execute",
+      "progressSchema": "sforum.commerce-workflow.lifecycle.progress@1",
+      "checkpointSchema": "sforum.commerce-workflow.lifecycle.checkpoint@1"
+    },
+    "rollback": {
+      "plan": "sforum.commerce-workflow.lifecycle.rollback.plan",
+      "execute": "sforum.commerce-workflow.lifecycle.rollback.execute",
+      "progressSchema": "sforum.commerce-workflow.lifecycle.progress@1",
+      "checkpointSchema": "sforum.commerce-workflow.lifecycle.checkpoint@1"
+    },
     "uninstall": {
       "plan": "sforum.commerce-workflow.lifecycle.uninstall.plan",
       "execute": "sforum.commerce-workflow.lifecycle.uninstall.execute",

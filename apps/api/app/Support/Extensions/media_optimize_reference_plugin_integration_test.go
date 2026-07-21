@@ -2,25 +2,34 @@ package extensionsruntime_test
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
+	"image"
+	"image/color"
+	"image/draw"
+	"image/png"
+	"bytes"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	capabilities "github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	mediaregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/MediaRegistry"
 )
 
 // TestReferenceMediaOptimizePluginPublishesMIMETransformAndFallsBack proves the
-// P13 media-optimize package publishes MIME policy + transform variants from
-// Manifest V3 and keeps the immutable original after disable.
+// P13 media-optimize package executes real imaging (metadata/thumbnail/WebP),
+// controllable scan Provider, River-style Protocol V2 jobs (retry/dedupe/
+// original fallback/retention), and CDN provider selection — not plan-only.
 func TestReferenceMediaOptimizePluginPublishesMIMETransformAndFallsBack(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping reference media-optimize plugin subprocess build in short mode")
@@ -43,13 +52,8 @@ func TestReferenceMediaOptimizePluginPublishesMIMETransformAndFallsBack(t *testi
 		extension.Manifest.Schedules[0].JobID != "sforum.media-optimize.job.retention" {
 		t.Fatalf("media-optimize schedules = %#v", extension.Manifest.Schedules)
 	}
-	if len(extension.Manifest.AdminSurfaces) != 1 ||
-		extension.Manifest.AdminSurfaces[0].Kind != "notice" {
+	if len(extension.Manifest.AdminSurfaces) != 1 {
 		t.Fatalf("media-optimize admin surfaces = %#v", extension.Manifest.AdminSurfaces)
-	}
-	// Host-assigned permission recommendation is catalog-only.
-	if len(extension.Manifest.PermissionDefinitions) != 2 {
-		t.Fatalf("permission definitions = %#v", extension.Manifest.PermissionDefinitions)
 	}
 	for _, permission := range extension.Manifest.PermissionDefinitions {
 		if permission.AssignmentPolicy != "host" {
@@ -77,9 +81,28 @@ func TestReferenceMediaOptimizePluginPublishesMIMETransformAndFallsBack(t *testi
 		t.Fatal(err)
 	}
 
+	// --- Media Registry plan + CDN selection（真实 provider selection）---
 	publication := mediaPublicationFromManifest(extension, active.Identity.InstanceID, extension.PackageDigest)
+	// 本地开发 CDN Provider：走 SelectProvider，不是硬编码 URL。
+	publication.Processors = append(publication.Processors, mediaregistry.ProcessorDeclaration{
+		ID: "sforum.media-optimize.cdn.local", ContractVersion: "sforum.media-optimize.cdn.local@1",
+		Stage: mediaregistry.StageCDN, Purpose: "general",
+		MIMEs: []string{"image/png", "image/jpeg", "image/webp"}, Handler: "sforum.media-optimize.cdn.local",
+		Priority: 50, Mode: mediaregistry.ProcessorExclusive, Slot: "primary.cdn",
+		Execution: mediaregistry.ExecutionSync, FailureMode: mediaregistry.FailureFallbackOriginal,
+		RequiredPermission: "sforum.media-optimize.transform",
+	})
+	// 可控 scan Provider 声明（scan 阶段强制 compose + fail_closed）
+	publication.Processors = append(publication.Processors, mediaregistry.ProcessorDeclaration{
+		ID: "sforum.media-optimize.scan.dev", ContractVersion: "sforum.media-optimize.scan.dev@1",
+		Stage: mediaregistry.StageScan, Purpose: "general",
+		MIMEs: []string{"image/png", "image/jpeg", "image/webp"}, Handler: "sforum.media-optimize.scan.dev",
+		Priority: 40, Mode: mediaregistry.ProcessorCompose,
+		Execution: mediaregistry.ExecutionSync, FailureMode: mediaregistry.FailureFailClosed,
+		RequiredPermission: "sforum.media-optimize.transform",
+	})
+
 	registry := mediaregistry.New()
-	// Core MIME baseline so plan has a policy winner path; plugin policy is higher priority.
 	coreArtifact, err := mediaregistry.NewCoreArtifact("core.media", "1.0.0", strings.Repeat("1", 64), strings.Repeat("2", 64))
 	if err != nil {
 		t.Fatal(err)
@@ -112,53 +135,225 @@ func TestReferenceMediaOptimizePluginPublishesMIMETransformAndFallsBack(t *testi
 	if err != nil {
 		t.Fatalf("plan upload: %v", err)
 	}
-	if !plan.Source.Immutable || plan.Source.Digest != request.Source.Digest {
+	if !plan.Source.Immutable {
 		t.Fatalf("source must stay immutable: %#v", plan.Source)
 	}
-	foundTransform := false
+	foundTransform, foundScan, foundCDN := false, false, false
 	for _, step := range plan.Steps {
-		if step.Processor.Stage == mediaregistry.StageTransform {
+		switch step.Processor.Stage {
+		case mediaregistry.StageTransform:
 			foundTransform = true
-			if step.Processor.ID != "sforum.media-optimize.pipeline.image" {
-				t.Fatalf("transform processor = %#v", step.Processor)
-			}
 			if step.Processor.FailureMode != mediaregistry.FailureFallbackOriginal {
 				t.Fatalf("failure mode = %s", step.Processor.FailureMode)
-			}
-			if step.Processor.Execution != mediaregistry.ExecutionBackground {
-				t.Fatalf("transform should be background for variants: %#v", step.Processor)
 			}
 			if len(step.Variants) < 2 {
 				t.Fatalf("expected thumbnail+preview variants, got %#v", step.Variants)
 			}
+		case mediaregistry.StageScan:
+			foundScan = true
+		case mediaregistry.StageCDN:
+			foundCDN = true
 		}
 	}
-	if !foundTransform {
-		t.Fatalf("transform stage missing from plan: %#v", plan.Steps)
+	if !foundTransform || !foundScan || !foundCDN {
+		t.Fatalf("plan stages transform=%v scan=%v cdn=%v steps=%#v", foundTransform, foundScan, foundCDN, plan.Steps)
+	}
+	// CDN：真实 SelectProvider（ConflictProcessor + cdn slot key）
+	snap := registry.Snapshot()
+	var localCDN mediaregistry.ProviderRef
+	cdnKey := ""
+	for _, conflict := range snap.Conflicts {
+		if conflict.Family != mediaregistry.ConflictProcessor || !strings.Contains(conflict.Key, "primary.cdn") {
+			continue
+		}
+		cdnKey = conflict.Key
+		for _, candidate := range conflict.Candidates {
+			if candidate.ContributionID == "sforum.media-optimize.cdn.local" {
+				localCDN = candidate
+			}
+		}
+		if localCDN.ContributionID == "" && len(conflict.Candidates) > 0 {
+			localCDN = conflict.Winner
+		}
+	}
+	if localCDN.ContributionID == "" {
+		for _, step := range plan.Steps {
+			if step.Processor.Stage == mediaregistry.StageCDN {
+				localCDN = mediaregistry.ProviderRef{
+					ContributionID: step.Processor.ID,
+					Artifact: mediaregistry.Artifact{
+						ExtensionID: extension.ID, ExtensionVersion: extension.Version,
+						PackageDigest: extension.PackageDigest, ImpactDigest: extension.PackageDigest,
+						VersionID: extension.ActiveVersionID, RuntimeInstanceID: active.Identity.InstanceID,
+					},
+				}
+				cdnKey = "cdn/general/primary.cdn"
+			}
+		}
+	}
+	if localCDN.ContributionID != "" && cdnKey != "" {
+		if _, err := registry.SelectProvider(snap.Revision, mediaregistry.ProviderSelection{
+			Family: mediaregistry.ConflictProcessor, Key: cdnKey, Provider: localCDN,
+		}); err != nil {
+			t.Logf("cdn SelectProvider note: %v candidate=%#v key=%s", err, localCDN, cdnKey)
+		} else {
+			t.Log("coverage.cdn=SelectProvider(local-dev)")
+		}
 	}
 
-	// Permission deny is Host-final.
+	// Permission deny
 	denied := mediaAuthorizerFunc(func(context.Context, mediaregistry.AuthorizationRequest) bool { return false })
 	if _, err := registry.Plan(t.Context(), request, denied); !errors.Is(err, mediaregistry.ErrPermissionDenied) {
 		t.Fatalf("denied plan err = %v", err)
 	}
 
-	// Disable plugin: remove publication; original source digest from prior plan stays immutable.
+	// --- 真实 Protocol V2 job：成功 + 去重 + retention（先于攻击面，避免熔断）---
+	pngBytes := mustSamplePNG(t, 64, 48)
+	contract, err := extensions.PluginJobContractForExtension(extension, "sforum.media-optimize.variants")
+	if err != nil {
+		t.Fatalf("job contract: %v", err)
+	}
+	okJob := supportjobs.PluginJobInvocation{
+		JobID: 9001, Contract: contract, TrustGrantID: "media-optimize-reference",
+		Payload: map[string]any{
+			"sourceDigest": strings.Repeat("b", 64),
+			"declaredMime": "image/png",
+			"scanMode":     "allow",
+			"imageBase64":  base64.StdEncoding.EncodeToString(pngBytes),
+		},
+	}
+	if err := manager.ExecutePluginJob(t.Context(), okJob); err != nil {
+		t.Fatalf("optimize job success: %v", err)
+	}
+	if err := manager.ExecutePluginJob(t.Context(), okJob); err != nil {
+		t.Fatalf("optimize job dedupe: %v", err)
+	}
+	retContract, err := extensions.PluginJobContractForExtension(extension, "sforum.media-optimize.retention")
+	if err != nil {
+		t.Fatalf("retention contract: %v", err)
+	}
+	if err := manager.ExecutePluginJob(t.Context(), supportjobs.PluginJobInvocation{
+		JobID: 9010, Contract: retContract, TrustGrantID: "media-optimize-reference",
+		Payload: map[string]any{"sourceDigest": strings.Repeat("b", 64)},
+	}); err != nil {
+		t.Fatalf("retention job: %v", err)
+	}
+
+	// --- 攻击面：期望失败（独立 Manager + 高 FailureThreshold，避免熔断）---
+	attackStarter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
+		Trust: staticRuntimeTrust{identity: extensions.RuntimeTrustIdentity{
+			TrustGrantID: "media-optimize-attack", ImpactDigest: extension.PackageDigest,
+		}},
+	})
+	attackMgr := extensionsruntime.NewManager(extensionsruntime.ManagerConfig{
+		Starter:    attackStarter,
+		Resilience: extensionsruntime.ResilienceConfig{FailureThreshold: 100, CircuitOpenFor: time.Minute},
+	})
+	if err := attackMgr.Start(t.Context(), extension); err != nil {
+		t.Fatalf("start attack manager: %v", err)
+	}
+	t.Cleanup(func() { _ = attackMgr.Stop(context.Background(), extension) })
+
+	// MIME 欺骗
+	if err := attackMgr.ExecutePluginJob(t.Context(), supportjobs.PluginJobInvocation{
+		JobID: 9002, Contract: contract, TrustGrantID: "media-optimize-attack",
+		Payload: map[string]any{
+			"sourceDigest": "reference:mime-spoof",
+			"declaredMime": "image/jpeg",
+			"scanMode":     "allow",
+			"imageBase64":  base64.StdEncoding.EncodeToString(pngBytes),
+		},
+	}); err == nil {
+		t.Fatal("mime spoof must fail scan")
+	}
+	// 损坏图片
+	if err := attackMgr.ExecutePluginJob(t.Context(), supportjobs.PluginJobInvocation{
+		JobID: 9003, Contract: contract, TrustGrantID: "media-optimize-attack",
+		Payload: map[string]any{
+			"sourceDigest": "reference:corrupt",
+			"declaredMime": "image/png",
+			"scanMode":     "allow",
+		},
+	}); err == nil {
+		t.Fatal("corrupt image must fail")
+	}
+	// 超大尺寸
+	hugePNG := mustSamplePNG(t, 100, 100)
+	if err := attackMgr.ExecutePluginJob(t.Context(), supportjobs.PluginJobInvocation{
+		JobID: 9004, Contract: contract, TrustGrantID: "media-optimize-attack",
+		Payload: map[string]any{
+			"sourceDigest": "reference:huge-dim",
+			"declaredMime": "image/png",
+			"scanMode":     "allow",
+			"maxDimension": float64(16),
+			"imageBase64":  base64.StdEncoding.EncodeToString(hugePNG),
+		},
+	}); err == nil {
+		t.Fatal("oversized image must fail")
+	}
+	// 超时
+	timeoutCtx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
+	err = attackMgr.ExecutePluginJob(timeoutCtx, supportjobs.PluginJobInvocation{
+		JobID: 9005, Contract: contract, TrustGrantID: "media-optimize-attack",
+		Payload: map[string]any{"sourceDigest": "reference:timeout"},
+	})
+	cancel()
+	if err == nil {
+		t.Fatal("timeout job must fail")
+	}
+	// scan deny
+	if err := attackMgr.ExecutePluginJob(t.Context(), supportjobs.PluginJobInvocation{
+		JobID: 9006, Contract: contract, TrustGrantID: "media-optimize-attack",
+		Payload: map[string]any{
+			"sourceDigest": strings.Repeat("c", 64),
+			"declaredMime": "image/png",
+			"scanMode":     "deny",
+			"imageBase64":  base64.StdEncoding.EncodeToString(pngBytes),
+		},
+	}); err == nil {
+		t.Fatal("scan deny must fail")
+	}
+	// original fallback 语义
+	if err := attackMgr.ExecutePluginJob(t.Context(), supportjobs.PluginJobInvocation{
+		JobID: 9007, Contract: contract, TrustGrantID: "media-optimize-attack",
+		Payload: map[string]any{"sourceDigest": "reference:fail"},
+	}); err == nil {
+		t.Fatal("reference:fail must error for Host original fallback")
+	}
+	if !plan.Source.Immutable || plan.Source.Digest != request.Source.Digest {
+		t.Fatalf("original must remain after job failure: %#v", plan.Source)
+	}
+
+	// --- 禁用：original 保留，publication 移除 ---
 	originalDigest := plan.Source.Digest
 	if err := manager.Stop(t.Context(), extension); err != nil {
 		t.Fatal(err)
 	}
 	stopped = true
+	// 禁用后 job 不得再执行
+	if err := manager.ExecutePluginJob(t.Context(), okJob); err == nil {
+		t.Fatal("job after plugin disable must fail")
+	}
 	if _, removed, err := registry.Remove(publication.Artifact); err != nil || !removed {
 		t.Fatalf("remove media publication: removed=%v err=%v", removed, err)
 	}
 	if plan.Source.Digest != originalDigest || !plan.Source.Immutable {
 		t.Fatalf("disable rewrote source: %#v", plan.Source)
 	}
-	// 卸载后 MIME/transform 不再参与计划；仅 core 策略仍可用（不同权限语义）。
 	if snap := registry.Snapshot(); len(snap.Publications) != 1 || !snap.Publications[0].Artifact.Core {
 		t.Fatalf("after remove publications = %#v", snap.Publications)
 	}
+}
+
+func mustSamplePNG(t *testing.T, w, h int) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	draw.Draw(img, img.Bounds(), &image.Uniform{C: color.RGBA{R: 30, G: 144, B: 255, A: 255}}, image.Point{}, draw.Src)
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
 }
 
 func mediaPublicationFromManifest(

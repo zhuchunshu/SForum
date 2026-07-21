@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -14,6 +15,9 @@ import (
 
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
+
+// 脚手架 digest 占位符：__BACKEND_DIGEST__ / __OPENAPI_DIGEST__ 等。
+var manifestDigestPlaceholder = regexp.MustCompile(`__[A-Z][A-Z0-9_]*__`)
 
 func newExtensionDigestCommand() *cobra.Command {
 	var write bool
@@ -33,7 +37,21 @@ func newExtensionDigestCommand() *cobra.Command {
 			manifestPath := filepath.Join(abs, extensionmanifest.ManifestFileName)
 			body, err := os.ReadFile(manifestPath)
 			if err != nil {
-				return err
+				// 正式打包路径：仅有 .tmpl 时先 materialize 占位 digest，再由 --write 刷新真实摘要。
+				// 测试与作者不得再手算 SHA 替换 token。
+				if !os.IsNotExist(err) {
+					return err
+				}
+				tmplPath := filepath.Join(abs, extensionmanifest.ManifestFileName+".tmpl")
+				tmplBody, tmplErr := os.ReadFile(tmplPath)
+				if tmplErr != nil {
+					return fmt.Errorf("read manifest: %w (also no %s: %v)", err, filepath.Base(tmplPath), tmplErr)
+				}
+				body = []byte(materializeManifestTemplate(string(tmplBody)))
+				if writeErr := os.WriteFile(manifestPath, body, 0o600); writeErr != nil {
+					return writeErr
+				}
+				cmd.Printf("materialized %s from template\n", manifestPath)
 			}
 			var manifest map[string]any
 			if err := json.Unmarshal(body, &manifest); err != nil {
@@ -88,6 +106,12 @@ func newExtensionDigestCommand() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&write, "write", false, "Write refreshed digests to the root manifest and validate the package")
 	return cmd
+}
+
+// materializeManifestTemplate 将脚手架占位符（如 __BACKEND_DIGEST__）替换为 64 个 0，
+// 仅用于生成可被 digest --write 刷新的合法 JSON；真实摘要必须由 digest 命令写入。
+func materializeManifestTemplate(body string) string {
+	return manifestDigestPlaceholder.ReplaceAllString(body, strings.Repeat("0", 64))
 }
 
 func digestPackageRelativeFile(root string, relative string) (string, error) {

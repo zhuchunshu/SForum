@@ -19,6 +19,136 @@
     "hostApiVersion": "sforum.host@2",
     "digest": "__BACKEND_DIGEST__"
   },
+  "database": {
+    "contractVersion": "sforum.custom-content.database@1",
+    "grants": ["own_schema"],
+    "schema": "sforum_custom_content",
+    "role": "sforum_custom_content",
+    "backup": {
+      "required": true,
+      "strategy": "pg_dump"
+    },
+    "retention": {
+      "onDisable": "retain",
+      "onUninstall": "export",
+      "days": 30
+    }
+  },
+  "routes": [
+    {
+      "id": "sforum.custom-content.route.articles",
+      "contractVersion": "sforum.custom-content.route.articles@1",
+      "action": "add",
+      "path": "/api/custom-content/articles",
+      "methods": ["GET"],
+      "guard": "core.guard.public",
+      "fallback": "closed",
+      "mode": "http",
+      "handler": "sforum.custom-content.route.articles",
+      "responseSchema": "sforum.custom-content.route.articles.response@1"
+    },
+    {
+      "id": "sforum.custom-content.route.article-write",
+      "contractVersion": "sforum.custom-content.route.article-write@1",
+      "action": "add",
+      "path": "/api/custom-content/articles",
+      "methods": ["POST"],
+      "guard": "core.guard.login",
+      "fallback": "closed",
+      "mode": "http",
+      "handler": "sforum.custom-content.route.article-write",
+      "requestSchema": "sforum.custom-content.route.article-write.request@1",
+      "responseSchema": "sforum.custom-content.route.article-write.response@1"
+    },
+    {
+      "id": "sforum.custom-content.route.import",
+      "contractVersion": "sforum.custom-content.route.import@1",
+      "action": "add",
+      "path": "/api/custom-content/import",
+      "methods": ["POST"],
+      "guard": "core.guard.login",
+      "fallback": "closed",
+      "mode": "http",
+      "handler": "sforum.custom-content.route.import",
+      "requestSchema": "sforum.custom-content.route.import.request@1",
+      "responseSchema": "sforum.custom-content.route.import.response@1"
+    },
+    {
+      "id": "sforum.custom-content.route.export",
+      "contractVersion": "sforum.custom-content.route.export@1",
+      "action": "add",
+      "path": "/api/custom-content/export",
+      "methods": ["GET"],
+      "guard": "core.guard.login",
+      "fallback": "closed",
+      "mode": "http",
+      "handler": "sforum.custom-content.route.export",
+      "responseSchema": "sforum.custom-content.route.export.response@1"
+    },
+    {
+      "id": "sforum.custom-content.route.render",
+      "contractVersion": "sforum.custom-content.route.render@1",
+      "action": "add",
+      "path": "/api/custom-content/render",
+      "methods": ["POST"],
+      "guard": "core.guard.public",
+      "fallback": "closed",
+      "mode": "http",
+      "handler": "sforum.custom-content.route.render",
+      "requestSchema": "sforum.custom-content.route.render.request@1",
+      "responseSchema": "sforum.custom-content.route.render.response@1"
+    },
+    {
+      "id": "sforum.custom-content.route.taxonomy",
+      "contractVersion": "sforum.custom-content.route.taxonomy@1",
+      "action": "add",
+      "path": "/api/custom-content/taxonomy",
+      "methods": ["GET"],
+      "guard": "core.guard.public",
+      "fallback": "closed",
+      "mode": "http",
+      "handler": "sforum.custom-content.route.taxonomy",
+      "responseSchema": "sforum.custom-content.route.taxonomy.response@1"
+    },
+    {
+      "id": "sforum.custom-content.route.taxonomy-write",
+      "contractVersion": "sforum.custom-content.route.taxonomy-write@1",
+      "action": "add",
+      "path": "/api/custom-content/taxonomy",
+      "methods": ["POST"],
+      "guard": "core.guard.login",
+      "fallback": "closed",
+      "mode": "http",
+      "handler": "sforum.custom-content.route.taxonomy",
+      "requestSchema": "sforum.custom-content.route.taxonomy-write.request@1",
+      "responseSchema": "sforum.custom-content.route.taxonomy.response@1"
+    },
+    {
+      "id": "sforum.custom-content.route.migrate",
+      "contractVersion": "sforum.custom-content.route.migrate@1",
+      "action": "add",
+      "path": "/api/custom-content/migrate",
+      "methods": ["POST"],
+      "guard": "core.guard.login",
+      "fallback": "closed",
+      "mode": "http",
+      "handler": "sforum.custom-content.route.migrate",
+      "requestSchema": "sforum.custom-content.route.migrate.request@1",
+      "responseSchema": "sforum.custom-content.route.migrate.response@1"
+    },
+    {
+      "id": "sforum.custom-content.route.search",
+      "contractVersion": "sforum.custom-content.route.search@1",
+      "action": "add",
+      "path": "/api/custom-content/search",
+      "methods": ["GET"],
+      "guard": "core.guard.public",
+      "fallback": "closed",
+      "mode": "http",
+      "handler": "sforum.custom-content.route.search",
+      "responseSchema": "sforum.custom-content.route.search.response@1"
+    }
+  ],
   "entities": [
     {
       "id": "sforum.custom-content.entity.article",

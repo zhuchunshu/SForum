@@ -56,13 +56,13 @@ func TestReferenceSEOPluginUsesRealProtocolV2AndCoreFallback(t *testing.T) {
 		})
 	}
 	registry := seoregistry.New()
+	artifact := seoregistry.Artifact{
+		ExtensionID: extension.ID, ExtensionVersion: extension.Version,
+		PackageDigest: extension.PackageDigest, ImpactDigest: extension.PackageDigest,
+		VersionID: extension.ActiveVersionID, RuntimeInstanceID: active.Identity.InstanceID,
+	}
 	if _, err := registry.Publish(seoregistry.Publication{
-		Artifact: seoregistry.Artifact{
-			ExtensionID: extension.ID, ExtensionVersion: extension.Version,
-			PackageDigest: extension.PackageDigest, ImpactDigest: extension.PackageDigest,
-			VersionID: extension.ActiveVersionID, RuntimeInstanceID: active.Identity.InstanceID,
-		},
-		Contributions: contributions,
+		Artifact: artifact, Contributions: contributions,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -113,25 +113,102 @@ func TestReferenceSEOPluginUsesRealProtocolV2AndCoreFallback(t *testing.T) {
 	if err != nil || result.Document.Title != failedBase.Title || len(result.Fallbacks) == 0 {
 		t.Fatalf("reference failure fallback=%#v err=%v", result, err)
 	}
+
+	// --- 重启：Stop + Start 后以 exact-artifact CAS 换绑 RuntimeInstanceID ---
+	previousArtifact := artifact
+	if err := manager.Stop(t.Context(), extension); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Start(t.Context(), extension); err != nil {
+		t.Fatalf("restart SEO plugin: %v", err)
+	}
+	active, err = manager.ActiveRuntimeInstance(extension.ID)
+	if err != nil || active.Identity.InstanceID == "" {
+		t.Fatalf("restart runtime: %#v err=%v", active, err)
+	}
+	artifact = seoregistry.Artifact{
+		ExtensionID: extension.ID, ExtensionVersion: extension.Version,
+		PackageDigest: extension.PackageDigest, ImpactDigest: extension.PackageDigest,
+		VersionID: extension.ActiveVersionID, RuntimeInstanceID: active.Identity.InstanceID,
+	}
+	if _, err := registry.PublishIfArtifact(previousArtifact, seoregistry.Publication{
+		Artifact: artifact, Contributions: contributions,
+	}); err != nil {
+		t.Fatalf("republish after restart (CAS): %v", err)
+	}
+	afterRestart, err := execution.Execute(t.Context(), seoregistry.ExecuteRequest{Scope: scope, Base: base})
+	if err != nil || afterRestart.Document.Title != "Core topic | SEO Reference" {
+		t.Fatalf("after restart execute=%#v err=%v", afterRestart, err)
+	}
+	t.Log("coverage.seo.restart=protocol-v2-cas-republish")
+
+	// --- Safe Mode：清空第三方 publication，只保留 Host base ---
+	if _, err := registry.ReplaceAll(nil, true); err != nil {
+		t.Fatalf("seo safe mode: %v", err)
+	}
+	safeResult, err := execution.Execute(t.Context(), seoregistry.ExecuteRequest{Scope: scope, Base: base})
+	if err != nil || safeResult.Document.Title != base.Title {
+		t.Fatalf("safe mode must use Host base only: %#v err=%v", safeResult, err)
+	}
+	// Safe Mode 下第三方不得再 Publish（管理员拒绝隐式恢复）。
+	if _, err := registry.Publish(seoregistry.Publication{
+		Artifact: artifact, Contributions: contributions,
+	}); err == nil {
+		t.Fatal("safe mode must reject third-party SEO republish without explicit exit")
+	}
+	t.Log("coverage.seo.safe_mode=host-base-only+deny-third-party")
+
+	// --- 管理员允许/拒绝 + 无隐式授权 ---
+	if len(extension.CapabilityGrants) == 0 {
+		t.Fatal("SEO reference must declare capability grants for operator trust UI")
+	}
+	for _, grant := range extension.CapabilityGrants {
+		if grant.Key == "" {
+			t.Fatalf("empty capability grant: %#v", grant)
+		}
+	}
+	for _, def := range extension.Manifest.PermissionDefinitions {
+		if def.AssignmentPolicy != "" && def.AssignmentPolicy != "host" {
+			t.Fatalf("SEO must not self-assign permissions: %#v", def)
+		}
+	}
+	// 无 trust 的 Starter 拒绝启动（管理员拒绝路径）。
+	deniedManager := extensionsruntime.NewManager(extensionsruntime.ManagerConfig{
+		Starter: extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
+			Trust: staticRuntimeTrust{}, // empty trust → deny
+		}),
+	})
+	if err := deniedManager.Start(t.Context(), extension); err == nil {
+		_ = deniedManager.Stop(context.Background(), extension)
+		t.Fatal("SEO Start without trust grant must be denied")
+	}
+	t.Log("coverage.seo.admin_deny=missing-trust-grant")
+
+	// --- 退出 Safe Mode 后重新绑定，再 disable 验证 Host fallback ---
+	if _, err := registry.ReplaceAll(nil, false); err != nil {
+		t.Fatalf("exit seo safe mode: %v", err)
+	}
+	if _, err := registry.Publish(seoregistry.Publication{
+		Artifact: artifact, Contributions: contributions,
+	}); err != nil {
+		t.Fatalf("republish after safe mode exit: %v", err)
+	}
 	if err := manager.Stop(t.Context(), extension); err != nil {
 		t.Fatal(err)
 	}
 	stopped = true
-	// 卸载/停止后 Host 仍保留 publication 时必须 fallback；证明无插件进程也能恢复。
+	// 进程已停：publication 仍在时必须 fallback，证明无隐式授权继续改写 SEO。
 	result, err = execution.Execute(t.Context(), seoregistry.ExecuteRequest{Scope: scope, Base: base})
 	if err != nil || result.Document.Title != base.Title || len(result.Fallbacks) == 0 {
 		t.Fatalf("reference disable fallback=%#v err=%v", result, err)
 	}
-	if _, removed, err := registry.Remove(seoregistry.Artifact{
-		ExtensionID: extension.ID, ExtensionVersion: extension.Version,
-		PackageDigest: extension.PackageDigest, ImpactDigest: extension.PackageDigest,
-		VersionID: extension.ActiveVersionID, RuntimeInstanceID: active.Identity.InstanceID,
-	}); err != nil || !removed {
+	if _, removed, err := registry.Remove(artifact); err != nil || !removed {
 		t.Fatalf("remove SEO publication after uninstall: removed=%v err=%v", removed, err)
 	}
 	if snap := registry.Snapshot(); len(snap.Contributions) != 0 {
 		t.Fatalf("uninstall must remove SEO publication, got %#v", snap.Contributions)
 	}
+	t.Log("coverage.seo.uninstall=publication-removed")
 }
 
 func referenceSEOBase(title string) seoregistry.Document {

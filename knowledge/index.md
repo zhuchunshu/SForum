@@ -6,6 +6,15 @@ session archive.
 
 ## Latest Handoff
 
+- **2026-07-22 P13 reference-plugin honesty**
+  - Commerce/Custom-content/Media e2e execute declared surfaces (not Manifest-only)
+  - SEO/Membership: restart, Safe Mode, privacy, admin deny, no implicit auth
+  - Formal ZIP: `digest --write` materializes tmpl → package → upload/trust/enable chain
+  - Gates green; **implementable work complete, LTS residual open** (not 100%)
+  - Handoff: `sessions/2026-07-22-p13-reference-plugin-honesty-handoff.md`
+  - LTS residual: `sessions/2026-07-21-trusted-plugin-theme-platform-v3-p13-lts-residual-handoff.md`
+  - Module: `modules/extensions.md`
+
 - **2026-07-22 P12 ops production binding**
   - CompatFarm executor + `./scripts/test.sh`; Marketplace Ed25519 + deps +
     install binding; RuntimeRollout/SystemTier Postgres; Privacy/Observability

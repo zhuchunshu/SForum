@@ -9,14 +9,16 @@ book is `../plans/2026-07-13-trusted-plugin-theme-platform-v3.md`. Progress:
 `../plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md` (**~99.7%** after
 P11 remediation; see progress ledger).
 
-**Live program state (2026-07-22):** P0–P12 closed on `main` with **P11 platform
-services** and **P12 ops production bindings** landed. P13 final gates and
-reference packages remain green. The only open task-book rows are LTS-blocked
-deletions (`sforum.protocol.v1`, `sforum.theme.l1.request-time-loader`) until
-APILTS `RemoveAfter` ≈ 2026-11-28 + live zero-shim + checklist 1–7. Fail-closed
-`SFPageOutlet` is never fully removed. Optional non-task-book depth (Protocol
-content-filter lease, Media Plan/Execute product authority, EntityStore I/O) is
-not V3 residual.
+**Live program state (2026-07-22):** P0–P12 closed; **P13 implementable work
+complete** with reference-plugin honesty (commerce/custom-content/media e2e,
+SEO/Membership Safe Mode/privacy/deny, formal ZIP install chain). Claim only:
+**implementable work complete, LTS residual open** — not 100%. Open task-book
+rows remain LTS-blocked deletions (`sforum.protocol.v1`,
+`sforum.theme.l1.request-time-loader`) until APILTS `RemoveAfter` ≈ 2026-11-28 +
+live zero-shim + checklist 1–7. Fail-closed `SFPageOutlet` is never fully
+removed. WebSocket for commerce cites platform public test; full browser
+Baiduspider/multi-node live matrices not claimed this session.
+Handoff: `../sessions/2026-07-22-p13-reference-plugin-honesty-handoff.md`.
 
 ### P11 Platform Services (production assembly)
 

@@ -2,7 +2,10 @@ module github.com/zhuchunshu/sforum/extensions/fixtures/plugins/sforum-media-opt
 
 go 1.26.5
 
-require github.com/zhuchunshu/sforum/apps/api v0.0.0
+require (
+	github.com/disintegration/imaging v1.6.2
+	github.com/zhuchunshu/sforum/apps/api v0.0.0
+)
 
 require (
 	github.com/Masterminds/semver/v3 v3.5.0 // indirect
@@ -69,6 +72,7 @@ require (
 	go.uber.org/goleak v1.3.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.53.0 // indirect
+	golang.org/x/image v0.43.0 // indirect
 	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/sync v0.21.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
