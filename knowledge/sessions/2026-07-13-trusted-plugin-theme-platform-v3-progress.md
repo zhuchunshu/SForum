@@ -5,63 +5,51 @@ Last updated: 2026-07-21
 ## Progress
 
 - Verified weighted progress: **99.7%** (display **99%**).
-- Phase counts: **P0–P12 complete**; P13 **~99.7%**.
-- Product-path adoption residual closed this pass:
-  - `a155ed44d` Media MIME purpose-scoped gate on avatar + SEO uploads
-  - `a8024f949` Content Registry `BuildCatalog` (`sforum.content-catalog@1`)
-  - `849b39dba` public `GET /extensions/runtime/content-catalog` + OpenAPI
-  - `4a805a506` Entity `DryRunImportExport` (plan + permission, no store I/O)
-  - `4c339a5e1` admin entity import/export dry-run endpoint + allow/deny tests
-- Prior product-path: editor catalog/document, general Upload MIME, content
-  post-filter seam, entity catalog plans.
-- Goal harness "remaining P10" remains **stale** as a phase reopen.
+- Phase counts: **P0–P12 complete (including P10 15/15)**; P13 **~99.7%**.
+- Goal harness “remaining P10 / P11 / P12” checklist is **stale** — do not
+  reopen those phases. Authoritative open rows are the 3 LTS deletions only.
+- Product-path residual + gate repair this line:
+  - `a155ed44d`…`4c339a5e1` MIME/catalog/dry-run product path
+  - `6b4f42abf` i18n for entity dry-run API error codes (unblocked `go test ./...`)
+- Independent audit: **0 material non-LTS implementable gaps** remaining.
 
 ## Current Subtask
 
-### 2026-07-21 P13 residual = LTS wait + large deferred execution
+### 2026-07-21 P13 residual = LTS wait only (policy-blocked)
 
-- Exact next: **do not delete** LoadTemplate / Protocol V1 / fail-closed
-  SFPageOutlet until RemoveAfter (≈2026-11-28) + zero-shim + checklist 1–7.
-- Deferred non-LTS (large, not product-boundary blockers for 99.7%):
-  - ContentRegistry Protocol-leased filter dispatch (beyond identity seam)
-  - Full Media Plan/Execute + ReceiptAuthority
-  - EntityStore durable rows + real import/export execution
-- Implementable catalog/MIME/dry-run product-path residual from prior audit is
-  **done**.
+- Exact next: **do not delete** LoadTemplate residual / Protocol V1 /
+  fail-closed SFPageOutlet until APILTS `RemoveAfter` ≈ **2026-11-28** +
+  live zero-shim + deletion checklist 1–7.
+- `go run ./cmd/sforum extension api-lts --json`:
+  `protocolV1CanRemoveWithZeroShim=false`,
+  `themeRequestTimeLoaderCanRemoveWithZeroShim=false` (window not open).
+- Large deferred planes (not task-book open rows): Protocol-leased content
+  filter dispatch; Media Plan/Execute/Receipt product authority; EntityStore
+  durable I/O. Do not re-label as incomplete P10.
 
-## Tests
+## Tests (final-gate re-verification)
 
-- Attachments MediaRegistry avatar/SEO MIME: pass
-- ContentRegistry BuildCatalog: pass
-- Extensions ContentCatalog HTTP: pass
-- EntityRegistry DryRunImportExport: pass
-- Extensions EntityImportExportDryRun allow/deny/anonymous: pass
-- OpenAPI refs (2025): pass
-- `go test` Attachments + MediaRegistry + ContentRegistry + EntityRegistry +
-  Extensions controllers: pass
+- `cd apps/api && go test ./...` — **EXIT 0** after i18n fix (was FAIL on
+  Localization `entity.*` codes before `6b4f42abf`)
+- `cd apps/api && go build ./...` — EXIT 0
+- `ruby scripts/validate-openapi-refs.rb` — EXIT 0 (2025 refs)
+- Localization package: pass
+- Evidence: `docs/extensions/v3/p13-final-gates-evidence.md` refreshed
 
 ## Open task-book rows
 
 1. Remove request-time template loader residual (instrumented; not deleted)
 2. Remove Protocol V1 paths
-3. Compatibility path removal after LTS checklist
-
-## Key files this pass
-
-- `apps/api/app/Models/Attachments/service.go` (+ media registry tests)
-- `apps/api/app/Support/ContentRegistry/catalog.go`
-- `apps/api/app/Http/Controllers/Extensions/{controller,routes,content_catalog_test,entity_import_export_dry_run_test}.go`
-- `apps/api/app/Support/EntityRegistry/contracts.go`
-- `contracts/openapi.yaml`, `contracts/openapi/paths/extensions.yaml`
+3. Compatibility path removal after LTS checklist (+ DoD same bucket)
 
 ## Rollback
 
-- Revert `a155ed44d`…`4c339a5e1` for this product-path residual batch.
+- Revert product-path `a155ed44d`…`6b4f42abf` if needed.
 - Never delete LTS shims early.
 
 ## Unowned worktree
 
-- None at last check (clean after commits).
+- None expected after evidence/docs commit.
 
 
 ---

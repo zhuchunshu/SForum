@@ -3,6 +3,8 @@
 Date: 2026-07-21
 Overall progress: **99.7%**
 Active phase: **P13 residual = LTS-blocked legacy deletion only**
+Last gate re-verify: `go test ./...` EXIT 0 after `6b4f42abf` entity dry-run i18n;
+product-path residual closed; goal harness “remaining P10” is stale.
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and

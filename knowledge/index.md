@@ -31,8 +31,9 @@ This is the entry point for project memory.
   - P0-P12 complete. P13 **~99.7%**: command gates green; presentation ownership +
     Protocol V2 defaults + digest hygiene + gate honesty + **product-path
     adoption residual** (Media MIME on avatar/SEO; content-catalog HTTP;
-    entity import/export dry-run allow/deny)
-    (`a155ed44d`…`da2fe80ff`). Weighted **99.7%**.
+    entity import/export dry-run allow/deny; dry-run i18n)
+    (`a155ed44d`…`6b4f42abf`). Weighted **99.7%**.
+    Full `go test ./...` re-green after Localization entity.* messages.
     Open: LTS-blocked loader/v1/compatibility deletions only (RemoveAfter≈2026-11-28 + zero-shim).
     Large deferred (not LTS, not thin wiring): Protocol-leased content filter
     dispatch, Media Plan/Execute/Receipt product authority, EntityStore I/O.
