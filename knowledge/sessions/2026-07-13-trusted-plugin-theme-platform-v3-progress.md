@@ -5,6 +5,52 @@ Last updated: 2026-07-21
 ## Progress
 
 - Verified weighted progress: **99.7%** (display **99%**).
+- Phase counts: **P0–P12 complete**; P13 **~99.7%**.
+- Product-path adoption continued:
+  - editor catalog + editor-document + media MIME (prior)
+  - ContentRegistry post-render seam on forum write paths (identity-safe)
+  - Entity catalog HTTP with plan projections
+- Goal harness "remaining P10" remains **stale** as a phase reopen.
+
+## Current Subtask
+
+### 2026-07-21 product-path adoption residual
+
+- Exact next: optional EntityStore + import/export execution (large); full
+  ContentRegistry Protocol filter dispatch when Manager lease path exists.
+- **Still do not delete** LoadTemplate / Protocol V1 / fail-closed SFPageOutlet
+  until RemoveAfter (≈2026-11-28) + zero-shim.
+
+## Tests
+
+- Forum ContentPostFilter + CreateTopicRenders: pass
+- ContentRegistry ForumPostFilter: pass
+- EntityRegistry BuildCatalog: pass
+- Extensions EntityCatalog HTTP: pass
+- OpenAPI refs: pass
+
+## Open task-book rows
+
+1. Remove request-time template loader residual (instrumented; not deleted)
+2. Remove Protocol V1 paths
+3. Compatibility path removal after LTS checklist
+
+## Rollback
+
+- Revert latest content/entity product-path commits.
+- Never delete LTS shims early.
+
+
+---
+
+
+# Trusted Plugin And Theme Platform V3 Progress Ledger
+
+Last updated: 2026-07-21
+
+## Progress
+
+- Verified weighted progress: **99.7%** (display **99%**).
 - Phase counts: **P0–P12 complete (P10 15/15 platform)**; P13 **~99.7%**.
 - Goal harness "remaining P10" is **stale as a phase reopen**; product-path
   adoption residual is being closed without re-credit of P10 checkboxes.
