@@ -289,6 +289,58 @@ func (h *Controller) publicContentCatalog(c fiber.Ctx) error {
 	return apphttp.OK(c, catalog)
 }
 
+// entityImportExportDryRun 需登录：对单一实体做 import/export 计划 + 权限 dry-run。
+// 永不执行导入导出；Allowed=false 仍返回 200 以便前端展示拒绝原因。
+func (h *Controller) entityImportExportDryRun(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	if h == nil || h.entityRegistry == nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, "entity.registry_unavailable")
+	}
+	entityID := strings.TrimSpace(c.Params("entityId"))
+	if entityID == "" {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "entity.id_required")
+	}
+	action := strings.ToLower(strings.TrimSpace(c.Query("action")))
+	if action == "" {
+		action = entityregistry.ActionExport
+	}
+	if action != entityregistry.ActionImport && action != entityregistry.ActionExport {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "entity.import_export_action_invalid")
+	}
+	contribution, err := h.entityRegistry.Resolve(entityID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "entity.not_found")
+	}
+	if contribution.Kind != entityregistry.KindEntity {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "entity.kind_invalid")
+	}
+	// 仅把 actor 实际持有的 import/export 键注入评估集；super_admin 经 Can 展开。
+	held := make([]string, 0, 2)
+	for _, key := range []string{contribution.PermissionImport, contribution.PermissionExport} {
+		if key != "" && actor.Can(key) {
+			held = append(held, key)
+		}
+	}
+	result, err := h.entityRegistry.DryRunImportExport(
+		entityID, action, entityregistry.NewActorPermissions(held...),
+	)
+	if err != nil {
+		if errors.Is(err, entityregistry.ErrInvalid) {
+			return fiber.NewError(fiber.StatusUnprocessableEntity, "entity.import_export_invalid")
+		}
+		if errors.Is(err, entityregistry.ErrNotFound) {
+			return fiber.NewError(fiber.StatusNotFound, "entity.not_found")
+		}
+		return err
+	}
+	c.Set(fiber.HeaderCacheControl, "no-store")
+	c.Set("X-Content-Type-Options", "nosniff")
+	return apphttp.OK(c, result)
+}
+
 func (h *Controller) list(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {

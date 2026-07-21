@@ -64,6 +64,74 @@ publicExtensionEntityCatalog:
       '503':
         "$ref": "../components/responses.yaml#/ServiceUnavailable"
 
+adminExtensionEntityImportExportDryRun:
+  get:
+    summary: Dry-run entity import/export plan and permission decision
+    operationId: getAdminExtensionEntityImportExportDryRun
+    tags: [Extensions]
+    description: >-
+      Returns `sforum.entity-import-export-dry-run@1` for one entity type.
+      Requires authentication. Evaluates Host import/export policy and the
+      actor's declared permission keys without executing any durable store
+      import or export. Permission or policy denials return HTTP 200 with
+      `decision.allowed=false` and a machine-readable reason so admin UI can
+      explain the gate. `executes` is always false.
+    parameters:
+      - name: entityId
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+      - name: action
+        in: query
+        required: false
+        description: import or export (default export)
+        schema: { type: string, enum: [import, export], default: export }
+    responses:
+      '200':
+        description: Dry-run plan and decision. Cache-Control is no-store.
+        headers:
+          Cache-Control:
+            schema: { type: string, enum: [no-store] }
+          X-Content-Type-Options:
+            schema: { type: string, enum: [nosniff] }
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: object
+                  required: [schemaVersion, dryRun, executes, action, plan, decision]
+                  properties:
+                    schemaVersion:
+                      type: string
+                      enum: [sforum.entity-import-export-dry-run@1]
+                    dryRun: { type: boolean, enum: [true] }
+                    executes: { type: boolean, enum: [false] }
+                    action: { type: string, enum: [import, export] }
+                    plan:
+                      type: object
+                      additionalProperties: true
+                    decision:
+                      type: object
+                      required: [allowed, action, targetId]
+                      properties:
+                        allowed: { type: boolean }
+                        action: { type: string }
+                        targetId: { type: string }
+                        permissionKey: { type: string }
+                        policy: { type: string }
+                        reason: { type: string }
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+
 publicExtensionContentCatalog:
   get:
     summary: Project the active Content Registry into an inspectable catalog

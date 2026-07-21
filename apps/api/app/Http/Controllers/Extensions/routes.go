@@ -16,6 +16,8 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 
 	api.Get("/admin/admin-surfaces", h.listAdminSurfaces)
 	api.Post("/admin/admin-surfaces/:surfaceId/invoke", h.invokeAdminSurface)
+	// entity import/export dry-run：在带 :id 的 extension 路由之前注册。
+	api.Get("/admin/extensions/entity-catalog/:entityId/import-export-dry-run", h.entityImportExportDryRun)
 	api.Get("/admin/extensions", h.list)
 	api.Get("/admin/extensions/navigation", h.navigation)
 	api.Get("/admin/extensions/contribution-points", h.contributionPoints)
