@@ -3,6 +3,8 @@ package forum
 import (
 	"strings"
 	"testing"
+
+	editordocument "github.com/zhuchunshu/sforum/apps/api/app/Support/EditorDocument"
 )
 
 func TestRenderMarkdownContentSanitizesHTML(t *testing.T) {
@@ -223,5 +225,45 @@ func TestRenderEditorDocumentRejectsEmptyDoc(t *testing.T) {
 	})
 	if err != ErrInvalidContent {
 		t.Fatalf("expected ErrInvalidContent, got %v", err)
+	}
+}
+
+func TestRenderEditorDocumentCoreSchemaFallbacksUnknownPluginNode(t *testing.T) {
+	// 无 Editor Registry schema 时，插件节点必须稳定 fallback，不得丢弃整篇。
+	native := `{"type":"doc","content":[{"type":"demoVote","attrs":{"question":"A or B?"}},{"type":"paragraph","content":[{"type":"text","text":"after"}]}]}`
+	rendered, err := RenderContent(ContentInput{
+		RawContent:   native,
+		SourceFormat: SourceFormatEditorDocument,
+	})
+	if err != nil {
+		t.Fatalf("RenderContent: %v", err)
+	}
+	if strings.Contains(rendered.RawContent, `"type":"demoVote"`) {
+		t.Fatalf("core schema must not persist unregistered node type, raw=%s", rendered.RawContent)
+	}
+	if !strings.Contains(rendered.PlainText, "after") {
+		t.Fatalf("plain = %q", rendered.PlainText)
+	}
+}
+
+func TestRenderEditorDocumentAdmitsPluginNodeFromMergedSchema(t *testing.T) {
+	schema := editordocument.SchemaFromEditorNames([]string{"demoVote"}, nil)
+	native := `{"type":"doc","content":[{"type":"demoVote","attrs":{"question":"A or B?"}},{"type":"paragraph","content":[{"type":"text","text":"after"}]}]}`
+	rendered, err := RenderContentWithExcerptLimitAndSchema(ContentInput{
+		RawContent:   native,
+		SourceFormat: SourceFormatEditorDocument,
+	}, defaultExcerptRuneLimit, schema)
+	if err != nil {
+		t.Fatalf("RenderContent: %v", err)
+	}
+	if !strings.Contains(rendered.RawContent, `"type":"demoVote"`) {
+		t.Fatalf("expected demoVote preserved, raw=%s", rendered.RawContent)
+	}
+	if !strings.Contains(rendered.HTMLContent, `data-fallback="demoVote"`) &&
+		!strings.Contains(rendered.HTMLContent, "[demoVote]") {
+		t.Fatalf("expected plugin node fallback html, got %q", rendered.HTMLContent)
+	}
+	if !strings.Contains(rendered.PlainText, "after") {
+		t.Fatalf("plain = %q", rendered.PlainText)
 	}
 }
