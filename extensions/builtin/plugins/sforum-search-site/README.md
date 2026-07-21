@@ -6,5 +6,6 @@
 - **不可卸载**（protected builtin）
 - 零外部进程：不需要 Meilisearch
 - 切换到可选 Meili 后可 Restore Default 回到本引擎
+- **无配置项**：管理入口为 About 页，展示插件说明与包信息
 
 大站需要更强分词/相关性时，安装可选插件 `sforum-search-meilisearch`。

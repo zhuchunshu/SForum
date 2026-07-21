@@ -20,6 +20,8 @@ Host catalog slot: **`search.provider`**.
 - Core has **no** Meilisearch client; `MEILI_*` is not required.
 - Default: `sforum.search-site` (builtin, cannot uninstall). Host implements
   `PostgresSiteEngine` against `search_documents` (tsvector + GIN).
+- Site-search admin entry is **About only** (no settings fields); Manage opens
+  plugin info.
 - Optional: `extensions/optional/plugins/sforum-search-meilisearch`.
 - Compose: `meilisearch` service has profile `search` only.
 - Decision: `decisions/2026-07-21-search-framework-site-default.md`

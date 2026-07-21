@@ -1,4 +1,5 @@
 {
-  "extension.name": "Site Search",
-  "extension.description": "Default full-text search (PostgreSQL). Protected built-in; cannot be uninstalled."
+  "name": "Site Search",
+  "description": "Default full-text search (PostgreSQL FTS). Protected built-in; cannot be uninstalled. Indexes live in PostgreSQL with no extra search process. Install the optional Meilisearch plugin to switch search.provider; restore defaults anytime.",
+  "author": { "name": "SForum" }
 }

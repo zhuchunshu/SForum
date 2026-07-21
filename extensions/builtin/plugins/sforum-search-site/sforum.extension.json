@@ -11,15 +11,13 @@
     "rpc": "hashicorp-go-plugin"
   },
   "capabilities": [
-    "host.api",
-    "settings.own"
+    "host.api"
   ],
   "description": "Protected built-in site search (PostgreSQL FTS). Default search.provider; Host short-circuits hot path. Cannot be uninstalled.",
   "id": "sforum.search-site",
   "includes": {
     "admin": "manifest/admin.json",
-    "langs": "manifest/langs",
-    "settings": "manifest/settings.json"
+    "langs": "manifest/langs"
   },
   "manifestVersion": 3,
   "name": "Site Search",

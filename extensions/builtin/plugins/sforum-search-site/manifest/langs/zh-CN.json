@@ -1,4 +1,5 @@
 {
-  "extension.name": "站内搜索",
-  "extension.description": "默认全文搜索（PostgreSQL）。受保护内置，不可卸载。"
+  "name": "站内搜索",
+  "description": "默认全文搜索（PostgreSQL FTS）。受保护内置，不可卸载。索引保存在 PostgreSQL，无需额外搜索进程；需要更强全文能力时可安装 Meilisearch 可选插件并切换 search.provider，之后可一键恢复默认。",
+  "author": { "name": "SForum" }
 }
