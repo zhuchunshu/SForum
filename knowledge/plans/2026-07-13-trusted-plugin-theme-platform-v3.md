@@ -759,8 +759,9 @@ upgrade/rollback/disable CAS tests.
 The Tiptap Editor Registry row closed with `Support/EditorRegistry` (node/mark/
 command/toolbar), Manifest `editor`, lifecycle plan `@10` / `editor.v1`, Host
 catalog projection, and Nuxt trusted L2 digest-verify import into SFEditor.
-EditorDocument pipeline and ordered stages are closed; entity/taxonomy and
-reference plugin product proofs remain open.
+EditorDocument pipeline and ordered stages are closed. Forum write paths merge
+`EditorRegistry.DocumentSchema()` into Accept so registered plugin nodes survive
+storage (`4e5f969a5`…`f7670e856`).
 
 The EditorDocument pipeline (`Support/EditorDocument`) owns storage version
 `sforum.editor-document@1`, Accept() triple production, ordered stages including

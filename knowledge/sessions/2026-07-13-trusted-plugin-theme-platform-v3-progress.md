@@ -7,6 +7,59 @@ Last updated: 2026-07-21
 - Verified weighted progress: **99.7%** (display **99%**).
 - Phase counts: **P0–P12 complete (including P10 15/15)**; P13 **~99.7%**.
 - Goal harness “remaining P10” is **stale** — do not reopen P10.
+- Product-path residual closed this session:
+  - `4e5f969a5` EditorRegistry → EditorDocument schema projection
+  - `f0af91bf0` forum write paths Accept with registry schema
+  - `f7670e856` product tests admit + core-only fallback
+- Catalog inventory **248** routes; dry-run `extension.view` gate remains.
+- 99-row matrix **99/99**; only open task-book rows are LTS deletions.
+
+## Current Subtask
+
+### 2026-07-21 EditorRegistry Accept schema wired — LTS wait only
+
+- Exact next: **do not delete** LoadTemplate residual / Protocol V1 /
+  fail-closed SFPageOutlet until APILTS `RemoveAfter` ≈ **2026-11-28** +
+  live zero-shim + deletion checklist 1–7.
+- Product boundary for 100%: wait for RemoveAfter or user-approved LTS window
+  change.
+- Large deferred (not task-book open, not thin wiring): Protocol-leased content
+  filter dispatch, Media Plan/Execute/Receipt product authority, EntityStore I/O.
+
+## Tests
+
+- `go test ./app/Support/EditorRegistry/ ./app/Models/Forum/` — EXIT 0
+- `go test ./bootstrap/ ./app/Providers/ ./app/Http/Controllers/Forum/` — EXIT 0
+- `go build ./...` — EXIT 0
+- `go test ./...` — **EXIT 0** after schema wiring
+
+## Open task-book rows
+
+1. Remove request-time template loader residual (instrumented; not deleted)
+2. Remove Protocol V1 paths
+3. Compatibility path removal after LTS checklist (+ DoD same bucket)
+
+## Rollback
+
+- Revert `4e5f969a5`…`f7670e856` for editor Accept schema chain.
+- Never delete LTS shims early.
+
+## Unowned worktree
+
+- None expected after commits.
+
+
+---
+
+# Trusted Plugin And Theme Platform V3 Progress Ledger
+
+Last updated: 2026-07-21
+
+## Progress
+
+- Verified weighted progress: **99.7%** (display **99%**).
+- Phase counts: **P0–P12 complete (including P10 15/15)**; P13 **~99.7%**.
+- Goal harness “remaining P10” is **stale** — do not reopen P10.
 - Gate honesty after product-path:
   - Catalog inventory **248** routes + identities
   - Entity dry-run now requires `extension.view` (handler + extensions.read

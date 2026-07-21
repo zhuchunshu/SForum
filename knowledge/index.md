@@ -30,10 +30,10 @@ This is the entry point for project memory.
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p13-handoff.md`
   - P0-P12 complete. P13 **~99.7%**: command gates green; presentation ownership +
     Protocol V2 defaults + digest hygiene + gate honesty + **product-path
-    adoption residual** (Media MIME on avatar/SEO; content-catalog HTTP;
-    entity import/export dry-run allow/deny; dry-run i18n)
-    (`a155ed44d`…`6b4f42abf`). Weighted **99.7%**.
-    Full `go test ./...` re-green after Localization entity.* messages.
+    adoption** (Media MIME; content/entity catalogs; entity dry-run; **forum
+    editor-document Accept merges EditorRegistry schema** so plugin L2 nodes
+    survive storage — `4e5f969a5`…`f7670e856`). Weighted **99.7%**.
+    Full `go test ./...` re-green after schema wiring.
     Open: LTS-blocked loader/v1/compatibility deletions only (RemoveAfter≈2026-11-28 + zero-shim).
     Large deferred (not LTS, not thin wiring): Protocol-leased content filter
     dispatch, Media Plan/Execute/Receipt product authority, EntityStore I/O.
