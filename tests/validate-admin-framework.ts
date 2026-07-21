@@ -143,17 +143,20 @@ const productionEnvExample = read('.env.production.example')
 assert(envExample.includes('NUXT_PUBLIC_ADMIN_ROUTE_PREFIX=/control-panel'), '.env.example should document the admin route prefix')
 assert(productionEnvExample.includes('NUXT_PUBLIC_ADMIN_ROUTE_PREFIX=/control-panel'), '.env.production.example should document the admin route prefix')
 
-for (const authPage of [
-  'apps/web/app/pages/login.vue',
-  'apps/web/app/pages/register.vue'
+// 路由壳只保留 layout/middleware + outlet；表单与回跳逻辑在 Host body 岛组件中。
+for (const authForm of [
+  'apps/web/app/components/SFLoginFormPage.vue',
+  'apps/web/app/components/SFRegisterFormPage.vue'
 ]) {
-  const content = read(authPage)
-  assert(content.includes('useAdminRoutes') || content.includes('useAuthReturnNavigation'), `${authPage} should use the admin route or centralized auth return helper`)
-  assert(!content.includes("? '/admin'"), `${authPage} should not hard-code the legacy /admin prefix`)
+  const content = read(authForm)
+  assert(content.includes('useAdminRoutes') || content.includes('useAuthReturnNavigation'), `${authForm} should use the admin route or centralized auth return helper`)
+  assert(!content.includes("? '/admin'"), `${authForm} should not hard-code the legacy /admin prefix`)
 }
 // Runtime Page Registry：公开 auth 页由 host 拥有，不再要求默认主题 Layer。
 assert(existsSync(file('apps/web/app/pages/login.vue')), 'Login page should live on the host after theme migration')
 assert(existsSync(file('apps/web/app/pages/register.vue')), 'Register page should live on the host after theme migration')
+assert(existsSync(file('apps/web/app/components/SFLoginFormPage.vue')), 'Login form body island should live on the host')
+assert(existsSync(file('apps/web/app/components/SFRegisterFormPage.vue')), 'Register form body island should live on the host')
 
 const adminPagePathsById: Record<string, string> = {
   '/': 'apps/web/app/pages/admin/index.vue',
@@ -192,6 +195,7 @@ const adminPagePathsById: Record<string, string> = {
   '/extensions/template-inspector': 'apps/web/app/pages/admin/extensions/template-inspector.vue',
   '/extensions/component-inspector': 'apps/web/app/pages/admin/extensions/component-inspector.vue',
   '/extensions/navigation-inspector': 'apps/web/app/pages/admin/extensions/navigation-inspector.vue',
+  '/extensions/registry-catalogs': 'apps/web/app/pages/admin/extensions/registry-catalogs.vue',
   '/extensions/provider-slots': 'apps/web/app/pages/admin/extensions/provider-slots.vue',
   '/jobs': 'apps/web/app/pages/admin/jobs.vue',
   '/schedules': 'apps/web/app/pages/admin/schedules.vue',
@@ -319,7 +323,7 @@ const extensionFolder = firstSidebarGroup.find(entry => entry.type === 'folder' 
 assert(extensionFolder, 'Admin sidebar should expose extensions as an independent folder')
 assert(
   extensionFolder.children?.map(entry => entry.pageId).join(',') ===
-    '/extensions,/extensions/plugins,/extensions/themes,/extensions/pages,/extensions/route-providers,/extensions/route-inspector,/extensions/cache-inspector,/extensions/asset-inspector,/extensions/template-inspector,/extensions/component-inspector,/extensions/navigation-inspector,/extensions/provider-slots,/extensions/settings,/extensions/events,/extensions/contributions',
+    '/extensions,/extensions/plugins,/extensions/themes,/extensions/pages,/extensions/route-providers,/extensions/route-inspector,/extensions/cache-inspector,/extensions/asset-inspector,/extensions/template-inspector,/extensions/component-inspector,/extensions/navigation-inspector,/extensions/registry-catalogs,/extensions/provider-slots,/extensions/settings,/extensions/events,/extensions/contributions',
   'Extension folder should keep the approved submenu order without the app store'
 )
 assert(!extensionFolder.children?.some(entry => entry.pageId === '/extensions/store'), 'App store should not live under the extensions folder')

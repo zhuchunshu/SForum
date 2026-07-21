@@ -376,14 +376,15 @@ describe('login page navigation', () => {
   })
 })
 
-const defaultThemePagesUrl = new URL(
-  '../../../apps/web/app/pages/',
+// 登录/注册表单已抽到 Host body 岛组件；路由页只保留 layout/middleware + outlet。
+const authFormComponentsUrl = new URL(
+  '../app/components/',
   import.meta.url
 )
 
 async function loadRegisterPageForSubmitTest(options: { registerError?: unknown } = {}) {
-  const source = readFileSync(new URL('register.vue', defaultThemePagesUrl), 'utf8')
-  const { descriptor } = parse(source, { filename: 'register.vue' })
+  const source = readFileSync(new URL('SFRegisterFormPage.vue', authFormComponentsUrl), 'utf8')
+  const { descriptor } = parse(source, { filename: 'SFRegisterFormPage.vue' })
   const compiled = compileScript(descriptor, { id: 'register-submit-test' }).content
   const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'browser' })
   const executable = transpiler.transformSync(compiled)
@@ -490,8 +491,8 @@ async function loadRegisterPageForSubmitTest(options: { registerError?: unknown 
 }
 
 async function loadLoginPageForSubmitTest() {
-  const source = readFileSync(new URL('login.vue', defaultThemePagesUrl), 'utf8')
-  const { descriptor } = parse(source, { filename: 'login.vue' })
+  const source = readFileSync(new URL('SFLoginFormPage.vue', authFormComponentsUrl), 'utf8')
+  const { descriptor } = parse(source, { filename: 'SFLoginFormPage.vue' })
   const compiled = compileScript(descriptor, { id: 'login-submit-test' }).content
   const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'browser' })
   const executable = transpiler.transformSync(compiled)

@@ -57,6 +57,7 @@
 - `attachments.cleanup_orphans`
 - `audit.cleanup_events`
 - `forum.auto_lock_idle`
+- `forum.flush_view_counts`
 
 ## jobKinds
 

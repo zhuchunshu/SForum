@@ -484,7 +484,9 @@ func assertResolvedGuardPermission(t *testing.T, registry *Registry, want string
 
 func TestCoreRouteCatalogHasExactReviewedGuardParity(t *testing.T) {
 	catalog := CoreRouteCatalog()
-	if len(catalog) != 252 {
+	// 计数由 scripts/v3-catalog/generate.mjs 与 catalog-identities 共同约束；
+	// 新增路由必须先进入 identities + OpenAPI + Guard 审核矩阵，再同步此处。
+	if len(catalog) != 253 {
 		t.Fatalf("generated core route count = %d", len(catalog))
 	}
 	kinds := make(map[CoreGuardKind]int)

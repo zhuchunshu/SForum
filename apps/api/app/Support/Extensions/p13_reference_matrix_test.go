@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 )
 
 // TestP13ReferencePluginPackagesExist is the installable-package inventory gate
@@ -70,7 +72,17 @@ func TestP13ReferencePluginPackagesExist(t *testing.T) {
 			}
 		}
 	}
-	// 主题完整性由 Pages.TestBuiltinThemesCoverAllReplaceablePages 负责；这里只确认包在仓库中。
+	// 主题完整性由 Pages.TestBuiltinThemesCoverAllReplaceablePages 负责；这里只确认包在仓库中，
+	// 且 replace 声明数量至少覆盖当前 Page Catalog 中全部可替换公开页（/my 已删除后为 19）。
+	replaceable := 0
+	for _, page := range pages.Catalog() {
+		if page.Replaceable {
+			replaceable++
+		}
+	}
+	if replaceable == 0 {
+		t.Fatal("page catalog has no replaceable public pages")
+	}
 	for _, theme := range []string{
 		"extensions/builtin/themes/sforum-default/theme.json",
 		"extensions/builtin/themes/sforum-nocturne/theme.json",
@@ -88,8 +100,8 @@ func TestP13ReferencePluginPackagesExist(t *testing.T) {
 		if err := json.Unmarshal(raw, &pkg); err != nil {
 			t.Fatalf("theme json %s: %v", theme, err)
 		}
-		if len(pkg.Pages) < 20 {
-			t.Fatalf("%s must cover replaceable public pages, got %d", theme, len(pkg.Pages))
+		if len(pkg.Pages) < replaceable {
+			t.Fatalf("%s must cover %d replaceable public pages, got %d", theme, replaceable, len(pkg.Pages))
 		}
 	}
 }
