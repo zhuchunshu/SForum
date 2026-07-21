@@ -56,7 +56,8 @@ const emptyTopicList = (): ForumTopicList => ({
   items: [],
   total: 0,
   page: 1,
-  perPage: 20
+  perPage: 20,
+  hasMore: false
 })
 
 const { data: categoryGroups, pending: categoriesPending } = await useAsyncData(
@@ -71,13 +72,27 @@ const { data: activeTags, pending: tagsPending } = await useAsyncData(
   { default: () => [] as ForumTag[] }
 )
 
-function loadTopicPage(page: number, filters: ForumHomeFilters = committedFilters.value) {
+function loadTopicPage(
+  page: number,
+  filters: ForumHomeFilters = committedFilters.value,
+  after?: string
+) {
   if (filters.query) {
+    // 搜索端点仍为 page 分页（非 M5 keyset 范围）
     return forumApi.searchTopics({
       query: filters.query,
       categorySlug: filters.categorySlug,
       tagSlug: filters.tagSlug,
       page
+    })
+  }
+
+  // M5：有 nextCursor 时用 after keyset，避免深 OFFSET
+  if (after) {
+    return forumApi.listTopics({
+      categorySlug: filters.categorySlug,
+      tagSlug: filters.tagSlug,
+      after
     })
   }
 
@@ -108,6 +123,9 @@ const loadedTopics = useState<ForumTopicSummary[]>('forum-home-loaded-topics', (
 const loadedTopicTotal = useState<number>('forum-home-topic-total', () => topicList.value.total)
 const loadedFeedKey = useState<string>('forum-home-loaded-feed-key', () => activePageFeedKey.value)
 const nextPage = ref(currentPage.value + 1)
+// M5：优先 cursor 续页；无 nextCursor 时回退 page
+const nextCursor = ref(topicList.value.nextCursor || '')
+const loadedHasMore = ref<boolean | undefined>(topicList.value.hasMore)
 const isLoadingMore = ref(false)
 const loadMoreError = ref('')
 const loadMoreTrigger = ref<HTMLElement | null>(null)
@@ -116,7 +134,19 @@ const hasLoadedAllPages = ref(false)
 const categories = computed(() => categoryGroups.value.flatMap((group) => group.categories || []))
 const topics = computed(() => loadedTopics.value)
 const totalPages = computed(() => Math.ceil(loadedTopicTotal.value / Math.max(topicList.value.perPage, 1)) || 1)
-const hasMoreTopics = computed(() => !hasLoadedAllPages.value && topics.value.length < loadedTopicTotal.value)
+// hasMore 优先 API 字段 / nextCursor；否则用 total 近似（兼容旧响应）
+const hasMoreTopics = computed(() => {
+  if (hasLoadedAllPages.value) {
+    return false
+  }
+  if (nextCursor.value) {
+    return true
+  }
+  if (typeof loadedHasMore.value === 'boolean') {
+    return loadedHasMore.value
+  }
+  return topics.value.length < loadedTopicTotal.value
+})
 const hasActiveFilters = computed(() => Boolean(
   committedFilters.value.query
   || committedFilters.value.categorySlug
@@ -188,8 +218,11 @@ function replaceLoadedTopics(list: ForumTopicList) {
   loadedTopicTotal.value = list.total
   loadedFeedKey.value = activePageFeedKey.value
   nextPage.value = Math.max(currentPage.value + 1, list.page + 1)
+  nextCursor.value = list.nextCursor || ''
+  loadedHasMore.value = list.hasMore
   loadMoreError.value = ''
-  hasLoadedAllPages.value = list.items.length >= list.total || list.items.length < list.perPage
+  hasLoadedAllPages.value = list.hasMore === false
+    || (!list.nextCursor && (list.items.length >= list.total || list.items.length < list.perPage))
 }
 
 function shouldIgnoreClientEmptyHydration(list: ForumTopicList) {
@@ -211,6 +244,8 @@ watch(topicList, (list) => {
 watch(activePageFeedKey, () => {
   feedGeneration += 1
   nextPage.value = currentPage.value + 1
+  nextCursor.value = ''
+  loadedHasMore.value = undefined
   isLoadingMore.value = false
   loadMoreError.value = ''
   hasLoadedAllPages.value = false
@@ -230,11 +265,15 @@ async function loadMoreTopics(forceRetry = false) {
     feedKey: activePageFeedKey.value
   }
   const page = nextPage.value
+  const cursor = nextCursor.value
   isLoadingMore.value = true
   loadMoreError.value = ''
 
   try {
-    const nextList = await loadTopicPage(page, filters)
+    // 搜索走 page；主题列表优先 after cursor（M5）
+    const nextList = filters.query
+      ? await loadTopicPage(page, filters)
+      : await loadTopicPage(page, filters, cursor || undefined)
     if (!isForumHomeRequestCurrent(request, feedGeneration, activePageFeedKey.value)) {
       return
     }
@@ -245,6 +284,8 @@ async function loadMoreTopics(forceRetry = false) {
     loadedTopicTotal.value = Math.max(loadedTopicTotal.value, nextList.total)
     loadedFeedKey.value = activePageFeedKey.value
     nextPage.value = nextList.page + 1
+    nextCursor.value = nextList.nextCursor || ''
+    loadedHasMore.value = nextList.hasMore
     hasLoadedAllPages.value = hasReachedForumHomeEnd({
       requestedPage: page,
       responsePage: nextList.page,
@@ -252,7 +293,9 @@ async function loadMoreTopics(forceRetry = false) {
       newItemCount: newTopics.length,
       loadedCount: loadedTopics.value.length,
       total: loadedTopicTotal.value,
-      perPage: nextList.perPage
+      perPage: nextList.perPage,
+      hasMore: nextList.hasMore,
+      usedCursor: Boolean(cursor)
     })
   } catch {
     if (isForumHomeRequestCurrent(request, feedGeneration, activePageFeedKey.value)) {

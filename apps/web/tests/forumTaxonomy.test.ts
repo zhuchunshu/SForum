@@ -80,6 +80,17 @@ describe('forum taxonomy helpers', () => {
     })
   })
 
+  test('M5 after cursor omits page in topic query', () => {
+    expect(buildForumTopicQuery({
+      categorySlug: 'general',
+      page: 50,
+      after: 'opaque-cursor-token'
+    })).toEqual({
+      categorySlug: 'general',
+      after: 'opaque-cursor-token'
+    })
+  })
+
   test('builds category and tag route paths', () => {
     expect(forumCategoryPath('general')).toBe('/c/general')
     expect(forumTagPath('nuxt')).toBe('/tags/nuxt')

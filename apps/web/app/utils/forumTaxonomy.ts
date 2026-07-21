@@ -242,6 +242,10 @@ export type ForumCommentList = {
   page: number
   perPage: number
   view: 'tree' | 'flat'
+  /** M5：是否还有下一页 */
+  hasMore?: boolean
+  /** M5：flat keyset 续页游标，作为 after 查询参数 */
+  nextCursor?: string
   /** forum.comment.actions（E2.2）；列表级一次返回，前端挂到每行菜单 */
   extensionActions?: ForumCommentExtensionAction[]
 }
@@ -305,6 +309,8 @@ export type ForumCommentListQuery = {
   view?: ForumCommentListView
   page?: number
   perPage?: number
+  /** M5 flat keyset：非空时 API 忽略 page */
+  after?: string
 }
 
 // 主题生命周期动作枚举，与后端 TopicAction 常量保持一致。
@@ -324,12 +330,17 @@ export type ForumTopicList = {
   /**
    * 列表总数（D1）：分类/标签为冗余计数（可短暂陈旧）；
    * 首页/多过滤可能为近似值。不要当严格实时全表 COUNT。
+   * Infinite scroll 优先 hasMore / nextCursor。
    */
   total: number
   /** true 时 total 为估计/近似，UI 可显示「约 N」 */
   totalApproximate?: boolean
   page: number
   perPage: number
+  /** M5：是否还有下一页（公开列表必填语义） */
+  hasMore?: boolean
+  /** M5：opaque keyset 游标；有下一页时作为 after 续页 */
+  nextCursor?: string
   /** forum.topic.list.badges（E2.4）；列表级一次返回，前端挂到每行标题旁 */
   extensionListBadges?: ForumTopicExtensionBadge[]
 }
@@ -352,6 +363,8 @@ export type ForumTopicFilters = {
   query?: string
   page?: number
   perPage?: number
+  /** M5 keyset：非空时 API 忽略 page */
+  after?: string
 }
 
 // 搜索输入：query 为关键词，必填；其余为可选过滤与分页。
@@ -456,7 +469,12 @@ export function buildForumTopicQuery(filters: ForumTopicFilters = {}) {
   addStringQuery(query, 'categorySlug', filters.categorySlug)
   addStringQuery(query, 'tagSlug', filters.tagSlug)
   addStringQuery(query, 'query', filters.query)
-  addPositiveNumberQuery(query, 'page', filters.page)
+  // M5：after 优先；有 cursor 时不传 page，避免语义混淆
+  if (filters.after?.trim()) {
+    addStringQuery(query, 'after', filters.after)
+  } else {
+    addPositiveNumberQuery(query, 'page', filters.page)
+  }
   addPositiveNumberQuery(query, 'perPage', filters.perPage)
   return query
 }
@@ -736,7 +754,11 @@ export function buildForumCommentQuery(query: ForumCommentListQuery = {}) {
   if (query.view === 'tree' || query.view === 'flat') {
     params.view = query.view
   }
-  addPositiveNumberQuery(params, 'page', query.page)
+  if (query.after?.trim()) {
+    addStringQuery(params, 'after', query.after)
+  } else {
+    addPositiveNumberQuery(params, 'page', query.page)
+  }
   addPositiveNumberQuery(params, 'perPage', query.perPage)
   return params
 }

@@ -106,6 +106,36 @@ describe('forum homepage query helpers', () => {
       total: 100,
       perPage: 10
     })).toBe(false)
+
+    // M5：API hasMore=false 立即结束（不依赖 total）
+    expect(hasReachedEnd({
+      requestedPage: 2,
+      responsePage: 1,
+      responseItemCount: 10,
+      newItemCount: 10,
+      loadedCount: 30,
+      total: 1_000_000,
+      perPage: 10,
+      hasMore: false
+    })).toBe(true)
+
+    expect(hasReachedEnd({
+      requestedPage: 2,
+      responsePage: 1,
+      responseItemCount: 10,
+      newItemCount: 10,
+      loadedCount: 30,
+      total: 1_000_000,
+      perPage: 10,
+      hasMore: true
+    })).toBe(false)
+  })
+
+  test('home page prefers nextCursor for infinite scroll load-more', () => {
+    const source = readFileSync(new URL('../app/components/SFHomePage.vue', import.meta.url), 'utf8')
+    expect(source).toContain('nextCursor')
+    expect(source).toContain('after')
+    expect(source).toContain('hasMore')
   })
 })
 
