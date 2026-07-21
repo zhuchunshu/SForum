@@ -31,6 +31,7 @@ SForum is a maintainable, plugin-first open-source forum framework: core is the 
 - [Development overview](./development/README.md)
 - [Environment setup](./development/setup.md)
 - [Daily workflow](./development/workflow.md)
+- [Developer CLI](./development/cli.md)
 - [Testing & gates](./development/testing.md)
 - [Repository map](./development/repository.md)
 

@@ -32,7 +32,7 @@ SForum/
 | `cmd/api` | HTTP 服务 |
 | `cmd/worker` | River worker |
 | `cmd/migrate` | 嵌入式 Goose |
-| `cmd/sforum` | 开发者 CLI |
+| `cmd/sforum` | 开发者 CLI（[用法文档](./cli.md)） |
 | `bootstrap/` | 运行时装配 |
 | `app/Http/` | 控制器与路由 |
 | `app/Models/` | 领域服务 |

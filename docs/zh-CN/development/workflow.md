@@ -23,7 +23,7 @@
 | `./scripts/test.sh` | 仓库级门禁 |
 | `./scripts/build-builtin-plugins.sh` | 编译内置插件 |
 | `ruby scripts/validate-openapi-refs.rb` | OpenAPI `$ref` |
-| `cd apps/api && go run ./cmd/sforum` | 开发者 CLI（脚手架、seed 等） |
+| `cd apps/api && go run ./cmd/sforum` | 开发者 CLI（详见 [开发者 CLI](./cli.md)） |
 
 ## 改 API
 
@@ -48,12 +48,13 @@
 ## 改扩展
 
 1. 读 [插件编写指南](../../extensions/authoring-guide.md)  
-2. 新包优先 `extensions/dev/` 或脚手架：  
+2. 脚手架与打包命令见 [开发者 CLI](./cli.md)（`make:plugin`、`digest`、`package --exclude-source` 等）  
+3. 新包优先 `extensions/dev/`，或：  
    `cd apps/api && go run ./cmd/sforum make:plugin ...`  
-3. 声明 Manifest V3；可执行启用需信任流程  
-4. 变更 Host 目录后重新生成：  
+4. 声明 Manifest V3；可执行启用需信任流程  
+5. 变更 Host 目录后重新生成：  
    `cd apps/api && go run ./cmd/sforum extension docs generate`  
-5. V3 表面目录：`scripts/v3-catalog` / 相关 generate 脚本  
+6. V3 表面目录：`scripts/v3-catalog` / 相关 generate 脚本  
 
 **禁止**：从第三方插件 import `app/Models/*` 等宿主业务包。
 
@@ -65,6 +66,7 @@ cd apps/api && go run ./cmd/sforum seed:forum
 
 - 追加写入、不触发业务事件  
 - 需要 `DATABASE_URL`（环境或 `--database-url`）  
+- 完整 flags 与注意项：[开发者 CLI · seed:forum](./cli.md#假数据seedforum)  
 
 ## 知识库与提交
 
@@ -74,5 +76,6 @@ cd apps/api && go run ./cmd/sforum seed:forum
 
 ## 下一步
 
+- [开发者 CLI](./cli.md)  
 - [测试与质量门禁](./testing.md)  
 - [仓库地图](./repository.md)  

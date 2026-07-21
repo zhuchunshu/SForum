@@ -31,6 +31,7 @@ SForum 是可维护、插件优先的开源论坛框架：核心做宿主与契�
 - [开发总览](./development/README.md)
 - [环境搭建](./development/setup.md)
 - [日常工作流](./development/workflow.md)
+- [开发者 CLI](./development/cli.md)
 - [测试与质量门禁](./development/testing.md)
 - [仓库地图](./development/repository.md)
 

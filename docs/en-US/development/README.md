@@ -10,6 +10,7 @@ For contributors and integrators.
 | --- | --- |
 | [Environment setup](./setup.md) | Toolchain, deps, first run |
 | [Daily workflow](./workflow.md) | Hot reload, scripts, OpenAPI, extensions |
+| [Developer CLI](./cli.md) | `sforum`: scaffold, validate, digest, package, seed, recovery |
 | [Testing & gates](./testing.md) | Unit tests, repo gate, contracts |
 | [Repository map](./repository.md) | Directory roles |
 

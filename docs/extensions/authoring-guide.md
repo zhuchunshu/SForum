@@ -70,6 +70,11 @@ go run ./cmd/sforum make:plugin --id sforum.foo --name "Foo" \
 # → ../../extensions/builtin/plugins/sforum.foo
 ```
 
+Full CLI reference (make, digest, validate, test, package `--exclude-source`,
+seed, recovery):  
+[中文 · 开发者 CLI](../zh-CN/development/cli.md) ·
+[English · Developer CLI](../en-US/development/cli.md).
+
 Full map: [`extensions/README.md`](../../extensions/README.md).
 
 ## Quick start
@@ -676,7 +681,7 @@ after exact digest approval. Runtime Vue SFC compilation, executable admin
 slots, remote scripts, and extension-triggered host builds are unsupported. Read
 [trusted-admin-components.md](./trusted-admin-components.md).
 
-## Validation commands
+## Validation and packaging commands
 
 ```bash
 # Parse + merge includes, print summary
@@ -689,9 +694,16 @@ go run ./cmd/sforum extension digest --write <package-root>
 go run ./cmd/sforum extension test <package-root>
 go run ./cmd/sforum extension test --json <package-root>
 
+# Release zip (omit common source/dev files)
+go run ./cmd/sforum extension package <package-root> --exclude-source
+
 # Catalog documentation drift
 go run ./cmd/sforum extension docs generate --check
 ```
+
+Full flag tables and release loop:  
+[中文 · 开发者 CLI](../zh-CN/development/cli.md) ·
+[English · Developer CLI](../en-US/development/cli.md).
 
 ## Contribution points (F4.3 / E2)
 

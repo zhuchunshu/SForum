@@ -22,7 +22,7 @@
 | `./scripts/test.sh` | Full repo gate |
 | `./scripts/build-builtin-plugins.sh` | Build built-in plugins |
 | `ruby scripts/validate-openapi-refs.rb` | OpenAPI `$ref`s |
-| `cd apps/api && go run ./cmd/sforum` | Developer CLI |
+| `cd apps/api && go run ./cmd/sforum` | Developer CLI (see [Developer CLI](./cli.md)) |
 
 ## API changes
 
@@ -42,10 +42,11 @@
 ## Extension changes
 
 1. Read [authoring guide](../../extensions/authoring-guide.md)  
-2. Scaffold with `go run ./cmd/sforum make:plugin …` or use `extensions/dev/`  
-3. Manifest V3 + trust for executable enable  
-4. Regenerate catalogs after host surface changes  
-5. Do not import host business packages from third-party plugins  
+2. Scaffold, digest, package: [Developer CLI](./cli.md) (`make:plugin`, `digest`, `package --exclude-source`, …)  
+3. Prefer `extensions/dev/` or `go run ./cmd/sforum make:plugin …`  
+4. Manifest V3 + trust for executable enable  
+5. Regenerate catalogs after host surface changes  
+6. Do not import host business packages from third-party plugins  
 
 ## Seed data
 
@@ -53,9 +54,10 @@
 cd apps/api && go run ./cmd/sforum seed:forum
 ```
 
-Append-only; no domain events; needs `DATABASE_URL`.
+Append-only; no domain events; needs `DATABASE_URL`. Full flags: [Developer CLI · seed:forum](./cli.md#seed-data-seedforum).
 
 ## Next
 
+- [Developer CLI](./cli.md)  
 - [Testing](./testing.md)  
 - [Repository map](./repository.md)  

@@ -40,6 +40,7 @@ Details: [Runtime themes](../../extensions/runtime-themes.md).
 
 ## Developer docs
 
+- [Developer CLI](../development/cli.md) (`make:plugin`, digest, package, seed)  
 - [Authoring guide](../../extensions/authoring-guide.md)  
 - [Scenario map](../../extensions/scenario-map.md)  
 - [Host API v2](../../extensions/host-api-v2.md)  

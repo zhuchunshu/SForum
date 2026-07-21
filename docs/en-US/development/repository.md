@@ -24,7 +24,7 @@ SForum/
 
 | Path | Role |
 | --- | --- |
-| `cmd/api` · `cmd/worker` · `cmd/migrate` · `cmd/sforum` | Binaries |
+| `cmd/api` · `cmd/worker` · `cmd/migrate` · `cmd/sforum` | Binaries (`sforum` CLI: [docs](./cli.md)) |
 | `bootstrap/` | Runtime assembly |
 | `app/Http/` | Controllers & routes |
 | `app/Models/` | Domain services |

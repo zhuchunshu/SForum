@@ -45,6 +45,7 @@
 
 编写插件请读：
 
+- [开发者 CLI](../development/cli.md)（`make:plugin`、digest、打包、seed）  
 - [插件编写指南](../../extensions/authoring-guide.md)  
 - [场景速查](../../extensions/scenario-map.md)  
 - [Host API v2](../../extensions/host-api-v2.md)  

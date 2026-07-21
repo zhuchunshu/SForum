@@ -1,6 +1,7 @@
 package main
 
 import (
+	"archive/zip"
 	"os"
 	"path/filepath"
 	"strings"
@@ -40,7 +41,7 @@ func TestBuildExtensionPackageProducesZipAndSBOM(t *testing.T) {
 	zipPath := filepath.Join(t.TempDir(), "demo.sforum.zip")
 	// Call build directly; validation may fail on incomplete V3 — still exercise zip path.
 	// Prefer buildExtensionPackage without LoadPackage for unit focus.
-	result, err := buildExtensionPackage(root, zipPath)
+	result, err := buildExtensionPackage(root, zipPath, packageBuildOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,4 +54,95 @@ func TestBuildExtensionPackageProducesZipAndSBOM(t *testing.T) {
 	if _, err := os.Stat(result.SBOMPath); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestBuildExtensionPackageExcludeSource(t *testing.T) {
+	root := t.TempDir()
+	write := func(rel, body string, mode os.FileMode) {
+		t.Helper()
+		path := filepath.Join(root, rel)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), mode); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("sforum.extension.json", `{"id":"demo.release"}`, 0o644)
+	write("backend/main.go", "package main\n", 0o644)
+	write("backend/go.mod", "module demo\n", 0o644)
+	write("backend/plugin", "#!/bin/sh\necho ok\n", 0o755)
+	write("frontend/settings.mjs", "export default {}\n", 0o644)
+	write("frontend/settings.mjs.map", "{}\n", 0o644)
+	write("frontend/Widget.vue", "<template></template>\n", 0o644)
+	write("testdata/fixture.json", "{}\n", 0o644)
+	write("README.md", "# demo\n", 0o644)
+
+	// 默认：源码一并打入
+	fullZip := filepath.Join(t.TempDir(), "full.sforum.zip")
+	full, err := buildExtensionPackage(root, fullZip, packageBuildOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fullNames := zipEntryNames(t, full.ZipPath)
+	for _, want := range []string{"backend/main.go", "backend/go.mod", "frontend/Widget.vue", "testdata/fixture.json"} {
+		if !fullNames[want] {
+			t.Fatalf("default package missing source file %s; got %#v", want, fullNames)
+		}
+	}
+
+	// --exclude-source：只保留运行时与说明文件
+	releaseZip := filepath.Join(t.TempDir(), "release.sforum.zip")
+	release, err := buildExtensionPackage(root, releaseZip, packageBuildOptions{ExcludeSource: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if release.SkippedCount < 4 {
+		t.Fatalf("expected source skips, got %#v", release)
+	}
+	names := zipEntryNames(t, release.ZipPath)
+	for _, want := range []string{"sforum.extension.json", "backend/plugin", "frontend/settings.mjs", "README.md"} {
+		if !names[want] {
+			t.Fatalf("release package missing %s; got %#v", want, names)
+		}
+	}
+	for _, deny := range []string{"backend/main.go", "backend/go.mod", "frontend/Widget.vue", "frontend/settings.mjs.map", "testdata/fixture.json"} {
+		if names[deny] {
+			t.Fatalf("release package should omit %s; got %#v", deny, names)
+		}
+	}
+}
+
+func TestIsPackageSourceFile(t *testing.T) {
+	cases := map[string]bool{
+		"backend/main.go":         true,
+		"backend/go.mod":          true,
+		"backend/plugin":          false,
+		"frontend/settings.mjs":   false,
+		"frontend/settings.css":   false,
+		"frontend/settings.mjs.map": true,
+		"frontend/Widget.vue":     true,
+		"manifest/settings.json":  false,
+		"sforum.extension.json":   false,
+		"README.md":               false,
+	}
+	for path, want := range cases {
+		if got := isPackageSourceFile(path); got != want {
+			t.Fatalf("isPackageSourceFile(%q)=%v want %v", path, got, want)
+		}
+	}
+}
+
+func zipEntryNames(t *testing.T, zipPath string) map[string]bool {
+	t.Helper()
+	r, err := zip.OpenReader(zipPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	out := make(map[string]bool, len(r.File))
+	for _, f := range r.File {
+		out[f.Name] = true
+	}
+	return out
 }
