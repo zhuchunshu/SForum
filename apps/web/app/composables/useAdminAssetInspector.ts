@@ -132,7 +132,12 @@ export function useAdminAssetInspector() {
       }
       return snapshot
     } catch (error) {
-      throw new Error(apiErrorMessage(error) || apiErrorReason(error) || 'asset inspector failed')
+      const message =
+        apiErrorMessage(error)
+        || apiErrorReason(error)
+        || (error instanceof Error && error.message.trim() ? error.message : '')
+        || 'asset inspector failed'
+      throw new Error(message)
     }
   }
 

@@ -105,7 +105,12 @@ export function useAdminTemplateInspector() {
       }
       return snapshot
     } catch (error) {
-      throw new Error(apiErrorMessage(error) || apiErrorReason(error) || 'template inspector failed')
+      const message =
+        apiErrorMessage(error)
+        || apiErrorReason(error)
+        || (error instanceof Error && error.message.trim() ? error.message : '')
+        || 'template inspector failed'
+      throw new Error(message)
     }
   }
 
