@@ -67,6 +67,8 @@ type Service struct {
 	lifecycleFinalizer     LifecycleCleanupFinalizer
 	queryPublications      RuntimeQueryPublicationBoundary
 	cachePublications      RuntimeCachePublicationBoundary
+	// pluginMemorySampler 可选；测试注入固定 RSS 映射。nil 时用 OS 进程采样。
+	pluginMemorySampler func() map[string]uint64
 }
 
 // PageRegistry 主题/插件页面贡献注册（避免 extensions 直接依赖 pages 包实现细节）。
@@ -212,6 +214,11 @@ func WithExecutableTrust(service *ExecutableTrustService, enabled bool) ServiceO
 
 func WithSafeMode(enabled bool) ServiceOption {
 	return func(s *Service) { s.safeMode = enabled }
+}
+
+// WithPluginMemorySampler 注入扩展列表/详情用的插件 RSS 映射（测试或禁用采样）。
+func WithPluginMemorySampler(sampler func() map[string]uint64) ServiceOption {
+	return func(s *Service) { s.pluginMemorySampler = sampler }
 }
 
 func WithActivationCoordinator(coordinator *ActivationCoordinator) ServiceOption {
@@ -419,8 +426,10 @@ func (s *Service) List(ctx context.Context, actor identity.Actor) ([]Extension, 
 	if err != nil {
 		return nil, err
 	}
+	// 整表只采样一次 ps，避免每个扩展各扫一遍进程表。
+	memoryByID := s.sampleOwnedPluginMemory()
 	for index := range items {
-		items[index] = s.decorateRuntime(ctx, items[index])
+		items[index] = applyPluginMemory(s.decorateRuntime(ctx, items[index]), memoryByID)
 	}
 	return items, nil
 }
@@ -434,7 +443,7 @@ func (s *Service) Detail(ctx context.Context, actor identity.Actor, extensionID 
 	if err != nil {
 		return Extension{}, err
 	}
-	return s.decorateRuntime(ctx, item), nil
+	return applyPluginMemory(s.decorateRuntime(ctx, item), s.sampleOwnedPluginMemory()), nil
 }
 
 func (s *Service) SyncBuiltins(ctx context.Context) ([]Extension, error) {
@@ -681,7 +690,7 @@ func (s *Service) AdminPageBootstrap(ctx context.Context, actor identity.Actor, 
 	if err != nil {
 		return AdminPageBootstrap{}, err
 	}
-	extension = s.decorateRuntime(ctx, extension)
+	extension = applyPluginMemory(s.decorateRuntime(ctx, extension), s.sampleOwnedPluginMemory())
 	result := AdminPageBootstrap{Extension: extension}
 
 	want := normalizeRoutePath(pagePath)

@@ -21,6 +21,7 @@ import {
   extensionStats,
   filterExtensionsByType,
   findExtensionAdminPage,
+  formatPluginMemoryBytes,
   mergeExtensionDeliveries,
   mergeExtensionEvents,
   recommendedExtensionSettingValues,
@@ -263,6 +264,12 @@ describe('admin extension helpers', () => {
     expect(runtimeStatusLabelKey(item)).toBe('admin.extensions.runtime.running')
     expect(runtimeCapabilitySummary(item)).toEqual({ routes: 1, hooks: 1, events: 2, providers: 1 })
     expect(canRestartPlugin(item)).toBe(true)
+  })
+
+  test('formats plugin process RSS for admin lists', () => {
+    expect(formatPluginMemoryBytes(512 * 1024)).toBe('512 KiB')
+    expect(formatPluginMemoryBytes(18 * 1024 * 1024)).toBe('18 MiB')
+    expect(formatPluginMemoryBytes(128 * 1024 * 1024)).toBe('128 MiB')
   })
 
   test('formats extension contributions for admin inspection', () => {

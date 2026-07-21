@@ -8,6 +8,7 @@ import {
   extensionManageRoute,
   extensionSettingsPresentation,
   filterExtensionsByType,
+  formatPluginMemoryBytes,
   isLifecycleV2Plugin,
   runtimeCapabilitySummary,
   runtimeStatusLabelKey,
@@ -242,6 +243,15 @@ useSeoMeta({
               icon="i-lucide-zap-off"
             >
               {{ t('admin.extensions.runtime.circuitOpen') }}
+            </UBadge>
+            <UBadge
+              v-if="item.runtime?.memoryBytes"
+              color="neutral"
+              variant="subtle"
+              icon="i-lucide-memory-stick"
+              :title="t('admin.extensions.runtime.memoryHint')"
+            >
+              {{ t('admin.extensions.runtime.memory', { size: formatPluginMemoryBytes(item.runtime.memoryBytes) }) }}
             </UBadge>
           </div>
           <p

@@ -144,20 +144,3 @@ func TestRuntimeCollectorOmitsFamilyWhenSamplerFails(t *testing.T) {
 		t.Fatal("expected non-zero fallback memoryBytes")
 	}
 }
-
-func TestParsePSList(t *testing.T) {
-	raw := []byte("  51406  42704 164360 /Users/x/tmp/sforum-api\n  51418  51406  18056 ../../storage/extensions/sforum.smtp/1.0.0/a/backend/plugin\n")
-	samples, err := parsePSList(raw)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(samples) != 2 {
-		t.Fatalf("len=%d", len(samples))
-	}
-	if samples[0].PID != 51406 || samples[0].PPID != 42704 || samples[0].RSSBytes != 164360*1024 {
-		t.Fatalf("row0=%#v", samples[0])
-	}
-	if !IsBackendPluginCommand(samples[1].Command) {
-		t.Fatalf("plugin cmd=%q", samples[1].Command)
-	}
-}

@@ -240,6 +240,17 @@ export type AdminExtensionRuntime = {
   protocolStartCount?: number
   protocolCallCount?: number
   protocolLastCallAt?: string
+  /** 拥有 backend 子进程时的 OS RSS（字节）；无进程时省略 */
+  memoryBytes?: number
+}
+
+/** 插件进程 RSS 展示：不足 1 MiB 用 KiB，否则整数 MiB。 */
+export function formatPluginMemoryBytes(bytes: number) {
+  const value = Math.max(0, Number(bytes) || 0)
+  if (value < 1024 * 1024) {
+    return `${Math.max(1, Math.round(value / 1024))} KiB`
+  }
+  return `${Math.round(value / (1024 * 1024))} MiB`
 }
 
 export type AdminCapabilityRisk = 'low' | 'medium' | 'high'

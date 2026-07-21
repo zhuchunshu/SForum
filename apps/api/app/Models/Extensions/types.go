@@ -210,6 +210,9 @@ type RuntimeStatus struct {
 	ProtocolStartCount uint64     `json:"protocolStartCount,omitempty"`
 	ProtocolCallCount  uint64     `json:"protocolCallCount,omitempty"`
 	ProtocolLastCallAt *time.Time `json:"protocolLastCallAt,omitempty"`
+	// MemoryBytes 是当前 API 拥有的 backend plugin 子进程 OS RSS（字节）。
+	// 仅在能采样到进程时填充；主题/已停止/无 backend 进程时省略。
+	MemoryBytes uint64 `json:"memoryBytes,omitempty"`
 }
 
 type MatchedRoute struct {

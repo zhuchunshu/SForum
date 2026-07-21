@@ -1226,6 +1226,54 @@ func TestServiceDisableStopsRuntimeAndListDecoratesRuntimeStatus(t *testing.T) {
 	}
 }
 
+func TestServiceListDecoratesPluginMemoryBytes(t *testing.T) {
+	store := &fakeExtensionStore{items: map[string]Extension{
+		"demo.plugin": extensionWithStatus(
+			installedExtension("demo.plugin", TypePlugin, ManifestBackend{Entry: "backend/plugin"}),
+			StatusEnabled,
+		),
+		"other.plugin": extensionWithStatus(
+			installedExtension("other.plugin", TypePlugin, ManifestBackend{Entry: "backend/plugin"}),
+			StatusEnabled,
+		),
+	}}
+	runtime := &fakeRuntimeManager{statuses: map[string]RuntimeStatus{
+		"demo.plugin":  {State: RuntimeRunning, RouteCount: 1},
+		"other.plugin": {State: RuntimeRunning},
+	}}
+	service := NewServiceWithOptions(store, t.TempDir(), "", runtime, WithPluginMemorySampler(func() map[string]uint64 {
+		return map[string]uint64{"demo.plugin": 18 * 1024 * 1024}
+	}))
+
+	items, err := service.List(context.Background(), extensionManager())
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	var demo, other *Extension
+	for i := range items {
+		switch items[i].ID {
+		case "demo.plugin":
+			demo = &items[i]
+		case "other.plugin":
+			other = &items[i]
+		}
+	}
+	if demo == nil || demo.Runtime == nil || demo.Runtime.MemoryBytes != 18*1024*1024 {
+		t.Fatalf("demo memory: %#v", demo)
+	}
+	if other == nil || other.Runtime == nil || other.Runtime.MemoryBytes != 0 {
+		t.Fatalf("other should omit memory, got %#v", other.Runtime)
+	}
+
+	detail, err := service.Detail(context.Background(), extensionManager(), "demo.plugin")
+	if err != nil {
+		t.Fatalf("Detail: %v", err)
+	}
+	if detail.Runtime == nil || detail.Runtime.MemoryBytes != 18*1024*1024 {
+		t.Fatalf("detail memory: %#v", detail.Runtime)
+	}
+}
+
 func TestServiceDetailLoadsOnlyExactExtensionAndDecoratesRuntimeStatus(t *testing.T) {
 	store := &fakeExtensionStore{items: map[string]Extension{
 		"demo.plugin": extensionWithStatus(

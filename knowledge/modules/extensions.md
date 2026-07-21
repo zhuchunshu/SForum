@@ -158,6 +158,15 @@ while provider-specific behavior remains in plugins.
 
 ## Current Status
 
+### Plugin process RSS on admin lists (2026-07-21)
+
+Admin extension List/Detail decorate `runtime.memoryBytes` from a single OS
+process-table sample (`app/Support/ProcessMemory`). Only **owned** backend
+plugin children of the current API process are attributed (path
+`storage/extensions/<id>/…/backend/plugin`). Themes, stopped plugins, and
+sample failures omit the field. UI: badge on Plugins list + detail sidebar;
+not a full host-side attribution.
+
 ### Buildless extension settings UI (P0–P6 implemented 2026-07-13)
 
 Plugins and themes use one versioned settings document and one

@@ -783,7 +783,11 @@
         "protocolDeprecated": "旧版协议 v{version}",
         "protocol": "{transport} · v{version}",
         "protocolStarts": "启动 {count} 次",
-        "protocolCalls": "RPC 调用 {count} 次"
+        "protocolCalls": "RPC 调用 {count} 次",
+        "memory": "内存 {size}",
+        "memoryHint": "后端插件进程 RSS（操作系统常驻内存）",
+        "memoryUnavailable": "无独立进程",
+        "memoryLabel": "内存"
       },
       "detailTitle": "扩展详情",
       "manifest": {

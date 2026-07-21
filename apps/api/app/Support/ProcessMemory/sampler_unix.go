@@ -1,6 +1,6 @@
 //go:build unix
 
-package adminoverview
+package processmemory
 
 import (
 	"bytes"
@@ -11,29 +11,28 @@ import (
 	"strings"
 )
 
-// osProcessSampler 通过 ps 采集 PID/PPID/RSS/命令行（macOS 与 Linux 均可用，无 cgo）。
-// admin overview 为低频路径，可接受一次短 ps。
-type osProcessSampler struct{}
+// osSampler 通过 ps 采集 PID/PPID/RSS/命令行（macOS 与 Linux 均可用，无 cgo）。
+type osSampler struct{}
 
-func (osProcessSampler) List() ([]ProcessSample, error) {
+func (osSampler) List() ([]Sample, error) {
 	// rss 单位为 KiB（POSIX ps 惯例）。
 	cmd := exec.Command("ps", "-axo", "pid=,ppid=,rss=,command=")
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("ps process list: %w", err)
 	}
-	return parsePSList(out)
+	return ParsePSList(out)
 }
 
-func parsePSList(out []byte) ([]ProcessSample, error) {
+// ParsePSList 解析 ps -axo 输出；导出让 adminoverview 单测复用。
+func ParsePSList(out []byte) ([]Sample, error) {
 	lines := bytes.Split(out, []byte{'\n'})
-	samples := make([]ProcessSample, 0, len(lines))
+	samples := make([]Sample, 0, len(lines))
 	for _, line := range lines {
 		line = bytes.TrimSpace(line)
 		if len(line) == 0 {
 			continue
 		}
-		// pid ppid rss command... — 前三个字段固定，其余为命令。
 		fields := strings.Fields(string(line))
 		if len(fields) < 4 {
 			continue
@@ -51,7 +50,7 @@ func parsePSList(out []byte) ([]ProcessSample, error) {
 			continue
 		}
 		command := strings.Join(fields[3:], " ")
-		samples = append(samples, ProcessSample{
+		samples = append(samples, Sample{
 			PID:      pid,
 			PPID:     ppid,
 			RSSBytes: rssKiB * 1024,
@@ -64,8 +63,8 @@ func parsePSList(out []byte) ([]ProcessSample, error) {
 	return samples, nil
 }
 
-// readSelfRSSFallback 在 ps 不可用时尝试读自身 RSS（Linux /proc）。
-func readSelfRSSFallback() (uint64, bool) {
+// ReadSelfRSSFallback 在 ps 不可用时尝试读自身 RSS（Linux /proc）。
+func ReadSelfRSSFallback() (uint64, bool) {
 	data, err := os.ReadFile("/proc/self/statm")
 	if err != nil {
 		return 0, false

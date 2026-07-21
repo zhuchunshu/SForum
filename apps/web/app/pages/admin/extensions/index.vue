@@ -6,6 +6,7 @@ import {
   extensionEventPage,
   extensionLocalizedDisplay,
   extensionManageRoute,
+  formatPluginMemoryBytes,
   isLifecycleV2Plugin,
   themeActionState,
   themeStatusLabelKey
@@ -403,6 +404,21 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
             <div class="flex justify-between gap-3">
               <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.manifest.sforum') }}</dt>
               <dd class="text-slate-900 dark:text-zinc-100">{{ selected.manifest.sforumVersion }}</dd>
+            </div>
+            <div
+              v-if="selected.type === 'plugin'"
+              class="flex justify-between gap-3"
+              :title="t('admin.extensions.runtime.memoryHint')"
+            >
+              <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.runtime.memoryLabel') }}</dt>
+              <dd class="text-slate-900 dark:text-zinc-100">
+                <template v-if="selected.runtime?.memoryBytes">
+                  {{ formatPluginMemoryBytes(selected.runtime.memoryBytes) }}
+                </template>
+                <template v-else>
+                  {{ t('admin.extensions.runtime.memoryUnavailable') }}
+                </template>
+              </dd>
             </div>
           </dl>
         </div>

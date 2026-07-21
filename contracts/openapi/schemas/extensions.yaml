@@ -1393,6 +1393,15 @@ ExtensionRuntimeStatus:
     protocolLastCallAt:
       type: string
       format: date-time
+    memoryBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: >-
+        OS RSS (bytes) of the owned backend plugin subprocess for this
+        extension, sampled from the host process table. Omitted when no
+        process is visible (stopped, theme, host-managed, or sample failed).
+        Not a full account of host-side caches attributed to the plugin.
 ExtensionVersion:
   type: object
   description: >-

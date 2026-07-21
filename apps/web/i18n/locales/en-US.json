@@ -783,7 +783,11 @@
         "protocolDeprecated": "Legacy protocol v{version}",
         "protocol": "{transport} · v{version}",
         "protocolStarts": "{count} starts",
-        "protocolCalls": "{count} RPC calls"
+        "protocolCalls": "{count} RPC calls",
+        "memory": "Memory {size}",
+        "memoryHint": "Backend plugin process RSS (OS resident set)",
+        "memoryUnavailable": "No process",
+        "memoryLabel": "Memory"
       },
       "detailTitle": "Extension details",
       "manifest": {
