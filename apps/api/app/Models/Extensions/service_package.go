@@ -123,12 +123,14 @@ func (s *Service) RestoreActiveThemeRegistry(ctx context.Context) error {
 		if defaultErr != nil {
 			return defaultErr
 		}
-		if defaultErr = s.pageRegistry.RegisterDefaultThemeFallback(ctx, defaultTheme); defaultErr != nil {
+		// 默认主题活动包可能因 Host 契约收紧而无法编译；fallback 只读 staged 制品，不切换活动主题。
+		fallbackTheme := healthyBuiltinThemeArtifact(defaultTheme)
+		if defaultErr = s.pageRegistry.RegisterDefaultThemeFallback(ctx, fallbackTheme); defaultErr != nil {
 			return fmt.Errorf("restore default theme fallback: %w", defaultErr)
 		}
 	}
 	if err := s.pageRegistry.PreflightThemePackage(ctx, active, ""); err != nil {
-		// 无效主题 → 回退默认
+		// 无效主题 → 优先晋升 staged 内置包，再回退默认
 		repaired, repairErr := s.repairActiveThemeAfterRestoreFailure(ctx, active, err)
 		if repairErr != nil {
 			return repairErr
@@ -166,8 +168,9 @@ func (s *Service) RestoreActiveThemeRegistry(ctx context.Context) error {
 	return err
 }
 
-// repairActiveThemeAfterRestoreFailure 在 preflight/注册失败时尽量回退到受保护默认主题，
-// 避免非默认主题包被手动删除后阻断页面注册恢复。
+// repairActiveThemeAfterRestoreFailure 在 preflight/注册失败时尽量自愈。
+// 优先晋升 SyncBuiltins 已 stage 的内置制品（Host 契约收紧后常见），
+// 否则回退受保护默认主题，避免非默认主题包缺失阻断启动。
 func (s *Service) repairActiveThemeAfterRestoreFailure(
 	ctx context.Context,
 	active Extension,
@@ -176,19 +179,92 @@ func (s *Service) repairActiveThemeAfterRestoreFailure(
 	_, _ = s.store.CreateEvent(ctx, EventInput{
 		ExtensionID: active.ID,
 		Action:      EventEnableFailed,
-		Message:     "active theme registry restore failed, falling back to default: " + cause.Error(),
+		Message:     "active theme registry restore failed, attempting repair: " + cause.Error(),
 	})
-	s.pageRegistry.ClearExtension(active.ID)
+	if s.pageRegistry != nil {
+		s.pageRegistry.ClearExtension(active.ID)
+	}
+
+	// 1) 当前活动主题若有可预检的 staged 内置包，发布 startup-equivalent exact 激活。
+	if repaired, err := s.promoteStagedBuiltinThemeIfHealthy(ctx, active); err == nil {
+		_, _ = s.store.CreateEvent(ctx, EventInput{
+			ExtensionID: repaired.ID,
+			Action:      EventThemeActivated,
+			Message:     "promoted staged builtin theme after active package preflight failure",
+		})
+		return repaired, nil
+	}
+
 	if active.ID == DefaultThemeID {
-		// 默认主题自身损坏时不在此处强行改 active 版本（需 theme activation 路径）；
-		// 返回当前 active 让上层记录失败（bootstrap 对该错误已是 WARN）。
+		// 默认主题无可用 staged 时保留原件，让上层继续失败（避免静默空 Registry）。
 		return active, nil
 	}
+
+	// 2) 非默认主题：切回默认主题；若默认活动包同样损坏再尝试晋升其 staged。
 	result, err := s.store.ActivateTheme(ctx, DefaultThemeID)
 	if err != nil {
 		return Extension{}, err
 	}
+	if repaired, promoteErr := s.promoteStagedBuiltinThemeIfHealthy(ctx, result.Extension); promoteErr == nil {
+		_, _ = s.store.CreateEvent(ctx, EventInput{
+			ExtensionID: repaired.ID,
+			Action:      EventThemeActivated,
+			Message:     "promoted staged default theme after fallback activation preflight failure",
+		})
+		return repaired, nil
+	}
 	return result.Extension, nil
+}
+
+// promoteStagedBuiltinThemeIfHealthy 在活动包无法加载时，将已 stage 的内置 exact 制品
+// 写入 active 并追加 theme_runtime_publications，供 watcher 收敛到可预检包。
+func (s *Service) promoteStagedBuiltinThemeIfHealthy(ctx context.Context, active Extension) (Extension, error) {
+	if s == nil || s.store == nil || ctx == nil {
+		return Extension{}, ErrThemePublicationConflict
+	}
+	current, err := s.store.Get(ctx, active.ID)
+	if err != nil {
+		return Extension{}, err
+	}
+	if current.Type != TypeTheme || current.Source != SourceBuiltin || current.Status != StatusEnabled {
+		return Extension{}, ErrInvalidManifest
+	}
+	staged, ok := current.StagedArtifact()
+	if !ok {
+		return Extension{}, ErrThemePreviewStale
+	}
+	if strings.EqualFold(staged.PackageDigest, current.PackageDigest) {
+		return Extension{}, ErrThemePreviewStale
+	}
+	if s.pageRegistry != nil {
+		if err := s.pageRegistry.PreflightThemePackage(ctx, staged, ""); err != nil {
+			return Extension{}, err
+		}
+	}
+	result, err := s.store.ActivateThemeExact(ctx, current.ID, ThemeActivationInput{
+		Version:             staged.Version,
+		PackageDigest:       staged.PackageDigest,
+		CurrentThemeID:      current.ID,
+		CurrentThemeVersion: current.Version,
+		CurrentThemeDigest:  current.PackageDigest,
+	})
+	if err != nil {
+		return Extension{}, err
+	}
+	return result.Extension, nil
+}
+
+// healthyBuiltinThemeArtifact 优先返回可编译的 staged 内置制品投影（不改 DB）。
+// 用于 fallback 编译路径：不能切换活动主题，但需要避开已失效的 active 包。
+func healthyBuiltinThemeArtifact(theme Extension) Extension {
+	if theme.Source != SourceBuiltin {
+		return theme
+	}
+	if staged, ok := theme.StagedArtifact(); ok &&
+		!strings.EqualFold(staged.PackageDigest, theme.PackageDigest) {
+		return staged
+	}
+	return theme
 }
 
 // RestoreSafeModeThemeRegistry 忽略数据库 desired theme 与全部插件贡献，只加载受保护默认主题。
@@ -243,8 +319,17 @@ func (s *Service) restoreSafeModeThemeRegistry(ctx context.Context) error {
 	if defaultTheme.Type != TypeTheme || defaultTheme.Source != SourceBuiltin || !defaultTheme.IsSystem {
 		return ErrInvalidManifest
 	}
+	// 安全模式/ fail-closed 也必须能加载默认可预检制品。
+	// 活动包因 Host 契约失效时晋升 staged，避免 watcher 回退再次踩同一坏包。
 	if err := s.pageRegistry.PreflightThemePackage(ctx, defaultTheme, ""); err != nil {
-		return err
+		repaired, promoteErr := s.promoteStagedBuiltinThemeIfHealthy(ctx, defaultTheme)
+		if promoteErr != nil {
+			return err
+		}
+		defaultTheme = repaired
+		if err := s.pageRegistry.PreflightThemePackage(ctx, defaultTheme, ""); err != nil {
+			return err
+		}
 	}
 	if err := s.pageRegistry.RegisterThemePackage(ctx, defaultTheme); err != nil {
 		return err
