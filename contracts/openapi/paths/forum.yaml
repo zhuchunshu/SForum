@@ -97,6 +97,11 @@ topics:
   get:
     summary: List public topics
     operationId: listTopics
+    description: |
+      公开主题列表（分页）。`total` 遵循 D1：分类/标签用冗余计数（可短暂陈旧）；
+      首页与多过滤为近似值，见 TopicList.total / totalApproximate。
+      关键词请用 GET /api/v1/search；非空 `query` 返回 400 forum.use_search_endpoint。
+      默认排序 active 在分类过滤下可走 topics_category_activity_idx；列表不 join 完整正文。
     parameters:
     - name: page
       in: query
@@ -121,9 +126,17 @@ topics:
       description: 已废弃。关键词检索请改用 GET /api/v1/search；topics 列表不再支持关键词过滤。
       schema:
         type: string
+    - name: sort
+      in: query
+      description: latest | active | hot；空则站点默认。hot 在 M2 hot_score 前为 best-effort 表达式排序。
+      schema:
+        type: string
+        enum: [latest, active, hot]
     responses:
       '200':
-        description: Paged public topic list.
+        description: |
+          Paged public topic list. `data.total` may be denormalized/stale (category/tag)
+          or approximate (home / multi-filter); see `data.totalApproximate`.
         content:
           application/json:
             schema:

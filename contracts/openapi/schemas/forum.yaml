@@ -849,6 +849,20 @@ TopicList:
     total:
       type: integer
       format: int64
+      description: |
+        Public list total follows D1 semantics (million-scale read path):
+        - single categorySlug → denormalized categories.topic_count (may lag writes briefly; not a request-time COUNT(*))
+        - single tagSlug → denormalized tags.topic_count (same)
+        - unfiltered home → sum of public category counters (approximate; may be stale)
+        - category+tag together → approximate (min of the two counters; not intersection-exact)
+        Clients must tolerate stale or approximate totals. Prefer shallow pages; future keyset feeds use hasMore.
+        Admin/moderation lists may still use exact counts on separate endpoints.
+    totalApproximate:
+      type: boolean
+      description: |
+        When true, `total` is an estimate or multi-filter approximation (home / hard-to-count combos).
+        When false or omitted, `total` is a denormalized taxonomy counter (category or tag) and may still be briefly stale after writes.
+        UI may show an “about N” phrasing only when this flag is true.
     page:
       type: integer
     perPage:
