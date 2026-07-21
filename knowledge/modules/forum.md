@@ -11,7 +11,7 @@ read models.
 Backend foundation implemented on 2026-07-06. Real taxonomy slice implemented
 on 2026-07-07.
 
-- **Million-scale read path (M0–M5 done):** task book
+- **Million-scale read path (M0–M6 done):** task book
   `plans/2026-07-21-million-scale-read-path.md` — **M0** seed + `tests/perf` +
   baseline. **M1** ListTopics slim + D1 totals
   (`reports/2026-07-21-perf-m1-list-topics.md`). **M2** view count (D3 /
@@ -29,7 +29,12 @@ on 2026-07-07.
   `page`); response `hasMore` + `nextCursor`; ListTopics pin-stable seek SQL
   (`is_pinned` first dimension); home infinite scroll uses cursor; deep scroll
   report `reports/2026-07-21-perf-m5-keyset.md` (100-step cursor p99 ~19 ms).
-  Next **M6** cache sharding.
+  **M6** topics list cache sharding: gen keys
+  `forum:gen:topics:global` / `cat:{slug}` / `tag:{slug}`; write paths bump only
+  affected scopes (cat A write does not miss cat B list cache); public COUNT
+  audit residual documented
+  (`reports/2026-07-21-perf-m6-cache-sharding.md`). Next **M7** replica design
+  doc only.
 
 - `categories` owns public forum sections. The first seed category is
   `general` / `综合讨论`.
@@ -78,6 +83,11 @@ on 2026-07-07.
 - **Topic list pagination (M5):** shallow `page` (1–200 OFFSET) retained; deep
   scroll uses opaque `after` keyset. Sort binds cursor; pins are first keyset
   dimension (`is_pinned DESC`). Responses always include `hasMore`.
+- **Topic list cache (M6):** `CachedStore.ListTopics` cache key embeds a
+  **scoped generation** — unfiltered home uses `global`; category/tag filters
+  use per-slug gens; dual filter concatenates both. Topic/comment writes bump
+  `global` plus the topic’s category and tags only (resolved from detail cache
+  or one GetTopic fallback). Taxonomy list gens remain global.
 - Content limits are Unicode-rune based and enforced in the forum service on
   topic/comment create and update: title/body min-max, comment min-max,
   comment max nesting depth, optional author edit windows, create cooldowns,

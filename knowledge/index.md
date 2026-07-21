@@ -6,12 +6,16 @@ session archive.
 
 ## Latest Handoff
 
-- **2026-07-21 Million-scale read path — M5 complete**
-  - Plan: `plans/2026-07-21-million-scale-read-path.md` (M0–M5 done; next M6)
-  - After: `reports/2026-07-21-perf-m5-keyset.md` (100-step cursor p99 ~19 ms)
-  - Keyset `after` + hasMore/nextCursor; home infinite scroll; pin-stable seek
-  - Handoff: `sessions/2026-07-21-million-scale-read-path-m5-handoff.md`
+- **2026-07-21 Million-scale read path — M6 complete**
+  - Plan: `plans/2026-07-21-million-scale-read-path.md` (M0–M6 done; next M7 doc)
+  - After: `reports/2026-07-21-perf-m6-cache-sharding.md` (scoped gen; multi-cat warm)
+  - Topics list gen global/cat/tag; cat A write does not miss cat B list cache
+  - Handoff: `sessions/2026-07-21-million-scale-read-path-m6-handoff.md`
   - Module: `modules/forum.md`
+
+- **2026-07-21 Million-scale read path — M5 complete**
+  - After: `reports/2026-07-21-perf-m5-keyset.md` (100-step cursor p99 ~19 ms)
+  - Handoff: `sessions/2026-07-21-million-scale-read-path-m5-handoff.md`
 
 - **2026-07-21 Million-scale read path — M4 complete**
   - After: `reports/2026-07-21-perf-m4-topic-detail.md` (by-slug warm p99 ~21 ms)

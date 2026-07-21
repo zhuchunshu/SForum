@@ -1,7 +1,7 @@
 # Million-Scale Read Path — Task Book
 
-Status: **in progress** — M0–**M5 complete** (keyset pagination; after report);
-next M6  
+Status: **in progress** — M0–**M6 complete** (cache sharding + COUNT audit);
+next M7 (doc only)  
 Date: 2026-07-21  
 Last decision pass: 2026-07-21 (four open questions → resolved defaults)  
 Goal: make public forum **read paths** safe for ~1M topics / large hot
@@ -52,8 +52,9 @@ Public operators should observe:
 | Approximate / denormalized list totals | **Done (M1 / D1)** | cat/tag `topic_count`; home sum + `totalApproximate` |
 | `hot_score` / popular precompute | **Done (M2)** | column + indexes; list hot sort |
 | ListComments in CachedStore | **Done (M3)** | topic gen + short TTL; skip viewer-scoped |
-| Load-test suite / capacity numbers | **Missing** | audit B6 |
-| Read replicas / multi-node | **Out of scope** | later plan if needed |
+| Topics list gen sharding | **Done (M6)** | global / cat / tag gens; scoped write bump |
+| Load-test suite / capacity numbers | **Partial** | `tests/perf` + LIGHT reports M0–M6 |
+| Read replicas / multi-node | **Out of scope** | M7 doc only unless needed |
 
 ## Out Of Scope
 
@@ -458,16 +459,21 @@ contract validated; FE uses cursor on primary surfaces.
 
 ### 6.1 Work
 
-- [ ] Refactor CachedStore generation keys to scoped gens
-- [ ] Write paths bump only affected scopes
-- [ ] Audit and remove unnecessary COUNT in public handlers
-- [ ] Tests for scoped invalidation (write in cat A does not miss cat B list cache)
+- [x] Refactor CachedStore generation keys to scoped gens
+  (`forum:gen:topics:global` / `cat:{slug}` / `tag:{slug}`)
+- [x] Write paths bump only affected scopes
+  (Create/Update/Delete topic, comment create/delete, lifecycle; detail-cache scope resolve)
+- [x] Audit and remove unnecessary COUNT in public handlers
+  (no new hot-path COUNT left after M1/M3; residuals documented in M6 report)
+- [x] Tests for scoped invalidation (write in cat A does not miss cat B list cache)
 
 ### 6.2 Perf acceptance
 
-- [ ] Under mixed write load, list cache hit rate stays high for untouched categories
+- [x] Under mixed write load, list cache hit rate stays high for untouched categories
+  (`knowledge/reports/2026-07-21-perf-m6-cache-sharding.md` + unit tests)
 
 **Exit criteria:** write storm in one category does not invalidate whole-site topic lists.
+**Met:** cat A write leaves cat B list cache hit; multi-cat warm p99 ~9–19 ms.
 
 ---
 
@@ -548,3 +554,4 @@ Still free to decide during implementation (not product blockers):
 | 2026-07-21 | **M3 done:** D2 tree cap (`forum.comments.tree_descendants_per_root` default 50) + `hasMoreChildren` + FE load more; flat total via `comment_count`; ListComments CachedStore topic gen; report `knowledge/reports/2026-07-21-perf-m3-list-comments.md` (warm tree p50 ~44 ms; max desc/root 50). Next: **M4** topic detail assembly. |
 | 2026-07-21 | **M4 done:** GetTopic profile (slug unique index); CachedStore id+slug dual-write + reverse-map invalidate; no composite page cache (evidence); FE parallel topic+comments; `/t/**` anonymous SWR + auth/edit gate; report `knowledge/reports/2026-07-21-perf-m4-topic-detail.md` (by-slug warm p99 ~21 ms). Next: **M5** keyset pagination. |
 | 2026-07-21 | **M5 done:** public ListTopics / ListComments flat `after` keyset + `hasMore`/`nextCursor`; cursor > page; pin-stable seek SQL; FE home infinite scroll; report `knowledge/reports/2026-07-21-perf-m5-keyset.md` (100-step cursor p99 ~19 ms). Next: **M6** cache sharding. |
+| 2026-07-21 | **M6 done:** CachedStore topics gen shard global/cat/tag; write bumps only affected scopes; COUNT audit (no new hot-path COUNT); report `knowledge/reports/2026-07-21-perf-m6-cache-sharding.md`. Next: **M7** replica design doc only. |
