@@ -29,11 +29,14 @@ This is the entry point for project memory.
   - Prior P13 residual handoff:
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p13-handoff.md`
   - P0-P12 complete. P13 **~99.7%**: command gates green; presentation ownership +
-    Protocol V2 defaults + digest hygiene + **gate honesty** (moderation/SEO
-    validators wired; dead chrome partials + Nuxt layer removed)
-    (`7ca7353e1`…`ffbec31e6`). Weighted **99.7%**.
-    Open: LTS-blocked loader/v1/compatibility deletions only (RemoveAfter≈2026-11-28 + zero-shim). Evidence:
-    `docs/extensions/v3/p13-final-gates-evidence.md`.
+    Protocol V2 defaults + digest hygiene + gate honesty + **product-path
+    adoption residual** (Media MIME on avatar/SEO; content-catalog HTTP;
+    entity import/export dry-run allow/deny)
+    (`a155ed44d`…`da2fe80ff`). Weighted **99.7%**.
+    Open: LTS-blocked loader/v1/compatibility deletions only (RemoveAfter≈2026-11-28 + zero-shim).
+    Large deferred (not LTS, not thin wiring): Protocol-leased content filter
+    dispatch, Media Plan/Execute/Receipt product authority, EntityStore I/O.
+    Evidence: `docs/extensions/v3/p13-final-gates-evidence.md`.
   - Prior P11 closure handoff:
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p11-closure.md`
   - Prior P11 progress handoff:
