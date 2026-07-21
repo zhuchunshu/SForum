@@ -46,6 +46,7 @@ func identityAdminSubjectRoute(routeID string) bool {
 	switch routeID {
 	case "core.route.identity.update_user",
 		"core.route.identity.admin_clear_user_client_ips",
+		"core.route.identity.admin_set_user_password",
 		"core.route.identity.replace_user_permission_overrides",
 		"core.route.identity.replace_user_roles",
 		"core.route.identity.admin_revoke_user_sessions":
@@ -89,6 +90,23 @@ func authorizeIdentityAdminSubject(evaluation routes.CoreGuardEvaluation, subjec
 			return routes.ErrCoreGuardPermissionDenied
 		}
 		return requireCoreGuardPermission(evaluation, identity.PermissionUserManage)
+	case "core.route.identity.admin_set_user_password":
+		// 与 AdminSetUserPassword 服务边界对齐：需要 user.manage；
+		// 目标为 super_admin 时仅 super_admin 可操作；允许管理员重置自己的密码。
+		if err := requireCoreGuardPermission(evaluation, identity.PermissionUserManage); err != nil {
+			return err
+		}
+		if subject.IsSuperAdmin && !actorIsSuperAdmin {
+			return routes.ErrCoreGuardPermissionDenied
+		}
+		var input identityAdminSetPasswordGuardInput
+		if err := decodeGuardJSON(evaluation.Request.Body, &input); err != nil {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		if strings.TrimSpace(input.Password) == "" {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		return nil
 	case "core.route.identity.replace_user_permission_overrides":
 		if evaluation.Request.ActorID == subject.UserID || subject.IsSuperAdmin {
 			return routes.ErrCoreGuardPermissionDenied
@@ -135,6 +153,10 @@ type identityAdminUpdateGuardInput struct {
 
 type identityAdminRolesGuardInput struct {
 	RoleKeys []string `json:"roleKeys"`
+}
+
+type identityAdminSetPasswordGuardInput struct {
+	Password string `json:"password"`
 }
 
 func containsGuardString(values []string, expected string) bool {

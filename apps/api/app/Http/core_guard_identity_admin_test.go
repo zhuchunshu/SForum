@@ -21,6 +21,7 @@ func TestProductionIdentityAdminSubjectGuardAllowsFiveResourceRoutes(t *testing.
 	}{
 		{"core.route.identity.update_user", identity.PermissionUserManage, `{"displayName":"Managed"}`},
 		{"core.route.identity.admin_clear_user_client_ips", identity.PermissionUserManage, ""},
+		{"core.route.identity.admin_set_user_password", identity.PermissionUserManage, `{"password":"a-very-strong-password"}`},
 		{"core.route.identity.replace_user_permission_overrides", identity.PermissionUserPermissionOverride, `{"allow":[],"deny":[]}`},
 		{"core.route.identity.replace_user_roles", identity.PermissionUserManage, `{"roleKeys":["member"]}`},
 		{"core.route.identity.admin_revoke_user_sessions", identity.PermissionUserManage, ""},
@@ -51,6 +52,7 @@ func TestProductionIdentityAdminSubjectGuardEnforcesTargetBoundaries(t *testing.
 		{name: "initial disabled", routeID: "core.route.identity.update_user", permissions: []string{"*"}, body: `{"status":"disabled"}`, subject: identity.AdminGuardSubject{IsInitialSuperAdmin: true, IsSuperAdmin: true}},
 		{name: "super user update", routeID: "core.route.identity.update_user", permissions: []string{identity.PermissionUserManage}, body: `{"displayName":"No"}`, subject: identity.AdminGuardSubject{IsSuperAdmin: true}},
 		{name: "super ip clear", routeID: "core.route.identity.admin_clear_user_client_ips", permissions: []string{identity.PermissionUserManage}, subject: identity.AdminGuardSubject{IsSuperAdmin: true}},
+		{name: "super password", routeID: "core.route.identity.admin_set_user_password", permissions: []string{identity.PermissionUserManage}, body: `{"password":"a-very-strong-password"}`, subject: identity.AdminGuardSubject{IsSuperAdmin: true}},
 		{name: "self override", routeID: "core.route.identity.replace_user_permission_overrides", actorID: 7, permissions: []string{identity.PermissionUserPermissionOverride}},
 		{name: "super override", routeID: "core.route.identity.replace_user_permission_overrides", permissions: []string{identity.PermissionUserPermissionOverride}, subject: identity.AdminGuardSubject{IsSuperAdmin: true}},
 		{name: "self roles", routeID: "core.route.identity.replace_user_roles", actorID: 7, permissions: []string{identity.PermissionUserManage}, body: `{"roleKeys":["member"]}`},
@@ -86,6 +88,7 @@ func TestProductionIdentityAdminSubjectGuardAllowsProtectedChangesForSuperAdmin(
 	}{
 		{name: "ban", routeID: "core.route.identity.update_user", body: `{"status":"banned"}`},
 		{name: "update super", routeID: "core.route.identity.update_user", body: `{"displayName":"Managed"}`, subject: identity.AdminGuardSubject{IsSuperAdmin: true}},
+		{name: "password super", routeID: "core.route.identity.admin_set_user_password", body: `{"password":"a-very-strong-password"}`, subject: identity.AdminGuardSubject{IsSuperAdmin: true}},
 		{name: "retain initial role", routeID: "core.route.identity.replace_user_roles", body: `{"roleKeys":["member","super_admin"]}`, subject: identity.AdminGuardSubject{IsInitialSuperAdmin: true, IsSuperAdmin: true}},
 	}
 	for _, test := range tests {
@@ -163,6 +166,29 @@ func TestProductionIdentityAdminSubjectGuardRejectsBeforeStoreForUnauthorizedAct
 	}
 	if policy.calls != 0 {
 		t.Fatalf("unauthorized request performed %d Store reads", policy.calls)
+	}
+}
+
+func TestProductionIdentityAdminSetPasswordGuardAllowsSelfAndDeniesMissingBody(t *testing.T) {
+	policy := &testIdentityAdminGuardPolicy{subject: identity.AdminGuardSubject{UserID: 7, Exists: true}}
+	authorizer := NewProductionRouteGuardAuthorizerWithPolicies(ProductionRouteGuardPolicies{IdentityAdmins: policy})
+	plan, step := productionIdentityAdminSubjectPlan(t, "core.route.identity.admin_set_user_password")
+
+	// 改密是恢复入口：允许管理员重置自己的密码（与 revoke sessions 不同）。
+	self := productionGuardRequest(identity.PermissionUserManage)
+	self.ActorID = 7
+	self.Method, self.Path, self.Params = plan.Method(), plan.Path(), plan.Params()
+	self.Body = []byte(`{"password":"a-very-strong-password"}`)
+	if err := authorizer.Authorize(context.Background(), plan, step, self); err != nil {
+		t.Fatalf("self password reset error = %v", err)
+	}
+
+	// 空密码体无法在 Guard 层复现服务校验细节，fail-closed。
+	empty := productionGuardRequest(identity.PermissionUserManage)
+	empty.Method, empty.Path, empty.Params = plan.Method(), plan.Path(), plan.Params()
+	empty.Body = []byte(`{"password":""}`)
+	if err := authorizer.Authorize(context.Background(), plan, step, empty); !errors.Is(err, ErrRouteGuardUnavailable) {
+		t.Fatalf("empty password error = %v", err)
 	}
 }
 

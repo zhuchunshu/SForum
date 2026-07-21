@@ -7,6 +7,7 @@ import (
 	"errors"
 	nethttp "net/http"
 	"net/http/httptest"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -236,8 +237,26 @@ func (s *sessionTestStore) ListPermissionMatrix(context.Context) (identity.Permi
 func (s *sessionTestStore) ListUsers(context.Context, identity.UserListInput) (identity.AdminUserList, error) {
 	return identity.AdminUserList{}, nil
 }
-func (s *sessionTestStore) GetAdminUser(context.Context, int64) (identity.AdminUserDetail, error) {
-	return identity.AdminUserDetail{}, nil
+func (s *sessionTestStore) GetAdminUser(_ context.Context, userID int64) (identity.AdminUserDetail, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	u, ok := s.users[userID]
+	if !ok {
+		// 部分会话测试只预置 sessions 行、不落 users 表；返回非 super 占位目标以保持旧路径。
+		return identity.AdminUserDetail{
+			AdminUserSummary: identity.AdminUserSummary{
+				ID: userID, Status: identity.UserStatusActive,
+			},
+		}, nil
+	}
+	return identity.AdminUserDetail{
+		AdminUserSummary: identity.AdminUserSummary{
+			ID: u.ID, Username: u.Username, DisplayName: u.DisplayName,
+			Status: u.Status, RoleKeys: append([]string(nil), u.RoleKeys...),
+			IsInitialSuperAdmin: u.IsInitialSuperAdmin,
+		},
+		Permissions: append([]string(nil), u.Permissions...),
+	}, nil
 }
 func (s *sessionTestStore) UpdateAdminUser(context.Context, int64, int64, identity.AdminUpdateUserInput) (identity.AdminUserDetail, error) {
 	return identity.AdminUserDetail{}, nil
@@ -269,7 +288,15 @@ func (s *sessionTestStore) ConsumePasswordResetToken(context.Context, string) (i
 func (s *sessionTestStore) ConfirmPasswordResetAtomic(context.Context, string, string, string) (int64, error) {
 	return 0, nil
 }
-func (s *sessionTestStore) UpdateUserPassword(context.Context, int64, string) error   { return nil }
+func (s *sessionTestStore) UpdateUserPassword(_ context.Context, userID int64, passwordHash string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.users[userID]; !ok {
+		return identity.ErrUserNotFound
+	}
+	s.creds[userID] = passwordHash
+	return nil
+}
 func (s *sessionTestStore) GetUserTokenVersion(context.Context, int64) (int64, error) { return 0, nil }
 func (s *sessionTestStore) IncrementUserTokenVersion(context.Context, int64) error    { return nil }
 
@@ -757,5 +784,140 @@ func TestAdminRevokeUserSessionsDeniesSelf(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != nethttp.StatusBadRequest {
 		t.Fatalf("expected 400 when revoking self, got %d", resp.StatusCode)
+	}
+}
+
+func adminSetUserPasswordRequest(userID int64, password string) *nethttp.Request {
+	body, _ := json.Marshal(map[string]string{"password": password})
+	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/users/"+strconv.FormatInt(userID, 10)+"/password", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	return req
+}
+
+// TestAdminSetUserPasswordRequiresAuth 未登录必须 401。
+func TestAdminSetUserPasswordRequiresAuth(t *testing.T) {
+	app, _ := newSessionTestApp(t)
+	req := adminSetUserPasswordRequest(2, "a-very-strong-password")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != nethttp.StatusUnauthorized {
+		t.Fatalf("expected 401 without auth, got %d", resp.StatusCode)
+	}
+}
+
+// TestAdminSetUserPasswordForbiddenWithoutPermission 登录但无 user.manage 必须 403。
+func TestAdminSetUserPasswordForbiddenWithoutPermission(t *testing.T) {
+	app, store := newSessionTestApp(t)
+	cookie := registerAndLogin(t, app)
+	seedSessionTestMember(t, store, 2, "member", false)
+
+	req := adminSetUserPasswordRequest(2, "a-very-strong-password")
+	req.AddCookie(cookie)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != nethttp.StatusForbidden {
+		t.Fatalf("expected 403 without user.manage, got %d", resp.StatusCode)
+	}
+}
+
+// TestAdminSetUserPasswordSucceeds 持 user.manage 的管理员可重置普通用户密码并撤销会话。
+func TestAdminSetUserPasswordSucceeds(t *testing.T) {
+	app, store := newSessionTestApp(t)
+	cookie := registerAndLogin(t, app)
+	promoteToUserManager(t, app, store, 1)
+	seedSessionTestMember(t, store, 2, "member", false)
+	store.mu.Lock()
+	store.sessions = append(store.sessions,
+		sessionTestRow{userID: 2, sid: "u2-a", lastSeenAt: time.Now()},
+		sessionTestRow{userID: 2, sid: "u2-b", lastSeenAt: time.Now()},
+	)
+	store.mu.Unlock()
+
+	req := adminSetUserPasswordRequest(2, "a-very-strong-password")
+	req.AddCookie(cookie)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var envelope struct {
+		Data struct {
+			RevokedSessions int `json:"revokedSessions"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if envelope.Data.RevokedSessions != 2 {
+		t.Fatalf("expected 2 revoked sessions, got %d", envelope.Data.RevokedSessions)
+	}
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	if store.creds[2] == "" {
+		t.Fatal("expected password hash updated for target user")
+	}
+}
+
+// TestAdminSetUserPasswordDeniesNonSuperAdminTargetingSuperAdmin 非 super_admin 不能重置 super_admin 密码。
+func TestAdminSetUserPasswordDeniesNonSuperAdminTargetingSuperAdmin(t *testing.T) {
+	app, store := newSessionTestApp(t)
+	cookie := registerAndLogin(t, app)
+	promoteToUserManager(t, app, store, 1)
+	seedSessionTestMember(t, store, 2, "super_admin", true)
+
+	req := adminSetUserPasswordRequest(2, "a-very-strong-password")
+	req.AddCookie(cookie)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != nethttp.StatusForbidden {
+		t.Fatalf("expected 403 for super_admin target, got %d", resp.StatusCode)
+	}
+}
+
+// TestAdminSetUserPasswordAllowsSelf 管理员可重置自己的密码（恢复入口）。
+func TestAdminSetUserPasswordAllowsSelf(t *testing.T) {
+	app, store := newSessionTestApp(t)
+	cookie := registerAndLogin(t, app)
+	promoteToUserManager(t, app, store, 1)
+
+	req := adminSetUserPasswordRequest(1, "a-very-strong-password")
+	req.AddCookie(cookie)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200 for self password reset, got %d", resp.StatusCode)
+	}
+}
+
+func seedSessionTestMember(t *testing.T, store *sessionTestStore, userID int64, roleKey string, isSuper bool) {
+	t.Helper()
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	roleKeys := []string{roleKey}
+	if isSuper {
+		roleKeys = []string{identity.RoleSuperAdmin}
+	}
+	idText := strconv.FormatInt(userID, 10)
+	store.users[userID] = identity.CurrentUser{
+		ID: userID, Username: "user-" + idText, DisplayName: "User " + idText,
+		Status: identity.UserStatusActive, RoleKeys: roleKeys,
+	}
+	if store.nextUserID <= userID {
+		store.nextUserID = userID + 1
 	}
 }

@@ -1609,6 +1609,7 @@ func TestProductionIdentityAdminGuardPartitionsCatalogByProvablePolicy(t *testin
 		"core.route.identity.replace_role_permissions":          {method: "PUT", supported: true, permissions: []string{identity.PermissionRoleManage}, body: `{"permissions":["post.create"]}`},
 		"core.route.identity.update_user":                       {method: "PATCH"},
 		"core.route.identity.admin_clear_user_client_ips":       {method: "POST"},
+		"core.route.identity.admin_set_user_password":           {method: "POST"},
 		"core.route.identity.replace_user_permission_overrides": {method: "PUT"},
 		"core.route.identity.replace_user_roles":                {method: "PUT"},
 		"core.route.identity.admin_revoke_user_sessions":        {method: "POST"},
