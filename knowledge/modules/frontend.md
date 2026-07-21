@@ -1,13 +1,22 @@
 # Frontend Module
 
-## Accepted V3 Target (P0-P1 Complete, P2 Next)
+## Accepted V3 Target (P0–P12 Complete; P13 LTS Residual)
 
 The accepted target, including the canonical template comparison and detailed
 architecture mind map, is documented in
 `../decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`; its phased task
-book is `../plans/2026-07-13-trusted-plugin-theme-platform-v3.md`. The remainder
-of this module note describes the current frontend unless a section is
-explicitly labeled as target behavior.
+book is `../plans/2026-07-13-trusted-plugin-theme-platform-v3.md`. Progress:
+`../plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md` (**~99.7%**).
+
+**Live program state (2026-07-21):** P0–P12 closed. Public presentation is thin
+Nuxt shells + Host body islands + theme L1 (`data-theme-owned=presentation`,
+`sf-navbar`/`sf-footer`). Trusted public L2 is implemented and production-
+default **off** via `SFORUM_V3_PUBLIC_L2` (not “missing”). Admin registry-
+catalogs UI and editor L2 load paths are gated in `scripts/test.sh`. Remaining
+V3 residual is LTS-blocked loader/Protocol V1 deletion only.
+
+The remainder of this module note describes the current frontend unless a
+section is explicitly labeled as target behavior.
 
 - Themes become complete buildless public view packages compiled with Go
   `html/template` at activation into immutable, digest-keyed runtime snapshots.
@@ -61,16 +70,19 @@ metadata, and browser-side interactions.
 
 ## Runtime themes / Page Registry (live)
 
-Public theming is runtime Page Registry + L0/L1 (security-remediated 2026-07-13; L2 disabled;
-round-2 lifecycle closed same day):
+Public theming is runtime Page Registry + L0/L1 + optional trusted L2
+(security-remediated 2026-07-13; P9 L2 matrix closed 2026-07-21):
 
 - **Page Registry** + stable page ids (`forum.home`, …)
 - **L0** CSS/assets without rebuild
-- **L1** sandboxed templates composing host SF islands
-- **L2** author-prebuilt widgets for heavy UI (**disabled**)
+- **L1** sandboxed templates composing host SF islands; theme owns presentation
+  chrome (`sf-navbar`/`sf-footer`) on replaceable pages
+- **L2** author-prebuilt package-local ESM after digest-bound trust; production
+  default **off** (`SFORUM_V3_PUBLIC_L2`); fail-closed quarantine on mismatch
 - Host stays Nuxt; public themes are not full Nuxt apps and do not rebuild Nitro
 - Dynamic add routes: `pages/[...sfRegistryPage].vue` → `GET /pages/resolve-path`
 - Plugin page data: **SSR-only** via API `loaderData` (no client plugin route fetch)
+- Fail-closed `SFPageOutlet` / `SFHostPublicChrome` retained forever
 
 **ADR:** `../decisions/2026-07-13-runtime-page-registry-themes.md`  
 **Plan:** `../plans/2026-07-13-runtime-page-registry-themes.md`  

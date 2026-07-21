@@ -1,13 +1,23 @@
 # Extensions Module
 
-## Accepted V3 Target (P0-P5 Complete)
+## Accepted V3 Target (P0–P12 Complete; P13 LTS Residual)
 
 The accepted target, including the canonical 99-row comparison and detailed
 architecture mind map, is documented in
 `../decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`; its phased task
-book is `../plans/2026-07-13-trusted-plugin-theme-platform-v3.md`. The remainder
-of this module note describes the current implementation unless a section is
-explicitly labeled as target behavior.
+book is `../plans/2026-07-13-trusted-plugin-theme-platform-v3.md`. Progress:
+`../plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md` (**~99.7%**).
+
+**Live program state (2026-07-21):** P0–P12 closed on `main`. P13 final gates and
+reference packages are green. The only open task-book rows are LTS-blocked
+deletions (`sforum.protocol.v1`, `sforum.theme.l1.request-time-loader`) until
+APILTS `RemoveAfter` ≈ 2026-11-28 + live zero-shim + checklist 1–7. Do not reopen
+P10/P11/P12 from older checkpoint sections below. Fail-closed `SFPageOutlet` is
+never fully removed. Optional non-task-book depth (Protocol content-filter
+lease, Media Plan/Execute product authority, EntityStore I/O) is not V3 residual.
+
+The remainder of this module note describes the current implementation unless a
+section is explicitly labeled as target behavior.
 
 - Delegated extension managers may upload, statically inspect, and store inert
   packages. Static install never executes code; executable `install.plan` and
@@ -868,10 +878,12 @@ template while retaining Schema fallback fields.
 
 ## V3 P8 theme runtime checkpoint
 
-- P8 is 16/18. The immutable compiler/runtime covers all 23 catalog identities,
-  four-level exact fallback, typed HTML/island/SEO output, install-time template
-  safety, public/admin skin isolation, exact visible activation, and multi-node
-  durable convergence.
+- **Superseded:** P8 closed on `main` (task book + progress ledger). Historical
+  mid-phase notes below are retained for audit trail only.
+- The immutable compiler/runtime covers catalog identities, four-level exact
+  fallback, typed HTML/island/SEO output, install-time template safety,
+  public/admin skin isolation, exact visible activation, and multi-node durable
+  convergence.
 - All-catalog tests prove no theme filesystem opens after compilation and no
   provider binding Store reads after the one startup restore. Theme rendering
   and provider selection use immutable snapshots on the request path.
@@ -882,9 +894,8 @@ template while retaining Schema fallback fields.
   restarts, a concurrent exact-activation race produces one CAS winner and one
   stale-preview loser, and the winner survives a second restart. Startup builtin
   synchronization no longer resets a valid selected uploaded theme.
-- The Page ViewModel row remains open: 23 typed schemas exist, but production
-  construction still populates mostly base/form fields rather than each page's
-  business data. Plugin business-contract preservation also remains open.
+- Page ViewModel + plugin business-contract preservation closed later in P8/P9
+  (typed core ViewModels + plugin data contracts on ThemeRuntimeSnapshot).
 
 ## V3 P12 runtime ownership checkpoint
 
@@ -933,9 +944,11 @@ template while retaining Schema fallback fields.
 
 ## V3 P9 stable component identity checkpoint
 
-- P9 is 1/16. Commit `a805cbe01` adds the neutral, standard-library-only
-  `Support/ComponentCatalog` leaf and generates 119 active Core UI targets from
-  the reviewed identity map. Every target freezes its stable ID, contract,
+- **Superseded:** P9 closed **16/16** (see “V3 P9 closure” below). Historical
+  mid-phase notes retained for audit trail only.
+- Commit `a805cbe01` adds the neutral, standard-library-only
+  `Support/ComponentCatalog` leaf and generates Core UI targets from the
+  reviewed identity map. Every target freezes its stable ID, contract,
   page/component kind, source/route, and explicit public/admin owners; catalog
   and lookup results detach owner slices from caller mutation.
 - `ExtensionManifest` depends only on the neutral catalog leaf, preserving the
@@ -950,11 +963,9 @@ template while retaining Schema fallback fields.
   Catalog validation compares the ledger with full reachable Git history and a
   generated reservation artifact, rejecting deletion plus regeneration and
   active reuse of a retired ID or contract.
-- The stable-ID row passed generator/catalog drift, collision, owner/source,
-  tombstone transition, target-contract, theme-owner, focused Go/race,
-  downstream extension, vet/build, diff, and 1,842-reference OpenAPI gates.
-  Component actions, provider priority/conflicts, runtime publication,
-  templates/assets/L2, inspectors, and visual/failure exits remain open P9 work.
+- Stable-ID gates (generator/catalog drift, collision, owner/source, tombstone,
+  OpenAPI) passed. Later P9 rows closed components, L2, inspectors, and visual
+  gates — do not treat this section as “open P9 work.”
 
 ## V3 P9 closure (16/16)
 
