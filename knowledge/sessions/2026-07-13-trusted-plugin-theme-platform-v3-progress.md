@@ -1,5 +1,59 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
+Last updated: 2026-07-21 (post-interrupt re-audit)
+
+## Progress
+
+- Verified weighted progress: **99.7%** (display **99%**).
+- Phase counts: **P0–P12 complete (including P10 15/15)**; P13 **~99.7%**.
+- Goal harness “remaining P10” remains **stale** — dual explore + live
+  package tests re-confirm all five P10 claims PASS; **zero implementable
+  non-LTS product residual**.
+- HEAD at re-audit: `18c8e8220` (worktree clean).
+
+## Current Subtask
+
+### 2026-07-21 LTS wait only (policy-blocked) — post-interrupt re-green
+
+- Exact next: **do not delete** LoadTemplate residual / Protocol V1 /
+  fail-closed SFPageOutlet until APILTS `RemoveAfter` ≈ **2026-11-28** +
+  live zero-shim + deletion checklist 1–7.
+- APILTS CLI: `protocolV1CanRemoveWithZeroShim=false`,
+  `themeRequestTimeLoaderCanRemoveWithZeroShim=false`,
+  `CanRemoveWindow=false` both contracts; RemoveAfter 2026-11-28.
+- Optional non-task-book depth (do **not** treat as open V3 rows):
+  Protocol-leased content filter dispatch, Media Plan/Execute product
+  authority, EntityStore I/O, static ActionAdd snapshot coverage expansion.
+- Product boundary for 100%: wait for RemoveAfter or user-approved LTS window.
+
+## Tests (2026-07-21 post-interrupt)
+
+- `node tests/validate-v3-p0-catalogs.mjs` — **249 routes / 150 UI / 99 rows**
+- `ruby scripts/validate-openapi-refs.rb` — EXIT 0 (2028 refs / 54 files)
+- `go test` EditorRegistry, EditorDocument, EntityRegistry, ContentRegistry,
+  MediaRegistry, APILTS, Forum, Pages controller — all EXIT 0
+- `bun test` editorL2Load + adminRegistryCatalogs — **12 pass**
+- Dual explore: LTS residual audit + P10 five-claim re-verify — zero non-LTS
+
+## Open task-book rows
+
+1. Remove request-time template loader residual
+2. Remove Protocol V1 paths
+3. Compatibility path removal after LTS checklist
+
+## Rollback
+
+- Never delete LTS shims early.
+- No code change this re-audit turn (docs/progress only if committed).
+
+## Unowned worktree
+
+- None.
+
+---
+
+# Trusted Plugin And Theme Platform V3 Progress Ledger
+
 Last updated: 2026-07-21
 
 ## Progress
