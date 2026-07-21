@@ -240,7 +240,10 @@ func applyIdentityRegistryOwnershipMigration(ctx context.Context, db *sql.DB) er
 	if _, err = provider.ApplyVersion(ctx, identityRoleApprovalsMigrationVersion, true); err != nil {
 		return err
 	}
-	_, err = provider.ApplyVersion(ctx, identityRootPublicationsMigrationVersion, true)
+	if _, err = provider.ApplyVersion(ctx, identityRootPublicationsMigrationVersion, true); err != nil {
+		return err
+	}
+	_, err = provider.ApplyVersion(ctx, identityOrphanTombstoneMigrationVersion, true)
 	return err
 }
 

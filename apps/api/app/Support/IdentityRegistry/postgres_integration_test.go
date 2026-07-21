@@ -13,6 +13,7 @@ import (
 const identityRegistryOwnershipMigrationVersion = int64(202607160028)
 const identityRoleApprovalsMigrationVersion = int64(202607160029)
 const identityRootPublicationsMigrationVersion = int64(202607160033)
+const identityOrphanTombstoneMigrationVersion = int64(202607210044)
 
 func TestDurableStateToTombstonesRejectsIncompleteOrDuplicateState(t *testing.T) {
 	tip := DurableDeclarationTip{

@@ -1718,19 +1718,11 @@ func (s *Service) RestoreActiveThemeRegistry(ctx context.Context) error {
 	}
 	if err := s.pageRegistry.PreflightThemePackage(ctx, active, ""); err != nil {
 		// 无效主题 → 回退默认
-		_, _ = s.store.CreateEvent(ctx, EventInput{
-			ExtensionID: active.ID,
-			Action:      EventEnableFailed,
-			Message:     "active theme registry restore preflight failed, falling back to default: " + err.Error(),
-		})
-		s.pageRegistry.ClearExtension(active.ID)
-		if active.ID != DefaultThemeID {
-			result, derr := s.store.ActivateTheme(ctx, DefaultThemeID)
-			if derr != nil {
-				return derr
-			}
-			active = result.Extension
+		repaired, repairErr := s.repairActiveThemeAfterRestoreFailure(ctx, active, err)
+		if repairErr != nil {
+			return repairErr
 		}
+		active = repaired
 	}
 	staleThemeIDs := make([]string, 0)
 	for _, item := range items {
@@ -1739,7 +1731,21 @@ func (s *Service) RestoreActiveThemeRegistry(ctx context.Context) error {
 		}
 	}
 	if err := s.pageRegistry.RegisterThemePackageRestoring(ctx, active, staleThemeIDs); err != nil {
-		return fmt.Errorf("restore active theme registry: %w", err)
+		// 包目录被手动删除、digest 漂移等：与 preflight 失败同样尝试回退，避免阻断启动。
+		repaired, repairErr := s.repairActiveThemeAfterRestoreFailure(ctx, active, err)
+		if repairErr != nil {
+			return fmt.Errorf("restore active theme registry: %w", err)
+		}
+		active = repaired
+		staleThemeIDs = staleThemeIDs[:0]
+		for _, item := range items {
+			if item.Type == TypeTheme && item.ID != active.ID {
+				staleThemeIDs = append(staleThemeIDs, item.ID)
+			}
+		}
+		if retryErr := s.pageRegistry.RegisterThemePackageRestoring(ctx, active, staleThemeIDs); retryErr != nil {
+			return fmt.Errorf("restore active theme registry: %w", retryErr)
+		}
 	}
 	items, err = s.store.List(ctx)
 	if err != nil {
@@ -1747,6 +1753,31 @@ func (s *Service) RestoreActiveThemeRegistry(ctx context.Context) error {
 	}
 	_, err = s.restoreEnabledAssetPublications(ctx, assetBefore, items, false)
 	return err
+}
+
+// repairActiveThemeAfterRestoreFailure 在 preflight/注册失败时尽量回退到受保护默认主题，
+// 避免非默认主题包被手动删除后阻断页面注册恢复。
+func (s *Service) repairActiveThemeAfterRestoreFailure(
+	ctx context.Context,
+	active Extension,
+	cause error,
+) (Extension, error) {
+	_, _ = s.store.CreateEvent(ctx, EventInput{
+		ExtensionID: active.ID,
+		Action:      EventEnableFailed,
+		Message:     "active theme registry restore failed, falling back to default: " + cause.Error(),
+	})
+	s.pageRegistry.ClearExtension(active.ID)
+	if active.ID == DefaultThemeID {
+		// 默认主题自身损坏时不在此处强行改 active 版本（需 theme activation 路径）；
+		// 返回当前 active 让上层记录失败（bootstrap 对该错误已是 WARN）。
+		return active, nil
+	}
+	result, err := s.store.ActivateTheme(ctx, DefaultThemeID)
+	if err != nil {
+		return Extension{}, err
+	}
+	return result.Extension, nil
 }
 
 // RestoreSafeModeThemeRegistry 忽略数据库 desired theme 与全部插件贡献，只加载受保护默认主题。

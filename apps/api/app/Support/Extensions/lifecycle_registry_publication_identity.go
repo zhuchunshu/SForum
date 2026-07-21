@@ -167,6 +167,35 @@ func (b *PostgresLifecycleBoundaryRegistries) restoreIdentityPublications(
 			return expected[i].extensionID < expected[j].extensionID
 		})
 
+		// 启动安全冗余：先退休「不在期望 enabled 集合」的残留 active tip。
+		// 覆盖手动 DELETE 插件、不完整卸载（root 已 tombstone / leaf 仍 active）等场景，
+		// 避免 ValidateDurablePublicationSet 因孤儿声明阻断 Host 启动。
+		// 仍在 expected 内的 owner 走严格 exact 校验，绝不自动吞掉 digest 漂移。
+		expectedIDs := make([]string, 0, len(expected))
+		for _, item := range expected {
+			expectedIDs = append(expectedIDs, item.extensionID)
+		}
+		orphans, orphanErr := identityregistry.ActiveOrphanOwners(durable, expectedIDs)
+		if orphanErr != nil {
+			return wrapLifecycleIdentityError("detect orphan durable identity owners", orphanErr)
+		}
+		if len(orphans) > 0 {
+			retirer, hasRetirer := b.identityStore.(identityregistry.OrphanIdentityRetirer)
+			if !hasRetirer {
+				return wrapLifecycleIdentityError(
+					"retire orphan durable identity owners "+strings.Join(orphans, ","),
+					identityregistry.ErrArtifactConflict,
+				)
+			}
+			repaired, retireErr := retirer.RetireOrphanPublications(ctx, orphans)
+			if retireErr != nil {
+				return wrapLifecycleIdentityError(
+					"retire orphan durable identity owners "+strings.Join(orphans, ","), retireErr,
+				)
+			}
+			durable = repaired
+		}
+
 		// Safe Mode never reaches this branch. Normal mode may adopt only on
 		// ErrNotFound (missing root/history), never on conflict/stale/partial shapes.
 		// Collect every missing publication first, then invoke the adopter ONCE.
