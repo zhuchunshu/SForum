@@ -6,12 +6,22 @@ session archive.
 
 ## Latest Handoff
 
-- **2026-07-21 Million-scale read path task book**
-  - Plan: `plans/2026-07-21-million-scale-read-path.md` (status **ready**;
-    D1–D4 defaults resolved)
-  - Handoff: `sessions/2026-07-21-million-scale-read-path-handoff.md`
-  - Order: M0 seed+k6 → M1 ListTopics → M2 view+hot_score → M3 comments →
-    M4 detail → M5 keyset → M6 cache shard; M7 replica doc-only
+- **2026-07-21 Forum settings Search provider tab**
+  - Handoff: `sessions/2026-07-21-forum-settings-search-provider-tab-handoff.md`
+  - `/admin/forum/settings?tab=search` + search.provider list/select/reset APIs
+  - Module: `modules/search.md`
+
+- **2026-07-21 Plugin process RSS on admin lists**
+  - Handoff: `sessions/2026-07-21-plugin-process-rss-admin-list-handoff.md`
+  - `runtime.memoryBytes` on extension List/Detail; Plugins list badge
+  - Shared: `apps/api/app/Support/ProcessMemory`
+
+- **2026-07-21 Million-scale read path — M0 complete**
+  - Plan: `plans/2026-07-21-million-scale-read-path.md` (status **in progress**;
+    M0 done; D1–D4 law)
+  - Baseline: `reports/2026-07-21-perf-baseline.md`
+  - Handoff: `sessions/2026-07-21-million-scale-read-path-m0-handoff.md`
+  - Next: **M1** ListTopics slim + D1 totals
 
 - **2026-07-21 Bilingual docs handbook**
   - Hub: `docs/README.md`
@@ -77,7 +87,7 @@ lives in archived sessions and dated decisions.
 ### Open / next (product, not V3 LTS)
 
 - **Iteration A** engagement loop still open: view-count increment, likes/reactions, bookmarks — `plans/2026-07-12-iteration-a-engagement-loop.md`
-- **Million-scale read path** task book (ready): ListTopics / comments / detail / view+hot_score / keyset — `plans/2026-07-21-million-scale-read-path.md`
+- **Million-scale read path** task book (**M0 done**, M1 next): ListTopics / comments / detail / view+hot_score / keyset — `plans/2026-07-21-million-scale-read-path.md`
 - Admin settings richness: Waves 1–2 landed; later waves remain blueprint — `plans/2026-07-12-admin-settings-richness.md`
 - Extension surface density: E1–E6 largely landed; product north-star slots continue under V3 provider model — `plans/2026-07-12-extension-surface-density.md`
 - V3 P13: **do not** delete LTS-gated shims early — wait for APILTS window
@@ -106,7 +116,7 @@ lives in archived sessions and dated decisions.
 ### Active plans (read first)
 
 - `plans/2026-07-13-trusted-plugin-theme-platform-v3.md` + `-progress.md` — V3 residual
-- `plans/2026-07-21-million-scale-read-path.md` — single-node 1M-class read path (ready)
+- `plans/2026-07-21-million-scale-read-path.md` — single-node 1M-class read path (M0 done)
 - `plans/2026-07-12-iteration-a-engagement-loop.md` — product engagement (view count shared with M2)
 - `plans/2026-07-12-admin-settings-richness.md` — settings blueprint
 - `plans/2026-07-12-development-directions.md` — strategy context
