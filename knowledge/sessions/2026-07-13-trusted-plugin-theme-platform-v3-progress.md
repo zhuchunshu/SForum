@@ -1,5 +1,58 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
+Last updated: 2026-07-21 (post-interrupt re-audit; LTS still closed)
+
+## Progress
+
+- Weighted **99.7%** (display **99%**). **P0–P12 complete**; P13 LTS residual only.
+- HEAD `56acff7b4`. Worktree clean.
+- Explore residual hunt: **ZERO non-LTS implementable** (task book, catalogs
+  249/150/99, registries, five reference packages, dual matrix).
+- Live APILTS (`go run ./cmd/sforum extension api-lts --json`, UTC 2026-07-21):
+  - `sforum.protocol.v1` RemoveAfter **2026-11-28T00:00:00Z**
+  - `sforum.theme.l1.request-time-loader` RemoveAfter **2026-11-28T00:00:00Z**
+  - `CanRemoveWindow=false`, `CanRemoveWithZeroShim=false` both contracts
+  - ~**130 days** until earliest deletion
+- **Deletion policy-blocked.** Early LTS removal is a product-boundary change
+  requiring explicit user approval (plan non-goal).
+
+## Current Subtask
+
+### LTS wait only (policy-blocked)
+
+- Exact next: **do not delete** LoadTemplate residual / Protocol V1 /
+  fail-closed SFPageOutlet until RemoveAfter + live zero-shim + checklist 1–7.
+- Do not invent thin work; do not reopen P10; do not claim 100%.
+
+## Tests (this turn)
+
+- catalogs: **249 / 150 / 99** (`tests/validate-v3-p0-catalogs.mjs`)
+- OpenAPI refs: EXIT 0 (2028 refs / 54 files)
+- go test APILTS, cmd/sforum, Pages, Pages controller, EditorRegistry,
+  EditorDocument, EntityRegistry, ContentRegistry, MediaRegistry — EXIT 0
+- bun `tests/editorL2Load.test.ts` + `tests/adminRegistryCatalogs.test.ts` —
+  **12 pass**
+- Evidence: implementer scratch `resume-audit.txt`,
+  `final-gates/lts-wait-gates.log`, `matrix-proofs.log`
+
+## Open task-book rows
+
+1. Remove request-time template loader residual
+2. Remove Protocol V1 paths
+3. Compatibility path removal after LTS checklist
+
+## Rollback
+
+- Never delete LTS shims early.
+
+## Unowned worktree
+
+- None.
+
+---
+
+# Trusted Plugin And Theme Platform V3 Progress Ledger
+
 Last updated: 2026-07-21 (final residual hunt + gates re-green)
 
 ## Progress
