@@ -1000,6 +1000,34 @@ func nullablePositiveInt64(value int64) any {
 	return value
 }
 
+// lastReplyAuthorJoinSQL：取最近一条 active 评论作者；无评论时 COALESCE 回楼主。
+// 仅挂在带头像的摘要 SELECT（列表 / GetTopicFor*），不改 Profile 的 ScanTopicSummary 列布局。
+func lastReplyAuthorJoinSQL() string {
+	return `
+		LEFT JOIN LATERAL (
+		  SELECT c.author_user_id
+		  FROM comments c
+		  WHERE c.topic_id = topics.id
+		    AND c.status = 'active'
+		    AND c.author_user_id IS NOT NULL
+		  ORDER BY c.created_at DESC, c.id DESC
+		  LIMIT 1
+		) last_reply ON true
+		LEFT JOIN users last_reply_users ON last_reply_users.id = COALESCE(last_reply.author_user_id, topics.author_user_id)
+		LEFT JOIN user_profiles last_reply_profiles ON last_reply_profiles.user_id = last_reply_users.id
+		LEFT JOIN attachments last_reply_attachments ON last_reply_attachments.id = last_reply_profiles.avatar_attachment_id
+	`
+}
+
+func lastReplyAuthorSelectSQL() string {
+	return `
+		  last_reply_users.id, last_reply_users.username, last_reply_users.display_name, last_reply_users.email,
+		  last_reply_profiles.avatar_attachment_id,
+		  last_reply_attachments.id, last_reply_attachments.public_id, last_reply_attachments.owner_user_id,
+		  last_reply_attachments.content_type, last_reply_attachments.status
+	`
+}
+
 func topicSummarySQL() string {
 	// plain_text 前缀供读路径派生 excerpt（列已删除，避免列表拉全量正文）。
 	// hot_score 供 M5 keyset 编码（json:"-"，不暴露公开 JSON）。
@@ -1012,14 +1040,14 @@ func topicSummarySQL() string {
 		  topics.title, topics.slug, topics.status, topics.is_pinned,
 		  topics.comment_count, topics.view_count, topics.hot_score, ` + plainTextPrefixSQL("posts.plain_text") + `,
 		  EXISTS (SELECT 1 FROM post_revisions WHERE post_id = posts.id),
-		  topics.created_at, topics.updated_at, topics.last_activity_at
+		  topics.created_at, topics.updated_at, topics.last_activity_at,` + lastReplyAuthorSelectSQL() + `
 		FROM topics
 		JOIN categories ON categories.id = topics.category_id
 		JOIN posts ON posts.id = topics.content_id
 		LEFT JOIN users ON users.id = topics.author_user_id
 		LEFT JOIN user_profiles author_profiles ON author_profiles.user_id = users.id
 		LEFT JOIN attachments author_attachments ON author_attachments.id = author_profiles.avatar_attachment_id
-	`
+		` + lastReplyAuthorJoinSQL()
 }
 
 // topicListOrderBy：置顶始终优先，再按运营默认排序。
@@ -1164,6 +1192,16 @@ func scanTopicSummaryWithAvatar(row RowScanner, builder *avatar.ViewBuilder) (To
 	var attachmentOwnerID sql.NullInt64
 	var attachmentContentType sql.NullString
 	var attachmentStatus sql.NullString
+	var lastReplyID sql.NullInt64
+	var lastReplyUsername sql.NullString
+	var lastReplyDisplayName sql.NullString
+	var lastReplyEmail sql.NullString
+	var lastReplyAvatarAttachmentID sql.NullInt64
+	var lastReplyAttachmentID sql.NullInt64
+	var lastReplyAttachmentPublicID sql.NullString
+	var lastReplyAttachmentOwnerID sql.NullInt64
+	var lastReplyAttachmentContentType sql.NullString
+	var lastReplyAttachmentStatus sql.NullString
 	var plainPrefix string
 	if err := row.Scan(
 		&topic.ID,
@@ -1192,6 +1230,16 @@ func scanTopicSummaryWithAvatar(row RowScanner, builder *avatar.ViewBuilder) (To
 		&topic.CreatedAt,
 		&topic.UpdatedAt,
 		&topic.LastActivityAt,
+		&lastReplyID,
+		&lastReplyUsername,
+		&lastReplyDisplayName,
+		&lastReplyEmail,
+		&lastReplyAvatarAttachmentID,
+		&lastReplyAttachmentID,
+		&lastReplyAttachmentPublicID,
+		&lastReplyAttachmentOwnerID,
+		&lastReplyAttachmentContentType,
+		&lastReplyAttachmentStatus,
 	); err != nil {
 		return TopicSummary{}, err
 	}
@@ -1200,6 +1248,19 @@ func scanTopicSummaryWithAvatar(row RowScanner, builder *avatar.ViewBuilder) (To
 		topic.AuthorUserID = authorID.Int64
 		topic.Author = userSummaryWithAvatar(builder, authorID, username, displayName, email, avatarAttachmentID, attachmentID, attachmentPublicID, attachmentOwnerID, attachmentContentType, attachmentStatus)
 	}
+	topic.LastReplyAuthor = userSummaryWithAvatar(
+		builder,
+		lastReplyID,
+		lastReplyUsername,
+		lastReplyDisplayName,
+		lastReplyEmail,
+		lastReplyAvatarAttachmentID,
+		lastReplyAttachmentID,
+		lastReplyAttachmentPublicID,
+		lastReplyAttachmentOwnerID,
+		lastReplyAttachmentContentType,
+		lastReplyAttachmentStatus,
+	)
 	return topic, nil
 }
 

@@ -115,6 +115,8 @@ export type ForumTopicSummary = {
   categoryName: string
   authorUserId: number
   author?: ForumUserSummary
+  /** 最近 active 评论作者；无评论时与 author 相同 */
+  lastReplyAuthor?: ForumUserSummary
   title: string
   slug: string
   status: ForumTopicStatus
@@ -761,6 +763,27 @@ export function buildForumCommentQuery(query: ForumCommentListQuery = {}) {
   }
   addPositiveNumberQuery(params, 'perPage', query.perPage)
   return params
+}
+
+// 评论楼层是当前公开列表的顺序号，不暴露数据库自增 ID。
+export function commentFloorNumber(index: number, list: Pick<ForumCommentList, 'page' | 'perPage'>) {
+  if (!Number.isFinite(index)) {
+    return 0
+  }
+
+  const normalizedIndex = Math.trunc(index)
+  if (normalizedIndex < 0) {
+    return 0
+  }
+
+  const page = Number.isFinite(list.page) ? Math.max(1, Math.trunc(list.page)) : 1
+  const perPage = Number.isFinite(list.perPage) ? Math.max(1, Math.trunc(list.perPage)) : 20
+  return (page - 1) * perPage + normalizedIndex + 1
+}
+
+export function commentFloorLabel(index: number, list: Pick<ForumCommentList, 'page' | 'perPage'>) {
+  const floor = commentFloorNumber(index, list)
+  return floor > 0 ? `#${floor}` : ''
 }
 
 // 统一取作者展示名：优先 displayName，其次 username，最后回退用户 ID。

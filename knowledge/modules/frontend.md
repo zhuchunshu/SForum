@@ -202,6 +202,10 @@ desktop, collapses depth-two descendants once at the boundary, and preserves a
 direct non-interactive reply reference. Mobile clears every recursive inset;
 flat mode never recurses. Rich content containers, code, and images must remain
 bounded so no comment depth can widen the document viewport.
+Comment floor badges are display-only list positions (`#1`, `#2`, …) computed
+from the comment list page/perPage, while anchors keep the real `comment.id`
+target (`#comment-<id>`) for stable deep links. Do not render database IDs as
+visible floor numbers.
 Public themes no longer ship as Nuxt Layers selected at runtime. Host
 `apps/web` owns public pages/components/layouts/CSS. Themes are L0/L1 packages
 (`theme.json` + `assets/` + `templates/`) activated through the Page Registry

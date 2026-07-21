@@ -6,6 +6,13 @@ session archive.
 
 ## Latest Handoff
 
+- **2026-07-22 Comment floor display**
+  - Topic detail comment floor badges now show list positions (`#1`, `#2`, …)
+    instead of database comment IDs
+  - Anchors still target stable `#comment-<id>` deep links
+  - Handoff: `sessions/2026-07-22-comment-floor-display-handoff.md`
+  - Module: `modules/frontend.md`
+
 - **2026-07-22 Hybrid demo fidelity polish (default theme UI)**
   - Fonts/weights, topbar active underline, topic list 最近活动, left-nav colored category icons
   - Demo: `tmp/demos/sforum-hybrid-topic-list/`

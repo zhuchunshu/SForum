@@ -35,6 +35,7 @@ const props = withDefaults(defineProps<{
   htmlContent?: string
   authorLink?: string
   meta?: string
+  floorLabel?: string
   avatar?: AvatarView | null
   // 被回复的评论引用：E3 方案用左侧 accent 竖条引用块展示，人名 + 内容预览分两行。
   replyTo?: { id?: number; author?: string; excerpt?: string }
@@ -53,6 +54,7 @@ const props = withDefaults(defineProps<{
   htmlContent: undefined,
   authorLink: undefined,
   meta: undefined,
+  floorLabel: '',
   avatar: undefined,
   replyTo: undefined,
   actions: () => [
@@ -74,6 +76,7 @@ const { t } = useI18n()
 
 // 后端已用 bluemonday sanitize，前端可直接 v-html 渲染。
 const showHtml = computed(() => Boolean(props.htmlContent))
+const displayFloorLabel = computed(() => props.floorLabel?.trim() || '')
 
 // 当前评论节点：用于内联编辑器/回复编辑器匹配（inject renderer 据此判断原位渲染）。
 const commentNode = computed(() => props.comment ?? null)
@@ -209,11 +212,11 @@ const InlineEditorHost = () => {
         </a>
 
         <a
-          v-if="comment"
+          v-if="comment && displayFloorLabel"
           class="sf-comment__floor"
           :href="`#comment-${comment.id}`"
-          :aria-label="`#${comment.id}`"
-        >#{{ comment.id }}</a>
+          :aria-label="displayFloorLabel"
+        >{{ displayFloorLabel }}</a>
 
         <div v-if="showHtml" class="sf-comment__content sf-prose" v-highlight v-html="sanitizeHtml(htmlContent)" />
         <p v-else class="sf-comment__content">

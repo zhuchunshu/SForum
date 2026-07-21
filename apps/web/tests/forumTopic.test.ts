@@ -2,6 +2,8 @@ import { describe, expect, test } from 'bun:test'
 
 import {
   buildForumCommentQuery,
+  commentFloorLabel,
+  commentFloorNumber,
   flattenCommentTree,
   forumAuthorName,
   forumTopicPath,
@@ -48,6 +50,14 @@ describe('forum topic helpers', () => {
   test('omits invalid comment query params', () => {
     expect(buildForumCommentQuery({ view: 'invalid' as never, page: 0, perPage: -1 })).toEqual({})
     expect(buildForumCommentQuery({})).toEqual({})
+  })
+
+  test('formats comment floors from list order instead of database ids', () => {
+    const list = { page: 3, perPage: 20 }
+
+    expect(commentFloorNumber(0, list)).toBe(41)
+    expect(commentFloorLabel(2, list)).toBe('#43')
+    expect(commentFloorLabel(-1, list)).toBe('')
   })
 
   test('exposes topic action keys matching backend contract', () => {

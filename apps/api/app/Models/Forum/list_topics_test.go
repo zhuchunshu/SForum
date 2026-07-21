@@ -95,6 +95,10 @@ func TestTopicSummarySQL_UsesPlainTextPrefixNotFullBody(t *testing.T) {
 	if strings.Contains(sql, "posts.raw_content") || strings.Contains(sql, "posts.html_content") {
 		t.Fatalf("summary SQL must not select raw/html body columns")
 	}
+	// 最近回复作者：LATERAL 最近 active 评论，无则 COALESCE 回楼主。
+	if !strings.Contains(sql, "last_reply_users") || !strings.Contains(sql, "LEFT JOIN LATERAL") {
+		t.Fatalf("summary SQL must hydrate lastReplyAuthor via lateral join, got:\n%s", sql)
+	}
 }
 
 func TestListTopicsPageSQL_CategoryUsesCategoryIDEquality(t *testing.T) {

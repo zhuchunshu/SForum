@@ -266,12 +266,14 @@ type TopicSummary struct {
 	CategoryName   string            `json:"categoryName"`
 	AuthorUserID   int64             `json:"authorUserId"`
 	Author         *UserSummary      `json:"author,omitempty"`
-	Title          string            `json:"title"`
-	Slug           string            `json:"slug"`
-	Status         string            `json:"status"`
-	IsPinned       bool              `json:"isPinned"`
-	CommentCount   int64             `json:"commentCount"`
-	ViewCount      int64             `json:"viewCount"`
+	// LastReplyAuthor 最近一条 active 评论作者；无评论时与 Author 相同（列表「最近回复」列）。
+	LastReplyAuthor *UserSummary `json:"lastReplyAuthor,omitempty"`
+	Title           string       `json:"title"`
+	Slug            string       `json:"slug"`
+	Status          string       `json:"status"`
+	IsPinned        bool         `json:"isPinned"`
+	CommentCount    int64        `json:"commentCount"`
+	ViewCount       int64        `json:"viewCount"`
 	// HotScore 仅服务端 keyset 编码使用，不序列化到公开 JSON。
 	HotScore       int64             `json:"-"`
 	Tags           []TopicTagSummary `json:"tags,omitempty"`

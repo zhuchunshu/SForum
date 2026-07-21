@@ -772,10 +772,10 @@
 
 /* hybrid demo fidelity: 显式 CSS 兜底，避免任意断点类未生成时退回桌面五列。 */
 .sf-page.sf-theme--default .sf-home-topic-row {
-  grid-template-columns: 42px minmax(0, 1fr) 88px 50px 96px;
-  gap: 11px;
-  min-height: 82px;
-  padding: 12px 8px;
+  grid-template-columns: 42px minmax(0, 1fr) 96px 54px 104px;
+  gap: 12px;
+  min-height: 88px;
+  padding: 14px 8px;
   border-bottom: 1px solid #e9e8ed;
 }
 

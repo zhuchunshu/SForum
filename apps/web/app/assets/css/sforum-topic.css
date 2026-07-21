@@ -90,7 +90,8 @@
 
 .sforum-topic-page .sf-topic-heading__title {
   margin: 0 0 12px;
-  color: var(--sf-fg);
+  /* 用 public text，避免 html.dark 下 --sf-fg 变浅导致标题发白 */
+  color: var(--sf-public-text, var(--sf-fg, #25252b));
   font-size: 20px;
   font-weight: 700;
   line-height: 1.35;
@@ -489,6 +490,21 @@
   padding: 1.5rem 0;
 }
 
+/* 内容页空态不受 colorMode dark 语义色污染 */
+.sforum-topic-comments__empty .sf-empty-state {
+  border: 1px dashed var(--sf-public-border, var(--sf-border, #e2e8f0));
+  background: var(--sf-public-surface-muted, var(--sf-muted, #f5f5f8));
+  color: var(--sf-public-text-secondary, var(--sf-fg-secondary, #676773));
+}
+
+.sforum-topic-comments__empty .sf-empty-state__title {
+  color: var(--sf-public-text, var(--sf-fg, #25252b));
+}
+
+.sforum-topic-comments__empty .sf-empty-state__description {
+  color: var(--sf-public-text-muted, var(--sf-fg-tertiary, #a0a0aa));
+}
+
 .sforum-topic-comments__reply {
   display: grid;
   gap: 0.75rem;
@@ -764,6 +780,7 @@
 
 .sforum-topic-page .sf-topic-heading__title {
   margin-bottom: 14px;
+  color: var(--sf-public-text, #25252b);
   font-family: "Noto Serif SC", "Songti SC", serif;
   font-size: 30px;
   line-height: 1.28;

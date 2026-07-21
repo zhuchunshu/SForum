@@ -4,6 +4,7 @@
  */
 
 import {
+  commentFloorLabel,
   forumAuthorName,
   forumCategoryPath,
   forumContentFromEditorPayload,
@@ -263,6 +264,9 @@ const loadedTopicID = computed(() => topic.value?.id ?? topicID.value)
 const comments = computed(() => commentData.value.items)
 const commentTotal = computed(() => commentData.value.total)
 const commentTotalPages = computed(() => Math.ceil(commentTotal.value / Math.max(commentData.value.perPage, 1)) || 1)
+const commentFloorLabelsById = computed(() => new Map<number, string>(
+  comments.value.map((comment, index) => [comment.id, commentFloorLabel(index, commentData.value)])
+))
 // E2.2：列表级评论扩展动作；requiresAuth 仅 UX 过滤，鉴权在扩展路由代理。
 const commentExtensionActions = computed(() => commentData.value?.extensionActions || [])
 const commentExtensionActionRunning = ref('')
@@ -278,6 +282,8 @@ const authorPath = computed(() => {
 })
 
 function tagPath(slug: string) { return localePath(forumTagPath(slug)) }
+
+function commentFloor(comment: ForumComment) { return commentFloorLabelsById.value.get(comment.id) || '' }
 
 function categoryPath(slug: string) { return localePath(forumCategoryPath(slug)) }
 
@@ -1023,6 +1029,7 @@ async function submitReport() {
                         :html-content="editingCommentId === comment.id ? undefined : comment.content.htmlContent"
                         :content="editingCommentId === comment.id ? '' : undefined"
                         :meta="commentMeta(comment)"
+                        :floor-label="commentFloor(comment)"
                         :presentation="commentView"
                         :depth="0"
                         :collapse-from-depth="2"
@@ -1071,7 +1078,7 @@ async function submitReport() {
                         <UIcon name="i-lucide-corner-up-left" class="size-4" aria-hidden="true" />
                         {{ t('topicDetail.replyingTo') }}
                         <strong>@{{ commentAuthorName(replyingTo) }}</strong>
-                        <a :href="`#comment-${replyingTo.id}`">#{{ replyingTo.id }}</a>
+                        <a v-if="commentFloor(replyingTo)" :href="`#comment-${replyingTo.id}`">{{ commentFloor(replyingTo) }}</a>
                       </span>
                       <button type="button" :aria-label="t('topicDetail.cancel')" @click="cancelReply">
                         <UIcon name="i-lucide-x" class="size-4" aria-hidden="true" />

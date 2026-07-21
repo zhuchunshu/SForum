@@ -102,7 +102,10 @@ describe('default theme V32 left-nav homepage contract', () => {
 
     expect(row).toContain('topic: ForumTopicSummary')
     expect(row).toContain('to: string')
+    expect(row).toContain('createdLabel: string')
     expect(row).toContain('activityLabel: string')
+    expect(row).toContain('topic.createdAt')
+    expect(row).toContain('topic.lastReplyAuthor')
     expect(row).toContain('topic.commentCount')
     expect(row).toContain('topic.categoryName')
     expect(row).toContain('topic.author')
@@ -116,7 +119,7 @@ describe('default theme V32 left-nav homepage contract', () => {
     // fullwidth-3col：宿主 Tailwind 行 + 扩展钩子；chip 色板在组件内
     expect(row).toContain('data-sf-component="forum.topic_list_row"')
     expect(row).toContain('forumCategoryChipToneClass')
-    expect(row).toContain('grid-cols-[42px_minmax(0,1fr)_88px_50px_96px]')
+    expect(row).toContain('grid-cols-[42px_minmax(0,1fr)_96px_54px_104px]')
     expect(row).toContain('sf-home-topic-row__activity')
     expect(row).toContain('sf-home-topic-row__replies')
     expect(row).toContain('sf-home-topic-row__meta')

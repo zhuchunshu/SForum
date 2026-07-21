@@ -275,8 +275,11 @@
   }
 }
 
-/* 默认主题的 Navbar 与页面是兄弟节点，必须从模板根节点限定作用域。 */
-.sf-theme-template[data-extension-id="sforum.default-theme"] {
+/* 默认主题的 Navbar 与页面是兄弟节点，必须从模板根节点限定作用域。
+ * 同时锁浅色语义 token，避免 html.dark 污染内容页（浅字 / 深色 empty）。 */
+.sf-theme-template[data-extension-id="sforum.default-theme"],
+.sf-theme-template[data-extension-id="sforum.default-theme"] .sforum-home,
+.sf-theme-template[data-extension-id="sforum.default-theme"] .sforum-topic-page {
   --sf-public-bg: #fff;
   --sf-public-surface: #fff;
   --sf-public-surface-muted: #f5f5f8;
@@ -291,9 +294,24 @@
   --sf-accent-hover: #b82d48;
   --sf-accent-soft: #fff0f3;
   --sf-accent-soft-border: #f3bdc7;
+  --sf-surface: #ffffff;
+  --sf-card: #ffffff;
+  --sf-muted: #f5f5f8;
+  --sf-fg: #25252b;
+  --sf-fg-secondary: #676773;
+  --sf-fg-tertiary: #a0a0aa;
+  --sf-border: #e9e8ed;
+  --sf-border-light: #f0eff3;
+  --tw-prose-body: #404751;
+  --tw-prose-headings: #25252b;
+  --tw-prose-invert-body: #404751;
+  --tw-prose-invert-headings: #25252b;
   color-scheme: light;
-  background: #fff;
   color: #25252b;
+}
+
+.sf-theme-template[data-extension-id="sforum.default-theme"] {
+  background: #fff;
   font-family: "DM Sans", "Noto Sans SC", system-ui, sans-serif !important;
   font-synthesis: none;
 }

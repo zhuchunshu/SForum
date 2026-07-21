@@ -641,6 +641,10 @@ TopicSummary:
       format: int64
     author:
       "$ref": "#/ForumUser"
+    lastReplyAuthor:
+      allOf:
+      - "$ref": "#/ForumUser"
+      description: Author of the latest active comment; equals author when the topic has no comments. Used by the topic list "last activity" column.
     title:
       type: string
     slug:

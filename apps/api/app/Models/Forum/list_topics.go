@@ -52,6 +52,7 @@ func (s *PostgresStore) ListTopics(ctx context.Context, input TopicListInput) (T
 		return TopicList{}, err
 	}
 	// 两阶段：page CTE 只取 id（可走 activity 索引 + LIMIT），再 hydrate 摘要列。
+	// lastReplyAuthor 与 topicSummarySQL 列布局一致（最近 active 评论作者，无则楼主）。
 	rows, err := s.pool.Query(ctx, `
 		WITH page AS (
 		`+pageSQL+`
@@ -64,7 +65,7 @@ func (s *PostgresStore) ListTopics(ctx context.Context, input TopicListInput) (T
 		  topics.title, topics.slug, topics.status, topics.is_pinned,
 		  topics.comment_count, topics.view_count, topics.hot_score, `+plainTextPrefixSQL("posts.plain_text")+`,
 		  EXISTS (SELECT 1 FROM post_revisions WHERE post_id = posts.id),
-		  topics.created_at, topics.updated_at, topics.last_activity_at
+		  topics.created_at, topics.updated_at, topics.last_activity_at,`+lastReplyAuthorSelectSQL()+`
 		FROM page
 		JOIN topics ON topics.id = page.id
 		JOIN categories ON categories.id = topics.category_id
@@ -72,6 +73,7 @@ func (s *PostgresStore) ListTopics(ctx context.Context, input TopicListInput) (T
 		LEFT JOIN users ON users.id = topics.author_user_id
 		LEFT JOIN user_profiles author_profiles ON author_profiles.user_id = users.id
 		LEFT JOIN attachments author_attachments ON author_attachments.id = author_profiles.avatar_attachment_id
+		`+lastReplyAuthorJoinSQL()+`
 		`+topicListOrderBy(sort)+`
 	`, args...)
 	if err != nil {

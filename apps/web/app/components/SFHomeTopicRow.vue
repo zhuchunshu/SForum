@@ -14,6 +14,9 @@ import {
 const props = defineProps<{
   topic: ForumTopicSummary
   to: string
+  /** 左侧 meta：发帖时间（createdAt） */
+  createdLabel: string
+  /** 右侧列：最近活动时间（lastActivityAt） */
   activityLabel: string
   /** forum.topic.list.badges；列表级一次解析后挂到每行；空时不渲染 */
   extensionListBadges?: ForumTopicExtensionBadge[]
@@ -23,6 +26,11 @@ const { t, locale } = useI18n()
 const localePath = useLocalePath()
 
 const authorName = computed(() => forumAuthorName(props.topic.author, props.topic.authorUserId))
+/** 右侧「最近回复」：优先 lastReplyAuthor，否则回退楼主 */
+const lastReplyAuthor = computed(() => props.topic.lastReplyAuthor || props.topic.author)
+const lastReplyName = computed(() =>
+  forumAuthorName(lastReplyAuthor.value, lastReplyAuthor.value?.id || props.topic.authorUserId)
+)
 const listBadges = computed(() => props.extensionListBadges || [])
 
 const categoryChipClass = computed(() => {
@@ -43,12 +51,12 @@ function listBadgeHref(badge: ForumTopicExtensionBadge) {
 }
 
 const pillBase =
-  'inline-flex h-[18px] shrink-0 items-center rounded-[3px] px-1.5 text-[11px] font-semibold leading-[18px]'
+  'inline-flex h-5 shrink-0 items-center rounded-[3px] px-1.5 text-xs font-semibold leading-5'
 </script>
 
 <template>
   <article
-    class="sf-home-topic-row grid min-h-[82px] min-w-0 grid-cols-[42px_minmax(0,1fr)_88px_50px_96px] items-center gap-x-[11px] border-b border-[var(--sf-border-light,#eef0f3)] px-2 py-3 transition-colors duration-100 last:border-b-0 hover:bg-[var(--sf-public-row-hover)] max-[1120px]:grid-cols-[42px_minmax(0,1fr)_50px_96px] max-[720px]:min-h-[72px] max-[720px]:grid-cols-[36px_minmax(0,1fr)] max-[720px]:gap-x-2.5"
+    class="sf-home-topic-row grid min-h-[88px] min-w-0 grid-cols-[42px_minmax(0,1fr)_96px_54px_104px] items-center gap-x-3 border-b border-[var(--sf-border-light,#eef0f3)] px-2 py-3.5 transition-colors duration-100 last:border-b-0 hover:bg-[var(--sf-public-row-hover)] max-[1120px]:grid-cols-[42px_minmax(0,1fr)_54px_104px] max-[720px]:min-h-[76px] max-[720px]:grid-cols-[36px_minmax(0,1fr)] max-[720px]:gap-x-2.5"
     :class="topic.isPinned ? 'bg-[#f3f4f6] hover:bg-[#eceef1] dark:bg-slate-400/10 dark:hover:bg-slate-400/15' : ''"
     data-sf-component="forum.topic_list_row"
   >
@@ -106,7 +114,7 @@ const pillBase =
             {{ listBadgeLabel(badge) }}
           </span>
         </template>
-        <h2 class="sf-home-topic-row__title m-0 min-w-0 flex-1 truncate text-sm font-semibold leading-snug text-[var(--sf-public-text)]">
+        <h2 class="sf-home-topic-row__title m-0 min-w-0 flex-1 truncate text-base font-semibold leading-snug text-[var(--sf-public-text)]">
           <NuxtLink
             :to="to"
             class="text-inherit no-underline hover:text-[var(--sf-accent)]"
@@ -116,8 +124,8 @@ const pillBase =
         </h2>
       </div>
 
-      <!-- demo .topic-meta：作者 · 时间；移动端附回复数 -->
-      <div class="sf-home-topic-row__meta mt-[5px] flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] font-medium text-[var(--sf-public-text-muted)]">
+      <!-- 左侧 meta：作者 · 发帖时间；移动端附回复数 -->
+      <div class="sf-home-topic-row__meta mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-[var(--sf-public-text-muted)]">
         <span class="inline-flex min-w-0 items-center gap-1">
           <NuxtLink
             v-if="topic.author"
@@ -128,8 +136,8 @@ const pillBase =
           </NuxtLink>
           <span v-else class="truncate">{{ authorName }}</span>
           <span aria-hidden="true">·</span>
-          <time :datetime="topic.lastActivityAt || topic.createdAt">
-            {{ activityLabel }}
+          <time :datetime="topic.createdAt">
+            {{ createdLabel }}
           </time>
         </span>
         <span class="sf-home-topic-row__mobile-replies hidden max-[720px]:inline-flex">
@@ -140,32 +148,33 @@ const pillBase =
 
     <NuxtLink
       :to="localePath(`/c/${topic.categorySlug}`)"
-      class="sf-home-topic-row__category inline-flex h-auto min-h-[22px] items-center justify-self-start rounded-[5px] px-2 py-1 text-[9px] font-semibold leading-[14px] no-underline max-[1120px]:hidden"
+      class="sf-home-topic-row__category inline-flex h-auto min-h-6 items-center justify-self-start rounded-[5px] px-2.5 py-1 text-[11px] font-semibold leading-4 no-underline max-[1120px]:hidden"
       :class="categoryChipClass"
     >
       {{ topic.categoryName }}
     </NuxtLink>
 
-    <div class="sf-home-topic-row__replies flex flex-col items-center gap-[3px] text-[10px] leading-snug text-[var(--sf-public-text-muted)] max-[720px]:hidden">
-      <strong class="text-sm font-bold tabular-nums text-[var(--sf-public-text)]">
+    <div class="sf-home-topic-row__replies flex flex-col items-center gap-[3px] text-[11px] leading-snug text-[var(--sf-public-text-muted)] max-[720px]:hidden">
+      <strong class="text-[15px] font-bold tabular-nums text-[var(--sf-public-text)]">
         {{ topic.commentCount }}
       </strong>
       <span>{{ t('home.feed.repliesColumn') }}</span>
     </div>
 
-    <!-- demo .topic-author：最近活动（当前合同仅有 author + lastActivityAt） -->
-    <div class="sf-home-topic-row__activity flex flex-col items-start gap-[3px] text-[10px] leading-snug text-[var(--sf-public-text-muted)] max-[720px]:hidden">
-      <strong
-        v-if="topic.author"
-        class="max-w-[94px] truncate font-semibold text-[var(--sf-public-text)]"
+    <!-- 最近回复用户 + lastActivityAt -->
+    <div class="sf-home-topic-row__activity flex flex-col items-start gap-[3px] text-[11px] leading-snug text-[var(--sf-public-text-muted)] max-[720px]:hidden">
+      <NuxtLink
+        v-if="lastReplyAuthor?.username"
+        :to="localePath(`/u/${lastReplyAuthor.username}`)"
+        class="max-w-[100px] truncate text-xs font-semibold text-[var(--sf-public-text)] no-underline hover:text-[var(--sf-accent)]"
       >
-        {{ authorName }}
-      </strong>
+        {{ lastReplyName }}
+      </NuxtLink>
       <strong
         v-else
-        class="max-w-[94px] truncate font-semibold text-[var(--sf-public-text)]"
+        class="max-w-[100px] truncate text-xs font-semibold text-[var(--sf-public-text)]"
       >
-        {{ t('home.feed.activityColumn') }}
+        {{ lastReplyName || t('home.feed.activityColumn') }}
       </strong>
       <time :datetime="topic.lastActivityAt || topic.createdAt">{{ activityLabel }}</time>
     </div>

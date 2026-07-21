@@ -131,9 +131,8 @@ function tagPageTo(page: number) {
   return publicPageLocation(localePath(forumTagPath(tagSlug.value)), page)
 }
 
-function topicActivity(topic: ForumTopicSummary) {
-  const value = topic.lastActivityAt || topic.createdAt
-  const date = new Date(value)
+function topicRelativeLabel(iso: string) {
+  const date = new Date(iso)
   if (Number.isNaN(date.getTime())) {
     return ''
   }
@@ -154,6 +153,14 @@ function topicActivity(topic: ForumTopicSummary) {
   }
 
   return date.toISOString().slice(0, 10)
+}
+
+function topicCreated(topic: ForumTopicSummary) {
+  return topicRelativeLabel(topic.createdAt)
+}
+
+function topicActivity(topic: ForumTopicSummary) {
+  return topicRelativeLabel(topic.lastActivityAt || topic.createdAt)
 }
 
 </script>
@@ -230,6 +237,7 @@ function topicActivity(topic: ForumTopicSummary) {
               :key="topic.id"
               :topic="topic"
               :to="localePath(forumTopicPath(topic, topicUrlMode))"
+              :created-label="topicCreated(topic)"
               :activity-label="topicActivity(topic)"
               :extension-list-badges="topicList.extensionListBadges || []"
             />

@@ -406,9 +406,8 @@ async function retryFirstPage() {
   await refreshTopics()
 }
 
-function topicActivity(topic: ForumTopicSummary) {
-  const value = topic.lastActivityAt || topic.createdAt
-  const date = new Date(value)
+function topicRelativeLabel(iso: string) {
+  const date = new Date(iso)
   if (Number.isNaN(date.getTime())) {
     return ''
   }
@@ -429,6 +428,16 @@ function topicActivity(topic: ForumTopicSummary) {
   }
 
   return date.toISOString().slice(0, 10)
+}
+
+/** 左侧 meta：发帖时间 */
+function topicCreated(topic: ForumTopicSummary) {
+  return topicRelativeLabel(topic.createdAt)
+}
+
+/** 右侧列：最近活动时间 */
+function topicActivity(topic: ForumTopicSummary) {
+  return topicRelativeLabel(topic.lastActivityAt || topic.createdAt)
 }
 
 onMounted(() => {
@@ -627,6 +636,7 @@ onBeforeUnmount(() => {
               :key="topic.id"
               :topic="topic"
               :to="localePath(forumTopicPath(topic, topicUrlMode))"
+              :created-label="topicCreated(topic)"
               :activity-label="topicActivity(topic)"
               :extension-list-badges="topicList.extensionListBadges || []"
             />
