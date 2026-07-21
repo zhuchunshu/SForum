@@ -1076,6 +1076,12 @@
       "path": "/api/v1/extensions/runtime/entity-catalog"
     },
     {
+      "id": "core.route.extensions.public_media_catalog",
+      "contractVersion": "sforum.route.extensions.public_media_catalog@1",
+      "method": "GET",
+      "path": "/api/v1/extensions/runtime/media-catalog"
+    },
+    {
       "id": "core.route.extensions.public_frontend_page_policy",
       "contractVersion": "sforum.route.extensions.public_frontend_page_policy@1",
       "method": "GET",
