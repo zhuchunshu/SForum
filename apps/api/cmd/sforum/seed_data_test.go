@@ -113,11 +113,11 @@ func TestValidateSeedOptions(t *testing.T) {
 		opts    seedOptions
 		wantErr bool
 	}{
-		{"valid", seedOptions{Count: 100, Users: 10, CommentsMax: 5, Batch: 20}, false},
-		{"zero count", seedOptions{Count: 0, Users: 10, CommentsMax: 5}, true},
-		{"zero users", seedOptions{Count: 100, Users: 0, CommentsMax: 5}, true},
-		{"negative comments", seedOptions{Count: 100, Users: 10, CommentsMax: -1}, true},
-		{"zero comments allowed", seedOptions{Count: 100, Users: 10, CommentsMax: 0}, false},
+		{"valid", seedOptions{Profile: seedProfileSmall, Count: 100, Users: 10, CommentsMax: 5, Batch: 20}, false},
+		{"zero count", seedOptions{Profile: seedProfileSmall, Count: 0, Users: 10, CommentsMax: 5}, true},
+		{"zero users", seedOptions{Profile: seedProfileSmall, Count: 100, Users: 0, CommentsMax: 5}, true},
+		{"negative comments", seedOptions{Profile: seedProfileSmall, Count: 100, Users: 10, CommentsMax: -1}, true},
+		{"zero comments allowed", seedOptions{Profile: seedProfileSmall, Count: 100, Users: 10, CommentsMax: 0}, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

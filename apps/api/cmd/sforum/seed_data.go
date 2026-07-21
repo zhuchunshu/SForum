@@ -8,15 +8,27 @@ import (
 	"strings"
 )
 
-// seedOptions 对应 seed:forum 子命令的 flags，是 runSeed 的输入。
+// seedOptions 对应 seed:forum / seed:perf 子命令的 flags，是 runSeed 的输入。
 type seedOptions struct {
-	Count        int    // 要生成的主题数量
-	Users        int    // 预先创建的假用户数量
-	CommentsMax  int    // 每个主题最多生成的评论数（0 表示不生成评论）
-	CategorySlug string // 主题发布到的分类 slug，空则用默认分类
-	DatabaseURL  string // 覆盖 DATABASE_URL，空则用 config.Load() 读环境变量
-	Batch        int    // 进度日志频率，每生成 N 条主题打印一次
-	DryRun       bool   // 只打印计划不写库
+	Profile       string // small | perf-1m
+	Count         int    // 要生成的主题数量
+	Users         int    // 预先创建的假用户数量
+	CommentsMax   int    // 每个普通主题最多生成的评论数（0 表示不生成评论）
+	CategorySlug  string // small：主题发布到的分类 slug，空则用默认分类
+	DatabaseURL   string // 覆盖 DATABASE_URL，空则用 config.Load() 读环境变量
+	Batch         int    // 进度日志频率 / perf 批大小
+	DryRun        bool   // 只打印计划不写库
+	ConfirmPerfDB bool   // perf-1m 写库确认（专用库）
+
+	// perf-1m 专用
+	CategoryCount int    // 分类数（含 general）
+	HotComments   int    // 热帖评论数
+	HotSlug       string // 热帖固定 slug
+
+	// 内部：记录 flag 是否被显式设置（cobra Changed），不由用户直接赋值。
+	countExplicit       bool
+	usersExplicit       bool
+	commentsMaxExplicit bool
 }
 
 // seedUser 描述一个待注册的假用户。

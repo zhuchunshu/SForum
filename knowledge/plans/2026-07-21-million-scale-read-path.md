@@ -1,7 +1,7 @@
 # Million-Scale Read Path — Task Book
 
-Status: **ready** — approved checklist; product defaults resolved 2026-07-21;
-not started  
+Status: **in progress** — M0 complete (seed + k6 harness + baseline report);
+M1 not started  
 Date: 2026-07-21  
 Last decision pass: 2026-07-21 (four open questions → resolved defaults)  
 Goal: make public forum **read paths** safe for ~1M topics / large hot
@@ -172,26 +172,26 @@ bypasses `cmd/sforum` domain rules.
 
 ### 0.1 Seed profile
 
-- [ ] Add scale profile on **`cmd/sforum`** (flag or subcommand per D4):
+- [x] Add scale profile on **`cmd/sforum`** (flag or subcommand per D4):
   - `small` (existing / quick)
   - `perf-1m`: ~1e6 topics, realistic category distribution, ≥1 topic with 5e4 comments
-- [ ] Seed is **append-only**, skips domain events, uses bulk inserts / COPY where practical
-- [ ] Print ETA and row counts; allow resume or clearly fail if partial
-- [ ] Document disk/time expectations (order-of-magnitude)
-- [ ] Do **not** put bulk seed SQL only in `scripts/` without going through `sforum`
+- [x] Seed is **append-only**, skips domain events, uses bulk inserts / COPY where practical
+- [x] Print ETA and row counts; allow resume or clearly fail if partial
+- [x] Document disk/time expectations (order-of-magnitude)
+- [x] Do **not** put bulk seed SQL only in `scripts/` without going through `sforum`
 
 ### 0.2 Load scripts
 
-- [ ] Place scripts under **`tests/perf/`** (D4); scenarios match Success Metrics table (home, category, topic, comments, mixed, view flood)
-- [ ] Warm-up phase + measure phase; report p50/p95/p99, error rate, throughput
-- [ ] Capture PG pool / Redis hit rate if admin metrics exist; else `EXPLAIN (ANALYZE)` samples for cold ListTopics
-- [ ] README in `tests/perf/`: how to run against local `api-dev` + Compose PG/Redis
+- [x] Place scripts under **`tests/perf/`** (D4); scenarios match Success Metrics table (home, category, topic, comments, mixed, view flood)
+- [x] Warm-up phase + measure phase; report p50/p95/p99, error rate, throughput
+- [x] Capture PG pool / Redis hit rate if admin metrics exist; else `EXPLAIN (ANALYZE)` samples for cold ListTopics
+- [x] README in `tests/perf/`: how to run against local `api-dev` + Compose PG/Redis
 
 ### 0.3 Baseline capture
 
-- [ ] Run once on **current main** before M1 code; store results under
+- [x] Run once on **current main** before M1 code; store results under
   `knowledge/reports/2026-07-21-perf-baseline.md` (or dated successor)
-- [ ] List top 5 slow queries from baseline (must include ListTopics count + join if present)
+- [x] List top 5 slow queries from baseline (must include ListTopics count + join if present)
 
 **Exit criteria:** any engineer can re-seed and re-run; baseline numbers exist for
 comparison. **No production code change required** except seed tooling.
@@ -517,3 +517,4 @@ Still free to decide during implementation (not product blockers):
 | --- | --- |
 | 2026-07-21 | Task book created from performance path review; status **ready**. |
 | 2026-07-21 | Resolved D1–D4 (total semantics, tree cap 50, view on public GET+30m dedup, seed in `cmd/sforum` + `tests/perf`). Open questions closed; milestones M0–M5 updated to match. |
+| 2026-07-21 | **M0 done:** `seed:forum --profile=perf-1m` / `seed:perf` bulk seed; `tests/perf` k6 + `LIGHT=1`; baseline `knowledge/reports/2026-07-21-perf-baseline.md` (1e6 topics + 50k hot comments on `sforum_perf`). Next: M1 ListTopics slim + D1 totals. |

@@ -36,6 +36,7 @@ func newRootCommand() *cobra.Command {
 		newMakeCommand("plugin"),
 		newMakeCommand("theme"),
 		newSeedCommand(),
+		newSeedPerfCommand(),
 		newExtensionCommand(),
 		newDevCleanupOrphanPluginsCommand(),
 	)
