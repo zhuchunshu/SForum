@@ -104,10 +104,12 @@ describe('comment action presentation', () => {
       canEdit: false,
       canDelete: true,
       canReport: false,
-      labels: { reply: 'Reply', edit: 'Edit', delete: 'Delete', report: 'Report' },
+      labels: { reply: 'Reply', quote: 'Quote', link: 'Link', edit: 'Edit', delete: 'Delete', report: 'Report' },
       extensions: [{ label: 'Resolve', value: 'extension:demo:resolve', icon: 'i-lucide-check' }]
     })).toEqual([
       { label: 'Reply', value: 'reply', icon: 'i-lucide-reply' },
+      { label: 'Quote', value: 'quote', icon: 'i-lucide-quote' },
+      { label: 'Link', value: 'link', icon: 'i-lucide-link' },
       { label: 'Delete', value: 'delete', icon: 'i-lucide-trash-2' },
       { label: 'Resolve', value: 'extension:demo:resolve', icon: 'i-lucide-check' }
     ])

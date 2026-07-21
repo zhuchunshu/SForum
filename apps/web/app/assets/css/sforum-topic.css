@@ -685,6 +685,20 @@
   }
 }
 
+@media (min-width: 981px) {
+  .sforum-topic-page__layout {
+    gap: 12px;
+    padding: 16px 18px 60px;
+    background: var(--sf-public-surface);
+  }
+
+  .sforum-topic-page__sidebar,
+  .sforum-topic-page__side {
+    top: calc(var(--sf-public-topbar-height) + 16px);
+    height: calc(100vh - var(--sf-public-topbar-height) - 32px);
+  }
+}
+
 @media (max-width: 640px) {
   .sforum-topic-page {
     padding: 0;
@@ -721,5 +735,193 @@
 
   .sf-report-dialog__footer {
     flex-wrap: wrap;
+  }
+}
+
+/* 2026 default topic surface: open article, chronological comments, inline composer. */
+.sforum-topic-page__sidebar {
+  padding: 18px 12px 24px;
+  background: var(--sf-public-surface);
+}
+
+.sforum-topic-page__main {
+  padding: 28px 24px 72px;
+}
+
+.sforum-topic-page__reading {
+  width: 100%;
+  max-width: none;
+}
+
+.sforum-topic-page__article {
+  margin-bottom: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0 0 30px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.sforum-topic-page .sf-topic-heading__title {
+  margin-bottom: 14px;
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-size: 30px;
+  line-height: 1.28;
+  font-weight: 700;
+}
+
+.sf-topic-heading__byline {
+  margin-bottom: 24px;
+  padding-bottom: 18px;
+}
+
+.sforum-topic-page__prose {
+  max-width: var(--sf-public-reading-max);
+  font-size: 15px;
+  line-height: 1.82;
+}
+
+.sforum-topic-page__actions {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--sf-border-light);
+}
+
+.sforum-topic-page__side {
+  padding: 26px 20px;
+  background: var(--sf-public-surface);
+}
+
+.sf-topic-side-card {
+  margin-bottom: 20px;
+  border: 0;
+  border-bottom: 1px solid var(--sf-public-border);
+  border-radius: 0;
+  padding: 0 0 20px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.sforum-topic-comments {
+  gap: 0;
+  padding-top: 34px;
+}
+
+.sf-comment-stream-controls {
+  min-height: 48px;
+  margin: 0;
+  border-bottom: 1px solid var(--sf-public-border-strong);
+}
+
+.sf-comment-stream-controls h2 {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.sforum-topic-comments__stream {
+  gap: 0;
+}
+
+.sforum-topic-comments__reply {
+  gap: 0;
+  margin-top: 28px;
+  border: 1px solid var(--sf-public-border);
+  border-radius: 6px;
+  padding: 0;
+  overflow: hidden;
+  background: var(--sf-public-surface);
+  box-shadow: none;
+  scroll-margin-top: calc(var(--sf-public-topbar-height) + 18px);
+}
+
+.sforum-topic-comments__reply-head {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 13px;
+  border-bottom: 1px solid var(--sf-public-border);
+}
+
+.sforum-topic-comments__reply-head > span {
+  display: grid;
+  gap: 2px;
+}
+
+.sforum-topic-comments__reply-head strong {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sforum-topic-comments__reply-head small {
+  color: var(--sf-public-text-muted);
+  font-size: 10px;
+}
+
+.sforum-topic-comments__reply-target {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 10px 14px 0;
+  border-radius: 5px;
+  padding: 6px 8px 6px 10px;
+  background: var(--sf-accent-soft);
+  color: var(--sf-public-text-secondary);
+  font-size: 11px;
+}
+
+.sforum-topic-comments__reply-target > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.sforum-topic-comments__reply-target a {
+  color: var(--sf-accent);
+  font-weight: 700;
+}
+
+.sforum-topic-comments__reply-target button {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  flex: 0 0 26px;
+  place-items: center;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--sf-public-text-muted);
+  cursor: pointer;
+}
+
+.sforum-topic-comments__reply > .sf-editor {
+  margin: 10px 14px 14px;
+  border-radius: 5px;
+}
+
+@media (max-width: 960px) {
+  .sforum-topic-page__main {
+    padding: 22px 16px 56px;
+  }
+}
+
+@media (max-width: 640px) {
+  .sforum-topic-page__main {
+    padding: 18px 12px 48px;
+  }
+
+  .sforum-topic-page__article {
+    padding: 0 0 24px;
+  }
+
+  .sforum-topic-page .sf-topic-heading__title {
+    font-size: 24px;
+  }
+
+  .sforum-topic-comments__reply-head small {
+    display: none;
   }
 }

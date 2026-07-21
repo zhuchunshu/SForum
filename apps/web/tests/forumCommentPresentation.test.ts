@@ -103,16 +103,16 @@ describe('SFComment presentation contract', () => {
     expect(source).toContain(':id="branchId"')
   })
 
-  test('keeps reply context non-interactive and child branches outside the entry', () => {
+  test('links reply context to its source and keeps child branches outside the entry', () => {
     const source = commentComponent()
     const entryClose = source.indexOf('</article>')
     const branchStart = source.indexOf('class="sf-comment__branch"')
-    const replyContextTag = source.match(/<blockquote[^>]*class="sf-comment__reply-to"[^>]*>/)?.[0]
+    const replyContextTag = source.match(/<a[\s\S]*?class="sf-comment__reply-to"[\s\S]*?>/)?.[0]
 
     expect(source).toContain("t('topicDetail.reply')")
     expect(replyContextTag).toBeDefined()
-    expect(replyContextTag).not.toContain('@click=')
-    expect(replyContextTag).not.toContain('role="button"')
+    expect(replyContextTag).toContain('#comment-')
+    expect(source).toContain('class="sf-comment__floor"')
     expect(entryClose).toBeGreaterThan(-1)
     expect(branchStart).toBeGreaterThan(entryClose)
     expect(source).not.toContain('sf-comment__children')
@@ -127,13 +127,14 @@ describe('SFComment presentation contract', () => {
 })
 
 describe('SFComment responsive CSS contract', () => {
-  test('renders each top-level reply as a modern card', () => {
+  test('renders top-level replies as open chronological rows', () => {
     const source = commentCss()
+    const flatOverride = source.slice(source.indexOf('Default flat discussion stream'))
 
-    expect(source).toContain('background: var(--sf-public-surface)')
-    expect(source).toContain('box-shadow: var(--sf-public-shadow)')
-    // 顶层回复卡片圆角与公开表面 token 对齐（当前 12px）。
-    expect(source).toContain('border-radius: 12px')
+    expect(flatOverride).toContain('.sf-comment-list > .sf-comment')
+    expect(flatOverride).toContain('border-radius: 0')
+    expect(flatOverride).toContain('background: transparent')
+    expect(flatOverride).toContain('box-shadow: none')
   })
 
   test('loads a focused comment stylesheet with one branch rail', () => {
@@ -169,7 +170,7 @@ describe('SFComment responsive CSS contract', () => {
     expect(mobileSource).toContain('min-height: 40px')
   })
 
-  test('does not style reply context as an interactive surface', () => {
+  test('keeps reply source links visually restrained', () => {
     const source = commentCss()
     const replyRule = source.match(/\.sf-comment__reply-to\s*\{([^}]*)\}/)?.[1]
 

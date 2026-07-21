@@ -116,7 +116,7 @@ describe('default theme V32 left-nav homepage contract', () => {
     // fullwidth-3col：宿主 Tailwind 行 + 扩展钩子；chip 色板在组件内
     expect(row).toContain('data-sf-component="forum.topic_list_row"')
     expect(row).toContain('forumCategoryChipToneClass')
-    expect(row).toContain('grid-cols-[36px_minmax(0,1fr)_88px_72px]')
+    expect(row).toContain('grid-cols-[42px_minmax(0,1fr)_88px_50px_96px]')
     expect(row).not.toContain('sf-home-topic-row__chip')
     expect(row).not.toContain('topic.excerpt')
     expect(row).not.toContain('participants')
@@ -243,7 +243,10 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(themePkgCss).toContain('.sforum-home__layout--with-right')
     expect(themePkgCss).not.toContain('.sf-home-topic-row__chip--tone-0')
     expect(themeTokens).toContain('--sf-public-bg: #f5f6f8')
-    expect(themeTokens).toContain('--sf-public-sidebar-width: 220px')
+    expect(themeTokens).toContain('--sf-public-sidebar-width: 224px')
+    expect(themeTokens).toContain('--sf-public-right-rail-width: 286px')
+    expect(themeTokens).toContain('--sf-public-topbar-height: 64px')
+    expect(pkg).toContain('assets/hybrid-forum.css')
     // 主色归站点 appearance，默认主题 tokens 不得覆盖 --sf-accent*
     expect(themeTokens).not.toMatch(/--sf-accent\s*:/)
     expect(themeTokens).not.toContain('#3b6cf5')

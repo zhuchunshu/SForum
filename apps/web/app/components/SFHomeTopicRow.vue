@@ -52,7 +52,7 @@ const chipBase =
 
 <template>
   <article
-    class="grid min-w-0 grid-cols-[36px_minmax(0,1fr)_88px_72px] items-center gap-x-3 gap-y-2.5 border-b border-[var(--sf-border-light,#eef0f3)] px-3.5 py-2.5 transition-colors duration-100 last:border-b-0 hover:bg-[var(--sf-public-row-hover)] max-[960px]:grid-cols-[36px_minmax(0,1fr)_auto] max-[720px]:grid-cols-[36px_minmax(0,1fr)]"
+    class="grid min-h-[82px] min-w-0 grid-cols-[42px_minmax(0,1fr)_88px_50px_96px] items-center gap-x-[11px] border-b border-[var(--sf-border-light,#eef0f3)] px-2 py-3 transition-colors duration-100 last:border-b-0 hover:bg-[var(--sf-public-row-hover)] max-[1120px]:grid-cols-[42px_minmax(0,1fr)_50px_96px] max-[720px]:min-h-[72px] max-[720px]:grid-cols-[36px_minmax(0,1fr)_auto] max-[720px]:gap-x-2.5"
     :class="topic.isPinned ? 'bg-[#f3f4f6] hover:bg-[#eceef1] dark:bg-slate-400/10 dark:hover:bg-slate-400/15' : ''"
     data-sf-component="forum.topic_list_row"
   >
@@ -120,13 +120,7 @@ const chipBase =
         </h2>
       </div>
 
-      <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--sf-public-text-muted)]">
-        <NuxtLink
-          :to="localePath(`/c/${topic.categorySlug}`)"
-          :class="[chipBase, categoryChipClass]"
-        >
-          {{ topic.categoryName }}
-        </NuxtLink>
+      <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-[var(--sf-public-text-muted)]">
         <NuxtLink
           v-for="tag in previewTags"
           :key="tag.id"
@@ -149,7 +143,21 @@ const chipBase =
       </div>
     </div>
 
-    <div class="hidden text-right text-xs leading-snug whitespace-nowrap text-[var(--sf-public-text-muted)] max-[720px]:hidden min-[961px]:block">
+    <NuxtLink
+      :to="localePath(`/c/${topic.categorySlug}`)"
+      :class="[chipBase, categoryChipClass, 'justify-self-start max-[1120px]:hidden']"
+    >
+      {{ topic.categoryName }}
+    </NuxtLink>
+
+    <div class="text-right text-[11px] leading-snug text-[var(--sf-public-text-muted)] max-[720px]:self-start">
+      <b class="block text-sm font-semibold tabular-nums text-[var(--sf-public-text-secondary)]">
+        {{ topic.commentCount }}
+      </b>
+      <span>{{ t('home.feed.repliesColumn') }}</span>
+    </div>
+
+    <div class="text-right text-[11px] leading-snug whitespace-nowrap text-[var(--sf-public-text-muted)] max-[720px]:hidden">
       <span
         v-if="topic.author"
         class="block font-medium text-[var(--sf-public-text-secondary)]"
@@ -157,13 +165,6 @@ const chipBase =
         {{ authorName }}
       </span>
       <time :datetime="topic.lastActivityAt || topic.createdAt">{{ activityLabel }}</time>
-    </div>
-
-    <div class="text-right text-xs leading-snug text-[var(--sf-public-text-muted)] max-[720px]:self-start">
-      <b class="block text-sm font-semibold tabular-nums text-[var(--sf-public-text-secondary)]">
-        {{ topic.commentCount }}
-      </b>
-      <span>{{ t('home.feed.repliesColumn') }}</span>
     </div>
   </article>
 </template>

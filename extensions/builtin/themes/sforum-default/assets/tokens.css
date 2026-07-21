@@ -1,27 +1,27 @@
 /* SForum default theme tokens (L0) — fullwidth-3col flat shell */
 :root {
-  --sf-theme-radius: 6px;
-  --sf-public-radius: 6px;
-  /* 全宽三栏壳：与 tmp/demos/grok/forum-fullwidth-3col 对齐 */
-  --sf-public-sidebar-width: 220px;
-  --sf-public-right-rail-width: 280px;
-  --sf-public-topbar-height: 52px;
+  --sf-theme-radius: 7px;
+  --sf-public-radius: 7px;
+  /* 用户确认的 Flarum 风格三栏：与 tmp/demos/sforum-hybrid-topic-list 对齐。 */
+  --sf-public-sidebar-width: 224px;
+  --sf-public-right-rail-width: 286px;
+  --sf-public-topbar-height: 64px;
   --sf-public-bg: #f5f6f8;
   --sf-public-surface: #ffffff;
-  --sf-public-surface-muted: #fafbfc;
-  --sf-public-border: #e6e8ec;
-  --sf-public-border-strong: #d0d4db;
-  --sf-public-text: #1c1f26;
-  --sf-public-text-secondary: #5a6270;
-  --sf-public-text-muted: #8b929e;
-  --sf-public-text-faint: #8b929e;
+  --sf-public-surface-muted: #f0f2f5;
+  --sf-public-border: #e1e4e9;
+  --sf-public-border-strong: #d2d7df;
+  --sf-public-text: #151922;
+  --sf-public-text-secondary: #4f5869;
+  --sf-public-text-muted: #8c95a5;
+  --sf-public-text-faint: #8c95a5;
   --sf-public-shadow: none;
   --sf-public-shadow-hover: 0 1px 2px rgba(15, 23, 42, 0.04);
-  --sf-public-row-hover: #f7f8fa;
+  --sf-public-row-hover: #f0f2f5;
   --sf-public-notice-bg: #fff9db;
   --sf-public-notice-border: #fde68a;
   --sf-public-notice-text: #9a6700;
-  --sf-public-reading-max: 48rem;
+  --sf-public-reading-max: 70rem;
 }
 
 /* 强调色不在此覆盖：公开壳跟随站点 appearance（html[data-sforum-theme] / 自定义色）。 */

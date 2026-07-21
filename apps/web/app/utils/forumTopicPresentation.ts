@@ -45,6 +45,8 @@ export type CommentActionMenuInput = {
   canReport: boolean
   labels: {
     reply: string
+    quote: string
+    link: string
     edit: string
     delete: string
     report: string
@@ -124,7 +126,11 @@ export function buildTopicActionMenuItems(input: TopicActionMenuInput): TopicAct
  */
 export function buildCommentActionMenuItems(input: CommentActionMenuInput): CommentActionMenuItem[] {
   const items: CommentActionMenuItem[] = []
-  if (input.canReply) items.push({ label: input.labels.reply, value: 'reply', icon: 'i-lucide-reply' })
+  if (input.canReply) {
+    items.push({ label: input.labels.reply, value: 'reply', icon: 'i-lucide-reply' })
+    items.push({ label: input.labels.quote, value: 'quote', icon: 'i-lucide-quote' })
+  }
+  items.push({ label: input.labels.link, value: 'link', icon: 'i-lucide-link' })
   if (input.canEdit) items.push({ label: input.labels.edit, value: 'edit', icon: 'i-lucide-pencil' })
   if (input.canDelete) items.push({ label: input.labels.delete, value: 'delete', icon: 'i-lucide-trash-2' })
   if (input.canReport) items.push({ label: input.labels.report, value: 'report', icon: 'i-lucide-flag' })

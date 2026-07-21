@@ -49,6 +49,8 @@ const searchDraft = ref(committedFilters.value.query)
 const selectedCategorySlug = computed(() => committedFilters.value.categorySlug)
 const selectedTagSlug = computed(() => committedFilters.value.tagSlug)
 const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
+const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
+const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
 const renderedAt = useState<number>('forum-home-rendered-at', () => Date.now())
 let feedGeneration = 0
 
@@ -363,6 +365,21 @@ function selectCategory(slug: string) {
   return commitFilters({ ...committedFilters.value, categorySlug })
 }
 
+function closeMobileDrawers() {
+  mobileMenuOpen.value = false
+  mobileInfoOpen.value = false
+}
+
+function selectMobileCategory(slug: string) {
+  closeMobileDrawers()
+  return selectCategory(slug)
+}
+
+function selectMobileTag(slug: string) {
+  closeMobileDrawers()
+  return selectTag(slug)
+}
+
 function selectTag(slug: string) {
   const tagSlug = selectedTagSlug.value === slug ? '' : slug
   return commitFilters({ ...committedFilters.value, tagSlug })
@@ -472,11 +489,11 @@ onBeforeUnmount(() => {
           {{ homeNotice }}
         </div>
 
-        <!-- main-bar：宿主 Tailwind；主题只通过 token 换肤 -->
-        <div class="mb-2.5 flex flex-wrap items-center justify-between gap-3">
+        <!-- 列表抬头由宿主提供真实筛选状态，默认主题只通过 token 换肤。 -->
+        <div class="sforum-home__feed-head">
           <h2
             id="forum-feed-title"
-            class="m-0 flex flex-wrap items-baseline gap-2 text-[15px] font-semibold leading-snug text-[var(--sf-public-text)]"
+            class="sforum-home__feed-title"
           >
             {{ feedTitle }}
             <span
@@ -551,7 +568,7 @@ onBeforeUnmount(() => {
 
         <div
           id="feed-list-container"
-          class="overflow-hidden rounded-[var(--sf-public-radius,6px)] border border-[var(--sf-public-border)] bg-[var(--sf-public-surface)] shadow-[var(--sf-public-shadow)]"
+          class="sforum-home__feed-list"
           data-sf-region="topic-list"
         >
           <div
@@ -640,5 +657,52 @@ onBeforeUnmount(() => {
         @select-tag="selectTag"
       />
     </div>
+
+    <button
+      v-if="mobileMenuOpen || mobileInfoOpen"
+      type="button"
+      class="sforum-mobile-drawer__backdrop"
+      :aria-label="t('topicDetail.cancel')"
+      @click="closeMobileDrawers"
+    />
+
+    <aside v-if="mobileMenuOpen" class="sforum-mobile-drawer sforum-mobile-drawer--left">
+      <header class="sforum-mobile-drawer__head">
+        <strong>{{ t('home.sidebar.navTitle') }}</strong>
+        <button type="button" :aria-label="t('topicDetail.cancel')" @click="closeMobileDrawers">
+          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
+        </button>
+      </header>
+      <SFHomeNavigation
+        desktop-only
+        :categories="categories"
+        :selected-category-slug="selectedCategorySlug"
+        :total-topics="totalTopics"
+        :pending="categoriesPending"
+        :can-create-topic="canCreateTopic"
+        @select-category="selectMobileCategory"
+      />
+    </aside>
+
+    <aside v-if="mobileInfoOpen" class="sforum-mobile-drawer sforum-mobile-drawer--right">
+      <header class="sforum-mobile-drawer__head">
+        <strong>{{ t('home.rightRail.ariaLabel') }}</strong>
+        <button type="button" :aria-label="t('topicDetail.cancel')" @click="closeMobileDrawers">
+          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
+        </button>
+      </header>
+      <SFHomeRightRail
+        :hot-topics="hotTopics"
+        :tags="railTags"
+        :selected-tag-slug="selectedTagSlug"
+        :total-topics="totalTopics"
+        :total-replies="totalReplies"
+        :category-count="categories.length"
+        :tag-count="activeTags.length"
+        :topic-url-mode="topicUrlMode"
+        :can-create-topic="canCreateTopic"
+        @select-tag="selectMobileTag"
+      />
+    </aside>
   </main>
 </template>

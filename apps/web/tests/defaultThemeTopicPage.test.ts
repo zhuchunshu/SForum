@@ -16,7 +16,6 @@ const topicComponentNames = [
   'SFTopicHeading',
   'SFTopicSideCard',
   'SFTopicActionMenu',
-  'SFCommentStreamControls',
   'SFReportDialog'
 ] as const
 
@@ -107,16 +106,20 @@ describe('default theme V32 topic page contract', () => {
     expect(source.split('\n').length).toBeLessThan(1200)
   })
 
-  test('keeps mutation errors persistent and passes explicit comment presentation', () => {
+  test('keeps mutation errors persistent and fixes the default discussion to a flat stream', () => {
     const source = topicPage()
 
     expect(source).not.toContain('watch(showActionError')
     expect(source).toContain(':presentation="commentView"')
     expect(source).toContain(':depth="0"')
     expect(source).toContain(':collapse-from-depth="2"')
-    const commentRequest = source.slice(source.indexOf('const commentQuery'), source.indexOf('watch(commentView'))
+    expect(source).toContain("const commentView = ref<'flat'>('flat')")
+    expect(source).not.toContain('<SFCommentStreamControls')
+    const commentRequest = source.slice(source.indexOf('const commentQuery'), source.indexOf('function emptyCommentList'))
     expect(commentRequest).not.toContain('perPage')
     expect(source).toContain('commentData.value.perPage')
+    expect(source).toContain('replyingTo.value?.id')
+    expect(source).toContain('copyCommentLink')
   })
 
   test('uses API edit marks and the complete author lock policy', () => {

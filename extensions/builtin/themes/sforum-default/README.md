@@ -12,7 +12,7 @@ i18n, SEO, permissions, and reusable `SF*` components.
 |-------|------|------------------|
 | **L1 templates** (`templates/*.html`) | Page shell, chrome regions, which host islands to mount (`sf-navbar`, `sf-home-page`, …) | Business data, interactive list logic |
 | **L0 tokens** (`assets/tokens.css`) | Layout/surface tokens: widths, surfaces, borders, text, radius, shadow | **Accent / 主色**（归站点 appearance）、list BEM |
-| **L0 skin** (`assets/theme.css`) | Shell layout that tokens alone cannot express (sticky columns, nav chrome) | Mirroring host list/main-bar/chip/avatar CSS; hard-coded accent |
+| **L0 skin** (`assets/theme.css`, `assets/hybrid-forum.css`) | Shell layout that tokens alone cannot express (sticky columns, nav chrome, accepted forum surface) | Business data, permissions, hard-coded accent |
 | **Host `SF*` islands** | Data, permissions, Tailwind presentation defaults | Theme-specific marketing chrome |
 | **Component Registry** | Theme/plugin `wrap` / `replace` / `add` / `hide` of registered targets (SSR template and/or trusted L2) | Silent CSS monkey-patches of host BEM |
 
@@ -33,8 +33,8 @@ Stable hooks for extension:
 
 ## Public layout (fullwidth-3col)
 
-Home and topic show use a **full-viewport-width three-column** shell (demo:
-`tmp/demos/grok/forum-fullwidth-3col/`):
+Home and topic show use the approved Flarum-style three-column shell (demo:
+`tmp/demos/sforum-hybrid-topic-list/`):
 
 | Region | Home | Topic |
 |--------|------|-------|
@@ -42,8 +42,12 @@ Home and topic show use a **full-viewport-width three-column** shell (demo:
 | Center | topic list feed | article + comments |
 | Right | `SFHomeRightRail` | `SFTopicSideCard` |
 
-Collapse: wide = 3 columns; ≤1180px hide right rail; ≤960px single column +
-mobile category control.
+Wide view keeps moderate `18px` outer gutters and `12px` column gaps. At
+≤1180px the fixed right rail is removed from the grid. At ≤980px the navbar
+becomes two rows and both rails remain available through left/right drawers.
+The topic page uses one chronological comment stream; reply relationships are
+shown as source links and the only reply composer stays expanded after the
+final comment.
 
 ## Dev activation
 

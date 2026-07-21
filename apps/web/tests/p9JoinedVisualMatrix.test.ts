@@ -32,9 +32,10 @@ describe('P9 joined desktop/mobile visual matrix', () => {
     expect(navbar).toContain('navbar__desktop-nav')
     expect(navbar).toContain('desktopNavItems')
     expect(navbar).toContain('min-height: var(--sf-public-topbar-height, 52px)')
-    // mobile shell
+    // mobile shell（全宽 3 列后：壳层按钮 + 共用 desktopNavItems，无独立 mobileMenuItems）
+    expect(navbar).toContain('navbar__mobile-shell-button')
     expect(navbar).toContain('navbar__mobile-new-topic')
-    expect(navbar).toContain('mobileMenuItems')
+    expect(navbar).toContain('mobileMenuOpen')
     expect(navbar).toContain('i-lucide-menu')
     expect(navbar).toContain(':aria-label="t(\'nav.openMenu\')"')
     // no emoji icons

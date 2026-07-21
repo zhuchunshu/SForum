@@ -37,7 +37,7 @@ const props = withDefaults(defineProps<{
   meta?: string
   avatar?: AvatarView | null
   // 被回复的评论引用：E3 方案用左侧 accent 竖条引用块展示，人名 + 内容预览分两行。
-  replyTo?: { author?: string; excerpt?: string }
+  replyTo?: { id?: number; author?: string; excerpt?: string }
   actions?: CommentAction[]
   commentMetaBuilder?: (comment: ForumComment) => string
   commentAuthorLinkBuilder?: (comment: ForumComment) => string
@@ -121,6 +121,7 @@ function childReplyTo(comment: ForumComment) {
     return undefined
   }
   return {
+    id: comment.replyTo.id,
     author: forumAuthorName(comment.replyTo.author, comment.replyTo.id),
     excerpt: comment.replyTo.excerpt
   }
@@ -162,6 +163,7 @@ const InlineEditorHost = () => {
 
 <template>
   <div
+    :id="comment ? `comment-${comment.id}` : undefined"
     class="sf-comment"
     :class="[
       `sf-comment--${presentation}`,
@@ -192,7 +194,11 @@ const InlineEditorHost = () => {
           <span v-if="meta" class="sf-comment__meta">{{ meta }}</span>
         </header>
 
-        <blockquote v-if="replyTo" class="sf-comment__reply-to">
+        <a
+          v-if="replyTo"
+          class="sf-comment__reply-to"
+          :href="replyTo.id ? `#comment-${replyTo.id}` : undefined"
+        >
           <span class="sf-comment__reply-to-label">
             <UIcon name="i-lucide-corner-up-left" class="sf-comment__reply-to-icon size-3.5 shrink-0" aria-hidden="true" />
             <span class="sf-comment__reply-to-author">
@@ -200,7 +206,14 @@ const InlineEditorHost = () => {
             </span>
           </span>
           <span v-if="replyTo.excerpt" class="sf-comment__reply-to-excerpt">{{ replyTo.excerpt }}</span>
-        </blockquote>
+        </a>
+
+        <a
+          v-if="comment"
+          class="sf-comment__floor"
+          :href="`#comment-${comment.id}`"
+          :aria-label="`#${comment.id}`"
+        >#{{ comment.id }}</a>
 
         <div v-if="showHtml" class="sf-comment__content sf-prose" v-highlight v-html="sanitizeHtml(htmlContent)" />
         <p v-else class="sf-comment__content">

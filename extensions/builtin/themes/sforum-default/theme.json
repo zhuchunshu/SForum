@@ -136,7 +136,8 @@
   ],
   "skin": {
     "css": [
-      "assets/theme.css"
+      "assets/theme.css",
+      "assets/hybrid-forum.css"
     ],
     "tokens": "assets/tokens.css"
   }

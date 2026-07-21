@@ -21,6 +21,7 @@ const {
 const { request } = useApiClient()
 const chromeApi = useSiteChromeApi()
 const router = useRouter()
+const route = useRoute()
 const colorMode = useColorMode()
 const { can } = usePermissions()
 const notifications = useNotifications()
@@ -171,6 +172,8 @@ type NavbarMenuItem = {
 
 const searchQuery = ref('')
 const mobileSearchOpen = ref(false)
+const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
+const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
 const resolvedColorMode = ref<'light' | 'dark'>(
   colorMode.value === 'dark' ? 'dark' : 'light'
 )
@@ -254,76 +257,24 @@ const userMenuItems = computed<NavbarMenuItem[][]>(() => {
   ]
 })
 
-const mobileMenuItems = computed<NavbarMenuItem[][]>(() => {
-  const destinations: NavbarMenuItem[] = desktopNavItems.value.map((item) => {
-    if (item.openInNewTab || isExternalHref(item.href)) {
-      return {
-        label: item.label,
-        icon: 'i-lucide-link',
-        onSelect: () => {
-          if (import.meta.client) {
-            window.open(resolveNavTo(item.href), '_blank', 'noopener,noreferrer')
-          }
-        }
-      }
-    }
-    return {
-      label: item.label,
-      icon: 'i-lucide-link',
-      to: resolveNavTo(item.href)
-    }
-  })
-  destinations.push({
-    label: t('nav.search'),
-    icon: 'i-lucide-search',
-    onSelect: () => {
-      mobileSearchOpen.value = true
-    }
-  })
+function closeMobileDrawers() {
+  mobileMenuOpen.value = false
+  mobileInfoOpen.value = false
+}
 
-  const account: NavbarMenuItem[] = []
-  if (!user.value) {
-    account.push({
-      label: t('nav.login'),
-      icon: 'i-lucide-log-in',
-      to: localePath('/login')
-    })
-    if (showRegisterLinks.value) {
-      account.push({
-        label: t('nav.register'),
-        icon: 'i-lucide-user-plus',
-        to: localePath('/register')
-      })
-    }
-  }
-  if (user.value && canReviewContent.value) {
-    destinations.push({
-      label: t('nav.moderationWorkbench'),
-      icon: 'i-lucide-shield-check',
-      to: localePath('/moderation')
-    })
-  }
+function toggleMobileMenu() {
+  const opening = !mobileMenuOpen.value
+  closeMobileDrawers()
+  mobileMenuOpen.value = opening
+}
 
-  const controls: NavbarMenuItem[] = [
-    {
-      label: t('nav.appearance'),
-      description: themeToggleLabel.value,
-      icon: themeToggleIcon.value,
-      onSelect: () => {
-        toggleColorMode()
-      }
-    },
-    {
-      label: t('nav.language'),
-      icon: 'i-lucide-globe',
-      children: languageMenuItems.value
-    }
-  ]
+function toggleMobileInfo() {
+  const opening = !mobileInfoOpen.value
+  closeMobileDrawers()
+  mobileInfoOpen.value = opening
+}
 
-  return account.length
-    ? [destinations, account, controls]
-    : [destinations, controls]
-})
+watch(() => route.fullPath, closeMobileDrawers)
 
 watch(
   () => colorMode.value,
@@ -396,6 +347,16 @@ async function logout() {
 <template>
   <header class="navbar">
     <div class="navbar__inner">
+      <button
+        type="button"
+        class="navbar__mobile-shell-button"
+        :aria-label="t('nav.openMenu')"
+        :aria-expanded="mobileMenuOpen"
+        @click="toggleMobileMenu"
+      >
+        <UIcon name="i-lucide-menu" class="size-5" aria-hidden="true" />
+      </button>
+
       <NuxtLink
         :to="localePath('/')"
         class="navbar__logo"
@@ -455,6 +416,15 @@ async function logout() {
       </NuxtLink>
 
       <div class="navbar__actions">
+        <button
+          type="button"
+          class="navbar__mobile-info-button"
+          :aria-label="t('home.rightRail.ariaLabel')"
+          :aria-expanded="mobileInfoOpen"
+          @click="toggleMobileInfo"
+        >
+          <UIcon name="i-lucide-panel-right" class="size-5" aria-hidden="true" />
+        </button>
         <NuxtLink v-if="user" :to="localePath('/notifications')" class="navbar__notification" :aria-label="t('nav.notifications')">
           <UIcon name="i-lucide-bell" class="size-5" aria-hidden="true" />
           <span v-if="notifications.unreadCount.value" class="navbar__notification-badge">{{ notifications.unreadCount.value > 99 ? '99+' : notifications.unreadCount.value }}</span>
@@ -541,24 +511,10 @@ async function logout() {
           </UButton>
         </UDropdownMenu>
 
-        <UDropdownMenu
-          :items="mobileMenuItems"
-          :content="{ align: 'end' }"
-        >
-          <UButton
-            color="neutral"
-            variant="ghost"
-            square
-            class="navbar__mobile-trigger"
-            :aria-label="t('nav.openMenu')"
-          >
-            <UIcon name="i-lucide-menu" class="size-5" aria-hidden="true" />
-          </UButton>
-        </UDropdownMenu>
       </div>
     </div>
 
-    <div v-if="mobileSearchOpen" class="navbar__mobile-search-panel">
+    <div class="navbar__mobile-search-panel">
       <div class="navbar__mobile-search-inner">
         <SFSearch
           v-model="searchQuery"
@@ -567,16 +523,13 @@ async function logout() {
           :aria-label="t('nav.search')"
           @submit="submitMobileSearch"
         />
-        <UButton
-          color="neutral"
-          variant="ghost"
-          square
-          class="navbar__mobile-search-close"
-          :aria-label="t('nav.closeSearch')"
-          @click="() => { mobileSearchOpen = false }"
+        <NuxtLink
+          :to="canCreateTopic ? localePath('/topics/new') : localePath('/login')"
+          class="navbar__mobile-compose"
         >
-          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
-        </UButton>
+          <UIcon :name="canCreateTopic ? 'i-lucide-square-pen' : 'i-lucide-log-in'" class="size-4" aria-hidden="true" />
+          <span>{{ canCreateTopic ? t('nav.newTopic') : t('nav.login') }}</span>
+        </NuxtLink>
       </div>
     </div>
   </header>
@@ -596,11 +549,11 @@ async function logout() {
 .navbar__inner {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 12px;
   min-height: var(--sf-public-topbar-height, 52px);
   max-width: none;
   margin: 0;
-  padding: 0 20px;
+  padding: 0 18px 0 20px;
 }
 
 .navbar__logo,
@@ -620,7 +573,7 @@ async function logout() {
 .navbar__logo {
   min-width: 0;
   flex-shrink: 0;
-  gap: 8px;
+  gap: 10px;
   color: #111827;
   font-size: 15px;
   font-weight: 700;
@@ -629,9 +582,9 @@ async function logout() {
 
 .navbar__logo-mark {
   display: grid;
-  width: 28px;
-  height: 28px;
-  flex: 0 0 28px;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
   place-items: center;
   border: 1px solid var(--sf-accent);
   border-radius: 7px;
@@ -641,17 +594,17 @@ async function logout() {
 
 .navbar__logo-image-wrap {
   display: grid;
-  width: 28px;
-  height: 28px;
-  flex: 0 0 28px;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
   place-items: center;
   overflow: hidden;
   border-radius: 7px;
 }
 
 .navbar__logo-image {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   object-fit: contain;
 }
 
@@ -672,25 +625,21 @@ async function logout() {
 }
 
 .navbar__logo-tagline {
-  max-width: 180px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--sf-public-text-muted, #64748b);
-  font-size: 11px;
-  font-weight: 500;
+  display: none;
 }
 
 .navbar__desktop-nav {
+  align-self: stretch;
   flex-shrink: 0;
-  gap: 2px;
+  gap: 24px;
 }
 
 .navbar__nav-link {
+  position: relative;
   gap: 6px;
-  min-height: 34px;
-  padding: 7px 11px;
-  border-radius: 7px;
+  min-height: 100%;
+  padding: 0;
+  border-radius: 0;
   color: var(--sf-public-text-muted, #64748b);
   font-size: 13px;
   font-weight: 650;
@@ -701,7 +650,7 @@ async function logout() {
 .navbar__nav-link:hover,
 .navbar__nav-link.router-link-active {
   color: var(--sf-accent);
-  background: var(--sf-accent-soft);
+  background: transparent;
 }
 
 .navbar__new-topic,
@@ -718,8 +667,8 @@ async function logout() {
 }
 
 .navbar__new-topic {
-  min-height: 36px;
-  padding: 0 12px;
+  min-height: 38px;
+  padding: 0 15px;
 }
 
 .navbar__new-topic:hover,
@@ -732,13 +681,13 @@ async function logout() {
 }
 
 .navbar__search {
-  width: min(260px, 30vw);
+  width: min(360px, 30vw);
   min-width: 160px;
   margin-left: auto;
 }
 
 .navbar__search :deep(.sf-search__box) {
-  min-height: 36px;
+  min-height: 38px;
   border-radius: 7px;
 }
 
@@ -816,6 +765,26 @@ async function logout() {
   color: #374151;
 }
 
+.navbar__mobile-shell-button,
+.navbar__mobile-info-button {
+  display: none;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--sf-public-text-secondary);
+  cursor: pointer;
+}
+
+.navbar__mobile-shell-button:hover,
+.navbar__mobile-info-button:hover {
+  background: var(--sf-public-surface-muted);
+  color: var(--sf-public-text);
+}
+
 .navbar__mobile-search-panel {
   display: none;
   border-top: 1px solid #e4e8ef;
@@ -839,6 +808,22 @@ async function logout() {
   flex: 0 0 40px;
   border-radius: 7px;
   color: #374151;
+}
+
+.navbar__mobile-compose {
+  min-height: 40px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 7px;
+  padding: 0 13px;
+  background: var(--sf-accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
 }
 
 .dark .navbar {
@@ -899,6 +884,15 @@ async function logout() {
 }
 
 @media (max-width: 980px) {
+  .navbar {
+    min-height: 108px;
+  }
+
+  .navbar__inner {
+    min-height: 54px;
+    padding: 0 12px;
+  }
+
   .navbar__desktop-nav,
   .navbar__search,
   .navbar__new-topic,
@@ -911,13 +905,15 @@ async function logout() {
     margin-left: auto;
   }
 
-  .navbar__mobile-new-topic,
-  .navbar__mobile-trigger {
-    display: inline-flex;
+  .navbar__mobile-shell-button,
+  .navbar__mobile-info-button {
+    display: grid;
   }
 
   .navbar__mobile-search-panel {
     display: block;
+    height: 54px;
+    border-top: 1px solid var(--sf-public-border);
   }
 
   .navbar__logo,
@@ -933,16 +929,27 @@ async function logout() {
   .navbar__mobile-search :deep(.sf-search__box) {
     min-height: 40px;
   }
+
+  .navbar__mobile-search-inner {
+    height: 54px;
+    max-width: none;
+    padding: 7px 12px;
+  }
+
+  .navbar__mobile-new-topic,
+  .navbar__mobile-trigger {
+    display: none;
+  }
 }
 
 @media (max-width: 520px) {
   .navbar__inner {
     gap: 6px;
-    padding: 0 16px;
+    padding: 0 10px;
   }
 
   .navbar__mobile-search-inner {
-    padding: 8px 16px;
+    padding: 7px 10px;
   }
 
   .navbar__logo-text,
@@ -953,6 +960,10 @@ async function logout() {
 
   .navbar__user-trigger {
     padding: 2px;
+  }
+
+  .navbar__notification {
+    display: none;
   }
 }
 </style>

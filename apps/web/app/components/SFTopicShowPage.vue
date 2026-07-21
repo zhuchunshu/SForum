@@ -37,6 +37,7 @@ const forumApi = useForumApi()
 const { can, canEditTopic, canDeleteTopic } = usePermissions()
 const { user: reportUser } = useAuthSession()
 const toast = useToast()
+const replyActorName = computed(() => reportUser.value?.displayName || reportUser.value?.username || '')
 
 function showSuccessToast(title: string) {
   toast.add({ color: 'success', icon: 'i-lucide-check', title, duration: 10000 })
@@ -101,16 +102,12 @@ const commentPage = computed({
   }
 })
 
-// 评论数据：默认 tree 视图（声明在详情/评论并行 useAsyncData 之前，供 key 使用）。
-const commentView = ref<'tree' | 'flat'>('tree')
+// 默认主题只提供连续时间流；回复关系由引用块表达，不再暴露树/平铺切换。
+const commentView = ref<'flat'>('flat')
 const commentQuery = computed(() => ({
   view: commentView.value,
   page: commentPage.value
 }))
-watch(commentView, () => {
-  commentPage.value = 1
-}, { flush: 'sync' })
-
 function emptyCommentList(): ForumCommentList {
   return { items: [], total: 0, page: 1, perPage: 20, view: commentView.value }
 }
@@ -192,6 +189,13 @@ const navCategories = computed(() => categoryGroups.value.flatMap((group) => gro
 const navTotalTopics = computed(() => navCategories.value.reduce((sum, category) => sum + category.topicCount, 0))
 const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
 const showTopicSide = computed(() => Boolean(topic.value && !isEditing.value))
+const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
+const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
+
+function closeMobileDrawers() {
+  mobileMenuOpen.value = false
+  mobileInfoOpen.value = false
+}
 
 // 规范化：URL 形态/slug 与当前 mode 下的规范路径不符时，301（SSR）/ replace（客户端）。
 // 触发场景：模式切换后的旧 URL、slug 变更后的旧 slug、id 模式下多余的 slug 段。
@@ -410,6 +414,8 @@ function commentActions(comment: ForumComment) {
     canReport: canReportComment(),
     labels: {
       reply: t('topicDetail.reply'),
+      quote: t('topicDetail.quote'),
+      link: t('topicDetail.commentLink'),
       edit: t('topicDetail.edit'),
       delete: deletingCommentId.value === comment.id ? t('topicDetail.deleting') : t('topicDetail.delete'),
       report: t('topicDetail.report')
@@ -473,6 +479,10 @@ function handleCommentClick(comment: ForumComment, value: string) {
   // 评论操作分发：由 SFComment 的 actions 触发，替代之前硬编码在模板里的按钮。
   if (value === 'reply') {
     startReply(comment)
+  } else if (value === 'quote') {
+    startReply(comment, true)
+  } else if (value === 'link') {
+    void copyCommentLink(comment)
   } else if (value === 'edit') {
     startEditComment(comment)
   } else if (value === 'delete') {
@@ -514,8 +524,9 @@ async function submitReply(payload?: { markdown?: string; native?: unknown; text
   replyError.value = ''
   showReplyError.value = false
   try {
-    const created = await forumApi.createTopicComment(topic.value.id, content)
+    const created = await forumApi.createTopicComment(topic.value.id, content, replyingTo.value?.id)
     replyMarkdown.value = ''
+    replyingTo.value = null
     if (created.status === 'pending') {
       toast.add({ color: 'primary', icon: 'i-lucide-clock-3', title: t('topicDetail.replySubmittedForReview'), duration: 10000 })
     } else {
@@ -592,52 +603,23 @@ async function deleteComment(comment: ForumComment) {
   }
 }
 
-// 内联回复目标：点击评论的"回复"后展开一个编辑器，提交时带 parentId。
+// 评论回复统一汇入评论流末尾的主编辑器，避免多个内联编辑器打断阅读。
 const replyingTo = ref<ForumComment | null>(null)
-const nestedReplyMarkdown = ref('')
-const nestedReplySubmitting = ref(false)
 
-function startReply(comment: ForumComment) {
-  // 同一时刻只展开一个回复编辑器。
+function startReply(comment: ForumComment, includeQuote = false) {
   cancelEditComment()
   replyingTo.value = comment
-  nestedReplyMarkdown.value = ''
+  if (includeQuote) {
+    const quote = `> ${comment.content.excerpt}\n\n`
+    replyMarkdown.value = replyMarkdown.value.startsWith(quote)
+      ? replyMarkdown.value
+      : `${quote}${replyMarkdown.value}`
+  }
+  nextTick(() => scrollToElement('topic-reply-editor'))
 }
 
 function cancelReply() {
   replyingTo.value = null
-  nestedReplyMarkdown.value = ''
-}
-
-async function submitNestedReply(comment: ForumComment, payload?: { markdown?: string; native?: unknown; text?: string }) {
-  if (!topic.value || nestedReplySubmitting.value) {
-    return
-  }
-  const markdown = payload?.markdown ?? nestedReplyMarkdown.value
-  if (!(payload?.text || markdown).trim()) {
-    return
-  }
-  const content = forumContentFromEditorPayload({
-    markdown,
-    native: payload?.native,
-    text: payload?.text
-  })
-  nestedReplySubmitting.value = true
-  try {
-    const created = await forumApi.createTopicComment(topic.value.id, content, comment.id)
-    cancelReply()
-    if (created.status === 'pending') {
-      toast.add({ color: 'primary', icon: 'i-lucide-clock-3', title: t('topicDetail.replySubmittedForReview'), duration: 10000 })
-    } else {
-      await refreshComments()
-      showSuccessToast(t('topicDetail.replyPosted'))
-    }
-  } catch (error) {
-    replyError.value = apiErrorMessage(error) || t('topicDetail.replyFailed')
-    showReplyError.value = true
-  } finally {
-    nestedReplySubmitting.value = false
-  }
 }
 
 // D2：树视图截断后，用 ListCommentReplies 合并直系回复到本地树。
@@ -716,25 +698,6 @@ const commentEditorRenderer = (comment: ForumComment | null) => {
         h(SFButtonComponent, {
           variant: 'ghost', size: 'sm', disabled: editingSubmitting.value,
           onClick: cancelEditComment
-        }, () => t('topicDetail.cancel'))
-      ])
-    )
-  }
-  // 回复态
-  if (replyingTo.value && replyingTo.value.id === comment.id) {
-    nodes.push(
-      h(SFEditorComponent, {
-        modelValue: nestedReplyMarkdown.value,
-        'onUpdate:modelValue': (v: string) => { nestedReplyMarkdown.value = v },
-        placeholder: t('topicDetail.replyPlaceholder'),
-        submitLabel: t('topicDetail.submitReply'),
-        disabled: nestedReplySubmitting.value,
-        onSubmit: () => submitNestedReply(comment)
-      }),
-      h('div', { class: 'flex gap-2 mt-2' }, [
-        h(SFButtonComponent, {
-          variant: 'ghost', size: 'sm', disabled: nestedReplySubmitting.value,
-          onClick: cancelReply
         }, () => t('topicDetail.cancel'))
       ])
     )
@@ -839,7 +802,21 @@ function startTopLevelReply() {
   if (!showReplyEditor.value) {
     return
   }
+  replyingTo.value = null
   scrollToElement('topic-reply-editor')
+}
+
+async function copyCommentLink(comment: ForumComment) {
+  if (!import.meta.client) {
+    return
+  }
+  const url = `${window.location.origin}${window.location.pathname}${window.location.search}#comment-${comment.id}`
+  try {
+    await navigator.clipboard.writeText(url)
+    showSuccessToast(t('topicDetail.commentLinkCopied'))
+  } catch {
+    window.prompt(t('topicDetail.copyLinkHint'), url)
+  }
 }
 
 async function shareTopic() {
@@ -1002,18 +979,10 @@ async function submitReport() {
                   </div>
                 </article>
 
-                <button
-                  v-if="showReplyEditor"
-                  type="button"
-                  class="sforum-topic-page__mobile-reply"
-                  @click="startTopLevelReply"
-                >
-                  <UIcon name="i-lucide-reply" class="size-4" aria-hidden="true" />
-                  {{ t('topicDetail.reply') }}
-                </button>
-
                 <section id="topic-latest" class="sforum-topic-comments">
-                  <SFCommentStreamControls v-model="commentView" :count="topic.commentCount" />
+                  <header class="sf-comment-stream-controls">
+                    <h2>{{ t('topicDetail.commentsTitle', { count: topic.commentCount }) }}</h2>
+                  </header>
 
                   <div v-if="commentsError" class="sforum-topic-comments__error">
                     <SFAlert variant="danger" :title="t('topicDetail.commentsLoadFailed')" />
@@ -1046,7 +1015,7 @@ async function submitReport() {
                         :presentation="commentView"
                         :depth="0"
                         :collapse-from-depth="2"
-                        :reply-to="comment.replyTo ? { author: forumAuthorName(comment.replyTo.author, comment.replyTo.id), excerpt: comment.replyTo.excerpt } : undefined"
+                        :reply-to="comment.replyTo ? { id: comment.replyTo.id, author: forumAuthorName(comment.replyTo.author, comment.replyTo.id), excerpt: comment.replyTo.excerpt } : undefined"
                         :actions="commentActions(comment)"
                         :comment-meta-builder="commentMeta"
                         :comment-author-link-builder="commentAuthorPath"
@@ -1074,9 +1043,29 @@ async function submitReport() {
                   </div>
 
                   <section v-if="showReplyEditor" id="topic-reply-editor" class="sforum-topic-comments__reply">
-                    <h3>
-                      {{ t('topicDetail.replyTitle') }}
-                    </h3>
+                    <header class="sforum-topic-comments__reply-head">
+                      <SFAvatar
+                        v-if="reportUser"
+                        :name="replyActorName"
+                        :avatar="reportUser.avatar"
+                        size="sm"
+                      />
+                      <span>
+                        <strong>{{ t('topicDetail.replyTitle') }}</strong>
+                        <small v-if="replyActorName">{{ t('topicDetail.replyAs', { name: replyActorName }) }}</small>
+                      </span>
+                    </header>
+                    <div v-if="replyingTo" class="sforum-topic-comments__reply-target">
+                      <span>
+                        <UIcon name="i-lucide-corner-up-left" class="size-4" aria-hidden="true" />
+                        {{ t('topicDetail.replyingTo') }}
+                        <strong>@{{ commentAuthorName(replyingTo) }}</strong>
+                        <a :href="`#comment-${replyingTo.id}`">#{{ replyingTo.id }}</a>
+                      </span>
+                      <button type="button" :aria-label="t('topicDetail.cancel')" @click="cancelReply">
+                        <UIcon name="i-lucide-x" class="size-4" aria-hidden="true" />
+                      </button>
+                    </div>
                     <LazySFEditor
                       v-model="replyMarkdown"
                       :placeholder="t('topicDetail.replyPlaceholder')"
@@ -1117,6 +1106,49 @@ async function submitReport() {
         :extension-sidebar="topic.extensionSidebar || []"
       />
     </div>
+
+    <button
+      v-if="mobileMenuOpen || mobileInfoOpen"
+      type="button"
+      class="sforum-mobile-drawer__backdrop"
+      :aria-label="t('topicDetail.cancel')"
+      @click="closeMobileDrawers"
+    />
+
+    <aside v-if="mobileMenuOpen" class="sforum-mobile-drawer sforum-mobile-drawer--left">
+      <header class="sforum-mobile-drawer__head">
+        <strong>{{ t('home.sidebar.navTitle') }}</strong>
+        <button type="button" :aria-label="t('topicDetail.cancel')" @click="closeMobileDrawers">
+          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
+        </button>
+      </header>
+      <SFHomeNavigation
+        desktop-only
+        navigation-mode="route"
+        :categories="navCategories"
+        :selected-category-slug="topic?.categorySlug || ''"
+        :total-topics="navTotalTopics"
+        :pending="categoriesPending"
+        :can-create-topic="canCreateTopic"
+      />
+    </aside>
+
+    <aside v-if="mobileInfoOpen && topic" class="sforum-mobile-drawer sforum-mobile-drawer--right">
+      <header class="sforum-mobile-drawer__head">
+        <strong>{{ t('topicDetail.side.title') }}</strong>
+        <button type="button" :aria-label="t('topicDetail.cancel')" @click="closeMobileDrawers">
+          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
+        </button>
+      </header>
+      <SFTopicSideCard
+        :topic="topic"
+        :author-name="authorName"
+        :author-to="authorPath"
+        :tags="headingTags"
+        :category-to="categoryPath(topic.categorySlug)"
+        :extension-sidebar="topic.extensionSidebar || []"
+      />
+    </aside>
 
     <SFReportDialog
       :open="Boolean(reportingTarget)"
