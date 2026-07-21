@@ -195,10 +195,9 @@ func TestReferenceMediaOptimizePluginPublishesMIMETransformAndFallsBack(t *testi
 		if _, err := registry.SelectProvider(snap.Revision, mediaregistry.ProviderSelection{
 			Family: mediaregistry.ConflictProcessor, Key: cdnKey, Provider: localCDN,
 		}); err != nil {
-			t.Logf("cdn SelectProvider note: %v candidate=%#v key=%s", err, localCDN, cdnKey)
-		} else {
-			t.Log("coverage.cdn=SelectProvider(local-dev)")
+			t.Fatalf("cdn SelectProvider must succeed: %v candidate=%#v key=%s", err, localCDN, cdnKey)
 		}
+		t.Log("coverage.cdn=SelectProvider(local-dev)")
 	}
 
 	// Permission deny

@@ -1,49 +1,64 @@
 # Extensions Module
 
-## Accepted V3 Target (P0–P12 Complete; P13 LTS Residual)
+## Accepted V3 Target (P0–P12 Complete; P13 LTS Residual + Honesty Reopen)
 
 The accepted target, including the canonical 99-row comparison and detailed
 architecture mind map, is documented in
 `../decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`; its phased task
 book is `../plans/2026-07-13-trusted-plugin-theme-platform-v3.md`. Progress:
-`../plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md` (**~99.7%** after
-P11 remediation; see progress ledger).
+`../plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md` (**~99.7%**;
+P13 LTS residual — **not 100%**).
 
-**Live program state (2026-07-22):** P0–P12 closed; **P13 implementable work
-complete** with reference-plugin honesty (commerce/custom-content/media e2e,
-SEO/Membership Safe Mode/privacy/deny, formal ZIP install chain). Claim only:
-**implementable work complete, LTS residual open** — not 100%. Open task-book
-rows remain LTS-blocked deletions (`sforum.protocol.v1`,
-`sforum.theme.l1.request-time-loader`) until APILTS `RemoveAfter` ≈ 2026-11-28 +
-live zero-shim + checklist 1–7. Fail-closed `SFPageOutlet` is never fully
-removed. WebSocket for commerce cites platform public test; full browser
-Baiduspider/multi-node live matrices not claimed this session.
-Handoff: `../sessions/2026-07-22-p13-reference-plugin-honesty-handoff.md`.
+**Live program state (2026-07-22):** partial production bind exists
+(SettingsLifecycle admin path, RuntimeRollout CAS store, CompatFarm real
+process, formal ZIP). **Acceptance review reopened honesty** — do **not** claim
+rewire closed.
 
-### P11 Platform Services (production assembly)
-
-| Service | Production path |
+| Open finding | Remediation |
 | --- | --- |
-| SecretStore | `PostgresStore` → `secret_store` + `secret_store_audit`; `RequireEncryption` in production/staging; Protocol V2 `SecretService.Resolve` |
-| SettingsLifecycle | `SettingsKVStore` over `extension_settings` (not process-local maps); Secret refs via SecretStore; explicit `ResetOptions.PreserveSecrets` |
-| HostHTTP | Protocol V2 `HttpService.Do`; SSRF safe default; SecretStore credential injection; raw only when Host allows |
-| PluginFiles | Protocol V2 `FileService`; private/temp/static/user kinds; default uninstall retains user data |
-| Bootstrap | `bindProductionHostPlatform` in `api_assembly` binds all three Protocol V2 servers before broker freeze |
+| `enc::` not migrated; first lifecycle save can drop secrets | M1 |
+| RuntimeRollout after active + fictional `api-local` canary | M3 |
+| SystemTier `LoadOrder` discarded (`_ = order`) | M4 |
+| Marketplace/Privacy no Controller; bad Activate/Rollback | M5 |
+| prod requires marketplace key; deploy env missing | M2 |
+| CompatFarm RPC-error soft pass; narrow matrix; double run | M6 |
+| Commerce Dispatcher only for `add` | M7 |
+| Full gate / catalog / web residual | M8 |
 
-### P12 Ops (production assembly)
+**Authoritative remediation task book:**  
+`../plans/2026-07-22-v3-production-rewire-honesty-remediation.md` (**ready**, M0–M8).
 
-| Service | Production path |
-| --- | --- |
-| CompatFarm | `RunMatrix` + `tests/compat/run_matrix.go` in `./scripts/test.sh`; skip/missing fail |
-| Marketplace | Ed25519 index verify; deep-copy; recursive deps; Installer stage/activate/rollback |
-| RuntimeRollout | Postgres `runtime_rollout_plans`; multi-node one-winner Create; restart recovery |
-| SystemTier | Postgres `system_tier_members`; CLI `extension system-tier`; Safe Mode bypass |
-| Privacy | Permission + audit + deadline + partial; `PublishContribution` for inventory |
-| Observability | `Process()` writers on real Hook/Job (`ProtocolStarter`) paths |
-| Bootstrap | `bindProductionP12Ops` in `api_assembly` |
+Prior partial evidence (not a close):  
+`../sessions/2026-07-22-p11-p12-p13-production-rewire-handoff.md`.
+
+Open parent-program residual (unchanged): LTS-blocked deletions
+(`sforum.protocol.v1`, `sforum.theme.l1.request-time-loader`) until APILTS
+`RemoveAfter` ≈ 2026-11-28 + zero-shim. Fail-closed `SFPageOutlet` never fully
+removed.
+
+### P11 Platform Services (partial assembly — honesty reopen)
+
+| Service | Production path | Honesty gap |
+| --- | --- | --- |
+| SecretStore | `PostgresStore` + Protocol V2 Resolve | OK if encryption configured |
+| SettingsLifecycle | Admin bind + `ReplaceSettingsCAS` | **No** `enc::` → SecretStore migrate |
+| HostHTTP / PluginFiles | Protocol V2 servers | Unchanged this reopen |
+| Bootstrap | `bindProductionHostPlatform` + `BindSettingsLifecycle` | — |
+
+### P12 Ops (partial assembly — honesty reopen)
+
+| Service | Production path | Honesty gap |
+| --- | --- | --- |
+| CompatFarm | Real process/RPC in tests + `scripts/test.sh` | Soft pass on probe_err; narrow matrix; double run |
+| Marketplace | Constructed + Ed25519 config | **No** HTTP consumer; hard-coded actor; Activate/Rollback broken |
+| RuntimeRollout | Postgres CAS + bind on upgrade | Post-active bookkeeping; `api-local` auto-canary |
+| SystemTier | Postgres + CLI + LoadOrder call | **`_ = order`** — does not order start |
+| Privacy | RBAC + PG auditor constructed | **No** production consumer |
+| Bootstrap | `bindProductionP12Ops` + `BindRuntimeRollout` | Marketplace/Privacy discarded after construct |
 
 Do **not** credit P11/P12 from Support unit tests alone — require production
-bootstrap bind + durable store / CI executor evidence.
+bootstrap bind + durable store / dual-connection or multi-node evidence.
+Remediation exits live in the honesty task book (M1–M8).
 
 The remainder of this module note describes the current implementation unless a
 section is explicitly labeled as target behavior.

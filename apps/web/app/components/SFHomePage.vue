@@ -52,6 +52,8 @@ const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
 const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
 const renderedAt = useState<number>('forum-home-rendered-at', () => Date.now())
+const feedSort = ref<'latest' | 'replies'>('latest')
+const filterPanelOpen = ref(false)
 let feedGeneration = 0
 
 const emptyTopicList = (): ForumTopicList => ({
@@ -135,6 +137,15 @@ const hasLoadedAllPages = ref(false)
 
 const categories = computed(() => categoryGroups.value.flatMap((group) => group.categories || []))
 const topics = computed(() => loadedTopics.value)
+const displayTopics = computed(() => {
+  if (feedSort.value === 'latest') {
+    return topics.value
+  }
+  return [...topics.value].sort((left, right) => {
+    const replies = right.commentCount - left.commentCount
+    return replies || right.id - left.id
+  })
+})
 const totalPages = computed(() => Math.ceil(loadedTopicTotal.value / Math.max(topicList.value.perPage, 1)) || 1)
 // hasMore 优先 API 字段 / nextCursor；否则用 total 近似（兼容旧响应）
 const hasMoreTopics = computed(() => {
@@ -158,7 +169,7 @@ const hasActiveFilters = computed(() => Boolean(
 const selectedCategory = computed(() => categories.value.find(
   category => category.slug === selectedCategorySlug.value
 ))
-const feedTitle = computed(() => selectedCategory.value?.name || t('home.allTopics'))
+const feedTitle = computed(() => selectedCategory.value?.name || t('home.feed.latestTitle'))
 const emptyTitle = computed(() => {
   if (hasActiveFilters.value) {
     return t('home.emptyState.title')
@@ -483,7 +494,7 @@ onBeforeUnmount(() => {
 
         <div
           v-if="homeNotice"
-          class="mb-3.5 rounded-lg border border-[var(--sf-public-notice-border)] bg-[var(--sf-public-notice-bg)] px-3.5 py-2.5 text-sm font-semibold leading-normal text-[var(--sf-public-notice-text)]"
+          class="sforum-home__notice mb-3.5 rounded-lg border border-[var(--sf-public-notice-border)] bg-[var(--sf-public-notice-bg)] px-3.5 py-2.5 text-sm font-semibold leading-normal text-[var(--sf-public-notice-text)]"
           role="note"
         >
           {{ homeNotice }}
@@ -491,39 +502,44 @@ onBeforeUnmount(() => {
 
         <!-- 列表抬头由宿主提供真实筛选状态，默认主题只通过 token 换肤。 -->
         <div class="sforum-home__feed-head">
-          <h2
-            id="forum-feed-title"
-            class="sforum-home__feed-title"
-          >
-            {{ feedTitle }}
-            <span
-              v-if="!selectedCategorySlug && !selectedTagSlug && totalTopics > 0"
-              class="text-xs font-normal text-[var(--sf-public-text-muted)]"
-            >
-              {{ t('home.feed.topicCountMeta', { count: totalTopics }) }}
-            </span>
-          </h2>
-          <div class="flex flex-wrap items-center gap-0.5" role="tablist" :aria-label="t('home.filter.latest')">
+          <div>
+            <h2 id="forum-feed-title" class="sforum-home__feed-title">{{ feedTitle }}</h2>
+            <p class="sforum-home__feed-subtitle">
+              {{ !selectedCategorySlug && !selectedTagSlug
+                ? t('home.feed.subtitle')
+                : t('home.feed.topicCountMeta', { count: totalTopics }) }}
+            </p>
+          </div>
+          <div class="sforum-home__feed-tools" role="group" :aria-label="t('home.filter.sortLabel')">
             <button
               type="button"
-              role="tab"
-              class="h-7 rounded-[var(--sf-public-radius,6px)] border border-transparent bg-transparent px-2.5 text-xs font-medium text-[var(--sf-public-text-muted)] hover:text-[var(--sf-public-text)]"
-              :class="!selectedCategorySlug && !selectedTagSlug
-                ? 'border-[var(--sf-public-border)] bg-[var(--sf-public-surface)] font-semibold text-[var(--sf-public-text)]'
-                : ''"
-              :aria-selected="!selectedCategorySlug && !selectedTagSlug"
-              @click="resetFilters"
+              class="sforum-home__feed-sort"
+              :class="{ 'is-active': feedSort === 'latest' }"
+              :aria-pressed="feedSort === 'latest'"
+              @click="feedSort = 'latest'"
             >
               {{ t('home.filter.latest') }}
             </button>
             <button
-              v-if="selectedCategory"
               type="button"
-              role="tab"
-              class="h-7 rounded-[var(--sf-public-radius,6px)] border border-[var(--sf-public-border)] bg-[var(--sf-public-surface)] px-2.5 text-xs font-semibold text-[var(--sf-public-text)]"
-              aria-selected="true"
+              class="sforum-home__feed-sort max-[560px]:hidden"
+              :class="{ 'is-active': feedSort === 'replies' }"
+              :aria-pressed="feedSort === 'replies'"
+              @click="feedSort = 'replies'"
             >
-              {{ selectedCategory.name }}
+              {{ t('home.filter.mostReplies') }}
+            </button>
+            <button
+              type="button"
+              class="sforum-home__feed-filter-button"
+              :class="{ 'is-active': filterPanelOpen || hasActiveFilters }"
+              :title="t('home.filter.openFilters')"
+              :aria-label="t('home.filter.openFilters')"
+              :aria-expanded="filterPanelOpen"
+              aria-controls="home-topic-filters"
+              @click="filterPanelOpen = !filterPanelOpen"
+            >
+              <UIcon name="i-lucide-sliders-horizontal" class="size-[19px]" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -536,19 +552,31 @@ onBeforeUnmount(() => {
         </p>
 
         <div
-          v-if="activeTags.length || hasActiveFilters"
-          class="mt-2.5 flex min-w-0 items-center gap-2"
+          v-if="filterPanelOpen && (categories.length || activeTags.length || hasActiveFilters)"
+          id="home-topic-filters"
+          class="sforum-home__tag-filter"
           :aria-busy="tagsPending"
         >
-          <div id="home-tags" class="flex min-w-0 flex-wrap gap-1.5">
+          <div class="sforum-home__filter-group" :aria-label="t('home.categories')">
+            <button
+              v-for="category in categories"
+              :key="category.slug"
+              type="button"
+              class="sforum-home__filter-chip"
+              :class="{ 'is-active': selectedCategorySlug === category.slug }"
+              :aria-pressed="selectedCategorySlug === category.slug"
+              @click="selectCategory(category.slug)"
+            >
+              {{ category.name }}
+            </button>
+          </div>
+          <div id="home-tags" class="sforum-home__filter-group" :aria-label="t('home.tags')">
             <button
               v-for="tag in activeTags"
               :key="tag.slug"
               type="button"
-              class="inline-flex min-h-[26px] items-center rounded-full border border-transparent bg-[var(--sf-public-surface-muted)] px-2.5 py-0.5 text-[0.6875rem] font-bold text-[var(--sf-public-text-secondary)] hover:border-[var(--sf-accent-soft-border)] hover:bg-[var(--sf-accent-soft)] hover:text-[var(--sf-accent-hover)]"
-              :class="selectedTagSlug === tag.slug
-                ? 'border-[var(--sf-accent-soft-border)] bg-[var(--sf-accent-soft)] text-[var(--sf-accent-hover)]'
-                : ''"
+              class="sforum-home__filter-chip"
+              :class="{ 'is-active': selectedTagSlug === tag.slug }"
               :aria-pressed="selectedTagSlug === tag.slug"
               @click="selectTag(tag.slug)"
             >
@@ -558,7 +586,7 @@ onBeforeUnmount(() => {
           <button
             v-if="hasActiveFilters"
             type="button"
-            class="ml-auto inline-flex min-h-[26px] items-center gap-1 rounded-full border border-transparent bg-transparent px-2.5 py-0.5 text-[0.6875rem] font-bold text-[var(--sf-public-text-secondary)]"
+            class="sforum-home__filter-clear"
             @click="resetFilters"
           >
             <UIcon name="i-lucide-x" class="size-3.5" aria-hidden="true" />
@@ -595,7 +623,7 @@ onBeforeUnmount(() => {
 
           <template v-else-if="topics.length">
             <SFHomeTopicRow
-              v-for="topic in topics"
+              v-for="topic in displayTopics"
               :key="topic.id"
               :topic="topic"
               :to="localePath(forumTopicPath(topic, topicUrlMode))"
@@ -668,7 +696,7 @@ onBeforeUnmount(() => {
 
     <aside v-if="mobileMenuOpen" class="sforum-mobile-drawer sforum-mobile-drawer--left">
       <header class="sforum-mobile-drawer__head">
-        <strong>{{ t('home.sidebar.navTitle') }}</strong>
+        <strong>{{ t('home.sidebar.drawerTitle') }}</strong>
         <button type="button" :aria-label="t('topicDetail.cancel')" @click="closeMobileDrawers">
           <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
         </button>
@@ -686,7 +714,7 @@ onBeforeUnmount(() => {
 
     <aside v-if="mobileInfoOpen" class="sforum-mobile-drawer sforum-mobile-drawer--right">
       <header class="sforum-mobile-drawer__head">
-        <strong>{{ t('home.rightRail.ariaLabel') }}</strong>
+        <strong>{{ t('home.rightRail.drawerTitle') }}</strong>
         <button type="button" :aria-label="t('topicDetail.cancel')" @click="closeMobileDrawers">
           <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
         </button>

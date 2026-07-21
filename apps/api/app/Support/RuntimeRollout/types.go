@@ -70,6 +70,9 @@ type Plan struct {
 	RetainedDigests []string `json:"retainedDigests,omitempty"`
 	// LastError is a redacted operator message (never secrets).
 	LastError string `json:"lastError,omitempty"`
+	// Revision is optimistic concurrency for concurrent Ack/Promote/Rollback.
+	// Store Save must reject stale revisions (ErrConflict).
+	Revision int64 `json:"revision,omitempty"`
 }
 
 // NodeAck is one node's acknowledgement of a rollout phase.

@@ -415,7 +415,172 @@ func (s *PostgresStore) GetAdminUser(ctx context.Context, userID int64) (AdminUs
 	if err := s.loadAdminUserProfile(ctx, &detail); err != nil {
 		return AdminUserDetail{}, err
 	}
+	if err := s.loadAdminUserPreview(ctx, &detail); err != nil {
+		return AdminUserDetail{}, err
+	}
 	return detail, nil
+}
+
+// loadAdminUserPreview 填充管理端预览：完整 IP/UA 会话、身份审计、内容计数、改密时间。
+const adminUserPreviewSessionLimit = 30
+const adminUserPreviewAuthEventLimit = 30
+
+func (s *PostgresStore) loadAdminUserPreview(ctx context.Context, detail *AdminUserDetail) error {
+	if detail == nil {
+		return nil
+	}
+	detail.Sessions = []AdminSessionInspect{}
+	detail.RecentAuthEvents = []AdminAuthEvent{}
+	detail.Activity = AdminUserActivity{}
+
+	// 改密时间（无凭证行时保持 nil，如仅 OAuth 账号的未来形态）。
+	var passwordChangedAt time.Time
+	err := s.pool.QueryRow(ctx, `
+		SELECT password_changed_at FROM user_credentials WHERE user_id = $1
+	`, detail.ID).Scan(&passwordChangedAt)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return fmt.Errorf("load admin user password_changed_at: %w", err)
+	}
+	if err == nil {
+		ts := passwordChangedAt
+		detail.PasswordChangedAt = &ts
+	}
+
+	// 会话计数。
+	if err := s.pool.QueryRow(ctx, `
+		SELECT
+			count(*) FILTER (WHERE revoked_at IS NULL),
+			count(*)
+		FROM user_sessions
+		WHERE user_id = $1
+	`, detail.ID).Scan(&detail.Activity.ActiveSessionCount, &detail.Activity.TotalSessionCount); err != nil {
+		return fmt.Errorf("count admin user sessions: %w", err)
+	}
+
+	// 最近会话（含完整 IP / 原始 UA）。
+	sessionRows, err := s.pool.Query(ctx, `
+		SELECT sid, device_name, browser, os, ip_prefix, ip_address, user_agent_raw,
+		       created_at, last_seen_at, revoked_at, revoke_reason
+		FROM user_sessions
+		WHERE user_id = $1
+		ORDER BY COALESCE(last_seen_at, created_at) DESC, created_at DESC
+		LIMIT $2
+	`, detail.ID, adminUserPreviewSessionLimit)
+	if err != nil {
+		return fmt.Errorf("list admin user sessions: %w", err)
+	}
+	defer sessionRows.Close()
+
+	for sessionRows.Next() {
+		var rec AdminSessionInspect
+		if err := sessionRows.Scan(
+			&rec.ID, &rec.DeviceName, &rec.Browser, &rec.OS,
+			&rec.IPPrefix, &rec.IPAddress, &rec.UserAgent,
+			&rec.CreatedAt, &rec.LastSeenAt, &rec.RevokedAt, &rec.RevokeReason,
+		); err != nil {
+			return fmt.Errorf("scan admin user session: %w", err)
+		}
+		rec.IsActive = rec.RevokedAt == nil
+		detail.Sessions = append(detail.Sessions, rec)
+		if rec.IsActive {
+			if detail.Activity.LastSeenAt == nil || rec.LastSeenAt.After(*detail.Activity.LastSeenAt) {
+				ts := rec.LastSeenAt
+				detail.Activity.LastSeenAt = &ts
+			}
+		}
+	}
+	if err := sessionRows.Err(); err != nil {
+		return fmt.Errorf("iterate admin user sessions: %w", err)
+	}
+
+	// 主题/评论计数（论坛表存在时；纯 identity 测试库可能无表，失败则记 0）。
+	_ = s.pool.QueryRow(ctx, `
+		SELECT count(*) FROM topics WHERE author_user_id = $1 AND deleted_at IS NULL
+	`, detail.ID).Scan(&detail.Activity.TopicCount)
+	_ = s.pool.QueryRow(ctx, `
+		SELECT count(*) FROM comments WHERE author_user_id = $1 AND deleted_at IS NULL
+	`, detail.ID).Scan(&detail.Activity.CommentCount)
+
+	// 最近登录/注册审计（metadata 中的 ipAddress / userAgent）。
+	authRows, err := s.pool.Query(ctx, `
+		SELECT id, action, metadata, created_at
+		FROM audit_events
+		WHERE target_user_id = $1
+		  AND action IN ($2, $3)
+		ORDER BY created_at DESC, id DESC
+		LIMIT $4
+	`, detail.ID, AuditActionLogin, AuditActionRegister, adminUserPreviewAuthEventLimit)
+	if err != nil {
+		return fmt.Errorf("list admin user auth events: %w", err)
+	}
+	defer authRows.Close()
+
+	for authRows.Next() {
+		var (
+			event    AdminAuthEvent
+			metadata []byte
+		)
+		if err := authRows.Scan(&event.ID, &event.Action, &metadata, &event.CreatedAt); err != nil {
+			return fmt.Errorf("scan admin user auth event: %w", err)
+		}
+		event.IPAddress, event.UserAgent, event.SessionHash = parseAuthAuditMetadata(metadata)
+		detail.RecentAuthEvents = append(detail.RecentAuthEvents, event)
+	}
+	if err := authRows.Err(); err != nil {
+		return fmt.Errorf("iterate admin user auth events: %w", err)
+	}
+
+	if len(detail.RecentAuthEvents) > 0 {
+		first := detail.RecentAuthEvents[0]
+		// 最近一条登录优先；若列表以注册开头也可用。
+		for _, event := range detail.RecentAuthEvents {
+			if event.Action == AuditActionLogin {
+				first = event
+				break
+			}
+		}
+		ts := first.CreatedAt
+		detail.Activity.LastLoginAt = &ts
+		detail.Activity.LastLoginIP = first.IPAddress
+		detail.Activity.LastLoginUserAgent = first.UserAgent
+	} else if len(detail.Sessions) > 0 {
+		// 无审计时退回最近会话的 IP/UA。
+		latest := detail.Sessions[0]
+		ts := latest.CreatedAt
+		detail.Activity.LastLoginAt = &ts
+		detail.Activity.LastLoginIP = latest.IPAddress
+		if detail.Activity.LastLoginIP == "" {
+			detail.Activity.LastLoginIP = latest.IPPrefix
+		}
+		detail.Activity.LastLoginUserAgent = latest.UserAgent
+	}
+
+	return nil
+}
+
+func parseAuthAuditMetadata(raw []byte) (ipAddress, userAgent, sessionHash string) {
+	if len(raw) == 0 {
+		return "", "", ""
+	}
+	var meta map[string]any
+	if err := json.Unmarshal(raw, &meta); err != nil {
+		return "", "", ""
+	}
+	ipAddress = stringFromAny(meta["ipAddress"])
+	userAgent = stringFromAny(meta["userAgent"])
+	sessionHash = stringFromAny(meta["sessionHash"])
+	return ipAddress, userAgent, sessionHash
+}
+
+func stringFromAny(value any) string {
+	switch typed := value.(type) {
+	case string:
+		return typed
+	case fmt.Stringer:
+		return typed.String()
+	default:
+		return ""
+	}
 }
 
 // loadAdminUserProfile 读取 user_profiles；无行时返回空资料（注册后可能尚未 upsert）。

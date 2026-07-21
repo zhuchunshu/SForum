@@ -1,10 +1,11 @@
 # Trusted Plugin And Theme Platform V3 - Implementation Task Book
 
-Status: **active** — P0–P12 complete; P13 residual = LTS-blocked legacy deletion only  
+Status: **active** — P0–P12 complete on paper; P13 LTS residual + **production rewire honesty reopen**  
 Date: 2026-07-13  
-Last status pass: 2026-07-21  
+Last status pass: 2026-07-22  
 Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`  
-Progress ledger: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
+Progress ledger: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`  
+Honesty remediation: `knowledge/plans/2026-07-22-v3-production-rewire-honesty-remediation.md`
 
 ## Objective
 

@@ -1645,6 +1645,9 @@ func (s *httpFakeStore) GetAdminUser(_ context.Context, userID int64) (identity.
 		Permissions:         slices.Clone(user.Permissions),
 		PermissionOverrides: s.cloneOverrides(userID),
 		Profile:             identity.AdminUserProfile{},
+		Activity:            identity.AdminUserActivity{},
+		Sessions:            []identity.AdminSessionInspect{},
+		RecentAuthEvents:    []identity.AdminAuthEvent{},
 	}, nil
 }
 

@@ -18,9 +18,10 @@ Task books, blueprints, and progress ledgers. Every plan must declare a
 
 | Plan | Status |
 | --- | --- |
-| `2026-07-13-trusted-plugin-theme-platform-v3.md` | **active** — P13 LTS residual only |
-| `2026-07-13-trusted-plugin-theme-platform-v3-progress.md` | **active** — durable % ledger |
+| `2026-07-13-trusted-plugin-theme-platform-v3.md` | **active** — P13 LTS residual; production rewire honesty reopened |
+| `2026-07-13-trusted-plugin-theme-platform-v3-progress.md` | **active** — durable % ledger (~99.7%; do not claim rewire closed) |
 | `2026-07-13-trusted-plugin-theme-platform-v3-traceability.md` | **generated** — catalog matrix (do not hand-edit) |
+| `2026-07-22-v3-production-rewire-honesty-remediation.md` | **ready** — M0–M8 reopen fix for 8 production-call-chain findings |
 | `2026-07-22-social-login-provider-plugins.md` | **ready** — Core auth completion + unified admin/user UI + GitHub/Google/Discord/Telegram plugins |
 | `2026-07-21-million-scale-read-path.md` | **completed** — M0–M7 (M7 decision doc only); D1–D4 law |
 | `2026-07-12-iteration-a-engagement-loop.md` | **ready** — view counts / likes / bookmarks (M2 shares view-count WS) |

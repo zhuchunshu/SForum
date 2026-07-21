@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+	settingslifecycle "github.com/zhuchunshu/sforum/apps/api/app/Support/SettingsLifecycle"
 )
 
 type PostgresStore struct {
@@ -651,6 +653,77 @@ func (s *PostgresStore) CompareAndSwapSetting(ctx context.Context, extensionID, 
 		return false, fmt.Errorf("compare and swap extension setting %s: %w", name, err)
 	}
 	return tag.RowsAffected() == 1, nil
+}
+
+// ReplaceSettingsCAS 在同一事务内校验 revision 并全量替换 extension_settings。
+// 供 SettingsLifecycle DocumentStore 使用，避免 CAS 与 Replace 之间丢字段/revision 倒退。
+func (s *PostgresStore) ReplaceSettingsCAS(ctx context.Context, extensionID string, expectedRevision int64, values map[string]string) (int64, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("begin settings CAS replace: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// 锁住该扩展全部 settings 行，防止并发保存交叉。
+	rows, err := tx.Query(ctx, `
+		SELECT name, value FROM extension_settings
+		WHERE extension_id = $1
+		FOR UPDATE
+	`, extensionID)
+	if err != nil {
+		return 0, fmt.Errorf("lock extension settings: %w", err)
+	}
+	currentRev := int64(0)
+	for rows.Next() {
+		var name, value string
+		if err := rows.Scan(&name, &value); err != nil {
+			rows.Close()
+			return 0, fmt.Errorf("scan locked setting: %w", err)
+		}
+		if name == "__sforum.revision" {
+			if n, parseErr := strconv.ParseInt(strings.TrimSpace(value), 10, 64); parseErr == nil && n > 0 {
+				currentRev = n
+			}
+		}
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+	if expectedRevision > 0 && currentRev != expectedRevision {
+		return 0, settingslifecycle.ErrConflict
+	}
+	if expectedRevision == 0 && currentRev > 0 {
+		return 0, settingslifecycle.ErrConflict
+	}
+
+	if _, err := tx.Exec(ctx, `DELETE FROM extension_settings WHERE extension_id = $1`, extensionID); err != nil {
+		return 0, fmt.Errorf("clear settings in CAS: %w", err)
+	}
+	nextRev := currentRev + 1
+	if nextRev < 1 {
+		nextRev = 1
+	}
+	// payload 内 revision 优先（SettingsLifecycle documentToKV 已写入）。
+	if raw, ok := values["__sforum.revision"]; ok {
+		if n, parseErr := strconv.ParseInt(strings.TrimSpace(raw), 10, 64); parseErr == nil && n > 0 {
+			nextRev = n
+		}
+	} else if values != nil {
+		values["__sforum.revision"] = strconv.FormatInt(nextRev, 10)
+	}
+	for name, value := range values {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO extension_settings (extension_id, name, value)
+			VALUES ($1, $2, $3)
+		`, extensionID, name, value); err != nil {
+			return 0, fmt.Errorf("insert setting %s in CAS: %w", name, err)
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, fmt.Errorf("commit settings CAS: %w", err)
+	}
+	return nextRev, nil
 }
 
 func (s *PostgresStore) ResetSettings(ctx context.Context, extensionID string) error {

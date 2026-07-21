@@ -8,6 +8,8 @@ const props = defineProps<{
   authorTo?: string
   tags: { id: number, name: string, to: string }[]
   categoryTo: string
+  firstCommentId?: number
+  latestCommentId?: number
   /** forum.topic.sidebar；空时不渲染扩展卡片区 */
   extensionSidebar?: ForumTopicExtensionSidebarItem[]
 }>()
@@ -29,6 +31,31 @@ const statusLabel = computed(() => {
 
 const sidebarItems = computed(() => props.extensionSidebar || [])
 const runningKey = ref('')
+const currentCommentIndex = ref(1)
+let commentObserver: IntersectionObserver | null = null
+
+const commentProgress = computed(() => {
+  const total = Math.max(1, props.topic.commentCount)
+  return Math.min(100, Math.max(4, currentCommentIndex.value / total * 100))
+})
+
+onMounted(async () => {
+  await nextTick()
+  const comments = Array.from(document.querySelectorAll<HTMLElement>('.sf-comment-list > .sf-comment'))
+  if (!comments.length) return
+
+  commentObserver = new IntersectionObserver((entries) => {
+    const visible = entries
+      .filter(entry => entry.isIntersecting)
+      .sort((a, b) => Math.abs(a.boundingClientRect.top) - Math.abs(b.boundingClientRect.top))[0]
+    if (!visible) return
+    const index = comments.indexOf(visible.target as HTMLElement)
+    if (index >= 0) currentCommentIndex.value = index + 1
+  }, { rootMargin: '-20% 0px -60% 0px', threshold: 0 })
+  comments.forEach(comment => commentObserver?.observe(comment))
+})
+
+onBeforeUnmount(() => commentObserver?.disconnect())
 
 function itemLabel(item: ForumTopicExtensionSidebarItem) {
   return forumTopicExtensionLabel(item, String(locale.value || 'zh-CN')) || item.id
@@ -130,6 +157,48 @@ async function runSidebarExtensionRoute(item: ForumTopicExtensionSidebarItem) {
         </NuxtLink>
       </div>
     </div>
+
+    <section v-if="topic.commentCount > 0" class="sf-topic-side-card sf-topic-side-card--progress">
+      <header class="sf-topic-side-card__progress-head">
+        <h3>{{ t('topicDetail.progress.label') }}</h3>
+        <span><b>{{ currentCommentIndex }}</b> / {{ topic.commentCount }}</span>
+      </header>
+      <div class="sf-topic-side-card__progress-track" aria-hidden="true">
+        <span :style="{ width: `${commentProgress}%` }" />
+      </div>
+      <div class="sf-topic-side-card__progress-actions">
+        <a
+          :href="firstCommentId ? `#comment-${firstCommentId}` : '#topic-latest'"
+          :aria-label="t('topicDetail.progress.first')"
+        >
+          <UIcon name="i-lucide-arrow-up" class="size-4" aria-hidden="true" />
+        </a>
+        <a
+          :href="latestCommentId ? `#comment-${latestCommentId}` : '#topic-latest'"
+          :aria-label="t('topicDetail.progress.latest')"
+        >
+          <UIcon name="i-lucide-arrow-down" class="size-4" aria-hidden="true" />
+        </a>
+        <a
+          class="sf-topic-side-card__latest-link"
+          :href="latestCommentId ? `#comment-${latestCommentId}` : '#topic-latest'"
+        >
+          <UIcon name="i-lucide-corner-right-down" class="size-4" aria-hidden="true" />
+          {{ t('topicDetail.progress.latest') }}
+        </a>
+      </div>
+    </section>
+
+    <nav class="sf-topic-side-card sf-topic-side-card--page-nav" :aria-label="t('topicDetail.side.pageNav')">
+      <h3>{{ t('topicDetail.side.pageNav') }}</h3>
+      <a href="#topic-start" class="is-active">{{ t('topicDetail.side.topicContent') }}</a>
+      <a href="#topic-latest">
+        {{ t('topicDetail.side.discussion') }}
+        <span>{{ topic.commentCount }}</span>
+      </a>
+      <a href="#topic-reply-editor">{{ t('topicDetail.side.joinDiscussion') }}</a>
+      <NuxtLink :to="localePath('/guidelines')">{{ t('home.sidebar.guidelines') }}</NuxtLink>
+    </nav>
 
     <!-- 扩展侧栏卡片：无贡献时整块不渲染，保证空安全；顺序与宿主 order 一致 -->
     <div

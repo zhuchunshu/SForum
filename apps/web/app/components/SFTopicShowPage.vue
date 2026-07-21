@@ -981,7 +981,18 @@ async function submitReport() {
 
                 <section id="topic-latest" class="sforum-topic-comments">
                   <header class="sf-comment-stream-controls">
-                    <h2>{{ t('topicDetail.commentsTitle', { count: topic.commentCount }) }}</h2>
+                    <div>
+                      <span>{{ topic.commentCount }} REPLIES</span>
+                      <h2>{{ t('topicDetail.discussionContinues') }}</h2>
+                    </div>
+                    <a
+                      v-if="comments.length"
+                      class="sf-comment-stream-controls__latest"
+                      :href="`#comment-${comments[comments.length - 1]?.id}`"
+                    >
+                      <UIcon name="i-lucide-arrow-down" class="size-4" aria-hidden="true" />
+                      {{ t('topicDetail.progress.latest') }}
+                    </a>
                   </header>
 
                   <div v-if="commentsError" class="sforum-topic-comments__error">
@@ -1068,9 +1079,14 @@ async function submitReport() {
                     </div>
                     <LazySFEditor
                       v-model="replyMarkdown"
+                      compact
+                      :rows="5"
                       :placeholder="t('topicDetail.replyPlaceholder')"
                       :submit-label="replySubmitting ? t('topicDetail.submitting') : t('topicDetail.submitReply')"
+                      :cancel-label="t('topicDetail.cancel')"
+                      :support-label="t('topicDetail.markdownSupported')"
                       :disabled="replySubmitting"
+                      @cancel="cancelReply"
                       @submit="onReplyEditorSubmit"
                     />
                     <SFAlert
@@ -1103,6 +1119,8 @@ async function submitReport() {
         :author-to="authorPath"
         :tags="headingTags"
         :category-to="categoryPath(topic.categorySlug)"
+        :first-comment-id="comments[0]?.id"
+        :latest-comment-id="comments[comments.length - 1]?.id"
         :extension-sidebar="topic.extensionSidebar || []"
       />
     </div>
@@ -1146,6 +1164,8 @@ async function submitReport() {
         :author-to="authorPath"
         :tags="headingTags"
         :category-to="categoryPath(topic.categorySlug)"
+        :first-comment-id="comments[0]?.id"
+        :latest-comment-id="comments[comments.length - 1]?.id"
         :extension-sidebar="topic.extensionSidebar || []"
       />
     </aside>

@@ -53,8 +53,16 @@ export function usePermissions() {
   const { user } = useAuthSession()
 
   function can(permission: string): boolean {
-    const permissions = user.value?.permissions
-    if (!user.value || !permissions?.length) {
+    const currentUser = user.value
+    if (!currentUser) {
+      return false
+    }
+    // 与会话 composable 和后端 policy 保持一致：super_admin 拥有全部权限。
+    if (currentUser.roleKeys.includes('super_admin')) {
+      return true
+    }
+    const permissions = currentUser.permissions
+    if (!permissions?.length) {
       return false
     }
     if (permissions.includes(permission)) {
@@ -118,5 +126,8 @@ export function usePermissions() {
 export type PermissionChecker = ReturnType<typeof usePermissions>
 
 export function hasPermission(user: CurrentUser | null, permission: string): boolean {
-  return Boolean(user && user.permissions?.includes(permission))
+  return Boolean(user && (
+    user.roleKeys.includes('super_admin')
+    || user.permissions?.includes(permission)
+  ))
 }

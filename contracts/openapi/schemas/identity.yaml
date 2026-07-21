@@ -605,6 +605,9 @@ AdminUserDetail:
     - permissions
     - permissionOverrides
     - profile
+    - activity
+    - sessions
+    - recentAuthEvents
     properties:
       permissions:
         type: array
@@ -614,6 +617,133 @@ AdminUserDetail:
         "$ref": "#/PermissionOverrides"
       profile:
         "$ref": "#/AdminUserProfile"
+      activity:
+        "$ref": "#/AdminUserActivity"
+        description: Activity summary for admin inspection (topic/comment counts, last login IP/UA).
+      sessions:
+        type: array
+        description: Recent login sessions with full client IP and raw User-Agent (admin-only).
+        items:
+          "$ref": "#/AdminSessionInspect"
+      recentAuthEvents:
+        type: array
+        description: Recent login/register audit events with IP and User-Agent.
+        items:
+          "$ref": "#/AdminAuthEvent"
+      passwordChangedAt:
+        type: string
+        format: date-time
+        nullable: true
+        description: Last password change time when a password credential exists.
+AdminUserActivity:
+  type: object
+  required:
+  - topicCount
+  - commentCount
+  - activeSessionCount
+  - totalSessionCount
+  - lastLoginIP
+  - lastLoginUserAgent
+  properties:
+    topicCount:
+      type: integer
+      format: int64
+    commentCount:
+      type: integer
+      format: int64
+    activeSessionCount:
+      type: integer
+      format: int64
+    totalSessionCount:
+      type: integer
+      format: int64
+    lastLoginAt:
+      type: string
+      format: date-time
+      nullable: true
+    lastLoginIP:
+      type: string
+      description: Full client IP from the latest login audit or session (admin-only).
+    lastLoginUserAgent:
+      type: string
+      description: Raw User-Agent from the latest login audit or session (admin-only).
+    lastSeenAt:
+      type: string
+      format: date-time
+      nullable: true
+AdminSessionInspect:
+  type: object
+  required:
+  - id
+  - deviceName
+  - browser
+  - os
+  - ipPrefix
+  - ipAddress
+  - userAgent
+  - createdAt
+  - lastSeenAt
+  - isActive
+  - revokeReason
+  properties:
+    id:
+      type: string
+      description: Opaque session id (not an auth credential).
+    deviceName:
+      type: string
+    browser:
+      type: string
+    os:
+      type: string
+    ipPrefix:
+      type: string
+      description: Masked IP prefix used in self-service device lists.
+    ipAddress:
+      type: string
+      description: Full client IP for admin inspection. Empty after privacy clear.
+    userAgent:
+      type: string
+      description: Raw User-Agent string.
+    createdAt:
+      type: string
+      format: date-time
+    lastSeenAt:
+      type: string
+      format: date-time
+    isActive:
+      type: boolean
+    revokedAt:
+      type: string
+      format: date-time
+      nullable: true
+    revokeReason:
+      type: string
+AdminAuthEvent:
+  type: object
+  required:
+  - id
+  - action
+  - ipAddress
+  - userAgent
+  - sessionHash
+  - createdAt
+  properties:
+    id:
+      type: integer
+      format: int64
+    action:
+      type: string
+      description: Stable audit action, e.g. auth.login.success or auth.register.success.
+    ipAddress:
+      type: string
+    userAgent:
+      type: string
+    sessionHash:
+      type: string
+      description: HMAC of the session id for audit correlation; not usable as a credential.
+    createdAt:
+      type: string
+      format: date-time
 AdminUserList:
   type: object
   required:

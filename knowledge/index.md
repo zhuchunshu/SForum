@@ -6,22 +6,47 @@ session archive.
 
 ## Latest Handoff
 
-- **2026-07-22 P13 reference-plugin honesty**
-  - Commerce/Custom-content/Media e2e execute declared surfaces (not Manifest-only)
-  - SEO/Membership: restart, Safe Mode, privacy, admin deny, no implicit auth
-  - Formal ZIP: `digest --write` materializes tmpl → package → upload/trust/enable chain
-  - Gates green; **implementable work complete, LTS residual open** (not 100%)
-  - Handoff: `sessions/2026-07-22-p13-reference-plugin-honesty-handoff.md`
-  - LTS residual: `sessions/2026-07-21-trusted-plugin-theme-platform-v3-p13-lts-residual-handoff.md`
+- **2026-07-22 extension.hook_failed on post/comment**
+  - Host Protocol V2 now JSON-normalizes hook payloads before `structpb`
+  - Content-policy reads content object `plainText`/`rawContent`
+  - Handoff: `sessions/2026-07-22-hook-payload-structpb-encode-fix.md`
   - Module: `modules/extensions.md`
 
-- **2026-07-22 P12 ops production binding**
-  - CompatFarm executor + `./scripts/test.sh`; Marketplace Ed25519 + deps +
-    install binding; RuntimeRollout/SystemTier Postgres; Privacy/Observability
-    real paths; bootstrap `bindProductionP12Ops`
-  - Plan: P12 Support-only rows reopened then closed on production evidence
-  - Handoff: `sessions/2026-07-22-p12-ops-production-binding-handoff.md`
-  - Decision: `decisions/2026-07-22-marketplace-ed25519-signing.md`
+- **2026-07-22 Web dev startup and tag SSR stability**
+  - Tag detail no longer rejects SSR during AsyncData/HMR transitions
+  - Page Host islands load lazily; DevTools is opt-in; dev payload extraction is off
+  - Guest middleware uses its incoming `to` route without `useRoute()` warnings
+  - Handoff: `sessions/2026-07-22-web-dev-startup-tag-ssr-handoff.md`
+  - Module: `modules/frontend.md`
+
+- **2026-07-22 V3 production rewire honesty remediation (plan ready)**
+  - Acceptance review: 5 findings still open, 3 partial; Support green ≠ production
+  - New task book (M0–M8):  
+    `plans/2026-07-22-v3-production-rewire-honesty-remediation.md` (**ready**)
+  - Do **not** claim rewire closed or V3 100%; LTS residual still open
+  - Prior rewire handoff retained as evidence of partial work:  
+    `sessions/2026-07-22-p11-p12-p13-production-rewire-handoff.md`
+  - Module: `modules/extensions.md`
+
+- **2026-07-22 P11/P12/P13 production rewire (partial — honesty reopened)**
+  - SettingsLifecycle bind + dual-PG CAS; RuntimeRollout CAS; CompatFarm process;
+    formal ZIP; commerce add-via-Dispatcher — **not** full ops honesty
+  - Open: `enc::` migrate, real multi-node rollout, SystemTier order, Marketplace/
+    Privacy consumers, deploy key, farm/commerce residual
+  - Handoff: `sessions/2026-07-22-p11-p12-p13-production-rewire-handoff.md`
+  - Module: `modules/extensions.md`
+
+- **2026-07-22 Public session first-render stability**
+  - Active theme CSS links now ship in SSR HTML
+  - Session-bearing pages use `no-store` SSR auth; anonymous SWR remains
+  - Handoff: `sessions/2026-07-22-public-session-first-render-handoff.md`
+  - Module: `modules/frontend.md`
+
+- **2026-07-22 P13 reference-plugin honesty**
+  - Commerce/Custom-content/Media e2e execute declared surfaces (not Manifest-only)
+  - Formal ZIP + honesty gates; superseded for rewire detail by production-rewire handoff
+  - Handoff: `sessions/2026-07-22-p13-reference-plugin-honesty-handoff.md`
+  - LTS residual: `sessions/2026-07-21-trusted-plugin-theme-platform-v3-p13-lts-residual-handoff.md`
   - Module: `modules/extensions.md`
 
 - **2026-07-22 Social login provider task book**
@@ -29,13 +54,6 @@ session archive.
   - Core-owned accounts/sessions + plugin-owned GitHub/Google/Discord/Telegram
   - Handoff: `sessions/2026-07-22-social-login-provider-plan-handoff.md`
   - Module: `modules/identity.md`
-
-- **2026-07-22 P11 platform services remediation**
-  - SecretStore Postgres + audit; SettingsLifecycle durable KV; Protocol V2
-    Secret/File/HTTP; bootstrap `bindProductionHostPlatform`
-  - Plan/ledger: P11 reopened then closed on production evidence (not Support-only)
-  - Handoff: `sessions/2026-07-22-p11-platform-services-remediation-handoff.md`
-  - Module: `modules/extensions.md`
 
 - **2026-07-21 Default theme full-width 3-col flat shell**
   - Demo: `tmp/demos/grok/forum-fullwidth-3col/`
@@ -164,6 +182,8 @@ lives in archived sessions and dated decisions.
 
 ### Open / next (product, not V3 LTS)
 
+- **V3 production rewire honesty remediation (ready):** eight call-chain findings
+  M0–M8 — `plans/2026-07-22-v3-production-rewire-honesty-remediation.md`
 - **Social login provider plugins ready:** Core completion + unified admin/user
   surfaces + GitHub/Google/Discord/Telegram —
   `plans/2026-07-22-social-login-provider-plugins.md`

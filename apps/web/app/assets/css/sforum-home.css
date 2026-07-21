@@ -374,7 +374,7 @@
 }
 
 .sforum-home__pagination {
-  display: flex;
+  display: none;
   justify-content: center;
   padding-top: 16px;
 }
@@ -600,10 +600,9 @@
     display: block;
   }
 
-  /* 小屏主列顶部仍需类别选择：由页面把 mobile nav 放进 main */
+  /* Demo 的移动导航由双抽屉承载，主列不重复显示类别选择器。 */
   .sforum-home__mobile-nav {
-    display: block;
-    margin-bottom: 12px;
+    display: none;
   }
 
 }
@@ -762,5 +761,54 @@
 
   .sforum-home__feed-title {
     font-size: 21px;
+  }
+}
+
+/* hybrid demo fidelity: 显式 CSS 兜底，避免任意断点类未生成时退回桌面五列。 */
+.sf-page.sf-theme--default .sf-home-topic-row {
+  grid-template-columns: 42px minmax(0, 1fr) 88px 50px 96px;
+  gap: 11px;
+  min-height: 82px;
+  padding: 12px 8px;
+  border-bottom: 1px solid #e9e8ed;
+}
+
+.sf-page.sf-theme--default .sf-home-navigation__link.is-active {
+  position: relative;
+  border: 0;
+  background: transparent;
+  color: #d94763;
+}
+
+.sf-page.sf-theme--default .sf-home-navigation__link.is-active::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  width: 3px;
+  height: 18px;
+  border-radius: 2px;
+  background: #d94763;
+}
+
+@media (max-width: 980px) {
+  .sf-page.sf-theme--default .sforum-home__main {
+    padding: 30px 20px 80px;
+  }
+
+  .sf-page.sf-theme--default .sf-home-topic-row {
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    padding: 11px 12px;
+  }
+}
+
+@media (max-width: 560px) {
+  .sf-page.sf-theme--default .sf-home-topic-row {
+    grid-template-columns: 36px minmax(0, 1fr);
+    min-height: 82px;
+  }
+
+  .sf-page.sf-theme--default .sf-home-topic-row__category,
+  .sf-page.sf-theme--default .sf-home-topic-row__replies {
+    display: none;
   }
 }

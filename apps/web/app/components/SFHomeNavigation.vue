@@ -35,6 +35,7 @@ const { t } = useI18n()
 const localePath = useLocalePath()
 const router = useRouter()
 const { navShowCompose, navShowCounts } = useActiveThemeSettings()
+const { siteName } = useWebOptions()
 
 const useRouteLinks = computed(() => props.navigationMode === 'route')
 
@@ -112,7 +113,10 @@ function categoryDotColor(category: ForumCategory) {
         class="sf-home-navigation__link"
         :class="{ 'is-active': !selectedCategorySlug }"
       >
-        <span class="sf-home-navigation__link-main">{{ t('home.allTopics') }}</span>
+        <span class="sf-home-navigation__link-main">
+          <UIcon name="i-lucide-rows-3" class="size-4" aria-hidden="true" />
+          {{ t('home.allTopics') }}
+        </span>
         <span v-if="navShowCounts" class="sf-home-navigation__count">{{ totalTopics }}</span>
       </NuxtLink>
       <button
@@ -123,9 +127,25 @@ function categoryDotColor(category: ForumCategory) {
         :aria-pressed="!selectedCategorySlug"
         @click="selectCategory('')"
       >
-        <span class="sf-home-navigation__link-main">{{ t('home.allTopics') }}</span>
+        <span class="sf-home-navigation__link-main">
+          <UIcon name="i-lucide-rows-3" class="size-4" aria-hidden="true" />
+          {{ t('home.allTopics') }}
+        </span>
         <span v-if="navShowCounts" class="sf-home-navigation__count">{{ totalTopics }}</span>
       </button>
+
+      <NuxtLink :to="localePath('/categories')" class="sf-home-navigation__link">
+        <span class="sf-home-navigation__link-main">
+          <UIcon name="i-lucide-layout-grid" class="size-4" aria-hidden="true" />
+          {{ t('home.categories') }}
+        </span>
+      </NuxtLink>
+      <NuxtLink :to="localePath('/tags')" class="sf-home-navigation__link">
+        <span class="sf-home-navigation__link-main">
+          <UIcon name="i-lucide-tags" class="size-4" aria-hidden="true" />
+          {{ t('home.tags') }}
+        </span>
+      </NuxtLink>
 
       <div class="sf-home-navigation__label">{{ t('home.categories') }}</div>
       <div v-if="pending" class="sf-home-navigation__pending">
@@ -171,6 +191,17 @@ function categoryDotColor(category: ForumCategory) {
           <span v-if="navShowCounts" class="sf-home-navigation__count">{{ category.topicCount }}</span>
         </button>
       </template>
+
+      <div class="sf-home-navigation__foot">
+        <NuxtLink :to="localePath('/guidelines')">
+          <UIcon name="i-lucide-book-open" class="size-4" aria-hidden="true" />
+          {{ t('home.sidebar.guidelines') }}
+        </NuxtLink>
+        <span class="sf-home-navigation__foot-item">
+          <UIcon name="i-lucide-info" class="size-4" aria-hidden="true" />
+          {{ t('home.sidebar.aboutSite', { siteName }) }}
+        </span>
+      </div>
     </div>
   </aside>
 </template>

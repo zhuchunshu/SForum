@@ -23,6 +23,7 @@ import (
 	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	navigationregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/NavigationRegistry"
+	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
 
 // TestReferenceCustomContentPluginPublishesEntityContentEditorNavigation proves
@@ -121,6 +122,23 @@ func TestReferenceCustomContentPluginPublishesEntityContentEditorNavigation(t *t
 	if active.Identity.InstanceID == "" {
 		t.Fatalf("expected Protocol V2 subprocess: %#v", active)
 	}
+
+	// --- 真实 routes.Dispatcher：list 路由必须经完整 Route Plan，禁止仅 InvokeRouteInstance ---
+	routeReg := routes.NewRegistry()
+	pluginArtifact := routes.PluginArtifact{
+		ExtensionID: extension.ID, ExtensionVersion: extension.Version,
+		PackageDigest: extension.PackageDigest, RuntimeInstanceID: active.Identity.InstanceID,
+	}
+	if _, err := routeReg.Publish(routes.Publication{
+		Plugins: []routes.PluginRouteSet{{
+			Artifact: pluginArtifact,
+			Routes:   extension.Manifest.Routes,
+			Guards:   extension.Manifest.Guards,
+		}},
+	}); err != nil {
+		t.Fatalf("publish custom-content routes to production registry: %v", err)
+	}
+	assertCustomContentArticlesViaDispatcher(t, ctx, routeReg, manager, active.Identity)
 
 	// --- 真实存储 + 字段校验 ---
 	writeOK, writeErr := invokeCustomContentRouteErr(t, manager, active.Identity, extensionsruntime.ProtocolV2RouteRequest{
@@ -462,6 +480,126 @@ SELECT title FROM sforum_custom_content.articles WHERE id = '42'`).Scan(&title)
 	if _, removed, err := navReg.Remove(navArt); err != nil || !removed {
 		t.Fatalf("remove navigation: removed=%v err=%v", removed, err)
 	}
+}
+
+// assertCustomContentArticlesViaDispatcher 证明 articles 路由从真实 Dispatcher 进入并走完整 Route Plan。
+func assertCustomContentArticlesViaDispatcher(
+	t *testing.T,
+	ctx context.Context,
+	registry *routes.Registry,
+	manager *extensionsruntime.Manager,
+	identity extensionsruntime.RuntimeInstanceIdentity,
+) {
+	t.Helper()
+	plan, err := registry.BuildExecutionPlan(http.MethodGet, "/api/custom-content/articles")
+	if err != nil {
+		t.Fatalf("custom-content dispatcher plan: %v", err)
+	}
+	if plan.Terminal().Action != extensionmanifest.RouteActionAdd {
+		t.Fatalf("custom-content dispatcher terminal = %#v", plan.Terminal())
+	}
+	stepInvoker := &customContentManagerStepInvoker{manager: manager, identity: identity}
+	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
+		Plans: customContentPlanResolver{plan: plan},
+		Steps: stepInvoker,
+		Guard: customContentAllowGuard{},
+		Schemas: customContentAcceptSchemas{},
+	})
+	result, err := dispatcher.Dispatch(ctx, routes.DispatchRequest{
+		Method: http.MethodGet, Path: "/api/custom-content/articles",
+		ActorID: 42, Authenticated: true,
+		Permissions: map[string]bool{"*": true},
+	}, nil)
+	if err != nil {
+		t.Fatalf("dispatcher.Dispatch articles: %v", err)
+	}
+	if !result.Handled || result.Response.Status != http.StatusOK {
+		t.Fatalf("dispatcher articles result = %#v", result)
+	}
+	if stepInvoker.invokes < 1 {
+		t.Fatal("dispatcher must invoke custom-content plugin step at least once")
+	}
+	var body map[string]any
+	if err := json.Unmarshal(result.Response.Body, &body); err != nil {
+		t.Fatalf("dispatcher articles body: %v raw=%s", err, result.Response.Body)
+	}
+	if body["databaseConnected"] != true {
+		t.Fatalf("dispatcher articles must prove real DB: %#v", body)
+	}
+}
+
+type customContentPlanResolver struct{ plan routes.RouteExecutionPlan }
+
+func (r customContentPlanResolver) BuildExecutionPlan(context.Context, string, string) (routes.RouteExecutionPlan, error) {
+	return r.plan, nil
+}
+
+type customContentAllowGuard struct{}
+
+func (customContentAllowGuard) Authorize(context.Context, routes.RouteExecutionPlan, routes.RouteExecutionStep, routes.DispatchRequest) error {
+	return nil
+}
+
+type customContentAcceptSchemas struct{}
+
+func (customContentAcceptSchemas) ValidateRequest(context.Context, routes.RouteExecutionStep, routes.DispatchRequest) error {
+	return nil
+}
+func (customContentAcceptSchemas) ValidateResponse(context.Context, routes.RouteExecutionStep, routes.DispatchRequest, routes.DispatchResponse) error {
+	return nil
+}
+
+type customContentManagerStepInvoker struct {
+	manager  *extensionsruntime.Manager
+	identity extensionsruntime.RuntimeInstanceIdentity
+	invokes  int
+}
+
+func (*customContentManagerStepInvoker) SupportsMode(mode string) bool {
+	return mode == "" || mode == extensionmanifest.RouteModeHTTP
+}
+
+func (i *customContentManagerStepInvoker) Invoke(ctx context.Context, input routes.RouteInvocation) (routes.RouteInvocationResult, error) {
+	i.invokes++
+	lease, err := i.manager.AcquireRuntimeCall(ctx, i.identity, extensionsruntime.RuntimeCallRoute)
+	if err != nil {
+		return routes.RouteInvocationResult{}, err
+	}
+	defer lease.Release()
+	stage := extensionsruntime.ProtocolV2RouteInvocationStageHandler
+	switch input.Stage {
+	case routes.InvocationStageRequest:
+		stage = extensionsruntime.ProtocolV2RouteInvocationStageRequest
+	case routes.InvocationStageResponse:
+		stage = extensionsruntime.ProtocolV2RouteInvocationStageResponse
+	}
+	resp, err := i.manager.InvokeRouteInstance(lease.Context, i.identity, extensionsruntime.ProtocolV2RouteRequest{
+		RouteID: input.Step.RouteID, ContractVersion: input.Step.ContractVersion,
+		RouteAction: input.Step.Action, InvocationStage: stage,
+		Method: input.Request.Method, Path: input.Request.Path,
+		ResponseSchema: input.Step.ResponseSchema,
+		Authority: commerceFilteredHostAuthority(),
+		Actor: extensionsruntime.NewProtocolV2RouteActor(
+			input.Request.ActorID, input.Request.Authenticated, input.Request.Permissions,
+		),
+		Timeout: 5 * time.Second,
+	})
+	if err != nil {
+		return routes.RouteInvocationResult{}, err
+	}
+	body, _ := json.Marshal(resp.Body)
+	headers := resp.Headers.Clone()
+	if headers == nil {
+		headers = http.Header{}
+	}
+	if headers.Get("Content-Type") == "" {
+		headers.Set("Content-Type", "application/json")
+	}
+	return routes.RouteInvocationResult{
+		Response: &routes.DispatchResponse{
+			Status: resp.StatusCode, Headers: headers, Body: body,
+		},
+	}, nil
 }
 
 func invokeCustomContentRoute(

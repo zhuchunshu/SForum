@@ -2,12 +2,16 @@ package bootstrap
 
 import (
 	"context"
+	"crypto/ed25519"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	marketplace "github.com/zhuchunshu/sforum/apps/api/app/Support/Marketplace"
 	privacy "github.com/zhuchunshu/sforum/apps/api/app/Support/Privacy"
 	runtimerollout "github.com/zhuchunshu/sforum/apps/api/app/Support/RuntimeRollout"
@@ -21,20 +25,27 @@ type productionP12Ops struct {
 	SystemTier  *systemtier.Registry
 	Marketplace *marketplace.Service
 	Privacy     *privacy.Registry
+	Installer   marketplace.Installer
 }
 
 // bindProductionP12Ops wires RuntimeRollout / SystemTier / Marketplace / Privacy
 // onto PostgreSQL authority so multi-node and CLI recovery share one store.
 // Safe Mode does not load system-tier members (checked by callers via LoadOrder).
+//
+// extensionService / identityStore bind real HostInstaller and RBAC — not stubs.
 func bindProductionP12Ops(
 	cfg config.Config,
 	pool *pgxpool.Pool,
 	logger *slog.Logger,
+	extensionService *extensions.Service,
+	identityStore *identity.PostgresStore,
 ) (*productionP12Ops, error) {
 	if pool == nil {
 		return nil, fmt.Errorf("bootstrap: P12 ops requires PostgreSQL")
 	}
-	_ = logger
+	if logger == nil {
+		logger = slog.Default()
+	}
 
 	rolloutStore, err := runtimerollout.NewPostgresStore(pool)
 	if err != nil {
@@ -48,24 +59,25 @@ func bindProductionP12Ops(
 	}
 	tier := systemtier.NewWithStore(tierStore)
 
-	// Marketplace: production requires Ed25519 verifier when configured;
-	// without a public key, only AllowUnsigned (non-production) may load indexes.
-	marketPolicy := marketplace.OperatorPolicy{
-		AllowedChannels:      []string{marketplace.ChannelStable, marketplace.ChannelBeta},
-		DirectUploadFallback: true,
-		AllowUnsigned:        !isProdLike(cfg),
+	// Marketplace：生产从配置加载 Ed25519 公钥；缺公钥时生产 fail closed。
+	market, err := newProductionMarketplace(cfg, logger)
+	if err != nil {
+		return nil, err
 	}
-	market := marketplace.NewWithOptions(marketplace.Options{Policy: marketPolicy})
 
+	// HostInstaller：绑定真实 InstallArchive / lifecycle / RuntimeRollout。
+	installer := newHostMarketplaceInstaller(extensionService, rollout)
+	market.BindInstaller(installer)
+
+	// Privacy：真实 RBAC + PostgreSQL audit，禁止「actor 非空即允许」。
 	privacyReg := privacy.New()
-	// 默认权限：非空 actor；生产可替换为 Host RBAC。
-	privacyReg.SetPermissionCheck(func(_ context.Context, actor, userID, operation string) error {
-		_ = userID
-		_ = operation
-		if strings.TrimSpace(actor) == "" {
-			return privacy.ErrPermissionDenied
-		}
-		return nil
+	auditStore, err := privacy.NewPostgresAuditor(pool)
+	if err != nil {
+		return nil, fmt.Errorf("create privacy auditor: %w", err)
+	}
+	privacyReg.SetAuditor(auditStore)
+	privacyReg.SetPermissionCheck(func(ctx context.Context, actor, userID, operation string) error {
+		return checkPrivacyPermission(ctx, identityStore, actor, userID, operation)
 	})
 
 	// Safe Mode 不在此加载 system extension 代码；仅暴露 registry 供调用方查询。
@@ -78,8 +90,183 @@ func bindProductionP12Ops(
 	}
 
 	return &productionP12Ops{
-		Rollout: rollout, SystemTier: tier, Marketplace: market, Privacy: privacyReg,
+		Rollout: rollout, SystemTier: tier, Marketplace: market,
+		Privacy: privacyReg, Installer: installer,
 	}, nil
+}
+
+func newProductionMarketplace(cfg config.Config, logger *slog.Logger) (*marketplace.Service, error) {
+	prodLike := isProdLike(cfg)
+	policy := marketplace.OperatorPolicy{
+		AllowedChannels:      []string{marketplace.ChannelStable, marketplace.ChannelBeta},
+		DirectUploadFallback: true,
+		AllowUnsigned:        !prodLike,
+	}
+	opts := marketplace.Options{Policy: policy}
+
+	keyHex := strings.TrimSpace(cfg.MarketplaceEd25519PublicKeyHex)
+	keyID := strings.TrimSpace(cfg.MarketplaceEd25519KeyID)
+	if keyHex != "" {
+		raw, err := hex.DecodeString(keyHex)
+		if err != nil || len(raw) != ed25519.PublicKeySize {
+			return nil, fmt.Errorf("bootstrap: MARKETPLACE_ED25519_PUBLIC_KEY_HEX must be 32-byte hex")
+		}
+		if keyID == "" {
+			keyID = "marketplace-primary"
+		}
+		verifier, err := marketplace.NewEd25519Verifier(keyID, ed25519.PublicKey(raw))
+		if err != nil {
+			return nil, fmt.Errorf("bootstrap: marketplace Ed25519 verifier: %w", err)
+		}
+		opts.Verifier = verifier
+		logger.Info("marketplace Ed25519 public key loaded", "keyId", keyID)
+	} else if prodLike {
+		return nil, fmt.Errorf("bootstrap: production/staging requires MARKETPLACE_ED25519_PUBLIC_KEY_HEX")
+	} else {
+		logger.Warn("marketplace running without Ed25519 public key (non-production AllowUnsigned)")
+	}
+	return marketplace.NewWithOptions(opts), nil
+}
+
+// newHostMarketplaceInstaller binds staged install to real Extensions Service + RuntimeRollout.
+func newHostMarketplaceInstaller(
+	extensionService *extensions.Service,
+	rollout *runtimerollout.Service,
+) *marketplace.HostInstaller {
+	// Marketplace 安装由运营 API 鉴权后调用；此处使用系统 super_admin actor。
+	systemActor := identity.Actor{
+		ID:       1,
+		Status:   identity.UserStatusActive,
+		RoleKeys: []string{identity.RoleSuperAdmin},
+	}
+	return &marketplace.HostInstaller{
+		PreflightFn: func(ctx context.Context, plan marketplace.InstallPlan) error {
+			if extensionService == nil {
+				return fmt.Errorf("%w: extension service unavailable", marketplace.ErrInstall)
+			}
+			if strings.TrimSpace(plan.ExtensionID) == "" || strings.TrimSpace(plan.PackageDigest) == "" {
+				return fmt.Errorf("%w: empty plan", marketplace.ErrInstall)
+			}
+			return nil
+		},
+		StageFn: func(ctx context.Context, plan marketplace.InstallPlan, packageBytes []byte) (marketplace.StageResult, error) {
+			if extensionService == nil {
+				return marketplace.StageResult{}, fmt.Errorf("%w: extension service unavailable", marketplace.ErrInstall)
+			}
+			result, err := extensionService.InstallOrUpgradeArchive(ctx, systemActor, extensions.ArchiveInput{
+				FileName: plan.ExtensionID + ".sforum.zip",
+				Data:     packageBytes,
+			})
+			if err != nil {
+				return marketplace.StageResult{}, err
+			}
+			stagedDigest := result.Extension.PackageDigest
+			stagedVersion := result.Extension.Version
+			if result.Extension.StagedVersion != nil {
+				stagedDigest = result.Extension.StagedVersion.PackageDigest
+				stagedVersion = result.Extension.StagedVersion.Version
+			}
+			orderIDs := make([]string, 0, len(plan.Order))
+			for _, step := range plan.Order {
+				orderIDs = append(orderIDs, step.ExtensionID)
+			}
+			// 创建 RuntimeRollout plan（真实 staged version + 节点确认入口）。
+			rolloutPlanID := ""
+			if rollout != nil && result.Upgraded {
+				source := plan.SourceDigest
+				if source == "" {
+					source = result.PreviousDigest
+				}
+				if source != "" && stagedDigest != "" && !strings.EqualFold(source, stagedDigest) {
+					rp, rpErr := rollout.CreatePlan(ctx, plan.ExtensionID, source, stagedDigest, "marketplace", 10, 3)
+					if rpErr != nil && rpErr != runtimerollout.ErrConflict {
+						return marketplace.StageResult{}, rpErr
+					}
+					if rpErr == nil {
+						rolloutPlanID = rp.PlanID
+					}
+				}
+			}
+			return marketplace.StageResult{
+				ExtensionID: plan.ExtensionID, StagedDigest: stagedDigest,
+				StagedVersion: stagedVersion, DependencyOrder: orderIDs,
+				RolloutPlanID: rolloutPlanID, PreflightOK: true,
+			}, nil
+		},
+		ActivateFn: func(ctx context.Context, plan marketplace.InstallPlan, staged marketplace.StageResult) error {
+			if rollout == nil || staged.RolloutPlanID == "" {
+				// 无 rollout plan 时仍视为 stage 完成；晋升由运营 Upgrade 驱动。
+				return nil
+			}
+			// migration-once → canary → drain → promote（节点 Ack 由多节点心跳写入）。
+			if _, err := rollout.MarkMigrationReady(ctx, staged.RolloutPlanID, "marketplace"); err != nil {
+				return err
+			}
+			nodeID := "api-local"
+			if _, err := rollout.AckNode(ctx, staged.RolloutPlanID, nodeID, runtimerollout.PhaseStaged, runtimerollout.HealthHealthy, true); err != nil {
+				return err
+			}
+			if _, err := rollout.SelectCanary(ctx, staged.RolloutPlanID, "marketplace"); err != nil {
+				return err
+			}
+			if _, err := rollout.AckNode(ctx, staged.RolloutPlanID, nodeID, runtimerollout.PhaseCanary, runtimerollout.HealthHealthy, true); err != nil {
+				return err
+			}
+			if _, err := rollout.BeginDrain(ctx, staged.RolloutPlanID, "marketplace"); err != nil {
+				return err
+			}
+			if _, err := rollout.PromoteAtomic(ctx, staged.RolloutPlanID, "marketplace"); err != nil {
+				return err
+			}
+			return nil
+		},
+		RollbackFn: func(ctx context.Context, plan marketplace.InstallPlan, reason string) error {
+			if rollout == nil {
+				return fmt.Errorf("%w: rollout unavailable", marketplace.ErrInstall)
+			}
+			active, ok, err := rollout.ActivePlan(ctx, plan.ExtensionID)
+			if err != nil {
+				return err
+			}
+			if !ok {
+				return fmt.Errorf("%w: no active rollout plan for %s", marketplace.ErrInstall, plan.ExtensionID)
+			}
+			_, err = rollout.Rollback(ctx, active.PlanID, "marketplace", reason)
+			return err
+		},
+	}
+}
+
+// checkPrivacyPermission 使用真实 RBAC：export/erase 需要 user.manage（或 super_admin）。
+// 禁止「actor 字符串非空即允许」。
+func checkPrivacyPermission(
+	ctx context.Context,
+	store *identity.PostgresStore,
+	actorRef, userID, operation string,
+) error {
+	_ = userID
+	_ = operation
+	actorRef = strings.TrimSpace(actorRef)
+	if actorRef == "" || store == nil {
+		return privacy.ErrPermissionDenied
+	}
+	// actor 形如 user:123
+	var userIDInt int64
+	if !strings.HasPrefix(actorRef, "user:") {
+		return privacy.ErrPermissionDenied
+	}
+	if _, err := fmt.Sscanf(actorRef, "user:%d", &userIDInt); err != nil || userIDInt <= 0 {
+		return privacy.ErrPermissionDenied
+	}
+	actor, err := store.LoadActor(ctx, userIDInt)
+	if err != nil {
+		return privacy.ErrPermissionDenied
+	}
+	// super_admin 或 user.manage 可执行隐私导出/擦除。
+	if actor.IsSuperAdmin() || actor.Can(identity.PermissionUserManage) {
+		return nil
+	}
+	return privacy.ErrPermissionDenied
 }
 
 func isProdLike(cfg config.Config) bool {

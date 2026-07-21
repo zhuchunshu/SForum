@@ -50,3 +50,7 @@ editor in V1.
   types.
 - `AvatarView` is also used by auth current-user state and forum author
   summaries; first-party UI should pass it into `SFAvatar`.
+- `SFAvatar` emits remote `AvatarView` URLs (including Gravatar) directly in
+  SSR HTML. It falls back to initials only after the image reports a real load
+  error; do not reintroduce client-only preloading that swaps avatars after the
+  first paint.

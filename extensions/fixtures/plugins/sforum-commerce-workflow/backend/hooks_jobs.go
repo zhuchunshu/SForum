@@ -95,9 +95,9 @@ func settleOnceCommand(_ context.Context, call *pluginv2.CommandCall) (*protocol
 	if orderID == "fail" {
 		return nil, errors.New("reference commerce command settle failure")
 	}
+	// resultSchema 要求 accepted（additionalProperties=false）；不得泄漏内部 order 字段。
 	return pluginv2.NewTypedDocument(commandResultSchema, map[string]any{
-		"orderId": orderID,
-		"status":  "settled",
-		"source":  "command",
+		"accepted": true,
+		"message":  "settled:" + orderID,
 	})
 }

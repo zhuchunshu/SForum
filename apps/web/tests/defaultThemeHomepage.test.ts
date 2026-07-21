@@ -32,7 +32,7 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(route).not.toContain('loadMoreTopics')
 
     const template = themeTemplate()
-    expect(template).toContain("'forum.component.home_page': resolveComponent('SFHomePage')")
+    expect(template).toContain("'forum.component.home_page': resolveComponent('LazySFHomePage')")
     expect(template).not.toContain("'forum.component.home_page': HostPageIsland")
 
     const defaultTpl = defaultHomeTemplate()
@@ -172,6 +172,17 @@ describe('default theme V32 left-nav homepage contract', () => {
     }
   })
 
+  test('keeps tag SSR data stable across HMR transitions and starts independent reads concurrently', () => {
+    const tagPage = source('../app/components/SFTagShowPage.vue')
+
+    expect(tagPage).toContain('await Promise.all([')
+    expect(tagPage).toContain('const activeTags = computed(() => activeTagsData.value || [])')
+    expect(tagPage).toContain('return value && Array.isArray(value.items) ? value : emptyTopicList()')
+    expect(tagPage).toContain("const value = params ? i18n.t(key, params) : i18n.t(key)")
+    expect(tagPage).not.toContain('activeTags.length')
+    expect(tagPage).not.toContain('topics.length')
+  })
+
   test('commits filters through the URL with a debounced search draft', () => {
     const page = homepageIsland()
 
@@ -222,6 +233,7 @@ describe('default theme V32 left-nav homepage contract', () => {
     const pkg = themePackage()
     const rightRail = source('../../../apps/web/app/components/SFHomeRightRail.vue')
     const page = homepageIsland()
+    const row = topicRow()
 
     expect(config).toContain('sforum-home.css')
     expect(pkg).toContain('forum.home')
@@ -237,27 +249,41 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(css).not.toContain('sforum-home__hero')
     expect(theme).toContain('--sf-public-sidebar-width')
     expect(theme).toContain('--sf-public-right-rail-width')
-    expect(theme).toContain('--sf-public-bg: #f5f6f8')
+    expect(theme).toContain('--sf-public-bg: #ffffff')
     expect(theme).toContain('--sf-public-shadow: none')
-    expect(themePkgCss).toContain('--sf-public-bg: #f5f6f8')
+    expect(themePkgCss).toContain('--sf-public-bg: #ffffff')
     expect(themePkgCss).toContain('.sforum-home__layout--with-right')
     expect(themePkgCss).not.toContain('.sf-home-topic-row__chip--tone-0')
-    expect(themeTokens).toContain('--sf-public-bg: #f5f6f8')
-    expect(themeTokens).toContain('--sf-public-sidebar-width: 224px')
-    expect(themeTokens).toContain('--sf-public-right-rail-width: 286px')
-    expect(themeTokens).toContain('--sf-public-topbar-height: 64px')
+    expect(themeTokens).toContain('--sf-public-bg: #ffffff')
+    expect(themeTokens).toContain('--sf-public-sidebar-width: 230px')
+    expect(themeTokens).toContain('--sf-public-right-rail-width: 270px')
+    expect(themeTokens).toContain('--sf-public-topbar-height: 58px')
     expect(pkg).toContain('assets/hybrid-forum.css')
-    // 主色归站点 appearance，默认主题 tokens 不得覆盖 --sf-accent*
-    expect(themeTokens).not.toMatch(/--sf-accent\s*:/)
+    // UI 还原阶段锁定 demo variant B 的强调色，恢复 appearance 前需重新验收。
+    expect(themeTokens).toContain('--sf-accent: #d94763')
+    expect(themeTokens).toContain('--sf-accent-hover: #b82d48')
+    expect(themeTokens).toContain('--sf-accent-soft: #fff0f3')
+    expect(themeTokens).toContain('--sf-accent-rgb: 217 71 99')
     expect(themeTokens).not.toContain('#3b6cf5')
     expect(rightRail).toContain('hotTopics')
     expect(rightRail).toContain('home.sidebar.hotThreads')
     expect(rightRail).toContain('home.sidebar.forumStats')
     expect(rightRail).toContain('useAuthSession')
     expect(rightRail).toContain('home.sidebar.welcomeTitle')
-    expect(rightRail).toContain('home.sidebar.userCard')
+    expect(rightRail).toContain('home.rightRail.welcomeUserTitle')
+    expect(rightRail).toContain('home.rightRail.welcomeUserSubtitle')
     expect(rightRail).toContain('rightRailWelcome')
     expect(rightRail).toContain("emit('select-tag'")
+    expect(page).toContain("const feedSort = ref<'latest' | 'replies'>('latest')")
+    expect(page).toContain('const displayTopics = computed(')
+    expect(page).toContain("t('home.filter.mostReplies')")
+    expect(page).toContain('i-lucide-sliders-horizontal')
+    expect(page).toContain('v-for="topic in displayTopics"')
+    expect(page).toContain("t('home.sidebar.drawerTitle')")
+    expect(page).toContain("t('home.rightRail.drawerTitle')")
+    expect(row).toContain('sf-home-topic-row__mobile-replies')
+    expect(row).toContain('sf-home-topic-row__replies')
+    expect(row).toContain('max-[720px]:grid-cols-[36px_minmax(0,1fr)]')
     // 不伪造参与者堆/点赞等 demo 专属 UI
     expect(rightRail).not.toContain('participants')
     expect(page).not.toContain('participants')
@@ -271,6 +297,8 @@ describe('default theme V32 left-nav homepage contract', () => {
     for (const route of ['/c/**', '/en/c/**', '/tags/**', '/en/tags/**']) {
       expect(config).toContain(`'${route}': { cache: false }`)
     }
+    expect(config).toContain("const payloadExtractionEnabled = process.env.NODE_ENV !== 'development'")
+    expect(config).toContain('payloadExtraction: payloadExtractionEnabled')
   })
 
   test('footer remains available via theme L1 and fail-closed host chrome', () => {

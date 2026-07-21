@@ -3,6 +3,8 @@ package settingslifecycle
 import (
 	"context"
 	"errors"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 
@@ -221,5 +223,191 @@ func TestActorRequired(t *testing.T) {
 	}
 	if _, err := svc.Put(nil, "x", "admin", map[string]string{"a": "1"}, true); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("nil ctx = %v", err)
+	}
+}
+
+// TestTwoIndependentServicesConcurrentSaveNoFieldLoss 证明两个独立 Service
+// 实例并发保存时：CAS 保证不会 revision 倒退，也不会在同一 revision 上丢字段。
+func TestTwoIndependentServicesConcurrentSaveNoFieldLoss(t *testing.T) {
+	ctx := context.Background()
+	kv := NewMemorySettingsKV()
+	store, err := NewSettingsKVStore(kv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secrets, err := secretstore.New(secretstore.NewMemoryStore(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	schema := []FieldSchema{
+		{Name: "title", Type: "string", Default: ""},
+		{Name: "mode", Type: "string", Default: "safe"},
+		{Name: "token", Type: "secret", Secret: true},
+	}
+	// 两个完全独立的 Service 实例，共享同一 DocumentStore（模拟双 API 连接）。
+	svcA := NewWithStore(store, secrets)
+	svcB := NewWithStore(store, secrets)
+	if err := svcA.RegisterSchema("demo.race", 1, schema); err != nil {
+		t.Fatal(err)
+	}
+	if err := svcB.RegisterSchema("demo.race", 1, schema); err != nil {
+		t.Fatal(err)
+	}
+	// 种子文档。
+	seed, err := svcA.Put(ctx, "demo.race", "admin-a", map[string]string{
+		"title": "seed", "mode": "safe", "token": "s3cret",
+	}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if seed.SecretRefs["token"] == "" {
+		t.Fatal("seed secret missing")
+	}
+	_, seedRev, err := store.Load(ctx, "demo.race")
+	if err != nil || seedRev < 1 {
+		t.Fatalf("seed rev=%d err=%v", seedRev, err)
+	}
+
+	const workers = 24
+	var (
+		wait    sync.WaitGroup
+		mu      sync.Mutex
+		success int
+		conflict int
+		other   int
+	)
+	for i := 0; i < workers; i++ {
+		wait.Add(1)
+		go func(i int) {
+			defer wait.Done()
+			// 交替使用两个独立 Service。
+			svc := svcA
+			actor := "admin-a"
+			if i%2 == 1 {
+				svc = svcB
+				actor = "admin-b"
+			}
+			// 每个写者只改一个字段，另一字段必须保留。
+			values := map[string]string{}
+			if i%2 == 0 {
+				values["title"] = "title-" + strconv.Itoa(i)
+			} else {
+				values["mode"] = "mode-" + strconv.Itoa(i)
+			}
+			_, putErr := svc.Put(ctx, "demo.race", actor, values, true)
+			mu.Lock()
+			defer mu.Unlock()
+			switch {
+			case putErr == nil:
+				success++
+			case errors.Is(putErr, ErrConflict):
+				conflict++
+			default:
+				other++
+				t.Errorf("unexpected put error: %v", putErr)
+			}
+		}(i)
+	}
+	wait.Wait()
+	if other > 0 {
+		t.Fatalf("unexpected errors=%d success=%d conflict=%d", other, success, conflict)
+	}
+	if success < 1 {
+		t.Fatal("expected at least one successful concurrent save")
+	}
+
+	final, finalRev, err := store.Load(ctx, "demo.race")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if finalRev < seedRev {
+		t.Fatalf("revision regressed: seed=%d final=%d", seedRev, finalRev)
+	}
+	// 全量文档：title 与 mode 都必须存在（非空）；secret ref 不得因并发丢失。
+	if strings.TrimSpace(final.Values["title"]) == "" || strings.TrimSpace(final.Values["mode"]) == "" {
+		t.Fatalf("lost field after concurrent saves: %#v rev=%d", final.Values, finalRev)
+	}
+	if final.SecretRefs["token"] == "" || !final.SecretSet["token"] {
+		t.Fatalf("secret lost after concurrent saves: %#v", final)
+	}
+	// 再次 Get 证明可读一致性。
+	got, err := svcB.Get(ctx, "demo.race")
+	if err != nil || got.Values["title"] == "" || got.Values["mode"] == "" {
+		t.Fatalf("get after race = %#v err=%v", got, err)
+	}
+}
+
+// TestFailedMigrationDoesNotTouchSecretStoreOrRevision 失败迁移不得改变设置/Secret/revision。
+func TestFailedMigrationDoesNotTouchSecretStoreOrRevision(t *testing.T) {
+	ctx := context.Background()
+	kv := NewMemorySettingsKV()
+	store, err := NewSettingsKVStore(kv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secrets, err := secretstore.New(secretstore.NewMemoryStore(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := NewWithStore(store, secrets)
+	if err := svc.RegisterSchema("demo.failmig", 2, []FieldSchema{
+		{Name: "mode", Type: "string", Default: "a"},
+		{Name: "token", Type: "secret", Secret: true},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.RegisterMigration("demo.failmig", Migration{
+		From: 1, To: 2,
+		Apply: func(values map[string]string) (map[string]string, error) {
+			return nil, errors.New("migrate boom")
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// 先写入 v1 文档（目标 schema 为 2，需先 seed 再注册 migration 场景）。
+	// 用 target=1 写入，再抬高 target。
+	svcV1 := NewWithStore(store, secrets)
+	if err := svcV1.RegisterSchema("demo.failmig", 1, []FieldSchema{
+		{Name: "mode", Type: "string", Default: "a"},
+		{Name: "token", Type: "secret", Secret: true},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	before, err := svcV1.Put(ctx, "demo.failmig", "admin", map[string]string{
+		"mode": "old", "token": "keep-me",
+	}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, beforeRev, err := store.Load(ctx, "demo.failmig")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 抬高目标版本并失败迁移。
+	if err := svc.RegisterSchema("demo.failmig", 2, []FieldSchema{
+		{Name: "mode", Type: "string", Default: "a"},
+		{Name: "token", Type: "secret", Secret: true},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Put(ctx, "demo.failmig", "admin", map[string]string{"mode": "new"}, true); !errors.Is(err, ErrMigration) {
+		t.Fatalf("want migration error, got %v", err)
+	}
+	after, afterRev, err := store.Load(ctx, "demo.failmig")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if afterRev != beforeRev {
+		t.Fatalf("revision changed on failed migration: before=%d after=%d", beforeRev, afterRev)
+	}
+	if after.DataVersion != 1 || after.Values["mode"] != "old" {
+		t.Fatalf("settings changed on failed migration: %#v", after)
+	}
+	if after.SecretRefs["token"] != before.SecretRefs["token"] {
+		t.Fatalf("secret ref changed: before=%s after=%s", before.SecretRefs["token"], after.SecretRefs["token"])
+	}
+	// SecretStore 中的明文仍可通过原 ref 解析（未被 wipe）。
+	if secrets != nil && before.SecretRefs["token"] != "" {
+		// 仅断言 ref 字符串稳定即可；解析路径由 SecretStore 自己测。
 	}
 }

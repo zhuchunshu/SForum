@@ -98,6 +98,15 @@ Generated output directories are ignored by Nuxt/Vite development watchers, and
 `bun run build`/`bun run typecheck` use sibling Nuxt temporary directories
 (`.nuxt-build` and `.nuxt-typecheck`) so they do not disturb the active dev
 server state.
+Nuxt DevTools is opt-in with `NUXT_DEVTOOLS=true`; the default dev path avoids
+its dependency scan and resident runtime cost. Development also disables Nuxt
+payload extraction so HMR cannot leave stale SWR `/_payload.json` responses
+that change Page Registry ownership during client navigation; production keeps
+payload extraction enabled. `SFThemeTemplate` resolves page-level Host islands
+through Nuxt lazy components, while the always-present navbar/footer stay
+eager. Tag detail SSR normalizes every AsyncData list, starts its three
+independent reads concurrently, and keeps `.length` access out of the render
+function so HMR transitions cannot reject SSR.
 `bun run preview` starts `scripts/preview.mjs`, prints an SForum Web Preview
 startup banner, then imports the generated Nitro server entry at
 `.output/server/index.mjs`; this keeps local preview aligned with the root
@@ -107,10 +116,16 @@ startup banner, then imports the generated Nitro server entry at
 During development startup and API hot reloads, the global site-options read
 uses a short timeout and falls back to local defaults so SSR can render the page
 while the API process is still compiling.
-App startup splits cache-safe SSR work from browser-only auth restoration:
-SSR refreshes frontend-safe web options only, while browser `onMounted`
-restores the current session from `/auth/session`. Transient API failures mark
-auth as temporarily unavailable without clearing the cached user state.
+App startup keeps anonymous SSR cache-safe while avoiding a delayed login-state
+swap for authenticated visitors. Requests carrying `sforum_session` restore
+`/auth/session` during SSR, and `public-session-cache.ts` marks their HTML and
+Nuxt payload responses `no-store` with Nitro cache/SWR disabled. Anonymous
+public pages remain share-cacheable and restore auth in browser `onMounted`.
+Transient API failures mark auth as temporarily unavailable without clearing
+the cached user state.
+Guest middleware passes its `to.query.redirect` into
+`useAuthReturnNavigation`; the composable calls `useRoute()` only for component
+callers, matching Nuxt's middleware route contract.
 Nuxt top-level ignores stay scoped to app-local generated output so Nuxt UI
 components under `node_modules/@nuxt/ui/dist` are still auto-imported.
 Nuxt UI remote font integration is disabled for now to avoid build-time network
@@ -194,8 +209,9 @@ without rebuilding Nuxt or restarting Nitro.
 
 - `bun run dev` starts Nuxt directly; production starts
   `.output/server/index.mjs` directly.
-- Active theme skin CSS is injected client-side from
-  `GET /api/v1/site/active-theme/skin` + theme-assets routes.
+- Active theme skin URLs come from `GET /api/v1/site/active-theme/skin` and are
+  emitted through root `useHead` during SSR, so the first HTML already includes
+  the theme-assets stylesheets before hydration.
 - Prebuilt settings components load only through the authenticated immutable API
   digest endpoint after trust. There is no runtime SFC compilation, admin
   registry, host-peer resolver, dev compose, release supervisor, or extension
@@ -244,9 +260,11 @@ without rebuilding Nuxt or restarting Nitro.
   payload. Never write `auth:user` into root-app SSR payload on public pages,
   or a cached guest payload can hide a valid browser session and a cached user
   payload risks leaking user-specific chrome.
-- Safe pattern: `app.vue` refreshes only web options during SSR and restores
-  auth in browser `onMounted`; protected/admin route middleware remains
-  responsible for server-side auth checks on cache-disabled routes.
+- Safe pattern: anonymous public SSR refreshes only cache-safe global state.
+  When the request has `sforum_session`, `public-session-cache.ts` must disable
+  HTML/payload cache and SWR before `app.vue` restores auth during SSR. Browser
+  `onMounted` still revalidates the session; protected/admin route middleware
+  remains responsible for authorization.
 - Required verification after touching app startup/auth cache behavior: run
   `bun test apps/web/tests/appStartup.test.ts apps/web/tests/useApiClient.test.ts
   apps/web/tests/protectedRouteRendering.test.ts apps/web/tests/adminRouteRendering.test.ts`,

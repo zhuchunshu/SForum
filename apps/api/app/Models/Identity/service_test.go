@@ -953,6 +953,9 @@ func (s *fakeStore) GetAdminUser(_ context.Context, userID int64) (AdminUserDeta
 		Permissions:         slices.Clone(user.Permissions),
 		PermissionOverrides: s.cloneOverrides(userID),
 		Profile:             s.cloneProfile(userID),
+		Activity:            AdminUserActivity{},
+		Sessions:            []AdminSessionInspect{},
+		RecentAuthEvents:    []AdminAuthEvent{},
 	}, nil
 }
 

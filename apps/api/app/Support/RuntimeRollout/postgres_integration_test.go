@@ -154,16 +154,22 @@ func newRolloutFixture(t *testing.T) *rolloutFixture {
 		admin.Close()
 		t.Fatal(err)
 	}
-	body, err := fs.ReadFile(migrations.Files(), "202607220046_runtime_rollout_plans.sql")
-	if err != nil {
-		t.Fatal(err)
-	}
-	up := strings.SplitN(string(body), "-- +goose Down", 2)[0]
-	if _, err := pool.Exec(ctx, up); err != nil {
-		pool.Close()
-		_, _ = admin.Exec(ctx, "DROP SCHEMA IF EXISTS "+quoted+" CASCADE")
-		admin.Close()
-		t.Fatal(err)
+	// 建表 + revision CAS 列（生产路径两个迁移顺序一致）。
+	for _, name := range []string{
+		"202607220046_runtime_rollout_plans.sql",
+		"202607220047_runtime_rollout_revision.sql",
+	} {
+		body, err := fs.ReadFile(migrations.Files(), name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		up := strings.SplitN(string(body), "-- +goose Down", 2)[0]
+		if _, err := pool.Exec(ctx, up); err != nil {
+			pool.Close()
+			_, _ = admin.Exec(ctx, "DROP SCHEMA IF EXISTS "+quoted+" CASCADE")
+			admin.Close()
+			t.Fatal(err)
+		}
 	}
 	store, err := NewPostgresStore(pool)
 	if err != nil {

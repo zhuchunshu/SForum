@@ -25,6 +25,7 @@ const forumApi = createAdminForumApi(request)
 const adminPage = useAdminPage('/forum/tags')
 
 const activeStatus = ref<ForumTagStatus>('active')
+const tagModalOpen = ref(false)
 const editingTagId = ref<number | null>(null)
 const saving = ref(false)
 const updatingId = ref<number | null>(null)
@@ -50,6 +51,11 @@ const filteredTags = computed(() => tags.value.filter((tag) => tag.status === ac
 
 const defaultTagIcon = 'i-lucide-tag'
 
+function defaultCreateStatus(): ForumTagStatus {
+  // 在「已停用」列表点新建时，默认仍创建为启用，避免误建停用标签
+  return activeStatus.value === 'disabled' ? 'active' : activeStatus.value
+}
+
 function tagPreviewIcon(tag: Pick<ForumTag, 'icon'> | AdminForumTagPayload) {
   return tag.icon || defaultTagIcon
 }
@@ -73,6 +79,24 @@ function clearTagColor() {
   form.iconColor = ''
 }
 
+function openCreateTag() {
+  editingTagId.value = null
+  Object.assign(form, createTagPayload({ status: defaultCreateStatus() }))
+  tagModalOpen.value = true
+}
+
+function openEditTag(tag: ForumTag) {
+  editingTagId.value = tag.id
+  Object.assign(form, createTagPayload(tag))
+  tagModalOpen.value = true
+}
+
+function closeTagModal() {
+  tagModalOpen.value = false
+  editingTagId.value = null
+  Object.assign(form, createTagPayload({ status: defaultCreateStatus() }))
+}
+
 async function saveTag() {
   saving.value = true
   try {
@@ -83,7 +107,7 @@ async function saveTag() {
       await forumApi.createTag(tagPayload())
       successToast(t('admin.forum.tags.created'))
     }
-    resetForm()
+    closeTagModal()
     await refresh()
   } catch (error) {
     errorToast(error, t('admin.forum.tags.saveFailed'))
@@ -103,16 +127,6 @@ async function setTagStatus(tag: ForumTag, status: ForumTagStatus) {
   } finally {
     updatingId.value = null
   }
-}
-
-function editTag(tag: ForumTag) {
-  editingTagId.value = tag.id
-  Object.assign(form, createTagPayload(tag))
-}
-
-function resetForm() {
-  editingTagId.value = null
-  Object.assign(form, createTagPayload({ status: activeStatus.value === 'disabled' ? 'active' : activeStatus.value }))
 }
 
 function setActiveStatus(status: ForumTagStatus) {
@@ -164,16 +178,21 @@ function errorToast(error: unknown, fallback: string) {
       </div>
     </template>
     <template #right>
-      <UButton
-        color="neutral"
-        variant="outline"
-        leading-icon="i-lucide-refresh-cw"
-        :loading="pending"
-        class="border-slate-200 dark:border-zinc-700"
-        @click="refresh()"
-      >
-        {{ t('admin.common.refresh') }}
-      </UButton>
+      <div class="flex flex-wrap items-center gap-2">
+        <UButton
+          color="neutral"
+          variant="outline"
+          leading-icon="i-lucide-refresh-cw"
+          :loading="pending"
+          class="border-slate-200 dark:border-zinc-700"
+          @click="refresh()"
+        >
+          {{ t('admin.common.refresh') }}
+        </UButton>
+        <UButton leading-icon="i-lucide-plus" @click="openCreateTag">
+          {{ t('admin.forum.tags.create') }}
+        </UButton>
+      </div>
     </template>
   </UDashboardToolbar>
 
@@ -193,87 +212,6 @@ function errorToast(error: unknown, fallback: string) {
       :title="t('admin.forum.tags.policyTitle')"
       :description="t('admin.forum.tags.policyDescription')"
     />
-
-    <form @submit.prevent="saveTag">
-      <UCard class="border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-        <template #header>
-          <div class="flex items-center justify-between gap-3">
-            <div>
-              <h3 class="text-base font-bold text-slate-900 dark:text-white">
-                {{ editingTagId ? t('admin.forum.tags.edit') : t('admin.forum.tags.create') }}
-              </h3>
-              <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
-                {{ t('admin.forum.tags.formHelp') }}
-              </p>
-            </div>
-            <UBadge color="neutral" variant="soft" class="font-mono">
-              tags
-            </UBadge>
-          </div>
-        </template>
-
-        <div class="grid gap-4 lg:grid-cols-[1fr_1fr_1.4fr_auto]">
-          <UFormField :label="t('admin.forum.tags.slug')" name="tag-slug">
-            <UInput v-model="form.slug" icon="i-lucide-link" required class="w-full" placeholder="nuxt" />
-          </UFormField>
-          <UFormField :label="t('admin.forum.tags.name')" name="tag-name">
-            <UInput v-model="form.name" icon="i-lucide-tag" required class="w-full" />
-          </UFormField>
-          <UFormField :label="t('admin.forum.tags.description')" name="tag-description">
-            <UInput v-model="form.description" icon="i-lucide-file-text" class="w-full" />
-          </UFormField>
-          <UFormField :label="t('admin.forum.tags.status')" name="tag-status">
-            <select v-model="form.status" class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100">
-              <option v-for="status in forumTagStatusChoices" :key="status" :value="status">
-                {{ t(`admin.forum.tagStatus.${status}`) }}
-              </option>
-            </select>
-          </UFormField>
-        </div>
-
-        <div class="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
-          <LazySFIconPicker
-            v-model="form.icon"
-            :label="t('admin.forum.visual.icon')"
-            :hint="t('admin.forum.visual.iconHelp')"
-          />
-          <UFormField :label="t('admin.forum.visual.iconColor')" name="tag-icon-color">
-            <div class="grid gap-2">
-              <div class="flex items-center gap-2">
-                <input
-                  :value="colorInputValue(form.iconColor)"
-                  type="color"
-                  class="h-10 w-12 rounded-md border border-slate-200 bg-white p-1 dark:border-zinc-700 dark:bg-zinc-950"
-                  :aria-label="t('admin.forum.visual.iconColor')"
-                  @input="setTagColor"
-                >
-                <UInput v-model="form.iconColor" placeholder="#2563eb" class="min-w-0 flex-1" />
-              </div>
-              <div class="flex items-center justify-between gap-2">
-                <span class="inline-flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400">
-                  <UIcon :name="tagPreviewIcon(form)" class="size-4" :style="{ color: taxonomyPreviewColor(form.iconColor) }" />
-                  {{ form.iconColor || t('admin.forum.visual.defaultAccent') }}
-                </span>
-                <UButton type="button" size="xs" color="neutral" variant="ghost" leading-icon="i-lucide-x" @click="clearTagColor">
-                  {{ t('admin.forum.visual.clearColor') }}
-                </UButton>
-              </div>
-            </div>
-          </UFormField>
-        </div>
-
-        <template #footer>
-          <div class="flex flex-wrap justify-end gap-2">
-            <UButton type="button" color="neutral" variant="ghost" leading-icon="i-lucide-rotate-ccw" @click="resetForm">
-              {{ t('admin.common.reset') }}
-            </UButton>
-            <UButton type="submit" leading-icon="i-lucide-save" :loading="saving">
-              {{ t('admin.common.save') }}
-            </UButton>
-          </div>
-        </template>
-      </UCard>
-    </form>
 
     <UCard class="border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
       <template #header>
@@ -337,7 +275,7 @@ function errorToast(error: unknown, fallback: string) {
             </p>
           </div>
           <div class="flex flex-wrap items-center justify-end gap-2">
-            <UButton color="neutral" variant="ghost" size="sm" leading-icon="i-lucide-pencil" @click="editTag(tag)">
+            <UButton color="neutral" variant="ghost" size="sm" leading-icon="i-lucide-pencil" @click="openEditTag(tag)">
               {{ t('admin.common.edit') }}
             </UButton>
             <UButton
@@ -374,4 +312,97 @@ function errorToast(error: unknown, fallback: string) {
       />
     </UCard>
   </div>
+
+  <!-- 标签：新建 / 编辑 -->
+  <UModal
+    v-model:open="tagModalOpen"
+    :ui="{ content: 'sm:max-w-2xl' }"
+    @update:open="(open) => { if (!open) closeTagModal() }"
+  >
+    <template #content>
+      <form class="flex max-h-[85vh] flex-col" @submit.prevent="saveTag">
+        <div class="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4 dark:border-zinc-800">
+          <div class="min-w-0">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white">
+              {{ editingTagId ? t('admin.forum.tags.edit') : t('admin.forum.tags.create') }}
+            </h3>
+            <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
+              {{ t('admin.forum.tags.formHelp') }}
+            </p>
+          </div>
+          <UButton
+            type="button"
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-x"
+            :aria-label="t('admin.common.cancel')"
+            @click="closeTagModal"
+          />
+        </div>
+
+        <div class="grid flex-1 gap-4 overflow-y-auto px-5 py-4">
+          <div class="grid gap-4 md:grid-cols-2">
+            <UFormField :label="t('admin.forum.tags.slug')" name="tag-slug">
+              <UInput v-model="form.slug" icon="i-lucide-link" required class="w-full" placeholder="nuxt" />
+            </UFormField>
+            <UFormField :label="t('admin.forum.tags.name')" name="tag-name">
+              <UInput v-model="form.name" icon="i-lucide-tag" required class="w-full" />
+            </UFormField>
+          </div>
+
+          <UFormField :label="t('admin.forum.tags.description')" name="tag-description">
+            <UInput v-model="form.description" icon="i-lucide-file-text" class="w-full" />
+          </UFormField>
+
+          <UFormField :label="t('admin.forum.tags.status')" name="tag-status">
+            <select v-model="form.status" class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100">
+              <option v-for="status in forumTagStatusChoices" :key="status" :value="status">
+                {{ t(`admin.forum.tagStatus.${status}`) }}
+              </option>
+            </select>
+          </UFormField>
+
+          <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+            <LazySFIconPicker
+              v-model="form.icon"
+              :label="t('admin.forum.visual.icon')"
+              :hint="t('admin.forum.visual.iconHelp')"
+            />
+            <UFormField :label="t('admin.forum.visual.iconColor')" name="tag-icon-color">
+              <div class="grid gap-2">
+                <div class="flex items-center gap-2">
+                  <input
+                    :value="colorInputValue(form.iconColor)"
+                    type="color"
+                    class="h-10 w-12 rounded-md border border-slate-200 bg-white p-1 dark:border-zinc-700 dark:bg-zinc-950"
+                    :aria-label="t('admin.forum.visual.iconColor')"
+                    @input="setTagColor"
+                  >
+                  <UInput v-model="form.iconColor" placeholder="#2563eb" class="min-w-0 flex-1" />
+                </div>
+                <div class="flex items-center justify-between gap-2">
+                  <span class="inline-flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400">
+                    <UIcon :name="tagPreviewIcon(form)" class="size-4" :style="{ color: taxonomyPreviewColor(form.iconColor) }" />
+                    {{ form.iconColor || t('admin.forum.visual.defaultAccent') }}
+                  </span>
+                  <UButton type="button" size="xs" color="neutral" variant="ghost" leading-icon="i-lucide-x" @click="clearTagColor">
+                    {{ t('admin.forum.visual.clearColor') }}
+                  </UButton>
+                </div>
+              </div>
+            </UFormField>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap justify-end gap-2 border-t border-slate-200 px-5 py-4 dark:border-zinc-800">
+          <UButton type="button" color="neutral" variant="ghost" @click="closeTagModal">
+            {{ t('admin.common.cancel') }}
+          </UButton>
+          <UButton type="submit" leading-icon="i-lucide-save" :loading="saving">
+            {{ t('admin.common.save') }}
+          </UButton>
+        </div>
+      </form>
+    </template>
+  </UModal>
 </template>

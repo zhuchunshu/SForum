@@ -69,7 +69,7 @@ function formatCount(value: number) {
 }
 
 function hotRank(index: string | number) {
-  return Number(index) + 1
+  return String(Number(index) + 1).padStart(2, '0')
 }
 
 function isTopHotRank(index: string | number) {
@@ -82,36 +82,16 @@ function isTopHotRank(index: string | number) {
     <div class="sf-home-right-rail">
       <!-- 访客：登录转化；已登录：轻量用户卡 + 快捷入口（无虚构统计） -->
       <section v-if="rightRailShowAuthCard && isAuthenticated && user" class="sf-home-right-rail__card">
-        <header class="sf-home-right-rail__head">
-          <h3 class="sf-home-right-rail__title">{{ t('home.sidebar.userCard') }}</h3>
-        </header>
         <div class="sf-home-right-rail__user">
           <NuxtLink :to="profileTo" class="sf-home-right-rail__user-main">
             <SFAvatar :name="displayName" :avatar="user.avatar" size="md" />
             <span class="sf-home-right-rail__user-text">
-              <span class="sf-home-right-rail__user-name">{{ displayName }}</span>
-              <span class="sf-home-right-rail__user-sub">@{{ user.username }}</span>
+              <span class="sf-home-right-rail__user-name">
+                {{ t('home.rightRail.welcomeUserTitle', { name: displayName }) }}
+              </span>
+              <span class="sf-home-right-rail__user-sub">{{ t('home.rightRail.welcomeUserSubtitle') }}</span>
             </span>
           </NuxtLink>
-          <div class="sf-home-right-rail__user-actions">
-            <NuxtLink :to="settingsTo" class="sf-home-right-rail__action sf-home-right-rail__action--soft">
-              {{ t('nav.profileSettings') }}
-            </NuxtLink>
-            <NuxtLink
-              v-if="canCreateTopic"
-              :to="newTopicTo"
-              class="sf-home-right-rail__action sf-home-right-rail__action--primary"
-            >
-              {{ t('home.sidebar.newTopic') }}
-            </NuxtLink>
-            <NuxtLink
-              v-else
-              :to="profileTo"
-              class="sf-home-right-rail__action sf-home-right-rail__action--outline"
-            >
-              {{ t('nav.myProfile') }}
-            </NuxtLink>
-          </div>
         </div>
       </section>
 

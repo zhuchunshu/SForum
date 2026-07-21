@@ -21,7 +21,7 @@ func repoRoot(t *testing.T) string {
 	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "..", "..", ".."))
 }
 
-func TestLoadMatrixAndDeprecatedShimTelemetry(t *testing.T) {
+func TestLoadMatrixShape(t *testing.T) {
 	root := repoRoot(t)
 	matrixPath := filepath.Join(root, "tests", "compat", "matrix.yaml")
 	matrix, err := LoadMatrix(matrixPath)
@@ -31,41 +31,42 @@ func TestLoadMatrixAndDeprecatedShimTelemetry(t *testing.T) {
 	if matrix.Schema != SchemaVersion || len(matrix.RequiredCells()) < 1 {
 		t.Fatalf("matrix = %#v", matrix)
 	}
-	deprecated := matrix.DeprecatedCells()
-	if len(deprecated) == 0 {
+	if len(matrix.DeprecatedCells()) == 0 {
 		t.Fatal("expected deprecated protocol-v1 cell")
-	}
-	lts := apilts.New()
-	for _, cell := range deprecated {
-		if cell.ExpectsShimTelemetry {
-			lts.RecordShimCall(apilts.ProtocolV1ContractID)
-		}
-	}
-	snap := lts.Snapshot()
-	found := false
-	for _, row := range snap.ShimUsage {
-		if row.ContractID == apilts.ProtocolV1ContractID && row.Calls > 0 {
-			found = true
-		}
-	}
-	if !found {
-		t.Fatalf("shim telemetry missing: %#v", snap.ShimUsage)
 	}
 }
 
+// TestRunMatrixGatePassesRequiredAndDeprecated 跑完整农场：真实进程 + RPC + shim。
+// 不得直接 RecordShimCall；V1 计数必须来自 ProtocolStarter。
 func TestRunMatrixGatePassesRequiredAndDeprecated(t *testing.T) {
+	if testing.Short() {
+		t.Skip("compat farm builds real plugin binaries")
+	}
 	root := repoRoot(t)
 	matrixPath := filepath.Join(root, "tests", "compat", "matrix.yaml")
+	// postgres cells 需要 DATABASE_URL；开发 compose 默认端口 15432。
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		dbURL = os.Getenv("SFORUM_TEST_DATABASE_URL")
+	}
+	if dbURL == "" {
+		dbURL = "postgres://sforum:sforum@127.0.0.1:15432/sforum?sslmode=disable"
+	}
 	result, err := RunMatrix(context.Background(), matrixPath, RunOptions{
-		RepoRoot: root,
-		LTS:      apilts.New(),
-		Now:      func() time.Time { return time.Date(2026, 7, 22, 0, 0, 0, 0, time.UTC) },
+		RepoRoot:    root,
+		LTS:         apilts.New(),
+		DatabaseURL: dbURL,
+		WorkDir:     t.TempDir(),
+		Now:         func() time.Time { return time.Date(2026, 7, 22, 0, 0, 0, 0, time.UTC) },
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !result.OK {
-		t.Fatalf("farm not ok: %#v", result.Cells)
+		for _, cell := range result.Cells {
+			t.Logf("cell %s outcome=%s msg=%s evidence=%#v", cell.ID, cell.Outcome, cell.Message, cell.Evidence)
+		}
+		t.Fatalf("farm not ok")
 	}
 	if len(result.Cells) < 3 {
 		t.Fatalf("expected >=3 cells, got %d", len(result.Cells))
@@ -74,8 +75,14 @@ func TestRunMatrixGatePassesRequiredAndDeprecated(t *testing.T) {
 		if cell.Outcome != OutcomePass {
 			t.Fatalf("cell %s outcome=%s msg=%s", cell.ID, cell.Outcome, cell.Message)
 		}
+		if !cell.Evidence.ProcessStarted {
+			t.Fatalf("cell %s missing process start evidence", cell.ID)
+		}
+		if cell.Evidence.Request == "" || cell.Evidence.Response == "" {
+			t.Fatalf("cell %s missing request/response evidence: %#v", cell.ID, cell.Evidence)
+		}
 		if cell.ID == "deprecated-protocol-v1-shim" && cell.ShimCalls == 0 {
-			t.Fatal("deprecated cell must prove shim telemetry")
+			t.Fatal("deprecated cell must prove shim telemetry from real V1 RPC")
 		}
 	}
 }

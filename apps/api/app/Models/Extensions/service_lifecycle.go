@@ -333,6 +333,11 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 		}
 		return Extension{}, err
 	}
+	// 启用成功后从 Manifest 恢复 SettingsLifecycle Schema（供后台保存/迁移）。
+	if regErr := s.RegisterSettingsLifecycleFromManifest(enabled); regErr != nil {
+		s.recordEnableFailure(ctx, actor, enabled.ID, regErr)
+		return Extension{}, regErr
+	}
 	if enabled.Type == TypePlugin && enabled.Manifest.Backend.Entry != "" && s.runtime != nil {
 		var startErr error
 		if s.activation != nil {

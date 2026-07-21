@@ -52,7 +52,7 @@ const chipBase =
 
 <template>
   <article
-    class="grid min-h-[82px] min-w-0 grid-cols-[42px_minmax(0,1fr)_88px_50px_96px] items-center gap-x-[11px] border-b border-[var(--sf-border-light,#eef0f3)] px-2 py-3 transition-colors duration-100 last:border-b-0 hover:bg-[var(--sf-public-row-hover)] max-[1120px]:grid-cols-[42px_minmax(0,1fr)_50px_96px] max-[720px]:min-h-[72px] max-[720px]:grid-cols-[36px_minmax(0,1fr)_auto] max-[720px]:gap-x-2.5"
+    class="sf-home-topic-row grid min-h-[82px] min-w-0 grid-cols-[42px_minmax(0,1fr)_88px_50px_96px] items-center gap-x-[11px] border-b border-[var(--sf-border-light,#eef0f3)] px-2 py-3 transition-colors duration-100 last:border-b-0 hover:bg-[var(--sf-public-row-hover)] max-[1120px]:grid-cols-[42px_minmax(0,1fr)_50px_96px] max-[720px]:min-h-[72px] max-[720px]:grid-cols-[36px_minmax(0,1fr)] max-[720px]:gap-x-2.5"
     :class="topic.isPinned ? 'bg-[#f3f4f6] hover:bg-[#eceef1] dark:bg-slate-400/10 dark:hover:bg-slate-400/15' : ''"
     data-sf-component="forum.topic_list_row"
   >
@@ -110,7 +110,7 @@ const chipBase =
             {{ listBadgeLabel(badge) }}
           </span>
         </template>
-        <h2 class="m-0 min-w-0 flex-1 text-sm font-medium leading-snug text-[var(--sf-public-text)] [overflow-wrap:anywhere]">
+        <h2 class="m-0 min-w-0 flex-1 text-sm font-semibold leading-snug text-[var(--sf-public-text)] [overflow-wrap:anywhere]">
           <NuxtLink
             :to="to"
             class="text-inherit no-underline hover:text-[var(--sf-accent)]"
@@ -140,17 +140,20 @@ const chipBase =
         <time :datetime="topic.lastActivityAt || topic.createdAt">
           {{ activityLabel }}
         </time>
+        <span class="sf-home-topic-row__mobile-replies hidden max-[720px]:inline-flex">
+          {{ t('home.feed.replyCount', { count: topic.commentCount }) }}
+        </span>
       </div>
     </div>
 
     <NuxtLink
       :to="localePath(`/c/${topic.categorySlug}`)"
-      :class="[chipBase, categoryChipClass, 'justify-self-start max-[1120px]:hidden']"
+      :class="[chipBase, categoryChipClass, 'sf-home-topic-row__category justify-self-start max-[1120px]:hidden']"
     >
       {{ topic.categoryName }}
     </NuxtLink>
 
-    <div class="text-right text-[11px] leading-snug text-[var(--sf-public-text-muted)] max-[720px]:self-start">
+    <div class="sf-home-topic-row__replies text-right text-[11px] leading-snug text-[var(--sf-public-text-muted)] max-[720px]:hidden">
       <b class="block text-sm font-semibold tabular-nums text-[var(--sf-public-text-secondary)]">
         {{ topic.commentCount }}
       </b>

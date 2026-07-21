@@ -93,3 +93,30 @@ func TestNormalizeMode(t *testing.T) {
 		t.Fatal("default reject")
 	}
 }
+
+func TestPayloadStringContentObject(t *testing.T) {
+	// Protocol V2 规范化后 content 是 ContentInput 形状的 object。
+	payload := map[string]any{
+		"content": map[string]any{
+			"rawContent":   "<p>blocked word</p>",
+			"sourceFormat": "html",
+			"plainText":    "blocked word",
+		},
+		"title": "hello",
+	}
+	if got := payloadString(payload, "title"); got != "hello" {
+		t.Fatalf("title string: got %q", got)
+	}
+	if got := payloadString(payload, "content"); got != "blocked word" {
+		t.Fatalf("prefer plainText: got %q", got)
+	}
+	// 无 plainText 时回退 rawContent。
+	payload["content"] = map[string]any{"rawContent": "raw only"}
+	if got := payloadString(payload, "content"); got != "raw only" {
+		t.Fatalf("rawContent fallback: got %q", got)
+	}
+	// 字符串形态仍兼容旧 payload / 单测。
+	if got := payloadString(map[string]any{"content": "plain"}, "content"); got != "plain" {
+		t.Fatalf("string content: got %q", got)
+	}
+}

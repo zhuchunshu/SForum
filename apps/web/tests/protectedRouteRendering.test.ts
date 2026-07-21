@@ -2,6 +2,14 @@ import { describe, expect, test } from 'bun:test'
 import { existsSync, readFileSync } from 'node:fs'
 
 describe('protected route rendering', () => {
+  test('avoids the nuxt-i18n Nitro context startup race', () => {
+    const config = readFileSync(new URL('../nuxt.config.ts', import.meta.url), 'utf8')
+
+    expect(config).toMatch(/experimental\s*:\s*\{[^}]*nitroContextDetection\s*:\s*false/s)
+    expect(config).toContain("strategy: 'prefix_except_default'")
+    expect(config).toContain('detectBrowserLanguage: {')
+  })
+
   test('does not serve protected user workflows as empty SPA shells', () => {
     const config = readFileSync(new URL('../nuxt.config.ts', import.meta.url), 'utf8')
     const protectedRoutes = [
@@ -45,6 +53,19 @@ describe('protected route rendering', () => {
     const source = readFileSync(middlewarePath, 'utf8')
     expect(source).toContain('sforum_session')
     expect(source).toContain('searchParams.has(\'edit\')')
+    expect(source).toContain('routeRules.cache = false')
+    expect(source).toContain('routeRules.swr = false')
+  })
+
+  test('disables shared page caching for every session-bearing SSR request', () => {
+    const middlewarePath = new URL('../server/middleware/public-session-cache.ts', import.meta.url)
+    expect(existsSync(middlewarePath)).toBe(true)
+
+    const source = readFileSync(middlewarePath, 'utf8')
+    expect(source).toContain('sforum_session')
+    expect(source).toContain("accept.includes('text/html')")
+    expect(source).toContain("path.endsWith('/_payload.json')")
+    expect(source).toContain("setHeader(event, 'cache-control', 'no-store')")
     expect(source).toContain('routeRules.cache = false')
     expect(source).toContain('routeRules.swr = false')
   })

@@ -234,6 +234,51 @@ type AdminUserDetail struct {
 	Permissions         []string            `json:"permissions"`
 	PermissionOverrides PermissionOverrides `json:"permissionOverrides"`
 	Profile             AdminUserProfile    `json:"profile"`
+	// 以下字段供后台「用户信息预览」使用：含完整 IP / UA，仅 user.view 管理端可见。
+	// 自服务设备列表仍只暴露脱敏 ipPrefix，不走本结构。
+	Activity            AdminUserActivity     `json:"activity"`
+	Sessions            []AdminSessionInspect `json:"sessions"`
+	RecentAuthEvents    []AdminAuthEvent      `json:"recentAuthEvents"`
+	PasswordChangedAt   *time.Time            `json:"passwordChangedAt,omitempty"`
+}
+
+// AdminUserActivity 汇总活跃度与最近登录线索。
+type AdminUserActivity struct {
+	TopicCount         int64      `json:"topicCount"`
+	CommentCount       int64      `json:"commentCount"`
+	ActiveSessionCount int64      `json:"activeSessionCount"`
+	TotalSessionCount  int64      `json:"totalSessionCount"`
+	LastLoginAt        *time.Time `json:"lastLoginAt,omitempty"`
+	LastLoginIP        string     `json:"lastLoginIP"`
+	LastLoginUserAgent string     `json:"lastLoginUserAgent"`
+	LastSeenAt         *time.Time `json:"lastSeenAt,omitempty"`
+}
+
+// AdminSessionInspect 是管理端会话排查视图：暴露完整 IP 与原始 User-Agent。
+// 不包含任何可用于劫持会话的凭证（无 cookie id / raw token）。
+type AdminSessionInspect struct {
+	ID           string     `json:"id"`
+	DeviceName   string     `json:"deviceName"`
+	Browser      string     `json:"browser"`
+	OS           string     `json:"os"`
+	IPPrefix     string     `json:"ipPrefix"`
+	IPAddress    string     `json:"ipAddress"`
+	UserAgent    string     `json:"userAgent"`
+	CreatedAt    time.Time  `json:"createdAt"`
+	LastSeenAt   time.Time  `json:"lastSeenAt"`
+	IsActive     bool       `json:"isActive"`
+	RevokedAt    *time.Time `json:"revokedAt,omitempty"`
+	RevokeReason string     `json:"revokeReason"`
+}
+
+// AdminAuthEvent 是登录/注册等身份审计事件的管理端视图。
+type AdminAuthEvent struct {
+	ID          int64     `json:"id"`
+	Action      string    `json:"action"`
+	IPAddress   string    `json:"ipAddress"`
+	UserAgent   string    `json:"userAgent"`
+	SessionHash string    `json:"sessionHash"`
+	CreatedAt   time.Time `json:"createdAt"`
 }
 
 // AdminUpdateUserInput 管理员更新账户/资料。指针字段为 nil 表示不改。

@@ -35,7 +35,12 @@ Initial identity foundation is implemented.
   permission override replacement.
 - Admin user list is paged (default 20 per page, max 100). Admin user detail
   includes `createdAt`/`updatedAt`, public `profile` (bio/signature/location/
-  websiteUrl), effective permissions, and permission overrides. `PATCH` accepts
+  websiteUrl), effective permissions, and permission overrides. Detail also
+  carries admin-only inspection fields for the users-page preview modal:
+  `activity` (topic/comment/session counts, last login IP/UA), `sessions`
+  (full `ipAddress` + raw `userAgent`, not the self-service masked prefix only),
+  `recentAuthEvents` (login/register audit IP/UA), and `passwordChangedAt`.
+  Self-service device lists still expose only masked `ipPrefix`. `PATCH` accepts
   partial account + profile fields; `user.manage` required, `banned` also needs
   `user.ban`; operators cannot change their own status; non-super-admin cannot
   edit super_admin accounts; initial super admin cannot be disabled/banned.

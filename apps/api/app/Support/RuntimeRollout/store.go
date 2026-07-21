@@ -48,11 +48,15 @@ func (m *MemoryStore) Create(_ context.Context, plan Plan) (Plan, error) {
 			return Plan{}, ErrConflict
 		}
 	}
-	m.plans[plan.PlanID] = clonePlan(plan)
-	return clonePlan(plan), nil
+	created := clonePlan(plan)
+	if created.Revision < 1 {
+		created.Revision = 1
+	}
+	m.plans[plan.PlanID] = created
+	return clonePlan(created), nil
 }
 
-// Save implements PlanStore.
+// Save implements PlanStore with revision CAS.
 func (m *MemoryStore) Save(_ context.Context, plan Plan) (Plan, error) {
 	if m == nil {
 		return Plan{}, ErrNotFound
@@ -62,11 +66,18 @@ func (m *MemoryStore) Save(_ context.Context, plan Plan) (Plan, error) {
 	if m.plans == nil {
 		return Plan{}, ErrNotFound
 	}
-	if _, ok := m.plans[plan.PlanID]; !ok {
+	current, ok := m.plans[plan.PlanID]
+	if !ok {
 		return Plan{}, ErrNotFound
 	}
-	m.plans[plan.PlanID] = clonePlan(plan)
-	return clonePlan(plan), nil
+	// expectedRevision 0 表示不校验（兼容旧调用）；正值必须匹配。
+	if plan.Revision > 0 && current.Revision != plan.Revision {
+		return Plan{}, ErrConflict
+	}
+	next := clonePlan(plan)
+	next.Revision = current.Revision + 1
+	m.plans[plan.PlanID] = next
+	return clonePlan(next), nil
 }
 
 // Get implements PlanStore.

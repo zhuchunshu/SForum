@@ -301,6 +301,30 @@ func (s *Service) finishLifecycleV2(
 	}
 	if result.Operation.TerminalResult == LifecycleTerminalSucceeded && !result.Replayed {
 		s.emitLifecycleCompatibilityEvent(ctx, actor, request.operation, current)
+		// 升级/启用成功后恢复 Schema，并在升级时跑 SettingsLifecycle 迁移（失败不改 revision）。
+		switch request.operation {
+		case LifecycleMachineEnable, LifecycleMachineUpgrade, LifecycleMachineRollback:
+			if regErr := s.RegisterSettingsLifecycleFromManifest(current); regErr != nil {
+				return Extension{}, regErr
+			}
+			if request.operation == LifecycleMachineUpgrade {
+				sourceExt := current
+				if request.source != nil {
+					sourceExt = *request.source
+				}
+				if migErr := s.migrateSettingsOnUpgrade(ctx, actor, current); migErr != nil {
+					// 失败迁移：RuntimeRollout 标记 fail，且不推进设置 revision。
+					if s.runtimeRollout != nil {
+						_, _ = s.DriveRuntimeRolloutForStagedUpgrade(ctx, actor, sourceExt, current, false, migErr)
+					}
+					return Extension{}, migErr
+				}
+				// 真实 staged version → 迁移就绪 → 节点确认 → 晋升。
+				if _, rollErr := s.DriveRuntimeRolloutForStagedUpgrade(ctx, actor, sourceExt, current, true, nil); rollErr != nil {
+					return Extension{}, rollErr
+				}
+			}
+		}
 	}
 	return s.decorateRuntime(ctx, current), nil
 }

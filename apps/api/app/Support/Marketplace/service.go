@@ -56,6 +56,26 @@ func NewWithOptions(opts Options) *Service {
 	}
 }
 
+// BindInstaller late-binds Host staged install + RuntimeRollout after bootstrap.
+func (s *Service) BindInstaller(installer Installer) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	s.installer = installer
+	s.mu.Unlock()
+}
+
+// Installer returns the bound installer (may be nil until production bind).
+func (s *Service) Installer() Installer {
+	if s == nil {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.installer
+}
+
 // LoadIndex verifies signature (unless AllowUnsigned) and replaces the active index
 // with a full deep copy of Entries/Dependencies/Notices.
 func (s *Service) LoadIndex(index Index) error {

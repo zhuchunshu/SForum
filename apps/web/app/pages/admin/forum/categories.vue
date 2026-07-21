@@ -27,6 +27,8 @@ const { request } = useApiClient()
 const forumApi = createAdminForumApi(request)
 const adminPage = useAdminPage('/forum/categories')
 
+const groupModalOpen = ref(false)
+const categoryModalOpen = ref(false)
 const editingGroupId = ref<number | null>(null)
 const editingCategoryId = ref<number | null>(null)
 const savingGroup = ref(false)
@@ -40,12 +42,6 @@ const { data: groups, pending, error, refresh } = await useAsyncData(
   () => forumApi.listCategoryGroups(),
   { default: () => [] as ForumCategoryGroup[] }
 )
-
-watch(groups, () => {
-  if (!categoryForm.groupId && groups.value[0]) {
-    categoryForm.groupId = groups.value[0].id
-  }
-}, { immediate: true })
 
 useSeoMeta({
   title: t('admin.forum.categories.metaTitle')
@@ -83,6 +79,54 @@ function clearCategoryColor() {
   categoryForm.iconColor = ''
 }
 
+function openCreateGroup() {
+  editingGroupId.value = null
+  Object.assign(groupForm, createCategoryGroupPayload())
+  groupModalOpen.value = true
+}
+
+function openEditGroup(group: ForumCategoryGroup) {
+  editingGroupId.value = group.id
+  Object.assign(groupForm, createCategoryGroupPayload(group))
+  groupModalOpen.value = true
+}
+
+function closeGroupModal() {
+  groupModalOpen.value = false
+  editingGroupId.value = null
+  Object.assign(groupForm, createCategoryGroupPayload())
+}
+
+function openCreateCategory(preferredGroupId?: number) {
+  if (groups.value.length === 0) {
+    toast.add({
+      color: 'warning',
+      icon: 'i-lucide-info',
+      title: t('admin.forum.categories.noGroupsForCategoryTitle'),
+      description: t('admin.forum.categories.noGroupsForCategoryDescription'),
+      duration: 10000
+    })
+    return
+  }
+
+  editingCategoryId.value = null
+  const groupId = preferredGroupId || groups.value[0]?.id || 0
+  Object.assign(categoryForm, createCategoryPayload(groupId))
+  categoryModalOpen.value = true
+}
+
+function openEditCategory(category: ForumCategory) {
+  editingCategoryId.value = category.id
+  Object.assign(categoryForm, createCategoryPayload(category.groupId, category))
+  categoryModalOpen.value = true
+}
+
+function closeCategoryModal() {
+  categoryModalOpen.value = false
+  editingCategoryId.value = null
+  Object.assign(categoryForm, createCategoryPayload(groups.value[0]?.id || 0))
+}
+
 async function saveGroup() {
   savingGroup.value = true
   try {
@@ -93,7 +137,7 @@ async function saveGroup() {
       await forumApi.createCategoryGroup(groupPayload())
       successToast(t('admin.forum.categories.groupCreated'))
     }
-    resetGroupForm()
+    closeGroupModal()
     await refresh()
   } catch (error) {
     errorToast(error, t('admin.forum.categories.groupSaveFailed'))
@@ -112,33 +156,13 @@ async function saveCategory() {
       await forumApi.createCategory(categoryPayload())
       successToast(t('admin.forum.categories.categoryCreated'))
     }
-    resetCategoryForm()
+    closeCategoryModal()
     await refresh()
   } catch (error) {
     errorToast(error, t('admin.forum.categories.categorySaveFailed'))
   } finally {
     savingCategory.value = false
   }
-}
-
-function editGroup(group: ForumCategoryGroup) {
-  editingGroupId.value = group.id
-  Object.assign(groupForm, createCategoryGroupPayload(group))
-}
-
-function editCategory(category: ForumCategory) {
-  editingCategoryId.value = category.id
-  Object.assign(categoryForm, createCategoryPayload(category.groupId, category))
-}
-
-function resetGroupForm() {
-  editingGroupId.value = null
-  Object.assign(groupForm, createCategoryGroupPayload())
-}
-
-function resetCategoryForm() {
-  editingCategoryId.value = null
-  Object.assign(categoryForm, createCategoryPayload(groups.value[0]?.id || 0))
 }
 
 function groupPayload(): AdminForumCategoryGroupPayload {
@@ -199,16 +223,34 @@ function errorToast(error: unknown, fallback: string) {
       </div>
     </template>
     <template #right>
-      <UButton
-        color="neutral"
-        variant="outline"
-        leading-icon="i-lucide-refresh-cw"
-        :loading="pending"
-        class="border-slate-200 dark:border-zinc-700"
-        @click="refresh()"
-      >
-        {{ t('admin.common.refresh') }}
-      </UButton>
+      <div class="flex flex-wrap items-center gap-2">
+        <UButton
+          color="neutral"
+          variant="outline"
+          leading-icon="i-lucide-refresh-cw"
+          :loading="pending"
+          class="border-slate-200 dark:border-zinc-700"
+          @click="refresh()"
+        >
+          {{ t('admin.common.refresh') }}
+        </UButton>
+        <UButton
+          color="neutral"
+          variant="outline"
+          leading-icon="i-lucide-folder-plus"
+          class="border-slate-200 dark:border-zinc-700"
+          @click="openCreateGroup"
+        >
+          {{ t('admin.forum.categories.createGroup') }}
+        </UButton>
+        <UButton
+          leading-icon="i-lucide-plus"
+          :disabled="!pending && groups.length === 0"
+          @click="openCreateCategory()"
+        >
+          {{ t('admin.forum.categories.createCategory') }}
+        </UButton>
+      </div>
     </template>
   </UDashboardToolbar>
 
@@ -228,191 +270,6 @@ function errorToast(error: unknown, fallback: string) {
       :title="t('admin.forum.categories.defaultsTitle')"
       :description="t('admin.forum.categories.defaultsDescription')"
     />
-
-    <div class="grid gap-4 xl:grid-cols-2">
-      <form @submit.prevent="saveGroup">
-        <UCard class="h-full border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-          <template #header>
-            <div class="flex items-center justify-between gap-3">
-              <div>
-                <h3 class="text-base font-bold text-slate-900 dark:text-white">
-                  {{ editingGroupId ? t('admin.forum.categories.editGroup') : t('admin.forum.categories.createGroup') }}
-                </h3>
-                <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
-                  {{ t('admin.forum.categories.groupHelp') }}
-                </p>
-              </div>
-              <UBadge color="neutral" variant="soft" class="font-mono">
-                category_groups
-              </UBadge>
-            </div>
-          </template>
-
-          <div class="grid gap-4">
-            <div class="grid gap-4 md:grid-cols-2">
-              <UFormField :label="t('admin.forum.categories.slug')" name="group-slug">
-                <UInput v-model="groupForm.slug" icon="i-lucide-link" required class="w-full" placeholder="default" />
-              </UFormField>
-              <UFormField :label="t('admin.forum.categories.name')" name="group-name">
-                <UInput v-model="groupForm.name" icon="i-lucide-folder" required class="w-full" />
-              </UFormField>
-            </div>
-
-            <UFormField :label="t('admin.forum.categories.description')" name="group-description">
-              <UTextarea v-model="groupForm.description" autoresize class="w-full" />
-            </UFormField>
-
-            <div class="grid gap-4 md:grid-cols-2">
-              <UFormField :label="t('admin.forum.categories.visibility')" name="group-visibility">
-                <select v-model="groupForm.visibility" class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100">
-                  <option v-for="choice in forumVisibilityChoices" :key="choice" :value="choice">
-                    {{ t(`admin.forum.visibility.${choice}`) }}
-                  </option>
-                </select>
-              </UFormField>
-              <UFormField :label="t('admin.forum.categories.position')" name="group-position">
-                <UInput v-model.number="groupForm.position" icon="i-lucide-list-ordered" type="number" step="1" class="w-full" />
-              </UFormField>
-            </div>
-          </div>
-
-          <template #footer>
-            <div class="flex flex-wrap justify-end gap-2">
-              <UButton type="button" color="neutral" variant="ghost" leading-icon="i-lucide-rotate-ccw" @click="resetGroupForm">
-                {{ t('admin.common.reset') }}
-              </UButton>
-              <UButton type="submit" leading-icon="i-lucide-save" :loading="savingGroup">
-                {{ t('admin.common.save') }}
-              </UButton>
-            </div>
-          </template>
-        </UCard>
-      </form>
-
-      <form @submit.prevent="saveCategory">
-        <UCard class="h-full border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-          <template #header>
-            <div class="flex items-center justify-between gap-3">
-              <div>
-                <h3 class="text-base font-bold text-slate-900 dark:text-white">
-                  {{ editingCategoryId ? t('admin.forum.categories.editCategory') : t('admin.forum.categories.createCategory') }}
-                </h3>
-                <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
-                  {{ t('admin.forum.categories.categoryHelp', { group: selectedGroupName }) }}
-                </p>
-              </div>
-              <UBadge color="neutral" variant="soft" class="font-mono">
-                categories
-              </UBadge>
-            </div>
-          </template>
-
-          <div class="grid gap-4">
-            <!-- 无分组：整表先停用，避免空 select + 可填无效字段 -->
-            <div
-              v-if="!pending && groups.length === 0"
-              class="rounded-lg border border-dashed border-amber-200 bg-amber-50/70 px-4 py-4 text-sm text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100"
-            >
-              <p class="font-semibold">{{ t('admin.forum.categories.noGroupsForCategoryTitle') }}</p>
-              <p class="mt-1 text-xs leading-5 text-amber-800 dark:text-amber-200">
-                {{ t('admin.forum.categories.noGroupsForCategoryDescription') }}
-              </p>
-            </div>
-
-            <template v-else>
-              <UFormField :label="t('admin.forum.categories.group')" name="category-group">
-                <select
-                  v-model.number="categoryForm.groupId"
-                  class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
-                >
-                  <option v-if="!categoryForm.groupId" value="0" disabled>
-                    {{ t('admin.forum.categories.groupPlaceholder') }}
-                  </option>
-                  <option v-for="group in groupOptions" :key="group.value" :value="group.value">
-                    {{ group.label }}
-                  </option>
-                </select>
-              </UFormField>
-
-              <div class="grid gap-4 md:grid-cols-2">
-                <UFormField :label="t('admin.forum.categories.slug')" name="category-slug">
-                  <UInput v-model="categoryForm.slug" icon="i-lucide-link" required class="w-full" placeholder="general" />
-                </UFormField>
-                <UFormField :label="t('admin.forum.categories.name')" name="category-name">
-                  <UInput v-model="categoryForm.name" icon="i-lucide-folder-open" required class="w-full" />
-                </UFormField>
-              </div>
-
-              <UFormField :label="t('admin.forum.categories.description')" name="category-description">
-                <UTextarea v-model="categoryForm.description" autoresize class="w-full" />
-              </UFormField>
-
-              <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
-                <LazySFIconPicker
-                  v-model="categoryForm.icon"
-                  :label="t('admin.forum.visual.icon')"
-                  :hint="t('admin.forum.visual.iconHelp')"
-                />
-                <UFormField :label="t('admin.forum.visual.iconColor')" name="category-icon-color">
-                  <div class="grid gap-2">
-                    <div class="flex items-center gap-2">
-                      <input
-                        :value="colorInputValue(categoryForm.iconColor)"
-                        type="color"
-                        class="h-10 w-12 rounded-md border border-slate-200 bg-white p-1 dark:border-zinc-700 dark:bg-zinc-950"
-                        :aria-label="t('admin.forum.visual.iconColor')"
-                        @input="setCategoryColor"
-                      >
-                      <UInput v-model="categoryForm.iconColor" placeholder="#0f766e" class="min-w-0 flex-1" />
-                    </div>
-                    <div class="flex items-center justify-between gap-2">
-                      <span class="inline-flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400">
-                        <UIcon :name="categoryPreviewIcon(categoryForm)" class="size-4" :style="{ color: taxonomyPreviewColor(categoryForm.iconColor) }" />
-                        {{ categoryForm.iconColor || t('admin.forum.visual.defaultAccent') }}
-                      </span>
-                      <UButton type="button" size="xs" color="neutral" variant="ghost" leading-icon="i-lucide-x" @click="clearCategoryColor">
-                        {{ t('admin.forum.visual.clearColor') }}
-                      </UButton>
-                    </div>
-                  </div>
-                </UFormField>
-              </div>
-
-              <div class="grid gap-4 md:grid-cols-3">
-                <UFormField :label="t('admin.forum.categories.visibility')" name="category-visibility">
-                  <select v-model="categoryForm.visibility" class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100">
-                    <option v-for="choice in forumVisibilityChoices" :key="choice" :value="choice">
-                      {{ t(`admin.forum.visibility.${choice}`) }}
-                    </option>
-                  </select>
-                </UFormField>
-                <UFormField :label="t('admin.forum.categories.defaultSort')" name="category-sort">
-                  <select v-model="categoryForm.defaultSort" class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100">
-                    <option v-for="choice in forumCategorySortChoices" :key="choice" :value="choice">
-                      {{ t(`admin.forum.sort.${choice}`) }}
-                    </option>
-                  </select>
-                </UFormField>
-                <UFormField :label="t('admin.forum.categories.position')" name="category-position">
-                  <UInput v-model.number="categoryForm.position" icon="i-lucide-list-ordered" type="number" step="1" class="w-full" />
-                </UFormField>
-              </div>
-            </template>
-          </div>
-
-          <template #footer>
-            <div class="flex flex-wrap justify-end gap-2">
-              <UButton type="button" color="neutral" variant="ghost" leading-icon="i-lucide-rotate-ccw" @click="resetCategoryForm">
-                {{ t('admin.common.reset') }}
-              </UButton>
-              <UButton type="submit" leading-icon="i-lucide-save" :loading="savingCategory" :disabled="groups.length === 0">
-                {{ t('admin.common.save') }}
-              </UButton>
-            </div>
-          </template>
-        </UCard>
-      </form>
-    </div>
 
     <UCard class="border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
       <template #header>
@@ -457,9 +314,26 @@ function errorToast(error: unknown, fallback: string) {
                 {{ t('admin.forum.categories.positionValue', { value: group.position }) }}
               </p>
             </div>
-            <UButton color="neutral" variant="outline" size="sm" leading-icon="i-lucide-pencil" @click="editGroup(group)">
-              {{ t('admin.common.edit') }}
-            </UButton>
+            <div class="flex flex-wrap items-center gap-2">
+              <UButton
+                color="neutral"
+                variant="outline"
+                size="sm"
+                leading-icon="i-lucide-plus"
+                @click="openCreateCategory(group.id)"
+              >
+                {{ t('admin.forum.categories.createCategory') }}
+              </UButton>
+              <UButton
+                color="neutral"
+                variant="outline"
+                size="sm"
+                leading-icon="i-lucide-pencil"
+                @click="openEditGroup(group)"
+              >
+                {{ t('admin.common.edit') }}
+              </UButton>
+            </div>
           </div>
 
           <div v-if="group.categories?.length" class="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
@@ -490,7 +364,7 @@ function errorToast(error: unknown, fallback: string) {
                   {{ t('admin.forum.categories.categoryMeta', { topics: category.topicCount, comments: category.commentCount, sort: t(`admin.forum.sort.${category.defaultSort}`), position: category.position }) }}
                 </p>
               </div>
-              <UButton color="neutral" variant="ghost" size="sm" leading-icon="i-lucide-pencil" @click="editCategory(category)">
+              <UButton color="neutral" variant="ghost" size="sm" leading-icon="i-lucide-pencil" @click="openEditCategory(category)">
                 {{ t('admin.common.edit') }}
               </UButton>
             </div>
@@ -512,4 +386,190 @@ function errorToast(error: unknown, fallback: string) {
       />
     </UCard>
   </div>
+
+  <!-- 分组：新建 / 编辑 -->
+  <UModal
+    v-model:open="groupModalOpen"
+    :ui="{ content: 'sm:max-w-xl' }"
+    @update:open="(open) => { if (!open) closeGroupModal() }"
+  >
+    <template #content>
+      <form class="flex max-h-[85vh] flex-col" @submit.prevent="saveGroup">
+        <div class="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4 dark:border-zinc-800">
+          <div class="min-w-0">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white">
+              {{ editingGroupId ? t('admin.forum.categories.editGroup') : t('admin.forum.categories.createGroup') }}
+            </h3>
+            <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
+              {{ t('admin.forum.categories.groupHelp') }}
+            </p>
+          </div>
+          <UButton
+            type="button"
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-x"
+            :aria-label="t('admin.common.cancel')"
+            @click="closeGroupModal"
+          />
+        </div>
+
+        <div class="grid flex-1 gap-4 overflow-y-auto px-5 py-4">
+          <div class="grid gap-4 md:grid-cols-2">
+            <UFormField :label="t('admin.forum.categories.slug')" name="group-slug">
+              <UInput v-model="groupForm.slug" icon="i-lucide-link" required class="w-full" placeholder="default" />
+            </UFormField>
+            <UFormField :label="t('admin.forum.categories.name')" name="group-name">
+              <UInput v-model="groupForm.name" icon="i-lucide-folder" required class="w-full" />
+            </UFormField>
+          </div>
+
+          <UFormField :label="t('admin.forum.categories.description')" name="group-description">
+            <UTextarea v-model="groupForm.description" autoresize class="w-full" />
+          </UFormField>
+
+          <div class="grid gap-4 md:grid-cols-2">
+            <UFormField :label="t('admin.forum.categories.visibility')" name="group-visibility">
+              <select v-model="groupForm.visibility" class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100">
+                <option v-for="choice in forumVisibilityChoices" :key="choice" :value="choice">
+                  {{ t(`admin.forum.visibility.${choice}`) }}
+                </option>
+              </select>
+            </UFormField>
+            <UFormField :label="t('admin.forum.categories.position')" name="group-position">
+              <UInput v-model.number="groupForm.position" icon="i-lucide-list-ordered" type="number" step="1" class="w-full" />
+            </UFormField>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap justify-end gap-2 border-t border-slate-200 px-5 py-4 dark:border-zinc-800">
+          <UButton type="button" color="neutral" variant="ghost" @click="closeGroupModal">
+            {{ t('admin.common.cancel') }}
+          </UButton>
+          <UButton type="submit" leading-icon="i-lucide-save" :loading="savingGroup">
+            {{ t('admin.common.save') }}
+          </UButton>
+        </div>
+      </form>
+    </template>
+  </UModal>
+
+  <!-- 分类：新建 / 编辑 -->
+  <UModal
+    v-model:open="categoryModalOpen"
+    :ui="{ content: 'sm:max-w-2xl' }"
+    @update:open="(open) => { if (!open) closeCategoryModal() }"
+  >
+    <template #content>
+      <form class="flex max-h-[85vh] flex-col" @submit.prevent="saveCategory">
+        <div class="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4 dark:border-zinc-800">
+          <div class="min-w-0">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white">
+              {{ editingCategoryId ? t('admin.forum.categories.editCategory') : t('admin.forum.categories.createCategory') }}
+            </h3>
+            <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
+              {{ t('admin.forum.categories.categoryHelp', { group: selectedGroupName }) }}
+            </p>
+          </div>
+          <UButton
+            type="button"
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-x"
+            :aria-label="t('admin.common.cancel')"
+            @click="closeCategoryModal"
+          />
+        </div>
+
+        <div class="grid flex-1 gap-4 overflow-y-auto px-5 py-4">
+          <UFormField :label="t('admin.forum.categories.group')" name="category-group">
+            <select
+              v-model.number="categoryForm.groupId"
+              class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+            >
+              <option v-if="!categoryForm.groupId" value="0" disabled>
+                {{ t('admin.forum.categories.groupPlaceholder') }}
+              </option>
+              <option v-for="group in groupOptions" :key="group.value" :value="group.value">
+                {{ group.label }}
+              </option>
+            </select>
+          </UFormField>
+
+          <div class="grid gap-4 md:grid-cols-2">
+            <UFormField :label="t('admin.forum.categories.slug')" name="category-slug">
+              <UInput v-model="categoryForm.slug" icon="i-lucide-link" required class="w-full" placeholder="general" />
+            </UFormField>
+            <UFormField :label="t('admin.forum.categories.name')" name="category-name">
+              <UInput v-model="categoryForm.name" icon="i-lucide-folder-open" required class="w-full" />
+            </UFormField>
+          </div>
+
+          <UFormField :label="t('admin.forum.categories.description')" name="category-description">
+            <UTextarea v-model="categoryForm.description" autoresize class="w-full" />
+          </UFormField>
+
+          <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+            <LazySFIconPicker
+              v-model="categoryForm.icon"
+              :label="t('admin.forum.visual.icon')"
+              :hint="t('admin.forum.visual.iconHelp')"
+            />
+            <UFormField :label="t('admin.forum.visual.iconColor')" name="category-icon-color">
+              <div class="grid gap-2">
+                <div class="flex items-center gap-2">
+                  <input
+                    :value="colorInputValue(categoryForm.iconColor)"
+                    type="color"
+                    class="h-10 w-12 rounded-md border border-slate-200 bg-white p-1 dark:border-zinc-700 dark:bg-zinc-950"
+                    :aria-label="t('admin.forum.visual.iconColor')"
+                    @input="setCategoryColor"
+                  >
+                  <UInput v-model="categoryForm.iconColor" placeholder="#0f766e" class="min-w-0 flex-1" />
+                </div>
+                <div class="flex items-center justify-between gap-2">
+                  <span class="inline-flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400">
+                    <UIcon :name="categoryPreviewIcon(categoryForm)" class="size-4" :style="{ color: taxonomyPreviewColor(categoryForm.iconColor) }" />
+                    {{ categoryForm.iconColor || t('admin.forum.visual.defaultAccent') }}
+                  </span>
+                  <UButton type="button" size="xs" color="neutral" variant="ghost" leading-icon="i-lucide-x" @click="clearCategoryColor">
+                    {{ t('admin.forum.visual.clearColor') }}
+                  </UButton>
+                </div>
+              </div>
+            </UFormField>
+          </div>
+
+          <div class="grid gap-4 md:grid-cols-3">
+            <UFormField :label="t('admin.forum.categories.visibility')" name="category-visibility">
+              <select v-model="categoryForm.visibility" class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100">
+                <option v-for="choice in forumVisibilityChoices" :key="choice" :value="choice">
+                  {{ t(`admin.forum.visibility.${choice}`) }}
+                </option>
+              </select>
+            </UFormField>
+            <UFormField :label="t('admin.forum.categories.defaultSort')" name="category-sort">
+              <select v-model="categoryForm.defaultSort" class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100">
+                <option v-for="choice in forumCategorySortChoices" :key="choice" :value="choice">
+                  {{ t(`admin.forum.sort.${choice}`) }}
+                </option>
+              </select>
+            </UFormField>
+            <UFormField :label="t('admin.forum.categories.position')" name="category-position">
+              <UInput v-model.number="categoryForm.position" icon="i-lucide-list-ordered" type="number" step="1" class="w-full" />
+            </UFormField>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap justify-end gap-2 border-t border-slate-200 px-5 py-4 dark:border-zinc-800">
+          <UButton type="button" color="neutral" variant="ghost" @click="closeCategoryModal">
+            {{ t('admin.common.cancel') }}
+          </UButton>
+          <UButton type="submit" leading-icon="i-lucide-save" :loading="savingCategory" :disabled="groups.length === 0">
+            {{ t('admin.common.save') }}
+          </UButton>
+        </div>
+      </form>
+    </template>
+  </UModal>
 </template>

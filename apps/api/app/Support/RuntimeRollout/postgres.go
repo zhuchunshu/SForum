@@ -73,7 +73,8 @@ func (s *PostgresStore) Create(ctx context.Context, plan Plan) (Plan, error) {
 	return clonePlan(plan), nil
 }
 
-// Save updates a plan row.
+// Save updates a plan row under SELECT FOR UPDATE + revision CAS.
+// Concurrent Ack/Promote/Rollback: only one winner advances revision.
 func (s *PostgresStore) Save(ctx context.Context, plan Plan) (Plan, error) {
 	if s == nil || s.pool == nil || ctx == nil {
 		return Plan{}, ErrInvalid
@@ -87,7 +88,32 @@ func (s *PostgresStore) Save(ctx context.Context, plan Plan) (Plan, error) {
 	if err != nil {
 		return Plan{}, ErrInvalid
 	}
-	tag, err := s.pool.Exec(ctx, `
+
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
+	if err != nil {
+		return Plan{}, err
+	}
+	defer func() { _ = tx.Rollback(context.Background()) }()
+
+	var currentRev int64
+	err = tx.QueryRow(ctx, `
+		SELECT revision FROM runtime_rollout_plans WHERE plan_id = $1 FOR UPDATE
+	`, plan.PlanID).Scan(&currentRev)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Plan{}, ErrNotFound
+	}
+	if err != nil {
+		return Plan{}, err
+	}
+	// plan.Revision 是调用方从 Get 读到的期望值；0 表示跳过 CAS（仅 Create 后首次）。
+	if plan.Revision > 0 && currentRev != plan.Revision {
+		return Plan{}, ErrConflict
+	}
+	nextRev := currentRev + 1
+	if nextRev < 1 {
+		nextRev = 1
+	}
+	tag, err := tx.Exec(ctx, `
 		UPDATE runtime_rollout_plans SET
 			migration_ready = $2,
 			canary_percent = $3,
@@ -99,17 +125,22 @@ func (s *PostgresStore) Save(ctx context.Context, plan Plan) (Plan, error) {
 			last_error = $9,
 			retained_digests = $10::jsonb,
 			node_acks = $11::jsonb,
-			updated_at = $12
-		WHERE plan_id = $1
+			updated_at = $12,
+			revision = $13
+		WHERE plan_id = $1 AND revision = $14
 	`, plan.PlanID, plan.MigrationReady, plan.CanaryPercent, plan.Phase,
 		plan.SnapshotID, plan.RetainVersions, plan.Actor, plan.Reason, plan.LastError,
-		string(retained), string(acks), plan.UpdatedAt)
+		string(retained), string(acks), plan.UpdatedAt, nextRev, currentRev)
 	if err != nil {
 		return Plan{}, err
 	}
 	if tag.RowsAffected() == 0 {
-		return Plan{}, ErrNotFound
+		return Plan{}, ErrConflict
 	}
+	if err := tx.Commit(ctx); err != nil {
+		return Plan{}, err
+	}
+	plan.Revision = nextRev
 	return clonePlan(plan), nil
 }
 
@@ -121,7 +152,7 @@ func (s *PostgresStore) Get(ctx context.Context, planID string) (Plan, error) {
 	plan, err := scanPlan(ctx, s.pool, `
 		SELECT plan_id, schema_version, extension_id, source_digest, target_digest,
 			migration_ready, canary_percent, phase, snapshot_id, retain_versions,
-			actor, reason, last_error, retained_digests, node_acks, updated_at
+			actor, reason, last_error, retained_digests, node_acks, updated_at, revision
 		FROM runtime_rollout_plans WHERE plan_id = $1
 	`, strings.TrimSpace(planID))
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -142,14 +173,14 @@ func (s *PostgresStore) List(ctx context.Context, extensionID string) ([]Plan, e
 		rows, err = s.pool.Query(ctx, `
 			SELECT plan_id, schema_version, extension_id, source_digest, target_digest,
 				migration_ready, canary_percent, phase, snapshot_id, retain_versions,
-				actor, reason, last_error, retained_digests, node_acks, updated_at
+				actor, reason, last_error, retained_digests, node_acks, updated_at, revision
 			FROM runtime_rollout_plans ORDER BY plan_id
 		`)
 	} else {
 		rows, err = s.pool.Query(ctx, `
 			SELECT plan_id, schema_version, extension_id, source_digest, target_digest,
 				migration_ready, canary_percent, phase, snapshot_id, retain_versions,
-				actor, reason, last_error, retained_digests, node_acks, updated_at
+				actor, reason, last_error, retained_digests, node_acks, updated_at, revision
 			FROM runtime_rollout_plans WHERE extension_id = $1 ORDER BY plan_id
 		`, extensionID)
 	}
@@ -176,7 +207,7 @@ func (s *PostgresStore) ActiveForExtension(ctx context.Context, extensionID stri
 	plan, err := scanPlan(ctx, s.pool, `
 		SELECT plan_id, schema_version, extension_id, source_digest, target_digest,
 			migration_ready, canary_percent, phase, snapshot_id, retain_versions,
-			actor, reason, last_error, retained_digests, node_acks, updated_at
+			actor, reason, last_error, retained_digests, node_acks, updated_at, revision
 		FROM runtime_rollout_plans
 		WHERE extension_id = $1
 		  AND phase NOT IN ('active', 'failed', 'rolled_back')
@@ -213,15 +244,20 @@ func scanPlanFromRow(row scannable) (Plan, error) {
 	var plan Plan
 	var retainedRaw, acksRaw []byte
 	var updatedAt time.Time
+	var revision int64
 	err := row.Scan(
 		&plan.PlanID, &plan.SchemaVersion, &plan.ExtensionID, &plan.SourceDigest, &plan.TargetDigest,
 		&plan.MigrationReady, &plan.CanaryPercent, &plan.Phase, &plan.SnapshotID, &plan.RetainVersions,
-		&plan.Actor, &plan.Reason, &plan.LastError, &retainedRaw, &acksRaw, &updatedAt,
+		&plan.Actor, &plan.Reason, &plan.LastError, &retainedRaw, &acksRaw, &updatedAt, &revision,
 	)
 	if err != nil {
 		return Plan{}, err
 	}
 	plan.UpdatedAt = updatedAt
+	plan.Revision = revision
+	if plan.Revision < 1 {
+		plan.Revision = 1
+	}
 	if len(retainedRaw) > 0 {
 		_ = json.Unmarshal(retainedRaw, &plan.RetainedDigests)
 	}
@@ -249,17 +285,21 @@ func insertPlan(ctx context.Context, tx pgx.Tx, plan Plan) error {
 	if plan.RetainedDigests == nil {
 		retained = []byte("[]")
 	}
+	rev := plan.Revision
+	if rev < 1 {
+		rev = 1
+	}
 	_, err = tx.Exec(ctx, `
 		INSERT INTO runtime_rollout_plans (
 			plan_id, schema_version, extension_id, source_digest, target_digest,
 			migration_ready, canary_percent, phase, snapshot_id, retain_versions,
-			actor, reason, last_error, retained_digests, node_acks, updated_at
+			actor, reason, last_error, retained_digests, node_acks, updated_at, revision
 		) VALUES (
-			$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15::jsonb,$16
+			$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15::jsonb,$16,$17
 		)
 	`, plan.PlanID, plan.SchemaVersion, plan.ExtensionID, plan.SourceDigest, plan.TargetDigest,
 		plan.MigrationReady, plan.CanaryPercent, plan.Phase, plan.SnapshotID, plan.RetainVersions,
-		plan.Actor, plan.Reason, plan.LastError, string(retained), string(acks), plan.UpdatedAt)
+		plan.Actor, plan.Reason, plan.LastError, string(retained), string(acks), plan.UpdatedAt, rev)
 	return err
 }
 

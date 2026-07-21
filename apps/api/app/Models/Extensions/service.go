@@ -18,6 +18,7 @@ import (
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
+	settingslifecycle "github.com/zhuchunshu/sforum/apps/api/app/Support/SettingsLifecycle"
 )
 
 const (
@@ -69,6 +70,22 @@ type Service struct {
 	cachePublications      RuntimeCachePublicationBoundary
 	// pluginMemorySampler 可选；测试注入固定 RSS 映射。nil 时用 OS 进程采样。
 	pluginMemorySampler func() map[string]uint64
+	// settingsLifecycle 生产后台设置权威（保存/重置/导入/升级迁移）。
+	// 未注入时测试与旧路径仍走 store.ReplaceSettings。
+	settingsLifecycle SettingsLifecycleRuntime
+	// runtimeRollout 多节点 staged/canary 升级协调（P12 生产绑定）。
+	runtimeRollout RuntimeRolloutCoordinator
+}
+
+// SettingsLifecycleRuntime 是 SettingsLifecycle.Service 的最小边界（避免循环依赖测试替身）。
+type SettingsLifecycleRuntime interface {
+	RegisterSchema(extensionID string, dataVersion int, fields []settingslifecycle.FieldSchema) error
+	RegisterMigration(extensionID string, migration settingslifecycle.Migration) error
+	Put(ctx context.Context, extensionID, actor string, values map[string]string, preserveSecrets bool) (settingslifecycle.Document, error)
+	Get(ctx context.Context, extensionID string) (settingslifecycle.Document, error)
+	ResetDefaults(ctx context.Context, extensionID, actor string, opts settingslifecycle.ResetOptions) (settingslifecycle.Document, error)
+	Export(ctx context.Context, extensionID string) (settingslifecycle.ExportBundle, error)
+	Import(ctx context.Context, extensionID, actor string, bundle settingslifecycle.ExportBundle) (settingslifecycle.Document, error)
 }
 
 // PageRegistry 主题/插件页面贡献注册（避免 extensions 直接依赖 pages 包实现细节）。
@@ -731,6 +748,10 @@ func (s *Service) UpdateSettings(ctx context.Context, actor identity.Actor, exte
 	if !canManageExtensionSettings(actor, extension) {
 		return ExtensionSettings{}, identity.ErrPermissionDenied
 	}
+	// 生产路径：SettingsLifecycle（revision CAS + 迁移 + SecretStore）。
+	if s.settingsLifecycle != nil && len(extension.Manifest.Settings) > 0 {
+		return s.updateSettingsViaLifecycle(ctx, actor, extension, input, locale)
+	}
 	current, err := s.listDecryptedSettings(ctx, extension)
 	if err != nil {
 		return ExtensionSettings{}, err
@@ -774,6 +795,9 @@ func (s *Service) ResetSettings(ctx context.Context, actor identity.Actor, exten
 	}
 	if !canManageExtensionSettings(actor, extension) {
 		return ExtensionSettings{}, identity.ErrPermissionDenied
+	}
+	if s.settingsLifecycle != nil && len(extension.Manifest.Settings) > 0 {
+		return s.resetSettingsViaLifecycle(ctx, actor, extension, locale)
 	}
 	previousRaw, err := s.store.ListSettings(ctx, extension.ID)
 	if err != nil {

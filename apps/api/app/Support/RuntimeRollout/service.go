@@ -89,6 +89,7 @@ func (s *Service) CreatePlan(
 		UpdatedAt:       s.now(),
 		NodeAcks:        map[string]NodeAck{},
 		RetainedDigests: []string{sourceDigest},
+		Revision:        1,
 	}
 	created, err := s.store.Create(ctx, plan)
 	if err != nil {
@@ -306,6 +307,17 @@ func (s *Service) List(ctx context.Context) ([]Plan, error) {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].PlanID < out[j].PlanID })
 	return out, nil
+}
+
+// ActivePlan returns the non-terminal plan for an extension if any.
+func (s *Service) ActivePlan(ctx context.Context, extensionID string) (Plan, bool, error) {
+	if s == nil || s.store == nil {
+		return Plan{}, false, ErrInvalid
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return s.store.ActiveForExtension(ctx, strings.ToLower(strings.TrimSpace(extensionID)))
 }
 
 func (s *Service) transition(ctx context.Context, planID, actor string, fn func(*Plan) error) (Plan, error) {

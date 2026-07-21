@@ -82,16 +82,8 @@ const toneSeed = computed(() => {
 const imageSrc = computed(() => `${props.avatar?.url || props.src || ''}`.trim())
 const isRemoteImage = computed(() => /^https?:\/\//i.test(imageSrc.value))
 
-/**
- * 远程图（Gravatar 等）必须先探测成功再挂 <img>，
- * 否则 SSR/挂起/被墙时会露出浏览器裂图（蓝底电源图标）。
- * 同源上传路径可直接渲染。
- */
-const imageReady = ref(false)
 const imageFailed = ref(false)
-let probe: HTMLImageElement | null = null
-
-const showImage = computed(() => Boolean(imageSrc.value) && imageReady.value && !imageFailed.value)
+const showImage = computed(() => Boolean(imageSrc.value) && !imageFailed.value)
 
 const avatarClass = computed(() => {
   // sf-avatar：稳定钩子；尺寸/色板走 Tailwind
@@ -112,73 +104,16 @@ const avatarClass = computed(() => {
 const imageAlt = computed(() => props.alt ?? props.avatar?.alt ?? props.name)
 const isDecorative = computed(() => props.alt === '')
 
-function abortProbe() {
-  if (probe) {
-    probe.onload = null
-    probe.onerror = null
-    probe.src = ''
-    probe = null
-  }
-}
-
-function resolveImage() {
-  abortProbe()
-  imageReady.value = false
+function resetImageFailure() {
   imageFailed.value = false
-
-  const src = imageSrc.value
-  if (!src) {
-    return
-  }
-
-  // 同源 / 相对路径：可直接出图（上传头像）
-  if (!isRemoteImage.value) {
-    imageReady.value = true
-    return
-  }
-
-  // 远程：仅客户端探测；SSR 先字头，避免裂图
-  if (!import.meta.client) {
-    return
-  }
-
-  const img = new Image()
-  probe = img
-  img.referrerPolicy = 'no-referrer'
-  img.onload = () => {
-    if (probe === img) {
-      imageReady.value = true
-      imageFailed.value = false
-    }
-  }
-  img.onerror = () => {
-    if (probe === img) {
-      imageReady.value = false
-      imageFailed.value = true
-    }
-  }
-  img.src = src
 }
 
-watch(imageSrc, () => {
-  resolveImage()
-}, { immediate: true })
-
-onMounted(() => {
-  // SSR 时 remote 未探测；挂载后再探
-  if (imageSrc.value && isRemoteImage.value && !imageReady.value && !imageFailed.value) {
-    resolveImage()
-  }
-})
-
-onBeforeUnmount(() => {
-  abortProbe()
-})
+watch(imageSrc, resetImageFailure)
 </script>
 
 <template>
   <span :class="avatarClass" :aria-hidden="isDecorative ? 'true' : undefined">
-    <!-- 远程图未就绪时字头垫底；就绪后换真图，永不挂裂图 <img> -->
+    <!-- Gravatar 必须进入 SSR HTML；只有实际加载失败后才退回字头。 -->
     <img
       v-if="showImage && imageSrc && isRemoteImage"
       class="size-full object-cover"
@@ -189,6 +124,7 @@ onBeforeUnmount(() => {
       loading="lazy"
       decoding="async"
       referrerpolicy="no-referrer"
+      @error="imageFailed = true"
     >
     <NuxtImg
       v-else-if="showImage && imageSrc"
@@ -201,7 +137,7 @@ onBeforeUnmount(() => {
       format="webp"
       loading="lazy"
       decoding="async"
-      @error="imageFailed = true; imageReady = false"
+      @error="imageFailed = true"
     />
     <span v-else class="grid size-full place-items-center">{{ initials }}</span>
     <span

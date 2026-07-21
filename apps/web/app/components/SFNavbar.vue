@@ -11,7 +11,7 @@ import {
 const { t, locale, locales } = useI18n()
 const localePath = useLocalePath()
 const switchLocalePath = useSwitchLocalePath()
-const { user, refresh } = useAuthSession()
+const { user, status, refresh } = useAuthSession()
 const {
   siteName,
   siteTagline,
@@ -90,6 +90,8 @@ const desktopNavItems = computed((): DesktopNavItem[] => {
     }))
     .filter((item) => item.label && item.href)
     .filter((item) => filterTagNav(item.href))
+    // 顶栏已有完整搜索框，避免运营默认项再次占用一个“搜索”导航位。
+    .filter((item) => item.href.replace(/\/$/, '') !== '/search')
 
   // 核心/运营项在前；无运营配置时回退内置三项。
   const core: DesktopNavItem[] = configured.length > 0
@@ -366,7 +368,7 @@ async function logout() {
           <img :src="siteLogoUrl" alt="" class="navbar__logo-image">
         </span>
         <span v-else class="navbar__logo-mark" aria-hidden="true">
-          <UIcon name="i-lucide-message-circle" class="size-4" />
+          <UIcon name="i-tabler-message-circle-filled" class="size-5" />
         </span>
         <span class="navbar__logo-text-wrap">
           <span class="navbar__logo-text">{{ siteName }}</span>
@@ -414,6 +416,7 @@ async function logout() {
         <UIcon name="i-lucide-square-pen" class="size-4" aria-hidden="true" />
         <span>{{ t('nav.newTopic') }}</span>
       </NuxtLink>
+      <span v-else class="navbar__new-topic-placeholder" aria-hidden="true" />
 
       <div class="navbar__actions">
         <button
@@ -471,7 +474,7 @@ async function logout() {
           </template>
         </ClientOnly>
 
-        <template v-if="!user">
+        <template v-if="status === 'guest'">
           <NuxtLink
             :to="localePath('/login')"
             class="navbar__auth-link navbar__auth-link--quiet"
@@ -490,7 +493,7 @@ async function logout() {
         </template>
 
         <UDropdownMenu
-          v-else
+          v-else-if="user"
           :items="userMenuItems"
           :content="{ align: 'end' }"
         >
@@ -504,12 +507,13 @@ async function logout() {
               :name="displayName"
               :avatar="user.avatar"
               size="sm"
-              shape="square"
+              shape="circle"
             />
             <span class="navbar__username">{{ displayName }}</span>
             <UIcon name="i-lucide-chevron-down" class="size-3.5" aria-hidden="true" />
           </UButton>
         </UDropdownMenu>
+        <span v-else class="navbar__session-placeholder" aria-hidden="true" />
 
       </div>
     </div>
@@ -666,6 +670,13 @@ async function logout() {
   text-decoration: none;
 }
 
+.navbar__new-topic-placeholder {
+  width: 92px;
+  height: 38px;
+  display: block;
+  flex: 0 0 92px;
+}
+
 .navbar__new-topic {
   min-height: 38px;
   padding: 0 15px;
@@ -692,8 +703,17 @@ async function logout() {
 }
 
 .navbar__actions {
+  min-width: 292px;
+  justify-content: flex-end;
   flex-shrink: 0;
   gap: 6px;
+}
+
+.navbar__session-placeholder {
+  width: 112px;
+  height: 36px;
+  display: block;
+  flex: 0 0 112px;
 }
 
 .navbar__control,
@@ -896,13 +916,20 @@ async function logout() {
   .navbar__desktop-nav,
   .navbar__search,
   .navbar__new-topic,
+  .navbar__new-topic-placeholder,
   .navbar__desktop-control,
   .navbar__auth-link {
     display: none;
   }
 
   .navbar__actions {
+    min-width: 0;
     margin-left: auto;
+  }
+
+  .navbar__session-placeholder {
+    width: 40px;
+    flex-basis: 40px;
   }
 
   .navbar__mobile-shell-button,

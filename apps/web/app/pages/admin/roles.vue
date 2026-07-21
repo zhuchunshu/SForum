@@ -41,6 +41,7 @@ const roles = ref<Role[]>([])
 const permissions = ref<Permission[]>([])
 const selectedRole = ref<Role | null>(null)
 const editingNew = ref(false)
+const roleModalOpen = ref(false)
 const formKey = ref('')
 const formAlias = ref('')
 const formDescription = ref('')
@@ -222,7 +223,7 @@ async function loadData(options: {
             formPermissionKeys.value = [...formPermissionKeys.value, options.appliedPermission.permissionKey]
           }
         } else {
-          selectRole(refreshed)
+          fillRoleForm(refreshed)
         }
       }
     }
@@ -233,7 +234,8 @@ async function loadData(options: {
   }
 }
 
-function selectRole(role: Role) {
+/** 仅填充表单，不打开弹窗（供 loadData 刷新已打开编辑态使用）。 */
+function fillRoleForm(role: Role) {
   selectedRole.value = role
   editingNew.value = false
   formKey.value = role.key
@@ -244,6 +246,11 @@ function selectRole(role: Role) {
   roleFormSubmitted.value = false
   errorMessage.value = ''
   successMessage.value = ''
+}
+
+function selectRole(role: Role) {
+  fillRoleForm(role)
+  roleModalOpen.value = true
 }
 
 function startCreateRole() {
@@ -257,6 +264,19 @@ function startCreateRole() {
   roleFormSubmitted.value = false
   errorMessage.value = ''
   successMessage.value = ''
+  roleModalOpen.value = true
+}
+
+function closeRoleModal() {
+  roleModalOpen.value = false
+  selectedRole.value = null
+  editingNew.value = false
+  formKey.value = ''
+  formAlias.value = ''
+  formDescription.value = ''
+  formPermissionKeys.value = []
+  selectedTemplateKey.value = ''
+  roleFormSubmitted.value = false
 }
 
 function applyRoleTemplate(template: RoleTemplateDefinition, options?: { fillIdentity?: boolean }) {
@@ -355,10 +375,15 @@ async function saveRole() {
         })
       }
     }
+    closeRoleModal()
     await loadData()
     successMessage.value = t('admin.roles.saved')
-    editingNew.value = false
-    roleFormSubmitted.value = false
+    toast.add({
+      title: t('admin.roles.saved'),
+      color: 'success',
+      icon: 'i-lucide-check',
+      duration: 10000
+    })
   } catch (error) {
     errorMessage.value = apiErrorMessage(error) || t('admin.roles.saveFailed')
   } finally {
@@ -377,10 +402,15 @@ async function deleteRole() {
     await request<null>(`/roles/${encodeURIComponent(selectedRole.value.key)}`, {
       method: 'DELETE'
     })
-    selectedRole.value = null
+    closeRoleModal()
     await loadData()
-    startCreateRole()
     successMessage.value = t('admin.roles.deleted')
+    toast.add({
+      title: t('admin.roles.deleted'),
+      color: 'success',
+      icon: 'i-lucide-check',
+      duration: 10000
+    })
   } catch (error) {
     errorMessage.value = apiErrorMessage(error) || t('admin.roles.deleteFailed')
   } finally {
@@ -573,253 +603,239 @@ async function deleteRole() {
       </UButton>
     </div>
 
-    <div
-      v-if="roleSuggestionDecisionOpen"
-      class="mt-4 space-y-4 border border-[var(--sf-accent-soft-border)] bg-[var(--sf-accent-soft)] p-4 dark:bg-zinc-950/60"
-    >
-      <div class="flex items-start gap-3">
-        <UIcon
-          :name="pendingRoleSuggestionDecision?.state === 'rejected' ? 'i-lucide-circle-x' : 'i-lucide-shield-alert'"
-          class="mt-0.5 size-5 shrink-0 text-[var(--sf-accent)] dark:text-[var(--sf-accent-dark)]"
-        />
-        <div class="min-w-0">
-          <h3 class="text-base font-semibold text-slate-950 dark:text-zinc-50">
-            {{ roleSuggestionConfirmationTitle }}
-          </h3>
-          <p class="mt-1 text-sm text-slate-600 dark:text-zinc-300">
-            {{ roleSuggestionConfirmationDescription }}
-          </p>
-        </div>
-      </div>
-      <UAlert
-        v-if="roleSuggestionDecisionError"
-        color="error"
-        variant="soft"
-        icon="i-lucide-triangle-alert"
-        :title="roleSuggestionDecisionError"
-      />
-      <div class="flex justify-end gap-2">
-        <UButton color="neutral" variant="ghost" :disabled="roleSuggestionDeciding" @click="closeRoleSuggestionDecision">
-          {{ t('admin.roles.suggestions.cancel') }}
-        </UButton>
-        <UButton
-          :color="pendingRoleSuggestionDecision?.state === 'rejected' ? 'error' : 'primary'"
-          :leading-icon="pendingRoleSuggestionDecision?.state === 'rejected' ? 'i-lucide-x' : 'i-lucide-shield-check'"
-          :loading="roleSuggestionDeciding"
-          @click="submitRoleSuggestionDecision"
-        >
-          {{ roleSuggestionConfirmationAction }}
-        </UButton>
-      </div>
-    </div>
   </section>
 
-  <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
-    <div class="flex flex-col gap-4">
-      <UAlert
-        v-if="errorMessage"
-        color="error"
-        variant="soft"
-        icon="i-lucide-triangle-alert"
-        :title="errorMessage"
-      />
-      <UAlert
-        v-if="successMessage"
-        color="success"
-        variant="soft"
-        icon="i-lucide-check-circle"
-        :title="successMessage"
-      />
-
-      <UCard class="border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
-        <UTable
-          :data="filteredRoles"
-          :columns="columns"
-          :loading="pending"
-          :empty="t('admin.roles.empty')"
-          :caption="t('admin.roles.caption')"
-          sticky
-          class="max-h-[calc(100vh-17rem)]"
-        >
-          <template #key-cell="{ row }">
-            <code class="rounded bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 px-2 py-1 text-xs font-semibold text-slate-900 dark:text-white">
-              {{ row.original.key }}
-            </code>
-          </template>
-
-          <template #alias-cell="{ row }">
-            <div>
-              <span class="font-semibold text-slate-900 dark:text-white text-sm">
-                {{ row.original.alias }}
-              </span>
-              <p class="mt-0.5 text-xs text-slate-500 dark:text-zinc-400">
-                {{ row.original.description || t('admin.roles.noDescription') }}
-              </p>
-            </div>
-          </template>
-
-          <template #permissions-cell="{ row }">
-            <UBadge color="neutral" variant="soft">
-              {{ t('admin.roles.permissionCount', { count: row.original.permissionKeys.length }) }}
-            </UBadge>
-          </template>
-
-          <template #status-cell="{ row }">
-            <div class="flex flex-wrap gap-1.5">
-              <UBadge v-if="row.original.isSystem" color="info" variant="soft">
-                {{ t('admin.roles.system') }}
-              </UBadge>
-              <UBadge v-if="row.original.isDefault" color="success" variant="soft">
-                {{ t('admin.roles.default') }}
-              </UBadge>
-              <UBadge v-if="row.original.isDeletable" color="neutral" variant="outline">
-                {{ t('admin.roles.custom') }}
-              </UBadge>
-            </div>
-          </template>
-
-          <template #actions-cell="{ row }">
-            <UButton
-              color="primary"
-              variant="ghost"
-              leading-icon="i-lucide-square-pen"
-              @click="selectRole(row.original)"
-            >
-              {{ t('admin.roles.edit') }}
-            </UButton>
-          </template>
-        </UTable>
-      </UCard>
-    </div>
+  <div class="flex flex-col gap-4">
+    <UAlert
+      v-if="errorMessage"
+      color="error"
+      variant="soft"
+      icon="i-lucide-triangle-alert"
+      :title="errorMessage"
+    />
+    <UAlert
+      v-if="successMessage"
+      color="success"
+      variant="soft"
+      icon="i-lucide-check-circle"
+      :title="successMessage"
+    />
 
     <UCard class="border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
-      <template #header>
-        <div class="flex items-start justify-between gap-3">
+      <UTable
+        :data="filteredRoles"
+        :columns="columns"
+        :loading="pending"
+        :empty="t('admin.roles.empty')"
+        :caption="t('admin.roles.caption')"
+        sticky
+        class="max-h-[calc(100vh-17rem)]"
+      >
+        <template #key-cell="{ row }">
+          <code class="rounded bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 px-2 py-1 text-xs font-semibold text-slate-900 dark:text-white">
+            {{ row.original.key }}
+          </code>
+        </template>
+
+        <template #alias-cell="{ row }">
           <div>
-            <h3 class="text-sm font-semibold text-slate-950 dark:text-zinc-50">
-              {{ selectedTitle }}
-            </h3>
-            <p class="text-xs text-slate-500 dark:text-zinc-400">
+            <span class="font-semibold text-slate-900 dark:text-white text-sm">
+              {{ row.original.alias }}
+            </span>
+            <p class="mt-0.5 text-xs text-slate-500 dark:text-zinc-400">
+              {{ row.original.description || t('admin.roles.noDescription') }}
+            </p>
+          </div>
+        </template>
+
+        <template #permissions-cell="{ row }">
+          <UBadge color="neutral" variant="soft">
+            {{ t('admin.roles.permissionCount', { count: row.original.permissionKeys.length }) }}
+          </UBadge>
+        </template>
+
+        <template #status-cell="{ row }">
+          <div class="flex flex-wrap gap-1.5">
+            <UBadge v-if="row.original.isSystem" color="info" variant="soft">
+              {{ t('admin.roles.system') }}
+            </UBadge>
+            <UBadge v-if="row.original.isDefault" color="success" variant="soft">
+              {{ t('admin.roles.default') }}
+            </UBadge>
+            <UBadge v-if="row.original.isDeletable" color="neutral" variant="outline">
+              {{ t('admin.roles.custom') }}
+            </UBadge>
+          </div>
+        </template>
+
+        <template #actions-cell="{ row }">
+          <UButton
+            color="primary"
+            variant="ghost"
+            leading-icon="i-lucide-square-pen"
+            @click="selectRole(row.original)"
+          >
+            {{ t('admin.roles.edit') }}
+          </UButton>
+        </template>
+      </UTable>
+    </UCard>
+  </div>
+
+  <!-- 用户组：新建 / 编辑 -->
+  <UModal
+    v-model:open="roleModalOpen"
+    :ui="{ content: 'sm:max-w-3xl' }"
+    @update:open="(open) => { if (!open) closeRoleModal() }"
+  >
+    <template #content>
+      <div class="flex max-h-[90vh] flex-col">
+        <div class="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4 dark:border-zinc-800">
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-2">
+              <h3 class="text-base font-bold text-slate-900 dark:text-white">
+                {{ selectedTitle }}
+              </h3>
+              <UBadge v-if="selectedRole?.isSystem" color="info" variant="soft">
+                {{ t('admin.roles.system') }}
+              </UBadge>
+            </div>
+            <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
               {{ t('admin.roles.editorIntro') }}
             </p>
           </div>
-          <UBadge v-if="selectedRole?.isSystem" color="info" variant="soft">
-            {{ t('admin.roles.system') }}
-          </UBadge>
+          <UButton
+            type="button"
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-x"
+            :aria-label="t('admin.common.cancel')"
+            @click="closeRoleModal"
+          />
         </div>
-      </template>
 
-      <div class="space-y-4">
-        <UFormField :label="t('admin.roles.key')" name="role-key" :error="roleKeyError">
-          <UInput
-            v-model="formKey"
-            icon="i-lucide-key-round"
-            :placeholder="t('admin.roles.keyPlaceholder')"
-            :disabled="!editingNew"
-            required
+        <div class="grid flex-1 gap-4 overflow-y-auto px-5 py-4">
+          <UAlert
+            v-if="errorMessage"
+            color="error"
+            variant="soft"
+            icon="i-lucide-triangle-alert"
+            :title="errorMessage"
           />
-        </UFormField>
-        <UFormField :label="t('admin.roles.alias')" name="role-alias" :error="roleAliasError">
-          <UInput
-            v-model="formAlias"
-            icon="i-lucide-tag"
-            :placeholder="t('admin.roles.aliasPlaceholder')"
-            required
-          />
-        </UFormField>
-        <UFormField :label="t('admin.roles.description')" name="role-description">
-          <textarea
-            v-model="formDescription"
-            class="min-h-24 w-full resize-y rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:border-[var(--sf-accent)] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
-            :placeholder="t('admin.roles.descriptionPlaceholder')"
-          />
-        </UFormField>
 
-        <div
-          v-if="!permissionEditingLocked"
-          class="rounded-lg border border-slate-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950/40"
-        >
-          <div class="mb-2">
-            <h4 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
-              {{ t('admin.roles.applyTemplate') }}
-            </h4>
-            <p class="text-xs text-slate-500 dark:text-zinc-400">
-              {{ editingNew ? t('admin.roles.applyTemplateCreateHelp') : t('admin.roles.applyTemplateEditHelp') }}
-            </p>
-          </div>
-          <UFormField :label="t('admin.roles.templateSelect')" name="role-template">
-            <USelect
-              :model-value="selectedTemplateKey || ROLE_TEMPLATE_NONE_VALUE"
-              :items="templateSelectItems"
-              value-key="value"
+          <UFormField :label="t('admin.roles.key')" name="role-key" :error="roleKeyError">
+            <UInput
+              v-model="formKey"
+              icon="i-lucide-key-round"
+              :placeholder="t('admin.roles.keyPlaceholder')"
+              :disabled="!editingNew"
+              required
               class="w-full"
-              :placeholder="t('admin.roles.templateSelectPlaceholder')"
-              @update:model-value="onTemplateSelect"
             />
           </UFormField>
-          <div class="mt-3 flex flex-wrap gap-2">
-            <UButton
-              v-for="template in roleTemplates"
-              :key="template.key"
-              color="neutral"
-              variant="outline"
-              size="sm"
-              leading-icon="i-lucide-layout-template"
-              class="border-slate-200 dark:border-zinc-700"
-              @click="applyRoleTemplate(template, { fillIdentity: Boolean(editingNew) })"
-            >
-              {{ t(template.aliasKey) }}
-            </UButton>
-          </div>
-        </div>
+          <UFormField :label="t('admin.roles.alias')" name="role-alias" :error="roleAliasError">
+            <UInput
+              v-model="formAlias"
+              icon="i-lucide-tag"
+              :placeholder="t('admin.roles.aliasPlaceholder')"
+              required
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField :label="t('admin.roles.description')" name="role-description">
+            <textarea
+              v-model="formDescription"
+              class="min-h-24 w-full resize-y rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:border-[var(--sf-accent)] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+              :placeholder="t('admin.roles.descriptionPlaceholder')"
+            />
+          </UFormField>
 
-        <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-zinc-800 dark:bg-zinc-950/60">
-          <div class="mb-3 flex items-start justify-between gap-3">
-            <div>
+          <div
+            v-if="!permissionEditingLocked"
+            class="rounded-lg border border-slate-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950/40"
+          >
+            <div class="mb-2">
               <h4 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
-                {{ t('admin.roles.permissionEditor') }}
+                {{ t('admin.roles.applyTemplate') }}
               </h4>
               <p class="text-xs text-slate-500 dark:text-zinc-400">
-                {{ permissionEditingLocked ? t('admin.roles.superAdminPermissionLocked') : t('admin.roles.permissionEditorHelp') }}
+                {{ editingNew ? t('admin.roles.applyTemplateCreateHelp') : t('admin.roles.applyTemplateEditHelp') }}
               </p>
             </div>
-            <UBadge color="neutral" variant="soft">
-              {{ formPermissionKeys.length }}
-            </UBadge>
+            <UFormField :label="t('admin.roles.templateSelect')" name="role-template">
+              <USelect
+                :model-value="selectedTemplateKey || ROLE_TEMPLATE_NONE_VALUE"
+                :items="templateSelectItems"
+                value-key="value"
+                class="w-full"
+                :placeholder="t('admin.roles.templateSelectPlaceholder')"
+                @update:model-value="onTemplateSelect"
+              />
+            </UFormField>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <UButton
+                v-for="template in roleTemplates"
+                :key="template.key"
+                color="neutral"
+                variant="outline"
+                size="sm"
+                leading-icon="i-lucide-layout-template"
+                class="border-slate-200 dark:border-zinc-700"
+                @click="applyRoleTemplate(template, { fillIdentity: Boolean(editingNew) })"
+              >
+                {{ t(template.aliasKey) }}
+              </UButton>
+            </div>
           </div>
 
-          <div class="max-h-[42vh] space-y-4 overflow-y-auto pr-1">
-            <div v-for="group in groupedPermissions" :key="group.module" class="space-y-2">
-              <div class="text-xs font-semibold uppercase text-slate-500 dark:text-zinc-400">
-                {{ permissionModuleLabel(group.module) }}
+          <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-zinc-800 dark:bg-zinc-950/60">
+            <div class="mb-3 flex items-start justify-between gap-3">
+              <div>
+                <h4 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+                  {{ t('admin.roles.permissionEditor') }}
+                </h4>
+                <p class="text-xs text-slate-500 dark:text-zinc-400">
+                  {{ permissionEditingLocked ? t('admin.roles.superAdminPermissionLocked') : t('admin.roles.permissionEditorHelp') }}
+                </p>
               </div>
-              <label
-                v-for="permission in group.items"
-                :key="permission.key"
-                class="flex cursor-pointer gap-3 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm transition hover:border-[var(--sf-accent-soft-border)] dark:border-zinc-800 dark:bg-zinc-900"
-              >
-                <input
-                  type="checkbox"
-                  class="mt-1 size-4 accent-[var(--sf-accent)]"
-                  :checked="formPermissionKeys.includes(permission.key)"
-                  :disabled="permissionEditingLocked"
-                  @change="togglePermission(permission.key)"
+              <UBadge color="neutral" variant="soft">
+                {{ formPermissionKeys.length }}
+              </UBadge>
+            </div>
+
+            <div class="max-h-[36vh] space-y-4 overflow-y-auto pr-1">
+              <div v-for="group in groupedPermissions" :key="group.module" class="space-y-2">
+                <div class="text-xs font-semibold uppercase text-slate-500 dark:text-zinc-400">
+                  {{ permissionModuleLabel(group.module) }}
+                </div>
+                <label
+                  v-for="permission in group.items"
+                  :key="permission.key"
+                  class="flex cursor-pointer gap-3 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm transition hover:border-[var(--sf-accent-soft-border)] dark:border-zinc-800 dark:bg-zinc-900"
                 >
-                <span class="min-w-0">
-                  <span class="block font-semibold text-slate-900 dark:text-zinc-100">
-                    {{ permissionLabel(permission) }}
+                  <input
+                    type="checkbox"
+                    class="mt-1 size-4 accent-[var(--sf-accent)]"
+                    :checked="formPermissionKeys.includes(permission.key)"
+                    :disabled="permissionEditingLocked"
+                    @change="togglePermission(permission.key)"
+                  >
+                  <span class="min-w-0">
+                    <span class="block font-semibold text-slate-900 dark:text-zinc-100">
+                      {{ permissionLabel(permission) }}
+                    </span>
+                    <code class="mt-0.5 block text-xs text-slate-500 dark:text-zinc-400">{{ permission.key }}</code>
+                    <span class="mt-0.5 block text-xs text-slate-500 dark:text-zinc-400">
+                      {{ permissionDescription(permission) }}
+                    </span>
                   </span>
-                  <code class="mt-0.5 block text-xs text-slate-500 dark:text-zinc-400">{{ permission.key }}</code>
-                  <span class="mt-0.5 block text-xs text-slate-500 dark:text-zinc-400">
-                    {{ permissionDescription(permission) }}
-                  </span>
-                </span>
-              </label>
+                </label>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4 dark:border-zinc-800">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-5 py-4 dark:border-zinc-800">
           <UButton
             color="error"
             variant="outline"
@@ -830,16 +846,68 @@ async function deleteRole() {
           >
             {{ t('admin.roles.delete') }}
           </UButton>
+          <div class="flex flex-wrap gap-2">
+            <UButton type="button" color="neutral" variant="ghost" @click="closeRoleModal">
+              {{ t('admin.common.cancel') }}
+            </UButton>
+            <UButton
+              color="primary"
+              leading-icon="i-lucide-save"
+              :loading="saving"
+              @click="saveRole"
+            >
+              {{ t('admin.roles.save') }}
+            </UButton>
+          </div>
+        </div>
+      </div>
+    </template>
+  </UModal>
+
+  <!-- 角色权限建议：确认审批 -->
+  <UModal
+    v-model:open="roleSuggestionDecisionOpen"
+    :ui="{ content: 'sm:max-w-lg' }"
+    @update:open="(open) => { if (!open) closeRoleSuggestionDecision() }"
+  >
+    <template #content>
+      <div class="p-5 sm:p-6">
+        <div class="flex items-start gap-3">
+          <UIcon
+            :name="pendingRoleSuggestionDecision?.state === 'rejected' ? 'i-lucide-circle-x' : 'i-lucide-shield-alert'"
+            class="mt-0.5 size-5 shrink-0 text-[var(--sf-accent)] dark:text-[var(--sf-accent-dark)]"
+          />
+          <div class="min-w-0">
+            <h3 class="text-base font-semibold text-slate-950 dark:text-zinc-50">
+              {{ roleSuggestionConfirmationTitle }}
+            </h3>
+            <p class="mt-1 text-sm text-slate-600 dark:text-zinc-300">
+              {{ roleSuggestionConfirmationDescription }}
+            </p>
+          </div>
+        </div>
+        <UAlert
+          v-if="roleSuggestionDecisionError"
+          class="mt-4"
+          color="error"
+          variant="soft"
+          icon="i-lucide-triangle-alert"
+          :title="roleSuggestionDecisionError"
+        />
+        <div class="mt-6 flex justify-end gap-2">
+          <UButton color="neutral" variant="ghost" :disabled="roleSuggestionDeciding" @click="closeRoleSuggestionDecision">
+            {{ t('admin.roles.suggestions.cancel') }}
+          </UButton>
           <UButton
-            color="primary"
-            leading-icon="i-lucide-save"
-            :loading="saving"
-            @click="saveRole"
+            :color="pendingRoleSuggestionDecision?.state === 'rejected' ? 'error' : 'primary'"
+            :leading-icon="pendingRoleSuggestionDecision?.state === 'rejected' ? 'i-lucide-x' : 'i-lucide-shield-check'"
+            :loading="roleSuggestionDeciding"
+            @click="submitRoleSuggestionDecision"
           >
-            {{ t('admin.roles.save') }}
+            {{ roleSuggestionConfirmationAction }}
           </UButton>
         </div>
       </div>
-    </UCard>
-  </div>
+    </template>
+  </UModal>
 </template>

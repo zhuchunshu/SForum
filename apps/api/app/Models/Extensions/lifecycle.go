@@ -299,11 +299,19 @@ func (s *Service) UninstallWithResult(ctx context.Context, actor identity.Actor,
 		s.pageRegistry.ClearExtension(extension.ID)
 	}
 	packagePath := extension.PackagePath
+	identityRetained := false
 	if err := s.store.Delete(ctx, extension.ID); err != nil {
-		if restoreErr := s.rollbackExactAssetMutation(assetMutation); restoreErr != nil {
-			return UninstallResult{}, errors.Join(err, fmt.Errorf("restore asset publication after uninstall failure: %w", restoreErr))
+		// 历史 plugin_runtime_publication_members 对 extension_versions 为 ON DELETE RESTRICT：
+		// 一旦进入 desired full-set，精确版本行不可物理删除（见 lifecycle publication 门禁）。
+		// 目录卸载仍须成功：保留不可变身份，删除包文件，扩展保持 disabled。
+		if isPublishedPluginRuntimeIdentityRetained(err) {
+			identityRetained = true
+		} else {
+			if restoreErr := s.rollbackExactAssetMutation(assetMutation); restoreErr != nil {
+				return UninstallResult{}, errors.Join(err, fmt.Errorf("restore asset publication after uninstall failure: %w", restoreErr))
+			}
+			return UninstallResult{}, err
 		}
-		return UninstallResult{}, err
 	}
 
 	if !input.RetainPackage && packagePath != "" {
@@ -312,17 +320,29 @@ func (s *Service) UninstallWithResult(ctx context.Context, actor identity.Actor,
 		}
 	}
 
-	// extension_events 已 CASCADE；仅写宿主 audit。
+	// extension_events 在硬删除时 CASCADE；身份保留时仅写宿主 audit。
 	s.appendAudit(ctx, actor, audit.ActionExtensionUninstalled, map[string]any{
-		"extensionId":     extension.ID,
-		"type":            extension.Type,
-		"version":         extension.Version,
-		"retainSettings":  input.RetainSettings,
-		"retainPackage":   input.RetainPackage,
-		"settingsDeleted": !input.RetainSettings,
+		"extensionId":       extension.ID,
+		"type":              extension.Type,
+		"version":           extension.Version,
+		"retainSettings":    input.RetainSettings,
+		"retainPackage":     input.RetainPackage,
+		"settingsDeleted":   !input.RetainSettings && !identityRetained,
+		"identityRetained":  identityRetained,
 		// v1：settings 随 extensions CASCADE 删除；RetainSettings 记入审计供后续独立备份表使用。
 	})
 	return UninstallResult{Uninstalled: true, ExtensionID: extension.ID}, nil
+}
+
+// isPublishedPluginRuntimeIdentityRetained 判断删除是否被不可变 runtime publication 历史挡住。
+func isPublishedPluginRuntimeIdentityRetained(err error) bool {
+	if err == nil {
+		return false
+	}
+	// pgx/pgconn 包装：SQLSTATE 23503 + plugin_runtime_publication_members。
+	msg := err.Error()
+	return strings.Contains(msg, "plugin_runtime_publication_members") ||
+		strings.Contains(msg, "extension_version_id_extensi_fkey")
 }
 
 func (s *Service) replayLifecycleUninstall(

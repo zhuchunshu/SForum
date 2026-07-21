@@ -12,6 +12,21 @@ describe('app startup rendering', () => {
     expect(page.loaderStarted()).toBe(true)
     expect(page.webOptionsRefreshStarted()).toBe(true)
     expect(page.authRefreshStarted()).toBe(false)
+    expect(page.themeSkinRefreshStarted()).toBe(true)
+  })
+
+  test('restores auth during SSR when the request carries a session', async () => {
+    const page = loadAppComponentForStartupTest({
+      server: true,
+      cookie: 'locale=zh-CN; sforum_session=test-session'
+    })
+
+    await page.component.setup({}, { expose: () => {} })
+
+    expect(page.loaderStarted()).toBe(true)
+    expect(page.webOptionsRefreshStarted()).toBe(true)
+    expect(page.authRefreshStarted()).toBe(true)
+    expect(page.themeSkinRefreshStarted()).toBe(true)
   })
 
   test('does not block client setup while startup refresh is still pending', async () => {
@@ -47,7 +62,7 @@ describe('app startup rendering', () => {
   })
 })
 
-function loadAppComponentForStartupTest(options: { server: boolean, routePath?: string }) {
+function loadAppComponentForStartupTest(options: { server: boolean, routePath?: string, cookie?: string }) {
   const source = readFileSync(new URL('../app/app.vue', import.meta.url), 'utf8')
   const { descriptor } = parse(source, { filename: 'app.vue' })
   const compiled = compileScript(descriptor, { id: 'app-startup-test' }).content
@@ -84,6 +99,7 @@ function loadAppComponentForStartupTest(options: { server: boolean, routePath?: 
     'onMounted',
     'watch',
     'useActiveThemeSkin',
+    'useRequestHeaders',
     executable
   )
 
@@ -124,13 +140,15 @@ function loadAppComponentForStartupTest(options: { server: boolean, routePath?: 
     },
     () => {},
     () => ({
+      links: ref([]),
       refresh: async () => {
         themeSkinRefreshStarted = true
       },
       clear: () => {
         themeSkinCleared = true
       }
-    })
+    }),
+    () => ({ cookie: options.cookie || '' })
   )
 
   return {

@@ -34,12 +34,14 @@ describe('unified avatar rendering contract', () => {
     expect(homepageRow).not.toContain('!size-9')
     expect(homepageRow).not.toContain('topic.excerpt')
     expect(homepageRow).not.toContain('participants')
-    // 尺寸/字头色板/远程探测集中在全局 SFAvatar；URL 策略由后端 AvatarView 决定
+    // 尺寸/字头色板集中在全局 SFAvatar；URL 策略由后端 AvatarView 决定
     expect(avatar).toContain("'list'")
     expect(avatar).toContain('forumAvatarToneClass')
-    expect(avatar).toContain('resolveImage')
     expect(avatar).toContain('isRemoteImage')
-    expect(avatar).toContain('imageReady')
+    expect(avatar).toContain('Boolean(imageSrc.value) && !imageFailed.value')
+    expect(avatar).toContain('Gravatar 必须进入 SSR HTML')
+    expect(avatar).not.toContain('new Image()')
+    expect(avatar).not.toContain('import.meta.client')
     expect(avatar).toContain('props.alt ?? props.avatar?.alt ?? props.name')
     expect(avatar).toContain(":aria-hidden=\"isDecorative ? 'true' : undefined\"")
     expect(avatar).not.toContain('preferInitials')

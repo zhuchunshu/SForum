@@ -15,6 +15,8 @@ const adminRoutePrefix = normalizeAdminRoutePrefix(
 )
 // 公开主题经 Page Registry 运行时注入；管理端预构建组件按 digest 动态加载。
 const nitroOutputDir = process.env.SFORUM_NITRO_OUTPUT_DIR?.trim()
+const devtoolsEnabled = process.env.NUXT_DEVTOOLS === 'true'
+const payloadExtractionEnabled = process.env.NODE_ENV !== 'development'
 const publicHomepageRouteRule = {
   cache: false,
   headers: {
@@ -70,6 +72,10 @@ export default defineNuxtConfig({
   modules: ['@nuxt/ui', '@nuxtjs/i18n', '@nuxtjs/seo', '@nuxt/image'],
   ssr: true,
   buildDir: process.env.NUXT_BUILD_DIR || '.nuxt',
+  experimental: {
+    // 开发态 HMR 后的 SWR payload 可能短暂指向旧路由并返回 HTML/404；内联数据可保持导航与 SSR 一致。
+    payloadExtraction: payloadExtractionEnabled
+  },
   nitro: {
     // 静态资源（带 hash 的 _nuxt 文件）压缩为 brotli + gzip。
     compressPublicAssets: { brotli: true, gzip: true },
@@ -120,7 +126,8 @@ export default defineNuxtConfig({
     '~/assets/css/sforum-taxonomy.css',
     '~/assets/css/sforum-profile.css'
   ],
-  devtools: { enabled: true },
+  // DevTools 会扩大开发期依赖扫描和常驻内存；需要调试时用 NUXT_DEVTOOLS=true 显式开启。
+  devtools: { enabled: devtoolsEnabled },
   ui: {
     fonts: false
   },
@@ -156,8 +163,7 @@ export default defineNuxtConfig({
     // 或 devtools 子依赖，触发 full page reload，叠加成肉眼可见的“网页卡住”。
     optimizeDeps: {
       include: [
-        '@vue/devtools-core',
-        '@vue/devtools-kit',
+        ...(devtoolsEnabled ? ['@vue/devtools-core', '@vue/devtools-kit'] : []),
         'altcha',
         'altcha/i18n/en',
         'altcha/i18n/zh-cn',
@@ -262,6 +268,11 @@ export default defineNuxtConfig({
     defaultLocale: 'zh-CN',
     strategy: 'prefix_except_default',
     langDir: 'locales',
+    // i18n 10.4 的 Nitro context 实验路径在 dev 冷启动/HMR 窗口可能先进入
+    // render:before、后执行 request 初始化，导致首页偶发 500。常规路由检测保留。
+    experimental: {
+      nitroContextDetection: false
+    },
     locales: [
       {
         code: 'zh-CN',

@@ -214,6 +214,16 @@ func payloadString(payload map[string]any, key string) string {
 	switch v := raw.(type) {
 	case string:
 		return v
+	case map[string]any:
+		// Host 经 Protocol V2 规范化后，content 多为 ContentInput JSON 对象。
+		// 关键词扫描优先 plainText（无标记），否则回退 rawContent。
+		if plain, ok := v["plainText"].(string); ok && strings.TrimSpace(plain) != "" {
+			return plain
+		}
+		if rawContent, ok := v["rawContent"].(string); ok {
+			return rawContent
+		}
+		return ""
 	default:
 		return ""
 	}

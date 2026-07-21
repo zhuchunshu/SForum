@@ -1,17 +1,17 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Status: **active** — durable percentage and context-compaction checkpoint  
-Date: 2026-07-22
-Overall progress: **~99.7%** (P11 remediation closed; P13 LTS residual only)
-Active phase: **P13 residual = LTS-blocked legacy deletion only**
-Last gate re-verify (2026-07-21 post-interrupt): catalogs 249/150/99; OpenAPI OK;
-go test APILTS/Pages/Editor/Entity/Content/Media + cmd/sforum EXIT 0; bun 12 pass;
-explore ZERO non-LTS residual; APILTS CanRemoveWithZeroShim false until
-RemoveAfter **2026-11-28** (~130 days). HEAD `56acff7b4`.
-**2026-07-22 P11 remediation closed:** Postgres SecretStore + audit migration,
-SettingsLifecycle durable KV, Protocol V2 Secret/File/HTTP, bootstrap
-`bindProductionHostPlatform`. Evidence: package + Postgres integration tests
-(not Support-only unit tests). P11 restored to 100% on that evidence.
+Date: 2026-07-22  
+Overall progress: **~99.7%** (P13 LTS residual + **production rewire honesty reopen** —
+**not 100%**; do not claim rewire closed)  
+Active phase: **honesty remediation M0–M8** + P13 LTS residual  
+Last gate re-verify (2026-07-22 acceptance): Support/race/PG green; full
+`./scripts/test.sh` red (catalog identity); production call-chain audit reopened
+eight findings. APILTS CanRemoveWithZeroShim false until RemoveAfter **2026-11-28**.  
+**Remediation task book:**  
+`plans/2026-07-22-v3-production-rewire-honesty-remediation.md` (**ready**).  
+Prior partial rewire evidence:  
+`sessions/2026-07-22-p11-p12-p13-production-rewire-handoff.md`.  
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
 after any commit that materially changes the completion calculation.
@@ -127,6 +127,26 @@ program reaches 100% and every final gate passes.
 - Exact next: deepen remaining reference surfaces, then migration policy
   docs without premature legacy deletion, then final gates.
 
+## 2026-07-22 V3 Production Rewire Honesty Remediation (reopen)
+
+- Acceptance review against production call chains (not Support-only green):
+  5 findings fully open, 3 partial. Prior “rewire close” **revoked for honesty**.
+- New task book (do not raise % until M8):  
+  `plans/2026-07-22-v3-production-rewire-honesty-remediation.md` (**ready**, M0–M8).
+- Open: `enc::`→SecretStore; real multi-node rollout gate; SystemTier start order;
+  Marketplace/Privacy consumers + Activate/Rollback; deploy marketplace key;
+  CompatFarm evidence/matrix/single-run; commerce full Dispatcher; full gate.
+- Overall remains **~99.7%** (LTS residual + honesty reopen). Not V3 100%.
+- Prior partial evidence: `sessions/2026-07-22-p11-p12-p13-production-rewire-handoff.md`.
+
+## 2026-07-22 P11/P12/P13 Production Rewire (partial — honesty reopened)
+
+- Historical partial bind: SettingsLifecycle admin + ReplaceSettingsCAS dual-PG;
+  RuntimeRollout CAS; CompatFarm real process; formal ZIP; commerce **add** via
+  Dispatcher. **Not** sufficient for “production rewire closed.”
+- Superseded as close claim by honesty remediation entry above.
+- Handoff: `sessions/2026-07-22-p11-p12-p13-production-rewire-handoff.md`.
+
 ## 2026-07-22 P12 Ops Production Binding (reopen → close)
 
 - Reopened Support-only P12 ops (CompatFarm loader, process-local rollout/tier,
@@ -135,7 +155,7 @@ program reaches 100% and every final gate passes.
   binding; RuntimeRollout/SystemTier Postgres; Privacy audit/partial; Observability
   on real Hook/Job paths; `bindProductionP12Ops`.
 - Handoff: `sessions/2026-07-22-p12-ops-production-binding-handoff.md`.
-- P12 remains **100%** of task-book weight; credit is now production-bound.
+- Superseded for detail by 2026-07-22 production rewire entry above.
 
 ## 2026-07-21 P12 Closed At 100%
 

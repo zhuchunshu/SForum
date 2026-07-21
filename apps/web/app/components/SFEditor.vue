@@ -21,6 +21,9 @@ const props = withDefaults(defineProps<{
   error?: string
   maxCharacters?: number
   submitLabel?: string
+  compact?: boolean
+  cancelLabel?: string
+  supportLabel?: string
   // Host-admitted trusted L2 Tiptap extensions (digest-verified before pass-in).
   trustedExtensions?: unknown[]
   // 默认从 Host editor-catalog 拉取并 digest-verify 准入 L2；失败 fail-closed。
@@ -34,6 +37,9 @@ const props = withDefaults(defineProps<{
   error: undefined,
   maxCharacters: 12000,
   submitLabel: '发布回复',
+  compact: false,
+  cancelLabel: '',
+  supportLabel: '支持 Markdown',
   trustedExtensions: () => [],
   loadTrustedCatalog: true
 })
@@ -42,6 +48,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: string]
   'content-change': [payload: SFEditorContentPayload]
   submit: [payload: SFEditorContentPayload]
+  cancel: []
 }>()
 
 const editor = shallowRef<Editor | null>(null)
@@ -58,6 +65,7 @@ const editorClass = computed(() => [
   'sf-editor',
   props.disabled ? 'sf-editor--disabled' : '',
   props.error ? 'sf-editor--invalid' : '',
+  props.compact ? 'sf-editor--compact' : '',
   viewMode.value !== 'write' ? 'sf-editor--inspection' : ''
 ].filter(Boolean).join(' '))
 
@@ -311,7 +319,7 @@ function submitContent() {
     :class="editorClass"
     :style="{ '--sf-editor-min-height': editorMinHeight }"
   >
-    <div class="sf-editor__topbar">
+    <div v-if="!compact" class="sf-editor__topbar">
       <div class="sf-editor__toolbar" aria-label="编辑工具栏">
         <button
           type="button"
@@ -482,7 +490,7 @@ function submitContent() {
       </div>
     </div>
 
-    <div v-if="showEmojiPanel" class="sf-editor__emoji-panel">
+    <div v-if="!compact && showEmojiPanel" class="sf-editor__emoji-panel">
       <button
         v-for="emoji in sforumEditorEmojiItems"
         :key="emoji.name"
@@ -533,23 +541,51 @@ function submitContent() {
     </div>
 
     <div class="sf-editor__footer">
-      <span
-        class="sf-editor__status"
-        :class="{ 'sf-editor__status--error': error }"
-      >
-        {{ footerText }}
-      </span>
-      <div class="sf-editor__meta">
-        <span>{{ currentPayload.wordCount }} 词</span>
-        <span>HTML / Markdown / JSON</span>
-      </div>
-      <SFButton
-        size="sm"
-        :disabled="disabled || currentPayload.isEmpty"
-        @click="submitContent"
-      >
-        {{ submitLabel }}
-      </SFButton>
+      <template v-if="compact">
+        <span class="sf-editor__compact-support">
+          <UIcon name="i-lucide-file-code-2" class="size-4" aria-hidden="true" />
+          {{ supportLabel }}
+        </span>
+        <div class="sf-editor__compact-actions">
+          <SFButton
+            v-if="cancelLabel"
+            type="button"
+            variant="ghost"
+            size="sm"
+            :disabled="disabled"
+            @click="emit('cancel')"
+          >
+            {{ cancelLabel }}
+          </SFButton>
+          <SFButton
+            size="sm"
+            :disabled="disabled || currentPayload.isEmpty"
+            @click="submitContent"
+          >
+            <UIcon name="i-lucide-send" class="size-4" aria-hidden="true" />
+            {{ submitLabel }}
+          </SFButton>
+        </div>
+      </template>
+      <template v-else>
+        <span
+          class="sf-editor__status"
+          :class="{ 'sf-editor__status--error': error }"
+        >
+          {{ footerText }}
+        </span>
+        <div class="sf-editor__meta">
+          <span>{{ currentPayload.wordCount }} 词</span>
+          <span>HTML / Markdown / JSON</span>
+        </div>
+        <SFButton
+          size="sm"
+          :disabled="disabled || currentPayload.isEmpty"
+          @click="submitContent"
+        >
+          {{ submitLabel }}
+        </SFButton>
+      </template>
     </div>
   </div>
 </template>

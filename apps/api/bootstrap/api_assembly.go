@@ -463,9 +463,12 @@ func wireAPICoreStack(ctx context.Context, cfg config.Config, logger *slog.Logge
 		pool.Close()
 		return nil, fmt.Errorf("Host platform services setup failed: %w", err)
 	}
-	_ = hostPlatform
+	// 生产接线：后台设置保存/重置/导入/升级必须走 SettingsLifecycle。
+	if hostPlatform != nil && hostPlatform.Settings != nil {
+		extensionService.BindSettingsLifecycle(hostPlatform.Settings)
+	}
 	// P12 ops：RuntimeRollout / SystemTier / Marketplace / Privacy 绑定 PostgreSQL。
-	p12Ops, err := bindProductionP12Ops(cfg, pool, logger)
+	p12Ops, err := bindProductionP12Ops(cfg, pool, logger, extensionService, identityStore)
 	if err != nil {
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 			logger.Warn("job dispatcher stop failed", "error", stopErr)
@@ -479,7 +482,43 @@ func wireAPICoreStack(ctx context.Context, cfg config.Config, logger *slog.Logge
 		pool.Close()
 		return nil, fmt.Errorf("P12 ops services setup failed: %w", err)
 	}
-	_ = p12Ops
+	// SystemTier：在任何 system extension 代码启动前决定加载顺序；Safe Mode 直接绕过。
+	if p12Ops != nil && p12Ops.SystemTier != nil {
+		if order, tierErr := p12Ops.SystemTier.LoadOrder(ctx, cfg.SafeMode); tierErr != nil {
+			if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+				logger.Warn("job dispatcher stop failed", "error", stopErr)
+			}
+			extensionRuntime.Close(ctx)
+			_ = hostAPIGateway.Close()
+			sharedRedisClient.Close()
+			if closeErr := redisStorage.Close(); closeErr != nil {
+				logger.Warn("redis session storage close failed", "error", closeErr)
+			}
+			pool.Close()
+			return nil, fmt.Errorf("system tier load order: %w", tierErr)
+		} else if cfg.SafeMode && order != nil {
+			if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+				logger.Warn("job dispatcher stop failed", "error", stopErr)
+			}
+			extensionRuntime.Close(ctx)
+			_ = hostAPIGateway.Close()
+			sharedRedisClient.Close()
+			if closeErr := redisStorage.Close(); closeErr != nil {
+				logger.Warn("redis session storage close failed", "error", closeErr)
+			}
+			pool.Close()
+			return nil, fmt.Errorf("bootstrap: safe mode must bypass system tier (got %d members)", len(order))
+		} else if !cfg.SafeMode && len(order) > 0 {
+			logger.Info("system tier load order resolved before system extension start",
+				"members", len(order))
+			// 顺序仅作为后续 runtime 启动输入；此处禁止执行 package 代码。
+			_ = order
+		}
+		// 绑定 RuntimeRollout 到扩展升级协调（staged → migrate → promote / rollback）。
+		if p12Ops.Rollout != nil {
+			extensionService.BindRuntimeRollout(p12Ops.Rollout)
+		}
+	}
 	if err := bindProtocolV2ProviderBroker(hostAPIGateway, lifecycleRuntime); err != nil {
 		extensionRuntime.Close(ctx)
 		sharedRedisClient.Close()

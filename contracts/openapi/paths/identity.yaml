@@ -492,12 +492,18 @@ users:
 userByID:
   get:
     summary: Get an admin user detail
+    description: |
+      Requires `user.view` (or parent `user.manage`). Returns account fields, public
+      profile, effective permissions, permission overrides, plus admin inspection
+      data for previews: activity counts, recent sessions with full client IP and
+      raw User-Agent, and recent login/register audit events. Self-service device
+      lists still only expose masked IP prefixes.
     operationId: getAdminUser
     parameters:
     - "$ref": "../components/parameters.yaml#/UserID"
     responses:
       '200':
-        description: User detail with effective permissions, profile, and direct overrides.
+        description: User detail with profile, permissions, sessions (full IP/UA), and auth events.
         content:
           application/json:
             schema:

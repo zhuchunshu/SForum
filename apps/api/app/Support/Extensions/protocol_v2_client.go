@@ -1085,7 +1085,13 @@ func protocolV2Risk(risk string) protocolv2.RiskTier {
 }
 
 func protocolV2Document(schemaID, version string, values map[string]any) (*protocolv2.TypedDocument, error) {
-	value, err := structpb.NewStruct(values)
+	// Host 业务 payload 常含 []string、具名 struct（如 forum.ContentInput）。
+	// structpb.NewStruct 只接受 JSON 友好类型；先 JSON round-trip 再编码。
+	normalized, err := cloneHookDocument(values)
+	if err != nil {
+		return nil, fmt.Errorf("encode %s: normalize payload: %w", schemaID, err)
+	}
+	value, err := structpb.NewStruct(normalized)
 	if err != nil {
 		return nil, fmt.Errorf("encode %s: %w", schemaID, err)
 	}

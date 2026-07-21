@@ -17,7 +17,10 @@ const {
 const { refresh: refreshAuthSession } = useAuthSession()
 const route = useRoute()
 const adminRoutes = useAdminRoutes()
+const themeSkin = useActiveThemeSkin()
 const startupOptionsTimeout = import.meta.dev ? 800 : 2000
+const hasServerSession = import.meta.server
+  && /(?:^|;\s*)sforum_session=/.test(useRequestHeaders(['cookie']).cookie || '')
 
 // 引入页签缓存控制列表
 const { cachedTabNames } = useAdminTabs()
@@ -36,25 +39,31 @@ async function refreshStartupState(options: { restoreAuth: boolean }) {
   return true
 }
 
-if (import.meta.server) {
-  // 公共页可能被 Nitro SWR 缓存，SSR 阶段不能把当前用户写进可复用 payload。
-  await useAsyncData('app-startup', () => refreshStartupState({ restoreAuth: false }))
-} else {
-  const themeSkin = useActiveThemeSkin()
-  const syncThemeSkin = () => {
-    if (adminRoutes.routeId(route.path) !== null) {
-      themeSkin.clear()
-      return
-    }
-    void themeSkin.refresh()
+async function syncThemeSkin() {
+  if (adminRoutes.routeId(route.path) !== null) {
+    themeSkin.clear()
+    return
   }
+  await themeSkin.refresh()
+}
 
-  watch(() => route.path, syncThemeSkin, { flush: 'post' })
+if (import.meta.server) {
+  // 带会话的页面由 public-session-cache 禁止共享缓存，可以安全输出登录态首屏。
+  await useAsyncData('app-startup', async () => {
+    await Promise.all([
+      refreshStartupState({ restoreAuth: hasServerSession }),
+      syncThemeSkin()
+    ])
+    return true
+  })
+} else {
+
+  watch(() => route.path, () => { void syncThemeSkin() }, { flush: 'post' })
   // 浏览器挂载后再恢复会话，避免复用 SSR 的 app-startup payload 时跳过 auth 刷新。
   onMounted(() => {
     void refreshStartupState({ restoreAuth: true })
     // 公共主题 L0 皮肤不得进入独立的管理端样式边界。
-    syncThemeSkin()
+    void syncThemeSkin()
   })
 }
 
@@ -76,10 +85,16 @@ useHead(() => {
   if (siteAppleTouchIconUrl.value) {
     brandLinks.push({ rel: 'apple-touch-icon', href: siteAppleTouchIconUrl.value })
   }
+  const themeLinks = themeSkin.links.value.map(href => ({
+    rel: 'stylesheet',
+    href,
+    key: `sforum-theme-skin:${href}`,
+    'data-sforum-theme-skin': '1'
+  }))
 
   return {
     htmlAttrs,
-    link: [...(localeHead.value.link || []), ...brandLinks],
+    link: [...(localeHead.value.link || []), ...brandLinks, ...themeLinks],
     meta: localeHead.value.meta,
     titleTemplate: (title) => title
       ? applySEOTitleTemplate(title, seoSettings.value.metaTitleTemplate, siteName.value)

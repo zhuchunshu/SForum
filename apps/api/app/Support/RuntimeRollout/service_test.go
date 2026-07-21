@@ -199,6 +199,91 @@ func TestNodeLostAndMigrationFailure(t *testing.T) {
 	}
 }
 
+// TestConcurrentAckPromoteRollbackCAS 证明并发 Ack/Promote/Rollback 不会丢更新：
+// 失败者得 ErrConflict 或合法相位错误；最终 revision 单调递增。
+func TestConcurrentAckPromoteRollbackCAS(t *testing.T) {
+	ctx := context.Background()
+	store := NewMemoryStore()
+	svc := NewWithStore(store)
+	plan, err := svc.CreatePlan(ctx, "demo.cas", strings.Repeat("c", 64), strings.Repeat("d", 64), "admin", 100, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.MarkMigrationReady(ctx, plan.PlanID, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.AckNode(ctx, plan.PlanID, "n1", PhaseStaged, HealthHealthy, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.SelectCanary(ctx, plan.PlanID, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.AckNode(ctx, plan.PlanID, "n1", PhaseCanary, HealthHealthy, true); err != nil {
+		t.Fatal(err)
+	}
+	before, err := svc.Get(ctx, plan.PlanID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	beforeRev := before.Revision
+
+	var wait sync.WaitGroup
+	var mu sync.Mutex
+	var conflicts, successes, others int
+	// 并发：多 Ack + Promote + 一次 Rollback 竞争。
+	for i := 0; i < 12; i++ {
+		wait.Add(1)
+		go func(i int) {
+			defer wait.Done()
+			// 独立 Service 实例共享 store（双连接语义）。
+			local := NewWithStore(store)
+			var opErr error
+			switch i % 3 {
+			case 0:
+				_, opErr = local.AckNode(ctx, plan.PlanID, "n1", PhaseCanary, HealthHealthy, true)
+			case 1:
+				_, opErr = local.BeginDrain(ctx, plan.PlanID, "admin")
+				if opErr == nil {
+					_, opErr = local.PromoteAtomic(ctx, plan.PlanID, "admin")
+				}
+			default:
+				_, opErr = local.Rollback(ctx, plan.PlanID, "admin", "race")
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			switch {
+			case opErr == nil:
+				successes++
+			case errors.Is(opErr, ErrConflict), errors.Is(opErr, ErrPhase), errors.Is(opErr, ErrHealthGate), errors.Is(opErr, ErrMigration):
+				conflicts++
+			default:
+				others++
+				t.Errorf("unexpected error: %v", opErr)
+			}
+		}(i)
+	}
+	wait.Wait()
+	if others > 0 {
+		t.Fatalf("unexpected errors=%d successes=%d conflicts=%d", others, successes, conflicts)
+	}
+	if successes < 1 {
+		t.Fatal("expected at least one successful concurrent transition")
+	}
+	final, err := svc.Get(ctx, plan.PlanID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if final.Revision < beforeRev {
+		t.Fatalf("revision regressed: before=%d after=%d", beforeRev, final.Revision)
+	}
+	// 终态必须是合法相位之一。
+	switch final.Phase {
+	case PhaseActive, PhaseRolledBack, PhaseDraining, PhasePromoting, PhaseCanary, PhaseFailed:
+	default:
+		t.Fatalf("unexpected final phase=%s rev=%d", final.Phase, final.Revision)
+	}
+}
+
 func TestMissedNotificationRecoveredByReload(t *testing.T) {
 	// 模拟节点错过 NOTIFY：不依赖 pub/sub，直接从 durable store 重读并 ack。
 	ctx := context.Background()

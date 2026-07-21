@@ -62,6 +62,11 @@ type Config struct {
 	ExtensionRoot        string
 	BuiltinExtensionRoot string
 	SafeMode             bool
+	// MarketplaceEd25519PublicKeyHex 是 marketplace 索引验签公钥（32 字节 hex）。
+	// 生产/staging 必填；开发可空（AllowUnsigned）。
+	MarketplaceEd25519PublicKeyHex string
+	// MarketplaceEd25519KeyID 与签名索引中的 SignerID 对齐。
+	MarketplaceEd25519KeyID string
 	// V3TrustChallenges 在生产默认开启；非生产仍可显式开启以验证迁移流程。
 	V3TrustChallenges bool
 	// V3PublicL2 允许浏览器加载已授权精确制品中的预构建公开 ESM；Safe Mode 始终覆盖此开关。
@@ -189,6 +194,8 @@ func Load() Config {
 		ExtensionRoot:                 env("EXTENSION_ROOT", "../../storage/extensions"),
 		BuiltinExtensionRoot:          env("BUILTIN_EXTENSION_ROOT", "../../extensions/builtin"),
 		SafeMode:                      envBool("SFORUM_SAFE_MODE", false),
+		MarketplaceEd25519PublicKeyHex: env("MARKETPLACE_ED25519_PUBLIC_KEY_HEX", ""),
+		MarketplaceEd25519KeyID:        env("MARKETPLACE_ED25519_KEY_ID", "marketplace-primary"),
 		V3TrustChallenges:             envBool("SFORUM_V3_TRUST_CHALLENGES", isProd),
 		V3PublicL2:                    envBool("SFORUM_V3_PUBLIC_L2", false),
 		TrustChallengeTTL:             envDuration("SFORUM_V3_TRUST_CHALLENGE_TTL", 5*time.Minute),

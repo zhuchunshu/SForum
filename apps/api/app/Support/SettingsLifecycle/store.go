@@ -37,6 +37,15 @@ type SettingsKV interface {
 	CompareAndSwapSetting(ctx context.Context, extensionID, name, oldValue, newValue string) (bool, error)
 }
 
+// AtomicSettingsReplacer is optional: when implemented, Save uses one transaction
+// for revision CAS + full extension_settings replace (no torn write / revision race).
+type AtomicSettingsReplacer interface {
+	// ReplaceSettingsCAS replaces all settings only when current __sforum.revision
+	// matches expectedRevision (0 means create when absent or revision is 0).
+	// Returns the new revision, or ErrConflict on mismatch.
+	ReplaceSettingsCAS(ctx context.Context, extensionID string, expectedRevision int64, values map[string]string) (int64, error)
+}
+
 // SettingsKVStore maps Document <-> extension_settings rows.
 // Secret fields store only sforum.secret:// references, never plaintext.
 type SettingsKVStore struct {
@@ -72,6 +81,7 @@ func (s *SettingsKVStore) Load(ctx context.Context, extensionID string) (Documen
 }
 
 // Save implements DocumentStore with optional CAS on __sforum.revision.
+// Prefer AtomicSettingsReplacer so revision check and full replace share one transaction.
 func (s *SettingsKVStore) Save(ctx context.Context, extensionID string, doc Document, expectedRevision int64) (int64, error) {
 	if s == nil || s.kv == nil || ctx == nil {
 		return 0, ErrInvalid
@@ -80,7 +90,7 @@ func (s *SettingsKVStore) Save(ctx context.Context, extensionID string, doc Docu
 	if extensionID == "" {
 		return 0, ErrInvalid
 	}
-	// CAS path: claim next revision before full replace.
+	// 先算 next revision（原子路径在事务内再校验 expected）。
 	currentRaw, err := s.kv.ListSettings(ctx, extensionID)
 	if err != nil {
 		return 0, err
@@ -93,6 +103,18 @@ func (s *SettingsKVStore) Save(ctx context.Context, extensionID string, doc Docu
 	if nextRev < 1 {
 		nextRev = 1
 	}
+	payload := documentToKV(doc, nextRev)
+
+	// 生产路径：revision CAS + 全量替换必须在同一 PostgreSQL 事务内。
+	if atomic, ok := s.kv.(AtomicSettingsReplacer); ok {
+		newRev, casErr := atomic.ReplaceSettingsCAS(ctx, extensionID, expectedRevision, payload)
+		if casErr != nil {
+			return 0, casErr
+		}
+		return newRev, nil
+	}
+
+	// 兼容旧 KV：尽力 CAS 后再 Replace（测试替身；生产 Postgres 已实现 Atomic）。
 	if expectedRevision > 0 {
 		old := currentRaw[metaRevisionKey]
 		ok, casErr := s.kv.CompareAndSwapSetting(ctx, extensionID, metaRevisionKey, old, strconv.FormatInt(nextRev, 10))
@@ -100,13 +122,11 @@ func (s *SettingsKVStore) Save(ctx context.Context, extensionID string, doc Docu
 			return 0, casErr
 		}
 		if !ok {
-			// 首次创建时 old 为空：CAS 可能失败，走 Replace 路径校验。
 			if old != "" || currentRev != 0 {
 				return 0, ErrConflict
 			}
 		}
 	}
-	payload := documentToKV(doc, nextRev)
 	if err := s.kv.ReplaceSettings(ctx, extensionID, payload); err != nil {
 		return 0, err
 	}
@@ -319,9 +339,44 @@ func (s *MemorySettingsKV) CompareAndSwapSetting(_ context.Context, extensionID,
 	return true, nil
 }
 
+// ReplaceSettingsCAS implements AtomicSettingsReplacer under one mutex critical section.
+func (s *MemorySettingsKV) ReplaceSettingsCAS(_ context.Context, extensionID string, expectedRevision int64, values map[string]string) (int64, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	row := s.data[extensionID]
+	currentRev := int64(0)
+	if row != nil {
+		currentRev = parseRevision(row[metaRevisionKey])
+	}
+	if expectedRevision > 0 && currentRev != expectedRevision {
+		return 0, ErrConflict
+	}
+	// expectedRevision==0 且已有正 revision：创建路径与并发写入冲突。
+	if expectedRevision == 0 && currentRev > 0 {
+		return 0, ErrConflict
+	}
+	nextRev := currentRev + 1
+	if nextRev < 1 {
+		nextRev = 1
+	}
+	cloned := make(map[string]string, len(values)+1)
+	for k, v := range values {
+		cloned[k] = v
+	}
+	// 以调用方 payload 中的 revision 为准（documentToKV 已写入）；若缺失则补 next。
+	if parseRevision(cloned[metaRevisionKey]) < 1 {
+		cloned[metaRevisionKey] = strconv.FormatInt(nextRev, 10)
+	} else {
+		nextRev = parseRevision(cloned[metaRevisionKey])
+	}
+	s.data[extensionID] = cloned
+	return nextRev, nil
+}
+
 // Ensure DocumentStore implementations stay honest about errors.
 var (
-	_ DocumentStore = (*MemoryDocumentStore)(nil)
-	_ DocumentStore = (*SettingsKVStore)(nil)
-	_ SettingsKV    = (*MemorySettingsKV)(nil)
+	_ DocumentStore         = (*MemoryDocumentStore)(nil)
+	_ DocumentStore         = (*SettingsKVStore)(nil)
+	_ SettingsKV            = (*MemorySettingsKV)(nil)
+	_ AtomicSettingsReplacer = (*MemorySettingsKV)(nil)
 )

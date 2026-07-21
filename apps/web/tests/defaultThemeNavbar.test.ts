@@ -73,6 +73,7 @@ describe('default theme shared navbar contract', () => {
     expect(source).toContain('i-lucide-menu')
     expect(source).toContain(':aria-label="t(\'nav.openMenu\')"')
     expect(source).toContain(':aria-label="t(\'nav.search\')"')
+    expect(source).toContain('i-tabler-message-circle-filled')
     expect(source).toContain(':avatar="user.avatar"')
     expect(source).not.toContain('menuOpen')
     expect(source).not.toContain('langMenuOpen')

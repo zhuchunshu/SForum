@@ -153,6 +153,10 @@ func TestReferenceCommerceWorkflowPluginAndExtenderJoinedGates(t *testing.T) {
 	}
 	assertCommerceRoutePlans(t, routeReg)
 
+	// --- 真实 routes.Dispatcher：BuildExecutionPlan → Dispatch → StepInvoker → Manager RPC ---
+	// 禁止仅 InvokeRouteInstance 绕过 Dispatcher；完整 Route Plan 必须经 Dispatcher 进入。
+	assertCommerceOrdersViaDispatcher(t, ctx, routeReg, manager, commerce, active.Identity)
+
 	// --- 实际执行 HTTP add route via Protocol V2 ---
 	ordersResp := invokeCommerceRoute(t, manager, active.Identity, extensionsruntime.ProtocolV2RouteRequest{
 		RouteID: "sforum.commerce-workflow.route.orders",
@@ -281,8 +285,9 @@ func TestReferenceCommerceWorkflowPluginAndExtenderJoinedGates(t *testing.T) {
 	// 至少证明 command registry 在 Start 后可解析（Manager hooks 绑定）。
 	cmdResult, cmdErr := invokeCommerceCommand(t, manager, commerce, active.Identity)
 	if cmdErr != nil {
-		t.Logf("command execution note: %v (manifest+registry still required)", cmdErr)
-	} else if cmdResult["status"] != "settled" {
+		t.Fatalf("command execution must succeed via real Dispatcher path: %v", cmdErr)
+	}
+	if cmdResult["accepted"] != true {
 		t.Fatalf("command result = %#v", cmdResult)
 	}
 
@@ -366,6 +371,129 @@ func assertCommerceManifestSurfaces(t *testing.T, extension extensions.Extension
 		len(extension.Manifest.Commands) < 1 || len(extension.Manifest.Schedules) < 1 {
 		t.Fatalf("commerce surfaces incomplete")
 	}
+}
+
+// assertCommerceOrdersViaDispatcher 证明 orders 路由从真实 Dispatcher 进入并走完整 Route Plan。
+func assertCommerceOrdersViaDispatcher(
+	t *testing.T,
+	ctx context.Context,
+	registry *routes.Registry,
+	manager *extensionsruntime.Manager,
+	commerce extensions.Extension,
+	identity extensionsruntime.RuntimeInstanceIdentity,
+) {
+	t.Helper()
+	plan, err := registry.BuildExecutionPlan(http.MethodGet, "/api/commerce-workflow/orders")
+	if err != nil {
+		t.Fatalf("dispatcher plan: %v", err)
+	}
+	if plan.Terminal().Action != extensionmanifest.RouteActionAdd {
+		t.Fatalf("dispatcher terminal = %#v", plan.Terminal())
+	}
+	stepInvoker := &commerceManagerStepInvoker{manager: manager, identity: identity}
+	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
+		Plans: commercePlanResolver{plan: plan},
+		Steps: stepInvoker,
+		Guard: commerceAllowGuard{},
+		Schemas: commerceAcceptSchemas{},
+	})
+	result, err := dispatcher.Dispatch(ctx, routes.DispatchRequest{
+		Method: http.MethodGet, Path: "/api/commerce-workflow/orders",
+		ActorID: 42, Authenticated: true,
+		Permissions: map[string]bool{"*": true},
+	}, nil)
+	if err != nil {
+		t.Fatalf("dispatcher.Dispatch orders: %v", err)
+	}
+	if !result.Handled || result.Response.Status != http.StatusOK {
+		t.Fatalf("dispatcher result = %#v", result)
+	}
+	if stepInvoker.invokes < 1 {
+		t.Fatal("dispatcher must invoke plugin step at least once")
+	}
+	var body map[string]any
+	if err := json.Unmarshal(result.Response.Body, &body); err != nil {
+		t.Fatalf("dispatcher body: %v raw=%s", err, result.Response.Body)
+	}
+	if body["source"] != "commerce-workflow" {
+		t.Fatalf("dispatcher orders body = %#v", body)
+	}
+	_ = commerce
+}
+
+type commercePlanResolver struct{ plan routes.RouteExecutionPlan }
+
+func (r commercePlanResolver) BuildExecutionPlan(context.Context, string, string) (routes.RouteExecutionPlan, error) {
+	return r.plan, nil
+}
+
+type commerceAllowGuard struct{}
+
+func (commerceAllowGuard) Authorize(context.Context, routes.RouteExecutionPlan, routes.RouteExecutionStep, routes.DispatchRequest) error {
+	return nil
+}
+
+type commerceAcceptSchemas struct{}
+
+func (commerceAcceptSchemas) ValidateRequest(context.Context, routes.RouteExecutionStep, routes.DispatchRequest) error {
+	return nil
+}
+func (commerceAcceptSchemas) ValidateResponse(context.Context, routes.RouteExecutionStep, routes.DispatchRequest, routes.DispatchResponse) error {
+	return nil
+}
+
+// commerceManagerStepInvoker 把 Dispatcher 步骤落到真实 Manager.InvokeRouteInstance。
+type commerceManagerStepInvoker struct {
+	manager  *extensionsruntime.Manager
+	identity extensionsruntime.RuntimeInstanceIdentity
+	invokes  int
+}
+
+func (*commerceManagerStepInvoker) SupportsMode(mode string) bool {
+	return mode == "" || mode == extensionmanifest.RouteModeHTTP
+}
+
+func (i *commerceManagerStepInvoker) Invoke(ctx context.Context, input routes.RouteInvocation) (routes.RouteInvocationResult, error) {
+	i.invokes++
+	lease, err := i.manager.AcquireRuntimeCall(ctx, i.identity, extensionsruntime.RuntimeCallRoute)
+	if err != nil {
+		return routes.RouteInvocationResult{}, err
+	}
+	defer lease.Release()
+	stage := extensionsruntime.ProtocolV2RouteInvocationStageHandler
+	switch input.Stage {
+	case routes.InvocationStageRequest:
+		stage = extensionsruntime.ProtocolV2RouteInvocationStageRequest
+	case routes.InvocationStageResponse:
+		stage = extensionsruntime.ProtocolV2RouteInvocationStageResponse
+	}
+	resp, err := i.manager.InvokeRouteInstance(lease.Context, i.identity, extensionsruntime.ProtocolV2RouteRequest{
+		RouteID: input.Step.RouteID, ContractVersion: input.Step.ContractVersion,
+		RouteAction: input.Step.Action, InvocationStage: stage,
+		Method: input.Request.Method, Path: input.Request.Path,
+		ResponseSchema: input.Step.ResponseSchema,
+		Authority: commerceFilteredHostAuthority(),
+		Actor: extensionsruntime.NewProtocolV2RouteActor(
+			input.Request.ActorID, input.Request.Authenticated, input.Request.Permissions,
+		),
+		Timeout: 5 * time.Second,
+	})
+	if err != nil {
+		return routes.RouteInvocationResult{}, err
+	}
+	body, _ := json.Marshal(resp.Body)
+	headers := resp.Headers.Clone()
+	if headers == nil {
+		headers = http.Header{}
+	}
+	if headers.Get("Content-Type") == "" {
+		headers.Set("Content-Type", "application/json")
+	}
+	return routes.RouteInvocationResult{
+		Response: &routes.DispatchResponse{
+			Status: resp.StatusCode, Headers: headers, Body: body,
+		},
+	}, nil
 }
 
 func assertCommerceRoutePlans(t *testing.T, registry *routes.Registry) {
@@ -607,7 +735,7 @@ func assertCommerceRouteStreams(t *testing.T, manager *extensionsruntime.Manager
 		t.Fatalf("open stream: %v", err)
 	}
 	if err := bin.Send([]byte("ping"), true); err != nil {
-		t.Logf("stream send: %v", err)
+		t.Fatalf("stream send must succeed: %v", err)
 	}
 	_ = bin.CloseRequest()
 	for {

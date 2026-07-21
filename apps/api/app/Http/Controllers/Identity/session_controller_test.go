@@ -255,7 +255,9 @@ func (s *sessionTestStore) GetAdminUser(_ context.Context, userID int64) (identi
 			Status: u.Status, RoleKeys: append([]string(nil), u.RoleKeys...),
 			IsInitialSuperAdmin: u.IsInitialSuperAdmin,
 		},
-		Permissions: append([]string(nil), u.Permissions...),
+		Permissions:      append([]string(nil), u.Permissions...),
+		Sessions:         []identity.AdminSessionInspect{},
+		RecentAuthEvents: []identity.AdminAuthEvent{},
 	}, nil
 }
 func (s *sessionTestStore) UpdateAdminUser(context.Context, int64, int64, identity.AdminUpdateUserInput) (identity.AdminUserDetail, error) {

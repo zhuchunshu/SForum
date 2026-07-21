@@ -4,36 +4,41 @@
 
 :root {
   --sf-public-container: 1200px;
-  --sf-public-bg: #f5f6f8;
+  --sf-public-bg: #ffffff;
   --sf-public-surface: #ffffff;
-  --sf-public-surface-muted: #f0f2f5;
-  --sf-public-border: #e1e4e9;
-  --sf-public-border-strong: #d2d7df;
-  --sf-public-text: #151922;
-  --sf-public-text-secondary: #4f5869;
-  --sf-public-text-muted: #8c95a5;
-  --sf-public-text-faint: #8c95a5;
+  --sf-public-surface-muted: #f5f5f8;
+  --sf-public-border: #e9e8ed;
+  --sf-public-border-strong: #d8d6df;
+  --sf-public-text: #25252b;
+  --sf-public-text-secondary: #676773;
+  --sf-public-text-muted: #a0a0aa;
+  --sf-public-text-faint: #a0a0aa;
   --sf-public-shadow: none;
   --sf-public-shadow-hover: 0 1px 2px rgba(15, 23, 42, 0.04);
   --sf-public-glass: #ffffff;
-  --sf-public-row-hover: #f0f2f5;
+  --sf-public-row-hover: #f5f5f8;
   --sf-public-notice-bg: #fff9db;
   --sf-public-notice-border: #fde68a;
   --sf-public-notice-text: #9a6700;
-  --sf-public-sidebar-width: 224px;
-  --sf-public-right-rail-width: 286px;
-  --sf-public-topbar-height: 64px;
-  --sf-public-radius: 7px;
+  --sf-public-sidebar-width: 230px;
+  --sf-public-right-rail-width: 270px;
+  --sf-public-topbar-height: 58px;
+  --sf-public-radius: 4px;
   --sf-public-reading-max: 70rem;
-  --sf-theme-radius: 7px;
+  --sf-theme-radius: 4px;
   --sf-surface: var(--sf-public-bg);
   --sf-card: #ffffff;
-  --sf-muted: #f0f2f5;
-  --sf-fg: #151922;
-  --sf-fg-secondary: #4f5869;
-  --sf-fg-tertiary: #8c95a5;
-  --sf-border: #e1e4e9;
-  --sf-border-light: #eef0f3;
+  --sf-muted: #f5f5f8;
+  --sf-fg: #25252b;
+  --sf-fg-secondary: #676773;
+  --sf-fg-tertiary: #a0a0aa;
+  --sf-border: #e9e8ed;
+  --sf-border-light: #f0eff3;
+  --sf-accent: #d94763;
+  --sf-accent-hover: #b82d48;
+  --sf-accent-soft: #fff0f3;
+  --sf-accent-soft-border: #f3bdc7;
+  --sf-accent-rgb: 217 71 99;
 }
 
 .dark {

@@ -40,6 +40,12 @@ function badgeHref(badge: ForumTopicExtensionBadge) {
 
 <template>
   <header class="sf-topic-heading">
+    <nav class="sf-topic-heading__breadcrumbs" :aria-label="t('nav.mainNav')">
+      <NuxtLink :to="localePath('/')">{{ t('nav.home') }}</NuxtLink>
+      <UIcon name="i-lucide-chevron-right" class="size-3.5" aria-hidden="true" />
+      <NuxtLink :to="categoryTo">{{ topic.categoryName }}</NuxtLink>
+    </nav>
+    <NuxtLink :to="categoryTo" class="sf-topic-heading__taxonomy">{{ topic.categoryName }}</NuxtLink>
     <h1 class="sf-topic-heading__title">{{ topic.title }}</h1>
 
     <div
