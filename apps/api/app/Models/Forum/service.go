@@ -470,7 +470,7 @@ func (s *Service) GetTopic(ctx context.Context, topicID int64) (TopicDetail, err
 }
 
 // GetTopicBySlug 按 slug 查询主题。仅 "纯 slug" URL 模式使用，
-// 依赖 topics_slug_unique_idx 保证全局唯一。空 slug 直接返回未找到。
+// 依赖 topics_slug_idx（UNIQUE）保证全局唯一。空 slug 直接返回未找到。
 func (s *Service) GetTopicBySlug(ctx context.Context, slug string) (TopicDetail, error) {
 	if strings.TrimSpace(slug) == "" {
 		return TopicDetail{}, ErrTopicNotFound

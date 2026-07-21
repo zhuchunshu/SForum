@@ -362,12 +362,15 @@ func (s *PostgresStore) ListAuthorReviewItems(ctx context.Context, authorUserID 
 	return AuthorReviewList{Items: items}, nil
 }
 
-// GetTopicBySlug 按全局唯一 slug 查询公开主题。slug 维度的查找复用
-// topicDetailSQL() 与同样的可见性过滤。slug 为空或无匹配时返回 ErrTopicNotFound。
+// GetTopicBySlug 按全局唯一 slug 查询公开主题。
+// WHERE topics.slug = $1 走 UNIQUE 索引 topics_slug_idx（迁移 202607090001）。
+// 与 GetTopic 共用 topicDetailSQL()（posts + author avatar；revisions 仅 EXISTS 标记 edited）。
+// slug 为空或无匹配时返回 ErrTopicNotFound。
 func (s *PostgresStore) GetTopicBySlug(ctx context.Context, slug string) (TopicDetail, error) {
 	if strings.TrimSpace(slug) == "" {
 		return TopicDetail{}, ErrTopicNotFound
 	}
+	// 单行点查：slug 唯一索引 + posts_pkey + 可选 avatar；tags 二次查询（轻量）。
 	row := s.pool.QueryRow(ctx, topicDetailSQL()+`
 		WHERE topics.slug = $1
 		  AND topics.status IN ('active', 'locked')

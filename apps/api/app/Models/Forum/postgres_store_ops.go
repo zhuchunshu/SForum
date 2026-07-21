@@ -984,7 +984,9 @@ func topicListOrderBy(sort string) string {
 }
 
 func topicDetailSQL() string {
-	// 详情仍 SELECT 完整 plain_text；excerpt 在 scan 时从 plain 派生。
+	// 详情 SELECT：正文三字段 + 作者头像；excerpt 在 scan 时从 plain 派生。
+	// ContentEdited 用 EXISTS(post_revisions) 索引探测（post_revisions_post_created_idx），
+	// 不拉 revision 正文，避免详情路径扫历史快照。
 	return `
 		SELECT topics.id, topics.category_id, categories.slug, categories.name,
 		  topics.author_user_id, users.username, users.display_name, users.email,

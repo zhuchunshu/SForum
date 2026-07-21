@@ -38,11 +38,13 @@ const (
 	// 缓存 key 前缀。
 	prefixTopicDetail = "forum:topic:"
 	prefixTopicBySlug = "forum:topic-slug:"
-	prefixTopicsList  = "forum:topics:"
+	// id→slug 反向映射：写路径只有 topicID 时也能同时失效 by-slug 详情缓存。
+	prefixTopicIDSlug  = "forum:topic-id-slug:"
+	prefixTopicsList   = "forum:topics:"
 	prefixCommentsList = "forum:comments:"
-	prefixCatsList    = "forum:cats"
-	prefixGroupsList  = "forum:groups"
-	prefixTagsList    = "forum:tags"
+	prefixCatsList     = "forum:cats"
+	prefixGroupsList   = "forum:groups"
+	prefixTagsList     = "forum:tags"
 
 	ttlList        = 15 * time.Second // 主题列表：变化较频繁
 	ttlListPage1   = 45 * time.Second // 第一页（首页/分类热路径）稍长 TTL
@@ -144,7 +146,8 @@ func (s *CachedStore) GetTopic(ctx context.Context, topicID int64) (TopicDetail,
 	if err != nil {
 		return TopicDetail{}, err
 	}
-	s.saveJSON(ctx, key, out, ttlTopicDetail)
+	// 双写 id + slug，避免 id/slug 两种入口各 miss 一次。
+	s.saveTopicDetail(ctx, out)
 	return out, nil
 }
 
@@ -167,8 +170,22 @@ func (s *CachedStore) GetTopicBySlug(ctx context.Context, slug string) (TopicDet
 	if err != nil {
 		return TopicDetail{}, err
 	}
-	s.saveJSON(ctx, key, out, ttlTopicDetail)
+	s.saveTopicDetail(ctx, out)
 	return out, nil
+}
+
+// saveTopicDetail 写入 id 键、slug 键与 id→slug 反向映射（同 TTL）。
+// 公开详情不含权限抬升字段；私有/hidden 主题不会进入本路径。
+func (s *CachedStore) saveTopicDetail(ctx context.Context, out TopicDetail) {
+	if out.ID <= 0 {
+		return
+	}
+	s.saveJSON(ctx, fmt.Sprintf("%s%d", prefixTopicDetail, out.ID), out, ttlTopicDetail)
+	if out.Slug == "" {
+		return
+	}
+	s.saveJSON(ctx, prefixTopicBySlug+out.Slug, out, ttlTopicDetail)
+	_ = s.cache.Set(ctx, fmt.Sprintf("%s%d", prefixTopicIDSlug, out.ID), []byte(out.Slug), ttlTopicDetail)
 }
 
 // TopicSlugExists 不缓存：写路径的实时唯一性校验，必须读最新数据。
@@ -383,8 +400,19 @@ func (s *CachedStore) invalidateTaxonomy(ctx context.Context) {
 	_ = s.cache.Delete(ctx, prefixCatsList, prefixGroupsList, prefixTagsList, prefixTagsList+":all")
 }
 
+// invalidateTopicDetail 同时清除 id 详情、反向映射对应的 slug 详情。
+// 评论写入等只有 topicID 的路径依赖此方法失效 by-slug 缓存（comment_count 等）。
 func (s *CachedStore) invalidateTopicDetail(ctx context.Context, topicID int64) {
-	_ = s.cache.Delete(ctx, fmt.Sprintf("%s%d", prefixTopicDetail, topicID))
+	if topicID <= 0 {
+		return
+	}
+	idKey := fmt.Sprintf("%s%d", prefixTopicDetail, topicID)
+	revKey := fmt.Sprintf("%s%d", prefixTopicIDSlug, topicID)
+	keys := []string{idKey, revKey}
+	if raw, found, err := s.cache.Get(ctx, revKey); err == nil && found && len(raw) > 0 {
+		keys = append(keys, prefixTopicBySlug+string(raw))
+	}
+	_ = s.cache.Delete(ctx, keys...)
 }
 
 // invalidateComments 递增该主题评论 generation，使 ListComments 缓存 miss。
@@ -396,7 +424,8 @@ func (s *CachedStore) invalidateComments(ctx context.Context, topicID int64) {
 }
 
 // invalidateTopicBySlug 清除按 slug 缓存的详情条目。用于写操作后保证 slug 维度缓存及时更新；
-// 旧 slug 的残留条目依赖 TTL（30s）自然过期，规范化 301 兜底。
+// 若写路径同时有 topicID，优先走 invalidateTopicDetail（含反向映射）。
+// 旧 slug 在改名后若反向映射已更新，残留条目依赖 TTL（30s）自然过期，规范化 301 兜底。
 func (s *CachedStore) invalidateTopicBySlug(ctx context.Context, slug string) {
 	if slug == "" {
 		return

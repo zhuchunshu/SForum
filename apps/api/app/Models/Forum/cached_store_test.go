@@ -28,7 +28,12 @@ func (s *cacheTestStore) ListCategories(_ context.Context) ([]Category, error) {
 
 func (s *cacheTestStore) GetTopic(_ context.Context, topicID int64) (TopicDetail, error) {
 	s.topicCalls++
-	return TopicDetail{TopicSummary: TopicSummary{ID: topicID, Title: "测试主题"}}, nil
+	return TopicDetail{TopicSummary: TopicSummary{ID: topicID, Title: "测试主题", Slug: "test-topic"}}, nil
+}
+
+func (s *cacheTestStore) GetTopicBySlug(_ context.Context, slug string) (TopicDetail, error) {
+	s.topicCalls++
+	return TopicDetail{TopicSummary: TopicSummary{ID: 42, Title: "测试主题", Slug: slug}}, nil
 }
 
 func (s *cacheTestStore) ListTopics(_ context.Context, input TopicListInput) (TopicList, error) {
@@ -98,6 +103,39 @@ func TestCachedStoreGetTopicHitAndInvalidate(t *testing.T) {
 	}
 	if inner.topicCalls != 2 {
 		t.Fatalf("expected 2 store calls after invalidation, got %d", inner.topicCalls)
+	}
+}
+
+// M4：id 路径预热后 by-slug 应命中双写缓存；评论写入应同时失效 slug 详情。
+func TestCachedStoreTopicDetailDualWriteAndCommentInvalidatesSlug(t *testing.T) {
+	ctx := context.Background()
+	inner := newCacheTestStore()
+	c := cache.NewMemoryCache()
+	cached := NewCachedStore(inner, c)
+
+	if _, err := cached.GetTopic(ctx, 42); err != nil {
+		t.Fatalf("get by id: %v", err)
+	}
+	if inner.topicCalls != 1 {
+		t.Fatalf("expected 1 store call after id load, got %d", inner.topicCalls)
+	}
+	// 双写：slug 入口不应再回源。
+	if _, err := cached.GetTopicBySlug(ctx, "test-topic"); err != nil {
+		t.Fatalf("get by slug: %v", err)
+	}
+	if inner.topicCalls != 1 {
+		t.Fatalf("expected dual-write hit on slug, got %d store calls", inner.topicCalls)
+	}
+
+	// CreateComment 只有 topicID：反向映射应清掉 slug 缓存。
+	if _, err := cached.CreateComment(ctx, CreateCommentRecord{TopicID: 42}); err != nil {
+		t.Fatalf("create comment: %v", err)
+	}
+	if _, err := cached.GetTopicBySlug(ctx, "test-topic"); err != nil {
+		t.Fatalf("get by slug after comment: %v", err)
+	}
+	if inner.topicCalls != 2 {
+		t.Fatalf("expected slug miss after comment invalidate, got %d store calls", inner.topicCalls)
 	}
 }
 
