@@ -455,16 +455,12 @@ func (s *PostgresStore) ListComments(ctx context.Context, input CommentListInput
 }
 
 // listCommentsFlat 直接对全部 active 评论按 path_key 做 SQL 分页。
-// 复用 comments_topic_path_idx(topic_id, path_key)；Total 为该 topic 的 active 评论总数。
+// 复用 comments_topic_path_idx(topic_id, path_key)。
+// 公开路径 Total 用 topics.comment_count（写路径维护），避免热帖 COUNT(*)；含软删扩展查询时仍精确计数。
 func (s *PostgresStore) listCommentsFlat(ctx context.Context, input CommentListInput, offset int) (CommentList, error) {
-	var total int64
-	if err := s.pool.QueryRow(ctx, `
-		SELECT count(*) FROM comments
-		WHERE topic_id = $1
-		  AND (status = 'active' OR ($2::boolean AND status = 'deleted'
-		    AND ($3::bigint = 0 OR author_user_id = $3)))
-	`, input.TopicID, input.IncludeDeleted, input.DeletedAuthorUserID).Scan(&total); err != nil {
-		return CommentList{}, fmt.Errorf("count comments: %w", err)
+	total, err := s.commentListTotalFlat(ctx, input)
+	if err != nil {
+		return CommentList{}, err
 	}
 
 	rows, err := s.pool.Query(ctx, commentSelectSQL()+`
@@ -486,22 +482,40 @@ func (s *PostgresStore) listCommentsFlat(ctx context.Context, input CommentListI
 	return CommentList{Items: items, Total: total, Page: input.Page, PerPage: input.PerPage, View: "flat"}, nil
 }
 
-// listCommentsTree 采用"根评论分页 + 子孙批量拉取"两步查询，避免全量加载：
-//  1. 对根评论(parent_comment_id IS NULL)按 path_key 分页，复用 comments_topic_root_idx
-//     部分索引(status='active')。Total 为根评论数，与改造前 buildCommentTree 后的语义一致。
-//  2. 取当页根评论 ID，用 root_comment_id = ANY(...) 批量拉取这些根的全部子孙
-//     (同样命中 comments_topic_root_idx)，再在内存中 buildCommentTree。
-//
-// 这样单次请求只加载当页 perPage 个根讨论线的数据，而非整个 topic 的全部评论。
-func (s *PostgresStore) listCommentsTree(ctx context.Context, input CommentListInput, offset int) (CommentList, error) {
+// commentListTotalFlat 公开 active-only 用 denormalized comment_count；含 deleted 范围时精确 COUNT。
+func (s *PostgresStore) commentListTotalFlat(ctx context.Context, input CommentListInput) (int64, error) {
+	if !input.IncludeDeleted {
+		var total int64
+		err := s.pool.QueryRow(ctx, `
+			SELECT comment_count FROM topics WHERE id = $1
+		`, input.TopicID).Scan(&total)
+		if err != nil {
+			return 0, fmt.Errorf("topic comment_count: %w", err)
+		}
+		return total, nil
+	}
 	var total int64
 	if err := s.pool.QueryRow(ctx, `
 		SELECT count(*) FROM comments
-		WHERE topic_id = $1 AND parent_comment_id IS NULL
-		  AND (status = 'active' OR ($2::boolean AND status = 'deleted'
-		    AND ($3::bigint = 0 OR author_user_id = $3)))
-	`, input.TopicID, input.IncludeDeleted, input.DeletedAuthorUserID).Scan(&total); err != nil {
-		return CommentList{}, fmt.Errorf("count root comments: %w", err)
+		WHERE topic_id = $1
+		  AND (status = 'active' OR (status = 'deleted'
+		    AND ($2::bigint = 0 OR author_user_id = $2)))
+	`, input.TopicID, input.DeletedAuthorUserID).Scan(&total); err != nil {
+		return 0, fmt.Errorf("count comments: %w", err)
+	}
+	return total, nil
+}
+
+// listCommentsTree 采用"根评论分页 + 有界子孙拉取"两步查询（D2）：
+//  1. 对根评论(parent_comment_id IS NULL)按 path_key 分页。Total 为根评论数。
+//  2. 每个根最多拉取 TreeDescendantsPerRoot 个子孙（默认 50）；截断时 root.hasMoreChildren=true，
+//     更多回复走 ListCommentReplies。
+func (s *PostgresStore) listCommentsTree(ctx context.Context, input CommentListInput, offset int) (CommentList, error) {
+	capN := normalizeTreeDescendantsPerRoot(input.TreeDescendantsPerRoot)
+
+	total, err := s.commentListTotalRoots(ctx, input)
+	if err != nil {
+		return CommentList{}, err
 	}
 
 	// 第一步：拉当页根评论。
@@ -524,19 +538,37 @@ func (s *PostgresStore) listCommentsTree(ctx context.Context, input CommentListI
 		return CommentList{Items: []Comment{}, Total: total, Page: input.Page, PerPage: input.PerPage, View: "tree"}, nil
 	}
 
-	// 第二步：拉这些根评论的全部子孙。root_comment_id 已在写入时写死（见 CommentPositionForInsert）。
 	rootIDs := make([]int64, 0, len(roots))
 	for _, r := range roots {
 		rootIDs = append(rootIDs, r.ID)
 	}
+
+	// 各根子孙总数：用于 hasMoreChildren（比拉 N+1 行更清晰，且仍走 root 索引）。
+	descendantCounts, err := s.countDescendantsByRoot(ctx, input.TopicID, rootIDs, input.IncludeDeleted, input.DeletedAuthorUserID)
+	if err != nil {
+		return CommentList{}, err
+	}
+
+	// 第二步：每根最多 capN 个子孙（path_key 序），禁止无界加载热帖整棵树。
 	descRows, err := s.pool.Query(ctx, commentSelectSQL()+`
-		WHERE comments.topic_id = $1
-		  AND (comments.status = 'active' OR ($3::boolean AND comments.status = 'deleted'
-		    AND ($4::bigint = 0 OR comments.author_user_id = $4)))
-		  AND comments.parent_comment_id IS NOT NULL
-		  AND comments.root_comment_id = ANY($2::bigint[])
+		WHERE comments.id IN (
+			SELECT id FROM (
+				SELECT comments.id,
+				       ROW_NUMBER() OVER (
+				         PARTITION BY comments.root_comment_id
+				         ORDER BY comments.path_key ASC, comments.id ASC
+				       ) AS rn
+				FROM comments
+				WHERE comments.topic_id = $1
+				  AND comments.parent_comment_id IS NOT NULL
+				  AND comments.root_comment_id = ANY($2::bigint[])
+				  AND (comments.status = 'active' OR ($3::boolean AND comments.status = 'deleted'
+				    AND ($4::bigint = 0 OR comments.author_user_id = $4)))
+			) ranked
+			WHERE rn <= $5
+		)
 		ORDER BY comments.path_key ASC, comments.id ASC
-	`, input.TopicID, rootIDs, input.IncludeDeleted, input.DeletedAuthorUserID)
+	`, input.TopicID, rootIDs, input.IncludeDeleted, input.DeletedAuthorUserID, capN)
 	if err != nil {
 		return CommentList{}, fmt.Errorf("list comment descendants: %w", err)
 	}
@@ -546,11 +578,96 @@ func (s *PostgresStore) listCommentsTree(ctx context.Context, input CommentListI
 		return CommentList{}, err
 	}
 
+	// 标记被截断的根：子孙总数 > cap。
+	for i := range roots {
+		if descendantCounts[roots[i].ID] > int64(capN) {
+			roots[i].HasMoreChildren = true
+		}
+	}
+
 	all := make([]Comment, 0, len(roots)+len(descendants))
 	all = append(all, roots...)
 	all = append(all, descendants...)
 	tree := buildCommentTree(all)
+	// buildCommentTree 重建 Children，需把 HasMoreChildren 从 roots 写回树根。
+	hasMoreByRoot := make(map[int64]bool, len(roots))
+	for _, r := range roots {
+		if r.HasMoreChildren {
+			hasMoreByRoot[r.ID] = true
+		}
+	}
+	for i := range tree {
+		if hasMoreByRoot[tree[i].ID] {
+			tree[i].HasMoreChildren = true
+		}
+	}
 	return CommentList{Items: tree, Total: total, Page: input.Page, PerPage: input.PerPage, View: "tree"}, nil
+}
+
+// commentListTotalRoots tree 视图 total = 根评论数（公开路径仅 active）。
+func (s *PostgresStore) commentListTotalRoots(ctx context.Context, input CommentListInput) (int64, error) {
+	var total int64
+	if err := s.pool.QueryRow(ctx, `
+		SELECT count(*) FROM comments
+		WHERE topic_id = $1 AND parent_comment_id IS NULL
+		  AND (status = 'active' OR ($2::boolean AND status = 'deleted'
+		    AND ($3::bigint = 0 OR author_user_id = $3)))
+	`, input.TopicID, input.IncludeDeleted, input.DeletedAuthorUserID).Scan(&total); err != nil {
+		return 0, fmt.Errorf("count root comments: %w", err)
+	}
+	return total, nil
+}
+
+func (s *PostgresStore) countDescendantsByRoot(
+	ctx context.Context,
+	topicID int64,
+	rootIDs []int64,
+	includeDeleted bool,
+	deletedAuthorUserID int64,
+) (map[int64]int64, error) {
+	out := make(map[int64]int64, len(rootIDs))
+	if len(rootIDs) == 0 {
+		return out, nil
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT root_comment_id, count(*)::bigint
+		FROM comments
+		WHERE topic_id = $1
+		  AND parent_comment_id IS NOT NULL
+		  AND root_comment_id = ANY($2::bigint[])
+		  AND (status = 'active' OR ($3::boolean AND status = 'deleted'
+		    AND ($4::bigint = 0 OR author_user_id = $4)))
+		GROUP BY root_comment_id
+	`, topicID, rootIDs, includeDeleted, deletedAuthorUserID)
+	if err != nil {
+		return nil, fmt.Errorf("count descendants by root: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var rootID, n int64
+		if err := rows.Scan(&rootID, &n); err != nil {
+			return nil, fmt.Errorf("scan descendant count: %w", err)
+		}
+		out[rootID] = n
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// normalizeTreeDescendantsPerRoot 将配置夹到 [1,100]；0/负值用推荐默认 50。
+func normalizeTreeDescendantsPerRoot(n int) int {
+	if n <= 0 {
+		return RecommendedTreeDescendantsPerRoot
+	}
+	if n < HardTreeDescendantsPerRootMin {
+		return HardTreeDescendantsPerRootMin
+	}
+	if n > HardTreeDescendantsPerRootMax {
+		return HardTreeDescendantsPerRootMax
+	}
+	return n
 }
 
 // scanComments 扫描 rows 到 []Comment，统一处理 rows.Err 与遍历错误。

@@ -445,6 +445,8 @@ type ForumSettings struct {
 	CommentMinRunes          int `json:"commentMinRunes"`
 	CommentMaxRunes          int `json:"commentMaxRunes"`
 	CommentMaxNestingDepth   int `json:"commentMaxNestingDepth"`
+	// TreeDescendantsPerRoot view=tree 时每个根评论最多返回的子孙数（D2，默认 50）。
+	TreeDescendantsPerRoot   int `json:"treeDescendantsPerRoot"`
 	CommentEditWindowMinutes int `json:"commentEditWindowMinutes"`
 	CommentCooldownSeconds   int `json:"commentCooldownSeconds"`
 	DailyCommentLimit        int `json:"dailyCommentLimit"`
@@ -553,6 +555,7 @@ type UpdateForumSettingsInput struct {
 	CommentMinRunes          *int
 	CommentMaxRunes          *int
 	CommentMaxNestingDepth   *int
+	TreeDescendantsPerRoot   *int
 	CommentEditWindowMinutes *int
 	CommentCooldownSeconds   *int
 	DailyCommentLimit        *int
@@ -577,6 +580,8 @@ type CommentListInput struct {
 	View    string
 	Page    int
 	PerPage int
+	// TreeDescendantsPerRoot view=tree 时每个根下最多拉取的子孙数；0 时 store 用推荐默认 50。
+	TreeDescendantsPerRoot int
 	// Viewer 可选：用于 softDeleteVisibility 判定是否展示软删墓碑。
 	// 匿名时为零值 Actor，仅能看到 active。
 	Viewer identity.Actor
@@ -593,6 +598,7 @@ type CommentReplyListInput struct {
 
 type CommentList struct {
 	Items   []Comment `json:"items"`
+	// Total：flat 为主题评论总数（公开路径优先 topics.comment_count）；tree 为根评论数。
 	Total   int64     `json:"total"`
 	Page    int       `json:"page"`
 	PerPage int       `json:"perPage"`
@@ -615,8 +621,10 @@ type Comment struct {
 	Content       RenderedContent `json:"content"`
 	ReplyTo       *ReplyReference `json:"replyTo,omitempty"`
 	Children      []Comment       `json:"children,omitempty"`
-	CreatedAt     time.Time       `json:"createdAt"`
-	UpdatedAt     time.Time       `json:"updatedAt"`
+	// HasMoreChildren tree 视图下子孙被 treeDescendantsPerRoot 截断时为 true；更多走 ListCommentReplies。
+	HasMoreChildren bool `json:"hasMoreChildren,omitempty"`
+	CreatedAt       time.Time `json:"createdAt"`
+	UpdatedAt       time.Time `json:"updatedAt"`
 	// Edited 评论是否曾被编辑（showCommentEditMark 开启时填充）。
 	Edited bool `json:"edited,omitempty"`
 	// ContentEdited 由存储层根据 post_revisions 得出，不直接暴露。

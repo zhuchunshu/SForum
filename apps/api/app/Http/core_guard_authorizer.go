@@ -881,6 +881,7 @@ type forumSettingsGuardInput struct {
 	CommentMinRunes          *int `json:"commentMinRunes"`
 	CommentMaxRunes          *int `json:"commentMaxRunes"`
 	CommentMaxNestingDepth   *int `json:"commentMaxNestingDepth"`
+	TreeDescendantsPerRoot   *int `json:"treeDescendantsPerRoot"`
 	CommentEditWindowMinutes *int `json:"commentEditWindowMinutes"`
 	CommentCooldownSeconds   *int `json:"commentCooldownSeconds"`
 	DailyCommentLimit        *int `json:"dailyCommentLimit"`
@@ -963,6 +964,7 @@ func forumRuntimeSettingsPresent(input forumSettingsGuardInput) bool {
 		input.TopicEditWindowMinutes != nil || input.TopicCooldownSeconds != nil ||
 		input.DailyTopicLimit != nil || input.CommentMinRunes != nil ||
 		input.CommentMaxRunes != nil || input.CommentMaxNestingDepth != nil ||
+		input.TreeDescendantsPerRoot != nil ||
 		input.CommentEditWindowMinutes != nil || input.CommentCooldownSeconds != nil ||
 		input.DailyCommentLimit != nil || input.ExcerptRuneLimit != nil ||
 		input.GuestRead != nil || input.ListDefaultSort != nil || input.ListHotWindowDays != nil ||

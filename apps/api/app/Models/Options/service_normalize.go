@@ -182,6 +182,8 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return normalizeBoundedInt(value, forumCommentMaxRunesMin, forumCommentMaxRunesMax)
 	case NameForumCommentMaxNestingDepth:
 		return normalizeBoundedInt(value, forumNestingMin, forumNestingMax)
+	case NameForumCommentsTreeDescendantsPerRoot:
+		return normalizeBoundedInt(value, forumTreeDescendantsMin, forumTreeDescendantsMax)
 	case NameForumTopicEditWindowMinutes, NameForumCommentEditWindowMinutes:
 		return normalizeBoundedInt(value, forumEditWindowMin, forumEditWindowMax)
 	case NameForumTopicCooldownSeconds, NameForumCommentCooldownSeconds:
@@ -941,6 +943,7 @@ func coerceForumContentLimitOptions(coerced map[string]string, defaults map[stri
 		{NameForumCommentMinRunes, forumCommentMinRunesMin, forumCommentMinRunesMax},
 		{NameForumCommentMaxRunes, forumCommentMaxRunesMin, forumCommentMaxRunesMax},
 		{NameForumCommentMaxNestingDepth, forumNestingMin, forumNestingMax},
+		{NameForumCommentsTreeDescendantsPerRoot, forumTreeDescendantsMin, forumTreeDescendantsMax},
 		{NameForumTopicEditWindowMinutes, forumEditWindowMin, forumEditWindowMax},
 		{NameForumCommentEditWindowMinutes, forumEditWindowMin, forumEditWindowMax},
 		{NameForumTopicCooldownSeconds, forumCooldownMin, forumCooldownMax},
@@ -981,6 +984,7 @@ func validForumContentLimitOptionValues(values map[string]string) bool {
 		{NameForumCommentMinRunes, forumCommentMinRunesMin, forumCommentMinRunesMax},
 		{NameForumCommentMaxRunes, forumCommentMaxRunesMin, forumCommentMaxRunesMax},
 		{NameForumCommentMaxNestingDepth, forumNestingMin, forumNestingMax},
+		{NameForumCommentsTreeDescendantsPerRoot, forumTreeDescendantsMin, forumTreeDescendantsMax},
 		{NameForumTopicEditWindowMinutes, forumEditWindowMin, forumEditWindowMax},
 		{NameForumCommentEditWindowMinutes, forumEditWindowMin, forumEditWindowMax},
 		{NameForumTopicCooldownSeconds, forumCooldownMin, forumCooldownMax},

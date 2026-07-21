@@ -4,7 +4,7 @@ import { api, hotSlug, defaultStages, defaultThresholds, okJson } from './lib.js
 
 export const options = {
   stages: defaultStages(),
-  thresholds: defaultThresholds(400), // tree may load many descendants until M3 cap
+  thresholds: defaultThresholds(120), // M3: descendants capped (default 50/root) + ListComments cache
   summaryTrendStats: ['avg', 'min', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
 };
 

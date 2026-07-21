@@ -14,6 +14,7 @@ type cacheTestStore struct {
 	categoriesCalls int
 	topicCalls      int
 	topicsCalls     int
+	commentsCalls   int
 }
 
 func newCacheTestStore() *cacheTestStore {
@@ -170,4 +171,75 @@ func TestCachedStoreForwardsNonOverriddenMethods(t *testing.T) {
 	_, _ = cached.ListTags(ctx, false)
 	// 只要不 panic 即视为转发正常。
 	_ = time.Now() // 占位，避免 import 未用
+}
+
+func (s *cacheTestStore) ListComments(_ context.Context, input CommentListInput) (CommentList, error) {
+	s.commentsCalls++
+	return CommentList{
+		Items:   []Comment{{ID: 1, TopicID: input.TopicID}},
+		Total:   1,
+		Page:    input.Page,
+		PerPage: input.PerPage,
+		View:    input.View,
+	}, nil
+}
+
+func (s *cacheTestStore) CreateComment(_ context.Context, input CreateCommentRecord) (Comment, error) {
+	return Comment{ID: 9, TopicID: input.TopicID}, nil
+}
+
+func (s *cacheTestStore) DeleteComment(_ context.Context, commentID int64) (Comment, error) {
+	return Comment{ID: commentID, TopicID: 42}, nil
+}
+
+func TestCachedStoreListCommentsHitAndInvalidate(t *testing.T) {
+	ctx := context.Background()
+	inner := newCacheTestStore()
+	c := cache.NewMemoryCache()
+	cached := NewCachedStore(inner, c)
+
+	input := CommentListInput{TopicID: 42, View: "tree", Page: 1, PerPage: 20, TreeDescendantsPerRoot: 50}
+
+	if _, err := cached.ListComments(ctx, input); err != nil {
+		t.Fatalf("first list comments: %v", err)
+	}
+	if inner.commentsCalls != 1 {
+		t.Fatalf("expected 1 store call, got %d", inner.commentsCalls)
+	}
+	if _, err := cached.ListComments(ctx, input); err != nil {
+		t.Fatalf("second list comments: %v", err)
+	}
+	if inner.commentsCalls != 1 {
+		t.Fatalf("expected cache hit (still 1), got %d", inner.commentsCalls)
+	}
+
+	// 写评论后 generation 递增，应 miss。
+	if _, err := cached.CreateComment(ctx, CreateCommentRecord{TopicID: 42}); err != nil {
+		t.Fatalf("create comment: %v", err)
+	}
+	if _, err := cached.ListComments(ctx, input); err != nil {
+		t.Fatalf("third list after write: %v", err)
+	}
+	if inner.commentsCalls != 2 {
+		t.Fatalf("expected 2 store calls after invalidate, got %d", inner.commentsCalls)
+	}
+}
+
+func TestCachedStoreListCommentsSkipsViewerScoped(t *testing.T) {
+	ctx := context.Background()
+	inner := newCacheTestStore()
+	c := cache.NewMemoryCache()
+	cached := NewCachedStore(inner, c)
+
+	// IncludeDeleted 路径不得缓存（viewer 相关）。
+	input := CommentListInput{TopicID: 1, View: "flat", Page: 1, PerPage: 20, IncludeDeleted: true}
+	if _, err := cached.ListComments(ctx, input); err != nil {
+		t.Fatalf("first: %v", err)
+	}
+	if _, err := cached.ListComments(ctx, input); err != nil {
+		t.Fatalf("second: %v", err)
+	}
+	if inner.commentsCalls != 2 {
+		t.Fatalf("expected no cache for IncludeDeleted, got %d calls", inner.commentsCalls)
+	}
 }

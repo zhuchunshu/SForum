@@ -159,6 +159,10 @@ func (s *Service) ListComments(ctx context.Context, input CommentListInput) (Com
 		defaultPerPage = settings.CommentsPerPage
 	}
 	input.Page, input.PerPage = normalizePageWithDefault(input.Page, input.PerPage, defaultPerPage)
+	// D2：tree 子孙 cap 由运营选项控制；未配置时 store 仍回落推荐默认 50。
+	if input.TreeDescendantsPerRoot <= 0 {
+		input.TreeDescendantsPerRoot = settings.TreeDescendantsPerRoot
+	}
 	input.IncludeDeleted, input.DeletedAuthorUserID = softDeleteQueryScope(settings.SoftDeleteVisibility, input.Viewer)
 	list, err := s.store.ListComments(ctx, input)
 	if err != nil {
@@ -867,6 +871,9 @@ func validateOptionalContentLimitFields(input UpdateForumSettingsInput) error {
 		}
 	}
 	if input.CommentMaxNestingDepth != nil && (*input.CommentMaxNestingDepth < HardNestingMin || *input.CommentMaxNestingDepth > HardNestingMax) {
+		return ErrInvalidSettings
+	}
+	if input.TreeDescendantsPerRoot != nil && (*input.TreeDescendantsPerRoot < HardTreeDescendantsPerRootMin || *input.TreeDescendantsPerRoot > HardTreeDescendantsPerRootMax) {
 		return ErrInvalidSettings
 	}
 	if input.ExcerptRuneLimit != nil && (*input.ExcerptRuneLimit < HardExcerptMinRunes || *input.ExcerptRuneLimit > HardExcerptMaxRunes) {

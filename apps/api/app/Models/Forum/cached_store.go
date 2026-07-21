@@ -32,11 +32,14 @@ const (
 	genCategories     = "forum:gen:cats"   // 分类列表 generation
 	genCategoryGroups = "forum:gen:groups" // 分类分组列表 generation
 	genTags           = "forum:gen:tags"   // 标签列表 generation
+	// genCommentsPrefix + topicID：按主题递增，写评论只失效该主题评论列表。
+	genCommentsPrefix = "forum:gen:comments:"
 
 	// 缓存 key 前缀。
 	prefixTopicDetail = "forum:topic:"
 	prefixTopicBySlug = "forum:topic-slug:"
 	prefixTopicsList  = "forum:topics:"
+	prefixCommentsList = "forum:comments:"
 	prefixCatsList    = "forum:cats"
 	prefixGroupsList  = "forum:groups"
 	prefixTagsList    = "forum:tags"
@@ -45,6 +48,8 @@ const (
 	ttlListPage1   = 45 * time.Second // 第一页（首页/分类热路径）稍长 TTL
 	ttlTaxonomy    = 60 * time.Second // 分类/分组/标签：变化极少
 	ttlTopicDetail = 30 * time.Second // 主题详情
+	ttlComments    = 20 * time.Second // 评论列表：详情热路径
+	ttlCommentsP1  = 40 * time.Second // 评论第一页稍长
 )
 
 // NewCachedStore 包装底层 store。cache 为 nil 时直接返回底层 store（不装饰）。
@@ -192,6 +197,39 @@ func (s *CachedStore) ListTopics(ctx context.Context, input TopicListInput) (Top
 	return out, nil
 }
 
+// ListComments 缓存公开评论列表（不含 soft-delete 扩展范围）。
+// key 含 topic 级 generation、view/page/perPage/tree cap，写路径 bump 后旧 key 自然过期。
+func (s *CachedStore) ListComments(ctx context.Context, input CommentListInput) (CommentList, error) {
+	// 含软删墓碑的结果与 viewer 相关，禁止共享缓存。
+	if input.IncludeDeleted || input.DeletedAuthorUserID != 0 {
+		return s.Store.ListComments(ctx, input)
+	}
+	gen := s.currentGen(ctx, commentsGenKey(input.TopicID))
+	capN := input.TreeDescendantsPerRoot
+	if capN <= 0 {
+		capN = RecommendedTreeDescendantsPerRoot
+	}
+	key := fmt.Sprintf("%s%s:%d:%s:%d:%d:%d", prefixCommentsList, gen, input.TopicID, input.View, input.Page, input.PerPage, capN)
+	var out CommentList
+	if s.loadJSON(ctx, key, &out) {
+		return out, nil
+	}
+	out, err := s.Store.ListComments(ctx, input)
+	if err != nil {
+		return CommentList{}, err
+	}
+	ttl := ttlComments
+	if input.Page <= 1 {
+		ttl = ttlCommentsP1
+	}
+	s.saveJSON(ctx, key, out, ttl)
+	return out, nil
+}
+
+func commentsGenKey(topicID int64) string {
+	return fmt.Sprintf("%s%d", genCommentsPrefix, topicID)
+}
+
 // --- 写方法：成功后失效 ---
 
 func (s *CachedStore) CreateTopic(ctx context.Context, input CreateTopicRecord) (TopicDetail, error) {
@@ -248,6 +286,33 @@ func (s *CachedStore) CreateComment(ctx context.Context, input CreateCommentReco
 	s.invalidateTopicDetail(ctx, input.TopicID)
 	s.invalidateTopics(ctx)
 	s.invalidateTaxonomy(ctx)
+	s.invalidateComments(ctx, input.TopicID)
+	return out, nil
+}
+
+func (s *CachedStore) UpdateComment(ctx context.Context, input UpdateCommentRecord) (Comment, error) {
+	out, err := s.Store.UpdateComment(ctx, input)
+	if err != nil {
+		return out, err
+	}
+	if out.TopicID > 0 {
+		s.invalidateTopicDetail(ctx, out.TopicID)
+		s.invalidateComments(ctx, out.TopicID)
+	}
+	return out, nil
+}
+
+func (s *CachedStore) DeleteComment(ctx context.Context, commentID int64) (Comment, error) {
+	out, err := s.Store.DeleteComment(ctx, commentID)
+	if err != nil {
+		return out, err
+	}
+	if out.TopicID > 0 {
+		s.invalidateTopicDetail(ctx, out.TopicID)
+		s.invalidateTopics(ctx)
+		s.invalidateTaxonomy(ctx)
+		s.invalidateComments(ctx, out.TopicID)
+	}
 	return out, nil
 }
 
@@ -320,6 +385,14 @@ func (s *CachedStore) invalidateTaxonomy(ctx context.Context) {
 
 func (s *CachedStore) invalidateTopicDetail(ctx context.Context, topicID int64) {
 	_ = s.cache.Delete(ctx, fmt.Sprintf("%s%d", prefixTopicDetail, topicID))
+}
+
+// invalidateComments 递增该主题评论 generation，使 ListComments 缓存 miss。
+func (s *CachedStore) invalidateComments(ctx context.Context, topicID int64) {
+	if topicID <= 0 {
+		return
+	}
+	s.bumpGen(ctx, commentsGenKey(topicID))
 }
 
 // invalidateTopicBySlug 清除按 slug 缓存的详情条目。用于写操作后保证 slug 维度缓存及时更新；

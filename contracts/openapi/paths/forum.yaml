@@ -746,6 +746,10 @@ topicComments:
   get:
     summary: List topic comments
     operationId: listTopicComments
+    description: >
+      view=tree pages roots and loads at most forum.comments.tree_descendants_per_root
+      descendants per root (default 50). Truncated roots set hasMoreChildren; load more
+      via listCommentReplies. Public list responses may be short-TTL Redis cached.
     parameters:
     - "$ref": "../components/parameters.yaml#/TopicID"
     - name: view

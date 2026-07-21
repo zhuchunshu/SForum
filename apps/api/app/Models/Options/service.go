@@ -48,6 +48,8 @@ const forumCommentMaxRunesMin = 1
 const forumCommentMaxRunesMax = 50000
 const forumNestingMin = 0
 const forumNestingMax = 20
+const forumTreeDescendantsMin = 1
+const forumTreeDescendantsMax = 100
 const forumEditWindowMin = 0
 const forumEditWindowMax = 10080
 const forumCooldownMin = 0
@@ -184,6 +186,7 @@ var optionDefinitions = []optionDefinition{
 	{name: NameForumCommentMinRunes, public: true, managePermission: identity.PermissionForumSettingsManage},
 	{name: NameForumCommentMaxRunes, public: true, managePermission: identity.PermissionForumSettingsManage},
 	{name: NameForumCommentMaxNestingDepth, public: true, managePermission: identity.PermissionForumSettingsManage},
+	{name: NameForumCommentsTreeDescendantsPerRoot, public: true, managePermission: identity.PermissionForumSettingsManage},
 	{name: NameForumCommentEditWindowMinutes, public: true, managePermission: identity.PermissionForumSettingsManage},
 	{name: NameForumCommentCooldownSeconds, public: true, managePermission: identity.PermissionForumSettingsManage},
 	{name: NameForumDailyCommentLimit, public: true, managePermission: identity.PermissionForumSettingsManage},
@@ -993,13 +996,14 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameForumTopicEditWindowMinutes:      "0",
 		NameForumTopicCooldownSeconds:        "0",
 		NameForumDailyTopicLimit:             "0",
-		NameForumCommentMinRunes:             "1",
-		NameForumCommentMaxRunes:             "10000",
-		NameForumCommentMaxNestingDepth:      "5",
-		NameForumCommentEditWindowMinutes:    "0",
-		NameForumCommentCooldownSeconds:      "0",
-		NameForumDailyCommentLimit:           "0",
-		NameForumExcerptRuneLimit:            "180",
+		NameForumCommentMinRunes:                "1",
+		NameForumCommentMaxRunes:                "10000",
+		NameForumCommentMaxNestingDepth:         "5",
+		NameForumCommentsTreeDescendantsPerRoot: "50",
+		NameForumCommentEditWindowMinutes:       "0",
+		NameForumCommentCooldownSeconds:         "0",
+		NameForumDailyCommentLimit:              "0",
+		NameForumExcerptRuneLimit:               "180",
 		NameSEOMetaTitleTemplate:             "",
 		NameSEOMetaDescription:               "",
 		NameSEOMetaKeywords:                  "",

@@ -14,15 +14,17 @@ const (
 	HardContentMaxRunes  = 200000
 	HardCommentMinRunes  = 0
 	HardCommentMaxRunes  = 50000
-	HardNestingMin       = 0
-	HardNestingMax       = 20
-	HardEditWindowMaxMin = 10080 // 7 天
-	HardCooldownMaxSec   = 86400 // 24 小时
-	HardDailyLimitMax    = 10000
-	HardExcerptMinRunes  = 40
-	HardExcerptMaxRunes  = 500
-	HardTagMinPerTopic   = 0
-	HardTagMaxPerTopic   = 10
+	HardNestingMin              = 0
+	HardNestingMax              = 20
+	HardTreeDescendantsPerRootMin = 1
+	HardTreeDescendantsPerRootMax = 100
+	HardEditWindowMaxMin        = 10080 // 7 天
+	HardCooldownMaxSec          = 86400 // 24 小时
+	HardDailyLimitMax           = 10000
+	HardExcerptMinRunes         = 40
+	HardExcerptMaxRunes         = 500
+	HardTagMinPerTopic          = 0
+	HardTagMaxPerTopic          = 10
 )
 
 // Recommended* 与 defaultForumSettings / web_options 推荐值保持一致。
@@ -37,6 +39,8 @@ const (
 	RecommendedCommentMinRunes          = 1
 	RecommendedCommentMaxRunes          = 10000
 	RecommendedCommentMaxNestingDepth   = 5
+	// RecommendedTreeDescendantsPerRoot D2：tree 视图每根默认最多 50 个子孙。
+	RecommendedTreeDescendantsPerRoot   = 50
 	RecommendedCommentEditWindowMinutes = 0
 	RecommendedCommentCooldownSeconds   = 0
 	RecommendedDailyCommentLimit        = 0
@@ -64,6 +68,7 @@ func defaultForumSettings() ForumSettings {
 		CommentMinRunes:          RecommendedCommentMinRunes,
 		CommentMaxRunes:          RecommendedCommentMaxRunes,
 		CommentMaxNestingDepth:   RecommendedCommentMaxNestingDepth,
+		TreeDescendantsPerRoot:   RecommendedTreeDescendantsPerRoot,
 		CommentEditWindowMinutes: RecommendedCommentEditWindowMinutes,
 		CommentCooldownSeconds:   RecommendedCommentCooldownSeconds,
 		DailyCommentLimit:        RecommendedDailyCommentLimit,
@@ -206,6 +211,9 @@ func validForumContentLimits(settings ForumSettings) bool {
 		return false
 	}
 	if settings.CommentMaxNestingDepth < HardNestingMin || settings.CommentMaxNestingDepth > HardNestingMax {
+		return false
+	}
+	if settings.TreeDescendantsPerRoot < HardTreeDescendantsPerRootMin || settings.TreeDescendantsPerRoot > HardTreeDescendantsPerRootMax {
 		return false
 	}
 	if settings.TopicEditWindowMinutes < 0 || settings.TopicEditWindowMinutes > HardEditWindowMaxMin {

@@ -723,11 +723,12 @@ func (s *controllerForumStore) ForumSettings(context.Context) (forum.ForumSettin
 		TopicTitleMaxRunes:     100,
 		TopicContentMinRunes:   0,
 		TopicContentMaxRunes:   50000,
-		CommentMinRunes:        1,
-		CommentMaxRunes:        10000,
-		CommentMaxNestingDepth: 5,
-		ExcerptRuneLimit:       180,
-		GuestRead:              s.guestRead,
+		CommentMinRunes:          1,
+		CommentMaxRunes:          10000,
+		CommentMaxNestingDepth:   5,
+		TreeDescendantsPerRoot:   50,
+		ExcerptRuneLimit:         180,
+		GuestRead:                s.guestRead,
 	}, nil
 }
 

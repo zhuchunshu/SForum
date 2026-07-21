@@ -387,6 +387,7 @@ func forumSettingsManageFieldsPresent(input UpdateForumSettingsInput) bool {
 		input.CommentMinRunes != nil ||
 		input.CommentMaxRunes != nil ||
 		input.CommentMaxNestingDepth != nil ||
+		input.TreeDescendantsPerRoot != nil ||
 		input.CommentEditWindowMinutes != nil ||
 		input.CommentCooldownSeconds != nil ||
 		input.DailyCommentLimit != nil ||

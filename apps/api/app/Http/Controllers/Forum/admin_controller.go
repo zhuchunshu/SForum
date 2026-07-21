@@ -85,6 +85,7 @@ type updateForumSettingsRequest struct {
 	CommentMinRunes          *int `json:"commentMinRunes"`
 	CommentMaxRunes          *int `json:"commentMaxRunes"`
 	CommentMaxNestingDepth   *int `json:"commentMaxNestingDepth"`
+	TreeDescendantsPerRoot   *int `json:"treeDescendantsPerRoot"`
 	CommentEditWindowMinutes *int `json:"commentEditWindowMinutes"`
 	CommentCooldownSeconds   *int `json:"commentCooldownSeconds"`
 	DailyCommentLimit        *int `json:"dailyCommentLimit"`
@@ -333,6 +334,7 @@ func (h *Controller) adminUpdateSettings(c fiber.Ctx) error {
 		CommentMinRunes:          req.CommentMinRunes,
 		CommentMaxRunes:          req.CommentMaxRunes,
 		CommentMaxNestingDepth:   req.CommentMaxNestingDepth,
+		TreeDescendantsPerRoot:   req.TreeDescendantsPerRoot,
 		CommentEditWindowMinutes: req.CommentEditWindowMinutes,
 		CommentCooldownSeconds:   req.CommentCooldownSeconds,
 		DailyCommentLimit:        req.DailyCommentLimit,

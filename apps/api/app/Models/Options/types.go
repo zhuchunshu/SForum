@@ -118,6 +118,8 @@ const (
 	NameForumCommentMinRunes          = "forum.comments.min_runes"
 	NameForumCommentMaxRunes          = "forum.comments.max_runes"
 	NameForumCommentMaxNestingDepth   = "forum.comments.max_nesting_depth"
+	// NameForumCommentsTreeDescendantsPerRoot view=tree 每根最多子孙数（D2，1–100，默认 50）。
+	NameForumCommentsTreeDescendantsPerRoot = "forum.comments.tree_descendants_per_root"
 	NameForumCommentEditWindowMinutes = "forum.comments.edit_window_minutes"
 	NameForumCommentCooldownSeconds   = "forum.comments.cooldown_seconds"
 	NameForumDailyCommentLimit        = "forum.comments.daily_limit"

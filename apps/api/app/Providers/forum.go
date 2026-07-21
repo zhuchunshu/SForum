@@ -397,12 +397,13 @@ func (r ForumSettingsResolver) ForumSettings(ctx context.Context) (forum.ForumSe
 		options.NameForumTopicEditWindowMinutes:   &settings.TopicEditWindowMinutes,
 		options.NameForumTopicCooldownSeconds:     &settings.TopicCooldownSeconds,
 		options.NameForumDailyTopicLimit:          &settings.DailyTopicLimit,
-		options.NameForumCommentMinRunes:          &settings.CommentMinRunes,
-		options.NameForumCommentMaxRunes:          &settings.CommentMaxRunes,
-		options.NameForumCommentMaxNestingDepth:   &settings.CommentMaxNestingDepth,
-		options.NameForumCommentEditWindowMinutes: &settings.CommentEditWindowMinutes,
-		options.NameForumCommentCooldownSeconds:   &settings.CommentCooldownSeconds,
-		options.NameForumDailyCommentLimit:        &settings.DailyCommentLimit,
+		options.NameForumCommentMinRunes:                &settings.CommentMinRunes,
+		options.NameForumCommentMaxRunes:                &settings.CommentMaxRunes,
+		options.NameForumCommentMaxNestingDepth:         &settings.CommentMaxNestingDepth,
+		options.NameForumCommentsTreeDescendantsPerRoot: &settings.TreeDescendantsPerRoot,
+		options.NameForumCommentEditWindowMinutes:       &settings.CommentEditWindowMinutes,
+		options.NameForumCommentCooldownSeconds:         &settings.CommentCooldownSeconds,
+		options.NameForumDailyCommentLimit:              &settings.DailyCommentLimit,
 		options.NameForumExcerptRuneLimit:         &settings.ExcerptRuneLimit,
 		options.NameForumListHotWindowDays:        &settings.ListHotWindowDays,
 		options.NameForumTopicsAutoLockIdleDays:   &settings.AutoLockIdleDays,
@@ -489,6 +490,7 @@ func (r ForumSettingsResolver) UpdateForumSettings(ctx context.Context, actor id
 	appendIntUpdate(options.NameForumCommentMinRunes, input.CommentMinRunes)
 	appendIntUpdate(options.NameForumCommentMaxRunes, input.CommentMaxRunes)
 	appendIntUpdate(options.NameForumCommentMaxNestingDepth, input.CommentMaxNestingDepth)
+	appendIntUpdate(options.NameForumCommentsTreeDescendantsPerRoot, input.TreeDescendantsPerRoot)
 	appendIntUpdate(options.NameForumCommentEditWindowMinutes, input.CommentEditWindowMinutes)
 	appendIntUpdate(options.NameForumCommentCooldownSeconds, input.CommentCooldownSeconds)
 	appendIntUpdate(options.NameForumDailyCommentLimit, input.DailyCommentLimit)
@@ -556,6 +558,7 @@ func (r ForumSettingsResolver) ResetForumSettings(ctx context.Context, actor ide
 		input.CommentMinRunes = intPtr(recommended.CommentMinRunes)
 		input.CommentMaxRunes = intPtr(recommended.CommentMaxRunes)
 		input.CommentMaxNestingDepth = intPtr(recommended.CommentMaxNestingDepth)
+		input.TreeDescendantsPerRoot = intPtr(recommended.TreeDescendantsPerRoot)
 		input.CommentEditWindowMinutes = intPtr(recommended.CommentEditWindowMinutes)
 		input.CommentCooldownSeconds = intPtr(recommended.CommentCooldownSeconds)
 		input.DailyCommentLimit = intPtr(recommended.DailyCommentLimit)
@@ -600,6 +603,7 @@ func recommendedForumSettings() forum.ForumSettings {
 		CommentMinRunes:          forum.RecommendedCommentMinRunes,
 		CommentMaxRunes:          forum.RecommendedCommentMaxRunes,
 		CommentMaxNestingDepth:   forum.RecommendedCommentMaxNestingDepth,
+		TreeDescendantsPerRoot:   forum.RecommendedTreeDescendantsPerRoot,
 		CommentEditWindowMinutes: forum.RecommendedCommentEditWindowMinutes,
 		CommentCooldownSeconds:   forum.RecommendedCommentCooldownSeconds,
 		DailyCommentLimit:        forum.RecommendedDailyCommentLimit,
@@ -649,6 +653,8 @@ func normalizeForumIntOption(name, value string) (int, bool) {
 		return parsed, parsed >= 1 && parsed <= 50000
 	case options.NameForumCommentMaxNestingDepth:
 		return parsed, parsed >= 0 && parsed <= 20
+	case options.NameForumCommentsTreeDescendantsPerRoot:
+		return parsed, parsed >= 1 && parsed <= 100
 	case options.NameForumTopicEditWindowMinutes, options.NameForumCommentEditWindowMinutes:
 		return parsed, parsed >= 0 && parsed <= 10080
 	case options.NameForumTopicCooldownSeconds, options.NameForumCommentCooldownSeconds:

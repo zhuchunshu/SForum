@@ -447,6 +447,7 @@ ForumSettings:
   - commentMinRunes
   - commentMaxRunes
   - commentMaxNestingDepth
+  - treeDescendantsPerRoot
   - commentEditWindowMinutes
   - commentCooldownSeconds
   - dailyCommentLimit
@@ -531,6 +532,16 @@ ForumSettings:
       type: integer
       minimum: 0
       maximum: 20
+    treeDescendantsPerRoot:
+      type: integer
+      default: 50
+      minimum: 1
+      maximum: 100
+      description: >
+        Maximum number of descendant comments loaded under each root on view=tree
+        (D2). Overflow sets hasMoreChildren; clients load more via listCommentReplies.
+        Restore defaults sets this back to 50. Same default on all clients (no
+        mobile-only lower API cap).
     commentEditWindowMinutes:
       type: integer
       minimum: 0
@@ -1116,6 +1127,12 @@ Comment:
       type: array
       items:
         "$ref": "#/Comment"
+    hasMoreChildren:
+      type: boolean
+      description: >
+        When true on a tree root (or node), descendant payload was truncated by
+        treeDescendantsPerRoot. Clients should offer "load more replies" via
+        GET /comments/{commentID}/replies and merge results.
     createdAt:
       type: string
       format: date-time
@@ -1157,6 +1174,10 @@ CommentList:
     total:
       type: integer
       format: int64
+      description: >
+        flat: topic comment total (public path prefers denormalized topics.comment_count;
+        may be briefly stale after writes). tree: root comment count for the topic.
+        Paths that include soft-deleted rows may use exact COUNT instead.
     page:
       type: integer
     perPage:
@@ -1494,6 +1515,12 @@ UpdateForumSettingsRequest:
       type: integer
       minimum: 0
       maximum: 20
+    treeDescendantsPerRoot:
+      type: integer
+      default: 50
+      minimum: 1
+      maximum: 100
+      description: Maximum descendants per root on view=tree (D2).
     commentEditWindowMinutes:
       type: integer
       minimum: 0
