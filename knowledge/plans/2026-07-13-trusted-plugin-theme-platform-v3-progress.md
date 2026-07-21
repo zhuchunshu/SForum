@@ -3,10 +3,11 @@
 Date: 2026-07-21
 Overall progress: **99.7%**
 Active phase: **P13 residual = LTS-blocked legacy deletion only**
-Last gate re-verify (2026-07-21 post-interrupt): catalogs 249/150/99; OpenAPI
+Last gate re-verify (2026-07-21 module honesty): catalogs 249/150/99; OpenAPI
 OK; go test Editor/Entity/Content/Media/APILTS/Forum/Pages EXIT 0; bun 12 pass;
-dual explore zero non-LTS; APILTS CanRemoveWithZeroShim false until ~2026-11-28;
-goal harness “remaining P10” is stale.
+dual explore (ActionAdd DO-NOT-IMPLEMENT + 99-row ZERO non-LTS); APILTS
+CanRemoveWithZeroShim false until ~2026-11-28; module notes no longer claim
+mid-P8/P9 open; goal harness “remaining P10” is stale.
 
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and

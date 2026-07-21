@@ -1,5 +1,51 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
+Last updated: 2026-07-21 (module honesty + re-confirm LTS-only)
+
+## Progress
+
+- Weighted **99.7%** (display **99%**). **P0–P12 complete**; P13 LTS residual only.
+- Goal harness “remaining P10” is **stale** — dual explore (ActionAdd + 99-row
+  matrix) + live gates: **zero implementable non-LTS product residual**.
+- ActionAdd static snapshot expansion: **DO NOT IMPLEMENT** for V3 close-out
+  (product ViewModel boundary; optional non-task-book depth).
+- Matrix `planned` cells: stale inventory docs, not reopenable task-book work.
+- Module notes corrected: `knowledge/modules/extensions.md` + `frontend.md`
+  headers no longer claim mid-P8/P9 open work.
+
+## Current Subtask
+
+### LTS wait only (policy-blocked)
+
+- Exact next: do **not** delete LoadTemplate residual / Protocol V1 /
+  fail-closed SFPageOutlet until APILTS `RemoveAfter` ≈ **2026-11-28** +
+  live zero-shim + checklist 1–7.
+- Product boundary for 100%: wait for window or user-approved LTS change.
+
+## Tests (this turn)
+
+- catalogs 249/150/99; OpenAPI OK; go P10+Pages packages EXIT 0; bun 12 pass
+- Evidence: implementer scratch `resume-audit.txt` + `matrix-proofs.log`
+
+## Open task-book rows
+
+1. Remove request-time template loader residual
+2. Remove Protocol V1 paths
+3. Compatibility path removal after LTS checklist
+
+## Rollback
+
+- Revert module honesty commit if wording is wrong.
+- Never delete LTS shims early.
+
+## Unowned worktree
+
+- None.
+
+---
+
+# Trusted Plugin And Theme Platform V3 Progress Ledger
+
 Last updated: 2026-07-21 (post-interrupt re-audit)
 
 ## Progress
