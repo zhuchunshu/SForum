@@ -19,6 +19,7 @@ import (
 	editorregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EditorRegistry"
 	entityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EntityRegistry"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	mediaregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/MediaRegistry"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	navigationregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/NavigationRegistry"
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
@@ -177,6 +178,16 @@ func (p *ExtensionsProvider) WithContentRegistry(
 ) *ExtensionsProvider {
 	if p != nil && p.controller != nil {
 		p.controller.WithContentRegistry(registry)
+	}
+	return p
+}
+
+// WithMediaRegistry wires P10 Media Registry for public media catalog.
+func (p *ExtensionsProvider) WithMediaRegistry(
+	registry *mediaregistry.Registry,
+) *ExtensionsProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithMediaRegistry(registry)
 	}
 	return p
 }

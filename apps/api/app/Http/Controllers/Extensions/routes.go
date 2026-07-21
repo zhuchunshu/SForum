@@ -10,6 +10,7 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Get("/extensions/runtime/editor-catalog", h.publicEditorCatalog)
 	api.Get("/extensions/runtime/entity-catalog", h.publicEntityCatalog)
 	api.Get("/extensions/runtime/content-catalog", h.publicContentCatalog)
+	api.Get("/extensions/runtime/media-catalog", h.publicMediaCatalog)
 	api.Get("/extensions/runtime/:extensionId/components/:componentId", h.publicFrontendComponent)
 	api.Get("/extensions/runtime/:extensionId/assets/:packageDigest/:digest/:handle", h.publicFrontendAsset)
 	api.Get("/extensions/runtime/:extensionId/packages/:packageDigest/*", h.publicFrontendPackageAsset)

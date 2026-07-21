@@ -439,6 +439,8 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/publicExtensionEntityCatalog"
   "/extensions/runtime/content-catalog":
     "$ref": "./openapi/paths/extensions.yaml#/publicExtensionContentCatalog"
+  "/extensions/runtime/media-catalog":
+    "$ref": "./openapi/paths/extensions.yaml#/publicExtensionMediaCatalog"
   "/admin/extensions/entity-catalog/{entityId}/import-export-dry-run":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionEntityImportExportDryRun"
   "/extensions/runtime/page-policy":

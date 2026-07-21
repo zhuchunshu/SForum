@@ -187,6 +187,65 @@ publicExtensionContentCatalog:
       '503':
         "$ref": "../components/responses.yaml#/ServiceUnavailable"
 
+publicExtensionMediaCatalog:
+  get:
+    summary: Project the active Media Registry into an inspectable catalog
+    operationId: getPublicExtensionMediaCatalog
+    tags: [Extensions]
+    description: >-
+      Returns `sforum.media-catalog@1` with MIME policy, processor, and variant
+      declaration projections. Empty lists are valid when no Media Registry
+      publications exist. Cache-Control is no-store. Safe Mode returns core
+      contributions only. No plan/execute receipts, media bytes, or storage
+      credentials are exposed.
+    responses:
+      '200':
+        description: Media catalog projection. Cache-Control is no-store.
+        headers:
+          Cache-Control:
+            schema: { type: string, enum: [no-store] }
+          X-Content-Type-Options:
+            schema: { type: string, enum: [nosniff] }
+          X-SForum-Media-Catalog-Digest:
+            schema: { type: string, pattern: '^[0-9a-f]{64}$' }
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: object
+                  required: [schemaVersion, revision, digest, policies, processors, variants]
+                  properties:
+                    schemaVersion:
+                      type: string
+                      enum: [sforum.media-catalog@1]
+                    revision:
+                      type: integer
+                      minimum: 0
+                    digest:
+                      type: string
+                    safeMode:
+                      type: boolean
+                    policies:
+                      type: array
+                      items:
+                        type: object
+                        additionalProperties: true
+                    processors:
+                      type: array
+                      items:
+                        type: object
+                        additionalProperties: true
+                    variants:
+                      type: array
+                      items:
+                        type: object
+                        additionalProperties: true
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+
 publicExtensionEditorCatalog:
   get:
     summary: Project the active Editor Registry into a trusted L2 load catalog
