@@ -42,6 +42,7 @@ const (
 	prefixTagsList    = "forum:tags"
 
 	ttlList        = 15 * time.Second // 主题列表：变化较频繁
+	ttlListPage1   = 45 * time.Second // 第一页（首页/分类热路径）稍长 TTL
 	ttlTaxonomy    = 60 * time.Second // 分类/分组/标签：变化极少
 	ttlTopicDetail = 30 * time.Second // 主题详情
 )
@@ -172,7 +173,8 @@ func (s *CachedStore) TopicSlugExists(ctx context.Context, slug string, excludeT
 
 func (s *CachedStore) ListTopics(ctx context.Context, input TopicListInput) (TopicList, error) {
 	gen := s.currentGen(ctx, genTopics)
-	key := fmt.Sprintf("%s%s:%s:%s:%d:%d", prefixTopicsList, gen, input.CategorySlug, input.TagSlug, input.Page, input.PerPage)
+	// key 含 sort：不同排序不能共用同一缓存条目。
+	key := fmt.Sprintf("%s%s:%s:%s:%s:%d:%d", prefixTopicsList, gen, input.CategorySlug, input.TagSlug, input.Sort, input.Page, input.PerPage)
 	var out TopicList
 	if s.loadJSON(ctx, key, &out) {
 		return out, nil
@@ -181,7 +183,12 @@ func (s *CachedStore) ListTopics(ctx context.Context, input TopicListInput) (Top
 	if err != nil {
 		return TopicList{}, err
 	}
-	s.saveJSON(ctx, key, out, ttlList)
+	// 首页/分类第一页更热；稍长 TTL 降低冷路径压力（generation 写路径仍失效）。
+	ttl := ttlList
+	if input.Page <= 1 {
+		ttl = ttlListPage1
+	}
+	s.saveJSON(ctx, key, out, ttl)
 	return out, nil
 }
 

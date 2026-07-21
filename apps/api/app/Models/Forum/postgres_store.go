@@ -264,65 +264,7 @@ func (s *PostgresStore) UpdateTag(ctx context.Context, input UpdateTagInput) (Ta
 	return item, err
 }
 
-func (s *PostgresStore) ListTopics(ctx context.Context, input TopicListInput) (TopicList, error) {
-	input.Page, input.PerPage = normalizePage(input.Page, input.PerPage)
-	query := strings.TrimSpace(input.Query)
-	categorySlug := strings.TrimSpace(input.CategorySlug)
-	tagSlug := strings.TrimSpace(input.TagSlug)
-	where := `
-		WHERE topics.status IN ('active', 'locked')
-		  AND categories.visibility = 'public'
-		  AND ($1 = '' OR categories.slug = $1)
-		  AND ($2 = '' OR topics.title ILIKE '%' || $2 || '%' OR posts.plain_text ILIKE '%' || $2 || '%')
-		  AND (
-		    $3 = ''
-		    OR EXISTS (
-		      SELECT 1
-		      FROM topic_tags
-		      JOIN tags ON tags.id = topic_tags.tag_id
-		      WHERE topic_tags.topic_id = topics.id
-		        AND tags.slug = $3
-		        AND tags.status = 'active'
-		    )
-		  )
-	`
-
-	var total int64
-	if err := s.pool.QueryRow(ctx, `
-		SELECT count(*)
-		FROM topics
-		JOIN categories ON categories.id = topics.category_id
-		JOIN posts ON posts.id = topics.content_id
-	`+where, categorySlug, query, tagSlug).Scan(&total); err != nil {
-		return TopicList{}, fmt.Errorf("count topics: %w", err)
-	}
-
-	orderBy := topicListOrderBy(input.Sort)
-	rows, err := s.pool.Query(ctx, topicSummarySQL()+where+`
-		`+orderBy+`
-		LIMIT $4 OFFSET $5
-	`, categorySlug, query, tagSlug, input.PerPage, (input.Page-1)*input.PerPage)
-	if err != nil {
-		return TopicList{}, fmt.Errorf("list topics: %w", err)
-	}
-	defer rows.Close()
-
-	items := []TopicSummary{}
-	for rows.Next() {
-		item, err := scanTopicSummaryWithAvatar(rows, s.avatarBuilder)
-		if err != nil {
-			return TopicList{}, err
-		}
-		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return TopicList{}, fmt.Errorf("iterate topics: %w", err)
-	}
-	if err := s.attachActiveTagsToTopicSummaries(ctx, items); err != nil {
-		return TopicList{}, err
-	}
-	return TopicList{Items: items, Total: total, Page: input.Page, PerPage: input.PerPage}, nil
-}
+// ListTopics 实现见 list_topics.go（M1 冷路径：slim select + D1 totals + 无 ILIKE）。
 
 // ListAllTopicIDs 扫描全部可公开索引的主题 ID（active/locked）。
 // 只 SELECT id、无 JOIN，专为搜索索引批量重建设计，千万级数据下为顺序扫描秒级完成。

@@ -844,15 +844,16 @@ func topicSummarySQL() string {
 }
 
 // topicListOrderBy：置顶始终优先，再按运营默认排序。
-// latest=创建时间；active=最后活跃（默认行为）；hot=评论数+浏览量启发式。
+// latest=创建时间；active=最后活跃（默认行为，可走 topics_category_activity_idx）；
+// hot=评论数+浏览量表达式（M2 前 best-effort，无专用索引）。
 func topicListOrderBy(sort string) string {
 	switch strings.TrimSpace(strings.ToLower(sort)) {
 	case "latest":
 		return `ORDER BY topics.is_pinned DESC, topics.created_at DESC, topics.id DESC`
 	case "hot":
-		// 简单热度：评论权重高于浏览；后续可换加权时间衰减而不改 API。
+		// M2 前表达式排序；正式 hot_score 列与索引在 million-scale M2。
 		return `ORDER BY topics.is_pinned DESC, (topics.comment_count * 5 + topics.view_count) DESC, topics.last_activity_at DESC, topics.id DESC`
-	default: // active
+	default: // active — 与 topics_category_activity_idx (category_id, is_pinned DESC, last_activity_at DESC, id DESC) 对齐
 		return `ORDER BY topics.is_pinned DESC, topics.last_activity_at DESC, topics.id DESC`
 	}
 }

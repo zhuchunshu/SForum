@@ -235,10 +235,15 @@ type TopicListInput struct {
 }
 
 type TopicList struct {
-	Items   []TopicSummary `json:"items"`
-	Total   int64          `json:"total"`
-	Page    int            `json:"page"`
-	PerPage int            `json:"perPage"`
+	Items []TopicSummary `json:"items"`
+	// Total 公开列表总数：分类/标签为冗余 topic_count（可短暂陈旧）；
+	// 首页/多过滤为近似值。禁止依赖其为严格实时全表精确值（见 D1）。
+	Total int64 `json:"total"`
+	// TotalApproximate 为 true 时 total 为估计/交集近似（首页、多过滤）；
+	// 单分类/单标签为 false（冗余计数，UI 不显示「约」）。
+	TotalApproximate bool `json:"totalApproximate,omitempty"`
+	Page             int  `json:"page"`
+	PerPage          int  `json:"perPage"`
 	// ExtensionListBadges 来自 forum.topic.list.badges（E2.4）；列表级一次返回。
 	ExtensionListBadges []TopicExtensionBadge `json:"extensionListBadges,omitempty"`
 }
