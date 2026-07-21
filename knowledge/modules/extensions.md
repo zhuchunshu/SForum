@@ -6,15 +6,31 @@ The accepted target, including the canonical 99-row comparison and detailed
 architecture mind map, is documented in
 `../decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`; its phased task
 book is `../plans/2026-07-13-trusted-plugin-theme-platform-v3.md`. Progress:
-`../plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md` (**~99.7%**).
+`../plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md` (**~99.7%** after
+P11 remediation; see progress ledger).
 
-**Live program state (2026-07-21):** P0–P12 closed on `main`. P13 final gates and
-reference packages are green. The only open task-book rows are LTS-blocked
-deletions (`sforum.protocol.v1`, `sforum.theme.l1.request-time-loader`) until
-APILTS `RemoveAfter` ≈ 2026-11-28 + live zero-shim + checklist 1–7. Do not reopen
-P10/P11/P12 from older checkpoint sections below. Fail-closed `SFPageOutlet` is
-never fully removed. Optional non-task-book depth (Protocol content-filter
-lease, Media Plan/Execute product authority, EntityStore I/O) is not V3 residual.
+**Live program state (2026-07-22):** P0–P12 closed on `main` with **P11 platform
+services remediations landed** (SecretStore Postgres + Protocol V2 Secret/File/
+HTTP, SettingsLifecycle on extension_settings, bootstrap bind). P13 final gates
+and reference packages remain green. The only open task-book rows are
+LTS-blocked deletions (`sforum.protocol.v1`,
+`sforum.theme.l1.request-time-loader`) until APILTS `RemoveAfter` ≈ 2026-11-28 +
+live zero-shim + checklist 1–7. Fail-closed `SFPageOutlet` is never fully
+removed. Optional non-task-book depth (Protocol content-filter lease, Media
+Plan/Execute product authority, EntityStore I/O) is not V3 residual.
+
+### P11 Platform Services (production assembly)
+
+| Service | Production path |
+| --- | --- |
+| SecretStore | `PostgresStore` → `secret_store` + `secret_store_audit`; `RequireEncryption` in production/staging; Protocol V2 `SecretService.Resolve` |
+| SettingsLifecycle | `SettingsKVStore` over `extension_settings` (not process-local maps); Secret refs via SecretStore; explicit `ResetOptions.PreserveSecrets` |
+| HostHTTP | Protocol V2 `HttpService.Do`; SSRF safe default; SecretStore credential injection; raw only when Host allows |
+| PluginFiles | Protocol V2 `FileService`; private/temp/static/user kinds; default uninstall retains user data |
+| Bootstrap | `bindProductionHostPlatform` in `api_assembly` binds all three Protocol V2 servers before broker freeze |
+
+Do **not** credit P11 from Support unit tests alone — require production
+bootstrap bind + Protocol V2 + durable store evidence.
 
 The remainder of this module note describes the current implementation unless a
 section is explicitly labeled as target behavior.

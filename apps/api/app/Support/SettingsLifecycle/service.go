@@ -10,24 +10,35 @@ import (
 	secretstore "github.com/zhuchunshu/sforum/apps/api/app/Support/SecretStore"
 )
 
-// Service is the Host settings lifecycle runtime (process-local document store).
+// Service is the Host settings lifecycle runtime.
+// Document authority is DocumentStore (extension_settings in production).
+// Schema/migration registries remain process-local (declared at enable).
 type Service struct {
 	mu         sync.Mutex
-	documents  map[string]Document // extensionID -> document
 	schemas    map[string][]FieldSchema
-	migrations map[string][]Migration // extensionID -> ordered migrations
+	migrations map[string][]Migration
+	targetVer  map[string]int
+	docs       DocumentStore
 	secrets    *secretstore.Service
-	targetVer  map[string]int // extensionID -> current schema data version
 }
 
-// New builds a settings lifecycle service. secrets may be nil (refs still work as strings).
+// New builds a settings lifecycle service with an in-memory document store
+// (tests only). Prefer NewWithStore for production.
 func New(secrets *secretstore.Service) *Service {
+	return NewWithStore(NewMemoryDocumentStore(), secrets)
+}
+
+// NewWithStore builds a lifecycle service with durable document authority.
+func NewWithStore(docs DocumentStore, secrets *secretstore.Service) *Service {
+	if docs == nil {
+		docs = NewMemoryDocumentStore()
+	}
 	return &Service{
-		documents:  make(map[string]Document),
 		schemas:    make(map[string][]FieldSchema),
 		migrations: make(map[string][]Migration),
-		secrets:    secrets,
 		targetVer:  make(map[string]int),
+		docs:       docs,
+		secrets:    secrets,
 	}
 }
 
@@ -66,8 +77,12 @@ func (s *Service) RegisterMigration(extensionID string, migration Migration) err
 
 // Put replaces values (non-secret) and optional secret plaintexts (via Secret Store).
 // Empty secret submissions preserve existing secrets when preserveSecrets is true.
-func (s *Service) Put(extensionID, actor string, values map[string]string, preserveSecrets bool) (Document, error) {
+// Uses request ctx for all persistence and secret operations.
+func (s *Service) Put(ctx context.Context, extensionID, actor string, values map[string]string, preserveSecrets bool) (Document, error) {
 	if s == nil {
+		return Document{}, ErrInvalid
+	}
+	if ctx == nil {
 		return Document{}, ErrInvalid
 	}
 	extensionID = normalizeID(extensionID)
@@ -78,7 +93,6 @@ func (s *Service) Put(extensionID, actor string, values map[string]string, prese
 	s.mu.Lock()
 	fields := s.schemas[extensionID]
 	target := s.targetVer[extensionID]
-	current, hasCurrent := s.documents[extensionID]
 	s.mu.Unlock()
 	if len(fields) == 0 || target < 1 {
 		return Document{}, ErrNotFound
@@ -86,6 +100,13 @@ func (s *Service) Put(extensionID, actor string, values map[string]string, prese
 	if values == nil {
 		values = map[string]string{}
 	}
+
+	current, rev, err := s.docs.Load(ctx, extensionID)
+	hasCurrent := err == nil
+	if err != nil && err != ErrNotFound {
+		return Document{}, err
+	}
+
 	doc := Document{
 		SchemaVersion: SchemaVersion, ExtensionID: extensionID, DataVersion: target,
 		Values: make(map[string]string), SecretRefs: map[string]string{}, SecretSet: map[string]bool{},
@@ -121,11 +142,11 @@ func (s *Service) Put(extensionID, actor string, values map[string]string, prese
 				return Document{}, ErrInvalid
 			}
 			ref := secretstore.Ref{Namespace: extensionID, SecretID: field.Name}
-			meta, err := s.secrets.Put(context.Background(), ref, []byte(raw), secretstore.PutOptions{
+			meta, putErr := s.secrets.Put(ctx, ref, []byte(raw), secretstore.PutOptions{
 				Actor: actor, Purposes: []string{"settings"},
 			})
-			if err != nil {
-				return Document{}, err
+			if putErr != nil {
+				return Document{}, putErr
 			}
 			doc.SecretRefs[field.Name] = meta.Reference
 			doc.SecretSet[field.Name] = true
@@ -135,35 +156,55 @@ func (s *Service) Put(extensionID, actor string, values map[string]string, prese
 			doc.Values[field.Name] = raw
 		}
 	}
-	// Migrate if needed.
-	migrated, err := s.migrateLocked(extensionID, doc)
+
+	// 迁移在内存副本上执行；失败则不写入 DocumentStore（回滚）。
+	migrated, err := s.migrate(extensionID, doc)
 	if err != nil {
 		return Document{}, err
 	}
-	s.mu.Lock()
-	s.documents[extensionID] = migrated
-	s.mu.Unlock()
+	expected := rev
+	if !hasCurrent {
+		expected = 0
+	}
+	if _, err := s.docs.Save(ctx, extensionID, migrated, expected); err != nil {
+		// CAS 冲突时重试一次读-合并不合适（调用方应重试）；直接返回。
+		return Document{}, err
+	}
 	return cloneDocument(migrated), nil
 }
 
 // Get returns the current document (secrets masked).
-func (s *Service) Get(extensionID string) (Document, error) {
+func (s *Service) Get(ctx context.Context, extensionID string) (Document, error) {
 	if s == nil {
 		return Document{}, ErrInvalid
 	}
+	if ctx == nil {
+		return Document{}, ErrInvalid
+	}
 	extensionID = normalizeID(extensionID)
-	s.mu.Lock()
-	doc, ok := s.documents[extensionID]
-	s.mu.Unlock()
-	if !ok {
-		return Document{}, ErrNotFound
+	doc, _, err := s.docs.Load(ctx, extensionID)
+	if err != nil {
+		return Document{}, err
 	}
 	return cloneDocument(doc), nil
 }
 
-// ResetDefaults restores field defaults and clears non-preserved secrets.
-func (s *Service) ResetDefaults(extensionID, actor string) (Document, error) {
+// ResetOptions controls ResetDefaults secret policy.
+// PreserveSecrets must be set explicitly for beginner-friendly admin UX:
+// true keeps Secret Store refs; false clears secret refs (values remain in Secret Store history).
+type ResetOptions struct {
+	// PreserveSecrets when true keeps existing secret references after reset.
+	// Beginner-friendly default path should pass true and state this in UI.
+	PreserveSecrets bool
+}
+
+// ResetDefaults restores field defaults.
+// opts.PreserveSecrets selects whether secret refs are kept (recommended default true).
+func (s *Service) ResetDefaults(ctx context.Context, extensionID, actor string, opts ResetOptions) (Document, error) {
 	if s == nil {
+		return Document{}, ErrInvalid
+	}
+	if ctx == nil {
 		return Document{}, ErrInvalid
 	}
 	extensionID = normalizeID(extensionID)
@@ -178,6 +219,13 @@ func (s *Service) ResetDefaults(extensionID, actor string) (Document, error) {
 	if len(fields) == 0 {
 		return Document{}, ErrNotFound
 	}
+
+	current, rev, err := s.docs.Load(ctx, extensionID)
+	hasCurrent := err == nil
+	if err != nil && err != ErrNotFound {
+		return Document{}, err
+	}
+
 	values := make(map[string]string, len(fields))
 	for _, field := range fields {
 		if field.Secret || field.Type == "secret" {
@@ -185,21 +233,35 @@ func (s *Service) ResetDefaults(extensionID, actor string) (Document, error) {
 		}
 		values[field.Name] = field.Default
 	}
-	// Replace document with defaults; secrets cleared.
 	doc := Document{
 		SchemaVersion: SchemaVersion, ExtensionID: extensionID, DataVersion: target,
 		Values: values, SecretRefs: map[string]string{}, SecretSet: map[string]bool{},
 		UpdatedAt: time.Now().UTC(), UpdatedBy: actor,
 	}
-	s.mu.Lock()
-	s.documents[extensionID] = doc
-	s.mu.Unlock()
+	if opts.PreserveSecrets && hasCurrent {
+		for k, v := range current.SecretRefs {
+			doc.SecretRefs[k] = v
+		}
+		for k, v := range current.SecretSet {
+			doc.SecretSet[k] = v
+		}
+	}
+	expected := int64(0)
+	if hasCurrent {
+		expected = rev
+	}
+	if _, err := s.docs.Save(ctx, extensionID, doc, expected); err != nil {
+		return Document{}, err
+	}
 	return cloneDocument(doc), nil
 }
 
 // Preview validates values and evaluates conditionals without persistence.
-func (s *Service) Preview(extensionID string, values map[string]string) (ValidationPreview, error) {
+func (s *Service) Preview(ctx context.Context, extensionID string, values map[string]string) (ValidationPreview, error) {
 	if s == nil {
+		return ValidationPreview{}, ErrInvalid
+	}
+	if ctx == nil {
 		return ValidationPreview{}, ErrInvalid
 	}
 	extensionID = normalizeID(extensionID)
@@ -235,8 +297,8 @@ func (s *Service) Preview(extensionID string, values map[string]string) (Validat
 }
 
 // Export returns a masked bundle (no secret plaintext).
-func (s *Service) Export(extensionID string) (ExportBundle, error) {
-	doc, err := s.Get(extensionID)
+func (s *Service) Export(ctx context.Context, extensionID string) (ExportBundle, error) {
+	doc, err := s.Get(ctx, extensionID)
 	if err != nil {
 		return ExportBundle{}, err
 	}
@@ -248,8 +310,11 @@ func (s *Service) Export(extensionID string) (ExportBundle, error) {
 }
 
 // Import applies a bundle. Secret refs are kept; plaintext secrets are rejected.
-func (s *Service) Import(extensionID, actor string, bundle ExportBundle) (Document, error) {
+func (s *Service) Import(ctx context.Context, extensionID, actor string, bundle ExportBundle) (Document, error) {
 	if s == nil {
+		return Document{}, ErrInvalid
+	}
+	if ctx == nil {
 		return Document{}, ErrInvalid
 	}
 	extensionID = normalizeID(extensionID)
@@ -279,20 +344,29 @@ func (s *Service) Import(extensionID, actor string, bundle ExportBundle) (Docume
 	if doc.DataVersion == 0 {
 		doc.DataVersion = 1
 	}
+	// 迁移失败则不落盘。
 	if doc.DataVersion != target {
-		migrated, err := s.migrateLocked(extensionID, doc)
+		migrated, err := s.migrate(extensionID, doc)
 		if err != nil {
 			return Document{}, err
 		}
 		doc = migrated
 	}
-	s.mu.Lock()
-	s.documents[extensionID] = doc
-	s.mu.Unlock()
+	current, rev, err := s.docs.Load(ctx, extensionID)
+	expected := int64(0)
+	if err == nil {
+		expected = rev
+		_ = current
+	} else if err != ErrNotFound {
+		return Document{}, err
+	}
+	if _, err := s.docs.Save(ctx, extensionID, doc, expected); err != nil {
+		return Document{}, err
+	}
 	return cloneDocument(doc), nil
 }
 
-func (s *Service) migrateLocked(extensionID string, doc Document) (Document, error) {
+func (s *Service) migrate(extensionID string, doc Document) (Document, error) {
 	s.mu.Lock()
 	target := s.targetVer[extensionID]
 	steps := append([]Migration(nil), s.migrations[extensionID]...)
@@ -300,31 +374,32 @@ func (s *Service) migrateLocked(extensionID string, doc Document) (Document, err
 	if target < 1 {
 		return doc, nil
 	}
-	// Upgrade only (From -> To ascending).
+	// 在克隆上迁移；Apply 失败时原 doc 未写入 store。
+	working := cloneDocument(doc)
 	guard := 0
-	for doc.DataVersion < target {
+	for working.DataVersion < target {
 		guard++
 		if guard > 64 {
 			return Document{}, fmt.Errorf("%w: migration loop", ErrMigration)
 		}
 		applied := false
 		for _, step := range steps {
-			if step.From == doc.DataVersion && step.To > step.From {
-				next, err := step.Apply(cloneMap(doc.Values))
+			if step.From == working.DataVersion && step.To > step.From {
+				next, err := step.Apply(cloneMap(working.Values))
 				if err != nil {
 					return Document{}, fmt.Errorf("%w: %v", ErrMigration, err)
 				}
-				doc.Values = next
-				doc.DataVersion = step.To
+				working.Values = next
+				working.DataVersion = step.To
 				applied = true
 				break
 			}
 		}
 		if !applied {
-			return Document{}, fmt.Errorf("%w: missing step from %d to %d", ErrMigration, doc.DataVersion, target)
+			return Document{}, fmt.Errorf("%w: missing step from %d to %d", ErrMigration, working.DataVersion, target)
 		}
 	}
-	return doc, nil
+	return working, nil
 }
 
 func fieldVisible(field FieldSchema, values map[string]string) bool {

@@ -42,6 +42,8 @@ var (
 	ErrAlreadyExists    = errors.New("secret store entry already exists")
 	ErrRevoked          = errors.New("secret store entry is revoked")
 	ErrCipher           = errors.New("secret store cipher failed")
+	// ErrCipherRequired is returned when production mode has no encryption key.
+	ErrCipherRequired = errors.New("secret store encryption key is required")
 )
 
 // Ref is the stable identity of one secret. Version 0 means latest non-revoked.

@@ -809,16 +809,26 @@ disable retention). P10 exits complete.
       sitemap/JSON-LD contributions and filters.
 - [x] Implement namespaced Secret Store with encryption, masking, preserve-on-
       empty, rotation, references, and audit.
+      **REMEDIATED 2026-07-22:** `Store` interface; `PostgresStore` +
+      `secret_store` / `secret_store_audit`; production `RequireEncryption`;
+      Protocol V2 `SecretService`; concurrent Append version uniqueness.
 - [x] Implement plugin private files, temporary files, static assets, user-owned
       files, quotas, cleanup, and optional storage-provider routing.
+      **REMEDIATED 2026-07-22:** KindStatic; uninstall retain user by default;
+      Protocol V2 `FileService`; bootstrap bind under ExtensionRoot/plugin-files.
 - [x] Implement Host HTTP client with proxy, timeout, retry, SSRF policy,
       credential references, response limits, and tracing; preserve explicit raw
       network authority for fully trusted processes.
+      **REMEDIATED 2026-07-22:** Protocol V2 `HttpService.Do` + production
+      SecretStore injection; SSRF safe default; raw only when Host allows.
 - [x] Add runtime translation domains, pluralization, locale fallback, plugin
       language packs, and controlled overrides.
 - [x] Add versioned Settings lifecycle: schema migrations, default/reset policy,
       import/export, conditional fields, validation previews, and Secret Store
       references without exposing plaintext secrets.
+      **REMEDIATED 2026-07-22:** `DocumentStore` / `SettingsKVStore` on
+      `extension_settings`; request `context`; `ResetOptions.PreserveSecrets`;
+      failed migration does not persist.
 - [x] Complete plugin OpenAPI route policies for rate limits, idempotency,
       permissions, request size, CORS, and generated clients.
 
@@ -828,10 +838,16 @@ disable retention). P10 exits complete.
       output, and invalidation.
 - [x] SEO source checks with JS disabled and plugin disabled/failing.
 - [x] Secret disclosure, rotation, logs, backups, and uninstall behavior.
+      **REMEDIATED:** concurrent rotate, Postgres restart, wrong-key fail-closed,
+      revoke, namespace/purpose deny, no plaintext in inspector/DB/audit.
 - [x] File traversal/symlink/quota/read policy and HTTP SSRF/redirect/DNS rebinding.
+      **REMEDIATED:** plus restart, cross-plugin isolation, uninstall retain user,
+      Protocol V2 File/HTTP allow/deny tests.
 - [x] Locale fallback and catalog collision.
 - [x] Settings upgrade/downgrade, failed migration rollback, reset defaults,
       import validation, export masking, conditional fields, and secret rotation.
+      **REMEDIATED:** durable KV, CAS conflict, restart, PreserveSecrets reset,
+      request context (nil ctx rejected).
 
 ### Rollback
 
@@ -844,14 +860,12 @@ distributed leases, inspection, and failure fencing; the Go SDK now exposes
 typed CRUD, CAS revisions, bounded cross-process `remember`, lease renewal, and
 atomic set-and-release without leaking opaque lease capabilities.
 
-P11 Host platform services closed 2026-07-21 on `main` (display progress advances
-with the progress ledger): `CachePolicy` (`50cd242fc`), `SecretStore` + migration
-`202607210043` (`293f385d7`, `3e3957a31`), `HostHTTP` (`8c60cda3c`),
-`PluginFiles` (`09a74a861`), Localization domains/packs (`7c0c7e168`),
-`SettingsLifecycle` (`4b94f707c`), SEO Document↔PageSEOView bridge
-(`af2400ffc`), OpenAPI CORS/request-size policies (`5f3409d87`), SEO
-JS-disabled/plugin-failure product gate (`product_js_disabled_test.go`).
-All P11 Tasks and Tests rows are checked.
+P11 was **prematurely marked complete** on 2026-07-21 (Support packages only).
+**Remediation closed 2026-07-22:** production Postgres SecretStore + durable
+audit, SettingsLifecycle on extension_settings, Protocol V2 Secret/File/HTTP
+servers bound in `bindProductionHostPlatform` / `api_assembly`, integration and
+allow/deny tests green. CachePolicy / Localization / SEO / OpenAPI credit
+unchanged from the prior close.
 
 ## P12 - Multi-Node, Compatibility, Marketplace, Observability, And DX
 

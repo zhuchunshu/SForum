@@ -50,6 +50,9 @@ func registerProtocolV2(
 	queryRegistry *ProtocolV2QueryRegistryService,
 	database *protocolV2DatabaseEngine,
 	cache *ProtocolV2CacheServiceServer,
+	secrets *ProtocolV2SecretServiceServer,
+	files *ProtocolV2FileServiceServer,
+	httpClient *ProtocolV2HttpServiceServer,
 	providers ProtocolV2ProviderBroker,
 ) {
 	core := &protocolV2Core{
@@ -66,6 +69,15 @@ func registerProtocolV2(
 	hostv2.RegisterServiceDiscoveryServiceServer(server, &protocolV2ServiceDiscoveryServer{core: core})
 	if cache != nil {
 		hostv2.RegisterCacheServiceServer(server, cache)
+	}
+	if secrets != nil {
+		hostv2.RegisterSecretServiceServer(server, secrets)
+	}
+	if files != nil {
+		hostv2.RegisterFileServiceServer(server, files)
+	}
+	if httpClient != nil {
+		hostv2.RegisterHttpServiceServer(server, httpClient)
 	}
 }
 

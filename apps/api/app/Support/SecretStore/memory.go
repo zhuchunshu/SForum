@@ -4,135 +4,160 @@ import (
 	"context"
 	"sort"
 	"sync"
-	"time"
 )
 
-// memoryRow is one immutable version of a secret.
-type memoryRow struct {
-	namespace string
-	secretID  string
-	version   int64
-	cipher    string
-	mediaType string
-	purposes  []string
-	updatedAt time.Time
-	updatedBy string
-	revoked   bool
-}
-
-// MemoryStore is a process-local Secret Store backend for tests and dev.
+// MemoryStore is a process-local Secret Store backend for unit tests only.
+// Production must use PostgresStore.
 type MemoryStore struct {
 	mu   sync.Mutex
-	rows map[string][]memoryRow // key = namespace\x00secretID, ascending versions
+	rows map[string][]Row // key = namespace\x00secretID, ascending versions
 }
 
 // NewMemoryStore builds an empty in-memory store.
 func NewMemoryStore() *MemoryStore {
-	return &MemoryStore{rows: make(map[string][]memoryRow)}
+	return &MemoryStore{rows: make(map[string][]Row)}
 }
 
 func memoryKey(namespace, secretID string) string {
 	return namespace + "\x00" + secretID
 }
 
-func (s *MemoryStore) put(_ context.Context, row memoryRow) error {
+// Append implements Store with process-local locking for version uniqueness.
+func (s *MemoryStore) Append(_ context.Context, row Row) (Row, error) {
 	if s == nil {
-		return ErrInvalid
+		return Row{}, ErrInvalid
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	key := memoryKey(row.namespace, row.secretID)
+	key := memoryKey(row.Namespace, row.SecretID)
 	existing := s.rows[key]
-	// Append-only versions; never mutate prior ciphertext.
-	copied := append([]memoryRow(nil), existing...)
-	copied = append(copied, row)
+	version := int64(1)
+	if len(existing) > 0 {
+		version = existing[len(existing)-1].Version + 1
+	}
+	row.Version = version
+	copied := append([]Row(nil), existing...)
+	copied = append(copied, cloneRow(row))
 	s.rows[key] = copied
-	return nil
+	return cloneRow(row), nil
 }
 
-func (s *MemoryStore) latest(_ context.Context, namespace, secretID string, includeRevoked bool) (memoryRow, bool) {
+// Latest implements Store.
+func (s *MemoryStore) Latest(_ context.Context, namespace, secretID string, includeRevoked bool) (Row, bool, error) {
 	if s == nil {
-		return memoryRow{}, false
+		return Row{}, false, ErrInvalid
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	rows := s.rows[memoryKey(namespace, secretID)]
 	for i := len(rows) - 1; i >= 0; i-- {
-		if includeRevoked || !rows[i].revoked {
-			return cloneRow(rows[i]), true
+		if includeRevoked || !rows[i].Revoked {
+			return cloneRow(rows[i]), true, nil
 		}
 	}
-	return memoryRow{}, false
+	return Row{}, false, nil
 }
 
-func (s *MemoryStore) getVersion(_ context.Context, namespace, secretID string, version int64) (memoryRow, bool) {
+// GetVersion implements Store.
+func (s *MemoryStore) GetVersion(_ context.Context, namespace, secretID string, version int64) (Row, bool, error) {
 	if s == nil || version <= 0 {
-		return memoryRow{}, false
+		return Row{}, false, nil
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, row := range s.rows[memoryKey(namespace, secretID)] {
-		if row.version == version {
-			return cloneRow(row), true
+		if row.Version == version {
+			return cloneRow(row), true, nil
 		}
 	}
-	return memoryRow{}, false
+	return Row{}, false, nil
 }
 
-func (s *MemoryStore) listNamespace(_ context.Context, namespace string) []memoryRow {
+// ListNamespace implements Store.
+func (s *MemoryStore) ListNamespace(_ context.Context, namespace string) ([]Row, error) {
 	if s == nil {
-		return nil
+		return nil, ErrInvalid
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	// Latest non-revoked per secret_id.
-	latest := make(map[string]memoryRow)
+	latest := make(map[string]Row)
 	for key, rows := range s.rows {
 		if len(rows) == 0 {
 			continue
 		}
-		// key is namespace\x00secretID
 		ns, id, ok := splitMemoryKey(key)
 		if !ok || ns != namespace {
 			continue
 		}
 		for i := len(rows) - 1; i >= 0; i-- {
-			if !rows[i].revoked {
+			if !rows[i].Revoked {
 				latest[id] = cloneRow(rows[i])
 				break
 			}
 		}
 	}
-	out := make([]memoryRow, 0, len(latest))
+	out := make([]Row, 0, len(latest))
 	for _, row := range latest {
 		out = append(out, row)
 	}
 	sort.Slice(out, func(i, j int) bool {
-		if out[i].secretID != out[j].secretID {
-			return out[i].secretID < out[j].secretID
+		if out[i].SecretID != out[j].SecretID {
+			return out[i].SecretID < out[j].SecretID
 		}
-		return out[i].version < out[j].version
+		return out[i].Version < out[j].Version
 	})
-	return out
+	return out, nil
 }
 
-func (s *MemoryStore) nextVersion(_ context.Context, namespace, secretID string) int64 {
+// MemoryAuditStore is a process-local audit ring for tests.
+type MemoryAuditStore struct {
+	mu     sync.Mutex
+	events []AuditEvent
+}
+
+// NewMemoryAuditStore builds an empty audit ring.
+func NewMemoryAuditStore() *MemoryAuditStore {
+	return &MemoryAuditStore{}
+}
+
+// AppendAudit implements AuditStore.
+func (s *MemoryAuditStore) AppendAudit(_ context.Context, event AuditEvent) error {
 	if s == nil {
-		return 1
+		return ErrInvalid
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	rows := s.rows[memoryKey(namespace, secretID)]
-	if len(rows) == 0 {
-		return 1
+	s.events = append(s.events, event)
+	if len(s.events) > MaxAuditRing*4 {
+		s.events = append([]AuditEvent(nil), s.events[len(s.events)-MaxAuditRing*2:]...)
 	}
-	return rows[len(rows)-1].version + 1
+	return nil
 }
 
-func cloneRow(row memoryRow) memoryRow {
+// ListRecentAudit implements AuditStore.
+func (s *MemoryAuditStore) ListRecentAudit(_ context.Context, limit int) ([]AuditEvent, error) {
+	if s == nil {
+		return nil, nil
+	}
+	if limit <= 0 || limit > MaxAuditRing {
+		limit = MaxAuditRing
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.events) == 0 {
+		return nil, nil
+	}
+	start := 0
+	if len(s.events) > limit {
+		start = len(s.events) - limit
+	}
+	return append([]AuditEvent(nil), s.events[start:]...), nil
+}
+
+func cloneRow(row Row) Row {
 	out := row
-	if len(row.purposes) > 0 {
-		out.purposes = append([]string(nil), row.purposes...)
+	if len(row.Purposes) > 0 {
+		out.Purposes = append([]string(nil), row.Purposes...)
 	}
 	return out
 }

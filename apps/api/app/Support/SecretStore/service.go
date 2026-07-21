@@ -22,7 +22,8 @@ var (
 // Service is the Host Secret Store runtime.
 type Service struct {
 	mu     sync.Mutex
-	store  *MemoryStore
+	store  Store
+	audit  AuditStore
 	cipher *cryptox.OptionCipher
 
 	puts, rotates, clears, resolves, denies, errors atomic.Uint64
@@ -31,19 +32,54 @@ type Service struct {
 	leaseSeq                                        atomic.Uint64
 }
 
-// New builds a Host Secret Store. cipher may be transparent (dev).
-func New(store *MemoryStore, cipher *cryptox.OptionCipher) (*Service, error) {
-	if store == nil {
+// Options configure Secret Store construction.
+type Options struct {
+	// Store is required.
+	Store Store
+	// Cipher encrypts values at rest. Required when RequireEncryption is true.
+	Cipher *cryptox.OptionCipher
+	// Audit is optional durable audit (Postgres). Process ring always kept.
+	Audit AuditStore
+	// RequireEncryption fails closed when Cipher is missing or transparent.
+	// Production bootstrap must set this true.
+	RequireEncryption bool
+	// AllowTransparent explicitly permits transparent (dev/test) cipher mode.
+	// Ignored when RequireEncryption is true.
+	AllowTransparent bool
+}
+
+// New builds a Host Secret Store. Prefer NewWithOptions for production.
+// Nil cipher with a non-nil store is transparent mode (tests/dev only).
+func New(store Store, cipher *cryptox.OptionCipher) (*Service, error) {
+	return NewWithOptions(Options{Store: store, Cipher: cipher, AllowTransparent: true})
+}
+
+// NewWithOptions builds a Secret Store with explicit production policy.
+func NewWithOptions(opts Options) (*Service, error) {
+	if opts.Store == nil {
 		return nil, ErrInvalid
 	}
+	cipher := opts.Cipher
 	if cipher == nil {
+		if opts.RequireEncryption {
+			return nil, fmt.Errorf("%w: encryption key is required in production", ErrCipherRequired)
+		}
+		if !opts.AllowTransparent {
+			return nil, fmt.Errorf("%w: transparent cipher not allowed", ErrCipherRequired)
+		}
 		var err error
 		cipher, err = cryptox.NewOptionCipher("")
 		if err != nil {
 			return nil, err
 		}
 	}
-	return &Service{store: store, cipher: cipher}, nil
+	if opts.RequireEncryption && !cipher.Enabled() {
+		return nil, fmt.Errorf("%w: encryption key is required in production", ErrCipherRequired)
+	}
+	if !cipher.Enabled() && !opts.AllowTransparent && !opts.RequireEncryption {
+		return nil, fmt.Errorf("%w: transparent cipher requires AllowTransparent", ErrCipherRequired)
+	}
+	return &Service{store: opts.Store, audit: opts.Audit, cipher: cipher}, nil
 }
 
 // ShouldPreserve reports whether a submitted admin value must keep the prior secret.
@@ -77,6 +113,9 @@ func (s *Service) Put(ctx context.Context, ref Ref, plaintext []byte, opts PutOp
 	if s == nil {
 		return Meta{}, ErrInvalid
 	}
+	if ctx == nil {
+		return Meta{}, ErrInvalid
+	}
 	ref, err := normalizeRef(ref)
 	if err != nil {
 		return Meta{}, err
@@ -84,7 +123,7 @@ func (s *Service) Put(ctx context.Context, ref Ref, plaintext []byte, opts PutOp
 	opts.Actor = strings.TrimSpace(opts.Actor)
 	if opts.Actor == "" {
 		s.denies.Add(1)
-		s.pushAudit(AuditEvent{Action: "put", Namespace: ref.Namespace, SecretID: ref.SecretID, OK: false})
+		s.pushAudit(ctx, AuditEvent{Action: "put", Namespace: ref.Namespace, SecretID: ref.SecretID, OK: false})
 		return Meta{}, ErrPermissionDenied
 	}
 	if opts.PreserveEmpty && len(bytesTrimSpace(plaintext)) == 0 {
@@ -111,26 +150,30 @@ func (s *Service) Put(ctx context.Context, ref Ref, plaintext []byte, opts PutOp
 	if mediaType == "" {
 		mediaType = "text/plain"
 	}
+	// 生产 cipher 必须写出 enc:: 密文；透明模式仅显式开发/测试。
 	cipherText, err := s.cipher.Encrypt(string(plaintext))
 	if err != nil {
 		s.errors.Add(1)
 		return Meta{}, fmt.Errorf("%w: %v", ErrCipher, err)
 	}
-	version := s.store.nextVersion(ctx, ref.Namespace, ref.SecretID)
-	now := time.Now().UTC()
-	row := memoryRow{
-		namespace: ref.Namespace, secretID: ref.SecretID, version: version,
-		cipher: cipherText, mediaType: mediaType, purposes: purposes,
-		updatedAt: now, updatedBy: opts.Actor,
+	if s.cipher.Enabled() && !cryptox.IsEncrypted(cipherText) {
+		s.errors.Add(1)
+		return Meta{}, fmt.Errorf("%w: encrypt did not produce ciphertext", ErrCipher)
 	}
-	if err := s.store.put(ctx, row); err != nil {
+	now := time.Now().UTC()
+	row, err := s.store.Append(ctx, Row{
+		Namespace: ref.Namespace, SecretID: ref.SecretID,
+		Cipher: cipherText, MediaType: mediaType, Purposes: purposes,
+		UpdatedAt: now, UpdatedBy: opts.Actor,
+	})
+	if err != nil {
 		s.errors.Add(1)
 		return Meta{}, err
 	}
 	s.puts.Add(1)
-	s.pushAudit(AuditEvent{
+	s.pushAudit(ctx, AuditEvent{
 		Action: "put", Namespace: ref.Namespace, SecretID: ref.SecretID,
-		Version: version, Actor: opts.Actor, OK: true, At: now,
+		Version: row.Version, Actor: opts.Actor, OK: true, At: now,
 	})
 	return rowToMeta(row), nil
 }
@@ -140,8 +183,7 @@ func (s *Service) Rotate(ctx context.Context, ref Ref, plaintext []byte, actor s
 	meta, err := s.Put(ctx, ref, plaintext, PutOptions{Actor: actor, Purposes: purposes})
 	if err == nil {
 		s.rotates.Add(1)
-		// Put already counted puts; rotate is a sub-action audit.
-		s.pushAudit(AuditEvent{
+		s.pushAudit(ctx, AuditEvent{
 			Action: "rotate", Namespace: meta.Namespace, SecretID: meta.SecretID,
 			Version: meta.Version, Actor: strings.TrimSpace(actor), OK: true, At: time.Now().UTC(),
 		})
@@ -154,6 +196,9 @@ func (s *Service) Clear(ctx context.Context, ref Ref, actor string) (Meta, error
 	if s == nil {
 		return Meta{}, ErrInvalid
 	}
+	if ctx == nil {
+		return Meta{}, ErrInvalid
+	}
 	ref, err := normalizeRef(ref)
 	if err != nil {
 		return Meta{}, err
@@ -163,28 +208,31 @@ func (s *Service) Clear(ctx context.Context, ref Ref, actor string) (Meta, error
 		s.denies.Add(1)
 		return Meta{}, ErrPermissionDenied
 	}
-	latest, ok := s.store.latest(ctx, ref.Namespace, ref.SecretID, true)
+	latest, ok, err := s.store.Latest(ctx, ref.Namespace, ref.SecretID, true)
+	if err != nil {
+		s.errors.Add(1)
+		return Meta{}, err
+	}
 	if !ok {
 		return Meta{}, ErrNotFound
 	}
-	if latest.revoked {
+	if latest.Revoked {
 		return rowToMeta(latest), nil
 	}
 	now := time.Now().UTC()
-	tomb := memoryRow{
-		namespace: ref.Namespace, secretID: ref.SecretID,
-		version: s.store.nextVersion(ctx, ref.Namespace, ref.SecretID),
-		cipher:  "", mediaType: latest.mediaType, purposes: latest.purposes,
-		updatedAt: now, updatedBy: actor, revoked: true,
-	}
-	if err := s.store.put(ctx, tomb); err != nil {
+	tomb, err := s.store.Append(ctx, Row{
+		Namespace: ref.Namespace, SecretID: ref.SecretID,
+		Cipher: "", MediaType: latest.MediaType, Purposes: latest.Purposes,
+		UpdatedAt: now, UpdatedBy: actor, Revoked: true,
+	})
+	if err != nil {
 		s.errors.Add(1)
 		return Meta{}, err
 	}
 	s.clears.Add(1)
-	s.pushAudit(AuditEvent{
+	s.pushAudit(ctx, AuditEvent{
 		Action: "clear", Namespace: ref.Namespace, SecretID: ref.SecretID,
-		Version: tomb.version, Actor: actor, OK: true, At: now,
+		Version: tomb.Version, Actor: actor, OK: true, At: now,
 	})
 	return rowToMeta(tomb), nil
 }
@@ -194,12 +242,18 @@ func (s *Service) Meta(ctx context.Context, ref Ref) (Meta, error) {
 	if s == nil {
 		return Meta{}, ErrInvalid
 	}
+	if ctx == nil {
+		return Meta{}, ErrInvalid
+	}
 	ref, err := normalizeRef(ref)
 	if err != nil {
 		return Meta{}, err
 	}
 	if ref.Version > 0 {
-		row, ok := s.store.getVersion(ctx, ref.Namespace, ref.SecretID, ref.Version)
+		row, ok, err := s.store.GetVersion(ctx, ref.Namespace, ref.SecretID, ref.Version)
+		if err != nil {
+			return Meta{}, err
+		}
 		if !ok {
 			return Meta{}, ErrNotFound
 		}
@@ -220,11 +274,17 @@ func (s *Service) ListMeta(ctx context.Context, namespace string) ([]Meta, error
 	if s == nil {
 		return nil, ErrInvalid
 	}
+	if ctx == nil {
+		return nil, ErrInvalid
+	}
 	namespace, err := normalizeNamespace(namespace)
 	if err != nil {
 		return nil, err
 	}
-	rows := s.store.listNamespace(ctx, namespace)
+	rows, err := s.store.ListNamespace(ctx, namespace)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]Meta, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, rowToMeta(row))
@@ -239,6 +299,9 @@ func (s *Service) Resolve(ctx context.Context, caller Caller, ref Ref, purpose s
 	if s == nil {
 		return Lease{}, ErrInvalid
 	}
+	if ctx == nil {
+		return Lease{}, ErrInvalid
+	}
 	ref, err := normalizeRef(ref)
 	if err != nil {
 		s.errors.Add(1)
@@ -251,7 +314,7 @@ func (s *Service) Resolve(ctx context.Context, caller Caller, ref Ref, purpose s
 	}
 	if !admitNamespace(caller, ref.Namespace) {
 		s.denies.Add(1)
-		s.pushAudit(AuditEvent{
+		s.pushAudit(ctx, AuditEvent{
 			Action: "resolve", Namespace: ref.Namespace, SecretID: ref.SecretID,
 			Actor: strings.TrimSpace(caller.Actor), Purpose: purpose, OK: false, At: time.Now().UTC(),
 		})
@@ -267,33 +330,37 @@ func (s *Service) Resolve(ctx context.Context, caller Caller, ref Ref, purpose s
 		ttl = MaxResolveTTL
 	}
 
-	var row memoryRow
+	var row Row
 	var ok bool
 	if ref.Version > 0 {
-		row, ok = s.store.getVersion(ctx, ref.Namespace, ref.SecretID, ref.Version)
+		row, ok, err = s.store.GetVersion(ctx, ref.Namespace, ref.SecretID, ref.Version)
 	} else {
 		// Tip version is authoritative: a revoke tombstone hides prior versions
 		// from unscoped Resolve while still allowing version-pinned reads.
-		row, ok = s.store.latest(ctx, ref.Namespace, ref.SecretID, true)
+		row, ok, err = s.store.Latest(ctx, ref.Namespace, ref.SecretID, true)
+	}
+	if err != nil {
+		s.errors.Add(1)
+		return Lease{}, err
 	}
 	if !ok {
 		s.errors.Add(1)
 		return Lease{}, ErrNotFound
 	}
-	if row.revoked {
+	if row.Revoked {
 		s.denies.Add(1)
 		return Lease{}, ErrRevoked
 	}
-	if len(row.purposes) > 0 && !purposeAllowed(row.purposes, purpose) {
+	if len(row.Purposes) > 0 && !purposeAllowed(row.Purposes, purpose) {
 		s.denies.Add(1)
-		s.pushAudit(AuditEvent{
+		s.pushAudit(ctx, AuditEvent{
 			Action: "resolve", Namespace: ref.Namespace, SecretID: ref.SecretID,
-			Version: row.version, Actor: strings.TrimSpace(caller.Actor), Purpose: purpose, OK: false,
+			Version: row.Version, Actor: strings.TrimSpace(caller.Actor), Purpose: purpose, OK: false,
 			At: time.Now().UTC(),
 		})
 		return Lease{}, ErrPurposeDenied
 	}
-	plain, err := s.cipher.Decrypt(row.cipher)
+	plain, err := s.cipher.Decrypt(row.Cipher)
 	if err != nil {
 		s.errors.Add(1)
 		return Lease{}, fmt.Errorf("%w: %v", ErrCipher, err)
@@ -301,13 +368,13 @@ func (s *Service) Resolve(ctx context.Context, caller Caller, ref Ref, purpose s
 	now := time.Now().UTC()
 	lease := Lease{
 		LeaseID:   fmt.Sprintf("sec-lease-%d-%s", s.leaseSeq.Add(1), randomHex(4)),
-		Namespace: row.namespace, SecretID: row.secretID, Version: row.version,
-		Value: []byte(plain), MediaType: row.mediaType, ExpiresAt: now.Add(ttl), Purpose: purpose,
+		Namespace: row.Namespace, SecretID: row.SecretID, Version: row.Version,
+		Value: []byte(plain), MediaType: row.MediaType, ExpiresAt: now.Add(ttl), Purpose: purpose,
 	}
 	s.resolves.Add(1)
-	s.pushAudit(AuditEvent{
-		Action: "resolve", Namespace: row.namespace, SecretID: row.secretID,
-		Version: row.version, Actor: strings.TrimSpace(caller.Actor), Purpose: purpose, OK: true, At: now,
+	s.pushAudit(ctx, AuditEvent{
+		Action: "resolve", Namespace: row.Namespace, SecretID: row.SecretID,
+		Version: row.Version, Actor: strings.TrimSpace(caller.Actor), Purpose: purpose, OK: true, At: now,
 	})
 	return lease, nil
 }
@@ -320,6 +387,12 @@ func (s *Service) Inspector() InspectorSnapshot {
 	s.mu.Lock()
 	audit := append([]AuditEvent(nil), s.auditRing...)
 	s.mu.Unlock()
+	// Prefer durable audit when available for cross-process visibility.
+	if s.audit != nil {
+		if durable, err := s.audit.ListRecentAudit(context.Background(), MaxAuditRing); err == nil && len(durable) > 0 {
+			audit = durable
+		}
+	}
 	return InspectorSnapshot{
 		SchemaVersion: SchemaVersion,
 		Puts:          s.puts.Load(),
@@ -332,26 +405,38 @@ func (s *Service) Inspector() InspectorSnapshot {
 	}
 }
 
+// EncryptionEnabled reports whether values are encrypted at rest.
+func (s *Service) EncryptionEnabled() bool {
+	return s != nil && s.cipher != nil && s.cipher.Enabled()
+}
+
 func (s *Service) metaLatest(ctx context.Context, ref Ref) (Meta, bool, error) {
-	row, ok := s.store.latest(ctx, ref.Namespace, ref.SecretID, true)
+	row, ok, err := s.store.Latest(ctx, ref.Namespace, ref.SecretID, true)
+	if err != nil {
+		return Meta{}, false, err
+	}
 	if !ok {
 		return Meta{}, false, nil
 	}
 	return rowToMeta(row), true, nil
 }
 
-func (s *Service) pushAudit(event AuditEvent) {
+func (s *Service) pushAudit(ctx context.Context, event AuditEvent) {
 	if event.At.IsZero() {
 		event.At = time.Now().UTC()
 	}
 	if event.AuditID == "" {
 		event.AuditID = fmt.Sprintf("sec-audit-%d", s.auditSeq.Add(1))
 	}
+	// 审计字段不得包含明文密钥；Action 元数据仅有 namespace/id/version。
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.auditRing = append(s.auditRing, event)
 	if len(s.auditRing) > MaxAuditRing {
 		s.auditRing = append([]AuditEvent(nil), s.auditRing[len(s.auditRing)-MaxAuditRing:]...)
+	}
+	s.mu.Unlock()
+	if s.audit != nil && ctx != nil {
+		_ = s.audit.AppendAudit(ctx, event)
 	}
 }
 
@@ -417,19 +502,19 @@ func normalizePurposes(input []string) ([]string, error) {
 	return out, nil
 }
 
-func rowToMeta(row memoryRow) Meta {
+func rowToMeta(row Row) Meta {
 	return Meta{
 		SchemaVersion: SchemaVersion,
-		Namespace:     row.namespace,
-		SecretID:      row.secretID,
-		Version:       row.version,
-		SecretSet:     !row.revoked && row.cipher != "",
-		MediaType:     row.mediaType,
-		Purposes:      append([]string(nil), row.purposes...),
-		UpdatedAt:     row.updatedAt,
-		UpdatedBy:     row.updatedBy,
-		Revoked:       row.revoked,
-		Reference:     FormatReference(row.namespace, row.secretID),
+		Namespace:     row.Namespace,
+		SecretID:      row.SecretID,
+		Version:       row.Version,
+		SecretSet:     !row.Revoked && row.Cipher != "",
+		MediaType:     row.MediaType,
+		Purposes:      append([]string(nil), row.Purposes...),
+		UpdatedAt:     row.UpdatedAt,
+		UpdatedBy:     row.UpdatedBy,
+		Revoked:       row.Revoked,
+		Reference:     FormatReference(row.Namespace, row.SecretID),
 	}
 }
 

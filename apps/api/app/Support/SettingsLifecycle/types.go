@@ -16,6 +16,8 @@ var (
 	ErrMigration        = errors.New("settings lifecycle migration failed")
 	ErrValidation       = errors.New("settings lifecycle validation failed")
 	ErrPermissionDenied = errors.New("settings lifecycle permission denied")
+	// ErrConflict is a CAS revision mismatch on durable document save.
+	ErrConflict = errors.New("settings lifecycle revision conflict")
 )
 
 // Document is a versioned settings payload for one extension.

@@ -448,6 +448,22 @@ func wireAPICoreStack(ctx context.Context, cfg config.Config, logger *slog.Logge
 		pool.Close()
 		return nil, fmt.Errorf("Host Cache runtime setup failed: %w", err)
 	}
+	// P11 平台服务：SecretStore / HostHTTP / PluginFiles / SettingsLifecycle → Protocol V2。
+	hostPlatform, err := bindProductionHostPlatform(cfg, pool, optionCipher, extensionStore, logger, hostAPIGateway)
+	if err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		extensionRuntime.Close(ctx)
+		_ = hostAPIGateway.Close()
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("Host platform services setup failed: %w", err)
+	}
+	_ = hostPlatform
 	if err := bindProtocolV2ProviderBroker(hostAPIGateway, lifecycleRuntime); err != nil {
 		extensionRuntime.Close(ctx)
 		sharedRedisClient.Close()

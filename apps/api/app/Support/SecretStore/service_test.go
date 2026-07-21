@@ -4,8 +4,11 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -172,9 +175,9 @@ func TestEncryptionAtRestWithRealCipher(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Inspect raw store: ciphertext must not equal plaintext.
-	row, ok := svc.store.latest(ctx, "demo.pay", "stripe.key", false)
-	if !ok || row.cipher == "sk_live_xxx" || !cryptox.IsEncrypted(row.cipher) {
-		t.Fatalf("expected enc:: ciphertext, got %q ok=%t", row.cipher, ok)
+	row, ok, err := svc.store.Latest(ctx, "demo.pay", "stripe.key", false)
+	if err != nil || !ok || row.Cipher == "sk_live_xxx" || !cryptox.IsEncrypted(row.Cipher) {
+		t.Fatalf("expected enc:: ciphertext, got %q ok=%t err=%v", row.Cipher, ok, err)
 	}
 	lease, err := svc.Resolve(ctx, Caller{ExtensionID: "demo.pay"}, ref, "provider", 0)
 	if err != nil || string(lease.Value) != "sk_live_xxx" {
@@ -195,6 +198,85 @@ func TestPutRequiresActorAndBounds(t *testing.T) {
 	huge := make([]byte, MaxPlaintextBytes+1)
 	if _, err := svc.Put(ctx, ref, huge, PutOptions{Actor: "a"}); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("oversized = %v", err)
+	}
+}
+
+func TestProductionRequiresEncryptionKey(t *testing.T) {
+	_, err := NewWithOptions(Options{Store: NewMemoryStore(), RequireEncryption: true})
+	if !errors.Is(err, ErrCipherRequired) {
+		t.Fatalf("expected cipher required, got %v", err)
+	}
+	transparent, err := cryptox.NewOptionCipher("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = NewWithOptions(Options{Store: NewMemoryStore(), Cipher: transparent, RequireEncryption: true})
+	if !errors.Is(err, ErrCipherRequired) {
+		t.Fatalf("transparent must fail closed: %v", err)
+	}
+}
+
+func TestConcurrentRotateVersionsUnique(t *testing.T) {
+	svc := newTestService(t)
+	ctx := context.Background()
+	ref := Ref{Namespace: "demo.race", SecretID: "token"}
+	if _, err := svc.Put(ctx, ref, []byte("seed"), PutOptions{Actor: "admin"}); err != nil {
+		t.Fatal(err)
+	}
+	const workers = 24
+	versions := make(chan int64, workers)
+	errs := make(chan error, workers)
+	var wait sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wait.Add(1)
+		go func(i int) {
+			defer wait.Done()
+			meta, err := svc.Rotate(ctx, ref, []byte(fmt.Sprintf("v-%d", i)), "admin", nil)
+			if err != nil {
+				errs <- err
+				return
+			}
+			versions <- meta.Version
+		}(i)
+	}
+	wait.Wait()
+	close(versions)
+	close(errs)
+	for err := range errs {
+		t.Fatal(err)
+	}
+	seen := map[int64]bool{}
+	for v := range versions {
+		if seen[v] {
+			t.Fatalf("duplicate version %d under concurrent rotate", v)
+		}
+		seen[v] = true
+	}
+	if len(seen) != workers {
+		t.Fatalf("versions = %d want %d", len(seen), workers)
+	}
+}
+
+func TestNoPlaintextInInspectorOrMeta(t *testing.T) {
+	svc := newTestService(t)
+	ctx := context.Background()
+	secret := "super-secret-plain-value-xyz"
+	ref := Ref{Namespace: "demo.mask", SecretID: "key"}
+	if _, err := svc.Put(ctx, ref, []byte(secret), PutOptions{Actor: "admin"}); err != nil {
+		t.Fatal(err)
+	}
+	meta, err := svc.Meta(ctx, ref)
+	if err != nil {
+		t.Fatal(err)
+	}
+	blob, _ := json.Marshal(meta)
+	if strings.Contains(string(blob), secret) {
+		t.Fatalf("meta JSON leaked plaintext: %s", blob)
+	}
+	snap := svc.Inspector()
+	blob, _ = json.Marshal(snap)
+	if strings.Contains(string(blob), secret) {
+		t.Fatalf("inspector JSON leaked plaintext: %s", blob)
 	}
 }
 

@@ -43,20 +43,19 @@ func (s *Service) EnsureNamespace(ns Namespace) (Namespace, error) {
 		return Namespace{}, ErrInvalid
 	}
 	root := filepath.Join(s.baseDir, id)
-	if err := os.MkdirAll(filepath.Join(root, KindPrivate), 0o750); err != nil {
-		return Namespace{}, err
-	}
-	if err := os.MkdirAll(filepath.Join(root, KindTemp), 0o750); err != nil {
-		return Namespace{}, err
-	}
-	if err := os.MkdirAll(filepath.Join(root, KindUser), 0o750); err != nil {
-		return Namespace{}, err
+	for _, kind := range []string{KindPrivate, KindTemp, KindStatic, KindUser} {
+		if err := os.MkdirAll(filepath.Join(root, kind), 0o750); err != nil {
+			return Namespace{}, err
+		}
 	}
 	if ns.PrivateQuotaBytes <= 0 {
 		ns.PrivateQuotaBytes = DefaultPrivateQuotaBytes
 	}
 	if ns.TempQuotaBytes <= 0 {
 		ns.TempQuotaBytes = DefaultTempQuotaBytes
+	}
+	if ns.StaticQuotaBytes <= 0 {
+		ns.StaticQuotaBytes = DefaultStaticQuotaBytes
 	}
 	if ns.UserQuotaBytes <= 0 {
 		ns.UserQuotaBytes = DefaultUserQuotaBytes
@@ -108,6 +107,10 @@ func (s *Service) Write(req WriteRequest) (FileInfo, error) {
 		}
 	case KindTemp:
 		if usage.TempUsed+delta > ns.TempQuotaBytes {
+			return FileInfo{}, ErrQuotaExceeded
+		}
+	case KindStatic:
+		if usage.StaticUsed+delta > ns.StaticQuotaBytes {
 			return FileInfo{}, ErrQuotaExceeded
 		}
 	case KindUser:
@@ -188,6 +191,10 @@ func (s *Service) Usage(extensionID string) (Usage, error) {
 	if err != nil {
 		return Usage{}, err
 	}
+	staticUsed, err := dirSize(filepath.Join(ns.Root, KindStatic))
+	if err != nil {
+		return Usage{}, err
+	}
 	user, err := dirSize(filepath.Join(ns.Root, KindUser))
 	if err != nil {
 		return Usage{}, err
@@ -196,12 +203,19 @@ func (s *Service) Usage(extensionID string) (Usage, error) {
 		ExtensionID: ns.ExtensionID,
 		PrivateUsed: private, PrivateMax: ns.PrivateQuotaBytes,
 		TempUsed: temp, TempMax: ns.TempQuotaBytes,
+		StaticUsed: staticUsed, StaticMax: ns.StaticQuotaBytes,
 		UserUsed: user, UserMax: ns.UserQuotaBytes,
 	}, nil
 }
 
-// CleanupNamespace removes all files for an extension (disable/uninstall).
+// CleanupNamespace removes files for an extension per uninstall policy.
+// Default: delete private/temp/static; retain user-owned data.
 func (s *Service) CleanupNamespace(extensionID string) (CleanupResult, error) {
+	return s.CleanupNamespaceWithOptions(extensionID, CleanupOptions{})
+}
+
+// CleanupNamespaceWithOptions applies explicit retention policy.
+func (s *Service) CleanupNamespaceWithOptions(extensionID string, opts CleanupOptions) (CleanupResult, error) {
 	ns, err := s.namespace(extensionID)
 	if err != nil {
 		// If never provisioned, nothing to clean.
@@ -212,25 +226,47 @@ func (s *Service) CleanupNamespace(extensionID string) (CleanupResult, error) {
 	}
 	var files int
 	var bytes int64
-	_ = filepath.WalkDir(ns.Root, func(path string, d fs.DirEntry, walkErr error) error {
-		if walkErr != nil || d.IsDir() {
-			return nil
-		}
-		if info, err := d.Info(); err == nil {
-			bytes += info.Size()
-			files++
-		}
-		return nil
-	})
-	if err := os.RemoveAll(ns.Root); err != nil {
-		return CleanupResult{}, err
+	removedKinds := make([]string, 0, 4)
+	// temp 总是清理。
+	kinds := []struct {
+		kind   string
+		remove bool
+	}{
+		{KindTemp, true},
+		{KindPrivate, !opts.RetainPrivate},
+		{KindStatic, !opts.RetainStatic},
+		{KindUser, opts.DeleteUser},
 	}
-	s.mu.Lock()
-	delete(s.namespaces, ns.ExtensionID)
-	s.mu.Unlock()
+	for _, item := range kinds {
+		if !item.remove {
+			continue
+		}
+		dir := filepath.Join(ns.Root, item.kind)
+		_ = filepath.WalkDir(dir, func(path string, d fs.DirEntry, walkErr error) error {
+			if walkErr != nil || d.IsDir() {
+				return nil
+			}
+			if info, infoErr := d.Info(); infoErr == nil {
+				bytes += info.Size()
+				files++
+			}
+			return nil
+		})
+		if remErr := os.RemoveAll(dir); remErr != nil {
+			return CleanupResult{}, remErr
+		}
+		removedKinds = append(removedKinds, item.kind)
+	}
+	// 若 private/temp/static/user 全删且无保留，移除根目录。
+	if !opts.RetainPrivate && !opts.RetainStatic && opts.DeleteUser {
+		_ = os.RemoveAll(ns.Root)
+		s.mu.Lock()
+		delete(s.namespaces, ns.ExtensionID)
+		s.mu.Unlock()
+	}
 	return CleanupResult{
 		ExtensionID: ns.ExtensionID, RemovedFiles: files, RemovedBytes: bytes,
-		Kinds: []string{KindPrivate, KindTemp, KindUser},
+		Kinds: removedKinds,
 	}, nil
 }
 
@@ -297,7 +333,7 @@ func (s *Service) resolvePath(extensionID, kind, rel, userID string, createParen
 	}
 	kind = strings.ToLower(strings.TrimSpace(kind))
 	switch kind {
-	case KindPrivate, KindTemp, KindUser:
+	case KindPrivate, KindTemp, KindStatic, KindUser:
 	default:
 		return "", Namespace{}, ErrInvalid
 	}

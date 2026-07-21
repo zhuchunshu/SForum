@@ -126,17 +126,61 @@ func TestUserIsolationAndCleanup(t *testing.T) {
 	}); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("cross user = %v", err)
 	}
-	result, err := svc.CleanupNamespace("demo.user")
-	if err != nil || result.RemovedFiles < 1 {
-		t.Fatalf("cleanup = %#v err=%v", result, err)
+	// 默认卸载策略：保留 user-owned；需显式 DeleteUser。
+	kept, err := svc.CleanupNamespace("demo.user")
+	if err != nil {
+		t.Fatal(err)
 	}
-	if _, err := svc.Usage("demo.user"); !errors.Is(err, ErrNotFound) {
-		// After cleanup namespace removed; Usage may re-provision empty — either is ok
-		// as long as private used is 0 if re-provisioned.
-		usage, uerr := svc.Usage("demo.user")
-		if uerr == nil && usage.PrivateUsed+usage.UserUsed != 0 {
-			t.Fatalf("usage after cleanup = %#v", usage)
-		}
+	if _, _, err := svc.Read(ReadRequest{
+		ExtensionID: "demo.user", Kind: KindUser, UserID: "42", RelativePath: "avatar.bin",
+	}); err != nil {
+		t.Fatalf("user data should be retained by default: %v (cleanup=%#v)", err, kept)
+	}
+	result, err := svc.CleanupNamespaceWithOptions("demo.user", CleanupOptions{DeleteUser: true})
+	if err != nil || result.RemovedFiles < 1 {
+		t.Fatalf("cleanup delete user = %#v err=%v", result, err)
+	}
+	if _, _, err := svc.Read(ReadRequest{
+		ExtensionID: "demo.user", Kind: KindUser, UserID: "42", RelativePath: "avatar.bin",
+	}); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("user data after DeleteUser = %v", err)
+	}
+}
+
+func TestCrossPluginIsolationAndRestart(t *testing.T) {
+	dir := t.TempDir()
+	svc, err := New(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.EnsureNamespace(Namespace{ExtensionID: "plugin.a"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.EnsureNamespace(Namespace{ExtensionID: "plugin.b"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Write(WriteRequest{
+		ExtensionID: "plugin.a", Kind: KindPrivate, RelativePath: "secret.txt",
+		Data: []byte("only-a"), Actor: "a",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// B 不能通过相对路径读到 A 的内容（不同 namespace 根）。
+	if _, _, err := svc.Read(ReadRequest{
+		ExtensionID: "plugin.b", Kind: KindPrivate, RelativePath: "secret.txt",
+	}); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("cross plugin = %v", err)
+	}
+	// 重启：新 Service 同一 baseDir 可恢复 private。
+	svc2, err := New(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, _, err := svc2.Read(ReadRequest{
+		ExtensionID: "plugin.a", Kind: KindPrivate, RelativePath: "secret.txt",
+	})
+	if err != nil || string(data) != "only-a" {
+		t.Fatalf("restart read = %q err=%v", data, err)
 	}
 }
 

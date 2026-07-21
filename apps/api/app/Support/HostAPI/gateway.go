@@ -28,12 +28,18 @@ type Gateway struct {
 	queryRegistry                 *ProtocolV2QueryRegistryService
 	database                      *protocolV2DatabaseEngine
 	cache                         *ProtocolV2CacheServiceServer
+	secrets                       *ProtocolV2SecretServiceServer
+	files                         *ProtocolV2FileServiceServer
+	httpClient                    *ProtocolV2HttpServiceServer
 	providers                     ProtocolV2ProviderBroker
 	protocolV2CommandsFrozen      bool
 	protocolV2QueriesFrozen       bool
 	protocolV2QueryRegistryFrozen bool
 	protocolV2DatabaseFrozen      bool
 	protocolV2CacheFrozen         bool
+	protocolV2SecretsFrozen       bool
+	protocolV2FilesFrozen         bool
+	protocolV2HTTPFrozen          bool
 	protocolV2ProvidersFrozen     bool
 	server                        *http.Server
 	ln                            net.Listener
@@ -55,15 +61,21 @@ func (g *Gateway) RegisterProtocolV2(server grpc.ServiceRegistrar) {
 	queryRegistry := g.queryRegistry
 	database := g.database
 	cache := g.cache
+	secrets := g.secrets
+	files := g.files
+	httpClient := g.httpClient
 	providers := g.providers
 	g.protocolV2CommandsFrozen = true
 	g.protocolV2QueriesFrozen = true
 	g.protocolV2QueryRegistryFrozen = true
 	g.protocolV2DatabaseFrozen = true
 	g.protocolV2CacheFrozen = true
+	g.protocolV2SecretsFrozen = true
+	g.protocolV2FilesFrozen = true
+	g.protocolV2HTTPFrozen = true
 	g.protocolV2ProvidersFrozen = true
 	g.mu.Unlock()
-	registerProtocolV2(server, service, services, commands, queries, queryRegistry, database, cache, providers)
+	registerProtocolV2(server, service, services, commands, queries, queryRegistry, database, cache, secrets, files, httpClient, providers)
 }
 
 // BindProtocolV2CacheService installs the production cache boundary before any
@@ -82,6 +94,57 @@ func (g *Gateway) BindProtocolV2CacheService(server *ProtocolV2CacheServiceServe
 		return fmt.Errorf("hostapi: protocol v2 cache service is already bound")
 	}
 	g.cache = server
+	return nil
+}
+
+// BindProtocolV2SecretService installs the production Secret Store boundary.
+func (g *Gateway) BindProtocolV2SecretService(server *ProtocolV2SecretServiceServer) error {
+	if g == nil || server == nil || server.secrets == nil {
+		return fmt.Errorf("hostapi: protocol v2 secret service is required")
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.protocolV2SecretsFrozen {
+		return fmt.Errorf("hostapi: protocol v2 secret service is frozen until the next Gateway boot")
+	}
+	if g.secrets != nil {
+		return fmt.Errorf("hostapi: protocol v2 secret service is already bound")
+	}
+	g.secrets = server
+	return nil
+}
+
+// BindProtocolV2FileService installs the production Plugin Files boundary.
+func (g *Gateway) BindProtocolV2FileService(server *ProtocolV2FileServiceServer) error {
+	if g == nil || server == nil || server.files == nil {
+		return fmt.Errorf("hostapi: protocol v2 file service is required")
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.protocolV2FilesFrozen {
+		return fmt.Errorf("hostapi: protocol v2 file service is frozen until the next Gateway boot")
+	}
+	if g.files != nil {
+		return fmt.Errorf("hostapi: protocol v2 file service is already bound")
+	}
+	g.files = server
+	return nil
+}
+
+// BindProtocolV2HttpService installs the production Host HTTP boundary.
+func (g *Gateway) BindProtocolV2HttpService(server *ProtocolV2HttpServiceServer) error {
+	if g == nil || server == nil || server.http == nil {
+		return fmt.Errorf("hostapi: protocol v2 http service is required")
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.protocolV2HTTPFrozen {
+		return fmt.Errorf("hostapi: protocol v2 http service is frozen until the next Gateway boot")
+	}
+	if g.httpClient != nil {
+		return fmt.Errorf("hostapi: protocol v2 http service is already bound")
+	}
+	g.httpClient = server
 	return nil
 }
 

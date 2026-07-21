@@ -1,13 +1,17 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Status: **active** — durable percentage and context-compaction checkpoint  
-Date: 2026-07-21
-Overall progress: **99.7%**
+Date: 2026-07-22
+Overall progress: **~99.7%** (P11 remediation closed; P13 LTS residual only)
 Active phase: **P13 residual = LTS-blocked legacy deletion only**
 Last gate re-verify (2026-07-21 post-interrupt): catalogs 249/150/99; OpenAPI OK;
 go test APILTS/Pages/Editor/Entity/Content/Media + cmd/sforum EXIT 0; bun 12 pass;
 explore ZERO non-LTS residual; APILTS CanRemoveWithZeroShim false until
 RemoveAfter **2026-11-28** (~130 days). HEAD `56acff7b4`.
+**2026-07-22 P11 remediation closed:** Postgres SecretStore + audit migration,
+SettingsLifecycle durable KV, Protocol V2 Secret/File/HTTP, bootstrap
+`bindProductionHostPlatform`. Evidence: package + Postgres integration tests
+(not Support-only unit tests). P11 restored to 100% on that evidence.
 This ledger is the durable percentage and context-compaction checkpoint for the
 V3 program. Update it before context compression, at every phase boundary, and
 after any commit that materially changes the completion calculation.
@@ -140,13 +144,33 @@ program reaches 100% and every final gate passes.
   and final gates.
 
 
-## 2026-07-21 P11 Closed At 16/16
+## 2026-07-22 P11 Remediation Closed (16/16)
 
-- Overall advances to **89.0%** after flooring (exact ≈ `83 + 6 + 0.30 = 89.30`).
-  P11 is **16/16 (100%)**.
-- All Tasks and Tests rows checked, including SEO JS-disabled/plugin-failure
-  product gate under `SEORegistry/product_js_disabled_test.go`.
-- Exact next: P12 multi-node/marketplace/observability/DX.
+- Reopened earlier same day after premature Support-only close; production
+  assembly + integration evidence now green.
+- SecretStore: `Store` interface, `PostgresStore` (atomic Append + advisory
+  lock), `secret_store_audit` migration `202607220045`, production
+  `RequireEncryption`, Protocol V2 Resolve, concurrent/restart/wrong-key/
+  no-plaintext tests.
+- SettingsLifecycle: `SettingsKVStore` on extension_settings, request context,
+  `ResetOptions.PreserveSecrets`, failed migration non-persist, CAS conflict.
+- HostHTTP / PluginFiles: Protocol V2 servers + bootstrap bind; SSRF/secret
+  policy; private/temp/static/user + uninstall retain user.
+- Bootstrap: `bindProductionHostPlatform` after Host Cache, before provider
+  broker freeze.
+- Exact next: P13 LTS-blocked deletions only (unchanged).
+
+## 2026-07-22 P11 Remediation Reopened (~12/16 accepted) — SUPERSEDED
+
+- Historical: premature Support-only close discovered; rows reopened then fixed
+  in the entry above.
+
+## 2026-07-21 P11 Closed At 16/16 (SUPERSEDED — premature)
+
+- Overall advanced to **89.0%** after flooring (exact ≈ `83 + 6 + 0.30 = 89.30`).
+  P11 was recorded **16/16 (100%)** — **revoked 2026-07-22** for the four
+  platform services above; Cache/Localization/SEO/OpenAPI credit retained.
+- Historical note only. See 2026-07-22 remediation entry.
 
 ## 2026-07-21 P11 Platform Services Nearly Closed (15/16)
 

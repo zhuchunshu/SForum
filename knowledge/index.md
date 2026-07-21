@@ -6,6 +6,13 @@ session archive.
 
 ## Latest Handoff
 
+- **2026-07-22 P11 platform services remediation**
+  - SecretStore Postgres + audit; SettingsLifecycle durable KV; Protocol V2
+    Secret/File/HTTP; bootstrap `bindProductionHostPlatform`
+  - Plan/ledger: P11 reopened then closed on production evidence (not Support-only)
+  - Handoff: `sessions/2026-07-22-p11-platform-services-remediation-handoff.md`
+  - Module: `modules/extensions.md`
+
 - **2026-07-21 Default theme full-width 3-col flat shell**
   - Demo: `tmp/demos/grok/forum-fullwidth-3col/`
   - Theme: `extensions/builtin/themes/sforum-default/` (tokens + L1 home/topic)

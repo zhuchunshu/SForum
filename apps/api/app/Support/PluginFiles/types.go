@@ -15,14 +15,21 @@ const SchemaVersion = "sforum.plugin-files@1"
 
 const (
 	// KindPrivate is durable plugin-owned data under the package namespace.
+	// Uninstall default: delete unless CleanupOptions.RetainPrivate.
 	KindPrivate = "private"
 	// KindTemp is short-lived data cleaned on disable/uninstall or TTL.
+	// Uninstall default: always delete.
 	KindTemp = "temp"
+	// KindStatic is Host-served package static assets (not user uploads).
+	// Uninstall default: delete with package.
+	KindStatic = "static"
 	// KindUser is user-owned files under extension+user isolation.
+	// Uninstall default: retain (user data) unless CleanupOptions.DeleteUser.
 	KindUser = "user"
 
 	DefaultPrivateQuotaBytes = 64 * 1024 * 1024  // 64 MiB
 	DefaultTempQuotaBytes    = 32 * 1024 * 1024  // 32 MiB
+	DefaultStaticQuotaBytes  = 64 * 1024 * 1024  // 64 MiB
 	DefaultUserQuotaBytes    = 128 * 1024 * 1024 // 128 MiB
 	DefaultTempTTL           = 24 * time.Hour
 	MaxRelativePathLen       = 512
@@ -47,7 +54,18 @@ type Namespace struct {
 	// PrivateQuotaBytes defaults to DefaultPrivateQuotaBytes.
 	PrivateQuotaBytes int64 `json:"privateQuotaBytes,omitempty"`
 	TempQuotaBytes    int64 `json:"tempQuotaBytes,omitempty"`
+	StaticQuotaBytes  int64 `json:"staticQuotaBytes,omitempty"`
 	UserQuotaBytes    int64 `json:"userQuotaBytes,omitempty"`
+}
+
+// CleanupOptions controls uninstall retention policy.
+type CleanupOptions struct {
+	// RetainPrivate keeps KindPrivate when true (operator opt-in).
+	RetainPrivate bool
+	// DeleteUser removes KindUser when true (default retain user data).
+	DeleteUser bool
+	// RetainStatic keeps KindStatic when true (rare; package assets usually go).
+	RetainStatic bool
 }
 
 // WriteRequest writes bytes under a relative path.
@@ -98,6 +116,8 @@ type Usage struct {
 	PrivateMax  int64  `json:"privateMax"`
 	TempUsed    int64  `json:"tempUsed"`
 	TempMax     int64  `json:"tempMax"`
+	StaticUsed  int64  `json:"staticUsed"`
+	StaticMax   int64  `json:"staticMax"`
 	UserUsed    int64  `json:"userUsed"`
 	UserMax     int64  `json:"userMax"`
 }
