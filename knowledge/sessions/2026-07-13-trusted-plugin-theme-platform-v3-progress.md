@@ -6,6 +6,58 @@ Last updated: 2026-07-21
 
 - Verified weighted progress: **99.7%** (display **99%**).
 - Phase counts: **P0–P12 complete (including P10 15/15)**; P13 **~99.7%**.
+- Goal harness “remaining P10” is **stale**.
+- Product-path residual closed this session:
+  - EditorRegistry Accept schema (`4e5f969a5`…`f7670e856`)
+  - Media public catalog (`b5184fec3`…`3fb9eac29`) — **249** routes
+  - Admin registry-catalogs UI + entity dry-run consumer
+    (`2cefd1e8a`…`378bedc9f`) — **150** UI surfaces
+- 99-row matrix **99/99**; only open task-book rows are LTS deletions.
+- Dual explore audit: **zero implementable non-LTS** beyond this admin consumer.
+
+## Current Subtask
+
+### 2026-07-21 admin registry-catalogs shipped — LTS wait only
+
+- Exact next: **do not delete** LoadTemplate residual / Protocol V1 /
+  fail-closed SFPageOutlet until APILTS `RemoveAfter` ≈ **2026-11-28** +
+  live zero-shim + deletion checklist 1–7.
+- Large deferred: Protocol-leased content filter, Media Plan/Execute product
+  authority, EntityStore I/O.
+
+## Tests
+
+- `bun test tests/adminRegistryCatalogs.test.ts` — 6 pass
+- `bun test` composition + registry catalogs — 11 pass
+- `go test ./app/Support/ComponentCatalog/` — EXIT 0
+- `node tests/validate-v3-p0-catalogs.mjs` — 249 routes / 150 UI / 99 rows
+
+## Open task-book rows
+
+1. Remove request-time template loader residual (instrumented; not deleted)
+2. Remove Protocol V1 paths
+3. Compatibility path removal after LTS checklist
+
+## Rollback
+
+- Revert `2cefd1e8a`…`378bedc9f` for admin registry-catalogs chain.
+- Never delete LTS shims early.
+
+## Unowned worktree
+
+- None expected after commits.
+
+
+---
+
+# Trusted Plugin And Theme Platform V3 Progress Ledger
+
+Last updated: 2026-07-21
+
+## Progress
+
+- Verified weighted progress: **99.7%** (display **99%**).
+- Phase counts: **P0–P12 complete (including P10 15/15)**; P13 **~99.7%**.
 - Goal harness “remaining P10” is **stale** — re-audit confirmed all five
   P10 claims pass in code+tests.
 - Product-path residual closed this session:

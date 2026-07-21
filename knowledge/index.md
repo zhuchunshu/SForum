@@ -33,7 +33,7 @@ This is the entry point for project memory.
     adoption** (Media MIME; content/entity catalogs; entity dry-run; **forum
     editor-document Accept merges EditorRegistry schema** so plugin L2 nodes
     survive storage — `4e5f969a5`…`f7670e856`; public **media-catalog**
-    `b5184fec3`…`3fb9eac29`, route inventory **249**). Weighted **99.7%**.
+    `b5184fec3`…`3fb9eac29`, route inventory **249**, admin registry-catalogs UI **150** surfaces — `2cefd1e8a`…`378bedc9f`). Weighted **99.7%**.
     Scoped Media/Extensions/Routes tests + catalog/OpenAPI gates re-green.
     Open: LTS-blocked loader/v1/compatibility deletions only (RemoveAfter≈2026-11-28 + zero-shim).
     Large deferred (not LTS, not thin wiring): Protocol-leased content filter

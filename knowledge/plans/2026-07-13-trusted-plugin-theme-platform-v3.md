@@ -993,7 +993,7 @@ with required/deprecated cells and LTS shim telemetry proof.
       compatibility policy and migration tooling exist.
       (APILTS RemoveAfter ≈ 2026-11-28; zero-shim gate required on live process.)
 - [x] Regenerate all catalogs/docs/scaffolds and update examples.
-      (Catalog regen + 248-route inventory gate after product-path catalog
+      (Catalog regen + 249-route inventory gate after product-path catalog
       routes; scaffolds via existing CLI.)
 
 ### Final gates
