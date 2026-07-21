@@ -208,6 +208,8 @@ const commentTotalPages = computed(() => Math.ceil(commentTotal.value / Math.max
 // E2.2：列表级评论扩展动作；requiresAuth 仅 UX 过滤，鉴权在扩展路由代理。
 const commentExtensionActions = computed(() => commentData.value?.extensionActions || [])
 const commentExtensionActionRunning = ref('')
+/** D2：正在通过 ListCommentReplies 补全子孙的评论 id */
+const loadingMoreCommentId = ref<number | null>(null)
 
 const authorName = computed(() => topic.value ? forumAuthorName(topic.value.author, topic.value.authorUserId) : '')
 const authorPath = computed(() => {
@@ -584,6 +586,56 @@ async function submitNestedReply(comment: ForumComment, payload?: { markdown?: s
   }
 }
 
+// D2：树视图截断后，用 ListCommentReplies 合并直系回复到本地树。
+function mergeCommentReplies(items: ForumComment[], parentId: number, replies: ForumComment[]): ForumComment[] {
+  return items.map((item) => {
+    if (item.id === parentId) {
+      const existing = new Map((item.children || []).map(child => [child.id, child]))
+      const merged: ForumComment[] = []
+      for (const reply of replies) {
+        const prev = existing.get(reply.id)
+        merged.push(prev ? { ...reply, children: prev.children, hasMoreChildren: prev.hasMoreChildren } : reply)
+        existing.delete(reply.id)
+      }
+      // 保留 API 未返回、但本地已有的深层节点（path 序可能被 cap 截断过）。
+      for (const leftover of existing.values()) {
+        merged.push(leftover)
+      }
+      return { ...item, children: merged, hasMoreChildren: false }
+    }
+    if (item.children?.length) {
+      return { ...item, children: mergeCommentReplies(item.children, parentId, replies) }
+    }
+    return item
+  })
+}
+
+async function loadMoreCommentReplies(comment: ForumComment) {
+  if (loadingMoreCommentId.value === comment.id) {
+    return
+  }
+  loadingMoreCommentId.value = comment.id
+  try {
+    const replies = await forumApi.listCommentReplies(comment.id)
+    if (!commentData.value) {
+      return
+    }
+    commentData.value = {
+      ...commentData.value,
+      items: mergeCommentReplies(commentData.value.items, comment.id, replies)
+    }
+    showSuccessToast(t('topicDetail.loadMoreReplies'))
+  } catch (error) {
+    toast.add({
+      color: 'error',
+      icon: 'i-lucide-triangle-alert',
+      title: apiErrorMessage(error) || t('topicDetail.loadMoreRepliesFailed')
+    })
+  } finally {
+    loadingMoreCommentId.value = null
+  }
+}
+
 // 评论内联编辑器渲染器：provide 给 SFComment 递归树，让任意层级的评论都能在原位
 // 渲染编辑/回复编辑器。用 h() 构造 vnode，替代递归 slot 透传（避免 Volar 类型循环）。
 // 顶层评论的编辑器也走这条路径，保证整棵树行为一致。
@@ -917,7 +969,9 @@ async function submitReport() {
                     :comment-meta-builder="commentMeta"
                     :comment-author-link-builder="commentAuthorPath"
                     :comment-actions-builder="commentActions"
+                    :loading-more-comment-id="loadingMoreCommentId"
                     @action-comment="(c: ForumComment, value: string) => handleCommentClick(c, value)"
+                    @load-more-replies="(c: ForumComment) => { void loadMoreCommentReplies(c) }"
                   />
                 </div>
 

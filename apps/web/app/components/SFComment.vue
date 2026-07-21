@@ -42,6 +42,8 @@ const props = withDefaults(defineProps<{
   commentMetaBuilder?: (comment: ForumComment) => string
   commentAuthorLinkBuilder?: (comment: ForumComment) => string
   commentActionsBuilder?: (comment: ForumComment) => CommentAction[]
+  /** 正在加载更多回复的评论 id（详情页控制） */
+  loadingMoreCommentId?: number | null
 }>(), {
   comment: undefined,
   presentation: 'flat',
@@ -58,12 +60,14 @@ const props = withDefaults(defineProps<{
   ],
   commentMetaBuilder: undefined,
   commentAuthorLinkBuilder: undefined,
-  commentActionsBuilder: undefined
+  commentActionsBuilder: undefined,
+  loadingMoreCommentId: null
 })
 
 const emit = defineEmits<{
   action: [value: string]
   actionComment: [comment: ForumComment, value: string]
+  loadMoreReplies: [comment: ForumComment]
 }>()
 
 const { t } = useI18n()
@@ -125,6 +129,24 @@ function childReplyTo(comment: ForumComment) {
 function forwardChildAction(comment: ForumComment, value: string) {
   emit('actionComment', comment, value)
 }
+
+function forwardLoadMoreReplies(comment: ForumComment) {
+  emit('loadMoreReplies', comment)
+}
+
+function onLoadMoreReplies() {
+  if (props.comment) {
+    emit('loadMoreReplies', props.comment)
+  }
+}
+
+const showLoadMoreReplies = computed(() =>
+  props.presentation === 'tree'
+  && Boolean(props.comment?.hasMoreChildren)
+)
+const isLoadingMoreReplies = computed(() =>
+  props.comment != null && props.loadingMoreCommentId === props.comment.id
+)
 
 // 内联编辑器渲染：优先用父级 provide 的 renderer（评论列表原位编辑/回复），
 // 否则用本组件的 #editor slot（components.vue 预览页场景）。
@@ -248,8 +270,27 @@ const InlineEditorHost = () => {
         :comment-meta-builder="commentMetaBuilder"
         :comment-author-link-builder="commentAuthorLinkBuilder"
         :comment-actions-builder="commentActionsBuilder"
+        :loading-more-comment-id="loadingMoreCommentId"
+        @load-more-replies="forwardLoadMoreReplies"
         @action-comment="forwardChildAction"
       />
     </div>
+
+    <!-- D2：树子孙截断后通过 ListCommentReplies 加载更多 -->
+    <button
+      v-if="showLoadMoreReplies"
+      type="button"
+      class="sf-comment__load-more"
+      :disabled="isLoadingMoreReplies"
+      @click="onLoadMoreReplies"
+    >
+      <UIcon
+        :name="isLoadingMoreReplies ? 'i-lucide-loader-2' : 'i-lucide-chevrons-down'"
+        class="size-4"
+        :class="{ 'animate-spin': isLoadingMoreReplies }"
+        aria-hidden="true"
+      />
+      <span>{{ t('topicDetail.loadMoreReplies') }}</span>
+    </button>
   </div>
 </template>

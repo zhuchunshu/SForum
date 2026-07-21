@@ -3075,7 +3075,9 @@
           "switchHint": "Reindex after applying a new provider.",
           "emptyProviders": "No search providers available",
           "emptyProvidersHelp": "Site search should always be listed. If empty, check extension sync."
-        }
+        },
+        "treeDescendantsPerRoot": "Tree descendants per root",
+        "treeDescendantsPerRootHelp": "Max descendants loaded under each root on view=tree (1–100, default 50). Overflow shows “Load more replies”."
       }
     },
     "form": {
@@ -3593,7 +3595,9 @@
       "viewMode": "Comment view",
       "replyLocked": "Topic locked",
       "replyUnavailable": "Reply unavailable"
-    }
+    },
+    "loadMoreReplies": "Load more replies",
+    "loadMoreRepliesFailed": "Failed to load more replies."
   },
   "composer": {
     "metaTitle": "New Topic",

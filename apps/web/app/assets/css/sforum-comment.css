@@ -181,6 +181,38 @@
   color: var(--sf-comment-branch);
 }
 
+/* D2：树子孙截断后的「加载更多回复」 */
+.sf-comment__load-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2rem;
+  margin: 0 0 0.65rem 2.75rem;
+  padding: 0.35rem 0.55rem;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--sf-accent);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.sf-comment__load-more:hover:not(:disabled) {
+  background: var(--sf-accent-soft);
+}
+
+.sf-comment__load-more:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.sf-comment__load-more:focus-visible {
+  outline: 2px solid var(--sf-accent);
+  outline-offset: 2px;
+}
+
 .sf-comment__branch {
   display: grid;
   width: 100%;

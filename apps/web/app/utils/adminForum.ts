@@ -69,6 +69,7 @@ export type AdminForumSettingsPayload = {
   commentMinRunes?: number
   commentMaxRunes?: number
   commentMaxNestingDepth?: number
+  treeDescendantsPerRoot?: number
   commentEditWindowMinutes?: number
   commentCooldownSeconds?: number
   dailyCommentLimit?: number
@@ -101,6 +102,7 @@ export const forumSettingsManageKeys = [
   'commentMinRunes',
   'commentMaxRunes',
   'commentMaxNestingDepth',
+  'treeDescendantsPerRoot',
   'commentEditWindowMinutes',
   'commentCooldownSeconds',
   'dailyCommentLimit',
@@ -264,6 +266,7 @@ export function normalizeForumSettings(input: ForumSettingsLike | null | undefin
     commentMinRunes,
     commentMaxRunes,
     commentMaxNestingDepth: normalizeForumBoundedInt(numberLikeValue(input?.commentMaxNestingDepth), 0, 20, defaults.commentMaxNestingDepth),
+    treeDescendantsPerRoot: normalizeForumBoundedInt(numberLikeValue(input?.treeDescendantsPerRoot), 1, 100, defaults.treeDescendantsPerRoot),
     commentEditWindowMinutes: normalizeForumBoundedInt(numberLikeValue(input?.commentEditWindowMinutes), 0, 10080, defaults.commentEditWindowMinutes),
     commentCooldownSeconds: normalizeForumBoundedInt(numberLikeValue(input?.commentCooldownSeconds), 0, 86400, defaults.commentCooldownSeconds),
     dailyCommentLimit: normalizeForumBoundedInt(numberLikeValue(input?.dailyCommentLimit), 0, 10000, defaults.dailyCommentLimit),

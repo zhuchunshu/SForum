@@ -587,6 +587,10 @@ function errorToast(error: unknown, fallback: string) {
               <UInputNumber size="lg" v-model="form.commentMaxNestingDepth" :min="0" :max="20" :disabled="!canManageSettings" class="w-full" />
               <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.commentNestingHelp') }}</p>
             </UFormField>
+            <UFormField :label="t('admin.forum.settings.treeDescendantsPerRoot')" name="tree-descendants-per-root">
+              <UInputNumber size="lg" v-model="form.treeDescendantsPerRoot" :min="1" :max="100" :disabled="!canManageSettings" class="w-full" />
+              <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.treeDescendantsPerRootHelp') }}</p>
+            </UFormField>
             <UFormField :label="t('admin.forum.settings.commentEditWindow')" name="comment-edit-window">
               <UInputNumber size="lg" v-model="form.commentEditWindowMinutes" :min="0" :max="10080" :disabled="!canManageSettings" class="w-full" />
               <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.zeroUnlimitedHelp') }}</p>
@@ -883,6 +887,10 @@ function errorToast(error: unknown, fallback: string) {
           <div>
             <span class="block text-xs font-medium text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.commentNesting') }}</span>
             <span class="mt-1 block font-mono text-slate-900 dark:text-zinc-100">{{ recommended.commentMaxNestingDepth }}</span>
+          </div>
+          <div>
+            <span class="block text-xs font-medium text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.treeDescendantsPerRoot') }}</span>
+            <span class="mt-1 block font-mono text-slate-900 dark:text-zinc-100">{{ recommended.treeDescendantsPerRoot }}</span>
           </div>
           <div>
             <span class="block text-xs font-medium text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.maxTagsPerTopic') }}</span>

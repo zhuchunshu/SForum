@@ -3075,7 +3075,9 @@
           "switchHint": "应用新提供商后请重建索引。",
           "emptyProviders": "暂无可用搜索提供商",
           "emptyProvidersHelp": "默认应始终包含站内搜索。若列表为空，请检查扩展同步状态。"
-        }
+        },
+        "treeDescendantsPerRoot": "树视图每根最多子孙",
+        "treeDescendantsPerRootHelp": "view=tree 时每个根评论最多返回的子孙数（1–100，默认 50）。超出后显示「加载更多回复」。"
       }
     },
     "form": {
@@ -3593,7 +3595,9 @@
       "viewMode": "评论视图",
       "replyLocked": "帖子已锁定",
       "replyUnavailable": "暂时无法回复"
-    }
+    },
+    "loadMoreReplies": "加载更多回复",
+    "loadMoreRepliesFailed": "加载更多回复失败。"
   },
   "composer": {
     "metaTitle": "发布新话题",

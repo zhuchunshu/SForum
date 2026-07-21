@@ -30,6 +30,8 @@ export type ForumSettings = {
   commentMinRunes: number
   commentMaxRunes: number
   commentMaxNestingDepth: number
+  /** view=tree 每根最多子孙数（D2，默认 50） */
+  treeDescendantsPerRoot: number
   commentEditWindowMinutes: number
   commentCooldownSeconds: number
   dailyCommentLimit: number
@@ -227,6 +229,8 @@ export type ForumComment = {
   content: ForumRenderedContent
   replyTo?: ForumReplyReference
   children?: ForumComment[]
+  /** tree 子孙被 treeDescendantsPerRoot 截断时为 true；更多走 listCommentReplies */
+  hasMoreChildren?: boolean
   createdAt: string
   updatedAt: string
   edited?: boolean
@@ -377,6 +381,7 @@ export const recommendedForumSettings: ForumSettings = {
   commentMinRunes: 1,
   commentMaxRunes: 10000,
   commentMaxNestingDepth: 5,
+  treeDescendantsPerRoot: 50,
   commentEditWindowMinutes: 0,
   commentCooldownSeconds: 0,
   dailyCommentLimit: 0,
