@@ -117,11 +117,28 @@ describe('asset inspector page and navigation contracts', () => {
     expect(page).toContain('asset-inspector-empty-publications')
   })
 
+  test('follows cache-inspector admin UX shell and fail-closed load errors', () => {
+    expect(page).toContain('UDashboardToolbar')
+    expect(page).toContain('SFAlert')
+    expect(page).toContain('SFEmptyState')
+    expect(page).toContain('USkeleton')
+    expect(page).toContain('adminPage.icon')
+    expect(page).toContain('i-lucide-rotate-cw')
+    expect(page).toContain('void load()')
+    expect(page).toContain('mapLoadError')
+    expect(page).toContain("t('admin.extensions.assetInspector.loadFailed')")
+    expect(page).not.toContain('UAlert')
+    expect(page).not.toContain('onMounted(load)')
+    expect(page).not.toContain('i-tabler-refresh')
+  })
+
   test('ships matching navigation and UI copy without emoji', () => {
     for (const locale of [en, zh]) {
       expect(locale).toContain('"extensionAssetInspector"')
       expect(locale).toContain('"assetInspector"')
       expect(locale).toContain('"redactionHint"')
+      expect(locale).toContain('"loadFailed"')
+      expect(locale).toContain('"summaryTitle"')
     }
     expect(page).not.toMatch(/[\u{1F300}-\u{1FAFF}]/u)
     expect(page).toContain('break-all')
