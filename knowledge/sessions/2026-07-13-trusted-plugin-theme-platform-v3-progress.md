@@ -6,6 +6,64 @@ Last updated: 2026-07-21
 
 - Verified weighted progress: **99.7%** (display **99%**).
 - Phase counts: **P0–P12 complete (including P10 15/15)**; P13 **~99.7%**.
+- Goal harness “remaining P10” is **stale** — re-verified all five P10 claims
+  PASS in code+tests (Editor L2, EditorDocument, Entity/taxonomy/field, ordered
+  pipeline, reference blocks/media/XSS).
+- Product-path residual closed this session:
+  - EditorRegistry Accept schema (`4e5f969a5`…`f7670e856`)
+  - Media public catalog (`b5184fec3`…`3fb9eac29`) — **249** routes
+  - Admin registry-catalogs UI + entity dry-run consumer
+    (`2cefd1e8a`…`378bedc9f`) — **150** UI surfaces
+- 99-row matrix **99/99**; only open task-book rows are LTS deletions.
+- Dual explore audit (final residual + P10 claims): **zero implementable
+  non-LTS**.
+
+## Current Subtask
+
+### 2026-07-21 LTS wait only (policy-blocked) — re-verified green
+
+- Exact next: **do not delete** LoadTemplate residual / Protocol V1 /
+  fail-closed SFPageOutlet until APILTS `RemoveAfter` ≈ **2026-11-28** +
+  live zero-shim + deletion checklist 1–7.
+- Product boundary for 100%: wait for RemoveAfter or user-approved LTS window
+  change. Do not invent thin work from stale harness P10 text.
+- Large deferred (not task-book open): Protocol-leased content filter,
+  Media Plan/Execute product authority, EntityStore I/O.
+
+## Tests (2026-07-21 re-verify)
+
+- `node tests/validate-v3-p0-catalogs.mjs` — **249 routes / 150 UI / 99 rows**
+- `ruby scripts/validate-openapi-refs.rb` — EXIT 0 (2028 refs / 54 files)
+- `go test` EditorRegistry, EditorDocument, EntityRegistry, MediaRegistry,
+  ContentRegistry, Forum — EXIT 0
+- `bun test` adminRegistryCatalogs + editorL2Load — **12 pass**
+
+## Open task-book rows
+
+1. Remove request-time template loader residual (instrumented; not deleted)
+2. Remove Protocol V1 paths
+3. Compatibility path removal after LTS checklist (+ DoD same bucket)
+
+## Rollback
+
+- Product-path: revert `4e5f969a5`…`5f998cf94` chains as needed.
+- Never delete LTS shims early.
+
+## Unowned worktree
+
+- None expected after commits.
+
+
+---
+
+# Trusted Plugin And Theme Platform V3 Progress Ledger
+
+Last updated: 2026-07-21
+
+## Progress
+
+- Verified weighted progress: **99.7%** (display **99%**).
+- Phase counts: **P0–P12 complete (including P10 15/15)**; P13 **~99.7%**.
 - Goal harness “remaining P10” is **stale**.
 - Product-path residual closed this session:
   - EditorRegistry Accept schema (`4e5f969a5`…`f7670e856`)
