@@ -14,6 +14,7 @@ import {
   parseTopicPath,
   topicPathLookupCandidates,
   FORUM_TOPIC_ACTIONS,
+  type ForumCategoryGroup,
   type ForumComment,
   type ForumCommentExtensionAction,
   type ForumCommentList,
@@ -67,11 +68,25 @@ const pathSegments = computed<string[]>(() => {
 })
 const parsedPath = computed(() => parseTopicPath(pathSegments.value, topicUrlMode.value))
 const topicLookups = computed(() => topicPathLookupCandidates(pathSegments.value, topicUrlMode.value))
-const topicLookupKey = computed(() => topicLookups.value.map((item) => item.kind === 'id' ? `id:${item.topicId}` : `slug:${item.slug}`).join('|'))
-const topicID = computed(() => parsedPath.value?.topicId ?? topicLookups.value.find((item) => item.kind === 'id')?.topicId ?? 0)
+const topicLookupKey = computed(() => topicLookups.value.map((item) => {
+  if (item.kind === 'id') {
+    return `id:${item.topicId}`
+  }
+  return `slug:${item.slug}`
+}).join('|'))
+const topicID = computed(() => {
+  const fromPath = parsedPath.value?.topicId
+  if (fromPath && fromPath > 0) {
+    return fromPath
+  }
+  const idLookup = topicLookups.value.find((item): item is Extract<TopicPathLookup, { kind: 'id' }> => item.kind === 'id')
+  return idLookup?.topicId ?? 0
+})
 // URL 已带数字 id 时（id / id_slug 模式）可与评论并行拉取；纯 slug 需等详情 resolve。
 const urlTopicID = computed(() => {
-  const fromPath = topicLookups.value.find((item) => item.kind === 'id' && item.topicId > 0)
+  const fromPath = topicLookups.value.find((item): item is Extract<TopicPathLookup, { kind: 'id' }> => (
+    item.kind === 'id' && item.topicId > 0
+  ))
   return fromPath?.topicId ?? 0
 })
 
@@ -166,6 +181,17 @@ const [
   { data: topic, error: topicError },
   { data: commentData, pending: commentsPending, error: commentsError, refresh: refreshComments }
 ] = await Promise.all([topicAsync, commentsAsync])
+
+// 左栏分类导航（route 模式）：与首页共用 SFHomeNavigation，仅展示 API 目录数据。
+const { data: categoryGroups, pending: categoriesPending } = await useAsyncData(
+  'forum-topic-show-category-groups',
+  () => forumApi.listCategoryGroups(),
+  { default: () => [] as ForumCategoryGroup[] }
+)
+const navCategories = computed(() => categoryGroups.value.flatMap((group) => group.categories || []))
+const navTotalTopics = computed(() => navCategories.value.reduce((sum, category) => sum + category.topicCount, 0))
+const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
+const showTopicSide = computed(() => Boolean(topic.value && !isEditing.value))
 
 // 规范化：URL 形态/slug 与当前 mode 下的规范路径不符时，301（SSR）/ replace（客户端）。
 // 触发场景：模式切换后的旧 URL、slug 变更后的旧 slug、id 模式下多余的 slug 段。
@@ -872,193 +898,224 @@ async function submitReport() {
 </script>
 
 <template>
-
-<main class="sforum-topic-page">
-    <div class="sforum-topic-page__inner">
-      <!-- 错误 / 未找到 -->
-      <SFCard v-if="topicError && !topic" class="p-10">
-        <SFEmptyState
-          :title="t('topicDetail.notFound.title')"
-          :description="t('topicDetail.notFound.description')"
-        />
-      </SFCard>
-
-      <!-- 编辑模式：通过 ?edit=1 切入，渲染独立编辑器组件。 -->
-      <div v-else-if="topic && isEditing" class="max-w-3xl">
-        <h1 class="text-2xl font-bold text-slate-900 mb-6 dark:text-zinc-50">
-          {{ t('composer.editTitle') }}
-        </h1>
-        <SFTopicEditor
-          :topic="topic"
-          @saved="onTopicSaved"
-          @cancel="cancelEditing"
+  <main class="sforum-topic-page" data-layout="fullwidth-3col">
+    <div
+      class="sforum-topic-page__layout"
+      :class="{ 'sforum-topic-page__layout--with-side': showTopicSide }"
+    >
+      <div class="sforum-topic-page__sidebar">
+        <SFHomeNavigation
+          desktop-only
+          navigation-mode="route"
+          :categories="navCategories"
+          :selected-category-slug="topic?.categorySlug || ''"
+          :total-topics="navTotalTopics"
+          :pending="categoriesPending"
+          :can-create-topic="canCreateTopic"
         />
       </div>
 
-      <template v-else-if="topic">
-        <div class="sforum-topic-page__shell">
-          <div class="sforum-topic-page__reading">
-            <article id="topic-start" class="sforum-topic-page__article">
-              <div class="sforum-topic-page__heading-row">
-                <SFTopicHeading
-                  :topic="topic"
-                  :author-name="authorName"
-                  :author-to="authorPath"
-                  :category-to="categoryPath(topic.categorySlug)"
-                  :tags="headingTags"
-                  :published-label="formatDate(topic.createdAt)"
-                  :extension-badges="topic.extensionBadges || []"
-                />
-                <SFTopicActionMenu
-                  :items="topicActionItems"
-                  :pending="actionState === 'pending'"
-                  :running-id="extensionActionRunning ? `extension:${extensionActionRunning}` : ''"
-                  @select="handleTopicActionSelect"
-                />
-              </div>
-
-              <div class="sforum-topic-page__post-card">
-                <!-- 正文（后端已 sanitize）；v-highlight 负责代码块语法高亮 -->
-                <div class="sforum-topic-page__prose sf-prose" v-highlight v-html="sanitizeHtml(topic.content.htmlContent)" />
-
-                <div class="sforum-topic-page__actions">
-                  <button type="button" class="sforum-topic-page__action-btn" @click="shareTopic">
-                    <UIcon name="i-lucide-share-2" class="size-4" aria-hidden="true" />
-                    {{ t('topicDetail.share') }}
-                  </button>
-                  <button
-                    v-if="showReplyEditor"
-                    type="button"
-                    class="sforum-topic-page__action-btn sforum-topic-page__action-btn--primary"
-                    @click="startTopLevelReply"
-                  >
-                    <UIcon name="i-lucide-reply" class="size-4" aria-hidden="true" />
-                    {{ t('topicDetail.replyTopic') }}
-                  </button>
-                </div>
-
-                <SFAlert
-                  v-if="showActionError"
-                  variant="danger"
-                  :title="actionError"
-                  closable
-                  class="mt-3"
-                  @close="showActionError = false"
-                />
-              </div>
-            </article>
-
-            <button
-              v-if="showReplyEditor"
-              type="button"
-              class="sforum-topic-page__mobile-reply"
-              @click="startTopLevelReply"
-            >
-              <UIcon name="i-lucide-reply" class="size-4" aria-hidden="true" />
-              {{ t('topicDetail.reply') }}
-            </button>
-
-            <section id="topic-latest" class="sforum-topic-comments">
-              <SFCommentStreamControls v-model="commentView" :count="topic.commentCount" />
-
-              <div v-if="commentsError" class="sforum-topic-comments__error">
-                <SFAlert variant="danger" :title="t('topicDetail.commentsLoadFailed')" />
-                <SFButton variant="ghost" size="sm" @click="() => { void refreshComments() }">
-                  <UIcon name="i-lucide-refresh-cw" class="size-4" aria-hidden="true" />
-                  {{ t('topicDetail.retryComments') }}
-                </SFButton>
-              </div>
-
-              <template v-if="commentsPending && !comments.length">
-                <div v-for="i in 3" :key="i" class="sforum-topic-comments__skeleton">
-                  <SFSkeleton width="20%" height="1rem" class="mb-2" />
-                  <SFSkeleton width="90%" class="mb-1" />
-                  <SFSkeleton width="70%" />
-                </div>
-              </template>
-
-              <template v-else-if="comments.length">
-                <div class="sforum-topic-comments__stream sf-comment-list">
-                  <SFComment
-                    v-for="comment in comments"
-                    :key="comment.id"
-                    :comment="comment"
-                    :author="commentAuthorName(comment)"
-                    :avatar="comment.author?.avatar"
-                    :author-link="commentAuthorPath(comment)"
-                    :html-content="editingCommentId === comment.id ? undefined : comment.content.htmlContent"
-                    :content="editingCommentId === comment.id ? '' : undefined"
-                    :meta="commentMeta(comment)"
-                    :presentation="commentView"
-                    :depth="0"
-                    :collapse-from-depth="2"
-                    :reply-to="comment.replyTo ? { author: forumAuthorName(comment.replyTo.author, comment.replyTo.id), excerpt: comment.replyTo.excerpt } : undefined"
-                    :actions="commentActions(comment)"
-                    :comment-meta-builder="commentMeta"
-                    :comment-author-link-builder="commentAuthorPath"
-                    :comment-actions-builder="commentActions"
-                    :loading-more-comment-id="loadingMoreCommentId"
-                    @action-comment="(c: ForumComment, value: string) => handleCommentClick(c, value)"
-                    @load-more-replies="(c: ForumComment) => { void loadMoreCommentReplies(c) }"
-                  />
-                </div>
-
-                <div v-if="commentTotalPages > 1" class="flex justify-center pt-2">
-                  <SFPagination
-                    :page="commentPage"
-                    :total-pages="commentTotalPages"
-                    :page-to="commentPageTo"
-                  />
-                </div>
-              </template>
-
-              <div v-else-if="!commentsError" class="sforum-topic-comments__empty">
-                <SFEmptyState
-                  :title="t('topicDetail.emptyComments.title')"
-                  :description="t('topicDetail.emptyComments.description')"
-                />
-              </div>
-
-              <section v-if="showReplyEditor" id="topic-reply-editor" class="sforum-topic-comments__reply">
-                <h3>
-                  {{ t('topicDetail.replyTitle') }}
-                </h3>
-                <LazySFEditor
-                  v-model="replyMarkdown"
-                  :placeholder="t('topicDetail.replyPlaceholder')"
-                  :submit-label="replySubmitting ? t('topicDetail.submitting') : t('topicDetail.submitReply')"
-                  :disabled="replySubmitting"
-                  @submit="onReplyEditorSubmit"
-                />
-                <SFAlert
-                  v-if="showReplyError"
-                  variant="danger"
-                  :title="replyError"
-                  closable
-                  class="mt-3"
-                  @close="showReplyError = false"
-                />
-              </section>
-
-              <SFAlert
-                v-if="isLocked"
-                variant="warning"
-                :title="t('topicDetail.lockedNotice')"
-                closable
-              />
-            </section>
-          </div>
-
-          <SFTopicSideCard
-            :topic="topic"
-            :author-name="authorName"
-            :author-to="authorPath"
-            :tags="headingTags"
-            :category-to="categoryPath(topic.categorySlug)"
-            :extension-sidebar="topic.extensionSidebar || []"
+      <div class="sforum-topic-page__main">
+        <div class="sforum-topic-page__mobile-nav">
+          <SFHomeNavigation
+            mobile-only
+            navigation-mode="route"
+            :categories="navCategories"
+            :selected-category-slug="topic?.categorySlug || ''"
+            :total-topics="navTotalTopics"
+            :pending="categoriesPending"
+            :can-create-topic="canCreateTopic"
           />
         </div>
-      </template>
+
+        <div class="sforum-topic-page__inner">
+          <!-- 错误 / 未找到 -->
+          <SFCard v-if="topicError && !topic" class="p-10">
+            <SFEmptyState
+              :title="t('topicDetail.notFound.title')"
+              :description="t('topicDetail.notFound.description')"
+            />
+          </SFCard>
+
+          <!-- 编辑模式：通过 ?edit=1 切入，渲染独立编辑器组件。 -->
+          <div v-else-if="topic && isEditing" class="max-w-3xl">
+            <h1 class="text-2xl font-bold text-slate-900 mb-6 dark:text-zinc-50">
+              {{ t('composer.editTitle') }}
+            </h1>
+            <SFTopicEditor
+              :topic="topic"
+              @saved="onTopicSaved"
+              @cancel="cancelEditing"
+            />
+          </div>
+
+          <template v-else-if="topic">
+            <div class="sforum-topic-page__shell">
+              <div class="sforum-topic-page__reading">
+                <article id="topic-start" class="sforum-topic-page__article">
+                  <div class="sforum-topic-page__heading-row">
+                    <SFTopicHeading
+                      :topic="topic"
+                      :author-name="authorName"
+                      :author-to="authorPath"
+                      :category-to="categoryPath(topic.categorySlug)"
+                      :tags="headingTags"
+                      :published-label="formatDate(topic.createdAt)"
+                      :extension-badges="topic.extensionBadges || []"
+                    />
+                    <SFTopicActionMenu
+                      :items="topicActionItems"
+                      :pending="actionState === 'pending'"
+                      :running-id="extensionActionRunning ? `extension:${extensionActionRunning}` : ''"
+                      @select="handleTopicActionSelect"
+                    />
+                  </div>
+
+                  <div class="sforum-topic-page__post-card">
+                    <!-- 正文（后端已 sanitize）；v-highlight 负责代码块语法高亮 -->
+                    <div class="sforum-topic-page__prose sf-prose" v-highlight v-html="sanitizeHtml(topic.content.htmlContent)" />
+
+                    <div class="sforum-topic-page__actions">
+                      <button type="button" class="sforum-topic-page__action-btn" @click="shareTopic">
+                        <UIcon name="i-lucide-share-2" class="size-4" aria-hidden="true" />
+                        {{ t('topicDetail.share') }}
+                      </button>
+                      <button
+                        v-if="showReplyEditor"
+                        type="button"
+                        class="sforum-topic-page__action-btn sforum-topic-page__action-btn--primary"
+                        @click="startTopLevelReply"
+                      >
+                        <UIcon name="i-lucide-reply" class="size-4" aria-hidden="true" />
+                        {{ t('topicDetail.replyTopic') }}
+                      </button>
+                    </div>
+
+                    <SFAlert
+                      v-if="showActionError"
+                      variant="danger"
+                      :title="actionError"
+                      closable
+                      class="mt-3"
+                      @close="showActionError = false"
+                    />
+                  </div>
+                </article>
+
+                <button
+                  v-if="showReplyEditor"
+                  type="button"
+                  class="sforum-topic-page__mobile-reply"
+                  @click="startTopLevelReply"
+                >
+                  <UIcon name="i-lucide-reply" class="size-4" aria-hidden="true" />
+                  {{ t('topicDetail.reply') }}
+                </button>
+
+                <section id="topic-latest" class="sforum-topic-comments">
+                  <SFCommentStreamControls v-model="commentView" :count="topic.commentCount" />
+
+                  <div v-if="commentsError" class="sforum-topic-comments__error">
+                    <SFAlert variant="danger" :title="t('topicDetail.commentsLoadFailed')" />
+                    <SFButton variant="ghost" size="sm" @click="() => { void refreshComments() }">
+                      <UIcon name="i-lucide-refresh-cw" class="size-4" aria-hidden="true" />
+                      {{ t('topicDetail.retryComments') }}
+                    </SFButton>
+                  </div>
+
+                  <template v-if="commentsPending && !comments.length">
+                    <div v-for="i in 3" :key="i" class="sforum-topic-comments__skeleton">
+                      <SFSkeleton width="20%" height="1rem" class="mb-2" />
+                      <SFSkeleton width="90%" class="mb-1" />
+                      <SFSkeleton width="70%" />
+                    </div>
+                  </template>
+
+                  <template v-else-if="comments.length">
+                    <div class="sforum-topic-comments__stream sf-comment-list">
+                      <SFComment
+                        v-for="comment in comments"
+                        :key="comment.id"
+                        :comment="comment"
+                        :author="commentAuthorName(comment)"
+                        :avatar="comment.author?.avatar"
+                        :author-link="commentAuthorPath(comment)"
+                        :html-content="editingCommentId === comment.id ? undefined : comment.content.htmlContent"
+                        :content="editingCommentId === comment.id ? '' : undefined"
+                        :meta="commentMeta(comment)"
+                        :presentation="commentView"
+                        :depth="0"
+                        :collapse-from-depth="2"
+                        :reply-to="comment.replyTo ? { author: forumAuthorName(comment.replyTo.author, comment.replyTo.id), excerpt: comment.replyTo.excerpt } : undefined"
+                        :actions="commentActions(comment)"
+                        :comment-meta-builder="commentMeta"
+                        :comment-author-link-builder="commentAuthorPath"
+                        :comment-actions-builder="commentActions"
+                        :loading-more-comment-id="loadingMoreCommentId"
+                        @action-comment="(c: ForumComment, value: string) => handleCommentClick(c, value)"
+                        @load-more-replies="(c: ForumComment) => { void loadMoreCommentReplies(c) }"
+                      />
+                    </div>
+
+                    <div v-if="commentTotalPages > 1" class="flex justify-center pt-2">
+                      <SFPagination
+                        :page="commentPage"
+                        :total-pages="commentTotalPages"
+                        :page-to="commentPageTo"
+                      />
+                    </div>
+                  </template>
+
+                  <div v-else-if="!commentsError" class="sforum-topic-comments__empty">
+                    <SFEmptyState
+                      :title="t('topicDetail.emptyComments.title')"
+                      :description="t('topicDetail.emptyComments.description')"
+                    />
+                  </div>
+
+                  <section v-if="showReplyEditor" id="topic-reply-editor" class="sforum-topic-comments__reply">
+                    <h3>
+                      {{ t('topicDetail.replyTitle') }}
+                    </h3>
+                    <LazySFEditor
+                      v-model="replyMarkdown"
+                      :placeholder="t('topicDetail.replyPlaceholder')"
+                      :submit-label="replySubmitting ? t('topicDetail.submitting') : t('topicDetail.submitReply')"
+                      :disabled="replySubmitting"
+                      @submit="onReplyEditorSubmit"
+                    />
+                    <SFAlert
+                      v-if="showReplyError"
+                      variant="danger"
+                      :title="replyError"
+                      closable
+                      class="mt-3"
+                      @close="showReplyError = false"
+                    />
+                  </section>
+
+                  <SFAlert
+                    v-if="isLocked"
+                    variant="warning"
+                    :title="t('topicDetail.lockedNotice')"
+                    closable
+                  />
+                </section>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <SFTopicSideCard
+        v-if="showTopicSide && topic"
+        :topic="topic"
+        :author-name="authorName"
+        :author-to="authorPath"
+        :tags="headingTags"
+        :category-to="categoryPath(topic.categorySlug)"
+        :extension-sidebar="topic.extensionSidebar || []"
+      />
     </div>
 
     <SFReportDialog

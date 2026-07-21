@@ -80,20 +80,31 @@ describe('default theme V32 topic page contract', () => {
     expect(source).toContain('extensionActions')
   })
 
-  test('uses a dual-column reading shell with topic info side card', () => {
+  test('uses a full-width three-column shell with left nav and topic side card', () => {
     const source = topicPage()
+    const themeTopicTpl = sourceFile('../../../extensions/builtin/themes/sforum-default/templates/topic-show.html')
 
+    expect(source).toContain('data-layout="fullwidth-3col"')
+    expect(source).toContain('sforum-topic-page__layout')
+    expect(source).toContain('sforum-topic-page__layout--with-side')
+    expect(source).toContain('sforum-topic-page__sidebar')
+    expect(source).toContain('<SFHomeNavigation')
+    expect(source).toContain('navigation-mode="route"')
     expect(source).toContain('sforum-topic-page__shell')
     expect(source).toContain('sforum-topic-page__reading')
     expect(source).toContain('sforum-topic-page__post-card')
     expect(source).toContain('sforum-topic-page__actions')
     expect(source).toContain('<SFTopicSideCard')
+    expect(source).toContain('showTopicSide')
     expect(source).toContain('shareTopic')
+    expect(source).toContain('listCategoryGroups')
+    expect(themeTopicTpl).toContain('data-layout="fullwidth-3col"')
+    expect(themeTopicTpl).toContain('sf-theme-shell--fullwidth-3col')
     expect(source).not.toContain('SFTopicProgressRail')
     expect(source).not.toContain('sforum-topic-page__action-rail')
     expect(source).not.toContain('statsTitle')
-    // SFPageOutlet wrap adds a few lines; keep the page scannable (hard warning ~1000).
-    expect(source.split('\n').length).toBeLessThan(1010)
+    // 左栏导航后页面略增；硬警告仍约 1200 行
+    expect(source.split('\n').length).toBeLessThan(1200)
   })
 
   test('keeps mutation errors persistent and passes explicit comment presentation', () => {
@@ -121,17 +132,25 @@ describe('default theme V32 topic page contract', () => {
     expect(source).toContain('topic.value?.authorUserId === reportUser.value?.id')
   })
 
-  test('registers the V32 dual-column topic stylesheet', () => {
+  test('registers the full-width three-column topic stylesheet', () => {
     const config = themeFile('nuxt.config.ts')
     const css = themeFile('app/assets/css/sforum-topic.css')
+    const themePkgCss = sourceFile('../../../extensions/builtin/themes/sforum-default/assets/theme.css')
 
     expect(config).toContain('sforum-topic.css')
-    expect(css).toContain('grid-template-columns: minmax(0, 1fr) 280px')
+    expect(css).toContain('.sforum-topic-page__layout--with-side')
+    expect(css).toContain('var(--sf-public-sidebar-width)')
+    expect(css).toContain('var(--sf-public-right-rail-width)')
+    expect(css).toContain('.sforum-topic-page__sidebar')
     expect(css).toContain('.sforum-topic-page__post-card')
     expect(css).toContain('.sforum-topic-page .sf-topic-heading__title')
     expect(css).toContain('.sf-topic-side-card')
     expect(css).toContain('background: var(--sf-public-surface)')
     expect(css).toContain('overflow-wrap: anywhere')
+    expect(css).toContain('@media (max-width: 1180px)')
+    expect(css).toContain('@media (max-width: 960px)')
+    expect(themePkgCss).toContain('.sforum-topic-page__layout--with-side')
+    expect(themePkgCss).toContain('fullwidth-3col')
     expect(css).not.toContain('.sforum-topic-page__action-rail')
     expect(css).not.toContain('.sforum-topic-page__summary')
   })
