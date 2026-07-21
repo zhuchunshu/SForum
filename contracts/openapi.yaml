@@ -437,6 +437,8 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/publicExtensionEditorCatalog"
   "/extensions/runtime/entity-catalog":
     "$ref": "./openapi/paths/extensions.yaml#/publicExtensionEntityCatalog"
+  "/extensions/runtime/content-catalog":
+    "$ref": "./openapi/paths/extensions.yaml#/publicExtensionContentCatalog"
   "/extensions/runtime/page-policy":
     "$ref": "./openapi/paths/extensions.yaml#/publicExtensionPagePolicy"
   "/extensions/runtime/{extensionID}/components/{componentID}":

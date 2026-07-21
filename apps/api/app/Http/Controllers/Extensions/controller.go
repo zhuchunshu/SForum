@@ -16,6 +16,7 @@ import (
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
+	contentregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentRegistry"
 	editorregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EditorRegistry"
 	entityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EntityRegistry"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
@@ -66,6 +67,8 @@ type Controller struct {
 	editorRegistry *editorregistry.Registry
 	// entityRegistry 为 nil 时公开 entity-catalog 返回空 entities（fail-closed）。
 	entityRegistry *entityregistry.Registry
+	// contentRegistry 为 nil 时公开 content-catalog 返回空 content（fail-closed）。
+	contentRegistry *contentregistry.Registry
 }
 
 type ProviderSlotProber interface {
@@ -258,6 +261,30 @@ func (h *Controller) publicEntityCatalog(c fiber.Ctx) error {
 	c.Set("X-Content-Type-Options", "nosniff")
 	if catalog.Digest != "" {
 		c.Set("X-SForum-Entity-Catalog-Digest", catalog.Digest)
+	}
+	return apphttp.OK(c, catalog)
+}
+
+// WithContentRegistry wires the process-local Content Registry for the public
+// content catalog (declaration projection only; no execution bindings).
+func (h *Controller) WithContentRegistry(registry *contentregistry.Registry) *Controller {
+	if h != nil {
+		h.contentRegistry = registry
+	}
+	return h
+}
+
+// publicContentCatalog 公开：投影当前 Content Registry 为 sforum.content-catalog@1。
+// 含 block/shortcode/filter 等声明元数据；无 registry 时返回空 content。
+func (h *Controller) publicContentCatalog(c fiber.Ctx) error {
+	catalog := (*contentregistry.Registry)(nil).BuildCatalog()
+	if h != nil && h.contentRegistry != nil {
+		catalog = h.contentRegistry.BuildCatalog()
+	}
+	c.Set(fiber.HeaderCacheControl, "no-store")
+	c.Set("X-Content-Type-Options", "nosniff")
+	if catalog.Digest != "" {
+		c.Set("X-SForum-Content-Catalog-Digest", catalog.Digest)
 	}
 	return apphttp.OK(c, catalog)
 }

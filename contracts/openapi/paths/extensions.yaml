@@ -64,6 +64,55 @@ publicExtensionEntityCatalog:
       '503':
         "$ref": "../components/responses.yaml#/ServiceUnavailable"
 
+publicExtensionContentCatalog:
+  get:
+    summary: Project the active Content Registry into an inspectable catalog
+    operationId: getPublicExtensionContentCatalog
+    tags: [Extensions]
+    description: >-
+      Returns `sforum.content-catalog@1` with block/shortcode/embed/node/mark/
+      render_filter/sanitizer declaration projections. Empty content is valid
+      when no Content Registry publications exist. Cache-Control is no-store.
+      Safe Mode returns core contributions only. No execution bindings or
+      secrets are exposed.
+    responses:
+      '200':
+        description: Content catalog projection. Cache-Control is no-store.
+        headers:
+          Cache-Control:
+            schema: { type: string, enum: [no-store] }
+          X-Content-Type-Options:
+            schema: { type: string, enum: [nosniff] }
+          X-SForum-Content-Catalog-Digest:
+            schema: { type: string, pattern: '^[0-9a-f]{64}$' }
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: object
+                  required: [schemaVersion, revision, digest, content]
+                  properties:
+                    schemaVersion:
+                      type: string
+                      enum: [sforum.content-catalog@1]
+                    revision:
+                      type: integer
+                      minimum: 0
+                    digest:
+                      type: string
+                    safeMode:
+                      type: boolean
+                    content:
+                      type: array
+                      items:
+                        type: object
+                        additionalProperties: true
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+
 publicExtensionEditorCatalog:
   get:
     summary: Project the active Editor Registry into a trusted L2 load catalog

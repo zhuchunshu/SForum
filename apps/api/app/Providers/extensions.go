@@ -15,6 +15,7 @@ import (
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
+	contentregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentRegistry"
 	editorregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EditorRegistry"
 	entityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EntityRegistry"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
@@ -166,6 +167,16 @@ func (p *ExtensionsProvider) WithEntityRegistry(
 ) *ExtensionsProvider {
 	if p != nil && p.controller != nil {
 		p.controller.WithEntityRegistry(registry)
+	}
+	return p
+}
+
+// WithContentRegistry wires P10 Content Registry for public content catalog.
+func (p *ExtensionsProvider) WithContentRegistry(
+	registry *contentregistry.Registry,
+) *ExtensionsProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithContentRegistry(registry)
 	}
 	return p
 }
