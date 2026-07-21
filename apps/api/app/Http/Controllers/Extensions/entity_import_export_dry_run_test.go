@@ -45,13 +45,26 @@ func TestEntityImportExportDryRunRequiresLoginAndGatesPermission(t *testing.T) {
 
 	manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})
 	users := controllerActors{actors: map[int64]identity.Actor{
+		// extension.view + entity export：路由允许，export decision.allowed=true。
 		1: {
 			ID: 1, Status: identity.UserStatusActive,
-			Permissions: map[string]bool{"demo.catalog.product.export": true},
+			Permissions: map[string]bool{
+				identity.PermissionExtensionView: true,
+				"demo.catalog.product.export":    true,
+			},
 		},
+		// extension.view 但无 entity export：HTTP 200 + decision.allowed=false。
 		2: {
 			ID: 2, Status: identity.UserStatusActive,
-			Permissions: map[string]bool{"demo.catalog.product.read": true},
+			Permissions: map[string]bool{
+				identity.PermissionExtensionView: true,
+				"demo.catalog.product.read":      true,
+			},
+		},
+		// 仅有 entity export、无 extension.view：路由级 403。
+		3: {
+			ID: 3, Status: identity.UserStatusActive,
+			Permissions: map[string]bool{"demo.catalog.product.export": true},
 		},
 	}}
 	controller := NewController(nil, users, manager).WithEntityRegistry(registry)
@@ -59,8 +72,11 @@ func TestEntityImportExportDryRunRequiresLoginAndGatesPermission(t *testing.T) {
 		api.Post("/test-login/:id", func(c fiber.Ctx) error {
 			id := c.Params("id")
 			userID := int64(1)
-			if id == "2" {
+			switch id {
+			case "2":
 				userID = 2
+			case "3":
+				userID = 3
 			}
 			_, err := manager.Start(c, userID)
 			return err
@@ -77,7 +93,15 @@ func TestEntityImportExportDryRunRequiresLoginAndGatesPermission(t *testing.T) {
 	}
 	anonymous.Body.Close()
 
-	// 仅有 export 权限：export dry-run Allowed=true，import dry-run Allowed=false。
+	// 无 extension.view：403，即使持有 entity export 键。
+	noView := loginExtensionUser(t, app, manager, 3)
+	noViewResp := performExtensionRequest(t, app, http.MethodGet, path, noView)
+	if noViewResp.StatusCode != http.StatusForbidden {
+		t.Fatalf("no extension.view status = %d body=%s", noViewResp.StatusCode, responseBody(t, noViewResp))
+	}
+	noViewResp.Body.Close()
+
+	// extension.view + export：export dry-run Allowed=true，import Allowed=false。
 	exporter := loginExtensionUser(t, app, manager, 1)
 	exportResp := performExtensionRequest(t, app, http.MethodGet, path, exporter)
 	if exportResp.StatusCode != http.StatusOK {
@@ -109,7 +133,7 @@ func TestEntityImportExportDryRunRequiresLoginAndGatesPermission(t *testing.T) {
 		t.Fatalf("import deny = %#v", importEnvelope.Data.Decision)
 	}
 
-	// 无 import/export 权限：export 亦 deny（200 + allowed=false）。
+	// extension.view 但无 import/export 权限：export 亦 deny（200 + allowed=false）。
 	reader := loginExtensionUser(t, app, manager, 2)
 	readerResp := performExtensionRequest(t, app, http.MethodGet, path, reader)
 	if readerResp.StatusCode != http.StatusOK {

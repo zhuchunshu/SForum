@@ -680,6 +680,7 @@ func TestProductionExtensionsReadGuardPartitionsCatalogByProvablePolicy(t *testi
 		"core.route.extensions.route_provider_conflicts":  {method: "GET", supported: true, permissions: viewer},
 		"core.route.extensions.route_provider_events":     {method: "GET", supported: true, permissions: viewer},
 		"core.route.extensions.route_provider_selection":  {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.entity_import_export_dry_run": {method: "GET", supported: true, permissions: viewer},
 
 		"core.route.extensions.frontend_status": {method: "GET"},
 		"core.route.extensions.frontend_asset":  {method: "GET"},

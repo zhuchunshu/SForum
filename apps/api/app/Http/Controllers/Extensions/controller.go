@@ -289,12 +289,18 @@ func (h *Controller) publicContentCatalog(c fiber.Ctx) error {
 	return apphttp.OK(c, catalog)
 }
 
-// entityImportExportDryRun 需登录：对单一实体做 import/export 计划 + 权限 dry-run。
-// 永不执行导入导出；Allowed=false 仍返回 200 以便前端展示拒绝原因。
+// entityImportExportDryRun 需 extension.view（或兼容 extension.manage）+ 登录。
+// 对单一实体做 import/export 计划 + 权限 dry-run；永不执行导入导出。
+// 实体级 Allowed=false 仍返回 200，以便前端展示拒绝原因（与路由级 403 分离）。
 func (h *Controller) entityImportExportDryRun(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {
 		return err
+	}
+	// 与 catalog core.guard.extensions.read 对齐：Core Fiber 路径不走 Dispatcher 时
+	// 仍须在 handler 内执行 view 门，避免仅登录即可窥探实体计划与 permissionKey。
+	if !actor.Can(identity.PermissionExtensionView) && !actor.Can(identity.PermissionExtensionManage) {
+		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
 	}
 	if h == nil || h.entityRegistry == nil {
 		return fiber.NewError(fiber.StatusServiceUnavailable, "entity.registry_unavailable")
