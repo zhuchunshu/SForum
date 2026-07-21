@@ -63,5 +63,6 @@ services:
   redis:
     restart: unless-stopped
 
+  # 仅 --profile search 时存在；可选搜索插件依赖。
   meilisearch:
     restart: unless-stopped

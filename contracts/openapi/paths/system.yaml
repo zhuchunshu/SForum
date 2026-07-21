@@ -3,7 +3,7 @@ health:
     summary: Liveness health check
     description: |
       Cheap process liveness probe. Does not check PostgreSQL, Redis, or
-      Meilisearch. Use `/ready` for readiness.
+      optional dependencies. Use `/ready` for readiness.
     operationId: getHealth
     responses:
       '200':
@@ -17,7 +17,7 @@ ready:
     summary: Readiness probe
     description: |
       Dependency readiness. PostgreSQL is required (failure → 503).
-      Redis and Meilisearch failures are reported as component errors but the
+      Redis failures are reported as component errors but the
       overall status remains ready with `status: degraded` (F1 policy).
     operationId: getReady
     responses:

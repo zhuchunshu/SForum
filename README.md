@@ -24,7 +24,7 @@ Start the local dependency services first:
 ./scripts/dev.sh
 ```
 
-The script starts PostgreSQL, Redis, Meilisearch, and Mailpit with Docker
+The script starts PostgreSQL, Redis, and Mailpit with Docker (Meilisearch is optional via compose profile `search`)
 Compose, waits for healthy services, and runs database migrations by default.
 It does not start the frontend or API.
 
@@ -65,7 +65,7 @@ Useful endpoints:
 - API liveness: `http://127.0.0.1:3000/api/v1/health`
 - API readiness: `http://127.0.0.1:3000/api/v1/ready` (PG required; Redis/Meili degraded-ready)
 - Web health: `http://127.0.0.1:3000/health`
-- Meilisearch health: `http://127.0.0.1:17700/health`
+- Meilisearch health (optional profile `search`): `http://127.0.0.1:17700/health`
 - Mailpit UI: `http://127.0.0.1:18025`
 
 Development dependency services publish loopback-only host ports so locally

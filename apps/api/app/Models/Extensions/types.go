@@ -65,6 +65,8 @@ const (
 	CodeRouteMethodNotAllowed      = "extension.route_method_not_allowed"
 	CodeRuntimeUnavailable         = "extension.runtime_unavailable"
 	CodeRuntimeFailed              = "extension.runtime_failed"
+	// desired-set / plugin runtime publication 冲突或历史投影不可读。
+	CodePluginRuntimeConflict = "extension.plugin_runtime_conflict"
 	CodeFrontendRuntimeUnavailable = "extension.frontend_runtime_unavailable"
 	CodeFrontendDigestInvalid      = "extension.frontend_digest_invalid"
 	CodeFrontendPackageChanged     = "extension.frontend_package_changed"

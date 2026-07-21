@@ -79,7 +79,8 @@ set -a
 set +a
 
 COMPOSE_FILES=(-f compose.yaml -f compose.dev.yaml)
-DEPENDENCY_SERVICES=(postgres redis meilisearch mailpit)
+# Meilisearch 为可选搜索引擎（compose profile search），默认不启动以省内存。
+DEPENDENCY_SERVICES=(postgres redis mailpit)
 UP_ARGS=("${COMPOSE_FILES[@]}" up --remove-orphans --wait)
 if [ "$BUILD_ENABLED" -eq 1 ]; then
   UP_ARGS+=(--build)
@@ -105,8 +106,8 @@ else
 fi
 echo "Postgres: 127.0.0.1:${POSTGRES_PORT:-15432}"
 echo "Redis: 127.0.0.1:${REDIS_PORT:-16379}"
-echo "Meilisearch: http://127.0.0.1:${MEILI_PORT:-17700}"
 echo "Mailpit: http://127.0.0.1:${MAILPIT_UI_PORT:-18025}"
+echo "Meilisearch: optional (docker compose --profile search up -d meilisearch); see extensions/optional/plugins/sforum-search-meilisearch"
 EXPECTED_NUXT_API_INTERNAL_BASE_URL="http://127.0.0.1:${HTTP_PORT:-8080}/api/v1"
 case "${NUXT_API_INTERNAL_BASE_URL:-}" in
   http://127.0.0.1:* | http://localhost:*)

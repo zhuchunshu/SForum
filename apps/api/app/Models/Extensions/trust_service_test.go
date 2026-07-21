@@ -1091,6 +1091,33 @@ func (s *memoryExecutableTrustStore) ConsumeChallenge(_ context.Context, input T
 	return grant, nil
 }
 
+func (s *memoryExecutableTrustStore) EnsureLiveGrant(_ context.Context, input TrustEnsureGrantInput) (TrustGrant, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if input.ActorUserID <= 0 {
+		return TrustGrant{}, ErrTrustGrantNotFound
+	}
+	if s.grants == nil {
+		s.grants = map[TrustIdentity]TrustGrant{}
+	}
+	if grant, granted := s.grants[input.Identity]; granted {
+		return grant, nil
+	}
+	now := time.Now().UTC()
+	if s.now != nil {
+		now = s.now()
+	}
+	s.nextGrantID++
+	grant := TrustGrant{
+		ID: s.nextGrantID, ExtensionID: input.Identity.ExtensionID,
+		ExtensionVersion: input.Identity.ExtensionVersion, PackageDigest: input.Identity.PackageDigest,
+		Action: input.Identity.Action, ImpactDigest: input.Identity.ImpactDigest,
+		GrantedByUserID: input.ActorUserID, GrantedAt: now, created: true,
+	}
+	s.grants[input.Identity] = grant
+	return grant, nil
+}
+
 func (s *memoryExecutableTrustStore) revokeExactGrant(
 	_ context.Context,
 	grant TrustGrant,

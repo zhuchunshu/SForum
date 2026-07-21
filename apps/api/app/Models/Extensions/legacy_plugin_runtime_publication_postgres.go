@@ -2,6 +2,7 @@ package extensions
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -147,13 +148,21 @@ func (s *PostgresStore) transitionLegacyPluginRuntime(
 	return result, publication, nil
 }
 
+// requireLegacyPluginRuntimeGenesis 只校验 genesis 表头不变量：
+// 首条 publication 必须是 actor=0 的 startup_reconcile。
+// 故意不走 loadPluginRuntimePublication 的 members 归一化——历史 revision 的
+// member_count/digest 若与 members 表漂移，不应永久阻断后续 enable/disable；
+// 实际 desired-set 以最新 revision 为准。
 func requireLegacyPluginRuntimeGenesis(ctx context.Context, tx pgx.Tx) error {
-	genesis, err := loadPluginRuntimePublication(
-		ctx,
-		tx,
-		pluginRuntimePublicationSelect+` ORDER BY revision ASC LIMIT 1`,
-	)
-	if errors.Is(err, ErrPluginRuntimePublicationNotFound) {
+	var reason PluginRuntimePublicationReason
+	var actor sql.NullInt64
+	err := tx.QueryRow(ctx, `
+		SELECT reason, actor_user_id
+		FROM plugin_runtime_publications
+		ORDER BY revision ASC
+		LIMIT 1
+	`).Scan(&reason, &actor)
+	if errors.Is(err, pgx.ErrNoRows) {
 		return fmt.Errorf(
 			"%w: initial plugin runtime publication is required",
 			ErrPluginRuntimePublicationConflict,
@@ -162,7 +171,7 @@ func requireLegacyPluginRuntimeGenesis(ctx context.Context, tx pgx.Tx) error {
 	if err != nil {
 		return fmt.Errorf("load plugin runtime genesis: %w", err)
 	}
-	if genesis.Reason != PluginRuntimePublicationStartupReconcile || genesis.ActorUserID != 0 {
+	if reason != PluginRuntimePublicationStartupReconcile || actor.Valid {
 		return fmt.Errorf(
 			"%w: invalid plugin runtime genesis",
 			ErrPluginRuntimePublicationConflict,

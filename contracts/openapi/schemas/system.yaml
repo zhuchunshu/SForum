@@ -90,7 +90,6 @@ ReadyComponent:
       examples:
       - postgres
       - redis
-      - meilisearch
     status:
       type: string
       enum:

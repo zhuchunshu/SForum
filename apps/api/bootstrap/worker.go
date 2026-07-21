@@ -58,11 +58,13 @@ type Worker struct {
 }
 
 // workerExtensionRuntime 是 worker 对 extension runtime 的最小依赖面：
-// mail.deliver 需要 SendMail；附件清理需要 StorageRuntime；独立进程还需 Reconcile/Close。
+// mail.deliver 需要 SendMail；附件清理需要 StorageRuntime；
+// 搜索索引需要 SearchRuntime；独立进程还需 Reconcile/Close。
 // API embed 注入的 *extensionsruntime.Manager 满足此接口。
 type workerExtensionRuntime interface {
 	notificationjobs.ProviderSender
 	extensionsruntime.StorageRuntime
+	extensionsruntime.SearchRuntime
 	Reconcile(ctx context.Context, items []extensions.Extension)
 	Close(ctx context.Context)
 	protocolV2ProviderBrokerSource
@@ -636,7 +638,8 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 		},
 		Logger: logger,
 	})
-	registerSearchWorkers(registry, cfg, pool)
+	// 搜索 worker：引擎经 search.provider；无提供方时 job 立即成功。
+	registerSearchWorkers(registry, pool, extensionStore, extensionRuntime)
 	registerIdentityCleanupWorker(registry, cfg, pool, logger)
 	registerForumAutoLockWorker(registry, cfg, pool, logger)
 	// F2.2：插件经 Host API 入队的 extension.plugin_job。

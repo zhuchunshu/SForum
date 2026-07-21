@@ -2,59 +2,44 @@
 
 ## Purpose
 
-Owns full-text forum search and synchronization between PostgreSQL and
-Meilisearch.
+Owns full-text forum search contracts and synchronization between PostgreSQL and
+the selected `search.provider` engine.
 
-## Provider Slot (target E7)
+## Provider Slot
 
-Host catalog slot: `search.provider`.
+Host catalog slot: **`search.provider`**.
 
-**Current:** Meilisearch is the intended core/default engine; the slot name is
-reserved for docs and future plugins (maturity ~L0–L1). Operators cannot yet
-install a third-party search plugin and select it like `mail.provider`.
+| Layer | Responsibility |
+| --- | --- |
+| Core | Document schema, public ACL filter contract, enqueue index/delete, reindex orchestration, `/search` API, default site engine |
+| Plugin | Engine transport only (store/query documents), except site search which is Host short-circuited |
+| Default | **Protected built-in site search** (`sforum.search-site`) — PostgreSQL FTS |
 
-**Target:** Wave **E7** in
-`plans/2026-07-12-extension-surface-density.md` — host owns document schema,
-ACL, and index jobs; plugins implement engine transport; admin select /
-configure / test / restore defaults. Core may keep Meili as zero-config
-fallback or move it to a builtin plugin (decision at E7.0).
+## Current Status (2026-07-21)
 
-## Current Status
+- Core has **no** Meilisearch client; `MEILI_*` is not required.
+- Default: `sforum.search-site` (builtin, cannot uninstall). Host implements
+  `PostgresSiteEngine` against `search_documents` (tsvector + GIN).
+- Optional: `extensions/optional/plugins/sforum-search-meilisearch`.
+- Compose: `meilisearch` service has profile `search` only.
+- Decision: `decisions/2026-07-21-search-framework-site-default.md`
+  (supersedes “default no engine → 503”).
 
-Search implementation has progressed in the product (Meilisearch integration
-exists in the broader codebase); this note may lag. Treat provider
-**pluginization** as E7, not “slot name only.”
+### Runtime behavior
 
-Forum taxonomy fields are now available from the core forum read models:
-category ID/slug/name, category group context, and active topic tag summaries.
-These fields should be part of future public search documents, but full index
-write/rebuild behavior remains follow-up work.
+- Public search always has a resolved provider (site search when nothing pinned).
+- Topic write path enqueues index/delete for the selected engine.
+- Restore defaults → clear pin → site search.
 
-## Planned Approach
+### Enabling Meilisearch
 
-- PostgreSQL is authoritative.
-- Meilisearch stores rebuildable public search documents.
-- Topic and post writes should create durable indexing events.
-- A worker processes indexing events and can rebuild an index from PostgreSQL.
-- Private, deleted, draft, and moderation-only content must not be indexed.
-- Index documents should include locale/content-language fields once content
-  language is captured.
+1. `docker compose --profile search up -d meilisearch`
+2. Install `sforum-search-meilisearch` (optional package)
+3. Super-admin enable + trust
+4. Configure host/master key; select slot; reindex
 
-## Candidate Documents
+## Document shape
 
-- `topics`: topic title, slug, category ID/slug/name, category group context,
-  active tags, author summary, visibility, latest activity, reply count.
-- `posts`: post body excerpt, topic/category references, author summary,
-  created/updated timestamps, visibility.
-
-## Open Questions
-
-- Whether MVP search covers topics only or topics plus posts.
-- How private categories and role-scoped search should behave.
-- Whether content-language filtering is part of MVP.
-- Exact ranking settings, typo tolerance, synonyms, and stop words.
-
-## Next Steps
-
-- Decide whether search ships in Milestone 1 or Milestone 2.
-- Define Meilisearch index settings before writing indexing code.
+`TopicSearchDoc` (Host-owned): title, plainText, excerpt, category/tag slugs,
+status, pin, activity timestamps, author summary. Index UID: `sforum_topics`
+(external engines). Site engine table: `search_documents`.

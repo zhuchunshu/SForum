@@ -67,10 +67,8 @@ type Config struct {
 	// V3PublicL2 允许浏览器加载已授权精确制品中的预构建公开 ESM；Safe Mode 始终覆盖此开关。
 	V3PublicL2        bool
 	TrustChallengeTTL time.Duration
-	MeiliHost         string
-	MeiliMasterKey    string
-	MeiliTimeout      time.Duration
-	LimiterWriteMax   int
+	// Meilisearch 已拆为可选 search.provider 插件；core 不再读取 MEILI_*。
+	LimiterWriteMax int
 	LimiterWindow     time.Duration
 	// CSRFTrustedOrigins 是 CSRF 中间件信任的来源站点 origin 列表（如 https://forum.example.com）。
 	// API 在反向代理后看到的 Host 是内部地址，而 Origin 是公开站点，二者不匹配会被拒绝，
@@ -178,9 +176,6 @@ func Load() Config {
 		V3TrustChallenges:             envBool("SFORUM_V3_TRUST_CHALLENGES", isProd),
 		V3PublicL2:                    envBool("SFORUM_V3_PUBLIC_L2", false),
 		TrustChallengeTTL:             envDuration("SFORUM_V3_TRUST_CHALLENGE_TTL", 5*time.Minute),
-		MeiliHost:                     env("MEILI_HOST", "http://meilisearch:7700"),
-		MeiliMasterKey:                env("MEILI_MASTER_KEY", "sforum-dev-meili-key"),
-		MeiliTimeout:                  envDuration("MEILI_TIMEOUT", 5*time.Second),
 		LimiterWriteMax:               envPositiveInt("LIMITER_WRITE_MAX", 30),
 		LimiterWindow:                 envDuration("LIMITER_WINDOW", time.Minute),
 		CSRFTrustedOrigins:            csrfOrigins,
@@ -208,7 +203,6 @@ var insecureSecretValues = map[string]bool{
 	"change-me":                      true,
 	"sforum-dev-session-hash-secret": true,
 	"sforum-dev-altcha-secret":       true,
-	"sforum-dev-meili-key":           true,
 }
 
 // validateProductionSecrets 在生产环境校验关键密钥非空且非占位词。
@@ -224,7 +218,6 @@ func validateProductionSecrets(cfg Config) {
 	checks := []secretCheck{
 		{"SESSION_HASH_SECRET", cfg.SessionHashSecret},
 		{"ALTCHA_SECRET", cfg.AltchaSecret},
-		{"MEILI_MASTER_KEY", cfg.MeiliMasterKey},
 		{"APP_OPTION_ENC_KEY", cfg.OptionEncryptionKey},
 	}
 	for _, c := range checks {

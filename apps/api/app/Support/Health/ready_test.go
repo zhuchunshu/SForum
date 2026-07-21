@@ -35,15 +35,15 @@ func TestEvaluateRequiredFailureNotReady(t *testing.T) {
 }
 
 func TestEvaluateOptionalFailureDegradedReady(t *testing.T) {
-	// F1 默认：Meili/Redis 失败仍 ready（degraded）。
+	// F1 默认：可选依赖失败仍 ready（degraded）。
 	report := Evaluate(context.Background(), []Checker{
 		FuncChecker{ComponentName: "postgres", IsRequired: true, Fn: func(context.Context) error { return nil }},
-		FuncChecker{ComponentName: "meilisearch", IsRequired: false, Fn: func(context.Context) error {
-			return errors.New("meili down")
+		FuncChecker{ComponentName: "redis", IsRequired: false, Fn: func(context.Context) error {
+			return errors.New("redis down")
 		}},
 	})
 	if !report.Ready {
-		t.Fatalf("expected ready despite meili failure, got %#v", report)
+		t.Fatalf("expected ready despite optional failure, got %#v", report)
 	}
 	if report.Status != StatusDegraded {
 		t.Fatalf("expected degraded status, got %q", report.Status)

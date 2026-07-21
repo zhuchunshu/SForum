@@ -61,6 +61,9 @@ const savingRoles = ref(false)
 const savingOverrides = ref(false)
 const revokingSessions = ref(false)
 const clearingClientIPs = ref(false)
+const resettingPassword = ref(false)
+const newPassword = ref('')
+const confirmPassword = ref('')
 const errorMessage = ref('')
 const successMessage = ref('')
 const overrideModes = ['inherit', 'allow', 'deny'] as const
@@ -267,6 +270,9 @@ function applyDetailToForm(detail: AdminUserDetail) {
   editSignature.value = detail.profile?.signature ?? ''
   editLocation.value = detail.profile?.location ?? ''
   editWebsiteUrl.value = detail.profile?.websiteUrl ?? ''
+  // 切换用户时清空密码表单，避免误提交到下一位。
+  newPassword.value = ''
+  confirmPassword.value = ''
 }
 
 async function openUser(user: AdminUserSummary) {
@@ -464,6 +470,38 @@ async function clearUserClientIPs() {
     showError(apiErrorMessage(error) || t('admin.users.clearClientIPsFailed'))
   } finally {
     clearingClientIPs.value = false
+  }
+}
+
+// 管理员直接设置目标用户密码（user.manage）；成功后目标全部设备会被下线。
+async function resetUserPassword() {
+  if (!selectedUser.value || resettingPassword.value) {
+    return
+  }
+  const password = newPassword.value
+  if (!password) {
+    showError(t('admin.users.passwordRequired'))
+    return
+  }
+  if (password !== confirmPassword.value) {
+    showError(t('admin.users.passwordMismatch'))
+    return
+  }
+  resettingPassword.value = true
+  errorMessage.value = ''
+  successMessage.value = ''
+  try {
+    const result = await request<{ revokedSessions: number }>(`/users/${selectedUser.value.id}/password`, {
+      method: 'POST',
+      body: { password }
+    })
+    newPassword.value = ''
+    confirmPassword.value = ''
+    showSuccess(t('admin.users.passwordResetSuccess', { count: result.revokedSessions ?? 0 }))
+  } catch (error) {
+    showError(apiErrorMessage(error) || t('admin.users.passwordResetFailed'))
+  } finally {
+    resettingPassword.value = false
   }
 }
 
@@ -842,7 +880,51 @@ watch([status, roleKey], () => {
         <!-- 账号安全 -->
         <section class="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/60">
           <div class="space-y-4">
-            <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h4 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+                {{ t('admin.users.passwordSection') }}
+              </h4>
+              <p class="text-xs text-slate-500 dark:text-zinc-400">
+                {{ t('admin.users.passwordSectionHelp') }}
+              </p>
+              <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                <label class="block space-y-1.5 text-sm">
+                  <span class="font-medium text-slate-700 dark:text-zinc-300">{{ t('admin.users.newPassword') }}</span>
+                  <UInput
+                    v-model="newPassword"
+                    type="password"
+                    autocomplete="new-password"
+                    class="w-full"
+                    :placeholder="t('admin.users.newPasswordPlaceholder')"
+                  />
+                </label>
+                <label class="block space-y-1.5 text-sm">
+                  <span class="font-medium text-slate-700 dark:text-zinc-300">{{ t('admin.users.confirmPassword') }}</span>
+                  <UInput
+                    v-model="confirmPassword"
+                    type="password"
+                    autocomplete="new-password"
+                    class="w-full"
+                    :placeholder="t('admin.users.confirmPasswordPlaceholder')"
+                  />
+                </label>
+              </div>
+              <div class="mt-3 flex flex-wrap items-center gap-2">
+                <UButton
+                  color="primary"
+                  leading-icon="i-lucide-key-round"
+                  :loading="resettingPassword"
+                  :disabled="!newPassword || !confirmPassword"
+                  @click="resetUserPassword"
+                >
+                  {{ t('admin.users.resetPassword') }}
+                </UButton>
+                <p class="text-xs text-slate-500 dark:text-zinc-400">
+                  {{ t('admin.users.passwordResetHint') }}
+                </p>
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4 dark:border-zinc-800">
               <div>
                 <h4 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
                   {{ t('admin.users.sessionSection') }}

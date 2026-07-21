@@ -115,6 +115,88 @@ func (s *PostgresExecutableTrustStore) LiveGrant(ctx context.Context, identity T
 	return grant, nil
 }
 
+// EnsureLiveGrant 在无挑战模式下为 exact identity 幂等写入 live grant。
+// 已有 live grant 时直接返回，不重复插入。
+func (s *PostgresExecutableTrustStore) EnsureLiveGrant(ctx context.Context, input TrustEnsureGrantInput) (TrustGrant, error) {
+	if s == nil || s.pool == nil || ctx == nil || input.ActorUserID <= 0 {
+		return TrustGrant{}, ErrTrustGrantNotFound
+	}
+	identity := input.Identity
+	if identity.ExtensionID == "" || identity.ExtensionVersion == "" ||
+		identity.PackageDigest == "" || identity.Action == "" || identity.ImpactDigest == "" {
+		return TrustGrant{}, ErrTrustGrantNotFound
+	}
+	artifacts, err := json.Marshal(input.ArtifactDigests)
+	if err != nil {
+		return TrustGrant{}, fmt.Errorf("marshal trust artifact digests: %w", err)
+	}
+	impactJSON, err := json.Marshal(input.Impact)
+	if err != nil {
+		return TrustGrant{}, fmt.Errorf("marshal trust impact: %w", err)
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return TrustGrant{}, fmt.Errorf("begin ensure trust grant: %w", err)
+	}
+	defer tx.Rollback(ctx)
+	if err := LockExecutableTrustExtensionTx(ctx, tx, identity.ExtensionID); err != nil {
+		return TrustGrant{}, err
+	}
+	lockIdentity := fmt.Sprintf(
+		"%d:%s%d:%s%d:%s%d:%s%d:%s",
+		len(identity.ExtensionID), identity.ExtensionID,
+		len(identity.ExtensionVersion), identity.ExtensionVersion,
+		len(identity.PackageDigest), identity.PackageDigest,
+		len(identity.Action), identity.Action,
+		len(identity.ImpactDigest), identity.ImpactDigest,
+	)
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, lockIdentity); err != nil {
+		return TrustGrant{}, fmt.Errorf("lock executable trust identity: %w", err)
+	}
+
+	var grant TrustGrant
+	err = tx.QueryRow(ctx, `
+		SELECT id, extension_id, extension_version, package_digest, action,
+		       impact_digest, COALESCE(granted_by_user_id, 0), granted_at, revoked_at,
+		       COALESCE(revoked_by_user_id, 0), revocation_reason
+		FROM extension_trust_grants
+		WHERE extension_id = $1 AND extension_version = $2 AND package_digest = $3
+		  AND action = $4 AND impact_digest = $5 AND revoked_at IS NULL
+		FOR UPDATE
+	`, identity.ExtensionID, identity.ExtensionVersion, identity.PackageDigest,
+		identity.Action, identity.ImpactDigest).Scan(
+		&grant.ID, &grant.ExtensionID, &grant.ExtensionVersion, &grant.PackageDigest,
+		&grant.Action, &grant.ImpactDigest, &grant.GrantedByUserID, &grant.GrantedAt,
+		&grant.RevokedAt, &grant.RevokedByUserID, &grant.RevocationReason,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = tx.QueryRow(ctx, `
+			INSERT INTO extension_trust_grants (
+				extension_id, extension_version, package_digest, action,
+				artifact_digests, impact_document, impact_digest, granted_by_user_id
+			) VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $8)
+			RETURNING id, extension_id, extension_version, package_digest, action,
+			          impact_digest, COALESCE(granted_by_user_id, 0), granted_at, revoked_at,
+			          COALESCE(revoked_by_user_id, 0), revocation_reason
+		`, identity.ExtensionID, identity.ExtensionVersion, identity.PackageDigest,
+			identity.Action, string(artifacts), string(impactJSON),
+			identity.ImpactDigest, input.ActorUserID).Scan(
+			&grant.ID, &grant.ExtensionID, &grant.ExtensionVersion, &grant.PackageDigest,
+			&grant.Action, &grant.ImpactDigest, &grant.GrantedByUserID, &grant.GrantedAt,
+			&grant.RevokedAt, &grant.RevokedByUserID, &grant.RevocationReason,
+		)
+		grant.created = err == nil
+	}
+	if err != nil {
+		return TrustGrant{}, fmt.Errorf("ensure executable trust grant: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return TrustGrant{}, fmt.Errorf("commit executable trust grant: %w", err)
+	}
+	return grant, nil
+}
+
 func (s *PostgresExecutableTrustStore) ConsumeChallenge(ctx context.Context, input TrustConsumeInput) (TrustGrant, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {

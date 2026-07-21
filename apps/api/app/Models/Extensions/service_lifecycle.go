@@ -297,6 +297,14 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 		if capabilities.RequiresConfirmation(capKeys) && !input.ConfirmCapabilities {
 			return Extension{}, ErrCapabilityConfirmationRequired
 		}
+		// V3 challenge 关闭时仍需 exact live grant，protocol v2 子进程握手依赖它。
+		// super_admin + confirmCapabilities 后幂等写入兼容授权。
+		if s.executableTrust != nil && RequiresExecutableTrust(extension) {
+			if err := s.executableTrust.EnsureCompatibilityGrant(ctx, actor, extension); err != nil {
+				s.recordEnableFailure(ctx, actor, extension.ID, err)
+				return Extension{}, err
+			}
+		}
 	}
 
 	// F4.5：manifest requiresFeatures 必须全部开启。

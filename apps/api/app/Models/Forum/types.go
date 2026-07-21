@@ -123,7 +123,7 @@ var (
 )
 
 // TopicSearchIndexer 是 forum 包对搜索索引调度的抽象。
-// 由 search 支持包实现并注入 Service，避免 forum 反向依赖 job/meilisearch。
+// 由 search 支持包实现并注入 Service，避免 forum 反向依赖 job/搜索引擎。
 // 实现应异步（入队）且对调用方安全；nil 时 Service 自动降级为不索引。
 type TopicSearchIndexer interface {
 	// EnqueueIndex 调度重新索引指定主题（用于创建/更新/评论/恢复/置顶等）。

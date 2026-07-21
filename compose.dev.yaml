@@ -7,6 +7,7 @@ services:
     ports:
       - "127.0.0.1:${REDIS_PORT:-16379}:6379"
 
+  # 仅在 --profile search 时启动；见 compose.yaml meilisearch.profiles。
   meilisearch:
     ports:
       - "127.0.0.1:${MEILI_PORT:-17700}:7700"
@@ -41,7 +42,6 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-sforum}:${POSTGRES_PASSWORD:-sforum}@postgres:5432/${POSTGRES_DB:-sforum}?sslmode=disable
       REDIS_ADDR: redis:6379
-      MEILI_HOST: http://meilisearch:7700
       EXTENSION_ROOT: /var/lib/sforum/extensions
       BUILTIN_EXTENSION_ROOT: /app/extensions/builtin
       GOMODCACHE: /go/pkg/mod
@@ -84,7 +84,6 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-sforum}:${POSTGRES_PASSWORD:-sforum}@postgres:5432/${POSTGRES_DB:-sforum}?sslmode=disable
       REDIS_ADDR: redis:6379
-      MEILI_HOST: http://meilisearch:7700
       EXTENSION_ROOT: /var/lib/sforum/extensions
       BUILTIN_EXTENSION_ROOT: /app/extensions/builtin
       GOMODCACHE: /go/pkg/mod

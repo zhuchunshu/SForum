@@ -153,7 +153,6 @@ func setValidProductionSecrets(t *testing.T) {
 	for k, v := range map[string]string{
 		"SESSION_HASH_SECRET": "prod-valid-session-secret",
 		"ALTCHA_SECRET":       "prod-valid-altcha-secret",
-		"MEILI_MASTER_KEY":    "prod-valid-meili-key",
 		"APP_OPTION_ENC_KEY":  "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 	} {
 		t.Setenv(k, v)

@@ -6,7 +6,8 @@ import (
 )
 
 // Component 状态：ok / degraded / error / skipped。
-// ready 端点对 postgres=error 返回 503；redis/meili error 记为 degraded 仍 200（F1 默认策略）。
+// ready 端点对 postgres=error 返回 503；redis error 记为 degraded 仍 200（F1 默认策略）。
+// Meilisearch 已拆为可选 search.provider 插件，不再作为 core readiness 组件。
 const (
 	StatusOK       = "ok"
 	StatusDegraded = "degraded"

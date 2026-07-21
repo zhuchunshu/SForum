@@ -4,6 +4,16 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-21 Search framework + protected site-search default**
+  - Decision: `knowledge/decisions/2026-07-21-search-framework-site-default.md`
+    (supersedes default-no-engine in optional-meilisearch decision; Meili still optional)
+  - Module: `knowledge/modules/search.md`
+  - Handoff: `knowledge/sessions/2026-07-21-search-framework-site-default-handoff.md`
+  - Builtin: `extensions/builtin/plugins/sforum-search-site` (`sforum.search-site`, cannot uninstall)
+  - Optional: `extensions/optional/plugins/sforum-search-meilisearch`
+  - Host: `PostgresSiteEngine` + `search_documents` migration; Meili profile still opt-in
+  - Package: `~/Downloads/sforum-search-meilisearch-20260721.zip`
+
 - **2026-07-21 Trusted Plugin And Theme Platform V3 P13 residual (overall 99.7%)**
   - Decision: `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
   - Identity/automation authority:

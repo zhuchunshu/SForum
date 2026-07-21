@@ -774,12 +774,13 @@ func wireAPICoreStack(ctx context.Context, cfg config.Config, logger *slog.Logge
 		authSessions,
 		providers.NewExtensionDashboardWidgetProvider(extensionService),
 	)
-	// 搜索：API 进程持有只入队的 indexer（EnqueueIndex/EnqueueDelete）和查询用的 search service。
-	// Meilisearch client 不可达时，索引调度静默失败、搜索端点返回 503，主流程不受影响。
-	meiliClient := search.NewClientWithTimeout(cfg.MeiliHost, cfg.MeiliMasterKey, cfg.MeiliTimeout)
-	searchIndexer := search.NewIndexer(meiliClient, nil, jobDispatcher)
+	// 搜索：Host 框架 + 默认站内引擎（PG FTS）；外部引擎经 search.provider 插件。
+	searchProviders := extensionsruntime.NewSearchProviderRegistry(extensionStore)
+	siteEngine := search.NewPostgresSiteEngine(pool)
+	searchEngine := extensionsruntime.NewResolvingSearchEngine(searchProviders, extensionRuntime, siteEngine)
+	searchIndexer := search.NewIndexer(searchEngine, nil, jobDispatcher)
 	forumSettingsResolver := providers.NewForumSettingsResolver(optionsService)
-	searchService := search.NewService(meiliClient, forumSettingsResolver)
+	searchService := search.NewService(searchEngine, forumSettingsResolver)
 	// 搜索索引重建：forumStore 提供 ListAllTopicIDs（TopicIDSource），
 	// reindexStore 记录运行状态，dispatcher 批量入队 IndexTopicArgs。
 	reindexManager := search.NewReindexManager(forumStore, search.NewPostgresReindexStore(pool), jobDispatcher)
@@ -892,13 +893,13 @@ func wireAPICoreStack(ctx context.Context, cfg config.Config, logger *slog.Logge
 	entityMetaService := entitymeta.NewService(entityMetaStore).WithPublisher(eventPublisher)
 	entityMetaProvider := providers.NewEntityMetaProvider(entityMetaService, identityStore, authSessions)
 
-	// Readiness：PG 必检；Redis/Meili 失败记 degraded 仍 ready（见 Support/Health）。
+	// Readiness：PG 必检；Redis 失败记 degraded 仍 ready。
+	// Meilisearch 已拆为可选 search.provider 插件，不再作为 core readiness 组件。
 	// F4.3：合并 system.health.checks 贡献（不调用插件 RPC）。
 	readyEvaluate := func(ctx context.Context) health.ReadyReport {
 		return health.EvaluateWithExtensionContributions(ctx, []health.Checker{
 			health.PostgresChecker{Pool: pool},
 			health.RedisChecker{Client: sharedRedisClient},
-			health.MeiliChecker{Client: meiliClient},
 		}, extensionService, extensionRuntime)
 	}
 	extensionGuardPolicy := extensions.NewGuardPolicyCatalog(

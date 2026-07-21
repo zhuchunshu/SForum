@@ -281,6 +281,21 @@ func (fakeBootstrapExtensionRuntime) StorageSignedURL(context.Context, string, e
 func (fakeBootstrapExtensionRuntime) StorageProbe(context.Context, string, extensionsruntime.StorageProbeRequest) (extensionsruntime.StorageProbeResponse, error) {
 	return extensionsruntime.StorageProbeResponse{}, nil
 }
+func (fakeBootstrapExtensionRuntime) SearchEngineProbe(context.Context, string, extensionsruntime.SearchEngineProbeRequest) (extensionsruntime.SearchEngineProbeResponse, error) {
+	return extensionsruntime.SearchEngineProbeResponse{}, nil
+}
+func (fakeBootstrapExtensionRuntime) SearchEngineEnsure(context.Context, string) (extensionsruntime.SearchEngineResult, error) {
+	return extensionsruntime.SearchEngineResult{}, nil
+}
+func (fakeBootstrapExtensionRuntime) SearchEngineIndex(context.Context, string, extensionsruntime.SearchEngineIndexRequest) (extensionsruntime.SearchEngineResult, error) {
+	return extensionsruntime.SearchEngineResult{}, nil
+}
+func (fakeBootstrapExtensionRuntime) SearchEngineDelete(context.Context, string, extensionsruntime.SearchEngineDeleteRequest) (extensionsruntime.SearchEngineResult, error) {
+	return extensionsruntime.SearchEngineResult{}, nil
+}
+func (fakeBootstrapExtensionRuntime) SearchEngineSearch(context.Context, string, extensionsruntime.SearchEngineSearchRequest) (extensionsruntime.SearchEngineSearchResponse, error) {
+	return extensionsruntime.SearchEngineSearchResponse{}, nil
+}
 
 func TestNewHumanVerifyServiceEnablesAltchaProvider(t *testing.T) {
 	service, err := newHumanVerifyService(config.Config{

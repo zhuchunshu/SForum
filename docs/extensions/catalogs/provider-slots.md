@@ -26,7 +26,7 @@ Callable transport exists (see wire RPCs).
 | Slot | Notes |
 | --- | --- |
 | `mail.provider` | Outbound mail transport (e.g. built-in sforum.smtp). Implies net.outbound when selected as a plugin provider. |
-| `search.provider` | Full-text search backend. Core ships Meilisearch; slot reserved for future plugin drivers. |
+| `search.provider` | Full-text search engine transport. Core owns documents/ACL/jobs and the default in-process site engine (sforum.search-site, protected builtin). Optional engines (e.g. sforum.search-meilisearch) implement the same slot. |
 | `attachment.storage.provider` | Object storage for attachments. Core keeps local (and existing OSS/COS/FTP/SFTP) drivers; plugins may implement the slot (E6, selection plugin:<extensionId>). See decision 2026-07-12-attachment-storage-plugin-provider. |
 | `human_verification.provider` | Human verification / CAPTCHA-style checks (core Altcha default). |
 | `auth.risk.provider` | Login/registration risk signals (core default). |

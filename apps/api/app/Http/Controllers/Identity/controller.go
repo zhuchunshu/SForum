@@ -943,6 +943,31 @@ func (h *Controller) adminRevokeUserSessions(c fiber.Ctx) error {
 	return apphttp.OK(c, map[string]any{"revoked": count})
 }
 
+// adminSetUserPassword 管理员直接设置目标用户密码。
+// 权限：user.manage；目标 super_admin 仅 super_admin 可操作。
+// 成功后递增 token version 并撤销全部活跃会话（与公开密码重置一致）。
+func (h *Controller) adminSetUserPassword(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	targetUserID, err := paramInt64(c, "userID")
+	if err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+	var input struct {
+		Password string `json:"password"`
+	}
+	if err := c.Bind().Body(&input); err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+	result, err := h.service.AdminSetUserPassword(c.Context(), actor, targetUserID, input.Password)
+	if err != nil {
+		return mapIdentityError(err)
+	}
+	return apphttp.OK(c, result)
+}
+
 // adminClearUserClientIPs 管理员清空目标用户相关真实客户端 IP（隐私合规）。
 // 权限：user.manage。删号/封禁产品化后应在状态变更路径内自动调用。
 func (h *Controller) adminClearUserClientIPs(c fiber.Ctx) error {

@@ -11,7 +11,7 @@ import (
 // 仅控制「产品面是否开启」，不授予任何操作权限。
 
 const (
-	// NameFeatureSearch 公开搜索入口与搜索 API 产品开关（Meilisearch 仍可运维）。
+	// NameFeatureSearch 公开搜索入口与搜索 API 产品开关（引擎由 search.provider 提供）。
 	NameFeatureSearch = "features.search"
 	// NameFeatureRegistration 开放注册产品面（与 identity.registration.* 策略配合）。
 	NameFeatureRegistration = "features.registration"

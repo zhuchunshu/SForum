@@ -25,8 +25,8 @@ type TopicPageSizeResolver interface {
 	TopicPageSize(ctx context.Context) (int, error)
 }
 
-// TopicSearchDoc 是写入 Meilisearch 的主题文档结构。字段与 forum.TopicSummary 对齐，
-// 但独立声明以解耦。tagSlugs 用数组供 Meilisearch 过滤。
+// TopicSearchDoc 是写入搜索引擎的主题文档结构。字段与 forum.TopicSummary 对齐，
+// 但独立声明以解耦。tagSlugs 用数组供引擎侧过滤。
 type TopicSearchDoc struct {
 	ID                int64     `json:"id"`
 	Title             string    `json:"title"`

@@ -217,7 +217,7 @@ func (h *Controller) topics(c fiber.Ctx) error {
 	return apphttp.OK(c, list)
 }
 
-// search 提供基于 Meilisearch 的主题全文检索。
+// search 提供主题全文检索（search.provider；默认站内 PostgreSQL 引擎）。
 // 关键词检索已从 topics 列表迁移到此专用端点，避免 ILIKE 全表扫描。
 func (h *Controller) search(c fiber.Ctx) error {
 	if err := h.requireGuestRead(c); err != nil {
@@ -507,6 +507,8 @@ func mapForumError(err error) error {
 	switch {
 	case errors.As(err, &rejected):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, rejected.Reason)
+	case errors.Is(err, ErrSearchUnavailable):
+		return fiber.NewError(fiber.StatusServiceUnavailable, "forum.search_unavailable")
 	case errors.Is(err, identity.ErrPermissionDenied):
 		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
 	case errors.Is(err, forum.ErrInvalidContent):
@@ -568,12 +570,13 @@ func mapForumError(err error) error {
 	}
 }
 
-// reindex 相关 sentinel error。controller 不依赖 search 包，
+// reindex / search 相关 sentinel error。controller 不依赖 search 包，
 // 由 bootstrap adapter 将 search 错误转换为这些 controller 级别错误。
 // 导出以便 bootstrap adapter 通过 errors.Is 引用。
 var (
-	ErrReindexRunning = errors.New("forum: reindex already running")
-	ErrReindexNoRun   = errors.New("forum: no reindex run")
+	ErrReindexRunning     = errors.New("forum: reindex already running")
+	ErrReindexNoRun       = errors.New("forum: no reindex run")
+	ErrSearchUnavailable  = errors.New("forum: search engine unavailable")
 )
 
 // mapReindexError 将 reindex 错误映射为 HTTP 响应。

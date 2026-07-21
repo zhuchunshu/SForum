@@ -152,8 +152,8 @@ func TestDockerBuildsProtectedBuiltinBackendsAndValidatesV3Digest(t *testing.T) 
 	}
 	text := string(body)
 	const linuxBuild = "CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -o plugin ."
-	if count := strings.Count(text, linuxBuild); count < 3 {
-		t.Errorf("Dockerfile builds only %d protected builtin Linux backends, want at least 3", count)
+	if count := strings.Count(text, linuxBuild); count < 4 {
+		t.Errorf("Dockerfile builds only %d protected builtin Linux backends, want at least 4", count)
 	}
 	const builtinCopy = "COPY --from=build --chown=sforum:sforum /app/extensions/builtin /app/extensions/builtin"
 	if count := strings.Count(text, builtinCopy); count != 2 {
@@ -163,7 +163,8 @@ func TestDockerBuildsProtectedBuiltinBackendsAndValidatesV3Digest(t *testing.T) 
 		"cd /app/extensions/builtin/plugins/sforum-smtp/backend",
 		"cd /app/extensions/builtin/plugins/sforum-content-policy/backend",
 		"cd /app/extensions/builtin/plugins/sforum-storage-fs/backend",
-		// 三个受保护插件均需 digest --write + extension test，避免 Linux 镜像摘要漂移。
+		"cd /app/extensions/builtin/plugins/sforum-search-site/backend",
+		// 受保护插件均需 digest --write + extension test，避免 Linux 镜像摘要漂移。
 		"extension digest --write /app/extensions/builtin/plugins/sforum-smtp",
 		"extension test /app/extensions/builtin/plugins/sforum-smtp",
 		"extension digest --write /app/extensions/builtin/plugins/sforum-content-policy",
@@ -171,6 +172,8 @@ func TestDockerBuildsProtectedBuiltinBackendsAndValidatesV3Digest(t *testing.T) 
 		"extension test /app/extensions/builtin/plugins/sforum-content-policy",
 		"extension digest --write /app/extensions/builtin/plugins/sforum-storage-fs",
 		"extension test /app/extensions/builtin/plugins/sforum-storage-fs",
+		"extension digest --write /app/extensions/builtin/plugins/sforum-search-site",
+		"extension test /app/extensions/builtin/plugins/sforum-search-site",
 	} {
 		if !strings.Contains(text, required) {
 			t.Errorf("Dockerfile is missing protected builtin Linux package gate %q", required)

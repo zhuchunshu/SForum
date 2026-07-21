@@ -2,60 +2,56 @@ package search
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
-	"strconv"
 	"strings"
-
-	"github.com/meilisearch/meilisearch-go"
 
 	searchjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Search"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 )
 
-// Indexer 协调 forum 写流程、River worker 与 Meilisearch 三者：
+// EngineGate 可选：在入队前用轻量检查（如 DB 选择）判断是否应调度索引 job。
+// 未实现时回退到类型断言 UnavailableEngine。
+type EngineGate interface {
+	Enabled(ctx context.Context) bool
+}
+
+// Indexer 协调 forum 写流程、River worker 与搜索引擎三者：
 //   - EnqueueIndex/EnqueueDelete：forum.Service 在主题写流程调用，经 dispatcher
 //     异步入队 IndexTopicArgs/DeleteTopicArgs（事务外，失败只记日志）。
-//   - IndexTopic/DeleteTopic：River worker 实际执行，读写 Meilisearch。
+//   - IndexTopic/DeleteTopic：River worker 实际执行，读写 Engine。
 //
-// indexer 同时实现 searchjobs.TopicIndexer（IndexTopic/DeleteTopic）与
-// forum.TopicSearchIndexer（EnqueueIndex/EnqueueDelete）两个接口。
+// 无可用引擎时入队 no-op，避免堆积无用 job；worker 侧再次容忍 ErrEngineUnavailable。
 type Indexer struct {
-	client     meilisearch.ServiceManager
+	engine     Engine
 	reader     TopicReader
 	dispatcher *supportjobs.Dispatcher
 }
 
-func NewIndexer(client meilisearch.ServiceManager, reader TopicReader, dispatcher *supportjobs.Dispatcher) *Indexer {
-	return &Indexer{client: client, reader: reader, dispatcher: dispatcher}
+func NewIndexer(engine Engine, reader TopicReader, dispatcher *supportjobs.Dispatcher) *Indexer {
+	if engine == nil {
+		engine = UnavailableEngine{}
+	}
+	return &Indexer{engine: engine, reader: reader, dispatcher: dispatcher}
 }
 
-// EnsureIndex 幂等地创建主题索引并应用检索/过滤/排序设置。
-// 在 worker 启动时调用；索引已存在时仅更新设置。
-func EnsureIndex(ctx context.Context, client meilisearch.ServiceManager) error {
-	index := client.Index(IndexUID)
-	// CreateIndex 在索引已存在时返回非 nil error，忽略它即可；这里不依赖返回值。
-	_, _ = client.CreateIndex(&meilisearch.IndexConfig{Uid: IndexUID, PrimaryKey: "id"})
-
-	// 应用检索/过滤/排序配置。UpdateSettings 是异步任务，这里只触发不等完成。
-	_, err := index.UpdateSettings(&meilisearch.Settings{
-		SearchableAttributes: []string{"title", "plainText", "excerpt"},
-		FilterableAttributes: []string{"categorySlug", "tagSlugs", "status"},
-		SortableAttributes:   []string{"lastActivityAt", "isPinned", "createdAt"},
-		// 排序规则：置顶优先 + 最新活跃优先（与 PG 列表索引行为一致）。
-		// Meilisearch 的 words/terms/custom 排序默认已合理，这里保留默认。
-	})
-	if err != nil {
-		return fmt.Errorf("apply index settings: %w", err)
+// EnsureIndex 委托引擎幂等建索引。
+func (i *Indexer) EnsureIndex(ctx context.Context) error {
+	if i == nil || i.engine == nil {
+		return ErrEngineUnavailable
 	}
-	return nil
+	return i.engine.EnsureIndex(ctx)
 }
 
 // --- forum.TopicSearchIndexer 实现 ---
 
-// EnqueueIndex 调度重新索引指定主题（异步）。
+// EnqueueIndex 调度重新索引指定主题（异步）。无引擎时直接返回 nil。
 func (i *Indexer) EnqueueIndex(ctx context.Context, topicID int64) error {
-	if i.dispatcher == nil {
+	if i == nil || i.dispatcher == nil {
+		return nil
+	}
+	if !i.engineEnabled(ctx) {
 		return nil
 	}
 	args := searchjobs.IndexTopicArgs{TopicID: topicID}
@@ -63,9 +59,12 @@ func (i *Indexer) EnqueueIndex(ctx context.Context, topicID int64) error {
 	return err
 }
 
-// EnqueueDelete 调度从索引移除指定主题（异步）。
+// EnqueueDelete 调度从索引移除指定主题（异步）。无引擎时直接返回 nil。
 func (i *Indexer) EnqueueDelete(ctx context.Context, topicID int64) error {
-	if i.dispatcher == nil {
+	if i == nil || i.dispatcher == nil {
+		return nil
+	}
+	if !i.engineEnabled(ctx) {
 		return nil
 	}
 	args := searchjobs.DeleteTopicArgs{TopicID: topicID}
@@ -73,11 +72,27 @@ func (i *Indexer) EnqueueDelete(ctx context.Context, topicID int64) error {
 	return err
 }
 
+func (i *Indexer) engineEnabled(ctx context.Context) bool {
+	if i == nil || i.engine == nil {
+		return false
+	}
+	if gate, ok := i.engine.(EngineGate); ok {
+		return gate.Enabled(ctx)
+	}
+	if _, unavailable := i.engine.(UnavailableEngine); unavailable {
+		return false
+	}
+	return true
+}
+
 // --- searchjobs.TopicIndexer 实现（worker 执行） ---
 
-// IndexTopic 从 forum 读取主题详情并 upsert 到 Meilisearch。
+// IndexTopic 从 forum 读取主题详情并 upsert 到引擎。
 func (i *Indexer) IndexTopic(ctx context.Context, topicID int64) error {
-	if i.reader == nil || i.client == nil {
+	if i == nil || !i.engineEnabled(ctx) {
+		return nil
+	}
+	if i.reader == nil {
 		return fmt.Errorf("search indexer not fully configured")
 	}
 	doc, err := i.reader.GetTopicForSearch(ctx, topicID)
@@ -88,22 +103,26 @@ func (i *Indexer) IndexTopic(ctx context.Context, topicID int64) error {
 		}
 		return err
 	}
-	_, err = i.client.Index(IndexUID).AddDocumentsWithContext(ctx, []TopicSearchDoc{doc}, nil)
-	if err != nil {
-		return fmt.Errorf("upsert topic %d to meilisearch: %w", topicID, err)
+	if err := i.engine.Index(ctx, doc); err != nil {
+		if errors.Is(err, ErrEngineUnavailable) {
+			return nil
+		}
+		return fmt.Errorf("upsert topic %d to search engine: %w", topicID, err)
 	}
 	slog.InfoContext(ctx, "search: indexed topic", "topicId", topicID)
 	return nil
 }
 
-// DeleteTopic 从 Meilisearch 删除主题文档。
+// DeleteTopic 从引擎删除主题文档。
 func (i *Indexer) DeleteTopic(ctx context.Context, topicID int64) error {
-	if i.client == nil {
-		return fmt.Errorf("search client not configured")
+	if i == nil || !i.engineEnabled(ctx) {
+		return nil
 	}
-	_, err := i.client.Index(IndexUID).DeleteDocument(strconv.FormatInt(topicID, 10), nil)
-	if err != nil {
-		return fmt.Errorf("delete topic %d from meilisearch: %w", topicID, err)
+	if err := i.engine.Delete(ctx, topicID); err != nil {
+		if errors.Is(err, ErrEngineUnavailable) {
+			return nil
+		}
+		return fmt.Errorf("delete topic %d from search engine: %w", topicID, err)
 	}
 	slog.InfoContext(ctx, "search: deleted topic index", "topicId", topicID)
 	return nil

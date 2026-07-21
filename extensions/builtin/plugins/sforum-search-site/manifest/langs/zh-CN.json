@@ -1,0 +1,4 @@
+{
+  "extension.name": "站内搜索",
+  "extension.description": "默认全文搜索（PostgreSQL）。受保护内置，不可卸载。"
+}

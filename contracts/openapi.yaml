@@ -229,6 +229,8 @@ paths:
     "$ref": "./openapi/paths/identity.yaml#/userRoles"
   "/users/{userID}/permission-overrides":
     "$ref": "./openapi/paths/identity.yaml#/userPermissionOverrides"
+  "/users/{userID}/password":
+    "$ref": "./openapi/paths/identity.yaml#/adminUserSetPassword"
   "/users/{userID}/sessions/revoke":
     "$ref": "./openapi/paths/identity.yaml#/adminUserRevokeSessions"
   "/users/{userID}/client-ips/clear":

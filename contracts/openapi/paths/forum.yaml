@@ -53,11 +53,11 @@ composerToolbar:
         description: Authentication required.
 search:
   get:
-    summary: Search topics by keyword (Meilisearch-backed)
+    summary: Search topics by keyword (search.provider engine)
     description: |
-      基于 Meilisearch 的主题全文检索，支持 categorySlug/tagSlug 过滤。
+      主题全文检索（search.provider；默认受保护站内搜索 PostgreSQL FTS），支持 categorySlug/tagSlug 过滤。
       仅返回 active/locked 公开主题。关键词检索已从 GET /topics 迁移至此端点，
-      以避免 PostgreSQL ILIKE 在千万级数据下的全表扫描。
+      以避免 PostgreSQL ILIKE 在千万级数据下的全表扫描。可选 Meilisearch 等外部引擎需安装插件并切换槽位。
     operationId: searchTopics
     parameters:
     - name: query
@@ -92,7 +92,7 @@ search:
             schema:
               "$ref": "../schemas/forum.yaml#/ApiResponseSearchOutput"
       '503':
-        description: 搜索服务不可用（Meilisearch 未配置或不可达）。
+        description: 搜索服务不可用（选中的外部引擎不可达等）。默认站内引擎通常可用。
 topics:
   get:
     summary: List public topics
@@ -418,7 +418,7 @@ adminForumSearchReindex:
   post:
     summary: Trigger a full search index rebuild
     description: |
-      扫描所有可公开索引的主题，批量入队 search.index_topic job 重建 Meilisearch 索引。
+      扫描所有可公开索引的主题，批量入队 search.index_topic job 重建搜索引擎索引。
       同一时刻只允许一个 running run，并发触发返回 409。需 search.manage 权限。
     operationId: adminReindexSearch
     responses:

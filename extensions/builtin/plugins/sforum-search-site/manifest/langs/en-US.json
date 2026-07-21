@@ -1,0 +1,4 @@
+{
+  "extension.name": "Site Search",
+  "extension.description": "Default full-text search (PostgreSQL). Protected built-in; cannot be uninstalled."
+}

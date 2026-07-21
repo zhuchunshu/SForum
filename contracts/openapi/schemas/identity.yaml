@@ -832,6 +832,26 @@ ApiResponseRevokeOthers:
         revoked:
           type: integer
           description: Number of other sessions that were revoked.
+ApiResponseAdminSetUserPassword:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      type: object
+      required:
+      - revokedSessions
+      properties:
+        revokedSessions:
+          type: integer
+          description: Number of active sessions revoked after the password change.
+          minimum: 0
 APIToken:
   type: object
   required: [id, publicId, name, scopes, prefix, createdAt]

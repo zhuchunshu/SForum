@@ -261,6 +261,18 @@ func (s *controllerExecutableTrustStore) ConsumeChallenge(_ context.Context, inp
 	return extensions.TrustGrant{ID: 1, ImpactDigest: input.Identity.ImpactDigest}, nil
 }
 
+func (s *controllerExecutableTrustStore) EnsureLiveGrant(_ context.Context, input extensions.TrustEnsureGrantInput) (extensions.TrustGrant, error) {
+	if s.granted == nil {
+		s.granted = map[extensions.TrustIdentity]bool{}
+	}
+	s.granted[input.Identity] = true
+	return extensions.TrustGrant{
+		ID: 1, ExtensionID: input.Identity.ExtensionID, ExtensionVersion: input.Identity.ExtensionVersion,
+		PackageDigest: input.Identity.PackageDigest, Action: input.Identity.Action,
+		ImpactDigest: input.Identity.ImpactDigest, GrantedByUserID: input.ActorUserID,
+	}, nil
+}
+
 func (s *controllerExecutableTrustStore) RevokeAll(_ context.Context, extensionID string, _ int64, _ string) error {
 	for identity := range s.granted {
 		if identity.ExtensionID == extensionID {

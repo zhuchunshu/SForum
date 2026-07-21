@@ -51,6 +51,8 @@ type extensionRuntime interface {
 	SendMail(ctx context.Context, extensionID string, request extensionsruntime.MailProviderRequest) (extensionsruntime.MailProviderResponse, error)
 	// 附件存储槽 RPC（E6.2）；与 StorageRuntime 对齐。
 	extensionsruntime.StorageRuntime
+	// 搜索引擎槽 RPC（search.provider）；与 SearchRuntime 对齐。
+	extensionsruntime.SearchRuntime
 	protocolV2ProviderBrokerSource
 }
 

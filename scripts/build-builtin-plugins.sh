@@ -67,6 +67,11 @@ build_builtin_plugin "sforum.storage-fs" \
 refresh_v3_plugin_digest \
   "$STAGING_ROOT/plugins/sforum-storage-fs"
 
+build_builtin_plugin "sforum.search-site" \
+  "$STAGING_ROOT/plugins/sforum-search-site/backend"
+refresh_v3_plugin_digest \
+  "$STAGING_ROOT/plugins/sforum-search-site"
+
 write_air_env
 
 echo "Built-in plugins staged at: $STAGING_ROOT"

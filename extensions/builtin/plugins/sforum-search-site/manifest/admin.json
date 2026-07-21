@@ -1,0 +1,11 @@
+{
+  "entry": "/settings",
+  "pages": [
+    {
+      "path": "/settings",
+      "label": "Site Search Settings",
+      "view": "settings",
+      "menu": false
+    }
+  ]
+}

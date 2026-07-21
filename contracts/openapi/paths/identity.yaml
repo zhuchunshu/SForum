@@ -597,6 +597,57 @@ userPermissionOverrides:
         "$ref": "../components/responses.yaml#/Conflict"
       '422':
         "$ref": "../components/responses.yaml#/UnprocessableEntity"
+adminUserSetPassword:
+  post:
+    summary: Admin set a user's password
+    description: |
+      Requires `user.manage`. Directly sets a new password for the target user
+      after validating the site password policy. Operators may reset their own
+      password. Targets with the `super_admin` role can only be reset by another
+      `super_admin` (same boundary as session revoke / role replacement).
+      On success the host increments the user's token version and revokes every
+      active session (same side effects as public password-reset confirmation).
+      The request body must never be logged; the response never echoes the password.
+    operationId: adminSetUserPassword
+    parameters:
+    - "$ref": "../components/parameters.yaml#/UserID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - password
+            properties:
+              password:
+                type: string
+                format: password
+                minLength: 1
+                description: New password; must meet the configured identity.password policy.
+    responses:
+      '200':
+        description: Password updated; active sessions revoked.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseAdminSetUserPassword"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        description: Missing user.manage, or non-super_admin targeting a super_admin.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        description: Password fails policy (reason auth.register_invalid with field messages).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
 adminUserRevokeSessions:
   post:
     summary: Admin force-revoke all of a user's devices

@@ -54,7 +54,7 @@ func AppendExtensionHealthComponents(
 			// 默认组件名：extension.<id>.health.<contributionId>
 			name = "extension." + contribution.ExtensionID + "." + contribution.ID
 		}
-		// 避免覆盖 core 组件名（postgres/redis/meilisearch）。
+		// 避免覆盖 core 组件名（postgres/redis）。
 		if _, clash := seenNames[name]; clash {
 			name = "extension." + contribution.ExtensionID + "." + name
 		}

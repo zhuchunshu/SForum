@@ -20,7 +20,7 @@ type Service struct {
 	topicSurfaces     TopicExtensionSurfaceProvider
 	composerToolbar   ComposerToolbarProvider
 	publicationPolicy PublicationPolicy
-	// indexer 触发 Meilisearch 索引调度；nil 表示不索引（搜索为派生数据，可重建）。
+	// indexer 触发搜索引擎索引调度；nil 表示不索引（搜索为派生数据，可重建）。
 	indexer TopicSearchIndexer
 	// trust 可选新人信任阶梯；nil 时不叠加新人限制。
 	trust TrustPolicyResolver
@@ -138,7 +138,7 @@ func (s *Service) ListAuthorReviewItems(ctx context.Context, actor identity.Acto
 	return list, nil
 }
 
-// indexTopic 在主题写流程成功后触发 Meilisearch 索引调度。
+// indexTopic 在主题写流程成功后触发搜索引擎索引调度。
 // 失败只记日志不中断主流程：搜索是可从 PG 重建的派生数据。
 func (s *Service) indexTopic(ctx context.Context, topicID int64) {
 	if s.indexer == nil || topicID <= 0 {
@@ -149,7 +149,7 @@ func (s *Service) indexTopic(ctx context.Context, topicID int64) {
 	}
 }
 
-// deleteTopicIndex 在主题删除/隐藏后触发 Meilisearch 删除调度。
+// deleteTopicIndex 在主题删除/隐藏后触发搜索引擎删除调度。
 func (s *Service) deleteTopicIndex(ctx context.Context, topicID int64) {
 	if s.indexer == nil || topicID <= 0 {
 		return

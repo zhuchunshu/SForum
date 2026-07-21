@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/meilisearch/meilisearch-go"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -37,23 +36,6 @@ func (c RedisChecker) Check(ctx context.Context) error {
 		return fmt.Errorf("redis client is nil")
 	}
 	return c.Client.Ping(ctx).Err()
-}
-
-// MeiliChecker 非必检（F1：degraded-ready）。搜索失败不影响主论坛读写。
-type MeiliChecker struct {
-	Client meilisearch.ServiceManager
-}
-
-func (c MeiliChecker) Name() string   { return "meilisearch" }
-func (c MeiliChecker) Required() bool { return false }
-
-func (c MeiliChecker) Check(ctx context.Context) error {
-	if c.Client == nil {
-		return fmt.Errorf("meilisearch client is nil")
-	}
-	// HealthWithContext 在不可达时返回 error。
-	_, err := c.Client.HealthWithContext(ctx)
-	return err
 }
 
 // FuncChecker 便于单测注入。

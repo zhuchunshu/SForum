@@ -293,6 +293,49 @@ func (s *ExecutableTrustService) ConfirmEnable(ctx context.Context, actor identi
 	return err
 }
 
+// EnsureCompatibilityGrant 供 V3 trust challenge 关闭时的 v1 启用路径使用：
+// super_admin 已通过 confirmCapabilities 后，为 protocol v2 子进程写入 exact live grant。
+// 已有 live grant 时幂等返回。builtin / 非可执行扩展直接放行。
+func (s *ExecutableTrustService) EnsureCompatibilityGrant(
+	ctx context.Context,
+	actor identity.Actor,
+	extension Extension,
+) error {
+	if !RequiresExecutableTrust(extension) {
+		return nil
+	}
+	if !actor.IsSuperAdmin() {
+		return identity.ErrPermissionDenied
+	}
+	if s == nil || s.store == nil {
+		return ErrTrustGrantNotFound
+	}
+	impact, err := buildTrustImpact(extension, TrustActionEnable)
+	if err != nil {
+		return err
+	}
+	identityKey := trustIdentity(impact)
+	granted, err := s.store.HasLiveGrant(ctx, identityKey)
+	if err != nil {
+		return err
+	}
+	if granted {
+		return nil
+	}
+	grant, err := s.store.EnsureLiveGrant(ctx, TrustEnsureGrantInput{
+		ActorUserID: actor.ID, Identity: identityKey,
+		ArtifactDigests: impact.ArtifactDigests, Impact: impact,
+	})
+	if err != nil {
+		s.appendAudit(ctx, actor, audit.ActionExtensionTrustDenied, impact, err)
+		return err
+	}
+	if grant.created {
+		s.appendAudit(ctx, actor, audit.ActionExtensionTrustGrant, impact, nil)
+	}
+	return nil
+}
+
 func (s *ExecutableTrustService) confirmEnable(
 	ctx context.Context,
 	actor identity.Actor,

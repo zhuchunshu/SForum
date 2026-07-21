@@ -206,5 +206,16 @@ type ExecutableTrustStore interface {
 	HasLiveGrant(context.Context, TrustIdentity) (bool, error)
 	LiveGrant(context.Context, TrustIdentity) (TrustGrant, error)
 	ConsumeChallenge(context.Context, TrustConsumeInput) (TrustGrant, error)
+	// EnsureLiveGrant 在 V3 challenge 关闭时写入 exact live grant（幂等）。
+	// impactJSON/artifactJSON 必须是已序列化的 impact 文档与制品摘要。
+	EnsureLiveGrant(context.Context, TrustEnsureGrantInput) (TrustGrant, error)
 	RevokeAll(context.Context, string, int64, string) error
+}
+
+// TrustEnsureGrantInput 是 V1 兼容路径创建 exact live grant 的入参。
+type TrustEnsureGrantInput struct {
+	ActorUserID     int64
+	Identity        TrustIdentity
+	ArtifactDigests map[string]string
+	Impact          TrustImpact
 }

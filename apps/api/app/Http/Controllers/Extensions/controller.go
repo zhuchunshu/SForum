@@ -908,6 +908,13 @@ func mapExtensionError(err error) error {
 		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodeRuntimeUnavailable)
 	case errors.Is(err, extensions.ErrRuntimeFailed):
 		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodeRuntimeFailed)
+	case errors.Is(err, extensions.ErrPluginRuntimePublicationConflict),
+		errors.Is(err, extensions.ErrPluginRuntimePublicationNotFound),
+		errors.Is(err, extensions.ErrPluginRuntimeAckConflict),
+		errors.Is(err, extensions.ErrPluginRuntimeNodeLeaseLost):
+		return fiber.NewError(fiber.StatusConflict, extensions.CodePluginRuntimeConflict)
+	case errors.Is(err, extensions.ErrTrustGrantNotFound):
+		return fiber.NewError(fiber.StatusConflict, extensions.CodeTrustChallengeRequired)
 	case errors.Is(err, extensions.ErrCapabilityConfirmationRequired):
 		return fiber.NewError(fiber.StatusConflict, extensions.CodeCapabilityConfirmationRequired)
 	case errors.Is(err, extensions.ErrTrustChallengeRequired):

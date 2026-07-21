@@ -34,7 +34,7 @@ knowledge base, and tests.
   - `app/Providers/` — provider wiring (mail provider slot, attachment
     storage adapters, search, cache, etc.).
   - `app/Support/` — cross-cutting infra: `Jobs` (River durable queue),
-    `Search` (Meilisearch), `Cache` (Redis CachedStore decorator).
+    `Search` (host framework + site PG FTS; optional Meili plugin), `Cache` (Redis CachedStore decorator).
   - `database/` — `migrations/` (Goose SQL), `migrator/` (shared embedded
     migrator), `queries/` + `sqlc/` (sqlc-generated code; config in
     `sqlc.yaml`).
@@ -59,7 +59,7 @@ knowledge base, and tests.
   running dev servers.
 - `scripts/` — dev/test orchestration shell scripts (see Commands below).
 - `docs/`, `deploy/`, `compose*.yaml`, `deploy.sh` — deployment and ops.
-- Runtime deps via Compose: PostgreSQL, Redis, Meilisearch, Mailpit.
+- Runtime deps via Compose: PostgreSQL, Redis, Mailpit (Meilisearch optional via `--profile search`).
 
 ## Commands
 
@@ -71,7 +71,7 @@ Development (the user runs `apps/web` dev server manually on port 3000 — do
 not kill it):
 
 - `./scripts/dev.sh` — start only dev dependencies (PostgreSQL, Redis,
-  Meilisearch, Mailpit) via Compose and run migrations. `--build` rebuilds,
+  Mailpit; Meilisearch only with compose profile `search`) via Compose and run migrations. `--build` rebuilds,
   `--no-migrate` skips migrations. Stops old Compose-managed frontend/backend
   containers first.
 - `cd apps/web && bun run dev` — plain Nuxt dev. Public themes use Page
@@ -368,7 +368,7 @@ Recommended handoff format:
   extension (plugin/theme), SEO, mail, moderation, and search systems. See
   `knowledge/index.md` for the authoritative, frequently-updated status.
 - Stack is decided and in place: Nuxt 4/Vue 3/Nuxt UI/Bun frontend; Go Fiber
-  v3, PostgreSQL, Redis, Meilisearch backend; River durable queue; Goose
+  v3, PostgreSQL, Redis backend (Meilisearch optional plugin); River durable queue; Goose
   migrations; sqlc; Redis-backed server sessions.
 - The user manually starts the `apps/web` dev server (port 3000) during
   development. When port 3000 is occupied, assume it is the user's own

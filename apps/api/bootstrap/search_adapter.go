@@ -11,9 +11,9 @@ import (
 	forumcontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Forum"
 	searchjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Search"
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
+	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	search "github.com/zhuchunshu/sforum/apps/api/app/Support/Search"
-	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
 // forumSearchReader 把 forum.Service 适配为 search.TopicReader。
@@ -147,6 +147,9 @@ func (a searchServiceAdapter) Search(ctx context.Context, input forumcontroller.
 		PerPage:      input.PerPage,
 	})
 	if err != nil {
+		if errors.Is(err, search.ErrEngineUnavailable) {
+			return forumcontroller.SearchOutput{}, forumcontroller.ErrSearchUnavailable
+		}
 		return forumcontroller.SearchOutput{}, err
 	}
 	items := make([]forumcontroller.SearchItem, 0, len(res.Items))
@@ -178,16 +181,16 @@ func (a searchServiceAdapter) Search(ctx context.Context, input forumcontroller.
 }
 
 // registerSearchWorkers 在 worker 进程注册搜索索引/删除 worker。
-// indexer 需要读取主题详情：用基础 forum.Service（static settings，无 cache/indexer）
-// 作为 reader。Meilisearch client 在 worker 启动时幂等建索引。
-func registerSearchWorkers(registry *supportjobs.Registry, cfg config.Config, pool *pgxpool.Pool) {
-	meiliClient := search.NewClientWithTimeout(cfg.MeiliHost, cfg.MeiliMasterKey, cfg.MeiliTimeout)
-	// EnsureIndex 失败只告警不阻断：索引设置可由后续任务补齐。
-	if err := search.EnsureIndex(context.Background(), meiliClient); err != nil {
+// 默认站内引擎始终可用；外部引擎经 search.provider 解析。
+func registerSearchWorkers(registry *supportjobs.Registry, pool *pgxpool.Pool, searchStore extensionsruntime.SearchProviderStore, extensionRuntime extensionsruntime.SearchRuntime) {
+	searchProviders := extensionsruntime.NewSearchProviderRegistry(searchStore)
+	siteEngine := search.NewPostgresSiteEngine(pool)
+	searchEngine := extensionsruntime.NewResolvingSearchEngine(searchProviders, extensionRuntime, siteEngine)
+	// EnsureIndex 失败只告警：migration 未就绪时 worker 仍启动，任务可重试。
+	if err := searchEngine.EnsureIndex(context.Background()); err != nil && !errors.Is(err, search.ErrEngineUnavailable) {
 		slog.Warn("search: ensure index failed (worker will still start)", "err", err)
 	}
-	// reader 用基础 forum.Service：GetTopicForSearch 不依赖 settings/indexer。
 	forumService := forum.NewService(forum.NewPostgresStore(pool))
-	indexer := search.NewIndexer(meiliClient, forumSearchReader{forum: forumService}, nil)
+	indexer := search.NewIndexer(searchEngine, forumSearchReader{forum: forumService}, nil)
 	searchjobs.Register(registry, indexer)
 }

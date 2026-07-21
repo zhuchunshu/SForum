@@ -108,6 +108,33 @@ func (s *PostgresStore) RestoreMailProvider(ctx context.Context) error {
 	return err
 }
 
+// 搜索引擎槽位复用 mail_provider_selection（slot 主键），不另开表。
+// 默认无行 = 站内搜索 sforum.search-site（Host 解析层回落，不强制写行）。
+
+func (s *PostgresStore) GetSearchProviderExtension(ctx context.Context, id string) (Extension, error) {
+	return s.Get(ctx, id)
+}
+
+func (s *PostgresStore) SelectedSearchProvider(ctx context.Context) (string, error) {
+	var id string
+	err := s.pool.QueryRow(ctx, `SELECT extension_id FROM mail_provider_selection WHERE slot = 'search.provider'`).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	return id, err
+}
+
+func (s *PostgresStore) SelectSearchProvider(ctx context.Context, id string) error {
+	_, err := s.pool.Exec(ctx, `INSERT INTO mail_provider_selection (slot, extension_id) VALUES ('search.provider', $1)
+		ON CONFLICT (slot) DO UPDATE SET extension_id=EXCLUDED.extension_id, updated_at=NOW()`, id)
+	return err
+}
+
+func (s *PostgresStore) RestoreSearchProvider(ctx context.Context) error {
+	_, err := s.pool.Exec(ctx, `DELETE FROM mail_provider_selection WHERE slot = 'search.provider'`)
+	return err
+}
+
 func (s *PostgresStore) SaveInstalled(ctx context.Context, input SaveInstalledInput) (Extension, error) {
 	manifestJSON, err := json.Marshal(input.Manifest)
 	if err != nil {

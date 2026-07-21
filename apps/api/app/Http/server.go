@@ -51,7 +51,7 @@ type Dependencies struct {
 	Options         *options.Service
 	// Storage 用于分布式限流。为 nil 时 limiter 退化为进程内存限流。
 	Storage fiber.Storage
-	// Ready 为 /api/v1/ready 探测函数（PG required；Redis/Meili degraded）。
+	// Ready 为 /api/v1/ready 探测函数（PG required；Redis degraded）。
 	Ready ReadyEvaluator
 	// BearerTokens 可选：启用 Authorization: Bearer PAT（F3.4）。
 	BearerTokens BearerAuthenticator
@@ -196,7 +196,7 @@ func registerRoutes(app *fiber.App, cfg config.Config, deps Dependencies) {
 		})
 	})
 
-	// Readiness：依赖探测。PG 失败 → 503；Redis/Meili 失败 → 200 + degraded。
+	// Readiness：依赖探测。PG 失败 → 503；Redis 失败 → 200 + degraded。
 	api.Get("/ready", func(c fiber.Ctx) error {
 		report := health.ReadyReport{
 			Status:     "ready",

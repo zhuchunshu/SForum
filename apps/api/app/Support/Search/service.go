@@ -2,21 +2,22 @@ package search
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"strings"
-
-	"github.com/meilisearch/meilisearch-go"
 )
 
 // Service 提供面向公众的主题搜索查询。
-// 搜索路径完全不碰 PostgreSQL，直接查询 Meilisearch。
+// 搜索路径完全不碰 PostgreSQL，直接委托选中的 Engine。
 type Service struct {
-	client    meilisearch.ServiceManager
+	engine    Engine
 	pageSizes TopicPageSizeResolver
 }
 
-func NewService(client meilisearch.ServiceManager, pageSizes TopicPageSizeResolver) *Service {
-	return &Service{client: client, pageSizes: pageSizes}
+func NewService(engine Engine, pageSizes TopicPageSizeResolver) *Service {
+	if engine == nil {
+		engine = UnavailableEngine{}
+	}
+	return &Service{engine: engine, pageSizes: pageSizes}
 }
 
 // maxSearchPage 限制搜索的深翻页，与 forum.normalizePage 的上限保持一致语义。
@@ -39,8 +40,11 @@ func normalizeSearchPage(page, perPage, defaultPerPage int) (int, int) {
 }
 
 // Search 执行关键词检索，支持 categorySlug/tagSlug/status 过滤。
-// 仅返回 active/locked 状态的公开主题（与 forum 公开列表一致）。
+// 仅返回 active/locked 状态的公开主题（与 forum 公开列表一致；过滤由引擎侧应用）。
 func (s *Service) Search(ctx context.Context, input SearchInput) (SearchResult, error) {
+	if s == nil || s.engine == nil {
+		return SearchResult{}, ErrEngineUnavailable
+	}
 	defaultPerPage := 20
 	if input.PerPage <= 0 && s.pageSizes != nil {
 		var err error
@@ -50,47 +54,28 @@ func (s *Service) Search(ctx context.Context, input SearchInput) (SearchResult, 
 		}
 	}
 	input.Page, input.PerPage = normalizeSearchPage(input.Page, input.PerPage, defaultPerPage)
-	query := strings.TrimSpace(input.Query)
+	input.Query = strings.TrimSpace(input.Query)
+	input.CategorySlug = strings.TrimSpace(input.CategorySlug)
+	input.TagSlug = strings.TrimSpace(input.TagSlug)
 
-	// 构造 Meilisearch filter 表达式：仅公开状态 + 可选分类/标签过滤。
-	filters := []string{
-		`status IN ["active", "locked"]`,
-	}
-	if c := strings.TrimSpace(input.CategorySlug); c != "" {
-		filters = append(filters, fmt.Sprintf(`categorySlug = "%s"`, escapeFilterValue(c)))
-	}
-	if t := strings.TrimSpace(input.TagSlug); t != "" {
-		filters = append(filters, fmt.Sprintf(`tagSlugs = "%s"`, escapeFilterValue(t)))
-	}
-
-	req := &meilisearch.SearchRequest{
-		Offset: int64((input.Page - 1) * input.PerPage),
-		Limit:  int64(input.PerPage),
-		Filter: strings.Join(filters, " AND "),
-		// 置顶优先、最新活跃优先，与 PG 列表排序一致。
-		Sort: []string{"isPinned:desc", "lastActivityAt:desc"},
-	}
-
-	resp, err := s.client.Index(IndexUID).Search(query, req)
+	result, err := s.engine.Search(ctx, input)
 	if err != nil {
-		return SearchResult{}, fmt.Errorf("meilisearch search: %w", err)
+		if errors.Is(err, ErrEngineUnavailable) {
+			return SearchResult{}, ErrEngineUnavailable
+		}
+		return SearchResult{}, err
 	}
-
-	// 使用 meilisearch-go 提供的 DecodeInto 批量解码为 TopicSearchDoc 切片。
-	items := make([]TopicSearchDoc, 0, len(resp.Hits))
-	if err := resp.Hits.DecodeInto(&items); err != nil {
-		return SearchResult{}, fmt.Errorf("decode search hits: %w", err)
+	// Host 权威 ACL：过滤非公开状态，并剥离 plainText。
+	if len(result.Items) > 0 {
+		filtered := make([]TopicSearchDoc, 0, len(result.Items))
+		for _, doc := range result.Items {
+			if !IsPublicSearchStatus(doc.Status) {
+				continue
+			}
+			doc.PlainText = ""
+			filtered = append(filtered, doc)
+		}
+		result.Items = filtered
 	}
-
-	return SearchResult{
-		Items:   items,
-		Total:   resp.EstimatedTotalHits,
-		Page:    input.Page,
-		PerPage: input.PerPage,
-	}, nil
-}
-
-// escapeFilterValue 转义 Meilisearch filter 字符串值中的双引号。
-func escapeFilterValue(v string) string {
-	return strings.ReplaceAll(v, `"`, `\"`)
+	return result, nil
 }
