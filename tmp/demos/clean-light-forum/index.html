@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SForum 论坛 - 极客技术交流社区 (Clean Light Demo)</title>
+  <meta name="description" content="SForum 极客论坛首页展示 Demo，包含现代三栏式布局、分类 Filter、热门话题榜单与交互发布功能。">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 1. 顶部 Header 导航栏 -->
+  <header class="navbar">
+    <div class="navbar-container">
+      <a href="index.html" class="brand" id="nav-brand-logo">
+        <div class="brand-icon">S</div>
+        <span>SForum <span style="font-weight:400; font-size:0.85rem; color:var(--text-muted);">Showcase</span></span>
+      </a>
+
+      <!-- 搜索框 -->
+      <div class="search-box">
+        <svg class="search-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+        </svg>
+        <input type="text" class="search-input" id="search-input-field" placeholder="搜索帖子、标签或用户... (按下 / 聚焦)">
+      </div>
+
+      <!-- 右侧操作栏 -->
+      <div class="nav-actions">
+        <button class="btn btn-secondary btn-icon" id="btn-notifications" title="通知消息">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+        </button>
+        
+        <button class="btn btn-primary btn-open-modal" id="btn-create-post-header">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          发布新帖
+        </button>
+
+        <img class="avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=AdminUser" alt="User Avatar" id="user-profile-avatar" style="cursor:pointer;">
+      </div>
+    </div>
+  </header>
+
+  <!-- 2. 主体 3 栏容器 -->
+  <div class="app-container">
+
+    <!-- 2.1 左侧 Navigation Sidebar -->
+    <aside class="left-nav" id="left-sidebar-navigation">
+      <div>
+        <div class="nav-group-title">发现</div>
+        <ul class="nav-list">
+          <li class="nav-item active">
+            <a href="index.html" id="nav-item-home">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              论坛首页
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="#" id="nav-item-trending">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              热门趋势
+              <span class="badge-count">🔥 HOT</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="#" id="nav-item-following">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+              我的关注
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="#" id="nav-item-bookmarks">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+              收藏夹
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <div>
+        <div class="nav-group-title">版块分类</div>
+        <ul class="nav-list">
+          <li class="nav-item">
+            <a href="#" id="category-tech">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg>
+              技术讨论
+              <span class="badge-count">128</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="#" id="category-showcase">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/></svg>
+              作品展示
+              <span class="badge-count">45</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="#" id="category-feedback">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+              反馈建议
+              <span class="badge-count">19</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- 2.2 中央 Feed 帖子流 -->
+    <main class="feed-container" id="main-content-feed">
+      
+      <!-- 顶部分类 Filter 与 排序 Tab -->
+      <div class="filter-bar">
+        <div class="pills-group" id="category-pills-filter">
+          <button class="pill active">全部主题</button>
+          <button class="pill">技术架构</button>
+          <button class="pill">前端UI</button>
+          <button class="pill">插件开发</button>
+          <button class="pill">求助问答</button>
+        </div>
+
+        <div class="sort-tabs" id="sort-tabs-container">
+          <span class="sort-tab active">最新</span>
+          <span class="sort-tab">最热</span>
+          <span class="sort-tab">消灭零回复</span>
+        </div>
+      </div>
+
+      <!-- 帖子 1 (推荐/置顶) -->
+      <article class="card post-card" id="post-card-1">
+        <div class="post-meta">
+          <div class="author-info">
+            <img class="avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Chunshu" alt="Avatar">
+            <div>
+              <span class="author-name">Chunshu</span>
+              <span class="author-badge">核心贡献者</span>
+            </div>
+          </div>
+          <span class="post-time">20 分钟前</span>
+        </div>
+        <h2 class="post-title"><a href="post.html" id="post-title-1">SForum 插件化架构演进：如何设计低耦合的 Extension 机制？</a></h2>
+        <p class="post-excerpt">
+          在 SForum 项目的最新演进中，我们坚持 Core 为宿主框架的理念。本文详细探讨插件生命周期钩子、自定义 Route 注册表以及插件沙箱安全的架构考量...
+        </p>
+        <div class="tag-list">
+          <span class="tag">#Go</span>
+          <span class="tag">#Architecture</span>
+          <span class="tag">#PluginSystem</span>
+        </div>
+        <div class="post-footer">
+          <div class="action-group">
+            <button class="btn-vote active" id="vote-btn-post-1">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+              <span class="vote-count">42</span>
+            </button>
+            <a href="post.html#comments" class="action-item">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              18 评论
+            </a>
+            <span class="action-item btn-bookmark">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+              收藏
+            </span>
+          </div>
+          <span>浏览 1,280</span>
+        </div>
+      </article>
+
+      <!-- 帖子 2 -->
+      <article class="card post-card" id="post-card-2">
+        <div class="post-meta">
+          <div class="author-info">
+            <img class="avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=AlexDev" alt="Avatar">
+            <div>
+              <span class="author-name">AlexDev</span>
+              <span class="author-badge">LV.4 资深版友</span>
+            </div>
+          </div>
+          <span class="post-time">1 小时前</span>
+        </div>
+        <h2 class="post-title"><a href="post.html" id="post-title-2">Nuxt 4 / Vue 3 在 SSR 架构下的最佳实践与页面渲染性能优化</a></h2>
+        <p class="post-excerpt">
+          分享我们在 `@sforum/web` 中采用的 Nuxt UI 4 组件扩展方案，以及如何利用 Page Registry 做到服务端高并发渲染无延迟。
+        </p>
+        <div class="tag-list">
+          <span class="tag">#Nuxt4</span>
+          <span class="tag">#Vue3</span>
+          <span class="tag">#SSR</span>
+        </div>
+        <div class="post-footer">
+          <div class="action-group">
+            <button class="btn-vote" id="vote-btn-post-2">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+              <span class="vote-count">29</span>
+            </button>
+            <a href="post.html#comments" class="action-item">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              9 评论
+            </a>
+            <span class="action-item btn-bookmark">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+              收藏
+            </span>
+          </div>
+          <span>浏览 640</span>
+        </div>
+      </article>
+
+      <!-- 帖子 3 -->
+      <article class="card post-card" id="post-card-3">
+        <div class="post-meta">
+          <div class="author-info">
+            <img class="avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=GoMaster" alt="Avatar">
+            <div>
+              <span class="author-name">GoMaster</span>
+              <span class="author-badge">Go 专家</span>
+            </div>
+          </div>
+          <span class="post-time">3 小时前</span>
+        </div>
+        <h2 class="post-title"><a href="post.html" id="post-title-3">Go 1.25 + Fiber v3 + River durable queue 的后台任务落地总结</a></h2>
+        <p class="post-excerpt">
+          结合 PostgreSQL 异步任务队列 River 处理社区邮件通知、索引更新及全量搜索，延迟降至毫秒级...
+        </p>
+        <div class="tag-list">
+          <span class="tag">#Go1.25</span>
+          <span class="tag">#PostgreSQL</span>
+          <span class="tag">#Backend</span>
+        </div>
+        <div class="post-footer">
+          <div class="action-group">
+            <button class="btn-vote" id="vote-btn-post-3">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+              <span class="vote-count">15</span>
+            </button>
+            <a href="post.html#comments" class="action-item">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              4 评论
+            </a>
+            <span class="action-item btn-bookmark">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+              收藏
+            </span>
+          </div>
+          <span>浏览 420</span>
+        </div>
+      </article>
+
+    </main>
+
+    <!-- 2.3 右侧 Sidebar Widgets -->
+    <aside class="right-sidebar" id="right-sidebar-widgets">
+      
+      <!-- 社区公告组件 -->
+      <div class="card" id="widget-announcement">
+        <div class="widget-title">
+          <span>📢 社区公告</span>
+        </div>
+        <div class="announcement-box">
+          <strong>SForum Demo v1.0 上线！</strong>
+          <p style="margin-top:4px;">欢迎体验全新的 Clean Modern Light 清爽现代主题视觉界面。</p>
+        </div>
+      </div>
+
+      <!-- 热门标签/话题 -->
+      <div class="card" id="widget-trending-topics">
+        <div class="widget-title">
+          <span>🔥 热门话题</span>
+        </div>
+        <ul class="trending-list">
+          <li class="trending-item">
+            <span class="trending-name">#PluginArchitecture</span>
+            <span class="trending-count">342 讨论</span>
+          </li>
+          <li class="trending-item">
+            <span class="trending-name">#Nuxt4</span>
+            <span class="trending-count">219 讨论</span>
+          </li>
+          <li class="trending-item">
+            <span class="trending-name">#Go1.25</span>
+            <span class="trending-count">180 讨论</span>
+          </li>
+          <li class="trending-item">
+            <span class="trending-name">#OpenAPI</span>
+            <span class="trending-count">95 讨论</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- 社区实时数据统计 -->
+      <div class="card" id="widget-community-stats">
+        <div class="widget-title">
+          <span>📊 社区概览</span>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value">1,420</div>
+            <div class="stat-label">总主题数</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">8,950</div>
+            <div class="stat-label">总回复数</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">3,100</div>
+            <div class="stat-label">注册成员</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" style="color:var(--success);">142</div>
+            <div class="stat-label">当前在线</div>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+
+  </div>
+
+  <!-- 3. 发布新帖 交互模态框 -->
+  <div class="modal-overlay" id="newPostModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">发布新主题</h3>
+        <button class="modal-close btn-close-modal">&times;</button>
+      </div>
+      <form id="newPostForm">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">帖子标题</label>
+            <input type="text" name="title" class="form-input" placeholder="请输入简明扼要的标题..." required>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">选择分类</label>
+            <select name="category" class="form-select">
+              <option value="技术讨论">技术讨论</option>
+              <option value="作品展示">作品展示</option>
+              <option value="反馈建议">反馈建议</option>
+              <option value="求助问答">求助问答</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">帖子正文内容 (Markdown / Rich Text)</label>
+            <textarea name="content" class="form-textarea" rows="5" placeholder="分享您的观点、代码段或讨论话题..."></textarea>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-close-modal">取消</button>
+          <button type="submit" class="btn btn-primary">立即发布</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
