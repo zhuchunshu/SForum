@@ -1,5 +1,50 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
+Last updated: 2026-07-21 (LTS residual re-confirm; window closed)
+
+## Progress
+
+- Weighted **99.7%** (display **99%**). **P0–P12 complete**; P13 LTS residual only.
+- HEAD `8a717f474`. Worktree clean.
+- APILTS (UTC 2026-07-21): `CanRemoveWindow=false`, `CanRemoveWithZeroShim=false`
+  for both `sforum.protocol.v1` and `sforum.theme.l1.request-time-loader`.
+  `RemoveAfter` ≈ **2026-11-28** — **deletion policy-blocked**.
+
+## Current Subtask
+
+### LTS wait only (policy-blocked) — no early deletion
+
+- Exact next: **do not delete** LoadTemplate residual / Protocol V1 /
+  fail-closed SFPageOutlet until RemoveAfter + live zero-shim + checklist 1–7.
+- Product boundary for 100%: wait for calendar window **or** user-approved
+  LTS window change. Do not invent thin work.
+
+## Tests (this turn)
+
+- catalogs 249/150/99; OpenAPI OK
+- go test APILTS, Pages controller, Support/Pages, Extensions — EXIT 0
+- bun editorL2Load + adminRegistryCatalogs — 12 pass
+- Evidence: implementer scratch `resume-audit.txt`,
+  `final-gates/lts-residual-gates.log`
+
+## Open task-book rows
+
+1. Remove request-time template loader residual
+2. Remove Protocol V1 paths
+3. Compatibility path removal after LTS checklist
+
+## Rollback
+
+- Never delete LTS shims early.
+
+## Unowned worktree
+
+- None.
+
+---
+
+# Trusted Plugin And Theme Platform V3 Progress Ledger
+
 Last updated: 2026-07-21 (P10 phase-exit re-proof; harness plan corrected)
 
 ## Progress
