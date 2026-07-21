@@ -6,6 +6,58 @@ Last updated: 2026-07-21
 
 - Verified weighted progress: **99.7%** (display **99%**).
 - Phase counts: **P0–P12 complete (including P10 15/15)**; P13 **~99.7%**.
+- Goal harness “remaining P10” is **stale** — re-audit confirmed all five
+  P10 claims pass in code+tests.
+- Product-path residual closed this session:
+  - `4e5f969a5`…`f7670e856` EditorRegistry → forum Accept schema
+  - `b5184fec3` MediaRegistry BuildCatalog (`sforum.media-catalog@1`)
+  - `49e8bb2d8` public `GET …/media-catalog` + OpenAPI
+  - `3fb9eac29` route inventory **249**
+- 99-row matrix **99/99**; only open task-book rows are LTS deletions.
+
+## Current Subtask
+
+### 2026-07-21 media-catalog shipped — LTS wait only
+
+- Exact next: **do not delete** LoadTemplate residual / Protocol V1 /
+  fail-closed SFPageOutlet until APILTS `RemoveAfter` ≈ **2026-11-28** +
+  live zero-shim + deletion checklist 1–7.
+- Large deferred: Protocol-leased content filter, Media Plan/Execute product
+  authority, EntityStore I/O.
+
+## Tests
+
+- `go test` MediaRegistry + Extensions + Routes + Providers — EXIT 0
+- `go build ./...` — EXIT 0
+- `node tests/validate-v3-p0-catalogs.mjs` — 249 routes / 149 UI / 99 rows
+- `ruby scripts/validate-openapi-refs.rb` — EXIT 0
+
+## Open task-book rows
+
+1. Remove request-time template loader residual (instrumented; not deleted)
+2. Remove Protocol V1 paths
+3. Compatibility path removal after LTS checklist
+
+## Rollback
+
+- Revert `b5184fec3`…`3fb9eac29` for media-catalog chain.
+- Never delete LTS shims early.
+
+## Unowned worktree
+
+- None expected after commits.
+
+
+---
+
+# Trusted Plugin And Theme Platform V3 Progress Ledger
+
+Last updated: 2026-07-21
+
+## Progress
+
+- Verified weighted progress: **99.7%** (display **99%**).
+- Phase counts: **P0–P12 complete (including P10 15/15)**; P13 **~99.7%**.
 - Goal harness “remaining P10” is **stale** — do not reopen P10.
 - Product-path residual closed this session:
   - `4e5f969a5` EditorRegistry → EditorDocument schema projection
