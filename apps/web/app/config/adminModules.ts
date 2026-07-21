@@ -305,6 +305,13 @@ export const adminPageDefinitions = [
     requiredPermissions: ['extension.view']
   },
   {
+    id: '/extensions/registry-catalogs',
+    labelKey: 'admin.nav.extensionRegistryCatalogs',
+    icon: 'i-lucide-library',
+    componentName: 'AdminExtensionRegistryCatalogs',
+    requiredPermissions: ['extension.view']
+  },
+  {
     id: '/extensions/provider-slots',
     labelKey: 'admin.nav.extensionProviderSlots',
     icon: 'i-lucide-waypoints',
@@ -397,6 +404,7 @@ export const adminSidebarNavigation = [
         { type: 'page', pageId: '/extensions/template-inspector' },
         { type: 'page', pageId: '/extensions/component-inspector' },
         { type: 'page', pageId: '/extensions/navigation-inspector' },
+        { type: 'page', pageId: '/extensions/registry-catalogs' },
         { type: 'page', pageId: '/extensions/provider-slots' },
         { type: 'page', pageId: '/extensions/settings' },
         { type: 'page', pageId: '/extensions/events' },

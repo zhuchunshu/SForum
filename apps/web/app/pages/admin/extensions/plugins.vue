@@ -168,6 +168,14 @@ useSeoMeta({
         {{ t('admin.nav.extensionNavigationInspector') }}
       </UButton>
       <UButton
+        icon="i-lucide-library"
+        color="neutral"
+        variant="subtle"
+        :to="adminRoutes.path('/extensions/registry-catalogs')"
+      >
+        {{ t('admin.nav.extensionRegistryCatalogs') }}
+      </UButton>
+      <UButton
         icon="i-lucide-waypoints"
         color="neutral"
         variant="subtle"

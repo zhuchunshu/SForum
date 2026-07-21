@@ -334,7 +334,8 @@
       "entityMeta": "Custom fields",
       "extensionPages": "Page registry",
       "extensionComponentInspector": "Component inspector",
-      "extensionNavigationInspector": "Navigation inspector"
+      "extensionNavigationInspector": "Navigation inspector",
+      "extensionRegistryCatalogs": "Registry catalogs"
     },
     "avatar": {
       "metaTitle": "Avatar settings",
@@ -1378,6 +1379,38 @@
         "digest": "Graph digest",
         "traces": "Recent composition traces",
         "noTraces": "No navigation composition traces yet. Redacted traces appear after composition runs."
+      },
+      "registryCatalogs": {
+        "metaTitle": "Registry catalogs",
+        "title": "Registry catalogs",
+        "intro": "Inspect Content / Entity / Media Registry declaration projections and run entity import/export dry-runs (never executes store I/O).",
+        "back": "Back to plugins",
+        "refresh": "Refresh",
+        "refreshed": "Registry catalogs refreshed",
+        "loading": "Loading registry catalogs…",
+        "contentCount": "Content declarations",
+        "entityCount": "Entity types",
+        "mediaCount": "Media contributions",
+        "tabEntity": "Entity",
+        "tabContent": "Content",
+        "tabMedia": "Media",
+        "emptyEntity": "No entity type declarations are published.",
+        "emptyContent": "No content declarations are published.",
+        "emptyMedia": "No media policies or processors are published.",
+        "dryRunTitle": "Entity import/export dry-run",
+        "dryRunIntro": "Evaluates plan and permission only. Requires extension.view. Never writes or exports durable data.",
+        "entityId": "Entity ID",
+        "action": "Action",
+        "actionExport": "Export",
+        "actionImport": "Import",
+        "runDryRun": "Run dry-run",
+        "dryRunAllowed": "Permission decision: allowed",
+        "dryRunDenied": "Permission decision: denied",
+        "executes": "Executes",
+        "yes": "Yes",
+        "no": "No",
+        "policies": "MIME policies",
+        "processors": "Processors"
       },
       "providerSlots": {
         "metaTitle": "Service providers",

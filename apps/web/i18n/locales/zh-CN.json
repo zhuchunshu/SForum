@@ -334,7 +334,8 @@
       "entityMeta": "自定义字段",
       "extensionPages": "页面注册表",
       "extensionComponentInspector": "组件检查器",
-      "extensionNavigationInspector": "导航检查器"
+      "extensionNavigationInspector": "导航检查器",
+      "extensionRegistryCatalogs": "注册表目录"
     },
     "avatar": {
       "metaTitle": "头像设置",
@@ -1378,6 +1379,38 @@
         "digest": "图摘要",
         "traces": "最近组合轨迹",
         "noTraces": "暂无导航组合轨迹。组合执行后会显示脱敏轨迹。"
+      },
+      "registryCatalogs": {
+        "metaTitle": "注册表目录",
+        "title": "注册表目录",
+        "intro": "查看 Content / Entity / Media Registry 的声明投影，并对实体做导入导出 dry-run（永不执行存储写入）。",
+        "back": "返回插件",
+        "refresh": "刷新",
+        "refreshed": "注册表目录已刷新",
+        "loading": "正在加载注册表目录…",
+        "contentCount": "Content 声明",
+        "entityCount": "Entity 类型",
+        "mediaCount": "Media 贡献",
+        "tabEntity": "实体",
+        "tabContent": "内容",
+        "tabMedia": "媒体",
+        "emptyEntity": "当前没有实体类型声明。",
+        "emptyContent": "当前没有内容声明。",
+        "emptyMedia": "当前没有媒体策略或处理器声明。",
+        "dryRunTitle": "实体导入/导出 dry-run",
+        "dryRunIntro": "仅评估计划与权限，不会写入或导出真实数据。需要 extension.view。",
+        "entityId": "实体 ID",
+        "action": "动作",
+        "actionExport": "导出",
+        "actionImport": "导入",
+        "runDryRun": "运行 dry-run",
+        "dryRunAllowed": "权限评估：允许",
+        "dryRunDenied": "权限评估：拒绝",
+        "executes": "是否执行",
+        "yes": "是",
+        "no": "否",
+        "policies": "MIME 策略",
+        "processors": "处理器"
       },
       "providerSlots": {
         "metaTitle": "服务提供者",
