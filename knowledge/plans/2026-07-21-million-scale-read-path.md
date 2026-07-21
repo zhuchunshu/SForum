@@ -1,7 +1,7 @@
 # Million-Scale Read Path — Task Book
 
-Status: **in progress** — M0 + M1 + **M2 complete** (view count D3 + hot_score;
-after report); next M3  
+Status: **in progress** — M0–**M3 complete** (ListComments bounds + cache;
+after report); next M4  
 Date: 2026-07-21  
 Last decision pass: 2026-07-21 (four open questions → resolved defaults)  
 Goal: make public forum **read paths** safe for ~1M topics / large hot
@@ -45,13 +45,13 @@ Public operators should observe:
 | `maxTopicPage` ≈ 200 clamp | **Done** | `normalizePage` / OpenAPI max |
 | Keyword list vs search split (service-level) | **Done (M1)** | Service `ErrUseSearchEndpoint`; store list has **no ILIKE** |
 | Comment flat SQL LIMIT/OFFSET | **Done** | `listCommentsFlat` |
-| Comment tree roots page + all descendants | **Partial** | descendants unbounded |
+| Comment tree roots page + all descendants | **Done (M3 / D2)** | cap default 50 + `hasMoreChildren` |
 | `topics.view_count` column + display | **Done** | schema + UI |
 | View count increment / Redis flush | **Done (M2 / D3)** | Iteration A WS1 + flush job |
 | Keyset / cursor public pagination | **Missing** | page+offset only |
 | Approximate / denormalized list totals | **Done (M1 / D1)** | cat/tag `topic_count`; home sum + `totalApproximate` |
 | `hot_score` / popular precompute | **Done (M2)** | column + indexes; list hot sort |
-| ListComments in CachedStore | **Missing** | every detail re-hits PG on miss path |
+| ListComments in CachedStore | **Done (M3)** | topic gen + short TTL; skip viewer-scoped |
 | Load-test suite / capacity numbers | **Missing** | audit B6 |
 | Read replicas / multi-node | **Out of scope** | later plan if needed |
 
@@ -324,32 +324,37 @@ sorts by live expression; view flood scenario passes.
 
 ### 3.1 Tree bound (implements D2)
 
-- [ ] Cap descendants per root at configured N (default **50**)
-- [ ] Add runtime option + recommended default + one-click restore (forum options surface)
-- [ ] Set `hasMoreChildren` when truncated; OpenAPI documents field + option
-- [ ] Frontend tree: “加载更多回复” via `ListCommentReplies` with limit
-- [ ] Unit test: root with N+10 children returns N + hasMore; N respects option
+- [x] Cap descendants per root at configured N (default **50**)
+- [x] Add runtime option + recommended default + one-click restore (forum options surface)
+- [x] Set `hasMoreChildren` when truncated; OpenAPI documents field + option
+- [x] Frontend tree: “加载更多回复” via `ListCommentReplies` with limit
+- [x] Unit test: root with N+10 children returns N + hasMore; N respects option
 
 ### 3.2 Total
 
-- [ ] flat + public active only: use topic.comment_count when safe
-- [ ] tree: count roots only on miss; cache with comment generation
-- [ ] IncludeDeleted paths may keep exact COUNT (admin/author rare)
+- [x] flat + public active only: use topic.comment_count when safe
+- [x] tree: count roots only on miss; cache with comment generation
+- [x] IncludeDeleted paths may keep exact COUNT (admin/author rare)
 
 ### 3.3 CachedStore
 
-- [ ] Override `ListComments` (and optionally `ListCommentReplies`) with short TTL
-- [ ] Bump comment gen on create/update/delete/moderation status change for that topic
-- [ ] Key includes topicID, view, page/cursor, perPage, includeDeleted flags
-- [ ] Tests: hit/miss/invalidate (mirror topics tests)
+- [x] Override `ListComments` (and optionally `ListCommentReplies`) with short TTL
+  (ListComments only; replies remain direct-store — load-more is rarer)
+- [x] Bump comment gen on create/update/delete/moderation status change for that topic
+- [x] Key includes topicID, view, page/cursor, perPage, includeDeleted flags
+  (plus tree cap; IncludeDeleted/author scope skips cache)
+- [x] Tests: hit/miss/invalidate (mirror topics tests)
 
 ### 3.4 Perf acceptance
 
-- [ ] 50k-comment topic tree p1 bounded memory; p99 within budget
-- [ ] Detail+comments warm path improved vs baseline
+- [x] 50k-comment topic tree p1 bounded memory; p99 within budget
+  (`knowledge/reports/2026-07-21-perf-m3-list-comments.md`)
+- [x] Detail+comments warm path improved vs baseline
+  (tree warm p50 ~44 ms vs M0 ~86–106 ms)
 
 **Exit criteria:** no unbounded descendant query; comment list participates in Redis
 cache; OpenAPI + public tree UX for “more replies”.
+**Met:** report + unit tests; max descendants/root = 50; 11 roots `hasMoreChildren` on hot seed.
 
 ---
 
@@ -527,3 +532,4 @@ Still free to decide during implementation (not product blockers):
 | 2026-07-21 | **M0 done:** `seed:forum --profile=perf-1m` / `seed:perf` bulk seed; `tests/perf` k6 + `LIGHT=1`; baseline `knowledge/reports/2026-07-21-perf-baseline.md` (1e6 topics + 50k hot comments on `sforum_perf`). Next: M1 ListTopics slim + D1 totals. |
 | 2026-07-21 | **M1 done:** ListTopics page-CTE slim select + D1 totals + no list ILIKE; `topics_public_activity_idx`; OpenAPI `totalApproximate` + FE「约」; report `knowledge/reports/2026-07-21-perf-m1-list-topics.md` (home cold ~11.5×, warm p99 ~29 ms). Next: **M2** view count + `hot_score` (Iteration A WS1). |
 | 2026-07-21 | **M2 done:** D3 view count (GET detail + 30m Redis dedup + INCR + `forum.flush_view_counts` 45s); `topics.hot_score` + hot indexes; list `sort=hot` column; Iteration A WS1 checkboxes; report `knowledge/reports/2026-07-21-perf-m2-view-hot.md` (flood 0 per-req UPDATE; hot Index Scan). Next: **M3** ListComments bounds + cache. |
+| 2026-07-21 | **M3 done:** D2 tree cap (`forum.comments.tree_descendants_per_root` default 50) + `hasMoreChildren` + FE load more; flat total via `comment_count`; ListComments CachedStore topic gen; report `knowledge/reports/2026-07-21-perf-m3-list-comments.md` (warm tree p50 ~44 ms; max desc/root 50). Next: **M4** topic detail assembly. |

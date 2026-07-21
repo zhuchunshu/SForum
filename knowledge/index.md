@@ -6,12 +6,16 @@ session archive.
 
 ## Latest Handoff
 
-- **2026-07-21 Million-scale read path — M2 complete**
-  - Plan: `plans/2026-07-21-million-scale-read-path.md` (M0–M2 done; next M3)
-  - After: `reports/2026-07-21-perf-m2-view-hot.md` (view flood 0 per-req UPDATE; hot index)
-  - Iteration A WS1 view path landed with M2 (do not dual-implement)
-  - Handoff: `sessions/2026-07-21-million-scale-read-path-m2-handoff.md`
+- **2026-07-21 Million-scale read path — M3 complete**
+  - Plan: `plans/2026-07-21-million-scale-read-path.md` (M0–M3 done; next M4)
+  - After: `reports/2026-07-21-perf-m3-list-comments.md` (tree cap 50; warm p50 ~44 ms)
+  - D2 tree bound + ListComments CachedStore + FE load more replies
+  - Handoff: `sessions/2026-07-21-million-scale-read-path-m3-handoff.md`
   - Module: `modules/forum.md`
+
+- **2026-07-21 Million-scale read path — M2 complete**
+  - After: `reports/2026-07-21-perf-m2-view-hot.md` (view flood 0 per-req UPDATE; hot index)
+  - Handoff: `sessions/2026-07-21-million-scale-read-path-m2-handoff.md`
 
 - **2026-07-21 Remove `/my` pages**
   - Handoff: `sessions/2026-07-21-remove-my-pages-handoff.md`

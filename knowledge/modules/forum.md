@@ -11,16 +11,17 @@ read models.
 Backend foundation implemented on 2026-07-06. Real taxonomy slice implemented
 on 2026-07-07.
 
-- **Million-scale read path (M0–M2 done):** task book
+- **Million-scale read path (M0–M3 done):** task book
   `plans/2026-07-21-million-scale-read-path.md` — **M0** seed + `tests/perf` +
   baseline. **M1** ListTopics slim + D1 totals
   (`reports/2026-07-21-perf-m1-list-topics.md`). **M2** view count (D3 /
-  Iteration A WS1: GET detail side-effect, 30m Redis SETNX dedup, INCR +
-  River `forum.flush_view_counts` 45s, no POST `/view`) + `topics.hot_score`
-  column/indexes + `sort=hot` column order. After
-  `reports/2026-07-21-perf-m2-view-hot.md` (flood: PG view_count flat during
-  100 concurrent GETs; flush +51; hot EXPLAIN uses `topics_*_hot_idx`).
-  Next **M3** ListComments bounds + cache (D2).
+  Iteration A WS1) + `topics.hot_score` + `sort=hot`
+  (`reports/2026-07-21-perf-m2-view-hot.md`). **M3** ListComments D2 tree cap
+  (`forum.comments.tree_descendants_per_root` default 50, `hasMoreChildren` +
+  FE「加载更多回复」via `ListCommentReplies`), flat total from
+  `topics.comment_count`, `CachedStore.ListComments` topic-scoped gen.
+  After `reports/2026-07-21-perf-m3-list-comments.md` (warm tree p50 ~44 ms;
+  max descendants/root 50 on 50k hot thread). Next **M4** detail assembly.
 
 - `categories` owns public forum sections. The first seed category is
   `general` / `综合讨论`.
@@ -47,16 +48,23 @@ on 2026-07-07.
 - Runtime forum settings live in `web_options`: default category slug, tag
   creation mode, public tag pages, min/max tags per topic, public pagination,
   topic/comment content limits, cooldowns, daily caps, edit windows, nesting
-  depth, list excerpt rune limit (read-time), guest read mode, list default sort/hot window,
-  author close/delete, edit marks, duplicate title policy, soft-delete
-  visibility, and @mention limits. Recommended defaults are configurable and
-  resettable from the multi-tab admin forum settings page
-  (general/topics/comments/tags/reading/behavior).
+  depth, **tree descendants per root** (`forum.comments.tree_descendants_per_root`,
+  1–100, default 50), list excerpt rune limit (read-time), guest read mode,
+  list default sort/hot window, author close/delete, edit marks, duplicate
+  title policy, soft-delete visibility, and @mention limits. Recommended
+  defaults are configurable and resettable from the multi-tab admin forum
+  settings page (general/topics/comments/tags/reading/behavior).
 - Public pagination defaults are server-authoritative runtime settings:
   `forum.pagination.topics_per_page` and
   `forum.pagination.comments_per_page` both default to 20 and accept 1-100.
   Omitted `perPage` values use the relevant setting; explicit positive values
   remain caller overrides capped at 100. Admin and internal lists are excluded.
+- **Comment list (M3):** `view=tree` pages roots and loads at most
+  `treeDescendantsPerRoot` descendants per root (path_key order); truncated
+  roots set `hasMoreChildren`. Public flat `total` uses denormalized
+  `topics.comment_count`; tree `total` is root count. `CachedStore` caches
+  public `ListComments` (topic-scoped generation on create/update/delete);
+  viewer-scoped soft-delete lists are not cached.
 - Content limits are Unicode-rune based and enforced in the forum service on
   topic/comment create and update: title/body min-max, comment min-max,
   comment max nesting depth, optional author edit windows, create cooldowns,
