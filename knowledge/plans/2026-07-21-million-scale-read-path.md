@@ -1,7 +1,7 @@
 # Million-Scale Read Path — Task Book
 
-Status: **in progress** — M0–**M3 complete** (ListComments bounds + cache;
-after report); next M4  
+Status: **in progress** — M0–**M4 complete** (topic detail assembly; after
+report); next M5  
 Date: 2026-07-21  
 Last decision pass: 2026-07-21 (four open questions → resolved defaults)  
 Goal: make public forum **read paths** safe for ~1M topics / large hot
@@ -372,23 +372,31 @@ cache; OpenAPI + public tree UX for “more replies”.
 
 ### 4.1 API / cache
 
-- [ ] Profile GetTopic SQL (joins, revisions); remove accidental heavy joins
-- [ ] Ensure slug path always hits unique index
-- [ ] Optional composite cache only if M3+M1 still miss budget after warm cache
-- [ ] Document cache TTL vs permission-sensitive fields (never cache private)
+- [x] Profile GetTopic SQL (joins, revisions); remove accidental heavy joins
+  (slug Index Scan ~0.2–0.5 ms; revisions EXISTS only; tags second light query)
+- [x] Ensure slug path always hits unique index (`topics_slug_idx`)
+- [x] Optional composite cache only if M3+M1 still miss budget after warm cache
+  (**skipped**: warm by-slug p99 ~21–37 ms under budget; see M4 report)
+- [x] Document cache TTL vs permission-sensitive fields (never cache private)
+  (detail dual-write public only; `/t/**` SWR anonymous-only via middleware)
 
 ### 4.2 Frontend
 
-- [ ] Topic page: parallel fetch topic + comments where not already
-- [ ] Review routeRules for `/t/**` — enable safe SWR for anonymous if security review OK
-- [ ] **D3**: payload reuse so SSR+hydration do not double-hit detail GET; no mounted re-fetch for view
+- [x] Topic page: parallel fetch topic + comments where not already
+  (`Promise.all` when URL has id; slug reuses `topicAsync`)
+- [x] Review routeRules for `/t/**` — enable safe SWR for anonymous if security review OK
+  (`swr: 60` + `topic-page-cache` for session/`?edit=`)
+- [x] **D3**: payload reuse so SSR+hydration do not double-hit detail GET; no mounted re-fetch for view
 
 ### 4.3 Perf acceptance
 
-- [ ] Topic-by-slug + comments p1 combined scenario meets budget
+- [x] Topic-by-slug + comments p1 combined scenario meets budget
+  (`knowledge/reports/2026-07-21-perf-m4-topic-detail.md`)
 
 **Exit criteria:** detail path no longer the slowest of {home, category, detail}
 under warm cache, or documented residual with owner.
+**Met:** warm by-slug faster than tree comments; home/detail same class (~10–20 ms);
+combined first screen comments-bound (M3 residual).
 
 ---
 
@@ -533,3 +541,4 @@ Still free to decide during implementation (not product blockers):
 | 2026-07-21 | **M1 done:** ListTopics page-CTE slim select + D1 totals + no list ILIKE; `topics_public_activity_idx`; OpenAPI `totalApproximate` + FE「约」; report `knowledge/reports/2026-07-21-perf-m1-list-topics.md` (home cold ~11.5×, warm p99 ~29 ms). Next: **M2** view count + `hot_score` (Iteration A WS1). |
 | 2026-07-21 | **M2 done:** D3 view count (GET detail + 30m Redis dedup + INCR + `forum.flush_view_counts` 45s); `topics.hot_score` + hot indexes; list `sort=hot` column; Iteration A WS1 checkboxes; report `knowledge/reports/2026-07-21-perf-m2-view-hot.md` (flood 0 per-req UPDATE; hot Index Scan). Next: **M3** ListComments bounds + cache. |
 | 2026-07-21 | **M3 done:** D2 tree cap (`forum.comments.tree_descendants_per_root` default 50) + `hasMoreChildren` + FE load more; flat total via `comment_count`; ListComments CachedStore topic gen; report `knowledge/reports/2026-07-21-perf-m3-list-comments.md` (warm tree p50 ~44 ms; max desc/root 50). Next: **M4** topic detail assembly. |
+| 2026-07-21 | **M4 done:** GetTopic profile (slug unique index); CachedStore id+slug dual-write + reverse-map invalidate; no composite page cache (evidence); FE parallel topic+comments; `/t/**` anonymous SWR + auth/edit gate; report `knowledge/reports/2026-07-21-perf-m4-topic-detail.md` (by-slug warm p99 ~21 ms). Next: **M5** keyset pagination. |

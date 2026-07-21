@@ -11,7 +11,7 @@ read models.
 Backend foundation implemented on 2026-07-06. Real taxonomy slice implemented
 on 2026-07-07.
 
-- **Million-scale read path (M0–M3 done):** task book
+- **Million-scale read path (M0–M4 done):** task book
   `plans/2026-07-21-million-scale-read-path.md` — **M0** seed + `tests/perf` +
   baseline. **M1** ListTopics slim + D1 totals
   (`reports/2026-07-21-perf-m1-list-topics.md`). **M2** view count (D3 /
@@ -19,9 +19,14 @@ on 2026-07-07.
   (`reports/2026-07-21-perf-m2-view-hot.md`). **M3** ListComments D2 tree cap
   (`forum.comments.tree_descendants_per_root` default 50, `hasMoreChildren` +
   FE「加载更多回复」via `ListCommentReplies`), flat total from
-  `topics.comment_count`, `CachedStore.ListComments` topic-scoped gen.
-  After `reports/2026-07-21-perf-m3-list-comments.md` (warm tree p50 ~44 ms;
-  max descendants/root 50 on 50k hot thread). Next **M4** detail assembly.
+  `topics.comment_count`, `CachedStore.ListComments` topic-scoped gen
+  (`reports/2026-07-21-perf-m3-list-comments.md`). **M4** topic detail assembly:
+  GetTopic slug → UNIQUE `topics_slug_idx`; CachedStore dual-write id+slug +
+  reverse-map invalidate on comment write; **no** composite topic-page cache
+  (warm by-slug already under budget); FE parallel topic+comments when URL has
+  id; `/t/**` anonymous `swr: 60` with session/`?edit=` no-store middleware.
+  After `reports/2026-07-21-perf-m4-topic-detail.md` (by-slug warm p99 ~21 ms).
+  Next **M5** keyset pagination.
 
 - `categories` owns public forum sections. The first seed category is
   `general` / `综合讨论`.
