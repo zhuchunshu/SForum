@@ -1340,31 +1340,13 @@
     }
   },
   {
-    "id": "core.route.forum.admin_list_search_providers",
-    "contractVersion": "sforum.route.forum.admin_list_search_providers@1",
-    "module": "forum",
-    "handler": "adminListSearchProviders",
-    "method": "GET",
-    "path": "/api/v1/admin/forum/search/providers",
-    "source": "apps/api/app/Http/Controllers/Forum/routes.go",
-    "access": "permission",
-    "policy": "search.manage",
-    "guard": {
-      "kind": "permission_any",
-      "permissions": [
-        "search.manage"
-      ],
-      "evaluatorId": ""
-    }
-  },
-  {
     "id": "core.route.forum.admin_select_search_provider",
     "contractVersion": "sforum.route.forum.admin_select_search_provider@1",
     "module": "forum",
     "handler": "adminSelectSearchProvider",
     "method": "PUT",
     "path": "/api/v1/admin/forum/search/provider",
-    "source": "apps/api/app/Http/Controllers/Forum/routes.go",
+    "source": "apps/api/app/Http/Controllers/Forum/routes.go:62",
     "access": "permission",
     "policy": "search.manage",
     "guard": {
@@ -1382,7 +1364,25 @@
     "handler": "adminResetSearchProvider",
     "method": "POST",
     "path": "/api/v1/admin/forum/search/provider/reset",
-    "source": "apps/api/app/Http/Controllers/Forum/routes.go",
+    "source": "apps/api/app/Http/Controllers/Forum/routes.go:63",
+    "access": "permission",
+    "policy": "search.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "search.manage"
+      ],
+      "evaluatorId": ""
+    }
+  },
+  {
+    "id": "core.route.forum.admin_list_search_providers",
+    "contractVersion": "sforum.route.forum.admin_list_search_providers@1",
+    "module": "forum",
+    "handler": "adminListSearchProviders",
+    "method": "GET",
+    "path": "/api/v1/admin/forum/search/providers",
+    "source": "apps/api/app/Http/Controllers/Forum/routes.go:61",
     "access": "permission",
     "policy": "search.manage",
     "guard": {
@@ -1400,7 +1400,7 @@
     "handler": "adminReindexStatus",
     "method": "GET",
     "path": "/api/v1/admin/forum/search/reindex",
-    "source": "apps/api/app/Http/Controllers/Forum/routes.go:62",
+    "source": "apps/api/app/Http/Controllers/Forum/routes.go:65",
     "access": "permission",
     "policy": "search.manage",
     "guard": {
@@ -1418,7 +1418,7 @@
     "handler": "adminReindexSearch",
     "method": "POST",
     "path": "/api/v1/admin/forum/search/reindex",
-    "source": "apps/api/app/Http/Controllers/Forum/routes.go:61",
+    "source": "apps/api/app/Http/Controllers/Forum/routes.go:64",
     "access": "permission",
     "policy": "search.manage",
     "guard": {
@@ -1436,7 +1436,7 @@
     "handler": "adminReindexRuns",
     "method": "GET",
     "path": "/api/v1/admin/forum/search/reindex/runs",
-    "source": "apps/api/app/Http/Controllers/Forum/routes.go:63",
+    "source": "apps/api/app/Http/Controllers/Forum/routes.go:66",
     "access": "permission",
     "policy": "search.manage",
     "guard": {
@@ -3682,7 +3682,7 @@
     "handler": "listRoleSuggestions",
     "method": "GET",
     "path": "/api/v1/roles/suggestions",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:63",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:65",
     "access": "permission",
     "policy": "active cookie session with role.manage; PAT denied; Host explicit decision",
     "guard": {
@@ -3698,7 +3698,7 @@
     "handler": "decideRoleSuggestion",
     "method": "POST",
     "path": "/api/v1/roles/suggestions/:suggestionID/decision",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:64",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:66",
     "access": "permission",
     "policy": "active cookie session with role.manage; PAT denied; Host explicit decision",
     "guard": {
@@ -4152,6 +4152,22 @@
     "handler": "adminClearUserClientIPs",
     "method": "POST",
     "path": "/api/v1/users/:userID/client-ips/clear",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:62",
+    "access": "permission",
+    "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.admin"
+    }
+  },
+  {
+    "id": "core.route.identity.admin_set_user_password",
+    "contractVersion": "sforum.route.identity.admin_set_user_password@1",
+    "module": "identity",
+    "handler": "adminSetUserPassword",
+    "method": "POST",
+    "path": "/api/v1/users/:userID/password",
     "source": "apps/api/app/Http/Controllers/Identity/routes.go:60",
     "access": "permission",
     "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",

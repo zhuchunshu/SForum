@@ -18,8 +18,6 @@ describe('SFPageOutlet catalog wiring', () => {
     ['app/pages/t/[...path].vue', 'forum.topic.show'],
     ['app/pages/topics/new.vue', 'forum.topic.create'],
     ['app/pages/u/[username].vue', 'forum.profile.show'],
-    ['app/pages/my/index.vue', 'forum.my.home'],
-    ['app/pages/my/content-review.vue', 'forum.my.content_review'],
     ['app/pages/settings/profile.vue', 'forum.settings.profile'],
     ['app/pages/settings/security.vue', 'forum.settings.security'],
     ['app/pages/notifications.vue', 'forum.notifications'],

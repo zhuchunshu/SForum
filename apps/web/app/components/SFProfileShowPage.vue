@@ -213,14 +213,8 @@ const bioText = computed(() => {
 
           <div class="sf-profile-head__actions">
             <template v-if="isSelf">
-              <NuxtLink :to="localePath('/my')">
-                <SFButton variant="secondary" size="sm">
-                  <UIcon name="i-lucide-layout-dashboard" class="size-4" />
-                  <span>{{ t('profile.goToMyCenter') }}</span>
-                </SFButton>
-              </NuxtLink>
               <NuxtLink :to="localePath('/settings/profile')">
-                <SFButton variant="ghost" size="sm">
+                <SFButton variant="secondary" size="sm">
                   <UIcon name="i-lucide-settings" class="size-4" />
                   <span>{{ t('profile.editProfile') }}</span>
                 </SFButton>

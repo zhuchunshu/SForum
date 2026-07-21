@@ -51,17 +51,13 @@ for (const action of ['approve', 'reject', 'keep_and_close', 'hide_and_close', '
   assert(contextPanel.includes(action), `Context panel must expose ${action}`)
 }
 
-const authorShell = read('apps/web/app/pages/my/content-review.vue')
-assert(authorShell.includes('SFPageOutlet'), 'Author review route must use SFPageOutlet')
-assert(authorShell.includes('SFMyContentReviewPage'), 'Author review route must fail-closed to SFMyContentReviewPage')
-const authorPage = read('apps/web/app/components/SFMyContentReviewPage.vue')
-assert(authorPage.includes('listAuthorReviewItems'), 'Author island must use the authenticated review-status endpoint')
-
 const composerShell = read('apps/web/app/pages/topics/new.vue')
 assert(composerShell.includes('SFPageOutlet'), 'Topic composer route must use SFPageOutlet')
 assert(composerShell.includes('SFTopicComposerPage'), 'Topic composer route must fail-closed to SFTopicComposerPage')
 const composer = read('apps/web/app/components/SFTopicComposerPage.vue')
 assert(composer.includes("created.status === 'pending'"), 'Topic composer island must handle pending publication')
+assert(composer.includes("submittedForReview"), 'Topic composer island must toast pending submissions')
+assert(!composer.includes('/my/content-review'), 'Pending submissions must not route to removed /my/content-review')
 
 const topicShell = read('apps/web/app/pages/t/[...path].vue')
 assert(topicShell.includes('SFPageOutlet'), 'Topic show route must use SFPageOutlet')

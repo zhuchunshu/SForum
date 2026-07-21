@@ -29,5 +29,5 @@ For contributors, see [Development](../development/README.md).
 | Public site | `/` |
 | Login / register | theme routes (typically `/login`, `/register`) |
 | Admin | `/control-panel` (`NUXT_PUBLIC_ADMIN_ROUTE_PREFIX`) |
-| Self center | `/my` |
 | Public profile | `/u/:user` |
+| Profile settings | `/settings/profile` |

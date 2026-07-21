@@ -209,8 +209,9 @@ async function submit(payload?: { markdown?: string; native?: unknown; text?: st
     })
     submitState.value = 'success'
     if (created.status === 'pending') {
+      // 待审主题无公开落地页；Toast 提示后回首页，审核结果走通知。
       toast.add({ color: 'primary', icon: 'i-lucide-clock-3', title: t('composer.submittedForReview'), duration: 10000 })
-      await navigateTo(localePath('/my/content-review'))
+      await navigateTo(localePath('/'))
       return
     }
     await navigateTo(localePath(forumTopicPath(created, topicUrlMode.value)))

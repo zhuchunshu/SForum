@@ -85,8 +85,6 @@ var coreCatalog = []PageDefinition{
 	{ID: "forum.topic.show", PathPattern: "/t/:path(.*)", Access: AccessPublic, ContractVersion: "sforum.page.topic_show@1", CoreComponent: "pages/t/[...path]", Replaceable: true, Notes: "seo.topic_url_mode"},
 	{ID: "forum.topic.create", PathPattern: "/topics/new", Access: AccessLogin, ContractVersion: "sforum.page.topic_create@1", CoreComponent: "pages/topics/new", Replaceable: true},
 	{ID: "forum.profile.show", PathPattern: "/u/:username", Access: AccessPublic, ContractVersion: "sforum.page.profile_show@1", CoreComponent: "pages/u/[username]", Replaceable: true, RequiresFeatures: []string{"features.public_profiles"}},
-	{ID: "forum.my.home", PathPattern: "/my", Access: AccessLogin, ContractVersion: "sforum.page.my_home@1", CoreComponent: "pages/my/index", Replaceable: true},
-	{ID: "forum.my.content_review", PathPattern: "/my/content-review", Access: AccessLogin, ContractVersion: "sforum.page.my_content_review@1", CoreComponent: "pages/my/content-review", Replaceable: true},
 	{ID: "forum.settings.profile", PathPattern: "/settings/profile", Access: AccessLogin, ContractVersion: "sforum.page.settings_profile@1", CoreComponent: "pages/settings/profile", Replaceable: true},
 	{ID: "forum.settings.security", PathPattern: "/settings/security", Access: AccessLogin, ContractVersion: "sforum.page.settings_security@1", CoreComponent: "pages/settings/security", Replaceable: true},
 	{ID: "forum.notifications", PathPattern: "/notifications", Access: AccessLogin, ContractVersion: "sforum.page.notifications@1", CoreComponent: "pages/notifications", Replaceable: true},

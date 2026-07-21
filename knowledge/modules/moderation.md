@@ -55,9 +55,11 @@ frontend moderator workbench.
   complete content and explicit actions.
 - Destructive actions require a review note. Successful actions use the active
   theme color and auto-dismiss after 10 seconds; blocking errors stay visible.
-- Pending topic creation routes the author to `/my/content-review`. Pending
-  comments show review-submitted feedback and are not inserted into the public
-  comment list before approval.
+- Pending topic creation shows a toast and returns the author home; review
+  outcomes arrive via notifications. `GET /api/v1/me/content-review` remains
+  available for API/clients (no first-party `/my` page). Pending comments show
+  review-submitted feedback and are not inserted into the public comment list
+  before approval.
 - The public report dialog remains available on topics and comments.
 
 ## Non-Goals

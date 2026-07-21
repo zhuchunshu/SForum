@@ -14,8 +14,6 @@ type CorePageViewModelData struct {
 	TopicDetail           *themecompiler.TopicDetailPageViewModel
 	TopicCreate           *themecompiler.TopicCreatePageViewModel
 	Profile               *themecompiler.ProfilePageViewModel
-	MyHome                *themecompiler.MyHomePageViewModel
-	MyContentReview       *themecompiler.MyContentReviewPageViewModel
 	ProfileSettings       *themecompiler.ProfileSettingsPageViewModel
 	SecuritySettings      *themecompiler.SecuritySettingsPageViewModel
 	Notifications         *themecompiler.NotificationsPageViewModel

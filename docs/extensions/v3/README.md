@@ -75,7 +75,7 @@ record compatibility impact.
   request-time template loader, Protocol V1 paths, and compatibility removal
   after `RemoveAfter` ≈ 2026-11-28 + live zero-shim + deletion checklist 1–7.
   Fail-closed `SFPageOutlet` is never fully removed by design.
-- Catalog inventory gate: **249** routes / **150** UI surfaces / **99**
+- Catalog inventory gate: **253** routes / **145** UI surfaces / **99**
   traceability rows (`tests/validate-v3-p0-catalogs.mjs`).
 - Progress authority:
   `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`

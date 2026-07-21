@@ -88,14 +88,6 @@ func BuildCorePageViewModel(request CorePageViewModelRequest) (any, error) {
 		model := valueOrZero(request.Data.Profile)
 		model.Base = base
 		return model, nil
-	case "forum.my.home":
-		model := valueOrZero(request.Data.MyHome)
-		model.Base = base
-		return model, nil
-	case "forum.my.content_review":
-		model := valueOrZero(request.Data.MyContentReview)
-		model.Base = base
-		return model, nil
 	case "forum.settings.profile":
 		model := valueOrZero(request.Data.ProfileSettings)
 		model.Base = base

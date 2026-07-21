@@ -77,8 +77,6 @@ Manifest V3 component targets declare both `targetId` and `targetContractVersion
 | `core.component.page.forum.category.index` | `sforum.component.page.forum.category.index@1` | page | `public` | `/categories` | `apps/web/app/pages/categories/index.vue` | P9 Component Registry |
 | `core.component.page.forum.category.show` | `sforum.component.page.forum.category.show@1` | page | `public` | `/c/:categorySlug` | `apps/web/app/pages/c/[categorySlug].vue` | P9 Component Registry |
 | `core.component.page.forum.home` | `sforum.component.page.forum.home@1` | page | `public` | `/` | `apps/web/app/pages/index.vue` | P9 Component Registry |
-| `core.component.page.forum.my.content_review` | `sforum.component.page.forum.my.content_review@1` | page | `public` | `/my/content-review` | `apps/web/app/pages/my/content-review.vue` | P9 Component Registry |
-| `core.component.page.forum.my.home` | `sforum.component.page.forum.my.home@1` | page | `public` | `/my` | `apps/web/app/pages/my/index.vue` | P9 Component Registry |
 | `core.component.page.forum.notifications` | `sforum.component.page.forum.notifications@1` | page | `public` | `/notifications` | `apps/web/app/pages/notifications.vue` | P9 Component Registry |
 | `core.component.page.forum.profile.show` | `sforum.component.page.forum.profile.show@1` | page | `public` | `/u/:username` | `apps/web/app/pages/u/[username].vue` | P9 Component Registry |
 | `core.component.page.forum.settings.profile` | `sforum.component.page.forum.settings.profile@1` | page | `public` | `/settings/profile` | `apps/web/app/pages/settings/profile.vue` | P9 Component Registry |
@@ -93,7 +91,6 @@ Manifest V3 component targets declare both `targetId` and `targetContractVersion
 | `core.component.page.site.privacy` | `sforum.component.page.site.privacy@1` | page | `public` | `/privacy` | `apps/web/app/pages/privacy.vue` | P9 Component Registry |
 | `core.component.page.site.terms` | `sforum.component.page.site.terms@1` | page | `public` | `/terms` | `apps/web/app/pages/terms.vue` | P9 Component Registry |
 | `core.component.page.x.path` | `sforum.component.page.x.path@1` | page | `public` | `/x/:path*` | `apps/web/app/pages/x/[...path].vue` | P9 Component Registry |
-| `core.component.shared.author_content_review_status` | `sforum.component.shared.author_content_review_status@1` | component | `public` | — | `apps/web/app/components/moderation/AuthorContentReviewStatus.vue` | P9 Component Registry |
 | `core.component.shared.moderation_context_panel` | `sforum.component.shared.moderation_context_panel@1` | component | `public` | — | `apps/web/app/components/moderation/ModerationContextPanel.vue` | P9 Component Registry |
 | `core.component.shared.moderation_decision_table` | `sforum.component.shared.moderation_decision_table@1` | component | `public`, `admin` | — | `apps/web/app/components/moderation/ModerationDecisionTable.vue` | P7/P9 Admin and Component Registries |
 | `core.component.shared.moderation_queue_item` | `sforum.component.shared.moderation_queue_item@1` | component | `public` | — | `apps/web/app/components/moderation/ModerationQueueItem.vue` | P9 Component Registry |
@@ -126,8 +123,6 @@ Manifest V3 component targets declare both `targetId` and `targetContractVersion
 | `core.component.shared.sflegal_document_page` | `sforum.component.shared.sflegal_document_page@1` | component | `public` | — | `apps/web/app/components/SFLegalDocumentPage.vue` | P9 Component Registry |
 | `core.component.shared.sflogin_form_page` | `sforum.component.shared.sflogin_form_page@1` | component | `public` | — | `apps/web/app/components/SFLoginFormPage.vue` | P9 Component Registry |
 | `core.component.shared.sfmoderation_review_page` | `sforum.component.shared.sfmoderation_review_page@1` | component | `public` | — | `apps/web/app/components/SFModerationReviewPage.vue` | P9 Component Registry |
-| `core.component.shared.sfmy_content_review_page` | `sforum.component.shared.sfmy_content_review_page@1` | component | `public` | — | `apps/web/app/components/SFMyContentReviewPage.vue` | P9 Component Registry |
-| `core.component.shared.sfmy_home_page` | `sforum.component.shared.sfmy_home_page@1` | component | `public` | — | `apps/web/app/components/SFMyHomePage.vue` | P9 Component Registry |
 | `core.component.shared.sfnavbar` | `sforum.component.shared.sfnavbar@1` | component | `public` | — | `apps/web/app/components/SFNavbar.vue` | P9 Component Registry |
 | `core.component.shared.sfnotifications_page` | `sforum.component.shared.sfnotifications_page@1` | component | `public` | — | `apps/web/app/components/SFNotificationsPage.vue` | P9 Component Registry |
 | `core.component.shared.sfpage_outlet` | `sforum.component.shared.sfpage_outlet@1` | component | `public` | — | `apps/web/app/components/SFPageOutlet.vue` | P9 Component Registry |

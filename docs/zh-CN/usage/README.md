@@ -29,5 +29,5 @@
 | 前台 | `/` |
 | 登录 / 注册 | `/login` · `/register`（以实际主题路由为准） |
 | 管理后台 | `/control-panel`（`NUXT_PUBLIC_ADMIN_ROUTE_PREFIX`） |
-| 个人中心 | `/my` |
 | 公开资料 | `/u/:user` |
+| 资料设置 | `/settings/profile` |

@@ -13,7 +13,7 @@ const (
 	ViewModelProfile       PageViewModelKind = "profile"
 	ViewModelError         PageViewModelKind = "error"
 	ViewModelCreate        PageViewModelKind = "create"
-	ViewModelAccount       PageViewModelKind = "account"
+
 	ViewModelSettings      PageViewModelKind = "settings"
 	ViewModelNotifications PageViewModelKind = "notifications"
 	ViewModelModeration    PageViewModelKind = "moderation"
@@ -252,34 +252,6 @@ type TopicCreatePageViewModel struct {
 	Form       HostFormBoundary   `json:"form"`
 	Categories []TaxonomyLinkView `json:"categories"`
 	Tags       []TaxonomyLinkView `json:"tags,omitempty"`
-}
-
-type AccountSummaryView struct {
-	User              PublicUserView `json:"user"`
-	TopicCount        int64          `json:"topicCount"`
-	CommentCount      int64          `json:"commentCount"`
-	UnreadNoticeCount int64          `json:"unreadNoticeCount"`
-}
-
-type MyHomePageViewModel struct {
-	Base    PageViewModelBase  `json:"base"`
-	Summary AccountSummaryView `json:"summary"`
-	Topics  []TopicSummaryView `json:"topics,omitempty"`
-}
-
-type ContentReviewItemView struct {
-	ID        int64  `json:"id"`
-	Kind      string `json:"kind"`
-	Title     string `json:"title"`
-	URL       string `json:"url"`
-	Status    string `json:"status"`
-	Reason    string `json:"reason,omitempty"`
-	CreatedAt string `json:"createdAt"`
-}
-
-type MyContentReviewPageViewModel struct {
-	Base  PageViewModelBase       `json:"base"`
-	Items []ContentReviewItemView `json:"items"`
 }
 
 type ProfileSettingsPageViewModel struct {

@@ -61,12 +61,6 @@ func (s *sourceForum) ListComments(_ context.Context, input forum.CommentListInp
 	}}, Total: 1, Page: max(input.Page, 1), PerPage: 20, View: input.View}, nil
 }
 
-func (s *sourceForum) ListAuthorReviewItems(context.Context, identity.Actor) (forum.AuthorReviewList, error) {
-	return forum.AuthorReviewList{Items: []forum.AuthorReviewItem{{
-		TargetType: "topic", TargetID: 42, Title: "Hello", Status: forum.TopicStatusPending, ReviewNote: "review", CreatedAt: sourceTestNow,
-	}}}, nil
-}
-
 type sourceProfiles struct{}
 
 func (sourceProfiles) GetPublicProfile(context.Context, string) (profile.PublicProfile, error) {
@@ -189,8 +183,6 @@ func TestCorePageViewModelSourcePopulatesEveryCatalogContract(t *testing.T) {
 		"forum.topic.show":        {"/t/42/hello", map[string]string{"path": "42/hello"}, url.Values{"page": {"1"}}, reflect.TypeOf(themecompiler.TopicDetailPageViewModel{})},
 		"forum.topic.create":      {"/topics/new", nil, nil, reflect.TypeOf(themecompiler.TopicCreatePageViewModel{})},
 		"forum.profile.show":      {"/u/alice", map[string]string{"username": "alice"}, nil, reflect.TypeOf(themecompiler.ProfilePageViewModel{})},
-		"forum.my.home":           {"/my", nil, nil, reflect.TypeOf(themecompiler.MyHomePageViewModel{})},
-		"forum.my.content_review": {"/my/content-review", nil, nil, reflect.TypeOf(themecompiler.MyContentReviewPageViewModel{})},
 		"forum.settings.profile":  {"/settings/profile", nil, nil, reflect.TypeOf(themecompiler.ProfileSettingsPageViewModel{})},
 		"forum.settings.security": {"/settings/security", nil, nil, reflect.TypeOf(themecompiler.SecuritySettingsPageViewModel{})},
 		"forum.notifications":     {"/notifications", nil, nil, reflect.TypeOf(themecompiler.NotificationsPageViewModel{})},

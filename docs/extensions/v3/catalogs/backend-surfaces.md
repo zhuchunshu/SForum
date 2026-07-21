@@ -62,6 +62,7 @@
 
 - `audit.cleanup_events` — `apps/api/app/Jobs/Audit/cleanup_events.go`
 - `forum.auto_lock_idle` — `apps/api/app/Jobs/Forum/auto_lock_idle.go`
+- `forum.flush_view_counts` — `apps/api/app/Jobs/Forum/flush_view_counts.go`
 - `identity.cleanup_sessions` — `apps/api/app/Jobs/Identity/cleanup_sessions.go`
 - `mail.deliver` — `apps/api/app/Models/Notifications/outbox.go`
 - `webhook.deliver` — `apps/api/app/Models/Webhooks/service.go`

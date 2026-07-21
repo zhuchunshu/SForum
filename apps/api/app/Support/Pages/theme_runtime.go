@@ -804,8 +804,6 @@ func productionThemeIslandBindings() map[string]themecompiler.IslandBinding {
 		"sf-tag-show-page":          {ComponentID: "forum.component.tag_show"},
 		"sf-topic-show-page":        {ComponentID: "forum.component.topic_show"},
 		"sf-profile-page":           {ComponentID: "forum.component.profile_show"},
-		"sf-my-home-page":           {ComponentID: "forum.component.my_home"},
-		"sf-my-content-review-page": {ComponentID: "forum.component.my_content_review"},
 		"sf-notifications-page":     {ComponentID: "forum.component.notifications"},
 		"sf-terms-page":             {ComponentID: "site.component.terms"},
 		"sf-privacy-page":           {ComponentID: "site.component.privacy"},
@@ -852,10 +850,6 @@ func RequiredThemeBodyIslandTag(pageID string) string {
 		return "sf-topic-composer"
 	case "forum.profile.show":
 		return "sf-profile-page"
-	case "forum.my.home":
-		return "sf-my-home-page"
-	case "forum.my.content_review":
-		return "sf-my-content-review-page"
 	case "forum.settings.profile":
 		return "sf-profile-settings"
 	case "forum.settings.security":

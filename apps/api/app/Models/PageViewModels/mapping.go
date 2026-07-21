@@ -171,7 +171,8 @@ func mapNotifications(items []notifications.Notification) []themecompiler.Notifi
 		if payload.TopicID > 0 {
 			targetID = payload.TopicID
 		}
-		targetURL := "/my/content-review"
+		// 无主题目标时落到通知页（/my 作者审核页已移除）
+		targetURL := "/notifications"
 		if targetID > 0 && (item.TargetType == "topic" || payload.TopicID > 0) {
 			targetURL = "/t/" + strconv.FormatInt(targetID, 10)
 		}

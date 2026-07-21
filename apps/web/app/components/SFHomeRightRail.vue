@@ -44,7 +44,7 @@ const displayName = computed(() =>
 const profileTo = computed(() =>
   user.value ? localePath(`/u/${user.value.username}`) : localePath('/login')
 )
-const myCenterTo = computed(() => localePath('/my'))
+const settingsTo = computed(() => localePath('/settings/profile'))
 const newTopicTo = computed(() => localePath('/topics/new'))
 const loginTo = computed(() => localePath('/login'))
 const registerTo = computed(() => localePath('/register'))
@@ -94,8 +94,8 @@ function isTopHotRank(index: string | number) {
             </span>
           </NuxtLink>
           <div class="sf-home-right-rail__user-actions">
-            <NuxtLink :to="myCenterTo" class="sf-home-right-rail__action sf-home-right-rail__action--soft">
-              {{ t('nav.myCenter') }}
+            <NuxtLink :to="settingsTo" class="sf-home-right-rail__action sf-home-right-rail__action--soft">
+              {{ t('nav.profileSettings') }}
             </NuxtLink>
             <NuxtLink
               v-if="canCreateTopic"

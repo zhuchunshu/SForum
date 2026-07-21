@@ -750,28 +750,6 @@
     "targetRegistry": "P9 Component Registry"
   },
   {
-    "id": "core.component.page.forum.my.content_review",
-    "contractVersion": "sforum.component.page.forum.my.content_review@1",
-    "kind": "page",
-    "route": "/my/content-review",
-    "source": "apps/web/app/pages/my/content-review.vue",
-    "owners": [
-      "public"
-    ],
-    "targetRegistry": "P9 Component Registry"
-  },
-  {
-    "id": "core.component.page.forum.my.home",
-    "contractVersion": "sforum.component.page.forum.my.home@1",
-    "kind": "page",
-    "route": "/my",
-    "source": "apps/web/app/pages/my/index.vue",
-    "owners": [
-      "public"
-    ],
-    "targetRegistry": "P9 Component Registry"
-  },
-  {
     "id": "core.component.page.forum.notifications",
     "contractVersion": "sforum.component.page.forum.notifications@1",
     "kind": "page",
@@ -920,16 +898,6 @@
     "kind": "page",
     "route": "/x/:path*",
     "source": "apps/web/app/pages/x/[...path].vue",
-    "owners": [
-      "public"
-    ],
-    "targetRegistry": "P9 Component Registry"
-  },
-  {
-    "id": "core.component.shared.author_content_review_status",
-    "contractVersion": "sforum.component.shared.author_content_review_status@1",
-    "kind": "component",
-    "source": "apps/web/app/components/moderation/AuthorContentReviewStatus.vue",
     "owners": [
       "public"
     ],
@@ -1259,26 +1227,6 @@
     "contractVersion": "sforum.component.shared.sfmoderation_review_page@1",
     "kind": "component",
     "source": "apps/web/app/components/SFModerationReviewPage.vue",
-    "owners": [
-      "public"
-    ],
-    "targetRegistry": "P9 Component Registry"
-  },
-  {
-    "id": "core.component.shared.sfmy_content_review_page",
-    "contractVersion": "sforum.component.shared.sfmy_content_review_page@1",
-    "kind": "component",
-    "source": "apps/web/app/components/SFMyContentReviewPage.vue",
-    "owners": [
-      "public"
-    ],
-    "targetRegistry": "P9 Component Registry"
-  },
-  {
-    "id": "core.component.shared.sfmy_home_page",
-    "contractVersion": "sforum.component.shared.sfmy_home_page@1",
-    "kind": "component",
-    "source": "apps/web/app/components/SFMyHomePage.vue",
     "owners": [
       "public"
     ],

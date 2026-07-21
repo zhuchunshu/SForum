@@ -284,22 +284,16 @@
       "path": "/api/v1/admin/extensions/:id/verify"
     },
     {
-      "id": "core.route.extensions.inspect_cache",
-      "contractVersion": "sforum.route.extensions.inspect_cache@1",
-      "method": "GET",
-      "path": "/api/v1/admin/extensions/cache-inspector"
-    },
-    {
       "id": "core.route.extensions.inspect_asset",
       "contractVersion": "sforum.route.extensions.inspect_asset@1",
       "method": "GET",
       "path": "/api/v1/admin/extensions/asset-inspector"
     },
     {
-      "id": "core.route.extensions.inspect_templates",
-      "contractVersion": "sforum.route.extensions.inspect_templates@1",
+      "id": "core.route.extensions.inspect_cache",
+      "contractVersion": "sforum.route.extensions.inspect_cache@1",
       "method": "GET",
-      "path": "/api/v1/admin/extensions/template-inspector"
+      "path": "/api/v1/admin/extensions/cache-inspector"
     },
     {
       "id": "core.route.extensions.component_inspector",
@@ -428,6 +422,12 @@
       "path": "/api/v1/admin/extensions/route-providers/selection/reset"
     },
     {
+      "id": "core.route.extensions.inspect_templates",
+      "contractVersion": "sforum.route.extensions.inspect_templates@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/template-inspector"
+    },
+    {
       "id": "core.route.options.list_features",
       "contractVersion": "sforum.route.options.list_features@1",
       "method": "GET",
@@ -482,12 +482,6 @@
       "path": "/api/v1/admin/forum/category-groups/:groupID"
     },
     {
-      "id": "core.route.forum.admin_list_search_providers",
-      "contractVersion": "sforum.route.forum.admin_list_search_providers@1",
-      "method": "GET",
-      "path": "/api/v1/admin/forum/search/providers"
-    },
-    {
       "id": "core.route.forum.admin_select_search_provider",
       "contractVersion": "sforum.route.forum.admin_select_search_provider@1",
       "method": "PUT",
@@ -498,6 +492,12 @@
       "contractVersion": "sforum.route.forum.admin_reset_search_provider@1",
       "method": "POST",
       "path": "/api/v1/admin/forum/search/provider/reset"
+    },
+    {
+      "id": "core.route.forum.admin_list_search_providers",
+      "contractVersion": "sforum.route.forum.admin_list_search_providers@1",
+      "method": "GET",
+      "path": "/api/v1/admin/forum/search/providers"
     },
     {
       "id": "core.route.forum.admin_reindex_status",
@@ -1472,6 +1472,12 @@
       "path": "/api/v1/users/:userID/client-ips/clear"
     },
     {
+      "id": "core.route.identity.admin_set_user_password",
+      "contractVersion": "sforum.route.identity.admin_set_user_password@1",
+      "method": "POST",
+      "path": "/api/v1/users/:userID/password"
+    },
+    {
       "id": "core.route.identity.replace_user_permission_overrides",
       "contractVersion": "sforum.route.identity.replace_user_permission_overrides@1",
       "method": "PUT",
@@ -1880,7 +1886,7 @@
       "owners": [
         "public"
       ],
-      "state": "active",
+      "state": "retired",
       "source": "apps/web/app/components/SFMyContentReviewPage.vue"
     },
     {
@@ -1890,7 +1896,7 @@
       "owners": [
         "public"
       ],
-      "state": "active",
+      "state": "retired",
       "source": "apps/web/app/components/SFMyHomePage.vue"
     },
     {
@@ -2326,7 +2332,7 @@
       "owners": [
         "public"
       ],
-      "state": "active",
+      "state": "retired",
       "source": "apps/web/app/components/moderation/AuthorContentReviewStatus.vue"
     },
     {
@@ -2887,7 +2893,7 @@
       "owners": [
         "public"
       ],
-      "state": "active",
+      "state": "retired",
       "source": "apps/web/app/pages/my/content-review.vue"
     },
     {
@@ -2897,7 +2903,7 @@
       "owners": [
         "public"
       ],
-      "state": "active",
+      "state": "retired",
       "source": "apps/web/app/pages/my/index.vue"
     },
     {

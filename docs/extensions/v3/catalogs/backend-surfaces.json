@@ -62,6 +62,10 @@
       "source": "apps/api/app/Jobs/Forum/auto_lock_idle.go"
     },
     {
+      "id": "forum.flush_view_counts",
+      "source": "apps/api/app/Jobs/Forum/flush_view_counts.go"
+    },
+    {
       "id": "identity.cleanup_sessions",
       "source": "apps/api/app/Jobs/Identity/cleanup_sessions.go"
     },

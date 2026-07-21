@@ -10,7 +10,13 @@ const { format: formatSiteDateTime } = useSiteDateTime()
 const notifications = useNotifications()
 const { data, pending, error, refresh } = await useAsyncData('notification-inbox', () => notifications.list(), { default: () => ({ items: [], hasMore: false }) })
 function itemLabel(type: string) { return t(`notifications.types.${type}`) }
-function itemLink(item: { targetType: string, targetId: number, payload: Record<string, unknown> }) { const topicId = Number(item.payload.topicId || 0); return topicId > 0 ? localePath(`/t/${topicId}`) : item.targetType === 'topic' ? localePath(`/t/${item.targetId}`) : localePath('/my/content-review') }
+function itemLink(item: { targetType: string, targetId: number, payload: Record<string, unknown> }) {
+  const topicId = Number(item.payload.topicId || 0)
+  if (topicId > 0) return localePath(`/t/${topicId}`)
+  if (item.targetType === 'topic' && item.targetId > 0) return localePath(`/t/${item.targetId}`)
+  // 无主题目标时停留在通知列表（已无 /my 作者审核页）
+  return localePath('/notifications')
+}
 async function markRead(id: number) { await notifications.markRead(id); const item = data.value.items.find(entry => entry.id === id); if (item) item.readAt = new Date().toISOString() }
 async function markAllRead() { await notifications.markAllRead(); data.value.items.forEach(item => { item.readAt ||= new Date().toISOString() }); toast.add({ color: 'success', icon: 'i-lucide-check', title: t('notifications.allRead'), duration: 10000 }) }
 </script>

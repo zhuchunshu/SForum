@@ -57,20 +57,6 @@
       "contract": "sforum.page.profile_show@1"
     },
     {
-      "id": "sforum.nocturne-theme.my_home",
-      "action": "replace",
-      "target": "forum.my.home",
-      "template": "templates/my-home.html",
-      "contract": "sforum.page.my_home@1"
-    },
-    {
-      "id": "sforum.nocturne-theme.my_content_review",
-      "action": "replace",
-      "target": "forum.my.content_review",
-      "template": "templates/my-content-review.html",
-      "contract": "sforum.page.my_content_review@1"
-    },
-    {
       "id": "sforum.nocturne-theme.settings_profile",
       "action": "replace",
       "target": "forum.settings.profile",

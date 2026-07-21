@@ -1,4 +1,25 @@
 {
   "schemaVersion": 1,
-  "ui": []
+  "ui": [
+    {
+      "id": "core.component.page.forum.my.content_review",
+      "contractVersion": "sforum.component.page.forum.my.content_review@1"
+    },
+    {
+      "id": "core.component.page.forum.my.home",
+      "contractVersion": "sforum.component.page.forum.my.home@1"
+    },
+    {
+      "id": "core.component.shared.author_content_review_status",
+      "contractVersion": "sforum.component.shared.author_content_review_status@1"
+    },
+    {
+      "id": "core.component.shared.sfmy_content_review_page",
+      "contractVersion": "sforum.component.shared.sfmy_content_review_page@1"
+    },
+    {
+      "id": "core.component.shared.sfmy_home_page",
+      "contractVersion": "sforum.component.shared.sfmy_home_page@1"
+    }
+  ]
 }

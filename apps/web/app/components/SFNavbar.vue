@@ -228,12 +228,6 @@ const userMenuItems = computed<NavbarMenuItem[][]>(() => {
     ],
     [
       {
-        // 本人中心（管理入口），与公开 /u/:username 拆分
-        label: t('nav.myCenter'),
-        icon: 'i-lucide-layout-dashboard',
-        to: localePath('/my')
-      },
-      {
         label: t('nav.myProfile'),
         icon: 'i-lucide-user',
         to: localePath(`/u/${user.value.username}`)

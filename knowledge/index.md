@@ -13,6 +13,11 @@ session archive.
   - Handoff: `sessions/2026-07-21-million-scale-read-path-m2-handoff.md`
   - Module: `modules/forum.md`
 
+- **2026-07-21 Remove `/my` pages**
+  - Handoff: `sessions/2026-07-21-remove-my-pages-handoff.md`
+  - Deleted `/my` + `/my/content-review` routes/entry points; API review list kept
+  - Module: `modules/moderation.md` · `modules/profile.md`
+
 - **2026-07-21 Million-scale read path — M1 complete**
   - After: `reports/2026-07-21-perf-m1-list-topics.md` (home cold ~11.5×, warm p99 ~29 ms)
   - Handoff: `sessions/2026-07-21-million-scale-read-path-m1-handoff.md`

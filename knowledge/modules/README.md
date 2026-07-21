@@ -11,7 +11,7 @@ implementing or debugging.
 | `backend.md` | Go API layout, bootstrap, cross-cutting HTTP/runtime |
 | `forum.md` | Topics, comments, taxonomy, content model, public read models |
 | `identity.md` | Users, sessions, RBAC, registration/login, verification |
-| `profile.md` | Public profiles and self-center |
+| `profile.md` | Public profiles and profile settings |
 | `attachments.md` | Uploads, storage providers, governance, orphan cleanup |
 | `options.md` | Runtime `web_options`, personalization, site chrome |
 | `search.md` | Search framework, site PG FTS default, optional Meili |

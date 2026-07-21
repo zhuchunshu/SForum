@@ -33,7 +33,6 @@ type CoreForumViewReader interface {
 	GetTopic(context.Context, int64) (forum.TopicDetail, error)
 	GetTopicBySlug(context.Context, string) (forum.TopicDetail, error)
 	ListComments(context.Context, forum.CommentListInput) (forum.CommentList, error)
-	ListAuthorReviewItems(context.Context, identity.Actor) (forum.AuthorReviewList, error)
 }
 
 type CoreProfileViewReader interface {
@@ -140,10 +139,6 @@ func (s *CorePageViewModelSource) Populate(ctx context.Context, input CorePageVi
 		err = s.populateTopicCreate(ctx, &request)
 	case "forum.profile.show":
 		err = s.populateProfile(ctx, &request, input.Actor)
-	case "forum.my.home":
-		err = s.populateMyHome(ctx, &request, input)
-	case "forum.my.content_review":
-		err = s.populateMyContentReview(ctx, &request, input.Actor)
 	case "forum.settings.profile":
 		err = s.populateProfileSettings(ctx, &request, input.Actor)
 	case "forum.settings.security":
@@ -448,56 +443,6 @@ func (s *CorePageViewModelSource) populateProfile(ctx context.Context, request *
 	request.SEO.StructuredData = []themecompiler.StructuredDataView{{Kind: "Person", ID: strconv.FormatInt(user.ID, 10), Name: request.SEO.Title, URL: request.SEO.CanonicalURL, Description: item.Profile.Bio}}
 	request.Breadcrumbs = breadcrumbs(homeLabel(request.Locale), request.SEO.Title, request.Path)
 	request.Data.Profile = &themecompiler.ProfilePageViewModel{Profile: user, Bio: bio, Topics: topics}
-	return nil
-}
-
-func (s *CorePageViewModelSource) populateMyHome(ctx context.Context, request *pages.CorePageViewModelRequest, input CorePageViewModelInput) error {
-	if s.deps.Profiles == nil || input.Actor.ID <= 0 || request.Viewer.Username == "" {
-		return ErrCorePageDataUnauthorized
-	}
-	item, err := s.deps.Profiles.GetPublicProfile(ctx, request.Viewer.Username)
-	if err != nil {
-		return err
-	}
-	user, _, topics := mapPublicProfile(item, s.topicURLMode(ctx))
-	unread := int64(0)
-	if s.deps.Notifications != nil {
-		unread, err = s.deps.Notifications.UnreadCount(ctx, input.Actor.ID)
-		if err != nil {
-			return err
-		}
-	}
-	request.SEO.Robots = "noindex,nofollow"
-	request.Data.MyHome = &themecompiler.MyHomePageViewModel{
-		Summary: themecompiler.AccountSummaryView{User: user, TopicCount: item.TopicCount, CommentCount: item.CommentCount, UnreadNoticeCount: unread},
-		Topics:  topics,
-	}
-	return nil
-}
-
-func (s *CorePageViewModelSource) populateMyContentReview(ctx context.Context, request *pages.CorePageViewModelRequest, actor identity.Actor) error {
-	if s.deps.Forum == nil || actor.ID <= 0 {
-		return ErrCorePageDataUnauthorized
-	}
-	list, err := s.deps.Forum.ListAuthorReviewItems(ctx, actor)
-	if err != nil {
-		return err
-	}
-	items := make([]themecompiler.ContentReviewItemView, 0, len(list.Items))
-	for _, item := range list.Items {
-		urlPath := "/my/content-review"
-		if item.TopicID > 0 {
-			urlPath = "/t/" + strconv.FormatInt(item.TopicID, 10)
-		} else if item.TargetType == "topic" && item.TargetID > 0 {
-			urlPath = "/t/" + strconv.FormatInt(item.TargetID, 10)
-		}
-		items = append(items, themecompiler.ContentReviewItemView{
-			ID: item.TargetID, Kind: item.TargetType, Title: item.Title, URL: urlPath,
-			Status: item.Status, Reason: item.ReviewNote, CreatedAt: formatViewTime(item.CreatedAt),
-		})
-	}
-	request.SEO.Robots = "noindex,nofollow"
-	request.Data.MyContentReview = &themecompiler.MyContentReviewPageViewModel{Items: items}
 	return nil
 }
 
