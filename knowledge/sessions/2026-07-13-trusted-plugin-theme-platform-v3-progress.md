@@ -7,12 +7,11 @@ Last updated: 2026-07-21
 - Verified weighted progress: **99.7%** (display **99%**).
 - Phase counts: **P0–P12 complete (including P10 15/15)**; P13 **~99.7%**.
 - Goal harness “remaining P10” is **stale** — do not reopen P10.
-- Catalog honesty repair after product-path routes:
-  - Reviewed identities for editor/entity/content catalogs + entity dry-run
-  - Inventory gate **244 → 248** routes; `validate-v3-p0-catalogs.mjs` green
-  - 99-row traceability still **99/99** complete as capability targets
-- Content Protocol filter dispatch re-audited: **blocked** (L; needs SEO-style
-  Protocol lease stack) — not thin wiring; not a task-book open row.
+- Gate honesty after product-path:
+  - Catalog inventory **248** routes + identities
+  - Entity dry-run now requires `extension.view` (handler + extensions.read
+    partition + OpenAPI 403); full `go test ./...` re-green
+- 99-row matrix **99/99**; only open task-book rows are LTS deletions.
 
 ## Current Subtask
 
@@ -21,15 +20,15 @@ Last updated: 2026-07-21
 - Exact next: **do not delete** LoadTemplate residual / Protocol V1 /
   fail-closed SFPageOutlet until APILTS `RemoveAfter` ≈ **2026-11-28** +
   live zero-shim + deletion checklist 1–7.
-- Product boundary: early LTS deletion would violate published policy; wait
-  or user-approved RemoveAfter change is required for 100%.
+- Product boundary for 100%: wait for RemoveAfter or user-approved LTS window
+  change. Do not invent thin work from stale harness P10 text.
 
 ## Tests
 
-- `node tests/validate-v3-p0-catalogs.mjs` — **248 routes**, 149 UI, 99 rows
-- `node scripts/v3-catalog/generate.mjs --check` — current
-- `go test ./app/Support/Routes/` CoreRouteCatalog — pass
-- Prior: full `go test ./...` green after i18n fix
+- `go test ./...` — **EXIT 0** after dry-run guard/view gate fix
+- OpenAPI refs — EXIT 0
+- `validate-v3-p0-catalogs.mjs` — 248 routes / 99 rows
+- Http ExtensionsReadGuard partition + EntityImportExportDryRun allow/deny/403
 
 ## Open task-book rows
 
@@ -39,12 +38,12 @@ Last updated: 2026-07-21
 
 ## Rollback
 
-- Revert catalog identity + regen commits if needed.
+- Revert dry-run permission commits if needed.
 - Never delete LTS shims early.
 
 ## Unowned worktree
 
-- None expected after catalog commits.
+- None expected after commits.
 
 
 ---
