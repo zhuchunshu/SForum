@@ -1,36 +1,39 @@
-/* SForum Default Theme public chrome — V32 暖橙左栏壳层。
- * 强调色继续走全局 --sf-accent（appearance.theme），不硬编码暖橙。
+/* Host baseline public chrome — fullwidth-3col flat shell.
+ * 与 sforum-default 主题 skin 对齐；强调色仍走 --sf-accent。
  */
 
 :root {
   --sf-public-container: 1200px;
-  --sf-public-bg: #eef2f6;
+  --sf-public-bg: #f5f6f8;
   --sf-public-surface: #ffffff;
-  --sf-public-surface-muted: #f7f9fb;
-  --sf-public-border: #d8e0e8;
-  --sf-public-border-strong: #c5d0db;
-  --sf-public-text: #1a2332;
-  --sf-public-text-secondary: #475569;
-  --sf-public-text-muted: #64748b;
-  --sf-public-text-faint: #94a3b8;
-  --sf-public-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06);
-  --sf-public-shadow-hover: 0 8px 24px rgb(15 23 42 / 0.08), 0 2px 6px rgb(15 23 42 / 0.04);
-  --sf-public-glass: rgb(255 255 255 / 0.96);
-  --sf-public-row-hover: color-mix(in srgb, var(--sf-accent) 6%, #ffffff);
-  --sf-public-notice-bg: linear-gradient(90deg, #fff7ed, #fffbeb);
-  --sf-public-notice-border: #fed7aa;
-  --sf-public-notice-text: #7c2d12;
-  --sf-public-sidebar-width: 240px;
-  --sf-public-right-rail-width: 272px;
+  --sf-public-surface-muted: #fafbfc;
+  --sf-public-border: #e6e8ec;
+  --sf-public-border-strong: #d0d4db;
+  --sf-public-text: #1c1f26;
+  --sf-public-text-secondary: #5a6270;
+  --sf-public-text-muted: #8b929e;
+  --sf-public-text-faint: #8b929e;
+  --sf-public-shadow: none;
+  --sf-public-shadow-hover: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --sf-public-glass: #ffffff;
+  --sf-public-row-hover: #f7f8fa;
+  --sf-public-notice-bg: #fff9db;
+  --sf-public-notice-border: #fde68a;
+  --sf-public-notice-text: #9a6700;
+  --sf-public-sidebar-width: 220px;
+  --sf-public-right-rail-width: 280px;
   --sf-public-topbar-height: 52px;
+  --sf-public-radius: 6px;
+  --sf-public-reading-max: 48rem;
+  --sf-theme-radius: 6px;
   --sf-surface: var(--sf-public-bg);
   --sf-card: #ffffff;
-  --sf-muted: #f7f9fb;
-  --sf-fg: #1a2332;
-  --sf-fg-secondary: #475569;
-  --sf-fg-tertiary: #64748b;
-  --sf-border: #d8e0e8;
-  --sf-border-light: #eef2f6;
+  --sf-muted: #fafbfc;
+  --sf-fg: #1c1f26;
+  --sf-fg-secondary: #5a6270;
+  --sf-fg-tertiary: #8b929e;
+  --sf-border: #e6e8ec;
+  --sf-border-light: #eef0f3;
 }
 
 .dark {
@@ -70,6 +73,7 @@
   background: var(--sf-public-bg);
   color: var(--sf-public-text);
 }
+
 
 .sf-public-page__container {
   width: 100%;

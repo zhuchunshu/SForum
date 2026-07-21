@@ -1,8 +1,13 @@
-<!-- sforum.page.home@1 — 默认主题拥有壳层；body 岛挂载宿主 SFHomePage -->
-<div class="sf-page sf-page--home sf-theme--default" data-page="forum.home" data-theme-owned="presentation">
+<!-- sforum.page.home@1 — 默认主题全宽三栏壳；body 岛挂载宿主 SFHomePage -->
+<div
+  class="sf-page sf-page--home sf-theme--default sf-theme-shell--fullwidth-3col"
+  data-page="forum.home"
+  data-theme-owned="presentation"
+  data-layout="fullwidth-3col"
+>
   <sf-navbar></sf-navbar>
   <div class="sf-theme-chrome-body" data-theme-region="body">
-    <div class="sf-theme-home-shell" data-theme-region="home-shell">
+    <div class="sf-theme-home-shell" data-theme-region="home-shell" data-layout="fullwidth-3col">
       <header class="sf-theme-home-shell__intro" aria-hidden="true"></header>
       <div class="sf-theme-home-shell__body">
         <sf-home-page></sf-home-page>
