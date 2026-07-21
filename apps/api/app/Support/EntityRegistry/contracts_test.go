@@ -120,6 +120,24 @@ func TestImportExportPlanAndPolicy(t *testing.T) {
 		t.Fatalf("export allow = %#v err=%v", allowed, err)
 	}
 
+	// Dry-run must never execute and must surface allow/deny without error.
+	dryAllow, err := registry.DryRunImportExport(
+		entityID, ActionExport, NewActorPermissions("demo.catalog.product.export"),
+	)
+	if err != nil || !dryAllow.DryRun || dryAllow.Executes || !dryAllow.Decision.Allowed {
+		t.Fatalf("dry allow = %#v err=%v", dryAllow, err)
+	}
+	if dryAllow.SchemaVersion != ImportExportDryRunSchemaVersion || !dryAllow.Plan.CanExport {
+		t.Fatalf("dry allow meta = %#v", dryAllow)
+	}
+	dryDeny, err := registry.DryRunImportExport(entityID, ActionExport, NewActorPermissions())
+	if err != nil || dryDeny.Decision.Allowed || dryDeny.Decision.Reason != "permission_denied" {
+		t.Fatalf("dry deny = %#v err=%v", dryDeny, err)
+	}
+	if _, err := registry.DryRunImportExport(entityID, ActionDelete, NewActorPermissions()); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("delete action dry-run err = %v", err)
+	}
+
 	// Export-only entity rejects import even with import permission key present.
 	exportOnly := New()
 	if _, err := exportOnly.Publish(Publication{

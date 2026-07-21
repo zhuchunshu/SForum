@@ -1,6 +1,7 @@
 package entityregistry
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -222,6 +223,56 @@ func (r *Registry) ImportExportPlanForEntity(entityID string) (ImportExportPlan,
 	sort.Strings(plan.FieldIDs)
 	plan.TaxonomyIDs = append([]string(nil), entity.TaxonomyIDs...)
 	return plan, nil
+}
+
+// ImportExportDryRunSchemaVersion is the Host dry-run contract (no store I/O).
+const ImportExportDryRunSchemaVersion = "sforum.entity-import-export-dry-run@1"
+
+// ImportExportDryRun is a non-executing projection of import/export admission.
+// Executes is always false; Host handlers must not treat this as a receipt.
+type ImportExportDryRun struct {
+	SchemaVersion string             `json:"schemaVersion"`
+	DryRun        bool               `json:"dryRun"`
+	Executes      bool               `json:"executes"`
+	Action        string             `json:"action"`
+	Plan          ImportExportPlan   `json:"plan"`
+	Decision      PermissionDecision `json:"decision"`
+}
+
+// DryRunImportExport returns plan + permission decision without durable I/O.
+// Permission and policy denials are returned inside Decision with nil error so
+// admin/devtools can inspect Allowed/Reason; only invalid inputs error.
+func (r *Registry) DryRunImportExport(
+	entityID string,
+	action string,
+	actor ActorPermissions,
+) (ImportExportDryRun, error) {
+	if r == nil {
+		return ImportExportDryRun{}, ErrInvalid
+	}
+	action = strings.ToLower(strings.TrimSpace(action))
+	if action != ActionImport && action != ActionExport {
+		return ImportExportDryRun{}, ErrInvalid
+	}
+	plan, err := r.ImportExportPlanForEntity(entityID)
+	if err != nil {
+		return ImportExportDryRun{}, err
+	}
+	decision, evalErr := r.EvaluatePermission(action, entityID, "", actor)
+	result := ImportExportDryRun{
+		SchemaVersion: ImportExportDryRunSchemaVersion,
+		DryRun:        true,
+		Executes:      false,
+		Action:        action,
+		Plan:          plan,
+		Decision:      decision,
+	}
+	if evalErr != nil &&
+		!errors.Is(evalErr, ErrPermissionDenied) &&
+		!errors.Is(evalErr, ErrPolicyDenied) {
+		return result, evalErr
+	}
+	return result, nil
 }
 
 // DeletionPlanForEntity projects Host deletion contract for one entity type.
