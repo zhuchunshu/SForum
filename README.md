@@ -1,86 +1,70 @@
 # SForum
 
-SForum is a forum project in the foundation stage.
+Maintainable, plugin-first open-source forum framework.
 
-The repository contains project documentation, collaboration rules, a lightweight knowledge base, and the first runnable application scaffold.
+Core is the host (identity, forum primitives, permissions, extension runtime, contracts). Deployment-specific behavior—mail transport, optional search engines, storage vendors, and similar—lives in extensions.
 
-## Repository Map
+## Documentation
 
-- `AGENTS.md` - working rules for AI agents and contributors.
-- `docs/` - product, architecture, and planning documents.
-- `knowledge/` - project memory for decisions, module notes, and session handoffs.
-- `apps/` - application source code for `web` and `api`.
-- `contracts/` - API contracts such as OpenAPI.
-- `compose*.yaml` - planned Docker Compose files for development and production.
-- `deploy.sh` - bilingual production deployment entry point.
-- `tests/` - future tests.
-- `assets/` - future static or design assets.
+| Language | Start here |
+| --- | --- |
+| **简体中文** | [`docs/zh-CN/README.md`](./docs/zh-CN/README.md) |
+| **English** | [`docs/en-US/README.md`](./docs/en-US/README.md) |
+| Hub | [`docs/README.md`](./docs/README.md) |
 
-## Development
+Quick paths:
 
-Start the local dependency services first:
+- [快速开始](./docs/zh-CN/getting-started.md) / [Getting started](./docs/en-US/getting-started.md)
+- [使用说明](./docs/zh-CN/usage/README.md) / [Usage](./docs/en-US/usage/README.md)
+- [开发指南](./docs/zh-CN/development/README.md) / [Development](./docs/en-US/development/README.md)
+- [生产部署](./docs/zh-CN/deployment.md) / [Deployment](./docs/en-US/deployment.md)
+- Extension technical reference: [`docs/extensions/`](./docs/extensions/)
 
-```sh
-./scripts/dev.sh
-```
+## Repository map
 
-The script starts PostgreSQL, Redis, and Mailpit with Docker (Meilisearch is optional via compose profile `search`)
-Compose, waits for healthy services, and runs database migrations by default.
-It does not start the frontend or API.
+| Path | Role |
+| --- | --- |
+| `apps/web` | Nuxt 4 frontend |
+| `apps/api` | Go Fiber API, worker, CLI |
+| `contracts/` | OpenAPI + Protobuf |
+| `extensions/` | Built-in / optional / dev packages |
+| `docs/` | Bilingual handbooks + extension reference |
+| `knowledge/` | Decisions, module notes, session handoffs |
+| `scripts/` | Dev and test helpers |
+| `deploy.sh` + `compose*.yaml` | Production and dependency orchestration |
 
-Run the frontend and API locally in separate terminals:
-
-```sh
-cd apps/web && bun run dev
-./scripts/api-dev.sh
-```
-
-`bun run dev` starts Nuxt directly. Public themes activate synchronously through
-the Page Registry (L0 CSS + L1 templates), without rebuilding Nuxt or restarting
-Nitro. Extension settings use the host Schema renderer by default; explicitly
-trusted prebuilt components load from immutable digest URLs without a host build.
-`bun run preview` serves the fixed `.output` build for local production checks.
-
-In development, the API process embeds the background worker, so queued jobs run
-when `air` starts the API. To mimic the
-production split, disable `EMBED_WORKER_IN_API` and run the worker manually:
+## Local development
 
 ```sh
-./scripts/worker-dev.sh
+./scripts/dev.sh                 # PostgreSQL, Redis, Mailpit + migrations
+./scripts/api-dev.sh             # API (embeds worker in dev)
+cd apps/web && bun run dev       # Nuxt on :3000
 ```
 
-After Dockerfile or dependency changes, rebuild the migration image explicitly:
+Useful URLs:
+
+- Web: http://127.0.0.1:3000  
+- API health: http://127.0.0.1:3000/api/v1/health  
+- API ready: http://127.0.0.1:3000/api/v1/ready  
+- Mailpit: http://127.0.0.1:18025  
+
+Meilisearch is **optional** (`docker compose --profile search up -d meilisearch`). Default search is built-in site PostgreSQL FTS.
+
+Full steps: [docs/zh-CN/getting-started.md](./docs/zh-CN/getting-started.md) or [docs/en-US/getting-started.md](./docs/en-US/getting-started.md).
+
+## Production
 
 ```sh
-./scripts/dev.sh --build
+cp .env.production.example .env.production
+# edit secrets and APP_URL
+./deploy.sh
 ```
 
-Frontend build and typecheck scripts use separate Nuxt temporary directories so
-`bun run build` and `bun run typecheck` do not churn the dev server's `.nuxt`
-state or trigger noisy reloads.
+Details: [docs/zh-CN/deployment.md](./docs/zh-CN/deployment.md) / [docs/en-US/deployment.md](./docs/en-US/deployment.md).
 
-Useful endpoints:
+## Contributing / agents
 
-- Web: `http://127.0.0.1:3000`
-- API liveness: `http://127.0.0.1:3000/api/v1/health`
-- API readiness: `http://127.0.0.1:3000/api/v1/ready` (PG required; Redis/Meili degraded-ready)
-- Web health: `http://127.0.0.1:3000/health`
-- Meilisearch health (optional profile `search`): `http://127.0.0.1:17700/health`
-- Mailpit UI: `http://127.0.0.1:18025`
-
-Development dependency services publish loopback-only host ports so locally
-started `air` and Nuxt can connect to them. Production Compose keeps internal
-services private and publishes only the web entry point.
-
-Production web starts the Nuxt output directly. Public theme activate/switch is
-runtime-only (Page Registry + skin CSS). Extension settings use host-rendered
-Schema/Actions or explicitly trusted prebuilt components loaded by immutable
-digest; operators never build extension frontend code. Do not use
-`bun run preview` as the production web server.
-
-## Start Here
-
-1. Read `AGENTS.md`.
-2. Read `knowledge/index.md`.
-3. Check the latest file under `knowledge/sessions/` when resuming work.
-4. Update the knowledge base after making meaningful product, technical, or process decisions.
+1. Read [`AGENTS.md`](./AGENTS.md)  
+2. Read [`docs/`](./docs/README.md) for usage and development  
+3. Read [`knowledge/index.md`](./knowledge/index.md) for current project memory  
+4. Keep OpenAPI, tests, and knowledge notes updated with code changes  

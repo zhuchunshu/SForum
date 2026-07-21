@@ -1,5 +1,8 @@
 # Trusted Plugin And Theme Platform V3
 
+> Operator/developer handbooks: [中文](../../zh-CN/README.md) ·
+> [English](../../en-US/README.md) · [Docs hub](../../README.md)
+
 V3 is the active extension-platform direction. The accepted product boundary is
 the ADR at `knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`;
 the implementation order and exit gates are in

@@ -6,6 +6,14 @@ session archive.
 
 ## Latest Handoff
 
+- **2026-07-21 Bilingual docs handbook**
+  - Hub: `docs/README.md`
+  - 中文: `docs/zh-CN/` · English: `docs/en-US/`
+  - Usage + development + deployment + product/architecture
+  - Technical contracts remain path-stable under `docs/extensions/`
+  - Legacy root drafts / superpowers plans → `docs/archive/`
+  - Handoff: `sessions/2026-07-21-docs-bilingual-handbook-handoff.md`
+
 - **2026-07-21 Knowledge base cleanup**
   - Handoff: `sessions/2026-07-21-knowledge-base-cleanup-handoff.md`
   - Slimmed this index; archived historical sessions; unified plan statuses

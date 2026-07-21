@@ -1,16 +1,52 @@
-# Docs
+# SForum Documentation
 
-Project-facing documentation lives here.
+Official project documentation. Choose a language:
 
-Suggested documents:
+| Language | Path | Audience |
+| --- | --- | --- |
+| **简体中文** | [`zh-CN/`](./zh-CN/README.md) | 默认语言；站长使用、本地开发、部署 |
+| **English** | [`en-US/`](./en-US/README.md) | Operators, contributors, developers |
 
-- `product.md` - product goals, user roles, and core forum workflows.
-- `architecture.md` - technical architecture once a stack is selected.
-- `roadmap.md` - milestone planning and delivery order.
-- `extension-platform-v2.md` - controlled plugin/theme platform direction,
-  admin manifest rules, and staged extension roadmap.
-- `extensions/authoring-guide.md` - how to build plugins with the public Go SDK,
-  Host API, and contract CLI (references SMTP + fixtures).
-- `extensions/catalogs/` - **generated** host catalogs (events, capabilities,
-  contribution points, provider slots, core schedules). Regenerate with
-  `cd apps/api && go run ./cmd/sforum extension docs generate`.
+## Quick links
+
+| Topic | 中文 | English |
+| --- | --- | --- |
+| Getting started | [快速开始](./zh-CN/getting-started.md) | [Getting started](./en-US/getting-started.md) |
+| Operator usage | [使用说明](./zh-CN/usage/README.md) | [Usage](./en-US/usage/README.md) |
+| Development | [开发指南](./zh-CN/development/README.md) | [Development](./en-US/development/README.md) |
+| Deployment | [生产部署](./zh-CN/deployment.md) | [Deployment](./en-US/deployment.md) |
+| Architecture | [架构](./zh-CN/architecture.md) | [Architecture](./en-US/architecture.md) |
+| Product | [产品说明](./zh-CN/product.md) | [Product](./en-US/product.md) |
+| Extensions (tech) | [扩展参考](./extensions/) | [Extension reference](./extensions/) |
+
+## Layout
+
+```text
+docs/
+├── README.md                 # this hub
+├── zh-CN/                    # Chinese handbook (maintained in parallel)
+├── en-US/                    # English handbook (maintained in parallel)
+├── extensions/               # technical extension contracts (path stable for CI)
+│   ├── authoring-guide.md
+│   ├── catalogs/             # generated host catalogs
+│   └── v3/                   # V3 governance, matrices, evidence
+└── archive/                  # historical plans, old root drafts, security notes
+```
+
+## Conventions
+
+1. **Bilingual handbooks** under `zh-CN/` and `en-US/` stay structurally parallel
+   (same filenames and section order). When you change one locale, update the other
+   in the same change when practical.
+2. **`docs/extensions/`** is the machine-checked technical surface (catalogs, Host
+   API, V3 matrices). Do not move these paths without updating generators and tests.
+3. **`knowledge/`** is internal session memory (decisions, module status, handoffs).
+   Prefer `docs/` for durable operator/developer guides.
+4. **`contracts/`** holds OpenAPI/Protobuf; link from docs, do not duplicate schemas.
+
+## Related paths outside `docs/`
+
+- Repository rules for agents: `AGENTS.md`
+- Living project memory: `knowledge/index.md`
+- API contracts: `contracts/openapi.yaml`
+- Extension packages: `extensions/`

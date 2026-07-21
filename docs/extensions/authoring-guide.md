@@ -1,7 +1,14 @@
 # Plugin authoring guide
 
-This guide is the hand-written entry point for building SForum plugins (Wave
-F4.2). Generated host catalogs live under
+> **Handbooks (bilingual):**  
+> [中文 · 扩展运营侧](../zh-CN/usage/extensions.md) ·
+> [English · extensions (ops)](../en-US/usage/extensions.md) ·
+> [中文开发](../zh-CN/development/README.md) ·
+> [English development](../en-US/development/README.md) ·
+> [Docs hub](../README.md)
+
+This guide is the hand-written **technical** entry point for building SForum
+plugins (Wave F4.2). Generated host catalogs live under
 [catalogs/](./catalogs/README.md) — always regenerate those from code after
 changing events, capabilities, contribution points, provider slots, or core
 schedules.

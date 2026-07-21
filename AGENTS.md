@@ -60,7 +60,9 @@ knowledge base, and tests.
 - `tests/` — repo-level validation scripts (Playwright/Node) that hit the
   running dev servers.
 - `scripts/` — dev/test orchestration shell scripts (see Commands below).
-- `docs/`, `deploy/`, `compose*.yaml`, `deploy.sh` — deployment and ops.
+- `docs/` — bilingual handbooks (`zh-CN/`, `en-US/`) plus path-stable extension
+  reference under `docs/extensions/`; historical material in `docs/archive/`.
+- `deploy/`, `compose*.yaml`, `deploy.sh` — deployment and ops.
 - Runtime deps via Compose: PostgreSQL, Redis, Mailpit (Meilisearch optional via `--profile search`).
 
 ## Commands
