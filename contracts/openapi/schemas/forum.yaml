@@ -852,6 +852,7 @@ TopicList:
   - total
   - page
   - perPage
+  - hasMore
   properties:
     items:
       type: array
@@ -866,7 +867,8 @@ TopicList:
         - single tagSlug → denormalized tags.topic_count (same)
         - unfiltered home → sum of public category counters (approximate; may be stale)
         - category+tag together → approximate (min of the two counters; not intersection-exact)
-        Clients must tolerate stale or approximate totals. Prefer shallow pages; future keyset feeds use hasMore.
+        Clients must tolerate stale or approximate totals. Infinite scroll / keyset should prefer hasMore + nextCursor;
+        total is secondary and may be approximate on public home.
         Admin/moderation lists may still use exact counts on separate endpoints.
     totalApproximate:
       type: boolean
@@ -876,8 +878,20 @@ TopicList:
         UI may show an “about N” phrasing only when this flag is true.
     page:
       type: integer
+      description: Echo of offset-mode page (1–200). When request used `after`, value is 1 (cursor mode; do not use page for continuation).
     perPage:
       type: integer
+    hasMore:
+      type: boolean
+      description: |
+        True when another page of results is available. Required for public list feeds (M5).
+        Prefer this over computing from total for infinite scroll.
+    nextCursor:
+      type: string
+      description: |
+        Opaque keyset cursor for the next page. Present when hasMore is true; pass as query `after`.
+        Bound to the sort used for this response; do not reuse across different sort values.
+        Empty or omitted when hasMore is false.
     extensionListBadges:
       type: array
       description: Host-rendered list-row badges from forum.topic.list.badges (E2.4). Returned once per list; clients attach to each row. No per-row plugin RPC.
@@ -1166,6 +1180,7 @@ CommentList:
   - page
   - perPage
   - view
+  - hasMore
   properties:
     items:
       type: array
@@ -1178,8 +1193,10 @@ CommentList:
         flat: topic comment total (public path prefers denormalized topics.comment_count;
         may be briefly stale after writes). tree: root comment count for the topic.
         Paths that include soft-deleted rows may use exact COUNT instead.
+        Prefer hasMore + nextCursor for deep flat scroll (M5).
     page:
       type: integer
+      description: Offset-mode page echo. Cursor mode (`after`) sets page to 1.
     perPage:
       type: integer
     view:
@@ -1187,6 +1204,14 @@ CommentList:
       enum:
       - tree
       - flat
+    hasMore:
+      type: boolean
+      description: True when another page is available (flat keyset or tree root page).
+    nextCursor:
+      type: string
+      description: |
+        Opaque forward cursor for view=flat (path_key + id). Pass as query `after`.
+        Omitted/empty when hasMore is false. Tree view may omit nextCursor (use page).
     extensionActions:
       type: array
       description: Host-rendered comment row actions from forum.comment.actions (E2.2). Listed once per page; clients attach them to each row menu. Unsafe calls still go through the extension route proxy.

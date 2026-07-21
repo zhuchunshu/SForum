@@ -102,14 +102,28 @@ topics:
       首页与多过滤为近似值，见 TopicList.total / totalApproximate。
       关键词请用 GET /api/v1/search；非空 `query` 返回 400 forum.use_search_endpoint。
       默认排序 active 在分类过滤下可走 topics_category_activity_idx；列表不 join 完整正文。
+
+      **分页（M5）：** 支持浅层 `page`（1–200，OFFSET）与 keyset `after`（opaque cursor）。
+      **优先级：非空 `after` 优先于 `page`（page 被忽略）。** 深翻页 / infinite scroll 应使用
+      `after` + 响应 `hasMore` / `nextCursor`，避免大 OFFSET。置顶参与 keyset 第一排序维
+      （`is_pinned DESC`，再 sort 列，再 id），算法稳定可测。
     parameters:
     - name: page
       in: query
-      description: 页码，最大 200。超过上限的深翻页请求会被 clamp 到末页，避免深分页扫描退化。
+      description: |
+        页码，最大 200（OFFSET 模式）。超过上限 clamp 到 200。
+        当 `after` 非空时忽略本参数（cursor 优先）。
       schema:
         type: integer
         minimum: 1
         maximum: 200
+    - name: after
+      in: query
+      description: |
+        向前 keyset 游标（opaque）。非空时进入 cursor 模式并忽略 `page`。
+        取自上一页响应的 `nextCursor`。非法游标返回 400 forum.cursor_invalid。
+      schema:
+        type: string
     - name: perPage
       in: query
       schema:
@@ -131,6 +145,7 @@ topics:
       description: |
         latest | active | hot；空则站点默认。
         hot 使用 topics.hot_score 列（comment_count*5+view_count，写路径/刷盘维护）与 hot 索引。
+        游标与 sort 绑定：换 sort 后不得复用旧 nextCursor。
       schema:
         type: string
         enum: [latest, active, hot]
@@ -139,10 +154,13 @@ topics:
         description: |
           Paged public topic list. `data.total` may be denormalized/stale (category/tag)
           or approximate (home / multi-filter); see `data.totalApproximate`.
+          Public feeds always include `hasMore`; when true, `nextCursor` continues via `after`.
         content:
           application/json:
             schema:
               "$ref": "../schemas/forum.yaml#/ApiResponseTopicList"
+      '400':
+        "$ref": "../components/responses.yaml#/BadRequest"
   post:
     summary: Create a topic
     operationId: createTopic
@@ -746,10 +764,14 @@ topicComments:
   get:
     summary: List topic comments
     operationId: listTopicComments
-    description: >
+    description: |
       view=tree pages roots and loads at most forum.comments.tree_descendants_per_root
       descendants per root (default 50). Truncated roots set hasMoreChildren; load more
       via listCommentReplies. Public list responses may be short-TTL Redis cached.
+
+      **分页（M5）：** view=flat 支持 keyset `after`（path_key + id）。
+      **优先级：非空 `after` 优先于 `page`。** 响应含 `hasMore` / `nextCursor`。
+      view=tree 根分页仍可用 page；cursor 主要用于 flat 深翻。
     parameters:
     - "$ref": "../components/parameters.yaml#/TopicID"
     - name: view
@@ -762,11 +784,20 @@ topicComments:
         default: tree
     - name: page
       in: query
-      description: Page number. Deep pages beyond the maximum are clamped to the last page.
+      description: |
+        Page number (OFFSET). Deep pages beyond the maximum are clamped.
+        Ignored when `after` is non-empty (cursor precedence).
       schema:
         type: integer
         minimum: 1
         maximum: 200
+    - name: after
+      in: query
+      description: |
+        Forward keyset cursor for view=flat (opaque). Prefer for deep scroll.
+        Invalid cursor → 400 forum.cursor_invalid.
+      schema:
+        type: string
     - name: perPage
       in: query
       schema:
