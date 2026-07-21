@@ -28,6 +28,8 @@ type Service struct {
 	trust TrustPolicyResolver
 	// contentFilter 可选：Host Render 之后的 ContentRegistry 后置缝合；nil 为恒等。
 	contentFilter ContentPostFilter
+	// editorSchema 可选：editor-document Accept 合并 Editor Registry 节点/标记。
+	editorSchema EditorDocumentSchemaProvider
 }
 
 // WithComposerToolbar 注入 composer 工具栏贡献解析（F4.3）。
@@ -576,7 +578,7 @@ func (s *Service) CreateTopic(ctx context.Context, actor identity.Actor, input C
 	if err != nil {
 		return TopicDetail{}, err
 	}
-	content, err := RenderContentWithExcerptLimit(input.Content, settings.ExcerptRuneLimit)
+	content, err := s.renderContent(input.Content, settings.ExcerptRuneLimit)
 	if err != nil {
 		return TopicDetail{}, err
 	}
@@ -719,7 +721,7 @@ func (s *Service) UpdateTopic(ctx context.Context, actor identity.Actor, input U
 		if trust := s.trustForActor(ctx, actor); trust.active && trust.forbidLinks && containsOutboundLink(input.Content.RawContent) {
 			return TopicDetail{}, ErrOutboundLinkForbidden
 		}
-		content, err := RenderContentWithExcerptLimit(*input.Content, settings.ExcerptRuneLimit)
+		content, err := s.renderContent(*input.Content, settings.ExcerptRuneLimit)
 		if err != nil {
 			return TopicDetail{}, err
 		}
@@ -943,7 +945,7 @@ func (s *Service) CreateComment(ctx context.Context, actor identity.Actor, input
 		return Comment{}, err
 	}
 
-	content, err := RenderContentWithExcerptLimit(input.Content, settings.ExcerptRuneLimit)
+	content, err := s.renderContent(input.Content, settings.ExcerptRuneLimit)
 	if err != nil {
 		return Comment{}, err
 	}
@@ -1341,7 +1343,7 @@ func (s *Service) UpdateComment(ctx context.Context, actor identity.Actor, input
 	if trust := s.trustForActor(ctx, actor); trust.active && trust.forbidLinks && containsOutboundLink(input.Content.RawContent) {
 		return Comment{}, ErrOutboundLinkForbidden
 	}
-	content, err := RenderContentWithExcerptLimit(input.Content, settings.ExcerptRuneLimit)
+	content, err := s.renderContent(input.Content, settings.ExcerptRuneLimit)
 	if err != nil {
 		return Comment{}, err
 	}

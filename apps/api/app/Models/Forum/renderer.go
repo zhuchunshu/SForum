@@ -30,7 +30,16 @@ func RenderContent(input ContentInput) (RenderedContent, error) {
 }
 
 // RenderContentWithExcerptLimit 渲染正文并派生摘要（摘要不落库，仅写路径/响应使用）。
+// editor-document 默认仅 CoreSchema；生产写路径应经 Service.renderContent 注入
+// Editor Registry 合并 schema，避免插件 L2 节点在 Accept 时被 fallback 擦除。
 func RenderContentWithExcerptLimit(input ContentInput, excerptLimit int) (RenderedContent, error) {
+	return RenderContentWithExcerptLimitAndSchema(input, excerptLimit, editordocument.Schema{})
+}
+
+// RenderContentWithExcerptLimitAndSchema 与 WithExcerptLimit 相同，但 editor-document
+// 使用调用方提供的 Schema（通常来自 EditorRegistry.DocumentSchema）。
+// 空 Schema 时 Accept 回退到 CoreSchema。
+func RenderContentWithExcerptLimitAndSchema(input ContentInput, excerptLimit int, schema editordocument.Schema) (RenderedContent, error) {
 	raw := strings.TrimSpace(input.RawContent)
 	if raw == "" {
 		return RenderedContent{}, ErrInvalidContent
@@ -50,6 +59,7 @@ func RenderContentWithExcerptLimit(input ContentInput, excerptLimit int) (Render
 		accepted, err := editordocument.Accept(editordocument.Input{
 			NativeJSON:   []byte(raw),
 			ExcerptLimit: excerptLimit,
+			Schema:       schema,
 		})
 		if err != nil {
 			return RenderedContent{}, ErrInvalidContent

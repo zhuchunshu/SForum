@@ -3,6 +3,8 @@ package forum
 import (
 	"context"
 	"strings"
+
+	editordocument "github.com/zhuchunshu/sforum/apps/api/app/Support/EditorDocument"
 )
 
 // ContentPostFilter is an optional Host seam after authoritative RenderContent.
@@ -11,6 +13,12 @@ import (
 // plugin surface is incomplete.
 type ContentPostFilter interface {
 	AfterHostRender(ctx context.Context, in ContentPostFilterInput) (RenderedContent, error)
+}
+
+// EditorDocumentSchemaProvider supplies the Host Accept schema for
+// sourceFormat=editor-document. Nil keeps CoreSchema-only admission.
+type EditorDocumentSchemaProvider interface {
+	EditorDocumentSchema() editordocument.Schema
 }
 
 // ContentPostFilterInput carries Host-rendered content plus composition context.
@@ -27,6 +35,24 @@ func (s *Service) WithContentPostFilter(filter ContentPostFilter) *Service {
 		s.contentFilter = filter
 	}
 	return s
+}
+
+// WithEditorDocumentSchema injects Editor Registry → Accept schema projection.
+func (s *Service) WithEditorDocumentSchema(provider EditorDocumentSchemaProvider) *Service {
+	if s != nil {
+		s.editorSchema = provider
+	}
+	return s
+}
+
+// renderContent is the Service write-path entry: editor-document admits plugin
+// node/mark names from Editor Registry when wired.
+func (s *Service) renderContent(input ContentInput, excerptLimit int) (RenderedContent, error) {
+	schema := editordocument.Schema{}
+	if s != nil && s.editorSchema != nil {
+		schema = s.editorSchema.EditorDocumentSchema()
+	}
+	return RenderContentWithExcerptLimitAndSchema(input, excerptLimit, schema)
 }
 
 func (s *Service) applyContentPostFilter(ctx context.Context, content RenderedContent, resource, resourceID string) (RenderedContent, error) {

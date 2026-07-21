@@ -98,6 +98,14 @@ func (p *ForumProvider) WithContentPostFilter(filter forum.ContentPostFilter) *F
 	return p
 }
 
+// WithEditorDocumentSchema injects Editor Registry → editor-document Accept schema.
+func (p *ForumProvider) WithEditorDocumentSchema(provider forum.EditorDocumentSchemaProvider) *ForumProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithEditorDocumentSchema(provider)
+	}
+	return p
+}
+
 // TrustPolicyAdapter 把 options.TrustPolicy 适配为 forum.TrustPolicyResolver。
 type TrustPolicyAdapter struct {
 	options *options.Service

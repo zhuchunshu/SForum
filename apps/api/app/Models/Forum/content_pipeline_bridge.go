@@ -2,6 +2,9 @@ package forum
 
 import (
 	"context"
+
+	editordocument "github.com/zhuchunshu/sforum/apps/api/app/Support/EditorDocument"
+	editorregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EditorRegistry"
 )
 
 // ContentRegistryPostFilter adapts ContentRegistry's filter surface to the
@@ -14,6 +17,19 @@ type ContentRegistryPostFilter interface {
 // ContentRegistryBridge adapts ContentRegistryPostFilter → ContentPostFilter.
 type ContentRegistryBridge struct {
 	Inner ContentRegistryPostFilter
+}
+
+// EditorRegistrySchemaBridge projects EditorRegistry into forum Accept schema.
+type EditorRegistrySchemaBridge struct {
+	Registry *editorregistry.Registry
+}
+
+// EditorDocumentSchema implements EditorDocumentSchemaProvider.
+func (b EditorRegistrySchemaBridge) EditorDocumentSchema() editordocument.Schema {
+	if b.Registry == nil {
+		return editordocument.CoreSchema()
+	}
+	return b.Registry.DocumentSchema()
 }
 
 func (b ContentRegistryBridge) AfterHostRender(ctx context.Context, in ContentPostFilterInput) (RenderedContent, error) {

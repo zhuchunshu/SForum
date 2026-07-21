@@ -112,6 +112,14 @@ func (h *Controller) WithContentPostFilter(filter forum.ContentPostFilter) *Cont
 	return h
 }
 
+// WithEditorDocumentSchema wires Editor Registry schema into Accept on write paths.
+func (h *Controller) WithEditorDocumentSchema(provider forum.EditorDocumentSchemaProvider) *Controller {
+	if h != nil && h.service != nil {
+		h.service.WithEditorDocumentSchema(provider)
+	}
+	return h
+}
+
 func (h *Controller) WithIdempotency(store *idempotency.Store) *Controller {
 	if h != nil {
 		h.idempotency = store

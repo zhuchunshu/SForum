@@ -816,6 +816,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		providers.NewModerationPublicationPolicy(moderationStore, optionsService),
 	).WithIdempotency(idempotencyStore).WithContentPostFilter(forum.ContentRegistryBridge{
 		Inner: contentregistry.NewForumPostFilter(lifecycleStack.ContentRegistry),
+	}).WithEditorDocumentSchema(forum.EditorRegistrySchemaBridge{
+		Registry: lifecycleStack.EditorRegistry,
 	})
 	// 头像与附件管理共用带存储候选目录的服务实例。
 	avatarAttachmentService := attachmentService
