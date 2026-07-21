@@ -66,16 +66,17 @@ record compatibility impact.
 
 ## Phase State
 
-- P0: complete (catalogs, governance, performance baseline, and CI drift gate).
-- P1: complete (exact-artifact trust, Safe Mode, CLI recovery, and boot-loop
-  containment).
-- P2: complete. Manifest V3 versioning, sharded Registry/platform declarations,
-  package graph, embedded JSON Schema, modular OpenAPI, exact package-file
-  digests, CLI scaffold/validation, reference fixtures, canonical trust impact,
-  and generated schema catalog are implemented. Runtime registry execution
-  remains gated by later phases.
-- P3-P13: not implemented unless their task-book checkboxes and phase handoff
-  explicitly say otherwise.
-- Existing v1 runtime, Page Registry, Settings Document, event, contribution,
-  provider, job, permission, SSR, and localization behavior remains a
-  compatibility input until its named V3 replacement gate passes.
+- P0–P12: complete (task-book checkboxes closed; catalogs, registries, Protocol
+  V2 defaults, presentation ownership, and product-path adoption landed).
+- P13: final gates green (~99.7% overall). Open residual is **LTS-only**:
+  request-time template loader, Protocol V1 paths, and compatibility removal
+  after `RemoveAfter` ≈ 2026-11-28 + live zero-shim + deletion checklist 1–7.
+  Fail-closed `SFPageOutlet` is never fully removed by design.
+- Catalog inventory gate: **249** routes / **150** UI surfaces / **99**
+  traceability rows (`tests/validate-v3-p0-catalogs.mjs`).
+- Progress authority:
+  `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
+  and `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`.
+- Large deferred (not LTS, not thin wiring): Protocol-leased content filter
+  dispatch, Media Plan/Execute/Receipt product authority, EntityStore I/O.
+- Named v1 compatibility shims remain until their APILTS removal gate passes.
