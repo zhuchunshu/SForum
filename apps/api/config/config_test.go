@@ -8,9 +8,30 @@ import (
 	"time"
 )
 
+func clearJobQueueEnv(t *testing.T) {
+	t.Helper()
+	for _, key := range []string{
+		"JOB_QUEUE_CRITICAL_WORKERS",
+		"JOB_QUEUE_DEFAULT_WORKERS",
+		"JOB_QUEUE_SEARCH_WORKERS",
+		"JOB_QUEUE_MAIL_WORKERS",
+		"JOB_QUEUE_NOTIFICATIONS_WORKERS",
+		"JOB_QUEUE_MAINTENANCE_WORKERS",
+		"DATABASE_MAX_CONNS",
+		"DATABASE_MIN_CONNS",
+		"WORKER_DATABASE_MAX_CONNS",
+		"WORKER_DATABASE_MIN_CONNS",
+		"REDIS_POOL_SIZE",
+		"REDIS_MIN_IDLE_CONNS",
+	} {
+		t.Setenv(key, "")
+	}
+}
+
 func TestLoadIncludesDefaultWorkerConfig(t *testing.T) {
 	t.Setenv("APP_ENV", "test")
 	t.Setenv("DATABASE_URL", "postgres://example:example@localhost:5432/example?sslmode=disable")
+	clearJobQueueEnv(t)
 
 	cfg := Load()
 
@@ -88,6 +109,74 @@ func TestLoadIncludesDefaultWorkerConfig(t *testing.T) {
 	}
 	if cfg.JobQueueMaintenanceWorkers != 2 {
 		t.Fatalf("expected maintenance workers 2, got %d", cfg.JobQueueMaintenanceWorkers)
+	}
+	if total := JobQueueWorkerTotal(cfg); total != 30 {
+		t.Fatalf("expected production-scale worker total 30 for non-development, got %d", total)
+	}
+}
+
+func TestLoadDevelopmentLeanJobQueueAndPoolDefaults(t *testing.T) {
+	t.Setenv("APP_ENV", "development")
+	t.Setenv("DATABASE_URL", "postgres://example:example@localhost:5432/example?sslmode=disable")
+	clearJobQueueEnv(t)
+
+	cfg := Load()
+
+	if cfg.JobQueueCriticalWorkers != 1 ||
+		cfg.JobQueueDefaultWorkers != 2 ||
+		cfg.JobQueueSearchWorkers != 1 ||
+		cfg.JobQueueMailWorkers != 1 ||
+		cfg.JobQueueNotificationsWorkers != 1 ||
+		cfg.JobQueueMaintenanceWorkers != 1 {
+		t.Fatalf("unexpected development job queue defaults: critical=%d default=%d search=%d mail=%d notifications=%d maintenance=%d",
+			cfg.JobQueueCriticalWorkers, cfg.JobQueueDefaultWorkers, cfg.JobQueueSearchWorkers,
+			cfg.JobQueueMailWorkers, cfg.JobQueueNotificationsWorkers, cfg.JobQueueMaintenanceWorkers)
+	}
+	if total := JobQueueWorkerTotal(cfg); total != 7 {
+		t.Fatalf("expected lean development worker total 7, got %d", total)
+	}
+	if total := JobQueueWorkerTotal(cfg); total >= 30 {
+		t.Fatalf("development defaults must be leaner than production 30-slot profile, got %d", total)
+	}
+	if cfg.DatabaseMaxConns != 5 || cfg.DatabaseMinConns != 1 {
+		t.Fatalf("expected lean dev database pool 5/1, got %d/%d", cfg.DatabaseMaxConns, cfg.DatabaseMinConns)
+	}
+	if cfg.RedisPoolSize != 8 || cfg.RedisMinIdleConns != 1 {
+		t.Fatalf("expected lean dev redis pool 8/1, got %d/%d", cfg.RedisPoolSize, cfg.RedisMinIdleConns)
+	}
+}
+
+func TestLoadProductionKeepsFullJobQueueDefaults(t *testing.T) {
+	t.Setenv("APP_ENV", "production")
+	setValidProductionSecrets(t)
+	clearJobQueueEnv(t)
+
+	cfg := Load()
+	if JobQueueWorkerTotal(cfg) != 30 {
+		t.Fatalf("production must keep 30-slot defaults, got %d", JobQueueWorkerTotal(cfg))
+	}
+	if cfg.DatabaseMaxConns != 10 || cfg.RedisPoolSize != 20 {
+		t.Fatalf("production pools drifted: db=%d redis=%d", cfg.DatabaseMaxConns, cfg.RedisPoolSize)
+	}
+}
+
+func TestLoadJobQueueEnvOverridesDevelopmentLeanDefaults(t *testing.T) {
+	t.Setenv("APP_ENV", "development")
+	t.Setenv("DATABASE_URL", "postgres://example:example@localhost:5432/example?sslmode=disable")
+	clearJobQueueEnv(t)
+	t.Setenv("JOB_QUEUE_DEFAULT_WORKERS", "9")
+	t.Setenv("DATABASE_MAX_CONNS", "12")
+
+	cfg := Load()
+	if cfg.JobQueueDefaultWorkers != 9 {
+		t.Fatalf("expected env override for default workers, got %d", cfg.JobQueueDefaultWorkers)
+	}
+	if cfg.DatabaseMaxConns != 12 {
+		t.Fatalf("expected env override for database max conns, got %d", cfg.DatabaseMaxConns)
+	}
+	// 未覆盖的队列仍用 lean 默认。
+	if cfg.JobQueueCriticalWorkers != 1 {
+		t.Fatalf("expected lean critical default 1, got %d", cfg.JobQueueCriticalWorkers)
 	}
 }
 

@@ -16,6 +16,7 @@ import {
   overviewTrendPeakDate,
   overviewTrendSparkPath,
   overviewTrendSum,
+  type AdminOverviewRuntime,
   type AdminOverviewTrendDay
 } from '../app/utils/adminOverview'
 
@@ -24,6 +25,34 @@ describe('admin overview helpers', () => {
     expect(formatOverviewBytes(0)).toBe('0 MiB')
     expect(formatOverviewBytes(1024 * 1024)).toBe('1 MiB')
     expect(formatOverviewBytes(1536 * 1024 * 1024)).toBe('1,536 MiB')
+  })
+
+  test('runtime memory types expose RSS primary, Sys diagnostic, and family fields', () => {
+    // 驱动真实类型形状：主 KPI 为 memoryBytes(RSS)，Sys/全家为独立字段。
+    const runtime: AdminOverviewRuntime = {
+      startedAt: '2026-07-21T00:00:00.000Z',
+      uptimeSeconds: 60,
+      memoryBytes: 160 * 1024 * 1024,
+      heapAllocBytes: 80 * 1024 * 1024,
+      heapSysBytes: 100 * 1024 * 1024,
+      sysBytes: 280 * 1024 * 1024,
+      familyMemoryBytes: 230 * 1024 * 1024,
+      pluginChildCount: 4,
+      goroutineCount: 40,
+      gcCount: 3,
+      lastGcPauseNs: 1000,
+      database: {
+        maxConnections: 10,
+        totalConnections: 2,
+        acquiredConnections: 1,
+        idleConnections: 1
+      }
+    }
+    expect(runtime.memoryBytes).toBeLessThan(runtime.sysBytes)
+    expect(runtime.familyMemoryBytes).toBeGreaterThanOrEqual(runtime.memoryBytes)
+    expect(runtime.pluginChildCount).toBe(4)
+    expect(formatOverviewBytes(runtime.memoryBytes)).toBe('160 MiB')
+    expect(formatOverviewBytes(runtime.familyMemoryBytes!)).toBe('230 MiB')
   })
 
   test('formats large counts for dashboard cards', () => {

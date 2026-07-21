@@ -17,6 +17,8 @@ type RuntimeCollector struct {
 	queueLagPool *pgxpool.Pool
 	staleAfter   time.Duration
 	now          func() time.Time
+	// sampler 可注入；nil 时使用 defaultProcessSampler。
+	sampler ProcessSampler
 }
 
 func NewRuntimeCollector(startedAt time.Time, pool *pgxpool.Pool) RuntimeCollector {
@@ -35,6 +37,12 @@ func (c RuntimeCollector) WithQueueLag(pool *pgxpool.Pool) RuntimeCollector {
 	return c
 }
 
+// WithProcessSampler 注入进程内存采样（测试用）。
+func (c RuntimeCollector) WithProcessSampler(sampler ProcessSampler) RuntimeCollector {
+	c.sampler = sampler
+	return c
+}
+
 func (c RuntimeCollector) Snapshot() RuntimeStats {
 	var stats runtime.MemStats
 	runtime.ReadMemStats(&stats)
@@ -49,18 +57,42 @@ func (c RuntimeCollector) Snapshot() RuntimeStats {
 		nowFn = time.Now
 	}
 
+	sampler := c.sampler
+	if sampler == nil {
+		sampler = defaultProcessSampler
+	}
+
+	memoryBytes := uint64(0)
+	var familyPtr *uint64
+	pluginChildren := 0
+	if selfRSS, familyRSS, children, ok := sampleSelfAndFamily(sampler); ok {
+		memoryBytes = selfRSS
+		pluginChildren = children
+		family := familyRSS
+		familyPtr = &family
+	} else if fallback, ok := readSelfRSSFallback(); ok {
+		// ps 失败时 Linux 仍可读 /proc/self/statm；全家内存省略。
+		memoryBytes = fallback
+	} else {
+		// 最后回退：避免主 KPI 为 0；语义上仍暴露 Sys 诊断字段。
+		memoryBytes = stats.Sys
+	}
+
 	return RuntimeStats{
-		StartedAt:      c.startedAt,
-		UptimeSeconds:  int64(time.Since(c.startedAt).Seconds()),
-		MemoryBytes:    stats.Sys,
-		HeapAllocBytes: stats.HeapAlloc,
-		HeapSysBytes:   stats.HeapSys,
-		GoroutineCount: runtime.NumGoroutine(),
-		GCCount:        stats.NumGC,
-		LastGCPauseNs:  lastPause,
-		Database:       c.databaseStats(),
-		Worker:         c.workerStats(nowFn().UTC()),
-		QueueLag:       c.queueLagStats(),
+		StartedAt:         c.startedAt,
+		UptimeSeconds:     int64(time.Since(c.startedAt).Seconds()),
+		MemoryBytes:       memoryBytes,
+		HeapAllocBytes:    stats.HeapAlloc,
+		HeapSysBytes:      stats.HeapSys,
+		SysBytes:          stats.Sys,
+		FamilyMemoryBytes: familyPtr,
+		PluginChildCount:  pluginChildren,
+		GoroutineCount:    runtime.NumGoroutine(),
+		GCCount:           stats.NumGC,
+		LastGCPauseNs:     lastPause,
+		Database:          c.databaseStats(),
+		Worker:            c.workerStats(nowFn().UTC()),
+		QueueLag:          c.queueLagStats(),
 	}
 }
 

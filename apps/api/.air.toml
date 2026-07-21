@@ -5,7 +5,8 @@ env_files = ["../../.env", "../../storage/builtin-dev/air.env"]
 
 [build]
 # 仅清理孤儿 sforum-api（父进程不是 air）；当前热重载实例留给 kill_delay + Listen 重试。
-pre_cmd = ["bash ../../scripts/free-api-dev-port.sh"]
+# 同步清理 PPID=1 的扩展 backend plugin 孤儿（不杀仍挂在 live sforum-api 下的子进程）。
+pre_cmd = ["bash ../../scripts/free-api-dev-port.sh", "bash ../../scripts/cleanup-orphan-extension-plugins.sh"]
 cmd = "go build -o ./tmp/sforum-api ./cmd/api"
 entrypoint = ["./tmp/sforum-api"]
 include_dir = ["app", "bootstrap", "cmd", "config", "database"]

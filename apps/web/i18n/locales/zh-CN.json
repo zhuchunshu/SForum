@@ -399,7 +399,8 @@
       "kpi": {
         "memory": {
           "label": "API 内存",
-          "meta": "Heap 已用 {heap}"
+          "meta": "堆已用 {heap}（进程 RSS）",
+          "metaWithFamily": "堆 {heap} · 全家 {family}（{plugins} 插件）"
         },
         "topics": {
           "label": "帖子",
@@ -443,6 +444,7 @@
         "queueLagUnavailable": "暂无数据",
         "goroutines": "Goroutines",
         "gc": "GC 次数",
+        "goSys": "Go Sys（诊断）",
         "database": "数据库连接"
       },
       "health": {

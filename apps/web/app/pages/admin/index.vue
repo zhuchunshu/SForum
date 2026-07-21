@@ -48,7 +48,15 @@ const kpiCards = computed(() => {
     {
       label: t('admin.home.kpi.memory.label'),
       value: formatOverviewBytes(data.runtime.memoryBytes),
-      meta: t('admin.home.kpi.memory.meta', { heap: formatOverviewBytes(data.runtime.heapAllocBytes) }),
+      meta: data.runtime.familyMemoryBytes != null
+        ? t('admin.home.kpi.memory.metaWithFamily', {
+            heap: formatOverviewBytes(data.runtime.heapAllocBytes),
+            family: formatOverviewBytes(data.runtime.familyMemoryBytes),
+            plugins: formatOverviewCount(data.runtime.pluginChildCount ?? 0)
+          })
+        : t('admin.home.kpi.memory.meta', {
+            heap: formatOverviewBytes(data.runtime.heapAllocBytes)
+          }),
       icon: 'i-lucide-memory-stick',
       tone: 'text-[var(--sf-accent)] dark:text-[var(--sf-accent-dark)]'
     },
@@ -128,6 +136,11 @@ const runtimeRows = computed(() => {
       label: t('admin.home.runtime.gc'),
       value: formatOverviewCount(runtime.gcCount),
       icon: 'i-lucide-repeat-2'
+    },
+    {
+      label: t('admin.home.runtime.goSys'),
+      value: formatOverviewBytes(runtime.sysBytes ?? 0),
+      icon: 'i-lucide-cpu'
     },
     {
       label: t('admin.home.runtime.database'),

@@ -1173,12 +1173,17 @@ func finishAPIHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 		themeRuntimeWatcher.Failures(),
 	)
 
+	// development：延迟清理 air 热重载后被 init 收养的 backend plugin 孤儿。
+	// 必须在旧 sforum-api 被 stopBin 杀掉之后（kill_delay≈2s）再扫，pre_cmd 单独不够。
+	stopOrphanPluginReaper := startDevelopmentOrphanPluginReaper(cfg, logger)
+
 	api := &API{
 		App:      app,
 		Addr:     apiAddress(cfg),
 		SEO:      core.productionSEO.Execution,
 		failures: apiRuntimeFailures,
 		close: func() {
+			stopOrphanPluginReaper()
 			core.closeRouteFailureRecorder()
 			stopAPIRuntimeFailureMerge()
 			core.stopPluginRuntimeCoordinator()

@@ -25,6 +25,8 @@ if ! ORPHANS_ONLY=0 "$ROOT_DIR/scripts/free-api-dev-port.sh" "$HTTP_PORT"; then
   echo "API port $HTTP_PORT is already in use by a non-sforum process. Not stopping it."
   exit 1
 fi
+# 清理热重载遗留的扩展 plugin 孤儿（PPID=1）；不杀当前/其它 live API 的子进程。
+"$ROOT_DIR/scripts/cleanup-orphan-extension-plugins.sh" || true
 
 "$ROOT_DIR/scripts/build-builtin-plugins.sh"
 # 使用 staging 内置树（含本机编译二进制 + 刷新后的 digest），避免改写 git 跟踪的 manifest。

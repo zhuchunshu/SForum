@@ -399,7 +399,8 @@
       "kpi": {
         "memory": {
           "label": "API memory",
-          "meta": "Heap allocated {heap}"
+          "meta": "Heap {heap} (process RSS)",
+          "metaWithFamily": "Heap {heap} · Family {family} ({plugins} plugins)"
         },
         "topics": {
           "label": "Posts",
@@ -443,6 +444,7 @@
         "queueLagUnavailable": "Unavailable",
         "goroutines": "Goroutines",
         "gc": "GC count",
+        "goSys": "Go Sys (diagnostic)",
         "database": "Database connections"
       },
       "health": {

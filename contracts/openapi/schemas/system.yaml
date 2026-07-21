@@ -202,6 +202,8 @@ AdminOverviewRuntime:
   - memoryBytes
   - heapAllocBytes
   - heapSysBytes
+  - sysBytes
+  - pluginChildCount
   - goroutineCount
   - gcCount
   - lastGcPauseNs
@@ -217,15 +219,40 @@ AdminOverviewRuntime:
       type: integer
       format: int64
       minimum: 0
-      description: Go runtime Sys memory for the API process.
+      description: >
+        Primary KPI — resident set size (RSS) of the API process in bytes.
+        This is not Go runtime.MemStats.Sys.
     heapAllocBytes:
       type: integer
       format: int64
       minimum: 0
+      description: Live heap objects (Go runtime.MemStats.HeapAlloc).
     heapSysBytes:
       type: integer
       format: int64
       minimum: 0
+      description: Heap memory obtained from the OS (Go runtime.MemStats.HeapSys).
+    sysBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: >
+        Diagnostic — total memory obtained by the Go runtime from the OS
+        (runtime.MemStats.Sys). Often higher than RSS because arenas are not
+        returned promptly.
+    familyMemoryBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: >
+        Optional best-effort sum of API process RSS plus RSS of backend plugin
+        child processes currently owned by this API (PPID match). Omits
+        reparented orphans (e.g. PPID=1) and plugins owned by other processes.
+        Omitted when process sampling fails.
+    pluginChildCount:
+      type: integer
+      minimum: 0
+      description: Number of owned backend plugin children included in familyMemoryBytes.
     goroutineCount:
       type: integer
       minimum: 0

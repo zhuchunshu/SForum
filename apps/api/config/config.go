@@ -116,6 +116,7 @@ func Load() Config {
 	}
 	// 真实客户端 IP：开发默认信任私网/loopback（Docker+Nuxt 反代）；生产须显式 TRUST_PROXY + TRUSTED_PROXIES。
 	isProd := strings.EqualFold(appEnv, "production")
+	isDev := strings.EqualFold(appEnv, "development")
 	trustProxy := envBool("TRUST_PROXY", !isProd)
 	trustedProxies := envStringSlice("TRUSTED_PROXIES")
 	// 开发/非生产：未配置 TRUSTED_PROXIES 时默认信任私网与 loopback。
@@ -123,6 +124,21 @@ func Load() Config {
 	trustPrivate := envBool("TRUST_PROXY_PRIVATE", !isProd)
 	trustLoopback := envBool("TRUST_PROXY_LOOPBACK", !isProd)
 	proxyHeader := env("PROXY_HEADER", "X-Forwarded-For")
+
+	// 开发态默认更瘦的 River / 连接池，避免本地 idle 撑满生产档并发槽位。
+	// 非 development（含 production/test）保持生产规模默认；显式环境变量始终优先。
+	jobDefaults := productionJobQueueDefaults()
+	dbMaxConnsDefault := 10
+	dbMinConnsDefault := 2
+	redisPoolDefault := 20
+	redisMinIdleDefault := 5
+	if isDev {
+		jobDefaults = developmentJobQueueDefaults()
+		dbMaxConnsDefault = 5
+		dbMinConnsDefault = 1
+		redisPoolDefault = 8
+		redisMinIdleDefault = 1
+	}
 
 	cfg := Config{
 		AppEnv:           appEnv,
@@ -140,22 +156,22 @@ func Load() Config {
 		// 默认启用 TLS（sslmode=require）；本地开发无 TLS 的 Postgres 需显式设置 sslmode=disable。
 		DatabaseURL:                   env("DATABASE_URL", "postgres://sforum:sforum@postgres:5432/sforum?sslmode=require"),
 		MigrateOnStartup:              envBool("MIGRATE_ON_STARTUP", true),
-		DatabaseMaxConns:              int32(envPositiveInt("DATABASE_MAX_CONNS", 10)),
-		DatabaseMinConns:              int32(envPositiveInt("DATABASE_MIN_CONNS", 2)),
+		DatabaseMaxConns:              int32(envPositiveInt("DATABASE_MAX_CONNS", dbMaxConnsDefault)),
+		DatabaseMinConns:              int32(envPositiveInt("DATABASE_MIN_CONNS", dbMinConnsDefault)),
 		DatabaseMaxConnIdleTime:       envDuration("DATABASE_MAX_CONN_IDLE_TIME", 30*time.Minute),
 		DatabaseMaxConnLifetime:       envDuration("DATABASE_MAX_CONN_LIFETIME", time.Hour),
 		DatabaseConnectTimeout:        envDuration("DATABASE_CONNECT_TIMEOUT", 10*time.Second),
 		EmbedWorkerInAPI:              envBool("EMBED_WORKER_IN_API", strings.EqualFold(appEnv, "development")),
-		WorkerDatabaseMaxConns:        int32(envPositiveInt("WORKER_DATABASE_MAX_CONNS", 10)),
-		WorkerDatabaseMinConns:        int32(envPositiveInt("WORKER_DATABASE_MIN_CONNS", 2)),
+		WorkerDatabaseMaxConns:        int32(envPositiveInt("WORKER_DATABASE_MAX_CONNS", dbMaxConnsDefault)),
+		WorkerDatabaseMinConns:        int32(envPositiveInt("WORKER_DATABASE_MIN_CONNS", dbMinConnsDefault)),
 		WorkerDatabaseMaxConnIdleTime: envDuration("WORKER_DATABASE_MAX_CONN_IDLE_TIME", 30*time.Minute),
 		WorkerDatabaseMaxConnLifetime: envDuration("WORKER_DATABASE_MAX_CONN_LIFETIME", time.Hour),
 		WorkerDatabaseConnectTimeout:  envDuration("WORKER_DATABASE_CONNECT_TIMEOUT", 10*time.Second),
 		WorkerShutdownTimeout:         envDuration("WORKER_SHUTDOWN_TIMEOUT", 30*time.Second),
 		RedisAddr:                     env("REDIS_ADDR", "redis:6379"),
 		RedisPassword:                 env("REDIS_PASSWORD", ""),
-		RedisPoolSize:                 envPositiveInt("REDIS_POOL_SIZE", 20),
-		RedisMinIdleConns:             envPositiveInt("REDIS_MIN_IDLE_CONNS", 5),
+		RedisPoolSize:                 envPositiveInt("REDIS_POOL_SIZE", redisPoolDefault),
+		RedisMinIdleConns:             envPositiveInt("REDIS_MIN_IDLE_CONNS", redisMinIdleDefault),
 		RedisDialTimeout:              envDuration("REDIS_DIAL_TIMEOUT", 5*time.Second),
 		RedisReadTimeout:              envDuration("REDIS_READ_TIMEOUT", 3*time.Second),
 		RedisWriteTimeout:             envDuration("REDIS_WRITE_TIMEOUT", 3*time.Second),
@@ -185,12 +201,12 @@ func Load() Config {
 		TrustProxyPrivate:             trustPrivate,
 		TrustProxyLoopback:            trustLoopback,
 		ProxyHeader:                   proxyHeader,
-		JobQueueCriticalWorkers:       envPositiveInt("JOB_QUEUE_CRITICAL_WORKERS", 4),
-		JobQueueDefaultWorkers:        envPositiveInt("JOB_QUEUE_DEFAULT_WORKERS", 8),
-		JobQueueSearchWorkers:         envPositiveInt("JOB_QUEUE_SEARCH_WORKERS", 6),
-		JobQueueMailWorkers:           envPositiveInt("JOB_QUEUE_MAIL_WORKERS", 4),
-		JobQueueNotificationsWorkers:  envPositiveInt("JOB_QUEUE_NOTIFICATIONS_WORKERS", 6),
-		JobQueueMaintenanceWorkers:    envPositiveInt("JOB_QUEUE_MAINTENANCE_WORKERS", 2),
+		JobQueueCriticalWorkers:       envPositiveInt("JOB_QUEUE_CRITICAL_WORKERS", jobDefaults.Critical),
+		JobQueueDefaultWorkers:        envPositiveInt("JOB_QUEUE_DEFAULT_WORKERS", jobDefaults.Default),
+		JobQueueSearchWorkers:         envPositiveInt("JOB_QUEUE_SEARCH_WORKERS", jobDefaults.Search),
+		JobQueueMailWorkers:           envPositiveInt("JOB_QUEUE_MAIL_WORKERS", jobDefaults.Mail),
+		JobQueueNotificationsWorkers:  envPositiveInt("JOB_QUEUE_NOTIFICATIONS_WORKERS", jobDefaults.Notifications),
+		JobQueueMaintenanceWorkers:    envPositiveInt("JOB_QUEUE_MAINTENANCE_WORKERS", jobDefaults.Maintenance),
 		LogLevel:                      parseLogLevel(env("LOG_LEVEL", "info")),
 	}
 	validateProductionSecrets(cfg)
@@ -225,6 +241,40 @@ func validateProductionSecrets(cfg Config) {
 			panic(fmt.Sprintf("config: %s must be set to a secure value in production (got empty/placeholder default)", c.name))
 		}
 	}
+}
+
+// jobQueueDefaults 是按环境区分的 River 队列并发默认档。
+type jobQueueDefaults struct {
+	Critical      int
+	Default       int
+	Search        int
+	Mail          int
+	Notifications int
+	Maintenance   int
+}
+
+// productionJobQueueDefaults 合计 30 worker slots（历史生产档）。
+func productionJobQueueDefaults() jobQueueDefaults {
+	return jobQueueDefaults{
+		Critical: 4, Default: 8, Search: 6, Mail: 4, Notifications: 6, Maintenance: 2,
+	}
+}
+
+// developmentJobQueueDefaults 合计 7 worker slots，降低本地 embed worker 基线。
+func developmentJobQueueDefaults() jobQueueDefaults {
+	return jobQueueDefaults{
+		Critical: 1, Default: 2, Search: 1, Mail: 1, Notifications: 1, Maintenance: 1,
+	}
+}
+
+// JobQueueWorkerTotal 返回配置中六条队列 MaxWorkers 之和（测试与诊断用）。
+func JobQueueWorkerTotal(cfg Config) int {
+	return cfg.JobQueueCriticalWorkers +
+		cfg.JobQueueDefaultWorkers +
+		cfg.JobQueueSearchWorkers +
+		cfg.JobQueueMailWorkers +
+		cfg.JobQueueNotificationsWorkers +
+		cfg.JobQueueMaintenanceWorkers
 }
 
 func env(key string, fallback string) string {

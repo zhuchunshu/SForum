@@ -55,15 +55,25 @@ type StoreSnapshot struct {
 }
 
 type RuntimeStats struct {
-	StartedAt      time.Time            `json:"startedAt"`
-	UptimeSeconds  int64                `json:"uptimeSeconds"`
-	MemoryBytes    uint64               `json:"memoryBytes"`
-	HeapAllocBytes uint64               `json:"heapAllocBytes"`
-	HeapSysBytes   uint64               `json:"heapSysBytes"`
-	GoroutineCount int                  `json:"goroutineCount"`
-	GCCount        uint32               `json:"gcCount"`
-	LastGCPauseNs  uint64               `json:"lastGcPauseNs"`
-	Database       DatabaseRuntimeStats `json:"database"`
+	StartedAt     time.Time `json:"startedAt"`
+	UptimeSeconds int64     `json:"uptimeSeconds"`
+	// MemoryBytes 是 API 进程常驻内存（RSS，字节）。主 KPI；不再使用 Go MemStats.Sys。
+	MemoryBytes uint64 `json:"memoryBytes"`
+	// HeapAllocBytes 是当前存活堆对象（Go HeapAlloc）。
+	HeapAllocBytes uint64 `json:"heapAllocBytes"`
+	// HeapSysBytes 是堆向 OS 申请的虚拟量（Go HeapSys）。
+	HeapSysBytes uint64 `json:"heapSysBytes"`
+	// SysBytes 是 Go runtime.MemStats.Sys（诊断用，含未归还 arena，通常高于 RSS）。
+	SysBytes uint64 `json:"sysBytes"`
+	// FamilyMemoryBytes 是本 API 进程 RSS + 其直接拥有的 backend plugin 子进程 RSS。
+	// 采样失败时省略；不含 PPID=1 孤儿或其它 API 的插件。
+	FamilyMemoryBytes *uint64 `json:"familyMemoryBytes,omitempty"`
+	// PluginChildCount 计入全家内存的 owned backend plugin 数量。
+	PluginChildCount int `json:"pluginChildCount"`
+	GoroutineCount   int                  `json:"goroutineCount"`
+	GCCount          uint32               `json:"gcCount"`
+	LastGCPauseNs    uint64               `json:"lastGcPauseNs"`
+	Database         DatabaseRuntimeStats `json:"database"`
 	// Worker 心跳与队列积压（F1.2）；探测失败时字段可为空。
 	Worker   *WorkerRuntimeStats `json:"worker,omitempty"`
 	QueueLag *QueueLagStats      `json:"queueLag,omitempty"`

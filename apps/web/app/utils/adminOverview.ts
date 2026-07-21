@@ -40,9 +40,15 @@ export type AdminOverviewQueueLag = {
 export type AdminOverviewRuntime = {
   startedAt: string
   uptimeSeconds: number
+  /** Primary KPI: API process RSS (bytes), not Go MemStats.Sys. */
   memoryBytes: number
   heapAllocBytes: number
   heapSysBytes: number
+  /** Diagnostic: Go runtime.MemStats.Sys. */
+  sysBytes: number
+  /** API RSS + owned backend plugin children; omitted when sampling fails. */
+  familyMemoryBytes?: number
+  pluginChildCount: number
   goroutineCount: number
   gcCount: number
   lastGcPauseNs: number
