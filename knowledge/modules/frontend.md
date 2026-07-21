@@ -142,31 +142,44 @@ runtime `theme.json`, templates, and assets through Page Registry/L0/L1; they do
 not extend Nuxt or replace the host deployment artifact. Core keeps auth/session
 logic, API clients, i18n catalogs, SEO helpers, permissions, and reusable
 component/composable infrastructure.
-The default-theme public forum follows V32 暖橙左栏 (demo
-`tmp/demo/grok/1/v32-right-sidebar/`, content is left-nav despite the folder
-name). Layout:
+The default-theme public forum uses a **full-width three-column flat shell**
+(demo `tmp/demos/grok/forum-fullwidth-3col/`). Layering:
+
+- **L1** page templates: shell + which host islands to mount
+- **L0 tokens**: `--sf-public-*` only (no list-row BEM mirror in theme CSS)
+- **Host `SF*`**: data + Tailwind presentation (`SFHomeTopicRow`, `SFAvatar`, …)
+- **Component Registry / L2**: theme wrap/replace of registered targets for deep forks
+
+Hooks: `data-sf-region="topic-list"`, `data-sf-component="forum.topic_list_row"`,
+root class `sf-avatar`. After package edits in dev, rsync to
+`storage/builtin-dev`, restart API (`SyncBuiltins` stages a new digest), then
+super_admin theme activate with `approveCoreReplacements` so L1 bindings and
+L0 skin track the new digest. Layout:
 - Sticky topbar (`SFNavbar`): logo, Latest → `/`, Categories → `/categories`,
   Tags → `/tags` (hidden when `forum.tags.public_pages` is off), search,
   compose, session controls. Density ~52px.
 - Public taxonomy list pages (default theme): `/tags` T01 weight cloud and
   `/categories` C04 grouped tile grid; styles in `sforum-taxonomy.css`.
-- Homepage: sticky 240px left nav (`SFHomeNavigation`) with compose, all
-  topics, and category color dots + counts; main column notice + latest feed
-  tab + dense topic table (`SFHomeTopicRow` without excerpt cards). Author
-  avatar column is honest (author only; no fabricated participant stacks).
+- Homepage: full-bleed grid — sticky ~220px left nav (`SFHomeNavigation`) with
+  compose, all topics, and category color dots + counts; main column notice +
+  latest feed tab + dense topic table (`SFHomeTopicRow` without excerpt cards);
+  optional sticky right rail (`SFHomeRightRail`). Author avatar column is honest
+  (author only; no fabricated participant stacks).
 - Infinite scroll still SSR-loads page 1 via topic/search APIs, hydrates through
   Nuxt `useState`, and appends with `IntersectionObserver`. URL-backed filters
   and stale-response guards are unchanged. Missing API capabilities (unread,
   ranking, mine-only feed, likes, bookmarks) are not rendered.
-- Topic detail: main article + comment tree + composer; sticky 280px
+- Topic detail: same full-width three-column shell — left `SFHomeNavigation`
+  (route mode), center article + comment tree + composer, sticky right
   `SFTopicSideCard` (status/category/replies/views, author as participant,
   tags). Share copies the URL; no fake like/bookmark. Comment stream remains
   tree/flat via `SFCommentStreamControls` (backend has no relevance sort).
+  Collapse: hide right rail first (≤1180px), then left nav (≤960px).
   `SFTopicProgressRail` is retained in the theme package but no longer mounted
   on the default detail route.
-Public surface tokens live in the theme layer (`sforum-theme.css` etc.);
-`--sf-accent*` still come from runtime appearance. Dark mode uses the existing
-`.dark` public variables.
+Public surface tokens live in the theme layer (`sforum-default` skin + host
+baseline `sforum-theme.css` etc.); `--sf-accent*` still come from runtime
+appearance. Dark mode uses the existing `.dark` public variables.
 
 `SFComment` has an explicit `presentation`, `depth`, and
 `collapseFromDepth` contract. Tree mode renders one branch rail/inset on

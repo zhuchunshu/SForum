@@ -6,6 +6,13 @@ session archive.
 
 ## Latest Handoff
 
+- **2026-07-21 Default theme full-width 3-col flat shell**
+  - Demo: `tmp/demos/grok/forum-fullwidth-3col/`
+  - Theme: `extensions/builtin/themes/sforum-default/` (tokens + L1 home/topic)
+  - Host: `SFTopicShowPage` left nav; home/topic CSS baselines
+  - Handoff: `sessions/2026-07-21-default-theme-fullwidth-3col-handoff.md`
+  - Module: `modules/frontend.md`
+
 - **2026-07-21 Million-scale read path — M7 complete (task book closed)**
   - Plan: `plans/2026-07-21-million-scale-read-path.md` (**completed**, M0–M7)
   - Decision: `decisions/2026-07-21-read-replica-and-api-horizontal-scale.md`
