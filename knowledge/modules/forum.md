@@ -11,6 +11,12 @@ read models.
 Backend foundation implemented on 2026-07-06. Real taxonomy slice implemented
 on 2026-07-07.
 
+- **Million-scale read path (not started):** task book
+  `plans/2026-07-21-million-scale-read-path.md` — M0 baseline → ListTopics slim
+  path → view/`hot_score` → comment bounds+cache → detail → keyset → cache
+  sharding. View-count product behavior remains
+  `plans/2026-07-12-iteration-a-engagement-loop.md` Workstream 1.
+
 - `categories` owns public forum sections. The first seed category is
   `general` / `综合讨论`.
 - `topics` owns user-facing posts/threads: title, slug, category, author,

@@ -6,6 +6,13 @@ session archive.
 
 ## Latest Handoff
 
+- **2026-07-21 Million-scale read path task book**
+  - Plan: `plans/2026-07-21-million-scale-read-path.md` (status **ready**;
+    D1–D4 defaults resolved)
+  - Handoff: `sessions/2026-07-21-million-scale-read-path-handoff.md`
+  - Order: M0 seed+k6 → M1 ListTopics → M2 view+hot_score → M3 comments →
+    M4 detail → M5 keyset → M6 cache shard; M7 replica doc-only
+
 - **2026-07-21 Bilingual docs handbook**
   - Hub: `docs/README.md`
   - 中文: `docs/zh-CN/` · English: `docs/en-US/`
@@ -70,13 +77,14 @@ lives in archived sessions and dated decisions.
 ### Open / next (product, not V3 LTS)
 
 - **Iteration A** engagement loop still open: view-count increment, likes/reactions, bookmarks — `plans/2026-07-12-iteration-a-engagement-loop.md`
+- **Million-scale read path** task book (ready): ListTopics / comments / detail / view+hot_score / keyset — `plans/2026-07-21-million-scale-read-path.md`
 - Admin settings richness: Waves 1–2 landed; later waves remain blueprint — `plans/2026-07-12-admin-settings-richness.md`
 - Extension surface density: E1–E6 largely landed; product north-star slots continue under V3 provider model — `plans/2026-07-12-extension-surface-density.md`
 - V3 P13: **do not** delete LTS-gated shims early — wait for APILTS window
 
 ### Explicitly deferred / not current focus
 
-- Horizontal scale / multi-node capacity proof
+- Horizontal scale / multi-node / read replicas (after M0–M6 single-node proof in million-scale plan)
 - Payments, marketplace, OAuth social login (unless product prioritizes)
 - Full re-score of `architecture-maturity-audit.md` (stamped pre-V3 completion)
 
@@ -98,7 +106,8 @@ lives in archived sessions and dated decisions.
 ### Active plans (read first)
 
 - `plans/2026-07-13-trusted-plugin-theme-platform-v3.md` + `-progress.md` — V3 residual
-- `plans/2026-07-12-iteration-a-engagement-loop.md` — product engagement
+- `plans/2026-07-21-million-scale-read-path.md` — single-node 1M-class read path (ready)
+- `plans/2026-07-12-iteration-a-engagement-loop.md` — product engagement (view count shared with M2)
 - `plans/2026-07-12-admin-settings-richness.md` — settings blueprint
 - `plans/2026-07-12-development-directions.md` — strategy context
 - `plans/2026-07-12-extension-surface-density.md` — remaining density / slots

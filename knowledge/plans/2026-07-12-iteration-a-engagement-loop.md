@@ -74,6 +74,10 @@ without using admin SQL.
 
 ## Workstream 1 — View Count (cheap, high visibility)
 
+**Also required by** `plans/2026-07-21-million-scale-read-path.md` **M2**
+(load acceptance + `hot_score` coupling). Implement product behavior here once;
+do not fork a second view-count design.
+
 ### Design decisions (recommended defaults)
 
 | Decision | Recommendation | Why |

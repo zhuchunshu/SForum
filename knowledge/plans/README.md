@@ -21,7 +21,8 @@ Task books, blueprints, and progress ledgers. Every plan must declare a
 | `2026-07-13-trusted-plugin-theme-platform-v3.md` | **active** — P13 LTS residual only |
 | `2026-07-13-trusted-plugin-theme-platform-v3-progress.md` | **active** — durable % ledger |
 | `2026-07-13-trusted-plugin-theme-platform-v3-traceability.md` | **generated** — catalog matrix (do not hand-edit) |
-| `2026-07-12-iteration-a-engagement-loop.md` | **ready** — view counts / likes / bookmarks |
+| `2026-07-21-million-scale-read-path.md` | **ready** — M0–M6 read-path capacity; D1–D4 product defaults resolved |
+| `2026-07-12-iteration-a-engagement-loop.md` | **ready** — view counts / likes / bookmarks (M2 shares view-count WS) |
 | `2026-07-12-admin-settings-richness.md` | **blueprint** — Waves 1–2 landed; later waves open |
 | `2026-07-12-development-directions.md` | **blueprint** — strategy context (pre-dates full V3 close) |
 | `2026-07-12-extension-surface-density.md` | **active (partial)** — E1–E6 largely done; north-star slots ongoing via V3 |
