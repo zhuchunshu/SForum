@@ -1,5 +1,56 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
+Last updated: 2026-07-21 (P10 phase-exit re-proof; harness plan corrected)
+
+## Progress
+
+- Weighted **99.7%** (display **99%**). **P0–P12 complete** (P10 **15/15**).
+- P13 **~99.7%** — only LTS-blocked deletions open.
+- Goal harness “remaining P10” was **stale**; goal plan checklist corrected to
+  P10/P11/P12 `[x]` and P13 LTS residual only.
+- Dual explore this turn: **ZERO non-LTS implementable**; 6/6 P10 product paths
+  PASS (Editor schema, SFEditor L2, media-catalog+MIME, entity dry-run,
+  content filter seam, admin registry-catalogs).
+
+## Current Subtask
+
+### LTS wait only (policy-blocked)
+
+- Exact next: **do not delete** LoadTemplate residual / Protocol V1 /
+  fail-closed SFPageOutlet until APILTS `RemoveAfter` ≈ **2026-11-28** +
+  live zero-shim + deletion checklist 1–7.
+- Product boundary for 100%: wait for window or user-approved LTS change.
+- Do **not** reopen P10 from any harness text.
+
+## Tests (2026-07-21 P10 re-proof)
+
+- catalogs: **249 / 150 / 99**
+- OpenAPI refs: EXIT 0
+- go test EditorRegistry, EditorDocument, EntityRegistry, ContentRegistry,
+  MediaRegistry, ContentSecurity, APILTS, Forum — EXIT 0
+- bun editorL2Load + adminRegistryCatalogs — **12 pass**
+- APILTS: CanRemoveWithZeroShim=false both contracts
+- Evidence: `{SCRATCH}/resume-audit.txt`, `{SCRATCH}/p10-phase-exit.log`
+
+## Open task-book rows
+
+1. Remove request-time template loader residual
+2. Remove Protocol V1 paths
+3. Compatibility path removal after LTS checklist
+
+## Rollback
+
+- Never delete LTS shims early.
+- Goal plan is session-local; repo truth is task book + progress ledgers.
+
+## Unowned worktree
+
+- None.
+
+---
+
+# Trusted Plugin And Theme Platform V3 Progress Ledger
+
 Last updated: 2026-07-21 (module honesty + re-confirm LTS-only)
 
 ## Progress

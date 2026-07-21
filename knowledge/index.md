@@ -14,6 +14,8 @@ This is the entry point for project memory.
     `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
   - Session progress:
     `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
+  - P10 phase-exit re-proof (harness “remaining P10” stale):
+    `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p10-reproof-handoff.md`
   - P13 gate honesty / dead-code hygiene handoff:
     `knowledge/sessions/2026-07-21-trusted-plugin-theme-platform-v3-p13-gate-honesty-handoff.md`
   - P13 digest hygiene handoff:
