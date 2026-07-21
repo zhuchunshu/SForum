@@ -21,19 +21,22 @@ func TestCoreScheduleRegistryBuildsCorePeriodics(t *testing.T) {
 		ScheduleForumAutoLockIdle: func() (river.JobArgs, *river.InsertOpts) {
 			return stubArgs{kind: ScheduleForumAutoLockIdle}, nil
 		},
+		ScheduleForumFlushViewCounts: func() (river.JobArgs, *river.InsertOpts) {
+			return stubArgs{kind: ScheduleForumFlushViewCounts}, nil
+		},
 	})
 	if err != nil {
 		t.Fatalf("registry: %v", err)
 	}
-	if reg.Len() != 4 {
-		t.Fatalf("expected 4 core schedules, got %d", reg.Len())
+	if reg.Len() != 5 {
+		t.Fatalf("expected 5 core schedules, got %d", reg.Len())
 	}
 	jobs, err := reg.BuildPeriodicJobs()
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
-	if len(jobs) != 4 {
-		t.Fatalf("expected 4 river periodics, got %d", len(jobs))
+	if len(jobs) != 5 {
+		t.Fatalf("expected 5 river periodics, got %d", len(jobs))
 	}
 
 	// 元数据完整性：daily、owner 明确
@@ -47,6 +50,7 @@ func TestCoreScheduleRegistryBuildsCorePeriodics(t *testing.T) {
 		ScheduleAttachmentsCleanupOrphans,
 		ScheduleAuditCleanupEvents,
 		ScheduleForumAutoLockIdle,
+		ScheduleForumFlushViewCounts,
 	} {
 		v, ok := byID[id]
 		if !ok {
@@ -55,12 +59,15 @@ func TestCoreScheduleRegistryBuildsCorePeriodics(t *testing.T) {
 		if !v.Enabled {
 			t.Fatalf("%s should be enabled", id)
 		}
-		if v.IntervalSeconds != int64((24*time.Hour)/time.Second) {
-			t.Fatalf("%s interval=%d", id, v.IntervalSeconds)
-		}
 		if v.JobKind == "" || v.Owner == "" {
 			t.Fatalf("%s incomplete: %+v", id, v)
 		}
+	}
+	if byID[ScheduleIdentityCleanupSessions].IntervalSeconds != int64((24*time.Hour)/time.Second) {
+		t.Fatalf("session cleanup interval=%d", byID[ScheduleIdentityCleanupSessions].IntervalSeconds)
+	}
+	if byID[ScheduleForumFlushViewCounts].IntervalSeconds != 45 {
+		t.Fatalf("flush views interval=%d", byID[ScheduleForumFlushViewCounts].IntervalSeconds)
 	}
 	if byID[ScheduleIdentityCleanupSessions].Queue != QueueDefault {
 		t.Fatalf("session cleanup queue=%s", byID[ScheduleIdentityCleanupSessions].Queue)
@@ -82,7 +89,7 @@ func TestCoreScheduleRegistryWithoutConstructorsIsCatalogOnly(t *testing.T) {
 	if len(jobs) != 0 {
 		t.Fatalf("catalog-only should not build periodics, got %d", len(jobs))
 	}
-	if len(reg.Views()) != 4 {
+	if len(reg.Views()) != 5 {
 		t.Fatalf("views=%d", len(reg.Views()))
 	}
 }

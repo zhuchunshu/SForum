@@ -28,6 +28,8 @@ type Service struct {
 	contentFilter ContentPostFilter
 	// editorSchema 可选：editor-document Accept 合并 Editor Registry 节点/标记。
 	editorSchema EditorDocumentSchemaProvider
+	// views 可选：公开详情浏览计数（Redis INCR + 去重）；nil 时不计。
+	views TopicViewRecorder
 }
 
 // WithComposerToolbar 注入 composer 工具栏贡献解析（F4.3）。
@@ -66,6 +68,24 @@ func (s *Service) ListComposerToolbarActions(ctx context.Context) ([]ComposerToo
 func (s *Service) WithTrustPolicy(trust TrustPolicyResolver) *Service {
 	s.trust = trust
 	return s
+}
+
+// WithViewRecorder 注入公开详情浏览计数器（D3 / Iteration A WS1）。
+// nil 或 Redis 故障时详情仍 200，仅跳过计数。
+func (s *Service) WithViewRecorder(recorder TopicViewRecorder) *Service {
+	if s != nil {
+		s.views = recorder
+	}
+	return s
+}
+
+// RecordTopicView 在公开详情 GET 成功后调用：30m 去重 + Redis 增量。
+// 不写入 PG；刷盘由 forum.flush_view_counts。失败静默。
+func (s *Service) RecordTopicView(ctx context.Context, topicID int64, visitorKey string) {
+	if s == nil || s.views == nil || topicID <= 0 {
+		return
+	}
+	s.views.RecordView(ctx, topicID, visitorKey)
 }
 
 func NewService(store Store) *Service {

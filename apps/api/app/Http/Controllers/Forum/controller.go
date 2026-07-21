@@ -2,9 +2,13 @@ package forumcontroller
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -132,6 +136,14 @@ type SearchProviderItem struct {
 func (h *Controller) WithSearchProviderAdmin(admin SearchProviderAdmin) *Controller {
 	if h != nil {
 		h.searchProviders = admin
+	}
+	return h
+}
+
+// WithViewRecorder 注入公开详情浏览计数（D3）。
+func (h *Controller) WithViewRecorder(recorder forum.TopicViewRecorder) *Controller {
+	if h != nil && h.service != nil {
+		h.service.WithViewRecorder(recorder)
 	}
 	return h
 }
@@ -314,6 +326,8 @@ func (h *Controller) topic(c fiber.Ctx) error {
 	if err != nil {
 		return mapForumError(err)
 	}
+	// D3：公开详情 GET 成功后计浏览（Redis 去重+增量）；不阻断响应。
+	h.service.RecordTopicView(c.Context(), topic.ID, h.topicVisitorKey(c))
 	return apphttp.OK(c, topic)
 }
 
@@ -327,7 +341,25 @@ func (h *Controller) topicBySlug(c fiber.Ctx) error {
 	if err != nil {
 		return mapForumError(err)
 	}
+	h.service.RecordTopicView(c.Context(), topic.ID, h.topicVisitorKey(c))
 	return apphttp.OK(c, topic)
+}
+
+// topicVisitorKey：登录用户 → u:{id}；否则会话 sid → s:{sid}；再否则 IP+UA 哈希。
+// 仅用于 30m 去重，不信任客户端自报 visitor id。
+func (h *Controller) topicVisitorKey(c fiber.Ctx) string {
+	if h.sessions != nil {
+		if userID, ok, err := h.sessions.CurrentUserIDWithoutRenewal(c); err == nil && ok && userID > 0 {
+			return fmt.Sprintf("u:%d", userID)
+		}
+		if sid, err := h.sessions.CurrentSID(c); err == nil && strings.TrimSpace(sid) != "" {
+			return "s:" + strings.TrimSpace(sid)
+		}
+	}
+	ip := strings.TrimSpace(clientip.FromCtx(c))
+	ua := strings.TrimSpace(string(c.Request().Header.UserAgent()))
+	sum := sha256.Sum256([]byte(ip + "\n" + ua))
+	return "a:" + hex.EncodeToString(sum[:16])
 }
 
 func (h *Controller) updateTopic(c fiber.Ctx) error {

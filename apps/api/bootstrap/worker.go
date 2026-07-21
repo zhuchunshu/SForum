@@ -642,6 +642,7 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	registerSearchWorkers(registry, pool, extensionStore, extensionRuntime)
 	registerIdentityCleanupWorker(registry, cfg, pool, logger)
 	registerForumAutoLockWorker(registry, cfg, pool, logger)
+	registerForumFlushViewCountsWorker(registry, pool, deps.HostCacheRedis, logger)
 	// F2.2：插件经 Host API 入队的 extension.plugin_job。
 	pluginJobEnqueuer := &hostapi.RiverJobEnqueuer{}
 	registry.Add(func(workers *river.Workers) error {
@@ -698,6 +699,12 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 			supportjobs.ScheduleForumAutoLockIdle,
 			func() (river.JobArgs, *river.InsertOpts) {
 				return forumjobs.AutoLockIdleArgs{}, nil
+			},
+		),
+		supportjobs.ScheduleForumFlushViewCounts: wrapEnabled(
+			supportjobs.ScheduleForumFlushViewCounts,
+			func() (river.JobArgs, *river.InsertOpts) {
+				return forumjobs.FlushViewCountsArgs{}, nil
 			},
 		),
 	})
@@ -812,6 +819,18 @@ func registerForumAutoLockWorker(registry *supportjobs.Registry, cfg config.Conf
 			},
 			Logger: logger,
 		})
+	})
+}
+
+// registerForumFlushViewCountsWorker 注册浏览量刷盘（D3 / M2）。
+// redisClient 为 nil 时仍注册 worker，但 Drain 空跑（嵌入路径应注入 shared Redis）。
+func registerForumFlushViewCountsWorker(registry *supportjobs.Registry, pool *pgxpool.Pool, redisClient *redis.Client, logger *slog.Logger) {
+	forumStore := forum.NewPostgresStore(pool)
+	counter := forum.NewRedisTopicViewCounter(redisClient).WithLogger(logger)
+	forumjobs.RegisterFlushViewCounts(registry, &forumjobs.FlushViewCountsWorker{
+		Drainer: counter,
+		Store:   forumStore,
+		Logger:  logger,
 	})
 }
 

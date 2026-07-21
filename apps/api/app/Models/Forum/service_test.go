@@ -587,6 +587,29 @@ func TestServiceGetTopicDecoratesExtensionActions(t *testing.T) {
 	}
 }
 
+func TestServiceRecordTopicViewDedupAndNilSafe(t *testing.T) {
+	// GetTopic 本身不计浏览；仅 RecordTopicView / controller 副作用计数。
+	counter := NewMemoryTopicViewCounter()
+	service := NewService(newServiceFakeStore()).WithViewRecorder(counter)
+	ctx := context.Background()
+	service.RecordTopicView(ctx, 42, "u:1")
+	service.RecordTopicView(ctx, 42, "u:1")
+	if counter.Delta(42) != 1 {
+		t.Fatalf("want 1 unique view, got %d", counter.Delta(42))
+	}
+	// Redis 故障模拟：不计且不 panic。
+	failing := NewMemoryTopicViewCounter()
+	failing.FailRecord = true
+	service.WithViewRecorder(failing)
+	service.RecordTopicView(ctx, 7, "u:9")
+	if failing.Delta(7) != 0 {
+		t.Fatal("failed recorder must not count")
+	}
+	// nil recorder 安全。
+	service.WithViewRecorder(nil)
+	service.RecordTopicView(ctx, 1, "u:1")
+}
+
 func TestServiceGetTopicBySlugDecoratesExtensionActions(t *testing.T) {
 	store := newServiceFakeStore()
 	service := NewServiceWithTopicExtensionActions(store, staticSettingsResolver{}, nil, nil, fakeTopicActionProvider{

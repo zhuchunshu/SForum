@@ -114,6 +114,14 @@ func (p *ForumProvider) WithSearchProviderAdmin(admin forumcontroller.SearchProv
 	return p
 }
 
+// WithViewRecorder 注入公开详情浏览计数（D3）；nil 跳过计数。
+func (p *ForumProvider) WithViewRecorder(recorder forum.TopicViewRecorder) *ForumProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithViewRecorder(recorder)
+	}
+	return p
+}
+
 // TrustPolicyAdapter 把 options.TrustPolicy 适配为 forum.TrustPolicyResolver。
 type TrustPolicyAdapter struct {
 	options *options.Service

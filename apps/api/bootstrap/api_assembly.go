@@ -789,6 +789,8 @@ func wireAPICoreStack(ctx context.Context, cfg config.Config, logger *slog.Logge
 	idempotencyStore := idempotency.NewStore(
 		idempotency.NewRedisBackend(sharedRedisClient), idempotency.DefaultTTL,
 	).WithRequiredReplayCipher(requiredReplayCipher)
+	// D3：公开详情浏览计数（与 worker 刷盘共用同一 Redis）。
+	topicViewCounter := forum.NewRedisTopicViewCounter(sharedRedisClient).WithLogger(logger)
 	forumProvider := providers.NewForumProviderWithPublicContributions(
 		forumCachedStore,
 		optionsService,
@@ -807,7 +809,8 @@ func wireAPICoreStack(ctx context.Context, cfg config.Config, logger *slog.Logge
 		Inner: contentregistry.NewForumPostFilter(lifecycleStack.ContentRegistry),
 	}).WithEditorDocumentSchema(forum.EditorRegistrySchemaBridge{
 		Registry: lifecycleStack.EditorRegistry,
-	}).WithSearchProviderAdmin(searchProviderAdminAdapter{registry: searchProviders})
+	}).WithSearchProviderAdmin(searchProviderAdminAdapter{registry: searchProviders}).
+		WithViewRecorder(topicViewCounter)
 	// 头像与附件管理共用带存储候选目录的服务实例。
 	avatarAttachmentService := attachmentService
 	profileProvider := providers.NewProfileProviderWithAvatarAndTabs(
@@ -1102,7 +1105,9 @@ func finishAPIHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 			ExtensionRuntime:  core.extensionRuntime,
 			PluginSchedules:   core.lifecycleStack.Schedules,
 			QueryInvalidation: workerQueryInvalidation,
-			OwnsRuntime:       false,
+			// 与 API 共用 Redis：flush_view_counts 读 API 写入的 view delta。
+			HostCacheRedis: core.sharedRedisClient,
+			OwnsRuntime:    false,
 		})
 		if err != nil {
 			core.closeRouteFailureRecorder()
