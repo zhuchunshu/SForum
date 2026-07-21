@@ -19,6 +19,8 @@ if ! command -v air >/dev/null 2>&1; then
 fi
 
 "$ROOT_DIR/scripts/build-builtin-plugins.sh"
+# 与 api-dev 一致：内置插件从 gitignored staging 加载，不污染 extensions/builtin。
+export BUILTIN_EXTENSION_ROOT="${SFORUM_BUILTIN_DEV_ROOT:-$ROOT_DIR/storage/builtin-dev}"
 
 # 主题激活 worker 需要能从 apps/api 找到宿主 Nuxt 应用和 Bun。
 export THEME_WEB_ROOT="${THEME_WEB_ROOT:-../web}"

@@ -27,6 +27,8 @@ if ! ORPHANS_ONLY=0 "$ROOT_DIR/scripts/free-api-dev-port.sh" "$HTTP_PORT"; then
 fi
 
 "$ROOT_DIR/scripts/build-builtin-plugins.sh"
+# 使用 staging 内置树（含本机编译二进制 + 刷新后的 digest），避免改写 git 跟踪的 manifest。
+export BUILTIN_EXTENSION_ROOT="${SFORUM_BUILTIN_DEV_ROOT:-$ROOT_DIR/storage/builtin-dev}"
 
 cd "$ROOT_DIR/apps/api"
 exec air

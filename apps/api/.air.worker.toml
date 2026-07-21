@@ -1,6 +1,7 @@
 root = "."
 tmp_dir = "tmp"
-env_files = ["../../.env"]
+# storage/builtin-dev/air.env 由 scripts/build-builtin-plugins.sh 生成，覆盖 BUILTIN_EXTENSION_ROOT。
+env_files = ["../../.env", "../../storage/builtin-dev/air.env"]
 
 [build]
 cmd = "go build -o ./tmp/sforum-worker ./cmd/worker"

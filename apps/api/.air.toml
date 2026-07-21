@@ -1,6 +1,7 @@
 root = "."
 tmp_dir = "tmp"
-env_files = ["../../.env"]
+# storage/builtin-dev/air.env 由 scripts/build-builtin-plugins.sh 生成，覆盖 BUILTIN_EXTENSION_ROOT。
+env_files = ["../../.env", "../../storage/builtin-dev/air.env"]
 
 [build]
 # 仅清理孤儿 sforum-api（父进程不是 air）；当前热重载实例留给 kill_delay + Listen 重试。
