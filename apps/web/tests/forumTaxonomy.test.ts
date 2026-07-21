@@ -57,6 +57,10 @@ describe('forum taxonomy helpers', () => {
     expect(page).not.toMatch(/post\s*\(\s*['`][^'`]*\/view/)
     expect(page).not.toContain('recordView')
     expect(page).not.toContain('postTopicView')
+    // M4：URL 含 id 时 topic+comments 并行；slug 路径 await topicAsync 复用详情（不二次 GET）。
+    expect(page).toContain('Promise.all([topicAsync, commentsAsync])')
+    expect(page).toContain('urlTopicID')
+    expect(page).toContain('await topicAsync')
   })
   test('parses public tag page option values', () => {
     expect(parseForumTagPublicPagesOption('enabled')).toBe(true)

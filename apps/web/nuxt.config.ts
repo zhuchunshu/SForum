@@ -91,9 +91,9 @@ export default defineNuxtConfig({
       '/en/tags/**': { cache: false },
       '/u/**': { swr: 3600 },
       '/en/u/**': { swr: 3600 },
-      // 主题详情承载 ?edit=1 编辑态，routeRules 无法按 query 区分；禁缓存优先保证用户态安全。
-      '/t/**': { cache: false },
-      '/en/t/**': { cache: false },
+      // 主题详情：匿名短 SWR（SEO/首屏）；登录或 ?edit= 由 server/middleware/topic-page-cache 禁缓存。
+      '/t/**': { swr: 60 },
+      '/en/t/**': { swr: 60 },
       // 登录/注册/密码找回与受保护用户页保持 SSR，受保护页显式禁缓存，避免继承公开内容页 SWR。
       '/settings/**': { cache: false, robots: { index: false } },
       '/en/settings/**': { cache: false, robots: { index: false } },

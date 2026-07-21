@@ -21,19 +21,32 @@ describe('protected route rendering', () => {
 
   test('disables route cache for protected user workflows', () => {
     const config = readFileSync(new URL('../nuxt.config.ts', import.meta.url), 'utf8')
+    // /t/** 允许匿名短 SWR；登录/?edit= 由 topic-page-cache 中间件禁缓存（见下测）。
     const protectedRoutes = [
       '/settings/**',
       '/en/settings/**',
       '/topics/new',
-      '/en/topics/new',
-      '/t/**',
-      '/en/t/**'
+      '/en/topics/new'
     ]
 
     for (const route of protectedRoutes) {
       const escapedRoute = route.replaceAll('/', '\\/').replaceAll('*', '\\*')
       expect(config).toMatch(new RegExp(`['"]${escapedRoute}['"]\\s*:\\s*\\{[^}]*cache\\s*:\\s*false`))
     }
+  })
+
+  test('topic detail allows anonymous SWR but gates auth/edit via middleware', () => {
+    const config = readFileSync(new URL('../nuxt.config.ts', import.meta.url), 'utf8')
+    expect(config).toMatch(/['"]\/t\/\*\*['"]\s*:\s*\{\s*swr\s*:\s*60\s*\}/)
+    expect(config).toMatch(/['"]\/en\/t\/\*\*['"]\s*:\s*\{\s*swr\s*:\s*60\s*\}/)
+
+    const middlewarePath = new URL('../server/middleware/topic-page-cache.ts', import.meta.url)
+    expect(existsSync(middlewarePath)).toBe(true)
+    const source = readFileSync(middlewarePath, 'utf8')
+    expect(source).toContain('sforum_session')
+    expect(source).toContain('searchParams.has(\'edit\')')
+    expect(source).toContain('routeRules.cache = false')
+    expect(source).toContain('routeRules.swr = false')
   })
 
   test('has a global middleware that enforces requiresAuth page metadata', () => {

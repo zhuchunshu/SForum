@@ -69,19 +69,36 @@ const parsedPath = computed(() => parseTopicPath(pathSegments.value, topicUrlMod
 const topicLookups = computed(() => topicPathLookupCandidates(pathSegments.value, topicUrlMode.value))
 const topicLookupKey = computed(() => topicLookups.value.map((item) => item.kind === 'id' ? `id:${item.topicId}` : `slug:${item.slug}`).join('|'))
 const topicID = computed(() => parsedPath.value?.topicId ?? topicLookups.value.find((item) => item.kind === 'id')?.topicId ?? 0)
+// URL 已带数字 id 时（id / id_slug 模式）可与评论并行拉取；纯 slug 需等详情 resolve。
+const urlTopicID = computed(() => {
+  const fromPath = topicLookups.value.find((item) => item.kind === 'id' && item.topicId > 0)
+  return fromPath?.topicId ?? 0
+})
 
-// 按 URL 候选顺序加载主题：当前 mode 的规范形态优先，旧的 id/id+slug/slug 链接作为回退。
-// D3：一次导航只应成功打一次公开详情 GET（浏览计数副作用在 GET 上；无 POST /view）。
-// useAsyncData 在 SSR 与客户端 hydration 间复用 payload，避免 onMounted 二次拉取双计。
-// 候选链仅在 404 时尝试下一种形态；首个 200 即返回。
-const { data: topic, error: topicError } = await useAsyncData(
-  () => `forum-topic-${topicUrlMode.value}-${topicLookupKey.value}`,
-  () => loadTopicFromCandidates(topicLookups.value),
-  {
-    // 后端对 hidden/deleted 主题返回 404，这里正常抛错由 error 页处理。
-    default: () => null as ForumTopicDetail | null
+// 编辑模式：通过 ?edit=1 query 进入（避免 catch-all 嵌套子路由问题）。
+// 需登录；未登录时全局 auth 中间件会重定向到登录页。
+const isEditing = computed(() => route.query.edit !== undefined && route.query.edit !== null)
+const commentPage = computed({
+  get: () => parsePublicPage(route.query.page),
+  set: (page: number) => {
+    const query: Record<string, string> = isEditing.value ? { edit: '1' } : {}
+    void router.replace(publicPageLocation(route.path, page, query))
   }
-)
+})
+
+// 评论数据：默认 tree 视图（声明在详情/评论并行 useAsyncData 之前，供 key 使用）。
+const commentView = ref<'tree' | 'flat'>('tree')
+const commentQuery = computed(() => ({
+  view: commentView.value,
+  page: commentPage.value
+}))
+watch(commentView, () => {
+  commentPage.value = 1
+}, { flush: 'sync' })
+
+function emptyCommentList(): ForumCommentList {
+  return { items: [], total: 0, page: 1, perPage: 20, view: commentView.value }
+}
 
 async function loadTopicFromCandidates(candidates: TopicPathLookup[]) {
   let lastNotFound: unknown
@@ -109,16 +126,46 @@ function isTopicLookupNotFound(error: unknown) {
   return candidate.statusCode === 404 || candidate.status === 404 || candidate.response?.status === 404
 }
 
-// 编辑模式：通过 ?edit=1 query 进入（避免 catch-all 嵌套子路由问题）。
-// 需登录；未登录时全局 auth 中间件会重定向到登录页。
-const isEditing = computed(() => route.query.edit !== undefined && route.query.edit !== null)
-const commentPage = computed({
-  get: () => parsePublicPage(route.query.page),
-  set: (page: number) => {
-    const query: Record<string, string> = isEditing.value ? { edit: '1' } : {}
-    void router.replace(publicPageLocation(route.path, page, query))
+// 按 URL 候选顺序加载主题：当前 mode 的规范形态优先，旧的 id/id+slug/slug 链接作为回退。
+// D3：一次导航只应成功打一次公开详情 GET（浏览计数副作用在 GET 上；无 POST /view）。
+// useAsyncData 在 SSR 与客户端 hydration 间复用 payload，避免 onMounted 二次拉取双计。
+// M4：URL 含 id 时 topic+comments Promise.all 并行；纯 slug 时评论等详情 id。
+const topicAsync = useAsyncData(
+  () => `forum-topic-${topicUrlMode.value}-${topicLookupKey.value}`,
+  () => loadTopicFromCandidates(topicLookups.value),
+  {
+    // 后端对 hidden/deleted 主题返回 404，这里正常抛错由 error 页处理。
+    default: () => null as ForumTopicDetail | null
   }
-})
+)
+
+// 评论 key：优先 URL id（并行稳定）；slug 模式用 lookup key，resolve 后 watch 刷新。
+const commentsKeyTopic = computed(() => (urlTopicID.value > 0 ? String(urlTopicID.value) : `lookup:${topicLookupKey.value}`))
+const commentsAsync = useAsyncData(
+  () => `forum-topic-comments-${commentsKeyTopic.value}-${commentView.value}-${commentPage.value}`,
+  async () => {
+    if (urlTopicID.value > 0) {
+      return forumApi.listTopicComments(urlTopicID.value, commentQuery.value)
+    }
+    // 纯 slug：复用同页 topicAsync，避免二次详情 GET（D3）。
+    const topicResult = await topicAsync
+    const id = topicResult.data.value?.id ?? 0
+    if (id <= 0) {
+      return emptyCommentList()
+    }
+    return forumApi.listTopicComments(id, commentQuery.value)
+  },
+  {
+    default: () => emptyCommentList(),
+    // 翻页/视图切换；slug 路径下 topic id 从 0→N 时也会触发。
+    watch: [() => topicAsync.data.value?.id ?? 0, commentQuery]
+  }
+)
+
+const [
+  { data: topic, error: topicError },
+  { data: commentData, pending: commentsPending, error: commentsError, refresh: refreshComments }
+] = await Promise.all([topicAsync, commentsAsync])
 
 // 规范化：URL 形态/slug 与当前 mode 下的规范路径不符时，301（SSR）/ replace（客户端）。
 // 触发场景：模式切换后的旧 URL、slug 变更后的旧 slug、id 模式下多余的 slug 段。
@@ -178,29 +225,10 @@ function cancelEditing() {
   navigateTo({ path: route.path, query: { ...route.query, edit: undefined } })
 }
 
-// 评论数据：默认 tree 视图。
-const commentView = ref<'tree' | 'flat'>('tree')
-const commentQuery = computed(() => ({
-  view: commentView.value,
-  page: commentPage.value
-}))
-watch(commentView, () => {
-  commentPage.value = 1
-}, { flush: 'sync' })
-
 function commentPageTo(page: number) { return publicPageLocation(localePath(canonicalTopicPath.value), page) }
 
-// 评论查询基于已加载主题的真实 id（slug 模式下 topicID 可能为 0，必须用 topic.value.id）。
+// 已加载主题 id（动作/回复路径）；列表拉取优先 urlTopicID 以支持并行。
 const loadedTopicID = computed(() => topic.value?.id ?? topicID.value)
-const { data: commentData, pending: commentsPending, error: commentsError, refresh: refreshComments } = await useAsyncData(
-  () => `forum-topic-comments-${loadedTopicID.value}-${commentView.value}-${commentPage.value}`,
-  () => forumApi.listTopicComments(loadedTopicID.value, commentQuery.value),
-  {
-    default: () => ({ items: [], total: 0, page: 1, perPage: 20, view: commentView.value }) as ForumCommentList,
-    // topic 加载完成（id 变化）或翻页/视图切换时重新拉取。
-    watch: [() => loadedTopicID.value, commentQuery]
-  }
-)
 
 const comments = computed(() => commentData.value.items)
 const commentTotal = computed(() => commentData.value.total)
