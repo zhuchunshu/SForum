@@ -2,6 +2,7 @@ package forum
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,6 +16,9 @@ type cacheTestStore struct {
 	topicCalls      int
 	topicsCalls     int
 	commentsCalls   int
+	// topicCategorySlug / topicTagSlugs 控制 GetTopic 返回的列表分片 scope（M6）。
+	topicCategorySlug string
+	topicTagSlugs     []string
 }
 
 func newCacheTestStore() *cacheTestStore {
@@ -26,20 +30,34 @@ func (s *cacheTestStore) ListCategories(_ context.Context) ([]Category, error) {
 	return []Category{{ID: 1, Slug: "general", Name: "综合讨论"}}, nil
 }
 
+func (s *cacheTestStore) topicDetailSummary(topicID int64, slug string) TopicSummary {
+	cat := strings.TrimSpace(s.topicCategorySlug)
+	if cat == "" {
+		cat = "general"
+	}
+	tags := make([]TopicTagSummary, 0, len(s.topicTagSlugs))
+	for _, t := range s.topicTagSlugs {
+		tags = append(tags, TopicTagSummary{Slug: t, Name: t, Status: "active"})
+	}
+	return TopicSummary{
+		ID: topicID, Title: "测试主题", Slug: slug, CategorySlug: cat, Tags: tags, Status: "active",
+	}
+}
+
 func (s *cacheTestStore) GetTopic(_ context.Context, topicID int64) (TopicDetail, error) {
 	s.topicCalls++
-	return TopicDetail{TopicSummary: TopicSummary{ID: topicID, Title: "测试主题", Slug: "test-topic"}}, nil
+	return TopicDetail{TopicSummary: s.topicDetailSummary(topicID, "test-topic")}, nil
 }
 
 func (s *cacheTestStore) GetTopicBySlug(_ context.Context, slug string) (TopicDetail, error) {
 	s.topicCalls++
-	return TopicDetail{TopicSummary: TopicSummary{ID: 42, Title: "测试主题", Slug: slug}}, nil
+	return TopicDetail{TopicSummary: s.topicDetailSummary(42, slug)}, nil
 }
 
 func (s *cacheTestStore) ListTopics(_ context.Context, input TopicListInput) (TopicList, error) {
 	s.topicsCalls++
 	return TopicList{
-		Items:   []TopicSummary{{ID: 1, Title: "主题一"}},
+		Items:   []TopicSummary{{ID: 1, Title: "主题一", CategorySlug: input.CategorySlug}},
 		Total:   1,
 		Page:    input.Page,
 		PerPage: input.PerPage,
@@ -48,7 +66,19 @@ func (s *cacheTestStore) ListTopics(_ context.Context, input TopicListInput) (To
 
 // CreateTopic override 记录并返回有效 detail，用于验证写后失效。
 func (s *cacheTestStore) CreateTopic(_ context.Context, input CreateTopicRecord) (TopicDetail, error) {
-	return TopicDetail{TopicSummary: TopicSummary{ID: 99, Title: input.Title}}, nil
+	cat := strings.TrimSpace(input.CategorySlug)
+	if cat == "" {
+		cat = "general"
+	}
+	tags := input.Tags
+	if len(tags) == 0 {
+		for _, slug := range input.TagSlugs {
+			tags = append(tags, TopicTagSummary{Slug: slug, Name: slug, Status: "active"})
+		}
+	}
+	return TopicDetail{TopicSummary: TopicSummary{
+		ID: 99, Title: input.Title, CategorySlug: cat, Tags: tags,
+	}}, nil
 }
 
 func TestCachedStoreReadsHitCacheAfterFirstLoad(t *testing.T) {
@@ -145,7 +175,7 @@ func TestCachedStoreTopicsInvalidatedOnWrite(t *testing.T) {
 	c := cache.NewMemoryCache()
 	cached := NewCachedStore(inner, c)
 
-	// 首次加载 topics。
+	// 首次加载 topics（首页 global scope）。
 	if _, err := cached.ListTopics(ctx, TopicListInput{Page: 1, PerPage: 20}); err != nil {
 		t.Fatalf("first list topics: %v", err)
 	}
@@ -159,8 +189,8 @@ func TestCachedStoreTopicsInvalidatedOnWrite(t *testing.T) {
 	if inner.topicsCalls != 1 {
 		t.Fatalf("expected still 1 on hit, got %d", inner.topicsCalls)
 	}
-	// CreateTopic 触发 topics 列表 generation 失效。
-	if _, err := cached.CreateTopic(ctx, CreateTopicRecord{Title: "新主题"}); err != nil {
+	// CreateTopic 触发 global generation 失效（首页应 miss）。
+	if _, err := cached.CreateTopic(ctx, CreateTopicRecord{Title: "新主题", CategorySlug: "general"}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
 	// 再读：generation 已变，应 miss。
@@ -169,6 +199,145 @@ func TestCachedStoreTopicsInvalidatedOnWrite(t *testing.T) {
 	}
 	if inner.topicsCalls != 2 {
 		t.Fatalf("expected 2 store calls after write invalidation, got %d", inner.topicsCalls)
+	}
+}
+
+// M6：分类 A 写入只 bump global + cat A；分类 B 列表缓存必须继续命中。
+func TestCachedStoreTopicsScopedInvalidationByCategory(t *testing.T) {
+	ctx := context.Background()
+	inner := newCacheTestStore()
+	c := cache.NewMemoryCache()
+	cached := NewCachedStore(inner, c)
+
+	listA := TopicListInput{Page: 1, PerPage: 20, CategorySlug: "cat-a"}
+	listB := TopicListInput{Page: 1, PerPage: 20, CategorySlug: "cat-b"}
+	listHome := TopicListInput{Page: 1, PerPage: 20}
+
+	// 预热 A / B / home。
+	for _, in := range []TopicListInput{listA, listB, listHome} {
+		if _, err := cached.ListTopics(ctx, in); err != nil {
+			t.Fatalf("warm list: %v", err)
+		}
+	}
+	if inner.topicsCalls != 3 {
+		t.Fatalf("expected 3 store calls after warm, got %d", inner.topicsCalls)
+	}
+	// 全部命中。
+	for _, in := range []TopicListInput{listA, listB, listHome} {
+		if _, err := cached.ListTopics(ctx, in); err != nil {
+			t.Fatalf("hit list: %v", err)
+		}
+	}
+	if inner.topicsCalls != 3 {
+		t.Fatalf("expected still 3 on hits, got %d", inner.topicsCalls)
+	}
+
+	// 仅在 cat-a 写主题。
+	if _, err := cached.CreateTopic(ctx, CreateTopicRecord{
+		Title: "A 风暴", CategorySlug: "cat-a",
+	}); err != nil {
+		t.Fatalf("create in cat-a: %v", err)
+	}
+
+	// cat-b 必须仍命中（核心断言）。
+	if _, err := cached.ListTopics(ctx, listB); err != nil {
+		t.Fatalf("list B after A write: %v", err)
+	}
+	if inner.topicsCalls != 3 {
+		t.Fatalf("expected cat-b cache hit (still 3), got %d store calls", inner.topicsCalls)
+	}
+
+	// cat-a 与 home 应 miss。
+	if _, err := cached.ListTopics(ctx, listA); err != nil {
+		t.Fatalf("list A after write: %v", err)
+	}
+	if _, err := cached.ListTopics(ctx, listHome); err != nil {
+		t.Fatalf("list home after write: %v", err)
+	}
+	if inner.topicsCalls != 5 {
+		t.Fatalf("expected cat-a + home miss (5 total), got %d", inner.topicsCalls)
+	}
+}
+
+// M6：标签 scope 分片——写 tag-x 主题不刷 tag-y 列表。
+func TestCachedStoreTopicsScopedInvalidationByTag(t *testing.T) {
+	ctx := context.Background()
+	inner := newCacheTestStore()
+	c := cache.NewMemoryCache()
+	cached := NewCachedStore(inner, c)
+
+	listX := TopicListInput{Page: 1, PerPage: 20, TagSlug: "tag-x"}
+	listY := TopicListInput{Page: 1, PerPage: 20, TagSlug: "tag-y"}
+
+	if _, err := cached.ListTopics(ctx, listX); err != nil {
+		t.Fatalf("warm x: %v", err)
+	}
+	if _, err := cached.ListTopics(ctx, listY); err != nil {
+		t.Fatalf("warm y: %v", err)
+	}
+	if inner.topicsCalls != 2 {
+		t.Fatalf("warm calls=%d", inner.topicsCalls)
+	}
+
+	if _, err := cached.CreateTopic(ctx, CreateTopicRecord{
+		Title: "带 x", CategorySlug: "general", TagSlugs: []string{"tag-x"},
+	}); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	if _, err := cached.ListTopics(ctx, listY); err != nil {
+		t.Fatalf("list y: %v", err)
+	}
+	if inner.topicsCalls != 2 {
+		t.Fatalf("expected tag-y hit, got %d", inner.topicsCalls)
+	}
+	if _, err := cached.ListTopics(ctx, listX); err != nil {
+		t.Fatalf("list x: %v", err)
+	}
+	if inner.topicsCalls != 3 {
+		t.Fatalf("expected tag-x miss, got %d", inner.topicsCalls)
+	}
+}
+
+// M6：评论写入按主题所属分类分片失效（预热详情缓存以解析 scope）。
+func TestCachedStoreCommentWriteInvalidatesOnlyTopicCategory(t *testing.T) {
+	ctx := context.Background()
+	inner := newCacheTestStore()
+	inner.topicCategorySlug = "cat-a"
+	inner.topicTagSlugs = []string{"go"}
+	c := cache.NewMemoryCache()
+	cached := NewCachedStore(inner, c)
+
+	listA := TopicListInput{Page: 1, PerPage: 20, CategorySlug: "cat-a"}
+	listB := TopicListInput{Page: 1, PerPage: 20, CategorySlug: "cat-b"}
+	if _, err := cached.ListTopics(ctx, listA); err != nil {
+		t.Fatalf("warm A: %v", err)
+	}
+	if _, err := cached.ListTopics(ctx, listB); err != nil {
+		t.Fatalf("warm B: %v", err)
+	}
+	// 预热详情，让 CreateComment 从缓存取 scope（不额外记 topicsCalls）。
+	if _, err := cached.GetTopic(ctx, 42); err != nil {
+		t.Fatalf("warm detail: %v", err)
+	}
+	warmTopics := inner.topicsCalls
+
+	if _, err := cached.CreateComment(ctx, CreateCommentRecord{TopicID: 42}); err != nil {
+		t.Fatalf("comment: %v", err)
+	}
+
+	if _, err := cached.ListTopics(ctx, listB); err != nil {
+		t.Fatalf("list B: %v", err)
+	}
+	if inner.topicsCalls != warmTopics {
+		t.Fatalf("expected cat-b still hit after comment in cat-a, got topicsCalls=%d want %d",
+			inner.topicsCalls, warmTopics)
+	}
+	if _, err := cached.ListTopics(ctx, listA); err != nil {
+		t.Fatalf("list A: %v", err)
+	}
+	if inner.topicsCalls != warmTopics+1 {
+		t.Fatalf("expected cat-a miss, got %d", inner.topicsCalls)
 	}
 }
 

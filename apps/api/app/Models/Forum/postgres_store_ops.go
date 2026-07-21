@@ -228,6 +228,7 @@ func (s *PostgresStore) LatestAuthorTopicCreatedAt(ctx context.Context, authorUs
 	return createdAt, true, nil
 }
 
+// CountAuthorTopicsSince 写路径冷却/日限额（非公开热路径）。M6 审计保留 COUNT。
 func (s *PostgresStore) CountAuthorTopicsSince(ctx context.Context, authorUserID int64, since time.Time) (int64, error) {
 	var count int64
 	if err := s.pool.QueryRow(ctx, `
@@ -258,6 +259,7 @@ func (s *PostgresStore) LatestAuthorCommentCreatedAt(ctx context.Context, author
 	return createdAt, true, nil
 }
 
+// CountAuthorCommentsSince 写路径冷却/日限额（非公开热路径）。M6 审计保留 COUNT。
 func (s *PostgresStore) CountAuthorCommentsSince(ctx context.Context, authorUserID int64, since time.Time) (int64, error) {
 	var count int64
 	if err := s.pool.QueryRow(ctx, `
@@ -524,7 +526,8 @@ func (s *PostgresStore) listCommentsFlat(ctx context.Context, input CommentListI
 	}, nil
 }
 
-// commentListTotalFlat 公开 active-only 用 denormalized comment_count；含 deleted 范围时精确 COUNT。
+// commentListTotalFlat 公开 active-only 用 denormalized comment_count（无 COUNT）。
+// IncludeDeleted 为作者/管理范围，QPS 低，允许精确 COUNT（M6 审计保留）。
 func (s *PostgresStore) commentListTotalFlat(ctx context.Context, input CommentListInput) (int64, error) {
 	if !input.IncludeDeleted {
 		var total int64
@@ -653,6 +656,8 @@ func (s *PostgresStore) listCommentsTree(ctx context.Context, input CommentListI
 }
 
 // commentListTotalRoots tree 视图 total = 根评论数（公开路径仅 active）。
+// M6：无 root_comment_count 冗余列；COUNT 仅在 ListComments 缓存 miss 时执行（topic 级 gen + 短 TTL）。
+// 全表/跨主题 COUNT 已禁止；本查询带 topic_id + parent IS NULL，走局部索引。
 func (s *PostgresStore) commentListTotalRoots(ctx context.Context, input CommentListInput) (int64, error) {
 	var total int64
 	if err := s.pool.QueryRow(ctx, `

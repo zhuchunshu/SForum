@@ -17,9 +17,11 @@ import (
 //   - 写方法在成功后使相关缓存失效（generation 递增 + 精确 key 删除）。
 //
 // 失效策略采用 generation 版本号，避免对前缀 key 做 SCAN：
-//   - 主题列表 key 含 topics generation，写主题/评论时递增，旧 key 自然过期。
-//   - 分类/分组/标签列表同理。
+//   - 主题列表 generation 按 scope 分片（M6）：global / cat:{slug} / tag:{slug}。
+//     单分类写风暴只 bump 首页 gen + 该分类（及标签）gen，其它分类列表缓存保持命中。
+//   - 分类/分组/标签列表同理（taxonomy 仍用全局 gen）。
 //   - 主题详情按 topicID 精确删除（创建/更新/删除/状态变更时）。
+//   - 评论列表按 topicID generation 分片。
 //
 // cache 为 nil 时退化为透传（不缓存），方便测试和显式关闭。
 type CachedStore struct {
@@ -29,10 +31,13 @@ type CachedStore struct {
 
 // 生成 generation key 时使用的固定前缀。
 const (
-	genTopics         = "forum:gen:topics" // 主题列表 generation
-	genCategories     = "forum:gen:cats"   // 分类列表 generation
-	genCategoryGroups = "forum:gen:groups" // 分类分组列表 generation
-	genTags           = "forum:gen:tags"   // 标签列表 generation
+	// 主题列表分片 gen（M6）。旧单一 key forum:gen:topics 已废弃，不再读写。
+	genTopicsGlobal   = "forum:gen:topics:global" // 无过滤首页
+	genTopicsCatPref  = "forum:gen:topics:cat:"   // + categorySlug
+	genTopicsTagPref  = "forum:gen:topics:tag:"   // + tagSlug
+	genCategories     = "forum:gen:cats"          // 分类列表 generation
+	genCategoryGroups = "forum:gen:groups"        // 分类分组列表 generation
+	genTags           = "forum:gen:tags"          // 标签列表 generation
 	// genCommentsPrefix + topicID：按主题递增，写评论只失效该主题评论列表。
 	genCommentsPrefix = "forum:gen:comments:"
 
@@ -54,6 +59,14 @@ const (
 	ttlComments    = 20 * time.Second // 评论列表：详情热路径
 	ttlCommentsP1  = 40 * time.Second // 评论第一页稍长
 )
+
+func topicsGenCategory(slug string) string {
+	return genTopicsCatPref + strings.TrimSpace(slug)
+}
+
+func topicsGenTag(slug string) string {
+	return genTopicsTagPref + strings.TrimSpace(slug)
+}
 
 // NewCachedStore 包装底层 store。cache 为 nil 时直接返回底层 store（不装饰）。
 func NewCachedStore(inner Store, cache cache.Cache) Store {
@@ -195,8 +208,8 @@ func (s *CachedStore) TopicSlugExists(ctx context.Context, slug string, excludeT
 }
 
 func (s *CachedStore) ListTopics(ctx context.Context, input TopicListInput) (TopicList, error) {
-	gen := s.currentGen(ctx, genTopics)
-	// key 含 sort + after：不同排序/游标不能共用同一缓存条目。
+	// key 含分片 gen + sort + after：不同 scope/排序/游标不能共用同一缓存条目。
+	gen := s.listTopicsCacheGen(ctx, input)
 	after := strings.TrimSpace(input.After)
 	key := fmt.Sprintf("%s%s:%s:%s:%s:%d:%d:%s", prefixTopicsList, gen, input.CategorySlug, input.TagSlug, input.Sort, input.Page, input.PerPage, after)
 	var out TopicList
@@ -214,6 +227,23 @@ func (s *CachedStore) ListTopics(ctx context.Context, input TopicListInput) (Top
 	}
 	s.saveJSON(ctx, key, out, ttl)
 	return out, nil
+}
+
+// listTopicsCacheGen 按列表过滤条件选择分片 generation（M6）。
+// 分类+标签双过滤时拼接两个 gen，任一维度写路径 bump 即 miss。
+func (s *CachedStore) listTopicsCacheGen(ctx context.Context, input TopicListInput) string {
+	cat := strings.TrimSpace(input.CategorySlug)
+	tag := strings.TrimSpace(input.TagSlug)
+	switch {
+	case cat != "" && tag != "":
+		return "c" + s.currentGen(ctx, topicsGenCategory(cat)) + ":t" + s.currentGen(ctx, topicsGenTag(tag))
+	case cat != "":
+		return "c" + s.currentGen(ctx, topicsGenCategory(cat))
+	case tag != "":
+		return "t" + s.currentGen(ctx, topicsGenTag(tag))
+	default:
+		return "g" + s.currentGen(ctx, genTopicsGlobal)
+	}
 }
 
 // ListComments 缓存公开评论列表（不含 soft-delete 扩展范围）。
@@ -257,54 +287,61 @@ func (s *CachedStore) CreateTopic(ctx context.Context, input CreateTopicRecord) 
 	if err != nil {
 		return out, err
 	}
-	s.invalidateTopics(ctx)
+	s.invalidateTopicsScoped(ctx, topicListScopesFromDetail(out))
 	s.invalidateTaxonomy(ctx)
 	s.invalidateTopicBySlug(ctx, out.Slug)
 	return out, nil
 }
 
 func (s *CachedStore) UpdateTopic(ctx context.Context, input UpdateTopicRecord) (TopicDetail, error) {
+	// 分类/标签可能迁移：写前取旧 scope，与写后结果合并 bump。
+	oldScopes := s.topicListScopes(ctx, input.TopicID)
 	out, err := s.Store.UpdateTopic(ctx, input)
 	if err != nil {
 		return out, err
 	}
 	s.invalidateTopicDetail(ctx, input.TopicID)
-	s.invalidateTopics(ctx)
+	s.invalidateTopicsScoped(ctx, mergeTopicListScopes(oldScopes, topicListScopesFromDetail(out)))
 	s.invalidateTaxonomy(ctx)
 	s.invalidateTopicBySlug(ctx, out.Slug)
 	return out, nil
 }
 
 func (s *CachedStore) DeleteTopic(ctx context.Context, topicID int64) (TopicDetail, error) {
+	// 删除前尽量解析 scope（详情缓存或回源）；失败时至少 bump global。
+	scopes := s.topicListScopes(ctx, topicID)
 	out, err := s.Store.DeleteTopic(ctx, topicID)
 	if err != nil {
 		return out, err
 	}
 	s.invalidateTopicDetail(ctx, topicID)
 	s.invalidateTopicBySlug(ctx, out.Slug)
-	s.invalidateTopics(ctx)
+	s.invalidateTopicsScoped(ctx, mergeTopicListScopes(scopes, topicListScopesFromDetail(out)))
 	s.invalidateTaxonomy(ctx)
 	return out, nil
 }
 
 func (s *CachedStore) ApplyTopicAction(ctx context.Context, input TopicLifecycleInput) (TopicLifecycleRecord, error) {
+	scopes := s.topicListScopes(ctx, input.TopicID)
 	out, err := s.Store.ApplyTopicAction(ctx, input)
 	if err != nil {
 		return out, err
 	}
 	s.invalidateTopicDetail(ctx, input.TopicID)
-	s.invalidateTopics(ctx)
+	s.invalidateTopicsScoped(ctx, scopes)
 	return out, nil
 }
 
 func (s *CachedStore) CreateComment(ctx context.Context, input CreateCommentRecord) (Comment, error) {
+	// 评论写入前解析主题分类/标签 scope（详情缓存命中时零 DB）。
+	scopes := s.topicListScopes(ctx, input.TopicID)
 	out, err := s.Store.CreateComment(ctx, input)
 	if err != nil {
 		return out, err
 	}
 	// 新评论更新主题 last_activity_at，影响列表排序与详情评论计数。
 	s.invalidateTopicDetail(ctx, input.TopicID)
-	s.invalidateTopics(ctx)
+	s.invalidateTopicsScoped(ctx, scopes)
 	s.invalidateTaxonomy(ctx)
 	s.invalidateComments(ctx, input.TopicID)
 	return out, nil
@@ -316,6 +353,7 @@ func (s *CachedStore) UpdateComment(ctx context.Context, input UpdateCommentReco
 		return out, err
 	}
 	if out.TopicID > 0 {
+		// 纯正文编辑不改 last_activity / 列表序，不 bump 列表 gen。
 		s.invalidateTopicDetail(ctx, out.TopicID)
 		s.invalidateComments(ctx, out.TopicID)
 	}
@@ -328,8 +366,10 @@ func (s *CachedStore) DeleteComment(ctx context.Context, commentID int64) (Comme
 		return out, err
 	}
 	if out.TopicID > 0 {
+		// Delete 返回后详情可能已脏；优先用返回前缓存 scope，否则回源。
+		scopes := s.topicListScopes(ctx, out.TopicID)
 		s.invalidateTopicDetail(ctx, out.TopicID)
-		s.invalidateTopics(ctx)
+		s.invalidateTopicsScoped(ctx, scopes)
 		s.invalidateTaxonomy(ctx)
 		s.invalidateComments(ctx, out.TopicID)
 	}
@@ -392,8 +432,90 @@ func (s *CachedStore) UpdateTag(ctx context.Context, input UpdateTagInput) (Tag,
 
 // --- 失效辅助 ---
 
-func (s *CachedStore) invalidateTopics(ctx context.Context) {
-	s.bumpGen(ctx, genTopics)
+// topicListScopes 描述一次写操作应失效的主题列表分片（M6）。
+// 始终 bump global（首页）；分类/标签只 bump 受影响 slug，避免单分类写风暴刷全站。
+type topicListScopes struct {
+	CategorySlugs []string
+	TagSlugs      []string
+}
+
+func topicListScopesFromDetail(d TopicDetail) topicListScopes {
+	tags := make([]string, 0, len(d.Tags))
+	for _, t := range d.Tags {
+		if slug := strings.TrimSpace(t.Slug); slug != "" {
+			tags = append(tags, slug)
+		}
+	}
+	cat := strings.TrimSpace(d.CategorySlug)
+	var cats []string
+	if cat != "" {
+		cats = []string{cat}
+	}
+	return topicListScopes{CategorySlugs: cats, TagSlugs: tags}
+}
+
+func mergeTopicListScopes(parts ...topicListScopes) topicListScopes {
+	var out topicListScopes
+	for _, p := range parts {
+		out.CategorySlugs = append(out.CategorySlugs, p.CategorySlugs...)
+		out.TagSlugs = append(out.TagSlugs, p.TagSlugs...)
+	}
+	return out
+}
+
+// topicListScopes 解析主题所属分类/标签，供评论/生命周期等仅有 topicID 的写路径使用。
+// 优先读详情缓存；miss 时回源 GetTopic（写路径可接受一次轻量查询）。
+// 解析失败时返回空 scope——仍会 bump global，分类列表依赖 TTL 收敛。
+func (s *CachedStore) topicListScopes(ctx context.Context, topicID int64) topicListScopes {
+	if topicID <= 0 {
+		return topicListScopes{}
+	}
+	var detail TopicDetail
+	if s.loadJSON(ctx, fmt.Sprintf("%s%d", prefixTopicDetail, topicID), &detail) {
+		return topicListScopesFromDetail(detail)
+	}
+	// 反向映射 → slug 详情缓存
+	if raw, found, err := s.cache.Get(ctx, fmt.Sprintf("%s%d", prefixTopicIDSlug, topicID)); err == nil && found && len(raw) > 0 {
+		if s.loadJSON(ctx, prefixTopicBySlug+string(raw), &detail) {
+			return topicListScopesFromDetail(detail)
+		}
+	}
+	detail, err := s.Store.GetTopic(ctx, topicID)
+	if err != nil {
+		slog.WarnContext(ctx, "forum cache: resolve topic list scopes failed", "topicID", topicID, "err", err)
+		return topicListScopes{}
+	}
+	return topicListScopesFromDetail(detail)
+}
+
+// invalidateTopicsScoped 递增 global + 受影响 cat/tag generation。
+// 不去重以外的 scope：其它分类/标签列表 gen 不变 → 缓存继续命中。
+func (s *CachedStore) invalidateTopicsScoped(ctx context.Context, scopes topicListScopes) {
+	s.bumpGen(ctx, genTopicsGlobal)
+	seenCat := map[string]struct{}{}
+	for _, slug := range scopes.CategorySlugs {
+		slug = strings.TrimSpace(slug)
+		if slug == "" {
+			continue
+		}
+		if _, ok := seenCat[slug]; ok {
+			continue
+		}
+		seenCat[slug] = struct{}{}
+		s.bumpGen(ctx, topicsGenCategory(slug))
+	}
+	seenTag := map[string]struct{}{}
+	for _, slug := range scopes.TagSlugs {
+		slug = strings.TrimSpace(slug)
+		if slug == "" {
+			continue
+		}
+		if _, ok := seenTag[slug]; ok {
+			continue
+		}
+		seenTag[slug] = struct{}{}
+		s.bumpGen(ctx, topicsGenTag(slug))
+	}
 }
 
 func (s *CachedStore) invalidateTaxonomy(ctx context.Context) {
