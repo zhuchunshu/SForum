@@ -102,6 +102,7 @@
       "latestActivity": "最新活动",
       "replyCount": "{count} 回复",
       "topicCountMeta": "{count} 个主题",
+      "topicCountMetaApprox": "约 {count} 个主题",
       "views": "浏览",
       "activityMinutes": "{count} 分钟",
       "activityHours": "{count} 小时",

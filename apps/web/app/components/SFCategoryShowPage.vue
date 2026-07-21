@@ -4,6 +4,7 @@
  */
 
 import {
+  formatForumTopicListTotal,
   forumCategoryPath,
   forumTopicPath,
   type ForumCategoryGroup,
@@ -147,7 +148,7 @@ function topicActivity(topic: ForumTopicSummary) {
           <h1 id="category-page-title">{{ category?.name }}</h1>
           <p v-if="category?.description">{{ category.description }}</p>
           <div class="sforum-home__page-meta">
-            {{ t('home.feed.topicCountMeta', { count: topicList.total }) }}
+            {{ formatForumTopicListTotal(topicList, t) }}
           </div>
         </header>
 

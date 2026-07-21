@@ -328,11 +328,29 @@ export type ForumTopicActionKey = keyof typeof FORUM_TOPIC_ACTIONS
 
 export type ForumTopicList = {
   items: ForumTopicSummary[]
+  /**
+   * 列表总数（D1）：分类/标签为冗余计数（可短暂陈旧）；
+   * 首页/多过滤可能为近似值。不要当严格实时全表 COUNT。
+   */
   total: number
+  /** true 时 total 为估计/近似，UI 可显示「约 N」 */
+  totalApproximate?: boolean
   page: number
   perPage: number
   /** forum.topic.list.badges（E2.4）；列表级一次返回，前端挂到每行标题旁 */
   extensionListBadges?: ForumTopicExtensionBadge[]
+}
+
+/** 列表 total 展示：近似时加「约」，分类/标签冗余计数不加。 */
+export function formatForumTopicListTotal(
+  list: Pick<ForumTopicList, 'total' | 'totalApproximate'>,
+  t: (key: string, params?: Record<string, unknown>) => string
+): string {
+  const count = Math.max(0, Math.floor(Number(list.total) || 0))
+  if (list.totalApproximate) {
+    return t('home.feed.topicCountMetaApprox', { count })
+  }
+  return t('home.feed.topicCountMeta', { count })
 }
 
 export type ForumTopicFilters = {

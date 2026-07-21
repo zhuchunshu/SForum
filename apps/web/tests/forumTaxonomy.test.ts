@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 
 import {
   buildForumTopicQuery,
+  formatForumTopicListTotal,
   forumTopicExtensionActionLabel,
   forumCommentExtensionActionRequest,
   forumTopicExtensionActionRequest,
@@ -20,6 +21,21 @@ import {
 } from '../app/utils/forumTaxonomy'
 
 describe('forum taxonomy helpers', () => {
+  test('formats list total with 约 only when totalApproximate', () => {
+    const t = (key: string, params?: Record<string, unknown>) => {
+      if (key === 'home.feed.topicCountMetaApprox') {
+        return `约 ${params?.count}`
+      }
+      if (key === 'home.feed.topicCountMeta') {
+        return `${params?.count} 个主题`
+      }
+      return key
+    }
+    expect(formatForumTopicListTotal({ total: 200000, totalApproximate: false }, t)).toBe('200000 个主题')
+    expect(formatForumTopicListTotal({ total: 1000000, totalApproximate: true }, t)).toBe('约 1000000')
+    expect(formatForumTopicListTotal({ total: 12 }, t)).toBe('12 个主题')
+  })
+
   test('category and tag pages rely on API pagination defaults', () => {
     const categoryPage = readFileSync(new URL('../../../apps/web/app/components/SFCategoryShowPage.vue', import.meta.url), 'utf8')
     const tagPage = readFileSync(new URL('../../../apps/web/app/components/SFTagShowPage.vue', import.meta.url), 'utf8')
@@ -27,6 +43,9 @@ describe('forum taxonomy helpers', () => {
     expect(tagPage).not.toContain('perPage: ITEMS_PER_PAGE')
     expect(categoryPage).toContain('topicList.value.perPage')
     expect(tagPage).toContain('topicList.value.perPage')
+    // D1：列表 total 经 formatForumTopicListTotal，近似才显示「约」
+    expect(categoryPage).toContain('formatForumTopicListTotal')
+    expect(tagPage).toContain('formatForumTopicListTotal')
   })
   test('parses public tag page option values', () => {
     expect(parseForumTagPublicPagesOption('enabled')).toBe(true)

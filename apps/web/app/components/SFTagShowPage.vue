@@ -4,6 +4,7 @@
  */
 
 import {
+  formatForumTopicListTotal,
   forumTagPath,
   forumTopicPath,
   parseForumTagPublicPagesOption,
@@ -167,7 +168,7 @@ function topicActivity(topic: ForumTopicSummary) {
           <h1 id="tag-page-title">#{{ tag?.name }}</h1>
           <p v-if="tag?.description">{{ tag.description }}</p>
           <div class="sforum-home__page-meta">
-            {{ t('home.feed.topicCountMeta', { count: topicList.total }) }}
+            {{ formatForumTopicListTotal(topicList, t) }}
           </div>
         </header>
 

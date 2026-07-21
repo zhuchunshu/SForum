@@ -102,6 +102,7 @@
       "latestActivity": "Latest activity",
       "replyCount": "{count} replies",
       "topicCountMeta": "{count} topics",
+      "topicCountMetaApprox": "About {count} topics",
       "views": "views",
       "activityMinutes": "{count} min",
       "activityHours": "{count} h",
