@@ -1,7 +1,7 @@
 # Million-Scale Read Path — Task Book
 
-Status: **in progress** — M0 complete (seed + k6 harness + baseline report);
-M1 not started  
+Status: **in progress** — M0 + **M1 complete** (ListTopics slim + D1 totals +
+indexes; after report); next M2  
 Date: 2026-07-21  
 Last decision pass: 2026-07-21 (four open questions → resolved defaults)  
 Goal: make public forum **read paths** safe for ~1M topics / large hot
@@ -43,13 +43,13 @@ Public operators should observe:
 | --- | --- | --- |
 | Redis `CachedStore` on ListTopics / GetTopic / taxonomy | **Done** | `forum/cached_store.go`, gen invalidation |
 | `maxTopicPage` ≈ 200 clamp | **Done** | `normalizePage` / OpenAPI max |
-| Keyword list vs search split (service-level) | **Partial** | Service returns use-search; **store SQL still has ILIKE branch** |
+| Keyword list vs search split (service-level) | **Done (M1)** | Service `ErrUseSearchEndpoint`; store list has **no ILIKE** |
 | Comment flat SQL LIMIT/OFFSET | **Done** | `listCommentsFlat` |
 | Comment tree roots page + all descendants | **Partial** | descendants unbounded |
 | `topics.view_count` column + display | **Done** | schema + UI |
 | View count increment / Redis flush | **Missing** | Iteration A WS1 |
 | Keyset / cursor public pagination | **Missing** | page+offset only |
-| Approximate / denormalized list totals | **Partial** | category counts exist; list still `COUNT(*)` |
+| Approximate / denormalized list totals | **Done (M1 / D1)** | cat/tag `topic_count`; home sum + `totalApproximate` |
 | `hot_score` / popular precompute | **Missing** | expression sort in SQL |
 | ListComments in CachedStore | **Missing** | every detail re-hits PG on miss path |
 | Load-test suite / capacity numbers | **Missing** | audit B6 |
@@ -213,40 +213,44 @@ comparison. **No production code change required** except seed tooling.
 
 ### 1.1 SQL / store
 
-- [ ] Rewrite `ListTopics` select list to avoid heavy post body columns
-- [ ] Ensure default sort `last_activity_at DESC, id DESC` uses
+- [x] Rewrite `ListTopics` select list to avoid heavy post body columns
+- [x] Ensure default sort `last_activity_at DESC, id DESC` uses
   `topics_category_activity_idx` (verify with EXPLAIN on seeded DB)
-- [ ] Remove or dead-code-eliminate list `ILIKE` path; service already has
+- [x] Remove or dead-code-eliminate list `ILIKE` path; service already has
   `ErrUseSearchEndpoint` — store must not reintroduce scan
-- [ ] Tag filter: keep EXISTS; confirm index `topic_tags (tag_id, topic_id)`
-- [ ] Optional: covering-friendly column order for index-only scans where easy
+- [x] Tag filter: keep EXISTS; confirm index `topic_tags (tag_id, topic_id)`
+- [x] Optional: covering-friendly column order for index-only scans where easy
+  (home: `topics_public_activity_idx` migration `202607210046`)
 
 ### 1.2 Total cost (implements D1)
 
-- [ ] Single **category** list: set `total` from **`categories.topic_count`** (no `COUNT(*)`)
-- [ ] Single **tag** list: set `total` from **`tags.topic_count`**
-- [ ] Unfiltered home: long-TTL cached total and/or PG estimate (`reltuples` or equivalent); **never** full-table count on hot path
-- [ ] Multi-filter edge cases: approximate or cached; document in OpenAPI
-- [ ] Verify Redis list cache hit does not recompute count
-- [ ] UI: taxonomy totals display as normal numbers; “约” **only** when total is a true estimate (home), not for cat/tag counters
-- [ ] Admin paths unchanged (exact count OK)
+- [x] Single **category** list: set `total` from **`categories.topic_count`** (no `COUNT(*)`)
+- [x] Single **tag** list: set `total` from **`tags.topic_count`**
+- [x] Unfiltered home: long-TTL cached total and/or PG estimate (`reltuples` or equivalent); **never** full-table count on hot path
+  (implemented as `SUM(public categories.topic_count)` + `totalApproximate`; list page=1 Redis TTL 45s)
+- [x] Multi-filter edge cases: approximate or cached; document in OpenAPI
+- [x] Verify Redis list cache hit does not recompute count
+- [x] UI: taxonomy totals display as normal numbers; “约” **only** when total is a true estimate (home), not for cat/tag counters
+- [x] Admin paths unchanged (exact count OK)
 
 ### 1.3 Contract / frontend
 
-- [ ] OpenAPI: document `total` may be denormalized/stale (cat/tag) or approximate (home); public clients should prefer shallow pages / future `hasMore`
-- [ ] Frontend: tolerate stale total; shallow pagination still works
-- [ ] i18n: add “约 {n}” (or equivalent) only for approximate-home display if shown
-- [ ] `ruby scripts/validate-openapi-refs.rb` after contract edits
+- [x] OpenAPI: document `total` may be denormalized/stale (cat/tag) or approximate (home); public clients should prefer shallow pages / future `hasMore`
+- [x] Frontend: tolerate stale total; shallow pagination still works
+- [x] i18n: add “约 {n}” (or equivalent) only for approximate-home display if shown
+- [x] `ruby scripts/validate-openapi-refs.rb` after contract edits
 
 ### 1.4 Tests
 
-- [ ] Unit/store tests: list without posts join fields still returns required summary fields
-- [ ] Service test: non-empty query still rejected / routed
-- [ ] Regression: pin order + activity order
-- [ ] Re-run M0 scripts; attach before/after in report
+- [x] Unit/store tests: list without posts join fields still returns required summary fields
+- [x] Service test: non-empty query still rejected / routed
+- [x] Regression: pin order + activity order
+- [x] Re-run M0 scripts; attach before/after in report
+  (`knowledge/reports/2026-07-21-perf-m1-list-topics.md`; k6 binary missing → concurrent LIGHT-class probe)
 
 **Exit criteria:** warm cache home p1 meets target **or** cold path improved ≥2×
 vs baseline on same hardware; EXPLAIN shows no sequential scan of posts for default list.
+**Met:** cold home ~11.5×; warm p99 ~29 ms; EXPLAIN index-only/limit 20; no posts seq scan.
 
 ---
 
@@ -518,3 +522,4 @@ Still free to decide during implementation (not product blockers):
 | 2026-07-21 | Task book created from performance path review; status **ready**. |
 | 2026-07-21 | Resolved D1–D4 (total semantics, tree cap 50, view on public GET+30m dedup, seed in `cmd/sforum` + `tests/perf`). Open questions closed; milestones M0–M5 updated to match. |
 | 2026-07-21 | **M0 done:** `seed:forum --profile=perf-1m` / `seed:perf` bulk seed; `tests/perf` k6 + `LIGHT=1`; baseline `knowledge/reports/2026-07-21-perf-baseline.md` (1e6 topics + 50k hot comments on `sforum_perf`). Next: M1 ListTopics slim + D1 totals. |
+| 2026-07-21 | **M1 done:** ListTopics page-CTE slim select + D1 totals + no list ILIKE; `topics_public_activity_idx`; OpenAPI `totalApproximate` + FE「约」; report `knowledge/reports/2026-07-21-perf-m1-list-topics.md` (home cold ~11.5×, warm p99 ~29 ms). Next: **M2** view count + `hot_score` (Iteration A WS1). |
