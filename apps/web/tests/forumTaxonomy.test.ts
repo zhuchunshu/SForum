@@ -47,6 +47,17 @@ describe('forum taxonomy helpers', () => {
     expect(categoryPage).toContain('formatForumTopicListTotal')
     expect(tagPage).toContain('formatForumTopicListTotal')
   })
+
+  test('topic show page loads detail via useAsyncData once (D3 no double-count path)', () => {
+    const page = readFileSync(new URL('../../../apps/web/app/components/SFTopicShowPage.vue', import.meta.url), 'utf8')
+    // 导航加载走 useAsyncData；无 onMounted 再拉详情、无独立 POST view 端点调用。
+    expect(page).toContain('useAsyncData')
+    expect(page).toContain('loadTopicFromCandidates')
+    expect(page).not.toMatch(/onMounted\s*\(\s*async/)
+    expect(page).not.toMatch(/post\s*\(\s*['`][^'`]*\/view/)
+    expect(page).not.toContain('recordView')
+    expect(page).not.toContain('postTopicView')
+  })
   test('parses public tag page option values', () => {
     expect(parseForumTagPublicPagesOption('enabled')).toBe(true)
     expect(parseForumTagPublicPagesOption('disabled')).toBe(false)

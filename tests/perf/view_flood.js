@@ -2,8 +2,9 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { api, hotSlug, defaultThresholds } from './lib.js';
 
-// Flood public detail GET (by-slug). Until M2/Iteration A, each hit may UPDATE topics.view_count
-// in PG — baseline should record that, not implement Redis view counting here.
+// Flood public detail GET (by-slug). After M2/D3: counting is Redis INCR + 30m dedup;
+// River flushes to PG — expect zero per-request UPDATE topics.view_count (see
+// knowledge/reports/2026-07-21-perf-m2-view-hot.md).
 
 export const options = {
   stages:

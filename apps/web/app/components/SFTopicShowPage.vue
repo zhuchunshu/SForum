@@ -71,6 +71,9 @@ const topicLookupKey = computed(() => topicLookups.value.map((item) => item.kind
 const topicID = computed(() => parsedPath.value?.topicId ?? topicLookups.value.find((item) => item.kind === 'id')?.topicId ?? 0)
 
 // 按 URL 候选顺序加载主题：当前 mode 的规范形态优先，旧的 id/id+slug/slug 链接作为回退。
+// D3：一次导航只应成功打一次公开详情 GET（浏览计数副作用在 GET 上；无 POST /view）。
+// useAsyncData 在 SSR 与客户端 hydration 间复用 payload，避免 onMounted 二次拉取双计。
+// 候选链仅在 404 时尝试下一种形态；首个 200 即返回。
 const { data: topic, error: topicError } = await useAsyncData(
   () => `forum-topic-${topicUrlMode.value}-${topicLookupKey.value}`,
   () => loadTopicFromCandidates(topicLookups.value),
@@ -84,6 +87,7 @@ async function loadTopicFromCandidates(candidates: TopicPathLookup[]) {
   let lastNotFound: unknown
   for (const candidate of candidates) {
     try {
+      // 成功即停：不要在 id 命中后再打 by-slug（否则会重复计浏览）。
       return candidate.kind === 'id'
         ? await forumApi.getTopic(candidate.topicId)
         : await forumApi.getTopicBySlug(candidate.slug)

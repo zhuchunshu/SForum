@@ -128,7 +128,9 @@ topics:
         type: string
     - name: sort
       in: query
-      description: latest | active | hot；空则站点默认。hot 在 M2 hot_score 前为 best-effort 表达式排序。
+      description: |
+        latest | active | hot；空则站点默认。
+        hot 使用 topics.hot_score 列（comment_count*5+view_count，写路径/刷盘维护）与 hot 索引。
       schema:
         type: string
         enum: [latest, active, hot]
@@ -546,11 +548,17 @@ topicByID:
   get:
     summary: Get public topic detail
     operationId: getTopic
+    description: |
+      公开主题详情。成功响应后服务端按 D3 记录一次浏览：匿名/登录均计；
+      同一访客键（登录用户 id / 会话 sid / IP+UA 哈希）对同一主题 30 分钟内去重；
+      Redis INCR 增量 + 周期 River 刷盘，**禁止**每请求 `UPDATE topics.view_count`。
+      Redis 不可用时跳过计数，仍返回 200。列表/搜索/sitemap/管理端不计。
+      无公开 `POST /view`；客户端一次导航应只请求一次详情。
     parameters:
     - "$ref": "../components/parameters.yaml#/TopicID"
     responses:
       '200':
-        description: Public topic detail with shared post content.
+        description: Public topic detail with shared post content. viewCount may lag flush.
         content:
           application/json:
             schema:
@@ -607,6 +615,7 @@ topicBySlug:
     description: |
       按 slug 查询公开主题。仅当站点 seo.topic_url_mode = slug（纯 slug URL 模式）
       时使用，slug 全局唯一（依赖 topics_slug_unique_idx）。
+      浏览计数语义与 getTopic 相同（D3：成功 GET 后去重 INCR，无 POST /view）。
     operationId: getTopicBySlug
     parameters:
     - "$ref": "../components/parameters.yaml#/TopicSlug"
