@@ -4,7 +4,7 @@
     "url": "https://github.com/zhuchunshu/sforum"
   },
   "backend": {
-    "digest": "0a206c4adc1879472c12f9b1ccecf5b8429bd01a4230d3d2e78ab40ecef2534a",
+    "digest": "b7122a78e1723f1550bda02f1733f9518803a1a2ee4b603a03fede3c5913d90d",
     "entry": "backend/plugin",
     "hostApiVersion": "sforum.host@2",
     "protocolVersion": 2,
@@ -56,7 +56,7 @@
   "name": "SForum Content Policy",
   "packageFiles": [
     {
-      "digest": "0a206c4adc1879472c12f9b1ccecf5b8429bd01a4230d3d2e78ab40ecef2534a",
+      "digest": "b7122a78e1723f1550bda02f1733f9518803a1a2ee4b603a03fede3c5913d90d",
       "id": "sforum.content-policy.file.backend",
       "kind": "executable",
       "path": "backend/plugin"
@@ -72,7 +72,7 @@
       "responseSchema": "sforum.content-policy.service.evaluate.response@1"
     }
   ],
-  "sforumVersion": "\u003e=0.1.0",
+  "sforumVersion": ">=0.1.0",
   "type": "plugin",
   "url": "https://github.com/zhuchunshu/sforum",
   "version": "1.1.0"

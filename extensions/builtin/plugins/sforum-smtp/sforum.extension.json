@@ -4,7 +4,7 @@
     "url": "https://github.com/zhuchunshu/sforum"
   },
   "backend": {
-    "digest": "6ee3a1c690860346c5ab6c232735b1aaf5413906e7a4d92962163e3e0e6ca9ed",
+    "digest": "ce3ee1e7b29dd1f567376609823120b042ebfcca09670bce05128a27afb94f5f",
     "entry": "backend/plugin",
     "hostApiVersion": "sforum.host@2",
     "protocolVersion": 2,
@@ -26,7 +26,7 @@
   "name": "SForum SMTP",
   "packageFiles": [
     {
-      "digest": "6ee3a1c690860346c5ab6c232735b1aaf5413906e7a4d92962163e3e0e6ca9ed",
+      "digest": "ce3ee1e7b29dd1f567376609823120b042ebfcca09670bce05128a27afb94f5f",
       "id": "sforum.smtp.file.backend",
       "kind": "executable",
       "path": "backend/plugin"
@@ -42,7 +42,7 @@
       "timeoutMs": 15000
     }
   ],
-  "sforumVersion": "\u003e=0.1.0",
+  "sforumVersion": ">=0.1.0",
   "type": "plugin",
   "url": "https://github.com/zhuchunshu/sforum",
   "version": "1.1.0"
