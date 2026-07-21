@@ -16,6 +16,7 @@ import (
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
 	editorregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EditorRegistry"
+	entityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EntityRegistry"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	navigationregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/NavigationRegistry"
@@ -155,6 +156,16 @@ func (p *ExtensionsProvider) WithEditorRegistry(
 ) *ExtensionsProvider {
 	if p != nil && p.controller != nil {
 		p.controller.WithEditorRegistry(registry)
+	}
+	return p
+}
+
+// WithEntityRegistry wires P10 Entity Registry for public entity catalog.
+func (p *ExtensionsProvider) WithEntityRegistry(
+	registry *entityregistry.Registry,
+) *ExtensionsProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithEntityRegistry(registry)
 	}
 	return p
 }

@@ -16,6 +16,54 @@ siteActiveThemeSettings:
             schema:
               "$ref": "../schemas/extensions.yaml#/ApiResponsePublicActiveThemeSettings"
 
+publicExtensionEntityCatalog:
+  get:
+    summary: Project the active Entity Registry into an inspectable catalog
+    operationId: getPublicExtensionEntityCatalog
+    tags: [Extensions]
+    description: >-
+      Returns `sforum.entity-catalog@1` with entity types, field/taxonomy
+      projections, and Host-derived index/importExport/deletion plan summaries.
+      Empty entities are valid when no Entity Registry publications exist.
+      Cache-Control is no-store. Safe Mode returns core entities only.
+    responses:
+      '200':
+        description: Entity catalog projection. Cache-Control is no-store.
+        headers:
+          Cache-Control:
+            schema: { type: string, enum: [no-store] }
+          X-Content-Type-Options:
+            schema: { type: string, enum: [nosniff] }
+          X-SForum-Entity-Catalog-Digest:
+            schema: { type: string, pattern: '^[0-9a-f]{64}$' }
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: object
+                  required: [schemaVersion, revision, digest, entities]
+                  properties:
+                    schemaVersion:
+                      type: string
+                      enum: [sforum.entity-catalog@1]
+                    revision:
+                      type: integer
+                      minimum: 0
+                    digest:
+                      type: string
+                    safeMode:
+                      type: boolean
+                    entities:
+                      type: array
+                      items:
+                        type: object
+                        additionalProperties: true
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+
 publicExtensionEditorCatalog:
   get:
     summary: Project the active Editor Registry into a trusted L2 load catalog
