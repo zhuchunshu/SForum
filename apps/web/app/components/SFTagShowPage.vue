@@ -186,16 +186,16 @@ function topicActivity(topic: ForumTopicSummary) {
           </div>
         </div>
 
-        <div class="sforum-home__topic-table sforum-home__topic-table--standalone">
-          <div class="sforum-home__topic-head" aria-hidden="true">
-            <span>{{ t('home.feed.topicColumn') }}</span>
-            <span>{{ t('home.feed.authorColumn') }}</span>
-            <span>{{ t('home.feed.repliesColumn') }}</span>
-            <span>{{ t('home.feed.activityColumn') }}</span>
-          </div>
-
+        <div
+          class="mt-3 overflow-hidden rounded-[var(--sf-public-radius,6px)] border border-[var(--sf-public-border)] bg-[var(--sf-public-surface)] shadow-[var(--sf-public-shadow)]"
+          data-sf-region="topic-list"
+        >
           <template v-if="topicsPending">
-            <div v-for="item in 6" :key="item" class="sforum-home__skeleton-row">
+            <div
+              v-for="item in 6"
+              :key="item"
+              class="border-b border-[var(--sf-border-light,#eef0f3)] p-3.5 last:border-b-0"
+            >
               <SFSkeleton avatar :lines="2" />
             </div>
           </template>
@@ -211,7 +211,7 @@ function topicActivity(topic: ForumTopicSummary) {
             />
           </template>
 
-          <div v-else class="sforum-home__empty">
+          <div v-else class="px-4 py-10 text-center">
             <SFEmptyState
               :title="t('home.emptyState.title')"
               :description="t('home.emptyState.description')"
@@ -219,7 +219,7 @@ function topicActivity(topic: ForumTopicSummary) {
           </div>
         </div>
 
-        <div v-if="topics.length > 0 && !topicsPending && totalPages > 1" class="sforum-home__pagination">
+        <div v-if="topics.length > 0 && !topicsPending && totalPages > 1" class="mt-3">
           <SFPagination
             :page="currentPage"
             :total-pages="totalPages"

@@ -434,7 +434,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main class="sforum-home" data-sforum-island-body="forum.component.home_page">
+  <main class="sforum-home" data-sforum-island-body="forum.component.home_page" data-layout="fullwidth-3col">
     <div
       class="sforum-home__layout"
       :class="{ 'sforum-home__layout--with-right': rightRailEnabled }"
@@ -452,8 +452,6 @@ onBeforeUnmount(() => {
       </div>
 
       <section class="sforum-home__main" aria-labelledby="forum-feed-title">
-        <h2 id="forum-feed-title" class="sr-only">{{ feedTitle }}</h2>
-
         <div class="sforum-home__mobile-nav">
           <SFHomeNavigation
             mobile-only
@@ -466,44 +464,74 @@ onBeforeUnmount(() => {
           />
         </div>
 
-        <div v-if="homeNotice" class="sforum-home__notice" role="note">
+        <div
+          v-if="homeNotice"
+          class="mb-3.5 rounded-lg border border-[var(--sf-public-notice-border)] bg-[var(--sf-public-notice-bg)] px-3.5 py-2.5 text-sm font-semibold leading-normal text-[var(--sf-public-notice-text)]"
+          role="note"
+        >
           {{ homeNotice }}
         </div>
 
-        <div class="sforum-home__feed-tabs" role="tablist" :aria-label="t('home.filter.latest')">
-          <button
-            type="button"
-            role="tab"
-            class="sforum-home__feed-tab"
-            :class="{ 'is-active': !selectedCategorySlug && !selectedTagSlug }"
-            :aria-selected="!selectedCategorySlug && !selectedTagSlug"
-            @click="resetFilters"
+        <!-- main-bar：宿主 Tailwind；主题只通过 token 换肤 -->
+        <div class="mb-2.5 flex flex-wrap items-center justify-between gap-3">
+          <h2
+            id="forum-feed-title"
+            class="m-0 flex flex-wrap items-baseline gap-2 text-[15px] font-semibold leading-snug text-[var(--sf-public-text)]"
           >
-            {{ t('home.filter.latest') }}
-          </button>
-          <button
-            v-if="selectedCategory"
-            type="button"
-            role="tab"
-            class="sforum-home__feed-tab is-active"
-            aria-selected="true"
-          >
-            {{ selectedCategory.name }}
-          </button>
+            {{ feedTitle }}
+            <span
+              v-if="!selectedCategorySlug && !selectedTagSlug && totalTopics > 0"
+              class="text-xs font-normal text-[var(--sf-public-text-muted)]"
+            >
+              {{ t('home.feed.topicCountMeta', { count: totalTopics }) }}
+            </span>
+          </h2>
+          <div class="flex flex-wrap items-center gap-0.5" role="tablist" :aria-label="t('home.filter.latest')">
+            <button
+              type="button"
+              role="tab"
+              class="h-7 rounded-[var(--sf-public-radius,6px)] border border-transparent bg-transparent px-2.5 text-xs font-medium text-[var(--sf-public-text-muted)] hover:text-[var(--sf-public-text)]"
+              :class="!selectedCategorySlug && !selectedTagSlug
+                ? 'border-[var(--sf-public-border)] bg-[var(--sf-public-surface)] font-semibold text-[var(--sf-public-text)]'
+                : ''"
+              :aria-selected="!selectedCategorySlug && !selectedTagSlug"
+              @click="resetFilters"
+            >
+              {{ t('home.filter.latest') }}
+            </button>
+            <button
+              v-if="selectedCategory"
+              type="button"
+              role="tab"
+              class="h-7 rounded-[var(--sf-public-radius,6px)] border border-[var(--sf-public-border)] bg-[var(--sf-public-surface)] px-2.5 text-xs font-semibold text-[var(--sf-public-text)]"
+              aria-selected="true"
+            >
+              {{ selectedCategory.name }}
+            </button>
+          </div>
         </div>
 
-        <p v-if="committedFilters.query" class="sforum-home__search-context">
+        <p
+          v-if="committedFilters.query"
+          class="mt-2.5 mb-0 text-xs text-[var(--sf-public-text-muted)]"
+        >
           {{ t('home.searchResults', { query: committedFilters.query }) }}
         </p>
 
-        <div v-if="activeTags.length || hasActiveFilters" class="sforum-home__filters" :aria-busy="tagsPending">
-          <div id="home-tags" class="sforum-home__tag-list">
+        <div
+          v-if="activeTags.length || hasActiveFilters"
+          class="mt-2.5 flex min-w-0 items-center gap-2"
+          :aria-busy="tagsPending"
+        >
+          <div id="home-tags" class="flex min-w-0 flex-wrap gap-1.5">
             <button
               v-for="tag in activeTags"
               :key="tag.slug"
               type="button"
-              class="sforum-home__tag"
-              :class="{ 'is-active': selectedTagSlug === tag.slug }"
+              class="inline-flex min-h-[26px] items-center rounded-full border border-transparent bg-[var(--sf-public-surface-muted)] px-2.5 py-0.5 text-[0.6875rem] font-bold text-[var(--sf-public-text-secondary)] hover:border-[var(--sf-accent-soft-border)] hover:bg-[var(--sf-accent-soft)] hover:text-[var(--sf-accent-hover)]"
+              :class="selectedTagSlug === tag.slug
+                ? 'border-[var(--sf-accent-soft-border)] bg-[var(--sf-accent-soft)] text-[var(--sf-accent-hover)]'
+                : ''"
               :aria-pressed="selectedTagSlug === tag.slug"
               @click="selectTag(tag.slug)"
             >
@@ -513,7 +541,7 @@ onBeforeUnmount(() => {
           <button
             v-if="hasActiveFilters"
             type="button"
-            class="sforum-home__clear-filters"
+            class="ml-auto inline-flex min-h-[26px] items-center gap-1 rounded-full border border-transparent bg-transparent px-2.5 py-0.5 text-[0.6875rem] font-bold text-[var(--sf-public-text-secondary)]"
             @click="resetFilters"
           >
             <UIcon name="i-lucide-x" class="size-3.5" aria-hidden="true" />
@@ -521,15 +549,16 @@ onBeforeUnmount(() => {
           </button>
         </div>
 
-        <div id="feed-list-container" class="sforum-home__topic-table">
-          <div class="sforum-home__topic-head" aria-hidden="true">
-            <span>{{ t('home.feed.topicColumn') }}</span>
-            <span>{{ t('home.feed.authorColumn') }}</span>
-            <span>{{ t('home.feed.repliesColumn') }}</span>
-            <span>{{ t('home.feed.activityColumn') }}</span>
-          </div>
-
-          <div v-if="topicsError" class="sforum-home__load-error" role="alert">
+        <div
+          id="feed-list-container"
+          class="overflow-hidden rounded-[var(--sf-public-radius,6px)] border border-[var(--sf-public-border)] bg-[var(--sf-public-surface)] shadow-[var(--sf-public-shadow)]"
+          data-sf-region="topic-list"
+        >
+          <div
+            v-if="topicsError"
+            class="flex flex-col items-center gap-3 px-4 py-10 text-center text-sm text-[var(--sf-public-text-muted)]"
+            role="alert"
+          >
             <span>{{ t('home.feed.loadFailed') }}</span>
             <button type="button" class="sf-button sf-button--ghost sf-button--sm" @click="retryFirstPage">
               <UIcon name="i-lucide-refresh-cw" class="size-4" aria-hidden="true" />
@@ -538,7 +567,11 @@ onBeforeUnmount(() => {
           </div>
 
           <template v-else-if="topicsPending">
-            <div v-for="item in 7" :key="item" class="sforum-home__skeleton-row">
+            <div
+              v-for="item in 7"
+              :key="item"
+              class="border-b border-[var(--sf-border-light,#eef0f3)] p-3.5 last:border-b-0"
+            >
               <SFSkeleton avatar :lines="2" />
             </div>
           </template>
@@ -554,7 +587,10 @@ onBeforeUnmount(() => {
             />
           </template>
 
-          <div v-else class="sforum-home__empty">
+          <div
+            v-else
+            class="px-4 py-10 text-center"
+          >
             <SFEmptyState
               :title="emptyTitle"
               :description="emptyDescription"
