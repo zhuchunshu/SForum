@@ -6,6 +6,60 @@ Last updated: 2026-07-21
 
 - Verified weighted progress: **99.7%** (display **99%**).
 - Phase counts: **P0–P12 complete (including P10 15/15)**; P13 **~99.7%**.
+- Goal harness “remaining P10” is **stale** — all five P10 claims re-PASS.
+- Dual residual audit: **zero implementable non-LTS product work**.
+- Gate hygiene this turn:
+  - `scripts/test.sh` now runs `editorL2Load` + `adminRegistryCatalogs` unit
+    suites when `apps/web/node_modules` is present.
+
+## Current Subtask
+
+### 2026-07-21 LTS wait only (policy-blocked)
+
+- Exact next: **do not delete** LoadTemplate residual / Protocol V1 /
+  fail-closed SFPageOutlet until APILTS `RemoveAfter` ≈ **2026-11-28** +
+  live zero-shim + checklist 1–7.
+- APILTS CLI (2026-07-21): `protocolV1CanRemoveWithZeroShim=false`,
+  `themeRequestTimeLoaderCanRemoveWithZeroShim=false` (window closed;
+  CLI process shim calls=0 — live counters only on API/worker).
+- Product boundary for 100%: wait for RemoveAfter or user-approved LTS window.
+- Large deferred: Protocol-leased content filter, Media Plan/Execute product
+  authority, EntityStore I/O.
+
+## Tests (2026-07-21)
+
+- catalogs: **249 routes / 150 UI / 99 rows**
+- OpenAPI refs: EXIT 0
+- go test P10 packages + APILTS: EXIT 0
+- bun test editorL2Load + adminRegistryCatalogs: **12 pass**
+- APILTS report: RemoveAfter 2026-11-28, CanRemoveWithZeroShim false
+
+## Open task-book rows
+
+1. Remove request-time template loader residual
+2. Remove Protocol V1 paths
+3. Compatibility path removal after LTS checklist
+
+## Rollback
+
+- Revert test.sh gate commit if suite becomes flaky.
+- Never delete LTS shims early.
+
+## Unowned worktree
+
+- None expected.
+
+
+---
+
+# Trusted Plugin And Theme Platform V3 Progress Ledger
+
+Last updated: 2026-07-21
+
+## Progress
+
+- Verified weighted progress: **99.7%** (display **99%**).
+- Phase counts: **P0–P12 complete (including P10 15/15)**; P13 **~99.7%**.
 - Goal harness “remaining P10” is **stale** — re-verified all five P10 claims
   PASS in code+tests (Editor L2, EditorDocument, Entity/taxonomy/field, ordered
   pipeline, reference blocks/media/XSS).
