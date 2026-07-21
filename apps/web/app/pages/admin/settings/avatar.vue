@@ -69,12 +69,15 @@ const saving = ref(false)
 const restoring = ref(false)
 const loadError = ref('')
 const adminOptionsMap = ref<Record<string, AdminWebOption>>({})
+const savedSnapshot = ref('')
 
 const recommendedApplied = computed(() => {
   const current = settingsPayload()
   const recommended = recommendedPayload()
   return optionNames.every(name => current[name] === recommended[name])
 })
+
+const hasChanges = computed(() => formSnapshot() !== savedSnapshot.value)
 
 const previewURL = computed(() => {
   if (form.defaultProvider === 'gravatar') {
@@ -111,6 +114,7 @@ function applyAdminOptions(items: AdminWebOption[]) {
     optionNames.map(name => [name, adminOptionsMap.value[name]?.value ?? ''])
   )
   Object.assign(form, resolveAvatarSettings(rawValues))
+  savedSnapshot.value = formSnapshot()
 }
 
 async function saveSettings(successTitle = t('admin.avatar.saved')) {
@@ -118,9 +122,13 @@ async function saveSettings(successTitle = t('admin.avatar.saved')) {
   try {
     const updated = await saveMany(Object.entries(settingsPayload()).map(([name, value]) => ({ name, value })))
     applyAdminOptions(updated)
-    toast.add({ color: 'success', icon: 'i-lucide-check', title: successTitle })
+    toast.add({ color: 'success', icon: 'i-lucide-check', title: successTitle, duration: 10000 })
   } catch (error) {
-    toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.avatar.saveFailed') })
+    toast.add({
+      color: 'error',
+      icon: 'i-lucide-triangle-alert',
+      title: apiErrorMessage(error) || t('admin.avatar.saveFailed')
+    })
   } finally {
     saving.value = false
   }
@@ -134,6 +142,16 @@ async function restoreRecommended() {
   } finally {
     restoring.value = false
   }
+}
+
+function resetForm() {
+  applyAdminOptions(Object.values(adminOptionsMap.value))
+  toast.add({
+    color: 'neutral',
+    icon: 'i-lucide-rotate-ccw',
+    title: t('admin.avatar.resetChanges'),
+    duration: 10000
+  })
 }
 
 function settingsPayload(): Record<string, string> {
@@ -175,6 +193,10 @@ function recommendedPayload(): Record<string, string> {
   }
 }
 
+function formSnapshot() {
+  return JSON.stringify(settingsPayload())
+}
+
 function boundedNumber(value: number, fallback: number, min: number, max: number) {
   const parsed = Number(value)
   if (!Number.isFinite(parsed)) {
@@ -185,69 +207,88 @@ function boundedNumber(value: number, fallback: number, min: number, max: number
 </script>
 
 <template>
-  <div class="space-y-4">
-    <header>
-      <h1 class="text-xl font-bold text-slate-900 dark:text-zinc-50">
-        <UIcon :name="adminPage.icon" class="mr-2 inline-block size-5 text-[var(--sf-accent)] dark:text-[var(--sf-accent-dark)]" />
-        {{ t('admin.avatar.title') }}
-      </h1>
-      <p class="mt-1 text-sm text-slate-500 dark:text-zinc-400">
-        {{ t('admin.avatar.description') }}
-      </p>
-    </header>
+  <div class="mb-4 flex flex-col gap-1">
+    <h2 class="flex items-center gap-2 text-xl font-bold text-slate-900 dark:text-zinc-100">
+      <UIcon :name="adminPage.icon" class="size-5 text-[var(--sf-accent)] dark:text-[var(--sf-accent-dark)]" />
+      {{ t('admin.avatar.title') }}
+    </h2>
+    <p class="text-sm text-slate-500 dark:text-zinc-400">
+      {{ t('admin.avatar.description') }}
+    </p>
+  </div>
 
-    <UDashboardToolbar class="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-      <template #left>
-        <div class="flex min-w-0 items-center gap-2 text-sm">
-          <UIcon name="i-lucide-user-round-cog" class="size-4" />
-          <span class="truncate">{{ t('admin.avatar.toolbar') }}</span>
-        </div>
-      </template>
-      <template #right>
-        <UButton icon="i-lucide-rotate-cw" color="neutral" variant="subtle" :loading="pending" @click="load">
-          {{ t('admin.home.refresh') }}
-        </UButton>
-      </template>
-    </UDashboardToolbar>
+  <UDashboardToolbar class="mb-6 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+    <template #left>
+      <div class="flex min-w-0 items-center gap-2 text-sm">
+        <UIcon name="i-lucide-user-round-cog" class="size-4" />
+        <span class="truncate">{{ t('admin.avatar.toolbar') }}</span>
+      </div>
+    </template>
+    <template #right>
+      <UButton
+        color="neutral"
+        variant="outline"
+        leading-icon="i-lucide-refresh-cw"
+        :loading="pending"
+        class="border-slate-200 dark:border-zinc-700"
+        @click="load()"
+      >
+        {{ t('admin.common.refresh') }}
+      </UButton>
+    </template>
+  </UDashboardToolbar>
 
-    <UAlert v-if="loadError" color="error" variant="soft" icon="i-lucide-triangle-alert" :title="loadError" />
+  <div class="flex w-full min-w-0 flex-col gap-4">
+    <UAlert
+      v-if="loadError"
+      color="error"
+      variant="soft"
+      icon="i-lucide-triangle-alert"
+      class="w-full shrink-0"
+      :title="loadError"
+    />
 
-    <section class="rounded-lg border border-emerald-200 bg-emerald-50/80 p-4 text-sm text-emerald-950 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100">
-      <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div class="flex gap-3">
-          <div class="grid size-10 shrink-0 place-items-center rounded-lg bg-white text-emerald-700 shadow-sm dark:bg-emerald-900/60 dark:text-emerald-200">
-            <UIcon name="i-lucide-sparkles" class="size-5" />
-          </div>
+    <UAlert
+      color="primary"
+      variant="soft"
+      icon="i-lucide-sparkles"
+      class="w-full shrink-0"
+      :title="recommendedApplied
+        ? `${t('admin.avatar.recommendedTitle')} · ${t('admin.avatar.currentRecommended')}`
+        : t('admin.avatar.recommendedTitle')"
+      :description="t('admin.avatar.recommendedDescription')"
+    />
+
+    <UCard
+      class="border-slate-200 bg-white text-slate-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
+      :ui="{ footer: 'sticky bottom-0 z-20 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border-t border-slate-200 dark:border-zinc-800 p-4 sm:px-6' }"
+    >
+      <template #header>
+        <div class="flex items-center justify-between gap-3">
           <div>
-            <div class="flex flex-wrap items-center gap-2">
-              <h2 class="text-base font-bold">{{ t('admin.avatar.recommendedTitle') }}</h2>
-              <UBadge v-if="recommendedApplied" color="success" variant="soft">
-                {{ t('admin.avatar.currentRecommended') }}
-              </UBadge>
-            </div>
-            <p class="mt-1 max-w-3xl text-sm text-emerald-800 dark:text-emerald-200">
-              {{ t('admin.avatar.recommendedDescription') }}
+            <h2 class="text-base font-bold text-slate-900 dark:text-white">
+              {{ t('admin.avatar.defaultProvider') }}
+            </h2>
+            <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
+              {{ t('admin.avatar.description') }}
             </p>
           </div>
+          <UBadge color="neutral" variant="soft" class="border border-slate-200 font-mono dark:border-zinc-800">
+            avatar.*
+          </UBadge>
         </div>
-        <UButton color="primary" leading-icon="i-lucide-rotate-ccw" :loading="restoring" :disabled="saving || pending" @click="restoreRecommended">
-          {{ t('admin.avatar.restoreRecommended') }}
-        </UButton>
-      </div>
-    </section>
+      </template>
 
-    <UCard class="border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900" :ui="{ footer: 'sticky bottom-0 z-20 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border-t border-slate-200 dark:border-zinc-800 p-4 sm:px-6' }">
       <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div class="grid gap-5">
           <div class="grid gap-3">
-            <h2 class="text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-zinc-300">
-              {{ t('admin.avatar.defaultProvider') }}
-            </h2>
             <label
               v-for="provider in providerOptions"
               :key="provider.value"
               class="flex cursor-pointer gap-3 rounded-lg border p-4 transition"
-              :class="form.defaultProvider === provider.value ? 'border-[var(--sf-accent)] bg-teal-50/70 dark:bg-teal-950/20' : 'border-slate-200 dark:border-zinc-800'"
+              :class="form.defaultProvider === provider.value
+                ? 'border-[var(--sf-accent)] bg-[var(--sf-accent-soft)] dark:bg-teal-950/20'
+                : 'border-slate-200 dark:border-zinc-800'"
             >
               <input v-model="form.defaultProvider" class="mt-1 size-4" type="radio" :value="provider.value">
               <span>
@@ -262,8 +303,13 @@ function boundedNumber(value: number, fallback: number, min: number, max: number
               <UInput size="lg" v-model="form.gravatarBaseUrl" type="url" icon="i-lucide-link" class="w-full" />
             </UFormField>
             <UFormField :label="t('admin.avatar.gravatarHashAlgorithm')" name="avatar-gravatar-hash">
-              <select v-model="form.gravatarHashAlgorithm" class="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-base dark:border-zinc-700 dark:bg-zinc-950">
-                <option v-for="option in hashOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+              <select
+                v-model="form.gravatarHashAlgorithm"
+                class="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-base text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+              >
+                <option v-for="option in hashOptions" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
               </select>
             </UFormField>
           </div>
@@ -274,23 +320,23 @@ function boundedNumber(value: number, fallback: number, min: number, max: number
 
           <div class="grid gap-3 md:grid-cols-3">
             <label class="flex items-start gap-3 rounded-lg border border-slate-200 p-4 dark:border-zinc-800">
-              <input v-model="form.allowUpload" type="checkbox" class="mt-1 size-4 rounded">
+              <UCheckbox v-model="form.allowUpload" class="mt-0.5" />
               <span>
-                <span class="block text-sm font-semibold">{{ t('admin.avatar.allowUpload') }}</span>
+                <span class="block text-sm font-semibold text-slate-900 dark:text-zinc-100">{{ t('admin.avatar.allowUpload') }}</span>
                 <span class="mt-1 block text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.avatar.allowUploadDescription') }}</span>
               </span>
             </label>
             <label class="flex items-start gap-3 rounded-lg border border-slate-200 p-4 dark:border-zinc-800">
-              <input v-model="form.allowGif" type="checkbox" class="mt-1 size-4 rounded">
+              <UCheckbox v-model="form.allowGif" class="mt-0.5" />
               <span>
-                <span class="block text-sm font-semibold">{{ t('admin.avatar.allowGif') }}</span>
+                <span class="block text-sm font-semibold text-slate-900 dark:text-zinc-100">{{ t('admin.avatar.allowGif') }}</span>
                 <span class="mt-1 block text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.avatar.allowGifDescription') }}</span>
               </span>
             </label>
             <label class="flex items-start gap-3 rounded-lg border border-slate-200 p-4 dark:border-zinc-800">
-              <input v-model="form.compressEnabled" type="checkbox" class="mt-1 size-4 rounded">
+              <UCheckbox v-model="form.compressEnabled" class="mt-0.5" />
               <span>
-                <span class="block text-sm font-semibold">{{ t('admin.avatar.compressEnabled') }}</span>
+                <span class="block text-sm font-semibold text-slate-900 dark:text-zinc-100">{{ t('admin.avatar.compressEnabled') }}</span>
                 <span class="mt-1 block text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.avatar.compressDescription') }}</span>
               </span>
             </label>
@@ -335,12 +381,48 @@ function boundedNumber(value: number, fallback: number, min: number, max: number
         <SFAdminFormFooter
           :saving="saving || restoring"
           :disabled="pending"
+          :show-unsaved-alert="hasChanges"
           :submit-text="t('admin.avatar.save')"
-          :reset-text="t('admin.avatar.restoreRecommended')"
-          reset-icon="i-lucide-rotate-ccw"
-          @reset="restoreRecommended"
+          :reset-text="t('admin.form.reset')"
+          @reset="resetForm"
           @submit="saveSettings()"
-        />
+        >
+          <template #actions>
+            <UButton
+              type="button"
+              color="neutral"
+              variant="outline"
+              leading-icon="i-lucide-rotate-ccw"
+              :disabled="pending || saving || restoring || !hasChanges"
+              class="border-slate-200 font-medium dark:border-zinc-700"
+              @click="resetForm"
+            >
+              {{ t('admin.form.reset') }}
+            </UButton>
+            <UButton
+              type="button"
+              color="neutral"
+              variant="outline"
+              leading-icon="i-lucide-sparkles"
+              :loading="restoring"
+              :disabled="pending || saving"
+              class="border-slate-200 font-medium dark:border-zinc-700"
+              @click="restoreRecommended"
+            >
+              {{ t('admin.avatar.restoreRecommended') }}
+            </UButton>
+            <UButton
+              type="button"
+              leading-icon="i-lucide-save"
+              :loading="saving"
+              :disabled="pending || restoring"
+              class="bg-[var(--sf-accent)] font-semibold text-white hover:bg-[var(--sf-accent-hover)]"
+              @click="saveSettings()"
+            >
+              {{ t('admin.avatar.save') }}
+            </UButton>
+          </template>
+        </SFAdminFormFooter>
       </template>
     </UCard>
   </div>

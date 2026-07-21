@@ -42,6 +42,7 @@ const restoring = ref(false)
 const loadError = ref('')
 const items = ref<FeatureOption[]>([])
 const catalog = ref<FeatureCatalogItem[]>([])
+const savedSnapshot = ref('')
 
 const form = reactive<Record<string, boolean>>({})
 
@@ -52,6 +53,8 @@ const catalogByName = computed(() => {
   }
   return map
 })
+
+const hasChanges = computed(() => formSnapshot() !== savedSnapshot.value)
 
 function featureLabel(name: string) {
   const key = `admin.features.flags.${name}`
@@ -67,6 +70,18 @@ function isEnabled(value: string) {
   return value === 'enabled' || value === 'true' || value === '1'
 }
 
+function formSnapshot() {
+  return JSON.stringify(
+    Object.keys(form)
+      .sort()
+      .map(name => [name, form[name]])
+  )
+}
+
+function captureSnapshot() {
+  savedSnapshot.value = formSnapshot()
+}
+
 async function load() {
   pending.value = true
   loadError.value = ''
@@ -77,6 +92,7 @@ async function load() {
     for (const item of items.value) {
       form[item.name] = isEnabled(item.value)
     }
+    captureSnapshot()
   } catch (error) {
     loadError.value = apiErrorMessage(error) || t('admin.features.loadFailed')
   } finally {
@@ -97,10 +113,19 @@ async function save() {
       method: 'PUT',
       body: { options }
     })
-    toast.add({ title: t('admin.features.saved'), color: 'primary' })
+    toast.add({
+      color: 'success',
+      icon: 'i-lucide-check',
+      title: t('admin.features.saved'),
+      duration: 10000
+    })
     await load()
   } catch (error) {
-    loadError.value = apiErrorMessage(error) || t('admin.features.saveFailed')
+    toast.add({
+      color: 'error',
+      icon: 'i-lucide-triangle-alert',
+      title: apiErrorMessage(error) || t('admin.features.saveFailed')
+    })
   } finally {
     saving.value = false
   }
@@ -112,77 +137,120 @@ async function restoreRecommended() {
   loadError.value = ''
   try {
     await request('/admin/features/restore-defaults', { method: 'POST' })
-    toast.add({ title: t('admin.features.restored'), color: 'primary' })
+    toast.add({
+      color: 'success',
+      icon: 'i-lucide-rotate-ccw',
+      title: t('admin.features.restored'),
+      duration: 10000
+    })
     await load()
   } catch (error) {
-    loadError.value = apiErrorMessage(error) || t('admin.features.saveFailed')
+    toast.add({
+      color: 'error',
+      icon: 'i-lucide-triangle-alert',
+      title: apiErrorMessage(error) || t('admin.features.saveFailed')
+    })
   } finally {
     restoring.value = false
   }
 }
 
+function resetForm() {
+  for (const item of items.value) {
+    form[item.name] = isEnabled(item.value)
+  }
+  toast.add({
+    color: 'neutral',
+    icon: 'i-lucide-rotate-ccw',
+    title: t('admin.features.resetChanges'),
+    duration: 10000
+  })
+}
+
+useSeoMeta({
+  title: t('admin.features.title')
+})
+
 onMounted(load)
 </script>
 
 <template>
-  <div class="space-y-6">
-    <div class="flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">
-          {{ t('admin.features.title') }}
-        </h1>
-        <p class="mt-1 max-w-2xl text-sm text-slate-600 dark:text-zinc-400">
-          {{ t('admin.features.description') }}
-        </p>
-      </div>
-      <div class="flex flex-wrap gap-2">
-        <UButton
-          color="neutral"
-          variant="soft"
-          leading-icon="i-lucide-rotate-ccw"
-          :loading="restoring"
-          :disabled="!canManage || saving || pending"
-          @click="restoreRecommended"
-        >
-          {{ t('admin.features.restoreRecommended') }}
-        </UButton>
-        <UButton
-          color="primary"
-          leading-icon="i-lucide-save"
-          :loading="saving"
-          :disabled="!canManage || restoring || pending"
-          @click="save"
-        >
-          {{ t('admin.features.save') }}
-        </UButton>
-      </div>
-    </div>
+  <div class="mb-4 flex flex-col gap-1">
+    <h2 class="flex items-center gap-2 text-xl font-bold text-slate-900 dark:text-zinc-100">
+      <UIcon :name="adminPage.icon" class="size-5 text-[var(--sf-accent)] dark:text-[var(--sf-accent-dark)]" />
+      {{ t('admin.features.title') }}
+    </h2>
+    <p class="text-sm text-slate-500 dark:text-zinc-400">
+      {{ t('admin.features.description') }}
+    </p>
+  </div>
 
+  <UDashboardToolbar class="mb-6 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+    <template #left>
+      <div class="flex min-w-0 items-center gap-2 text-sm">
+        <UIcon name="i-lucide-toggle-left" class="size-4" />
+        <span class="truncate">{{ t('admin.features.toolbar') }}</span>
+      </div>
+    </template>
+    <template #right>
+      <UButton
+        color="neutral"
+        variant="outline"
+        leading-icon="i-lucide-refresh-cw"
+        :loading="pending"
+        class="border-slate-200 dark:border-zinc-700"
+        @click="load()"
+      >
+        {{ t('admin.common.refresh') }}
+      </UButton>
+    </template>
+  </UDashboardToolbar>
+
+  <div class="flex w-full min-w-0 flex-col gap-4">
     <UAlert
       v-if="loadError"
       color="error"
-      variant="subtle"
+      variant="soft"
+      icon="i-lucide-triangle-alert"
+      class="w-full shrink-0"
       :title="loadError"
-      icon="i-lucide-circle-alert"
     />
 
-    <UCard class="border-slate-200 dark:border-zinc-800">
+    <UAlert
+      color="primary"
+      variant="soft"
+      icon="i-lucide-sparkles"
+      class="w-full shrink-0"
+      :title="t('admin.features.recommendedTitle')"
+      :description="t('admin.features.recommendedDescription')"
+    />
+
+    <UCard
+      class="border-slate-200 bg-white text-slate-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
+      :ui="{ footer: 'sticky bottom-0 z-20 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border-t border-slate-200 dark:border-zinc-800 p-4 sm:px-6' }"
+    >
       <template #header>
-        <div class="flex items-center gap-2">
-          <UIcon name="i-lucide-toggle-left" class="size-5 text-slate-500" />
+        <div class="flex items-center justify-between gap-3">
           <div>
-            <h2 class="font-semibold text-slate-900 dark:text-white">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white">
               {{ t('admin.features.panelTitle') }}
             </h2>
-            <p class="text-xs text-slate-500 dark:text-zinc-400">
+            <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
               {{ t('admin.features.panelHelp') }}
             </p>
           </div>
+          <UBadge color="neutral" variant="soft" class="border border-slate-200 font-mono dark:border-zinc-800">
+            features.*
+          </UBadge>
         </div>
       </template>
 
-      <div v-if="pending" class="py-10 text-center text-sm text-slate-500">
+      <div v-if="pending" class="py-10 text-center text-sm text-slate-500 dark:text-zinc-400">
         {{ t('admin.common.loading') }}
+      </div>
+
+      <div v-else-if="!items.length" class="py-10 text-center text-sm text-slate-500 dark:text-zinc-400">
+        {{ t('admin.features.empty') }}
       </div>
 
       <div v-else class="divide-y divide-slate-100 dark:divide-zinc-800">
@@ -200,17 +268,69 @@ onMounted(load)
             </p>
             <p class="mt-1 font-mono text-[11px] text-slate-400 dark:text-zinc-500">
               {{ item.name }}
-              <span v-if="!item.public" class="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] dark:bg-zinc-800">
+              <span
+                v-if="!item.public"
+                class="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] dark:bg-zinc-800"
+              >
                 {{ t('admin.features.adminOnly') }}
               </span>
             </p>
           </div>
           <USwitch
             v-model="form[item.name]"
-            :disabled="!canManage || saving || restoring"
+            :disabled="!canManage || saving || restoring || pending"
           />
         </div>
       </div>
+
+      <template #footer>
+        <SFAdminFormFooter
+          :saving="saving || restoring"
+          :disabled="!canManage || pending"
+          :show-unsaved-alert="hasChanges"
+          :submit-text="t('admin.features.save')"
+          :reset-text="t('admin.features.restoreRecommended')"
+          reset-icon="i-lucide-rotate-ccw"
+          @reset="restoreRecommended"
+          @submit="save"
+        >
+          <template #actions>
+            <UButton
+              type="button"
+              color="neutral"
+              variant="outline"
+              leading-icon="i-lucide-rotate-ccw"
+              :disabled="!canManage || saving || restoring || pending || !hasChanges"
+              class="border-slate-200 font-medium dark:border-zinc-700"
+              @click="resetForm"
+            >
+              {{ t('admin.form.reset') }}
+            </UButton>
+            <UButton
+              type="button"
+              color="neutral"
+              variant="outline"
+              leading-icon="i-lucide-sparkles"
+              :loading="restoring"
+              :disabled="!canManage || saving || pending"
+              class="border-slate-200 font-medium dark:border-zinc-700"
+              @click="restoreRecommended"
+            >
+              {{ t('admin.features.restoreRecommended') }}
+            </UButton>
+            <UButton
+              type="button"
+              leading-icon="i-lucide-save"
+              :loading="saving"
+              :disabled="!canManage || restoring || pending"
+              class="bg-[var(--sf-accent)] font-semibold text-white hover:bg-[var(--sf-accent-hover)]"
+              @click="save"
+            >
+              {{ t('admin.features.save') }}
+            </UButton>
+          </template>
+        </SFAdminFormFooter>
+      </template>
     </UCard>
   </div>
 </template>
