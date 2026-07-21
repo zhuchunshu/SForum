@@ -157,6 +157,69 @@ func (r *SearchProviderRegistry) RestoreDefault(ctx context.Context) error {
 	return r.store.RestoreSearchProvider(ctx)
 }
 
+// IsPinned 是否存在运营显式 pin（与解析后的 Selected 不同：无 pin 时仍可能解析到站内默认）。
+func (r *SearchProviderRegistry) IsPinned(ctx context.Context) (bool, error) {
+	if r == nil || r.store == nil {
+		return false, nil
+	}
+	id, err := r.store.SelectedSearchProvider(ctx)
+	if err != nil {
+		return false, err
+	}
+	return id != "", nil
+}
+
+// SearchProviderCandidate 运营可选的 search.provider 候选。
+type SearchProviderCandidate struct {
+	ExtensionID string
+	Label       string
+	Healthy     bool
+	IsDefault   bool
+}
+
+// Candidates 列出已启用的 search.provider 候选；始终包含站内默认。
+func (r *SearchProviderRegistry) Candidates(ctx context.Context) ([]SearchProviderCandidate, error) {
+	out := []SearchProviderCandidate{{
+		ExtensionID: DefaultSiteSearchExtensionID,
+		Label:       "Site Search",
+		Healthy:     true,
+		IsDefault:   true,
+	}}
+	if r == nil || r.store == nil {
+		return out, nil
+	}
+	items, err := r.store.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]bool{DefaultSiteSearchExtensionID: true}
+	for _, item := range items {
+		if item.Type != extensions.TypePlugin || item.Status != extensions.StatusEnabled {
+			continue
+		}
+		label, ok := searchProviderLabel(item)
+		if !ok {
+			continue
+		}
+		if seen[item.ID] {
+			// 站内扩展行存在时用清单 label 覆盖默认文案。
+			if item.ID == DefaultSiteSearchExtensionID {
+				out[0].Label = label
+				out[0].Healthy = item.Runtime == nil || item.Runtime.State == extensions.RuntimeRunning
+			}
+			continue
+		}
+		seen[item.ID] = true
+		out = append(out, SearchProviderCandidate{
+			ExtensionID: item.ID,
+			Label:       label,
+			Healthy:     item.Runtime == nil || item.Runtime.State == extensions.RuntimeRunning,
+			IsDefault:   item.ID == DefaultSiteSearchExtensionID,
+		})
+	}
+	return out, nil
+}
+
 // IsSiteSearchProvider 判断扩展 id 是否为 Host 短路的站内搜索。
 func IsSiteSearchProvider(extensionID string) bool {
 	return extensionID == DefaultSiteSearchExtensionID

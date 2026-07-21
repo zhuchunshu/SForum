@@ -106,6 +106,14 @@ func (p *ForumProvider) WithEditorDocumentSchema(provider forum.EditorDocumentSc
 	return p
 }
 
+// WithSearchProviderAdmin 注入 search.provider 运营选择（列表/pin/恢复默认）。
+func (p *ForumProvider) WithSearchProviderAdmin(admin forumcontroller.SearchProviderAdmin) *ForumProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithSearchProviderAdmin(admin)
+	}
+	return p
+}
+
 // TrustPolicyAdapter 把 options.TrustPolicy 适配为 forum.TrustPolicyResolver。
 type TrustPolicyAdapter struct {
 	options *options.Service

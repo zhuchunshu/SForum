@@ -1007,6 +1007,50 @@ ApiResponseReindexRunList:
       type: array
       items:
         "$ref": "#/ReindexRun"
+SearchProviderItem:
+  type: object
+  required: [extensionId, label, healthy]
+  properties:
+    extensionId:
+      type: string
+    label:
+      type: string
+    healthy:
+      type: boolean
+    isDefault:
+      type: boolean
+SearchProvidersState:
+  type: object
+  required: [items, selected, pinned, defaultExtensionId]
+  properties:
+    items:
+      type: array
+      items:
+        "$ref": "#/SearchProviderItem"
+    selected:
+      "$ref": "#/SearchProviderItem"
+    pinned:
+      type: boolean
+      description: Whether an operator explicit pin exists (false means resolved default site search).
+    defaultExtensionId:
+      type: string
+      description: Protected built-in site search extension id (sforum.search-site).
+SearchProviderSelectionRequest:
+  type: object
+  required: [extensionId]
+  properties:
+    extensionId:
+      type: string
+ApiResponseSearchProvidersState:
+  type: object
+  required: [code, message, data]
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/SearchProvidersState"
 Comment:
   type: object
   required:

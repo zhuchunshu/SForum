@@ -335,6 +335,12 @@ paths:
     "$ref": "./openapi/paths/forum.yaml#/adminForumSettings"
   "/admin/forum/settings/reset":
     "$ref": "./openapi/paths/forum.yaml#/adminForumSettingsReset"
+  "/admin/forum/search/providers":
+    "$ref": "./openapi/paths/forum.yaml#/adminForumSearchProviders"
+  "/admin/forum/search/provider":
+    "$ref": "./openapi/paths/forum.yaml#/adminForumSearchProvider"
+  "/admin/forum/search/provider/reset":
+    "$ref": "./openapi/paths/forum.yaml#/adminForumSearchProviderReset"
   "/admin/forum/search/reindex":
     "$ref": "./openapi/paths/forum.yaml#/adminForumSearchReindex"
   "/admin/forum/search/reindex/runs":

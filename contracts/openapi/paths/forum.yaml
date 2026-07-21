@@ -414,6 +414,64 @@ adminForumSettingsReset:
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
         "$ref": "../components/responses.yaml#/Forbidden"
+adminForumSearchProviders:
+  get:
+    summary: List enabled search.provider plugins and the resolved selection
+    description: |
+      返回已启用的 search.provider 候选与当前解析结果。默认始终包含受保护内置站内搜索。
+      pinned=false 表示无显式 pin，解析为站内搜索。需 search.manage 权限。
+    operationId: adminListSearchProviders
+    responses:
+      '200':
+        description: Search provider state.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseSearchProvidersState"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '503':
+        description: Search provider admin is unavailable.
+adminForumSearchProvider:
+  put:
+    summary: Pin an enabled search.provider plugin
+    description: |
+      显式选择搜索引擎。切换后应对新引擎执行全量重建。需 search.manage 权限。
+    operationId: adminSelectSearchProvider
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/forum.yaml#/SearchProviderSelectionRequest"
+    responses:
+      '200':
+        description: Provider pinned.
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+      '503':
+        description: Search provider admin is unavailable.
+adminForumSearchProviderReset:
+  post:
+    summary: Clear search.provider pin and restore site search default
+    description: |
+      清除显式 pin，解析回落受保护内置站内搜索。需 search.manage 权限。
+    operationId: adminResetSearchProvider
+    responses:
+      '200':
+        description: Provider pin cleared.
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '503':
+        description: Search provider admin is unavailable.
 adminForumSearchReindex:
   post:
     summary: Trigger a full search index rebuild

@@ -9,6 +9,7 @@ import {
   forumSettingsValidationError,
   normalizeForumSettings
 } from '~/utils/adminForum'
+import type { SearchProviderItem, SearchProvidersState } from '~/utils/adminForum'
 import type { ForumCategory, ForumCategoryGroup, ForumSettings, ForumTagCreationMode } from '~/utils/forumTaxonomy'
 
 definePageMeta({
@@ -20,7 +21,7 @@ defineOptions({
   name: 'AdminForumSettings'
 })
 
-type ForumSettingsTab = 'general' | 'topics' | 'comments' | 'tags' | 'reading' | 'behavior'
+type ForumSettingsTab = 'general' | 'topics' | 'comments' | 'tags' | 'reading' | 'behavior' | 'search'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -37,7 +38,18 @@ const restoring = ref(false)
 const savedSnapshot = ref('')
 const form = reactive(createDefaultForumSettings())
 
-const tabIds: ForumSettingsTab[] = ['general', 'topics', 'comments', 'tags', 'reading', 'behavior']
+// 搜索服务 Tab 独立于 forum.* 表单保存。
+const searchLoading = ref(false)
+const searchSaving = ref(false)
+const searchReindexing = ref(false)
+const searchError = ref('')
+const searchProviders = ref<SearchProviderItem[]>([])
+const searchSelected = ref('')
+const searchPinned = ref(false)
+const searchDefaultId = ref('sforum.search-site')
+const searchResolved = ref<SearchProviderItem | null>(null)
+
+const tabIds: ForumSettingsTab[] = ['general', 'topics', 'comments', 'tags', 'reading', 'behavior', 'search']
 const activeTab = ref<ForumSettingsTab>(normalizeTab(route.query.tab))
 
 // useAsyncData 在 SSR 水合时不会重跑 handler；表单副作用必须用 watch 同步，
@@ -76,7 +88,17 @@ const recommended = createDefaultForumSettings()
 const canManageSettings = computed(() => can('forum.settings.manage') || can('settings.manage'))
 const canManageTags = computed(() => can('tag.manage'))
 const canManageCategories = computed(() => can('category.manage'))
+const canManageSearch = computed(() => can('search.manage'))
 const validationKey = computed(() => forumSettingsValidationError(form))
+const hasSearchProviders = computed(() => searchProviders.value.length > 0)
+const searchProviderItems = computed(() => searchProviders.value.map(item => ({
+  label: `${item.label}${item.healthy ? '' : ` (${t('admin.forum.settings.search.unhealthy')})`}${item.isDefault ? ` · ${t('admin.forum.settings.search.defaultBadge')}` : ''}`,
+  value: item.extensionId
+})))
+const searchSelectionDirty = computed(() => {
+  const current = searchResolved.value?.extensionId || ''
+  return Boolean(searchSelected.value) && searchSelected.value !== current
+})
 
 const tabs = computed(() => tabIds.map((id) => ({
   id,
@@ -179,8 +201,105 @@ function tabIcon(id: ForumSettingsTab) {
       return 'i-lucide-book-open-text'
     case 'behavior':
       return 'i-lucide-shield-check'
+    case 'search':
+      return 'i-lucide-search'
   }
 }
+
+function applySearchState(state: SearchProvidersState) {
+  searchProviders.value = state.items || []
+  searchResolved.value = state.selected || null
+  searchSelected.value = state.selected?.extensionId || state.defaultExtensionId || ''
+  searchPinned.value = Boolean(state.pinned)
+  searchDefaultId.value = state.defaultExtensionId || 'sforum.search-site'
+}
+
+async function loadSearchProviders() {
+  if (!canManageSearch.value) {
+    return
+  }
+  searchLoading.value = true
+  searchError.value = ''
+  try {
+    applySearchState(await forumApi.listSearchProviders())
+  } catch (cause) {
+    searchError.value = apiErrorMessage(cause) || t('admin.forum.settings.search.loadFailed')
+  } finally {
+    searchLoading.value = false
+  }
+}
+
+async function applySearchProvider() {
+  if (!canManageSearch.value || !searchSelected.value) {
+    return
+  }
+  searchSaving.value = true
+  searchError.value = ''
+  try {
+    await forumApi.selectSearchProvider(searchSelected.value)
+    await loadSearchProviders()
+    successToast(t('admin.forum.settings.search.saved'))
+    toast.add({
+      color: 'primary',
+      icon: 'i-lucide-info',
+      title: t('admin.forum.settings.search.switchHint'),
+      duration: 10000
+    })
+  } catch (cause) {
+    errorToast(cause, t('admin.forum.settings.search.saveFailed'))
+  } finally {
+    searchSaving.value = false
+  }
+}
+
+async function restoreSearchProvider() {
+  if (!canManageSearch.value) {
+    return
+  }
+  searchSaving.value = true
+  searchError.value = ''
+  try {
+    await forumApi.resetSearchProvider()
+    await loadSearchProviders()
+    successToast(t('admin.forum.settings.search.resetDone'))
+  } catch (cause) {
+    errorToast(cause, t('admin.forum.settings.search.resetFailed'))
+  } finally {
+    searchSaving.value = false
+  }
+}
+
+async function triggerSearchReindex() {
+  if (!canManageSearch.value) {
+    return
+  }
+  searchReindexing.value = true
+  try {
+    await forumApi.reindexSearch()
+    successToast(t('admin.forum.settings.search.reindexStarted'))
+  } catch (cause) {
+    const msg = apiErrorMessage(cause)
+    if (msg?.includes('reindex_running')) {
+      toast.add({
+        color: 'warning',
+        icon: 'i-lucide-alert-triangle',
+        title: t('admin.forum.settings.search.reindexAlreadyRunning'),
+        duration: 10000
+      })
+    } else {
+      errorToast(cause, t('admin.forum.settings.search.reindexFailed'))
+    }
+  } finally {
+    searchReindexing.value = false
+  }
+}
+
+// 进入搜索 Tab 时再拉提供商，避免无权限用户在其它 Tab 触发 403。
+watch(activeTab, (tab) => {
+  if (tab === 'search' && canManageSearch.value) {
+    void loadSearchProviders()
+  }
+}, { immediate: true })
 
 function successToast(title: string) {
   toast.add({
@@ -230,7 +349,7 @@ function errorToast(error: unknown, fallback: string) {
   </UDashboardToolbar>
 
   <!-- flex-col + shrink-0：避免 UAlert 在 grid/flex 中因 overflow 被压扁，看起来像 tab 压住提示 -->
-  <form class="flex w-full min-w-0 flex-col gap-4" @submit.prevent="saveSettings">
+  <form class="flex w-full min-w-0 flex-col gap-4" @submit.prevent="activeTab === 'search' ? undefined : saveSettings()">
     <UAlert
       v-if="error"
       color="error"
@@ -285,7 +404,7 @@ function errorToast(error: unknown, fallback: string) {
             </p>
           </div>
           <UBadge color="neutral" variant="soft" class="font-mono">
-            forum.*
+            {{ activeTab === 'search' ? 'search.provider' : 'forum.*' }}
           </UBadge>
         </div>
       </template>
@@ -557,7 +676,7 @@ function errorToast(error: unknown, fallback: string) {
         </template>
 
         <!-- 行为策略 -->
-        <template v-else>
+        <template v-else-if="activeTab === 'behavior'">
           <section class="grid gap-4 md:grid-cols-2">
             <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm dark:border-zinc-800 dark:bg-zinc-950/60">
               <input v-model="form.allowAuthorCloseReplies" type="checkbox" :disabled="!canManageSettings" class="mt-1 size-4 rounded border-slate-300">
@@ -618,8 +737,141 @@ function errorToast(error: unknown, fallback: string) {
           </section>
         </template>
 
-        <!-- 推荐值摘要 -->
-        <section class="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm dark:border-zinc-800 dark:bg-zinc-950/60 md:grid-cols-4">
+        <!-- 搜索服务：提供商选择与重建，独立于 forum.* 表单 -->
+        <template v-else>
+          <UAlert
+            v-if="!canManageSearch"
+            color="warning"
+            variant="soft"
+            icon="i-lucide-lock"
+            :title="t('admin.forum.settings.search.noPermission')"
+          />
+          <UAlert
+            v-else-if="searchError"
+            color="error"
+            variant="soft"
+            icon="i-lucide-triangle-alert"
+            :title="searchError"
+          />
+
+          <template v-if="canManageSearch">
+            <section class="space-y-4">
+              <div class="flex flex-wrap items-center gap-2 text-sm">
+                <span class="text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.search.current') }}:</span>
+                <span class="font-semibold text-slate-900 dark:text-zinc-100">{{ searchResolved?.label || '—' }}</span>
+                <UBadge :color="searchPinned ? 'primary' : 'neutral'" variant="soft">
+                  {{ searchPinned ? t('admin.forum.settings.search.pinned') : t('admin.forum.settings.search.resolvedDefault') }}
+                </UBadge>
+              </div>
+
+              <p class="text-xs leading-5 text-slate-500 dark:text-zinc-400">
+                {{ t('admin.forum.settings.search.providerHelp') }}
+              </p>
+
+              <div
+                v-if="!searchLoading && !hasSearchProviders"
+                class="rounded-lg border border-dashed border-slate-200 bg-slate-50/80 p-6 dark:border-zinc-700 dark:bg-zinc-950/40"
+              >
+                <SFEmptyState
+                  icon-label="SRC"
+                  :title="t('admin.forum.settings.search.emptyProviders')"
+                  :description="t('admin.forum.settings.search.emptyProvidersHelp')"
+                />
+              </div>
+
+              <template v-else>
+                <UFormField :label="t('admin.forum.settings.search.provider')" name="search-provider">
+                  <select
+                    v-model="searchSelected"
+                    :disabled="searchLoading || searchSaving || !hasSearchProviders"
+                    class="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-base text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                  >
+                    <option v-if="!searchSelected" value="" disabled>
+                      {{ t('admin.forum.settings.search.providerPlaceholder') }}
+                    </option>
+                    <option v-for="item in searchProviderItems" :key="item.value" :value="item.value">
+                      {{ item.label }}
+                    </option>
+                  </select>
+                </UFormField>
+
+                <div class="flex flex-wrap gap-2">
+                  <UButton
+                    type="button"
+                    leading-icon="i-lucide-check"
+                    :loading="searchSaving"
+                    :disabled="!searchSelectionDirty || searchLoading"
+                    @click="applySearchProvider"
+                  >
+                    {{ t('admin.forum.settings.search.selectAction') }}
+                  </UButton>
+                  <UButton
+                    type="button"
+                    color="neutral"
+                    variant="outline"
+                    leading-icon="i-lucide-rotate-ccw"
+                    :loading="searchSaving"
+                    :disabled="!searchPinned || searchLoading"
+                    @click="restoreSearchProvider"
+                  >
+                    {{ t('admin.forum.settings.search.resetAction') }}
+                  </UButton>
+                  <UButton
+                    type="button"
+                    color="neutral"
+                    variant="ghost"
+                    leading-icon="i-lucide-refresh-cw"
+                    :loading="searchLoading"
+                    @click="loadSearchProviders"
+                  >
+                    {{ t('admin.common.refresh') }}
+                  </UButton>
+                </div>
+                <p class="text-xs text-slate-500 dark:text-zinc-400">
+                  {{ t('admin.forum.settings.search.resetHelp') }}
+                </p>
+              </template>
+            </section>
+
+            <section class="space-y-3 border-t border-slate-200 pt-5 dark:border-zinc-800">
+              <div>
+                <h3 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+                  {{ t('admin.forum.settings.search.reindexTitle') }}
+                </h3>
+                <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
+                  {{ t('admin.forum.settings.search.reindexHelp') }}
+                </p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <UButton
+                  type="button"
+                  color="primary"
+                  variant="soft"
+                  leading-icon="i-lucide-database-zap"
+                  :loading="searchReindexing"
+                  @click="triggerSearchReindex"
+                >
+                  {{ t('admin.forum.settings.search.reindexAction') }}
+                </UButton>
+                <UButton
+                  type="button"
+                  color="neutral"
+                  variant="outline"
+                  leading-icon="i-lucide-external-link"
+                  :to="adminRoutes.path('/search')"
+                >
+                  {{ t('admin.forum.settings.search.reindexPage') }}
+                </UButton>
+              </div>
+            </section>
+          </template>
+        </template>
+
+        <!-- 推荐值摘要：搜索 Tab 不展示 forum.* 推荐摘要 -->
+        <section
+          v-if="activeTab !== 'search'"
+          class="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm dark:border-zinc-800 dark:bg-zinc-950/60 md:grid-cols-4"
+        >
           <div>
             <span class="block text-xs font-medium text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.defaultCategory') }}</span>
             <span class="mt-1 block font-mono text-slate-900 dark:text-zinc-100">{{ recommended.defaultCategorySlug }}</span>
@@ -639,7 +891,7 @@ function errorToast(error: unknown, fallback: string) {
         </section>
       </div>
 
-      <template #footer>
+      <template v-if="activeTab !== 'search'" #footer>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <UAlert
             v-if="validationKey"

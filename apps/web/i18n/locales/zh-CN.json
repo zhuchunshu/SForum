@@ -2954,7 +2954,8 @@
           "comments": "评论",
           "tags": "标签",
           "reading": "阅读",
-          "behavior": "行为策略"
+          "behavior": "行为策略",
+          "search": "搜索服务"
         },
         "sections": {
           "general": {
@@ -2980,6 +2981,10 @@
           "behavior": {
             "title": "行为策略",
             "description": "作者关帖/删帖、编辑标记、重复标题、软删除可见性与 {'@'}提及。"
+          },
+          "search": {
+            "title": "搜索服务",
+            "description": "选择全文搜索提供商，并在切换后重建索引。"
           }
         },
         "readingPolicyTitle": "游客阅读与列表排序",
@@ -3041,6 +3046,35 @@
           "topicContentMinMax": "正文最少字数不能大于最多字数。",
           "commentMinMax": "评论最少字数不能大于最多字数。",
           "pagination": "分页数量请输入 1 到 100 之间的整数。"
+        },
+        "search": {
+          "provider": "搜索提供商",
+          "providerHelp": "同一时间只会使用一个搜索引擎。多个插件可同时启用，但不会并行写索引。",
+          "providerPlaceholder": "选择搜索提供商",
+          "unhealthy": "不可用",
+          "defaultBadge": "推荐默认",
+          "current": "当前使用",
+          "pinned": "已固定选择",
+          "resolvedDefault": "使用推荐默认（未固定）",
+          "selectAction": "应用提供商",
+          "resetAction": "恢复站内搜索",
+          "resetHelp": "清除固定选择后，将回到受保护的站内 PostgreSQL 全文搜索。",
+          "reindexTitle": "重建索引",
+          "reindexHelp": "切换提供商后，请对新引擎执行一次全量重建，否则搜索结果可能为空或不完整。",
+          "reindexAction": "立即重建",
+          "reindexPage": "打开索引管理",
+          "noPermission": "你没有 search.manage 权限，无法更改搜索服务。",
+          "loadFailed": "加载搜索提供商失败",
+          "saved": "搜索提供商已更新",
+          "saveFailed": "保存搜索提供商失败",
+          "resetDone": "已恢复站内搜索",
+          "resetFailed": "恢复默认失败",
+          "reindexStarted": "已开始重建搜索索引",
+          "reindexFailed": "触发重建失败",
+          "reindexAlreadyRunning": "已有重建任务在进行中",
+          "switchHint": "应用新提供商后请重建索引。",
+          "emptyProviders": "暂无可用搜索提供商",
+          "emptyProvidersHelp": "默认应始终包含站内搜索。若列表为空，请检查扩展同步状态。"
         }
       }
     },
@@ -3245,7 +3279,7 @@
     },
     "search": {
       "title": "搜索索引管理",
-      "description": "重建 Meilisearch 全文搜索索引。重建期间搜索结果可能不完整，完成后自动恢复。",
+      "description": "重建当前已选搜索提供商的全文索引。默认使用站内 PostgreSQL 全文搜索；若已切换到 Meilisearch 等外部引擎，则重建该引擎。重建期间搜索结果可能不完整。",
       "current": {
         "title": "当前重建",
         "status": {
@@ -3264,7 +3298,7 @@
         "reindex": "重建索引",
         "reindexing": "重建中...",
         "confirmTitle": "确认重建搜索索引",
-        "confirmDescription": "将扫描所有主题并重新写入搜索索引。千万级数据可能需要数分钟到数十分钟，期间搜索结果可能不完整。确定继续吗？",
+        "confirmDescription": "将扫描所有可索引主题，并重新写入当前搜索引擎。数据量大时可能需要数分钟到更久，期间搜索结果可能不完整。确定继续吗？",
         "confirm": "开始重建",
         "cancel": "取消"
       },
@@ -3282,9 +3316,11 @@
       "toast": {
         "started": "搜索索引重建已开始",
         "alreadyRunning": "已有重建任务在进行中",
-        "failed": "搜索服务不可用，请检查 Meilisearch 配置",
+        "failed": "无法启动重建，请确认搜索服务可用且你拥有 search.manage 权限",
         "completed": "搜索索引重建已完成"
-      }
+      },
+      "providerHint": "在论坛设置 → 搜索服务中选择提供商。",
+      "providerLink": "打开搜索服务设置"
     },
     "webhooks": {
       "title": "Webhooks",

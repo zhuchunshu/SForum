@@ -368,6 +368,67 @@ func (h *Controller) adminResetSettings(c fiber.Ctx) error {
 	return apphttp.OK(c, settings)
 }
 
+// adminListSearchProviders 列出已启用的 search.provider 与当前解析结果。需 search.manage。
+func (h *Controller) adminListSearchProviders(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	if !actor.Can(identity.PermissionSearchManage) {
+		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
+	}
+	if h.searchProviders == nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, "forum.search_unavailable")
+	}
+	state, err := h.searchProviders.List(c.Context())
+	if err != nil {
+		return err
+	}
+	return apphttp.OK(c, state)
+}
+
+// adminSelectSearchProvider 显式 pin 一个已启用的 search.provider。需 search.manage。
+func (h *Controller) adminSelectSearchProvider(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	if !actor.Can(identity.PermissionSearchManage) {
+		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
+	}
+	if h.searchProviders == nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, "forum.search_unavailable")
+	}
+	var req struct {
+		ExtensionID string `json:"extensionId"`
+	}
+	if err := c.Bind().Body(&req); err != nil || req.ExtensionID == "" {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "search.provider_invalid")
+	}
+	if err := h.searchProviders.Select(c.Context(), req.ExtensionID); err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "search.provider_unavailable")
+	}
+	return apphttp.OK(c, map[string]bool{"selected": true})
+}
+
+// adminResetSearchProvider 清除 pin，解析回落站内搜索。需 search.manage。
+func (h *Controller) adminResetSearchProvider(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	if !actor.Can(identity.PermissionSearchManage) {
+		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
+	}
+	if h.searchProviders == nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, "forum.search_unavailable")
+	}
+	if err := h.searchProviders.RestoreDefault(c.Context()); err != nil {
+		return err
+	}
+	return apphttp.OK(c, map[string]any{"pinned": false, "defaultExtensionId": "sforum.search-site"})
+}
+
 // adminReindexSearch 触发一次搜索索引全量重建。需 search.manage 权限。
 func (h *Controller) adminReindexSearch(c fiber.Ctx) error {
 	actor, err := h.actor(c)

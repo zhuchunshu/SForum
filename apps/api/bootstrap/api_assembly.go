@@ -807,7 +807,7 @@ func wireAPICoreStack(ctx context.Context, cfg config.Config, logger *slog.Logge
 		Inner: contentregistry.NewForumPostFilter(lifecycleStack.ContentRegistry),
 	}).WithEditorDocumentSchema(forum.EditorRegistrySchemaBridge{
 		Registry: lifecycleStack.EditorRegistry,
-	})
+	}).WithSearchProviderAdmin(searchProviderAdminAdapter{registry: searchProviders})
 	// 头像与附件管理共用带存储候选目录的服务实例。
 	avatarAttachmentService := attachmentService
 	profileProvider := providers.NewProfileProviderWithAvatarAndTabs(

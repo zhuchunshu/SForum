@@ -17,6 +17,7 @@ const { t } = useI18n()
 const toast = useToast()
 const { request } = useApiClient()
 const adminPage = useAdminPage('/search')
+const adminRoutes = useAdminRoutes()
 
 const api = createAdminForumApi(request)
 
@@ -137,6 +138,15 @@ watch(isRunning, (running) => {
       </template>
       <p class="text-sm text-slate-500 dark:text-slate-400">
         {{ t('admin.search.description') }}
+      </p>
+      <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+        {{ t('admin.search.providerHint') }}
+        <NuxtLink
+          :to="adminRoutes.path('/forum/settings') + '?tab=search'"
+          class="ml-1 font-medium text-[var(--sf-accent)] hover:underline"
+        >
+          {{ t('admin.search.providerLink') }}
+        </NuxtLink>
       </p>
 
       <!-- 当前重建进度卡片 -->

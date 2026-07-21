@@ -19,11 +19,12 @@ import (
 )
 
 type Controller struct {
-	service       *forum.Service
-	searchService SearchService
-	reindexer     ReindexService
-	users         identity.ActorStore
-	sessions      *authsession.Manager
+	service         *forum.Service
+	searchService   SearchService
+	reindexer       ReindexService
+	searchProviders SearchProviderAdmin
+	users           identity.ActorStore
+	sessions        *authsession.Manager
 	// idempotency 可选：注入后对发帖/评论写路径启用 Idempotency-Key（F3.2）。
 	idempotency *idempotency.Store
 }
@@ -101,6 +102,38 @@ func NewController(service *forum.Service, users identity.ActorStore, sessions *
 // NewControllerWithSearch 注入搜索服务与索引重建服务。
 func NewControllerWithSearch(service *forum.Service, searchSvc SearchService, reindexer ReindexService, users identity.ActorStore, sessions *authsession.Manager) *Controller {
 	return &Controller{service: service, searchService: searchSvc, reindexer: reindexer, users: users, sessions: sessions}
+}
+
+// SearchProviderAdmin 抽象 search.provider 运营选择，避免 controller 依赖扩展存储细节。
+// nil 时提供商端点返回 503。
+type SearchProviderAdmin interface {
+	List(ctx context.Context) (SearchProvidersState, error)
+	Select(ctx context.Context, extensionID string) error
+	RestoreDefault(ctx context.Context) error
+}
+
+// SearchProvidersState 是运营侧搜索提供商列表与当前解析结果。
+type SearchProvidersState struct {
+	Items                []SearchProviderItem `json:"items"`
+	Selected             SearchProviderItem   `json:"selected"`
+	Pinned               bool                 `json:"pinned"`
+	DefaultExtensionID   string               `json:"defaultExtensionId"`
+}
+
+// SearchProviderItem 单个 search.provider 候选。
+type SearchProviderItem struct {
+	ExtensionID string `json:"extensionId"`
+	Label       string `json:"label"`
+	Healthy     bool   `json:"healthy"`
+	IsDefault   bool   `json:"isDefault,omitempty"`
+}
+
+// WithSearchProviderAdmin 注入搜索提供商运营选择。
+func (h *Controller) WithSearchProviderAdmin(admin SearchProviderAdmin) *Controller {
+	if h != nil {
+		h.searchProviders = admin
+	}
+	return h
 }
 
 // WithIdempotency 启用选定写路由的 Idempotency-Key 去重。

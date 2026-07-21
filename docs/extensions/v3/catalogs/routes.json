@@ -1340,6 +1340,60 @@
     }
   },
   {
+    "id": "core.route.forum.admin_list_search_providers",
+    "contractVersion": "sforum.route.forum.admin_list_search_providers@1",
+    "module": "forum",
+    "handler": "adminListSearchProviders",
+    "method": "GET",
+    "path": "/api/v1/admin/forum/search/providers",
+    "source": "apps/api/app/Http/Controllers/Forum/routes.go",
+    "access": "permission",
+    "policy": "search.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "search.manage"
+      ],
+      "evaluatorId": ""
+    }
+  },
+  {
+    "id": "core.route.forum.admin_select_search_provider",
+    "contractVersion": "sforum.route.forum.admin_select_search_provider@1",
+    "module": "forum",
+    "handler": "adminSelectSearchProvider",
+    "method": "PUT",
+    "path": "/api/v1/admin/forum/search/provider",
+    "source": "apps/api/app/Http/Controllers/Forum/routes.go",
+    "access": "permission",
+    "policy": "search.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "search.manage"
+      ],
+      "evaluatorId": ""
+    }
+  },
+  {
+    "id": "core.route.forum.admin_reset_search_provider",
+    "contractVersion": "sforum.route.forum.admin_reset_search_provider@1",
+    "module": "forum",
+    "handler": "adminResetSearchProvider",
+    "method": "POST",
+    "path": "/api/v1/admin/forum/search/provider/reset",
+    "source": "apps/api/app/Http/Controllers/Forum/routes.go",
+    "access": "permission",
+    "policy": "search.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "search.manage"
+      ],
+      "evaluatorId": ""
+    }
+  },
+  {
     "id": "core.route.forum.admin_reindex_status",
     "contractVersion": "sforum.route.forum.admin_reindex_status@1",
     "module": "forum",

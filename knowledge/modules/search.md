@@ -33,12 +33,23 @@ Host catalog slot: **`search.provider`**.
 - Topic write path enqueues index/delete for the selected engine.
 - Restore defaults → clear pin → site search.
 
+### Admin UI
+
+- **Forum settings → Search tab** (`/admin/forum/settings?tab=search`):
+  list/select/reset `search.provider`, reindex shortcut.
+- APIs (permission `search.manage`):
+  - `GET /admin/forum/search/providers`
+  - `PUT /admin/forum/search/provider`
+  - `POST /admin/forum/search/provider/reset`
+  - existing reindex endpoints under `/admin/forum/search/reindex*`
+- Standalone `/admin/search` remains the reindex progress/history page.
+
 ### Enabling Meilisearch
 
 1. `docker compose --profile search up -d meilisearch`
 2. Install `sforum-search-meilisearch` (optional package)
 3. Super-admin enable + trust
-4. Configure host/master key; select slot; reindex
+4. Configure host/master key; select provider in Forum settings → Search; reindex
 
 ## Document shape
 

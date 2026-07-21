@@ -180,6 +180,62 @@ func (a searchServiceAdapter) Search(ctx context.Context, input forumcontroller.
 	}, nil
 }
 
+// searchProviderAdminAdapter 把 SearchProviderRegistry 适配为 forum controller 运营接口。
+type searchProviderAdminAdapter struct {
+	registry *extensionsruntime.SearchProviderRegistry
+}
+
+func (a searchProviderAdminAdapter) List(ctx context.Context) (forumcontroller.SearchProvidersState, error) {
+	candidates, err := a.registry.Candidates(ctx)
+	if err != nil {
+		return forumcontroller.SearchProvidersState{}, err
+	}
+	items := make([]forumcontroller.SearchProviderItem, 0, len(candidates))
+	for _, c := range candidates {
+		items = append(items, forumcontroller.SearchProviderItem{
+			ExtensionID: c.ExtensionID,
+			Label:       c.Label,
+			Healthy:     c.Healthy,
+			IsDefault:   c.IsDefault,
+		})
+	}
+	selected, _, err := a.registry.Selected(ctx)
+	if err != nil {
+		return forumcontroller.SearchProvidersState{}, err
+	}
+	pinned, err := a.registry.IsPinned(ctx)
+	if err != nil {
+		return forumcontroller.SearchProvidersState{}, err
+	}
+	// 用候选表补全 selected 的 healthy/isDefault。
+	selItem := forumcontroller.SearchProviderItem{
+		ExtensionID: selected.ExtensionID,
+		Label:       selected.Label,
+		Healthy:     true,
+		IsDefault:   extensionsruntime.IsSiteSearchProvider(selected.ExtensionID),
+	}
+	for _, item := range items {
+		if item.ExtensionID == selected.ExtensionID {
+			selItem = item
+			break
+		}
+	}
+	return forumcontroller.SearchProvidersState{
+		Items:              items,
+		Selected:           selItem,
+		Pinned:             pinned,
+		DefaultExtensionID: extensionsruntime.DefaultSiteSearchExtensionID,
+	}, nil
+}
+
+func (a searchProviderAdminAdapter) Select(ctx context.Context, extensionID string) error {
+	return a.registry.Select(ctx, extensionID)
+}
+
+func (a searchProviderAdminAdapter) RestoreDefault(ctx context.Context) error {
+	return a.registry.RestoreDefault(ctx)
+}
+
 // registerSearchWorkers 在 worker 进程注册搜索索引/删除 worker。
 // 默认站内引擎始终可用；外部引擎经 search.provider 解析。
 func registerSearchWorkers(registry *supportjobs.Registry, pool *pgxpool.Pool, searchStore extensionsruntime.SearchProviderStore, extensionRuntime extensionsruntime.SearchRuntime) {

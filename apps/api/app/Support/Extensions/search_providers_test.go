@@ -128,6 +128,26 @@ func TestSearchProviderRegistrySiteAndMeiliDefaultsSite(t *testing.T) {
 	}
 }
 
+func TestSearchProviderRegistryCandidatesAlwaysIncludeSite(t *testing.T) {
+	store := &fakeSearchProviderStore{
+		list: []extensions.Extension{meiliPlugin()},
+	}
+	registry := NewSearchProviderRegistry(store)
+	cands, err := registry.Candidates(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cands) != 2 {
+		t.Fatalf("candidates=%#v", cands)
+	}
+	if cands[0].ExtensionID != DefaultSiteSearchExtensionID || !cands[0].IsDefault {
+		t.Fatalf("first should be site default: %#v", cands[0])
+	}
+	if cands[1].ExtensionID != "sforum.search-meilisearch" {
+		t.Fatalf("second should be meili: %#v", cands[1])
+	}
+}
+
 func TestSearchProviderRegistryInvalidPinFallsBackToSite(t *testing.T) {
 	store := &fakeSearchProviderStore{
 		selected: "sforum.search-meilisearch",

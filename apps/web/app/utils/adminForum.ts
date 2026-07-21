@@ -165,8 +165,32 @@ export function createAdminForumApi(request: AdminForumRequester) {
     })),
     reindexSearch: () => request<ReindexRun>('/admin/forum/search/reindex', { method: 'POST', body: {} }),
     getReindexStatus: () => request<ReindexStatus>('/admin/forum/search/reindex'),
-    listReindexRuns: () => request<ReindexRun[]>('/admin/forum/search/reindex/runs')
+    listReindexRuns: () => request<ReindexRun[]>('/admin/forum/search/reindex/runs'),
+    listSearchProviders: () => request<SearchProvidersState>('/admin/forum/search/providers'),
+    selectSearchProvider: (extensionId: string) => request<{ selected: boolean }>('/admin/forum/search/provider', {
+      method: 'PUT',
+      body: { extensionId }
+    }),
+    resetSearchProvider: () => request<{ pinned: boolean, defaultExtensionId: string }>('/admin/forum/search/provider/reset', {
+      method: 'POST',
+      body: {}
+    })
   }
+}
+
+/** search.provider 运营状态（论坛设置「搜索服务」Tab）。 */
+export type SearchProviderItem = {
+  extensionId: string
+  label: string
+  healthy: boolean
+  isDefault?: boolean
+}
+
+export type SearchProvidersState = {
+  items: SearchProviderItem[]
+  selected: SearchProviderItem
+  pinned: boolean
+  defaultExtensionId: string
 }
 
 // 搜索索引重建运行记录。

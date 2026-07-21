@@ -999,3 +999,108 @@ func TestControllerReindexWithoutServiceReturns503(t *testing.T) {
 		t.Fatalf("expected 503 when reindexer nil, got %d", resp.StatusCode)
 	}
 }
+
+type fakeSearchProviderAdmin struct {
+	state      SearchProvidersState
+	selectID   string
+	selectErr  error
+	restoreErr error
+	listErr    error
+}
+
+func (f *fakeSearchProviderAdmin) List(context.Context) (SearchProvidersState, error) {
+	if f.listErr != nil {
+		return SearchProvidersState{}, f.listErr
+	}
+	return f.state, nil
+}
+
+func (f *fakeSearchProviderAdmin) Select(_ context.Context, extensionID string) error {
+	f.selectID = extensionID
+	return f.selectErr
+}
+
+func (f *fakeSearchProviderAdmin) RestoreDefault(context.Context) error {
+	return f.restoreErr
+}
+
+func newForumTestAppWithSearchProviders(admin SearchProviderAdmin) *fiber.App {
+	manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})
+	users := controllerForumActors{actors: map[int64]identity.Actor{
+		6: {ID: 6, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionSearchManage: true}},
+		7: {ID: 7, Status: identity.UserStatusActive, Permissions: map[string]bool{}},
+	}}
+	store := &controllerForumStore{}
+	controller := NewControllerWithSearch(forum.NewServiceWithSettingsAndEvents(store, store, nil), nil, nil, users, manager).
+		WithSearchProviderAdmin(admin)
+	loginProvider := forumRouteProviderFunc(func(api fiber.Router) {
+		api.Post("/test-login/:id", func(c fiber.Ctx) error {
+			userID, _ := strconv.ParseInt(c.Params("id"), 10, 64)
+			if userID == 0 {
+				userID = 6
+			}
+			_, err := manager.Start(c, userID)
+			return err
+		})
+	})
+	return apphttp.NewApp(config.Config{AppName: "SForum", AppEnv: "test", CSRFEnabled: false, AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}, slog.Default(), apphttp.Dependencies{
+		RouteProviders: []apphttp.RouteProvider{controller, loginProvider},
+	})
+}
+
+func TestControllerListSearchProviders(t *testing.T) {
+	admin := &fakeSearchProviderAdmin{state: SearchProvidersState{
+		Items: []SearchProviderItem{
+			{ExtensionID: "sforum.search-site", Label: "Site Search", Healthy: true, IsDefault: true},
+		},
+		Selected:           SearchProviderItem{ExtensionID: "sforum.search-site", Label: "Site Search", Healthy: true, IsDefault: true},
+		Pinned:             false,
+		DefaultExtensionID: "sforum.search-site",
+	}}
+	app := newForumTestAppWithSearchProviders(admin)
+	cookie := loginForumUser(t, app, 6)
+	resp := performForumRequest(t, app, nethttp.MethodGet, "/api/v1/admin/forum/search/providers", nil, cookie)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	var out forumTestEnvelope[SearchProvidersState]
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if out.Data.DefaultExtensionID != "sforum.search-site" || len(out.Data.Items) != 1 {
+		t.Fatalf("unexpected state %#v", out.Data)
+	}
+}
+
+func TestControllerSelectSearchProvider(t *testing.T) {
+	admin := &fakeSearchProviderAdmin{}
+	app := newForumTestAppWithSearchProviders(admin)
+	cookie := loginForumUser(t, app, 6)
+	resp := performForumRequest(t, app, nethttp.MethodPut, "/api/v1/admin/forum/search/provider", []byte(`{"extensionId":"sforum.search-meilisearch"}`), cookie)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	if admin.selectID != "sforum.search-meilisearch" {
+		t.Fatalf("selectID=%q", admin.selectID)
+	}
+}
+
+func TestControllerSelectSearchProviderRequiresPermission(t *testing.T) {
+	app := newForumTestAppWithSearchProviders(&fakeSearchProviderAdmin{})
+	cookie := loginForumUser(t, app, 7)
+	resp := performForumRequest(t, app, nethttp.MethodPut, "/api/v1/admin/forum/search/provider", []byte(`{"extensionId":"x"}`), cookie)
+	if resp.StatusCode != nethttp.StatusForbidden {
+		t.Fatalf("expected 403, got %d", resp.StatusCode)
+	}
+}
+
+func TestControllerResetSearchProvider(t *testing.T) {
+	admin := &fakeSearchProviderAdmin{}
+	app := newForumTestAppWithSearchProviders(admin)
+	cookie := loginForumUser(t, app, 6)
+	resp := performForumRequest(t, app, nethttp.MethodPost, "/api/v1/admin/forum/search/provider/reset", []byte(`{}`), cookie)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+}

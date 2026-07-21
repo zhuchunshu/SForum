@@ -2954,7 +2954,8 @@
           "comments": "Comments",
           "tags": "Tags",
           "reading": "Reading",
-          "behavior": "Behavior"
+          "behavior": "Behavior",
+          "search": "Search"
         },
         "sections": {
           "general": {
@@ -2980,6 +2981,10 @@
           "behavior": {
             "title": "Behavior policy",
             "description": "Author close/delete, edit marks, duplicate titles, soft-delete visibility, and {'@'}mentions."
+          },
+          "search": {
+            "title": "Search service",
+            "description": "Choose the full-text search provider and reindex after switching."
           }
         },
         "readingPolicyTitle": "Guest reading and list sort",
@@ -3041,6 +3046,35 @@
           "topicContentMinMax": "Minimum body length cannot exceed maximum body length.",
           "commentMinMax": "Minimum comment length cannot exceed maximum comment length.",
           "pagination": "Enter an integer between 1 and 100 for page sizes."
+        },
+        "search": {
+          "provider": "Search provider",
+          "providerHelp": "Only one engine is active at a time. Multiple plugins may be enabled, but only the selected engine is indexed and queried.",
+          "providerPlaceholder": "Select a search provider",
+          "unhealthy": "unhealthy",
+          "defaultBadge": "Recommended default",
+          "current": "Currently using",
+          "pinned": "Pinned selection",
+          "resolvedDefault": "Using recommended default (not pinned)",
+          "selectAction": "Apply provider",
+          "resetAction": "Restore site search",
+          "resetHelp": "Clearing the pin restores the protected built-in PostgreSQL full-text search.",
+          "reindexTitle": "Rebuild index",
+          "reindexHelp": "After switching providers, run a full reindex for the new engine or results may be empty or incomplete.",
+          "reindexAction": "Reindex now",
+          "reindexPage": "Open index manager",
+          "noPermission": "You need search.manage to change the search service.",
+          "loadFailed": "Failed to load search providers",
+          "saved": "Search provider updated",
+          "saveFailed": "Failed to save search provider",
+          "resetDone": "Restored site search",
+          "resetFailed": "Failed to restore default",
+          "reindexStarted": "Search reindex started",
+          "reindexFailed": "Failed to start reindex",
+          "reindexAlreadyRunning": "A reindex is already running",
+          "switchHint": "Reindex after applying a new provider.",
+          "emptyProviders": "No search providers available",
+          "emptyProvidersHelp": "Site search should always be listed. If empty, check extension sync."
         }
       }
     },
@@ -3245,7 +3279,7 @@
     },
     "search": {
       "title": "Search Index Management",
-      "description": "Rebuild the Meilisearch full-text search index. Search results may be incomplete during rebuild and will recover automatically on completion.",
+      "description": "Rebuild the full-text index for the currently selected search provider. The default is built-in site search (PostgreSQL FTS). If you switched to Meilisearch or another engine, that engine is rebuilt. Results may be incomplete during rebuild.",
       "current": {
         "title": "Current Rebuild",
         "status": {
@@ -3263,8 +3297,8 @@
       "action": {
         "reindex": "Rebuild Index",
         "reindexing": "Rebuilding...",
-        "confirmTitle": "Confirm Search Index Rebuild",
-        "confirmDescription": "This will scan all topics and rewrite the search index. For tens of millions of records this may take several minutes to tens of minutes, during which search results may be incomplete. Continue?",
+        "confirmTitle": "Confirm search index rebuild",
+        "confirmDescription": "This scans all indexable topics and rewrites the active search engine. Large datasets may take minutes or longer, and results may be incomplete during the run. Continue?",
         "confirm": "Start Rebuild",
         "cancel": "Cancel"
       },
@@ -3282,9 +3316,11 @@
       "toast": {
         "started": "Search index rebuild started",
         "alreadyRunning": "A rebuild is already in progress",
-        "failed": "Search service unavailable, please check Meilisearch configuration",
+        "failed": "Could not start rebuild. Confirm search is available and you have search.manage",
         "completed": "Search index rebuild completed"
-      }
+      },
+      "providerHint": "Choose the provider under Forum settings → Search.",
+      "providerLink": "Open search service settings"
     },
     "webhooks": {
       "title": "Webhooks",
