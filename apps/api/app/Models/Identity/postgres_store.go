@@ -272,9 +272,26 @@ func (s *PostgresStore) LoadActor(ctx context.Context, userID int64) (Actor, err
 
 func (s *PostgresStore) ListPermissions(ctx context.Context) ([]Permission, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT key, module, label, description, label_locales, description_locales
-		FROM permissions
-		ORDER BY module ASC, key ASC
+		SELECT permission.key,
+		       permission.module,
+		       permission.label,
+		       permission.description,
+		       permission.label_locales,
+		       permission.description_locales
+		FROM permissions AS permission
+		LEFT JOIN extension_permission_catalog AS extension_catalog
+		  ON extension_catalog.permission_key = permission.key
+		LEFT JOIN LATERAL (
+			SELECT declaration.registry_state
+			FROM extension_identity_registry_declarations AS declaration
+			WHERE declaration.identity_kind = 'permission'
+			  AND declaration.stable_id = extension_catalog.permission_key
+			ORDER BY declaration.revision DESC
+			LIMIT 1
+		) AS extension_tip ON TRUE
+		WHERE extension_catalog.permission_key IS NULL
+		   OR extension_tip.registry_state = 'active'
+		ORDER BY permission.module ASC, permission.key ASC
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("list permissions: %w", err)

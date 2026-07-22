@@ -118,6 +118,9 @@ Decision: `../decisions/2026-07-22-external-extension-source-roots.md`.
 - Plugin permission `label` and `description` accept `LocalizedText`. The
   exact artifact owns those translations; the Host persists and resolves them
   for permission catalog APIs without adding plugin keys to Core i18n files.
+- Role and user permission catalogs include only extension permissions whose
+  latest Identity Registry declaration is active. Disabled or uninstalled
+  declaration tombstones remain durable but are not assignable.
 
 ## Manifest And Registries
 

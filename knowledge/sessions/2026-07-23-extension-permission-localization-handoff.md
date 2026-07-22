@@ -8,6 +8,9 @@
 - Admin permission screens use extension-provided labels after built-in Core
   i18n, and the admin-surface reference fixture declares zh-CN/en-US copy.
 - Migration `202607231001` adds permission presentation metadata.
+- Permission catalogs hide disabled or uninstalled extension declarations;
+  their ownership tombstones remain durable without leaking stale untranslated
+  keys into role and user management.
 
 ## Decisions
 

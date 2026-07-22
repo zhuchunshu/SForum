@@ -20,6 +20,9 @@ operators with labels such as `sforum.admin-surface-reference.manage`.
 - Host persistence stores the default copy and locale maps as presentation
   metadata. This does not grant permissions or change catalog ownership.
 - Permission APIs resolve extension copy using the negotiated request locale.
+- Host permission catalogs expose only extension permissions whose latest
+  Identity Registry declaration is active. Tombstones retain ownership and
+  audit history but are not assignable product capabilities.
 - Admin UI precedence is built-in Core i18n, API-provided extension copy, then
   the stable permission key.
 - Core locale files must not add keys for individual extensions.
