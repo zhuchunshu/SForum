@@ -1,6 +1,6 @@
 # Forum Content Editing And Revisions V1 — Task Book
 
-Status: **active** — M4 restore, attachment safety, and redaction complete; M5 admin content management next
+Status: **active** — M5 admin content management complete; M6 revision timeline, diff, restore, and redaction UX next
 Date: 2026-07-22
 Goal: allow authorized staff to edit any topic or comment from the admin area,
 record every effective self/staff edit as an immutable revision, prevent stale
@@ -759,15 +759,15 @@ Acceptance:
 
 ### M5 — Admin Content Management
 
-- [ ] Add `/admin/forum/content` and register it under the Forum nav group.
-- [ ] Add permission-aware Topics/Comments tabs, filters, cursor pagination, and
+- [x] Add `/admin/forum/content` and register it under the Forum nav group.
+- [x] Add permission-aware Topics/Comments tabs, filters, cursor pagination, and
       empty/loading/error states.
-- [ ] Add non-public-aware admin detail loading.
-- [ ] Reuse the existing editor components with author/reason/revision props.
-- [ ] Add successful edit Toast and persistent field/operation errors.
-- [ ] Add conflict state with reload/history actions and no force overwrite.
-- [ ] Add focused component/composable tests and i18n in zh-CN/en-US.
-- [ ] Regenerate and validate Admin Surface catalogs.
+- [x] Add non-public-aware admin detail loading.
+- [x] Reuse the existing editor components with author/reason/revision props.
+- [x] Add successful edit Toast and persistent field/operation errors.
+- [x] Add conflict state with reload/history actions and no force overwrite.
+- [x] Add focused component/composable tests and i18n in zh-CN/en-US.
+- [x] Regenerate and validate Admin Surface catalogs.
 
 Acceptance:
 

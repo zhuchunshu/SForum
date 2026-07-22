@@ -22,6 +22,8 @@
     "tag.updated",
     "comment.before_create",
     "comment.created",
+    "comment.before_update",
+    "comment.updated",
     "attachment.before_upload",
     "attachment.uploaded",
     "entity_meta.updated"

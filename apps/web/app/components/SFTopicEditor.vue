@@ -3,6 +3,7 @@ import {
   isForumTagSlug,
   normalizeForumTagSlugInput,
   type ForumCategoryGroup,
+  type ForumRenderedContent,
   type ForumTopicDetail,
   type ForumTopicTagSummary
 } from '~/utils/forumTaxonomy'
@@ -10,10 +11,31 @@ import {
 // 主题编辑器组件：从详情页 ?edit=1 切入，复用发帖编辑器与字段校验。
 // 保存成功后 emit saved（含更新后的 topic），由详情页负责跳转/规范化；
 // 取消则 emit cancel。权限/加载由详情页保证，这里只负责编辑表单。
-const props = defineProps<{ topic: ForumTopicDetail }>()
+type EditableTopic = {
+  id: number
+  authorUserId: number
+  title: string
+  categorySlug: string
+  tags?: ForumTopicTagSummary[]
+  content: ForumRenderedContent
+  currentRevision: number
+}
+
+const props = withDefaults(defineProps<{
+  topic: EditableTopic
+  staffReason?: string
+  requireStaffReason?: boolean
+  editingAnotherAuthor?: boolean
+}>(), {
+  staffReason: '',
+  requireStaffReason: false,
+  editingAnotherAuthor: false
+})
 const emit = defineEmits<{
   saved: [topic: ForumTopicDetail]
   cancel: []
+  'update:staffReason': [value: string]
+  conflict: []
 }>()
 
 const { t } = useI18n()
@@ -60,6 +82,10 @@ watchEffect(() => {
 })
 
 const canEdit = computed(() => props.topic ? canEditTopic(props.topic) : false)
+// 后台可加载非公开主题；保留不在公开分类列表中的当前 slug，避免一次正文编辑意外清空分类。
+const selectedCategoryMissing = computed(() => Boolean(
+  selectedCategorySlug.value && !categories.value.some(category => category.slug === selectedCategorySlug.value)
+))
 
 type SubmitState = 'idle' | 'submitting' | 'error'
 const submitState = ref<SubmitState>('idle')
@@ -139,6 +165,10 @@ async function save(payload?: { markdown?: string }) {
   } else if (tagError === 'tagMax') {
     nextErrors.tagSlugs = [t('composer.tagLimit')]
   }
+  const reason = props.staffReason.trim()
+  if (props.requireStaffReason && !reason) {
+    nextErrors.reason = [t('admin.forum.content.reasonRequired')]
+  }
   if (Object.keys(nextErrors).length) {
     fieldErrors.value = nextErrors
     submitState.value = 'error'
@@ -152,6 +182,7 @@ async function save(payload?: { markdown?: string }) {
   try {
     const updated = await forumApi.updateTopic(props.topic.id, {
 	  expectedRevision: props.topic.currentRevision,
+	  reason: reason || undefined,
       title: title.value.trim(),
       categorySlug: selectedCategorySlug.value || undefined,
       tagSlugs: tagDraft.value,
@@ -166,6 +197,10 @@ async function save(payload?: { markdown?: string }) {
     emit('saved', updated)
   } catch (error) {
     submitState.value = 'error'
+    if (apiErrorReason(error) === 'forum.revision_conflict') {
+      emit('conflict')
+      return
+    }
     errorMessage.value = apiErrorMessage(error) || t('composer.submitFailed')
     fieldErrors.value = apiErrorFields(error)
   }
@@ -199,11 +234,34 @@ defineExpose({ save })
       />
 
       <SFCard class="p-6 space-y-5">
+        <UAlert
+          v-if="editingAnotherAuthor"
+          color="warning"
+          variant="soft"
+          icon="i-lucide-user-round-pen"
+          :title="t('admin.forum.content.editingAnotherAuthor')"
+          class="mb-1"
+        />
+
+        <UFormField v-if="requireStaffReason" :label="t('admin.forum.content.reason')" :error="fieldErrors.reason?.join(', ')">
+          <UTextarea
+            :model-value="staffReason"
+            :placeholder="t('admin.forum.content.reasonPlaceholder')"
+            :disabled="submitState === 'submitting'"
+            :rows="3"
+            class="w-full"
+            @update:model-value="emit('update:staffReason', String($event))"
+          />
+        </UFormField>
+
         <div>
           <label class="block text-sm font-semibold text-slate-700 mb-2 dark:text-zinc-300">
             {{ t('composer.categoryLabel') }}
           </label>
           <select v-model="selectedCategorySlug" class="sf-input w-full">
+            <option v-if="selectedCategoryMissing" :value="selectedCategorySlug">
+              {{ selectedCategorySlug }}
+            </option>
             <option v-for="cat in categories" :key="cat.id" :value="cat.slug">
               {{ cat.name }}
             </option>

@@ -1518,6 +1518,78 @@
       "contractVersion": "sforum.route.webhooks.inbound@1",
       "method": "POST",
       "path": "/api/v1/webhooks/inbound/:source"
+    },
+    {
+      "id": "core.route.forum.admin_content_comments",
+      "contractVersion": "sforum.route.forum.admin_content_comments@1",
+      "method": "GET",
+      "path": "/api/v1/admin/forum/content/comments"
+    },
+    {
+      "id": "core.route.forum.admin_content_comment",
+      "contractVersion": "sforum.route.forum.admin_content_comment@1",
+      "method": "GET",
+      "path": "/api/v1/admin/forum/content/comments/:commentID"
+    },
+    {
+      "id": "core.route.forum.admin_content_topics",
+      "contractVersion": "sforum.route.forum.admin_content_topics@1",
+      "method": "GET",
+      "path": "/api/v1/admin/forum/content/topics"
+    },
+    {
+      "id": "core.route.forum.admin_content_topic",
+      "contractVersion": "sforum.route.forum.admin_content_topic@1",
+      "method": "GET",
+      "path": "/api/v1/admin/forum/content/topics/:topicID"
+    },
+    {
+      "id": "core.route.forum.comment_revisions",
+      "contractVersion": "sforum.route.forum.comment_revisions@1",
+      "method": "GET",
+      "path": "/api/v1/comments/:commentID/revisions"
+    },
+    {
+      "id": "core.route.forum.comment_revision",
+      "contractVersion": "sforum.route.forum.comment_revision@1",
+      "method": "GET",
+      "path": "/api/v1/comments/:commentID/revisions/:revisionNo"
+    },
+    {
+      "id": "core.route.forum.restore_comment_revision",
+      "contractVersion": "sforum.route.forum.restore_comment_revision@1",
+      "method": "POST",
+      "path": "/api/v1/comments/:commentID/revisions/:revisionNo/restore"
+    },
+    {
+      "id": "core.route.forum.redact_comment_revision",
+      "contractVersion": "sforum.route.forum.redact_comment_revision@1",
+      "method": "POST",
+      "path": "/api/v1/comments/:commentID/revisions/:revisionNo/redact"
+    },
+    {
+      "id": "core.route.forum.topic_revisions",
+      "contractVersion": "sforum.route.forum.topic_revisions@1",
+      "method": "GET",
+      "path": "/api/v1/topics/:topicID/revisions"
+    },
+    {
+      "id": "core.route.forum.topic_revision",
+      "contractVersion": "sforum.route.forum.topic_revision@1",
+      "method": "GET",
+      "path": "/api/v1/topics/:topicID/revisions/:revisionNo"
+    },
+    {
+      "id": "core.route.forum.restore_topic_revision",
+      "contractVersion": "sforum.route.forum.restore_topic_revision@1",
+      "method": "POST",
+      "path": "/api/v1/topics/:topicID/revisions/:revisionNo/restore"
+    },
+    {
+      "id": "core.route.forum.redact_topic_revision",
+      "contractVersion": "sforum.route.forum.redact_topic_revision@1",
+      "method": "POST",
+      "path": "/api/v1/topics/:topicID/revisions/:revisionNo/redact"
     }
   ],
   "ui": [
@@ -3035,6 +3107,66 @@
       ],
       "state": "active",
       "source": "apps/web/app/pages/x/[...path].vue"
+    },
+    {
+      "id": "core.component.admin.sf_admin_forum_comment_editor",
+      "contractVersion": "sforum.component.admin.sf_admin_forum_comment_editor@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/forum/SFAdminForumCommentEditor.vue"
+    },
+    {
+      "id": "core.component.page.admin.forum.content",
+      "contractVersion": "sforum.component.page.admin.forum.content@1",
+      "kind": "page",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/pages/admin/forum/content.vue"
+    },
+    {
+      "id": "core.component.admin.sf_admin_theme_activate_dialog",
+      "contractVersion": "sforum.component.admin.sf_admin_theme_activate_dialog@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/SFAdminThemeActivateDialog.vue"
+    },
+    {
+      "id": "core.component.page.topics.reply",
+      "contractVersion": "sforum.component.page.topics.reply@1",
+      "kind": "page",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/pages/topics/reply.vue"
+    },
+    {
+      "id": "core.component.shared.sf_topic_reply_composer",
+      "contractVersion": "sforum.component.shared.sf_topic_reply_composer@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/SFTopicReplyComposer.vue"
+    },
+    {
+      "id": "core.component.shared.sf_topic_reply_page",
+      "contractVersion": "sforum.component.shared.sf_topic_reply_page@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/SFTopicReplyPage.vue"
     }
   ]
 }

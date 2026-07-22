@@ -178,6 +178,14 @@ export const adminPageDefinitions = [
     permissionMode: 'any'
   },
   {
+    id: '/forum/content',
+    labelKey: 'admin.nav.forumContent',
+    icon: 'i-lucide-files',
+    componentName: 'AdminForumContent',
+    requiredPermissions: ['topic.edit_any', 'topic.revision.view_any', 'post.edit_any', 'post.revision.view_any'],
+    permissionMode: 'any'
+  },
+  {
     id: '/extensions',
     labelKey: 'admin.nav.extensionOverview',
     icon: 'i-lucide-layout-dashboard',
@@ -370,7 +378,8 @@ export const adminSidebarNavigation = [
         { type: 'page', pageId: '/moderation' },
         { type: 'page', pageId: '/forum/categories' },
         { type: 'page', pageId: '/forum/tags' },
-        { type: 'page', pageId: '/forum/settings' }
+        { type: 'page', pageId: '/forum/settings' },
+        { type: 'page', pageId: '/forum/content' }
       ]
     },
     {

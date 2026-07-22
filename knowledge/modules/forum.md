@@ -10,8 +10,8 @@ accepted revisions, lifecycle states, public read models, and forum policy.
 - Core taxonomy, topic/comment creation and lifecycle, public/admin UI, runtime
   settings, moderation integration, search projection, and million-scale read
   path M0-M7 are implemented.
-- Content revisions V1 is **active**: M4 restore, historical attachment safety,
-  and super-admin redaction are complete; M5 admin content management is next.
+- Content revisions V1 is **active**: M5 admin content management is complete;
+  M6 revision timeline, diff, restore, and redaction UX is next.
 - PostgreSQL site search is the protected default. Meilisearch is optional and
   must not be described as the required/default forum read path.
 

@@ -177,6 +177,7 @@ const adminPagePathsById: Record<string, string> = {
   '/forum/categories': 'apps/web/app/pages/admin/forum/categories.vue',
   '/forum/tags': 'apps/web/app/pages/admin/forum/tags.vue',
   '/forum/settings': 'apps/web/app/pages/admin/forum/settings.vue',
+  '/forum/content': 'apps/web/app/pages/admin/forum/content.vue',
   '/extensions': 'apps/web/app/pages/admin/extensions/index.vue',
   '/extensions/plugins': 'apps/web/app/pages/admin/extensions/plugins.vue',
   '/extensions/themes': 'apps/web/app/pages/admin/extensions/themes.vue',
@@ -293,7 +294,7 @@ assert(
 )
 assert(forumFolder.children?.some(entry => entry.pageId === '/moderation'), 'Forum folder should contain the moderation page')
 assert(
-  forumFolder.children?.map(entry => entry.pageId).join(',') === '/moderation,/forum/categories,/forum/tags,/forum/settings',
+  forumFolder.children?.map(entry => entry.pageId).join(',') === '/moderation,/forum/categories,/forum/tags,/forum/settings,/forum/content',
   'Forum folder should keep the approved submenu order'
 )
 const systemFolder = firstSidebarGroup.find(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.system')

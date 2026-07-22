@@ -154,7 +154,7 @@ describe('admin forum helpers', () => {
     expect(settings?.permissionMode).toBe('any')
   })
 
-  test('adds forum category, tag, and settings pages to the sidebar folder', () => {
+  test('adds forum category, tag, settings, and content pages to the sidebar folder', () => {
     const forumFolder = adminSidebarNavigation
       .flat()
       .find((entry): entry is AdminNavigationFolderEntry => entry.type === 'folder' && entry.labelKey === 'admin.nav.forum')
@@ -163,7 +163,8 @@ describe('admin forum helpers', () => {
       '/moderation',
       '/forum/categories',
       '/forum/tags',
-      '/forum/settings'
+      '/forum/settings',
+      '/forum/content'
     ])
   })
 })

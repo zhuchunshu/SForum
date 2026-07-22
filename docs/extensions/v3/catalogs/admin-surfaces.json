@@ -386,7 +386,7 @@
     "forms": true,
     "notices": true,
     "editorPanels": false,
-    "detailRegions": false,
+    "detailRegions": true,
     "importer": true,
     "exporter": false
   },
@@ -403,7 +403,24 @@
     "forms": true,
     "notices": true,
     "editorPanels": false,
-    "detailRegions": false,
+    "detailRegions": true,
+    "importer": true,
+    "exporter": false
+  },
+  {
+    "id": "core.admin.page.forum_content",
+    "source": "apps/web/app/pages/admin/forum/content.vue",
+    "navigation": true,
+    "dashboard": false,
+    "list": true,
+    "columns": true,
+    "filters": true,
+    "rowActions": true,
+    "bulkActions": false,
+    "forms": true,
+    "notices": true,
+    "editorPanels": true,
+    "detailRegions": true,
     "importer": true,
     "exporter": false
   },
@@ -437,7 +454,7 @@
     "forms": true,
     "notices": true,
     "editorPanels": false,
-    "detailRegions": false,
+    "detailRegions": true,
     "importer": true,
     "exporter": false
   },
@@ -485,10 +502,10 @@
     "filters": false,
     "rowActions": false,
     "bulkActions": false,
-    "forms": false,
+    "forms": true,
     "notices": true,
     "editorPanels": false,
-    "detailRegions": false,
+    "detailRegions": true,
     "importer": true,
     "exporter": false
   },
@@ -539,7 +556,7 @@
     "forms": true,
     "notices": true,
     "editorPanels": true,
-    "detailRegions": false,
+    "detailRegions": true,
     "importer": true,
     "exporter": false
   },
@@ -709,7 +726,7 @@
     "forms": true,
     "notices": true,
     "editorPanels": false,
-    "detailRegions": false,
+    "detailRegions": true,
     "importer": true,
     "exporter": false
   }

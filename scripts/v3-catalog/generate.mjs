@@ -129,6 +129,8 @@ function routePolicy(route) {
   if (path.startsWith('/api/v1/admin/database')) return ['permission', 'database.manage']
   if (path.startsWith('/api/v1/admin/entity-meta')) return ['permission', 'entity_meta.manage or settings.manage']
   if (path.startsWith('/api/v1/admin/forum/search')) return ['permission', 'search.manage']
+  if (path.startsWith('/api/v1/admin/forum/content/topics')) return ['permission', 'topic.edit_any or topic.revision.view_any']
+  if (path.startsWith('/api/v1/admin/forum/content/comments')) return ['permission', 'post.edit_any or post.revision.view_any']
   if (path.startsWith('/api/v1/admin/forum/categories') || path.startsWith('/api/v1/admin/forum/category-groups')) return ['permission', 'category.manage']
   if (path.startsWith('/api/v1/admin/forum/tags')) return ['permission', 'tag.manage']
   if (path.startsWith('/api/v1/admin/forum/settings')) return ['permission', 'category.manage, tag.manage, or forum.settings.manage; field owner recheck']
@@ -172,7 +174,17 @@ function routePolicy(route) {
   if (/\/topics\/:topicID\/(pin|unpin)$/.test(path)) return ['permission', 'topic.pin']
   if (path === '/api/v1/topics/:topicID' && method === 'PATCH') return ['permission', 'topic.edit_own or topic.edit_any']
   if (path === '/api/v1/topics/:topicID' && method === 'DELETE') return ['permission', 'topic.delete_own or topic.delete_any']
+  if (/^\/api\/v1\/topics\/:topicID\/revisions/.test(path)) {
+    if (path.endsWith('/redact')) return ['super_admin', 'super_admin revision redaction policy']
+    if (path.endsWith('/restore')) return ['permission', 'topic.revision.view_any plus topic.edit_any']
+    return ['permission', 'topic.revision.view_any']
+  }
   if (path.endsWith('/comments') && method === 'POST') return ['permission', 'post.create plus topic/publication policy']
+  if (/^\/api\/v1\/comments\/:commentID\/revisions/.test(path)) {
+    if (path.endsWith('/redact')) return ['super_admin', 'super_admin revision redaction policy']
+    if (path.endsWith('/restore')) return ['permission', 'post.revision.view_any plus post.edit_any']
+    return ['permission', 'post.revision.view_any']
+  }
   if (path.startsWith('/api/v1/comments/') && method !== 'GET') return ['permission', 'post edit/delete own or any policy']
   if (path === '/api/v1/web-options' && method === 'PUT') return ['permission', 'option-owner permission dispatch']
   if (path.startsWith('/api/v1/webhooks/inbound')) return ['public', 'source-specific signature/idempotency policy']
@@ -200,10 +212,17 @@ const reviewedGuardPolicies = new Map([
   ['settings.manage or settings.site.manage', { kind: 'permission_any', permissions: ['settings.manage', 'settings.site.manage'] }],
   ['settings.site.manage', { kind: 'permission_any', permissions: ['settings.site.manage'] }],
   ['tag.manage', { kind: 'permission_any', permissions: ['tag.manage'] }],
+  ['topic.edit_any or topic.revision.view_any', { kind: 'permission_any', permissions: ['topic.edit_any', 'topic.revision.view_any'] }],
+  ['post.edit_any or post.revision.view_any', { kind: 'permission_any', permissions: ['post.edit_any', 'post.revision.view_any'] }],
+  ['topic.revision.view_any', { kind: 'permission_any', permissions: ['topic.revision.view_any'] }],
+  ['post.revision.view_any', { kind: 'permission_any', permissions: ['post.revision.view_any'] }],
+  ['topic.revision.view_any plus topic.edit_any', { kind: 'contextual', permissions: ['topic.revision.view_any', 'topic.edit_any'], evaluatorId: 'core.guard.forum.topic_revision_restore' }],
+  ['post.revision.view_any plus post.edit_any', { kind: 'contextual', permissions: ['post.revision.view_any', 'post.edit_any'], evaluatorId: 'core.guard.forum.comment_revision_restore' }],
   ['topic.pin', { kind: 'permission_any', permissions: ['topic.pin'] }],
   ['active super_admin challenge issuance', { kind: 'super_admin' }],
   ['active super_admin plus actor-bound exact frontend artifact confirmation', { kind: 'super_admin' }],
   ['active super_admin trust revocation', { kind: 'super_admin' }],
+  ['super_admin revision redaction policy', { kind: 'super_admin' }],
   ['host liveness/readiness; non-overridable recovery prerequisite', { kind: 'public' }],
   ['public read contract', { kind: 'public' }],
   ['exact public frontend artifact trust, digest, and live runtime policy', { kind: 'public' }],
