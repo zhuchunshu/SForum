@@ -159,8 +159,10 @@ func (s *Service) PublicActiveThemeSettings(ctx context.Context) (PublicActiveTh
 		settings[key] = setting.Default
 	}
 	return PublicActiveThemeSettings{
-		ThemeID:  theme.ID,
-		Settings: settings,
+		ThemeID:       theme.ID,
+		Version:       theme.Version,
+		PackageDigest: theme.PackageDigest,
+		Settings:      settings,
 	}, nil
 }
 

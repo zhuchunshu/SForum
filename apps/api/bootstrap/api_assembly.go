@@ -352,6 +352,8 @@ func wireAPICoreStack(ctx context.Context, cfg config.Config, logger *slog.Logge
 		extensions.WithTrustRevoker(frontendService),
 		// F4.5：启用时校验 manifest requiresFeatures。
 		extensions.WithFeatureFlags(optionsService),
+		// 扩展设置影响公开贡献时 bump site.public_surface_revision（Nuxt /t/** SWR varies）。
+		extensions.WithPublicSurfaceRevisionBumper(optionsService),
 		// 扩展 secret 设置与 web_options 共用 AES-GCM 密钥。
 		extensions.WithCipher(optionCipher),
 		// E6.1：禁用声明存储槽位的插件时，attachment.provider 从 plugin:<id> 回落 local。

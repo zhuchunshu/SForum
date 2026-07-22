@@ -1,7 +1,16 @@
 /** 当前激活主题的公开设置（非 secret），供默认主题 layer 消费。 */
+import {
+  canUseActiveThemeSettingsRecord,
+  makeActiveThemeSettingsRecord,
+  normalizeActiveThemeIdentity,
+  type ActiveThemeSettingsCacheRecord
+} from '~/utils/activeThemeClientCache'
 
 export type PublicActiveThemeSettings = {
   themeId: string
+  version?: string
+  packageDigest?: string
+  nodeRevision?: number
   settings: Record<string, string>
 }
 
@@ -35,13 +44,36 @@ function clampInt(value: string | undefined, fallback: number, min: number, max:
 export function useActiveThemeSettings() {
   const { request } = useApiClient()
   const { locale } = useI18n()
+  const activeTheme = useActiveThemeIdentity()
+  const lastGood = useState<ActiveThemeSettingsCacheRecord<PublicActiveThemeSettings> | null>(
+    'site-active-theme-settings-last',
+    () => null
+  )
 
   const { data, pending, error, refresh } = useAsyncData(
     'site-active-theme-settings',
     async () => {
       try {
-        return await request<PublicActiveThemeSettings>('/site/active-theme/settings')
+        const next = await request<PublicActiveThemeSettings>('/site/active-theme/settings', {
+          timeout: import.meta.dev ? 5000 : 8000
+        })
+        const identity = normalizeActiveThemeIdentity({
+          themeId: next.themeId,
+          version: next.version,
+          packageDigest: next.packageDigest,
+          nodeRevision: next.nodeRevision
+        })
+        activeTheme.update(identity)
+        const currentIdentity = activeTheme.identity.value
+        lastGood.value = makeActiveThemeSettingsRecord({
+          ...next,
+          nodeRevision: currentIdentity?.nodeRevision ?? next.nodeRevision
+        })
+        return next
       } catch {
+        if (canUseActiveThemeSettingsRecord(lastGood.value, activeTheme.identity.value)) {
+          return lastGood.value!.data
+        }
         return emptyThemeSettings()
       }
     },

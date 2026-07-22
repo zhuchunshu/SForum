@@ -1,18 +1,19 @@
-/* 标题衬线：系统回退栈（Songti SC / Source Han Serif SC）。
- * 宿主基线与主题 L0 一致，不拉外部 Google Fonts。 */
+/* hybrid demo 字体：DM Sans + Noto Sans SC（主题包本地 variable TTF）。
+ * 注意：font-weight 范围须与 fvar 轴一致；format 用 truetype（Chrome 对
+ * truetype-variations 偶发拒载）。不拉 Google Fonts。 */
 @font-face {
   font-family: "DM Sans";
-  src: url("/api/v1/site/theme-assets/sforum.default-theme/assets/fonts/DM-Sans-variable.ttf") format("truetype-variations");
+  src: url("/api/v1/site/theme-assets/sforum.default-theme/assets/fonts/DM-Sans-variable.ttf") format("truetype");
   font-style: normal;
-  font-weight: 500 700;
+  font-weight: 100 900;
   font-display: swap;
 }
 
 @font-face {
   font-family: "Noto Sans SC";
-  src: url("/api/v1/site/theme-assets/sforum.default-theme/assets/fonts/Noto-Sans-SC-variable.ttf") format("truetype-variations");
+  src: url("/api/v1/site/theme-assets/sforum.default-theme/assets/fonts/Noto-Sans-SC-variable.ttf") format("truetype");
   font-style: normal;
-  font-weight: 400 700;
+  font-weight: 100 900;
   font-display: swap;
 }
 
@@ -297,16 +298,22 @@
 
 .sf-theme-template[data-extension-id="sforum.default-theme"] {
   background: var(--sf-public-bg);
+  color: var(--sf-public-text);
   font-family: "DM Sans", "Noto Sans SC", system-ui, sans-serif !important;
   font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* 覆盖 :root Inter，保证公开页字重/字形与 demo 一致 */
-.sf-theme-template[data-extension-id="sforum.default-theme"] :where(
-  button, input, select, textarea, a, p, span, h1, h2, h3, h4, li, label, strong, b, small, time
-) {
+/* 覆盖 :root Inter / Nuxt UI 默认字体，整棵公开主题树继承 demo 字族 */
+.sf-theme-template[data-extension-id="sforum.default-theme"] :where(*) {
   font-family: inherit;
   letter-spacing: 0;
+}
+
+/* 代码/等宽除外，避免 pre/code 被 inherit 成无衬线 */
+.sf-theme-template[data-extension-id="sforum.default-theme"] :where(code, kbd, pre, samp) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 }
 
 .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar {
@@ -333,25 +340,25 @@
   color: var(--sf-public-text) !important;
 }
 
-/* demo top-nav：active 为正文色 + 底边下划线，不是强调色文字 */
+/* demo 终态 top-nav：active 为主色文字，无底边下划线 */
 .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__nav-link {
+  font-size: 13px !important;
   font-weight: 600 !important;
 }
 
-.sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__nav-link.is-active,
 .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__nav-link:hover {
   background: transparent !important;
-  color: var(--sf-public-text) !important;
+  color: var(--sf-accent) !important;
+}
+
+.sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__nav-link.is-active {
+  background: transparent !important;
+  color: var(--sf-accent) !important;
 }
 
 .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__nav-link.is-active::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 2px;
-  background: var(--sf-accent);
+  display: none !important;
+  content: none;
 }
 
 .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__logo-mark {
@@ -371,6 +378,22 @@
   border: 0;
   border-radius: 4px;
   background: var(--sf-public-surface-muted) !important;
+  color: var(--sf-public-text) !important;
+}
+
+/* demo .search input：13px */
+.sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__search input,
+.sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__search .sf-search__input,
+.sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__mobile-search input,
+.sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__mobile-search .sf-search__input {
+  font-size: 13px !important;
+  line-height: 1.4 !important;
+}
+
+/* demo .brand strong：16/700 */
+.sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__logo-text {
+  font-size: 16px !important;
+  font-weight: 700 !important;
   color: var(--sf-public-text) !important;
 }
 

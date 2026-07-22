@@ -268,7 +268,9 @@ func TestResolveCore(t *testing.T) {
 	}
 	var body pagesEnvelope[map[string]any]
 	_ = json.NewDecoder(resp.Body).Decode(&body)
-	if body.Data["provider"] != "core" {
+	if body.Data["provider"] != "core" || body.Data["fallback"] != false ||
+		body.Data["reason"] != resolveReasonAuthoritativeCore ||
+		body.Data["selectedProvider"] != pages.ProviderCore {
 		t.Fatalf("%#v", body.Data)
 	}
 }
@@ -317,10 +319,11 @@ func TestResolveCompiledThemeAvoidsPackageStoreAndFailsClosedOnStaleArtifact(t *
 		wantOutput     bool
 		wantSource     string
 		wantFallback   bool
+		wantReason     string
 	}{
 		{name: "exact snapshot", registryDigest: strings.Repeat("a", 64), template: `<main>compiled home</main><sf-home-page></sf-home-page>`, wantProvider: "compiled.theme", wantOutput: true, wantSource: pages.ThemeRenderSourceActiveTheme},
-		{name: "runtime emergency fallback", registryDigest: strings.Repeat("a", 64), template: `<main>{{asset "missing"}}</main><sf-home-page></sf-home-page>`, wantProvider: pages.ProviderCore, wantOutput: true, wantSource: pages.ThemeRenderSourceEmergency, wantFallback: true},
-		{name: "stale registry artifact", registryDigest: strings.Repeat("b", 64), template: `<main>compiled home</main><sf-home-page></sf-home-page>`, wantProvider: pages.ProviderCore},
+		{name: "runtime emergency fallback", registryDigest: strings.Repeat("a", 64), template: `<main>{{asset "missing"}}</main><sf-home-page></sf-home-page>`, wantProvider: pages.ProviderCore, wantOutput: true, wantSource: pages.ThemeRenderSourceEmergency, wantFallback: true, wantReason: resolveReasonRenderFailed},
+		{name: "stale registry artifact", registryDigest: strings.Repeat("b", 64), template: `<main>compiled home</main><sf-home-page></sf-home-page>`, wantProvider: pages.ProviderCore, wantReason: resolveReasonArtifactMismatch},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			root := t.TempDir()
@@ -385,6 +388,14 @@ func TestResolveCompiledThemeAvoidsPackageStoreAndFailsClosedOnStaleArtifact(t *
 			}
 			if envelope.Data.Provider != test.wantProvider || (envelope.Data.RenderOutput != nil) != test.wantOutput {
 				t.Fatalf("response=%#v", envelope.Data)
+			}
+			if envelope.Data.SelectedProvider != artifact.ExtensionID ||
+				envelope.Data.SelectedPackageDigest != test.registryDigest ||
+				envelope.Data.SelectedContributionID != registered.ID {
+				t.Fatalf("selected artifact lost: %#v", envelope.Data)
+			}
+			if envelope.Data.Reason != test.wantReason {
+				t.Fatalf("reason=%q want %q response=%#v", envelope.Data.Reason, test.wantReason, envelope.Data)
 			}
 			if test.wantOutput && (envelope.Data.RenderOutput.Source != test.wantSource || envelope.Data.Fallback != test.wantFallback) {
 				t.Fatalf("fallback response=%#v", envelope.Data)

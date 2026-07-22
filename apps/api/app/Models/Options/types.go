@@ -37,8 +37,12 @@ const (
 	NameSiteDateFormat = "site.date_format"
 	NameSiteTimeFormat = "site.time_format"
 	// 一周起始日：0=周日 … 6=周六。默认 1（周一）。
-	NameSiteStartOfWeek                  = "site.start_of_week"
-	NameHumanVerificationProvider        = "human_verification.provider"
+	NameSiteStartOfWeek = "site.start_of_week"
+	// 公开前端贡献面 revision（整数，从 1 起）。扩展设置变更且影响公开贡献时由宿主 bump；
+	// Nuxt 匿名 /t/** SWR 缓存键 varies 此值，避免运营改设置后仍命中旧 HTML。
+	// 仅宿主内部 bump；运营不可通过 admin web-options 手写覆盖。
+	NamePublicSurfaceRevision     = "site.public_surface_revision"
+	NameHumanVerificationProvider = "human_verification.provider"
 	NameHumanVerificationRegister        = "human_verification.scenarios.register"
 	NameHumanVerificationPasswordReset   = "human_verification.scenarios.password_reset"
 	NameHumanVerificationLoginRisk       = "human_verification.scenarios.login_risk"

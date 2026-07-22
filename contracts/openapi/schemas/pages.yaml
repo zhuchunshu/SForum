@@ -24,6 +24,29 @@ PageResolve:
     contributionId: { type: string }
     action: { type: string }
     fallback: { type: boolean }
+    reason:
+      type: string
+      enum:
+        - authoritative_core
+        - transport_unavailable
+        - view_model_unavailable
+        - render_failed
+        - artifact_mismatch
+        - runtime_unavailable
+      description: Stable classification for core authority or fail-closed fallback.
+    selectedProvider:
+      type: string
+      description: Provider selected before fail-closed presentation rewrites provider to core.
+    selectedExtensionId: { type: string }
+    selectedContributionId: { type: string }
+    selectedVersion: { type: string }
+    selectedPackageDigest: { type: string }
+    selectedRuntimeInstanceId: { type: string }
+    nodeRevision:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Process-local theme runtime revision for rendered output.
     templatePath: { type: string }
     templateHtml: { type: string, description: "Sandboxed L1 HTML with host islands preserved" }
     dataSource: { type: string, description: "core | plugin" }

@@ -41,7 +41,9 @@ describe('protected route rendering', () => {
 
   test('topic detail allows anonymous SWR but gates auth/edit via middleware', () => {
     const config = readFileSync(new URL('../nuxt.config.ts', import.meta.url), 'utf8')
-    expect(config).toMatch(/['"]\/t\/\*\*['"]\s*:\s*\{\s*swr\s*:\s*60\s*\}/)
+    expect(config).toMatch(/['"]\/t\/\*\*['"]\s*:/)
+    expect(config).toMatch(/swr\s*:\s*60/)
+    expect(config).toContain('x-sforum-public-surface-revision')
     expect(config).not.toContain("'/en/t/**'")
 
     const middlewarePath = new URL('../server/middleware/topic-page-cache.ts', import.meta.url)
@@ -51,6 +53,11 @@ describe('protected route rendering', () => {
     expect(source).toContain('searchParams.has(\'edit\')')
     expect(source).toContain('routeRules.cache = false')
     expect(source).toContain('routeRules.swr = false')
+    expect(source).toContain('loadPublicSurfaceRevision')
+    expect(source).toContain('PUBLIC_SURFACE_REVISION_HEADER')
+    const utilPath = new URL('../server/utils/publicSurfaceRevision.ts', import.meta.url)
+    expect(existsSync(utilPath)).toBe(true)
+    expect(readFileSync(utilPath, 'utf8')).toContain('x-sforum-public-surface-revision')
   })
 
   test('bypasses shared SWR when non-default locale cookie is present', () => {

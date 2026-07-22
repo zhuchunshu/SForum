@@ -862,6 +862,7 @@ func TestServiceNavigationUsesOnlyExplicitMenuPagesFromEnabledPluginsAndActiveTh
 func TestServicePublicActiveThemeSettingsOmitsSecrets(t *testing.T) {
 	theme := protectedBuiltinExtension(DefaultThemeID, TypeTheme)
 	theme.Status = StatusEnabled
+	theme.PackageDigest = strings.Repeat("a", 64)
 	theme.Manifest.Settings = []ManifestSetting{
 		{Key: "home.notice.zh-CN", Label: LocalizedText{Default: "Notice"}, Type: "text", Default: "默认提示"},
 		{Key: "home.right_rail.enabled", Label: LocalizedText{Default: "Rail"}, Type: "boolean", Default: "true"},
@@ -887,6 +888,9 @@ func TestServicePublicActiveThemeSettingsOmitsSecrets(t *testing.T) {
 	}
 	if got.ThemeID != DefaultThemeID {
 		t.Fatalf("themeId=%q", got.ThemeID)
+	}
+	if got.Version != theme.Version || got.PackageDigest != theme.PackageDigest {
+		t.Fatalf("theme identity version=%q digest=%q", got.Version, got.PackageDigest)
 	}
 	if got.Settings["home.notice.zh-CN"] != "自定义提示" {
 		t.Fatalf("expected stored notice, got %#v", got.Settings)

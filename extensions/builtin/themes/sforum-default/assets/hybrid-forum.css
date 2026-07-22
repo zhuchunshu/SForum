@@ -1,18 +1,17 @@
-/* 标题衬线：仅用本地/系统字体栈。
- * 主题 L0 CSS 禁止外部 @import（pages.ValidateCSS 会拒绝 https @import）。 */
+/* hybrid demo 字体：仅本地 variable TTF，禁止外部 @import（pages.ValidateCSS）。 */
 @font-face {
   font-family: "DM Sans";
-  src: url("./fonts/DM-Sans-variable.ttf") format("truetype-variations");
+  src: url("./fonts/DM-Sans-variable.ttf") format("truetype");
   font-style: normal;
-  font-weight: 500 700;
+  font-weight: 100 900;
   font-display: swap;
 }
 
 @font-face {
   font-family: "Noto Sans SC";
-  src: url("./fonts/Noto-Sans-SC-variable.ttf") format("truetype-variations");
+  src: url("./fonts/Noto-Sans-SC-variable.ttf") format("truetype");
   font-style: normal;
-  font-weight: 400 700;
+  font-weight: 100 900;
   font-display: swap;
 }
 
@@ -95,9 +94,9 @@
   gap: 8px;
   margin: 0;
   color: var(--sf-public-text);
-  font-family: "Noto Serif SC", "Songti SC", "Noto Sans SC", serif;
-  font-size: 27px;
-  font-weight: 700;
+  font-family: "Noto Sans SC", "DM Sans", system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 600;
   line-height: 1.25;
   letter-spacing: 0;
 }
@@ -202,22 +201,26 @@
 }
 
 .sforum-topic-page .sf-topic-heading__title {
-  margin-bottom: 14px;
-  font-family: "Noto Serif SC", "Songti SC", serif;
-  font-size: 30px;
-  line-height: 1.28;
-  font-weight: 700;
+  margin-bottom: 0;
+  font-family: "Noto Sans SC", "DM Sans", system-ui, sans-serif;
+  font-size: clamp(24px, 2vw, 30px);
+  line-height: 1.35;
+  font-weight: 600;
 }
 
 .sf-topic-heading__byline {
-  margin-bottom: 24px;
-  padding-bottom: 18px;
+  margin-top: 18px;
+  margin-bottom: 0;
+  padding-bottom: 20px;
 }
 
 .sforum-topic-page__prose {
   max-width: var(--sf-public-reading-max);
-  font-size: 15px;
-  line-height: 1.82;
+  padding-top: 22px;
+  color: #404751;
+  font-family: "Noto Sans SC", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.9;
 }
 
 .sforum-topic-page__actions {
@@ -769,6 +772,16 @@
   gap: 10px;
 }
 
+/* demo .cat-dot */
+.sf-theme--default .sf-home-navigation__cat-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  margin-left: 5px;
+  border-radius: 50%;
+  background: var(--sf-accent);
+}
+
 .sf-theme--default .sf-home-navigation__cat-icon {
   display: inline-grid;
   width: 18px;
@@ -827,9 +840,9 @@
 }
 
 .sf-theme--default .sforum-home__feed-title {
-  font-family: "Noto Serif SC", "Songti SC", "Noto Sans SC", serif;
-  font-size: 27px;
-  font-weight: 700;
+  font-family: "Noto Sans SC", "DM Sans", system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 600;
   line-height: 1.25;
 }
 
@@ -1156,10 +1169,67 @@
 .sf-theme--default .sforum-topic-page__prose.sf-prose {
   max-width: 1120px;
   padding-top: 22px;
-  color: var(--sf-public-text-secondary);
+  color: #404751;
   font-family: "Noto Sans SC", system-ui, sans-serif;
   font-size: 14px;
   line-height: 1.9;
+}
+
+.dark .sf-theme--default .sforum-topic-page__prose,
+.dark .sf-theme--default .sforum-topic-page__prose.sf-prose {
+  color: var(--sf-public-text-secondary);
+}
+
+/* 压过 Tailwind prose 子元素默认字号 */
+.sf-theme--default .sforum-topic-page__prose :where(p),
+.sf-theme--default .sforum-topic-page__prose.sf-prose :where(p) {
+  margin: 0 0 18px;
+  color: inherit;
+  font-size: 14px;
+  line-height: 1.9;
+}
+
+.sf-theme--default .sforum-topic-page__prose :where(h2),
+.sf-theme--default .sforum-topic-page__prose.sf-prose :where(h2) {
+  margin: 30px 0 12px;
+  color: var(--sf-public-text);
+  font-family: "Noto Sans SC", "DM Sans", system-ui, sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.sf-theme--default .sforum-topic-page__prose :where(pre),
+.sf-theme--default .sforum-topic-page__prose.sf-prose :where(pre) {
+  margin: 22px 0;
+  border: 0;
+  border-radius: 4px;
+  padding: 18px 20px;
+  background: #252a31;
+  color: #edf1f8;
+  font-size: 12px;
+  line-height: 1.75;
+}
+
+.sf-theme--default .sf-topic-heading__author {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sf-theme--default .sf-topic-heading__byline time,
+.sf-theme--default .sf-topic-heading__metric {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--sf-public-text-muted);
+}
+
+.sf-theme--default .sforum-topic-page__action-btn {
+  min-height: 38px;
+  height: 38px;
+  border-radius: 4px;
+  padding: 0 15px;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 /* 评论空态：跟随 public surface token（含日夜模式） */

@@ -477,7 +477,17 @@
   color: color-mix(in srgb, var(--sf-accent) 55%, #fff);
 }
 
-/* 分类/标签：管理端配置的彩色 icon（icon + iconColor） */
+/* demo .cat-dot：7px 彩色圆点（iconColor / accent） */
+.sf-home-navigation__cat-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  margin-left: 5px;
+  border-radius: 50%;
+  background: var(--sf-accent);
+}
+
+/* 保留 icon 槽位样式（若其它入口仍渲染 icon） */
 .sf-home-navigation__cat-icon {
   display: inline-grid;
   width: 18px;
@@ -644,16 +654,20 @@
   margin-bottom: 20px;
 }
 
-.sforum-home__feed-title {
+/* demo body[data-variant] .feed-head h1：Noto Sans SC 20/600（非衬线 27）
+ * 选择器对齐 hybrid 的 .sf-theme--default 权重，避免旧 L0 包里的衬线 27 抢胜。 */
+.sforum-home__feed-title,
+.sf-theme--default .sforum-home__feed-title,
+.sf-page.sf-theme--default .sforum-home__feed-title {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 8px;
   margin: 0;
   color: var(--sf-public-text);
-  font-family: "Noto Serif SC", "Songti SC", "Noto Sans SC", serif;
-  font-size: 27px;
-  font-weight: 700;
+  font-family: "Noto Sans SC", "DM Sans", system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 600;
   line-height: 1.25;
   letter-spacing: 0;
 }
@@ -766,7 +780,7 @@
   }
 
   .sforum-home__feed-title {
-    font-size: 21px;
+    font-size: 18px;
   }
 }
 

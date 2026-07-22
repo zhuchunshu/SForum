@@ -35,7 +35,7 @@ describe('legal page presentation ownership', () => {
 
     test(`${slug} ThemeTemplate maps ${componentId} to island component`, () => {
       const template = read('app/components/SFThemeTemplate.vue')
-      expect(template).toContain(`'${componentId}': resolveComponent('${island}')`)
+      expect(template).toContain(`'${componentId}': resolveComponent('Lazy${island}')`)
     })
   }
 

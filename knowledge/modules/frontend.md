@@ -226,6 +226,26 @@ without rebuilding Nuxt or restarting Nitro.
 - Active theme skin URLs come from `GET /api/v1/site/active-theme/skin` and are
   emitted through root `useHead` during SSR, so the first HTML already includes
   the theme-assets stylesheets before hydration.
+- **Page resolve resilience (2026-07-22):** rendered Page Registry output is
+  never reused across paths, query strings, locales, or actors. `SFPageOutlet`
+  keys async data by page id + path + query + locale + actor, uses a bounded
+  timeout with one retry for transient `/pages/resolve` failures, and preserves
+  Core fail-closed as the last resort.
+  - Any SSR fail-closed resolve response (`fallback:true`, including HTTP 200
+    `render_failed` / `view_model_unavailable` / `artifact_mismatch` /
+    `runtime_unavailable`, or frontend `transport_unavailable`) marks the
+    current response `Cache-Control: no-store` and disables Nitro cache/SWR for
+    that request, so anonymous `/t/**` SWR cannot share transient Core HTML.
+  - Resolve payloads distinguish `authoritative_core` from transient/runtime
+    failure reasons and carry the selected provider/artifact/revision metadata
+    before provider is presented as Core for fail-closed rendering.
+  - `useActiveThemeSkin` may restore last-good CSS only for the same
+    `extensionId + packageDigest + nodeRevision`, within a 60s TTL, and only
+    for validated same-origin theme asset URLs. Authoritative empty skin clears
+    memory and `sessionStorage`.
+  - `useActiveThemeSettings` uses the same short-lived exact-theme identity
+    guard and does not reuse Theme A settings after Theme B, digest, or known
+    node revision changes.
 - Prebuilt settings components load only through the authenticated immutable API
   digest endpoint after trust. There is no runtime SFC compilation, admin
   registry, host-peer resolver, dev compose, release supervisor, or extension

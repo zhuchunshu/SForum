@@ -31,7 +31,8 @@ describe('remaining public presentation ownership', () => {
 
     test(`${pageId} ThemeTemplate maps to ${island}`, () => {
       const templateSrc = read('app/components/SFThemeTemplate.vue')
-      expect(templateSrc).toContain(`'${componentId}': resolveComponent('Lazy${island}')`)
+      const expectedComponent = pageId === 'forum.topic.show' ? island : `Lazy${island}`
+      expect(templateSrc).toContain(`'${componentId}': resolveComponent('${expectedComponent}')`)
     })
 
     test(`${pageId} theme shells mark presentation ownership`, () => {

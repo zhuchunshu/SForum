@@ -53,20 +53,20 @@ const (
 	DeliveryFailed    = "failed"
 	DeliverySkipped   = "skipped"
 
-	CodeInvalidArchive             = "extension.archive_invalid"
-	CodeInvalidManifest            = "extension.manifest_invalid"
-	CodeNotFound                   = "extension.not_found"
-	CodePreflightFailed            = "extension.preflight_failed"
-	CodeBuildFailed                = "extension.build_failed"
-	CodeThemeActivationRequired    = "extension.theme_activation_required"
-	CodeThemeRuntimeUnavailable    = "extension.theme_runtime_unavailable"
-	CodeThemePreviewStale          = "extension.theme_preview_stale"
-	CodeRouteNotFound              = "extension.route_not_found"
-	CodeRouteMethodNotAllowed      = "extension.route_method_not_allowed"
-	CodeRuntimeUnavailable         = "extension.runtime_unavailable"
-	CodeRuntimeFailed              = "extension.runtime_failed"
+	CodeInvalidArchive          = "extension.archive_invalid"
+	CodeInvalidManifest         = "extension.manifest_invalid"
+	CodeNotFound                = "extension.not_found"
+	CodePreflightFailed         = "extension.preflight_failed"
+	CodeBuildFailed             = "extension.build_failed"
+	CodeThemeActivationRequired = "extension.theme_activation_required"
+	CodeThemeRuntimeUnavailable = "extension.theme_runtime_unavailable"
+	CodeThemePreviewStale       = "extension.theme_preview_stale"
+	CodeRouteNotFound           = "extension.route_not_found"
+	CodeRouteMethodNotAllowed   = "extension.route_method_not_allowed"
+	CodeRuntimeUnavailable      = "extension.runtime_unavailable"
+	CodeRuntimeFailed           = "extension.runtime_failed"
 	// desired-set / plugin runtime publication 冲突或历史投影不可读。
-	CodePluginRuntimeConflict = "extension.plugin_runtime_conflict"
+	CodePluginRuntimeConflict      = "extension.plugin_runtime_conflict"
 	CodeFrontendRuntimeUnavailable = "extension.frontend_runtime_unavailable"
 	CodeFrontendDigestInvalid      = "extension.frontend_digest_invalid"
 	CodeFrontendPackageChanged     = "extension.frontend_package_changed"
@@ -533,8 +533,11 @@ type AdminPageBootstrap struct {
 
 // PublicActiveThemeSettings 当前激活主题的非 secret 运行时设置（前台可读）。
 type PublicActiveThemeSettings struct {
-	ThemeID  string            `json:"themeId"`
-	Settings map[string]string `json:"settings"`
+	ThemeID       string            `json:"themeId"`
+	Version       string            `json:"version,omitempty"`
+	PackageDigest string            `json:"packageDigest,omitempty"`
+	NodeRevision  uint64            `json:"nodeRevision,omitempty"`
+	Settings      map[string]string `json:"settings"`
 }
 
 type UpdateSettingsInput struct {

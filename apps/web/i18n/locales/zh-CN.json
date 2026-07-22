@@ -953,6 +953,7 @@
         "settingsIntro": "以下字段由扩展声明。保存后写入该扩展自己的运行时配置；不影响其它扩展。",
         "settingsLoadFailed": "扩展设置加载失败。",
         "settingsSaved": "扩展设置已保存。",
+        "settingsPublicSurfaceHint": "刷新帖子页即可生效，无需重新激活主题。公开帖子页缓存已更新。",
         "settingsSaveFailed": "扩展设置保存失败。",
         "actionFailed": "扩展设置操作失败。",
         "componentLoading": "正在加载受信任组件…",

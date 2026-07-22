@@ -953,6 +953,7 @@
         "settingsIntro": "These fields are declared by the extension. Values are stored in that extension's own runtime settings and do not affect other extensions.",
         "settingsLoadFailed": "Extension settings could not be loaded.",
         "settingsSaved": "Extension settings saved.",
+        "settingsPublicSurfaceHint": "Refresh the topic page to see changes. Theme reactivation is not required. Public topic page cache has been updated.",
         "settingsSaveFailed": "Extension settings could not be saved.",
         "actionFailed": "Extension settings action failed.",
         "componentLoading": "Loading trusted component…",

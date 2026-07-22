@@ -59,17 +59,9 @@ function selectFromMenu(event: Event) {
   selectCategory((event.target as HTMLSelectElement).value)
 }
 
+/** 左栏分类圆点颜色：优先管理端 iconColor，否则主色。 */
 function categoryIconColor(category: ForumCategory) {
   return category.iconColor?.trim() || 'var(--sf-accent)'
-}
-
-/** 管理端配置的 Iconify 名（i-lucide-* / i-tabler-*）；否则回退 folder。 */
-function categoryIconName(category: ForumCategory) {
-  const icon = category.icon?.trim() || ''
-  if (icon.startsWith('i-')) {
-    return icon
-  }
-  return 'i-lucide-folder'
 }
 </script>
 
@@ -169,13 +161,12 @@ function categoryIconName(category: ForumCategory) {
           :class="{ 'is-active': selectedCategorySlug === category.slug }"
         >
           <span class="sf-home-navigation__link-main">
+            <!-- demo .cat-dot：用 iconColor 着色的圆点，不用分类 icon -->
             <span
-              class="sf-home-navigation__cat-icon"
-              :style="{ color: categoryIconColor(category) }"
+              class="sf-home-navigation__cat-dot"
+              :style="{ background: categoryIconColor(category) }"
               aria-hidden="true"
-            >
-              <UIcon :name="categoryIconName(category)" class="size-[18px]" />
-            </span>
+            />
             {{ category.name }}
           </span>
           <span v-if="navShowCounts" class="sf-home-navigation__count">{{ category.topicCount }}</span>
@@ -193,12 +184,10 @@ function categoryIconName(category: ForumCategory) {
         >
           <span class="sf-home-navigation__link-main">
             <span
-              class="sf-home-navigation__cat-icon"
-              :style="{ color: categoryIconColor(category) }"
+              class="sf-home-navigation__cat-dot"
+              :style="{ background: categoryIconColor(category) }"
               aria-hidden="true"
-            >
-              <UIcon :name="categoryIconName(category)" class="size-[18px]" />
-            </span>
+            />
             {{ category.name }}
           </span>
           <span v-if="navShowCounts" class="sf-home-navigation__count">{{ category.topicCount }}</span>

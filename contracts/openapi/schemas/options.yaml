@@ -81,6 +81,7 @@ AdminWebOption:
       - site.date_format
       - site.time_format
       - site.start_of_week
+      - site.public_surface_revision
       - legal.terms.body.zh-CN
       - legal.terms.body.en-US
       - legal.privacy.body.zh-CN
@@ -262,6 +263,7 @@ WebOptionInput:
       - site.date_format
       - site.time_format
       - site.start_of_week
+      - site.public_surface_revision
       - legal.terms.body.zh-CN
       - legal.terms.body.en-US
       - legal.privacy.body.zh-CN
@@ -404,6 +406,7 @@ AdminWebOptionInput:
       - site.date_format
       - site.time_format
       - site.start_of_week
+      - site.public_surface_revision
       - legal.terms.body.zh-CN
       - legal.terms.body.en-US
       - legal.privacy.body.zh-CN

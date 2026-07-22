@@ -62,7 +62,25 @@ describe('SFPageOutlet catalog wiring', () => {
     const src = read('app/components/SFPageOutlet.vue')
     expect(src).toContain("path: route.path")
     expect(src).toContain("query.set('query', requestQuery.value)")
-    expect(src).toContain('route.path}?${requestQuery.value}')
+    expect(src).toContain('resolveLocale.value')
+    expect(src).toContain('resolveActorKey.value')
+    expect(src).toContain('${route.path}?${requestQuery.value}')
+  })
+
+  it('does not cache rendered Page Registry output across paths or actors', () => {
+    const src = read('app/components/SFPageOutlet.vue')
+    const util = read('app/utils/pageResolve.ts')
+    expect(src).not.toContain('usePageResolveShellCache')
+    expect(src).not.toContain('rememberShell')
+    expect(src).not.toContain('recallShell')
+    expect(src).not.toContain('data-stale')
+    expect(src).not.toContain('default: () =>')
+    expect(src).toContain('requestPageResolveWithRetry')
+    expect(src).toContain('PAGE_RESOLVE_TIMEOUT_MS')
+    expect(src).toContain('PAGE_RESOLVE_REASON.transportUnavailable')
+    expect(src).toContain('disableSharedPageCacheForPageResolve')
+    expect(util).toContain('routeRules.cache = false')
+    expect(util).toContain('routeRules.swr = false')
   })
 
   it('loads only Host-issued exact-artifact L2 descriptors', () => {

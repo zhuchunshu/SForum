@@ -93,6 +93,7 @@ func (s *Service) updateSettingsViaLifecycle(
 		// lifecycle 权威已前进，不倒退 revision）。
 		return ExtensionSettings{}, err
 	}
+	s.maybeBumpPublicSurfaceRevision(ctx, extension)
 	return resolveExtensionSettings(extension, viewValues, locale), nil
 }
 
@@ -120,6 +121,7 @@ func (s *Service) resetSettingsViaLifecycle(
 	if err := s.restartPluginForSettings(ctx, extension, restart); err != nil {
 		return ExtensionSettings{}, err
 	}
+	s.maybeBumpPublicSurfaceRevision(ctx, extension)
 	return resolveExtensionSettings(extension, cloneStringMap(doc.Values), locale), nil
 }
 

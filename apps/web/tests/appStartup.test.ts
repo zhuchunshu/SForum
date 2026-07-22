@@ -141,6 +141,7 @@ function loadAppComponentForStartupTest(options: { server: boolean, routePath?: 
     () => {},
     () => ({
       links: ref([]),
+      restoreLastPublic: () => false,
       refresh: async () => {
         themeSkinRefreshStarted = true
       },

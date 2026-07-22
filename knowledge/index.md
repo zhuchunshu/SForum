@@ -6,6 +6,27 @@ session archive.
 
 ## Latest Handoff
 
+- **2026-07-22 Hybrid topic typography 100% fidelity**
+  - Demo 实测对齐：标题/正文/h2/pre/byline/按钮/搜索/评论标题；分类圆点；
+    顶栏 active 主色无下划线；本地 accent `custom:#d94763`
+  - Handoff: `sessions/2026-07-22-hybrid-topic-typography-fidelity-handoff.md`
+  - Module: `modules/frontend.md`
+
+- **2026-07-22 Content policy badge settings instant effect (P0+P1)**
+  - `site.public_surface_revision` bump on extension settings that affect
+    public contributions; Nuxt `/t/**` SWR varies revision header
+  - Admin Toast: refresh topic page, no theme reactivation
+  - Handoff: `sessions/2026-07-22-content-policy-badge-settings-instant-handoff.md`
+  - Module: `modules/extensions.md`
+
+- **2026-07-22 Sticky theme resolve resilience**
+  - Removed unsafe last-good L1 shell reuse; resolve retries once and binds
+    async data to page/path/query/locale/actor
+  - Fail-closed SSR is `no-store` with Nitro SWR disabled; skin/settings
+    last-good caches require exact theme identity + short TTL
+  - Handoff: `sessions/2026-07-22-sticky-theme-resolve-resilience-handoff.md`
+  - Module: `modules/frontend.md`
+
 - **2026-07-22 i18n no_prefix seamless locale**
   - Strategy `no_prefix`: no `/en` routes; `setLocale` + cookie only
   - Legacy `/en/*` 301 strip; non-default locale bypasses shared SWR

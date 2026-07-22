@@ -1666,6 +1666,17 @@ PublicActiveThemeSettings:
     themeId:
       type: string
       description: Active theme extension id; empty when no theme is active.
+    version:
+      type: string
+      description: Active theme version; omitted when no theme is active.
+    packageDigest:
+      type: string
+      description: Active exact package digest; clients must not reuse settings across different digests.
+    nodeRevision:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Optional process-local theme runtime revision when available.
     settings:
       type: object
       additionalProperties:

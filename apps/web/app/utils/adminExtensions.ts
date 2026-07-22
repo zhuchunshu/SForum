@@ -98,6 +98,8 @@ export type AdminManifestContribution = {
   order?: number
   label?: Record<string, string>
   icon?: string
+  /** 非空时贡献受同扩展 boolean 设置门控（与宿主 EffectiveContributions 一致）。 */
+  enabledBySetting?: string
   payload?: AdminContributionPayload
 }
 
@@ -293,6 +295,27 @@ export type AdminExtension = {
   stagedVersion?: AdminExtensionVersion
   installedAt: string
   updatedAt: string
+}
+
+/** 与宿主 ManifestAffectsPublicSurface 对齐：设置保存后应提示刷新帖子页并 bump 缓存键。 */
+const publicForumContributionPoints = new Set([
+  'forum.topic.badges',
+  'forum.topic.sidebar',
+  'forum.topic.list.badges',
+  'forum.nav.items'
+])
+
+export function extensionAffectsPublicSurface(extension: Pick<AdminExtension, 'manifest'> | null | undefined): boolean {
+  const contributions = extension?.manifest?.contributions
+  if (!contributions?.length) {
+    return false
+  }
+  return contributions.some((item) => {
+    if (String(item.enabledBySetting || '').trim()) {
+      return true
+    }
+    return publicForumContributionPoints.has(String(item.point || '').trim())
+  })
 }
 
 export type AdminExtensionPageBootstrap = {

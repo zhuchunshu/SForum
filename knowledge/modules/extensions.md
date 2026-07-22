@@ -309,6 +309,15 @@ mail. Implementation checklist:
 - Contribution optional gate: `ManifestContribution.enabledBySetting` must
   reference a boolean setting on the same extension; host filters in
   `EffectiveContributions` (stored value, else schema default).
+- **Public surface revision (P0+P1):** option `site.public_surface_revision`
+  (integer ≥1, public via `/web-options`). Host bumps after extension settings
+  save/reset when the manifest has any non-empty `enabledBySetting` or a public
+  forum contribution point (`forum.topic.badges`, `forum.topic.sidebar`,
+  `forum.topic.list.badges`, `forum.nav.items`). Nuxt anonymous `/t/**` SWR
+  varies request header `x-sforum-public-surface-revision` (set by
+  `topic-page-cache` middleware) so operators never need “re-activate theme”
+  for badge/sidebar contribution toggles. Admin settings Toast explains
+  refresh-only when the extension affects public surface.
 - **E6.0 complete:** storage plugin-provider decision
   (`decisions/2026-07-12-attachment-storage-plugin-provider.md`) + selection
   encoding helpers (`plugin:<extensionId>` in `Support/Storage`).

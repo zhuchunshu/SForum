@@ -101,22 +101,38 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 }
 
 type resolveResponse struct {
-	Page           pages.PageDefinition     `json:"page"`
-	Provider       string                   `json:"provider"`
-	ExtensionID    string                   `json:"extensionId,omitempty"`
-	ContributionID string                   `json:"contributionId,omitempty"`
-	Action         string                   `json:"action"`
-	Fallback       bool                     `json:"fallback"`
-	TemplatePath   string                   `json:"templatePath,omitempty"`
-	TemplateHTML   string                   `json:"templateHtml,omitempty"`
-	DataSource     string                   `json:"dataSource,omitempty"`
-	DataRoute      string                   `json:"dataRoute,omitempty"`
-	RouteParams    map[string]string        `json:"routeParams,omitempty"`
-	LoaderData     any                      `json:"loaderData,omitempty"`
-	LoaderError    string                   `json:"loaderError,omitempty"`
-	Contract       string                   `json:"contractVersion,omitempty"`
-	RenderOutput   *pages.ThemeRenderedPage `json:"renderOutput,omitempty"`
+	Page                      pages.PageDefinition     `json:"page"`
+	Provider                  string                   `json:"provider"`
+	ExtensionID               string                   `json:"extensionId,omitempty"`
+	ContributionID            string                   `json:"contributionId,omitempty"`
+	Action                    string                   `json:"action"`
+	Fallback                  bool                     `json:"fallback"`
+	Reason                    string                   `json:"reason,omitempty"`
+	SelectedProvider          string                   `json:"selectedProvider,omitempty"`
+	SelectedExtensionID       string                   `json:"selectedExtensionId,omitempty"`
+	SelectedContributionID    string                   `json:"selectedContributionId,omitempty"`
+	SelectedVersion           string                   `json:"selectedVersion,omitempty"`
+	SelectedPackageDigest     string                   `json:"selectedPackageDigest,omitempty"`
+	SelectedRuntimeInstanceID string                   `json:"selectedRuntimeInstanceId,omitempty"`
+	NodeRevision              uint64                   `json:"nodeRevision,omitempty"`
+	TemplatePath              string                   `json:"templatePath,omitempty"`
+	TemplateHTML              string                   `json:"templateHtml,omitempty"`
+	DataSource                string                   `json:"dataSource,omitempty"`
+	DataRoute                 string                   `json:"dataRoute,omitempty"`
+	RouteParams               map[string]string        `json:"routeParams,omitempty"`
+	LoaderData                any                      `json:"loaderData,omitempty"`
+	LoaderError               string                   `json:"loaderError,omitempty"`
+	Contract                  string                   `json:"contractVersion,omitempty"`
+	RenderOutput              *pages.ThemeRenderedPage `json:"renderOutput,omitempty"`
 }
+
+const (
+	resolveReasonAuthoritativeCore    = "authoritative_core"
+	resolveReasonViewModelUnavailable = "view_model_unavailable"
+	resolveReasonRenderFailed         = "render_failed"
+	resolveReasonArtifactMismatch     = "artifact_mismatch"
+	resolveReasonRuntimeUnavailable   = "runtime_unavailable"
+)
 
 func (h *Controller) resolve(c fiber.Ctx) error {
 	setPrivatePageResponse(c)
@@ -136,7 +152,6 @@ func (h *Controller) resolve(c fiber.Ctx) error {
 	var err error
 	if h.registry != nil {
 		resolved, err = h.registry.Resolve(c.Context(), pageID)
-		// DEBUG
 	} else {
 		resolved, err = pages.ResolveCore(pageID)
 	}
@@ -173,6 +188,16 @@ func (h *Controller) resolve(c fiber.Ctx) error {
 	var loaderData any
 	var loaderError string
 	loaderHandled := false
+	reason := ""
+	if resolved.Provider == pages.ProviderCore {
+		reason = resolveReasonAuthoritativeCore
+	}
+	setFallback := func(nextReason string) {
+		if reason == "" || reason == resolveReasonAuthoritativeCore {
+			reason = nextReason
+		}
+		resolved.Fallback = true
+	}
 	if resolved.Provider != pages.ProviderCore && h.runtime != nil {
 		artifact := pages.RuntimeArtifact{
 			ExtensionID: resolved.ExtensionID, ExtensionVersion: resolved.Version,
@@ -184,12 +209,12 @@ func (h *Controller) resolve(c fiber.Ctx) error {
 				loaderHandled = true
 				if h.loader == nil {
 					loaderError = "pages: loader unavailable"
-					resolved.Fallback = true
+					setFallback(resolveReasonViewModelUnavailable)
 				} else {
 					loaded := h.loader.LoadExactForResolved(c.Context(), resolved, locale, actorID)
 					if loaded.Error != "" || len(loaded.Data) == 0 {
 						loaderError = loaded.Error
-						resolved.Fallback = true
+						setFallback(resolveReasonViewModelUnavailable)
 					} else {
 						output, renderErr := snapshot.RenderPluginData(
 							c.Context(), loaded.Data, themecompiler.PageSEOView{Title: resolved.Page.ID}, resolved.ContributionID,
@@ -199,15 +224,18 @@ func (h *Controller) resolve(c fiber.Ctx) error {
 							if resolved.TemplateHTML != "" {
 								runtimeOutput = &output
 								resolved.Fallback = output.Source == pages.ThemeRenderSourceEmergency
+								if resolved.Fallback {
+									reason = resolveReasonRenderFailed
+								}
 								if !resolved.Fallback {
 									loaderData = pages.DecodeLoaderData(loaded.Data)
 								}
 							} else {
-								resolved.Fallback = true
+								setFallback(resolveReasonRenderFailed)
 							}
 						} else {
 							loaderError = renderErr.Error()
-							resolved.Fallback = true
+							setFallback(resolveReasonRenderFailed)
 						}
 					}
 				}
@@ -238,8 +266,9 @@ func (h *Controller) resolve(c fiber.Ctx) error {
 					return fiber.NewError(fiber.StatusUnauthorized, "auth.required")
 				}
 				var output pages.ThemeRenderedPage
-				renderErr := firstPageRenderError(viewerErr, dataErr)
-				if renderErr == nil {
+				viewModelErr := firstPageRenderError(viewerErr, dataErr)
+				renderErr := viewModelErr
+				if viewModelErr == nil {
 					output, renderErr = snapshot.Render(c.Context(), viewRequest, resolved.ContributionID)
 				}
 				// 可选组件 composition：普通错误 fail-open，SEO 围栏 fail closed。
@@ -259,19 +288,24 @@ func (h *Controller) resolve(c fiber.Ctx) error {
 						runtimeOutput = &output
 						// 模板链回退仍是有效 L1；只有 emergency 才交还核心页面。
 						resolved.Fallback = output.Source == pages.ThemeRenderSourceEmergency
+						if resolved.Fallback {
+							reason = resolveReasonRenderFailed
+						}
 					} else {
-						resolved.Fallback = true
+						setFallback(resolveReasonRenderFailed)
 					}
+				} else if viewModelErr != nil {
+					setFallback(resolveReasonViewModelUnavailable)
 				} else {
-					resolved.Fallback = true
+					setFallback(resolveReasonRenderFailed)
 				}
 			} else {
-				resolved.Fallback = true
+				setFallback(resolveReasonViewModelUnavailable)
 			}
 		} else if h.runtime.Claims(resolved.ExtensionID, resolved.Page.ID, resolved.ContributionID) {
 			// 精确 artifact 不匹配时禁止降级读取旧包文件。
 			runtimeCovered = true
-			resolved.Fallback = true
+			setFallback(resolveReasonArtifactMismatch)
 		}
 	}
 
@@ -294,19 +328,22 @@ func (h *Controller) resolve(c fiber.Ctx) error {
 						if rendered, rerr := pages.RenderTemplate(html, vars); rerr == nil {
 							resolved.TemplateHTML = rendered
 						} else {
-							resolved.Fallback = true
+							setFallback(resolveReasonRenderFailed)
 							resolved.TemplateHTML = ""
 						}
 					} else {
-						resolved.Fallback = true
+						setFallback(resolveReasonRuntimeUnavailable)
 					}
 				} else {
-					resolved.Fallback = true
+					setFallback(resolveReasonRuntimeUnavailable)
 				}
 			} else {
-				resolved.Fallback = true
+				setFallback(resolveReasonRuntimeUnavailable)
 			}
 		}
+	}
+	if resolved.Provider != pages.ProviderCore && runtimeOutput == nil && strings.TrimSpace(resolved.TemplateHTML) == "" && !resolved.Fallback {
+		setFallback(resolveReasonRuntimeUnavailable)
 	}
 
 	// Fallback 时对外 provider 显示 core，避免前台误用失败模板。
@@ -320,21 +357,31 @@ func (h *Controller) resolve(c fiber.Ctx) error {
 	}
 
 	resp := resolveResponse{
-		Page:           resolved.Page,
-		Provider:       provider,
-		ExtensionID:    resolved.ExtensionID,
-		ContributionID: resolved.ContributionID,
-		Action:         action,
-		Fallback:       resolved.Fallback,
-		TemplatePath:   resolved.TemplatePath,
-		TemplateHTML:   resolved.TemplateHTML,
-		DataSource:     resolved.DataSource,
-		DataRoute:      resolved.DataRoute,
-		RouteParams:    routeParams,
-		Contract:       resolved.Page.ContractVersion,
-		RenderOutput:   runtimeOutput,
-		LoaderData:     loaderData,
-		LoaderError:    loaderError,
+		Page:                      resolved.Page,
+		Provider:                  provider,
+		ExtensionID:               resolved.ExtensionID,
+		ContributionID:            resolved.ContributionID,
+		Action:                    action,
+		Fallback:                  resolved.Fallback,
+		Reason:                    reason,
+		SelectedProvider:          selectedProvider(resolved),
+		SelectedExtensionID:       resolved.ExtensionID,
+		SelectedContributionID:    resolved.ContributionID,
+		SelectedVersion:           resolved.Version,
+		SelectedPackageDigest:     resolved.PackageDigest,
+		SelectedRuntimeInstanceID: resolved.RuntimeInstanceID,
+		TemplatePath:              resolved.TemplatePath,
+		TemplateHTML:              resolved.TemplateHTML,
+		DataSource:                resolved.DataSource,
+		DataRoute:                 resolved.DataRoute,
+		RouteParams:               routeParams,
+		Contract:                  resolved.Page.ContractVersion,
+		RenderOutput:              runtimeOutput,
+		LoaderData:                loaderData,
+		LoaderError:               loaderError,
+	}
+	if runtimeOutput != nil {
+		resp.NodeRevision = runtimeOutput.NodeRevision
 	}
 
 	// access 通过后才调用 loader
@@ -618,16 +665,28 @@ func (h *Controller) resolvePath(c fiber.Ctx) error {
 			ContractVersion: contrib.Contract,
 			Replaceable:     false,
 		},
-		Provider:       contrib.ExtensionID,
-		ExtensionID:    contrib.ExtensionID,
-		ContributionID: contrib.ID,
-		Action:         string(pages.ActionAdd),
-		Fallback:       false,
-		TemplatePath:   contrib.Template,
-		DataSource:     contrib.DataSource,
-		DataRoute:      contrib.DataRoute,
-		RouteParams:    match.Params,
-		Contract:       contrib.Contract,
+		Provider:                  contrib.ExtensionID,
+		ExtensionID:               contrib.ExtensionID,
+		ContributionID:            contrib.ID,
+		Action:                    string(pages.ActionAdd),
+		Fallback:                  false,
+		SelectedProvider:          contrib.ExtensionID,
+		SelectedExtensionID:       contrib.ExtensionID,
+		SelectedContributionID:    contrib.ID,
+		SelectedVersion:           contrib.Version,
+		SelectedPackageDigest:     contrib.PackageDigest,
+		SelectedRuntimeInstanceID: contrib.RuntimeInstanceID,
+		TemplatePath:              contrib.Template,
+		DataSource:                contrib.DataSource,
+		DataRoute:                 contrib.DataRoute,
+		RouteParams:               match.Params,
+		Contract:                  contrib.Contract,
+	}
+	setRespFallback := func(reason string) {
+		if resp.Reason == "" {
+			resp.Reason = reason
+		}
+		resp.Fallback = true
 	}
 	runtimeCovered := false
 	loaderHandled := false
@@ -642,23 +701,27 @@ func (h *Controller) resolvePath(c fiber.Ctx) error {
 				loaderHandled = true
 				if h.loader == nil {
 					resp.LoaderError = "pages: loader unavailable"
-					resp.Fallback = true
+					setRespFallback(resolveReasonViewModelUnavailable)
 				} else {
 					loaded := h.loader.LoadExactForContribution(c.Context(), contrib, match.Params, locale, actorID)
 					if loaded.Error != "" || len(loaded.Data) == 0 {
 						resp.LoaderError = loaded.Error
-						resp.Fallback = true
+						setRespFallback(resolveReasonViewModelUnavailable)
 					} else {
 						output, renderErr := snapshot.RenderPluginData(
 							c.Context(), loaded.Data, themecompiler.PageSEOView{Title: contrib.ID}, contrib.ID,
 						)
 						if renderErr != nil {
 							resp.LoaderError = renderErr.Error()
-							resp.Fallback = true
+							setRespFallback(resolveReasonRenderFailed)
 						} else {
 							resp.TemplateHTML = snapshot.LegacyHTML(output)
 							resp.RenderOutput = &output
+							resp.NodeRevision = output.NodeRevision
 							resp.Fallback = resp.TemplateHTML == "" || output.Source == pages.ThemeRenderSourceEmergency
+							if resp.Fallback {
+								resp.Reason = resolveReasonRenderFailed
+							}
 							if !resp.Fallback {
 								resp.LoaderData = pages.DecodeLoaderData(loaded.Data)
 							}
@@ -668,7 +731,7 @@ func (h *Controller) resolvePath(c fiber.Ctx) error {
 			}
 		} else if h.runtime.Claims(contrib.ExtensionID, contrib.ID, contrib.ID) {
 			runtimeCovered = true
-			resp.Fallback = true
+			setRespFallback(resolveReasonArtifactMismatch)
 		}
 	}
 
@@ -686,13 +749,24 @@ func (h *Controller) resolvePath(c fiber.Ctx) error {
 					if rendered, rerr := pages.RenderTemplate(html, vars); rerr == nil {
 						resp.TemplateHTML = rendered
 					} else {
-						resp.Fallback = true
+						setRespFallback(resolveReasonRenderFailed)
 					}
 				} else {
-					resp.Fallback = true
+					setRespFallback(resolveReasonRuntimeUnavailable)
 				}
 			}
+		} else {
+			setRespFallback(resolveReasonRuntimeUnavailable)
 		}
+	}
+	if resp.RenderOutput == nil && strings.TrimSpace(resp.TemplateHTML) == "" && !resp.Fallback {
+		if resp.DataSource == "plugin" && resp.DataRoute != "" && h.loader != nil {
+			lr := h.loader.LoadForContribution(c.Context(), contrib, match.Params, locale, actorID)
+			if lr.Error != "" {
+				resp.LoaderError = lr.Error
+			}
+		}
+		setRespFallback(resolveReasonRuntimeUnavailable)
 	}
 
 	// access 已通过 → loader
@@ -829,6 +903,13 @@ func firstPageRenderError(errs ...error) error {
 		}
 	}
 	return nil
+}
+
+func selectedProvider(resolved pages.ResolvedPage) string {
+	if strings.TrimSpace(resolved.Provider) != "" {
+		return resolved.Provider
+	}
+	return pages.ProviderCore
 }
 
 func actorPermissionKeys(actor identity.Actor) []string {

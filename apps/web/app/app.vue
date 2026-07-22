@@ -43,9 +43,12 @@ async function refreshStartupState(options: { restoreAuth: boolean }) {
 
 async function syncThemeSkin() {
   if (adminRoutes.routeId(route.path) !== null) {
+    // 管理端隔离公开主题 CSS；内存中仍保留 lastPublic，离开时立刻恢复。
     themeSkin.clear()
     return
   }
+  // 先贴上次成功的皮肤，再后台刷新，避免 API 慢时闪回 host baseline。
+  themeSkin.restoreLastPublic()
   await themeSkin.refresh()
 }
 

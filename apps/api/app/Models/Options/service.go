@@ -515,6 +515,10 @@ func (s *Service) UpdateMany(ctx context.Context, actor identity.Actor, inputs [
 
 	for _, input := range inputs {
 		name := normalizeName(input.Name)
+		// 宿主内部 revision：仅 BumpPublicSurfaceRevision 可写，拒绝运营手改。
+		if name == NamePublicSurfaceRevision {
+			return nil, ErrInvalidOption
+		}
 		definition, ok := optionDefinitionFor(name)
 		if !ok {
 			return nil, ErrInvalidOption
@@ -911,6 +915,7 @@ func (s *Service) coerceValueSet(values map[string]string) map[string]string {
 	coerceAvatarOptions(coerced, defaults)
 	coerceFeatureFlagOptions(coerced, defaults)
 	coercePagesRegistryOptions(coerced, defaults)
+	coercePublicSurfaceRevisionOptions(coerced, defaults)
 	return coerced
 }
 
@@ -1089,6 +1094,7 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 	mergeSiteBrandDefaults(values)
 	mergeFeatureFlagDefaults(values)
 	mergePagesRegistryDefaults(values)
+	mergePublicSurfaceRevisionDefaults(values)
 	for name, value := range seoRecommendedDefaults() {
 		values[name] = value
 	}

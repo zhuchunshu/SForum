@@ -75,6 +75,8 @@ type Service struct {
 	settingsLifecycle SettingsLifecycleRuntime
 	// runtimeRollout 多节点 staged/canary 升级协调（P12 生产绑定）。
 	runtimeRollout RuntimeRolloutCoordinator
+	// publicSurfaceRevision 扩展设置影响公开贡献时 bump，供 Nuxt /t/** SWR 缓存键。
+	publicSurfaceRevision PublicSurfaceRevisionBumper
 }
 
 // SettingsLifecycleRuntime 是 SettingsLifecycle.Service 的最小边界（避免循环依赖测试替身）。
@@ -797,6 +799,7 @@ func (s *Service) UpdateSettings(ctx context.Context, actor identity.Actor, exte
 	if err := s.restartPluginForSettings(ctx, extension, restart); err != nil {
 		return ExtensionSettings{}, s.restoreSettingsAfterRestartFailure(ctx, extension.ID, previousRaw, restart, err)
 	}
+	s.maybeBumpPublicSurfaceRevision(ctx, extension)
 	// 返回解密后的视图（secret 仍在 resolve 中掩码）。
 	return resolveExtensionSettings(extension, values, locale), nil
 }
@@ -831,5 +834,6 @@ func (s *Service) ResetSettings(ctx context.Context, actor identity.Actor, exten
 	if err := s.restartPluginForSettings(ctx, extension, restart); err != nil {
 		return ExtensionSettings{}, s.restoreSettingsAfterRestartFailure(ctx, extension.ID, previousRaw, restart, err)
 	}
+	s.maybeBumpPublicSurfaceRevision(ctx, extension)
 	return resolveExtensionSettings(extension, map[string]string{}, locale), nil
 }

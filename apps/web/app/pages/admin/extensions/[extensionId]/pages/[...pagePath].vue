@@ -4,6 +4,7 @@ import SFTrustedSettingsComponent from '~/components/extensions/settings/SFTrust
 import { apiErrorMessage } from '~/composables/useApiClient'
 import {
   extensionAdminPageRoute,
+  extensionAffectsPublicSurface,
   extensionLocalizedDisplay,
   findExtensionAdminPage,
   normalizeExtensionPagePath,
@@ -184,12 +185,32 @@ watch(settings, (next) => {
 
 watch(settingsError, (current) => {
   if (current && import.meta.client) {
-    toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(current) || t('admin.extensions.dynamic.settingsLoadFailed') })
+    toast.add({
+      color: 'error',
+      icon: 'i-lucide-triangle-alert',
+      title: apiErrorMessage(current) || t('admin.extensions.dynamic.settingsLoadFailed'),
+      duration: 0
+    })
   }
 })
 
 async function loadSettings() {
   await refresh()
+}
+
+function settingsSuccessToast(kind: 'saved' | 'reset') {
+  const affectsPublic = extensionAffectsPublicSurface(extension.value)
+  const title = kind === 'saved'
+    ? t('admin.extensions.dynamic.settingsSaved')
+    : t('admin.extensions.dynamic.settingsReset')
+  toast.add({
+    color: 'success',
+    icon: kind === 'saved' ? 'i-lucide-save' : 'i-lucide-rotate-ccw',
+    title,
+    // 影响公开贡献时说明：刷新帖子页即可，无需重新激活主题；revision bump 已更新匿名 SWR 键。
+    description: affectsPublic ? t('admin.extensions.dynamic.settingsPublicSurfaceHint') : undefined,
+    duration: 10000
+  })
 }
 
 async function saveSettings() {
@@ -203,9 +224,15 @@ async function saveSettings() {
     for (const item of updated.items) {
       formValues[item.key] = item.value
     }
-    toast.add({ color: 'success', icon: 'i-lucide-save', title: t('admin.extensions.dynamic.settingsSaved'), duration: 10000 })
+    settingsSuccessToast('saved')
   } catch (error) {
-    toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.extensions.dynamic.settingsSaveFailed') })
+    // 错误 Toast 不自动关闭，便于运营读完再处理。
+    toast.add({
+      color: 'error',
+      icon: 'i-lucide-triangle-alert',
+      title: apiErrorMessage(error) || t('admin.extensions.dynamic.settingsSaveFailed'),
+      duration: 0
+    })
   } finally {
     savingSettings.value = false
   }
@@ -222,9 +249,14 @@ async function resetSettings() {
     for (const item of updated.items) {
       formValues[item.key] = item.value
     }
-    toast.add({ color: 'success', icon: 'i-lucide-rotate-ccw', title: t('admin.extensions.dynamic.settingsReset'), duration: 10000 })
+    settingsSuccessToast('reset')
   } catch (error) {
-    toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.extensions.dynamic.settingsSaveFailed') })
+    toast.add({
+      color: 'error',
+      icon: 'i-lucide-triangle-alert',
+      title: apiErrorMessage(error) || t('admin.extensions.dynamic.settingsSaveFailed'),
+      duration: 0
+    })
   } finally {
     savingSettings.value = false
   }
