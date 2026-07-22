@@ -477,17 +477,7 @@
   color: color-mix(in srgb, var(--sf-accent) 55%, #fff);
 }
 
-/* demo .cat-dot：7px 彩色圆点（iconColor / accent） */
-.sf-home-navigation__cat-dot {
-  width: 7px;
-  height: 7px;
-  flex: 0 0 7px;
-  margin-left: 5px;
-  border-radius: 50%;
-  background: var(--sf-accent);
-}
-
-/* 保留 icon 槽位样式（若其它入口仍渲染 icon） */
+/* 侧边栏分类：管理端 icon + iconColor（无 icon 时回退 folder） */
 .sf-home-navigation__cat-icon {
   display: inline-grid;
   width: 18px;

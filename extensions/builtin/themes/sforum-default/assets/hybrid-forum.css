@@ -792,16 +792,7 @@
   gap: 10px;
 }
 
-/* demo .cat-dot */
-.sf-theme--default .sf-home-navigation__cat-dot {
-  width: 7px;
-  height: 7px;
-  flex: 0 0 7px;
-  margin-left: 5px;
-  border-radius: 50%;
-  background: var(--sf-accent);
-}
-
+/* 侧边栏分类 icon + iconColor */
 .sf-theme--default .sf-home-navigation__cat-icon {
   display: inline-grid;
   width: 18px;

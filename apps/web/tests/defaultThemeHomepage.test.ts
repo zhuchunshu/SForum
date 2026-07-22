@@ -134,11 +134,11 @@ describe('default theme V32 left-nav homepage contract', () => {
     const nav = homeNav()
 
     expect(nav).toContain('sf-home-navigation__compose')
-    // hybrid demo：分类用彩色圆点，不用管理端 icon
-    expect(nav).toContain('sf-home-navigation__cat-dot')
+    // 侧边栏分类：管理端 icon + iconColor
+    expect(nav).toContain('sf-home-navigation__cat-icon')
     expect(nav).toContain('categoryIconColor')
-    expect(nav).not.toContain('categoryIconName')
-    expect(nav).not.toContain('sf-home-navigation__cat-icon')
+    expect(nav).toContain('categoryIconName')
+    expect(nav).not.toContain('sf-home-navigation__cat-dot')
     expect(nav).toContain('category.topicCount')
     expect(nav).toContain("t('home.allTopics')")
     expect(nav).toContain("t('home.sidebar.newTopic')")
