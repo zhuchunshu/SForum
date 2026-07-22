@@ -74,29 +74,12 @@ type SearchInput struct {
 	PerPage      int
 }
 
+// SearchOutput 与首页 TopicList 行同构：items 为 TopicSummary，前端复用列表组件。
 type SearchOutput struct {
-	Items   []SearchItem `json:"items"`
-	Total   int64        `json:"total"`
-	Page    int          `json:"page"`
-	PerPage int          `json:"perPage"`
-}
-
-type SearchItem struct {
-	ID                int64    `json:"id"`
-	Title             string   `json:"title"`
-	Excerpt           string   `json:"excerpt"`
-	CategoryID        int64    `json:"categoryId"`
-	CategorySlug      string   `json:"categorySlug"`
-	CategoryName      string   `json:"categoryName"`
-	AuthorUserID      int64    `json:"authorUserId"`
-	AuthorUsername    string   `json:"authorUsername"`
-	AuthorDisplayName string   `json:"authorDisplayName"`
-	Slug              string   `json:"slug"`
-	Status            string   `json:"status"`
-	IsPinned          bool     `json:"isPinned"`
-	CommentCount      int64    `json:"commentCount"`
-	ViewCount         int64    `json:"viewCount"`
-	TagSlugs          []string `json:"tagSlugs"`
+	Items   []forum.TopicSummary `json:"items"`
+	Total   int64                `json:"total"`
+	Page    int                  `json:"page"`
+	PerPage int                  `json:"perPage"`
 }
 
 func NewController(service *forum.Service, users identity.ActorStore, sessions *authsession.Manager) *Controller {

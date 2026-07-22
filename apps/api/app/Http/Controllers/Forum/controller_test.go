@@ -814,7 +814,11 @@ func newForumTestAppWithSearch(searchSvc SearchService) (*fiber.App, *controller
 
 func TestControllerSearchEndpoint(t *testing.T) {
 	svc := &fakeSearchService{result: SearchOutput{
-		Items:   []SearchItem{{ID: 1, Title: "Go 指南", Slug: "go-guide"}},
+		Items: []forum.TopicSummary{{
+			ID: 1, Title: "Go 指南", Slug: "go-guide", Status: "active",
+			CategoryID: 1, CategorySlug: "general", CategoryName: "综合讨论",
+			AuthorUserID: 1, Excerpt: "hello",
+		}},
 		Total:   1,
 		Page:    1,
 		PerPage: 20,

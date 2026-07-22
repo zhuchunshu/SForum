@@ -7,6 +7,7 @@
   /* 用户确认的 Flarum 风格三栏：与 tmp/demos/sforum-hybrid-topic-list 对齐。 */
   --sf-public-sidebar-width: 230px;
   --sf-public-right-rail-width: 270px;
+  --sf-public-edge-inset: 24px;
   --sf-public-topbar-height: 58px;
   --sf-public-bg: #ffffff;
   --sf-public-surface: #ffffff;

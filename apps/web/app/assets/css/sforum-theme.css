@@ -42,6 +42,8 @@
   --sf-public-sidebar-width: 230px;
   --sf-public-right-rail-width: 270px;
   --sf-public-topbar-height: 58px;
+  /* 公开壳左右边距：顶栏与三栏内容不贴视口边缘 */
+  --sf-public-edge-inset: 24px;
   --sf-public-radius: 4px;
   --sf-public-reading-max: 70rem;
   --sf-theme-radius: 4px;
@@ -408,28 +410,36 @@
   /*
    * 顶栏与页面三栏同轨：
    * logo 列 = 左栏宽；session 列 = 右栏宽；中间为导航/搜索/发帖/工具。
-   * 零外边距，列内 padding 对齐侧栏内容内边距。
+   * 左右 edge-inset 离开视口边缘；列内 padding 对齐侧栏内容。
    */
   .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__inner {
     display: grid;
     min-height: 58px;
+    /* 搜索列用 1fr 吃掉中间空白，搜索框本身 max-width 限制，避免占满顶栏 */
     grid-template-columns:
       var(--sf-public-sidebar-width, 230px)
       auto
-      minmax(160px, 1fr)
+      minmax(0, 1fr)
       auto
       auto
       var(--sf-public-right-rail-width, 270px) !important;
     gap: 10px;
-    padding: 0;
+    padding: 0 var(--sf-public-edge-inset, 24px);
   }
 
   .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__logo {
-    padding-left: 28px;
+    padding-left: 16px;
   }
 
   .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__desktop-nav {
     gap: 28px;
+  }
+
+  .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__search {
+    width: min(260px, 100%);
+    max-width: 280px;
+    min-width: 0;
+    justify-self: start;
   }
 
   .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__search .sf-search__box {
@@ -445,17 +455,25 @@
     gap: 2px;
   }
 
-  /* 会话列与右栏同宽，右内边距与右栏 content padding 对齐 */
+  /* 会话列与右栏同宽；右内边距 + edge-inset 避免贴边 */
   .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__session {
     box-sizing: border-box;
     width: 100%;
     min-width: 0;
     justify-content: flex-end;
-    padding: 0 28px 0 12px;
+    padding: 0 16px 0 12px;
   }
 
   .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__user-trigger {
     max-width: 100%;
+  }
+
+  /* 页面三栏与顶栏同左右 inset，列线对齐且不贴视口 */
+  .sf-theme--default .sforum-home__layout,
+  .sf-theme--default .sforum-topic-page__layout {
+    box-sizing: border-box;
+    padding-left: var(--sf-public-edge-inset, 24px);
+    padding-right: var(--sf-public-edge-inset, 24px);
   }
 }
 

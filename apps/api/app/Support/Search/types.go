@@ -25,6 +25,15 @@ type TopicPageSizeResolver interface {
 	TopicPageSize(ctx context.Context) (int, error)
 }
 
+// LiveTopicSource 用权威 topics 表校验引擎命中。
+// 引擎（Meili / 站内 FTS）是可重建派生数据；删库重 seed、异步 delete 失败都会留下幽灵文档。
+// Search 在返回前用此接口剔除不存在或不可公开的主题，并替换为实时摘要字段。
+type LiveTopicSource interface {
+	// ListPublicByIDs 仅返回仍存在且可公开列表的主题（active/locked + 公开分类）。
+	// 返回 map 的 key 为 topic id；缺失 id 表示应丢弃。
+	ListPublicByIDs(ctx context.Context, ids []int64) (map[int64]TopicSearchDoc, error)
+}
+
 // TopicSearchDoc 是写入搜索引擎的主题文档结构。字段与 forum.TopicSummary 对齐，
 // 但独立声明以解耦。tagSlugs 用数组供引擎侧过滤。
 type TopicSearchDoc struct {

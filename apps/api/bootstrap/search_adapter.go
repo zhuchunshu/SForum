@@ -55,10 +55,55 @@ func (r forumSearchReader) GetTopicForSearch(ctx context.Context, topicID int64)
 	return doc, nil
 }
 
-// searchServiceAdapter 把 search.Service 适配为 forumcontroller.SearchService，
-// 完成 search.SearchResult → controller SearchOutput 的字段映射。
+// forumLiveSearchSource 用 PostgresStore 权威校验搜索引擎命中，剔除幽灵主题。
+type forumLiveSearchSource struct {
+	store *forum.PostgresStore
+}
+
+func (s forumLiveSearchSource) ListPublicByIDs(ctx context.Context, ids []int64) (map[int64]search.TopicSearchDoc, error) {
+	if s.store == nil {
+		return map[int64]search.TopicSearchDoc{}, nil
+	}
+	hits, err := s.store.ListPublicTopicSearchHits(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[int64]search.TopicSearchDoc, len(hits))
+	for id, topic := range hits {
+		doc := search.TopicSearchDoc{
+			ID:             topic.ID,
+			Title:          topic.Title,
+			Excerpt:        topic.Excerpt,
+			CategoryID:     topic.CategoryID,
+			CategorySlug:   topic.CategorySlug,
+			CategoryName:   topic.CategoryName,
+			AuthorUserID:   topic.AuthorUserID,
+			Slug:           topic.Slug,
+			Status:         topic.Status,
+			IsPinned:       topic.IsPinned,
+			CommentCount:   topic.CommentCount,
+			ViewCount:      topic.ViewCount,
+			CreatedAt:      topic.CreatedAt,
+			UpdatedAt:      topic.UpdatedAt,
+			LastActivityAt: topic.LastActivityAt,
+		}
+		if topic.Author != nil {
+			doc.AuthorUsername = topic.Author.Username
+			doc.AuthorDisplayName = topic.Author.DisplayName
+		}
+		for _, tag := range topic.Tags {
+			doc.TagSlugs = append(doc.TagSlugs, tag.Slug)
+		}
+		out[id] = doc
+	}
+	return out, nil
+}
+
+// searchServiceAdapter 把 search.Service 适配为 forumcontroller.SearchService。
+// 引擎排序后，再用 ListPublicTopicSearchHits 输出与 GET /topics 同构的 TopicSummary 行。
 type searchServiceAdapter struct {
 	inner *search.Service
+	store *forum.PostgresStore
 }
 
 // reindexServiceAdapter 把 search.ReindexManager 适配为 forumcontroller.ReindexService，
@@ -152,25 +197,50 @@ func (a searchServiceAdapter) Search(ctx context.Context, input forumcontroller.
 		}
 		return forumcontroller.SearchOutput{}, err
 	}
-	items := make([]forumcontroller.SearchItem, 0, len(res.Items))
+	// 按引擎排序取 id，再用列表行 hydrate（头像 / lastReplyAuthor / 时间戳 / tags）。
+	ids := make([]int64, 0, len(res.Items))
 	for _, doc := range res.Items {
-		items = append(items, forumcontroller.SearchItem{
-			ID:                doc.ID,
-			Title:             doc.Title,
-			Excerpt:           doc.Excerpt,
-			CategoryID:        doc.CategoryID,
-			CategorySlug:      doc.CategorySlug,
-			CategoryName:      doc.CategoryName,
-			AuthorUserID:      doc.AuthorUserID,
-			AuthorUsername:    doc.AuthorUsername,
-			AuthorDisplayName: doc.AuthorDisplayName,
-			Slug:              doc.Slug,
-			Status:            doc.Status,
-			IsPinned:          doc.IsPinned,
-			CommentCount:      doc.CommentCount,
-			ViewCount:         doc.ViewCount,
-			TagSlugs:          doc.TagSlugs,
-		})
+		if doc.ID > 0 {
+			ids = append(ids, doc.ID)
+		}
+	}
+	items := make([]forum.TopicSummary, 0, len(ids))
+	if a.store != nil && len(ids) > 0 {
+		hits, hitErr := a.store.ListPublicTopicSearchHits(ctx, ids)
+		if hitErr != nil {
+			return forumcontroller.SearchOutput{}, hitErr
+		}
+		for _, id := range ids {
+			if hit, ok := hits[id]; ok {
+				items = append(items, hit)
+			}
+		}
+	} else {
+		// 无 store 时回退扁平文档（测试/降级）；生产路径始终注入 store。
+		for _, doc := range res.Items {
+			items = append(items, forum.TopicSummary{
+				ID:           doc.ID,
+				CategoryID:   doc.CategoryID,
+				CategorySlug: doc.CategorySlug,
+				CategoryName: doc.CategoryName,
+				AuthorUserID: doc.AuthorUserID,
+				Author: &forum.UserSummary{
+					ID:          doc.AuthorUserID,
+					Username:    doc.AuthorUsername,
+					DisplayName: doc.AuthorDisplayName,
+				},
+				Title:          doc.Title,
+				Slug:           doc.Slug,
+				Status:         doc.Status,
+				IsPinned:       doc.IsPinned,
+				CommentCount:   doc.CommentCount,
+				ViewCount:      doc.ViewCount,
+				Excerpt:        doc.Excerpt,
+				CreatedAt:      doc.CreatedAt,
+				UpdatedAt:      doc.UpdatedAt,
+				LastActivityAt: doc.LastActivityAt,
+			})
+		}
 	}
 	return forumcontroller.SearchOutput{
 		Items:   items,

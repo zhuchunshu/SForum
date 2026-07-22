@@ -23,6 +23,7 @@
   --sf-public-sidebar-width: 230px;
   --sf-public-right-rail-width: 270px;
   --sf-public-topbar-height: 58px;
+  --sf-public-edge-inset: 24px;
   --sf-public-radius: 4px;
   --sf-public-reading-max: 70rem;
   --sf-public-bg: #fff;
@@ -620,7 +621,7 @@
 .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar .navbar__inner {
   display: grid;
   min-height: 58px;
-  padding: 0;
+  padding: 0 var(--sf-public-edge-inset, 24px);
 }
 
 .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar .navbar__logo-mark,
@@ -678,10 +679,13 @@
   background: var(--sf-accent);
 }
 
+/* 搜索框紧凑定宽；列仍为 1fr，空白留在搜索与发帖之间 */
 .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar .navbar__search {
-  width: 100%;
-  min-width: 220px;
+  width: min(260px, 100%);
+  max-width: 280px;
+  min-width: 0;
   margin-left: 0;
+  justify-self: start;
 }
 
 .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar .navbar__search .sf-search__box {
@@ -1535,22 +1539,22 @@
 }
 
 @media (min-width: 981px) {
-  /* 与页面三栏同轨：末列 = 右栏宽，用户头像/名称与右侧栏对齐 */
+  /* 与页面三栏同轨：末列 = 右栏宽；左右 edge-inset 不贴视口 */
   .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar .navbar__inner {
     display: grid;
     grid-template-columns:
       var(--sf-public-sidebar-width)
       auto
-      minmax(160px, 1fr)
+      minmax(0, 1fr)
       auto
       auto
       var(--sf-public-right-rail-width) !important;
     gap: 10px;
-    padding: 0;
+    padding: 0 var(--sf-public-edge-inset, 24px);
   }
 
   .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar .navbar__logo {
-    padding-left: 28px;
+    padding-left: 16px;
   }
 
   .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar .navbar__new-topic {
@@ -1565,7 +1569,7 @@
     box-sizing: border-box;
     width: 100%;
     justify-content: flex-end;
-    padding: 0 28px 0 12px;
+    padding: 0 16px 0 12px;
   }
 
   .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar .navbar__user-trigger {
@@ -1574,7 +1578,10 @@
 
   .sforum-home__layout,
   .sforum-topic-page__layout {
+    box-sizing: border-box;
     grid-template-columns: var(--sf-public-sidebar-width) minmax(0, 1fr);
+    padding-left: var(--sf-public-edge-inset, 24px);
+    padding-right: var(--sf-public-edge-inset, 24px);
   }
 
   .sforum-home__layout--with-right,

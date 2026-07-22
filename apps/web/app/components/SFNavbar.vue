@@ -740,10 +740,13 @@ async function logout() {
   display: none;
 }
 
+/* 紧凑搜索：不抢占顶栏中间全部空间；默认主题网格内再 cap max-width */
 .navbar__search {
-  width: min(360px, 30vw);
-  min-width: 160px;
+  width: min(260px, 24vw);
+  min-width: 140px;
+  max-width: 280px;
   margin-left: auto;
+  flex: 0 1 260px;
 }
 
 .navbar__search :deep(.sf-search__box) {

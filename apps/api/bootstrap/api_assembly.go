@@ -853,7 +853,9 @@ func wireAPICoreStack(ctx context.Context, cfg config.Config, logger *slog.Logge
 	searchEngine := extensionsruntime.NewResolvingSearchEngine(searchProviders, extensionRuntime, siteEngine)
 	searchIndexer := search.NewIndexer(searchEngine, nil, jobDispatcher)
 	forumSettingsResolver := providers.NewForumSettingsResolver(optionsService)
-	searchService := search.NewService(searchEngine, forumSettingsResolver)
+	// LiveTopicSource：引擎命中后对照 topics 表剔除幽灵文档（Meili 脏索引 / 删库未清引擎）。
+	searchService := search.NewService(searchEngine, forumSettingsResolver).
+		WithLiveSource(forumLiveSearchSource{store: forumStore})
 	// 搜索索引重建：forumStore 提供 ListAllTopicIDs（TopicIDSource），
 	// reindexStore 记录运行状态，dispatcher 批量入队 IndexTopicArgs。
 	reindexManager := search.NewReindexManager(forumStore, search.NewPostgresReindexStore(pool), jobDispatcher)
@@ -871,7 +873,7 @@ func wireAPICoreStack(ctx context.Context, cfg config.Config, logger *slog.Logge
 		authSessions,
 		eventPublisher,
 		searchIndexer,
-		searchServiceAdapter{inner: searchService},
+		searchServiceAdapter{inner: searchService, store: forumStore},
 		reindexServiceAdapter{inner: reindexManager},
 		providers.NewExtensionTopicActionProvider(extensionService),
 		providers.NewExtensionCommentActionProvider(extensionService),
