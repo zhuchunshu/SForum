@@ -4,17 +4,18 @@ tmp_dir = "tmp"
 env_files = ["../../.env", "../../storage/builtin-dev/air.env"]
 
 [build]
-# 仅清理孤儿 sforum-api（父进程不是 air）；当前热重载实例留给 kill_delay + Listen 重试。
-# 同步清理 PPID=1 的扩展 backend plugin 孤儿（不杀仍挂在 live sforum-api 下的子进程）。
-pre_cmd = ["bash ../../scripts/free-api-dev-port.sh", "bash ../../scripts/cleanup-orphan-extension-plugins.sh"]
+# Air 会在 pre_cmd 之前停止旧 API；这里只防御性检查端口，插件孤儿由新 API 内的延迟 reaper 清理。
+pre_cmd = ["bash ../../scripts/free-api-dev-port.sh"]
 cmd = "go build -o ./tmp/sforum-api ./cmd/api"
 entrypoint = ["./tmp/sforum-api"]
 include_dir = ["app", "bootstrap", "cmd", "config", "database"]
 include_ext = ["go"]
 exclude_dir = ["tmp", "vendor", "storage", "database/sqlc", "app/Models/Attachments/storage"]
 exclude_regex = ["_test\\.go"]
-delay = 200
-stop_on_error = true
+# 合并编辑器的连续写入，减少对尚未完整的多文件修改进行编译。
+delay = 500
+# 编译失败时重新运行上一个成功二进制，避免开发 API 一直中断到下次保存。
+stop_on_error = false
 send_interrupt = true
 # 给 Fiber graceful shutdown 留足时间；过短会导致新旧进程同时 bind。
 kill_delay = "2s"

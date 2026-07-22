@@ -9,8 +9,8 @@
 #   ./scripts/cleanup-orphan-extension-plugins.sh
 #   DRY_RUN=1 ./scripts/cleanup-orphan-extension-plugins.sh
 #
-# 注意：air pre_cmd 在「旧 API 被杀之前」执行，只能清掉上一轮遗留；
-# 开发 API 进程内 reaper 会在 kill_delay 之后再扫（见 bootstrap/orphan_plugin_reaper.go）。
+# Air 会在 pre_cmd 之前停止旧 API，因此不要把本脚本放在每次热重载的 pre_cmd。
+# api-dev 启动时负责清理历史孤儿；开发 API 进程内的延迟 reaper 负责热重载遗留。
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
