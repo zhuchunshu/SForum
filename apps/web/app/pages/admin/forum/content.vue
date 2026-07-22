@@ -247,7 +247,8 @@ async function loadHistory(append = false) {
 }
 
 async function loadRevision(revision: ForumRevisionSummary) {
-  if (!selected.value || revision.redacted) {
+  const target = selected.value
+  if (!target || revision.redacted) {
     selectedRevision.value = revision
     revisionDetail.value = null
     revisionDetailError.value = revision.redacted ? t('admin.forum.content.history.redactedDetail') : ''
@@ -260,9 +261,10 @@ async function loadRevision(revision: ForumRevisionSummary) {
   revisionDetailError.value = ''
   try {
     const current = history.value.find(item => item.current)
-    const loadDetail = (revisionNo: number) => selected.value?.targetType === 'topic'
-      ? contentApi.getTopicRevision(selected.value.id, revisionNo)
-      : contentApi.getCommentRevision(selected.value.id, revisionNo)
+    // 捕获局部 target，避免异步回调里 selected 被清空后 TS 仍把 id 当成可能 null。
+    const loadDetail = (revisionNo: number) => target.targetType === 'topic'
+      ? contentApi.getTopicRevision(target.id, revisionNo)
+      : contentApi.getCommentRevision(target.id, revisionNo)
     const [detail, currentDetail] = await Promise.all([
       loadDetail(revision.revisionNo),
       current && current.revisionNo !== revision.revisionNo ? loadDetail(current.revisionNo) : Promise.resolve(null)
