@@ -23,6 +23,7 @@
         "@tiptap/starter-kit": "^3.27.1",
         "@tiptap/vue-3": "^3.27.1",
         "altcha": "^3.1.0",
+        "diff": "^9",
         "dompurify": "^3.4.11",
         "highlight.js": "^11.11.1",
         "nuxt": "^4.4.8",

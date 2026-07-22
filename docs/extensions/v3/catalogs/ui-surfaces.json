@@ -80,6 +80,26 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
+    "id": "core.component.admin.sf_admin_forum_revision_diff",
+    "contractVersion": "sforum.component.admin.sf_admin_forum_revision_diff@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/forum/SFAdminForumRevisionDiff.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
+    "id": "core.component.admin.sf_admin_forum_revision_timeline",
+    "contractVersion": "sforum.component.admin.sf_admin_forum_revision_timeline@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/forum/SFAdminForumRevisionTimeline.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
     "id": "core.component.admin.sfadmin_frontend_trust_panel",
     "contractVersion": "sforum.component.admin.sfadmin_frontend_trust_panel@1",
     "kind": "component",

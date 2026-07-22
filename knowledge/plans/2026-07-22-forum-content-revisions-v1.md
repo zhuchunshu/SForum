@@ -1,6 +1,6 @@
 # Forum Content Editing And Revisions V1 — Task Book
 
-Status: **active** — M5 admin content management complete; M6 revision timeline, diff, restore, and redaction UX next
+Status: **active** — M6 implementation is complete; authenticated browser scenario remains before M7
 Date: 2026-07-22
 Goal: allow authorized staff to edit any topic or comment from the admin area,
 record every effective self/staff edit as an immutable revision, prevent stale
@@ -781,16 +781,18 @@ Acceptance:
 
 ### M6 — Timeline, Diff, Restore, And Redaction UX
 
-- [ ] Add revision summary timeline and lazy detail loading.
-- [ ] Integrate the reviewed diff library for raw source line comparison.
-- [ ] Add structured metadata comparison.
-- [ ] Add sanitized historical preview.
-- [ ] Add restore confirmation, reason, availability checks, conflict handling,
+- [x] Add revision summary timeline and lazy detail loading.
+- [x] Integrate the reviewed diff library for raw source line comparison.
+- [x] Add structured metadata comparison.
+- [x] Add sanitized historical preview.
+- [x] Add restore confirmation, reason, availability checks, conflict handling,
       and success Toast with new revision number.
-- [ ] Add `super_admin` redaction confirmation and persistent irreversible warning.
-- [ ] Cover legacy incomplete and redacted states explicitly.
+- [x] Add `super_admin` redaction confirmation and persistent irreversible warning.
+- [x] Cover legacy incomplete and redacted states explicitly.
 - [ ] Add browser tests for topic edit/history/restore and comment edit/history/
-      restore, including stale concurrent tabs.
+      restore, including stale concurrent tabs. Local API and route guard are
+      available, but no testable admin credentials were supplied; do not reset
+      or mutate the existing super-admin account merely to satisfy QA.
 
 Acceptance:
 

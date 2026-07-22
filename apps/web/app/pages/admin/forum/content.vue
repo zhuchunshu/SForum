@@ -4,14 +4,20 @@ import type {
   AdminForumContentFilters,
   AdminForumContentKind,
   AdminForumContentRow,
-  AdminForumTopicDetail
+  AdminForumTopicDetail,
+  ForumRevisionDetail,
+  ForumRevisionSummary
 } from '~/utils/adminForumContent'
 import { useAdminPage } from '~/composables/useAdminPage'
+import SFAdminForumCommentEditor from '~/components/admin/forum/SFAdminForumCommentEditor.vue'
+import SFAdminForumRevisionDiff from '~/components/admin/forum/SFAdminForumRevisionDiff.vue'
+import SFAdminForumRevisionTimeline from '~/components/admin/forum/SFAdminForumRevisionTimeline.vue'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
 defineOptions({ name: 'AdminForumContent' })
 
 const { t } = useI18n()
+const toast = useToast()
 const { can, user } = usePermissions()
 const adminPage = useAdminPage('/forum/content')
 const contentApi = useAdminForumContent()
@@ -41,6 +47,21 @@ const detailPending = ref(false)
 const detailError = ref('')
 const staffReason = ref('')
 const conflict = ref<AdminForumContentDetail | null>(null)
+const historyOpen = ref(false)
+const history = ref<ForumRevisionSummary[]>([])
+const historyHasMore = ref(false)
+const historyCursor = ref('')
+const historyPending = ref(false)
+const selectedRevision = ref<ForumRevisionSummary | null>(null)
+const revisionDetail = ref<ForumRevisionDetail | null>(null)
+const currentRevisionDetail = ref<ForumRevisionDetail | null>(null)
+const revisionDetailPending = ref(false)
+const revisionDetailError = ref('')
+const revisionAction = ref<'restore' | 'redact' | null>(null)
+const revisionActionReason = ref('')
+const redactionConfirmation = ref('')
+const revisionActionError = ref('')
+const revisionActionPending = ref(false)
 
 const selectedIsDeleted = computed(() => selected.value?.status === 'deleted')
 const selectedCanEdit = computed(() => {
@@ -50,9 +71,17 @@ const selectedCanEdit = computed(() => {
 const selectedCanViewHistory = computed(() => selected.value?.targetType === 'topic'
   ? canViewTopicHistory.value
   : canViewCommentHistory.value)
+const isSuperAdmin = computed(() => user.value?.status === 'active' && user.value.roleKeys.includes('super_admin'))
 const editingAnotherAuthor = computed(() => Boolean(selected.value && selected.value.authorUserId !== user.value?.id))
 const requiresReason = computed(() => selectedCanEdit.value && editingAnotherAuthor.value)
 const pageNumber = computed(() => cursorIndex.value + 1)
+const selectedRevisionCanRestore = computed(() => Boolean(
+  selected.value && selectedRevision.value && selectedCanEdit.value && !selectedIsDeleted.value
+  && !selectedRevision.value.current && !selectedRevision.value.redacted && selectedRevision.value.restorableFields.includes('content')
+))
+const selectedRevisionCanRedact = computed(() => Boolean(
+  selected.value && selectedRevision.value && isSuperAdmin.value && !selectedRevision.value.current && !selectedRevision.value.redacted
+))
 
 const statusOptions = computed(() => [
   { label: t('admin.forum.content.allStatuses'), value: '' },
@@ -143,6 +172,7 @@ async function openDetail(row: AdminForumContentRow) {
   selected.value = null
   conflict.value = null
   staffReason.value = ''
+  resetHistory()
   try {
     selected.value = row.targetType === 'topic'
       ? await contentApi.getTopic(row.id)
@@ -159,6 +189,7 @@ function closeDetail() {
   detailError.value = ''
   conflict.value = null
   staffReason.value = ''
+  resetHistory()
 }
 
 function showConflict() {
@@ -173,11 +204,130 @@ async function reloadLatest() {
   await load()
 }
 
-// M6 owns the timeline and raw revision detail. Keep the M5 conflict action
-// explicit without starting a timeline, diff, restore, or redaction workflow.
-function viewHistory() {
+function resetHistory() {
+  historyOpen.value = false
+  history.value = []
+  historyHasMore.value = false
+  historyCursor.value = ''
+  selectedRevision.value = null
+  revisionDetail.value = null
+  currentRevisionDetail.value = null
+  revisionDetailError.value = ''
+  revisionAction.value = null
+  revisionActionError.value = ''
+}
+
+async function viewHistory() {
   conflict.value = null
-  detailError.value = t('admin.forum.content.historyAvailable')
+  if (!selected.value || !selectedCanViewHistory.value) return
+  historyOpen.value = true
+  if (!history.value.length) await loadHistory()
+}
+
+async function loadHistory(append = false) {
+  if (!selected.value || !selectedCanViewHistory.value) return
+  historyPending.value = true
+  revisionDetailError.value = ''
+  try {
+    const after = append ? historyCursor.value : undefined
+    const response = selected.value.targetType === 'topic'
+      ? await contentApi.listTopicRevisions(selected.value.id, after)
+      : await contentApi.listCommentRevisions(selected.value.id, after)
+    history.value = append ? [...history.value, ...response.items] : response.items
+    historyHasMore.value = response.hasMore
+    historyCursor.value = response.nextCursor || ''
+  } catch (cause) {
+    revisionDetailError.value = apiErrorMessage(cause) || t('admin.forum.content.history.loadFailed')
+  } finally {
+    historyPending.value = false
+  }
+}
+
+async function loadRevision(revision: ForumRevisionSummary) {
+  if (!selected.value || revision.redacted) {
+    selectedRevision.value = revision
+    revisionDetail.value = null
+    revisionDetailError.value = revision.redacted ? t('admin.forum.content.history.redactedDetail') : ''
+    return
+  }
+  selectedRevision.value = revision
+  revisionDetail.value = null
+  currentRevisionDetail.value = null
+  revisionDetailPending.value = true
+  revisionDetailError.value = ''
+  try {
+    const current = history.value.find(item => item.current)
+    const loadDetail = (revisionNo: number) => selected.value?.targetType === 'topic'
+      ? contentApi.getTopicRevision(selected.value.id, revisionNo)
+      : contentApi.getCommentRevision(selected.value.id, revisionNo)
+    const [detail, currentDetail] = await Promise.all([
+      loadDetail(revision.revisionNo),
+      current && current.revisionNo !== revision.revisionNo ? loadDetail(current.revisionNo) : Promise.resolve(null)
+    ])
+    revisionDetail.value = detail
+    currentRevisionDetail.value = currentDetail || detail
+  } catch (cause) {
+    revisionDetailError.value = apiErrorMessage(cause) || t('admin.forum.content.history.detailLoadFailed')
+  } finally {
+    revisionDetailPending.value = false
+  }
+}
+
+function openRevisionAction(action: 'restore' | 'redact') {
+  revisionAction.value = action
+  revisionActionReason.value = ''
+  redactionConfirmation.value = ''
+  revisionActionError.value = ''
+}
+
+function closeRevisionAction() {
+  revisionAction.value = null
+  revisionActionError.value = ''
+}
+
+async function submitRevisionAction() {
+  if (!selected.value || !selectedRevision.value || !revisionAction.value) return
+  const reason = revisionActionReason.value.trim()
+  if (!reason || (revisionAction.value === 'redact' && redactionConfirmation.value.trim() !== 'REDACT')) {
+    revisionActionError.value = revisionAction.value === 'redact'
+      ? t('admin.forum.content.history.redactionConfirmationRequired')
+      : t('admin.forum.content.history.reasonRequired')
+    return
+  }
+  revisionActionPending.value = true
+  revisionActionError.value = ''
+  try {
+    if (revisionAction.value === 'restore') {
+      const updated = selected.value.targetType === 'topic'
+        ? await contentApi.restoreTopicRevision(selected.value.id, selectedRevision.value.revisionNo, { expectedRevision: selected.value.currentRevision, reason })
+        : await contentApi.restoreCommentRevision(selected.value.id, selectedRevision.value.revisionNo, { expectedRevision: selected.value.currentRevision, reason })
+      toast.add({ color: 'primary', icon: 'i-lucide-check', title: t('admin.forum.content.history.restored', { revision: updated.currentRevision }), duration: 10000 })
+      closeRevisionAction()
+      await openDetail(selected.value)
+      historyOpen.value = true
+      await loadHistory()
+      return
+    }
+    if (selected.value.targetType === 'topic') {
+      await contentApi.redactTopicRevision(selected.value.id, selectedRevision.value.revisionNo, { expectedRevision: selected.value.currentRevision, reason, confirmation: 'REDACT' })
+    } else {
+      await contentApi.redactCommentRevision(selected.value.id, selectedRevision.value.revisionNo, { expectedRevision: selected.value.currentRevision, reason, confirmation: 'REDACT' })
+    }
+    toast.add({ color: 'primary', icon: 'i-lucide-check', title: t('admin.forum.content.history.redacted'), duration: 10000 })
+    closeRevisionAction()
+    await loadHistory()
+    const redacted = history.value.find(item => item.revisionNo === selectedRevision.value?.revisionNo)
+    if (redacted) await loadRevision(redacted)
+  } catch (cause) {
+    if (apiErrorReason(cause) === 'forum.revision_conflict') {
+      conflict.value = selected.value
+      closeRevisionAction()
+      return
+    }
+    revisionActionError.value = apiErrorMessage(cause) || t('admin.forum.content.history.actionFailed')
+  } finally {
+    revisionActionPending.value = false
+  }
 }
 
 async function saved() {
@@ -304,7 +454,7 @@ useSeoMeta({ title: t('admin.forum.content.metaTitle') })
                 <div class="flex justify-end gap-1">
                   <UTooltip :text="t('admin.forum.content.inspect')"><UButton icon="i-lucide-eye" color="neutral" variant="ghost" size="sm" :aria-label="t('admin.forum.content.inspect')" @click="openDetail(row)" /></UTooltip>
                   <UTooltip v-if="row.targetType === 'topic' ? canEditTopics : canEditComments" :text="t('admin.common.edit')"><UButton icon="i-lucide-pencil" color="neutral" variant="ghost" size="sm" :aria-label="t('admin.common.edit')" @click="openDetail(row)" /></UTooltip>
-                  <UTooltip v-if="row.targetType === 'topic' ? canViewTopicHistory : canViewCommentHistory" :text="t('admin.forum.content.historyDeferred')"><UButton icon="i-lucide-history" color="neutral" variant="ghost" size="sm" :aria-label="t('admin.forum.content.historyDeferred')" @click="openDetail(row)" /></UTooltip>
+                  <UTooltip v-if="row.targetType === 'topic' ? canViewTopicHistory : canViewCommentHistory" :text="t('admin.forum.content.viewHistory')"><UButton icon="i-lucide-history" color="neutral" variant="ghost" size="sm" :aria-label="t('admin.forum.content.viewHistory')" @click="openDetail(row).then(viewHistory)" /></UTooltip>
                 </div>
               </td>
             </tr>
@@ -334,6 +484,10 @@ useSeoMeta({ title: t('admin.forum.content.metaTitle') })
               </UAlert>
               <UAlert v-if="editingAnotherAuthor && selectedCanEdit" color="warning" variant="soft" icon="i-lucide-user-round-pen" :title="t('admin.forum.content.editingAnotherAuthor')" class="mb-4" />
               <UAlert v-if="selectedIsDeleted" color="neutral" variant="soft" icon="i-lucide-lock" :title="t('admin.forum.content.deletedInspectionOnly')" class="mb-4" />
+              <div v-if="selectedCanViewHistory" class="mb-4 flex items-center justify-between gap-3 rounded-lg border border-slate-200 p-3 dark:border-zinc-800">
+                <span class="text-sm font-medium text-slate-700 dark:text-zinc-200">{{ t('admin.forum.content.history.title') }}</span>
+                <UButton icon="i-lucide-history" color="neutral" variant="outline" size="sm" @click="viewHistory">{{ t('admin.forum.content.viewHistory') }}</UButton>
+              </div>
               <div v-if="selectedCanEdit" class="mb-4 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.forum.content.canonicalSaveHint') }}</div>
               <SFTopicEditor
                 v-if="selected.targetType === 'topic' && selectedCanEdit"
@@ -354,10 +508,57 @@ useSeoMeta({ title: t('admin.forum.content.metaTitle') })
                 @conflict="showConflict"
               />
               <div v-else class="space-y-3"><p class="whitespace-pre-wrap break-words text-sm text-slate-700 dark:text-zinc-200">{{ selected.content.rawContent }}</p></div>
+
+              <section v-if="historyOpen && selectedCanViewHistory" class="mt-8 border-t border-slate-200 pt-6 dark:border-zinc-800">
+                <SFAdminForumRevisionTimeline
+                  :revisions="history"
+                  :selected-revision-no="selectedRevision?.revisionNo"
+                  :loading-revision-no="revisionDetailPending ? selectedRevision?.revisionNo : undefined"
+                  :loading="historyPending"
+                  :has-more="historyHasMore"
+                  @select="loadRevision"
+                  @more="loadHistory(true)"
+                />
+
+                <div v-if="selectedRevision" class="mt-5 space-y-4">
+                  <UAlert v-if="selectedRevision.redacted" color="error" variant="soft" icon="i-lucide-shield-alert" :title="t('admin.forum.content.history.redactedDetail')" :description="t('admin.forum.content.history.redactedDescription')" />
+                  <UAlert v-else-if="!selectedRevision.snapshotComplete" color="warning" variant="soft" icon="i-lucide-info" :title="t('admin.forum.content.history.legacyTitle')" :description="t('admin.forum.content.history.legacyDescription')" />
+                  <UAlert v-if="revisionDetailError && !selectedRevision.redacted" color="error" variant="soft" icon="i-lucide-triangle-alert" :title="revisionDetailError" />
+                  <div v-else-if="revisionDetailPending" class="space-y-3"><USkeleton class="h-28 w-full" /><USkeleton class="h-48 w-full" /></div>
+                  <template v-else-if="revisionDetail">
+                    <div class="flex flex-wrap gap-2">
+                      <UButton v-if="selectedRevisionCanRestore" icon="i-lucide-rotate-ccw" size="sm" @click="openRevisionAction('restore')">{{ t('admin.forum.content.history.restore') }}</UButton>
+                      <UButton v-if="selectedRevisionCanRedact" icon="i-lucide-shield-x" color="error" variant="outline" size="sm" @click="openRevisionAction('redact')">{{ t('admin.forum.content.history.redact') }}</UButton>
+                    </div>
+                    <section class="rounded-lg border border-slate-200 p-4 dark:border-zinc-800">
+                      <h4 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">{{ t('admin.forum.content.history.previewTitle') }}</h4>
+                      <div v-if="revisionDetail.preview" class="sf-prose mt-3 max-w-none overflow-wrap-anywhere" v-highlight v-html="sanitizeHtml(revisionDetail.preview.htmlContent)" />
+                      <p v-else class="mt-3 whitespace-pre-wrap break-words text-sm text-slate-700 dark:text-zinc-200">{{ revisionDetail.rawContent }}</p>
+                    </section>
+                    <SFAdminForumRevisionDiff v-if="currentRevisionDetail" :current-revision="currentRevisionDetail" :revision="revisionDetail" />
+                  </template>
+                </div>
+              </section>
             </template>
           </main>
         </div>
       </template>
     </USlideover>
+
+    <UModal :open="Boolean(revisionAction)" @update:open="value => !value && closeRevisionAction()">
+      <template #content>
+        <div class="space-y-4 p-6">
+          <div class="flex items-start gap-3">
+            <UIcon :name="revisionAction === 'redact' ? 'i-lucide-shield-alert' : 'i-lucide-rotate-ccw'" class="mt-0.5 size-5" :class="revisionAction === 'redact' ? 'text-red-600' : 'text-[var(--sf-accent)]'" />
+            <div><h3 class="text-base font-semibold text-slate-900 dark:text-zinc-100">{{ t(`admin.forum.content.history.${revisionAction}Title`) }}</h3><p class="mt-1 text-sm text-slate-500 dark:text-zinc-400">{{ t(`admin.forum.content.history.${revisionAction}Description`) }}</p></div>
+          </div>
+          <UAlert v-if="revisionAction === 'redact'" color="error" variant="soft" icon="i-lucide-triangle-alert" :title="t('admin.forum.content.history.redactionWarning')" />
+          <UAlert v-if="revisionActionError" color="error" variant="soft" icon="i-lucide-triangle-alert" :title="revisionActionError" />
+          <UFormField :label="t('admin.forum.content.history.reason')" :error="!revisionActionReason.trim() && revisionActionError ? revisionActionError : undefined"><UTextarea v-model="revisionActionReason" :rows="3" :disabled="revisionActionPending" :placeholder="t('admin.forum.content.history.reasonPlaceholder')" class="w-full" /></UFormField>
+          <UFormField v-if="revisionAction === 'redact'" :label="t('admin.forum.content.history.redactionConfirmation')"><UInput v-model="redactionConfirmation" :disabled="revisionActionPending" placeholder="REDACT" autocomplete="off" class="w-full font-mono" /></UFormField>
+          <div class="flex justify-end gap-2"><UButton color="neutral" variant="ghost" :disabled="revisionActionPending" @click="closeRevisionAction">{{ t('common.cancel') }}</UButton><UButton :color="revisionAction === 'redact' ? 'error' : 'primary'" :loading="revisionActionPending" @click="submitRevisionAction">{{ t(`admin.forum.content.history.${revisionAction}`) }}</UButton></div>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>

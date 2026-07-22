@@ -24,7 +24,7 @@ directory. Completed, cancelled, and superseded plans live under
 | `2026-07-13-trusted-plugin-theme-platform-v3-progress.md` | **active** -- durable residual ledger; do not claim 100% |
 | `2026-07-22-v3-production-rewire-honesty-remediation.md` | **ready** -- M0-M8 production-call-chain findings |
 | `2026-07-22-current-head-regression-remediation.md` | **active** -- M0 baseline frozen; M1-M7 open |
-| `2026-07-22-forum-content-revisions-v1.md` | **active** -- M4 complete; M5 next |
+| `2026-07-22-forum-content-revisions-v1.md` | **active** -- M6 implementation complete; authenticated browser QA before M7 |
 | `2026-07-22-forum-content-revisions-v1-m0-contract-tests.md` | **accepted evidence** -- M0 test matrix for the active revisions plan |
 | `2026-07-22-theme-consistent-public-resource-404.md` | **ready** -- focused selected-theme public 404 |
 | `2026-07-22-theme-defined-system-error-pages.md` | **blocked** -- M1+ waits for regression M7/handoff |

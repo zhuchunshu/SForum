@@ -8,11 +8,11 @@ load archived sessions or completed plans as current context.
 
 ### Forum content revisions V1
 
-- Status: **active**; M5 admin content management complete; M6 revision
-  timeline, diff, restore, and redaction UX next.
+- Status: **active**; M6 implementation complete; authenticated browser QA is
+  the remaining gate before M7.
 - Plan: `plans/2026-07-22-forum-content-revisions-v1.md`
 - Decision: `decisions/2026-07-22-forum-content-revisions-ledger.md`
-- Handoff: `sessions/2026-07-22-forum-content-revisions-v1-m5-handoff.md`
+- Handoff: `sessions/2026-07-23-forum-content-revisions-v1-m6-handoff.md`
 - Module: `modules/forum.md`
 
 ### Current HEAD regression remediation

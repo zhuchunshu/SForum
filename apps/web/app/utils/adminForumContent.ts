@@ -61,9 +61,47 @@ export type AdminForumCommentDetail = AdminForumContentRow & {
 export type AdminForumContentDetail = AdminForumTopicDetail | AdminForumCommentDetail
 
 export type ForumRevisionList = {
-  items: unknown[]
+  items: ForumRevisionSummary[]
+  perPage: number
   hasMore: boolean
   nextCursor?: string
+}
+
+export type ForumRevisionSummary = {
+  id: number
+  revisionNo: number
+  current: boolean
+  actor?: ForumUserSummary
+  operation: 'create' | 'edit' | 'restore' | 'migration'
+  origin: 'self' | 'staff' | 'migration'
+  reason?: string
+  changedFields: Array<'title' | 'content' | 'category' | 'tags' | 'attachments'>
+  committedAt: string
+  restoredFromRevisionNo?: number
+  snapshotComplete: boolean
+  restorableFields: string[]
+  redacted: boolean
+}
+
+export type ForumRevisionDetail = ForumRevisionSummary & {
+  rawContent: string
+  sourceFormat: ForumRenderedContent['sourceFormat']
+  editorType: string
+  editorVersion?: string
+  renderVersion: string
+  contentHash: string
+  attachments: { ids: number[], total: number }
+  preview?: Pick<ForumRenderedContent, 'htmlContent' | 'plainText' | 'excerpt' | 'renderVersion'>
+  topicMetadata?: { title?: string, categorySlug?: string, tagSlugs: string[] }
+}
+
+export type RestoreRevisionInput = {
+  expectedRevision: number
+  reason: string
+}
+
+export type RedactRevisionInput = RestoreRevisionInput & {
+  confirmation: 'REDACT'
 }
 
 export function buildAdminForumContentQuery(filters: AdminForumContentFilters, after?: string) {
