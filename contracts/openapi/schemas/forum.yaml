@@ -1560,15 +1560,32 @@ UpdateCommentRequest:
   type: object
   required:
   - content
+  - expectedRevision
   properties:
+    expectedRevision:
+      type: integer
+      format: int64
+      minimum: 1
+    reason:
+      type: string
+      maxLength: 500
     content:
       "$ref": "#/ContentInput"
 UpdateTopicRequest:
   type: object
   description: |
-    All fields optional. Omitted fields are left unchanged.
+    `expectedRevision` is mandatory. Other fields are optional and omitted fields are left unchanged.
     An explicit empty `tagSlugs` array clears tags; an absent key leaves tags unchanged.
+  required:
+  - expectedRevision
   properties:
+    expectedRevision:
+      type: integer
+      format: int64
+      minimum: 1
+    reason:
+      type: string
+      maxLength: 500
     categorySlug:
       type: string
     title:

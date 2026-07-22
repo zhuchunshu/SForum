@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
@@ -673,6 +674,12 @@ func (s *Service) UpdateTopic(ctx context.Context, actor identity.Actor, input U
 	if !canEditTopic(actor, topic) {
 		return TopicDetail{}, identity.ErrPermissionDenied
 	}
+	if !matchesExpectedRevision(input.ExpectedRevision, topic.CurrentRevision) {
+		return TopicDetail{}, ErrRevisionConflict
+	}
+	if err := validateEditReason(actor.ID, topic.AuthorUserID, input.Reason); err != nil {
+		return TopicDetail{}, err
+	}
 
 	settings, err := s.resolvedSettings(ctx)
 	if err != nil {
@@ -691,10 +698,14 @@ func (s *Service) UpdateTopic(ctx context.Context, actor identity.Actor, input U
 	}
 
 	record := UpdateTopicRecord{
-		TopicID:         input.TopicID,
-		EditorUserID:    actor.ID,
-		TagCreationMode: settings.TagCreationMode,
-		LastEditIP:      strings.TrimSpace(input.IPAddress),
+		TopicID:          input.TopicID,
+		EditorUserID:     actor.ID,
+		ExpectedRevision: input.ExpectedRevision,
+		Reason:           strings.TrimSpace(input.Reason),
+		Origin:           revisionOrigin(actor.ID, topic.AuthorUserID),
+		AuthorUserID:     topic.AuthorUserID,
+		TagCreationMode:  settings.TagCreationMode,
+		LastEditIP:       strings.TrimSpace(input.IPAddress),
 	}
 
 	if input.Title != nil {
@@ -774,11 +785,18 @@ func (s *Service) UpdateTopic(ctx context.Context, actor identity.Actor, input U
 		return TopicDetail{}, err
 	}
 
+	if !updated.UpdateApplied {
+		updated.Edited = settings.ShowTopicEditMark && updated.ContentEdited
+		return updated, nil
+	}
 	payload := map[string]any{
-		"topicId":      updated.ID,
-		"actorUserId":  actor.ID,
-		"title":        updated.Title,
-		"categorySlug": updated.CategorySlug,
+		"topicId":       updated.ID,
+		"actorUserId":   actor.ID,
+		"title":         updated.Title,
+		"categorySlug":  updated.CategorySlug,
+		"revisionNo":    updated.CurrentRevision,
+		"operation":     RevisionOperationEdit,
+		"changedFields": updated.UpdateChangedFields,
 	}
 	if len(record.TagSlugs) > 0 {
 		payload["tagSlugs"] = record.TagSlugs
@@ -792,6 +810,36 @@ func (s *Service) UpdateTopic(ctx context.Context, actor identity.Actor, input U
 	}
 	updated.Edited = settings.ShowTopicEditMark && updated.ContentEdited
 	return updated, nil
+}
+
+func matchesExpectedRevision(expected, current int64) bool {
+	if expected <= 0 {
+		return false
+	}
+	// current_revision=0 只会出现在 M1 回填未完成的旧行；公开读模型将它
+	// 表示为 version 1，写事务仍会在锁内以真实值二次确认。
+	if current <= 0 {
+		current = 1
+	}
+	return expected == current
+}
+
+func validateEditReason(actorID, authorID int64, reason string) error {
+	trimmed := strings.TrimSpace(reason)
+	if actorID != authorID && trimmed == "" {
+		return ErrRevisionReasonRequired
+	}
+	if utf8.RuneCountInString(trimmed) > 500 {
+		return ErrRevisionReasonRequired
+	}
+	return nil
+}
+
+func revisionOrigin(actorID, authorID int64) string {
+	if actorID == authorID {
+		return RevisionOriginSelf
+	}
+	return RevisionOriginStaff
 }
 
 func (s *Service) DeleteTopic(ctx context.Context, actor identity.Actor, topicID int64) (TopicDetail, error) {

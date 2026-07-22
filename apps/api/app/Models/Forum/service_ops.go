@@ -314,6 +314,12 @@ func (s *Service) UpdateComment(ctx context.Context, actor identity.Actor, input
 	if !canEditComment(actor, summary) {
 		return Comment{}, identity.ErrPermissionDenied
 	}
+	if !matchesExpectedRevision(input.ExpectedRevision, summary.CurrentRevision) {
+		return Comment{}, ErrRevisionConflict
+	}
+	if err := validateEditReason(actor.ID, summary.AuthorUserID, input.Reason); err != nil {
+		return Comment{}, err
+	}
 	settings, err := s.resolvedSettings(ctx)
 	if err != nil {
 		return Comment{}, err
@@ -321,6 +327,10 @@ func (s *Service) UpdateComment(ctx context.Context, actor identity.Actor, input
 	// 作者编辑窗口：拥有 post.edit_any 的版主不受限。
 	if isAuthorOnlyCommentEdit(actor, summary) && !withinEditWindow(summary.CreatedAt, settings.CommentEditWindowMinutes, time.Now().UTC()) {
 		return Comment{}, ErrEditWindowExpired
+	}
+	input, err = s.applyCommentBeforeUpdate(ctx, actor, summary, input)
+	if err != nil {
+		return Comment{}, err
 	}
 	if err := validateCommentContent(input.Content.RawContent, settings); err != nil {
 		return Comment{}, err
@@ -337,10 +347,14 @@ func (s *Service) UpdateComment(ctx context.Context, actor identity.Actor, input
 		return Comment{}, err
 	}
 	record := UpdateCommentRecord{
-		CommentID:    input.CommentID,
-		EditorUserID: actor.ID,
-		Content:      content,
-		LastEditIP:   strings.TrimSpace(input.IPAddress),
+		CommentID:        input.CommentID,
+		EditorUserID:     actor.ID,
+		ExpectedRevision: input.ExpectedRevision,
+		Reason:           strings.TrimSpace(input.Reason),
+		Origin:           revisionOrigin(actor.ID, summary.AuthorUserID),
+		AuthorUserID:     summary.AuthorUserID,
+		Content:          content,
+		LastEditIP:       strings.TrimSpace(input.IPAddress),
 	}
 	attachmentIDs, submitted, err := normalizeContentAttachmentIDs(input.Content.AttachmentIDs)
 	if err != nil {
@@ -361,6 +375,19 @@ func (s *Service) UpdateComment(ctx context.Context, actor identity.Actor, input
 	if err != nil {
 		return Comment{}, err
 	}
+	if !updated.UpdateApplied {
+		updated.Edited = settings.ShowCommentEditMark && updated.ContentEdited
+		return updated, nil
+	}
+	s.events.Emit(ctx, appevents.Envelope{
+		Name: appevents.CommentUpdated, Kind: appevents.KindObserve, ActorUserID: actor.ID,
+		ResourceType: "comment", ResourceID: strconv.FormatInt(updated.ID, 10), CorrelationID: appevents.NewID(),
+		Payload: map[string]any{
+			"commentId": updated.ID, "topicId": summary.TopicID, "actorUserId": actor.ID,
+			"revisionNo": updated.CurrentRevision, "operation": RevisionOperationEdit,
+			"changedFields": updated.UpdateChangedFields,
+		}, OccurredAt: time.Now().UTC(),
+	})
 	// 评论从 active 退回 pending 时主题可见评论数变化，刷新索引。
 	if updated.Status == CommentStatusActive {
 		s.indexTopic(ctx, summary.TopicID)
@@ -369,6 +396,23 @@ func (s *Service) UpdateComment(ctx context.Context, actor identity.Actor, input
 	}
 	updated.Edited = settings.ShowCommentEditMark && updated.ContentEdited
 	return updated, nil
+}
+
+func (s *Service) applyCommentBeforeUpdate(ctx context.Context, actor identity.Actor, summary CommentSummary, input UpdateCommentInput) (UpdateCommentInput, error) {
+	envelope := appevents.NewEnvelope(appevents.CommentBeforeUpdate, map[string]any{
+		"actorUserId": actor.ID, "commentId": input.CommentID, "topicId": summary.TopicID, "content": input.Content,
+	})
+	envelope.ActorUserID = actor.ID
+	envelope.ResourceType = "comment"
+	envelope.ResourceID = strconv.FormatInt(input.CommentID, 10)
+	result := s.events.Emit(ctx, envelope)
+	if !result.OK {
+		return UpdateCommentInput{}, appevents.Reject(result)
+	}
+	if content, ok := contentInputFromPatch(result.Patch["content"]); ok {
+		input.Content = content
+	}
+	return input, nil
 }
 
 func (s *Service) DeleteComment(ctx context.Context, actor identity.Actor, commentID int64) (Comment, error) {

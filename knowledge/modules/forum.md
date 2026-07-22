@@ -10,8 +10,8 @@ accepted revisions, lifecycle states, public read models, and forum policy.
 - Core taxonomy, topic/comment creation and lifecycle, public/admin UI, runtime
   settings, moderation integration, search projection, and million-scale read
   path M0-M7 are implemented.
-- Content revisions V1 is **active**: M2 revision read models and view
-  permissions are complete; M3 versioned edit writes and CAS are next.
+- Content revisions V1 is **active**: M3 versioned edit writes/CAS are complete;
+  M4 restore, attachment safety, and redaction are next.
 - PostgreSQL site search is the protected default. Meilisearch is optional and
   must not be described as the required/default forum read path.
 
@@ -21,7 +21,7 @@ Active revision sources:
 - M0 contract matrix:
   `../plans/2026-07-22-forum-content-revisions-v1-m0-contract-tests.md`
 - Decision: `../decisions/2026-07-22-forum-content-revisions-ledger.md`
-- Handoff: `../sessions/2026-07-22-forum-content-revisions-v1-m2-handoff.md`
+- Handoff: `../sessions/2026-07-22-forum-content-revisions-v1-m3-handoff.md`
 
 ## Domain Model
 
@@ -68,12 +68,23 @@ safe historical preview on demand. Admin topic/comment content list/detail
 require `admin.access` plus matching edit-any or history-view permission and do
 not add admin mutation routes.
 
+M3 makes PATCH versioned: `expectedRevision` is required in the public API,
+the service rejects already-stale requests before synchronous filters, and the
+PostgreSQL write transaction locks the resource/post and repeats CAS before any
+write. Effective edits append exactly one accepted final snapshot and increment
+`posts.current_revision`; semantic no-ops leave timestamps, ledger, audit,
+cache, and search untouched. Cross-author edits require a trimmed reason of at
+most 500 runes and append generic audit in the same transaction. The public
+editors submit their loaded token. `comment.before_update` / `comment.updated`
+now complement enriched safe `topic.updated` revision metadata.
+
 V1 boundaries:
 
 - M2 complete: view permissions, revision list/detail read models, admin
   content list/detail, tests, and OpenAPI.
-- M3 next: mandatory `expectedRevision`, CAS, reason rules, accepted edit snapshots,
-  and comment update hooks/events.
+- M3 complete: mandatory `expectedRevision`, two-stage CAS, final accepted edit
+  snapshots, no-op detection, reason/audit rules, and comment update hooks/events.
+- M4 next: restore, historical attachment validation, and redaction only.
 - Later milestones own admin editing, self/staff history, diff, restore, and
   `super_admin` redaction.
 - Use npm package `diff` 9.0.0 (BSD-3-Clause) for the diff UI; do not install
@@ -210,7 +221,7 @@ visibility, and mention limits.
 
 ## Next Steps
 
-1. Continue content revisions V1 from M3 without changing the accepted ledger,
+1. Continue content revisions V1 from M4 without changing the accepted ledger,
    CAS, authorization, or redaction boundaries.
 2. Keep OpenAPI, allowed/denied policy tests, module status, and Extension
    Surface Matrix synchronized at each milestone.

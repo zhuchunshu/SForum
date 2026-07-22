@@ -24,7 +24,7 @@ cd apps/api && go run ./cmd/sforum extension docs generate --check
 | `topic.before_create` | filter | 2000 | fail_closed | `actorUserId`, `categorySlug`, `tagSlugs`, `title`, `content` | `categorySlug`, `tagSlugs`, `title`, `content` |
 | `topic.before_update` | filter | 2000 | fail_closed | `actorUserId`, `topicId`, `categorySlug`, `tagSlugs`, `title`, `content` | `categorySlug`, `tagSlugs`, `title`, `content` |
 | `topic.created` | observe | 5000 | fail_open | `topicId`, `authorUserId`, `categorySlug`, `tagSlugs`, `title` | — |
-| `topic.updated` | observe | 5000 | fail_open | `topicId`, `actorUserId`, `title`, `categorySlug`, `tagSlugs` | — |
+| `topic.updated` | observe | 5000 | fail_open | `topicId`, `actorUserId`, `title`, `categorySlug`, `tagSlugs`, `revisionNo`, `operation`, `changedFields`, `restoredFromRevisionNo` | — |
 | `topic.deleted` | observe | 5000 | fail_open | `topicId`, `actorUserId` | — |
 | `topic.hidden` | observe | 5000 | fail_open | `topicId`, `actorUserId` | — |
 | `topic.restored` | observe | 5000 | fail_open | `topicId`, `actorUserId` | — |
@@ -38,6 +38,8 @@ cd apps/api && go run ./cmd/sforum extension docs generate --check
 | `tag.updated` | observe | 5000 | fail_open | `tagId`, `tagSlug`, `status` | — |
 | `comment.before_create` | filter | 2000 | fail_closed | `actorUserId`, `topicId`, `parentId`, `content` | `content` |
 | `comment.created` | observe | 5000 | fail_open | `commentId`, `topicId`, `authorUserId`, `parentId` | — |
+| `comment.before_update` | filter | 2000 | fail_closed | `actorUserId`, `commentId`, `topicId`, `content` | `content` |
+| `comment.updated` | observe | 5000 | fail_open | `commentId`, `topicId`, `actorUserId`, `revisionNo`, `operation`, `changedFields`, `restoredFromRevisionNo` | — |
 | `attachment.before_upload` | validate | 2000 | fail_closed | `actorUserId`, `contentType`, `sizeBytes`, `filename` | — |
 | `attachment.uploaded` | observe | 5000 | fail_open | `attachmentId`, `publicId`, `ownerUserId`, `provider`, `contentType`, `sizeBytes` | — |
 | `entity_meta.updated` | observe | 5000 | fail_open | `entityType`, `entityId`, `fieldKeys`, `actorUserId` | — |
@@ -74,7 +76,7 @@ Emitted after a topic is committed.
 
 #### `topic.updated`
 
-Emitted after a topic's content or taxonomy is updated.
+Emitted after a topic's content or taxonomy is updated. Revision metadata never includes raw content or reason.
 
 #### `topic.deleted`
 
@@ -127,6 +129,14 @@ Runs before a comment is committed and may reject or patch allowlisted input. He
 #### `comment.created`
 
 Emitted after a comment is committed.
+
+#### `comment.before_update`
+
+Runs after edit authority/CAS checks and before a comment update is committed. It may patch content only.
+
+#### `comment.updated`
+
+Emitted after a comment update is committed. Revision metadata never includes raw content or reason.
 
 #### `attachment.before_upload`
 

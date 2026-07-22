@@ -8,11 +8,11 @@ load archived sessions or completed plans as current context.
 
 ### Forum content revisions V1
 
-- Status: **active**; M2 read models and permissions complete, M3 versioned
-  edit writes and CAS next.
+- Status: **active**; M3 versioned edit writes and CAS complete, M4 restore,
+  attachment safety, and redaction next.
 - Plan: `plans/2026-07-22-forum-content-revisions-v1.md`
 - Decision: `decisions/2026-07-22-forum-content-revisions-ledger.md`
-- Handoff: `sessions/2026-07-22-forum-content-revisions-v1-m2-handoff.md`
+- Handoff: `sessions/2026-07-22-forum-content-revisions-v1-m3-handoff.md`
 - Module: `modules/forum.md`
 
 ### Current HEAD regression remediation

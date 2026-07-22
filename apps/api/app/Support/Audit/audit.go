@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -53,6 +54,8 @@ const (
 	ActionProviderSlotSelect         = "providers.slot_select"
 	ActionProviderSlotReset          = "providers.slot_reset"
 	ActionProviderSlotProbe          = "providers.slot_probe"
+	ActionForumTopicEditAny          = "forum.topic.edit_any"
+	ActionForumCommentEditAny        = "forum.comment.edit_any"
 
 	// RecommendedRetentionDays 审计日志推荐保留天数（清理 job 默认）。
 	RecommendedRetentionDays = 90
@@ -69,6 +72,13 @@ type Event struct {
 // Writer 抽象，便于测试注入。
 type Writer interface {
 	Append(ctx context.Context, event Event) error
+}
+
+// TxWriter lets a domain ledger commit its audit record in the same database
+// transaction. It is deliberately narrow: callers cannot access audit tables
+// or retention internals directly.
+type TxWriter interface {
+	AppendTx(ctx context.Context, tx pgx.Tx, event Event) error
 }
 
 // IDWriter is the durable audit boundary used when another ledger must retain
@@ -109,6 +119,22 @@ func (w *PostgresWriter) AppendReturningID(ctx context.Context, event Event) (in
 	if w == nil || w.Pool == nil {
 		return 0, fmt.Errorf("audit writer is not configured")
 	}
+	return appendReturningID(ctx, w.Pool, event)
+}
+
+func (w *PostgresWriter) AppendTx(ctx context.Context, tx pgx.Tx, event Event) error {
+	if w == nil || tx == nil {
+		return fmt.Errorf("audit writer is not configured")
+	}
+	_, err := appendReturningID(ctx, tx, event)
+	return err
+}
+
+type auditExecutor interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
+func appendReturningID(ctx context.Context, q auditExecutor, event Event) (int64, error) {
 	if event.Action == "" {
 		return 0, fmt.Errorf("audit action is required")
 	}
@@ -130,7 +156,7 @@ func (w *PostgresWriter) AppendReturningID(ctx context.Context, event Event) (in
 	}
 
 	var id int64
-	err = w.Pool.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		INSERT INTO audit_events (actor_user_id, target_user_id, action, metadata)
 		VALUES ($1, $2, $3, $4::jsonb)
 		RETURNING id
@@ -235,6 +261,8 @@ func (w *PostgresWriter) CleanupOlderThan(ctx context.Context, keepDays int) (Cl
 type NoopWriter struct{}
 
 func (NoopWriter) Append(context.Context, Event) error { return nil }
+
+func (NoopWriter) AppendTx(context.Context, pgx.Tx, Event) error { return nil }
 
 func (NoopWriter) AppendReturningID(context.Context, Event) (int64, error) { return 0, nil }
 

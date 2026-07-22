@@ -164,10 +164,12 @@ type createTopicRequest struct {
 
 // updateTopicRequest: 所有字段均可选，nil 表示不改。categorySlug/tagSlugs 为空切片表示清空标签。
 type updateTopicRequest struct {
-	CategorySlug *string             `json:"categorySlug"`
-	Title        *string             `json:"title"`
-	TagSlugs     []string            `json:"tagSlugs"`
-	Content      *forum.ContentInput `json:"content"`
+	ExpectedRevision *int64              `json:"expectedRevision"`
+	Reason           string              `json:"reason"`
+	CategorySlug     *string             `json:"categorySlug"`
+	Title            *string             `json:"title"`
+	TagSlugs         []string            `json:"tagSlugs"`
+	Content          *forum.ContentInput `json:"content"`
 }
 
 type createCommentRequest struct {
@@ -176,7 +178,9 @@ type createCommentRequest struct {
 }
 
 type updateCommentRequest struct {
-	Content forum.ContentInput `json:"content"`
+	ExpectedRevision *int64             `json:"expectedRevision"`
+	Reason           string             `json:"reason"`
+	Content          forum.ContentInput `json:"content"`
 }
 
 func (h *Controller) categories(c fiber.Ctx) error {
@@ -383,17 +387,22 @@ func (h *Controller) updateTopic(c fiber.Ctx) error {
 	if err := c.Bind().Body(&req); err != nil {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeInvalidTopic)
 	}
+	if req.ExpectedRevision == nil || *req.ExpectedRevision <= 0 {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeInvalidTopic)
+	}
 	// 区分 tagSlugs 字段"缺失"与"显式空数组"：仅当请求体里出现了 tagSlugs 才替换标签。
 	hasTagSlugs, err := bodyHasKey(c, "tagSlugs")
 	if err != nil {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeInvalidTopic)
 	}
 	input := forum.UpdateTopicInput{
-		TopicID:      int64(paramInt(c, "topicID")),
-		CategorySlug: req.CategorySlug,
-		Title:        req.Title,
-		Content:      req.Content,
-		IPAddress:    clientip.FromCtx(c),
+		TopicID:          int64(paramInt(c, "topicID")),
+		ExpectedRevision: *req.ExpectedRevision,
+		Reason:           req.Reason,
+		CategorySlug:     req.CategorySlug,
+		Title:            req.Title,
+		Content:          req.Content,
+		IPAddress:        clientip.FromCtx(c),
 	}
 	if hasTagSlugs {
 		input.TagSlugs = req.TagSlugs
@@ -561,10 +570,15 @@ func (h *Controller) updateComment(c fiber.Ctx) error {
 	if err := c.Bind().Body(&req); err != nil {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeInvalidContent)
 	}
+	if req.ExpectedRevision == nil || *req.ExpectedRevision <= 0 {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeInvalidContent)
+	}
 	comment, err := h.service.UpdateComment(c.Context(), actor, forum.UpdateCommentInput{
-		CommentID: int64(paramInt(c, "commentID")),
-		Content:   req.Content,
-		IPAddress: clientip.FromCtx(c),
+		CommentID:        int64(paramInt(c, "commentID")),
+		ExpectedRevision: *req.ExpectedRevision,
+		Reason:           req.Reason,
+		Content:          req.Content,
+		IPAddress:        clientip.FromCtx(c),
 	})
 	if err != nil {
 		return mapForumError(err)
@@ -673,6 +687,10 @@ func mapForumError(err error) error {
 		return fiber.NewError(fiber.StatusNotFound, forum.CodeRevisionNotFound)
 	case errors.Is(err, forum.ErrRevisionRedacted):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeRevisionRedacted)
+	case errors.Is(err, forum.ErrRevisionConflict):
+		return fiber.NewError(fiber.StatusConflict, forum.CodeRevisionConflict)
+	case errors.Is(err, forum.ErrRevisionReasonRequired):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeRevisionReasonRequired)
 	case errors.Is(err, forum.ErrUseSearchEndpoint):
 		return fiber.NewError(fiber.StatusBadRequest, forum.CodeUseSearch)
 	case errors.Is(err, forum.ErrInvalidCursor):

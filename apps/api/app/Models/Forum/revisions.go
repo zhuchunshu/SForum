@@ -13,9 +13,11 @@ import (
 
 const (
 	RevisionOperationCreate    = "create"
+	RevisionOperationEdit      = "edit"
 	RevisionOperationMigration = "migration"
 
 	RevisionOriginSelf      = "self"
+	RevisionOriginStaff     = "staff"
 	RevisionOriginMigration = "migration"
 )
 

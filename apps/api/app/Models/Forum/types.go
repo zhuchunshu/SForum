@@ -55,18 +55,20 @@ const (
 	TopicActionPin     = "pin"
 	TopicActionUnpin   = "unpin"
 
-	CodeInvalidContent   = "forum.content_invalid"
-	CodeInvalidTopic     = "forum.topic_invalid"
-	CodeTopicNotFound    = "forum.topic_not_found"
-	CodeCommentNotFound  = "forum.comment_not_found"
-	CodeTopicClosed      = "forum.topic_closed"
-	CodeInvalidTag       = "forum.tag_invalid"
-	CodeTagNotFound      = "forum.tag_not_found"
-	CodeInvalidSettings  = "forum.settings_invalid"
-	CodeInvalidAction    = "forum.topic_action_invalid"
-	CodeUseSearch        = "forum.use_search_endpoint"
-	CodeRevisionNotFound = "forum.revision_not_found"
-	CodeRevisionRedacted = "forum.revision_redacted"
+	CodeInvalidContent         = "forum.content_invalid"
+	CodeInvalidTopic           = "forum.topic_invalid"
+	CodeTopicNotFound          = "forum.topic_not_found"
+	CodeCommentNotFound        = "forum.comment_not_found"
+	CodeTopicClosed            = "forum.topic_closed"
+	CodeInvalidTag             = "forum.tag_invalid"
+	CodeTagNotFound            = "forum.tag_not_found"
+	CodeInvalidSettings        = "forum.settings_invalid"
+	CodeInvalidAction          = "forum.topic_action_invalid"
+	CodeUseSearch              = "forum.use_search_endpoint"
+	CodeRevisionNotFound       = "forum.revision_not_found"
+	CodeRevisionRedacted       = "forum.revision_redacted"
+	CodeRevisionConflict       = "forum.revision_conflict"
+	CodeRevisionReasonRequired = "forum.revision_reason_required"
 	// 非法/过期/与 sort 不匹配的 keyset 游标。
 	CodeInvalidCursor         = "forum.cursor_invalid"
 	CodeReindexRunning        = "forum.reindex_running"    // 已有重建在进行
@@ -130,6 +132,10 @@ var (
 	ErrRevisionNotFound = errors.New("forum: revision not found")
 	// ErrRevisionRedacted 表示历史版本 payload 已被超管清除，不能预览或返回源文。
 	ErrRevisionRedacted = errors.New("forum: revision redacted")
+	// ErrRevisionConflict 表示客户端提交的并发令牌已过期。
+	ErrRevisionConflict = errors.New("forum: revision conflict")
+	// ErrRevisionReasonRequired 表示跨作者编辑缺少受限审计理由。
+	ErrRevisionReasonRequired = errors.New("forum: revision reason required")
 )
 
 // TopicSearchIndexer 是 forum 包对搜索索引调度的抽象。
@@ -297,10 +303,13 @@ type TopicSummary struct {
 
 type TopicDetail struct {
 	TopicSummary
-	Content          RenderedContent             `json:"content"`
-	ExtensionActions []TopicExtensionAction      `json:"extensionActions,omitempty"`
-	ExtensionSidebar []TopicExtensionSidebarItem `json:"extensionSidebar,omitempty"`
-	ExtensionBadges  []TopicExtensionBadge       `json:"extensionBadges,omitempty"`
+	Content RenderedContent `json:"content"`
+	// UpdateApplied 仅供写路径抑制 no-op 的事件、缓存和索引副作用，不进入 API。
+	UpdateApplied       bool                        `json:"-"`
+	UpdateChangedFields []string                    `json:"-"`
+	ExtensionActions    []TopicExtensionAction      `json:"extensionActions,omitempty"`
+	ExtensionSidebar    []TopicExtensionSidebarItem `json:"extensionSidebar,omitempty"`
+	ExtensionBadges     []TopicExtensionBadge       `json:"extensionBadges,omitempty"`
 }
 
 type TopicExtensionAction struct {
@@ -397,26 +406,32 @@ type CreateTopicRecord struct {
 // UpdateTopicInput 是作者或版主更新主题时提交的输入。content 为可选：
 // 不传则只更新标题/分类/标签，传则重新渲染 raw/html/plain 并写入 post_revisions（仅源文快照）。
 type UpdateTopicInput struct {
-	TopicID      int64
-	CategorySlug *string
-	Title        *string
-	TagSlugs     []string
-	Content      *ContentInput
+	TopicID          int64
+	ExpectedRevision int64
+	Reason           string
+	CategorySlug     *string
+	Title            *string
+	TagSlugs         []string
+	Content          *ContentInput
 	// IPAddress 本次编辑客户端 IP（写入 last_edit_ip；创建 ip_address 不变）。
 	IPAddress string `json:"-"`
 }
 
 // UpdateTopicRecord 是 store 层更新主题的内部记录。content 为 nil 时表示不改正文。
 type UpdateTopicRecord struct {
-	TopicID         int64
-	EditorUserID    int64
-	CategorySlug    string
-	Title           string
-	Slug            string
-	TagSlugs        []string
-	TagCreationMode string
-	HasContent      bool
-	Content         RenderedContent
+	TopicID          int64
+	EditorUserID     int64
+	ExpectedRevision int64
+	Reason           string
+	Origin           string
+	AuthorUserID     int64
+	CategorySlug     string
+	Title            string
+	Slug             string
+	TagSlugs         []string
+	TagCreationMode  string
+	HasContent       bool
+	Content          RenderedContent
 	// RequeuePending 为 true 时把主题标为 pending 并写入 ModerationTriggers（编辑触发预审）。
 	RequeuePending     bool
 	ModerationTriggers []string
@@ -660,6 +675,9 @@ type Comment struct {
 	Edited bool `json:"edited,omitempty"`
 	// ContentEdited 由存储层根据 post_revisions 得出，不直接暴露。
 	ContentEdited bool `json:"-"`
+	// UpdateApplied 仅供写路径抑制 no-op 的事件、缓存和索引副作用，不进入 API。
+	UpdateApplied       bool     `json:"-"`
+	UpdateChangedFields []string `json:"-"`
 }
 
 type ReplyReference struct {
@@ -670,15 +688,16 @@ type ReplyReference struct {
 }
 
 type CommentSummary struct {
-	ID            int64
-	TopicID       int64
-	AuthorUserID  int64
-	ParentID      *int64
-	RootCommentID int64
-	PathKey       string
-	Depth         int
-	Status        string
-	CreatedAt     time.Time
+	ID              int64
+	TopicID         int64
+	AuthorUserID    int64
+	ParentID        *int64
+	RootCommentID   int64
+	PathKey         string
+	Depth           int
+	Status          string
+	CreatedAt       time.Time
+	CurrentRevision int64
 }
 
 type CreateCommentInput struct {
@@ -730,16 +749,22 @@ type AuthorReviewList struct {
 }
 
 type UpdateCommentInput struct {
-	CommentID int64        `json:"commentId"`
-	Content   ContentInput `json:"content"`
+	CommentID        int64        `json:"commentId"`
+	ExpectedRevision int64        `json:"expectedRevision"`
+	Reason           string       `json:"reason"`
+	Content          ContentInput `json:"content"`
 	// IPAddress 本次编辑客户端 IP（写入 last_edit_ip）。
 	IPAddress string `json:"-"`
 }
 
 type UpdateCommentRecord struct {
-	CommentID    int64
-	EditorUserID int64
-	Content      RenderedContent
+	CommentID        int64
+	EditorUserID     int64
+	ExpectedRevision int64
+	Reason           string
+	Origin           string
+	AuthorUserID     int64
+	Content          RenderedContent
 	// RequeuePending 为 true 时把评论标为 pending 并写入 ModerationTriggers。
 	RequeuePending     bool
 	ModerationTriggers []string

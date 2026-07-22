@@ -128,6 +128,7 @@ export type ForumTopicSummary = {
   createdAt: string
   updatedAt: string
   lastActivityAt: string
+  currentRevision: number
   edited?: boolean
 }
 
@@ -235,6 +236,7 @@ export type ForumComment = {
   hasMoreChildren?: boolean
   createdAt: string
   updatedAt: string
+  currentRevision: number
   edited?: boolean
 }
 
@@ -293,6 +295,10 @@ export function forumContentFromEditorPayload(payload: {
 
 // 更新主题输入，所有字段可选；未提供即不修改。
 export type ForumTopicUpdateInput = {
+	/** Loaded revision token; required by the canonical PATCH contract. */
+  expectedRevision: number
+	/** Optional for self edits; cross-author admin editing supplies a reason in M5. */
+  reason?: string
   categorySlug?: string
   title?: string
   tagSlugs?: string[]

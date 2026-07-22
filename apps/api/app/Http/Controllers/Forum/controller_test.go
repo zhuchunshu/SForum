@@ -264,7 +264,7 @@ func TestControllerAdminSettingsBindsPaginationFields(t *testing.T) {
 
 func TestControllerUpdateTopicRequiresLoginAndPermission(t *testing.T) {
 	app, _, _ := newForumTestApp()
-	body := []byte(`{"title":"新标题"}`)
+	body := []byte(`{"title":"新标题","expectedRevision":1}`)
 
 	// 未登录 -> 401。
 	resp := performForumRequest(t, app, nethttp.MethodPatch, "/api/v1/topics/10", body, nil)
@@ -284,7 +284,7 @@ func TestControllerUpdateTopicAllowsModerator(t *testing.T) {
 	app, _, store := newForumTestApp()
 	cookie := loginForumUser(t, app, 5) // 版主，含 topic.edit_any。
 
-	body := []byte(`{"title":"版主编辑标题","categorySlug":"general","tagSlugs":["go"]}`)
+	body := []byte(`{"title":"版主编辑标题","categorySlug":"general","tagSlugs":["go"],"expectedRevision":1,"reason":"moderation correction"}`)
 	resp := performForumRequest(t, app, nethttp.MethodPatch, "/api/v1/topics/10", body, cookie)
 	if resp.StatusCode != nethttp.StatusOK {
 		t.Fatalf("expected 200 update topic, got %d", resp.StatusCode)
@@ -784,7 +784,7 @@ func (s *controllerForumStore) UpdateTopic(_ context.Context, input forum.Update
 	if title == "" {
 		title = "公开帖子"
 	}
-	return forum.TopicDetail{TopicSummary: forum.TopicSummary{ID: input.TopicID, Title: title, Slug: "topic", Status: forum.TopicStatusActive}}, nil
+	return forum.TopicDetail{TopicSummary: forum.TopicSummary{ID: input.TopicID, Title: title, Slug: "topic", Status: forum.TopicStatusActive, CurrentRevision: input.ExpectedRevision + 1}, UpdateApplied: true}, nil
 }
 
 func (s *controllerForumStore) DeleteTopic(_ context.Context, topicID int64) (forum.TopicDetail, error) {
@@ -811,7 +811,7 @@ func (s *controllerForumStore) GetTopicForComment(context.Context, int64) (forum
 
 func (s *controllerForumStore) GetTopicForAction(context.Context, int64) (forum.TopicSummary, error) {
 	if s.actionTopic.ID == 0 {
-		return forum.TopicSummary{ID: 10, AuthorUserID: 1, Status: forum.TopicStatusActive}, nil
+		return forum.TopicSummary{ID: 10, AuthorUserID: 1, Status: forum.TopicStatusActive, CurrentRevision: 1}, nil
 	}
 	return s.actionTopic, nil
 }
@@ -821,11 +821,11 @@ func (s *controllerForumStore) CreateComment(_ context.Context, input forum.Crea
 }
 
 func (s *controllerForumStore) GetCommentSummary(context.Context, int64) (forum.CommentSummary, error) {
-	return forum.CommentSummary{ID: 20, TopicID: 10, AuthorUserID: 1, Status: forum.CommentStatusActive}, nil
+	return forum.CommentSummary{ID: 20, TopicID: 10, AuthorUserID: 1, Status: forum.CommentStatusActive, CurrentRevision: 1}, nil
 }
 
 func (s *controllerForumStore) UpdateComment(_ context.Context, input forum.UpdateCommentRecord) (forum.Comment, error) {
-	return forum.Comment{ID: input.CommentID, AuthorUserID: 1, Content: input.Content, Status: forum.CommentStatusActive}, nil
+	return forum.Comment{ID: input.CommentID, AuthorUserID: 1, Content: input.Content, Status: forum.CommentStatusActive, CurrentRevision: input.ExpectedRevision + 1, UpdateApplied: true}, nil
 }
 
 func (s *controllerForumStore) DeleteComment(context.Context, int64) (forum.Comment, error) {

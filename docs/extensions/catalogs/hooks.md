@@ -41,7 +41,7 @@ Rules: async + filter is rejected; async requires fail_open; mutableFields only 
 | `topic.before_create` | filter | 2000 | fail_closed | `actorUserId`, `categorySlug`, `tagSlugs`, `title`, `content` | `categorySlug`, `tagSlugs`, `title`, `content` |
 | `topic.before_update` | filter | 2000 | fail_closed | `actorUserId`, `topicId`, `categorySlug`, `tagSlugs`, `title`, `content` | `categorySlug`, `tagSlugs`, `title`, `content` |
 | `topic.created` | observe | 5000 | fail_open | `topicId`, `authorUserId`, `categorySlug`, `tagSlugs`, `title` | — |
-| `topic.updated` | observe | 5000 | fail_open | `topicId`, `actorUserId`, `title`, `categorySlug`, `tagSlugs` | — |
+| `topic.updated` | observe | 5000 | fail_open | `topicId`, `actorUserId`, `title`, `categorySlug`, `tagSlugs`, `revisionNo`, `operation`, `changedFields`, `restoredFromRevisionNo` | — |
 | `topic.deleted` | observe | 5000 | fail_open | `topicId`, `actorUserId` | — |
 | `topic.hidden` | observe | 5000 | fail_open | `topicId`, `actorUserId` | — |
 | `topic.restored` | observe | 5000 | fail_open | `topicId`, `actorUserId` | — |
@@ -55,6 +55,8 @@ Rules: async + filter is rejected; async requires fail_open; mutableFields only 
 | `tag.updated` | observe | 5000 | fail_open | `tagId`, `tagSlug`, `status` | — |
 | `comment.before_create` | filter | 2000 | fail_closed | `actorUserId`, `topicId`, `parentId`, `content` | `content` |
 | `comment.created` | observe | 5000 | fail_open | `commentId`, `topicId`, `authorUserId`, `parentId` | — |
+| `comment.before_update` | filter | 2000 | fail_closed | `actorUserId`, `commentId`, `topicId`, `content` | `content` |
+| `comment.updated` | observe | 5000 | fail_open | `commentId`, `topicId`, `actorUserId`, `revisionNo`, `operation`, `changedFields`, `restoredFromRevisionNo` | — |
 | `attachment.before_upload` | validate | 2000 | fail_closed | `actorUserId`, `contentType`, `sizeBytes`, `filename` | — |
 | `attachment.uploaded` | observe | 5000 | fail_open | `attachmentId`, `publicId`, `ownerUserId`, `provider`, `contentType`, `sizeBytes` | — |
 | `entity_meta.updated` | observe | 5000 | fail_open | `entityType`, `entityId`, `fieldKeys`, `actorUserId` | — |

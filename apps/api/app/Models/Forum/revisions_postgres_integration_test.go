@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 
+	audit "github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	"github.com/zhuchunshu/sforum/apps/api/database/migrations"
 )
 
@@ -103,6 +104,106 @@ func TestRevisionLedgerCreateCommentWritesRevisionOnePostgres(t *testing.T) {
 	}
 	if revisionNo != 1 {
 		t.Fatalf("comment revision_no=%d, want 1", revisionNo)
+	}
+}
+
+func TestRevisionLedgerVersionedTopicEditCASNoopAndAcceptedSnapshotPostgres(t *testing.T) {
+	fixture := newRevisionLedgerPGFixture(t)
+	store := NewPostgresStore(fixture.pool)
+	authorID := fixture.insertUser(t, "versioned_topic_author")
+	topic, err := store.CreateTopic(fixture.ctx, CreateTopicRecord{
+		CategorySlug: "general", AuthorUserID: authorID, Title: "Original title", Slug: "original-title",
+		TagCreationMode: TagCreationModeControlled, Content: renderedFixtureContent(t, "original body"), Status: TopicStatusActive,
+	})
+	if err != nil {
+		t.Fatalf("CreateTopic: %v", err)
+	}
+
+	updated, err := store.UpdateTopic(fixture.ctx, UpdateTopicRecord{
+		TopicID: topic.ID, EditorUserID: authorID, AuthorUserID: authorID, ExpectedRevision: 1,
+		Origin: RevisionOriginSelf, Title: "Accepted title", Slug: "accepted-title", TagCreationMode: TagCreationModeControlled,
+	})
+	if err != nil {
+		t.Fatalf("UpdateTopic: %v", err)
+	}
+	if !updated.UpdateApplied || updated.CurrentRevision != 2 {
+		t.Fatalf("updated topic = %#v", updated)
+	}
+	var revisionNo int64
+	var title, raw string
+	if err := fixture.pool.QueryRow(fixture.ctx, `
+		SELECT post_revisions.revision_no, topic_revision_snapshots.title, post_revisions.raw_content
+		FROM post_revisions JOIN topic_revision_snapshots ON topic_revision_snapshots.post_revision_id = post_revisions.id
+		WHERE post_revisions.post_id = $1 AND post_revisions.revision_no = 2
+	`, topic.Content.ID).Scan(&revisionNo, &title, &raw); err != nil {
+		t.Fatalf("load accepted revision: %v", err)
+	}
+	if revisionNo != 2 || title != "Accepted title" || raw != "original body" {
+		t.Fatalf("accepted revision = no:%d title:%q raw:%q", revisionNo, title, raw)
+	}
+
+	noOp, err := store.UpdateTopic(fixture.ctx, UpdateTopicRecord{
+		TopicID: topic.ID, EditorUserID: authorID, AuthorUserID: authorID, ExpectedRevision: 2,
+		Origin: RevisionOriginSelf, Title: "Accepted title", Slug: "accepted-title", TagCreationMode: TagCreationModeControlled,
+	})
+	if err != nil {
+		t.Fatalf("no-op UpdateTopic: %v", err)
+	}
+	if noOp.UpdateApplied || noOp.CurrentRevision != 2 {
+		t.Fatalf("no-op result = %#v", noOp)
+	}
+	if _, err := store.UpdateTopic(fixture.ctx, UpdateTopicRecord{TopicID: topic.ID, EditorUserID: authorID, AuthorUserID: authorID, ExpectedRevision: 1, Origin: RevisionOriginSelf}); !errors.Is(err, ErrRevisionConflict) {
+		t.Fatalf("stale UpdateTopic error = %v, want ErrRevisionConflict", err)
+	}
+}
+
+func TestRevisionLedgerVersionedCommentEditSavesFinalAcceptedSnapshotPostgres(t *testing.T) {
+	fixture := newRevisionLedgerPGFixture(t)
+	store := NewPostgresStore(fixture.pool)
+	authorID := fixture.insertUser(t, "versioned_comment_author")
+	topic := fixture.insertBareTopic(t, authorID, "versioned-comment-host")
+	comment, err := store.CreateComment(fixture.ctx, CreateCommentRecord{TopicID: topic.id, AuthorUserID: authorID, Content: renderedFixtureContent(t, "original comment"), Status: CommentStatusActive})
+	if err != nil {
+		t.Fatalf("CreateComment: %v", err)
+	}
+	accepted := renderedFixtureContent(t, "accepted comment")
+	updated, err := store.UpdateComment(fixture.ctx, UpdateCommentRecord{CommentID: comment.ID, EditorUserID: authorID, AuthorUserID: authorID, ExpectedRevision: 1, Origin: RevisionOriginSelf, Content: accepted})
+	if err != nil {
+		t.Fatalf("UpdateComment: %v", err)
+	}
+	if !updated.UpdateApplied || updated.CurrentRevision != 2 {
+		t.Fatalf("updated comment = %#v", updated)
+	}
+	var raw string
+	if err := fixture.pool.QueryRow(fixture.ctx, `SELECT raw_content FROM post_revisions WHERE post_id = $1 AND revision_no = 2`, comment.Content.ID).Scan(&raw); err != nil {
+		t.Fatalf("load accepted comment revision: %v", err)
+	}
+	if raw != "accepted comment" {
+		t.Fatalf("accepted comment raw=%q", raw)
+	}
+}
+
+func TestRevisionLedgerStaffEditAppendsAuditInContentTransactionPostgres(t *testing.T) {
+	fixture := newRevisionLedgerPGFixture(t)
+	if _, err := fixture.pool.Exec(fixture.ctx, `CREATE TABLE audit_events (id BIGSERIAL PRIMARY KEY, actor_user_id BIGINT NULL, target_user_id BIGINT NULL, action TEXT NOT NULL, metadata JSONB NOT NULL DEFAULT '{}'::jsonb, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`); err != nil {
+		t.Fatalf("create audit_events: %v", err)
+	}
+	store := NewPostgresStore(fixture.pool).WithAuditor(audit.NewPostgresWriter(fixture.pool))
+	authorID := fixture.insertUser(t, "staff_audit_author")
+	staffID := fixture.insertUser(t, "staff_audit_editor")
+	topic, err := store.CreateTopic(fixture.ctx, CreateTopicRecord{CategorySlug: "general", AuthorUserID: authorID, Title: "Audit target", Slug: "audit-target", TagCreationMode: TagCreationModeControlled, Content: renderedFixtureContent(t, "audit body"), Status: TopicStatusActive})
+	if err != nil {
+		t.Fatalf("CreateTopic: %v", err)
+	}
+	if _, err := store.UpdateTopic(fixture.ctx, UpdateTopicRecord{TopicID: topic.ID, EditorUserID: staffID, AuthorUserID: authorID, ExpectedRevision: 1, Reason: "correct title", Origin: RevisionOriginStaff, Title: "Corrected title", Slug: "corrected-title", TagCreationMode: TagCreationModeControlled}); err != nil {
+		t.Fatalf("staff UpdateTopic: %v", err)
+	}
+	var action, rawMetadata string
+	if err := fixture.pool.QueryRow(fixture.ctx, `SELECT action, metadata::text FROM audit_events`).Scan(&action, &rawMetadata); err != nil {
+		t.Fatalf("load edit audit: %v", err)
+	}
+	if action != audit.ActionForumTopicEditAny || !strings.Contains(rawMetadata, `"revisionNo": 2`) || strings.Contains(rawMetadata, "correct title") {
+		t.Fatalf("unexpected audit action/metadata: %q %s", action, rawMetadata)
 	}
 }
 

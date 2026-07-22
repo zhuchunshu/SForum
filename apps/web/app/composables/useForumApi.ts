@@ -64,10 +64,10 @@ export function useForumApi() {
     })
   }
 
-  function updateComment(commentId: number, content: ForumContentInput) {
-    return request<ForumComment>(`/comments/${commentId}`, {
-      method: 'PATCH',
-      body: { content }
+  function updateComment(commentId: number, content: ForumContentInput, expectedRevision: number, reason?: string) {
+	return request<ForumComment>(`/comments/${commentId}`, {
+	  method: 'PATCH',
+	  body: { content, expectedRevision, ...(reason ? { reason } : {}) }
     })
   }
 

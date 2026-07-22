@@ -21,6 +21,8 @@ const (
 	// CommentBeforeCreate E1.1：评论提交前同步 filter，可拒绝或补丁 content。
 	CommentBeforeCreate = "comment.before_create"
 	CommentCreated      = "comment.created"
+	CommentBeforeUpdate = "comment.before_update"
+	CommentUpdated      = "comment.updated"
 	CategoryCreated     = "category.created"
 	CategoryUpdated     = "category.updated"
 	TagCreated          = "tag.created"
@@ -55,7 +57,7 @@ var definitions = []Definition{
 		[]string{"categorySlug", "tagSlugs", "title", "content"},
 	),
 	observe(TopicCreated, "Emitted after a topic is committed.", []string{"topicId", "authorUserId", "categorySlug", "tagSlugs", "title"}),
-	observe(TopicUpdated, "Emitted after a topic's content or taxonomy is updated.", []string{"topicId", "actorUserId", "title", "categorySlug", "tagSlugs"}),
+	observe(TopicUpdated, "Emitted after a topic's content or taxonomy is updated. Revision metadata never includes raw content or reason.", []string{"topicId", "actorUserId", "title", "categorySlug", "tagSlugs", "revisionNo", "operation", "changedFields", "restoredFromRevisionNo"}),
 	observe(TopicDeleted, "Emitted after a topic is soft-deleted.", []string{"topicId", "actorUserId"}),
 	observe(TopicHidden, "Emitted after a topic is hidden by a moderator.", []string{"topicId", "actorUserId"}),
 	observe(TopicRestored, "Emitted after a hidden or deleted topic is restored to active.", []string{"topicId", "actorUserId"}),
@@ -74,6 +76,12 @@ var definitions = []Definition{
 		[]string{"content"},
 	),
 	observe(CommentCreated, "Emitted after a comment is committed.", []string{"commentId", "topicId", "authorUserId", "parentId"}),
+	filter(CommentBeforeUpdate,
+		"Runs after edit authority/CAS checks and before a comment update is committed. It may patch content only.",
+		[]string{"actorUserId", "commentId", "topicId", "content"},
+		[]string{"content"},
+	),
+	observe(CommentUpdated, "Emitted after a comment update is committed. Revision metadata never includes raw content or reason.", []string{"commentId", "topicId", "actorUserId", "revisionNo", "operation", "changedFields", "restoredFromRevisionNo"}),
 	validate(AttachmentBeforeUpload,
 		"Runs after host MIME/size policy and before storage write. Reject-only in v1; payload is metadata only (no raw file bytes).",
 		[]string{"actorUserId", "contentType", "sizeBytes", "filename"},

@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	audit "github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	avatar "github.com/zhuchunshu/sforum/apps/api/app/Support/Avatar"
 )
 
@@ -17,6 +18,7 @@ type PostgresStore struct {
 	pool          *pgxpool.Pool
 	avatarBuilder *avatar.ViewBuilder
 	notifications CommentNotificationWriter
+	auditor       audit.TxWriter
 }
 
 type CommentNotificationInput struct {
@@ -33,6 +35,16 @@ func NewPostgresStore(pool *pgxpool.Pool) *PostgresStore {
 
 func (s *PostgresStore) WithCommentNotifications(writer CommentNotificationWriter) *PostgresStore {
 	s.notifications = writer
+	return s
+}
+
+// WithAuditor wires the shared transaction-aware audit boundary. The no-op
+// default keeps local tools/read-only stores usable; production injects it.
+func (s *PostgresStore) WithAuditor(writer audit.TxWriter) *PostgresStore {
+	if writer == nil {
+		writer = audit.NoopWriter{}
+	}
+	s.auditor = writer
 	return s
 }
 
@@ -648,7 +660,9 @@ func (s *PostgresStore) CreateTopic(ctx context.Context, input CreateTopicRecord
 	return topic, nil
 }
 
-func (s *PostgresStore) UpdateTopic(ctx context.Context, input UpdateTopicRecord) (TopicDetail, error) {
+// updateTopicLegacy is retained temporarily as a migration reference. M3 uses
+// updateTopicVersioned so ordinary edits never create superseded snapshots.
+func (s *PostgresStore) updateTopicLegacy(ctx context.Context, input UpdateTopicRecord) (TopicDetail, error) {
 	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return TopicDetail{}, fmt.Errorf("begin update topic: %w", err)

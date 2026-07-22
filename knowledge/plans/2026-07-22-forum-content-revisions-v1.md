@@ -1,6 +1,6 @@
 # Forum Content Editing And Revisions V1 — Task Book
 
-Status: **active** — M2 revision read models/permissions complete; M3 versioned edit writes and CAS next
+Status: **active** — M3 versioned edit writes/CAS complete; M4 restore, attachment safety, and redaction next
 Date: 2026-07-22
 Goal: allow authorized staff to edit any topic or comment from the admin area,
 record every effective self/staff edit as an immutable revision, prevent stale
@@ -706,24 +706,24 @@ M2 implementation notes:
 
 ### M3 — Versioned Edit Writes And CAS
 
-- [ ] Add `expectedRevision`/`reason` to topic/comment service and HTTP inputs.
-- [ ] Lock resource + post, compare revision, and fail before side effects.
-- [ ] Reject an already-stale request before synchronous plugin filters and
+- [x] Add `expectedRevision`/`reason` to topic/comment service and HTTP inputs.
+- [x] Lock resource + post, compare revision, and fail before side effects.
+- [x] Reject an already-stale request before synchronous plugin filters and
       recheck the same expected revision under the transaction lock.
-- [ ] Run final normalized no-op detection inside the transaction.
-- [ ] Replace the old "snapshot before overwrite" helper with "append final
+- [x] Run final normalized no-op detection inside the transaction.
+- [x] Replace the old "snapshot before overwrite" helper with "append final
       accepted version" semantics.
-- [ ] Snapshot full topic/comment V1 fields and increment current revision once.
-- [ ] Require reason for cross-author edits.
-- [ ] Keep edit windows for author-only edits; `*_edit_any` remains exempt.
-- [ ] Add transaction-aware generic audit append for cross-author successful edits.
-- [ ] Add `comment.before_update` and `comment.updated`; enrich `topic.updated`.
-- [ ] Preserve moderation requeue, cache invalidation, search indexing, and
+- [x] Snapshot full topic/comment V1 fields and increment current revision once.
+- [x] Require reason for cross-author edits.
+- [x] Keep edit windows for author-only edits; `*_edit_any` remains exempt.
+- [x] Add transaction-aware generic audit append for cross-author successful edits.
+- [x] Add `comment.before_update` and `comment.updated`; enrich `topic.updated`.
+- [x] Preserve moderation requeue, cache invalidation, search indexing, and
       attachment counts exactly once.
-- [ ] Make canonical edit/readback work for every non-deleted status without
+- [x] Make canonical edit/readback work for every non-deleted status without
       accidentally publishing rejected/hidden content; status changes remain in
       moderation/lifecycle services.
-- [ ] Update first-party public topic/comment editors to submit the loaded token.
+- [x] Update first-party public topic/comment editors to submit the loaded token.
 
 Acceptance:
 

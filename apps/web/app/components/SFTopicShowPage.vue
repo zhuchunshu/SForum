@@ -609,7 +609,7 @@ async function saveCommentEdit(comment: ForumComment, payload?: { markdown?: str
       sourceFormat: 'markdown',
       editorType: 'tiptap',
       editorVersion: 'sf-editor-v1'
-    })
+    }, comment.currentRevision)
     cancelEditComment()
     await refreshComments()
     showSuccessToast(t('topicDetail.commentUpdated'))

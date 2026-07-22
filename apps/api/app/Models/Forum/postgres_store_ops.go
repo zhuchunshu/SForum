@@ -211,8 +211,8 @@ func (s *PostgresStore) CreateComment(ctx context.Context, input CreateCommentRe
 
 func (s *PostgresStore) GetCommentSummary(ctx context.Context, commentID int64) (CommentSummary, error) {
 	row := s.pool.QueryRow(ctx, `
-		SELECT id, topic_id, author_user_id, parent_comment_id, COALESCE(root_comment_id, id), path_key, depth, status, created_at
-		FROM comments
+		SELECT comments.id, comments.topic_id, comments.author_user_id, comments.parent_comment_id, COALESCE(comments.root_comment_id, comments.id), comments.path_key, comments.depth, comments.status, comments.created_at, posts.current_revision
+		FROM comments JOIN posts ON posts.id = comments.content_id
 		WHERE id = $1
 	`, commentID)
 	summary, err := scanCommentSummary(row)
@@ -288,7 +288,9 @@ func (s *PostgresStore) CountAuthorCommentsSince(ctx context.Context, authorUser
 	return count, nil
 }
 
-func (s *PostgresStore) UpdateComment(ctx context.Context, input UpdateCommentRecord) (Comment, error) {
+// updateCommentLegacy is retained temporarily as a migration reference. M3
+// uses updateCommentVersioned so ordinary edits append accepted versions.
+func (s *PostgresStore) updateCommentLegacy(ctx context.Context, input UpdateCommentRecord) (Comment, error) {
 	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return Comment{}, fmt.Errorf("begin update comment: %w", err)
@@ -1414,7 +1416,7 @@ func scanCommentSummary(row RowScanner) (CommentSummary, error) {
 	var summary CommentSummary
 	var authorID sql.NullInt64
 	var parentID sql.NullInt64
-	if err := row.Scan(&summary.ID, &summary.TopicID, &authorID, &parentID, &summary.RootCommentID, &summary.PathKey, &summary.Depth, &summary.Status, &summary.CreatedAt); err != nil {
+	if err := row.Scan(&summary.ID, &summary.TopicID, &authorID, &parentID, &summary.RootCommentID, &summary.PathKey, &summary.Depth, &summary.Status, &summary.CreatedAt, &summary.CurrentRevision); err != nil {
 		return CommentSummary{}, err
 	}
 	if authorID.Valid {

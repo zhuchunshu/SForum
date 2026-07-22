@@ -284,7 +284,7 @@ func wireAPICoreStack(ctx context.Context, cfg config.Config, logger *slog.Logge
 		RenewalEffectGate: sessionPolicyRenewal.Evaluate,
 	})
 	adminOverviewStore := adminoverview.NewPostgresStore(pool)
-	forumStore := forum.NewPostgresStoreWithAvatar(pool, avatarOptions)
+	forumStore := forum.NewPostgresStoreWithAvatar(pool, avatarOptions).WithAuditor(auditWriter)
 	// 业务读缓存复用 sharedRedisClient（与 humanverify 共享连接池）。
 	// 失败不阻断启动——缓存为可重建的派生数据，降级为直连 PG。
 	forumCachedStore := forum.NewCachedStore(forumStore, cache.NewRedisCache(sharedRedisClient))

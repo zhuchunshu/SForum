@@ -939,7 +939,7 @@ func TestServiceCreateCommentBeforeCreateNotInvokedWhenTopicLocked(t *testing.T)
 
 func TestServiceUpdateCommentAllowsOwnerAndAdmin(t *testing.T) {
 	store := newServiceFakeStore()
-	store.commentSummary = CommentSummary{ID: 5, AuthorUserID: 12, Status: CommentStatusActive}
+	store.commentSummary = CommentSummary{ID: 5, AuthorUserID: 12, Status: CommentStatusActive, CurrentRevision: 1}
 	service := NewService(store)
 	owner := identity.Actor{
 		ID:          12,
@@ -953,14 +953,14 @@ func TestServiceUpdateCommentAllowsOwnerAndAdmin(t *testing.T) {
 	}
 
 	if _, err := service.UpdateComment(context.Background(), owner, UpdateCommentInput{
-		CommentID: 5,
-		Content:   ContentInput{RawContent: "作者编辑", SourceFormat: SourceFormatMarkdown, EditorType: EditorTypeMarkdown},
+		CommentID: 5, ExpectedRevision: 1,
+		Content: ContentInput{RawContent: "作者编辑", SourceFormat: SourceFormatMarkdown, EditorType: EditorTypeMarkdown},
 	}); err != nil {
 		t.Fatalf("expected owner to edit comment, got %v", err)
 	}
 	if _, err := service.UpdateComment(context.Background(), admin, UpdateCommentInput{
-		CommentID: 5,
-		Content:   ContentInput{RawContent: "管理员编辑", SourceFormat: SourceFormatMarkdown, EditorType: EditorTypeMarkdown},
+		CommentID: 5, ExpectedRevision: 1, Reason: "moderation correction",
+		Content: ContentInput{RawContent: "管理员编辑", SourceFormat: SourceFormatMarkdown, EditorType: EditorTypeMarkdown},
 	}); err != nil {
 		t.Fatalf("expected admin to edit comment, got %v", err)
 	}
@@ -968,13 +968,13 @@ func TestServiceUpdateCommentAllowsOwnerAndAdmin(t *testing.T) {
 
 func TestServiceUpdateCommentRejectsUnauthorizedActor(t *testing.T) {
 	store := newServiceFakeStore()
-	store.commentSummary = CommentSummary{ID: 5, AuthorUserID: 12, Status: CommentStatusActive}
+	store.commentSummary = CommentSummary{ID: 5, AuthorUserID: 12, Status: CommentStatusActive, CurrentRevision: 1}
 	service := NewService(store)
 	actor := identity.Actor{ID: 13, Status: identity.UserStatusActive, Permissions: map[string]bool{}}
 
 	_, err := service.UpdateComment(context.Background(), actor, UpdateCommentInput{
-		CommentID: 5,
-		Content:   ContentInput{RawContent: "越权编辑", SourceFormat: SourceFormatMarkdown, EditorType: EditorTypeMarkdown},
+		CommentID: 5, ExpectedRevision: 1,
+		Content: ContentInput{RawContent: "越权编辑", SourceFormat: SourceFormatMarkdown, EditorType: EditorTypeMarkdown},
 	})
 	if !errors.Is(err, identity.ErrPermissionDenied) {
 		t.Fatalf("expected permission denied, got %v", err)
@@ -985,31 +985,31 @@ func TestServiceUpdateCommentRejectsUnauthorizedActor(t *testing.T) {
 
 func TestServiceUpdateTopicAllowsOwnerAndEditor(t *testing.T) {
 	store := newServiceFakeStore()
-	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive, CurrentRevision: 1}
 	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
 	owner := identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicEditOwn: true}}
 	editor := identity.Actor{ID: 20, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicEditAny: true}}
 
 	title := "新标题"
 	content := ContentInput{RawContent: "新正文", SourceFormat: SourceFormatMarkdown, EditorType: EditorTypeMarkdown}
-	if _, err := service.UpdateTopic(context.Background(), owner, UpdateTopicInput{TopicID: 7, Title: &title, Content: &content}); err != nil {
+	if _, err := service.UpdateTopic(context.Background(), owner, UpdateTopicInput{TopicID: 7, ExpectedRevision: 1, Title: &title, Content: &content}); err != nil {
 		t.Fatalf("expected owner to update topic, got %v", err)
 	}
 	if store.updatedTopic.Title != "新标题" {
 		t.Fatalf("expected updated title, got %#v", store.updatedTopic)
 	}
-	if _, err := service.UpdateTopic(context.Background(), editor, UpdateTopicInput{TopicID: 7, Title: &title}); err != nil {
+	if _, err := service.UpdateTopic(context.Background(), editor, UpdateTopicInput{TopicID: 7, ExpectedRevision: 1, Reason: "moderation correction", Title: &title}); err != nil {
 		t.Fatalf("expected editor to update topic, got %v", err)
 	}
 }
 
 func TestServiceUpdateTopicRejectsUnauthorizedActor(t *testing.T) {
 	store := newServiceFakeStore()
-	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive, CurrentRevision: 1}
 	service := NewService(store)
 	actor := identity.Actor{ID: 13, Status: identity.UserStatusActive, Permissions: map[string]bool{}}
 
-	_, err := service.UpdateTopic(context.Background(), actor, UpdateTopicInput{TopicID: 7, Title: strPtr("x")})
+	_, err := service.UpdateTopic(context.Background(), actor, UpdateTopicInput{TopicID: 7, ExpectedRevision: 1, Title: strPtr("x")})
 	if !errors.Is(err, identity.ErrPermissionDenied) {
 		t.Fatalf("expected permission denied, got %v", err)
 	}
@@ -1017,12 +1017,12 @@ func TestServiceUpdateTopicRejectsUnauthorizedActor(t *testing.T) {
 
 func TestServiceUpdateTopicRejectsEmptyTitle(t *testing.T) {
 	store := newServiceFakeStore()
-	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive, CurrentRevision: 1}
 	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
 	owner := identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicEditOwn: true}}
 
 	empty := "  "
-	_, err := service.UpdateTopic(context.Background(), owner, UpdateTopicInput{TopicID: 7, Title: &empty})
+	_, err := service.UpdateTopic(context.Background(), owner, UpdateTopicInput{TopicID: 7, ExpectedRevision: 1, Title: &empty})
 	if !errors.Is(err, ErrInvalidTopic) {
 		t.Fatalf("expected ErrInvalidTopic, got %v", err)
 	}
@@ -1040,7 +1040,7 @@ func topicEditor() identity.Actor {
 // E1.2：filter 可补丁标题/标签，成功后仍发出 topic.updated。
 func TestServiceUpdateTopicAppliesBeforeUpdateFilterAndEmitsUpdatedEvent(t *testing.T) {
 	store := newServiceFakeStore()
-	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive, Title: "原标题"}
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive, Title: "原标题", CurrentRevision: 1}
 	publisher := &fakeEventPublisher{results: map[string]appevents.Result{
 		appevents.TopicBeforeUpdate: {
 			OK: true,
@@ -1054,7 +1054,7 @@ func TestServiceUpdateTopicAppliesBeforeUpdateFilterAndEmitsUpdatedEvent(t *test
 
 	title := "用户标题"
 	_, err := service.UpdateTopic(context.Background(), topicEditor(), UpdateTopicInput{
-		TopicID:  7,
+		TopicID: 7, ExpectedRevision: 1,
 		Title:    &title,
 		TagSlugs: []string{"original"},
 	})
@@ -1088,7 +1088,7 @@ func TestServiceUpdateTopicAppliesBeforeUpdateFilterAndEmitsUpdatedEvent(t *test
 // TestServiceUpdateTopicBeforeUpdateCanReject 插件拒绝时不得落库。
 func TestServiceUpdateTopicBeforeUpdateCanReject(t *testing.T) {
 	store := newServiceFakeStore()
-	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive, CurrentRevision: 1}
 	publisher := &fakeEventPublisher{results: map[string]appevents.Result{
 		appevents.TopicBeforeUpdate: {
 			OK:      false,
@@ -1100,8 +1100,8 @@ func TestServiceUpdateTopicBeforeUpdateCanReject(t *testing.T) {
 
 	title := "违禁标题"
 	_, err := service.UpdateTopic(context.Background(), topicEditor(), UpdateTopicInput{
-		TopicID: 7,
-		Title:   &title,
+		TopicID: 7, ExpectedRevision: 1,
+		Title: &title,
 	})
 	var rejected *appevents.RejectedError
 	if !errors.As(err, &rejected) {
@@ -1122,7 +1122,7 @@ func TestServiceUpdateTopicBeforeUpdateCanReject(t *testing.T) {
 // 插件可在请求未带标签时强制写入 tagSlugs。
 func TestServiceUpdateTopicBeforeUpdateCanForceTagsWithoutRequestTags(t *testing.T) {
 	store := newServiceFakeStore()
-	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive, CurrentRevision: 1}
 	publisher := &fakeEventPublisher{results: map[string]appevents.Result{
 		appevents.TopicBeforeUpdate: {
 			OK:    true,
@@ -1133,8 +1133,8 @@ func TestServiceUpdateTopicBeforeUpdateCanForceTagsWithoutRequestTags(t *testing
 
 	title := "只改标题"
 	_, err := service.UpdateTopic(context.Background(), topicEditor(), UpdateTopicInput{
-		TopicID: 7,
-		Title:   &title,
+		TopicID: 7, ExpectedRevision: 1,
+		Title: &title,
 	})
 	if err != nil {
 		t.Fatalf("UpdateTopic returned error: %v", err)
@@ -1154,7 +1154,7 @@ func TestServiceUpdateTopicBeforeUpdateCanForceTagsWithoutRequestTags(t *testing
 // TestServiceUpdateTopicBeforeUpdateNotInvokedWhenUnauthorized 无权限时不触发 filter。
 func TestServiceUpdateTopicBeforeUpdateNotInvokedWhenUnauthorized(t *testing.T) {
 	store := newServiceFakeStore()
-	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive, CurrentRevision: 1}
 	publisher := &fakeEventPublisher{}
 	service := NewServiceWithEvents(store, publisher)
 	actor := identity.Actor{ID: 13, Status: identity.UserStatusActive, Permissions: map[string]bool{}}
@@ -1171,6 +1171,47 @@ func TestServiceUpdateTopicBeforeUpdateNotInvokedWhenUnauthorized(t *testing.T) 
 	}
 }
 
+func TestServiceUpdateTopicStaleRevisionDoesNotInvokeFilter(t *testing.T) {
+	store := newServiceFakeStore()
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive, CurrentRevision: 2}
+	publisher := &fakeEventPublisher{}
+	service := NewServiceWithEvents(store, publisher)
+	_, err := service.UpdateTopic(context.Background(), topicEditor(), UpdateTopicInput{TopicID: 7, ExpectedRevision: 1, Title: strPtr("stale")})
+	if !errors.Is(err, ErrRevisionConflict) {
+		t.Fatalf("expected revision conflict, got %v", err)
+	}
+	if publisher.seen(appevents.TopicBeforeUpdate) {
+		t.Fatal("stale request must not invoke topic.before_update")
+	}
+}
+
+func TestServiceCrossAuthorEditRequiresReason(t *testing.T) {
+	store := newServiceFakeStore()
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive, CurrentRevision: 1}
+	actor := identity.Actor{ID: 20, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicEditAny: true}}
+	_, err := NewService(store).UpdateTopic(context.Background(), actor, UpdateTopicInput{TopicID: 7, ExpectedRevision: 1, Title: strPtr("staff edit")})
+	if !errors.Is(err, ErrRevisionReasonRequired) {
+		t.Fatalf("expected required reason, got %v", err)
+	}
+}
+
+func TestServiceUpdateCommentFilterPatchAndEvent(t *testing.T) {
+	store := newServiceFakeStore()
+	store.commentSummary = CommentSummary{ID: 9, TopicID: 7, AuthorUserID: 12, Status: CommentStatusActive, CurrentRevision: 1, CreatedAt: time.Now().UTC()}
+	publisher := &fakeEventPublisher{results: map[string]appevents.Result{appevents.CommentBeforeUpdate: {OK: true, Patch: map[string]any{"content": ContentInput{RawContent: "patched", SourceFormat: SourceFormatMarkdown}}}}}
+	updated, err := NewServiceWithEvents(store, publisher).UpdateComment(context.Background(), topicEditorWithCommentPermission(), UpdateCommentInput{CommentID: 9, ExpectedRevision: 1, Content: validMarkdownContent("original")})
+	if err != nil {
+		t.Fatalf("UpdateComment: %v", err)
+	}
+	if store.updatedComment.Content.RawContent != "patched" || !publisher.seen(appevents.CommentUpdated) || updated.CurrentRevision != 2 {
+		t.Fatalf("comment update contract failed: record=%#v events=%#v updated=%#v", store.updatedComment, publisher.names, updated)
+	}
+}
+
+func topicEditorWithCommentPermission() identity.Actor {
+	return identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionPostEditOwn: true}}
+}
+
 // TestServiceUpdateTopicRequeuesPendingOnPublicationPolicy 编辑正文触发预审时应 pending。
 func TestServiceUpdateTopicRequeuesPendingOnPublicationPolicy(t *testing.T) {
 	store := newServiceFakeStore()
@@ -1185,7 +1226,7 @@ func TestServiceUpdateTopicRequeuesPendingOnPublicationPolicy(t *testing.T) {
 	owner := identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicEditOwn: true}}
 	content := ContentInput{RawContent: "see https://evil.example", SourceFormat: SourceFormatMarkdown, EditorType: EditorTypeMarkdown}
 
-	updated, err := svc.UpdateTopic(context.Background(), owner, UpdateTopicInput{TopicID: 7, Content: &content})
+	updated, err := svc.UpdateTopic(context.Background(), owner, UpdateTopicInput{TopicID: 7, ExpectedRevision: 1, Content: &content})
 	if err != nil {
 		t.Fatalf("UpdateTopic: %v", err)
 	}
@@ -1203,7 +1244,7 @@ func TestServiceUpdateTopicRequeuesPendingOnPublicationPolicy(t *testing.T) {
 // TestServiceUpdateCommentRequeuesPendingOnPublicationPolicy 评论编辑同样受发布策略约束。
 func TestServiceUpdateCommentRequeuesPendingOnPublicationPolicy(t *testing.T) {
 	store := newServiceFakeStore()
-	store.commentSummary = CommentSummary{ID: 9, TopicID: 3, AuthorUserID: 12, Status: CommentStatusActive, CreatedAt: time.Now().UTC()}
+	store.commentSummary = CommentSummary{ID: 9, TopicID: 3, AuthorUserID: 12, Status: CommentStatusActive, CreatedAt: time.Now().UTC(), CurrentRevision: 1}
 	svc := NewServiceWithPublicationPolicy(
 		store,
 		fakeSettingsResolver{settings: testForumSettings()},
@@ -1214,8 +1255,8 @@ func TestServiceUpdateCommentRequeuesPendingOnPublicationPolicy(t *testing.T) {
 	owner := identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionPostEditOwn: true}}
 
 	updated, err := svc.UpdateComment(context.Background(), owner, UpdateCommentInput{
-		CommentID: 9,
-		Content:   ContentInput{RawContent: "https://outside.test", SourceFormat: SourceFormatMarkdown, EditorType: EditorTypeMarkdown},
+		CommentID: 9, ExpectedRevision: 1,
+		Content: ContentInput{RawContent: "https://outside.test", SourceFormat: SourceFormatMarkdown, EditorType: EditorTypeMarkdown},
 	})
 	if err != nil {
 		t.Fatalf("UpdateComment: %v", err)
@@ -1460,7 +1501,7 @@ func TestServicePropagatesContentAttachmentReferences(t *testing.T) {
 		actor := identity.Actor{ID: 10, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicEditOwn: true}}
 		empty := []int64{}
 		content := ContentInput{RawContent: "更新正文", SourceFormat: SourceFormatMarkdown, AttachmentIDs: &empty}
-		if _, err := service.UpdateTopic(ctx, actor, UpdateTopicInput{TopicID: 5, Content: &content}); err != nil {
+		if _, err := service.UpdateTopic(ctx, actor, UpdateTopicInput{TopicID: 5, ExpectedRevision: 1, Content: &content}); err != nil {
 			t.Fatal(err)
 		}
 		if !store.updatedTopic.ReplaceAttachments || len(store.updatedTopic.AttachmentIDs) != 0 {
@@ -1473,7 +1514,7 @@ func TestServicePropagatesContentAttachmentReferences(t *testing.T) {
 		service := NewService(store)
 		actor := identity.Actor{ID: 10, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicEditOwn: true}}
 		content := ContentInput{RawContent: "更新正文", SourceFormat: SourceFormatMarkdown}
-		if _, err := service.UpdateTopic(ctx, actor, UpdateTopicInput{TopicID: 5, Content: &content}); err != nil {
+		if _, err := service.UpdateTopic(ctx, actor, UpdateTopicInput{TopicID: 5, ExpectedRevision: 1, Content: &content}); err != nil {
 			t.Fatal(err)
 		}
 		if store.updatedTopic.ReplaceAttachments {
@@ -1500,7 +1541,7 @@ func TestServicePropagatesContentAttachmentReferences(t *testing.T) {
 			t.Fatalf("create comment ids=%v", store.createdComment.AttachmentIDs)
 		}
 		if _, err := service.UpdateComment(ctx, actor, UpdateCommentInput{
-			CommentID: 8, Content: ContentInput{RawContent: "更新评论", SourceFormat: SourceFormatMarkdown, AttachmentIDs: &ids},
+			CommentID: 8, ExpectedRevision: 1, Content: ContentInput{RawContent: "更新评论", SourceFormat: SourceFormatMarkdown, AttachmentIDs: &ids},
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -1790,7 +1831,7 @@ func newServiceFakeStore() *serviceFakeStore {
 	return &serviceFakeStore{
 		nextID:          1,
 		topicForComment: TopicSummary{ID: 1, Status: TopicStatusActive},
-		actionTopic:     TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive},
+		actionTopic:     TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive, CurrentRevision: 1},
 	}
 }
 
@@ -1970,8 +2011,9 @@ func (s *serviceFakeStore) UpdateTopic(_ context.Context, input UpdateTopicRecor
 		status = TopicStatusPending
 	}
 	return TopicDetail{
-		TopicSummary: TopicSummary{ID: input.TopicID, Title: title, Status: status},
-		Content:      input.Content,
+		TopicSummary:  TopicSummary{ID: input.TopicID, Title: title, Status: status, CurrentRevision: input.ExpectedRevision + 1},
+		Content:       input.Content,
+		UpdateApplied: true,
 	}, nil
 }
 
@@ -2043,10 +2085,12 @@ func (s *serviceFakeStore) UpdateComment(_ context.Context, input UpdateCommentR
 		status = CommentStatusPending
 	}
 	return Comment{
-		ID:           input.CommentID,
-		AuthorUserID: s.commentSummary.AuthorUserID,
-		Status:       status,
-		Content:      input.Content,
+		ID:              input.CommentID,
+		AuthorUserID:    s.commentSummary.AuthorUserID,
+		Status:          status,
+		CurrentRevision: input.ExpectedRevision + 1,
+		Content:         input.Content,
+		UpdateApplied:   true,
 	}, nil
 }
 

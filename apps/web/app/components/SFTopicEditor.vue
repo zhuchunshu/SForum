@@ -151,6 +151,7 @@ async function save(payload?: { markdown?: string }) {
 
   try {
     const updated = await forumApi.updateTopic(props.topic.id, {
+	  expectedRevision: props.topic.currentRevision,
       title: title.value.trim(),
       categorySlug: selectedCategorySlug.value || undefined,
       tagSlugs: tagDraft.value,
