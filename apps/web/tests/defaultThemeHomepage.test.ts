@@ -308,9 +308,11 @@ describe('default theme V32 left-nav homepage contract', () => {
     const config = hostConfig()
 
     expect(middleware).toContain('no-store')
-    for (const route of ['/c/**', '/en/c/**', '/tags/**', '/en/tags/**']) {
+    for (const route of ['/c/**', '/tags/**']) {
       expect(config).toContain(`'${route}': { cache: false }`)
     }
+    expect(config).not.toContain("'/en/c/**'")
+    expect(config).not.toContain("'/en/tags/**'")
     expect(config).toContain("const payloadExtractionEnabled = process.env.NODE_ENV !== 'development'")
     expect(config).toContain('payloadExtraction: payloadExtractionEnabled')
   })

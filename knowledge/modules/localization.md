@@ -75,11 +75,16 @@ Foundation scaffold exists:
 
 ## SEO Responsibilities
 
-- Default Simplified Chinese pages use unprefixed canonical URLs.
-- English pages use `/en/*`.
-- Public pages emit `lang`, `hreflang`, canonical, and Open Graph locale tags.
-- Sitemaps include localized public URLs only when the corresponding content is
-  public and indexable.
+- UI locale strategy is `no_prefix`: Chinese and English share the same public
+  URLs; language is selected via `sforum_locale` cookie / `setLocale`.
+- Public pages emit `html lang` (and dir) from the active locale. They do **not**
+  emit multi-URL `hreflang` alternates (same URL cannot honestly represent two
+  languages for crawlers).
+- Sitemaps list content paths once (default-locale UI). Legacy `/en` and `/en/*`
+  bookmarks 301-strip to the unprefixed path via
+  `server/middleware/locale-prefix-compat.ts`.
+- Non-default locale cookie requests bypass shared Nitro SWR
+  (`server/middleware/locale-cache.ts`) so cached zh HTML is not served to en.
 
 ## Open Questions
 

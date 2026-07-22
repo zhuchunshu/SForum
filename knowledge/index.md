@@ -6,6 +6,13 @@ session archive.
 
 ## Latest Handoff
 
+- **2026-07-22 i18n no_prefix seamless locale**
+  - Strategy `no_prefix`: no `/en` routes; `setLocale` + cookie only
+  - Legacy `/en/*` 301 strip; non-default locale bypasses shared SWR
+  - Handoff: `sessions/2026-07-22-i18n-no-prefix-seamless-handoff.md`
+  - Decision: `decisions/2026-07-22-i18n-no-prefix-seamless.md`
+  - Module: `modules/localization.md`
+
 - **2026-07-22 Locale switch setLocale fix**
   - Language menu uses `setLocale` (cookie + path); fixes en→zh stuck on `/`
     and false “zh active” under `prefix_except_default`

@@ -80,31 +80,23 @@ export default defineNuxtConfig({
     // 静态资源（带 hash 的 _nuxt 文件）压缩为 brotli + gzip。
     compressPublicAssets: { brotli: true, gzip: true },
     // 路由级渲染模式与缓存：公开内容页走 stale-while-revalidate，全部页面保持 SSR 彻底避免空壳白屏。
-    // i18n strategy=prefix_except_default，zh-CN 无前缀，en 带前缀，需同时覆盖两套路径。
+    // i18n strategy=no_prefix：URL 不含语言前缀，无需 /en/** 镜像规则。
+    // 非默认语 cookie 由 server/middleware/locale-cache.ts 绕过共享 SWR，避免串语言。
     routeRules: {
       // 公开内容页：短到中等 swr，命中缓存的同时保持最终一致。
       // 根路由的 query 变体由 middleware 设为 no-store；基础页仍交给 CDN 做 SWR。
       '/': publicHomepageRouteRule,
-      '/en': publicHomepageRouteRule,
       // 分类/标签详情包含分页 query；Nuxt payload 路径不携带该 query，不能共享 SWR 缓存。
       '/c/**': { cache: false },
-      '/en/c/**': { cache: false },
       '/categories': { swr: 600 },
-      '/en/categories': { swr: 600 },
       '/tags': { swr: 600 },
-      '/en/tags': { swr: 600 },
       '/tags/**': { cache: false },
-      '/en/tags/**': { cache: false },
       '/u/**': { swr: 3600 },
-      '/en/u/**': { swr: 3600 },
       // 主题详情：匿名短 SWR（SEO/首屏）；登录或 ?edit= 由 server/middleware/topic-page-cache 禁缓存。
       '/t/**': { swr: 60 },
-      '/en/t/**': { swr: 60 },
       // 登录/注册/密码找回与受保护用户页保持 SSR，受保护页显式禁缓存，避免继承公开内容页 SWR。
       '/settings/**': { cache: false, robots: { index: false } },
-      '/en/settings/**': { cache: false, robots: { index: false } },
       '/topics/new': { cache: false, robots: { index: false } },
-      '/en/topics/new': { cache: false, robots: { index: false } },
       // 管理后台：SSR + 禁缓存 + 禁止索引。未登录由 admin 中间件服务端重定向到 /login，不再返回空壳。
       [`${adminRoutePrefix}/**`]: { cache: false, robots: { index: false } },
       // 组件预览页：SSR（生产环境直接渲染 404 错误页，不再先返回空壳）。
@@ -266,7 +258,8 @@ export default defineNuxtConfig({
   i18n: {
     baseUrl: appUrl,
     defaultLocale: 'zh-CN',
-    strategy: 'prefix_except_default',
+    // 无感切换：URL 不带语言前缀；locale 由 cookie / setLocale 决定。
+    strategy: 'no_prefix',
     langDir: 'locales',
     // i18n 10.4 的 Nitro context 实验路径在 dev 冷启动/HMR 窗口可能先进入
     // render:before、后执行 request 初始化，导致首页偶发 500。常规路由检测保留。
@@ -290,7 +283,8 @@ export default defineNuxtConfig({
     detectBrowserLanguage: {
       useCookie: true,
       cookieKey: 'sforum_locale',
-      redirectOn: 'root',
+      // no_prefix 下没有可跳转的 locale 路径；只做 cookie/浏览器协商，不 302。
+      alwaysRedirect: false,
       fallbackLocale: 'zh-CN'
     }
   },

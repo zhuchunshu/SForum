@@ -17,7 +17,8 @@ type MutableRouteRulesContext = {
 export default defineEventHandler((event) => {
   const url = getRequestURL(event)
   const path = url.pathname
-  const isTopicPath = path === '/t' || path.startsWith('/t/') || path === '/en/t' || path.startsWith('/en/t/')
+  // no_prefix：主题路径仅 /t/**（旧 /en/t/** 由 locale-prefix-compat 301 剥离）。
+  const isTopicPath = path === '/t' || path.startsWith('/t/')
   if (!isTopicPath) {
     return
   }

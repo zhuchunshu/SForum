@@ -32,30 +32,158 @@ const statusLabel = computed(() => {
 const sidebarItems = computed(() => props.extensionSidebar || [])
 const runningKey = ref('')
 const currentCommentIndex = ref(1)
+
+// 评论区可能 lazy 晚于侧栏挂载，也可能翻页/补载后整表替换；
+// 仅 onMounted 扫一次 DOM 会在部分场景永远卡在 1，不会动。
 let commentObserver: IntersectionObserver | null = null
+let listMutationObserver: MutationObserver | null = null
+let rebindTimer: ReturnType<typeof setTimeout> | null = null
+let scrollRaf = 0
 
 const commentProgress = computed(() => {
   const total = Math.max(1, props.topic.commentCount)
   return Math.min(100, Math.max(4, currentCommentIndex.value / total * 100))
 })
 
-onMounted(async () => {
-  await nextTick()
-  const comments = Array.from(document.querySelectorAll<HTMLElement>('.sf-comment-list > .sf-comment'))
-  if (!comments.length) return
+function collectCommentEls(): HTMLElement[] {
+  // 含树模式下的嵌套节点；flat 下也兼容（均为带 id 的 .sf-comment）
+  return Array.from(
+    document.querySelectorAll<HTMLElement>('.sf-comment-list .sf-comment[id^="comment-"]')
+  )
+}
 
+/** 优先用楼层号（分页时才是绝对进度），否则退回当前页内序号 */
+function floorOf(el: HTMLElement, fallbackIndex: number): number {
+  const floorText = el.querySelector('.sf-comment__floor')?.textContent?.trim() || ''
+  const parsed = Number.parseInt(floorText.replace(/^#/, ''), 10)
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return parsed
+  }
+  return fallbackIndex + 1
+}
+
+/** 以视口约 28% 高度为焦点线，取最近的可见评论作为当前进度 */
+function syncProgressFromScroll(comments = collectCommentEls()) {
+  if (!comments.length) {
+    return
+  }
+
+  const focusY = window.innerHeight * 0.28
+  let best: HTMLElement | null = null
+  let bestDist = Number.POSITIVE_INFINITY
+
+  for (const el of comments) {
+    const rect = el.getBoundingClientRect()
+    if (rect.bottom <= 0 || rect.top >= window.innerHeight) {
+      continue
+    }
+    const dist = Math.abs(rect.top - focusY)
+    if (dist < bestDist) {
+      bestDist = dist
+      best = el
+    }
+  }
+
+  if (!best) {
+    // 评论都在视口外：正文区用第一条，滚过讨论区用最后一条
+    const firstTop = comments[0]?.getBoundingClientRect().top ?? 0
+    best = firstTop > focusY ? comments[0]! : comments[comments.length - 1]!
+  }
+
+  const index = comments.indexOf(best)
+  if (index >= 0) {
+    currentCommentIndex.value = Math.min(
+      Math.max(1, props.topic.commentCount),
+      floorOf(best, index)
+    )
+  }
+}
+
+function onScrollOrResize() {
+  if (scrollRaf) {
+    return
+  }
+  scrollRaf = window.requestAnimationFrame(() => {
+    scrollRaf = 0
+    syncProgressFromScroll()
+  })
+}
+
+function bindCommentProgress() {
+  commentObserver?.disconnect()
+  const comments = collectCommentEls()
+  if (!comments.length) {
+    return
+  }
+
+  // IntersectionObserver 作辅助：焦点带内评论变化时立即更新
   commentObserver = new IntersectionObserver((entries) => {
     const visible = entries
       .filter(entry => entry.isIntersecting)
-      .sort((a, b) => Math.abs(a.boundingClientRect.top) - Math.abs(b.boundingClientRect.top))[0]
-    if (!visible) return
-    const index = comments.indexOf(visible.target as HTMLElement)
-    if (index >= 0) currentCommentIndex.value = index + 1
-  }, { rootMargin: '-20% 0px -60% 0px', threshold: 0 })
+      .sort((a, b) => {
+        const focusY = window.innerHeight * 0.28
+        return Math.abs(a.boundingClientRect.top - focusY) - Math.abs(b.boundingClientRect.top - focusY)
+      })[0]
+    if (!visible) {
+      // 焦点带内暂时无命中时用滚动扫描兜底，避免“卡住不动”
+      syncProgressFromScroll(comments)
+      return
+    }
+    const target = visible.target as HTMLElement
+    const index = comments.indexOf(target)
+    if (index >= 0) {
+      currentCommentIndex.value = Math.min(
+        Math.max(1, props.topic.commentCount),
+        floorOf(target, index)
+      )
+    }
+  }, {
+    // 比原先更宽的焦点带，减少“带内无评论 → 不回调”的死区
+    rootMargin: '-10% 0px -45% 0px',
+    threshold: [0, 0.15, 0.35, 0.6, 1]
+  })
+
   comments.forEach(comment => commentObserver?.observe(comment))
+  syncProgressFromScroll(comments)
+}
+
+function scheduleRebind() {
+  if (rebindTimer) {
+    clearTimeout(rebindTimer)
+  }
+  // 评论列表异步插入/翻页替换时合并多次 mutation
+  rebindTimer = setTimeout(() => {
+    rebindTimer = null
+    bindCommentProgress()
+  }, 48)
+}
+
+onMounted(async () => {
+  await nextTick()
+  bindCommentProgress()
+
+  const commentsRoot = document.querySelector('.sforum-topic-comments') || document.body
+  listMutationObserver = new MutationObserver(() => scheduleRebind())
+  listMutationObserver.observe(commentsRoot, { childList: true, subtree: true })
+
+  window.addEventListener('scroll', onScrollOrResize, { passive: true })
+  window.addEventListener('resize', onScrollOrResize, { passive: true })
 })
 
-onBeforeUnmount(() => commentObserver?.disconnect())
+onBeforeUnmount(() => {
+  commentObserver?.disconnect()
+  listMutationObserver?.disconnect()
+  if (rebindTimer) {
+    clearTimeout(rebindTimer)
+    rebindTimer = null
+  }
+  if (scrollRaf) {
+    window.cancelAnimationFrame(scrollRaf)
+    scrollRaf = 0
+  }
+  window.removeEventListener('scroll', onScrollOrResize)
+  window.removeEventListener('resize', onScrollOrResize)
+})
 
 function itemLabel(item: ForumTopicExtensionSidebarItem) {
   return forumTopicExtensionLabel(item, String(locale.value || 'zh-CN')) || item.id

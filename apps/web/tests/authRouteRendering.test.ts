@@ -70,13 +70,9 @@ describe('auth route rendering', () => {
     const config = readFileSync(new URL('../nuxt.config.ts', import.meta.url), 'utf8')
     const publicAuthRoutes = [
       '/login',
-      '/en/login',
       '/register',
-      '/en/register',
       '/forgot-password',
-      '/en/forgot-password',
-      '/reset-password',
-      '/en/reset-password'
+      '/reset-password'
     ]
 
     for (const route of publicAuthRoutes) {

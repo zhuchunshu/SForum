@@ -8,17 +8,8 @@ export default defineSitemapEventHandler(async () => {
 
   const urls: SitemapUrlInput[] = []
   if (settings.sitemapIncludeStaticPages) {
-    const zh = absoluteServerUrl(settings, '/')
-    const en = absoluteServerUrl(settings, '/en')
-    const alternatives = [
-      { hreflang: 'zh-CN', href: zh },
-      { hreflang: 'en-US', href: en },
-      { hreflang: 'x-default', href: zh }
-    ]
-    urls.push(
-      { loc: '/', alternatives },
-      { loc: '/en', alternatives }
-    )
+    // no_prefix：中英共用同一 URL，cookie 决定 UI 语言；sitemap 只收默认语入口。
+    urls.push({ loc: '/' })
   }
   return urls
 })

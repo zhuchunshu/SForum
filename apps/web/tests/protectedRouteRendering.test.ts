@@ -6,19 +6,17 @@ describe('protected route rendering', () => {
     const config = readFileSync(new URL('../nuxt.config.ts', import.meta.url), 'utf8')
 
     expect(config).toMatch(/experimental\s*:\s*\{[^}]*nitroContextDetection\s*:\s*false/s)
-    expect(config).toContain("strategy: 'prefix_except_default'")
+    expect(config).toContain("strategy: 'no_prefix'")
     expect(config).toContain('detectBrowserLanguage: {')
+    expect(config).not.toContain("strategy: 'prefix_except_default'")
   })
 
   test('does not serve protected user workflows as empty SPA shells', () => {
     const config = readFileSync(new URL('../nuxt.config.ts', import.meta.url), 'utf8')
     const protectedRoutes = [
       '/settings/**',
-      '/en/settings/**',
       '/topics/new',
-      '/en/topics/new',
-      '/t/**',
-      '/en/t/**'
+      '/t/**'
     ]
 
     for (const route of protectedRoutes) {
@@ -32,9 +30,7 @@ describe('protected route rendering', () => {
     // /t/** 允许匿名短 SWR；登录/?edit= 由 topic-page-cache 中间件禁缓存（见下测）。
     const protectedRoutes = [
       '/settings/**',
-      '/en/settings/**',
-      '/topics/new',
-      '/en/topics/new'
+      '/topics/new'
     ]
 
     for (const route of protectedRoutes) {
@@ -46,7 +42,7 @@ describe('protected route rendering', () => {
   test('topic detail allows anonymous SWR but gates auth/edit via middleware', () => {
     const config = readFileSync(new URL('../nuxt.config.ts', import.meta.url), 'utf8')
     expect(config).toMatch(/['"]\/t\/\*\*['"]\s*:\s*\{\s*swr\s*:\s*60\s*\}/)
-    expect(config).toMatch(/['"]\/en\/t\/\*\*['"]\s*:\s*\{\s*swr\s*:\s*60\s*\}/)
+    expect(config).not.toContain("'/en/t/**'")
 
     const middlewarePath = new URL('../server/middleware/topic-page-cache.ts', import.meta.url)
     expect(existsSync(middlewarePath)).toBe(true)
@@ -55,6 +51,25 @@ describe('protected route rendering', () => {
     expect(source).toContain('searchParams.has(\'edit\')')
     expect(source).toContain('routeRules.cache = false')
     expect(source).toContain('routeRules.swr = false')
+  })
+
+  test('bypasses shared SWR when non-default locale cookie is present', () => {
+    const middlewarePath = new URL('../server/middleware/locale-cache.ts', import.meta.url)
+    expect(existsSync(middlewarePath)).toBe(true)
+    const source = readFileSync(middlewarePath, 'utf8')
+    expect(source).toContain('sforum_locale')
+    expect(source).toContain('zh-CN')
+    expect(source).toContain('routeRules.cache = false')
+    expect(source).toContain('routeRules.swr = false')
+  })
+
+  test('301-strips legacy /en locale prefixes', () => {
+    const middlewarePath = new URL('../server/middleware/locale-prefix-compat.ts', import.meta.url)
+    expect(existsSync(middlewarePath)).toBe(true)
+    const source = readFileSync(middlewarePath, 'utf8')
+    expect(source).toContain("path.startsWith('/en/')")
+    expect(source).toContain('sendRedirect')
+    expect(source).toContain('301')
   })
 
   test('disables shared page caching for every session-bearing SSR request', () => {

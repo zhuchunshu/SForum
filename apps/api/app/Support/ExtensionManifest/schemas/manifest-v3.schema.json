@@ -1320,6 +1320,10 @@
           "icon": {
             "type": "string"
           },
+          "enabledBySetting": {
+            "type": "string",
+            "description": "Optional boolean setting key on the same extension. When set, the contribution is only effective when that setting resolves truthy (stored value or schema default)."
+          },
           "payload": {}
         }
       }

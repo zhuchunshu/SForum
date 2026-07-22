@@ -229,16 +229,13 @@ const themeToggleIcon = computed(() =>
   isDarkMode.value ? 'i-lucide-sun' : 'i-lucide-moon'
 )
 
-// 语言切换必须走 setLocale：写 sforum_locale cookie 并导航到目标 locale 路径。
-// 仅用 switchLocalePath 链接时，prefix_except_default 下从 /en 回到 / 会因
-// cookie 仍为 en 被 detectBrowserLanguage(redirectOn:root) 再 302 回 /en。
+// no_prefix：setLocale 只换文案 + cookie，URL 不变，实现无感切换。
 const languageMenuItems = computed<NavbarMenuItem[]>(() =>
   localeOptions.value.map((entry) => {
     const isCurrent = entry.code === locale.value
     return {
       label: entry.name || entry.code,
       icon: isCurrent ? 'i-lucide-check' : 'i-lucide-languages',
-      // 按当前 i18n locale 标记，避免默认语无前缀时 Router 把 `/` 误判为 active
       active: isCurrent,
       onSelect: (event: Event) => {
         if (isCurrent) {

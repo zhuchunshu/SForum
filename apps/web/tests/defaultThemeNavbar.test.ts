@@ -85,8 +85,8 @@ describe('default theme shared navbar contract', () => {
     expect(source).toContain('class="navbar__user-trigger"')
   })
 
-  test('switches locale via setLocale so cookie and path stay in sync', () => {
-    // 禁止只靠 switchLocalePath 链接：从 en 回 zh-CN 时 cookie 会把 / 再重定向到 /en
+  test('switches locale via setLocale without locale-prefixed routes', () => {
+    // no_prefix：setLocale 只换文案 + cookie，不生成 /en 路径
     expect(source).toContain('setLocale')
     expect(source).toMatch(/void setLocale\(entry\.code\)/)
     expect(source).toContain('active: isCurrent')

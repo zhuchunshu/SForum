@@ -9,7 +9,8 @@ type MutableRouteRulesContext = {
 
 export default defineEventHandler((event) => {
   const url = getRequestURL(event)
-  if ((url.pathname !== '/' && url.pathname !== '/en') || !url.search) {
+  // no_prefix：首页仅 /；不再有 /en 镜像。
+  if (url.pathname !== '/' || !url.search) {
     return
   }
 
