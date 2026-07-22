@@ -85,6 +85,15 @@ describe('default theme shared navbar contract', () => {
     expect(source).toContain('class="navbar__user-trigger"')
   })
 
+  test('switches locale via setLocale so cookie and path stay in sync', () => {
+    // 禁止只靠 switchLocalePath 链接：从 en 回 zh-CN 时 cookie 会把 / 再重定向到 /en
+    expect(source).toContain('setLocale')
+    expect(source).toMatch(/void setLocale\(entry\.code\)/)
+    expect(source).toContain('active: isCurrent')
+    expect(source).not.toContain('to: switchLocalePath')
+    expect(source).not.toContain('useSwitchLocalePath')
+  })
+
   test('submits compact search to the locale-aware homepage query', () => {
     expect(source).toMatch(
       /function submitSearch\(query: string\)[\s\S]*navigateTo\(\{[\s\S]*path: localePath\('\/'\),[\s\S]*query: buildForumHomeQuery\(\{[\s\S]*query,[\s\S]*categorySlug: '',[\s\S]*tagSlug: ''/

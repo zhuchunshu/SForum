@@ -98,5 +98,17 @@
     "default": "false",
     "recommendedValue": "false",
     "group": { "zh-CN": "扫描范围", "en-US": "Scan scope" }
+  },
+  {
+    "key": "show_topic_badge",
+    "label": { "zh-CN": "在帖子标题下显示徽章", "en-US": "Show badge under topic title" },
+    "description": {
+      "zh-CN": "开启后，主题详情标题下方显示「内容策略」徽章并链到 /guidelines。默认关闭，避免演示 UI 干扰普通阅读。",
+      "en-US": "When on, shows a Content policy badge under the topic title linking to /guidelines. Off by default so demo UI does not clutter reading."
+    },
+    "type": "boolean",
+    "default": "false",
+    "recommendedValue": "false",
+    "group": { "zh-CN": "公共展示", "en-US": "Public display" }
   }
 ]

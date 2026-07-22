@@ -303,8 +303,12 @@ mail. Implementation checklist:
 - F4.4 entity meta → **E3**; F4.5 feature flags → **E4** (already implemented)
 - **E5 complete:** workflow reference plugin `sforum.content-policy`
   (`extensions/builtin/plugins/sforum-content-policy/`) — filters on
-  topic/comment before_create(+topic update), settings, topic badge/sidebar,
-  public SDK backend; authoring guide + `docs/extensions/scenario-map.md`
+  topic/comment before_create(+topic update), settings, optional topic badge
+  (`show_topic_badge`, default off via contribution `enabledBySetting`) +
+  sidebar, public SDK backend; authoring guide + `docs/extensions/scenario-map.md`
+- Contribution optional gate: `ManifestContribution.enabledBySetting` must
+  reference a boolean setting on the same extension; host filters in
+  `EffectiveContributions` (stored value, else schema default).
 - **E6.0 complete:** storage plugin-provider decision
   (`decisions/2026-07-12-attachment-storage-plugin-provider.md`) + selection
   encoding helpers (`plugin:<extensionId>` in `Support/Storage`).

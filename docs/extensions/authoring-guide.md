@@ -460,8 +460,8 @@ reference.
 | Manifest | Explicit `capabilities`, three filter `events`, multi-file `includes` |
 | Backend | Public SDK `Serve` + `Noop`; implements `InvokeHook` only |
 | Filters | `topic.before_create`, `topic.before_update`, `comment.before_create` |
-| Settings | Keywords, mode (`reject` / `tag`), force tag, scan toggles |
-| Contributions | `forum.topic.badges` + `forum.topic.sidebar` → `/guidelines` |
+| Settings | Keywords, mode (`reject` / `tag`), force tag, scan toggles, optional public badge |
+| Contributions | Optional `forum.topic.badges` (`show_topic_badge`, default off) + `forum.topic.sidebar` → `/guidelines` |
 | Providers | None (not a slot plugin) |
 
 Operator path (fresh contributor):
@@ -472,8 +472,8 @@ Operator path (fresh contributor):
 3. Keep mode **Reject publish** (recommended default).
 4. Publish a topic/reply containing a keyword → API `422` with reason
    `content_policy.keyword_blocked`.
-5. With the default theme, topic detail shows a policy badge and a guidelines
-   sidebar card.
+5. Topic detail shows a guidelines sidebar card. The title badge stays hidden
+   until **Show badge under topic title** is enabled in plugin settings.
 
 Author rules demonstrated by this package:
 

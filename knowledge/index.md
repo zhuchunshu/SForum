@@ -6,6 +6,12 @@ session archive.
 
 ## Latest Handoff
 
+- **2026-07-22 Locale switch setLocale fix**
+  - Language menu uses `setLocale` (cookie + path); fixes en→zh stuck on `/`
+    and false “zh active” under `prefix_except_default`
+  - Handoff: `sessions/2026-07-22-locale-switch-setlocale-fix.md`
+  - Module: `modules/frontend.md`
+
 - **2026-07-22 Default theme appearance + dark mode**
   - Default theme L0 no longer hard-locks rose accent; follows site
     `appearance.theme` (`--sf-accent*`) and `.dark` public surface tokens

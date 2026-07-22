@@ -58,8 +58,6 @@
     "dock": {
       "title": "Community activity",
       "latestActivity": "Latest activity",
-      "latestTitle": "Latest discussions",
-      "subtitle": "See what the community is discussing",
       "overview": "Community overview",
       "topics": "Topics",
       "categories": "Categories",
@@ -104,6 +102,8 @@
       "repliesColumn": "Replies",
       "activityColumn": "Activity",
       "latestActivity": "Latest activity",
+      "latestTitle": "Latest discussions",
+      "subtitle": "See what the community is discussing",
       "replyCount": "{count} replies",
       "topicCountMeta": "{count} topics",
       "topicCountMetaApprox": "About {count} topics",

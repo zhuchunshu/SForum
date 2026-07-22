@@ -14,8 +14,8 @@ buildable for rollback until the P13 compatibility exit gates pass.
 | --- | --- |
 | `topic.before_create` / `topic.before_update` | Scan title/content for keywords; reject or force-tag |
 | `comment.before_create` | Scan content; reject on match (tag mode still rejects) |
-| Settings | Keyword list, mode, force tag, scan toggles |
-| Contributions | Topic badge + sidebar link to `/guidelines` |
+| Settings | Keyword list, mode, force tag, scan toggles, optional public badge |
+| Contributions | Optional topic badge (`show_topic_badge`, default off) + sidebar link to `/guidelines` |
 
 ## Settings (env injection)
 
@@ -30,6 +30,7 @@ Host injects settings as `SFORUM_SETTING_*` when starting the subprocess:
 | `match_title` | `SFORUM_SETTING_MATCH_TITLE` | Topics only |
 | `match_content` | `SFORUM_SETTING_MATCH_CONTENT` | Topics + comments |
 | `case_sensitive` | `SFORUM_SETTING_CASE_SENSITIVE` | Default false |
+| `show_topic_badge` | `SFORUM_SETTING_SHOW_TOPIC_BADGE` | Default false; host-side only (no filter effect). When true, `forum.topic.badges` contribution is effective |
 
 ## Build
 

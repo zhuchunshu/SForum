@@ -8,9 +8,8 @@ import {
   parseForumTagPublicPagesOption
 } from '~/utils/forumTaxonomy'
 
-const { t, locale, locales } = useI18n()
+const { t, locale, locales, setLocale } = useI18n()
 const localePath = useLocalePath()
-const switchLocalePath = useSwitchLocalePath()
 const { user, status, refresh } = useAuthSession()
 const {
   siteName,
@@ -174,7 +173,7 @@ const logoAriaLabel = computed(() => {
   return tagline ? `${siteName.value} — ${tagline}` : siteName.value
 })
 
-type LocaleCode = Parameters<typeof switchLocalePath>[0]
+type LocaleCode = string
 type LocaleOption = {
   code: LocaleCode
   name?: string
@@ -184,6 +183,8 @@ type NavbarMenuItem = {
   description?: string
   icon?: string
   to?: string
+  /** 覆盖 ULink 的路由 active，语言项按 i18n locale 判定 */
+  active?: boolean
   type?: 'label'
   color?: 'error'
   onSelect?: (event: Event) => void
@@ -228,12 +229,26 @@ const themeToggleIcon = computed(() =>
   isDarkMode.value ? 'i-lucide-sun' : 'i-lucide-moon'
 )
 
+// 语言切换必须走 setLocale：写 sforum_locale cookie 并导航到目标 locale 路径。
+// 仅用 switchLocalePath 链接时，prefix_except_default 下从 /en 回到 / 会因
+// cookie 仍为 en 被 detectBrowserLanguage(redirectOn:root) 再 302 回 /en。
 const languageMenuItems = computed<NavbarMenuItem[]>(() =>
-  localeOptions.value.map((entry) => ({
-    label: entry.name,
-    icon: entry.code === locale.value ? 'i-lucide-check' : 'i-lucide-languages',
-    to: switchLocalePath(entry.code)
-  }))
+  localeOptions.value.map((entry) => {
+    const isCurrent = entry.code === locale.value
+    return {
+      label: entry.name || entry.code,
+      icon: isCurrent ? 'i-lucide-check' : 'i-lucide-languages',
+      // 按当前 i18n locale 标记，避免默认语无前缀时 Router 把 `/` 误判为 active
+      active: isCurrent,
+      onSelect: (event: Event) => {
+        if (isCurrent) {
+          event.preventDefault()
+          return
+        }
+        void setLocale(entry.code)
+      }
+    }
+  })
 )
 
 const userMenuItems = computed<NavbarMenuItem[][]>(() => {

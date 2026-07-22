@@ -129,6 +129,30 @@ func TestF43ContributionPayloadValidation(t *testing.T) {
 	if err := Validate(bad); err == nil {
 		t.Fatal("unknown badge tone must be rejected")
 	}
+	// enabledBySetting 必须指向已声明的 boolean 设置。
+	gated := base
+	gated.Settings = []ManifestSetting{{
+		Key: "show_topic_badge", Label: LocalizedText{Default: "Show badge"}, Type: "boolean", Default: "false",
+	}}
+	gated.Contributions = []ManifestContribution{{
+		Point: PointForumTopicBadges, ID: "gated.badge", Order: 10,
+		Label: map[string]string{"en-US": "Policy"}, EnabledBySetting: "show_topic_badge",
+		Payload: json.RawMessage(`{"tone":"info","href":"/guidelines"}`),
+	}}
+	if err := Validate(gated); err != nil {
+		t.Fatalf("gated boolean contribution should validate: %v", err)
+	}
+	gated.Contributions[0].EnabledBySetting = "missing_key"
+	if err := Validate(gated); err == nil {
+		t.Fatal("enabledBySetting unknown key must be rejected")
+	}
+	gated.Settings = []ManifestSetting{{
+		Key: "mode", Label: LocalizedText{Default: "Mode"}, Type: "text", Default: "reject",
+	}}
+	gated.Contributions[0].EnabledBySetting = "mode"
+	if err := Validate(gated); err == nil {
+		t.Fatal("enabledBySetting non-boolean setting must be rejected")
+	}
 	bad.Contributions = []ManifestContribution{{
 		Point: PointForumTopicSidebar, ID: "evil-side", Order: 1,
 		Label:   map[string]string{"en-US": "Evil"},

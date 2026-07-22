@@ -497,6 +497,53 @@ func TestServiceEffectiveContributionsResolveWithoutAdminActor(t *testing.T) {
 	}
 }
 
+func TestServiceEffectiveContributionsRespectEnabledBySetting(t *testing.T) {
+	store := &fakeExtensionStore{
+		items:    map[string]Extension{},
+		settings: map[string]map[string]string{},
+	}
+	service := NewService(store, t.TempDir())
+
+	badgePayload, err := json.Marshal(map[string]string{"tone": "info", "href": "/guidelines"})
+	if err != nil {
+		t.Fatalf("marshal badge payload: %v", err)
+	}
+	plugin := contributionTestPlugin("policy.plugin", StatusEnabled, []ManifestContribution{
+		{
+			Point:            "forum.topic.badges",
+			ID:               "content-policy-active",
+			Order:            50,
+			Label:            map[string]string{"zh-CN": "内容策略", "en-US": "Content policy"},
+			Icon:             "i-lucide-shield-check",
+			EnabledBySetting: "show_topic_badge",
+			Payload:          badgePayload,
+		},
+		topicActionContribution(t, "always-on", 10, "/topic-actions/always"),
+	})
+	plugin.Manifest.Settings = []ManifestSetting{{
+		Key: "show_topic_badge", Label: LocalizedText{Default: "Show badge"}, Type: "boolean", Default: "false",
+	}}
+	store.items[plugin.ID] = plugin
+
+	// 默认 false：门控徽章不出现，无门控贡献仍在。
+	contributions, err := service.EffectiveContributions(context.Background())
+	if err != nil {
+		t.Fatalf("EffectiveContributions: %v", err)
+	}
+	if got := contributionIDs(contributions); !slices.Equal(got, []string{"policy.plugin:always-on"}) {
+		t.Fatalf("default-off badge should be hidden: %#v", got)
+	}
+
+	store.settings[plugin.ID] = map[string]string{"show_topic_badge": "true"}
+	contributions, err = service.EffectiveContributions(context.Background())
+	if err != nil {
+		t.Fatalf("EffectiveContributions after enable: %v", err)
+	}
+	if got := contributionIDs(contributions); !slices.Equal(got, []string{"policy.plugin:always-on", "policy.plugin:content-policy-active"}) {
+		t.Fatalf("enabled badge should appear: %#v", got)
+	}
+}
+
 func TestServiceContributionInspectionRequiresExtensionManage(t *testing.T) {
 	service := NewService(&fakeExtensionStore{}, t.TempDir())
 	actor := identity.Actor{ID: 7, Status: identity.UserStatusActive, Permissions: map[string]bool{}}

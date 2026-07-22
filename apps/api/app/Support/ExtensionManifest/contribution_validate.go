@@ -97,6 +97,7 @@ func validateContributions(manifest Manifest, definitions []ContributionPointDef
 
 // ContributionEnabledBySetting 解析「贡献是否因设置门控而生效」。
 // key 为空时始终生效；否则用已存值，缺省回落到 settings schema 的 default。
+// 未声明的 key 或空默认按 false 处理（fail closed）。
 func ContributionEnabledBySetting(manifest Manifest, stored map[string]string, key string) bool {
 	key = strings.TrimSpace(key)
 	if key == "" {

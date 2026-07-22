@@ -1268,6 +1268,13 @@ ExtensionManifestContribution:
     icon:
       type: string
       description: Nuxt Icon name with approved i-lucide- or i-tabler- prefix.
+    enabledBySetting:
+      type: string
+      description: >
+        Optional boolean setting key on the same extension. When set, the
+        contribution is only effective when that setting resolves truthy
+        (stored value, otherwise the setting schema default). Use for
+        optional public UI such as topic badges that should stay off by default.
     payload:
       "$ref": "#/ExtensionContributionPayload"
 ExtensionContributionPayload:
