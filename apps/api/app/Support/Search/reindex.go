@@ -18,7 +18,7 @@ import (
 const reindexBatchSize = 1000
 
 // ErrReindexAlreadyRunning 表示已有重建正在进行，拒绝并发触发。
-// 保证进度统计精确（River Unique ByArgs 会让并发 run 的 job 合并）。
+// 保证进度统计精确，并避免同一主题在两个全量 run 中重复调度。
 var ErrReindexAlreadyRunning = errors.New("search: reindex already running")
 
 // ReindexManager 协调搜索索引批量重建：
@@ -54,8 +54,10 @@ func (m *ReindexManager) Reindex(ctx context.Context, startedByUserID int64) (Re
 		return ReindexRun{}, err
 	}
 
-	// 分批批量入队。IndexTopicArgs 带 unique ByArgs，重复入队幂等安全。
+	// 全量重建必须为每个主题创建新任务，不能被历史 completed unique job 阻塞。
+	// Index 是幂等 upsert，且上方已拒绝并发重建；日常增量任务仍使用活跃态去重。
 	opts := searchjobs.IndexTopicArgs{}.QueueOpts()
+	opts.Unique = river.UniqueOpts{}
 	for start := 0; start < len(ids); start += reindexBatchSize {
 		end := start + reindexBatchSize
 		if end > len(ids) {

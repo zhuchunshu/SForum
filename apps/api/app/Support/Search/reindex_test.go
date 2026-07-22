@@ -79,6 +79,7 @@ func (s *fakeReindexStore) CountPendingIndexJobs(_ context.Context) (int64, erro
 type fakeReindexRiverClient struct {
 	insertManyCalls int
 	insertManyArgs  []river.JobArgs
+	insertManyOpts  []*river.InsertOpts
 	err             error
 }
 
@@ -94,6 +95,7 @@ func (f *fakeReindexRiverClient) InsertMany(_ context.Context, params []river.In
 	f.insertManyCalls++
 	for _, p := range params {
 		f.insertManyArgs = append(f.insertManyArgs, p.Args)
+		f.insertManyOpts = append(f.insertManyOpts, p.InsertOpts)
 	}
 	if f.err != nil {
 		return nil, f.err
@@ -129,6 +131,11 @@ func TestReindexEnqueuesAllTopicIDsAndCreatesRun(t *testing.T) {
 	}
 	if len(client.insertManyArgs) != 5 {
 		t.Fatalf("expected 5 args enqueued, got %d", len(client.insertManyArgs))
+	}
+	for _, opts := range client.insertManyOpts {
+		if opts.UniqueOpts.ByArgs || opts.UniqueOpts.ByState != nil || opts.UniqueOpts.ByQueue || opts.UniqueOpts.ByPeriod != 0 {
+			t.Fatalf("full reindex jobs must bypass historical uniqueness: %+v", opts.UniqueOpts)
+		}
 	}
 	if client.insertManyCalls != 1 {
 		t.Fatalf("expected 1 InsertMany call for 5 ids (< batch 1000), got %d", client.insertManyCalls)

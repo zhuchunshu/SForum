@@ -80,6 +80,11 @@ func TestPostgresSiteEngineIndexSearchDelete(t *testing.T) {
 		t.Fatalf("add cjk_tsv: %v", err)
 	}
 	_, _ = pool.Exec(ctx, `CREATE INDEX IF NOT EXISTS search_documents_cjk_tsv_idx ON search_documents USING GIN (cjk_tsv)`)
+	_, err = pool.Exec(ctx, `ALTER TABLE search_documents ADD COLUMN IF NOT EXISTS metadata_tsv tsvector NOT NULL DEFAULT ''::tsvector`)
+	if err != nil {
+		t.Fatalf("add metadata_tsv: %v", err)
+	}
+	_, _ = pool.Exec(ctx, `CREATE INDEX IF NOT EXISTS search_documents_metadata_tsv_idx ON search_documents USING GIN (metadata_tsv)`)
 	_, err = pool.Exec(ctx, `CREATE SCHEMA IF NOT EXISTS sforum_host_extensions`)
 	if err != nil {
 		t.Fatalf("create Host extension schema: %v", err)
@@ -110,7 +115,8 @@ func TestPostgresSiteEngineIndexSearchDelete(t *testing.T) {
 	now := time.Now().UTC()
 	doc := TopicSearchDoc{
 		ID: topicID, Title: "PG FTS " + unique, Excerpt: "ex", PlainText: "body " + unique,
-		CategorySlug: "dev", CategoryName: "Dev", Status: "active",
+		CategorySlug: "dev", CategoryName: "开发交流", Status: "active",
+		AuthorUsername: "dalao", AuthorDisplayName: "小明",
 		TagSlugs: []string{"go"}, CreatedAt: now, UpdatedAt: now, LastActivityAt: now,
 	}
 	// cleanup
@@ -156,6 +162,15 @@ func TestPostgresSiteEngineIndexSearchDelete(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("active topic %d not in results %+v", topicID, res.Items)
+	}
+	for _, metadataQuery := range []string{"小明", "dalao", "开发交流", "go"} {
+		metadataResult, err := engine.Search(ctx, SearchInput{Query: metadataQuery, Page: 1, PerPage: 20})
+		if err != nil {
+			t.Fatalf("Search metadata %q: %v", metadataQuery, err)
+		}
+		if !containsSearchDoc(metadataResult.Items, topicID) {
+			t.Fatalf("expected metadata %q to match topic %d: %+v", metadataQuery, topicID, metadataResult.Items)
+		}
 	}
 
 	chineseTopicID := topicID + 2

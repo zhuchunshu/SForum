@@ -26,7 +26,10 @@ func (DeleteTopicArgs) QueueOpts() supportjobs.EnqueueOptions {
 	return supportjobs.EnqueueOptions{
 		Queue:       supportjobs.QueueSearch,
 		MaxAttempts: 10,
-		Unique:      river.UniqueOpts{ByArgs: true},
+		Unique: river.UniqueOpts{
+			ByArgs:  true,
+			ByState: activeSearchJobStates(),
+		},
 	}
 }
 

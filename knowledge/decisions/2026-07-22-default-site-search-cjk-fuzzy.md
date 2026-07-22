@@ -53,6 +53,14 @@ The alternatives considered were:
    migration so old documents receive body CJK n-grams. The generated trigram
    column is backfilled by PostgreSQL during migration, so title/excerpt fuzzy
    search is available immediately.
+8. Store author/category/tag/slug terms in a separate weighted `metadata_tsv`
+   GIN index. The migration backfills exact metadata terms immediately; normal
+   indexing adds Chinese metadata n-grams to `cjk_tsv`.
+9. River uniqueness applies only to active incremental search jobs. Explicit
+   full rebuild jobs bypass uniqueness because indexing is an idempotent upsert
+   and concurrent rebuilds are already rejected. This guarantees that legacy
+   completed jobs cannot suppress repair work. Engine-unavailable errors from a
+   worker are retryable failures, never successful no-ops.
 
 ## Consequences
 
@@ -66,3 +74,7 @@ The alternatives considered were:
   deployments must provide the standard contrib extension.
 - Meilisearch remains the recommended optional provider when operators need
   dictionary-aware segmentation, synonyms, or more aggressive typo tolerance.
+- Author, category, tag, and slug queries work consistently in the default
+  engine without expanding the trigram index to long body text.
+- A completed River job cannot permanently suppress subsequent topic updates,
+  and a full rebuild always schedules every currently public topic.

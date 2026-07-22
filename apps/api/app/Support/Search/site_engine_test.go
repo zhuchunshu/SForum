@@ -2,6 +2,7 @@ package search
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -135,6 +136,19 @@ func TestIndexerWithMemoryEngine(t *testing.T) {
 	}
 }
 
+func TestIndexerReturnsUnavailableSoRiverCanRetry(t *testing.T) {
+	indexer := NewIndexer(UnavailableEngine{}, fixedTopicReader{doc: TopicSearchDoc{ID: 42}}, nil)
+
+	err := indexer.IndexTopic(context.Background(), 42)
+	if !errors.Is(err, ErrEngineUnavailable) {
+		t.Fatalf("IndexTopic error = %v, want ErrEngineUnavailable", err)
+	}
+	err = indexer.DeleteTopic(context.Background(), 42)
+	if !errors.Is(err, ErrEngineUnavailable) {
+		t.Fatalf("DeleteTopic error = %v, want ErrEngineUnavailable", err)
+	}
+}
+
 func TestIsPublicSearchStatus(t *testing.T) {
 	if !IsPublicSearchStatus("active") || !IsPublicSearchStatus("locked") {
 		t.Fatal("active/locked should be public")
@@ -175,7 +189,7 @@ func TestCJKNgramTerms(t *testing.T) {
 
 func TestSiteTSQueryIncludesIndexedFuzzyPath(t *testing.T) {
 	predicate, rank, args := siteTSQuery("分享代玛", false)
-	for _, want := range []string{"tsv @@", "cjk_tsv @@", "fuzzy_text ILIKE", "OPERATOR(sforum_host_extensions.<%)"} {
+	for _, want := range []string{"tsv @@", "metadata_tsv @@", "cjk_tsv @@", "fuzzy_text ILIKE", "OPERATOR(sforum_host_extensions.<%)"} {
 		if !strings.Contains(predicate, want) {
 			t.Fatalf("predicate %q missing %q", predicate, want)
 		}
@@ -187,6 +201,26 @@ func TestSiteTSQueryIncludesIndexedFuzzyPath(t *testing.T) {
 	}
 	if len(args) != 4 || args[0] != "分享代玛" || args[1] != "分 享 代 玛 分享 享代 代玛" || args[2] != "%分享代玛%" || args[3] != "分享代玛" {
 		t.Fatalf("query args = %#v", args)
+	}
+}
+
+func TestMemorySiteEngineSearchesMetadata(t *testing.T) {
+	engine := NewMemorySiteEngine()
+	now := time.Now().UTC()
+	if err := engine.Index(context.Background(), TopicSearchDoc{
+		ID: 1, Title: "普通主题", Status: "active",
+		AuthorUsername: "dalao", AuthorDisplayName: "小明",
+		CategorySlug: "kai-fa", CategoryName: "开发交流",
+		Slug: "ordinary-topic", TagSlugs: []string{"golang"},
+		CreatedAt: now, UpdatedAt: now, LastActivityAt: now,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, query := range []string{"小明", "dalao", "开发交流", "golang", "ordinary-topic"} {
+		result, err := engine.Search(context.Background(), SearchInput{Query: query})
+		if err != nil || result.Total != 1 {
+			t.Fatalf("metadata query %q result=%+v err=%v", query, result, err)
+		}
 	}
 }
 

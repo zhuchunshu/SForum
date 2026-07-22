@@ -2,7 +2,6 @@ package search
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -22,7 +21,8 @@ type EngineGate interface {
 //     异步入队 IndexTopicArgs/DeleteTopicArgs（事务外，失败只记日志）。
 //   - IndexTopic/DeleteTopic：River worker 实际执行，读写 Engine。
 //
-// 无可用引擎时入队 no-op，避免堆积无用 job；worker 侧再次容忍 ErrEngineUnavailable。
+// 无可用引擎时入队 no-op，避免堆积无用 job；已经入队的 worker 任务必须返回引擎错误，
+// 交给 River 重试，不能把一次临时不可用误记为 completed。
 type Indexer struct {
 	engine     Engine
 	reader     TopicReader
@@ -89,8 +89,8 @@ func (i *Indexer) engineEnabled(ctx context.Context) bool {
 
 // IndexTopic 从 forum 读取主题详情并 upsert 到引擎。
 func (i *Indexer) IndexTopic(ctx context.Context, topicID int64) error {
-	if i == nil || !i.engineEnabled(ctx) {
-		return nil
+	if i == nil || i.engine == nil {
+		return ErrEngineUnavailable
 	}
 	if i.reader == nil {
 		return fmt.Errorf("search indexer not fully configured")
@@ -104,9 +104,6 @@ func (i *Indexer) IndexTopic(ctx context.Context, topicID int64) error {
 		return err
 	}
 	if err := i.engine.Index(ctx, doc); err != nil {
-		if errors.Is(err, ErrEngineUnavailable) {
-			return nil
-		}
 		return fmt.Errorf("upsert topic %d to search engine: %w", topicID, err)
 	}
 	slog.InfoContext(ctx, "search: indexed topic", "topicId", topicID)
@@ -115,13 +112,10 @@ func (i *Indexer) IndexTopic(ctx context.Context, topicID int64) error {
 
 // DeleteTopic 从引擎删除主题文档。
 func (i *Indexer) DeleteTopic(ctx context.Context, topicID int64) error {
-	if i == nil || !i.engineEnabled(ctx) {
-		return nil
+	if i == nil || i.engine == nil {
+		return ErrEngineUnavailable
 	}
 	if err := i.engine.Delete(ctx, topicID); err != nil {
-		if errors.Is(err, ErrEngineUnavailable) {
-			return nil
-		}
 		return fmt.Errorf("delete topic %d from search engine: %w", topicID, err)
 	}
 	slog.InfoContext(ctx, "search: deleted topic index", "topicId", topicID)

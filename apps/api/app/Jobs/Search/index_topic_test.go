@@ -2,9 +2,11 @@ package searchjobs
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/rivertype"
 
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 )
@@ -38,6 +40,26 @@ func TestIndexTopicArgsKindAndOptions(t *testing.T) {
 	}
 	if !opts.Unique.ByArgs {
 		t.Fatal("expected unique by args")
+	}
+	for _, state := range []rivertype.JobState{
+		rivertype.JobStateAvailable,
+		rivertype.JobStatePending,
+		rivertype.JobStateRetryable,
+		rivertype.JobStateRunning,
+		rivertype.JobStateScheduled,
+	} {
+		if !slices.Contains(opts.Unique.ByState, state) {
+			t.Fatalf("expected active state %q in uniqueness scope: %v", state, opts.Unique.ByState)
+		}
+	}
+	for _, state := range []rivertype.JobState{
+		rivertype.JobStateCompleted,
+		rivertype.JobStateCancelled,
+		rivertype.JobStateDiscarded,
+	} {
+		if slices.Contains(opts.Unique.ByState, state) {
+			t.Fatalf("final state %q must not block future indexing: %v", state, opts.Unique.ByState)
+		}
 	}
 	if opts.MaxAttempts != 10 {
 		t.Fatalf("expected max attempts 10, got %d", opts.MaxAttempts)
@@ -94,6 +116,9 @@ func TestDeleteTopicArgsKindAndOptions(t *testing.T) {
 	}
 	if opts.MaxAttempts != 10 {
 		t.Fatalf("expected max attempts 10, got %d", opts.MaxAttempts)
+	}
+	if !opts.Unique.ByArgs || slices.Contains(opts.Unique.ByState, rivertype.JobStateCompleted) {
+		t.Fatalf("delete uniqueness must ignore completed jobs: %+v", opts.Unique)
 	}
 }
 

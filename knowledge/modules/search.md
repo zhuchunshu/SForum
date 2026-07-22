@@ -22,6 +22,9 @@ Host catalog slot: **`search.provider`**.
   `PostgresSiteEngine` against `search_documents`: built-in `simple` FTS,
   Unicode Han unigram/bigram `cjk_tsv`, and `pg_trgm` title/excerpt fuzzy search,
   all backed by GIN indexes.
+- Search metadata is indexed separately in `metadata_tsv`: author username /
+  display name, category name / slug, tag slugs, and topic slug. Chinese
+  metadata is also included in `cjk_tsv` during indexing.
 - Site-search admin entry is **About only** (no settings fields); Manage opens
   plugin info.
 - Optional: `extensions/optional/plugins/sforum-search-meilisearch`.
@@ -57,6 +60,11 @@ Task book:
   n-grams, literal infix matching, and conservative typo tolerance.
 - Upgrades that add or change CJK derivation must run the normal admin reindex;
   generated title/excerpt trigram text is populated by the migration itself.
+- Incremental index/delete jobs deduplicate only while a matching job is still
+  active; completed jobs never block later edits. An explicit full reindex does
+  not use River uniqueness, so legacy completed jobs cannot turn a rebuild into
+  a false no-op. Worker engine failures remain retryable instead of being marked
+  completed.
 
 ### Admin UI
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/rivertype"
 
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 )
@@ -34,7 +35,22 @@ func (IndexTopicArgs) QueueOpts() supportjobs.EnqueueOptions {
 	return supportjobs.EnqueueOptions{
 		Queue:       supportjobs.QueueSearch,
 		MaxAttempts: 10,
-		Unique:      river.UniqueOpts{ByArgs: true},
+		Unique: river.UniqueOpts{
+			ByArgs:  true,
+			ByState: activeSearchJobStates(),
+		},
+	}
+}
+
+// activeSearchJobStates 只合并仍可能执行的同主题任务。
+// completed 若参与唯一性，会让后续编辑和全量重建在 River 清理历史任务前永久跳过。
+func activeSearchJobStates() []rivertype.JobState {
+	return []rivertype.JobState{
+		rivertype.JobStateAvailable,
+		rivertype.JobStatePending,
+		rivertype.JobStateRetryable,
+		rivertype.JobStateRunning,
+		rivertype.JobStateScheduled,
 	}
 }
 

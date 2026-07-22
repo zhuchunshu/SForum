@@ -61,22 +61,31 @@ func (e *PostgresSiteEngine) Index(ctx context.Context, doc TopicSearchDoc) erro
 	cjkTitleTerms := cjkNgrams(doc.Title)
 	cjkExcerptTerms := cjkNgrams(doc.Excerpt)
 	cjkBodyTerms := cjkNgrams(doc.PlainText)
+	cjkAuthorTerms := cjkNgrams(strings.Join([]string{doc.AuthorUsername, doc.AuthorDisplayName}, " "))
+	cjkCategoryTerms := cjkNgrams(strings.Join([]string{doc.CategorySlug, doc.CategoryName}, " "))
+	cjkTagTerms := cjkNgrams(strings.Join(append([]string{doc.Slug}, tagSlugs...), " "))
 	_, err := e.pool.Exec(ctx, `
 		INSERT INTO search_documents (
 			topic_id, title, excerpt, plain_text,
 			category_id, category_slug, category_name,
 			author_user_id, author_username, author_display_name,
 			slug, status, is_pinned, comment_count, view_count, tag_slugs,
-			created_at, updated_at, last_activity_at, cjk_tsv
+			created_at, updated_at, last_activity_at, metadata_tsv, cjk_tsv
 		) VALUES (
 			$1,$2,$3,$4,
 			$5,$6,$7,
 			$8,$9,$10,
 			$11,$12,$13,$14,$15,$16,
 			$17,$18,$19,
+			setweight(to_tsvector('simple', concat_ws(' ', $9::text, $10::text)), 'B') ||
+			setweight(to_tsvector('simple', concat_ws(' ', $6::text, $7::text)), 'C') ||
+			setweight(to_tsvector('simple', concat_ws(' ', $11::text, array_to_string($16::text[], ' '))), 'D'),
 			setweight(to_tsvector('simple', $20), 'A') ||
 			setweight(to_tsvector('simple', $21), 'B') ||
-			setweight(to_tsvector('simple', $22), 'C')
+			setweight(to_tsvector('simple', $22), 'C') ||
+			setweight(to_tsvector('simple', $23), 'B') ||
+			setweight(to_tsvector('simple', $24), 'C') ||
+			setweight(to_tsvector('simple', $25), 'D')
 		)
 		ON CONFLICT (topic_id) DO UPDATE SET
 			title = EXCLUDED.title,
@@ -97,6 +106,7 @@ func (e *PostgresSiteEngine) Index(ctx context.Context, doc TopicSearchDoc) erro
 			created_at = EXCLUDED.created_at,
 			updated_at = EXCLUDED.updated_at,
 			last_activity_at = EXCLUDED.last_activity_at,
+			metadata_tsv = EXCLUDED.metadata_tsv,
 			cjk_tsv = EXCLUDED.cjk_tsv
 	`,
 		doc.ID, doc.Title, doc.Excerpt, doc.PlainText,
@@ -105,6 +115,7 @@ func (e *PostgresSiteEngine) Index(ctx context.Context, doc TopicSearchDoc) erro
 		doc.Slug, doc.Status, doc.IsPinned, doc.CommentCount, doc.ViewCount, tagSlugs,
 		doc.CreatedAt, doc.UpdatedAt, doc.LastActivityAt,
 		cjkTitleTerms, cjkExcerptTerms, cjkBodyTerms,
+		cjkAuthorTerms, cjkCategoryTerms, cjkTagTerms,
 	)
 	if err != nil {
 		return fmt.Errorf("search site index topic %d: %w", doc.ID, err)
@@ -256,7 +267,7 @@ func (e *PostgresSiteEngine) searchPlain(ctx context.Context, input SearchInput,
 	return SearchResult{Items: items, Total: total, Page: page, PerPage: perPage}, nil
 }
 
-// siteTSQuery 组合内建 FTS、CJK n-gram 与 pg_trgm。
+// siteTSQuery 组合正文/元数据 FTS、CJK n-gram 与 pg_trgm。
 // 模糊召回限制在标题/摘要生成列，避免对长正文建立体积过大的 trigram 索引。
 func siteTSQuery(raw string, plain bool) (predicate, rank string, args []any) {
 	constructor := "websearch_to_tsquery"
@@ -264,8 +275,11 @@ func siteTSQuery(raw string, plain bool) (predicate, rank string, args []any) {
 		constructor = "plainto_tsquery"
 	}
 	primary := fmt.Sprintf("%s('simple', $1)", constructor)
-	predicates := []string{"tsv @@ " + primary}
-	ranks := []string{"ts_rank_cd(tsv, " + primary + ")"}
+	predicates := []string{"tsv @@ " + primary, "metadata_tsv @@ " + primary}
+	ranks := []string{
+		"ts_rank_cd(tsv, " + primary + ")",
+		"(ts_rank_cd(metadata_tsv, " + primary + ") * 0.7)",
+	}
 	args = []any{raw}
 	if terms := cjkNgrams(raw); terms != "" {
 		args = append(args, terms)
@@ -434,7 +448,12 @@ func (e *MemorySiteEngine) Search(_ context.Context, input SearchInput) (SearchR
 				continue
 			}
 		}
-		hay := strings.ToLower(doc.Title + " " + doc.Excerpt + " " + doc.PlainText)
+		hay := strings.ToLower(strings.Join([]string{
+			doc.Title, doc.Excerpt, doc.PlainText,
+			doc.AuthorUsername, doc.AuthorDisplayName,
+			doc.CategorySlug, doc.CategoryName,
+			doc.Slug, strings.Join(doc.TagSlugs, " "),
+		}, " "))
 		if q != "" && !strings.Contains(hay, q) {
 			continue
 		}

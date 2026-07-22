@@ -6,11 +6,14 @@ session archive.
 
 ## Latest Handoff
 
-- **2026-07-22 Site search CJK + fuzzy matching**
+- **2026-07-22 Site search CJK + fuzzy matching + index repair**
   - Default PostgreSQL engine: `simple` FTS + Unicode Han n-grams + indexed
-    `pg_trgm` title/excerpt typo tolerance; relevance-first stable ranking
-  - Docker DB migrated/reindexed; real PG, fresh ownership, API, UI, and browser
-    search checks pass
+    `pg_trgm` title/excerpt typo tolerance + weighted author/category/tag/slug
+    metadata; relevance-first stable ranking
+  - Fixed River completed-job suppression and false-success worker behavior;
+    full rebuild now always schedules every public topic
+  - Docker DB migrated and genuinely rebuilt: 57/57 public topics indexed;
+    `小明` returns topic 60 in API and browser
   - Decision: `decisions/2026-07-22-default-site-search-cjk-fuzzy.md`
   - Handoff: `sessions/2026-07-22-site-search-cjk-fuzzy-handoff.md`
   - Module: `modules/search.md`
