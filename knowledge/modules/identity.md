@@ -47,12 +47,13 @@ Initial identity foundation is implemented.
 - The permission catalog includes `database.manage` for the read-only admin
   database table manager. `super_admin` receives it by migration and policy as
   part of the protected all-permissions role.
-- Forum content revisions V1 has completed M1 schema/backfill groundwork. M2
-  must add `topic.revision.view_any` and `post.revision.view_any` to Go seed
-  constants, the permission catalog migration, frontend permission labels, and
-  the moderator role template. Do not grant them to `member`, `operator`, or
-  `tech_admin` by default; plugin install/enable paths must not grant Host
-  permissions. See `decisions/2026-07-22-forum-content-revisions-ledger.md`.
+- Forum content revisions V1 M2 added `topic.revision.view_any` and
+  `post.revision.view_any` to Go seed constants, permission catalog migration
+  `202607220053`, frontend permission labels, and the moderator role template.
+  Defaults grant them only to `super_admin` and built-in `moderator`; not to
+  `member`, `operator`, or `tech_admin`. Plugin install/enable paths must not
+  grant Host permissions. See
+  `decisions/2026-07-22-forum-content-revisions-ledger.md`.
 - The permission catalog includes `tag.manage` for forum tag creation,
   approval, disabling, and policy management. Existing deployments receive it
   through the forum taxonomy migration, and `super_admin` receives it by

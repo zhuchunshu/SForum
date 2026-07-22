@@ -2061,6 +2061,12 @@
           "label": "Edit any topic",
           "description": "Edit topics published by any user."
         },
+        "revision": {
+          "view_any": {
+            "label": "View topic revision history",
+            "description": "Inspect historical topic source, reasons, and revision metadata."
+          }
+        },
         "delete_any": {
           "label": "Delete any topic",
           "description": "Delete or restore topics published by any user."
@@ -2094,6 +2100,12 @@
         "edit_any": {
           "label": "Edit any reply",
           "description": "Edit replies posted by any user."
+        },
+        "revision": {
+          "view_any": {
+            "label": "View reply revision history",
+            "description": "Inspect historical reply source, reasons, and revision metadata."
+          }
         },
         "delete_own": {
           "label": "Delete own replies",

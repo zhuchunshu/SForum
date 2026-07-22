@@ -1,6 +1,9 @@
 package forumcontroller
 
 import (
+	"strings"
+	"time"
+
 	"github.com/gofiber/fiber/v3"
 
 	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
@@ -368,6 +371,97 @@ func (h *Controller) adminResetSettings(c fiber.Ctx) error {
 		return mapForumError(err)
 	}
 	return apphttp.OK(c, settings)
+}
+
+func (h *Controller) adminContentTopics(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	input, err := adminContentListInput(c)
+	if err != nil {
+		return err
+	}
+	list, err := h.service.ListAdminForumTopics(c.Context(), actor, input)
+	if err != nil {
+		return mapForumError(err)
+	}
+	return apphttp.OK(c, list)
+}
+
+func (h *Controller) adminContentTopic(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	detail, err := h.service.GetAdminForumTopic(c.Context(), actor, int64(paramInt(c, "topicID")))
+	if err != nil {
+		return mapForumError(err)
+	}
+	return apphttp.OK(c, detail)
+}
+
+func (h *Controller) adminContentComments(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	input, err := adminContentListInput(c)
+	if err != nil {
+		return err
+	}
+	list, err := h.service.ListAdminForumComments(c.Context(), actor, input)
+	if err != nil {
+		return mapForumError(err)
+	}
+	return apphttp.OK(c, list)
+}
+
+func (h *Controller) adminContentComment(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	detail, err := h.service.GetAdminForumComment(c.Context(), actor, int64(paramInt(c, "commentID")))
+	if err != nil {
+		return mapForumError(err)
+	}
+	return apphttp.OK(c, detail)
+}
+
+func adminContentListInput(c fiber.Ctx) (forum.AdminForumContentListInput, error) {
+	updatedFrom, err := queryOptionalTime(c, "updatedFrom")
+	if err != nil {
+		return forum.AdminForumContentListInput{}, fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeInvalidTopic)
+	}
+	updatedTo, err := queryOptionalTime(c, "updatedTo")
+	if err != nil {
+		return forum.AdminForumContentListInput{}, fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeInvalidTopic)
+	}
+	return forum.AdminForumContentListInput{
+		After:          c.Query("after"),
+		PerPage:        queryInt(c, "perPage"),
+		Status:         c.Query("status"),
+		AuthorUserID:   int64(queryInt(c, "authorUserID")),
+		AuthorUsername: c.Query("authorUsername"),
+		UpdatedFrom:    updatedFrom,
+		UpdatedTo:      updatedTo,
+		TopicID:        int64(queryInt(c, "topicID")),
+		TitlePrefix:    c.Query("titlePrefix"),
+		CategorySlug:   c.Query("categorySlug"),
+	}, nil
+}
+
+func queryOptionalTime(c fiber.Ctx, key string) (time.Time, error) {
+	value := strings.TrimSpace(c.Query(key))
+	if value == "" {
+		return time.Time{}, nil
+	}
+	parsed, err := time.Parse(time.RFC3339, value)
+	if err == nil {
+		return parsed, nil
+	}
+	return time.Parse(time.RFC3339Nano, value)
 }
 
 // adminListSearchProviders 列出已启用的 search.provider 与当前解析结果。需 search.manage。

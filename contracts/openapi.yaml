@@ -85,6 +85,10 @@ paths:
     "$ref": "./openapi/paths/forum.yaml#/topicBySlug"
   "/topics/{topicID}":
     "$ref": "./openapi/paths/forum.yaml#/topicByID"
+  "/topics/{topicID}/revisions":
+    "$ref": "./openapi/paths/forum.yaml#/topicRevisions"
+  "/topics/{topicID}/revisions/{revisionNo}":
+    "$ref": "./openapi/paths/forum.yaml#/topicRevisionByNo"
   "/topics/{topicID}/hide":
     "$ref": "./openapi/paths/forum.yaml#/topicHide"
   "/topics/{topicID}/restore":
@@ -101,6 +105,10 @@ paths:
     "$ref": "./openapi/paths/forum.yaml#/topicComments"
   "/comments/{commentID}/replies":
     "$ref": "./openapi/paths/forum.yaml#/commentReplies"
+  "/comments/{commentID}/revisions":
+    "$ref": "./openapi/paths/forum.yaml#/commentRevisions"
+  "/comments/{commentID}/revisions/{revisionNo}":
+    "$ref": "./openapi/paths/forum.yaml#/commentRevisionByNo"
   "/comments/{commentID}":
     "$ref": "./openapi/paths/forum.yaml#/commentByID"
   "/auth/registration-status":
@@ -335,6 +343,14 @@ paths:
     "$ref": "./openapi/paths/forum.yaml#/adminForumSettings"
   "/admin/forum/settings/reset":
     "$ref": "./openapi/paths/forum.yaml#/adminForumSettingsReset"
+  "/admin/forum/content/topics":
+    "$ref": "./openapi/paths/forum.yaml#/adminForumContentTopics"
+  "/admin/forum/content/topics/{topicID}":
+    "$ref": "./openapi/paths/forum.yaml#/adminForumContentTopicByID"
+  "/admin/forum/content/comments":
+    "$ref": "./openapi/paths/forum.yaml#/adminForumContentComments"
+  "/admin/forum/content/comments/{commentID}":
+    "$ref": "./openapi/paths/forum.yaml#/adminForumContentCommentByID"
   "/admin/forum/search/providers":
     "$ref": "./openapi/paths/forum.yaml#/adminForumSearchProviders"
   "/admin/forum/search/provider":

@@ -101,10 +101,10 @@ type SearchProviderAdmin interface {
 
 // SearchProvidersState 是运营侧搜索提供商列表与当前解析结果。
 type SearchProvidersState struct {
-	Items                []SearchProviderItem `json:"items"`
-	Selected             SearchProviderItem   `json:"selected"`
-	Pinned               bool                 `json:"pinned"`
-	DefaultExtensionID   string               `json:"defaultExtensionId"`
+	Items              []SearchProviderItem `json:"items"`
+	Selected           SearchProviderItem   `json:"selected"`
+	Pinned             bool                 `json:"pinned"`
+	DefaultExtensionID string               `json:"defaultExtensionId"`
 }
 
 // SearchProviderItem 单个 search.provider 候选。
@@ -232,8 +232,8 @@ func (h *Controller) topics(c fiber.Ctx) error {
 		return err
 	}
 	list, err := h.service.ListTopics(c.Context(), forum.TopicListInput{
-		Page:         queryInt(c, "page"),
-		PerPage:      queryInt(c, "perPage"),
+		Page:    queryInt(c, "page"),
+		PerPage: queryInt(c, "perPage"),
 		// M5：after 优先于 page（service/store 忽略 page when after set）
 		After:        c.Query("after"),
 		CategorySlug: c.Query("categorySlug"),
@@ -328,6 +328,33 @@ func (h *Controller) topicBySlug(c fiber.Ctx) error {
 	}
 	h.service.RecordTopicView(c.Context(), topic.ID, h.topicVisitorKey(c))
 	return apphttp.OK(c, topic)
+}
+
+func (h *Controller) topicRevisions(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	list, err := h.service.ListTopicRevisions(c.Context(), actor, int64(paramInt(c, "topicID")), forum.RevisionListInput{
+		After:   c.Query("after"),
+		PerPage: queryInt(c, "perPage"),
+	})
+	if err != nil {
+		return mapForumError(err)
+	}
+	return apphttp.OK(c, list)
+}
+
+func (h *Controller) topicRevision(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	detail, err := h.service.GetTopicRevision(c.Context(), actor, int64(paramInt(c, "topicID")), int64(paramInt(c, "revisionNo")))
+	if err != nil {
+		return mapForumError(err)
+	}
+	return apphttp.OK(c, detail)
 }
 
 // topicVisitorKey：登录用户 → u:{id}；否则会话 sid → s:{sid}；再否则 IP+UA 哈希。
@@ -498,6 +525,33 @@ func (h *Controller) replies(c fiber.Ctx) error {
 	return apphttp.OK(c, items)
 }
 
+func (h *Controller) commentRevisions(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	list, err := h.service.ListCommentRevisions(c.Context(), actor, int64(paramInt(c, "commentID")), forum.RevisionListInput{
+		After:   c.Query("after"),
+		PerPage: queryInt(c, "perPage"),
+	})
+	if err != nil {
+		return mapForumError(err)
+	}
+	return apphttp.OK(c, list)
+}
+
+func (h *Controller) commentRevision(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	detail, err := h.service.GetCommentRevision(c.Context(), actor, int64(paramInt(c, "commentID")), int64(paramInt(c, "revisionNo")))
+	if err != nil {
+		return mapForumError(err)
+	}
+	return apphttp.OK(c, detail)
+}
+
 func (h *Controller) updateComment(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {
@@ -615,6 +669,10 @@ func mapForumError(err error) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeDuplicateTitle)
 	case errors.Is(err, forum.ErrGuestLoginRequired):
 		return fiber.NewError(fiber.StatusUnauthorized, forum.CodeGuestLoginRequired)
+	case errors.Is(err, forum.ErrRevisionNotFound):
+		return fiber.NewError(fiber.StatusNotFound, forum.CodeRevisionNotFound)
+	case errors.Is(err, forum.ErrRevisionRedacted):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeRevisionRedacted)
 	case errors.Is(err, forum.ErrUseSearchEndpoint):
 		return fiber.NewError(fiber.StatusBadRequest, forum.CodeUseSearch)
 	case errors.Is(err, forum.ErrInvalidCursor):
@@ -628,9 +686,9 @@ func mapForumError(err error) error {
 // 由 bootstrap adapter 将 search 错误转换为这些 controller 级别错误。
 // 导出以便 bootstrap adapter 通过 errors.Is 引用。
 var (
-	ErrReindexRunning     = errors.New("forum: reindex already running")
-	ErrReindexNoRun       = errors.New("forum: no reindex run")
-	ErrSearchUnavailable  = errors.New("forum: search engine unavailable")
+	ErrReindexRunning    = errors.New("forum: reindex already running")
+	ErrReindexNoRun      = errors.New("forum: no reindex run")
+	ErrSearchUnavailable = errors.New("forum: search engine unavailable")
 )
 
 // mapReindexError 将 reindex 错误映射为 HTTP 响应。

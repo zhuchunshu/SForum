@@ -33,6 +33,18 @@ type commentListCursor struct {
 	ID   int64  `json:"i"`
 }
 
+type revisionListCursor struct {
+	V          int   `json:"v"`
+	RevisionNo int64 `json:"r"`
+	ID         int64 `json:"i"`
+}
+
+type adminContentCursor struct {
+	V         int    `json:"v"`
+	UpdatedAt string `json:"u"`
+	ID        int64  `json:"i"`
+}
+
 func encodeTopicListCursor(c topicListCursor) (string, error) {
 	c.V = listCursorVersion
 	c.Sort = strings.TrimSpace(strings.ToLower(c.Sort))
@@ -106,6 +118,75 @@ func decodeCommentListCursor(token string) (commentListCursor, error) {
 		return commentListCursor{}, ErrInvalidCursor
 	}
 	return c, nil
+}
+
+func encodeRevisionListCursor(c revisionListCursor) (string, error) {
+	c.V = listCursorVersion
+	if c.RevisionNo <= 0 || c.ID <= 0 {
+		return "", ErrInvalidCursor
+	}
+	raw, err := json.Marshal(c)
+	if err != nil {
+		return "", ErrInvalidCursor
+	}
+	return base64.RawURLEncoding.EncodeToString(raw), nil
+}
+
+func decodeRevisionListCursor(token string) (revisionListCursor, error) {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return revisionListCursor{}, ErrInvalidCursor
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(token)
+	if err != nil {
+		return revisionListCursor{}, ErrInvalidCursor
+	}
+	var c revisionListCursor
+	if err := json.Unmarshal(raw, &c); err != nil {
+		return revisionListCursor{}, ErrInvalidCursor
+	}
+	if c.V != listCursorVersion || c.RevisionNo <= 0 || c.ID <= 0 {
+		return revisionListCursor{}, ErrInvalidCursor
+	}
+	return c, nil
+}
+
+func encodeAdminContentCursor(updatedAt time.Time, id int64) (string, error) {
+	if updatedAt.IsZero() || id <= 0 {
+		return "", ErrInvalidCursor
+	}
+	raw, err := json.Marshal(adminContentCursor{
+		V:         listCursorVersion,
+		UpdatedAt: updatedAt.UTC().Format(time.RFC3339Nano),
+		ID:        id,
+	})
+	if err != nil {
+		return "", ErrInvalidCursor
+	}
+	return base64.RawURLEncoding.EncodeToString(raw), nil
+}
+
+func decodeAdminContentCursor(token string) (adminContentCursor, time.Time, error) {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return adminContentCursor{}, time.Time{}, ErrInvalidCursor
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(token)
+	if err != nil {
+		return adminContentCursor{}, time.Time{}, ErrInvalidCursor
+	}
+	var c adminContentCursor
+	if err := json.Unmarshal(raw, &c); err != nil {
+		return adminContentCursor{}, time.Time{}, ErrInvalidCursor
+	}
+	updatedAt, err := time.Parse(time.RFC3339Nano, c.UpdatedAt)
+	if err != nil {
+		return adminContentCursor{}, time.Time{}, ErrInvalidCursor
+	}
+	if c.V != listCursorVersion || c.ID <= 0 || updatedAt.IsZero() {
+		return adminContentCursor{}, time.Time{}, ErrInvalidCursor
+	}
+	return c, updatedAt, nil
 }
 
 func topicCursorFromSummary(sort string, item TopicSummary) (string, error) {

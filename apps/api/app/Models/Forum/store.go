@@ -53,6 +53,14 @@ type Store interface {
 	CountAuthorCommentsSince(ctx context.Context, authorUserID int64, since time.Time) (int64, error)
 	// AutoLockIdleTopics 将 last_activity_at 早于 idleDays 的 active 主题批量锁定。
 	AutoLockIdleTopics(ctx context.Context, idleDays int, limit int) (int, error)
+	ListTopicRevisions(ctx context.Context, topicID int64, input RevisionListInput) (RevisionList, error)
+	GetTopicRevision(ctx context.Context, topicID int64, revisionNo int64) (ForumRevisionDetail, error)
+	ListCommentRevisions(ctx context.Context, commentID int64, input RevisionListInput) (RevisionList, error)
+	GetCommentRevision(ctx context.Context, commentID int64, revisionNo int64) (ForumRevisionDetail, error)
+	ListAdminForumTopics(ctx context.Context, input AdminForumContentListInput) (AdminForumContentList, error)
+	GetAdminForumTopic(ctx context.Context, topicID int64) (AdminForumTopicDetail, error)
+	ListAdminForumComments(ctx context.Context, input AdminForumContentListInput) (AdminForumContentList, error)
+	GetAdminForumComment(ctx context.Context, commentID int64) (AdminForumCommentDetail, error)
 }
 
 type SettingsResolver interface {

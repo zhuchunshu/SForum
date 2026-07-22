@@ -175,6 +175,71 @@ ApiResponseCommentList:
       type: string
     data:
       "$ref": "#/CommentList"
+ApiResponseForumRevisionList:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/ForumRevisionList"
+ApiResponseForumRevisionDetail:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/ForumRevisionDetail"
+ApiResponseAdminForumContentList:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/AdminForumContentList"
+ApiResponseAdminForumTopicDetail:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/AdminForumTopicDetail"
+ApiResponseAdminForumCommentDetail:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/AdminForumCommentDetail"
 ContentInput:
   type: object
   required:
@@ -612,6 +677,263 @@ ForumUser:
       type: string
     avatar:
       "$ref": "../schemas/profile.yaml#/AvatarView"
+ForumRevisionList:
+  type: object
+  required:
+  - items
+  - perPage
+  - hasMore
+  properties:
+    items:
+      type: array
+      items:
+        "$ref": "#/ForumRevisionSummary"
+    perPage:
+      type: integer
+    hasMore:
+      type: boolean
+    nextCursor:
+      type: string
+      description: Opaque keyset cursor for the next page.
+ForumRevisionSummary:
+  type: object
+  description: Revision header. List responses use this schema and never include raw source.
+  required:
+  - id
+  - revisionNo
+  - current
+  - operation
+  - origin
+  - changedFields
+  - committedAt
+  - snapshotComplete
+  - restorableFields
+  - redacted
+  properties:
+    id:
+      type: integer
+      format: int64
+    revisionNo:
+      type: integer
+      format: int64
+    current:
+      type: boolean
+    actor:
+      "$ref": "#/ForumUser"
+    operation:
+      type: string
+      enum: [create, edit, restore, migration]
+    origin:
+      type: string
+      enum: [self, staff, migration]
+    reason:
+      type: string
+      description: Staff/self edit reason visible only through authorized history/admin surfaces.
+    changedFields:
+      type: array
+      items:
+        type: string
+        enum: [title, content, category, tags, attachments]
+    committedAt:
+      type: string
+      format: date-time
+    restoredFromRevisionNo:
+      type: integer
+      format: int64
+    snapshotComplete:
+      type: boolean
+      description: False for legacy body-only rows that cannot honestly restore metadata.
+    restorableFields:
+      type: array
+      items:
+        type: string
+        enum: [title, content, category, tags, attachments]
+    redacted:
+      type: boolean
+      description: Redacted revisions keep the header but cannot return source or preview.
+ForumRevisionDetail:
+  allOf:
+  - "$ref": "#/ForumRevisionSummary"
+  - type: object
+    description: Authorized revision detail. This schema is never used by list responses.
+    required:
+    - rawContent
+    - sourceFormat
+    - editorType
+    - renderVersion
+    - contentHash
+    - attachments
+    properties:
+      rawContent:
+        type: string
+        description: Historical source returned only after the matching history permission check.
+      sourceFormat:
+        "$ref": "#/SourceFormat"
+      editorType:
+        type: string
+      editorVersion:
+        type: string
+      renderVersion:
+        type: string
+      contentHash:
+        type: string
+      attachments:
+        "$ref": "#/AttachmentAvailabilitySummary"
+      preview:
+        "$ref": "#/HistoricalPreview"
+      topicMetadata:
+        "$ref": "#/TopicRevisionMetadata"
+HistoricalPreview:
+  type: object
+  required:
+  - htmlContent
+  - plainText
+  - excerpt
+  - renderVersion
+  properties:
+    htmlContent:
+      type: string
+      description: Safe historical preview rendered on demand with the current renderer.
+    plainText:
+      type: string
+    excerpt:
+      type: string
+    renderVersion:
+      type: string
+AttachmentAvailabilitySummary:
+  type: object
+  required:
+  - ids
+  - total
+  properties:
+    ids:
+      type: array
+      items:
+        type: integer
+        format: int64
+    total:
+      type: integer
+TopicRevisionMetadata:
+  type: object
+  required:
+  - tagSlugs
+  properties:
+    title:
+      type: string
+    categorySlug:
+      type: string
+    tagSlugs:
+      type: array
+      items:
+        type: string
+AdminForumContentList:
+  type: object
+  required:
+  - items
+  - perPage
+  - hasMore
+  properties:
+    items:
+      type: array
+      items:
+        "$ref": "#/AdminForumContentRow"
+    perPage:
+      type: integer
+    hasMore:
+      type: boolean
+    nextCursor:
+      type: string
+AdminForumContentRow:
+  type: object
+  required:
+  - targetType
+  - id
+  - authorUserId
+  - status
+  - excerpt
+  - currentRevision
+  - createdAt
+  - updatedAt
+  properties:
+    targetType:
+      type: string
+      enum: [topic, comment]
+    id:
+      type: integer
+      format: int64
+    topicId:
+      type: integer
+      format: int64
+    topicTitle:
+      type: string
+    categorySlug:
+      type: string
+    authorUserId:
+      type: integer
+      format: int64
+    author:
+      "$ref": "#/ForumUser"
+    status:
+      type: string
+      description: Topic or comment lifecycle status.
+    title:
+      type: string
+    excerpt:
+      type: string
+    currentRevision:
+      type: integer
+      format: int64
+      minimum: 1
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+    tags:
+      type: array
+      items:
+        "$ref": "#/TopicTagSummary"
+AdminForumTopicDetail:
+  allOf:
+  - "$ref": "#/AdminForumContentRow"
+  - type: object
+    required:
+    - content
+    - slug
+    properties:
+      content:
+        "$ref": "#/RenderedContent"
+      slug:
+        type: string
+AdminForumCommentDetail:
+  allOf:
+  - "$ref": "#/AdminForumContentRow"
+  - type: object
+    required:
+    - content
+    - rootCommentId
+    - pathKey
+    - depth
+    - replyCount
+    properties:
+      content:
+        "$ref": "#/RenderedContent"
+      parentId:
+        type:
+        - integer
+        - 'null'
+        format: int64
+      rootCommentId:
+        type: integer
+        format: int64
+      pathKey:
+        type: string
+      depth:
+        type: integer
+      replyCount:
+        type: integer
+        format: int64
 TopicSummary:
   type: object
   required:

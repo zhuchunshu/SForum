@@ -3,8 +3,10 @@ package forum
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -146,6 +148,121 @@ func TestRevisionLedgerBackfillIsBatchedResumableAndIdempotentPostgres(t *testin
 	}
 	if revisionCount != 4 {
 		t.Fatalf("revision count after rerun=%d, want 4", revisionCount)
+	}
+}
+
+func TestRevisionReadModelsListDetailLegacyAndRedactedPostgres(t *testing.T) {
+	fixture := newRevisionLedgerPGFixture(t)
+	store := NewPostgresStore(fixture.pool)
+	authorID := fixture.insertUser(t, "revision_reader_author")
+	editorID := fixture.insertUser(t, "revision_reader_editor")
+	topic := fixture.insertLegacyTopicWithRevisions(t, authorID, editorID, "read-legacy", []string{"旧正文"}, "当前正文")
+	if _, err := store.BackfillContentRevisions(fixture.ctx, RevisionBackfillOptions{BatchSize: 10}); err != nil {
+		t.Fatalf("backfill: %v", err)
+	}
+
+	list, err := store.ListTopicRevisions(fixture.ctx, topic.id, RevisionListInput{PerPage: 200})
+	if err != nil {
+		t.Fatalf("ListTopicRevisions: %v", err)
+	}
+	if list.PerPage != revisionMaxPerPage || len(list.Items) != 2 {
+		t.Fatalf("unexpected topic revision list %#v", list)
+	}
+	if list.Items[0].RevisionNo != 2 || !list.Items[0].Current {
+		t.Fatalf("newest revision should be current, got %#v", list.Items[0])
+	}
+	if list.Items[1].SnapshotComplete || !slices.Equal(list.Items[1].RestorableFields, []string{"content"}) {
+		t.Fatalf("legacy summary should be content-only incomplete, got %#v", list.Items[1])
+	}
+
+	detail, err := store.GetTopicRevision(fixture.ctx, topic.id, 1)
+	if err != nil {
+		t.Fatalf("GetTopicRevision legacy detail: %v", err)
+	}
+	if detail.RawContent != "旧正文" || detail.TopicMetadata != nil || !slices.Equal(detail.RestorableFields, []string{"content"}) {
+		t.Fatalf("unexpected legacy detail %#v", detail)
+	}
+
+	if _, err := fixture.pool.Exec(fixture.ctx, `
+		UPDATE post_revisions
+		SET redacted_at = now(), redacted_by_user_id = $2, redaction_reason = 'privacy cleanup'
+		WHERE post_id = $1 AND revision_no = 1
+	`, topic.postID, editorID); err != nil {
+		t.Fatalf("redact fixture revision: %v", err)
+	}
+	list, err = store.ListTopicRevisions(fixture.ctx, topic.id, RevisionListInput{})
+	if err != nil {
+		t.Fatalf("ListTopicRevisions redacted: %v", err)
+	}
+	if !list.Items[1].Redacted || len(list.Items[1].RestorableFields) != 0 {
+		t.Fatalf("redacted list header should be payload-free tombstone, got %#v", list.Items[1])
+	}
+	if _, err := store.GetTopicRevision(fixture.ctx, topic.id, 1); !errors.Is(err, ErrRevisionRedacted) {
+		t.Fatalf("redacted detail should fail closed, got %v", err)
+	}
+	if _, err := store.GetTopicRevision(fixture.ctx, topic.id, 99); !errors.Is(err, ErrRevisionNotFound) {
+		t.Fatalf("missing detail should return ErrRevisionNotFound, got %v", err)
+	}
+}
+
+func TestRevisionReadModelsCommentAndAdminContentPostgres(t *testing.T) {
+	fixture := newRevisionLedgerPGFixture(t)
+	store := NewPostgresStore(fixture.pool)
+	authorID := fixture.insertUser(t, "admin_content_author")
+	topic := fixture.insertBareTopic(t, authorID, "admin-content-host")
+
+	comment, err := store.CreateComment(fixture.ctx, CreateCommentRecord{
+		TopicID:      topic.id,
+		AuthorUserID: authorID,
+		Content:      renderedFixtureContent(t, "后台评论正文"),
+		Status:       CommentStatusActive,
+	})
+	if err != nil {
+		t.Fatalf("CreateComment: %v", err)
+	}
+	revisions, err := store.ListCommentRevisions(fixture.ctx, comment.ID, RevisionListInput{})
+	if err != nil {
+		t.Fatalf("ListCommentRevisions: %v", err)
+	}
+	if len(revisions.Items) != 1 || revisions.Items[0].RevisionNo != 1 || !revisions.Items[0].Current {
+		t.Fatalf("unexpected comment revisions %#v", revisions)
+	}
+	detail, err := store.GetCommentRevision(fixture.ctx, comment.ID, 1)
+	if err != nil {
+		t.Fatalf("GetCommentRevision: %v", err)
+	}
+	if detail.RawContent != "后台评论正文" || detail.Attachments.Total != 0 {
+		t.Fatalf("unexpected comment revision detail %#v", detail)
+	}
+
+	topicRows, err := store.ListAdminForumTopics(fixture.ctx, AdminForumContentListInput{TitlePrefix: "Host admin"})
+	if err != nil {
+		t.Fatalf("ListAdminForumTopics: %v", err)
+	}
+	if len(topicRows.Items) != 1 || topicRows.Items[0].TargetType != "topic" || topicRows.Items[0].CurrentRevision < 1 {
+		t.Fatalf("unexpected admin topic rows %#v", topicRows)
+	}
+	topicDetail, err := store.GetAdminForumTopic(fixture.ctx, topic.id)
+	if err != nil {
+		t.Fatalf("GetAdminForumTopic: %v", err)
+	}
+	if topicDetail.Content.RawContent == "" || topicDetail.Slug != "admin-content-host" {
+		t.Fatalf("unexpected admin topic detail %#v", topicDetail)
+	}
+
+	commentRows, err := store.ListAdminForumComments(fixture.ctx, AdminForumContentListInput{TopicID: topic.id})
+	if err != nil {
+		t.Fatalf("ListAdminForumComments: %v", err)
+	}
+	if len(commentRows.Items) != 1 || commentRows.Items[0].TargetType != "comment" || commentRows.Items[0].TopicID != topic.id {
+		t.Fatalf("unexpected admin comment rows %#v", commentRows)
+	}
+	commentDetail, err := store.GetAdminForumComment(fixture.ctx, comment.ID)
+	if err != nil {
+		t.Fatalf("GetAdminForumComment: %v", err)
+	}
+	if commentDetail.Content.RawContent != "后台评论正文" || commentDetail.TopicTitle == "" {
+		t.Fatalf("unexpected admin comment detail %#v", commentDetail)
 	}
 }
 

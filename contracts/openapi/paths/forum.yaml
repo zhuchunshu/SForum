@@ -448,6 +448,192 @@ adminForumSettingsReset:
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
         "$ref": "../components/responses.yaml#/Forbidden"
+adminForumContentTopics:
+  get:
+    summary: List admin forum topics for content management
+    operationId: adminListForumContentTopics
+    description: |
+      Read-only admin content workbench model for topics. Requires `admin.access`
+      plus either `topic.edit_any` or `topic.revision.view_any`. Filters avoid
+      body substring scans; use id/status/author/date/category/title-prefix only.
+      M2 intentionally adds no admin mutation routes.
+    security:
+    - cookieAuth: []
+    - bearerAuth: []
+    parameters:
+    - name: after
+      in: query
+      schema:
+        type: string
+    - name: perPage
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    - name: status
+      in: query
+      schema:
+        type: string
+    - name: authorUserID
+      in: query
+      schema:
+        type: integer
+        format: int64
+    - name: authorUsername
+      in: query
+      schema:
+        type: string
+    - name: updatedFrom
+      in: query
+      schema:
+        type: string
+        format: date-time
+    - name: updatedTo
+      in: query
+      schema:
+        type: string
+        format: date-time
+    - name: topicID
+      in: query
+      schema:
+        type: integer
+        format: int64
+    - name: titlePrefix
+      in: query
+      schema:
+        type: string
+    - name: categorySlug
+      in: query
+      schema:
+        type: string
+    responses:
+      '200':
+        description: Cursor-paged admin topic rows.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseAdminForumContentList"
+      '400':
+        "$ref": "../components/responses.yaml#/BadRequest"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+adminForumContentTopicByID:
+  get:
+    summary: Get admin forum topic detail
+    operationId: adminGetForumContentTopic
+    description: Requires `admin.access` plus either `topic.edit_any` or `topic.revision.view_any`.
+    security:
+    - cookieAuth: []
+    - bearerAuth: []
+    parameters:
+    - "$ref": "../components/parameters.yaml#/TopicID"
+    responses:
+      '200':
+        description: Non-public-aware topic detail for the admin content workbench.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseAdminForumTopicDetail"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+adminForumContentComments:
+  get:
+    summary: List admin forum comments for content management
+    operationId: adminListForumContentComments
+    description: |
+      Read-only admin content workbench model for comments. Requires `admin.access`
+      plus either `post.edit_any` or `post.revision.view_any`. Filters avoid body
+      substring scans; use id/status/author/date/topic only. M2 intentionally
+      adds no admin mutation routes.
+    security:
+    - cookieAuth: []
+    - bearerAuth: []
+    parameters:
+    - name: after
+      in: query
+      schema:
+        type: string
+    - name: perPage
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    - name: status
+      in: query
+      schema:
+        type: string
+    - name: authorUserID
+      in: query
+      schema:
+        type: integer
+        format: int64
+    - name: authorUsername
+      in: query
+      schema:
+        type: string
+    - name: updatedFrom
+      in: query
+      schema:
+        type: string
+        format: date-time
+    - name: updatedTo
+      in: query
+      schema:
+        type: string
+        format: date-time
+    - name: topicID
+      in: query
+      schema:
+        type: integer
+        format: int64
+    responses:
+      '200':
+        description: Cursor-paged admin comment rows.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseAdminForumContentList"
+      '400':
+        "$ref": "../components/responses.yaml#/BadRequest"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+adminForumContentCommentByID:
+  get:
+    summary: Get admin forum comment detail
+    operationId: adminGetForumContentComment
+    description: Requires `admin.access` plus either `post.edit_any` or `post.revision.view_any`.
+    security:
+    - cookieAuth: []
+    - bearerAuth: []
+    parameters:
+    - "$ref": "../components/parameters.yaml#/CommentID"
+    responses:
+      '200':
+        description: Non-public-aware comment detail for the admin content workbench.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseAdminForumCommentDetail"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
 adminForumSearchProviders:
   get:
     summary: List enabled search.provider plugins and the resolved selection
@@ -647,6 +833,82 @@ topicBySlug:
               "$ref": "../schemas/forum.yaml#/ApiResponseTopicDetail"
       '404':
         "$ref": "../components/responses.yaml#/NotFound"
+topicRevisions:
+  get:
+    summary: List topic revision summaries
+    operationId: listTopicRevisions
+    description: |
+      Requires `topic.revision.view_any`. Returns newest-first revision summaries
+      for authorized staff only. The list payload never includes raw source.
+      Unauthorized callers are rejected before the store lookup so hidden targets
+      cannot be enumerated by actors without history permission.
+    security:
+    - cookieAuth: []
+    - bearerAuth: []
+    parameters:
+    - "$ref": "../components/parameters.yaml#/TopicID"
+    - name: after
+      in: query
+      schema:
+        type: string
+      description: Opaque revision cursor from `nextCursor`.
+    - name: perPage
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    responses:
+      '200':
+        description: Keyset-paged topic revision summaries without raw source.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseForumRevisionList"
+      '400':
+        "$ref": "../components/responses.yaml#/BadRequest"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+topicRevisionByNo:
+  get:
+    summary: Get topic revision detail
+    operationId: getTopicRevision
+    description: |
+      Requires `topic.revision.view_any`. Returns raw historical source only
+      after the authoritative history permission check. Historical preview is
+      rendered and sanitized on demand; derived HTML is not persisted in the
+      revision ledger.
+    security:
+    - cookieAuth: []
+    - bearerAuth: []
+    parameters:
+    - "$ref": "../components/parameters.yaml#/TopicID"
+    - name: revisionNo
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    responses:
+      '200':
+        description: Topic revision detail with authorized source and safe preview.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseForumRevisionDetail"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
 topicHide:
   post:
     summary: Hide a topic from public view
@@ -860,6 +1122,81 @@ commentReplies:
               "$ref": "../schemas/forum.yaml#/ApiResponseCommentArray"
       '404':
         "$ref": "../components/responses.yaml#/NotFound"
+commentRevisions:
+  get:
+    summary: List comment revision summaries
+    operationId: listCommentRevisions
+    description: |
+      Requires `post.revision.view_any`. Returns newest-first comment revision
+      summaries for authorized staff only. The list payload never includes raw
+      source. Unauthorized callers are rejected before the store lookup.
+    security:
+    - cookieAuth: []
+    - bearerAuth: []
+    parameters:
+    - "$ref": "../components/parameters.yaml#/CommentID"
+    - name: after
+      in: query
+      schema:
+        type: string
+      description: Opaque revision cursor from `nextCursor`.
+    - name: perPage
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    responses:
+      '200':
+        description: Keyset-paged comment revision summaries without raw source.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseForumRevisionList"
+      '400':
+        "$ref": "../components/responses.yaml#/BadRequest"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+commentRevisionByNo:
+  get:
+    summary: Get comment revision detail
+    operationId: getCommentRevision
+    description: |
+      Requires `post.revision.view_any`. Returns raw historical source only after
+      the authoritative history permission check. Historical preview is rendered
+      and sanitized on demand; derived HTML is not persisted in the revision
+      ledger.
+    security:
+    - cookieAuth: []
+    - bearerAuth: []
+    parameters:
+    - "$ref": "../components/parameters.yaml#/CommentID"
+    - name: revisionNo
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    responses:
+      '200':
+        description: Comment revision detail with authorized source and safe preview.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseForumRevisionDetail"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
 commentByID:
   patch:
     summary: Update a comment's shared post content

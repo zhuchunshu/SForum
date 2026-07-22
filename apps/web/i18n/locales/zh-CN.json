@@ -2061,6 +2061,12 @@
           "label": "编辑任意主题",
           "description": "编辑任何用户发布的主题。"
         },
+        "revision": {
+          "view_any": {
+            "label": "查看主题版本历史",
+            "description": "查看任意主题的历史正文、原因与版本元数据。"
+          }
+        },
         "delete_any": {
           "label": "删除任意主题",
           "description": "删除或恢复任何用户发布的主题。"
@@ -2094,6 +2100,12 @@
         "edit_any": {
           "label": "编辑任意回复",
           "description": "编辑任何用户发布的回复。"
+        },
+        "revision": {
+          "view_any": {
+            "label": "查看回复版本历史",
+            "description": "查看任意回复的历史正文、原因与版本元数据。"
+          }
         },
         "delete_own": {
           "label": "删除自己的回复",

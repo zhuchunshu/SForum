@@ -23,8 +23,10 @@ export const ROLE_TEMPLATE_DEFINITIONS = [
       'topic.lock',
       'topic.pin',
       'topic.edit_any',
+      'topic.revision.view_any',
       'topic.delete_any',
       'post.edit_any',
+      'post.revision.view_any',
       'post.delete_any',
       'user.ban'
     ]

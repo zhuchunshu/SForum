@@ -21,19 +21,21 @@ const (
 	PermissionTagManage              = "tag.manage"
 	PermissionTopicCreate            = "topic.create"
 	// PermissionTopicEditOwn 作者编辑自己的主题（与回复的 post.edit_own 分离）。
-	PermissionTopicEditOwn     = "topic.edit_own"
-	PermissionTopicEditAny     = "topic.edit_any"
-	PermissionTopicDeleteOwn   = "topic.delete_own"
-	PermissionTopicDeleteAny   = "topic.delete_any"
-	PermissionTopicLock        = "topic.lock"
-	PermissionTopicPin         = "topic.pin"
-	PermissionPostCreate       = "post.create"
-	PermissionPostEditOwn      = "post.edit_own"
-	PermissionPostEditAny      = "post.edit_any"
-	PermissionPostDeleteOwn    = "post.delete_own"
-	PermissionPostDeleteAny    = "post.delete_any"
-	PermissionModerationManage = "moderation.manage"
-	PermissionModerationReview = "moderation.review"
+	PermissionTopicEditOwn         = "topic.edit_own"
+	PermissionTopicEditAny         = "topic.edit_any"
+	PermissionTopicRevisionViewAny = "topic.revision.view_any"
+	PermissionTopicDeleteOwn       = "topic.delete_own"
+	PermissionTopicDeleteAny       = "topic.delete_any"
+	PermissionTopicLock            = "topic.lock"
+	PermissionTopicPin             = "topic.pin"
+	PermissionPostCreate           = "post.create"
+	PermissionPostEditOwn          = "post.edit_own"
+	PermissionPostEditAny          = "post.edit_any"
+	PermissionPostRevisionViewAny  = "post.revision.view_any"
+	PermissionPostDeleteOwn        = "post.delete_own"
+	PermissionPostDeleteAny        = "post.delete_any"
+	PermissionModerationManage     = "moderation.manage"
+	PermissionModerationReview     = "moderation.review"
 	// PermissionModerationViewIP 查看内容/会话的真实客户端 IP（全文）；不含审核动作。
 	PermissionModerationViewIP = "moderation.view_ip"
 	// PermissionModerationReportReview 保留为源码兼容别名；数据库权限已迁移为 moderation.review。
@@ -80,6 +82,7 @@ var SeedPermissions = []SeedPermission{
 	{Key: PermissionTopicCreate, Module: "forum", Description: "Create topics."},
 	{Key: PermissionTopicEditOwn, Module: "forum", Description: "Edit own topics."},
 	{Key: PermissionTopicEditAny, Module: "forum", Description: "Edit any topic."},
+	{Key: PermissionTopicRevisionViewAny, Module: "forum", Description: "Inspect any topic revision history."},
 	{Key: PermissionTopicDeleteOwn, Module: "forum", Description: "Delete own topics."},
 	{Key: PermissionTopicDeleteAny, Module: "forum", Description: "Delete any topic."},
 	{Key: PermissionTopicLock, Module: "forum", Description: "Lock or unlock topics."},
@@ -87,6 +90,7 @@ var SeedPermissions = []SeedPermission{
 	{Key: PermissionPostCreate, Module: "forum", Description: "Create posts."},
 	{Key: PermissionPostEditOwn, Module: "forum", Description: "Edit own replies."},
 	{Key: PermissionPostEditAny, Module: "forum", Description: "Edit any post."},
+	{Key: PermissionPostRevisionViewAny, Module: "forum", Description: "Inspect any comment revision history."},
 	{Key: PermissionPostDeleteOwn, Module: "forum", Description: "Delete own replies."},
 	{Key: PermissionPostDeleteAny, Module: "forum", Description: "Delete any post."},
 	{Key: PermissionModerationManage, Module: "moderation", Description: "Manage moderation settings and audit history."},
@@ -146,8 +150,10 @@ var SeedRoleTemplates = []SeedRoleTemplate{
 			PermissionTopicLock,
 			PermissionTopicPin,
 			PermissionTopicEditAny,
+			PermissionTopicRevisionViewAny,
 			PermissionTopicDeleteAny,
 			PermissionPostEditAny,
+			PermissionPostRevisionViewAny,
 			PermissionPostDeleteAny,
 			PermissionUserBan,
 		},

@@ -1524,6 +1524,129 @@ func TestNormalizeContentAttachmentIDsRejectsInvalidValues(t *testing.T) {
 	}
 }
 
+func TestServiceRevisionHistoryPermissionAndPreview(t *testing.T) {
+	store := newServiceFakeStore()
+	store.revisionListResult = RevisionList{Items: []ForumRevisionSummary{{
+		ID:               1,
+		RevisionNo:       2,
+		Current:          true,
+		Operation:        "edit",
+		Origin:           "staff",
+		ChangedFields:    []string{"content"},
+		CommittedAt:      time.Now(),
+		SnapshotComplete: true,
+		RestorableFields: []string{"attachments", "content"},
+	}}, PerPage: 20}
+	store.revisionDetailResult = ForumRevisionDetail{
+		ForumRevisionSummary: store.revisionListResult.Items[0],
+		RawContent:           "历史 **正文** <script>alert(1)</script>",
+		SourceFormat:         SourceFormatMarkdown,
+		EditorType:           EditorTypeMarkdown,
+		EditorVersion:        "test",
+		RenderVersion:        RenderVersion,
+		ContentHash:          "hash",
+	}
+	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+
+	denied := identity.Actor{ID: 1, Status: identity.UserStatusActive}
+	if _, err := service.ListTopicRevisions(context.Background(), denied, 10, RevisionListInput{}); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("expected topic history denial, got %v", err)
+	}
+	if store.topicRevisionCalls != 0 {
+		t.Fatal("denied topic history request should not reach store")
+	}
+
+	topicViewer := identity.Actor{ID: 2, Status: identity.UserStatusActive, Permissions: map[string]bool{
+		identity.PermissionTopicRevisionViewAny: true,
+	}}
+	list, err := service.ListTopicRevisions(context.Background(), topicViewer, 10, RevisionListInput{})
+	if err != nil {
+		t.Fatalf("ListTopicRevisions returned error: %v", err)
+	}
+	if len(list.Items) != 1 || list.Items[0].RevisionNo != 2 {
+		t.Fatalf("unexpected topic revision list %#v", list)
+	}
+	detail, err := service.GetTopicRevision(context.Background(), topicViewer, 10, 2)
+	if err != nil {
+		t.Fatalf("GetTopicRevision returned error: %v", err)
+	}
+	if detail.RawContent == "" || detail.Preview == nil || containsUnsafeHTML(detail.Preview.HTMLContent) {
+		t.Fatalf("expected source plus safe preview, got %#v", detail)
+	}
+
+	postViewer := identity.Actor{ID: 3, Status: identity.UserStatusActive, Permissions: map[string]bool{
+		identity.PermissionPostRevisionViewAny: true,
+	}}
+	if _, err := service.ListCommentRevisions(context.Background(), postViewer, 20, RevisionListInput{}); err != nil {
+		t.Fatalf("ListCommentRevisions returned error: %v", err)
+	}
+	if store.commentRevisionCalls == 0 {
+		t.Fatal("expected comment revision store call")
+	}
+}
+
+func TestServiceAdminContentReadPermissionCombinations(t *testing.T) {
+	store := newServiceFakeStore()
+	store.adminContentListResult = AdminForumContentList{Items: []AdminForumContentRow{{
+		TargetType:      "topic",
+		ID:              10,
+		CurrentRevision: 1,
+	}}}
+	store.adminTopicDetailResult = AdminForumTopicDetail{
+		AdminForumContentRow: AdminForumContentRow{TargetType: "topic", ID: 10, CurrentRevision: 1},
+		Content:              RenderedContent{RawContent: "body", SourceFormat: SourceFormatMarkdown},
+	}
+	store.adminCommentDetailResult = AdminForumCommentDetail{
+		AdminForumContentRow: AdminForumContentRow{TargetType: "comment", ID: 20, TopicID: 10, CurrentRevision: 1},
+		Content:              RenderedContent{RawContent: "comment", SourceFormat: SourceFormatMarkdown},
+	}
+	service := NewService(store)
+	ctx := context.Background()
+
+	historyOnly := identity.Actor{ID: 1, Status: identity.UserStatusActive, Permissions: map[string]bool{
+		identity.PermissionTopicRevisionViewAny: true,
+		identity.PermissionPostRevisionViewAny:  true,
+	}}
+	if _, err := service.ListAdminForumTopics(ctx, historyOnly, AdminForumContentListInput{}); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("expected admin.access denial, got %v", err)
+	}
+	if store.adminTopicCalls != 0 {
+		t.Fatal("admin.access denial should not reach store")
+	}
+
+	adminOnly := identity.Actor{ID: 2, Status: identity.UserStatusActive, Permissions: map[string]bool{
+		identity.PermissionAdminAccess: true,
+	}}
+	if _, err := service.ListAdminForumComments(ctx, adminOnly, AdminForumContentListInput{}); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("expected content permission denial, got %v", err)
+	}
+
+	topicAdmin := identity.Actor{ID: 3, Status: identity.UserStatusActive, Permissions: map[string]bool{
+		identity.PermissionAdminAccess:          true,
+		identity.PermissionTopicRevisionViewAny: true,
+	}}
+	if _, err := service.ListAdminForumTopics(ctx, topicAdmin, AdminForumContentListInput{}); err != nil {
+		t.Fatalf("ListAdminForumTopics returned error: %v", err)
+	}
+	if _, err := service.GetAdminForumTopic(ctx, topicAdmin, 10); err != nil {
+		t.Fatalf("GetAdminForumTopic returned error: %v", err)
+	}
+
+	commentAdmin := identity.Actor{ID: 4, Status: identity.UserStatusActive, Permissions: map[string]bool{
+		identity.PermissionAdminAccess:         true,
+		identity.PermissionPostRevisionViewAny: true,
+	}}
+	if _, err := service.ListAdminForumComments(ctx, commentAdmin, AdminForumContentListInput{}); err != nil {
+		t.Fatalf("ListAdminForumComments returned error: %v", err)
+	}
+	if _, err := service.GetAdminForumComment(ctx, commentAdmin, 20); err != nil {
+		t.Fatalf("GetAdminForumComment returned error: %v", err)
+	}
+	if store.adminTopicCalls == 0 || store.adminCommentCalls == 0 {
+		t.Fatalf("expected admin content store calls, topic=%d comment=%d", store.adminTopicCalls, store.adminCommentCalls)
+	}
+}
+
 func testForumSettings() ForumSettings {
 	return defaultForumSettings()
 }
@@ -1642,6 +1765,16 @@ type serviceFakeStore struct {
 	listCommentRepliesResult []Comment
 	listCommentRepliesCalled bool
 	lastReplyListInput       CommentReplyListInput
+	revisionListResult       RevisionList
+	revisionDetailResult     ForumRevisionDetail
+	revisionErr              error
+	topicRevisionCalls       int
+	commentRevisionCalls     int
+	adminTopicCalls          int
+	adminCommentCalls        int
+	adminContentListResult   AdminForumContentList
+	adminTopicDetailResult   AdminForumTopicDetail
+	adminCommentDetailResult AdminForumCommentDetail
 	// existingSlugs 模拟已占用的 slug 集合，供 TopicSlugExists 判重。
 	existingSlugs map[string]bool
 	// existingTitles 模拟重复标题（小写 key），供 ActiveTopicTitleExists。
@@ -1933,6 +2066,58 @@ func (s *serviceFakeStore) ListCommentReplies(_ context.Context, input CommentRe
 	s.listCommentRepliesCalled = true
 	s.lastReplyListInput = input
 	return s.listCommentRepliesResult, nil
+}
+
+func (s *serviceFakeStore) ListTopicRevisions(context.Context, int64, RevisionListInput) (RevisionList, error) {
+	s.topicRevisionCalls++
+	if s.revisionErr != nil {
+		return RevisionList{}, s.revisionErr
+	}
+	return s.revisionListResult, nil
+}
+
+func (s *serviceFakeStore) GetTopicRevision(context.Context, int64, int64) (ForumRevisionDetail, error) {
+	s.topicRevisionCalls++
+	if s.revisionErr != nil {
+		return ForumRevisionDetail{}, s.revisionErr
+	}
+	return s.revisionDetailResult, nil
+}
+
+func (s *serviceFakeStore) ListCommentRevisions(context.Context, int64, RevisionListInput) (RevisionList, error) {
+	s.commentRevisionCalls++
+	if s.revisionErr != nil {
+		return RevisionList{}, s.revisionErr
+	}
+	return s.revisionListResult, nil
+}
+
+func (s *serviceFakeStore) GetCommentRevision(context.Context, int64, int64) (ForumRevisionDetail, error) {
+	s.commentRevisionCalls++
+	if s.revisionErr != nil {
+		return ForumRevisionDetail{}, s.revisionErr
+	}
+	return s.revisionDetailResult, nil
+}
+
+func (s *serviceFakeStore) ListAdminForumTopics(context.Context, AdminForumContentListInput) (AdminForumContentList, error) {
+	s.adminTopicCalls++
+	return s.adminContentListResult, nil
+}
+
+func (s *serviceFakeStore) GetAdminForumTopic(context.Context, int64) (AdminForumTopicDetail, error) {
+	s.adminTopicCalls++
+	return s.adminTopicDetailResult, nil
+}
+
+func (s *serviceFakeStore) ListAdminForumComments(context.Context, AdminForumContentListInput) (AdminForumContentList, error) {
+	s.adminCommentCalls++
+	return s.adminContentListResult, nil
+}
+
+func (s *serviceFakeStore) GetAdminForumComment(context.Context, int64) (AdminForumCommentDetail, error) {
+	s.adminCommentCalls++
+	return s.adminCommentDetailResult, nil
 }
 
 func stringSlicesEqual(left []string, right []string) bool {

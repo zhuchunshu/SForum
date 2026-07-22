@@ -1,7 +1,7 @@
 # Forum Content Editing And Revisions V1 — Task Book
 
-Status: **active** — M1 additive schema/backfill complete; M2 revision read models and permissions next  
-Date: 2026-07-22  
+Status: **active** — M2 revision read models/permissions complete; M3 versioned edit writes and CAS next
+Date: 2026-07-22
 Goal: allow authorized staff to edit any topic or comment from the admin area,
 record every effective self/staff edit as an immutable revision, prevent stale
 overwrites, and provide safe history inspection, comparison, and restore.
@@ -666,15 +666,15 @@ M1 implementation notes:
 
 ### M2 — Revision Read Models And Permissions
 
-- [ ] Add the two permission keys, seeds, migration grants, role templates, and
+- [x] Add the two permission keys, seeds, migration grants, role templates, and
       translations.
-- [ ] Add Forum store/service types for current revision, summaries, details,
+- [x] Add Forum store/service types for current revision, summaries, details,
       keyset lists, and non-public-aware admin detail.
-- [ ] Implement topic/comment revision list/detail with history permissions.
-- [ ] Render safe historical preview on demand; never persist new derived HTML.
-- [ ] Implement admin topic/comment cursor lists without body substring scans.
-- [ ] Add routes/controllers and modular OpenAPI schemas/path items.
-- [ ] Add allowed/denied/not-found/redacted/legacy tests.
+- [x] Implement topic/comment revision list/detail with history permissions.
+- [x] Render safe historical preview on demand; never persist new derived HTML.
+- [x] Implement admin topic/comment cursor lists without body substring scans.
+- [x] Add routes/controllers and modular OpenAPI schemas/path items.
+- [x] Add allowed/denied/not-found/redacted/legacy tests.
 
 Acceptance:
 
@@ -683,6 +683,26 @@ Acceptance:
 - Detail source is available only after the correct history permission.
 - Moderator template, role UI, API checks, and translations agree.
 - `ruby scripts/validate-openapi-refs.rb` passes.
+
+M2 validation (2026-07-22):
+
+- `GOCACHE=/private/tmp/sforum-gocache go test ./app/Models/Identity ./database/migrations ./app/Models/Forum ./app/Http/Controllers/Forum`
+- `set -a; . ../../.env; set +a; GOCACHE=/private/tmp/sforum-gocache go test ./app/Models/Forum -run 'TestRevision(ReadModels|Ledger).*Postgres' -count=1`
+- `ruby scripts/validate-openapi-refs.rb`
+- `node tests/validate-identity-ui.js`
+
+M2 implementation notes:
+
+- Goose migration `202607220053_forum_revision_view_permissions.sql` adds
+  `topic.revision.view_any` and `post.revision.view_any`, granting only
+  `super_admin` and the built-in `moderator` template by default.
+- Revision list/detail reads are history-permission gated in the service; lists
+  return summary headers only, and detail renders a safe preview on demand after
+  source authorization.
+- Admin content topic/comment list/detail reads require `admin.access` plus the
+  matching edit-any or history-view permission. M2 adds no admin mutation route.
+- M3 remains responsible for mandatory `expectedRevision`, CAS, reason rules,
+  accepted edit snapshots, comment update hooks/events, and write semantics.
 
 ### M3 — Versioned Edit Writes And CAS
 
@@ -937,15 +957,15 @@ V1 is complete only when all are true:
 
 ## New-Conversation Start Point
 
-The next implementing conversation must start with **M2 only**:
+The next implementing conversation must start with **M3 only**:
 
-1. inspect current worktree and reread the required files plus the M1 handoff;
-2. verify whether newer code/migrations changed this baseline;
-3. add history-view permissions, revision read/admin list models, routes, and
-   modular OpenAPI without changing edit CAS/write semantics yet;
-4. keep M3–M7 deferred unless the task book is explicitly updated with evidence;
-5. preserve the M0/M1 frozen decisions around permissions, CAS, audit, restore,
-   redaction, privacy clearing, and plugin boundaries.
+1. inspect the current worktree and reread the required files plus M1/M2 notes;
+2. verify whether newer code or migrations changed the M2 baseline;
+3. implement mandatory `expectedRevision`, transaction-locked CAS, reason/no-op
+   rules, accepted edit snapshots, and comment update hooks/events;
+4. keep M4–M7 deferred unless the task book is explicitly updated with evidence;
+5. preserve the M0–M2 decisions around permissions, read privacy, CAS, audit,
+   restore, redaction, privacy clearing, and plugin boundaries.
 
 Any newly discovered conflict with current code should update this task book and
 record the reason before implementation proceeds.

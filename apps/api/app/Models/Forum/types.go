@@ -55,16 +55,18 @@ const (
 	TopicActionPin     = "pin"
 	TopicActionUnpin   = "unpin"
 
-	CodeInvalidContent  = "forum.content_invalid"
-	CodeInvalidTopic    = "forum.topic_invalid"
-	CodeTopicNotFound   = "forum.topic_not_found"
-	CodeCommentNotFound = "forum.comment_not_found"
-	CodeTopicClosed     = "forum.topic_closed"
-	CodeInvalidTag      = "forum.tag_invalid"
-	CodeTagNotFound     = "forum.tag_not_found"
-	CodeInvalidSettings = "forum.settings_invalid"
-	CodeInvalidAction   = "forum.topic_action_invalid"
-	CodeUseSearch       = "forum.use_search_endpoint"
+	CodeInvalidContent   = "forum.content_invalid"
+	CodeInvalidTopic     = "forum.topic_invalid"
+	CodeTopicNotFound    = "forum.topic_not_found"
+	CodeCommentNotFound  = "forum.comment_not_found"
+	CodeTopicClosed      = "forum.topic_closed"
+	CodeInvalidTag       = "forum.tag_invalid"
+	CodeTagNotFound      = "forum.tag_not_found"
+	CodeInvalidSettings  = "forum.settings_invalid"
+	CodeInvalidAction    = "forum.topic_action_invalid"
+	CodeUseSearch        = "forum.use_search_endpoint"
+	CodeRevisionNotFound = "forum.revision_not_found"
+	CodeRevisionRedacted = "forum.revision_redacted"
 	// 非法/过期/与 sort 不匹配的 keyset 游标。
 	CodeInvalidCursor         = "forum.cursor_invalid"
 	CodeReindexRunning        = "forum.reindex_running"    // 已有重建在进行
@@ -124,6 +126,10 @@ var (
 	ErrGuestLoginRequired = errors.New("forum: guest login required")
 	// ErrDuplicateTitle 站点 duplicateTitlePolicy=block 时拒绝重复标题。
 	ErrDuplicateTitle = errors.New("forum: duplicate title")
+	// ErrRevisionNotFound 表示目标历史版本不存在；不区分主题/评论以避免枚举细节。
+	ErrRevisionNotFound = errors.New("forum: revision not found")
+	// ErrRevisionRedacted 表示历史版本 payload 已被超管清除，不能预览或返回源文。
+	ErrRevisionRedacted = errors.New("forum: revision redacted")
 )
 
 // TopicSearchIndexer 是 forum 包对搜索索引调度的抽象。
@@ -747,4 +753,116 @@ type CommentPosition struct {
 	RootCommentID int64
 	PathKey       string
 	Depth         int
+}
+
+type RevisionListInput struct {
+	After   string
+	PerPage int
+}
+
+type RevisionList struct {
+	Items      []ForumRevisionSummary `json:"items"`
+	PerPage    int                    `json:"perPage"`
+	HasMore    bool                   `json:"hasMore"`
+	NextCursor string                 `json:"nextCursor,omitempty"`
+}
+
+type ForumRevisionSummary struct {
+	ID                     int64        `json:"id"`
+	RevisionNo             int64        `json:"revisionNo"`
+	Current                bool         `json:"current"`
+	Actor                  *UserSummary `json:"actor,omitempty"`
+	Operation              string       `json:"operation"`
+	Origin                 string       `json:"origin"`
+	Reason                 string       `json:"reason,omitempty"`
+	ChangedFields          []string     `json:"changedFields"`
+	CommittedAt            time.Time    `json:"committedAt"`
+	RestoredFromRevisionNo *int64       `json:"restoredFromRevisionNo,omitempty"`
+	SnapshotComplete       bool         `json:"snapshotComplete"`
+	RestorableFields       []string     `json:"restorableFields"`
+	Redacted               bool         `json:"redacted"`
+}
+
+type HistoricalPreview struct {
+	HTMLContent   string `json:"htmlContent"`
+	PlainText     string `json:"plainText"`
+	Excerpt       string `json:"excerpt"`
+	RenderVersion string `json:"renderVersion"`
+}
+
+type AttachmentAvailabilitySummary struct {
+	IDs   []int64 `json:"ids"`
+	Total int     `json:"total"`
+}
+
+type TopicRevisionMetadata struct {
+	Title        string   `json:"title,omitempty"`
+	CategorySlug string   `json:"categorySlug,omitempty"`
+	TagSlugs     []string `json:"tagSlugs"`
+}
+
+type ForumRevisionDetail struct {
+	ForumRevisionSummary
+	RawContent    string                        `json:"rawContent"`
+	SourceFormat  string                        `json:"sourceFormat"`
+	EditorType    string                        `json:"editorType"`
+	EditorVersion string                        `json:"editorVersion"`
+	RenderVersion string                        `json:"renderVersion"`
+	ContentHash   string                        `json:"contentHash"`
+	Attachments   AttachmentAvailabilitySummary `json:"attachments"`
+	Preview       *HistoricalPreview            `json:"preview,omitempty"`
+	TopicMetadata *TopicRevisionMetadata        `json:"topicMetadata,omitempty"`
+}
+
+type AdminForumContentListInput struct {
+	After          string
+	PerPage        int
+	Status         string
+	AuthorUserID   int64
+	AuthorUsername string
+	UpdatedFrom    time.Time
+	UpdatedTo      time.Time
+	TopicID        int64
+	TitlePrefix    string
+	CategorySlug   string
+}
+
+type AdminForumContentList struct {
+	Items      []AdminForumContentRow `json:"items"`
+	PerPage    int                    `json:"perPage"`
+	HasMore    bool                   `json:"hasMore"`
+	NextCursor string                 `json:"nextCursor,omitempty"`
+}
+
+type AdminForumContentRow struct {
+	TargetType      string            `json:"targetType"`
+	ID              int64             `json:"id"`
+	TopicID         int64             `json:"topicId,omitempty"`
+	TopicTitle      string            `json:"topicTitle,omitempty"`
+	CategorySlug    string            `json:"categorySlug,omitempty"`
+	AuthorUserID    int64             `json:"authorUserId"`
+	Author          *UserSummary      `json:"author,omitempty"`
+	Status          string            `json:"status"`
+	Title           string            `json:"title,omitempty"`
+	Excerpt         string            `json:"excerpt"`
+	CurrentRevision int64             `json:"currentRevision"`
+	CreatedAt       time.Time         `json:"createdAt"`
+	UpdatedAt       time.Time         `json:"updatedAt"`
+	Tags            []TopicTagSummary `json:"tags,omitempty"`
+}
+
+type AdminForumTopicDetail struct {
+	AdminForumContentRow
+	Content RenderedContent `json:"content"`
+	Slug    string          `json:"slug"`
+}
+
+type AdminForumCommentDetail struct {
+	AdminForumContentRow
+	Content       RenderedContent `json:"content"`
+	ParentID      *int64          `json:"parentId,omitempty"`
+	RootCommentID int64           `json:"rootCommentId"`
+	PathKey       string          `json:"pathKey"`
+	Depth         int             `json:"depth"`
+	ReplyCount    int64           `json:"replyCount"`
 }

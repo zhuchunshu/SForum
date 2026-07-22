@@ -26,6 +26,8 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	}
 	// 注意：by-slug 必须先于 :topicID 注册，否则 "by-slug" 会被当作 topicID 捕获。
 	api.Get("/topics/by-slug/:slug", h.topicBySlug)
+	api.Get("/topics/:topicID/revisions", h.topicRevisions)
+	api.Get("/topics/:topicID/revisions/:revisionNo", h.topicRevision)
 	api.Get("/topics/:topicID", h.topic)
 	api.Patch("/topics/:topicID", h.updateTopic)
 	api.Delete("/topics/:topicID", h.deleteTopic)
@@ -42,6 +44,8 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 		api.Post("/topics/:topicID/comments", h.createComment)
 	}
 	api.Get("/comments/:commentID/replies", h.replies)
+	api.Get("/comments/:commentID/revisions", h.commentRevisions)
+	api.Get("/comments/:commentID/revisions/:revisionNo", h.commentRevision)
 	api.Patch("/comments/:commentID", h.updateComment)
 	api.Delete("/comments/:commentID", h.deleteComment)
 
@@ -58,6 +62,10 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	admin.Get("/settings", h.adminSettings)
 	admin.Put("/settings", h.adminUpdateSettings)
 	admin.Post("/settings/reset", h.adminResetSettings)
+	admin.Get("/content/topics", h.adminContentTopics)
+	admin.Get("/content/topics/:topicID", h.adminContentTopic)
+	admin.Get("/content/comments", h.adminContentComments)
+	admin.Get("/content/comments/:commentID", h.adminContentComment)
 	admin.Get("/search/providers", h.adminListSearchProviders)
 	admin.Put("/search/provider", h.adminSelectSearchProvider)
 	admin.Post("/search/provider/reset", h.adminResetSearchProvider)

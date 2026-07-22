@@ -30,13 +30,14 @@ frontend moderator workbench.
 - Topics and comments support `pending` and `rejected`. Neither status is
   returned by public reads, counted in public statistics, or indexed. Approval
   updates counters and search derivatives after the decision transaction.
-- Forum content revisions V1 has completed M1 schema/backfill groundwork. New
-  topic/comment creation writes revision 1, but edit CAS, restore, and
-  history/admin permissions remain later milestones. The frozen moderation
-  boundary still applies: content restore may re-render/re-evaluate the current
-  content pipeline but must not publish or change `pending`, `rejected`,
-  `hidden`, or `deleted` lifecycle state. Rejected/failed edit requests create
-  no revision and no audit success record.
+- Forum content revisions V1 M2 added authorized revision/admin content reads.
+  New topic/comment creation writes revision 1, and history is visible only
+  through `topic.revision.view_any` / `post.revision.view_any`. Edit CAS,
+  accepted edit snapshots, and restore remain later milestones. The frozen
+  moderation boundary still applies: content restore may re-render/re-evaluate
+  the current content pipeline but must not publish or change `pending`,
+  `rejected`, `hidden`, or `deleted` lifecycle state. Rejected/failed edit
+  requests create no revision and no audit success record.
 - `moderation_decisions` stores immutable action, reviewer, note, trigger
   snapshot, target, source, and timestamp audit records.
 

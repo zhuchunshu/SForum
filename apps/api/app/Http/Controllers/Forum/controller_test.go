@@ -393,6 +393,141 @@ func TestControllerPassesTreeAndFlatCommentViews(t *testing.T) {
 	}
 }
 
+func TestControllerRevisionHistoryPermissionsAndPayloads(t *testing.T) {
+	app, _, store := newForumTestApp()
+
+	resp := performForumRequest(t, app, nethttp.MethodGet, "/api/v1/topics/10/revisions", nil, nil)
+	if resp.StatusCode != nethttp.StatusUnauthorized {
+		t.Fatalf("expected 401 without login, got %d", resp.StatusCode)
+	}
+
+	cookie := loginForumUser(t, app, 2)
+	resp = performForumRequest(t, app, nethttp.MethodGet, "/api/v1/topics/10/revisions", nil, cookie)
+	if resp.StatusCode != nethttp.StatusForbidden {
+		t.Fatalf("expected 403 without history permission, got %d", resp.StatusCode)
+	}
+	if store.topicRevisionCalls != 0 {
+		t.Fatal("permission-denied history request should not reach store")
+	}
+
+	cookie = loginForumUser(t, app, 6)
+	resp = performForumRequest(t, app, nethttp.MethodGet, "/api/v1/topics/10/revisions?perPage=200", nil, cookie)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200 revision list, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	var listBody forumTestEnvelope[forum.RevisionList]
+	if err := json.NewDecoder(resp.Body).Decode(&listBody); err != nil {
+		t.Fatalf("decode revision list: %v", err)
+	}
+	if listBody.Data.PerPage != 100 || len(listBody.Data.Items) != 1 {
+		t.Fatalf("unexpected list response %#v", listBody.Data)
+	}
+	rawList, err := json.Marshal(listBody.Data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(rawList, []byte("rawContent")) || bytes.Contains(rawList, []byte("legacy source")) {
+		t.Fatalf("revision list leaked raw source: %s", rawList)
+	}
+
+	resp = performForumRequest(t, app, nethttp.MethodGet, "/api/v1/topics/10/revisions/1", nil, cookie)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200 revision detail, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	var detailBody forumTestEnvelope[forum.ForumRevisionDetail]
+	if err := json.NewDecoder(resp.Body).Decode(&detailBody); err != nil {
+		t.Fatalf("decode revision detail: %v", err)
+	}
+	if detailBody.Data.RawContent != "legacy source" || detailBody.Data.Preview == nil || detailBody.Data.Preview.HTMLContent == "" {
+		t.Fatalf("expected authorized raw source and preview, got %#v", detailBody.Data)
+	}
+}
+
+func TestControllerCommentRevisionPermissionAndRedactedErrors(t *testing.T) {
+	app, _, store := newForumTestApp()
+	cookie := loginForumUser(t, app, 6)
+
+	resp := performForumRequest(t, app, nethttp.MethodGet, "/api/v1/comments/20/revisions", nil, cookie)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200 comment revision list, got %d", resp.StatusCode)
+	}
+
+	store.revisionErr = forum.ErrRevisionNotFound
+	resp = performForumRequest(t, app, nethttp.MethodGet, "/api/v1/comments/20/revisions/999", nil, cookie)
+	if resp.StatusCode != nethttp.StatusNotFound {
+		t.Fatalf("expected 404 missing revision, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	var missing forumTestEnvelope[forumTestErrorData]
+	if err := json.NewDecoder(resp.Body).Decode(&missing); err != nil {
+		t.Fatalf("decode missing error: %v", err)
+	}
+	if missing.Data.Reason != forum.CodeRevisionNotFound {
+		t.Fatalf("expected %s, got %q", forum.CodeRevisionNotFound, missing.Data.Reason)
+	}
+
+	store.revisionErr = forum.ErrRevisionRedacted
+	resp = performForumRequest(t, app, nethttp.MethodGet, "/api/v1/comments/20/revisions/1", nil, cookie)
+	if resp.StatusCode != nethttp.StatusUnprocessableEntity {
+		t.Fatalf("expected 422 redacted revision, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	var redacted forumTestEnvelope[forumTestErrorData]
+	if err := json.NewDecoder(resp.Body).Decode(&redacted); err != nil {
+		t.Fatalf("decode redacted error: %v", err)
+	}
+	if redacted.Data.Reason != forum.CodeRevisionRedacted {
+		t.Fatalf("expected %s, got %q", forum.CodeRevisionRedacted, redacted.Data.Reason)
+	}
+}
+
+func TestControllerAdminContentReadPermissions(t *testing.T) {
+	app, _, store := newForumTestApp()
+
+	resp := performForumRequest(t, app, nethttp.MethodGet, "/api/v1/admin/forum/content/topics", nil, nil)
+	if resp.StatusCode != nethttp.StatusUnauthorized {
+		t.Fatalf("expected 401 without login, got %d", resp.StatusCode)
+	}
+
+	cookie := loginForumUser(t, app, 6)
+	resp = performForumRequest(t, app, nethttp.MethodGet, "/api/v1/admin/forum/content/topics", nil, cookie)
+	if resp.StatusCode != nethttp.StatusForbidden {
+		t.Fatalf("expected 403 without admin.access, got %d", resp.StatusCode)
+	}
+	if store.adminTopicCalls != 0 {
+		t.Fatal("admin.access denial should not reach admin topic store")
+	}
+
+	cookie = loginForumUser(t, app, 8)
+	resp = performForumRequest(t, app, nethttp.MethodGet, "/api/v1/admin/forum/content/comments", nil, cookie)
+	if resp.StatusCode != nethttp.StatusForbidden {
+		t.Fatalf("expected 403 without edit/history permission, got %d", resp.StatusCode)
+	}
+
+	cookie = loginForumUser(t, app, 7)
+	resp = performForumRequest(t, app, nethttp.MethodGet, "/api/v1/admin/forum/content/topics?titlePrefix=公", nil, cookie)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200 admin topic list, got %d", resp.StatusCode)
+	}
+	resp = performForumRequest(t, app, nethttp.MethodGet, "/api/v1/admin/forum/content/topics/10", nil, cookie)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200 admin topic detail, got %d", resp.StatusCode)
+	}
+	resp = performForumRequest(t, app, nethttp.MethodGet, "/api/v1/admin/forum/content/comments", nil, cookie)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200 admin comment list, got %d", resp.StatusCode)
+	}
+	resp = performForumRequest(t, app, nethttp.MethodGet, "/api/v1/admin/forum/content/comments/20", nil, cookie)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200 admin comment detail, got %d", resp.StatusCode)
+	}
+	if store.adminTopicCalls == 0 || store.adminCommentCalls == 0 {
+		t.Fatalf("expected admin content stores to be called, topics=%d comments=%d", store.adminTopicCalls, store.adminCommentCalls)
+	}
+}
+
 func newForumTestApp() (*fiber.App, *authsession.Manager, *controllerForumStore) {
 	manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})
 	users := controllerForumActors{actors: map[int64]identity.Actor{
@@ -418,6 +553,18 @@ func newForumTestApp() (*fiber.App, *authsession.Manager, *controllerForumStore)
 			identity.PermissionTopicDeleteAny: true,
 			identity.PermissionTopicLock:      true,
 			identity.PermissionTopicPin:       true,
+		}},
+		6: {ID: 6, Status: identity.UserStatusActive, Permissions: map[string]bool{
+			identity.PermissionTopicRevisionViewAny: true,
+			identity.PermissionPostRevisionViewAny:  true,
+		}},
+		7: {ID: 7, Status: identity.UserStatusActive, Permissions: map[string]bool{
+			identity.PermissionAdminAccess:          true,
+			identity.PermissionTopicRevisionViewAny: true,
+			identity.PermissionPostRevisionViewAny:  true,
+		}},
+		8: {ID: 8, Status: identity.UserStatusActive, Permissions: map[string]bool{
+			identity.PermissionAdminAccess: true,
 		}},
 	}}
 	store := &controllerForumStore{}
@@ -492,16 +639,21 @@ func (f forumRouteProviderFunc) RegisterRoutes(api fiber.Router) {
 }
 
 type controllerForumStore struct {
-	createdTopic    forum.CreateTopicRecord
-	updatedTopic    forum.UpdateTopicRecord
-	deletedTopicID  int64
-	appliedAction   string
-	actionTopic     forum.TopicSummary
-	lastCommentView string
-	lastTopicList   forum.TopicListInput
-	settingsReset   bool
-	updatedSettings forum.UpdateForumSettingsInput
-	guestRead       string
+	createdTopic         forum.CreateTopicRecord
+	updatedTopic         forum.UpdateTopicRecord
+	deletedTopicID       int64
+	appliedAction        string
+	actionTopic          forum.TopicSummary
+	lastCommentView      string
+	lastTopicList        forum.TopicListInput
+	settingsReset        bool
+	updatedSettings      forum.UpdateForumSettingsInput
+	guestRead            string
+	revisionErr          error
+	topicRevisionCalls   int
+	commentRevisionCalls int
+	adminTopicCalls      int
+	adminCommentCalls    int
 }
 
 func (s *controllerForumStore) ListCategories(context.Context) ([]forum.Category, error) {
@@ -697,6 +849,182 @@ func (s *controllerForumStore) ListCommentReplies(context.Context, forum.Comment
 	return []forum.Comment{{ID: 21, TopicID: 10, Status: forum.CommentStatusActive}}, nil
 }
 
+func (s *controllerForumStore) ListTopicRevisions(_ context.Context, _ int64, input forum.RevisionListInput) (forum.RevisionList, error) {
+	s.topicRevisionCalls++
+	perPage := input.PerPage
+	if perPage > 100 {
+		perPage = 100
+	}
+	return forum.RevisionList{
+		Items: []forum.ForumRevisionSummary{{
+			ID:               101,
+			RevisionNo:       1,
+			Current:          true,
+			Operation:        "migration",
+			Origin:           "migration",
+			ChangedFields:    []string{"content"},
+			CommittedAt:      time.Now(),
+			SnapshotComplete: false,
+			RestorableFields: []string{"content"},
+		}},
+		PerPage: perPage,
+	}, nil
+}
+
+func (s *controllerForumStore) GetTopicRevision(context.Context, int64, int64) (forum.ForumRevisionDetail, error) {
+	s.topicRevisionCalls++
+	if s.revisionErr != nil {
+		return forum.ForumRevisionDetail{}, s.revisionErr
+	}
+	detail := forum.ForumRevisionDetail{
+		ForumRevisionSummary: forum.ForumRevisionSummary{
+			ID:               101,
+			RevisionNo:       1,
+			Current:          true,
+			Operation:        "migration",
+			Origin:           "migration",
+			ChangedFields:    []string{"content"},
+			CommittedAt:      time.Now(),
+			SnapshotComplete: false,
+			RestorableFields: []string{"content"},
+		},
+		RawContent:    "legacy source",
+		SourceFormat:  forum.SourceFormatMarkdown,
+		EditorType:    forum.EditorTypeMarkdown,
+		EditorVersion: "test",
+		RenderVersion: forum.RenderVersion,
+		ContentHash:   "hash",
+	}
+	return detail, nil
+}
+
+func (s *controllerForumStore) ListCommentRevisions(_ context.Context, _ int64, input forum.RevisionListInput) (forum.RevisionList, error) {
+	s.commentRevisionCalls++
+	perPage := input.PerPage
+	if perPage > 100 {
+		perPage = 100
+	}
+	return forum.RevisionList{
+		Items: []forum.ForumRevisionSummary{{
+			ID:               201,
+			RevisionNo:       1,
+			Current:          true,
+			Operation:        "create",
+			Origin:           "self",
+			ChangedFields:    []string{"content"},
+			CommittedAt:      time.Now(),
+			SnapshotComplete: true,
+			RestorableFields: []string{"attachments", "content"},
+		}},
+		PerPage: perPage,
+	}, nil
+}
+
+func (s *controllerForumStore) GetCommentRevision(context.Context, int64, int64) (forum.ForumRevisionDetail, error) {
+	s.commentRevisionCalls++
+	if s.revisionErr != nil {
+		return forum.ForumRevisionDetail{}, s.revisionErr
+	}
+	return forum.ForumRevisionDetail{
+		ForumRevisionSummary: forum.ForumRevisionSummary{
+			ID:               201,
+			RevisionNo:       1,
+			Current:          true,
+			Operation:        "create",
+			Origin:           "self",
+			ChangedFields:    []string{"content"},
+			CommittedAt:      time.Now(),
+			SnapshotComplete: true,
+			RestorableFields: []string{"attachments", "content"},
+		},
+		RawContent:    "comment source",
+		SourceFormat:  forum.SourceFormatMarkdown,
+		EditorType:    forum.EditorTypeMarkdown,
+		EditorVersion: "test",
+		RenderVersion: forum.RenderVersion,
+		ContentHash:   "hash",
+	}, nil
+}
+
+func (s *controllerForumStore) ListAdminForumTopics(context.Context, forum.AdminForumContentListInput) (forum.AdminForumContentList, error) {
+	s.adminTopicCalls++
+	return forum.AdminForumContentList{Items: []forum.AdminForumContentRow{{
+		TargetType:      "topic",
+		ID:              10,
+		TopicID:         10,
+		TopicTitle:      "公开帖子",
+		CategorySlug:    "general",
+		AuthorUserID:    1,
+		Status:          forum.TopicStatusActive,
+		Title:           "公开帖子",
+		Excerpt:         "摘要",
+		CurrentRevision: 1,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}}, PerPage: 20}, nil
+}
+
+func (s *controllerForumStore) GetAdminForumTopic(context.Context, int64) (forum.AdminForumTopicDetail, error) {
+	s.adminTopicCalls++
+	return forum.AdminForumTopicDetail{
+		AdminForumContentRow: forum.AdminForumContentRow{
+			TargetType:      "topic",
+			ID:              10,
+			TopicID:         10,
+			TopicTitle:      "公开帖子",
+			CategorySlug:    "general",
+			AuthorUserID:    1,
+			Status:          forum.TopicStatusActive,
+			Title:           "公开帖子",
+			Excerpt:         "摘要",
+			CurrentRevision: 1,
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
+		},
+		Content: forum.RenderedContent{RawContent: "body", HTMLContent: "<p>body</p>", PlainText: "body", SourceFormat: forum.SourceFormatMarkdown},
+		Slug:    "topic",
+	}, nil
+}
+
+func (s *controllerForumStore) ListAdminForumComments(context.Context, forum.AdminForumContentListInput) (forum.AdminForumContentList, error) {
+	s.adminCommentCalls++
+	return forum.AdminForumContentList{Items: []forum.AdminForumContentRow{{
+		TargetType:      "comment",
+		ID:              20,
+		TopicID:         10,
+		TopicTitle:      "公开帖子",
+		CategorySlug:    "general",
+		AuthorUserID:    1,
+		Status:          forum.CommentStatusActive,
+		Excerpt:         "评论摘要",
+		CurrentRevision: 1,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}}, PerPage: 20}, nil
+}
+
+func (s *controllerForumStore) GetAdminForumComment(context.Context, int64) (forum.AdminForumCommentDetail, error) {
+	s.adminCommentCalls++
+	return forum.AdminForumCommentDetail{
+		AdminForumContentRow: forum.AdminForumContentRow{
+			TargetType:      "comment",
+			ID:              20,
+			TopicID:         10,
+			TopicTitle:      "公开帖子",
+			CategorySlug:    "general",
+			AuthorUserID:    1,
+			Status:          forum.CommentStatusActive,
+			Excerpt:         "评论摘要",
+			CurrentRevision: 1,
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
+		},
+		Content:       forum.RenderedContent{RawContent: "comment", HTMLContent: "<p>comment</p>", PlainText: "comment", SourceFormat: forum.SourceFormatMarkdown},
+		RootCommentID: 20,
+		PathKey:       "000000000020",
+	}, nil
+}
+
 func (s *controllerForumStore) LatestAuthorTopicCreatedAt(context.Context, int64) (time.Time, bool, error) {
 	return time.Time{}, false, nil
 }
@@ -723,12 +1051,12 @@ func (s *controllerForumStore) ForumSettings(context.Context) (forum.ForumSettin
 		TopicTitleMaxRunes:     100,
 		TopicContentMinRunes:   0,
 		TopicContentMaxRunes:   50000,
-		CommentMinRunes:          1,
-		CommentMaxRunes:          10000,
-		CommentMaxNestingDepth:   5,
-		TreeDescendantsPerRoot:   50,
-		ExcerptRuneLimit:         180,
-		GuestRead:                s.guestRead,
+		CommentMinRunes:        1,
+		CommentMaxRunes:        10000,
+		CommentMaxNestingDepth: 5,
+		TreeDescendantsPerRoot: 50,
+		ExcerptRuneLimit:       180,
+		GuestRead:              s.guestRead,
 	}, nil
 }
 
