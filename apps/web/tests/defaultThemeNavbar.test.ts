@@ -5,6 +5,10 @@ const source = readFileSync(
   new URL('../../../apps/web/app/components/SFNavbar.vue', import.meta.url),
   'utf8'
 )
+const themeTemplateSource = readFileSync(
+  new URL('../../../apps/web/app/components/SFThemeTemplate.vue', import.meta.url),
+  'utf8'
+)
 
 describe('default theme shared navbar contract', () => {
   test('keeps only real destinations and permission-aware header actions', () => {
@@ -115,6 +119,18 @@ describe('default theme shared navbar contract', () => {
     expect(source).not.toContain('langMenuOpen')
     expect(source).not.toContain('onClickOutside')
     expect(source).not.toContain("document.addEventListener('click'")
+    expect(source.match(/<ClientOnly>/g)?.length).toBe(1)
+    expect(source).toContain('navbar__control-placeholder')
+    expect(source).toContain('navbar__session-placeholder')
+  })
+
+  test('keeps navbar and footer statically reachable from runtime theme templates', () => {
+    expect(themeTemplateSource).toContain("import SFNavbar from './SFNavbar.vue'")
+    expect(themeTemplateSource).toContain("import SFFooter from './SFFooter.vue'")
+    expect(themeTemplateSource).toContain("'navigation.component.navbar': SFNavbar")
+    expect(themeTemplateSource).toContain("'navigation.component.footer': SFFooter")
+    expect(themeTemplateSource).not.toContain("'navigation.component.navbar': resolveComponent('SFNavbar')")
+    expect(themeTemplateSource).not.toContain("'navigation.component.footer': resolveComponent('SFFooter')")
   })
 
   test('keeps mobile compose visible and out of the mobile dropdown', () => {

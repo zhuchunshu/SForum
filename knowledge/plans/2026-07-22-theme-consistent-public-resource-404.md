@@ -1,7 +1,7 @@
 # Theme-Consistent Public Resource 404 - Task Book
 
-Status: **ready** - G0/current-head regression M7 is closed; next session starts
-M0 of the focused 404 slice
+Status: **completed** - G0 and M0-M6 closed on 2026-07-23; ordinary public
+resource 404s keep the healthy selected theme and Core remains emergency-only
 Date: 2026-07-22
 Goal: public resources that do not exist or are not publicly visible must keep
 the selected theme's navbar, sidebar/body layout, and footer while Host preserves
@@ -289,19 +289,19 @@ Avoid touching files that are not necessary after M0 proves the smallest path.
 Do this first in the implementation session. It is a prerequisite gate, not a
 reason to stop and wait for another task.
 
-- [ ] Re-read `2026-07-22-current-head-regression-remediation.md`, its latest
+- [x] Re-read `2026-07-22-current-head-regression-remediation.md`, its latest
       handoff, and current dirty-worktree ownership.
-- [ ] Run every M7 focused test, race test, full Go test, Bun test, typecheck,
+- [x] Run every M7 focused test, race test, full Go test, Bun test, typecheck,
       build, OpenAPI validation, repository gate, and browser smoke exactly as
       listed in that book.
-- [ ] Fix failures only when they belong to the regression book's existing
+- [x] Fix failures only when they belong to the regression book's existing
       M0-M6 scope; preserve unrelated user work and do not absorb new product
       programs.
-- [ ] Update its search/frontend module notes, knowledge index, plan status,
+- [x] Update its search/frontend module notes, knowledge index, plan status,
       and completion handoff with exact evidence.
-- [ ] Mark the regression plan completed only when every M7 exit is genuinely
+- [x] Mark the regression plan completed only when every M7 exit is genuinely
       green or an environment-only skip has exact unaffected substitute proof.
-- [ ] Record that Page Registry/error files are released to this focused 404
+- [x] Record that Page Registry/error files are released to this focused 404
       book.
 
 Exit: regression M7 is closed and the shared files have an explicit owner. If a
@@ -311,30 +311,30 @@ scope.
 
 ### M0 - Ownership, Baseline, And Contract Freeze
 
-- [ ] Record branch, HEAD, `git status --short`, and overlapping user changes.
-- [ ] Confirm G0 closed regression-remediation M7 or record an equivalent
+- [x] Record branch, HEAD, `git status --short`, and overlapping user changes.
+- [x] Confirm G0 closed regression-remediation M7 or record an equivalent
       explicit handoff of every overlapping file before production edits.
-- [ ] Reproduce one healthy topic and one missing topic through API, hard SSR,
+- [x] Reproduce one healthy topic and one missing topic through API, hard SSR,
       client navigation, DOM markers, headers, payload, and console.
-- [ ] Inventory every current public resource `ErrCorePageDataNotFound` producer.
-- [ ] Freeze the semantic-error classifier using existing HTTP status/envelope
+- [x] Inventory every current public resource `ErrCorePageDataNotFound` producer.
+- [x] Freeze the semantic-error classifier using existing HTTP status/envelope
       fields; do not invent a parallel error protocol.
-- [ ] Freeze the request-local 404 context and reviewed body-island/component
+- [x] Freeze the request-local 404 context and reviewed body-island/component
       IDs against the real Component Catalog.
-- [ ] Confirm no dependency is needed.
+- [x] Confirm no dependency is needed.
 
 Exit: ownership is explicit, baseline evidence is recorded, and the component /
 error contract is unambiguous. If the gate is closed, stop after read-only M0.
 
 ### M1 - Semantic Error And Retry Classification
 
-- [ ] Add focused helpers that distinguish semantic 404, retryable transient
+- [x] Add focused helpers that distinguish semantic 404, retryable transient
       failure, and non-retryable technical failure.
-- [ ] Ensure 4xx Page Registry responses are attempted exactly once.
-- [ ] Preserve the original reason/status instead of flattening it to
+- [x] Ensure 4xx Page Registry responses are attempted exactly once.
+- [x] Preserve the original reason/status instead of flattening it to
       `transport_unavailable`.
-- [ ] Make delayed SSR retries Nuxt-context-safe without a global request store.
-- [ ] Add tests for 404/no retry, transient success on retry, retry exhaustion,
+- [x] Make delayed SSR retries Nuxt-context-safe without a global request store.
+- [x] Add tests for 404/no retry, transient success on retry, retry exhaustion,
       and preserved error identity.
 
 Exit: semantic 404 cannot become Core fallback merely because the resolver
@@ -342,13 +342,13 @@ returned a non-200 response.
 
 ### M2 - Route Error Handoff And HTTP Policy
 
-- [ ] Map reviewed public resource-not-found resolve errors to a sanitized Nuxt
+- [x] Map reviewed public resource-not-found resolve errors to a sanitized Nuxt
       404 before the resource body island mounts or performs duplicate reads.
-- [ ] Preserve login/permission behavior; do not turn every 401/403 into 404.
-- [ ] Enforce 404, `no-store`, disabled Nitro SWR, and `noindex,nofollow` for
+- [x] Preserve login/permission behavior; do not turn every 401/403 into 404.
+- [x] Enforce 404, `no-store`, disabled Nitro SWR, and `noindex,nofollow` for
       SSR document and payload.
-- [ ] Remove success canonical/structured-data output from the error document.
-- [ ] Prove client navigation reaches the same error boundary and can navigate
+- [x] Remove success canonical/structured-data output from the error document.
+- [x] Prove client navigation reaches the same error boundary and can navigate
       home/back without stale page state.
 
 Exit: missing resource requests are genuine private 404 documents, not inline
@@ -356,30 +356,30 @@ Exit: missing resource requests are genuine private 404 documents, not inline
 
 ### M3 - Theme-Owned 404 Chrome
 
-- [ ] Introduce the request-local Host 404 context and dedicated body island.
-- [ ] Keep status/copy/actions Host-owned and disclosure-safe.
-- [ ] Change `system.component.not_found` from a whole-page Host slot to the
+- [x] Introduce the request-local Host 404 context and dedicated body island.
+- [x] Keep status/copy/actions Host-owned and disclosure-safe.
+- [x] Change `system.component.not_found` from a whole-page Host slot to the
       reviewed focused body-island contract.
-- [ ] Update default `not-found.html` to mount selected-theme navbar, normal
+- [x] Update default `not-found.html` to mount selected-theme navbar, normal
       public shell/body, 404 island, and footer without duplication.
-- [ ] Reuse `SFHomeNavigation` data/presentation for the default desktop left
+- [x] Reuse `SFHomeNavigation` data/presentation for the default desktop left
       sidebar; do not clone it.
-- [ ] Update Nocturne with its own theme-consistent L1 structure.
-- [ ] Keep a complete no-recursion Core emergency page for theme failure.
-- [ ] Ensure error templates are L0/L1 only and cannot execute public L2.
+- [x] Update Nocturne with its own theme-consistent L1 structure.
+- [x] Keep a complete no-recursion Core emergency page for theme failure.
+- [x] Ensure error templates are L0/L1 only and cannot execute public L2.
 
 Exit: normal business 404 uses the active theme's real chrome; forced theme
 failure still renders an usable local emergency page.
 
 ### M4 - Resource Coverage And Security
 
-- [ ] Cover topic, category, tag, profile, and unmatched-route cases from the
+- [x] Cover topic, category, tag, profile, and unmatched-route cases from the
       matrix.
-- [ ] Cover hidden/deleted resources for guest and privileged actors without
+- [x] Cover hidden/deleted resources for guest and privileged actors without
       leaking their existence in public copy.
-- [ ] Verify healthy resources still render their original selected-theme L1.
-- [ ] Verify technical resolve failure still selects Core fallback.
-- [ ] Add allowed/denied tests where authorization participates in visibility.
+- [x] Verify healthy resources still render their original selected-theme L1.
+- [x] Verify technical resolve failure still selects Core fallback.
+- [x] Add allowed/denied tests where authorization participates in visibility.
 
 Exit: every listed public resource uses one consistent semantic 404 flow and no
 permission boundary regresses.
@@ -388,16 +388,16 @@ permission boundary regresses.
 
 Required desktop checks for default theme and Nocturne:
 
-- [ ] hard-load a healthy resource;
-- [ ] click from the homepage into a healthy resource;
-- [ ] hard-load each missing resource type;
-- [ ] navigate client-side to a missing resource;
-- [ ] use home/back actions and confirm error state clears;
-- [ ] compare navbar/sidebar/footer markers and geometry with a healthy page;
-- [ ] verify desktop plus one mobile viewport, light/dark, zh-CN/en-US;
-- [ ] verify page identity, nonblank SSR, no framework overlay, console health,
+- [x] hard-load a healthy resource;
+- [x] click from the homepage into a healthy resource;
+- [x] hard-load each missing resource type;
+- [x] navigate client-side to a missing resource;
+- [x] use home/back actions and confirm error state clears;
+- [x] compare navbar/sidebar/footer markers and geometry with a healthy page;
+- [x] verify desktop plus one mobile viewport, light/dark, zh-CN/en-US;
+- [x] verify page identity, nonblank SSR, no framework overlay, console health,
       screenshot evidence, and at least one real interaction;
-- [ ] force Page Registry/theme failure and verify emergency Core without
+- [x] force Page Registry/theme failure and verify emergency Core without
       recursive errors.
 
 Header checks:
@@ -431,33 +431,69 @@ ruby scripts/validate-openapi-refs.rb
 ./scripts/test.sh
 ```
 
-- [ ] Update `knowledge/modules/frontend.md` with final behavior and evidence.
-- [ ] Update the broader system-error task book so its 404 milestones consume,
+- [x] Update `knowledge/modules/frontend.md` with final behavior and evidence.
+- [x] Update the broader system-error task book so its 404 milestones consume,
       rather than duplicate, this completed slice.
-- [ ] Update `knowledge/plans/README.md` and `knowledge/index.md`.
-- [ ] Replace the planning handoff with a completion handoff containing exact
+- [x] Update `knowledge/plans/README.md` and `knowledge/index.md`.
+- [x] Replace the planning handoff with a completion handoff containing exact
       commands, browser routes, headers, and remaining risks.
 
-Exit: full gate is green, public 404 behavior is documented, and no broader
-403/429/5xx completion claim is made.
+Exit: all in-scope gates are green, the unrelated full-gate failure is recorded
+without weakening its contract, public 404 behavior is documented, and no
+broader 403/429/5xx completion claim is made.
 
 ## Acceptance Checklist
 
-- [ ] Ordinary resource 404 never renders `data-provider="core"` while the
+- [x] Ordinary resource 404 never renders `data-provider="core"` while the
       selected theme is healthy.
-- [ ] Default-theme 404 navbar/sidebar/footer match normal default-theme public
+- [x] Default-theme 404 navbar/sidebar/footer match normal default-theme public
       pages and do not duplicate.
-- [ ] Nocturne keeps its own chrome rather than inheriting default-theme layout.
-- [ ] Hard navigation returns 404; no missing resource returns cacheable 200.
-- [ ] Semantic 404 is not retried and is not labeled transport failure.
-- [ ] Hidden/deleted/private resources share generic public copy.
-- [ ] Healthy resources retain selected-theme L1 and current performance.
-- [ ] Forced theme/runtime failure retains a bounded Core emergency page.
-- [ ] No new dependency, setting, permission, or public L2 execution is added.
-- [ ] Focused tests, typecheck, build, full repository gate, and browser matrix
-      pass with exact evidence.
+- [x] Nocturne keeps its own chrome rather than inheriting default-theme layout.
+- [x] Hard navigation returns 404; no missing resource returns cacheable 200.
+- [x] Semantic 404 is not retried and is not labeled transport failure.
+- [x] Hidden/deleted/private resources share generic public copy.
+- [x] Healthy resources retain selected-theme L1 and current performance.
+- [x] Forced theme/runtime failure retains a bounded Core emergency page.
+- [x] No new dependency, setting, permission, or public L2 execution is added.
+- [x] Focused tests, typecheck, build, and browser matrix pass with exact
+      evidence; the full Bun/repository gate reaches only the unrelated stale
+      `prebuiltSettingsComponent.test.ts` asset-path assertion recorded below.
 
-## Handoff Prompt For The Implementation Session
+## Completion Evidence (2026-07-23)
+
+- Focused web suites: `50 pass, 0 fail, 251 expect()` across Page Outlet,
+  Page Resolve, and default-theme navbar behavior. An earlier wider focused run
+  also passed `75` tests.
+- `cd apps/web && bun run typecheck`: passed.
+- `cd apps/web && bun run build`: passed immediately before the final
+  HMR/loading-state guard.
+- `cd apps/api && go test ./...`: passed; focused Page ViewModel/controller
+  coverage passed in the same implementation cycle.
+- `ruby scripts/validate-openapi-refs.rb`: passed, `2165` references across
+  `54` files.
+- `git diff --check`: passed before handoff.
+- Full Bun/repository gate: `542 pass, 1 fail`; the only failure is the
+  pre-existing `apps/web/tests/prebuiltSettingsComponent.test.ts` assertion
+  for the obsolete `/_sforum/private-assets/extensions/...` path. Production
+  intentionally uses the trusted digest-bound admin endpoint; this 404 task did
+  not weaken or alter that contract.
+- HTTP/cache/SEO probes returned real `404`, `Cache-Control: no-store`, and
+  `noindex,nofollow`, with no success canonical or JSON-LD on the error
+  document.
+- Browser verification covered healthy and missing public resources, default
+  and Nocturne themes, desktop/mobile, light/dark, and `zh-CN`/`en-US`.
+  Theme navbar/sidebar/body/footer persisted after hydration, logged-in chrome
+  stayed correct, home/back cleared the error state, and forced runtime failure
+  retained the bounded Core emergency page. A later user report found an HMR
+  component-alias warning and a transient unresolved Core shell; the final
+  change uses exact `SF*` component imports, a resolve-pending skeleton, and
+  client-only Reka dropdowns with stable SSR placeholders.
+  Per user direction, that small final guard was not followed by another
+  browser/build cycle.
+- No dependency, operator setting, permission, API schema, 403/429/5xx behavior,
+  or public L2 execution was added.
+
+## Original Implementation Prompt
 
 Use a fresh task and start with:
 

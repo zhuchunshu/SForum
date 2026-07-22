@@ -1,37 +1,35 @@
 # Theme-Defined System Error Pages - Task Book
 
-Status: **blocked** — M0 read-only audit complete; M1+ code is blocked until
-current-HEAD regression M7 completes or overlapping files are explicitly
-handed off  
-Date: 2026-07-22  
+Status: **ready** — M0 audit and the focused public-resource 404 precursor are
+complete; M1+ may consume that implementation and continue with 403/429/5xx
+Date: 2026-07-22
 Goal: let the selected public theme own the L1 presentation of common system
 error pages while Host retains status, safe content, behavior, SEO, and an
 always-available emergency fallback.
 
-Focused precursor: public resource-not-found 404 behavior has a separate ready
-task book at `2026-07-22-theme-consistent-public-resource-404.md`. Do not
-implement the same 404 path concurrently. After that focused book completes,
-this broader book must consume its result and continue with 403/429/5xx rather
-than reimplementing 404.
+Focused precursor: public resource-not-found 404 behavior was completed in
+`2026-07-22-theme-consistent-public-resource-404.md`. Its request-local context,
+selected-theme rendering, one-attempt system resolver, document policy, and
+Core emergency fallback are the baseline for this broader book. Continue with
+403/429/5xx without reimplementing or weakening the finished 404 path.
 
 Implement this book milestone by milestone. Each milestone must leave the
 repository buildable and must record exact verification output. Do not merge
 this work into the search, content-revision, or V3 production-rewire programs.
 
-## Dependency And Shared-Worktree Warning
+## Completed Precursor And Shared-Worktree Warning
 
-The current worktree already contains overlapping edits in `apps/web/app/error.vue`,
-`SFPageOutlet.vue`, Page Registry route matching, Page ViewModels, tests, and
-knowledge files for `2026-07-22-current-head-regression-remediation.md`.
+The regression dependency and focused 404 precursor are complete. Shared error
+and Page Registry files are available to this book after the focused 404 commit.
 
 - Before editing, re-read `git status --short`, the active regression plan, and
   its latest handoff.
 - Do not overwrite, revert, restage, or reimplement those changes.
-- Start implementation only when the overlapping owner has completed M7 or has
-  explicitly handed the files over. M0 inspection may run earlier because it is
-  read-only.
-- Preserve the repaired behavior that `system.not_found` resolves against the
-  selected theme and falls back to Core on resolver failure.
+- Preserve the completed behavior that `system.not_found` resolves against the
+  selected theme, keeps theme chrome for ordinary semantic 404s, and falls back
+  to Core only on a real theme/runtime/API failure.
+- Extend the existing system-theme AST renderer and request-local error context
+  for new status families; do not create a parallel error rendering stack.
 
 ## Required Reading Before Coding
 
@@ -269,21 +267,21 @@ details and required home action.
 - [x] Freeze the Page ID/status matrix, virtual-page representation, component
       IDs, and safe ViewModel fields before implementation (recorded below).
 
-**Exit:** partial — production code unchanged; baseline + file/contract map
-recorded. ADR and M0 full exit remain open until overlapping ownership is
-released and implementation may start.
+**Exit:** baseline and file/contract map are recorded. Overlapping ownership is
+released; the implementation session must add the deferred ADR before or with
+M1 production edits.
 
 ### M0 actual verification (2026-07-22)
 
-#### Dependency gate (blocks M1+)
+#### Dependency gate (released 2026-07-23)
 
 | Check | Result |
 | --- | --- |
-| Regression plan status | **active**; M0–M6 checked with evidence; **M7 unchecked** |
-| Regression completion handoff | **Missing** — session still says “start M0… execute M1–M7” |
-| Explicit file handoff to this book | **None** |
-| Worktree | `main` @ `1011e97c7`, `ahead 6` of `origin/main`, **clean** |
-| Action taken | **Read-only M0 only**; no shared production files modified |
+| Regression plan status | **completed**; M0-M7 closed |
+| Focused 404 precursor | **completed**; M0-M6 closed with completion handoff |
+| Explicit file handoff to this book | Shared error/Page Registry files released after the focused 404 commit |
+| Required preservation | Selected-theme 404, one-attempt system resolve, `no-store`, `noindex,nofollow`, emergency-only Core |
+| Next action | Add the deferred ADR, then start M1 without reimplementing 404 |
 
 Shared / high-risk overlap (touched in commits ahead of `origin/main` and/or
 owned by regression M1–M3):
@@ -298,8 +296,7 @@ owned by regression M1–M3):
 - `apps/api/app/Models/PageViewModels/source.go`
 - `apps/api/app/Support/ThemeCompiler/viewmodel_registry.go`
 
-Also consumed by this book (currently clean in ahead-range, still shared
-runtime surface — do not edit until gate opens):
+Also consumed by this book as released shared runtime surfaces:
 
 - `apps/web/app/components/SFErrorPageContent.vue`
 - `apps/web/app/utils/errorPage.ts`
@@ -308,7 +305,7 @@ runtime surface — do not edit until gate opens):
 - `contracts/openapi/schemas/pages.yaml`
 - built-in theme `not-found.html` / `theme.json` page contributions
 
-#### Error flow (as implemented today)
+#### Error flow at the 2026-07-22 M0 audit
 
 1. Producers call Nuxt `createError` / `showError`, or Nuxt synthesizes 404 for
    unmatched routes.

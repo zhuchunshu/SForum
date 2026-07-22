@@ -56,7 +56,11 @@ function validateOfflineContracts() {
   console.log('[page-registry] offline contracts…')
 
   // Host page outlet + dynamic add route
-  const outlet = read('apps/web/app/components/SFPageOutlet.vue')
+  const outlet = [
+    read('apps/web/app/components/SFPageOutlet.vue'),
+    read('apps/web/app/components/SFPageOutletResolver.vue'),
+    read('apps/web/app/components/SFPageOutletRender.vue')
+  ].join('\n')
   assertIncludes(outlet, 'SFPageOutlet', 'SFPageOutlet component')
   assertIncludes(outlet, "new URLSearchParams({ id: props.page, path: route.path })", 'outlet must resolve by page id and current path')
   assertNotIncludes(outlet, 'CONSTRAINED_PAGES', 'protected pages must resolve through Registry')
@@ -84,7 +88,7 @@ function validateOfflineContracts() {
   assertIncludes(template, "'identity.component.login_form': resolveComponent('LazySFLoginFormPage')", 'login form must stay a Host body island')
   assertIncludes(template, "'forum.component.topic_composer': resolveComponent('LazySFTopicComposerPage')", 'topic composer must stay a Host body island')
   assertIncludes(template, "'forum.component.home_page': resolveComponent('LazySFHomePage')", 'home body must stay a Host body island')
-  assertIncludes(template, "'system.component.not_found': HostPageIsland", 'not_found may remain HostPageIsland for error.vue slot')
+  assertIncludes(template, "'system.component.not_found': SFNotFoundPageContent", 'not_found must use the dedicated Host body island')
   assertIncludes(template, "'navigation.component.navbar': resolveComponent('SFNavbar')", 'theme chrome navbar is Host-owned')
   assertIncludes(template, "'navigation.component.footer': resolveComponent('SFFooter')", 'theme chrome footer is Host-owned')
   // Themes may name only the reviewed Host island. Package code loading remains
@@ -112,8 +116,8 @@ function validateOfflineContracts() {
   assertIncludes(index, 'forum.home', 'home page id')
 
   const errorPage = read('apps/web/app/error.vue')
-  assertIncludes(errorPage, 'page="system.not_found"', '404 must resolve through the not-found catalog surface')
-  assertIncludes(errorPage, 'v-if="isNotFound"', 'non-404 Host failures must not use the not-found provider')
+  assertIncludes(errorPage, 'SFNotFoundPage', '404 must resolve through the not-found catalog surface')
+  assertIncludes(errorPage, 'Number(nuxtError.value?.statusCode) === 404', 'non-404 Host failures must not use the not-found provider')
 
   const componentsPage = read('apps/web/app/pages/components.vue')
   assertIncludes(componentsPage, 'page="dev.components"', 'dev component catalog must have a Page Registry outlet')

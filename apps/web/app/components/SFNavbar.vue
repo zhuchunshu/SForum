@@ -8,6 +8,13 @@ import {
   parseForumTagPublicPagesOption
 } from '~/utils/forumTaxonomy'
 
+const props = withDefaults(defineProps<{
+  /** Core 404 应急页不得在 API 已失效时继续启动 chrome 请求。 */
+  fetchRemoteChrome?: boolean
+}>(), {
+  fetchRemoteChrome: true
+})
+
 const { t, locale, locales, setLocale } = useI18n()
 const localePath = useLocalePath()
 const { user, status, refresh } = useAuthSession()
@@ -39,13 +46,17 @@ type DesktopNavItem = {
   icon?: string
 }
 
-const { data: publicNav } = await useAsyncData('site-public-nav-items', async () => {
-  try {
-    return await chromeApi.listPublicNav()
-  } catch {
-    return { items: [], extensionItems: [] } as SitePublicNav
-  }
-}, { default: () => ({ items: [], extensionItems: [] }) as SitePublicNav })
+const emptyPublicNav = (): SitePublicNav => ({ items: [], extensionItems: [] })
+// 保持 setup 同步：主题错误树通过运行时 VNode 挂载 navbar，生产 SSR 不能依赖异步 setup。
+const publicNav = props.fetchRemoteChrome
+  ? useAsyncData('site-public-nav-items', async () => {
+      try {
+        return await chromeApi.listPublicNav()
+      } catch {
+        return emptyPublicNav()
+      }
+    }, { default: emptyPublicNav }).data
+  : shallowRef<SitePublicNav>(emptyPublicNav())
 
 const isEnglishLocale = computed(() => String(locale.value).toLowerCase().startsWith('en'))
 
@@ -159,14 +170,20 @@ type RegistrationStatus = {
   nextUserIsInitialSuperAdmin: boolean
   registrationEnabled?: boolean
 }
-const { data: registrationStatus } = await useAsyncData('auth-registration-status-navbar', async () => {
-  try {
-    return await request<RegistrationStatus>('/auth/registration-status')
-  } catch {
-    // 接口失败时保守显示注册，避免误关 bootstrap 入口。
-    return { nextUserIsInitialSuperAdmin: false, registrationEnabled: true }
-  }
+const defaultRegistrationStatus = (): RegistrationStatus => ({
+  nextUserIsInitialSuperAdmin: false,
+  registrationEnabled: true
 })
+const registrationStatus = props.fetchRemoteChrome
+  ? useAsyncData('auth-registration-status-navbar', async () => {
+      try {
+        return await request<RegistrationStatus>('/auth/registration-status')
+      } catch {
+        // 接口失败时保守显示注册，避免误关 bootstrap 入口。
+        return defaultRegistrationStatus()
+      }
+    }, { default: defaultRegistrationStatus }).data
+  : shallowRef<RegistrationStatus>(defaultRegistrationStatus())
 const showRegisterLinks = computed(() => registrationStatus.value?.registrationEnabled !== false)
 const logoAriaLabel = computed(() => {
   const tagline = siteTagline.value
@@ -483,21 +500,26 @@ async function logout() {
           <UIcon name="i-lucide-square-pen" class="size-5" aria-hidden="true" />
         </NuxtLink>
 
-        <UDropdownMenu
-          :items="languageMenuItems"
-          :content="{ align: 'end' }"
-        >
-          <UButton
-            color="neutral"
-            variant="ghost"
-            square
-            class="navbar__control"
-            :aria-label="t('nav.language')"
-            :title="currentLocaleName"
+        <ClientOnly>
+          <UDropdownMenu
+            :items="languageMenuItems"
+            :content="{ align: 'end' }"
           >
-            <UIcon name="i-lucide-globe" class="size-4" aria-hidden="true" />
-          </UButton>
-        </UDropdownMenu>
+            <UButton
+              color="neutral"
+              variant="ghost"
+              square
+              class="navbar__control"
+              :aria-label="t('nav.language')"
+              :title="currentLocaleName"
+            >
+              <UIcon name="i-lucide-globe" class="size-4" aria-hidden="true" />
+            </UButton>
+          </UDropdownMenu>
+          <template #fallback>
+            <span class="navbar__control-placeholder" aria-hidden="true" />
+          </template>
+        </ClientOnly>
 
         <ClientOnly>
           <UButton
@@ -537,27 +559,33 @@ async function logout() {
           </NuxtLink>
         </template>
 
-        <UDropdownMenu
+        <ClientOnly
           v-else-if="user"
-          :items="userMenuItems"
-          :content="{ align: 'end' }"
         >
-          <UButton
-            color="neutral"
-            variant="ghost"
-            class="navbar__user-trigger"
-            :aria-label="t('nav.userMenu')"
+          <UDropdownMenu
+            :items="userMenuItems"
+            :content="{ align: 'end' }"
           >
-            <SFAvatar
-              :name="displayName"
-              :avatar="user.avatar"
-              size="sm"
-              shape="circle"
-            />
-            <span class="navbar__username">{{ displayName }}</span>
-            <UIcon name="i-lucide-chevron-down" class="size-3.5" aria-hidden="true" />
-          </UButton>
-        </UDropdownMenu>
+            <UButton
+              color="neutral"
+              variant="ghost"
+              class="navbar__user-trigger"
+              :aria-label="t('nav.userMenu')"
+            >
+              <SFAvatar
+                :name="displayName"
+                :avatar="user.avatar"
+                size="sm"
+                shape="circle"
+              />
+              <span class="navbar__username">{{ displayName }}</span>
+              <UIcon name="i-lucide-chevron-down" class="size-3.5" aria-hidden="true" />
+            </UButton>
+          </UDropdownMenu>
+          <template #fallback>
+            <span class="navbar__session-placeholder" aria-hidden="true" />
+          </template>
+        </ClientOnly>
         <span v-else class="navbar__session-placeholder" aria-hidden="true" />
       </div>
     </div>

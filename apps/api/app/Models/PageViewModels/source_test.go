@@ -27,6 +27,7 @@ var sourceTestNow = time.Date(2026, 7, 15, 8, 0, 0, 0, time.UTC)
 type sourceForum struct {
 	lastTopicInput   forum.TopicListInput
 	lastCommentInput forum.CommentListInput
+	topicErr         error
 }
 
 func (s *sourceForum) ListCategoryGroups(context.Context) ([]forum.CategoryGroup, error) {
@@ -46,10 +47,16 @@ func (s *sourceForum) ListTopics(_ context.Context, input forum.TopicListInput) 
 }
 
 func (s *sourceForum) GetTopic(context.Context, int64) (forum.TopicDetail, error) {
+	if s.topicErr != nil {
+		return forum.TopicDetail{}, s.topicErr
+	}
 	return sourceTopic(), nil
 }
 
 func (s *sourceForum) GetTopicBySlug(context.Context, string) (forum.TopicDetail, error) {
+	if s.topicErr != nil {
+		return forum.TopicDetail{}, s.topicErr
+	}
 	return sourceTopic(), nil
 }
 

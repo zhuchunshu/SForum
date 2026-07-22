@@ -34,7 +34,10 @@ type ApiErrorEnvelopeLike = {
 
 type ApiFetchErrorLike = {
   data?: unknown
+  status?: unknown
+  statusCode?: unknown
   response?: {
+    status?: unknown
     _data?: unknown
   }
 }
@@ -47,6 +50,10 @@ export function useApiClient() {
   const runtimeConfig = useRuntimeConfig()
   const apiBaseUrl = runtimeConfig.public.apiBaseUrl as string
   const i18n = useNuxtApp().$i18n as RuntimeI18nLike | undefined
+  // SSR 重试可能跨过 await；请求 cookie 必须在 composable 创建时从当前上下文捕获。
+  const requestCookie = import.meta.server
+    ? (useRequestHeaders(['cookie']).cookie || '')
+    : ''
 
   function apiLocale() {
     const locale = localeString(i18n?.locale) || String(runtimeConfig.public.appLocale || 'zh-CN')
@@ -57,11 +64,8 @@ export function useApiClient() {
     const headers: Record<string, string> = {
       'Accept-Language': apiLocale()
     }
-    if (import.meta.server) {
-      const cookie = useRequestHeaders(['cookie']).cookie
-      if (cookie) {
-        headers.cookie = cookie
-      }
+    if (requestCookie) {
+      headers.cookie = requestCookie
     }
     return { ...headers, ...extra }
   }
@@ -71,8 +75,7 @@ export function useApiClient() {
   // 返回空字符串表示无 token（首次访问尚未种下，unsafe 请求会被后端拒绝，正常流程先有 GET）。
   function csrfToken(): string {
     if (import.meta.server) {
-      const raw = useRequestHeaders(['cookie']).cookie || ''
-      for (const part of raw.split(';')) {
+      for (const part of requestCookie.split(';')) {
         const [k, ...rest] = part.trim().split('=')
         if (k === CSRF_COOKIE_NAME) {
           return decodeURIComponent(rest.join('='))
@@ -178,7 +181,9 @@ function apiErrorEnvelope(error: unknown) {
   }
 
   // ofetch/Nuxt 在不同链路里可能把后端 envelope 放在 data 或 response._data。
-  const fetchError = error as ApiFetchErrorLike
+  const fetchError = error && typeof error === 'object'
+    ? error as ApiFetchErrorLike
+    : {}
   if (isApiEnvelope(fetchError.data)) {
     return fetchError.data
   }
@@ -196,6 +201,26 @@ export function apiErrorMessage(error: unknown) {
 export function apiErrorReason(error: unknown) {
   const reason = apiErrorEnvelope(error)?.data?.reason
   return typeof reason === 'string' ? reason : ''
+}
+
+/** 统一读取 ofetch 与 Host envelope 的 HTTP 状态，供只读请求策略复用。 */
+export function apiErrorStatusCode(error: unknown) {
+  const fetchError = error && typeof error === 'object'
+    ? error as ApiFetchErrorLike
+    : {}
+  const candidates = [
+    apiErrorEnvelope(error)?.code,
+    fetchError.statusCode,
+    fetchError.status,
+    fetchError.response?.status
+  ]
+  for (const value of candidates) {
+    const status = Number(value)
+    if (Number.isInteger(status) && status >= 400 && status <= 599) {
+      return status
+    }
+  }
+  return 0
 }
 
 export function apiErrorFields(error: unknown) {

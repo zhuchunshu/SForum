@@ -1,43 +1,42 @@
-# 2026-07-22 Theme-Consistent Public Resource 404 Plan Handoff
+# 2026-07-23 Theme-Consistent Public Resource 404 Completion Handoff
 
 ## Changed
 
-- Added focused task book:
-  `../plans/2026-07-22-theme-consistent-public-resource-404.md`.
-- Scope is deliberately limited to public resource-not-found 404s: topic,
-  category, tag, profile, and unknown routes.
-- Recorded live evidence that missing topic 60 returns API 404 but renders
-  `provider=core`, Host chrome, HTTP 200, and SWR cache, while a healthy topic
-  uses `sforum.default-theme` L1.
-- No production code, contract, theme package, or dependency was changed.
+- Completed focused task book M0-M6 for missing/hidden/deleted topic,
+  category, tag, profile, and unmatched public routes.
+- Semantic Page Registry 404s now skip retry, preserve reason/status, enter the
+  Nuxt error boundary, and render `system.not_found` through the selected theme.
+- Default and Nocturne 404 templates keep their own navbar/sidebar/body/footer.
+  Reviewed Host islands own generic 404 copy/actions; Core is a bounded,
+  non-recursive emergency page for real theme/runtime/API failure.
+- Error documents return HTTP 404, `Cache-Control: no-store`, and
+  `noindex,nofollow`, with success canonical and JSON-LD removed.
 
-## Decisions
+## Verification
 
-- Ordinary business 404 must keep the healthy selected theme's real chrome.
-- Default theme 404 keeps its navbar and desktop left navigation; the right
-  information rail may be intentionally absent.
-- Semantic 404 is non-retryable and must not become `transport_unavailable`.
-- Resource 404 enters `system.not_found`; it does not render partial resource
-  data or redirect home.
-- Host owns HTTP status, safe copy/actions, privacy, SEO, and cache policy;
-  theme owns L1 layout/presentation.
-- Core remains mandatory but emergency-only for actual theme/runtime failure.
-- No new dependency, operator setting, permission, or public L2 execution.
+- Focused web suites: `50 pass, 0 fail, 251 expect()`; earlier wider focused
+  run: `75 pass`.
+- Web typecheck and production build passed before the final HMR/loading guard.
+- Full Go tests and OpenAPI validation passed (`2165` refs, `54` files).
+- Full Bun/repository gate reached one unrelated existing failure:
+  `apps/web/tests/prebuiltSettingsComponent.test.ts` still expects obsolete
+  `/_sforum/private-assets/extensions/...`; result was `542 pass, 1 fail`.
+- HTTP/cache/SEO probes passed. Browser coverage included healthy/missing
+  routes, default/Nocturne, desktop/mobile, light/dark, both locales, signed-in
+  chrome, navigation recovery, hydration/console health, and emergency Core.
+  Later HMR/Core-flash/Reka hydration reports were addressed with exact `SF*`
+  imports, an unresolved-state skeleton, and client-only dropdowns with stable
+  SSR placeholders. Per user direction, those final guards were committed
+  without another browser/build cycle.
 
 ## Next
 
-1. In a fresh implementation task, read the focused task book and start G0.
-2. Actively run and close current-head regression M7, including its full gate,
-   knowledge completion handoff, and explicit release of overlapping files.
-3. Then implement M0-M6 in order: contract freeze -> classification/retry ->
-   real Nuxt 404 -> themed body/chrome -> resource/security matrix -> browser
-   proof -> full gate.
-4. On completion, update the broader system-error book to consume this 404
-   slice without claiming 403/429/5xx are done.
+1. Resume `../plans/2026-07-22-theme-defined-system-error-pages.md` at M1.
+2. Reuse this request-local context, system-theme AST renderer, document
+   policy, and Core fallback when adding 403/429/5xx; do not reimplement 404.
+3. Repair the unrelated stale prebuilt settings asset-path assertion in its
+   owning workstream.
 
 ## Open Questions
 
-- Whether regression M7 reveals an out-of-scope external blocker; ordinary
-  in-scope regression failures are owned by G0 and should be fixed there.
-- The exact reviewed Component Catalog ID for the dedicated 404 body island;
-  M0 must freeze it before code changes.
+- None for the focused public-resource 404 scope.

@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import type { SiteFriendLink } from '~/composables/useSiteChromeApi'
 
+const props = withDefaults(defineProps<{
+  /** Core 404 应急页只使用本地 footer，不等待已失效的 API。 */
+  fetchRemoteChrome?: boolean
+}>(), {
+  fetchRemoteChrome: true
+})
+
 const { locale } = useI18n()
 const {
   siteName,
@@ -27,13 +34,17 @@ const visibleLinks = computed(() => {
     }))
 })
 
-const { data: friendLinks } = await useAsyncData('site-public-friend-links', async () => {
-  try {
-    return await chromeApi.listPublicFriendLinks()
-  } catch {
-    return [] as SiteFriendLink[]
-  }
-}, { default: () => [] as SiteFriendLink[] })
+// 主题错误树不会等待嵌套异步 setup；footer 先同步挂载，友情链接抵达后再填充。
+const emptyFriendLinks = () => [] as SiteFriendLink[]
+const friendLinks = props.fetchRemoteChrome
+  ? useAsyncData('site-public-friend-links', async () => {
+      try {
+        return await chromeApi.listPublicFriendLinks()
+      } catch {
+        return emptyFriendLinks()
+      }
+    }, { default: emptyFriendLinks }).data
+  : shallowRef<SiteFriendLink[]>(emptyFriendLinks())
 
 const visibleFriendLinks = computed(() => friendLinks.value || [])
 </script>

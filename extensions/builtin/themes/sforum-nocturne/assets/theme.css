@@ -210,12 +210,28 @@ body,
   color: var(--sf-public-text);
 }
 
+/* 404 直接复用健康公开页的 sforum-home 布局；Nocturne 只拥有主区视觉。 */
+.nh-not-found-shell .sforum-not-found-page__main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 52px 20px;
+}
+.nh-not-found-shell .sforum-error-page__panel {
+  border-color: color-mix(in srgb, var(--nh-cyan) 32%, var(--sf-public-border));
+  background: color-mix(in srgb, var(--nh-card) 92%, var(--nh-cyan));
+}
+
 /* Slightly cooler cards / rows when host uses public tokens */
 .sf-public-page a:hover {
   color: var(--sf-accent);
 }
 
 @media (max-width: 720px) {
+  .nh-not-found-shell .sforum-not-found-page__main {
+    padding: 28px 14px;
+  }
+
   .nh-hero {
     padding: 18px 12px 4px;
   }

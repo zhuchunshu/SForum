@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	profile "github.com/zhuchunshu/sforum/apps/api/app/Models/Profile"
@@ -117,6 +118,26 @@ func TestNotFoundViewModelIsNeverIndexable(t *testing.T) {
 	}
 	if populated.SEO.Robots != "noindex,nofollow" {
 		t.Fatalf("not-found robots = %q", populated.SEO.Robots)
+	}
+}
+
+func TestPublicTopicNotFoundDoesNotRevealVisibilityToPrivilegedActors(t *testing.T) {
+	source := newTestSource(&sourceForum{topicErr: forum.ErrTopicNotFound}, defaultSourceOptions("public"))
+	request := pages.CorePageViewModelRequest{
+		PageID: "forum.topic.show", Locale: "en-US", Path: "/t/42/hidden",
+		RouteParams: map[string]string{"path": "42/hidden"}, SEO: themecompiler.PageSEOView{Title: "forum.topic.show"},
+	}
+	actors := map[string]identity.Actor{
+		"guest":       {},
+		"super_admin": {ID: 1, Status: identity.UserStatusActive, RoleKeys: []string{identity.RoleSuperAdmin}},
+	}
+	for name, actor := range actors {
+		t.Run(name, func(t *testing.T) {
+			_, err := source.Populate(t.Context(), CorePageViewModelInput{Request: request, Actor: actor})
+			if !errors.Is(err, ErrCorePageDataNotFound) {
+				t.Fatalf("public hidden topic error = %v", err)
+			}
+		})
 	}
 }
 

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import type { Component } from 'vue'
 import type { ThemeRenderOutput } from '~/composables/useThemeRenderOutput'
+import SFFooter from './SFFooter.vue'
+import SFNavbar from './SFNavbar.vue'
+import SFNotFoundPageContent from './SFNotFoundPageContent.vue'
 import {
   collectPublicL2ComponentRefsFromRenderNodes
 } from '~/runtime/public-extensions/pagePolicy'
@@ -44,9 +47,10 @@ const islandComponents: Record<string, Component> = {
   'site.component.terms': resolveComponent('LazySFTermsPage') as Component,
   'site.component.privacy': resolveComponent('LazySFPrivacyPage') as Component,
   'site.component.guidelines': resolveComponent('LazySFGuidelinesPage') as Component,
-  'system.component.not_found': HostPageIsland,
-  'navigation.component.navbar': resolveComponent('SFNavbar') as Component,
-  'navigation.component.footer': resolveComponent('SFFooter') as Component,
+  // 404 正在 Nuxt error boundary 内渲染，不能再引入异步岛边界而把 SSR 留空。
+  'system.component.not_found': SFNotFoundPageContent,
+  'navigation.component.navbar': SFNavbar,
+  'navigation.component.footer': SFFooter,
   'navigation.component.home': resolveComponent('LazySFHomeNavigation') as Component,
   'forum.component.topic_composer': resolveComponent('LazySFTopicComposerPage') as Component,
   'forum.component.topic_reply': resolveComponent('LazySFTopicReplyPage') as Component,

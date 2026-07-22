@@ -42,24 +42,36 @@ Plan: `../plans/2026-07-22-current-head-regression-remediation.md`.
 
 ### Theme-consistent public resource 404
 
-Plan: `../plans/2026-07-22-theme-consistent-public-resource-404.md` (**ready**).
+Plan: `../plans/2026-07-22-theme-consistent-public-resource-404.md` (**completed
+2026-07-23**).
 
-- Missing/hidden/deleted topic, category, tag, profile, and unknown public
-  routes must keep the healthy selected theme and resolve `system.not_found`.
-- Hard SSR must return 404, `no-store`, and `noindex,nofollow`; semantic 404 is
-  non-retryable.
-- Start by closing regression M7 and releasing overlapping Page Registry/error
-  files.
+- Missing/hidden/deleted public resources and unknown routes resolve
+  `system.not_found` while retaining the selected theme's navbar, responsive
+  sidebar/body structure, and footer.
+- Semantic 404 is attempted once and preserves its reason. Hard SSR returns
+  404 with `no-store` and `noindex,nofollow`, without success canonical or
+  structured data.
+- `SFSystemThemeTemplate` renders reviewed L0/L1 error AST through statically
+  compiled Host islands so production SSR and hydration agree. Core is a
+  complete local emergency page only for actual theme/runtime/API failure.
+- The 2026-07-23 gate passed focused web tests (`50/50`), typecheck, production
+  build, Go tests, OpenAPI validation, HTTP/cache probes, and the desktop/mobile
+  browser matrix. The full Bun gate retains one unrelated stale
+  `prebuiltSettingsComponent.test.ts` asset-path assertion (`542 pass, 1 fail`).
+  Final exact-component-import, pending-skeleton, and client-only Reka dropdown
+  guards were applied after HMR/Core-flash/hydration reports and were not re-run
+  through the browser/build matrix per user direction.
 - Handoff:
   `../sessions/2026-07-22-theme-consistent-public-resource-404-plan-handoff.md`.
 
 ### Theme-defined system error pages
 
-Plan: `../plans/2026-07-22-theme-defined-system-error-pages.md` (**blocked**).
+Plan: `../plans/2026-07-22-theme-defined-system-error-pages.md` (**ready**).
 
 - M0 found only 404 currently enters Page Registry; 403/500/503 are Host pages
   and 429 lacks a mapping.
-- M1+ waits for regression M7 or an explicit overlapping-file handoff.
+- M1+ consumes the completed selected-theme 404 context/renderer/fallback and
+  continues only with the remaining 403/429/5xx scope.
 - System pages allow reviewed selected-theme L0/L1 and Host error/chrome
   islands; plugins and public L2 remain closed.
 - Audit handoff:
@@ -80,6 +92,9 @@ Plan: `../plans/2026-07-22-theme-defined-system-error-pages.md` (**blocked**).
   `/pages/resolve-path`. Plugin page loader data is SSR-only.
 - `SFPageOutlet` and `SFHostPublicChrome` are Host emergency surfaces. Component
   failure preserves L1/SSR content and may quarantine only the failing L2.
+- Public chrome islands such as `SFNavbar` and `SFFooter` must stay statically
+  reachable from runtime theme templates so critical scoped CSS is present
+  before browser back/forward restores the page.
 - Activation prewarms and atomically swaps exact theme runtime state. Active
   skin links are emitted by root `useHead` during SSR.
 
@@ -205,8 +220,8 @@ real highlight.js client plugin and no-op `highlight.server.ts` with
 
 ## Next Steps
 
-1. Implement focused selected-theme public 404 behavior, then resume broader
-   system error pages.
+1. Resume the broader system error page book at M1, preserving the completed
+   public-resource 404 behavior.
 2. Keep new pages SSR-complete, permission-aware, cache-safe, localized, and
    registered through stable Page Registry/component contracts.
 

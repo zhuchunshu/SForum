@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import {
   coreResolveFallback,
+  classifyPageResolveFailure,
   disableSharedPageCacheForPageResolve,
   PAGE_RESOLVE_REASON,
   requestPageResolveWithRetry,
@@ -10,6 +11,53 @@ import {
 } from '../app/utils/pageResolve'
 
 describe('page resolve resilience', () => {
+  it('treats the normal empty async-data error state as retryable transport absence', () => {
+    expect(classifyPageResolveFailure(undefined)).toBe('retryable')
+    expect(classifyPageResolveFailure(null)).toBe('retryable')
+  })
+
+  it('captures SSR request headers before any delayed retry', () => {
+    const source = Bun.file(new URL('../app/composables/useApiClient.ts', import.meta.url)).text()
+    return source.then((text) => {
+      expect(text).toContain("const requestCookie = import.meta.server")
+      expect(text.match(/useRequestHeaders\(\['cookie'\]\)/g)).toHaveLength(1)
+    })
+  })
+
+  it('does not retry a semantic resource 404 and preserves its identity', async () => {
+    const error = {
+      response: { status: 404, _data: { code: 404, message: 'Not found', data: { reason: 'pages.data_not_found' } } }
+    }
+    let calls = 0
+
+    expect(classifyPageResolveFailure(error)).toBe('semantic_not_found')
+    await expect(requestPageResolveWithRetry(
+      async () => {
+        calls++
+        throw error
+      },
+      '/pages/resolve?id=forum.topic.show&path=/t/missing',
+      { timeout: 5000, maxAttempts: 2, retryDelayMs: 0, sleep: async () => {} }
+    )).rejects.toBe(error)
+    expect(calls).toBe(1)
+  })
+
+  it('does not retry non-retryable API failures', async () => {
+    let calls = 0
+    const error = { response: { status: 500, _data: { code: 500, message: 'Internal error', data: {} } } }
+
+    expect(classifyPageResolveFailure(error)).toBe('technical')
+    await expect(requestPageResolveWithRetry(
+      async () => {
+        calls++
+        throw error
+      },
+      '/pages/resolve?id=forum.topic.show&path=/t/failure',
+      { timeout: 5000, maxAttempts: 2, retryDelayMs: 0, sleep: async () => {} }
+    )).rejects.toBe(error)
+    expect(calls).toBe(1)
+  })
+
   it('retries a transient resolve failure and keeps the theme response', async () => {
     let calls = 0
     const payload = await requestPageResolveWithRetry(
@@ -37,6 +85,22 @@ describe('page resolve resilience', () => {
     expect(payload.provider).toBe('sforum.default-theme')
     expect(payload.fallback).toBe(false)
     expect(payload.templateHtml).toContain('sf-home-page')
+  })
+
+  it('preserves the last transient error when retry attempts are exhausted', async () => {
+    const first = new Error('first transport failure')
+    const last = Object.assign(new Error('gateway still unavailable'), { statusCode: 503 })
+    let calls = 0
+
+    await expect(requestPageResolveWithRetry(
+      async () => {
+        calls++
+        throw calls === 1 ? first : last
+      },
+      '/pages/resolve?id=forum.home&path=/',
+      { timeout: 5000, maxAttempts: 2, retryDelayMs: 0, sleep: async () => {} }
+    )).rejects.toBe(last)
+    expect(calls).toBe(2)
   })
 
   it('marks transient core fallback as no-store and disables Nitro SWR', () => {

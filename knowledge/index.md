@@ -6,19 +6,10 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
-### Theme-consistent public resource 404
-
-- Status: **ready**; regression G0/M7 is closed, so the next implementation
-  session may edit shared Page Registry and error-flow files for focused public
-  resource 404 only.
-- Plan: `plans/2026-07-22-theme-consistent-public-resource-404.md`
-- Handoff: `sessions/2026-07-22-theme-consistent-public-resource-404-plan-handoff.md`
-- Module: `modules/frontend.md`
-
 ### Theme-defined system error pages
 
-- Status: **blocked after M0 audit**; M1+ waits for the focused
-  public-resource 404 precursor to finish.
+- Status: **ready after M0 audit**; M1+ consumes the completed selected-theme
+  public-resource 404 implementation and continues with 403/429/5xx.
 - Plan: `plans/2026-07-22-theme-defined-system-error-pages.md`
 - Audit handoff: `sessions/2026-07-22-theme-defined-system-error-pages-m0-audit-handoff.md`
 - Modules: `modules/frontend.md`, `modules/extensions.md`
@@ -80,8 +71,15 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- Current HEAD regression completion:
-  `sessions/2026-07-22-current-head-regression-plan-handoff.md`
+- Theme-consistent public resource 404 completion:
+  `sessions/2026-07-22-theme-consistent-public-resource-404-plan-handoff.md`
+
+## Recently Completed
+
+- Theme-consistent public resource 404: M0-M6 completed 2026-07-23. Ordinary
+  semantic 404s retain the healthy selected theme and real private HTTP 404;
+  Core is emergency-only. See
+  `plans/2026-07-22-theme-consistent-public-resource-404.md`.
 
 ## Other Open Product Tracks
 

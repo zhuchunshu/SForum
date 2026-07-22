@@ -56,8 +56,7 @@ describe('remaining public presentation ownership', () => {
     expect(template).toContain("'identity.component.register_form': resolveComponent('LazySFRegisterFormPage')")
     expect(template).toContain("'identity.component.recovery_request_form': resolveComponent('LazySFRecoveryRequestPage')")
     expect(template).toContain("'identity.component.recovery_confirm_form': resolveComponent('LazySFRecoveryConfirmPage')")
-    // system.not_found 仍走 HostPageIsland：error.vue 需把 NuxtError 注入 SFErrorPageContent。
-    expect(template).toContain("'system.component.not_found': HostPageIsland")
+    expect(template).toContain("'system.component.not_found': SFNotFoundPageContent")
   })
 
   test('system.not_found theme shells mark presentation ownership', () => {
@@ -66,7 +65,15 @@ describe('remaining public presentation ownership', () => {
       expect(tpl).toContain('data-theme-owned="presentation"')
       expect(tpl).toContain('data-page="system.not_found"')
       expect(tpl).toContain('<sf-not-found-page')
+      expect(tpl).toContain('<sf-navbar')
+      expect(tpl).toContain('<sf-footer')
     }
+    const nocturneCSS = read('../../extensions/builtin/themes/sforum-nocturne/assets/theme.css')
+    const notFoundBody = read('app/components/SFNotFoundPageContent.vue')
+    expect(notFoundBody).toContain('sforum-not-found-page__layout sforum-home__layout')
+    expect(notFoundBody).toContain('sforum-not-found-page__sidebar sforum-home__sidebar')
+    expect(nocturneCSS).not.toContain('.nh-not-found-shell .sforum-not-found-page__layout')
+    expect(nocturneCSS).not.toContain('.nh-not-found-shell .sforum-not-found-page__sidebar')
   })
 
   test('moderation.review stays Host-owned (non-replaceable workbench)', () => {
