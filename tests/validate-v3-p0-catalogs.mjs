@@ -175,7 +175,7 @@ assertIdentityMutationRejected('UI source drift', changed => {
   changed.ui[0].source = 'apps/web/app/components/Moved.vue'
 }, 'new or moved UI surface')
 
-assert(routes.length === 253, `route inventory must contain exactly 253 reviewed routes: ${routes.length}`)
+assert(routes.length === 265, `route inventory must contain exactly 265 reviewed routes: ${routes.length}`)
 assert(identities.routes.length === routes.length, 'reviewed route identity map must cover every current route')
 unique(routes, item => item.id, 'route inventory ids')
 unique(routes, item => `${item.method} ${item.path}`, 'route inventory method/path pairs')
@@ -206,8 +206,8 @@ assert(exactFrontendConfirmationRoutes.length === 1 && exactFrontendConfirmation
 
 const ui = load('docs/extensions/v3/catalogs/ui-surfaces.json')
 const retiredUI = load('docs/extensions/v3/catalogs/ui-retired-identities.json')
-// 127 baseline + 22 Host body islands / public chrome from V3 presentation ownership.
-assert(ui.length === 145, `UI inventory must contain exactly 145 reviewed surfaces: ${ui.length}`)
+// 127 baseline + 26 Host body islands / public chrome from V3 presentation ownership.
+assert(ui.length === 153, `UI inventory must contain exactly 153 reviewed surfaces: ${ui.length}`)
 assert(JSON.stringify(retiredUI) === JSON.stringify(retiredIdentities), 'generated retired UI reservation catalog drifted from its reviewed ledger')
 const activeUIIdentities = identities.ui.filter(item => item.state === 'active')
 assert(activeUIIdentities.length === ui.length, 'active reviewed UI identity map must cover every current UI surface')

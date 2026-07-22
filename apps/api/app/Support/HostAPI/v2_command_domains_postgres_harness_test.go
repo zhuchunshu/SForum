@@ -7,12 +7,15 @@ import (
 	"io/fs"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/pressly/goose/v3"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
 	moderation "github.com/zhuchunshu/sforum/apps/api/app/Models/Moderation"
@@ -104,6 +107,16 @@ func newPostgresDomainCommandHarness(t *testing.T) *postgresDomainCommandHarness
 
 func installPostgresDomainCommandSchema(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 	t.Helper()
+	db := stdlib.OpenDB(*pool.Config().ConnConfig)
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	defer db.Close()
+	provider, err := goose.NewProvider(
+		goose.DialectPostgres, db, migrations.Files(), goose.WithDisableGlobalRegistry(true),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
 	entries, err := fs.ReadDir(migrations.Files(), ".")
 	if err != nil {
 		t.Fatal(err)
@@ -120,15 +133,11 @@ func installPostgresDomainCommandSchema(t *testing.T, ctx context.Context, pool 
 		if name == "202607140016_stable_core_views.sql" {
 			continue
 		}
-		body, err := fs.ReadFile(migrations.Files(), name)
+		version, err := postgresDomainCommandMigrationVersion(name)
 		if err != nil {
 			t.Fatal(err)
 		}
-		parts := strings.SplitN(string(body), "-- +goose Down", 2)
-		if len(parts) != 2 {
-			t.Fatalf("migration %s has no Down boundary", name)
-		}
-		if _, err := pool.Exec(ctx, parts[0], pgx.QueryExecModeSimpleProtocol); err != nil {
+		if _, err := provider.ApplyVersion(ctx, version, true); err != nil {
 			t.Fatalf("install domain Host Command migration %s: %v", name, err)
 		}
 	}
@@ -141,6 +150,14 @@ func installPostgresDomainCommandSchema(t *testing.T, ctx context.Context, pool 
 	`); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func postgresDomainCommandMigrationVersion(name string) (int64, error) {
+	versionText, _, found := strings.Cut(name, "_")
+	if !found {
+		return 0, fmt.Errorf("migration %s has no version prefix", name)
+	}
+	return strconv.ParseInt(versionText, 10, 64)
 }
 
 func seedPostgresDomainCommandActors(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {

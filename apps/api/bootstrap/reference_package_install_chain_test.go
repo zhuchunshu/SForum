@@ -124,6 +124,10 @@ func TestReferenceSEOFormalZipUploadTrustEnableRestartDisableUpgradeUninstall(t 
 	if installed.PackageDigest == "" {
 		t.Fatal("package digest missing after install")
 	}
+	if _, err := store.EnsureInitialPluginRuntimePublication(ctx); err != nil {
+		t.Fatalf("ensure plugin runtime genesis before manual enable: %v", err)
+	}
+	assertPluginRuntimeGenesisHeader(t, ctx, pool)
 	// 清理：测试结束卸载（若仍存在）。
 	t.Cleanup(func() {
 		_ = manager.Stop(context.Background(), installed)
@@ -339,6 +343,23 @@ func seedFormalZipActors(t *testing.T, ctx context.Context, pool *pgxpool.Pool) 
 		},
 	}
 	return super, tech
+}
+
+func assertPluginRuntimeGenesisHeader(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
+	t.Helper()
+	var reason extensions.PluginRuntimePublicationReason
+	var actorIsNull bool
+	if err := pool.QueryRow(ctx, `
+		SELECT reason, actor_user_id IS NULL
+		FROM plugin_runtime_publications
+		ORDER BY revision ASC
+		LIMIT 1
+	`).Scan(&reason, &actorIsNull); err != nil {
+		t.Fatalf("load plugin runtime genesis: %v", err)
+	}
+	if reason != extensions.PluginRuntimePublicationStartupReconcile || !actorIsNull {
+		t.Fatalf("unexpected plugin runtime genesis header: reason=%s actorIsNull=%t", reason, actorIsNull)
+	}
 }
 
 // buildReferenceFormalZip 复制 fixture → 构建 backend → 正式 digest --write → package。

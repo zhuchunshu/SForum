@@ -187,6 +187,7 @@ func applyIdentityPersistenceTestMigrations(
 		202607190039,
 		202607190040,
 		202607190041,
+		202607231001,
 	} {
 		if _, err := provider.ApplyVersion(ctx, version, true); err != nil {
 			removeSchema()

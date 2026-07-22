@@ -1,6 +1,6 @@
 # Current HEAD Regression Remediation — Task Book
 
-Status: **active** — M0 baseline frozen against local `main` at `d79d967c3`  
+Status: **completed** — M0-M7 closed; focused 404 book may now edit shared Page Registry/error files
 Date: 2026-07-22  
 Scope: search correctness, frontend buildability, advanced-reply Page Registry closure, test stability, and knowledge honesty  
 Related production program: `2026-07-22-v3-production-rewire-honesty-remediation.md`
@@ -527,17 +527,17 @@ isolation. CompatFarm and plugin builds create substantial concurrent load.
 
 ### Knowledge corrections
 
-- [ ] Update `knowledge/modules/search.md` with final FTS and pagination
+- [x] Update `knowledge/modules/search.md` with final FTS and pagination
       semantics.
-- [ ] Update `knowledge/modules/frontend.md` with advanced-reply resolve proof.
-- [ ] Reconcile `knowledge/index.md`:
+- [x] Update `knowledge/modules/frontend.md` with advanced-reply resolve proof.
+- [x] Reconcile `knowledge/index.md`:
   - million-scale read path is completed M0-M7;
   - view-count increment is complete; likes/reactions/bookmarks remain open;
   - clarify Marketplace product deferral versus mandatory V3 production wiring;
   - retain genuine open questions.
-- [ ] Mark this plan completed in `knowledge/plans/README.md` only after all
+- [x] Mark this plan completed in `knowledge/plans/README.md` only after all
       exits pass.
-- [ ] Replace the planning handoff with a completion handoff containing exact
+- [x] Replace the planning handoff with a completion handoff containing exact
       commands and results.
 
 ### Required verification
@@ -573,6 +573,37 @@ replace it. With a running API and an authenticated account, verify:
 - anonymous advanced reply redirects to login;
 - themed 404 renders, and a forced theme-resolve failure falls back to Core;
 - locale switching changes copy without adding a locale URL prefix.
+
+### M7 actual verification (2026-07-23)
+
+- `git diff --check`: passed.
+- Focused backend:
+  - `go test ./app/Support/Search ./app/Models/PageViewModels ./app/Http/Controllers/Pages ./app/Http/Controllers/Forum ./app/Http/Controllers/Extensions ./bootstrap`: passed.
+  - `go test -race ./app/Support/Search ./bootstrap`: passed.
+  - `go test -v ./bootstrap -run 'TestProductionLifecycleStackUninstallsPreservedDataThroughRealRuntimeAndPostgres|TestReferenceSEOFormalZipUploadTrustEnableRestartDisableUpgradeUninstall' -count=1`: passed on a fresh migrated PostgreSQL database.
+- Full gate was run once against fresh database `sforum_codex_m7_final_20260723`.
+  It passed Go, CompatFarm, protobuf/SDK docs, OpenAPI refs, staged extension,
+  production trust, WebSocket proxy, Nuxt typecheck, trusted editor/catalog web
+  unit tests, admin framework, identity UI, homepage, SEO, moderation, and theme
+  runtime checks. It then exposed stale trusted-admin and V3 catalog validation
+  checks; those were fixed and the failed/residual stages were rerun:
+  - `node tests/validate-trusted-admin-runtime.js`: passed.
+  - `node tests/validate-theme-activation.js`: passed.
+  - `node tests/validate-dev-worker-script.js`: passed.
+  - `node tests/validate-signal-garden-theme.js`: passed.
+  - `node tests/validate-sf-components.js`: passed.
+  - `node tests/validate-page-registry-runtime.js`: passed offline contracts; live HTTP smoke skipped by script because `PAGE_REGISTRY_API` was not set.
+  - `node tests/validate-v3-p0-catalogs.mjs`: passed with 265 routes and 153 UI surfaces.
+  - `cd apps/web && bun run typecheck`: passed after the trusted-admin loader repair.
+  - `cd apps/web && bun test tests/extensionSettingsOwnership.test.ts`: passed.
+- `cd apps/web && bun test`, `cd apps/web && bun run build`, and
+  `ruby scripts/validate-openapi-refs.rb` passed earlier in M7 closure before
+  the final fixture repairs.
+- Browser smoke: the user's Nuxt dev server was listening on port 3000 and
+  `curl -i -sS http://127.0.0.1:3000/` returned HTTP 200 with active theme
+  HTML and `data-sforum-theme="ocean_blue"`. Direct API probes on 9000/9002 were
+  not running, so authenticated advanced-reply and forced-failure browser flows
+  were not completed in this G0 commit.
 
 ### Exit
 

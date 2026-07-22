@@ -57,7 +57,7 @@ const componentFailureDescription = computed(() => {
 })
 
 function assetURL(name: 'entry' | 'style') {
-  return `/_sforum/private-assets/extensions/${encodeURIComponent(props.extension.id)}/${digest.value}/${name}`
+  return `/api/v1/admin/extensions/${encodeURIComponent(props.extension.id)}/frontend/assets/${digest.value}/${name}`
 }
 
 function currentStorage() {

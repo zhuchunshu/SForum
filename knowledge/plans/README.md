@@ -23,9 +23,9 @@ directory. Completed, cancelled, and superseded plans live under
 | `2026-07-13-trusted-plugin-theme-platform-v3.md` | **active** -- P13 LTS residual and production-rewire honesty reopen |
 | `2026-07-13-trusted-plugin-theme-platform-v3-progress.md` | **active** -- durable residual ledger; do not claim 100% |
 | `2026-07-22-v3-production-rewire-honesty-remediation.md` | **ready** -- M0-M8 production-call-chain findings |
-| `2026-07-22-current-head-regression-remediation.md` | **active** -- M0 baseline frozen; M1-M7 open |
+| `2026-07-22-current-head-regression-remediation.md` | **completed** -- M0-M7 closed; archive after the focused 404 handoff consumes it |
 | `2026-07-22-theme-consistent-public-resource-404.md` | **ready** -- focused selected-theme public 404 |
-| `2026-07-22-theme-defined-system-error-pages.md` | **blocked** -- M1+ waits for regression M7/handoff |
+| `2026-07-22-theme-defined-system-error-pages.md` | **blocked** -- M1+ waits for focused public-resource 404 completion |
 | `2026-07-22-social-login-provider-plugins.md` | **ready** -- Core auth completion and provider plugins |
 | `2026-07-12-iteration-a-engagement-loop.md` | **ready** -- remaining engagement product work |
 | `2026-07-12-admin-settings-richness.md` | **blueprint** -- later settings waves |

@@ -16,9 +16,10 @@ responsibilities.
 - Same-origin API proxy retries failed `GET`/`HEAD` requests at most nine times
   after the initial attempt (500 ms apart) so an API Air reload does not drop
   immutable theme assets. Unsafe requests are never retried.
-- Host resource delivery is separate from the JSON API: public immutable bytes
-  use `/_sforum/assets`, authenticated admin component bytes use
-  `/_sforum/private-assets`, and Nuxt streams both to authoritative Go handlers.
+- Host resource delivery keeps public immutable theme bytes under
+  `/_sforum/assets`; trusted admin component bytes load through the
+  digest-bound `/api/v1/admin/extensions/{id}/frontend/assets/{digest}/{asset}`
+  endpoint.
 - User-visible copy uses i18n keys. Public web options contain only frontend-
   safe state; secret metadata and writes use admin-only endpoints.
 - Build/typecheck use `.nuxt-build` and `.nuxt-typecheck` so they do not disturb
@@ -30,14 +31,14 @@ responsibilities.
 
 Plan: `../plans/2026-07-22-current-head-regression-remediation.md`.
 
-- M0 baseline is frozen. The plan owns current search/frontend/Page Registry
-  and extension-gate regressions.
-- `forum.topic.reply` must have a real production Page ViewModel/controller
-  path, not only catalog/template assertions.
-- Query-bearing `forum.home` and replaceable `system.not_found` must keep the
-  selected theme; Core remains a bounded emergency fallback.
-- Closure requires focused tests, Nuxt typecheck/build, browser smoke, and the
-  full repository gate.
+- Status: closed 2026-07-23. Search/frontend/Page Registry and extension-gate
+  regressions from the current-HEAD book are remediated.
+- `forum.topic.reply` has production Page ViewModel/controller resolve coverage,
+  not only catalog/template assertions.
+- Query-bearing `forum.home` and replaceable `system.not_found` remain selected
+  theme surfaces; Core remains a bounded emergency fallback.
+- Shared Page Registry and error-flow files are released to the focused
+  selected-theme public 404 task.
 
 ### Theme-consistent public resource 404
 
@@ -204,11 +205,9 @@ real highlight.js client plugin and no-op `highlight.server.ts` with
 
 ## Next Steps
 
-1. Complete the current-HEAD regression plan and release shared Page Registry
-   files.
-2. Implement focused selected-theme public 404 behavior, then resume broader
+1. Implement focused selected-theme public 404 behavior, then resume broader
    system error pages.
-3. Keep new pages SSR-complete, permission-aware, cache-safe, localized, and
+2. Keep new pages SSR-complete, permission-aware, cache-safe, localized, and
    registered through stable Page Registry/component contracts.
 
 ## Open Questions

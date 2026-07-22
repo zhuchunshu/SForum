@@ -34,11 +34,12 @@ import (
 )
 
 const (
-	p7RoleMappingVersionID  = int64(101)
-	p7IdentityMigration     = int64(202607160028)
-	p7RoleApprovalMigration = int64(202607160029)
-	p7IdentityRootMigration = int64(202607160033)
-	p7RoleRepairMigration   = int64(202607170034)
+	p7RoleMappingVersionID      = int64(101)
+	p7IdentityMigration         = int64(202607160028)
+	p7RoleApprovalMigration     = int64(202607160029)
+	p7IdentityRootMigration     = int64(202607160033)
+	p7RoleRepairMigration       = int64(202607170034)
+	p7PermissionLocaleMigration = int64(202607231001)
 )
 
 func TestP7HostOwnedRoleMappingJoined(t *testing.T) {
@@ -517,6 +518,7 @@ func applyP7RoleMappingMigrations(ctx context.Context, db *sql.DB) error {
 	}
 	for _, version := range []int64{
 		p7IdentityMigration, p7RoleApprovalMigration, p7IdentityRootMigration, p7RoleRepairMigration,
+		p7PermissionLocaleMigration,
 	} {
 		if _, err := provider.ApplyVersion(ctx, version, true); err != nil {
 			return err

@@ -1,7 +1,7 @@
 # Theme-Consistent Public Resource 404 - Task Book
 
-Status: **ready** - implementation session starts by closing regression M7,
-then executes the focused 404 slice
+Status: **ready** - G0/current-head regression M7 is closed; next session starts
+M0 of the focused 404 slice
 Date: 2026-07-22
 Goal: public resources that do not exist or are not publicly visible must keep
 the selected theme's navbar, sidebar/body layout, and footer while Host preserves
@@ -21,10 +21,8 @@ This is the approved, narrow precursor to
 - both books share `error.vue`, `SFPageOutlet.vue`, Page Registry Controller /
   ViewModel code, `system.not_found`, built-in theme templates, and tests;
 - do not run both implementations concurrently;
-- the implementation session owns closing
-  `2026-07-22-current-head-regression-remediation.md` M7 first; if its required
-  gate reveals a regression already owned by M0-M6, fix it within that book,
-  complete its knowledge handoff, and only then edit the shared 404 files;
+- G0 closed `2026-07-22-current-head-regression-remediation.md` M7 first; the
+  next implementation may edit shared 404/Page Registry files under this book;
 - an explicit written handoff remains an acceptable substitute when another
   task closes M7 before implementation begins.
 

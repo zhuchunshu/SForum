@@ -154,6 +154,10 @@ func newProductionLifecycleE2EFixture(
 	if err != nil {
 		t.Fatalf("save production lifecycle fixture: %v", err)
 	}
+	if _, err := store.EnsureInitialPluginRuntimePublication(ctx); err != nil {
+		t.Fatalf("ensure plugin runtime genesis before lifecycle fixture enable: %v", err)
+	}
+	assertPluginRuntimeGenesisHeader(t, ctx, pool)
 	if _, err := pool.Exec(ctx, `UPDATE extensions SET status = 'enabled' WHERE id = $1`, extensionID); err != nil {
 		t.Fatalf("enable production lifecycle fixture: %v", err)
 	}

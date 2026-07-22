@@ -181,6 +181,12 @@ func newProductionIdentityApprovalFixture(t *testing.T) *productionIdentityAppro
 		admin.Close()
 		t.Fatalf("apply identity approval fixture migration: %v", err)
 	}
+	if _, err := provider.ApplyVersion(ctx, 202607231001, true); err != nil {
+		db.Close()
+		removeSchema()
+		admin.Close()
+		t.Fatalf("apply extension permission localization fixture migration: %v", err)
+	}
 	if err := db.Close(); err != nil {
 		removeSchema()
 		admin.Close()

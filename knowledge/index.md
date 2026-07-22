@@ -6,27 +6,19 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
-### Current HEAD regression remediation
-
-- Status: **active**; M0 baseline frozen. Owns search, frontend typecheck,
-  Page Registry, pagination/hydration, and extension gate regressions.
-- Plan: `plans/2026-07-22-current-head-regression-remediation.md`
-- Handoff: `sessions/2026-07-22-current-head-regression-plan-handoff.md`
-- Modules: `modules/search.md`, `modules/frontend.md`
-
 ### Theme-consistent public resource 404
 
-- Status: **ready**; close regression M7 before editing shared Page Registry
-  and error-flow files.
+- Status: **ready**; regression G0/M7 is closed, so the next implementation
+  session may edit shared Page Registry and error-flow files for focused public
+  resource 404 only.
 - Plan: `plans/2026-07-22-theme-consistent-public-resource-404.md`
 - Handoff: `sessions/2026-07-22-theme-consistent-public-resource-404-plan-handoff.md`
 - Module: `modules/frontend.md`
 
 ### Theme-defined system error pages
 
-- Status: **blocked after M0 audit**; M1+ waits for regression M7 or an explicit
-  overlapping-file handoff. The focused public-resource 404 plan is its
-  precursor.
+- Status: **blocked after M0 audit**; M1+ waits for the focused
+  public-resource 404 precursor to finish.
 - Plan: `plans/2026-07-22-theme-defined-system-error-pages.md`
 - Audit handoff: `sessions/2026-07-22-theme-defined-system-error-pages-m0-audit-handoff.md`
 - Modules: `modules/frontend.md`, `modules/extensions.md`
@@ -88,8 +80,8 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- Mail SMTP secret runtime:
-  `sessions/2026-07-23-mail-smtp-secret-runtime-handoff.md`
+- Current HEAD regression completion:
+  `sessions/2026-07-22-current-head-regression-plan-handoff.md`
 
 ## Other Open Product Tracks
 

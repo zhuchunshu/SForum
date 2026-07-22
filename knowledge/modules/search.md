@@ -34,7 +34,7 @@ Host catalog slot: **`search.provider`**.
 - Decision: `decisions/2026-07-21-search-framework-site-default.md`
   (supersedes “default no engine → 503”).
 
-### Search regression remediation (implemented 2026-07-22)
+### Search regression remediation (closed 2026-07-23)
 
 Task book:
 `../plans/2026-07-22-current-head-regression-remediation.md`.
@@ -49,8 +49,8 @@ Task book:
   preserving optional Meilisearch for dictionary segmentation, synonyms, and
   more aggressive typo tolerance.
 - Search-focused, fresh-database ownership, OpenAPI, typecheck, UI unit, API,
-  and browser tests pass. The parent plan's full repository gate remains open
-  only on an unrelated V3 UI stable-identity mapping.
+  and G0 gate checks pass. The parent current-HEAD regression plan is closed;
+  later 404 work owns only selected-theme resource-not-found behavior.
 
 ### Runtime behavior
 
