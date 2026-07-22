@@ -38,6 +38,10 @@ SMTP/STARTTLS/implicit TLS, AUTH PLAIN, MIME message assembly, and transport
 error classification. Plugin secrets live in `extension_settings`, are masked
 from API responses, are preserved by empty updates, and reach only that plugin
 process through `SFORUM_SETTING_*` environment variables.
+SettingsLifecycle-backed secret references are resolved through SecretStore for
+runtime settings and provider probes; API responses keep `value` empty while
+preserving `secretSet=true` so operators can tell that a password/app password
+is saved.
 
 `scripts/build-builtin-plugins.sh` builds the local subprocess before API or
 worker dev startup. The API Dockerfile builds the Linux executable into the
@@ -61,6 +65,9 @@ Document and Provider Probe contract:
   has no SMTP-specific field or port branching; secrets stay
   encrypted/masked, blank updates preserve them, and recommended restore is
   still host-owned.
+- The core mail provider select defaults visually to the selected provider, or
+  to enabled `sforum.smtp` when unconfigured, but selection is only persisted
+  after the operator clicks save.
 
 ## Compatibility
 

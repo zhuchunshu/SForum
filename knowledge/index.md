@@ -88,8 +88,8 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- Extension permission localization:
-  `sessions/2026-07-23-extension-permission-localization-handoff.md`
+- Mail SMTP secret runtime:
+  `sessions/2026-07-23-mail-smtp-secret-runtime-handoff.md`
 
 ## Other Open Product Tracks
 

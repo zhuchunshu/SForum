@@ -75,14 +75,6 @@ func (s *Service) updateSettingsViaLifecycle(
 	if err != nil {
 		return ExtensionSettings{}, mapSettingsLifecycleError(err)
 	}
-	// 返回解密/掩码视图（secret 不进 Values）。
-	viewValues := cloneStringMap(doc.Values)
-	for name, set := range doc.SecretSet {
-		if set {
-			// 与 resolveExtensionSettings 一致：secret 以掩码出现。
-			viewValues[name] = ""
-		}
-	}
 	// 重启插件以加载新设置（与旧路径一致）。
 	restart, err := s.preparePluginSettingsRestart(ctx, extension)
 	if err != nil {
@@ -94,7 +86,7 @@ func (s *Service) updateSettingsViaLifecycle(
 		return ExtensionSettings{}, err
 	}
 	s.maybeBumpPublicSurfaceRevision(ctx, extension)
-	return resolveExtensionSettings(extension, viewValues, locale), nil
+	return resolveExtensionSettings(extension, settingsDocumentViewValues(doc), locale), nil
 }
 
 // resetSettingsViaLifecycle 重置为字段默认值（推荐路径保留 SecretStore refs）。
@@ -122,7 +114,7 @@ func (s *Service) resetSettingsViaLifecycle(
 		return ExtensionSettings{}, err
 	}
 	s.maybeBumpPublicSurfaceRevision(ctx, extension)
-	return resolveExtensionSettings(extension, cloneStringMap(doc.Values), locale), nil
+	return resolveExtensionSettings(extension, settingsDocumentViewValues(doc), locale), nil
 }
 
 // ImportSettings 从导出包恢复设置（经 SettingsLifecycle；拒绝密文泄漏）。
@@ -160,7 +152,7 @@ func (s *Service) ImportSettings(
 	if err := s.restartPluginForSettings(ctx, extension, restart); err != nil {
 		return ExtensionSettings{}, err
 	}
-	return resolveExtensionSettings(extension, cloneStringMap(doc.Values), locale), nil
+	return resolveExtensionSettings(extension, settingsDocumentViewValues(doc), locale), nil
 }
 
 // ExportSettings 导出掩码设置包（无密钥明文）。
@@ -280,4 +272,16 @@ func cloneStringMap(in map[string]string) map[string]string {
 		out[k] = v
 	}
 	return out
+}
+
+func settingsDocumentViewValues(doc settingslifecycle.Document) map[string]string {
+	values := cloneStringMap(doc.Values)
+	for name, set := range doc.SecretSet {
+		if set {
+			// resolveExtensionSettings 会把 secret value 清空；这里的非空占位只用于
+			// 保留 secretSet=true，避免保存/重置响应让运营误以为密码已丢失。
+			values[name] = "__sforum.secret_set"
+		}
+	}
+	return values
 }

@@ -189,6 +189,46 @@ func (s *Service) Get(ctx context.Context, extensionID string) (Document, error)
 	return cloneDocument(doc), nil
 }
 
+// RuntimeValues resolves a settings document into plaintext values for the
+// owning plugin runtime. Secret plaintext is read through SecretStore only for
+// the extension namespace that owns the document.
+func (s *Service) RuntimeValues(ctx context.Context, extensionID string, purpose string) (map[string]string, error) {
+	if s == nil {
+		return nil, ErrInvalid
+	}
+	if ctx == nil {
+		return nil, ErrInvalid
+	}
+	extensionID = normalizeID(extensionID)
+	purpose = strings.TrimSpace(purpose)
+	if extensionID == "" || purpose == "" {
+		return nil, ErrInvalid
+	}
+	doc, _, err := s.docs.Load(ctx, extensionID)
+	if err != nil {
+		return nil, err
+	}
+	values := cloneMap(doc.Values)
+	for key, refValue := range doc.SecretRefs {
+		if strings.TrimSpace(refValue) == "" {
+			continue
+		}
+		if s.secrets == nil {
+			return nil, ErrInvalid
+		}
+		ref, err := secretstore.ParseReference(refValue)
+		if err != nil {
+			return nil, err
+		}
+		lease, err := s.secrets.Resolve(ctx, secretstore.Caller{ExtensionID: extensionID}, ref, purpose, 0)
+		if err != nil {
+			return nil, err
+		}
+		values[key] = string(lease.Value)
+	}
+	return values, nil
+}
+
 // ResetOptions controls ResetDefaults secret policy.
 // PreserveSecrets must be set explicitly for beginner-friendly admin UX:
 // true keeps Secret Store refs; false clears secret refs (values remain in Secret Store history).

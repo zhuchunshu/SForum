@@ -123,6 +123,33 @@ func TestPutPreviewResetExportImportAndMigration(t *testing.T) {
 	}
 }
 
+func TestRuntimeValuesResolveSecretReferences(t *testing.T) {
+	ctx := context.Background()
+	secrets, err := secretstore.New(secretstore.NewMemoryStore(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := NewWithStore(NewMemoryDocumentStore(), secrets)
+	if err := svc.RegisterSchema("demo.runtime", 1, []FieldSchema{
+		{Name: "host", Type: "string", Default: ""},
+		{Name: "password", Type: "secret", Secret: true},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Put(ctx, "demo.runtime", "admin", map[string]string{
+		"host": "smtp.example.com", "password": "app-secret",
+	}, true); err != nil {
+		t.Fatal(err)
+	}
+	values, err := svc.RuntimeValues(ctx, "demo.runtime", "settings")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if values["host"] != "smtp.example.com" || values["password"] != "app-secret" {
+		t.Fatalf("runtime values = %#v", values)
+	}
+}
+
 func TestFailedMigrationDoesNotPersist(t *testing.T) {
 	ctx := context.Background()
 	docs := NewMemoryDocumentStore()
@@ -270,11 +297,11 @@ func TestTwoIndependentServicesConcurrentSaveNoFieldLoss(t *testing.T) {
 
 	const workers = 24
 	var (
-		wait    sync.WaitGroup
-		mu      sync.Mutex
-		success int
+		wait     sync.WaitGroup
+		mu       sync.Mutex
+		success  int
 		conflict int
-		other   int
+		other    int
 	)
 	for i := 0; i < workers; i++ {
 		wait.Add(1)

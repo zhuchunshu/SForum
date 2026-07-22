@@ -50,6 +50,16 @@ const eventRows = computed(() => [
   { key: 'moderation' as const, label: t('admin.mailSettings.moderationResult') }
 ])
 
+function defaultProviderSelection(current?: string) {
+  const ids = new Set(providers.value.map(item => item.extensionId))
+  if (current && ids.has(current)) {
+    return current
+  }
+  return providers.value.find(item => item.extensionId === 'sforum.smtp')?.extensionId
+    || providers.value[0]?.extensionId
+    || ''
+}
+
 // 投递记录里的 status / templateKey / reason 是机器码；点号替换为下划线后查 i18n，未知值回退原文便于诊断。
 function deliveryCodeLabel(group: 'deliveryStatus' | 'templates' | 'reasons', code: string) {
   if (!code) {
@@ -120,7 +130,7 @@ async function load() {
       loadAdminEmailDefault()
     ])
     providers.value = state.items
-    selected.value = state.selected?.extensionId || ''
+    selected.value = defaultProviderSelection(state.selected?.extensionId || '')
     configured.value = state.configured
     deliveries.value = deliveryState.items
     Object.assign(policy, policyState)
@@ -143,7 +153,7 @@ async function chooseProvider() {
 async function resetProvider() {
   await runAction(async () => {
     await request('/admin/mail/provider/reset', { method: 'POST' })
-    selected.value = ''
+    selected.value = defaultProviderSelection()
     configured.value = false
   }, 'admin.mailSettings.resetDone', 'admin.mailSettings.secretsPreserved')
 }
@@ -280,12 +290,14 @@ async function runAction(action: () => Promise<unknown>, titleKey: string, descr
             <div class="flex flex-col gap-3 lg:flex-row lg:items-end">
               <UFormField class="min-w-0 flex-1" :label="t('admin.mailSettings.provider')" :description="t('admin.mailSettings.providerHelp')">
                 <USelect
-                  v-model="selected"
+                  :model-value="selected"
                   size="lg"
                   :items="providerItems"
                   value-key="value"
+                  label-key="label"
                   class="w-full"
                   :placeholder="t('admin.mailSettings.providerPlaceholder')"
+                  @update:model-value="selected = String($event ?? '')"
                 />
               </UFormField>
               <div class="flex flex-wrap gap-2">

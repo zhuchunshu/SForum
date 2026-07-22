@@ -8,6 +8,8 @@ import (
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+	secretstore "github.com/zhuchunshu/sforum/apps/api/app/Support/SecretStore"
+	settingslifecycle "github.com/zhuchunshu/sforum/apps/api/app/Support/SettingsLifecycle"
 )
 
 func TestSettingsActionRunsIsolatedProbeWithExplicitSecretSemantics(t *testing.T) {
@@ -52,6 +54,57 @@ func TestSettingsActionRunsIsolatedProbeWithExplicitSecretSemantics(t *testing.T
 		if value == "stored-secret" {
 			t.Fatal("secret leaked into audit metadata")
 		}
+	}
+}
+
+func TestSettingsActionUsesLifecycleSecretAndKeepsSecretSetVisible(t *testing.T) {
+	item := installedExtension("probe.lifecycle", TypePlugin, ManifestBackend{Entry: "backend/plugin"})
+	item.Status = StatusDisabled
+	item.Manifest.Providers = []ManifestProvider{{Slot: "mail.provider", Label: "Mail"}}
+	item.Manifest.Settings = []ManifestSetting{
+		{Key: "host", Label: LocalizedText{Default: "Host"}, Type: "text", Default: "localhost"},
+		{Key: "password", Label: LocalizedText{Default: "Password"}, Type: "secret"},
+	}
+	item.Manifest.SettingsDocument = extensionmanifest.SettingsDocument{
+		SchemaVersion: 1,
+		UI:            extensionmanifest.SettingsUI{Mode: "schema", Layout: "form"},
+		Fields:        item.Manifest.Settings,
+		Actions:       []extensionmanifest.SettingsAction{{ID: "probe", Kind: "provider_probe", Label: LocalizedText{Default: "Probe"}, Placement: "footer", UseDraftValues: true}},
+		Explicit:      true,
+	}
+	store := &fakeExtensionStore{items: map[string]Extension{item.ID: item}}
+	secrets, err := secretstore.New(secretstore.NewMemoryStore(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lifecycle := settingslifecycle.NewWithStore(settingslifecycle.NewMemoryDocumentStore(), secrets)
+	runtime := &recordingSettingsActionRuntime{result: SettingsActionProbeResult{OK: true, Reason: "ok", Message: "connected"}}
+	service := NewService(store, t.TempDir())
+	WithSettingsLifecycle(lifecycle)(service)
+	WithSettingsActionRuntime(runtime)(service)
+
+	updated, err := service.UpdateSettings(context.Background(), extensionManager(), item.ID, UpdateSettingsInput{
+		Values: map[string]string{"host": "smtp.example.com", "password": "stored-secret"},
+	}, "zh-CN")
+	if err != nil {
+		t.Fatalf("UpdateSettings returned error: %v", err)
+	}
+	if settingValue(updated, "password") != "" || !updated.Items[1].SecretSet {
+		t.Fatalf("saved secret should remain masked and visible as configured: %#v", updated.Items[1])
+	}
+
+	result, err := service.ExecuteSettingsAction(context.Background(), extensionManager(), item.ID, "probe", ExecuteSettingsActionInput{
+		Values:  map[string]string{"host": "smtp.example.com"},
+		Secrets: map[string]SettingsActionSecretInput{"password": {Mode: "preserve"}},
+	})
+	if err != nil || !result.Success {
+		t.Fatalf("probe failed: result=%#v err=%v", result, err)
+	}
+	if runtime.values["password"] != "stored-secret" {
+		t.Fatalf("probe must receive resolved secret plaintext, got %#v", runtime.values)
+	}
+	if strings.HasPrefix(runtime.values["password"], "sforum.secret://") {
+		t.Fatalf("probe received secret reference instead of plaintext: %#v", runtime.values)
 	}
 }
 

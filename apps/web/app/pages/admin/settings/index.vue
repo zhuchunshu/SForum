@@ -81,6 +81,7 @@ const scenarioFallbacks: Record<HumanVerificationScenario, boolean> = {
 
 const ttlSuggestions = [10, 20, 30, 60]
 const costSuggestions = [1000, 3000, 5000]
+const recommendedAltchaCosts = [1000, 3000, 5000]
 const workerSuggestions = [1, 2, 4, 8]
 const minDurationSuggestions = [0, 500, 1000, 1500]
 
@@ -593,7 +594,7 @@ async function saveVerificationSettings() {
     failureTitle: t('admin.settings.saveFailed'),
     prepare: () => {
       form.altchaChallengeTTLMinutes = positiveInteger(form.altchaChallengeTTLMinutes, 10)
-      form.altchaCost = positiveInteger(form.altchaCost, 1000)
+      form.altchaCost = normalizeAltchaCost(form.altchaCost)
       form.altchaWidgetWorkers = boundedInteger(form.altchaWidgetWorkers, 2, 1, 16)
       form.altchaWidgetMinDuration = boundedInteger(form.altchaWidgetMinDuration, 500, 0, 10000)
     },
@@ -834,6 +835,18 @@ function boundedInteger(value: unknown, fallback: number, min: number, max: numb
   }
   const normalized = Math.trunc(parsed)
   return normalized >= min && normalized <= max ? normalized : fallback
+}
+
+function normalizeAltchaCost(value: unknown) {
+  const parsed = positiveInteger(value, 1000)
+  if (!recommendedAltchaCosts.includes(parsed)) {
+    // 找到最接近的有效推荐值
+    const closest = recommendedAltchaCosts.reduce((a, b) =>
+      Math.abs(b - parsed) < Math.abs(a - parsed) ? b : a
+    )
+    return closest
+  }
+  return parsed
 }
 
 function normalizeProvider(value: string | undefined) {

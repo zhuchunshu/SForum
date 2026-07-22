@@ -18,6 +18,7 @@ import (
 	crypto "github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
+	settingslifecycle "github.com/zhuchunshu/sforum/apps/api/app/Support/SettingsLifecycle"
 )
 
 func (s *Service) compensateThemeActivationTrust(
@@ -874,6 +875,19 @@ func sanitizeSettingValues(manifest Manifest, input, current map[string]string) 
 // listDecryptedSettings 读取并解密 secret；错误密文 fail closed（不交给插件/API 明文路径）。
 // 历史明文在 cipher 启用时异步迁移写回密文。
 func (s *Service) listDecryptedSettings(ctx context.Context, extension Extension) (map[string]string, error) {
+	if s.settingsLifecycle != nil && len(extension.Manifest.Settings) > 0 {
+		if err := s.RegisterSettingsLifecycleFromManifest(extension); err != nil {
+			return nil, err
+		}
+		values, err := s.settingsLifecycle.RuntimeValues(ctx, extension.ID, "settings")
+		if err != nil {
+			if errors.Is(err, settingslifecycle.ErrNotFound) {
+				return map[string]string{}, nil
+			}
+			return nil, err
+		}
+		return values, nil
+	}
 	raw, err := s.store.ListSettings(ctx, extension.ID)
 	if err != nil {
 		return nil, err
