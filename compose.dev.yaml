@@ -35,6 +35,9 @@ services:
       - go_module_cache:/go/pkg/mod
     restart: "no"
 
+  # migrate 由 scripts/dev.sh 以 run --rm 显式执行，不能作为长期容器依赖；
+  # 否则 Docker Desktop 重启项目时会因一次性容器已被清理而拒绝 compose start。
+
   api:
     build:
       target: dev
@@ -45,9 +48,6 @@ services:
       EXTENSION_ROOT: /var/lib/sforum/extensions
       BUILTIN_EXTENSION_ROOT: /app/extensions/builtin
       GOMODCACHE: /go/pkg/mod
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
     volumes:
       - ./apps/api:/app/apps/api
       - ./extensions/builtin:/app/extensions/builtin:ro
@@ -87,9 +87,6 @@ services:
       EXTENSION_ROOT: /var/lib/sforum/extensions
       BUILTIN_EXTENSION_ROOT: /app/extensions/builtin
       GOMODCACHE: /go/pkg/mod
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
     volumes:
       - ./apps/api:/app/apps/api
       - ./extensions/builtin:/app/extensions/builtin:ro

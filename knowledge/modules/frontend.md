@@ -13,6 +13,9 @@ responsibilities.
 - SSR-first public pages; `zh-CN` default and `en-US` secondary locale.
 - Public pages render typed Fiber API read models. Nuxt server middleware may
   proxy same-origin/SSR requests but does not own domain policy.
+- Same-origin API proxy retries failed `GET`/`HEAD` requests at most nine times
+  after the initial attempt (500 ms apart) so an API Air reload does not drop
+  immutable theme assets. Unsafe requests are never retried.
 - Host resource delivery is separate from the JSON API: public immutable bytes
   use `/_sforum/assets`, authenticated admin component bytes use
   `/_sforum/private-assets`, and Nuxt streams both to authoritative Go handlers.

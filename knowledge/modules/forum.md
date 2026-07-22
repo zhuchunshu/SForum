@@ -10,19 +10,21 @@ accepted revisions, lifecycle states, public read models, and forum policy.
 - Core taxonomy, topic/comment creation and lifecycle, public/admin UI, runtime
   settings, moderation integration, search projection, and million-scale read
   path M0-M7 are implemented.
-- Content revisions V1 M6 is **complete**: authenticated topic/comment edit,
-  lazy history/detail, diff/preview, restore, super-admin redaction, stale-CAS,
-  mobile diff, and allowed/denied API checks are complete. M7 is ready.
+- Content revisions V1 is **complete**: authenticated topic/comment edit, lazy
+  history/detail, diff/preview, restore, super-admin redaction, stale-CAS,
+  mobile diff, allowed/denied API checks, development backfill, query evidence,
+  audit-retention proof, and operator documentation are closed. The unrelated
+  concurrent `ExtensionManifest` gate failure is tracked outside this module.
 - PostgreSQL site search is the protected default. Meilisearch is optional and
   must not be described as the required/default forum read path.
 
 Active revision sources:
 
-- Plan: `../plans/2026-07-22-forum-content-revisions-v1.md`
+- Plan: `../plans/archive/2026-07/2026-07-22-forum-content-revisions-v1.md`
 - M0 contract matrix:
-  `../plans/2026-07-22-forum-content-revisions-v1-m0-contract-tests.md`
+  `../plans/archive/2026-07/2026-07-22-forum-content-revisions-v1-m0-contract-tests.md`
 - Decision: `../decisions/2026-07-22-forum-content-revisions-ledger.md`
-- Handoff: `../sessions/2026-07-23-forum-content-revisions-v1-m6-handoff.md`
+- Final handoff: `../sessions/archive/2026-07/2026-07-23-forum-content-revisions-v1-m7-handoff.md`
 
 ## Domain Model
 
@@ -97,6 +99,12 @@ V1 boundaries:
   reviewed `diff` 9.0.0 BSD-3-Clause dependency is direct. Public history and
   force overwrite remain out of scope. The M6 authenticated browser and API
   release matrix is complete; preserve these boundaries for M7.
+- M7 rollout evidence: the local development database backfill reached zero
+  pending posts; revision-list explain uses its dedicated index; audit cleanup
+  is regression-tested not to affect ledger rows; admin list indexes are staged
+  in migration `202607231000`. Production keeps the compatibility read until
+  every database has a recorded zero-pending backfill proof. See
+  `../reports/2026-07-23-forum-content-revisions-v1-m7.md`.
 - Use npm package `diff` 9.0.0 (BSD-3-Clause) for the diff UI; do not install
   npm `jsdiff`.
 - Collaboration, CRDT, drafts, notifications, retention controls, and public

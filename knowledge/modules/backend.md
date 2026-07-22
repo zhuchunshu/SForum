@@ -143,6 +143,12 @@ Target ownership:
 - Development Compose and production deploys may still run the same migration
   binary explicitly as a visible pre-start check; startup migration should then
   be an idempotent no-op.
+- `scripts/dev.sh` runs the development `migrate` service with `run --rm`.
+  Therefore `api` and `worker` must not declare that one-shot container as a
+  long-lived Compose dependency: Docker Desktop resumes projects with
+  `compose start`, which cannot resolve a container intentionally removed after
+  success. Their durable startup dependencies remain healthy PostgreSQL and
+  Redis, while API/worker startup migrations provide the process-level guard.
 
 Route registration rules:
 
