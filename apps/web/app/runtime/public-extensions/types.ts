@@ -279,7 +279,7 @@ function validatePackageAssetPath(
   packageDigest: string,
   assetType: 'script' | 'style'
 ) {
-  const prefix = `/extensions/runtime/${encodeURIComponent(extensionId)}/packages/${packageDigest}/`
+  const prefix = `/_sforum/assets/extensions/${encodeURIComponent(extensionId)}/${packageDigest}/`
   if (!assetPath.startsWith(prefix)) {
     throw new PublicFrontendContractError('public asset path is not exact-artifact bound')
   }

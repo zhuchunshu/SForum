@@ -1,5 +1,6 @@
 import {
   EditorL2ContractError,
+  isExactEditorAssetPath,
   isEditorL2Module,
   type EditorCatalogModule,
   type EditorL2BridgeV1,
@@ -32,7 +33,12 @@ export async function loadTrustedEditorL2Module(
   overrides: Partial<LoadEnvironment> = {}
 ): Promise<LoadedEditorL2Module> {
   const environment = loadEnvironment(overrides)
-  if (!catalogModule.assetPath.includes(catalogModule.packageDigest)) {
+  if (!isExactEditorAssetPath(
+    catalogModule.assetPath,
+    catalogModule.extensionId,
+    catalogModule.packageDigest,
+    catalogModule.l2Module
+  )) {
     throw new EditorL2ContractError('editor asset path is not package-digest bound')
   }
   const url = sameOriginURL(apiBaseUrl, catalogModule.assetPath, environment.origin)
@@ -91,7 +97,7 @@ async function fetchVerifiedBytes(url: string, expectedDigest: string, environme
 function sameOriginURL(apiBaseUrl: string, assetPath: string, origin: string) {
   const base = apiBaseUrl.replace(/\/$/, '')
   const path = assetPath.startsWith('/') ? assetPath : `/${assetPath}`
-  const absolute = path.startsWith('http') ? path : `${base}${path}`
+  const absolute = path.startsWith('/_sforum/assets/') ? path : path.startsWith('http') ? path : `${base}${path}`
   const parsed = new URL(absolute, origin || 'http://localhost')
   if (origin && parsed.origin !== new URL(origin).origin) {
     throw new EditorL2ContractError('editor module must load from same origin')

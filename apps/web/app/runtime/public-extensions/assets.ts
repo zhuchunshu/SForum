@@ -201,11 +201,11 @@ export function sameOriginAssetURL(apiBaseUrl: string, assetPath: string, origin
   } catch {
     throw new PublicFrontendContractError('public asset origin is invalid')
   }
-  if (api.origin !== browserOrigin.origin || api.search || api.hash || !assetPath.startsWith('/extensions/runtime/')) {
+  if (api.origin !== browserOrigin.origin || api.search || api.hash
+    || !assetPath.startsWith('/_sforum/assets/extensions/')) {
     throw new PublicFrontendContractError('public assets must use the Host same-origin runtime')
   }
-  const pathname = `${api.pathname.replace(/\/$/, '')}${assetPath}`
-  const url = new URL(pathname, `${browserOrigin.origin}/`)
+  const url = new URL(assetPath, `${browserOrigin.origin}/`)
   if (url.origin !== browserOrigin.origin) {
     throw new PublicFrontendContractError('public asset escaped the Host origin')
   }

@@ -103,12 +103,16 @@ export function parseEditorCatalogModule(input: unknown): EditorCatalogModule {
     || typeof input.l2Module !== 'string'
     || !DIGEST_PATTERN.test(String(input.l2Digest || ''))
     || typeof input.assetPath !== 'string'
-    || !String(input.assetPath).includes(String(input.packageDigest))
     || !Array.isArray(input.nodes)
     || !Array.isArray(input.marks)
     || !Array.isArray(input.commands)
     || !Array.isArray(input.toolbars)) {
     throw new EditorL2ContractError('editor catalog module contract mismatch')
+  }
+  if (!isExactEditorAssetPath(
+    String(input.assetPath), String(input.extensionId), String(input.packageDigest), String(input.l2Module)
+  )) {
+    throw new EditorL2ContractError('editor catalog module asset path mismatch')
   }
   return {
     extensionId: String(input.extensionId),
@@ -122,6 +126,16 @@ export function parseEditorCatalogModule(input: unknown): EditorCatalogModule {
     commands: input.commands.map(value => parseContribution(value, false)),
     toolbars: input.toolbars.map(value => parseContribution(value, true))
   }
+}
+
+export function isExactEditorAssetPath(
+  assetPath: string,
+  extensionId: string,
+  packageDigest: string,
+  modulePath: string
+) {
+  const encodedModulePath = modulePath.split('/').map(segment => encodeURIComponent(segment)).join('/')
+  return assetPath === `/_sforum/assets/extensions/${encodeURIComponent(extensionId)}/${packageDigest}/${encodedModulePath}`
 }
 
 export function isEditorL2Module(value: unknown): value is EditorL2ModuleV1 {

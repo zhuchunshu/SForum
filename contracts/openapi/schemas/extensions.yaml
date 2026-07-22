@@ -2496,7 +2496,8 @@ PublicFrontendAssetReference:
       items: { type: string, maxLength: 512 }
     assetPath:
       type: string
-      pattern: '^/extensions/runtime/[a-z0-9][a-z0-9._-]{1,120}/packages/[0-9a-f]{64}/.+'
+      description: Same-origin immutable package asset URL in the Host-reserved resource namespace.
+      pattern: '^/_sforum/assets/extensions/[a-z0-9][a-z0-9._-]{1,120}/[0-9a-f]{64}/.+'
 PublicFrontendComponent:
   type: object
   additionalProperties: false

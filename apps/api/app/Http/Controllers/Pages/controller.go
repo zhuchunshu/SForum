@@ -2,6 +2,8 @@ package pagescontroller
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"mime"
 	"net/url"
@@ -942,6 +944,7 @@ func (h *Controller) adminAdded(c fiber.Ctx) error {
 }
 
 func (h *Controller) activeSkin(c fiber.Ctx) error {
+	c.Set(fiber.HeaderCacheControl, "no-store")
 	if h.runtime != nil {
 		if skin, ok := h.runtime.ActiveSkin(); ok {
 			return apphttp.OK(c, skin)
@@ -1009,6 +1012,8 @@ func (h *Controller) themeAsset(c fiber.Ctx) error {
 	}
 	c.Set("Content-Type", ctype)
 	c.Set("X-Content-Type-Options", "nosniff")
+	digest := sha256.Sum256(raw)
+	c.Set(fiber.HeaderETag, `"`+hex.EncodeToString(digest[:])+`"`)
 	c.Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; font-src 'self'")
 	c.Set("X-Frame-Options", "DENY")
 	if wantDigest != "" && active.PackageDigest != "" {

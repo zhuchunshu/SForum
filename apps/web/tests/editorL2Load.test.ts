@@ -28,7 +28,7 @@ describe('trusted editor L2 load path', () => {
         packageDigest,
         l2Module: 'frontend/editor/vote.mjs',
         l2Digest: moduleDigest,
-        assetPath: `/extensions/runtime/demo.editor/packages/${packageDigest}/frontend/editor/vote.mjs`,
+        assetPath: `/_sforum/assets/extensions/demo.editor/${packageDigest}/frontend/editor/vote.mjs`,
         nodes: [{
           id: 'demo.editor.node.vote',
           contractVersion: 'demo.editor.node.vote@1',
@@ -50,7 +50,7 @@ describe('trusted editor L2 load path', () => {
     const body = 'export default { apiVersion: 1, createExtensions: () => [{ name: "demoVote" }] }'
     const moduleDigest = sha256Hex(body)
     const packageDigest = '11'.repeat(32)
-    const assetPath = `/extensions/runtime/demo.editor/packages/${packageDigest}/frontend/editor/vote.mjs`
+    const assetPath = `/_sforum/assets/extensions/demo.editor/${packageDigest}/frontend/editor/vote.mjs`
     const fakeExtension = { name: 'demoVote' }
     const loaded = await loadTrustedEditorL2Module(
       {
@@ -142,7 +142,7 @@ describe('trusted editor L2 load path', () => {
           packageDigest,
           l2Module: 'frontend/editor/good.mjs',
           l2Digest: goodDigest,
-          assetPath: `/extensions/runtime/demo.editor/packages/${packageDigest}/frontend/editor/good.mjs`,
+          assetPath: `/_sforum/assets/extensions/demo.editor/${packageDigest}/frontend/editor/good.mjs`,
           nodes: [],
           marks: [],
           commands: [],
@@ -154,7 +154,7 @@ describe('trusted editor L2 load path', () => {
           packageDigest,
           l2Module: 'frontend/editor/bad.mjs',
           l2Digest: '44'.repeat(32),
-          assetPath: `/extensions/runtime/demo.editor/packages/${packageDigest}/frontend/editor/bad.mjs`,
+          assetPath: `/_sforum/assets/extensions/demo.editor/${packageDigest}/frontend/editor/bad.mjs`,
           nodes: [],
           marks: [],
           commands: [],
@@ -214,7 +214,7 @@ function parseEditorCatalogModuleWithBadPath(packageDigest: string, moduleDigest
       packageDigest,
       l2Module: 'frontend/editor/vote.mjs',
       l2Digest: moduleDigest,
-      assetPath: '/extensions/runtime/demo.editor/packages/otherdigest/frontend/editor/vote.mjs',
+      assetPath: '/_sforum/assets/extensions/demo.editor/otherdigest/frontend/editor/vote.mjs',
       nodes: [],
       marks: [],
       commands: [],

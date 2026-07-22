@@ -30,7 +30,7 @@ const props = defineProps<{
 
 const extension = computed(() => props.extension)
 const { status, load: loadTrust, mutate } = useAdminFrontendTrust(extension)
-const { apiBaseUrl, request } = useApiClient()
+const { request } = useApiClient()
 const { t, locale } = useI18n()
 const colorMode = useColorMode()
 const toast = useToast()
@@ -57,8 +57,7 @@ const componentFailureDescription = computed(() => {
 })
 
 function assetURL(name: 'entry' | 'style') {
-  const base = `${apiBaseUrl || ''}`.replace(/\/$/, '')
-  return `${base}/admin/extensions/${encodeURIComponent(props.extension.id)}/frontend/assets/${digest.value}/${name}`
+  return `/_sforum/private-assets/extensions/${encodeURIComponent(props.extension.id)}/${digest.value}/${name}`
 }
 
 function currentStorage() {

@@ -39,7 +39,7 @@ func TestPublicFrontendRequiresLiveExactArtifactTrust(t *testing.T) {
 		t.Fatalf("unexpected public descriptor: %#v", descriptor)
 	}
 	if descriptor.Entry.Integrity == "" || descriptor.Assets[0].Integrity == "" ||
-		!strings.Contains(descriptor.Entry.AssetPath, "/packages/"+extension.PackageDigest+"/frontend/public/card.mjs") {
+		!strings.Contains(descriptor.Entry.AssetPath, "/_sforum/assets/extensions/"+extension.ID+"/"+extension.PackageDigest+"/frontend/public/card.mjs") {
 		t.Fatalf("descriptor is not immutable/integrity-bound: %#v", descriptor)
 	}
 }

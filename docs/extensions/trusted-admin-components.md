@@ -78,11 +78,14 @@ code. It binds extension id, version, API version, component id,
 old trust. Assets are served only from the installed package through:
 
 ```text
-GET /api/v1/admin/extensions/{id}/frontend/assets/{digest}/entry
-GET /api/v1/admin/extensions/{id}/frontend/assets/{digest}/style
+GET /_sforum/private-assets/extensions/{id}/{digest}/entry
+GET /_sforum/private-assets/extensions/{id}/{digest}/style
 ```
 
-The authenticated same-origin responses use immutable private caching, exact
+The Host resource namespace streams to the authenticated Go asset handler; the
+legacy `/api/v1/admin/extensions/{id}/frontend/assets/{digest}/{asset}` path is
+an internal/compatibility upstream, not the browser-facing URL. Responses use
+immutable private caching, exact
 digest verification, MIME checks, `nosniff`, and
 `Cross-Origin-Resource-Policy: same-origin`.
 

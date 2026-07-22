@@ -253,8 +253,14 @@ ActiveThemeSkin:
     extensionId: { type: string }
     version: { type: string }
     packageDigest: { type: string }
-    css: { type: array, items: { type: string } }
-    tokens: { type: string }
+    css:
+      type: array
+      items:
+        type: string
+        pattern: '^/_sforum/assets/themes/.+/[0-9a-f]{64}/.+'
+    tokens:
+      type: string
+      pattern: '^$|^/_sforum/assets/themes/.+/[0-9a-f]{64}/.+'
     nodeRevision:
       type: integer
       format: int64

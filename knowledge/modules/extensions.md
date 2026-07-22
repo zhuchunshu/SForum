@@ -135,6 +135,9 @@ Decision: `../decisions/2026-07-22-external-extension-source-roots.md`.
 - Versioned registries cover routes, hooks, services, providers, jobs,
   schedules, commands, admin surfaces, queries, identity/permission/profile,
   media, navigation/regions, content, cache, assets, and packages.
+- `/_sforum` is a Host-reserved resource namespace. Public package bytes use
+  content-addressed `/_sforum/assets`; authenticated prebuilt admin assets use
+  `/_sforum/private-assets`. Route Registry contributions cannot claim either.
 - Route Registry supports add, alias, redirect, rewrite, before/after/filter,
   wrap/replace, global middleware, uploads, opaque streams, SSE, and WebSocket
   on declared public/admin/API methods and paths.

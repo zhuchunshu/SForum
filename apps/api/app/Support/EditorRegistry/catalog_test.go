@@ -41,6 +41,7 @@ func TestBuildCatalogGroupsTrustedL2Modules(t *testing.T) {
 	}
 	module := catalog.Modules[0]
 	if module.L2Digest != moduleDigest ||
+		!strings.HasPrefix(module.AssetPath, "/_sforum/assets/extensions/demo.editor/") ||
 		!strings.Contains(module.AssetPath, digest) ||
 		!strings.HasSuffix(module.AssetPath, "frontend/editor/vote.mjs") ||
 		len(module.Nodes) != 1 || len(module.Commands) != 1 || len(module.Toolbars) != 1 {

@@ -3,8 +3,27 @@ package pages
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+func TestSkinFromPackageUsesDigestPathForRelativeAssets(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "theme.json"), []byte(`{
+		"skin":{"css":["assets/theme.css"],"tokens":"assets/tokens.css"}
+	}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	digest := strings.Repeat("a", 64)
+	skin, err := SkinFromPackage("demo.theme", "1.0.0", digest, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prefix := "/_sforum/assets/themes/demo.theme/" + digest + "/assets/"
+	if len(skin.CSS) != 1 || skin.CSS[0] != prefix+"theme.css" || skin.Tokens != prefix+"tokens.css" {
+		t.Fatalf("skin = %#v", skin)
+	}
+}
 
 func TestResolveThemeAssetRejectsTraversal(t *testing.T) {
 	root := t.TempDir()

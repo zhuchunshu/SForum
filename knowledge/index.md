@@ -59,6 +59,15 @@ load archived sessions or completed plans as current context.
 - Handoff: `sessions/2026-07-21-trusted-plugin-theme-platform-v3-p13-lts-residual-handoff.md`
 - Module: `modules/extensions.md`
 
+### Content-addressed asset namespace
+
+- Status: **implemented**; browser-facing theme and extension resources use
+  Host-reserved `/_sforum` digest paths outside the JSON API namespace.
+- Handoff: `sessions/2026-07-23-content-addressed-assets-handoff.md`.
+- Decision: `decisions/2026-07-23-content-addressed-asset-namespace.md`.
+- Residual: remove legacy `/api/v1/...assets...` compatibility paths only with
+  APILTS/deprecation evidence.
+
 ## Current Project State
 
 - **Web:** Nuxt 4, Vue 3, Nuxt UI 4, Bun, SSR-first, `zh-CN` default and

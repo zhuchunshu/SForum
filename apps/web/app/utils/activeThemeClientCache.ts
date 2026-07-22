@@ -3,7 +3,7 @@ export const ACTIVE_THEME_SKIN_STORAGE_KEY = 'sforum-active-theme-css'
 
 const SKIN_CACHE_SCHEMA = 'sforum.active-theme-skin@1'
 const SETTINGS_CACHE_SCHEMA = 'sforum.active-theme-settings@1'
-const THEME_ASSET_PREFIX = '/api/v1/site/theme-assets/'
+const THEME_ASSET_PREFIX = '/_sforum/assets/themes/'
 const MAX_SKIN_LINKS = 16
 
 export type ActiveThemeIdentity = {
@@ -268,11 +268,8 @@ function isThemeAssetHrefForIdentity(href: string, identity: ActiveThemeIdentity
     if (url.origin !== 'http://sforum.local' || url.hash) {
       return false
     }
-    const prefix = `${THEME_ASSET_PREFIX}${identity.extensionId}/`
-    if (!url.pathname.startsWith(prefix)) {
-      return false
-    }
-    return url.searchParams.get('v') === identity.packageDigest
+    const prefix = `${THEME_ASSET_PREFIX}${encodeURIComponent(identity.extensionId)}/${encodeURIComponent(identity.packageDigest)}/`
+    return url.pathname.startsWith(prefix) && !url.search
   } catch {
     return false
   }

@@ -1,16 +1,15 @@
-const staticAssetPattern = /\.[a-z0-9]{2,8}$/i
-
 export default defineEventHandler(async (event) => {
   if (event.method !== 'GET') {
     return
   }
 
   const url = getRequestURL(event)
-  if (staticAssetPattern.test(url.pathname)) {
-    // 带扩展名的静态资源（_nuxt/** 带 hash 文件名）永久缓存，减轻重复回源。
+  if (url.pathname.startsWith('/_nuxt/') || url.pathname.startsWith('/_sforum/assets/')) {
+    // 仅内容寻址资源允许永久缓存；普通带扩展名页面/文件不能据此推断不可变。
     setHeader(event, 'cache-control', 'public, max-age=31536000, immutable')
     return
   }
+  if (url.pathname.startsWith('/_sforum/private-assets/')) return
 
   const settings = await loadServerSEOSettings()
   const protectedPath = isProtectedSEOPath(url.pathname)

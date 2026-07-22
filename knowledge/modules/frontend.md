@@ -13,6 +13,9 @@ responsibilities.
 - SSR-first public pages; `zh-CN` default and `en-US` secondary locale.
 - Public pages render typed Fiber API read models. Nuxt server middleware may
   proxy same-origin/SSR requests but does not own domain policy.
+- Host resource delivery is separate from the JSON API: public immutable bytes
+  use `/_sforum/assets`, authenticated admin component bytes use
+  `/_sforum/private-assets`, and Nuxt streams both to authoritative Go handlers.
 - User-visible copy uses i18n keys. Public web options contain only frontend-
   safe state; secret metadata and writes use admin-only endpoints.
 - Build/typecheck use `.nuxt-build` and `.nuxt-typecheck` so they do not disturb
@@ -97,6 +100,8 @@ Architecture sources:
 - Last-good theme skin/settings cache is allowed only for the exact
   `extensionId + packageDigest + nodeRevision`, with a short TTL and validated
   same-origin asset URLs. A known theme change cannot reuse prior-theme state.
+- Theme asset URLs place `packageDigest` in the path rather than a query so CSS
+  relative fonts/images retain the same immutable identity.
 - Anonymous public pages may be shared/SWR cached. Requests carrying
   `sforum_session` restore auth during SSR and must disable HTML/payload cache.
   Browser `onMounted` still revalidates session state.

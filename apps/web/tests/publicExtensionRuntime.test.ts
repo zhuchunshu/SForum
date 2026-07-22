@@ -39,7 +39,7 @@ describe('public extension runtime contract', () => {
       ...descriptor,
       entry: {
         ...descriptor.entry,
-        assetPath: `/extensions/runtime/demo.public/packages/${descriptor.packageDigest}/%2e%2e/entry.mjs`
+        assetPath: `/_sforum/assets/extensions/demo.public/${descriptor.packageDigest}/%2e%2e/entry.mjs`
       }
     }, descriptor.extensionId, descriptor.componentId)).toThrow(PublicFrontendContractError)
     expect(() => parsePublicFrontendDescriptor({
@@ -197,7 +197,7 @@ describe('public extension runtime contract', () => {
   it('accepts only same-origin immutable runtime module URLs', () => {
     const descriptor = descriptorFixture()
     expect(sameOriginAssetURL('/api/v1', descriptor.entry.assetPath, 'https://forum.example'))
-      .toBe(`https://forum.example/api/v1${descriptor.entry.assetPath}`)
+      .toBe(`https://forum.example${descriptor.entry.assetPath}`)
     expect(() => sameOriginAssetURL('https://cdn.example/api/v1', descriptor.entry.assetPath, 'https://forum.example'))
       .toThrow(PublicFrontendContractError)
   })
@@ -314,7 +314,7 @@ describe('public extension runtime contract', () => {
       importModule: async () => ({ apiVersion: 1, mount: () => undefined })
     })
     const stylesheet = await waitForStylesheet(browser.document)
-    expect(stylesheet.href).toBe(`http://127.0.0.1/api/v1${style.assetPath}`)
+    expect(stylesheet.href).toBe(`http://127.0.0.1${style.assetPath}`)
     expect(stylesheet.integrity).toBe(style.integrity)
     expect(stylesheet.crossOrigin).toBe('anonymous')
     const release = await loading
@@ -350,7 +350,7 @@ describe('public extension runtime contract', () => {
       origin: browser.location.origin,
       importModule: async (url: string) => {
         imports++
-        expect(url).toBe(`http://127.0.0.1/api/v1${entry.assetPath}`)
+        expect(url).toBe(`http://127.0.0.1${entry.assetPath}`)
         return { apiVersion: 1, mount: () => undefined }
       },
       loadStyle: testStyleLoader(browser.document)
@@ -361,7 +361,7 @@ describe('public extension runtime contract', () => {
     expect(fetches).toBe(2)
     expect(imports).toBe(1)
     const stylesheet = browser.document.head.querySelector<HTMLLinkElement>('link[data-sforum-asset]')
-    expect(stylesheet?.href).toBe(`http://127.0.0.1/api/v1${style.assetPath}`)
+    expect(stylesheet?.href).toBe(`http://127.0.0.1${style.assetPath}`)
     expect(stylesheet?.integrity).toBe(style.integrity)
     await first.release()
     expect(browser.document.head.querySelectorAll('link[data-sforum-asset]').length).toBe(1)
@@ -545,6 +545,6 @@ function assetReference(
     module,
     loading: type === 'script' ? 'lazy' : 'blocking',
     csp: [],
-    assetPath: `/extensions/runtime/${encodeURIComponent(artifact.extensionId)}/packages/${artifact.packageDigest}/${packagePath.split('/').map(encodeURIComponent).join('/')}`
+    assetPath: `/_sforum/assets/extensions/${encodeURIComponent(artifact.extensionId)}/${artifact.packageDigest}/${packagePath.split('/').map(encodeURIComponent).join('/')}`
   }
 }

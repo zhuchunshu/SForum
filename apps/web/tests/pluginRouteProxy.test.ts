@@ -13,9 +13,12 @@ import {
   INTERNAL_ROUTE_PROBE_VERSION,
   INTERNAL_ROUTE_RESULT_HEADER,
   isCoreAPIPath,
+  isHostReservedPath,
   pluginRouteProxyHeaders,
   probePluginRoute,
-  proxyDeclaredPluginRoute
+  proxyDeclaredPluginRoute,
+  proxyRouteRequest,
+  retrySafeProxyRequest
 } from '../server/utils/pluginRouteProxy'
 
 const source = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
@@ -26,6 +29,9 @@ describe('trusted plugin arbitrary-route proxy', () => {
     expect(isCoreAPIPath('/api/v10/topics')).toBe(false)
     expect(isCoreAPIPath('/plugin/docs')).toBe(false)
     expect(isCoreAPIPath('/admin/plugin/rebuild')).toBe(false)
+    expect(isHostReservedPath('/_sforum/assets/themes/demo/digest/theme.css')).toBe(true)
+    expect(isHostReservedPath('/_sforum/private-assets/extensions/demo/digest/entry')).toBe(true)
+    expect(isHostReservedPath('/_nuxt/app.js')).toBe(true)
   })
 
   test('builds only same configured API-origin targets without path-based SSRF', () => {
@@ -77,6 +83,41 @@ describe('trusted plugin arbitrary-route proxy', () => {
     expect(headers.get(INTERNAL_ROUTE_PROBE_HEADER)).toBeNull()
     expect(headers.get(INTERNAL_ROUTE_METHOD_HEADER)).toBeNull()
     expect(headers.get(INTERNAL_ROUTE_RESULT_HEADER)).toBeNull()
+
+    const publicHeaders = pluginRouteProxyHeaders({
+      authorization: 'Bearer sft_private',
+      cookie: 'sforum_session=private',
+      'x-csrf-token': 'private',
+      'x-sforum-public-package-digest': 'exact-public-digest'
+    }, true)
+    expect(publicHeaders.get('authorization')).toBeNull()
+    expect(publicHeaders.get('cookie')).toBeNull()
+    expect(publicHeaders.get('x-csrf-token')).toBeNull()
+    expect(publicHeaders.get('x-sforum-public-package-digest')).toBe('exact-public-digest')
+  })
+
+  test('retries only safe proxy reads through a short API restart window', async () => {
+    let attempts = 0
+    const waits: number[] = []
+    const response = await retrySafeProxyRequest('GET', async () => {
+      attempts++
+      if (attempts < 3) {
+        throw new Error('connection refused')
+      }
+      return 'ready'
+    }, async (ms) => {
+      waits.push(ms)
+    })
+    expect(response).toBe('ready')
+    expect(attempts).toBe(3)
+    expect(waits).toEqual([500, 500])
+
+    attempts = 0
+    await expect(retrySafeProxyRequest('POST', async () => {
+      attempts++
+      throw new Error('write failed')
+    })).rejects.toThrow('write failed')
+    expect(attempts).toBe(1)
   })
 
   test('middleware probes before proxying while ordinary API proxy remains streaming', () => {
@@ -107,15 +148,30 @@ describe('trusted plugin arbitrary-route proxy', () => {
 
   test('proxies matched unsafe bodies and leaves explicit misses to Nuxt', async () => {
     const actualRequests: Array<{ method?: string, body: string, authorization?: string, probe?: string }> = []
+    let publicAssetCredentials: { authorization?: string, cookie?: string } = {}
+    let retryReadRequests = 0
     const api = createServer(async (request, response) => {
       const url = new URL(request.url || '/', 'http://api.test')
+      if (url.pathname === '/public-asset' || url.pathname === '/public-asset-missing') {
+        publicAssetCredentials = {
+          authorization: request.headers.authorization,
+          cookie: request.headers.cookie
+        }
+        response.statusCode = url.pathname.endsWith('-missing') ? 404 : 200
+        response.setHeader('Cache-Control', 'public, max-age=300')
+        response.setHeader('ETag', '"asset"')
+        response.setHeader('Set-Cookie', 'csrf_=private')
+        response.setHeader('Vary', 'Cookie, Accept-Encoding')
+        response.end('immutable-body')
+        return
+      }
       if (request.method === 'HEAD' && request.headers[INTERNAL_ROUTE_PROBE_HEADER] === INTERNAL_ROUTE_PROBE_VERSION) {
         if (url.pathname === '/probe-invalid') {
           response.statusCode = 500
           response.end()
           return
         }
-        const matched = ['/plugin/echo', '/plugin/redirect301', '/plugin/redirect308'].includes(url.pathname)
+        const matched = ['/plugin/echo', '/plugin/retry-read', '/plugin/redirect301', '/plugin/redirect308'].includes(url.pathname)
         response.statusCode = matched ? 204 : 404
         response.setHeader(INTERNAL_ROUTE_RESULT_HEADER, matched ? INTERNAL_ROUTE_MATCH : INTERNAL_ROUTE_MISS)
         response.end()
@@ -127,6 +183,17 @@ describe('trusted plugin arbitrary-route proxy', () => {
         response.setHeader('Location', '/plugin/canonical-target')
         response.setHeader('Link', '</plugin/canonical-target>; rel="canonical"')
         response.end()
+        return
+      }
+
+      if (url.pathname === '/plugin/retry-read') {
+        retryReadRequests++
+        if (retryReadRequests < 3) {
+          request.socket.destroy()
+          return
+        }
+        response.statusCode = 200
+        response.end('recovered')
         return
       }
 
@@ -147,6 +214,12 @@ describe('trusted plugin arbitrary-route proxy', () => {
     const apiURL = await listen(api)
 
     const app = createApp()
+    app.use('/asset-proxy-missing', eventHandler(event => proxyRouteRequest(
+      event, new URL(`${apiURL}/public-asset-missing`), { omitCredentials: true }
+    )))
+    app.use('/asset-proxy', eventHandler(event => proxyRouteRequest(
+      event, new URL(`${apiURL}/public-asset`), { omitCredentials: true }
+    )))
     app.use(eventHandler(event => proxyDeclaredPluginRoute(event)))
     app.use(eventHandler(event => `nuxt:${event.method}:${getRequestURL(event).pathname}`))
     const web = createServer(toNodeListener(app))
@@ -155,6 +228,26 @@ describe('trusted plugin arbitrary-route proxy', () => {
     process.env.NUXT_API_INTERNAL_BASE_URL = `${apiURL}/api/v1`
 
     try {
+      const publicAsset = await fetch(`${webURL}/asset-proxy`, {
+        headers: {
+          authorization: 'Bearer sft_private',
+          cookie: 'sforum_session=private',
+          'x-csrf-token': 'private'
+        }
+      })
+      expect(publicAsset.status).toBe(200)
+      expect(await publicAsset.text()).toBe('immutable-body')
+      expect(publicAssetCredentials).toEqual({ authorization: undefined, cookie: undefined })
+      expect(publicAsset.headers.get('cache-control')).toBe('public, max-age=31536000, immutable')
+      expect(publicAsset.headers.get('set-cookie')).toBeNull()
+      expect(publicAsset.headers.get('vary')).toBe('Accept-Encoding')
+      expect(publicAsset.headers.get('etag')).toBe('"asset"')
+
+      const missingAsset = await fetch(`${webURL}/asset-proxy-missing`)
+      expect(missingAsset.status).toBe(404)
+      expect(missingAsset.headers.get('cache-control')).toBe('no-store')
+      expect(missingAsset.headers.get('set-cookie')).toBeNull()
+
       const pluginResponse = await fetch(`${webURL}/plugin/echo?q=1`, {
         method: 'POST',
         headers: {
@@ -170,6 +263,11 @@ describe('trusted plugin arbitrary-route proxy', () => {
       expect(actualRequests).toEqual([{
         method: 'POST', body: 'streamed-body', authorization: 'Bearer sft_real', probe: undefined
       }])
+
+      const retryReadResponse = await fetch(`${webURL}/plugin/retry-read`)
+      expect(retryReadResponse.status).toBe(200)
+      expect(await retryReadResponse.text()).toBe('recovered')
+      expect(retryReadRequests).toBe(3)
 
       for (const status of [301, 308]) {
         const redirectResponse = await fetch(`${webURL}/plugin/redirect${status}`, { redirect: 'manual' })

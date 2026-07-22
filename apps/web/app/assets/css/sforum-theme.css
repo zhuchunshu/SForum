@@ -1,22 +1,3 @@
-/* hybrid demo 字体：DM Sans + Noto Sans SC（主题包本地 variable TTF）。
- * 注意：font-weight 范围须与 fvar 轴一致；format 用 truetype（Chrome 对
- * truetype-variations 偶发拒载）。不拉 Google Fonts。 */
-@font-face {
-  font-family: "DM Sans";
-  src: url("/api/v1/site/theme-assets/sforum.default-theme/assets/fonts/DM-Sans-variable.ttf") format("truetype");
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Noto Sans SC";
-  src: url("/api/v1/site/theme-assets/sforum.default-theme/assets/fonts/Noto-Sans-SC-variable.ttf") format("truetype");
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-}
-
 /* Host baseline public chrome — fullwidth-3col flat shell.
  * 与 sforum-default 主题 skin 对齐；强调色仍走 --sf-accent。
  */

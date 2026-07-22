@@ -462,7 +462,7 @@ func publicL2EntryContractVersion(component ManifestComponent) string {
 
 func publicAssetReference(asset assetregistry.Asset) PublicFrontendAssetReference {
 	assetPath := fmt.Sprintf(
-		"/extensions/runtime/%s/packages/%s/%s",
+		"/_sforum/assets/extensions/%s/%s/%s",
 		url.PathEscape(asset.Artifact.ExtensionID), url.PathEscape(asset.Artifact.PackageDigest),
 		escapePublicPackagePath(asset.Path),
 	)

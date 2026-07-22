@@ -1,6 +1,6 @@
 import type { EditorCatalog, EditorCatalogModule } from './types'
 import { loadTrustedEditorL2Module } from './load'
-import { EditorL2ContractError } from './types'
+import { EditorL2ContractError, isExactEditorAssetPath } from './types'
 
 export type AdmittedEditorExtensions = {
   extensions: unknown[]
@@ -37,7 +37,9 @@ export async function admitEditorCatalogModules(
 }
 
 function assertLoadableModule(module: EditorCatalogModule) {
-  if (!module.l2Module || !module.l2Digest || !module.assetPath.includes(module.packageDigest)) {
+  if (!module.l2Module || !module.l2Digest || !isExactEditorAssetPath(
+    module.assetPath, module.extensionId, module.packageDigest, module.l2Module
+  )) {
     throw new EditorL2ContractError('editor catalog module is not loadable')
   }
 }

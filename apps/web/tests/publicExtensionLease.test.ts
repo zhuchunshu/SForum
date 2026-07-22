@@ -195,7 +195,7 @@ function descriptorFixture(
       module: true,
       loading: 'lazy',
       csp: [],
-      assetPath: `/extensions/runtime/demo.public/packages/${packageDigest}/frontend/public/card.mjs`
+      assetPath: `/_sforum/assets/extensions/demo.public/${packageDigest}/frontend/public/card.mjs`
     },
     assets: [],
     csp: []

@@ -3,6 +3,7 @@ package pages
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -178,23 +179,23 @@ type ActiveSkinPublic struct {
 	NodeRevision  uint64   `json:"nodeRevision,omitempty"`
 }
 
-// SkinFromPackage 读取主题包皮肤清单；URL 携带 package digest 以支持 immutable cache。
+// SkinFromPackage 读取主题包皮肤清单；digest 位于路径中，让 CSS 相对资源继承同一不可变版本。
 func SkinFromPackage(extensionID, version, packageDigest, packageRoot string) (ActiveSkinPublic, error) {
 	pkg, err := LoadThemePackage(packageRoot)
 	if err != nil {
 		return ActiveSkinPublic{}, err
 	}
-	q := ""
+	assetPrefix := "/_sforum/assets/themes/" + url.PathEscape(extensionID)
 	if d := strings.TrimSpace(packageDigest); d != "" {
-		q = "?v=" + d
+		assetPrefix += "/" + url.PathEscape(d)
 	}
 	css := make([]string, 0, len(pkg.Skin.CSS))
 	for _, rel := range pkg.Skin.CSS {
-		css = append(css, "/api/v1/site/theme-assets/"+extensionID+"/"+filepath.ToSlash(rel)+q)
+		css = append(css, assetPrefix+"/"+filepath.ToSlash(rel))
 	}
 	tokens := ""
 	if t := strings.TrimSpace(pkg.Skin.Tokens); t != "" {
-		tokens = "/api/v1/site/theme-assets/" + extensionID + "/" + filepath.ToSlash(t) + q
+		tokens = assetPrefix + "/" + filepath.ToSlash(t)
 	}
 	return ActiveSkinPublic{
 		ExtensionID:   extensionID,

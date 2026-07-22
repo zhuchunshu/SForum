@@ -41,7 +41,7 @@ const themeB: ActiveThemeIdentity = {
   nodeRevision: 8
 }
 
-function skinRecord(identity: ActiveThemeIdentity, href = `/api/v1/site/theme-assets/${identity.extensionId}/assets/theme.css?v=${identity.packageDigest}`): ActiveThemeSkinCacheRecord {
+function skinRecord(identity: ActiveThemeIdentity, href = `/_sforum/assets/themes/${identity.extensionId}/${identity.packageDigest}/assets/theme.css`): ActiveThemeSkinCacheRecord {
   return {
     schema: 'sforum.active-theme-skin@1',
     createdAt: now,

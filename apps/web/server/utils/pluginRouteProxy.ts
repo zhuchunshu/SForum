@@ -1,5 +1,13 @@
 import type { H3Event } from 'h3'
-import { createError, getProxyRequestHeaders, getRequestURL, getRequestWebStream, sendProxy } from 'h3'
+import {
+  createError,
+  getProxyRequestHeaders,
+  getRequestURL,
+  getRequestWebStream,
+  removeResponseHeader,
+  sendProxy,
+  setResponseHeader
+} from 'h3'
 
 export const INTERNAL_ROUTE_PROBE_HEADER = 'x-sforum-internal-route-probe'
 export const INTERNAL_ROUTE_METHOD_HEADER = 'x-sforum-internal-route-method'
@@ -7,11 +15,19 @@ export const INTERNAL_ROUTE_RESULT_HEADER = 'x-sforum-internal-route-result'
 export const INTERNAL_ROUTE_PROBE_VERSION = 'v1'
 export const INTERNAL_ROUTE_MATCH = 'plugin'
 export const INTERNAL_ROUTE_MISS = 'miss'
+const SAFE_PROXY_ATTEMPTS = 10
+const SAFE_PROXY_RETRY_DELAY_MS = 500
 
 type ProbeFetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
 
 export function isCoreAPIPath(pathname: string) {
   return pathname === '/api/v1' || pathname.startsWith('/api/v1/')
+}
+
+export function isHostReservedPath(pathname: string) {
+  return isCoreAPIPath(pathname)
+    || pathname === '/_sforum' || pathname.startsWith('/_sforum/')
+    || pathname === '/_nuxt' || pathname.startsWith('/_nuxt/')
 }
 
 export function buildPluginRouteTarget(apiBaseURL: string, requestURL: URL) {
@@ -25,11 +41,16 @@ export function buildPluginRouteTarget(apiBaseURL: string, requestURL: URL) {
   return target
 }
 
-export function pluginRouteProxyHeaders(input: HeadersInit) {
+export function pluginRouteProxyHeaders(input: HeadersInit, omitCredentials = false) {
   const headers = new Headers(input)
   headers.delete(INTERNAL_ROUTE_PROBE_HEADER)
   headers.delete(INTERNAL_ROUTE_METHOD_HEADER)
   headers.delete(INTERNAL_ROUTE_RESULT_HEADER)
+  if (omitCredentials) {
+    headers.delete('authorization')
+    headers.delete('cookie')
+    headers.delete('x-csrf-token')
+  }
   return headers
 }
 
@@ -56,9 +77,31 @@ export function canFallbackAfterRouteProbeFailure(method: string) {
   return method === 'GET' || method === 'HEAD'
 }
 
+export async function retrySafeProxyRequest<T>(
+  method: string,
+  request: () => Promise<T>,
+  sleep: (ms: number) => Promise<void> = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+) {
+  const attempts = canFallbackAfterRouteProbeFailure(method) ? SAFE_PROXY_ATTEMPTS : 1
+  let lastError: unknown
+
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await request()
+    } catch (error) {
+      lastError = error
+      if (attempt < attempts) {
+        await sleep(SAFE_PROXY_RETRY_DELAY_MS)
+      }
+    }
+  }
+
+  throw lastError
+}
+
 export async function proxyDeclaredPluginRoute(event: H3Event) {
   const requestURL = getRequestURL(event)
-  if (isCoreAPIPath(requestURL.pathname)) {
+  if (isHostReservedPath(requestURL.pathname)) {
     return
   }
 
@@ -79,17 +122,32 @@ export async function proxyDeclaredPluginRoute(event: H3Event) {
   return proxyRouteRequest(event, target)
 }
 
-export function proxyRouteRequest(event: H3Event, target: URL) {
-  const headers = pluginRouteProxyHeaders(getProxyRequestHeaders(event))
+export async function proxyRouteRequest(
+  event: H3Event,
+  target: URL,
+  options: { omitCredentials?: boolean } = {}
+) {
+  const headers = pluginRouteProxyHeaders(getProxyRequestHeaders(event), options.omitCredentials)
   const hasRequestBody = event.method !== 'GET' && event.method !== 'HEAD'
-  return sendProxy(event, target.toString(), {
+  return retrySafeProxyRequest(event.method, () => sendProxy(event, target.toString(), {
     headers,
     sendStream: true,
+    onResponse: options.omitCredentials
+      ? (proxyEvent, response) => {
+          removeResponseHeader(proxyEvent, 'set-cookie')
+          setResponseHeader(
+            proxyEvent,
+            'cache-control',
+            response.status === 200 ? 'public, max-age=31536000, immutable' : 'no-store'
+          )
+          setResponseHeader(proxyEvent, 'vary', 'Accept-Encoding')
+        }
+      : undefined,
     fetchOptions: {
       method: event.method,
       redirect: 'manual',
       body: hasRequestBody ? getRequestWebStream(event) : undefined,
       duplex: hasRequestBody ? 'half' : undefined
     }
-  })
+  }))
 }

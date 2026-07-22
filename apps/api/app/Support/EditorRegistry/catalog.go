@@ -151,5 +151,5 @@ func (r *Registry) BuildCatalog() Catalog {
 }
 
 func editorPackageAssetPath(extensionID, packageDigest, modulePath string) string {
-	return "/extensions/runtime/" + extensionID + "/packages/" + packageDigest + "/" + strings.TrimPrefix(modulePath, "/")
+	return "/_sforum/assets/extensions/" + extensionID + "/" + packageDigest + "/" + strings.TrimPrefix(modulePath, "/")
 }
