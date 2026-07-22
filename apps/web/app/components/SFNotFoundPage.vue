@@ -30,9 +30,9 @@ if (import.meta.server) {
 </script>
 
 <template>
-  <div v-if="resolving" class="min-h-screen" aria-busy="true" />
-  <SFPageOutlet v-else-if="resolvedPage" page="system.not_found" :resolved-payload="resolvedPage">
+  <SFPageOutlet v-if="resolvedPage" page="system.not_found" :resolved-payload="resolvedPage">
     <NotFoundEmergencyPage />
   </SFPageOutlet>
-  <NotFoundEmergencyPage v-else />
+  <!-- 解析尚未交付 L1 时不能短暂展示 Core；明确失败会以 Core payload 进入上面的分支。 -->
+  <div v-else class="min-h-screen" :aria-busy="resolving !== false" />
 </template>
