@@ -27,18 +27,14 @@
   --sf-public-reading-max: 70rem;
   --sf-theme-radius: 4px;
   --sf-surface: var(--sf-public-bg);
-  --sf-card: #ffffff;
-  --sf-muted: #f5f5f8;
-  --sf-fg: #25252b;
-  --sf-fg-secondary: #676773;
-  --sf-fg-tertiary: #a0a0aa;
-  --sf-border: #e9e8ed;
-  --sf-border-light: #f0eff3;
-  --sf-accent: #d94763;
-  --sf-accent-hover: #b82d48;
-  --sf-accent-soft: #fff0f3;
-  --sf-accent-soft-border: #f3bdc7;
-  --sf-accent-rgb: 217 71 99;
+  --sf-card: var(--sf-public-surface);
+  --sf-muted: var(--sf-public-surface-muted);
+  --sf-fg: var(--sf-public-text);
+  --sf-fg-secondary: var(--sf-public-text-secondary);
+  --sf-fg-tertiary: var(--sf-public-text-muted);
+  --sf-border: var(--sf-public-border);
+  --sf-border-light: var(--sf-public-border);
+  /* 主色 --sf-accent* 由站点 appearance 注入，主题不得覆盖。 */
 }
 
 .dark {
@@ -58,14 +54,15 @@
   --sf-public-notice-bg: linear-gradient(90deg, rgb(var(--sf-accent-rgb) / 0.18), rgb(var(--sf-accent-rgb) / 0.08));
   --sf-public-notice-border: rgb(var(--sf-accent-rgb) / 0.35);
   --sf-public-notice-text: #fde68a;
-  --sf-surface: #09090b;
-  --sf-card: #18181b;
-  --sf-muted: #27272a;
-  --sf-fg: #f4f4f5;
-  --sf-fg-secondary: #d4d4d8;
-  --sf-fg-tertiary: #a1a1aa;
-  --sf-border: #3f3f46;
-  --sf-border-light: #27272a;
+  /* 组件语义 token 继续跟随 public surface，避免暗色下白底/浅字错配 */
+  --sf-surface: var(--sf-public-bg);
+  --sf-card: var(--sf-public-surface);
+  --sf-muted: var(--sf-public-surface-muted);
+  --sf-fg: var(--sf-public-text);
+  --sf-fg-secondary: var(--sf-public-text-secondary);
+  --sf-fg-tertiary: var(--sf-public-text-muted);
+  --sf-border: var(--sf-public-border);
+  --sf-border-light: var(--sf-public-border);
 }
 
 .navbar,

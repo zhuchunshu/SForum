@@ -37,7 +37,8 @@ const islandComponents: Record<string, Component> = {
   'forum.component.category_show': resolveComponent('LazySFCategoryShowPage') as Component,
   'forum.component.tag_index': resolveComponent('LazySFTagIndexPage') as Component,
   'forum.component.tag_show': resolveComponent('LazySFTagShowPage') as Component,
-  'forum.component.topic_show': resolveComponent('LazySFTopicShowPage') as Component,
+  // 帖子详情是高频核心阅读路径，避免主题岛自身再制造一层异步导航边界。
+  'forum.component.topic_show': resolveComponent('SFTopicShowPage') as Component,
   'forum.component.profile_show': resolveComponent('LazySFProfileShowPage') as Component,
   'forum.component.notifications': resolveComponent('LazySFNotificationsPage') as Component,
   'site.component.terms': resolveComponent('LazySFTermsPage') as Component,

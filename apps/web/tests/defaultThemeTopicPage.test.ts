@@ -16,10 +16,27 @@ const topicComponentNames = [
   'SFTopicHeading',
   'SFTopicSideCard',
   'SFTopicActionMenu',
+  'SFTopicReplyComposer',
   'SFReportDialog'
 ] as const
 
 describe('default theme V32 topic page contract', () => {
+  test('keeps the core reading path eager with global navigation feedback', () => {
+    const app = sourceFile('../app/app.vue')
+    const themeTemplate = sourceFile('../app/components/SFThemeTemplate.vue')
+    const avatar = sourceFile('../app/components/SFAvatar.vue')
+    const heading = sourceFile('../app/components/SFTopicHeading.vue')
+    const comment = sourceFile('../app/components/SFComment.vue')
+
+    expect(app).toContain('<NuxtLoadingIndicator')
+    expect(app).toContain('color="var(--sf-accent)"')
+    expect(themeTemplate).toContain("'forum.component.topic_show': resolveComponent('SFTopicShowPage')")
+    expect(themeTemplate).not.toContain("'forum.component.topic_show': resolveComponent('LazySFTopicShowPage')")
+    expect(avatar).toContain("loading: 'lazy'")
+    expect(heading).toContain('loading="eager"')
+    expect(comment).not.toContain('loading="eager"')
+  })
+
   test('declares edit mode before immediate effects read it', () => {
     const source = topicPage()
     const isEditingDeclaration = source.indexOf('const isEditing = computed(')
@@ -97,14 +114,19 @@ describe('default theme V32 topic page contract', () => {
     expect(source).toContain(':first-comment-id="comments[0]?.id"')
     expect(source).toContain(':latest-comment-id="comments[comments.length - 1]?.id"')
     expect(source).toContain('sf-comment-stream-controls__latest')
-    expect(source).toContain('<LazySFEditor')
-    expect(source).toContain('compact')
-    expect(source).toContain("t('topicDetail.markdownSupported')")
+    const replyComposer = sourceFile('../app/components/SFTopicReplyComposer.vue')
+    expect(source).toContain('<SFTopicReplyComposer')
+    expect(replyComposer).toContain('<LazySFEditor')
+    expect(replyComposer).toContain('v-if="open"')
+    expect(source).toContain('replyComposerOpen.value = true')
+    expect(replyComposer).toContain('compact')
+    expect(replyComposer).toContain("t('topicDetail.markdownSupported')")
     expect(sourceFile('../app/components/SFEditor.vue')).toContain('sf-editor--compact')
     expect(sourceFile('../app/components/SFEditor.vue')).toContain("emit('cancel')")
     expect(source).toContain('showTopicSide')
     expect(source).toContain('shareTopic')
     expect(source).toContain('listCategoryGroups')
+    expect(source).toContain('lazy: true')
     expect(themeTopicTpl).toContain('data-layout="fullwidth-3col"')
     expect(themeTopicTpl).toContain('sf-theme-shell--fullwidth-3col')
     expect(source).not.toContain('SFTopicProgressRail')

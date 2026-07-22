@@ -1,4 +1,6 @@
-/* SForum default theme tokens (L0) — fullwidth-3col flat shell */
+/* SForum default theme tokens (L0) — fullwidth-3col flat shell.
+ * 表面/布局 token 归主题；主色 --sf-accent* 归站点 appearance（html[data-sforum-theme]）。
+ */
 :root {
   --sf-theme-radius: 4px;
   --sf-public-radius: 4px;
@@ -22,11 +24,23 @@
   --sf-public-notice-border: #fde68a;
   --sf-public-notice-text: #9a6700;
   --sf-public-reading-max: 70rem;
-  --sf-accent: #d94763;
-  --sf-accent-hover: #b82d48;
-  --sf-accent-soft: #fff0f3;
-  --sf-accent-soft-border: #f3bdc7;
-  --sf-accent-rgb: 217 71 99;
 }
 
-/* UI 还原阶段锁定 demo 强调色；恢复主题设置前须重新完成视觉验收。 */
+/* 日夜模式：与 host sforum-theme.css / theme.css 的 .dark 表面 token 对齐。 */
+.dark {
+  --sf-public-bg: #111413;
+  --sf-public-surface: #1b201f;
+  --sf-public-surface-muted: #242a29;
+  --sf-public-border: #303837;
+  --sf-public-border-strong: #3d4745;
+  --sf-public-text: #f4f7f6;
+  --sf-public-text-secondary: #c4cecb;
+  --sf-public-text-muted: #98a7a3;
+  --sf-public-text-faint: #6b7a76;
+  --sf-public-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+  --sf-public-shadow-hover: 0 10px 28px rgb(0 0 0 / 0.28);
+  --sf-public-row-hover: color-mix(in srgb, var(--sf-accent) 12%, #1b201f);
+  --sf-public-notice-bg: linear-gradient(90deg, rgb(var(--sf-accent-rgb) / 0.18), rgb(var(--sf-accent-rgb) / 0.08));
+  --sf-public-notice-border: rgb(var(--sf-accent-rgb) / 0.35);
+  --sf-public-notice-text: #fde68a;
+}

@@ -611,7 +611,23 @@ func (s *Service) EffectiveContributions(ctx context.Context) ([]EffectiveContri
 			continue
 		}
 		manifest := normalizeManifest(item.Manifest)
+		// 仅当存在 enabledBySetting 门控时才读设置，避免无条件贡献路径多一次 IO。
+		var stored map[string]string
+		settingsLoaded := false
 		for _, contribution := range manifest.Contributions {
+			if gate := strings.TrimSpace(contribution.EnabledBySetting); gate != "" {
+				if !settingsLoaded {
+					values, settingsErr := s.listDecryptedSettings(ctx, item)
+					if settingsErr != nil {
+						return nil, settingsErr
+					}
+					stored = values
+					settingsLoaded = true
+				}
+				if !extensionmanifest.ContributionEnabledBySetting(manifest, stored, gate) {
+					continue
+				}
+			}
 			contributions = append(contributions, EffectiveContribution{
 				ExtensionID:   item.ID,
 				ExtensionName: item.Name,

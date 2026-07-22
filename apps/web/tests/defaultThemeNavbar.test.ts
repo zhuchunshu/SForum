@@ -40,19 +40,21 @@ describe('default theme shared navbar contract', () => {
     expect(source).toContain('.navbar__nav-link.is-active::after')
   })
 
-  test('orders the desktop identity, home nav, search, compose action, and session controls', () => {
+  test('orders the desktop identity, home nav, search, compose, utility, and session columns', () => {
     const identityIndex = source.indexOf('class="navbar__logo"')
     const navIndex = source.indexOf('class="navbar__desktop-nav"')
     const searchIndex = source.indexOf('<SFSearch')
     const newTopicIndex = source.indexOf('class="navbar__new-topic"')
-    const actionsIndex = source.indexOf('class="navbar__actions"')
+    const utilityIndex = source.indexOf('class="navbar__utility"')
+    const sessionIndex = source.indexOf('class="navbar__session"')
     const navMarkup = source.slice(navIndex, source.indexOf('</nav>', navIndex))
 
     expect(identityIndex).toBeGreaterThan(-1)
     expect(navIndex).toBeGreaterThan(identityIndex)
     expect(searchIndex).toBeGreaterThan(navIndex)
     expect(newTopicIndex).toBeGreaterThan(searchIndex)
-    expect(actionsIndex).toBeGreaterThan(newTopicIndex)
+    expect(utilityIndex).toBeGreaterThan(newTopicIndex)
+    expect(sessionIndex).toBeGreaterThan(utilityIndex)
     expect(navMarkup).toContain('desktopNavItems')
     expect(source).toContain("t('home.filter.latest')")
     expect(source).toContain("t('home.filter.categories')")
@@ -69,6 +71,18 @@ describe('default theme shared navbar contract', () => {
     expect(navMarkup).not.toContain('热门')
     expect(navMarkup).not.toContain('排行')
     expect(navMarkup).not.toContain('scrollToHomeSection')
+  })
+
+  test('exposes language switch and color-mode toggle in the topbar utility cluster', () => {
+    expect(source).toContain('languageMenuItems')
+    expect(source).toContain("t('nav.language')")
+    expect(source).toContain('toggleColorMode')
+    expect(source).toContain('themeToggleLabel')
+    expect(source).toContain('i-lucide-globe')
+    expect(source).toContain('themeToggleIcon')
+    // 会话区独立，便于默认主题与右栏同宽对齐
+    expect(source).toContain('class="navbar__session"')
+    expect(source).toContain('class="navbar__user-trigger"')
   })
 
   test('submits compact search to the locale-aware homepage query', () => {

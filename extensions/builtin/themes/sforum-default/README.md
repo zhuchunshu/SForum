@@ -17,7 +17,11 @@ i18n, SEO, permissions, and reusable `SF*` components.
 | **Component Registry** | Theme/plugin `wrap` / `replace` / `add` / `hide` of registered targets (SSR template and/or trusted L2) | Silent CSS monkey-patches of host BEM |
 
 **主色**：公开壳使用 `var(--sf-accent)` 等 appearance 变量（`html[data-sforum-theme]` /
-自定义色）。默认主题 **不得** 在 `tokens.css` 上覆盖 `--sf-accent*`。
+预设 `pine_teal|ocean_blue|violet|rose|amber` 或 `custom:#rrggbb`）。默认主题
+**不得** 在 `tokens.css` / `theme.css` / `hybrid-forum.css` 上覆盖 `--sf-accent*`。
+
+**日夜模式**：表面色走 `:root` / `.dark` 的 `--sf-public-*`；顶栏、列表、评论空态
+等壳层读这些 token。暗色下强调文字可用 `var(--sf-accent-dark)` 提高对比。
 
 List rows, main-bar, chips 是 **host components + Tailwind**，读 `var(--sf-public-*)`
 与 `var(--sf-accent)`。头像一律用全局 **`SFAvatar`**（`size` + `AvatarView` /

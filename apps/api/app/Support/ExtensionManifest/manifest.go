@@ -280,6 +280,9 @@ type ManifestContribution struct {
 	Label   map[string]string `json:"label,omitempty"`
 	Icon    string            `json:"icon,omitempty"`
 	Payload json.RawMessage   `json:"payload,omitempty"`
+	// EnabledBySetting 非空时：仅当该 boolean 设置解析为真（已存值或 schema 默认）时，贡献才进入 EffectiveContributions。
+	// 用于「默认隐藏、后台可开」的公共 UI 贡献，避免插件启用后强制露出演示徽章。
+	EnabledBySetting string `json:"enabledBySetting,omitempty"`
 }
 
 // 稳定贡献点 ID（F4.3/E2 起与目录同步；新增点必须改此处 + OpenAPI + 文档 regenerate）。

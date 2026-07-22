@@ -102,11 +102,16 @@ Nuxt DevTools is opt-in with `NUXT_DEVTOOLS=true`; the default dev path avoids
 its dependency scan and resident runtime cost. Development also disables Nuxt
 payload extraction so HMR cannot leave stale SWR `/_payload.json` responses
 that change Page Registry ownership during client navigation; production keeps
-payload extraction enabled. `SFThemeTemplate` resolves page-level Host islands
-through Nuxt lazy components, while the always-present navbar/footer stay
-eager. Tag detail SSR normalizes every AsyncData list, starts its three
+payload extraction enabled. `SFThemeTemplate` resolves most page-level Host
+islands through Nuxt lazy components, while the always-present navbar/footer
+and the high-frequency topic detail island stay eager. Tag detail SSR normalizes every AsyncData list, starts its three
 independent reads concurrently, and keeps `.length` access out of the render
 function so HMR transitions cannot reject SSR.
+Topic detail keeps complete topic/comment/navigation data in initial SSR HTML,
+but client navigation blocks only on the topic read; comments and category
+navigation fill through their pending states. The global Nuxt loading indicator
+uses the active accent token, above-fold topic avatars are eager, and the reply
+Tiptap mounts only after an explicit reply action.
 `bun run preview` starts `scripts/preview.mjs`, prints an SForum Web Preview
 startup banner, then imports the generated Nitro server entry at
 `.output/server/index.mjs`; this keeps local preview aligned with the root
@@ -170,9 +175,11 @@ root class `sf-avatar`. After package edits in dev, rsync to
 `storage/builtin-dev`, restart API (`SyncBuiltins` stages a new digest), then
 super_admin theme activate with `approveCoreReplacements` so L1 bindings and
 L0 skin track the new digest. Layout:
-- Sticky topbar (`SFNavbar`): logo, Latest → `/`, Categories → `/categories`,
-  Tags → `/tags` (hidden when `forum.tags.public_pages` is off), search,
-  compose, session controls. Density ~52px.
+- Sticky topbar (`SFNavbar`): logo, public nav, search, compose, **utility**
+  (notifications + language + day/night), **session** (avatar/name or
+  login/register). Default theme desktop grid ends with a column equal to
+  `--sf-public-right-rail-width` so the user block aligns with the right rail.
+  Density ~58px under default theme.
 - Public taxonomy list pages (default theme): `/tags` T01 weight cloud and
   `/categories` C04 grouped tile grid; styles in `sforum-taxonomy.css`.
 - Homepage: full-bleed grid — sticky ~220px left nav (`SFHomeNavigation`) with
@@ -193,8 +200,11 @@ L0 skin track the new digest. Layout:
   `SFTopicProgressRail` is retained in the theme package but no longer mounted
   on the default detail route.
 Public surface tokens live in the theme layer (`sforum-default` skin + host
-baseline `sforum-theme.css` etc.); `--sf-accent*` still come from runtime
-appearance. Dark mode uses the existing `.dark` public variables.
+baseline `sforum-theme.css` etc.). Default theme **must not** hard-lock
+`--sf-accent*` (restored 2026-07-22 after hybrid demo fidelity briefly pinned
+rose); brand color comes from runtime appearance (`html[data-sforum-theme]` /
+`custom:#rrggbb`). Dark mode uses `.dark` `--sf-public-*` surface tokens and
+maps shell `--sf-card` / `--sf-fg` to those public values.
 
 `SFComment` has an explicit `presentation`, `depth`, and
 `collapseFromDepth` contract. Tree mode renders one branch rail/inset on

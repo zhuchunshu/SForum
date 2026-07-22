@@ -105,6 +105,11 @@ useHead(() => {
 
 <template>
   <UApp>
+    <NuxtLoadingIndicator
+      color="var(--sf-accent)"
+      :height="3"
+      :throttle="80"
+    />
     <NuxtLayout>
       <NuxtPage :keepalive="{ include: cachedTabNames }" />
     </NuxtLayout>

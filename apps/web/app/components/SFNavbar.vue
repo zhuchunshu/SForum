@@ -440,7 +440,8 @@ async function logout() {
       </NuxtLink>
       <span v-else class="navbar__new-topic-placeholder" aria-hidden="true" />
 
-      <div class="navbar__actions">
+      <!-- 工具区：通知 / 语言 / 日夜模式；会话区单独一列与右侧栏对齐 -->
+      <div class="navbar__utility">
         <button
           type="button"
           class="navbar__mobile-info-button"
@@ -470,12 +471,12 @@ async function logout() {
           <UButton
             color="neutral"
             variant="ghost"
-            class="navbar__control navbar__desktop-control"
+            square
+            class="navbar__control"
             :aria-label="t('nav.language')"
+            :title="currentLocaleName"
           >
             <UIcon name="i-lucide-globe" class="size-4" aria-hidden="true" />
-            <span class="navbar__control-label">{{ currentLocaleName }}</span>
-            <UIcon name="i-lucide-chevron-down" class="size-3.5" aria-hidden="true" />
           </UButton>
         </UDropdownMenu>
 
@@ -484,18 +485,21 @@ async function logout() {
             color="neutral"
             variant="ghost"
             square
-            class="navbar__control navbar__desktop-control"
+            class="navbar__control"
             :aria-label="themeToggleLabel"
             :aria-pressed="isDarkMode"
+            :title="themeToggleLabel"
             @click="toggleColorMode"
           >
             <UIcon :name="themeToggleIcon" class="size-4" aria-hidden="true" />
           </UButton>
           <template #fallback>
-            <span class="navbar__control-placeholder navbar__desktop-control" aria-hidden="true" />
+            <span class="navbar__control-placeholder" aria-hidden="true" />
           </template>
         </ClientOnly>
+      </div>
 
+      <div class="navbar__session">
         <template v-if="status === 'guest'">
           <NuxtLink
             :to="localePath('/login')"
@@ -536,7 +540,6 @@ async function logout() {
           </UButton>
         </UDropdownMenu>
         <span v-else class="navbar__session-placeholder" aria-hidden="true" />
-
       </div>
     </div>
 
@@ -587,7 +590,8 @@ async function logout() {
 .navbar__nav-link,
 .navbar__new-topic,
 .navbar__mobile-new-topic,
-.navbar__actions,
+.navbar__utility,
+.navbar__session,
 .navbar__auth-link {
   display: flex;
   align-items: center;
@@ -735,11 +739,18 @@ async function logout() {
   border-radius: 7px;
 }
 
-.navbar__actions {
-  min-width: 292px;
-  justify-content: flex-end;
+/* 工具按钮（语言 / 日夜 / 通知）与会话区分离，便于与右侧栏对齐 */
+.navbar__utility {
   flex-shrink: 0;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.navbar__session {
+  flex-shrink: 0;
+  justify-content: flex-end;
   gap: 6px;
+  min-width: 0;
 }
 
 .navbar__session-placeholder {
@@ -757,20 +768,15 @@ async function logout() {
 }
 
 .navbar__control {
+  width: 36px;
   color: #4b5563;
-}
-
-.navbar__control-label {
-  max-width: 96px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 13px;
 }
 
 .navbar__control-placeholder {
   width: 36px;
   height: 36px;
+  display: block;
+  flex: 0 0 36px;
 }
 
 .navbar__auth-link {
@@ -954,19 +960,26 @@ async function logout() {
   .navbar__search,
   .navbar__new-topic,
   .navbar__new-topic-placeholder,
-  .navbar__desktop-control,
   .navbar__auth-link {
     display: none;
   }
 
-  .navbar__actions {
+  .navbar__utility,
+  .navbar__session {
     min-width: 0;
+  }
+
+  .navbar__utility {
     margin-left: auto;
   }
 
   .navbar__session-placeholder {
     width: 40px;
     flex-basis: 40px;
+  }
+
+  .navbar__username {
+    display: none;
   }
 
   .navbar__mobile-shell-button,

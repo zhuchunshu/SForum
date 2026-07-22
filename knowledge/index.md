@@ -6,6 +6,25 @@ session archive.
 
 ## Latest Handoff
 
+- **2026-07-22 Default theme appearance + dark mode**
+  - Default theme L0 no longer hard-locks rose accent; follows site
+    `appearance.theme` (`--sf-accent*`) and `.dark` public surface tokens
+  - Handoff: `sessions/2026-07-22-default-theme-appearance-dark-mode-handoff.md`
+  - Module: `modules/frontend.md`
+
+- **2026-07-22 Topbar session align + locale/theme**
+  - User avatar/name column width matches right rail; language + day/night
+    toggles restored on public topbar
+  - Handoff: `sessions/2026-07-22-topbar-session-align-locale-theme-handoff.md`
+  - Module: `modules/frontend.md`
+
+- **2026-07-22 Topic detail navigation experience**
+  - Topic content no longer waits for client-side comment/category completion
+  - Core topic island is eager; global progress feedback and click-to-load reply editor added
+  - SSR still contains complete topic, comments, and navigation data
+  - Handoff: `sessions/2026-07-22-topic-detail-navigation-experience.md`
+  - Module: `modules/frontend.md`
+
 - **2026-07-22 Comment floor display**
   - Topic detail comment floor badges now show list positions (`#1`, `#2`, …)
     instead of database comment IDs

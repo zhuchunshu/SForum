@@ -57,8 +57,11 @@ describe('forum taxonomy helpers', () => {
     expect(page).not.toMatch(/post\s*\(\s*['`][^'`]*\/view/)
     expect(page).not.toContain('recordView')
     expect(page).not.toContain('postTopicView')
-    // M4：URL 含 id 时 topic+comments 并行；slug 路径 await topicAsync 复用详情（不二次 GET）。
-    expect(page).toContain('Promise.all([topicAsync, commentsAsync])')
+    // M4：URL 含 id 时 topic+comments 同步启动；客户端仅等待正文，SSR 保持完整评论输出。
+    expect(page).toContain('const commentsAsync = useAsyncData(')
+    expect(page).toContain('const topicResult = await topicAsync')
+    expect(page).toContain('if (import.meta.server)')
+    expect(page).toContain('Promise.all([commentsAsync, categoryGroupsAsync])')
     expect(page).toContain('urlTopicID')
     expect(page).toContain('await topicAsync')
   })

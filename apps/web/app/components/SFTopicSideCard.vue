@@ -138,9 +138,9 @@ async function runSidebarExtensionRoute(item: ForumTopicExtensionSidebarItem) {
       <h3>{{ t('topicDetail.side.participants') }}</h3>
       <div class="sf-topic-side-card__participants">
         <NuxtLink v-if="authorTo" :to="authorTo" :aria-label="authorName">
-          <SFAvatar :name="authorName" :avatar="topic.author?.avatar" size="md" />
+          <SFAvatar :name="authorName" :avatar="topic.author?.avatar" size="md" loading="eager" />
         </NuxtLink>
-        <SFAvatar v-else :name="authorName" :avatar="topic.author?.avatar" size="md" />
+        <SFAvatar v-else :name="authorName" :avatar="topic.author?.avatar" size="md" loading="eager" />
       </div>
     </div>
 

@@ -49,6 +49,7 @@ const replyMarkdown = ref('')
 const replySubmitting = ref(false)
 const replyError = ref('')
 const showReplyError = ref(false)
+const replyComposerOpen = ref(false)
 const showReplyEditor = computed(() => Boolean(topic.value && topic.value.status !== 'locked' && can(FORUM_PERMISSIONS.postCreate)))
 
 // 评论编辑/删除状态：同一时刻只允许一个内联编辑器或回复目标。
@@ -170,22 +171,31 @@ const commentsAsync = useAsyncData(
   },
   {
     default: () => emptyCommentList(),
+    // SSR 仍等待完整评论；客户端导航先提交正文，再由现有骨架承接评论加载。
+    lazy: true,
     // 翻页/视图切换；slug 路径下 topic id 从 0→N 时也会触发。
     watch: [() => topicAsync.data.value?.id ?? 0, commentQuery]
   }
 )
 
-const [
-  { data: topic, error: topicError },
-  { data: commentData, pending: commentsPending, error: commentsError, refresh: refreshComments }
-] = await Promise.all([topicAsync, commentsAsync])
-
 // 左栏分类导航（route 模式）：与首页共用 SFHomeNavigation，仅展示 API 目录数据。
-const { data: categoryGroups, pending: categoriesPending } = await useAsyncData(
+const categoryGroupsAsync = useAsyncData(
   'forum-topic-show-category-groups',
   () => forumApi.listCategoryGroups(),
-  { default: () => [] as ForumCategoryGroup[] }
+  {
+    default: () => [] as ForumCategoryGroup[],
+    lazy: true
+  }
 )
+
+// 初始 SSR 保持正文、评论和导航完整；客户端切页只让正文阻塞导航提交。
+const topicResult = await topicAsync
+if (import.meta.server) {
+  await Promise.all([commentsAsync, categoryGroupsAsync])
+}
+const { data: topic, error: topicError } = topicResult
+const { data: commentData, pending: commentsPending, error: commentsError, refresh: refreshComments } = commentsAsync
+const { data: categoryGroups, pending: categoriesPending } = categoryGroupsAsync
 const navCategories = computed(() => categoryGroups.value.flatMap((group) => group.categories || []))
 const navTotalTopics = computed(() => navCategories.value.reduce((sum, category) => sum + category.topicCount, 0))
 const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
@@ -267,6 +277,11 @@ const commentTotalPages = computed(() => Math.ceil(commentTotal.value / Math.max
 const commentFloorLabelsById = computed(() => new Map<number, string>(
   comments.value.map((comment, index) => [comment.id, commentFloorLabel(index, commentData.value)])
 ))
+const replyTarget = computed(() => replyingTo.value ? {
+  author: commentAuthorName(replyingTo.value),
+  href: `#comment-${replyingTo.value.id}`,
+  floorLabel: commentFloor(replyingTo.value)
+} : null)
 // E2.2：列表级评论扩展动作；requiresAuth 仅 UX 过滤，鉴权在扩展路由代理。
 const commentExtensionActions = computed(() => commentData.value?.extensionActions || [])
 const commentExtensionActionRunning = ref('')
@@ -533,6 +548,7 @@ async function submitReply(payload?: { markdown?: string; native?: unknown; text
     const created = await forumApi.createTopicComment(topic.value.id, content, replyingTo.value?.id)
     replyMarkdown.value = ''
     replyingTo.value = null
+    replyComposerOpen.value = false
     if (created.status === 'pending') {
       toast.add({ color: 'primary', icon: 'i-lucide-clock-3', title: t('topicDetail.replySubmittedForReview'), duration: 10000 })
     } else {
@@ -615,6 +631,7 @@ const replyingTo = ref<ForumComment | null>(null)
 function startReply(comment: ForumComment, includeQuote = false) {
   cancelEditComment()
   replyingTo.value = comment
+  replyComposerOpen.value = true
   if (includeQuote) {
     const quote = `> ${comment.content.excerpt}\n\n`
     replyMarkdown.value = replyMarkdown.value.startsWith(quote)
@@ -626,6 +643,7 @@ function startReply(comment: ForumComment, includeQuote = false) {
 
 function cancelReply() {
   replyingTo.value = null
+  replyComposerOpen.value = false
 }
 
 // D2：树视图截断后，用 ListCommentReplies 合并直系回复到本地树。
@@ -804,11 +822,13 @@ function scrollToElement(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
-function startTopLevelReply() {
+async function startTopLevelReply() {
   if (!showReplyEditor.value) {
     return
   }
   replyingTo.value = null
+  replyComposerOpen.value = true
+  await nextTick()
   scrollToElement('topic-reply-editor')
 }
 
@@ -1060,51 +1080,20 @@ async function submitReport() {
                     />
                   </div>
 
-                  <section v-if="showReplyEditor" id="topic-reply-editor" class="sforum-topic-comments__reply">
-                    <header class="sforum-topic-comments__reply-head">
-                      <SFAvatar
-                        v-if="reportUser"
-                        :name="replyActorName"
-                        :avatar="reportUser.avatar"
-                        size="sm"
-                      />
-                      <span>
-                        <strong>{{ t('topicDetail.replyTitle') }}</strong>
-                        <small v-if="replyActorName">{{ t('topicDetail.replyAs', { name: replyActorName }) }}</small>
-                      </span>
-                    </header>
-                    <div v-if="replyingTo" class="sforum-topic-comments__reply-target">
-                      <span>
-                        <UIcon name="i-lucide-corner-up-left" class="size-4" aria-hidden="true" />
-                        {{ t('topicDetail.replyingTo') }}
-                        <strong>@{{ commentAuthorName(replyingTo) }}</strong>
-                        <a v-if="commentFloor(replyingTo)" :href="`#comment-${replyingTo.id}`">{{ commentFloor(replyingTo) }}</a>
-                      </span>
-                      <button type="button" :aria-label="t('topicDetail.cancel')" @click="cancelReply">
-                        <UIcon name="i-lucide-x" class="size-4" aria-hidden="true" />
-                      </button>
-                    </div>
-                    <LazySFEditor
-                      v-model="replyMarkdown"
-                      compact
-                      :rows="5"
-                      :placeholder="t('topicDetail.replyPlaceholder')"
-                      :submit-label="replySubmitting ? t('topicDetail.submitting') : t('topicDetail.submitReply')"
-                      :cancel-label="t('topicDetail.cancel')"
-                      :support-label="t('topicDetail.markdownSupported')"
-                      :disabled="replySubmitting"
-                      @cancel="cancelReply"
-                      @submit="onReplyEditorSubmit"
-                    />
-                    <SFAlert
-                      v-if="showReplyError"
-                      variant="danger"
-                      :title="replyError"
-                      closable
-                      class="mt-3"
-                      @close="showReplyError = false"
-                    />
-                  </section>
+                  <SFTopicReplyComposer
+                    v-if="showReplyEditor"
+                    v-model="replyMarkdown"
+                    :open="replyComposerOpen"
+                    :actor-name="replyActorName"
+                    :avatar="reportUser?.avatar"
+                    :reply-target="replyTarget"
+                    :submitting="replySubmitting"
+                    :error="showReplyError ? replyError : ''"
+                    @open="startTopLevelReply"
+                    @cancel="cancelReply"
+                    @submit="onReplyEditorSubmit"
+                    @dismiss-error="showReplyError = false"
+                  />
 
                   <SFAlert
                     v-if="isLocked"

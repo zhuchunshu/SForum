@@ -74,11 +74,11 @@ function badgeHref(badge: ForumTopicExtensionBadge) {
 
     <div class="sf-topic-heading__byline">
       <NuxtLink v-if="authorTo" :to="authorTo" class="sf-topic-heading__author">
-        <SFAvatar :name="authorName" :avatar="topic.author?.avatar" size="sm" />
+        <SFAvatar :name="authorName" :avatar="topic.author?.avatar" size="sm" loading="eager" />
         <span>{{ authorName }}</span>
       </NuxtLink>
       <span v-else class="sf-topic-heading__author">
-        <SFAvatar :name="authorName" :avatar="topic.author?.avatar" size="sm" />
+        <SFAvatar :name="authorName" :avatar="topic.author?.avatar" size="sm" loading="eager" />
         <span>{{ authorName }}</span>
       </span>
 

@@ -9,6 +9,7 @@ func normalizeContribution(contribution ManifestContribution) ManifestContributi
 	contribution.Point = strings.TrimSpace(contribution.Point)
 	contribution.ID = NormalizeID(contribution.ID)
 	contribution.Icon = strings.TrimSpace(contribution.Icon)
+	contribution.EnabledBySetting = strings.TrimSpace(contribution.EnabledBySetting)
 	if contribution.Label != nil {
 		labels := make(map[string]string, len(contribution.Label))
 		for locale, value := range contribution.Label {
@@ -50,6 +51,11 @@ func validateContributions(manifest Manifest, definitions []ContributionPointDef
 		points[definition.ID] = definition
 	}
 
+	settingTypes := map[string]string{}
+	for _, setting := range manifest.Settings {
+		settingTypes[setting.Key] = setting.Type
+	}
+
 	seen := map[string]bool{}
 	for _, contribution := range manifest.Contributions {
 		definition, known := points[contribution.Point]
@@ -75,11 +81,51 @@ func validateContributions(manifest Manifest, definitions []ContributionPointDef
 				return ErrInvalidManifest
 			}
 		}
+		// enabledBySetting 必须指向本扩展声明的 boolean 设置键。
+		if gate := strings.TrimSpace(contribution.EnabledBySetting); gate != "" {
+			settingType, ok := settingTypes[gate]
+			if !ok || settingType != "boolean" {
+				return ErrInvalidManifest
+			}
+		}
 		if err := validateDescriptorContributionPayload(definition.PayloadType, contribution.Payload); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// ContributionEnabledBySetting 解析「贡献是否因设置门控而生效」。
+// key 为空时始终生效；否则用已存值，缺省回落到 settings schema 的 default。
+func ContributionEnabledBySetting(manifest Manifest, stored map[string]string, key string) bool {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return true
+	}
+	value := ""
+	if stored != nil {
+		if raw, ok := stored[key]; ok {
+			value = strings.TrimSpace(raw)
+		}
+	}
+	if value == "" {
+		for _, setting := range manifest.Settings {
+			if setting.Key == key {
+				value = strings.TrimSpace(setting.Default)
+				break
+			}
+		}
+	}
+	return settingTruthy(value)
+}
+
+func settingTruthy(raw string) bool {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "true", "1", "yes", "on", "y":
+		return true
+	default:
+		return false
+	}
 }
 
 func allowedContributionIcon(icon string) bool {

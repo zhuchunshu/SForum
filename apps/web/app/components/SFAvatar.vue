@@ -5,6 +5,7 @@ import { forumAvatarToneClass } from '~/utils/forumListPresentation'
 type AvatarSize = 'list' | 'sm' | 'md' | 'lg'
 type AvatarShape = 'circle' | 'square'
 type AvatarStatus = 'online' | 'idle' | 'offline'
+type AvatarLoading = 'eager' | 'lazy'
 type AvatarView = {
   kind: 'uploaded' | 'initials' | 'gravatar' | 'static'
   url: string
@@ -20,13 +21,15 @@ const props = withDefaults(defineProps<{
   size?: AvatarSize
   shape?: AvatarShape
   status?: AvatarStatus
+  loading?: AvatarLoading
 }>(), {
   name: '匿名用户',
   src: undefined,
   alt: undefined,
   size: 'md',
   shape: 'circle',
-  status: undefined
+  status: undefined,
+  loading: 'lazy'
 })
 
 // NuxtImg width/height 像素预设（list 与视觉 size-9 对齐）
@@ -121,7 +124,7 @@ watch(imageSrc, resetImageFailure)
       :alt="imageAlt"
       :width="sizePixels[size]"
       :height="sizePixels[size]"
-      loading="lazy"
+      :loading="loading"
       decoding="async"
       referrerpolicy="no-referrer"
       @error="imageFailed = true"
@@ -135,7 +138,7 @@ watch(imageSrc, resetImageFailure)
       :height="sizePixels[size]"
       :sizes="`${sizePixels[size]}px`"
       format="webp"
-      loading="lazy"
+      :loading="loading"
       decoding="async"
       @error="imageFailed = true"
     />

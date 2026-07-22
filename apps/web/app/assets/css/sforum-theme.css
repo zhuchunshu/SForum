@@ -1,6 +1,5 @@
-/* 标题衬线与 demo 一致；无外网时回退 Songti SC / Source Han Serif SC。 */
-@import url("https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700&display=swap");
-
+/* 标题衬线：系统回退栈（Songti SC / Source Han Serif SC）。
+ * 宿主基线与主题 L0 一致，不拉外部 Google Fonts。 */
 @font-face {
   font-family: "DM Sans";
   src: url("/api/v1/site/theme-assets/sforum.default-theme/assets/fonts/DM-Sans-variable.ttf") format("truetype-variations");
@@ -276,42 +275,28 @@
 }
 
 /* 默认主题的 Navbar 与页面是兄弟节点，必须从模板根节点限定作用域。
- * 同时锁浅色语义 token，避免 html.dark 污染内容页（浅字 / 深色 empty）。 */
+ * 表面色跟随 :root / .dark 的 --sf-public-*；主色跟随站点 appearance。 */
 .sf-theme-template[data-extension-id="sforum.default-theme"],
 .sf-theme-template[data-extension-id="sforum.default-theme"] .sforum-home,
 .sf-theme-template[data-extension-id="sforum.default-theme"] .sforum-topic-page {
-  --sf-public-bg: #fff;
-  --sf-public-surface: #fff;
-  --sf-public-surface-muted: #f5f5f8;
-  --sf-public-border: #e9e8ed;
-  --sf-public-border-strong: #d8d6df;
-  --sf-public-text: #25252b;
-  --sf-public-text-secondary: #676773;
-  --sf-public-text-muted: #a0a0aa;
-  --sf-public-text-faint: #a0a0aa;
-  --sf-public-row-hover: #f5f5f8;
-  --sf-accent: #d94763;
-  --sf-accent-hover: #b82d48;
-  --sf-accent-soft: #fff0f3;
-  --sf-accent-soft-border: #f3bdc7;
-  --sf-surface: #ffffff;
-  --sf-card: #ffffff;
-  --sf-muted: #f5f5f8;
-  --sf-fg: #25252b;
-  --sf-fg-secondary: #676773;
-  --sf-fg-tertiary: #a0a0aa;
-  --sf-border: #e9e8ed;
-  --sf-border-light: #f0eff3;
-  --tw-prose-body: #404751;
-  --tw-prose-headings: #25252b;
-  --tw-prose-invert-body: #404751;
-  --tw-prose-invert-headings: #25252b;
-  color-scheme: light;
-  color: #25252b;
+  --sf-surface: var(--sf-public-bg);
+  --sf-card: var(--sf-public-surface);
+  --sf-muted: var(--sf-public-surface-muted);
+  --sf-fg: var(--sf-public-text);
+  --sf-fg-secondary: var(--sf-public-text-secondary);
+  --sf-fg-tertiary: var(--sf-public-text-muted);
+  --sf-border: var(--sf-public-border);
+  --sf-border-light: var(--sf-public-border);
+  --tw-prose-body: var(--sf-public-text-secondary);
+  --tw-prose-headings: var(--sf-public-text);
+  --tw-prose-invert-body: var(--sf-public-text-secondary);
+  --tw-prose-invert-headings: var(--sf-public-text);
+  color-scheme: light dark;
+  color: var(--sf-public-text);
 }
 
 .sf-theme-template[data-extension-id="sforum.default-theme"] {
-  background: #fff;
+  background: var(--sf-public-bg);
   font-family: "DM Sans", "Noto Sans SC", system-ui, sans-serif !important;
   font-synthesis: none;
 }
@@ -328,10 +313,10 @@
   box-sizing: border-box;
   height: 58px;
   min-height: 58px;
-  border-bottom-color: #e9e8ed !important;
-  background: rgb(255 255 255 / 96%) !important;
-  color: #25252b !important;
-  box-shadow: 0 1px 0 rgb(32 40 50 / 2%) !important;
+  border-bottom-color: var(--sf-public-border) !important;
+  background: color-mix(in srgb, var(--sf-public-surface) 96%, transparent) !important;
+  color: var(--sf-public-text) !important;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--sf-public-text) 4%, transparent) !important;
   backdrop-filter: blur(16px);
 }
 
@@ -341,11 +326,11 @@
 .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__user-trigger,
 .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__mobile-shell-button,
 .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__mobile-info-button {
-  color: #676773 !important;
+  color: var(--sf-public-text-secondary) !important;
 }
 
 .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__logo {
-  color: #25252b !important;
+  color: var(--sf-public-text) !important;
 }
 
 /* demo top-nav：active 为正文色 + 底边下划线，不是强调色文字 */
@@ -356,7 +341,7 @@
 .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__nav-link.is-active,
 .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__nav-link:hover {
   background: transparent !important;
-  color: #25252b !important;
+  color: var(--sf-public-text) !important;
 }
 
 .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__nav-link.is-active::after {
@@ -366,17 +351,17 @@
   bottom: 0;
   left: 0;
   height: 2px;
-  background: #d94763;
+  background: var(--sf-accent);
 }
 
 .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__logo-mark {
   width: 30px;
   height: 30px;
   flex-basis: 30px;
-  border-color: #d94763 !important;
+  border-color: var(--sf-accent) !important;
   border-radius: 6px;
-  background: #d94763 !important;
-  color: #fff !important;
+  background: var(--sf-accent) !important;
+  color: var(--sf-accent-contrast, #fff) !important;
 }
 
 .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__search .sf-search__box,
@@ -385,29 +370,39 @@
   min-height: 36px !important;
   border: 0;
   border-radius: 4px;
-  background: #f5f5f8 !important;
-  color: #25252b !important;
+  background: var(--sf-public-surface-muted) !important;
+  color: var(--sf-public-text) !important;
 }
 
 .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__new-topic,
 .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__mobile-compose {
   border-radius: 4px;
-  background: #d94763 !important;
-  color: #fff !important;
+  background: var(--sf-accent) !important;
+  color: var(--sf-accent-contrast, #fff) !important;
 }
 
 @media (min-width: 981px) {
+  /*
+   * 顶栏与页面三栏同轨：
+   * logo 列 = 左栏宽；session 列 = 右栏宽；中间为导航/搜索/发帖/工具。
+   * 零外边距，列内 padding 对齐侧栏内容内边距。
+   */
   .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__inner {
     display: grid;
     min-height: 58px;
     grid-template-columns:
-      230px
-      minmax(180px, 1fr)
-      340px
-      minmax(140px, 176px)
-      minmax(270px, 1.6fr) !important;
-    gap: 12px;
-    padding: 0 28px;
+      var(--sf-public-sidebar-width, 230px)
+      auto
+      minmax(160px, 1fr)
+      auto
+      auto
+      var(--sf-public-right-rail-width, 270px) !important;
+    gap: 10px;
+    padding: 0;
+  }
+
+  .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__logo {
+    padding-left: 28px;
   }
 
   .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__desktop-nav {
@@ -422,16 +417,22 @@
     width: 100%;
   }
 
-  .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__desktop-control {
-    display: none;
+  .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__utility {
+    justify-content: flex-end;
+    gap: 2px;
   }
 
-  .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__actions:has(.navbar__user-trigger) {
-    display: grid;
+  /* 会话列与右栏同宽，右内边距与右栏 content padding 对齐 */
+  .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__session {
+    box-sizing: border-box;
     width: 100%;
     min-width: 0;
-    grid-template-columns: 136px auto minmax(0, 1fr);
-    justify-content: stretch;
+    justify-content: flex-end;
+    padding: 0 28px 0 12px;
+  }
+
+  .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__user-trigger {
+    max-width: 100%;
   }
 }
 
@@ -457,7 +458,7 @@
   .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__mobile-search-panel {
     height: 52px;
     border-top: 0;
-    background: #fff !important;
+    background: var(--sf-public-surface) !important;
   }
 
   .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__mobile-search-inner {
@@ -479,7 +480,7 @@
 
   .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__logo-text {
     display: block;
-    color: #25252b;
+    color: var(--sf-public-text);
     font-size: 14px;
   }
 
