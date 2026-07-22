@@ -1902,6 +1902,7 @@
       "previewDenyOverrides": "直接拒绝",
       "previewNoOverrides": "无权限例外",
       "previewPermissionCount": "{count} 项",
+      "previewListRange": "第 {start}–{end} 条 / 共 {total} 条",
       "close": "关闭",
       "empty": "还没有可显示的用户。",
       "loadFailed": "用户加载失败。",

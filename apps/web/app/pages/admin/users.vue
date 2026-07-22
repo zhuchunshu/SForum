@@ -2,6 +2,7 @@
 import SFAdminSurfaceOutlet from '~/components/admin/SFAdminSurfaceOutlet.vue'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
+import { paginateItems } from '~/utils/adminExtensions'
 import type {
   AdminUserDetail,
   AdminUserList,
@@ -21,6 +22,10 @@ defineOptions({
 })
 
 const DEFAULT_PER_PAGE = 20
+// 预览弹层内列表分页：会话卡片较占高，权限 chip 可更密。
+const PREVIEW_SESSION_PAGE_SIZE = 5
+const PREVIEW_AUTH_EVENT_PAGE_SIZE = 10
+const PREVIEW_PERMISSION_PAGE_SIZE = 24
 
 const { t } = useI18n()
 const { request } = useApiClient()
@@ -42,6 +47,9 @@ const previewUser = ref<AdminUserDetail | null>(null)
 const previewTargetId = ref<number | null>(null)
 const previewOpen = ref(false)
 const previewPending = ref(false)
+const previewSessionsPage = ref(1)
+const previewAuthEventsPage = ref(1)
+const previewPermissionsPage = ref(1)
 const selectedRoleKeys = ref<string[]>([])
 const allowOverrides = ref<string[]>([])
 const denyOverrides = ref<string[]>([])
@@ -77,6 +85,27 @@ onMounted(() => {
 })
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / Math.max(perPage.value, 1))))
+
+const previewSessionsPageInfo = computed(() =>
+  paginateItems(previewUser.value?.sessions || [], previewSessionsPage.value, PREVIEW_SESSION_PAGE_SIZE)
+)
+const previewAuthEventsPageInfo = computed(() =>
+  paginateItems(previewUser.value?.recentAuthEvents || [], previewAuthEventsPage.value, PREVIEW_AUTH_EVENT_PAGE_SIZE)
+)
+const previewPermissionsPageInfo = computed(() =>
+  paginateItems(previewUser.value?.permissions || [], previewPermissionsPage.value, PREVIEW_PERMISSION_PAGE_SIZE)
+)
+
+// 分页计算会夹紧页码；同步回 ref，避免删减数据后落在空页。
+watch(() => previewSessionsPageInfo.value.page, (next) => {
+  previewSessionsPage.value = next
+})
+watch(() => previewAuthEventsPageInfo.value.page, (next) => {
+  previewAuthEventsPage.value = next
+})
+watch(() => previewPermissionsPageInfo.value.page, (next) => {
+  previewPermissionsPage.value = next
+})
 
 const userSurfaceResources = computed(() => users.value.map(user => ({
   id: String(user.id),
@@ -293,17 +322,27 @@ async function openUser(user: AdminUserSummary) {
   }
 }
 
+function resetPreviewListPages() {
+  previewSessionsPage.value = 1
+  previewAuthEventsPage.value = 1
+  previewPermissionsPage.value = 1
+}
+
 async function openUserPreview(user: AdminUserSummary) {
   previewPending.value = true
   previewTargetId.value = user.id
   previewOpen.value = true
   previewUser.value = null
+  resetPreviewListPages()
   errorMessage.value = ''
   try {
     previewUser.value = await request<AdminUserDetail>(`/users/${user.id}`)
+    // 加载完成后按实际条数夹紧页码（通常仍是第 1 页）。
+    resetPreviewListPages()
   } catch (error) {
     previewOpen.value = false
     previewTargetId.value = null
+    resetPreviewListPages()
     showError(apiErrorMessage(error) || t('admin.users.previewLoadFailed'))
   } finally {
     previewPending.value = false
@@ -314,6 +353,7 @@ function closeUserPreview() {
   previewOpen.value = false
   previewUser.value = null
   previewTargetId.value = null
+  resetPreviewListPages()
 }
 
 async function manageFromPreview() {
@@ -944,20 +984,29 @@ watch([status, roleKey], () => {
             </section>
 
             <section class="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/60">
-              <div class="mb-3 flex items-center justify-between gap-2">
+              <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <h4 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
                   {{ t('admin.users.previewSectionSessions') }}
                 </h4>
-                <UBadge color="neutral" variant="soft">
-                  {{ previewUser.sessions?.length || 0 }}
-                </UBadge>
+                <div class="flex flex-wrap items-center gap-2">
+                  <UBadge color="neutral" variant="soft">
+                    {{ previewSessionsPageInfo.total }}
+                  </UBadge>
+                  <p v-if="previewSessionsPageInfo.total > 0" class="text-xs text-slate-500 dark:text-zinc-400">
+                    {{ t('admin.users.previewListRange', {
+                      start: previewSessionsPageInfo.start,
+                      end: previewSessionsPageInfo.end,
+                      total: previewSessionsPageInfo.total
+                    }) }}
+                  </p>
+                </div>
               </div>
-              <p v-if="!previewUser.sessions?.length" class="text-sm text-slate-500 dark:text-zinc-400">
+              <p v-if="!previewSessionsPageInfo.total" class="text-sm text-slate-500 dark:text-zinc-400">
                 {{ t('admin.users.previewNoSessions') }}
               </p>
               <div v-else class="space-y-3">
                 <article
-                  v-for="session in previewUser.sessions"
+                  v-for="session in previewSessionsPageInfo.items"
                   :key="session.id"
                   class="rounded-md border border-slate-200 bg-white p-3 text-sm dark:border-zinc-800 dark:bg-zinc-950"
                 >
@@ -997,45 +1046,92 @@ watch([status, roleKey], () => {
                     </div>
                   </dl>
                 </article>
+                <div
+                  v-if="previewSessionsPageInfo.totalPages > 1"
+                  class="flex flex-col gap-2 border-t border-slate-200 pt-3 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800"
+                >
+                  <p class="text-xs text-slate-500 dark:text-zinc-400">
+                    {{ t('admin.users.pagination', {
+                      page: previewSessionsPageInfo.page,
+                      pages: previewSessionsPageInfo.totalPages
+                    }) }}
+                  </p>
+                  <UPagination
+                    v-model:page="previewSessionsPage"
+                    :total="previewSessionsPageInfo.total"
+                    :items-per-page="PREVIEW_SESSION_PAGE_SIZE"
+                    size="sm"
+                    class="justify-end"
+                  />
+                </div>
               </div>
             </section>
 
             <section class="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/60">
-              <div class="mb-3 flex items-center justify-between gap-2">
+              <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <h4 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
                   {{ t('admin.users.previewSectionAuthEvents') }}
                 </h4>
-                <UBadge color="neutral" variant="soft">
-                  {{ previewUser.recentAuthEvents?.length || 0 }}
-                </UBadge>
+                <div class="flex flex-wrap items-center gap-2">
+                  <UBadge color="neutral" variant="soft">
+                    {{ previewAuthEventsPageInfo.total }}
+                  </UBadge>
+                  <p v-if="previewAuthEventsPageInfo.total > 0" class="text-xs text-slate-500 dark:text-zinc-400">
+                    {{ t('admin.users.previewListRange', {
+                      start: previewAuthEventsPageInfo.start,
+                      end: previewAuthEventsPageInfo.end,
+                      total: previewAuthEventsPageInfo.total
+                    }) }}
+                  </p>
+                </div>
               </div>
-              <p v-if="!previewUser.recentAuthEvents?.length" class="text-sm text-slate-500 dark:text-zinc-400">
+              <p v-if="!previewAuthEventsPageInfo.total" class="text-sm text-slate-500 dark:text-zinc-400">
                 {{ t('admin.users.previewNoAuthEvents') }}
               </p>
-              <div v-else class="overflow-x-auto">
-                <table class="min-w-full text-left text-sm">
-                  <thead class="text-xs text-slate-500">
-                    <tr>
-                      <th class="px-2 py-2">{{ t('admin.users.previewAuthAction') }}</th>
-                      <th class="px-2 py-2">{{ t('admin.users.previewAuthIP') }}</th>
-                      <th class="px-2 py-2">{{ t('admin.users.previewAuthTime') }}</th>
-                      <th class="px-2 py-2">{{ t('admin.users.previewAuthUA') }}</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-slate-200 dark:divide-zinc-800">
-                    <tr v-for="event in previewUser.recentAuthEvents" :key="event.id">
-                      <td class="px-2 py-2 align-top">
-                        <UBadge color="neutral" variant="soft">{{ authActionLabel(event.action) }}</UBadge>
-                        <p v-if="event.sessionHash" class="mt-1 font-mono text-[10px] text-slate-400">
-                          {{ t('admin.users.previewAuthSessionHash') }}: {{ event.sessionHash.slice(0, 16) }}…
-                        </p>
-                      </td>
-                      <td class="px-2 py-2 align-top font-mono text-xs">{{ displayOrDash(event.ipAddress) }}</td>
-                      <td class="px-2 py-2 align-top text-xs tabular-nums">{{ formatDateTime(event.createdAt) }}</td>
-                      <td class="px-2 py-2 align-top break-all font-mono text-[11px]">{{ displayOrDash(event.userAgent) }}</td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div v-else class="space-y-3">
+                <div class="overflow-x-auto">
+                  <table class="min-w-full text-left text-sm">
+                    <thead class="text-xs text-slate-500">
+                      <tr>
+                        <th class="px-2 py-2">{{ t('admin.users.previewAuthAction') }}</th>
+                        <th class="px-2 py-2">{{ t('admin.users.previewAuthIP') }}</th>
+                        <th class="px-2 py-2">{{ t('admin.users.previewAuthTime') }}</th>
+                        <th class="px-2 py-2">{{ t('admin.users.previewAuthUA') }}</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200 dark:divide-zinc-800">
+                      <tr v-for="event in previewAuthEventsPageInfo.items" :key="event.id">
+                        <td class="px-2 py-2 align-top">
+                          <UBadge color="neutral" variant="soft">{{ authActionLabel(event.action) }}</UBadge>
+                          <p v-if="event.sessionHash" class="mt-1 font-mono text-[10px] text-slate-400">
+                            {{ t('admin.users.previewAuthSessionHash') }}: {{ event.sessionHash.slice(0, 16) }}…
+                          </p>
+                        </td>
+                        <td class="px-2 py-2 align-top font-mono text-xs">{{ displayOrDash(event.ipAddress) }}</td>
+                        <td class="px-2 py-2 align-top text-xs tabular-nums">{{ formatDateTime(event.createdAt) }}</td>
+                        <td class="px-2 py-2 align-top break-all font-mono text-[11px]">{{ displayOrDash(event.userAgent) }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div
+                  v-if="previewAuthEventsPageInfo.totalPages > 1"
+                  class="flex flex-col gap-2 border-t border-slate-200 pt-3 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800"
+                >
+                  <p class="text-xs text-slate-500 dark:text-zinc-400">
+                    {{ t('admin.users.pagination', {
+                      page: previewAuthEventsPageInfo.page,
+                      pages: previewAuthEventsPageInfo.totalPages
+                    }) }}
+                  </p>
+                  <UPagination
+                    v-model:page="previewAuthEventsPage"
+                    :total="previewAuthEventsPageInfo.total"
+                    :items-per-page="PREVIEW_AUTH_EVENT_PAGE_SIZE"
+                    size="sm"
+                    class="justify-end"
+                  />
+                </div>
               </div>
             </section>
 
@@ -1056,22 +1152,54 @@ watch([status, roleKey], () => {
             </section>
 
             <section class="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/60">
-              <div class="mb-3 flex items-center justify-between gap-2">
+              <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <h4 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
                   {{ t('admin.users.previewSectionPermissions') }}
                 </h4>
-                <UBadge color="neutral" variant="soft">
-                  {{ t('admin.users.previewPermissionCount', { count: previewUser.permissions?.length || 0 }) }}
-                </UBadge>
+                <div class="flex flex-wrap items-center gap-2">
+                  <UBadge color="neutral" variant="soft">
+                    {{ t('admin.users.previewPermissionCount', { count: previewPermissionsPageInfo.total }) }}
+                  </UBadge>
+                  <p v-if="previewPermissionsPageInfo.total > 0" class="text-xs text-slate-500 dark:text-zinc-400">
+                    {{ t('admin.users.previewListRange', {
+                      start: previewPermissionsPageInfo.start,
+                      end: previewPermissionsPageInfo.end,
+                      total: previewPermissionsPageInfo.total
+                    }) }}
+                  </p>
+                </div>
               </div>
-              <div class="flex max-h-40 flex-wrap gap-1.5 overflow-y-auto">
-                <code
-                  v-for="key in previewUser.permissions"
-                  :key="key"
-                  class="rounded bg-white px-1.5 py-0.5 text-[11px] text-slate-700 dark:bg-zinc-950 dark:text-zinc-300"
+              <div v-if="!previewPermissionsPageInfo.total" class="text-sm text-slate-500 dark:text-zinc-400">
+                {{ t('admin.users.previewEmptyValue') }}
+              </div>
+              <div v-else class="space-y-3">
+                <div class="flex flex-wrap gap-1.5">
+                  <code
+                    v-for="key in previewPermissionsPageInfo.items"
+                    :key="key"
+                    class="rounded bg-white px-1.5 py-0.5 text-[11px] text-slate-700 dark:bg-zinc-950 dark:text-zinc-300"
+                  >
+                    {{ key }}
+                  </code>
+                </div>
+                <div
+                  v-if="previewPermissionsPageInfo.totalPages > 1"
+                  class="flex flex-col gap-2 border-t border-slate-200 pt-3 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800"
                 >
-                  {{ key }}
-                </code>
+                  <p class="text-xs text-slate-500 dark:text-zinc-400">
+                    {{ t('admin.users.pagination', {
+                      page: previewPermissionsPageInfo.page,
+                      pages: previewPermissionsPageInfo.totalPages
+                    }) }}
+                  </p>
+                  <UPagination
+                    v-model:page="previewPermissionsPage"
+                    :total="previewPermissionsPageInfo.total"
+                    :items-per-page="PREVIEW_PERMISSION_PAGE_SIZE"
+                    size="sm"
+                    class="justify-end"
+                  />
+                </div>
               </div>
             </section>
 

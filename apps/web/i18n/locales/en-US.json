@@ -1902,6 +1902,7 @@
       "previewDenyOverrides": "Direct deny",
       "previewNoOverrides": "No exceptions",
       "previewPermissionCount": "{count} items",
+      "previewListRange": "{start}–{end} of {total}",
       "close": "Close",
       "empty": "No users to show yet.",
       "loadFailed": "Users could not be loaded.",
