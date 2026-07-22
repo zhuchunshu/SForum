@@ -1,7 +1,8 @@
 # Theme-Defined System Error Pages - Task Book
 
-Status: **ready** - approved implementation checklist; start code changes only
-after the overlapping current-HEAD regression work is closed or handed off  
+Status: **blocked** — M0 read-only audit complete; M1+ code is blocked until
+current-HEAD regression M7 completes or overlapping files are explicitly
+handed off  
 Date: 2026-07-22  
 Goal: let the selected public theme own the L1 presentation of common system
 error pages while Host retains status, safe content, behavior, SEO, and an
@@ -246,23 +247,148 @@ details and required home action.
 
 ### Tasks
 
-- [ ] Confirm the current-HEAD regression plan has released the overlapping
+- [x] Confirm the current-HEAD regression plan has released the overlapping
       files; record current branch, HEAD, and `git status --short`.
-- [ ] Read the actual error flow from `createError`/middleware through
+- [x] Read the actual error flow from `createError`/middleware through
       `error.vue`, `SFPageOutlet`, `/pages/resolve`, compiled theme snapshot,
       render-output parsing, and Core fallback.
-- [ ] Enumerate all current browser-facing error producers and distinguish
+- [x] Enumerate all current browser-facing error producers and distinguish
       redirect/inline/API-envelope behavior from full-page Nuxt errors.
-- [ ] Measure current 404 resolver/fallback timing and verify whether active L0
+- [x] Measure current 404 resolver/fallback timing and verify whether active L0
       CSS links are present in error SSR HTML.
-- [ ] Confirm no mature library is needed and record the framework-native choice.
+- [x] Confirm no mature library is needed and record the framework-native choice.
 - [ ] Add an ADR for D1-D7, including the theme-only replacement boundary and
-      5xx best-effort fallback rationale.
-- [ ] Freeze the Page ID/status matrix, virtual-page representation, component
-      IDs, and safe ViewModel fields before implementation.
+      5xx best-effort fallback rationale. **Deferred:** writing ADR is M0
+      close-out once M1+ may start; frozen D1–D7 remain implementation law.
+- [x] Freeze the Page ID/status matrix, virtual-page representation, component
+      IDs, and safe ViewModel fields before implementation (recorded below).
 
-**Exit:** no production behavior change; ADR accepted; exact file/contract map
-and baseline evidence recorded in this plan or the first implementation PR.
+**Exit:** partial — production code unchanged; baseline + file/contract map
+recorded. ADR and M0 full exit remain open until overlapping ownership is
+released and implementation may start.
+
+### M0 actual verification (2026-07-22)
+
+#### Dependency gate (blocks M1+)
+
+| Check | Result |
+| --- | --- |
+| Regression plan status | **active**; M0–M6 checked with evidence; **M7 unchecked** |
+| Regression completion handoff | **Missing** — session still says “start M0… execute M1–M7” |
+| Explicit file handoff to this book | **None** |
+| Worktree | `main` @ `1011e97c7`, `ahead 6` of `origin/main`, **clean** |
+| Action taken | **Read-only M0 only**; no shared production files modified |
+
+Shared / high-risk overlap (touched in commits ahead of `origin/main` and/or
+owned by regression M1–M3):
+
+- `apps/web/app/error.vue`
+- `apps/web/app/components/SFPageOutlet.vue`
+- `apps/web/app/composables/useActiveThemeSettings.ts`
+- `apps/web/tests/pageOutlet.test.ts`
+- `apps/api/app/Support/Pages/catalog.go`
+- `apps/api/app/Support/Pages/route_matcher.go`
+- `apps/api/app/Support/Pages/viewmodel_factory.go`
+- `apps/api/app/Models/PageViewModels/source.go`
+- `apps/api/app/Support/ThemeCompiler/viewmodel_registry.go`
+
+Also consumed by this book (currently clean in ahead-range, still shared
+runtime surface — do not edit until gate opens):
+
+- `apps/web/app/components/SFErrorPageContent.vue`
+- `apps/web/app/utils/errorPage.ts`
+- `apps/web/app/utils/pageResolve.ts`
+- `apps/web/app/components/SFThemeTemplate.vue`
+- `contracts/openapi/schemas/pages.yaml`
+- built-in theme `not-found.html` / `theme.json` page contributions
+
+#### Error flow (as implemented today)
+
+1. Producers call Nuxt `createError` / `showError`, or Nuxt synthesizes 404 for
+   unmatched routes.
+2. `apps/web/app/error.vue` is the only browser error entrypoint.
+3. **Only status 404** routes through `SFPageOutlet page="system.not_found"`;
+   all other statuses render `SFErrorPageContent` alone (Host full page).
+4. `SFPageOutlet` → `useAsyncData` → `GET /pages/resolve?id=&path=&query=` with
+   `PAGE_RESOLVE_TIMEOUT_MS` **5000 (dev) / 8000 (prod)** and **maxAttempts=2**.
+5. Healthy theme: `provider=sforum.default-theme`, `fallback=false`,
+   `templatePath=templates/not-found.html`, `renderOutput` islands.
+6. Theme L1 is a shell + whole-page Host island `sf-not-found-page` →
+   `system.component.not_found` → default slot (`SFErrorPageContent`).
+7. Transport/resolve failure: local `coreResolveFallback` + slot; no second
+   Page Registry call from the fallback payload helper itself.
+8. Host content/actions/SEO live in `utils/errorPage.ts` +
+   `SFErrorPageContent.vue` (`noindex` via `useSForumSeo`).
+
+#### Browser-facing error producers
+
+| Kind | Examples | Full-page Nuxt error? |
+| --- | --- | --- |
+| Unknown public URL | Nuxt unmatched route → 404 | Yes → themed `system.not_found` |
+| Registry catch-all 404/403 | `pages/[...sfRegistryPage].vue`, `pages/x/[...path].vue` | Yes |
+| Missing taxonomy | `SFTagShowPage`, `SFCategoryShowPage`, `SFTagIndexPage` | Yes 404 |
+| Dev gallery | `pages/components.vue` `showError(404)` | Yes |
+| Auth 401 | guest/auth middleware login redirect | **No** themed error page |
+| Admin inline errors | `admin/users.vue` local `showError(message)` | **No** (inline UI) |
+| API JSON 4xx/5xx | Fiber envelopes, write rate-limit **429** | **No** browser page |
+| Nitro/proxy | `pluginRouteProxy` 503, icon collection 404 | Server/API path, not product error page |
+
+`errorPage.ts` maps 403 / 404 / 500 / 503 (+ generic). **No 429** content key
+yet. **502/504** fall through generic Host content if they ever reach Nuxt.
+
+#### Timing and SSR baseline (local, 2026-07-22)
+
+Environment: Nuxt on `:3000` (user-owned), API on `:8081`.
+
+| Probe | Result |
+| --- | --- |
+| `GET /api/v1/pages/resolve?id=system.not_found&path=/…` | **~15 ms**, HTTP 200, `provider=sforum.default-theme`, `fallback=false` |
+| `GET /this-path-…` with `Accept: text/html` | **HTTP 404**, **~240–330 ms**, ~128 KB HTML |
+| Status preserved | Yes (`404 Page not found`) |
+| Themed L1 markers | `data-provider="sforum.default-theme"`, `sf-page--not-found`, `data-theme-owned="presentation"`, Host `sforum-error-page` inside island |
+| `Cache-Control` | `no-cache` (not yet `no-store`) |
+| Robots | header `x-robots-tag: noindex, nofollow`; meta `noindex,follow` (meta not `nofollow`) |
+| Active L0 `data-sforum-theme-skin` links | **Absent** on both homepage and 404 HTML in this probe (skin fetch not visible in SSR output) |
+| Host/core CSS | Present (`sforum-theme.css`, component scoped CSS, etc.) |
+
+**Timeout freeze candidate for M3:** production system-error resolve budget
+**≤ 1000 ms**, **single attempt**, no retry — current ordinary-page budget
+(5–8 s, 2 attempts) is intentionally too large for D5.
+
+#### Library survey
+
+No new dependency. Reuse Nuxt error boundary, Page Registry L0/L1, Go
+`html/template` compiler, existing Host islands. Do not `bun add` / `go get`
+for this feature.
+
+#### Frozen contract map (implementation law when unblocked)
+
+| Page id | Contract | Status family | Access |
+| --- | --- | --- | --- |
+| `system.forbidden` | `sforum.page.forbidden@1` | 403 | public virtual |
+| `system.not_found` | `sforum.page.not_found@1` | 404 | public virtual (preserve) |
+| `system.rate_limited` | `sforum.page.rate_limited@1` | 429 | public virtual |
+| `system.server_error` | `sforum.page.server_error@1` | 500, 502, 503, 504 | public virtual |
+
+- `PageDefinition.Virtual bool` (OpenAPI + admin typing); generalize
+  `MatchCorePagePath` off the hard-coded `system.not_found` exception.
+- Host islands (reviewed): `system.component.error_details`,
+  `system.component.error_actions` (replace whole-page
+  `system.component.not_found` / `sf-not-found-page` on built-in templates).
+- Safe ViewModel fields only: status code, localized public title/message keys
+  or strings, robots `noindex,nofollow`. No stack, path secrets, extension IDs,
+  permission reasons, or upstream payloads.
+- Theme-only replace; plugins rejected; no L2 on `system.*`.
+- 401 stays login/redirect; API JSON envelopes unchanged.
+
+#### M0 open items (not blocking audit report)
+
+- ADR file write deferred until M1 may start.
+- Exact sub-1s timeout may tighten after production-like measurement in M3.
+- Confirm whether 502/504 ever reach Nuxt as full pages (likely rare; mapping
+  still supported on `system.server_error`).
+- Component Catalog generation path for two new Host islands vs temporary
+  alias for `system.component.not_found`.
 
 ## M1 - Catalog, Contracts, And Theme Ownership Policy
 

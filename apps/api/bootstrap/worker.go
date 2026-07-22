@@ -316,6 +316,7 @@ func buildStandaloneWorkerExtensionRuntime(
 	coordinators ...*extensions.ActivationCoordinator,
 ) (workerExtensionRuntime, hostAPIGatewayCloser, *pluginRuntimeCoordinatorRuntime, error) {
 	service := extensions.NewServiceWithBuiltins(store, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot)
+	extensions.WithExternalExtensionRoots(cfg.ExternalExtensionRoots)(service)
 	extensions.WithCipher(cipher)(service)
 	extensions.WithSafeMode(cfg.SafeMode)(service)
 	var activation *extensions.ActivationCoordinator
@@ -384,6 +385,11 @@ func buildStandaloneWorkerExtensionRuntime(
 		managedRuntime.Close(ctx)
 		_ = workerHostGateway.Close()
 		return nil, nil, nil, fmt.Errorf("sync worker builtin extensions: %w", err)
+	}
+	if err := syncExternalExtensionSources(ctx, logger, service); err != nil {
+		managedRuntime.Close(ctx)
+		_ = workerHostGateway.Close()
+		return nil, nil, nil, fmt.Errorf("sync worker external extension sources: %w", err)
 	}
 	items, err := store.List(ctx)
 	if err != nil {

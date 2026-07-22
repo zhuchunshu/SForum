@@ -23,7 +23,14 @@
    docker compose --profile search up -d meilisearch
    ```
 
-2. 安装可选包：`extensions/optional/plugins/sforum-search-meilisearch`  
+2. 克隆独立插件仓库，将集合根目录加入 `EXTERNAL_EXTENSION_ROOTS`，重启 API：
+
+   ```env
+   EXTERNAL_EXTENSION_ROOTS=/absolute/path/to/sforum-plugins
+   ```
+
+   包目录为 `sforum-plugins/plugins/sforum-search-meilisearch`。它会被扫描为惰性
+   不可变快照，不会自动启用。
 3. 超级管理员启用并完成 **信任**  
 4. 配置 Host / Master Key，在 `search.provider` 槽位选中  
 5. 触发重建索引  

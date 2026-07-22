@@ -248,6 +248,7 @@ go run ./cmd/sforum seed:forum --database-url 'postgres://…'
 | `extensions/optional/` | 仓库可选，需安装 | 否 |
 | `extensions/fixtures/` | CI / 契约夹具 | 否 |
 | 运行时 `EXTENSION_ROOT` | 运营上传安装后的存储 | 否 |
+| `EXTERNAL_EXTENSION_ROOTS` | 独立插件/主题源码集合 | 是（惰性快照，不自动启用） |
 
 完整地图：[extensions/README.md](../../../extensions/README.md)。  
 机制与信任模型：[插件编写指南](../../extensions/authoring-guide.md)、[运营侧扩展说明](../usage/extensions.md)。

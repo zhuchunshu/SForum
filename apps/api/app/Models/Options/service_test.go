@@ -679,6 +679,12 @@ func TestServiceSEOOptionsDefaultsAndValidation(t *testing.T) {
 		{Name: NameSEOBingVerification, Value: "bing-token"},
 		// 帖子 URL 模式：合法枚举 slug 被接受，大小写归一。
 		{Name: NameSEOTopicURLMode, Value: " SLUG "},
+		// 后台 SEO 页默认 payload 会带上各内容类型的 schema_type（PascalCase）。
+		{Name: seoContentOptionName("category", "schema_type"), Value: "CollectionPage"},
+		{Name: seoContentOptionName("tag", "schema_type"), Value: "CollectionPage"},
+		{Name: seoContentOptionName("topic", "schema_type"), Value: "DiscussionForumPosting"},
+		{Name: seoContentOptionName("profile", "schema_type"), Value: "ProfilePage"},
+		{Name: seoContentOptionName("static", "schema_type"), Value: "WebPage"},
 	})
 	if err != nil {
 		t.Fatalf("UpdateMany returned error: %v", err)
@@ -695,6 +701,9 @@ func TestServiceSEOOptionsDefaultsAndValidation(t *testing.T) {
 	if got := adminValue(updated, NameSEOTopicURLMode); got != "slug" {
 		t.Fatalf("expected normalized topic url mode slug, got %q", got)
 	}
+	if got := adminValue(updated, seoContentOptionName("topic", "schema_type")); got != "DiscussionForumPosting" {
+		t.Fatalf("expected topic schema_type DiscussionForumPosting, got %q", got)
+	}
 
 	cases := []UpdateInput{
 		{Name: NameSEOOGImageURL, Value: "notaurl"},
@@ -704,6 +713,8 @@ func TestServiceSEOOptionsDefaultsAndValidation(t *testing.T) {
 		{Name: NameSEOMetaDescription, Value: stringsOfRunes("长", 321)},
 		// 帖子 URL 模式必须是合法枚举之一。
 		{Name: NameSEOTopicURLMode, Value: "category"},
+		// 未知 Schema.org 类型拒绝。
+		{Name: seoContentOptionName("topic", "schema_type"), Value: "Article"},
 	}
 	for _, input := range cases {
 		if _, err := service.Update(context.Background(), actor, input); !errors.Is(err, ErrInvalidOption) {

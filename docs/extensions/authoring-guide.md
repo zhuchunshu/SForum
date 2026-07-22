@@ -38,16 +38,21 @@ Repository layout lives under [`extensions/`](../../extensions/README.md).
 | Protected built-in (ship in product, auto list) | `extensions/builtin/plugins/<dir>/` | **Yes** (`SyncBuiltins`) | Themes: `…/themes/`. Backend build is **not** automatic for new ids — see below. |
 | Local experiment (default scaffold) | `extensions/dev/plugins/<id>/` | No | Gitignored; never appears in admin by itself. |
 | Ship in git, operator installs | `extensions/optional/plugins/<dir>/` | No | See [`extensions/optional/README.md`](../../extensions/optional/README.md). |
+| Independent source collection | `<external-root>/{plugins,themes}/<dir>/` | Yes, when configured | Set `EXTERNAL_EXTENSION_ROOTS`; discovery remains inert. |
 | CI / contract lock | `extensions/fixtures/…` | No | Test inputs only. |
 | Production site | Admin upload → `EXTENSION_ROOT` | No | Operator trust + enable path. |
 
 ### Auto scan vs auto build
 
-- **Auto register:** API/worker boot runs `SyncBuiltins` over
+- **Built-in register:** API/worker boot runs `SyncBuiltins` over
   `BUILTIN_EXTENSION_ROOT` (default `extensions/builtin`, or
   `storage/builtin-dev` when using `./scripts/api-dev.sh`). Every
   `plugins/*` and `themes/*` child directory with a valid package is
   written into the extension store and shows up under admin Themes/Plugins.
+- **External discovery:** API/worker boot scans each comma-separated
+  `EXTERNAL_EXTENSION_ROOTS` collection. Valid packages are copied into
+  `EXTENSION_ROOT` as immutable uploaded snapshots. New packages stay inert;
+  changes become staged candidates and never inherit trust or auto-promote.
 - **Auto build (dev only):** `scripts/build-builtin-plugins.sh` (invoked by
   `api-dev` / `worker-dev`) stages builtins into `storage/builtin-dev` and
   `go build`s **only the plugin ids hard-coded in that script**. A new

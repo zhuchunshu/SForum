@@ -27,7 +27,9 @@ Host catalog slot: **`search.provider`**.
   metadata is also included in `cjk_tsv` during indexing.
 - Site-search admin entry is **About only** (no settings fields); Manage opens
   plugin info.
-- Optional: `extensions/optional/plugins/sforum-search-meilisearch`.
+- Optional: independent package
+  `sforum-plugins/plugins/sforum-search-meilisearch`, discovered through
+  `EXTERNAL_EXTENSION_ROOTS`.
 - Compose: `meilisearch` service has profile `search` only.
 - Decision: `decisions/2026-07-21-search-framework-site-default.md`
   (supersedes “default no engine → 503”).
@@ -80,7 +82,8 @@ Task book:
 ### Enabling Meilisearch
 
 1. `docker compose --profile search up -d meilisearch`
-2. Install `sforum-search-meilisearch` (optional package)
+2. Configure the independent `sforum-plugins` collection through
+   `EXTERNAL_EXTENSION_ROOTS`; restart API/worker to snapshot the package
 3. Super-admin enable + trust
 4. Configure host/master key; select provider in Forum settings → Search; reindex
 

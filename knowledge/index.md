@@ -6,6 +6,24 @@ session archive.
 
 ## Latest Handoff
 
+- **2026-07-22 SEO schema_type save fix**
+  - Admin SEO save always returned `options.invalid` / 站点设置不正确
+  - Cause: `normalizeChoice` lowercases input vs PascalCase Schema.org allow-list
+  - Fix: `schema_type` → `normalizeStringChoice`; unit + UpdateMany tests
+  - Handoff: `sessions/2026-07-22-seo-schema-type-save-fix-handoff.md`
+  - Module: `modules/options.md`
+
+- **2026-07-22 External extension roots + Meilisearch repository migration**
+  - `EXTERNAL_EXTENSION_ROOTS` scans independent `plugins/` / `themes/`
+    collections into inert immutable snapshots; changes are staged only
+  - Meilisearch moved to `/Users/inkedus/Code/sforum-plugins` as a separate Git
+    repository; local API scan: 1 package, 0 diagnostics
+  - Existing active/trusted artifact preserved; source edits created an
+    untrusted staged candidate for explicit operator review
+  - Decision: `decisions/2026-07-22-external-extension-source-roots.md`
+  - Handoff: `sessions/2026-07-22-external-extension-roots-handoff.md`
+  - Module: `modules/extensions.md` · `modules/search.md`
+
 - **2026-07-22 Site search CJK + fuzzy matching + index repair**
   - Default PostgreSQL engine: `simple` FTS + Unicode Han n-grams + indexed
     `pg_trgm` title/excerpt typo tolerance + weighted author/category/tag/slug
@@ -18,13 +36,12 @@ session archive.
   - Handoff: `sessions/2026-07-22-site-search-cjk-fuzzy-handoff.md`
   - Module: `modules/search.md`
 
-- **2026-07-22 Theme-defined system error pages task book**
-  - Ready M0-M6 plan: selected-theme L0/L1 for 403/404/429/5xx, narrow Host
-    error islands, no L2/plugin replacement, and non-recursive emergency fallback
-  - Wait for or coordinate with overlapping current-HEAD regression work before
-    editing shared Page Registry/error files
-  - Plan: `plans/2026-07-22-theme-defined-system-error-pages.md`
-  - Handoff: `sessions/2026-07-22-theme-defined-system-error-pages-plan-handoff.md`
+- **2026-07-22 Theme-defined system error pages (M0 audit; blocked)**
+  - Read-only M0 complete: error flow, producers, 404 timing (~15 ms resolve,
+    ~240–330 ms HTML), themed L1 present, L0 skin links absent in probe
+  - **Blocked on M1+:** regression plan M7 still open; no file handoff
+  - Plan: `plans/2026-07-22-theme-defined-system-error-pages.md` (**blocked**)
+  - Handoff: `sessions/2026-07-22-theme-defined-system-error-pages-m0-audit-handoff.md`
   - Modules: `modules/frontend.md` · `modules/extensions.md`
 
 - **2026-07-22 Forum content revisions V1 task book**
@@ -250,7 +267,7 @@ session archive.
   - Module: `modules/search.md`
   - Handoff: `sessions/2026-07-21-search-framework-site-default-handoff.md`
   - Builtin: `extensions/builtin/plugins/sforum-search-site` (`sforum.search-site`)
-  - Optional: `extensions/optional/plugins/sforum-search-meilisearch`
+  - Optional: independent `sforum-plugins/plugins/sforum-search-meilisearch`
   - Host: `PostgresSiteEngine` + `search_documents`; Meili Compose profile `search`
 
 - **2026-07-21 Trusted Plugin / Theme Platform V3 — P13 LTS residual (~99.7%)**

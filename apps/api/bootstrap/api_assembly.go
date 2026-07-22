@@ -345,6 +345,7 @@ func wireAPICoreStack(ctx context.Context, cfg config.Config, logger *slog.Logge
 		extensionStore, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot,
 		nil,
 		extensions.WithAuditor(auditWriter),
+		extensions.WithExternalExtensionRoots(cfg.ExternalExtensionRoots),
 		extensions.WithExecutableTrust(executableTrustService, cfg.V3TrustChallenges),
 		extensions.WithSafeMode(cfg.SafeMode),
 		extensions.WithActivationCoordinator(activationCoordinator),
@@ -652,6 +653,18 @@ func wireAPICoreStack(ctx context.Context, cfg config.Config, logger *slog.Logge
 		}
 		pool.Close()
 		return nil, fmt.Errorf("sync builtin extensions failed: %w", err)
+	}
+	if err := syncExternalExtensionSources(ctx, logger, extensionService); err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		extensionRuntime.Close(ctx)
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("sync external extension sources failed: %w", err)
 	}
 	// DatabaseService 的 SQL catalog 必须在首次插件 Reconcile/broker 注册前冻结。
 	if err := bindProductionProtocolV2DatabaseRuntime(ctx, databaseCatalogBinder, extensionStore, cfg.SafeMode); err != nil {

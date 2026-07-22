@@ -35,6 +35,7 @@ type Service struct {
 	store                   Store
 	extensionRoot           string
 	builtinRoot             string
+	externalRoots           []string
 	runtime                 RuntimeManager
 	// auditor 写入宿主 audit_events（F1.4）；与 extension_events 互补。
 	auditor audit.Writer
@@ -126,6 +127,23 @@ type FeatureFlagSource interface {
 
 // ServiceOption 注入扩展服务的可选宿主能力。
 type ServiceOption func(*Service)
+
+// WithExternalExtensionRoots 配置第三方源码集合根目录。
+// 每个根目录使用 plugins/*、themes/* 布局；扫描只保存惰性 uploaded 快照。
+func WithExternalExtensionRoots(roots []string) ServiceOption {
+	return func(s *Service) {
+		seen := make(map[string]bool)
+		s.externalRoots = nil
+		for _, root := range roots {
+			root = filepath.Clean(strings.TrimSpace(root))
+			if root == "." || root == "" || seen[root] {
+				continue
+			}
+			seen[root] = true
+			s.externalRoots = append(s.externalRoots, root)
+		}
+	}
+}
 
 // WithAuditor 注入宿主 audit_events 写入（F1.4 扩展生命周期审计）。
 func WithAuditor(w audit.Writer) ServiceOption {

@@ -249,6 +249,7 @@ go run ./cmd/sforum seed:forum --database-url 'postgres://…'
 | `extensions/optional/` | In-repo optional packages (install required) | No |
 | `extensions/fixtures/` | CI / contract fixtures | No |
 | Runtime `EXTENSION_ROOT` | Operator upload storage | No |
+| `EXTERNAL_EXTENSION_ROOTS` | Independent plugin/theme source collections | Yes (inert snapshot; no auto-enable) |
 
 Full map: [extensions/README.md](../../../extensions/README.md).  
 Mechanism and trust: [Authoring guide](../../extensions/authoring-guide.md), [operator extensions](../usage/extensions.md).

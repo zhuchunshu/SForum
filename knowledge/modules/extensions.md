@@ -1,5 +1,24 @@
 # Extensions Module
 
+## External Source Collections (2026-07-22)
+
+- `EXTERNAL_EXTENSION_ROOTS` accepts comma-separated collection roots with
+  `plugins/*` and `themes/*` children. API and standalone worker scan them
+  after protected built-ins and before runtime reconciliation.
+- Scanning uses the existing manifest loader and canonical package snapshotter.
+  New packages are `source=uploaded`, `status=installed`, and inert. A changed
+  installed/enabled package becomes a staged immutable version; active bytes,
+  status, trust grants, and provider selection are untouched.
+- Invalid/missing roots, invalid packages, duplicate external IDs, and builtin
+  collisions are nonfatal structured diagnostics. Store/database failures are
+  fatal so boot cannot reconcile against uncertain lifecycle state.
+- Removing a source directory does not uninstall or delete the previously
+  snapshotted runtime package. External discovery never executes install hooks,
+  enables, promotes, inherits trust, or selects a provider.
+- Docker values are container paths and require read-only mounts for every API
+  and standalone worker that scans the collection.
+- Decision: `../decisions/2026-07-22-external-extension-source-roots.md`.
+
 ## Ready Plan: Theme-Defined System Error Pages (2026-07-22)
 
 Task book:

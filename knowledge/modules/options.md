@@ -272,3 +272,8 @@ skin behavior without admin session.
   Options service. Existing v1 meta values remain compatible fallbacks.
 - The v2 recommended default enables forum-content Sitemap generation. Existing
   stored operator values are not overwritten.
+- `seo.content_type.*.schema_type` uses `normalizeStringChoice` (EqualFold +
+  canonical PascalCase). Do not use `normalizeChoice` here: that helper
+  lowercases the input and exact-matches against the allow-list, so legal
+  Schema.org values like `CollectionPage` were always rejected and blocked
+  every admin SEO save (`options.invalid`).

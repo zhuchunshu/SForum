@@ -34,6 +34,12 @@
 | `extensions/optional/` | 仓库内可选包，需安装后才进入运营流程 |
 | `extensions/dev/` | 本地实验（默认不进后台列表） |
 | 运行时 `EXTENSION_ROOT` | 上传安装后的包存储 |
+| `EXTERNAL_EXTENSION_ROOTS` | 逗号分隔的独立源码集合；每个根目录含 `plugins/`、`themes/` |
+
+外部源码集合会在 API/worker 启动时被静态校验并复制为不可变快照。首次发现
+只进入“已安装”状态；内容变化只产生待审核版本。扫描不会自动启用、继承信任、
+切换 provider 或删除已安装插件。Docker 部署必须填写容器内路径，并将宿主目录
+只读挂载到 API 和独立 worker 容器。
 
 ## 主题激活
 

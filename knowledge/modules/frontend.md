@@ -1,18 +1,21 @@
 # Frontend Module
 
-## Ready Plan: Theme-Defined System Error Pages (2026-07-22)
+## Theme-Defined System Error Pages (2026-07-22) — M0 audit; blocked
 
 Task book:
-`../plans/2026-07-22-theme-defined-system-error-pages.md`.
+`../plans/2026-07-22-theme-defined-system-error-pages.md` (**blocked**).
 
-- Extend the selected-theme Page Registry surface from `system.not_found` to
-  virtual 403/404/429/server-error pages.
-- Themes own L1 structure through narrow reviewed error details/actions Host
-  islands; Host keeps status, safe copy, behavior, SEO, caching, and fallback.
-- System error surfaces are theme-only, L0/L1-only, and fail closed to a complete
-  non-recursive Host page.
-- Implementation must wait for or explicitly coordinate with the overlapping
-  current-HEAD regression work before modifying shared files.
+- M0 read-only audit recorded: only 404 uses Page Registry today; 403/500/503
+  are Host-only full pages; no 429 mapping; resolve budget 5–8s/2 attempts
+  (must drop to ≤1s single attempt for system errors).
+- Live 404 SSR keeps HTTP 404 and selected-theme L1 markers; meta robots is
+  `noindex,follow` and cache is `no-cache` (M2 must enforce `no-store` +
+  `nofollow`).
+- **Do not implement M1+** until
+  `2026-07-22-current-head-regression-remediation.md` M7 is green or overlapping
+  files are explicitly handed off.
+- Handoff:
+  `../sessions/2026-07-22-theme-defined-system-error-pages-m0-audit-handoff.md`.
 
 ## Open Regression Remediation (2026-07-22)
 

@@ -107,7 +107,7 @@ fi
 echo "Postgres: 127.0.0.1:${POSTGRES_PORT:-15432}"
 echo "Redis: 127.0.0.1:${REDIS_PORT:-16379}"
 echo "Mailpit: http://127.0.0.1:${MAILPIT_UI_PORT:-18025}"
-echo "Meilisearch: optional (docker compose --profile search up -d meilisearch); see extensions/optional/plugins/sforum-search-meilisearch"
+echo "Meilisearch: optional (docker compose --profile search up -d meilisearch); external package roots: ${EXTERNAL_EXTENSION_ROOTS:-not configured}"
 EXPECTED_NUXT_API_INTERNAL_BASE_URL="http://127.0.0.1:${HTTP_PORT:-8080}/api/v1"
 case "${NUXT_API_INTERNAL_BASE_URL:-}" in
   http://127.0.0.1:* | http://localhost:*)

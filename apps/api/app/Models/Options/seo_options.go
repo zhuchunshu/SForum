@@ -161,7 +161,9 @@ func normalizeSEOOption(name, value string) (string, bool) {
 	case "include_in_sitemap":
 		return normalizeEnabledOption(value)
 	case "schema_type":
-		return normalizeChoice(value, []string{"CollectionPage", "DiscussionForumPosting", "ProfilePage", "WebPage"})
+		// Schema.org 类型名为 PascalCase；normalizeChoice 会先 ToLower 再精确匹配，
+		// 合法默认值（如 CollectionPage）会被误拒。这里用大小写不敏感比较并回写规范名。
+		return normalizeStringChoice(value, []string{"CollectionPage", "DiscussionForumPosting", "ProfilePage", "WebPage"})
 	default:
 		return "", false
 	}

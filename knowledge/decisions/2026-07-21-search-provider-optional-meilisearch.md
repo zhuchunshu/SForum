@@ -24,9 +24,10 @@ explicitly: **it must not be a built-in plugin**.
 2. **Default**: no search engine selected → search returns unavailable (503),
    index enqueue is a no-op, no Meilisearch process in default Compose/dev.
 3. **Engine transport** lives in an **optional** package:
-   `extensions/optional/plugins/sforum-search-meilisearch` (id
-   `sforum.search-meilisearch`). Not under `extensions/builtin`, not
-   `SyncBuiltins`.
+   `sforum-plugins/plugins/sforum-search-meilisearch` (id
+   `sforum.search-meilisearch`) in an independent repository. It is not under
+   `extensions/builtin` and is discovered through `EXTERNAL_EXTENSION_ROOTS`,
+   never `SyncBuiltins`.
 4. Compose service `meilisearch` uses **profile `search`** only.
 5. When exactly one enabled plugin declares `search.provider`, Host uses it
    automatically; operators may also pin via `mail_provider_selection` row

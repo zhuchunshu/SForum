@@ -108,7 +108,7 @@ Default search is built-in **site search** (PostgreSQL FTS)—no Meili required.
 docker compose --profile search up -d meilisearch
 ```
 
-Then install/trust `extensions/optional/plugins/sforum-search-meilisearch`, select `search.provider`, and reindex. See [Search](./usage/search.md).
+Then scan and trust `plugins/sforum-search-meilisearch` from an independent repository via `EXTERNAL_EXTENSION_ROOTS`, select `search.provider`, and reindex. See [Search](./usage/search.md).
 
 ## Next
 

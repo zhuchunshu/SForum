@@ -32,6 +32,14 @@
 | `extensions/optional/` | Optional packages shipped in-repo |
 | `extensions/dev/` | Local experiments (not boot-listed by default) |
 | `EXTENSION_ROOT` | Uploaded runtime packages |
+| `EXTERNAL_EXTENSION_ROOTS` | Comma-separated source collections containing `plugins/` and/or `themes/` |
+
+API/worker startup validates external source packages and copies immutable
+snapshots into `EXTENSION_ROOT`. First discovery remains installed and inert;
+changes become staged candidates. Scanning never enables code, inherits trust,
+selects a provider, or uninstalls a package whose source disappeared. Docker
+deployments must use container paths and mount each source collection read-only
+into both API and standalone worker containers.
 
 ## Theme activation
 

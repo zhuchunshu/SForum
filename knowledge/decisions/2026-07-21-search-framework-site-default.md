@@ -26,8 +26,9 @@ box, which fails beginner-friendly and open-source framework defaults.
    !IsDeletable path already rejects uninstall).
 4. **Restore defaults** for `search.provider` clears explicit pin and resolves
    to site search.
-5. **Meilisearch** remains an **optional** package at
-   `extensions/optional/plugins/sforum-search-meilisearch` (not builtin).
+5. **Meilisearch** remains an **optional**, non-builtin package maintained in
+   the independent `sforum-plugins` repository and discovered through
+   `EXTERNAL_EXTENSION_ROOTS`.
 6. **v1 dual-write**: only the **selected** engine receives index/delete jobs.
    Switching engines requires admin reindex for the newly selected engine.
 7. **Engine failure**: selected external engine unavailable → search errors

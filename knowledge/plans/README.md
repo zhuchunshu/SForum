@@ -25,7 +25,7 @@ Task books, blueprints, and progress ledgers. Every plan must declare a
 | `2026-07-22-current-head-regression-remediation.md` | **ready** — M0–M7 search/frontend/Page Registry/gate regression repair |
 | `2026-07-22-social-login-provider-plugins.md` | **ready** — Core auth completion + unified admin/user UI + GitHub/Google/Discord/Telegram plugins |
 | `2026-07-22-forum-content-revisions-v1.md` | **ready** — staff edit-any workbench + immutable self/staff revisions + CAS/diff/restore/redaction |
-| `2026-07-22-theme-defined-system-error-pages.md` | **ready** — selected-theme L0/L1 for 403/404/429/5xx + Host emergency fallback; waits for overlapping regression handoff |
+| `2026-07-22-theme-defined-system-error-pages.md` | **blocked** — M0 read-only audit done; M1+ waits for regression M7 or explicit overlapping-file handoff |
 | `2026-07-21-million-scale-read-path.md` | **completed** — M0–M7 (M7 decision doc only); D1–D4 law |
 | `2026-07-12-iteration-a-engagement-loop.md` | **ready** — view counts / likes / bookmarks (M2 shares view-count WS) |
 | `2026-07-12-admin-settings-richness.md` | **blueprint** — Waves 1–2 landed; later waves open |

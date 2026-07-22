@@ -112,7 +112,7 @@ cd apps/web && bun run dev
 docker compose --profile search up -d meilisearch
 ```
 
-再安装/信任 `extensions/optional/plugins/sforum-search-meilisearch`，在后台选择 `search.provider` 并重建索引。详见 [搜索](./usage/search.md)。
+再通过 `EXTERNAL_EXTENSION_ROOTS` 扫描并信任独立仓库中的 `plugins/sforum-search-meilisearch`，在后台选择 `search.provider` 并重建索引。详见 [搜索](./usage/search.md)。
 
 ## 下一步
 

@@ -33,7 +33,7 @@ services:
 
   # 可选全文搜索引擎：默认不启动，节省内存。
   # 启用：docker compose --profile search up -d meilisearch
-  # 并安装 extensions/optional/plugins/sforum-search-meilisearch（非内置）。
+  # 并安装/扫描独立仓库中的 sforum-search-meilisearch（非内置）。
   meilisearch:
     image: getmeili/meilisearch:v1
     profiles: ["search"]
@@ -70,6 +70,8 @@ services:
       CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-}
       EXTENSION_ROOT: ${EXTENSION_ROOT:-/var/lib/sforum/extensions}
       BUILTIN_EXTENSION_ROOT: /app/extensions/builtin
+      # Compose 中必须使用容器内路径；同时在 override 中添加对应的只读 volume。
+      EXTERNAL_EXTENSION_ROOTS: ${EXTERNAL_EXTENSION_ROOTS:-}
       SFORUM_V3_TRUST_CHALLENGES: ${SFORUM_V3_TRUST_CHALLENGES:-false}
       SFORUM_V3_TRUST_CHALLENGE_TTL: ${SFORUM_V3_TRUST_CHALLENGE_TTL:-5m}
       SFORUM_V3_PUBLIC_L2: ${SFORUM_V3_PUBLIC_L2:-false}
@@ -106,6 +108,7 @@ services:
       CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-}
       EXTENSION_ROOT: ${EXTENSION_ROOT:-/var/lib/sforum/extensions}
       BUILTIN_EXTENSION_ROOT: /app/extensions/builtin
+      EXTERNAL_EXTENSION_ROOTS: ${EXTERNAL_EXTENSION_ROOTS:-}
       SFORUM_V3_TRUST_CHALLENGES: ${SFORUM_V3_TRUST_CHALLENGES:-false}
       SFORUM_V3_TRUST_CHALLENGE_TTL: ${SFORUM_V3_TRUST_CHALLENGE_TTL:-5m}
     volumes:

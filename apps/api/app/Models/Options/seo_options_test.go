@@ -59,4 +59,25 @@ func TestSEOOptionsV2NormalizesContentPolicyEnums(t *testing.T) {
 	if got, ok := normalizeSEOOption(NameSEOContentCategoryDescriptionSource, " category_description, site_default "); !ok || got != "category_description,site_default" {
 		t.Fatalf("expected normalized description sources, got %q, %t", got, ok)
 	}
+
+	// schema_type 为 Schema.org PascalCase；默认值必须可保存，且大小写不敏感归一。
+	for _, tc := range []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{seoContentOptionName("category", "schema_type"), "CollectionPage", "CollectionPage"},
+		{seoContentOptionName("topic", "schema_type"), "discussionforumposting", "DiscussionForumPosting"},
+		{seoContentOptionName("profile", "schema_type"), " PROFILEPAGE ", "ProfilePage"},
+		{seoContentOptionName("static", "schema_type"), "WebPage", "WebPage"},
+		{seoContentOptionName("tag", "schema_type"), "collectionpage", "CollectionPage"},
+	} {
+		got, ok := normalizeSEOOption(tc.name, tc.input)
+		if !ok || got != tc.want {
+			t.Fatalf("schema_type %s=%q: got %q ok=%t, want %q", tc.name, tc.input, got, ok, tc.want)
+		}
+	}
+	if _, ok := normalizeSEOOption(seoContentOptionName("topic", "schema_type"), "Article"); ok {
+		t.Fatal("unknown schema_type must be rejected")
+	}
 }

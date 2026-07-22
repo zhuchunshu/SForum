@@ -1,22 +1,23 @@
 # Extensions layout
 
-Repository-owned packages live under `extensions/`. **Only built-in packages
-are scanned into the admin extension list on API/worker boot.** Everything else
-is scaffold, optional ship-with-repo content, test fixtures, or operator
-upload storage.
+Repository-owned packages live under `extensions/`. Built-ins are always boot
+scanned; explicitly configured `EXTERNAL_EXTENSION_ROOTS` are also scanned as
+third-party sources. Everything else is scaffold, optional ship-with-repo
+content, test fixtures, or operator upload storage.
 
 Author-facing detail: [`docs/extensions/authoring-guide.md`](../docs/extensions/authoring-guide.md)
 (section **Where to put your package**).
 
 ## Directory map
 
-| Path | Git | Boot scan (`SyncBuiltins`) | Dev auto-build | How it reaches admin list |
+| Path | Git | Boot scan | Dev auto-build | How it reaches admin list |
 | --- | --- | --- | --- | --- |
 | [`builtin/`](./builtin/) | Tracked | **Yes** — `BUILTIN_EXTENSION_ROOT` | Partial — see below | Automatic on API/worker start |
 | [`dev/`](./dev/) | **Ignored** (`.gitignore`) | No | No | Never, unless you move/copy it |
 | [`optional/`](./optional/) | Tracked | No | No | Operator install (upload or copy into `EXTENSION_ROOT`) |
 | [`fixtures/`](./fixtures/) | Tracked | No | No | Tests / CLI only — not product install |
 | Runtime `EXTENSION_ROOT` (default `storage/extensions`) | Local data | No (upload path) | No | Admin upload / install flow |
+| `EXTERNAL_EXTENSION_ROOTS` | Independent repos | **Yes** — inert third-party scan | No | Automatic snapshot on API/worker start; operator still trusts/enables |
 
 Layout under each source tree:
 
@@ -46,8 +47,42 @@ On API and worker boot, Host runs `SyncBuiltins`:
 3. Load each package via `LoadPackage` (`sforum.extension.json` + `includes`).
 4. Snapshot into the extension store so admin **Themes / Plugins** lists show them.
 
-**Only packages under that builtin root are registered this way.** Putting a
-package in `dev/`, `optional/`, or `fixtures/` does nothing at boot.
+Packages in `dev/`, `optional/`, or `fixtures/` still do nothing at boot unless
+their collection root is explicitly listed in `EXTERNAL_EXTENSION_ROOTS`.
+
+### External source collections
+
+`EXTERNAL_EXTENSION_ROOTS` is a comma-separated list. Each root uses the same
+collection layout:
+
+```text
+sforum-plugins/
+  plugins/<package-dir>/
+  themes/<package-dir>/
+```
+
+At API and standalone-worker startup, Host validates every package and copies
+it into `EXTENSION_ROOT` as an immutable `uploaded` snapshot. A new package is
+kept `installed` and inert. A changed package never replaces running bytes: it
+becomes a staged candidate for operator review. Scanning never enables code,
+inherits trust, selects a provider, promotes a candidate, or uninstalls a
+package whose source disappeared. Duplicate IDs and collisions with protected
+built-ins are rejected and logged.
+
+Host-run development may use an absolute host path directly. In Docker,
+configured roots are **container paths**, so mount each collection read-only
+and set the container value, for example:
+
+```yaml
+services:
+  api:
+    environment:
+      EXTERNAL_EXTENSION_ROOTS: /opt/sforum-plugins
+    volumes:
+      - /host/path/sforum-plugins:/opt/sforum-plugins:ro
+```
+
+Apply the same mapping to a standalone `worker` service.
 
 ### Auto build (local dev)
 
@@ -72,11 +107,11 @@ Implications:
 - Themes under `builtin/themes/` are copied into staging; they are buildless
   runtime packages (no go-plugin binary).
 
-### Manual path for third-party / optional plugins
+### Third-party / optional plugins
 
 1. Develop anywhere (often `extensions/dev/…` or an external folder).
-2. Package and install via admin upload, **or** place an exact package under
-   `EXTENSION_ROOT` using the product install flow.
+2. Package and install via admin upload, **or** add its collection root to
+   `EXTERNAL_EXTENSION_ROOTS` and restart API/worker.
 3. Trust / enable in admin (executable enable still requires the normal
    super_admin trust path).
 
@@ -107,6 +142,7 @@ for upload when it is operator-installed software.
 | Bundled default / alternate theme | `extensions/builtin/themes/<dir>/` |
 | Local experiment, not committed | `extensions/dev/{plugins,themes}/` (default scaffold) |
 | Ship in git but operator must install | `extensions/optional/plugins/<dir>/` |
+| Independent plugin/theme repository with boot discovery | `<external-root>/{plugins,themes}/<dir>/` + `EXTERNAL_EXTENSION_ROOTS` |
 | Lock a contract for CI | `extensions/fixtures/{plugins,themes}/` |
 | Production site install | Admin upload → `EXTENSION_ROOT` |
 

@@ -83,6 +83,9 @@ func TestLoadIncludesDefaultWorkerConfig(t *testing.T) {
 	if cfg.BuiltinExtensionRoot != "../../extensions/builtin" {
 		t.Fatalf("expected builtin extension root default, got %q", cfg.BuiltinExtensionRoot)
 	}
+	if len(cfg.ExternalExtensionRoots) != 0 {
+		t.Fatalf("expected no external extension roots by default, got %v", cfg.ExternalExtensionRoots)
+	}
 	if cfg.V3TrustChallenges {
 		t.Fatal("expected V3 trust challenges to remain default-off during migration")
 	}
@@ -381,6 +384,7 @@ func TestLoadParsesWorkerConfigFromEnv(t *testing.T) {
 	t.Setenv("ALTCHA_COST", "2000")
 	t.Setenv("EXTENSION_ROOT", "/srv/sforum/extensions")
 	t.Setenv("BUILTIN_EXTENSION_ROOT", "/srv/sforum/builtin-extensions")
+	t.Setenv("EXTERNAL_EXTENSION_ROOTS", "/srv/company-plugins, /srv/community-plugins,/srv/company-plugins")
 
 	cfg := Load()
 
@@ -436,6 +440,9 @@ func TestLoadParsesWorkerConfigFromEnv(t *testing.T) {
 	}
 	if cfg.BuiltinExtensionRoot != "/srv/sforum/builtin-extensions" {
 		t.Fatalf("expected builtin extension root from env, got %q", cfg.BuiltinExtensionRoot)
+	}
+	if len(cfg.ExternalExtensionRoots) != 2 || cfg.ExternalExtensionRoots[0] != "/srv/company-plugins" || cfg.ExternalExtensionRoots[1] != "/srv/community-plugins" {
+		t.Fatalf("unexpected external extension roots: %v", cfg.ExternalExtensionRoots)
 	}
 }
 

@@ -282,31 +282,49 @@ func lockUploadedSnapshot(versionRoot string, digest string) (*os.File, error) {
 
 // SnapshotBuiltin copies a built-in package through the same canonical snapshot path as uploads.
 func SnapshotBuiltin(sourceRoot string, destinationRoot string) (Snapshot, error) {
+	manifestBody, files, err := readPackageDirectory(sourceRoot)
+	if err != nil {
+		return Snapshot{}, err
+	}
+	return SnapshotUploaded(destinationRoot, manifestBody, files)
+}
+
+// SnapshotExternalSourceOwned 静态读取外部源码包并发布 uploaded 不可变快照。
+// 调用方必须 Release；持锁期间可以在持久化失败时安全移除本次新建快照。
+func SnapshotExternalSourceOwned(sourceRoot string, destinationRoot string) (*OwnedSnapshot, error) {
+	manifestBody, files, err := readPackageDirectory(sourceRoot)
+	if err != nil {
+		return nil, err
+	}
+	return SnapshotUploadedOwned(destinationRoot, manifestBody, files)
+}
+
+func readPackageDirectory(sourceRoot string) ([]byte, []File, error) {
 	type sourceFile struct {
 		path string
 	}
 
 	rootInfo, err := os.Lstat(sourceRoot)
 	if err != nil {
-		return Snapshot{}, err
+		return nil, nil, err
 	}
 	if rootInfo.Mode()&fs.ModeSymlink != 0 {
-		return Snapshot{}, fmt.Errorf("%w: %s", ErrSymlink, sourceRoot)
+		return nil, nil, fmt.Errorf("%w: %s", ErrSymlink, sourceRoot)
 	}
 	if !rootInfo.IsDir() {
-		return Snapshot{}, fmt.Errorf("%w: builtin root %s", ErrNonRegular, sourceRoot)
+		return nil, nil, fmt.Errorf("%w: package root %s", ErrNonRegular, sourceRoot)
 	}
 	packageRoot, err := os.OpenRoot(sourceRoot)
 	if err != nil {
-		return Snapshot{}, err
+		return nil, nil, err
 	}
 	defer packageRoot.Close()
 	openedRootInfo, err := packageRoot.Stat(".")
 	if err != nil {
-		return Snapshot{}, err
+		return nil, nil, err
 	}
 	if !os.SameFile(rootInfo, openedRootInfo) {
-		return Snapshot{}, fmt.Errorf("%w: builtin root changed while opening %s", ErrNonRegular, sourceRoot)
+		return nil, nil, fmt.Errorf("%w: package root changed while opening %s", ErrNonRegular, sourceRoot)
 	}
 
 	validated := make([]sourceFile, 0)
@@ -343,7 +361,7 @@ func SnapshotBuiltin(sourceRoot string, destinationRoot string) (Snapshot, error
 		return nil
 	})
 	if err != nil {
-		return Snapshot{}, err
+		return nil, nil, err
 	}
 
 	var manifestBody []byte
@@ -351,7 +369,7 @@ func SnapshotBuiltin(sourceRoot string, destinationRoot string) (Snapshot, error
 	for _, source := range validated {
 		body, mode, err := readRootRegularFile(packageRoot, source.path)
 		if err != nil {
-			return Snapshot{}, err
+			return nil, nil, err
 		}
 		if source.path == extensionmanifest.ManifestFileName {
 			manifestBody = body
@@ -360,9 +378,9 @@ func SnapshotBuiltin(sourceRoot string, destinationRoot string) (Snapshot, error
 		files = append(files, File{Path: source.path, Mode: mode, Body: body})
 	}
 	if manifestBody == nil {
-		return Snapshot{}, fmt.Errorf("%w: missing %s", ErrInvalidManifest, extensionmanifest.ManifestFileName)
+		return nil, nil, fmt.Errorf("%w: missing %s", ErrInvalidManifest, extensionmanifest.ManifestFileName)
 	}
-	return SnapshotUploaded(destinationRoot, manifestBody, files)
+	return manifestBody, files, nil
 }
 
 func readRootRegularFile(root *os.Root, name string) ([]byte, fs.FileMode, error) {
