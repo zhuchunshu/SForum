@@ -38,7 +38,8 @@ func (s *PostgresStore) ListPublicTopicSearchHits(ctx context.Context, ids []int
 		  author_attachments.content_type, author_attachments.status,
 		  topics.title, topics.slug, topics.status, topics.is_pinned,
 		  topics.comment_count, topics.view_count, topics.hot_score, `+plainTextPrefixSQL("posts.plain_text")+`,
-		  EXISTS (SELECT 1 FROM post_revisions WHERE post_id = posts.id),
+		  `+effectivePostCurrentRevisionSQL("posts")+`,
+		  `+contentEditedSQL("posts")+`,
 		  topics.created_at, topics.updated_at, topics.last_activity_at,`+lastReplyAuthorSelectSQL()+`
 		FROM topics
 		JOIN categories ON categories.id = topics.category_id

@@ -1,6 +1,6 @@
 # Forum Content Editing And Revisions V1 — Task Book
 
-Status: **ready** — product scope approved; implementation has not started  
+Status: **active** — M1 additive schema/backfill complete; M2 revision read models and permissions next  
 Date: 2026-07-22  
 Goal: allow authorized staff to edit any topic or comment from the admin area,
 record every effective self/staff edit as an immutable revision, prevent stale
@@ -9,6 +9,35 @@ overwrites, and provide safe history inspection, comparison, and restore.
 This is the V1 content-governance foundation, not the collaboration feature.
 Implement it milestone by milestone. Every milestone must leave the repository
 buildable and must report the exact tests that passed.
+
+## M0 Freeze Evidence (2026-07-22)
+
+- ADR accepted:
+  `knowledge/decisions/2026-07-22-forum-content-revisions-ledger.md`.
+- Contract-test matrix and fixture plan:
+  `knowledge/plans/2026-07-22-forum-content-revisions-v1-m0-contract-tests.md`.
+- Current branch/worktree at takeover: `main`, clean `git status --short`.
+- Current latest Goose version and next migration number: latest applied/file
+  prefix is `202607220051`; M1 must start at `202607220052`.
+- Generated catalog commands confirmed:
+  `cd apps/api && go run ./cmd/sforum extension docs generate`,
+  `cd apps/api && go run ./cmd/sforum extension docs generate --check`,
+  `node scripts/v3-catalog/generate.mjs`, and
+  `node scripts/v3-catalog/generate.mjs --check`.
+- Local development DB read-only baseline:
+  257 `posts`, 57 `topics`, 200 `comments`, 0 `post_revisions`,
+  0 posts with legacy revisions. Current `post_revisions` columns are
+  `id`, `post_id`, `edited_by_user_id`, `raw_content`, `source_format`,
+  `editor_type`, `editor_version`, `render_version`, `content_hash`, `reason`,
+  and `created_at`.
+- Code audit result: task-book baseline still matches current code. Not yet
+  implemented: `currentRevision`, mandatory `expectedRevision`, numbered
+  current-version ledger rows, history-view permissions, comment update hook/
+  event, admin content workbench, restore, and redaction.
+- Dependency audit corrected the license wording: npm `diff` 9.0.0 was
+  published 2026-04-13 from `https://github.com/kpdecker/jsdiff` and is
+  `BSD-3-Clause`, not MIT. The npm package literally named `jsdiff` is a
+  different stale 1.1.1 ISC package and must not be installed for V1.
 
 ## Required Reading Before Coding
 
@@ -263,9 +292,12 @@ at a time.
   Temporal-table extensions, generic event sourcing, and JSON Patch chains add
   operational/restore complexity without solving SForum's permission and
   content-pipeline rules. Do not adopt them for V1.
-- For the admin line diff, prefer the mature MIT-licensed `diff`/jsdiff package
-  after verifying the current release and maintenance status. Do not hand-roll a
-  diff algorithm. Install with the repository proxy environment.
+- For the admin line diff, prefer the mature `diff` package (project commonly
+  known as JsDiff) after verifying the current release and maintenance status.
+  M0 verified npm `diff` 9.0.0, published 2026-04-13, repository
+  `kpdecker/jsdiff`, license `BSD-3-Clause`. Do not install the stale npm
+  package named `jsdiff` (1.1.1, ISC) for V1. Do not hand-roll a diff
+  algorithm. Install with the repository proxy environment during M6, not M0.
 - `github.com/pmezard/go-difflib` is currently only an indirect Go dependency;
   do not make it a production API dependency unless the frontend option proves
   insufficient and the dependency is promoted/reviewed explicitly.
@@ -560,16 +592,16 @@ hand-edit generated inventory output.
 
 ### M0 — Contract Freeze And ADR
 
-- [ ] Re-read required files and inspect the current dirty worktree; preserve
+- [x] Re-read required files and inspect the current dirty worktree; preserve
       unrelated user changes.
-- [ ] Add an ADR for the accepted ledger/current-read-model/CAS/restore/redaction
+- [x] Add an ADR for the accepted ledger/current-read-model/CAS/restore/redaction
       decisions. Reference this task book.
-- [ ] Confirm exact next Goose migration number and generated-catalog commands.
-- [ ] Verify the current `diff` package release/license before any dependency add.
-- [ ] Write the named contract-test matrix and fixture strategy for revision
+- [x] Confirm exact next Goose migration number and generated-catalog commands.
+- [x] Verify the current `diff` package release/license before any dependency add.
+- [x] Write the named contract-test matrix and fixture strategy for revision
       numbering, conflict, restore, cross-author reason, history permission, and
       redaction. Do not commit a permanently failing test checkpoint.
-- [ ] Record baseline `post_revisions` row semantics and representative counts.
+- [x] Record baseline `post_revisions` row semantics and representative counts.
 
 Acceptance:
 
@@ -578,21 +610,29 @@ Acceptance:
   implementation; any executable tests added in M0 remain green.
 - No production behavior changes in M0.
 
+M0 validation:
+
+- `ruby scripts/validate-openapi-refs.rb`
+- `cd apps/api && go test ./app/Models/Forum ./app/Support/Events ./app/Models/Identity ./database/migrator`
+- `node tests/validate-identity-ui.js`
+- Full gate intentionally deferred to later executable milestones unless M1+
+  changes runtime/schema/frontend behavior.
+
 ### M1 — Additive Schema And Online Backfill
 
-- [ ] Add `posts.current_revision` transitional column.
-- [ ] Evolve `post_revisions` with version/actor/operation/origin/fields/
+- [x] Add `posts.current_revision` transitional column.
+- [x] Evolve `post_revisions` with version/actor/operation/origin/fields/
       attachments/commit/restore/completeness/redaction columns and constraints.
-- [ ] Add `topic_revision_snapshots`.
-- [ ] Add the final list/unique indexes without an unbounded startup lock; use
+- [x] Add `topic_revision_snapshots`.
+- [x] Add the final list/unique indexes without an unbounded startup lock; use
       Goose no-transaction/concurrent index patterns where required.
-- [ ] Implement a transaction helper that inserts one accepted revision snapshot.
-- [ ] Insert version 1 transactionally on new topic/comment creation.
-- [ ] Implement idempotent batched backfill with progress and retry visibility.
-- [ ] Support mixed legacy rows without inventing metadata/attribution.
-- [ ] Change edited-fact reads from `EXISTS` to effective revision `>1` while the
+- [x] Implement a transaction helper that inserts one accepted revision snapshot.
+- [x] Insert version 1 transactionally on new topic/comment creation.
+- [x] Implement idempotent batched backfill with progress and retry visibility.
+- [x] Support mixed legacy rows without inventing metadata/attribution.
+- [x] Change edited-fact reads from `EXISTS` to effective revision `>1` while the
       migration is mixed.
-- [ ] Add migration/migrator/store integration tests against PostgreSQL.
+- [x] Add migration/migrator/store integration tests against PostgreSQL.
 
 Acceptance:
 
@@ -601,6 +641,28 @@ Acceptance:
 - Re-running backfill creates no duplicates and resumes after interruption.
 - No single migration transaction copies every post payload.
 - Public topic/comment reads remain within their existing performance envelope.
+
+M1 validation (2026-07-22):
+
+- `GOCACHE=/private/tmp/sforum-gocache go test ./app/Models/Forum ./app/Http/Controllers/Forum ./app/Support/Events ./database/migrator ./database/migrations ./cmd/sforum ./app/Models/Profile`
+  - `cmd/sforum` needed one sandbox-escalated rerun because its existing
+    orphan-plugin dry-run test executes `/bin/ps`; the package passed after
+    permission was granted.
+- `set -a; . ../../.env; set +a; GOCACHE=/private/tmp/sforum-gocache go test ./app/Models/Forum -run 'TestRevisionLedger.*Postgres' -count=1`
+- `GOCACHE=/private/tmp/sforum-gocache go test ./...`
+- `ruby scripts/validate-openapi-refs.rb`
+
+M1 implementation notes:
+
+- Goose migration `202607220052_forum_content_revision_ledger.sql` is additive
+  and `NO TRANSACTION`; it adds concurrent revision indexes and does not bulk
+  copy post payloads.
+- `sforum revisions backfill --batch=N [--loop]` claims `posts.current_revision
+  = 0` batches using `FOR UPDATE SKIP LOCKED`, numbers legacy rows by
+  `(post_id, created_at, id)`, inserts one current snapshot, and only then sets
+  `posts.current_revision`.
+- Legacy rows keep incomplete body-only semantics; unreconstructable metadata
+  is left unknown instead of invented.
 
 ### M2 — Revision Read Models And Permissions
 
@@ -875,13 +937,15 @@ V1 is complete only when all are true:
 
 ## New-Conversation Start Point
 
-The implementing conversation must start with **M0 only**:
+The next implementing conversation must start with **M2 only**:
 
-1. inspect current worktree and reread the required files;
+1. inspect current worktree and reread the required files plus the M1 handoff;
 2. verify whether newer code/migrations changed this baseline;
-3. write the ADR and contract-test matrix; keep any executable checkpoint green;
-4. report evidence and proposed exact migration/backfill mechanics before M1;
-5. do not attempt M1–M7 in one patch or silently change a frozen decision.
+3. add history-view permissions, revision read/admin list models, routes, and
+   modular OpenAPI without changing edit CAS/write semantics yet;
+4. keep M3–M7 deferred unless the task book is explicitly updated with evidence;
+5. preserve the M0/M1 frozen decisions around permissions, CAS, audit, restore,
+   redaction, privacy clearing, and plugin boundaries.
 
 Any newly discovered conflict with current code should update this task book and
 record the reason before implementation proceeds.

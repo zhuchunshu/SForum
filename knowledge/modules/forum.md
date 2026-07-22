@@ -11,11 +11,25 @@ read models.
 Backend foundation implemented on 2026-07-06. Real taxonomy slice implemented
 on 2026-07-07.
 
-- **Content revisions V1 planned (ready, not implemented):** approved M0–M7 task
-  book at `plans/2026-07-22-forum-content-revisions-v1.md`. It evolves the
-  existing source-only `post_revisions` foundation into numbered accepted
-  versions, adds staff content management, optimistic concurrency, restricted
-  history/diff, safe append-only restore, and super-admin payload redaction.
+- **Content revisions V1 active (M1 complete, M2 next):** task book at
+  `plans/2026-07-22-forum-content-revisions-v1.md`; ADR
+  `decisions/2026-07-22-forum-content-revisions-ledger.md`; M0 contract matrix
+  `plans/2026-07-22-forum-content-revisions-v1-m0-contract-tests.md`. M1 added
+  Goose migration `202607220052`: `posts.current_revision`, numbered nullable
+  ledger columns on `post_revisions` (legacy `edited_by_user_id` renamed to
+  `superseded_by_user_id`), concurrent `(post_id, revision_no)` indexes, and
+  `topic_revision_snapshots`. New topic/comment creation writes accepted
+  revision 1 in the same transaction and sets `posts.current_revision=1`.
+  Mixed read paths expose effective `currentRevision >= 1` and derive edited
+  marks from effective revision `> 1`, so initial revision rows do not mark
+  everything edited. Backfill lives at `sforum revisions backfill --batch=N
+  [--loop]`, claims small `current_revision=0` batches with `FOR UPDATE SKIP
+  LOCKED`, preserves legacy rows in `(post_id, created_at, id)` order, inserts
+  one current snapshot, and is safe to rerun. M2 must add history-view
+  permissions, revision list/detail read models, admin content list/detail, and
+  OpenAPI; M3 still owns mandatory `expectedRevision`, CAS, reason rules,
+  accepted edit snapshots, and comment update hooks/events. Use npm package
+  `diff` (9.0.0, BSD-3-Clause) for M6 diff UI; do not install npm `jsdiff`.
   Collaboration, public/self-service history, notifications, drafts, retention
   controls, and real-time CRDT remain outside V1.
 
@@ -59,9 +73,11 @@ on 2026-07-07.
   editor version, render version, and content hash. List/detail `excerpt` is
   derived at read time from `plain_text` using
   `forum.reading.excerpt_rune_limit` (not a stored column).
-- `post_revisions` stores previous **source** snapshots (`raw_content` plus
-  source/editor/render metadata and content hash) when content is edited.
-  Derived html/plain/excerpt are not duplicated in revisions.
+- `post_revisions` is being migrated into the accepted-version ledger. After
+  M1, new topic/comment creates have revision 1/current rows. Existing legacy
+  edit rows remain body-only and incomplete until the idempotent backfill
+  numbers them and inserts the current snapshot. Derived html/plain/excerpt are
+  not duplicated in revisions.
 - Taxonomy now uses two levels: `category_groups` contain ordered
   `categories`. v1 category access is only `public` or `hidden`; role-scoped
   category access is deferred.

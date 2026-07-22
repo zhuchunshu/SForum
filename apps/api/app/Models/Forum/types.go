@@ -10,9 +10,9 @@ import (
 )
 
 const (
-	SourceFormatMarkdown        = "markdown"
-	SourceFormatHTML            = "html"
-	SourceFormatJSON            = "json"
+	SourceFormatMarkdown = "markdown"
+	SourceFormatHTML     = "html"
+	SourceFormatJSON     = "json"
 	// SourceFormatEditorDocument 走 Host EditorDocument Accept 管线（native Tiptap JSON）。
 	SourceFormatEditorDocument = "editor-document"
 
@@ -55,18 +55,18 @@ const (
 	TopicActionPin     = "pin"
 	TopicActionUnpin   = "unpin"
 
-	CodeInvalidContent        = "forum.content_invalid"
-	CodeInvalidTopic          = "forum.topic_invalid"
-	CodeTopicNotFound         = "forum.topic_not_found"
-	CodeCommentNotFound       = "forum.comment_not_found"
-	CodeTopicClosed           = "forum.topic_closed"
-	CodeInvalidTag            = "forum.tag_invalid"
-	CodeTagNotFound           = "forum.tag_not_found"
-	CodeInvalidSettings       = "forum.settings_invalid"
-	CodeInvalidAction         = "forum.topic_action_invalid"
-	CodeUseSearch             = "forum.use_search_endpoint"
+	CodeInvalidContent  = "forum.content_invalid"
+	CodeInvalidTopic    = "forum.topic_invalid"
+	CodeTopicNotFound   = "forum.topic_not_found"
+	CodeCommentNotFound = "forum.comment_not_found"
+	CodeTopicClosed     = "forum.topic_closed"
+	CodeInvalidTag      = "forum.tag_invalid"
+	CodeTagNotFound     = "forum.tag_not_found"
+	CodeInvalidSettings = "forum.settings_invalid"
+	CodeInvalidAction   = "forum.topic_action_invalid"
+	CodeUseSearch       = "forum.use_search_endpoint"
 	// 非法/过期/与 sort 不匹配的 keyset 游标。
-	CodeInvalidCursor = "forum.cursor_invalid"
+	CodeInvalidCursor         = "forum.cursor_invalid"
 	CodeReindexRunning        = "forum.reindex_running"    // 已有重建在进行
 	CodeReindexNoRun          = "forum.reindex_no_run"     // 尚无重建记录
 	CodeSearchUnavailable     = "forum.search_unavailable" // 搜索服务不可用
@@ -229,8 +229,8 @@ type UserSummary struct {
 }
 
 type TopicListInput struct {
-	Page         int
-	PerPage      int
+	Page    int
+	PerPage int
 	// After 非空时走 keyset，忽略 Page（cursor 优先于 page，M5）。
 	After        string
 	CategorySlug string
@@ -260,12 +260,12 @@ type TopicList struct {
 }
 
 type TopicSummary struct {
-	ID             int64             `json:"id"`
-	CategoryID     int64             `json:"categoryId"`
-	CategorySlug   string            `json:"categorySlug"`
-	CategoryName   string            `json:"categoryName"`
-	AuthorUserID   int64             `json:"authorUserId"`
-	Author         *UserSummary      `json:"author,omitempty"`
+	ID           int64        `json:"id"`
+	CategoryID   int64        `json:"categoryId"`
+	CategorySlug string       `json:"categorySlug"`
+	CategoryName string       `json:"categoryName"`
+	AuthorUserID int64        `json:"authorUserId"`
+	Author       *UserSummary `json:"author,omitempty"`
 	// LastReplyAuthor 最近一条 active 评论作者；无评论时与 Author 相同（列表「最近回复」列）。
 	LastReplyAuthor *UserSummary `json:"lastReplyAuthor,omitempty"`
 	Title           string       `json:"title"`
@@ -281,6 +281,8 @@ type TopicSummary struct {
 	CreatedAt      time.Time         `json:"createdAt"`
 	UpdatedAt      time.Time         `json:"updatedAt"`
 	LastActivityAt time.Time         `json:"lastActivityAt"`
+	// CurrentRevision 是内容乐观并发令牌。混合迁移期旧内容以 >=1 的有效值回读，绝不暴露 0。
+	CurrentRevision int64 `json:"currentRevision"`
 	// Edited 主题正文是否曾被编辑（showTopicEditMark 开启时填充）。
 	Edited bool `json:"edited,omitempty"`
 	// ContentEdited 由存储层根据 post_revisions 得出，不直接暴露。
@@ -457,9 +459,9 @@ type ForumSettings struct {
 	DailyTopicLimit        int `json:"dailyTopicLimit"`
 
 	// 评论内容、嵌套与节奏限制
-	CommentMinRunes          int `json:"commentMinRunes"`
-	CommentMaxRunes          int `json:"commentMaxRunes"`
-	CommentMaxNestingDepth   int `json:"commentMaxNestingDepth"`
+	CommentMinRunes        int `json:"commentMinRunes"`
+	CommentMaxRunes        int `json:"commentMaxRunes"`
+	CommentMaxNestingDepth int `json:"commentMaxNestingDepth"`
 	// TreeDescendantsPerRoot view=tree 时每个根评论最多返回的子孙数（D2，默认 50）。
 	TreeDescendantsPerRoot   int `json:"treeDescendantsPerRoot"`
 	CommentEditWindowMinutes int `json:"commentEditWindowMinutes"`
@@ -643,9 +645,11 @@ type Comment struct {
 	ReplyTo       *ReplyReference `json:"replyTo,omitempty"`
 	Children      []Comment       `json:"children,omitempty"`
 	// HasMoreChildren tree 视图下子孙被 treeDescendantsPerRoot 截断时为 true；更多走 ListCommentReplies。
-	HasMoreChildren bool `json:"hasMoreChildren,omitempty"`
+	HasMoreChildren bool      `json:"hasMoreChildren,omitempty"`
 	CreatedAt       time.Time `json:"createdAt"`
 	UpdatedAt       time.Time `json:"updatedAt"`
+	// CurrentRevision 是内容乐观并发令牌。混合迁移期旧内容以 >=1 的有效值回读，绝不暴露 0。
+	CurrentRevision int64 `json:"currentRevision"`
 	// Edited 评论是否曾被编辑（showCommentEditMark 开启时填充）。
 	Edited bool `json:"edited,omitempty"`
 	// ContentEdited 由存储层根据 post_revisions 得出，不直接暴露。

@@ -9,11 +9,11 @@ import (
 func TestClassifyListTopicsTotal_D1Modes(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
-		name         string
-		category     string
-		tag          string
-		wantMode     listTopicsTotalMode
-		wantApprox   bool
+		name       string
+		category   string
+		tag        string
+		wantMode   listTopicsTotalMode
+		wantApprox bool
 	}{
 		{name: "home", category: "", tag: "", wantMode: listTopicsTotalHome, wantApprox: true},
 		{name: "category only", category: "general", tag: "", wantMode: listTopicsTotalCategory, wantApprox: false},
@@ -98,6 +98,20 @@ func TestTopicSummarySQL_UsesPlainTextPrefixNotFullBody(t *testing.T) {
 	// 最近回复作者：LATERAL 最近 active 评论，无则 COALESCE 回楼主。
 	if !strings.Contains(sql, "last_reply_users") || !strings.Contains(sql, "LEFT JOIN LATERAL") {
 		t.Fatalf("summary SQL must hydrate lastReplyAuthor via lateral join, got:\n%s", sql)
+	}
+}
+
+func TestEffectivePostCurrentRevisionSQL_CountsMixedLegacyRows(t *testing.T) {
+	t.Parallel()
+	sql := effectivePostCurrentRevisionSQL("posts")
+	for _, fragment := range []string{
+		"posts.current_revision > 0",
+		"pr_effective.revision_no IS NULL",
+		"ELSE 1 + (SELECT COUNT(*) FROM post_revisions",
+	} {
+		if !strings.Contains(sql, fragment) {
+			t.Fatalf("effective revision SQL missing %q:\n%s", fragment, sql)
+		}
 	}
 }
 

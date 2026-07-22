@@ -173,6 +173,22 @@ func (s *PostgresStore) CreateComment(ctx context.Context, input CreateCommentRe
 	if err := replaceForumAttachmentReferences(ctx, tx, "comment", commentID, input.AuthorUserID, input.AttachmentIDs); err != nil {
 		return Comment{}, err
 	}
+	if _, err := insertAcceptedPostRevision(ctx, tx, AcceptedRevisionSnapshotInput{
+		PostID:           content.ID,
+		RevisionNo:       1,
+		ActorUserID:      input.AuthorUserID,
+		Operation:        RevisionOperationCreate,
+		Origin:           RevisionOriginSelf,
+		ChangedFields:    []string{"attachments", "content"},
+		AttachmentIDs:    input.AttachmentIDs,
+		SnapshotComplete: true,
+		Content:          content,
+	}); err != nil {
+		return Comment{}, err
+	}
+	if err := setPostCurrentRevision(ctx, tx, content.ID, 1); err != nil {
+		return Comment{}, err
+	}
 
 	comment, err := getCommentByID(ctx, tx, commentID, s.avatarBuilder)
 	if err != nil {
@@ -824,7 +840,7 @@ func createPostRevision(ctx context.Context, tx pgx.Tx, postID int64, editorUser
 	// revision 只保留源文与渲染元数据，html/plain/excerpt 不重复快照。
 	_, err := tx.Exec(ctx, `
 		INSERT INTO post_revisions (
-		  post_id, edited_by_user_id, raw_content,
+		  post_id, superseded_by_user_id, raw_content,
 		  source_format, editor_type, editor_version, render_version, content_hash
 		)
 		SELECT id, $2, raw_content,
@@ -1039,7 +1055,8 @@ func topicSummarySQL() string {
 		  author_attachments.content_type, author_attachments.status,
 		  topics.title, topics.slug, topics.status, topics.is_pinned,
 		  topics.comment_count, topics.view_count, topics.hot_score, ` + plainTextPrefixSQL("posts.plain_text") + `,
-		  EXISTS (SELECT 1 FROM post_revisions WHERE post_id = posts.id),
+		  ` + effectivePostCurrentRevisionSQL("posts") + `,
+		  ` + contentEditedSQL("posts") + `,
 		  topics.created_at, topics.updated_at, topics.last_activity_at,` + lastReplyAuthorSelectSQL() + `
 		FROM topics
 		JOIN categories ON categories.id = topics.category_id
@@ -1067,7 +1084,7 @@ func topicListOrderBy(sort string) string {
 
 func topicDetailSQL() string {
 	// 详情 SELECT：正文三字段 + 作者头像；excerpt 在 scan 时从 plain 派生。
-	// ContentEdited 用 EXISTS(post_revisions) 索引探测（post_revisions_post_created_idx），
+	// ContentEdited 基于有效 currentRevision > 1；混合迁移期只在当前行上用 revision 索引计数。
 	// 不拉 revision 正文，避免详情路径扫历史快照。
 	return `
 		SELECT topics.id, topics.category_id, categories.slug, categories.name,
@@ -1077,7 +1094,8 @@ func topicDetailSQL() string {
 		  author_attachments.content_type, author_attachments.status,
 		  topics.title, topics.slug, topics.status, topics.is_pinned,
 		  topics.comment_count, topics.view_count,
-		  EXISTS (SELECT 1 FROM post_revisions WHERE post_id = posts.id),
+		  ` + effectivePostCurrentRevisionSQL("posts") + `,
+		  ` + contentEditedSQL("posts") + `,
 		  topics.created_at, topics.updated_at, topics.last_activity_at,
 		  posts.id, posts.raw_content, posts.html_content, posts.plain_text,
 		  posts.source_format, posts.editor_type, posts.editor_version,
@@ -1089,6 +1107,27 @@ func topicDetailSQL() string {
 		LEFT JOIN user_profiles author_profiles ON author_profiles.user_id = users.id
 		LEFT JOIN attachments author_attachments ON author_attachments.id = author_profiles.avatar_attachment_id
 	`
+}
+
+func effectivePostCurrentRevisionSQL(postAlias string) string {
+	alias := strings.TrimSpace(postAlias)
+	if alias == "" {
+		alias = "posts"
+	}
+	// Backfill 前 current_revision=0。M1 仍保留旧编辑写入，可能产生 revision_no
+	// 为空的 legacy 行；读取时把它们计入有效版本，避免公开 API 暴露过渡哨兵
+	// 或把混合期编辑误判为未编辑。backfill/M3 完成后 null 计数应回到 0。
+	return `CASE
+		  WHEN ` + alias + `.current_revision > 0 THEN ` + alias + `.current_revision + (
+		    SELECT COUNT(*) FROM post_revisions pr_effective
+		    WHERE pr_effective.post_id = ` + alias + `.id AND pr_effective.revision_no IS NULL
+		  )
+		  ELSE 1 + (SELECT COUNT(*) FROM post_revisions pr_effective WHERE pr_effective.post_id = ` + alias + `.id)
+		END`
+}
+
+func contentEditedSQL(postAlias string) string {
+	return `(` + effectivePostCurrentRevisionSQL(postAlias) + `) > 1`
 }
 
 func scanTopicSummary(row RowScanner) (TopicSummary, error) {
@@ -1113,6 +1152,7 @@ func scanTopicSummary(row RowScanner) (TopicSummary, error) {
 		&topic.ViewCount,
 		&topic.HotScore,
 		&plainPrefix,
+		&topic.CurrentRevision,
 		&topic.ContentEdited,
 		&topic.CreatedAt,
 		&topic.UpdatedAt,
@@ -1226,6 +1266,7 @@ func scanTopicSummaryWithAvatar(row RowScanner, builder *avatar.ViewBuilder) (To
 		&topic.ViewCount,
 		&topic.HotScore,
 		&plainPrefix,
+		&topic.CurrentRevision,
 		&topic.ContentEdited,
 		&topic.CreatedAt,
 		&topic.UpdatedAt,
@@ -1283,6 +1324,7 @@ func scanTopicDetail(row RowScanner) (TopicDetail, error) {
 		&detail.IsPinned,
 		&detail.CommentCount,
 		&detail.ViewCount,
+		&detail.CurrentRevision,
 		&detail.ContentEdited,
 		&detail.CreatedAt,
 		&detail.UpdatedAt,
@@ -1342,6 +1384,7 @@ func scanTopicDetailWithAvatar(row RowScanner, builder *avatar.ViewBuilder) (Top
 		&detail.IsPinned,
 		&detail.CommentCount,
 		&detail.ViewCount,
+		&detail.CurrentRevision,
 		&detail.ContentEdited,
 		&detail.CreatedAt,
 		&detail.UpdatedAt,
@@ -1402,7 +1445,8 @@ func commentSelectSQL() string {
 		  parent_profiles.avatar_attachment_id,
 		  parent_attachments.id, parent_attachments.public_id, parent_attachments.owner_user_id,
 		  parent_attachments.content_type, parent_attachments.status,
-		  EXISTS (SELECT 1 FROM post_revisions WHERE post_id = posts.id),
+		  ` + effectivePostCurrentRevisionSQL("posts") + `,
+		  ` + contentEditedSQL("posts") + `,
 		  comments.created_at, comments.updated_at
 		FROM comments
 		JOIN posts ON posts.id = comments.content_id
@@ -1505,6 +1549,7 @@ func scanCommentWithAvatar(row RowScanner, builder *avatar.ViewBuilder) (Comment
 		&parentAttachmentOwnerID,
 		&parentAttachmentContentType,
 		&parentAttachmentStatus,
+		&comment.CurrentRevision,
 		&comment.ContentEdited,
 		&comment.CreatedAt,
 		&comment.UpdatedAt,

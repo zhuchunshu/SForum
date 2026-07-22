@@ -6,6 +6,30 @@ session archive.
 
 ## Latest Handoff
 
+- **2026-07-22 Forum content revisions V1 M1 schema/backfill**
+  - Goose migration `202607220052` added `posts.current_revision`, evolved
+    `post_revisions` into a nullable accepted-version ledger, and added
+    `topic_revision_snapshots`
+  - New topic/comment creation writes revision 1 in the content transaction;
+    mixed reads expose effective `currentRevision >= 1` and edited markers use
+    effective revision `> 1`
+  - Backfill command: `sforum revisions backfill --batch=N [--loop]`; claims
+    `current_revision=0` batches with `FOR UPDATE SKIP LOCKED`, preserves legacy
+    row order, inserts one current snapshot, and is idempotent
+  - Handoff: `sessions/2026-07-22-forum-content-revisions-v1-m1-handoff.md`
+  - Plan: `plans/2026-07-22-forum-content-revisions-v1.md`
+  - Module: `modules/forum.md`
+
+- **2026-07-22 Forum content revisions V1 M0 contract freeze**
+  - ADR accepted for `post_revisions` ledger, `posts.current_revision` hot read
+    model, CAS, append-only restore, super-admin redaction, audit separation,
+    and closed plugin history boundary
+  - Diff dependency corrected: npm `diff` 9.0.0, BSD-3-Clause; do not install
+    npm `jsdiff`
+  - Handoff: `sessions/2026-07-22-forum-content-revisions-v1-m0-handoff.md`
+  - Decision: `decisions/2026-07-22-forum-content-revisions-ledger.md`
+  - Module: `modules/forum.md`
+
 - **2026-07-22 SEO schema_type save fix**
   - Admin SEO save always returned `options.invalid` / 站点设置不正确
   - Cause: `normalizeChoice` lowercases input vs PascalCase Schema.org allow-list
@@ -45,10 +69,10 @@ session archive.
   - Modules: `modules/frontend.md` · `modules/extensions.md`
 
 - **2026-07-22 Forum content revisions V1 task book**
-  - Ready M0–M7 plan: admin edit-any workbench, immutable self/staff history,
+  - Active M0–M7 plan: admin edit-any workbench, immutable self/staff history,
     optimistic concurrency, diff, safe restore, and super-admin redaction
   - Plan: `plans/2026-07-22-forum-content-revisions-v1.md`
-  - Handoff: `sessions/2026-07-22-forum-content-revisions-v1-plan-handoff.md`
+  - Latest handoff: `sessions/2026-07-22-forum-content-revisions-v1-m1-handoff.md`
   - Module: `modules/forum.md`
 
 - **2026-07-22 Current HEAD regression remediation plan**
@@ -312,8 +336,9 @@ lives in archived sessions and dated decisions.
 
 ### Open / next (product, not V3 LTS)
 
-- **Forum content revisions V1 (ready):** admin edit-any workbench, immutable
-  self/staff versions, CAS conflict prevention, diff, restore, and redaction —
+- **Forum content revisions V1 (active; M1 complete):** admin edit-any
+  workbench, immutable self/staff versions, CAS conflict prevention, diff,
+  restore, and redaction —
   `plans/2026-07-22-forum-content-revisions-v1.md`
 - **Current HEAD regression remediation (ready):** search/frontend/Page
   Registry/gate M0–M7 —
@@ -353,7 +378,7 @@ lives in archived sessions and dated decisions.
 ### Active plans (read first)
 
 - `plans/2026-07-13-trusted-plugin-theme-platform-v3.md` + `-progress.md` — V3 residual
-- `plans/2026-07-22-forum-content-revisions-v1.md` — ready content editing/revision/restore V1 task book
+- `plans/2026-07-22-forum-content-revisions-v1.md` — active content editing/revision/restore V1 task book (M1 complete)
 - `plans/2026-07-22-social-login-provider-plugins.md` — ready social login implementation task book
 - `plans/2026-07-21-million-scale-read-path.md` — single-node 1M-class read path (M0 done)
 - `plans/2026-07-12-iteration-a-engagement-loop.md` — product engagement (WS1 view count done with M2; likes/bookmarks open)

@@ -235,6 +235,17 @@ while provider-specific behavior remains in plugins.
 
 ## Current Status
 
+### Forum content revisions V1 M1 (2026-07-22)
+
+Core keeps the revision-history boundary Host-owned. M1 added the database
+ledger/backfill foundation and does not expose plugin revision query/mutation
+authority. V1 will add `comment.before_update`, enrich `topic.updated`, and add
+`comment.updated` with revision metadata only in later milestones. Raw content,
+reason text, IPs, attachment provider data, and revision mutation/query
+authority remain closed to plugins. The Forum Extension Surface Matrix must be
+regenerated when the event/catalog code changes in later milestones. ADR:
+`../decisions/2026-07-22-forum-content-revisions-ledger.md`.
+
 ### Plugin process RSS on admin lists (2026-07-21)
 
 Admin extension List/Detail decorate `runtime.memoryBytes` from a single OS

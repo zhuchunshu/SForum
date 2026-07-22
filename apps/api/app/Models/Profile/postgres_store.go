@@ -225,7 +225,8 @@ func (s *PostgresStore) ListRecentTopics(ctx context.Context, userID int64, limi
 		  topics.author_user_id, users.username, users.display_name,
 		  topics.title, topics.slug, topics.status, topics.is_pinned,
 		  topics.comment_count, topics.view_count, topics.hot_score, left(posts.plain_text, 2000),
-		  EXISTS (SELECT 1 FROM post_revisions WHERE post_id = posts.id),
+		  `+forumCurrentRevisionSQL("posts")+`,
+		  (`+forumCurrentRevisionSQL("posts")+`) > 1,
 		  topics.created_at, topics.updated_at, topics.last_activity_at
 		FROM topics
 		JOIN categories ON categories.id = topics.category_id
@@ -254,6 +255,16 @@ func (s *PostgresStore) ListRecentTopics(ctx context.Context, userID int64, limi
 		return nil, fmt.Errorf("iterate recent topics: %w", err)
 	}
 	return items, nil
+}
+
+func forumCurrentRevisionSQL(postAlias string) string {
+	return `CASE
+		  WHEN ` + postAlias + `.current_revision > 0 THEN ` + postAlias + `.current_revision + (
+		    SELECT COUNT(*) FROM post_revisions pr_effective
+		    WHERE pr_effective.post_id = ` + postAlias + `.id AND pr_effective.revision_no IS NULL
+		  )
+		  ELSE 1 + (SELECT COUNT(*) FROM post_revisions pr_effective WHERE pr_effective.post_id = ` + postAlias + `.id)
+		END`
 }
 
 type profileScanner = forum.RowScanner

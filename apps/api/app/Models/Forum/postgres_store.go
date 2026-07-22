@@ -364,7 +364,7 @@ func (s *PostgresStore) ListAuthorReviewItems(ctx context.Context, authorUserID 
 
 // GetTopicBySlug 按全局唯一 slug 查询公开主题。
 // WHERE topics.slug = $1 走 UNIQUE 索引 topics_slug_idx（迁移 202607090001）。
-// 与 GetTopic 共用 topicDetailSQL()（posts + author avatar；revisions 仅 EXISTS 标记 edited）。
+// 与 GetTopic 共用 topicDetailSQL()（posts + author avatar；revision token/edited 由热列或混合期页内计数派生）。
 // slug 为空或无匹配时返回 ErrTopicNotFound。
 func (s *PostgresStore) GetTopicBySlug(ctx context.Context, slug string) (TopicDetail, error) {
 	if strings.TrimSpace(slug) == "" {
@@ -612,6 +612,28 @@ func (s *PostgresStore) CreateTopic(ctx context.Context, input CreateTopicRecord
 		return TopicDetail{}, err
 	}
 	if err := replaceForumAttachmentReferences(ctx, tx, "topic", topicID, input.AuthorUserID, input.AttachmentIDs); err != nil {
+		return TopicDetail{}, err
+	}
+	if _, err := insertAcceptedPostRevision(ctx, tx, AcceptedRevisionSnapshotInput{
+		PostID:           content.ID,
+		RevisionNo:       1,
+		ActorUserID:      input.AuthorUserID,
+		Operation:        RevisionOperationCreate,
+		Origin:           RevisionOriginSelf,
+		ChangedFields:    []string{"attachments", "category", "content", "tags", "title"},
+		AttachmentIDs:    input.AttachmentIDs,
+		SnapshotComplete: true,
+		Content:          content,
+		Topic: &TopicRevisionSnapshotInput{
+			TopicID:      topicID,
+			Title:        input.Title,
+			CategorySlug: input.CategorySlug,
+			TagSlugs:     topicTagSlugs(tags),
+		},
+	}); err != nil {
+		return TopicDetail{}, err
+	}
+	if err := setPostCurrentRevision(ctx, tx, content.ID, 1); err != nil {
 		return TopicDetail{}, err
 	}
 	row := tx.QueryRow(ctx, topicDetailSQL()+` WHERE topics.id = $1`, topicID)

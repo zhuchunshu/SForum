@@ -64,7 +64,8 @@ func (s *PostgresStore) ListTopics(ctx context.Context, input TopicListInput) (T
 		  author_attachments.content_type, author_attachments.status,
 		  topics.title, topics.slug, topics.status, topics.is_pinned,
 		  topics.comment_count, topics.view_count, topics.hot_score, `+plainTextPrefixSQL("posts.plain_text")+`,
-		  EXISTS (SELECT 1 FROM post_revisions WHERE post_id = posts.id),
+		  `+effectivePostCurrentRevisionSQL("posts")+`,
+		  `+contentEditedSQL("posts")+`,
 		  topics.created_at, topics.updated_at, topics.last_activity_at,`+lastReplyAuthorSelectSQL()+`
 		FROM page
 		JOIN topics ON topics.id = page.id
@@ -125,6 +126,7 @@ func (s *PostgresStore) ListTopics(ctx context.Context, input TopicListInput) (T
 //   - 无分类：依赖 topics_public_activity_idx；公开分类用 EXISTS 过滤
 //   - 标签：保留 EXISTS topic_tags（topic_tags_tag_topic_idx）
 //   - cursor != nil 时 keyset（无 OFFSET）；否则 OFFSET（page 模式）
+//
 // perPage 用于 OFFSET；fetchLimit 通常为 perPage+1。
 func listTopicsPageSQL(categorySlug, tagSlug, sort string, page, perPage, fetchLimit int, cursor *topicListCursor) (string, []any, error) {
 	orderBy := topicListOrderBy(sort)
