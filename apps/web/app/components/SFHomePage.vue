@@ -37,11 +37,10 @@ const {
   rightRailEnabled,
   rightRailHotLimit,
   rightRailTagLimit
-} = useActiveThemeSettings(forceDefaultTheme)
+} = useActiveThemeSettings()
 
 const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
 const committedFilters = computed(() => parseForumHomeQuery(route.query))
-const forceDefaultTheme = computed(() => !!committedFilters.value.query)
 const currentPage = computed(() => parsePublicPage(route.query.page))
 const activeFeedKey = computed(() => forumHomeFeedKey(committedFilters.value))
 const activePageFeedKey = computed(() => `${activeFeedKey.value}:${currentPage.value}`)
@@ -166,6 +165,14 @@ const hasActiveFilters = computed(() => Boolean(
   || committedFilters.value.categorySlug
   || committedFilters.value.tagSlug
 ))
+const feedState = computed(() => {
+  if (topicsPending.value) return 'loading'
+  if (topicsError.value) return 'error'
+  if (topics.value.length) return 'results'
+  if (committedFilters.value.query) return 'search-empty'
+  if (hasActiveFilters.value) return 'filtered-empty'
+  return 'empty'
+})
 
 const selectedCategory = computed(() => categories.value.find(
   category => category.slug === selectedCategorySlug.value
@@ -472,7 +479,12 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main class="sforum-home" data-sforum-island-body="forum.component.home_page" data-layout="fullwidth-3col">
+  <main
+    class="sforum-home"
+    data-sforum-island-body="forum.component.home_page"
+    data-layout="fullwidth-3col"
+    :data-feed-state="feedState"
+  >
     <div
       class="sforum-home__layout"
       :class="{ 'sforum-home__layout--with-right': rightRailEnabled }"
@@ -645,7 +657,9 @@ onBeforeUnmount(() => {
 
           <div
             v-else
-            class="px-4 py-10 text-center"
+            class="sforum-home__empty px-4 py-10 text-center"
+            :class="{ 'sforum-home__empty--search': Boolean(committedFilters.query) }"
+            :data-sf-region="committedFilters.query ? 'search-empty' : 'topic-list-empty'"
           >
             <SFEmptyState
               :title="emptyTitle"

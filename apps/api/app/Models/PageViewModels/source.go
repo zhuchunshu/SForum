@@ -137,6 +137,12 @@ func (s *CorePageViewModelSource) Populate(ctx context.Context, input CorePageVi
 		err = s.populateTopicDetail(ctx, &request, input)
 	case "forum.topic.create":
 		err = s.populateTopicCreate(ctx, &request)
+	case "forum.topic.reply":
+		if input.Actor.ID <= 0 {
+			return pages.CorePageViewModelRequest{}, ErrCorePageDataUnauthorized
+		}
+		// 主题只拿到宿主表单边界；topic 查询和评论提交继续由回复岛与 API 负责。
+		request.Data.TopicReply = &themecompiler.TopicReplyPageViewModel{}
 	case "forum.profile.show":
 		err = s.populateProfile(ctx, &request, input.Actor)
 	case "forum.settings.profile":

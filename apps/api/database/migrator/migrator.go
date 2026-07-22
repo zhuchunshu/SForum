@@ -64,6 +64,9 @@ func runCoreMigrationsLocked(
 	adminConnection *sql.Conn,
 	targetVersion string,
 ) error {
+	if err := ensureCoreDatabaseExtensions(ctx, adminConnection); err != nil {
+		return fmt.Errorf("ensure Core database extensions: %w", err)
+	}
 	if err := checkCoreUpgradeCompatibility(ctx, adminConnection, targetVersion); err != nil {
 		return fmt.Errorf("check core upgrade compatibility: %w", err)
 	}

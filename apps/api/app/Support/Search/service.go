@@ -33,9 +33,6 @@ func (s *Service) WithLiveSource(live LiveTopicSource) *Service {
 // maxSearchPage 限制搜索的深翻页，与 forum.normalizePage 的上限保持一致语义。
 const maxSearchPage = 200
 
-// maxLiveRefillPages 幽灵命中过多时，最多再向引擎多取几页以凑满 perPage。
-const maxLiveRefillPages = 5
-
 func normalizeSearchPage(page, perPage, defaultPerPage int) (int, int) {
 	if page <= 0 {
 		page = 1
@@ -54,8 +51,15 @@ func normalizeSearchPage(page, perPage, defaultPerPage int) (int, int) {
 
 // Search 执行关键词检索，支持 categorySlug/tagSlug/status 过滤。
 // 仅返回 active/locked 状态的公开主题（与 forum 公开列表一致；过滤由引擎侧应用）。
-// 若注入 LiveTopicSource，会剔除引擎脏索引中的幽灵文档，并尽量回填满当前页。
+// 若注入 LiveTopicSource，会剔除引擎脏索引中的幽灵文档。为保证独立请求的
+// 分页稳定性，绝不借用下一引擎页填充当前页；total 保持索引侧统计。
 func (s *Service) Search(ctx context.Context, input SearchInput) (SearchResult, error) {
+	return s.SearchWithLiveSource(ctx, input, s.live)
+}
+
+// SearchWithLiveSource 为单个调用指定权威主题源。HTTP 适配器使用请求私有 batch
+// 复用 Forum 摘要，普通 Page ViewModel 仍通过 Search 使用服务默认源。
+func (s *Service) SearchWithLiveSource(ctx context.Context, input SearchInput, live LiveTopicSource) (SearchResult, error) {
 	if s == nil || s.engine == nil {
 		return SearchResult{}, ErrEngineUnavailable
 	}
@@ -73,10 +77,10 @@ func (s *Service) Search(ctx context.Context, input SearchInput) (SearchResult, 
 	input.TagSlug = strings.TrimSpace(input.TagSlug)
 
 	// 无 live 源：单次引擎查询 + 状态过滤（旧行为）。
-	if s.live == nil {
+	if live == nil {
 		return s.searchOnce(ctx, input)
 	}
-	return s.searchWithLiveHydration(ctx, input)
+	return s.searchWithLiveHydration(ctx, input, live)
 }
 
 func (s *Service) searchOnce(ctx context.Context, input SearchInput) (SearchResult, error) {
@@ -91,79 +95,37 @@ func (s *Service) searchOnce(ctx context.Context, input SearchInput) (SearchResu
 	return result, nil
 }
 
-func (s *Service) searchWithLiveHydration(ctx context.Context, input SearchInput) (SearchResult, error) {
-	// 从请求页开始向后扫引擎页，hydrate 后凑满 perPage；total 按本趟丢弃数下调（近似）。
-	var (
-		collected []TopicSearchDoc
-		total     int64
-		dropped   int64
-		seenIDs   = map[int64]struct{}{}
-	)
-	enginePage := input.Page
-	for attempt := 0; attempt <= maxLiveRefillPages; attempt++ {
-		if enginePage > maxSearchPage {
-			break
+func (s *Service) searchWithLiveHydration(ctx context.Context, input SearchInput, live LiveTopicSource) (SearchResult, error) {
+	raw, err := s.engine.Search(ctx, input)
+	if err != nil {
+		if errors.Is(err, ErrEngineUnavailable) {
+			return SearchResult{}, ErrEngineUnavailable
 		}
-		pageInput := input
-		pageInput.Page = enginePage
-		raw, err := s.engine.Search(ctx, pageInput)
-		if err != nil {
-			if errors.Is(err, ErrEngineUnavailable) {
-				return SearchResult{}, ErrEngineUnavailable
-			}
-			return SearchResult{}, err
-		}
-		if attempt == 0 {
-			total = raw.Total
-		}
-		candidates := filterPublicDocs(raw.Items)
-		if len(candidates) == 0 {
-			break
-		}
-		// 跨页去重，避免引擎分页重叠或 refill 重复。
-		deduped := make([]TopicSearchDoc, 0, len(candidates))
-		for _, doc := range candidates {
-			if doc.ID <= 0 {
-				continue
-			}
-			if _, ok := seenIDs[doc.ID]; ok {
-				continue
-			}
-			seenIDs[doc.ID] = struct{}{}
-			deduped = append(deduped, doc)
-		}
-		hydrated, pageDropped, liveErr := hydrateLiveSearchHits(ctx, s.live, deduped)
-		if liveErr != nil {
-			return SearchResult{}, liveErr
-		}
-		dropped += pageDropped
-		for _, doc := range hydrated {
-			collected = append(collected, doc)
-			if len(collected) >= input.PerPage {
-				break
-			}
-		}
-		if len(collected) >= input.PerPage {
-			break
-		}
-		// 引擎本页已不足一页，没有更多可 refill。
-		if len(raw.Items) < input.PerPage {
-			break
-		}
-		enginePage++
+		return SearchResult{}, err
 	}
-	if collected == nil {
-		collected = []TopicSearchDoc{}
+	candidates := filterPublicDocs(raw.Items)
+	deduped := make([]TopicSearchDoc, 0, len(candidates))
+	seenIDs := make(map[int64]struct{}, len(candidates))
+	for _, doc := range candidates {
+		if doc.ID <= 0 {
+			continue
+		}
+		if _, ok := seenIDs[doc.ID]; ok {
+			continue
+		}
+		seenIDs[doc.ID] = struct{}{}
+		deduped = append(deduped, doc)
 	}
-	if len(collected) > input.PerPage {
-		collected = collected[:input.PerPage]
+	hydrated, _, err := hydrateLiveSearchHits(ctx, live, deduped)
+	if err != nil {
+		return SearchResult{}, err
 	}
-	if dropped > 0 && total >= dropped {
-		total -= dropped
+	if hydrated == nil {
+		hydrated = []TopicSearchDoc{}
 	}
 	return SearchResult{
-		Items:   collected,
-		Total:   total,
+		Items:   hydrated,
+		Total:   raw.Total,
 		Page:    input.Page,
 		PerPage: input.PerPage,
 	}, nil

@@ -238,6 +238,16 @@ func TestApproveIgnoresClientTemplatePath(t *testing.T) {
 	}
 }
 
+func TestMatchCorePagePathAcceptsArbitraryNotFoundPath(t *testing.T) {
+	params, ok := MatchCorePagePath("system.not_found", "/missing/discussion")
+	if !ok || len(params) != 0 {
+		t.Fatalf("not-found path should bind without params: ok=%v params=%#v", ok, params)
+	}
+	if _, ok := MatchCorePagePath("forum.home", "/missing/discussion"); ok {
+		t.Fatal("ordinary catalog pages must still reject mismatched paths")
+	}
+}
+
 func TestContractMismatchFallsBack(t *testing.T) {
 	store := NewMemoryStore()
 	reg := NewRegistry(store)

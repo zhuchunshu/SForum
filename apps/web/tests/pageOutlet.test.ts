@@ -113,4 +113,15 @@ describe('SFPageOutlet catalog wiring', () => {
     expect(src).toContain('v-if="isNotFound"')
     expect(src).toContain('<SFErrorPageContent v-else')
   })
+
+  it('lets the active theme present 404 pages while Host keeps the error island', () => {
+    const outlet = read('app/components/SFPageOutlet.vue')
+    const errorPage = read('app/error.vue')
+    const catalog = read('../../apps/api/app/Support/Pages/catalog.go')
+
+    expect(outlet).not.toContain('forceDefaultTheme')
+    expect(errorPage).not.toContain('forceDefaultTheme')
+    expect(errorPage).toContain('page="system.not_found"')
+    expect(catalog).toMatch(/ID: "system\.not_found"[^\n]+Replaceable: true/)
+  })
 })

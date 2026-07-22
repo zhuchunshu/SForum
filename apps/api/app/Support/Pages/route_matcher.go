@@ -190,7 +190,14 @@ func MatchRequestPath(routes []CompiledRoute, requestPath string) (RouteMatch, b
 // path describe the same core page before route parameters enter a ViewModel.
 func MatchCorePagePath(pageID, requestPath string) (map[string]string, bool) {
 	page, ok := Find(strings.TrimSpace(pageID))
-	if !ok || strings.TrimSpace(page.PathPattern) == "" {
+	if !ok {
+		return nil, false
+	}
+	// 404 没有固定路由模式，它描述的正是未被其他页面匹配的当前路径。
+	if page.ID == "system.not_found" && strings.TrimSpace(page.PathPattern) == "" {
+		return map[string]string{}, true
+	}
+	if strings.TrimSpace(page.PathPattern) == "" {
 		return nil, false
 	}
 	route, err := CompileRoute(page.PathPattern, PageContribution{})

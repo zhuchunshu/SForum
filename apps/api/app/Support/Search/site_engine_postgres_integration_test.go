@@ -65,9 +65,9 @@ func TestPostgresSiteEngineIndexSearchDelete(t *testing.T) {
 		_, err = pool.Exec(ctx, `
 			ALTER TABLE search_documents ADD COLUMN IF NOT EXISTS tsv tsvector
 			GENERATED ALWAYS AS (
-			  setweight(to_tsvector('pg_catalog', coalesce(title, '')), 'A') ||
-			  setweight(to_tsvector('pg_catalog', coalesce(excerpt, '')), 'B') ||
-			  setweight(to_tsvector('pg_catalog', coalesce(plain_text, '')), 'C')
+			  setweight(to_tsvector('simple', coalesce(title, '')), 'A') ||
+			  setweight(to_tsvector('simple', coalesce(excerpt, '')), 'B') ||
+			  setweight(to_tsvector('simple', coalesce(plain_text, '')), 'C')
 			) STORED
 		`)
 		if err != nil {
@@ -75,6 +75,27 @@ func TestPostgresSiteEngineIndexSearchDelete(t *testing.T) {
 		}
 		_, _ = pool.Exec(ctx, `CREATE INDEX IF NOT EXISTS search_documents_tsv_idx ON search_documents USING GIN (tsv)`)
 	}
+	_, err = pool.Exec(ctx, `ALTER TABLE search_documents ADD COLUMN IF NOT EXISTS cjk_tsv tsvector NOT NULL DEFAULT ''::tsvector`)
+	if err != nil {
+		t.Fatalf("add cjk_tsv: %v", err)
+	}
+	_, _ = pool.Exec(ctx, `CREATE INDEX IF NOT EXISTS search_documents_cjk_tsv_idx ON search_documents USING GIN (cjk_tsv)`)
+	_, err = pool.Exec(ctx, `CREATE SCHEMA IF NOT EXISTS sforum_host_extensions`)
+	if err != nil {
+		t.Fatalf("create Host extension schema: %v", err)
+	}
+	_, err = pool.Exec(ctx, `CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA sforum_host_extensions`)
+	if err != nil {
+		t.Fatalf("create pg_trgm: %v", err)
+	}
+	_, err = pool.Exec(ctx, `
+		ALTER TABLE search_documents ADD COLUMN IF NOT EXISTS fuzzy_text TEXT
+		GENERATED ALWAYS AS (title || E'\n' || excerpt) STORED
+	`)
+	if err != nil {
+		t.Fatalf("add fuzzy_text: %v", err)
+	}
+	_, _ = pool.Exec(ctx, `CREATE INDEX IF NOT EXISTS search_documents_fuzzy_text_trgm_idx ON search_documents USING GIN (fuzzy_text sforum_host_extensions.gin_trgm_ops)`)
 
 	engine := NewPostgresSiteEngine(pool)
 	if err := engine.Probe(ctx); err != nil {
@@ -137,6 +158,118 @@ func TestPostgresSiteEngineIndexSearchDelete(t *testing.T) {
 		t.Fatalf("active topic %d not in results %+v", topicID, res.Items)
 	}
 
+	chineseTopicID := topicID + 2
+	if err := engine.Index(ctx, TopicSearchDoc{
+		ID: chineseTopicID, Title: "分享一段我写的糟糕代码，求重构建议", PlainText: "正文",
+		CategorySlug: "dev", CategoryName: "Dev", Status: "active",
+		CreatedAt: now, UpdatedAt: now, LastActivityAt: now,
+	}); err != nil {
+		t.Fatalf("Index Chinese topic: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), `DELETE FROM search_documents WHERE topic_id = $1`, chineseTopicID)
+	})
+	chineseResult, err := engine.Search(ctx, SearchInput{Query: "分享", Page: 1, PerPage: 20})
+	if err != nil {
+		t.Fatalf("Search Chinese prefix: %v", err)
+	}
+	foundChinese := false
+	for _, item := range chineseResult.Items {
+		if item.ID == chineseTopicID {
+			foundChinese = true
+			break
+		}
+	}
+	if !foundChinese {
+		t.Fatalf("expected 分享 to match Chinese topic %d: %+v", chineseTopicID, chineseResult.Items)
+	}
+	insideResult, err := engine.Search(ctx, SearchInput{Query: "代码", Page: 1, PerPage: 20})
+	if err != nil {
+		t.Fatalf("Search Chinese infix: %v", err)
+	}
+	foundInside := false
+	for _, item := range insideResult.Items {
+		if item.ID == chineseTopicID {
+			foundInside = true
+			break
+		}
+	}
+	if !foundInside {
+		t.Fatalf("expected 代码 to match inside Chinese title %d: %+v", chineseTopicID, insideResult.Items)
+	}
+	oneCharacterResult, err := engine.Search(ctx, SearchInput{Query: "码", Page: 1, PerPage: 20})
+	if err != nil {
+		t.Fatalf("Search one Chinese character: %v", err)
+	}
+	if !containsSearchDoc(oneCharacterResult.Items, chineseTopicID) {
+		t.Fatalf("expected single Han character to match topic %d: %+v", chineseTopicID, oneCharacterResult.Items)
+	}
+	fuzzyResult, err := engine.Search(ctx, SearchInput{Query: "分享一断", Page: 1, PerPage: 20})
+	if err != nil {
+		t.Fatalf("Search Chinese typo: %v", err)
+	}
+	if !containsSearchDoc(fuzzyResult.Items, chineseTopicID) {
+		t.Fatalf("expected typo-tolerant query to match topic %d: %+v", chineseTopicID, fuzzyResult.Items)
+	}
+	distractorTopicID := topicID + 5
+	if err := engine.Index(ctx, TopicSearchDoc{
+		ID: distractorTopicID, Title: "分享一份我刚整理的面试题集", PlainText: "相似开头",
+		CategorySlug: "dev", CategoryName: "Dev", Status: "active",
+		CreatedAt: now.Add(time.Hour), UpdatedAt: now.Add(time.Hour), LastActivityAt: now.Add(time.Hour),
+	}); err != nil {
+		t.Fatalf("Index fuzzy distractor: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), `DELETE FROM search_documents WHERE topic_id = $1`, distractorTopicID)
+	})
+	fuzzyRanked, err := engine.Search(ctx, SearchInput{Query: "分享一断", CategorySlug: "dev", Page: 1, PerPage: 20})
+	if err != nil {
+		t.Fatalf("Search fuzzy relevance ordering: %v", err)
+	}
+	if !containsSearchDoc(fuzzyRanked.Items, chineseTopicID) || !containsSearchDoc(fuzzyRanked.Items, distractorTopicID) {
+		t.Fatalf("expected both fuzzy candidates: %+v", fuzzyRanked.Items)
+	}
+	if searchDocPosition(fuzzyRanked.Items, chineseTopicID) >= searchDocPosition(fuzzyRanked.Items, distractorTopicID) {
+		t.Fatalf("closer typo match must outrank newer distractor: %+v", fuzzyRanked.Items)
+	}
+
+	bodyTopicID := topicID + 3
+	if err := engine.Index(ctx, TopicSearchDoc{
+		ID: bodyTopicID, Title: "数据库经验", PlainText: "这里讨论高并发场景下的全文检索优化方案",
+		CategorySlug: "dev", CategoryName: "Dev", Status: "active", IsPinned: true,
+		CreatedAt: now, UpdatedAt: now, LastActivityAt: now,
+	}); err != nil {
+		t.Fatalf("Index Chinese body topic: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), `DELETE FROM search_documents WHERE topic_id = $1`, bodyTopicID)
+	})
+	bodyResult, err := engine.Search(ctx, SearchInput{Query: "全文检索", Page: 1, PerPage: 20})
+	if err != nil {
+		t.Fatalf("Search Chinese body: %v", err)
+	}
+	if !containsSearchDoc(bodyResult.Items, bodyTopicID) {
+		t.Fatalf("expected Chinese body match for topic %d: %+v", bodyTopicID, bodyResult.Items)
+	}
+	exactTopicID := topicID + 4
+	if err := engine.Index(ctx, TopicSearchDoc{
+		ID: exactTopicID, Title: "全文检索", PlainText: "精确标题",
+		CategorySlug: "dev", CategoryName: "Dev", Status: "active",
+		CreatedAt: now.Add(-time.Hour), UpdatedAt: now.Add(-time.Hour), LastActivityAt: now.Add(-time.Hour),
+	}); err != nil {
+		t.Fatalf("Index exact-title topic: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), `DELETE FROM search_documents WHERE topic_id = $1`, exactTopicID)
+	})
+	rankedResult, err := engine.Search(ctx, SearchInput{Query: "全文检索", Page: 1, PerPage: 20})
+	if err != nil {
+		t.Fatalf("Search relevance ordering: %v", err)
+	}
+	if len(rankedResult.Items) < 2 || rankedResult.Items[0].ID != exactTopicID {
+		t.Fatalf("exact title must outrank newer pinned body hit: %+v", rankedResult.Items)
+	}
+
 	if err := engine.Delete(ctx, topicID); err != nil {
 		t.Fatalf("Delete: %v", err)
 	}
@@ -149,4 +282,22 @@ func TestPostgresSiteEngineIndexSearchDelete(t *testing.T) {
 			t.Fatalf("deleted topic still returned")
 		}
 	}
+}
+
+func containsSearchDoc(items []TopicSearchDoc, topicID int64) bool {
+	for _, item := range items {
+		if item.ID == topicID {
+			return true
+		}
+	}
+	return false
+}
+
+func searchDocPosition(items []TopicSearchDoc, topicID int64) int {
+	for index, item := range items {
+		if item.ID == topicID {
+			return index
+		}
+	}
+	return len(items) + 1
 }

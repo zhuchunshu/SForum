@@ -6,6 +6,39 @@ session archive.
 
 ## Latest Handoff
 
+- **2026-07-22 Site search CJK + fuzzy matching**
+  - Default PostgreSQL engine: `simple` FTS + Unicode Han n-grams + indexed
+    `pg_trgm` title/excerpt typo tolerance; relevance-first stable ranking
+  - Docker DB migrated/reindexed; real PG, fresh ownership, API, UI, and browser
+    search checks pass
+  - Decision: `decisions/2026-07-22-default-site-search-cjk-fuzzy.md`
+  - Handoff: `sessions/2026-07-22-site-search-cjk-fuzzy-handoff.md`
+  - Module: `modules/search.md`
+
+- **2026-07-22 Theme-defined system error pages task book**
+  - Ready M0-M6 plan: selected-theme L0/L1 for 403/404/429/5xx, narrow Host
+    error islands, no L2/plugin replacement, and non-recursive emergency fallback
+  - Wait for or coordinate with overlapping current-HEAD regression work before
+    editing shared Page Registry/error files
+  - Plan: `plans/2026-07-22-theme-defined-system-error-pages.md`
+  - Handoff: `sessions/2026-07-22-theme-defined-system-error-pages-plan-handoff.md`
+  - Modules: `modules/frontend.md` · `modules/extensions.md`
+
+- **2026-07-22 Forum content revisions V1 task book**
+  - Ready M0–M7 plan: admin edit-any workbench, immutable self/staff history,
+    optimistic concurrency, diff, safe restore, and super-admin redaction
+  - Plan: `plans/2026-07-22-forum-content-revisions-v1.md`
+  - Handoff: `sessions/2026-07-22-forum-content-revisions-v1-plan-handoff.md`
+  - Module: `modules/forum.md`
+
+- **2026-07-22 Current HEAD regression remediation plan**
+  - Ready task book for invalid PG FTS config, frontend typecheck, advanced
+    reply Page Registry closure, stable search pagination/single hydration, and
+    Extensions Controller gate stability
+  - Plan: `plans/2026-07-22-current-head-regression-remediation.md`
+  - Handoff: `sessions/2026-07-22-current-head-regression-plan-handoff.md`
+  - Modules: `modules/search.md` · `modules/frontend.md`
+
 - **2026-07-22 Advanced reply page**
   - Comment input top-right「高级回复」→ `/topics/reply` full SFEditor
   - Page Registry `forum.topic.reply`; draft handoff via sessionStorage
@@ -259,6 +292,12 @@ lives in archived sessions and dated decisions.
 
 ### Open / next (product, not V3 LTS)
 
+- **Forum content revisions V1 (ready):** admin edit-any workbench, immutable
+  self/staff versions, CAS conflict prevention, diff, restore, and redaction —
+  `plans/2026-07-22-forum-content-revisions-v1.md`
+- **Current HEAD regression remediation (ready):** search/frontend/Page
+  Registry/gate M0–M7 —
+  `plans/2026-07-22-current-head-regression-remediation.md`
 - **V3 production rewire honesty remediation (ready):** eight call-chain findings
   M0–M8 — `plans/2026-07-22-v3-production-rewire-honesty-remediation.md`
 - **Social login provider plugins ready:** Core completion + unified admin/user
@@ -294,6 +333,7 @@ lives in archived sessions and dated decisions.
 ### Active plans (read first)
 
 - `plans/2026-07-13-trusted-plugin-theme-platform-v3.md` + `-progress.md` — V3 residual
+- `plans/2026-07-22-forum-content-revisions-v1.md` — ready content editing/revision/restore V1 task book
 - `plans/2026-07-22-social-login-provider-plugins.md` — ready social login implementation task book
 - `plans/2026-07-21-million-scale-read-path.md` — single-node 1M-class read path (M0 done)
 - `plans/2026-07-12-iteration-a-engagement-loop.md` — product engagement (WS1 view count done with M2; likes/bookmarks open)

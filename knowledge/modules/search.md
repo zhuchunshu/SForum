@@ -15,11 +15,13 @@ Host catalog slot: **`search.provider`**.
 | Plugin | Engine transport only (store/query documents), except site search which is Host short-circuited |
 | Default | **Protected built-in site search** (`sforum.search-site`) — PostgreSQL FTS |
 
-## Current Status (2026-07-21)
+## Current Status (2026-07-22)
 
 - Core has **no** Meilisearch client; `MEILI_*` is not required.
 - Default: `sforum.search-site` (builtin, cannot uninstall). Host implements
-  `PostgresSiteEngine` against `search_documents` (tsvector + GIN).
+  `PostgresSiteEngine` against `search_documents`: built-in `simple` FTS,
+  Unicode Han unigram/bigram `cjk_tsv`, and `pg_trgm` title/excerpt fuzzy search,
+  all backed by GIN indexes.
 - Site-search admin entry is **About only** (no settings fields); Manage opens
   plugin info.
 - Optional: `extensions/optional/plugins/sforum-search-meilisearch`.
@@ -27,11 +29,34 @@ Host catalog slot: **`search.provider`**.
 - Decision: `decisions/2026-07-21-search-framework-site-default.md`
   (supersedes “default no engine → 503”).
 
+### Search regression remediation (implemented 2026-07-22)
+
+Task book:
+`../plans/2026-07-22-current-head-regression-remediation.md`.
+
+- Invalid `pg_catalog` regconfig use was restored to built-in `simple` and
+  verified against real PostgreSQL.
+- Ghost validation now checks only the requested engine page, preserves stable
+  engine totals, and never borrows adjacent pages.
+- HTTP search uses one request-scoped Forum hydration batch and retains engine
+  ordering without a second summary/tag query.
+- The later CJK/fuzzy decision adds default Chinese n-grams and `pg_trgm` while
+  preserving optional Meilisearch for dictionary segmentation, synonyms, and
+  more aggressive typo tolerance.
+- Search-focused, fresh-database ownership, OpenAPI, typecheck, UI unit, API,
+  and browser tests pass. The parent plan's full repository gate remains open
+  only on an unrelated V3 UI stable-identity mapping.
+
 ### Runtime behavior
 
 - Public search always has a resolved provider (site search when nothing pinned).
 - Topic write path enqueues index/delete for the selected engine.
 - Restore defaults → clear pin → site search.
+- Site-search ranking is relevance first, then pinned/activity/topic ID for a
+  deterministic order. It supports English lexical search, Chinese title/body
+  n-grams, literal infix matching, and conservative typo tolerance.
+- Upgrades that add or change CJK derivation must run the normal admin reindex;
+  generated title/excerpt trigram text is populated by the migration itself.
 
 ### Admin UI
 
@@ -55,4 +80,5 @@ Host catalog slot: **`search.provider`**.
 
 `TopicSearchDoc` (Host-owned): title, plainText, excerpt, category/tag slugs,
 status, pin, activity timestamps, author summary. Index UID: `sforum_topics`
-(external engines). Site engine table: `search_documents`.
+(external engines). Site engine table: `search_documents`. Decision:
+`../decisions/2026-07-22-default-site-search-cjk-fuzzy.md`.

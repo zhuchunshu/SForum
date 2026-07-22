@@ -145,11 +145,13 @@ func TestCoreMigratorFreshDatabaseOwnsGooseButNotRiver(t *testing.T) {
 	defer db.Close()
 	assertCoreAuthorityOwner(t, ctx, db, "schema", "public", fixture.ownerRole)
 	assertCoreAuthorityOwner(t, ctx, db, "schema", "sforum_core_v1", fixture.ownerRole)
+	assertCoreAuthorityOwner(t, ctx, db, "schema", coreDatabaseExtensionsSchema, fixture.sessionRole)
 	assertCoreAuthorityOwner(t, ctx, db, "relation", "public.goose_db_version", fixture.ownerRole)
 	assertCoreAuthorityOwner(t, ctx, db, "relation", "public.goose_lock", fixture.ownerRole)
 	assertCoreAuthorityOwner(t, ctx, db, "relation", "public.users", fixture.ownerRole)
 	assertCoreAuthorityOwner(t, ctx, db, "relation", "public.river_job", fixture.sessionRole)
 	assertCoreAuthorityOwner(t, ctx, db, "relation", "public.river_migration", fixture.sessionRole)
+	assertCoreAuthorityOwner(t, ctx, db, "extension", "pg_trgm", fixture.sessionRole)
 	assertCoreAuthorityMembership(t, ctx, db, fixture)
 	assertCoreAuthorityDatabaseCreateRevoked(t, ctx, db, fixture.ownerRole)
 }
@@ -461,6 +463,14 @@ func assertCoreAuthorityOwner(t *testing.T, ctx context.Context, db *sql.DB, obj
 			WHERE namespaces.nspname = $1 AND types.typname = $2
 		`
 		arguments = []any{parts[0], parts[1]}
+	case "extension":
+		query = `
+			SELECT owners.rolname
+			FROM pg_extension AS extensions
+			JOIN pg_roles AS owners ON owners.oid = extensions.extowner
+			WHERE extensions.extname = $1
+		`
+		arguments = []any{parts[0]}
 	default:
 		t.Fatalf("unknown Core authority object kind %q", objectKind)
 	}

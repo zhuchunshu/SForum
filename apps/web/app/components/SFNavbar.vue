@@ -173,10 +173,15 @@ const logoAriaLabel = computed(() => {
   return tagline ? `${siteName.value} — ${tagline}` : siteName.value
 })
 
-type LocaleCode = string
+const supportedLocaleCodes = ['zh-CN', 'en'] as const
+type LocaleCode = typeof supportedLocaleCodes[number]
 type LocaleOption = {
   code: LocaleCode
   name?: string
+}
+type ConfiguredLocale = string | {
+  code?: unknown
+  name?: unknown
 }
 type NavbarMenuItem = {
   label: string
@@ -206,16 +211,18 @@ const canReviewContent = computed(() => can(FORUM_PERMISSIONS.moderationReview))
 const displayName = computed(() =>
   user.value?.displayName || user.value?.username || ''
 )
-const localeOptions = computed(() =>
-  (locales.value as readonly (LocaleCode | LocaleOption)[]).map((entry) => {
-    if (typeof entry === 'string') {
-      return { code: entry, name: entry }
-    }
+function isLocaleCode(value: string): value is LocaleCode {
+  return supportedLocaleCodes.includes(value as LocaleCode)
+}
 
-    return {
-      code: entry.code,
-      name: entry.name || entry.code
+const localeOptions = computed<LocaleOption[]>(() =>
+  (locales.value as readonly ConfiguredLocale[]).flatMap((entry) => {
+    const code = typeof entry === 'string' ? entry : entry.code
+    if (typeof code !== 'string' || !isLocaleCode(code)) {
+      return []
     }
+    const name = typeof entry === 'string' ? entry : entry.name
+    return [{ code, name: typeof name === 'string' && name.trim() ? name : code }]
   })
 )
 const currentLocaleName = computed(() =>

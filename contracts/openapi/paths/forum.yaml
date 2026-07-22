@@ -55,7 +55,8 @@ search:
   get:
     summary: Search topics by keyword (search.provider engine)
     description: |
-      主题全文检索（search.provider；默认受保护站内搜索 PostgreSQL FTS），支持 categorySlug/tagSlug 过滤。
+      主题全文检索（search.provider；默认受保护站内搜索 PostgreSQL FTS + CJK n-gram + pg_trgm），
+      支持中文分词、标题/摘要模糊匹配以及 categorySlug/tagSlug 过滤。
       仅返回 active/locked 公开主题。关键词检索已从 GET /topics 迁移至此端点，
       以避免 PostgreSQL ILIKE 在千万级数据下的全表扫描。可选 Meilisearch 等外部引擎需安装插件并切换槽位。
     operationId: searchTopics
@@ -63,7 +64,7 @@ search:
     - name: query
       in: query
       required: true
-      description: 搜索关键词。
+      description: 搜索关键词。默认站内引擎支持中英文全文检索、中文 n-gram 分词和轻微错字容忍。
       schema:
         type: string
     - name: page

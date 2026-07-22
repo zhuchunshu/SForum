@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	nethttp "net/http"
@@ -19,9 +20,11 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/session"
 
-	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
+apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	pageviewmodels "github.com/zhuchunshu/sforum/apps/api/app/Models/PageViewModels"
+	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	apilts "github.com/zhuchunshu/sforum/apps/api/app/Support/APILTS"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
@@ -45,6 +48,17 @@ func (s pagesActors) LoadActor(_ context.Context, userID int64) (identity.Actor,
 		return identity.Actor{}, identity.ErrUserNotFound
 	}
 	return a, nil
+}
+
+func (s pagesActors) GetCurrentUser(_ context.Context, userID int64) (identity.CurrentUser, error) {
+	actor, ok := s.actors[userID]
+	if !ok {
+		return identity.CurrentUser{}, identity.ErrUserNotFound
+	}
+	return identity.CurrentUser{
+		ID: actor.ID, Username: "member", DisplayName: "Member", Status: actor.Status,
+		RoleKeys: append([]string(nil), actor.RoleKeys...),
+	}, nil
 }
 
 type pagesThemeStore struct {
@@ -292,6 +306,11 @@ func TestResolveCoreBindsOnlyMatchingRequestPath(t *testing.T) {
 	if rejected.StatusCode != nethttp.StatusUnprocessableEntity {
 		t.Fatalf("mismatched path status %d", rejected.StatusCode)
 	}
+
+	notFound := performPages(t, app, nethttp.MethodGet, "/api/v1/pages/resolve?id=system.not_found&path=/missing/discussion", nil, nil)
+	if notFound.StatusCode != nethttp.StatusOK {
+		t.Fatalf("not-found path status %d", notFound.StatusCode)
+	}
 }
 
 func TestParseViewModelQueryBoundsNestedPageFilters(t *testing.T) {
@@ -402,6 +421,109 @@ func TestResolveCompiledThemeAvoidsPackageStoreAndFailsClosedOnStaleArtifact(t *
 			}
 			if themeStore.gets != 0 {
 				t.Fatalf("request performed %d package store lookups", themeStore.gets)
+			}
+		})
+	}
+}
+
+type topicReplyViewOptions struct{}
+
+func (topicReplyViewOptions) WebOption(_ context.Context, name string) (string, error) {
+	switch name {
+	case options.NameSiteName:
+		return "SForum", nil
+	case options.NameSiteURL:
+		return "https://forum.example", nil
+	default:
+		return "", errors.New("unexpected option " + name)
+	}
+}
+
+func (topicReplyViewOptions) IsFeatureEnabled(context.Context, string) (bool, error) { return true, nil }
+
+func (topicReplyViewOptions) ForumReadPolicySnapshot() (string, string, uint64, bool) {
+	return "public", "author_and_staff", 1, true
+}
+
+func TestResolveTopicReplyUsesSelectedThemeAndRequiresLogin(t *testing.T) {
+	repoRoot := filepath.Clean(filepath.Join(fixtureDemoRoot(t), "..", "..", "..", ".."))
+	for _, test := range []struct {
+		name string
+		id   string
+		root string
+	}{
+		{name: "default", id: "sforum.default-theme", root: filepath.Join(repoRoot, "extensions/builtin/themes/sforum-default")},
+		{name: "nocturne", id: "sforum.nocturne-theme", root: filepath.Join(repoRoot, "extensions/builtin/themes/sforum-nocturne")},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			artifact := pages.RuntimeArtifact{ExtensionID: test.id, ExtensionVersion: "1.0.0", PackageDigest: strings.Repeat("a", 64)}
+			contribution := pages.PageContribution{
+				ID: test.id + ".topic-reply", Action: pages.ActionReplace, Target: "forum.topic.reply",
+				Template: "templates/topic-reply.html", Contract: "sforum.page.topic_reply@1",
+				ExtensionID: artifact.ExtensionID, Version: artifact.ExtensionVersion, PackageDigest: artifact.PackageDigest,
+			}
+			snapshot, err := pages.BuildThemeRuntimeSnapshot(pages.ThemeRuntimeBuildInput{
+				Artifact: artifact, PackageRoot: test.root, Contributions: []pages.PageContribution{contribution},
+				SiteName: "SForum", Locales: []string{"zh-CN"},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			runtimeRegistry := pages.NewThemeRuntimeRegistry()
+			runtimeRegistry.Publish(snapshot)
+			registry := pages.NewRegistry(pages.NewMemoryStore())
+			if err := registry.RegisterContributions(artifact.ExtensionID, []pages.PageContribution{contribution}); err != nil {
+				t.Fatal(err)
+			}
+			if err := registry.ApproveReplace(context.Background(), pages.ProviderBinding{
+				PageID: "forum.topic.reply", ExtensionID: artifact.ExtensionID, ContributionID: contribution.ID,
+				Version: artifact.ExtensionVersion, PackageDigest: artifact.PackageDigest, ContractVersion: contribution.Contract, ApprovedBy: 1,
+			}); err != nil {
+				t.Fatal(err)
+			}
+			manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})
+			users := pagesActors{actors: map[int64]identity.Actor{2: {
+				ID: 2, Status: identity.UserStatusActive, RoleKeys: []string{identity.RoleMember}, Permissions: map[string]bool{},
+			}}}
+			controller := NewControllerWithThemes(registry, users, manager, &pagesThemeStore{}).
+				WithThemeRuntime(runtimeRegistry).
+				WithCorePageViewModels(pageviewmodels.NewCorePageViewModelSource(pageviewmodels.CorePageViewModelDependencies{
+					Options: topicReplyViewOptions{},
+				}))
+			app := apphttp.NewApp(config.Config{AppName: "SForum", AppEnv: "test", CSRFEnabled: false, AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN"}}, slog.Default(), apphttp.Dependencies{
+				RouteProviders: []apphttp.RouteProvider{
+					pagesRouteProvider(func(api fiber.Router) {
+						api.Post("/test-login", func(c fiber.Ctx) error { _, err := manager.Start(c, 2); return err })
+					}),
+					pagesRouteProvider(func(api fiber.Router) { controller.RegisterRoutes(api) }),
+				},
+			})
+
+			path := "/api/v1/pages/resolve?id=forum.topic.reply&path=/topics/reply&query=topic%3Dinvalid"
+			if response := performPages(t, app, nethttp.MethodGet, path, nil, nil); response.StatusCode != nethttp.StatusUnauthorized {
+				t.Fatalf("anonymous reply resolve status=%d", response.StatusCode)
+			}
+			login := performPages(t, app, nethttp.MethodPost, "/api/v1/test-login", nil, nil)
+			if login.StatusCode != nethttp.StatusOK {
+				t.Fatalf("login status=%d", login.StatusCode)
+			}
+			response := performPages(t, app, nethttp.MethodGet, path, nil, login.Cookies()[0])
+			if response.StatusCode != nethttp.StatusOK {
+				t.Fatalf("authenticated reply resolve status=%d", response.StatusCode)
+			}
+			var envelope pagesEnvelope[resolveResponse]
+			if err := json.NewDecoder(response.Body).Decode(&envelope); err != nil {
+				t.Fatal(err)
+			}
+			if envelope.Data.Provider != artifact.ExtensionID || envelope.Data.Fallback || envelope.Data.RenderOutput == nil {
+				t.Fatalf("selected reply theme response=%#v", envelope.Data)
+			}
+			foundReplyIsland := false
+			for _, island := range envelope.Data.RenderOutput.Islands {
+				foundReplyIsland = foundReplyIsland || island.ComponentID == "forum.component.topic_reply"
+			}
+			if !foundReplyIsland {
+				t.Fatalf("reply island=%#v", envelope.Data.RenderOutput.Islands)
 			}
 		})
 	}

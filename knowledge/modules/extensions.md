@@ -1,5 +1,19 @@
 # Extensions Module
 
+## Ready Plan: Theme-Defined System Error Pages (2026-07-22)
+
+Task book:
+`../plans/2026-07-22-theme-defined-system-error-pages.md`.
+
+- Add virtual 403/404/429/server-error Page Registry surfaces owned by the
+  selected theme, with complete Host emergency fallback.
+- System error replacements are deliberately closed to plugins and public L2;
+  only reviewed L0/L1 theme templates and Host error/chrome islands are allowed.
+- Existing exact-artifact activation, inspection, rollback, and default-theme
+  reset remain authoritative; no second error-theme setting is introduced.
+- Implementation must coordinate with the overlapping current-HEAD regression
+  work before editing shared Page Registry/runtime files.
+
 ## Accepted V3 Target (P0–P12 Complete; P13 LTS Residual + Honesty Reopen)
 
 The accepted target, including the canonical 99-row comparison and detailed

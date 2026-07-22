@@ -182,6 +182,7 @@ func TestCorePageViewModelSourcePopulatesEveryCatalogContract(t *testing.T) {
 		"forum.tag.show":          {"/tags/go", map[string]string{"tagSlug": "go"}, nil, reflect.TypeOf(themecompiler.TagShowPageViewModel{})},
 		"forum.topic.show":        {"/t/42/hello", map[string]string{"path": "42/hello"}, url.Values{"page": {"1"}}, reflect.TypeOf(themecompiler.TopicDetailPageViewModel{})},
 		"forum.topic.create":      {"/topics/new", nil, nil, reflect.TypeOf(themecompiler.TopicCreatePageViewModel{})},
+		"forum.topic.reply":       {"/topics/reply", nil, url.Values{"topic": {"not-a-topic"}}, reflect.TypeOf(themecompiler.TopicReplyPageViewModel{})},
 		"forum.profile.show":      {"/u/alice", map[string]string{"username": "alice"}, nil, reflect.TypeOf(themecompiler.ProfilePageViewModel{})},
 		"forum.settings.profile":  {"/settings/profile", nil, nil, reflect.TypeOf(themecompiler.ProfileSettingsPageViewModel{})},
 		"forum.settings.security": {"/settings/security", nil, nil, reflect.TypeOf(themecompiler.SecuritySettingsPageViewModel{})},

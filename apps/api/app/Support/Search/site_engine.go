@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -57,19 +58,25 @@ func (e *PostgresSiteEngine) Index(ctx context.Context, doc TopicSearchDoc) erro
 	if tagSlugs == nil {
 		tagSlugs = []string{}
 	}
+	cjkTitleTerms := cjkNgrams(doc.Title)
+	cjkExcerptTerms := cjkNgrams(doc.Excerpt)
+	cjkBodyTerms := cjkNgrams(doc.PlainText)
 	_, err := e.pool.Exec(ctx, `
 		INSERT INTO search_documents (
 			topic_id, title, excerpt, plain_text,
 			category_id, category_slug, category_name,
 			author_user_id, author_username, author_display_name,
 			slug, status, is_pinned, comment_count, view_count, tag_slugs,
-			created_at, updated_at, last_activity_at
+			created_at, updated_at, last_activity_at, cjk_tsv
 		) VALUES (
 			$1,$2,$3,$4,
 			$5,$6,$7,
 			$8,$9,$10,
 			$11,$12,$13,$14,$15,$16,
-			$17,$18,$19
+			$17,$18,$19,
+			setweight(to_tsvector('simple', $20), 'A') ||
+			setweight(to_tsvector('simple', $21), 'B') ||
+			setweight(to_tsvector('simple', $22), 'C')
 		)
 		ON CONFLICT (topic_id) DO UPDATE SET
 			title = EXCLUDED.title,
@@ -89,13 +96,15 @@ func (e *PostgresSiteEngine) Index(ctx context.Context, doc TopicSearchDoc) erro
 			tag_slugs = EXCLUDED.tag_slugs,
 			created_at = EXCLUDED.created_at,
 			updated_at = EXCLUDED.updated_at,
-			last_activity_at = EXCLUDED.last_activity_at
+			last_activity_at = EXCLUDED.last_activity_at,
+			cjk_tsv = EXCLUDED.cjk_tsv
 	`,
 		doc.ID, doc.Title, doc.Excerpt, doc.PlainText,
 		doc.CategoryID, doc.CategorySlug, doc.CategoryName,
 		doc.AuthorUserID, doc.AuthorUsername, doc.AuthorDisplayName,
 		doc.Slug, doc.Status, doc.IsPinned, doc.CommentCount, doc.ViewCount, tagSlugs,
 		doc.CreatedAt, doc.UpdatedAt, doc.LastActivityAt,
+		cjkTitleTerms, cjkExcerptTerms, cjkBodyTerms,
 	)
 	if err != nil {
 		return fmt.Errorf("search site index topic %d: %w", doc.ID, err)
@@ -135,15 +144,15 @@ func (e *PostgresSiteEngine) Search(ctx context.Context, input SearchInput) (Sea
 	}
 	offset := (page - 1) * perPage
 
-	// websearch_to_tsquery 对用户输入更友好；失败时回退 plainto_tsquery。
-	// 'pg_catalog' 支持中英混排分词（'simple' 配置对中文支持较弱）。
-	args := []any{q}
+	// websearch_to_tsquery 保留自然查询语义；CJK n-gram 覆盖中文正文，
+	// pg_trgm 则为标题/摘要补充包含、前缀和轻微错字召回。三条路径均有 GIN 索引。
+	predicateSQL, rankSQL, args := siteTSQuery(q, false)
 	where := []string{
-		`tsv @@ websearch_to_tsquery('pg_catalog', $1)`,
-		`status = ANY($2::text[])`,
+		predicateSQL,
 	}
 	args = append(args, PublicSearchStatuses)
-	argN := 3
+	where = append(where, fmt.Sprintf(`status = ANY($%d::text[])`, len(args)))
+	argN := len(args) + 1
 	if slug := strings.TrimSpace(input.CategorySlug); slug != "" {
 		where = append(where, fmt.Sprintf(`category_slug = $%d`, argN))
 		args = append(args, slug)
@@ -174,9 +183,9 @@ func (e *PostgresSiteEngine) Search(ctx context.Context, input SearchInput) (Sea
 			created_at, updated_at, last_activity_at
 		FROM search_documents
 		WHERE %s
-		ORDER BY is_pinned DESC, ts_rank_cd(tsv, websearch_to_tsquery('pg_catalog', $1)) DESC, last_activity_at DESC
+		ORDER BY %s DESC, is_pinned DESC, last_activity_at DESC, topic_id DESC
 		LIMIT $%d OFFSET $%d
-	`, whereSQL, argN, argN+1)
+	`, whereSQL, rankSQL, argN, argN+1)
 	args = append(args, perPage, offset)
 
 	rows, err := e.pool.Query(ctx, listSQL, args...)
@@ -199,12 +208,13 @@ func (e *PostgresSiteEngine) Search(ctx context.Context, input SearchInput) (Sea
 
 func (e *PostgresSiteEngine) searchPlain(ctx context.Context, input SearchInput, page, perPage, offset int) (SearchResult, error) {
 	q := strings.TrimSpace(input.Query)
-	args := []any{q, PublicSearchStatuses}
+	predicateSQL, rankSQL, args := siteTSQuery(q, true)
 	where := []string{
-		`tsv @@ plainto_tsquery('pg_catalog', $1)`,
-		`status = ANY($2::text[])`,
+		predicateSQL,
 	}
-	argN := 3
+	args = append(args, PublicSearchStatuses)
+	where = append(where, fmt.Sprintf(`status = ANY($%d::text[])`, len(args)))
+	argN := len(args) + 1
 	if slug := strings.TrimSpace(input.CategorySlug); slug != "" {
 		where = append(where, fmt.Sprintf(`category_slug = $%d`, argN))
 		args = append(args, slug)
@@ -229,9 +239,9 @@ func (e *PostgresSiteEngine) searchPlain(ctx context.Context, input SearchInput,
 			created_at, updated_at, last_activity_at
 		FROM search_documents
 		WHERE %s
-		ORDER BY is_pinned DESC, ts_rank_cd(tsv, plainto_tsquery('pg_catalog', $1)) DESC, last_activity_at DESC
+		ORDER BY %s DESC, is_pinned DESC, last_activity_at DESC, topic_id DESC
 		LIMIT $%d OFFSET $%d
-	`, whereSQL, argN, argN+1)
+	`, whereSQL, rankSQL, argN, argN+1)
 	args = append(args, perPage, offset)
 	rows, err := e.pool.Query(ctx, listSQL, args...)
 	if err != nil {
@@ -244,6 +254,84 @@ func (e *PostgresSiteEngine) searchPlain(ctx context.Context, input SearchInput,
 	}
 	items = filterPublicDocs(items)
 	return SearchResult{Items: items, Total: total, Page: page, PerPage: perPage}, nil
+}
+
+// siteTSQuery 组合内建 FTS、CJK n-gram 与 pg_trgm。
+// 模糊召回限制在标题/摘要生成列，避免对长正文建立体积过大的 trigram 索引。
+func siteTSQuery(raw string, plain bool) (predicate, rank string, args []any) {
+	constructor := "websearch_to_tsquery"
+	if plain {
+		constructor = "plainto_tsquery"
+	}
+	primary := fmt.Sprintf("%s('simple', $1)", constructor)
+	predicates := []string{"tsv @@ " + primary}
+	ranks := []string{"ts_rank_cd(tsv, " + primary + ")"}
+	args = []any{raw}
+	if terms := cjkNgrams(raw); terms != "" {
+		args = append(args, terms)
+		cjkQuery := fmt.Sprintf("plainto_tsquery('simple', $%d)", len(args))
+		predicates = append(predicates, "cjk_tsv @@ "+cjkQuery)
+		ranks = append(ranks, "ts_rank_cd(cjk_tsv, "+cjkQuery+")")
+	}
+	if len([]rune(raw)) >= 2 {
+		args = append(args, "%"+escapeLikePattern(raw)+"%")
+		patternRef := fmt.Sprintf("$%d", len(args))
+		args = append(args, raw)
+		queryRef := fmt.Sprintf("$%d", len(args))
+		predicates = append(predicates,
+			fmt.Sprintf("fuzzy_text ILIKE %s ESCAPE '\\'", patternRef),
+			queryRef+" OPERATOR(sforum_host_extensions.<%) fuzzy_text",
+		)
+		ranks = append(ranks,
+			"(sforum_host_extensions.word_similarity("+queryRef+", fuzzy_text) * 0.35 + "+
+				"sforum_host_extensions.strict_word_similarity("+queryRef+", title) * 0.65)",
+		)
+		rank = "GREATEST(" + strings.Join(ranks, ", ") + ")" +
+			fmt.Sprintf(" + CASE WHEN lower(title) = lower(%s) THEN 2.0 WHEN title ILIKE %s ESCAPE '\\' THEN 0.5 ELSE 0 END", queryRef, patternRef)
+	} else {
+		rank = "GREATEST(" + strings.Join(ranks, ", ") + ")"
+	}
+	predicate = "(" + strings.Join(predicates, " OR ") + ")"
+	return predicate, rank, args
+}
+
+// cjkNgrams 为连续 Han 文本生成去重的单字和相邻二元词。
+// 单字保证短查询可用，二元词降低纯单字 AND 查询的误召回。
+func cjkNgrams(raw string) string {
+	terms := make([]string, 0, len(raw)/2)
+	seen := make(map[string]struct{})
+	appendTerm := func(term string) {
+		if _, ok := seen[term]; ok {
+			return
+		}
+		seen[term] = struct{}{}
+		terms = append(terms, term)
+	}
+	run := make([]rune, 0, 16)
+	flush := func() {
+		for _, r := range run {
+			appendTerm(string(r))
+		}
+		for i := 0; i+1 < len(run); i++ {
+			appendTerm(string(run[i : i+2]))
+		}
+		run = run[:0]
+	}
+	for _, r := range raw {
+		if unicode.In(r, unicode.Han) {
+			run = append(run, r)
+		} else if len(run) > 0 {
+			flush()
+		}
+	}
+	if len(run) > 0 {
+		flush()
+	}
+	return strings.Join(terms, " ")
+}
+
+func escapeLikePattern(raw string) string {
+	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(raw)
 }
 
 func scanSearchDocs(rows pgx.Rows) ([]TopicSearchDoc, error) {

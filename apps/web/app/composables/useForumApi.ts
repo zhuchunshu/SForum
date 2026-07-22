@@ -39,7 +39,7 @@ export function useForumApi() {
     return request<ForumTopicList>(pathWithQuery('/topics', buildForumTopicQuery(filters)))
   }
 
-  // 关键词检索走专用搜索端点（Meilisearch），避免 topics 列表的 ILIKE 全表扫描。
+  // 关键词检索走选定 search.provider，默认站内引擎支持中英文全文与模糊搜索。
   function searchTopics(filters: ForumTopicSearchFilters) {
     return request<ForumTopicList>(pathWithQuery('/search', buildForumSearchQuery(filters)))
   }

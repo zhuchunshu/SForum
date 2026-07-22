@@ -155,14 +155,55 @@ func TestDefaultSiteSearchExtensionIDStable(t *testing.T) {
 	}
 }
 
+func TestCJKNgramTerms(t *testing.T) {
+	if got := cjkNgrams("分"); got != "分" {
+		t.Fatalf("single Han term = %q", got)
+	}
+	if got := cjkNgrams("分享代码"); got != "分 享 代 码 分享 享代 代码" {
+		t.Fatalf("unigrams and overlapping bigrams = %q", got)
+	}
+	if got := cjkNgrams("分享 Go 代码"); got != "分 享 分享 代 码 代码" {
+		t.Fatalf("separate Han runs = %q", got)
+	}
+	if got := cjkNgrams("哈哈"); got != "哈 哈哈" {
+		t.Fatalf("terms must be deduplicated: %q", got)
+	}
+	if got := cjkNgrams("english only"); got != "" {
+		t.Fatalf("non-CJK text must not add ngrams: %q", got)
+	}
+}
+
+func TestSiteTSQueryIncludesIndexedFuzzyPath(t *testing.T) {
+	predicate, rank, args := siteTSQuery("分享代玛", false)
+	for _, want := range []string{"tsv @@", "cjk_tsv @@", "fuzzy_text ILIKE", "OPERATOR(sforum_host_extensions.<%)"} {
+		if !strings.Contains(predicate, want) {
+			t.Fatalf("predicate %q missing %q", predicate, want)
+		}
+	}
+	if !strings.Contains(rank, "sforum_host_extensions.word_similarity") ||
+		!strings.Contains(rank, "sforum_host_extensions.strict_word_similarity") ||
+		!strings.Contains(rank, "lower(title)") {
+		t.Fatalf("rank does not boost fuzzy/title matches: %q", rank)
+	}
+	if len(args) != 4 || args[0] != "分享代玛" || args[1] != "分 享 代 玛 分享 享代 代玛" || args[2] != "%分享代玛%" || args[3] != "分享代玛" {
+		t.Fatalf("query args = %#v", args)
+	}
+}
+
+func TestEscapeLikePattern(t *testing.T) {
+	if got := escapeLikePattern(`50%_off\today`); got != `50\%\_off\\today` {
+		t.Fatalf("escaped LIKE pattern = %q", got)
+	}
+}
+
 type leakyEngine struct {
 	items []TopicSearchDoc
 }
 
-func (leakyEngine) Probe(context.Context) error                         { return nil }
-func (leakyEngine) EnsureIndex(context.Context) error                   { return nil }
-func (leakyEngine) Index(context.Context, TopicSearchDoc) error         { return nil }
-func (leakyEngine) Delete(context.Context, int64) error                 { return nil }
+func (leakyEngine) Probe(context.Context) error                 { return nil }
+func (leakyEngine) EnsureIndex(context.Context) error           { return nil }
+func (leakyEngine) Index(context.Context, TopicSearchDoc) error { return nil }
+func (leakyEngine) Delete(context.Context, int64) error         { return nil }
 func (e leakyEngine) Search(context.Context, SearchInput) (SearchResult, error) {
 	return SearchResult{Items: e.items, Total: int64(len(e.items)), Page: 1, PerPage: 20}, nil
 }

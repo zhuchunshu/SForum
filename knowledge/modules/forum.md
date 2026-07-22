@@ -11,6 +11,14 @@ read models.
 Backend foundation implemented on 2026-07-06. Real taxonomy slice implemented
 on 2026-07-07.
 
+- **Content revisions V1 planned (ready, not implemented):** approved M0–M7 task
+  book at `plans/2026-07-22-forum-content-revisions-v1.md`. It evolves the
+  existing source-only `post_revisions` foundation into numbered accepted
+  versions, adds staff content management, optimistic concurrency, restricted
+  history/diff, safe append-only restore, and super-admin payload redaction.
+  Collaboration, public/self-service history, notifications, drafts, retention
+  controls, and real-time CRDT remain outside V1.
+
 - **Million-scale read path (M0–M7 complete):** task book
   `plans/2026-07-21-million-scale-read-path.md` (**completed**). **M0** seed +
   `tests/perf` + baseline. **M1** ListTopics slim + D1 totals
@@ -264,7 +272,8 @@ mobile comments with the D-style flat list plus "replying to" context labels.
 
 ## Open Questions
 
-- Edit grace period and revision visibility rules.
+- When to expose self-service revision history after the admin-only V1 and what
+  additional privacy policy it requires.
 - Whether votes/reactions exist in MVP.
 - When to add topic editing, deletion, locking, hiding, and pinning endpoints.
 - How to reconcile the accepted future Tiptap/native-JSON decision with the v1

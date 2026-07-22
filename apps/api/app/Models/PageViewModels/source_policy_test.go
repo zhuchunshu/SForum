@@ -119,3 +119,29 @@ func TestNotFoundViewModelIsNeverIndexable(t *testing.T) {
 		t.Fatalf("not-found robots = %q", populated.SEO.Robots)
 	}
 }
+
+func TestTopicReplyViewModelRequiresLoginAndKeepsHostFormBoundary(t *testing.T) {
+	source := NewCorePageViewModelSource(CorePageViewModelDependencies{Options: policyOptions{guestRead: "public"}})
+	request := pages.CorePageViewModelRequest{
+		PageID: "forum.topic.reply", Locale: "en-US", Path: "/topics/reply",
+		SEO: themecompiler.PageSEOView{Title: "forum.topic.reply"},
+	}
+	if _, err := source.Populate(t.Context(), CorePageViewModelInput{Request: request}); !errors.Is(err, ErrCorePageDataUnauthorized) {
+		t.Fatalf("anonymous reply error = %v", err)
+	}
+
+	populated, err := source.Populate(t.Context(), CorePageViewModelInput{
+		Request: request, Actor: identity.Actor{ID: 8, Status: identity.UserStatusActive},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	model, err := pages.BuildCorePageViewModel(populated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reply, ok := model.(themecompiler.TopicReplyPageViewModel)
+	if !ok || reply.Form.ComponentID != "forum.component.topic_reply" || len(reply.Form.ActionRouteIDs) != 1 || reply.Form.ActionRouteIDs[0] != "core.route.forum.create_comment" {
+		t.Fatalf("reply form boundary = %#v", model)
+	}
+}

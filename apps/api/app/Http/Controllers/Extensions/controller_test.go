@@ -40,6 +40,10 @@ type testErrorData struct {
 	Reason string `json:"reason"`
 }
 
+// Full Go suite 会并行编译参考插件；显式保留超时失败语义，避免 Fiber 默认一秒
+// harness 上限把正常、有限的内存控制器请求误判为处理器阻塞。
+var extensionControllerTestConfig = fiber.TestConfig{Timeout: 10 * time.Second, FailOnTimeout: true}
+
 func TestMapExtensionSettingsRollbackFailure(t *testing.T) {
 	mapped := mapExtensionError(errors.Join(
 		extensions.ErrSettingsRollbackFailed,
@@ -931,7 +935,7 @@ func loginExtensionUser(t *testing.T, app *fiber.App, _ *authsession.Manager, us
 	} else if userID == 3 {
 		req = httptest.NewRequest(http.MethodPost, "/api/v1/test-login/3", nil)
 	}
-	resp, err := app.Test(req)
+	resp, err := app.Test(req, extensionControllerTestConfig)
 	if err != nil {
 		t.Fatalf("login request failed: %v", err)
 	}
@@ -951,7 +955,7 @@ func performExtensionRequest(t *testing.T, app *fiber.App, method string, path s
 	if cookie != nil {
 		req.AddCookie(cookie)
 	}
-	resp, err := app.Test(req)
+	resp, err := app.Test(req, extensionControllerTestConfig)
 	if err != nil {
 		t.Fatalf("%s %s failed: %v", method, path, err)
 	}
@@ -965,7 +969,7 @@ func performExtensionJSONRequest(t *testing.T, app *fiber.App, method string, pa
 	if cookie != nil {
 		req.AddCookie(cookie)
 	}
-	resp, err := app.Test(req)
+	resp, err := app.Test(req, extensionControllerTestConfig)
 	if err != nil {
 		t.Fatalf("%s %s failed: %v", method, path, err)
 	}

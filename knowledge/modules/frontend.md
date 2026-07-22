@@ -1,5 +1,35 @@
 # Frontend Module
 
+## Ready Plan: Theme-Defined System Error Pages (2026-07-22)
+
+Task book:
+`../plans/2026-07-22-theme-defined-system-error-pages.md`.
+
+- Extend the selected-theme Page Registry surface from `system.not_found` to
+  virtual 403/404/429/server-error pages.
+- Themes own L1 structure through narrow reviewed error details/actions Host
+  islands; Host keeps status, safe copy, behavior, SEO, caching, and fallback.
+- System error surfaces are theme-only, L0/L1-only, and fail closed to a complete
+  non-recursive Host page.
+- Implementation must wait for or explicitly coordinate with the overlapping
+  current-HEAD regression work before modifying shared files.
+
+## Open Regression Remediation (2026-07-22)
+
+Task book:
+`../plans/2026-07-22-current-head-regression-remediation.md`.
+
+- Current local HEAD does not pass Nuxt typecheck: homepage theme-bypass wiring
+  passes a computed ref before declaration, and navbar locale codes are widened
+  beyond the generated i18n union.
+- Query-bearing `forum.home` and replaceable `system.not_found` must retain the
+  selected theme; Core fail-closed remains the bounded resolver fallback.
+- `forum.topic.reply` is cataloged and templated but missing from the production
+  Page ViewModel source switch, so healthy theme resolve falls back. M3 must add
+  real Controller/runtime proof, not only source assertions.
+- Do not mark the regression closed until unit, typecheck, build, browser smoke,
+  and the full repository gate pass.
+
 ## Accepted V3 Target (P0–P12 Complete; P13 LTS Residual)
 
 The accepted target, including the canonical template comparison and detailed

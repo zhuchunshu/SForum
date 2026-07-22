@@ -137,6 +137,19 @@ describe('forum homepage query helpers', () => {
     expect(source).toContain('after')
     expect(source).toContain('hasMore')
   })
+
+  test('keeps search empty results inside the active theme with stable presentation hooks', () => {
+    const source = readFileSync(new URL('../app/components/SFHomePage.vue', import.meta.url), 'utf8')
+    const settings = readFileSync(new URL('../app/composables/useActiveThemeSettings.ts', import.meta.url), 'utf8')
+
+    expect(source).not.toContain('forceDefaultTheme')
+    expect(settings).not.toContain('forceDefaultTheme')
+    expect(source).toContain(":data-feed-state=\"feedState\"")
+    expect(source).toContain("return 'search-empty'")
+    expect(source).toContain("'sforum-home__empty--search'")
+    expect(source).toContain("'search-empty' : 'topic-list-empty'")
+    expect(source).toContain('@action="resetFilters"')
+  })
 })
 
 describe('SFSearch contract', () => {
