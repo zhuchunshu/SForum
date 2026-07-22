@@ -457,8 +457,8 @@ func completeV3Manifest() Manifest {
 		ResultSchema: "demo.v3.query.items.result@1", PermissionPolicy: "demo.v3.manage", CacheTags: []string{"demo.v3.items"},
 	}}
 	manifest.PermissionDefinitions = []ManifestPermissionDefinition{{
-		Key: "demo.v3.manage", ContractVersion: "demo.v3.permission.manage@1", Label: "Manage demo",
-		Description: "Manage the demo plugin.", RecommendedRoles: []string{"administrator"}, AssignmentPolicy: "host",
+		Key: "demo.v3.manage", ContractVersion: "demo.v3.permission.manage@1", Label: LocalizedText{Default: "Manage demo"},
+		Description: LocalizedText{Default: "Manage the demo plugin."}, RecommendedRoles: []string{"administrator"}, AssignmentPolicy: "host",
 	}}
 	manifest.Identity = &ManifestIdentity{
 		ContractVersion: "demo.v3.identity@1", SessionPolicy: "core.session.default",

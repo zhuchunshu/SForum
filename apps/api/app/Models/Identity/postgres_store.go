@@ -272,7 +272,7 @@ func (s *PostgresStore) LoadActor(ctx context.Context, userID int64) (Actor, err
 
 func (s *PostgresStore) ListPermissions(ctx context.Context) ([]Permission, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT key, module, description
+		SELECT key, module, label, description, label_locales, description_locales
 		FROM permissions
 		ORDER BY module ASC, key ASC
 	`)
@@ -284,8 +284,18 @@ func (s *PostgresStore) ListPermissions(ctx context.Context) ([]Permission, erro
 	permissions := []Permission{}
 	for rows.Next() {
 		var permission Permission
-		if err := rows.Scan(&permission.Key, &permission.Module, &permission.Description); err != nil {
+		var labelLocales, descriptionLocales []byte
+		if err := rows.Scan(
+			&permission.Key, &permission.Module, &permission.Label, &permission.Description,
+			&labelLocales, &descriptionLocales,
+		); err != nil {
 			return nil, fmt.Errorf("scan permission: %w", err)
+		}
+		if err := json.Unmarshal(labelLocales, &permission.LabelLocales); err != nil {
+			return nil, fmt.Errorf("decode permission label locales: %w", err)
+		}
+		if err := json.Unmarshal(descriptionLocales, &permission.DescriptionLocales); err != nil {
+			return nil, fmt.Errorf("decode permission description locales: %w", err)
 		}
 		permissions = append(permissions, permission)
 	}

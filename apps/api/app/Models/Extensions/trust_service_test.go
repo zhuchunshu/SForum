@@ -898,8 +898,8 @@ func completeV3TrustExtension(t *testing.T, id string) Extension {
 	}}
 	item.Manifest.Identity = &ManifestIdentity{ContractVersion: id + ".identity@1", SessionPolicy: "core.session.default"}
 	item.Manifest.PermissionDefinitions = []ManifestPermissionDefinition{{
-		Key: id + ".manage", ContractVersion: id + ".permission.manage@1", Label: "Manage demo",
-		Description: "Manage demo.", AssignmentPolicy: "host",
+		Key: id + ".manage", ContractVersion: id + ".permission.manage@1", Label: LocalizedText{Default: "Manage demo"},
+		Description: LocalizedText{Default: "Manage demo."}, AssignmentPolicy: "host",
 	}}
 	item.Manifest.Media = []ManifestMediaPipeline{{
 		ID: id + ".media.image", ContractVersion: id + ".media.image@1", Action: "add",

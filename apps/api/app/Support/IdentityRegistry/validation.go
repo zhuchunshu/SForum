@@ -130,6 +130,8 @@ func normalizePermission(artifact Artifact, input PermissionDefinition) (Permiss
 	input.ContractVersion = strings.TrimSpace(input.ContractVersion)
 	input.Label = strings.TrimSpace(input.Label)
 	input.Description = strings.TrimSpace(input.Description)
+	input.LabelLocales = normalizePermissionLocales(input.LabelLocales)
+	input.DescriptionLocales = normalizePermissionLocales(input.DescriptionLocales)
 	input.AssignmentPolicy = strings.ToLower(strings.TrimSpace(input.AssignmentPolicy))
 	if !ownedID(artifact, input.Key) || !contractPattern.MatchString(input.ContractVersion) ||
 		input.Label == "" || input.Description == "" || input.AssignmentPolicy != "host" ||
@@ -154,6 +156,24 @@ func normalizePermission(artifact Artifact, input PermissionDefinition) (Permiss
 	sort.Strings(roles)
 	input.RecommendedRoles = roles
 	return input, nil
+}
+
+func normalizePermissionLocales(input map[string]string) map[string]string {
+	if len(input) == 0 {
+		return nil
+	}
+	result := make(map[string]string, len(input))
+	for locale, value := range input {
+		locale = strings.TrimSpace(locale)
+		value = strings.TrimSpace(value)
+		if locale != "" && value != "" {
+			result[locale] = value
+		}
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
 }
 
 func normalizeIdentity(

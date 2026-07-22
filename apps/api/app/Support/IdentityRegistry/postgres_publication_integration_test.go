@@ -94,6 +94,8 @@ func TestPostgresPublicationStoreUpgradeDisableReactivatePreservesTerminalEviden
 	fixture := newIdentityRegistryStoreFixture(t)
 	v1 := publicationStoreArtifact(101, "1.0.0", "a", "runtime-v1")
 	p1 := publicationStoreFixture(v1, 1, []string{"member"})
+	p1.Permissions[0].LabelLocales = map[string]string{"zh-CN": "访问资料"}
+	p1.Permissions[0].DescriptionLocales = map[string]string{"zh-CN": "访问身份资料数据。"}
 	if _, err := fixture.store.Reconcile(fixture.ctx, ReconcilePublicationInput{
 		ExtensionID: fixtureExtensionID, AllowedTarget: &v1, Desired: &p1,
 		ActorUserID: fixture.actorID, AuditEventID: 8201,
@@ -120,6 +122,9 @@ func TestPostgresPublicationStoreUpgradeDisableReactivatePreservesTerminalEviden
 	insertPublicationStoreVersion(t, fixture, 102, "2.0.0", "b")
 	v2 := publicationStoreArtifact(102, "2.0.0", "b", "runtime-v2")
 	p2 := publicationStoreFixture(v2, 2, []string{"member", "operator"})
+	p2.Permissions[0].Label = "Profile access v2"
+	p2.Permissions[0].LabelLocales = map[string]string{"zh-CN": "访问资料 V2"}
+	p2.Permissions[0].DescriptionLocales = map[string]string{"zh-CN": "访问身份资料数据 V2。"}
 	upgraded, err := fixture.store.Reconcile(fixture.ctx, ReconcilePublicationInput{
 		ExtensionID: fixtureExtensionID, AllowedSource: &v1, AllowedTarget: &v2,
 		Desired: &p2, ActorUserID: fixture.actorID, AuditEventID: 8202,
@@ -131,16 +136,28 @@ func TestPostgresPublicationStoreUpgradeDisableReactivatePreservesTerminalEviden
 	assertPublicationAuthorityCounts(t, fixture, rolePermissionsAfterApproval, grantsAfterApproval)
 
 	var catalogVersionID, catalogRevision int64
-	var catalogContract string
+	var catalogContract, permissionLabel, permissionLabelZH, permissionDescriptionZH string
 	if err := fixture.pool.QueryRow(fixture.ctx, `
-		SELECT extension_version_id, declaration_revision, contract_version
-		FROM extension_permission_catalog WHERE permission_key = $1
-	`, fixturePermissionKey).Scan(&catalogVersionID, &catalogRevision, &catalogContract); err != nil {
+		SELECT catalog.extension_version_id, catalog.declaration_revision,
+		       catalog.contract_version, permission.label,
+		       permission.label_locales ->> 'zh-CN',
+		       permission.description_locales ->> 'zh-CN'
+		FROM extension_permission_catalog AS catalog
+		JOIN permissions AS permission ON permission.key = catalog.permission_key
+		WHERE catalog.permission_key = $1
+	`, fixturePermissionKey).Scan(
+		&catalogVersionID, &catalogRevision, &catalogContract,
+		&permissionLabel, &permissionLabelZH, &permissionDescriptionZH,
+	); err != nil {
 		t.Fatal(err)
 	}
 	if catalogVersionID != 101 || catalogRevision != 1 || catalogContract != fixturePermissionKey+"@1" {
 		t.Fatalf("immutable catalog moved: version=%d revision=%d contract=%q",
 			catalogVersionID, catalogRevision, catalogContract)
+	}
+	if permissionLabel != "Profile access v2" || permissionLabelZH != "访问资料 V2" || permissionDescriptionZH != "访问身份资料数据 V2。" {
+		t.Fatalf("localized permission presentation was not upgraded: label=%q zh=%q description=%q",
+			permissionLabel, permissionLabelZH, permissionDescriptionZH)
 	}
 
 	allSuggestions, err := fixture.store.ListRoleSuggestions(fixture.ctx, RoleSuggestionFilter{

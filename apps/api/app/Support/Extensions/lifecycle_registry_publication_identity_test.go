@@ -22,20 +22,28 @@ import (
 func TestBuildLifecycleIdentityPublicationMapsCanonicalManifest(t *testing.T) {
 	extension := lifecycleIdentityExtension("1.0.0", 41, "")
 	extension.Manifest.PermissionDefinitions[0].RecommendedRoles = []string{"operator", "member"}
+	extension.Manifest.PermissionDefinitions[0].Label = extensions.LocalizedText{
+		ByLocale: map[string]string{"zh-CN": "管理资料", "en-US": "Manage profile"},
+	}
 	publication, err := buildLifecycleIdentityPublication(extension, extensions.LifecycleRuntimeBinding{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if publication == nil || publication.Artifact.RuntimeInstanceID != "" || len(publication.Permissions) != 1 ||
 		len(publication.Permissions[0].RecommendedRoles) != 2 || publication.Permissions[0].RecommendedRoles[0] != "member" ||
+		publication.Permissions[0].Label != "Manage profile" || publication.Permissions[0].LabelLocales["zh-CN"] != "管理资料" ||
 		publication.Identity == nil || len(publication.Identity.UserFields) != 1 {
 		t.Fatalf("publication = %#v", publication)
 	}
 
 	// Returned material owns its slices and cannot be changed through Manifest aliases.
 	extension.Manifest.PermissionDefinitions[0].RecommendedRoles[0] = "changed"
+	extension.Manifest.PermissionDefinitions[0].Label.ByLocale["zh-CN"] = "changed"
 	if publication.Permissions[0].RecommendedRoles[0] != "member" {
 		t.Fatalf("publication aliases manifest: %#v", publication.Permissions[0])
+	}
+	if publication.Permissions[0].LabelLocales["zh-CN"] != "管理资料" {
+		t.Fatalf("publication locale map aliases manifest: %#v", publication.Permissions[0])
 	}
 }
 
@@ -388,7 +396,7 @@ func TestLifecycleIdentityRestoreAdoptsLegacyBatchOnce(t *testing.T) {
 	second.Status = extensions.StatusEnabled
 	second.Manifest.PermissionDefinitions = []extensions.ManifestPermissionDefinition{{
 		Key: second.ID + ".manage", ContractVersion: second.ID + ".permission.manage@1",
-		Label: "Second", Description: "Second", RecommendedRoles: []string{"administrator"},
+		Label: extensions.LocalizedText{Default: "Second"}, Description: extensions.LocalizedText{Default: "Second"}, RecommendedRoles: []string{"administrator"},
 		AssignmentPolicy: "host",
 	}}
 
@@ -476,8 +484,8 @@ func adminSurfaceReferencePermissionOnlyExtension(versionID int64) extensions.Ex
 	extension.Manifest = extensions.Manifest{ID: id, Type: extensions.TypePlugin, Version: "1.0.0"}
 	extension.Manifest.PermissionDefinitions = []extensions.ManifestPermissionDefinition{{
 		Key: id + ".manage", ContractVersion: id + ".permission.manage@1",
-		Label:            "Use admin surface reference",
-		Description:      "View and invoke the reference plugin's admin surfaces.",
+		Label:            extensions.LocalizedText{Default: "Use admin surface reference"},
+		Description:      extensions.LocalizedText{Default: "View and invoke the reference plugin's admin surfaces."},
 		RecommendedRoles: []string{"administrator"}, AssignmentPolicy: "host",
 	}}
 	return extension
@@ -814,8 +822,8 @@ func lifecycleIdentityExtension(version string, versionID int64, executable stri
 	}
 	extension.Manifest = extensions.Manifest{ID: id, Type: extensions.TypePlugin, Version: version}
 	extension.Manifest.PermissionDefinitions = []extensions.ManifestPermissionDefinition{{
-		Key: id + ".profile", ContractVersion: id + ".profile@1", Label: "Profile",
-		Description: "Manage plugin profiles.", AssignmentPolicy: "host",
+		Key: id + ".profile", ContractVersion: id + ".profile@1", Label: extensions.LocalizedText{Default: "Profile"},
+		Description: extensions.LocalizedText{Default: "Manage plugin profiles."}, AssignmentPolicy: "host",
 	}}
 	extension.Manifest.Identity = &extensions.ManifestIdentity{
 		ContractVersion: id + ".contract@1", SessionPolicy: "core.session.default",

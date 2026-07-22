@@ -187,9 +187,12 @@ type LoginAudit struct {
 }
 
 type Permission struct {
-	Key         string `json:"key"`
-	Module      string `json:"module"`
-	Description string `json:"description"`
+	Key                string            `json:"key"`
+	Module             string            `json:"module"`
+	Label              string            `json:"label"`
+	Description        string            `json:"description"`
+	LabelLocales       map[string]string `json:"-"`
+	DescriptionLocales map[string]string `json:"-"`
 }
 
 type RolePermissionSet struct {
@@ -236,10 +239,10 @@ type AdminUserDetail struct {
 	Profile             AdminUserProfile    `json:"profile"`
 	// 以下字段供后台「用户信息预览」使用：含完整 IP / UA，仅 user.view 管理端可见。
 	// 自服务设备列表仍只暴露脱敏 ipPrefix，不走本结构。
-	Activity            AdminUserActivity     `json:"activity"`
-	Sessions            []AdminSessionInspect `json:"sessions"`
-	RecentAuthEvents    []AdminAuthEvent      `json:"recentAuthEvents"`
-	PasswordChangedAt   *time.Time            `json:"passwordChangedAt,omitempty"`
+	Activity          AdminUserActivity     `json:"activity"`
+	Sessions          []AdminSessionInspect `json:"sessions"`
+	RecentAuthEvents  []AdminAuthEvent      `json:"recentAuthEvents"`
+	PasswordChangedAt *time.Time            `json:"passwordChangedAt,omitempty"`
 }
 
 // AdminUserActivity 汇总活跃度与最近登录线索。

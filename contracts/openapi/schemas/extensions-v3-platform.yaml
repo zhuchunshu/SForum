@@ -200,8 +200,20 @@ ExtensionManifestPermissionDefinition:
   properties:
     key: { type: string }
     contractVersion: { type: string }
-    label: { type: string }
-    description: { type: string }
+    label:
+      oneOf:
+      - type: string
+      - type: object
+        additionalProperties: { type: string }
+        minProperties: 1
+        description: Extension-owned locale map keyed by BCP 47 locale.
+    description:
+      oneOf:
+      - type: string
+      - type: object
+        additionalProperties: { type: string }
+        minProperties: 1
+        description: Extension-owned locale map keyed by BCP 47 locale.
     recommendedRoles:
       type: array
       items: { type: string }

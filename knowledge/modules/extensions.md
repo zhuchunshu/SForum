@@ -115,6 +115,9 @@ Decision: `../decisions/2026-07-22-external-extension-source-roots.md`.
   administration is delegated.
 - Plugin-declared permission keys and recommended role mappings never grant
   themselves. Host role/permission administration remains authoritative.
+- Plugin permission `label` and `description` accept `LocalizedText`. The
+  exact artifact owns those translations; the Host persists and resolves them
+  for permission catalog APIs without adding plugin keys to Core i18n files.
 
 ## Manifest And Registries
 

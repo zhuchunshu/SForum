@@ -193,8 +193,8 @@ func normalizeV3Platform(manifest *Manifest) {
 		item := &manifest.PermissionDefinitions[index]
 		item.Key = NormalizeID(item.Key)
 		item.ContractVersion = strings.TrimSpace(item.ContractVersion)
-		item.Label = strings.TrimSpace(item.Label)
-		item.Description = strings.TrimSpace(item.Description)
+		item.Label = item.Label.normalized()
+		item.Description = item.Description.normalized()
 		item.AssignmentPolicy = strings.ToLower(strings.TrimSpace(item.AssignmentPolicy))
 		for roleIndex := range item.RecommendedRoles {
 			item.RecommendedRoles[roleIndex] = NormalizeID(item.RecommendedRoles[roleIndex])

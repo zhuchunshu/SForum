@@ -377,9 +377,11 @@ func buildLifecycleIdentityPublication(
 	for _, permission := range extension.Manifest.PermissionDefinitions {
 		publication.Permissions = append(publication.Permissions, identityregistry.PermissionDefinition{
 			Key: permission.Key, ContractVersion: permission.ContractVersion,
-			Label: permission.Label, Description: permission.Description,
-			RecommendedRoles: append([]string(nil), permission.RecommendedRoles...),
-			AssignmentPolicy: permission.AssignmentPolicy,
+			Label: permission.Label.Resolve("en-US"), Description: permission.Description.Resolve("en-US"),
+			LabelLocales:       cloneLocalizedValues(permission.Label.ByLocale),
+			DescriptionLocales: cloneLocalizedValues(permission.Description.ByLocale),
+			RecommendedRoles:   append([]string(nil), permission.RecommendedRoles...),
+			AssignmentPolicy:   permission.AssignmentPolicy,
 		})
 	}
 	if declared := extension.Manifest.Identity; declared != nil {
@@ -429,6 +431,17 @@ func buildLifecycleIdentityPublication(
 		return nil, ErrLifecycleRegistryPublicationInvalid
 	}
 	return &frozen, nil
+}
+
+func cloneLocalizedValues(values map[string]string) map[string]string {
+	if len(values) == 0 {
+		return nil
+	}
+	cloned := make(map[string]string, len(values))
+	for locale, value := range values {
+		cloned[locale] = value
+	}
+	return cloned
 }
 
 func manifestPublishesIdentity(manifest extensions.Manifest) bool {

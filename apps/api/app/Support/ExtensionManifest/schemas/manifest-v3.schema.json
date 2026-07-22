@@ -313,6 +313,20 @@
       "type": "string",
       "minLength": 1
     },
+    "localizedText": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "$ref": "#/$defs/nonEmpty"
+          }
+        }
+      ]
+    },
     "id": {
       "type": "string",
       "pattern": "^[a-z0-9][a-z0-9._-]{1,80}$"
@@ -2474,10 +2488,10 @@
             "$ref": "#/$defs/contract"
           },
           "label": {
-            "$ref": "#/$defs/nonEmpty"
+            "$ref": "#/$defs/localizedText"
           },
           "description": {
-            "$ref": "#/$defs/nonEmpty"
+            "$ref": "#/$defs/localizedText"
           },
           "recommendedRoles": {
             "$ref": "#/$defs/stringArray"

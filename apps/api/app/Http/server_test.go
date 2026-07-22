@@ -989,12 +989,19 @@ func TestPermissionsEndpointRequiresAuth(t *testing.T) {
 func TestPermissionMatrixEndpointAllowsSuperAdmin(t *testing.T) {
 	cfg := testConfig()
 	store := newHTTPFakeStore()
+	store.permissionFixtures = []identity.Permission{{
+		Key: "sforum.admin-surface-reference.manage", Module: "extension",
+		Label: "Use admin surface reference", Description: "View and invoke the reference plugin's admin surfaces.",
+		LabelLocales:       map[string]string{"zh-CN": "使用后台界面参考扩展"},
+		DescriptionLocales: map[string]string{"zh-CN": "查看并调用参考扩展提供的后台界面。"},
+	}}
 	identityController := identitycontroller.NewController(identity.NewService(store), session.NewStore())
 	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
 	adminCookie := registerHTTPUser(t, app, "admin", "admin@example.com")
 
 	req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/permissions/matrix", nil)
 	req.AddCookie(adminCookie)
+	req.Header.Set("Accept-Language", "zh-CN")
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("permission matrix request failed: %v", err)
@@ -1010,6 +1017,16 @@ func TestPermissionMatrixEndpointAllowsSuperAdmin(t *testing.T) {
 	}
 	if len(body.Data.Permissions) == 0 || len(body.Data.Roles) == 0 {
 		t.Fatalf("expected permissions and roles in matrix, got %#v", body.Data)
+	}
+	foundLocalized := false
+	for _, permission := range body.Data.Permissions {
+		if permission.Key != "sforum.admin-surface-reference.manage" {
+			continue
+		}
+		foundLocalized = permission.Label == "使用后台界面参考扩展" && permission.Description == "查看并调用参考扩展提供的后台界面。"
+	}
+	if !foundLocalized {
+		t.Fatalf("expected locale-resolved extension permission, got %#v", body.Data.Permissions)
 	}
 }
 
@@ -1483,18 +1500,19 @@ func adminOption(items []options.AdminOption, name string) options.AdminOption {
 }
 
 type httpFakeStore struct {
-	nextUserID    int64
-	nextRoleID    int64
-	users         map[int64]identity.CurrentUser
-	userEmails    map[int64]string
-	credentials   map[int64]string
-	loginIndex    map[string]int64
-	roles         map[string]identity.Role
-	userRoleIDs   map[int64][]int64
-	rolePerms     map[int64][]string
-	userOverrides map[int64]identity.PermissionOverrides
-	loginAudits   []identity.LoginAudit
-	loginAuditErr error
+	nextUserID         int64
+	nextRoleID         int64
+	users              map[int64]identity.CurrentUser
+	userEmails         map[int64]string
+	credentials        map[int64]string
+	loginIndex         map[string]int64
+	roles              map[string]identity.Role
+	userRoleIDs        map[int64][]int64
+	rolePerms          map[int64][]string
+	userOverrides      map[int64]identity.PermissionOverrides
+	loginAudits        []identity.LoginAudit
+	loginAuditErr      error
+	permissionFixtures []identity.Permission
 }
 
 func newHTTPFakeStore() *httpFakeStore {
@@ -1603,7 +1621,7 @@ func (s *httpFakeStore) LoadActor(ctx context.Context, userID int64) (identity.A
 }
 
 func (s *httpFakeStore) ListPermissions(context.Context) ([]identity.Permission, error) {
-	permissions := make([]identity.Permission, 0, len(identity.SeedPermissions))
+	permissions := make([]identity.Permission, 0, len(identity.SeedPermissions)+len(s.permissionFixtures))
 	for _, permission := range identity.SeedPermissions {
 		permissions = append(permissions, identity.Permission{
 			Key:         permission.Key,
@@ -1611,6 +1629,7 @@ func (s *httpFakeStore) ListPermissions(context.Context) ([]identity.Permission,
 			Description: permission.Description,
 		})
 	}
+	permissions = append(permissions, s.permissionFixtures...)
 	return permissions, nil
 }
 

@@ -72,9 +72,15 @@ load archived sessions or completed plans as current context.
   optional external plugin.
 - **Extensions:** Manifest V3, exact-artifact trust, lifecycle, Host API v2,
   registries, Page Registry themes, and buildless settings UI are present;
-  production-rewire honesty findings remain open.
+  extension-owned permission localization is present; production-rewire
+  honesty findings remain open.
 - **Dev:** Compose owns PostgreSQL, Redis, and Mailpit. The user owns the web
   dev server on port 3000; do not kill it.
+
+## Latest Handoff
+
+- Extension permission localization:
+  `sessions/2026-07-23-extension-permission-localization-handoff.md`
 
 ## Other Open Product Tracks
 

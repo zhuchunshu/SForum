@@ -9,7 +9,7 @@
   "type": "plugin",
   "sforumVersion": "^1.0.0",
   "permissionDefinitions": [
-    {"key": "fixture.admin.manage", "contractVersion": "fixture.admin.manage@1", "label": "Manage admin fixture", "description": "Use the fixture admin surfaces.", "assignmentPolicy": "host"}
+    {"key": "fixture.admin.manage", "contractVersion": "fixture.admin.manage@1", "label": {"zh-CN": "管理后台夹具", "en-US": "Manage admin fixture"}, "description": {"zh-CN": "使用夹具提供的后台界面。", "en-US": "Use the fixture admin surfaces."}, "assignmentPolicy": "host"}
   ],
   "adminSurfaces": [
     {"id": "fixture.admin.surface.navigation", "contractVersion": "fixture.admin.surface.navigation@1", "kind": "navigation", "action": "add", "placementId": "core.component.page.admin", "placementContractVersion": "sforum.component.page.admin@1", "label": "Fixture", "handler": "admin.navigation", "propsSchema": "fixture.admin.surface.navigation.props@1", "resultSchema": "fixture.admin.surface.navigation.result@1", "operation": "query", "permission": "fixture.admin.manage"},

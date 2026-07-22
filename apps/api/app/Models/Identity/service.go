@@ -510,18 +510,49 @@ func (s *Service) Actor(ctx context.Context, userID int64) (Actor, error) {
 	return s.store.LoadActor(ctx, userID)
 }
 
-func (s *Service) ListPermissions(ctx context.Context, actor Actor) ([]Permission, error) {
+func (s *Service) ListPermissions(ctx context.Context, actor Actor, locale string) ([]Permission, error) {
 	if !canManagePermissions(actor) {
 		return nil, ErrPermissionDenied
 	}
-	return s.store.ListPermissions(ctx)
+	permissions, err := s.store.ListPermissions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return localizePermissions(permissions, locale), nil
 }
 
-func (s *Service) ListPermissionMatrix(ctx context.Context, actor Actor) (PermissionMatrix, error) {
+func (s *Service) ListPermissionMatrix(ctx context.Context, actor Actor, locale string) (PermissionMatrix, error) {
 	if !canManagePermissions(actor) {
 		return PermissionMatrix{}, ErrPermissionDenied
 	}
-	return s.store.ListPermissionMatrix(ctx)
+	matrix, err := s.store.ListPermissionMatrix(ctx)
+	if err != nil {
+		return PermissionMatrix{}, err
+	}
+	matrix.Permissions = localizePermissions(matrix.Permissions, locale)
+	return matrix, nil
+}
+
+func localizePermissions(permissions []Permission, locale string) []Permission {
+	for index := range permissions {
+		permission := &permissions[index]
+		permission.Label = resolvePermissionText(permission.LabelLocales, locale, permission.Label)
+		permission.Description = resolvePermissionText(permission.DescriptionLocales, locale, permission.Description)
+	}
+	return permissions
+}
+
+func resolvePermissionText(values map[string]string, locale, fallback string) string {
+	locale = strings.TrimSpace(strings.ReplaceAll(locale, "_", "-"))
+	if value := strings.TrimSpace(values[locale]); value != "" {
+		return value
+	}
+	if language, _, ok := strings.Cut(locale, "-"); ok {
+		if value := strings.TrimSpace(values[language]); value != "" {
+			return value
+		}
+	}
+	return strings.TrimSpace(fallback)
 }
 
 func (s *Service) ListRoles(ctx context.Context, actor Actor) ([]Role, error) {

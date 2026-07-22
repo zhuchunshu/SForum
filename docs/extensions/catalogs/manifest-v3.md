@@ -77,7 +77,7 @@ cd apps/api && go run ./cmd/sforum extension docs generate --check
 - Data and identity: `migrations`, `database`, `cache`, `queries`, `queryResultFilters`, `identity`, `permissionDefinitions`, and `media`.
 - Package composition: `dependencies`, `lifecycle`, `openapi`, `packageFiles`, and `includes`.
 
-Themes remain presentation-only. Plugin permission definitions use `assignmentPolicy: host`; install or enable code never grants roles. Raw request guards, raw/kernel database authority, lifecycle execution, backend binaries, migrations, and L2 files enter exact-artifact trust review before first execution.
+Themes remain presentation-only. Plugin permission definitions use `assignmentPolicy: host`; install or enable code never grants roles. Permission `label` and `description` may be a default string or an extension-owned locale map; the Host resolves them for its permission catalog without copying extension text into Core locale files. Raw request guards, raw/kernel database authority, lifecycle execution, backend binaries, migrations, and L2 files enter exact-artifact trust review before first execution.
 
 ## Exact-artifact workflow
 

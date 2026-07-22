@@ -27,6 +27,7 @@ type Role = {
 type Permission = {
   key: string
   module: string
+  label: string
   description: string
 }
 

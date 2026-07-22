@@ -47,12 +47,14 @@ type Artifact struct {
 // intentionally no grant/assign flag in this contract: Host role management is
 // the sole authority that may turn a recommendation into an assignment.
 type PermissionDefinition struct {
-	Key              string   `json:"key"`
-	ContractVersion  string   `json:"contractVersion"`
-	Label            string   `json:"label"`
-	Description      string   `json:"description"`
-	RecommendedRoles []string `json:"recommendedRoles,omitempty"`
-	AssignmentPolicy string   `json:"assignmentPolicy"`
+	Key                string            `json:"key"`
+	ContractVersion    string            `json:"contractVersion"`
+	Label              string            `json:"label"`
+	Description        string            `json:"description"`
+	LabelLocales       map[string]string `json:"labelLocales,omitempty"`
+	DescriptionLocales map[string]string `json:"descriptionLocales,omitempty"`
+	RecommendedRoles   []string          `json:"recommendedRoles,omitempty"`
+	AssignmentPolicy   string            `json:"assignmentPolicy"`
 }
 
 type UserField struct {

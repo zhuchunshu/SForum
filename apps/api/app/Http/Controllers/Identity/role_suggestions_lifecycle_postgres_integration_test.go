@@ -247,7 +247,8 @@ func p7RoleMappingExtension(t *testing.T) extensions.Extension {
 		}},
 		PermissionDefinitions: []extensions.ManifestPermissionDefinition{{
 			Key: p7RoleMappingPermission(id), ContractVersion: p7RoleMappingPermission(id) + "@1",
-			Label: "Manage role mapping fixture", Description: "Manage the joined P7 fixture.",
+			Label:            extensions.LocalizedText{Default: "Manage role mapping fixture"},
+			Description:      extensions.LocalizedText{Default: "Manage the joined P7 fixture."},
 			RecommendedRoles: []string{identity.RoleOperator}, AssignmentPolicy: "host",
 		}},
 	}

@@ -1,6 +1,7 @@
 type PermissionTextItem = {
   key: string
   module: string
+  label?: string
   description?: string
 }
 
@@ -17,7 +18,7 @@ export const usePermissionText = () => {
 
   const permissionLabel = (permission: PermissionTextItem) => {
     const path = permissionCatalogPath(permission.key, 'label')
-    return te(path) ? t(path) : permission.key
+    return te(path) ? t(path) : (permission.label || permission.key)
   }
 
   const permissionDescription = (permission: PermissionTextItem) => {

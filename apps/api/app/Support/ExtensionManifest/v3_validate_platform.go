@@ -441,7 +441,7 @@ func (v *v3Validator) validateIdentityAndPermissions() error {
 		if err := v.versionedID(permission.Key, permission.ContractVersion, "permission"); err != nil {
 			return err
 		}
-		if permission.Label == "" || permission.Description == "" || permission.AssignmentPolicy != "host" {
+		if permission.Label.IsEmpty() || permission.Description.IsEmpty() || permission.AssignmentPolicy != "host" {
 			return ErrInvalidManifest
 		}
 		if len(permission.RecommendedRoles) > manifestIdentityMaximumRoleSuggestions {

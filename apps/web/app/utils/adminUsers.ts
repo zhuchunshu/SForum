@@ -15,6 +15,7 @@ export type Role = {
 export type Permission = {
   key: string
   module: string
+  label: string
   description: string
 }
 

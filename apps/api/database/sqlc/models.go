@@ -18,10 +18,13 @@ type AuditEvent struct {
 }
 
 type Permission struct {
-	Key         string
-	Module      string
-	Description string
-	CreatedAt   pgtype.Timestamptz
+	Key                string
+	Module             string
+	Description        string
+	CreatedAt          pgtype.Timestamptz
+	Label              string
+	LabelLocales       []byte
+	DescriptionLocales []byte
 }
 
 type Role struct {

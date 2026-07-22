@@ -8,7 +8,7 @@
     "name": "SForum",
     "url": "https://github.com/zhuchunshu/sforum"
   },
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "plugin",
   "sforumVersion": ">=0.1.0",
   "capabilities": ["host.api"],
@@ -26,8 +26,14 @@
     {
       "key": "sforum.admin-surface-reference.manage",
       "contractVersion": "sforum.admin-surface-reference.permission.manage@1",
-      "label": "Use admin surface reference",
-      "description": "View and invoke the reference plugin's admin surfaces.",
+      "label": {
+        "zh-CN": "使用后台界面参考扩展",
+        "en-US": "Use admin surface reference"
+      },
+      "description": {
+        "zh-CN": "查看并调用参考扩展提供的后台界面。",
+        "en-US": "View and invoke the reference plugin's admin surfaces."
+      },
       "recommendedRoles": ["administrator"],
       "assignmentPolicy": "host"
     }

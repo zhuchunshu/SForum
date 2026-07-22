@@ -668,7 +668,7 @@ func renderManifestV3() string {
 	b.WriteString("- Presentation and content: `components`, `templates`, `assets`, `content`, `adminSurfaces`, `navigation`, and `regions`.\n")
 	b.WriteString("- Data and identity: `migrations`, `database`, `cache`, `queries`, `queryResultFilters`, `identity`, `permissionDefinitions`, and `media`.\n")
 	b.WriteString("- Package composition: `dependencies`, `lifecycle`, `openapi`, `packageFiles`, and `includes`.\n")
-	b.WriteString("\nThemes remain presentation-only. Plugin permission definitions use `assignmentPolicy: host`; install or enable code never grants roles. Raw request guards, raw/kernel database authority, lifecycle execution, backend binaries, migrations, and L2 files enter exact-artifact trust review before first execution.\n")
+	b.WriteString("\nThemes remain presentation-only. Plugin permission definitions use `assignmentPolicy: host`; install or enable code never grants roles. Permission `label` and `description` may be a default string or an extension-owned locale map; the Host resolves them for its permission catalog without copying extension text into Core locale files. Raw request guards, raw/kernel database authority, lifecycle execution, backend binaries, migrations, and L2 files enter exact-artifact trust review before first execution.\n")
 	b.WriteString("\n## Exact-artifact workflow\n\n")
 	b.WriteString("```bash\n")
 	b.WriteString("cd apps/api\n")

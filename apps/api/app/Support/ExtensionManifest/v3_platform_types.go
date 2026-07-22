@@ -186,12 +186,12 @@ type ManifestIdentityProviderOperation struct {
 }
 
 type ManifestPermissionDefinition struct {
-	Key              string   `json:"key"`
-	ContractVersion  string   `json:"contractVersion"`
-	Label            string   `json:"label"`
-	Description      string   `json:"description"`
-	RecommendedRoles []string `json:"recommendedRoles,omitempty"`
-	AssignmentPolicy string   `json:"assignmentPolicy"`
+	Key              string        `json:"key"`
+	ContractVersion  string        `json:"contractVersion"`
+	Label            LocalizedText `json:"label"`
+	Description      LocalizedText `json:"description"`
+	RecommendedRoles []string      `json:"recommendedRoles,omitempty"`
+	AssignmentPolicy string        `json:"assignmentPolicy"`
 }
 
 type ManifestMediaPipeline struct {

@@ -20,4 +20,6 @@ Upload the resulting package through the admin extension installer. Production
 never compiles the Go source. Enabling the exact uploaded artifact still
 requires the normal super-admin trust flow. The declared
 `sforum.admin-surface-reference.manage` permission is only a recommendation;
-installation and enable never assign it to a role.
+installation and enable never assign it to a role. Its Chinese and English
+catalog copy is declared by the extension through localized `label` and
+`description` values; Core does not own extension permission translations.

@@ -630,7 +630,9 @@ Related fixtures:
 6. **Database and lifecycle** — authority tier, compatibility range where raw,
    backup/retention, plan/execute, progress, and checkpoint contracts.
 7. **Permissions** — definitions use `assignmentPolicy: host`; recommended role
-   mappings are advisory and extension code never self-grants.
+   mappings are advisory and extension code never self-grants. `label` and
+   `description` accept either a default string or an extension-owned locale map
+   such as `{ "zh-CN": "管理扩展", "en-US": "Manage extension" }`.
 8. **Dependencies** — required/optional/conflict/provides semantics resolve to
    one deterministic, acyclic graph.
 9. **Host catalogs** — capabilities, events, contributions, providers, and jobs

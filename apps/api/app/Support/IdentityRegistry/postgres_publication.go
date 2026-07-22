@@ -3,6 +3,7 @@ package identityregistry
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"sort"
 
@@ -459,9 +460,17 @@ func ensurePermissionCatalog(
 	permission PermissionDefinition,
 	tip DurableDeclarationTip,
 ) error {
+	labelLocales, err := marshalPermissionLocales(permission.LabelLocales)
+	if err != nil {
+		return ErrInvalid
+	}
+	descriptionLocales, err := marshalPermissionLocales(permission.DescriptionLocales)
+	if err != nil {
+		return ErrInvalid
+	}
 	var catalogOwner string
-	err := tx.QueryRow(ctx, `
-		SELECT owner_extension_id
+	err = tx.QueryRow(ctx, `
+			SELECT owner_extension_id
 		FROM extension_permission_catalog
 		WHERE permission_key = $1
 		FOR KEY SHARE
@@ -469,6 +478,17 @@ func ensurePermissionCatalog(
 	if err == nil {
 		if catalogOwner != tip.OwnerExtensionID {
 			return ErrConflict
+		}
+		if _, err := tx.Exec(ctx, `
+			UPDATE permissions
+			SET label = $2,
+			    description = $3,
+			    label_locales = $4::jsonb,
+			    description_locales = $5::jsonb
+			WHERE key = $1
+		`, permission.Key, permission.Label, permission.Description,
+			string(labelLocales), string(descriptionLocales)); err != nil {
+			return mapStoreError(err)
 		}
 		return nil
 	}
@@ -489,9 +509,11 @@ func ensurePermissionCatalog(
 		return mapStoreError(err)
 	}
 	if _, err := tx.Exec(ctx, `
-		INSERT INTO permissions (key, module, description)
-		VALUES ($1, 'extension', $2)
-	`, permission.Key, permission.Description); err != nil {
+			INSERT INTO permissions (
+				key, module, label, description, label_locales, description_locales
+			) VALUES ($1, 'extension', $2, $3, $4::jsonb, $5::jsonb)
+		`, permission.Key, permission.Label, permission.Description,
+		string(labelLocales), string(descriptionLocales)); err != nil {
 		return mapStoreError(err)
 	}
 	if _, err := tx.Exec(ctx, `
@@ -506,6 +528,13 @@ func ensurePermissionCatalog(
 		return mapStoreError(err)
 	}
 	return nil
+}
+
+func marshalPermissionLocales(values map[string]string) ([]byte, error) {
+	if len(values) == 0 {
+		return []byte("{}"), nil
+	}
+	return json.Marshal(values)
 }
 
 func insertPendingRoleSuggestions(

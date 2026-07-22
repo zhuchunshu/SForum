@@ -489,14 +489,19 @@ Permission:
   required:
   - key
   - module
+  - label
   - description
   properties:
     key:
       type: string
     module:
       type: string
+    label:
+      type: string
+      description: Locale-resolved display label supplied by an extension, or empty for Host permissions that use the built-in UI catalog.
     description:
       type: string
+      description: Locale-resolved extension description or the Host permission fallback description.
 RolePermissionSet:
   type: object
   required:

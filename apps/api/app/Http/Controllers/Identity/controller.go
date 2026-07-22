@@ -491,7 +491,7 @@ func (h *Controller) listPermissions(c fiber.Ctx) error {
 		return err
 	}
 
-	permissions, err := h.service.ListPermissions(c.Context(), actor)
+	permissions, err := h.service.ListPermissions(c.Context(), actor, apphttp.Locale(c))
 	if err != nil {
 		return mapIdentityError(err)
 	}
@@ -504,7 +504,7 @@ func (h *Controller) permissionMatrix(c fiber.Ctx) error {
 		return err
 	}
 
-	matrix, err := h.service.ListPermissionMatrix(c.Context(), actor)
+	matrix, err := h.service.ListPermissionMatrix(c.Context(), actor, apphttp.Locale(c))
 	if err != nil {
 		return mapIdentityError(err)
 	}

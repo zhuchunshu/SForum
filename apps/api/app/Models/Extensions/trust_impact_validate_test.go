@@ -125,7 +125,7 @@ func minimalStoredTrustImpact(extensionID, version, packageDigest string) TrustI
 		PackageDigest:    packageDigest,
 		PermissionDefinitions: []ManifestPermissionDefinition{{
 			Key: extensionID + ".manage", ContractVersion: extensionID + ".permission.manage@1",
-			Label: "Manage", Description: "Manage", AssignmentPolicy: "host",
+			Label: LocalizedText{Default: "Manage"}, Description: LocalizedText{Default: "Manage"}, AssignmentPolicy: "host",
 			RecommendedRoles: []string{"administrator"},
 		}},
 	}
