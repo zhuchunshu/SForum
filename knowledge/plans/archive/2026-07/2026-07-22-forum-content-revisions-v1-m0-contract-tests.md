@@ -1,6 +1,6 @@
 # Forum Content Revisions V1 — M0 Contract Test Matrix
 
-Status: M0 accepted test design; executable implementation starts in M1+.
+Status: completed evidence for the closed Forum Content Revisions V1 task book.
 
 This matrix names the production boundary and expected failure before schema or
 runtime changes. It must stay aligned with

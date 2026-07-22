@@ -54,6 +54,10 @@ Initial identity foundation is implemented.
   `member`, `operator`, or `tech_admin`. Plugin install/enable paths must not
   grant Host permissions. See
   `decisions/2026-07-22-forum-content-revisions-ledger.md`.
+- V1 restore additionally requires the matching `topic.edit_any` or
+  `post.edit_any`; history-view alone is inspection-only. `super_admin` retains
+  the protected policy bypass and is the only actor allowed to redact a
+  non-current revision payload.
 - The permission catalog includes `tag.manage` for forum tag creation,
   approval, disabling, and policy management. Existing deployments receive it
   through the forum taxonomy migration, and `super_admin` receives it by

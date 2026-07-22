@@ -14,3 +14,5 @@ reports; these files are not current implementation instructions.
 | `2026-07-13-runtime-page-registry-themes.md` | completed and absorbed into V3 |
 | `2026-07-13-theme-switch-runtime-closure.md` | superseded; do not implement |
 | `2026-07-21-million-scale-read-path.md` | completed M0-M7 |
+| `2026-07-22-forum-content-revisions-v1.md` | completed M0-M7; concurrent ExtensionManifest gate failure tracked separately |
+| `2026-07-22-forum-content-revisions-v1-m0-contract-tests.md` | completed M0 test matrix evidence |

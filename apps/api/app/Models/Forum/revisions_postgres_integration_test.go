@@ -348,6 +348,52 @@ func TestRevisionLedgerSuperAdminRedactsOldRevisionAtomicallyPostgres(t *testing
 	}
 }
 
+func TestRevisionLedgerAuditCleanupDoesNotBreakHistoryPostgres(t *testing.T) {
+	fixture := newRevisionLedgerPGFixture(t)
+	if _, err := fixture.pool.Exec(fixture.ctx, `CREATE TABLE audit_events (id BIGSERIAL PRIMARY KEY, actor_user_id BIGINT NULL, target_user_id BIGINT NULL, action TEXT NOT NULL, metadata JSONB NOT NULL DEFAULT '{}'::jsonb, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`); err != nil {
+		t.Fatal(err)
+	}
+	store := NewPostgresStore(fixture.pool).WithAuditor(audit.NewPostgresWriter(fixture.pool))
+	authorID := fixture.insertUser(t, "audit_cleanup_author")
+	staffID := fixture.insertUser(t, "audit_cleanup_staff")
+	topic, err := store.CreateTopic(fixture.ctx, CreateTopicRecord{
+		CategorySlug: "general", AuthorUserID: authorID, Title: "audit cleanup target", Slug: "audit-cleanup-target",
+		TagCreationMode: TagCreationModeControlled, Content: renderedFixtureContent(t, "original body"), Status: TopicStatusActive,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.UpdateTopic(fixture.ctx, UpdateTopicRecord{
+		TopicID: topic.ID, EditorUserID: staffID, AuthorUserID: authorID, ExpectedRevision: 1,
+		Origin: RevisionOriginStaff, Reason: "moderation correction", Title: "corrected title", Slug: "corrected-title",
+		TagCreationMode: TagCreationModeControlled,
+	}); err != nil {
+		t.Fatalf("UpdateTopic: %v", err)
+	}
+	if _, err := fixture.pool.Exec(fixture.ctx, `UPDATE audit_events SET created_at = now() - interval '91 days'`); err != nil {
+		t.Fatal(err)
+	}
+	result, err := audit.NewPostgresWriter(fixture.pool).CleanupOlderThan(fixture.ctx, audit.RecommendedRetentionDays)
+	if err != nil {
+		t.Fatalf("CleanupOlderThan: %v", err)
+	}
+	if result.Deleted != 1 {
+		t.Fatalf("cleanup result=%#v, want one deleted audit event", result)
+	}
+	var revisions int64
+	var currentRaw string
+	if err := fixture.pool.QueryRow(fixture.ctx, `
+		SELECT COUNT(*), max(raw_content) FILTER (WHERE revision_no = 2)
+		FROM post_revisions
+		WHERE post_id = $1
+	`, topic.Content.ID).Scan(&revisions, &currentRaw); err != nil {
+		t.Fatal(err)
+	}
+	if revisions != 2 || currentRaw != "original body" {
+		t.Fatalf("audit cleanup altered revision ledger rows=%d currentRaw=%q", revisions, currentRaw)
+	}
+}
+
 func TestRevisionLedgerHardDeleteCascadesRevisionPayloadsPostgres(t *testing.T) {
 	fixture := newRevisionLedgerPGFixture(t)
 	store := NewPostgresStore(fixture.pool)

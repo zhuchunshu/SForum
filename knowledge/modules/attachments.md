@@ -155,11 +155,11 @@ upload and presigned upload credentials are intentionally deferred.
   The forum write transaction validates active public attachments owned by the
   editor, replaces references, and updates `reference_count`; topic/comment
   deletion clears the corresponding references.
-- Forum content revisions V1 M2 can expose historical attachment ID summaries
+- Forum content revisions V1 can expose historical attachment ID summaries
   through authorized revision detail reads. Revision rows store IDs only, never
   bytes, URLs, credentials, object keys, checksums, or provider internals.
-  Restore remains M4 and must only rebind IDs from the selected immutable
-  revision that are still active and valid for the original resource
+  Restore only rebinds IDs from the selected immutable revision that are still
+  active and valid for the original resource
   author/current visibility policy; unavailable IDs fail closed with
   `forum.revision_attachment_unavailable` and no partial write.
 - Public attachment reads resolve real topic/comment/post status, category

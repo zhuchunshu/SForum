@@ -28,6 +28,7 @@ Menus evolve with version and extensions. Common groups:
 | Overview / ops | Health, queues, schedules |
 | Site / personalization | Branding, nav, footer, announcements, colors |
 | Forum settings | Length limits, nesting, cooldowns, guest read, tag policy |
+| Content management | Filter topics/comments, edit, inspect restricted revision timelines, and restore a prior version with a reason |
 | Taxonomy | Categories, tags, icons |
 | Users / roles / permissions | Members, role templates, matrix, per-user overrides |
 | Attachments | Storage provider, governance |
@@ -40,6 +41,16 @@ Menus evolve with version and extensions. Common groups:
 
 - New admin capabilities should use grantable permission keys  
 - Plugins may **declare** keys but must never self-assign them on install/enable  
+
+## Content revision permissions
+
+- `topic.revision.view_any` and `post.revision.view_any` allow only the matching
+  history read; they do not grant editing.
+- Restore also needs `topic.edit_any` or `post.edit_any` for the same resource.
+  Conflict state offers reload or history only, never force overwrite.
+- Redacting a history payload is irreversible, `super_admin`-only, and cannot
+  target the current version. Raw historical source, restore reasons, and
+  attachment-provider details do not enter extension events or ordinary audit logs.
 
 ## Next
 

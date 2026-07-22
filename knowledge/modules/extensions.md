@@ -22,11 +22,12 @@ does not rebuild Nuxt.
   `sforum.theme.l1.request-time-loader` before RemoveAfter around 2026-11-28,
   live zero-shim evidence, and the deletion checklist pass.
 - Fail-closed `SFPageOutlet` remains a Host emergency surface by design.
-- Forum content revisions V1 M2 keeps history Core-owned: Core exposes
+- Forum content revisions V1 keeps history Core-owned: Core exposes
   authorized topic/comment revision and admin content read routes, but no raw
   revision query or mutation provider is open to plugins. Safe observe payloads
   still must not include raw source, reason text, IPs, or attachment provider
-  internals; comment update hooks/events remain M3.
+  internals. `topic.updated` / `comment.updated` expose revision metadata only;
+  plugins have no raw-history query, restore, redaction, or CAS override surface.
 
 Authoritative sources:
 

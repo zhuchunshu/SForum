@@ -28,6 +28,12 @@ schedules.
 third-party plugin. Built-in SMTP still uses internal packages for historical
 reasons; new plugins should follow the SDK path shown by the Host API fixture.
 
+Forum revision payloads are deliberately not a plugin query or mutation surface.
+Plugins may observe the safe revision metadata on `topic.updated` and
+`comment.updated` (`revisionNo`, operation, changed fields, and restore origin),
+but never raw historical source, staff reasons, IPs, attachment-provider data,
+or a bypass for Core's history, restore, redaction, or CAS policy.
+
 ## Where to put your package
 
 Repository layout lives under [`extensions/`](../../extensions/README.md).

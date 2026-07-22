@@ -6,15 +6,6 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
-### Forum content revisions V1
-
-- Status: **complete**; M6 authenticated browser QA and allowed/denied API
-  coverage are complete. M7 is ready to start from the frozen M0-M6 decisions.
-- Plan: `plans/2026-07-22-forum-content-revisions-v1.md`
-- Decision: `decisions/2026-07-22-forum-content-revisions-ledger.md`
-- Handoff: `sessions/2026-07-23-forum-content-revisions-v1-m6-handoff.md`
-- Module: `modules/forum.md`
-
 ### Current HEAD regression remediation
 
 - Status: **active**; M0 baseline frozen. Owns search, frontend typecheck,
@@ -74,7 +65,7 @@ load archived sessions or completed plans as current context.
   `en-US` secondary locale.
 - **API:** Go Fiber v3, PostgreSQL, Redis, River, Goose, and sqlc.
 - **Forum:** taxonomy, topics/comments, moderation lifecycle, configurable
-  policy, million-scale read-path work, and content-revision M2 are shipped.
+  policy, million-scale read-path work, and content revisions V1 are shipped.
 - **Identity:** Redis sessions, RBAC, permission overrides, first-user
   `super_admin`, and account-session management are shipped.
 - **Search:** protected PostgreSQL site search is the default; Meilisearch is an
