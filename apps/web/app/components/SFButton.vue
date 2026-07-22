@@ -45,11 +45,17 @@ const buttonClass = computed(() => [
     :aria-label="ariaLabel"
     @click="emit('click', $event)"
   >
-    <slot name="leading" />
-    <span v-if="!iconOnly">
+    <span v-if="$slots.leading" class="sf-button__icon" aria-hidden="true">
+      <slot name="leading" />
+    </span>
+    <span v-if="!iconOnly" class="sf-button__label">
       <slot />
     </span>
-    <slot v-else />
-    <slot name="trailing" />
+    <span v-else class="sf-button__icon" aria-hidden="true">
+      <slot />
+    </span>
+    <span v-if="$slots.trailing" class="sf-button__icon" aria-hidden="true">
+      <slot name="trailing" />
+    </span>
   </button>
 </template>

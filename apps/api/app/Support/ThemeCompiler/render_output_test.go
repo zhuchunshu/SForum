@@ -268,6 +268,7 @@ func TestBundledThemeTemplatesCompileAndPreserveNestedHomeIsland(t *testing.T) {
 		"sf-footer":                 {ComponentID: "navigation.component.footer"},
 		"sf-home-navigation":        {ComponentID: "navigation.component.home"},
 		"sf-topic-composer":         {ComponentID: "forum.component.topic_composer"},
+		"sf-topic-reply":            {ComponentID: "forum.component.topic_reply"},
 		"sf-profile-settings":       {ComponentID: "profile.component.settings_form"},
 		"sf-security-settings":      {ComponentID: "identity.component.security_settings"},
 		"sf-login-form":             {ComponentID: "identity.component.login_form"},

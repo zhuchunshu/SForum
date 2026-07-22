@@ -17,6 +17,7 @@ describe('SFPageOutlet catalog wiring', () => {
     ['app/pages/tags/[tagSlug].vue', 'forum.tag.show'],
     ['app/pages/t/[...path].vue', 'forum.topic.show'],
     ['app/pages/topics/new.vue', 'forum.topic.create'],
+    ['app/pages/topics/reply.vue', 'forum.topic.reply'],
     ['app/pages/u/[username].vue', 'forum.profile.show'],
     ['app/pages/settings/profile.vue', 'forum.settings.profile'],
     ['app/pages/settings/security.vue', 'forum.settings.security'],
@@ -50,6 +51,7 @@ describe('SFPageOutlet catalog wiring', () => {
     // Auth forms are Host body islands (Host code, not theme-executable).
     expect(template).toContain("'identity.component.login_form': resolveComponent('LazySFLoginFormPage')")
     expect(template).toContain("'forum.component.topic_composer': resolveComponent('LazySFTopicComposerPage')")
+    expect(template).toContain("'forum.component.topic_reply': resolveComponent('LazySFTopicReplyPage')")
     expect(template).toContain("'forum.component.home_page': resolveComponent('LazySFHomePage')")
     expect(template).toContain("'system.component.not_found': HostPageIsland")
     expect(template).toContain('slots.default?.()')

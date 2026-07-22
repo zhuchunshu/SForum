@@ -9,6 +9,8 @@ import {
   forumCategoryPath,
   forumContentFromEditorPayload,
   forumTagPath,
+  advancedReplyDraftStorageKey,
+  forumTopicAdvancedReplyPath,
   forumTopicExtensionActionLabel,
   forumTopicPath,
   forumUserProfilePath,
@@ -44,12 +46,11 @@ function showSuccessToast(title: string) {
   toast.add({ color: 'success', icon: 'i-lucide-check', title, duration: 10000 })
 }
 
-// 顶级回复编辑器状态。
+// 顶级回复编辑器状态（始终展开，无折叠态）。
 const replyMarkdown = ref('')
 const replySubmitting = ref(false)
 const replyError = ref('')
 const showReplyError = ref(false)
-const replyComposerOpen = ref(false)
 const showReplyEditor = computed(() => Boolean(topic.value && topic.value.status !== 'locked' && can(FORUM_PERMISSIONS.postCreate)))
 
 // 评论编辑/删除状态：同一时刻只允许一个内联编辑器或回复目标。
@@ -282,6 +283,25 @@ const replyTarget = computed(() => replyingTo.value ? {
   href: `#comment-${replyingTo.value.id}`,
   floorLabel: commentFloor(replyingTo.value)
 } : null)
+
+// 高级回复：完整编辑器独立页；带上当前回复目标与草稿交接。
+const advancedReplyTo = computed(() => {
+  if (!topic.value) {
+    return ''
+  }
+  return localePath(forumTopicAdvancedReplyPath(topic.value.id, replyingTo.value?.id))
+})
+
+function prepareAdvancedReply() {
+  if (!import.meta.client || !topic.value) {
+    return
+  }
+  try {
+    sessionStorage.setItem(advancedReplyDraftStorageKey(topic.value.id), replyMarkdown.value)
+  } catch {
+    // sessionStorage 不可用时仍允许跳转
+  }
+}
 // E2.2：列表级评论扩展动作；requiresAuth 仅 UX 过滤，鉴权在扩展路由代理。
 const commentExtensionActions = computed(() => commentData.value?.extensionActions || [])
 const commentExtensionActionRunning = ref('')
@@ -435,7 +455,6 @@ function commentActions(comment: ForumComment) {
     canReport: canReportComment(),
     labels: {
       reply: t('topicDetail.reply'),
-      quote: t('topicDetail.quote'),
       link: t('topicDetail.commentLink'),
       edit: t('topicDetail.edit'),
       delete: deletingCommentId.value === comment.id ? t('topicDetail.deleting') : t('topicDetail.delete'),
@@ -500,8 +519,6 @@ function handleCommentClick(comment: ForumComment, value: string) {
   // 评论操作分发：由 SFComment 的 actions 触发，替代之前硬编码在模板里的按钮。
   if (value === 'reply') {
     startReply(comment)
-  } else if (value === 'quote') {
-    startReply(comment, true)
   } else if (value === 'link') {
     void copyCommentLink(comment)
   } else if (value === 'edit') {
@@ -548,7 +565,6 @@ async function submitReply(payload?: { markdown?: string; native?: unknown; text
     const created = await forumApi.createTopicComment(topic.value.id, content, replyingTo.value?.id)
     replyMarkdown.value = ''
     replyingTo.value = null
-    replyComposerOpen.value = false
     if (created.status === 'pending') {
       toast.add({ color: 'primary', icon: 'i-lucide-clock-3', title: t('topicDetail.replySubmittedForReview'), duration: 10000 })
     } else {
@@ -628,22 +644,17 @@ async function deleteComment(comment: ForumComment) {
 // 评论回复统一汇入评论流末尾的主编辑器，避免多个内联编辑器打断阅读。
 const replyingTo = ref<ForumComment | null>(null)
 
-function startReply(comment: ForumComment, includeQuote = false) {
+function startReply(comment: ForumComment) {
   cancelEditComment()
   replyingTo.value = comment
-  replyComposerOpen.value = true
-  if (includeQuote) {
-    const quote = `> ${comment.content.excerpt}\n\n`
-    replyMarkdown.value = replyMarkdown.value.startsWith(quote)
-      ? replyMarkdown.value
-      : `${quote}${replyMarkdown.value}`
-  }
   nextTick(() => scrollToElement('topic-reply-editor'))
 }
 
 function cancelReply() {
   replyingTo.value = null
-  replyComposerOpen.value = false
+  replyMarkdown.value = ''
+  replyError.value = ''
+  showReplyError.value = false
 }
 
 // D2：树视图截断后，用 ListCommentReplies 合并直系回复到本地树。
@@ -827,7 +838,6 @@ async function startTopLevelReply() {
     return
   }
   replyingTo.value = null
-  replyComposerOpen.value = true
   await nextTick()
   scrollToElement('topic-reply-editor')
 }
@@ -1083,16 +1093,16 @@ async function submitReport() {
                   <SFTopicReplyComposer
                     v-if="showReplyEditor"
                     v-model="replyMarkdown"
-                    :open="replyComposerOpen"
                     :actor-name="replyActorName"
                     :avatar="reportUser?.avatar"
                     :reply-target="replyTarget"
                     :submitting="replySubmitting"
                     :error="showReplyError ? replyError : ''"
-                    @open="startTopLevelReply"
+                    :advanced-to="advancedReplyTo"
                     @cancel="cancelReply"
                     @submit="onReplyEditorSubmit"
                     @dismiss-error="showReplyError = false"
+                    @advanced="prepareAdvancedReply"
                   />
 
                   <SFAlert

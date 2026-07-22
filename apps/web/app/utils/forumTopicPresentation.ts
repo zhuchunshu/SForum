@@ -45,7 +45,6 @@ export type CommentActionMenuInput = {
   canReport: boolean
   labels: {
     reply: string
-    quote: string
     link: string
     edit: string
     delete: string
@@ -127,8 +126,8 @@ export function buildTopicActionMenuItems(input: TopicActionMenuInput): TopicAct
 export function buildCommentActionMenuItems(input: CommentActionMenuInput): CommentActionMenuItem[] {
   const items: CommentActionMenuItem[] = []
   if (input.canReply) {
+    // 评论区只保留回复；引用块由 replyTo 关系在展示层表达，不再提供「引用」入口。
     items.push({ label: input.labels.reply, value: 'reply', icon: 'i-lucide-reply' })
-    items.push({ label: input.labels.quote, value: 'quote', icon: 'i-lucide-quote' })
   }
   items.push({ label: input.labels.link, value: 'link', icon: 'i-lucide-link' })
   if (input.canEdit) items.push({ label: input.labels.edit, value: 'edit', icon: 'i-lucide-pencil' })

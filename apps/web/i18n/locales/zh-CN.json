@@ -3636,6 +3636,15 @@
     "replyingTo": "回复",
     "replyPlaceholder": "写下你的回复……",
     "markdownSupported": "支持 Markdown",
+    "advancedReply": "高级回复",
+    "advancedReplyMetaTitle": "回复：{title}",
+    "advancedReplyMetaDescription": "使用完整编辑器撰写回复。",
+    "advancedReplySubtitle": "回复话题「{title}」",
+    "advancedReplyParent": "回复评论 #{id}",
+    "advancedReplyDenied": {
+      "title": "暂无回复权限",
+      "description": "登录并获得发帖权限后即可回复。"
+    },
     "submitReply": "发布回复",
     "submitting": "提交中...",
     "deleting": "删除中...",

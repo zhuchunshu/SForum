@@ -543,7 +543,7 @@ function submitContent() {
     <div class="sf-editor__footer">
       <template v-if="compact">
         <span class="sf-editor__compact-support">
-          <UIcon name="i-lucide-file-code-2" class="size-4" aria-hidden="true" />
+          <UIcon name="i-lucide-file-code-2" class="size-3.5" aria-hidden="true" />
           {{ supportLabel }}
         </span>
         <div class="sf-editor__compact-actions">
@@ -562,7 +562,9 @@ function submitContent() {
             :disabled="disabled || currentPayload.isEmpty"
             @click="submitContent"
           >
-            <UIcon name="i-lucide-send" class="size-4" aria-hidden="true" />
+            <template #leading>
+              <UIcon name="i-lucide-send" class="size-3.5" aria-hidden="true" />
+            </template>
             {{ submitLabel }}
           </SFButton>
         </div>

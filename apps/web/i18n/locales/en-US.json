@@ -3636,6 +3636,15 @@
     "replyingTo": "Replying to",
     "replyPlaceholder": "Write your reply…",
     "markdownSupported": "Markdown supported",
+    "advancedReply": "Advanced reply",
+    "advancedReplyMetaTitle": "Reply: {title}",
+    "advancedReplyMetaDescription": "Write your reply with the full editor.",
+    "advancedReplySubtitle": "Replying to “{title}”",
+    "advancedReplyParent": "Replying to comment #{id}",
+    "advancedReplyDenied": {
+      "title": "Reply not allowed",
+      "description": "Sign in with post permission to reply."
+    },
     "submitReply": "Post reply",
     "submitting": "Submitting...",
     "deleting": "Deleting...",

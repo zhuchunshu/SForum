@@ -13,6 +13,7 @@ type CorePageViewModelData struct {
 	TagShow               *themecompiler.TagShowPageViewModel
 	TopicDetail           *themecompiler.TopicDetailPageViewModel
 	TopicCreate           *themecompiler.TopicCreatePageViewModel
+	TopicReply            *themecompiler.TopicReplyPageViewModel
 	Profile               *themecompiler.ProfilePageViewModel
 	ProfileSettings       *themecompiler.ProfileSettingsPageViewModel
 	SecuritySettings      *themecompiler.SecuritySettingsPageViewModel

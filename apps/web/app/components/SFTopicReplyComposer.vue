@@ -8,20 +8,22 @@ type AvatarView = {
 
 defineProps<{
   modelValue: string
-  open: boolean
   actorName?: string
   avatar?: AvatarView | null
   replyTarget?: { author: string, href?: string, floorLabel?: string } | null
   submitting?: boolean
   error?: string
+  /** 高级回复独立页路径（含 query）；空则不渲染入口 */
+  advancedTo?: string
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
-  'open': []
   'cancel': []
   'submit': [payload: { markdown: string, native?: unknown, text?: string }]
   'dismiss-error': []
+  /** 跳转高级回复前：父级可写入草稿交接 */
+  'advanced': []
 }>()
 
 const { t } = useI18n()
@@ -31,23 +33,21 @@ const { t } = useI18n()
   <section id="topic-reply-editor" class="sforum-topic-comments__reply">
     <header class="sforum-topic-comments__reply-head">
       <SFAvatar v-if="actorName" :name="actorName" :avatar="avatar" size="sm" />
-      <span>
+      <span class="sforum-topic-comments__reply-head-copy">
         <strong>{{ t('topicDetail.replyTitle') }}</strong>
         <small v-if="actorName">{{ t('topicDetail.replyAs', { name: actorName }) }}</small>
       </span>
+      <NuxtLink
+        v-if="advancedTo"
+        :to="advancedTo"
+        class="sforum-topic-comments__reply-advanced"
+        @click="emit('advanced')"
+      >
+        {{ t('topicDetail.advancedReply') }}
+      </NuxtLink>
     </header>
 
-    <button
-      v-if="!open"
-      type="button"
-      class="sforum-topic-page__action-btn sforum-topic-page__action-btn--primary"
-      @click="emit('open')"
-    >
-      <UIcon name="i-lucide-reply" class="size-4" aria-hidden="true" />
-      {{ t('topicDetail.replyTopic') }}
-    </button>
-
-    <div v-else-if="replyTarget" class="sforum-topic-comments__reply-target">
+    <div v-if="replyTarget" class="sforum-topic-comments__reply-target">
       <span>
         <UIcon name="i-lucide-corner-up-left" class="size-4" aria-hidden="true" />
         {{ t('topicDetail.replyingTo') }}
@@ -59,8 +59,8 @@ const { t } = useI18n()
       </button>
     </div>
 
+    <!-- 内容页评论输入始终展开，不提供折叠态 -->
     <LazySFEditor
-      v-if="open"
       :model-value="modelValue"
       compact
       :rows="5"

@@ -114,7 +114,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.45rem;
+  gap: 0.4rem;
   min-width: 0;
   border: 1px solid transparent;
   border-radius: 8px;
@@ -124,10 +124,36 @@
   transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, opacity 0.16s ease;
 }
 
+/* 图标与文案分槽，保证垂直居中与间距稳定 */
+.sf-button__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.sf-button__icon svg {
+  display: block;
+  width: 1em;
+  height: 1em;
+}
+
+.sf-button__label {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .sf-button--sm {
   height: 2rem;
-  padding: 0 0.75rem;
-  font-size: 0.78rem;
+  padding: 0 0.8rem;
+  font-size: 0.8125rem;
+}
+
+.sf-button--sm .sf-button__icon {
+  font-size: 0.875rem;
 }
 
 .sf-button--md {
@@ -136,10 +162,18 @@
   font-size: 0.88rem;
 }
 
+.sf-button--md .sf-button__icon {
+  font-size: 1rem;
+}
+
 .sf-button--lg {
   height: 2.875rem;
   padding: 0 1.2rem;
   font-size: 0.95rem;
+}
+
+.sf-button--lg .sf-button__icon {
+  font-size: 1.05rem;
 }
 
 .sf-button--primary {
@@ -1674,6 +1708,66 @@
   border-top: 1px solid var(--sf-border-light);
   color: var(--sf-fg-tertiary);
   font-size: 0.76rem;
+}
+
+.sf-editor__compact-support {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--sf-fg-tertiary);
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+
+.sf-editor__compact-support svg {
+  flex-shrink: 0;
+  width: 0.875rem;
+  height: 0.875rem;
+  opacity: 0.85;
+}
+
+.sf-editor__compact-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-left: auto;
+}
+
+/* compact 底栏按钮与主题页操作钮视觉对齐 */
+.sf-editor__compact-actions .sf-button {
+  min-height: 2.125rem;
+  height: 2.125rem;
+  border-radius: 6px;
+  padding: 0 0.9rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.sf-editor__compact-actions .sf-button--ghost {
+  background: var(--sf-card);
+  border-color: var(--sf-border);
+  color: var(--sf-fg-secondary);
+}
+
+.sf-editor__compact-actions .sf-button--ghost:hover:not(:disabled) {
+  background: var(--sf-muted);
+  border-color: var(--sf-border);
+  color: var(--sf-fg);
+}
+
+.sf-editor__compact-actions .sf-button--primary {
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.08);
+}
+
+.sf-editor__compact-actions .sf-button--primary:hover:not(:disabled) {
+  box-shadow: 0 2px 6px rgb(15 23 42 / 0.12);
+}
+
+.sf-editor__compact-actions .sf-button:disabled {
+  box-shadow: none;
 }
 
 .sf-editor__status {

@@ -6,6 +6,17 @@ session archive.
 
 ## Latest Handoff
 
+- **2026-07-22 Advanced reply page**
+  - Comment input top-right「高级回复」→ `/topics/reply` full SFEditor
+  - Page Registry `forum.topic.reply`; draft handoff via sessionStorage
+  - Handoff: `sessions/2026-07-22-advanced-reply-page-handoff.md`
+  - Module: `modules/frontend.md`
+
+- **2026-07-22 Topic reply always expanded**
+  - Content-page comment input always open; no collapse/expand toggle
+  - Handoff: `sessions/2026-07-22-topic-reply-always-expanded-handoff.md`
+  - Module: `modules/frontend.md`
+
 - **2026-07-22 Hybrid topic typography 100% fidelity**
   - Demo 实测对齐：标题/正文/h2/pre/byline/按钮/搜索/评论标题；分类圆点；
     顶栏 active 主色无下划线；本地 accent `custom:#d94763`

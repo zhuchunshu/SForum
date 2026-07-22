@@ -24,6 +24,7 @@ func TestCorePageViewModelCatalogCoversPublicPageFamilies(t *testing.T) {
 		"forum.category.index": ViewModelList, "forum.category.show": ViewModelList,
 		"forum.tag.index": ViewModelList, "forum.tag.show": ViewModelList,
 		"forum.topic.show": ViewModelDetail, "forum.topic.create": ViewModelCreate,
+		"forum.topic.reply": ViewModelCreate,
 		"forum.profile.show":     ViewModelProfile,
 		"forum.settings.profile": ViewModelSettings, "forum.settings.security": ViewModelSettings,
 		"forum.notifications": ViewModelNotifications, "moderation.review": ViewModelModeration,

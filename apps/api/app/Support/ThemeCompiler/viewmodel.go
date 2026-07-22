@@ -254,6 +254,12 @@ type TopicCreatePageViewModel struct {
 	Tags       []TaxonomyLinkView `json:"tags,omitempty"`
 }
 
+// TopicReplyPageViewModel 高级回复独立页：完整编辑器 + create_comment 边界。
+type TopicReplyPageViewModel struct {
+	Base PageViewModelBase `json:"base"`
+	Form HostFormBoundary  `json:"form"`
+}
+
 type ProfileSettingsPageViewModel struct {
 	Base    PageViewModelBase `json:"base"`
 	Form    HostFormBoundary  `json:"form"`

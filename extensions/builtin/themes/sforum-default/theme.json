@@ -50,6 +50,13 @@
       "contract": "sforum.page.topic_create@1"
     },
     {
+      "id": "sforum.default-theme.topic_reply",
+      "action": "replace",
+      "target": "forum.topic.reply",
+      "template": "templates/topic-reply.html",
+      "contract": "sforum.page.topic_reply@1"
+    },
+    {
       "id": "sforum.default-theme.profile_show",
       "action": "replace",
       "target": "forum.profile.show",

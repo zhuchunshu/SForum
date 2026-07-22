@@ -28,6 +28,7 @@ There is no Layer activation option or frontend release runtime.
 | `forum.tag.show` | `/tags/:tagSlug` | public/feature-gated |
 | `forum.topic.show` | `/t/:path(.*)` | public |
 | `forum.topic.create` | `/topics/new` | login |
+| `forum.topic.reply` | `/topics/reply` | login |
 | `forum.profile.show` | `/u/:username` | public/feature-gated |
 | `forum.settings.profile` | `/settings/profile` | login |
 | `forum.settings.security` | `/settings/security` | login |

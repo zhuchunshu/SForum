@@ -84,6 +84,11 @@ func BuildCorePageViewModel(request CorePageViewModelRequest) (any, error) {
 		model.Base = base
 		model.Form = hostForm("forum.component.topic_composer", "core.route.forum.create_topic")
 		return model, nil
+	case "forum.topic.reply":
+		model := valueOrZero(request.Data.TopicReply)
+		model.Base = base
+		model.Form = hostForm("forum.component.topic_reply", "core.route.forum.create_comment")
+		return model, nil
 	case "forum.profile.show":
 		model := valueOrZero(request.Data.Profile)
 		model.Base = base

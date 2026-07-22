@@ -611,6 +611,20 @@ export function forumTopicPath(
   }
 }
 
+/** 高级回复独立页路径；parentId 可选，表示回复某条评论。 */
+export function forumTopicAdvancedReplyPath(topicId: number, parentId?: number | null) {
+  const query = new URLSearchParams({ topic: String(topicId) })
+  if (parentId != null && parentId > 0) {
+    query.set('parent', String(parentId))
+  }
+  return `/topics/reply?${query.toString()}`
+}
+
+/** 紧凑评论框 → 高级回复页的草稿交接（sessionStorage）。 */
+export function advancedReplyDraftStorageKey(topicId: number) {
+  return `sforum.advanced-reply.draft.${topicId}`
+}
+
 // parseTopicPath 解析 catch-all 详情页路由参数为帖子定位键。
 // 返回值：id 模式下为 { topicId }；slug 模式下为 { slug }；
 // id_slug 模式下为 { topicId, slug }。无法识别时返回 null（调用方应 404）。

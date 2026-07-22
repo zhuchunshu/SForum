@@ -322,9 +322,11 @@
   border-bottom: 1px solid var(--sf-public-border);
 }
 
-.sforum-topic-comments__reply-head > span {
+.sforum-topic-comments__reply-head-copy {
   display: grid;
+  flex: 1 1 auto;
   gap: 2px;
+  min-width: 0;
 }
 
 .sforum-topic-comments__reply-head strong {
@@ -334,6 +336,24 @@
 .sforum-topic-comments__reply-head small {
   color: var(--sf-public-text-muted);
   font-size: 10px;
+}
+
+.sforum-topic-comments__reply-advanced {
+  flex: 0 0 auto;
+  margin-left: auto;
+  border-radius: 4px;
+  padding: 4px 6px;
+  color: var(--sf-public-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.sforum-topic-comments__reply-advanced:hover {
+  color: var(--sf-accent);
+  background: var(--sf-accent-soft);
 }
 
 .sforum-topic-comments__reply-target {
@@ -1368,8 +1388,8 @@
 }
 
 .sf-theme--default .sf-editor--compact .sf-editor__footer {
-  min-height: 43px;
-  padding: 9px 0 0;
+  min-height: 44px;
+  padding: 10px 0 0;
   border: 0;
 }
 
@@ -1382,17 +1402,51 @@
 .sf-theme--default .sf-editor__compact-support {
   gap: 5px;
   color: var(--sf-public-text-muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .sf-theme--default .sf-editor__compact-actions {
-  gap: 7px;
+  gap: 8px;
 }
 
+/* 与正文区「分享 / 回复主题」操作钮同语系，图标与文案对齐 */
 .sf-theme--default .sf-editor__compact-actions .sf-button {
-  min-height: 34px;
+  min-height: 36px;
+  height: 36px;
+  gap: 6px;
   border-radius: 4px;
-  font-size: 11px;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.sf-theme--default .sf-editor__compact-actions .sf-button--ghost {
+  border-color: var(--sf-public-border);
+  background: var(--sf-public-surface);
+  color: var(--sf-public-text);
+}
+
+.sf-theme--default .sf-editor__compact-actions .sf-button--ghost:hover:not(:disabled) {
+  border-color: var(--sf-public-border);
+  background: var(--sf-public-surface-muted);
+  color: var(--sf-public-text);
+}
+
+.sf-theme--default .sf-editor__compact-actions .sf-button--primary {
+  border-color: var(--sf-accent);
+  background: var(--sf-accent);
+  color: #fff;
+}
+
+.sf-theme--default .sf-editor__compact-actions .sf-button--primary:hover:not(:disabled) {
+  border-color: var(--sf-accent-hover);
+  background: var(--sf-accent-hover);
+  color: #fff;
+}
+
+.sf-theme--default .sf-editor__compact-actions .sf-button__icon {
+  font-size: 14px;
 }
 
 .sf-theme--default .sf-comment:hover .sf-comment__actions,

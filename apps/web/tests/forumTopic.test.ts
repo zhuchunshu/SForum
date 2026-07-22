@@ -6,6 +6,7 @@ import {
   commentFloorNumber,
   flattenCommentTree,
   forumAuthorName,
+  forumTopicAdvancedReplyPath,
   forumTopicPath,
   forumUserProfilePath,
   parseTopicPath,
@@ -29,6 +30,11 @@ describe('forum topic helpers', () => {
     expect(forumTopicPath(topic, 'id')).toBe('/t/42')
     // 纯 slug
     expect(forumTopicPath(topic, 'slug')).toBe('/t/hello-world')
+  })
+
+  test('builds advanced reply path with optional parent comment', () => {
+    expect(forumTopicAdvancedReplyPath(42)).toBe('/topics/reply?topic=42')
+    expect(forumTopicAdvancedReplyPath(42, 9)).toBe('/topics/reply?topic=42&parent=9')
   })
 
   test('builds user profile path', () => {
