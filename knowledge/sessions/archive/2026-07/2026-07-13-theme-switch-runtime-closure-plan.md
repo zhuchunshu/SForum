@@ -3,7 +3,7 @@
 ## Changed
 
 - Added draft implementation task book:
-  `knowledge/plans/2026-07-13-theme-switch-runtime-closure.md`
+  `knowledge/plans/archive/2026-07/2026-07-13-theme-switch-runtime-closure.md`
 - Added a knowledge-index pointer for user review.
 - No production code, API contract, database, or runtime behavior was changed.
 - Strict technical review revised the task book; it remains unapproved and no

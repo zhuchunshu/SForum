@@ -12,18 +12,18 @@ Iteration A checklist.
 
 Related:
 
-- Maturity audit: `knowledge/architecture-maturity-audit.md`
+- Maturity audit: `knowledge/archive/architecture-maturity-audit.md`
 - Iteration A checklist: `knowledge/plans/2026-07-12-iteration-a-engagement-loop.md`
 - Admin settings richness catalog:
   `knowledge/plans/2026-07-12-admin-settings-richness.md`
 - Framework hardening F1–F4:
-  `knowledge/plans/2026-07-12-framework-hardening-waves.md`
+  `knowledge/plans/archive/2026-07/2026-07-12-framework-hardening-waves.md`
 - Extension surface density E1–E8 (filters, contributions, meta, workflow
   plugin, **storage/search/other service provider pluginization**):
   `knowledge/plans/2026-07-12-extension-surface-density.md`
 - Roadmap: `docs/roadmap.md`
 - Extension platform: `docs/extension-platform-v2.md`
-- Legacy gap inventory (partially stale): `knowledge/legacy-sforum-feature-gap.md`
+- Legacy gap inventory (partially stale): `knowledge/archive/legacy-sforum-feature-gap.md`
 
 ---
 
@@ -41,7 +41,7 @@ notifications, extension runtime, and theme release already exist.
 | Plugin runtime + SMTP vertical | Load-test proof / horizontal scale |
 | Theme build & switch | Payments, PM, OAuth, marketplace |
 
-Do **not** treat `legacy-sforum-feature-gap.md` as the only backlog: several
+Do **not** treat `knowledge/archive/legacy-sforum-feature-gap.md` as the only backlog: several
 rows (topic detail, search, mail, etc.) are outdated relative to current code.
 
 ---
@@ -211,7 +211,7 @@ host power (schedule, health, Host API, capabilities, webhooks, SDK), follow the
 phased backlog instead of inventing ad-hoc platform work:
 
 - Decision: `decisions/2026-07-12-host-platform-capabilities.md`
-- Checklist: `plans/2026-07-12-framework-hardening-waves.md` (F1→F4)
+- Checklist: `plans/archive/2026-07/2026-07-12-framework-hardening-waves.md` (F1→F4)
 
 Default: complete **F1** (schedule registry + ready/worker heartbeat) before
 deep Host API / marketplace-shaped work. Do not pull deferred items (payments,
@@ -221,10 +221,10 @@ marketplace, multi-tenant) into early waves without a new decision.
 
 | Doc | Role |
 | --- | --- |
-| `architecture-maturity-audit.md` | What is done vs missing (scores, checklists) |
+| `knowledge/archive/architecture-maturity-audit.md` | What is done vs missing (scores, checklists) |
 | **This file** | What to build next and why (strategy) |
 | `plans/2026-07-12-iteration-a-engagement-loop.md` | How to implement Iteration A (tasks) |
-| `plans/2026-07-12-framework-hardening-waves.md` | Host platform waves F1–F4 checklist |
+| `plans/archive/2026-07/2026-07-12-framework-hardening-waves.md` | Host platform waves F1–F4 checklist |
 | `decisions/2026-07-12-host-platform-capabilities.md` | Host OS contracts and non-goals |
 | `docs/roadmap.md` | Longer milestone framing |
 | `modules/*.md` | Per-area current status |

@@ -13,7 +13,7 @@ Audience: historical only
 Related accepted architecture:
 
 - `knowledge/decisions/2026-07-13-runtime-page-registry-themes.md`
-- `knowledge/plans/2026-07-13-runtime-page-registry-themes.md`
+- `knowledge/plans/archive/2026-07/2026-07-13-runtime-page-registry-themes.md`
 - `knowledge/sessions/archive/2026-07/2026-07-13-runtime-page-registry-round2-remediation.md`
 
 ## Review Gate

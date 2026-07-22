@@ -24,7 +24,7 @@ Audience: humans and AI sessions extending provider slots / contribution density
    no-op/dev defaults, and built-in fallbacks when no plugin is selected.
 
 **Parent strategy:** `knowledge/plans/2026-07-12-development-directions.md`  
-**Platform spine (done):** `knowledge/plans/2026-07-12-framework-hardening-waves.md`
+**Platform spine (done):** `knowledge/plans/archive/2026-07/2026-07-12-framework-hardening-waves.md`
 (F1–F4 complete including F4.4/F4.5 = E3/E4; remaining E1–E2, E5–E8)  
 **Architecture rules:**
 

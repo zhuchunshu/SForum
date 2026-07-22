@@ -2,7 +2,7 @@
 
 ## Changed
 
-- P0.1–P3.3 from `knowledge/plans/2026-07-12-security-audit-followup-remediation.md` implemented on `main`.
+- P0.1–P3.3 from `knowledge/plans/archive/2026-07/2026-07-12-security-audit-followup-remediation.md` implemented on `main`.
 - New decisions: forum policy enforcement, PAT permission intersection.
 - Release security scan report: `knowledge/reports/2026-07-12-release-security-scan.md`.
 - The premature completion status was reopened and the 2026-07-13 re-review

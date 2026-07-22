@@ -5,7 +5,7 @@
 - Recorded host platform architecture direction:
   `knowledge/decisions/2026-07-12-host-platform-capabilities.md`
 - Recorded phased implementation backlog F1–F4:
-  `knowledge/plans/2026-07-12-framework-hardening-waves.md`
+  `knowledge/plans/archive/2026-07/2026-07-12-framework-hardening-waves.md`
 - Linked from `knowledge/index.md` and
   `knowledge/plans/2026-07-12-development-directions.md`
 - Noted schedule/health gaps in `knowledge/modules/jobs.md` Next Steps

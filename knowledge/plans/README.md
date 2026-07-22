@@ -1,44 +1,47 @@
 # Plans
 
-Task books, blueprints, and progress ledgers. Every plan must declare a
-**Status** in the first few lines.
+Only active, ready, blocked, and long-lived blueprint task books belong in this
+directory. Completed, cancelled, and superseded plans live under
+`archive/YYYY-MM/` and are not default session context.
 
-## Status vocabulary
+## Status Vocabulary
 
 | Status | Meaning |
 | --- | --- |
-| `active` | Work may continue; read before implementing |
-| `ready` | Approved checklist; not started or only partially started |
-| `blueprint` | Product guidance; implement slices, do not treat as a single sprint |
-| `completed` | Done on main; do not reopen unless regression |
-| `cancelled` | Explicitly stopped |
-| `superseded` | Replaced by another plan/decision; historical only |
+| `active` | Work is in progress; read before implementing |
+| `ready` | Approved checklist; work may start |
+| `blocked` | Do not continue until its named dependency clears |
+| `blueprint` | Long-lived product guidance, not a single sprint |
+| `completed` | Done; move to archive |
+| `cancelled` | Explicitly stopped; move to archive |
+| `superseded` | Replaced by another source; move to archive |
 
-## Status table (2026-07-22)
+## Current Plans
 
 | Plan | Status |
 | --- | --- |
-| `2026-07-13-trusted-plugin-theme-platform-v3.md` | **active** — P13 LTS residual; production rewire honesty reopened |
-| `2026-07-13-trusted-plugin-theme-platform-v3-progress.md` | **active** — durable % ledger (~99.7%; do not claim rewire closed) |
-| `2026-07-13-trusted-plugin-theme-platform-v3-traceability.md` | **generated** — catalog matrix (do not hand-edit) |
-| `2026-07-22-v3-production-rewire-honesty-remediation.md` | **ready** — M0–M8 reopen fix for 8 production-call-chain findings |
-| `2026-07-22-current-head-regression-remediation.md` | **ready** — M0–M7 search/frontend/Page Registry/gate regression repair |
-| `2026-07-22-social-login-provider-plugins.md` | **ready** — Core auth completion + unified admin/user UI + GitHub/Google/Discord/Telegram plugins |
-| `2026-07-22-forum-content-revisions-v1.md` | **active** — M1 schema/backfill complete; M2 revision read models and permissions next |
-| `2026-07-22-theme-consistent-public-resource-404.md` | **ready** — close regression M7 first, then focused selected-theme resource 404 |
-| `2026-07-22-theme-defined-system-error-pages.md` | **blocked** — M0 read-only audit done; M1+ waits for regression M7 or explicit overlapping-file handoff |
-| `2026-07-21-million-scale-read-path.md` | **completed** — M0–M7 (M7 decision doc only); D1–D4 law |
-| `2026-07-12-iteration-a-engagement-loop.md` | **ready** — view counts / likes / bookmarks (M2 shares view-count WS) |
-| `2026-07-12-admin-settings-richness.md` | **blueprint** — Waves 1–2 landed; later waves open |
-| `2026-07-12-development-directions.md` | **blueprint** — strategy context (pre-dates full V3 close) |
-| `2026-07-12-extension-surface-density.md` | **active (partial)** — E1–E6 largely done; north-star slots ongoing via V3 |
-| `2026-07-12-framework-hardening-waves.md` | **completed** — F1–F4 landed; further platform work is V3 |
-| `2026-07-12-api-memory-runtime-hygiene.md` | **completed / cancelled residual** — P0 done; P1/P2 cancelled |
-| `2026-07-12-security-audit-fix-batch.md` | **completed** |
-| `2026-07-12-security-audit-followup-remediation.md` | **completed** |
-| `2026-07-13-buildless-extension-settings-ui.md` | **completed** |
-| `2026-07-13-runtime-page-registry-themes.md` | **completed** — absorbed into V3 theme/runtime |
-| `2026-07-13-admin-host-peer-resolve.md` | **completed** — legacy Web Release path later removed |
-| `2026-07-13-theme-switch-runtime-closure.md` | **superseded** — sync Page Registry + no runtime theme supervisor |
+| `2026-07-13-trusted-plugin-theme-platform-v3.md` | **active** -- P13 LTS residual and production-rewire honesty reopen |
+| `2026-07-13-trusted-plugin-theme-platform-v3-progress.md` | **active** -- durable residual ledger; do not claim 100% |
+| `2026-07-22-v3-production-rewire-honesty-remediation.md` | **ready** -- M0-M8 production-call-chain findings |
+| `2026-07-22-current-head-regression-remediation.md` | **active** -- M0 baseline frozen; M1-M7 open |
+| `2026-07-22-forum-content-revisions-v1.md` | **active** -- M2 complete; M3 next |
+| `2026-07-22-forum-content-revisions-v1-m0-contract-tests.md` | **accepted evidence** -- M0 test matrix for the active revisions plan |
+| `2026-07-22-theme-consistent-public-resource-404.md` | **ready** -- focused selected-theme public 404 |
+| `2026-07-22-theme-defined-system-error-pages.md` | **blocked** -- M1+ waits for regression M7/handoff |
+| `2026-07-22-social-login-provider-plugins.md` | **ready** -- Core auth completion and provider plugins |
+| `2026-07-12-iteration-a-engagement-loop.md` | **ready** -- remaining engagement product work |
+| `2026-07-12-admin-settings-richness.md` | **blueprint** -- later settings waves |
+| `2026-07-12-development-directions.md` | **blueprint** -- strategy context; verify against newer V3 decisions |
+| `2026-07-12-extension-surface-density.md` | **active (partial)** -- remaining product surface density |
 
-Update this table when a plan’s status changes.
+Generated V3 traceability is documentation, not a task book:
+`../../docs/extensions/v3/catalogs/traceability.md`.
+
+## Archived Plans
+
+Completed and superseded July task books are indexed at
+`archive/2026-07/README.md`. Do not read them unless recovering historical
+evidence.
+
+Update this table when a current plan changes status. Move closed plans in the
+same change instead of leaving them in the default directory.

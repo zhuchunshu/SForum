@@ -2,8 +2,8 @@
 
 Status: **M2 measured** against the same dedicated DB class as M0/M1.
 
-Task book: `knowledge/plans/2026-07-21-million-scale-read-path.md` (M2).  
-Related product path: `knowledge/plans/2026-07-12-iteration-a-engagement-loop.md` WS1.  
+Task book: `knowledge/plans/archive/2026-07/2026-07-21-million-scale-read-path.md` (M2).
+Related product path: `knowledge/plans/2026-07-12-iteration-a-engagement-loop.md` WS1.
 Prior: `reports/2026-07-21-perf-baseline.md` (M0), `reports/2026-07-21-perf-m1-list-topics.md` (M1).
 
 ## Environment

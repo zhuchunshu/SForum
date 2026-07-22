@@ -5,7 +5,7 @@
 - Accepted ADR:
   `knowledge/decisions/2026-07-13-runtime-page-registry-themes.md`
 - Implementation plan / task book (phases P0–P5, commit + rollback rules):
-  `knowledge/plans/2026-07-13-runtime-page-registry-themes.md`
+  `knowledge/plans/archive/2026-07/2026-07-13-runtime-page-registry-themes.md`
 - Knowledge index + extensions/frontend module pointers updated
 
 ## Decisions

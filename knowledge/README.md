@@ -19,17 +19,18 @@ Project memory for future sessions and contributors.
 | `modules/` | Per-domain living status |
 | `sessions/` | Actionable recent handoffs |
 | `sessions/archive/` | Cold historical handoffs |
-| `plans/` | Implementation checklists and progress ledgers |
+| `plans/` | Current implementation checklists and progress ledgers |
+| `plans/archive/` | Completed, cancelled, and superseded task books |
 | `decisions/` | Accepted / superseded decisions |
 | `glossary.md` | Shared terms |
-| `research.md` | Early library research (historical) |
-| `architecture-maturity-audit.md` | Scorecard (check “Last reviewed”) |
-| `legacy-sforum-feature-gap.md` | Gap vs old PHP product (verify before use) |
+| `archive/` | Stale audits, legacy comparisons, and historical research |
 | `reports/` | Point-in-time scans |
 
 ## Hygiene
 
 - Prefer updating a module note over appending long changelog text to `index.md`.
+- Keep `index.md` under 150 lines and limited to active workstreams/current
+  state; completed feature summaries belong in module notes or cold history.
 - Hot sessions stay few; move intermediate checkpoints to `sessions/archive/YYYY-MM/`.
 - Every plan file needs a clear **Status** line.
 - Superseded decisions keep their file; mark `Superseded by:` at the top.

@@ -2,7 +2,7 @@
 
 Status: accepted  
 Date: 2026-07-12  
-Related plan: `knowledge/plans/2026-07-12-framework-hardening-waves.md`
+Related plan: `knowledge/plans/archive/2026-07/2026-07-12-framework-hardening-waves.md`
 
 ## Context
 

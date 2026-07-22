@@ -2,7 +2,7 @@
 
 Status: **M3 measured** against the same dedicated DB class as M0–M2.
 
-Task book: `knowledge/plans/2026-07-21-million-scale-read-path.md` (M3).  
+Task book: `knowledge/plans/archive/2026-07/2026-07-21-million-scale-read-path.md` (M3).
 Prior: `reports/2026-07-21-perf-baseline.md` (M0), `perf-m1-list-topics.md`, `perf-m2-view-hot.md`.
 
 ## Environment
@@ -79,5 +79,5 @@ Covered by `TestCachedStoreListCommentsHitAndInvalidate` / `TestCachedStoreListC
 
 | Artifact | Path |
 | --- | --- |
-| Plan | `knowledge/plans/2026-07-21-million-scale-read-path.md` |
+| Plan | `knowledge/plans/archive/2026-07/2026-07-21-million-scale-read-path.md` |
 | This report | `knowledge/reports/2026-07-21-perf-m3-list-comments.md` |

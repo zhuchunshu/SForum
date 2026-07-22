@@ -541,7 +541,7 @@ Avoid expanding Layer theme capabilities except critical bugs.
 ## Next Session Starter Prompt (copy-paste)
 
 ```text
-Implement P0/P1 of knowledge/plans/2026-07-13-runtime-page-registry-themes.md
+Implement P0/P1 of knowledge/plans/archive/2026-07/2026-07-13-runtime-page-registry-themes.md
 per ADR knowledge/decisions/2026-07-13-runtime-page-registry-themes.md.
 Follow Commit Discipline: small commits, one concern each, no Layer deletion.
 Start with inventory + page catalog if not done; then SFPageOutlet for forum.home.

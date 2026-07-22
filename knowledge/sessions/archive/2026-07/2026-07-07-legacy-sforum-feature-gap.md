@@ -2,7 +2,7 @@
 
 ## Changed
 
-- Added `knowledge/legacy-sforum-feature-gap.md`, a cross-module inventory of
+- Added `knowledge/archive/legacy-sforum-feature-gap.md`, a cross-module inventory of
   SForum-old features that are missing or only partially implemented in the
   current rewrite.
 - Linked the new inventory from `knowledge/index.md`.
@@ -19,7 +19,7 @@
 
 ## Next
 
-- Use the suggested build order in `knowledge/legacy-sforum-feature-gap.md`
+- Use the suggested build order in `knowledge/archive/legacy-sforum-feature-gap.md`
   when selecting the next implementation slice.
 - Before importing data, define explicit mappings for old `user_class`,
   `topic_keywords`, attachments, password hashes, and unsupported commerce or

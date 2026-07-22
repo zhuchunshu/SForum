@@ -10,7 +10,7 @@ Accepted on 2026-07-10. Implemented.
 （泄漏即劫持），UI 也直接暴露 token，并且 IP/UA 绑定开关实际是坏的（命名不一致 +
 逻辑反了）。当前 SForum 重写有 Redis server session、`current_token_version` 全量失效、
 salted session-hash 审计，但缺少：用户可见的活跃设备列表、下线单个设备、下线其他设备、
-可配置的最大活跃设备数。参考 `legacy-sforum-feature-gap.md` 的 "Legacy Auth And Session
+可配置的最大活跃设备数。参考 `knowledge/archive/legacy-sforum-feature-gap.md` 的 "Legacy Auth And Session
 Lessons"，需要用现有架构重新实现，而不是抄旧代码。
 
 ## Decision

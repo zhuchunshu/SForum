@@ -2,7 +2,7 @@
 
 ## Changed
 
-- Plan: `knowledge/plans/2026-07-13-admin-host-peer-resolve.md`
+- Plan: `knowledge/plans/archive/2026-07/2026-07-13-admin-host-peer-resolve.md`
 - Shared helper: `apps/web/build/admin-host-peers.mjs` (peer names, resolve,
   aliases, safe prune of peer-only `node_modules`)
 - `nuxt.config.ts`: host peer aliases so extension admin SFCs resolve without

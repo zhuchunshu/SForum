@@ -2,7 +2,7 @@
 
 Status: **M5 measured** against the same dedicated DB class as M0–M4.
 
-Task book: `knowledge/plans/2026-07-21-million-scale-read-path.md` (M5).  
+Task book: `knowledge/plans/archive/2026-07/2026-07-21-million-scale-read-path.md` (M5).
 Prior: `perf-m4-topic-detail.md`.
 
 ## Environment
@@ -50,7 +50,7 @@ Warm Redis after first hits; sequential unless noted.
 | Concurrent cursor 5×10 | **9.8** ms | **21.8** ms | 0 errors |
 | Flat comments cursor 20 steps (hot thread) | 21.5 ms | 29.6 ms | path_key keyset |
 
-**Before M5 (deep OFFSET only):** scroll past page clamp required large OFFSET; home infinite scroll used `page++` and degraded toward clamp.  
+**Before M5 (deep OFFSET only):** scroll past page clamp required large OFFSET; home infinite scroll used `page++` and degraded toward clamp.
 **After M5:** primary feed uses `after`/`nextCursor`; 100-step category scroll p99 **≤ 20 ms** cold, **≤ 9 ms** warm.
 
 ### C) Correctness probes
@@ -76,6 +76,6 @@ Warm Redis after first hits; sequential unless noted.
 
 | Artifact | Path |
 | --- | --- |
-| Plan | `knowledge/plans/2026-07-21-million-scale-read-path.md` |
+| Plan | `knowledge/plans/archive/2026-07/2026-07-21-million-scale-read-path.md` |
 | This report | `knowledge/reports/2026-07-21-perf-m5-keyset.md` |
 | Perf script | `tests/perf/deep_scroll.js` |

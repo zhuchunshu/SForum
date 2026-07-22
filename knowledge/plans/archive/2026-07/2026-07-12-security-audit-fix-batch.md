@@ -311,5 +311,5 @@ Release-only actors could disable trusted plugins; zip bombs trusted declared si
 见 handoff 文末「一句话启动」；也复制如下：
 
 ```
-按 knowledge/plans/2026-07-12-security-audit-fix-batch.md 在 main 上按 commit 顺序修完安全审计 P0–P2（先读 knowledge/sessions/2026-07-12-security-audit-handoff.md）。直接改 main，每项单独 git commit，测相关 go test，做完更新 plan 勾选与 knowledge/index.md。不要杀 3000 端口的 web dev。
+按 knowledge/plans/archive/2026-07/2026-07-12-security-audit-fix-batch.md 在 main 上按 commit 顺序修完安全审计 P0–P2（先读 knowledge/sessions/2026-07-12-security-audit-handoff.md）。直接改 main，每项单独 git commit，测相关 go test，做完更新 plan 勾选与 knowledge/index.md。不要杀 3000 端口的 web dev。
 ```

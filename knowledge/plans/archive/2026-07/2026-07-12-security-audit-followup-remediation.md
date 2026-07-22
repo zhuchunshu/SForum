@@ -3,7 +3,7 @@
 Status: **completed**
 Date: 2026-07-12  
 Source: second full-program static audit after the first P0-P2 security batch  
-Previous batch: `knowledge/plans/2026-07-12-security-audit-fix-batch.md`
+Previous batch: `knowledge/plans/archive/2026-07/2026-07-12-security-audit-fix-batch.md`
 
 ## Objective
 
@@ -447,5 +447,5 @@ Final verification on 2026-07-13 passed all six required commands. See
 ## Paste-ready implementation prompt
 
 ```text
-按 knowledge/plans/2026-07-12-security-audit-followup-remediation.md 从 P0 开始实施。先读 knowledge/index.md、相关 module notes 和 knowledge/sessions/2026-07-12-security-audit-followup-plan.md。每个逻辑修复单独 commit，补允许/拒绝测试，逐项更新计划完成表；不要重做已经完成的 2026-07-12-security-audit-fix-batch，也不要杀 3000 端口的 web dev。
+按 knowledge/plans/archive/2026-07/2026-07-12-security-audit-followup-remediation.md 从 P0 开始实施。先读 knowledge/index.md、相关 module notes 和 knowledge/sessions/2026-07-12-security-audit-followup-plan.md。每个逻辑修复单独 commit，补允许/拒绝测试，逐项更新计划完成表；不要重做已经完成的 2026-07-12-security-audit-fix-batch，也不要杀 3000 端口的 web dev。
 ```

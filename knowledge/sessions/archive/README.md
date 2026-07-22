@@ -21,7 +21,7 @@ Current status sources (in order):
 ```text
 archive/
   README.md
-  2026-07/    # sessions from 2026-07-03 through intermediate 2026-07-21 work
+  2026-07/    # sessions from 2026-07-03 through completed/intermediate 2026-07-22 work
 ```
 
 When archiving, move files with `git mv` when possible so history stays intact.

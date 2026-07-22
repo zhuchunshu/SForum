@@ -24,7 +24,7 @@ that a later runtime phase is implemented.
   render samples, memory gates, and the required P13 rerun boundary.
 - `extension-surface-matrix.md` - current/open/planned/closed status for every
   core module across all eleven required surface families.
-- `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-traceability.md`
+- `docs/extensions/v3/catalogs/traceability.md`
   - the authoritative 99-row target mapping.
 
 ## Generated Catalogs
@@ -77,8 +77,7 @@ record compatibility impact.
   Fail-closed `SFPageOutlet` is never fully removed by design.
 - Catalog inventory gate: **253** routes / **145** UI surfaces / **99**
   traceability rows (`tests/validate-v3-p0-catalogs.mjs`).
-- Progress authority:
-  `knowledge/sessions/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
+- Progress authority: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
   and `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`.
 - Large deferred (not LTS, not thin wiring): Protocol-leased content filter
   dispatch, Media Plan/Execute/Receipt product authority, EntityStore I/O.

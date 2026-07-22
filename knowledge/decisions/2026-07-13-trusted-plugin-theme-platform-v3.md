@@ -1,13 +1,15 @@
 # Trusted Plugin And Theme Platform V3
 
 Date: 2026-07-13  
-Status: Accepted active direction; P0 completed 2026-07-13, P1 next
+Status: Accepted active direction; P0-P12 complete, P13 LTS residual and
+production-rewire honesty remediation remain open
 
 P0 governance, initial stable identities, Extension Surface Matrix, performance
 baseline, and the authoritative 99-row traceability matrix live under
 `docs/extensions/v3/` and
-`knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-traceability.md`.
-Later runtime phases remain unimplemented until their phase handoffs say so.
+`docs/extensions/v3/catalogs/traceability.md`.
+Current implementation status lives in the active V3 progress ledger; this ADR
+remains the stable architectural boundary rather than a phase status report.
 
 ## Context
 

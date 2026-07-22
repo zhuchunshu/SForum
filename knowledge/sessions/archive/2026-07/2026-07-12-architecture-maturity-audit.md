@@ -3,7 +3,7 @@
 ## Changed
 
 - Added living audit document:
-  `knowledge/architecture-maturity-audit.md`
+  `knowledge/archive/architecture-maturity-audit.md`
 - Linked it from `knowledge/index.md` Navigation.
 
 ## Decisions

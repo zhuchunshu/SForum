@@ -4,7 +4,7 @@
 
 Accepted — implemented through P5 with security remediation and **round-2 lifecycle
 close** (2026-07-13). See:
-- Plan: `knowledge/plans/2026-07-13-runtime-page-registry-themes.md`
+- Plan: `knowledge/plans/archive/2026-07/2026-07-13-runtime-page-registry-themes.md`
 - Security remediation: `knowledge/sessions/2026-07-13-runtime-page-registry-codex-remediation.md`
 - Round-2: `knowledge/sessions/2026-07-13-runtime-page-registry-round2-remediation.md`
 
@@ -227,7 +227,7 @@ installable themes.
 
 ## References
 
-- Plan / task book: `knowledge/plans/2026-07-13-runtime-page-registry-themes.md`
+- Plan / task book: `knowledge/plans/archive/2026-07/2026-07-13-runtime-page-registry-themes.md`
 - Modules: `knowledge/modules/extensions.md`, `knowledge/modules/frontend.md`
 - Inspiration notes in session discussion (WP template hierarchy, Typecho
   themes, Flarum routes, Discuz extension points)

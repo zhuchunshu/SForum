@@ -25,7 +25,7 @@
 
 - Prefer keeping `index.md` short when adding future handoffs.
 - After multi-day programs, archive intermediate sessions in the same pass.
-- Re-audit `architecture-maturity-audit.md` only when scores are needed again.
+- Re-audit `knowledge/archive/architecture-maturity-audit.md` only when scores are needed again.
 
 ## Open Questions
 

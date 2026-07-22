@@ -21,6 +21,10 @@ Rules:
 4. Never treat archive prose as current status without checking code and the
    active plan/module note.
 5. `knowledge/index.md` **Latest Handoff** links only hot sessions.
+6. Keep ordinary handoffs under 80 lines. Move long evidence into the active
+   plan, a decision, `reports/`, or `docs/`.
+7. A blocked workstream may keep one audit handoff only when it contains the
+   exact unblock condition; plan-only announcements are cold history.
 
 ## Filename format
 

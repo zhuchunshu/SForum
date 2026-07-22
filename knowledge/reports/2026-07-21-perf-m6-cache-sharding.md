@@ -2,7 +2,7 @@
 
 Status: **M6 measured** against the same dedicated DB class as M0–M5.
 
-Task book: `knowledge/plans/2026-07-21-million-scale-read-path.md` (M6).  
+Task book: `knowledge/plans/archive/2026-07/2026-07-21-million-scale-read-path.md` (M6).
 Prior: `perf-m5-keyset.md`.
 
 ## Environment
@@ -18,14 +18,14 @@ Prior: `perf-m5-keyset.md`.
 
 ## Code under test (M6)
 
-1. **Topics list gen sharding:**  
-   - `forum:gen:topics:global` — unfiltered home  
-   - `forum:gen:topics:cat:{slug}` — category filter  
-   - `forum:gen:topics:tag:{slug}` — tag filter  
-   - cat+tag dual filter embeds both gens in the cache key  
-2. **Write path:** bump only global + affected cat/tag scopes (not all categories).  
-   Comment / lifecycle paths resolve scopes from detail cache (or one `GetTopic` fallback).  
-3. **COUNT audit:** public ListTopics still D1 (no full-table COUNT); flat comments use `comment_count`; tree root COUNT only on ListComments cache miss; author rate-limit COUNTs are write-path only.  
+1. **Topics list gen sharding:**
+   - `forum:gen:topics:global` — unfiltered home
+   - `forum:gen:topics:cat:{slug}` — category filter
+   - `forum:gen:topics:tag:{slug}` — tag filter
+   - cat+tag dual filter embeds both gens in the cache key
+2. **Write path:** bump only global + affected cat/tag scopes (not all categories).
+   Comment / lifecycle paths resolve scopes from detail cache (or one `GetTopic` fallback).
+3. **COUNT audit:** public ListTopics still D1 (no full-table COUNT); flat comments use `comment_count`; tree root COUNT only on ListComments cache miss; author rate-limit COUNTs are write-path only.
 4. **Tests:** cat A write does not miss cat B list cache; tag-x write does not miss tag-y; comment in cat A leaves cat B warm.
 
 ## Results
@@ -66,7 +66,7 @@ Sequential n=30 after warm-up; concurrent 5 workers × 200 mixed home/cat reads.
 | Topic by-slug warm | **6.7** ms | **10.9** ms | detail path unchanged |
 | Concurrent multi-cat 200 ok | **13.9** ms | **25.1** ms | 0 errors |
 
-**Before M6 (M5 warm category cursor re-hit):** p50 ~5.6 ms / p99 ~8.5 ms — same class.  
+**Before M6 (M5 warm category cursor re-hit):** p50 ~5.6 ms / p99 ~8.5 ms — same class.
 **After M6:** multi-category warm lists stay second-class; sharding does not add measurable overhead on read path (one extra Redis GET per scope, already needed for gen).
 
 ### D) COUNT leftover matrix (public hot path)
@@ -94,14 +94,14 @@ No new public full-table `COUNT(*)` removed in this milestone because M1/M3 alre
 
 ## Residual / next
 
-- Home still invalidates on every public topic write (by design — activity feed).  
-- Tree root COUNT remains on ListComments miss; optional later `root_comment_count` denorm if miss rate hurts.  
+- Home still invalidates on every public topic write (by design — activity feed).
+- Tree root COUNT remains on ListComments miss; optional later `root_comment_count` denorm if miss rate hurts.
 - **M7** is doc-only (read replica threshold) — no code in this plan unless single-node ceiling is proven.
 
 ## Artifacts
 
 | Artifact | Path |
 | --- | --- |
-| Plan | `knowledge/plans/2026-07-21-million-scale-read-path.md` |
+| Plan | `knowledge/plans/archive/2026-07/2026-07-21-million-scale-read-path.md` |
 | This report | `knowledge/reports/2026-07-21-perf-m6-cache-sharding.md` |
 | Code | `apps/api/app/Models/Forum/cached_store.go` (+ tests) |

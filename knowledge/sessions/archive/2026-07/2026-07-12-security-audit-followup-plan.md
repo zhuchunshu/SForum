@@ -4,7 +4,7 @@
 
 - Completed a second static audit after the first P0-P2 security batch.
 - Recorded the remaining findings and an implementation-ready task book at
-  `knowledge/plans/2026-07-12-security-audit-followup-remediation.md`.
+  `knowledge/plans/archive/2026-07/2026-07-12-security-audit-followup-remediation.md`.
 - No application code was changed in this planning session.
 
 ## Findings

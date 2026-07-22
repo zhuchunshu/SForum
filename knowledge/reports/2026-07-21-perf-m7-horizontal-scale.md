@@ -2,7 +2,7 @@
 
 Status: **decision recorded; no code**.
 
-Task book: `knowledge/plans/2026-07-21-million-scale-read-path.md` (M7).  
+Task book: `knowledge/plans/archive/2026-07/2026-07-21-million-scale-read-path.md` (M7).
 Decision: `knowledge/decisions/2026-07-21-read-replica-and-api-horizontal-scale.md`.
 
 ## Summary
@@ -38,5 +38,5 @@ hardware upgrades before opening a replica implementation plan.
 | Artifact | Path |
 | --- | --- |
 | Decision | `knowledge/decisions/2026-07-21-read-replica-and-api-horizontal-scale.md` |
-| Plan | `knowledge/plans/2026-07-21-million-scale-read-path.md` |
+| Plan | `knowledge/plans/archive/2026-07/2026-07-21-million-scale-read-path.md` |
 | This report | `knowledge/reports/2026-07-21-perf-m7-horizontal-scale.md` |

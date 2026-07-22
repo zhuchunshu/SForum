@@ -2,7 +2,7 @@
 
 Status: **measurement only** — current `main` read path, **no** M1+ ListTopics/view/hot_score/comment-bound rewrites.
 
-Task book: `knowledge/plans/2026-07-21-million-scale-read-path.md` (M0).
+Task book: `knowledge/plans/archive/2026-07/2026-07-21-million-scale-read-path.md` (M0).
 
 ## Hardware / environment
 

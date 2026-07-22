@@ -19,7 +19,7 @@ deployment, with reproducible load evidence.
 | `decisions/2026-07-08-search-cache-deep-pagination.md` | Existing cache / page clamp / search split — extend, do not rip out. |
 | `decisions/2026-07-08-performance-hardening.md` | Comment SQL pagination, pools, SWR — baseline. |
 | `decisions/2026-07-21-read-replica-and-api-horizontal-scale.md` | **M7** — replica thresholds + multi-API assumptions; no code until thresholds. |
-| `architecture-maturity-audit.md` Part D | Highest-value performance gaps; this plan operationalizes them. |
+| `knowledge/archive/architecture-maturity-audit.md` Part D | Highest-value performance gaps; this plan operationalizes them. |
 | `plans/2026-07-12-development-directions.md` | Strategy: capacity proof after daily community paths; this is the capacity track. |
 
 ## Product Goal

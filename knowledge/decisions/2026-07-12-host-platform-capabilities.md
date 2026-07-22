@@ -3,7 +3,7 @@
 ## Status
 
 Accepted as **architecture direction**. Implementation is **phased** — see
-`knowledge/plans/2026-07-12-framework-hardening-waves.md`. No code lands from
+`knowledge/plans/archive/2026-07/2026-07-12-framework-hardening-waves.md`. No code lands from
 this document alone.
 
 ## Context
@@ -175,8 +175,8 @@ slice** per session rather than pure platform marathons.
 
 ## Follow-up
 
-1. Execute waves in `plans/2026-07-12-framework-hardening-waves.md`.
-2. Re-score `architecture-maturity-audit.md` when a wave completes.
+1. Execute waves in `plans/archive/2026-07/2026-07-12-framework-hardening-waves.md`.
+2. Re-score `knowledge/archive/architecture-maturity-audit.md` when a wave completes.
 3. Update `modules/jobs.md`, `modules/extensions.md`, and `modules/backend.md`
    as implementations land.
 4. Split detailed designs (Host API schema, capability catalog, webhook

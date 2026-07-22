@@ -2,7 +2,7 @@
 
 Status: **M1 measured** against the same dedicated DB and hardware class as M0.
 
-Task book: `knowledge/plans/2026-07-21-million-scale-read-path.md` (M1).  
+Task book: `knowledge/plans/archive/2026-07/2026-07-21-million-scale-read-path.md` (M1).
 Baseline: `knowledge/reports/2026-07-21-perf-baseline.md` (M0).
 
 ## Environment (same class as M0)

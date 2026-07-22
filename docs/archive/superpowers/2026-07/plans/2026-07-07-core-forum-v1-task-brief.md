@@ -14,7 +14,7 @@
 
 - `AGENTS.md`
 - `knowledge/index.md`
-- `knowledge/legacy-sforum-feature-gap.md`
+- `knowledge/archive/legacy-sforum-feature-gap.md`
 - `knowledge/modules/forum.md`
 - `knowledge/modules/identity.md`
 - `knowledge/modules/frontend.md`

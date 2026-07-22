@@ -10,7 +10,7 @@ follow-up implementation plan is opened.
 ## Context
 
 The million-scale read-path task book
-(`plans/2026-07-21-million-scale-read-path.md`) completed **M0–M6** on a single
+(`plans/archive/2026-07/2026-07-21-million-scale-read-path.md`) completed **M0–M6** on a single
 Postgres primary + shared Redis:
 
 | Milestone | Outcome (summary) |
@@ -123,9 +123,9 @@ A future implementation plan must specify:
 
 ## Evidence Links
 
-- Plan: `knowledge/plans/2026-07-21-million-scale-read-path.md` (M0–M6 reports)
+- Plan: `knowledge/plans/archive/2026-07/2026-07-21-million-scale-read-path.md` (M0–M6 reports)
 - Baseline: `knowledge/reports/2026-07-21-perf-baseline.md`
 - After M6: `knowledge/reports/2026-07-21-perf-m6-cache-sharding.md`
 - Sessions: `knowledge/decisions/2026-07-05-browser-session-jwt-strategy.md`
 - Prior hardening: `knowledge/decisions/2026-07-08-performance-hardening.md`
-- Audit deferral: `knowledge/architecture-maturity-audit.md` Part D
+- Audit deferral: `knowledge/archive/architecture-maturity-audit.md` Part D

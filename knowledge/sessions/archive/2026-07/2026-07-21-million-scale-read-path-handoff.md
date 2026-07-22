@@ -2,7 +2,7 @@
 
 ## Changed
 
-- Added task book `knowledge/plans/2026-07-21-million-scale-read-path.md`
+- Added task book `knowledge/plans/archive/2026-07/2026-07-21-million-scale-read-path.md`
   (status **ready**): M0 baseline/seed → M1 ListTopics → M2 view+hot_score
   (shares Iteration A WS1) → M3 comments bounds/cache → M4 detail → M5 keyset
   → M6 cache sharding → M7 replica doc-only.

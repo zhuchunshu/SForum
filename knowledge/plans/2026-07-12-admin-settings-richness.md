@@ -10,7 +10,7 @@ Related:
 
 - Runtime options module: `knowledge/modules/options.md`
 - Development directions: `knowledge/plans/2026-07-12-development-directions.md`
-- Legacy gap (partially stale): `knowledge/legacy-sforum-feature-gap.md`
+- Legacy gap (partially stale): `knowledge/archive/legacy-sforum-feature-gap.md`
 - Agent rules: beginner-friendly defaults, permission-aware design, plugin-first core
 
 ---

@@ -2,7 +2,7 @@
 
 ## Changed
 
-- **P0 only** from `knowledge/plans/2026-07-12-api-memory-runtime-hygiene.md`:
+- **P0 only** from `knowledge/plans/archive/2026-07/2026-07-12-api-memory-runtime-hygiene.md`:
   when `EMBED_WORKER_IN_API=true`, the embedded River worker reuses the API’s
   extension runtime instead of building a second Manager + Host API gateway
   and reconciling again (which doubled backend plugin processes).

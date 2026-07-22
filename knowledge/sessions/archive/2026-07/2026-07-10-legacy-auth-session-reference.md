@@ -5,7 +5,7 @@
 - Reviewed `/Users/inkedus/Code/github/SForum-old` auth/session behavior as a
   design reference, especially `UsersAuth`, max online devices, login records,
   and user-triggered device offline flows.
-- Updated `knowledge/legacy-sforum-feature-gap.md` with a dedicated legacy
+- Updated `knowledge/archive/legacy-sforum-feature-gap.md` with a dedicated legacy
   auth/session lessons section.
 - Updated `knowledge/modules/identity.md` next steps to call out active-device
   management and max-session settings explicitly.

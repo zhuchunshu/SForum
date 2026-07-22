@@ -35,7 +35,7 @@ Related:
   `Adapter` + first driver set — **still valid** for in-tree drivers)
 - `knowledge/decisions/2026-07-07-mail-provider-contract.md` (mail shape)
 - `knowledge/modules/attachments.md`, `knowledge/modules/mail.md`
-- F3.5 note in `plans/2026-07-12-framework-hardening-waves.md` — **superseded
+- F3.5 note in `plans/archive/2026-07/2026-07-12-framework-hardening-waves.md` — **superseded
   for future drivers** by this decision (core may keep existing drivers)
 
 ## Decision

@@ -23,7 +23,7 @@ uploaded backend plugin — effectively host code execution under a delegated
 admin role.
 
 A second static audit after the first security batch recorded this as Critical
-(P0.1) in `knowledge/plans/2026-07-12-security-audit-followup-remediation.md`.
+(P0.1) in `knowledge/plans/archive/2026-07/2026-07-12-security-audit-followup-remediation.md`.
 
 ## Decision
 

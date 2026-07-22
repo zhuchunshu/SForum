@@ -2,7 +2,7 @@
 
 Status: **M4 measured** against the same dedicated DB class as M0–M3.
 
-Task book: `knowledge/plans/2026-07-21-million-scale-read-path.md` (M4).  
+Task book: `knowledge/plans/archive/2026-07/2026-07-21-million-scale-read-path.md` (M4).
 Prior: `perf-baseline.md` (M0), `perf-m1-list-topics.md`, `perf-m2-view-hot.md`,
 `perf-m3-list-comments.md`.
 
@@ -105,5 +105,5 @@ combined first screen is comments-bound (documented residual, owner M3/M5).
 
 | Artifact | Path |
 | --- | --- |
-| Plan | `knowledge/plans/2026-07-21-million-scale-read-path.md` |
+| Plan | `knowledge/plans/archive/2026-07/2026-07-21-million-scale-read-path.md` |
 | This report | `knowledge/reports/2026-07-21-perf-m4-topic-detail.md` |

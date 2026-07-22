@@ -144,7 +144,7 @@ Plugins may render digest-approved client components there, but cannot bypass
 
 - **Wave F1 complete**; **F2.1 / F2.2** landed (capabilities + Host API job
   enqueue as `extension.plugin_job`). Remaining framework: F2.3 / F2.4. See
-  `knowledge/plans/2026-07-12-framework-hardening-waves.md`.
+  `knowledge/plans/archive/2026-07/2026-07-12-framework-hardening-waves.md`.
 - Wire additional domain job **handlers** into the worker `Registry`; add new
   maintenance **schedules** only through `CoreScheduleDefinitions` (or later
   plugin schedule grants under F2.4 lifecycle).
