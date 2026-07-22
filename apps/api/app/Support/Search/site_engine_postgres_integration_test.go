@@ -65,9 +65,9 @@ func TestPostgresSiteEngineIndexSearchDelete(t *testing.T) {
 		_, err = pool.Exec(ctx, `
 			ALTER TABLE search_documents ADD COLUMN IF NOT EXISTS tsv tsvector
 			GENERATED ALWAYS AS (
-			  setweight(to_tsvector('simple', coalesce(title, '')), 'A') ||
-			  setweight(to_tsvector('simple', coalesce(excerpt, '')), 'B') ||
-			  setweight(to_tsvector('simple', coalesce(plain_text, '')), 'C')
+			  setweight(to_tsvector('pg_catalog', coalesce(title, '')), 'A') ||
+			  setweight(to_tsvector('pg_catalog', coalesce(excerpt, '')), 'B') ||
+			  setweight(to_tsvector('pg_catalog', coalesce(plain_text, '')), 'C')
 			) STORED
 		`)
 		if err != nil {

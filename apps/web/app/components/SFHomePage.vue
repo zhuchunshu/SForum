@@ -37,10 +37,11 @@ const {
   rightRailEnabled,
   rightRailHotLimit,
   rightRailTagLimit
-} = useActiveThemeSettings()
+} = useActiveThemeSettings(forceDefaultTheme)
 
 const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
 const committedFilters = computed(() => parseForumHomeQuery(route.query))
+const forceDefaultTheme = computed(() => !!committedFilters.value.query)
 const currentPage = computed(() => parsePublicPage(route.query.page))
 const activeFeedKey = computed(() => forumHomeFeedKey(committedFilters.value))
 const activePageFeedKey = computed(() => `${activeFeedKey.value}:${currentPage.value}`)

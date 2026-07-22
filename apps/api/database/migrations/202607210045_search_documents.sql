@@ -21,11 +21,11 @@ CREATE TABLE search_documents (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   last_activity_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  -- simple 配置：中英混排零外部分词器依赖；大站可换 Meilisearch 插件。
+  -- pg_catalog 配置：中英混排分词良好（'simple' 对中文支持较弱）。
   tsv tsvector GENERATED ALWAYS AS (
-    setweight(to_tsvector('simple', coalesce(title, '')), 'A') ||
-    setweight(to_tsvector('simple', coalesce(excerpt, '')), 'B') ||
-    setweight(to_tsvector('simple', coalesce(plain_text, '')), 'C')
+    setweight(to_tsvector('pg_catalog', coalesce(title, '')), 'A') ||
+    setweight(to_tsvector('pg_catalog', coalesce(excerpt, '')), 'B') ||
+    setweight(to_tsvector('pg_catalog', coalesce(plain_text, '')), 'C')
   ) STORED
 );
 

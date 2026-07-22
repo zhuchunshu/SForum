@@ -41,7 +41,7 @@ function clampInt(value: string | undefined, fallback: number, min: number, max:
   return Math.min(max, Math.max(min, Math.floor(parsed)))
 }
 
-export function useActiveThemeSettings() {
+export function useActiveThemeSettings(forceDefaultTheme = false) {
   const { request } = useApiClient()
   const { locale } = useI18n()
   const activeTheme = useActiveThemeIdentity()
@@ -155,6 +155,7 @@ export function useActiveThemeSettings() {
     navShowCompose,
     navShowCounts,
     layoutShowFooter,
-    layoutShowAnnouncements
+    layoutShowAnnouncements,
+    forceDefaultTheme
   }
 }

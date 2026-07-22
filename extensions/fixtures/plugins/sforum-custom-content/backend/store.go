@@ -107,7 +107,7 @@ func (s *articleStore) ensureSchema(ctx context.Context) error {
   label text NOT NULL,
   parent_id text NOT NULL DEFAULT ''
 )`,
-		`CREATE INDEX IF NOT EXISTS articles_summary_idx ON articles USING gin (to_tsvector('simple', summary))`,
+		`CREATE INDEX IF NOT EXISTS articles_summary_idx ON articles USING gin (to_tsvector('pg_catalog', summary))`,
 	}
 	for _, stmt := range stmts {
 		if _, err := s.db.ExecContext(ctx, stmt); err != nil {
@@ -272,7 +272,7 @@ func (s *articleStore) search(ctx context.Context, q string, limit int) ([]artic
 	if s.db != nil && q != "" {
 		rows, err := s.db.QueryContext(ctx, `
 SELECT id, title, summary, slug, topic_id, body, state, updated_at FROM articles
-WHERE to_tsvector('simple', coalesce(title,'') || ' ' || coalesce(summary,'')) @@ plainto_tsquery('simple', $1)
+WHERE to_tsvector('pg_catalog', coalesce(title,'') || ' ' || coalesce(summary,'')) @@ plainto_tsquery('pg_catalog', $1)
 ORDER BY id LIMIT $2`, q, limit)
 		if err != nil {
 			return nil, err

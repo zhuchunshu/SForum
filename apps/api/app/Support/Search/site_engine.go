@@ -136,9 +136,10 @@ func (e *PostgresSiteEngine) Search(ctx context.Context, input SearchInput) (Sea
 	offset := (page - 1) * perPage
 
 	// websearch_to_tsquery 对用户输入更友好；失败时回退 plainto_tsquery。
+	// 'pg_catalog' 支持中英混排分词（'simple' 配置对中文支持较弱）。
 	args := []any{q}
 	where := []string{
-		`tsv @@ websearch_to_tsquery('simple', $1)`,
+		`tsv @@ websearch_to_tsquery('pg_catalog', $1)`,
 		`status = ANY($2::text[])`,
 	}
 	args = append(args, PublicSearchStatuses)
@@ -173,7 +174,7 @@ func (e *PostgresSiteEngine) Search(ctx context.Context, input SearchInput) (Sea
 			created_at, updated_at, last_activity_at
 		FROM search_documents
 		WHERE %s
-		ORDER BY is_pinned DESC, ts_rank_cd(tsv, websearch_to_tsquery('simple', $1)) DESC, last_activity_at DESC
+		ORDER BY is_pinned DESC, ts_rank_cd(tsv, websearch_to_tsquery('pg_catalog', $1)) DESC, last_activity_at DESC
 		LIMIT $%d OFFSET $%d
 	`, whereSQL, argN, argN+1)
 	args = append(args, perPage, offset)
@@ -200,7 +201,7 @@ func (e *PostgresSiteEngine) searchPlain(ctx context.Context, input SearchInput,
 	q := strings.TrimSpace(input.Query)
 	args := []any{q, PublicSearchStatuses}
 	where := []string{
-		`tsv @@ plainto_tsquery('simple', $1)`,
+		`tsv @@ plainto_tsquery('pg_catalog', $1)`,
 		`status = ANY($2::text[])`,
 	}
 	argN := 3
@@ -228,7 +229,7 @@ func (e *PostgresSiteEngine) searchPlain(ctx context.Context, input SearchInput,
 			created_at, updated_at, last_activity_at
 		FROM search_documents
 		WHERE %s
-		ORDER BY is_pinned DESC, ts_rank_cd(tsv, plainto_tsquery('simple', $1)) DESC, last_activity_at DESC
+		ORDER BY is_pinned DESC, ts_rank_cd(tsv, plainto_tsquery('pg_catalog', $1)) DESC, last_activity_at DESC
 		LIMIT $%d OFFSET $%d
 	`, whereSQL, argN, argN+1)
 	args = append(args, perPage, offset)

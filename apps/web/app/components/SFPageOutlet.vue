@@ -20,6 +20,7 @@ import {
  */
 const props = defineProps<{
   page: string
+  forceDefaultTheme?: boolean
 }>()
 
 const route = useRoute()
@@ -78,6 +79,14 @@ function applyFallbackCachePolicy(payload: ResolvePayload) {
 const { data: resolved, error: resolveError } = await useAsyncData(
   resolveKey,
   async () => {
+    if (props.forceDefaultTheme) {
+      return coreResolveFallback(
+        props.page,
+        true,
+        PAGE_RESOLVE_REASON.authoritativeCore
+      ) as ResolvePayload
+    }
+
     if (!registryEnabled.value) {
       return coreResolveFallback(
         props.page,
@@ -151,6 +160,8 @@ const useHostPublicChrome = computed(() => {
   const id = props.page
   return !id.startsWith('auth.') && id !== 'system.not_found' && id !== 'dev.components'
 })
+
+const forceDefaultTheme = computed(() => !!props.forceDefaultTheme)
 </script>
 
 <template>

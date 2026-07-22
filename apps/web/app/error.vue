@@ -11,7 +11,7 @@ const isNotFound = computed(() => normalizeErrorStatus(props.error?.statusCode) 
 
 <template>
   <UApp>
-    <SFPageOutlet v-if="isNotFound" page="system.not_found">
+    <SFPageOutlet v-if="isNotFound" page="system.not_found" forceDefaultTheme>
       <SFErrorPageContent :error="error" />
     </SFPageOutlet>
     <SFErrorPageContent v-else :error="error" />
