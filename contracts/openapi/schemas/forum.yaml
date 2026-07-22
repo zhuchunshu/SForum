@@ -783,6 +783,41 @@ ForumRevisionDetail:
         "$ref": "#/HistoricalPreview"
       topicMetadata:
         "$ref": "#/TopicRevisionMetadata"
+RestoreRevisionRequest:
+  type: object
+  required: [expectedRevision, reason]
+  properties:
+    expectedRevision:
+      type: integer
+      format: int64
+      minimum: 1
+    reason:
+      type: string
+      minLength: 1
+      maxLength: 500
+      description: Mandatory restore audit reason.
+RedactRevisionRequest:
+  type: object
+  required: [expectedRevision, reason, confirmation]
+  properties:
+    expectedRevision:
+      type: integer
+      format: int64
+      minimum: 1
+    reason:
+      type: string
+      minLength: 1
+      maxLength: 500
+    confirmation:
+      type: string
+      enum: [REDACT]
+      description: Typed irreversible-redaction confirmation.
+RevisionRedactionResult:
+  type: object
+  required: [redacted]
+  properties:
+    redacted:
+      type: boolean
 HistoricalPreview:
   type: object
   required:

@@ -166,7 +166,8 @@ func TestServiceCreateTopicUsesConfiguredDefaultCategory(t *testing.T) {
 
 func TestServiceCreateTopicNormalizesAndDeduplicatesTagSlugs(t *testing.T) {
 	store := newServiceFakeStore()
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+	publisher := &fakeEventPublisher{}
+	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, publisher)
 	actor := topicCreator()
 
 	_, err := service.CreateTopic(context.Background(), actor, CreateTopicInput{
@@ -191,7 +192,8 @@ func TestServiceCreateTopicNormalizesAndDeduplicatesTagSlugs(t *testing.T) {
 
 func TestServiceCreateTopicAllowsChineseTagSlugs(t *testing.T) {
 	store := newServiceFakeStore()
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+	publisher := &fakeEventPublisher{}
+	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, publisher)
 	actor := topicCreator()
 
 	_, err := service.CreateTopic(context.Background(), actor, CreateTopicInput{
@@ -1688,6 +1690,49 @@ func TestServiceAdminContentReadPermissionCombinations(t *testing.T) {
 	}
 }
 
+func TestServiceRestoreRequiresHistoryAndEditAnyAndReusesUpdatePipeline(t *testing.T) {
+	store := newServiceFakeStore()
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusHidden, CurrentRevision: 2, CreatedAt: time.Now().UTC()}
+	store.revisionDetailResult = ForumRevisionDetail{ForumRevisionSummary: ForumRevisionSummary{ID: 91, RevisionNo: 1, SnapshotComplete: true}, RawContent: "historical body", SourceFormat: SourceFormatMarkdown, EditorType: EditorTypeMarkdown, EditorVersion: "test", TopicMetadata: &TopicRevisionMetadata{Title: "historical title", CategorySlug: "general", TagSlugs: []string{}}}
+	publisher := &fakeEventPublisher{}
+	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, publisher)
+	historyOnly := identity.Actor{ID: 20, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicRevisionViewAny: true}}
+	if _, err := service.RestoreTopic(context.Background(), historyOnly, 7, 1, RestoreRevisionInput{ExpectedRevision: 2, Reason: "restore"}); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("history-only restore error=%v", err)
+	}
+	allowed := identity.Actor{ID: 20, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicRevisionViewAny: true, identity.PermissionTopicEditAny: true}}
+	updated, err := service.RestoreTopic(context.Background(), allowed, 7, 1, RestoreRevisionInput{ExpectedRevision: 2, Reason: "restore historical content"})
+	if err != nil {
+		t.Fatalf("RestoreTopic: %v", err)
+	}
+	if updated.CurrentRevision != 3 || store.updatedTopic.Operation != RevisionOperationRestore || store.updatedTopic.RestoredFromRevisionID != 91 || store.updatedTopic.Title != "historical title" || store.updatedTopic.Content.RawContent != "historical body" {
+		t.Fatalf("restore did not use canonical update record: %#v", store.updatedTopic)
+	}
+	updatedEvent, ok := publisher.envelope(appevents.TopicUpdated)
+	if !publisher.seen(appevents.TopicBeforeUpdate) || !ok || updatedEvent.Payload["operation"] != RevisionOperationRestore || updatedEvent.Payload["restoredFromRevisionNo"] != int64(1) {
+		t.Fatalf("restore must traverse filters and emit canonical event: %#v", updatedEvent)
+	}
+	if _, err := service.RestoreTopic(context.Background(), allowed, 7, 1, RestoreRevisionInput{ExpectedRevision: 2}); !errors.Is(err, ErrRevisionReasonRequired) {
+		t.Fatalf("restore without reason error=%v", err)
+	}
+	if _, err := service.RestoreTopic(context.Background(), allowed, 7, 1, RestoreRevisionInput{ExpectedRevision: 1, Reason: "stale"}); !errors.Is(err, ErrRevisionConflict) {
+		t.Fatalf("stale restore error=%v", err)
+	}
+}
+
+func TestServiceRedactionIsSuperAdminOnly(t *testing.T) {
+	store := newServiceFakeStore()
+	service := NewService(store)
+	member := identity.Actor{ID: 2, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicRevisionViewAny: true}}
+	if err := service.RedactTopicRevision(context.Background(), member, 7, 1, RedactRevisionInput{ExpectedRevision: 2, Reason: "privacy", Confirmation: "REDACT"}); !errors.Is(err, ErrRevisionRedactionForbidden) {
+		t.Fatalf("member redaction error=%v", err)
+	}
+	admin := identity.Actor{ID: 3, Status: identity.UserStatusActive, RoleKeys: []string{identity.RoleSuperAdmin}}
+	if err := service.RedactTopicRevision(context.Background(), admin, 7, 1, RedactRevisionInput{ExpectedRevision: 2, Reason: "privacy", Confirmation: "REDACT"}); err != nil {
+		t.Fatalf("super admin redaction: %v", err)
+	}
+}
+
 func testForumSettings() ForumSettings {
 	return defaultForumSettings()
 }
@@ -2142,6 +2187,14 @@ func (s *serviceFakeStore) GetCommentRevision(context.Context, int64, int64) (Fo
 		return ForumRevisionDetail{}, s.revisionErr
 	}
 	return s.revisionDetailResult, nil
+}
+
+func (s *serviceFakeStore) RedactTopicRevision(context.Context, RevisionRedactionRecord) error {
+	return nil
+}
+
+func (s *serviceFakeStore) RedactCommentRevision(context.Context, RevisionRedactionRecord) error {
+	return nil
 }
 
 func (s *serviceFakeStore) ListAdminForumTopics(context.Context, AdminForumContentListInput) (AdminForumContentList, error) {

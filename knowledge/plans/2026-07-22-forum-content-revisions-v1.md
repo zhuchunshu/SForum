@@ -1,6 +1,6 @@
 # Forum Content Editing And Revisions V1 — Task Book
 
-Status: **active** — M3 versioned edit writes/CAS complete; M4 restore, attachment safety, and redaction next
+Status: **active** — M4 restore, attachment safety, and redaction complete; M5 admin content management next
 Date: 2026-07-22
 Goal: allow authorized staff to edit any topic or comment from the admin area,
 record every effective self/staff edit as an immutable revision, prevent stale
@@ -737,16 +737,16 @@ Acceptance:
 
 ### M4 — Restore, Attachment Safety, And Redaction
 
-- [ ] Implement topic/comment restore service methods through the current write
+- [x] Implement topic/comment restore service methods through the current write
       pipeline, not direct SQL copying.
-- [ ] Resolve legacy `restorableFields` honestly.
-- [ ] Validate current category/tag policy and fail atomically when unavailable.
-- [ ] Implement the narrow historical attachment rebind validator.
-- [ ] Create new `restore` revision with `restoredFromRevisionId`.
-- [ ] Emit canonical updated events and run cache/search effects once.
-- [ ] Append restore audit in the content transaction.
-- [ ] Implement `super_admin` payload redaction and audit tombstone behavior.
-- [ ] Cover current-revision redaction denial and hard-delete cascade.
+- [x] Resolve legacy `restorableFields` honestly.
+- [x] Validate current category/tag policy and fail atomically when unavailable.
+- [x] Implement the narrow historical attachment rebind validator.
+- [x] Create new `restore` revision with `restoredFromRevisionId`.
+- [x] Emit canonical updated events and run cache/search effects once.
+- [x] Append restore audit in the content transaction.
+- [x] Implement `super_admin` payload redaction and audit tombstone behavior.
+- [x] Cover current-revision redaction denial and hard-delete cascade.
 
 Acceptance:
 

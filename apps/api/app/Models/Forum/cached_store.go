@@ -307,6 +307,14 @@ func (s *CachedStore) UpdateTopic(ctx context.Context, input UpdateTopicRecord) 
 	return out, nil
 }
 
+func (s *CachedStore) RedactTopicRevision(ctx context.Context, input RevisionRedactionRecord) error {
+	return s.Store.RedactTopicRevision(ctx, input)
+}
+
+func (s *CachedStore) RedactCommentRevision(ctx context.Context, input RevisionRedactionRecord) error {
+	return s.Store.RedactCommentRevision(ctx, input)
+}
+
 func (s *CachedStore) DeleteTopic(ctx context.Context, topicID int64) (TopicDetail, error) {
 	// 删除前尽量解析 scope（详情缓存或回源）；失败时至少 bump global。
 	scopes := s.topicListScopes(ctx, topicID)

@@ -89,6 +89,10 @@ paths:
     "$ref": "./openapi/paths/forum.yaml#/topicRevisions"
   "/topics/{topicID}/revisions/{revisionNo}":
     "$ref": "./openapi/paths/forum.yaml#/topicRevisionByNo"
+  "/topics/{topicID}/revisions/{revisionNo}/restore":
+    "$ref": "./openapi/paths/forum.yaml#/topicRevisionRestore"
+  "/topics/{topicID}/revisions/{revisionNo}/redact":
+    "$ref": "./openapi/paths/forum.yaml#/topicRevisionRedact"
   "/topics/{topicID}/hide":
     "$ref": "./openapi/paths/forum.yaml#/topicHide"
   "/topics/{topicID}/restore":
@@ -109,6 +113,10 @@ paths:
     "$ref": "./openapi/paths/forum.yaml#/commentRevisions"
   "/comments/{commentID}/revisions/{revisionNo}":
     "$ref": "./openapi/paths/forum.yaml#/commentRevisionByNo"
+  "/comments/{commentID}/revisions/{revisionNo}/restore":
+    "$ref": "./openapi/paths/forum.yaml#/commentRevisionRestore"
+  "/comments/{commentID}/revisions/{revisionNo}/redact":
+    "$ref": "./openapi/paths/forum.yaml#/commentRevisionRedact"
   "/comments/{commentID}":
     "$ref": "./openapi/paths/forum.yaml#/commentByID"
   "/auth/registration-status":

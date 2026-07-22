@@ -14,6 +14,7 @@ import (
 const (
 	RevisionOperationCreate    = "create"
 	RevisionOperationEdit      = "edit"
+	RevisionOperationRestore   = "restore"
 	RevisionOperationMigration = "migration"
 
 	RevisionOriginSelf      = "self"

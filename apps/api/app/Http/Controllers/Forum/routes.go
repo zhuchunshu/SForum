@@ -28,6 +28,8 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Get("/topics/by-slug/:slug", h.topicBySlug)
 	api.Get("/topics/:topicID/revisions", h.topicRevisions)
 	api.Get("/topics/:topicID/revisions/:revisionNo", h.topicRevision)
+	api.Post("/topics/:topicID/revisions/:revisionNo/restore", h.restoreTopicRevision)
+	api.Post("/topics/:topicID/revisions/:revisionNo/redact", h.redactTopicRevision)
 	api.Get("/topics/:topicID", h.topic)
 	api.Patch("/topics/:topicID", h.updateTopic)
 	api.Delete("/topics/:topicID", h.deleteTopic)
@@ -46,6 +48,8 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Get("/comments/:commentID/replies", h.replies)
 	api.Get("/comments/:commentID/revisions", h.commentRevisions)
 	api.Get("/comments/:commentID/revisions/:revisionNo", h.commentRevision)
+	api.Post("/comments/:commentID/revisions/:revisionNo/restore", h.restoreCommentRevision)
+	api.Post("/comments/:commentID/revisions/:revisionNo/redact", h.redactCommentRevision)
 	api.Patch("/comments/:commentID", h.updateComment)
 	api.Delete("/comments/:commentID", h.deleteComment)
 

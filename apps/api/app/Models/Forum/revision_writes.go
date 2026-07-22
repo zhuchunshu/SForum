@@ -29,6 +29,9 @@ func (s *PostgresStore) UpdateTopic(ctx context.Context, input UpdateTopicRecord
 	if state.currentRevision != input.ExpectedRevision {
 		return TopicDetail{}, ErrRevisionConflict
 	}
+	if err := validateRestoreSourceTx(ctx, tx, state.postID, input.RestoredFromRevisionID); err != nil {
+		return TopicDetail{}, err
+	}
 	state.tags, err = topicTagSlugsTx(ctx, tx, input.TopicID)
 	if err != nil {
 		return TopicDetail{}, err
@@ -54,8 +57,21 @@ func (s *PostgresStore) UpdateTopic(ctx context.Context, input UpdateTopicRecord
 	if input.ReplaceAttachments {
 		final.attachments = normalizeRevisionInt64Array(input.AttachmentIDs)
 	}
+	if isRestoreOperation(input.Operation) && input.ReplaceAttachments {
+		if err := validateRestoreAttachmentSnapshotTx(ctx, tx, input.RestoredFromRevisionID, final.attachments); err != nil {
+			return TopicDetail{}, err
+		}
+		if err := validateHistoricalAttachmentRebindTx(ctx, tx, final.attachments, input.HistoricalAttachmentOwnerID); err != nil {
+			return TopicDetail{}, err
+		}
+	}
+	if isRestoreOperation(input.Operation) {
+		if err := validateHistoricalTopicTagsTx(ctx, tx, final.tags, input.TagCreationMode); err != nil {
+			return TopicDetail{}, err
+		}
+	}
 	changed := changedTopicSnapshotFields(state, final)
-	if len(changed) == 0 {
+	if len(changed) == 0 && !isRestoreOperation(input.Operation) {
 		topic, err := readTopicForWriteTx(ctx, tx, s, input.TopicID)
 		if err != nil {
 			return TopicDetail{}, err
@@ -70,6 +86,9 @@ func (s *PostgresStore) UpdateTopic(ctx context.Context, input UpdateTopicRecord
 	if input.CategorySlug != "" {
 		if err := tx.QueryRow(ctx, `SELECT id FROM categories WHERE slug = $1 AND visibility = 'public'`, final.categorySlug).Scan(&categoryID); err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
+				if isRestoreOperation(input.Operation) {
+					return TopicDetail{}, ErrRevisionCategoryUnavailable
+				}
 				return TopicDetail{}, ErrInvalidTopic
 			}
 			return TopicDetail{}, fmt.Errorf("load topic edit category: %w", err)
@@ -107,11 +126,14 @@ func (s *PostgresStore) UpdateTopic(ctx context.Context, input UpdateTopicRecord
 	}
 	if input.TagSlugs != nil && !slices.Equal(state.tags, final.tags) {
 		if err := replaceTopicTags(ctx, tx, input.TopicID, final.tags, input.TagCreationMode, input.EditorUserID); err != nil {
+			if isRestoreOperation(input.Operation) && errors.Is(err, ErrInvalidTag) {
+				return TopicDetail{}, ErrRevisionTagUnavailable
+			}
 			return TopicDetail{}, err
 		}
 	}
 	if input.ReplaceAttachments && !slices.Equal(state.attachments, final.attachments) {
-		if err := replaceForumAttachmentReferences(ctx, tx, "topic", input.TopicID, input.EditorUserID, final.attachments); err != nil {
+		if err := replaceRestoreOrForumAttachmentReferences(ctx, tx, "topic", input.TopicID, input.EditorUserID, input.HistoricalAttachmentOwnerID, final.attachments); err != nil {
 			return TopicDetail{}, err
 		}
 	}
@@ -133,9 +155,10 @@ func (s *PostgresStore) UpdateTopic(ctx context.Context, input UpdateTopicRecord
 	revisionNo := state.currentRevision + 1
 	revisionID, err := insertAcceptedPostRevision(ctx, tx, AcceptedRevisionSnapshotInput{
 		PostID: state.postID, RevisionNo: revisionNo, ActorUserID: input.EditorUserID,
-		Operation: RevisionOperationEdit, Origin: input.Origin, ChangedFields: changed,
+		Operation: revisionOperation(input.Operation), Origin: input.Origin, ChangedFields: changed,
 		AttachmentIDs: final.attachments, SnapshotComplete: true, Reason: input.Reason, Content: final.content,
-		Topic: &TopicRevisionSnapshotInput{TopicID: input.TopicID, Title: final.title, CategorySlug: final.categorySlug, TagSlugs: final.tags},
+		RestoredFromRevisionID: nullableRevisionID(input.RestoredFromRevisionID),
+		Topic:                  &TopicRevisionSnapshotInput{TopicID: input.TopicID, Title: final.title, CategorySlug: final.categorySlug, TagSlugs: final.tags},
 	})
 	if err != nil {
 		return TopicDetail{}, err
@@ -171,6 +194,9 @@ func (s *PostgresStore) UpdateComment(ctx context.Context, input UpdateCommentRe
 	if state.currentRevision != input.ExpectedRevision {
 		return Comment{}, ErrRevisionConflict
 	}
+	if err := validateRestoreSourceTx(ctx, tx, state.postID, input.RestoredFromRevisionID); err != nil {
+		return Comment{}, err
+	}
 	state.attachments, err = attachmentIDsTx(ctx, tx, "comment", input.CommentID)
 	if err != nil {
 		return Comment{}, err
@@ -180,9 +206,17 @@ func (s *PostgresStore) UpdateComment(ctx context.Context, input UpdateCommentRe
 	if input.ReplaceAttachments {
 		finalAttachments = normalizeRevisionInt64Array(input.AttachmentIDs)
 	}
+	if isRestoreOperation(input.Operation) && input.ReplaceAttachments {
+		if err := validateRestoreAttachmentSnapshotTx(ctx, tx, input.RestoredFromRevisionID, finalAttachments); err != nil {
+			return Comment{}, err
+		}
+		if err := validateHistoricalAttachmentRebindTx(ctx, tx, finalAttachments, input.HistoricalAttachmentOwnerID); err != nil {
+			return Comment{}, err
+		}
+	}
 	contentChanged := !sameRevisionContent(state.content, finalContent)
 	attachmentsChanged := !slices.Equal(state.attachments, finalAttachments)
-	if !contentChanged && !attachmentsChanged {
+	if !contentChanged && !attachmentsChanged && !isRestoreOperation(input.Operation) {
 		comment, err := getCommentByID(ctx, tx, input.CommentID, s.avatarBuilder)
 		if err != nil {
 			return Comment{}, err
@@ -227,7 +261,7 @@ func (s *PostgresStore) UpdateComment(ctx context.Context, input UpdateCommentRe
 		}
 	}
 	if attachmentsChanged {
-		if err := replaceForumAttachmentReferences(ctx, tx, "comment", input.CommentID, input.EditorUserID, finalAttachments); err != nil {
+		if err := replaceRestoreOrForumAttachmentReferences(ctx, tx, "comment", input.CommentID, input.EditorUserID, input.HistoricalAttachmentOwnerID, finalAttachments); err != nil {
 			return Comment{}, err
 		}
 	}
@@ -240,7 +274,7 @@ func (s *PostgresStore) UpdateComment(ctx context.Context, input UpdateCommentRe
 	}
 	slices.Sort(changed)
 	revisionNo := state.currentRevision + 1
-	revisionID, err := insertAcceptedPostRevision(ctx, tx, AcceptedRevisionSnapshotInput{PostID: state.postID, RevisionNo: revisionNo, ActorUserID: input.EditorUserID, Operation: RevisionOperationEdit, Origin: input.Origin, ChangedFields: changed, AttachmentIDs: finalAttachments, SnapshotComplete: true, Reason: input.Reason, Content: finalContent})
+	revisionID, err := insertAcceptedPostRevision(ctx, tx, AcceptedRevisionSnapshotInput{PostID: state.postID, RevisionNo: revisionNo, ActorUserID: input.EditorUserID, Operation: revisionOperation(input.Operation), Origin: input.Origin, ChangedFields: changed, AttachmentIDs: finalAttachments, SnapshotComplete: true, Reason: input.Reason, Content: finalContent, RestoredFromRevisionID: nullableRevisionID(input.RestoredFromRevisionID)})
 	if err != nil {
 		return Comment{}, err
 	}
@@ -385,15 +419,150 @@ func readTopicForWriteTx(ctx context.Context, tx pgx.Tx, store *PostgresStore, t
 }
 
 func (s *PostgresStore) appendForumEditAudit(ctx context.Context, tx pgx.Tx, targetType string, input UpdateTopicRecord, revisionID, revisionNo int64, changed []string) error {
-	if input.Origin != RevisionOriginStaff || s.auditor == nil {
+	operation := revisionOperation(input.Operation)
+	if (input.Origin != RevisionOriginStaff && operation != RevisionOperationRestore) || s.auditor == nil {
 		return nil
 	}
-	return s.auditor.AppendTx(ctx, tx, audit.Event{ActorUserID: input.EditorUserID, TargetUserID: input.AuthorUserID, Action: audit.ActionForumTopicEditAny, Metadata: map[string]any{"targetType": targetType, "targetId": input.TopicID, "authorUserId": input.AuthorUserID, "revisionId": revisionID, "revisionNo": revisionNo, "operation": RevisionOperationEdit, "changedFields": changed}})
+	action := audit.ActionForumTopicEditAny
+	if operation == RevisionOperationRestore {
+		action = audit.ActionForumTopicRevisionRestore
+	}
+	return s.auditor.AppendTx(ctx, tx, audit.Event{ActorUserID: input.EditorUserID, TargetUserID: input.AuthorUserID, Action: action, Metadata: map[string]any{"targetType": targetType, "targetId": input.TopicID, "authorUserId": input.AuthorUserID, "revisionId": revisionID, "revisionNo": revisionNo, "operation": operation, "changedFields": changed}})
 }
 
 func (s *PostgresStore) appendForumCommentEditAudit(ctx context.Context, tx pgx.Tx, input UpdateCommentRecord, revisionID, revisionNo int64, changed []string) error {
-	if input.Origin != RevisionOriginStaff || s.auditor == nil {
+	operation := revisionOperation(input.Operation)
+	if (input.Origin != RevisionOriginStaff && operation != RevisionOperationRestore) || s.auditor == nil {
 		return nil
 	}
-	return s.auditor.AppendTx(ctx, tx, audit.Event{ActorUserID: input.EditorUserID, TargetUserID: input.AuthorUserID, Action: audit.ActionForumCommentEditAny, Metadata: map[string]any{"targetType": "comment", "targetId": input.CommentID, "authorUserId": input.AuthorUserID, "revisionId": revisionID, "revisionNo": revisionNo, "operation": RevisionOperationEdit, "changedFields": changed}})
+	action := audit.ActionForumCommentEditAny
+	if operation == RevisionOperationRestore {
+		action = audit.ActionForumCommentRevisionRestore
+	}
+	return s.auditor.AppendTx(ctx, tx, audit.Event{ActorUserID: input.EditorUserID, TargetUserID: input.AuthorUserID, Action: action, Metadata: map[string]any{"targetType": "comment", "targetId": input.CommentID, "authorUserId": input.AuthorUserID, "revisionId": revisionID, "revisionNo": revisionNo, "operation": operation, "changedFields": changed}})
+}
+
+func revisionOperation(operation string) string {
+	if operation == RevisionOperationRestore {
+		return RevisionOperationRestore
+	}
+	return RevisionOperationEdit
+}
+
+func isRestoreOperation(operation string) bool {
+	return revisionOperation(operation) == RevisionOperationRestore
+}
+
+func nullableRevisionID(id int64) *int64 {
+	if id <= 0 {
+		return nil
+	}
+	return &id
+}
+
+// Restore reads the payload before filters run, then locks and rechecks it here
+// so a concurrent redaction cannot be bypassed with a stale in-memory snapshot.
+func validateRestoreSourceTx(ctx context.Context, tx pgx.Tx, postID, revisionID int64) error {
+	if revisionID <= 0 {
+		return nil
+	}
+	var redacted bool
+	err := tx.QueryRow(ctx, `
+		SELECT redacted_at IS NOT NULL
+		FROM post_revisions
+		WHERE id = $1 AND post_id = $2
+		FOR UPDATE
+	`, revisionID, postID).Scan(&redacted)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrRevisionNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("lock restore source revision: %w", err)
+	}
+	if redacted {
+		return ErrRevisionRedacted
+	}
+	return nil
+}
+
+func replaceRestoreOrForumAttachmentReferences(ctx context.Context, tx pgx.Tx, resourceType string, resourceID, actorID, historicalOwnerID int64, attachmentIDs []int64) error {
+	if historicalOwnerID <= 0 {
+		return replaceForumAttachmentReferences(ctx, tx, resourceType, resourceID, actorID, attachmentIDs)
+	}
+	if err := validateHistoricalAttachmentRebindTx(ctx, tx, attachmentIDs, historicalOwnerID); err != nil {
+		return err
+	}
+	return replaceForumAttachmentReferences(ctx, tx, resourceType, resourceID, historicalOwnerID, attachmentIDs)
+}
+
+func validateHistoricalAttachmentRebindTx(ctx context.Context, tx pgx.Tx, attachmentIDs []int64, ownerID int64) error {
+	if len(attachmentIDs) == 0 {
+		return nil
+	}
+	rows, err := tx.Query(ctx, `
+		SELECT id FROM attachments
+		WHERE id = ANY($1::bigint[]) AND owner_user_id = $2
+		  AND status = 'active' AND visibility = 'public'
+		FOR UPDATE
+	`, attachmentIDs, ownerID)
+	if err != nil {
+		return fmt.Errorf("validate historical attachment restore: %w", err)
+	}
+	defer rows.Close()
+	count := 0
+	for rows.Next() {
+		count++
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate historical attachments: %w", err)
+	}
+	if count != len(attachmentIDs) {
+		return ErrRevisionAttachmentUnavailable
+	}
+	return nil
+}
+
+func validateRestoreAttachmentSnapshotTx(ctx context.Context, tx pgx.Tx, revisionID int64, attachmentIDs []int64) error {
+	var snapshot []int64
+	if err := tx.QueryRow(ctx, `SELECT attachment_ids FROM post_revisions WHERE id = $1`, revisionID).Scan(&snapshot); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrRevisionNotFound
+		}
+		return fmt.Errorf("load historical attachment snapshot: %w", err)
+	}
+	if !slices.Equal(normalizeRevisionInt64Array(snapshot), normalizeRevisionInt64Array(attachmentIDs)) {
+		return ErrRevisionAttachmentUnavailable
+	}
+	return nil
+}
+
+// A restore may target the same tag set currently attached to a topic. Validate
+// it anyway: a tag could have been disabled after the snapshot was accepted.
+func validateHistoricalTopicTagsTx(ctx context.Context, tx pgx.Tx, slugs []string, creationMode string) error {
+	if len(slugs) == 0 {
+		return nil
+	}
+	rows, err := tx.Query(ctx, `SELECT slug, status FROM tags WHERE slug = ANY($1::text[]) FOR UPDATE`, slugs)
+	if err != nil {
+		return fmt.Errorf("validate historical topic tags: %w", err)
+	}
+	defer rows.Close()
+	found := 0
+	for rows.Next() {
+		var slug, status string
+		if err := rows.Scan(&slug, &status); err != nil {
+			return fmt.Errorf("scan historical topic tag: %w", err)
+		}
+		if status == TagStatusDisabled || (status == TagStatusPending && creationMode == TagCreationModeControlled) {
+			return ErrRevisionTagUnavailable
+		}
+		found++
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate historical topic tags: %w", err)
+	}
+	if found != len(slugs) {
+		return ErrRevisionTagUnavailable
+	}
+	return nil
 }

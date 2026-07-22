@@ -57,6 +57,8 @@ type Store interface {
 	GetTopicRevision(ctx context.Context, topicID int64, revisionNo int64) (ForumRevisionDetail, error)
 	ListCommentRevisions(ctx context.Context, commentID int64, input RevisionListInput) (RevisionList, error)
 	GetCommentRevision(ctx context.Context, commentID int64, revisionNo int64) (ForumRevisionDetail, error)
+	RedactTopicRevision(ctx context.Context, input RevisionRedactionRecord) error
+	RedactCommentRevision(ctx context.Context, input RevisionRedactionRecord) error
 	ListAdminForumTopics(ctx context.Context, input AdminForumContentListInput) (AdminForumContentList, error)
 	GetAdminForumTopic(ctx context.Context, topicID int64) (AdminForumTopicDetail, error)
 	ListAdminForumComments(ctx context.Context, input AdminForumContentListInput) (AdminForumContentList, error)

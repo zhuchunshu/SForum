@@ -946,6 +946,14 @@ func (s *controllerForumStore) GetCommentRevision(context.Context, int64, int64)
 	}, nil
 }
 
+func (s *controllerForumStore) RedactTopicRevision(context.Context, forum.RevisionRedactionRecord) error {
+	return nil
+}
+
+func (s *controllerForumStore) RedactCommentRevision(context.Context, forum.RevisionRedactionRecord) error {
+	return nil
+}
+
 func (s *controllerForumStore) ListAdminForumTopics(context.Context, forum.AdminForumContentListInput) (forum.AdminForumContentList, error) {
 	s.adminTopicCalls++
 	return forum.AdminForumContentList{Items: []forum.AdminForumContentRow{{

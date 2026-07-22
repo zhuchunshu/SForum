@@ -698,14 +698,18 @@ func (s *Service) UpdateTopic(ctx context.Context, actor identity.Actor, input U
 	}
 
 	record := UpdateTopicRecord{
-		TopicID:          input.TopicID,
-		EditorUserID:     actor.ID,
-		ExpectedRevision: input.ExpectedRevision,
-		Reason:           strings.TrimSpace(input.Reason),
-		Origin:           revisionOrigin(actor.ID, topic.AuthorUserID),
-		AuthorUserID:     topic.AuthorUserID,
-		TagCreationMode:  settings.TagCreationMode,
-		LastEditIP:       strings.TrimSpace(input.IPAddress),
+		TopicID:                     input.TopicID,
+		EditorUserID:                actor.ID,
+		ExpectedRevision:            input.ExpectedRevision,
+		Reason:                      strings.TrimSpace(input.Reason),
+		Origin:                      revisionOrigin(actor.ID, topic.AuthorUserID),
+		AuthorUserID:                topic.AuthorUserID,
+		TagCreationMode:             settings.TagCreationMode,
+		LastEditIP:                  strings.TrimSpace(input.IPAddress),
+		Operation:                   input.Operation,
+		RestoredFromRevisionID:      input.RestoredFromRevisionID,
+		RestoredFromRevisionNo:      input.RestoredFromRevisionNo,
+		HistoricalAttachmentOwnerID: input.HistoricalAttachmentOwnerID,
 	}
 
 	if input.Title != nil {
@@ -795,11 +799,14 @@ func (s *Service) UpdateTopic(ctx context.Context, actor identity.Actor, input U
 		"title":         updated.Title,
 		"categorySlug":  updated.CategorySlug,
 		"revisionNo":    updated.CurrentRevision,
-		"operation":     RevisionOperationEdit,
+		"operation":     revisionOperation(record.Operation),
 		"changedFields": updated.UpdateChangedFields,
 	}
 	if len(record.TagSlugs) > 0 {
 		payload["tagSlugs"] = record.TagSlugs
+	}
+	if record.RestoredFromRevisionID > 0 {
+		payload["restoredFromRevisionNo"] = input.RestoredFromRevisionNo
 	}
 	s.emitTopicEvent(ctx, appevents.TopicUpdated, actor.ID, updated.ID, payload)
 	// 仅 active 主题进入公开索引；pending 应移除以免审核前可见。

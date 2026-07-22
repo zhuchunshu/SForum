@@ -347,14 +347,18 @@ func (s *Service) UpdateComment(ctx context.Context, actor identity.Actor, input
 		return Comment{}, err
 	}
 	record := UpdateCommentRecord{
-		CommentID:        input.CommentID,
-		EditorUserID:     actor.ID,
-		ExpectedRevision: input.ExpectedRevision,
-		Reason:           strings.TrimSpace(input.Reason),
-		Origin:           revisionOrigin(actor.ID, summary.AuthorUserID),
-		AuthorUserID:     summary.AuthorUserID,
-		Content:          content,
-		LastEditIP:       strings.TrimSpace(input.IPAddress),
+		CommentID:                   input.CommentID,
+		EditorUserID:                actor.ID,
+		ExpectedRevision:            input.ExpectedRevision,
+		Reason:                      strings.TrimSpace(input.Reason),
+		Origin:                      revisionOrigin(actor.ID, summary.AuthorUserID),
+		AuthorUserID:                summary.AuthorUserID,
+		Content:                     content,
+		LastEditIP:                  strings.TrimSpace(input.IPAddress),
+		Operation:                   input.Operation,
+		RestoredFromRevisionID:      input.RestoredFromRevisionID,
+		RestoredFromRevisionNo:      input.RestoredFromRevisionNo,
+		HistoricalAttachmentOwnerID: input.HistoricalAttachmentOwnerID,
 	}
 	attachmentIDs, submitted, err := normalizeContentAttachmentIDs(input.Content.AttachmentIDs)
 	if err != nil {
@@ -379,14 +383,18 @@ func (s *Service) UpdateComment(ctx context.Context, actor identity.Actor, input
 		updated.Edited = settings.ShowCommentEditMark && updated.ContentEdited
 		return updated, nil
 	}
+	payload := map[string]any{
+		"commentId": updated.ID, "topicId": summary.TopicID, "actorUserId": actor.ID,
+		"revisionNo": updated.CurrentRevision, "operation": revisionOperation(record.Operation),
+		"changedFields": updated.UpdateChangedFields,
+	}
+	if record.RestoredFromRevisionID > 0 {
+		payload["restoredFromRevisionNo"] = record.RestoredFromRevisionNo
+	}
 	s.events.Emit(ctx, appevents.Envelope{
 		Name: appevents.CommentUpdated, Kind: appevents.KindObserve, ActorUserID: actor.ID,
 		ResourceType: "comment", ResourceID: strconv.FormatInt(updated.ID, 10), CorrelationID: appevents.NewID(),
-		Payload: map[string]any{
-			"commentId": updated.ID, "topicId": summary.TopicID, "actorUserId": actor.ID,
-			"revisionNo": updated.CurrentRevision, "operation": RevisionOperationEdit,
-			"changedFields": updated.UpdateChangedFields,
-		}, OccurredAt: time.Now().UTC(),
+		Payload: payload, OccurredAt: time.Now().UTC(),
 	})
 	// 评论从 active 退回 pending 时主题可见评论数变化，刷新索引。
 	if updated.Status == CommentStatusActive {

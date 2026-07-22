@@ -183,6 +183,193 @@ func TestRevisionLedgerVersionedCommentEditSavesFinalAcceptedSnapshotPostgres(t 
 	}
 }
 
+func TestRevisionLedgerRestoreAppendsImmutableVersionPostgres(t *testing.T) {
+	fixture := newRevisionLedgerPGFixture(t)
+	store := NewPostgresStore(fixture.pool)
+	authorID := fixture.insertUser(t, "restore_author")
+	topic, err := store.CreateTopic(fixture.ctx, CreateTopicRecord{CategorySlug: "general", AuthorUserID: authorID, Title: "original title", Slug: "original-title", TagCreationMode: TagCreationModeControlled, Content: renderedFixtureContent(t, "original body"), Status: TopicStatusActive})
+	if err != nil {
+		t.Fatalf("CreateTopic: %v", err)
+	}
+	if _, err := store.UpdateTopic(fixture.ctx, UpdateTopicRecord{TopicID: topic.ID, EditorUserID: authorID, AuthorUserID: authorID, ExpectedRevision: 1, Origin: RevisionOriginSelf, Title: "edited title", Slug: "edited-title", TagCreationMode: TagCreationModeControlled}); err != nil {
+		t.Fatalf("UpdateTopic: %v", err)
+	}
+	var sourceID int64
+	if err := fixture.pool.QueryRow(fixture.ctx, `SELECT id FROM post_revisions WHERE post_id = $1 AND revision_no = 1`, topic.Content.ID).Scan(&sourceID); err != nil {
+		t.Fatal(err)
+	}
+	updated, err := store.UpdateTopic(fixture.ctx, UpdateTopicRecord{TopicID: topic.ID, EditorUserID: authorID, AuthorUserID: authorID, ExpectedRevision: 2, Reason: "restore reviewed version", Origin: RevisionOriginSelf, Operation: RevisionOperationRestore, RestoredFromRevisionID: sourceID, RestoredFromRevisionNo: 1, HistoricalAttachmentOwnerID: authorID, Title: "original title", Slug: "original-title", CategorySlug: "general", TagSlugs: []string{}, TagCreationMode: TagCreationModeControlled, HasContent: true, Content: renderedFixtureContent(t, "original body"), ReplaceAttachments: true})
+	if err != nil {
+		t.Fatalf("restore UpdateTopic: %v", err)
+	}
+	if !updated.UpdateApplied || updated.CurrentRevision != 3 || updated.Title != "original title" {
+		t.Fatalf("restore result %#v", updated)
+	}
+	var op string
+	var restoredFrom int64
+	if err := fixture.pool.QueryRow(fixture.ctx, `SELECT operation, restored_from_revision_id FROM post_revisions WHERE post_id = $1 AND revision_no = 3`, topic.Content.ID).Scan(&op, &restoredFrom); err != nil {
+		t.Fatal(err)
+	}
+	if op != RevisionOperationRestore || restoredFrom != sourceID {
+		t.Fatalf("restore ledger op=%q from=%d", op, restoredFrom)
+	}
+	var originalRaw string
+	if err := fixture.pool.QueryRow(fixture.ctx, `SELECT raw_content FROM post_revisions WHERE id = $1`, sourceID).Scan(&originalRaw); err != nil || originalRaw != "original body" {
+		t.Fatalf("restore must not rewrite source: raw=%q err=%v", originalRaw, err)
+	}
+}
+
+func TestRevisionLedgerRestoreUnavailableAttachmentFailsAtomicallyPostgres(t *testing.T) {
+	fixture := newRevisionLedgerPGFixture(t)
+	store := NewPostgresStore(fixture.pool)
+	authorID := fixture.insertUser(t, "attachment_restore_author")
+	topic, err := store.CreateTopic(fixture.ctx, CreateTopicRecord{CategorySlug: "general", AuthorUserID: authorID, Title: "attachment restore", Slug: "attachment-restore", TagCreationMode: TagCreationModeControlled, Content: renderedFixtureContent(t, "body"), Status: TopicStatusActive})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var attachmentID int64
+	if err := fixture.pool.QueryRow(fixture.ctx, `INSERT INTO attachments (owner_user_id, status, visibility) VALUES ($1, 'active', 'public') RETURNING id`, authorID).Scan(&attachmentID); err != nil {
+		t.Fatal(err)
+	}
+	content := renderedFixtureContent(t, "version with attachment")
+	if _, err := store.UpdateTopic(fixture.ctx, UpdateTopicRecord{TopicID: topic.ID, EditorUserID: authorID, AuthorUserID: authorID, ExpectedRevision: 1, Origin: RevisionOriginSelf, TagCreationMode: TagCreationModeControlled, HasContent: true, Content: content, ReplaceAttachments: true, AttachmentIDs: []int64{attachmentID}}); err != nil {
+		t.Fatal(err)
+	}
+	var sourceID int64
+	if err := fixture.pool.QueryRow(fixture.ctx, `SELECT id FROM post_revisions WHERE post_id = $1 AND revision_no = 2`, topic.Content.ID).Scan(&sourceID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fixture.pool.Exec(fixture.ctx, `UPDATE attachments SET status = 'deleted' WHERE id = $1`, attachmentID); err != nil {
+		t.Fatal(err)
+	}
+	_, err = store.UpdateTopic(fixture.ctx, UpdateTopicRecord{TopicID: topic.ID, EditorUserID: authorID, AuthorUserID: authorID, ExpectedRevision: 2, Reason: "restore attachment", Origin: RevisionOriginSelf, Operation: RevisionOperationRestore, RestoredFromRevisionID: sourceID, HistoricalAttachmentOwnerID: authorID, TagCreationMode: TagCreationModeControlled, HasContent: true, Content: content, ReplaceAttachments: true, AttachmentIDs: []int64{attachmentID}})
+	if !errors.Is(err, ErrRevisionAttachmentUnavailable) {
+		t.Fatalf("restore attachment error=%v", err)
+	}
+	var currentRevision, revisions int64
+	if err := fixture.pool.QueryRow(fixture.ctx, `SELECT current_revision FROM posts WHERE id = $1`, topic.Content.ID).Scan(&currentRevision); err != nil {
+		t.Fatal(err)
+	}
+	if err := fixture.pool.QueryRow(fixture.ctx, `SELECT COUNT(*) FROM post_revisions WHERE post_id = $1`, topic.Content.ID).Scan(&revisions); err != nil {
+		t.Fatal(err)
+	}
+	if currentRevision != 2 || revisions != 2 {
+		t.Fatalf("failed restore changed ledger current=%d rows=%d", currentRevision, revisions)
+	}
+}
+
+func TestRevisionLedgerRestoreUnavailableCategoryAndTagFailAtomicallyPostgres(t *testing.T) {
+	fixture := newRevisionLedgerPGFixture(t)
+	store := NewPostgresStore(fixture.pool)
+	authorID := fixture.insertUser(t, "taxonomy_restore_author")
+	if _, err := fixture.pool.Exec(fixture.ctx, `INSERT INTO categories (slug, name, visibility) VALUES ('archive', 'Archive', 'public'); INSERT INTO tags (slug, name, status) VALUES ('history', 'History', 'active')`); err != nil {
+		t.Fatal(err)
+	}
+	topic, err := store.CreateTopic(fixture.ctx, CreateTopicRecord{CategorySlug: "general", AuthorUserID: authorID, Title: "taxonomy restore", Slug: "taxonomy-restore", TagCreationMode: TagCreationModeControlled, Content: renderedFixtureContent(t, "body"), Status: TopicStatusActive})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.UpdateTopic(fixture.ctx, UpdateTopicRecord{TopicID: topic.ID, EditorUserID: authorID, AuthorUserID: authorID, ExpectedRevision: 1, Origin: RevisionOriginSelf, CategorySlug: "archive", TagSlugs: []string{"history"}, TagCreationMode: TagCreationModeControlled}); err != nil {
+		t.Fatal(err)
+	}
+	var sourceID int64
+	if err := fixture.pool.QueryRow(fixture.ctx, `SELECT id FROM post_revisions WHERE post_id = $1 AND revision_no = 2`, topic.Content.ID).Scan(&sourceID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fixture.pool.Exec(fixture.ctx, `UPDATE categories SET visibility = 'hidden' WHERE slug = 'archive'`); err != nil {
+		t.Fatal(err)
+	}
+	_, err = store.UpdateTopic(fixture.ctx, UpdateTopicRecord{TopicID: topic.ID, EditorUserID: authorID, AuthorUserID: authorID, ExpectedRevision: 2, Reason: "restore category", Origin: RevisionOriginSelf, Operation: RevisionOperationRestore, RestoredFromRevisionID: sourceID, HistoricalAttachmentOwnerID: authorID, CategorySlug: "archive", TagSlugs: []string{"history"}, TagCreationMode: TagCreationModeControlled, HasContent: true, Content: renderedFixtureContent(t, "body")})
+	if !errors.Is(err, ErrRevisionCategoryUnavailable) {
+		t.Fatalf("restore unavailable category error=%v", err)
+	}
+	if _, err := fixture.pool.Exec(fixture.ctx, `UPDATE categories SET visibility = 'public' WHERE slug = 'archive'; UPDATE tags SET status = 'disabled' WHERE slug = 'history'`); err != nil {
+		t.Fatal(err)
+	}
+	_, err = store.UpdateTopic(fixture.ctx, UpdateTopicRecord{TopicID: topic.ID, EditorUserID: authorID, AuthorUserID: authorID, ExpectedRevision: 2, Reason: "restore tag", Origin: RevisionOriginSelf, Operation: RevisionOperationRestore, RestoredFromRevisionID: sourceID, HistoricalAttachmentOwnerID: authorID, CategorySlug: "archive", TagSlugs: []string{"history"}, TagCreationMode: TagCreationModeControlled, HasContent: true, Content: renderedFixtureContent(t, "body")})
+	if !errors.Is(err, ErrRevisionTagUnavailable) {
+		t.Fatalf("restore unavailable tag error=%v", err)
+	}
+	var currentRevision, revisions int64
+	if err := fixture.pool.QueryRow(fixture.ctx, `SELECT current_revision FROM posts WHERE id = $1`, topic.Content.ID).Scan(&currentRevision); err != nil {
+		t.Fatal(err)
+	}
+	if err := fixture.pool.QueryRow(fixture.ctx, `SELECT COUNT(*) FROM post_revisions WHERE post_id = $1`, topic.Content.ID).Scan(&revisions); err != nil {
+		t.Fatal(err)
+	}
+	if currentRevision != 2 || revisions != 2 {
+		t.Fatalf("taxonomy restore changed ledger current=%d rows=%d", currentRevision, revisions)
+	}
+}
+
+func TestRevisionLedgerSuperAdminRedactsOldRevisionAtomicallyPostgres(t *testing.T) {
+	fixture := newRevisionLedgerPGFixture(t)
+	if _, err := fixture.pool.Exec(fixture.ctx, `CREATE TABLE audit_events (id BIGSERIAL PRIMARY KEY, actor_user_id BIGINT NULL, target_user_id BIGINT NULL, action TEXT NOT NULL, metadata JSONB NOT NULL DEFAULT '{}'::jsonb, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`); err != nil {
+		t.Fatal(err)
+	}
+	store := NewPostgresStore(fixture.pool).WithAuditor(audit.NewPostgresWriter(fixture.pool))
+	authorID := fixture.insertUser(t, "redaction_author")
+	adminID := fixture.insertUser(t, "redaction_admin")
+	topic, err := store.CreateTopic(fixture.ctx, CreateTopicRecord{CategorySlug: "general", AuthorUserID: authorID, Title: "redaction target", Slug: "redaction-target", TagCreationMode: TagCreationModeControlled, Content: renderedFixtureContent(t, "private body"), Status: TopicStatusActive})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.UpdateTopic(fixture.ctx, UpdateTopicRecord{TopicID: topic.ID, EditorUserID: authorID, AuthorUserID: authorID, ExpectedRevision: 1, Origin: RevisionOriginSelf, Title: "changed", Slug: "changed", TagCreationMode: TagCreationModeControlled}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.RedactTopicRevision(fixture.ctx, RevisionRedactionRecord{TargetID: topic.ID, RevisionNo: 1, ExpectedRevision: 2, ActorUserID: adminID, Reason: "privacy request"}); err != nil {
+		t.Fatalf("redact old revision: %v", err)
+	}
+	var raw, title, action string
+	if err := fixture.pool.QueryRow(fixture.ctx, `SELECT raw_content FROM post_revisions WHERE post_id = $1 AND revision_no = 1`, topic.Content.ID).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+	if err := fixture.pool.QueryRow(fixture.ctx, `SELECT title FROM topic_revision_snapshots JOIN post_revisions ON post_revisions.id = topic_revision_snapshots.post_revision_id WHERE post_revisions.post_id = $1 AND post_revisions.revision_no = 1`, topic.Content.ID).Scan(&title); err != nil {
+		t.Fatal(err)
+	}
+	if err := fixture.pool.QueryRow(fixture.ctx, `SELECT action FROM audit_events`).Scan(&action); err != nil {
+		t.Fatal(err)
+	}
+	if raw != "" || title != "" || action != audit.ActionForumTopicRevisionRedact {
+		t.Fatalf("redaction payload/audit raw=%q title=%q action=%q", raw, title, action)
+	}
+	if _, err := store.GetTopicRevision(fixture.ctx, topic.ID, 1); !errors.Is(err, ErrRevisionRedacted) {
+		t.Fatalf("redacted revision readable: %v", err)
+	}
+	if err := store.RedactTopicRevision(fixture.ctx, RevisionRedactionRecord{TargetID: topic.ID, RevisionNo: 2, ExpectedRevision: 2, ActorUserID: adminID, Reason: "bad"}); !errors.Is(err, ErrRevisionRedactionForbidden) {
+		t.Fatalf("current redaction error=%v", err)
+	}
+}
+
+func TestRevisionLedgerHardDeleteCascadesRevisionPayloadsPostgres(t *testing.T) {
+	fixture := newRevisionLedgerPGFixture(t)
+	store := NewPostgresStore(fixture.pool)
+	authorID := fixture.insertUser(t, "hard_delete_revision_author")
+	topic, err := store.CreateTopic(fixture.ctx, CreateTopicRecord{CategorySlug: "general", AuthorUserID: authorID, Title: "hard delete", Slug: "hard-delete", TagCreationMode: TagCreationModeControlled, Content: renderedFixtureContent(t, "body"), Status: TopicStatusActive})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.UpdateTopic(fixture.ctx, UpdateTopicRecord{TopicID: topic.ID, EditorUserID: authorID, AuthorUserID: authorID, ExpectedRevision: 1, Origin: RevisionOriginSelf, Title: "hard delete revised", Slug: "hard-delete-revised", TagCreationMode: TagCreationModeControlled}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fixture.pool.Exec(fixture.ctx, `DELETE FROM topics WHERE id = $1`, topic.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fixture.pool.Exec(fixture.ctx, `DELETE FROM posts WHERE id = $1`, topic.Content.ID); err != nil {
+		t.Fatal(err)
+	}
+	var revisions, snapshots int64
+	if err := fixture.pool.QueryRow(fixture.ctx, `SELECT COUNT(*) FROM post_revisions WHERE post_id = $1`, topic.Content.ID).Scan(&revisions); err != nil {
+		t.Fatal(err)
+	}
+	if err := fixture.pool.QueryRow(fixture.ctx, `SELECT COUNT(*) FROM topic_revision_snapshots`).Scan(&snapshots); err != nil {
+		t.Fatal(err)
+	}
+	if revisions != 0 || snapshots != 0 {
+		t.Fatalf("hard delete retained revisions=%d snapshots=%d", revisions, snapshots)
+	}
+}
+
 func TestRevisionLedgerStaffEditAppendsAuditInContentTransactionPostgres(t *testing.T) {
 	fixture := newRevisionLedgerPGFixture(t)
 	if _, err := fixture.pool.Exec(fixture.ctx, `CREATE TABLE audit_events (id BIGSERIAL PRIMARY KEY, actor_user_id BIGINT NULL, target_user_id BIGINT NULL, action TEXT NOT NULL, metadata JSONB NOT NULL DEFAULT '{}'::jsonb, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`); err != nil {

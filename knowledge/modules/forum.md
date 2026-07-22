@@ -10,8 +10,8 @@ accepted revisions, lifecycle states, public read models, and forum policy.
 - Core taxonomy, topic/comment creation and lifecycle, public/admin UI, runtime
   settings, moderation integration, search projection, and million-scale read
   path M0-M7 are implemented.
-- Content revisions V1 is **active**: M3 versioned edit writes/CAS are complete;
-  M4 restore, attachment safety, and redaction are next.
+- Content revisions V1 is **active**: M4 restore, historical attachment safety,
+  and super-admin redaction are complete; M5 admin content management is next.
 - PostgreSQL site search is the protected default. Meilisearch is optional and
   must not be described as the required/default forum read path.
 
@@ -21,7 +21,7 @@ Active revision sources:
 - M0 contract matrix:
   `../plans/2026-07-22-forum-content-revisions-v1-m0-contract-tests.md`
 - Decision: `../decisions/2026-07-22-forum-content-revisions-ledger.md`
-- Handoff: `../sessions/2026-07-22-forum-content-revisions-v1-m3-handoff.md`
+- Handoff: `../sessions/2026-07-22-forum-content-revisions-v1-m4-handoff.md`
 
 ## Domain Model
 
@@ -84,9 +84,12 @@ V1 boundaries:
   content list/detail, tests, and OpenAPI.
 - M3 complete: mandatory `expectedRevision`, two-stage CAS, final accepted edit
   snapshots, no-op detection, reason/audit rules, and comment update hooks/events.
-- M4 next: restore, historical attachment validation, and redaction only.
-- Later milestones own admin editing, self/staff history, diff, restore, and
-  `super_admin` redaction.
+- M4 complete: canonical topic/comment restore append new `restore` revisions,
+  re-run filters/rendering/moderation/cache/search, validate current taxonomy and
+  historical attachment ownership/availability, and redaction tombstones with
+  transaction-bound audit. Legacy incomplete snapshots restore content only.
+- M5 next owns the admin management UI. Diff UI, public history, and force
+  overwrite remain out of scope.
 - Use npm package `diff` 9.0.0 (BSD-3-Clause) for the diff UI; do not install
   npm `jsdiff`.
 - Collaboration, CRDT, drafts, notifications, retention controls, and public

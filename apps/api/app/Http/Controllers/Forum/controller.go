@@ -183,6 +183,17 @@ type updateCommentRequest struct {
 	Content          forum.ContentInput `json:"content"`
 }
 
+type restoreRevisionRequest struct {
+	ExpectedRevision *int64 `json:"expectedRevision"`
+	Reason           string `json:"reason"`
+}
+
+type redactRevisionRequest struct {
+	ExpectedRevision *int64 `json:"expectedRevision"`
+	Reason           string `json:"reason"`
+	Confirmation     string `json:"confirmation"`
+}
+
 func (h *Controller) categories(c fiber.Ctx) error {
 	if err := h.requireGuestRead(c); err != nil {
 		return err
@@ -359,6 +370,38 @@ func (h *Controller) topicRevision(c fiber.Ctx) error {
 		return mapForumError(err)
 	}
 	return apphttp.OK(c, detail)
+}
+
+func (h *Controller) restoreTopicRevision(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	var req restoreRevisionRequest
+	if err := c.Bind().Body(&req); err != nil || req.ExpectedRevision == nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeRevisionReasonRequired)
+	}
+	topic, err := h.service.RestoreTopic(c.Context(), actor, int64(paramInt(c, "topicID")), int64(paramInt(c, "revisionNo")), forum.RestoreRevisionInput{ExpectedRevision: *req.ExpectedRevision, Reason: req.Reason})
+	if err != nil {
+		return mapForumError(err)
+	}
+	return apphttp.OK(c, topic)
+}
+
+func (h *Controller) redactTopicRevision(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	var req redactRevisionRequest
+	if err := c.Bind().Body(&req); err != nil || req.ExpectedRevision == nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeRevisionRedactionForbidden)
+	}
+	err = h.service.RedactTopicRevision(c.Context(), actor, int64(paramInt(c, "topicID")), int64(paramInt(c, "revisionNo")), forum.RedactRevisionInput{ExpectedRevision: *req.ExpectedRevision, Reason: req.Reason, Confirmation: req.Confirmation})
+	if err != nil {
+		return mapForumError(err)
+	}
+	return apphttp.OK(c, map[string]any{"redacted": true})
 }
 
 // topicVisitorKey：登录用户 → u:{id}；否则会话 sid → s:{sid}；再否则 IP+UA 哈希。
@@ -561,6 +604,38 @@ func (h *Controller) commentRevision(c fiber.Ctx) error {
 	return apphttp.OK(c, detail)
 }
 
+func (h *Controller) restoreCommentRevision(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	var req restoreRevisionRequest
+	if err := c.Bind().Body(&req); err != nil || req.ExpectedRevision == nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeRevisionReasonRequired)
+	}
+	comment, err := h.service.RestoreComment(c.Context(), actor, int64(paramInt(c, "commentID")), int64(paramInt(c, "revisionNo")), forum.RestoreRevisionInput{ExpectedRevision: *req.ExpectedRevision, Reason: req.Reason})
+	if err != nil {
+		return mapForumError(err)
+	}
+	return apphttp.OK(c, comment)
+}
+
+func (h *Controller) redactCommentRevision(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	var req redactRevisionRequest
+	if err := c.Bind().Body(&req); err != nil || req.ExpectedRevision == nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeRevisionRedactionForbidden)
+	}
+	err = h.service.RedactCommentRevision(c.Context(), actor, int64(paramInt(c, "commentID")), int64(paramInt(c, "revisionNo")), forum.RedactRevisionInput{ExpectedRevision: *req.ExpectedRevision, Reason: req.Reason, Confirmation: req.Confirmation})
+	if err != nil {
+		return mapForumError(err)
+	}
+	return apphttp.OK(c, map[string]any{"redacted": true})
+}
+
 func (h *Controller) updateComment(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {
@@ -691,6 +766,16 @@ func mapForumError(err error) error {
 		return fiber.NewError(fiber.StatusConflict, forum.CodeRevisionConflict)
 	case errors.Is(err, forum.ErrRevisionReasonRequired):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeRevisionReasonRequired)
+	case errors.Is(err, forum.ErrRevisionNotRestorable):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeRevisionNotRestorable)
+	case errors.Is(err, forum.ErrRevisionAttachmentUnavailable):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeRevisionAttachmentUnavailable)
+	case errors.Is(err, forum.ErrRevisionCategoryUnavailable):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeRevisionCategoryUnavailable)
+	case errors.Is(err, forum.ErrRevisionTagUnavailable):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeRevisionTagUnavailable)
+	case errors.Is(err, forum.ErrRevisionRedactionForbidden):
+		return fiber.NewError(fiber.StatusForbidden, forum.CodeRevisionRedactionForbidden)
 	case errors.Is(err, forum.ErrUseSearchEndpoint):
 		return fiber.NewError(fiber.StatusBadRequest, forum.CodeUseSearch)
 	case errors.Is(err, forum.ErrInvalidCursor):

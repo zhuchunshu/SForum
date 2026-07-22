@@ -911,6 +911,67 @@ topicRevisionByNo:
         "$ref": "../components/responses.yaml#/NotFound"
       '422':
         "$ref": "../components/responses.yaml#/UnprocessableEntity"
+topicRevisionRestore:
+  post:
+    summary: Restore a topic revision as a new accepted version
+    operationId: restoreTopicRevision
+    description: Requires both `topic.revision.view_any` and `topic.edit_any`. The selected immutable payload is revalidated through current filters, moderation, taxonomy, attachment, cache, and search policy. It never rewrites history.
+    security:
+    - cookieAuth: []
+    - bearerAuth: []
+    parameters:
+    - "$ref": "../components/parameters.yaml#/TopicID"
+    - name: revisionNo
+      in: path
+      required: true
+      schema: { type: integer, format: int64, minimum: 1 }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { "$ref": "../schemas/forum.yaml#/RestoreRevisionRequest" }
+    responses:
+      '200':
+        description: Restored topic with its newly allocated current revision.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/forum.yaml#/ApiResponseTopicDetail" }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '404': { "$ref": "../components/responses.yaml#/NotFound" }
+      '409': { "$ref": "../components/responses.yaml#/Conflict" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+topicRevisionRedact:
+  post:
+    summary: Permanently redact a non-current topic revision payload
+    operationId: redactTopicRevision
+    description: Requires `super_admin`. Redaction tombstones source, topic metadata, and attachment IDs in one transaction with its audit event; the revision header remains.
+    security:
+    - cookieAuth: []
+    - bearerAuth: []
+    parameters:
+    - "$ref": "../components/parameters.yaml#/TopicID"
+    - name: revisionNo
+      in: path
+      required: true
+      schema: { type: integer, format: int64, minimum: 1 }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { "$ref": "../schemas/forum.yaml#/RedactRevisionRequest" }
+    responses:
+      '200':
+        description: Revision payload redacted.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/forum.yaml#/RevisionRedactionResult" }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '404': { "$ref": "../components/responses.yaml#/NotFound" }
+      '409': { "$ref": "../components/responses.yaml#/Conflict" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+
 topicHide:
   post:
     summary: Hide a topic from public view
@@ -1201,6 +1262,67 @@ commentRevisionByNo:
         "$ref": "../components/responses.yaml#/Conflict"
       '422':
         "$ref": "../components/responses.yaml#/UnprocessableEntity"
+commentRevisionRestore:
+  post:
+    summary: Restore a comment revision as a new accepted version
+    operationId: restoreCommentRevision
+    description: Requires both `post.revision.view_any` and `post.edit_any`. Restore appends a new revision and preserves comment lifecycle state.
+    security:
+    - cookieAuth: []
+    - bearerAuth: []
+    parameters:
+    - "$ref": "../components/parameters.yaml#/CommentID"
+    - name: revisionNo
+      in: path
+      required: true
+      schema: { type: integer, format: int64, minimum: 1 }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { "$ref": "../schemas/forum.yaml#/RestoreRevisionRequest" }
+    responses:
+      '200':
+        description: Restored comment with its newly allocated current revision.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/forum.yaml#/ApiResponseComment" }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '404': { "$ref": "../components/responses.yaml#/NotFound" }
+      '409': { "$ref": "../components/responses.yaml#/Conflict" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+commentRevisionRedact:
+  post:
+    summary: Permanently redact a non-current comment revision payload
+    operationId: redactCommentRevision
+    description: Requires `super_admin`. Redaction is irreversible and leaves only the revision header and tombstone state.
+    security:
+    - cookieAuth: []
+    - bearerAuth: []
+    parameters:
+    - "$ref": "../components/parameters.yaml#/CommentID"
+    - name: revisionNo
+      in: path
+      required: true
+      schema: { type: integer, format: int64, minimum: 1 }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { "$ref": "../schemas/forum.yaml#/RedactRevisionRequest" }
+    responses:
+      '200':
+        description: Revision payload redacted.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/forum.yaml#/RevisionRedactionResult" }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '404': { "$ref": "../components/responses.yaml#/NotFound" }
+      '409': { "$ref": "../components/responses.yaml#/Conflict" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+
 commentByID:
   patch:
     summary: Update a comment's shared post content

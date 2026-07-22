@@ -47,15 +47,19 @@ const (
 	ActionPageRestoreCore    = "pages.restore_core"
 	ActionPageConflictSelect = "pages.conflict_select"
 
-	ActionRouteProviderSelect        = "routes.provider_select"
-	ActionRouteProviderReset         = "routes.provider_reset"
-	ActionRouteCommittedAfterFailure = "routes.committed_after_failure"
-	ActionRouteRuntimeIncident       = "routes.runtime_incident"
-	ActionProviderSlotSelect         = "providers.slot_select"
-	ActionProviderSlotReset          = "providers.slot_reset"
-	ActionProviderSlotProbe          = "providers.slot_probe"
-	ActionForumTopicEditAny          = "forum.topic.edit_any"
-	ActionForumCommentEditAny        = "forum.comment.edit_any"
+	ActionRouteProviderSelect         = "routes.provider_select"
+	ActionRouteProviderReset          = "routes.provider_reset"
+	ActionRouteCommittedAfterFailure  = "routes.committed_after_failure"
+	ActionRouteRuntimeIncident        = "routes.runtime_incident"
+	ActionProviderSlotSelect          = "providers.slot_select"
+	ActionProviderSlotReset           = "providers.slot_reset"
+	ActionProviderSlotProbe           = "providers.slot_probe"
+	ActionForumTopicEditAny           = "forum.topic.edit_any"
+	ActionForumCommentEditAny         = "forum.comment.edit_any"
+	ActionForumTopicRevisionRestore   = "forum.topic.revision_restore"
+	ActionForumCommentRevisionRestore = "forum.comment.revision_restore"
+	ActionForumTopicRevisionRedact    = "forum.topic.revision_redact"
+	ActionForumCommentRevisionRedact  = "forum.comment.revision_redact"
 
 	// RecommendedRetentionDays 审计日志推荐保留天数（清理 job 默认）。
 	RecommendedRetentionDays = 90

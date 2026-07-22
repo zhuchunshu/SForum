@@ -55,20 +55,25 @@ const (
 	TopicActionPin     = "pin"
 	TopicActionUnpin   = "unpin"
 
-	CodeInvalidContent         = "forum.content_invalid"
-	CodeInvalidTopic           = "forum.topic_invalid"
-	CodeTopicNotFound          = "forum.topic_not_found"
-	CodeCommentNotFound        = "forum.comment_not_found"
-	CodeTopicClosed            = "forum.topic_closed"
-	CodeInvalidTag             = "forum.tag_invalid"
-	CodeTagNotFound            = "forum.tag_not_found"
-	CodeInvalidSettings        = "forum.settings_invalid"
-	CodeInvalidAction          = "forum.topic_action_invalid"
-	CodeUseSearch              = "forum.use_search_endpoint"
-	CodeRevisionNotFound       = "forum.revision_not_found"
-	CodeRevisionRedacted       = "forum.revision_redacted"
-	CodeRevisionConflict       = "forum.revision_conflict"
-	CodeRevisionReasonRequired = "forum.revision_reason_required"
+	CodeInvalidContent                = "forum.content_invalid"
+	CodeInvalidTopic                  = "forum.topic_invalid"
+	CodeTopicNotFound                 = "forum.topic_not_found"
+	CodeCommentNotFound               = "forum.comment_not_found"
+	CodeTopicClosed                   = "forum.topic_closed"
+	CodeInvalidTag                    = "forum.tag_invalid"
+	CodeTagNotFound                   = "forum.tag_not_found"
+	CodeInvalidSettings               = "forum.settings_invalid"
+	CodeInvalidAction                 = "forum.topic_action_invalid"
+	CodeUseSearch                     = "forum.use_search_endpoint"
+	CodeRevisionNotFound              = "forum.revision_not_found"
+	CodeRevisionRedacted              = "forum.revision_redacted"
+	CodeRevisionConflict              = "forum.revision_conflict"
+	CodeRevisionReasonRequired        = "forum.revision_reason_required"
+	CodeRevisionNotRestorable         = "forum.revision_not_restorable"
+	CodeRevisionAttachmentUnavailable = "forum.revision_attachment_unavailable"
+	CodeRevisionCategoryUnavailable   = "forum.revision_category_unavailable"
+	CodeRevisionTagUnavailable        = "forum.revision_tag_unavailable"
+	CodeRevisionRedactionForbidden    = "forum.revision_redaction_forbidden"
 	// 非法/过期/与 sort 不匹配的 keyset 游标。
 	CodeInvalidCursor         = "forum.cursor_invalid"
 	CodeReindexRunning        = "forum.reindex_running"    // 已有重建在进行
@@ -135,7 +140,12 @@ var (
 	// ErrRevisionConflict 表示客户端提交的并发令牌已过期。
 	ErrRevisionConflict = errors.New("forum: revision conflict")
 	// ErrRevisionReasonRequired 表示跨作者编辑缺少受限审计理由。
-	ErrRevisionReasonRequired = errors.New("forum: revision reason required")
+	ErrRevisionReasonRequired        = errors.New("forum: revision reason required")
+	ErrRevisionNotRestorable         = errors.New("forum: revision not restorable")
+	ErrRevisionAttachmentUnavailable = errors.New("forum: revision attachment unavailable")
+	ErrRevisionCategoryUnavailable   = errors.New("forum: revision category unavailable")
+	ErrRevisionTagUnavailable        = errors.New("forum: revision tag unavailable")
+	ErrRevisionRedactionForbidden    = errors.New("forum: revision redaction forbidden")
 )
 
 // TopicSearchIndexer 是 forum 包对搜索索引调度的抽象。
@@ -415,6 +425,11 @@ type UpdateTopicInput struct {
 	Content          *ContentInput
 	// IPAddress 本次编辑客户端 IP（写入 last_edit_ip；创建 ip_address 不变）。
 	IPAddress string `json:"-"`
+	// 以下字段只由 restore service 填充，不来自 HTTP PATCH。
+	Operation                   string `json:"-"`
+	RestoredFromRevisionID      int64  `json:"-"`
+	RestoredFromRevisionNo      int64  `json:"-"`
+	HistoricalAttachmentOwnerID int64  `json:"-"`
 }
 
 // UpdateTopicRecord 是 store 层更新主题的内部记录。content 为 nil 时表示不改正文。
@@ -439,6 +454,11 @@ type UpdateTopicRecord struct {
 	LastEditIP         string
 	ReplaceAttachments bool
 	AttachmentIDs      []int64
+	// Restore 复用 canonical update transaction，但必须保留来源和原作者附件边界。
+	Operation                   string
+	RestoredFromRevisionID      int64
+	RestoredFromRevisionNo      int64
+	HistoricalAttachmentOwnerID int64
 }
 
 // TopicLifecycleInput 描述一次主题生命周期动作（hide/restore/lock/unlock/pin/unpin）。
@@ -754,7 +774,11 @@ type UpdateCommentInput struct {
 	Reason           string       `json:"reason"`
 	Content          ContentInput `json:"content"`
 	// IPAddress 本次编辑客户端 IP（写入 last_edit_ip）。
-	IPAddress string `json:"-"`
+	IPAddress                   string `json:"-"`
+	Operation                   string `json:"-"`
+	RestoredFromRevisionID      int64  `json:"-"`
+	RestoredFromRevisionNo      int64  `json:"-"`
+	HistoricalAttachmentOwnerID int64  `json:"-"`
 }
 
 type UpdateCommentRecord struct {
@@ -769,9 +793,33 @@ type UpdateCommentRecord struct {
 	RequeuePending     bool
 	ModerationTriggers []string
 	// LastEditIP 本次编辑客户端真实 IP（全文）。
-	LastEditIP         string
-	ReplaceAttachments bool
-	AttachmentIDs      []int64
+	LastEditIP                  string
+	ReplaceAttachments          bool
+	AttachmentIDs               []int64
+	Operation                   string
+	RestoredFromRevisionID      int64
+	RestoredFromRevisionNo      int64
+	HistoricalAttachmentOwnerID int64
+}
+
+type RestoreRevisionInput struct {
+	ExpectedRevision int64  `json:"expectedRevision"`
+	Reason           string `json:"reason"`
+}
+
+type RedactRevisionInput struct {
+	ExpectedRevision int64  `json:"expectedRevision"`
+	Reason           string `json:"reason"`
+	Confirmation     string `json:"confirmation"`
+}
+
+type RevisionRedactionRecord struct {
+	TargetID         int64
+	TargetType       string
+	RevisionNo       int64
+	ExpectedRevision int64
+	ActorUserID      int64
+	Reason           string
 }
 
 type CommentPosition struct {
