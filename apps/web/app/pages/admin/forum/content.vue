@@ -29,12 +29,14 @@ const canEditTopics = computed(() => can('topic.edit_any'))
 const canEditComments = computed(() => can('post.edit_any'))
 const canViewTopicHistory = computed(() => can('topic.revision.view_any'))
 const canViewCommentHistory = computed(() => can('post.revision.view_any'))
+// Reka Select 将空字符串保留给清空模型值，不能作为实际 SelectItem 的 value。
+const ALL_STATUS_VALUE = '__all__'
 const availableTabs = computed<AdminForumContentKind[]>(() => [
   ...(canTopics.value ? ['topics' as const] : []),
   ...(canComments.value ? ['comments' as const] : [])
 ])
 const activeTab = ref<AdminForumContentKind>(canTopics.value ? 'topics' : 'comments')
-const filters = reactive<AdminForumContentFilters>({ perPage: 20 })
+const filters = reactive<AdminForumContentFilters>({ status: ALL_STATUS_VALUE, perPage: 20 })
 const list = ref<AdminForumContentRow[]>([])
 const pending = ref(false)
 const errorMessage = ref('')
@@ -84,7 +86,7 @@ const selectedRevisionCanRedact = computed(() => Boolean(
 ))
 
 const statusOptions = computed(() => [
-  { label: t('admin.forum.content.allStatuses'), value: '' },
+  { label: t('admin.forum.content.allStatuses'), value: ALL_STATUS_VALUE },
   ...['active', 'locked', 'pending', 'rejected', 'hidden', 'deleted'].map(value => ({
     label: t(`admin.forum.content.status.${value}`), value
   }))
@@ -118,6 +120,7 @@ async function load() {
 function requestFilters(): AdminForumContentFilters {
   return {
     ...filters,
+    status: filters.status === ALL_STATUS_VALUE ? '' : filters.status,
     updatedFrom: normalizeFilterDate(filters.updatedFrom),
     updatedTo: normalizeFilterDate(filters.updatedTo)
   }
@@ -140,7 +143,7 @@ async function applyFilters() {
 }
 
 async function resetFilters() {
-  Object.assign(filters, { status: '', authorUserID: undefined, authorUsername: '', updatedFrom: '', updatedTo: '', topicID: undefined, titlePrefix: '', categorySlug: '', perPage: 20 })
+  Object.assign(filters, { status: ALL_STATUS_VALUE, authorUserID: undefined, authorUsername: '', updatedFrom: '', updatedTo: '', topicID: undefined, titlePrefix: '', categorySlug: '', perPage: 20 })
   await applyFilters()
 }
 
@@ -386,7 +389,7 @@ useSeoMeta({ title: t('admin.forum.content.metaTitle') })
 
       <section class="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900 md:grid-cols-2 xl:grid-cols-4">
         <UFormField :label="t('admin.forum.content.filters.status')">
-          <USelect v-model="filters.status" :items="statusOptions" class="w-full" />
+          <USelect v-model="filters.status" :items="statusOptions" value-key="value" label-key="label" class="w-full" />
         </UFormField>
         <UFormField :label="t('admin.forum.content.filters.author')">
           <UInput v-model="filters.authorUsername" :placeholder="t('admin.forum.content.filters.authorPlaceholder')" class="w-full" />
@@ -410,7 +413,7 @@ useSeoMeta({ title: t('admin.forum.content.metaTitle') })
           <UInput v-model="filters.updatedTo" type="datetime-local" class="w-full" />
         </UFormField>
         <UFormField :label="t('admin.forum.content.filters.perPage')">
-          <USelect v-model="filters.perPage" :items="perPageOptions" class="w-full" />
+          <USelect v-model="filters.perPage" :items="perPageOptions" value-key="value" label-key="label" class="w-full" />
         </UFormField>
         <div class="flex flex-wrap items-end gap-2">
           <UButton icon="i-lucide-filter" @click="applyFilters">{{ t('admin.forum.content.applyFilters') }}</UButton>
@@ -547,7 +550,7 @@ useSeoMeta({ title: t('admin.forum.content.metaTitle') })
 
     <UModal :open="Boolean(revisionAction)" @update:open="value => !value && closeRevisionAction()">
       <template #content>
-        <div class="space-y-4 p-6">
+        <div v-if="revisionAction" class="space-y-4 p-6">
           <div class="flex items-start gap-3">
             <UIcon :name="revisionAction === 'redact' ? 'i-lucide-shield-alert' : 'i-lucide-rotate-ccw'" class="mt-0.5 size-5" :class="revisionAction === 'redact' ? 'text-red-600' : 'text-[var(--sf-accent)]'" />
             <div><h3 class="text-base font-semibold text-slate-900 dark:text-zinc-100">{{ t(`admin.forum.content.history.${revisionAction}Title`) }}</h3><p class="mt-1 text-sm text-slate-500 dark:text-zinc-400">{{ t(`admin.forum.content.history.${revisionAction}Description`) }}</p></div>
@@ -556,7 +559,7 @@ useSeoMeta({ title: t('admin.forum.content.metaTitle') })
           <UAlert v-if="revisionActionError" color="error" variant="soft" icon="i-lucide-triangle-alert" :title="revisionActionError" />
           <UFormField :label="t('admin.forum.content.history.reason')" :error="!revisionActionReason.trim() && revisionActionError ? revisionActionError : undefined"><UTextarea v-model="revisionActionReason" :rows="3" :disabled="revisionActionPending" :placeholder="t('admin.forum.content.history.reasonPlaceholder')" class="w-full" /></UFormField>
           <UFormField v-if="revisionAction === 'redact'" :label="t('admin.forum.content.history.redactionConfirmation')"><UInput v-model="redactionConfirmation" :disabled="revisionActionPending" placeholder="REDACT" autocomplete="off" class="w-full font-mono" /></UFormField>
-          <div class="flex justify-end gap-2"><UButton color="neutral" variant="ghost" :disabled="revisionActionPending" @click="closeRevisionAction">{{ t('common.cancel') }}</UButton><UButton :color="revisionAction === 'redact' ? 'error' : 'primary'" :loading="revisionActionPending" @click="submitRevisionAction">{{ t(`admin.forum.content.history.${revisionAction}`) }}</UButton></div>
+          <div class="flex justify-end gap-2"><UButton color="neutral" variant="ghost" :disabled="revisionActionPending" @click="closeRevisionAction">{{ t('admin.common.cancel') }}</UButton><UButton :color="revisionAction === 'redact' ? 'error' : 'primary'" :loading="revisionActionPending" @click="submitRevisionAction">{{ t(`admin.forum.content.history.${revisionAction}`) }}</UButton></div>
         </div>
       </template>
     </UModal>

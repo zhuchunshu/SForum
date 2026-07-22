@@ -166,6 +166,13 @@ func TestRevisionLedgerVersionedCommentEditSavesFinalAcceptedSnapshotPostgres(t 
 	if err != nil {
 		t.Fatalf("CreateComment: %v", err)
 	}
+	summary, err := store.GetCommentSummary(fixture.ctx, comment.ID)
+	if err != nil {
+		t.Fatalf("GetCommentSummary: %v", err)
+	}
+	if summary.ID != comment.ID || summary.CurrentRevision != 1 {
+		t.Fatalf("comment summary = %#v", summary)
+	}
 	accepted := renderedFixtureContent(t, "accepted comment")
 	updated, err := store.UpdateComment(fixture.ctx, UpdateCommentRecord{CommentID: comment.ID, EditorUserID: authorID, AuthorUserID: authorID, ExpectedRevision: 1, Origin: RevisionOriginSelf, Content: accepted})
 	if err != nil {

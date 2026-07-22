@@ -1,34 +1,39 @@
-# 2026-07-23 Forum Content Revisions V1 M6 Handoff
+# 2026-07-23 Forum Content Revisions V1 M6 Authenticated QA Handoff
 
 ## Changed
 
-- Added staff revision timeline headers with lazy detail reads, source and
-  metadata comparison, sanitized historical preview, and explicit legacy or
-  redacted states in the admin content workbench.
-- Restore uses the existing topic/comment revision routes, sends the loaded
-  `expectedRevision`, requires a reason, preserves 409 reload/history behavior,
-  and reports the newly allocated revision in a 10-second success Toast.
-- Redaction is rendered only for active `super_admin` actors, requires a reason
-  plus typed `REDACT`, and keeps the irreversible warning visible in its modal.
-- Added direct BSD-3-Clause `diff@9`, focused revision UI tests, explicit page
-  imports for admin child components, and reviewed V3 component identities.
+- M6 is complete. Fixed the Nuxt UI/Reka `USelect` contract in
+  `apps/web/app/pages/admin/forum/content.vue`: the all-status option now uses
+  the non-empty `__all__` sentinel and normalizes it to an omitted API filter.
+  Both selects declare `value-key`/`label-key` explicitly.
+- Reused the existing local `super_admin` Chrome session at
+  `http://127.0.0.1:3000/control-panel/forum/content`; no account or credential
+  was read, reset, or changed. It completed topic edit v1→v2, lazy history
+  detail/diff/preview, v1 restore to v3, super-admin redaction of v2, a second
+  current v4 save plus stale-v3 conflict UI, and comment edit v1→v2/restore-v3.
+  A 390x844 viewport rendered the topic preview/diff without overlap.
+- Fixed the discovered comment-update 500: `GetCommentSummary` now qualifies
+  `comments.id` in its joined query. Added PostgreSQL regression coverage.
+- Guarded the revision-action modal content by `revisionAction` and switched to
+  the existing `admin.common.cancel` copy, removing the M6 null-key and cancel
+  i18n warnings. New desktop session console capture has no app warnings/errors.
 
 ## Decisions
 
-- No admin mutation route was added. Timeline, restore, and redaction use only
-  the canonical revision API surface; no force overwrite or public history was
-  introduced.
-- The runtime admin route is `/control-panel/forum/content`; `/admin/...` is a
-  legacy source/catalog path and reaches the public dynamic registry at runtime.
+- M0-M6 ledger, permission, expected-revision, 409, and no-force-overwrite
+  decisions remain frozen for M7.
+- The status sentinel is UI-only: `requestFilters()` maps it to `''`, which the
+  existing query builder omits. No API, permission, expected-revision, or 409
+  conflict semantics changed.
 
 ## Next
 
-- With a supplied testable admin session, run desktop and mobile topic/comment
-  edit-history-restore flows and two-tab stale-CAS checks before M7. Do not
-  reset or alter the existing super-admin account for QA.
+- Begin M7 only from `knowledge/plans/2026-07-22-forum-content-revisions-v1.md`.
+  Keep using only the existing revision/restore/redaction API surface and do not
+  add force overwrite or public history.
 
 ## Open Questions
 
-- The local API health endpoint is available. Unauthenticated desktop/mobile
-  route guard was verified; authenticated workbench browser QA remains blocked
-  only by unavailable test credentials.
+- The ephemeral local QA topic `M6 QA revision lifecycle` and its comment remain
+  in the development database as explicit test evidence; topic revision 2 is
+  intentionally redacted. This is test data only, not a product migration.

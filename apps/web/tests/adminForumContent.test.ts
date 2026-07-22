@@ -18,6 +18,13 @@ describe('admin forum content workbench', () => {
     expect(adminForumContentPath('comments', { topicID: 42, perPage: 20 }, 'opaque-token')).toBe('/admin/forum/content/comments?after=opaque-token&topicID=42&perPage=20')
   })
 
+  test('uses a non-empty Select item for all statuses while omitting that filter from the API request', () => {
+    const page = readFileSync(new URL('../app/pages/admin/forum/content.vue', import.meta.url), 'utf8')
+    expect(page).toContain("const ALL_STATUS_VALUE = '__all__'")
+    expect(page).toContain("status: filters.status === ALL_STATUS_VALUE ? '' : filters.status")
+    expect(page).toContain('value-key="value" label-key="label"')
+  })
+
   test('uses admin read models and canonical PATCH editors without admin mutation routes', () => {
     const composable = readFileSync(new URL('../app/composables/useAdminForumContent.ts', import.meta.url), 'utf8')
     const page = readFileSync(new URL('../app/pages/admin/forum/content.vue', import.meta.url), 'utf8')

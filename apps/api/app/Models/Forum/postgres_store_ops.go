@@ -213,7 +213,7 @@ func (s *PostgresStore) GetCommentSummary(ctx context.Context, commentID int64) 
 	row := s.pool.QueryRow(ctx, `
 		SELECT comments.id, comments.topic_id, comments.author_user_id, comments.parent_comment_id, COALESCE(comments.root_comment_id, comments.id), comments.path_key, comments.depth, comments.status, comments.created_at, posts.current_revision
 		FROM comments JOIN posts ON posts.id = comments.content_id
-		WHERE id = $1
+		WHERE comments.id = $1
 	`, commentID)
 	summary, err := scanCommentSummary(row)
 	if errors.Is(err, pgx.ErrNoRows) {

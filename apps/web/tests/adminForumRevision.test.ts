@@ -39,6 +39,9 @@ describe('admin forum revision workbench', () => {
     expect(diff).toContain('break-all')
     expect(page).toContain("user.value?.status === 'active' && user.value.roleKeys.includes('super_admin')")
     expect(page).toContain("redactionConfirmation.value.trim() !== 'REDACT'")
+    expect(page).toContain('<div v-if="revisionAction" class="space-y-4 p-6">')
+    expect(page).toContain("t('admin.common.cancel')")
+    expect(page).not.toContain("t('common.cancel')")
   })
 
   test('ships both locale sets for timeline, restore, and irreversible redaction', () => {

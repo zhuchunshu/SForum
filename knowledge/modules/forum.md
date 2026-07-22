@@ -10,8 +10,9 @@ accepted revisions, lifecycle states, public read models, and forum policy.
 - Core taxonomy, topic/comment creation and lifecycle, public/admin UI, runtime
   settings, moderation integration, search projection, and million-scale read
   path M0-M7 are implemented.
-- Content revisions V1 is **active**: M6 timeline, diff, restore, and redaction
-  UI is implemented; authenticated browser scenarios remain before M7.
+- Content revisions V1 M6 is **complete**: authenticated topic/comment edit,
+  lazy history/detail, diff/preview, restore, super-admin redaction, stale-CAS,
+  mobile diff, and allowed/denied API checks are complete. M7 is ready.
 - PostgreSQL site search is the protected default. Meilisearch is optional and
   must not be described as the required/default forum read path.
 
@@ -94,8 +95,8 @@ V1 boundaries:
   lazy raw-detail reads, sanitized historical preview, source/metadata diff,
   restore confirmations, and super-admin-only irreversible redaction. The
   reviewed `diff` 9.0.0 BSD-3-Clause dependency is direct. Public history and
-  force overwrite remain out of scope; authenticated browser restore/conflict
-  scenarios remain a release gate before M7.
+  force overwrite remain out of scope. The M6 authenticated browser and API
+  release matrix is complete; preserve these boundaries for M7.
 - Use npm package `diff` 9.0.0 (BSD-3-Clause) for the diff UI; do not install
   npm `jsdiff`.
 - Collaboration, CRDT, drafts, notifications, retention controls, and public

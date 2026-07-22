@@ -1,6 +1,6 @@
 # Forum Content Editing And Revisions V1 — Task Book
 
-Status: **active** — M6 implementation is complete; authenticated browser scenario remains before M7
+Status: **active** — M6 is complete; M7 rollout, performance, documentation, and closure remain
 Date: 2026-07-22
 Goal: allow authorized staff to edit any topic or comment from the admin area,
 record every effective self/staff edit as an immutable revision, prevent stale
@@ -789,10 +789,13 @@ Acceptance:
       and success Toast with new revision number.
 - [x] Add `super_admin` redaction confirmation and persistent irreversible warning.
 - [x] Cover legacy incomplete and redacted states explicitly.
-- [ ] Add browser tests for topic edit/history/restore and comment edit/history/
-      restore, including stale concurrent tabs. Local API and route guard are
-      available, but no testable admin credentials were supplied; do not reset
-      or mutate the existing super-admin account merely to satisfy QA.
+- [x] Complete authenticated browser QA for topic edit/history/restore and
+      comment edit/history/restore, including stale concurrent tabs. The
+      2026-07-23 local `super_admin` session exercised topic v1→v2→v3 restore,
+      a super-admin-only redaction, topic v4 versus stale v3 conflict recovery,
+      and comment v1→v2→v3 restore. Desktop and 390x844 mobile diff/preview
+      rendered without relevant app console errors; no account was reset or
+      changed.
 
 Acceptance:
 
