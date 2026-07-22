@@ -1,5 +1,22 @@
 # Frontend Module
 
+## Theme-Consistent Public Resource 404 (2026-07-22) - ready
+
+Focused task book:
+`../plans/2026-07-22-theme-consistent-public-resource-404.md` (**ready**).
+
+- Ordinary missing/hidden/deleted public resources must keep the healthy
+  selected theme's navbar/sidebar/body/footer and enter `system.not_found`.
+- Current confirmed defect: missing topic Page Registry 404 is flattened to
+  `transport_unavailable`, selects `SFHostPublicChrome`, and returns a cacheable
+  HTTP 200 document even though the topic API returned 404.
+- The focused slice covers topic/category/tag/profile plus unknown routes;
+  403/429/5xx remain in the broader system-error task book.
+- The implementation session starts at G0: actively close regression M7 and
+  release overlapping files, then execute the focused 404 milestones.
+- Handoff:
+  `../sessions/2026-07-22-theme-consistent-public-resource-404-plan-handoff.md`.
+
 ## Theme-Defined System Error Pages (2026-07-22) — M0 audit; blocked
 
 Task book:

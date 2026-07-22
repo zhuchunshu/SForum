@@ -6,6 +6,19 @@ session archive.
 
 ## Latest Handoff
 
+- **2026-07-22 Theme-consistent public resource 404 plan**
+  - Ready focused task book: missing/hidden/deleted public resources keep the
+    selected theme's navbar/sidebar/body/footer and enter `system.not_found`
+  - Implementation starts by actively closing current-head regression M7 and
+    releasing the shared Page Registry/error files; it does not wait passively
+  - Semantic 404 is non-retryable; hard SSR must be 404 + `no-store` +
+    `noindex,nofollow`; Core remains emergency-only for actual runtime failure
+  - Scope: topic/category/tag/profile/unknown route; 403/429/5xx stay in the
+    broader blocked system-error book
+  - Plan: `plans/2026-07-22-theme-consistent-public-resource-404.md`
+  - Handoff: `sessions/2026-07-22-theme-consistent-public-resource-404-plan-handoff.md`
+  - Module: `modules/frontend.md`
+
 - **2026-07-22 Forum content revisions V1 M1 schema/backfill**
   - Goose migration `202607220052` added `posts.current_revision`, evolved
     `post_revisions` into a nullable accepted-version ledger, and added

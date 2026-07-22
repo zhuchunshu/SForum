@@ -8,6 +8,12 @@ Goal: let the selected public theme own the L1 presentation of common system
 error pages while Host retains status, safe content, behavior, SEO, and an
 always-available emergency fallback.
 
+Focused precursor: public resource-not-found 404 behavior has a separate ready
+task book at `2026-07-22-theme-consistent-public-resource-404.md`. Do not
+implement the same 404 path concurrently. After that focused book completes,
+this broader book must consume its result and continue with 403/429/5xx rather
+than reimplementing 404.
+
 Implement this book milestone by milestone. Each milestone must leave the
 repository buildable and must record exact verification output. Do not merge
 this work into the search, content-revision, or V3 production-rewire programs.
@@ -607,4 +613,3 @@ These questions do not change the frozen security/ownership boundaries:
 - Whether the existing generated Component Catalog command can register both
   new Host islands without a manual compatibility alias for
   `system.component.not_found`.
-
