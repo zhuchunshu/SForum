@@ -87,7 +87,7 @@ func TestRenderContentRejectsInvalidInput(t *testing.T) {
 	}{
 		{name: "empty raw content", input: ContentInput{RawContent: " ", SourceFormat: SourceFormatMarkdown}},
 		{name: "unknown source format", input: ContentInput{RawContent: "hello", SourceFormat: "bbcode"}},
-		{name: "json reserved for later", input: ContentInput{RawContent: `{"type":"doc"}`, SourceFormat: SourceFormatJSON}},
+		{name: "legacy json source format", input: ContentInput{RawContent: `{"type":"doc"}`, SourceFormat: "json"}},
 	}
 
 	for _, tc := range cases {

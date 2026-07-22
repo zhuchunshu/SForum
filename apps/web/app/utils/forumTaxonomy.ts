@@ -138,7 +138,7 @@ export type ForumRenderedContent = {
   htmlContent: string
   plainText: string
   excerpt: string
-  sourceFormat: 'markdown' | 'html' | 'json'
+  sourceFormat: 'markdown' | 'html' | 'editor-document'
   editorType: string
   editorVersion?: string
   renderVersion: string

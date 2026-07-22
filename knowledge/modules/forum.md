@@ -106,8 +106,9 @@ V1 boundaries:
 
 ## Content And Rendering Rules
 
-- Backend accepts Markdown and HTML source formats. JSON publishing remains
-  rejected until a native structured-editor contract is accepted.
+- Backend accepts Markdown, HTML, and `editor-document` source formats. The
+  structured format stores Host-accepted native Tiptap JSON in `raw_content`;
+  the ambiguous legacy `json` format is rejected by both runtime and schema.
 - Markdown renders with `goldmark` plus GFM extensions; display HTML is
   sanitized with `bluemonday`.
 - `RenderVersion` is `goldmark-bluemonday-v2`; existing rows keep earlier HTML

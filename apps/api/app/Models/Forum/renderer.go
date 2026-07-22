@@ -99,8 +99,6 @@ func RenderContentWithExcerptLimitAndSchema(input ContentInput, excerptLimit int
 		renderedHTML = sanitizeHTML(buffer.String())
 	case SourceFormatHTML:
 		renderedHTML = sanitizeHTML(safeRaw)
-	case SourceFormatJSON:
-		return RenderedContent{}, ErrInvalidContent
 	default:
 		return RenderedContent{}, ErrInvalidContent
 	}

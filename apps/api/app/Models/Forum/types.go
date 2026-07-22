@@ -12,7 +12,6 @@ import (
 const (
 	SourceFormatMarkdown = "markdown"
 	SourceFormatHTML     = "html"
-	SourceFormatJSON     = "json"
 	// SourceFormatEditorDocument 走 Host EditorDocument Accept 管线（native Tiptap JSON）。
 	SourceFormatEditorDocument = "editor-document"
 

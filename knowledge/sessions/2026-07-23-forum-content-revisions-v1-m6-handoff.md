@@ -2,6 +2,11 @@
 
 ## Changed
 
+- Removed the never-published `source_format=json` schema option. Migration
+  `202607230054` fails clearly if manually inserted legacy rows exist, then
+  narrows `posts` to `markdown`, `html`, and `editor-document`. Runtime,
+  frontend types, and OpenAPI now use the same set; Tiptap JSON remains stored
+  as accepted `raw_content` under the explicit `editor-document` contract.
 - M6 is complete. Fixed the Nuxt UI/Reka `USelect` contract in
   `apps/web/app/pages/admin/forum/content.vue`: the all-status option now uses
   the non-empty `__all__` sentinel and normalizes it to an omitted API filter.
