@@ -386,6 +386,13 @@ body {
     color: inherit;
     text-decoration: none;
   }
+
+  /* 全局文字选中样式优化：使用站点主色（accent）作为选中背景，文字始终白色，提升可读性和品牌一致性。
+   * 解决当前浏览器默认选中色不美观、背景融合度低的问题。 */
+  ::selection {
+    background-color: var(--sf-accent);
+    color: white;
+  }
 }
 
 .page-shell {
