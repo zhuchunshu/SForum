@@ -32,7 +32,7 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(route).not.toContain('loadMoreTopics')
 
     const template = themeTemplate()
-    expect(template).toContain("'forum.component.home_page': resolveComponent('LazySFHomePage')")
+    expect(template).toContain("'forum.component.home_page': defineAsyncComponent(() => import('./SFHomePage.vue'))")
     expect(template).not.toContain("'forum.component.home_page': HostPageIsland")
 
     const defaultTpl = defaultHomeTemplate()

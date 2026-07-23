@@ -2,6 +2,13 @@
 import type { NuxtError } from '#app'
 import { resolveErrorPageContent } from '~/utils/errorPage'
 import { useNotFoundPageResolve } from '~/composables/useNotFoundPageResolve'
+import {
+  exactThemeIdentityForPageResolve,
+  PAGE_RESOLVE_REASON,
+  type PageResolveReason
+} from '~/utils/pageResolve'
+import SFErrorPageContent from './components/SFErrorPageContent.vue'
+import SFNotFoundPage from './components/SFNotFoundPage.vue'
 
 const props = defineProps<{
   error: NuxtError
@@ -15,18 +22,18 @@ const {
   resolvedAppearanceTheme,
   refresh: refreshWebOptions
 } = useWebOptions()
-const { refresh: refreshAuthSession } = useAuthSession()
+const {
+  refresh: refreshAuthSession,
+  status: authStatus,
+  lastRefreshError: authRefreshError
+} = useAuthSession()
 const themeSkin = useActiveThemeSkin()
-const route = useRoute()
 const startupTimeout = import.meta.dev ? 1000 : 1200
 const hasServerSession = import.meta.server
   && /(?:^|;\s*)sforum_session=/.test(useRequestHeaders(['cookie']).cookie || '')
 const notFoundContent = computed(() => resolveErrorPageContent(404))
 const notFoundTitle = computed(() => t(notFoundContent.value.titleKey, { siteName: siteName.value }))
 const notFoundDescription = computed(() => t(notFoundContent.value.descriptionKey, { siteName: siteName.value }))
-const notFoundReady = isNotFound.value
-  ? useState<boolean>(`not-found-ready:${route.fullPath}`, () => false)
-  : ref(true)
 
 if (isNotFound.value) {
   useSeoMeta({
@@ -64,24 +71,100 @@ if (isNotFound.value) {
 
 // 先确认 system.not_found 可由当前主题解析；失败时不得再启动依赖同一故障 API 的 chrome 请求。
 const notFoundResolve = isNotFound.value ? useNotFoundPageResolve() : null
+function enterCoreEmergency(reason: PageResolveReason, error?: unknown) {
+  themeSkin.clear({ resetIdentity: true })
+  notFoundResolve!.useCoreFallback(reason)
+  if (error) {
+    console.error('[SForum] 404 theme shell unavailable; using Core emergency page', error)
+  }
+}
+
 async function prepareNotFoundPage() {
   try {
-    const resolved = await notFoundResolve!.refresh()
+    // SSR 已序列化完整结果时，hydration 必须直接复用同一 provider/artifact/head。
+    if (import.meta.client && notFoundResolve!.data.value) {
+      return
+    }
+    if (import.meta.client) {
+      // 客户端新进入错误边界时先提交完整 Core，不保留上一页的主题 identity/CSS。
+      themeSkin.clear({ resetIdentity: true })
+    }
+
+    const resolved = await notFoundResolve!.refresh({ deferCommit: true })
     if (resolved.provider === 'core' || resolved.fallback) {
+      themeSkin.clear({ resetIdentity: true })
+      notFoundResolve!.commit(resolved)
+      if (notFoundResolve!.failure.value) {
+        console.error(
+          '[SForum] 404 page resolve unavailable; using Core emergency page',
+          notFoundResolve!.failure.value
+        )
+      }
       return
     }
 
-    const tasks: Array<Promise<unknown>> = [
-      refreshWebOptions({ timeout: startupTimeout }).catch(() => null),
-      themeSkin.refresh()
-    ]
-    if (hasServerSession) {
-      tasks.push(refreshAuthSession({ timeout: startupTimeout }).catch(() => null))
+    const expectedIdentity = exactThemeIdentityForPageResolve(resolved)
+    if (!expectedIdentity) {
+      enterCoreEmergency(PAGE_RESOLVE_REASON.artifactMismatch)
+      return
     }
-    await Promise.allSettled(tasks)
-  } finally {
-    // L1、运营主题变量与 L0 皮肤必须同一帧交付；否则会先露出 Host/Core 基线。
-    notFoundReady.value = true
+
+    const skinTask = themeSkin.refresh({
+      allowRestore: false,
+      apply: false,
+      expectedIdentity,
+      requireLinks: true
+    })
+    const optionsTask = refreshWebOptions({
+      timeout: startupTimeout,
+      serverInternal: import.meta.server
+    }).then(
+      () => ({ ok: true as const }),
+      error => ({ ok: false as const, error })
+    )
+    const authTask = hasServerSession
+      ? refreshAuthSession({
+          timeout: startupTimeout,
+          serverInternal: true
+        }).then(() => authStatus.value === 'unavailable'
+          ? { ok: false as const, error: authRefreshError.value }
+          : { ok: true as const })
+      : Promise.resolve({ ok: true as const })
+
+    const [skinResult, optionsResult, authResult] = await Promise.all([
+      skinTask,
+      optionsTask,
+      authTask
+    ])
+    if (skinResult.status !== 'success') {
+      enterCoreEmergency(
+        skinResult.status === 'failed' && skinResult.reason === 'request_failed'
+          ? PAGE_RESOLVE_REASON.transportUnavailable
+          : PAGE_RESOLVE_REASON.artifactMismatch,
+        skinResult.error
+      )
+      return
+    }
+    if (!optionsResult.ok) {
+      enterCoreEmergency(
+        PAGE_RESOLVE_REASON.transportUnavailable,
+        optionsResult.error
+      )
+      return
+    }
+    if (!authResult.ok) {
+      enterCoreEmergency(PAGE_RESOLVE_REASON.transportUnavailable, authResult.error)
+      return
+    }
+
+    // L0 与 L1 在同一同步批次提交，Vue 不会观察到其中任一半完成态。
+    if (!themeSkin.commit(skinResult)) {
+      enterCoreEmergency(PAGE_RESOLVE_REASON.artifactMismatch)
+      return
+    }
+    notFoundResolve!.commit(resolved)
+  } catch (error) {
+    enterCoreEmergency(PAGE_RESOLVE_REASON.transportUnavailable, error)
   }
 }
 const notFoundStartup = isNotFound.value
@@ -97,7 +180,6 @@ if (import.meta.server && notFoundStartup) {
     v-if="isNotFound"
     :error="nuxtError"
     :resolved-page="notFoundResolve?.data.value"
-    :resolving="notFoundResolve?.pending.value || !notFoundReady"
   />
   <UApp v-else>
     <SFErrorPageContent :error="nuxtError" />

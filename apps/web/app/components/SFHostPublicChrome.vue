@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import SFAnnouncementBanner from './SFAnnouncementBanner.vue'
+import SFFooter from './SFFooter.vue'
+import SFNavbar from './SFNavbar.vue'
+
 /**
  * 宿主公开页 chrome：仅用于 Page Registry fail-closed / core 回退路径。
  * 主题 L1 成功路径应自行挂载 sf-navbar / sf-footer 岛，避免双层导航。

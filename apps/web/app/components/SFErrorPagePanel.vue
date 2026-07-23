@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { NuxtError } from '#app'
 import { resolveErrorPageContent } from '~/utils/errorPage'
+import SFButton from './SFButton.vue'
 
 const props = defineProps<{
   error: NuxtError

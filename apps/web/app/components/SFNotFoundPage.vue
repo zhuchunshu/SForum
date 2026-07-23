@@ -2,11 +2,11 @@
 import type { NuxtError } from '#app'
 import type { PageResolvePayload } from '~/utils/pageResolve'
 import NotFoundEmergencyPage from './SFNotFoundEmergencyPage.vue'
+import SFPageOutlet from './SFPageOutlet.vue'
 
 const props = defineProps<{
   error: NuxtError
   resolvedPage?: PageResolvePayload | null
-  resolving?: boolean
 }>()
 
 const error = computed(() => props.error)
@@ -33,6 +33,6 @@ if (import.meta.server) {
   <SFPageOutlet v-if="resolvedPage" page="system.not_found" :resolved-payload="resolvedPage">
     <NotFoundEmergencyPage />
   </SFPageOutlet>
-  <!-- 解析尚未交付 L1 时不能短暂展示 Core；明确失败会以 Core payload 进入上面的分支。 -->
-  <div v-else class="min-h-screen" :aria-busy="resolving !== false" />
+  <!-- 客户端解析期间也只展示完整 Core；候选 L0/L1 一致后才会原子切换。 -->
+  <NotFoundEmergencyPage v-else />
 </template>

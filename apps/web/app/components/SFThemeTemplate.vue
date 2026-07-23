@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import type { Component } from 'vue'
+import { defineAsyncComponent, defineComponent, type Component } from 'vue'
 import type { ThemeRenderOutput } from '~/composables/useThemeRenderOutput'
 import SFFooter from './SFFooter.vue'
 import SFNavbar from './SFNavbar.vue'
 import SFNotFoundPageContent from './SFNotFoundPageContent.vue'
+import SFTopicShowPage from './SFTopicShowPage.vue'
 import {
   collectPublicL2ComponentRefsFromRenderNodes
 } from '~/runtime/public-extensions/pagePolicy'
@@ -35,32 +36,32 @@ const HostPageIsland = defineComponent({
 const islandComponents: Record<string, Component> = {
   // 首页 body 岛由 SFHomePage 自包含数据+UI；主题 L1 拥有壳层结构。
   // 不再经 HostPageIsland 嵌回 pages/index slot（slot 仅 fail-closed 紧急回退）。
-  'forum.component.home_page': resolveComponent('LazySFHomePage') as Component,
-  'forum.component.category_index': resolveComponent('LazySFCategoryIndexPage') as Component,
-  'forum.component.category_show': resolveComponent('LazySFCategoryShowPage') as Component,
-  'forum.component.tag_index': resolveComponent('LazySFTagIndexPage') as Component,
-  'forum.component.tag_show': resolveComponent('LazySFTagShowPage') as Component,
+  'forum.component.home_page': defineAsyncComponent(() => import('./SFHomePage.vue')),
+  'forum.component.category_index': defineAsyncComponent(() => import('./SFCategoryIndexPage.vue')),
+  'forum.component.category_show': defineAsyncComponent(() => import('./SFCategoryShowPage.vue')),
+  'forum.component.tag_index': defineAsyncComponent(() => import('./SFTagIndexPage.vue')),
+  'forum.component.tag_show': defineAsyncComponent(() => import('./SFTagShowPage.vue')),
   // 帖子详情是高频核心阅读路径，避免主题岛自身再制造一层异步导航边界。
-  'forum.component.topic_show': resolveComponent('SFTopicShowPage') as Component,
-  'forum.component.profile_show': resolveComponent('LazySFProfileShowPage') as Component,
-  'forum.component.notifications': resolveComponent('LazySFNotificationsPage') as Component,
-  'site.component.terms': resolveComponent('LazySFTermsPage') as Component,
-  'site.component.privacy': resolveComponent('LazySFPrivacyPage') as Component,
-  'site.component.guidelines': resolveComponent('LazySFGuidelinesPage') as Component,
+  'forum.component.topic_show': SFTopicShowPage,
+  'forum.component.profile_show': defineAsyncComponent(() => import('./SFProfileShowPage.vue')),
+  'forum.component.notifications': defineAsyncComponent(() => import('./SFNotificationsPage.vue')),
+  'site.component.terms': defineAsyncComponent(() => import('./SFTermsPage.vue')),
+  'site.component.privacy': defineAsyncComponent(() => import('./SFPrivacyPage.vue')),
+  'site.component.guidelines': defineAsyncComponent(() => import('./SFGuidelinesPage.vue')),
   // 404 正在 Nuxt error boundary 内渲染，不能再引入异步岛边界而把 SSR 留空。
   'system.component.not_found': SFNotFoundPageContent,
   'navigation.component.navbar': SFNavbar,
   'navigation.component.footer': SFFooter,
-  'navigation.component.home': resolveComponent('LazySFHomeNavigation') as Component,
-  'forum.component.topic_composer': resolveComponent('LazySFTopicComposerPage') as Component,
-  'forum.component.topic_reply': resolveComponent('LazySFTopicReplyPage') as Component,
-  'profile.component.settings_form': resolveComponent('LazySFProfileSettingsPage') as Component,
-  'identity.component.security_settings': resolveComponent('LazySFSecuritySettingsPage') as Component,
-  'identity.component.login_form': resolveComponent('LazySFLoginFormPage') as Component,
-  'identity.component.register_form': resolveComponent('LazySFRegisterFormPage') as Component,
-  'identity.component.recovery_request_form': resolveComponent('LazySFRecoveryRequestPage') as Component,
-  'identity.component.recovery_confirm_form': resolveComponent('LazySFRecoveryConfirmPage') as Component,
-  'core.component.shared.sfextension_widget': resolveComponent('LazySFExtensionWidget') as Component
+  'navigation.component.home': defineAsyncComponent(() => import('./SFHomeNavigation.vue')),
+  'forum.component.topic_composer': defineAsyncComponent(() => import('./SFTopicComposerPage.vue')),
+  'forum.component.topic_reply': defineAsyncComponent(() => import('./SFTopicReplyPage.vue')),
+  'profile.component.settings_form': defineAsyncComponent(() => import('./SFProfileSettingsPage.vue')),
+  'identity.component.security_settings': defineAsyncComponent(() => import('./SFSecuritySettingsPage.vue')),
+  'identity.component.login_form': defineAsyncComponent(() => import('./SFLoginFormPage.vue')),
+  'identity.component.register_form': defineAsyncComponent(() => import('./SFRegisterFormPage.vue')),
+  'identity.component.recovery_request_form': defineAsyncComponent(() => import('./SFRecoveryRequestPage.vue')),
+  'identity.component.recovery_confirm_form': defineAsyncComponent(() => import('./SFRecoveryConfirmPage.vue')),
+  'core.component.shared.sfextension_widget': defineAsyncComponent(() => import('./SFExtensionWidget.vue'))
 }
 const legacyIslandBindings = {
   'sf-home-page': { componentId: 'forum.component.home_page' },

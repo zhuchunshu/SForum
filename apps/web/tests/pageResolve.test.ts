@@ -3,6 +3,7 @@ import {
   coreResolveFallback,
   classifyPageResolveFailure,
   disableSharedPageCacheForPageResolve,
+  exactThemeIdentityForPageResolve,
   PAGE_RESOLVE_REASON,
   requestPageResolveWithRetry,
   shouldDisablePageResolveSharedCache,
@@ -11,6 +12,30 @@ import {
 } from '../app/utils/pageResolve'
 
 describe('page resolve resilience', () => {
+  const exactThemePayload = (): PageResolvePayload => ({
+    page: { id: 'system.not_found' },
+    provider: 'sforum.default-theme',
+    extensionId: 'sforum.default-theme',
+    selectedProvider: 'sforum.default-theme',
+    selectedExtensionId: 'sforum.default-theme',
+    selectedVersion: '1.0.0',
+    selectedPackageDigest: 'a'.repeat(64),
+    nodeRevision: 17,
+    fallback: false,
+    renderOutput: {
+      htmlSegments: ['<main>not found</main>'],
+      source: 'active_theme',
+      fallback: false,
+      nodeRevision: 17,
+      attempts: [{
+        source: 'active_theme',
+        extensionId: 'sforum.default-theme',
+        packageDigest: 'a'.repeat(64),
+        outcome: 'rendered'
+      }]
+    }
+  })
+
   it('treats the normal empty async-data error state as retryable transport absence', () => {
     expect(classifyPageResolveFailure(undefined)).toBe('retryable')
     expect(classifyPageResolveFailure(null)).toBe('retryable')
@@ -160,5 +185,34 @@ describe('page resolve resilience', () => {
     expect(authoritative.fallback).toBe(false)
     expect(authoritative.reason).toBe(PAGE_RESOLVE_REASON.authoritativeCore)
     expect(shouldDisablePageResolveSharedCache(authoritative)).toBe(false)
+  })
+
+  it('extracts exact active-theme L1 identity for matching L0 validation', () => {
+    expect(exactThemeIdentityForPageResolve(exactThemePayload())).toEqual({
+      extensionId: 'sforum.default-theme',
+      version: '1.0.0',
+      packageDigest: 'a'.repeat(64),
+      nodeRevision: 17
+    })
+  })
+
+  it('rejects default-theme chain fallback and publication revision mismatch', () => {
+    const fallback = exactThemePayload()
+    fallback.renderOutput = {
+      ...fallback.renderOutput!,
+      source: 'default_theme',
+      fallback: true,
+      attempts: [{
+        source: 'default_theme',
+        extensionId: 'sforum.default-theme',
+        packageDigest: 'a'.repeat(64),
+        outcome: 'rendered'
+      }]
+    }
+    expect(exactThemeIdentityForPageResolve(fallback)).toBeNull()
+
+    const stale = exactThemePayload()
+    stale.renderOutput = { ...stale.renderOutput!, nodeRevision: 18 }
+    expect(exactThemeIdentityForPageResolve(stale)).toBeNull()
   })
 })

@@ -1,5 +1,10 @@
 import type { ThemeRenderOutput } from '~/composables/useThemeRenderOutput'
 import { apiErrorReason, apiErrorStatusCode } from '~/composables/useApiClient'
+import {
+  normalizeActiveThemeIdentity,
+  sameActiveThemeIdentity,
+  type ActiveThemeIdentity
+} from '~/utils/activeThemeClientCache'
 
 export const PAGE_RESOLVE_REASON = {
   authoritativeCore: 'authoritative_core',
@@ -91,6 +96,61 @@ export function coreResolveFallback(
     fallback,
     reason
   }
+}
+
+/**
+ * 只有活动主题自身的已编译 L1 能与 L0 组成 selected-theme 首屏。
+ * 默认主题链式回退虽然可单独渲染，但不能冒充当前主题的 exact artifact。
+ */
+export function exactThemeIdentityForPageResolve(
+  payload: PageResolvePayload | null | undefined
+): ActiveThemeIdentity | null {
+  const output = payload?.renderOutput
+  if (
+    !payload
+    || payload.provider === 'core'
+    || payload.fallback
+    || !output
+    || output.source !== 'active_theme'
+    || output.fallback
+    || !Number.isInteger(payload.nodeRevision)
+    || payload.nodeRevision !== output.nodeRevision
+  ) {
+    return null
+  }
+
+  const identity = normalizeActiveThemeIdentity({
+    extensionId: payload.selectedExtensionId,
+    version: payload.selectedVersion,
+    packageDigest: payload.selectedPackageDigest,
+    nodeRevision: payload.nodeRevision
+  }, { requireRevision: true })
+  if (
+    !identity?.version
+    || payload.provider !== identity.extensionId
+    || payload.selectedProvider !== identity.extensionId
+    || (payload.extensionId && payload.extensionId !== identity.extensionId)
+  ) {
+    return null
+  }
+
+  const renderedAttempts = (output.attempts || []).filter(attempt => attempt.outcome === 'rendered')
+  if (renderedAttempts.length) {
+    const rendered = renderedAttempts.at(-1)!
+    const renderedIdentity = normalizeActiveThemeIdentity({
+      extensionId: rendered.extensionId,
+      packageDigest: rendered.packageDigest,
+      nodeRevision: output.nodeRevision
+    }, { requireRevision: true })
+    if (
+      rendered.source !== 'active_theme'
+      || !sameActiveThemeIdentity(renderedIdentity, identity, { requireRevision: true })
+    ) {
+      return null
+    }
+  }
+
+  return identity
 }
 
 export async function requestPageResolveWithRetry(

@@ -121,6 +121,7 @@ export type FooterLinkOption = {
 
 type RefreshOptions = {
   timeout?: number
+  serverInternal?: boolean
 }
 
 export const appearanceThemes: AppearanceThemePreset[] = ['pine_teal', 'ocean_blue', 'violet', 'rose', 'amber']
@@ -295,7 +296,8 @@ export const useWebOptions = () => {
 
   async function refresh(requestOptions: RefreshOptions = {}) {
     const items = await request<WebOption[]>('/web-options', {
-      timeout: requestOptions.timeout
+      timeout: requestOptions.timeout,
+      serverInternal: requestOptions.serverInternal
     })
     options.value = {
       ...fallbackOptions,

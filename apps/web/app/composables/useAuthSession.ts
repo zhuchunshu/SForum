@@ -23,6 +23,7 @@ export type AuthRefreshError = {
 
 type AuthRefreshOptions = {
   timeout?: number
+  serverInternal?: boolean
 }
 
 export const useAuthSession = () => {
@@ -36,7 +37,8 @@ export const useAuthSession = () => {
     pending.value = true
     try {
       user.value = await request<CurrentUser>('/auth/session', {
-        timeout: options.timeout
+        timeout: options.timeout,
+        serverInternal: options.serverInternal
       })
       status.value = 'authenticated'
       lastRefreshError.value = null

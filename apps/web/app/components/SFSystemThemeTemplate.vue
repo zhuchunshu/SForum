@@ -4,6 +4,7 @@ import {
   parseLegacyThemeHTML,
   parseThemeRenderOutput
 } from '~/composables/useThemeRenderOutput'
+import SFAlert from './SFAlert.vue'
 import SFSystemThemeNode from './SFSystemThemeNode.vue'
 
 const props = defineProps<{

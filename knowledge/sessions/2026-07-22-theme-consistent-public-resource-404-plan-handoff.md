@@ -11,6 +11,20 @@
   non-recursive emergency page for real theme/runtime/API failure.
 - Error documents return HTTP 404, `Cache-Control: no-store`, and
   `noindex,nofollow`, with success canonical and JSON-LD removed.
+- Follow-up hard-refresh fix: `error.vue` no longer promotes readiness from a
+  blanket `allSettled`. L1 and L0 remain uncommitted candidates until the
+  active renderer source plus extension/version/package digest/node revision
+  match; only then are CSS head links and the selected provider committed in
+  one batch. Any required request or identity failure enters complete Core and
+  clears active theme identity plus links.
+- 404 SSR requests now explicitly use `NUXT_API_INTERNAL_BASE_URL` through the
+  shared API client option instead of relying on relative `$fetch` behavior in
+  Nuxt's error renderer. Hydration reuses the serialized provider/artifact/CSS
+  decision without immediately fetching a second skin.
+- `SFPageOutletRender` and the system-error Host island chain now use direct
+  component imports. Ordinary Page Registry island laziness uses explicit Vue
+  async import wrappers instead of runtime Nuxt `Lazy*` component lookup,
+  removing the observed undefined vnode source.
 
 ## Verification
 
@@ -25,9 +39,14 @@
   routes, default/Nocturne, desktop/mobile, light/dark, both locales, signed-in
   chrome, navigation recovery, hydration/console health, and emergency Core.
   Later HMR/Core-flash/Reka hydration reports were addressed with exact `SF*`
-  imports, an unresolved-state skeleton, and client-only dropdowns with stable
-  SSR placeholders. Per user direction, those final guards were committed
-  without another browser/build cycle.
+  imports and client-only dropdowns with stable SSR placeholders. The interim
+  unresolved-state skeleton was replaced by the atomic candidate/Core state
+  flow above. Per user direction, those final guards were committed without
+  another browser/build cycle.
+- The hard-refresh/exact-artifact and vnode-resolution follow-up documented
+  above has **not** run automated tests, typecheck, build, Go tests, repository
+  scripts, curl, Playwright, or Browser, per explicit user instruction. Manual
+  verification is required.
 
 ## Next
 

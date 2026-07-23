@@ -3,7 +3,9 @@ import {
   clearStoredSkinRecord,
   normalizeActiveThemeSkinPayload,
   readStoredSkinRecord,
+  sameActiveThemeIdentity,
   writeStoredSkinRecord,
+  type ActiveThemeIdentity,
   type ActiveThemeSkinCacheRecord,
   type ActiveThemeSkinResponse
 } from '~/utils/activeThemeClientCache'
@@ -16,6 +18,22 @@ import {
  * 权威空响应会清掉旧 CSS，防止主题撤销/切换后旧 L0 复活。
  */
 const SKIN_TIMEOUT_MS = import.meta.dev ? 5000 : 8000
+
+type ActiveThemeSkinRefreshOptions = {
+  allowRestore?: boolean
+  apply?: boolean
+  expectedIdentity?: ActiveThemeIdentity
+  requireLinks?: boolean
+}
+
+export type ActiveThemeSkinRefreshResult =
+  | { status: 'success', identity: ActiveThemeIdentity | null, links: string[] }
+  | { status: 'restored', identity: ActiveThemeIdentity, links: string[], error: unknown }
+  | {
+      status: 'failed'
+      reason: 'request_failed' | 'invalid_payload' | 'artifact_mismatch' | 'superseded'
+      error?: unknown
+    }
 
 function browserStorage() {
   if (!import.meta.client) {
@@ -37,8 +55,7 @@ export function useActiveThemeSkin() {
   const activeTheme = useActiveThemeIdentity()
   let revision = 0
 
-  function applySkin(skin: ActiveThemeSkinResponse | null | undefined) {
-    const normalized = normalizeActiveThemeSkinPayload(skin)
+  function applySkin(normalized: ReturnType<typeof normalizeActiveThemeSkinPayload>) {
     activeTheme.update(normalized.identity)
     links.value = normalized.links
 
@@ -70,32 +87,82 @@ export function useActiveThemeSkin() {
     return false
   }
 
-  async function refresh() {
+  async function refresh(
+    options: ActiveThemeSkinRefreshOptions = {}
+  ): Promise<ActiveThemeSkinRefreshResult> {
     const requestedRevision = ++revision
     try {
       const { request } = useApiClient()
       const skin = await request<ActiveThemeSkinResponse>('/site/active-theme/skin', {
-        timeout: SKIN_TIMEOUT_MS
+        timeout: SKIN_TIMEOUT_MS,
+        serverInternal: import.meta.server
       })
       if (requestedRevision !== revision) {
-        return
+        return { status: 'failed', reason: 'superseded' }
       }
-      applySkin(skin)
-    } catch {
+      const normalized = normalizeActiveThemeSkinPayload(skin)
+      if (options.requireLinks && (!normalized.identity || !normalized.links.length)) {
+        return { status: 'failed', reason: 'invalid_payload' }
+      }
+      if (options.expectedIdentity && !sameExactThemeIdentity(normalized.identity, options.expectedIdentity)) {
+        return { status: 'failed', reason: 'artifact_mismatch' }
+      }
+      if (options.apply !== false) {
+        applySkin(normalized)
+      }
+      return {
+        status: 'success',
+        identity: normalized.identity,
+        links: [...normalized.links]
+      }
+    } catch (error) {
       if (requestedRevision !== revision) {
-        return
+        return { status: 'failed', reason: 'superseded', error }
       }
-      if (!links.value.length) {
-        restoreLastPublic()
+      if (options.allowRestore !== false && !links.value.length && restoreLastPublic()) {
+        const identity = activeTheme.identity.value
+        if (identity) {
+          return { status: 'restored', identity, links: [...links.value], error }
+        }
       }
+      return { status: 'failed', reason: 'request_failed', error }
     }
   }
 
-  function clear() {
+  function clear(options: { resetIdentity?: boolean } = {}) {
     revision++
     // 管理端只卸下当前 head 链；last-good 仍需 exact identity + TTL 才能恢复。
     links.value = []
+    if (options.resetIdentity) {
+      activeTheme.update(null)
+    }
   }
 
-  return { links, refresh, clear, restoreLastPublic }
+  function commit(result: ActiveThemeSkinRefreshResult) {
+    if (result.status !== 'success' || !result.identity) {
+      return false
+    }
+    applySkin(normalizeActiveThemeSkinPayload({
+      extensionId: result.identity.extensionId,
+      version: result.identity.version,
+      packageDigest: result.identity.packageDigest,
+      nodeRevision: result.identity.nodeRevision,
+      css: result.links
+    }))
+    return true
+  }
+
+  return { links, refresh, commit, clear, restoreLastPublic }
+}
+
+function sameExactThemeIdentity(
+  left: ActiveThemeIdentity | null | undefined,
+  right: ActiveThemeIdentity | null | undefined
+) {
+  return Boolean(
+    left?.version
+    && right?.version
+    && left.version === right.version
+    && sameActiveThemeIdentity(left, right, { requireRevision: true })
+  )
 }

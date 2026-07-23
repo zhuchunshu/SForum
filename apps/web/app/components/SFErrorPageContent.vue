@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import type { NuxtError } from '#app'
 import { normalizeErrorStatus, resolveErrorPageContent } from '~/utils/errorPage'
+import SFFooter from './SFFooter.vue'
+import SFErrorPagePanel from './SFErrorPagePanel.vue'
+import SFNavbar from './SFNavbar.vue'
 
 const props = withDefaults(defineProps<{
   error: NuxtError

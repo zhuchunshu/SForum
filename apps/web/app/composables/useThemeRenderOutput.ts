@@ -22,6 +22,19 @@ export type ThemeRenderOutput = {
   htmlSegments: string[]
   islands?: ThemeIslandDescriptor[]
   seo?: Record<string, unknown>
+  source?: string
+  fallback?: boolean
+  attempts?: ThemeRenderAttempt[]
+  nodeRevision?: number
+}
+
+export type ThemeRenderAttempt = {
+  source: string
+  extensionId?: string
+  packageDigest?: string
+  template?: string
+  outcome: string
+  failureCode?: string
 }
 
 export type ThemeRenderNode =

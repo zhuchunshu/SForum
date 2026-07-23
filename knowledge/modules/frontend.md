@@ -58,9 +58,23 @@ Plan: `../plans/2026-07-22-theme-consistent-public-resource-404.md` (**completed
   build, Go tests, OpenAPI validation, HTTP/cache probes, and the desktop/mobile
   browser matrix. The full Bun gate retains one unrelated stale
   `prebuiltSettingsComponent.test.ts` asset-path assertion (`542 pass, 1 fail`).
-  Final exact-component-import, pending-skeleton, and client-only Reka dropdown
-  guards were applied after HMR/Core-flash/hydration reports and were not re-run
-  through the browser/build matrix per user direction.
+  Later exact-component-import and client-only Reka dropdown guards were
+  applied after HMR/Core-flash/hydration reports and were not re-run through the
+  browser/build matrix per user direction. The interim pending skeleton was
+  removed by the atomic L0/L1 follow-up below.
+- A 2026-07-23 follow-up removed the remaining hard-refresh half-state: the
+  error boundary now fetches L1/L0/options/session through the explicit SSR
+  internal API path, stages exact-artifact L0 and L1 candidates, and commits
+  them together only when extension/version/digest/node revision all agree.
+  Any request, identity, revision, or renderer-source failure commits a complete
+  Core emergency payload and clears theme identity plus CSS links. Hydration
+  reuses that serialized decision without a second startup fetch.
+- Error-boundary Host islands use direct component imports. General Page
+  Registry islands use explicit `defineAsyncComponent(() => import(...))`
+  wrappers rather than runtime `resolveComponent('Lazy...')` registry lookups,
+  so HMR cannot hand `undefined` to vnode creation. This follow-up was not run
+  through automated tests, typecheck, build, HTTP, Playwright, or Browser at the
+  user's explicit request; manual verification remains pending.
 - Handoff:
   `../sessions/2026-07-22-theme-consistent-public-resource-404-plan-handoff.md`.
 

@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import type { ThemeRenderNode } from '~/composables/useThemeRenderOutput'
+import SFFooter from './SFFooter.vue'
+import SFNavbar from './SFNavbar.vue'
+import SFNotFoundPageContent from './SFNotFoundPageContent.vue'
 
 defineOptions({ name: 'SFSystemThemeNode' })
 

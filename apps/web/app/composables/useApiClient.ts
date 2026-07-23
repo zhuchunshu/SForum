@@ -19,6 +19,8 @@ type ApiFetchOptions = {
   credentials?: RequestCredentials
   headers?: Record<string, string>
   timeout?: number
+  /** Nuxt 错误渲染等上下文必须绕过相对 URL，直连服务端 API。 */
+  serverInternal?: boolean
 }
 
 const UNSAFE_METHODS = new Set(['POST', 'PATCH', 'PUT', 'DELETE'])
@@ -125,7 +127,10 @@ export function useApiClient() {
 
     async function send(refreshToken = false) {
       const headers = await requestHeaders(refreshToken)
-      const envelope = await $fetch<ApiEnvelope<T>>(`${apiBaseUrl}${path}`, {
+      const requestBaseUrl = import.meta.server && options.serverInternal
+        ? (process.env.NUXT_API_INTERNAL_BASE_URL || 'http://api:8080/api/v1')
+        : apiBaseUrl
+      const envelope = await $fetch<ApiEnvelope<T>>(`${requestBaseUrl.replace(/\/+$/, '')}${path}`, {
         method: options.method,
         body: options.body,
         credentials: options.credentials ?? 'include',

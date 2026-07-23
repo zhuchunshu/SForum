@@ -30,8 +30,9 @@ describe('default theme V32 topic page contract', () => {
 
     expect(app).toContain('<NuxtLoadingIndicator')
     expect(app).toContain('color="var(--sf-accent)"')
-    expect(themeTemplate).toContain("'forum.component.topic_show': resolveComponent('SFTopicShowPage')")
-    expect(themeTemplate).not.toContain("'forum.component.topic_show': resolveComponent('LazySFTopicShowPage')")
+    expect(themeTemplate).toContain("import SFTopicShowPage from './SFTopicShowPage.vue'")
+    expect(themeTemplate).toContain("'forum.component.topic_show': SFTopicShowPage")
+    expect(themeTemplate).not.toContain("import('./SFTopicShowPage.vue')")
     expect(avatar).toContain("loading: 'lazy'")
     expect(heading).toContain('loading="eager"')
     expect(comment).not.toContain('loading="eager"')

@@ -4,14 +4,13 @@ import {
   requestPageResolveWithRetry,
   type PageResolvePayload
 } from '~/utils/pageResolve'
-import type { ApiEnvelope } from '~/composables/useApiClient'
 
 /** 错误根组件预取 system.not_found；生产错误渲染器要求 setup 保持同步。 */
 export function useNotFoundPageResolve() {
   const route = useRoute()
   const { locale } = useI18n()
   const { webOption } = useWebOptions()
-  const { request, apiHeaders } = useApiClient()
+  const { request } = useApiClient()
   const requestQuery = computed(() => {
     const query = new URLSearchParams()
     for (const key of Object.keys(route.query).sort()) {
@@ -39,12 +38,13 @@ export function useNotFoundPageResolve() {
   // 传递 SSR 精确主题结果，挂载后清理，避免后续客户端错误复用陈旧 artifact。
   const hydrationData = useState<PageResolvePayload | null>(stateKey, () => null)
   const data = shallowRef<PageResolvePayload | null>(hydrationData.value)
+  const failure = shallowRef<unknown>(null)
   const pending = ref(!data.value)
   if (import.meta.client) {
     onMounted(() => clearNuxtState(stateKey))
   }
 
-  async function refresh() {
+  async function refresh(options: { deferCommit?: boolean } = {}) {
     if (data.value) {
       pending.value = false
       return data.value
@@ -52,8 +52,10 @@ export function useNotFoundPageResolve() {
 
     pending.value = true
     try {
+      failure.value = null
+      let resolved: PageResolvePayload
       if (!enabled.value) {
-        data.value = coreResolveFallback(
+        resolved = coreResolveFallback(
           'system.not_found',
           false,
           PAGE_RESOLVE_REASON.authoritativeCore
@@ -64,36 +66,42 @@ export function useNotFoundPageResolve() {
           if (requestQuery.value) {
             query.set('query', requestQuery.value)
           }
-          const resolveRequest = import.meta.server
-            ? async (url: string, options?: { timeout?: number }) => {
-                const apiBaseUrl = (process.env.NUXT_API_INTERNAL_BASE_URL || 'http://api:8080/api/v1')
-                  .replace(/\/+$/, '')
-                const envelope = await $fetch<ApiEnvelope<PageResolvePayload>>(`${apiBaseUrl}${url}`, {
-                  headers: apiHeaders(),
-                  timeout: options?.timeout
-                })
-                return envelope.data
-              }
-            : request
-          data.value = await requestPageResolveWithRetry(
+          const resolveRequest = (url: string, options?: { timeout?: number }) => request<PageResolvePayload>(url, {
+            timeout: options?.timeout,
+            serverInternal: import.meta.server
+          })
+          resolved = await requestPageResolveWithRetry(
             resolveRequest,
             `/pages/resolve?${query.toString()}`,
             { timeout: import.meta.dev ? 800 : 1000, maxAttempts: 1 }
           )
-        } catch {
-          data.value = coreResolveFallback(
+        } catch (error) {
+          failure.value = error
+          resolved = coreResolveFallback(
             'system.not_found',
             true,
             PAGE_RESOLVE_REASON.transportUnavailable
           )
         }
       }
-      hydrationData.value = data.value
-      return data.value
+      if (!options.deferCommit) {
+        commit(resolved)
+      }
+      return resolved
     } finally {
       pending.value = false
     }
   }
 
-  return { data, pending, refresh }
+  function commit(resolved: PageResolvePayload) {
+    data.value = resolved
+    hydrationData.value = resolved
+    return resolved
+  }
+
+  function useCoreFallback(reason = PAGE_RESOLVE_REASON.transportUnavailable) {
+    return commit(coreResolveFallback('system.not_found', true, reason))
+  }
+
+  return { data, failure, pending, refresh, commit, useCoreFallback }
 }

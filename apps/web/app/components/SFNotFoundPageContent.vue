@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { ForumCategoryGroup } from '~/utils/forumTaxonomy'
 import type { NuxtError } from '#app'
+import SFErrorPagePanel from './SFErrorPagePanel.vue'
+import SFHomeNavigation from './SFHomeNavigation.vue'
 
 const context = useNotFoundPageContext()
 const forumApi = useForumApi()

@@ -32,8 +32,10 @@ describe('remaining public presentation ownership', () => {
 
     test(`${pageId} ThemeTemplate maps to ${island}`, () => {
       const templateSrc = read('app/components/SFThemeTemplate.vue')
-      const expectedComponent = pageId === 'forum.topic.show' ? island : `Lazy${island}`
-      expect(templateSrc).toContain(`'${componentId}': resolveComponent('${expectedComponent}')`)
+      const expectedComponent = pageId === 'forum.topic.show'
+        ? `'${componentId}': ${island}`
+        : `'${componentId}': defineAsyncComponent(() => import('./${island}.vue'))`
+      expect(templateSrc).toContain(expectedComponent)
     })
 
     test(`${pageId} theme shells mark presentation ownership`, () => {
@@ -52,10 +54,10 @@ describe('remaining public presentation ownership', () => {
 
   test('auth credential forms are Host body islands (not theme-executable)', () => {
     const template = read('app/components/SFThemeTemplate.vue')
-    expect(template).toContain("'identity.component.login_form': resolveComponent('LazySFLoginFormPage')")
-    expect(template).toContain("'identity.component.register_form': resolveComponent('LazySFRegisterFormPage')")
-    expect(template).toContain("'identity.component.recovery_request_form': resolveComponent('LazySFRecoveryRequestPage')")
-    expect(template).toContain("'identity.component.recovery_confirm_form': resolveComponent('LazySFRecoveryConfirmPage')")
+    expect(template).toContain("'identity.component.login_form': defineAsyncComponent(() => import('./SFLoginFormPage.vue'))")
+    expect(template).toContain("'identity.component.register_form': defineAsyncComponent(() => import('./SFRegisterFormPage.vue'))")
+    expect(template).toContain("'identity.component.recovery_request_form': defineAsyncComponent(() => import('./SFRecoveryRequestPage.vue'))")
+    expect(template).toContain("'identity.component.recovery_confirm_form': defineAsyncComponent(() => import('./SFRecoveryConfirmPage.vue'))")
     expect(template).toContain("'system.component.not_found': SFNotFoundPageContent")
   })
 

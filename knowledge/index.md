@@ -71,7 +71,7 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- Theme-consistent public resource 404 completion:
+- Theme-consistent public resource 404 completion and hard-refresh follow-up:
   `sessions/2026-07-22-theme-consistent-public-resource-404-plan-handoff.md`
 
 ## Recently Completed
