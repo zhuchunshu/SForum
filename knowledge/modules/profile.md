@@ -42,9 +42,19 @@ editor in V1.
 ## Frontend
 
 - `/u/{username}` public profile page with summary and recent topics.
-- `/settings/profile` current-user settings page with avatar preview,
-  upload/remove controls, safe defaults, and a clear save flow (success
-  auto-dismisses after 10s; errors do not).
+- `/settings/profile` current-user settings page uses the
+  `forum.settings.profile` Page Registry surface with a canvas layout: desktop
+  left account rail, center editable profile form, right public preview, and an
+  existing `sforum-mobile-drawer` account nav on narrow screens.
+- The profile settings page keeps all writes on the existing `useProfileApi`
+  contract: `GET /profile`, `PUT /profile`, `POST /profile/avatar`, and
+  `DELETE /profile/avatar`. Avatar upload UI requires both public runtime
+  option `avatar.allow_upload` and `attachment.upload`; API policy remains
+  authoritative.
+- Profile form editing is draft-based. Save is disabled until local edits are
+  dirty, reset discards unsaved changes with a neutral Toast, save/avatar
+  success Toasts auto-dismiss after 10 seconds, field-level validation stays
+  beside the relevant inputs, and blocking errors remain visible.
 - Navbar user menu links to public profile and profile settings.
 - `useProfileApi` composable + `AvatarView`/`ProfileData`/`PublicProfile`
   types.

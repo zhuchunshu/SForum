@@ -1,0 +1,110 @@
+import { describe, expect, test } from 'bun:test'
+import { readFileSync } from 'node:fs'
+
+const source = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
+const page = () => source('../app/components/SFProfileSettingsPage.vue')
+const preview = () => source('../app/components/SFProfileSettingsPreview.vue')
+const styles = () => source('../app/assets/css/sforum-profile-settings.css')
+const route = () => source('../app/pages/settings/profile.vue')
+const themeTemplate = () => source('../../../extensions/builtin/themes/sforum-default/templates/settings-profile.html')
+const zhCN = () => JSON.parse(source('../i18n/locales/zh-CN.json'))
+const enUS = () => JSON.parse(source('../i18n/locales/en-US.json'))
+
+describe('profile settings canvas', () => {
+  test('keeps Page Registry and default theme ownership boundaries intact', () => {
+    expect(route()).toContain('SFPageOutlet')
+    expect(route()).toContain('page="forum.settings.profile"')
+    expect(route()).toContain('<SFProfileSettingsPage')
+    expect(themeTemplate()).toContain('data-theme-owned="presentation"')
+    expect(themeTemplate()).toContain('data-page="forum.settings.profile"')
+    expect(themeTemplate()).toContain('<sf-profile-settings')
+  })
+
+  test('loads and saves only existing profile API fields', () => {
+    const src = page()
+    expect(src).toContain('profileApi.getMyProfile()')
+    expect(src).toContain('profileApi.updateMyProfile({')
+    expect(src).toContain('bio: draft.bio')
+    expect(src).toContain('signature: draft.signature')
+    expect(src).toContain('location: draft.location')
+    expect(src).toContain('websiteUrl: draft.websiteUrl')
+    expect(src).not.toContain('company')
+    expect(src).not.toContain('portfolio')
+    expect(src).not.toContain('followers')
+    expect(src).not.toContain('privacy')
+  })
+
+  test('preserves avatar upload and removal through the real profile API', () => {
+    const src = page()
+    expect(src).toContain('const avatarAccept = computed')
+    expect(src).toContain('can(FORUM_PERMISSIONS.attachmentUpload)')
+    expect(src).toContain('const canUploadAvatar = computed')
+    expect(src).toContain('avatarSettings.value.allowGif')
+    expect(src).toContain('file.size > avatarSettings.value.maxSizeKb * 1024')
+    expect(src).toContain("file.type === 'image/gif'")
+    expect(src).toContain('profileApi.uploadAvatar(file)')
+    expect(src).toContain('profileApi.deleteAvatar()')
+    expect(src).toContain('syncAuthAvatar(updated)')
+    expect(src).toContain(':disabled="!canUploadAvatar || avatarBusy"')
+    expect(src).toContain(':loading="avatarBusy"')
+  })
+
+  test('renders the public preview from the local draft and marks unsaved edits', () => {
+    const src = page()
+    const previewSrc = preview()
+    expect(src).toContain('const isDirty = computed')
+    expect(src).toContain('function resetDraft()')
+    expect(src).toContain("title: t('profileSettings.resetDone')")
+    expect(src).toContain('draft.bio !== baseline.value.bio')
+    expect(src).toContain('draft.location !== baseline.value.location')
+    expect(src).toContain('publicWebsiteHref')
+    expect(previewSrc).toContain('v-if="!dirty && websiteHref"')
+    expect(previewSrc).toContain('profileSettings.preview.unsaved')
+    expect(previewSrc).toContain("t('profile.joinedOn'")
+    expect(src).not.toContain('data-preview-signature')
+    expect(src).not.toContain("i-lucide-quote")
+  })
+
+  test('uses the profile canvas layout with existing mobile drawer primitives', () => {
+    const src = page()
+    const css = styles()
+    expect(src).toContain('sf-profile-settings-canvas__layout')
+    expect(src).toContain('<style src="~/assets/css/sforum-profile-settings.css"></style>')
+    expect(css).toContain('grid-template-columns: var(--sf-public-sidebar-width) minmax(0, 1fr) var(--sf-public-right-rail-width)')
+    expect(css).toContain('@media (max-width: 1180px)')
+    expect(css).toContain('@media (max-width: 960px)')
+    expect(src).toContain('sforum-mobile-drawer__backdrop')
+    expect(src).toContain('sforum-mobile-drawer sforum-mobile-drawer--left')
+    expect(src).toContain('sforum-mobile-drawer sforum-mobile-drawer--right')
+    expect(src).toContain("useState<boolean>('forum-mobile-menu-open'")
+    expect(src).toContain("useState<boolean>('forum-mobile-info-open'")
+    expect(src).toContain('<SFProfileSettingsPreview')
+    expect(src).not.toContain('ssr: false')
+    expect(src).not.toContain('layout: false')
+  })
+
+  test('uses the active appearance color for successful profile actions', () => {
+    const src = page()
+    expect(src.match(/color: 'primary'/g)?.length).toBe(3)
+    expect(src).not.toContain("color: 'success'")
+  })
+
+  test('keeps i18n complete for the canvas, preview, and visibility copy', () => {
+    for (const messages of [zhCN(), enUS()]) {
+      const copy = messages.profileSettings
+      expect(copy.canvasTitle).toBeTruthy()
+      expect(copy.sections.identity).toBeTruthy()
+      expect(copy.sections.story).toBeTruthy()
+      expect(copy.sections.links).toBeTruthy()
+      expect(copy.preview.unsaved).toBeTruthy()
+      expect(copy.scope.publicFields).toBeTruthy()
+      expect(copy.scope.privateFields).toBeTruthy()
+      expect(copy.signaturePublicHint).toBeTruthy()
+      expect(copy.avatarUploadPermissionDenied).toBeTruthy()
+      expect(copy.resetChanges).toBeTruthy()
+      expect(copy.resetDone).toBeTruthy()
+      expect(copy.saved).toBeTruthy()
+      expect(copy.saveFailed).toBeTruthy()
+    }
+  })
+})

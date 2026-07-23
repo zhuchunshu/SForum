@@ -21,6 +21,7 @@ export const FORUM_PERMISSIONS = {
   settingsMailManage: 'settings.mail.manage',
   settingsAvatarManage: 'settings.avatar.manage',
   settingsAppearanceManage: 'settings.appearance.manage',
+  attachmentUpload: 'attachment.upload',
   forumSettingsManage: 'forum.settings.manage',
   moderationManage: 'moderation.manage',
   moderationReview: 'moderation.review',
