@@ -12,6 +12,8 @@ const props = defineProps<{
   hasPrevious?: boolean
   hasNext?: boolean
   noteId?: string
+  /** 移动端抽屉内渲染时去掉 sticky / 边框 */
+  drawer?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -26,23 +28,45 @@ const actions = computed(() => actionListForContext(props.context, props.readonl
 </script>
 
 <template>
-  <aside class="sforum-moderation__right" :aria-label="t('moderation.workbench.decisionRail')">
-    <div class="sforum-moderation-stepper">
-      <button type="button" class="sforum-moderation-icon-button" :disabled="!hasPrevious" :aria-label="t('moderation.workbench.previousItem')" @click="$emit('previous')">
-        <UIcon name="i-lucide-arrow-up" class="size-4" aria-hidden="true" />
-      </button>
-      <span>{{ progressLabel || t('moderation.workbench.noCurrentItem') }}</span>
-      <button type="button" class="sforum-moderation-icon-button" :disabled="!hasNext" :aria-label="t('moderation.workbench.nextItem')" @click="$emit('next')">
-        <UIcon name="i-lucide-arrow-down" class="size-4" aria-hidden="true" />
-      </button>
-    </div>
+  <aside
+    class="sforum-moderation__right"
+    :class="{ 'sforum-moderation__right--drawer': drawer }"
+    :aria-label="t('moderation.workbench.decisionRail')"
+  >
+    <section class="sforum-moderation__rail-section">
+      <div class="sforum-moderation__rail-head">
+        <h2>{{ t('moderation.workbench.decisionRail') }}</h2>
+        <span>{{ progressLabel || t('moderation.workbench.noCurrentItem') }}</span>
+      </div>
+      <div class="sforum-moderation-stepper">
+        <button
+          type="button"
+          class="sforum-moderation-icon-button"
+          :disabled="!hasPrevious"
+          :aria-label="t('moderation.workbench.previousItem')"
+          @click="$emit('previous')"
+        >
+          <UIcon name="i-lucide-arrow-up" class="size-4" aria-hidden="true" />
+        </button>
+        <span>{{ progressLabel || t('moderation.workbench.noCurrentItem') }}</span>
+        <button
+          type="button"
+          class="sforum-moderation-icon-button"
+          :disabled="!hasNext"
+          :aria-label="t('moderation.workbench.nextItem')"
+          @click="$emit('next')"
+        >
+          <UIcon name="i-lucide-arrow-down" class="size-4" aria-hidden="true" />
+        </button>
+      </div>
+    </section>
 
-    <section class="sforum-moderation-rail-section">
-      <header class="sforum-moderation-rail-section__head">
+    <section class="sforum-moderation__rail-section">
+      <div class="sforum-moderation__rail-head">
         <h2>{{ t('moderation.workbench.contentInfo') }}</h2>
         <span v-if="context">{{ t(`admin.moderation.type.${context.targetType}`) }} #{{ context.targetId }}</span>
-      </header>
-      <dl v-if="context" class="sforum-moderation-context-list">
+      </div>
+      <dl v-if="context" class="sforum-moderation__loaded-stats sforum-moderation-context-list">
         <div>
           <dt>{{ t('moderation.workbench.status') }}</dt>
           <dd>{{ context.status }}</dd>
@@ -68,15 +92,17 @@ const actions = computed(() => actionListForContext(props.context, props.readonl
           <dd class="font-mono">{{ context.lastEditIp }}</dd>
         </div>
       </dl>
-      <p v-else class="sforum-moderation-rail-copy">{{ t('moderation.workbench.selectItemHint') }}</p>
+      <p v-else class="sforum-moderation__rail-help">{{ t('moderation.workbench.selectItemHint') }}</p>
     </section>
 
-    <section class="sforum-moderation-rail-section">
-      <header class="sforum-moderation-rail-section__head">
-        <h3>{{ t('moderation.workbench.reviewNote') }}</h3>
+    <section class="sforum-moderation__rail-section">
+      <div class="sforum-moderation__rail-head">
+        <h2>{{ t('moderation.workbench.reviewNote') }}</h2>
         <span>{{ t('moderation.workbench.noteRuleShort') }}</span>
-      </header>
-      <label class="sforum-moderation-field-label" :for="noteId || 'moderation-review-note'">{{ t('moderation.workbench.reviewNoteLabel') }}</label>
+      </div>
+      <label class="sforum-moderation-field-label" :for="noteId || 'moderation-review-note'">
+        {{ t('moderation.workbench.reviewNoteLabel') }}
+      </label>
       <textarea
         :id="noteId || 'moderation-review-note'"
         class="sforum-moderation-note"
@@ -89,8 +115,11 @@ const actions = computed(() => actionListForContext(props.context, props.readonl
       <p v-if="error" class="sforum-moderation-field-error" role="alert">{{ error }}</p>
     </section>
 
-    <section class="sforum-moderation-rail-section">
-      <p v-if="readonly" class="sforum-moderation-rail-copy">
+    <section class="sforum-moderation__rail-section">
+      <div class="sforum-moderation__rail-head">
+        <h2>{{ t('moderation.workbench.decisionRail') }}</h2>
+      </div>
+      <p v-if="readonly" class="sforum-moderation__rail-help">
         {{ t('moderation.workbench.historyReadonly') }}
       </p>
       <div v-else class="sforum-moderation-actions">

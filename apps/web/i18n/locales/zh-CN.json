@@ -3988,8 +3988,34 @@
         "optional": "标签可选，最多 {max} 个"
       }
     },
+    "leftRail": {
+      "progressTitle": "撰写进度",
+      "actionsTitle": "快捷操作",
+      "tipsTitle": "写作要点",
+      "statusReady": "就绪",
+      "statusTodo": "待补",
+      "saveDraft": "保存草稿",
+      "guidelines": "社区守则",
+      "focusAria": "跳转到{field}"
+    },
     "rightRail": {
       "label": "发布信息",
+      "open": "打开发布信息",
+      "checksProgress": "{ready}/{total} 就绪",
+      "titleOverflowHint": "标题较长，已截断显示，悬停可看全文",
+      "titleStatus": {
+        "empty": "待填写",
+        "short": "过短",
+        "ok": "正常",
+        "near": "接近上限",
+        "over": "超限"
+      },
+      "titleHint": {
+        "empty": "建议 {min}–{max} 字",
+        "short": "还需至少 {min} 字（当前 {count}）",
+        "near": "{count} / {max} · 接近上限",
+        "over": "{count} / {max} · 已超出"
+      },
       "tip": "标题、正文、分类和标签会按当前站点设置实时检查；服务端仍会执行最终权限和内容校验。"
     },
     "tipsTitle": "写好帖子的要点",
@@ -4211,6 +4237,12 @@
       "queueDescription": "先在队列里定位内容，再进入完整阅读工作台做决定。",
       "historyDescription": "处理记录只读展示；可打开内容上下文核对，但不能重新执行决定。",
       "queueOverview": "队列概览",
+      "overviewAuthority": "实时统计",
+      "overviewSource": "来自审核工作台计数接口",
+      "pageStatsTitle": "当前范围",
+      "loadedOnly": "本页已加载",
+      "loadedTotal": "匹配总数",
+      "openRightRail": "打开队列概览",
       "workflowTitle": "工作方式",
       "workflowDescription": "在当前来源和筛选范围中逐条审阅；提交成功后只前进到本页下一条。",
       "stateRestoreTitle": "状态会保留",

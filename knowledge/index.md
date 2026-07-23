@@ -63,12 +63,15 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- Theme-defined system error pages completion and focused browser/automated
-  verification:
-  `sessions/2026-07-23-theme-defined-system-error-pages-completion-handoff.md`
+- `/moderation` left/right sidebars aligned to home + notifications public
+  three-column chrome:
+  `sessions/2026-07-24-moderation-sidebar-chrome-handoff.md`
 
 ## Recently Completed
 
+- `/moderation` workbench sidebars: reuse `SFHomeNavigation`, notifications rail
+  section language, shared mobile drawer keys; queue overview large count;
+  decision rail restyle; typecheck + workbench unit tests pass.
 - Default-theme `/categories` grouped directory: implemented against confirmed
   Demo 01 with real category-group API data, SSR internal API reads, focused
   tests, typecheck, production build, and browser screenshot QA.

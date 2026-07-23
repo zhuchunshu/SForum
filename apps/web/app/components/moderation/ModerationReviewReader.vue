@@ -11,12 +11,8 @@ const { format: formatDate } = useSiteDateTime()
 </script>
 
 <template>
-  <main class="sforum-moderation__main sforum-moderation-reader" aria-live="polite">
-    <button type="button" class="sforum-moderation__back" @click="$emit('back')">
-      <UIcon name="i-lucide-arrow-left" class="size-4" aria-hidden="true" />
-      {{ t('moderation.workbench.backToQueue') }}
-    </button>
-
+  <!-- 主列壳由 SFModerationReviewPage 提供，阅读器只负责正文 -->
+  <div class="sforum-moderation-reader" aria-live="polite">
     <div v-if="loading" class="sforum-moderation-reader__loading">
       <SFSkeleton width="100%" height="28px" />
       <SFSkeleton width="70%" height="18px" />
@@ -69,5 +65,5 @@ const { format: formatDate } = useSiteDateTime()
 
       <div class="sf-prose sforum-moderation-reader__prose overflow-wrap-anywhere" v-highlight v-html="sanitizeHtml(context.html)" />
     </article>
-  </main>
+  </div>
 </template>

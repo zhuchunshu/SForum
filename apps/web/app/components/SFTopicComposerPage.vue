@@ -7,7 +7,6 @@ import {
   forumContentFromEditorPayload,
   forumTopicPath,
   isForumTagSlug,
-  normalizeForumTagSlugInput,
   type ForumCategoryGroup,
   type ForumTag
 } from '~/utils/forumTaxonomy'
@@ -97,7 +96,6 @@ const { data: tagOptions, pending: tagsPending } = await useAsyncData(
 
 const title = ref('')
 const selectedCategorySlug = ref('')
-const tagInput = ref('')
 const tagDraft = ref<string[]>([])
 const bodyMarkdown = ref('')
 const editorPayload = ref<SFEditorContentPayload | null>(null)
@@ -154,7 +152,6 @@ const actorName = computed(() => user.value?.displayName || user.value?.username
 const selectedCategory = computed(() => categories.value.find(category => category.slug === selectedCategorySlug.value))
 const defaultCategory = computed(() => categories.value.find(category => category.slug === limits.value.defaultCategorySlug))
 const summaryCategory = computed(() => selectedCategory.value || defaultCategory.value || null)
-const activeTagMap = computed(() => new Map(tagOptions.value.map(tag => [tag.slug, tag])))
 const effectiveText = computed(() => editorPayload.value?.text ?? bodyMarkdown.value)
 const currentDraftSignature = computed(() => JSON.stringify({
   title: title.value,
@@ -295,53 +292,14 @@ watch(selectedCategorySlug, () => {
   delete fieldErrors.value.categorySlug
 })
 
-function addTag() {
-  const raw = normalizeForumTagSlugInput(tagInput.value)
-  if (!raw) {
-    return
-  }
-  // 标签 slug 支持 Unicode 字母/数字与连字符，便于中文社区直接使用中文标签。
-  if (!isForumTagSlug(raw)) {
-    fieldErrors.value.tagSlugs = [t('composer.tagInvalid')]
-    return
-  }
-  if (
-    limits.value.tagCreationMode === 'controlled'
-    && !activeTagMap.value.has(raw)
-  ) {
-    fieldErrors.value.tagSlugs = [t('composer.tagUnknownControlled')]
-    return
-  }
-  if (tagDraft.value.includes(raw)) {
-    tagInput.value = ''
-    return
-  }
-  if (tagDraft.value.length >= limits.value.tagMaxPerTopic) {
-    fieldErrors.value.tagSlugs = [t('composer.tagLimit')]
-    return
-  }
+function onTagDraftUpdate(next: string[]) {
+  tagDraft.value = next
+  // 成功变更芯片后清掉上一次格式/策略错误；数量下限仍在提交时校验。
   delete fieldErrors.value.tagSlugs
-  tagDraft.value = [...tagDraft.value, raw]
-  tagInput.value = ''
 }
 
-function removeTag(slug: string) {
-  tagDraft.value = tagDraft.value.filter((item) => item !== slug)
-  if (!validateTagCount(tagDraft.value.length)) {
-    delete fieldErrors.value.tagSlugs
-  }
-}
-
-function onTagKeydown(event: KeyboardEvent) {
-  if (event.key !== 'Enter' && event.key !== ',') {
-    return
-  }
-  event.preventDefault()
-  addTag()
-}
-
-function tagDisplayName(slug: string) {
-  return activeTagMap.value.get(slug)?.name || slug
+function onTagInputInvalid(key: 'tagInvalid' | 'tagUnknownControlled' | 'tagLimit') {
+  fieldErrors.value.tagSlugs = [t(`composer.${key}`)]
 }
 
 function onEditorContentChange(payload: SFEditorContentPayload) {
@@ -351,6 +309,37 @@ function onEditorContentChange(payload: SFEditorContentPayload) {
 function closeMobileDrawers() {
   mobileMenuOpen.value = false
   mobileInfoOpen.value = false
+}
+
+/** 左栏进度项：滚到主列对应字段并尝试 focus。 */
+function focusComposerField(field: 'title' | 'body' | 'category' | 'tags') {
+  if (!import.meta.client) {
+    return
+  }
+  const idByField: Record<typeof field, string> = {
+    title: 'topic-composer-title-input',
+    body: 'topic-composer-body',
+    category: 'topic-composer-category',
+    tags: 'topic-composer-tags'
+  }
+  const target = document.getElementById(idByField[field])
+  if (!target) {
+    return
+  }
+  target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  // 编辑器容器可能不可 focus，退而求其次找内部可编辑节点。
+  const focusable = target.matches('input, select, textarea, button, [contenteditable="true"]')
+    ? target
+    : target.querySelector<HTMLElement>('input, select, textarea, button, [contenteditable="true"], .ProseMirror')
+  if (focusable && typeof focusable.focus === 'function') {
+    window.setTimeout(() => focusable.focus(), 180)
+  }
+  closeMobileDrawers()
+}
+
+function onLeftRailSaveDraft() {
+  saveDraft()
+  closeMobileDrawers()
 }
 
 async function submit(payload?: { markdown?: string; native?: unknown; text?: string }) {
@@ -545,196 +534,191 @@ onBeforeRouteLeave((_to, _from, next) => {
 
 <template>
   <main
-    class="sforum-topic-composer"
+    class="sforum-home sforum-topic-composer"
     data-sforum-island-body="forum.component.topic_composer"
     data-layout="fullwidth-3col"
   >
     <div
-      class="sforum-topic-composer__layout"
-      :class="{ 'sforum-topic-composer__layout--with-right': canCreate }"
+      class="sforum-home__layout"
+      :class="{ 'sforum-home__layout--with-right': canCreate }"
     >
-      <div class="sforum-topic-composer__sidebar">
+      <!-- 左栏：通知页模式 — 无类别列表，挂发帖实用工具 -->
+      <div class="sforum-home__sidebar">
         <SFHomeNavigation
           desktop-only
           navigation-mode="route"
           :categories="categories"
-          :selected-category-slug="selectedCategorySlug"
+          selected-category-slug=""
           :total-topics="totalTopics"
           :pending="categoriesPending"
           :can-create-topic="canCreate"
-        />
+          :show-categories="false"
+        >
+          <template #after-navigation>
+            <SFTopicComposerLeftRail
+              :checks="prePublishChecks"
+              :draft-saving="draftSaving"
+              :draft-status-label="draftStatusLabel"
+              :can-create="canCreate"
+              @focus-field="focusComposerField"
+              @save-draft="onLeftRailSaveDraft"
+            />
+          </template>
+        </SFHomeNavigation>
       </div>
 
-      <section class="sforum-topic-composer__main" :aria-labelledby="canCreate ? 'topic-composer-title' : undefined">
-        <div class="sforum-topic-composer__mobile-nav">
-          <SFHomeNavigation
-            mobile-only
-            navigation-mode="route"
-            :categories="categories"
-            :selected-category-slug="selectedCategorySlug"
-            :total-topics="totalTopics"
-            :pending="categoriesPending"
-            :can-create-topic="canCreate"
+      <section
+        class="sforum-home__main sforum-topic-composer__main"
+        :aria-labelledby="canCreate ? 'topic-composer-title' : undefined"
+      >
+        <!-- 无权限提示 -->
+        <SFCard v-if="!canCreate" class="p-8">
+          <SFEmptyState
+            icon-label="LOCK"
+            :title="t('composer.permissionDenied.title')"
+            :description="t('composer.permissionDenied.description')"
           />
-        </div>
+        </SFCard>
 
-      <!-- 无权限提示 -->
-      <SFCard v-if="!canCreate" class="p-8">
-        <SFEmptyState
-          icon-label="LOCK"
-          :title="t('composer.permissionDenied.title')"
-          :description="t('composer.permissionDenied.description')"
-        />
-      </SFCard>
+        <template v-else>
+          <div class="sforum-topic-composer__inner">
+            <nav class="sforum-topic-composer__breadcrumbs" :aria-label="t('composer.breadcrumbLabel')">
+              <NuxtLink :to="localePath('/')" class="hover:text-[color:var(--sf-accent)]">
+                {{ t('composer.breadcrumbHome') }}
+              </NuxtLink>
+              <UIcon name="i-lucide-chevron-right" class="size-3" aria-hidden="true" />
+              <span>{{ t('composer.title') }}</span>
+            </nav>
 
-      <template v-else>
-        <div class="sforum-topic-composer__inner">
-          <nav class="sforum-topic-composer__breadcrumbs" :aria-label="t('composer.breadcrumbLabel')">
-            <NuxtLink :to="localePath('/')" class="hover:text-[color:var(--sf-accent)]">
-              {{ t('composer.breadcrumbHome') }}
-            </NuxtLink>
-            <UIcon name="i-lucide-chevron-right" class="size-3" aria-hidden="true" />
-            <span>{{ t('composer.title') }}</span>
-          </nav>
-
-          <header class="sforum-topic-composer__head">
-            <div>
-              <h1 id="topic-composer-title">{{ t('composer.title') }}</h1>
-              <p>{{ t('composer.subtitle') }}</p>
-            </div>
-            <span class="sforum-topic-composer__draft-state" :class="{ 'is-error': draftError }">
-              <UIcon :name="draftError ? 'i-lucide-cloud-off' : 'i-lucide-cloud-check'" class="size-4" aria-hidden="true" />
-              {{ draftStatusLabel }}
-            </span>
-          </header>
-
-        <!-- 全局错误（不自动消失） -->
-        <SFAlert
-          v-if="errorMessage"
-          variant="danger"
-          :title="errorMessage"
-          closable
-          class="sforum-topic-composer__alert"
-          @close="errorMessage = ''"
-        />
-
-        <form class="sforum-topic-composer__form" @submit.prevent="submitCurrentDraft">
-          <!-- 分类选择(SFInput 不支持 select,保留原生但复用全局 .sf-input__control 样式) -->
-          <div class="sforum-topic-composer__taxonomy">
-            <div class="sforum-topic-composer__field">
-              <div class="sforum-topic-composer__field-head">
-                <label for="topic-composer-category">{{ t('composer.categoryLabel') }}</label>
-                <span>{{ t('composer.categoryOptionalDefault') }}</span>
+            <header class="sforum-topic-composer__head">
+              <div class="sforum-topic-composer__head-copy">
+                <h1 id="topic-composer-title">{{ t('composer.title') }}</h1>
+                <p>{{ t('composer.subtitle') }}</p>
               </div>
-              <div class="sforum-topic-composer__select">
-              <select
-                id="topic-composer-category"
-                v-model="selectedCategorySlug"
-                class="sf-input__control sf-input__control--md w-full appearance-none pr-9"
-              >
-                <option value="">{{ t('composer.categoryDefault') }}</option>
-                <option v-for="cat in categories" :key="cat.id" :value="cat.slug">
-                  {{ cat.name }}
-                </option>
-              </select>
-                <UIcon name="i-lucide-chevron-down" class="size-4" aria-hidden="true" />
-              </div>
-              <p class="sforum-topic-composer__hint">{{ t('composer.categoryHint') }}</p>
-              <p v-if="fieldErrors.categorySlug" class="sforum-topic-composer__error">
-                {{ fieldErrors.categorySlug.join(', ') }}
-              </p>
-            </div>
-
-            <div class="sforum-topic-composer__field">
-              <div class="sforum-topic-composer__field-head">
-                <label for="topic-composer-tags">{{ t('composer.tagsLabel') }}</label>
-                <span>{{ t('composer.tagLimitSummary', { min: limits.tagMinPerTopic, max: limits.tagMaxPerTopic }) }}</span>
-              </div>
-              <div class="sforum-topic-composer__tag-control" :class="{ 'is-invalid': fieldErrors.tagSlugs }">
-                <span v-for="slug in tagDraft" :key="slug" class="sforum-topic-composer__tag">
-                  #{{ tagDisplayName(slug) }}
-                  <button type="button" :aria-label="t('composer.removeTag')" @click="removeTag(slug)">
-                    <UIcon name="i-lucide-x" class="size-3" aria-hidden="true" />
-                  </button>
+              <div class="sforum-topic-composer__head-actions">
+                <span class="sforum-topic-composer__draft-state" :class="{ 'is-error': draftError }">
+                  <UIcon :name="draftError ? 'i-lucide-cloud-off' : 'i-lucide-cloud-check'" class="size-4" aria-hidden="true" />
+                  {{ draftStatusLabel }}
                 </span>
-                <input
-                  id="topic-composer-tags"
-                  v-model="tagInput"
-                  type="text"
-                  :list="tagOptions.length ? 'topic-composer-tag-options' : undefined"
-                  :placeholder="tagDraft.length ? t('composer.tagsPlaceholderMore') : t('composer.tagsPlaceholder')"
-                  :disabled="submitState === 'submitting' || tagDraft.length >= limits.tagMaxPerTopic"
-                  @keydown="onTagKeydown"
-                  @blur="addTag"
+                <!-- 中窄屏：打开完整右栏（与通知页 panel-right 一致） -->
+                <button
+                  type="button"
+                  class="sforum-topic-composer__icon-button sforum-topic-composer__desktop-hidden"
+                  :aria-label="t('composer.rightRail.open')"
+                  @click="mobileInfoOpen = true"
                 >
-                <datalist id="topic-composer-tag-options">
-                  <option v-for="tag in tagOptions" :key="tag.slug" :value="tag.slug">
-                    {{ tag.name }}
-                  </option>
-                </datalist>
+                  <UIcon name="i-lucide-panel-right" class="size-[18px]" aria-hidden="true" />
+                </button>
               </div>
-              <p class="sforum-topic-composer__hint">{{ tagsPending ? t('composer.tagsLoading') : t('composer.tagsHint') }}</p>
-              <p v-if="fieldErrors.tagSlugs" class="sforum-topic-composer__error">
-                {{ fieldErrors.tagSlugs.join(', ') }}
-              </p>
-            </div>
-          </div>
+            </header>
 
-          <!-- 标题(复用 SFInput 组件) -->
-          <div class="sforum-topic-composer__field">
-            <SFInput
-              v-model="title"
-              :label="t('composer.titleLabel')"
-              :placeholder="t('composer.titlePlaceholder')"
-              :hint="`${titleHint} (${t('composer.charCount', { count: titleCount, max: limits.topicTitleMaxRunes })})`"
-              :error="fieldErrors.title?.join(', ')"
-              required
+            <!-- 全局错误（不自动消失） -->
+            <SFAlert
+              v-if="errorMessage"
+              variant="danger"
+              :title="errorMessage"
+              closable
+              class="sforum-topic-composer__alert"
+              @close="errorMessage = ''"
             />
-          </div>
 
-          <!-- 正文编辑器 -->
-          <div class="sforum-topic-composer__field">
-            <div class="sforum-topic-composer__field-head">
-              <label>{{ t('composer.bodyLabel') }}</label>
-              <span>{{ t('composer.charCount', { count: bodyCount, max: limits.topicContentMaxRunes }) }}</span>
-            </div>
-            <p class="sforum-topic-composer__hint">{{ bodyHint }}</p>
-            <!-- F4.3：扩展 composer 工具栏（宿主渲染按钮，执行走扩展路由） -->
-            <div
-              v-if="composerToolbarActions.length"
-              class="sforum-topic-composer__extension-toolbar"
-            >
-              <SFButton
-                v-for="action in composerToolbarActions"
-                :key="`${action.extensionId}:${action.id}`"
-                type="button"
-                size="sm"
-                variant="ghost"
-                :disabled="submitState === 'submitting'"
-                @click="runComposerToolbarAction(action)"
-              >
-                <UIcon v-if="action.icon" :name="action.icon" class="size-4" />
-                <span>{{ composerToolbarLabel(action) }}</span>
-              </SFButton>
-            </div>
-            <LazySFEditor
-              v-model="bodyMarkdown"
-              :placeholder="t('composer.bodyPlaceholder')"
-              :submit-label="submitLabel"
-              :disabled="submitState === 'submitting'"
-              :max-characters="limits.topicContentMaxRunes"
-              :error="fieldErrors.content?.join(', ')"
-              :rows="14"
-              @content-change="onEditorContentChange"
-              @submit="onEditorSubmit"
-            />
-            <p v-if="fieldErrors.content" class="sforum-topic-composer__error">
-              {{ fieldErrors.content.join(', ') }}
-            </p>
+            <form class="sforum-topic-composer__form" @submit.prevent="submitCurrentDraft">
+              <!-- 分类 / 标签：自定义控件，展示 taxonomy icon + 颜色 -->
+              <div class="sforum-topic-composer__taxonomy">
+                <div class="sforum-topic-composer__field">
+                  <div class="sforum-topic-composer__field-head">
+                    <span class="sforum-topic-composer__field-label">{{ t('composer.categoryLabel') }}</span>
+                    <span>{{ t('composer.categoryOptionalDefault') }}</span>
+                  </div>
+                  <SFCategorySelect
+                    id="topic-composer-category"
+                    v-model="selectedCategorySlug"
+                    :categories="categories"
+                    :empty-label="t('composer.categoryDefault')"
+                    :hint="t('composer.categoryHint')"
+                    :error="fieldErrors.categorySlug?.join(', ')"
+                    :disabled="submitState === 'submitting'"
+                    :pending="categoriesPending"
+                  />
+                </div>
+
+                <div class="sforum-topic-composer__field">
+                  <div class="sforum-topic-composer__field-head">
+                    <span class="sforum-topic-composer__field-label">{{ t('composer.tagsLabel') }}</span>
+                    <span>{{ t('composer.tagLimitSummary', { min: limits.tagMinPerTopic, max: limits.tagMaxPerTopic }) }}</span>
+                  </div>
+                  <SFTagInput
+                    id="topic-composer-tags"
+                    :model-value="tagDraft"
+                    :options="tagOptions"
+                    :hint="tagsPending ? t('composer.tagsLoading') : t('composer.tagsHint')"
+                    :error="fieldErrors.tagSlugs?.join(', ')"
+                    :disabled="submitState === 'submitting'"
+                    :max="limits.tagMaxPerTopic"
+                    :creation-mode="limits.tagCreationMode"
+                    @update:model-value="onTagDraftUpdate"
+                    @invalid="onTagInputInvalid"
+                  />
+                </div>
+              </div>
+
+              <!-- 标题 -->
+              <div id="topic-composer-title-field" class="sforum-topic-composer__field">
+                <SFInput
+                  id="topic-composer-title-input"
+                  v-model="title"
+                  :label="t('composer.titleLabel')"
+                  :placeholder="t('composer.titlePlaceholder')"
+                  :hint="`${titleHint} (${t('composer.charCount', { count: titleCount, max: limits.topicTitleMaxRunes })})`"
+                  :error="fieldErrors.title?.join(', ')"
+                  :disabled="submitState === 'submitting'"
+                  required
+                />
+              </div>
+
+              <!-- 正文编辑器 -->
+              <div id="topic-composer-body" class="sforum-topic-composer__field">
+                <div class="sforum-topic-composer__field-head">
+                  <label>{{ t('composer.bodyLabel') }}</label>
+                  <span>{{ t('composer.charCount', { count: bodyCount, max: limits.topicContentMaxRunes }) }}</span>
+                </div>
+                <p class="sforum-topic-composer__hint">{{ bodyHint }}</p>
+                <!-- F4.3：扩展 composer 工具栏（宿主渲染按钮，执行走扩展路由） -->
+                <div
+                  v-if="composerToolbarActions.length"
+                  class="sforum-topic-composer__extension-toolbar"
+                >
+                  <SFButton
+                    v-for="action in composerToolbarActions"
+                    :key="`${action.extensionId}:${action.id}`"
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    :disabled="submitState === 'submitting'"
+                    @click="runComposerToolbarAction(action)"
+                  >
+                    <UIcon v-if="action.icon" :name="action.icon" class="size-4" />
+                    <span>{{ composerToolbarLabel(action) }}</span>
+                  </SFButton>
+                </div>
+                <LazySFEditor
+                  v-model="bodyMarkdown"
+                  :placeholder="t('composer.bodyPlaceholder')"
+                  :submit-label="submitLabel"
+                  :disabled="submitState === 'submitting'"
+                  :max-characters="limits.topicContentMaxRunes"
+                  :error="fieldErrors.content?.join(', ')"
+                  :rows="14"
+                  @content-change="onEditorContentChange"
+                  @submit="onEditorSubmit"
+                />
+                <p v-if="fieldErrors.content" class="sforum-topic-composer__error">
+                  {{ fieldErrors.content.join(', ') }}
+                </p>
+              </div>
+            </form>
           </div>
-        </form>
-        </div>
-      </template>
+        </template>
 
         <footer v-if="canCreate" class="sforum-topic-composer__dock" aria-live="polite">
           <div class="sforum-topic-composer__dock-status">
@@ -766,89 +750,24 @@ onBeforeRouteLeave((_to, _from, next) => {
         </footer>
       </section>
 
-      <aside v-if="canCreate" class="sforum-topic-composer__right" :aria-label="t('composer.rightRail.label')">
-        <section class="sforum-topic-composer__right-section">
-          <h2>
-            {{ t('composer.summary.title') }}
-            <span>{{ publishVisibilityLabel }}</span>
-          </h2>
-          <div class="sforum-topic-composer__summary-list">
-            <div class="sforum-topic-composer__summary-row">
-              <UIcon name="i-lucide-folder" class="size-4" aria-hidden="true" />
-              <div>
-                <strong>{{ summaryCategory?.name || t('composer.categoryDefaultShort') }}</strong>
-                <span>{{ summaryCategory ? t('composer.summary.category') : t('composer.summary.categoryDefault') }}</span>
-              </div>
-            </div>
-            <div class="sforum-topic-composer__summary-row">
-              <UIcon name="i-lucide-heading-1" class="size-4" aria-hidden="true" />
-              <div>
-                <strong>{{ title.trim() || t('composer.summary.untitled') }}</strong>
-                <span>{{ t('composer.charCount', { count: titleCount, max: limits.topicTitleMaxRunes }) }}</span>
-              </div>
-            </div>
-            <div class="sforum-topic-composer__summary-row">
-              <UIcon name="i-lucide-tags" class="size-4" aria-hidden="true" />
-              <div>
-                <strong>{{ tagDraft.length ? t('composer.summary.tagCount', { count: tagDraft.length }) : t('composer.summary.noTags') }}</strong>
-                <span>{{ tagPolicyLabel }}</span>
-              </div>
-            </div>
-            <div class="sforum-topic-composer__summary-row">
-              <UIcon name="i-lucide-user-round" class="size-4" aria-hidden="true" />
-              <div>
-                <strong>{{ actorName }}</strong>
-                <span>{{ t('composer.summary.actor') }}</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="sforum-topic-composer__right-section">
-          <h2>{{ t('composer.settings.title') }}</h2>
-          <dl class="sforum-topic-composer__settings">
-            <div>
-              <dt>{{ t('composer.settings.permission') }}</dt>
-              <dd>{{ t('composer.settings.permissionValue') }}</dd>
-            </div>
-            <div>
-              <dt>{{ t('composer.settings.category') }}</dt>
-              <dd>{{ summaryCategory?.name || t('composer.categoryDefaultShort') }}</dd>
-            </div>
-            <div>
-              <dt>{{ t('composer.settings.tags') }}</dt>
-              <dd>{{ tagPolicyLabel }}</dd>
-            </div>
-            <div>
-              <dt>{{ t('composer.settings.limits') }}</dt>
-              <dd>{{ t('composer.settings.limitValue', { titleMax: limits.topicTitleMaxRunes, bodyMax: limits.topicContentMaxRunes }) }}</dd>
-            </div>
-          </dl>
-        </section>
-
-        <section class="sforum-topic-composer__right-section">
-          <h2>{{ t('composer.checks.heading') }}</h2>
-          <ul class="sforum-topic-composer__checks">
-            <li
-              v-for="item in prePublishChecks"
-              :key="item.key"
-              :class="{ 'is-ok': item.ok }"
-            >
-              <UIcon :name="item.ok ? 'i-lucide-circle-check' : 'i-lucide-circle'" class="size-4" aria-hidden="true" />
-              <span>
-                <strong>{{ item.label }}</strong>
-                {{ item.text }}
-              </span>
-            </li>
-          </ul>
-        </section>
-
-        <section class="sforum-topic-composer__right-section">
-          <div class="sforum-topic-composer__tip">
-            <UIcon name="i-lucide-lightbulb" class="size-4" aria-hidden="true" />
-            <span>{{ t('composer.rightRail.tip') }}</span>
-          </div>
-        </section>
+      <aside
+        v-if="canCreate"
+        class="sforum-home__right"
+        :aria-label="t('composer.rightRail.label')"
+      >
+        <SFTopicComposerRightRail
+          :category-name="summaryCategory?.name"
+          :title="title"
+          :title-count="titleCount"
+          :title-min="limits.topicTitleMinRunes"
+          :title-max="limits.topicTitleMaxRunes"
+          :tag-count="tagDraft.length"
+          :tag-policy-label="tagPolicyLabel"
+          :actor-name="actorName"
+          :publish-visibility-label="publishVisibilityLabel"
+          :checks="prePublishChecks"
+          :body-max="limits.topicContentMaxRunes"
+        />
       </aside>
     </div>
 
@@ -856,14 +775,14 @@ onBeforeRouteLeave((_to, _from, next) => {
       v-if="mobileMenuOpen || mobileInfoOpen"
       type="button"
       class="sforum-mobile-drawer__backdrop"
-      :aria-label="t('topicDetail.cancel')"
+      :aria-label="t('common.close')"
       @click="closeMobileDrawers"
     />
 
     <aside v-if="mobileMenuOpen" class="sforum-mobile-drawer sforum-mobile-drawer--left">
       <header class="sforum-mobile-drawer__head">
-        <strong>{{ t('home.sidebar.navTitle') }}</strong>
-        <button type="button" :aria-label="t('topicDetail.cancel')" @click="closeMobileDrawers">
+        <strong>{{ t('home.sidebar.drawerTitle') }}</strong>
+        <button type="button" :aria-label="t('common.close')" @click="closeMobileDrawers">
           <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
         </button>
       </header>
@@ -871,35 +790,48 @@ onBeforeRouteLeave((_to, _from, next) => {
         desktop-only
         navigation-mode="route"
         :categories="categories"
-        :selected-category-slug="selectedCategorySlug"
+        selected-category-slug=""
         :total-topics="totalTopics"
         :pending="categoriesPending"
         :can-create-topic="canCreate"
-      />
+        :show-categories="false"
+      >
+        <template #after-navigation>
+          <SFTopicComposerLeftRail
+            :checks="prePublishChecks"
+            :draft-saving="draftSaving"
+            :draft-status-label="draftStatusLabel"
+            :can-create="canCreate"
+            @focus-field="focusComposerField"
+            @save-draft="onLeftRailSaveDraft"
+          />
+        </template>
+      </SFHomeNavigation>
     </aside>
 
     <aside v-if="mobileInfoOpen && canCreate" class="sforum-mobile-drawer sforum-mobile-drawer--right">
       <header class="sforum-mobile-drawer__head">
         <strong>{{ t('composer.rightRail.label') }}</strong>
-        <button type="button" :aria-label="t('topicDetail.cancel')" @click="closeMobileDrawers">
+        <button type="button" :aria-label="t('common.close')" @click="closeMobileDrawers">
           <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
         </button>
       </header>
-      <div class="sforum-topic-composer__mobile-summary">
-        <ul class="sforum-topic-composer__checks">
-          <li
-            v-for="item in prePublishChecks"
-            :key="item.key"
-            :class="{ 'is-ok': item.ok }"
-          >
-            <UIcon :name="item.ok ? 'i-lucide-circle-check' : 'i-lucide-circle'" class="size-4" aria-hidden="true" />
-            <span>
-              <strong>{{ item.label }}</strong>
-              {{ item.text }}
-            </span>
-          </li>
-        </ul>
-      </div>
+      <!-- 抽屉内复用完整右栏（与标签索引 / 首页一致） -->
+      <aside class="sforum-home__right" :aria-label="t('composer.rightRail.label')">
+        <SFTopicComposerRightRail
+          :category-name="summaryCategory?.name"
+          :title="title"
+          :title-count="titleCount"
+          :title-min="limits.topicTitleMinRunes"
+          :title-max="limits.topicTitleMaxRunes"
+          :tag-count="tagDraft.length"
+          :tag-policy-label="tagPolicyLabel"
+          :actor-name="actorName"
+          :publish-visibility-label="publishVisibilityLabel"
+          :checks="prePublishChecks"
+          :body-max="limits.topicContentMaxRunes"
+        />
+      </aside>
     </aside>
   </main>
 </template>

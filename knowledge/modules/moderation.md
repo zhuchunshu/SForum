@@ -57,12 +57,17 @@ frontend moderator workbench.
   folder (`admin.nav.forum`), alongside categories, tags, and forum settings.
 - The admin page is policy management plus a read-only complete audit table.
 - The frontend `/moderation` workbench has **Pending publication**, **User
-  reports**, and **History** sources in the default-theme-compatible flat
-  three-column surface. Queue mode is URL-backed by source, content type, and
-  page; review mode adds stable item query fields and keeps navigation inside
-  the current source/filter/page, including history items whose source is a
-  report. Rows are fully clickable, context uses the existing safe-rendered
-  HTML path, and history remains read-only.
+  reports**, and **History** sources. Layout reuses the public three-column
+  chrome from home/notifications: left shell is `SFHomeNavigation` (route mode)
+  plus workbench sources/type filters in `#after-navigation`; right rail uses
+  the same section stack language (large overview number + `dl` stats + help
+  copy in queue mode; decision rail in review mode). Mobile drawers share
+  `forum-mobile-menu-open` / `forum-mobile-info-open` with other public pages.
+  Queue mode is URL-backed by source, content type, and page; review mode adds
+  stable item query fields and keeps navigation inside the current
+  source/filter/page, including history items whose source is a report. Rows
+  are fully clickable, context uses the existing safe-rendered HTML path, and
+  history remains read-only.
 - Destructive actions require a review note. Successful actions use the active
   theme color and auto-dismiss after 10 seconds; blocking errors stay visible.
 - Pending topic creation shows a toast and returns the author home; review

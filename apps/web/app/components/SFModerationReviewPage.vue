@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /**
- * 宿主 body 岛：moderation.review。主题 L1 挂载；路由页仅 outlet + fail-closed 回退。
+ * 宿主 body 岛：moderation.review。
+ * 左右栏对齐首页 + 通知页公共三栏 chrome；队列/审阅业务逻辑不变。
  */
 
 import { apiErrorMessage } from '~/composables/useApiClient'
@@ -35,6 +36,8 @@ const router = useRouter()
 const toast = useToast()
 const { format: formatDate } = useSiteDateTime()
 const moderationApi = useModerationApi()
+const forumApi = useForumApi()
+const { can } = usePermissions()
 
 const tab = computed<ModerationWorkbenchTab>(() => parseWorkbenchTab(route.query.tab))
 const typeFilter = computed<ModerationWorkbenchTypeFilter>(() => parseTargetType(route.query.targetType))
@@ -51,8 +54,9 @@ const noteDrafts = ref<Record<string, string>>({})
 const fieldError = ref('')
 const loadError = ref('')
 const submitting = ref<ModerationAction | null>(null)
-const mobileQueueOpen = ref(false)
-const mobileActionOpen = ref(false)
+// 与首页/通知页共用抽屉状态，避免各页自造一套移动端 chrome
+const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
+const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
 const openedReviewFromQueue = ref(false)
 
 const { data: counts, error: countsError, refresh: refreshCounts } = await useAsyncData(
@@ -88,7 +92,16 @@ const { data: reviewContext, pending: contextPending, refresh: refreshContext } 
   { watch: [reviewKey], default: () => null }
 )
 
+const { data: categoryGroups, pending: categoriesPending } = await useAsyncData(
+  'moderation-workbench-categories',
+  () => forumApi.listCategoryGroups(),
+  { default: () => [] }
+)
+
 const countsAvailable = computed(() => !countsError.value)
+const categories = computed(() => categoryGroups.value.flatMap(group => group.categories || []))
+const categoryTopicTotal = computed(() => categories.value.reduce((sum, category) => sum + (category.topicCount || 0), 0))
+const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
 const queueErrorMessage = computed(() => listError.value
   ? apiErrorMessage(listError.value) || t('moderation.workbench.queueFailed')
   : '')
@@ -131,12 +144,31 @@ const headerTitle = computed(() => sourceTabs.value.find(item => item.value === 
 const headerDescription = computed(() => tab.value === 'history'
   ? t('moderation.workbench.historyDescription')
   : t('moderation.workbench.queueDescription'))
+const typeFilterLabel = computed(() => typeFilters.value.find(item => item.value === typeFilter.value)?.label || t('admin.moderation.typeAll'))
+// 右栏大数字：跟随当前来源 tab，与通知页未读总数同级
+const overviewCount = computed(() => {
+  if (!countsAvailable.value) return null
+  if (tab.value === 'reports') return counts.value.openReports
+  if (tab.value === 'history') return counts.value.processedToday
+  return counts.value.pendingContent
+})
+const overviewCountLabel = computed(() => {
+  if (tab.value === 'reports') return t('moderation.workbench.reports')
+  if (tab.value === 'history') return t('moderation.workbench.processedToday')
+  return t('moderation.workbench.pending')
+})
+const rightRailAria = computed(() => reviewMode.value
+  ? t('moderation.workbench.decisionRail')
+  : t('moderation.workbench.queueOverview'))
+const rightDrawerTitle = computed(() => reviewMode.value
+  ? t('moderation.workbench.decisionRail')
+  : t('moderation.workbench.queueOverview'))
 
 watch(reviewKey, () => {
   fieldError.value = ''
   loadError.value = ''
-  mobileActionOpen.value = false
-  mobileQueueOpen.value = false
+  mobileInfoOpen.value = false
+  mobileMenuOpen.value = false
 })
 
 watch(reviewMode, async (active, previous) => {
@@ -155,16 +187,19 @@ function saveScrollPosition() {
   queueScroll.value = { ...queueScroll.value, [queueScrollKey.value]: window.scrollY }
 }
 
+function closeMobileDrawers() {
+  mobileMenuOpen.value = false
+  mobileInfoOpen.value = false
+}
+
 async function selectTab(value: ModerationWorkbenchTab) {
+  closeMobileDrawers()
   await router.replace({ query: queueQuery({ tab: value, page: undefined }) })
 }
 
 async function selectType(value: ModerationWorkbenchTypeFilter) {
+  closeMobileDrawers()
   await router.replace({ query: queueQuery({ targetType: value, page: undefined }) })
-}
-
-async function onTypeSelect(event: Event) {
-  await selectType((event.target as HTMLSelectElement).value as ModerationWorkbenchTypeFilter)
 }
 
 async function selectPage(value: number) {
@@ -175,6 +210,7 @@ async function selectPage(value: number) {
 async function openSelection(selection: ModerationReviewSelection) {
   saveScrollPosition()
   openedReviewFromQueue.value = true
+  closeMobileDrawers()
   await router.push({ query: { ...queueQuery(), ...reviewQuery(selection) } })
 }
 
@@ -183,6 +219,7 @@ async function openItem(item: QueueRecord) {
 }
 
 async function returnToQueue() {
+  closeMobileDrawers()
   if (openedReviewFromQueue.value && import.meta.client) {
     openedReviewFromQueue.value = false
     router.back()
@@ -245,112 +282,197 @@ async function submitDecision(action: ModerationAction) {
 function historySummary(item: ModerationDecision) {
   return `${t(`moderation.action.${item.action}`)} / ${item.reviewerName || t('moderation.workbench.unknownReviewer')}`
 }
+
+function compactItemIcon(item: QueueRecord) {
+  if ('reasonCode' in item) return 'i-lucide-flag'
+  return item.targetType === 'topic' ? 'i-lucide-file-text' : 'i-lucide-message-square'
+}
+
+function compactItemTitle(item: QueueRecord) {
+  if ('title' in item && item.title) return item.title
+  return `${t(`admin.moderation.type.${item.targetType}`)} #${item.targetId}`
+}
+
+function compactItemMeta(item: QueueRecord) {
+  if ('action' in item) return historySummary(item as ModerationDecision)
+  if ('reasonCode' in item) return t(`moderation.reason.${(item as ModerationReportItem).reasonCode}`)
+  return (item as ModerationPendingItem).triggers.map(trigger => t(`moderation.trigger.${trigger}`)).join(' / ')
+}
+
+function isItemActive(item: QueueRecord) {
+  return selectionKey(selectionFromQueueItem(tab.value, item)) === reviewKey.value
+}
 </script>
 
 <template>
-  <section class="sforum-moderation" :class="{ 'sforum-moderation--review': reviewMode }">
-    <div class="sforum-moderation__mobile-bar">
-      <button type="button" class="sforum-moderation-mobile-button" :aria-label="t('moderation.workbench.openQueueDrawer')" @click="mobileQueueOpen = true">
-        <UIcon name="i-lucide-menu" class="size-4" aria-hidden="true" />
-        {{ t('moderation.workbench.queueTabs') }}
-      </button>
-      <button v-if="reviewMode" type="button" class="sforum-moderation-mobile-button" :aria-label="t('moderation.workbench.openDecisionDrawer')" @click="mobileActionOpen = true">
-        <UIcon name="i-lucide-panel-right-open" class="size-4" aria-hidden="true" />
-        {{ t('moderation.workbench.decisionRail') }}
-      </button>
-    </div>
+  <main
+    class="sforum-moderation"
+    data-sforum-island-body="forum.component.moderation_review"
+    data-layout="fullwidth-3col"
+    :class="{ 'sforum-moderation--review': reviewMode }"
+  >
+    <div class="sforum-moderation__layout">
+      <div class="sforum-moderation__sidebar sforum-home__sidebar">
+        <SFHomeNavigation
+          desktop-only
+          navigation-mode="route"
+          :categories="categories"
+          :total-topics="categoryTopicTotal"
+          :pending="categoriesPending"
+          :can-create-topic="canCreateTopic"
+          :show-categories="false"
+        >
+          <template #after-navigation>
+            <button
+              v-if="reviewMode"
+              type="button"
+              class="sforum-moderation__back-nav"
+              @click="returnToQueue"
+            >
+              <UIcon name="i-lucide-arrow-left" class="size-4" aria-hidden="true" />
+              {{ t('moderation.workbench.backToQueue') }}
+            </button>
 
-    <div class="sforum-moderation__layout" :class="{ 'sforum-moderation__layout--with-right': reviewMode || tab !== 'history' }">
-      <aside class="sforum-moderation__left" :aria-label="t('moderation.workbench.queueTabs')">
-        <button v-if="reviewMode" type="button" class="sforum-moderation-sidebar-primary" @click="returnToQueue">
-          <UIcon name="i-lucide-arrow-left" class="size-4" aria-hidden="true" />
-          {{ t('moderation.workbench.backToQueue') }}
-        </button>
+            <nav class="sforum-moderation__type-nav" :aria-label="t('moderation.workbench.sources')">
+              <div class="sf-home-navigation__label">{{ t('moderation.workbench.sources') }}</div>
+              <button
+                v-for="item in sourceTabs"
+                :key="item.value"
+                type="button"
+                class="sf-home-navigation__link"
+                :class="{ 'is-active': tab === item.value }"
+                :aria-pressed="tab === item.value"
+                @click="selectTab(item.value)"
+              >
+                <span class="sf-home-navigation__link-main">
+                  <UIcon :name="item.icon" class="size-[18px]" aria-hidden="true" />
+                  {{ item.label }}
+                </span>
+                <span v-if="item.count !== null" class="sf-home-navigation__count">{{ item.count }}</span>
+              </button>
+            </nav>
 
-        <p class="sforum-moderation__nav-label">{{ t('moderation.workbench.sources') }}</p>
-        <nav class="sforum-moderation__side-nav" :aria-label="t('moderation.workbench.sources')">
+            <nav class="sforum-moderation__type-nav" :aria-label="t('admin.moderation.filterType')">
+              <div class="sf-home-navigation__label">{{ t('admin.moderation.filterType') }}</div>
+              <button
+                v-for="item in typeFilters"
+                :key="item.value"
+                type="button"
+                class="sf-home-navigation__link"
+                :class="{ 'is-active': typeFilter === item.value }"
+                :aria-pressed="typeFilter === item.value"
+                @click="selectType(item.value)"
+              >
+                <span class="sf-home-navigation__link-main">
+                  <UIcon :name="item.icon" class="size-[18px]" aria-hidden="true" />
+                  {{ item.label }}
+                </span>
+              </button>
+              <p class="sforum-moderation__filter-hint">{{ t('moderation.workbench.permissionHint') }}</p>
+            </nav>
+
+            <template v-if="reviewMode">
+              <div class="sf-home-navigation__label">{{ t('moderation.workbench.currentQueue') }}</div>
+              <div class="sforum-moderation-compact-list">
+                <button
+                  v-for="item in items"
+                  :key="queueItemKey(tab, item)"
+                  type="button"
+                  class="sforum-moderation-compact-item"
+                  :class="{ 'is-active': isItemActive(item) }"
+                  @click="openItem(item)"
+                >
+                  <UIcon :name="compactItemIcon(item)" class="size-4" aria-hidden="true" />
+                  <span>
+                    <strong>{{ compactItemTitle(item) }}</strong>
+                    <small>{{ compactItemMeta(item) }}</small>
+                  </span>
+                </button>
+              </div>
+            </template>
+          </template>
+        </SFHomeNavigation>
+      </div>
+
+      <section
+        v-if="!reviewMode"
+        class="sforum-moderation__main"
+        :aria-labelledby="'moderation-page-title'"
+      >
+        <div class="sforum-moderation__mobile-nav">
+          <SFHomeNavigation
+            mobile-only
+            navigation-mode="route"
+            :categories="categories"
+            :total-topics="categoryTopicTotal"
+            :pending="categoriesPending"
+            :can-create-topic="canCreateTopic"
+          />
+        </div>
+
+        <header class="sforum-moderation__head">
+          <div class="sforum-moderation__head-copy">
+            <h1 id="moderation-page-title">{{ headerTitle }}</h1>
+            <p>{{ headerDescription }}</p>
+          </div>
+          <div class="sforum-moderation__head-actions">
+            <button
+              type="button"
+              class="sforum-moderation-icon-button"
+              :aria-label="t('admin.home.refresh')"
+              @click="refreshAll"
+            >
+              <UIcon name="i-lucide-refresh-cw" class="size-4" :class="{ 'animate-spin': listPending }" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              class="sforum-moderation-icon-button sforum-moderation__desktop-hidden"
+              :aria-label="t('moderation.workbench.openRightRail')"
+              @click="mobileInfoOpen = true"
+            >
+              <UIcon name="i-lucide-panel-right" class="size-[18px]" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              class="sforum-moderation-icon-button sforum-moderation__desktop-hidden sforum-moderation__menu-button"
+              :aria-label="t('moderation.workbench.openQueueDrawer')"
+              @click="mobileMenuOpen = true"
+            >
+              <UIcon name="i-lucide-menu" class="size-[18px]" aria-hidden="true" />
+            </button>
+          </div>
+        </header>
+
+        <div class="sforum-moderation__filter-strip" :aria-label="t('moderation.workbench.queueTabs')">
           <button
             v-for="item in sourceTabs"
             :key="item.value"
             type="button"
-            class="sforum-moderation__side-link"
+            class="sforum-moderation__filter-button"
             :class="{ 'is-active': tab === item.value }"
+            :aria-pressed="tab === item.value"
             @click="selectTab(item.value)"
           >
-            <span>
-              <UIcon :name="item.icon" class="size-4" aria-hidden="true" />
-              {{ item.label }}
-            </span>
-            <span v-if="item.count !== null" class="sforum-moderation__side-count">{{ item.count }}</span>
+            {{ item.label }}
+            <span v-if="item.count !== null">{{ item.count }}</span>
           </button>
-        </nav>
-
-        <p class="sforum-moderation__nav-label">{{ t('admin.moderation.filterType') }}</p>
-        <nav class="sforum-moderation__side-nav" :aria-label="t('admin.moderation.filterType')">
+        </div>
+        <div class="sforum-moderation__filter-strip sforum-moderation__filter-strip--secondary" :aria-label="t('admin.moderation.filterType')">
           <button
             v-for="item in typeFilters"
             :key="item.value"
             type="button"
-            class="sforum-moderation__side-link"
+            class="sforum-moderation__filter-button"
             :class="{ 'is-active': typeFilter === item.value }"
+            :aria-pressed="typeFilter === item.value"
             @click="selectType(item.value)"
           >
-            <span>
-              <UIcon :name="item.icon" class="size-4" aria-hidden="true" />
-              {{ item.label }}
-            </span>
+            {{ item.label }}
           </button>
-        </nav>
-
-        <template v-if="reviewMode">
-          <p class="sforum-moderation__nav-label">{{ t('moderation.workbench.currentQueue') }}</p>
-          <div class="sforum-moderation-compact-list">
-            <button
-              v-for="item in items"
-              :key="queueItemKey(tab, item)"
-              type="button"
-              class="sforum-moderation-compact-item"
-              :class="{ 'is-active': selectionKey(selectionFromQueueItem(tab, item)) === reviewKey }"
-              @click="openItem(item)"
-            >
-              <UIcon :name="'reasonCode' in item ? 'i-lucide-flag' : item.targetType === 'topic' ? 'i-lucide-file-text' : 'i-lucide-message-square'" class="size-4" aria-hidden="true" />
-              <span>
-                <strong>{{ 'title' in item ? item.title : `${t(`admin.moderation.type.${item.targetType}`)} #${item.targetId}` }}</strong>
-                <small>{{ 'action' in item ? historySummary(item) : 'reasonCode' in item ? t(`moderation.reason.${item.reasonCode}`) : item.triggers.map(trigger => t(`moderation.trigger.${trigger}`)).join(' / ') }}</small>
-              </span>
-            </button>
-          </div>
-        </template>
-
-        <div class="sforum-moderation__side-foot">
-          <span><UIcon name="i-lucide-shield-check" class="size-4" aria-hidden="true" />{{ t('moderation.workbench.permissionHint') }}</span>
-          <span><UIcon name="i-lucide-book-open" class="size-4" aria-hidden="true" />{{ pageRangeLabel }}</span>
         </div>
-      </aside>
+        <p class="sforum-moderation__filter-note">{{ pageRangeLabel }}</p>
 
-      <main v-if="!reviewMode" class="sforum-moderation__main">
-        <header class="sforum-moderation__head">
-          <div>
-            <h1>{{ headerTitle }}</h1>
-            <p>{{ headerDescription }}</p>
-          </div>
-          <button type="button" class="sforum-moderation-icon-button" :aria-label="t('admin.home.refresh')" @click="refreshAll">
-            <UIcon name="i-lucide-refresh-cw" class="size-4" :class="{ 'animate-spin': listPending }" aria-hidden="true" />
-          </button>
-        </header>
-
-        <div class="sforum-moderation__toolbar">
-          <div class="sforum-moderation__segments" :aria-label="t('moderation.workbench.queueTabs')">
-            <button v-for="item in sourceTabs" :key="item.value" type="button" :class="{ 'is-active': tab === item.value }" @click="selectTab(item.value)">
-              {{ item.label }} <span v-if="item.count !== null">{{ item.count }}</span>
-            </button>
-          </div>
-          <select :value="typeFilter" class="sforum-moderation__select" :aria-label="t('admin.moderation.filterType')" @change="onTypeSelect">
-            <option v-for="item in typeFilters" :key="item.value" :value="item.value">{{ item.label }}</option>
-          </select>
-        </div>
-
-        <SFAlert v-if="queueErrorMessage" variant="danger" :title="queueErrorMessage" class="mb-4" />
+        <SFAlert v-if="queueErrorMessage" variant="danger" :title="queueErrorMessage" class="sforum-moderation__alert" />
 
         <section class="sforum-moderation__queue" :aria-label="t('moderation.workbench.queueTabs')">
           <template v-if="listPending">
@@ -378,7 +500,7 @@ function historySummary(item: ModerationDecision) {
               :key="queueItemKey(tab, item)"
               :item="item"
               :source="tab === 'reports' ? 'report' : 'pre_publish'"
-              :active="selectionKey(selectionFromQueueItem(tab, item)) === reviewKey"
+              :active="isItemActive(item)"
               @open="openItem(item)"
             />
           </template>
@@ -394,51 +516,131 @@ function historySummary(item: ModerationDecision) {
         <div v-if="totalPages > 1" class="sforum-moderation__pagination">
           <SFPagination :page="currentPage" :total-pages="totalPages" @update:page="selectPage" />
         </div>
-      </main>
 
-      <ModerationReviewReader
+        <SFContentColumnFooter />
+      </section>
+
+      <section
         v-else
-        :context="reviewContext"
-        note-id="moderation-review-note"
-        :loading="contextPending"
-        :tab="tab"
-        @back="returnToQueue"
-      />
+        class="sforum-moderation__main sforum-moderation__main--review"
+        :aria-label="t('moderation.workbench.reviewBreadcrumb')"
+      >
+        <div class="sforum-moderation__mobile-nav">
+          <SFHomeNavigation
+            mobile-only
+            navigation-mode="route"
+            :categories="categories"
+            :total-topics="categoryTopicTotal"
+            :pending="categoriesPending"
+            :can-create-topic="canCreateTopic"
+          />
+        </div>
 
-      <aside v-if="!reviewMode && tab !== 'history'" class="sforum-moderation__right" :aria-label="t('moderation.workbench.queueOverview')">
-        <section class="sforum-moderation-rail-section">
-          <header class="sforum-moderation-rail-section__head">
-            <h2>{{ t('moderation.workbench.queueOverview') }}</h2>
-            <span>{{ pageRangeLabel }}</span>
-          </header>
-          <div v-if="countsAvailable" class="sforum-moderation-stats">
-            <div><strong>{{ counts.pendingContent }}</strong><span>{{ t('moderation.workbench.pending') }}</span></div>
-            <div><strong>{{ counts.openReports }}</strong><span>{{ t('moderation.workbench.reports') }}</span></div>
-            <div><strong>{{ counts.processedToday }}</strong><span>{{ t('moderation.workbench.processedToday') }}</span></div>
+        <header class="sforum-moderation__head sforum-moderation__head--review">
+          <div class="sforum-moderation__head-copy">
+            <button type="button" class="sforum-moderation__text-button" @click="returnToQueue">
+              <UIcon name="i-lucide-arrow-left" class="size-4" aria-hidden="true" />
+              {{ t('moderation.workbench.backToQueue') }}
+            </button>
+            <p v-if="progressLabel">{{ progressLabel }} · {{ pageRangeLabel }}</p>
           </div>
-          <p v-else class="sforum-moderation-rail-copy" role="alert">
+          <div class="sforum-moderation__head-actions">
+            <button
+              type="button"
+              class="sforum-moderation-icon-button sforum-moderation__desktop-hidden"
+              :aria-label="t('moderation.workbench.openDecisionDrawer')"
+              @click="mobileInfoOpen = true"
+            >
+              <UIcon name="i-lucide-panel-right" class="size-[18px]" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              class="sforum-moderation-icon-button sforum-moderation__desktop-hidden sforum-moderation__menu-button"
+              :aria-label="t('moderation.workbench.openQueueDrawer')"
+              @click="mobileMenuOpen = true"
+            >
+              <UIcon name="i-lucide-menu" class="size-[18px]" aria-hidden="true" />
+            </button>
+          </div>
+        </header>
+
+        <ModerationReviewReader
+          :context="reviewContext"
+          note-id="moderation-review-note"
+          :loading="contextPending"
+          :tab="tab"
+          @back="returnToQueue"
+        />
+      </section>
+
+      <!-- 队列模式右栏：始终展示，含 history，避免三栏跳动 -->
+      <aside
+        v-if="!reviewMode"
+        class="sforum-moderation__right"
+        :aria-label="rightRailAria"
+      >
+        <section class="sforum-moderation__rail-section">
+          <div class="sforum-moderation__rail-head">
+            <h2>{{ t('moderation.workbench.queueOverview') }}</h2>
+            <span>{{ t('moderation.workbench.overviewAuthority') }}</span>
+          </div>
+          <div v-if="overviewCount !== null" class="sforum-moderation__overview-summary">
+            <strong>{{ overviewCount }}</strong>
+            <span>{{ overviewCountLabel }}</span>
+          </div>
+          <p v-else class="sforum-moderation__rail-help" role="alert">
             {{ t('moderation.workbench.countsFailed') }}
           </p>
+          <p v-if="overviewCount !== null" class="sforum-moderation__rail-help">
+            {{ t('moderation.workbench.overviewSource') }}
+          </p>
         </section>
-        <section class="sforum-moderation-rail-section">
-          <header class="sforum-moderation-rail-section__head">
-            <h3>{{ t('moderation.workbench.workflowTitle') }}</h3>
-          </header>
-          <p class="sforum-moderation-rail-copy">{{ t('moderation.workbench.workflowDescription') }}</p>
+
+        <section class="sforum-moderation__rail-section">
+          <div class="sforum-moderation__rail-head">
+            <h2>{{ t('moderation.workbench.pageStatsTitle') }}</h2>
+            <span>{{ t('moderation.workbench.loadedOnly') }}</span>
+          </div>
+          <dl class="sforum-moderation__loaded-stats">
+            <div>
+              <dt>{{ t('moderation.workbench.sources') }}</dt>
+              <dd>{{ headerTitle }}</dd>
+            </div>
+            <div>
+              <dt>{{ t('admin.moderation.filterType') }}</dt>
+              <dd>{{ typeFilterLabel }}</dd>
+            </div>
+            <div>
+              <dt>{{ t('moderation.workbench.pageStatsTitle') }}</dt>
+              <dd>{{ pageRangeLabel }}</dd>
+            </div>
+            <div>
+              <dt>{{ t('moderation.workbench.loadedTotal') }}</dt>
+              <dd>{{ list.total }}</dd>
+            </div>
+          </dl>
         </section>
-        <section class="sforum-moderation-rail-section">
-          <header class="sforum-moderation-rail-section__head">
-            <h3>{{ t('moderation.workbench.stateRestoreTitle') }}</h3>
-          </header>
-          <p class="sforum-moderation-rail-copy">{{ t('moderation.workbench.stateRestoreDescription') }}</p>
+
+        <section class="sforum-moderation__rail-section">
+          <div class="sforum-moderation__rail-head">
+            <h2>{{ t('moderation.workbench.workflowTitle') }}</h2>
+          </div>
+          <p class="sforum-moderation__rail-help">{{ t('moderation.workbench.workflowDescription') }}</p>
+        </section>
+
+        <section class="sforum-moderation__rail-section">
+          <div class="sforum-moderation__rail-head">
+            <h2>{{ t('moderation.workbench.stateRestoreTitle') }}</h2>
+          </div>
+          <p class="sforum-moderation__rail-help">{{ t('moderation.workbench.stateRestoreDescription') }}</p>
         </section>
       </aside>
 
       <ModerationDecisionRail
-        v-if="reviewMode"
+        v-else
         v-model:note="activeNote"
         :context="reviewContext"
-        note-id="moderation-review-note-mobile"
+        note-id="moderation-review-note-desktop"
         :readonly="readonlyReview"
         :submitting="submitting"
         :error="fieldError || loadError"
@@ -451,41 +653,138 @@ function historySummary(item: ModerationDecision) {
       />
     </div>
 
-    <button v-if="mobileQueueOpen || mobileActionOpen" type="button" class="sforum-mobile-drawer__backdrop" :aria-label="t('moderation.close')" @click="mobileQueueOpen = false; mobileActionOpen = false" />
-    <aside v-if="mobileQueueOpen" class="sforum-mobile-drawer sforum-mobile-drawer--left">
+    <button
+      v-if="mobileMenuOpen || mobileInfoOpen"
+      type="button"
+      class="sforum-mobile-drawer__backdrop"
+      :aria-label="t('common.close')"
+      @click="closeMobileDrawers"
+    />
+
+    <aside v-if="mobileMenuOpen" class="sforum-mobile-drawer sforum-mobile-drawer--left">
       <header class="sforum-mobile-drawer__head">
-        <strong>{{ t('moderation.workbench.queueTabs') }}</strong>
-        <button type="button" class="sforum-moderation-icon-button" :aria-label="t('moderation.close')" @click="mobileQueueOpen = false">
-          <UIcon name="i-lucide-x" class="size-4" aria-hidden="true" />
+        <strong>{{ t('home.sidebar.drawerTitle') }}</strong>
+        <button type="button" :aria-label="t('common.close')" @click="closeMobileDrawers">
+          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
         </button>
       </header>
-      <div class="sforum-moderation-compact-list">
-        <button
-          v-for="item in items"
-          :key="queueItemKey(tab, item)"
-          type="button"
-          class="sforum-moderation-compact-item"
-          :class="{ 'is-active': selectionKey(selectionFromQueueItem(tab, item)) === reviewKey }"
-          @click="openItem(item); mobileQueueOpen = false"
-        >
-          <UIcon :name="'reasonCode' in item ? 'i-lucide-flag' : item.targetType === 'topic' ? 'i-lucide-file-text' : 'i-lucide-message-square'" class="size-4" aria-hidden="true" />
-          <span>
-            <strong>{{ 'title' in item ? item.title : `${t(`admin.moderation.type.${item.targetType}`)} #${item.targetId}` }}</strong>
-            <small>{{ 'action' in item ? historySummary(item) : 'reasonCode' in item ? t(`moderation.reason.${item.reasonCode}`) : item.triggers.map(trigger => t(`moderation.trigger.${trigger}`)).join(' / ') }}</small>
-          </span>
-        </button>
-      </div>
+      <SFHomeNavigation
+        desktop-only
+        navigation-mode="route"
+        :categories="categories"
+        :total-topics="categoryTopicTotal"
+        :pending="categoriesPending"
+        :can-create-topic="canCreateTopic"
+        :show-categories="false"
+      >
+        <template #after-navigation>
+          <nav class="sforum-moderation__type-nav" :aria-label="t('moderation.workbench.sources')">
+            <div class="sf-home-navigation__label">{{ t('moderation.workbench.sources') }}</div>
+            <button
+              v-for="item in sourceTabs"
+              :key="item.value"
+              type="button"
+              class="sf-home-navigation__link"
+              :class="{ 'is-active': tab === item.value }"
+              @click="selectTab(item.value)"
+            >
+              <span class="sf-home-navigation__link-main">
+                <UIcon :name="item.icon" class="size-[18px]" aria-hidden="true" />
+                {{ item.label }}
+              </span>
+              <span v-if="item.count !== null" class="sf-home-navigation__count">{{ item.count }}</span>
+            </button>
+          </nav>
+          <nav class="sforum-moderation__type-nav" :aria-label="t('admin.moderation.filterType')">
+            <div class="sf-home-navigation__label">{{ t('admin.moderation.filterType') }}</div>
+            <button
+              v-for="item in typeFilters"
+              :key="item.value"
+              type="button"
+              class="sf-home-navigation__link"
+              :class="{ 'is-active': typeFilter === item.value }"
+              @click="selectType(item.value)"
+            >
+              <span class="sf-home-navigation__link-main">
+                <UIcon :name="item.icon" class="size-[18px]" aria-hidden="true" />
+                {{ item.label }}
+              </span>
+            </button>
+          </nav>
+          <template v-if="reviewMode && items.length">
+            <div class="sf-home-navigation__label">{{ t('moderation.workbench.currentQueue') }}</div>
+            <div class="sforum-moderation-compact-list">
+              <button
+                v-for="item in items"
+                :key="queueItemKey(tab, item)"
+                type="button"
+                class="sforum-moderation-compact-item"
+                :class="{ 'is-active': isItemActive(item) }"
+                @click="openItem(item)"
+              >
+                <UIcon :name="compactItemIcon(item)" class="size-4" aria-hidden="true" />
+                <span>
+                  <strong>{{ compactItemTitle(item) }}</strong>
+                  <small>{{ compactItemMeta(item) }}</small>
+                </span>
+              </button>
+            </div>
+          </template>
+        </template>
+      </SFHomeNavigation>
     </aside>
-    <aside v-if="mobileActionOpen" class="sforum-mobile-drawer sforum-mobile-drawer--right">
+
+    <aside v-if="mobileInfoOpen" class="sforum-mobile-drawer sforum-mobile-drawer--right">
       <header class="sforum-mobile-drawer__head">
-        <strong>{{ t('moderation.workbench.decisionRail') }}</strong>
-        <button type="button" class="sforum-moderation-icon-button" :aria-label="t('moderation.close')" @click="mobileActionOpen = false">
-          <UIcon name="i-lucide-x" class="size-4" aria-hidden="true" />
+        <strong>{{ rightDrawerTitle }}</strong>
+        <button type="button" :aria-label="t('common.close')" @click="closeMobileDrawers">
+          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
         </button>
       </header>
+
+      <div v-if="!reviewMode" class="sforum-moderation__right sforum-moderation__right--drawer" :aria-label="rightRailAria">
+        <section class="sforum-moderation__rail-section">
+          <div class="sforum-moderation__rail-head">
+            <h2>{{ t('moderation.workbench.queueOverview') }}</h2>
+            <span>{{ t('moderation.workbench.overviewAuthority') }}</span>
+          </div>
+          <div v-if="overviewCount !== null" class="sforum-moderation__overview-summary">
+            <strong>{{ overviewCount }}</strong>
+            <span>{{ overviewCountLabel }}</span>
+          </div>
+          <p v-else class="sforum-moderation__rail-help" role="alert">
+            {{ t('moderation.workbench.countsFailed') }}
+          </p>
+        </section>
+        <section class="sforum-moderation__rail-section">
+          <div class="sforum-moderation__rail-head">
+            <h2>{{ t('moderation.workbench.pageStatsTitle') }}</h2>
+          </div>
+          <dl class="sforum-moderation__loaded-stats">
+            <div>
+              <dt>{{ t('moderation.workbench.pageStatsTitle') }}</dt>
+              <dd>{{ pageRangeLabel }}</dd>
+            </div>
+            <div>
+              <dt>{{ t('moderation.workbench.loadedTotal') }}</dt>
+              <dd>{{ list.total }}</dd>
+            </div>
+          </dl>
+        </section>
+        <section class="sforum-moderation__rail-section">
+          <div class="sforum-moderation__rail-head">
+            <h2>{{ t('moderation.workbench.workflowTitle') }}</h2>
+          </div>
+          <p class="sforum-moderation__rail-help">{{ t('moderation.workbench.workflowDescription') }}</p>
+        </section>
+      </div>
+
       <ModerationDecisionRail
+        v-else
         v-model:note="activeNote"
+        drawer
         :context="reviewContext"
+        note-id="moderation-review-note-mobile"
         :readonly="readonlyReview"
         :submitting="submitting"
         :error="fieldError || loadError"
@@ -497,7 +796,7 @@ function historySummary(item: ModerationDecision) {
         @next="navigateWithinQueue('next')"
       />
     </aside>
-  </section>
+  </main>
 </template>
 
 <style src="~/assets/css/sforum-moderation.css"></style>

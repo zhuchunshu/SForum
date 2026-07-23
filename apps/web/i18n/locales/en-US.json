@@ -3988,8 +3988,34 @@
         "optional": "Tags are optional, up to {max}"
       }
     },
+    "leftRail": {
+      "progressTitle": "Writing progress",
+      "actionsTitle": "Quick actions",
+      "tipsTitle": "Writing tips",
+      "statusReady": "Ready",
+      "statusTodo": "Todo",
+      "saveDraft": "Save draft",
+      "guidelines": "Community guidelines",
+      "focusAria": "Jump to {field}"
+    },
     "rightRail": {
       "label": "Publish information",
+      "open": "Open publish information",
+      "checksProgress": "{ready}/{total} ready",
+      "titleOverflowHint": "Long title truncated; hover to see full text",
+      "titleStatus": {
+        "empty": "Empty",
+        "short": "Too short",
+        "ok": "OK",
+        "near": "Near limit",
+        "over": "Over limit"
+      },
+      "titleHint": {
+        "empty": "Aim for {min}–{max} characters",
+        "short": "Need at least {min} (now {count})",
+        "near": "{count} / {max} · near limit",
+        "over": "{count} / {max} · over limit"
+      },
       "tip": "Title, body, category, and tags are checked against current site settings in real time. The server still performs final permission and content checks."
     },
     "tipsTitle": "Writing tips",
@@ -4211,6 +4237,12 @@
       "queueDescription": "Find an item in the queue, then enter the full reading workbench to decide.",
       "historyDescription": "History is read-only. You can open context for inspection, but decisions cannot be replayed.",
       "queueOverview": "Queue overview",
+      "overviewAuthority": "Live totals",
+      "overviewSource": "From the moderation workbench counts API",
+      "pageStatsTitle": "Current range",
+      "loadedOnly": "This page",
+      "loadedTotal": "Matching total",
+      "openRightRail": "Open queue overview",
       "workflowTitle": "Workflow",
       "workflowDescription": "Review one item at a time inside the current source and filter. A successful decision advances only to the next item on this page.",
       "stateRestoreTitle": "State is restored",

@@ -177,14 +177,22 @@ describe('moderation workbench implementation constraints', () => {
     expect(page).not.toContain('v-html')
   })
 
-  test('keeps history readonly and mobile drawers styled as real drawers', () => {
+  test('keeps history readonly and reuses public three-column chrome', () => {
     expect(page).toContain('readonlyReview')
     expect(page).toContain("tab === 'history'")
     expect(rail).toContain('historyReadonly')
-    expect(css).toContain('.sforum-mobile-drawer__backdrop')
-    expect(css).toContain('position: fixed')
-    expect(css).toContain('.sforum-moderation--review .sforum-moderation__mobile-bar')
-    expect(css).toContain('.sforum-mobile-drawer--left')
-    expect(css).toContain('.sforum-mobile-drawer--right')
+    // 左右栏对齐首页/通知页：SFHomeNavigation + 共享移动抽屉状态
+    expect(page).toContain('SFHomeNavigation')
+    expect(page).toContain('sforum-home__sidebar')
+    expect(page).toContain('forum-mobile-menu-open')
+    expect(page).toContain('forum-mobile-info-open')
+    expect(page).toContain('sforum-mobile-drawer__backdrop')
+    expect(page).toContain('sforum-mobile-drawer--left')
+    expect(page).toContain('sforum-mobile-drawer--right')
+    // 布局断点与右栏 section 语言在 moderation CSS
+    expect(css).toContain('var(--sf-public-sidebar-width)')
+    expect(css).toContain('var(--sf-public-right-rail-width)')
+    expect(css).toContain('.sforum-moderation__rail-section')
+    expect(css).toContain('.sforum-moderation__overview-summary')
   })
 })
