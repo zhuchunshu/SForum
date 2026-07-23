@@ -34,14 +34,77 @@
     "title": "Notifications",
     "description": "Replies, mentions, and content review results.",
     "markAllRead": "Mark all read",
+    "markingAllRead": "Marking...",
     "allRead": "All notifications marked as read",
     "loadFailed": "Failed to load notifications",
+    "loadMore": "Load more notifications",
+    "loadingMore": "Loading more notifications...",
+    "loadMoreFailed": "Failed to load more notifications",
+    "end": "You are all caught up",
     "empty": "No notifications yet",
+    "emptyDescription": "Replies, mentions, and moderation results will appear here.",
+    "unread": "Unread",
+    "unreadSummary": "{count} unread",
+    "unreadCountLabel": "unread notifications",
+    "unreadAuthority": "Global",
+    "unreadSource": "Unread count comes from /notifications/unread-count and covers only your account.",
+    "inbox": "Inbox",
+    "loadedOverview": "Current list",
+    "loadedOnly": "Loaded",
+    "loadedTotal": "Loaded notifications",
+    "loadedUnread": "Unread here",
+    "groupCount": "{count} updates",
+    "authRequired": "Your session has expired. Sign in again to view notifications.",
+    "markReadFailed": "Failed to mark notification as read",
+    "markAllReadFailed": "Failed to mark all notifications as read",
+    "targetUnavailable": "Target unavailable",
+    "targetUnavailableHelp": "This notification does not include a reliable target link. It may be deleted, hidden, or unavailable in the current API response.",
+    "groups": {
+      "today": "Today",
+      "earlier": "Earlier"
+    },
+    "filter": {
+      "aria": "Notification filters",
+      "title": "Notification types",
+      "all": "All",
+      "unread": "Unread",
+      "reply": "Replies",
+      "mention": "Mentions",
+      "moderation_approved": "Approved",
+      "moderation_rejected": "Rejected",
+      "admin_test": "Tests",
+      "loadedScope": "Filters apply only to the {count} notifications currently loaded.",
+      "empty": "No notifications in this filter",
+      "emptyDescription": "The current API has no server-side type filter, so this only checks the {count} loaded notifications."
+    },
+    "body": {
+      "reply": "Related topic: {target}",
+      "mention": "Related topic: {target}",
+      "moderation_approved": "Related content: {target}",
+      "moderation_rejected": "Related content: {target}",
+      "moderation_rejected_note": "Review note: {reviewNote}",
+      "admin_test": "In-app notification delivery test.",
+      "noTarget": "This notification has no public target summary available."
+    },
+    "detail": {
+      "aria": "Notification detail",
+      "open": "Open notification detail",
+      "title": "Current notification",
+      "empty": "Select a notification to inspect the details."
+    },
+    "actions": {
+      "markRead": "Mark this notification as read",
+      "viewReply": "View reply",
+      "viewMention": "View mention",
+      "viewTarget": "View content",
+      "openTarget": "Open target"
+    },
     "types": {
       "reply": "Someone replied to your content",
       "mention": "Someone mentioned you",
       "moderation_approved": "Your content was approved",
-      "moderation_rejected": "Your content was rejected"
+      "moderation_rejected": "Your content was rejected",
+      "admin_test": "In-app notification test delivered"
     }
   },
   "home": {

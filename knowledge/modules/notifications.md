@@ -38,5 +38,18 @@ The default theme adds `/notifications` and a Navbar unread badge. API queries
 always bind the current session user ID; another user's notification appears as
 not found.
 
+The default theme notifications page was redesigned on 2026-07-23 as a
+continuous, API-ordered message stream based on
+`tmp/demos/notification-inbox-directions-20260723/01-continuous-stream.html`.
+The page keeps filtering honest: type and unread filters apply only to the
+currently loaded client page because `GET /api/v1/notifications` exposes only
+`limit` and `beforeId`. The right rail uses
+`GET /api/v1/notifications/unread-count` as the authoritative global unread
+source; list-derived type counts are labeled as loaded-list summaries.
+
+Target links are emitted only when the payload contains a reliable `topicId`
+and optional `commentId`, or when the API target is a topic. Other notification
+targets render as unavailable instead of inventing routes.
+
 Digests, unsubscribe links, and per-channel user preferences remain out of
 scope for this release.

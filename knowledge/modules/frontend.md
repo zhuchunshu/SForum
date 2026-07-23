@@ -154,6 +154,9 @@ Architecture sources:
   `ForumCategoryGroup`/`ForumCategory` DTOs, URL-backed group focus via
   `?group=<group.id>`, page-local category filtering, group-local sorting, and
   a derived right rail. Topbar `SFSearch` remains global forum search.
+- The notifications page follows the same default-theme shell and shared
+  mobile drawer state as the forum homepage/navbar. Its filters are client-side
+  over loaded notifications only; the global unread total remains API-owned.
 - Homepage/topic/taxonomy data is real API state. Do not render fabricated
   likes, bookmarks, unread state, participant stacks, or ranking.
 - Homepage and eligible lists SSR page 1 and continue with keyset infinite

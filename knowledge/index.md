@@ -73,6 +73,8 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Default-theme notifications continuous-stream redesign:
+  `sessions/2026-07-23-notifications-continuous-stream-handoff.md`
 - Default-theme `/categories` grouped directory implementation and QA:
   `sessions/2026-07-23-categories-group-directory-handoff.md`
 
