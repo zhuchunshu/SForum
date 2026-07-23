@@ -73,8 +73,9 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- Tags heat overview `/tags` recovery and final QA:
-  `sessions/2026-07-23-tags-heat-overview-handoff.md`
+- Profile settings canvas page ready for user review on
+  `codex/profile-settings-canvas`:
+  `sessions/2026-07-23-profile-settings-canvas-handoff.md`
 
 ## Recently Completed
 
