@@ -59,9 +59,41 @@ type PublicProfile struct {
 	TopicCount   int64                `json:"topicCount"`
 	CommentCount int64                `json:"commentCount"`
 	RecentTopics []forum.TopicSummary `json:"recentTopics"`
+	Activities   []ProfileActivity    `json:"activities"`
 	JoinedAt     time.Time            `json:"joinedAt"`
 	// ExtensionTabs 来自 forum.profile.tabs 贡献（F4.3）；宿主渲染，无插件 HTML。
 	ExtensionTabs []ProfileExtensionTab `json:"extensionTabs,omitempty"`
+}
+
+// ProfileActivity 是公开个人主页的主题/回复时间线条目。
+type ProfileActivity struct {
+	Kind      string               `json:"kind"`
+	Topic     ProfileActivityTopic `json:"topic"`
+	CommentID *int64               `json:"commentId,omitempty"`
+	Excerpt   string               `json:"excerpt"`
+	CreatedAt time.Time            `json:"createdAt"`
+}
+
+// ProfileActivityTopic 是活动条目链接所需的最小公开主题信息。
+type ProfileActivityTopic struct {
+	ID             int64     `json:"id"`
+	Slug           string    `json:"slug"`
+	Title          string    `json:"title"`
+	Status         string    `json:"status"`
+	CategorySlug   string    `json:"categorySlug"`
+	CategoryName   string    `json:"categoryName"`
+	CommentCount   int64     `json:"commentCount"`
+	CreatedAt      time.Time `json:"createdAt"`
+	UpdatedAt      time.Time `json:"updatedAt"`
+	LastActivityAt time.Time `json:"lastActivityAt"`
+}
+
+// ProfileCommentActivity 是 store 层回读的公开回复活动。
+type ProfileCommentActivity struct {
+	CommentID int64
+	Topic     ProfileActivityTopic
+	Excerpt   string
+	CreatedAt time.Time
 }
 
 // ProfileExtensionTab 是公开资料页扩展 tab/section 描述符。

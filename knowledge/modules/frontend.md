@@ -152,6 +152,11 @@ Architecture sources:
   before the left navigation.
 - Homepage/topic/taxonomy data is real API state. Do not render fabricated
   likes, bookmarks, unread state, participant stacks, or ranking.
+- `/u/{username}` is also part of the default-theme three-column public shell:
+  left rail reuses `SFHomeNavigation`, center renders member summary plus
+  locale-aware daily public activity groups, and right rail renders real public
+  profile details, public stats, and recent topics. Keep social/portfolio/gamified
+  actions out until the API owns those contracts.
 - Homepage and eligible lists SSR page 1 and continue with keyset infinite
   scroll. URL-backed filters and stale-response guards remain authoritative.
 - Topic detail ships complete topic/comments/navigation in initial SSR HTML;

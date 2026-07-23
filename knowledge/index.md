@@ -73,12 +73,16 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- Theme-consistent public resource 404 completion and final full-gate/browser
-  verification:
-  `sessions/2026-07-22-theme-consistent-public-resource-404-plan-handoff.md`
+- Default-theme public profile B1 implementation and validation:
+  `sessions/2026-07-23-profile-page-b1-handoff.md`
 
 ## Recently Completed
 
+- Default-theme public profile B1: `/u/{username}` now uses the shared
+  three-column shell with real public activity grouped by date, real public
+  stats/recent topics, self-only edit UI, i18n copy, OpenAPI updates, and
+  focused Go/Bun/browser validation. See
+  `sessions/2026-07-23-profile-page-b1-handoff.md`.
 - Theme-consistent public resource 404: M0-M6 completed 2026-07-23. Ordinary
   semantic 404s retain the healthy selected theme and real private HTTP 404;
   Core is emergency-only. See

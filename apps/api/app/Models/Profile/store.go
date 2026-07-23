@@ -23,6 +23,10 @@ type Store interface {
 	GetProfileStats(ctx context.Context, userID int64) (ProfileStats, error)
 	// ListRecentTopics 列出用户最近的公开主题。
 	ListRecentTopics(ctx context.Context, userID int64, limit int) ([]forum.TopicSummary, error)
+	// ListRecentActivityTopics 按发布时间列出公开主题活动。
+	ListRecentActivityTopics(ctx context.Context, userID int64, limit int) ([]forum.TopicSummary, error)
+	// ListRecentComments 按回复时间列出公开回复活动。
+	ListRecentComments(ctx context.Context, userID int64, limit int) ([]ProfileCommentActivity, error)
 }
 
 // NormalizeProfile 是 service 层规范化输入后的资料写入库的中间结构。

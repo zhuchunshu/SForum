@@ -70,6 +70,7 @@ PublicProfile:
   - topicCount
   - commentCount
   - recentTopics
+  - activities
   - joinedAt
   properties:
     userId:
@@ -91,6 +92,11 @@ PublicProfile:
       type: array
       items:
         "$ref": "../schemas/forum.yaml#/TopicSummary"
+    activities:
+      type: array
+      description: Recent public topic/comment activity. Items only include topics in public categories and active/locked topic states; comments are active only.
+      items:
+        "$ref": "#/ProfileActivity"
     joinedAt:
       type: string
       format: date-time
@@ -99,6 +105,74 @@ PublicProfile:
       description: Host-rendered profile tabs/sections from forum.profile.tabs (F4.3).
       items:
         "$ref": "#/ProfileExtensionTab"
+ProfileActivity:
+  type: object
+  required:
+  - kind
+  - topic
+  - excerpt
+  - createdAt
+  properties:
+    kind:
+      type: string
+      enum:
+      - topic
+      - comment
+    topic:
+      "$ref": "#/ProfileActivityTopic"
+    commentId:
+      type:
+      - integer
+      - 'null'
+      format: int64
+      description: Present for comment activity and links to the topic comment anchor.
+    excerpt:
+      type: string
+    createdAt:
+      type: string
+      format: date-time
+ProfileActivityTopic:
+  type: object
+  required:
+  - id
+  - slug
+  - title
+  - status
+  - categorySlug
+  - categoryName
+  - commentCount
+  - createdAt
+  - updatedAt
+  - lastActivityAt
+  properties:
+    id:
+      type: integer
+      format: int64
+    slug:
+      type: string
+    title:
+      type: string
+    status:
+      type: string
+      enum:
+      - active
+      - locked
+    categorySlug:
+      type: string
+    categoryName:
+      type: string
+    commentCount:
+      type: integer
+      format: int64
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+    lastActivityAt:
+      type: string
+      format: date-time
 ProfileExtensionTab:
   type: object
   required:

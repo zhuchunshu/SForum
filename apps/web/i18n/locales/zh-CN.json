@@ -3844,62 +3844,30 @@
     },
     "topicCount": "主题",
     "commentCount": "评论",
-    "followingCount": "关注",
-    "followersCount": "粉丝",
-    "likesCount": "获赞",
+    "publicDetails": "公开资料",
+    "publicDetailsEmpty": "这位成员还没有补充公开资料。",
+    "memberInfo": "成员信息",
+    "publicContent": "公开内容",
+    "recentTopicsEmpty": "还没有公开主题。",
+    "extensionLinks": "扩展入口",
     "joinedAt": "加入时间",
     "joinedOn": "加入于 {date}",
     "location": "位置",
     "editProfile": "编辑资料",
-    "follow": "关注",
-    "followComingSoon": "关注功能即将上线。",
-    "messageComingSoon": "私信即将上线",
-    "more": "更多",
-    "moreComingSoon": "更多操作即将上线。",
-    "share": "分享主页",
-    "linkCopied": "主页链接已复制。",
-    "changeCover": "更换封面",
-    "coverComingSoon": "封面上传即将上线。",
-    "coverLabel": "个人主页封面",
-    "memberBadge": "成员",
     "bioEmpty": "这个人很懒，还没有写简介。",
-    "featuredWorks": "精选作品",
-    "filterAll": "全部",
-    "filterTutorial": "教程",
-    "filterOpenSource": "开源",
-    "tabsAria": "个人主页分区",
-    "tabs": {
-      "works": "作品集",
-      "topics": "主题",
-      "comments": "评论",
-      "following": "关注",
-      "followers": "粉丝",
-      "likes": "获赞"
-    },
-    "worksEmpty": {
-      "title": "暂无作品集",
-      "description": "发布主题后，会以卡片形式展示在这里。"
-    },
-    "topicsEmpty": {
-      "title": "还没有主题",
-      "description": "发布第一个讨论后，它们会出现在这里。"
-    },
-    "commentsEmpty": {
-      "title": "暂无公开评论列表",
-      "description": "评论时间线接口就绪后，会在此展示近期回复。"
-    },
-    "likesEmpty": {
-      "title": "获赞明细即将上线",
-      "description": "点赞统计接口就绪后，可在此查看获赞来源。"
-    },
-    "socialEmpty": {
-      "followingTitle": "关注列表即将上线",
-      "followingDescription": "关注关系接口就绪后，可在此查看关注的人。",
-      "followersTitle": "粉丝列表即将上线",
-      "followersDescription": "关注关系接口就绪后，可在此查看粉丝。"
-    },
     "recentTopics": "最近主题",
-    "replies": "回复"
+    "replies": "回复",
+    "timeline": {
+      "title": "公开活动",
+      "description": "按日期整理这位成员发布的公开主题与回复。",
+      "today": "今天",
+      "yesterday": "昨天",
+      "topicAction": "发布了主题",
+      "commentAction": "回复了主题",
+      "replyCount": "{count} 条回复",
+      "emptyTitle": "暂无公开活动",
+      "emptyDescription": "公开主题和公开回复会显示在这里。"
+    }
   },
   "profileSettings": {
     "metaTitle": "资料设置",

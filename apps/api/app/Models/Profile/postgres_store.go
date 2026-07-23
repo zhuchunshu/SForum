@@ -198,16 +198,26 @@ func (s *PostgresStore) GetUserSummaryByID(ctx context.Context, userID int64) (U
 
 func (s *PostgresStore) GetProfileStats(ctx context.Context, userID int64) (ProfileStats, error) {
 	var stats ProfileStats
-	// 公开主题数（active/locked）。
+	// 公开主题数（active/locked + public 分类）。
 	if err := s.pool.QueryRow(ctx, `
-		SELECT count(*) FROM topics
-		WHERE author_user_id = $1 AND status IN ('active', 'locked')
+		SELECT count(*)
+		FROM topics
+		JOIN categories ON categories.id = topics.category_id
+		WHERE topics.author_user_id = $1
+		  AND topics.status IN ('active', 'locked')
+		  AND categories.visibility = 'public'
 	`, userID).Scan(&stats.TopicCount); err != nil {
 		return ProfileStats{}, fmt.Errorf("count user topics: %w", err)
 	}
 	if err := s.pool.QueryRow(ctx, `
-		SELECT count(*) FROM comments
-		WHERE author_user_id = $1 AND status = 'active'
+		SELECT count(*)
+		FROM comments
+		JOIN topics ON topics.id = comments.topic_id
+		JOIN categories ON categories.id = topics.category_id
+		WHERE comments.author_user_id = $1
+		  AND comments.status = 'active'
+		  AND topics.status IN ('active', 'locked')
+		  AND categories.visibility = 'public'
 	`, userID).Scan(&stats.CommentCount); err != nil {
 		return ProfileStats{}, fmt.Errorf("count user comments: %w", err)
 	}
@@ -215,11 +225,21 @@ func (s *PostgresStore) GetProfileStats(ctx context.Context, userID int64) (Prof
 }
 
 func (s *PostgresStore) ListRecentTopics(ctx context.Context, userID int64, limit int) ([]forum.TopicSummary, error) {
+	return s.listRecentTopics(ctx, userID, limit, "activity")
+}
+
+func (s *PostgresStore) ListRecentActivityTopics(ctx context.Context, userID int64, limit int) ([]forum.TopicSummary, error) {
+	return s.listRecentTopics(ctx, userID, limit, "created")
+}
+
+func (s *PostgresStore) listRecentTopics(ctx context.Context, userID int64, limit int, order string) ([]forum.TopicSummary, error) {
 	if limit <= 0 || limit > 20 {
 		limit = 5
 	}
-	// plain_text 前缀供 ScanTopicSummary 派生 excerpt（posts.excerpt 已删除）。
-	// hot_score 与 forum.ScanTopicSummary 列布局对齐（M5 keyset 字段，不暴露 JSON）。
+	orderBy := "topics.last_activity_at DESC, topics.id DESC"
+	if order == "created" {
+		orderBy = "topics.created_at DESC, topics.id DESC"
+	}
 	rows, err := s.pool.Query(ctx, `
 		SELECT topics.id, topics.category_id, categories.slug, categories.name,
 		  topics.author_user_id, users.username, users.display_name,
@@ -235,7 +255,7 @@ func (s *PostgresStore) ListRecentTopics(ctx context.Context, userID int64, limi
 		WHERE topics.author_user_id = $1
 		  AND topics.status IN ('active', 'locked')
 		  AND categories.visibility = 'public'
-		ORDER BY topics.last_activity_at DESC, topics.id DESC
+		ORDER BY `+orderBy+`
 		LIMIT $2
 	`, userID, limit)
 	if err != nil {
@@ -253,6 +273,61 @@ func (s *PostgresStore) ListRecentTopics(ctx context.Context, userID int64, limi
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate recent topics: %w", err)
+	}
+	return items, nil
+}
+
+func (s *PostgresStore) ListRecentComments(ctx context.Context, userID int64, limit int) ([]ProfileCommentActivity, error) {
+	if limit <= 0 || limit > 20 {
+		limit = 20
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT comments.id, left(comment_posts.plain_text, 2000), comments.created_at,
+		  topics.id, topics.slug, topics.title, topics.status, topics.comment_count,
+		  topics.created_at, topics.updated_at, topics.last_activity_at,
+		  categories.slug, categories.name
+		FROM comments
+		JOIN posts comment_posts ON comment_posts.id = comments.content_id
+		JOIN topics ON topics.id = comments.topic_id
+		JOIN categories ON categories.id = topics.category_id
+		WHERE comments.author_user_id = $1
+		  AND comments.status = 'active'
+		  AND topics.status IN ('active', 'locked')
+		  AND categories.visibility = 'public'
+		ORDER BY comments.created_at DESC, comments.id DESC
+		LIMIT $2
+	`, userID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list recent comments: %w", err)
+	}
+	defer rows.Close()
+
+	items := []ProfileCommentActivity{}
+	for rows.Next() {
+		var item ProfileCommentActivity
+		var plainPrefix string
+		if err := rows.Scan(
+			&item.CommentID,
+			&plainPrefix,
+			&item.CreatedAt,
+			&item.Topic.ID,
+			&item.Topic.Slug,
+			&item.Topic.Title,
+			&item.Topic.Status,
+			&item.Topic.CommentCount,
+			&item.Topic.CreatedAt,
+			&item.Topic.UpdatedAt,
+			&item.Topic.LastActivityAt,
+			&item.Topic.CategorySlug,
+			&item.Topic.CategoryName,
+		); err != nil {
+			return nil, err
+		}
+		item.Excerpt = forum.ExcerptFromPlain(plainPrefix, forum.RecommendedExcerptRuneLimit)
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate recent comments: %w", err)
 	}
 	return items, nil
 }

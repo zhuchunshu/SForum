@@ -2,6 +2,7 @@ package profile
 
 import (
 	"context"
+	"sort"
 	"strings"
 
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
@@ -17,6 +18,8 @@ type Service struct {
 	avatarOptions  AvatarOptionResolver
 	profileTabs    ProfileTabProvider
 }
+
+const profileActivityLimit = 20
 
 // WithProfileTabs 注入公开资料页扩展 tabs（F4.3）。
 func (s *Service) WithProfileTabs(provider ProfileTabProvider) *Service {
@@ -70,6 +73,10 @@ func (s *Service) GetPublicProfile(ctx context.Context, username string) (Public
 	if err != nil {
 		return PublicProfile{}, err
 	}
+	activities, err := s.listActivities(ctx, user.UserID, profileActivityLimit)
+	if err != nil {
+		return PublicProfile{}, err
+	}
 	profile = s.decorateProfile(ctx, user, profile)
 	tabs, err := s.listProfileTabs(ctx)
 	if err != nil {
@@ -83,9 +90,68 @@ func (s *Service) GetPublicProfile(ctx context.Context, username string) (Public
 		TopicCount:    stats.TopicCount,
 		CommentCount:  stats.CommentCount,
 		RecentTopics:  recent,
+		Activities:    activities,
 		JoinedAt:      user.JoinedAt,
 		ExtensionTabs: tabs,
 	}, nil
+}
+
+func (s *Service) listActivities(ctx context.Context, userID int64, limit int) ([]ProfileActivity, error) {
+	if limit <= 0 || limit > profileActivityLimit {
+		limit = profileActivityLimit
+	}
+	topics, err := s.store.ListRecentActivityTopics(ctx, userID, limit)
+	if err != nil {
+		return nil, err
+	}
+	comments, err := s.store.ListRecentComments(ctx, userID, limit)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]ProfileActivity, 0, len(topics)+len(comments))
+	for _, topic := range topics {
+		items = append(items, ProfileActivity{
+			Kind:      "topic",
+			Topic:     activityTopicFromSummary(topic),
+			Excerpt:   topic.Excerpt,
+			CreatedAt: topic.CreatedAt,
+		})
+	}
+	for _, comment := range comments {
+		commentID := comment.CommentID
+		items = append(items, ProfileActivity{
+			Kind:      "comment",
+			Topic:     comment.Topic,
+			CommentID: &commentID,
+			Excerpt:   comment.Excerpt,
+			CreatedAt: comment.CreatedAt,
+		})
+	}
+	sort.SliceStable(items, func(i, j int) bool {
+		if items[i].CreatedAt.Equal(items[j].CreatedAt) {
+			return items[i].Kind < items[j].Kind
+		}
+		return items[i].CreatedAt.After(items[j].CreatedAt)
+	})
+	if len(items) > limit {
+		items = items[:limit]
+	}
+	return items, nil
+}
+
+func activityTopicFromSummary(topic forum.TopicSummary) ProfileActivityTopic {
+	return ProfileActivityTopic{
+		ID:             topic.ID,
+		Slug:           topic.Slug,
+		Title:          topic.Title,
+		Status:         topic.Status,
+		CategorySlug:   topic.CategorySlug,
+		CategoryName:   topic.CategoryName,
+		CommentCount:   topic.CommentCount,
+		CreatedAt:      topic.CreatedAt,
+		UpdatedAt:      topic.UpdatedAt,
+		LastActivityAt: topic.LastActivityAt,
+	}
 }
 
 func (s *Service) listProfileTabs(ctx context.Context) ([]ProfileExtensionTab, error) {
