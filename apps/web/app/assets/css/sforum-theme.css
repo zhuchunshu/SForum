@@ -474,6 +474,7 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
     ) {
     height: 100%;
     min-height: 0;
+    padding-bottom: 28px;
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-gutter: stable;

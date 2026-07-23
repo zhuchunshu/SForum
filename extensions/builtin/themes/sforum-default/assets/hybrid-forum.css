@@ -70,7 +70,7 @@
 
 .sforum-home__main,
 .sforum-topic-page__main {
-  padding: 28px 24px 72px;
+  padding: 28px 24px 28px;
 }
 
 .sforum-home__right,
@@ -777,11 +777,11 @@
 }
 
 .sf-theme--default .sforum-home__main {
-  padding: 30px 24px 80px;
+  padding: 30px 24px 28px;
 }
 
 .sf-theme--default .sforum-topic-page__main {
-  padding: 30px 24px 80px;
+  padding: 30px 24px 28px;
 }
 
 .sf-theme--default .sforum-home__right,
@@ -1666,7 +1666,7 @@
 
   .sforum-home__main,
   .sforum-topic-page__main {
-    padding: 24px 16px 72px;
+    padding: 24px 16px 28px;
   }
 
   .sf-theme--default:not(.sf-page--system-error) .sforum-not-found-page__main {

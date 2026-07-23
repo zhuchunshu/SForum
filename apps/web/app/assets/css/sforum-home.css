@@ -660,7 +660,7 @@
 }
 
 .sforum-home__main {
-  padding: 28px 24px 72px;
+  padding: 28px 24px 28px;
 }
 
 .sforum-home__right {
@@ -858,7 +858,7 @@
 
 @media (max-width: 980px) {
   .sf-page.sf-theme--default .sforum-home__main {
-    padding: 30px 20px 80px;
+    padding: 30px 20px 28px;
   }
 
   .sf-page.sf-theme--default .sf-home-topic-row {

@@ -20,7 +20,7 @@
 
 .sforum-notifications__main {
   min-width: 0;
-  padding: 28px 24px 72px;
+  padding: 28px 24px 28px;
   background: var(--sf-public-bg);
 }
 

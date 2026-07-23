@@ -10,7 +10,7 @@ import SFFooter from './SFFooter.vue'
 
 <style scoped>
 .sforum-content-footer {
-  margin-top: 36px;
+  margin-top: 20px;
 }
 
 .sforum-content-footer :deep(.sf-footer) {
@@ -21,7 +21,9 @@ import SFFooter from './SFFooter.vue'
 .sforum-content-footer :deep(.sf-footer__inner),
 .sforum-content-footer :deep(.sf-footer__friends-inner) {
   max-width: none;
+  padding-top: 14px;
   padding-right: 0;
+  padding-bottom: 14px;
   padding-left: 0;
 }
 </style>
