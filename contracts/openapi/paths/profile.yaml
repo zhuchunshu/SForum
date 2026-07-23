@@ -22,6 +22,60 @@ profileByUsername:
         "$ref": "../components/responses.yaml#/NotFound"
       '503':
         "$ref": "../components/responses.yaml#/ServiceUnavailable"
+profileActivitiesByUsername:
+  get:
+    summary: List public profile activities
+    operationId: listPublicProfileActivities
+    description: |
+      Paginated public topic or comment activity for a member profile page.
+      Uses shallow `page` / `perPage` OFFSET pagination. Kind filters the
+      timeline tab: `topic` (default) or `comment`.
+    parameters:
+    - name: username
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Member username.
+    - name: kind
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [topic, comment]
+        default: topic
+      description: Activity kind for the profile tab.
+    - name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 1
+    - name: perPage
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 20
+    responses:
+      '200':
+        description: Paginated public activities.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/profile.yaml#/ApiResponseActivityPage"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
 myProfile:
   get:
     summary: Read the current user's editable profile

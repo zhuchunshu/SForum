@@ -63,9 +63,9 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- `/moderation` left/right sidebars rewritten to home chrome tokens
-  (`sforum-home__*`, `sf-home-navigation__*`, `sf-home-right-rail`):
-  `sessions/2026-07-24-moderation-sidebar-home-chrome-handoff.md`
+- `/moderation` host chrome sidebar tokens aligned with default-theme hybrid
+  (compose 40px, sidebar/right padding, left active bar, edge-inset):
+  `sessions/2026-07-24-moderation-sidebar-token-parity-handoff.md`
 
 ## Recently Completed
 

@@ -4048,7 +4048,8 @@
       "description": "This username does not exist or the account is not active."
     },
     "topicCount": "Topics",
-    "commentCount": "Comments",
+    "commentCount": "Replies",
+    "categoryCount": "Categories",
     "publicDetails": "Public profile",
     "publicDetailsEmpty": "This member has not added public profile details yet.",
     "memberInfo": "Member info",
@@ -4059,19 +4060,37 @@
     "joinedOn": "Joined {date}",
     "location": "Location",
     "editProfile": "Edit profile",
+    "shareProfile": "Share profile",
+    "shareCopied": "Profile link copied.",
+    "shareFailed": "Could not copy the profile link. Please try again.",
     "bioEmpty": "No bio yet.",
+    "aboutTitle": "About {name}",
     "recentTopics": "Recent topics",
     "replies": "replies",
+    "tabs": {
+      "ariaLabel": "Profile sections",
+      "topics": "Topics",
+      "replies": "Replies",
+      "about": "About"
+    },
     "timeline": {
       "title": "Public activity",
-      "description": "Public topics and replies grouped by day.",
+      "description": "Public topics grouped by day.",
+      "repliesTitle": "Public replies",
+      "repliesDescription": "Public replies grouped by day.",
       "today": "Today",
       "yesterday": "Yesterday",
       "topicAction": "Published a topic",
       "commentAction": "Replied to a topic",
       "replyCount": "{count} replies",
-      "emptyTitle": "No public activity",
-      "emptyDescription": "Public topics and public replies will appear here."
+      "emptyTitle": "No public topics",
+      "emptyDescription": "Public topics will appear here.",
+      "emptyRepliesTitle": "No public replies",
+      "emptyRepliesDescription": "Public replies will appear here.",
+      "loadMore": "Load more",
+      "loadingMore": "Loading...",
+      "loadFailed": "Could not load activity. Please try again.",
+      "loadMoreFailed": "Could not load more activity. Please try again."
     }
   },
   "profileSettings": {

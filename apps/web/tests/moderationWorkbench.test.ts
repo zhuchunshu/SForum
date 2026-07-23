@@ -152,6 +152,7 @@ describe('moderation workbench implementation constraints', () => {
   const page = readFileSync(new URL('../app/components/SFModerationReviewPage.vue', import.meta.url), 'utf8')
   const reader = readFileSync(new URL('../app/components/moderation/ModerationReviewReader.vue', import.meta.url), 'utf8')
   const rail = readFileSync(new URL('../app/components/moderation/ModerationDecisionRail.vue', import.meta.url), 'utf8')
+  const nav = readFileSync(new URL('../app/components/moderation/ModerationWorkbenchNav.vue', import.meta.url), 'utf8')
   const state = readFileSync(new URL('../app/utils/moderationWorkbench.ts', import.meta.url), 'utf8')
   const css = readFileSync(new URL('../app/assets/css/sforum-moderation.css', import.meta.url), 'utf8')
 
@@ -197,5 +198,21 @@ describe('moderation workbench implementation constraints', () => {
     expect(rail).toContain('sforum-home__right')
     expect(rail).toContain('sf-home-right-rail')
     expect(css).toContain('.sforum-moderation__overview-summary')
+    // 右栏内容不再额外水平缩进，与 home flat rail 同轨
+    expect(css).not.toContain('padding: 4px 14px 10px')
+    expect(css).toContain('padding: 0 0 10px')
+  })
+
+  test('host chrome sidebar tokens match default-theme hybrid values', () => {
+    // moderation 不可主题替换，依赖 host sforum-home 复刻 hybrid 侧栏 token
+    const homeCss = readFileSync(new URL('../app/assets/css/sforum-home.css', import.meta.url), 'utf8')
+    expect(homeCss).toContain('padding: 24px 24px 20px 28px;')
+    expect(homeCss).toContain('padding: 34px 28px;')
+    expect(homeCss).toContain('height: 40px;')
+    expect(homeCss).toContain('min-height: 39px;')
+    expect(homeCss).toContain('.sf-home-navigation__link.is-active::before')
+    expect(homeCss).toContain('padding-left: var(--sf-public-edge-inset, 24px);')
+    expect(nav).toContain('sf-home-navigation__link')
+    expect(nav).toContain('sf-home-navigation__label')
   })
 })

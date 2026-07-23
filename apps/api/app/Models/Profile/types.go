@@ -74,6 +74,30 @@ type ProfileActivity struct {
 	CreatedAt time.Time            `json:"createdAt"`
 }
 
+// ActivityKind 是活动分页 kind 查询参数。
+const (
+	ActivityKindTopic   = "topic"
+	ActivityKindComment = "comment"
+)
+
+// ListActivitiesInput 是公开活动分页查询。
+type ListActivitiesInput struct {
+	Username string
+	Kind     string
+	Page     int
+	PerPage  int
+}
+
+// ActivityPage 是公开活动分页响应。
+type ActivityPage struct {
+	Items   []ProfileActivity `json:"items"`
+	Page    int               `json:"page"`
+	PerPage int               `json:"perPage"`
+	Total   int64             `json:"total"`
+	HasMore bool              `json:"hasMore"`
+	Kind    string            `json:"kind"`
+}
+
 // ProfileActivityTopic 是活动条目链接所需的最小公开主题信息。
 type ProfileActivityTopic struct {
 	ID             int64     `json:"id"`

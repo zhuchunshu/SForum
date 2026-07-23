@@ -50,6 +50,27 @@ func (h *Controller) publicProfile(c fiber.Ctx) error {
 	return apphttp.OK(c, data)
 }
 
+func (h *Controller) publicActivities(c fiber.Ctx) error {
+	if err := h.requireGuestRead(c); err != nil {
+		return err
+	}
+	data, err := h.service.ListPublicActivities(c.Context(), profile.ListActivitiesInput{
+		Username: c.Params("username"),
+		Kind:     c.Query("kind"),
+		Page:     profileQueryInt(c, "page"),
+		PerPage:  profileQueryInt(c, "perPage"),
+	})
+	if err != nil {
+		return mapProfileError(err)
+	}
+	return apphttp.OK(c, data)
+}
+
+func profileQueryInt(c fiber.Ctx, key string) int {
+	value, _ := strconv.Atoi(c.Query(key))
+	return value
+}
+
 // 公开资料包含最近主题，必须与论坛游客阅读策略保持同一边界。
 func (h *Controller) requireGuestRead(c fiber.Ctx) error {
 	if h.forumReadPolicy == nil {
@@ -174,5 +195,3 @@ func mapProfileError(err error) error {
 	}
 }
 
-// 保留 strconv 引用，供未来分页参数扩展使用。
-var _ = strconv.Atoi

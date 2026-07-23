@@ -225,16 +225,26 @@ func (s *PostgresStore) GetProfileStats(ctx context.Context, userID int64) (Prof
 }
 
 func (s *PostgresStore) ListRecentTopics(ctx context.Context, userID int64, limit int) ([]forum.TopicSummary, error) {
-	return s.listRecentTopics(ctx, userID, limit, "activity")
+	return s.listRecentTopics(ctx, userID, limit, 0, "activity")
 }
 
 func (s *PostgresStore) ListRecentActivityTopics(ctx context.Context, userID int64, limit int) ([]forum.TopicSummary, error) {
-	return s.listRecentTopics(ctx, userID, limit, "created")
+	return s.listRecentTopics(ctx, userID, limit, 0, "created")
 }
 
-func (s *PostgresStore) listRecentTopics(ctx context.Context, userID int64, limit int, order string) ([]forum.TopicSummary, error) {
-	if limit <= 0 || limit > 20 {
+func (s *PostgresStore) ListActivityTopics(ctx context.Context, userID int64, limit, offset int) ([]forum.TopicSummary, error) {
+	return s.listRecentTopics(ctx, userID, limit, offset, "created")
+}
+
+func (s *PostgresStore) listRecentTopics(ctx context.Context, userID int64, limit, offset int, order string) ([]forum.TopicSummary, error) {
+	if limit <= 0 {
 		limit = 5
+	}
+	if limit > profileActivityPageMaxPerPage {
+		limit = profileActivityPageMaxPerPage
+	}
+	if offset < 0 {
+		offset = 0
 	}
 	orderBy := "topics.last_activity_at DESC, topics.id DESC"
 	if order == "created" {
@@ -256,8 +266,8 @@ func (s *PostgresStore) listRecentTopics(ctx context.Context, userID int64, limi
 		  AND topics.status IN ('active', 'locked')
 		  AND categories.visibility = 'public'
 		ORDER BY `+orderBy+`
-		LIMIT $2
-	`, userID, limit)
+		LIMIT $2 OFFSET $3
+	`, userID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("list recent topics: %w", err)
 	}
@@ -278,8 +288,18 @@ func (s *PostgresStore) listRecentTopics(ctx context.Context, userID int64, limi
 }
 
 func (s *PostgresStore) ListRecentComments(ctx context.Context, userID int64, limit int) ([]ProfileCommentActivity, error) {
-	if limit <= 0 || limit > 20 {
+	return s.ListActivityComments(ctx, userID, limit, 0)
+}
+
+func (s *PostgresStore) ListActivityComments(ctx context.Context, userID int64, limit, offset int) ([]ProfileCommentActivity, error) {
+	if limit <= 0 {
 		limit = 20
+	}
+	if limit > profileActivityPageMaxPerPage {
+		limit = profileActivityPageMaxPerPage
+	}
+	if offset < 0 {
+		offset = 0
 	}
 	rows, err := s.pool.Query(ctx, `
 		SELECT comments.id, left(comment_posts.plain_text, 2000), comments.created_at,
@@ -295,8 +315,8 @@ func (s *PostgresStore) ListRecentComments(ctx context.Context, userID int64, li
 		  AND topics.status IN ('active', 'locked')
 		  AND categories.visibility = 'public'
 		ORDER BY comments.created_at DESC, comments.id DESC
-		LIMIT $2
-	`, userID, limit)
+		LIMIT $2 OFFSET $3
+	`, userID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("list recent comments: %w", err)
 	}

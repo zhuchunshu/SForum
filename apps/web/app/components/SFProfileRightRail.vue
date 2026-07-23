@@ -13,6 +13,7 @@ const props = defineProps<{
 
 const { t, locale } = useI18n()
 const localePath = useLocalePath()
+const { formatDateOnly } = useSiteDateTime()
 const { seoSettings } = useWebOptions()
 const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
 
@@ -60,15 +61,8 @@ function extensionTabTo(tab: NonNullable<PublicProfile['extensionTabs']>[number]
         <h3>{{ t('profile.publicDetails') }}</h3>
         <span>{{ t('profile.memberInfo') }}</span>
       </header>
-      <ul v-if="hasPublicDetails" class="sf-profile-detail-list">
-        <li v-if="profile.profile.bio">
-          <UIcon name="i-lucide-user-round" class="size-4" aria-hidden="true" />
-          <span>{{ profile.profile.bio }}</span>
-        </li>
-        <li v-if="profile.profile.signature">
-          <UIcon name="i-lucide-quote" class="size-4" aria-hidden="true" />
-          <span>{{ profile.profile.signature }}</span>
-        </li>
+      <!-- 与 demo B1 右侧一致：位置 / 网站 / 加入时间优先；签名可选 -->
+      <ul class="sf-profile-detail-list">
         <li v-if="profile.profile.location">
           <UIcon name="i-lucide-map-pin" class="size-4" aria-hidden="true" />
           <span>{{ profile.profile.location }}</span>
@@ -76,11 +70,18 @@ function extensionTabTo(tab: NonNullable<PublicProfile['extensionTabs']>[number]
         <li v-if="profile.profile.websiteUrl">
           <UIcon name="i-lucide-link" class="size-4" aria-hidden="true" />
           <a :href="safeUrl(profile.profile.websiteUrl)" target="_blank" rel="noopener noreferrer nofollow">
-            {{ profile.profile.websiteUrl.replace(/^https?:\/\//, '') }}
+            {{ profile.profile.websiteUrl.replace(/^https?:\/\//i, '').replace(/\/$/, '') }}
           </a>
         </li>
+        <li>
+          <UIcon name="i-lucide-calendar-days" class="size-4" aria-hidden="true" />
+          <span>{{ t('profile.joinedOn', { date: formatDateOnly(profile.joinedAt) }) }}</span>
+        </li>
+        <li v-if="profile.profile.signature">
+          <UIcon name="i-lucide-quote" class="size-4" aria-hidden="true" />
+          <span>{{ profile.profile.signature }}</span>
+        </li>
       </ul>
-      <p v-else class="sf-profile-side-empty">{{ t('profile.publicDetailsEmpty') }}</p>
     </section>
 
     <section class="sf-profile-side-section">

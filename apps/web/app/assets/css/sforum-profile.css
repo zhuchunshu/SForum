@@ -108,32 +108,109 @@
 
 .sf-profile-intro__actions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 8px;
 }
 
+/* 编辑资料：主色实心按钮（对齐 demo primary-button） */
 .sf-profile-edit-link {
   display: inline-flex;
   min-height: 38px;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border: 1px solid var(--sf-public-border-strong);
   border-radius: 6px;
   padding: 0 14px;
-  color: var(--sf-public-text-secondary);
   font-size: 13px;
   font-weight: 700;
   text-decoration: none;
+  white-space: nowrap;
 }
 
-.sf-profile-edit-link:hover {
+.sf-profile-share-button {
+  display: inline-grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid var(--sf-public-border-strong);
+  border-radius: 6px;
+  background: var(--sf-public-surface, transparent);
+  color: var(--sf-public-text-secondary);
+  cursor: pointer;
+}
+
+.sf-profile-share-button:hover {
   border-color: var(--sf-accent);
   color: var(--sf-accent);
 }
 
+/* 分区 tab：下划线样式，对齐 demo .tabs / .tab */
+.sf-profile-tabs {
+  display: flex;
+  min-height: 51px;
+  align-items: end;
+  gap: 4px;
+  margin-top: 4px;
+  border-bottom: 1px solid var(--sf-public-border-strong);
+}
+
+.sf-profile-tab {
+  display: inline-flex;
+  min-height: 49px;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 0 14px;
+  background: transparent;
+  color: var(--sf-public-text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sf-profile-tab:hover {
+  color: var(--sf-public-text);
+}
+
+.sf-profile-tab.is-active {
+  border-bottom-color: var(--sf-accent);
+  color: var(--sf-accent);
+}
+
+.sf-profile-tab__count {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.sf-profile-about {
+  padding: 22px 0 8px;
+}
+
+.sf-profile-about h2 {
+  margin: 0 0 12px;
+  color: var(--sf-public-text);
+  font-size: 17px;
+  font-weight: 720;
+}
+
+.sf-profile-about > p {
+  max-width: 720px;
+  margin: 0 0 18px;
+  color: var(--sf-public-text-secondary);
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.sf-profile-about__empty {
+  color: var(--sf-public-text-faint);
+}
+
 .sf-profile-summary {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   margin: 18px 0 4px;
   border-top: 1px solid var(--sf-public-border);
   border-left: 1px solid var(--sf-public-border);
@@ -286,6 +363,31 @@
   padding-top: 3px;
   text-align: right;
   white-space: nowrap;
+}
+
+.sf-profile-loading {
+  padding: 18px 0 8px;
+}
+
+.sf-profile-load-more {
+  display: flex;
+  justify-content: center;
+  padding: 18px 0 8px;
+}
+
+.sf-profile-load-more__button {
+  min-width: 160px;
+  color: var(--sf-public-text-secondary);
+}
+
+.sf-profile-load-more__spinner {
+  animation: sf-profile-spin 0.9s linear infinite;
+}
+
+@keyframes sf-profile-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .sf-profile-empty {
@@ -546,7 +648,21 @@
   }
 
   .sf-profile-edit-link {
-    width: 100%;
+    flex: 1 1 auto;
+    width: auto;
+  }
+
+  .sf-profile-tabs {
+    overflow-x: auto;
+  }
+
+  .sf-profile-tab {
+    flex: 0 0 auto;
+    padding: 0 12px;
+  }
+
+  .sf-profile-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .sf-profile-section-head {

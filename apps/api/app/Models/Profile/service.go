@@ -19,7 +19,14 @@ type Service struct {
 	profileTabs    ProfileTabProvider
 }
 
-const profileActivityLimit = 20
+const (
+	// 资料页内嵌 activities 摘要上限（向后兼容）。
+	profileActivityLimit = 20
+	// 分页默认/上限，与论坛浅分页习惯一致。
+	profileActivityPageDefaultPerPage = 20
+	profileActivityPageMaxPerPage     = 50
+	profileActivityPageMaxPage        = 200
+)
 
 // WithProfileTabs 注入公开资料页扩展 tabs（F4.3）。
 func (s *Service) WithProfileTabs(provider ProfileTabProvider) *Service {
@@ -96,6 +103,93 @@ func (s *Service) GetPublicProfile(ctx context.Context, username string) (Public
 	}, nil
 }
 
+// ListPublicActivities 按 kind 分页返回公开主题或回复活动。
+func (s *Service) ListPublicActivities(ctx context.Context, input ListActivitiesInput) (ActivityPage, error) {
+	normalized := strings.TrimSpace(input.Username)
+	if normalized == "" {
+		return ActivityPage{}, ErrProfileNotFound
+	}
+	kind := strings.TrimSpace(strings.ToLower(input.Kind))
+	if kind == "" {
+		kind = ActivityKindTopic
+	}
+	if kind != ActivityKindTopic && kind != ActivityKindComment {
+		return ActivityPage{}, ErrProfileInvalid
+	}
+	page, perPage := normalizeActivityPage(input.Page, input.PerPage)
+	user, err := s.store.GetUserSummaryByUsername(ctx, normalized)
+	if err != nil {
+		return ActivityPage{}, err
+	}
+	stats, err := s.store.GetProfileStats(ctx, user.UserID)
+	if err != nil {
+		return ActivityPage{}, err
+	}
+	offset := (page - 1) * perPage
+	var (
+		items []ProfileActivity
+		total int64
+	)
+	switch kind {
+	case ActivityKindTopic:
+		total = stats.TopicCount
+		topics, listErr := s.store.ListActivityTopics(ctx, user.UserID, perPage, offset)
+		if listErr != nil {
+			return ActivityPage{}, listErr
+		}
+		items = make([]ProfileActivity, 0, len(topics))
+		for _, topic := range topics {
+			items = append(items, ProfileActivity{
+				Kind:      ActivityKindTopic,
+				Topic:     activityTopicFromSummary(topic),
+				Excerpt:   topic.Excerpt,
+				CreatedAt: topic.CreatedAt,
+			})
+		}
+	case ActivityKindComment:
+		total = stats.CommentCount
+		comments, listErr := s.store.ListActivityComments(ctx, user.UserID, perPage, offset)
+		if listErr != nil {
+			return ActivityPage{}, listErr
+		}
+		items = make([]ProfileActivity, 0, len(comments))
+		for _, comment := range comments {
+			commentID := comment.CommentID
+			items = append(items, ProfileActivity{
+				Kind:      ActivityKindComment,
+				Topic:     comment.Topic,
+				CommentID: &commentID,
+				Excerpt:   comment.Excerpt,
+				CreatedAt: comment.CreatedAt,
+			})
+		}
+	}
+	return ActivityPage{
+		Items:   items,
+		Page:    page,
+		PerPage: perPage,
+		Total:   total,
+		HasMore: int64(page*perPage) < total,
+		Kind:    kind,
+	}, nil
+}
+
+func normalizeActivityPage(page, perPage int) (int, int) {
+	if page <= 0 {
+		page = 1
+	}
+	if page > profileActivityPageMaxPage {
+		page = profileActivityPageMaxPage
+	}
+	if perPage <= 0 {
+		perPage = profileActivityPageDefaultPerPage
+	}
+	if perPage > profileActivityPageMaxPerPage {
+		perPage = profileActivityPageMaxPerPage
+	}
+	return page, perPage
+}
+
 func (s *Service) listActivities(ctx context.Context, userID int64, limit int) ([]ProfileActivity, error) {
 	if limit <= 0 || limit > profileActivityLimit {
 		limit = profileActivityLimit
@@ -111,7 +205,7 @@ func (s *Service) listActivities(ctx context.Context, userID int64, limit int) (
 	items := make([]ProfileActivity, 0, len(topics)+len(comments))
 	for _, topic := range topics {
 		items = append(items, ProfileActivity{
-			Kind:      "topic",
+			Kind:      ActivityKindTopic,
 			Topic:     activityTopicFromSummary(topic),
 			Excerpt:   topic.Excerpt,
 			CreatedAt: topic.CreatedAt,
@@ -120,7 +214,7 @@ func (s *Service) listActivities(ctx context.Context, userID int64, limit int) (
 	for _, comment := range comments {
 		commentID := comment.CommentID
 		items = append(items, ProfileActivity{
-			Kind:      "comment",
+			Kind:      ActivityKindComment,
 			Topic:     comment.Topic,
 			CommentID: &commentID,
 			Excerpt:   comment.Excerpt,

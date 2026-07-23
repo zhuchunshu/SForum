@@ -339,8 +339,103 @@ func (s *fakeStore) ListRecentActivityTopics(context.Context, int64, int) ([]for
 	return s.activityTopics, nil
 }
 
+func (s *fakeStore) ListActivityTopics(_ context.Context, _ int64, limit, offset int) ([]forum.TopicSummary, error) {
+	return slicePage(s.activityTopics, limit, offset), nil
+}
+
 func (s *fakeStore) ListRecentComments(context.Context, int64, int) ([]ProfileCommentActivity, error) {
 	return s.comments, nil
+}
+
+func (s *fakeStore) ListActivityComments(_ context.Context, _ int64, limit, offset int) ([]ProfileCommentActivity, error) {
+	return slicePage(s.comments, limit, offset), nil
+}
+
+func slicePage[T any](items []T, limit, offset int) []T {
+	if offset < 0 {
+		offset = 0
+	}
+	if offset >= len(items) {
+		return []T{}
+	}
+	end := offset + limit
+	if limit <= 0 || end > len(items) {
+		end = len(items)
+	}
+	return items[offset:end]
+}
+
+func TestServiceListPublicActivitiesPaginatesByKind(t *testing.T) {
+	topics := make([]forum.TopicSummary, 0, 25)
+	for i := 1; i <= 25; i++ {
+		topics = append(topics, forum.TopicSummary{
+			ID:        int64(i),
+			Title:     "topic",
+			Slug:      "t",
+			CreatedAt: time.Date(2026, 7, 23, 0, 0, i, 0, time.UTC),
+		})
+	}
+	store := &fakeStore{
+		user:           UserProfileSummary{UserID: 7, Username: "alice", DisplayName: "Alice"},
+		profile:        Profile{UserID: 7},
+		stats:          ProfileStats{TopicCount: 25, CommentCount: 2},
+		activityTopics: topics,
+		comments: []ProfileCommentActivity{
+			{CommentID: 1, Topic: ProfileActivityTopic{ID: 1, Title: "t1"}, CreatedAt: time.Date(2026, 7, 23, 1, 0, 0, 0, time.UTC)},
+			{CommentID: 2, Topic: ProfileActivityTopic{ID: 2, Title: "t2"}, CreatedAt: time.Date(2026, 7, 23, 2, 0, 0, 0, time.UTC)},
+		},
+	}
+	service := NewService(store)
+
+	page1, err := service.ListPublicActivities(context.Background(), ListActivitiesInput{
+		Username: "alice",
+		Kind:     ActivityKindTopic,
+		Page:     1,
+		PerPage:  10,
+	})
+	if err != nil {
+		t.Fatalf("ListPublicActivities page1: %v", err)
+	}
+	if page1.Page != 1 || page1.PerPage != 10 || page1.Total != 25 || !page1.HasMore || len(page1.Items) != 10 {
+		t.Fatalf("unexpected page1: %#v", page1)
+	}
+	if page1.Items[0].Kind != ActivityKindTopic || page1.Items[0].Topic.ID != 1 {
+		t.Fatalf("unexpected first item: %#v", page1.Items[0])
+	}
+
+	page3, err := service.ListPublicActivities(context.Background(), ListActivitiesInput{
+		Username: "alice",
+		Kind:     ActivityKindTopic,
+		Page:     3,
+		PerPage:  10,
+	})
+	if err != nil {
+		t.Fatalf("ListPublicActivities page3: %v", err)
+	}
+	if page3.HasMore || len(page3.Items) != 5 || page3.Items[0].Topic.ID != 21 {
+		t.Fatalf("unexpected page3: %#v", page3)
+	}
+
+	comments, err := service.ListPublicActivities(context.Background(), ListActivitiesInput{
+		Username: "alice",
+		Kind:     ActivityKindComment,
+		Page:     1,
+		PerPage:  20,
+	})
+	if err != nil {
+		t.Fatalf("ListPublicActivities comments: %v", err)
+	}
+	if comments.Total != 2 || comments.HasMore || len(comments.Items) != 2 || comments.Items[0].Kind != ActivityKindComment {
+		t.Fatalf("unexpected comments page: %#v", comments)
+	}
+
+	_, err = service.ListPublicActivities(context.Background(), ListActivitiesInput{
+		Username: "alice",
+		Kind:     "likes",
+	})
+	if !errors.Is(err, ErrProfileInvalid) {
+		t.Fatalf("expected ErrProfileInvalid for bad kind, got %v", err)
+	}
 }
 
 type fakeAvatarUploader struct {

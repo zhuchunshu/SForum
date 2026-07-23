@@ -72,9 +72,10 @@
 
 .sf-comment__content {
   margin: 0.4rem 0 0;
-  color: var(--sf-fg-secondary);
-  font-size: 0.9rem;
-  line-height: 1.65;
+  /* 评论比主帖轻一档：字号/颜色走 --sf-comment-* */
+  color: var(--sf-comment-body, var(--sf-fg-secondary));
+  font-size: var(--sf-comment-size, 14.5px);
+  line-height: var(--sf-comment-leading, 1.68);
   overflow-wrap: anywhere;
 }
 
@@ -313,8 +314,9 @@
 
 .sf-comment__content {
   margin-top: 8px;
-  font-size: 13px;
-  line-height: 1.72;
+  color: var(--sf-comment-body, var(--sf-fg-secondary));
+  font-size: var(--sf-comment-size, 14.5px);
+  line-height: var(--sf-comment-leading, 1.68);
 }
 
 .sf-comment__reply-to {

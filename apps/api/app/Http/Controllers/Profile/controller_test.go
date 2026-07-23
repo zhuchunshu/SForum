@@ -310,6 +310,53 @@ func (s *profileFakeStore) ListRecentActivityTopics(context.Context, int64, int)
 	return s.activityTopics, nil
 }
 
+func (s *profileFakeStore) ListActivityTopics(_ context.Context, _ int64, limit, offset int) ([]forum.TopicSummary, error) {
+	if offset >= len(s.activityTopics) {
+		return []forum.TopicSummary{}, nil
+	}
+	end := offset + limit
+	if limit <= 0 || end > len(s.activityTopics) {
+		end = len(s.activityTopics)
+	}
+	return s.activityTopics[offset:end], nil
+}
+
 func (s *profileFakeStore) ListRecentComments(context.Context, int64, int) ([]profile.ProfileCommentActivity, error) {
 	return s.comments, nil
+}
+
+func (s *profileFakeStore) ListActivityComments(_ context.Context, _ int64, limit, offset int) ([]profile.ProfileCommentActivity, error) {
+	if offset >= len(s.comments) {
+		return []profile.ProfileCommentActivity{}, nil
+	}
+	end := offset + limit
+	if limit <= 0 || end > len(s.comments) {
+		end = len(s.comments)
+	}
+	return s.comments[offset:end], nil
+}
+
+func TestControllerPublicActivitiesPaginates(t *testing.T) {
+	app, _, store := newProfileTestApp()
+	store.stats = profile.ProfileStats{TopicCount: 3, CommentCount: 0}
+	store.activityTopics = []forum.TopicSummary{
+		{ID: 1, Title: "a", Slug: "a"},
+		{ID: 2, Title: "b", Slug: "b"},
+		{ID: 3, Title: "c", Slug: "c"},
+	}
+	resp := performProfileRequest(t, app, nethttp.MethodGet, "/api/v1/profiles/alice/activities?kind=topic&page=1&perPage=2", nil, nil)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	var body profileEnvelope[profile.ActivityPage]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body.Data.Page != 1 || body.Data.PerPage != 2 || body.Data.Total != 3 || !body.Data.HasMore || len(body.Data.Items) != 2 {
+		t.Fatalf("unexpected activity page: %#v", body.Data)
+	}
+	if body.Data.Kind != profile.ActivityKindTopic || body.Data.Items[0].Kind != profile.ActivityKindTopic {
+		t.Fatalf("unexpected kind: %#v", body.Data)
+	}
 }

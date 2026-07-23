@@ -352,7 +352,12 @@ describe('default theme V32 left-nav homepage contract', () => {
     const hybrid = defaultThemeHybridCss()
 
     expect(css).toContain('height: calc(100vh - var(--sf-public-topbar-height))')
-    expect(css).toContain('padding: 0 18px;')
+    // host chrome 与主题壳同 edge-inset，避免 moderation 等非主题页左右更窄
+    expect(css).toContain('padding-left: var(--sf-public-edge-inset, 24px);')
+    expect(css).toContain('padding-right: var(--sf-public-edge-inset, 24px);')
+    expect(css).toContain('padding: 24px 24px 20px 28px;')
+    expect(css).toContain('padding: 34px 28px;')
+    expect(css).toContain('height: 40px;')
     expect(css).toContain('.sforum-home__main {\n    height: 100%;\n    min-height: 0;\n    overflow-y: auto;')
     expect(css).toContain('.sforum-home__sidebar,\n  .sforum-home__right {\n    position: static;')
     expect(css).toContain('overflow: hidden;')

@@ -123,6 +123,8 @@ paths:
     "$ref": "./openapi/paths/identity.yaml#/authRegistrationStatus"
   "/profiles/{username}":
     "$ref": "./openapi/paths/profile.yaml#/profileByUsername"
+  "/profiles/{username}/activities":
+    "$ref": "./openapi/paths/profile.yaml#/profileActivitiesByUsername"
   "/profile":
     "$ref": "./openapi/paths/profile.yaml#/myProfile"
   "/profile/avatar":
@@ -697,6 +699,10 @@ components:
       "$ref": "./openapi/schemas/profile.yaml#/ApiResponseProfile"
     ApiResponsePublicProfile:
       "$ref": "./openapi/schemas/profile.yaml#/ApiResponsePublicProfile"
+    ActivityPage:
+      "$ref": "./openapi/schemas/profile.yaml#/ActivityPage"
+    ApiResponseActivityPage:
+      "$ref": "./openapi/schemas/profile.yaml#/ApiResponseActivityPage"
     ExtensionType:
       "$ref": "./openapi/schemas/extensions.yaml#/ExtensionType"
     ExtensionStatus:

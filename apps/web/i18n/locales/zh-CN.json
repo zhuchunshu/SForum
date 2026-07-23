@@ -4048,7 +4048,8 @@
       "description": "该用户名不存在或账号未激活。"
     },
     "topicCount": "主题",
-    "commentCount": "评论",
+    "commentCount": "回复",
+    "categoryCount": "参与类别",
     "publicDetails": "公开资料",
     "publicDetailsEmpty": "这位成员还没有补充公开资料。",
     "memberInfo": "成员信息",
@@ -4059,19 +4060,37 @@
     "joinedOn": "加入于 {date}",
     "location": "位置",
     "editProfile": "编辑资料",
+    "shareProfile": "分享主页",
+    "shareCopied": "个人主页链接已复制。",
+    "shareFailed": "复制链接失败，请稍后重试。",
     "bioEmpty": "这个人很懒，还没有写简介。",
+    "aboutTitle": "关于 {name}",
     "recentTopics": "最近主题",
     "replies": "回复",
+    "tabs": {
+      "ariaLabel": "个人主页分区",
+      "topics": "主题",
+      "replies": "回复",
+      "about": "关于"
+    },
     "timeline": {
       "title": "公开活动",
-      "description": "按日期整理这位成员发布的公开主题与回复。",
+      "description": "按日期整理这位成员发布的公开主题。",
+      "repliesTitle": "公开回复",
+      "repliesDescription": "按日期整理这位成员的公开回复。",
       "today": "今天",
       "yesterday": "昨天",
       "topicAction": "发布了主题",
       "commentAction": "回复了主题",
       "replyCount": "{count} 条回复",
-      "emptyTitle": "暂无公开活动",
-      "emptyDescription": "公开主题和公开回复会显示在这里。"
+      "emptyTitle": "暂无公开主题",
+      "emptyDescription": "公开主题会显示在这里。",
+      "emptyRepliesTitle": "暂无公开回复",
+      "emptyRepliesDescription": "公开回复会显示在这里。",
+      "loadMore": "加载更多",
+      "loadingMore": "加载中...",
+      "loadFailed": "活动列表加载失败，请稍后重试。",
+      "loadMoreFailed": "加载更多失败，请稍后重试。"
     }
   },
   "profileSettings": {

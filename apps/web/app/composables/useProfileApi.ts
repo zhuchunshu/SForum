@@ -49,6 +49,23 @@ export type ProfileActivity = {
   createdAt: string
 }
 
+export type ProfileActivityKind = 'topic' | 'comment'
+
+export type ProfileActivityPage = {
+  items: ProfileActivity[]
+  page: number
+  perPage: number
+  total: number
+  hasMore: boolean
+  kind: ProfileActivityKind
+}
+
+export type ListProfileActivitiesInput = {
+  kind?: ProfileActivityKind
+  page?: number
+  perPage?: number
+}
+
 export type PublicProfile = {
   userId: number
   username: string
@@ -77,6 +94,23 @@ export function useProfileApi() {
     return request<PublicProfile>(`/profiles/${encodeURIComponent(username)}`)
   }
 
+  function listPublicActivities(username: string, input: ListProfileActivitiesInput = {}) {
+    const query = new URLSearchParams()
+    if (input.kind) {
+      query.set('kind', input.kind)
+    }
+    if (input.page && input.page > 0) {
+      query.set('page', String(input.page))
+    }
+    if (input.perPage && input.perPage > 0) {
+      query.set('perPage', String(input.perPage))
+    }
+    const suffix = query.toString()
+    return request<ProfileActivityPage>(
+      `/profiles/${encodeURIComponent(username)}/activities${suffix ? `?${suffix}` : ''}`
+    )
+  }
+
   function getMyProfile() {
     return request<PublicProfile>('/profile')
   }
@@ -95,5 +129,12 @@ export function useProfileApi() {
     return request<ProfileData>('/profile/avatar', { method: 'DELETE' })
   }
 
-  return { getPublicProfile, getMyProfile, updateMyProfile, uploadAvatar, deleteAvatar }
+  return {
+    getPublicProfile,
+    listPublicActivities,
+    getMyProfile,
+    updateMyProfile,
+    uploadAvatar,
+    deleteAvatar
+  }
 }

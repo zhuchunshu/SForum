@@ -250,3 +250,46 @@ ApiResponsePublicProfile:
       type: string
     data:
       "$ref": "#/PublicProfile"
+ActivityPage:
+  type: object
+  required:
+  - items
+  - page
+  - perPage
+  - total
+  - hasMore
+  - kind
+  properties:
+    items:
+      type: array
+      items:
+        "$ref": "#/ProfileActivity"
+    page:
+      type: integer
+      minimum: 1
+    perPage:
+      type: integer
+      minimum: 1
+      maximum: 50
+    total:
+      type: integer
+      format: int64
+      description: Public total for the requested kind (topicCount or commentCount).
+    hasMore:
+      type: boolean
+    kind:
+      type: string
+      enum: [topic, comment]
+ApiResponseActivityPage:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/ActivityPage"
