@@ -7,6 +7,7 @@
 import {
   parseForumHomeQuery
 } from '~/utils/forumHome'
+import { forumCategoryPath } from '~/utils/forumTaxonomy'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -18,6 +19,11 @@ const hasActiveFilters = computed(() => Boolean(
   || committedFilters.value.categorySlug
   || committedFilters.value.tagSlug
 ))
+
+// 统一到干净 URL：/?category=xxx -> /c/xxx
+if (route.query.category && !route.path.startsWith('/c/')) {
+  navigateTo(forumCategoryPath(route.query.category as string))
+}
 
 useSForumSeo(computed(() => ({
   type: 'home',

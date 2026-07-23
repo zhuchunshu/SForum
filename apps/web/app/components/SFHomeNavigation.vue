@@ -11,6 +11,8 @@ const props = withDefaults(defineProps<{
   mobileOnly?: boolean
   /** 仅渲染桌面左栏 */
   desktopOnly?: boolean
+  /** 导航模式下是否显示分类列表（默认为 true） */
+  showCategories?: boolean
   /**
    * filter：首页 URL query 筛选（emit select-category）
    * route：跳转 / 与 /c/:slug（类别页/标签页）
@@ -24,6 +26,7 @@ const props = withDefaults(defineProps<{
   canCreateTopic: false,
   mobileOnly: false,
   desktopOnly: false,
+  showCategories: true,
   navigationMode: 'filter'
 })
 
@@ -71,6 +74,11 @@ function categoryTo(slug: string) {
 function selectCategory(slug: string) {
   if (useRouteLinks.value) {
     void router.push(slug ? categoryTo(slug) : allTopicsTo())
+    return
+  }
+  // filter 模式下，点击分类直接跳转到干净的 /c/slug（与首页 ?category= 的统一逻辑一致）
+  if (slug) {
+    void navigateTo(forumCategoryPath(slug))
     return
   }
   emit('select-category', slug)
@@ -186,53 +194,55 @@ function categoryIconName(category: ForumCategory) {
         </span>
       </NuxtLink>
 
-      <div class="sf-home-navigation__label">{{ t('home.categories') }}</div>
-      <div v-if="pending" class="sf-home-navigation__pending">
+      <div v-if="props.showCategories" class="sf-home-navigation__label">{{ t('home.categories') }}</div>
+      <div v-if="props.showCategories" class="sf-home-navigation__pending">
         <SFSkeleton v-for="item in 4" :key="item" :lines="1" />
       </div>
-      <template v-else-if="useRouteLinks">
-        <NuxtLink
-          v-for="category in categories"
-          :key="category.slug"
-          :to="categoryTo(category.slug)"
-          class="sf-home-navigation__link"
-          :class="{ 'is-active': selectedCategorySlug === category.slug }"
-        >
-          <span class="sf-home-navigation__link-main">
-            <span
-              class="sf-home-navigation__cat-icon"
-              :style="{ color: categoryIconColor(category) }"
-              aria-hidden="true"
-            >
-              <UIcon :name="categoryIconName(category)" class="size-[18px]" />
+      <template v-if="props.showCategories">
+        <template v-if="useRouteLinks">
+          <NuxtLink
+            v-for="category in categories"
+            :key="category.slug"
+            :to="categoryTo(category.slug)"
+            class="sf-home-navigation__link"
+            :class="{ 'is-active': selectedCategorySlug === category.slug }"
+          >
+            <span class="sf-home-navigation__link-main">
+              <span
+                class="sf-home-navigation__cat-icon"
+                :style="{ color: categoryIconColor(category) }"
+                aria-hidden="true"
+              >
+                <UIcon :name="categoryIconName(category)" class="size-[18px]" />
+              </span>
+              {{ category.name }}
             </span>
-            {{ category.name }}
-          </span>
-          <span v-if="navShowCounts" class="sf-home-navigation__count">{{ category.topicCount }}</span>
-        </NuxtLink>
-      </template>
-      <template v-else>
-        <button
-          v-for="category in categories"
-          :key="category.slug"
-          type="button"
-          class="sf-home-navigation__link"
-          :class="{ 'is-active': selectedCategorySlug === category.slug }"
-          :aria-pressed="selectedCategorySlug === category.slug"
-          @click="selectCategory(category.slug)"
-        >
-          <span class="sf-home-navigation__link-main">
-            <span
-              class="sf-home-navigation__cat-icon"
-              :style="{ color: categoryIconColor(category) }"
-              aria-hidden="true"
-            >
-              <UIcon :name="categoryIconName(category)" class="size-[18px]" />
+            <span v-if="navShowCounts" class="sf-home-navigation__count">{{ category.topicCount }}</span>
+          </NuxtLink>
+        </template>
+        <template v-else>
+          <button
+            v-for="category in categories"
+            :key="category.slug"
+            type="button"
+            class="sf-home-navigation__link"
+            :class="{ 'is-active': selectedCategorySlug === category.slug }"
+            :aria-pressed="selectedCategorySlug === category.slug"
+            @click="selectCategory(category.slug)"
+          >
+            <span class="sf-home-navigation__link-main">
+              <span
+                class="sf-home-navigation__cat-icon"
+                :style="{ color: categoryIconColor(category) }"
+                aria-hidden="true"
+              >
+                <UIcon :name="categoryIconName(category)" class="size-[18px]" />
+              </span>
+              {{ category.name }}
             </span>
-            {{ category.name }}
-          </span>
-          <span v-if="navShowCounts" class="sf-home-navigation__count">{{ category.topicCount }}</span>
-        </button>
+            <span v-if="navShowCounts" class="sf-home-navigation__count">{{ category.topicCount }}</span>
+          </button>
+        </template>
       </template>
 
       <div class="sf-home-navigation__foot">

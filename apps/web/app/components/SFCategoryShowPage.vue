@@ -159,10 +159,7 @@ function topicActivity(topic: ForumTopicSummary) {
           </div>
         </header>
 
-        <div
-          class="mt-3 overflow-hidden rounded-[var(--sf-public-radius,6px)] border border-[var(--sf-public-border)] bg-[var(--sf-public-surface)] shadow-[var(--sf-public-shadow)]"
-          data-sf-region="topic-list"
-        >
+        <div id="feed-list-container" class="sforum-home__feed-list" data-sf-region="topic-list">
           <template v-if="topicsPending">
             <div
               v-for="item in 6"
