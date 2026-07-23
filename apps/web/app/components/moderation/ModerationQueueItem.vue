@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ModerationPendingItem, ModerationReportItem, ModerationSource } from '~/composables/useModerationApi'
 
-defineProps<{ item: ModerationPendingItem | ModerationReportItem; source: ModerationSource }>()
+defineProps<{ item: ModerationPendingItem | ModerationReportItem; source: ModerationSource; active?: boolean }>()
 defineEmits<{ open: [] }>()
 const { t } = useI18n()
 const { format: formatDate } = useSiteDateTime()
@@ -9,8 +9,17 @@ const isReport = (item: ModerationPendingItem | ModerationReportItem): item is M
 </script>
 
 <template>
-  <article class="border-l-4 border-amber-400 bg-white px-4 py-4 shadow-sm dark:bg-zinc-900 sm:px-5">
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+  <button
+    type="button"
+    class="sforum-moderation-row"
+    :class="{ 'is-active': active, 'is-report': isReport(item) }"
+    :aria-current="active ? 'true' : undefined"
+    @click="$emit('open')"
+  >
+    <span class="sforum-moderation-row__icon" aria-hidden="true">
+      <UIcon :name="isReport(item) ? 'i-lucide-flag' : item.targetType === 'topic' ? 'i-lucide-file-text' : 'i-lucide-message-square'" class="size-4" />
+    </span>
+    <span class="sforum-moderation-row__body">
       <div class="min-w-0">
         <div class="flex flex-wrap items-center gap-2">
           <SFBadge variant="neutral">{{ t(`admin.moderation.type.${item.targetType}`) }}</SFBadge>
@@ -25,9 +34,10 @@ const isReport = (item: ModerationPendingItem | ModerationReportItem): item is M
           <span v-if="item.ipAddress" class="ml-1 font-mono text-slate-600 dark:text-zinc-300" :title="t('moderation.workbench.createIp')">· {{ item.ipAddress }}</span>
         </p>
       </div>
-      <UButton class="shrink-0 self-start" color="neutral" variant="subtle" icon="i-lucide-panel-right-open" @click="$emit('open')">
-        {{ t('moderation.workbench.openReview') }}
-      </UButton>
-    </div>
-  </article>
+    </span>
+    <span class="sforum-moderation-row__open">
+      <span>{{ t('moderation.workbench.openReview') }}</span>
+      <UIcon name="i-lucide-panel-right-open" class="size-4" aria-hidden="true" />
+    </span>
+  </button>
 </template>

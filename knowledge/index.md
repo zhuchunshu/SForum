@@ -73,9 +73,8 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- Profile settings canvas page ready for user review on
-  `codex/profile-settings-canvas`:
-  `sessions/2026-07-23-profile-settings-canvas-handoff.md`
+- Moderation workbench queue-to-reading UI implementation:
+  `sessions/2026-07-23-moderation-workbench-ui-handoff.md`
 
 ## Recently Completed
 
