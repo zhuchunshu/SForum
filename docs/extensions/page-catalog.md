@@ -39,9 +39,21 @@ There is no Layer activation option or frontend release runtime.
 | `site.terms` | `/terms` | public |
 | `site.privacy` | `/privacy` | public |
 | `site.guidelines` | `/guidelines` | public |
+| `system.forbidden` | virtual | public |
+| `system.not_found` | virtual | public |
+| `system.rate_limited` | virtual | public |
+| `system.server_error` | virtual | public |
 
-Admin pages, moderation workbenches, notifications, component previews, and the
-system error page are host-owned and outside public Page Registry replacement.
+Virtual system error pages have no routable public path. The Host selects them
+only after it has already normalized a browser error status: 403, 404, 429, or
+500/502/503/504. They keep the original HTTP status, `Cache-Control: no-store`,
+and `noindex,nofollow`; API JSON error envelopes and 401 login redirects are
+unchanged.
+
+Admin pages, moderation workbenches, notifications, and component previews are
+host-owned and outside public Page Registry replacement. System error pages are
+theme-replaceable presentation surfaces only: plugins cannot replace them, and
+their templates cannot declare public L2 widgets.
 
 ## Reserved paths
 
@@ -55,6 +67,8 @@ optional locale prefix.
 - Plugin enable registers its approved page package; disable/uninstall clears it.
 - Theme activation atomically replaces old and new theme contributions.
 - Plugin replacement of a core page requires explicit `super_admin` approval.
+- Plugin replacement of `system.*` error pages is rejected; the selected theme
+  owns only L0/L1 presentation for those virtual surfaces.
 - Access policy is fail-closed (`public`, `login`, `guest`, `moderation`, or
   permission key).
 - SSR data comes through the host Loader Gateway; extension templates receive

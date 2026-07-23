@@ -30,6 +30,28 @@ Themes cannot replace core API, authentication authority, admin routes, or
 security endpoints. The host owns route matching, access checks, loader data,
 sanitization, and template islands.
 
+## System error pages
+
+Themes may provide L1 templates for these Host-selected virtual surfaces:
+
+| Page id | Contract | Status family |
+| --- | --- | --- |
+| `system.forbidden` | `sforum.page.forbidden@1` | 403 |
+| `system.not_found` | `sforum.page.not_found@1` | 404 |
+| `system.rate_limited` | `sforum.page.rate_limited@1` | 429 |
+| `system.server_error` | `sforum.page.server_error@1` | 500, 502, 503, 504 |
+
+These pages do not have public paths. The Host selects the page id after the
+error status is known, preserves the original status, applies no-store and
+noindex/nofollow policy, and supplies localized public copy plus home/back/retry
+actions through reviewed islands.
+
+Allowed system-error islands are `sf-navbar`, `sf-footer`,
+`sf-error-details`, `sf-error-actions`, `sf-error-recovery`,
+`sf-error-sidebar`, and `sf-error-rail`. Public L2 widgets such as
+`sf-extension-widget` are rejected for system error templates. Plugins cannot
+replace `system.*` pages.
+
 ## Activation
 
 `POST /api/v1/admin/extensions/{id}/activate` verifies the installed package,

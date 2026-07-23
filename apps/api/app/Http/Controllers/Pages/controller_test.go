@@ -20,11 +20,11 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/session"
 
-apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
+	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
-	pageviewmodels "github.com/zhuchunshu/sforum/apps/api/app/Models/PageViewModels"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
+	pageviewmodels "github.com/zhuchunshu/sforum/apps/api/app/Models/PageViewModels"
 	apilts "github.com/zhuchunshu/sforum/apps/api/app/Support/APILTS"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
@@ -307,9 +307,16 @@ func TestResolveCoreBindsOnlyMatchingRequestPath(t *testing.T) {
 		t.Fatalf("mismatched path status %d", rejected.StatusCode)
 	}
 
-	notFound := performPages(t, app, nethttp.MethodGet, "/api/v1/pages/resolve?id=system.not_found&path=/missing/discussion", nil, nil)
-	if notFound.StatusCode != nethttp.StatusOK {
-		t.Fatalf("not-found path status %d", notFound.StatusCode)
+	for _, pageID := range []string{
+		"system.forbidden",
+		"system.not_found",
+		"system.rate_limited",
+		"system.server_error",
+	} {
+		response := performPages(t, app, nethttp.MethodGet, "/api/v1/pages/resolve?id="+pageID+"&path=/current/error/path", nil, nil)
+		if response.StatusCode != nethttp.StatusOK {
+			t.Fatalf("%s virtual path status %d", pageID, response.StatusCode)
+		}
 	}
 }
 
@@ -426,6 +433,83 @@ func TestResolveCompiledThemeAvoidsPackageStoreAndFailsClosedOnStaleArtifact(t *
 	}
 }
 
+func TestResolveSystemErrorsUsesSelectedThemeRuntime(t *testing.T) {
+	root := t.TempDir()
+	artifact := pages.RuntimeArtifact{
+		ExtensionID: "system-errors.theme", ExtensionVersion: "1.0.0", PackageDigest: strings.Repeat("4", 64),
+	}
+	targets := []struct {
+		pageID   string
+		contract string
+		template string
+	}{
+		{"system.forbidden", "sforum.page.forbidden@1", "templates/forbidden.html"},
+		{"system.not_found", "sforum.page.not_found@1", "templates/not-found.html"},
+		{"system.rate_limited", "sforum.page.rate_limited@1", "templates/rate-limited.html"},
+		{"system.server_error", "sforum.page.server_error@1", "templates/server-error.html"},
+	}
+	contributions := make([]pages.PageContribution, 0, len(targets))
+	for _, target := range targets {
+		writeControllerFixtureFile(t, root, target.template, `<main data-theme-owned="presentation"><sf-error-details></sf-error-details><sf-error-actions></sf-error-actions></main>`)
+		contributions = append(contributions, pages.PageContribution{
+			ID:     artifact.ExtensionID + "." + strings.TrimPrefix(target.pageID, "system."),
+			Action: pages.ActionReplace, Target: target.pageID, Template: target.template,
+			Contract: target.contract, ExtensionID: artifact.ExtensionID,
+			Version: artifact.ExtensionVersion, PackageDigest: artifact.PackageDigest,
+		})
+	}
+	snapshot, err := pages.BuildThemeRuntimeSnapshot(pages.ThemeRuntimeBuildInput{
+		Artifact: artifact, PackageRoot: root, Contributions: contributions,
+		SiteName: "SForum", Locales: []string{"zh-CN", "en-US"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtimeRegistry := pages.NewThemeRuntimeRegistry()
+	runtimeRegistry.Publish(snapshot)
+	registry := pages.NewRegistry(pages.NewMemoryStore())
+	if err := registry.ActivateThemeContributions(context.Background(), artifact.ExtensionID, contributions, "", 1); err != nil {
+		t.Fatal(err)
+	}
+	controller := NewControllerWithThemes(
+		registry,
+		pagesActors{actors: map[int64]identity.Actor{}},
+		authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"}),
+		&pagesThemeStore{},
+	).WithThemeRuntime(runtimeRegistry)
+	app := apphttp.NewApp(config.Config{
+		AppName: "SForum", AppEnv: "test", CSRFEnabled: false, AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"},
+	}, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{
+		pagesRouteProvider(func(api fiber.Router) { controller.RegisterRoutes(api) }),
+	}})
+	for _, target := range targets {
+		response := performPages(t, app, nethttp.MethodGet, "/api/v1/pages/resolve?id="+target.pageID+"&path=/private/current-error", nil, nil)
+		if response.StatusCode != nethttp.StatusOK {
+			t.Fatalf("%s status=%d", target.pageID, response.StatusCode)
+		}
+		var envelope pagesEnvelope[resolveResponse]
+		if err := json.NewDecoder(response.Body).Decode(&envelope); err != nil {
+			t.Fatal(err)
+		}
+		if envelope.Data.Provider != artifact.ExtensionID || envelope.Data.Fallback || envelope.Data.RenderOutput == nil ||
+			envelope.Data.RenderOutput.Source != pages.ThemeRenderSourceActiveTheme ||
+			envelope.Data.Page.ID != target.pageID || envelope.Data.Contract != target.contract {
+			t.Fatalf("%s response=%#v", target.pageID, envelope.Data)
+		}
+		var hasDetails, hasActions bool
+		for _, island := range envelope.Data.RenderOutput.Islands {
+			hasDetails = hasDetails || island.ComponentID == "system.component.error_details"
+			hasActions = hasActions || island.ComponentID == "system.component.error_actions"
+			if island.ComponentID == "core.component.shared.sfextension_widget" {
+				t.Fatalf("%s rendered public L2 island: %#v", target.pageID, envelope.Data.RenderOutput.Islands)
+			}
+		}
+		if !hasDetails || !hasActions {
+			t.Fatalf("%s islands=%#v", target.pageID, envelope.Data.RenderOutput.Islands)
+		}
+	}
+}
+
 type topicReplyViewOptions struct{}
 
 func (topicReplyViewOptions) WebOption(_ context.Context, name string) (string, error) {
@@ -439,7 +523,9 @@ func (topicReplyViewOptions) WebOption(_ context.Context, name string) (string, 
 	}
 }
 
-func (topicReplyViewOptions) IsFeatureEnabled(context.Context, string) (bool, error) { return true, nil }
+func (topicReplyViewOptions) IsFeatureEnabled(context.Context, string) (bool, error) {
+	return true, nil
+}
 
 func (topicReplyViewOptions) ForumReadPolicySnapshot() (string, string, uint64, bool) {
 	return "public", "author_and_staff", 1, true

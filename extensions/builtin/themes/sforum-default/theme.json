@@ -134,11 +134,32 @@
       "contract": "sforum.page.guidelines@1"
     },
     {
+      "id": "sforum.default-theme.forbidden",
+      "action": "replace",
+      "target": "system.forbidden",
+      "template": "templates/forbidden.html",
+      "contract": "sforum.page.forbidden@1"
+    },
+    {
       "id": "sforum.default-theme.not_found",
       "action": "replace",
       "target": "system.not_found",
       "template": "templates/not-found.html",
       "contract": "sforum.page.not_found@1"
+    },
+    {
+      "id": "sforum.default-theme.rate_limited",
+      "action": "replace",
+      "target": "system.rate_limited",
+      "template": "templates/rate-limited.html",
+      "contract": "sforum.page.rate_limited@1"
+    },
+    {
+      "id": "sforum.default-theme.server_error",
+      "action": "replace",
+      "target": "system.server_error",
+      "template": "templates/server-error.html",
+      "contract": "sforum.page.server_error@1"
     }
   ],
   "skin": {

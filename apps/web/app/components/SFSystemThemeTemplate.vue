@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { NuxtError } from '#app'
 import type { Component } from 'vue'
 import type { ThemeRenderOutput } from '~/composables/useThemeRenderOutput'
 import {
@@ -6,10 +7,15 @@ import {
   parseThemeRenderOutput,
   renderThemeRenderNodes
 } from '~/composables/useThemeRenderOutput'
-import SFAlert from './SFAlert.vue'
 import SFFooter from './SFFooter.vue'
 import SFNavbar from './SFNavbar.vue'
 import SFNotFoundPageContent from './SFNotFoundPageContent.vue'
+import SFSystemErrorActions from './SFSystemErrorActions.vue'
+import SFSystemErrorDetails from './SFSystemErrorDetails.vue'
+import SFSystemErrorEmergencyPage from './SFSystemErrorEmergencyPage.vue'
+import SFSystemErrorRail from './SFSystemErrorRail.vue'
+import SFSystemErrorRecovery from './SFSystemErrorRecovery.vue'
+import SFSystemErrorSidebar from './SFSystemErrorSidebar.vue'
 
 const props = defineProps<{
   html?: string
@@ -17,14 +23,27 @@ const props = defineProps<{
   extensionId?: string
 }>()
 
+const context = useSystemErrorPageContext()
+const fallbackError = computed(() => context?.error.value || ({ statusCode: 500 } as NuxtError))
+
 // 错误模板是 L0/L1 封闭面：不加载公开 L2，也不走一般页面的异步 CSP 聚合路径。
 const allowedComponents = new Set([
   'system.component.not_found',
+  'system.component.error_details',
+  'system.component.error_actions',
+  'system.component.error_recovery',
+  'system.component.error_sidebar',
+  'system.component.error_rail',
   'navigation.component.navbar',
   'navigation.component.footer'
 ])
 const legacyBindings = {
   'sf-not-found-page': { componentId: 'system.component.not_found' },
+  'sf-error-details': { componentId: 'system.component.error_details' },
+  'sf-error-actions': { componentId: 'system.component.error_actions' },
+  'sf-error-recovery': { componentId: 'system.component.error_recovery' },
+  'sf-error-sidebar': { componentId: 'system.component.error_sidebar' },
+  'sf-error-rail': { componentId: 'system.component.error_rail' },
   'sf-navbar': { componentId: 'navigation.component.navbar' },
   'sf-footer': { componentId: 'navigation.component.footer' }
 } as const
@@ -42,6 +61,11 @@ const rendered = computed(() => {
 })
 const islandComponents: Record<string, Component> = {
   'system.component.not_found': SFNotFoundPageContent,
+  'system.component.error_details': SFSystemErrorDetails,
+  'system.component.error_actions': SFSystemErrorActions,
+  'system.component.error_recovery': SFSystemErrorRecovery,
+  'system.component.error_sidebar': SFSystemErrorSidebar,
+  'system.component.error_rail': SFSystemErrorRail,
   'navigation.component.navbar': SFNavbar,
   'navigation.component.footer': SFFooter
 }
@@ -56,6 +80,6 @@ const ThemeNodes = () => renderThemeRenderNodes(
     <template v-if="!rendered.error">
       <ThemeNodes />
     </template>
-    <SFAlert v-else variant="danger" class="mb-4" />
+    <SFSystemErrorEmergencyPage v-else :error="fallbackError" />
   </div>
 </template>

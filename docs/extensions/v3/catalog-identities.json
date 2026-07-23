@@ -2103,6 +2103,16 @@
       "source": "apps/web/app/components/SFProfileSettingsPage.vue"
     },
     {
+      "id": "core.component.shared.sfprofile_settings_preview",
+      "contractVersion": "sforum.component.shared.sfprofile_settings_preview@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/SFProfileSettingsPreview.vue"
+    },
+    {
       "id": "core.component.shared.sfprofile_show_page",
       "contractVersion": "sforum.component.shared.sfprofile_show_page@1",
       "kind": "component",
@@ -2193,6 +2203,76 @@
       ],
       "state": "active",
       "source": "apps/web/app/components/SFSkeleton.vue"
+    },
+    {
+      "id": "core.component.shared.sfsystem_error_actions",
+      "contractVersion": "sforum.component.shared.sfsystem_error_actions@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/SFSystemErrorActions.vue"
+    },
+    {
+      "id": "core.component.shared.sfsystem_error_details",
+      "contractVersion": "sforum.component.shared.sfsystem_error_details@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/SFSystemErrorDetails.vue"
+    },
+    {
+      "id": "core.component.shared.sfsystem_error_emergency_page",
+      "contractVersion": "sforum.component.shared.sfsystem_error_emergency_page@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/SFSystemErrorEmergencyPage.vue"
+    },
+    {
+      "id": "core.component.shared.sfsystem_error_page",
+      "contractVersion": "sforum.component.shared.sfsystem_error_page@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/SFSystemErrorPage.vue"
+    },
+    {
+      "id": "core.component.shared.sfsystem_error_rail",
+      "contractVersion": "sforum.component.shared.sfsystem_error_rail@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/SFSystemErrorRail.vue"
+    },
+    {
+      "id": "core.component.shared.sfsystem_error_recovery",
+      "contractVersion": "sforum.component.shared.sfsystem_error_recovery@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/SFSystemErrorRecovery.vue"
+    },
+    {
+      "id": "core.component.shared.sfsystem_error_sidebar",
+      "contractVersion": "sforum.component.shared.sfsystem_error_sidebar@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/SFSystemErrorSidebar.vue"
     },
     {
       "id": "core.component.shared.sfsystem_theme_node",
@@ -2519,6 +2599,16 @@
       "source": "apps/web/app/components/moderation/ModerationDecisionTable.vue"
     },
     {
+      "id": "core.component.shared.moderation_decision_rail",
+      "contractVersion": "sforum.component.shared.moderation_decision_rail@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/moderation/ModerationDecisionRail.vue"
+    },
+    {
       "id": "core.component.shared.moderation_queue_item",
       "contractVersion": "sforum.component.shared.moderation_queue_item@1",
       "kind": "component",
@@ -2527,6 +2617,16 @@
       ],
       "state": "active",
       "source": "apps/web/app/components/moderation/ModerationQueueItem.vue"
+    },
+    {
+      "id": "core.component.shared.moderation_review_reader",
+      "contractVersion": "sforum.component.shared.moderation_review_reader@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/moderation/ModerationReviewReader.vue"
     },
     {
       "id": "core.component.shared.moderation_settings_form",

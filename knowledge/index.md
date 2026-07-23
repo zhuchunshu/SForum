@@ -6,16 +6,6 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
-### Theme-defined system error pages
-
-- Status: **ready after M0 audit**; M1+ directly reuses the completed 404 server
-  pre-preparation, request-local presentation, exact-artifact validation,
-  document policy, system AST renderer, and Core emergency fallback while
-  continuing with 403/429/5xx.
-- Plan: `plans/2026-07-22-theme-defined-system-error-pages.md`
-- Audit handoff: `sessions/2026-07-22-theme-defined-system-error-pages-m0-audit-handoff.md`
-- Modules: `modules/frontend.md`, `modules/extensions.md`
-
 ### V3 production rewire honesty remediation
 
 - Status: **ready**; eight production-call-chain findings remain. Support-only
@@ -65,16 +55,17 @@ load archived sessions or completed plans as current context.
 - **Search:** protected PostgreSQL site search is the default; Meilisearch is an
   optional external plugin.
 - **Extensions:** Manifest V3, exact-artifact trust, lifecycle, Host API v2,
-  registries, Page Registry themes, and buildless settings UI are present;
-  extension-owned permission localization is present; production-rewire
-  honesty findings remain open.
+  registries, Page Registry themes, theme-defined virtual system error pages,
+  and buildless settings UI are present; extension-owned permission
+  localization is present; production-rewire honesty findings remain open.
 - **Dev:** Compose owns PostgreSQL, Redis, and Mailpit. The user owns the web
   dev server on port 3000; do not kill it.
 
 ## Latest Handoff
 
-- Moderation workbench queue-to-reading UI implementation:
-  `sessions/2026-07-23-moderation-workbench-ui-handoff.md`
+- Theme-defined system error pages completion and focused browser/automated
+  verification:
+  `sessions/2026-07-23-theme-defined-system-error-pages-completion-handoff.md`
 
 ## Recently Completed
 
@@ -88,6 +79,11 @@ load archived sessions or completed plans as current context.
 - Default-theme notifications and topic composer now use the shared responsive
   three-column shell with real API flows, mobile drawers, persistent errors,
   appearance-aware feedback, and focused Browser QA.
+- Theme-defined system error pages: completed 2026-07-23. The selected public
+  theme can own L0/L1 presentation for 403, 404, 429, and 500/502/503/504
+  virtual surfaces while Host preserves status, safe copy/actions, no-store,
+  noindex/nofollow, and Core emergency fallback. See
+  `plans/2026-07-22-theme-defined-system-error-pages.md`.
 - Theme-consistent public resource 404: M0-M6 completed 2026-07-23. Ordinary
   semantic 404s retain the healthy selected theme and real private HTTP 404;
   Core is emergency-only. See

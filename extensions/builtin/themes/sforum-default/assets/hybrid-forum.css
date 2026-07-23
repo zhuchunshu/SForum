@@ -1589,7 +1589,7 @@
     grid-template-columns: var(--sf-public-sidebar-width) minmax(0, 1fr) var(--sf-public-right-rail-width);
   }
 
-  .sf-theme--default .sforum-not-found-page__main {
+  .sf-theme--default:not(.sf-page--system-error) .sforum-not-found-page__main {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1609,7 +1609,7 @@
     padding: 24px 16px 72px;
   }
 
-  .sf-theme--default .sforum-not-found-page__main {
+  .sf-theme--default:not(.sf-page--system-error) .sforum-not-found-page__main {
     display: flex;
     justify-content: center;
   }

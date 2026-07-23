@@ -70,7 +70,10 @@ func newCorePageViewModelRegistry() (*PageViewModelRegistry, error) {
 		coreViewModel("site.terms", "sforum.page.terms@1", ViewModelLegal, TermsPageViewModel{}),
 		coreViewModel("site.privacy", "sforum.page.privacy@1", ViewModelLegal, PrivacyPageViewModel{}),
 		coreViewModel("site.guidelines", "sforum.page.guidelines@1", ViewModelLegal, GuidelinesPageViewModel{}),
+		coreViewModel("system.forbidden", "sforum.page.forbidden@1", ViewModelError, ErrorPageViewModel{}),
 		coreViewModel("system.not_found", "sforum.page.not_found@1", ViewModelError, ErrorPageViewModel{}),
+		coreViewModel("system.rate_limited", "sforum.page.rate_limited@1", ViewModelError, ErrorPageViewModel{}),
+		coreViewModel("system.server_error", "sforum.page.server_error@1", ViewModelError, ErrorPageViewModel{}),
 		coreViewModel("dev.components", "sforum.page.dev_components@1", ViewModelDevelopment, DevelopmentComponentsPageViewModel{}),
 	}
 	registry := &PageViewModelRegistry{schemas: make(map[string]registeredPageViewModel, len(definitions))}

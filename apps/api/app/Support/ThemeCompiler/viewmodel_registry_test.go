@@ -24,14 +24,16 @@ func TestCorePageViewModelCatalogCoversPublicPageFamilies(t *testing.T) {
 		"forum.category.index": ViewModelList, "forum.category.show": ViewModelList,
 		"forum.tag.index": ViewModelList, "forum.tag.show": ViewModelList,
 		"forum.topic.show": ViewModelDetail, "forum.topic.create": ViewModelCreate,
-		"forum.topic.reply": ViewModelCreate,
+		"forum.topic.reply":      ViewModelCreate,
 		"forum.profile.show":     ViewModelProfile,
 		"forum.settings.profile": ViewModelSettings, "forum.settings.security": ViewModelSettings,
 		"forum.notifications": ViewModelNotifications, "moderation.review": ViewModelModeration,
 		"auth.login": ViewModelAuth, "auth.register": ViewModelAuth,
 		"auth.forgot_password": ViewModelAuth, "auth.reset_password": ViewModelAuth,
 		"site.terms": ViewModelLegal, "site.privacy": ViewModelLegal, "site.guidelines": ViewModelLegal,
-		"system.not_found": ViewModelError, "dev.components": ViewModelDevelopment,
+		"system.forbidden": ViewModelError, "system.not_found": ViewModelError,
+		"system.rate_limited": ViewModelError, "system.server_error": ViewModelError,
+		"dev.components": ViewModelDevelopment,
 	}
 	for _, schema := range CorePageViewModelRegistry().Catalog() {
 		kind, ok := want[schema.PageID]

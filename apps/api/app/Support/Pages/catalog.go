@@ -51,6 +51,7 @@ type PageDefinition struct {
 	ContractVersion  string   `json:"contractVersion"`
 	CoreComponent    string   `json:"coreComponent"`
 	Replaceable      bool     `json:"replaceable"`
+	Virtual          bool     `json:"virtual"`
 	RequiresFeatures []string `json:"requiresFeatures,omitempty"`
 	Notes            string   `json:"notes,omitempty"`
 }
@@ -98,7 +99,10 @@ var coreCatalog = []PageDefinition{
 	{ID: "site.terms", PathPattern: "/terms", Access: AccessPublic, ContractVersion: "sforum.page.terms@1", CoreComponent: "pages/terms", Replaceable: true},
 	{ID: "site.privacy", PathPattern: "/privacy", Access: AccessPublic, ContractVersion: "sforum.page.privacy@1", CoreComponent: "pages/privacy", Replaceable: true},
 	{ID: "site.guidelines", PathPattern: "/guidelines", Access: AccessPublic, ContractVersion: "sforum.page.guidelines@1", CoreComponent: "pages/guidelines", Replaceable: true},
-	{ID: "system.not_found", PathPattern: "", Access: AccessPublic, ContractVersion: "sforum.page.not_found@1", CoreComponent: "error", Replaceable: true},
+	{ID: "system.forbidden", PathPattern: "", Access: AccessPublic, ContractVersion: "sforum.page.forbidden@1", CoreComponent: "error", Replaceable: true, Virtual: true},
+	{ID: "system.not_found", PathPattern: "", Access: AccessPublic, ContractVersion: "sforum.page.not_found@1", CoreComponent: "error", Replaceable: true, Virtual: true},
+	{ID: "system.rate_limited", PathPattern: "", Access: AccessPublic, ContractVersion: "sforum.page.rate_limited@1", CoreComponent: "error", Replaceable: true, Virtual: true},
+	{ID: "system.server_error", PathPattern: "", Access: AccessPublic, ContractVersion: "sforum.page.server_error@1", CoreComponent: "error", Replaceable: true, Virtual: true},
 	{ID: "dev.components", PathPattern: "/components", Access: AccessPublic, ContractVersion: "sforum.page.dev_components@1", CoreComponent: "pages/components", Replaceable: false, Notes: "dev gallery"},
 }
 
@@ -119,6 +123,12 @@ func Find(id string) (PageDefinition, bool) {
 		}
 	}
 	return PageDefinition{}, false
+}
+
+// IsSystemErrorPage reports whether a page is a Host-selected virtual error surface.
+func IsSystemErrorPage(id string) bool {
+	page, ok := Find(strings.TrimSpace(id))
+	return ok && page.Virtual && strings.HasPrefix(page.ID, "system.")
 }
 
 // ValidateCatalog 检查目录不变量（启动与单测使用）。

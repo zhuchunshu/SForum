@@ -28,16 +28,24 @@ export function useForumApi() {
   const { request } = useApiClient()
   const serverReadOptions = { serverInternal: import.meta.server }
 
-  function listCategoryGroups() {
-    return request<ForumCategoryGroup[]>('/category-groups', serverReadOptions)
+  type ReadOptions = {
+    timeout?: number
+    serverInternal?: boolean
   }
 
-  function listTags() {
-    return request<ForumTag[]>('/tags', serverReadOptions)
+  function listCategoryGroups(options: ReadOptions = {}) {
+    return request<ForumCategoryGroup[]>('/category-groups', { ...serverReadOptions, ...options })
   }
 
-  function listTopics(filters: ForumTopicFilters = {}) {
-    return request<ForumTopicList>(pathWithQuery('/topics', buildForumTopicQuery(filters)), serverReadOptions)
+  function listTags(options: ReadOptions = {}) {
+    return request<ForumTag[]>('/tags', { ...serverReadOptions, ...options })
+  }
+
+  function listTopics(filters: ForumTopicFilters = {}, options: ReadOptions = {}) {
+    return request<ForumTopicList>(
+      pathWithQuery('/topics', buildForumTopicQuery(filters)),
+      { ...serverReadOptions, ...options }
+    )
   }
 
   // 关键词检索走选定 search.provider，默认站内引擎支持中英文全文与模糊搜索。

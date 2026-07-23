@@ -163,9 +163,18 @@ func (s *CorePageViewModelSource) Populate(ctx context.Context, input CorePageVi
 		request.Data.ResetPassword = &themecompiler.ResetPasswordPageViewModel{ChallengeReady: strings.TrimSpace(input.Query.Get("token")) != ""}
 	case "site.terms", "site.privacy", "site.guidelines":
 		err = s.populateLegal(ctx, &request)
+	case "system.forbidden":
+		request.SEO.Robots = "noindex,nofollow"
+		request.Data.Forbidden = systemErrorViewModel(request.Locale, 403)
 	case "system.not_found":
 		request.SEO.Robots = "noindex,nofollow"
-		request.Data.NotFound = &themecompiler.ErrorPageViewModel{StatusCode: 404, Title: localizedText(request.Locale, "页面未找到", "Page not found")}
+		request.Data.NotFound = systemErrorViewModel(request.Locale, 404)
+	case "system.rate_limited":
+		request.SEO.Robots = "noindex,nofollow"
+		request.Data.RateLimited = systemErrorViewModel(request.Locale, 429)
+	case "system.server_error":
+		request.SEO.Robots = "noindex,nofollow"
+		request.Data.ServerError = systemErrorViewModel(request.Locale, 500)
 	case "dev.components":
 		request.Data.DevelopmentComponents = &themecompiler.DevelopmentComponentsPageViewModel{Components: componentPreviews()}
 	default:
@@ -175,6 +184,35 @@ func (s *CorePageViewModelSource) Populate(ctx context.Context, input CorePageVi
 		return pages.CorePageViewModelRequest{}, err
 	}
 	return request, nil
+}
+
+func systemErrorViewModel(locale string, statusCode int) *themecompiler.ErrorPageViewModel {
+	switch statusCode {
+	case 403:
+		return &themecompiler.ErrorPageViewModel{
+			StatusCode: statusCode,
+			Title:      localizedText(locale, "这里需要更多权限", "This page needs more permission"),
+			Message:    localizedText(locale, "当前请求无法继续访问。为了保护内容隐私，页面不会说明资源是否存在。", "This request cannot continue. To protect privacy, this page does not confirm whether a resource exists."),
+		}
+	case 404:
+		return &themecompiler.ErrorPageViewModel{
+			StatusCode: statusCode,
+			Title:      localizedText(locale, "这个讨论暂时不在这里", "This discussion is not here"),
+			Message:    localizedText(locale, "可能是链接拼写错误，或内容已被移动。你可以回到首页继续浏览社区里的最新讨论。", "The link may be misspelled, or the content may have moved. Return home to continue browsing the latest community discussions."),
+		}
+	case 429:
+		return &themecompiler.ErrorPageViewModel{
+			StatusCode: statusCode,
+			Title:      localizedText(locale, "请求有点太频繁", "Too many requests"),
+			Message:    localizedText(locale, "站点正在保护当前访问节奏。请按提示稍后再试，避免连续刷新。", "The site is protecting the current request rate. Please try again later as indicated, and avoid repeated refreshes."),
+		}
+	default:
+		return &themecompiler.ErrorPageViewModel{
+			StatusCode: statusCode,
+			Title:      localizedText(locale, "服务正在恢复中", "The service is recovering"),
+			Message:    localizedText(locale, "站点处理请求时遇到暂时问题。公开页面不会显示内部诊断细节。", "The site hit a temporary problem while processing the request. Public pages do not expose internal diagnostics."),
+		}
+	}
 }
 
 func (s *CorePageViewModelSource) populateCommon(ctx context.Context, request *pages.CorePageViewModelRequest, actor identity.Actor) error {

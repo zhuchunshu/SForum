@@ -84,16 +84,31 @@ Plan: `../plans/2026-07-22-theme-consistent-public-resource-404.md` (**completed
 
 ### Theme-defined system error pages
 
-Plan: `../plans/2026-07-22-theme-defined-system-error-pages.md` (**ready**).
+Plan: `../plans/2026-07-22-theme-defined-system-error-pages.md`
+(**completed**). Completion handoff:
+`../sessions/2026-07-23-theme-defined-system-error-pages-completion-handoff.md`.
 
-- M0 found only 404 currently enters Page Registry; 403/500/503 are Host pages
-  and 429 lacks a mapping.
-- M1+ consumes the completed selected-theme 404 context/renderer/fallback and
-  continues only with the remaining 403/429/5xx scope.
-- System pages allow reviewed selected-theme L0/L1 and Host error/chrome
-  islands; plugins and public L2 remain closed.
-- Audit handoff:
-  `../sessions/2026-07-22-theme-defined-system-error-pages-m0-audit-handoff.md`.
+- `error.vue` maps 403, 404, 429, and 500/502/503/504 to virtual Page Registry
+  surfaces (`system.forbidden`, `system.not_found`, `system.rate_limited`,
+  `system.server_error`). Other statuses stay on the generic Host fallback;
+  browser 401 remains login/redirect behavior.
+- `useSystemErrorPageResolve` performs one short attempt
+  (800 ms dev / 1000 ms prod) and `useSystemErrorPagePresentation` commits L0
+  skin links plus L1 render output only after exact extension/version/package
+  digest/node revision identity matches. Transport/options/auth/artifact
+  failure clears active theme identity and renders the Core emergency page.
+- Reviewed Host islands own safe semantics and recovery behavior: details,
+  actions, recovery search, sidebar, and rail. Theme L1 owns layout/chrome;
+  plugins and public L2 remain closed on `system.*`.
+- Default and Nocturne built-in themes now provide themed forbidden,
+  not-found, rate-limited, and server-error templates/styles. A final default
+  theme mobile CSS fix collapses the hidden-sidebar system-error layout to one
+  full-width column below 960 px.
+- Focused browser QA covered real unknown-route 404, selected-theme markers,
+  status preservation, recovery search, dark mode, mobile, and English locale.
+  Current QA data has no natural full-page 429/5xx producer, so those families
+  are covered by mapping/resolver/fallback tests rather than committed
+  test-only routes.
 
 ## Runtime Themes And Page Registry
 
@@ -275,8 +290,9 @@ real highlight.js client plugin and no-op `highlight.server.ts` with
 
 ## Next Steps
 
-1. Resume the broader system error page book at M1, preserving the completed
-   public-resource 404 behavior.
+1. Keep theme-defined system error pages SSR-complete, permission-aware,
+   cache-safe, localized, and covered whenever new browser-facing error
+   producers are added.
 2. Keep new pages SSR-complete, permission-aware, cache-safe, localized, and
    registered through stable Page Registry/component contracts.
 

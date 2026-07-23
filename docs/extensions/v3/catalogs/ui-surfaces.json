@@ -976,6 +976,16 @@
     "targetRegistry": "P9 Component Registry"
   },
   {
+    "id": "core.component.shared.moderation_decision_rail",
+    "contractVersion": "sforum.component.shared.moderation_decision_rail@1",
+    "kind": "component",
+    "source": "apps/web/app/components/moderation/ModerationDecisionRail.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.moderation_decision_table",
     "contractVersion": "sforum.component.shared.moderation_decision_table@1",
     "kind": "component",
@@ -991,6 +1001,16 @@
     "contractVersion": "sforum.component.shared.moderation_queue_item@1",
     "kind": "component",
     "source": "apps/web/app/components/moderation/ModerationQueueItem.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.moderation_review_reader",
+    "contractVersion": "sforum.component.shared.moderation_review_reader@1",
+    "kind": "component",
+    "source": "apps/web/app/components/moderation/ModerationReviewReader.vue",
     "owners": [
       "public"
     ],
@@ -1426,6 +1446,16 @@
     "targetRegistry": "P9 Component Registry"
   },
   {
+    "id": "core.component.shared.sfprofile_settings_preview",
+    "contractVersion": "sforum.component.shared.sfprofile_settings_preview@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFProfileSettingsPreview.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sfprofile_show_page",
     "contractVersion": "sforum.component.shared.sfprofile_show_page@1",
     "kind": "component",
@@ -1516,6 +1546,76 @@
       "admin"
     ],
     "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
+    "id": "core.component.shared.sfsystem_error_actions",
+    "contractVersion": "sforum.component.shared.sfsystem_error_actions@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFSystemErrorActions.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfsystem_error_details",
+    "contractVersion": "sforum.component.shared.sfsystem_error_details@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFSystemErrorDetails.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfsystem_error_emergency_page",
+    "contractVersion": "sforum.component.shared.sfsystem_error_emergency_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFSystemErrorEmergencyPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfsystem_error_page",
+    "contractVersion": "sforum.component.shared.sfsystem_error_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFSystemErrorPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfsystem_error_rail",
+    "contractVersion": "sforum.component.shared.sfsystem_error_rail@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFSystemErrorRail.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfsystem_error_recovery",
+    "contractVersion": "sforum.component.shared.sfsystem_error_recovery@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFSystemErrorRecovery.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfsystem_error_sidebar",
+    "contractVersion": "sforum.component.shared.sfsystem_error_sidebar@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFSystemErrorSidebar.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.sfsystem_theme_node",

@@ -26,6 +26,9 @@ type CorePageViewModelData struct {
 	Terms                 *themecompiler.TermsPageViewModel
 	Privacy               *themecompiler.PrivacyPageViewModel
 	Guidelines            *themecompiler.GuidelinesPageViewModel
+	Forbidden             *themecompiler.ErrorPageViewModel
 	NotFound              *themecompiler.ErrorPageViewModel
+	RateLimited           *themecompiler.ErrorPageViewModel
+	ServerError           *themecompiler.ErrorPageViewModel
 	DevelopmentComponents *themecompiler.DevelopmentComponentsPageViewModel
 }

@@ -26,6 +26,7 @@ type PageRow = {
     access: string
     contractVersion: string
     replaceable: boolean
+    virtual?: boolean
   }
   provider: string
   extensionId?: string
@@ -65,6 +66,14 @@ function providerLabel(provider: string) {
     return t('admin.extensions.pages.providerCore')
   }
   return provider
+}
+
+function pathLabel(row: PageRow) {
+  if (row.page.virtual) {
+    const key = `admin.extensions.pages.virtual.${row.page.id.replaceAll('.', '_')}`
+    return te(key) ? t(key) : t('admin.extensions.pages.virtual.system')
+  }
+  return row.page.pathPattern || '—'
 }
 
 async function load() {
@@ -205,7 +214,16 @@ void load()
             class="border-t border-slate-100 dark:border-zinc-800"
           >
             <td class="px-3 py-2 font-mono text-xs">{{ row.page.id }}</td>
-            <td class="px-3 py-2 font-mono text-xs">{{ row.page.pathPattern || '—' }}</td>
+            <td class="px-3 py-2 text-xs">
+              <span
+                v-if="row.page.virtual"
+                class="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 font-medium text-slate-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+              >
+                <UIcon name="i-lucide-file-warning" class="size-3.5" aria-hidden="true" />
+                {{ pathLabel(row) }}
+              </span>
+              <span v-else class="font-mono">{{ pathLabel(row) }}</span>
+            </td>
             <td class="px-3 py-2">{{ accessLabel(row.page.access) }}</td>
             <td class="px-3 py-2">
               <span class="font-medium">{{ providerLabel(row.provider) }}</span>

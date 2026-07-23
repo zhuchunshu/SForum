@@ -44,6 +44,10 @@ into both API and standalone worker containers.
 ## Theme activation
 
 Activation switches Page Registry bindings and L0 skin—**not** a full site rebuild.  
+The active theme also supplies L1 presentation for Host-selected system error
+pages (403, 404, 429, and 5xx). The Host still owns status, cache, SEO, retry
+behavior, and the emergency fallback; plugins and public L2 widgets cannot
+replace those `system.*` pages.
 Details: [Runtime themes](../../extensions/runtime-themes.md).
 
 ## Developer docs

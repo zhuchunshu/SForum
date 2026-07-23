@@ -225,6 +225,13 @@ contracts, but cannot own plugin business/runtime declarations. A plugin's
 versioned business data contract does not change when a theme overrides its
 presentation.
 
+System error pages are a narrower theme-only surface. A theme may replace
+`system.forbidden`, `system.not_found`, `system.rate_limited`, and
+`system.server_error` with L0/L1 presentation, but the Host owns the HTTP
+status, public copy, cache/robots policy, and home/back/retry actions. Plugins
+cannot replace `system.*` pages, and system error templates cannot mount public
+L2 widgets.
+
 Manifest V3 currently defines and validates the full target contract. Runtime
 implementations land phase by phase (Host API v2, lifecycle/database, Route
 Registry, platform registries, themes, and L2); a valid declaration is not proof
@@ -623,6 +630,7 @@ Related fixtures:
    runtime declarations in a theme.
 3. **Stable identities** — every V3 declaration uses a namespaced stable id and
    explicit `contractVersion`; replacement targets are declared, not inferred.
+   System error page targets are theme-only and L0/L1-only.
 4. **Package files** — every referenced executable/frontend/migration/template/
    asset/OpenAPI file has the correct kind and exact SHA-256 digest.
 5. **Routes and guards** — explicit action, methods, mode, fallback, schemas,

@@ -23,6 +23,9 @@ func TestAllCatalogThemeRendersPerformNoFilesystemIOAfterCompilation(t *testing.
 		if tag := RequiredThemeBodyIslandTag(page.ID); tag != "" {
 			body += "<" + tag + "></" + tag + ">"
 		}
+		if IsSystemErrorPage(page.ID) {
+			body += "<sf-error-actions></sf-error-actions>"
+		}
 		body += `</main>`
 		files[name] = &fstest.MapFile{Data: []byte(body), Mode: 0o600}
 		bindings[name] = themecompiler.PageTemplateBinding{

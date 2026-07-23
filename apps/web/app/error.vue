@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import type { NuxtError } from '#app'
-import { resolveErrorPageContent } from '~/utils/errorPage'
+import {
+  isThemeableSystemErrorStatus,
+  resolveErrorPageContent,
+  systemErrorPageIdForStatus
+} from '~/utils/errorPage'
 
 const props = defineProps<{
   error: NuxtError
 }>()
 const nuxtError = computed(() => props.error)
-const isNotFound = computed(() => Number(nuxtError.value?.statusCode) === 404)
+const systemPage = computed(() => resolveErrorPageContent(nuxtError.value?.statusCode))
+const isThemeableSystemError = computed(() => isThemeableSystemErrorStatus(nuxtError.value?.statusCode))
+const systemPageId = computed(() => systemErrorPageIdForStatus(nuxtError.value?.statusCode))
 const { t } = useI18n()
 const localeHead = useLocaleHead({ dir: true, lang: true, seo: false })
 const {
@@ -14,14 +20,13 @@ const {
   resolvedAppearanceTheme
 } = useWebOptions()
 const themeSkin = useActiveThemeSkin()
-const notFoundContent = computed(() => resolveErrorPageContent(404))
-const notFoundTitle = computed(() => t(notFoundContent.value.titleKey, { siteName: siteName.value }))
-const notFoundDescription = computed(() => t(notFoundContent.value.descriptionKey, { siteName: siteName.value }))
+const systemTitle = computed(() => t(systemPage.value.titleKey, { siteName: siteName.value }))
+const systemDescription = computed(() => t(systemPage.value.descriptionKey, { siteName: siteName.value }))
 
-if (isNotFound.value) {
+if (isThemeableSystemError.value) {
   useSeoMeta({
-    title: notFoundTitle,
-    description: notFoundDescription,
+    title: systemTitle,
+    description: systemDescription,
     robots: 'noindex,nofollow'
   })
 
@@ -39,7 +44,7 @@ if (isNotFound.value) {
     return {
       htmlAttrs,
       bodyAttrs: {
-        'data-sforum-error': '404'
+        'data-sforum-error': String(systemPage.value.statusCode)
       },
       link: [
         ...(localeHead.value.link || []),
@@ -56,20 +61,20 @@ if (isNotFound.value) {
 }
 
 // 服务端错误插件和资源路由在进入 error.vue 前准备最终快照；这里保持同步消费。
-const notFoundPresentation = isNotFound.value ? useNotFoundPagePresentation() : null
-const resolvedNotFoundPage = shallowRef(notFoundPresentation?.resolvedPage.value || null)
-if (import.meta.client && isNotFound.value && !resolvedNotFoundPage.value) {
-  void notFoundPresentation!.prepare().then((resolved) => {
-    resolvedNotFoundPage.value = resolved
+const systemPresentation = isThemeableSystemError.value ? useSystemErrorPagePresentation(systemPageId) : null
+const resolvedSystemPage = shallowRef(systemPresentation?.resolvedPage.value || null)
+if (import.meta.client && isThemeableSystemError.value && !resolvedSystemPage.value) {
+  void systemPresentation!.prepare().then((resolved) => {
+    resolvedSystemPage.value = resolved
   })
 }
 </script>
 
 <template>
-  <SFNotFoundPage
-    v-if="isNotFound"
+  <SFSystemErrorPage
+    v-if="isThemeableSystemError"
     :error="nuxtError"
-    :resolved-page="resolvedNotFoundPage"
+    :resolved-page="resolvedSystemPage"
   />
   <UApp v-else>
     <SFErrorPageContent :error="nuxtError" />

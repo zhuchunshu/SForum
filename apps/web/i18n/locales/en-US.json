@@ -1118,6 +1118,13 @@
         "approve": "Approve",
         "approveExtension": "Approve: {extensionId}",
         "empty": "No page catalog data",
+        "virtual": {
+          "system": "System error virtual page",
+          "system_forbidden": "403 forbidden error page",
+          "system_not_found": "404 not found error page",
+          "system_rate_limited": "429 rate-limited error page",
+          "system_server_error": "5xx service error page"
+        },
         "access": {
           "public": "Public",
           "login": "Signed in",
@@ -3699,6 +3706,7 @@
     },
     "page": {
       "statusLabel": "{statusCode} error",
+      "statusCaption": "HTTP STATUS",
       "home": "Back to home",
       "back": "Go back",
       "retry": "Refresh and retry",
@@ -3708,19 +3716,50 @@
       },
       "forbidden": {
         "title": "This page needs more permission",
-        "description": "Your current account cannot access this page. Contact a site administrator if you think the permission is wrong."
+        "description": "This request cannot continue. To protect privacy, this page does not confirm whether a resource exists."
+      },
+      "rateLimited": {
+        "title": "Too many requests",
+        "description": "The site is protecting the current request rate. Please try again later as indicated, and avoid repeated refreshes."
       },
       "server": {
         "title": "The server did not respond cleanly",
         "description": "The request reached the site, but something went wrong while processing it. Refresh the page or try again shortly."
       },
+      "badGateway": {
+        "title": "An upstream service did not connect",
+        "description": "A service this site depends on did not return a usable response. Public pages do not expose internal diagnostics."
+      },
       "serviceUnavailable": {
         "title": "The service is recovering",
         "description": "Part of the site is temporarily unavailable. Refresh shortly; content already open in your browser is not affected."
       },
+      "gatewayTimeout": {
+        "title": "The request waited too long",
+        "description": "The site timed out while waiting for a dependent service. Refresh and try again shortly."
+      },
       "generic": {
         "title": "This page hit a problem",
         "description": "The page did not open as expected. Return home or try this link again shortly."
+      },
+      "recovery": {
+        "searchPlaceholder": "Search topics, categories, or tags",
+        "searchSubmit": "Search",
+        "continueTitle": "Continue from here",
+        "home": "Back to home",
+        "categories": "Browse categories",
+        "tags": "View tags",
+        "guidelines": "Community guidelines",
+        "mobileTools": "Error page auxiliary navigation"
+      },
+      "rail": {
+        "ariaLabel": "Error page auxiliary information",
+        "common": "Common destinations",
+        "home": "Home",
+        "categories": "Categories",
+        "tags": "Tags",
+        "needHelp": "Need help",
+        "stats": "{topics} topics, {replies} replies, {categories} categories, {tags} tags"
       }
     }
   },

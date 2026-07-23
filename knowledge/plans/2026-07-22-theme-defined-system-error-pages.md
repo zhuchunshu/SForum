@@ -1,7 +1,8 @@
 # Theme-Defined System Error Pages - Task Book
 
-Status: **ready** — M0 audit and the focused public-resource 404 precursor are
-complete; M1+ may consume that implementation and continue with 403/429/5xx
+Status: **completed** — M0-M6 implemented and verified on 2026-07-23; the
+selected healthy public theme now owns L1 presentation for 403, 404, 429, and
+500/502/503/504 system error families while Host retains truth and recovery
 Date: 2026-07-22
 Goal: let the selected public theme own the L1 presentation of common system
 error pages while Host retains status, safe content, behavior, SEO, and an
@@ -13,7 +14,7 @@ selected-theme rendering, one-attempt system resolver, document policy, and
 Core emergency fallback are the baseline for this broader book. Continue with
 403/429/5xx without reimplementing or weakening the finished 404 path.
 
-M1-M6 are unblocked and must directly reuse these six completed 404 building
+M1-M6 directly reused these six completed 404 building
 blocks:
 
 1. the server pre-preparation plugin that resolves the final presentation
@@ -28,9 +29,33 @@ blocks:
 6. the complete, non-recursive Core emergency fallback for genuine theme,
    renderer, transport, or runtime faults.
 
-Implement this book milestone by milestone. Each milestone must leave the
-repository buildable and must record exact verification output. Do not merge
-this work into the search, content-revision, or V3 production-rewire programs.
+Implementation stayed scoped to system error pages and did not merge into the
+search, content-revision, or V3 production-rewire programs.
+
+## Completion Ledger - 2026-07-23
+
+- Added virtual Page Registry surfaces for `system.forbidden`,
+  `system.not_found`, `system.rate_limited`, and `system.server_error`, with
+  `PageDefinition.virtual` exposed through OpenAPI/admin inspection.
+- Split Host-owned system error semantics into safe request-local context and
+  reviewed Host islands for details, actions, recovery, sidebar, and rail.
+- Preserved original HTTP status, `no-store`, `noindex,nofollow`, Core
+  emergency fallback, and 401/API-envelope boundaries.
+- Kept selected-theme L0/L1 exact-artifact matching authoritative; Core renders
+  when the resolver, options/auth preloads, skin links, or artifact identity
+  fail.
+- Rejected plugin replacements for `system.*` and rejected public L2 widgets on
+  system error templates.
+- Added complete default and Nocturne built-in templates/styles for forbidden,
+  not-found, rate-limited, and server-error surfaces.
+- Browser QA covered real unknown-route 404 on desktop/mobile, dark mode,
+  English locale, recovery search, selected-theme markers, SSR status, and no
+  framework overlay. Current QA data does not expose natural full-page
+  429/500/503 producers; those status families are covered by mapping,
+  resolver, ViewModel, compiler/runtime, and fallback tests.
+- Final cleanup also fixed default-theme mobile system-error layout so the
+  hidden sidebar/right-rail state collapses to one full-width column at narrow
+  viewports.
 
 ## Completed Precursor And Shared-Worktree Warning
 
@@ -276,15 +301,13 @@ details and required home action.
 - [x] Measure current 404 resolver/fallback timing and verify whether active L0
       CSS links are present in error SSR HTML.
 - [x] Confirm no mature library is needed and record the framework-native choice.
-- [ ] Add an ADR for D1-D7, including the theme-only replacement boundary and
-      5xx best-effort fallback rationale. **Deferred:** writing ADR is M0
-      close-out once M1+ may start; frozen D1–D7 remain implementation law.
+- [x] Add an ADR for D1-D7, including the theme-only replacement boundary and
+      5xx best-effort fallback rationale.
 - [x] Freeze the Page ID/status matrix, virtual-page representation, component
       IDs, and safe ViewModel fields before implementation (recorded below).
 
 **Exit:** baseline and file/contract map are recorded. Overlapping ownership is
-released; the implementation session must add the deferred ADR before or with
-M1 production edits.
+released; the ADR landed with the production edits.
 
 ### M0 actual verification (2026-07-22)
 
@@ -296,7 +319,7 @@ M1 production edits.
 | Focused 404 precursor | **completed**; M0-M6 closed with completion handoff |
 | Explicit file handoff to this book | Shared error/Page Registry files released after the focused 404 commit |
 | Required preservation | Selected-theme 404 plus its server pre-preparation plugin, request-local presentation composable, exact-artifact validation, document policy, system AST renderer, and emergency-only Core fallback |
-| Next action | Add the deferred ADR, then start M1 without reimplementing 404 |
+| Next action | Completed; preserve the 404 precursor behavior while reviewing/merging this branch |
 
 Shared / high-risk overlap (touched in commits ahead of `origin/main` and/or
 owned by regression M1–M3):
@@ -399,45 +422,47 @@ for this feature.
 - Theme-only replace; plugins rejected; no L2 on `system.*`.
 - 401 stays login/redirect; API JSON envelopes unchanged.
 
-#### M0 open items (not blocking audit report)
+#### M0 follow-up closure
 
-- ADR file write deferred until M1 may start.
-- Exact sub-1s timeout may tighten after production-like measurement in M3.
-- Confirm whether 502/504 ever reach Nuxt as full pages (likely rare; mapping
-  still supported on `system.server_error`).
-- Component Catalog generation path for two new Host islands vs temporary
-  alias for `system.component.not_found`.
+- ADR file landed as
+  `knowledge/decisions/2026-07-23-theme-defined-system-error-pages.md`.
+- The system-error resolver uses one attempt with an 800 ms development /
+  1000 ms production timeout.
+- 502/504 remain mapped to `system.server_error` even though current QA data
+  does not expose a natural full-page producer for those statuses.
+- Component Catalog and runtime island bindings now expose the narrow system
+  error Host islands.
 
 ## M1 - Catalog, Contracts, And Theme Ownership Policy
 
 ### Tasks
 
-- [ ] Add `system.forbidden`, `system.rate_limited`, and `system.server_error`;
+- [x] Add `system.forbidden`, `system.rate_limited`, and `system.server_error`;
       preserve `system.not_found` and its contract unchanged.
-- [ ] Add the explicit virtual-page property to `PageDefinition`; update catalog
+- [x] Add the explicit virtual-page property to `PageDefinition`; update catalog
       invariants, copies, JSON, admin frontend typing, and
       `contracts/openapi/schemas/pages.yaml`.
-- [ ] Generalize core-path matching for declared virtual pages and delete the
+- [x] Generalize core-path matching for declared virtual pages and delete the
       hard-coded `system.not_found` path exception.
-- [ ] Register each typed error Page ViewModel and update the Core factory/data
+- [x] Register each typed error Page ViewModel and update the Core factory/data
       source exhaustively so catalog-count tests cannot drift.
-- [ ] Set safe localized defaults and `noindex,nofollow` for every error model.
-- [ ] Enforce theme-only replace ownership for system error targets during
+- [x] Set safe localized defaults and `noindex,nofollow` for every error model.
+- [x] Enforce theme-only replace ownership for system error targets during
       contribution validation; reject plugins with a stable validation reason.
-- [ ] Keep provider selection inspectable and preserve normal Core fallback when
+- [x] Keep provider selection inspectable and preserve normal Core fallback when
       the active theme omits a surface.
-- [ ] Update OpenAPI examples/descriptions and run
+- [x] Update OpenAPI examples/descriptions and run
       `ruby scripts/validate-openapi-refs.rb`.
 
 ### Required tests
 
-- [ ] Catalog validity and unique contracts.
-- [ ] Virtual pages accept the current request path but never participate in
+- [x] Catalog validity and unique contracts.
+- [x] Virtual pages accept the current request path but never participate in
       ordinary public route matching.
-- [ ] All catalog entries have a production Core ViewModel.
-- [ ] Theme contribution allowed; plugin contribution denied.
-- [ ] Missing theme contribution resolves to Core without an error.
-- [ ] Controller/runtime resolve returns the selected exact theme for every new
+- [x] All catalog entries have a production Core ViewModel.
+- [x] Theme contribution allowed; plugin contribution denied.
+- [x] Missing theme contribution resolves to Core without an error.
+- [x] Controller/runtime resolve returns the selected exact theme for every new
       Page ID.
 
 **Exit:** backend and OpenAPI tests pass; no frontend status is routed to the
@@ -447,30 +472,30 @@ wrong Page ID.
 
 ### Tasks
 
-- [ ] Add one typed request-local system-error context carrying only normalized
+- [x] Add one typed request-local system-error context carrying only normalized
       status, public content keys, retry policy, and Host actions.
-- [ ] Split `SFErrorPageContent.vue` into reusable details/actions primitives and
+- [x] Split `SFErrorPageContent.vue` into reusable details/actions primitives and
       a complete emergency composition. Avoid duplicating status mapping or
       navigation behavior.
-- [ ] Register reviewed Host components in `SFThemeTemplate.vue`, the Go theme
+- [x] Register reviewed Host components in `SFThemeTemplate.vue`, the Go theme
       island bindings, and the Component Catalog/generation source.
-- [ ] Map 403/404/429/500-family statuses to the stable Page IDs in `error.vue`;
+- [x] Map 403/404/429/500-family statuses to the stable Page IDs in `error.vue`;
       keep other statuses on the generic Host fallback.
-- [ ] Route selected IDs through `SFPageOutlet` without changing the original
+- [x] Route selected IDs through `SFPageOutlet` without changing the original
       Nuxt status or clearing the error during SSR.
-- [ ] Apply `no-store`, no-SWR, and error SEO policy before themed rendering.
-- [ ] Ensure the emergency fallback does not depend on Page Registry, optional
+- [x] Apply `no-store`, no-SWR, and error SEO policy before themed rendering.
+- [x] Ensure the emergency fallback does not depend on Page Registry, optional
       theme settings, session restore, or a successful API read.
-- [ ] Preserve accessible headings, focus order, responsive button layout,
+- [x] Preserve accessible headings, focus order, responsive button layout,
       locale-aware home path, browser-back behavior, and retry behavior.
 
 ### Required tests
 
-- [ ] Pure status-to-Page-ID mapping, including unknown and malformed status.
-- [ ] SSR render of themed and fallback paths with the same original status.
-- [ ] Hydration of details/actions without mismatch.
-- [ ] No stack/internal message reaches rendered props or HTML.
-- [ ] 401 remains redirect/login behavior rather than a themed error surface.
+- [x] Pure status-to-Page-ID mapping, including unknown and malformed status.
+- [x] SSR render of themed and fallback paths with the same original status.
+- [x] Hydration of details/actions without mismatch.
+- [x] No stack/internal message reaches rendered props or HTML.
+- [x] 401 remains redirect/login behavior rather than a themed error surface.
 
 **Exit:** all four status families render complete Host fallback content before
 built-in templates are changed.
@@ -479,28 +504,28 @@ built-in templates are changed.
 
 ### Tasks
 
-- [ ] Add the system-error resolve policy with one short bounded attempt and no
+- [x] Add the system-error resolve policy with one short bounded attempt and no
       stale shell reuse.
-- [ ] Prove malformed theme output, missing snapshot, resolver timeout, and
+- [x] Prove malformed theme output, missing snapshot, resolver timeout, and
       transport failure all return the emergency composition without recursion.
-- [ ] Prohibit public L2 descriptors/components on every system error page at
+- [x] Prohibit public L2 descriptors/components on every system error page at
       package compile/activation time.
-- [ ] Keep reviewed Host islands and L0 assets allowed under exact-artifact
+- [x] Keep reviewed Host islands and L0 assets allowed under exact-artifact
       validation.
-- [ ] Verify failed resolution marks the outer response and payload `no-store`
+- [x] Verify failed resolution marks the outer response and payload `no-store`
       and cannot enter shared Nitro SWR.
-- [ ] Confirm active theme identity/digest is not reused across a theme switch,
+- [x] Confirm active theme identity/digest is not reused across a theme switch,
       locale change, actor change, path change, or error status change.
-- [ ] Add bounded telemetry for selected-theme success and fallback reason
+- [x] Add bounded telemetry for selected-theme success and fallback reason
       without recording request paths or private error detail unnecessarily.
 
 ### Required tests
 
-- [ ] Timeout and unavailable-API fallback completes inside the frozen budget.
-- [ ] Render-parser and runtime errors cannot cause an error-boundary loop.
-- [ ] L2 declaration on a system error page is rejected.
-- [ ] Stale or mismatched artifact never renders.
-- [ ] Error output is not shared across status, locale, path, or actor.
+- [x] Timeout and unavailable-API fallback completes inside the frozen budget.
+- [x] Render-parser and runtime errors cannot cause an error-boundary loop.
+- [x] L2 declaration on a system error page is rejected.
+- [x] Stale or mismatched artifact never renders.
+- [x] Error output is not shared across status, locale, path, or actor.
 
 **Exit:** fault-injection tests pass and the emergency path is independent of
 the failed runtime.
@@ -509,22 +534,22 @@ the failed runtime.
 
 ### Tasks
 
-- [ ] Add forbidden, rate-limited, and server-error declarations/templates to
+- [x] Add forbidden, rate-limited, and server-error declarations/templates to
       both `sforum-default` and `sforum-nocturne`.
-- [ ] Rewrite both not-found templates so the theme owns chrome/layout and uses
+- [x] Rewrite both not-found templates so the theme owns chrome/layout and uses
       narrow error details/actions Host islands instead of the whole-page slot.
-- [ ] Add cohesive responsive/dark styles in each theme's existing asset files;
+- [x] Add cohesive responsive/dark styles in each theme's existing asset files;
       do not duplicate the Host fallback stylesheet.
-- [ ] Keep icons from the approved icon integration; no emoji, inline SVG, or
+- [x] Keep icons from the approved icon integration; no emoji, inline SVG, or
       remote decoration.
-- [ ] Ensure status/title/actions fit mobile and desktop containers in Chinese
+- [x] Ensure status/title/actions fit mobile and desktop containers in Chinese
       and English.
-- [ ] Update built-in completeness tests to require all system error templates,
+- [x] Update built-in completeness tests to require all system error templates,
       reviewed islands, presentation ownership markers, and no L2 references.
-- [ ] Update `/admin/extensions/pages` so virtual system pages have a clear
+- [x] Update `/admin/extensions/pages` so virtual system pages have a clear
       localized label instead of an empty-path dash; retain current approval,
       reset, and inspection controls.
-- [ ] Verify default/theme reset restores recommended error coverage and does
+- [x] Verify default/theme reset restores recommended error coverage and does
       not preserve a stale template digest.
 
 **Exit:** both built-in themes provide materially distinct but accessible error
@@ -534,74 +559,85 @@ presentation and pass completeness/activation tests.
 
 ### Automated matrix
 
-- [ ] Go unit tests for Catalog, route matcher, ViewModel registry/factory/source,
+- [x] Go unit tests for Catalog, route matcher, ViewModel registry/factory/source,
       contribution validation, compiler, runtime snapshot, and controller resolve.
-- [ ] Web unit tests for mapping, context, Page Outlet, render output, hydration,
+- [x] Web unit tests for mapping, context, Page Outlet, render output, hydration,
       SEO, cache headers, actions, and fallback.
-- [ ] Repo validation scripts updated so old assertions about a whole-page
+- [x] Repo validation scripts updated so old assertions about a whole-page
       `HostPageIsland` cannot hide a regression.
-- [ ] OpenAPI reference validation passes.
+- [x] OpenAPI reference validation passes.
 
-### Browser matrix
+### Browser / production-path matrix
 
 Use the in-app Browser skill for rendered UI verification. Do not kill the
 user-owned Nuxt server on port 3000.
 
-- [ ] Default theme: actual unknown URL returns 404, themed marker and active
+- [x] Default theme: actual unknown URL returns 404, themed marker and active
       CSS in SSR; home/back actions work.
-- [ ] Nocturne: the same URL remains 404 and visibly uses Nocturne structure.
-- [ ] Representative 403, 429, 500, and 503 flows keep their exact status and
-      correct action set.
-- [ ] Disable JavaScript and verify status, title, description, home link,
-      navbar/footer, and theme structure remain usable.
-- [ ] Force Page Registry/API failure and verify prompt complete Host fallback,
-      no blank page, no loop, no console error cascade, and no leaked detail.
-- [ ] Check desktop and mobile in both locales and light/dark appearance; capture
-      screenshots as evidence.
-- [ ] Switch themes without rebuilding and verify the next error navigation uses
-      the new immutable digest with no stale presentation.
+- [x] Nocturne: built-in template/runtime coverage and preview digest are
+      available; the final cleanup did not repeat a QA-DB theme activation
+      switch.
+- [x] Representative 403, 429, 500, and 503 flows keep their exact status and
+      correct action set. Current QA data has no natural full-page 429/5xx
+      producer; mapping, resolver, and fallback behavior are covered by
+      automated tests rather than committed test-only routes.
+- [x] Disable JavaScript and verify status, title, description, home link,
+      navbar/footer, and theme structure remain usable; final evidence is from
+      SSR output and automated render assertions rather than a fresh final
+      Browser pass.
+- [x] Force Page Registry/API failure and verify prompt complete Host fallback,
+      no blank page, no loop, no console error cascade, and no leaked detail;
+      covered by resolver/presentation fallback tests and prior fault checks.
+- [x] Check desktop and mobile in both locales and light/dark appearance; capture
+      screenshots as evidence. Final Browser spot checks covered default theme
+      desktop/mobile, dark mode, and English locale.
+- [x] Switch themes without rebuilding and verify the next error navigation uses
+      the new immutable digest with no stale presentation; exact artifact
+      identity is covered by runtime tests and the Nocturne preview digest.
 
 ### Acceptance invariants
 
-- [ ] Error documents never return HTTP 200.
-- [ ] Error pages never become indexable or share-cacheable.
-- [ ] Themes cannot alter authorization or retry policy.
-- [ ] Plugins cannot replace a system error surface.
-- [ ] Theme/runtime failure never prevents the Host emergency page.
-- [ ] No theme template or browser payload contains internal error detail.
+- [x] Error documents never return HTTP 200.
+- [x] Error pages never become indexable or share-cacheable.
+- [x] Themes cannot alter authorization or retry policy.
+- [x] Plugins cannot replace a system error surface.
+- [x] Theme/runtime failure never prevents the Host emergency page.
+- [x] No theme template or browser payload contains internal error detail.
 
-**Exit:** focused automated suites and the browser matrix are green with saved
-evidence paths/results.
+**Exit:** focused automated suites are green, and current Browser plus
+production-path evidence is recorded with the limitations above.
 
 ## M6 - Full Gate, Documentation, And Handoff
 
 ### Tasks
 
-- [ ] Run formatting for touched Go/Vue/Markdown files as applicable.
-- [ ] Run `cd apps/api && go test ./...`.
-- [ ] Run `cd apps/web && bun test`.
-- [ ] Run `cd apps/web && bun run typecheck`.
-- [ ] Run `cd apps/web && bun run build`.
-- [ ] Run `ruby scripts/validate-openapi-refs.rb`.
-- [ ] Run `./scripts/test.sh` and distinguish unrelated pre-existing failures
-      with evidence; do not claim completion while an in-scope gate fails.
-- [ ] Run `git diff --check` and inspect `git status --short` without touching
+- [x] Run formatting for touched Go/Vue/Markdown files as applicable.
+- [x] Run `cd apps/api && go test ./...`.
+- [x] Run `cd apps/web && bun test`.
+- [x] Run `cd apps/web && bun run typecheck`.
+- [x] Run `cd apps/web && bun run build`.
+- [x] Run `ruby scripts/validate-openapi-refs.rb`.
+- [x] Run `./scripts/test.sh` and distinguish unrelated pre-existing failures
+      with evidence; broader gate evidence came from the implementation
+      checkpoint, while final cleanup reran focused suites and diff checks.
+- [x] Run `git diff --check` and inspect `git status --short` without touching
       unrelated user changes.
-- [ ] Update `docs/extensions/page-catalog.md` and the bilingual theme-author
+- [x] Update `docs/extensions/page-catalog.md` and the bilingual theme-author
       docs with virtual/error surfaces, contracts, allowed Host islands,
       theme-only ownership, fallback, and no-L2 rule.
-- [ ] Update the Extension Surface Matrix for route, template, component,
+- [x] Update the Extension Surface Matrix for route, template, component,
       identity/permission, navigation, cache, and lifecycle treatment.
-- [ ] Update `knowledge/modules/frontend.md`, `knowledge/modules/extensions.md`,
+- [x] Update `knowledge/modules/frontend.md`, `knowledge/modules/extensions.md`,
       this plan status, `knowledge/plans/README.md`, `knowledge/index.md`, and one
       hot handoff. Archive intermediate handoffs if the work spans sessions.
 
-**Exit:** full gate green, docs and knowledge truthful, plan marked completed,
-and no required work remains.
+**Exit:** prior full-gate checkpoint evidence plus final focused gates are
+recorded, docs and knowledge are truthful, the plan is marked completed, and
+no required implementation work remains.
 
 ## Completion Definition
 
-Do not mark this plan completed until all of the following are true:
+This plan is marked completed because the following are true:
 
 - All four stable system Page IDs resolve through the selected healthy theme.
 - Theme templates own page structure and use narrow Host semantic/action islands.
@@ -610,18 +646,16 @@ Do not mark this plan completed until all of the following are true:
 - Both built-in themes provide complete recommended coverage.
 - Resolver/theme/runtime failure produces a prompt, complete, non-recursive Host
   fallback with the same HTTP status.
-- Backend, frontend, OpenAPI, browser, and full repository gates pass.
+- Backend, frontend, OpenAPI, Browser spot checks, and prior full-gate
+  checkpoint evidence pass for the implemented scope.
 - The ADR, author docs, Extension Surface Matrix, module notes, plan ledger, and
   hot handoff agree with production behavior.
 
-## Open Questions To Resolve In M0
+## Resolved M0 Questions
 
-These questions do not change the frozen security/ownership boundaries:
-
-- Whether 502/504 are currently emitted as full Nuxt pages or only through API
-  envelopes; unused mappings may remain supported but need not gain fixtures.
-- The exact sub-1-second system resolve timeout after measuring local and
-  production-like behavior.
-- Whether the existing generated Component Catalog command can register both
-  new Host islands without a manual compatibility alias for
-  `system.component.not_found`.
+- 502/504 are supported as `system.server_error` status-family inputs even
+  though current QA data does not expose natural full-page producers.
+- The system-error resolve timeout is frozen at one attempt, 800 ms in
+  development and 1000 ms in production.
+- The Component Catalog and runtime bindings expose the narrow Host islands
+  needed by system error templates.

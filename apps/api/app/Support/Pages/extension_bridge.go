@@ -155,6 +155,11 @@ func (b *ExtensionBridge) PreflightPluginPackage(ext ThemeExtension) ([]PageCont
 		}
 	}
 	contribs := ContributionsFromTheme(ext.ID, ext.Version, ext.PackageDigest, pkg)
+	for _, contrib := range contribs {
+		if contrib.Action == ActionReplace && IsSystemErrorPage(contrib.Target) {
+			return nil, fmt.Errorf("%w: plugins cannot replace system error page %s", ErrNotReplaceable, contrib.Target)
+		}
+	}
 	if err := b.Registry.PreflightContributions(ext.ID, contribs); err != nil {
 		return nil, err
 	}
