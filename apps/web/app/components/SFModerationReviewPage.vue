@@ -9,6 +9,7 @@ import type {
   ModerationAction,
   ModerationDecision,
   ModerationPendingItem,
+  ModerationQueueCounts,
   ModerationReportItem,
   ModerationReviewContext,
   PagedModerationList
@@ -59,10 +60,26 @@ const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
 const openedReviewFromQueue = ref(false)
 
+const emptyCounts = (): ModerationQueueCounts => ({
+  pendingContent: 0,
+  openReports: 0,
+  processedToday: 0,
+  historyTotal: 0
+})
+
 const { data: counts, error: countsError, refresh: refreshCounts } = await useAsyncData(
   'moderation-workbench-counts',
-  () => moderationApi.getCounts(),
-  { default: () => ({ pendingContent: 0, openReports: 0, processedToday: 0 }) }
+  async () => {
+    const raw = await moderationApi.getCounts()
+    // 兼容旧后端缺字段；数字化避免异常类型导致始终显示 0/空
+    return {
+      pendingContent: Number(raw?.pendingContent ?? 0),
+      openReports: Number(raw?.openReports ?? 0),
+      processedToday: Number(raw?.processedToday ?? 0),
+      historyTotal: Number(raw?.historyTotal ?? 0)
+    } satisfies ModerationQueueCounts
+  },
+  { default: emptyCounts }
 )
 
 const { data: list, pending: listPending, error: listError, refresh: refreshList } = await useAsyncData(
@@ -99,16 +116,33 @@ const { data: categoryGroups, pending: categoriesPending } = await useAsyncData(
 )
 
 const countsAvailable = computed(() => !countsError.value)
+const safeCounts = computed<ModerationQueueCounts>(() => counts.value || emptyCounts())
 const categories = computed(() => categoryGroups.value.flatMap(group => group.categories || []))
 const categoryTopicTotal = computed(() => categories.value.reduce((sum, category) => sum + (category.topicCount || 0), 0))
 const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
 const queueErrorMessage = computed(() => listError.value
   ? apiErrorMessage(listError.value) || t('moderation.workbench.queueFailed')
   : '')
+
+/** 来源 tab 徽章：与对应列表 total 对齐；历史用 historyTotal，不用今日 KPI。 */
+function sourceCountFor(source: ModerationWorkbenchTab): number | null {
+  if (!countsAvailable.value) return null
+  const c = safeCounts.value
+  if (source === 'pending') {
+    return tab.value === 'pending' ? Math.max(c.pendingContent, list.value.total) : c.pendingContent
+  }
+  if (source === 'reports') {
+    return tab.value === 'reports' ? Math.max(c.openReports, list.value.total) : c.openReports
+  }
+  // history：优先全量 historyTotal；当前 tab 再与列表 total 取大，避免徽章与列表脱节
+  const history = c.historyTotal > 0 ? c.historyTotal : c.processedToday
+  return tab.value === 'history' ? Math.max(history, list.value.total) : history
+}
+
 const sourceTabs = computed(() => [
-  { value: 'pending' as const, icon: 'i-lucide-clock-3', label: t('moderation.workbench.pending'), count: countsAvailable.value ? counts.value.pendingContent : null },
-  { value: 'reports' as const, icon: 'i-lucide-flag', label: t('moderation.workbench.reports'), count: countsAvailable.value ? counts.value.openReports : null },
-  { value: 'history' as const, icon: 'i-lucide-history', label: t('moderation.workbench.history'), count: countsAvailable.value ? counts.value.processedToday : null }
+  { value: 'pending' as const, icon: 'i-lucide-clock-3', label: t('moderation.workbench.pending'), count: sourceCountFor('pending') },
+  { value: 'reports' as const, icon: 'i-lucide-flag', label: t('moderation.workbench.reports'), count: sourceCountFor('reports') },
+  { value: 'history' as const, icon: 'i-lucide-history', label: t('moderation.workbench.history'), count: sourceCountFor('history') }
 ])
 const typeFilters = computed(() => [
   { value: 'all' as const, icon: 'i-lucide-layers-3', label: t('admin.moderation.typeAll') },
@@ -145,21 +179,16 @@ const headerDescription = computed(() => tab.value === 'history'
   ? t('moderation.workbench.historyDescription')
   : t('moderation.workbench.queueDescription'))
 const typeFilterLabel = computed(() => typeFilters.value.find(item => item.value === typeFilter.value)?.label || t('admin.moderation.typeAll'))
-// 右栏大数字：跟随当前来源 tab，与通知页未读总数同级
+// 右栏大数字：当前来源队列总量（历史用全量，不用今日 KPI）
 const overviewCount = computed(() => {
   if (!countsAvailable.value) return null
-  if (tab.value === 'reports') return counts.value.openReports
-  if (tab.value === 'history') return counts.value.processedToday
-  return counts.value.pendingContent
+  return sourceCountFor(tab.value)
 })
 const overviewCountLabel = computed(() => {
   if (tab.value === 'reports') return t('moderation.workbench.reports')
-  if (tab.value === 'history') return t('moderation.workbench.processedToday')
+  if (tab.value === 'history') return t('moderation.workbench.history')
   return t('moderation.workbench.pending')
 })
-const rightRailAria = computed(() => reviewMode.value
-  ? t('moderation.workbench.decisionRail')
-  : t('moderation.workbench.queueOverview'))
 const rightDrawerTitle = computed(() => reviewMode.value
   ? t('moderation.workbench.decisionRail')
   : t('moderation.workbench.queueOverview'))
@@ -283,36 +312,21 @@ function historySummary(item: ModerationDecision) {
   return `${t(`moderation.action.${item.action}`)} / ${item.reviewerName || t('moderation.workbench.unknownReviewer')}`
 }
 
-function compactItemIcon(item: QueueRecord) {
-  if ('reasonCode' in item) return 'i-lucide-flag'
-  return item.targetType === 'topic' ? 'i-lucide-file-text' : 'i-lucide-message-square'
-}
-
-function compactItemTitle(item: QueueRecord) {
-  if ('title' in item && item.title) return item.title
-  return `${t(`admin.moderation.type.${item.targetType}`)} #${item.targetId}`
-}
-
-function compactItemMeta(item: QueueRecord) {
-  if ('action' in item) return historySummary(item as ModerationDecision)
-  if ('reasonCode' in item) return t(`moderation.reason.${(item as ModerationReportItem).reasonCode}`)
-  return (item as ModerationPendingItem).triggers.map(trigger => t(`moderation.trigger.${trigger}`)).join(' / ')
-}
-
 function isItemActive(item: QueueRecord) {
   return selectionKey(selectionFromQueueItem(tab.value, item)) === reviewKey.value
 }
 </script>
 
 <template>
+  <!-- 三栏 chrome 直接复用首页 sforum-home__* token（host chrome 路径同样生效） -->
   <main
-    class="sforum-moderation"
+    class="sforum-moderation sforum-home"
     data-sforum-island-body="forum.component.moderation_review"
     data-layout="fullwidth-3col"
     :class="{ 'sforum-moderation--review': reviewMode }"
   >
-    <div class="sforum-moderation__layout">
-      <div class="sforum-moderation__sidebar sforum-home__sidebar">
+    <div class="sforum-home__layout sforum-home__layout--with-right">
+      <div class="sforum-home__sidebar">
         <SFHomeNavigation
           desktop-only
           navigation-mode="route"
@@ -323,80 +337,26 @@ function isItemActive(item: QueueRecord) {
           :show-categories="false"
         >
           <template #after-navigation>
-            <button
-              v-if="reviewMode"
-              type="button"
-              class="sforum-moderation__back-nav"
-              @click="returnToQueue"
-            >
-              <UIcon name="i-lucide-arrow-left" class="size-4" aria-hidden="true" />
-              {{ t('moderation.workbench.backToQueue') }}
-            </button>
-
-            <nav class="sforum-moderation__type-nav" :aria-label="t('moderation.workbench.sources')">
-              <div class="sf-home-navigation__label">{{ t('moderation.workbench.sources') }}</div>
-              <button
-                v-for="item in sourceTabs"
-                :key="item.value"
-                type="button"
-                class="sf-home-navigation__link"
-                :class="{ 'is-active': tab === item.value }"
-                :aria-pressed="tab === item.value"
-                @click="selectTab(item.value)"
-              >
-                <span class="sf-home-navigation__link-main">
-                  <UIcon :name="item.icon" class="size-[18px]" aria-hidden="true" />
-                  {{ item.label }}
-                </span>
-                <span v-if="item.count !== null" class="sf-home-navigation__count">{{ item.count }}</span>
-              </button>
-            </nav>
-
-            <nav class="sforum-moderation__type-nav" :aria-label="t('admin.moderation.filterType')">
-              <div class="sf-home-navigation__label">{{ t('admin.moderation.filterType') }}</div>
-              <button
-                v-for="item in typeFilters"
-                :key="item.value"
-                type="button"
-                class="sf-home-navigation__link"
-                :class="{ 'is-active': typeFilter === item.value }"
-                :aria-pressed="typeFilter === item.value"
-                @click="selectType(item.value)"
-              >
-                <span class="sf-home-navigation__link-main">
-                  <UIcon :name="item.icon" class="size-[18px]" aria-hidden="true" />
-                  {{ item.label }}
-                </span>
-              </button>
-              <p class="sforum-moderation__filter-hint">{{ t('moderation.workbench.permissionHint') }}</p>
-            </nav>
-
-            <template v-if="reviewMode">
-              <div class="sf-home-navigation__label">{{ t('moderation.workbench.currentQueue') }}</div>
-              <div class="sforum-moderation-compact-list">
-                <button
-                  v-for="item in items"
-                  :key="queueItemKey(tab, item)"
-                  type="button"
-                  class="sforum-moderation-compact-item"
-                  :class="{ 'is-active': isItemActive(item) }"
-                  @click="openItem(item)"
-                >
-                  <UIcon :name="compactItemIcon(item)" class="size-4" aria-hidden="true" />
-                  <span>
-                    <strong>{{ compactItemTitle(item) }}</strong>
-                    <small>{{ compactItemMeta(item) }}</small>
-                  </span>
-                </button>
-              </div>
-            </template>
+            <ModerationWorkbenchNav
+              :source-tabs="sourceTabs"
+              :type-filters="typeFilters"
+              :tab="tab"
+              :type-filter="typeFilter"
+              :review-mode="reviewMode"
+              :items="items"
+              :active-key="reviewKey"
+              @select-tab="selectTab"
+              @select-type="selectType"
+              @open-item="openItem"
+              @back="returnToQueue"
+            />
           </template>
         </SFHomeNavigation>
       </div>
 
       <section
         v-if="!reviewMode"
-        class="sforum-moderation__main"
+        class="sforum-home__main sforum-moderation__main"
         :aria-labelledby="'moderation-page-title'"
       >
         <div class="sforum-moderation__mobile-nav">
@@ -522,7 +482,7 @@ function isItemActive(item: QueueRecord) {
 
       <section
         v-else
-        class="sforum-moderation__main sforum-moderation__main--review"
+        class="sforum-home__main sforum-moderation__main sforum-moderation__main--review"
         :aria-label="t('moderation.workbench.reviewBreadcrumb')"
       >
         <div class="sforum-moderation__mobile-nav">
@@ -573,68 +533,17 @@ function isItemActive(item: QueueRecord) {
         />
       </section>
 
-      <!-- 队列模式右栏：始终展示，含 history，避免三栏跳动 -->
-      <aside
+      <ModerationQueueRail
         v-if="!reviewMode"
-        class="sforum-moderation__right"
-        :aria-label="rightRailAria"
-      >
-        <section class="sforum-moderation__rail-section">
-          <div class="sforum-moderation__rail-head">
-            <h2>{{ t('moderation.workbench.queueOverview') }}</h2>
-            <span>{{ t('moderation.workbench.overviewAuthority') }}</span>
-          </div>
-          <div v-if="overviewCount !== null" class="sforum-moderation__overview-summary">
-            <strong>{{ overviewCount }}</strong>
-            <span>{{ overviewCountLabel }}</span>
-          </div>
-          <p v-else class="sforum-moderation__rail-help" role="alert">
-            {{ t('moderation.workbench.countsFailed') }}
-          </p>
-          <p v-if="overviewCount !== null" class="sforum-moderation__rail-help">
-            {{ t('moderation.workbench.overviewSource') }}
-          </p>
-        </section>
-
-        <section class="sforum-moderation__rail-section">
-          <div class="sforum-moderation__rail-head">
-            <h2>{{ t('moderation.workbench.pageStatsTitle') }}</h2>
-            <span>{{ t('moderation.workbench.loadedOnly') }}</span>
-          </div>
-          <dl class="sforum-moderation__loaded-stats">
-            <div>
-              <dt>{{ t('moderation.workbench.sources') }}</dt>
-              <dd>{{ headerTitle }}</dd>
-            </div>
-            <div>
-              <dt>{{ t('admin.moderation.filterType') }}</dt>
-              <dd>{{ typeFilterLabel }}</dd>
-            </div>
-            <div>
-              <dt>{{ t('moderation.workbench.pageStatsTitle') }}</dt>
-              <dd>{{ pageRangeLabel }}</dd>
-            </div>
-            <div>
-              <dt>{{ t('moderation.workbench.loadedTotal') }}</dt>
-              <dd>{{ list.total }}</dd>
-            </div>
-          </dl>
-        </section>
-
-        <section class="sforum-moderation__rail-section">
-          <div class="sforum-moderation__rail-head">
-            <h2>{{ t('moderation.workbench.workflowTitle') }}</h2>
-          </div>
-          <p class="sforum-moderation__rail-help">{{ t('moderation.workbench.workflowDescription') }}</p>
-        </section>
-
-        <section class="sforum-moderation__rail-section">
-          <div class="sforum-moderation__rail-head">
-            <h2>{{ t('moderation.workbench.stateRestoreTitle') }}</h2>
-          </div>
-          <p class="sforum-moderation__rail-help">{{ t('moderation.workbench.stateRestoreDescription') }}</p>
-        </section>
-      </aside>
+        :overview-count="overviewCount"
+        :overview-count-label="overviewCountLabel"
+        :header-title="headerTitle"
+        :type-filter-label="typeFilterLabel"
+        :page-range-label="pageRangeLabel"
+        :loaded-total="list.total"
+        :show-processed-today="tab === 'history' && countsAvailable"
+        :processed-today="safeCounts.processedToday"
+      />
 
       <ModerationDecisionRail
         v-else
@@ -678,58 +587,20 @@ function isItemActive(item: QueueRecord) {
         :show-categories="false"
       >
         <template #after-navigation>
-          <nav class="sforum-moderation__type-nav" :aria-label="t('moderation.workbench.sources')">
-            <div class="sf-home-navigation__label">{{ t('moderation.workbench.sources') }}</div>
-            <button
-              v-for="item in sourceTabs"
-              :key="item.value"
-              type="button"
-              class="sf-home-navigation__link"
-              :class="{ 'is-active': tab === item.value }"
-              @click="selectTab(item.value)"
-            >
-              <span class="sf-home-navigation__link-main">
-                <UIcon :name="item.icon" class="size-[18px]" aria-hidden="true" />
-                {{ item.label }}
-              </span>
-              <span v-if="item.count !== null" class="sf-home-navigation__count">{{ item.count }}</span>
-            </button>
-          </nav>
-          <nav class="sforum-moderation__type-nav" :aria-label="t('admin.moderation.filterType')">
-            <div class="sf-home-navigation__label">{{ t('admin.moderation.filterType') }}</div>
-            <button
-              v-for="item in typeFilters"
-              :key="item.value"
-              type="button"
-              class="sf-home-navigation__link"
-              :class="{ 'is-active': typeFilter === item.value }"
-              @click="selectType(item.value)"
-            >
-              <span class="sf-home-navigation__link-main">
-                <UIcon :name="item.icon" class="size-[18px]" aria-hidden="true" />
-                {{ item.label }}
-              </span>
-            </button>
-          </nav>
-          <template v-if="reviewMode && items.length">
-            <div class="sf-home-navigation__label">{{ t('moderation.workbench.currentQueue') }}</div>
-            <div class="sforum-moderation-compact-list">
-              <button
-                v-for="item in items"
-                :key="queueItemKey(tab, item)"
-                type="button"
-                class="sforum-moderation-compact-item"
-                :class="{ 'is-active': isItemActive(item) }"
-                @click="openItem(item)"
-              >
-                <UIcon :name="compactItemIcon(item)" class="size-4" aria-hidden="true" />
-                <span>
-                  <strong>{{ compactItemTitle(item) }}</strong>
-                  <small>{{ compactItemMeta(item) }}</small>
-                </span>
-              </button>
-            </div>
-          </template>
+          <ModerationWorkbenchNav
+            :source-tabs="sourceTabs"
+            :type-filters="typeFilters"
+            :tab="tab"
+            :type-filter="typeFilter"
+            :review-mode="reviewMode"
+            :items="items"
+            :active-key="reviewKey"
+            @select-tab="selectTab"
+            @select-type="selectType"
+            @open-item="openItem"
+            @back="returnToQueue"
+            @navigate="closeMobileDrawers"
+          />
         </template>
       </SFHomeNavigation>
     </aside>
@@ -742,42 +613,18 @@ function isItemActive(item: QueueRecord) {
         </button>
       </header>
 
-      <div v-if="!reviewMode" class="sforum-moderation__right sforum-moderation__right--drawer" :aria-label="rightRailAria">
-        <section class="sforum-moderation__rail-section">
-          <div class="sforum-moderation__rail-head">
-            <h2>{{ t('moderation.workbench.queueOverview') }}</h2>
-            <span>{{ t('moderation.workbench.overviewAuthority') }}</span>
-          </div>
-          <div v-if="overviewCount !== null" class="sforum-moderation__overview-summary">
-            <strong>{{ overviewCount }}</strong>
-            <span>{{ overviewCountLabel }}</span>
-          </div>
-          <p v-else class="sforum-moderation__rail-help" role="alert">
-            {{ t('moderation.workbench.countsFailed') }}
-          </p>
-        </section>
-        <section class="sforum-moderation__rail-section">
-          <div class="sforum-moderation__rail-head">
-            <h2>{{ t('moderation.workbench.pageStatsTitle') }}</h2>
-          </div>
-          <dl class="sforum-moderation__loaded-stats">
-            <div>
-              <dt>{{ t('moderation.workbench.pageStatsTitle') }}</dt>
-              <dd>{{ pageRangeLabel }}</dd>
-            </div>
-            <div>
-              <dt>{{ t('moderation.workbench.loadedTotal') }}</dt>
-              <dd>{{ list.total }}</dd>
-            </div>
-          </dl>
-        </section>
-        <section class="sforum-moderation__rail-section">
-          <div class="sforum-moderation__rail-head">
-            <h2>{{ t('moderation.workbench.workflowTitle') }}</h2>
-          </div>
-          <p class="sforum-moderation__rail-help">{{ t('moderation.workbench.workflowDescription') }}</p>
-        </section>
-      </div>
+      <ModerationQueueRail
+        v-if="!reviewMode"
+        drawer
+        :overview-count="overviewCount"
+        :overview-count-label="overviewCountLabel"
+        :header-title="headerTitle"
+        :type-filter-label="typeFilterLabel"
+        :page-range-label="pageRangeLabel"
+        :loaded-total="list.total"
+        :show-processed-today="tab === 'history' && countsAvailable"
+        :processed-today="safeCounts.processedToday"
+      />
 
       <ModerationDecisionRail
         v-else

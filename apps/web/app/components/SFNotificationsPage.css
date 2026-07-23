@@ -42,8 +42,7 @@
   padding: 0;
 }
 
-.sforum-notifications__mobile-nav,
-.sforum-notifications__desktop-hidden {
+.sforum-notifications__mobile-nav {
   display: none;
 }
 
@@ -159,6 +158,11 @@
 .sforum-notifications__icon-button:hover:not(:disabled) {
   background: var(--sf-public-surface-muted);
   color: var(--sf-public-text);
+}
+
+/* 必须写在 icon-button 之后，否则 display:inline-grid 会盖掉桌面隐藏 */
+.sforum-notifications__desktop-hidden {
+  display: none;
 }
 
 .sforum-notifications__filter-strip {

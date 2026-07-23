@@ -31,7 +31,13 @@ export type ModerationReport = {
   resolvedAt?: string | null
 }
 
-export type ModerationQueueCounts = { pendingContent: number; openReports: number; processedToday: number }
+export type ModerationQueueCounts = {
+  pendingContent: number
+  openReports: number
+  processedToday: number
+  /** 处理记录全量条数；历史 tab 徽章用这个，不要用 processedToday。 */
+  historyTotal: number
+}
 export type ModerationPendingItem = {
   targetType: ModerationTargetType
   targetId: number

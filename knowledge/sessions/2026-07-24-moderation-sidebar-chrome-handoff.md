@@ -4,32 +4,28 @@
 
 - Rebuilt `/moderation` left/right sidebars to match home + notifications public
   three-column chrome.
-- Left: `SFHomeNavigation` (compose, site nav, guidelines foot) + workbench
-  sources/type filters in `#after-navigation`; review mode keeps compact queue
-  and back-to-queue control.
-- Right queue mode: large overview count, page stats `dl`, workflow/state
-  sections (history tab keeps the rail to avoid layout jump).
-- Right review mode: `ModerationDecisionRail` restyled to the same rail-section
-  language; drawer modifier for mobile.
-- Layout CSS aligned with notifications breakpoints (1100 hide right, 980 hide
-  left); desktop main-column independent scroll; shared mobile drawer keys.
-- i18n: overview/page-stats labels in zh-CN + en-US.
-- Updated `apps/web/tests/moderationWorkbench.test.ts` constraints for the new
-  chrome.
+- **Layout shell now reuses `sforum-home__layout` / `__sidebar` / `__main` /
+  `__right` + `sf-home-right-rail`** (same as tags/composer/profile) so
+  padding/gap/scroll come from `sforum-home.css`, not a parallel grid.
+- Left: `SFHomeNavigation` + workbench sources/type filters in
+  `#after-navigation`.
+- Right: home right-rail card language; decision rail uses the same shell.
+- **Counts bugfix:** history tab badge used `processedToday` (today KPI)
+  while history list is all-time. API `QueueCounts` now includes
+  `historyTotal`; frontend `sourceCountFor` binds badges to pending/open/
+  history totals and falls back to active list `total`.
+- i18n, unit tests, OpenAPI, Go store updated.
 
 ## Decisions
 
-- Prefer reusing `SFHomeNavigation` and notifications rail patterns over a
-  custom moderation-only island chrome.
-- Always show queue right rail (including history) for three-column stability.
-- Shared `forum-mobile-menu-open` / `forum-mobile-info-open` instead of
-  workbench-local drawer state.
+- Prefer reusing `sforum-home__*` shell classes over copying layout CSS.
+- `processedToday` remains a KPI only (right-rail stats on history tab).
+- Shared mobile drawer keys with other public pages.
 
 ## Next
 
-- Visual QA in browser against `/` and `/notifications` at desktop + ≤1100 +
-  ≤980 widths.
-- Optional: extract `ModerationWorkbenchNav` if left after-nav grows further.
+- Hard-refresh browser after API reload so `historyTotal` is present.
+- Visual QA against `/` and `/notifications` sidebars.
 
 ## Open Questions
 

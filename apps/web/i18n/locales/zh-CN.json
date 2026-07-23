@@ -4130,6 +4130,7 @@
     "preview": {
       "ariaLabel": "资料预览与公开说明",
       "title": "公开资料预览",
+      "open": "打开资料预览",
       "unsaved": "本地编辑，尚未保存"
     },
     "scope": {
@@ -4188,7 +4189,19 @@
     "tokensLoading": "加载令牌中…",
     "tokensEmpty": "尚未创建访问令牌。",
     "tokenRotate": "轮换",
-    "tokenRevoke": "撤销"
+    "tokenRevoke": "撤销",
+    "rail": {
+      "ariaLabel": "账号安全摘要",
+      "open": "打开安全摘要",
+      "devicesTitle": "活跃设备",
+      "devicesLabel": "台在线设备",
+      "devicesHelp": "设备列表来自当前会话服务；发现异常请立即下线对应设备。",
+      "live": "实时",
+      "overviewTitle": "本页摘要",
+      "overviewHint": "当前页",
+      "currentDevice": "本机设备",
+      "tokens": "访问令牌"
+    }
   },
   "moderation": {
     "reportTitle": "举报内容",

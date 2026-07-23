@@ -19,51 +19,60 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <section class="sf-profile-settings-canvas__preview-card">
-    <header>
-      <h3>{{ t('profileSettings.preview.title') }}</h3>
+  <section class="sforum-settings__rail-section">
+    <div class="sforum-settings__rail-head">
+      <h2>{{ t('profileSettings.preview.title') }}</h2>
       <NuxtLink :to="publicProfilePath">{{ t('profileSettings.viewPublicProfile') }}</NuxtLink>
-    </header>
-    <div class="sf-profile-settings-canvas__preview">
-      <SFAvatar :name="displayName" :avatar="avatar" size="lg" />
-      <h4>{{ displayName }}</h4>
-      <p class="sf-profile-settings-canvas__handle">@{{ profile.username }}</p>
-      <span v-if="dirty" class="sf-profile-settings-canvas__dirty-badge">
-        {{ t('profileSettings.preview.unsaved') }}
-      </span>
-      <p v-if="bio.trim()" class="sf-profile-settings-canvas__preview-bio">
-        {{ bio }}
-      </p>
-      <div v-if="location.trim() || websiteText || joinedLabel" class="sf-profile-settings-canvas__preview-meta">
-        <span v-if="location.trim()">
-          <UIcon name="i-lucide-map-pin" class="size-3.5" />
-          {{ location }}
-        </span>
-        <span v-if="websiteText">
-          <UIcon name="i-lucide-globe" class="size-3.5" />
-          <a v-if="!dirty && websiteHref" :href="websiteHref" target="_blank" rel="noopener noreferrer nofollow">{{ websiteText }}</a>
-          <span v-else>{{ websiteText }}</span>
-        </span>
-        <span v-if="joinedLabel">
-          <UIcon name="i-lucide-calendar" class="size-3.5" />
-          {{ t('profile.joinedOn', { date: joinedLabel }) }}
-        </span>
+    </div>
+
+    <div class="sforum-settings-preview__person">
+      <SFAvatar :name="displayName" :avatar="avatar" size="sm" />
+      <div>
+        <strong>{{ displayName }}</strong>
+        <span>@{{ profile.username }}</span>
       </div>
+    </div>
+
+    <span v-if="dirty" class="sforum-settings-preview__dirty">
+      {{ t('profileSettings.preview.unsaved') }}
+    </span>
+
+    <p v-if="bio.trim()" class="sforum-settings-preview__bio">
+      {{ bio }}
+    </p>
+    <p v-else class="sforum-settings-preview__bio">
+      {{ t('profile.bioEmpty') }}
+    </p>
+
+    <div v-if="location.trim() || websiteText || joinedLabel" class="sforum-settings-preview__meta">
+      <span v-if="location.trim()">
+        <UIcon name="i-lucide-map-pin" class="size-3.5" aria-hidden="true" />
+        {{ location }}
+      </span>
+      <span v-if="websiteText">
+        <UIcon name="i-lucide-globe" class="size-3.5" aria-hidden="true" />
+        <a v-if="!dirty && websiteHref" :href="websiteHref" target="_blank" rel="noopener noreferrer nofollow">{{ websiteText }}</a>
+        <span v-else>{{ websiteText }}</span>
+      </span>
+      <span v-if="joinedLabel">
+        <UIcon name="i-lucide-calendar" class="size-3.5" aria-hidden="true" />
+        {{ t('profile.joinedOn', { date: joinedLabel }) }}
+      </span>
     </div>
   </section>
 
-  <section v-if="showScope" class="sf-profile-settings-canvas__scope-card">
-    <header>
-      <h3>{{ t('profileSettings.scope.title') }}</h3>
+  <section v-if="showScope" class="sforum-settings__rail-section">
+    <div class="sforum-settings__rail-head">
+      <h2>{{ t('profileSettings.scope.title') }}</h2>
       <span>{{ t('profileSettings.scope.current') }}</span>
-    </header>
-    <ul>
+    </div>
+    <ul class="sforum-settings-preview__scope">
       <li>
-        <UIcon name="i-lucide-eye" class="size-4" />
+        <UIcon name="i-lucide-eye" class="size-4" aria-hidden="true" />
         <span>{{ t('profileSettings.scope.publicFields') }}</span>
       </li>
       <li>
-        <UIcon name="i-lucide-lock-keyhole" class="size-4" />
+        <UIcon name="i-lucide-lock-keyhole" class="size-4" aria-hidden="true" />
         <span>{{ t('profileSettings.scope.privateFields') }}</span>
       </li>
     </ul>

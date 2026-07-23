@@ -162,11 +162,12 @@ ModerationSettings:
       updatedAt: {type: string, format: date-time}
 QueueCounts:
   type: object
-  required: [pendingContent, openReports, processedToday]
+  required: [pendingContent, openReports, processedToday, historyTotal]
   properties:
     pendingContent: {type: integer, format: int64}
     openReports: {type: integer, format: int64}
-    processedToday: {type: integer, format: int64}
+    processedToday: {type: integer, format: int64, description: Decisions created today (KPI only).}
+    historyTotal: {type: integer, format: int64, description: All-time decision count for history tab badge.}
 PendingItem:
   type: object
   required: [targetType, targetId, title, excerpt, authorId, authorName, category, triggers, createdAt]

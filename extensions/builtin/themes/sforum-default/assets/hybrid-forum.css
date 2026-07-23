@@ -519,6 +519,8 @@
   .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col .sforum-home,
   .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col .sforum-topic-page,
   .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col .sforum-notifications,
+  .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col .sforum-settings,
+  .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col .sforum-moderation,
   .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col .sf-theme-home-shell,
   .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col .sf-theme-home-shell__body {
     height: 100%;
@@ -528,7 +530,9 @@
 
   .sforum-home__layout,
   .sforum-topic-page__layout,
-  .sforum-notifications__layout {
+  .sforum-notifications__layout,
+  .sforum-settings__layout,
+  .sforum-moderation__layout {
     gap: 12px;
     height: 100%;
     min-height: 0;
@@ -539,7 +543,9 @@
 
   .sforum-home__main,
   .sforum-topic-page__main,
-  .sforum-notifications__main {
+  .sforum-notifications__main,
+  .sforum-settings__main,
+  .sforum-moderation__main {
     height: 100%;
     min-height: 0;
     overflow-y: auto;
@@ -552,7 +558,11 @@
   .sforum-topic-page__sidebar,
   .sforum-topic-page__side,
   .sforum-notifications__sidebar,
-  .sforum-notifications__right {
+  .sforum-notifications__right,
+  .sforum-settings__sidebar,
+  .sforum-settings__right,
+  .sforum-moderation__sidebar,
+  .sforum-moderation__right {
     position: static;
     top: auto;
     height: 100%;
@@ -1638,7 +1648,9 @@
     padding-right: var(--sf-public-edge-inset, 24px);
   }
 
-  .sforum-notifications__layout {
+  .sforum-notifications__layout,
+  .sforum-settings__layout,
+  .sforum-moderation__layout {
     box-sizing: border-box;
     padding-left: var(--sf-public-edge-inset, 24px);
     padding-right: var(--sf-public-edge-inset, 24px);

@@ -14,13 +14,15 @@ import (
 
 func (s *PostgresStore) QueueCounts(ctx context.Context) (QueueCounts, error) {
 	var counts QueueCounts
+	// pending/open 对齐对应列表；historyTotal 对齐全量历史列表；processedToday 仅作今日 KPI。
 	err := s.pool.QueryRow(ctx, `
 		SELECT
 		  (SELECT count(*) FROM topics WHERE status = 'pending') +
 		    (SELECT count(*) FROM comments WHERE status = 'pending'),
 		  (SELECT count(*) FROM moderation_reports WHERE status IN ('open', 'reviewing')),
-		  (SELECT count(*) FROM moderation_decisions WHERE created_at >= date_trunc('day', now()))
-	`).Scan(&counts.PendingContent, &counts.OpenReports, &counts.ProcessedToday)
+		  (SELECT count(*) FROM moderation_decisions WHERE created_at >= date_trunc('day', now())),
+		  (SELECT count(*) FROM moderation_decisions)
+	`).Scan(&counts.PendingContent, &counts.OpenReports, &counts.ProcessedToday, &counts.HistoryTotal)
 	if err != nil {
 		return QueueCounts{}, fmt.Errorf("load moderation queue counts: %w", err)
 	}

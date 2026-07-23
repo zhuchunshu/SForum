@@ -444,7 +444,9 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
       .sf-theme-home-shell__body,
       .sforum-home,
       .sforum-topic-page,
-      .sforum-notifications
+      .sforum-notifications,
+      .sforum-settings,
+      .sforum-moderation
     ) {
     height: 100%;
     min-height: 0;
@@ -459,7 +461,9 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
       .sf-theme-home-shell__body,
       .sforum-home__layout,
       .sforum-topic-page__layout,
-      .sforum-notifications__layout
+      .sforum-notifications__layout,
+      .sforum-settings__layout,
+      .sforum-moderation__layout
     ) {
     height: 100%;
     min-height: 0;
@@ -470,7 +474,9 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
     .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col :is(
       .sforum-home__main,
       .sforum-topic-page__main,
-      .sforum-notifications__main
+      .sforum-notifications__main,
+      .sforum-settings__main,
+      .sforum-moderation__main
     ) {
     height: 100%;
     min-height: 0;
@@ -487,7 +493,11 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
       .sforum-topic-page__sidebar,
       .sforum-topic-page__side,
       .sforum-notifications__sidebar,
-      .sforum-notifications__right
+      .sforum-notifications__right,
+      .sforum-settings__sidebar,
+      .sforum-settings__right,
+      .sforum-moderation__sidebar,
+      .sforum-moderation__right
     ) {
     position: static;
     top: auto;
@@ -560,7 +570,9 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
   /* 页面三栏与顶栏同左右 inset，列线对齐且不贴视口 */
   .sf-theme--default .sforum-home__layout,
   .sf-theme--default .sforum-topic-page__layout,
-  .sf-theme--default .sforum-notifications__layout {
+  .sf-theme--default .sforum-notifications__layout,
+  .sf-theme--default .sforum-settings__layout,
+  .sf-theme--default .sforum-moderation__layout {
     box-sizing: border-box;
     padding-left: var(--sf-public-edge-inset, 24px);
     padding-right: var(--sf-public-edge-inset, 24px);

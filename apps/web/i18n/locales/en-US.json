@@ -4130,6 +4130,7 @@
     "preview": {
       "ariaLabel": "Profile preview and visibility notes",
       "title": "Public profile preview",
+      "open": "Open profile preview",
       "unsaved": "Local edit, not saved yet"
     },
     "scope": {
@@ -4188,7 +4189,19 @@
     "tokensLoading": "Loading tokens…",
     "tokensEmpty": "No access tokens yet.",
     "tokenRotate": "Rotate",
-    "tokenRevoke": "Revoke"
+    "tokenRevoke": "Revoke",
+    "rail": {
+      "ariaLabel": "Account security summary",
+      "open": "Open security summary",
+      "devicesTitle": "Active devices",
+      "devicesLabel": "signed-in devices",
+      "devicesHelp": "Device list comes from the session service. Revoke any unfamiliar login immediately.",
+      "live": "Live",
+      "overviewTitle": "Page overview",
+      "overviewHint": "This page",
+      "currentDevice": "This device",
+      "tokens": "Access tokens"
+    }
   },
   "moderation": {
     "reportTitle": "Report content",

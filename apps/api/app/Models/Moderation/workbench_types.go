@@ -27,7 +27,10 @@ var (
 type QueueCounts struct {
 	PendingContent int64 `json:"pendingContent"`
 	OpenReports    int64 `json:"openReports"`
+	// ProcessedToday 是今日 KPI，仅右栏概览使用；历史 tab 徽章应使用 HistoryTotal。
 	ProcessedToday int64 `json:"processedToday"`
+	// HistoryTotal 是处理记录全量条数，与 workbench history 列表 total 对齐。
+	HistoryTotal int64 `json:"historyTotal"`
 }
 
 type WorkbenchListInput struct {

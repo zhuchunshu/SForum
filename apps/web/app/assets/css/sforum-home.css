@@ -12,6 +12,16 @@
   min-height: calc(100vh - var(--sf-public-topbar-height));
   max-width: none;
   width: 100%;
+  box-sizing: border-box;
+}
+
+/* host chrome / 无 .sf-theme--default 时仍与顶栏同轨离开视口边缘 */
+@media (min-width: 981px) {
+  .sforum-home__layout {
+    gap: 12px;
+    padding-left: var(--sf-public-edge-inset, 24px);
+    padding-right: var(--sf-public-edge-inset, 24px);
+  }
 }
 
 /* 首页带右栏时切三栏；分类/标签页仍两栏 */

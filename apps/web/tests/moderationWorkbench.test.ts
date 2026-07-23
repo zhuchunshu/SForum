@@ -177,22 +177,25 @@ describe('moderation workbench implementation constraints', () => {
     expect(page).not.toContain('v-html')
   })
 
-  test('keeps history readonly and reuses public three-column chrome', () => {
+  test('keeps history readonly and reuses home three-column chrome tokens', () => {
     expect(page).toContain('readonlyReview')
     expect(page).toContain("tab === 'history'")
     expect(rail).toContain('historyReadonly')
-    // 左右栏对齐首页/通知页：SFHomeNavigation + 共享移动抽屉状态
-    expect(page).toContain('SFHomeNavigation')
+    // 直接复用首页三栏 chrome class，不自造 layout/sidebar 壳
+    expect(page).toContain('sforum-home__layout sforum-home__layout--with-right')
     expect(page).toContain('sforum-home__sidebar')
+    expect(page).toContain('sforum-home__main')
+    expect(page).toContain('SFHomeNavigation')
+    expect(page).toContain('ModerationWorkbenchNav')
+    expect(page).toContain('ModerationQueueRail')
     expect(page).toContain('forum-mobile-menu-open')
-    expect(page).toContain('forum-mobile-info-open')
     expect(page).toContain('sforum-mobile-drawer__backdrop')
-    expect(page).toContain('sforum-mobile-drawer--left')
-    expect(page).toContain('sforum-mobile-drawer--right')
-    // 布局断点与右栏 section 语言在 moderation CSS
-    expect(css).toContain('var(--sf-public-sidebar-width)')
-    expect(css).toContain('var(--sf-public-right-rail-width)')
-    expect(css).toContain('.sforum-moderation__rail-section')
+    // 历史 tab 徽章必须用 historyTotal
+    expect(page).toContain('historyTotal')
+    expect(page).toContain('sourceCountFor')
+    // 右栏决策/队列壳走 home right + right-rail 卡片
+    expect(rail).toContain('sforum-home__right')
+    expect(rail).toContain('sf-home-right-rail')
     expect(css).toContain('.sforum-moderation__overview-summary')
   })
 })

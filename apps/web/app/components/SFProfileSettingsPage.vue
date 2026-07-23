@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /**
  * 宿主 body 岛：forum.settings.profile。主题 L1 挂载；路由页仅 outlet + fail-closed 回退。
+ * 三栏 chrome 对齐首页 / 通知页；表单业务不变。
  */
 import type { ProfileData, PublicProfile } from '~/composables/useProfileApi'
 import { safeUrl } from '~/utils/sfUrl'
@@ -22,6 +23,7 @@ const { user: authUser, setUser } = useAuthSession()
 const { can } = usePermissions()
 const { formatDateOnly } = useSiteDateTime()
 const profileApi = useProfileApi()
+const forumApi = useForumApi()
 
 useSForumSeo({
   title: () => `${t('profileSettings.metaTitle')} - ${siteName.value}`,
@@ -33,6 +35,12 @@ const { data: profile, pending } = await useAsyncData(
   'my-profile',
   () => profileApi.getMyProfile(),
   { default: () => null as PublicProfile | null }
+)
+
+const { data: categoryGroups, pending: categoriesPending } = await useAsyncData(
+  'settings-profile-categories',
+  () => forumApi.listCategoryGroups(),
+  { default: () => [] }
 )
 
 const draft = reactive<ProfileDraft>({
@@ -56,13 +64,17 @@ const saveState = ref<SaveState>('idle')
 const errorMessage = ref('')
 const successMessage = ref('')
 const fieldErrors = ref<Record<string, string[]>>({})
-const mobileSettingsOpen = useState<boolean>('forum-mobile-menu-open', () => false)
+const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
 let successTimer: ReturnType<typeof setTimeout> | undefined
 
+const categories = computed(() => categoryGroups.value.flatMap(group => group.categories || []))
+const categoryTopicTotal = computed(() => categories.value.reduce((sum, category) => sum + (category.topicCount || 0), 0))
+const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
+
 const currentAvatar = computed(() => profile.value?.profile.avatar || null)
 const displayName = computed(() => profile.value?.displayName || profile.value?.username || '')
-const publicProfilePath = computed(() => profile.value ? localePath(`/u/${profile.value.username}`) : localePath('/'))
+const publicProfilePath = computed(() => profile.value ? localePath(`/u/${profile.value.username}`) : undefined)
 const joinedLabel = computed(() => profile.value ? formatDateOnly(profile.value.joinedAt) : '')
 const avatarAccept = computed(() => avatarSettings.value.allowGif ? 'image/jpeg,image/png,image/gif' : 'image/jpeg,image/png')
 const canUploadAvatar = computed(() => avatarSettings.value.allowUpload && can(FORUM_PERMISSIONS.attachmentUpload))
@@ -103,6 +115,7 @@ const publicWebsiteText = computed(() => {
   return value ? value.replace(/^https?:\/\//i, '') : ''
 })
 const publicWebsiteHref = computed(() => safeUrl(draft.websiteUrl))
+
 watch(profile, (value) => {
   if (!value || formReady.value) {
     return
@@ -176,7 +189,7 @@ function resetDraft() {
 }
 
 function closeMobileDrawers() {
-  mobileSettingsOpen.value = false
+  mobileMenuOpen.value = false
   mobileInfoOpen.value = false
 }
 
@@ -282,55 +295,80 @@ async function removeAvatar() {
 </script>
 
 <template>
-  <main class="sf-public-page sf-profile-settings-canvas">
-    <div class="sf-profile-settings-canvas__layout">
-      <aside class="sf-profile-settings-canvas__rail sf-profile-settings-canvas__rail--desktop" :aria-label="t('profileSettings.nav.ariaLabel')">
-        <div v-if="profile" class="sf-profile-settings-canvas__rail-user">
-          <SFAvatar :name="displayName" :avatar="currentAvatar" size="sm" />
-          <div>
-            <strong>{{ displayName }}</strong>
-            <span>@{{ profile.username }}</span>
-          </div>
+  <main
+    class="sforum-settings sforum-settings-profile"
+    data-sforum-island-body="forum.component.settings_profile"
+    data-layout="fullwidth-3col"
+  >
+    <div class="sforum-settings__layout">
+      <div class="sforum-settings__sidebar sforum-home__sidebar">
+        <SFHomeNavigation
+          desktop-only
+          navigation-mode="route"
+          :categories="categories"
+          :total-topics="categoryTopicTotal"
+          :pending="categoriesPending"
+          :can-create-topic="canCreateTopic"
+          :show-categories="false"
+        >
+          <template #after-navigation>
+            <SFSettingsAccountNav
+              active="profile"
+              :public-profile-path="publicProfilePath"
+            />
+          </template>
+        </SFHomeNavigation>
+      </div>
+
+      <section class="sforum-settings__main" aria-labelledby="profile-settings-title">
+        <div class="sforum-settings__mobile-nav">
+          <SFHomeNavigation
+            mobile-only
+            navigation-mode="route"
+            :categories="categories"
+            :total-topics="categoryTopicTotal"
+            :pending="categoriesPending"
+            :can-create-topic="canCreateTopic"
+          />
         </div>
 
-        <section class="sf-profile-settings-canvas__rail-section">
-          <p>{{ t('profileSettings.nav.account') }}</p>
-          <nav>
-            <NuxtLink :to="localePath('/settings/profile')" class="is-active">
-              <UIcon name="i-lucide-user-round" class="size-4" />
-              <span>{{ t('profileSettings.title') }}</span>
-            </NuxtLink>
-            <NuxtLink :to="localePath('/settings/security')">
-              <UIcon name="i-lucide-shield-check" class="size-4" />
-              <span>{{ t('accountSecurity.title') }}</span>
-            </NuxtLink>
-          </nav>
-        </section>
+        <header class="sforum-settings__head">
+          <div class="sforum-settings__head-copy">
+            <h1 id="profile-settings-title">{{ t('profileSettings.canvasTitle') }}</h1>
+            <p>{{ t('profileSettings.canvasDescription') }}</p>
+          </div>
+          <div class="sforum-settings__head-actions">
+            <button
+              type="button"
+              class="sforum-settings__icon-button sforum-settings__desktop-hidden"
+              :aria-label="t('profileSettings.preview.open')"
+              @click="mobileInfoOpen = true"
+            >
+              <UIcon name="i-lucide-panel-right" class="size-[18px]" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              class="sforum-settings__icon-button sforum-settings__desktop-hidden"
+              :aria-label="t('home.sidebar.drawerTitle')"
+              @click="mobileMenuOpen = true"
+            >
+              <UIcon name="i-lucide-menu" class="size-[18px]" aria-hidden="true" />
+            </button>
+          </div>
+        </header>
 
-        <section v-if="profile" class="sf-profile-settings-canvas__rail-section">
-          <p>{{ t('profileSettings.nav.space') }}</p>
-          <nav>
-            <NuxtLink :to="publicProfilePath">
-              <UIcon name="i-lucide-external-link" class="size-4" />
-              <span>{{ t('profileSettings.viewPublicProfile') }}</span>
-            </NuxtLink>
-          </nav>
-        </section>
-      </aside>
-
-      <section class="sf-profile-settings-canvas__main" :aria-labelledby="'profile-settings-title'">
-        <button
-          type="button"
-          class="sf-profile-settings-canvas__mobile-nav-button"
-          :aria-label="t('profileSettings.nav.open')"
-          @click="mobileSettingsOpen = true"
+        <nav
+          v-if="profile"
+          class="sforum-settings__section-nav"
+          :aria-label="t('profileSettings.sections.ariaLabel')"
         >
-          <UIcon name="i-lucide-menu" class="size-4" />
-          <span>{{ t('profileSettings.nav.open') }}</span>
-        </button>
+          <a href="#profile-settings-identity">{{ t('profileSettings.sections.identity') }}</a>
+          <a href="#profile-settings-story">{{ t('profileSettings.sections.story') }}</a>
+          <a href="#profile-settings-links">{{ t('profileSettings.sections.links') }}</a>
+        </nav>
 
         <template v-if="pending && !profile">
-          <div class="sf-profile-settings-canvas__loading">
+          <div class="sforum-settings-profile__loading">
             <SFSkeleton class="h-16 w-16 rounded-full" />
             <div class="min-w-0 flex-1 space-y-3">
               <SFSkeleton class="h-7 w-2/3" />
@@ -340,57 +378,42 @@ async function removeAvatar() {
           </div>
         </template>
 
-        <form v-else-if="profile" class="sf-profile-settings-canvas__form" novalidate @submit.prevent="save">
-          <header class="sf-profile-settings-canvas__hero">
-            <SFAvatar :name="displayName" :avatar="currentAvatar" size="lg" loading="eager" />
-            <div>
-              <div class="sf-profile-settings-canvas__breadcrumb" aria-label="breadcrumb">
-                <span>{{ t('profileSettings.breadcrumb.settings') }}</span>
-                <UIcon name="i-lucide-chevron-right" class="size-3.5" />
-                <span>{{ t('profileSettings.breadcrumb.profile') }}</span>
-              </div>
-              <h1 id="profile-settings-title">
-                {{ t('profileSettings.canvasTitle') }}
-              </h1>
-              <p>{{ t('profileSettings.canvasDescription') }}</p>
-              <nav class="sf-profile-settings-canvas__inline-nav" :aria-label="t('profileSettings.sections.ariaLabel')">
-                <a href="#profile-settings-identity">{{ t('profileSettings.sections.identity') }}</a>
-                <a href="#profile-settings-story">{{ t('profileSettings.sections.story') }}</a>
-                <a href="#profile-settings-links">{{ t('profileSettings.sections.links') }}</a>
-              </nav>
-            </div>
-          </header>
-
+        <form
+          v-else-if="profile"
+          class="sforum-settings-profile__form"
+          novalidate
+          @submit.prevent="save"
+        >
           <SFAlert
             v-if="successMessage"
             variant="success"
             :title="successMessage"
-            class="sf-profile-settings-canvas__alert"
+            class="sforum-settings-profile__alert"
           />
           <SFAlert
             v-if="errorMessage"
             variant="danger"
             :title="errorMessage"
             closable
-            class="sf-profile-settings-canvas__alert"
+            class="sforum-settings-profile__alert"
             @close="errorMessage = ''"
           />
 
-          <section id="profile-settings-identity" class="sf-profile-settings-canvas__section">
-            <div class="sf-profile-settings-canvas__section-heading">
+          <section id="profile-settings-identity" class="sforum-settings-profile__section">
+            <div class="sforum-settings-profile__section-heading">
               <h2>{{ t('profileSettings.sections.identity') }}</h2>
               <p>{{ t('profileSettings.sections.identityDescription') }}</p>
             </div>
-            <div class="sf-profile-settings-canvas__section-body">
-              <div class="sf-profile-settings-canvas__avatar-editor">
+            <div class="sforum-settings-profile__section-body">
+              <div class="sforum-settings-profile__avatar-editor">
                 <SFAvatar :name="displayName" :avatar="currentAvatar" size="lg" />
-                <div class="sf-profile-settings-canvas__avatar-copy">
+                <div class="sforum-settings-profile__avatar-copy">
                   <strong>{{ t('profileSettings.avatarCurrent') }}</strong>
                   <p>{{ avatarCapabilityHint }}</p>
-                  <p v-if="avatarError" class="sf-profile-settings-canvas__field-error">
+                  <p v-if="avatarError" class="sforum-settings-profile__field-error">
                     {{ avatarError }}
                   </p>
-                  <div class="sf-profile-settings-canvas__actions">
+                  <div class="sforum-settings-profile__actions">
                     <input ref="avatarInput" class="hidden" type="file" :accept="avatarAccept" @change="uploadAvatar">
                     <SFButton
                       variant="ghost"
@@ -420,9 +443,9 @@ async function removeAvatar() {
                 </div>
               </div>
 
-              <div class="sf-profile-settings-canvas__field sf-profile-settings-canvas__field--spaced">
+              <div class="sforum-settings-profile__field sforum-settings-profile__field--spaced">
                 <label for="profile-settings-username">{{ t('profileSettings.username') }}</label>
-                <div class="sf-profile-settings-canvas__prefix-field">
+                <div class="sforum-settings-profile__prefix-field">
                   <span>{{ t('profileSettings.profilePathPrefix') }}</span>
                   <input id="profile-settings-username" :value="profile.username" type="text" readonly>
                 </div>
@@ -431,14 +454,14 @@ async function removeAvatar() {
             </div>
           </section>
 
-          <section id="profile-settings-story" class="sf-profile-settings-canvas__section">
-            <div class="sf-profile-settings-canvas__section-heading">
+          <section id="profile-settings-story" class="sforum-settings-profile__section">
+            <div class="sforum-settings-profile__section-heading">
               <h2>{{ t('profileSettings.sections.story') }}</h2>
               <p>{{ t('profileSettings.sections.storyDescription') }}</p>
             </div>
-            <div class="sf-profile-settings-canvas__section-body">
-              <div class="sf-profile-settings-canvas__field">
-                <div class="sf-profile-settings-canvas__field-topline">
+            <div class="sforum-settings-profile__section-body">
+              <div class="sforum-settings-profile__field">
+                <div class="sforum-settings-profile__field-topline">
                   <label for="profile-settings-bio">{{ t('profileSettings.bio') }}</label>
                   <span>{{ bioCount }} / 500</span>
                 </div>
@@ -451,13 +474,13 @@ async function removeAvatar() {
                   :placeholder="t('profileSettings.bioPlaceholder')"
                   :aria-describedby="fieldErrors.bio ? 'profile-settings-bio-error' : undefined"
                 />
-                <p v-if="fieldErrors.bio" id="profile-settings-bio-error" class="sf-profile-settings-canvas__field-error">
+                <p v-if="fieldErrors.bio" id="profile-settings-bio-error" class="sforum-settings-profile__field-error">
                   {{ fieldErrors.bio.join(', ') }}
                 </p>
               </div>
 
-              <div class="sf-profile-settings-canvas__field">
-                <div class="sf-profile-settings-canvas__field-topline">
+              <div class="sforum-settings-profile__field">
+                <div class="sforum-settings-profile__field-topline">
                   <label for="profile-settings-signature">{{ t('profileSettings.signature') }}</label>
                   <span>{{ signatureCount }} / 200</span>
                 </div>
@@ -470,7 +493,7 @@ async function removeAvatar() {
                   :placeholder="t('profileSettings.signaturePlaceholder')"
                   :aria-describedby="fieldErrors.signature ? 'profile-settings-signature-error' : undefined"
                 >
-                <p v-if="fieldErrors.signature" id="profile-settings-signature-error" class="sf-profile-settings-canvas__field-error">
+                <p v-if="fieldErrors.signature" id="profile-settings-signature-error" class="sforum-settings-profile__field-error">
                   {{ fieldErrors.signature.join(', ') }}
                 </p>
                 <p>{{ t('profileSettings.signaturePublicHint') }}</p>
@@ -478,14 +501,14 @@ async function removeAvatar() {
             </div>
           </section>
 
-          <section id="profile-settings-links" class="sf-profile-settings-canvas__section">
-            <div class="sf-profile-settings-canvas__section-heading">
+          <section id="profile-settings-links" class="sforum-settings-profile__section">
+            <div class="sforum-settings-profile__section-heading">
               <h2>{{ t('profileSettings.sections.links') }}</h2>
               <p>{{ t('profileSettings.sections.linksDescription') }}</p>
             </div>
-            <div class="sf-profile-settings-canvas__section-body">
-              <div class="sf-profile-settings-canvas__field-grid">
-                <div class="sf-profile-settings-canvas__field">
+            <div class="sforum-settings-profile__section-body">
+              <div class="sforum-settings-profile__field-grid">
+                <div class="sforum-settings-profile__field">
                   <label for="profile-settings-location">{{ t('profileSettings.location') }}</label>
                   <input
                     id="profile-settings-location"
@@ -496,12 +519,12 @@ async function removeAvatar() {
                     :placeholder="t('profileSettings.locationPlaceholder')"
                     :aria-describedby="fieldErrors.location ? 'profile-settings-location-error' : undefined"
                   >
-                  <p v-if="fieldErrors.location" id="profile-settings-location-error" class="sf-profile-settings-canvas__field-error">
+                  <p v-if="fieldErrors.location" id="profile-settings-location-error" class="sforum-settings-profile__field-error">
                     {{ fieldErrors.location.join(', ') }}
                   </p>
                 </div>
 
-                <div class="sf-profile-settings-canvas__field">
+                <div class="sforum-settings-profile__field">
                   <label for="profile-settings-website">{{ t('profileSettings.website') }}</label>
                   <input
                     id="profile-settings-website"
@@ -512,7 +535,7 @@ async function removeAvatar() {
                     :placeholder="t('profileSettings.websitePlaceholder')"
                     :aria-describedby="fieldErrors.websiteUrl ? 'profile-settings-website-error profile-settings-website-hint' : 'profile-settings-website-hint'"
                   >
-                  <p v-if="fieldErrors.websiteUrl" id="profile-settings-website-error" class="sf-profile-settings-canvas__field-error">
+                  <p v-if="fieldErrors.websiteUrl" id="profile-settings-website-error" class="sforum-settings-profile__field-error">
                     {{ fieldErrors.websiteUrl.join(', ') }}
                   </p>
                   <p id="profile-settings-website-hint">
@@ -523,24 +546,9 @@ async function removeAvatar() {
             </div>
           </section>
 
-          <section class="sf-profile-settings-canvas__preview-mobile" :aria-label="t('profileSettings.preview.title')">
-            <SFProfileSettingsPreview
-              :profile="profile"
-              :display-name="displayName"
-              :avatar="currentAvatar"
-              :bio="draft.bio"
-              :location="draft.location"
-              :website-text="publicWebsiteText"
-              :website-href="publicWebsiteHref"
-              :joined-label="joinedLabel"
-              :dirty="isDirty"
-              :public-profile-path="publicProfilePath"
-            />
-          </section>
-
-          <footer class="sf-profile-settings-canvas__footer">
+          <footer class="sforum-settings-profile__footer">
             <p>{{ isDirty ? t('profileSettings.unsavedFooter') : t('profileSettings.savedFooter') }}</p>
-            <div class="sf-profile-settings-canvas__footer-actions">
+            <div class="sforum-settings-profile__footer-actions">
               <SFButton
                 variant="ghost"
                 type="button"
@@ -566,9 +574,15 @@ async function removeAvatar() {
             </div>
           </footer>
         </form>
+
+        <SFContentColumnFooter />
       </section>
 
-      <aside v-if="profile" class="sf-profile-settings-canvas__right" :aria-label="t('profileSettings.preview.ariaLabel')">
+      <aside
+        v-if="profile"
+        class="sforum-settings__right"
+        :aria-label="t('profileSettings.preview.ariaLabel')"
+      >
         <SFProfileSettingsPreview
           :profile="profile"
           :display-name="displayName"
@@ -579,80 +593,71 @@ async function removeAvatar() {
           :website-href="publicWebsiteHref"
           :joined-label="joinedLabel"
           :dirty="isDirty"
-          :public-profile-path="publicProfilePath"
+          :public-profile-path="publicProfilePath || localePath('/')"
           show-scope
         />
       </aside>
     </div>
 
     <button
-      v-if="mobileSettingsOpen || mobileInfoOpen"
+      v-if="mobileMenuOpen || mobileInfoOpen"
       type="button"
       class="sforum-mobile-drawer__backdrop"
-      :aria-label="t('profileSettings.nav.close')"
+      :aria-label="t('common.close')"
       @click="closeMobileDrawers"
     />
-    <aside v-if="mobileSettingsOpen" class="sforum-mobile-drawer sforum-mobile-drawer--left">
+
+    <aside v-if="mobileMenuOpen" class="sforum-mobile-drawer sforum-mobile-drawer--left">
       <header class="sforum-mobile-drawer__head">
-        <strong>{{ t('profileSettings.nav.ariaLabel') }}</strong>
-        <button type="button" :aria-label="t('profileSettings.nav.close')" @click="closeMobileDrawers">
-          <UIcon name="i-lucide-x" class="size-4" />
+        <strong>{{ t('home.sidebar.drawerTitle') }}</strong>
+        <button type="button" :aria-label="t('common.close')" @click="closeMobileDrawers">
+          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
         </button>
       </header>
-      <div class="sf-profile-settings-canvas__mobile-drawer-body">
-        <div v-if="profile" class="sf-profile-settings-canvas__rail-user">
-          <SFAvatar :name="displayName" :avatar="currentAvatar" size="sm" />
-          <div>
-            <strong>{{ displayName }}</strong>
-            <span>@{{ profile.username }}</span>
-          </div>
-        </div>
-        <section class="sf-profile-settings-canvas__rail-section">
-          <p>{{ t('profileSettings.nav.account') }}</p>
-          <nav>
-            <NuxtLink :to="localePath('/settings/profile')" class="is-active" @click="mobileSettingsOpen = false">
-              <UIcon name="i-lucide-user-round" class="size-4" />
-              <span>{{ t('profileSettings.title') }}</span>
-            </NuxtLink>
-            <NuxtLink :to="localePath('/settings/security')" @click="mobileSettingsOpen = false">
-              <UIcon name="i-lucide-shield-check" class="size-4" />
-              <span>{{ t('accountSecurity.title') }}</span>
-            </NuxtLink>
-          </nav>
-        </section>
-        <section v-if="profile" class="sf-profile-settings-canvas__rail-section">
-          <p>{{ t('profileSettings.nav.space') }}</p>
-          <nav>
-            <NuxtLink :to="publicProfilePath" @click="mobileSettingsOpen = false">
-              <UIcon name="i-lucide-external-link" class="size-4" />
-              <span>{{ t('profileSettings.viewPublicProfile') }}</span>
-            </NuxtLink>
-          </nav>
-        </section>
-      </div>
+      <SFHomeNavigation
+        desktop-only
+        navigation-mode="route"
+        :categories="categories"
+        :total-topics="categoryTopicTotal"
+        :pending="categoriesPending"
+        :can-create-topic="canCreateTopic"
+        :show-categories="false"
+      >
+        <template #after-navigation>
+          <SFSettingsAccountNav
+            active="profile"
+            :public-profile-path="publicProfilePath"
+            @navigate="closeMobileDrawers"
+          />
+        </template>
+      </SFHomeNavigation>
     </aside>
+
     <aside v-if="profile && mobileInfoOpen" class="sforum-mobile-drawer sforum-mobile-drawer--right">
       <header class="sforum-mobile-drawer__head">
         <strong>{{ t('profileSettings.preview.ariaLabel') }}</strong>
-        <button type="button" :aria-label="t('profileSettings.nav.close')" @click="closeMobileDrawers">
-          <UIcon name="i-lucide-x" class="size-4" />
+        <button type="button" :aria-label="t('common.close')" @click="closeMobileDrawers">
+          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
         </button>
       </header>
-      <SFProfileSettingsPreview
-        :profile="profile"
-        :display-name="displayName"
-        :avatar="currentAvatar"
-        :bio="draft.bio"
-        :location="draft.location"
-        :website-text="publicWebsiteText"
-        :website-href="publicWebsiteHref"
-        :joined-label="joinedLabel"
-        :dirty="isDirty"
-        :public-profile-path="publicProfilePath"
-        show-scope
-      />
+      <div class="sforum-settings__right sforum-settings__right--drawer" :aria-label="t('profileSettings.preview.ariaLabel')">
+        <SFProfileSettingsPreview
+          :profile="profile"
+          :display-name="displayName"
+          :avatar="currentAvatar"
+          :bio="draft.bio"
+          :location="draft.location"
+          :website-text="publicWebsiteText"
+          :website-href="publicWebsiteHref"
+          :joined-label="joinedLabel"
+          :dirty="isDirty"
+          :public-profile-path="publicProfilePath || localePath('/')"
+          show-scope
+        />
+      </div>
     </aside>
   </main>
 </template>
 
+<style src="~/assets/css/sforum-settings.css"></style>
 <style src="~/assets/css/sforum-profile-settings.css"></style>

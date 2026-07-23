@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 审阅决策右栏：壳用首页 sforum-home__right + sf-home-right-rail 卡片。
+ */
 import type { ModerationAction, ModerationReviewContext } from '~/composables/useModerationApi'
 import { REVIEW_REQUIRED_ACTIONS, actionListForContext } from '~/utils/moderationWorkbench'
 
@@ -29,122 +32,130 @@ const actions = computed(() => actionListForContext(props.context, props.readonl
 
 <template>
   <aside
-    class="sforum-moderation__right"
+    class="sforum-home__right"
     :class="{ 'sforum-moderation__right--drawer': drawer }"
     :aria-label="t('moderation.workbench.decisionRail')"
   >
-    <section class="sforum-moderation__rail-section">
-      <div class="sforum-moderation__rail-head">
-        <h2>{{ t('moderation.workbench.decisionRail') }}</h2>
-        <span>{{ progressLabel || t('moderation.workbench.noCurrentItem') }}</span>
-      </div>
-      <div class="sforum-moderation-stepper">
-        <button
-          type="button"
-          class="sforum-moderation-icon-button"
-          :disabled="!hasPrevious"
-          :aria-label="t('moderation.workbench.previousItem')"
-          @click="$emit('previous')"
-        >
-          <UIcon name="i-lucide-arrow-up" class="size-4" aria-hidden="true" />
-        </button>
-        <span>{{ progressLabel || t('moderation.workbench.noCurrentItem') }}</span>
-        <button
-          type="button"
-          class="sforum-moderation-icon-button"
-          :disabled="!hasNext"
-          :aria-label="t('moderation.workbench.nextItem')"
-          @click="$emit('next')"
-        >
-          <UIcon name="i-lucide-arrow-down" class="size-4" aria-hidden="true" />
-        </button>
-      </div>
-    </section>
+    <div class="sf-home-right-rail">
+      <section class="sf-home-right-rail__card">
+        <header class="sf-home-right-rail__head">
+          <h3 class="sf-home-right-rail__title">{{ t('moderation.workbench.decisionRail') }}</h3>
+          <span class="sf-home-right-rail__meta">{{ progressLabel || t('moderation.workbench.noCurrentItem') }}</span>
+        </header>
+        <div class="sforum-moderation-stepper">
+          <button
+            type="button"
+            class="sforum-moderation-icon-button"
+            :disabled="!hasPrevious"
+            :aria-label="t('moderation.workbench.previousItem')"
+            @click="emit('previous')"
+          >
+            <UIcon name="i-lucide-arrow-up" class="size-4" aria-hidden="true" />
+          </button>
+          <span>{{ progressLabel || t('moderation.workbench.noCurrentItem') }}</span>
+          <button
+            type="button"
+            class="sforum-moderation-icon-button"
+            :disabled="!hasNext"
+            :aria-label="t('moderation.workbench.nextItem')"
+            @click="emit('next')"
+          >
+            <UIcon name="i-lucide-arrow-down" class="size-4" aria-hidden="true" />
+          </button>
+        </div>
+      </section>
 
-    <section class="sforum-moderation__rail-section">
-      <div class="sforum-moderation__rail-head">
-        <h2>{{ t('moderation.workbench.contentInfo') }}</h2>
-        <span v-if="context">{{ t(`admin.moderation.type.${context.targetType}`) }} #{{ context.targetId }}</span>
-      </div>
-      <dl v-if="context" class="sforum-moderation__loaded-stats sforum-moderation-context-list">
-        <div>
-          <dt>{{ t('moderation.workbench.status') }}</dt>
-          <dd>{{ context.status }}</dd>
-        </div>
-        <div>
-          <dt>{{ t('moderation.workbench.category') }}</dt>
-          <dd>{{ context.category }}</dd>
-        </div>
-        <div>
-          <dt>{{ t('moderation.workbench.author') }}</dt>
-          <dd>{{ context.authorName }}</dd>
-        </div>
-        <div v-if="context.triggers.length">
-          <dt>{{ t('moderation.workbench.triggers') }}</dt>
-          <dd>{{ context.triggers.map(trigger => t(`moderation.trigger.${trigger}`)).join(' / ') }}</dd>
-        </div>
-        <div v-if="context.ipAddress">
-          <dt>{{ t('moderation.workbench.createIp') }}</dt>
-          <dd class="font-mono">{{ context.ipAddress }}</dd>
-        </div>
-        <div v-if="context.lastEditIp && context.lastEditIp !== context.ipAddress">
-          <dt>{{ t('moderation.workbench.lastEditIp') }}</dt>
-          <dd class="font-mono">{{ context.lastEditIp }}</dd>
-        </div>
-      </dl>
-      <p v-else class="sforum-moderation__rail-help">{{ t('moderation.workbench.selectItemHint') }}</p>
-    </section>
+      <section class="sf-home-right-rail__card">
+        <header class="sf-home-right-rail__head">
+          <h3 class="sf-home-right-rail__title">{{ t('moderation.workbench.contentInfo') }}</h3>
+          <span v-if="context" class="sf-home-right-rail__meta">
+            {{ t(`admin.moderation.type.${context.targetType}`) }} #{{ context.targetId }}
+          </span>
+        </header>
+        <dl v-if="context" class="sforum-moderation__loaded-stats sforum-moderation__loaded-stats--card">
+          <div>
+            <dt>{{ t('moderation.workbench.status') }}</dt>
+            <dd>{{ context.status }}</dd>
+          </div>
+          <div>
+            <dt>{{ t('moderation.workbench.category') }}</dt>
+            <dd>{{ context.category }}</dd>
+          </div>
+          <div>
+            <dt>{{ t('moderation.workbench.author') }}</dt>
+            <dd>{{ context.authorName }}</dd>
+          </div>
+          <div v-if="context.triggers.length">
+            <dt>{{ t('moderation.workbench.triggers') }}</dt>
+            <dd>{{ context.triggers.map(trigger => t(`moderation.trigger.${trigger}`)).join(' / ') }}</dd>
+          </div>
+          <div v-if="context.ipAddress">
+            <dt>{{ t('moderation.workbench.createIp') }}</dt>
+            <dd class="font-mono">{{ context.ipAddress }}</dd>
+          </div>
+          <div v-if="context.lastEditIp && context.lastEditIp !== context.ipAddress">
+            <dt>{{ t('moderation.workbench.lastEditIp') }}</dt>
+            <dd class="font-mono">{{ context.lastEditIp }}</dd>
+          </div>
+        </dl>
+        <p v-else class="sf-home-right-rail__empty">{{ t('moderation.workbench.selectItemHint') }}</p>
+      </section>
 
-    <section class="sforum-moderation__rail-section">
-      <div class="sforum-moderation__rail-head">
-        <h2>{{ t('moderation.workbench.reviewNote') }}</h2>
-        <span>{{ t('moderation.workbench.noteRuleShort') }}</span>
-      </div>
-      <label class="sforum-moderation-field-label" :for="noteId || 'moderation-review-note'">
-        {{ t('moderation.workbench.reviewNoteLabel') }}
-      </label>
-      <textarea
-        :id="noteId || 'moderation-review-note'"
-        class="sforum-moderation-note"
-        :value="note"
-        :placeholder="t('moderation.workbench.reviewNotePlaceholder')"
-        :disabled="readonly || Boolean(submitting)"
-        @input="$emit('update:note', ($event.target as HTMLTextAreaElement).value)"
-      />
-      <p class="sforum-moderation-field-help">{{ t('moderation.workbench.noteRule') }}</p>
-      <p v-if="error" class="sforum-moderation-field-error" role="alert">{{ error }}</p>
-    </section>
-
-    <section class="sforum-moderation__rail-section">
-      <div class="sforum-moderation__rail-head">
-        <h2>{{ t('moderation.workbench.decisionRail') }}</h2>
-      </div>
-      <p v-if="readonly" class="sforum-moderation__rail-help">
-        {{ t('moderation.workbench.historyReadonly') }}
-      </p>
-      <div v-else class="sforum-moderation-actions">
-        <button
-          v-for="action in actions"
-          :key="action"
-          type="button"
-          class="sforum-moderation-action"
-          :class="{
-            'sforum-moderation-action--primary': action === 'approve' || action === 'keep_and_close',
-            'sforum-moderation-action--danger': action === 'delete_and_close',
-            'sforum-moderation-action--warning': REVIEW_REQUIRED_ACTIONS.has(action) && action !== 'delete_and_close'
-          }"
-          :disabled="Boolean(submitting)"
-          :aria-busy="submitting === action ? 'true' : undefined"
-          @click="$emit('decide', action)"
-        >
-          <UIcon
-            :name="action === 'approve' || action === 'keep_and_close' ? 'i-lucide-check' : action === 'delete_and_close' ? 'i-lucide-trash-2' : action === 'hide_and_close' ? 'i-lucide-eye-off' : 'i-lucide-x'"
-            class="size-4"
-            aria-hidden="true"
+      <section class="sf-home-right-rail__card">
+        <header class="sf-home-right-rail__head">
+          <h3 class="sf-home-right-rail__title">{{ t('moderation.workbench.reviewNote') }}</h3>
+          <span class="sf-home-right-rail__meta">{{ t('moderation.workbench.noteRuleShort') }}</span>
+        </header>
+        <div class="sforum-moderation__note-block">
+          <label class="sforum-moderation-field-label" :for="noteId || 'moderation-review-note'">
+            {{ t('moderation.workbench.reviewNoteLabel') }}
+          </label>
+          <textarea
+            :id="noteId || 'moderation-review-note'"
+            class="sforum-moderation-note"
+            :value="note"
+            :placeholder="t('moderation.workbench.reviewNotePlaceholder')"
+            :disabled="readonly || Boolean(submitting)"
+            @input="emit('update:note', ($event.target as HTMLTextAreaElement).value)"
           />
-          <span>{{ submitting === action ? t('moderation.workbench.submittingDecision') : t(`moderation.action.${action}`) }}</span>
-        </button>
-      </div>
-    </section>
+          <p class="sforum-moderation-field-help">{{ t('moderation.workbench.noteRule') }}</p>
+          <p v-if="error" class="sforum-moderation-field-error" role="alert">{{ error }}</p>
+        </div>
+      </section>
+
+      <section class="sf-home-right-rail__card">
+        <header class="sf-home-right-rail__head">
+          <h3 class="sf-home-right-rail__title">{{ t('moderation.workbench.decisionRail') }}</h3>
+        </header>
+        <div class="sforum-moderation__decision-block">
+          <p v-if="readonly" class="sforum-moderation__rail-help sforum-moderation__rail-help--card">
+            {{ t('moderation.workbench.historyReadonly') }}
+          </p>
+          <div v-else class="sforum-moderation-actions">
+            <button
+              v-for="action in actions"
+              :key="action"
+              type="button"
+              class="sforum-moderation-action"
+              :class="{
+                'sforum-moderation-action--primary': action === 'approve' || action === 'keep_and_close',
+                'sforum-moderation-action--danger': action === 'delete_and_close',
+                'sforum-moderation-action--warning': REVIEW_REQUIRED_ACTIONS.has(action) && action !== 'delete_and_close'
+              }"
+              :disabled="Boolean(submitting)"
+              :aria-busy="submitting === action ? 'true' : undefined"
+              @click="emit('decide', action)"
+            >
+              <UIcon
+                :name="action === 'approve' || action === 'keep_and_close' ? 'i-lucide-check' : action === 'delete_and_close' ? 'i-lucide-trash-2' : action === 'hide_and_close' ? 'i-lucide-eye-off' : 'i-lucide-x'"
+                class="size-4"
+                aria-hidden="true"
+              />
+              <span>{{ submitting === action ? t('moderation.workbench.submittingDecision') : t(`moderation.action.${action}`) }}</span>
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
   </aside>
 </template>

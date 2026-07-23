@@ -63,12 +63,15 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- `/moderation` left/right sidebars aligned to home + notifications public
-  three-column chrome:
-  `sessions/2026-07-24-moderation-sidebar-chrome-handoff.md`
+- `/moderation` left/right sidebars rewritten to home chrome tokens
+  (`sforum-home__*`, `sf-home-navigation__*`, `sf-home-right-rail`):
+  `sessions/2026-07-24-moderation-sidebar-home-chrome-handoff.md`
 
 ## Recently Completed
 
+- Settings chrome: shared `sforum-settings` shell, `SFSettingsAccountNav`,
+  profile preview rail, security summary rail; fullwidth theme templates;
+  typecheck + canvas/chrome unit tests pass.
 - `/moderation` workbench sidebars: reuse `SFHomeNavigation`, notifications rail
   section language, shared mobile drawer keys; queue overview large count;
   decision rail restyle; typecheck + workbench unit tests pass.
