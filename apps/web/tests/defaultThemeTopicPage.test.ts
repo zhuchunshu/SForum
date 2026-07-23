@@ -183,6 +183,7 @@ describe('default theme V32 topic page contract', () => {
     expect(source).toContain("webOption('forum.topics.allow_author_close_replies', 'enabled')")
     expect(source).toContain('can(FORUM_PERMISSIONS.topicEditOwn)')
     expect(source).toContain('topic.value?.authorUserId === reportUser.value?.id')
+    expect(source).toContain('<SFContentColumnFooter')
   })
 
   test('registers the full-width three-column topic stylesheet', () => {
@@ -196,10 +197,14 @@ describe('default theme V32 topic page contract', () => {
     expect(css).toContain('var(--sf-public-right-rail-width)')
     expect(css).toContain('.sforum-topic-page__sidebar')
     expect(css).toContain('.sforum-topic-page__post-card')
+    expect(css).toContain('padding: 0 18px;')
     expect(css).toContain('.sforum-topic-page .sf-topic-heading__title')
     expect(css).toContain('.sf-topic-side-card')
     expect(css).toContain('background: var(--sf-public-surface)')
     expect(css).toContain('overflow-wrap: anywhere')
+    expect(css).toContain('.sforum-topic-page__main {\n    height: 100%;\n    min-height: 0;\n    overflow-y: auto;')
+    expect(css).toContain('.sforum-topic-page__sidebar,\n  .sforum-topic-page__side {\n    position: static;')
+    expect(css).toContain('overflow: hidden;')
     expect(css).toContain('@media (max-width: 1180px)')
     expect(css).toContain('@media (max-width: 960px)')
     expect(themePkgCss).toContain('.sforum-topic-page__layout--with-side')

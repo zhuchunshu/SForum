@@ -188,6 +188,18 @@ Architecture sources:
 - `SFHomeNavigation` owns shared public left-rail links and footer links. Its
   host CSS must style the footer too, because homepage, topic, and taxonomy
   pages reuse the component inside desktop sidebars and mobile left drawers.
+- Default-theme public pages must still render the global `SFFooter` from L1
+  chrome; the left-rail legal links are navigation shortcuts, not a replacement
+  for the site footer.
+- On desktop, the default-theme full-width three-column shell fixes the navbar,
+  left navigation, and right rail in the viewport; only the center content
+  column scrolls. The rail divider lines touch the topbar and viewport bottom
+  directly; spacing belongs inside each column, not on the outer layout. Mobile
+  keeps ordinary document scrolling plus drawer scrolling to avoid scroll traps.
+- Homepage, topic detail, and notifications place the public footer inside the
+  center content column through `SFContentColumnFooter`; full-width L1 footer is
+  hidden for `fullwidth-3col` shells so the footer scrolls with content instead
+  of occupying global chrome.
 - `/tags` is the `forum.tag.index` Page Registry body island. It renders the
   default-theme three-column heat overview from real `listTags` and
   `listCategoryGroups` API data, with all/hot/week/A-Z filters, localized empty

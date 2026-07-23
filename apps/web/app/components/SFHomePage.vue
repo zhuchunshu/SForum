@@ -694,6 +694,8 @@ onBeforeUnmount(() => {
           <span v-else-if="!hasMoreTopics">{{ t('home.feed.end') }}</span>
           <span v-else class="sforum-home__sentinel" aria-hidden="true" />
         </div>
+
+        <SFContentColumnFooter />
       </section>
 
       <SFHomeRightRail

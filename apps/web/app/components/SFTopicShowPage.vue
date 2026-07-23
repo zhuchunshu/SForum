@@ -1118,6 +1118,8 @@ async function submitReport() {
             </div>
           </template>
         </div>
+
+        <SFContentColumnFooter />
       </div>
 
       <SFTopicSideCard

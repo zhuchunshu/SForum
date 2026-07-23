@@ -465,6 +465,8 @@ async function openSelectedTarget() {
             </div>
           </div>
         </div>
+
+        <SFContentColumnFooter />
       </section>
 
       <aside class="sforum-notifications__right" :aria-label="t('notifications.detail.aria')">

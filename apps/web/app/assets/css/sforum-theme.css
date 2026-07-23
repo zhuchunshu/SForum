@@ -152,6 +152,23 @@
 }
 
 /* 已安装的旧默认主题 artifact 曾全局隐藏 footer；404 必须保留完整主题外壳。 */
+.sf-theme-template[data-extension-id="sforum.default-theme"]
+  .sf-page.sf-theme--default > .sf-footer {
+  display: block;
+}
+
+.sf-theme-template[data-extension-id="sforum.default-theme"]
+  .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col > .sf-footer {
+  display: none;
+}
+
+.sf-theme-template[data-extension-id="sforum.default-theme"]
+  .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col
+  .sforum-content-footer
+  .sf-footer {
+  display: block;
+}
+
 .sf-system-theme-template[data-extension-id="sforum.default-theme"]
   .sf-page--not-found > .sf-footer {
   display: block;
@@ -399,6 +416,85 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
 }
 
 @media (min-width: 981px) {
+  /* 兼容已安装的旧默认主题 artifact：桌面三栏只允许中间内容列滚动。 */
+  .sf-theme-template[data-extension-id="sforum.default-theme"]
+    .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col {
+    display: flex;
+    height: 100vh;
+    min-height: 100vh;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sf-theme-template[data-extension-id="sforum.default-theme"]
+    .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col > .navbar {
+    flex: 0 0 auto;
+  }
+
+  .sf-theme-template[data-extension-id="sforum.default-theme"]
+    .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col > .sf-theme-chrome-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .sf-theme-template[data-extension-id="sforum.default-theme"]
+    .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col :is(
+      .sf-theme-home-shell,
+      .sf-theme-home-shell__body,
+      .sforum-home,
+      .sforum-topic-page,
+      .sforum-notifications
+    ) {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .sf-theme-template[data-extension-id="sforum.default-theme"]
+    .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col :is(
+      .sf-theme-home-shell,
+      .sf-theme-home-shell__body,
+      .sforum-home__layout,
+      .sforum-topic-page__layout,
+      .sforum-notifications__layout
+    ) {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .sf-theme-template[data-extension-id="sforum.default-theme"]
+    .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col :is(
+      .sforum-home__main,
+      .sforum-topic-page__main,
+      .sforum-notifications__main
+    ) {
+    height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .sf-theme-template[data-extension-id="sforum.default-theme"]
+    .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col :is(
+      .sforum-home__sidebar,
+      .sforum-home__right,
+      .sforum-topic-page__sidebar,
+      .sforum-topic-page__side,
+      .sforum-notifications__sidebar,
+      .sforum-notifications__right
+    ) {
+    position: static;
+    top: auto;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
   /*
    * 顶栏与页面三栏同轨：
    * logo 列 = 左栏宽；session 列 = 右栏宽；中间为导航/搜索/发帖/工具。
