@@ -385,6 +385,7 @@
 .sf-home-navigation {
   display: flex;
   flex-direction: column;
+  min-height: 100%;
   min-width: 0;
 }
 
@@ -542,12 +543,45 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-height: 100%;
 }
 
 .sf-home-navigation__pending {
   display: grid;
   gap: 8px;
   padding: 4px 0;
+}
+
+.sf-home-navigation__foot {
+  display: grid;
+  gap: 2px;
+  margin-top: auto;
+  padding: 10px 6px 0;
+}
+
+.sf-home-navigation__foot a,
+.sf-home-navigation__foot-item {
+  min-height: 34px;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  border-radius: var(--sf-public-radius, 6px);
+  padding: 0 10px;
+  color: var(--sf-public-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-decoration: none;
+}
+
+.sf-home-navigation__foot a:hover {
+  background: var(--sf-public-row-hover);
+  color: var(--sf-public-text);
+}
+
+.sf-home-navigation__foot svg {
+  flex: 0 0 auto;
 }
 
 /* 列表行 / main-bar / chip：宿主 SF 组件 Tailwind + token，不再 BEM 镜像 */

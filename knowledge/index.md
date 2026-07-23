@@ -73,8 +73,8 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- Default-theme four-page integration and Browser QA:
-  `sessions/2026-07-23-default-theme-four-page-integration-handoff.md`
+- Tags heat overview `/tags` recovery and final QA:
+  `sessions/2026-07-23-tags-heat-overview-handoff.md`
 
 ## Recently Completed
 

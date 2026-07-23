@@ -147,6 +147,12 @@ dashboard. It keeps empty public groups visible, filters out hidden groups and
 categories defensively, sorts categories only inside their owning group, and
 derives totals/distribution/activity from the category DTO counters.
 
+The `/tags` index is a public read surface when
+`forum.tags.public_pages=enabled`. Its heat overview, directory filters, and
+right-rail stats are derived only from active tag `topicCount`, `createdAt`,
+name, slug, description, and status fields returned by the public tag API; there
+are no fabricated likes, follows, trends, or weekly activity counters.
+
 `seo.topic_url_mode` controls topic paths:
 
 | Mode | Shape | Lookup |

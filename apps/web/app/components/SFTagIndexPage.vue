@@ -4,21 +4,32 @@
  */
 
 import {
+  activeForumTags,
+  compareTagsByHeat,
+  filterTagIndexTags,
+  recentTagIndexTags,
+  tagDisplayDescription,
+  tagHeatEntries,
+  tagIndexOverview,
+  type TagIndexFilter
+} from '~/utils/forumTagsIndex'
+import {
   forumTagPath,
-  forumTagsIndexPath,
-  isCreatedWithinDays,
   parseForumTagPublicPagesOption,
-  tagCloudSizeBucket,
-  tagHotThreshold,
+  type ForumCategoryGroup,
   type ForumTag
 } from '~/utils/forumTaxonomy'
 
-type TagFilter = 'all' | 'hot' | 'week' | 'az'
+const TAG_HEAT_LIMIT = 6
+const RAIL_HOT_LIMIT = 6
+const RAIL_RECENT_LIMIT = 4
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const localePath = useLocalePath()
-const { seoSettings, webOption, siteName } = useWebOptions()
+const { format: formatSiteDateTime } = useSiteDateTime()
+const { webOption } = useWebOptions()
 const forumApi = useForumApi()
+const { can } = usePermissions()
 
 const publicTagPagesEnabled = computed(() => parseForumTagPublicPagesOption(
   webOption('forum.tags.public_pages', 'enabled')
@@ -31,217 +42,420 @@ if (!publicTagPagesEnabled.value) {
   })
 }
 
-const filter = ref<TagFilter>('all')
+const filter = ref<TagIndexFilter>('all')
 const searchQuery = ref('')
+const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
+const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
+const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
+const renderedAt = useState<number>('forum-tags-index-rendered-at', () => Date.now())
 
-const { data: tags, pending } = await useAsyncData(
-  'forum-tags-index',
-  async () => (await forumApi.listTags()).filter((item) => item.status === 'active'),
+const {
+  data: categoryGroups,
+  pending: categoriesPending
+} = await useAsyncData(
+  'forum-tags-index-category-groups',
+  () => forumApi.listCategoryGroups(),
+  { default: () => [] as ForumCategoryGroup[] }
+)
+
+const {
+  data: tags,
+  pending: tagsPending,
+  error: tagsError,
+  refresh: refreshTags
+} = await useAsyncData(
+  'forum-tags-index-tags',
+  () => forumApi.listTags(),
   { default: () => [] as ForumTag[] }
 )
 
-const activeTags = computed(() => tags.value || [])
-
-const countRange = computed(() => {
-  if (activeTags.value.length === 0) {
-    return { min: 0, max: 0 }
-  }
-  let min = Number.POSITIVE_INFINITY
-  let max = 0
-  for (const tag of activeTags.value) {
-    const count = tag.topicCount || 0
-    if (count < min) min = count
-    if (count > max) max = count
-  }
-  if (!Number.isFinite(min)) min = 0
-  return { min, max }
-})
-
-const hotThreshold = computed(() => tagHotThreshold(activeTags.value.map((tag) => tag.topicCount || 0)))
-
-const weekNewCount = computed(() =>
-  activeTags.value.filter((tag) => isCreatedWithinDays(tag.createdAt, 7)).length
-)
-
-const totalReferences = computed(() =>
-  activeTags.value.reduce((sum, tag) => sum + (tag.topicCount || 0), 0)
-)
-
-const filteredTags = computed(() => {
-  const query = searchQuery.value.trim().toLowerCase()
-  let list = activeTags.value.slice()
-
-  if (query) {
-    list = list.filter((tag) =>
-      tag.name.toLowerCase().includes(query)
-      || tag.slug.toLowerCase().includes(query)
-    )
-  }
-
-  switch (filter.value) {
-    case 'hot':
-      list = list.filter((tag) => (tag.topicCount || 0) >= hotThreshold.value)
-      break
-    case 'week':
-      // 「本周」= 近 7 天新建标签（无「本周活跃」API 时的降级语义）
-      list = list.filter((tag) => isCreatedWithinDays(tag.createdAt, 7))
-      break
-    case 'az':
-      list = list.slice().sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
-      break
-    default:
-      break
-  }
-
-  return list
-})
-
-// 一期无周环比：降级为热门标签 Top 6（按 topicCount）
-const risingTags = computed(() =>
+const categories = computed(() => categoryGroups.value.flatMap((group) => group.categories || []))
+const activeTags = computed(() => activeForumTags(tags.value || []))
+const totalTopics = computed(() => categories.value.reduce((sum, category) => sum + category.topicCount, 0))
+const overview = computed(() => tagIndexOverview(activeTags.value, renderedAt.value))
+const filteredTags = computed(() => filterTagIndexTags(activeTags.value, {
+  filter: filter.value,
+  query: searchQuery.value,
+  locale: locale.value,
+  nowMs: renderedAt.value
+}))
+const heatEntries = computed(() => tagHeatEntries(filteredTags.value, TAG_HEAT_LIMIT, locale.value))
+const railHotTags = computed(() =>
   activeTags.value
     .slice()
-    .sort((a, b) => (b.topicCount || 0) - (a.topicCount || 0) || a.name.localeCompare(b.name))
-    .slice(0, 6)
+    .sort((left, right) => compareTagsByHeat(left, right, locale.value))
+    .slice(0, RAIL_HOT_LIMIT)
 )
+const railRecentTags = computed(() =>
+  recentTagIndexTags(activeTags.value, RAIL_RECENT_LIMIT, renderedAt.value, locale.value)
+)
+const hasQuery = computed(() => searchQuery.value.trim().length > 0)
+const emptyTitle = computed(() => {
+  if (hasQuery.value) return t('taxonomy.tags.emptySearchTitle')
+  if (filter.value === 'hot') return t('taxonomy.tags.emptyHotTitle')
+  if (filter.value === 'week') return t('taxonomy.tags.emptyWeekTitle')
+  return t('taxonomy.tags.emptyTitle')
+})
+const emptyDescription = computed(() => {
+  if (hasQuery.value) return t('taxonomy.tags.emptySearchDescription')
+  if (filter.value === 'hot') return t('taxonomy.tags.emptyHotDescription')
+  if (filter.value === 'week') return t('taxonomy.tags.emptyWeekDescription')
+  return t('taxonomy.tags.emptyDescription')
+})
 
-
-function sizeClass(tag: ForumTag) {
-  const bucket = tagCloudSizeBucket(tag.topicCount || 0, countRange.value.min, countRange.value.max)
-  return `sforum-taxonomy__tag--s${bucket}`
+function closeMobileDrawers() {
+  mobileMenuOpen.value = false
+  mobileInfoOpen.value = false
 }
 
-function setFilter(next: TagFilter) {
+function setFilter(next: TagIndexFilter) {
   filter.value = next
 }
 
+function tagPath(slug: string) {
+  return localePath(forumTagPath(slug))
+}
+
 function formatCount(value: number) {
-  return new Intl.NumberFormat(undefined).format(value)
+  return new Intl.NumberFormat(locale.value).format(value)
+}
+
+function formatDate(value: string) {
+  return value ? formatSiteDateTime(value) : t('taxonomy.tags.noCreatedAt')
+}
+
+function descriptionFor(tag: ForumTag) {
+  return tagDisplayDescription(tag, t('taxonomy.tags.noDescription'))
+}
+
+function retryTags() {
+  void refreshTags()
 }
 </script>
 
 <template>
+  <main class="sforum-tags-page">
+    <div class="sforum-tags-page__layout sforum-tags-page__layout--with-side">
+      <aside class="sforum-tags-page__sidebar" :aria-label="t('home.sidebar.navTitle')">
+        <SFHomeNavigation
+          desktop-only
+          navigation-mode="route"
+          :categories="categories"
+          selected-category-slug=""
+          :total-topics="totalTopics"
+          :pending="categoriesPending"
+          :can-create-topic="canCreateTopic"
+        />
+      </aside>
 
-<main class="sforum-taxonomy">
-    <div class="sforum-taxonomy__shell">
-      <header class="sforum-taxonomy__head">
-        <div>
-          <h1>{{ t('taxonomy.tags.title') }}</h1>
-          <p>{{ t('taxonomy.tags.description') }}</p>
-        </div>
-        <div class="sforum-taxonomy__tools">
-          <input
-            v-model="searchQuery"
-            type="search"
-            class="sforum-taxonomy__filter"
-            :placeholder="t('taxonomy.tags.filterPlaceholder')"
-            :aria-label="t('taxonomy.tags.filterPlaceholder')"
-          >
-          <button
-            type="button"
-            class="sforum-taxonomy__chip"
-            :class="{ 'is-active': filter === 'all' }"
-            @click="setFilter('all')"
-          >
-            {{ t('taxonomy.tags.filters.all') }}
-          </button>
-          <button
-            type="button"
-            class="sforum-taxonomy__chip"
-            :class="{ 'is-active': filter === 'hot' }"
-            @click="setFilter('hot')"
-          >
-            {{ t('taxonomy.tags.filters.hot') }}
-          </button>
-          <button
-            type="button"
-            class="sforum-taxonomy__chip"
-            :class="{ 'is-active': filter === 'week' }"
-            @click="setFilter('week')"
-          >
-            {{ t('taxonomy.tags.filters.week') }}
-          </button>
-          <button
-            type="button"
-            class="sforum-taxonomy__chip"
-            :class="{ 'is-active': filter === 'az' }"
-            @click="setFilter('az')"
-          >
-            {{ t('taxonomy.tags.filters.az') }}
-          </button>
-        </div>
-      </header>
+      <section class="sforum-tags-page__main" aria-labelledby="tag-index-title">
+        <div class="sforum-tags-page__inner">
+          <header class="sforum-tags-page__head">
+            <div class="sforum-tags-page__head-copy">
+              <h1 id="tag-index-title">{{ t('taxonomy.tags.title') }}</h1>
+              <p>{{ t('taxonomy.tags.description') }}</p>
+            </div>
+            <div class="sforum-tags-page__head-count">
+              <strong>{{ formatCount(overview.totalTags) }}</strong>
+              <span>{{ t('taxonomy.tags.headerCount') }}</span>
+            </div>
+          </header>
 
-      <section class="sforum-taxonomy__panel" :aria-busy="pending">
-        <div v-if="pending" class="sforum-taxonomy__pending">
-          <SFSkeleton :lines="4" />
-          <SFSkeleton :lines="3" />
-        </div>
+          <div class="sforum-tags-page__toolbar">
+            <label class="sforum-tags-page__search">
+              <UIcon name="i-lucide-search" class="size-4" aria-hidden="true" />
+              <input
+                v-model="searchQuery"
+                type="search"
+                :placeholder="t('taxonomy.tags.filterPlaceholder')"
+                :aria-label="t('taxonomy.tags.filterPlaceholder')"
+              >
+            </label>
 
-        <template v-else-if="filteredTags.length">
-          <div class="sforum-taxonomy__cloud">
+            <div class="sforum-tags-page__filters" role="group" :aria-label="t('taxonomy.tags.filterLabel')">
+              <button
+                type="button"
+                class="sforum-tags-page__filter"
+                :class="{ 'is-active': filter === 'all' }"
+                :aria-pressed="filter === 'all'"
+                @click="setFilter('all')"
+              >
+                {{ t('taxonomy.tags.filters.all') }}
+              </button>
+              <button
+                type="button"
+                class="sforum-tags-page__filter"
+                :class="{ 'is-active': filter === 'hot' }"
+                :aria-pressed="filter === 'hot'"
+                @click="setFilter('hot')"
+              >
+                {{ t('taxonomy.tags.filters.hot') }}
+              </button>
+              <button
+                type="button"
+                class="sforum-tags-page__filter"
+                :class="{ 'is-active': filter === 'week' }"
+                :aria-pressed="filter === 'week'"
+                @click="setFilter('week')"
+              >
+                {{ t('taxonomy.tags.filters.week') }}
+              </button>
+              <button
+                type="button"
+                class="sforum-tags-page__filter"
+                :class="{ 'is-active': filter === 'az' }"
+                :aria-pressed="filter === 'az'"
+                @click="setFilter('az')"
+              >
+                {{ t('taxonomy.tags.filters.az') }}
+              </button>
+            </div>
+          </div>
+
+          <div v-if="tagsError" class="sforum-tags-page__error" role="alert">
+            <span>{{ t('taxonomy.tags.loadFailed') }}</span>
+            <button type="button" class="sf-button sf-button--ghost sf-button--sm" @click="retryTags">
+              <UIcon name="i-lucide-refresh-cw" class="size-4" aria-hidden="true" />
+              {{ t('home.feed.retry') }}
+            </button>
+          </div>
+
+          <template v-else>
+            <section class="sforum-tags-page__section" :aria-busy="tagsPending">
+              <div class="sforum-tags-page__section-caption">
+                <h2>{{ t('taxonomy.tags.heatTitle') }}</h2>
+                <span>{{ t('taxonomy.tags.heatSubtitle') }}</span>
+              </div>
+
+              <div v-if="tagsPending" class="sforum-tags-page__pending">
+                <SFSkeleton v-for="item in 6" :key="item" :lines="1" />
+              </div>
+
+              <div v-else-if="heatEntries.length" class="sforum-tags-page__heat-board">
+                <NuxtLink
+                  v-for="entry in heatEntries"
+                  :key="`heat-${entry.tag.id}`"
+                  :to="tagPath(entry.tag.slug)"
+                  class="sforum-tags-page__heat-row"
+                >
+                  <span class="sforum-tags-page__heat-label">
+                    <span>#{{ entry.tag.name }}</span>
+                  </span>
+                  <span class="sforum-tags-page__heat-track" aria-hidden="true">
+                    <i :style="{ width: `${entry.widthPercent}%` }" />
+                  </span>
+                  <span class="sforum-tags-page__heat-count">{{ formatCount(entry.tag.topicCount || 0) }}</span>
+                </NuxtLink>
+              </div>
+
+              <div v-else class="sforum-tags-page__empty">
+                <SFEmptyState
+                  :title="emptyTitle"
+                  :description="emptyDescription"
+                />
+              </div>
+            </section>
+
+            <section class="sforum-tags-page__section" :aria-busy="tagsPending">
+              <div class="sforum-tags-page__section-caption">
+                <h2>{{ t('taxonomy.tags.directoryTitle') }}</h2>
+                <span>{{ t('taxonomy.tags.directorySummary', { count: formatCount(filteredTags.length) }) }}</span>
+              </div>
+
+              <div v-if="tagsPending" class="sforum-tags-page__pending sforum-tags-page__pending--grid">
+                <SFSkeleton v-for="item in 8" :key="item" :lines="2" />
+              </div>
+
+              <div v-else-if="filteredTags.length" class="sforum-tags-page__directory">
+                <NuxtLink
+                  v-for="tag in filteredTags"
+                  :key="tag.id"
+                  :to="tagPath(tag.slug)"
+                  class="sforum-tags-page__tag"
+                >
+                  <span class="sforum-tags-page__tag-copy">
+                    <strong>#{{ tag.name }}</strong>
+                    <span>{{ descriptionFor(tag) }}</span>
+                    <small>{{ tag.slug }} · {{ formatDate(tag.createdAt) }}</small>
+                  </span>
+                  <b>{{ formatCount(tag.topicCount || 0) }}</b>
+                </NuxtLink>
+              </div>
+
+              <div v-else class="sforum-tags-page__empty">
+                <SFEmptyState
+                  :title="emptyTitle"
+                  :description="emptyDescription"
+                />
+              </div>
+            </section>
+          </template>
+        </div>
+      </section>
+
+      <aside class="sforum-tags-page__side" :aria-label="t('taxonomy.tags.railLabel')">
+        <section class="sforum-tags-rail__section">
+          <div class="sforum-tags-rail__heading">
+            <h3>{{ t('taxonomy.tags.overviewTitle') }}</h3>
+            <span>{{ t('taxonomy.tags.overviewSource') }}</span>
+          </div>
+          <div class="sforum-tags-rail__overview">
+            <div>
+              <strong>{{ formatCount(overview.totalTags) }}</strong>
+              <span>{{ t('taxonomy.tags.stats.total') }}</span>
+            </div>
+            <div>
+              <strong>{{ formatCount(overview.totalTopicReferences) }}</strong>
+              <span>{{ t('taxonomy.tags.stats.topicRefs') }}</span>
+            </div>
+            <div>
+              <strong>{{ formatCount(overview.weekNewTags) }}</strong>
+              <span>{{ t('taxonomy.tags.stats.weekNew') }}</span>
+            </div>
+            <div>
+              <strong>{{ formatCount(overview.hotThreshold) }}</strong>
+              <span>{{ t('taxonomy.tags.stats.hotThreshold') }}</span>
+            </div>
+          </div>
+        </section>
+
+        <section v-if="railHotTags.length" class="sforum-tags-rail__section">
+          <div class="sforum-tags-rail__heading">
+            <h3>{{ t('taxonomy.tags.hotRailTitle') }}</h3>
+            <span>{{ t('taxonomy.tags.hotRailMeta') }}</span>
+          </div>
+          <ol class="sforum-tags-rail__hot-list">
+            <li v-for="(tag, index) in railHotTags" :key="`rail-hot-${tag.id}`">
+              <b>{{ String(index + 1).padStart(2, '0') }}</b>
+              <NuxtLink :to="tagPath(tag.slug)">#{{ tag.name }}</NuxtLink>
+              <span>{{ formatCount(tag.topicCount || 0) }}</span>
+            </li>
+          </ol>
+        </section>
+
+        <section v-if="railRecentTags.length" class="sforum-tags-rail__section">
+          <div class="sforum-tags-rail__heading">
+            <h3>{{ t('taxonomy.tags.recentRailTitle') }}</h3>
+            <span>{{ t('taxonomy.tags.recentRailMeta') }}</span>
+          </div>
+          <div class="sforum-tags-rail__recent-list">
             <NuxtLink
-              v-for="tag in filteredTags"
-              :key="tag.id"
-              :to="localePath(forumTagPath(tag.slug))"
-              class="sforum-taxonomy__tag"
-              :class="sizeClass(tag)"
+              v-for="tag in railRecentTags"
+              :key="`rail-recent-${tag.id}`"
+              :to="tagPath(tag.slug)"
+              class="sforum-tags-rail__recent"
             >
-              {{ tag.name }}
-              <span class="sforum-taxonomy__tag-count">{{ formatCount(tag.topicCount || 0) }}</span>
+              <i aria-hidden="true" />
+              <span>
+                <strong>#{{ tag.name }}</strong>
+                <small>{{ formatDate(tag.createdAt) }}</small>
+              </span>
             </NuxtLink>
           </div>
-          <div class="sforum-taxonomy__legend">
-            <span>{{ t('taxonomy.tags.legendSize') }}</span>
-            <span>
-              {{ t('taxonomy.tags.legendSummary', {
-                tags: formatCount(activeTags.length),
-                refs: formatCount(totalReferences)
-              }) }}
-            </span>
-          </div>
-        </template>
+        </section>
 
-        <div v-else class="sforum-taxonomy__empty">
-          <SFEmptyState
-            :title="t('taxonomy.tags.emptyTitle')"
-            :description="t('taxonomy.tags.emptyDescription')"
-          />
-        </div>
-      </section>
-
-      <div class="sforum-taxonomy__stats">
-        <div class="sforum-taxonomy__stat">
-          <div class="sforum-taxonomy__stat-key">{{ t('taxonomy.tags.stats.total') }}</div>
-          <div class="sforum-taxonomy__stat-value">{{ formatCount(activeTags.length) }}</div>
-        </div>
-        <div class="sforum-taxonomy__stat">
-          <div class="sforum-taxonomy__stat-key">{{ t('taxonomy.tags.stats.weekNew') }}</div>
-          <div class="sforum-taxonomy__stat-value">{{ formatCount(weekNewCount) }}</div>
-        </div>
-        <div class="sforum-taxonomy__stat">
-          <div class="sforum-taxonomy__stat-key">{{ t('taxonomy.tags.stats.hotThreshold') }}</div>
-          <div class="sforum-taxonomy__stat-value">{{ formatCount(hotThreshold) }}</div>
-        </div>
-      </div>
-
-      <section v-if="risingTags.length" class="sforum-taxonomy__section">
-        <!-- 无周环比 API：展示热门标签作为「上升」区降级 -->
-        <h2>{{ t('taxonomy.tags.risingTitle') }}</h2>
-        <div class="sforum-taxonomy__hot-list">
-          <NuxtLink
-            v-for="tag in risingTags"
-            :key="`rising-${tag.id}`"
-            :to="localePath(forumTagPath(tag.slug))"
-            class="sforum-taxonomy__hot"
-          >
-            <div>
-              <div class="sforum-taxonomy__hot-name">{{ tag.name }}</div>
-              <div class="sforum-taxonomy__hot-meta">{{ t('taxonomy.tags.risingMeta') }}</div>
-            </div>
-            <div class="sforum-taxonomy__hot-count">{{ formatCount(tag.topicCount || 0) }}</div>
-          </NuxtLink>
-        </div>
-      </section>
+        <section class="sforum-tags-rail__section">
+          <p class="sforum-tags-rail__note">
+            <UIcon name="i-lucide-circle-help" class="size-4" aria-hidden="true" />
+            <span>{{ t('taxonomy.tags.railNote') }}</span>
+          </p>
+        </section>
+      </aside>
     </div>
+
+    <button
+      v-if="mobileMenuOpen || mobileInfoOpen"
+      type="button"
+      class="sforum-mobile-drawer__backdrop"
+      :aria-label="t('topicDetail.cancel')"
+      @click="closeMobileDrawers"
+    />
+
+    <aside v-if="mobileMenuOpen" class="sforum-mobile-drawer sforum-mobile-drawer--left">
+      <header class="sforum-mobile-drawer__head">
+        <strong>{{ t('home.sidebar.drawerTitle') }}</strong>
+        <button type="button" :aria-label="t('topicDetail.cancel')" @click="closeMobileDrawers">
+          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
+        </button>
+      </header>
+      <SFHomeNavigation
+        desktop-only
+        navigation-mode="route"
+        :categories="categories"
+        selected-category-slug=""
+        :total-topics="totalTopics"
+        :pending="categoriesPending"
+        :can-create-topic="canCreateTopic"
+      />
+    </aside>
+
+    <aside v-if="mobileInfoOpen" class="sforum-mobile-drawer sforum-mobile-drawer--right">
+      <header class="sforum-mobile-drawer__head">
+        <strong>{{ t('taxonomy.tags.railLabel') }}</strong>
+        <button type="button" :aria-label="t('topicDetail.cancel')" @click="closeMobileDrawers">
+          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
+        </button>
+      </header>
+      <div class="sforum-tags-page__mobile-side">
+        <section class="sforum-tags-rail__section">
+          <div class="sforum-tags-rail__heading">
+            <h3>{{ t('taxonomy.tags.overviewTitle') }}</h3>
+            <span>{{ t('taxonomy.tags.overviewSource') }}</span>
+          </div>
+          <div class="sforum-tags-rail__overview">
+            <div>
+              <strong>{{ formatCount(overview.totalTags) }}</strong>
+              <span>{{ t('taxonomy.tags.stats.total') }}</span>
+            </div>
+            <div>
+              <strong>{{ formatCount(overview.totalTopicReferences) }}</strong>
+              <span>{{ t('taxonomy.tags.stats.topicRefs') }}</span>
+            </div>
+            <div>
+              <strong>{{ formatCount(overview.weekNewTags) }}</strong>
+              <span>{{ t('taxonomy.tags.stats.weekNew') }}</span>
+            </div>
+            <div>
+              <strong>{{ formatCount(overview.hotThreshold) }}</strong>
+              <span>{{ t('taxonomy.tags.stats.hotThreshold') }}</span>
+            </div>
+          </div>
+        </section>
+        <section v-if="railHotTags.length" class="sforum-tags-rail__section">
+          <div class="sforum-tags-rail__heading">
+            <h3>{{ t('taxonomy.tags.hotRailTitle') }}</h3>
+            <span>{{ t('taxonomy.tags.hotRailMeta') }}</span>
+          </div>
+          <ol class="sforum-tags-rail__hot-list">
+            <li v-for="(tag, index) in railHotTags" :key="`drawer-hot-${tag.id}`">
+              <b>{{ String(index + 1).padStart(2, '0') }}</b>
+              <NuxtLink :to="tagPath(tag.slug)" @click="closeMobileDrawers">#{{ tag.name }}</NuxtLink>
+              <span>{{ formatCount(tag.topicCount || 0) }}</span>
+            </li>
+          </ol>
+        </section>
+        <section v-if="railRecentTags.length" class="sforum-tags-rail__section">
+          <div class="sforum-tags-rail__heading">
+            <h3>{{ t('taxonomy.tags.recentRailTitle') }}</h3>
+            <span>{{ t('taxonomy.tags.recentRailMeta') }}</span>
+          </div>
+          <div class="sforum-tags-rail__recent-list">
+            <NuxtLink
+              v-for="tag in railRecentTags"
+              :key="`drawer-recent-${tag.id}`"
+              :to="tagPath(tag.slug)"
+              class="sforum-tags-rail__recent"
+              @click="closeMobileDrawers"
+            >
+              <i aria-hidden="true" />
+              <span>
+                <strong>#{{ tag.name }}</strong>
+                <small>{{ formatDate(tag.createdAt) }}</small>
+              </span>
+            </NuxtLink>
+          </div>
+        </section>
+      </div>
+    </aside>
   </main>
 </template>

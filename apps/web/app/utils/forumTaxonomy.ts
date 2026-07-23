@@ -574,7 +574,7 @@ export function isCreatedWithinDays(isoDate: string | undefined, days: number, n
   if (Number.isNaN(created)) {
     return false
   }
-  return created >= nowMs - days * 24 * 60 * 60 * 1000
+  return created <= nowMs && created >= nowMs - days * 24 * 60 * 60 * 1000
 }
 
 const forumTagSlugPattern = /^[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*$/u

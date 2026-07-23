@@ -4148,25 +4148,49 @@
   "taxonomy": {
     "tags": {
       "title": "All tags",
-      "description": "Font size reflects topic volume. Click a tag to open its topic list.",
+      "description": "Compare real topic volume with heat tracks, then browse the complete tag directory.",
       "filterPlaceholder": "Filter tags…",
+      "filterLabel": "Tag filters",
       "filters": {
         "all": "All",
         "hot": "Hot",
         "week": "This week",
         "az": "A–Z"
       },
+      "headerCount": "tags",
+      "heatTitle": "Heat distribution",
+      "heatSubtitle": "Relative to the current highest topic count",
+      "directoryTitle": "All tags",
+      "directorySummary": "{count} results",
       "legendSize": "Larger type = more topics",
       "legendSummary": "{tags} tags · {refs} topic references",
       "stats": {
         "total": "Total tags",
+        "topicRefs": "Topic references",
         "weekNew": "New this week",
         "hotThreshold": "Hot threshold"
       },
+      "railLabel": "Tag information",
+      "overviewTitle": "Tag overview",
+      "overviewSource": "Real data",
+      "hotRailTitle": "Popular tags",
+      "hotRailMeta": "By topic count",
+      "recentRailTitle": "Recently added",
+      "recentRailMeta": "Last 7 days",
+      "railNote": "Heat only shows each tag's real topic count share. It does not imply trends, follows, or active users.",
       "risingTitle": "Popular tags",
       "risingMeta": "Sorted by topic count (weekly trend unavailable)",
+      "loadFailed": "The tag list could not be loaded.",
+      "noDescription": "No description yet",
+      "noCreatedAt": "Creation time unknown",
       "emptyTitle": "No tags yet",
-      "emptyDescription": "There are no public tags yet, or nothing matches the current filter."
+      "emptyDescription": "There are no public tags to show yet.",
+      "emptySearchTitle": "No matching tags",
+      "emptySearchDescription": "Try a shorter keyword, or switch back to All.",
+      "emptyHotTitle": "No hot tags yet",
+      "emptyHotDescription": "No tags currently meet the hot threshold.",
+      "emptyWeekTitle": "No new tags this week",
+      "emptyWeekDescription": "This-week filtering uses tag creation time; no tags were added in the last 7 days."
     },
     "categories": {
       "title": "All categories",
