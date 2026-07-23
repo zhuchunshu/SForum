@@ -150,6 +150,14 @@ Architecture sources:
 - The default theme uses a flat, responsive three-column shell: navigation,
   primary content, and contextual right rail. It collapses the right rail
   before the left navigation.
+- `SFHomeNavigation` owns shared public left-rail links and footer links. Its
+  host CSS must style the footer too, because homepage, topic, and taxonomy
+  pages reuse the component inside desktop sidebars and mobile left drawers.
+- `/tags` is the `forum.tag.index` Page Registry body island. It renders the
+  default-theme three-column heat overview from real `listTags` and
+  `listCategoryGroups` API data, with all/hot/week/A-Z filters, localized empty
+  states, and the shared navbar mobile drawers for left navigation and tag
+  context.
 - Homepage/topic/taxonomy data is real API state. Do not render fabricated
   likes, bookmarks, unread state, participant stacks, or ranking.
 - Homepage and eligible lists SSR page 1 and continue with keyset infinite

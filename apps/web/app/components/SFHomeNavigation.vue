@@ -34,10 +34,31 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const localePath = useLocalePath()
 const router = useRouter()
+const route = useRoute()
 const { navShowCompose, navShowCounts } = useActiveThemeSettings()
 const { siteName } = useWebOptions()
 
 const useRouteLinks = computed(() => props.navigationMode === 'route')
+const routePath = computed(() => route.path.replace(/\/+$/, '') || '/')
+const homePath = computed(() => localePath('/').replace(/\/+$/, '') || '/')
+const categoriesPath = computed(() => localePath('/categories').replace(/\/+$/, ''))
+const tagsPath = computed(() => localePath('/tags').replace(/\/+$/, ''))
+const activeTopLevel = computed(() => {
+  if (!useRouteLinks.value) {
+    return ''
+  }
+  if (routePath.value === tagsPath.value || routePath.value.startsWith(`${tagsPath.value}/`)) {
+    return 'tags'
+  }
+  if (routePath.value === categoriesPath.value) {
+    return 'categories'
+  }
+  return routePath.value === homePath.value ? 'home' : ''
+})
+const allTopicsActive = computed(() => useRouteLinks.value
+  ? activeTopLevel.value === 'home' && !props.selectedCategorySlug
+  : !props.selectedCategorySlug
+)
 
 function allTopicsTo() {
   return localePath('/')
@@ -121,7 +142,7 @@ function categoryIconName(category: ForumCategory) {
         v-if="useRouteLinks"
         :to="allTopicsTo()"
         class="sf-home-navigation__link"
-        :class="{ 'is-active': !selectedCategorySlug }"
+        :class="{ 'is-active': allTopicsActive }"
       >
         <span class="sf-home-navigation__link-main">
           <UIcon name="i-lucide-layout-list" class="size-[18px]" aria-hidden="true" />
@@ -133,8 +154,8 @@ function categoryIconName(category: ForumCategory) {
         v-else
         type="button"
         class="sf-home-navigation__link"
-        :class="{ 'is-active': !selectedCategorySlug }"
-        :aria-pressed="!selectedCategorySlug"
+        :class="{ 'is-active': allTopicsActive }"
+        :aria-pressed="allTopicsActive"
         @click="selectCategory('')"
       >
         <span class="sf-home-navigation__link-main">
@@ -144,13 +165,21 @@ function categoryIconName(category: ForumCategory) {
         <span v-if="navShowCounts" class="sf-home-navigation__count">{{ totalTopics }}</span>
       </button>
 
-      <NuxtLink :to="localePath('/categories')" class="sf-home-navigation__link">
+      <NuxtLink
+        :to="localePath('/categories')"
+        class="sf-home-navigation__link"
+        :class="{ 'is-active': activeTopLevel === 'categories' }"
+      >
         <span class="sf-home-navigation__link-main">
           <UIcon name="i-lucide-layout-grid" class="size-[18px]" aria-hidden="true" />
           {{ t('home.categories') }}
         </span>
       </NuxtLink>
-      <NuxtLink :to="localePath('/tags')" class="sf-home-navigation__link">
+      <NuxtLink
+        :to="localePath('/tags')"
+        class="sf-home-navigation__link"
+        :class="{ 'is-active': activeTopLevel === 'tags' }"
+      >
         <span class="sf-home-navigation__link-main">
           <UIcon name="i-lucide-tags" class="size-[18px]" aria-hidden="true" />
           {{ t('home.tags') }}

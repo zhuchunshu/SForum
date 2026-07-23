@@ -137,6 +137,12 @@ V1 boundaries:
 | Tags | `/tags`, `/tags/:tagSlug` |
 | Topics | `/t/<path>` |
 
+The `/tags` index is a public read surface when
+`forum.tags.public_pages=enabled`. Its heat overview, directory filters, and
+right-rail stats are derived only from active tag `topicCount`, `createdAt`,
+name, slug, description, and status fields returned by the public tag API; there
+are no fabricated likes, follows, trends, or weekly activity counters.
+
 `seo.topic_url_mode` controls topic paths:
 
 | Mode | Shape | Lookup |

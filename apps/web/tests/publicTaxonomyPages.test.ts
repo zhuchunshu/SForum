@@ -14,6 +14,10 @@ const tagsRoute = () => readFileSync(
   new URL('../../../apps/web/app/pages/tags/index.vue', import.meta.url),
   'utf8'
 )
+const homeNavigation = () => readFileSync(
+  new URL('../../../apps/web/app/components/SFHomeNavigation.vue', import.meta.url),
+  'utf8'
+)
 const categoriesRoute = () => readFileSync(
   new URL('../../../apps/web/app/pages/categories/index.vue', import.meta.url),
   'utf8'
@@ -22,11 +26,19 @@ const taxonomyCss = () => readFileSync(
   new URL('../../../apps/web/app/assets/css/sforum-taxonomy.css', import.meta.url),
   'utf8'
 )
+const tagsCss = () => readFileSync(
+  new URL('../../../apps/web/app/assets/css/sforum-tags.css', import.meta.url),
+  'utf8'
+)
+const homeCss = () => readFileSync(
+  new URL('../../../apps/web/app/assets/css/sforum-home.css', import.meta.url),
+  'utf8'
+)
 const hostNuxtConfig = () => readFileSync(new URL('../nuxt.config.ts', import.meta.url), 'utf8')
 const zh = () => JSON.parse(readFileSync(new URL('../i18n/locales/zh-CN.json', import.meta.url), 'utf8'))
 const en = () => JSON.parse(readFileSync(new URL('../i18n/locales/en-US.json', import.meta.url), 'utf8'))
 
-describe('public taxonomy list pages (T01 + C04)', () => {
+describe('public taxonomy list pages (T02 + C04)', () => {
   test('taxonomy routes are thin outlet shells with island fallbacks', () => {
     expect(tagsRoute()).toContain('SFPageOutlet')
     expect(tagsRoute()).toContain('page="forum.tag.index"')
@@ -38,19 +50,29 @@ describe('public taxonomy list pages (T01 + C04)', () => {
     expect(categoriesRoute()).not.toContain('sforum-taxonomy__tile')
   })
 
-  test('tags index uses listTags, public_pages gate, cloud buckets, and tag detail links', () => {
+  test('tags index uses listTags, public_pages gate, heat overview, drawers, and tag detail links', () => {
     const source = tagsPage()
     expect(source).toContain('forumApi.listTags()')
+    expect(source).toContain('forumApi.listCategoryGroups()')
     expect(source).toContain("webOption('forum.tags.public_pages'")
     expect(source).toContain('parseForumTagPublicPagesOption')
-    expect(source).toContain('tagCloudSizeBucket')
-    expect(source).toContain('tagHotThreshold')
-    expect(source).toContain('forumTagPath(tag.slug)')
+    expect(source).toContain('filterTagIndexTags')
+    expect(source).toContain('tagHeatEntries')
+    expect(source).toContain('tagIndexOverview')
+    expect(source).toContain('recentTagIndexTags')
+    expect(source).toContain('forumTagPath(slug)')
+    expect(source).toContain('forum-tags-index-rendered-at')
     expect(source).toContain("filter === 'all'")
     expect(source).toContain("filter === 'hot'")
     expect(source).toContain("filter === 'week'")
     expect(source).toContain("filter === 'az'")
-    expect(source).toContain('sforum-taxonomy__cloud')
+    expect(source).toContain('sforum-tags-page__layout--with-side')
+    expect(source).toContain('sforum-tags-page__heat-board')
+    expect(source).toContain('sforum-tags-page__directory')
+    expect(source).toContain('sforum-tags-page__side')
+    expect(source).toContain('sforum-mobile-drawer--left')
+    expect(source).toContain('sforum-mobile-drawer--right')
+    expect(source).toContain('tagsError')
   })
 
   test('categories index uses category groups, visibility filter, and category detail links', () => {
@@ -67,10 +89,27 @@ describe('public taxonomy list pages (T01 + C04)', () => {
 
   test('theme registers taxonomy CSS and host routeRules cover list roots', () => {
     expect(hostNuxtConfig()).toContain('sforum-taxonomy.css')
-    expect(taxonomyCss()).toContain('.sforum-taxonomy__cloud')
+    expect(hostNuxtConfig()).toContain('sforum-tags.css')
+    expect(tagsCss()).toContain('.sforum-tags-page__heat-board')
+    expect(tagsCss()).toContain('@media (max-width: 1179px)')
+    expect(tagsCss()).toContain('@media (max-width: 979px)')
     expect(taxonomyCss()).toContain('.sforum-taxonomy__tile')
     expect(hostNuxtConfig()).toContain("'/categories': { swr: 600 }")
     expect(hostNuxtConfig()).toContain("'/tags': { swr: 600 }")
+  })
+
+  test('shared home navigation highlights taxonomy routes in route mode', () => {
+    const source = homeNavigation()
+    expect(source).toContain("localePath('/tags')")
+    expect(source).toContain("localePath('/categories')")
+    expect(source).toContain('routePath.value === tagsPath.value')
+    expect(source).toContain('routePath.value.startsWith(`${tagsPath.value}/`)')
+    expect(source).toContain('routePath.value === categoriesPath.value')
+    expect(source).toContain("activeTopLevel === 'tags'")
+    expect(source).toContain("activeTopLevel === 'categories'")
+    expect(source).toContain("activeTopLevel.value === 'home' && !props.selectedCategorySlug")
+    expect(homeCss()).toContain('.sf-home-navigation__foot')
+    expect(homeCss()).toContain('.sf-home-navigation__foot a')
   })
 
   test('bilingual taxonomy copy is present', () => {

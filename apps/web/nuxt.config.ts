@@ -125,6 +125,7 @@ export default defineNuxtConfig({
     '~/assets/css/sforum-home.css',
     '~/assets/css/sforum-topic.css',
     '~/assets/css/sforum-taxonomy.css',
+    '~/assets/css/sforum-tags.css',
     '~/assets/css/sforum-profile.css'
   ],
   // DevTools 会扩大开发期依赖扫描和常驻内存；需要调试时用 NUXT_DEVTOOLS=true 显式开启。

@@ -4040,25 +4040,49 @@
   "taxonomy": {
     "tags": {
       "title": "全部标签",
-      "description": "字号反映话题热度。点击进入该标签下的主题列表。",
+      "description": "把真实主题数量转成可比较的热度轨道，再向下浏览完整标签目录。",
       "filterPlaceholder": "筛选标签…",
+      "filterLabel": "标签筛选",
       "filters": {
         "all": "全部",
         "hot": "热门",
         "week": "本周",
         "az": "A–Z"
       },
+      "headerCount": "个标签",
+      "heatTitle": "热度分布",
+      "heatSubtitle": "相对当前最高主题数",
+      "directoryTitle": "全部标签",
+      "directorySummary": "{count} 个结果",
       "legendSize": "字号越大 = 话题越多",
       "legendSummary": "{tags} 标签 · 共 {refs} 次引用",
       "stats": {
         "total": "标签总数",
+        "topicRefs": "主题引用",
         "weekNew": "本周新增",
         "hotThreshold": "热门阈值"
       },
+      "railLabel": "标签辅助信息",
+      "overviewTitle": "标签概览",
+      "overviewSource": "真实数据",
+      "hotRailTitle": "热门标签",
+      "hotRailMeta": "按主题数",
+      "recentRailTitle": "最近新增",
+      "recentRailMeta": "近 7 天",
+      "railNote": "热度仅表示当前标签的真实主题数量占比，不代表趋势、关注或活跃用户。",
       "risingTitle": "热门标签",
       "risingMeta": "按主题数排序（暂无周环比）",
+      "loadFailed": "标签列表加载失败。",
+      "noDescription": "暂无描述",
+      "noCreatedAt": "创建时间未知",
       "emptyTitle": "暂无标签",
-      "emptyDescription": "还没有可展示的标签，或当前筛选没有匹配结果。"
+      "emptyDescription": "还没有可展示的公开标签。",
+      "emptySearchTitle": "没有匹配的标签",
+      "emptySearchDescription": "试试更短的关键词，或切回“全部”。",
+      "emptyHotTitle": "暂无热门标签",
+      "emptyHotDescription": "当前没有达到热门阈值的标签。",
+      "emptyWeekTitle": "本周暂无新增标签",
+      "emptyWeekDescription": "本周筛选基于标签创建时间，当前近 7 天没有新增标签。"
     },
     "categories": {
       "title": "全部分类",
