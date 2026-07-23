@@ -203,13 +203,18 @@ should use dedicated registries instead of raw database or whole-route power.
   contributions/skin atomically, and preserves rollback.
 - The selected theme owns public presentation. Core output is emergency-only
   when the runtime cannot safely resolve/render the selected artifact.
-- Theme-defined 403/429/server-error work is **ready** after M0. It must reuse
-  the completed public-resource 404 server pre-preparation plugin,
-  request-local presentation composable, exact-artifact validation, document
-  policy, system AST renderer, and Core emergency fallback. Plugins and public
-  L2 remain closed for these system pages.
+- Theme-defined system error pages are **completed** for 403, 404, 429, and
+  500/502/503/504. They are virtual Page Registry surfaces selected only by
+  the Nuxt error boundary; they have no ordinary public path match. The active
+  theme may provide L0/L1 presentation through exact-artifact activation, while
+  Host owns status, safe copy/actions, retry policy, cache/robots, and Core
+  emergency fallback.
+- Plugins cannot replace `system.*` surfaces, and public L2 widgets are
+  rejected on system error templates. This closed surface is intentional for
+  availability and information-disclosure reasons; reviewed Host islands are
+  the only dynamic elements allowed inside theme templates.
 
-Current plans:
+Relevant plans:
 
 - `../plans/2026-07-22-theme-consistent-public-resource-404.md`
 - `../plans/2026-07-22-theme-defined-system-error-pages.md`
@@ -266,7 +271,7 @@ Current plans:
    M0-M8 with production-path evidence.
 2. Keep APILTS compatibility shims until their removal gate, date, and live
    zero-use evidence all pass.
-3. Resume the ready theme-defined system-error plan at M1, reusing the six
-   completed 404 building blocks for 403/429/5xx.
+3. Keep system error pages plugin-closed and L0/L1-only when adding future
+   status families or browser-facing producers.
 4. Keep new product integrations on stable provider/registry contracts and
    regenerate the affected Extension Surface Matrix.

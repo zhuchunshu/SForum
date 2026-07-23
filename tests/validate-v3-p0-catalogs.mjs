@@ -206,8 +206,9 @@ assert(exactFrontendConfirmationRoutes.length === 1 && exactFrontendConfirmation
 
 const ui = load('docs/extensions/v3/catalogs/ui-surfaces.json')
 const retiredUI = load('docs/extensions/v3/catalogs/ui-retired-identities.json')
-// 127 baseline + 26 Host body islands / public chrome + 8 reviewed 404/runtime renderer surfaces.
-assert(ui.length === 161, `UI inventory must contain exactly 161 reviewed surfaces: ${ui.length}`)
+// 127 baseline + 26 Host body islands / public chrome + 8 reviewed 404/runtime renderer surfaces
+// + 7 system error Host islands.
+assert(ui.length === 168, `UI inventory must contain exactly 168 reviewed surfaces: ${ui.length}`)
 assert(JSON.stringify(retiredUI) === JSON.stringify(retiredIdentities), 'generated retired UI reservation catalog drifted from its reviewed ledger')
 const activeUIIdentities = identities.ui.filter(item => item.state === 'active')
 assert(activeUIIdentities.length === ui.length, 'active reviewed UI identity map must cover every current UI surface')

@@ -26,7 +26,7 @@ const useHostPublicChrome = computed(() => {
     return false
   }
   const id = props.page
-  return !id.startsWith('auth.') && id !== 'system.not_found' && id !== 'dev.components'
+  return !id.startsWith('auth.') && !id.startsWith('system.') && id !== 'dev.components'
 })
 </script>
 
@@ -39,7 +39,7 @@ const useHostPublicChrome = computed(() => {
     :data-host-chrome="useHostPublicChrome ? '1' : '0'"
   >
     <SFSystemThemeTemplate
-      v-if="useTemplate && page === 'system.not_found'"
+      v-if="useTemplate && page.startsWith('system.')"
       :html="templateHtml"
       :render-output="renderOutput"
       :extension-id="resolved?.extensionId || provider"

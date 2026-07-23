@@ -1055,6 +1055,13 @@
         "approve": "批准",
         "approveExtension": "批准：{extensionId}",
         "empty": "暂无页面目录数据",
+        "virtual": {
+          "system": "系统错误虚拟页",
+          "system_forbidden": "403 权限不足错误页",
+          "system_not_found": "404 未找到错误页",
+          "system_rate_limited": "429 访问过频错误页",
+          "system_server_error": "5xx 服务错误页"
+        },
         "access": {
           "public": "公开",
           "login": "登录后",
@@ -3636,6 +3643,7 @@
     },
     "page": {
       "statusLabel": "{statusCode} 错误",
+      "statusCaption": "HTTP STATUS",
       "home": "返回首页",
       "back": "返回上一页",
       "retry": "刷新重试",
@@ -3645,19 +3653,50 @@
       },
       "forbidden": {
         "title": "这里需要更多权限",
-        "description": "当前账号无法访问这个页面。如果你认为这是误判，请联系站点管理员检查权限设置。"
+        "description": "当前请求无法继续访问。为了保护内容隐私，页面不会说明资源是否存在。"
+      },
+      "rateLimited": {
+        "title": "请求有点太频繁",
+        "description": "站点正在保护当前访问节奏。请按提示稍后再试，避免连续刷新。"
       },
       "server": {
         "title": "服务器暂时没有回应好",
         "description": "请求已经到达站点，但处理过程中遇到了问题。你可以刷新重试，或稍后再回来。"
       },
+      "badGateway": {
+        "title": "上游服务暂时没有接好",
+        "description": "站点依赖的服务暂时没有返回可用结果。公开页面不会显示内部诊断细节。"
+      },
       "serviceUnavailable": {
         "title": "服务正在恢复中",
         "description": "站点的部分服务暂时不可用。请稍后刷新页面，已经打开的内容不会因此受到影响。"
       },
+      "gatewayTimeout": {
+        "title": "请求等待时间过长",
+        "description": "站点等待依赖服务时超时了。你可以稍后刷新重试。"
+      },
       "generic": {
         "title": "页面遇到了一点问题",
         "description": "当前页面没有按预期打开。你可以回到首页，或稍后再次尝试访问这个链接。"
+      },
+      "recovery": {
+        "searchPlaceholder": "搜索主题、分类或标签",
+        "searchSubmit": "搜索",
+        "continueTitle": "从这里继续",
+        "home": "回到首页",
+        "categories": "浏览分类",
+        "tags": "查看标签",
+        "guidelines": "社区指南",
+        "mobileTools": "错误页辅助导航"
+      },
+      "rail": {
+        "ariaLabel": "错误页辅助信息",
+        "common": "常用去向",
+        "home": "首页",
+        "categories": "分类",
+        "tags": "标签",
+        "needHelp": "需要帮助",
+        "stats": "{topics} 个主题，{replies} 条回复，{categories} 个分类，{tags} 个标签"
       }
     }
   },

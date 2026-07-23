@@ -1,10 +1,14 @@
-/** 服务端内部错误请求在 Vue 首轮渲染前准备 404 主题快照。 */
+import { isThemeableSystemErrorStatus, systemErrorPageIdForStatus } from '~/utils/errorPage'
+
+/** 服务端内部错误请求在 Vue 首轮渲染前准备系统错误页主题快照。 */
 export default defineNuxtPlugin({
-  name: 'sforum-not-found-theme',
+  name: 'sforum-system-error-theme',
   async setup(nuxtApp) {
-    if (Number(nuxtApp.payload.error?.statusCode) !== 404) {
+    const statusCode = Number(nuxtApp.payload.error?.statusCode)
+    if (!isThemeableSystemErrorStatus(statusCode)) {
       return
     }
-    await useNotFoundPagePresentation().prepare()
+    const pageId = systemErrorPageIdForStatus(statusCode)
+    await useSystemErrorPagePresentation(pageId).prepare()
   }
 })

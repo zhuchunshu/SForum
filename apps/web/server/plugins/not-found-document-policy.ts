@@ -1,7 +1,9 @@
-/** 仅收口 Nuxt 渲染出的 404 document/payload；API 响应保持既有契约。 */
+const SYSTEM_ERROR_STATUSES = new Set([403, 404, 429, 500, 502, 503, 504])
+
+/** 收口 Nuxt 渲染出的系统错误 document/payload；API 响应保持既有契约。 */
 export default defineNitroPlugin((nitroApp) => {
   nitroApp.hooks.hook('render:response', (response, { event }) => {
-    if (response.statusCode !== 404) {
+    if (!SYSTEM_ERROR_STATUSES.has(response.statusCode || 0)) {
       return
     }
 

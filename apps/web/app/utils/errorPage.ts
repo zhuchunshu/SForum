@@ -1,5 +1,6 @@
 export type ErrorPageContent = {
   statusCode: number
+  pageId: string
   titleKey: string
   descriptionKey: string
   icon: string
@@ -21,21 +22,36 @@ export function resolveErrorPageContent(statusCode: unknown): ErrorPageContent {
 
   switch (status) {
     case 403:
-      return content(status, 'forbidden', 'i-lucide-shield-alert')
+      return content(status, 'system.forbidden', 'forbidden', 'i-lucide-shield-alert')
     case 404:
-      return content(status, 'notFound', 'i-lucide-file-question')
+      return content(status, 'system.not_found', 'notFound', 'i-lucide-file-question')
+    case 429:
+      return content(status, 'system.rate_limited', 'rateLimited', 'i-lucide-timer-reset', true)
     case 500:
-      return content(status, 'server', 'i-lucide-server', true)
+      return content(status, 'system.server_error', 'server', 'i-lucide-server', true)
+    case 502:
+      return content(status, 'system.server_error', 'badGateway', 'i-lucide-unplug', true)
     case 503:
-      return content(status, 'serviceUnavailable', 'i-lucide-refresh-cw', true)
+      return content(status, 'system.server_error', 'serviceUnavailable', 'i-lucide-refresh-cw', true)
+    case 504:
+      return content(status, 'system.server_error', 'gatewayTimeout', 'i-lucide-clock-alert', true)
     default:
-      return content(status, 'generic', 'i-lucide-circle-alert')
+      return content(status, 'core', 'generic', 'i-lucide-circle-alert')
   }
 }
 
-function content(statusCode: number, key: string, icon: string, showRetry = false): ErrorPageContent {
+export function systemErrorPageIdForStatus(statusCode: unknown) {
+  return resolveErrorPageContent(statusCode).pageId
+}
+
+export function isThemeableSystemErrorStatus(statusCode: unknown) {
+  return systemErrorPageIdForStatus(statusCode) !== 'core'
+}
+
+function content(statusCode: number, pageId: string, key: string, icon: string, showRetry = false): ErrorPageContent {
   return {
     statusCode,
+    pageId,
     titleKey: `errors.page.${key}.title`,
     descriptionKey: `errors.page.${key}.description`,
     icon,

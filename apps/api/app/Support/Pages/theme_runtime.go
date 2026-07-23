@@ -145,6 +145,9 @@ func BuildThemeRuntimeSnapshot(input ThemeRuntimeBuildInput) (*ThemeRuntimeSnaps
 			if !ok || page.ContractVersion != contribution.Contract {
 				return nil, ErrThemeRuntimeConflict
 			}
+			if IsSystemErrorPage(page.ID) && kind != RuntimeTemplateTheme {
+				return nil, fmt.Errorf("%w: system error pages are theme-only surfaces", ErrThemeRuntimeConflict)
+			}
 		case ActionAdd:
 			if kind != RuntimeTemplatePlugin || strings.TrimSpace(contribution.ID) == "" || strings.TrimSpace(contribution.Contract) == "" {
 				continue
@@ -266,6 +269,13 @@ func BuildThemeRuntimeSnapshot(input ThemeRuntimeBuildInput) (*ThemeRuntimeSnaps
 	if len(providers) == 0 {
 		return nil, ErrThemeRuntimeMissing
 	}
+	for pageID, provider := range providers {
+		if IsSystemErrorPage(pageID) {
+			if err := rejectSystemErrorExecutableTemplate(realRoot, provider.Template); err != nil {
+				return nil, err
+			}
+		}
+	}
 	assets, err := SkinFromPackage(
 		input.Artifact.ExtensionID, input.Artifact.ExtensionVersion, input.Artifact.PackageDigest, realRoot,
 	)
@@ -290,7 +300,7 @@ func BuildThemeRuntimeSnapshot(input ThemeRuntimeBuildInput) (*ThemeRuntimeSnaps
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("%w: compile exact theme: %v", ErrThemeRuntimeInvalid, err)
+		return nil, fmt.Errorf("%w: compile exact theme: %w", ErrThemeRuntimeInvalid, err)
 	}
 	infos := make(map[string]themecompiler.TemplateInfo)
 	for _, info := range compiled.Templates() {
@@ -319,6 +329,21 @@ func BuildThemeRuntimeSnapshot(input ThemeRuntimeBuildInput) (*ThemeRuntimeSnaps
 func pluginBusinessDataRequested(contribution PageContribution) bool {
 	return strings.TrimSpace(contribution.DataSource) != "" || strings.TrimSpace(contribution.DataRoute) != "" ||
 		strings.TrimSpace(contribution.DataSchema) != ""
+}
+
+func rejectSystemErrorExecutableTemplate(packageRoot, templatePath string) error {
+	full, err := ResolveThemeAsset(packageRoot, templatePath)
+	if err != nil {
+		return fmt.Errorf("%w: resolve system error template %s: %v", ErrThemeRuntimeInvalid, templatePath, err)
+	}
+	raw, err := os.ReadFile(full)
+	if err != nil {
+		return fmt.Errorf("%w: read system error template %s: %v", ErrThemeRuntimeInvalid, templatePath, err)
+	}
+	if strings.Contains(strings.ToLower(string(raw)), "<sf-extension-widget") {
+		return fmt.Errorf("%w: system error template %s cannot declare public L2 widgets", ErrThemeRuntimeConflict, templatePath)
+	}
+	return nil
 }
 
 func compilePluginPageDataContract(
@@ -797,29 +822,34 @@ func themeAssetBindings(skin ActiveSkinPublic) map[string]string {
 // 内容页 body 岛映射到 HostPageIsland（Nuxt 默认 slot），主题只控制壳层。
 func productionThemeIslandBindings() map[string]themecompiler.IslandBinding {
 	return map[string]themecompiler.IslandBinding{
-		"sf-home-page":              {ComponentID: "forum.component.home_page"},
-		"sf-category-index-page":    {ComponentID: "forum.component.category_index"},
-		"sf-category-show-page":     {ComponentID: "forum.component.category_show"},
-		"sf-tag-index-page":         {ComponentID: "forum.component.tag_index"},
-		"sf-tag-show-page":          {ComponentID: "forum.component.tag_show"},
-		"sf-topic-show-page":        {ComponentID: "forum.component.topic_show"},
-		"sf-profile-page":           {ComponentID: "forum.component.profile_show"},
-		"sf-notifications-page":     {ComponentID: "forum.component.notifications"},
-		"sf-terms-page":             {ComponentID: "site.component.terms"},
-		"sf-privacy-page":           {ComponentID: "site.component.privacy"},
-		"sf-guidelines-page":        {ComponentID: "site.component.guidelines"},
-		"sf-not-found-page":         {ComponentID: "system.component.not_found"},
-		"sf-navbar":                 {ComponentID: "navigation.component.navbar"},
-		"sf-footer":                 {ComponentID: "navigation.component.footer"},
-		"sf-home-navigation":        {ComponentID: "navigation.component.home"},
-		"sf-topic-composer":         {ComponentID: "forum.component.topic_composer"},
-		"sf-topic-reply":            {ComponentID: "forum.component.topic_reply"},
-		"sf-profile-settings":       {ComponentID: "profile.component.settings_form"},
-		"sf-security-settings":      {ComponentID: "identity.component.security_settings"},
-		"sf-login-form":             {ComponentID: "identity.component.login_form"},
-		"sf-register-form":          {ComponentID: "identity.component.register_form"},
-		"sf-recovery-request":       {ComponentID: "identity.component.recovery_request_form"},
-		"sf-recovery-confirm":       {ComponentID: "identity.component.recovery_confirm_form"},
+		"sf-home-page":           {ComponentID: "forum.component.home_page"},
+		"sf-category-index-page": {ComponentID: "forum.component.category_index"},
+		"sf-category-show-page":  {ComponentID: "forum.component.category_show"},
+		"sf-tag-index-page":      {ComponentID: "forum.component.tag_index"},
+		"sf-tag-show-page":       {ComponentID: "forum.component.tag_show"},
+		"sf-topic-show-page":     {ComponentID: "forum.component.topic_show"},
+		"sf-profile-page":        {ComponentID: "forum.component.profile_show"},
+		"sf-notifications-page":  {ComponentID: "forum.component.notifications"},
+		"sf-terms-page":          {ComponentID: "site.component.terms"},
+		"sf-privacy-page":        {ComponentID: "site.component.privacy"},
+		"sf-guidelines-page":     {ComponentID: "site.component.guidelines"},
+		"sf-not-found-page":      {ComponentID: "system.component.not_found"},
+		"sf-error-details":       {ComponentID: "system.component.error_details"},
+		"sf-error-actions":       {ComponentID: "system.component.error_actions"},
+		"sf-error-recovery":      {ComponentID: "system.component.error_recovery"},
+		"sf-error-sidebar":       {ComponentID: "system.component.error_sidebar"},
+		"sf-error-rail":          {ComponentID: "system.component.error_rail"},
+		"sf-navbar":              {ComponentID: "navigation.component.navbar"},
+		"sf-footer":              {ComponentID: "navigation.component.footer"},
+		"sf-home-navigation":     {ComponentID: "navigation.component.home"},
+		"sf-topic-composer":      {ComponentID: "forum.component.topic_composer"},
+		"sf-topic-reply":         {ComponentID: "forum.component.topic_reply"},
+		"sf-profile-settings":    {ComponentID: "profile.component.settings_form"},
+		"sf-security-settings":   {ComponentID: "identity.component.security_settings"},
+		"sf-login-form":          {ComponentID: "identity.component.login_form"},
+		"sf-register-form":       {ComponentID: "identity.component.register_form"},
+		"sf-recovery-request":    {ComponentID: "identity.component.recovery_request_form"},
+		"sf-recovery-confirm":    {ComponentID: "identity.component.recovery_confirm_form"},
 		"sf-extension-widget": {
 			ComponentID:   "core.component.shared.sfextension_widget",
 			AllowFallback: true,
@@ -873,8 +903,8 @@ func RequiredThemeBodyIslandTag(pageID string) string {
 		return "sf-privacy-page"
 	case "site.guidelines":
 		return "sf-guidelines-page"
-	case "system.not_found":
-		return "sf-not-found-page"
+	case "system.forbidden", "system.not_found", "system.rate_limited", "system.server_error":
+		return "sf-error-details"
 	default:
 		return ""
 	}
@@ -912,16 +942,15 @@ func selectedThemePrefix(selected map[string]struct{}, prefix string) bool {
 	return false
 }
 
-
 // ThemeRuntimeInspection is a redacted admin view of staged theme/plugin
 // runtime snapshots and the active/default theme selection.
 type ThemeRuntimeInspection struct {
-	Revision       uint64                    `json:"revision"`
-	ActiveTheme    string                    `json:"activeTheme,omitempty"`
-	DefaultTheme   string                    `json:"defaultTheme,omitempty"`
-	SnapshotCount  int                       `json:"snapshotCount"`
-	OverrideCount  int                       `json:"overrideCount"`
-	Snapshots      []ThemeRuntimeInspectItem `json:"snapshots"`
+	Revision      uint64                    `json:"revision"`
+	ActiveTheme   string                    `json:"activeTheme,omitempty"`
+	DefaultTheme  string                    `json:"defaultTheme,omitempty"`
+	SnapshotCount int                       `json:"snapshotCount"`
+	OverrideCount int                       `json:"overrideCount"`
+	Snapshots     []ThemeRuntimeInspectItem `json:"snapshots"`
 }
 
 // ThemeRuntimeInspectItem summarizes one staged runtime package without

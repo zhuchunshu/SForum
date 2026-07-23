@@ -150,6 +150,13 @@ Manifest V3 component targets declare both `targetId` and `targetContractVersion
 | `core.component.shared.sfsearch` | `sforum.component.shared.sfsearch@1` | component | `public` | — | `apps/web/app/components/SFSearch.vue` | P9 Component Registry |
 | `core.component.shared.sfsecurity_settings_page` | `sforum.component.shared.sfsecurity_settings_page@1` | component | `public` | — | `apps/web/app/components/SFSecuritySettingsPage.vue` | P9 Component Registry |
 | `core.component.shared.sfskeleton` | `sforum.component.shared.sfskeleton@1` | component | `public`, `admin` | — | `apps/web/app/components/SFSkeleton.vue` | P7/P9 Admin and Component Registries |
+| `core.component.shared.sfsystem_error_actions` | `sforum.component.shared.sfsystem_error_actions@1` | component | `public` | — | `apps/web/app/components/SFSystemErrorActions.vue` | P9 Component Registry |
+| `core.component.shared.sfsystem_error_details` | `sforum.component.shared.sfsystem_error_details@1` | component | `public` | — | `apps/web/app/components/SFSystemErrorDetails.vue` | P9 Component Registry |
+| `core.component.shared.sfsystem_error_emergency_page` | `sforum.component.shared.sfsystem_error_emergency_page@1` | component | `public` | — | `apps/web/app/components/SFSystemErrorEmergencyPage.vue` | P9 Component Registry |
+| `core.component.shared.sfsystem_error_page` | `sforum.component.shared.sfsystem_error_page@1` | component | `public` | — | `apps/web/app/components/SFSystemErrorPage.vue` | P9 Component Registry |
+| `core.component.shared.sfsystem_error_rail` | `sforum.component.shared.sfsystem_error_rail@1` | component | `public` | — | `apps/web/app/components/SFSystemErrorRail.vue` | P9 Component Registry |
+| `core.component.shared.sfsystem_error_recovery` | `sforum.component.shared.sfsystem_error_recovery@1` | component | `public` | — | `apps/web/app/components/SFSystemErrorRecovery.vue` | P9 Component Registry |
+| `core.component.shared.sfsystem_error_sidebar` | `sforum.component.shared.sfsystem_error_sidebar@1` | component | `public` | — | `apps/web/app/components/SFSystemErrorSidebar.vue` | P9 Component Registry |
 | `core.component.shared.sfsystem_theme_node` | `sforum.component.shared.sfsystem_theme_node@1` | component | `public` | — | `apps/web/app/components/SFSystemThemeNode.vue` | P9 Component Registry |
 | `core.component.shared.sfsystem_theme_template` | `sforum.component.shared.sfsystem_theme_template@1` | component | `public` | — | `apps/web/app/components/SFSystemThemeTemplate.vue` | P9 Component Registry |
 | `core.component.shared.sftabs` | `sforum.component.shared.sftabs@1` | component | `public`, `admin` | — | `apps/web/app/components/SFTabs.vue` | P7/P9 Admin and Component Registries |

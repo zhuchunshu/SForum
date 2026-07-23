@@ -238,10 +238,12 @@ func TestApproveIgnoresClientTemplatePath(t *testing.T) {
 	}
 }
 
-func TestMatchCorePagePathAcceptsArbitraryNotFoundPath(t *testing.T) {
-	params, ok := MatchCorePagePath("system.not_found", "/missing/discussion")
-	if !ok || len(params) != 0 {
-		t.Fatalf("not-found path should bind without params: ok=%v params=%#v", ok, params)
+func TestMatchCorePagePathAcceptsArbitraryVirtualSystemErrorPath(t *testing.T) {
+	for _, pageID := range []string{"system.forbidden", "system.not_found", "system.rate_limited", "system.server_error"} {
+		params, ok := MatchCorePagePath(pageID, "/missing/discussion")
+		if !ok || len(params) != 0 {
+			t.Fatalf("%s should bind the current error path without params: ok=%v params=%#v", pageID, ok, params)
+		}
 	}
 	if _, ok := MatchCorePagePath("forum.home", "/missing/discussion"); ok {
 		t.Fatal("ordinary catalog pages must still reject mismatched paths")

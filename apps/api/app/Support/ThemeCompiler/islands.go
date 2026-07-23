@@ -28,20 +28,39 @@ const (
 // requiredPageComponents 仅强制 mutation / 身份相关页必须嵌入宿主岛。
 // 其余可替换页的 body 岛由参考主题产品门禁（P13）校验，避免把编译器
 // 通用夹具绑死在完整公开页矩阵上。
-var requiredPageComponents = map[string]string{
-	"forum.topic.create":      "forum.component.topic_composer",
-	"forum.topic.reply":       "forum.component.topic_reply",
-	"forum.settings.profile":  "profile.component.settings_form",
-	"forum.settings.security": "identity.component.security_settings",
-	"auth.login":              "identity.component.login_form",
-	"auth.register":           "identity.component.register_form",
-	"auth.forgot_password":    "identity.component.recovery_request_form",
-	"auth.reset_password":     "identity.component.recovery_confirm_form",
+var requiredPageComponents = map[string][]string{
+	"forum.topic.create":      {"forum.component.topic_composer"},
+	"forum.topic.reply":       {"forum.component.topic_reply"},
+	"forum.settings.profile":  {"profile.component.settings_form"},
+	"forum.settings.security": {"identity.component.security_settings"},
+	"auth.login":              {"identity.component.login_form"},
+	"auth.register":           {"identity.component.register_form"},
+	"auth.forgot_password":    {"identity.component.recovery_request_form"},
+	"auth.reset_password":     {"identity.component.recovery_confirm_form"},
+	// 系统错误页必须包含语义详情和动作入口；主题只能移动它们，不能省略 Host 行为。
+	"system.forbidden":    {"system.component.error_details", "system.component.error_actions"},
+	"system.not_found":    {"system.component.error_details", "system.component.error_actions"},
+	"system.rate_limited": {"system.component.error_details", "system.component.error_actions"},
+	"system.server_error": {"system.component.error_details", "system.component.error_actions"},
+}
+
+var systemPageComponents = map[string]struct{}{
+	"system.component.not_found":      {},
+	"system.component.error_details":  {},
+	"system.component.error_actions":  {},
+	"system.component.error_recovery": {},
+	"system.component.error_sidebar":  {},
+	"system.component.error_rail":     {},
 }
 
 var protectedPageComponents = func() map[string]struct{} {
 	result := make(map[string]struct{}, len(requiredPageComponents))
-	for _, componentID := range requiredPageComponents {
+	for _, componentIDs := range requiredPageComponents {
+		for _, componentID := range componentIDs {
+			result[componentID] = struct{}{}
+		}
+	}
+	for componentID := range systemPageComponents {
 		result[componentID] = struct{}{}
 	}
 	return result
@@ -168,19 +187,27 @@ func validateRenderedRequiredPageIsland(pageID string, islands []IslandDescripto
 	return validateRequiredComponentSet(pageID, required, components)
 }
 
-func validateRequiredComponentSet(pageID, required string, components []string) error {
-	count := 0
+func validateRequiredComponentSet(pageID string, required []string, components []string) error {
+	requiredSet := make(map[string]int, len(required))
+	for _, componentID := range required {
+		requiredSet[componentID] = 0
+	}
 	for _, componentID := range components {
-		if componentID == required {
-			count++
+		if _, ok := requiredSet[componentID]; ok {
+			requiredSet[componentID]++
 			continue
 		}
 		if _, protected := protectedPageComponents[componentID]; protected {
-			return fmt.Errorf("%w: %s contains protected component %s instead of %s", ErrRequiredIsland, pageID, componentID, required)
+			if _, systemComponent := systemPageComponents[componentID]; systemComponent && strings.HasPrefix(pageID, "system.") {
+				continue
+			}
+			return fmt.Errorf("%w: %s contains protected component %s outside its owner page", ErrRequiredIsland, pageID, componentID)
 		}
 	}
-	if count != 1 {
-		return fmt.Errorf("%w: %s requires exactly one %s, found %d", ErrRequiredIsland, pageID, required, count)
+	for _, componentID := range required {
+		if count := requiredSet[componentID]; count != 1 {
+			return fmt.Errorf("%w: %s requires exactly one %s, found %d", ErrRequiredIsland, pageID, componentID, count)
+		}
 	}
 	return nil
 }

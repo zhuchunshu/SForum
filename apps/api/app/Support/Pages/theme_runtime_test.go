@@ -157,6 +157,74 @@ func TestThemeRuntimeRejectsPublicL2IslandWithoutExactComponentIdentity(t *testi
 	}
 }
 
+func TestThemeRuntimeRejectsPublicL2OnSystemErrorPages(t *testing.T) {
+	root := t.TempDir()
+	body := `<main><sf-error-details></sf-error-details><sf-extension-widget extension-id="demo.public" component-id="demo.public.component.card">fallback</sf-extension-widget></main>`
+	writeThemeRuntimeTestFile(t, root, "templates/forbidden.html", body)
+	artifact := RuntimeArtifact{ExtensionID: "l2-system-error.theme", ExtensionVersion: "1.0.0", PackageDigest: strings.Repeat("7", 64)}
+	_, err := BuildThemeRuntimeSnapshot(ThemeRuntimeBuildInput{
+		Artifact: artifact, PackageRoot: root, SiteName: "SForum",
+		Contributions: []PageContribution{{
+			ID: "l2-system-error.theme.forbidden", Action: ActionReplace, Target: "system.forbidden",
+			Template: "templates/forbidden.html", Contract: "sforum.page.forbidden@1",
+			ExtensionID: artifact.ExtensionID, Version: artifact.ExtensionVersion, PackageDigest: artifact.PackageDigest,
+		}},
+		PackageKind: RuntimeTemplateTheme,
+	})
+	if !errors.Is(err, ErrThemeRuntimeConflict) {
+		t.Fatalf("system error public L2 error=%v", err)
+	}
+}
+
+func TestThemeRuntimeRejectsPluginOwnedSystemErrorReplacement(t *testing.T) {
+	root := t.TempDir()
+	writeThemeRuntimeTestFile(t, root, "templates/forbidden.html", `<main><sf-error-details></sf-error-details></main>`)
+	artifact := RuntimeArtifact{ExtensionID: "plugin.system-error", ExtensionVersion: "1.0.0", PackageDigest: strings.Repeat("6", 64)}
+	_, err := BuildThemeRuntimeSnapshot(ThemeRuntimeBuildInput{
+		Artifact: artifact, PackageRoot: root, SiteName: "SForum",
+		Contributions: []PageContribution{{
+			ID: "plugin.system-error.forbidden", Action: ActionReplace, Target: "system.forbidden",
+			Template: "templates/forbidden.html", Contract: "sforum.page.forbidden@1",
+			ExtensionID: artifact.ExtensionID, Version: artifact.ExtensionVersion, PackageDigest: artifact.PackageDigest,
+		}},
+		PackageKind: RuntimeTemplatePlugin,
+	})
+	if !errors.Is(err, ErrThemeRuntimeConflict) {
+		t.Fatalf("plugin-owned system error runtime error=%v", err)
+	}
+}
+
+func TestThemeRuntimeRequiresSystemErrorActionIsland(t *testing.T) {
+	root := t.TempDir()
+	writeThemeRuntimeTestFile(t, root, "templates/forbidden.html", `<main><sf-error-details></sf-error-details></main>`)
+	artifact := RuntimeArtifact{ExtensionID: "missing-action.theme", ExtensionVersion: "1.0.0", PackageDigest: strings.Repeat("9", 64)}
+	_, err := BuildThemeRuntimeSnapshot(ThemeRuntimeBuildInput{
+		Artifact: artifact, PackageRoot: root, SiteName: "SForum",
+		Contributions: []PageContribution{{
+			ID: "missing-action.theme.forbidden", Action: ActionReplace, Target: "system.forbidden",
+			Template: "templates/forbidden.html", Contract: "sforum.page.forbidden@1",
+			ExtensionID: artifact.ExtensionID, Version: artifact.ExtensionVersion, PackageDigest: artifact.PackageDigest,
+		}},
+		PackageKind: RuntimeTemplateTheme,
+	})
+	if !errors.Is(err, themecompiler.ErrRequiredIsland) {
+		t.Fatalf("missing system error actions error=%v", err)
+	}
+}
+
+func TestPluginPreflightRejectsSystemErrorReplacement(t *testing.T) {
+	root := t.TempDir()
+	writeThemeRuntimeTestFile(t, root, "theme.json", `{"pages":[{"id":"plugin.system-error.not_found","action":"replace","target":"system.not_found","template":"templates/not-found.html","contract":"sforum.page.not_found@1"}]}`)
+	writeThemeRuntimeTestFile(t, root, "templates/not-found.html", `<main><sf-error-details></sf-error-details></main>`)
+	bridge := NewExtensionBridge(NewRegistry(NewMemoryStore()))
+	_, err := bridge.PreflightPluginPackage(ThemeExtension{
+		ID: "plugin.system-error", Version: "1.0.0", PackagePath: root, PackageDigest: strings.Repeat("5", 64),
+	})
+	if !errors.Is(err, ErrNotReplaceable) {
+		t.Fatalf("plugin system error replacement error=%v", err)
+	}
+}
+
 func TestThemeRuntimeSnapshotIgnoresUncoveredLegacyAddTemplates(t *testing.T) {
 	root := t.TempDir()
 	writeThemeRuntimeTestFile(t, root, "templates/core.html", `<main>core</main><sf-home-page></sf-home-page>`)

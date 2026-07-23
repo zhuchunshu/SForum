@@ -1508,6 +1508,76 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
+    "id": "core.component.shared.sfsystem_error_actions",
+    "contractVersion": "sforum.component.shared.sfsystem_error_actions@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFSystemErrorActions.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfsystem_error_details",
+    "contractVersion": "sforum.component.shared.sfsystem_error_details@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFSystemErrorDetails.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfsystem_error_emergency_page",
+    "contractVersion": "sforum.component.shared.sfsystem_error_emergency_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFSystemErrorEmergencyPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfsystem_error_page",
+    "contractVersion": "sforum.component.shared.sfsystem_error_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFSystemErrorPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfsystem_error_rail",
+    "contractVersion": "sforum.component.shared.sfsystem_error_rail@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFSystemErrorRail.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfsystem_error_recovery",
+    "contractVersion": "sforum.component.shared.sfsystem_error_recovery@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFSystemErrorRecovery.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfsystem_error_sidebar",
+    "contractVersion": "sforum.component.shared.sfsystem_error_sidebar@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFSystemErrorSidebar.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sfsystem_theme_node",
     "contractVersion": "sforum.component.shared.sfsystem_theme_node@1",
     "kind": "component",

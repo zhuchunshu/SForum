@@ -61,21 +61,57 @@ describe('remaining public presentation ownership', () => {
     expect(template).toContain("'system.component.not_found': SFNotFoundPageContent")
   })
 
-  test('system.not_found theme shells mark presentation ownership', () => {
+  test('system error theme shells mark presentation ownership', () => {
+    const pages = [
+      ['forbidden.html', 'system.forbidden'],
+      ['not-found.html', 'system.not_found'],
+      ['rate-limited.html', 'system.rate_limited'],
+      ['server-error.html', 'system.server_error']
+    ] as const
+    for (const theme of ['sforum-default', 'sforum-nocturne']) {
+      for (const [template, pageId] of pages) {
+        const tpl = read(`../../extensions/builtin/themes/${theme}/templates/${template}`)
+        expect(tpl).toContain('data-theme-owned="presentation"')
+        expect(tpl).toContain(`data-page="${pageId}"`)
+        expect(tpl).toContain('<sf-error-details')
+        expect(tpl).toContain('<sf-error-actions')
+        expect(tpl).toContain('<sf-error-recovery')
+        expect(tpl).toContain('<sf-error-sidebar')
+        expect(tpl).toContain('<sf-error-rail')
+        expect(tpl).toContain('<sf-navbar')
+        expect(tpl).toContain('<sf-footer')
+      }
+    }
+    const systemTemplate = read('app/components/SFSystemThemeTemplate.vue')
+    expect(systemTemplate).toContain("'system.component.error_details': SFSystemErrorDetails")
+    expect(systemTemplate).toContain("'system.component.error_actions': SFSystemErrorActions")
+    expect(systemTemplate).toContain("'system.component.error_recovery': SFSystemErrorRecovery")
+    expect(systemTemplate).toContain("'system.component.error_sidebar': SFSystemErrorSidebar")
+    expect(systemTemplate).toContain("'system.component.error_rail': SFSystemErrorRail")
+    const nocturneCSS = read('../../extensions/builtin/themes/sforum-nocturne/assets/theme.css')
+    const errorBody = read('app/components/SFSystemErrorPage.vue')
+    expect(errorBody).toContain(':data-page="page.pageId"')
+    expect(nocturneCSS).toContain('.nh-system-error-shell')
+    expect(nocturneCSS).toContain('.nh-system-error-shell .sforum-system-error__layout')
+    expect(nocturneCSS).toContain('.nh-system-error-shell .sforum-system-error__details')
+    expect(nocturneCSS).toContain('.nh-system-error-shell .sforum-system-error__search-box')
+    expect(nocturneCSS).toContain('@media (max-width: 960px)')
+    expect(nocturneCSS).not.toContain('.nh-not-found-shell .sforum-not-found-page__layout')
+    expect(nocturneCSS).not.toContain('.nh-not-found-shell .sforum-not-found-page__sidebar')
+  })
+
+  test('legacy system.not_found compatibility remains closed to L2', () => {
     for (const theme of ['sforum-default', 'sforum-nocturne']) {
       const tpl = read(`../../extensions/builtin/themes/${theme}/templates/not-found.html`)
       expect(tpl).toContain('data-theme-owned="presentation"')
       expect(tpl).toContain('data-page="system.not_found"')
-      expect(tpl).toContain('<sf-not-found-page')
+      expect(tpl).toContain('<sf-error-details')
       expect(tpl).toContain('<sf-navbar')
       expect(tpl).toContain('<sf-footer')
     }
-    const nocturneCSS = read('../../extensions/builtin/themes/sforum-nocturne/assets/theme.css')
     const notFoundBody = read('app/components/SFNotFoundPageContent.vue')
     expect(notFoundBody).toContain('sforum-not-found-page__layout sforum-home__layout')
     expect(notFoundBody).toContain('sforum-not-found-page__sidebar sforum-home__sidebar')
-    expect(nocturneCSS).not.toContain('.nh-not-found-shell .sforum-not-found-page__layout')
-    expect(nocturneCSS).not.toContain('.nh-not-found-shell .sforum-not-found-page__sidebar')
   })
 
   test('moderation.review stays Host-owned (non-replaceable workbench)', () => {

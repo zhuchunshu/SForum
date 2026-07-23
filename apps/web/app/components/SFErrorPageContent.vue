@@ -20,8 +20,8 @@ const page = computed(() => resolveErrorPageContent(props.error?.statusCode))
 const title = computed(() => t(page.value.titleKey, { siteName: siteName.value }))
 const description = computed(() => t(page.value.descriptionKey, { siteName: siteName.value }))
 
-// 404 的 document head 由根 error.vue 收口，避免 Core 紧急页重新注入 canonical/JSON-LD。
-if (normalizeErrorStatus(props.error?.statusCode) !== 404) {
+// 系统错误 document head 由根 error.vue 收口，Core 紧急页不能重新注入 canonical/JSON-LD。
+if (!props.emergency && normalizeErrorStatus(props.error?.statusCode) !== 404) {
   useSForumSeo({
     title,
     description,

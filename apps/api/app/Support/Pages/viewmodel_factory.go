@@ -149,11 +149,41 @@ func BuildCorePageViewModel(request CorePageViewModelRequest) (any, error) {
 		model := valueOrZero(request.Data.Guidelines)
 		model.Base = base
 		return model, nil
+	case "system.forbidden":
+		model := valueOrZero(request.Data.Forbidden)
+		model.Base = base
+		if model.StatusCode == 0 {
+			model.StatusCode = 403
+		}
+		if strings.TrimSpace(model.Title) == "" {
+			model.Title = seo.Title
+		}
+		return model, nil
 	case "system.not_found":
 		model := valueOrZero(request.Data.NotFound)
 		model.Base = base
 		if model.StatusCode == 0 {
 			model.StatusCode = 404
+		}
+		if strings.TrimSpace(model.Title) == "" {
+			model.Title = seo.Title
+		}
+		return model, nil
+	case "system.rate_limited":
+		model := valueOrZero(request.Data.RateLimited)
+		model.Base = base
+		if model.StatusCode == 0 {
+			model.StatusCode = 429
+		}
+		if strings.TrimSpace(model.Title) == "" {
+			model.Title = seo.Title
+		}
+		return model, nil
+	case "system.server_error":
+		model := valueOrZero(request.Data.ServerError)
+		model.Base = base
+		if model.StatusCode == 0 {
+			model.StatusCode = 500
 		}
 		if strings.TrimSpace(model.Title) == "" {
 			model.Title = seo.Title

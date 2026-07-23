@@ -27,16 +27,21 @@ import {
 export function useForumApi() {
   const { request } = useApiClient()
 
-  function listCategoryGroups() {
-    return request<ForumCategoryGroup[]>('/category-groups')
+  type ReadOptions = {
+    timeout?: number
+    serverInternal?: boolean
   }
 
-  function listTags() {
-    return request<ForumTag[]>('/tags')
+  function listCategoryGroups(options: ReadOptions = {}) {
+    return request<ForumCategoryGroup[]>('/category-groups', options)
   }
 
-  function listTopics(filters: ForumTopicFilters = {}) {
-    return request<ForumTopicList>(pathWithQuery('/topics', buildForumTopicQuery(filters)))
+  function listTags(options: ReadOptions = {}) {
+    return request<ForumTag[]>('/tags', options)
+  }
+
+  function listTopics(filters: ForumTopicFilters = {}, options: ReadOptions = {}) {
+    return request<ForumTopicList>(pathWithQuery('/topics', buildForumTopicQuery(filters)), options)
   }
 
   // 关键词检索走选定 search.provider，默认站内引擎支持中英文全文与模糊搜索。

@@ -1,6 +1,6 @@
 PageDefinition:
   type: object
-  required: [id, pathPattern, access, contractVersion, coreComponent, replaceable]
+  required: [id, pathPattern, access, contractVersion, coreComponent, replaceable, virtual]
   properties:
     id: { type: string }
     pathPattern: { type: string }
@@ -11,6 +11,9 @@ PageDefinition:
     contractVersion: { type: string }
     coreComponent: { type: string }
     replaceable: { type: boolean }
+    virtual:
+      type: boolean
+      description: "True for Host-selected system surfaces that have no public route pattern and never participate in ordinary path matching."
     requiresFeatures: { type: array, items: { type: string } }
     notes: { type: string }
 

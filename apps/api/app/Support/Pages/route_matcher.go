@@ -193,8 +193,8 @@ func MatchCorePagePath(pageID, requestPath string) (map[string]string, bool) {
 	if !ok {
 		return nil, false
 	}
-	// 404 没有固定路由模式，它描述的正是未被其他页面匹配的当前路径。
-	if page.ID == "system.not_found" && strings.TrimSpace(page.PathPattern) == "" {
+	// 虚拟系统错误页没有固定路由模式，它描述的是 Host 已确认的当前错误路径。
+	if page.Virtual && strings.TrimSpace(page.PathPattern) == "" {
 		return map[string]string{}, true
 	}
 	if strings.TrimSpace(page.PathPattern) == "" {

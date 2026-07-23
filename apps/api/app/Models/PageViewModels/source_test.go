@@ -202,7 +202,10 @@ func TestCorePageViewModelSourcePopulatesEveryCatalogContract(t *testing.T) {
 		"site.terms":              {"/terms", nil, nil, reflect.TypeOf(themecompiler.TermsPageViewModel{})},
 		"site.privacy":            {"/privacy", nil, nil, reflect.TypeOf(themecompiler.PrivacyPageViewModel{})},
 		"site.guidelines":         {"/guidelines", nil, nil, reflect.TypeOf(themecompiler.GuidelinesPageViewModel{})},
+		"system.forbidden":        {"/forbidden", nil, nil, reflect.TypeOf(themecompiler.ErrorPageViewModel{})},
 		"system.not_found":        {"/missing", nil, nil, reflect.TypeOf(themecompiler.ErrorPageViewModel{})},
+		"system.rate_limited":     {"/rate-limited", nil, nil, reflect.TypeOf(themecompiler.ErrorPageViewModel{})},
+		"system.server_error":     {"/server-error", nil, nil, reflect.TypeOf(themecompiler.ErrorPageViewModel{})},
 		"dev.components":          {"/components", nil, nil, reflect.TypeOf(themecompiler.DevelopmentComponentsPageViewModel{})},
 	}
 
