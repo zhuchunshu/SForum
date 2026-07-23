@@ -4062,16 +4062,49 @@
     },
     "categories": {
       "title": "All categories",
-      "description": "Equal-size tiles with icon, color bar, description, and counts.",
+      "description": "Browse every visible board by group and find the right discussion space quickly.",
+      "filterPlaceholder": "Filter category name, description, or slug",
+      "clearFilter": "Clear filter",
+      "sortLabel": "Category sorting",
+      "groupNavLabel": "Category groups",
+      "allGroups": "All groups",
+      "returnAllGroups": "Back to all groups",
+      "visibleSummary": "{groups} groups · {categories} categories",
       "sorts": {
         "all": "Default",
         "active": "By activity",
         "name": "By name"
       },
-      "enter": "Enter →",
+      "enter": "Enter",
       "noDescription": "No description yet",
       "topicCount": "{count} topics",
       "replyCount": "{count} replies",
+      "groupCount": "{count} categories",
+      "emptyGroup": "This group has no public categories right now.",
+      "filterEmptyTitle": "No matching categories",
+      "filterEmptyDescription": "No visible public categories match. Try another keyword or return to all groups.",
+      "loadFailedTitle": "Categories could not be loaded",
+      "loadFailedDescription": "The visible public category directory could not be read. Try again in a moment.",
+      "rightRailLabel": "Category information",
+      "overviewTitle": "Category overview",
+      "publicScope": "Visible now",
+      "distributionTitle": "Group distribution",
+      "byCategoryCount": "By categories",
+      "activeTitle": "Active categories",
+      "byTopicCount": "By topics",
+      "noActiveCategories": "No active categories to rank yet.",
+      "tipsTitle": "Browsing tips",
+      "tips": {
+        "focus": "Choose a group on the left to enter a focused group view.",
+        "filter": "The page filter only matches the category directory returned by the API.",
+        "sort": "Sorting changes category order inside each group without breaking the group relationship."
+      },
+      "stats": {
+        "groups": "Groups",
+        "categories": "Categories",
+        "topics": "Topics",
+        "replies": "Replies"
+      },
       "emptyTitle": "No categories yet",
       "emptyDescription": "There are no public categories visible to you."
     }

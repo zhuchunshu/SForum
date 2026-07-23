@@ -26,35 +26,39 @@ import {
 
 export function useForumApi() {
   const { request } = useApiClient()
+  const serverReadOptions = { serverInternal: import.meta.server }
 
   function listCategoryGroups() {
-    return request<ForumCategoryGroup[]>('/category-groups')
+    return request<ForumCategoryGroup[]>('/category-groups', serverReadOptions)
   }
 
   function listTags() {
-    return request<ForumTag[]>('/tags')
+    return request<ForumTag[]>('/tags', serverReadOptions)
   }
 
   function listTopics(filters: ForumTopicFilters = {}) {
-    return request<ForumTopicList>(pathWithQuery('/topics', buildForumTopicQuery(filters)))
+    return request<ForumTopicList>(pathWithQuery('/topics', buildForumTopicQuery(filters)), serverReadOptions)
   }
 
   // 关键词检索走选定 search.provider，默认站内引擎支持中英文全文与模糊搜索。
   function searchTopics(filters: ForumTopicSearchFilters) {
-    return request<ForumTopicList>(pathWithQuery('/search', buildForumSearchQuery(filters)))
+    return request<ForumTopicList>(pathWithQuery('/search', buildForumSearchQuery(filters)), serverReadOptions)
   }
 
   function getTopic(topicId: number) {
-    return request<ForumTopicDetail>(`/topics/${topicId}`)
+    return request<ForumTopicDetail>(`/topics/${topicId}`, serverReadOptions)
   }
 
   // 按 slug 查询主题：仅 "纯 slug" URL 模式使用，对应后端 GET /topics/by-slug/:slug。
   function getTopicBySlug(slug: string) {
-    return request<ForumTopicDetail>(`/topics/by-slug/${encodeURIComponent(slug)}`)
+    return request<ForumTopicDetail>(`/topics/by-slug/${encodeURIComponent(slug)}`, serverReadOptions)
   }
 
   function listTopicComments(topicId: number, query: ForumCommentListQuery = {}) {
-    return request<ForumCommentList>(pathWithQuery(`/topics/${topicId}/comments`, buildForumCommentQuery(query)))
+    return request<ForumCommentList>(
+      pathWithQuery(`/topics/${topicId}/comments`, buildForumCommentQuery(query)),
+      serverReadOptions
+    )
   }
 
   function createTopicComment(topicId: number, content: ForumContentInput, parentId?: number | null) {
@@ -76,7 +80,7 @@ export function useForumApi() {
   }
 
   function listCommentReplies(commentId: number) {
-    return request<ForumComment[]>(`/comments/${commentId}/replies`)
+    return request<ForumComment[]>(`/comments/${commentId}/replies`, serverReadOptions)
   }
 
   function createTopic(input: ForumTopicCreateInput) {

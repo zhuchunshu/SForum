@@ -150,6 +150,10 @@ Architecture sources:
 - The default theme uses a flat, responsive three-column shell: navigation,
   primary content, and contextual right rail. It collapses the right rail
   before the left navigation.
+- `/categories` uses the default-theme grouped directory surface: real
+  `ForumCategoryGroup`/`ForumCategory` DTOs, URL-backed group focus via
+  `?group=<group.id>`, page-local category filtering, group-local sorting, and
+  a derived right rail. Topbar `SFSearch` remains global forum search.
 - Homepage/topic/taxonomy data is real API state. Do not render fabricated
   likes, bookmarks, unread state, participant stacks, or ranking.
 - Homepage and eligible lists SSR page 1 and continue with keyset infinite
