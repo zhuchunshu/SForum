@@ -462,7 +462,8 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
 
   /* 页面三栏与顶栏同左右 inset，列线对齐且不贴视口 */
   .sf-theme--default .sforum-home__layout,
-  .sf-theme--default .sforum-topic-page__layout {
+  .sf-theme--default .sforum-topic-page__layout,
+  .sf-theme--default .sforum-notifications__layout {
     box-sizing: border-box;
     padding-left: var(--sf-public-edge-inset, 24px);
     padding-right: var(--sf-public-edge-inset, 24px);

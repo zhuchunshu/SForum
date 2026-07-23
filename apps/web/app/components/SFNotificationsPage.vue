@@ -289,28 +289,30 @@ async function openSelectedTarget() {
           :total-topics="categoryTopicTotal"
           :pending="categoriesPending"
           :can-create-topic="canCreateTopic"
-          show-categories="false"
-        />
-
-        <nav class="sforum-notifications__type-nav" :aria-label="t('notifications.filter.aria')">
-          <div class="sforum-notifications__rail-label">{{ t('notifications.filter.title') }}</div>
-          <button
-            v-for="filter in notificationFilters"
-            :key="filter"
-            type="button"
-            class="sforum-notifications__rail-link"
-            :class="{ 'is-active': activeFilter === filter }"
-            :aria-pressed="activeFilter === filter"
-            @click="selectFilter(filter)"
-          >
-            <span class="sforum-notifications__rail-link-main">
-              <UIcon :name="filterIcon(filter)" class="size-[18px]" aria-hidden="true" />
-              {{ filterLabel(filter) }}
-            </span>
-            <span class="sforum-notifications__rail-count">{{ filterCount(filter) }}</span>
-          </button>
-          <p class="sforum-notifications__filter-scope">{{ filterScopeLabel }}</p>
-        </nav>
+          :show-categories="false"
+        >
+          <template #after-navigation>
+            <nav class="sforum-notifications__type-nav" :aria-label="t('notifications.filter.aria')">
+              <div class="sforum-notifications__rail-label">{{ t('notifications.filter.title') }}</div>
+              <button
+                v-for="filter in notificationFilters"
+                :key="filter"
+                type="button"
+                class="sforum-notifications__rail-link"
+                :class="{ 'is-active': activeFilter === filter }"
+                :aria-pressed="activeFilter === filter"
+                @click="selectFilter(filter)"
+              >
+                <span class="sforum-notifications__rail-link-main">
+                  <UIcon :name="filterIcon(filter)" class="size-[18px]" aria-hidden="true" />
+                  {{ filterLabel(filter) }}
+                </span>
+                <span class="sforum-notifications__rail-count">{{ filterCount(filter) }}</span>
+              </button>
+              <p class="sforum-notifications__filter-scope">{{ filterScopeLabel }}</p>
+            </nav>
+          </template>
+        </SFHomeNavigation>
       </div>
 
       <section class="sforum-notifications__main" aria-labelledby="notification-page-title">

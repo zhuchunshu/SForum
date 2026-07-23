@@ -165,6 +165,11 @@ Architecture sources:
 - The default theme uses a flat, responsive three-column shell: navigation,
   primary content, and contextual right rail. It collapses the right rail
   before the left navigation.
+- Native scrollbars are themed globally from `main.css` with neutral
+  `--sf-scrollbar-*` tokens derived from public surface, text-muted, and border
+  colors. Keep them quiet rather than accent-colored; page-local scroll
+  containers should use the global contract unless they deliberately use
+  `.no-scrollbar`.
 - `/categories` uses the default-theme grouped directory surface: real
   `ForumCategoryGroup`/`ForumCategory` DTOs, URL-backed group focus via
   `?group=<group.id>`, page-local category filtering, group-local sorting, and

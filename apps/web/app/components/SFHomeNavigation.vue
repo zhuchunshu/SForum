@@ -62,6 +62,7 @@ const allTopicsActive = computed(() => useRouteLinks.value
   ? activeTopLevel.value === 'home' && !props.selectedCategorySlug
   : !props.selectedCategorySlug
 )
+const showCategorySkeleton = computed(() => props.showCategories && props.pending && props.categories.length === 0)
 
 function allTopicsTo() {
   return localePath('/')
@@ -195,7 +196,7 @@ function categoryIconName(category: ForumCategory) {
       </NuxtLink>
 
       <div v-if="props.showCategories" class="sf-home-navigation__label">{{ t('home.categories') }}</div>
-      <div v-if="props.showCategories" class="sf-home-navigation__pending">
+      <div v-if="showCategorySkeleton" class="sf-home-navigation__pending">
         <SFSkeleton v-for="item in 4" :key="item" :lines="1" />
       </div>
       <template v-if="props.showCategories">
@@ -244,6 +245,8 @@ function categoryIconName(category: ForumCategory) {
           </button>
         </template>
       </template>
+
+      <slot name="after-navigation" />
 
       <div class="sf-home-navigation__foot">
         <NuxtLink :to="localePath('/guidelines')">

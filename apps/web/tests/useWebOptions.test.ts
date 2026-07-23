@@ -55,6 +55,17 @@ describe('appearance theme helpers', () => {
     expect(css).toContain('--ui-success: var(--ui-color-success-400);')
   })
 
+  test('themes native scrollbars without breaking explicit hidden scrollbars', () => {
+    const css = readFileSync(new URL('../app/assets/css/main.css', import.meta.url), 'utf8')
+
+    expect(css).toContain('--sf-scrollbar-track:')
+    expect(css).toContain('--sf-scrollbar-thumb:')
+    expect(css).toContain('scrollbar-color: var(--sf-scrollbar-thumb) var(--sf-scrollbar-track);')
+    expect(css).toContain('*::-webkit-scrollbar-thumb')
+    expect(css).toContain('.no-scrollbar::-webkit-scrollbar')
+    expect(css.indexOf('.no-scrollbar')).toBeGreaterThan(css.indexOf('*::-webkit-scrollbar-thumb'))
+  })
+
   test('exports recommended personalization defaults', () => {
     const links = cloneFooterLinks(recommendedFooterLinks)
 

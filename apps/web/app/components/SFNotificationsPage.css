@@ -1,12 +1,13 @@
 .sforum-notifications {
   min-height: 100%;
-  background: var(--sf-public-bg);
+  background: var(--sf-public-surface);
   color: var(--sf-public-text);
 }
 
 .sforum-notifications__layout {
   display: grid;
   grid-template-columns: var(--sf-public-sidebar-width) minmax(0, 1fr) var(--sf-public-right-rail-width);
+  gap: 12px;
   min-height: calc(100vh - var(--sf-public-topbar-height));
   width: 100%;
 }
@@ -20,6 +21,7 @@
 .sforum-notifications__main {
   min-width: 0;
   padding: 28px 24px 72px;
+  background: var(--sf-public-bg);
 }
 
 .sforum-notifications__right {
@@ -537,32 +539,33 @@
 }
 
 .sforum-notifications__type-nav {
-  padding: 0 12px;
+  padding: 0;
 }
 
 .sforum-notifications__rail-label {
-  padding: 10px 10px 6px;
-  color: var(--sf-public-text-faint);
-  font-size: 10px;
-  font-weight: 700;
+  padding: 10px 16px 6px;
+  color: var(--sf-public-text-muted);
+  font-size: 11px;
+  font-weight: 600;
   letter-spacing: 0;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .sforum-notifications__rail-link {
   width: 100%;
-  min-height: 40px;
+  min-height: 34px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   border: 0;
-  border-radius: 6px;
-  padding: 0 10px;
+  border-left: 2px solid transparent;
+  border-radius: 0;
+  padding: 7px 16px;
   background: transparent;
   color: var(--sf-public-text-secondary);
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 400;
   text-align: left;
   cursor: pointer;
 }
@@ -576,20 +579,12 @@
   position: relative;
   background: var(--sf-accent-soft);
   color: var(--sf-accent);
+  border-left-color: var(--sf-accent);
+  font-weight: 600;
 }
 
 .dark .sforum-notifications__rail-link.is-active {
   color: var(--sf-accent-dark, var(--sf-accent));
-}
-
-.sforum-notifications__rail-link.is-active::before {
-  content: "";
-  position: absolute;
-  left: -1px;
-  width: 3px;
-  height: 18px;
-  border-radius: 2px;
-  background: var(--sf-accent);
 }
 
 .sforum-notifications__rail-link-main {
@@ -607,14 +602,6 @@
 
 .sforum-notifications__rail-link.is-active .sforum-notifications__rail-count {
   color: inherit;
-}
-
-@media (min-width: 981px) {
-  .sf-theme--default .sforum-notifications__layout {
-    box-sizing: border-box;
-    padding-left: var(--sf-public-edge-inset, 24px);
-    padding-right: var(--sf-public-edge-inset, 24px);
-  }
 }
 
 @media (max-width: 1100px) {

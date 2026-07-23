@@ -317,6 +317,57 @@ body {
   transition: background-color 0.2s, color 0.2s;
 }
 
+/*
+ * 全局滚动条使用中性表面色，避免浏览器在深色模式下回退成突兀的纯黑滚动条。
+ * 不跟随站点强调色，滚动条应当安静地辅助阅读，而不是变成页面装饰。
+ */
+:root {
+  --sf-scrollbar-track: color-mix(
+    in srgb,
+    var(--sf-public-surface-muted, var(--bg-app)) 72%,
+    transparent
+  );
+  --sf-scrollbar-thumb: color-mix(
+    in srgb,
+    var(--sf-public-text-muted, var(--text-muted)) 34%,
+    var(--sf-public-border, var(--border-default))
+  );
+  --sf-scrollbar-thumb-hover: color-mix(
+    in srgb,
+    var(--sf-public-text-muted, var(--text-muted)) 52%,
+    var(--sf-public-border-strong, var(--border-default))
+  );
+}
+
+* {
+  scrollbar-color: var(--sf-scrollbar-thumb) var(--sf-scrollbar-track);
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--sf-scrollbar-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  min-height: 40px;
+  border: 2px solid var(--sf-scrollbar-track);
+  border-radius: 999px;
+  background: var(--sf-scrollbar-thumb);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--sf-scrollbar-thumb-hover);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 /* 覆盖后台特定框架的默认边框和背景 */
 .border-default {
   border-color: var(--border-admin);

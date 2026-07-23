@@ -149,39 +149,42 @@ async function retryLoad() {
           :total-topics="totalStats.topicCount"
           :pending="pending"
           :can-create-topic="canCreateTopic"
-        />
-
-        <nav class="sforum-category-directory__group-nav" :aria-label="t('taxonomy.categories.groupNavLabel')">
-          <div class="sf-home-navigation__label">{{ t('taxonomy.categories.groupNavLabel') }}</div>
-          <button
-            type="button"
-            class="sf-home-navigation__link"
-            :class="{ 'is-active': !hasFocusedGroup }"
-            :aria-pressed="!hasFocusedGroup"
-            @click="showAllGroups"
-          >
-            <span class="sf-home-navigation__link-main">
-              <UIcon name="i-lucide-layers-3" class="size-[18px]" aria-hidden="true" />
-              {{ t('taxonomy.categories.allGroups') }}
-            </span>
-            <span class="sf-home-navigation__count">{{ totalStats.groupCount }}</span>
-          </button>
-          <button
-            v-for="group in visibleGroups"
-            :key="group.id"
-            type="button"
-            class="sf-home-navigation__link"
-            :class="{ 'is-active': normalizedFocusedKey === categoryDirectoryGroupKey(group) }"
-            :aria-pressed="normalizedFocusedKey === categoryDirectoryGroupKey(group)"
-            @click="focusGroup(group)"
-          >
-            <span class="sf-home-navigation__link-main">
-              <span class="sforum-category-directory__group-dot" aria-hidden="true" />
-              {{ group.name }}
-            </span>
-            <span class="sf-home-navigation__count">{{ group.categories.length }}</span>
-          </button>
-        </nav>
+          :show-categories="false"
+        >
+          <template #after-navigation>
+            <nav class="sforum-category-directory__group-nav" :aria-label="t('taxonomy.categories.groupNavLabel')">
+              <div class="sf-home-navigation__label">{{ t('taxonomy.categories.groupNavLabel') }}</div>
+              <button
+                type="button"
+                class="sf-home-navigation__link"
+                :class="{ 'is-active': !hasFocusedGroup }"
+                :aria-pressed="!hasFocusedGroup"
+                @click="showAllGroups"
+              >
+                <span class="sf-home-navigation__link-main">
+                  <UIcon name="i-lucide-layers-3" class="size-[18px]" aria-hidden="true" />
+                  {{ t('taxonomy.categories.allGroups') }}
+                </span>
+                <span class="sf-home-navigation__count">{{ totalStats.groupCount }}</span>
+              </button>
+              <button
+                v-for="group in visibleGroups"
+                :key="group.id"
+                type="button"
+                class="sf-home-navigation__link"
+                :class="{ 'is-active': normalizedFocusedKey === categoryDirectoryGroupKey(group) }"
+                :aria-pressed="normalizedFocusedKey === categoryDirectoryGroupKey(group)"
+                @click="focusGroup(group)"
+              >
+                <span class="sf-home-navigation__link-main">
+                  <span class="sforum-category-directory__group-dot" aria-hidden="true" />
+                  {{ group.name }}
+                </span>
+                <span class="sf-home-navigation__count">{{ group.categories.length }}</span>
+              </button>
+            </nav>
+          </template>
+        </SFHomeNavigation>
       </div>
 
       <section class="sforum-home__main sforum-category-directory__main" aria-labelledby="category-directory-title">
@@ -480,38 +483,42 @@ async function retryLoad() {
         :total-topics="totalStats.topicCount"
         :pending="pending"
         :can-create-topic="canCreateTopic"
-      />
-      <nav class="sforum-category-directory__group-nav" :aria-label="t('taxonomy.categories.groupNavLabel')">
-        <div class="sf-home-navigation__label">{{ t('taxonomy.categories.groupNavLabel') }}</div>
-        <button
-          type="button"
-          class="sf-home-navigation__link"
-          :class="{ 'is-active': !hasFocusedGroup }"
-          :aria-pressed="!hasFocusedGroup"
-          @click="showAllGroups"
-        >
-          <span class="sf-home-navigation__link-main">
-            <UIcon name="i-lucide-layers-3" class="size-[18px]" aria-hidden="true" />
-            {{ t('taxonomy.categories.allGroups') }}
-          </span>
-          <span class="sf-home-navigation__count">{{ totalStats.groupCount }}</span>
-        </button>
-        <button
-          v-for="group in visibleGroups"
-          :key="group.id"
-          type="button"
-          class="sf-home-navigation__link"
-          :class="{ 'is-active': normalizedFocusedKey === categoryDirectoryGroupKey(group) }"
-          :aria-pressed="normalizedFocusedKey === categoryDirectoryGroupKey(group)"
-          @click="focusGroup(group)"
-        >
-          <span class="sf-home-navigation__link-main">
-            <span class="sforum-category-directory__group-dot" aria-hidden="true" />
-            {{ group.name }}
-          </span>
-          <span class="sf-home-navigation__count">{{ group.categories.length }}</span>
-        </button>
-      </nav>
+        :show-categories="false"
+      >
+        <template #after-navigation>
+          <nav class="sforum-category-directory__group-nav" :aria-label="t('taxonomy.categories.groupNavLabel')">
+            <div class="sf-home-navigation__label">{{ t('taxonomy.categories.groupNavLabel') }}</div>
+            <button
+              type="button"
+              class="sf-home-navigation__link"
+              :class="{ 'is-active': !hasFocusedGroup }"
+              :aria-pressed="!hasFocusedGroup"
+              @click="showAllGroups"
+            >
+              <span class="sf-home-navigation__link-main">
+                <UIcon name="i-lucide-layers-3" class="size-[18px]" aria-hidden="true" />
+                {{ t('taxonomy.categories.allGroups') }}
+              </span>
+              <span class="sf-home-navigation__count">{{ totalStats.groupCount }}</span>
+            </button>
+            <button
+              v-for="group in visibleGroups"
+              :key="group.id"
+              type="button"
+              class="sf-home-navigation__link"
+              :class="{ 'is-active': normalizedFocusedKey === categoryDirectoryGroupKey(group) }"
+              :aria-pressed="normalizedFocusedKey === categoryDirectoryGroupKey(group)"
+              @click="focusGroup(group)"
+            >
+              <span class="sf-home-navigation__link-main">
+                <span class="sforum-category-directory__group-dot" aria-hidden="true" />
+                {{ group.name }}
+              </span>
+              <span class="sf-home-navigation__count">{{ group.categories.length }}</span>
+            </button>
+          </nav>
+        </template>
+      </SFHomeNavigation>
     </aside>
 
     <aside v-if="mobileInfoOpen" class="sforum-mobile-drawer sforum-mobile-drawer--right">
