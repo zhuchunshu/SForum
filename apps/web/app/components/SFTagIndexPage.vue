@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /**
- * 宿主 body 岛：forum.tag.index。主题 L1 挂载；路由页仅 SEO + fail-closed 回退。
+ * 宿主 body 岛：forum.tag.index。
+ * 三栏壳对齐首页 / 通知 / 分类目录；呈现由主题 L1 挂载，路由页仅 SEO + fail-closed 回退。
  */
 
 import {
@@ -23,6 +24,13 @@ import {
 const TAG_HEAT_LIMIT = 6
 const RAIL_HOT_LIMIT = 6
 const RAIL_RECENT_LIMIT = 4
+
+const TAG_FILTERS: Array<{ key: TagIndexFilter, icon: string, labelKey: string }> = [
+  { key: 'all', icon: 'i-lucide-tags', labelKey: 'taxonomy.tags.filters.all' },
+  { key: 'hot', icon: 'i-lucide-flame', labelKey: 'taxonomy.tags.filters.hot' },
+  { key: 'week', icon: 'i-lucide-calendar-days', labelKey: 'taxonomy.tags.filters.week' },
+  { key: 'az', icon: 'i-lucide-arrow-down-a-z', labelKey: 'taxonomy.tags.filters.az' }
+]
 
 const { t, locale } = useI18n()
 const localePath = useLocalePath()
@@ -108,8 +116,11 @@ function closeMobileDrawers() {
   mobileInfoOpen.value = false
 }
 
-function setFilter(next: TagIndexFilter) {
+function setFilter(next: TagIndexFilter, closeDrawer = false) {
   filter.value = next
+  if (closeDrawer) {
+    closeMobileDrawers()
+  }
 }
 
 function tagPath(slug: string) {
@@ -134,9 +145,13 @@ function retryTags() {
 </script>
 
 <template>
-  <main class="sforum-tags-page">
-    <div class="sforum-tags-page__layout sforum-tags-page__layout--with-side">
-      <aside class="sforum-tags-page__sidebar" :aria-label="t('home.sidebar.navTitle')">
+  <main
+    class="sforum-home sforum-tags-page"
+    data-sforum-island-body="forum.component.tag_index"
+    data-layout="fullwidth-3col"
+  >
+    <div class="sforum-home__layout sforum-home__layout--with-right">
+      <div class="sforum-home__sidebar">
         <SFHomeNavigation
           desktop-only
           navigation-mode="route"
@@ -145,221 +160,157 @@ function retryTags() {
           :total-topics="totalTopics"
           :pending="categoriesPending"
           :can-create-topic="canCreateTopic"
-        />
-      </aside>
+          :show-categories="false"
+        >
+          <template #after-navigation>
+            <nav class="sforum-tags-page__filter-nav" :aria-label="t('taxonomy.tags.filterLabel')">
+              <div class="sf-home-navigation__label">{{ t('taxonomy.tags.filterLabel') }}</div>
+              <button
+                v-for="item in TAG_FILTERS"
+                :key="item.key"
+                type="button"
+                class="sf-home-navigation__link"
+                :class="{ 'is-active': filter === item.key }"
+                :aria-pressed="filter === item.key"
+                @click="setFilter(item.key)"
+              >
+                <span class="sf-home-navigation__link-main">
+                  <UIcon :name="item.icon" class="size-[18px]" aria-hidden="true" />
+                  {{ t(item.labelKey) }}
+                </span>
+              </button>
+            </nav>
+          </template>
+        </SFHomeNavigation>
+      </div>
 
-      <section class="sforum-tags-page__main" aria-labelledby="tag-index-title">
-        <div class="sforum-tags-page__inner">
-          <header class="sforum-tags-page__head">
-            <div class="sforum-tags-page__head-copy">
-              <h1 id="tag-index-title">{{ t('taxonomy.tags.title') }}</h1>
-              <p>{{ t('taxonomy.tags.description') }}</p>
-            </div>
-            <div class="sforum-tags-page__head-count">
-              <strong>{{ formatCount(overview.totalTags) }}</strong>
-              <span>{{ t('taxonomy.tags.headerCount') }}</span>
-            </div>
-          </header>
-
-          <div class="sforum-tags-page__toolbar">
-            <label class="sforum-tags-page__search">
-              <UIcon name="i-lucide-search" class="size-4" aria-hidden="true" />
-              <input
-                v-model="searchQuery"
-                type="search"
-                :placeholder="t('taxonomy.tags.filterPlaceholder')"
-                :aria-label="t('taxonomy.tags.filterPlaceholder')"
-              >
-            </label>
-
-            <div class="sforum-tags-page__filters" role="group" :aria-label="t('taxonomy.tags.filterLabel')">
-              <button
-                type="button"
-                class="sforum-tags-page__filter"
-                :class="{ 'is-active': filter === 'all' }"
-                :aria-pressed="filter === 'all'"
-                @click="setFilter('all')"
-              >
-                {{ t('taxonomy.tags.filters.all') }}
-              </button>
-              <button
-                type="button"
-                class="sforum-tags-page__filter"
-                :class="{ 'is-active': filter === 'hot' }"
-                :aria-pressed="filter === 'hot'"
-                @click="setFilter('hot')"
-              >
-                {{ t('taxonomy.tags.filters.hot') }}
-              </button>
-              <button
-                type="button"
-                class="sforum-tags-page__filter"
-                :class="{ 'is-active': filter === 'week' }"
-                :aria-pressed="filter === 'week'"
-                @click="setFilter('week')"
-              >
-                {{ t('taxonomy.tags.filters.week') }}
-              </button>
-              <button
-                type="button"
-                class="sforum-tags-page__filter"
-                :class="{ 'is-active': filter === 'az' }"
-                :aria-pressed="filter === 'az'"
-                @click="setFilter('az')"
-              >
-                {{ t('taxonomy.tags.filters.az') }}
-              </button>
-            </div>
+      <section class="sforum-home__main sforum-tags-page__main" aria-labelledby="tag-index-title">
+        <header class="sforum-tags-page__head">
+          <div class="sforum-tags-page__head-copy">
+            <h1 id="tag-index-title">{{ t('taxonomy.tags.title') }}</h1>
+            <p>{{ t('taxonomy.tags.description') }}</p>
           </div>
+          <div class="sforum-tags-page__head-count">
+            <strong>{{ formatCount(overview.totalTags) }}</strong>
+            <span>{{ t('taxonomy.tags.headerCount') }}</span>
+          </div>
+        </header>
 
-          <div v-if="tagsError" class="sforum-tags-page__error" role="alert">
-            <span>{{ t('taxonomy.tags.loadFailed') }}</span>
-            <button type="button" class="sf-button sf-button--ghost sf-button--sm" @click="retryTags">
-              <UIcon name="i-lucide-refresh-cw" class="size-4" aria-hidden="true" />
-              {{ t('home.feed.retry') }}
+        <div class="sforum-tags-page__toolbar">
+          <label class="sforum-tags-page__search">
+            <UIcon name="i-lucide-search" class="size-4" aria-hidden="true" />
+            <input
+              v-model="searchQuery"
+              type="search"
+              :placeholder="t('taxonomy.tags.filterPlaceholder')"
+              :aria-label="t('taxonomy.tags.filterPlaceholder')"
+            >
+          </label>
+
+          <!-- 主列快捷筛选：与左栏共享 filter，中宽屏左栏隐藏时仍可用 -->
+          <div class="sforum-tags-page__filters" role="group" :aria-label="t('taxonomy.tags.filterLabel')">
+            <button
+              v-for="item in TAG_FILTERS"
+              :key="`main-${item.key}`"
+              type="button"
+              class="sforum-tags-page__filter"
+              :class="{ 'is-active': filter === item.key }"
+              :aria-pressed="filter === item.key"
+              @click="setFilter(item.key)"
+            >
+              {{ t(item.labelKey) }}
             </button>
           </div>
-
-          <template v-else>
-            <section class="sforum-tags-page__section" :aria-busy="tagsPending">
-              <div class="sforum-tags-page__section-caption">
-                <h2>{{ t('taxonomy.tags.heatTitle') }}</h2>
-                <span>{{ t('taxonomy.tags.heatSubtitle') }}</span>
-              </div>
-
-              <div v-if="tagsPending" class="sforum-tags-page__pending">
-                <SFSkeleton v-for="item in 6" :key="item" :lines="1" />
-              </div>
-
-              <div v-else-if="heatEntries.length" class="sforum-tags-page__heat-board">
-                <NuxtLink
-                  v-for="entry in heatEntries"
-                  :key="`heat-${entry.tag.id}`"
-                  :to="tagPath(entry.tag.slug)"
-                  class="sforum-tags-page__heat-row"
-                >
-                  <span class="sforum-tags-page__heat-label">
-                    <span>#{{ entry.tag.name }}</span>
-                  </span>
-                  <span class="sforum-tags-page__heat-track" aria-hidden="true">
-                    <i :style="{ width: `${entry.widthPercent}%` }" />
-                  </span>
-                  <span class="sforum-tags-page__heat-count">{{ formatCount(entry.tag.topicCount || 0) }}</span>
-                </NuxtLink>
-              </div>
-
-              <div v-else class="sforum-tags-page__empty">
-                <SFEmptyState
-                  :title="emptyTitle"
-                  :description="emptyDescription"
-                />
-              </div>
-            </section>
-
-            <section class="sforum-tags-page__section" :aria-busy="tagsPending">
-              <div class="sforum-tags-page__section-caption">
-                <h2>{{ t('taxonomy.tags.directoryTitle') }}</h2>
-                <span>{{ t('taxonomy.tags.directorySummary', { count: formatCount(filteredTags.length) }) }}</span>
-              </div>
-
-              <div v-if="tagsPending" class="sforum-tags-page__pending sforum-tags-page__pending--grid">
-                <SFSkeleton v-for="item in 8" :key="item" :lines="2" />
-              </div>
-
-              <div v-else-if="filteredTags.length" class="sforum-tags-page__directory">
-                <NuxtLink
-                  v-for="tag in filteredTags"
-                  :key="tag.id"
-                  :to="tagPath(tag.slug)"
-                  class="sforum-tags-page__tag"
-                >
-                  <span class="sforum-tags-page__tag-copy">
-                    <strong>#{{ tag.name }}</strong>
-                    <span>{{ descriptionFor(tag) }}</span>
-                    <small>{{ tag.slug }} · {{ formatDate(tag.createdAt) }}</small>
-                  </span>
-                  <b>{{ formatCount(tag.topicCount || 0) }}</b>
-                </NuxtLink>
-              </div>
-
-              <div v-else class="sforum-tags-page__empty">
-                <SFEmptyState
-                  :title="emptyTitle"
-                  :description="emptyDescription"
-                />
-              </div>
-            </section>
-          </template>
         </div>
+
+        <div v-if="tagsError" class="sforum-tags-page__error" role="alert">
+          <span>{{ t('taxonomy.tags.loadFailed') }}</span>
+          <button type="button" class="sf-button sf-button--ghost sf-button--sm" @click="retryTags">
+            <UIcon name="i-lucide-refresh-cw" class="size-4" aria-hidden="true" />
+            {{ t('home.feed.retry') }}
+          </button>
+        </div>
+
+        <template v-else>
+          <section class="sforum-tags-page__section" :aria-busy="tagsPending">
+            <div class="sforum-tags-page__section-caption">
+              <h2>{{ t('taxonomy.tags.heatTitle') }}</h2>
+              <span>{{ t('taxonomy.tags.heatSubtitle') }}</span>
+            </div>
+
+            <div v-if="tagsPending" class="sforum-tags-page__pending">
+              <SFSkeleton v-for="item in 6" :key="item" :lines="1" />
+            </div>
+
+            <div v-else-if="heatEntries.length" class="sforum-tags-page__heat-board">
+              <NuxtLink
+                v-for="entry in heatEntries"
+                :key="`heat-${entry.tag.id}`"
+                :to="tagPath(entry.tag.slug)"
+                class="sforum-tags-page__heat-row"
+              >
+                <span class="sforum-tags-page__heat-label">
+                  <span>#{{ entry.tag.name }}</span>
+                </span>
+                <span class="sforum-tags-page__heat-track" aria-hidden="true">
+                  <i :style="{ width: `${entry.widthPercent}%` }" />
+                </span>
+                <span class="sforum-tags-page__heat-count">{{ formatCount(entry.tag.topicCount || 0) }}</span>
+              </NuxtLink>
+            </div>
+
+            <div v-else class="sforum-tags-page__empty">
+              <SFEmptyState
+                :title="emptyTitle"
+                :description="emptyDescription"
+              />
+            </div>
+          </section>
+
+          <section class="sforum-tags-page__section" :aria-busy="tagsPending">
+            <div class="sforum-tags-page__section-caption">
+              <h2>{{ t('taxonomy.tags.directoryTitle') }}</h2>
+              <span>{{ t('taxonomy.tags.directorySummary', { count: formatCount(filteredTags.length) }) }}</span>
+            </div>
+
+            <div v-if="tagsPending" class="sforum-tags-page__pending sforum-tags-page__pending--grid">
+              <SFSkeleton v-for="item in 8" :key="item" :lines="2" />
+            </div>
+
+            <div v-else-if="filteredTags.length" class="sforum-tags-page__directory">
+              <NuxtLink
+                v-for="tag in filteredTags"
+                :key="tag.id"
+                :to="tagPath(tag.slug)"
+                class="sforum-tags-page__tag"
+              >
+                <span class="sforum-tags-page__tag-copy">
+                  <strong>#{{ tag.name }}</strong>
+                  <span>{{ descriptionFor(tag) }}</span>
+                  <small>{{ tag.slug }} · {{ formatDate(tag.createdAt) }}</small>
+                </span>
+                <b>{{ formatCount(tag.topicCount || 0) }}</b>
+              </NuxtLink>
+            </div>
+
+            <div v-else class="sforum-tags-page__empty">
+              <SFEmptyState
+                :title="emptyTitle"
+                :description="emptyDescription"
+              />
+            </div>
+          </section>
+        </template>
+
+        <SFContentColumnFooter />
       </section>
 
-      <aside class="sforum-tags-page__side" :aria-label="t('taxonomy.tags.railLabel')">
-        <section class="sforum-tags-rail__section">
-          <div class="sforum-tags-rail__heading">
-            <h3>{{ t('taxonomy.tags.overviewTitle') }}</h3>
-            <span>{{ t('taxonomy.tags.overviewSource') }}</span>
-          </div>
-          <div class="sforum-tags-rail__overview">
-            <div>
-              <strong>{{ formatCount(overview.totalTags) }}</strong>
-              <span>{{ t('taxonomy.tags.stats.total') }}</span>
-            </div>
-            <div>
-              <strong>{{ formatCount(overview.totalTopicReferences) }}</strong>
-              <span>{{ t('taxonomy.tags.stats.topicRefs') }}</span>
-            </div>
-            <div>
-              <strong>{{ formatCount(overview.weekNewTags) }}</strong>
-              <span>{{ t('taxonomy.tags.stats.weekNew') }}</span>
-            </div>
-            <div>
-              <strong>{{ formatCount(overview.hotThreshold) }}</strong>
-              <span>{{ t('taxonomy.tags.stats.hotThreshold') }}</span>
-            </div>
-          </div>
-        </section>
-
-        <section v-if="railHotTags.length" class="sforum-tags-rail__section">
-          <div class="sforum-tags-rail__heading">
-            <h3>{{ t('taxonomy.tags.hotRailTitle') }}</h3>
-            <span>{{ t('taxonomy.tags.hotRailMeta') }}</span>
-          </div>
-          <ol class="sforum-tags-rail__hot-list">
-            <li v-for="(tag, index) in railHotTags" :key="`rail-hot-${tag.id}`">
-              <b>{{ String(index + 1).padStart(2, '0') }}</b>
-              <NuxtLink :to="tagPath(tag.slug)">#{{ tag.name }}</NuxtLink>
-              <span>{{ formatCount(tag.topicCount || 0) }}</span>
-            </li>
-          </ol>
-        </section>
-
-        <section v-if="railRecentTags.length" class="sforum-tags-rail__section">
-          <div class="sforum-tags-rail__heading">
-            <h3>{{ t('taxonomy.tags.recentRailTitle') }}</h3>
-            <span>{{ t('taxonomy.tags.recentRailMeta') }}</span>
-          </div>
-          <div class="sforum-tags-rail__recent-list">
-            <NuxtLink
-              v-for="tag in railRecentTags"
-              :key="`rail-recent-${tag.id}`"
-              :to="tagPath(tag.slug)"
-              class="sforum-tags-rail__recent"
-            >
-              <i aria-hidden="true" />
-              <span>
-                <strong>#{{ tag.name }}</strong>
-                <small>{{ formatDate(tag.createdAt) }}</small>
-              </span>
-            </NuxtLink>
-          </div>
-        </section>
-
-        <section class="sforum-tags-rail__section">
-          <p class="sforum-tags-rail__note">
-            <UIcon name="i-lucide-circle-help" class="size-4" aria-hidden="true" />
-            <span>{{ t('taxonomy.tags.railNote') }}</span>
-          </p>
-        </section>
+      <aside class="sforum-home__right" :aria-label="t('taxonomy.tags.railLabel')">
+        <SFTagIndexRightRail
+          :overview="overview"
+          :hot-tags="railHotTags"
+          :recent-tags="railRecentTags"
+        />
       </aside>
     </div>
 
@@ -367,14 +318,14 @@ function retryTags() {
       v-if="mobileMenuOpen || mobileInfoOpen"
       type="button"
       class="sforum-mobile-drawer__backdrop"
-      :aria-label="t('topicDetail.cancel')"
+      :aria-label="t('common.close')"
       @click="closeMobileDrawers"
     />
 
     <aside v-if="mobileMenuOpen" class="sforum-mobile-drawer sforum-mobile-drawer--left">
       <header class="sforum-mobile-drawer__head">
         <strong>{{ t('home.sidebar.drawerTitle') }}</strong>
-        <button type="button" :aria-label="t('topicDetail.cancel')" @click="closeMobileDrawers">
+        <button type="button" :aria-label="t('common.close')" @click="closeMobileDrawers">
           <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
         </button>
       </header>
@@ -386,76 +337,46 @@ function retryTags() {
         :total-topics="totalTopics"
         :pending="categoriesPending"
         :can-create-topic="canCreateTopic"
-      />
+        :show-categories="false"
+      >
+        <template #after-navigation>
+          <nav class="sforum-tags-page__filter-nav" :aria-label="t('taxonomy.tags.filterLabel')">
+            <div class="sf-home-navigation__label">{{ t('taxonomy.tags.filterLabel') }}</div>
+            <button
+              v-for="item in TAG_FILTERS"
+              :key="`drawer-${item.key}`"
+              type="button"
+              class="sf-home-navigation__link"
+              :class="{ 'is-active': filter === item.key }"
+              :aria-pressed="filter === item.key"
+              @click="setFilter(item.key, true)"
+            >
+              <span class="sf-home-navigation__link-main">
+                <UIcon :name="item.icon" class="size-[18px]" aria-hidden="true" />
+                {{ t(item.labelKey) }}
+              </span>
+            </button>
+          </nav>
+        </template>
+      </SFHomeNavigation>
     </aside>
 
     <aside v-if="mobileInfoOpen" class="sforum-mobile-drawer sforum-mobile-drawer--right">
       <header class="sforum-mobile-drawer__head">
-        <strong>{{ t('taxonomy.tags.railLabel') }}</strong>
-        <button type="button" :aria-label="t('topicDetail.cancel')" @click="closeMobileDrawers">
+        <strong>{{ t('home.rightRail.drawerTitle') }}</strong>
+        <button type="button" :aria-label="t('common.close')" @click="closeMobileDrawers">
           <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
         </button>
       </header>
-      <div class="sforum-tags-page__mobile-side">
-        <section class="sforum-tags-rail__section">
-          <div class="sforum-tags-rail__heading">
-            <h3>{{ t('taxonomy.tags.overviewTitle') }}</h3>
-            <span>{{ t('taxonomy.tags.overviewSource') }}</span>
-          </div>
-          <div class="sforum-tags-rail__overview">
-            <div>
-              <strong>{{ formatCount(overview.totalTags) }}</strong>
-              <span>{{ t('taxonomy.tags.stats.total') }}</span>
-            </div>
-            <div>
-              <strong>{{ formatCount(overview.totalTopicReferences) }}</strong>
-              <span>{{ t('taxonomy.tags.stats.topicRefs') }}</span>
-            </div>
-            <div>
-              <strong>{{ formatCount(overview.weekNewTags) }}</strong>
-              <span>{{ t('taxonomy.tags.stats.weekNew') }}</span>
-            </div>
-            <div>
-              <strong>{{ formatCount(overview.hotThreshold) }}</strong>
-              <span>{{ t('taxonomy.tags.stats.hotThreshold') }}</span>
-            </div>
-          </div>
-        </section>
-        <section v-if="railHotTags.length" class="sforum-tags-rail__section">
-          <div class="sforum-tags-rail__heading">
-            <h3>{{ t('taxonomy.tags.hotRailTitle') }}</h3>
-            <span>{{ t('taxonomy.tags.hotRailMeta') }}</span>
-          </div>
-          <ol class="sforum-tags-rail__hot-list">
-            <li v-for="(tag, index) in railHotTags" :key="`drawer-hot-${tag.id}`">
-              <b>{{ String(index + 1).padStart(2, '0') }}</b>
-              <NuxtLink :to="tagPath(tag.slug)" @click="closeMobileDrawers">#{{ tag.name }}</NuxtLink>
-              <span>{{ formatCount(tag.topicCount || 0) }}</span>
-            </li>
-          </ol>
-        </section>
-        <section v-if="railRecentTags.length" class="sforum-tags-rail__section">
-          <div class="sforum-tags-rail__heading">
-            <h3>{{ t('taxonomy.tags.recentRailTitle') }}</h3>
-            <span>{{ t('taxonomy.tags.recentRailMeta') }}</span>
-          </div>
-          <div class="sforum-tags-rail__recent-list">
-            <NuxtLink
-              v-for="tag in railRecentTags"
-              :key="`drawer-recent-${tag.id}`"
-              :to="tagPath(tag.slug)"
-              class="sforum-tags-rail__recent"
-              @click="closeMobileDrawers"
-            >
-              <i aria-hidden="true" />
-              <span>
-                <strong>#{{ tag.name }}</strong>
-                <small>{{ formatDate(tag.createdAt) }}</small>
-              </span>
-            </NuxtLink>
-          </div>
-        </section>
-      </div>
+      <aside class="sforum-home__right" :aria-label="t('taxonomy.tags.railLabel')">
+        <SFTagIndexRightRail
+          :overview="overview"
+          :hot-tags="railHotTags"
+          :recent-tags="railRecentTags"
+          close-on-navigate
+          @navigate="closeMobileDrawers"
+        />
+      </aside>
     </aside>
   </main>
 </template>

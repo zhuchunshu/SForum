@@ -4312,7 +4312,14 @@
       "emptyHotTitle": "No hot tags yet",
       "emptyHotDescription": "No tags currently meet the hot threshold.",
       "emptyWeekTitle": "No new tags this week",
-      "emptyWeekDescription": "This-week filtering uses tag creation time; no tags were added in the last 7 days."
+      "emptyWeekDescription": "This-week filtering uses tag creation time; no tags were added in the last 7 days.",
+      "show": {
+        "relatedNav": "Related tags",
+        "currentTitle": "Current tag",
+        "viewAll": "All tags",
+        "topicCount": "Topics",
+        "createdAt": "Created"
+      }
     },
     "categories": {
       "title": "All categories",

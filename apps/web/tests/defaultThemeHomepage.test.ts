@@ -173,8 +173,8 @@ describe('default theme V32 left-nav homepage contract', () => {
     const tagPage = source('../app/components/SFTagShowPage.vue')
 
     for (const page of [categoryPage, tagPage]) {
-      expect(page).toContain('class="sforum-home"')
-      expect(page).toContain('class="sforum-home__layout"')
+      expect(page).toContain('sforum-home')
+      expect(page).toContain('sforum-home__layout')
       expect(page).toContain('navigation-mode="route"')
       expect(page).toContain('<SFHomeTopicRow')
       expect(page).toContain('data-sf-region="topic-list"')
@@ -182,6 +182,16 @@ describe('default theme V32 left-nav homepage contract', () => {
       expect(page).not.toContain('sf-public-page')
       expect(page).not.toContain('bg-[#E6F4F1]')
     }
+
+    // 标签详情页已对齐索引页三栏壳与右栏
+    expect(tagPage).toContain('sforum-home__layout--with-right')
+    expect(tagPage).toContain('data-layout="fullwidth-3col"')
+    expect(tagPage).toContain('forum.component.tag_show')
+    expect(tagPage).toContain(':show-categories="false"')
+    expect(tagPage).toContain('SFTagShowRightRail')
+    expect(tagPage).toContain('SFContentColumnFooter')
+    expect(tagPage).toContain('sforum-mobile-drawer--left')
+    expect(tagPage).toContain('sforum-mobile-drawer--right')
   })
 
   test('keeps tag SSR data stable across HMR transitions and starts independent reads concurrently', () => {

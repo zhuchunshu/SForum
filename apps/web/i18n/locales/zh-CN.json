@@ -4312,7 +4312,14 @@
       "emptyHotTitle": "暂无热门标签",
       "emptyHotDescription": "当前没有达到热门阈值的标签。",
       "emptyWeekTitle": "本周暂无新增标签",
-      "emptyWeekDescription": "本周筛选基于标签创建时间，当前近 7 天没有新增标签。"
+      "emptyWeekDescription": "本周筛选基于标签创建时间，当前近 7 天没有新增标签。",
+      "show": {
+        "relatedNav": "相关标签",
+        "currentTitle": "当前标签",
+        "viewAll": "全部标签",
+        "topicCount": "主题数",
+        "createdAt": "创建时间"
+      }
     },
     "categories": {
       "title": "全部分类",

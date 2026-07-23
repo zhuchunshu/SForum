@@ -1,11 +1,14 @@
 <script setup lang="ts">
 /**
- * 宿主 body 岛：forum.tag.show。主题 L1 挂载；路由页仅 SEO + fail-closed 回退。
+ * 宿主 body 岛：forum.tag.show。
+ * 三栏壳对齐标签索引 / 首页 / 通知；主题 L1 挂载，路由页仅 SEO + fail-closed 回退。
  */
 
+import { compareTagsByHeat } from '~/utils/forumTagsIndex'
 import {
   formatForumTopicListTotal,
   forumTagPath,
+  forumTagsIndexPath,
   forumTopicPath,
   parseForumTagPublicPagesOption,
   type ForumCategoryGroup,
@@ -13,6 +16,9 @@ import {
   type ForumTopicList,
   type ForumTopicSummary
 } from '~/utils/forumTaxonomy'
+
+const RELATED_NAV_LIMIT = 12
+const RAIL_RELATED_LIMIT = 6
 
 // 使用 composer 闭包，避免模板直接绑定 $setup.t（async setup + 主题岛 SSR 下偶发非函数）
 const i18n = useI18n()
@@ -34,6 +40,8 @@ const publicTagPagesEnabled = computed(() => parseForumTagPublicPagesOption(
 ))
 const currentPage = computed(() => parsePublicPage(route.query.page))
 const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
+const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
+const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
 const renderedAt = useState<number>('forum-taxonomy-rendered-at', () => Date.now())
 const emptyTopicList = (): ForumTopicList => ({
   items: [],
@@ -89,7 +97,6 @@ const categories = computed(() => categoryGroups.value.flatMap((group) => group.
 const totalTopics = computed(() => categories.value.reduce((sum, item) => sum + item.topicCount, 0))
 const tag = computed(() => activeTags.value.find((item) => item.slug === tagSlug.value))
 
-
 if (!tag.value) {
   throw createError({
     statusCode: 404,
@@ -107,6 +114,30 @@ const topicListTotalLabel = computed(() => formatForumTopicListTotal(topicList.v
 const emptyStateTitle = computed(() => translate('home.emptyState.title'))
 const emptyStateDescription = computed(() => translate('home.emptyState.description'))
 
+/** 左栏相关标签：按热度，当前标签置顶高亮 */
+const relatedNavTags = computed(() => {
+  const locale = i18n.locale.value
+  const sorted = activeTags.value
+    .slice()
+    .sort((left, right) => compareTagsByHeat(left, right, locale))
+  const current = tag.value
+  if (!current) {
+    return sorted.slice(0, RELATED_NAV_LIMIT)
+  }
+  const others = sorted.filter((item) => item.slug !== current.slug).slice(0, RELATED_NAV_LIMIT - 1)
+  return [current, ...others]
+})
+
+/** 右栏相关热门：排除当前 */
+const railRelatedTags = computed(() => {
+  const locale = i18n.locale.value
+  return activeTags.value
+    .slice()
+    .filter((item) => item.slug !== tagSlug.value)
+    .sort((left, right) => compareTagsByHeat(left, right, locale))
+    .slice(0, RAIL_RELATED_LIMIT)
+})
+
 useSForumSeo(computed(() => ({
   type: 'tag',
   path: currentPage.value > 1 ? `${forumTagPath(tagSlug.value)}?page=${currentPage.value}` : forumTagPath(tagSlug.value),
@@ -117,11 +148,10 @@ useSForumSeo(computed(() => ({
   variables: { tagName: tag.value?.name || tagSlug.value },
   breadcrumbs: [
     { name: seoSettings.value.seoSiteName, path: '/' },
+    { name: translate('taxonomy.tags.title'), path: forumTagsIndexPath() },
     { name: tag.value?.name || tagSlug.value, path: forumTagPath(tagSlug.value) }
   ]
 })))
-
-
 
 function routeParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] || '' : value || ''
@@ -129,6 +159,15 @@ function routeParam(value: string | string[] | undefined) {
 
 function tagPageTo(page: number) {
   return publicPageLocation(localePath(forumTagPath(tagSlug.value)), page)
+}
+
+function tagTo(slug: string) {
+  return localePath(forumTagPath(slug))
+}
+
+function closeMobileDrawers() {
+  mobileMenuOpen.value = false
+  mobileInfoOpen.value = false
 }
 
 function topicRelativeLabel(iso: string) {
@@ -162,13 +201,15 @@ function topicCreated(topic: ForumTopicSummary) {
 function topicActivity(topic: ForumTopicSummary) {
   return topicRelativeLabel(topic.lastActivityAt || topic.createdAt)
 }
-
 </script>
 
 <template>
-
-<main class="sforum-home">
-    <div class="sforum-home__layout">
+  <main
+    class="sforum-home sforum-tags-page sforum-tag-show"
+    data-sforum-island-body="forum.component.tag_show"
+    data-layout="fullwidth-3col"
+  >
+    <div class="sforum-home__layout sforum-home__layout--with-right">
       <div class="sforum-home__sidebar">
         <SFHomeNavigation
           desktop-only
@@ -178,22 +219,39 @@ function topicActivity(topic: ForumTopicSummary) {
           :total-topics="totalTopics"
           :pending="categoriesPending"
           :can-create-topic="canCreateTopic"
-        />
+          :show-categories="false"
+        >
+          <template #after-navigation>
+            <nav class="sforum-tags-page__filter-nav" :aria-label="translate('taxonomy.tags.show.relatedNav')">
+              <div class="sf-home-navigation__label">{{ translate('taxonomy.tags.show.relatedNav') }}</div>
+              <NuxtLink
+                :to="localePath(forumTagsIndexPath())"
+                class="sf-home-navigation__link"
+              >
+                <span class="sf-home-navigation__link-main">
+                  <UIcon name="i-lucide-layout-grid" class="size-[18px]" aria-hidden="true" />
+                  {{ translate('taxonomy.tags.show.viewAll') }}
+                </span>
+              </NuxtLink>
+              <NuxtLink
+                v-for="item in relatedNavTags"
+                :key="item.slug"
+                :to="tagTo(item.slug)"
+                class="sf-home-navigation__link"
+                :class="{ 'is-active': item.slug === tagSlug }"
+              >
+                <span class="sf-home-navigation__link-main">
+                  <UIcon name="i-lucide-hash" class="size-[18px]" aria-hidden="true" />
+                  {{ item.name }}
+                </span>
+                <span class="sf-home-navigation__count">{{ item.topicCount || 0 }}</span>
+              </NuxtLink>
+            </nav>
+          </template>
+        </SFHomeNavigation>
       </div>
 
-      <section class="sforum-home__main" aria-labelledby="tag-page-title">
-        <div class="sforum-home__mobile-nav">
-          <SFHomeNavigation
-            mobile-only
-            navigation-mode="route"
-            :categories="categories"
-            selected-category-slug=""
-            :total-topics="totalTopics"
-            :pending="categoriesPending"
-            :can-create-topic="canCreateTopic"
-          />
-        </div>
-
+      <section class="sforum-home__main sforum-tags-page__main" aria-labelledby="tag-page-title">
         <header class="sforum-home__page-header">
           <p class="sforum-home__page-group">{{ tagsHeading }}</p>
           <h1 id="tag-page-title">#{{ tag?.name }}</h1>
@@ -208,7 +266,7 @@ function topicActivity(topic: ForumTopicSummary) {
             <NuxtLink
               v-for="item in activeTags"
               :key="item.slug"
-              :to="localePath(forumTagPath(item.slug))"
+              :to="tagTo(item.slug)"
               class="sforum-home__tag"
               :class="{ 'is-active': item.slug === tagSlug }"
             >
@@ -218,7 +276,8 @@ function topicActivity(topic: ForumTopicSummary) {
         </div>
 
         <div
-          class="mt-3 overflow-hidden rounded-[var(--sf-public-radius,6px)] border border-[var(--sf-public-border)] bg-[var(--sf-public-surface)] shadow-[var(--sf-public-shadow)]"
+          id="feed-list-container"
+          class="sforum-home__feed-list mt-3 overflow-hidden rounded-[var(--sf-public-radius,6px)] border border-[var(--sf-public-border)] bg-[var(--sf-public-surface)] shadow-[var(--sf-public-shadow)]"
           data-sf-region="topic-list"
         >
           <template v-if="topicsPending">
@@ -258,7 +317,96 @@ function topicActivity(topic: ForumTopicSummary) {
             :page-to="tagPageTo"
           />
         </div>
+
+        <SFContentColumnFooter />
       </section>
+
+      <aside
+        v-if="tag"
+        class="sforum-home__right"
+        :aria-label="translate('taxonomy.tags.railLabel')"
+      >
+        <SFTagShowRightRail
+          :tag="tag"
+          :topic-total="topicList.total"
+          :related-tags="railRelatedTags"
+        />
+      </aside>
     </div>
+
+    <button
+      v-if="mobileMenuOpen || mobileInfoOpen"
+      type="button"
+      class="sforum-mobile-drawer__backdrop"
+      :aria-label="translate('common.close')"
+      @click="closeMobileDrawers"
+    />
+
+    <aside v-if="mobileMenuOpen" class="sforum-mobile-drawer sforum-mobile-drawer--left">
+      <header class="sforum-mobile-drawer__head">
+        <strong>{{ translate('home.sidebar.drawerTitle') }}</strong>
+        <button type="button" :aria-label="translate('common.close')" @click="closeMobileDrawers">
+          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
+        </button>
+      </header>
+      <SFHomeNavigation
+        desktop-only
+        navigation-mode="route"
+        :categories="categories"
+        selected-category-slug=""
+        :total-topics="totalTopics"
+        :pending="categoriesPending"
+        :can-create-topic="canCreateTopic"
+        :show-categories="false"
+      >
+        <template #after-navigation>
+          <nav class="sforum-tags-page__filter-nav" :aria-label="translate('taxonomy.tags.show.relatedNav')">
+            <div class="sf-home-navigation__label">{{ translate('taxonomy.tags.show.relatedNav') }}</div>
+            <NuxtLink
+              :to="localePath(forumTagsIndexPath())"
+              class="sf-home-navigation__link"
+              @click="closeMobileDrawers"
+            >
+              <span class="sf-home-navigation__link-main">
+                <UIcon name="i-lucide-layout-grid" class="size-[18px]" aria-hidden="true" />
+                {{ translate('taxonomy.tags.show.viewAll') }}
+              </span>
+            </NuxtLink>
+            <NuxtLink
+              v-for="item in relatedNavTags"
+              :key="`drawer-${item.slug}`"
+              :to="tagTo(item.slug)"
+              class="sf-home-navigation__link"
+              :class="{ 'is-active': item.slug === tagSlug }"
+              @click="closeMobileDrawers"
+            >
+              <span class="sf-home-navigation__link-main">
+                <UIcon name="i-lucide-hash" class="size-[18px]" aria-hidden="true" />
+                {{ item.name }}
+              </span>
+              <span class="sf-home-navigation__count">{{ item.topicCount || 0 }}</span>
+            </NuxtLink>
+          </nav>
+        </template>
+      </SFHomeNavigation>
+    </aside>
+
+    <aside v-if="mobileInfoOpen && tag" class="sforum-mobile-drawer sforum-mobile-drawer--right">
+      <header class="sforum-mobile-drawer__head">
+        <strong>{{ translate('home.rightRail.drawerTitle') }}</strong>
+        <button type="button" :aria-label="translate('common.close')" @click="closeMobileDrawers">
+          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
+        </button>
+      </header>
+      <aside class="sforum-home__right" :aria-label="translate('taxonomy.tags.railLabel')">
+        <SFTagShowRightRail
+          :tag="tag"
+          :topic-total="topicList.total"
+          :related-tags="railRelatedTags"
+          close-on-navigate
+          @navigate="closeMobileDrawers"
+        />
+      </aside>
+    </aside>
   </main>
 </template>
