@@ -150,6 +150,12 @@ Architecture sources:
 - The default theme uses a flat, responsive three-column shell: navigation,
   primary content, and contextual right rail. It collapses the right rail
   before the left navigation.
+- `forum.topic.create` now uses the same default-theme three-column native flow:
+  left rail reuses `SFHomeNavigation`, the center column keeps the real
+  `SFTopicComposerPage` form and `SFEditor`, and the right rail derives publish
+  summary/settings/checks from live form state. Desktop uses a fixed bottom
+  publish dock with extra content padding; mobile collapses to a single column
+  and keeps category, tags, draft, errors, and publish controls available.
 - Homepage/topic/taxonomy data is real API state. Do not render fabricated
   likes, bookmarks, unread state, participant stacks, or ranking.
 - Homepage and eligible lists SSR page 1 and continue with keyset infinite
@@ -159,6 +165,10 @@ Architecture sources:
   states.
 - Reply editor mounts after explicit interaction; advanced reply uses
   `forum.topic.reply` and draft handoff.
+- Topic create draft persistence is currently local `sessionStorage` under the
+  composer page because there is no create-topic draft API. Publishing still
+  uses the canonical `POST /topics` flow and keeps API authorization
+  authoritative.
 - `SFAvatar` is the required first-party avatar renderer. Pass shared
   `AvatarView`; do not fork initials/URL handling.
 - Comment tree presentation has bounded indentation; mobile clears recursive
