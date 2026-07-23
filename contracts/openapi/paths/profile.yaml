@@ -16,8 +16,12 @@ profileByUsername:
           application/json:
             schema:
               "$ref": "../schemas/profile.yaml#/ApiResponsePublicProfile"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
       '404':
         "$ref": "../components/responses.yaml#/NotFound"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
 myProfile:
   get:
     summary: Read the current user's editable profile

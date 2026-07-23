@@ -264,6 +264,8 @@ type profileFakeStore struct {
 	profile            profile.Profile
 	stats              profile.ProfileStats
 	recent             []forum.TopicSummary
+	activityTopics     []forum.TopicSummary
+	comments           []profile.ProfileCommentActivity
 	upserted           profile.Profile
 	publicProfileCalls int
 }
@@ -302,4 +304,12 @@ func (s *profileFakeStore) GetProfileStats(context.Context, int64) (profile.Prof
 
 func (s *profileFakeStore) ListRecentTopics(context.Context, int64, int) ([]forum.TopicSummary, error) {
 	return s.recent, nil
+}
+
+func (s *profileFakeStore) ListRecentActivityTopics(context.Context, int64, int) ([]forum.TopicSummary, error) {
+	return s.activityTopics, nil
+}
+
+func (s *profileFakeStore) ListRecentComments(context.Context, int64, int) ([]profile.ProfileCommentActivity, error) {
+	return s.comments, nil
 }

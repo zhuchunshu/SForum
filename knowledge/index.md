@@ -73,6 +73,8 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Default-theme public profile B1 implementation and validation:
+  `sessions/2026-07-23-profile-page-b1-handoff.md`
 - Default-theme notifications continuous-stream redesign:
   `sessions/2026-07-23-notifications-continuous-stream-handoff.md`
 - Default-theme `/categories` grouped directory implementation and QA:
@@ -83,6 +85,11 @@ load archived sessions or completed plans as current context.
 - Default-theme `/categories` grouped directory: implemented against confirmed
   Demo 01 with real category-group API data, SSR internal API reads, focused
   tests, typecheck, production build, and browser screenshot QA.
+- Default-theme public profile B1: `/u/{username}` now uses the shared
+  three-column shell with real public activity grouped by date, real public
+  stats/recent topics, self-only edit UI, i18n copy, OpenAPI updates, and
+  focused Go/Bun/browser validation. See
+  `sessions/2026-07-23-profile-page-b1-handoff.md`.
 - Theme-consistent public resource 404: M0-M6 completed 2026-07-23. Ordinary
   semantic 404s retain the healthy selected theme and real private HTTP 404;
   Core is emergency-only. See

@@ -28,6 +28,27 @@ export type ProfileExtensionTab = {
   url: string
 }
 
+export type ProfileActivityTopic = {
+  id: number
+  slug: string
+  title: string
+  status: string
+  categorySlug: string
+  categoryName: string
+  commentCount: number
+  createdAt: string
+  updatedAt: string
+  lastActivityAt: string
+}
+
+export type ProfileActivity = {
+  kind: 'topic' | 'comment'
+  topic: ProfileActivityTopic
+  commentId?: number | null
+  excerpt: string
+  createdAt: string
+}
+
 export type PublicProfile = {
   userId: number
   username: string
@@ -36,6 +57,7 @@ export type PublicProfile = {
   topicCount: number
   commentCount: number
   recentTopics: import('~/utils/forumTaxonomy').ForumTopicSummary[]
+  activities: ProfileActivity[]
   joinedAt: string
   extensionTabs?: ProfileExtensionTab[]
 }

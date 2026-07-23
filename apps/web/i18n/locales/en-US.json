@@ -3907,62 +3907,30 @@
     },
     "topicCount": "Topics",
     "commentCount": "Comments",
-    "followingCount": "Following",
-    "followersCount": "Followers",
-    "likesCount": "Likes",
+    "publicDetails": "Public profile",
+    "publicDetailsEmpty": "This member has not added public profile details yet.",
+    "memberInfo": "Member info",
+    "publicContent": "Public content",
+    "recentTopicsEmpty": "No public topics yet.",
+    "extensionLinks": "Extension links",
     "joinedAt": "Joined",
     "joinedOn": "Joined {date}",
     "location": "Location",
     "editProfile": "Edit profile",
-    "follow": "Follow",
-    "followComingSoon": "Follow is coming soon.",
-    "messageComingSoon": "Messaging coming soon",
-    "more": "More",
-    "moreComingSoon": "More actions coming soon.",
-    "share": "Share profile",
-    "linkCopied": "Profile link copied.",
-    "changeCover": "Change cover",
-    "coverComingSoon": "Cover upload is coming soon.",
-    "coverLabel": "Profile cover",
-    "memberBadge": "Member",
     "bioEmpty": "No bio yet.",
-    "featuredWorks": "Featured works",
-    "filterAll": "All",
-    "filterTutorial": "Tutorials",
-    "filterOpenSource": "Open source",
-    "tabsAria": "Profile sections",
-    "tabs": {
-      "works": "Portfolio",
-      "topics": "Topics",
-      "comments": "Comments",
-      "following": "Following",
-      "followers": "Followers",
-      "likes": "Likes"
-    },
-    "worksEmpty": {
-      "title": "No portfolio yet",
-      "description": "Published topics will appear here as cards."
-    },
-    "topicsEmpty": {
-      "title": "No topics yet",
-      "description": "Topics show up here after the first discussion is published."
-    },
-    "commentsEmpty": {
-      "title": "Comment list not available yet",
-      "description": "Recent replies will appear here when the comments timeline API is ready."
-    },
-    "likesEmpty": {
-      "title": "Likes breakdown coming soon",
-      "description": "Like totals will appear here when the reaction API is ready."
-    },
-    "socialEmpty": {
-      "followingTitle": "Following list coming soon",
-      "followingDescription": "People you follow will appear here once the social API is ready.",
-      "followersTitle": "Followers list coming soon",
-      "followersDescription": "Followers will appear here once the social API is ready."
-    },
     "recentTopics": "Recent topics",
-    "replies": "replies"
+    "replies": "replies",
+    "timeline": {
+      "title": "Public activity",
+      "description": "Public topics and replies grouped by day.",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "topicAction": "Published a topic",
+      "commentAction": "Replied to a topic",
+      "replyCount": "{count} replies",
+      "emptyTitle": "No public activity",
+      "emptyDescription": "Public topics and public replies will appear here."
+    }
   },
   "profileSettings": {
     "metaTitle": "Profile settings",

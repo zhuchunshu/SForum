@@ -24,7 +24,9 @@ Member public profiles and current-user profile settings.
 ### Endpoints
 
 - `GET /api/v1/profiles/{username}` public profile: user summary + profile +
-  topic/comment counts + 5 recent public topics.
+  public-visible topic/comment counts, 5 recent public topics, and a bounded
+  public activity timeline. Counts and timeline rows only include active
+  public topics and active comments in public active/locked topics.
 - `GET /api/v1/profile` current user's editable profile (login required).
 - `PUT /api/v1/profile` update current user's profile (login required,
   current-user only). Validates length limits and website URL shape
@@ -41,7 +43,18 @@ editor in V1.
 
 ## Frontend
 
-- `/u/{username}` public profile page with summary and recent topics.
+- `/u/{username}` public profile page uses the default theme three-column
+  shell. The center column renders a compact member summary and locale-aware
+  daily activity groups for real public topics and replies; the right rail
+  renders real public profile fields, public topic/reply stats, and recent
+  public topics. It does not show unimplemented social counts, levels, follows,
+  private messages, portfolios, or placeholder stats.
+- Public activity links use existing legal forum routes:
+  `/t/{topicId}/{slug}` for topics and `/t/{topicId}/{slug}#comment-{id}` for
+  replies when the current topic route exposes stable comment anchors.
+- The edit-profile entry on `/u/{username}` is self-only UI backed by the
+  existing login-required current-user profile API; hiding the button is not a
+  permission boundary.
 - `/settings/profile` current-user settings page with avatar preview,
   upload/remove controls, safe defaults, and a clear save flow (success
   auto-dismisses after 10s; errors do not).

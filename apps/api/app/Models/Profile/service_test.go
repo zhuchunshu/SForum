@@ -16,11 +16,21 @@ import (
 )
 
 func TestServiceGetPublicProfileAggregatesData(t *testing.T) {
+	commentID := int64(11)
 	store := &fakeStore{
 		user:    UserProfileSummary{UserID: 7, Username: "alice", DisplayName: "Alice"},
 		profile: Profile{UserID: 7, Bio: "hello"},
 		stats:   ProfileStats{TopicCount: 3, CommentCount: 12},
 		recent:  []forum.TopicSummary{{ID: 1, Title: "t1"}},
+		activityTopics: []forum.TopicSummary{{
+			ID: 2, Title: "new topic", Slug: "new-topic", Excerpt: "topic body", CreatedAt: time.Date(2026, 7, 23, 8, 0, 0, 0, time.UTC),
+		}},
+		comments: []ProfileCommentActivity{{
+			CommentID: commentID,
+			Topic:     ProfileActivityTopic{ID: 1, Title: "t1", Slug: "t1"},
+			Excerpt:   "reply body",
+			CreatedAt: time.Date(2026, 7, 23, 9, 0, 0, 0, time.UTC),
+		}},
 	}
 	service := NewService(store)
 
@@ -39,6 +49,15 @@ func TestServiceGetPublicProfileAggregatesData(t *testing.T) {
 	}
 	if len(result.RecentTopics) != 1 || result.RecentTopics[0].Title != "t1" {
 		t.Fatalf("unexpected recent topics: %#v", result.RecentTopics)
+	}
+	if len(result.Activities) != 2 {
+		t.Fatalf("unexpected activities: %#v", result.Activities)
+	}
+	if result.Activities[0].Kind != "comment" || result.Activities[0].CommentID == nil || *result.Activities[0].CommentID != commentID {
+		t.Fatalf("expected newest comment activity first, got %#v", result.Activities[0])
+	}
+	if result.Activities[1].Kind != "topic" || result.Activities[1].Topic.Title != "new topic" {
+		t.Fatalf("expected topic activity second, got %#v", result.Activities[1])
 	}
 }
 
@@ -264,6 +283,8 @@ type fakeStore struct {
 	profile               Profile
 	stats                 ProfileStats
 	recent                []forum.TopicSummary
+	activityTopics        []forum.TopicSummary
+	comments              []ProfileCommentActivity
 	upserted              Profile
 	avatarAttachment      AvatarAttachment
 	setAvatarAttachmentID *int64
@@ -312,6 +333,14 @@ func (s *fakeStore) GetProfileStats(context.Context, int64) (ProfileStats, error
 
 func (s *fakeStore) ListRecentTopics(context.Context, int64, int) ([]forum.TopicSummary, error) {
 	return s.recent, nil
+}
+
+func (s *fakeStore) ListRecentActivityTopics(context.Context, int64, int) ([]forum.TopicSummary, error) {
+	return s.activityTopics, nil
+}
+
+func (s *fakeStore) ListRecentComments(context.Context, int64, int) ([]ProfileCommentActivity, error) {
+	return s.comments, nil
 }
 
 type fakeAvatarUploader struct {
