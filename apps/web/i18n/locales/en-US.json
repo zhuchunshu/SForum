@@ -3857,7 +3857,14 @@
     "tagsLabel": "Tags",
     "tagsPlaceholder": "Type a tag and press Enter (up to 5)",
     "tagInvalid": "Tags may only contain letters, numbers, and hyphens.",
+    "tagUnknownControlled": "The current tag policy only allows existing tags.",
     "tagLimit": "You can add up to 5 tags.",
+    "tagLimitSummary": "{min}–{max}",
+    "tagPolicy": {
+      "controlled": "Existing tags only",
+      "review": "New tags enter review",
+      "open": "New tags allowed"
+    },
     "removeTag": "Remove tag",
     "bodyLabel": "Body",
     "bodyPlaceholder": "Write what you want to share...",
@@ -3872,10 +3879,80 @@
     },
     "subtitle": "A clear description gets better answers.",
     "breadcrumbHome": "Home",
+    "breadcrumbLabel": "Composer path",
+    "currentAccount": "Current account",
     "categoryHint": "Pick the closest category to reach the right audience.",
+    "categoryOptionalDefault": "Default available",
+    "categoryDefaultShort": "Default category",
     "titleHint": "Summarize in one line, ideally 10–50 characters.",
     "tagsHint": "Up to 5. Press Enter or comma to add.",
+    "tagsLoading": "Loading available tags.",
+    "tagsPlaceholderMore": "Add another tag",
     "bodyHint": "Markdown and rich text. Wrap code in triple backticks.",
+    "publishAs": "Publishing as {name}",
+    "publishState": {
+      "public": "Public publish",
+      "error": "Needs fixes",
+      "success": "Submitted"
+    },
+    "draft": {
+      "ready": "Ready to save draft",
+      "unsaved": "Unsaved content",
+      "saving": "Saving...",
+      "save": "Save draft",
+      "saved": "Draft saved",
+      "savedAt": "Draft saved {time}",
+      "saveFailed": "Failed to save draft",
+      "restoreFailed": "Failed to restore draft",
+      "leaveConfirm": "This topic has unsaved content. Leave anyway?"
+    },
+    "summary": {
+      "title": "Publish summary",
+      "category": "Topic category",
+      "categoryDefault": "The server will use the default category",
+      "untitled": "No title yet",
+      "tagCount": "{count} tags",
+      "noTags": "No tags yet",
+      "actor": "Current signed-in account"
+    },
+    "settings": {
+      "title": "Publish settings",
+      "permission": "Permission",
+      "permissionValue": "Signed in + topic.create",
+      "category": "Category",
+      "tags": "Tag policy",
+      "limits": "Content limits",
+      "limitValue": "Title up to {titleMax}, body up to {bodyMax}"
+    },
+    "checks": {
+      "heading": "Before publishing",
+      "title": {
+        "label": "Title",
+        "empty": "Enter a title",
+        "ready": "Title meets the current length limit"
+      },
+      "body": {
+        "label": "Body",
+        "empty": "Write the body",
+        "ready": "Body meets the current content limit"
+      },
+      "category": {
+        "label": "Category",
+        "selected": "Will publish to {category}",
+        "default": "Uses {category} if unchanged",
+        "serverDefault": "Unchanged category is resolved by the server default"
+      },
+      "tags": {
+        "label": "Tags",
+        "selected": "{count} / {max} tags selected",
+        "emptyRequired": "Select at least {min} tags",
+        "optional": "Tags are optional, up to {max}"
+      }
+    },
+    "rightRail": {
+      "label": "Publish information",
+      "tip": "Title, body, category, and tags are checked against current site settings in real time. The server still performs final permission and content checks."
+    },
     "tipsTitle": "Writing tips",
     "tip1": "Be specific in the title. Avoid vague words like \"help\".",
     "tip2": "Give context and goal first, then code or errors.",

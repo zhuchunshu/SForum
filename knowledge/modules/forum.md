@@ -10,6 +10,11 @@ accepted revisions, lifecycle states, public read models, and forum policy.
 - Core taxonomy, topic/comment creation and lifecycle, public/admin UI, runtime
   settings, moderation integration, search projection, and million-scale read
   path M0-M7 are implemented.
+- Default-theme topic creation now has a production UI shell that reuses the
+  existing create-topic API, category/tag policy, content limits, permission
+  check (`topic.create`), `SFEditor`, field errors, Toast feedback, successful
+  redirect, and unsaved-content guard. The UI adds live publish summary and
+  pre-publish checks only; it does not change API semantics.
 - Content revisions V1 is **complete**: authenticated topic/comment edit, lazy
   history/detail, diff/preview, restore, super-admin redaction, stale-CAS,
   mobile diff, allowed/denied API checks, development backfill, query evidence,

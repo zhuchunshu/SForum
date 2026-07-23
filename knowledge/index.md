@@ -73,6 +73,8 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Default-theme topic composer native flow implementation:
+  `sessions/2026-07-23-topic-composer-native-flow-handoff.md`
 - Default-theme public profile B1 implementation and validation:
   `sessions/2026-07-23-profile-page-b1-handoff.md`
 - Default-theme notifications continuous-stream redesign:

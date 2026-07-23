@@ -3857,7 +3857,14 @@
     "tagsLabel": "标签",
     "tagsPlaceholder": "输入标签后回车添加（最多 5 个）",
     "tagInvalid": "标签只能包含中英文、数字和连字符。",
+    "tagUnknownControlled": "当前标签策略只允许选择已有标签。",
     "tagLimit": "最多添加 5 个标签。",
+    "tagLimitSummary": "{min}–{max} 个",
+    "tagPolicy": {
+      "controlled": "仅可使用已有标签",
+      "review": "新标签会进入审核",
+      "open": "可创建新标签"
+    },
     "removeTag": "移除标签",
     "bodyLabel": "正文",
     "bodyPlaceholder": "写下你想分享的内容...",
@@ -3872,10 +3879,80 @@
     },
     "subtitle": "清晰的问题描述更容易获得有价值的回复。",
     "breadcrumbHome": "首页",
+    "breadcrumbLabel": "发布路径",
+    "currentAccount": "当前账号",
     "categoryHint": "选择最贴近话题的分类，帮助精准推送给感兴趣的人。",
+    "categoryOptionalDefault": "默认分类可用",
+    "categoryDefaultShort": "默认分类",
     "titleHint": "用一句话概括问题，建议 10–50 字。",
     "tagsHint": "最多 5 个，用回车或逗号添加。",
+    "tagsLoading": "正在读取可用标签。",
+    "tagsPlaceholderMore": "继续添加标签",
     "bodyHint": "支持 Markdown 和富文本，代码用三个反引号包裹。",
+    "publishAs": "以 {name} 的身份发布",
+    "publishState": {
+      "public": "公开发布",
+      "error": "等待修正",
+      "success": "已提交"
+    },
+    "draft": {
+      "ready": "可以保存草稿",
+      "unsaved": "有未保存内容",
+      "saving": "保存中...",
+      "save": "保存草稿",
+      "saved": "草稿已保存",
+      "savedAt": "草稿已保存 {time}",
+      "saveFailed": "草稿保存失败",
+      "restoreFailed": "草稿恢复失败",
+      "leaveConfirm": "当前帖子有未保存内容，确定离开吗？"
+    },
+    "summary": {
+      "title": "发布摘要",
+      "category": "帖子所属分类",
+      "categoryDefault": "将由服务端使用默认分类",
+      "untitled": "尚未填写标题",
+      "tagCount": "{count} 个标签",
+      "noTags": "尚未添加标签",
+      "actor": "当前登录账号"
+    },
+    "settings": {
+      "title": "发布设置",
+      "permission": "权限",
+      "permissionValue": "登录 + topic.create",
+      "category": "分类",
+      "tags": "标签策略",
+      "limits": "内容限制",
+      "limitValue": "标题最多 {titleMax} 字，正文最多 {bodyMax} 字"
+    },
+    "checks": {
+      "heading": "发布前检查",
+      "title": {
+        "label": "标题",
+        "empty": "请填写标题",
+        "ready": "标题符合当前长度限制"
+      },
+      "body": {
+        "label": "正文",
+        "empty": "请填写正文",
+        "ready": "正文符合当前内容限制"
+      },
+      "category": {
+        "label": "分类",
+        "selected": "将发布到 {category}",
+        "default": "未选择时使用 {category}",
+        "serverDefault": "未选择时交由服务端默认分类处理"
+      },
+      "tags": {
+        "label": "标签",
+        "selected": "已选择 {count} / {max} 个标签",
+        "emptyRequired": "请至少选择 {min} 个标签",
+        "optional": "标签可选，最多 {max} 个"
+      }
+    },
+    "rightRail": {
+      "label": "发布信息",
+      "tip": "标题、正文、分类和标签会按当前站点设置实时检查；服务端仍会执行最终权限和内容校验。"
+    },
     "tipsTitle": "写好帖子的要点",
     "tip1": "标题要具体，避免“求助”“跪求”这类模糊词。",
     "tip2": "正文先说背景和目标，再贴报错或代码。",
