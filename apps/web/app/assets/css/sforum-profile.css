@@ -314,6 +314,10 @@
   gap: 0;
 }
 
+.sf-profile-right-content--drawer {
+  padding: 16px;
+}
+
 .sf-profile-side-section {
   border-bottom: 1px solid var(--sf-public-border);
   padding: 18px 0;

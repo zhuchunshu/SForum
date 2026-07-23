@@ -16,6 +16,7 @@ import {
 
 const source = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
 const pageSource = () => source('../app/components/SFNotificationsPage.vue')
+const pageStyles = () => source('../app/components/SFNotificationsPage.css')
 const notificationComposableSource = () => source('../app/composables/useNotifications.ts')
 const zh = () => JSON.parse(source('../i18n/locales/zh-CN.json'))
 const en = () => JSON.parse(source('../i18n/locales/en-US.json'))
@@ -189,16 +190,22 @@ describe('SFNotificationsPage contract', () => {
 
   test('uses the default theme three-column shell, shared community nav, and mobile drawer state', () => {
     const page = pageSource()
+    const styles = pageStyles()
 
     expect(page).toContain('data-layout="fullwidth-3col"')
     expect(page).toContain('sforum-notifications__layout')
     expect(page).toContain('sforum-notifications__sidebar sforum-home__sidebar')
     expect(page).toContain('<SFHomeNavigation')
+    expect(page).toContain('usePermissions()')
+    expect(page).toContain('can(FORUM_PERMISSIONS.topicCreate)')
+    expect(page).not.toContain("can('forum.topic.create')")
     expect(page).toContain("navigation-mode=\"route\"")
     expect(page).toContain("useState<boolean>('forum-mobile-menu-open'")
     expect(page).toContain("useState<boolean>('forum-mobile-info-open'")
     expect(page).toContain('sforum-mobile-drawer sforum-mobile-drawer--left')
     expect(page).toContain('sforum-mobile-drawer sforum-mobile-drawer--right')
+    expect(styles).toContain('.sforum-mobile-drawer .sforum-notifications__right--drawer')
+    expect(styles).toContain('display: block')
     expect(page).not.toContain('ssr: false')
   })
 

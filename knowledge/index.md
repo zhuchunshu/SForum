@@ -73,14 +73,8 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- Default-theme topic composer native flow implementation:
-  `sessions/2026-07-23-topic-composer-native-flow-handoff.md`
-- Default-theme public profile B1 implementation and validation:
-  `sessions/2026-07-23-profile-page-b1-handoff.md`
-- Default-theme notifications continuous-stream redesign:
-  `sessions/2026-07-23-notifications-continuous-stream-handoff.md`
-- Default-theme `/categories` grouped directory implementation and QA:
-  `sessions/2026-07-23-categories-group-directory-handoff.md`
+- Default-theme four-page integration and Browser QA:
+  `sessions/2026-07-23-default-theme-four-page-integration-handoff.md`
 
 ## Recently Completed
 
@@ -89,9 +83,11 @@ load archived sessions or completed plans as current context.
   tests, typecheck, production build, and browser screenshot QA.
 - Default-theme public profile B1: `/u/{username}` now uses the shared
   three-column shell with real public activity grouped by date, real public
-  stats/recent topics, self-only edit UI, i18n copy, OpenAPI updates, and
-  focused Go/Bun/browser validation. See
-  `sessions/2026-07-23-profile-page-b1-handoff.md`.
+  stats/recent topics, self-only edit UI, mobile drawers, i18n copy, OpenAPI
+  updates, and focused Go/Bun/browser validation.
+- Default-theme notifications and topic composer now use the shared responsive
+  three-column shell with real API flows, mobile drawers, persistent errors,
+  appearance-aware feedback, and focused Browser QA.
 - Theme-consistent public resource 404: M0-M6 completed 2026-07-23. Ordinary
   semantic 404s retain the healthy selected theme and real private HTTP 404;
   Core is emergency-only. See

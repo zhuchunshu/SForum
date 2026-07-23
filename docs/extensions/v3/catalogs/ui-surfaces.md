@@ -140,6 +140,7 @@ Manifest V3 component targets declare both `targetId` and `targetContractVersion
 | `core.component.shared.sfpage_outlet_resolver` | `sforum.component.shared.sfpage_outlet_resolver@1` | component | `public` | — | `apps/web/app/components/SFPageOutletResolver.vue` | P9 Component Registry |
 | `core.component.shared.sfpagination` | `sforum.component.shared.sfpagination@1` | component | `public`, `admin` | — | `apps/web/app/components/SFPagination.vue` | P7/P9 Admin and Component Registries |
 | `core.component.shared.sfprivacy_page` | `sforum.component.shared.sfprivacy_page@1` | component | `public` | — | `apps/web/app/components/SFPrivacyPage.vue` | P9 Component Registry |
+| `core.component.shared.sfprofile_right_rail` | `sforum.component.shared.sfprofile_right_rail@1` | component | `public` | — | `apps/web/app/components/SFProfileRightRail.vue` | P9 Component Registry |
 | `core.component.shared.sfprofile_settings_page` | `sforum.component.shared.sfprofile_settings_page@1` | component | `public` | — | `apps/web/app/components/SFProfileSettingsPage.vue` | P9 Component Registry |
 | `core.component.shared.sfprofile_show_page` | `sforum.component.shared.sfprofile_show_page@1` | component | `public` | — | `apps/web/app/components/SFProfileShowPage.vue` | P9 Component Registry |
 | `core.component.shared.sfprogress` | `sforum.component.shared.sfprogress@1` | component | `public`, `admin` | — | `apps/web/app/components/SFProgress.vue` | P7/P9 Admin and Component Registries |

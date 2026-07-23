@@ -47,6 +47,11 @@ currently loaded client page because `GET /api/v1/notifications` exposes only
 `GET /api/v1/notifications/unread-count` as the authoritative global unread
 source; list-derived type counts are labeled as loaded-list summaries.
 
+The notification page uses the canonical `topic.create` permission helper for
+the shared forum navigation. Below the desktop right-rail breakpoint, the same
+unread summary/current-detail component is shown in the right mobile drawer;
+do not hide the drawer instance with the desktop rail media rule.
+
 Target links are emitted only when the payload contains a reliable `topicId`
 and optional `commentId`, or when the API target is a topic. Other notification
 targets render as unavailable instead of inventing routes.

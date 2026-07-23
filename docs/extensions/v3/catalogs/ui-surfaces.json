@@ -1406,6 +1406,16 @@
     "targetRegistry": "P9 Component Registry"
   },
   {
+    "id": "core.component.shared.sfprofile_right_rail",
+    "contractVersion": "sforum.component.shared.sfprofile_right_rail@1",
+    "kind": "component",
+    "source": "apps/web/app/components/SFProfileRightRail.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sfprofile_settings_page",
     "contractVersion": "sforum.component.shared.sfprofile_settings_page@1",
     "kind": "component",

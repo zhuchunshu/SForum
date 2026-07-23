@@ -157,6 +157,8 @@ Architecture sources:
 - The notifications page follows the same default-theme shell and shared
   mobile drawer state as the forum homepage/navbar. Its filters are client-side
   over loaded notifications only; the global unread total remains API-owned.
+  Desktop-hidden right rails must explicitly opt back into display inside a
+  mobile drawer.
 - `forum.topic.create` now uses the same default-theme three-column native flow:
   left rail reuses `SFHomeNavigation`, the center column keeps the real
   `SFTopicComposerPage` form and `SFEditor`, and the right rail derives publish
@@ -168,8 +170,9 @@ Architecture sources:
 - `/u/{username}` is also part of the default-theme three-column public shell:
   left rail reuses `SFHomeNavigation`, center renders member summary plus
   locale-aware daily public activity groups, and right rail renders real public
-  profile details, public stats, and recent topics. Keep social/portfolio/gamified
-  actions out until the API owns those contracts.
+  profile details, public stats, and recent topics. The same rail is reused in
+  the mobile information drawer. Keep social/portfolio/gamified actions out
+  until the API owns those contracts.
 - Homepage and eligible lists SSR page 1 and continue with keyset infinite
   scroll. URL-backed filters and stale-response guards remain authoritative.
 - Topic detail ships complete topic/comments/navigation in initial SSR HTML;

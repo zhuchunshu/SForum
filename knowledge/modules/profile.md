@@ -49,6 +49,9 @@ editor in V1.
   renders real public profile fields, public topic/reply stats, and recent
   public topics. It does not show unimplemented social counts, levels, follows,
   private messages, portfolios, or placeholder stats.
+- `SFProfileRightRail` owns the shared desktop/mobile rendering of public
+  details, real statistics, recent topics, and extension links. On mobile the
+  left navigation and this right rail use the default-theme shared drawers.
 - Public activity links use existing legal forum routes:
   `/t/{topicId}/{slug}` for topics and `/t/{topicId}/{slug}#comment-{id}` for
   replies when the current topic route exposes stable comment anchors.

@@ -23,10 +23,16 @@ describe('default theme profile page B1 contract', () => {
     expect(page).toContain('navigation-mode="route"')
     expect(page).toContain('desktop-only')
     expect(page).toContain('mobile-only')
+    expect(page).toContain("useState<boolean>('forum-mobile-menu-open'")
+    expect(page).toContain("useState<boolean>('forum-mobile-info-open'")
+    expect(page).toContain('sforum-mobile-drawer sforum-mobile-drawer--left')
+    expect(page).toContain('sforum-mobile-drawer sforum-mobile-drawer--right')
+    expect(page).toContain('<SFProfileRightRail')
   })
 
   test('renders only real public profile/activity concepts', () => {
     const page = source('../app/components/SFProfileShowPage.vue')
+    const rail = source('../app/components/SFProfileRightRail.vue')
     const apiTypes = source('../app/composables/useProfileApi.ts')
     const css = source('../app/assets/css/sforum-profile.css')
 
@@ -37,7 +43,8 @@ describe('default theme profile page B1 contract', () => {
     expect(page).toContain(": 'i-lucide-message-circle-reply'")
     expect(page).toContain('profile.topicCount')
     expect(page).toContain('profile.commentCount')
-    expect(page).toContain('profile.recentTopics')
+    expect(page).toContain('profile.value?.recentTopics')
+    expect(rail).toContain('recentTopics')
     expect(page).toContain("t('profile.editProfile')")
     expect(page).toContain('v-if="isSelf"')
     expect(css).toContain('.sf-profile-activity-day__head')

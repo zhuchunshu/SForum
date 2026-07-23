@@ -626,6 +626,10 @@
     display: none;
   }
 
+  .sforum-mobile-drawer .sforum-notifications__right--drawer {
+    display: block;
+  }
+
   .sforum-notifications__desktop-hidden {
     display: inline-grid;
   }
