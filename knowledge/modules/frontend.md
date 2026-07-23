@@ -150,6 +150,10 @@ Architecture sources:
 - The default theme uses a flat, responsive three-column shell: navigation,
   primary content, and contextual right rail. It collapses the right rail
   before the left navigation.
+- The `/moderation` Host body island mirrors that flat shell with scoped
+  `sforum-moderation` CSS instead of changing default-theme shared CSS; its
+  source/filter/page/review state is query-backed for SSR/client recovery, and
+  review actions move into mobile drawers as soon as the right rail collapses.
 - Homepage/topic/taxonomy data is real API state. Do not render fabricated
   likes, bookmarks, unread state, participant stacks, or ranking.
 - Homepage and eligible lists SSR page 1 and continue with keyset infinite

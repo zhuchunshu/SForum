@@ -57,9 +57,12 @@ frontend moderator workbench.
   folder (`admin.nav.forum`), alongside categories, tags, and forum settings.
 - The admin page is policy management plus a read-only complete audit table.
 - The frontend `/moderation` workbench has **Pending publication**, **User
-  reports**, and **History** tabs. Rows show title/topic, excerpt, author,
-  category, time, triggers or report details; expanded context supplies the
-  complete content and explicit actions.
+  reports**, and **History** sources in the default-theme-compatible flat
+  three-column surface. Queue mode is URL-backed by source, content type, and
+  page; review mode adds stable item query fields and keeps navigation inside
+  the current source/filter/page, including history items whose source is a
+  report. Rows are fully clickable, context uses the existing safe-rendered
+  HTML path, and history remains read-only.
 - Destructive actions require a review note. Successful actions use the active
   theme color and auto-dismiss after 10 seconds; blocking errors stay visible.
 - Pending topic creation shows a toast and returns the author home; review
