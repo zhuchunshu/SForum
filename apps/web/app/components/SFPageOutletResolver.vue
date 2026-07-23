@@ -100,7 +100,8 @@ const { data: resolved, error: resolveError, pending } = await useAsyncData(
         {
           timeout: PAGE_RESOLVE_TIMEOUT_MS,
           maxAttempts: 2,
-          retryDelayMs: PAGE_RESOLVE_RETRY_DELAY_MS
+          retryDelayMs: PAGE_RESOLVE_RETRY_DELAY_MS,
+          serverInternal: import.meta.server
         }
       ) as ResolvePayload
       applyFallbackCachePolicy(payload)

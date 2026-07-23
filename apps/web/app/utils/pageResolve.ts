@@ -43,7 +43,7 @@ export type PageResolvePayload = {
 
 export type PageResolveRequest = (
   url: string,
-  options?: { timeout?: number }
+  options?: { timeout?: number, serverInternal?: boolean }
 ) => Promise<PageResolvePayload>
 
 export type PageResolveFailureClass = 'semantic_not_found' | 'retryable' | 'technical'
@@ -160,6 +160,7 @@ export async function requestPageResolveWithRetry(
     timeout: number
     maxAttempts?: number
     retryDelayMs?: number
+    serverInternal?: boolean
     sleep?: (ms: number) => Promise<void>
   }
 ): Promise<PageResolvePayload> {
@@ -169,7 +170,10 @@ export async function requestPageResolveWithRetry(
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
-      return await request(url, { timeout: options.timeout })
+      return await request(url, {
+        timeout: options.timeout,
+        serverInternal: options.serverInternal
+      })
     } catch (error) {
       lastError = error
       if (attempt >= attempts || classifyPageResolveFailure(error) !== 'retryable') {

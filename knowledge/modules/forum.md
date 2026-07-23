@@ -137,6 +137,11 @@ V1 boundaries:
 | Tags | `/tags`, `/tags/:tagSlug` |
 | Topics | `/t/<path>` |
 
+The public `/categories` index is a grouped directory, not a fabricated
+dashboard. It keeps empty public groups visible, filters out hidden groups and
+categories defensively, sorts categories only inside their owning group, and
+derives totals/distribution/activity from the category DTO counters.
+
 `seo.topic_url_mode` controls topic paths:
 
 | Mode | Shape | Lookup |

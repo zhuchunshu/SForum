@@ -22,6 +22,10 @@ const taxonomyCss = () => readFileSync(
   new URL('../../../apps/web/app/assets/css/sforum-taxonomy.css', import.meta.url),
   'utf8'
 )
+const navbar = () => readFileSync(
+  new URL('../../../apps/web/app/components/SFNavbar.vue', import.meta.url),
+  'utf8'
+)
 const hostNuxtConfig = () => readFileSync(new URL('../nuxt.config.ts', import.meta.url), 'utf8')
 const zh = () => JSON.parse(readFileSync(new URL('../i18n/locales/zh-CN.json', import.meta.url), 'utf8'))
 const en = () => JSON.parse(readFileSync(new URL('../i18n/locales/en-US.json', import.meta.url), 'utf8'))
@@ -53,31 +57,60 @@ describe('public taxonomy list pages (T01 + C04)', () => {
     expect(source).toContain('sforum-taxonomy__cloud')
   })
 
-  test('categories index uses category groups, visibility filter, and category detail links', () => {
+  test('categories index uses category groups, directory layout, focus, filter, and category detail links', () => {
     const source = categoriesPage()
     expect(source).toContain('forumApi.listCategoryGroups()')
-    expect(source).toContain("visibility !== 'hidden'")
+    expect(source).toContain('visibleCategoryDirectoryGroups')
+    expect(source).toContain('buildCategoryDirectoryDisplayGroups')
+    expect(source).toContain('summarizeCategoryDirectory')
+    expect(source).toContain('activeCategoryDirectoryCategories')
     expect(source).toContain('forumCategoryPath(category.slug)')
-    expect(source).toContain('sforum-taxonomy__tile')
+    expect(source).toContain('sforum-category-directory__board')
+    expect(source).toContain('sforum-home__layout--with-right')
+    expect(source).toContain('SFHomeNavigation')
+    expect(source).toContain('mobileMenuOpen')
+    expect(source).toContain('mobileInfoOpen')
+    expect(source).toContain('route.query.group')
+    expect(source).toContain('filterDraft')
     expect(source).toContain("sort === 'default'")
     expect(source).toContain("sort === 'active'")
     expect(source).toContain("sort === 'name'")
-    expect(source).toContain('iconColor')
+    expect(source).toContain('category.iconColor')
+    expect(source).not.toContain('latestReply')
+    expect(source).not.toContain('viewCount')
+    expect(source).not.toContain('growth')
   })
 
   test('theme registers taxonomy CSS and host routeRules cover list roots', () => {
     expect(hostNuxtConfig()).toContain('sforum-taxonomy.css')
     expect(taxonomyCss()).toContain('.sforum-taxonomy__cloud')
     expect(taxonomyCss()).toContain('.sforum-taxonomy__tile')
+    expect(taxonomyCss()).toContain('.sforum-category-directory__board-grid')
+    expect(taxonomyCss()).toContain('.sforum-category-directory__facts')
     expect(hostNuxtConfig()).toContain("'/categories': { swr: 600 }")
     expect(hostNuxtConfig()).toContain("'/tags': { swr: 600 }")
+  })
+
+  test('topbar search remains the global search entry', () => {
+    const source = navbar()
+    expect(source).toContain('<SFSearch')
+    expect(source).toContain("t('home.searchPlaceholder')")
+    expect(source).toContain('@submit="submitSearch"')
+    expect(source).toContain("path: localePath('/')")
+    expect(source).toContain('buildForumHomeQuery')
+    expect(source).not.toContain('filterDraft')
+    expect(source).not.toContain('taxonomy.categories.filterPlaceholder')
   })
 
   test('bilingual taxonomy copy is present', () => {
     expect(zh().taxonomy.tags.title).toBe('全部标签')
     expect(zh().taxonomy.categories.title).toBe('全部分类')
+    expect(zh().taxonomy.categories.sorts.all).toBe('默认顺序')
+    expect(zh().taxonomy.categories.filterPlaceholder).toContain('筛选分类')
     expect(en().taxonomy.tags.title).toBe('All tags')
     expect(en().taxonomy.categories.title).toBe('All categories')
+    expect(en().taxonomy.categories.sorts.all).toBe('Default')
+    expect(en().taxonomy.categories.filterPlaceholder).toContain('Filter category')
   })
 
   test('theme L1 taxonomy shells mark presentation ownership and chrome islands', () => {

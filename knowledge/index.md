@@ -73,12 +73,14 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- Theme-consistent public resource 404 completion and final full-gate/browser
-  verification:
-  `sessions/2026-07-22-theme-consistent-public-resource-404-plan-handoff.md`
+- Default-theme `/categories` grouped directory implementation and QA:
+  `sessions/2026-07-23-categories-group-directory-handoff.md`
 
 ## Recently Completed
 
+- Default-theme `/categories` grouped directory: implemented against confirmed
+  Demo 01 with real category-group API data, SSR internal API reads, focused
+  tests, typecheck, production build, and browser screenshot QA.
 - Theme-consistent public resource 404: M0-M6 completed 2026-07-23. Ordinary
   semantic 404s retain the healthy selected theme and real private HTTP 404;
   Core is emergency-only. See
