@@ -16,7 +16,10 @@ const adminRoutePrefix = normalizeAdminRoutePrefix(
 // 公开主题经 Page Registry 运行时注入；管理端预构建组件按 digest 动态加载。
 const nitroOutputDir = process.env.SFORUM_NITRO_OUTPUT_DIR?.trim()
 const devtoolsEnabled = process.env.NUXT_DEVTOOLS === 'true'
-const payloadExtractionEnabled = process.env.NODE_ENV !== 'development'
+// Nuxt 4.4 的提取式 payload 依赖路由缓存保持开启；会话页在请求内切到
+// no-store 后，`_payload.json` 会退化成 HTML，进而中断客户端导航。
+// SSR 数据内联可继续保留 SPA 导航，同时让开发与生产行为一致。
+const payloadExtractionEnabled = false
 const publicHomepageRouteRule = {
   cache: false,
   headers: {

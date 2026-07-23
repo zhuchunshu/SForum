@@ -203,6 +203,8 @@ const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
 const showTopicSide = computed(() => Boolean(topic.value && !isEditing.value))
 const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
+const canNormalizeTopicURL = import.meta.client
+  || (useRequestHeaders(['accept']).accept || '').includes('text/html')
 
 function closeMobileDrawers() {
   mobileMenuOpen.value = false
@@ -213,7 +215,7 @@ function closeMobileDrawers() {
 // 触发场景：模式切换后的旧 URL、slug 变更后的旧 slug、id 模式下多余的 slug 段。
 // 编辑态（?edit=1）时保留 query，避免规范化时丢失编辑意图。
 watchEffect(() => {
-  if (!topic.value) {
+  if (!topic.value || !canNormalizeTopicURL) {
     return
   }
   const targetPath = localePath(forumTopicPath(topic.value, topicUrlMode.value))

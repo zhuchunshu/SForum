@@ -9,6 +9,7 @@ definePageMeta({ public: true })
 
 const route = useRoute()
 const localePath = useLocalePath()
+const notFoundPresentation = useNotFoundPagePresentation()
 
 const requestPath = computed(() => {
   const raw = route.params.path
@@ -43,6 +44,9 @@ if (error.value) {
   const err: any = error.value
   const code = err?.statusCode || err?.status || err?.data?.statusCode
   if (code === 404) {
+    if (import.meta.client) {
+      await notFoundPresentation.prepare()
+    }
     throw createError({ statusCode: 404, statusMessage: 'Page not found' })
   }
   if (code === 401) {

@@ -456,40 +456,46 @@ broader 403/429/5xx completion claim is made.
 - [x] Forced theme/runtime failure retains a bounded Core emergency page.
 - [x] No new dependency, setting, permission, or public L2 execution is added.
 - [x] Focused tests, typecheck, build, and browser matrix pass with exact
-      evidence; the full Bun/repository gate reaches only the unrelated stale
-      `prebuiltSettingsComponent.test.ts` asset-path assertion recorded below.
+      evidence; the final full Bun and repository gates are green.
 
 ## Completion Evidence (2026-07-23)
 
-- Focused web suites: `50 pass, 0 fail, 251 expect()` across Page Outlet,
-  Page Resolve, and default-theme navbar behavior. An earlier wider focused run
-  also passed `75` tests.
+- Focused web suites passed across Page Outlet, Page Resolve, default-theme
+  navbar/home/topic behavior, and the prebuilt settings component contract.
+- Final full Bun gate: `546 pass, 0 fail, 3303 expect()`.
 - `cd apps/web && bun run typecheck`: passed.
-- `cd apps/web && bun run build`: passed immediately before the final
-  HMR/loading-state guard.
+- `cd apps/web && bun run build`: passed after the final footer, development
+  overlay, and inline-payload changes; Nitro reported `Build complete!`.
 - `cd apps/api && go test ./...`: passed; focused Page ViewModel/controller
   coverage passed in the same implementation cycle.
 - `ruby scripts/validate-openapi-refs.rb`: passed, `2165` references across
   `54` files.
 - `git diff --check`: passed before handoff.
-- Full Bun/repository gate: `542 pass, 1 fail`; the only failure is the
-  pre-existing `apps/web/tests/prebuiltSettingsComponent.test.ts` assertion
-  for the obsolete `/_sforum/private-assets/extensions/...` path. Production
-  intentionally uses the trusted digest-bound admin endpoint; this 404 task did
-  not weaken or alter that contract.
-- HTTP/cache/SEO probes returned real `404`, `Cache-Control: no-store`, and
-  `noindex,nofollow`, with no success canonical or JSON-LD on the error
-  document.
+- Final repository gate `./scripts/test.sh`: passed, including Go, OpenAPI,
+  Nuxt typecheck, Page Registry validators, and V3 catalog checks.
+- Production HTTP probes covered topic/category/tag/profile/unmatched routes.
+  Every HTML document returned real `404`, `Cache-Control: no-store`, and
+  `X-Robots-Tag: noindex,nofollow`, selected-theme L1 markers, and no success
+  canonical or JSON-LD. The healthy homepage control returned `200` with
+  `s-maxage=600, stale-while-revalidate` and its normal success metadata.
+- Nuxt payload extraction is disabled because Nuxt 4.4 may return HTML for an
+  extracted `_payload.json` after request-local session policy switches the
+  route to `no-store`. SSR payload stays inline, so 404 has no separate cached
+  payload surface and client navigation remains SPA navigation.
 - Browser verification covered healthy and missing public resources, default
-  and Nocturne themes, desktop/mobile, light/dark, and `zh-CN`/`en-US`.
-  Theme navbar/sidebar/body/footer persisted after hydration, logged-in chrome
-  stayed correct, home/back cleared the error state, and forced runtime failure
-  retained the bounded Core emergency page. A later user report found an HMR
-  component-alias warning and a transient unresolved Core shell; the final
-  change uses exact `SF*` component imports, a resolve-pending skeleton, and
-  client-only Reka dropdowns with stable SSR placeholders.
-  Per user direction, that small final guard was not followed by another
-  browser/build cycle.
+  and Nocturne themes, desktop/mobile, light/dark, and `zh-CN`/`en-US`. The
+  final latest-build smoke repeated production desktop and `390x844` mobile,
+  plus the user-owned development server: navbar/sidebar/body/footer remained
+  coherent, Core count was zero, no page was blank, no horizontal overflow or
+  visible framework overlay appeared, and console warning/error logs were
+  empty. Home recovery and homepage-to-topic SPA navigation both succeeded.
+- The development-only Nuxt error overlay entry is hidden only while the body
+  carries `data-sforum-error="404"`; genuine runtime/5xx faults keep their
+  diagnostics. Once `clearError` successfully recovers home/back/retry, the
+  resolved `.pip-hidden` entry is removed so it cannot cover the healthy page.
+  Installed older default-theme artifacts are compatibly allowed to show the
+  404 footer, while the source theme now scopes its normal footer suppression
+  away from `.sf-page--not-found`.
 - No dependency, operator setting, permission, API schema, 403/429/5xx behavior,
   or public L2 execution was added.
 

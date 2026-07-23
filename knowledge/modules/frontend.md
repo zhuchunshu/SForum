@@ -54,14 +54,10 @@ Plan: `../plans/2026-07-22-theme-consistent-public-resource-404.md` (**completed
 - `SFSystemThemeTemplate` renders reviewed L0/L1 error AST through statically
   compiled Host islands so production SSR and hydration agree. Core is a
   complete local emergency page only for actual theme/runtime/API failure.
-- The 2026-07-23 gate passed focused web tests (`50/50`), typecheck, production
-  build, Go tests, OpenAPI validation, HTTP/cache probes, and the desktop/mobile
-  browser matrix. The full Bun gate retains one unrelated stale
-  `prebuiltSettingsComponent.test.ts` asset-path assertion (`542 pass, 1 fail`).
-  Later exact-component-import and client-only Reka dropdown guards were
-  applied after HMR/Core-flash/hydration reports and were not re-run through the
-  browser/build matrix per user direction. The interim pending skeleton was
-  removed by the atomic L0/L1 follow-up below.
+- The final 2026-07-23 gate passed all Bun tests (`546/546`, `3303` assertions),
+  Nuxt typecheck and production build, full Go tests, OpenAPI validation,
+  repository validators, HTTP/cache probes, and the development/production
+  desktop/mobile browser matrix.
 - A 2026-07-23 follow-up removed the remaining hard-refresh half-state: the
   error boundary now fetches L1/L0/options/session through the explicit SSR
   internal API path, stages exact-artifact L0 and L1 candidates, and commits
@@ -72,9 +68,17 @@ Plan: `../plans/2026-07-22-theme-consistent-public-resource-404.md` (**completed
 - Error-boundary Host islands use direct component imports. General Page
   Registry islands use explicit `defineAsyncComponent(() => import(...))`
   wrappers rather than runtime `resolveComponent('Lazy...')` registry lookups,
-  so HMR cannot hand `undefined` to vnode creation. This follow-up was not run
-  through automated tests, typecheck, build, HTTP, Playwright, or Browser at the
-  user's explicit request; manual verification remains pending.
+  so HMR cannot hand `undefined` to vnode creation.
+- Nuxt payload extraction is disabled. Request-local `no-store` policy and
+  Nuxt 4.4 extracted payload routing can otherwise turn `_payload.json` into an
+  HTML response and cancel client navigation. Inline SSR payload keeps
+  development and production behavior aligned without a second cache surface.
+- Default-theme 404 always keeps its footer: current source artifacts scope the
+  homepage footer suppression away from `.sf-page--not-found`, and Host CSS
+  provides the same compatibility for installed older artifacts. In
+  development, only the Nuxt overlay entry attached to an ordinary body-marked
+  404 is hidden; after successful home/back/retry recovery its resolved entry
+  is removed. Real runtime and 5xx diagnostics remain visible while active.
 - Handoff:
   `../sessions/2026-07-22-theme-consistent-public-resource-404-plan-handoff.md`.
 

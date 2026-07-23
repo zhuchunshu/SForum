@@ -22,13 +22,22 @@ onMounted(() => {
   canGoBack.value = window.history.length > 1
 })
 
+function clearResolvedDevErrorOverlay() {
+  if (import.meta.dev && import.meta.client) {
+    // Nuxt dev 会在 clearError 后留下已折叠入口；错误已恢复时不应遮挡正常页面。
+    document.querySelector('nuxt-error-overlay.pip-hidden')?.remove()
+  }
+}
+
 async function goHome() {
   await clearError({ redirect: localePath('/') })
+  clearResolvedDevErrorOverlay()
 }
 
 async function goBack() {
   if (import.meta.client && window.history.length > 1) {
     await clearError()
+    clearResolvedDevErrorOverlay()
     window.history.back()
     return
   }
@@ -37,6 +46,7 @@ async function goBack() {
 
 async function retry() {
   await clearError()
+  clearResolvedDevErrorOverlay()
   if (import.meta.client) {
     window.location.reload()
   }

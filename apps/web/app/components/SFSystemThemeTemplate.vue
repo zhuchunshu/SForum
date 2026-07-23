@@ -1,11 +1,15 @@
 <script setup lang="ts">
+import type { Component } from 'vue'
 import type { ThemeRenderOutput } from '~/composables/useThemeRenderOutput'
 import {
   parseLegacyThemeHTML,
-  parseThemeRenderOutput
+  parseThemeRenderOutput,
+  renderThemeRenderNodes
 } from '~/composables/useThemeRenderOutput'
 import SFAlert from './SFAlert.vue'
-import SFSystemThemeNode from './SFSystemThemeNode.vue'
+import SFFooter from './SFFooter.vue'
+import SFNavbar from './SFNavbar.vue'
+import SFNotFoundPageContent from './SFNotFoundPageContent.vue'
 
 const props = defineProps<{
   html?: string
@@ -36,16 +40,21 @@ const rendered = computed(() => {
     return { nodes: [], error: true }
   }
 })
+const islandComponents: Record<string, Component> = {
+  'system.component.not_found': SFNotFoundPageContent,
+  'navigation.component.navbar': SFNavbar,
+  'navigation.component.footer': SFFooter
+}
+const ThemeNodes = () => renderThemeRenderNodes(
+  rendered.value.nodes,
+  componentId => islandComponents[componentId]
+)
 </script>
 
 <template>
   <div class="sf-system-theme-template" :data-extension-id="extensionId || ''">
     <template v-if="!rendered.error">
-      <SFSystemThemeNode
-        v-for="(node, index) in rendered.nodes"
-        :key="index"
-        :node="node"
-      />
+      <ThemeNodes />
     </template>
     <SFAlert v-else variant="danger" class="mb-4" />
   </div>

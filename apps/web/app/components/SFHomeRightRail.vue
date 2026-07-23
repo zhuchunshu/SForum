@@ -127,7 +127,7 @@ function isTopHotRank(index: string | number) {
             >
               {{ hotRank(index) }}
             </span>
-            <NuxtLink :to="topicTo(topic)" class="sf-home-right-rail__hot-link">
+            <NuxtLink :to="topicTo(topic)" :prefetch="false" class="sf-home-right-rail__hot-link">
               <span class="sf-home-right-rail__hot-title">{{ topic.title }}</span>
             </NuxtLink>
             <span class="sf-home-right-rail__hot-count" :title="t('home.sidebar.repliesCount', { count: topic.commentCount })">

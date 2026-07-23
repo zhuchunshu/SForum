@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import type { PageResolvePayload } from '~/utils/pageResolve'
-import SFPageOutletRender from './SFPageOutletRender.vue'
-import SFPageOutletResolver from './SFPageOutletResolver.vue'
 
 /**
  * Page Outlet 的同步入口。

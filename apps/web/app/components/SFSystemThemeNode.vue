@@ -9,6 +9,9 @@ defineOptions({ name: 'SFSystemThemeNode' })
 defineProps<{
   node: ThemeRenderNode
 }>()
+
+// Nuxt 会把模板里的同名递归标签误转成模块自导入；直接复用当前组件类型避免 SSR 初始化环。
+const self = getCurrentInstance()!.type
 </script>
 
 <template>
@@ -31,8 +34,9 @@ defineProps<{
     v-else-if="node.kind === 'element'"
     v-bind="node.attrs"
   >
-    <SFSystemThemeNode
+    <component
       v-for="(child, index) in node.children"
+      :is="self"
       :key="index"
       :node="child"
     />

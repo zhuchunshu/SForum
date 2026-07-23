@@ -1,8 +1,5 @@
 <script setup lang="ts">
 import type { PageResolvePayload } from '~/utils/pageResolve'
-import SFHostPublicChrome from './SFHostPublicChrome.vue'
-import SFSystemThemeTemplate from './SFSystemThemeTemplate.vue'
-import SFThemeTemplate from './SFThemeTemplate.vue'
 
 const props = defineProps<{
   page: string

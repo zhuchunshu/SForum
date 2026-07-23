@@ -13,6 +13,21 @@ selected-theme rendering, one-attempt system resolver, document policy, and
 Core emergency fallback are the baseline for this broader book. Continue with
 403/429/5xx without reimplementing or weakening the finished 404 path.
 
+M1-M6 are unblocked and must directly reuse these six completed 404 building
+blocks:
+
+1. the server pre-preparation plugin that resolves the final presentation
+   before `error.vue` renders;
+2. the request-local presentation composable and its serialized hydration
+   state;
+3. exact extension/version/package digest/node revision validation across L0
+   and L1;
+4. Host-owned status, cache, robots, canonical, and structured-data document
+   policy;
+5. the reviewed L0/L1 system AST renderer and statically compiled Host islands;
+6. the complete, non-recursive Core emergency fallback for genuine theme,
+   renderer, transport, or runtime faults.
+
 Implement this book milestone by milestone. Each milestone must leave the
 repository buildable and must record exact verification output. Do not merge
 this work into the search, content-revision, or V3 production-rewire programs.
@@ -280,7 +295,7 @@ M1 production edits.
 | Regression plan status | **completed**; M0-M7 closed |
 | Focused 404 precursor | **completed**; M0-M6 closed with completion handoff |
 | Explicit file handoff to this book | Shared error/Page Registry files released after the focused 404 commit |
-| Required preservation | Selected-theme 404, one-attempt system resolve, `no-store`, `noindex,nofollow`, emergency-only Core |
+| Required preservation | Selected-theme 404 plus its server pre-preparation plugin, request-local presentation composable, exact-artifact validation, document policy, system AST renderer, and emergency-only Core fallback |
 | Next action | Add the deferred ADR, then start M1 without reimplementing 404 |
 
 Shared / high-risk overlap (touched in commits ahead of `origin/main` and/or

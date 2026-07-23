@@ -2,13 +2,15 @@ import {
   coreResolveFallback,
   PAGE_RESOLVE_REASON,
   requestPageResolveWithRetry,
-  type PageResolvePayload
+  type PageResolvePayload,
+  type PageResolveReason
 } from '~/utils/pageResolve'
 
 /** 错误根组件预取 system.not_found；生产错误渲染器要求 setup 保持同步。 */
 export function useNotFoundPageResolve() {
   const route = useRoute()
-  const { locale } = useI18n()
+  const i18n = useNuxtApp().$i18n as { locale?: unknown } | undefined
+  const locale = computed(() => localeString(i18n?.locale) || 'zh-CN')
   const { webOption } = useWebOptions()
   const { request } = useApiClient()
   const requestQuery = computed(() => {
@@ -99,9 +101,20 @@ export function useNotFoundPageResolve() {
     return resolved
   }
 
-  function useCoreFallback(reason = PAGE_RESOLVE_REASON.transportUnavailable) {
+  function useCoreFallback(reason: PageResolveReason = PAGE_RESOLVE_REASON.transportUnavailable) {
     return commit(coreResolveFallback('system.not_found', true, reason))
   }
 
   return { data, failure, pending, refresh, commit, useCoreFallback }
+}
+
+function localeString(value: unknown) {
+  if (typeof value === 'string') {
+    return value
+  }
+  if (value && typeof value === 'object' && 'value' in value) {
+    const refValue = (value as { value?: unknown }).value
+    return typeof refValue === 'string' ? refValue : ''
+  }
+  return ''
 }

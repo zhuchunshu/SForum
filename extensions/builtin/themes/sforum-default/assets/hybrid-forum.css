@@ -601,7 +601,7 @@
   letter-spacing: 0;
 }
 
-.sf-theme--default .sf-footer,
+.sf-theme--default:not(.sf-page--not-found) .sf-footer,
 .sf-theme--default .sf-theme-home-shell__intro,
 .sforum-home__notice {
   display: none;

@@ -151,6 +151,17 @@
   color: var(--sf-accent);
 }
 
+/* 已安装的旧默认主题 artifact 曾全局隐藏 footer；404 必须保留完整主题外壳。 */
+.sf-system-theme-template[data-extension-id="sforum.default-theme"]
+  .sf-page--not-found > .sf-footer {
+  display: block;
+}
+
+/* 普通 404 是产品页面；仅隐藏 Nuxt dev 的错误 overlay 入口，真实故障仍保留诊断 UI。 */
+body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
+  display: none !important;
+}
+
 .dark .sf-footer__link:hover {
   color: var(--sf-accent-dark);
 }

@@ -203,9 +203,11 @@ should use dedicated registries instead of raw database or whole-route power.
   contributions/skin atomically, and preserves rollback.
 - The selected theme owns public presentation. Core output is emergency-only
   when the runtime cannot safely resolve/render the selected artifact.
-- Theme-defined 403/404/429/server-error work is currently blocked after M0;
-  the focused public-resource 404 plan is the precursor. Plugins and public L2
-  remain closed for these system pages.
+- Theme-defined 403/429/server-error work is **ready** after M0. It must reuse
+  the completed public-resource 404 server pre-preparation plugin,
+  request-local presentation composable, exact-artifact validation, document
+  policy, system AST renderer, and Core emergency fallback. Plugins and public
+  L2 remain closed for these system pages.
 
 Current plans:
 
@@ -264,7 +266,7 @@ Current plans:
    M0-M8 with production-path evidence.
 2. Keep APILTS compatibility shims until their removal gate, date, and live
    zero-use evidence all pass.
-3. Close current-HEAD regression M7 before implementing the focused themed 404
-   plan or broader system-error pages.
+3. Resume the ready theme-defined system-error plan at M1, reusing the six
+   completed 404 building blocks for 403/429/5xx.
 4. Keep new product integrations on stable provider/registry contracts and
    regenerate the affected Extension Surface Matrix.

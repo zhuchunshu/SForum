@@ -117,6 +117,7 @@ const pillBase =
         <h2 class="sf-home-topic-row__title m-0 min-w-0 flex-1 truncate text-base font-semibold leading-snug text-[var(--sf-public-text)]">
           <NuxtLink
             :to="to"
+            :prefetch="false"
             class="text-inherit no-underline hover:text-[var(--sf-accent)]"
           >
             {{ topic.title }}

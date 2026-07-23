@@ -86,6 +86,9 @@ describe('default theme V32 topic page contract', () => {
     const source = topicPage()
 
     expect(source).toContain('topicPathLookupCandidates(')
+    expect(source).toContain("useRequestHeaders(['accept']).accept")
+    expect(source).toContain("includes('text/html')")
+    expect(source).toContain('if (!topic.value || !canNormalizeTopicURL)')
     expect(source).toContain('navigateTo(target, { redirectCode: 301 })')
     expect(source).toContain('useSForumSeo(computed(')
     expect(source).toContain('sanitizeHtml(topic.content.htmlContent)')

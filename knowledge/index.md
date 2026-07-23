@@ -8,8 +8,10 @@ load archived sessions or completed plans as current context.
 
 ### Theme-defined system error pages
 
-- Status: **ready after M0 audit**; M1+ consumes the completed selected-theme
-  public-resource 404 implementation and continues with 403/429/5xx.
+- Status: **ready after M0 audit**; M1+ directly reuses the completed 404 server
+  pre-preparation, request-local presentation, exact-artifact validation,
+  document policy, system AST renderer, and Core emergency fallback while
+  continuing with 403/429/5xx.
 - Plan: `plans/2026-07-22-theme-defined-system-error-pages.md`
 - Audit handoff: `sessions/2026-07-22-theme-defined-system-error-pages-m0-audit-handoff.md`
 - Modules: `modules/frontend.md`, `modules/extensions.md`
@@ -71,7 +73,8 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- Theme-consistent public resource 404 completion and hard-refresh follow-up:
+- Theme-consistent public resource 404 completion and final full-gate/browser
+  verification:
   `sessions/2026-07-22-theme-consistent-public-resource-404-plan-handoff.md`
 
 ## Recently Completed

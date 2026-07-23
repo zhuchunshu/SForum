@@ -47,6 +47,8 @@ function browserStorage() {
 }
 
 export function useActiveThemeSkin() {
+  // refresh 可能在 error.vue 的预取 await 之后执行；请求函数必须在当前 Nuxt 上下文内捕获。
+  const { request } = useApiClient()
   const links = useState<string[]>('sforum-active-theme-css', () => [])
   const lastPublicRecord = useState<ActiveThemeSkinCacheRecord | null>(
     'sforum-active-theme-css-last',
@@ -92,7 +94,6 @@ export function useActiveThemeSkin() {
   ): Promise<ActiveThemeSkinRefreshResult> {
     const requestedRevision = ++revision
     try {
-      const { request } = useApiClient()
       const skin = await request<ActiveThemeSkinResponse>('/site/active-theme/skin', {
         timeout: SKIN_TIMEOUT_MS,
         serverInternal: import.meta.server

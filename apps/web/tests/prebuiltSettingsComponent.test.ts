@@ -8,7 +8,8 @@ const manifest = JSON.parse(await Bun.file(new URL('../../../extensions/fixtures
 
 describe('prebuilt extension settings component runtime', () => {
   test('loads only the authenticated immutable digest endpoint and validates API v1', () => {
-    expect(component).toContain('/_sforum/private-assets/extensions/${encodeURIComponent(props.extension.id)}/${digest.value}/${name}')
+    expect(component).toContain('/api/v1/admin/extensions/${encodeURIComponent(props.extension.id)}/frontend/assets/${digest.value}/${name}')
+    expect(component).not.toContain('/_sforum/private-assets/extensions/')
     expect(component).toContain("fetch(assetURL('style'), { credentials: 'include' })")
     expect(component).toContain("contentType.startsWith('text/css')")
     expect(component).toContain('import(/* @vite-ignore */ assetURL(\'entry\'))')

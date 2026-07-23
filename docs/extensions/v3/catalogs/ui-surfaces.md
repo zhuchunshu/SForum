@@ -115,6 +115,7 @@ Manifest V3 component targets declare both `targetId` and `targetContractVersion
 | `core.component.shared.sfeditor` | `sforum.component.shared.sfeditor@1` | component | `public` | — | `apps/web/app/components/SFEditor.vue` | P9 Component Registry |
 | `core.component.shared.sfempty_state` | `sforum.component.shared.sfempty_state@1` | component | `public`, `admin` | — | `apps/web/app/components/SFEmptyState.vue` | P7/P9 Admin and Component Registries |
 | `core.component.shared.sferror_page_content` | `sforum.component.shared.sferror_page_content@1` | component | `public` | — | `apps/web/app/components/SFErrorPageContent.vue` | P9 Component Registry |
+| `core.component.shared.sferror_page_panel` | `sforum.component.shared.sferror_page_panel@1` | component | `public` | — | `apps/web/app/components/SFErrorPagePanel.vue` | P9 Component Registry |
 | `core.component.shared.sfextension_widget` | `sforum.component.shared.sfextension_widget@1` | component | `public` | — | `apps/web/app/components/SFExtensionWidget.vue` | P9 Component Registry |
 | `core.component.shared.sffeed_row` | `sforum.component.shared.sffeed_row@1` | component | `public` | — | `apps/web/app/components/SFFeedRow.vue` | P9 Component Registry |
 | `core.component.shared.sffooter` | `sforum.component.shared.sffooter@1` | component | `public` | — | `apps/web/app/components/SFFooter.vue` | P9 Component Registry |
@@ -130,8 +131,13 @@ Manifest V3 component targets declare both `targetId` and `targetContractVersion
 | `core.component.shared.sflogin_form_page` | `sforum.component.shared.sflogin_form_page@1` | component | `public` | — | `apps/web/app/components/SFLoginFormPage.vue` | P9 Component Registry |
 | `core.component.shared.sfmoderation_review_page` | `sforum.component.shared.sfmoderation_review_page@1` | component | `public` | — | `apps/web/app/components/SFModerationReviewPage.vue` | P9 Component Registry |
 | `core.component.shared.sfnavbar` | `sforum.component.shared.sfnavbar@1` | component | `public` | — | `apps/web/app/components/SFNavbar.vue` | P9 Component Registry |
+| `core.component.shared.sfnot_found_emergency_page` | `sforum.component.shared.sfnot_found_emergency_page@1` | component | `public` | — | `apps/web/app/components/SFNotFoundEmergencyPage.vue` | P9 Component Registry |
+| `core.component.shared.sfnot_found_page` | `sforum.component.shared.sfnot_found_page@1` | component | `public` | — | `apps/web/app/components/SFNotFoundPage.vue` | P9 Component Registry |
+| `core.component.shared.sfnot_found_page_content` | `sforum.component.shared.sfnot_found_page_content@1` | component | `public` | — | `apps/web/app/components/SFNotFoundPageContent.vue` | P9 Component Registry |
 | `core.component.shared.sfnotifications_page` | `sforum.component.shared.sfnotifications_page@1` | component | `public` | — | `apps/web/app/components/SFNotificationsPage.vue` | P9 Component Registry |
 | `core.component.shared.sfpage_outlet` | `sforum.component.shared.sfpage_outlet@1` | component | `public` | — | `apps/web/app/components/SFPageOutlet.vue` | P9 Component Registry |
+| `core.component.shared.sfpage_outlet_render` | `sforum.component.shared.sfpage_outlet_render@1` | component | `public` | — | `apps/web/app/components/SFPageOutletRender.vue` | P9 Component Registry |
+| `core.component.shared.sfpage_outlet_resolver` | `sforum.component.shared.sfpage_outlet_resolver@1` | component | `public` | — | `apps/web/app/components/SFPageOutletResolver.vue` | P9 Component Registry |
 | `core.component.shared.sfpagination` | `sforum.component.shared.sfpagination@1` | component | `public`, `admin` | — | `apps/web/app/components/SFPagination.vue` | P7/P9 Admin and Component Registries |
 | `core.component.shared.sfprivacy_page` | `sforum.component.shared.sfprivacy_page@1` | component | `public` | — | `apps/web/app/components/SFPrivacyPage.vue` | P9 Component Registry |
 | `core.component.shared.sfprofile_settings_page` | `sforum.component.shared.sfprofile_settings_page@1` | component | `public` | — | `apps/web/app/components/SFProfileSettingsPage.vue` | P9 Component Registry |
@@ -144,6 +150,8 @@ Manifest V3 component targets declare both `targetId` and `targetContractVersion
 | `core.component.shared.sfsearch` | `sforum.component.shared.sfsearch@1` | component | `public` | — | `apps/web/app/components/SFSearch.vue` | P9 Component Registry |
 | `core.component.shared.sfsecurity_settings_page` | `sforum.component.shared.sfsecurity_settings_page@1` | component | `public` | — | `apps/web/app/components/SFSecuritySettingsPage.vue` | P9 Component Registry |
 | `core.component.shared.sfskeleton` | `sforum.component.shared.sfskeleton@1` | component | `public`, `admin` | — | `apps/web/app/components/SFSkeleton.vue` | P7/P9 Admin and Component Registries |
+| `core.component.shared.sfsystem_theme_node` | `sforum.component.shared.sfsystem_theme_node@1` | component | `public` | — | `apps/web/app/components/SFSystemThemeNode.vue` | P9 Component Registry |
+| `core.component.shared.sfsystem_theme_template` | `sforum.component.shared.sfsystem_theme_template@1` | component | `public` | — | `apps/web/app/components/SFSystemThemeTemplate.vue` | P9 Component Registry |
 | `core.component.shared.sftabs` | `sforum.component.shared.sftabs@1` | component | `public`, `admin` | — | `apps/web/app/components/SFTabs.vue` | P7/P9 Admin and Component Registries |
 | `core.component.shared.sftag_index_page` | `sforum.component.shared.sftag_index_page@1` | component | `public` | — | `apps/web/app/components/SFTagIndexPage.vue` | P9 Component Registry |
 | `core.component.shared.sftag_show_page` | `sforum.component.shared.sftag_show_page@1` | component | `public` | — | `apps/web/app/components/SFTagShowPage.vue` | P9 Component Registry |

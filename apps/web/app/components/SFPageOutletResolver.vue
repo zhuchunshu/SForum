@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { ThemeRenderOutput } from '~/composables/useThemeRenderOutput'
-import SFPageOutletRender from './SFPageOutletRender.vue'
 import {
   coreResolveFallback,
   disableSharedPageCacheForPageResolve,
@@ -20,6 +19,7 @@ const route = useRoute()
 const { locale } = useI18n()
 const { user } = useAuthSession()
 const { webOption } = useWebOptions()
+const notFoundPresentation = useNotFoundPagePresentation()
 const responseCacheControl = import.meta.server
   ? useResponseHeader('cache-control')
   : undefined
@@ -132,6 +132,9 @@ const { data: resolved, error: resolveError, pending } = await useAsyncData(
 )
 
 if (isPageResolveSemanticNotFound(resolveError.value)) {
+  if (import.meta.client) {
+    await notFoundPresentation.prepare()
+  }
   throw createError({ statusCode: 404, statusMessage: 'Page not found' })
 }
 

@@ -1811,6 +1811,16 @@
       "source": "apps/web/app/components/SFErrorPageContent.vue"
     },
     {
+      "id": "core.component.shared.sferror_page_panel",
+      "contractVersion": "sforum.component.shared.sferror_page_panel@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/SFErrorPagePanel.vue"
+    },
+    {
       "id": "core.component.shared.sfextension_widget",
       "contractVersion": "sforum.component.shared.sfextension_widget@1",
       "kind": "component",
@@ -1982,6 +1992,36 @@
       "source": "apps/web/app/components/SFNavbar.vue"
     },
     {
+      "id": "core.component.shared.sfnot_found_emergency_page",
+      "contractVersion": "sforum.component.shared.sfnot_found_emergency_page@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/SFNotFoundEmergencyPage.vue"
+    },
+    {
+      "id": "core.component.shared.sfnot_found_page",
+      "contractVersion": "sforum.component.shared.sfnot_found_page@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/SFNotFoundPage.vue"
+    },
+    {
+      "id": "core.component.shared.sfnot_found_page_content",
+      "contractVersion": "sforum.component.shared.sfnot_found_page_content@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/SFNotFoundPageContent.vue"
+    },
+    {
       "id": "core.component.shared.sfnotifications_page",
       "contractVersion": "sforum.component.shared.sfnotifications_page@1",
       "kind": "component",
@@ -2000,6 +2040,26 @@
       ],
       "state": "active",
       "source": "apps/web/app/components/SFPageOutlet.vue"
+    },
+    {
+      "id": "core.component.shared.sfpage_outlet_render",
+      "contractVersion": "sforum.component.shared.sfpage_outlet_render@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/SFPageOutletRender.vue"
+    },
+    {
+      "id": "core.component.shared.sfpage_outlet_resolver",
+      "contractVersion": "sforum.component.shared.sfpage_outlet_resolver@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/SFPageOutletResolver.vue"
     },
     {
       "id": "core.component.shared.sfpagination",
@@ -2123,6 +2183,26 @@
       ],
       "state": "active",
       "source": "apps/web/app/components/SFSkeleton.vue"
+    },
+    {
+      "id": "core.component.shared.sfsystem_theme_node",
+      "contractVersion": "sforum.component.shared.sfsystem_theme_node@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/SFSystemThemeNode.vue"
+    },
+    {
+      "id": "core.component.shared.sfsystem_theme_template",
+      "contractVersion": "sforum.component.shared.sfsystem_theme_template@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/SFSystemThemeTemplate.vue"
     },
     {
       "id": "core.component.shared.sftabs",
