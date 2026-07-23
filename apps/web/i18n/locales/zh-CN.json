@@ -34,14 +34,77 @@
     "title": "通知",
     "description": "回复、提及和内容审核结果。",
     "markAllRead": "全部已读",
+    "markingAllRead": "正在标记",
     "allRead": "已将全部通知标为已读",
     "loadFailed": "通知加载失败",
+    "loadMore": "加载更多通知",
+    "loadingMore": "正在加载更多通知...",
+    "loadMoreFailed": "更多通知加载失败",
+    "end": "已经到底了",
     "empty": "暂无通知",
+    "emptyDescription": "新的回复、提及和审核结果会显示在这里。",
+    "unread": "未读",
+    "unreadSummary": "{count} 条未读",
+    "unreadCountLabel": "条未读通知",
+    "unreadAuthority": "全站",
+    "unreadSource": "未读数量来自 /notifications/unread-count，只代表当前账号的全量未读。",
+    "inbox": "收件箱",
+    "loadedOverview": "当前列表",
+    "loadedOnly": "已加载",
+    "loadedTotal": "已加载通知",
+    "loadedUnread": "其中未读",
+    "groupCount": "{count} 条动态",
+    "authRequired": "登录状态已失效，请重新登录后查看通知。",
+    "markReadFailed": "标记通知已读失败",
+    "markAllReadFailed": "全部标记已读失败",
+    "targetUnavailable": "目标不可用",
+    "targetUnavailableHelp": "这条通知没有可跳转的可靠目标页面，可能已删除、不可见，或当前接口未提供目标页面。",
+    "groups": {
+      "today": "今天",
+      "earlier": "更早"
+    },
+    "filter": {
+      "aria": "通知筛选",
+      "title": "通知类型",
+      "all": "全部",
+      "unread": "未读",
+      "reply": "回复",
+      "mention": "提及",
+      "moderation_approved": "审核通过",
+      "moderation_rejected": "审核未通过",
+      "admin_test": "测试",
+      "loadedScope": "筛选仅作用于当前已加载的 {count} 条通知。",
+      "empty": "这个筛选下没有通知",
+      "emptyDescription": "当前 API 不支持服务端类型筛选，因此这里只检查已加载的 {count} 条通知。"
+    },
+    "body": {
+      "reply": "关联主题：{target}",
+      "mention": "关联主题：{target}",
+      "moderation_approved": "关联内容：{target}",
+      "moderation_rejected": "关联内容：{target}",
+      "moderation_rejected_note": "处理说明：{reviewNote}",
+      "admin_test": "站内通知投递测试。",
+      "noTarget": "这条通知没有可公开展示的目标摘要。"
+    },
+    "detail": {
+      "aria": "通知详情",
+      "open": "打开通知详情",
+      "title": "当前通知",
+      "empty": "选择一条通知后可查看详情。"
+    },
+    "actions": {
+      "markRead": "标记这条通知为已读",
+      "viewReply": "查看回复",
+      "viewMention": "查看提及",
+      "viewTarget": "查看内容",
+      "openTarget": "打开目标"
+    },
     "types": {
       "reply": "有人回复了你的内容",
       "mention": "有人在内容中提到了你",
       "moderation_approved": "你的内容已通过审核",
-      "moderation_rejected": "你的内容未通过审核"
+      "moderation_rejected": "你的内容未通过审核",
+      "admin_test": "站内通知投递测试成功"
     }
   },
   "home": {

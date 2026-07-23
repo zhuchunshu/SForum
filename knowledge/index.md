@@ -73,9 +73,8 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- Theme-consistent public resource 404 completion and final full-gate/browser
-  verification:
-  `sessions/2026-07-22-theme-consistent-public-resource-404-plan-handoff.md`
+- Default-theme notifications continuous-stream redesign:
+  `sessions/2026-07-23-notifications-continuous-stream-handoff.md`
 
 ## Recently Completed
 
