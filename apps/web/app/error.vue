@@ -17,12 +17,16 @@ const {
 } = useWebOptions()
 const { refresh: refreshAuthSession } = useAuthSession()
 const themeSkin = useActiveThemeSkin()
+const route = useRoute()
 const startupTimeout = import.meta.dev ? 1000 : 1200
 const hasServerSession = import.meta.server
   && /(?:^|;\s*)sforum_session=/.test(useRequestHeaders(['cookie']).cookie || '')
 const notFoundContent = computed(() => resolveErrorPageContent(404))
 const notFoundTitle = computed(() => t(notFoundContent.value.titleKey, { siteName: siteName.value }))
 const notFoundDescription = computed(() => t(notFoundContent.value.descriptionKey, { siteName: siteName.value }))
+const notFoundReady = isNotFound.value
+  ? useState<boolean>(`not-found-ready:${route.fullPath}`, () => false)
+  : ref(true)
 
 if (isNotFound.value) {
   useSeoMeta({
@@ -61,22 +65,24 @@ if (isNotFound.value) {
 // 先确认 system.not_found 可由当前主题解析；失败时不得再启动依赖同一故障 API 的 chrome 请求。
 const notFoundResolve = isNotFound.value ? useNotFoundPageResolve() : null
 async function prepareNotFoundPage() {
-  const resolved = await notFoundResolve!.refresh()
-  if (resolved.provider === 'core' || resolved.fallback) {
-    return
-  }
+  try {
+    const resolved = await notFoundResolve!.refresh()
+    if (resolved.provider === 'core' || resolved.fallback) {
+      return
+    }
 
-  const tasks: Array<Promise<unknown>> = [
-    refreshWebOptions({ timeout: startupTimeout }).catch(() => null),
-    themeSkin.refresh()
-  ]
-  if (hasServerSession) {
-    tasks.push(refreshAuthSession({ timeout: startupTimeout }).catch(() => null))
+    const tasks: Array<Promise<unknown>> = [
+      refreshWebOptions({ timeout: startupTimeout }).catch(() => null),
+      themeSkin.refresh()
+    ]
+    if (hasServerSession) {
+      tasks.push(refreshAuthSession({ timeout: startupTimeout }).catch(() => null))
+    }
+    await Promise.allSettled(tasks)
+  } finally {
+    // L1、运营主题变量与 L0 皮肤必须同一帧交付；否则会先露出 Host/Core 基线。
+    notFoundReady.value = true
   }
-  await Promise.race([
-    Promise.allSettled(tasks),
-    new Promise(resolve => setTimeout(resolve, startupTimeout))
-  ])
 }
 const notFoundStartup = isNotFound.value
   ? prepareNotFoundPage()
@@ -91,7 +97,7 @@ if (import.meta.server && notFoundStartup) {
     v-if="isNotFound"
     :error="nuxtError"
     :resolved-page="notFoundResolve?.data.value"
-    :resolving="notFoundResolve?.pending.value"
+    :resolving="notFoundResolve?.pending.value || !notFoundReady"
   />
   <UApp v-else>
     <SFErrorPageContent :error="nuxtError" />
