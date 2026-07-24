@@ -544,6 +544,24 @@ func (h *Controller) comments(c fiber.Ctx) error {
 	return apphttp.OK(c, list)
 }
 
+// commentPage 反查某条评论在 flat 视图分页下所属的页码与每页大小。
+// 用于帖子详情页带 #comment-{id} 锚点进入时，SSR 阶段确定应加载哪一页。
+func (h *Controller) commentPage(c fiber.Ctx) error {
+	if err := h.requireGuestRead(c); err != nil {
+		return err
+	}
+	page, perPage, err := h.service.ResolveCommentPage(c.Context(), int64(paramInt(c, "topicID")), int64(paramInt(c, "commentID")))
+	if err != nil {
+		return mapForumError(err)
+	}
+	return apphttp.OK(c, commentPageResponse{Page: page, PerPage: perPage})
+}
+
+type commentPageResponse struct {
+	Page    int `json:"page"`
+	PerPage int `json:"perPage"`
+}
+
 func (h *Controller) createComment(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {

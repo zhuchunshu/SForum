@@ -1946,3 +1946,20 @@ ApiResponseAuthorReviewList:
     code: {type: integer}
     message: {type: string}
     data: {$ref: "#/AuthorReviewList"}
+CommentPage:
+  type: object
+  description: |
+    flat 视图分页下某条评论所在的页码与每页大小。
+    用于帖子详情页 #comment-{id} 锚点跨页定位：客户端据此加载对应页。
+    仅 active 评论可解析；软删/跨主题/不存在统一 404，不泄漏状态。
+  required: [page, perPage]
+  properties:
+    page: {type: integer, minimum: 1, description: 目标评论所在页码。}
+    perPage: {type: integer, minimum: 1, maximum: 100, description: 与列表分页一致的每页大小。}
+ApiResponseCommentPage:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data: {$ref: "#/CommentPage"}

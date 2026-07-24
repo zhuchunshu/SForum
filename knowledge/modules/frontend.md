@@ -216,7 +216,10 @@ Architecture sources:
   locale-aware daily public activity groups, and right rail renders real public
   profile details, public stats, and recent topics. The same rail is reused in
   the mobile information drawer. Keep social/portfolio/gamified actions out
-  until the API owns those contracts.
+  until the API owns those contracts. Public-reply activity links use
+  `<NuxtLink :to>` (not `<a href>`) so in-app navigation preserves the
+  `#comment-{id}` hash and the topic page can resolve the page client-side;
+  same-page comment anchors elsewhere stay native `<a href="#comment-{id}">`.
 - Homepage and eligible lists SSR page 1 and continue with keyset infinite
   scroll. URL-backed filters and stale-response guards remain authoritative.
 - Topic detail ships complete topic/comments/navigation in initial SSR HTML;
@@ -232,7 +235,13 @@ Architecture sources:
   `AvatarView`; do not fork initials/URL handling.
 - Comment tree presentation has bounded indentation; mobile clears recursive
   inset. Visible floor labels are list positions while anchors remain stable
-  `#comment-<id>` targets.
+  `#comment-<id>` targets. Cross-page anchors resolve with zero flash: when
+  the URL carries `#comment-<id>` and no explicit page, `SFTopicShowPage`
+  resolves the page server-side (`resolveCommentPage` API), SSR-renders that
+  page, and lets the browser scroll natively to the target; a client-side
+  watch also scrolls on client navigations. Comment pagination uses a path
+  segment `/page/N` (old `?page=N` still resolves and is normalized
+  client-side after hydration).
 - `.sf-prose` is the shared sanitized rich-content surface. Code blocks use the
   client highlight directive plus a no-op SSR directive registration.
 - Runtime appearance owns accent and dark-mode tokens. The default theme must

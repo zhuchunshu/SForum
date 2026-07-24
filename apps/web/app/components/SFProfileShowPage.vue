@@ -534,10 +534,10 @@ async function shareProfile() {
                   <time :datetime="group.key">{{ group.dateLabel }}</time>
                 </header>
                 <div class="sf-profile-activity-day__events">
-                  <a
+                  <NuxtLink
                     v-for="activity in group.items"
                     :key="`${activity.kind}:${activity.commentId || activity.topic.id}:${activity.createdAt}`"
-                    :href="activityTo(activity)"
+                    :to="activityTo(activity)"
                     class="sf-profile-activity"
                     :class="`sf-profile-activity--${activity.kind}`"
                   >
@@ -566,7 +566,7 @@ async function shareProfile() {
                     <time class="sf-profile-activity__time" :datetime="activity.createdAt">
                       {{ activity.timeLabel || formatDateTime(activity.createdAt) }}
                     </time>
-                  </a>
+                  </NuxtLink>
                 </div>
               </section>
 

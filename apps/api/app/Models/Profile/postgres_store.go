@@ -5,12 +5,14 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
+	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 )
 
 type PostgresStore struct {
@@ -301,11 +303,19 @@ func (s *PostgresStore) ListActivityComments(ctx context.Context, userID int64, 
 	if offset < 0 {
 		offset = 0
 	}
+	// perPage 与 ResolveCommentPage / ListComments 同源，保证个人主页深链页码不漂移。
+	commentsPerPage := s.forumCommentsPerPage(ctx)
 	rows, err := s.pool.Query(ctx, `
 		SELECT comments.id, left(comment_posts.plain_text, 2000), comments.created_at,
 		  topics.id, topics.slug, topics.title, topics.status, topics.comment_count,
 		  topics.created_at, topics.updated_at, topics.last_activity_at,
-		  categories.slug, categories.name
+		  categories.slug, categories.name,
+		  (
+		    SELECT count(*) FROM comments siblings
+		    WHERE siblings.topic_id = comments.topic_id
+		      AND siblings.status = 'active'
+		      AND ROW(siblings.path_key, siblings.id) < ROW(comments.path_key, comments.id)
+		  ) AS active_before
 		FROM comments
 		JOIN posts comment_posts ON comment_posts.id = comments.content_id
 		JOIN topics ON topics.id = comments.topic_id
@@ -326,6 +336,7 @@ func (s *PostgresStore) ListActivityComments(ctx context.Context, userID int64, 
 	for rows.Next() {
 		var item ProfileCommentActivity
 		var plainPrefix string
+		var activeBefore int64
 		if err := rows.Scan(
 			&item.CommentID,
 			&plainPrefix,
@@ -340,9 +351,12 @@ func (s *PostgresStore) ListActivityComments(ctx context.Context, userID int64, 
 			&item.Topic.LastActivityAt,
 			&item.Topic.CategorySlug,
 			&item.Topic.CategoryName,
+			&activeBefore,
 		); err != nil {
 			return nil, err
 		}
+		// 与 Forum.ResolveCommentPage 一致：page = before/perPage + 1。
+		item.CommentPage = int(activeBefore)/commentsPerPage + 1
 		item.Excerpt = forum.ExcerptFromPlain(plainPrefix, forum.RecommendedExcerptRuneLimit)
 		items = append(items, item)
 	}
@@ -350,6 +364,26 @@ func (s *PostgresStore) ListActivityComments(ctx context.Context, userID int64, 
 		return nil, fmt.Errorf("iterate recent comments: %w", err)
 	}
 	return items, nil
+}
+
+// forumCommentsPerPage 读取运营配置的评论每页条数；失败或非法时回落 20（与 forum 默认一致）。
+func (s *PostgresStore) forumCommentsPerPage(ctx context.Context) int {
+	const fallback = 20
+	var raw string
+	err := s.pool.QueryRow(ctx, `
+		SELECT value FROM web_options WHERE name = $1
+	`, options.NameForumCommentsPerPage).Scan(&raw)
+	if err != nil {
+		return fallback
+	}
+	n, convErr := strconv.Atoi(strings.TrimSpace(raw))
+	if convErr != nil || n < 1 {
+		return fallback
+	}
+	if n > 100 {
+		return 100
+	}
+	return n
 }
 
 func forumCurrentRevisionSQL(postAlias string) string {

@@ -97,20 +97,54 @@ const urlTopicID = computed(() => {
 // 编辑模式：通过 ?edit=1 query 进入（避免 catch-all 嵌套子路由问题）。
 // 需登录；未登录时全局 auth 中间件会重定向到登录页。
 const isEditing = computed(() => route.query.edit !== undefined && route.query.edit !== null)
-const commentPage = computed({
-  get: () => parsePublicPage(route.query.page),
-  set: (page: number) => {
-    const query: Record<string, string> = isEditing.value ? { edit: '1' } : {}
-    void router.replace(publicPageLocation(route.path, page, query))
+
+// 评论分页页码来源（优先级递减）：
+//   1. URL 显式页码（路径段 /page/N，回退旧 query ?page=N 兼容）
+//   2. SSR 反查结果（带 #comment-{id} 锚点进入时，由后端算出目标页）
+//   3. 默认 1
+// 设计为只读 computed；翻页改走 commentPageTo（navigateTo 到新 URL），触发重新解析。
+// 这样 SSR 阶段就能确定正确页码，首屏 HTML 直接渲染目标页评论（零闪屏）。
+
+// 从 URL 解析显式页码：路径段优先（/page/N），回退 query.page（旧链接兼容）。
+// 二者均无时返回 0 表示"未显式指定"，交由 SSR 反查决定。
+const explicitCommentPage = computed(() => {
+  // 路径段：parseTopicPath 已剥离 page/N 并返回 page。
+  const fromPath = parsedPath.value?.page
+  if (fromPath && fromPath > 0) {
+    return fromPath
   }
+  // 旧 query 形式 ?page=N（规范化前的兼容入口）。
+  if (route.query.page !== undefined && route.query.page !== null) {
+    return parsePublicPage(route.query.page)
+  }
+  return 0
+})
+
+// 目标评论 id：仅识别 #comment-<正整数> 锚点，用于跨页精确定位。
+// route.hash 在 SPA 导航下可靠；但整页刷新时 SSR 拿不到 fragment（不发服务器），
+// hydration 后 route.hash 可能为空，故客户端额外读 window.location.hash 兜底。
+const clientLocationHash = ref('')
+const targetCommentId = computed(() => {
+  const sources = [route.hash, clientLocationHash.value]
+  for (const hash of sources) {
+    const match = /^#comment-(\d+)$/.exec(hash)
+    if (match) {
+      return Number(match[1])
+    }
+  }
+  return 0
 })
 
 // 默认主题只提供连续时间流；回复关系由引用块表达，不再暴露树/平铺切换。
 const commentView = ref<'flat'>('flat')
-const commentQuery = computed(() => ({
-  view: commentView.value,
-  page: commentPage.value
-}))
+
+// 整页刷新兜底：fragment 不进 SSR，hydration 后 route.hash 可能为空；
+// 客户端尽早同步 window.location.hash，让 targetCommentId 在反查声明前就拿到锚点。
+// SPA 导航下 route.hash 已可靠，这里只是补全整页刷新的首屏缺失。
+if (import.meta.client && window.location.hash) {
+  clientLocationHash.value = window.location.hash
+}
+
 function emptyCommentList(): ForumCommentList {
   return { items: [], total: 0, page: 1, perPage: 20, view: commentView.value }
 }
@@ -154,30 +188,55 @@ const topicAsync = useAsyncData(
   }
 )
 
-// 评论 key：优先 URL id（并行稳定）；slug 模式用 lookup key，resolve 后 watch 刷新。
-const commentsKeyTopic = computed(() => (urlTopicID.value > 0 ? String(urlTopicID.value) : `lookup:${topicLookupKey.value}`))
-const commentsAsync = useAsyncData(
-  () => `forum-topic-comments-${commentsKeyTopic.value}-${commentView.value}-${commentPage.value}`,
+// 评论页码反查：带 #comment-{id} 锚点且 URL 未显式指定页码时，
+// 由后端算出目标评论所在页，让 SSR 首屏直接渲染该页评论（零闪屏定位）。
+// 失败（评论不存在/软删/跨主题）静默降级 page=1，不阻断渲染、不泄漏状态。
+const commentPageResolved = useAsyncData(
+  () => `forum-topic-comment-page-${urlTopicID.value > 0 ? urlTopicID.value : topicLookupKey.value}-${targetCommentId.value}`,
   async () => {
-    if (urlTopicID.value > 0) {
-      return forumApi.listTopicComments(urlTopicID.value, commentQuery.value)
+    if (targetCommentId.value <= 0 || explicitCommentPage.value > 0) {
+      return null
     }
-    // 纯 slug：复用同页 topicAsync，避免二次详情 GET（D3）。
-    const topicResult = await topicAsync
-    const id = topicResult.data.value?.id ?? 0
+    // URL 含 id 时立即可查；纯 slug 等 topic 详情 resolve（复用 topicAsync，避免二次 GET）。
+    const id = urlTopicID.value > 0
+      ? urlTopicID.value
+      : ((await topicAsync).data.value?.id ?? 0)
     if (id <= 0) {
-      return emptyCommentList()
+      return null
     }
-    return forumApi.listTopicComments(id, commentQuery.value)
+    try {
+      return await forumApi.resolveCommentPage(id, targetCommentId.value)
+    } catch {
+      // 评论不存在/软删 → 后端 404，降级 page=1。
+      return null
+    }
   },
   {
-    default: () => emptyCommentList(),
-    // SSR 仍等待完整评论；客户端导航先提交正文，再由现有骨架承接评论加载。
-    lazy: true,
-    // 翻页/视图切换；slug 路径下 topic id 从 0→N 时也会触发。
-    watch: [() => topicAsync.data.value?.id ?? 0, commentQuery]
+    default: () => null,
+    // 纯 slug 路径下 topic id 从 0→N 时重查；显式页码/锚点变化也重查。
+    watch: [() => topicAsync.data.value?.id ?? 0, targetCommentId, explicitCommentPage]
   }
 )
+
+// 最终生效页码：URL 显式（路径段 /page/N 或旧 query ?page=N）> 反查 > 默认 1。
+const commentPage = computed(() => {
+  if (explicitCommentPage.value > 0) {
+    return explicitCommentPage.value
+  }
+  const resolved = commentPageResolved.data.value?.page
+  if (resolved && resolved > 0) {
+    return resolved
+  }
+  return 1
+})
+
+const commentQuery = computed(() => ({
+  view: commentView.value,
+  page: commentPage.value
+}))
+
+// 评论 key：优先 URL id（并行稳定）；slug 模式用 lookup key，resolve 后 watch 刷新。
+const commentsKeyTopic = computed(() => (urlTopicID.value > 0 ? String(urlTopicID.value) : `lookup:${topicLookupKey.value}`))
 
 // 左栏分类导航（route 模式）：与首页共用 SFHomeNavigation，仅展示 API 目录数据。
 const categoryGroupsAsync = useAsyncData(
@@ -191,6 +250,34 @@ const categoryGroupsAsync = useAsyncData(
 
 // 初始 SSR 保持正文、评论和导航完整；客户端切页只让正文阻塞导航提交。
 const topicResult = await topicAsync
+// 反查必须先于评论列表 resolve：commentPage 依赖反查结果，commentsAsync 又依赖 commentPage。
+// SSR 和客户端导航都要等反查完成，否则评论列表会先用 page=1 发请求（闪屏/定位失败的根因）。
+await commentPageResolved
+
+// 评论列表：声明在反查之后，确保 commentPage 已是最终值（显式页码或反查结果）。
+// 带目标评论锚点时 SSR 必须等评论到位（零闪屏定位）；否则 lazy 不阻塞首屏。
+const commentsAsync = useAsyncData(
+  () => `forum-topic-comments-${commentsKeyTopic.value}-${commentView.value}-${commentPage.value}`,
+  async () => {
+    if (urlTopicID.value > 0) {
+      return forumApi.listTopicComments(urlTopicID.value, commentQuery.value)
+    }
+    // 纯 slug：复用同页 topicAsync，避免二次详情 GET（D3）。
+    const resolvedTopic = await topicAsync
+    const id = resolvedTopic.data.value?.id ?? 0
+    if (id <= 0) {
+      return emptyCommentList()
+    }
+    return forumApi.listTopicComments(id, commentQuery.value)
+  },
+  {
+    default: () => emptyCommentList(),
+    lazy: targetCommentId.value === 0,
+    // 翻页/视图切换；slug 路径下 topic id 从 0→N 时也会触发。
+    watch: [() => topicAsync.data.value?.id ?? 0, commentQuery]
+  }
+)
+
 if (import.meta.server) {
   await Promise.all([commentsAsync, categoryGroupsAsync])
 }
@@ -211,28 +298,58 @@ function closeMobileDrawers() {
   mobileInfoOpen.value = false
 }
 
-// 规范化：URL 形态/slug 与当前 mode 下的规范路径不符时，301（SSR）/ replace（客户端）。
-// 触发场景：模式切换后的旧 URL、slug 变更后的旧 slug、id 模式下多余的 slug 段。
-// 编辑态（?edit=1）时保留 query，避免规范化时丢失编辑意图。
+// 规范化分两类，分开处理避免破坏 SSR 零闪屏：
+// 1. slug/mode 不匹配（真旧链接）：SSR 301 / 客户端 replace，定位键变了必须重定向。
+// 2. page 段缺失或旧 query ?page=N：数据已对（反查已算出页码），仅客户端 replace URL，
+//    绝不在 SSR 301——否则反查渲染的目标页会被重定向打回，回到闪屏。
 watchEffect(() => {
   if (!topic.value || !canNormalizeTopicURL) {
     return
   }
-  const targetPath = localePath(forumTopicPath(topic.value, topicUrlMode.value))
-  if (targetPath !== route.path) {
+  // 1. slug/mode 规范化：比较不含 page 的基础路径。
+  const basePath = localePath(forumTopicPath(topic.value, topicUrlMode.value))
+  const routeBase = route.path.replace(/\/page\/\d+$/, '')
+  if (basePath !== routeBase) {
     const query: Record<string, string> = isEditing.value ? { edit: '1' } : {}
-    const target = publicPageLocation(targetPath, commentPage.value, query)
+    const target = Object.keys(query).length > 0
+      ? { path: basePath, query }
+      : basePath
     if (import.meta.server) {
       navigateTo(target, { redirectCode: 301 })
     } else {
       navigateTo(target, { replace: true })
     }
+    return
+  }
+  // 2. page 段规范化：仅客户端 replace（补 /page/N 或迁移旧 query ?page=N）。
+  //    SSR 不处理——首屏 HTML 已含正确页评论，URL 在 hydration 后静默修正。
+  if (import.meta.client) {
+    const targetPath = localePath(forumTopicPath(topic.value, topicUrlMode.value, commentPage.value))
+    const hasOldQueryPage = route.query.page !== undefined && route.query.page !== null
+    if (targetPath !== route.path || hasOldQueryPage) {
+      const query: Record<string, string> = isEditing.value ? { edit: '1' } : {}
+      const target = Object.keys(query).length > 0
+        ? { path: targetPath, query, hash: route.hash }
+        : { path: targetPath, hash: route.hash }
+      navigateTo(target, { replace: true })
+    }
   }
 })
 
-// canonical 用当前 mode 的规范路径（与上面的规范化目标一致）。
-const canonicalTopicPath = computed(() => topic.value ? forumTopicPath(topic.value, topicUrlMode.value) : route.path)
-const canonicalPath = computed(() => publicPagePath(canonicalTopicPath.value, commentPage.value))
+// 锚点滚动：SSR 首屏含目标评论时浏览器原生定位已够；
+// 客户端导航（从列表点进带 hash 的帖子）或翻页后需兜底滚动到 #comment-{id}。
+watch(() => commentData.value, async () => {
+  if (import.meta.server || targetCommentId.value <= 0) {
+    return
+  }
+  await nextTick()
+  document.getElementById(`comment-${targetCommentId.value}`)
+    ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}, { flush: 'post' })
+
+// canonical 用当前 mode 的规范路径（含页码段，与规范化目标一致）。
+const canonicalTopicPath = computed(() => topic.value ? forumTopicPath(topic.value, topicUrlMode.value, commentPage.value) : route.path)
+const canonicalPath = computed(() => canonicalTopicPath.value)
 
 useSForumSeo(computed(() => ({
   type: 'topic',
@@ -269,7 +386,11 @@ function cancelEditing() {
   navigateTo({ path: route.path, query: { ...route.query, edit: undefined } })
 }
 
-function commentPageTo(page: number) { return publicPageLocation(localePath(canonicalTopicPath.value), page) }
+// 翻页目标：路径式 /page/N（page=1 省略），navigateTo 后触发 commentPage 重新解析。
+function commentPageTo(page: number) {
+  const base = topic.value ? forumTopicPath(topic.value, topicUrlMode.value, page) : route.path
+  return localePath(base)
+}
 
 // 已加载主题 id（动作/回复路径）；列表拉取优先 urlTopicID 以支持并行。
 const loadedTopicID = computed(() => topic.value?.id ?? topicID.value)

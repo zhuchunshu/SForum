@@ -154,14 +154,7 @@ func (s *Service) ListPublicActivities(ctx context.Context, input ListActivities
 		}
 		items = make([]ProfileActivity, 0, len(comments))
 		for _, comment := range comments {
-			commentID := comment.CommentID
-			items = append(items, ProfileActivity{
-				Kind:      ActivityKindComment,
-				Topic:     comment.Topic,
-				CommentID: &commentID,
-				Excerpt:   comment.Excerpt,
-				CreatedAt: comment.CreatedAt,
-			})
+			items = append(items, commentActivity(comment))
 		}
 	}
 	return ActivityPage{
@@ -212,14 +205,7 @@ func (s *Service) listActivities(ctx context.Context, userID int64, limit int) (
 		})
 	}
 	for _, comment := range comments {
-		commentID := comment.CommentID
-		items = append(items, ProfileActivity{
-			Kind:      ActivityKindComment,
-			Topic:     comment.Topic,
-			CommentID: &commentID,
-			Excerpt:   comment.Excerpt,
-			CreatedAt: comment.CreatedAt,
-		})
+		items = append(items, commentActivity(comment))
 	}
 	sort.SliceStable(items, func(i, j int) bool {
 		if items[i].CreatedAt.Equal(items[j].CreatedAt) {
@@ -245,6 +231,23 @@ func activityTopicFromSummary(topic forum.TopicSummary) ProfileActivityTopic {
 		CreatedAt:      topic.CreatedAt,
 		UpdatedAt:      topic.UpdatedAt,
 		LastActivityAt: topic.LastActivityAt,
+	}
+}
+
+// commentActivity 把 store 层回复活动转为公开时间线条目，附带主题评论分页页码供深链。
+func commentActivity(comment ProfileCommentActivity) ProfileActivity {
+	commentID := comment.CommentID
+	page := comment.CommentPage
+	if page <= 0 {
+		page = 1
+	}
+	return ProfileActivity{
+		Kind:        ActivityKindComment,
+		Topic:       comment.Topic,
+		CommentID:   &commentID,
+		CommentPage: &page,
+		Excerpt:     comment.Excerpt,
+		CreatedAt:   comment.CreatedAt,
 	}
 }
 

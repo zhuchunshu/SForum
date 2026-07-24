@@ -393,6 +393,46 @@ func TestControllerPassesTreeAndFlatCommentViews(t *testing.T) {
 	}
 }
 
+// TestControllerCommentPageResolve 验证评论页码反查接口的公开可访问性与响应结构。
+func TestControllerCommentPageResolve(t *testing.T) {
+	app, _, store := newForumTestApp()
+
+	// 默认 before=0 → page 1（mock GetCommentSummary 返回 topic 10 / active / id 20）。
+	resp := performForumRequest(t, app, nethttp.MethodGet, "/api/v1/topics/10/comments/20/page", nil, nil)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200 for comment page resolve, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	var body forumTestEnvelope[struct {
+		Page    int `json:"page"`
+		PerPage int `json:"perPage"`
+	}]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode comment page response: %v", err)
+	}
+	if body.Data.Page != 1 || body.Data.PerPage != 20 {
+		t.Fatalf("expected page=1 perPage=20, got page=%d perPage=%d", body.Data.Page, body.Data.PerPage)
+	}
+
+	// 跨页：before=20 → page 2。
+	store.countCommentsBefore = 20
+	resp2 := performForumRequest(t, app, nethttp.MethodGet, "/api/v1/topics/10/comments/20/page", nil, nil)
+	if resp2.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200 for cross-page resolve, got %d", resp2.StatusCode)
+	}
+	defer resp2.Body.Close()
+	var body2 forumTestEnvelope[struct {
+		Page    int `json:"page"`
+		PerPage int `json:"perPage"`
+	}]
+	if err := json.NewDecoder(resp2.Body).Decode(&body2); err != nil {
+		t.Fatalf("decode comment page response: %v", err)
+	}
+	if body2.Data.Page != 2 {
+		t.Fatalf("expected page=2 when 20 comments before, got %d", body2.Data.Page)
+	}
+}
+
 func TestControllerRevisionHistoryPermissionsAndPayloads(t *testing.T) {
 	app, _, store := newForumTestApp()
 
@@ -646,6 +686,8 @@ type controllerForumStore struct {
 	actionTopic          forum.TopicSummary
 	lastCommentView      string
 	lastTopicList        forum.TopicListInput
+	// countCommentsBefore 可注入 ResolveCommentPage 的"排在前面的评论数"，模拟跨页定位。
+	countCommentsBefore  int64
 	settingsReset        bool
 	updatedSettings      forum.UpdateForumSettingsInput
 	guestRead            string
@@ -822,6 +864,10 @@ func (s *controllerForumStore) CreateComment(_ context.Context, input forum.Crea
 
 func (s *controllerForumStore) GetCommentSummary(context.Context, int64) (forum.CommentSummary, error) {
 	return forum.CommentSummary{ID: 20, TopicID: 10, AuthorUserID: 1, Status: forum.CommentStatusActive, CurrentRevision: 1}, nil
+}
+
+func (s *controllerForumStore) CountActiveCommentsBefore(context.Context, int64, string, int64) (int64, error) {
+	return s.countCommentsBefore, nil
 }
 
 func (s *controllerForumStore) UpdateComment(_ context.Context, input forum.UpdateCommentRecord) (forum.Comment, error) {

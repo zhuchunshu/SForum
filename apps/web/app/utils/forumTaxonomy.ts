@@ -321,6 +321,13 @@ export type ForumCommentListQuery = {
   after?: string
 }
 
+// 评论页码反查结果：commentID 在 flat 视图分页下所属的页码与每页大小。
+// 供帖子详情页带 #comment-{id} 锚点进入时 SSR 阶段确定加载哪一页。
+export type ForumCommentPage = {
+  page: number
+  perPage: number
+}
+
 // 主题生命周期动作枚举，与后端 TopicAction 常量保持一致。
 export const FORUM_TOPIC_ACTIONS = {
   hide: 'hide',
@@ -603,18 +610,29 @@ export function previewTopicSlug(title: string): string {
   return slug || 'topic'
 }
 
+// 评论分页路径段前缀：/t/<topic>/page/N。N>1 时追加，N=1 省略（canonical 同首页）。
+// 设计为固定两段（"page", 数字），便于 parseTopicPath 末尾剥离后做定位解析。
+const TOPIC_PAGE_SEGMENT = 'page'
+
 export function forumTopicPath(
   topic: Pick<ForumTopicSummary, 'id' | 'slug'>,
-  mode: TopicUrlMode = 'id_slug'
+  mode: TopicUrlMode = 'id_slug',
+  page: number = 1
 ) {
+  let base: string
   switch (mode) {
     case 'id':
-      return `/t/${topic.id}`
+      base = `/t/${topic.id}`
+      break
     case 'slug':
-      return `/t/${encodeURIComponent(topic.slug)}`
+      base = `/t/${encodeURIComponent(topic.slug)}`
+      break
     default:
-      return `/t/${topic.id}/${encodeURIComponent(topic.slug)}`
+      base = `/t/${topic.id}/${encodeURIComponent(topic.slug)}`
+      break
   }
+  // page<=1 不追加段，保持与旧链接同形（canonical 不产生重复页）。
+  return Number.isInteger(page) && page > 1 ? `${base}/${TOPIC_PAGE_SEGMENT}/${page}` : base
 }
 
 /** 高级回复独立页路径；parentId 可选，表示回复某条评论。 */
@@ -634,38 +652,58 @@ export function advancedReplyDraftStorageKey(topicId: number) {
 // parseTopicPath 解析 catch-all 详情页路由参数为帖子定位键。
 // 返回值：id 模式下为 { topicId }；slug 模式下为 { slug }；
 // id_slug 模式下为 { topicId, slug }。无法识别时返回 null（调用方应 404）。
+// 若末尾存在 page/<正整数> 分页段，一并解析为 page（默认 1），不参与定位。
 export function parseTopicPath(
   segments: string[] | readonly string[] | undefined,
   mode: TopicUrlMode = 'id_slug'
-): { topicId?: number, slug?: string } | null {
-  const parts = (segments ? [...segments] : []).filter((s) => s !== '')
-  if (parts.length === 0) {
+): { topicId?: number, slug?: string, page: number } | null {
+  const { core, page } = splitTopicPageSegment(segments)
+  if (core.length === 0) {
     return null
   }
-  const first = parts[0]!
+  const first = core[0]!
   if (mode === 'id') {
     const topicId = Number(first)
-    return Number.isInteger(topicId) && topicId > 0 ? { topicId } : null
+    return Number.isInteger(topicId) && topicId > 0 ? { topicId, page } : null
   }
   if (mode === 'slug') {
-    return { slug: decodeURIComponent(first) }
+    return { slug: decodeURIComponent(first), page }
   }
   // id_slug：期望 [id, slug]
   const topicId = Number(first)
   if (!Number.isInteger(topicId) || topicId <= 0) {
     return null
   }
-  const rest = parts.slice(1).join('/')
-  return { topicId, slug: rest ? decodeURIComponent(rest) : '' }
+  const rest = core.slice(1).join('/')
+  return { topicId, slug: rest ? decodeURIComponent(rest) : '', page }
+}
+
+// splitTopicPageSegment 把 catch-all 段拆为 { 定位核心, 分页页码 }。
+// 仅识别末尾固定的 page/<正整数> 两段；非法形态（如 page/abc、page/0）视为普通段，
+// 交回定位解析处理（通常自然 404），避免吞掉用户误输入的 slug。
+export function splitTopicPageSegment(segments: string[] | readonly string[] | undefined): { core: string[], page: number } {
+  const parts = (segments ? [...segments] : []).filter((s) => s !== '')
+  if (parts.length >= 2) {
+    const len = parts.length
+    if (parts[len - 2] === TOPIC_PAGE_SEGMENT) {
+      const n = parsePositiveInteger(parts[len - 1]!)
+      if (n > 0) {
+        return { core: parts.slice(0, -2), page: n }
+      }
+    }
+  }
+  return { core: parts, page: 1 }
 }
 
 // 为详情页生成有序查询候选。当前 URL 模式的规范形态优先，同时兼容切换模式前
 // 留下的 id、id+slug、slug 三种旧链接，再由详情页统一跳转到当前 canonical。
+// 注意：page/<N> 分页段已先剥离，不参与定位（page 不是 slug/id 候选）。
 export function topicPathLookupCandidates(
   segments: string[] | readonly string[] | undefined,
   mode: TopicUrlMode = 'id_slug'
 ): TopicPathLookup[] {
-  const parts = (segments ? [...segments] : []).filter((s) => s !== '')
+  // 先剥离末尾分页段，避免 /t/26/page/2 在 id 模式下把 "page" 当 slug。
+  const parts = splitTopicPageSegment(segments).core
   if (parts.length === 0) {
     return []
   }

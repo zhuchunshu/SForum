@@ -154,11 +154,7 @@ func (s *Service) ListComments(ctx context.Context, input CommentListInput) (Com
 	if err != nil {
 		return CommentList{}, err
 	}
-	defaultPerPage := 20
-	if input.PerPage <= 0 {
-		defaultPerPage = settings.CommentsPerPage
-	}
-	input.Page, input.PerPage = normalizePageWithDefault(input.Page, input.PerPage, defaultPerPage)
+	input.Page, input.PerPage = resolveCommentPagination(input.Page, input.PerPage, settings.CommentsPerPage)
 	// M5：非空 after 优先于 page（flat keyset）。
 	input.After = strings.TrimSpace(input.After)
 	// D2：tree 子孙 cap 由运营选项控制；未配置时 store 仍回落推荐默认 50。
@@ -175,6 +171,53 @@ func (s *Service) ListComments(ctx context.Context, input CommentListInput) (Com
 	// softDeleteVisibility：列表默认只含 active；若有墓碑行再按策略过滤。
 	list.Items = filterSoftDeletedComments(list.Items, settings.SoftDeleteVisibility, input.Viewer)
 	return s.decorateCommentExtensionActions(ctx, list), nil
+}
+
+// resolveCommentPagination 归一化评论分页参数，与 ListComments 的决策保持一致：
+// perPage<=0 时回落到运营配置 commentsPerPage，否则沿用调用方传入值（clamp 1-100）。
+// ResolveCommentPage 必须复用本函数，否则反查页码会与实际分页错位。
+func resolveCommentPagination(page, perPage, settingsCommentsPerPage int) (int, int) {
+	defaultPerPage := 20
+	if perPage <= 0 {
+		defaultPerPage = settingsCommentsPerPage
+	}
+	return normalizePageWithDefault(page, perPage, defaultPerPage)
+}
+
+// ResolveCommentPage 返回 commentID 在 flat 视图分页下所属的页码与每页大小。
+// 用于帖子详情页带 #comment-{id} 锚点进入时，反查应加载哪一页评论。
+// 仅处理 active 评论（公开定位语义）：目标评论非 active 或不属于该主题返回 ErrCommentNotFound。
+func (s *Service) ResolveCommentPage(ctx context.Context, topicID int64, commentID int64) (page int, perPage int, err error) {
+	// 可见性兜底：与 ListComments 一致，隐藏/删除主题直接 NotFound。
+	if _, err := s.store.GetTopic(ctx, topicID); err != nil {
+		return 0, 0, err
+	}
+	summary, err := s.store.GetCommentSummary(ctx, commentID)
+	if err != nil {
+		return 0, 0, err
+	}
+	// 防止跨主题猜测：commentID 必须属于 topicID。
+	if summary.TopicID != topicID {
+		return 0, 0, ErrCommentNotFound
+	}
+	// 公开定位只针对 active 评论；软删/其它状态对匿名不可见，统一 NotFound 不泄漏状态。
+	if summary.Status != CommentStatusActive {
+		return 0, 0, ErrCommentNotFound
+	}
+	settings, err := s.resolvedSettings(ctx)
+	if err != nil {
+		return 0, 0, err
+	}
+	// perPage 归一化与 ListComments 同源，保证页码边界一致。
+	_, perPage = resolveCommentPagination(1, 0, settings.CommentsPerPage)
+	// 排在目标之前的 active 评论数；flat 排序为 path_key ASC, id ASC。
+	before, err := s.store.CountActiveCommentsBefore(ctx, topicID, summary.PathKey, summary.ID)
+	if err != nil {
+		return 0, 0, err
+	}
+	// 第 before 条评论位于第 before/perPage + 1 页（before 从 0 计）。
+	page = int(before/int64(perPage)) + 1
+	return page, perPage, nil
 }
 
 // applyCommentEditMarks 只决定是否暴露存储层基于 post_revisions 得出的事实。

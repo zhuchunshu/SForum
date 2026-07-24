@@ -551,4 +551,4 @@ onMounted(() => {
   </main>
 </template>
 
-<style src="~/assets/css/sforum-settings.css"></style>
+<style src="~/assets/css/sforum-settings.css" lang="css"></style>

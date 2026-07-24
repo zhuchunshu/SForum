@@ -46,6 +46,10 @@ type Store interface {
 	DeleteComment(ctx context.Context, commentID int64) (Comment, error)
 	ListComments(ctx context.Context, input CommentListInput) (CommentList, error)
 	ListCommentReplies(ctx context.Context, input CommentReplyListInput) ([]Comment, error)
+	// CountActiveCommentsBefore 返回同主题内、flat 视图排序（path_key ASC, id ASC）下
+	// 排在 (pathKey, id) 之前的 active 评论数，用于反查某条评论所在的分页页码。
+	// 必须与 listCommentsFlat 的 ORDER BY / 公开可见范围严格对齐。
+	CountActiveCommentsBefore(ctx context.Context, topicID int64, pathKey string, id int64) (int64, error)
 	// 作者发帖/评论节奏统计：冷却与每日上限。无记录时 ok=false。
 	LatestAuthorTopicCreatedAt(ctx context.Context, authorUserID int64) (time.Time, bool, error)
 	CountAuthorTopicsSince(ctx context.Context, authorUserID int64, since time.Time) (int64, error)

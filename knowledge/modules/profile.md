@@ -27,6 +27,11 @@ Member public profiles and current-user profile settings.
   public-visible topic/comment counts, 5 recent public topics, and a bounded
   public activity timeline. Counts and timeline rows only include active
   public topics and active comments in public active/locked topics.
+- `GET /api/v1/profiles/{username}/activities?kind=topic|comment&page&perPage`
+  paginated public activities. Comment items include `commentId` and
+  `commentPage` (flat-view page, same formula as
+  `GET /topics/{id}/comments/{commentId}/page`) so clients can build
+  `/t/.../page/N#comment-{id}` deep links.
 - `GET /api/v1/profile` current user's editable profile (login required).
 - `PUT /api/v1/profile` update current user's profile (login required,
   current-user only). Validates length limits and website URL shape
@@ -53,8 +58,10 @@ editor in V1.
   details, real statistics, recent topics, and extension links. On mobile the
   left navigation and this right rail use the default-theme shared drawers.
 - Public activity links use existing legal forum routes:
-  `/t/{topicId}/{slug}` for topics and `/t/{topicId}/{slug}#comment-{id}` for
-  replies when the current topic route exposes stable comment anchors.
+  `/t/{topicId}/{slug}` for topics and
+  `/t/{topicId}/{slug}/page/N#comment-{id}` for replies (`/page/N` omitted when
+  N=1). Page is pre-baked from API `commentPage` because URL fragments are not
+  sent to the server; hash-only links always SSR page 1.
 - The edit-profile entry on `/u/{username}` is self-only UI backed by the
   existing login-required current-user profile API; hiding the button is not a
   permission boundary.

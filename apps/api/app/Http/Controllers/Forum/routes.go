@@ -40,6 +40,8 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Post("/topics/:topicID/pin", h.pinTopic)
 	api.Post("/topics/:topicID/unpin", h.unpinTopic)
 	api.Get("/topics/:topicID/comments", h.comments)
+	// 反查评论所在分页页码：供帖子详情页 #comment-{id} 锚点跨页定位（flat 视图）。
+	api.Get("/topics/:topicID/comments/:commentID/page", h.commentPage)
 	if idem != nil {
 		api.Post("/topics/:topicID/comments", idem, h.createComment)
 	} else {

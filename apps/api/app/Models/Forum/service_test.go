@@ -1845,6 +1845,10 @@ type serviceFakeStore struct {
 	listCommentsResult CommentList
 	listCommentsInput  CommentListInput
 	listCommentsCalled bool
+	// CountActiveCommentsBefore 可配置返回值，供 ResolveCommentPage 反查页码测试断言。
+	countCommentsBefore      int64
+	countCommentsBeforeErr   error
+	countCommentsBeforeCalled bool
 	listTopicsInput    TopicListInput
 	listTopicsResult   TopicList
 	// ListCommentReplies 可配置返回值与调用记录，供回复可见性兜底测试断言。
@@ -2121,6 +2125,11 @@ func (s *serviceFakeStore) CountAuthorCommentsSince(context.Context, int64, time
 
 func (s *serviceFakeStore) GetCommentSummary(context.Context, int64) (CommentSummary, error) {
 	return s.commentSummary, s.commentSummaryErr
+}
+
+func (s *serviceFakeStore) CountActiveCommentsBefore(context.Context, int64, string, int64) (int64, error) {
+	s.countCommentsBeforeCalled = true
+	return s.countCommentsBefore, s.countCommentsBeforeErr
 }
 
 func (s *serviceFakeStore) UpdateComment(_ context.Context, input UpdateCommentRecord) (Comment, error) {
@@ -2676,4 +2685,94 @@ func TestServiceListCommentRepliesAllowsVisibleTopic(t *testing.T) {
 	if len(items) != 2 {
 		t.Fatalf("unexpected items: %+v", items)
 	}
+}
+
+// TestServiceResolveCommentPage 按 flat 排序下排在前面的 active 评论数计算页码。
+// perPage 默认 20；边界：0 条在前 → page 1，刚好 20 条 → page 2（第 21 条评论在第二页）。
+func TestServiceResolveCommentPage(t *testing.T) {
+	cases := []struct {
+		name        string
+		before      int64
+		wantPage    int
+		wantPerPage int
+	}{
+		{"第一条评论在第一页", 0, 1, 20},
+		{"第20条评论仍在第一页", 19, 1, 20},
+		{"第21条评论在第二页", 20, 2, 20},
+		{"第40条评论仍在第二页", 39, 2, 20},
+		{"第41条评论在第三页", 40, 3, 20},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			store := newServiceFakeStore()
+			store.commentSummary = CommentSummary{ID: 99, TopicID: 10, Status: CommentStatusActive, PathKey: "000000000099"}
+			store.countCommentsBefore = tc.before
+			service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+
+			page, perPage, err := service.ResolveCommentPage(context.Background(), 10, 99)
+			if err != nil {
+				t.Fatalf("ResolveCommentPage returned error: %v", err)
+			}
+			if page != tc.wantPage {
+				t.Fatalf("page = %d, want %d (before=%d)", page, tc.wantPage, tc.before)
+			}
+			if perPage != tc.wantPerPage {
+				t.Fatalf("perPage = %d, want %d", perPage, tc.wantPerPage)
+			}
+			if !store.countCommentsBeforeCalled {
+				t.Fatal("expected store.CountActiveCommentsBefore to be called")
+			}
+		})
+	}
+}
+
+// TestServiceResolveCommentPageRejectsInvalidTarget 目标评论跨主题/非 active/主题隐藏均返回 ErrCommentNotFound，
+// 且不泄漏软删状态。
+func TestServiceResolveCommentPageRejectsInvalidTarget(t *testing.T) {
+	t.Run("跨主题评论返回NotFound", func(t *testing.T) {
+		store := newServiceFakeStore()
+		store.commentSummary = CommentSummary{ID: 99, TopicID: 77, Status: CommentStatusActive}
+		service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+
+		_, _, err := service.ResolveCommentPage(context.Background(), 10, 99)
+		if !errors.Is(err, ErrCommentNotFound) {
+			t.Fatalf("expected ErrCommentNotFound for cross-topic comment, got %v", err)
+		}
+		if store.countCommentsBeforeCalled {
+			t.Fatal("must not count before rejecting cross-topic comment")
+		}
+	})
+	t.Run("软删评论返回NotFound不泄漏状态", func(t *testing.T) {
+		store := newServiceFakeStore()
+		store.commentSummary = CommentSummary{ID: 99, TopicID: 10, Status: CommentStatusDeleted}
+		service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+
+		_, _, err := service.ResolveCommentPage(context.Background(), 10, 99)
+		if !errors.Is(err, ErrCommentNotFound) {
+			t.Fatalf("expected ErrCommentNotFound for soft-deleted comment, got %v", err)
+		}
+		if store.countCommentsBeforeCalled {
+			t.Fatal("must not count before rejecting non-active comment")
+		}
+	})
+	t.Run("隐藏主题透传NotFound", func(t *testing.T) {
+		store := newServiceFakeStore()
+		store.getTopicErr = ErrTopicNotFound
+		service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+
+		_, _, err := service.ResolveCommentPage(context.Background(), 10, 99)
+		if !errors.Is(err, ErrTopicNotFound) {
+			t.Fatalf("expected ErrTopicNotFound for hidden topic, got %v", err)
+		}
+	})
+	t.Run("评论不存在透传NotFound", func(t *testing.T) {
+		store := newServiceFakeStore()
+		store.commentSummaryErr = ErrCommentNotFound
+		service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+
+		_, _, err := service.ResolveCommentPage(context.Background(), 10, 999)
+		if !errors.Is(err, ErrCommentNotFound) {
+			t.Fatalf("expected ErrCommentNotFound for missing comment, got %v", err)
+		}
+	})
 }

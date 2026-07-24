@@ -9,6 +9,7 @@ import {
   type ForumCommentExtensionAction,
   type ForumCommentList,
   type ForumCommentListQuery,
+  type ForumCommentPage,
   type ForumContentInput,
   type ForumTag,
   type ForumTopicAction,
@@ -65,6 +66,15 @@ export function useForumApi() {
   function listTopicComments(topicId: number, query: ForumCommentListQuery = {}) {
     return request<ForumCommentList>(
       pathWithQuery(`/topics/${topicId}/comments`, buildForumCommentQuery(query)),
+      serverReadOptions
+    )
+  }
+
+  // 反查 commentId 在 flat 视图分页下所属的页码；SSR 阶段调用以零闪屏定位 #comment-{id}。
+  // 评论不存在/软删/跨主题统一 404，调用方捕获后降级到 page=1。
+  function resolveCommentPage(topicId: number, commentId: number) {
+    return request<ForumCommentPage>(
+      `/topics/${topicId}/comments/${commentId}/page`,
       serverReadOptions
     )
   }
@@ -180,6 +190,7 @@ export function useForumApi() {
     getTopic,
     getTopicBySlug,
     listTopicComments,
+    resolveCommentPage,
     createTopicComment,
     updateComment,
     deleteComment,

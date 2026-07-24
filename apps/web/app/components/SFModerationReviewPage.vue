@@ -646,4 +646,4 @@ function isItemActive(item: QueueRecord) {
   </main>
 </template>
 
-<style src="~/assets/css/sforum-moderation.css"></style>
+<style src="~/assets/css/sforum-moderation.css" lang="css"></style>

@@ -1170,6 +1170,29 @@ topicComments:
         "$ref": "../components/responses.yaml#/Conflict"
       '422':
         "$ref": "../components/responses.yaml#/UnprocessableEntity"
+topicCommentPage:
+  get:
+    summary: Resolve the comment page for an anchor link
+    operationId: resolveTopicCommentPage
+    description: |
+      返回 commentID 在 flat 视图分页下所属的页码与每页大小。
+      供帖子详情页带 #comment-{id} 锚点进入时，SSR 阶段确定应加载哪一页，
+      实现跨页评论精确定位（零闪屏：首屏 HTML 直接渲染目标页）。
+
+      仅 active 评论可解析。软删/非 active、不属于该 topic、或主题隐藏/删除时
+      统一返回 404，不泄漏评论存在性与状态。
+    parameters:
+    - "$ref": "../components/parameters.yaml#/TopicID"
+    - "$ref": "../components/parameters.yaml#/CommentID"
+    responses:
+      '200':
+        description: 目标评论所在的分页页码与每页大小。
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseCommentPage"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
 commentReplies:
   get:
     summary: List direct replies for a comment

@@ -45,6 +45,8 @@ export type ProfileActivity = {
   kind: 'topic' | 'comment'
   topic: ProfileActivityTopic
   commentId?: number | null
+  /** 回复在主题 flat 分页中的页码；用于 /page/N#comment-{id} 深链。 */
+  commentPage?: number | null
   excerpt: string
   createdAt: string
 }

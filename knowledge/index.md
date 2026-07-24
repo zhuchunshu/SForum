@@ -63,8 +63,12 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- `/moderation` host chrome sidebar tokens aligned with default-theme hybrid
-  (compose 40px, sidebar/right padding, left active bar, edge-inset):
+- Profile Replies tab deep links now include `/page/N#comment-{id}` via API
+  `commentPage` (SSR cannot see URL hash alone):
+  `sessions/2026-07-24-profile-reply-comment-page-links.md`
+- Comment cross-page anchor SSR resolve (topic page) + path-style `/page/N`:
+  `sessions/2026-07-24-comment-cross-page-anchor-handoff.md`
+- `/moderation` host chrome sidebar tokens aligned with default-theme hybrid:
   `sessions/2026-07-24-moderation-sidebar-token-parity-handoff.md`
 
 ## Recently Completed

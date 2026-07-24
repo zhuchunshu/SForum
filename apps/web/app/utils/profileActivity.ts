@@ -100,7 +100,11 @@ function formatTimeLabel(value: Date, settings: SiteDateTimeSettings, locale: st
 }
 
 export function profileActivityLink(activity: ProfileActivity, topicUrlMode: TopicUrlMode): string {
-  const base = forumTopicPath({ id: activity.topic.id, slug: activity.topic.slug }, topicUrlMode)
+  // 回复深链必须带 /page/N：URL fragment 不会发给服务器，仅 #comment-id 时 SSR 无法定位跨页评论。
+  const page = activity.kind === 'comment' && activity.commentPage && activity.commentPage > 1
+    ? activity.commentPage
+    : 1
+  const base = forumTopicPath({ id: activity.topic.id, slug: activity.topic.slug }, topicUrlMode, page)
   if (activity.kind === 'comment' && activity.commentId && activity.commentId > 0) {
     return `${base}#comment-${activity.commentId}`
   }

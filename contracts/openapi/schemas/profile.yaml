@@ -126,6 +126,16 @@ ProfileActivity:
       - 'null'
       format: int64
       description: Present for comment activity and links to the topic comment anchor.
+    commentPage:
+      type:
+      - integer
+      - 'null'
+      format: int32
+      minimum: 1
+      description: >
+        Flat-view page number for the comment within its topic (1-based). Present
+        for comment activity so clients can build /page/N#comment-{id} deep links
+        without relying on hash-only SSR resolve (fragments are not sent to the server).
     excerpt:
       type: string
     createdAt:

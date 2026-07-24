@@ -43,6 +43,25 @@ describe('profile activity presentation', () => {
       excerpt: 'Reply body',
       createdAt: '2026-07-22T10:00:00.000Z'
     }, 'id_slug')).toBe('/t/42/hello-world#comment-99')
+
+    // 跨页评论必须预置 /page/N，否则新标签页/整页刷新 SSR 拿不到 hash，会停在第 1 页。
+    expect(profileActivityLink({
+      kind: 'comment',
+      topic,
+      commentId: 21,
+      commentPage: 2,
+      excerpt: 'Page two reply',
+      createdAt: '2026-07-22T11:00:00.000Z'
+    }, 'id_slug')).toBe('/t/42/hello-world/page/2#comment-21')
+
+    expect(profileActivityLink({
+      kind: 'comment',
+      topic,
+      commentId: 5,
+      commentPage: 1,
+      excerpt: 'First page',
+      createdAt: '2026-07-22T11:30:00.000Z'
+    }, 'id')).toBe('/t/42#comment-5')
   })
 
   test('groups activities by site timezone date with today and yesterday labels', () => {

@@ -165,6 +165,19 @@ The catch-all topic route recognizes old shapes and redirects to the canonical
 path. Only a 404 advances to the next lookup candidate; network/API failures
 are not swallowed.
 
+Comment pagination uses a path segment `/page/N` (N>1 appended, N=1 omitted) so
+`forumTopicPath(topic, mode, page)` and `parseTopicPath` share one parser. Old
+`?page=N` query links still resolve and are normalized to the path segment on
+the client after hydration (never an SSR redirect, to preserve zero-flash
+rendering of the resolved page).
+
+Cross-page `#comment-{id}` anchors resolve with zero flash: when the URL has a
+target anchor and no explicit page, `SFTopicShowPage` resolves the page
+server-side via the comment-page endpoint, then SSR-renders that page so the
+target comment is present in first-paint HTML and the browser scrolls natively.
+Slug/mode mismatches still 301/replace, but page-segment normalization is
+client-only.
+
 Public reads expose only active/locked topics. Locked topics remain readable
 but reject new comments. Viewer-aware deleted-comment tombstones never expose
 body fields or deleted-parent reply excerpts.
@@ -194,6 +207,14 @@ live in `../reports/` and
 - Horizontal default remains one PostgreSQL primary plus shared Redis. Read
   replicas are deferred to measured thresholds; no `DATABASE_READ_URL` runtime
   path exists yet.
+- Comment page resolve (`GET /topics/:topicID/comments/:commentID/page`) returns
+  the flat-view page holding a comment, for cross-page `#comment-{id}` anchor
+  deep-linking. The service reuses `GetCommentSummary` and counts active
+  comments ordered before `(path_key, id)` (strict alignment with
+  `listCommentsFlat`). Only active comments resolve; soft-deleted, cross-topic,
+  or hidden-topic targets return 404 without leaking status. The endpoint is
+  not cached: it is a primary-key lookup plus an indexed COUNT, and caching
+  would introduce drift when comments are deleted.
 
 ## Policy And Runtime Settings
 

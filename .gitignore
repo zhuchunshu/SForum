@@ -9,6 +9,7 @@ Desktop.ini
 # Editor and workspace files
 .idea/
 .vscode/
+.zcode/*
 *.swp
 *.swo
 *~

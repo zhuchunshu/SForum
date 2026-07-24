@@ -70,8 +70,11 @@ type ProfileActivity struct {
 	Kind      string               `json:"kind"`
 	Topic     ProfileActivityTopic `json:"topic"`
 	CommentID *int64               `json:"commentId,omitempty"`
-	Excerpt   string               `json:"excerpt"`
-	CreatedAt time.Time            `json:"createdAt"`
+	// CommentPage 是该回复在主题 flat 视图分页下的页码（1-based）。
+	// 仅 kind=comment 时有值；前端据此生成 /page/N#comment-{id} 深链，避免仅靠 hash 时 SSR 看不到 fragment。
+	CommentPage *int      `json:"commentPage,omitempty"`
+	Excerpt     string    `json:"excerpt"`
+	CreatedAt   time.Time `json:"createdAt"`
 }
 
 // ActivityKind 是活动分页 kind 查询参数。
@@ -115,9 +118,11 @@ type ProfileActivityTopic struct {
 // ProfileCommentActivity 是 store 层回读的公开回复活动。
 type ProfileCommentActivity struct {
 	CommentID int64
-	Topic     ProfileActivityTopic
-	Excerpt   string
-	CreatedAt time.Time
+	// CommentPage 是该评论在所属主题 flat 列表中的页码（与 ListComments/ResolveCommentPage 同源）。
+	CommentPage int
+	Topic       ProfileActivityTopic
+	Excerpt     string
+	CreatedAt   time.Time
 }
 
 // ProfileExtensionTab 是公开资料页扩展 tab/section 描述符。

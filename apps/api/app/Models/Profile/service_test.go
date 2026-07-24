@@ -26,10 +26,11 @@ func TestServiceGetPublicProfileAggregatesData(t *testing.T) {
 			ID: 2, Title: "new topic", Slug: "new-topic", Excerpt: "topic body", CreatedAt: time.Date(2026, 7, 23, 8, 0, 0, 0, time.UTC),
 		}},
 		comments: []ProfileCommentActivity{{
-			CommentID: commentID,
-			Topic:     ProfileActivityTopic{ID: 1, Title: "t1", Slug: "t1"},
-			Excerpt:   "reply body",
-			CreatedAt: time.Date(2026, 7, 23, 9, 0, 0, 0, time.UTC),
+			CommentID:   commentID,
+			CommentPage: 2,
+			Topic:       ProfileActivityTopic{ID: 1, Title: "t1", Slug: "t1"},
+			Excerpt:     "reply body",
+			CreatedAt:   time.Date(2026, 7, 23, 9, 0, 0, 0, time.UTC),
 		}},
 	}
 	service := NewService(store)
@@ -55,6 +56,9 @@ func TestServiceGetPublicProfileAggregatesData(t *testing.T) {
 	}
 	if result.Activities[0].Kind != "comment" || result.Activities[0].CommentID == nil || *result.Activities[0].CommentID != commentID {
 		t.Fatalf("expected newest comment activity first, got %#v", result.Activities[0])
+	}
+	if result.Activities[0].CommentPage == nil || *result.Activities[0].CommentPage != 2 {
+		t.Fatalf("expected commentPage=2 on reply activity, got %#v", result.Activities[0].CommentPage)
 	}
 	if result.Activities[1].Kind != "topic" || result.Activities[1].Topic.Title != "new topic" {
 		t.Fatalf("expected topic activity second, got %#v", result.Activities[1])
@@ -381,8 +385,8 @@ func TestServiceListPublicActivitiesPaginatesByKind(t *testing.T) {
 		stats:          ProfileStats{TopicCount: 25, CommentCount: 2},
 		activityTopics: topics,
 		comments: []ProfileCommentActivity{
-			{CommentID: 1, Topic: ProfileActivityTopic{ID: 1, Title: "t1"}, CreatedAt: time.Date(2026, 7, 23, 1, 0, 0, 0, time.UTC)},
-			{CommentID: 2, Topic: ProfileActivityTopic{ID: 2, Title: "t2"}, CreatedAt: time.Date(2026, 7, 23, 2, 0, 0, 0, time.UTC)},
+			{CommentID: 1, CommentPage: 1, Topic: ProfileActivityTopic{ID: 1, Title: "t1"}, CreatedAt: time.Date(2026, 7, 23, 1, 0, 0, 0, time.UTC)},
+			{CommentID: 2, CommentPage: 3, Topic: ProfileActivityTopic{ID: 2, Title: "t2"}, CreatedAt: time.Date(2026, 7, 23, 2, 0, 0, 0, time.UTC)},
 		},
 	}
 	service := NewService(store)
@@ -427,6 +431,12 @@ func TestServiceListPublicActivitiesPaginatesByKind(t *testing.T) {
 	}
 	if comments.Total != 2 || comments.HasMore || len(comments.Items) != 2 || comments.Items[0].Kind != ActivityKindComment {
 		t.Fatalf("unexpected comments page: %#v", comments)
+	}
+	if comments.Items[0].CommentPage == nil || *comments.Items[0].CommentPage != 1 {
+		t.Fatalf("expected first comment page 1, got %#v", comments.Items[0].CommentPage)
+	}
+	if comments.Items[1].CommentPage == nil || *comments.Items[1].CommentPage != 3 {
+		t.Fatalf("expected second comment page 3, got %#v", comments.Items[1].CommentPage)
 	}
 
 	_, err = service.ListPublicActivities(context.Background(), ListActivitiesInput{

@@ -544,6 +544,24 @@ func (s *PostgresStore) listCommentsFlat(ctx context.Context, input CommentListI
 	}, nil
 }
 
+// CountActiveCommentsBefore 返回同主题内排在 (pathKey, id) 之前的 active 评论数。
+// flat 视图排序为 ORDER BY path_key ASC, id ASC，行值比较 (path_key, id) < ($2, $3)
+// 与排序严格对齐，保证反查页码与 ListComments 分页结果一致。
+// 仅计 active（公开定位语义）；调用方需先确认目标评论自身为 active。
+func (s *PostgresStore) CountActiveCommentsBefore(ctx context.Context, topicID int64, pathKey string, id int64) (int64, error) {
+	var count int64
+	err := s.pool.QueryRow(ctx, `
+		SELECT count(*) FROM comments
+		WHERE topic_id = $1
+		  AND status = 'active'
+		  AND ROW(path_key, id) < ROW($2, $3)
+	`, topicID, pathKey, id).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count comments before: %w", err)
+	}
+	return count, nil
+}
+
 // commentListTotalFlat 公开 active-only 用 denormalized comment_count（无 COUNT）。
 // IncludeDeleted 为作者/管理范围，QPS 低，允许精确 COUNT（M6 审计保留）。
 func (s *PostgresStore) commentListTotalFlat(ctx context.Context, input CommentListInput) (int64, error) {
