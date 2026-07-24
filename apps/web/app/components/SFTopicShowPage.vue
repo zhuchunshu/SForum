@@ -336,16 +336,54 @@ watchEffect(() => {
   }
 })
 
-// 锚点滚动：SSR 首屏含目标评论时浏览器原生定位已够；
-// 客户端导航（从列表点进带 hash 的帖子）或翻页后需兜底滚动到 #comment-{id}。
-watch(() => commentData.value, async () => {
-  if (import.meta.server || targetCommentId.value <= 0) {
+// 深链定位后的短暂强调高亮 id；与 CSS .sf-comment--flash / :target 动画时长对齐（约 3.2s）。
+const flashCommentId = ref(0)
+const COMMENT_FLASH_MS = 3200
+let flashCommentTimer: ReturnType<typeof setTimeout> | null = null
+
+function clearCommentFlashTimer() {
+  if (flashCommentTimer != null) {
+    clearTimeout(flashCommentTimer)
+    flashCommentTimer = null
+  }
+}
+
+function flashTargetComment(commentId: number) {
+  if (commentId <= 0) {
     return
   }
-  await nextTick()
-  document.getElementById(`comment-${targetCommentId.value}`)
-    ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}, { flush: 'post' })
+  flashCommentId.value = commentId
+  clearCommentFlashTimer()
+  flashCommentTimer = setTimeout(() => {
+    if (flashCommentId.value === commentId) {
+      flashCommentId.value = 0
+    }
+    flashCommentTimer = null
+  }, COMMENT_FLASH_MS)
+}
+
+onBeforeUnmount(() => {
+  clearCommentFlashTimer()
+})
+
+// 锚点滚动：SSR 首屏含目标评论时浏览器原生定位已够；
+// 客户端导航（从列表点进带 hash 的帖子）或翻页后需兜底滚动到 #comment-{id}，并短暂高亮。
+watch(
+  [() => commentData.value, targetCommentId],
+  async () => {
+    if (import.meta.server || targetCommentId.value <= 0) {
+      return
+    }
+    await nextTick()
+    const el = document.getElementById(`comment-${targetCommentId.value}`)
+    if (!el) {
+      return
+    }
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    flashTargetComment(targetCommentId.value)
+  },
+  { flush: 'post', immediate: true }
+)
 
 // canonical 用当前 mode 的规范路径（含页码段，与规范化目标一致）。
 const canonicalTopicPath = computed(() => topic.value ? forumTopicPath(topic.value, topicUrlMode.value, commentPage.value) : route.path)
@@ -1192,6 +1230,7 @@ async function submitReport() {
                         :comment-author-link-builder="commentAuthorPath"
                         :comment-actions-builder="commentActions"
                         :loading-more-comment-id="loadingMoreCommentId"
+                        :flash="flashCommentId === comment.id"
                         @action-comment="(c: ForumComment, value: string) => handleCommentClick(c, value)"
                         @load-more-replies="(c: ForumComment) => { void loadMoreCommentReplies(c) }"
                       />

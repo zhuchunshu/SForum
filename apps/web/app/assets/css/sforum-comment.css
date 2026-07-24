@@ -291,6 +291,42 @@
   background: transparent;
   box-shadow: none;
   scroll-margin-top: calc(var(--sf-public-topbar-height) + 18px);
+  /* 深链定位时背景/左侧强调条过渡，避免闪动突兀切断 */
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/*
+ * 被 #comment-{id} 定位到的评论：短暂强调（类似 hover/active），约 3.2s 后淡回常态。
+ * - :target：原生 hash / 楼层锚点点击
+ * - .sf-comment--flash：详情页深链滚动后 JS 补闪（SPA / SSR 兜底）
+ * 写在 flat 覆盖规则之后，背景终点与透明行样式一致。
+ */
+.sf-comment-list > .sf-comment:target,
+.sf-comment-list > .sf-comment.sf-comment--flash {
+  border-radius: 8px;
+  animation: sf-comment-target-flash 3.2s ease-out forwards;
+}
+
+@keyframes sf-comment-target-flash {
+  0%,
+  28% {
+    background: color-mix(in srgb, var(--sf-accent) 14%, transparent);
+    box-shadow: inset 3px 0 0 var(--sf-accent);
+  }
+
+  100% {
+    background: transparent;
+    box-shadow: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sf-comment-list > .sf-comment:target,
+  .sf-comment-list > .sf-comment.sf-comment--flash {
+    animation: none;
+    background: color-mix(in srgb, var(--sf-accent) 12%, transparent);
+    box-shadow: inset 3px 0 0 var(--sf-accent);
+  }
 }
 
 .sf-comment__entry {

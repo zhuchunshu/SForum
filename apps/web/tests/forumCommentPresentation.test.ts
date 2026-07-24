@@ -180,4 +180,19 @@ describe('SFComment responsive CSS contract', () => {
     expect(replyRule).toBeDefined()
     expect(replyRule).not.toContain('cursor: pointer')
   })
+
+  test('highlights deep-linked target comments for a few seconds', () => {
+    const source = commentCss()
+    const comment = commentComponent()
+    const topic = readFileSync(new URL('../app/components/SFTopicShowPage.vue', import.meta.url), 'utf8')
+
+    expect(source).toContain('.sf-comment-list > .sf-comment:target')
+    expect(source).toContain('.sf-comment-list > .sf-comment.sf-comment--flash')
+    expect(source).toContain('sf-comment-target-flash')
+    expect(source).toContain('prefers-reduced-motion: reduce')
+    expect(comment).toContain("'sf-comment--flash': flash")
+    expect(topic).toContain('flashTargetComment')
+    expect(topic).toContain(':flash="flashCommentId === comment.id"')
+    expect(topic).toContain('COMMENT_FLASH_MS')
+  })
 })

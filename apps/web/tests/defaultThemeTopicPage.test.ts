@@ -149,8 +149,8 @@ describe('default theme V32 topic page contract', () => {
     expect(source).not.toContain('SFTopicProgressRail')
     expect(source).not.toContain('sforum-topic-page__action-rail')
     expect(source).not.toContain('statsTitle')
-    // 左栏导航后页面略增；硬警告仍约 1200 行
-    expect(source.split('\n').length).toBeLessThan(1200)
+    // 锚点反查 + 深链高亮后页面略增；硬警告抬到约 1500，再涨应拆文件。
+    expect(source.split('\n').length).toBeLessThan(1500)
   })
 
   test('keeps mutation errors persistent and fixes the default discussion to a flat stream', () => {

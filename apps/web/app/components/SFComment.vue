@@ -45,6 +45,8 @@ const props = withDefaults(defineProps<{
   commentActionsBuilder?: (comment: ForumComment) => CommentAction[]
   /** 正在加载更多回复的评论 id（详情页控制） */
   loadingMoreCommentId?: number | null
+  /** 深链定位后的短暂强调高亮（详情页控制，约数秒后清除） */
+  flash?: boolean
 }>(), {
   comment: undefined,
   presentation: 'flat',
@@ -63,7 +65,8 @@ const props = withDefaults(defineProps<{
   commentMetaBuilder: undefined,
   commentAuthorLinkBuilder: undefined,
   commentActionsBuilder: undefined,
-  loadingMoreCommentId: null
+  loadingMoreCommentId: null,
+  flash: false
 })
 
 const emit = defineEmits<{
@@ -170,7 +173,10 @@ const InlineEditorHost = () => {
     class="sf-comment"
     :class="[
       `sf-comment--${presentation}`,
-      { 'sf-comment--indented': branchPresentation.indentation === 1 }
+      {
+        'sf-comment--indented': branchPresentation.indentation === 1,
+        'sf-comment--flash': flash
+      }
     ]"
     :data-comment-depth="depth"
     :data-visual-depth="branchPresentation.indentation"
