@@ -16,3 +16,4 @@ reports; these files are not current implementation instructions.
 | `2026-07-21-million-scale-read-path.md` | completed M0-M7 |
 | `2026-07-22-forum-content-revisions-v1.md` | completed M0-M7; concurrent ExtensionManifest gate failure tracked separately |
 | `2026-07-22-forum-content-revisions-v1-m0-contract-tests.md` | completed M0 test matrix evidence |
+| `2026-07-22-social-login-provider-plugins.md` | superseded by focused built-in GitHub V1 plan |

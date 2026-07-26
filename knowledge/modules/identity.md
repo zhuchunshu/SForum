@@ -10,12 +10,16 @@ helpers.
 
 Initial identity foundation is implemented.
 
-- Social login is now a prioritized ready workstream. The executable Identity
-  Registry, auth provider start/complete transport, external-link persistence,
-  and public provider catalog already exist; vendor plugins and the complete
-  Host login/registration/session product effect do not. The authoritative
-  implementation checklist is
-  `plans/2026-07-22-social-login-provider-plugins.md`.
+- GitHub social login is now a prioritized ready workstream. V1 ships one
+  protected built-in plugin, `sforum.auth-github`; other providers are
+  deferred. The executable Identity Registry, auth provider start/complete
+  transport, external-link persistence, and public provider catalog already
+  exist, but Host activation, truthful subject HMAC, callback/registration
+  state, external-only credentials, complete login/registration/session
+  effects, and product UI remain to implement. The authoritative checklist is
+  `plans/2026-07-27-github-social-login-builtin-plugin.md`; product/distribution
+  boundaries are frozen in
+  `decisions/2026-07-27-github-social-login-builtin-v1.md`.
 
 - PostgreSQL migrations create users, credentials, roles, permissions, role
   assignments, and audit events.

@@ -188,6 +188,11 @@ catalogs and governance live under `docs/extensions/v3/`.
   external plugin.
 - SMTP is a protected built-in plugin. Attachment storage supports local and
   plugin provider selection through the current storage contract.
+- GitHub social login V1 is planned as the protected built-in plugin
+  `sforum.auth-github`. Built-in discovery stages it but does not automatically
+  trust, enable, configure, or publicly activate it. Core retains all account,
+  callback, link, risk/session, and browser-session authority. See
+  `../plans/2026-07-27-github-social-login-builtin-plugin.md`.
 - Core may own shared payment/entitlement semantics, but gateways and vendor
   webhook behavior remain plugins.
 

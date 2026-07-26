@@ -14,12 +14,16 @@ load archived sessions or completed plans as current context.
 - Prior partial evidence: `sessions/2026-07-22-p11-p12-p13-production-rewire-handoff.md`
 - Module: `modules/extensions.md`
 
-### Social login provider plugins
+### Built-in GitHub social login
 
-- Status: **ready**; Core owns accounts/sessions and provider plugins own
-  GitHub, Google, Discord, and Telegram integration.
-- Plan: `plans/2026-07-22-social-login-provider-plugins.md`
-- Handoff: `sessions/2026-07-22-social-login-provider-plan-handoff.md`
+- Status: **ready**; V1 ships one protected built-in GitHub OAuth plugin while
+  Core owns accounts, subject HMAC, links, callback state, risk/session policy,
+  and browser sessions.
+- Built-in discovery never auto-trusts, enables, configures, or publicly
+  activates the provider.
+- Plan: `plans/2026-07-27-github-social-login-builtin-plugin.md`
+- Handoff: `sessions/2026-07-27-github-social-login-plan-handoff.md`
+- Decision: `decisions/2026-07-27-github-social-login-builtin-v1.md`
 - Module: `modules/identity.md`
 
 ### V3 P13 LTS residual
@@ -63,6 +67,9 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Built-in GitHub social login V1 scope, Host/plugin security boundaries,
+  subject HMAC correction, and M0-M5 delivery order:
+  `sessions/2026-07-27-github-social-login-plan-handoff.md`
 - Topic create/edit selected-theme and Core-fallback shell parity, exact
   artifact activation, CSS validator boundary fix, and editor Host Island
   allowlist:

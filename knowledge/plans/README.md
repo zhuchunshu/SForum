@@ -26,7 +26,7 @@ directory. Completed, cancelled, and superseded plans live under
 | `2026-07-22-current-head-regression-remediation.md` | **completed** -- M0-M7 closed; archive after the focused 404 handoff consumes it |
 | `2026-07-22-theme-consistent-public-resource-404.md` | **completed** -- M0-M6 selected-theme public 404 closed; retained temporarily as the broader error-page precursor |
 | `2026-07-22-theme-defined-system-error-pages.md` | **completed** -- 403/404/429/5xx virtual system pages use selected-theme L0/L1 with Host-owned truth/fallback |
-| `2026-07-22-social-login-provider-plugins.md` | **ready** -- Core auth completion and provider plugins |
+| `2026-07-27-github-social-login-builtin-plugin.md` | **ready** -- Core auth completion and one protected built-in GitHub provider |
 | `2026-07-12-iteration-a-engagement-loop.md` | **ready** -- remaining engagement product work |
 | `2026-07-12-admin-settings-richness.md` | **blueprint** -- later settings waves |
 | `2026-07-12-development-directions.md` | **blueprint** -- strategy context; verify against newer V3 decisions |

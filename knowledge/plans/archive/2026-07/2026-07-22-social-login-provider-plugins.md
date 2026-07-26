@@ -1,8 +1,9 @@
 # Social Login Provider Plugins — Task Book
 
-Status: **ready** — approved architecture and implementation checklist; no
-vendor provider is shipped yet  
-Date: 2026-07-22  
+Status: **superseded** — replaced by the focused built-in GitHub V1 task book
+`knowledge/plans/2026-07-27-github-social-login-builtin-plugin.md`
+
+Date: 2026-07-22
 Goal: ship secure GitHub, Google, Discord, and Telegram login through trusted
 plugins while Core owns accounts, links, risk decisions, and browser sessions.
 

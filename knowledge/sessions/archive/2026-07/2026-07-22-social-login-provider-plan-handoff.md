@@ -1,5 +1,7 @@
 # 2026-07-22 Social login provider plan handoff
 
+Superseded by `../2026-07-27-github-social-login-plan-handoff.md`.
+
 ## Changed
 
 - Added the ready task book
@@ -31,4 +33,3 @@
 
 - None before M0. M0 must verify current official provider protocols and may
   propose an ADR only if that evidence conflicts with the frozen boundaries.
-
