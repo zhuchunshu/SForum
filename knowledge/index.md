@@ -63,6 +63,10 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- `/settings/profile` + `/settings/security` three-column chrome extracted into
+  shared `SFSettingsShell` (slots: main / rail / head-actions; supersedes the
+  07-24 "no SettingsShell yet" decision):
+  `sessions/2026-07-26-settings-shell-refactor-handoff.md`
 - Profile Replies tab deep links now include `/page/N#comment-{id}` via API
   `commentPage` (SSR cannot see URL hash alone):
   `sessions/2026-07-24-profile-reply-comment-page-links.md`
@@ -73,9 +77,9 @@ load archived sessions or completed plans as current context.
 
 ## Recently Completed
 
-- Settings chrome: shared `sforum-settings` shell, `SFSettingsAccountNav`,
+- Settings chrome: shared `sforum-settings` CSS shell, `SFSettingsAccountNav`,
   profile preview rail, security summary rail; fullwidth theme templates;
-  typecheck + canvas/chrome unit tests pass.
+  chrome now componentized as `SFSettingsShell` (2026-07-26).
 - `/moderation` workbench sidebars: reuse `SFHomeNavigation`, notifications rail
   section language, shared mobile drawer keys; queue overview large count;
   decision rail restyle; typecheck + workbench unit tests pass.

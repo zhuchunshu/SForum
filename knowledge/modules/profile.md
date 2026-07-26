@@ -72,6 +72,14 @@ editor in V1.
   `forum.settings.profile` Page Registry surface with a canvas layout: desktop
   left account rail, center editable profile form, right public preview, and
   shared left/right mobile drawers on narrow screens.
+- The three-column settings chrome (left `SFHomeNavigation` +
+  `SFSettingsAccountNav`, page head with drawer toggles, right rail, mobile
+  drawers, `SFContentColumnFooter`, category-group fetch) is owned by the
+  shared `SFSettingsShell` component; `SFProfileSettingsPage` and
+  `SFSecuritySettingsPage` only fill its `default` / `#rail` / `#head-actions`
+  slots. The rail slot renders once and is reused by both the desktop aside and
+  the mobile right drawer. New account settings pages should add a link in
+  `SFSettingsAccountNav` and wrap content in `SFSettingsShell`.
 - The profile settings page keeps all writes on the existing `useProfileApi`
   contract: `GET /profile`, `PUT /profile`, `POST /profile/avatar`, and
   `DELETE /profile/avatar`. Avatar upload UI requires both public runtime
