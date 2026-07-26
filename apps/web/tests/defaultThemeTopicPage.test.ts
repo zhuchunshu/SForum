@@ -38,19 +38,6 @@ describe('default theme V32 topic page contract', () => {
     expect(comment).not.toContain('loading="eager"')
   })
 
-  test('declares edit mode before immediate effects read it', () => {
-    const source = topicPage()
-    const isEditingDeclaration = source.indexOf('const isEditing = computed(')
-    const canonicalRedirectEffect = source.indexOf('watchEffect(() => {')
-    const seoRegistration = source.indexOf('useSForumSeo(computed(')
-
-    expect(isEditingDeclaration).toBeGreaterThan(-1)
-    expect(canonicalRedirectEffect).toBeGreaterThan(-1)
-    expect(seoRegistration).toBeGreaterThan(-1)
-    expect(isEditingDeclaration).toBeLessThan(canonicalRedirectEffect)
-    expect(isEditingDeclaration).toBeLessThan(seoRegistration)
-  })
-
   test('registers the highlight directive during SSR for rendered forum content', () => {
     const renderedContentSources = [
       topicPage(),
@@ -93,7 +80,10 @@ describe('default theme V32 topic page contract', () => {
     expect(source).toContain('useSForumSeo(computed(')
     expect(source).toContain('sanitizeHtml(topic.content.htmlContent)')
     expect(source).toContain('v-highlight')
-    expect(source).toContain('<SFTopicEditor')
+    // 编辑迁到独立页 /topics/:id/edit（forum.topic.edit）；详情页只负责跳转。
+    expect(source).toContain('forumTopicEditPath(')
+    expect(source).not.toContain('<SFTopicEditor')
+    expect(sourceFile('../app/components/SFTopicEditPage.vue')).toContain('<SFTopicEditor')
     expect(source).toContain('applyTopicExtensionAction')
     // E2.2：评论行扩展动作与主题动作同一代理边界
     expect(source).toContain('applyCommentExtensionAction')

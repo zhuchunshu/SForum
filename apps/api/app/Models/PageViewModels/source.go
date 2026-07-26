@@ -143,6 +143,12 @@ func (s *CorePageViewModelSource) Populate(ctx context.Context, input CorePageVi
 		}
 		// 主题只拿到宿主表单边界；topic 查询和评论提交继续由回复岛与 API 负责。
 		request.Data.TopicReply = &themecompiler.TopicReplyPageViewModel{}
+	case "forum.topic.edit":
+		if input.Actor.ID <= 0 {
+			return pages.CorePageViewModelRequest{}, ErrCorePageDataUnauthorized
+		}
+		// 同回复页：主题只拿宿主表单边界；旧内容加载与保存权限由编辑岛与 API 负责。
+		request.Data.TopicEdit = &themecompiler.TopicEditPageViewModel{}
 	case "forum.profile.show":
 		err = s.populateProfile(ctx, &request, input.Actor)
 	case "forum.settings.profile":

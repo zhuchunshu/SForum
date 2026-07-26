@@ -3896,6 +3896,8 @@
     "metaDescription": "Write and publish a new community topic.",
     "title": "New Topic",
     "editTitle": "Edit Topic",
+    "editMetaDescription": "Edit and update a published community topic.",
+    "editConflict": "This topic changed while you were editing. Refresh the page and try again.",
     "categoryLabel": "Category",
     "categoryDefault": "Select a category (defaults to General)",
     "titleLabel": "Title",

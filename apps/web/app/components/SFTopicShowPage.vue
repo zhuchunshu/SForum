@@ -11,6 +11,7 @@ import {
   forumTagPath,
   advancedReplyDraftStorageKey,
   forumTopicAdvancedReplyPath,
+  forumTopicEditPath,
   forumTopicExtensionActionLabel,
   forumTopicPath,
   forumUserProfilePath,
@@ -97,10 +98,6 @@ const urlTopicID = computed(() => {
   ))
   return fromPath?.topicId ?? 0
 })
-
-// 编辑模式：通过 ?edit=1 query 进入（避免 catch-all 嵌套子路由问题）。
-// 需登录；未登录时全局 auth 中间件会重定向到登录页。
-const isEditing = computed(() => route.query.edit !== undefined && route.query.edit !== null)
 
 // 评论分页页码来源（优先级递减）：
 //   1. URL 显式页码（路径段 /page/N，回退旧 query ?page=N 兼容）
@@ -297,7 +294,7 @@ const { data: categoryGroups, pending: categoriesPending } = categoryGroupsAsync
 const navCategories = computed(() => categoryGroups.value.flatMap((group) => group.categories || []))
 const navTotalTopics = computed(() => navCategories.value.reduce((sum, category) => sum + category.topicCount, 0))
 const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
-const showTopicSide = computed(() => Boolean(topic.value && !isEditing.value))
+const showTopicSide = computed(() => Boolean(topic.value))
 const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
 const canNormalizeTopicURL = import.meta.client
@@ -322,10 +319,7 @@ watchEffect(() => {
   const basePath = localePath(forumTopicPath(topic.value, topicUrlMode.value))
   const routeBase = route.path.replace(/\/page\/\d+$/, '')
   if (basePath !== routeBase) {
-    const query: Record<string, string> = isEditing.value ? { edit: '1' } : {}
-    const target = Object.keys(query).length > 0
-      ? { path: basePath, query, hash: route.hash }
-      : { path: basePath, hash: route.hash }
+    const target = { path: basePath, hash: route.hash }
     if (import.meta.server) {
       navigateTo(target, { redirectCode: 301 })
     } else {
@@ -339,11 +333,7 @@ watchEffect(() => {
     const targetPath = localePath(forumTopicPath(topic.value, topicUrlMode.value, commentPage.value))
     const hasOldQueryPage = route.query.page !== undefined && route.query.page !== null
     if (targetPath !== route.path || hasOldQueryPage) {
-      const query: Record<string, string> = isEditing.value ? { edit: '1' } : {}
-      const target = Object.keys(query).length > 0
-        ? { path: targetPath, query, hash: route.hash }
-        : { path: targetPath, hash: route.hash }
-      navigateTo(target, { replace: true })
+      navigateTo({ path: targetPath, hash: route.hash }, { replace: true })
     }
   }
 })
@@ -443,8 +433,8 @@ useSForumSeo(computed(() => ({
   title: topic.value?.title || '',
   excerpt: topic.value?.content.excerpt || t('topicDetail.metaDescription'),
   public: Boolean(topic.value && (topic.value.status === 'active' || topic.value.status === 'locked')),
-  published: Boolean(topic.value && !isEditing.value),
-  noindex: !topic.value || isEditing.value,
+  published: Boolean(topic.value),
+  noindex: !topic.value,
   variables: {
     topicTitle: topic.value?.title,
     categoryName: topic.value?.categoryName,
@@ -459,18 +449,6 @@ useSForumSeo(computed(() => ({
     { name: topic.value.title, path: canonicalPath.value }
   ] : []
 })))
-
-// 编辑保存成功后跳回规范详情路径（用新 slug，规范化兜底 -2 后缀）。
-async function onTopicSaved(updated: ForumTopicDetail) {
-  topic.value = updated
-  showSuccessToast(t('topicDetail.topicUpdated'))
-  await navigateTo(localePath(forumTopicPath(updated, topicUrlMode.value)))
-}
-
-function cancelEditing() {
-  // 去掉 ?edit 后回到详情视图。
-  navigateTo({ path: route.path, query: { ...route.query, edit: undefined } })
-}
 
 // 翻页目标：路径式 /page/N（page=1 省略），navigateTo 后触发 commentPage 重新解析。
 function commentPageTo(page: number) {
@@ -1007,7 +985,8 @@ async function handleTopicActionSelect(id: string) {
     return
   }
   if (id === 'edit') {
-    await navigateTo({ path: localePath(forumTopicPath(topic.value, topicUrlMode.value)), query: { edit: '1' } })
+    // 编辑走独立页 /topics/:id/edit（forum.topic.edit）。
+    await navigateTo(localePath(forumTopicEditPath(topic.value.id)))
     return
   }
   if (id === 'delete') {
@@ -1160,18 +1139,6 @@ async function submitReport() {
               :description="t('topicDetail.notFound.description')"
             />
           </SFCard>
-
-          <!-- 编辑模式：通过 ?edit=1 切入，渲染独立编辑器组件。 -->
-          <div v-else-if="topic && isEditing" class="max-w-3xl">
-            <h1 class="text-2xl font-bold text-slate-900 mb-6 dark:text-zinc-50">
-              {{ t('composer.editTitle') }}
-            </h1>
-            <SFTopicEditor
-              :topic="topic"
-              @saved="onTopicSaved"
-              @cancel="cancelEditing"
-            />
-          </div>
 
           <template v-else-if="topic">
             <div class="sforum-topic-page__shell">

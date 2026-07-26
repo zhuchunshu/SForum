@@ -8,9 +8,9 @@ import {
   type ForumTopicTagSummary
 } from '~/utils/forumTaxonomy'
 
-// 主题编辑器组件：从详情页 ?edit=1 切入，复用发帖编辑器与字段校验。
-// 保存成功后 emit saved（含更新后的 topic），由详情页负责跳转/规范化；
-// 取消则 emit cancel。权限/加载由详情页保证，这里只负责编辑表单。
+// 主题编辑器组件：由编辑独立页（/topics/:id/edit）与后台内容管理复用，含字段校验。
+// 保存成功后 emit saved（含更新后的 topic），由宿主页面负责跳转/规范化；
+// 取消则 emit cancel。权限/加载由宿主页面与 API 保证，这里只负责编辑表单。
 type EditableTopic = {
   id: number
   authorUserId: number

@@ -41,6 +41,7 @@ var pageRegionMatrix = map[string][]string{
 	"forum.profile.show":   {RegionContentBefore, RegionContentAfter, RegionSidebar},
 	"forum.topic.create":   {RegionContentBefore, RegionContentAfter},
 	"forum.topic.reply":    {RegionContentBefore, RegionContentAfter},
+	"forum.topic.edit":     {RegionContentBefore, RegionContentAfter},
 	"forum.notifications":  {RegionContentBefore, RegionContentAfter},
 }
 

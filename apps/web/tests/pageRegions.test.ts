@@ -105,6 +105,7 @@ describe('forum.page.regions payload parsing', () => {
       'forum.tag.index',
       'forum.tag.show',
       'forum.topic.create',
+      'forum.topic.edit',
       'forum.topic.reply',
       'forum.topic.show'
     ])
@@ -149,6 +150,7 @@ describe('region outlet wiring contracts', () => {
       'SFProfileShowPage.vue': ['forum.profile.show'],
       'SFTopicComposerPage.vue': ['forum.topic.create'],
       'SFTopicReplyPage.vue': ['forum.topic.reply'],
+      'SFTopicEditPage.vue': ['forum.topic.edit'],
       'SFNotificationsPage.vue': ['forum.notifications']
     }
     for (const [file, pages] of Object.entries(placements)) {

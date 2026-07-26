@@ -10,6 +10,7 @@ describe('remaining public presentation ownership', () => {
     ['app/pages/t/[...path].vue', 'forum.topic.show', 'SFTopicShowPage', 'forum.component.topic_show', 'topic-show.html'],
     ['app/pages/topics/new.vue', 'forum.topic.create', 'SFTopicComposerPage', 'forum.component.topic_composer', 'topic-create.html'],
     ['app/pages/topics/reply.vue', 'forum.topic.reply', 'SFTopicReplyPage', 'forum.component.topic_reply', 'topic-reply.html'],
+    ['app/pages/topics/[topicId]/edit.vue', 'forum.topic.edit', 'SFTopicEditPage', 'forum.component.topic_editor', 'topic-edit.html'],
     ['app/pages/u/[username].vue', 'forum.profile.show', 'SFProfileShowPage', 'forum.component.profile_show', 'profile-show.html'],
     ['app/pages/notifications.vue', 'forum.notifications', 'SFNotificationsPage', 'forum.component.notifications', 'notifications.html'],
     ['app/pages/settings/profile.vue', 'forum.settings.profile', 'SFProfileSettingsPage', 'profile.component.settings_form', 'settings-profile.html'],

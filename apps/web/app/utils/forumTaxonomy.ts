@@ -635,6 +635,11 @@ export function forumTopicPath(
   return Number.isInteger(page) && page > 1 ? `${base}/${TOPIC_PAGE_SEGMENT}/${page}` : base
 }
 
+/** 主题编辑独立页路径；按 id 定位（编辑可能改 slug，slug URL 会自失效）。 */
+export function forumTopicEditPath(topicId: number) {
+  return `/topics/${topicId}/edit`
+}
+
 /** 高级回复独立页路径；parentId 可选，表示回复某条评论。 */
 export function forumTopicAdvancedReplyPath(topicId: number, parentId?: number | null) {
   const query = new URLSearchParams({ topic: String(topicId) })

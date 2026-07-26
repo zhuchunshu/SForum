@@ -844,6 +844,7 @@ func productionThemeIslandBindings() map[string]themecompiler.IslandBinding {
 		"sf-home-navigation":     {ComponentID: "navigation.component.home"},
 		"sf-topic-composer":      {ComponentID: "forum.component.topic_composer"},
 		"sf-topic-reply":         {ComponentID: "forum.component.topic_reply"},
+		"sf-topic-editor":        {ComponentID: "forum.component.topic_editor"},
 		"sf-profile-settings":    {ComponentID: "profile.component.settings_form"},
 		"sf-security-settings":   {ComponentID: "identity.component.security_settings"},
 		"sf-login-form":          {ComponentID: "identity.component.login_form"},
@@ -881,6 +882,8 @@ func RequiredThemeBodyIslandTag(pageID string) string {
 		return "sf-topic-composer"
 	case "forum.topic.reply":
 		return "sf-topic-reply"
+	case "forum.topic.edit":
+		return "sf-topic-editor"
 	case "forum.profile.show":
 		return "sf-profile-page"
 	case "forum.settings.profile":

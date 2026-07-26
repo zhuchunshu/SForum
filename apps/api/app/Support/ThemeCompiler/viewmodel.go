@@ -260,6 +260,13 @@ type TopicReplyPageViewModel struct {
 	Form HostFormBoundary  `json:"form"`
 }
 
+// TopicEditPageViewModel 主题编辑独立页：宿主编辑器岛 + update_topic 边界。
+// 主题定位与旧内容加载由编辑岛按路由 topicId 自行完成。
+type TopicEditPageViewModel struct {
+	Base PageViewModelBase `json:"base"`
+	Form HostFormBoundary  `json:"form"`
+}
+
 type ProfileSettingsPageViewModel struct {
 	Base    PageViewModelBase `json:"base"`
 	Form    HostFormBoundary  `json:"form"`

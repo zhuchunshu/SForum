@@ -87,6 +87,8 @@ var coreCatalog = []PageDefinition{
 	{ID: "forum.topic.create", PathPattern: "/topics/new", Access: AccessLogin, ContractVersion: "sforum.page.topic_create@1", CoreComponent: "pages/topics/new", Replaceable: true},
 	// 高级回复：完整编辑器独立页；query topic / parent 由 Host 岛读取。
 	{ID: "forum.topic.reply", PathPattern: "/topics/reply", Access: AccessLogin, ContractVersion: "sforum.page.topic_reply@1", CoreComponent: "pages/topics/reply", Replaceable: true},
+	// 主题编辑独立页：按 id 定位（编辑可能改 slug，slug URL 会自失效）；权限校验由岛与 API 负责。
+	{ID: "forum.topic.edit", PathPattern: "/topics/:topicId/edit", Access: AccessLogin, ContractVersion: "sforum.page.topic_edit@1", CoreComponent: "pages/topics/[topicId]/edit", Replaceable: true},
 	{ID: "forum.profile.show", PathPattern: "/u/:username", Access: AccessPublic, ContractVersion: "sforum.page.profile_show@1", CoreComponent: "pages/u/[username]", Replaceable: true, RequiresFeatures: []string{"features.public_profiles"}},
 	{ID: "forum.settings.profile", PathPattern: "/settings/profile", Access: AccessLogin, ContractVersion: "sforum.page.settings_profile@1", CoreComponent: "pages/settings/profile", Replaceable: true},
 	{ID: "forum.settings.security", PathPattern: "/settings/security", Access: AccessLogin, ContractVersion: "sforum.page.settings_security@1", CoreComponent: "pages/settings/security", Replaceable: true},

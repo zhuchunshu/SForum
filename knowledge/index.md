@@ -63,6 +63,10 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Topic edit moved off `?edit=1` to a standalone Page Registry page
+  `forum.topic.edit` at `/topics/:topicId/edit` (full matrix: catalog,
+  viewmodel, `sf-topic-editor` island, both builtin themes, regions):
+  `sessions/2026-07-26-topic-edit-standalone-page-handoff.md`
 - Comment stream visual refresh: deep-link highlight now light-sweep animation;
   header meta regrouped (time · floor right-aligned, OP badge, one-line reply
   quote): `sessions/2026-07-26-comment-stream-visual-refresh-handoff.md`

@@ -166,3 +166,30 @@ func TestTopicReplyViewModelRequiresLoginAndKeepsHostFormBoundary(t *testing.T) 
 		t.Fatalf("reply form boundary = %#v", model)
 	}
 }
+
+func TestTopicEditViewModelRequiresLoginAndKeepsHostFormBoundary(t *testing.T) {
+	source := NewCorePageViewModelSource(CorePageViewModelDependencies{Options: policyOptions{guestRead: "public"}})
+	request := pages.CorePageViewModelRequest{
+		PageID: "forum.topic.edit", Locale: "en-US", Path: "/topics/42/edit",
+		RouteParams: map[string]string{"topicId": "42"},
+		SEO:         themecompiler.PageSEOView{Title: "forum.topic.edit"},
+	}
+	if _, err := source.Populate(t.Context(), CorePageViewModelInput{Request: request}); !errors.Is(err, ErrCorePageDataUnauthorized) {
+		t.Fatalf("anonymous edit error = %v", err)
+	}
+
+	populated, err := source.Populate(t.Context(), CorePageViewModelInput{
+		Request: request, Actor: identity.Actor{ID: 8, Status: identity.UserStatusActive},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	model, err := pages.BuildCorePageViewModel(populated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	edit, ok := model.(themecompiler.TopicEditPageViewModel)
+	if !ok || edit.Form.ComponentID != "forum.component.topic_editor" || len(edit.Form.ActionRouteIDs) != 1 || edit.Form.ActionRouteIDs[0] != "core.route.forum.update_topic" {
+		t.Fatalf("edit form boundary = %#v", model)
+	}
+}

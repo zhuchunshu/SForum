@@ -3896,6 +3896,8 @@
     "metaDescription": "撰写并发布一个新的社区话题。",
     "title": "发布话题",
     "editTitle": "编辑话题",
+    "editMetaDescription": "编辑并更新已发布的社区话题。",
+    "editConflict": "话题在编辑期间已被他人更新，请刷新页面后重试。",
     "categoryLabel": "分类",
     "categoryDefault": "选择分类（默认综合讨论）",
     "titleLabel": "标题",

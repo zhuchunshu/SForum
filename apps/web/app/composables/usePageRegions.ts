@@ -18,6 +18,7 @@ export const PAGE_REGION_PAGES: ReadonlySet<string> = new Set([
   'forum.profile.show',
   'forum.topic.create',
   'forum.topic.reply',
+  'forum.topic.edit',
   'forum.notifications'
 ])
 

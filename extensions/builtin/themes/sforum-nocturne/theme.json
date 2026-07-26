@@ -57,6 +57,13 @@
       "contract": "sforum.page.topic_reply@1"
     },
     {
+      "id": "sforum.nocturne-theme.topic_edit",
+      "action": "replace",
+      "target": "forum.topic.edit",
+      "template": "templates/topic-edit.html",
+      "contract": "sforum.page.topic_edit@1"
+    },
+    {
       "id": "sforum.nocturne-theme.profile_show",
       "action": "replace",
       "target": "forum.profile.show",

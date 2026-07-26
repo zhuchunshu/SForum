@@ -181,6 +181,7 @@ describe('SFPageOutlet catalog wiring', () => {
     expect(template).toContain("'identity.component.login_form': defineAsyncComponent(() => import('./SFLoginFormPage.vue'))")
     expect(template).toContain("'forum.component.topic_composer': defineAsyncComponent(() => import('./SFTopicComposerPage.vue'))")
     expect(template).toContain("'forum.component.topic_reply': defineAsyncComponent(() => import('./SFTopicReplyPage.vue'))")
+    expect(template).toContain("'forum.component.topic_editor': defineAsyncComponent(() => import('./SFTopicEditPage.vue'))")
     expect(template).toContain("'forum.component.home_page': defineAsyncComponent(() => import('./SFHomePage.vue'))")
     expect(template).toContain("'system.component.not_found': SFNotFoundPageContent")
     expect(read('app/components/SFSystemThemeTemplate.vue')).toContain("'system.component.error_details': SFSystemErrorDetails")

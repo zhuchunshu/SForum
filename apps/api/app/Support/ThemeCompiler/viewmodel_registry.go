@@ -58,6 +58,7 @@ func newCorePageViewModelRegistry() (*PageViewModelRegistry, error) {
 		coreViewModel("forum.topic.show", "sforum.page.topic_show@1", ViewModelDetail, TopicDetailPageViewModel{}),
 		coreViewModel("forum.topic.create", "sforum.page.topic_create@1", ViewModelCreate, TopicCreatePageViewModel{}),
 		coreViewModel("forum.topic.reply", "sforum.page.topic_reply@1", ViewModelCreate, TopicReplyPageViewModel{}),
+		coreViewModel("forum.topic.edit", "sforum.page.topic_edit@1", ViewModelCreate, TopicEditPageViewModel{}),
 		coreViewModel("forum.profile.show", "sforum.page.profile_show@1", ViewModelProfile, ProfilePageViewModel{}),
 		coreViewModel("forum.settings.profile", "sforum.page.settings_profile@1", ViewModelSettings, ProfileSettingsPageViewModel{}),
 		coreViewModel("forum.settings.security", "sforum.page.settings_security@1", ViewModelSettings, SecuritySettingsPageViewModel{}),
@@ -194,6 +195,8 @@ func pageViewModelBase(value any) (PageViewModelBase, bool) {
 		return model.Base, true
 	case TopicReplyPageViewModel:
 		return model.Base, true
+	case TopicEditPageViewModel:
+		return model.Base, true
 	case ProfileSettingsPageViewModel:
 		return model.Base, true
 	case SecuritySettingsPageViewModel:
@@ -236,6 +239,9 @@ func validatePageSpecificBoundaries(value any) error {
 	case TopicReplyPageViewModel:
 		form, expectedComponent = model.Form, "forum.component.topic_reply"
 		expectedRoutes = []string{"core.route.forum.create_comment"}
+	case TopicEditPageViewModel:
+		form, expectedComponent = model.Form, "forum.component.topic_editor"
+		expectedRoutes = []string{"core.route.forum.update_topic"}
 	case ProfileSettingsPageViewModel:
 		form, expectedComponent = model.Form, "profile.component.settings_form"
 		expectedRoutes = []string{"core.route.profile.update_my_profile"}

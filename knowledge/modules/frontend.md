@@ -227,6 +227,10 @@ Architecture sources:
   states.
 - Reply editor mounts after explicit interaction; advanced reply uses
   `forum.topic.reply` and draft handoff.
+- Topic editing is a standalone page `forum.topic.edit` at
+  `/topics/:topicId/edit` (id-based because editing may change the slug);
+  `SFTopicShowPage` only navigates there — the old `?edit=1` inline mode is
+  removed. Save returns to `forumTopicPath`; canonical redirect fixes slug.
 - Topic create draft persistence is currently local `sessionStorage` under the
   composer page because there is no create-topic draft API. Publishing still
   uses the canonical `POST /topics` flow and keeps API authorization

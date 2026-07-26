@@ -31,6 +31,7 @@ const (
 var requiredPageComponents = map[string][]string{
 	"forum.topic.create":      {"forum.component.topic_composer"},
 	"forum.topic.reply":       {"forum.component.topic_reply"},
+	"forum.topic.edit":        {"forum.component.topic_editor"},
 	"forum.settings.profile":  {"profile.component.settings_form"},
 	"forum.settings.security": {"identity.component.security_settings"},
 	"auth.login":              {"identity.component.login_form"},
