@@ -296,27 +296,62 @@
 }
 
 /*
- * 被 #comment-{id} 定位到的评论：短暂强调（类似 hover/active），约 3.2s 后淡回常态。
+ * 被 #comment-{id} 定位到的评论：微光扫过 —— 一道柔光从左向右扫过一次（1.1s），
+ * 随后 6% 淡染色 + 细左线短暂驻留，约 3.2s 整体淡回常态。
  * - :target：原生 hash / 楼层锚点点击
  * - .sf-comment--flash：详情页深链滚动后 JS 补闪（SPA / SSR 兜底）
  * 写在 flat 覆盖规则之后，背景终点与透明行样式一致。
+ * overflow: hidden 仅在定位期间生效，用于裁掉扫出行外的光带。
  */
 .sf-comment-list > .sf-comment:target,
 .sf-comment-list > .sf-comment.sf-comment--flash {
+  overflow: hidden;
   border-radius: 8px;
-  animation: sf-comment-target-flash 3.2s ease-out forwards;
+  animation: sf-comment-target-glow 3.2s ease-out forwards;
 }
 
-@keyframes sf-comment-target-flash {
-  0%,
-  28% {
-    background: color-mix(in srgb, var(--sf-accent) 14%, transparent);
-    box-shadow: inset 3px 0 0 var(--sf-accent);
+.sf-comment-list > .sf-comment:target::after,
+.sf-comment-list > .sf-comment.sf-comment--flash::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgb(var(--sf-accent-rgb) / 0.14) 45%,
+    rgb(var(--sf-accent-rgb) / 0.14) 55%,
+    transparent 100%
+  );
+  transform: translateX(-110%);
+  pointer-events: none;
+  animation: sf-comment-target-sweep 1.1s ease-out forwards;
+}
+
+@keyframes sf-comment-target-glow {
+  0% {
+    background: transparent;
+  }
+
+  20%,
+  45% {
+    background: rgb(var(--sf-accent-rgb) / 0.06);
+    box-shadow: inset 2px 0 0 rgb(var(--sf-accent-rgb) / 0.6);
   }
 
   100% {
     background: transparent;
-    box-shadow: none;
+    box-shadow: inset 2px 0 0 transparent;
+  }
+}
+
+@keyframes sf-comment-target-sweep {
+  0% {
+    transform: translateX(-110%);
+  }
+
+  100% {
+    transform: translateX(300%);
   }
 }
 
@@ -324,8 +359,14 @@
   .sf-comment-list > .sf-comment:target,
   .sf-comment-list > .sf-comment.sf-comment--flash {
     animation: none;
-    background: color-mix(in srgb, var(--sf-accent) 12%, transparent);
-    box-shadow: inset 3px 0 0 var(--sf-accent);
+    background: rgb(var(--sf-accent-rgb) / 0.06);
+    box-shadow: inset 2px 0 0 rgb(var(--sf-accent-rgb) / 0.6);
+  }
+
+  .sf-comment-list > .sf-comment:target::after,
+  .sf-comment-list > .sf-comment.sf-comment--flash::after {
+    animation: none;
+    content: none;
   }
 }
 
@@ -390,11 +431,6 @@
 
 .sf-comment__floor:hover {
   color: var(--sf-accent);
-}
-
-.sf-comment:target {
-  border-color: color-mix(in srgb, var(--sf-accent) 42%, var(--sf-border-light));
-  background: color-mix(in srgb, var(--sf-accent-soft) 46%, transparent);
 }
 
 @media (max-width: 640px) {
