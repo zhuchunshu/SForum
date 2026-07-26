@@ -406,6 +406,8 @@ async function shareProfile() {
             />
           </div>
 
+          <SFRegionOutlet page="forum.profile.show" region="content_before" />
+
           <header class="sf-profile-intro">
             <SFAvatar :name="displayName" :avatar="profile.profile.avatar" size="lg" class="sf-profile-intro__avatar" />
             <div class="sf-profile-intro__content">
@@ -608,6 +610,8 @@ async function shareProfile() {
               </span>
             </div>
           </template>
+
+          <SFRegionOutlet page="forum.profile.show" region="content_after" />
         </section>
 
         <aside class="sforum-home__right sf-profile-right" :aria-label="t('profile.publicDetails')">
@@ -617,6 +621,7 @@ async function shareProfile() {
             :has-public-details="hasPublicDetails"
             :recent-topics="recentTopics"
           />
+          <SFRegionOutlet page="forum.profile.show" region="sidebar" />
         </aside>
       </div>
     </template>

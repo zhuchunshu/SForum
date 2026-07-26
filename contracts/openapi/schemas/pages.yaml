@@ -317,3 +317,57 @@ ApiResponseThemeActivationPreview:
     code: { type: integer }
     message: { type: string }
     data: { "$ref": "#/ThemeActivationPreview" }
+
+PageRegionWidgetRef:
+  type: object
+  required: [extensionId, componentId]
+  description: Reference to a public L2 component; mounting is authoritatively admitted by the public L2 runtime (trust grant + CSP).
+  properties:
+    extensionId: { type: string }
+    componentId: { type: string }
+
+PageRegionItem:
+  type: object
+  required: [extensionId, contributionId, kind, order]
+  description: Host-owned region content descriptor (forum.page.regions). No executable payloads.
+  properties:
+    extensionId: { type: string }
+    contributionId: { type: string }
+    label:
+      type: object
+      additionalProperties: { type: string }
+    icon: { type: string }
+    kind: { type: string, enum: [link, action, widget] }
+    href: { type: string, description: 'Present for kind=link; host-relative path only.' }
+    method: { type: string, description: 'Present for kind=action.' }
+    path: { type: string, description: 'Present for kind=action; executed via the /extensions/{id} proxy.' }
+    widget: { "$ref": "#/PageRegionWidgetRef" }
+    order: { type: integer }
+
+PageRegion:
+  type: object
+  required: [id, kind, items]
+  properties:
+    id: { type: string }
+    kind: { type: string, enum: [content, sidebar] }
+    items:
+      type: array
+      items: { "$ref": "#/PageRegionItem" }
+
+PageRegionsPayload:
+  type: object
+  required: [schemaVersion, page, regions]
+  properties:
+    schemaVersion: { type: string, enum: ['sforum.page-regions@1'] }
+    page: { type: string }
+    regions:
+      type: array
+      items: { "$ref": "#/PageRegion" }
+
+ApiResponsePageRegions:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/PageRegionsPayload" }

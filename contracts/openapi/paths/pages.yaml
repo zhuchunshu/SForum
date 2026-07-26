@@ -114,6 +114,36 @@ siteActiveThemeSkin:
             schema:
               "$ref": "../schemas/pages.yaml#/ApiResponseActiveThemeSkin"
 
+sitePageRegions:
+  get:
+    summary: Standard page region contributions
+    operationId: getSitePageRegions
+    tags: [Pages]
+    description: |
+      Resolves forum.page.regions contributions for one catalog page into
+      host-owned descriptors (link card, action card, or L2 widget reference).
+      Placement is validated against the RegionCatalog whitelist (fail closed);
+      widget mounting remains authoritatively admitted by the public L2 runtime.
+      Safe mode or no contributions yields an empty regions array.
+    parameters:
+      - name: page
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Catalog page id (e.g. forum.home). Pages without regions return 404.
+    responses:
+      '200':
+        description: Ordered region content for the page.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/pages.yaml#/ApiResponsePageRegions"
+      '404':
+        description: Unknown page or page without standard regions.
+      '422':
+        description: Missing page parameter.
+
 adminPages:
   get:
     summary: Admin page provider list

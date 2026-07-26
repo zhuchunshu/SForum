@@ -27,6 +27,7 @@ cd apps/api && go run ./cmd/sforum extension docs generate --check
 | `forum.profile.tabs` | forum | descriptor | `profileSection` | Public profile tabs/sections rendered by the host UI (extensionRoute or hostLink). |
 | `admin.dashboard.widgets` | admin | descriptor | `dashboardLink` | Admin dashboard link widgets; host-owned routes only, no executable payloads. |
 | `system.health.checks` | system | descriptor | `healthDescriptor` | Plugin readiness components merged into GET /ready without invoking plugin RPC. |
+| `forum.page.regions` | forum | descriptor | `regionPlacement` | Standard page region placements (RegionCatalog whitelist): hostLink card, extensionRoute action card, or l2Widget reference resolved by the public L2 runtime. |
 
 ### Kind meanings
 

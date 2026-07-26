@@ -2419,3 +2419,46 @@
   z-index: 102;
   padding: 2rem;
 }
+
+/* ===== 标准页面区域出口（forum.page.regions，SFRegionOutlet） ===== */
+
+.sf-region-outlet {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.sf-region-outlet__card {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--sf-border);
+  border-radius: 10px;
+  background: var(--sf-card);
+  color: var(--sf-fg);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.sf-region-outlet__card:hover {
+  color: var(--sf-accent);
+  border-color: var(--sf-accent-soft-border);
+  background: var(--sf-accent-soft);
+}
+
+.sf-region-outlet__card:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.sf-region-outlet__card span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -977,7 +977,9 @@ func wireAPICoreStack(ctx context.Context, cfg config.Config, logger *slog.Logge
 		WithAuditor(auditWriter).
 		WithLoader(pageLoaderGateway).
 		WithThemeRuntime(themeRuntime).
-		WithCorePageViewModels(corePageViews)
+		WithCorePageViewModels(corePageViews).
+		// 标准页面区域(forum.page.regions):descriptor + L2 widget 引用。
+		WithPageRegions(providers.NewExtensionPageRegionProvider(extensionService))
 
 	// F4.4：实体自定义字段（EAV，无 per-plugin core ALTER）。
 	entityMetaStore := entitymeta.NewPostgresStore(pool)

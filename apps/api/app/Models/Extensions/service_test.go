@@ -439,8 +439,8 @@ func TestServiceListsContributionPointsAndEffectiveContributions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ContributionPoints returned error: %v", err)
 	}
-	// 与 ExtensionManifest.ContributionPointDefinitions 生产目录对齐（含 F4.3 + E2）。
-	if len(points) != 10 || points[0].ID != "forum.topic.actions" {
+	// 与 ExtensionManifest.ContributionPointDefinitions 生产目录对齐（含 F4.3 + E2 + 页面区域）。
+	if len(points) != 11 || points[0].ID != "forum.topic.actions" {
 		t.Fatalf("unexpected contribution points: %#v", points)
 	}
 	pointIDs := make(map[string]bool, len(points))

@@ -368,5 +368,7 @@ async function runSidebarExtensionRoute(item: ForumTopicExtensionSidebarItem) {
         </template>
       </div>
     </div>
+    <!-- 宿主区域出口等附加内容（例如 forum.topic.show sidebar 区域） -->
+    <slot />
   </aside>
 </template>

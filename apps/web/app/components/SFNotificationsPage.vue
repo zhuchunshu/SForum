@@ -327,6 +327,8 @@ async function openSelectedTarget() {
           />
         </div>
 
+        <SFRegionOutlet page="forum.notifications" region="content_before" />
+
         <header class="sforum-notifications__head">
           <div class="sforum-notifications__head-copy">
             <h1 id="notification-page-title">{{ t('notifications.title') }}</h1>
@@ -465,6 +467,8 @@ async function openSelectedTarget() {
             </div>
           </div>
         </div>
+
+        <SFRegionOutlet page="forum.notifications" region="content_after" />
 
         <SFContentColumnFooter />
       </section>

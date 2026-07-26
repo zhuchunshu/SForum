@@ -185,6 +185,8 @@ function retryTags() {
       </div>
 
       <section class="sforum-home__main sforum-tags-page__main" aria-labelledby="tag-index-title">
+        <SFRegionOutlet page="forum.tag.index" region="content_before" />
+
         <header class="sforum-tags-page__head">
           <div class="sforum-tags-page__head-copy">
             <h1 id="tag-index-title">{{ t('taxonomy.tags.title') }}</h1>
@@ -302,6 +304,8 @@ function retryTags() {
           </section>
         </template>
 
+        <SFRegionOutlet page="forum.tag.index" region="content_after" />
+
         <SFContentColumnFooter />
       </section>
 
@@ -311,6 +315,7 @@ function retryTags() {
           :hot-tags="railHotTags"
           :recent-tags="railRecentTags"
         />
+        <SFRegionOutlet page="forum.tag.index" region="sidebar" />
       </aside>
     </div>
 

@@ -150,6 +150,8 @@ function topicActivity(topic: ForumTopicSummary) {
           />
         </div>
 
+        <SFRegionOutlet page="forum.category.show" region="content_before" />
+
         <header class="sforum-home__page-header">
           <p v-if="category?.groupName" class="sforum-home__page-group">{{ category.groupName }}</p>
           <h1 id="category-page-title">{{ category?.name }}</h1>
@@ -197,6 +199,8 @@ function topicActivity(topic: ForumTopicSummary) {
             :page-to="categoryPageTo"
           />
         </div>
+
+        <SFRegionOutlet page="forum.category.show" region="content_after" />
       </section>
     </div>
   </main>

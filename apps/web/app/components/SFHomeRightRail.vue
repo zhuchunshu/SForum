@@ -171,5 +171,7 @@ function isTopHotRank(index: string | number) {
         </div>
       </section>
     </div>
+    <!-- 宿主区域出口等附加内容（例如 forum.home sidebar 区域） -->
+    <slot />
   </aside>
 </template>

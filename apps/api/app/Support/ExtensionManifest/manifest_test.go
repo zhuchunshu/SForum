@@ -19,6 +19,7 @@ func TestContributionPointDefinitionsContainOnlyHostRenderedDescriptors(t *testi
 		PointForumProfileTabs:      true,
 		PointAdminDashboardWidgets: true,
 		PointSystemHealthChecks:    true,
+		PointForumPageRegions:      true,
 	}
 	for _, point := range points {
 		delete(want, point.ID)
@@ -379,6 +380,96 @@ func TestLegacyAdminPagesRemainCompatible(t *testing.T) {
 	menuPages := MenuAdminPages(normalized)
 	if len(menuPages) != 1 || menuPages[0].Path != "/settings" {
 		t.Fatalf("expected legacy explicit menu page, got %#v", menuPages)
+	}
+}
+
+func TestRegionPlacementContributionPayloadValidation(t *testing.T) {
+	base := Manifest{
+		ID:            "demo.regions",
+		Name:          "Region Demo",
+		Description:   "forum.page.regions payload tests.",
+		URL:           "https://example.com/regions",
+		Author:        ManifestAuthor{Name: "Demo"},
+		Version:       "1.0.0",
+		Type:          TypePlugin,
+		SForumVersion: "^1.0.0",
+		Routes: []ManifestRoute{
+			{Path: "/region/ping", Methods: []string{"POST"}, Access: RouteAccessLogin},
+		},
+	}
+
+	okContributions := [][]ManifestContribution{
+		{{
+			Point: PointForumPageRegions, ID: "demo.link-card", Order: 10,
+			Label: map[string]string{"en-US": "Browse tags"}, Icon: "i-lucide-tags",
+			Payload: json.RawMessage(`{"type":"hostLink","pages":["forum.home","forum.tag.index"],"region":"content_after","href":"/tags"}`),
+		}},
+		{{
+			Point: PointForumPageRegions, ID: "demo.action-card", Order: 20,
+			Label: map[string]string{"en-US": "Ping"}, Icon: "i-lucide-zap",
+			Payload: json.RawMessage(`{"type":"extensionRoute","pages":["forum.topic.show"],"region":"sidebar","method":"POST","path":"/region/ping"}`),
+		}},
+	}
+	for i, contributions := range okContributions {
+		m := base
+		m.Contributions = contributions
+		if err := Validate(m); err != nil {
+			t.Fatalf("ok case %d should validate: %v", i, err)
+		}
+	}
+
+	badPayloads := map[string]string{
+		"unknown page":              `{"type":"hostLink","pages":["forum.unknown"],"region":"content_after","href":"/tags"}`,
+		"region not on page":        `{"type":"hostLink","pages":["forum.notifications"],"region":"sidebar","href":"/tags"}`,
+		"empty pages":               `{"type":"hostLink","pages":[],"region":"content_after","href":"/tags"}`,
+		"duplicate pages":           `{"type":"hostLink","pages":["forum.home","forum.home"],"region":"content_after","href":"/tags"}`,
+		"external hostLink":         `{"type":"hostLink","pages":["forum.home"],"region":"content_after","href":"https://evil.example/"}`,
+		"api hostLink":              `{"type":"hostLink","pages":["forum.home"],"region":"content_after","href":"/api/secrets"}`,
+		"hostLink with path":        `{"type":"hostLink","pages":["forum.home"],"region":"content_after","href":"/tags","path":"/x"}`,
+		"route with href":           `{"type":"extensionRoute","pages":["forum.home"],"region":"content_after","method":"POST","path":"/region/ping","href":"/tags"}`,
+		"route bad method":          `{"type":"extensionRoute","pages":["forum.home"],"region":"content_after","method":"TRACE","path":"/region/ping"}`,
+		"widget without component":  `{"type":"l2Widget","pages":["forum.home"],"region":"content_after"}`,
+		"widget with extras":        `{"type":"l2Widget","pages":["forum.home"],"region":"content_after","componentId":"demo.widget","href":"/x"}`,
+		"unknown placement type":    `{"type":"iframe","pages":["forum.home"],"region":"content_after","href":"/tags"}`,
+		"widget unknown component":  `{"type":"l2Widget","pages":["forum.home"],"region":"content_after","componentId":"demo.widget"}`,
+	}
+	for name, payload := range badPayloads {
+		m := base
+		m.Contributions = []ManifestContribution{{
+			Point: PointForumPageRegions, ID: "demo.bad", Order: 1,
+			Label:   map[string]string{"en-US": "Bad"},
+			Payload: json.RawMessage(payload),
+		}}
+		if err := Validate(m); !errors.Is(err, ErrInvalidManifest) {
+			t.Fatalf("%s must be rejected, got %v", name, err)
+		}
+	}
+
+	// l2Widget 必须命中本 manifest 内的公开 L2 add 组件（函数级验证，避免整包 L2 校验依赖）。
+	withComponent := base
+	withComponent.Components = []ManifestComponent{{
+		ID: "demo.widget", ContractVersion: "demo.widget@1", Action: ComponentActionAdd,
+		L2Component: "assets/widget.mjs", PropsSchema: "schemas/widget-props.json",
+	}}
+	widgetPayload := json.RawMessage(`{"type":"l2Widget","pages":["forum.topic.show"],"region":"sidebar","componentId":"demo.widget"}`)
+	if err := validateRegionPlacementContributionPayload(withComponent, widgetPayload); err != nil {
+		t.Fatalf("l2Widget referencing own public add component should validate: %v", err)
+	}
+	gatedComponent := withComponent
+	gatedComponent.Components = []ManifestComponent{{
+		ID: "demo.widget", ContractVersion: "demo.widget@1", Action: ComponentActionAdd,
+		L2Component: "assets/widget.mjs", PropsSchema: "schemas/widget-props.json", Permission: "demo.perm",
+	}}
+	if err := validateRegionPlacementContributionPayload(gatedComponent, widgetPayload); !errors.Is(err, ErrInvalidManifest) {
+		t.Fatalf("l2Widget referencing permission-gated component must be rejected, got %v", err)
+	}
+	ssrOnly := withComponent
+	ssrOnly.Components = []ManifestComponent{{
+		ID: "demo.widget", ContractVersion: "demo.widget@1", Action: ComponentActionAdd,
+		SSRTemplate: "demo.tpl", PropsSchema: "schemas/widget-props.json",
+	}}
+	if err := validateRegionPlacementContributionPayload(ssrOnly, widgetPayload); !errors.Is(err, ErrInvalidManifest) {
+		t.Fatalf("l2Widget referencing non-L2 component must be rejected, got %v", err)
 	}
 }
 

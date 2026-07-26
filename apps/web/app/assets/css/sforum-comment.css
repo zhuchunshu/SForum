@@ -55,8 +55,8 @@
 .sf-comment__header {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.35rem;
+  align-items: center;
+  gap: 0.45rem;
 }
 
 .sf-comment__author {
@@ -65,9 +65,47 @@
   font-weight: 800;
 }
 
-.sf-comment__meta {
-  color: var(--sf-fg-tertiary);
-  font-size: 0.74rem;
+/* 楼主身份徽标：仅评论作者与主题作者相同时渲染 */
+.sf-comment__op-badge {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--sf-accent-soft);
+  color: var(--sf-accent);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 16px;
+}
+
+/* 头部右侧的「时间 · 楼层」组：margin-left auto 推到行尾，字号统一 11px 可读可点 */
+.sf-comment__meta-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-left: auto;
+  color: var(--sf-public-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.sf-comment__meta-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.5;
+}
+
+.sf-comment__floor {
+  color: inherit;
+  text-decoration: none;
+}
+
+.sf-comment__floor:hover,
+.sf-comment__floor:focus-visible {
+  color: var(--sf-accent);
 }
 
 .sf-comment__content {
@@ -92,24 +130,33 @@
   height: auto;
 }
 
+/* 被回复引用：中性底色单行引用卡（「回复 @人名」accent + 摘要单行省略）。
+   中性 4% 底给出"这是引用"的边界感，但不用 accent 染色压过正文。 */
 .sf-comment__reply-to {
-  display: grid;
-  gap: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
   min-width: 0;
   max-width: 100%;
-  margin: 0.4rem 0 0.6rem;
-  padding: 0.45rem 0.7rem;
-  border-left: 2px solid var(--sf-comment-branch);
-  border-radius: 0 5px 5px 0;
-  background: var(--sf-comment-branch-soft);
-  overflow-wrap: anywhere;
+  margin: 8px 0 2px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--sf-fg) 4%, transparent);
+  color: var(--sf-fg-tertiary);
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.sf-comment__reply-to:hover,
+.sf-comment__reply-to:focus-visible {
+  background: color-mix(in srgb, var(--sf-fg) 7%, transparent);
 }
 
 .sf-comment__reply-to-label {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  min-width: 0;
+  flex: 0 0 auto;
 }
 
 .sf-comment__reply-to-icon,
@@ -123,13 +170,18 @@
 }
 
 .sf-comment__reply-to-excerpt {
-  display: -webkit-box;
   overflow: hidden;
+  min-width: 0;
   color: var(--sf-fg-tertiary);
-  font-size: 0.8rem;
-  line-height: 1.45;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sf-comment__reply-to:hover .sf-comment__reply-to-excerpt,
+.sf-comment__reply-to:focus-visible .sf-comment__reply-to-excerpt {
+  color: var(--sf-fg-secondary);
 }
 
 .sf-comment__actions {
@@ -375,18 +427,9 @@
   padding: 20px 2px;
 }
 
-.sf-comment__body {
-  position: relative;
-  padding-right: 42px;
-}
-
 .sf-comment__author {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
-}
-
-.sf-comment__meta {
-  font-size: 10px;
 }
 
 .sf-comment__content {
@@ -396,41 +439,9 @@
   line-height: var(--sf-comment-leading, 1.68);
 }
 
-.sf-comment__reply-to {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 3px;
-  margin: 8px 0 10px;
-  border: 0;
-  border-left: 2px solid var(--sf-accent);
-  border-radius: 0 5px 5px 0;
-  padding: 8px 10px;
-  background: var(--sf-accent-soft);
-  color: inherit;
-  text-decoration: none;
-}
-
-.sf-comment__reply-to:hover {
-  background: color-mix(in srgb, var(--sf-accent-soft) 82%, var(--sf-accent) 8%);
-}
-
 .sf-comment__actions {
   margin-top: 8px;
   opacity: .72;
-}
-
-.sf-comment__floor {
-  position: absolute;
-  top: 0;
-  right: 0;
-  color: var(--sf-public-text-muted);
-  font-size: 10px;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.sf-comment__floor:hover {
-  color: var(--sf-accent);
 }
 
 @media (max-width: 640px) {
@@ -441,9 +452,5 @@
   .sf-comment__entry {
     gap: 10px;
     padding: 18px 2px;
-  }
-
-  .sf-comment__body {
-    padding-right: 34px;
   }
 }

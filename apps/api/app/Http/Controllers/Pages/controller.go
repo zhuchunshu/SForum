@@ -18,10 +18,12 @@ import (
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	pageviewmodels "github.com/zhuchunshu/sforum/apps/api/app/Models/PageViewModels"
+	sitechrome "github.com/zhuchunshu/sforum/apps/api/app/Models/SiteChrome"
 	apilts "github.com/zhuchunshu/sforum/apps/api/app/Support/APILTS"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
+	regioncatalog "github.com/zhuchunshu/sforum/apps/api/app/Support/RegionCatalog"
 	themecompiler "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeCompiler"
 )
 
@@ -35,6 +37,11 @@ type pageViewerStore interface {
 	GetCurrentUser(context.Context, int64) (identity.CurrentUser, error)
 }
 
+// PageRegionSource 解析某页面标准区域的插件贡献内容(forum.page.regions)。
+type PageRegionSource interface {
+	PageRegions(ctx context.Context, pageID string) ([]sitechrome.PageRegionViewModel, error)
+}
+
 // Controller 暴露 Page Registry 管理与公开解析 API。
 type Controller struct {
 	registry *pages.Registry
@@ -45,6 +52,15 @@ type Controller struct {
 	loader   *pages.LoaderGateway
 	runtime  *pages.ThemeRuntimeRegistry
 	coreData *pageviewmodels.CorePageViewModelSource
+	regions  PageRegionSource
+}
+
+// WithPageRegions 注入区域贡献解析源(forum.page.regions)。
+func (h *Controller) WithPageRegions(source PageRegionSource) *Controller {
+	if h != nil {
+		h.regions = source
+	}
+	return h
 }
 
 func (h *Controller) WithThemeRuntime(runtime *pages.ThemeRuntimeRegistry) *Controller {
@@ -92,6 +108,7 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Get("/pages/catalog", h.publicCatalog)
 	api.Get("/site/active-theme/skin", h.activeSkin)
 	api.Get("/site/theme-assets/:extensionId/*", h.themeAsset)
+	api.Get("/site/page-regions", h.pageRegions) // ?page=forum.home
 
 	admin := api.Group("/admin/pages")
 	admin.Get("", h.adminList)
@@ -397,6 +414,40 @@ func (h *Controller) resolve(c fiber.Ctx) error {
 	}
 
 	return apphttp.OK(c, resp)
+}
+
+const pageRegionsSchemaVersion = "sforum.page-regions@1"
+
+type pageRegionsResponse struct {
+	SchemaVersion string                           `json:"schemaVersion"`
+	Page          string                           `json:"page"`
+	Regions       []sitechrome.PageRegionViewModel `json:"regions"`
+}
+
+// pageRegions 公开:某页面标准区域的插件贡献内容(纯描述符;widget 引用由 L2 运行时权威裁决)。
+func (h *Controller) pageRegions(c fiber.Ctx) error {
+	pageID := strings.TrimSpace(c.Query("page"))
+	if pageID == "" {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "pages.id_required")
+	}
+	if _, known := pages.Find(pageID); !known || len(regioncatalog.PageRegions(pageID)) == 0 {
+		return fiber.NewError(fiber.StatusNotFound, "pages.not_found")
+	}
+	regions := []sitechrome.PageRegionViewModel{}
+	if h.regions != nil {
+		resolved, err := h.regions.PageRegions(c.Context(), pageID)
+		if err != nil {
+			return err
+		}
+		if resolved != nil {
+			regions = resolved
+		}
+	}
+	return apphttp.OK(c, pageRegionsResponse{
+		SchemaVersion: pageRegionsSchemaVersion,
+		Page:          pageID,
+		Regions:       regions,
+	})
 }
 
 func (h *Controller) publicCatalog(c fiber.Ctx) error {

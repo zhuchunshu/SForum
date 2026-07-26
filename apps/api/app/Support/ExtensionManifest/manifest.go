@@ -297,6 +297,7 @@ const (
 	PointForumProfileTabs      = "forum.profile.tabs"
 	PointAdminDashboardWidgets = "admin.dashboard.widgets"
 	PointSystemHealthChecks    = "system.health.checks"
+	PointForumPageRegions      = "forum.page.regions"
 )
 
 // 宿主拥有的 payloadType；禁止可执行 JSON。
@@ -308,6 +309,7 @@ const (
 	PayloadTypeNavItem          = "navItem"
 	PayloadTypeDashboardLink    = "dashboardLink"
 	PayloadTypeHealthDescriptor = "healthDescriptor"
+	PayloadTypeRegionPlacement  = "regionPlacement"
 )
 
 // TopicActionContributionPayload 用于 forum.topic.actions / forum.comment.actions（extensionRoute）。
@@ -381,6 +383,23 @@ type HealthCheckContributionPayload struct {
 	Required  bool   `json:"required,omitempty"`
 }
 
+// RegionPlacementContributionPayload 用于 forum.page.regions（regionPlacement）。
+// 把内容放入宿主页面的标准区域（RegionCatalog 白名单的 page×region）。
+// type=hostLink：站内相对路径链接卡；type=extensionRoute：可触发的扩展路由动作卡；
+// type=l2Widget：引用本 manifest 内已声明的 L2 公开组件（componentId），
+// 挂载仍走公开 L2 运行时的 descriptor 签发/信任/CSP 权威裁决，此处仅为放置声明。
+type RegionPlacementContributionPayload struct {
+	Type        string   `json:"type"`
+	Pages       []string `json:"pages"`
+	Region      string   `json:"region"`
+	Method      string   `json:"method,omitempty"`
+	Path        string   `json:"path,omitempty"`
+	Href        string   `json:"href,omitempty"`
+	ComponentID string   `json:"componentId,omitempty"`
+}
+
+const PayloadRegionPlacementL2Widget = "l2Widget"
+
 type ContributionPointDefinition struct {
 	ID          string `json:"id"`
 	Owner       string `json:"owner"`
@@ -401,6 +420,7 @@ func ContributionPointDefinitions() []ContributionPointDefinition {
 		{ID: PointForumProfileTabs, Owner: "forum", Kind: ContributionPointKindDescriptor, Description: "Public profile tabs/sections rendered by the host UI (extensionRoute or hostLink).", PayloadType: PayloadTypeProfileSection},
 		{ID: PointAdminDashboardWidgets, Owner: "admin", Kind: ContributionPointKindDescriptor, Description: "Admin dashboard link widgets; host-owned routes only, no executable payloads.", PayloadType: PayloadTypeDashboardLink},
 		{ID: PointSystemHealthChecks, Owner: "system", Kind: ContributionPointKindDescriptor, Description: "Plugin readiness components merged into GET /ready without invoking plugin RPC.", PayloadType: PayloadTypeHealthDescriptor},
+		{ID: PointForumPageRegions, Owner: "forum", Kind: ContributionPointKindDescriptor, Description: "Standard page region placements (RegionCatalog whitelist): hostLink card, extensionRoute action card, or l2Widget reference resolved by the public L2 runtime.", PayloadType: PayloadTypeRegionPlacement},
 	}
 }
 

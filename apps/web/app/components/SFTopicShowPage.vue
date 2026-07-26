@@ -1151,6 +1151,8 @@ async function submitReport() {
         </div>
 
         <div class="sforum-topic-page__inner">
+          <SFRegionOutlet page="forum.topic.show" region="content_before" />
+
           <!-- 错误 / 未找到 -->
           <SFCard v-if="topicError && !topic" class="p-10">
             <SFEmptyState
@@ -1279,6 +1281,7 @@ async function submitReport() {
                         :comment-actions-builder="commentActions"
                         :loading-more-comment-id="loadingMoreCommentId"
                         :flash="flashCommentId === comment.id"
+                        :op-user-id="topic.authorUserId"
                         @action-comment="(c: ForumComment, value: string) => handleCommentClick(c, value)"
                         @load-more-replies="(c: ForumComment) => { void loadMoreCommentReplies(c) }"
                       />
@@ -1341,6 +1344,8 @@ async function submitReport() {
           </template>
         </div>
 
+        <SFRegionOutlet page="forum.topic.show" region="content_after" />
+
         <SFContentColumnFooter />
       </div>
 
@@ -1354,7 +1359,9 @@ async function submitReport() {
         :first-comment-id="comments[0]?.id"
         :latest-comment-id="comments[comments.length - 1]?.id"
         :extension-sidebar="topic.extensionSidebar || []"
-      />
+      >
+        <SFRegionOutlet page="forum.topic.show" region="sidebar" />
+      </SFTopicSideCard>
     </div>
 
     <button

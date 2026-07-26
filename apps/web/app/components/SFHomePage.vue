@@ -514,6 +514,8 @@ onBeforeUnmount(() => {
           />
         </div>
 
+        <SFRegionOutlet page="forum.home" region="content_before" />
+
         <div
           v-if="homeNotice"
           class="sforum-home__notice mb-3.5 rounded-lg border border-[var(--sf-public-notice-border)] bg-[var(--sf-public-notice-bg)] px-3.5 py-2.5 text-sm font-semibold leading-normal text-[var(--sf-public-notice-text)]"
@@ -695,6 +697,8 @@ onBeforeUnmount(() => {
           <span v-else class="sforum-home__sentinel" aria-hidden="true" />
         </div>
 
+        <SFRegionOutlet page="forum.home" region="content_after" />
+
         <SFContentColumnFooter />
       </section>
 
@@ -710,7 +714,9 @@ onBeforeUnmount(() => {
         :topic-url-mode="topicUrlMode"
         :can-create-topic="canCreateTopic"
         @select-tag="selectTag"
-      />
+      >
+        <SFRegionOutlet page="forum.home" region="sidebar" />
+      </SFHomeRightRail>
     </div>
 
     <button

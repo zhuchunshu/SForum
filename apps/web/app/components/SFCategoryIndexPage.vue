@@ -188,6 +188,8 @@ async function retryLoad() {
       </div>
 
       <section class="sforum-home__main sforum-category-directory__main" aria-labelledby="category-directory-title">
+        <SFRegionOutlet page="forum.category.index" region="content_before" />
+
         <header class="sforum-category-directory__head">
           <div class="sforum-category-directory__headline">
             <h1 id="category-directory-title">{{ pageTitle }}</h1>
@@ -362,9 +364,12 @@ async function retryLoad() {
             :description="t('taxonomy.categories.emptyDescription')"
           />
         </div>
+
+        <SFRegionOutlet page="forum.category.index" region="content_after" />
       </section>
 
       <aside class="sforum-home__right sforum-category-directory__right" :aria-label="t('taxonomy.categories.rightRailLabel')">
+        <SFRegionOutlet page="forum.category.index" region="sidebar" />
         <div class="sf-home-right-rail">
           <section class="sf-home-right-rail__card sforum-category-directory__rail-section">
             <header class="sf-home-right-rail__head">

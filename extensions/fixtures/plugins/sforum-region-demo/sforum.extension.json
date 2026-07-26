@@ -1,0 +1,82 @@
+{
+  "manifestVersion": 3,
+  "id": "sforum.region.demo",
+  "name": "Region Demo Fixture",
+  "description": "CI fixture for forum.page.regions placements: hostLink card, extensionRoute action card (setting-gated), and an l2Widget reference.",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "author": {
+    "name": "SForum",
+    "url": "https://github.com/zhuchunshu/sforum"
+  },
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": ">=0.1.0",
+  "settings": [
+    {
+      "key": "show_action_card",
+      "label": { "zh-CN": "显示动作卡", "en-US": "Show action card" },
+      "type": "boolean",
+      "default": "false"
+    }
+  ],
+  "contributions": [
+    {
+      "point": "forum.page.regions",
+      "id": "sforum.region.demo.tags-card",
+      "order": 10,
+      "label": { "en-US": "Browse tags", "zh-CN": "浏览标签" },
+      "icon": "i-lucide-tags",
+      "payload": {
+        "type": "hostLink",
+        "pages": ["forum.home", "forum.tag.index"],
+        "region": "content_after",
+        "href": "/tags"
+      }
+    },
+    {
+      "point": "forum.page.regions",
+      "id": "sforum.region.demo.ping-card",
+      "order": 20,
+      "label": { "en-US": "Region Ping", "zh-CN": "区域探测" },
+      "icon": "i-lucide-zap",
+      "enabledBySetting": "show_action_card",
+      "payload": {
+        "type": "extensionRoute",
+        "pages": ["forum.topic.show"],
+        "region": "sidebar",
+        "method": "POST",
+        "path": "/region/ping"
+      }
+    },
+    {
+      "point": "forum.page.regions",
+      "id": "sforum.region.demo.widget",
+      "order": 30,
+      "label": { "en-US": "Region Widget", "zh-CN": "区域组件" },
+      "payload": {
+        "type": "l2Widget",
+        "pages": ["forum.topic.show"],
+        "region": "sidebar",
+        "componentId": "sforum.region.demo.component.card"
+      }
+    }
+  ],
+  "components": [
+    {
+      "id": "sforum.region.demo.component.card",
+      "contractVersion": "sforum.region.demo.component.card@1",
+      "action": "add",
+      "l2Component": "sforum.region.demo.file.frontend.card",
+      "propsSchema": "sforum.region.demo.component.card.props@1"
+    }
+  ],
+  "packageFiles": [
+    {
+      "id": "sforum.region.demo.file.frontend.card",
+      "kind": "frontend",
+      "path": "frontend/region-card.mjs",
+      "digest": "1e4f3f115ed66205991d03c021087e17fab5ea58d002ae74a1832bd34ca1105e",
+      "version": "1"
+    }
+  ]
+}

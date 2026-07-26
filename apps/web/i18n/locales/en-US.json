@@ -30,6 +30,10 @@
     "privacyTitle": "Privacy Policy",
     "guidelinesTitle": "Community Guidelines"
   },
+  "regions": {
+    "ariaLabel": "Extension content",
+    "actionFailed": "Action failed"
+  },
   "notifications": {
     "title": "Notifications",
     "description": "Replies, mentions, and content review results.",
@@ -3784,6 +3788,7 @@
     "viewTree": "Tree",
     "viewFlat": "Flat",
     "edited": "edited",
+    "opBadge": "OP",
     "emptyComments": {
       "title": "No comments yet",
       "description": "Be the first to comment."

@@ -283,6 +283,8 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/siteActiveThemeSettings"
   "/site/active-theme/skin":
     "$ref": "./openapi/paths/pages.yaml#/siteActiveThemeSkin"
+  "/site/page-regions":
+    "$ref": "./openapi/paths/pages.yaml#/sitePageRegions"
   "/pages/catalog":
     "$ref": "./openapi/paths/pages.yaml#/pagesCatalog"
   "/pages/resolve":

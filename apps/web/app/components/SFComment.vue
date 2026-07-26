@@ -47,6 +47,8 @@ const props = withDefaults(defineProps<{
   loadingMoreCommentId?: number | null
   /** 深链定位后的短暂强调高亮（详情页控制，约数秒后清除） */
   flash?: boolean
+  /** 主题作者 user id：评论作者与其相同时显示「楼主」徽标 */
+  opUserId?: number | null
 }>(), {
   comment: undefined,
   presentation: 'flat',
@@ -66,7 +68,8 @@ const props = withDefaults(defineProps<{
   commentAuthorLinkBuilder: undefined,
   commentActionsBuilder: undefined,
   loadingMoreCommentId: null,
-  flash: false
+  flash: false,
+  opUserId: null
 })
 
 const emit = defineEmits<{
@@ -80,6 +83,10 @@ const { t } = useI18n()
 // 后端已用 bluemonday sanitize，前端可直接 v-html 渲染。
 const showHtml = computed(() => Boolean(props.htmlContent))
 const displayFloorLabel = computed(() => props.floorLabel?.trim() || '')
+// 楼主徽标：仅详情页传入 opUserId 且评论节点作者匹配时显示。
+const isOpAuthor = computed(() =>
+  props.opUserId != null && props.comment?.authorUserId === props.opUserId
+)
 
 // 当前评论节点：用于内联编辑器/回复编辑器匹配（inject renderer 据此判断原位渲染）。
 const commentNode = computed(() => props.comment ?? null)
@@ -200,7 +207,18 @@ const InlineEditorHost = () => {
           >
             {{ author }}
           </component>
-          <span v-if="meta" class="sf-comment__meta">{{ meta }}</span>
+          <span v-if="isOpAuthor" class="sf-comment__op-badge">{{ t('topicDetail.opBadge') }}</span>
+          <!-- 时间与楼层合并为头部右侧的 meta 组；楼层保留 .sf-comment__floor 类与 #N 文本供进度条读取 -->
+          <span v-if="meta || (comment && displayFloorLabel)" class="sf-comment__meta-group">
+            <span v-if="meta" class="sf-comment__meta">{{ meta }}</span>
+            <span v-if="meta && comment && displayFloorLabel" class="sf-comment__meta-dot" aria-hidden="true" />
+            <a
+              v-if="comment && displayFloorLabel"
+              class="sf-comment__floor"
+              :href="`#comment-${comment.id}`"
+              :aria-label="displayFloorLabel"
+            >{{ displayFloorLabel }}</a>
+          </span>
         </header>
 
         <a
@@ -216,13 +234,6 @@ const InlineEditorHost = () => {
           </span>
           <span v-if="replyTo.excerpt" class="sf-comment__reply-to-excerpt">{{ replyTo.excerpt }}</span>
         </a>
-
-        <a
-          v-if="comment && displayFloorLabel"
-          class="sf-comment__floor"
-          :href="`#comment-${comment.id}`"
-          :aria-label="displayFloorLabel"
-        >{{ displayFloorLabel }}</a>
 
         <div v-if="showHtml" class="sf-comment__content sf-prose" v-highlight v-html="sanitizeHtml(htmlContent)" />
         <p v-else class="sf-comment__content">
@@ -293,6 +304,7 @@ const InlineEditorHost = () => {
         :comment-author-link-builder="commentAuthorLinkBuilder"
         :comment-actions-builder="commentActionsBuilder"
         :loading-more-comment-id="loadingMoreCommentId"
+        :op-user-id="opUserId"
         @load-more-replies="forwardLoadMoreReplies"
         @action-comment="forwardChildAction"
       />

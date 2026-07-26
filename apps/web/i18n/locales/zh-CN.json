@@ -30,6 +30,10 @@
     "privacyTitle": "隐私政策",
     "guidelinesTitle": "社区指南"
   },
+  "regions": {
+    "ariaLabel": "扩展内容",
+    "actionFailed": "操作失败"
+  },
   "notifications": {
     "title": "通知",
     "description": "回复、提及和内容审核结果。",
@@ -3784,6 +3788,7 @@
     "viewTree": "树状",
     "viewFlat": "平铺",
     "edited": "已编辑",
+    "opBadge": "楼主",
     "emptyComments": {
       "title": "还没有评论",
       "description": "成为第一个发表评论的人。"

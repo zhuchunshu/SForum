@@ -63,6 +63,14 @@ func (p *PagesProvider) WithCorePageViewModels(source *pageviewmodels.CorePageVi
 	return p
 }
 
+// WithPageRegions 注入 forum.page.regions 区域贡献解析源。
+func (p *PagesProvider) WithPageRegions(source pagescontroller.PageRegionSource) *PagesProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithPageRegions(source)
+	}
+	return p
+}
+
 func (p *PagesProvider) RegisterRoutes(api fiber.Router) {
 	p.controller.RegisterRoutes(api)
 }

@@ -10,6 +10,12 @@ import {
   type MutableRouteRulesContext,
   type PageResolvePayload
 } from '~/utils/pageResolve'
+import {
+  collectRegionWidgetRefs,
+  fetchPageRegions,
+  PAGE_REGION_PAGES,
+  usePageRegionsState
+} from '~/composables/usePageRegions'
 
 const props = defineProps<{
   page: string
@@ -139,6 +145,33 @@ if (isPageResolveSemanticNotFound(resolveError.value)) {
   throw createError({ statusCode: 404, statusMessage: 'Page not found' })
 }
 
+// 标准页面区域(forum.page.regions):与 resolve 同层拉取,SSR 阶段写入共享状态,
+// 让页内 SFRegionOutlet 与 CSP 聚合都能在首屏渲染前拿到 widget refs。
+const pageRegionsState = usePageRegionsState(props.page)
+if (PAGE_REGION_PAGES.has(props.page)) {
+  const { data: pageRegionsData } = await useAsyncData(
+    `sf-page-regions:${resolveLocale.value}:${props.page}`,
+    () => fetchPageRegions(props.page)
+  )
+  watchEffect(() => {
+    pageRegionsState.value = pageRegionsData.value ?? null
+  })
+}
+const regionWidgetRefs = computed(() => collectRegionWidgetRefs(pageRegionsState.value))
+
+// CSP 单点聚合:主题模板路径把 refs 交给 SFThemeTemplate 合并(那里是唯一调用点);
+// 原生路径(host chrome / 纯 slot)没有 ThemeTemplate,由本组件(已在 async setup 内)聚合一次。
+const willUseThemeTemplate = computed(() => {
+  const payload = resolved.value as ResolvePayload | null
+  return Boolean(payload
+    && (payload.provider || 'core') !== 'core'
+    && (payload.renderOutput || (payload.templateHtml || '').trim())
+    && !payload.fallback)
+})
+if (import.meta.server && regionWidgetRefs.value.length > 0 && !willUseThemeTemplate.value) {
+  await applyPublicPageDocumentPolicy(regionWidgetRefs.value)
+}
+
 if (import.meta.server) {
   watchEffect(() => {
     if (resolved.value) {
@@ -155,6 +188,7 @@ if (import.meta.server) {
     :page="page"
     :resolved="resolved"
     :resolve-error="resolveError"
+    :region-widget-refs="regionWidgetRefs"
   >
     <slot />
   </SFPageOutletRender>

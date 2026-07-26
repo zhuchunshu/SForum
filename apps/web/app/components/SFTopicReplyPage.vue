@@ -184,6 +184,8 @@ function onCancel() {
         </p>
       </div>
 
+      <SFRegionOutlet page="forum.topic.reply" region="content_before" />
+
       <SFCard v-if="missingTopic" class="p-8">
         <SFEmptyState
           icon-label="?"
@@ -235,6 +237,8 @@ function onCancel() {
           />
         </SFCard>
       </template>
+
+      <SFRegionOutlet page="forum.topic.reply" region="content_after" />
     </div>
   </main>
 </template>

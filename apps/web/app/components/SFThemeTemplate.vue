@@ -6,7 +6,9 @@ import SFNavbar from './SFNavbar.vue'
 import SFNotFoundPageContent from './SFNotFoundPageContent.vue'
 import SFTopicShowPage from './SFTopicShowPage.vue'
 import {
-  collectPublicL2ComponentRefsFromRenderNodes
+  collectPublicL2ComponentRefsFromRenderNodes,
+  normalizePublicFrontendComponentRefs,
+  type PublicFrontendComponentRef
 } from '~/runtime/public-extensions/pagePolicy'
 
 const props = defineProps<{
@@ -18,6 +20,8 @@ const props = defineProps<{
   /** SSR resolve 注入的插件页面数据（唯一数据来源；禁止客户端再请求插件 route） */
   loaderData?: unknown
   loaderError?: string
+  /** 页面区域(forum.page.regions)声明的 L2 widget refs；与主题岛 refs 合并后单次聚合 CSP */
+  extraL2Refs?: PublicFrontendComponentRef[]
 }>()
 
 const { t } = useI18n()
@@ -106,11 +110,20 @@ const renderState = computed(() => {
 // SSR：按页面实际 L2 岛聚合 Host document CSP。
 // 策略不可用（public L2 默认关 / 信任撤销）时不写 header；widget 自身回退 L1。
 const publicL2Refs = computed(() => {
-  if (renderState.value.error) return []
+  const themeRefs = (() => {
+    if (renderState.value.error) return []
+    try {
+      return collectPublicL2ComponentRefsFromRenderNodes(renderState.value.nodes)
+    } catch {
+      return []
+    }
+  })()
+  // 区域 widget refs 与主题岛 refs 合并去重；单次 applyPublicPageDocumentPolicy 保证
+  // 每响应恰好一份确定性 CSP 头（严禁下游各自聚合）。
   try {
-    return collectPublicL2ComponentRefsFromRenderNodes(renderState.value.nodes)
+    return normalizePublicFrontendComponentRefs([...themeRefs, ...(props.extraL2Refs ?? [])])
   } catch {
-    return []
+    return themeRefs
   }
 })
 // 仅在页面声明了 L2 岛时聚合 CSP，避免每个公开页多一次 404。

@@ -63,6 +63,9 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Comment stream visual refresh: deep-link highlight now light-sweep animation;
+  header meta regrouped (time · floor right-aligned, OP badge, one-line reply
+  quote): `sessions/2026-07-26-comment-stream-visual-refresh-handoff.md`
 - `/settings/profile` + `/settings/security` three-column chrome extracted into
   shared `SFSettingsShell` (slots: main / rail / head-actions; supersedes the
   07-24 "no SettingsShell yet" decision):

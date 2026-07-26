@@ -252,6 +252,8 @@ function topicActivity(topic: ForumTopicSummary) {
       </div>
 
       <section class="sforum-home__main sforum-tags-page__main" aria-labelledby="tag-page-title">
+        <SFRegionOutlet page="forum.tag.show" region="content_before" />
+
         <header class="sforum-home__page-header">
           <p class="sforum-home__page-group">{{ tagsHeading }}</p>
           <h1 id="tag-page-title">#{{ tag?.name }}</h1>
@@ -318,6 +320,8 @@ function topicActivity(topic: ForumTopicSummary) {
           />
         </div>
 
+        <SFRegionOutlet page="forum.tag.show" region="content_after" />
+
         <SFContentColumnFooter />
       </section>
 
@@ -331,6 +335,7 @@ function topicActivity(topic: ForumTopicSummary) {
           :topic-total="topicList.total"
           :related-tags="railRelatedTags"
         />
+        <SFRegionOutlet page="forum.tag.show" region="sidebar" />
       </aside>
     </div>
 

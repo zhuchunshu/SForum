@@ -622,6 +622,8 @@ onBeforeRouteLeave((_to, _from, next) => {
               @close="errorMessage = ''"
             />
 
+            <SFRegionOutlet page="forum.topic.create" region="content_before" />
+
             <form class="sforum-topic-composer__form" @submit.prevent="submitCurrentDraft">
               <!-- 分类 / 标签：自定义控件，展示 taxonomy icon + 颜色 -->
               <div class="sforum-topic-composer__taxonomy">
@@ -717,6 +719,8 @@ onBeforeRouteLeave((_to, _from, next) => {
                 </p>
               </div>
             </form>
+
+            <SFRegionOutlet page="forum.topic.create" region="content_after" />
           </div>
         </template>
 

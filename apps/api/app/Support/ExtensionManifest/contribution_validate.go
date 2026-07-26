@@ -3,6 +3,8 @@ package extensionmanifest
 import (
 	"encoding/json"
 	"strings"
+
+	regioncatalog "github.com/zhuchunshu/sforum/apps/api/app/Support/RegionCatalog"
 )
 
 func normalizeContribution(contribution ManifestContribution) ManifestContribution {
@@ -88,7 +90,7 @@ func validateContributions(manifest Manifest, definitions []ContributionPointDef
 				return ErrInvalidManifest
 			}
 		}
-		if err := validateDescriptorContributionPayload(definition.PayloadType, contribution.Payload); err != nil {
+		if err := validateDescriptorContributionPayload(manifest, definition.PayloadType, contribution.Payload); err != nil {
 			return err
 		}
 	}
@@ -134,7 +136,8 @@ func allowedContributionIcon(icon string) bool {
 }
 
 // validateDescriptorContributionPayload 按 payloadType 校验宿主拥有的描述符（F4.3 / E2）。
-func validateDescriptorContributionPayload(payloadType string, raw json.RawMessage) error {
+// manifest 仅供需要交叉引用包内声明的 payload（如 regionPlacement 的 l2Widget）使用。
+func validateDescriptorContributionPayload(manifest Manifest, payloadType string, raw json.RawMessage) error {
 	switch payloadType {
 	case PayloadTypeExtensionRoute:
 		return validateTopicActionContributionPayload(raw)
@@ -150,6 +153,75 @@ func validateDescriptorContributionPayload(payloadType string, raw json.RawMessa
 		return validateDashboardWidgetContributionPayload(raw)
 	case PayloadTypeHealthDescriptor:
 		return validateHealthCheckContributionPayload(raw)
+	case PayloadTypeRegionPlacement:
+		return validateRegionPlacementContributionPayload(manifest, raw)
+	default:
+		return ErrInvalidManifest
+	}
+}
+
+func validateRegionPlacementContributionPayload(manifest Manifest, raw json.RawMessage) error {
+	if len(raw) == 0 {
+		return ErrInvalidManifest
+	}
+	var payload RegionPlacementContributionPayload
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return ErrInvalidManifest
+	}
+	if len(payload.Pages) == 0 {
+		return ErrInvalidManifest
+	}
+	region := strings.TrimSpace(payload.Region)
+	seenPages := map[string]bool{}
+	for _, page := range payload.Pages {
+		page = strings.TrimSpace(page)
+		if page == "" || seenPages[page] || !regioncatalog.Valid(page, region) {
+			return ErrInvalidManifest
+		}
+		seenPages[page] = true
+	}
+	switch strings.TrimSpace(payload.Type) {
+	case "hostLink":
+		if payload.Method != "" || payload.Path != "" || payload.ComponentID != "" {
+			return ErrInvalidManifest
+		}
+		if !safeHostLinkPath(payload.Href) {
+			return ErrInvalidManifest
+		}
+		return nil
+	case PayloadTypeExtensionRoute:
+		if payload.Href != "" || payload.ComponentID != "" {
+			return ErrInvalidManifest
+		}
+		switch strings.ToUpper(strings.TrimSpace(payload.Method)) {
+		case "GET", "POST", "PUT", "PATCH", "DELETE":
+		default:
+			return ErrInvalidManifest
+		}
+		if !safeContributionRoutePath(payload.Path) {
+			return ErrInvalidManifest
+		}
+		return nil
+	case PayloadRegionPlacementL2Widget:
+		if payload.Method != "" || payload.Path != "" || payload.Href != "" {
+			return ErrInvalidManifest
+		}
+		componentID := NormalizeID(payload.ComponentID)
+		if componentID == "" {
+			return ErrInvalidManifest
+		}
+		// 必须引用本 manifest 内的公开 L2 add 组件；放置声明不授予任何执行权，
+		// 挂载时仍由公开 L2 运行时按信任授予权威裁决。
+		for _, component := range manifest.Components {
+			if NormalizeID(component.ID) != componentID {
+				continue
+			}
+			if component.L2Component == "" || component.Action != ComponentActionAdd || component.Permission != "" {
+				return ErrInvalidManifest
+			}
+			return nil
+		}
+		return ErrInvalidManifest
 	default:
 		return ErrInvalidManifest
 	}
