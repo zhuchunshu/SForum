@@ -3975,8 +3975,8 @@
     "settings": {
       "title": "发布设置",
       "permission": "权限",
-      "permissionValue": "登录 + topic.create",
-      "editPermissionValue": "登录 + topic.edit_own / topic.edit_any",
+      "permissionValue": "登录 + 发布主题",
+      "editPermissionValue": "登录 + 编辑自己的主题 / 编辑任意主题",
       "category": "分类",
       "tags": "标签策略",
       "limits": "内容限制",

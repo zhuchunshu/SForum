@@ -3975,8 +3975,8 @@
     "settings": {
       "title": "Publish settings",
       "permission": "Permission",
-      "permissionValue": "Signed in + topic.create",
-      "editPermissionValue": "Signed in + topic.edit_own / topic.edit_any",
+      "permissionValue": "Signed in + Create topics",
+      "editPermissionValue": "Signed in + Edit own topics / Edit any topic",
       "category": "Category",
       "tags": "Tag policy",
       "limits": "Content limits",

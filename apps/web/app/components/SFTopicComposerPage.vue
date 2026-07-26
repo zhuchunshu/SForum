@@ -756,11 +756,7 @@ onBeforeRouteLeave(() => {
       >
         <SFTopicComposerRightRail
           :category-name="summaryCategory?.name"
-          :title="title"
-          :title-count="titleCount"
-          :title-min="limits.topicTitleMinRunes"
           :title-max="limits.topicTitleMaxRunes"
-          :tag-count="tagDraft.length"
           :tag-policy-label="tagPolicyLabel"
           :actor-name="actorName"
           :publish-visibility-label="publishVisibilityLabel"
@@ -819,11 +815,7 @@ onBeforeRouteLeave(() => {
       <aside class="sforum-home__right" :aria-label="t('composer.rightRail.label')">
         <SFTopicComposerRightRail
           :category-name="summaryCategory?.name"
-          :title="title"
-          :title-count="titleCount"
-          :title-min="limits.topicTitleMinRunes"
           :title-max="limits.topicTitleMaxRunes"
-          :tag-count="tagDraft.length"
           :tag-policy-label="tagPolicyLabel"
           :actor-name="actorName"
           :publish-visibility-label="publishVisibilityLabel"
