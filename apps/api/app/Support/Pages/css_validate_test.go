@@ -3,7 +3,14 @@ package pages
 import "testing"
 
 func TestValidateCSS(t *testing.T) {
-	if err := ValidateCSS(`:root { --sf-primary: #0ea5e9; } .x { color: red; }`); err != nil {
+	if err := ValidateCSS(`
+		:root { --sf-primary: #0ea5e9; }
+		.x {
+			color: red;
+			overscroll-behavior: contain;
+			scroll-behavior: smooth;
+		}
+	`); err != nil {
 		t.Fatal(err)
 	}
 	for _, bad := range []string{

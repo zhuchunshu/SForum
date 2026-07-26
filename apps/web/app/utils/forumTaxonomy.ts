@@ -170,11 +170,35 @@ export function forumEditorInitialContent(
 
 export type ForumTopicDetail = ForumTopicSummary & {
   content: ForumRenderedContent
+  /** 主题正文贡献者（作者 + 编辑/恢复 actor），作者优先，最多 5 个 */
+  contributors?: ForumUserSummary[]
+  /** 去重后的贡献者总数，可大于 contributors.length */
+  contributorCount?: number
   extensionActions?: ForumTopicExtensionAction[]
   /** forum.topic.sidebar 宿主描述符（E2.1） */
   extensionSidebar?: ForumTopicExtensionSidebarItem[]
   /** forum.topic.badges 宿主描述符（E2.1） */
   extensionBadges?: ForumTopicExtensionBadge[]
+}
+
+/** 公开贡献时间线条目：无 reason / 正文 / diff */
+export type ForumTopicContributionEvent = {
+  revisionNo: number
+  current: boolean
+  actor?: ForumUserSummary
+  operation: 'create' | 'edit' | 'restore' | 'migration' | string
+  origin: 'self' | 'staff' | 'migration' | string
+  changedFields: string[]
+  committedAt: string
+  restoredFromRevisionNo?: number
+  redacted: boolean
+}
+
+export type ForumTopicContributionTimeline = {
+  items: ForumTopicContributionEvent[]
+  perPage: number
+  hasMore: boolean
+  nextCursor?: string
 }
 
 export type ForumTopicExtensionActionMethod = 'POST' | 'PUT' | 'PATCH' | 'DELETE'

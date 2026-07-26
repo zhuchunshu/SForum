@@ -147,6 +147,7 @@ func TestProductionForumReadGuardPartitionsCatalogByProvablePolicy(t *testing.T)
 		"core.route.forum.topics":          {method: "GET"},
 		"core.route.forum.topic":           {method: "GET"},
 		"core.route.forum.comments":        {method: "GET"},
+		"core.route.forum.topic_contribution_timeline": {method: "GET"},
 		"core.route.forum.topic_by_slug":   {method: "GET"},
 	}
 	var catalog []routes.CoreRoute
@@ -248,8 +249,8 @@ func TestProductionForumReadPolicyClosesDynamicCatalogRoutes(t *testing.T) {
 		}
 		policy.guestRead = "public"
 	}
-	if covered != 9 {
-		t.Fatalf("dynamic forum read routes = %d, want 9", covered)
+	if covered != 10 {
+		t.Fatalf("dynamic forum read routes = %d, want 10", covered)
 	}
 }
 

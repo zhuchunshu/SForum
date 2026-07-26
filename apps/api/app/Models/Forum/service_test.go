@@ -2179,6 +2179,29 @@ func (s *serviceFakeStore) ListTopicRevisions(context.Context, int64, RevisionLi
 	return s.revisionListResult, nil
 }
 
+func (s *serviceFakeStore) ListTopicContributionTimeline(_ context.Context, topicID int64, input RevisionListInput) (TopicContributionTimeline, error) {
+	if topicID <= 0 {
+		return TopicContributionTimeline{}, ErrTopicNotFound
+	}
+	if s.revisionErr != nil {
+		return TopicContributionTimeline{}, s.revisionErr
+	}
+	items := make([]TopicContributionEvent, 0, len(s.revisionListResult.Items))
+	for _, item := range s.revisionListResult.Items {
+		items = append(items, publicContributionEvent(item))
+	}
+	perPage := input.PerPage
+	if perPage <= 0 {
+		perPage = 20
+	}
+	return TopicContributionTimeline{
+		Items:      items,
+		PerPage:    perPage,
+		HasMore:    s.revisionListResult.HasMore,
+		NextCursor: s.revisionListResult.NextCursor,
+	}, nil
+}
+
 func (s *serviceFakeStore) GetTopicRevision(context.Context, int64, int64) (ForumRevisionDetail, error) {
 	s.topicRevisionCalls++
 	if s.revisionErr != nil {

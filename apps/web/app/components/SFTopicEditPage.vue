@@ -649,6 +649,7 @@ onBeforeRouteLeave(() => {
                 <div class="sforum-topic-composer__field">
                   <div class="sforum-topic-composer__field-head">
                     <span class="sforum-topic-composer__field-label">{{ t('composer.categoryLabel') }}</span>
+                    <span>{{ t('composer.categoryOptionalDefault') }}</span>
                   </div>
                   <SFCategorySelect
                     id="topic-edit-category"
@@ -730,7 +731,7 @@ onBeforeRouteLeave(() => {
           <div class="sforum-topic-composer__dock-status">
             <SFAvatar size="sm" :name="actorName" :avatar="user?.avatar" />
             <span>
-              <strong>{{ actorName }}</strong>
+              <strong>{{ t('composer.publishAs', { name: actorName }) }}</strong>
               {{ editStateLabel }}
             </span>
           </div>

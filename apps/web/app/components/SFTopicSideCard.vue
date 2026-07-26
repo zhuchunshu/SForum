@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import type { ForumTopicDetail, ForumTopicExtensionSidebarItem } from '~/utils/forumTaxonomy'
-import { forumTopicExtensionLabel } from '~/utils/forumTaxonomy'
+import type { ForumTopicDetail, ForumTopicExtensionSidebarItem, ForumUserSummary } from '~/utils/forumTaxonomy'
+import { forumAuthorName, forumTopicExtensionLabel, forumUserProfilePath } from '~/utils/forumTaxonomy'
+import type { SFAvatarGroupItem } from '~/components/SFAvatarGroup.vue'
 
 const props = defineProps<{
   topic: ForumTopicDetail
@@ -18,6 +19,42 @@ const { t, locale } = useI18n()
 const localePath = useLocalePath()
 const { request } = useApiClient()
 const toast = useToast()
+
+const contributorsOpen = ref(false)
+
+// 优先用 API 贡献者；无则退回作者，避免侧栏空白。
+const contributorUsers = computed((): ForumUserSummary[] => {
+  if (props.topic.contributors?.length) {
+    return props.topic.contributors
+  }
+  if (props.topic.author) {
+    return [props.topic.author]
+  }
+  return []
+})
+
+const contributorCount = computed(() => {
+  if (props.topic.contributorCount && props.topic.contributorCount > 0) {
+    return props.topic.contributorCount
+  }
+  return contributorUsers.value.length
+})
+
+const contributorAvatars = computed((): SFAvatarGroupItem[] => {
+  return contributorUsers.value.slice(0, 5).map(user => ({
+    id: user.id,
+    name: forumAuthorName(user, user.id),
+    avatar: user.avatar,
+    to: user.username ? localePath(forumUserProfilePath(user.username)) : undefined
+  }))
+})
+
+const contributorsAriaLabel = computed(() => {
+  if (contributorCount.value <= 1) {
+    return t('topicDetail.side.contributorsAriaOne', { name: props.authorName })
+  }
+  return t('topicDetail.side.contributorsAriaMany', { count: contributorCount.value })
+})
 
 const statusLabel = computed(() => {
   if (props.topic.status === 'locked') {
@@ -262,14 +299,27 @@ async function runSidebarExtensionRoute(item: ForumTopicExtensionSidebarItem) {
       </div>
     </div>
 
-    <div class="sf-topic-side-card">
-      <h3>{{ t('topicDetail.side.participants') }}</h3>
-      <div class="sf-topic-side-card__participants">
-        <NuxtLink v-if="authorTo" :to="authorTo" :aria-label="authorName">
-          <SFAvatar :name="authorName" :avatar="topic.author?.avatar" size="md" loading="eager" />
-        </NuxtLink>
-        <SFAvatar v-else :name="authorName" :avatar="topic.author?.avatar" size="md" loading="eager" />
+    <div v-if="contributorAvatars.length" class="sf-topic-side-card">
+      <h3>{{ t('topicDetail.side.contributors') }}</h3>
+      <div class="sf-topic-side-card__contributors">
+        <SFAvatarGroup
+          :items="contributorAvatars"
+          :max="5"
+          :total="contributorCount"
+          size="md"
+          loading="eager"
+          clickable
+          :aria-label="contributorsAriaLabel"
+          @click="contributorsOpen = true"
+        />
+        <p v-if="contributorCount > 1" class="sf-topic-side-card__contributors-meta">
+          {{ t('topicDetail.side.contributorsCount', { count: contributorCount }) }}
+        </p>
       </div>
+      <SFTopicContributorsModal
+        v-model:open="contributorsOpen"
+        :topic-id="topic.id"
+      />
     </div>
 
     <div v-if="tags.length" class="sf-topic-side-card">

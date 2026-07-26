@@ -96,6 +96,22 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(hostChrome).toContain('<SFNavbar />')
     expect(hostChrome).toContain('layoutShowFooter')
     expect(hostChrome).toContain('layoutShowAnnouncements')
+    expect(hostChrome).toContain('sf-host-public-chrome--fullwidth-3col')
+    expect(hostChrome).toContain('data-layout="fullwidth-3col"')
+  })
+
+  test('keeps Host fallback chrome on the same desktop rails as the selected default theme', () => {
+    const css = themeCss()
+    const home = homepageCss()
+
+    expect(css).toContain('.sf-host-public-chrome--fullwidth-3col .navbar__inner')
+    expect(css).toContain('var(--sf-public-sidebar-width, 230px)')
+    expect(css).toContain('var(--sf-public-right-rail-width, 270px)')
+    expect(css).toContain('.sf-host-public-chrome--fullwidth-3col .sforum-home__main')
+    expect(home).toContain('.sf-host-public-chrome--fullwidth-3col .sforum-home__layout')
+    expect(home).toContain('padding: 30px 24px 28px;')
+    expect(home).toContain('padding: 24px 24px 20px 28px;')
+    expect(home).toContain('padding: 34px 28px;')
   })
 
   test('renders topic table rows using only API-backed summary data', () => {

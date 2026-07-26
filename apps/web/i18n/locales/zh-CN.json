@@ -346,7 +346,21 @@
       "tabsLabel": "已打开的后台页面",
       "closeTab": "关闭页签",
       "footerCopyright": "© {year} SForum",
-      "footerProductSummary": "高性能模块化开源论坛框架"
+      "footerProductSummary": "高性能模块化开源论坛框架",
+      "openAdvancedSettings": "打开系统高级设置",
+      "advancedSettings": {
+        "title": "系统高级设置",
+        "description": "面向开发与运维的偏好设置，仅影响当前浏览器的后台界面。",
+        "close": "关闭",
+        "professionalMode": {
+          "label": "专业模式",
+          "description": "开启后，扩展管理器会显示页面注册表、路由/缓存检查器等高级子菜单；关闭时仅保留扩展总览与主题/插件管理。"
+        },
+        "operationsMode": {
+          "label": "运维管理",
+          "description": "开启后，侧栏显示运维管理（数据库表、后台任务、定时任务、Webhook）；关闭时整组隐藏。"
+        }
+      }
     },
     "surfaces": {
       "loadFailed": "管理端扩展加载失败。",
@@ -3868,13 +3882,51 @@
       "category": "类别",
       "replies": "回复",
       "views": "浏览",
-      "participants": "参与者",
+      "contributors": "贡献者",
+      "contributorsCount": "共 {count} 人",
+      "contributorsAriaOne": "查看 {name} 的发布与更改记录",
+      "contributorsAriaMany": "查看 {count} 位贡献者的发布与更改记录",
       "tags": "标签",
       "extensions": "扩展",
       "pageNav": "本页",
       "topicContent": "主题内容",
       "discussion": "评论讨论",
       "joinDiscussion": "参与讨论"
+    },
+    "contributors": {
+      "modalTitle": "贡献记录",
+      "modalHint": "显示本主题的发布与正文更改记录。完整历史正文仅对有权限的工作人员可见。",
+      "loading": "正在加载贡献记录…",
+      "loadFailed": "加载贡献记录失败。",
+      "loadMore": "加载更多",
+      "prevPage": "上一页",
+      "nextPage": "下一页",
+      "pageLabel": "第 {page} 页",
+      "hasMore": "还有更多",
+      "revisionNo": "第 {n} 版",
+      "empty": "暂无贡献记录。",
+      "unknownActor": "未知用户",
+      "current": "当前",
+      "redacted": "已清除",
+      "restoredFrom": "恢复自第 {n} 版",
+      "operation": {
+        "create": "发布",
+        "edit": "编辑",
+        "restore": "恢复",
+        "migration": "迁移"
+      },
+      "origin": {
+        "self": "作者",
+        "staff": "工作人员",
+        "migration": "系统"
+      },
+      "field": {
+        "title": "标题",
+        "content": "正文",
+        "category": "分类",
+        "tags": "标签",
+        "attachments": "附件"
+      }
     },
     "progress": {
       "label": "评论进度",

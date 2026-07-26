@@ -10,6 +10,10 @@ accepted revisions, lifecycle states, public read models, and forum policy.
 - Core taxonomy, topic/comment creation and lifecycle, public/admin UI, runtime
   settings, moderation integration, search projection, and million-scale read
   path M0-M7 are implemented.
+- Topic detail exposes public **contributors** (author + body edit/restore
+  actors, max 5 + count) and `GET /topics/{id}/contribution-timeline` for a
+  header-only publish/edit timeline. Staff actors are fully exposed by default;
+  full revision source remains `topic.revision.view_any` only.
 - Default-theme topic creation now has a production UI shell that reuses the
   existing create-topic API, category/tag policy, content limits, permission
   check (`topic.create`), `SFEditor`, field errors, Toast feedback, successful

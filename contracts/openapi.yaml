@@ -85,6 +85,8 @@ paths:
     "$ref": "./openapi/paths/forum.yaml#/topicBySlug"
   "/topics/{topicID}":
     "$ref": "./openapi/paths/forum.yaml#/topicByID"
+  "/topics/{topicID}/contribution-timeline":
+    "$ref": "./openapi/paths/forum.yaml#/topicContributionTimeline"
   "/topics/{topicID}/revisions":
     "$ref": "./openapi/paths/forum.yaml#/topicRevisions"
   "/topics/{topicID}/revisions/{revisionNo}":

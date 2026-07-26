@@ -316,9 +316,35 @@ type TopicDetail struct {
 	// UpdateApplied 仅供写路径抑制 no-op 的事件、缓存和索引副作用，不进入 API。
 	UpdateApplied       bool                        `json:"-"`
 	UpdateChangedFields []string                    `json:"-"`
+	// Contributors 主题正文贡献者（作者 + 编辑/恢复 actor），作者优先，最多 5 个。
+	// 默认全露出 staff 编辑者；隐私开关以后再加。
+	Contributors []UserSummary `json:"contributors,omitempty"`
+	// ContributorCount 去重后的贡献者总数（可大于 len(Contributors)）。
+	ContributorCount    int                         `json:"contributorCount,omitempty"`
 	ExtensionActions    []TopicExtensionAction      `json:"extensionActions,omitempty"`
 	ExtensionSidebar    []TopicExtensionSidebarItem `json:"extensionSidebar,omitempty"`
 	ExtensionBadges     []TopicExtensionBadge       `json:"extensionBadges,omitempty"`
+}
+
+// TopicContributionEvent 是公开安全的贡献时间线条目：无 reason、无正文、无 diff。
+type TopicContributionEvent struct {
+	RevisionNo             int64        `json:"revisionNo"`
+	Current                bool         `json:"current"`
+	Actor                  *UserSummary `json:"actor,omitempty"`
+	Operation              string       `json:"operation"`
+	Origin                 string       `json:"origin"`
+	ChangedFields          []string     `json:"changedFields"`
+	CommittedAt            time.Time    `json:"committedAt"`
+	RestoredFromRevisionNo *int64       `json:"restoredFromRevisionNo,omitempty"`
+	Redacted               bool         `json:"redacted"`
+}
+
+// TopicContributionTimeline 公开贡献时间线（keyset 分页，与修订列表同游标语义）。
+type TopicContributionTimeline struct {
+	Items      []TopicContributionEvent `json:"items"`
+	PerPage    int                       `json:"perPage"`
+	HasMore    bool                      `json:"hasMore"`
+	NextCursor string                    `json:"nextCursor,omitempty"`
 }
 
 type TopicExtensionAction struct {

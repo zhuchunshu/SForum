@@ -69,6 +69,11 @@ Prior partial evidence, not closure:
 
 - Protected built-ins are discovered only under `extensions/builtin/` and are
   boot-synchronized through `SyncBuiltins`.
+- Built-in source, staged immutable version, and active immutable version are
+  distinct states. A theme source edit reaches runtime only after built-ins are
+  rebuilt, the API restarts and stages the new digest, and an authorized admin
+  activates that exact version. Browser QA must inspect the resolved
+  provider/digest; checking repository templates alone cannot prove activation.
 - Uploaded packages are immutable snapshots under `EXTENSION_ROOT`; they are
   separate from public attachments.
 - `EXTERNAL_EXTENSION_ROOTS` accepts comma-separated collection roots whose
@@ -201,6 +206,14 @@ should use dedicated registries instead of raw database or whole-route power.
   catch-all. Access declarations fail closed.
 - Activation verifies exact artifacts, prewarms runtime state, replaces page
   contributions/skin atomically, and preserves rollback.
+- Template validation and runtime island binding are separate gates. Every
+  Host island used by a theme template must be present in both
+  `allowedHostIslands` and `productionThemeIslandBindings`; paired public
+  surfaces such as topic create/edit require completeness tests across all
+  builtin themes.
+- CSS safety matching operates on full declaration names. Dangerous legacy
+  `behavior:` remains rejected, while standard suffix properties such as
+  `overscroll-behavior:` must not be rejected by substring matching.
 - The selected theme owns public presentation. Core output is emergency-only
   when the runtime cannot safely resolve/render the selected artifact.
 - Theme-defined system error pages are **completed** for 403, 404, 429, and
@@ -264,6 +277,11 @@ Relevant plans:
   commands named in the active remediation plan while iterating.
 - After catalog changes, regenerate/check with the documented generator rather
   than editing generated files by hand.
+- After changing a built-in public theme: run
+  `./scripts/build-builtin-plugins.sh`, restart the API, activate the staged
+  digest through `/control-panel/extensions/themes`, confirm the Page Registry
+  bindings for every affected page, then perform browser geometry and
+  interaction checks on the active artifact.
 
 ## Next Steps
 

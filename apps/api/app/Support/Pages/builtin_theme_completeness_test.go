@@ -73,6 +73,16 @@ func TestBuiltinThemesCoverAllReplaceablePages(t *testing.T) {
 				if !strings.Contains(string(raw), `data-theme-owned="presentation"`) {
 					t.Fatalf("%s template %s missing data-theme-owned=presentation", page.ID, decl.Template)
 				}
+				// 发帖/编辑属于同一 composer 版式家族；只验证岛存在不足以防止
+				// 外层主题壳漂移，必须同时声明同一三栏布局契约。
+				if page.ID == "forum.topic.create" || page.ID == "forum.topic.edit" {
+					if !strings.Contains(string(raw), "sf-theme-shell--fullwidth-3col") {
+						t.Fatalf("%s template %s missing fullwidth-3col shell class", page.ID, decl.Template)
+					}
+					if !strings.Contains(string(raw), `data-layout="fullwidth-3col"`) {
+						t.Fatalf("%s template %s missing fullwidth-3col layout marker", page.ID, decl.Template)
+					}
+				}
 				// 非 auth / not_found 公开页应在 L1 挂载导航与页脚岛（auth 用 auth layout；not_found 自带 chrome）。
 				if !strings.HasPrefix(page.ID, "auth.") && page.ID != "system.not_found" {
 					if !strings.Contains(string(raw), "<sf-navbar") {

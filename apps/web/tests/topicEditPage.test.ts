@@ -43,6 +43,20 @@ describe('standalone topic edit page behavior contract', () => {
     expect(editPage).toContain(
       'forumTopicPath(updated, topicUrlMode.value)'
     )
+    // 底栏状态文案与发帖页同模式
+    expect(editPage).toContain("t('composer.publishAs', { name: actorName })")
+  })
+
+  test('reuses create-page chrome: home 3-col shell + composer rails + shared CSS', () => {
+    expect(editPage).toContain('class="sforum-home sforum-topic-composer')
+    expect(editPage).toContain('data-layout="fullwidth-3col"')
+    expect(editPage).toContain('sforum-home__layout--with-right')
+    expect(editPage).toContain('sforum-home__sidebar')
+    expect(editPage).toContain('sforum-home__right')
+    expect(editPage).toContain('<SFTopicComposerLeftRail')
+    expect(editPage).toContain('<SFTopicComposerRightRail')
+    expect(editPage).toContain('SFTopicComposerPage.css')
+    expect(editPage).toContain('sforum-topic-composer__dock')
   })
 
   test('keeps revision conflicts persistent and separate from field errors', () => {

@@ -197,6 +197,159 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
   display: none;
 }
 
+/*
+ * Page Registry 的 Core 回退仍是正式公开页，不是另一套版式。
+ * 即使活动主题制品暂未声明新页面，Host chrome 也必须保持与默认三栏壳
+ * 相同的 topbar 轨道、栏间距和中心列滚动，避免回退状态伪装成页面 UI 回归。
+ */
+.sf-host-public-chrome {
+  min-height: 100vh;
+}
+
+.sf-host-public-chrome__body {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+@media (min-width: 981px) {
+  .sf-host-public-chrome--fullwidth-3col {
+    display: flex;
+    height: 100vh;
+    min-height: 100vh;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sf-host-public-chrome--fullwidth-3col > .navbar {
+    flex: 0 0 auto;
+  }
+
+  .sf-host-public-chrome--fullwidth-3col > .sf-host-public-chrome__body {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .sf-host-public-chrome--fullwidth-3col :is(
+    .sforum-home,
+    .sforum-topic-page,
+    .sforum-topic-composer,
+    .sforum-notifications,
+    .sforum-settings,
+    .sforum-moderation,
+    .sforum-home__layout,
+    .sforum-topic-page__layout,
+    .sforum-notifications__layout,
+    .sforum-settings__layout,
+    .sforum-moderation__layout
+  ) {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .sf-host-public-chrome--fullwidth-3col :is(
+    .sforum-home__main,
+    .sforum-topic-page__main,
+    .sforum-notifications__main,
+    .sforum-settings__main,
+    .sforum-moderation__main
+  ) {
+    height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .sf-host-public-chrome--fullwidth-3col .sforum-topic-composer__main {
+    padding-bottom: 112px;
+  }
+
+  .sf-host-public-chrome--fullwidth-3col :is(
+    .sforum-home__sidebar,
+    .sforum-topic-page__sidebar
+  ) {
+    position: static;
+    top: auto;
+    height: 100%;
+    min-height: 0;
+    padding: 24px 24px 20px 28px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .sf-host-public-chrome--fullwidth-3col .sforum-home__main {
+    padding: 30px 24px 28px;
+  }
+
+  .sf-host-public-chrome--fullwidth-3col :is(
+    .sforum-home__right,
+    .sforum-topic-page__side
+  ) {
+    position: static;
+    top: auto;
+    height: 100%;
+    min-height: 0;
+    padding: 34px 28px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .sf-host-public-chrome--fullwidth-3col .navbar__inner {
+    display: grid;
+    min-height: 58px;
+    grid-template-columns:
+      var(--sf-public-sidebar-width, 230px)
+      auto
+      minmax(0, 1fr)
+      auto
+      auto
+      var(--sf-public-right-rail-width, 270px) !important;
+    gap: 10px;
+    padding: 0 var(--sf-public-edge-inset, 24px);
+  }
+
+  .sf-host-public-chrome--fullwidth-3col .navbar__logo {
+    padding-left: 16px;
+  }
+
+  .sf-host-public-chrome--fullwidth-3col .navbar__desktop-nav {
+    gap: 28px;
+  }
+
+  .sf-host-public-chrome--fullwidth-3col .navbar__search {
+    width: min(260px, 100%);
+    max-width: 280px;
+    min-width: 0;
+    justify-self: start;
+  }
+
+  .sf-host-public-chrome--fullwidth-3col .navbar__search .sf-search__box {
+    min-height: 36px;
+  }
+
+  .sf-host-public-chrome--fullwidth-3col .navbar__new-topic {
+    width: 100%;
+  }
+
+  .sf-host-public-chrome--fullwidth-3col .navbar__utility {
+    justify-content: flex-end;
+    gap: 2px;
+  }
+
+  .sf-host-public-chrome--fullwidth-3col .navbar__session {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    justify-content: flex-end;
+    padding: 0 16px 0 12px;
+  }
+
+  .sf-host-public-chrome--fullwidth-3col .navbar__user-trigger {
+    max-width: 100%;
+  }
+}
+
 @media (max-width: 980px) {
   :root {
     --sf-public-topbar-height: 108px;
@@ -444,6 +597,7 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
       .sf-theme-home-shell__body,
       .sforum-home,
       .sforum-topic-page,
+      .sforum-topic-composer,
       .sforum-notifications,
       .sforum-settings,
       .sforum-moderation
@@ -486,6 +640,18 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
     scrollbar-gutter: stable;
   }
 
+  /* 发帖/编辑：主列底部为固定 dock 预留，避免被 shell 的 28px 盖掉 */
+  .sf-theme-template[data-extension-id="sforum.default-theme"]
+    .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col
+    .sforum-topic-composer__main {
+    height: 100%;
+    min-height: 0;
+    padding-bottom: 112px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
   .sf-theme-template[data-extension-id="sforum.default-theme"]
     .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col :is(
       .sforum-home__sidebar,
@@ -504,6 +670,22 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
     height: 100%;
     min-height: 0;
     overflow: hidden;
+  }
+
+  .sf-theme-template[data-extension-id="sforum.default-theme"]
+    .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col
+    .sforum-topic-composer
+    .sforum-home__sidebar {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .sf-theme-template[data-extension-id="sforum.default-theme"]
+    .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col
+    .sforum-topic-composer
+    .sforum-home__right {
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   /*

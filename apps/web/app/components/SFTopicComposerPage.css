@@ -175,13 +175,16 @@
   min-height: 360px;
 }
 
-/* 固定发布 dock：宽度夹在左右栏之间 */
+/*
+ * 固定发布 dock：与三栏 + topbar 同轨。
+ * left/right = edge-inset + 侧栏宽，避免贴视口或压住侧栏。
+ */
 .sforum-topic-composer__dock {
   position: fixed;
   z-index: 45;
-  right: var(--sf-public-right-rail-width);
+  right: calc(var(--sf-public-edge-inset, 24px) + var(--sf-public-right-rail-width));
   bottom: 0;
-  left: var(--sf-public-sidebar-width);
+  left: calc(var(--sf-public-edge-inset, 24px) + var(--sf-public-sidebar-width));
   display: flex;
   min-height: 72px;
   align-items: center;
@@ -222,10 +225,10 @@
   outline-offset: 2px;
 }
 
-/* 中屏：home 已藏右栏；dock 贴右；显示 panel-right */
+/* 中屏：home 已藏右栏；dock 只保留左栏 + 右边 inset */
 @media (max-width: 1180px) {
   .sforum-topic-composer__dock {
-    right: 0;
+    right: var(--sf-public-edge-inset, 24px);
   }
 
   .sforum-topic-composer__desktop-hidden {

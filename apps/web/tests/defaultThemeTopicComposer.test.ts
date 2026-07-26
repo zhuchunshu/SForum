@@ -21,9 +21,13 @@ describe('default theme topic composer native flow', () => {
     expect(route()).toContain('requiresAuth: true')
     expect(themeTemplate()).toContain('data-page="forum.topic.create"')
     expect(themeTemplate()).toContain('<sf-topic-composer>')
+    // 与首页/设置同轨：全宽三栏壳，topbar 与侧栏边距对齐
+    expect(themeTemplate()).toContain('sf-theme-shell--fullwidth-3col')
+    expect(themeTemplate()).toContain('data-layout="fullwidth-3col"')
     expect(themePackage()).toContain('"target": "forum.topic.create"')
     expect(composer()).toContain('data-sforum-island-body="forum.component.topic_composer"')
     expect(composer()).toContain('data-layout="fullwidth-3col"')
+    expect(composerStyles()).toContain('--sf-public-edge-inset')
   })
 
   test('reuses real navigation, taxonomy data, limits, editor, and submit API', () => {
@@ -90,8 +94,10 @@ describe('default theme topic composer native flow', () => {
     expect(page).not.toContain('mobile-only')
     expect(page).not.toContain('sforum-topic-composer__mobile-nav')
     expect(styles).toContain('position: fixed')
-    expect(styles).toContain('left: var(--sf-public-sidebar-width)')
-    expect(styles).toContain('right: var(--sf-public-right-rail-width)')
+    // dock 与 topbar/三栏同轨：edge-inset + 侧栏宽
+    expect(styles).toContain('var(--sf-public-edge-inset, 24px)')
+    expect(styles).toContain('var(--sf-public-sidebar-width)')
+    expect(styles).toContain('var(--sf-public-right-rail-width)')
     expect(styles).toContain('@media (max-width: 960px)')
     // 左栏：进度 / 草稿 / 要点，无类别树
     expect(left).toContain("t('composer.leftRail.progressTitle')")

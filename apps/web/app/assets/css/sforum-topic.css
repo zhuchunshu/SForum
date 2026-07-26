@@ -443,10 +443,15 @@
   text-align: right;
 }
 
-.sf-topic-side-card__participants {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+.sf-topic-side-card__contributors {
+  display: grid;
+  gap: 8px;
+}
+
+.sf-topic-side-card__contributors-meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--sf-public-text-muted);
 }
 
 .sf-topic-side-card__tags {

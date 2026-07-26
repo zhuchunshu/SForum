@@ -13,6 +13,14 @@ func (s *Service) ListTopicRevisions(ctx context.Context, actor identity.Actor, 
 	return s.store.ListTopicRevisions(ctx, topicID, input)
 }
 
+// ListTopicContributionTimeline 公开贡献时间线：无需修订查看权限，仅主题公开可读。
+func (s *Service) ListTopicContributionTimeline(ctx context.Context, topicID int64, input RevisionListInput) (TopicContributionTimeline, error) {
+	if topicID <= 0 {
+		return TopicContributionTimeline{}, ErrTopicNotFound
+	}
+	return s.store.ListTopicContributionTimeline(ctx, topicID, input)
+}
+
 func (s *Service) GetTopicRevision(ctx context.Context, actor identity.Actor, topicID int64, revisionNo int64) (ForumRevisionDetail, error) {
 	if !actor.Can(identity.PermissionTopicRevisionViewAny) {
 		return ForumRevisionDetail{}, identity.ErrPermissionDenied

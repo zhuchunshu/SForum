@@ -917,6 +917,27 @@ func (s *controllerForumStore) ListTopicRevisions(_ context.Context, _ int64, in
 	}, nil
 }
 
+func (s *controllerForumStore) ListTopicContributionTimeline(_ context.Context, _ int64, input forum.RevisionListInput) (forum.TopicContributionTimeline, error) {
+	perPage := input.PerPage
+	if perPage <= 0 {
+		perPage = 20
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+	return forum.TopicContributionTimeline{
+		Items: []forum.TopicContributionEvent{{
+			RevisionNo:    1,
+			Current:       true,
+			Operation:     "create",
+			Origin:        "self",
+			ChangedFields: []string{"content"},
+			CommittedAt:   time.Now(),
+		}},
+		PerPage: perPage,
+	}, nil
+}
+
 func (s *controllerForumStore) GetTopicRevision(context.Context, int64, int64) (forum.ForumRevisionDetail, error) {
 	s.topicRevisionCalls++
 	if s.revisionErr != nil {

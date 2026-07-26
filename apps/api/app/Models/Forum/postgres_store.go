@@ -323,6 +323,9 @@ func (s *PostgresStore) GetTopic(ctx context.Context, topicID int64) (TopicDetai
 		return TopicDetail{}, err
 	}
 	topic.Tags = tags[topic.ID]
+	if err := s.attachTopicContributors(ctx, &topic); err != nil {
+		return TopicDetail{}, err
+	}
 	return topic, nil
 }
 
@@ -400,6 +403,9 @@ func (s *PostgresStore) GetTopicBySlug(ctx context.Context, slug string) (TopicD
 		return TopicDetail{}, err
 	}
 	topic.Tags = tags[topic.ID]
+	if err := s.attachTopicContributors(ctx, &topic); err != nil {
+		return TopicDetail{}, err
+	}
 	return topic, nil
 }
 

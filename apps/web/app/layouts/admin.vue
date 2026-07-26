@@ -4,13 +4,13 @@ import SFAdminSurfaceOutlet from '~/components/admin/SFAdminSurfaceOutlet.vue'
 import {
   ADMIN_DASHBOARD_PAGE_ID,
   adminSidebarNavigation,
-  canAccessAdminPage,
   findAdminPageDefinition,
   isExtensionAdminPageId,
   isAdminNavigationEntryActive,
   type AdminNavigationEntry,
   requireAdminPageDefinition,
-  shouldOpenAdminNavigationEntry
+  shouldOpenAdminNavigationEntry,
+  shouldShowAdminPageInNav
 } from '~/config/adminModules'
 import { useAdminRoutes } from '~/composables/useAdminRoutes'
 import { type AdminTab, useAdminTabs } from '~/composables/useAdminTabs'
@@ -59,6 +59,8 @@ const { data: surfaceNavigation } = await useAsyncData<AdminSurfaceContract[]>(
 // 引入多页签状态与主题模式
 const adminTabs = useAdminTabs()
 const colorMode = useColorMode()
+const { professionalMode, operationsMode } = useAdminAdvancedSettings()
+const advancedSettingsOpen = ref(false)
 const resolvedColorMode = ref<'light' | 'dark'>(
   colorMode.value === 'dark' ? 'dark' : 'light'
 )
@@ -143,15 +145,25 @@ watch(() => route.path, (newPath) => {
   }
 }, { immediate: true })
 
+// 高级设置开关切换后强制重建侧栏，避免 UNavigationMenu 缓存旧 children。
+const navVisibility = computed(() => ({
+  professionalMode: professionalMode.value,
+  operationsMode: operationsMode.value
+}))
+
 const navigationItems = computed(() => {
   return adminSidebarNavigation
     .map(group => group
-      .map(entry => buildNavigationItem(entry, currentAdminPageId.value))
+      .map(entry => buildNavigationItem(entry, currentAdminPageId.value, navVisibility.value))
       .filter((item): item is SidebarNavigationItem => Boolean(item)))
     .filter(group => group.length > 0)
 })
 
-function buildNavigationItem(entry: AdminNavigationEntry, currentAdminPageId: string): SidebarNavigationItem | null {
+function buildNavigationItem(
+  entry: AdminNavigationEntry,
+  currentAdminPageId: string,
+  visibility: { professionalMode: boolean, operationsMode: boolean }
+): SidebarNavigationItem | null {
   if (entry.type === 'forum-home') {
     return {
       label: t(entry.labelKey),
@@ -162,10 +174,11 @@ function buildNavigationItem(entry: AdminNavigationEntry, currentAdminPageId: st
 
   if (entry.type === 'folder') {
     const children = entry.children
-      .map(child => buildNavigationItem(child, currentAdminPageId))
+      .map(child => buildNavigationItem(child, currentAdminPageId, visibility))
       .filter((item): item is SidebarNavigationItem => Boolean(item))
 
-    if (entry.labelKey === 'admin.nav.extensions') {
+    // 扩展贡献页与 Admin Surface 导航属于高级工具，随专业模式显示。
+    if (entry.labelKey === 'admin.nav.extensions' && visibility.professionalMode) {
       children.push(...buildExtensionNavigationItems(currentAdminPageId))
       children.push(...buildAdminSurfaceNavigationItems(currentAdminPageId))
     }
@@ -188,7 +201,7 @@ function buildNavigationItem(entry: AdminNavigationEntry, currentAdminPageId: st
   }
 
   const page = findAdminPageDefinition(entry.pageId)
-  if (!page || !canAccessAdminPage(page, can)) {
+  if (!page || !shouldShowAdminPageInNav(page, can, visibility)) {
     return null
   }
 
@@ -289,6 +302,13 @@ const userMenuItems = computed<DropdownMenuItem[][]>(() => [
     }
   ],
   [
+    {
+      label: t('admin.shell.advancedSettings.title'),
+      icon: 'i-lucide-sliders-horizontal',
+      onSelect: () => {
+        advancedSettingsOpen.value = true
+      }
+    },
     {
       label: t('admin.shell.visitForum'),
       icon: 'i-lucide-house',
@@ -399,7 +419,7 @@ async function signOut() {
         <!-- overflow-x-hidden：仅允许纵向滚动，避免侧栏出现横向滚动条 -->
         <div class="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto pr-1">
           <UNavigationMenu
-            :key="currentAdminPageId"
+            :key="`${currentAdminPageId}:${professionalMode ? 'pro' : 'basic'}:${operationsMode ? 'ops' : 'noops'}`"
             :items="navigationItems"
             :collapsed="collapsed"
             tooltip
@@ -468,12 +488,20 @@ async function signOut() {
           <span class="shrink-0 text-sm text-slate-300 dark:text-zinc-600">/</span>
           <span class="truncate text-sm sm:text-base font-semibold text-slate-600 dark:text-zinc-300">{{ activeTabLabel }}</span>
         </div>
-        <div class="hidden sm:flex items-center gap-4 text-sm">
-          <span class="inline-flex items-center gap-2.5 rounded-full border border-[var(--sf-accent-soft-border)] bg-[var(--sf-accent-soft)] px-4 py-2.5 text-slate-600 dark:border-[rgb(var(--sf-accent-rgb)/0.35)] dark:bg-[rgb(var(--sf-accent-rgb)/0.16)] dark:text-zinc-200">
-            <span class="size-2.5 rounded-full bg-[var(--sf-accent)] shadow-[0_0_0_4px_rgb(var(--sf-accent-rgb)/0.12)] dark:bg-[var(--sf-accent-dark)] dark:shadow-[0_0_0_4px_rgb(var(--sf-accent-rgb)/0.18)] animate-pulse"></span>
-            {{ t('admin.shell.administratorLabel') }}:
-            <strong class="font-semibold text-slate-800 dark:text-zinc-50">{{ user?.username }}</strong>
-          </span>
+        <div class="flex items-center gap-4 text-sm">
+          <button
+            type="button"
+            class="inline-flex max-w-full items-center gap-2.5 rounded-full border border-[var(--sf-accent-soft-border)] bg-[var(--sf-accent-soft)] px-3 py-2 text-left text-slate-600 transition-colors hover:border-[var(--sf-accent)] hover:bg-[rgb(var(--sf-accent-rgb)/0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sf-accent)] sm:px-4 sm:py-2.5 dark:border-[rgb(var(--sf-accent-rgb)/0.35)] dark:bg-[rgb(var(--sf-accent-rgb)/0.16)] dark:text-zinc-200 dark:hover:bg-[rgb(var(--sf-accent-rgb)/0.24)]"
+            :aria-label="t('admin.shell.openAdvancedSettings')"
+            @click="advancedSettingsOpen = true"
+          >
+            <span class="size-2.5 shrink-0 rounded-full bg-[var(--sf-accent)] shadow-[0_0_0_4px_rgb(var(--sf-accent-rgb)/0.12)] dark:bg-[var(--sf-accent-dark)] dark:shadow-[0_0_0_4px_rgb(var(--sf-accent-rgb)/0.18)] animate-pulse"></span>
+            <span class="min-w-0 truncate">
+              <span class="hidden sm:inline">{{ t('admin.shell.administratorLabel') }}:</span>
+              <strong class="font-semibold text-slate-800 dark:text-zinc-50">{{ user?.username }}</strong>
+            </span>
+            <UIcon name="i-lucide-chevron-down" class="size-3.5 shrink-0 text-slate-400 dark:text-zinc-500" />
+          </button>
         </div>
       </div>
 
@@ -522,5 +550,74 @@ async function signOut() {
         <SFAdminFooter />
       </div>
     </UDashboardPanel>
+
+    <!-- 系统高级设置：专业模式 + 运维管理等侧栏偏好 -->
+    <UModal v-model:open="advancedSettingsOpen" :ui="{ content: 'sm:max-w-md' }">
+      <template #content>
+        <div class="flex flex-col">
+          <header class="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4 dark:border-zinc-800">
+            <div class="min-w-0">
+              <h2 class="text-base font-semibold text-slate-900 dark:text-zinc-100">
+                {{ t('admin.shell.advancedSettings.title') }}
+              </h2>
+              <p class="mt-1 text-sm leading-6 text-slate-600 dark:text-zinc-300">
+                {{ t('admin.shell.advancedSettings.description') }}
+              </p>
+            </div>
+            <UButton
+              icon="i-lucide-x"
+              color="neutral"
+              variant="ghost"
+              :aria-label="t('admin.shell.advancedSettings.close')"
+              @click="advancedSettingsOpen = false"
+            />
+          </header>
+
+          <div class="space-y-3 px-5 py-5">
+            <div class="flex items-start justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3.5 dark:border-zinc-800 dark:bg-zinc-900/50">
+              <div class="min-w-0">
+                <p class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+                  {{ t('admin.shell.advancedSettings.professionalMode.label') }}
+                </p>
+                <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-zinc-400">
+                  {{ t('admin.shell.advancedSettings.professionalMode.description') }}
+                </p>
+              </div>
+              <USwitch
+                v-model="professionalMode"
+                class="mt-0.5 shrink-0"
+                :aria-label="t('admin.shell.advancedSettings.professionalMode.label')"
+              />
+            </div>
+
+            <div class="flex items-start justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3.5 dark:border-zinc-800 dark:bg-zinc-900/50">
+              <div class="min-w-0">
+                <p class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+                  {{ t('admin.shell.advancedSettings.operationsMode.label') }}
+                </p>
+                <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-zinc-400">
+                  {{ t('admin.shell.advancedSettings.operationsMode.description') }}
+                </p>
+              </div>
+              <USwitch
+                v-model="operationsMode"
+                class="mt-0.5 shrink-0"
+                :aria-label="t('admin.shell.advancedSettings.operationsMode.label')"
+              />
+            </div>
+          </div>
+
+          <footer class="flex justify-end border-t border-slate-200 px-5 py-3 dark:border-zinc-800">
+            <UButton
+              color="neutral"
+              variant="soft"
+              @click="advancedSettingsOpen = false"
+            >
+              {{ t('admin.shell.advancedSettings.close') }}
+            </UButton>
+          </footer>
+        </div>
+      </template>
+    </UModal>
   </UDashboardGroup>
 </template>

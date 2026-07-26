@@ -820,6 +820,32 @@
     min-height: 0;
     overflow: hidden;
   }
+
+  /*
+   * Core/Host 回退页与默认主题三栏使用同一套轨道。
+   * 选择器必须晚于通用 homepage 基线，防止旧主题 L0 的全局规则把
+   * Host chrome 再次压回 18px 边距。
+   */
+  .sf-host-public-chrome--fullwidth-3col .sforum-home__layout {
+    padding-left: var(--sf-public-edge-inset, 24px);
+    padding-right: var(--sf-public-edge-inset, 24px);
+  }
+
+  .sf-host-public-chrome--fullwidth-3col .sforum-home__sidebar {
+    padding: 24px 24px 20px 28px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .sf-host-public-chrome--fullwidth-3col .sforum-home__main {
+    padding: 30px 24px 28px;
+  }
+
+  .sf-host-public-chrome--fullwidth-3col .sforum-home__right {
+    padding: 34px 28px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
 }
 
 @media (max-width: 640px) {

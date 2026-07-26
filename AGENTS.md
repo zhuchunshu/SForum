@@ -238,6 +238,21 @@ future generated clients. Keep it modular as the product surface grows.
 - Do not use emoji as UI icons, decorative symbols, status markers, or action indicators.
 - Use icons from an icon library whenever an icon is needed. Current approved choices are Tabler Icons and Nuxt Icon.
 - Prefer the project's existing icon integration before adding a new icon package. Do not hand-roll inline SVG icons when an approved library icon exists.
+- Public pages that share a product shell must share one geometry contract:
+  topbar tracks, viewport edge insets, sidebar/right-rail widths and padding,
+  center-column scroll ownership, and responsive collapse points. A Page
+  Registry Core fallback must preserve that geometry; fallback is not
+  permission to introduce a second layout.
+- Editing a built-in runtime theme under `extensions/builtin/themes/**` does
+  not update the active immutable artifact. Before calling theme UI work
+  complete, rebuild built-ins, restart the API so `SyncBuiltins` stages the
+  exact digest, activate that staged version through the normal admin flow,
+  and verify both `/site/active-theme/skin` and `/pages/resolve` identify the
+  expected provider/digest. Source-only unit tests are not runtime evidence.
+- When adding a Page Registry template, verify its Host islands are present in
+  both the production binding map and the template validator allowlist. Add a
+  completeness test for paired surfaces (for example create/edit) so one
+  cannot silently fall back to Core while the other uses the selected theme.
 - Use Toast feedback generously for user-triggered actions that succeed,
   complete, start a background task, copy data, reset settings, or save
   changes. Authentication success, create/update/delete success, restore

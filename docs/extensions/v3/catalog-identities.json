@@ -1568,6 +1568,12 @@
       "path": "/api/v1/comments/:commentID/revisions/:revisionNo/redact"
     },
     {
+      "id": "core.route.forum.topic_contribution_timeline",
+      "contractVersion": "sforum.route.forum.topic_contribution_timeline@1",
+      "method": "GET",
+      "path": "/api/v1/topics/:topicID/contribution-timeline"
+    },
+    {
       "id": "core.route.forum.topic_revisions",
       "contractVersion": "sforum.route.forum.topic_revisions@1",
       "method": "GET",

@@ -125,6 +125,11 @@ Plan: `../plans/2026-07-22-theme-defined-system-error-pages.md`
   `/pages/resolve-path`. Plugin page loader data is SSR-only.
 - `SFPageOutlet` and `SFHostPublicChrome` are Host emergency surfaces. Component
   failure preserves L1/SSR content and may quarantine only the failing L2.
+- `SFHostPublicChrome` preserves the selected theme's public shell geometry
+  during a Core page fallback. Its `fullwidth-3col` contract uses the same
+  topbar grid, 24 px viewport inset, 230 px left rail, 270 px right rail,
+  column padding, and center-column scroll ownership as the default theme.
+  Runtime fallback may change ownership/content, not page geometry.
 - Public chrome islands such as `SFNavbar` and `SFFooter` must stay statically
   reachable from runtime theme templates so critical scoped CSS is present
   before browser back/forward restores the page.
@@ -231,8 +236,12 @@ Architecture sources:
   `/topics/:topicId/edit` (id-based because editing may change the slug);
   `SFTopicShowPage` only navigates there — the old `?edit=1` inline mode is
   removed. Its Host editor island uses the same responsive three-column
-  composer shell and taxonomy/editor controls as topic creation, but does not
-  persist a local draft. Self edits require no reason; cross-author edits
+  composer shell and taxonomy/editor controls as topic creation. Both builtin
+  themes must declare the same `fullwidth-3col` shell for
+  `forum.topic.create` and `forum.topic.edit`, and the Host fallback must keep
+  the same rails/topbar while an immutable theme update is staged but not yet
+  active. Editing does not persist a local draft. Self edits require no reason;
+  cross-author edits
   require the API's bounded audit reason. Unsaved changes are guarded, route
   reuse clears all topic-scoped editor state, stored `editor-document` JSON is
   restored via `forumEditorInitialContent` → `SFEditor.initialContent` (never

@@ -14,6 +14,7 @@ import {
   type ForumTag,
   type ForumTopicAction,
   type ForumTopicActionKey,
+  type ForumTopicContributionTimeline,
   type ForumTopicDetail,
   type ForumTopicExtensionAction,
   type ForumComposerToolbarAction,
@@ -61,6 +62,24 @@ export function useForumApi() {
   // 按 slug 查询主题：仅 "纯 slug" URL 模式使用，对应后端 GET /topics/by-slug/:slug。
   function getTopicBySlug(slug: string) {
     return request<ForumTopicDetail>(`/topics/by-slug/${encodeURIComponent(slug)}`, serverReadOptions)
+  }
+
+  // 公开贡献时间线：作者/编辑/恢复 header，不含正文与 reason。
+  function listTopicContributionTimeline(
+    topicId: number,
+    query: { after?: string, perPage?: number } = {}
+  ) {
+    const params: Record<string, string> = {}
+    if (query.after?.trim()) {
+      params.after = query.after.trim()
+    }
+    if (query.perPage && query.perPage > 0) {
+      params.perPage = String(query.perPage)
+    }
+    return request<ForumTopicContributionTimeline>(
+      pathWithQuery(`/topics/${topicId}/contribution-timeline`, params),
+      serverReadOptions
+    )
   }
 
   function listTopicComments(topicId: number, query: ForumCommentListQuery = {}) {
@@ -189,6 +208,7 @@ export function useForumApi() {
     searchTopics,
     getTopic,
     getTopicBySlug,
+    listTopicContributionTimeline,
     listTopicComments,
     resolveCommentPage,
     createTopicComment,

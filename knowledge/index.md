@@ -63,14 +63,18 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Topic create/edit selected-theme and Core-fallback shell parity, exact
+  artifact activation, CSS validator boundary fix, and editor Host Island
+  allowlist:
+  `sessions/2026-07-27-topic-composer-shell-parity-handoff.md`
+- Topic side card **贡献者**: author+editors avatar group (max 5), public
+  contribution timeline modal, `TopicDetail.contributors` +
+  `GET /topics/{id}/contribution-timeline` (no body/reason; staff exposed):
+  `sessions/2026-07-27-topic-contributors-handoff.md`
 - Editor-document edit load fix: topic/comment editors restore native Tiptap
   JSON via `forumEditorInitialContent` → `SFEditor.initialContent`, never seed
   Markdown v-model with `rawContent`; save uses `forumContentFromEditorPayload`:
   `sessions/2026-07-27-editor-document-edit-load-fix.md`
-- Topic edit moved off `?edit=1` to a standalone Page Registry page
-  `forum.topic.edit` at `/topics/:topicId/edit` (full matrix: catalog,
-  viewmodel, `sf-topic-editor` island, both builtin themes, regions):
-  `sessions/2026-07-26-topic-edit-standalone-page-handoff.md`
 - Comment stream visual refresh: deep-link highlight now light-sweep animation;
   header meta regrouped (time · floor right-aligned, OP badge, one-line reply
   quote): `sessions/2026-07-26-comment-stream-visual-refresh-handoff.md`

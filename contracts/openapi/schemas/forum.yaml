@@ -188,6 +188,77 @@ ApiResponseForumRevisionList:
       type: string
     data:
       "$ref": "#/ForumRevisionList"
+ApiResponseTopicContributionTimeline:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/TopicContributionTimeline"
+TopicContributionEvent:
+  type: object
+  description: |
+    Public-safe contribution timeline row. Never includes reason, raw source,
+    preview, or restorable field metadata.
+  required:
+  - revisionNo
+  - current
+  - operation
+  - origin
+  - changedFields
+  - committedAt
+  - redacted
+  properties:
+    revisionNo:
+      type: integer
+      format: int64
+    current:
+      type: boolean
+    actor:
+      "$ref": "#/ForumUser"
+    operation:
+      type: string
+      enum: [create, edit, restore, migration]
+    origin:
+      type: string
+      enum: [self, staff, migration]
+    changedFields:
+      type: array
+      items:
+        type: string
+        enum: [title, content, category, tags, attachments]
+    committedAt:
+      type: string
+      format: date-time
+    restoredFromRevisionNo:
+      type: integer
+      format: int64
+    redacted:
+      type: boolean
+TopicContributionTimeline:
+  type: object
+  required:
+  - items
+  - perPage
+  - hasMore
+  properties:
+    items:
+      type: array
+      items:
+        "$ref": "#/TopicContributionEvent"
+    perPage:
+      type: integer
+    hasMore:
+      type: boolean
+    nextCursor:
+      type: string
+      description: Opaque keyset cursor for the next page.
 ApiResponseForumRevisionDetail:
   type: object
   required:
@@ -1042,6 +1113,18 @@ TopicDetail:
     properties:
       content:
         "$ref": "#/RenderedContent"
+      contributors:
+        type: array
+        description: |
+          Unique topic body contributors (author plus edit/restore actors).
+          Author is first; remaining users ordered by most recent contribution.
+          At most 5 entries for sidebar avatar stacks. Staff actors are fully
+          exposed by default.
+        items:
+          "$ref": "#/ForumUser"
+      contributorCount:
+        type: integer
+        description: Total unique contributors; may exceed the length of contributors.
       extensionActions:
         type: array
         description: Safe host-rendered extension action descriptors from enabled plugins. Executing an action still calls the extension route proxy and its policy checks.

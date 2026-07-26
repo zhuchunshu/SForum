@@ -11,6 +11,10 @@ export type AdminPageDefinition = {
   badgeKey?: string
   requiredPermissions?: string[]
   permissionMode?: AdminPermissionMode
+  /** 仅专业模式下出现在侧栏（默认关闭，面向日常运营隐藏扩展高级工具）。 */
+  professionalMode?: boolean
+  /** 仅运维管理开关打开时出现在侧栏（默认关闭）。 */
+  operationsMode?: boolean
 }
 
 export type AdminNavigationPageEntry = {
@@ -145,7 +149,8 @@ export const adminPageDefinitions = [
     labelKey: 'admin.nav.database',
     icon: 'i-lucide-database',
     componentName: 'AdminDatabase',
-    requiredPermissions: ['database.manage']
+    requiredPermissions: ['database.manage'],
+    operationsMode: true
   },
   {
     id: '/attachments',
@@ -239,21 +244,24 @@ export const adminPageDefinitions = [
     labelKey: 'admin.nav.extensionSettings',
     icon: 'i-lucide-sliders-horizontal',
     componentName: 'AdminExtensionSettings',
-    requiredPermissions: ['extension.plugin.manage']
+    requiredPermissions: ['extension.plugin.manage'],
+    professionalMode: true
   },
   {
     id: '/extensions/events',
     labelKey: 'admin.nav.extensionEvents',
     icon: 'i-lucide-scroll-text',
     componentName: 'AdminExtensionEvents',
-    requiredPermissions: ['extension.view']
+    requiredPermissions: ['extension.view'],
+    professionalMode: true
   },
   {
     id: '/extensions/contributions',
     labelKey: 'admin.nav.extensionContributions',
     icon: 'i-lucide-blocks',
     componentName: 'AdminExtensionContributions',
-    requiredPermissions: ['extension.view']
+    requiredPermissions: ['extension.view'],
+    professionalMode: true
   },
   {
     id: '/extensions/pages',
@@ -261,70 +269,80 @@ export const adminPageDefinitions = [
     icon: 'i-lucide-layout-template',
     componentName: 'AdminExtensionPages',
     requiredPermissions: ['extension.view', 'extension.theme.manage'],
-    permissionMode: 'any'
+    permissionMode: 'any',
+    professionalMode: true
   },
   {
     id: '/extensions/route-providers',
     labelKey: 'admin.nav.extensionRouteProviders',
     icon: 'i-lucide-route',
     componentName: 'AdminExtensionRouteProviders',
-    requiredPermissions: ['extension.view']
+    requiredPermissions: ['extension.view'],
+    professionalMode: true
   },
   {
     id: '/extensions/route-inspector',
     labelKey: 'admin.nav.extensionRouteInspector',
     icon: 'i-lucide-scan-search',
     componentName: 'AdminExtensionRouteInspector',
-    requiredPermissions: ['extension.view']
+    requiredPermissions: ['extension.view'],
+    professionalMode: true
   },
   {
     id: '/extensions/cache-inspector',
     labelKey: 'admin.nav.extensionCacheInspector',
     icon: 'i-lucide-database-zap',
     componentName: 'AdminExtensionCacheInspector',
-    requiredPermissions: ['extension.view']
+    requiredPermissions: ['extension.view'],
+    professionalMode: true
   },
   {
     id: '/extensions/asset-inspector',
     labelKey: 'admin.nav.extensionAssetInspector',
     icon: 'i-lucide-package',
     componentName: 'AdminExtensionAssetInspector',
-    requiredPermissions: ['extension.view']
+    requiredPermissions: ['extension.view'],
+    professionalMode: true
   },
   {
     id: '/extensions/template-inspector',
     labelKey: 'admin.nav.extensionTemplateInspector',
     icon: 'i-lucide-layout-template',
     componentName: 'AdminExtensionTemplateInspector',
-    requiredPermissions: ['extension.view']
+    requiredPermissions: ['extension.view'],
+    professionalMode: true
   },
   {
     id: '/extensions/component-inspector',
     labelKey: 'admin.nav.extensionComponentInspector',
     icon: 'i-lucide-boxes',
     componentName: 'AdminExtensionComponentInspector',
-    requiredPermissions: ['extension.view']
+    requiredPermissions: ['extension.view'],
+    professionalMode: true
   },
   {
     id: '/extensions/navigation-inspector',
     labelKey: 'admin.nav.extensionNavigationInspector',
     icon: 'i-lucide-map',
     componentName: 'AdminExtensionNavigationInspector',
-    requiredPermissions: ['extension.view']
+    requiredPermissions: ['extension.view'],
+    professionalMode: true
   },
   {
     id: '/extensions/registry-catalogs',
     labelKey: 'admin.nav.extensionRegistryCatalogs',
     icon: 'i-lucide-library',
     componentName: 'AdminExtensionRegistryCatalogs',
-    requiredPermissions: ['extension.view']
+    requiredPermissions: ['extension.view'],
+    professionalMode: true
   },
   {
     id: '/extensions/provider-slots',
     labelKey: 'admin.nav.extensionProviderSlots',
     icon: 'i-lucide-waypoints',
     componentName: 'AdminExtensionProviderSlots',
-    requiredPermissions: ['extension.view']
+    requiredPermissions: ['extension.view'],
+    professionalMode: true
   },
   {
     id: '/search',
@@ -338,14 +356,16 @@ export const adminPageDefinitions = [
     labelKey: 'admin.nav.jobs',
     icon: 'i-lucide-list-checks',
     componentName: 'AdminJobs',
-    requiredPermissions: ['jobs.view']
+    requiredPermissions: ['jobs.view'],
+    operationsMode: true
   },
   {
     id: '/schedules',
     labelKey: 'admin.nav.schedules',
     icon: 'i-lucide-calendar-clock',
     componentName: 'AdminSchedules',
-    requiredPermissions: ['jobs.view']
+    requiredPermissions: ['jobs.view'],
+    operationsMode: true
   },
   {
     id: '/webhooks',
@@ -353,7 +373,8 @@ export const adminPageDefinitions = [
     icon: 'i-lucide-webhook',
     componentName: 'AdminWebhooks',
     requiredPermissions: ['settings.manage', 'settings.site.manage'],
-    permissionMode: 'any'
+    permissionMode: 'any',
+    operationsMode: true
   }
 ] as const satisfies readonly AdminPageDefinition[]
 
@@ -518,3 +539,34 @@ export function canAccessAdminPage(page: AdminPageDefinition, can: (permission: 
 
   return permissions.every(permission => can(permission))
 }
+
+/** 侧栏可见性偏好（系统高级设置 Modal 开关，默认均关闭）。 */
+export type AdminNavVisibility = {
+  professionalMode: boolean
+  operationsMode: boolean
+}
+
+/** 侧栏是否应展示该页面：权限 + 高级设置偏好。 */
+export function shouldShowAdminPageInNav(
+  page: AdminPageDefinition,
+  can: (permission: string) => boolean,
+  visibility: AdminNavVisibility | boolean
+) {
+  // 兼容旧调用：第三个参数曾是 professionalMode 布尔值。
+  const flags: AdminNavVisibility = typeof visibility === 'boolean'
+    ? { professionalMode: visibility, operationsMode: true }
+    : visibility
+
+  if (!canAccessAdminPage(page, can)) {
+    return false
+  }
+  if (page.professionalMode && !flags.professionalMode) {
+    return false
+  }
+  if (page.operationsMode && !flags.operationsMode) {
+    return false
+  }
+  return true
+}
+
+

@@ -190,6 +190,10 @@ describe('SFPageOutlet catalog wiring', () => {
     // fail-closed 公开页走宿主 chrome；主题成功路径不套 Host chrome。
     expect(outlet).toContain('SFHostPublicChrome')
     expect(outlet).toContain('useHostPublicChrome')
+    const hostChrome = read('app/components/SFHostPublicChrome.vue')
+    expect(hostChrome).toContain('sf-host-public-chrome--fullwidth-3col')
+    expect(hostChrome).toContain('data-layout="fullwidth-3col"')
+    expect(hostChrome).toContain('sf-host-public-chrome__body')
   })
 
   it('binds core theme resolution to the current path and query', () => {

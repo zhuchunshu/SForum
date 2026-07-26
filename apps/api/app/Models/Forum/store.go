@@ -60,6 +60,9 @@ type Store interface {
 	// AutoLockIdleTopics 将 last_activity_at 早于 idleDays 的 active 主题批量锁定。
 	AutoLockIdleTopics(ctx context.Context, idleDays int, limit int) (int, error)
 	ListTopicRevisions(ctx context.Context, topicID int64, input RevisionListInput) (RevisionList, error)
+	// ListTopicContributionTimeline 公开可读：仅 active/locked + public 分类主题；
+	// 返回修订 header 级事件，不含 reason/正文。
+	ListTopicContributionTimeline(ctx context.Context, topicID int64, input RevisionListInput) (TopicContributionTimeline, error)
 	GetTopicRevision(ctx context.Context, topicID int64, revisionNo int64) (ForumRevisionDetail, error)
 	ListCommentRevisions(ctx context.Context, commentID int64, input RevisionListInput) (RevisionList, error)
 	GetCommentRevision(ctx context.Context, commentID int64, revisionNo int64) (ForumRevisionDetail, error)

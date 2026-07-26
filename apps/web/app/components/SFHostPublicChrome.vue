@@ -11,10 +11,14 @@ const { layoutShowFooter, layoutShowAnnouncements } = useActiveThemeSettings()
 </script>
 
 <template>
-  <div class="sf-host-public-chrome flex flex-col min-h-screen" data-host-chrome="public">
+  <div
+    class="sf-host-public-chrome sf-host-public-chrome--fullwidth-3col"
+    data-host-chrome="public"
+    data-layout="fullwidth-3col"
+  >
     <SFNavbar />
     <SFAnnouncementBanner v-if="layoutShowAnnouncements" />
-    <div class="flex-1">
+    <div class="sf-host-public-chrome__body">
       <slot />
     </div>
     <SFFooter v-if="layoutShowFooter" />

@@ -11,8 +11,9 @@ var (
 	cssExpression = regexp.MustCompile(`(?i)expression\s*\(`)
 	cssJSURL      = regexp.MustCompile(`(?i)url\s*\(\s*['"]?\s*javascript:`)
 	cssImportURL  = regexp.MustCompile(`(?i)@import\s+(url\s*\()?\s*['"]?\s*https?:`)
-	cssBehavior   = regexp.MustCompile(`(?i)behavior\s*:`)
-	cssMozBinding = regexp.MustCompile(`(?i)-moz-binding\s*:`)
+	// 属性名必须从声明边界开始，避免把 overscroll-behavior 等标准属性误判为 IE behavior。
+	cssBehavior   = regexp.MustCompile(`(?i)(?:^|[;{])\s*behavior\s*:`)
+	cssMozBinding = regexp.MustCompile(`(?i)(?:^|[;{])\s*-moz-binding\s*:`)
 )
 
 // ValidateCSS 校验皮肤 CSS 是否可接受；失败返回错误原因。

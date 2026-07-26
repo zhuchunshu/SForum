@@ -846,7 +846,9 @@ func forumReadPolicyRoute(routeID string) bool {
 		"core.route.forum.topics",
 		"core.route.forum.topic",
 		"core.route.forum.comments",
-		"core.route.forum.topic_by_slug":
+		"core.route.forum.topic_by_slug",
+		// 公开贡献时间线与主题详情同 guest-read 策略。
+		"core.route.forum.topic_contribution_timeline":
 		return true
 	default:
 		return false

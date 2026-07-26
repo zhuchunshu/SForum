@@ -93,7 +93,7 @@ func TestValidateTemplateSizeAndDepth(t *testing.T) {
 }
 
 func TestValidateTemplateAllowsSafeLayout(t *testing.T) {
-	src := `<main class="home"><h1>Welcome</h1><sf-home-page></sf-home-page><a href="/login">Login</a></main>`
+	src := `<main class="home"><h1>Welcome</h1><sf-home-page></sf-home-page><sf-topic-editor></sf-topic-editor><a href="/login">Login</a></main>`
 	if err := ValidateTemplate(src); err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +101,7 @@ func TestValidateTemplateAllowsSafeLayout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "sf-home-page") || !strings.Contains(out, "Welcome") {
+	if !strings.Contains(out, "sf-home-page") || !strings.Contains(out, "sf-topic-editor") || !strings.Contains(out, "Welcome") {
 		t.Fatalf("unexpected: %s", out)
 	}
 }

@@ -26,6 +26,8 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	}
 	// 注意：by-slug 必须先于 :topicID 注册，否则 "by-slug" 会被当作 topicID 捕获。
 	api.Get("/topics/by-slug/:slug", h.topicBySlug)
+	// 公开贡献时间线：须先于 :topicID 通配子路径语义注册，路径本身已足够具体。
+	api.Get("/topics/:topicID/contribution-timeline", h.topicContributionTimeline)
 	api.Get("/topics/:topicID/revisions", h.topicRevisions)
 	api.Get("/topics/:topicID/revisions/:revisionNo", h.topicRevision)
 	api.Post("/topics/:topicID/revisions/:revisionNo/restore", h.restoreTopicRevision)

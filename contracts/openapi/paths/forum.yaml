@@ -835,6 +835,40 @@ topicBySlug:
               "$ref": "../schemas/forum.yaml#/ApiResponseTopicDetail"
       '404':
         "$ref": "../components/responses.yaml#/NotFound"
+topicContributionTimeline:
+  get:
+    summary: List public topic contribution timeline
+    operationId: listTopicContributionTimeline
+    description: |
+      Public read model for topic body contributors (author create/edit/restore
+      actors). Same guest-read policy as getTopic. Returns newest-first header
+      events only: actor, operation, origin, changedFields, committedAt.
+      Never includes raw source, preview, diffs, or edit reason. Staff editors
+      are fully exposed by default (privacy toggle deferred).
+    parameters:
+    - "$ref": "../components/parameters.yaml#/TopicID"
+    - name: after
+      in: query
+      schema:
+        type: string
+      description: Opaque revision cursor from `nextCursor`.
+    - name: perPage
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    responses:
+      '200':
+        description: Keyset-paged public contribution timeline.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseTopicContributionTimeline"
+      '400':
+        "$ref": "../components/responses.yaml#/BadRequest"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
 topicRevisions:
   get:
     summary: List topic revision summaries

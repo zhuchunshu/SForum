@@ -346,7 +346,21 @@
       "tabsLabel": "Open admin pages",
       "closeTab": "Close tab",
       "footerCopyright": "© {year} SForum. All rights reserved.",
-      "footerProductSummary": "Official open-source forum framework"
+      "footerProductSummary": "Official open-source forum framework",
+      "openAdvancedSettings": "Open advanced system settings",
+      "advancedSettings": {
+        "title": "Advanced system settings",
+        "description": "Developer and operator preferences for this browser’s admin UI only.",
+        "close": "Close",
+        "professionalMode": {
+          "label": "Professional mode",
+          "description": "When enabled, Extension Manager shows page registry, route/cache inspectors, and other advanced items. When off, only overview plus theme/plugin management remain."
+        },
+        "operationsMode": {
+          "label": "Operations",
+          "description": "When enabled, the sidebar shows Operations (database tables, background jobs, schedules, webhooks). When off, the whole group is hidden."
+        }
+      }
     },
     "surfaces": {
       "loadFailed": "An admin extension could not be loaded.",
@@ -3868,13 +3882,51 @@
       "category": "Category",
       "replies": "Replies",
       "views": "Views",
-      "participants": "Participants",
+      "contributors": "Contributors",
+      "contributorsCount": "{count} people",
+      "contributorsAriaOne": "View publish and edit history for {name}",
+      "contributorsAriaMany": "View publish and edit history for {count} contributors",
       "tags": "Tags",
       "extensions": "Extensions",
       "pageNav": "On this page",
       "topicContent": "Topic content",
       "discussion": "Discussion",
       "joinDiscussion": "Join the discussion"
+    },
+    "contributors": {
+      "modalTitle": "Contribution history",
+      "modalHint": "Shows publish and body-edit events for this topic. Full historical source remains staff-only.",
+      "loading": "Loading contribution history…",
+      "loadFailed": "Failed to load contribution history.",
+      "loadMore": "Load more",
+      "prevPage": "Previous",
+      "nextPage": "Next",
+      "pageLabel": "Page {page}",
+      "hasMore": "more available",
+      "revisionNo": "Rev. {n}",
+      "empty": "No contribution history yet.",
+      "unknownActor": "Unknown user",
+      "current": "Current",
+      "redacted": "Redacted",
+      "restoredFrom": "Restored from revision {n}",
+      "operation": {
+        "create": "Published",
+        "edit": "Edited",
+        "restore": "Restored",
+        "migration": "Migrated"
+      },
+      "origin": {
+        "self": "Author",
+        "staff": "Staff",
+        "migration": "System"
+      },
+      "field": {
+        "title": "Title",
+        "content": "Body",
+        "category": "Category",
+        "tags": "Tags",
+        "attachments": "Attachments"
+      }
     },
     "progress": {
       "label": "Comment progress",

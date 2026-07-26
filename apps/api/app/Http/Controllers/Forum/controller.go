@@ -360,6 +360,21 @@ func (h *Controller) topicRevisions(c fiber.Ctx) error {
 	return apphttp.OK(c, list)
 }
 
+// topicContributionTimeline 公开贡献时间线（作者/编辑/恢复事件），无需修订查看权限。
+func (h *Controller) topicContributionTimeline(c fiber.Ctx) error {
+	if err := h.requireGuestRead(c); err != nil {
+		return err
+	}
+	list, err := h.service.ListTopicContributionTimeline(c.Context(), int64(paramInt(c, "topicID")), forum.RevisionListInput{
+		After:   c.Query("after"),
+		PerPage: queryInt(c, "perPage"),
+	})
+	if err != nil {
+		return mapForumError(err)
+	}
+	return apphttp.OK(c, list)
+}
+
 func (h *Controller) topicRevision(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {

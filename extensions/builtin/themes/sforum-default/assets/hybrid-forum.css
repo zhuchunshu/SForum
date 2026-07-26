@@ -518,6 +518,7 @@
 
   .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col .sforum-home,
   .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col .sforum-topic-page,
+  .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col .sforum-topic-composer,
   .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col .sforum-notifications,
   .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col .sforum-settings,
   .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col .sforum-moderation,
@@ -553,6 +554,16 @@
     scrollbar-gutter: stable;
   }
 
+  /* 发帖/编辑主列：固定 dock 需要更大底边距 */
+  .sforum-topic-composer__main {
+    height: 100%;
+    min-height: 0;
+    padding-bottom: 112px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
   .sforum-home__sidebar,
   .sforum-home__right,
   .sforum-topic-page__sidebar,
@@ -568,6 +579,12 @@
     height: 100%;
     min-height: 0;
     overflow: hidden;
+  }
+
+  /* 左栏工具区可滚动，避免进度/要点被裁切 */
+  .sforum-topic-composer .sforum-home__sidebar {
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 }
 
