@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import {
+  forumContentFromEditorPayload,
+  forumEditorInitialContent,
   isForumTagSlug,
   normalizeForumTagSlugInput,
   type ForumCategoryGroup,
@@ -7,6 +9,7 @@ import {
   type ForumTopicDetail,
   type ForumTopicTagSummary
 } from '~/utils/forumTaxonomy'
+import type { SFEditorContentPayload } from '~/utils/sfEditor'
 
 // 主题编辑器组件：由编辑独立页（/topics/:id/edit）与后台内容管理复用，含字段校验。
 // 保存成功后 emit saved（含更新后的 topic），由宿主页面负责跳转/规范化；
@@ -53,8 +56,11 @@ const categories = computed(() => categoryGroups.value.flatMap((group) => group.
 const title = ref('')
 const selectedCategorySlug = ref('')
 const tagDraft = ref<string[]>([])
+// v-model 仅同步 Markdown；editor-document 经 initialContent 加载，禁止 rawContent 直灌。
 const bodyMarkdown = ref('')
 const tagInput = ref('')
+const editorInitialContent = computed(() => forumEditorInitialContent(props.topic.content))
+const editorKey = computed(() => `${props.topic.id}-${props.topic.currentRevision}`)
 const {
   limits,
   validateTopicTitle,
@@ -62,24 +68,17 @@ const {
   validateTagCount
 } = useForumContentLimits()
 
-// 主题加载完成后初始化表单字段（仅在首次为空时填充，避免覆盖用户输入）。
-watchEffect(() => {
-  if (!props.topic) {
-    return
-  }
-  if (title.value === '') {
+// 主题切换时重置表单；正文留给 SFEditor initialContent + 首次 Markdown 回写。
+watch(
+  () => [props.topic.id, props.topic.currentRevision] as const,
+  () => {
     title.value = props.topic.title
-  }
-  if (selectedCategorySlug.value === '') {
     selectedCategorySlug.value = props.topic.categorySlug
-  }
-  if (tagDraft.value.length === 0 && props.topic.tags?.length) {
-    tagDraft.value = props.topic.tags.map((tag: ForumTopicTagSummary) => tag.slug)
-  }
-  if (bodyMarkdown.value === '') {
-    bodyMarkdown.value = props.topic.content.rawContent
-  }
-})
+    tagDraft.value = (props.topic.tags || []).map((tag: ForumTopicTagSummary) => tag.slug)
+    bodyMarkdown.value = ''
+  },
+  { immediate: true }
+)
 
 const canEdit = computed(() => props.topic ? canEditTopic(props.topic) : false)
 // 后台可加载非公开主题；保留不在公开分类列表中的当前 slug，避免一次正文编辑意外清空分类。
@@ -141,11 +140,17 @@ function onTagEnter(event: KeyboardEvent) {
   addTag()
 }
 
-async function save(payload?: { markdown?: string }) {
+async function save(payload?: Pick<SFEditorContentPayload, 'markdown' | 'native' | 'text'>) {
   if (!canEdit.value || !props.topic || submitState.value === 'submitting') {
     return
   }
   const markdown = payload?.markdown ?? bodyMarkdown.value
+  const text = payload?.text ?? markdown
+  const content = forumContentFromEditorPayload({
+    markdown,
+    native: payload?.native,
+    text
+  })
   const nextErrors: Record<string, string[]> = {}
   const titleError = validateTopicTitle(title.value)
   if (titleError === 'titleTooShort') {
@@ -153,7 +158,7 @@ async function save(payload?: { markdown?: string }) {
   } else if (titleError === 'titleTooLong') {
     nextErrors.title = [t('composer.titleTooLong', { max: limits.value.topicTitleMaxRunes })]
   }
-  const bodyError = validateTopicBody(markdown)
+  const bodyError = validateTopicBody(text)
   if (bodyError === 'contentTooShort') {
     nextErrors.content = [t('composer.contentTooShort', { min: limits.value.topicContentMinRunes })]
   } else if (bodyError === 'contentTooLong') {
@@ -181,17 +186,12 @@ async function save(payload?: { markdown?: string }) {
 
   try {
     const updated = await forumApi.updateTopic(props.topic.id, {
-	  expectedRevision: props.topic.currentRevision,
-	  reason: reason || undefined,
+      expectedRevision: props.topic.currentRevision,
+      reason: reason || undefined,
       title: title.value.trim(),
       categorySlug: selectedCategorySlug.value || undefined,
       tagSlugs: tagDraft.value,
-      content: {
-        rawContent: markdown,
-        sourceFormat: 'markdown',
-        editorType: 'tiptap',
-        editorVersion: 'sf-editor-v1'
-      }
+      content
     })
     submitState.value = 'idle'
     emit('saved', updated)
@@ -206,8 +206,8 @@ async function save(payload?: { markdown?: string }) {
   }
 }
 
-function onEditorSubmit(payload: { markdown: string }) {
-  save({ markdown: payload.markdown })
+function onEditorSubmit(payload: SFEditorContentPayload) {
+  void save(payload)
 }
 
 defineExpose({ save })
@@ -307,7 +307,9 @@ defineExpose({ save })
             {{ t('composer.bodyLabel') }}
           </label>
           <LazySFEditor
+            :key="editorKey"
             v-model="bodyMarkdown"
+            :initial-content="editorInitialContent"
             :placeholder="t('composer.bodyPlaceholder')"
             :submit-label="submitLabel"
             :disabled="submitState === 'submitting'"

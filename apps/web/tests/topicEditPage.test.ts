@@ -53,4 +53,13 @@ describe('standalone topic edit page behavior contract', () => {
     expect(editPage).toContain('fieldErrors.value = apiErrorFields(error)')
     expect(editPage).toContain('v-if="conflictMessage"')
   })
+
+  test('loads editor-document via initialContent and never seeds v-model with raw JSON', () => {
+    expect(editPage).toContain('forumEditorInitialContent')
+    expect(editPage).toContain(':initial-content="editorInitialContent"')
+    expect(editPage).toContain("bodyMarkdown.value = ''")
+    expect(editPage).not.toContain('bodyMarkdown.value = next.content.rawContent')
+    expect(editPage).toContain('forumContentFromEditorPayload')
+    expect(editPage).toContain('`${topic?.id}-${topic?.currentRevision}`')
+  })
 })

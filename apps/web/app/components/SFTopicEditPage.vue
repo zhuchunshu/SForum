@@ -111,7 +111,8 @@ function applyTopic(next: ForumTopicDetail | null) {
   title.value = next.title
   selectedCategorySlug.value = next.categorySlug
   tagDraft.value = (next.tags || []).map(tag => tag.slug)
-  bodyMarkdown.value = next.content.rawContent
+  // 正文不直接塞 rawContent：editor-document 的 raw 是 Tiptap JSON，须经 initialContent 加载。
+  bodyMarkdown.value = ''
   staffReason.value = ''
   // 动态路由复用时不能沿用上一主题的富文本 payload 或提交反馈。
   editorPayload.value = null
@@ -703,7 +704,7 @@ onBeforeRouteLeave(() => {
                 </div>
                 <p class="sforum-topic-composer__hint">{{ bodyHint }}</p>
                 <LazySFEditor
-                  :key="topic?.id"
+                  :key="`${topic?.id}-${topic?.currentRevision}`"
                   v-model="bodyMarkdown"
                   :initial-content="editorInitialContent"
                   :placeholder="t('composer.bodyPlaceholder')"

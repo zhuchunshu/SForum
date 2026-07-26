@@ -8,6 +8,7 @@ import {
   forumAuthorName,
   forumCategoryPath,
   forumContentFromEditorPayload,
+  forumEditorInitialContent,
   forumTagPath,
   advancedReplyDraftStorageKey,
   forumTopicAdvancedReplyPath,
@@ -26,6 +27,7 @@ import {
   type ForumTopicExtensionAction,
   type TopicPathLookup
 } from '~/utils/forumTaxonomy'
+import type { SFEditorContentPayload } from '~/utils/sfEditor'
 import { buildCommentActionMenuItems, buildTopicActionMenuItems } from '~/utils/forumTopicPresentation'
 
 
@@ -61,6 +63,8 @@ const guestLoginTo = computed(() => buildAuthPageLink(localePath('/login'), rout
 // 评论编辑/删除状态：同一时刻只允许一个内联编辑器或回复目标。
 const editingCommentId = ref<number | null>(null)
 const editingMarkdown = ref('')
+// editor-document 的 rawContent 是 Tiptap JSON，只能经 initialContent 加载，不能当 Markdown v-model。
+const editingInitialContent = ref<string | Record<string, unknown>>('')
 const editingSubmitting = ref(false)
 const editingError = ref('')
 const deletingCommentId = ref<number | null>(null)
@@ -773,30 +777,39 @@ function onReplyEditorSubmit(payload: { markdown: string; native?: unknown; text
 // 评论编辑。
 function startEditComment(comment: ForumComment) {
   editingCommentId.value = comment.id
-  editingMarkdown.value = comment.content.rawContent
+  editingMarkdown.value = ''
+  editingInitialContent.value = forumEditorInitialContent(comment.content)
   editingError.value = ''
 }
 
 function cancelEditComment() {
   editingCommentId.value = null
   editingMarkdown.value = ''
+  editingInitialContent.value = ''
   editingError.value = ''
 }
 
-async function saveCommentEdit(comment: ForumComment, payload?: { markdown?: string }) {
+async function saveCommentEdit(
+  comment: ForumComment,
+  payload?: Pick<SFEditorContentPayload, 'markdown' | 'native' | 'text'>
+) {
   const markdown = payload?.markdown ?? editingMarkdown.value
-  if (!markdown.trim() || editingSubmitting.value) {
+  const text = payload?.text ?? markdown
+  if (!text.trim() || editingSubmitting.value) {
     return
   }
   editingSubmitting.value = true
   editingError.value = ''
   try {
-    await forumApi.updateComment(comment.id, {
-      rawContent: markdown,
-      sourceFormat: 'markdown',
-      editorType: 'tiptap',
-      editorVersion: 'sf-editor-v1'
-    }, comment.currentRevision)
+    await forumApi.updateComment(
+      comment.id,
+      forumContentFromEditorPayload({
+        markdown,
+        native: payload?.native,
+        text
+      }),
+      comment.currentRevision
+    )
     cancelEditComment()
     await refreshComments()
     showSuccessToast(t('topicDetail.commentUpdated'))
@@ -904,17 +917,19 @@ const SFButtonComponent = resolveComponent('SFButton')
 const commentEditorRenderer = (comment: ForumComment | null) => {
   if (!comment) return null
   const nodes: unknown[] = []
-  // 编辑态
+  // 编辑态：initialContent 还原 editor-document；v-model 仅同步 Markdown。
   if (editingCommentId.value === comment.id) {
     nodes.push(
       h(SFEditorComponent, {
+        key: `comment-edit-${comment.id}-${comment.currentRevision}`,
         modelValue: editingMarkdown.value,
+        initialContent: editingInitialContent.value,
         'onUpdate:modelValue': (v: string) => { editingMarkdown.value = v },
         placeholder: t('topicDetail.editPlaceholder'),
         submitLabel: t('topicDetail.saveEdit'),
         disabled: editingSubmitting.value,
         error: editingError.value,
-        onSubmit: () => saveCommentEdit(comment)
+        onSubmit: (payload: SFEditorContentPayload) => saveCommentEdit(comment, payload)
       }),
       h('div', { class: 'flex gap-2 mt-2' }, [
         h(SFButtonComponent, {

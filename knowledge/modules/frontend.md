@@ -235,8 +235,10 @@ Architecture sources:
   persist a local draft. Self edits require no reason; cross-author edits
   require the API's bounded audit reason. Unsaved changes are guarded, route
   reuse clears all topic-scoped editor state, stored `editor-document` JSON is
-  restored as native Tiptap content (never surfaced as Markdown text), and save returns to
-  `forumTopicPath`; canonical redirect fixes slug.
+  restored via `forumEditorInitialContent` → `SFEditor.initialContent` (never
+  seeded into Markdown `v-model` as `rawContent`), and save returns to
+  `forumTopicPath`; canonical redirect fixes slug. Comment inline edit and
+  admin topic/comment editors share the same load/save contract.
 - Topic create draft persistence is currently local `sessionStorage` under the
   composer page because there is no create-topic draft API. Publishing still
   uses the canonical `POST /topics` flow and keeps API authorization
@@ -261,6 +263,12 @@ Architecture sources:
 
 - `SFEditor` uses Tiptap while preserving Markdown `v-model` integration. It
   emits HTML, Markdown, native JSON, plain text, counts, and empty state.
+- **Edit load path:** `sourceFormat=editor-document` stores Tiptap native JSON in
+  `rawContent`. Callers must pass `forumEditorInitialContent(content)` as
+  `initialContent` (object → JSON doc; string → Markdown). Never assign
+  `content.rawContent` to the Markdown `v-model`.
+- **Edit save path:** prefer `forumContentFromEditorPayload` so native JSON is
+  re-submitted as `editor-document` (same as create/reply).
 - Client HTML is preview-only; the API regenerates and sanitizes stored output.
 - Topic/comment writes send the backend `content` contract, including optional
   attachment IDs.

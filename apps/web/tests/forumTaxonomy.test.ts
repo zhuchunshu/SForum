@@ -38,6 +38,28 @@ describe('forum taxonomy helpers', () => {
     })).toBe('{broken')
   })
 
+  test('edit entrypoints load editor-document via initialContent not raw JSON v-model', () => {
+    const editor = readFileSync(new URL('../app/components/SFEditor.vue', import.meta.url), 'utf8')
+    const editPage = readFileSync(new URL('../app/components/SFTopicEditPage.vue', import.meta.url), 'utf8')
+    const showPage = readFileSync(new URL('../app/components/SFTopicShowPage.vue', import.meta.url), 'utf8')
+    const topicEditor = readFileSync(new URL('../app/components/SFTopicEditor.vue', import.meta.url), 'utf8')
+    const adminComment = readFileSync(
+      new URL('../app/components/admin/forum/SFAdminForumCommentEditor.vue', import.meta.url),
+      'utf8'
+    )
+
+    expect(editor).toContain('initialContent')
+    expect(editor).toContain("typeof initialContent === 'string' ? { contentType: 'markdown' as const }")
+    expect(editPage).toContain('forumEditorInitialContent')
+    expect(editPage).not.toContain('.content.rawContent')
+    expect(showPage).toContain('forumEditorInitialContent(comment.content)')
+    expect(showPage).not.toContain('comment.content.rawContent')
+    expect(topicEditor).toContain('forumEditorInitialContent(props.topic.content)')
+    expect(topicEditor).not.toContain('props.topic.content.rawContent')
+    expect(adminComment).toContain('forumEditorInitialContent(props.comment.content)')
+    expect(adminComment).not.toContain('props.comment.content.rawContent')
+  })
+
   test('formats list total with 约 only when totalApproximate', () => {
     const t = (key: string, params?: Record<string, unknown>) => {
       if (key === 'home.feed.topicCountMetaApprox') {

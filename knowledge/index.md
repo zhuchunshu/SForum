@@ -63,6 +63,10 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Editor-document edit load fix: topic/comment editors restore native Tiptap
+  JSON via `forumEditorInitialContent` → `SFEditor.initialContent`, never seed
+  Markdown v-model with `rawContent`; save uses `forumContentFromEditorPayload`:
+  `sessions/2026-07-27-editor-document-edit-load-fix.md`
 - Topic edit moved off `?edit=1` to a standalone Page Registry page
   `forum.topic.edit` at `/topics/:topicId/edit` (full matrix: catalog,
   viewmodel, `sf-topic-editor` island, both builtin themes, regions):

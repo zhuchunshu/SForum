@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { AdminForumCommentDetail } from '~/utils/adminForumContent'
-import { forumContentFromEditorPayload } from '~/utils/forumTaxonomy'
+import { forumContentFromEditorPayload, forumEditorInitialContent } from '~/utils/forumTaxonomy'
 import type { SFEditorContentPayload } from '~/utils/sfEditor'
 
 const props = defineProps<{
@@ -21,10 +21,13 @@ const forumApi = useForumApi()
 const saving = ref(false)
 const errorMessage = ref('')
 const fieldErrors = ref<Record<string, string[]>>({})
-const body = ref(props.comment.content.rawContent)
+// v-model 仅同步 Markdown；editor-document 经 initialContent 加载。
+const body = ref('')
+const editorInitialContent = computed(() => forumEditorInitialContent(props.comment.content))
+const editorKey = computed(() => `${props.comment.id}-${props.comment.currentRevision}`)
 
-watch(() => props.comment, (comment) => {
-  body.value = comment.content.rawContent
+watch(() => props.comment, () => {
+  body.value = ''
   errorMessage.value = ''
   fieldErrors.value = {}
 })
@@ -75,7 +78,9 @@ async function save(payload: SFEditorContentPayload) {
       />
     </UFormField>
     <LazySFEditor
+      :key="editorKey"
       v-model="body"
+      :initial-content="editorInitialContent"
       :placeholder="t('composer.bodyPlaceholder')"
       :submit-label="saving ? t('composer.submitting') : t('composer.save')"
       :disabled="saving"

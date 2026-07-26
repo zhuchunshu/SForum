@@ -36,8 +36,15 @@ describe('admin forum content workbench', () => {
     expect(commentEditor).toContain('<LazySFEditor')
     expect(commentEditor).toContain('forumApi.updateComment')
     expect(commentEditor).toContain('props.comment.currentRevision')
+    expect(commentEditor).toContain('forumEditorInitialContent')
+    expect(commentEditor).toContain(':initial-content="editorInitialContent"')
+    expect(commentEditor).not.toContain('props.comment.content.rawContent')
     expect(topicEditor).toContain('expectedRevision: props.topic.currentRevision')
     expect(topicEditor).toContain('reason: reason || undefined')
+    expect(topicEditor).toContain('forumEditorInitialContent')
+    expect(topicEditor).toContain(':initial-content="editorInitialContent"')
+    expect(topicEditor).toContain('forumContentFromEditorPayload')
+    expect(topicEditor).not.toContain('props.topic.content.rawContent')
   })
 
   test('keeps cross-author reasons and revision conflicts visible without force overwrite', () => {

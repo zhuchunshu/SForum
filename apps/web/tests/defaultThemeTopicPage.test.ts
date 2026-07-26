@@ -94,6 +94,13 @@ describe('default theme V32 topic page contract', () => {
     // E2.2：评论行扩展动作与主题动作同一代理边界
     expect(source).toContain('applyCommentExtensionAction')
     expect(source).toContain('extensionActions')
+    // 评论编辑：editor-document 经 initialContent 还原，提交走 forumContentFromEditorPayload
+    expect(source).toContain('forumEditorInitialContent')
+    expect(source).toContain('editingInitialContent')
+    expect(source).toContain('initialContent: editingInitialContent.value')
+    expect(source).not.toContain('editingMarkdown.value = comment.content.rawContent')
+    expect(source).toContain('forumContentFromEditorPayload({')
+    expect(source).toContain('saveCommentEdit(comment, payload)')
   })
 
   test('uses a full-width three-column shell with left nav and topic side card', () => {

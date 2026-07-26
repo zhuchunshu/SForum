@@ -57,7 +57,8 @@ const emit = defineEmits<{
 const editor = shallowRef<Editor | null>(null)
 const editorForContent = computed(() => editor.value || undefined)
 const viewMode = ref<'write' | 'preview' | 'markdown' | 'native'>('write')
-const markdownDraft = ref(props.modelValue)
+// modelValue 只承载 Markdown；原生 JSON 必须走 initialContent，避免把 rawContent 当正文。
+const markdownDraft = ref(typeof props.modelValue === 'string' ? props.modelValue : '')
 const showEmojiPanel = ref(false)
 const editorStateTick = ref(0)
 const lastEmittedMarkdown = ref('')
@@ -132,7 +133,10 @@ onMounted(async () => {
   }
   admittedExtensions.value = trusted
   catalogReady.value = true
-  const initialContent = props.initialContent ?? props.modelValue
+  // object → Tiptap JSON 文档；string → Markdown。禁止把 editor-document 的 raw JSON 字符串当 Markdown。
+  const initialContent = props.initialContent !== undefined && props.initialContent !== null
+    ? props.initialContent
+    : (props.modelValue || '')
   editor.value = new Editor({
     content: initialContent,
     ...(typeof initialContent === 'string' ? { contentType: 'markdown' as const } : {}),
@@ -177,15 +181,20 @@ watch(() => props.placeholder, placeholder => {
   }
 })
 
+// 仅接受外部 Markdown 同步；跳过与自身 emit 相同的回写，以及与当前文档一致的值。
 watch(() => props.modelValue, value => {
   const nextMarkdown = value || ''
   const currentEditor = editor.value
 
-  if (!currentEditor || nextMarkdown === currentPayload.value.markdown) {
+  if (!currentEditor) {
+    return
+  }
+  if (nextMarkdown === lastEmittedMarkdown.value || nextMarkdown === currentPayload.value.markdown) {
     return
   }
 
   markdownDraft.value = nextMarkdown
+  lastEmittedMarkdown.value = nextMarkdown
   currentEditor.commands.setContent(nextMarkdown, {
     contentType: 'markdown',
     emitUpdate: false
