@@ -114,8 +114,11 @@ const explicitCommentPage = computed(() => {
     return fromPath
   }
   // 旧 query 形式 ?page=N（规范化前的兼容入口）。
-  if (route.query.page !== undefined && route.query.page !== null) {
-    return parsePublicPage(route.query.page)
+  // 严格解析：非法值（?page=abc / 数组）不能回落成"显式第 1 页"，
+  // 否则会错误抑制锚点反查，第 2 页之后的目标评论永远定位不到。
+  const fromQuery = parseExplicitPublicPage(route.query.page)
+  if (fromQuery > 0) {
+    return fromQuery
   }
   return 0
 })
@@ -212,7 +215,10 @@ const commentPageResolved = useAsyncData(
     }
   },
   {
-    default: () => null,
+    // 不能设 default：整页刷新时 fragment 不进 SSR，客户端 key（含锚点 id）在 payload 里
+    // 没有条目；若 default 提供了非 undefined 初值，Nuxt 水合分支会视为"已有数据"而
+    // 跳过 handler，反查请求永远不会发出（兜底路径静默失效）。保持 undefined 初值
+    // 才能让水合阶段真正执行 handler。
     // 纯 slug 路径下 topic id 从 0→N 时重查；显式页码/锚点变化也重查。
     watch: [() => topicAsync.data.value?.id ?? 0, targetCommentId, explicitCommentPage]
   }
@@ -307,13 +313,15 @@ watchEffect(() => {
     return
   }
   // 1. slug/mode 规范化：比较不含 page 的基础路径。
+  //    必须保留 hash：通知/外部深链是无 slug 的 /t/{id}#comment-{id}，全部走本分支；
+  //    丢掉 fragment 会让重挂载后的实例拿不到锚点，滚动/高亮全部失效。
   const basePath = localePath(forumTopicPath(topic.value, topicUrlMode.value))
   const routeBase = route.path.replace(/\/page\/\d+$/, '')
   if (basePath !== routeBase) {
     const query: Record<string, string> = isEditing.value ? { edit: '1' } : {}
     const target = Object.keys(query).length > 0
-      ? { path: basePath, query }
-      : basePath
+      ? { path: basePath, query, hash: route.hash }
+      : { path: basePath, hash: route.hash }
     if (import.meta.server) {
       navigateTo(target, { redirectCode: 301 })
     } else {
@@ -368,17 +376,53 @@ onBeforeUnmount(() => {
 
 // 锚点滚动：SSR 首屏含目标评论时浏览器原生定位已够；
 // 客户端导航（从列表点进带 hash 的帖子）或翻页后需兜底滚动到 #comment-{id}，并短暂高亮。
+// 每个锚点目标只定位一次：hash 整个访问期间留在 URL 里，不去重的话发回复/编辑/删除
+// 触发的 refreshComments 都会把视口重新拽回锚点评论并再次闪烁。
+const scrolledCommentId = ref(0)
+// 当前页找不到目标评论时的一次性兜底反查：显式页码深链（如个人主页动态）
+// 可能因软删占位、钳页或评论被删而指错页，向后端按当前 viewer 重新反查并跳转。
+const anchorFallbackTriedId = ref(0)
+
+async function resolveAnchorPageFallback() {
+  const commentId = targetCommentId.value
+  if (commentId <= 0 || anchorFallbackTriedId.value === commentId) {
+    return
+  }
+  // 列表加载中或还没有任何数据说明目标可能尚未到位，等后续 watch 再判断。
+  if (commentsPending.value || commentData.value.items.length === 0) {
+    return
+  }
+  const id = loadedTopicID.value
+  if (id <= 0) {
+    return
+  }
+  anchorFallbackTriedId.value = commentId
+  try {
+    const resolved = await forumApi.resolveCommentPage(id, commentId)
+    if (resolved.page > 0 && resolved.page !== commentPage.value) {
+      await navigateTo({ path: commentPageTo(resolved.page), hash: `#comment-${commentId}` }, { replace: true })
+    }
+  } catch {
+    // 评论不存在/对当前用户不可见：保持当前页，锚点静默失效。
+  }
+}
+
 watch(
   [() => commentData.value, targetCommentId],
   async () => {
     if (import.meta.server || targetCommentId.value <= 0) {
       return
     }
+    if (scrolledCommentId.value === targetCommentId.value) {
+      return
+    }
     await nextTick()
     const el = document.getElementById(`comment-${targetCommentId.value}`)
     if (!el) {
+      await resolveAnchorPageFallback()
       return
     }
+    scrolledCommentId.value = targetCommentId.value
     el.scrollIntoView({ behavior: 'smooth', block: 'start' })
     flashTargetComment(targetCommentId.value)
   },

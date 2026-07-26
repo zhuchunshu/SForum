@@ -355,8 +355,13 @@ func (s *PostgresStore) ListActivityComments(ctx context.Context, userID int64, 
 		); err != nil {
 			return nil, err
 		}
-		// 与 Forum.ResolveCommentPage 一致：page = before/perPage + 1。
+		// 与 Forum.ResolveCommentPage 一致：page = before/perPage + 1，
+		// 并钳制到 MaxTopicPage——评论列表接口会把更大的页码钳回上限，
+		// 不钳制的话深链会指向一个永远取不到目标评论的页。
 		item.CommentPage = int(activeBefore)/commentsPerPage + 1
+		if item.CommentPage > forum.MaxTopicPage {
+			item.CommentPage = forum.MaxTopicPage
+		}
 		item.Excerpt = forum.ExcerptFromPlain(plainPrefix, forum.RecommendedExcerptRuneLimit)
 		items = append(items, item)
 	}

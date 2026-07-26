@@ -255,6 +255,15 @@ async function ensureFeedLoaded(tab: ProfileTab) {
   }
 }
 
+// SSR 初始活动拉取失败（initialTopicPage catch → null）时 loaded 保持 false，
+// 默认 Topics tab 会静默显示"暂无动态"。客户端挂载后重试一次，
+// 再失败则走 ensureFeedLoaded 的 toast 提示，而不是无声吞掉错误。
+onMounted(() => {
+  if (!topicFeed.value.loaded) {
+    void ensureFeedLoaded('topics')
+  }
+})
+
 async function loadMoreActivities() {
   const kind = activityKindForTab(activeTab.value)
   if (!kind || !username.value || loadingMore.value) {

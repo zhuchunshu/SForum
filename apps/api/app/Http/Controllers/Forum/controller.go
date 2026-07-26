@@ -550,7 +550,9 @@ func (h *Controller) commentPage(c fiber.Ctx) error {
 	if err := h.requireGuestRead(c); err != nil {
 		return err
 	}
-	page, perPage, err := h.service.ResolveCommentPage(c.Context(), int64(paramInt(c, "topicID")), int64(paramInt(c, "commentID")))
+	// 可选 viewer：与 comments 列表同口径，软删墓碑占位影响页码计算；匿名为零值。
+	viewer, _ := apphttp.LoadActor(c, h.sessions, h.users)
+	page, perPage, err := h.service.ResolveCommentPage(c.Context(), int64(paramInt(c, "topicID")), int64(paramInt(c, "commentID")), viewer)
 	if err != nil {
 		return mapForumError(err)
 	}

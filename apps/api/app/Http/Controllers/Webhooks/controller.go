@@ -158,8 +158,13 @@ func (h *Controller) listDeliveries(c fiber.Ctx) error {
 }
 
 func (h *Controller) listCatalogEvents(c fiber.Ctx) error {
-	if _, err := h.actor(c); err != nil {
+	actor, err := h.actor(c)
+	if err != nil {
 		return err
+	}
+	// 与同组 endpoints/deliveries 一致：仅设置管理权限可见，避免向普通用户暴露内部事件目录。
+	if !actor.Can(identity.PermissionSettingsManage) && !actor.Can(identity.PermissionSettingsSiteManage) {
+		return mapError(identity.ErrPermissionDenied)
 	}
 	// 仅列出 observe 事件供管理员勾选订阅。
 	defs := appevents.Definitions()

@@ -21,6 +21,13 @@ function topicTo(topic: ForumTopicSummary) {
   return localePath(forumTopicPath(topic, topicUrlMode.value))
 }
 
+// 与 SFProfileShowPage 同口径：safeUrl 拒绝非法 scheme 时返回 ''，
+// 显隐必须以净化结果为准，否则会渲染出 href 为空的死链接。
+const websiteHref = computed(() => {
+  const raw = props.profile.profile.websiteUrl?.trim() || ''
+  return raw ? safeUrl(raw) : ''
+})
+
 function extensionTabLabel(tab: NonNullable<PublicProfile['extensionTabs']>[number]) {
   const labels = tab.label || {}
   return labels[String(locale.value)] || labels['zh-CN'] || labels['en-US'] || Object.values(labels)[0] || tab.id
@@ -67,10 +74,10 @@ function extensionTabTo(tab: NonNullable<PublicProfile['extensionTabs']>[number]
           <UIcon name="i-lucide-map-pin" class="size-4" aria-hidden="true" />
           <span>{{ profile.profile.location }}</span>
         </li>
-        <li v-if="profile.profile.websiteUrl">
+        <li v-if="websiteHref">
           <UIcon name="i-lucide-link" class="size-4" aria-hidden="true" />
-          <a :href="safeUrl(profile.profile.websiteUrl)" target="_blank" rel="noopener noreferrer nofollow">
-            {{ profile.profile.websiteUrl.replace(/^https?:\/\//i, '').replace(/\/$/, '') }}
+          <a :href="websiteHref" target="_blank" rel="noopener noreferrer nofollow">
+            {{ (profile.profile.websiteUrl || '').replace(/^https?:\/\//i, '').replace(/\/$/, '') }}
           </a>
         </li>
         <li>

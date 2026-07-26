@@ -1845,10 +1845,13 @@ type serviceFakeStore struct {
 	listCommentsResult CommentList
 	listCommentsInput  CommentListInput
 	listCommentsCalled bool
-	// CountActiveCommentsBefore 可配置返回值，供 ResolveCommentPage 反查页码测试断言。
+	// CountCommentsBefore 可配置返回值，供 ResolveCommentPage 反查页码测试断言。
 	countCommentsBefore      int64
 	countCommentsBeforeErr   error
 	countCommentsBeforeCalled bool
+	// 记录最近一次调用的软删可见范围参数，供 viewer 口径断言。
+	countCommentsBeforeIncludeDeleted bool
+	countCommentsBeforeAuthorID       int64
 	listTopicsInput    TopicListInput
 	listTopicsResult   TopicList
 	// ListCommentReplies 可配置返回值与调用记录，供回复可见性兜底测试断言。
@@ -2127,8 +2130,10 @@ func (s *serviceFakeStore) GetCommentSummary(context.Context, int64) (CommentSum
 	return s.commentSummary, s.commentSummaryErr
 }
 
-func (s *serviceFakeStore) CountActiveCommentsBefore(context.Context, int64, string, int64) (int64, error) {
+func (s *serviceFakeStore) CountCommentsBefore(_ context.Context, _ int64, _ string, _ int64, includeDeleted bool, deletedAuthorUserID int64) (int64, error) {
 	s.countCommentsBeforeCalled = true
+	s.countCommentsBeforeIncludeDeleted = includeDeleted
+	s.countCommentsBeforeAuthorID = deletedAuthorUserID
 	return s.countCommentsBefore, s.countCommentsBeforeErr
 }
 
@@ -2687,8 +2692,9 @@ func TestServiceListCommentRepliesAllowsVisibleTopic(t *testing.T) {
 	}
 }
 
-// TestServiceResolveCommentPage 按 flat 排序下排在前面的 active 评论数计算页码。
-// perPage 默认 20；边界：0 条在前 → page 1，刚好 20 条 → page 2（第 21 条评论在第二页）。
+// TestServiceResolveCommentPage 按 flat 排序下排在前面的可见评论数计算页码。
+// perPage 默认 20；边界：0 条在前 → page 1，刚好 20 条 → page 2（第 21 条评论在第二页）；
+// 超过 MaxTopicPage 的结果钳制到 MaxTopicPage（与 ListComments 的深翻页 clamp 同口径）。
 func TestServiceResolveCommentPage(t *testing.T) {
 	cases := []struct {
 		name        string
@@ -2701,6 +2707,7 @@ func TestServiceResolveCommentPage(t *testing.T) {
 		{"第21条评论在第二页", 20, 2, 20},
 		{"第40条评论仍在第二页", 39, 2, 20},
 		{"第41条评论在第三页", 40, 3, 20},
+		{"超过MaxTopicPage钳制到上限", int64(MaxTopicPage) * 20, MaxTopicPage, 20},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -2709,7 +2716,7 @@ func TestServiceResolveCommentPage(t *testing.T) {
 			store.countCommentsBefore = tc.before
 			service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
 
-			page, perPage, err := service.ResolveCommentPage(context.Background(), 10, 99)
+			page, perPage, err := service.ResolveCommentPage(context.Background(), 10, 99, identity.Actor{})
 			if err != nil {
 				t.Fatalf("ResolveCommentPage returned error: %v", err)
 			}
@@ -2720,10 +2727,70 @@ func TestServiceResolveCommentPage(t *testing.T) {
 				t.Fatalf("perPage = %d, want %d", perPage, tc.wantPerPage)
 			}
 			if !store.countCommentsBeforeCalled {
-				t.Fatal("expected store.CountActiveCommentsBefore to be called")
+				t.Fatal("expected store.CountCommentsBefore to be called")
+			}
+			// 匿名 viewer：软删墓碑不占位，计数范围应为 active-only。
+			if store.countCommentsBeforeIncludeDeleted {
+				t.Fatal("anonymous viewer must count active-only")
 			}
 		})
 	}
+}
+
+// TestServiceResolveCommentPageViewerScope 位置计数必须与 viewer 实际看到的列表同口径：
+// author_and_staff 策略下，staff 计入全部软删墓碑，作者只计入自己的墓碑。
+func TestServiceResolveCommentPageViewerScope(t *testing.T) {
+	staff := identity.Actor{
+		ID:          7,
+		Status:      identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionPostDeleteAny: true},
+	}
+	author := identity.Actor{ID: 8, Status: identity.UserStatusActive}
+
+	t.Run("staff计入全部墓碑", func(t *testing.T) {
+		store := newServiceFakeStore()
+		store.commentSummary = CommentSummary{ID: 99, TopicID: 10, Status: CommentStatusActive, PathKey: "000000000099"}
+		service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+
+		if _, _, err := service.ResolveCommentPage(context.Background(), 10, 99, staff); err != nil {
+			t.Fatalf("ResolveCommentPage returned error: %v", err)
+		}
+		if !store.countCommentsBeforeIncludeDeleted || store.countCommentsBeforeAuthorID != 0 {
+			t.Fatalf("staff scope = (%v, %d), want (true, 0)",
+				store.countCommentsBeforeIncludeDeleted, store.countCommentsBeforeAuthorID)
+		}
+	})
+	t.Run("普通用户只计入自己的墓碑", func(t *testing.T) {
+		store := newServiceFakeStore()
+		store.commentSummary = CommentSummary{ID: 99, TopicID: 10, Status: CommentStatusActive, PathKey: "000000000099"}
+		service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+
+		if _, _, err := service.ResolveCommentPage(context.Background(), 10, 99, author); err != nil {
+			t.Fatalf("ResolveCommentPage returned error: %v", err)
+		}
+		if !store.countCommentsBeforeIncludeDeleted || store.countCommentsBeforeAuthorID != author.ID {
+			t.Fatalf("author scope = (%v, %d), want (true, %d)",
+				store.countCommentsBeforeIncludeDeleted, store.countCommentsBeforeAuthorID, author.ID)
+		}
+	})
+	t.Run("staff可定位软删墓碑本身", func(t *testing.T) {
+		store := newServiceFakeStore()
+		store.commentSummary = CommentSummary{ID: 99, TopicID: 10, Status: CommentStatusDeleted, PathKey: "000000000099", AuthorUserID: 8}
+		service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+
+		if _, _, err := service.ResolveCommentPage(context.Background(), 10, 99, staff); err != nil {
+			t.Fatalf("staff should resolve visible tombstone, got %v", err)
+		}
+	})
+	t.Run("他人软删墓碑对普通用户NotFound", func(t *testing.T) {
+		store := newServiceFakeStore()
+		store.commentSummary = CommentSummary{ID: 99, TopicID: 10, Status: CommentStatusDeleted, PathKey: "000000000099", AuthorUserID: 999}
+		service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+
+		if _, _, err := service.ResolveCommentPage(context.Background(), 10, 99, author); !errors.Is(err, ErrCommentNotFound) {
+			t.Fatalf("expected ErrCommentNotFound for other user's tombstone, got %v", err)
+		}
+	})
 }
 
 // TestServiceResolveCommentPageRejectsInvalidTarget 目标评论跨主题/非 active/主题隐藏均返回 ErrCommentNotFound，
@@ -2734,7 +2801,7 @@ func TestServiceResolveCommentPageRejectsInvalidTarget(t *testing.T) {
 		store.commentSummary = CommentSummary{ID: 99, TopicID: 77, Status: CommentStatusActive}
 		service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
 
-		_, _, err := service.ResolveCommentPage(context.Background(), 10, 99)
+		_, _, err := service.ResolveCommentPage(context.Background(), 10, 99, identity.Actor{})
 		if !errors.Is(err, ErrCommentNotFound) {
 			t.Fatalf("expected ErrCommentNotFound for cross-topic comment, got %v", err)
 		}
@@ -2747,7 +2814,7 @@ func TestServiceResolveCommentPageRejectsInvalidTarget(t *testing.T) {
 		store.commentSummary = CommentSummary{ID: 99, TopicID: 10, Status: CommentStatusDeleted}
 		service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
 
-		_, _, err := service.ResolveCommentPage(context.Background(), 10, 99)
+		_, _, err := service.ResolveCommentPage(context.Background(), 10, 99, identity.Actor{})
 		if !errors.Is(err, ErrCommentNotFound) {
 			t.Fatalf("expected ErrCommentNotFound for soft-deleted comment, got %v", err)
 		}
@@ -2760,7 +2827,7 @@ func TestServiceResolveCommentPageRejectsInvalidTarget(t *testing.T) {
 		store.getTopicErr = ErrTopicNotFound
 		service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
 
-		_, _, err := service.ResolveCommentPage(context.Background(), 10, 99)
+		_, _, err := service.ResolveCommentPage(context.Background(), 10, 99, identity.Actor{})
 		if !errors.Is(err, ErrTopicNotFound) {
 			t.Fatalf("expected ErrTopicNotFound for hidden topic, got %v", err)
 		}
@@ -2770,7 +2837,7 @@ func TestServiceResolveCommentPageRejectsInvalidTarget(t *testing.T) {
 		store.commentSummaryErr = ErrCommentNotFound
 		service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
 
-		_, _, err := service.ResolveCommentPage(context.Background(), 10, 999)
+		_, _, err := service.ResolveCommentPage(context.Background(), 10, 999, identity.Actor{})
 		if !errors.Is(err, ErrCommentNotFound) {
 			t.Fatalf("expected ErrCommentNotFound for missing comment, got %v", err)
 		}

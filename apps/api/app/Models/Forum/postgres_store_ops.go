@@ -544,18 +544,19 @@ func (s *PostgresStore) listCommentsFlat(ctx context.Context, input CommentListI
 	}, nil
 }
 
-// CountActiveCommentsBefore 返回同主题内排在 (pathKey, id) 之前的 active 评论数。
+// CountCommentsBefore 返回同主题内排在 (pathKey, id) 之前、对 viewer 可见的评论数。
 // flat 视图排序为 ORDER BY path_key ASC, id ASC，行值比较 (path_key, id) < ($2, $3)
-// 与排序严格对齐，保证反查页码与 ListComments 分页结果一致。
-// 仅计 active（公开定位语义）；调用方需先确认目标评论自身为 active。
-func (s *PostgresStore) CountActiveCommentsBefore(ctx context.Context, topicID int64, pathKey string, id int64) (int64, error) {
+// 与排序严格对齐；可见范围谓词与 listCommentsFlat 的 WHERE 完全一致
+// （active + 按软删可见范围计入的 deleted 墓碑），保证反查页码与实际分页结果一致。
+func (s *PostgresStore) CountCommentsBefore(ctx context.Context, topicID int64, pathKey string, id int64, includeDeleted bool, deletedAuthorUserID int64) (int64, error) {
 	var count int64
 	err := s.pool.QueryRow(ctx, `
 		SELECT count(*) FROM comments
 		WHERE topic_id = $1
-		  AND status = 'active'
+		  AND (comments.status = 'active' OR ($4::boolean AND comments.status = 'deleted'
+		    AND ($5::bigint = 0 OR comments.author_user_id = $5)))
 		  AND ROW(path_key, id) < ROW($2, $3)
-	`, topicID, pathKey, id).Scan(&count)
+	`, topicID, pathKey, id, includeDeleted, deletedAuthorUserID).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("count comments before: %w", err)
 	}

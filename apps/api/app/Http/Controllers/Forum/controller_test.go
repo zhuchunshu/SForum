@@ -866,7 +866,7 @@ func (s *controllerForumStore) GetCommentSummary(context.Context, int64) (forum.
 	return forum.CommentSummary{ID: 20, TopicID: 10, AuthorUserID: 1, Status: forum.CommentStatusActive, CurrentRevision: 1}, nil
 }
 
-func (s *controllerForumStore) CountActiveCommentsBefore(context.Context, int64, string, int64) (int64, error) {
+func (s *controllerForumStore) CountCommentsBefore(context.Context, int64, string, int64, bool, int64) (int64, error) {
 	return s.countCommentsBefore, nil
 }
 

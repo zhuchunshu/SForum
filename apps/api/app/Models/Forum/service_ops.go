@@ -186,8 +186,10 @@ func resolveCommentPagination(page, perPage, settingsCommentsPerPage int) (int, 
 
 // ResolveCommentPage 返回 commentID 在 flat 视图分页下所属的页码与每页大小。
 // 用于帖子详情页带 #comment-{id} 锚点进入时，反查应加载哪一页评论。
-// 仅处理 active 评论（公开定位语义）：目标评论非 active 或不属于该主题返回 ErrCommentNotFound。
-func (s *Service) ResolveCommentPage(ctx context.Context, topicID int64, commentID int64) (page int, perPage int, err error) {
+// 位置计数必须与该 viewer 实际看到的 flat 列表同口径：softDeleteVisibility 允许
+// viewer 看到的软删墓碑同样占据分页槽位，只数 active 会导致反查页码整页错位。
+// 目标评论不属于该主题、或对该 viewer 不可见时返回 ErrCommentNotFound（不泄漏状态）。
+func (s *Service) ResolveCommentPage(ctx context.Context, topicID int64, commentID int64, viewer identity.Actor) (page int, perPage int, err error) {
 	// 可见性兜底：与 ListComments 一致，隐藏/删除主题直接 NotFound。
 	if _, err := s.store.GetTopic(ctx, topicID); err != nil {
 		return 0, 0, err
@@ -200,23 +202,32 @@ func (s *Service) ResolveCommentPage(ctx context.Context, topicID int64, comment
 	if summary.TopicID != topicID {
 		return 0, 0, ErrCommentNotFound
 	}
-	// 公开定位只针对 active 评论；软删/其它状态对匿名不可见，统一 NotFound 不泄漏状态。
-	if summary.Status != CommentStatusActive {
-		return 0, 0, ErrCommentNotFound
-	}
 	settings, err := s.resolvedSettings(ctx)
 	if err != nil {
 		return 0, 0, err
 	}
+	includeDeleted, deletedAuthorUserID := softDeleteQueryScope(settings.SoftDeleteVisibility, viewer)
+	// 目标必须出现在该 viewer 的列表里：active，或按策略对其可见的软删墓碑。
+	if summary.Status != CommentStatusActive {
+		visibleTombstone := summary.Status == CommentStatusDeleted && includeDeleted &&
+			(deletedAuthorUserID == 0 || summary.AuthorUserID == deletedAuthorUserID)
+		if !visibleTombstone {
+			return 0, 0, ErrCommentNotFound
+		}
+	}
 	// perPage 归一化与 ListComments 同源，保证页码边界一致。
 	_, perPage = resolveCommentPagination(1, 0, settings.CommentsPerPage)
-	// 排在目标之前的 active 评论数；flat 排序为 path_key ASC, id ASC。
-	before, err := s.store.CountActiveCommentsBefore(ctx, topicID, summary.PathKey, summary.ID)
+	// 排在目标之前、对该 viewer 可见的评论数；flat 排序为 path_key ASC, id ASC。
+	before, err := s.store.CountCommentsBefore(ctx, topicID, summary.PathKey, summary.ID, includeDeleted, deletedAuthorUserID)
 	if err != nil {
 		return 0, 0, err
 	}
 	// 第 before 条评论位于第 before/perPage + 1 页（before 从 0 计）。
+	// ListComments 会把页码钳制到 MaxTopicPage，这里同步钳制，避免反查出永远取不到的页。
 	page = int(before/int64(perPage)) + 1
+	if page > MaxTopicPage {
+		page = MaxTopicPage
+	}
 	return page, perPage, nil
 }
 
@@ -1162,9 +1173,10 @@ func validateTopicAction(action string) (string, error) {
 	}
 }
 
-// maxTopicPage 限制主题列表的深翻页，避免 OFFSET 跳过大量行时的性能退化。
+// MaxTopicPage 限制主题列表的深翻页，避免 OFFSET 跳过大量行时的性能退化。
 // 用户极少翻到 200 页之后；SEO 抓取深度可由 sitemap 单独控制。
-const maxTopicPage = 200
+// 导出给 Profile 等生成主题深链页码的调用方，保持同一钳制口径。
+const MaxTopicPage = 200
 
 func normalizePage(page int, perPage int) (int, int) {
 	return normalizePageWithDefault(page, perPage, 20)
@@ -1175,8 +1187,8 @@ func normalizePageWithDefault(page int, perPage int, defaultPerPage int) (int, i
 		page = 1
 	}
 	// 深翻页 clamp：超过上限的请求视为末页，消除 OFFSET 千万行扫描风险。
-	if page > maxTopicPage {
-		page = maxTopicPage
+	if page > MaxTopicPage {
+		page = MaxTopicPage
 	}
 	if perPage <= 0 {
 		perPage = defaultPerPage
