@@ -3789,6 +3789,8 @@
       "description": "Be the first to comment."
     },
     "lockedNotice": "This topic is locked and no longer accepts comments.",
+    "guestReplyNotice": "Log in to comment or reply.",
+    "guestReplyLogin": "Log in",
     "edit": "Edit",
     "delete": "Delete",
     "lock": "Lock",

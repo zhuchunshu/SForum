@@ -3789,6 +3789,8 @@
       "description": "成为第一个发表评论的人。"
     },
     "lockedNotice": "该话题已锁定，暂不接受新评论。",
+    "guestReplyNotice": "登录后即可发表评论或回复。",
+    "guestReplyLogin": "登录",
     "edit": "编辑",
     "delete": "删除",
     "lock": "锁定",

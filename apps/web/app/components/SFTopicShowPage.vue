@@ -53,6 +53,10 @@ const replyError = ref('')
 const showReplyError = ref(false)
 const showReplyEditor = computed(() => Boolean(topic.value && topic.value.status !== 'locked' && can(FORUM_PERMISSIONS.postCreate)))
 
+// 未登录访客：评论区块照常展示，但用登录引导替代回复编辑器；登录后跳回当前帖子。
+const isGuest = computed(() => !reportUser.value)
+const guestLoginTo = computed(() => buildAuthPageLink(localePath('/login'), route.fullPath))
+
 // 评论编辑/删除状态：同一时刻只允许一个内联编辑器或回复目标。
 const editingCommentId = ref<number | null>(null)
 const editingMarkdown = ref('')
@@ -1310,6 +1314,20 @@ async function submitReport() {
                     @dismiss-error="showReplyError = false"
                     @advanced="prepareAdvancedReply"
                   />
+
+                  <div
+                    v-else-if="isGuest && !isLocked"
+                    class="sforum-topic-comments__guest-notice"
+                  >
+                    <UIcon name="i-lucide-message-circle" class="sforum-topic-comments__guest-notice-icon" aria-hidden="true" />
+                    <p>{{ t('topicDetail.guestReplyNotice') }}</p>
+                    <NuxtLink
+                      :to="guestLoginTo"
+                      class="sforum-topic-page__action-btn sforum-topic-page__action-btn--primary"
+                    >
+                      {{ t('topicDetail.guestReplyLogin') }}
+                    </NuxtLink>
+                  </div>
 
                   <SFAlert
                     v-if="isLocked"

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 宿主 body 岛：forum.settings.profile。主题 L1 挂载；路由页仅 outlet + fail-closed 回退。
- * 三栏 chrome 对齐首页 / 通知页；表单业务不变。
+ * 三栏 chrome 由 SFSettingsShell 提供，此处仅保留资料表单业务。
  */
 import type { ProfileData, PublicProfile } from '~/composables/useProfileApi'
 import { safeUrl } from '~/utils/sfUrl'
@@ -23,7 +23,6 @@ const { user: authUser, setUser } = useAuthSession()
 const { can } = usePermissions()
 const { formatDateOnly } = useSiteDateTime()
 const profileApi = useProfileApi()
-const forumApi = useForumApi()
 
 useSForumSeo({
   title: () => `${t('profileSettings.metaTitle')} - ${siteName.value}`,
@@ -35,12 +34,6 @@ const { data: profile, pending } = await useAsyncData(
   'my-profile',
   () => profileApi.getMyProfile(),
   { default: () => null as PublicProfile | null }
-)
-
-const { data: categoryGroups, pending: categoriesPending } = await useAsyncData(
-  'settings-profile-categories',
-  () => forumApi.listCategoryGroups(),
-  { default: () => [] }
 )
 
 const draft = reactive<ProfileDraft>({
@@ -64,13 +57,7 @@ const saveState = ref<SaveState>('idle')
 const errorMessage = ref('')
 const successMessage = ref('')
 const fieldErrors = ref<Record<string, string[]>>({})
-const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
-const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
 let successTimer: ReturnType<typeof setTimeout> | undefined
-
-const categories = computed(() => categoryGroups.value.flatMap(group => group.categories || []))
-const categoryTopicTotal = computed(() => categories.value.reduce((sum, category) => sum + (category.topicCount || 0), 0))
-const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
 
 const currentAvatar = computed(() => profile.value?.profile.avatar || null)
 const displayName = computed(() => profile.value?.displayName || profile.value?.username || '')
@@ -188,11 +175,6 @@ function resetDraft() {
   })
 }
 
-function closeMobileDrawers() {
-  mobileMenuOpen.value = false
-  mobileInfoOpen.value = false
-}
-
 async function save() {
   if (!canSave.value) {
     return
@@ -295,369 +277,253 @@ async function removeAvatar() {
 </script>
 
 <template>
-  <main
-    class="sforum-settings sforum-settings-profile"
+  <SFSettingsShell
+    class="sforum-settings-profile"
     data-sforum-island-body="forum.component.settings_profile"
-    data-layout="fullwidth-3col"
+    active="profile"
+    title-id="profile-settings-title"
+    :title="t('profileSettings.canvasTitle')"
+    :description="t('profileSettings.canvasDescription')"
+    :rail-label="t('profileSettings.preview.ariaLabel')"
+    :rail-open-label="t('profileSettings.preview.open')"
+    :public-profile-path="publicProfilePath"
+    :show-rail="Boolean(profile)"
   >
-    <div class="sforum-settings__layout">
-      <div class="sforum-settings__sidebar sforum-home__sidebar">
-        <SFHomeNavigation
-          desktop-only
-          navigation-mode="route"
-          :categories="categories"
-          :total-topics="categoryTopicTotal"
-          :pending="categoriesPending"
-          :can-create-topic="canCreateTopic"
-          :show-categories="false"
-        >
-          <template #after-navigation>
-            <SFSettingsAccountNav
-              active="profile"
-              :public-profile-path="publicProfilePath"
-            />
-          </template>
-        </SFHomeNavigation>
-      </div>
+    <nav
+      v-if="profile"
+      class="sforum-settings__section-nav"
+      :aria-label="t('profileSettings.sections.ariaLabel')"
+    >
+      <a href="#profile-settings-identity">{{ t('profileSettings.sections.identity') }}</a>
+      <a href="#profile-settings-story">{{ t('profileSettings.sections.story') }}</a>
+      <a href="#profile-settings-links">{{ t('profileSettings.sections.links') }}</a>
+    </nav>
 
-      <section class="sforum-settings__main" aria-labelledby="profile-settings-title">
-        <div class="sforum-settings__mobile-nav">
-          <SFHomeNavigation
-            mobile-only
-            navigation-mode="route"
-            :categories="categories"
-            :total-topics="categoryTopicTotal"
-            :pending="categoriesPending"
-            :can-create-topic="canCreateTopic"
-          />
+    <template v-if="pending && !profile">
+      <div class="sforum-settings-profile__loading">
+        <SFSkeleton class="h-16 w-16 rounded-full" />
+        <div class="min-w-0 flex-1 space-y-3">
+          <SFSkeleton class="h-7 w-2/3" />
+          <SFSkeleton class="h-4 w-full" />
+          <SFSkeleton class="h-4 w-3/5" />
         </div>
+      </div>
+    </template>
 
-        <header class="sforum-settings__head">
-          <div class="sforum-settings__head-copy">
-            <h1 id="profile-settings-title">{{ t('profileSettings.canvasTitle') }}</h1>
-            <p>{{ t('profileSettings.canvasDescription') }}</p>
-          </div>
-          <div class="sforum-settings__head-actions">
-            <button
-              type="button"
-              class="sforum-settings__icon-button sforum-settings__desktop-hidden"
-              :aria-label="t('profileSettings.preview.open')"
-              @click="mobileInfoOpen = true"
-            >
-              <UIcon name="i-lucide-panel-right" class="size-[18px]" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              class="sforum-settings__icon-button sforum-settings__desktop-hidden"
-              :aria-label="t('home.sidebar.drawerTitle')"
-              @click="mobileMenuOpen = true"
-            >
-              <UIcon name="i-lucide-menu" class="size-[18px]" aria-hidden="true" />
-            </button>
-          </div>
-        </header>
+    <form
+      v-else-if="profile"
+      class="sforum-settings-profile__form"
+      novalidate
+      @submit.prevent="save"
+    >
+      <SFAlert
+        v-if="successMessage"
+        variant="success"
+        :title="successMessage"
+        class="sforum-settings-profile__alert"
+      />
+      <SFAlert
+        v-if="errorMessage"
+        variant="danger"
+        :title="errorMessage"
+        closable
+        class="sforum-settings-profile__alert"
+        @close="errorMessage = ''"
+      />
 
-        <nav
-          v-if="profile"
-          class="sforum-settings__section-nav"
-          :aria-label="t('profileSettings.sections.ariaLabel')"
-        >
-          <a href="#profile-settings-identity">{{ t('profileSettings.sections.identity') }}</a>
-          <a href="#profile-settings-story">{{ t('profileSettings.sections.story') }}</a>
-          <a href="#profile-settings-links">{{ t('profileSettings.sections.links') }}</a>
-        </nav>
-
-        <template v-if="pending && !profile">
-          <div class="sforum-settings-profile__loading">
-            <SFSkeleton class="h-16 w-16 rounded-full" />
-            <div class="min-w-0 flex-1 space-y-3">
-              <SFSkeleton class="h-7 w-2/3" />
-              <SFSkeleton class="h-4 w-full" />
-              <SFSkeleton class="h-4 w-3/5" />
-            </div>
-          </div>
-        </template>
-
-        <form
-          v-else-if="profile"
-          class="sforum-settings-profile__form"
-          novalidate
-          @submit.prevent="save"
-        >
-          <SFAlert
-            v-if="successMessage"
-            variant="success"
-            :title="successMessage"
-            class="sforum-settings-profile__alert"
-          />
-          <SFAlert
-            v-if="errorMessage"
-            variant="danger"
-            :title="errorMessage"
-            closable
-            class="sforum-settings-profile__alert"
-            @close="errorMessage = ''"
-          />
-
-          <section id="profile-settings-identity" class="sforum-settings-profile__section">
-            <div class="sforum-settings-profile__section-heading">
-              <h2>{{ t('profileSettings.sections.identity') }}</h2>
-              <p>{{ t('profileSettings.sections.identityDescription') }}</p>
-            </div>
-            <div class="sforum-settings-profile__section-body">
-              <div class="sforum-settings-profile__avatar-editor">
-                <SFAvatar :name="displayName" :avatar="currentAvatar" size="lg" />
-                <div class="sforum-settings-profile__avatar-copy">
-                  <strong>{{ t('profileSettings.avatarCurrent') }}</strong>
-                  <p>{{ avatarCapabilityHint }}</p>
-                  <p v-if="avatarError" class="sforum-settings-profile__field-error">
-                    {{ avatarError }}
-                  </p>
-                  <div class="sforum-settings-profile__actions">
-                    <input ref="avatarInput" class="hidden" type="file" :accept="avatarAccept" @change="uploadAvatar">
-                    <SFButton
-                      variant="ghost"
-                      size="sm"
-                      :disabled="!canUploadAvatar || avatarBusy"
-                      :loading="avatarBusy"
-                      @click="openAvatarPicker"
-                    >
-                      <template #leading>
-                        <UIcon name="i-lucide-image-plus" />
-                      </template>
-                      {{ t('profileSettings.avatarUpload') }}
-                    </SFButton>
-                    <SFButton
-                      v-if="hasUploadedAvatar"
-                      variant="ghost"
-                      size="sm"
-                      :disabled="avatarBusy"
-                      @click="removeAvatar"
-                    >
-                      <template #leading>
-                        <UIcon name="i-lucide-trash-2" />
-                      </template>
-                      {{ t('profileSettings.avatarRemove') }}
-                    </SFButton>
-                  </div>
-                </div>
-              </div>
-
-              <div class="sforum-settings-profile__field sforum-settings-profile__field--spaced">
-                <label for="profile-settings-username">{{ t('profileSettings.username') }}</label>
-                <div class="sforum-settings-profile__prefix-field">
-                  <span>{{ t('profileSettings.profilePathPrefix') }}</span>
-                  <input id="profile-settings-username" :value="profile.username" type="text" readonly>
-                </div>
-                <p>{{ t('profileSettings.usernameHint') }}</p>
-              </div>
-            </div>
-          </section>
-
-          <section id="profile-settings-story" class="sforum-settings-profile__section">
-            <div class="sforum-settings-profile__section-heading">
-              <h2>{{ t('profileSettings.sections.story') }}</h2>
-              <p>{{ t('profileSettings.sections.storyDescription') }}</p>
-            </div>
-            <div class="sforum-settings-profile__section-body">
-              <div class="sforum-settings-profile__field">
-                <div class="sforum-settings-profile__field-topline">
-                  <label for="profile-settings-bio">{{ t('profileSettings.bio') }}</label>
-                  <span>{{ bioCount }} / 500</span>
-                </div>
-                <textarea
-                  id="profile-settings-bio"
-                  v-model="draft.bio"
-                  rows="4"
-                  maxlength="500"
-                  :class="{ 'is-invalid': fieldErrors.bio }"
-                  :placeholder="t('profileSettings.bioPlaceholder')"
-                  :aria-describedby="fieldErrors.bio ? 'profile-settings-bio-error' : undefined"
-                />
-                <p v-if="fieldErrors.bio" id="profile-settings-bio-error" class="sforum-settings-profile__field-error">
-                  {{ fieldErrors.bio.join(', ') }}
-                </p>
-              </div>
-
-              <div class="sforum-settings-profile__field">
-                <div class="sforum-settings-profile__field-topline">
-                  <label for="profile-settings-signature">{{ t('profileSettings.signature') }}</label>
-                  <span>{{ signatureCount }} / 200</span>
-                </div>
-                <input
-                  id="profile-settings-signature"
-                  v-model="draft.signature"
-                  type="text"
-                  maxlength="200"
-                  :class="{ 'is-invalid': fieldErrors.signature }"
-                  :placeholder="t('profileSettings.signaturePlaceholder')"
-                  :aria-describedby="fieldErrors.signature ? 'profile-settings-signature-error' : undefined"
+      <section id="profile-settings-identity" class="sforum-settings-profile__section">
+        <div class="sforum-settings-profile__section-heading">
+          <h2>{{ t('profileSettings.sections.identity') }}</h2>
+          <p>{{ t('profileSettings.sections.identityDescription') }}</p>
+        </div>
+        <div class="sforum-settings-profile__section-body">
+          <div class="sforum-settings-profile__avatar-editor">
+            <SFAvatar :name="displayName" :avatar="currentAvatar" size="lg" />
+            <div class="sforum-settings-profile__avatar-copy">
+              <strong>{{ t('profileSettings.avatarCurrent') }}</strong>
+              <p>{{ avatarCapabilityHint }}</p>
+              <p v-if="avatarError" class="sforum-settings-profile__field-error">
+                {{ avatarError }}
+              </p>
+              <div class="sforum-settings-profile__actions">
+                <input ref="avatarInput" class="hidden" type="file" :accept="avatarAccept" @change="uploadAvatar">
+                <SFButton
+                  variant="ghost"
+                  size="sm"
+                  :disabled="!canUploadAvatar || avatarBusy"
+                  :loading="avatarBusy"
+                  @click="openAvatarPicker"
                 >
-                <p v-if="fieldErrors.signature" id="profile-settings-signature-error" class="sforum-settings-profile__field-error">
-                  {{ fieldErrors.signature.join(', ') }}
-                </p>
-                <p>{{ t('profileSettings.signaturePublicHint') }}</p>
+                  <template #leading>
+                    <UIcon name="i-lucide-image-plus" />
+                  </template>
+                  {{ t('profileSettings.avatarUpload') }}
+                </SFButton>
+                <SFButton
+                  v-if="hasUploadedAvatar"
+                  variant="ghost"
+                  size="sm"
+                  :disabled="avatarBusy"
+                  @click="removeAvatar"
+                >
+                  <template #leading>
+                    <UIcon name="i-lucide-trash-2" />
+                  </template>
+                  {{ t('profileSettings.avatarRemove') }}
+                </SFButton>
               </div>
             </div>
-          </section>
+          </div>
 
-          <section id="profile-settings-links" class="sforum-settings-profile__section">
-            <div class="sforum-settings-profile__section-heading">
-              <h2>{{ t('profileSettings.sections.links') }}</h2>
-              <p>{{ t('profileSettings.sections.linksDescription') }}</p>
+          <div class="sforum-settings-profile__field sforum-settings-profile__field--spaced">
+            <label for="profile-settings-username">{{ t('profileSettings.username') }}</label>
+            <div class="sforum-settings-profile__prefix-field">
+              <span>{{ t('profileSettings.profilePathPrefix') }}</span>
+              <input id="profile-settings-username" :value="profile.username" type="text" readonly>
             </div>
-            <div class="sforum-settings-profile__section-body">
-              <div class="sforum-settings-profile__field-grid">
-                <div class="sforum-settings-profile__field">
-                  <label for="profile-settings-location">{{ t('profileSettings.location') }}</label>
-                  <input
-                    id="profile-settings-location"
-                    v-model="draft.location"
-                    type="text"
-                    maxlength="100"
-                    :class="{ 'is-invalid': fieldErrors.location }"
-                    :placeholder="t('profileSettings.locationPlaceholder')"
-                    :aria-describedby="fieldErrors.location ? 'profile-settings-location-error' : undefined"
-                  >
-                  <p v-if="fieldErrors.location" id="profile-settings-location-error" class="sforum-settings-profile__field-error">
-                    {{ fieldErrors.location.join(', ') }}
-                  </p>
-                </div>
-
-                <div class="sforum-settings-profile__field">
-                  <label for="profile-settings-website">{{ t('profileSettings.website') }}</label>
-                  <input
-                    id="profile-settings-website"
-                    v-model="draft.websiteUrl"
-                    type="url"
-                    maxlength="200"
-                    :class="{ 'is-invalid': fieldErrors.websiteUrl }"
-                    :placeholder="t('profileSettings.websitePlaceholder')"
-                    :aria-describedby="fieldErrors.websiteUrl ? 'profile-settings-website-error profile-settings-website-hint' : 'profile-settings-website-hint'"
-                  >
-                  <p v-if="fieldErrors.websiteUrl" id="profile-settings-website-error" class="sforum-settings-profile__field-error">
-                    {{ fieldErrors.websiteUrl.join(', ') }}
-                  </p>
-                  <p id="profile-settings-website-hint">
-                    {{ t('profileSettings.websiteHint') }}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <footer class="sforum-settings-profile__footer">
-            <p>{{ isDirty ? t('profileSettings.unsavedFooter') : t('profileSettings.savedFooter') }}</p>
-            <div class="sforum-settings-profile__footer-actions">
-              <SFButton
-                variant="ghost"
-                type="button"
-                :disabled="!isDirty || saveState === 'saving'"
-                @click="resetDraft"
-              >
-                <template #leading>
-                  <UIcon name="i-lucide-rotate-ccw" />
-                </template>
-                {{ t('profileSettings.resetChanges') }}
-              </SFButton>
-              <SFButton
-                variant="primary"
-                type="submit"
-                :disabled="!canSave"
-                :loading="saveState === 'saving'"
-              >
-                <template #leading>
-                  <UIcon name="i-lucide-save" />
-                </template>
-                {{ saveState === 'saving' ? t('profileSettings.saving') : t('profileSettings.save') }}
-              </SFButton>
-            </div>
-          </footer>
-        </form>
-
-        <SFContentColumnFooter />
+            <p>{{ t('profileSettings.usernameHint') }}</p>
+          </div>
+        </div>
       </section>
 
-      <aside
+      <section id="profile-settings-story" class="sforum-settings-profile__section">
+        <div class="sforum-settings-profile__section-heading">
+          <h2>{{ t('profileSettings.sections.story') }}</h2>
+          <p>{{ t('profileSettings.sections.storyDescription') }}</p>
+        </div>
+        <div class="sforum-settings-profile__section-body">
+          <div class="sforum-settings-profile__field">
+            <div class="sforum-settings-profile__field-topline">
+              <label for="profile-settings-bio">{{ t('profileSettings.bio') }}</label>
+              <span>{{ bioCount }} / 500</span>
+            </div>
+            <textarea
+              id="profile-settings-bio"
+              v-model="draft.bio"
+              rows="4"
+              maxlength="500"
+              :class="{ 'is-invalid': fieldErrors.bio }"
+              :placeholder="t('profileSettings.bioPlaceholder')"
+              :aria-describedby="fieldErrors.bio ? 'profile-settings-bio-error' : undefined"
+            />
+            <p v-if="fieldErrors.bio" id="profile-settings-bio-error" class="sforum-settings-profile__field-error">
+              {{ fieldErrors.bio.join(', ') }}
+            </p>
+          </div>
+
+          <div class="sforum-settings-profile__field">
+            <div class="sforum-settings-profile__field-topline">
+              <label for="profile-settings-signature">{{ t('profileSettings.signature') }}</label>
+              <span>{{ signatureCount }} / 200</span>
+            </div>
+            <input
+              id="profile-settings-signature"
+              v-model="draft.signature"
+              type="text"
+              maxlength="200"
+              :class="{ 'is-invalid': fieldErrors.signature }"
+              :placeholder="t('profileSettings.signaturePlaceholder')"
+              :aria-describedby="fieldErrors.signature ? 'profile-settings-signature-error' : undefined"
+            >
+            <p v-if="fieldErrors.signature" id="profile-settings-signature-error" class="sforum-settings-profile__field-error">
+              {{ fieldErrors.signature.join(', ') }}
+            </p>
+            <p>{{ t('profileSettings.signaturePublicHint') }}</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="profile-settings-links" class="sforum-settings-profile__section">
+        <div class="sforum-settings-profile__section-heading">
+          <h2>{{ t('profileSettings.sections.links') }}</h2>
+          <p>{{ t('profileSettings.sections.linksDescription') }}</p>
+        </div>
+        <div class="sforum-settings-profile__section-body">
+          <div class="sforum-settings-profile__field-grid">
+            <div class="sforum-settings-profile__field">
+              <label for="profile-settings-location">{{ t('profileSettings.location') }}</label>
+              <input
+                id="profile-settings-location"
+                v-model="draft.location"
+                type="text"
+                maxlength="100"
+                :class="{ 'is-invalid': fieldErrors.location }"
+                :placeholder="t('profileSettings.locationPlaceholder')"
+                :aria-describedby="fieldErrors.location ? 'profile-settings-location-error' : undefined"
+              >
+              <p v-if="fieldErrors.location" id="profile-settings-location-error" class="sforum-settings-profile__field-error">
+                {{ fieldErrors.location.join(', ') }}
+              </p>
+            </div>
+
+            <div class="sforum-settings-profile__field">
+              <label for="profile-settings-website">{{ t('profileSettings.website') }}</label>
+              <input
+                id="profile-settings-website"
+                v-model="draft.websiteUrl"
+                type="url"
+                maxlength="200"
+                :class="{ 'is-invalid': fieldErrors.websiteUrl }"
+                :placeholder="t('profileSettings.websitePlaceholder')"
+                :aria-describedby="fieldErrors.websiteUrl ? 'profile-settings-website-error profile-settings-website-hint' : 'profile-settings-website-hint'"
+              >
+              <p v-if="fieldErrors.websiteUrl" id="profile-settings-website-error" class="sforum-settings-profile__field-error">
+                {{ fieldErrors.websiteUrl.join(', ') }}
+              </p>
+              <p id="profile-settings-website-hint">
+                {{ t('profileSettings.websiteHint') }}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer class="sforum-settings-profile__footer">
+        <p>{{ isDirty ? t('profileSettings.unsavedFooter') : t('profileSettings.savedFooter') }}</p>
+        <div class="sforum-settings-profile__footer-actions">
+          <SFButton
+            variant="ghost"
+            type="button"
+            :disabled="!isDirty || saveState === 'saving'"
+            @click="resetDraft"
+          >
+            <template #leading>
+              <UIcon name="i-lucide-rotate-ccw" />
+            </template>
+            {{ t('profileSettings.resetChanges') }}
+          </SFButton>
+          <SFButton
+            variant="primary"
+            type="submit"
+            :disabled="!canSave"
+            :loading="saveState === 'saving'"
+          >
+            <template #leading>
+              <UIcon name="i-lucide-save" />
+            </template>
+            {{ saveState === 'saving' ? t('profileSettings.saving') : t('profileSettings.save') }}
+          </SFButton>
+        </div>
+      </footer>
+    </form>
+
+    <template #rail>
+      <SFProfileSettingsPreview
         v-if="profile"
-        class="sforum-settings__right"
-        :aria-label="t('profileSettings.preview.ariaLabel')"
-      >
-        <SFProfileSettingsPreview
-          :profile="profile"
-          :display-name="displayName"
-          :avatar="currentAvatar"
-          :bio="draft.bio"
-          :location="draft.location"
-          :website-text="publicWebsiteText"
-          :website-href="publicWebsiteHref"
-          :joined-label="joinedLabel"
-          :dirty="isDirty"
-          :public-profile-path="publicProfilePath || localePath('/')"
-          show-scope
-        />
-      </aside>
-    </div>
-
-    <button
-      v-if="mobileMenuOpen || mobileInfoOpen"
-      type="button"
-      class="sforum-mobile-drawer__backdrop"
-      :aria-label="t('common.close')"
-      @click="closeMobileDrawers"
-    />
-
-    <aside v-if="mobileMenuOpen" class="sforum-mobile-drawer sforum-mobile-drawer--left">
-      <header class="sforum-mobile-drawer__head">
-        <strong>{{ t('home.sidebar.drawerTitle') }}</strong>
-        <button type="button" :aria-label="t('common.close')" @click="closeMobileDrawers">
-          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
-        </button>
-      </header>
-      <SFHomeNavigation
-        desktop-only
-        navigation-mode="route"
-        :categories="categories"
-        :total-topics="categoryTopicTotal"
-        :pending="categoriesPending"
-        :can-create-topic="canCreateTopic"
-        :show-categories="false"
-      >
-        <template #after-navigation>
-          <SFSettingsAccountNav
-            active="profile"
-            :public-profile-path="publicProfilePath"
-            @navigate="closeMobileDrawers"
-          />
-        </template>
-      </SFHomeNavigation>
-    </aside>
-
-    <aside v-if="profile && mobileInfoOpen" class="sforum-mobile-drawer sforum-mobile-drawer--right">
-      <header class="sforum-mobile-drawer__head">
-        <strong>{{ t('profileSettings.preview.ariaLabel') }}</strong>
-        <button type="button" :aria-label="t('common.close')" @click="closeMobileDrawers">
-          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
-        </button>
-      </header>
-      <div class="sforum-settings__right sforum-settings__right--drawer" :aria-label="t('profileSettings.preview.ariaLabel')">
-        <SFProfileSettingsPreview
-          :profile="profile"
-          :display-name="displayName"
-          :avatar="currentAvatar"
-          :bio="draft.bio"
-          :location="draft.location"
-          :website-text="publicWebsiteText"
-          :website-href="publicWebsiteHref"
-          :joined-label="joinedLabel"
-          :dirty="isDirty"
-          :public-profile-path="publicProfilePath || localePath('/')"
-          show-scope
-        />
-      </div>
-    </aside>
-  </main>
+        :profile="profile"
+        :display-name="displayName"
+        :avatar="currentAvatar"
+        :bio="draft.bio"
+        :location="draft.location"
+        :website-text="publicWebsiteText"
+        :website-href="publicWebsiteHref"
+        :joined-label="joinedLabel"
+        :dirty="isDirty"
+        :public-profile-path="publicProfilePath || localePath('/')"
+        show-scope
+      />
+    </template>
+  </SFSettingsShell>
 </template>
 
-<style src="~/assets/css/sforum-settings.css" lang="css"></style>
 <style src="~/assets/css/sforum-profile-settings.css" lang="css"></style>
