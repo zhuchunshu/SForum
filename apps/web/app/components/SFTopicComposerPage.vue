@@ -519,16 +519,11 @@ onBeforeUnmount(() => {
   }
 })
 
-onBeforeRouteLeave((_to, _from, next) => {
+onBeforeRouteLeave(() => {
   if (!import.meta.client || !hasUnsavedChanges.value) {
-    next()
-    return
+    return true
   }
-  if (window.confirm(t('composer.draft.leaveConfirm'))) {
-    next()
-  } else {
-    next(false)
-  }
+  return window.confirm(t('composer.draft.leaveConfirm'))
 })
 </script>
 

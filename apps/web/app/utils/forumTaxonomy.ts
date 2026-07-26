@@ -145,6 +145,29 @@ export type ForumRenderedContent = {
   contentHash: string
 }
 
+/**
+ * 将 API 保存格式还原为 Tiptap 可接受的初始内容。
+ * editor-document 必须按 JSON 文档加载，不能作为 Markdown 字符串显示或回存。
+ */
+export function forumEditorInitialContent(
+  content: Pick<ForumRenderedContent, 'rawContent' | 'sourceFormat'>
+): string | Record<string, unknown> {
+  if (content.sourceFormat !== 'editor-document') {
+    return content.rawContent
+  }
+
+  try {
+    const parsed = JSON.parse(content.rawContent)
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>
+    }
+  } catch {
+    // 非法历史数据保留原文，避免静默清空；服务端正常数据不会走到这里。
+  }
+
+  return content.rawContent
+}
+
 export type ForumTopicDetail = ForumTopicSummary & {
   content: ForumRenderedContent
   extensionActions?: ForumTopicExtensionAction[]

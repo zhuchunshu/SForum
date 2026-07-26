@@ -230,7 +230,13 @@ Architecture sources:
 - Topic editing is a standalone page `forum.topic.edit` at
   `/topics/:topicId/edit` (id-based because editing may change the slug);
   `SFTopicShowPage` only navigates there — the old `?edit=1` inline mode is
-  removed. Save returns to `forumTopicPath`; canonical redirect fixes slug.
+  removed. Its Host editor island uses the same responsive three-column
+  composer shell and taxonomy/editor controls as topic creation, but does not
+  persist a local draft. Self edits require no reason; cross-author edits
+  require the API's bounded audit reason. Unsaved changes are guarded, route
+  reuse clears all topic-scoped editor state, stored `editor-document` JSON is
+  restored as native Tiptap content (never surfaced as Markdown text), and save returns to
+  `forumTopicPath`; canonical redirect fixes slug.
 - Topic create draft persistence is currently local `sessionStorage` under the
   composer page because there is no create-topic draft API. Publishing still
   uses the canonical `POST /topics` flow and keeps API authorization

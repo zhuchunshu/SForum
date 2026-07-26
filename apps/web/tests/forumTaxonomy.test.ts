@@ -8,6 +8,7 @@ import {
   forumCommentExtensionActionRequest,
   forumTopicExtensionActionRequest,
   forumTopicExtensionActionRequestPath,
+  forumEditorInitialContent,
   forumCategoriesIndexPath,
   forumCategoryPath,
   forumTagPath,
@@ -21,6 +22,22 @@ import {
 } from '../app/utils/forumTaxonomy'
 
 describe('forum taxonomy helpers', () => {
+  test('restores editor-document JSON without exposing it as Markdown text', () => {
+    const native = { type: 'doc', content: [{ type: 'paragraph' }] }
+    expect(forumEditorInitialContent({
+      rawContent: JSON.stringify(native),
+      sourceFormat: 'editor-document'
+    })).toEqual(native)
+    expect(forumEditorInitialContent({
+      rawContent: '# Markdown',
+      sourceFormat: 'markdown'
+    })).toBe('# Markdown')
+    expect(forumEditorInitialContent({
+      rawContent: '{broken',
+      sourceFormat: 'editor-document'
+    })).toBe('{broken')
+  })
+
   test('formats list total with 约 only when totalApproximate', () => {
     const t = (key: string, params?: Record<string, unknown>) => {
       if (key === 'home.feed.topicCountMetaApprox') {

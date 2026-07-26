@@ -14,6 +14,8 @@ import {
 
 const props = withDefaults(defineProps<{
   modelValue?: string
+  /** 首次挂载使用的 Markdown 或原生 Tiptap JSON；后续编辑仍通过 Markdown v-model 同步。 */
+  initialContent?: string | Record<string, unknown>
   placeholder?: string
   rows?: number
   hint?: string
@@ -30,6 +32,7 @@ const props = withDefaults(defineProps<{
   loadTrustedCatalog?: boolean
 }>(), {
   modelValue: '',
+  initialContent: undefined,
   placeholder: '写下你的回复...',
   rows: 6,
   hint: undefined,
@@ -129,9 +132,10 @@ onMounted(async () => {
   }
   admittedExtensions.value = trusted
   catalogReady.value = true
+  const initialContent = props.initialContent ?? props.modelValue
   editor.value = new Editor({
-    content: props.modelValue,
-    contentType: 'markdown',
+    content: initialContent,
+    ...(typeof initialContent === 'string' ? { contentType: 'markdown' as const } : {}),
     editable: !props.disabled,
     extensions: createSFEditorExtensions({
       placeholder: props.placeholder,

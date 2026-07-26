@@ -81,9 +81,15 @@ describe('default theme V32 topic page contract', () => {
     expect(source).toContain('sanitizeHtml(topic.content.htmlContent)')
     expect(source).toContain('v-highlight')
     // 编辑迁到独立页 /topics/:id/edit（forum.topic.edit）；详情页只负责跳转。
+    // 编辑页复用发帖页三栏壳与控件（sforum-home__* + SFTopicComposerPage.css）。
     expect(source).toContain('forumTopicEditPath(')
     expect(source).not.toContain('<SFTopicEditor')
-    expect(sourceFile('../app/components/SFTopicEditPage.vue')).toContain('<SFTopicEditor')
+    const editPage = sourceFile('../app/components/SFTopicEditPage.vue')
+    expect(editPage).toContain('forumApi.updateTopic(')
+    expect(editPage).toContain('data-layout="fullwidth-3col"')
+    expect(editPage).toContain('SFTopicComposerLeftRail')
+    expect(editPage).toContain('SFTopicComposerRightRail')
+    expect(editPage).toContain('SFTopicComposerPage.css')
     expect(source).toContain('applyTopicExtensionAction')
     // E2.2：评论行扩展动作与主题动作同一代理边界
     expect(source).toContain('applyCommentExtensionAction')

@@ -3896,8 +3896,17 @@
     "metaDescription": "Write and publish a new community topic.",
     "title": "New Topic",
     "editTitle": "Edit Topic",
+    "editSubtitle": "Edits create a new revision and take effect right after saving.",
     "editMetaDescription": "Edit and update a published community topic.",
     "editConflict": "This topic changed while you were editing. Refresh the page and try again.",
+    "editReasonTooLong": "The edit reason cannot exceed {max} characters.",
+    "editLeaveConfirm": "Your edits are not saved yet. Leave anyway?",
+    "editState": {
+      "clean": "No changes yet",
+      "unsaved": "Unsaved changes",
+      "saving": "Saving...",
+      "success": "Saved"
+    },
     "categoryLabel": "Category",
     "categoryDefault": "Select a category (defaults to General)",
     "titleLabel": "Title",
@@ -3967,6 +3976,7 @@
       "title": "Publish settings",
       "permission": "Permission",
       "permissionValue": "Signed in + topic.create",
+      "editPermissionValue": "Signed in + topic.edit_own / topic.edit_any",
       "category": "Category",
       "tags": "Tag policy",
       "limits": "Content limits",
@@ -3995,6 +4005,11 @@
         "selected": "{count} / {max} tags selected",
         "emptyRequired": "Select at least {min} tags",
         "optional": "Tags are optional, up to {max}"
+      },
+      "reason": {
+        "label": "Edit reason",
+        "empty": "A reason is required when editing another user's content",
+        "ready": "Edit reason provided"
       }
     },
     "leftRail": {

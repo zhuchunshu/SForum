@@ -3861,7 +3861,7 @@
     "replyTopic": "回复主题",
     "linkCopied": "链接已复制",
     "copyLinkHint": "复制链接",
-      "side": {
+    "side": {
       "title": "主题信息",
       "status": "状态",
       "statusActive": "讨论中",
@@ -3896,8 +3896,17 @@
     "metaDescription": "撰写并发布一个新的社区话题。",
     "title": "发布话题",
     "editTitle": "编辑话题",
+    "editSubtitle": "修改会生成新的版本记录，保存后立即生效。",
     "editMetaDescription": "编辑并更新已发布的社区话题。",
     "editConflict": "话题在编辑期间已被他人更新，请刷新页面后重试。",
+    "editReasonTooLong": "编辑原因不能超过 {max} 个字符。",
+    "editLeaveConfirm": "当前修改尚未保存，确定离开吗？",
+    "editState": {
+      "clean": "暂无修改",
+      "unsaved": "有未保存修改",
+      "saving": "保存中...",
+      "success": "已保存"
+    },
     "categoryLabel": "分类",
     "categoryDefault": "选择分类（默认综合讨论）",
     "titleLabel": "标题",
@@ -3967,6 +3976,7 @@
       "title": "发布设置",
       "permission": "权限",
       "permissionValue": "登录 + topic.create",
+      "editPermissionValue": "登录 + topic.edit_own / topic.edit_any",
       "category": "分类",
       "tags": "标签策略",
       "limits": "内容限制",
@@ -3995,6 +4005,11 @@
         "selected": "已选择 {count} / {max} 个标签",
         "emptyRequired": "请至少选择 {min} 个标签",
         "optional": "标签可选，最多 {max} 个"
+      },
+      "reason": {
+        "label": "编辑原因",
+        "empty": "编辑其他用户的内容时必须填写原因",
+        "ready": "已填写编辑原因"
       }
     },
     "leftRail": {

@@ -13,6 +13,8 @@ const props = defineProps<{
   draftStatusLabel?: string
   /** 无发帖权限时隐藏进度与草稿操作 */
   canCreate?: boolean
+  /** 编辑页无本地草稿概念，隐藏"保存草稿"动作（状态文案仍显示） */
+  showDraftAction?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -97,6 +99,7 @@ function onSaveDraft() {
       <div class="sforum-topic-composer__type-nav" :aria-label="t('composer.leftRail.actionsTitle')">
         <div class="sforum-topic-composer__rail-label">{{ t('composer.leftRail.actionsTitle') }}</div>
         <button
+          v-if="showDraftAction !== false"
           type="button"
           class="sforum-topic-composer__rail-link"
           :disabled="draftSaving"

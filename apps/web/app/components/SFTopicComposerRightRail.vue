@@ -24,6 +24,8 @@ const props = defineProps<{
   publishVisibilityLabel: string
   checks: ComposerPrePublishCheck[]
   bodyMax: number
+  /** 默认展示发帖权限；编辑等复用场景可覆盖为对应权限语义。 */
+  permissionValueLabel?: string
 }>()
 
 const { t } = useI18n()
@@ -334,7 +336,7 @@ onBeforeUnmount(() => {
       <dl class="sforum-topic-composer__settings">
         <div>
           <dt>{{ t('composer.settings.permission') }}</dt>
-          <dd>{{ t('composer.settings.permissionValue') }}</dd>
+          <dd>{{ permissionValueLabel || t('composer.settings.permissionValue') }}</dd>
         </div>
         <div :class="{ 'is-flash': isFlashing('category') }">
           <dt>{{ t('composer.settings.category') }}</dt>
