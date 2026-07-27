@@ -2792,6 +2792,14 @@
               "priority": {
                 "type": "integer"
               },
+              "label": {
+                "$ref": "#/$defs/localizedText",
+                "description": "Plugin-owned public display name injected into Host auth catalog. Core must not hard-code vendor brands."
+              },
+              "icon": {
+                "type": "string",
+                "description": "Optional Iconify/Nuxt Icon name declared by the plugin (for example i-tabler-brand-github)."
+              },
               "operations": {
                 "type": [
                   "array",
@@ -2815,6 +2823,7 @@
                         "login.complete",
                         "link.start",
                         "link.complete",
+                        "provider.probe",
                         "sections.list",
                         "section.read",
                         "section.update",
@@ -2920,7 +2929,8 @@
                               "login.start",
                               "login.complete",
                               "link.start",
-                              "link.complete"
+                              "link.complete",
+                              "provider.probe"
                             ]
                           }
                         }

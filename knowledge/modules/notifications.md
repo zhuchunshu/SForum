@@ -6,6 +6,34 @@ The first release provides durable in-app notifications plus optional email
 projection for replies, mentions, and pre-publication moderation approval or
 rejection.
 
+## Active Program
+
+Notification Platform V2 is **ready**, not implemented:
+
+- Task book:
+  `../plans/2026-07-27-notification-platform-v2.md`
+- Decision:
+  `../decisions/2026-07-27-notification-platform-v2.md`
+- Handoff:
+  `../sessions/2026-07-27-notification-platform-plan-handoff.md`
+
+V2 closes the current recipient gaps, separates type/category/channel/state,
+adds dedicated admin policy and own-user preferences, exposes bounded plugin
+type/emission contracts, adds durable-revision SSE refresh, and proves
+`notification.channel` with a protected built-in Web Push provider.
+
+Known V1 gaps that must not be described as complete:
+
+- top-level comments do not notify the topic author;
+- only comment creation parses mentions;
+- pending comments approved later do not fan out reply/mention notices;
+- comment moderation notices do not always have a reliable topic link;
+- types/presentation are hard-coded and plugins cannot create canonical inbox
+  rows through a stable Host API;
+- notification policy is coupled to Mail and users have no preferences;
+- no recipient realtime refresh or external notification-channel provider
+  contract exists.
+
 ## Persistence and Delivery
 
 - `notifications` is recipient-owned and stores stable type, actor, target,

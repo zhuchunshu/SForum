@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "ui": {
+    "mode": "schema",
+    "layout": "tabs",
+    "tabs": [
+      {
+        "id": "application",
+        "label": { "zh-CN": "GitHub 应用", "en-US": "GitHub App" },
+        "groups": ["credentials"]
+      }
+    ],
+    "groups": [
+      {
+        "id": "credentials",
+        "label": { "zh-CN": "OAuth 凭证", "en-US": "OAuth credentials" },
+        "columns": 1
+      }
+    ],
+    "callouts": [
+      {
+        "id": "github-oauth-setup",
+        "tone": "info",
+        "title": {
+          "zh-CN": "在 GitHub 创建 OAuth App",
+          "en-US": "Create a GitHub OAuth App"
+        },
+        "body": {
+          "zh-CN": "回调 URL 由 Host 固定生成并只读展示；请原样粘贴到 GitHub OAuth App 的 Authorization callback URL。Client Secret 保存在 SecretStore，永不返回浏览器。配置与启用插件不会自动公开登录按钮——还需在「登录方式」中显式开启操作。",
+          "en-US": "The callback URL is Host-owned and read-only. Paste it exactly into the GitHub OAuth App Authorization callback URL. Client Secret is stored in SecretStore and never returned to browsers. Configuring or enabling this plugin does not expose login until Host activation is explicit."
+        },
+        "tab": "application"
+      }
+    ]
+  },
+  "fields": [
+    {
+      "key": "client_id",
+      "label": { "zh-CN": "Client ID", "en-US": "Client ID" },
+      "description": {
+        "zh-CN": "GitHub OAuth App 的 Client ID（非密钥）。",
+        "en-US": "Client ID from the GitHub OAuth App (not a secret)."
+      },
+      "type": "text",
+      "default": "",
+      "placeholder": { "zh-CN": "Iv1.xxxxxxxx", "en-US": "Iv1.xxxxxxxx" },
+      "group": { "zh-CN": "OAuth 凭证", "en-US": "OAuth credentials" }
+    },
+    {
+      "key": "client_secret",
+      "label": { "zh-CN": "Client Secret", "en-US": "Client Secret" },
+      "description": {
+        "zh-CN": "GitHub OAuth App 的 Client Secret。由 SecretStore 保管；留空表示保留已保存的密钥。",
+        "en-US": "Client Secret for the GitHub OAuth App. Stored in SecretStore; leave blank to keep the saved secret."
+      },
+      "type": "secret",
+      "default": "",
+      "placeholder": { "zh-CN": "GitHub Client Secret", "en-US": "GitHub Client Secret" },
+      "group": { "zh-CN": "OAuth 凭证", "en-US": "OAuth credentials" }
+    }
+  ],
+  "actions": []
+}

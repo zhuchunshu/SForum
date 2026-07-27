@@ -193,6 +193,68 @@ func (s *Service) ValidateRegister(ctx context.Context, input RegisterInput) err
 	return nil
 }
 
+// ValidateExternalRegister 复用权威 username/email/reserved/hooks/registration-mode
+// 校验，故意不校验密码（外部账号无凭据）。不得维护更弱的独立校验器。
+// 实现 ExternalRegistrationValidator。
+func (s *Service) ValidateExternalRegister(ctx context.Context, input ExternalRegistrationInput) error {
+	if err := s.ensureRegistrationAllowed(ctx); err != nil {
+		// 零用户站点：ensureRegistrationAllowed 会因 bootstrap 强制开放而通过；
+		// 外部注册另由 CompleteRegistration 拒绝 bootstrap。
+		return err
+	}
+	normalized := normalizeRegisterInput(RegisterInput{
+		Username:    input.Username,
+		Email:       input.Email,
+		DisplayName: input.DisplayName,
+		Locale:      input.Locale,
+	})
+	usernamePolicy, err := s.resolveUsernamePolicy(ctx)
+	if err != nil {
+		return err
+	}
+	fields := validateRegisterIdentityFields(normalized.Username, normalized.Email, usernamePolicy)
+	if len(fields) > 0 {
+		return NewRegisterInvalid(fields)
+	}
+	if err := s.applyUserBeforeRegister(ctx, normalized); err != nil {
+		return err
+	}
+	conflicts, err := s.store.FindRegistrationConflicts(ctx, normalized.Username, normalized.Email)
+	if err != nil {
+		return err
+	}
+	if conflictFields := registrationConflictFields(conflicts); len(conflictFields) > 0 {
+		return NewRegisterInvalid(conflictFields)
+	}
+	return nil
+}
+
+// SetupPassword 自助设置/更改本地密码。external-only 用户在缺失时创建 credential 行。
+// 调用方负责 recent-auth 门控。
+func (s *Service) SetupPassword(ctx context.Context, userID int64, newPassword string) error {
+	if userID <= 0 {
+		return ErrUserNotFound
+	}
+	if strings.TrimSpace(newPassword) == "" {
+		return NewRegisterInvalid(FieldMessages{
+			FieldPassword: {MessagePasswordMin},
+		})
+	}
+	policy, err := s.passwordPolicies.PasswordPolicy(ctx)
+	if err != nil {
+		return err
+	}
+	if fields := policy.Validate(newPassword); len(fields) > 0 {
+		return NewRegisterInvalid(fields)
+	}
+	hash, err := HashPassword(newPassword)
+	if err != nil {
+		return err
+	}
+	// Upsert：无行则创建，有行则更新；password_hash 始终非 null。
+	return s.store.UpdateUserPassword(ctx, userID, hash)
+}
+
 func (s *Service) Register(ctx context.Context, input RegisterInput) (CurrentUser, error) {
 	normalized := normalizeRegisterInput(input)
 
@@ -375,7 +437,8 @@ func validateRegisterInput(username string, email string, password string, polic
 	return validateRegisterInputWithUsername(username, email, password, policy, UsernamePolicy{})
 }
 
-func validateRegisterInputWithUsername(username string, email string, password string, policy PasswordPolicy, usernamePolicy UsernamePolicy) FieldMessages {
+// validateRegisterIdentityFields 权威 username/email 校验（密码无关，供外部注册复用）。
+func validateRegisterIdentityFields(username string, email string, usernamePolicy UsernamePolicy) FieldMessages {
 	fields := FieldMessages{}
 	if username == "" {
 		addFieldMessage(fields, FieldUsername, MessageUsernameRequired)
@@ -389,6 +452,11 @@ func validateRegisterInputWithUsername(username string, email string, password s
 	} else if !isValidEmail(email) {
 		addFieldMessage(fields, FieldEmail, MessageEmailInvalid)
 	}
+	return fields
+}
+
+func validateRegisterInputWithUsername(username string, email string, password string, policy PasswordPolicy, usernamePolicy UsernamePolicy) FieldMessages {
+	fields := validateRegisterIdentityFields(username, email, usernamePolicy)
 	for field, messages := range policy.Validate(password) {
 		fields[field] = append(fields[field], messages...)
 	}

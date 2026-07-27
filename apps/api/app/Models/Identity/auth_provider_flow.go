@@ -16,6 +16,9 @@ const (
 	AuthOperationLoginComplete        = "login.complete"
 	AuthOperationLinkStart            = "link.start"
 	AuthOperationLinkComplete         = "link.complete"
+	// AuthOperationProviderProbe 是有界、版本化的配置/可达性探测（T8B）。
+	// 无账户、链接或会话效应；不得用 probe_pending 冒充产品实现。
+	AuthOperationProviderProbe = "provider.probe"
 
 	AuthStartStatusContinue  = "continue"
 	AuthStartStatusRedirect  = "redirect"
@@ -39,10 +42,19 @@ type AuthProviderStartInput struct {
 	DeviceFingerprint string
 	ClientClass       string
 	RedirectHint      string
+	// Host 拥有的 OAuth 材料（见 plans/2026-07-27 M1 freeze）：
+	// state/PKCE 由 Host 生成并存储于一次性 callback 事务；callbackUrl 是保留 Core 路由。
+	// 插件用这些构造外部 authorize URL，但永不存储或回传它们。
+	State         string
+	CodeChallenge string
+	CallbackURL   string
 }
 
 // AuthProviderCompleteInput 是 Host 拥有的完成声明。插件返回的是外部主体断言，
 // 不是授权结果；Host 仍负责用户创建、链接与会话。
+//
+// CodeVerifier / CallbackURL 必须由 Host 从一次性 callback 事务与可信 APP_URL 注入；
+// 绝不可从浏览器输入重建。
 type AuthProviderCompleteInput struct {
 	ProviderID        string
 	Operation         string
@@ -53,6 +65,9 @@ type AuthProviderCompleteInput struct {
 	DeviceFingerprint string
 	ClientClass       string
 	IdempotencyKey    string
+	// Host 拥有的 OAuth 材料：与 start 时写入 callback 事务的 verifier / 绝对 callback URL 一致。
+	CodeVerifier string
+	CallbackURL  string
 }
 
 // AuthProviderStartResult 是 start 操作的 Host 解析结果。
@@ -68,16 +83,30 @@ type AuthProviderStartResult struct {
 }
 
 // AuthProviderCompleteResult 是 complete 操作的 Host 解析结果。
-// SubjectDigest 是稳定的外部主体摘要，用于 Host 链接表。
+//
+// Core-HMAC 模式（plans/2026-07-27 M0 freeze）：
+//   - ProviderSubject 是 raw 外部 subject（如 GitHub 数字 id），仅在此结构内短暂
+//     存在，由 Core 在 ExternalAuthService 内立即转为 keyed digest，永不进入
+//     浏览器/API/日志/审计/持久化存储之外的位置；
+//   - SubjectDigest 为兼容旧 fixture（如 membership-reference）保留；当插件
+//     返回 providerSubject 时为空，由 Core 计算。
+//
+// T1A：Complete 只返回断言，不写入 external link。link 持久化必须发生在
+// 当前会话 actor、recent-auth、operation/activation 与 live exact-artifact
+// 校验之后（见 ExternalAuthService.CompleteLink）。
 type AuthProviderCompleteResult struct {
-	ProviderID     string
-	Operation      string
-	SubjectDigest  string
-	DisplayName    string
-	EmailHint      string
-	ProviderOutput map[string]any
-	// Link 在 Host 实际写入外部链接后填充；start/login.complete 未链接时为空。
-	Link *ExternalIdentityLinkMutation
+	ProviderID              string
+	Operation               string
+	ProviderSubject         string // raw subject（Core-HMAC 模式）
+	SubjectDigest           string // 兼容旧 fixture 的 plugin-computed digest
+	DisplayName             string
+	EmailHint               string
+	ProviderContractVersion string
+	// Live artifact 快照（解析自当前 Registry，供 callback 与事务比对）。
+	OwnerExtensionID      string
+	OwnerExtensionVersion string
+	OwnerPackageDigest    string
+	ProviderOutput        map[string]any
 }
 
 // AuthProviderSource 按精确 id 解析活跃 auth 提供方。
@@ -140,6 +169,16 @@ func (f *AuthProviderFlow) Start(ctx context.Context, input AuthProviderStartInp
 	if prepared.ActorUserID > 0 {
 		requestInput["actorUserId"] = prepared.ActorUserID
 	}
+	// Host 拥有的 OAuth 材料：state/PKCE/callbackUrl。插件用于构造外部 authorize URL。
+	if prepared.State != "" {
+		requestInput["state"] = prepared.State
+	}
+	if prepared.CodeChallenge != "" {
+		requestInput["codeChallenge"] = prepared.CodeChallenge
+	}
+	if prepared.CallbackURL != "" {
+		requestInput["callbackUrl"] = prepared.CallbackURL
+	}
 
 	var result AuthProviderStartResult
 	err = f.invoker.InvokeExact(
@@ -176,10 +215,10 @@ func (f *AuthProviderFlow) Start(ctx context.Context, input AuthProviderStartInp
 	return result, nil
 }
 
-// Complete 调用选定 auth 提供方的 complete 操作。
-// - login.complete / registration.complete：仅返回外部主体断言（注册链接必须
-//   由上层通过 LinkTx 与用户创建同事务提交）。
-// - link.complete：在 accept 回调内写入 Host 外部链接表。
+// Complete 调用选定 auth 提供方的 complete 操作，仅返回外部主体断言。
+//
+// 绝不在此写入 external link、创建用户或签发会话。link/login/registration 的
+// 业务效应由 ExternalAuthService + Host callback 在授权校验之后执行。
 func (f *AuthProviderFlow) Complete(ctx context.Context, input AuthProviderCompleteInput) (AuthProviderCompleteResult, error) {
 	if f == nil || f.source == nil || f.invoker == nil {
 		return AuthProviderCompleteResult{}, ErrAuthProviderFlowUnavailable
@@ -204,51 +243,49 @@ func (f *AuthProviderFlow) Complete(ctx context.Context, input AuthProviderCompl
 	if prepared.TargetUserID > 0 {
 		requestInput["targetUserId"] = prepared.TargetUserID
 	}
+	// Host 拥有的 PKCE verifier 与绝对 callback URL：与 start 时事务绑定一致。
+	if prepared.CodeVerifier != "" {
+		requestInput["codeVerifier"] = prepared.CodeVerifier
+	}
+	if prepared.CallbackURL != "" {
+		requestInput["callbackUrl"] = prepared.CallbackURL
+	}
 
 	var result AuthProviderCompleteResult
 	err = f.invoker.InvokeExact(
 		ctx, provider, prepared.Operation, prepared.ActorUserID, requestInput,
-		func(callCtx context.Context, output map[string]any, fence func() error) error {
+		func(_ context.Context, output map[string]any, fence func() error) error {
 			parsed, parseErr := parseAuthCompleteOutput(output)
 			if parseErr != nil {
 				return parseErr
 			}
-			result = AuthProviderCompleteResult{
-				ProviderID:     provider.ID,
-				Operation:      prepared.Operation,
-				SubjectDigest:  parsed.subjectDigest,
-				DisplayName:    parsed.displayName,
-				EmailHint:      parsed.emailHint,
-				ProviderOutput: cloneAuthDocument(output),
+			// Core-HMAC：若插件返回 raw subject，由 Core 计算 keyed digest；
+			// 否则使用兼容旧 fixture 的 plugin-computed digest。
+			resolvedDigest := parsed.subjectDigest
+			if parsed.rawSubject != "" {
+				computed, computeErr := ComputeSubjectDigest(provider.ID, parsed.rawSubject)
+				if computeErr != nil {
+					return computeErr
+				}
+				resolvedDigest = computed
 			}
-			// 已登录账户链接：在 exact admission 下写入 Host 链接表。
-			if prepared.Operation == AuthOperationLinkComplete {
-				if f.links == nil {
-					return ErrAuthProviderFlowUnavailable
-				}
-				idempotency := prepared.IdempotencyKey
-				if idempotency == "" {
-					idempotency = prepared.CorrelationID + ":" + prepared.Operation
-				}
-				mutation, linkErr := f.links.Link(callCtx, LinkExternalIdentityInput{
-					UserID:                prepared.TargetUserID,
-					Provider:              provider,
-					ProviderOperation:     prepared.Operation,
-					ProviderSubjectDigest: parsed.subjectDigest,
-					ActorUserID:           prepared.ActorUserID,
-					IdempotencyKey:        idempotency,
-				}, fence)
-				if linkErr != nil {
-					return linkErr
-				}
-				result.Link = &mutation
-				return nil
-			}
-			// login/registration complete：断言 + fence；不在此提交链接。
 			if fence != nil {
 				if fenceErr := fence(); fenceErr != nil {
 					return fenceErr
 				}
+			}
+			result = AuthProviderCompleteResult{
+				ProviderID:              provider.ID,
+				Operation:               prepared.Operation,
+				ProviderSubject:         parsed.rawSubject,
+				SubjectDigest:           resolvedDigest,
+				ProviderContractVersion: provider.ContractVersion,
+				DisplayName:             parsed.displayName,
+				EmailHint:               parsed.emailHint,
+				OwnerExtensionID:        provider.Artifact.ExtensionID,
+				OwnerExtensionVersion:   provider.Artifact.ExtensionVersion,
+				OwnerPackageDigest:      provider.Artifact.PackageDigest,
+				ProviderOutput:          cloneAuthDocument(output),
 			}
 			return nil
 		},
@@ -317,6 +354,13 @@ func prepareAuthStartInput(input AuthProviderStartInput) (AuthProviderStartInput
 	if len(input.RedirectHint) > 2000 {
 		return AuthProviderStartInput{}, ErrAuthProviderFlowInvalid
 	}
+	// Host 拥有的 OAuth 材料：trim 并限制长度。这些值由 Host 生成，但调用方仍需防御性校验。
+	input.State = strings.TrimSpace(input.State)
+	input.CodeChallenge = strings.TrimSpace(input.CodeChallenge)
+	input.CallbackURL = strings.TrimSpace(input.CallbackURL)
+	if len(input.State) > 200 || len(input.CodeChallenge) > 200 || len(input.CallbackURL) > 2000 {
+		return AuthProviderStartInput{}, ErrAuthProviderFlowInvalid
+	}
 	return input, nil
 }
 
@@ -357,6 +401,12 @@ func prepareAuthCompleteInput(input AuthProviderCompleteInput) (AuthProviderComp
 	input.ClientClass = strings.TrimSpace(input.ClientClass)
 	input.IdempotencyKey = strings.TrimSpace(input.IdempotencyKey)
 	if len(input.IdempotencyKey) > 200 {
+		return AuthProviderCompleteInput{}, ErrAuthProviderFlowInvalid
+	}
+	// Host 拥有的 OAuth 材料：trim 并限制长度。浏览器不可伪造；空值表示非 PKCE 路径。
+	input.CodeVerifier = strings.TrimSpace(input.CodeVerifier)
+	input.CallbackURL = strings.TrimSpace(input.CallbackURL)
+	if len(input.CodeVerifier) > 200 || len(input.CallbackURL) > 2000 {
 		return AuthProviderCompleteInput{}, ErrAuthProviderFlowInvalid
 	}
 	return input, nil
@@ -410,11 +460,17 @@ func parseAuthStartOutput(output map[string]any) (authStartParsed, error) {
 }
 
 type authCompleteParsed struct {
-	subjectDigest string
-	displayName   string
-	emailHint     string
+	subjectDigest   string // Core 可直接使用的 digest（兼容旧 fixture 路径）
+	rawSubject      string // raw 外部 subject（Core-HMAC 模式）；非空时由调用方计算 digest
+	displayName     string
+	emailHint       string
 }
 
+// parseAuthCompleteOutput 支持两种契约（见 plans/2026-07-27 M0 freeze）：
+//  1. Core-HMAC：插件返回 raw providerSubject；Core 在调用方计算 keyed digest。
+//  2. 兼容旧 fixture：插件返回 providerSubjectDigest/subjectDigest（如 membership-reference）。
+//
+// 二者至少满足其一，否则 fail closed。
 func parseAuthCompleteOutput(output map[string]any) (authCompleteParsed, error) {
 	if output == nil {
 		return authCompleteParsed{}, ErrAuthProviderFlowUnavailable
@@ -423,7 +479,21 @@ func parseAuthCompleteOutput(output map[string]any) (authCompleteParsed, error) 
 	if digest == "" {
 		digest = strings.ToLower(strings.TrimSpace(stringFromAuthOutput(output, "subjectDigest")))
 	}
-	if !isAuthSubjectDigest(digest) {
+	rawSubject := strings.TrimSpace(stringFromAuthOutput(output, "providerSubject"))
+	if rawSubject == "" {
+		rawSubject = strings.TrimSpace(stringFromAuthOutput(output, "subject"))
+	}
+	// 至少要有 digest 或 raw subject；二者全空 → fail closed。
+	if digest == "" && rawSubject == "" {
+		return authCompleteParsed{}, ErrAuthProviderFlowUnavailable
+	}
+	// 既有 digest 又有 raw subject 时优先 Core-HMAC：丢弃插件 digest，由 Core 计算。
+	if rawSubject != "" {
+		digest = ""
+	} else if !isAuthSubjectDigest(digest) {
+		return authCompleteParsed{}, ErrAuthProviderFlowUnavailable
+	}
+	if len(rawSubject) > 320 {
 		return authCompleteParsed{}, ErrAuthProviderFlowUnavailable
 	}
 	displayName := strings.TrimSpace(stringFromAuthOutput(output, "displayName"))
@@ -433,6 +503,7 @@ func parseAuthCompleteOutput(output map[string]any) (authCompleteParsed, error) 
 	}
 	return authCompleteParsed{
 		subjectDigest: digest,
+		rawSubject:    rawSubject,
 		displayName:   displayName,
 		emailHint:     emailHint,
 	}, nil

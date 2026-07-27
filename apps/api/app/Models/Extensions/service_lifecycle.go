@@ -109,14 +109,32 @@ func canManageExtensionSettings(actor identity.Actor, extension Extension) bool 
 		return canManageThemes(actor)
 	}
 	// 插件设置：extension.plugin.manage；邮件提供商插件也允许 settings.mail.manage。
+	// 身份 auth 提供方插件也允许 identity.provider.manage（Login Methods 内嵌设置，
+	// 与邮件页委托 settings.mail.manage 对称；executable trust 仍 super_admin-only）。
 	if canManagePlugins(actor) {
 		return true
 	}
-	if !actor.Can(identity.PermissionSettingsMailManage) {
+	if actor.Can(identity.PermissionSettingsMailManage) {
+		for _, provider := range extension.Manifest.Providers {
+			if provider.Slot == "mail.provider" {
+				return true
+			}
+		}
+	}
+	if actor.Can(identity.PermissionIdentityProviderManage) && extensionDeclaresAuthProvider(extension) {
+		return true
+	}
+	return false
+}
+
+// extensionDeclaresAuthProvider 判断扩展是否声明了 Identity Registry 的 auth 提供方。
+// 仅此类插件可由 identity.provider.manage 读写设置；不得放宽到任意插件。
+func extensionDeclaresAuthProvider(extension Extension) bool {
+	if extension.Manifest.Identity == nil {
 		return false
 	}
-	for _, provider := range extension.Manifest.Providers {
-		if provider.Slot == "mail.provider" {
+	for _, provider := range extension.Manifest.Identity.Providers {
+		if strings.EqualFold(strings.TrimSpace(provider.Kind), "auth") {
 			return true
 		}
 	}
@@ -417,16 +435,24 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 		}
 	}
 	capKeys, _ := extensionmanifest.ResolvedCapabilities(enabled.Manifest)
+	auditMetadata := map[string]any{
+		"extensionId":  enabled.ID,
+		"type":         enabled.Type,
+		"capabilities": capKeys,
+	}
+	auditEventID, _ := s.appendAuditReturningID(ctx, actor, audit.ActionExtensionEnable, auditMetadata)
+	if _, err := s.publishLegacyRuntimeIdentity(ctx, enabled, actor.ID, auditEventID); err != nil {
+		failure := s.compensateLegacyIdentityEnable(
+			ctx, enabled, assetMutation, queryMutation, cacheMutation, actor.ID, err,
+		)
+		s.recordEnableFailure(ctx, actor, enabled.ID, failure)
+		return Extension{}, errors.Join(ErrRuntimeFailed, fmt.Errorf("publish runtime identity: %w", failure))
+	}
 	_, _ = s.store.CreateEvent(ctx, EventInput{
 		ExtensionID: enabled.ID,
 		ActorUserID: actor.ID,
 		Action:      EventEnabled,
 		Message:     "Extension enabled.",
-	})
-	s.appendAudit(ctx, actor, audit.ActionExtensionEnable, map[string]any{
-		"extensionId":  enabled.ID,
-		"type":         enabled.Type,
-		"capabilities": capKeys,
 	})
 	if enabled.Type == TypePlugin && s.runtime != nil {
 		s.runtime.EmitHook(ctx, appevents.ExtensionEnabled, map[string]any{"extensionId": enabled.ID})
@@ -493,21 +519,56 @@ func (s *Service) DisableWithInput(ctx context.Context, actor identity.Actor, id
 				quarantineErr = ErrRuntimeCachePublicationUnavailable
 			}
 			return Extension{}, s.compensateLegacyCacheDisable(
-				assetMutation, queryMutation, cacheMutation, quarantineErr,
+				assetMutation, queryMutation, cacheMutation, nil, quarantineErr,
 			)
 		}
 	}
+	auditMetadata := map[string]any{
+		"extensionId": extension.ID,
+		"type":        extension.Type,
+	}
+	auditEventID, _ := s.appendAuditReturningID(ctx, actor, audit.ActionExtensionDisable, auditMetadata)
+	identityMutation, err := s.quarantineLegacyRuntimeIdentity(ctx, extension, actor.ID, auditEventID)
+	if err != nil {
+		return Extension{}, s.compensateLegacyIdentityDisable(
+			assetMutation, queryMutation, cacheMutation, nil, err,
+		)
+	}
 	if hasRuntimeCaches {
 		disabled, err = s.disableLegacyCachePlugin(
-			ctx, extension, assetMutation, queryMutation, cacheMutation, actor.ID,
+			ctx, extension, assetMutation, queryMutation, cacheMutation, identityMutation, actor.ID,
 		)
 		if err != nil {
 			return Extension{}, err
 		}
 	} else if hasRuntimeQuerySurfaces {
-		disabled, err = s.disableLegacyQueryPlugin(ctx, extension, assetMutation, queryMutation, actor.ID)
+		disabled, err = s.disableLegacyQueryPlugin(ctx, extension, assetMutation, queryMutation, identityMutation, actor.ID)
 		if err != nil {
 			return Extension{}, err
+		}
+	} else if identityMutation != nil {
+		if err := s.clearPluginProviderSelections(ctx, extension.ID); err != nil {
+			return Extension{}, s.compensateLegacyIdentityDisable(
+				assetMutation, nil, nil, identityMutation, err,
+			)
+		}
+		if s.pageRegistry != nil {
+			s.pageRegistry.ClearExtension(extension.ID)
+		}
+		disabled, err = s.disableLegacyPluginState(ctx, extension, actor.ID)
+		if err != nil {
+			return Extension{}, s.compensateLegacyIdentityDisable(
+				assetMutation, nil, nil, identityMutation, err,
+			)
+		}
+		if s.runtime != nil {
+			_ = s.runtime.Stop(ctx, extension)
+			if extension.Status == StatusEnabled {
+				s.runtime.EmitHook(ctx, appevents.ExtensionDisabled, map[string]any{
+					"extensionId": extension.ID,
+					"reason":      "lifecycle_drain",
+				})
+			}
 		}
 	} else {
 		// F2.4：未绑定 Query/Cache publication 的 legacy 插件保留原有 drain 顺序。
@@ -534,10 +595,6 @@ func (s *Service) DisableWithInput(ctx context.Context, actor identity.Actor, id
 		ActorUserID: actor.ID,
 		Action:      EventDisabled,
 		Message:     "Extension disabled.",
-	})
-	s.appendAudit(ctx, actor, audit.ActionExtensionDisable, map[string]any{
-		"extensionId": disabled.ID,
-		"type":        disabled.Type,
 	})
 	return s.decorateRuntime(ctx, disabled), nil
 }

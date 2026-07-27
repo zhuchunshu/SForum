@@ -301,7 +301,45 @@
     "submitting": "Submitting...",
     "registerDisabledTitle": "Registration is closed",
     "registerDisabledDescription": "This site is not accepting open registration. Contact an administrator for an account, or sign in.",
-    "registerDisabledGoLogin": "Go to login"
+    "registerDisabledGoLogin": "Go to login",
+    "providers": {
+      "divider": "or",
+      "genericName": "third-party account",
+      "continueWith": "Continue with {name}",
+      "starting": "Redirecting…",
+      "startFailed": "Could not start third-party sign-in. Please try again later."
+    },
+    "external": {
+      "ticketModeTitle": "Finish registration",
+      "ticketModeHeading": "Finish creating your account",
+      "ticketModeIntro": "Your third-party identity is verified. Enter a site username and email to finish — no password is required.",
+      "ticketModeNotice": "Submitting creates a site account and links this third-party identity. Email is for site notices only and never auto-matches an existing account.",
+      "submitTicketRegister": "Create account and sign in",
+      "success": {
+        "loginOk": "Signed in with a third-party account. Welcome back.",
+        "linkOk": "Third-party account linked successfully."
+      },
+      "reasons": {
+        "generic": "Third-party sign-in could not be completed. Try again or use your password.",
+        "providerCancelled": "Third-party authorization was cancelled.",
+        "providerNotEnabled": "This third-party login method has not been enabled by the site administrator.",
+        "providerNotFound": "That login method does not exist or is unavailable.",
+        "providerUnavailable": "Third-party sign-in is temporarily unavailable. Try again later or use your password.",
+        "callbackExpired": "The login callback expired. Please restart third-party sign-in.",
+        "callbackInvalid": "The login callback is invalid. Please restart third-party sign-in.",
+        "callbackReplayed": "That login callback was already used. Please restart third-party sign-in.",
+        "identityUnlinked": "This third-party account is not linked yet. Register first, or sign in with a password and link it later.",
+        "subjectConflict": "That third-party identity is already linked to another account.",
+        "linkConflict": "The current account already has a conflicting third-party link.",
+        "ticketInvalid": "The registration credential is invalid or already used. Please restart third-party registration.",
+        "ticketExpired": "The registration credential has expired. Please restart third-party registration.",
+        "bootstrapRequired": "The site has no administrator yet. The first account must be registered with a password.",
+        "registrationDisabled": "Registration is closed, so third-party account creation is unavailable.",
+        "authRequired": "Please sign in to continue.",
+        "recentAuthRequired": "This action requires a recent re-authentication. Sign in again and retry.",
+        "lastLoginMethodRequired": "This is the last usable login method for your account. Set a local password or link another method before unlinking."
+      }
+    }
   },
   "components": {
     "iconPicker": {
@@ -386,6 +424,7 @@
       "rolesBadge": "RBAC",
       "settings": "Site settings",
       "mailSettings": "Mail and notifications",
+      "loginMethods": "Login methods",
       "avatarSettings": "Avatar settings",
       "seo": "SEO settings",
       "database": "Database tables",
@@ -2130,6 +2169,14 @@
           "description": "Set direct allow and deny permission overrides for a single user."
         }
       },
+      "identity": {
+        "provider": {
+          "manage": {
+            "label": "Manage third-party login",
+            "description": "Activate, order, probe, and reset Host-owned third-party auth providers (login/registration/link). Executable trust remains super_admin-only."
+          }
+        }
+      },
       "category": {
         "manage": {
           "label": "Manage categories",
@@ -3011,12 +3058,40 @@
         "title": "Content management",
         "intro": "Find and manage topics and replies in every lifecycle state. Saving always uses the canonical content edit API.",
         "permissionDenied": "This account cannot view topic or reply content.",
-        "tabs": { "topics": "Topics", "comments": "Comments" },
-        "filters": { "status": "Status", "author": "Author", "authorPlaceholder": "Username", "authorId": "Author ID", "titlePrefix": "Title prefix", "categorySlug": "Category slug", "topicId": "Topic ID", "updatedFrom": "Updated from", "updatedTo": "Updated to", "perPage": "Per page" },
+        "tabs": {
+          "topics": "Topics",
+          "comments": "Comments"
+        },
+        "filters": {
+          "status": "Status",
+          "author": "Author",
+          "authorPlaceholder": "Username",
+          "authorId": "Author ID",
+          "titlePrefix": "Title prefix",
+          "categorySlug": "Category slug",
+          "topicId": "Topic ID",
+          "updatedFrom": "Updated from",
+          "updatedTo": "Updated to",
+          "perPage": "Per page"
+        },
         "applyFilters": "Apply filters",
         "allStatuses": "All statuses",
-        "status": { "active": "Active", "locked": "Locked", "pending": "Pending", "rejected": "Rejected", "hidden": "Hidden", "deleted": "Deleted" },
-        "columns": { "content": "Content", "author": "Author", "status": "Status", "revision": "Current version", "updatedAt": "Updated", "actions": "Actions" },
+        "status": {
+          "active": "Active",
+          "locked": "Locked",
+          "pending": "Pending",
+          "rejected": "Rejected",
+          "hidden": "Hidden",
+          "deleted": "Deleted"
+        },
+        "columns": {
+          "content": "Content",
+          "author": "Author",
+          "status": "Status",
+          "revision": "Current version",
+          "updatedAt": "Updated",
+          "actions": "Actions"
+        },
         "empty": "No content matches the current filters.",
         "noExcerpt": "No content excerpt",
         "inspect": "Inspect content",
@@ -3060,7 +3135,13 @@
           "historical": "Historical version",
           "current": "Current version",
           "none": "None",
-          "fields": { "title": "Title", "content": "Content", "category": "Category", "tags": "Tags", "attachments": "Attachments" },
+          "fields": {
+            "title": "Title",
+            "content": "Content",
+            "category": "Category",
+            "tags": "Tags",
+            "attachments": "Attachments"
+          },
           "legacyTitle": "This legacy revision has incomplete metadata",
           "legacyDescription": "Only its recorded content can be restored. Missing metadata is not invented.",
           "redactedDetail": "This revision payload has been redacted",
@@ -3702,6 +3783,82 @@
       "deleted": "Field deleted.",
       "loadFailed": "Failed to load custom fields.",
       "saveFailed": "Failed to save custom fields."
+    },
+    "loginMethods": {
+      "metaTitle": "Login methods",
+      "title": "Login methods",
+      "description": "Configure third-party login providers: set credentials, run a truthful probe, and explicitly enable login, registration, and account linking. Enabling a plugin does not expose a login button.",
+      "count": "{count} login providers discovered",
+      "loading": "Loading login methods…",
+      "loadFailed": "Failed to load login methods.",
+      "emptyTitle": "No login providers",
+      "emptyDescription": "The built-in GitHub login plugin is staged at boot. Enable the plugin and complete executable trust when required.",
+      "openPlugins": "Open plugins",
+      "recommendedTitle": "Recommended path: credentials → probe → then toggles",
+      "recommendedDescription": "Fill Client ID / Client Secret, paste the Host callback URL into the GitHub OAuth App, run a probe, then enable login, registration, or linking separately. All operations default off; password login stays available.",
+      "secretsPreserved": "Restoring recommended defaults turns all third-party operations off and preserves saved secrets.",
+      "restoreDefaults": "Restore recommended defaults",
+      "defaultsRestored": "Recommended defaults restored: third-party operations are off.",
+      "defaultsRestoreFailed": "Failed to restore defaults.",
+      "safeModeTitle": "Safe Mode is on",
+      "safeModeDescription": "Third-party login is unavailable to visitors in Safe Mode. Password login and Host recovery remain available.",
+      "providers": {
+        "github": "GitHub login"
+      },
+      "states": {
+        "discovered": "Discovered",
+        "trusted": "Trusted artifact",
+        "enabled": "Process enabled",
+        "configured": "Configured",
+        "probed": "Probe passed",
+        "publiclyActivated": "Publicly activated",
+        "notPublic": "Not public"
+      },
+      "operationsTitle": "Public operation toggles",
+      "operationsHelp": "Each operation is independent. Plugin enablement is not a public login button; activate here explicitly.",
+      "ops": {
+        "login": "Login",
+        "loginHelp": "Users with a linked GitHub identity can sign in.",
+        "registration": "Registration",
+        "registrationHelp": "Allow explicit GitHub-backed account creation (still obeys site registration policy).",
+        "link": "Account linking",
+        "linkHelp": "Signed-in users can link GitHub from account security."
+      },
+      "revision": "Config revision={revision}",
+      "callbackTitle": "Callback URL",
+      "callbackHelp": "Host-owned absolute URL from APP_URL (read-only). Paste it exactly into the OAuth app Authorization callback URL.",
+      "copyCallback": "Copy",
+      "callbackCopied": "Callback URL copied.",
+      "callbackCopyFailed": "Copy failed; select the text manually.",
+      "callbackMissing": "Callback URL unavailable; check APP_URL.",
+      "probeTitle": "Configuration probe",
+      "runProbe": "Run probe",
+      "probe": {
+        "never": "Not probed yet",
+        "pending": "Probe pending",
+        "pendingHelp": "The Host recorded the probe. Historical pending is not a health-check pass; re-run probe for a real provider.probe result.",
+        "unavailable": "Probe unavailable",
+        "ok": "Probe passed",
+        "recorded": "Probe result recorded",
+        "failed": "Probe request failed",
+        "help": "Probe checks credential presence and upstream reachability shape; it cannot prove a Client Secret without an authorization code."
+      },
+      "settingsTitle": "Provider settings",
+      "settingsHelp": "Credentials live in the extension SecretStore; Client Secret is never returned to the browser.",
+      "settingsLoading": "Loading settings…",
+      "settingsLoadFailed": "Could not load provider settings (missing extension permission or extension not ready).",
+      "settingsSaved": "Provider settings saved.",
+      "settingsSaveFailed": "Failed to save provider settings.",
+      "settingsReset": "Provider recommended settings restored.",
+      "settingsUnavailableTitle": "Settings unavailable",
+      "settingsUnavailableDescription": "Could not load this extension’s settings document. Confirm the extension is installed and you have identity.provider.manage or extension.plugin.manage.",
+      "openExtensionSettings": "Open extension page",
+      "activationSaved": "Login methods updated.",
+      "activationSaveFailed": "Failed to update login methods.",
+      "staleRevision": "Configuration was updated elsewhere. The list was refreshed; review and try again.",
+      "artifactDriftTitle": "Artifact changed",
+      "artifactDriftDescription": "Activation intent is bound to a package digest that no longer matches live. Public entry is ineffective until you re-enable against the new artifact.",
+      "actionFailed": "Settings action failed."
     }
   },
   "errors": {
@@ -4245,9 +4402,11 @@
   },
   "accountSecurity": {
     "metaTitle": "Account security",
-    "metaDescription": "Manage your login devices and sessions.",
+    "metaDescription": "Manage login methods, device sessions, and access tokens.",
     "title": "Account security",
-    "intro": "These are the devices currently signed in to your account. If you spot an unfamiliar login, revoke it immediately.",
+    "intro": "Manage third-party logins, a local password, signed-in devices, and access tokens. Act immediately if anything looks wrong.",
+    "devicesTitle": "Signed-in devices",
+    "devicesIntro": "These are the devices currently signed in to your account. If you spot an unfamiliar login, revoke it immediately.",
     "revokeOthers": "Sign out all other devices",
     "revoke": "Sign out",
     "currentDevice": "This device",
@@ -4266,6 +4425,46 @@
     "emptyTitle": "No active devices",
     "emptyDescription": "There are no signed-in device records.",
     "maxDevicesHint": "At most {max} devices may stay signed in at once; the oldest device is signed out automatically when exceeded.",
+    "linkedAccounts": {
+      "title": "Login methods",
+      "intro": "Review linked third-party identities. Names and icons come from the site’s enabled providers. Raw subject ids and tokens are never shown.",
+      "loadFailed": "Could not load linked accounts, please try again.",
+      "empty": "No third-party login methods are linked yet.",
+      "linkedAt": "Linked",
+      "statusActive": "Linked",
+      "statusInert": "Unavailable",
+      "statusOther": "Disabled",
+      "inertHint": "This login provider is disabled or temporarily unavailable. The link is kept, but it cannot be used to sign in or re-authorize right now.",
+      "inertAction": "Provider unavailable",
+      "unlink": "Unlink",
+      "unlinking": "Unlinking…",
+      "unlinked": "Third-party login method unlinked.",
+      "unlinkFailed": "Could not unlink, please try again.",
+      "linkTitle": "Link another login method",
+      "linkHelp": "Only providers with Host-enabled account linking appear here. Linking requires your current session and may need recent re-authentication.",
+      "linkWith": "Link {name}",
+      "linking": "Redirecting…",
+      "linkFailed": "Could not start linking, please try again.",
+      "linkClosed": "No third-party login methods are available to link right now.",
+      "lastMethodHint": "This may be your only third-party login method. Unlink is blocked if you have not set a local password yet.",
+      "lastMethodBlocked": "Cannot unlink: this is the last usable login method. Set a local password or link another method first.",
+      "recentAuthTitle": "Recent re-authentication required",
+      "recentAuthRequired": "Sensitive actions such as unlinking or setting a password require recent re-authentication. Sign in again, then retry.",
+      "reauthenticate": "Sign in again to continue",
+      "sessionRequired": "Your session is unavailable. Sign in again to manage login methods."
+    },
+    "passwordSetup": {
+      "title": "Local password",
+      "intro": "Set or update a local password for this account. Accounts created only through third-party login can set a password here for the first time.",
+      "externalOnlyHint": "If you mainly use third-party login, set a local password as a backup before unlinking your last external method.",
+      "password": "New password",
+      "confirm": "Confirm new password",
+      "submit": "Save password",
+      "submitting": "Saving…",
+      "success": "Local password saved.",
+      "failed": "Could not save the password, please try again.",
+      "recentAuthHint": "Saving a password requires recent re-authentication. If it is rejected, sign in again and retry."
+    },
     "tokensTitle": "Personal access tokens",
     "tokensIntro": "Use tokens for programmatic API access. Scopes cannot exceed your current permissions. The full secret is shown only once on create or rotate.",
     "tokenName": "Name",
@@ -4295,6 +4494,8 @@
       "overviewTitle": "Page overview",
       "overviewHint": "This page",
       "currentDevice": "This device",
+      "loginMethods": "Login methods",
+      "loginMethodsHint": "Managed here",
       "tokens": "Access tokens"
     }
   },

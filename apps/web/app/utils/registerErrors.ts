@@ -21,6 +21,14 @@ export function registerErrorMessage(error: unknown, translate: RegisterErrorTra
       return translate('errors.humanVerificationReplayed')
     case 'rate_limit.exceeded':
       return translate('errors.rateLimited')
+    case 'auth.external_registration_ticket_invalid':
+      return translate('auth.external.reasons.ticketInvalid')
+    case 'auth.external_registration_ticket_expired':
+      return translate('auth.external.reasons.ticketExpired')
+    case 'auth.external_bootstrap_required':
+      return translate('auth.external.reasons.bootstrapRequired')
+    case 'auth.registration_disabled':
+      return translate('auth.external.reasons.registrationDisabled')
     default:
       return translate('errors.registerFailed')
   }

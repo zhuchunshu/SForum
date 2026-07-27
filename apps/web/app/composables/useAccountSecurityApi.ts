@@ -1,5 +1,6 @@
 // 账号安全 / 登录设备管理 API 客户端。
 // opaque 会话标识（id）仅用于指定「下线哪一条」，不是认证凭证，无法用于登录。
+// M4B：外部身份列表/解绑、本地密码设置（session-bound recent-auth 由 Host 门控）。
 
 export type LoginSession = {
   id: string
@@ -42,6 +43,50 @@ export type CreatedAPIToken = APIToken & {
   token: string
 }
 
+/** Host 返回的 redacted 外部身份；禁止期望 subject/digest/token 字段。 */
+export type ExternalIdentityStatus = 'active' | 'inert' | 'erased' | string
+
+export type ExternalIdentityItem = {
+  linkId: number
+  providerId: string
+  status: ExternalIdentityStatus
+  linkedAt?: string | null
+  ownerExtensionId?: string
+}
+
+export function asExternalIdentityList(value: unknown): ExternalIdentityItem[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+  const out: ExternalIdentityItem[] = []
+  for (const item of value) {
+    if (!item || typeof item !== 'object') {
+      continue
+    }
+    const row = item as Record<string, unknown>
+    const linkId = Number(row.linkId)
+    const providerId = typeof row.providerId === 'string' ? row.providerId.trim() : ''
+    const status = typeof row.status === 'string' ? row.status.trim() : ''
+    if (!Number.isFinite(linkId) || linkId <= 0 || !providerId || !status) {
+      continue
+    }
+    const entry: ExternalIdentityItem = {
+      linkId,
+      providerId,
+      status
+    }
+    if (typeof row.linkedAt === 'string' && row.linkedAt.trim()) {
+      entry.linkedAt = row.linkedAt.trim()
+    }
+    if (typeof row.ownerExtensionId === 'string' && row.ownerExtensionId.trim()) {
+      entry.ownerExtensionId = row.ownerExtensionId.trim()
+    }
+    // 硬拒绝：任何 raw subject / digest / token 字段不得进入前端状态。
+    out.push(entry)
+  }
+  return out
+}
+
 export function useAccountSecurityApi() {
   const { request } = useApiClient()
 
@@ -81,6 +126,47 @@ export function useAccountSecurityApi() {
     return request<CreatedAPIToken>(`/auth/tokens/${tokenId}/rotate`, { method: 'POST', body: {} })
   }
 
+  /** 当前用户 redacted 外部身份列表（登录会话必需）。 */
+  async function listExternalIdentities() {
+    const raw = await request<unknown>('/auth/external-identities')
+    return asExternalIdentityList(raw)
+  }
+
+  /**
+   * 解绑外部身份。Host 在同一事务内执行 last-login-method 与 revision 校验；
+   * expectedRevision 可省略（Host 用当前 active revision）。
+   */
+  function unlinkExternalIdentity(
+    linkId: number,
+    options: { expectedRevision?: number; requestId?: string } = {}
+  ) {
+    const body: Record<string, unknown> = {}
+    if (typeof options.expectedRevision === 'number' && options.expectedRevision > 0) {
+      body.expectedRevision = options.expectedRevision
+    }
+    if (typeof options.requestId === 'string' && options.requestId.trim()) {
+      body.requestId = options.requestId.trim()
+    }
+    return request<null>(
+      `/auth/external-identities/${encodeURIComponent(String(linkId))}`,
+      {
+        method: 'DELETE',
+        body: Object.keys(body).length > 0 ? body : {}
+      }
+    )
+  }
+
+  /**
+   * 自助设置/更新本地密码。需要 session-bound recent-auth；
+   * external-only 用户首次调用会创建 credential 行。
+   */
+  function setupPassword(password: string) {
+    return request<null>('/auth/password', {
+      method: 'POST',
+      body: { password }
+    })
+  }
+
   return {
     listSessions,
     revokeSession,
@@ -88,6 +174,9 @@ export function useAccountSecurityApi() {
     listAPITokens,
     createAPIToken,
     revokeAPIToken,
-    rotateAPIToken
+    rotateAPIToken,
+    listExternalIdentities,
+    unlinkExternalIdentity,
+    setupPassword
   }
 }

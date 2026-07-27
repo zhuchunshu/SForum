@@ -11,9 +11,10 @@ import (
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
-// builtinPluginRuntimeSync 描述一次 plugin SaveBuiltin 在已持有
+// builtinPluginRuntimeSync 描述一次 inert plugin SaveBuiltin 在已持有
 // pluginRuntimeDesiredSetLock 且已推进 active_version 之后，对不可变
-// desired full-set 的精确增量。只处理当前 builtin 一个 extension_id；
+// desired full-set 的精确增量。已启用 plugin 的新制品只会暂存，必须由
+// lifecycle 统一推进 runtime、identity 和其他 Host registry。
 // 无关成员原样保留，缺失成员永不因 SyncBuiltins 复活。
 //
 // upgrade 的 source 权威是 latest immutable publication 成员，不是

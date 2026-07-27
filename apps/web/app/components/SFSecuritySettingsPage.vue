@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 宿主 body 岛：forum.settings.security。主题 L1 挂载；路由页仅 outlet + fail-closed 回退。
- * 三栏 chrome 由 SFSettingsShell 提供，此处仅保留会话 / 令牌业务。
+ * 三栏 chrome 由 SFSettingsShell 提供；会话 / 令牌 / 外部登录方式 / 密码设置。
  */
 
 const { t } = useI18n()
@@ -191,7 +191,17 @@ onMounted(() => {
       </SFButton>
     </template>
 
-    <SFCard class="mt-5 p-0 overflow-hidden">
+    <!-- M4B：登录方式（绑定列表 / link / unlink / 密码设置） -->
+    <SFLinkedAccountsSection class="mt-2" />
+
+    <h2 class="mt-10 text-lg font-semibold text-slate-900 dark:text-zinc-50">
+      {{ t('accountSecurity.devicesTitle') }}
+    </h2>
+    <p class="mt-1 text-sm text-slate-500 dark:text-zinc-400">
+      {{ t('accountSecurity.devicesIntro') }}
+    </p>
+
+    <SFCard class="mt-4 p-0 overflow-hidden">
       <div v-if="pending && activeSessions.length === 0" class="divide-y divide-slate-100 dark:divide-zinc-800">
         <div v-for="i in 3" :key="i" class="p-4">
           <SFSkeleton class="h-4 w-1/3 mb-2" />
@@ -403,6 +413,10 @@ onMounted(() => {
           <div>
             <dt>{{ t('accountSecurity.rail.currentDevice') }}</dt>
             <dd>{{ currentSession?.deviceName || t('accountSecurity.unknownDevice') }}</dd>
+          </div>
+          <div>
+            <dt>{{ t('accountSecurity.rail.loginMethods') }}</dt>
+            <dd>{{ t('accountSecurity.rail.loginMethodsHint') }}</dd>
           </div>
           <div>
             <dt>{{ t('accountSecurity.rail.tokens') }}</dt>

@@ -6,15 +6,24 @@
 
 import type { AltchaWidgetElement } from 'altcha'
 import type { CurrentUser } from '~/composables/useAuthSession'
-
+import type { PublicAuthProvider } from '~/composables/useAuthProviders'
+import { apiErrorMessage, apiErrorReason } from '~/composables/useApiClient'
 
 const { t, locale } = useI18n()
 const toast = useToast()
 const localePath = useLocalePath()
 const { apiBaseUrl, request } = useApiClient()
 const { setUser } = useAuthSession()
-const { returnFromAuth, authPageLink } = useAuthReturnNavigation()
+const { returnFromAuth, authPageLink, destination } = useAuthReturnNavigation()
 const { siteName, siteTagline, altchaWidgetSettings } = useWebOptions()
+const {
+  loginProviders,
+  redirectToProvider
+} = useAuthProviders()
+const {
+  alertMessage: externalAlertMessage,
+  alertVariant: externalAlertVariant
+} = useExternalAuthFeedback()
 // 有副标题时优先展示运营配置的标语，否则回退到内置品牌文案。
 const brandDescription = computed(() => siteTagline.value || t('auth.brandDesc'))
 
@@ -37,10 +46,15 @@ const form = reactive({
   password: ''
 })
 const submitting = ref(false)
+const providerStartingId = ref('')
 const errorMessage = ref('')
 const humanVerificationRequired = ref(false)
 const humanVerificationToken = ref('')
 const altchaWidget = ref<AltchaWidgetElement | null>(null)
+const surfaceError = computed(() => errorMessage.value || externalAlertMessage.value)
+const surfaceErrorVariant = computed(() =>
+  errorMessage.value ? 'danger' : (externalAlertVariant.value || 'danger')
+)
 const altchaChallengeUrl = computed(() => `${apiBaseUrl}/human-verification/challenge?purpose=login_risk`)
 const altchaConfiguration = computed(() => JSON.stringify({
   hideLogo: altchaWidgetSettings.value.hideLogo,
@@ -129,6 +143,23 @@ async function submitLogin() {
   })
   await returnFromAuth()
 }
+
+async function startExternalLogin(provider: PublicAuthProvider) {
+  if (submitting.value || providerStartingId.value) {
+    return
+  }
+  errorMessage.value = ''
+  providerStartingId.value = provider.id
+  try {
+    // redirectHint 仅传已校验本地路径；Host 会再次校验后写入 callback 事务。
+    await redirectToProvider(provider.id, 'login', {
+      redirectHint: destination.value
+    })
+  } catch (error) {
+    errorMessage.value = apiErrorMessage(error) || t('auth.providers.startFailed')
+    providerStartingId.value = ''
+  }
+}
 </script>
 
 <template>
@@ -201,9 +232,9 @@ async function submitLogin() {
 
         <form @submit.prevent="submitLogin">
           <SFAlert
-            v-if="errorMessage"
-            :title="errorMessage"
-            variant="danger"
+            v-if="surfaceError"
+            :title="surfaceError"
+            :variant="surfaceErrorVariant"
             compact
             class="auth-alert"
           />
@@ -271,10 +302,18 @@ async function submitLogin() {
             </ClientOnly>
           </div>
 
-          <button class="auth-btn" type="submit" :disabled="submitting">
+          <button class="auth-btn" type="submit" :disabled="submitting || Boolean(providerStartingId)">
             {{ submitting ? t('auth.loggingIn') : t('auth.submitLogin') }}
           </button>
         </form>
+
+        <SFAuthProviderButtons
+          :providers="loginProviders"
+          operation="login"
+          :starting-id="providerStartingId"
+          :disabled="submitting"
+          @start="startExternalLogin"
+        />
 
         <p v-if="showRegisterLinks" class="auth-switch">
           {{ t('auth.needAccount') }}

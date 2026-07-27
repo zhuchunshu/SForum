@@ -53,6 +53,21 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileIdentity(
 	if b == nil || b.identity == nil || b.identityStore == nil || ctx == nil {
 		return ErrLifecycleRegistryPublicationUnavailable
 	}
+	tombstones, err := b.reconcileIdentityDurable(ctx, request, source, target, desired)
+	if err != nil {
+		return err
+	}
+	return b.replaceIdentityGraph(ctx, request.TargetExtension.ID, source, target, desired, tombstones)
+}
+
+func (b *PostgresLifecycleBoundaryRegistries) reconcileIdentityDurable(
+	ctx context.Context,
+	request LifecycleBoundaryRequest,
+	source, target, desired *lifecycleRegistryMaterial,
+) ([]identityregistry.Tombstone, error) {
+	if b == nil || b.identityStore == nil || ctx == nil {
+		return nil, ErrLifecycleRegistryPublicationUnavailable
+	}
 	desiredPublication := lifecycleIdentityPublication(desired)
 	durable, err := b.identityStore.Reconcile(ctx, identityregistry.ReconcilePublicationInput{
 		ExtensionID:   request.TargetExtension.ID,
@@ -61,20 +76,32 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileIdentity(
 		Desired:       desiredPublication, ActorUserID: request.ActorUserID, AuditEventID: request.AuditEventID,
 	})
 	if err != nil {
-		return wrapLifecycleIdentityError("reconcile durable identity registry", err)
+		return nil, wrapLifecycleIdentityError("reconcile durable identity registry", err)
 	}
 	if desiredPublication != nil {
 		if err := identityregistry.ValidateDurablePublication(durable, *desiredPublication); err != nil {
-			return wrapLifecycleIdentityError("validate reconciled identity publication", err)
+			return nil, wrapLifecycleIdentityError("validate reconciled identity publication", err)
 		}
 	} else if err := identityregistry.ValidateDurableRetirement(
 		durable, request.TargetExtension.ID,
 	); err != nil {
-		return wrapLifecycleIdentityError("validate retired identity publication", err)
+		return nil, wrapLifecycleIdentityError("validate retired identity publication", err)
 	}
 	tombstones, err := identityregistry.DurableStateToTombstones(durable)
 	if err != nil {
-		return wrapLifecycleIdentityError("restore durable identity ownership", err)
+		return nil, wrapLifecycleIdentityError("restore durable identity ownership", err)
+	}
+	return tombstones, nil
+}
+
+func (b *PostgresLifecycleBoundaryRegistries) replaceIdentityGraph(
+	ctx context.Context,
+	extensionID string,
+	source, target, desired *lifecycleRegistryMaterial,
+	tombstones []identityregistry.Tombstone,
+) error {
+	if b == nil || b.identity == nil || ctx == nil {
+		return ErrLifecycleRegistryPublicationUnavailable
 	}
 	for attempts := 0; attempts < 16; attempts++ {
 		if err := ctx.Err(); err != nil {
@@ -82,7 +109,7 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileIdentity(
 		}
 		snapshot := b.identity.Snapshot()
 		graph, graphErr := lifecycleIdentityGraph(
-			snapshot, request.TargetExtension.ID, desiredPublication,
+			snapshot, extensionID, lifecycleIdentityPublication(desired),
 			lifecycleIdentityPublication(source), lifecycleIdentityPublication(target),
 		)
 		if graphErr != nil {
@@ -335,6 +362,168 @@ func wrapLifecycleIdentityError(action string, err error) error {
 	return fmt.Errorf("%s: %w", action, err)
 }
 
+func (b *PostgresLifecycleBoundaryRegistries) PublishRuntimeIdentity(
+	ctx context.Context,
+	extension extensions.Extension,
+	actorUserID int64,
+	auditEventID int64,
+) (extensions.RuntimeIdentityPublicationMutation, error) {
+	target, err := b.legacyRuntimeIdentityMaterial(extension)
+	if err != nil || target == nil {
+		return nil, err
+	}
+	if err := b.reconcileLegacyRuntimeIdentity(ctx, extension, nil, target, target, actorUserID, auditEventID); err != nil {
+		return nil, err
+	}
+	return legacyRuntimeIdentityPublicationMutation{
+		boundary: b, extension: extension, actorUserID: actorUserID,
+		auditEventID: auditEventID, mode: legacyRuntimeIdentityRollbackRetire,
+	}, nil
+}
+
+func (b *PostgresLifecycleBoundaryRegistries) QuarantineRuntimeIdentity(
+	ctx context.Context,
+	extension extensions.Extension,
+	actorUserID int64,
+	auditEventID int64,
+) (extensions.RuntimeIdentityPublicationMutation, error) {
+	source, err := b.legacyRuntimeIdentityMaterial(extension)
+	if err != nil || source == nil {
+		return nil, err
+	}
+	if err := b.reconcileLegacyRuntimeIdentity(ctx, extension, source, nil, nil, actorUserID, auditEventID); err != nil {
+		return nil, err
+	}
+	return legacyRuntimeIdentityPublicationMutation{
+		boundary: b, extension: extension, actorUserID: actorUserID,
+		auditEventID: auditEventID, mode: legacyRuntimeIdentityRollbackPublish,
+	}, nil
+}
+
+func (b *PostgresLifecycleBoundaryRegistries) legacyRuntimeIdentityMaterial(
+	extension extensions.Extension,
+) (*lifecycleRegistryMaterial, error) {
+	if !manifestPublishesIdentity(extension.Manifest) {
+		return nil, nil
+	}
+	if b == nil || b.identity == nil || b.identityStore == nil {
+		return nil, ErrLifecycleRegistryPublicationUnavailable
+	}
+	binding := extensions.LifecycleRuntimeBinding{
+		ExtensionID: extension.ID, ExtensionVersion: extension.Version,
+		PackageDigest: extension.PackageDigest, VersionID: extension.ActiveVersionID,
+	}
+	if manifestIdentityRequiresRuntime(extension.Manifest.Identity) {
+		if b.manager == nil {
+			return nil, ErrLifecycleRegistryPublicationUnavailable
+		}
+		runtime, err := b.manager.ActiveRuntimeInstance(extension.ID)
+		if err != nil || !runtimeInstanceMatchesExtension(runtime, extension) ||
+			!b.manager.RuntimeInstanceAvailable(runtime.Identity) {
+			return nil, fmt.Errorf(
+				"%w: legacy identity runtime for %s is not exact and available",
+				ErrLifecycleRegistryPublicationConflict, extension.ID,
+			)
+		}
+		binding.RuntimeInstanceID = runtime.Identity.InstanceID
+	}
+	publication, err := buildLifecycleIdentityPublication(extension, binding)
+	if err != nil || publication == nil {
+		return nil, err
+	}
+	return &lifecycleRegistryMaterial{
+		extension: extension, binding: binding, identityPublication: publication,
+	}, nil
+}
+
+func (b *PostgresLifecycleBoundaryRegistries) reconcileLegacyRuntimeIdentity(
+	ctx context.Context,
+	extension extensions.Extension,
+	source, target, desired *lifecycleRegistryMaterial,
+	actorUserID int64,
+	auditEventID int64,
+) error {
+	request := LifecycleBoundaryRequest{
+		Operation:       extensions.LifecycleMachineEnable,
+		TargetExtension: extension,
+		ActorUserID:     actorUserID,
+		AuditEventID:    auditEventID,
+	}
+	if desired == nil {
+		request.Operation = extensions.LifecycleMachineDisable
+	}
+	b.publicationMu.Lock()
+	defer b.publicationMu.Unlock()
+	if err := b.validateIdentityTransition(source, target); err != nil {
+		return err
+	}
+	tombstones, err := b.reconcileIdentityDurable(ctx, request, source, target, desired)
+	if err != nil {
+		return err
+	}
+	if err := b.replaceIdentityGraph(ctx, request.TargetExtension.ID, source, target, desired, tombstones); err != nil {
+		if restoreErr := b.restoreLegacyRuntimeIdentityDurable(ctx, request, source, target, desired); restoreErr != nil {
+			return errors.Join(err, fmt.Errorf("restore durable identity publication after process graph failure: %w", restoreErr))
+		}
+		return err
+	}
+	return nil
+}
+
+func (b *PostgresLifecycleBoundaryRegistries) restoreLegacyRuntimeIdentityDurable(
+	ctx context.Context,
+	request LifecycleBoundaryRequest,
+	source, target, desired *lifecycleRegistryMaterial,
+) error {
+	if desired == nil {
+		if source == nil {
+			return nil
+		}
+		request.Operation = extensions.LifecycleMachineEnable
+		_, err := b.reconcileIdentityDurable(ctx, request, source, source, source)
+		return err
+	}
+	request.Operation = extensions.LifecycleMachineDisable
+	_, err := b.reconcileIdentityDurable(ctx, request, nil, desired, nil)
+	_ = target
+	return err
+}
+
+type legacyRuntimeIdentityRollbackMode string
+
+const (
+	legacyRuntimeIdentityRollbackRetire  legacyRuntimeIdentityRollbackMode = "retire"
+	legacyRuntimeIdentityRollbackPublish legacyRuntimeIdentityRollbackMode = "publish"
+)
+
+type legacyRuntimeIdentityPublicationMutation struct {
+	boundary     *PostgresLifecycleBoundaryRegistries
+	extension    extensions.Extension
+	actorUserID  int64
+	auditEventID int64
+	mode         legacyRuntimeIdentityRollbackMode
+}
+
+func (m legacyRuntimeIdentityPublicationMutation) Rollback() error {
+	if m.boundary == nil {
+		return ErrLifecycleRegistryPublicationUnavailable
+	}
+	switch m.mode {
+	case legacyRuntimeIdentityRollbackRetire:
+		_, err := m.boundary.QuarantineRuntimeIdentity(
+			context.Background(), m.extension, m.actorUserID, m.auditEventID,
+		)
+		return err
+	case legacyRuntimeIdentityRollbackPublish:
+		_, err := m.boundary.PublishRuntimeIdentity(
+			context.Background(), m.extension, m.actorUserID, m.auditEventID,
+		)
+		return err
+	default:
+		return ErrLifecycleRegistryPublicationInvalid
+	}
+}
+
 // BuildLifecycleIdentityPublication constructs the exact lifecycle Identity
 // Registry publication used by enable/restore paths. Integration tests call this
 // to prove the same Schema/provider metadata path without driving the full
@@ -400,9 +589,30 @@ func buildLifecycleIdentityPublication(
 			})
 		}
 		for _, provider := range declared.Providers {
+			// 展示元数据由插件 manifest 注入；Host 公共 catalog 再按 Accept-Language 解析。
+			var labelLocales map[string]string
+			var defaultLabel string
+			if provider.Label != nil && !provider.Label.IsEmpty() {
+				labelLocales = cloneLocalizedValues(provider.Label.ByLocale)
+				defaultLabel = strings.TrimSpace(provider.Label.Default)
+				if defaultLabel == "" {
+					defaultLabel = provider.Label.Resolve("en-US")
+				}
+				if defaultLabel != "" {
+					if labelLocales == nil {
+						labelLocales = map[string]string{}
+					}
+					if strings.TrimSpace(labelLocales["en-US"]) == "" {
+						labelLocales["en-US"] = defaultLabel
+					}
+				}
+			}
 			mapped := identityregistry.Provider{
 				ID: provider.ID, ContractVersion: provider.ContractVersion,
 				Kind: provider.Kind, Handler: provider.Handler, Priority: provider.Priority,
+				Label:        defaultLabel,
+				LabelLocales: labelLocales,
+				Icon:         strings.TrimSpace(provider.Icon),
 			}
 			for _, operation := range provider.Operations {
 				mapped.Operations = append(mapped.Operations, identityregistry.ProviderOperation{

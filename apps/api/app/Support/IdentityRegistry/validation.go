@@ -337,6 +337,8 @@ func providerOperationPolicy(kind, name string) (string, bool) {
 	case ProviderKindAuth + ":registration.start", ProviderKindAuth + ":registration.complete",
 		ProviderKindAuth + ":login.start", ProviderKindAuth + ":login.complete",
 		ProviderKindAuth + ":link.start", ProviderKindAuth + ":link.complete",
+		// provider.probe：Host 管理端有界探测；fail_closed，无账户/会话效应。
+		ProviderKindAuth + ":provider.probe",
 		ProviderKindProfile + ":section.update", ProviderKindProfile + ":account.read",
 		ProviderKindProfile + ":account.update",
 		ProviderKindRecovery + ":recovery.start", ProviderKindRecovery + ":recovery.complete",

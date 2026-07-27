@@ -428,6 +428,10 @@ async function loadRegisterPageForSubmitTest(options: { registerError?: unknown 
     'useApiClient',
     'useAuthSession',
     'useAuthReturnNavigation',
+    'useAuthProviders',
+    'useExternalAuthFeedback',
+    'useRoute',
+    'useRouter',
     'useWebOptions',
     'useAsyncData',
     'useSeoMeta',
@@ -460,8 +464,19 @@ async function loadRegisterPageForSubmitTest(options: { registerError?: unknown 
     }),
     () => ({
       returnFromAuth: async () => {},
-      authPageLink: (path: string) => path
+      authPageLink: (path: string) => path,
+      destination: ref('/')
     }),
+    () => ({
+      registrationProviders: ref([]),
+      redirectToProvider: async () => {}
+    }),
+    () => ({
+      alertMessage: ref(''),
+      alertVariant: ref('')
+    }),
+    () => ({ query: {} }),
+    () => ({ replace: async () => {} }),
     () => ({
       siteName: ref('SForum'),
       siteTagline: ref(''),
@@ -535,6 +550,8 @@ async function loadLoginPageForSubmitTest() {
     'useApiClient',
     'useAuthSession',
     'useAuthReturnNavigation',
+    'useAuthProviders',
+    'useExternalAuthFeedback',
     'useWebOptions',
     'useAsyncData',
     'useSeoMeta',
@@ -571,7 +588,16 @@ async function loadLoginPageForSubmitTest() {
       returnFromAuth: async (path?: string) => {
         navigations.push(path || '/control-panel')
       },
-      authPageLink: (path: string) => path
+      authPageLink: (path: string) => path,
+      destination: ref('/control-panel')
+    }),
+    () => ({
+      loginProviders: ref([]),
+      redirectToProvider: async () => {}
+    }),
+    () => ({
+      alertMessage: ref(''),
+      alertVariant: ref('')
     }),
     () => ({
       siteName: ref('SForum'),

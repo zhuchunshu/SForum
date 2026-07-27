@@ -192,7 +192,80 @@ catalogs and governance live under `docs/extensions/v3/`.
   `sforum.auth-github`. Built-in discovery stages it but does not automatically
   trust, enable, configure, or publicly activate it. Core retains all account,
   callback, link, risk/session, and browser-session authority. See
-  `../plans/2026-07-27-github-social-login-builtin-plugin.md`.
+  `../plans/2026-07-27-github-social-login-builtin-plugin.md`. M0 is
+  implemented; **T1A** closed Host callback authorization ordering, legacy
+  complete bypass, live exact-artifact recheck, PKCE + trusted absolute
+  callback URL, and redirectHint validation. **T1B** closed stable
+  `IDENTITY_SUBJECT_HMAC_SECRET` config + production fail-closed validation,
+  bootstrap digest injection (no process-random), concurrent TTL-aligned
+  hashed callback/ticket stores, and registration ticket binding/timestamps.
+  **T1C** closed atomic CAS Host activation (exact live package digest bind),
+  effective public catalog (Safe Mode / artifact drift / disable remove
+  availability), actor-bound activation audit, and truthful probe pending
+  (`ok=false`, never `probe_pending` as success). **T1D** closed session-bound
+  recent-auth, unlink ownership/revision/TX last-method, password
+  upsert/setup, authoritative external registration, and canonical
+  CurrentUser session claims. **T1E** closed modular OpenAPI, Core Route
+  Catalog reserved callback (closed to Route Registry replacement), controller
+  HTTP allowed/denied + lifecycle/two-provider tests, and M0 ADR Host ownership
+  correction. Full M1R Host foundation is complete. **T2/M2A** landed the
+  protected built-in package `extensions/builtin/plugins/sforum-auth-github`
+  (Manifest V3, identity.runtime@1 auth provider, settings/schemas, fake
+  GitHub + protocol tests, build-builtin-plugins entry). **T3/M2B** proved
+  SyncBuiltins exact-artifact staging without Host public activation, release
+  container packaging for `sforum-auth-github`, and Protocol V2 headless E2E
+  (plugin runtime → Host login/registration ticket/link). Default remains not
+  Host-activated for public login. **T4/M3** admin Login Methods UI complete
+  (`identity.provider.manage` may manage auth-plugin settings; page at
+  `/admin/settings/login-methods`). **T5/M4A** public login/callback/
+  registration UI complete: plugin declares identity provider `label`/`icon`;
+  Host public catalog injects localized presentation; Core shells stay vendor-
+  agnostic. **T6/M4B** account-security UI implemented. **T7/M5** added the
+  lifecycle/security matrix, Identity Extension Surface Matrix, bilingual
+  operator/author docs, and start/callback rate limits. Independent review
+  rejected program closure. **T8A done:** registration commit fencing
+  (activation + live artifact recheck, in-TX policy, `user.registered` +
+  transaction-owned audit). **T8B done:** versioned `provider.probe` identity
+  operation + GitHub Probe wiring; admin directory merges package catalog
+  discovery with live Registry (pre-enable discovered, disabled/drifted
+  inspectable; trust/enable authority unchanged); Core admin UI uses Host
+  label/icon only. **T8C done:** production Host/plugin refuse fake-GitHub
+  endpoint overrides; Redis external-auth rate limit TTL is atomic; auth
+  start fails closed on partial wiring; migration 057 no longer touches
+  `password_hash`. **T8D evidence prepared:** retained lifecycle/API/browser
+  evidence, hard 429 assertions, and migration 058 which downgrades only a
+  historical GitHub built-in marked enabled without durable Identity Registry
+  evidence. It preserves the immutable package while resetting executable
+  status and requires normal actor-bound enable. Independent re-review remains
+  mandatory; see
+  `../reports/2026-07-27-github-social-login-t8d-requirements-matrix.md`.
+  **R1 remediation (2026-07-27):** the Host repeats generic exact-contribution
+  and activation validation after auth-provider completion and at the admitted
+  browser-session effect boundary. This protects all executable auth-provider
+  contributions from Safe Mode, activation, and artifact changes without
+  adding vendor branches or changing protected built-in ownership.
+  **R2 remediation (2026-07-27):** the Host's external-registration mutation
+  reads the operator registration policy from the same PostgreSQL transaction
+  as user/link/audit creation. This is Core-owned policy enforcement and does
+  not expose any option or database authority to provider plugins.
+  **R3 remediation (2026-07-27):** external-registration operator audit no
+  longer stores the owning artifact digest. The host preserves extension
+  artifact history in its dedicated immutable records; redacting an account
+  registration audit must not mutate that separate lifecycle evidence.
+  **R4 remediation (2026-07-27):** executable auth-provider disable uses the
+  normal Lifecycle V2 service path. The GitHub reference contributes only a
+  generic no-side-effect lifecycle stream; Host lifecycle ownership drains the
+  exact runtime and retires its live and durable Identity Registry publication.
+  **R5 remediation (2026-07-27):** legacy startup repair checks lifecycle
+  operation and audit evidence as well as the current durable root. This keeps
+  immutable artifacts and never auto-enables code; ambiguous partial history is
+  preserved for explicit operator recovery rather than silently downgraded.
+- Public navigation completion is planned through the existing V3
+  Navigation/Region authority. Plugins declare exact-artifact contributions;
+  Core owns operator placement/defaults/backup and themes own presentation.
+  Direct plugin writes to operator navigation tables or raw DOM injection stay
+  closed. See
+  `../plans/2026-07-27-configurable-public-navigation-platform.md`.
 - Core may own shared payment/entitlement semantics, but gateways and vendor
   webhook behavior remain plugins.
 
@@ -238,6 +311,27 @@ Relevant plans:
 - `../plans/2026-07-22-theme-defined-system-error-pages.md`
 
 ## Settings And Admin UI
+
+### External Auth R7 Recovery
+
+- The plugin runtime coordinator defers application of an older desired full
+  set while a durable lifecycle operation remains open. A lifecycle operation
+  is therefore the only producer of its exact cross-registry transition.
+- Built-in synchronization stages a changed artifact for an enabled executable
+  plugin; it never advances `active_version_id` or emits a runtime publication.
+  Normal enable/upgrade lifecycle remains the sole activation authority.
+- Two narrowly scoped legacy GitHub recovery migrations preserve immutable
+  history while restoring a pre-lifecycle audited active artifact and appending
+  one matching runtime full-set revision. They do not apply when successful
+  lifecycle evidence exists, do not auto-enable code, and do not relax the
+  Identity Registry exact-artifact fence.
+- R1-R7 remediation runtime evidence was completed against isolated PostgreSQL:
+  real lifecycle disable retired the exact provider publication and made both
+  catalog and login start fail closed; real enable, probe, and activation then
+  restored the exact package digest to the public catalog. Artifact drift and
+  Safe Mode also publish no provider. This is **整改完成，等待独立复审**; it is
+  not a self-declared program closure. See
+  `../reports/2026-07-27-external-auth-r1-r7-requirements-evidence-matrix.md`.
 
 - Plugins/themes use one versioned settings document. Recommended defaults and
   one-click reset are Host-rendered.
@@ -292,9 +386,12 @@ Relevant plans:
 
 1. Execute `../plans/2026-07-22-v3-production-rewire-honesty-remediation.md`
    M0-M8 with production-path evidence.
-2. Keep APILTS compatibility shims until their removal gate, date, and live
+2. Execute public navigation M0 before extending `forum.nav.items`; prove and
+   document its production bridge to Navigation Registry instead of adding
+   another contribution stack.
+3. Keep APILTS compatibility shims until their removal gate, date, and live
    zero-use evidence all pass.
-3. Keep system error pages plugin-closed and L0/L1-only when adding future
+4. Keep system error pages plugin-closed and L0/L1-only when adding future
    status families or browser-facing producers.
-4. Keep new product integrations on stable provider/registry contracts and
+5. Keep new product integrations on stable provider/registry contracts and
    regenerate the affected Extension Surface Matrix.

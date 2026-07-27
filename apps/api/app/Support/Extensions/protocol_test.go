@@ -78,6 +78,60 @@ func TestBuildPluginProcessEnvOmitsHostSecrets(t *testing.T) {
 	}
 }
 
+// T8C：production 宿主不得向插件透传 fake-GitHub 端点覆盖。
+func TestBuildPluginProcessEnvStripsGitHubEndpointOverridesInProduction(t *testing.T) {
+	env := buildPluginProcessEnv([]string{
+		"APP_ENV=production",
+		"PATH=/usr/bin",
+		"SFORUM_AUTH_GITHUB_AUTH_URL=http://127.0.0.1:9/oauth/authorize",
+		"SFORUM_AUTH_GITHUB_TOKEN_URL=http://127.0.0.1:9/oauth/token",
+		"SFORUM_AUTH_GITHUB_API_URL=http://127.0.0.1:9/api",
+		"SFORUM_SETTING_CLIENT_ID=cid",
+		"SFORUM_SETTING_CLIENT_SECRET=csecret",
+	})
+	joined := strings.Join(env, "\n")
+	for _, deny := range []string{
+		"SFORUM_AUTH_GITHUB_AUTH_URL=",
+		"SFORUM_AUTH_GITHUB_TOKEN_URL=",
+		"SFORUM_AUTH_GITHUB_API_URL=",
+	} {
+		if strings.Contains(joined, deny) {
+			t.Fatalf("production must strip %q, got %v", deny, env)
+		}
+	}
+	for _, want := range []string{"APP_ENV=production", "PATH=/usr/bin", "SFORUM_SETTING_CLIENT_ID=cid"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("expected %q retained, got %v", want, env)
+		}
+	}
+}
+
+// T8C：非 production 仍允许注入 fake-GitHub 端点（本地/E2E）。
+func TestBuildPluginProcessEnvAllowsGitHubEndpointOverridesOutsideProduction(t *testing.T) {
+	for _, appEnv := range []string{"development", "test", "testing", ""} {
+		host := []string{
+			"PATH=/usr/bin",
+			"SFORUM_AUTH_GITHUB_AUTH_URL=http://127.0.0.1:9/oauth/authorize",
+			"SFORUM_AUTH_GITHUB_TOKEN_URL=http://127.0.0.1:9/oauth/token",
+			"SFORUM_AUTH_GITHUB_API_URL=http://127.0.0.1:9/api",
+		}
+		if appEnv != "" {
+			host = append(host, "APP_ENV="+appEnv)
+		}
+		env := buildPluginProcessEnv(host)
+		joined := strings.Join(env, "\n")
+		for _, want := range []string{
+			"SFORUM_AUTH_GITHUB_AUTH_URL=http://127.0.0.1:9/oauth/authorize",
+			"SFORUM_AUTH_GITHUB_TOKEN_URL=http://127.0.0.1:9/oauth/token",
+			"SFORUM_AUTH_GITHUB_API_URL=http://127.0.0.1:9/api",
+		} {
+			if !strings.Contains(joined, want) {
+				t.Fatalf("APP_ENV=%q must allow %q, got %v", appEnv, want, env)
+			}
+		}
+	}
+}
+
 func TestProtocolStarterRejectsUnsupportedRPC(t *testing.T) {
 	starter := NewProtocolStarter(ProtocolStarterConfig{})
 	extension := runtimeExtension("bad.protocol")

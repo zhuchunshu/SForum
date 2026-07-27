@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["providerSubject"],
+  "properties": {
+    "providerSubject": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320,
+      "description": "Stable GitHub numeric user id as decimal string. Host computes keyed HMAC digest; plugin must not emit a digest."
+    },
+    "displayName": { "type": "string", "maxLength": 200 },
+    "emailHint": { "type": "string", "maxLength": 320 }
+  },
+  "additionalProperties": false
+}

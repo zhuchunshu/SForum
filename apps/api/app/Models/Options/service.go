@@ -2,11 +2,14 @@ package options
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	audit "github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
@@ -459,6 +462,42 @@ func (s *Service) RegistrationEnabled(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
+type registrationPolicyTxStore interface {
+	RegistrationPolicyValuesTx(context.Context, pgx.Tx) (map[string]string, error)
+}
+
+// RegistrationEnabledTx reads the authoritative operator policy in the caller's
+// PostgreSQL transaction. It bypasses the process cache because the caller is
+// about to create an account, role, link and audit record in that same boundary.
+func (s *Service) RegistrationEnabledTx(ctx context.Context, tx pgx.Tx) (bool, error) {
+	store, ok := s.store.(registrationPolicyTxStore)
+	if !ok {
+		return false, fmt.Errorf("options store does not support transactional registration policy")
+	}
+	rows, err := store.RegistrationPolicyValuesTx(ctx, tx)
+	if err != nil {
+		return false, err
+	}
+	values := s.defaultValues()
+	for name, rawValue := range rows {
+		name = normalizeName(name)
+		if !registrationPolicyOptionName(name) {
+			continue
+		}
+		if value, ok := normalizeOptionValue(name, rawValue); ok {
+			values[name] = value
+		}
+	}
+	values = s.coerceValueSet(values)
+	if mode, ok := normalizeRegistrationMode(values[NameIdentityRegistrationMode]); ok && mode != "open" {
+		return false, nil
+	}
+	if value, ok := normalizeEnabledOption(values[NameIdentityRegistrationEnabled]); ok {
+		return isEnabledOption(value), nil
+	}
+	return true, nil
+}
+
 func (s *Service) InternalValues(ctx context.Context) (map[string]string, error) {
 	return s.loadMap(ctx)
 }
@@ -542,6 +581,7 @@ func (s *Service) UpdateMany(ctx context.Context, actor identity.Actor, inputs [
 		return nil, ErrInvalidOption
 	}
 
+	storedInputs := make([]UpdateInput, 0, len(pending))
 	changedNames := make([]string, 0, len(pending))
 	for _, name := range allOptionNames() {
 		value, ok := pending[name]
@@ -556,10 +596,22 @@ func (s *Service) UpdateMany(ctx context.Context, actor identity.Actor, inputs [
 			}
 			value = encrypted
 		}
-		if _, err := s.store.Upsert(ctx, UpdateInput{Name: name, Value: value}); err != nil {
+		storedInputs = append(storedInputs, UpdateInput{Name: name, Value: value})
+		changedNames = append(changedNames, name)
+	}
+	// Only stores that explicitly support batching receive this path. The
+	// PostgreSQL implementation makes registration enabled/mode atomic while
+	// preserving the existing behavior of ordinary option stores.
+	if batchStore, ok := s.store.(BatchUpsertStore); ok {
+		if _, err := batchStore.UpsertMany(ctx, storedInputs); err != nil {
 			return nil, err
 		}
-		changedNames = append(changedNames, name)
+	} else {
+		for _, input := range storedInputs {
+			if _, err := s.store.Upsert(ctx, input); err != nil {
+				return nil, err
+			}
+		}
 	}
 	// F1.4：敏感设置变更写审计（不记录密钥明文，仅名称列表）。
 	if s.auditor != nil && len(changedNames) > 0 {
@@ -949,58 +1001,58 @@ func coercePasswordPolicyOptions(coerced, defaults map[string]string) {
 // coerceMailOptions 确保邮件选项始终落在推荐默认值上，避免无效 provider/encryption。
 func normalizedDefaults(defaults Defaults) map[string]string {
 	values := map[string]string{
-		NameSiteName:                         "SForum",
-		NameSiteURL:                          "http://127.0.0.1:3000",
-		NameSiteTagline:                      "",
-		NameSiteAdminEmail:                   "",
-		NameSiteDefaultLocale:                localization.DefaultLocale,
-		NameSiteSupportedLocales:             "zh-CN,en-US",
-		NameSiteTimezone:                     recommendedSiteTimezone,
-		NameSiteDateFormat:                   recommendedSiteDateFormat,
-		NameSiteTimeFormat:                   recommendedSiteTimeFormat,
-		NameSiteStartOfWeek:                  strconv.Itoa(recommendedSiteStartOfWeek),
-		NameHumanVerificationProvider:        humanverify.ProviderDisabled,
-		NameHumanVerificationRegister:        enabledOptionValue(true),
-		NameHumanVerificationPasswordReset:   enabledOptionValue(false),
-		NameHumanVerificationLoginRisk:       enabledOptionValue(false),
-		NameHumanVerificationPostRisk:        enabledOptionValue(false),
-		NameAltchaSecret:                     "",
-		NameAltchaChallengeTTL:               (10 * time.Minute).String(),
-		NameAltchaCost:                       "1000",
-		NameAltchaWidgetType:                 "checkbox",
-		NameAltchaWidgetAuto:                 "off",
-		NameAltchaWidgetDisplay:              "standard",
-		NameAltchaWidgetHideLogo:             enabledOptionValue(true),
-		NameAltchaWidgetHideFooter:           enabledOptionValue(true),
-		NameAltchaWidgetWorkers:              "2",
-		NameAltchaWidgetMinDuration:          "500",
-		NameAppearanceTheme:                  "pine_teal",
-		NameFooterCopyrightZHCN:              "© {year} {siteName}。保留所有权利。",
-		NameFooterCopyrightENUS:              "© {year} {siteName}. All rights reserved.",
-		NameFooterLinks:                      defaultFooterLinksValue(),
-		NameIdentityPasswordMinLength:        strconv.Itoa(identity.RecommendedPasswordMinLength),
-		NameIdentityPasswordMaxLength:        strconv.Itoa(identity.RecommendedPasswordMaxLength),
-		NameIdentityPasswordRequireLowercase: enabledOptionValue(false),
-		NameIdentityPasswordRequireUppercase: enabledOptionValue(false),
-		NameIdentityPasswordRequireNumber:    enabledOptionValue(false),
-		NameIdentityPasswordRequireSymbol:    enabledOptionValue(false),
-		NameIdentityRegistrationEnabled:      enabledOptionValue(true),
-		NameIdentitySessionsMaxDevices:       strconv.Itoa(identity.RecommendedMaxDevices),
-		NameIdentitySessionsKeepDays:         strconv.Itoa(identity.RecommendedSessionsKeepDays),
-		NameForumDefaultCategorySlug:         "general",
-		NameForumTagCreationMode:             "controlled",
-		NameForumTagPublicPages:              enabledOptionValue(true),
-		NameForumTagMinPerTopic:              "0",
-		NameForumTagMaxPerTopic:              "5",
-		NameForumTopicsPerPage:               "20",
-		NameForumCommentsPerPage:             "20",
-		NameForumTopicTitleMinRunes:          "2",
-		NameForumTopicTitleMaxRunes:          "100",
-		NameForumTopicContentMinRunes:        "0",
-		NameForumTopicContentMaxRunes:        "50000",
-		NameForumTopicEditWindowMinutes:      "0",
-		NameForumTopicCooldownSeconds:        "0",
-		NameForumDailyTopicLimit:             "0",
+		NameSiteName:                            "SForum",
+		NameSiteURL:                             "http://127.0.0.1:3000",
+		NameSiteTagline:                         "",
+		NameSiteAdminEmail:                      "",
+		NameSiteDefaultLocale:                   localization.DefaultLocale,
+		NameSiteSupportedLocales:                "zh-CN,en-US",
+		NameSiteTimezone:                        recommendedSiteTimezone,
+		NameSiteDateFormat:                      recommendedSiteDateFormat,
+		NameSiteTimeFormat:                      recommendedSiteTimeFormat,
+		NameSiteStartOfWeek:                     strconv.Itoa(recommendedSiteStartOfWeek),
+		NameHumanVerificationProvider:           humanverify.ProviderDisabled,
+		NameHumanVerificationRegister:           enabledOptionValue(true),
+		NameHumanVerificationPasswordReset:      enabledOptionValue(false),
+		NameHumanVerificationLoginRisk:          enabledOptionValue(false),
+		NameHumanVerificationPostRisk:           enabledOptionValue(false),
+		NameAltchaSecret:                        "",
+		NameAltchaChallengeTTL:                  (10 * time.Minute).String(),
+		NameAltchaCost:                          "1000",
+		NameAltchaWidgetType:                    "checkbox",
+		NameAltchaWidgetAuto:                    "off",
+		NameAltchaWidgetDisplay:                 "standard",
+		NameAltchaWidgetHideLogo:                enabledOptionValue(true),
+		NameAltchaWidgetHideFooter:              enabledOptionValue(true),
+		NameAltchaWidgetWorkers:                 "2",
+		NameAltchaWidgetMinDuration:             "500",
+		NameAppearanceTheme:                     "pine_teal",
+		NameFooterCopyrightZHCN:                 "© {year} {siteName}。保留所有权利。",
+		NameFooterCopyrightENUS:                 "© {year} {siteName}. All rights reserved.",
+		NameFooterLinks:                         defaultFooterLinksValue(),
+		NameIdentityPasswordMinLength:           strconv.Itoa(identity.RecommendedPasswordMinLength),
+		NameIdentityPasswordMaxLength:           strconv.Itoa(identity.RecommendedPasswordMaxLength),
+		NameIdentityPasswordRequireLowercase:    enabledOptionValue(false),
+		NameIdentityPasswordRequireUppercase:    enabledOptionValue(false),
+		NameIdentityPasswordRequireNumber:       enabledOptionValue(false),
+		NameIdentityPasswordRequireSymbol:       enabledOptionValue(false),
+		NameIdentityRegistrationEnabled:         enabledOptionValue(true),
+		NameIdentitySessionsMaxDevices:          strconv.Itoa(identity.RecommendedMaxDevices),
+		NameIdentitySessionsKeepDays:            strconv.Itoa(identity.RecommendedSessionsKeepDays),
+		NameForumDefaultCategorySlug:            "general",
+		NameForumTagCreationMode:                "controlled",
+		NameForumTagPublicPages:                 enabledOptionValue(true),
+		NameForumTagMinPerTopic:                 "0",
+		NameForumTagMaxPerTopic:                 "5",
+		NameForumTopicsPerPage:                  "20",
+		NameForumCommentsPerPage:                "20",
+		NameForumTopicTitleMinRunes:             "2",
+		NameForumTopicTitleMaxRunes:             "100",
+		NameForumTopicContentMinRunes:           "0",
+		NameForumTopicContentMaxRunes:           "50000",
+		NameForumTopicEditWindowMinutes:         "0",
+		NameForumTopicCooldownSeconds:           "0",
+		NameForumDailyTopicLimit:                "0",
 		NameForumCommentMinRunes:                "1",
 		NameForumCommentMaxRunes:                "10000",
 		NameForumCommentMaxNestingDepth:         "5",
@@ -1009,67 +1061,67 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameForumCommentCooldownSeconds:         "0",
 		NameForumDailyCommentLimit:              "0",
 		NameForumExcerptRuneLimit:               "180",
-		NameSEOMetaTitleTemplate:             "",
-		NameSEOMetaDescription:               "",
-		NameSEOMetaKeywords:                  "",
-		NameSEOOGImageURL:                    "",
-		NameSEOTwitterCard:                   "summary_large_image",
-		NameSEOTwitterSite:                   "",
-		NameSEOAllowIndexing:                 enabledOptionValue(true),
-		NameSEOGoogleVerification:            "",
-		NameSEOBingVerification:              "",
-		NameSEOBaiduVerification:             "",
-		NameSEOYandexVerification:            "",
-		NameSEORobotsExtraAllow:              "",
-		NameSEORobotsExtraDisallow:           "",
-		NameSEORobotsBlockAIBots:             enabledOptionValue(false),
-		NameSEORobotsBlockNonSEOBots:         enabledOptionValue(false),
-		NameSEOSitemapEnabled:                enabledOptionValue(true),
-		NameSEOSitemapIncludeStaticPages:     enabledOptionValue(true),
-		NameSEOSitemapIncludeForumContent:    enabledOptionValue(false),
-		NameSEOSchemaOrgEnabled:              enabledOptionValue(true),
-		NameSEOSchemaOrgSearchAction:         enabledOptionValue(true),
-		NameSEOSchemaOrgDiscussion:           enabledOptionValue(true),
-		NameSEOSchemaOrgOrganizationLogo:     "",
-		NameSEOTopicURLMode:                  "id_slug",
-		NameAttachmentProvider:               storage.ProviderLocal,
-		NameAttachmentUploadEnabled:          enabledOptionValue(true),
-		NameAttachmentPathTemplate:           "{yyyy}/{mm}/{dd}/{public_id}{ext}",
-		NameAttachmentPublicBaseURL:          "",
-		NameAttachmentMaxFileSizeMB:          "20",
-		NameAttachmentAllowedExtensions:      ".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.zip",
-		NameAttachmentAllowedMIMETypes:       "image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,application/zip",
-		NameAttachmentDefaultVisibility:      "public",
-		NameAttachmentCleanupOrphanDays:      "30",
-		NameAttachmentLocalRoot:              "storage/app/attachments",
-		NameAttachmentLocalPublicPrefix:      "",
-		NameAttachmentAliyunEndpoint:         "",
-		NameAttachmentAliyunBucket:           "",
-		NameAttachmentAliyunRegion:           "",
-		NameAttachmentAliyunAccessKeyID:      "",
-		NameAttachmentAliyunAccessKeySecret:  "",
-		NameAttachmentTencentRegion:          "",
-		NameAttachmentTencentBucket:          "",
-		NameAttachmentTencentSecretID:        "",
-		NameAttachmentTencentSecretKey:       "",
-		NameAttachmentTencentCDNDomain:       "",
-		NameAttachmentFTPHost:                "",
-		NameAttachmentFTPPort:                "21",
-		NameAttachmentFTPUsername:            "",
-		NameAttachmentFTPPassword:            "",
-		NameAttachmentFTPRootPath:            "/",
-		NameAttachmentFTPPassive:             enabledOptionValue(true),
-		NameAttachmentFTPExplicitTLS:         enabledOptionValue(false),
-		NameAttachmentFTPPublicBaseURL:       "",
-		NameAttachmentSFTPHost:               "",
-		NameAttachmentSFTPPort:               "22",
-		NameAttachmentSFTPUsername:           "",
-		NameAttachmentSFTPPassword:           "",
-		NameAttachmentSFTPPrivateKey:         "",
-		NameAttachmentSFTPPassphrase:         "",
-		NameAttachmentSFTPRootPath:           "/",
-		NameAttachmentSFTPHostKeyFingerprint: "",
-		NameAttachmentSFTPPublicBaseURL:      "",
+		NameSEOMetaTitleTemplate:                "",
+		NameSEOMetaDescription:                  "",
+		NameSEOMetaKeywords:                     "",
+		NameSEOOGImageURL:                       "",
+		NameSEOTwitterCard:                      "summary_large_image",
+		NameSEOTwitterSite:                      "",
+		NameSEOAllowIndexing:                    enabledOptionValue(true),
+		NameSEOGoogleVerification:               "",
+		NameSEOBingVerification:                 "",
+		NameSEOBaiduVerification:                "",
+		NameSEOYandexVerification:               "",
+		NameSEORobotsExtraAllow:                 "",
+		NameSEORobotsExtraDisallow:              "",
+		NameSEORobotsBlockAIBots:                enabledOptionValue(false),
+		NameSEORobotsBlockNonSEOBots:            enabledOptionValue(false),
+		NameSEOSitemapEnabled:                   enabledOptionValue(true),
+		NameSEOSitemapIncludeStaticPages:        enabledOptionValue(true),
+		NameSEOSitemapIncludeForumContent:       enabledOptionValue(false),
+		NameSEOSchemaOrgEnabled:                 enabledOptionValue(true),
+		NameSEOSchemaOrgSearchAction:            enabledOptionValue(true),
+		NameSEOSchemaOrgDiscussion:              enabledOptionValue(true),
+		NameSEOSchemaOrgOrganizationLogo:        "",
+		NameSEOTopicURLMode:                     "id_slug",
+		NameAttachmentProvider:                  storage.ProviderLocal,
+		NameAttachmentUploadEnabled:             enabledOptionValue(true),
+		NameAttachmentPathTemplate:              "{yyyy}/{mm}/{dd}/{public_id}{ext}",
+		NameAttachmentPublicBaseURL:             "",
+		NameAttachmentMaxFileSizeMB:             "20",
+		NameAttachmentAllowedExtensions:         ".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.zip",
+		NameAttachmentAllowedMIMETypes:          "image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,application/zip",
+		NameAttachmentDefaultVisibility:         "public",
+		NameAttachmentCleanupOrphanDays:         "30",
+		NameAttachmentLocalRoot:                 "storage/app/attachments",
+		NameAttachmentLocalPublicPrefix:         "",
+		NameAttachmentAliyunEndpoint:            "",
+		NameAttachmentAliyunBucket:              "",
+		NameAttachmentAliyunRegion:              "",
+		NameAttachmentAliyunAccessKeyID:         "",
+		NameAttachmentAliyunAccessKeySecret:     "",
+		NameAttachmentTencentRegion:             "",
+		NameAttachmentTencentBucket:             "",
+		NameAttachmentTencentSecretID:           "",
+		NameAttachmentTencentSecretKey:          "",
+		NameAttachmentTencentCDNDomain:          "",
+		NameAttachmentFTPHost:                   "",
+		NameAttachmentFTPPort:                   "21",
+		NameAttachmentFTPUsername:               "",
+		NameAttachmentFTPPassword:               "",
+		NameAttachmentFTPRootPath:               "/",
+		NameAttachmentFTPPassive:                enabledOptionValue(true),
+		NameAttachmentFTPExplicitTLS:            enabledOptionValue(false),
+		NameAttachmentFTPPublicBaseURL:          "",
+		NameAttachmentSFTPHost:                  "",
+		NameAttachmentSFTPPort:                  "22",
+		NameAttachmentSFTPUsername:              "",
+		NameAttachmentSFTPPassword:              "",
+		NameAttachmentSFTPPrivateKey:            "",
+		NameAttachmentSFTPPassphrase:            "",
+		NameAttachmentSFTPRootPath:              "/",
+		NameAttachmentSFTPHostKeyFingerprint:    "",
+		NameAttachmentSFTPPublicBaseURL:         "",
 		// 邮件：开发默认 dev_log，配合 Mailpit/控制台调试；生产未配置 SMTP 时回退 noop。
 		// 头像：默认 identicon（离线可用，符合"开箱即用"原则）；上传与压缩默认开启。
 		NameAvatarAllowUpload:           enabledOptionValue(true),

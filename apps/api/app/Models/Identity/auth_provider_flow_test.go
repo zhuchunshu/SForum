@@ -39,16 +39,22 @@ func TestAuthProviderFlowStartAndLoginComplete(t *testing.T) {
 	complete, err := flow.Complete(context.Background(), AuthProviderCompleteInput{
 		ProviderID: "demo.auth", Operation: AuthOperationLoginComplete,
 		CorrelationID: "corr-1", CompletionToken: "code-1",
+		CodeVerifier: "v", CallbackURL: "https://forum.example.com/api/v1/auth/providers/demo.auth/callback",
 	})
-	if err != nil || complete.SubjectDigest != strings.Repeat("a", 64) || complete.Link != nil {
+	if err != nil || complete.SubjectDigest != strings.Repeat("a", 64) {
 		t.Fatalf("complete=%#v err=%v", complete, err)
+	}
+	if invoker.lastInput["codeVerifier"] != "v" || invoker.lastInput["callbackUrl"] == "" {
+		t.Fatalf("PKCE/callback not passed: %#v", invoker.lastInput)
 	}
 	if invoker.lastOperation != AuthOperationLoginComplete || invoker.lastActorUserID != 0 {
 		t.Fatalf("invoker state=%#v", invoker)
 	}
 }
 
-func TestAuthProviderFlowLinkCompleteWritesExternalLink(t *testing.T) {
+// TestAuthProviderFlowLinkCompleteIsAssertionOnly T1A：link.complete 只返回断言，
+// 绝不写入 external link（持久化必须在 actor/recent-auth/artifact 校验之后）。
+func TestAuthProviderFlowLinkCompleteIsAssertionOnly(t *testing.T) {
 	provider := testAuthProviderContribution("demo.auth", []string{AuthOperationLinkComplete})
 	source := &fakeAuthProviderSource{provider: provider}
 	links := &fakeExternalLinkStore{}
@@ -64,14 +70,27 @@ func TestAuthProviderFlowLinkCompleteWritesExternalLink(t *testing.T) {
 		ActorUserID: 42, TargetUserID: 42,
 		CorrelationID: "corr-link", CompletionToken: "code-link",
 		IdempotencyKey: "idem-link-1",
+		CodeVerifier:   "verifier-host",
+		CallbackURL:    "https://forum.example.com/api/v1/auth/providers/demo.auth/callback",
 	})
-	if err != nil || result.Link == nil || result.Link.Link.UserID != 42 {
-		t.Fatalf("result=%#v err=%v", result, err)
+	if err != nil {
+		t.Fatalf("complete err=%v", err)
 	}
-	if links.lastInput.ProviderOperation != AuthOperationLinkComplete ||
-		links.lastInput.ProviderSubjectDigest != strings.Repeat("b", 64) ||
-		links.lastInput.ActorUserID != 42 || links.fenceCalled != 1 {
-		t.Fatalf("link store=%#v", links)
+	if result.SubjectDigest != strings.Repeat("b", 64) {
+		t.Fatalf("expected assertion digest, got %#v", result)
+	}
+	if links.lastInput.UserID != 0 || links.fenceCalled != 0 {
+		t.Fatalf("link store must not be written by AuthProviderFlow.Complete: %#v", links)
+	}
+	// Host PKCE verifier 与绝对 callback URL 必须传给插件。
+	if invoker.lastInput["codeVerifier"] != "verifier-host" {
+		t.Fatalf("codeVerifier not passed: %#v", invoker.lastInput)
+	}
+	if invoker.lastInput["callbackUrl"] != "https://forum.example.com/api/v1/auth/providers/demo.auth/callback" {
+		t.Fatalf("callbackUrl not passed: %#v", invoker.lastInput)
+	}
+	if result.OwnerPackageDigest != strings.Repeat("1", 64) {
+		t.Fatalf("live package digest missing: %#v", result)
 	}
 }
 
@@ -159,12 +178,13 @@ func (f *fakeAuthProviderSource) ResolveAuthProvider(context.Context, string) (i
 }
 
 type fakeAuthProviderInvoker struct {
-	startOutput      map[string]any
-	completeOutput   map[string]any
-	err              error
-	lastOperation    string
-	lastActorUserID  int64
-	lastInput        map[string]any
+	startOutput     map[string]any
+	completeOutput  map[string]any
+	probeOutput     map[string]any
+	err             error
+	lastOperation   string
+	lastActorUserID int64
+	lastInput       map[string]any
 }
 
 func (f *fakeAuthProviderInvoker) InvokeExact(
@@ -182,7 +202,10 @@ func (f *fakeAuthProviderInvoker) InvokeExact(
 		return f.err
 	}
 	output := f.startOutput
-	if strings.Contains(operation, "complete") {
+	switch {
+	case operation == AuthOperationProviderProbe:
+		output = f.probeOutput
+	case strings.Contains(operation, "complete"):
 		output = f.completeOutput
 	}
 	return accept(context.Background(), output, func() error { return nil })

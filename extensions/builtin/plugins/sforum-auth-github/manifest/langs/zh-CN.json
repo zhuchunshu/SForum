@@ -1,0 +1,11 @@
+{
+  "name": "GitHub 登录",
+  "description": "受保护的内置 GitHub OAuth 登录协议适配器。Host 拥有账户、回调状态与会话权威；本插件仅验证 GitHub 身份。",
+  "author": { "name": "SForum" },
+  "authProvider": {
+    "sforum.auth-github.auth": {
+      "label": "GitHub",
+      "continueWith": "使用 GitHub 继续"
+    }
+  }
+}

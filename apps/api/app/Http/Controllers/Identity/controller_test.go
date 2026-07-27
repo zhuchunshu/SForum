@@ -36,6 +36,9 @@ func (passwordResetFakeStore) FindRegistrationConflicts(context.Context, string,
 func (passwordResetFakeStore) GetCurrentUser(context.Context, int64) (identity.CurrentUser, error) {
 	return identity.CurrentUser{}, identity.ErrCredentialNotFound
 }
+func (passwordResetFakeStore) GetCurrentUserByEmail(context.Context, string) (identity.CurrentUser, error) {
+	return identity.CurrentUser{}, identity.ErrUserNotFound
+}
 func (passwordResetFakeStore) GetCredentialByLogin(_ context.Context, _ string) (identity.CredentialUser, error) {
 	// 未知邮箱：静默成功，passwordReset 流程不创建令牌，聚焦测试 HV 校验链路。
 	return identity.CredentialUser{}, identity.ErrCredentialNotFound

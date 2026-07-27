@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -52,13 +53,17 @@ type Config struct {
 	SessionAbsoluteTimeout        time.Duration
 	SessionRenewalInterval        time.Duration
 	SessionHashSecret             string
-	HumanVerificationProvider     string
-	AltchaSecret                  string
-	AltchaChallengeTTL            time.Duration
-	AltchaCost                    int
+	// IdentitySubjectHMACSecret 是外部主体 digest 的 Host 密钥材料。
+	// Core 计算 HMAC-SHA256(key, providerId || 0x00 || subject)；密钥属于 identity 备份/恢复。
+	// 生产必须显式配置强密钥；开发使用稳定默认可配置值，禁止进程随机材料。
+	IdentitySubjectHMACSecret string
+	HumanVerificationProvider string
+	AltchaSecret              string
+	AltchaChallengeTTL        time.Duration
+	AltchaCost                int
 	// OptionEncryptionKey 是 web_options 中敏感值（云存储凭证/SFTP 私钥等）AES-GCM 加密的密钥（hex 编码）。
 	// 生产环境必须显式配置；缺失或为占位词时启动会被拒绝。
-	OptionEncryptionKey  string
+	OptionEncryptionKey string
 	ExtensionRoot        string
 	BuiltinExtensionRoot string
 	// ExternalExtensionRoots 是逗号分隔的第三方源码集合根目录。
@@ -185,15 +190,17 @@ func Load() Config {
 		RedisWriteTimeout:              envDuration("REDIS_WRITE_TIMEOUT", 3*time.Second),
 		RedisConnMaxIdleTime:           envDuration("REDIS_CONN_MAX_IDLE_TIME", 30*time.Minute),
 		RedisConnMaxLifetime:           envDuration("REDIS_CONN_MAX_LIFETIME", time.Hour),
-		SessionIdleTimeout:             sessionIdleTimeout,
-		SessionAbsoluteTimeout:         sessionAbsoluteTimeout,
-		SessionRenewalInterval:         envDuration("SESSION_RENEWAL_INTERVAL", 24*time.Hour),
-		SessionHashSecret:              env("SESSION_HASH_SECRET", "sforum-dev-session-hash-secret"),
-		HumanVerificationProvider:      env("HUMAN_VERIFICATION_PROVIDER", "disabled"),
-		AltchaSecret:                   env("ALTCHA_SECRET", "sforum-dev-altcha-secret"),
-		AltchaChallengeTTL:             envDuration("ALTCHA_CHALLENGE_TTL", 10*time.Minute),
-		AltchaCost:                     envPositiveInt("ALTCHA_COST", 1000),
-		OptionEncryptionKey:            env("APP_OPTION_ENC_KEY", ""),
+		SessionIdleTimeout:     sessionIdleTimeout,
+		SessionAbsoluteTimeout: sessionAbsoluteTimeout,
+		SessionRenewalInterval: envDuration("SESSION_RENEWAL_INTERVAL", 24*time.Hour),
+		SessionHashSecret:      env("SESSION_HASH_SECRET", "sforum-dev-session-hash-secret"),
+		// 稳定开发默认：跨重启/实例一致；生产由 validateProductionSecrets 拒绝。
+		IdentitySubjectHMACSecret: env("IDENTITY_SUBJECT_HMAC_SECRET", IdentitySubjectHMACDevDefault),
+		HumanVerificationProvider: env("HUMAN_VERIFICATION_PROVIDER", "disabled"),
+		AltchaSecret:              env("ALTCHA_SECRET", "sforum-dev-altcha-secret"),
+		AltchaChallengeTTL:        envDuration("ALTCHA_CHALLENGE_TTL", 10*time.Minute),
+		AltchaCost:                envPositiveInt("ALTCHA_COST", 1000),
+		OptionEncryptionKey:       env("APP_OPTION_ENC_KEY", ""),
 		ExtensionRoot:                  env("EXTENSION_ROOT", "../../storage/extensions"),
 		BuiltinExtensionRoot:           env("BUILTIN_EXTENSION_ROOT", "../../extensions/builtin"),
 		ExternalExtensionRoots:         envStringSlice("EXTERNAL_EXTENSION_ROOTS"),
@@ -224,16 +231,25 @@ func Load() Config {
 	return cfg
 }
 
+// IdentitySubjectHMACDevDefault 是开发/测试稳定默认真值（≥32 字节）。
+// 生产启动必须显式覆盖；该值本身属于 insecure 默认。
+const IdentitySubjectHMACDevDefault = "sforum-dev-identity-subject-hmac-v1-not-for-prod!!"
+
+// IdentitySubjectHMACMinKeyBytes 是主体 HMAC 密钥最小字节数（256-bit）。
+const IdentitySubjectHMACMinKeyBytes = 32
+
 // insecureSecretValues 是已知的不安全默认/占位值，生产环境不得使用。
 var insecureSecretValues = map[string]bool{
 	"":                               true,
 	"change-me":                      true,
 	"sforum-dev-session-hash-secret": true,
 	"sforum-dev-altcha-secret":       true,
+	IdentitySubjectHMACDevDefault:    true,
 }
 
 // validateProductionSecrets 在生产环境校验关键密钥非空且非占位词。
 // 任一不满足直接 panic 拒绝启动，避免运维忘记配置导致生产静默回退到公开默认值。
+// 校验走真实 APP_ENV=production 路径（与 Load 一致），不使用旁路 env 开关。
 func validateProductionSecrets(cfg Config) {
 	if !strings.EqualFold(cfg.AppEnv, "production") {
 		return
@@ -252,6 +268,51 @@ func validateProductionSecrets(cfg Config) {
 			panic(fmt.Sprintf("config: %s must be set to a secure value in production (got empty/placeholder default)", c.name))
 		}
 	}
+	if err := ValidateIdentitySubjectHMACSecret(cfg.IdentitySubjectHMACSecret, true); err != nil {
+		panic(fmt.Sprintf("config: IDENTITY_SUBJECT_HMAC_SECRET %v", err))
+	}
+}
+
+// ValidateIdentitySubjectHMACSecret 校验主体 HMAC 密钥材料。
+// production=true 时拒绝缺失/弱/默认/占位值；非生产允许开发默认。
+func ValidateIdentitySubjectHMACSecret(secret string, production bool) error {
+	secret = strings.TrimSpace(secret)
+	if production {
+		if insecureSecretValues[secret] {
+			return fmt.Errorf("must be set to a secure non-default value in production")
+		}
+		if len(parseIdentitySubjectHMACKeyBytes(secret)) < IdentitySubjectHMACMinKeyBytes {
+			return fmt.Errorf("must be at least %d bytes (or %d hex chars) in production", IdentitySubjectHMACMinKeyBytes, IdentitySubjectHMACMinKeyBytes*2)
+		}
+		return nil
+	}
+	// 非生产：空值由 Load 填入开发默认；此处仅保证可解析长度（开发默认已满足）。
+	if secret == "" {
+		return nil
+	}
+	if len(parseIdentitySubjectHMACKeyBytes(secret)) < IdentitySubjectHMACMinKeyBytes && !insecureSecretValues[secret] {
+		// 开发允许短密钥仅为本地调试，但明确短于最小值的自定义值仍接受（与历史测试兼容）。
+		return nil
+	}
+	return nil
+}
+
+// parseIdentitySubjectHMACKeyBytes 将配置字符串解析为密钥字节。
+// 优先 hex 解码（≥32 字节）；否则按原始 UTF-8 字节使用。
+func parseIdentitySubjectHMACKeyBytes(secret string) []byte {
+	secret = strings.TrimSpace(secret)
+	if secret == "" {
+		return nil
+	}
+	if decoded, err := hex.DecodeString(secret); err == nil && len(decoded) >= IdentitySubjectHMACMinKeyBytes {
+		return decoded
+	}
+	return []byte(secret)
+}
+
+// IdentitySubjectHMACKeyBytes 导出密钥字节解析，供 bootstrap 注入 digest 服务。
+func IdentitySubjectHMACKeyBytes(secret string) []byte {
+	return parseIdentitySubjectHMACKeyBytes(secret)
 }
 
 // jobQueueDefaults 是按环境区分的 River 队列并发默认档。

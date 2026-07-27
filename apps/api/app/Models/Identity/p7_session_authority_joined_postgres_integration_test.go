@@ -140,6 +140,47 @@ func TestP7IdentitySessionAuthorityPostgresJoinedMatrix(t *testing.T) {
 	}
 }
 
+func TestP7IdentitySessionIssueAllowsExternalOnlyUserWithoutCredential(t *testing.T) {
+	harness := newP7JoinedSessionHarness(t, p7JoinedIssue)
+	if _, err := harness.pool.Exec(harness.fixture.ctx, `
+		DELETE FROM user_credentials WHERE user_id = $1
+	`, harness.fixture.targetUserID); err != nil {
+		t.Fatalf("delete local credential: %v", err)
+	}
+	baselineSessions := harness.sessionCount()
+
+	operationResult := harness.startOperation(p7JoinedIssue, nil)
+	harness.effect.awaitEntered(t, "external-only accepted issue effect")
+	harness.effect.release()
+	operation := awaitP7JoinedHTTPResult(t, operationResult, "external-only issue")
+	if operation.err != nil {
+		t.Fatalf("external-only issue transport: %v", operation.err)
+	}
+	if operation.response == nil {
+		t.Fatal("external-only issue returned no response")
+	}
+	defer operation.response.Body.Close()
+	if operation.outcome.err != nil || operation.response.StatusCode != fiber.StatusNoContent {
+		t.Fatalf("external-only issue status=%d outcome=%v", operation.response.StatusCode, operation.outcome.err)
+	}
+	if cookies := operation.response.Cookies(); len(cookies) != 1 {
+		t.Fatalf("external-only issue cookies=%#v", cookies)
+	}
+	if got := harness.sessionCount(); got != baselineSessions+1 {
+		t.Fatalf("external-only issue sessions=%d want %d", got, baselineSessions+1)
+	}
+	var loginAudits int
+	if err := harness.pool.QueryRow(harness.fixture.ctx, `
+		SELECT count(*) FROM audit_events
+		WHERE target_user_id = $1 AND action = $2
+	`, harness.fixture.targetUserID, AuditActionLogin).Scan(&loginAudits); err != nil {
+		t.Fatal(err)
+	}
+	if loginAudits != 1 {
+		t.Fatalf("external-only issue login audits=%d want 1", loginAudits)
+	}
+}
+
 type p7JoinedSessionHarness struct {
 	t              *testing.T
 	fixture        *identityPersistencePGFixture
@@ -243,6 +284,8 @@ func installP7JoinedIdentitySchema(t *testing.T, fixture *identityPersistencePGF
 		CREATE TABLE user_credentials (
 		  user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
 		  password_hash TEXT NOT NULL,
+		  -- T1D/M5：password 行 method 标记；external-only = 无 credential 行。
+		  method TEXT NOT NULL DEFAULT 'password' CHECK (method IN ('password')),
 		  password_changed_at TIMESTAMPTZ NOT NULL DEFAULT transaction_timestamp(),
 		  created_at TIMESTAMPTZ NOT NULL DEFAULT transaction_timestamp(),
 		  updated_at TIMESTAMPTZ NOT NULL DEFAULT transaction_timestamp()

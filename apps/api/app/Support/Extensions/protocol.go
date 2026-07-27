@@ -46,6 +46,16 @@ var (
 		"LANG": true, "LC_ALL": true, "LC_CTYPE": true, "TZ": true,
 		// go-plugin / 测试 helper 需要的变量由 go-plugin 自行注入；宿主仅保留基础运行环境。
 		"SFORUM_PLUGIN_HELPER": true,
+		// APP_ENV 非密钥；插件用其判断是否允许测试端点覆盖（生产一律官方端点）。
+		"APP_ENV": true,
+	}
+
+	// githubAuthEndpointOverrideEnvKeys 仅在非 production 宿主环境可注入插件子进程。
+	// 生产路径即使宿主误设这些变量也不得透传，避免 OAuth code/secret/token 打到任意端点。
+	githubAuthEndpointOverrideEnvKeys = map[string]bool{
+		"SFORUM_AUTH_GITHUB_AUTH_URL":  true,
+		"SFORUM_AUTH_GITHUB_TOKEN_URL": true,
+		"SFORUM_AUTH_GITHUB_API_URL":   true,
 	}
 )
 
@@ -555,11 +565,23 @@ func validatePluginRouteTarget(raw string) error {
 
 // buildPluginProcessEnv 从宿主环境中挑选最小白名单，并保留已有 SFORUM_SETTING_*。
 // 不把 DATABASE_URL、SESSION_HASH_SECRET 等密钥传给插件子进程。
+//
+// T8C：fake-GitHub 端点覆盖（SFORUM_AUTH_GITHUB_*_URL）仅在宿主非 production
+// 时注入；production 一律忽略，保证 OAuth 材料只到达固定 GitHub.com 端点。
 func buildPluginProcessEnv(hostEnv []string) []string {
+	production := hostEnvIsProduction(hostEnv)
 	out := make([]string, 0, 16)
 	for _, entry := range hostEnv {
 		key, _, ok := strings.Cut(entry, "=")
 		if !ok {
+			continue
+		}
+		if githubAuthEndpointOverrideEnvKeys[key] {
+			// 生产边界：拒绝透传测试端点覆盖。
+			if production {
+				continue
+			}
+			out = append(out, entry)
 			continue
 		}
 		if pluginEnvAllowlist[key] || strings.HasPrefix(key, "SFORUM_SETTING_") {
@@ -567,6 +589,20 @@ func buildPluginProcessEnv(hostEnv []string) []string {
 		}
 	}
 	return out
+}
+
+// hostEnvIsProduction 从宿主环境切片读取 APP_ENV（大小写不敏感）。
+func hostEnvIsProduction(hostEnv []string) bool {
+	for _, entry := range hostEnv {
+		key, value, ok := strings.Cut(entry, "=")
+		if !ok {
+			continue
+		}
+		if key == "APP_ENV" {
+			return strings.EqualFold(strings.TrimSpace(value), "production")
+		}
+	}
+	return false
 }
 
 func pluginSettingEnvName(key string) string {

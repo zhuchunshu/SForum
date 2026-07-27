@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["correlationId"],
+  "properties": {
+    "correlationId": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "deviceFingerprint": { "type": "string", "maxLength": 200 },
+    "clientClass": { "type": "string", "maxLength": 120 },
+    "redirectHint": { "type": "string", "maxLength": 2000 },
+    "accountHint": { "type": "string", "maxLength": 320 },
+    "actorUserId": { "type": "integer", "minimum": 1 },
+    "state": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "codeChallenge": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "codeChallengeMethod": { "type": "string", "enum": ["S256"] },
+    "callbackUrl": { "type": "string", "minLength": 1, "maxLength": 2000 }
+  },
+  "additionalProperties": false
+}

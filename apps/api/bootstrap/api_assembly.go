@@ -117,6 +117,11 @@ func buildProductionAPI(ctx context.Context, cfg config.Config, logger *slog.Log
 
 // wireAPICoreStack：迁移、连接池、会话、扩展 lifecycle、领域 provider 与路由分发器。
 func wireAPICoreStack(ctx context.Context, cfg config.Config, logger *slog.Logger) (*apiCoreStack, error) {
+	// T1B：注入稳定主体 HMAC 密钥（config 已按 APP_ENV=production 校验；禁止进程随机）。
+	if err := identity.ConfigureIdentitySubjectHMAC(cfg.IdentitySubjectHMACSecret); err != nil {
+		return nil, fmt.Errorf("configure identity subject hmac: %w", err)
+	}
+
 	if err := runStartupMigrations(ctx, cfg, logger); err != nil {
 		return nil, err
 	}
@@ -817,6 +822,30 @@ func wireAPICoreStack(ctx context.Context, cfg config.Config, logger *slog.Logge
 		return nil, err
 	}
 	externalLinkStore := identity.NewPostgresExternalIdentityLinkStore(pool)
+	// 外部认证 Host 栈（callback 状态/注册票据/激活目录/编排服务）。
+	externalAuthStack := identity.NewExternalAuthStack(pool, sharedRedisClient, lifecycleStack.IdentityRegistry, func(ctx context.Context) (bool, error) {
+		return optionsService.RegistrationEnabled(ctx)
+	})
+	// 外部注册必须在 user/link/audit 同一 pgx 事务中读取权威运营策略，不能复用
+	// Options 的独立 pool/cache 快速读取。
+	externalAuthStack.Service.WithRegistrationPolicyTx(optionsService.RegistrationEnabledTx)
+	// T1D：权威 CurrentUser 路径（token version/roles/permissions/avatar/status）。
+	// 注册校验在 Controller.WithExternalAuthService 中由 identity.Service 注入。
+	// T8A：成功 external registration 后发出与密码注册同形的 user.registered observe。
+	externalAuthStack.Service.WithCurrentUserLoader(identityStore.GetCurrentUser)
+	externalAuthStack.Service.WithEvents(eventPublisher)
+	// M3：必需配置门控（client_id/secret 等）来自扩展设置；未齐则公开 catalog 不暴露。
+	identityRegistry := lifecycleStack.IdentityRegistry
+	externalAuthStack.Service.WithProviderConfiguredChecker(func(ctx context.Context, providerID string) (bool, error) {
+		if identityRegistry == nil || extensionService == nil {
+			return false, nil
+		}
+		contrib, err := identityRegistry.ResolveProvider(providerID)
+		if err != nil {
+			return false, nil
+		}
+		return extensionService.AuthProviderSettingsConfigured(ctx, contrib.Artifact.ExtensionID)
+	})
 	authProviderFlow, err := newAuthProviderFlow(
 		lifecycleStack.RuntimeManager, lifecycleStack.IdentityRegistry, externalLinkStore,
 	)
@@ -838,6 +867,15 @@ func wireAPICoreStack(ctx context.Context, cfg config.Config, logger *slog.Logge
 	identityStore.WithAuthorityMutationGate(lifecycleStack.SessionPolicyStore)
 	identityAuthorityGate.Set(lifecycleStack.SessionPolicyStore)
 	sessionPolicyRenewal.Set(sessionPolicyEvaluator)
+	// M5：外部认证 start/callback 专用限流（Redis；无 Redis 时内存）。
+	var externalAuthRateLimiter identity.ExternalAuthRateLimiter
+	if sharedRedisClient != nil {
+		externalAuthRateLimiter = identity.NewRedisExternalAuthRateLimiter(sharedRedisClient)
+	} else {
+		externalAuthRateLimiter = identity.NewMemoryExternalAuthRateLimiter()
+	}
+	// T8B：admin Login Methods discovery = 扩展包目录 + live Registry；trust/enable 权威不变。
+	authProviderPackageCatalog := extensions.NewAuthProviderPackageCatalog(extensionService, executableTrustService)
 	identityProvider := providers.NewIdentityProviderWithPasswordResetAndLockout(identityStore, authSessions, humanVerifier, eventPublisher, passwordResetService, mailOutbox, optionsService, loginLockout).
 		WithIdentityRegistryStore(identityReviewStore).
 		WithSessionPolicyEvaluator(sessionPolicyEvaluator).
@@ -846,6 +884,10 @@ func wireAPICoreStack(ctx context.Context, cfg config.Config, logger *slog.Logge
 		WithProfileProviderComposer(profileProviderComposer).
 		WithRecoveryProviderFlow(recoveryProviderFlow).
 		WithIdentityProviderCatalog(lifecycleStack.IdentityRegistry).
+		WithAuthProviderPackageCatalog(authProviderPackageCatalog).
+		WithExternalAuthStack(externalAuthStack).
+		WithExternalAuthRateLimiter(externalAuthRateLimiter).
+		WithPublicAppURL(cfg.AppURL, cfg.AppEnv).
 		WithAPITokens(apiTokenService)
 	notificationsProvider := providers.NewNotificationsProvider(notificationStore, identityStore, authSessions)
 	mailProvider := providers.NewMailProvider(extensionStore, notificationStore, extensionsruntime.NewMailProviderRegistry(extensionStore), identityStore, authSessions, optionsService)

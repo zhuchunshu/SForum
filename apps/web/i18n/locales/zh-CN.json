@@ -301,7 +301,45 @@
     "submitting": "提交中...",
     "registerDisabledTitle": "注册已关闭",
     "registerDisabledDescription": "当前站点未开放自行注册，请联系管理员获取账号，或直接登录。",
-    "registerDisabledGoLogin": "前往登录"
+    "registerDisabledGoLogin": "前往登录",
+    "providers": {
+      "divider": "或",
+      "genericName": "第三方账号",
+      "continueWith": "使用 {name} 继续",
+      "starting": "正在跳转…",
+      "startFailed": "无法启动第三方登录，请稍后重试。"
+    },
+    "external": {
+      "ticketModeTitle": "完成注册",
+      "ticketModeHeading": "完成账号创建",
+      "ticketModeIntro": "第三方身份已验证。请填写本站用户名与邮箱完成注册；无需设置密码。",
+      "ticketModeNotice": "提交后将创建本站账号并绑定该第三方身份。邮箱仅用于本站通知，不会自动匹配已有账号。",
+      "submitTicketRegister": "完成注册并登录",
+      "success": {
+        "loginOk": "第三方登录成功，欢迎回来。",
+        "linkOk": "第三方账号绑定成功。"
+      },
+      "reasons": {
+        "generic": "第三方登录未能完成，请重试或使用账号密码登录。",
+        "providerCancelled": "已取消第三方登录授权。",
+        "providerNotEnabled": "该第三方登录尚未由站点管理员开启。",
+        "providerNotFound": "指定的登录方式不存在或不可用。",
+        "providerUnavailable": "第三方登录暂时不可用，请稍后重试或使用账号密码登录。",
+        "callbackExpired": "登录回调已过期，请重新发起第三方登录。",
+        "callbackInvalid": "登录回调无效，请重新发起第三方登录。",
+        "callbackReplayed": "该登录回调已被使用，请重新发起第三方登录。",
+        "identityUnlinked": "该第三方账号尚未绑定本站账号。请先注册，或使用账号密码登录后再绑定。",
+        "subjectConflict": "该第三方身份已绑定到其他账号。",
+        "linkConflict": "当前账号已绑定冲突的第三方身份。",
+        "ticketInvalid": "注册凭证无效或已使用，请重新发起第三方注册。",
+        "ticketExpired": "注册凭证已过期，请重新发起第三方注册。",
+        "bootstrapRequired": "站点尚无管理员，首个账号必须使用账号密码注册。",
+        "registrationDisabled": "当前站点已关闭注册，无法通过第三方登录创建账号。",
+        "authRequired": "请先登录后再继续。",
+        "recentAuthRequired": "该操作需要近期重新验证身份，请重新登录后再试。",
+        "lastLoginMethodRequired": "这是当前账号最后一种可用登录方式。请先设置本地密码或绑定其他登录方式后再解绑。"
+      }
+    }
   },
   "components": {
     "iconPicker": {
@@ -386,6 +424,7 @@
       "rolesBadge": "RBAC",
       "settings": "站点设置",
       "mailSettings": "邮箱与通知",
+      "loginMethods": "登录方式",
       "avatarSettings": "头像设置",
       "seo": "SEO 设置",
       "database": "数据库表管理",
@@ -2130,6 +2169,14 @@
           "description": "为单个用户设置允许或拒绝的直接权限覆盖。"
         }
       },
+      "identity": {
+        "provider": {
+          "manage": {
+            "label": "管理第三方登录",
+            "description": "激活、排序、探测、重置 Host 接管的第三方登录提供方（登录/注册/绑定）。可执行信任仍仅限超级管理员。"
+          }
+        }
+      },
       "category": {
         "manage": {
           "label": "管理版块",
@@ -3011,12 +3058,40 @@
         "title": "内容管理",
         "intro": "查找并处理所有生命周期状态的主题和回复。保存始终使用内容的标准编辑接口。",
         "permissionDenied": "当前账号没有查看主题或回复内容的权限。",
-        "tabs": { "topics": "主题", "comments": "回复" },
-        "filters": { "status": "状态", "author": "作者", "authorPlaceholder": "用户名", "authorId": "作者 ID", "titlePrefix": "标题前缀", "categorySlug": "分类 slug", "topicId": "主题 ID", "updatedFrom": "更新开始时间", "updatedTo": "更新结束时间", "perPage": "每页数量" },
+        "tabs": {
+          "topics": "主题",
+          "comments": "回复"
+        },
+        "filters": {
+          "status": "状态",
+          "author": "作者",
+          "authorPlaceholder": "用户名",
+          "authorId": "作者 ID",
+          "titlePrefix": "标题前缀",
+          "categorySlug": "分类 slug",
+          "topicId": "主题 ID",
+          "updatedFrom": "更新开始时间",
+          "updatedTo": "更新结束时间",
+          "perPage": "每页数量"
+        },
         "applyFilters": "应用筛选",
         "allStatuses": "全部状态",
-        "status": { "active": "正常", "locked": "已锁定", "pending": "待审核", "rejected": "已拒绝", "hidden": "已隐藏", "deleted": "已删除" },
-        "columns": { "content": "内容", "author": "作者", "status": "状态", "revision": "当前版本", "updatedAt": "更新时间", "actions": "操作" },
+        "status": {
+          "active": "正常",
+          "locked": "已锁定",
+          "pending": "待审核",
+          "rejected": "已拒绝",
+          "hidden": "已隐藏",
+          "deleted": "已删除"
+        },
+        "columns": {
+          "content": "内容",
+          "author": "作者",
+          "status": "状态",
+          "revision": "当前版本",
+          "updatedAt": "更新时间",
+          "actions": "操作"
+        },
         "empty": "没有符合当前筛选条件的内容。",
         "noExcerpt": "无内容摘要",
         "inspect": "查看内容",
@@ -3060,7 +3135,13 @@
           "historical": "历史版本",
           "current": "当前版本",
           "none": "无",
-          "fields": { "title": "标题", "content": "内容", "category": "分类", "tags": "标签", "attachments": "附件" },
+          "fields": {
+            "title": "标题",
+            "content": "内容",
+            "category": "分类",
+            "tags": "标签",
+            "attachments": "附件"
+          },
           "legacyTitle": "这个旧版本的元数据不完整",
           "legacyDescription": "只能恢复其实际记录的内容，不会虚构缺失元数据。",
           "redactedDetail": "该版本载荷已被脱敏",
@@ -3702,6 +3783,82 @@
       "deleted": "字段已删除。",
       "loadFailed": "自定义字段加载失败。",
       "saveFailed": "自定义字段保存失败。"
+    },
+    "loginMethods": {
+      "metaTitle": "登录方式",
+      "title": "登录方式",
+      "description": "配置第三方登录提供方：填写凭证、探测连通性，并显式开启登录、注册与账号绑定。启用插件不会自动公开登录按钮。",
+      "count": "已发现 {count} 个登录提供方",
+      "loading": "正在加载登录方式…",
+      "loadFailed": "加载登录方式失败。",
+      "emptyTitle": "暂无登录提供方",
+      "emptyDescription": "内置 GitHub 登录插件会在启动时同步到扩展目录。请先确认插件已启用，并完成可执行信任（如需要）。",
+      "openPlugins": "打开插件管理",
+      "recommendedTitle": "推荐路径：配置凭证 → 探测 → 再打开开关",
+      "recommendedDescription": "先填写 Client ID / Client Secret，复制回调 URL 到 GitHub OAuth App，运行探测确认配置形状，再分别打开登录、注册或绑定。默认全部关闭，密码登录始终可用。",
+      "secretsPreserved": "恢复推荐默认会关闭全部第三方操作开关，并保留已保存的密钥。",
+      "restoreDefaults": "恢复推荐默认",
+      "defaultsRestored": "已恢复推荐默认：第三方登录操作全部关闭。",
+      "defaultsRestoreFailed": "恢复默认失败。",
+      "safeModeTitle": "安全模式已开启",
+      "safeModeDescription": "安全模式下第三方登录对访客不可用；密码登录与 Host 恢复路径仍可用。",
+      "providers": {
+        "github": "GitHub 登录"
+      },
+      "states": {
+        "discovered": "已发现",
+        "trusted": "已信任制品",
+        "enabled": "已启用进程",
+        "configured": "已配置",
+        "probed": "探测通过",
+        "publiclyActivated": "已对访客开放",
+        "notPublic": "未对访客开放"
+      },
+      "operationsTitle": "公开操作开关",
+      "operationsHelp": "每个操作独立开关。插件启用 ≠ 公开登录按钮；需在此显式打开。",
+      "ops": {
+        "login": "登录",
+        "loginHelp": "已绑定 GitHub 的用户可用其登录。",
+        "registration": "注册",
+        "registrationHelp": "允许通过 GitHub 显式创建新账号（仍受站点注册策略约束）。",
+        "link": "账号绑定",
+        "linkHelp": "已登录用户可在账号安全中绑定 GitHub。"
+      },
+      "revision": "配置版本 revision={revision}",
+      "callbackTitle": "回调 URL",
+      "callbackHelp": "由 Host 根据 APP_URL 生成，只读。请原样粘贴到 OAuth 应用的 Authorization callback URL。",
+      "copyCallback": "复制",
+      "callbackCopied": "回调 URL 已复制。",
+      "callbackCopyFailed": "复制失败，请手动选择文本。",
+      "callbackMissing": "回调 URL 不可用，请检查 APP_URL。",
+      "probeTitle": "配置探测",
+      "runProbe": "运行探测",
+      "probe": {
+        "never": "尚未探测",
+        "pending": "探测待完成",
+        "pendingHelp": "Host 已记录探测请求。历史 pending 状态不是健康检查通过；请重新探测以获取真实 provider.probe 结果。",
+        "unavailable": "探测不可用",
+        "ok": "探测通过",
+        "recorded": "探测结果已记录",
+        "failed": "探测请求失败",
+        "help": "探测可检查凭证是否填写与上游可达性形状；不能在没有授权码时证明 Client Secret 正确。"
+      },
+      "settingsTitle": "提供方设置",
+      "settingsHelp": "凭证保存在扩展 SecretStore；Client Secret 永不返回浏览器。",
+      "settingsLoading": "正在加载设置…",
+      "settingsLoadFailed": "无法加载提供方设置（可能缺少扩展权限或扩展未就绪）。",
+      "settingsSaved": "提供方设置已保存。",
+      "settingsSaveFailed": "保存提供方设置失败。",
+      "settingsReset": "已恢复提供方推荐默认设置。",
+      "settingsUnavailableTitle": "设置暂不可用",
+      "settingsUnavailableDescription": "无法加载该扩展的设置文档。请确认扩展已安装，且你拥有 identity.provider.manage 或 extension.plugin.manage。",
+      "openExtensionSettings": "在扩展页打开",
+      "activationSaved": "登录方式已更新。",
+      "activationSaveFailed": "更新登录方式失败。",
+      "staleRevision": "配置已被其他人更新，列表已刷新，请确认后重试。",
+      "artifactDriftTitle": "制品已变更",
+      "artifactDriftDescription": "当前激活意图绑定的制品摘要与 live 不一致。公开入口已失效，请在确认新制品后重新打开开关。",
+      "actionFailed": "设置动作执行失败。"
     }
   },
   "errors": {
@@ -4245,9 +4402,11 @@
   },
   "accountSecurity": {
     "metaTitle": "账号安全",
-    "metaDescription": "管理你的登录设备与会话。",
+    "metaDescription": "管理登录方式、设备会话与访问令牌。",
     "title": "账号安全",
-    "intro": "这里显示你当前登录过的设备。如果发现可疑登录，可立即下线对应设备。",
+    "intro": "在这里管理第三方登录绑定、本地密码、登录设备与访问令牌。发现异常请立即处理。",
+    "devicesTitle": "登录设备",
+    "devicesIntro": "这里显示你当前登录过的设备。如果发现可疑登录，可立即下线对应设备。",
     "revokeOthers": "下线除本机外所有设备",
     "revoke": "下线",
     "currentDevice": "本机",
@@ -4266,6 +4425,46 @@
     "emptyTitle": "暂无活跃设备",
     "emptyDescription": "当前没有已登录的设备记录。",
     "maxDevicesHint": "最多允许同时保持 {max} 台设备在线，超出时最旧的设备会被自动下线。",
+    "linkedAccounts": {
+      "title": "登录方式",
+      "intro": "查看已绑定的第三方身份。展示名与图标来自站点启用的登录提供方；不会显示原始身份标识或令牌。",
+      "loadFailed": "加载绑定列表失败，请稍后重试。",
+      "empty": "尚未绑定第三方登录方式。",
+      "linkedAt": "绑定时间",
+      "statusActive": "已绑定",
+      "statusInert": "不可用",
+      "statusOther": "已停用",
+      "inertHint": "该登录提供方已被站点停用或暂时不可用。绑定仍保留，但暂时无法用于登录或重新授权。",
+      "inertAction": "提供方不可用",
+      "unlink": "解绑",
+      "unlinking": "解绑中…",
+      "unlinked": "已解绑第三方登录方式。",
+      "unlinkFailed": "解绑失败，请稍后重试。",
+      "linkTitle": "绑定其他登录方式",
+      "linkHelp": "仅显示管理员已开放「账号绑定」的提供方。绑定需要当前会话，并可能要求近期重新验证身份。",
+      "linkWith": "绑定 {name}",
+      "linking": "正在跳转…",
+      "linkFailed": "无法启动绑定，请稍后重试。",
+      "linkClosed": "当前没有可绑定的第三方登录方式。",
+      "lastMethodHint": "这可能是当前唯一的第三方登录方式。若尚未设置本地密码，解绑会被拒绝。",
+      "lastMethodBlocked": "无法解绑：这是当前账号最后一种可用登录方式。请先设置本地密码或绑定其他方式。",
+      "recentAuthTitle": "需要重新验证身份",
+      "recentAuthRequired": "解绑或设置密码等敏感操作需要近期重新验证身份。请重新登录后再试。",
+      "reauthenticate": "重新登录以继续",
+      "sessionRequired": "当前会话不可用，请重新登录后再管理登录方式。"
+    },
+    "passwordSetup": {
+      "title": "本地密码",
+      "intro": "为账号设置或更新本地密码。仅通过第三方登录注册的账号可在此首次设置密码。",
+      "externalOnlyHint": "若你主要使用第三方登录，建议设置本地密码作为备用登录方式，并在解绑前完成设置。",
+      "password": "新密码",
+      "confirm": "确认新密码",
+      "submit": "保存密码",
+      "submitting": "保存中…",
+      "success": "本地密码已保存。",
+      "failed": "保存密码失败，请稍后重试。",
+      "recentAuthHint": "保存密码需要近期重新验证身份；若被拒绝，请重新登录后再试。"
+    },
     "tokensTitle": "个人访问令牌",
     "tokensIntro": "用令牌以程序方式调用 API。权限范围不能超过你当前拥有的权限；明文密钥只在创建或轮换时显示一次。",
     "tokenName": "名称",
@@ -4295,6 +4494,8 @@
       "overviewTitle": "本页摘要",
       "overviewHint": "当前页",
       "currentDevice": "本机设备",
+      "loginMethods": "登录方式",
+      "loginMethodsHint": "本页管理",
       "tokens": "访问令牌"
     }
   },

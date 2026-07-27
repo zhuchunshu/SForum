@@ -43,6 +43,7 @@
 | `core.admin.page.settings_avatar` | `apps/web/app/pages/admin/settings/avatar.vue` | yes | no | yes | no | no | yes | no | yes | yes | no | no | yes | no |
 | `core.admin.page.settings_features` | `apps/web/app/pages/admin/settings/features.vue` | yes | no | yes | no | no | yes | no | yes | yes | no | no | yes | no |
 | `core.admin.page.settings` | `apps/web/app/pages/admin/settings/index.vue` | yes | no | yes | no | yes | no | no | yes | yes | no | no | yes | no |
+| `core.admin.page.settings_login_methods` | `apps/web/app/pages/admin/settings/login-methods.vue` | yes | no | yes | no | yes | yes | no | no | yes | no | no | yes | yes |
 | `core.admin.page.settings_mail` | `apps/web/app/pages/admin/settings/mail.vue` | yes | no | yes | no | no | no | no | yes | yes | no | no | yes | no |
 | `core.admin.page.site_chrome` | `apps/web/app/pages/admin/site-chrome.vue` | yes | no | no | no | no | no | no | no | no | no | no | no | no |
 | `core.admin.page.users` | `apps/web/app/pages/admin/users.vue` | yes | no | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | no |

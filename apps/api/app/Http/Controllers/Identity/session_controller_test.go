@@ -27,12 +27,13 @@ import (
 // sessionTestStore 是会话管理 controller 测试用的轻量 store。
 // 只实现登录/会话目录相关路径需要的方法，其余返回零值以满足接口。
 type sessionTestStore struct {
-	mu         sync.Mutex
-	users      map[int64]identity.CurrentUser
-	creds      map[int64]string
-	loginIndex map[string]int64
-	sessions   []sessionTestRow
-	nextUserID int64
+	mu          sync.Mutex
+	users       map[int64]identity.CurrentUser
+	creds       map[int64]string
+	loginIndex  map[string]int64
+	sessions    []sessionTestRow
+	loginAudits int
+	nextUserID  int64
 }
 
 type sessionTestRow struct {
@@ -73,6 +74,13 @@ func (s *sessionTestStore) GetCurrentUser(_ context.Context, userID int64) (iden
 		return identity.CurrentUser{}, errors.New("user not found")
 	}
 	return u, nil
+}
+func (s *sessionTestStore) GetCurrentUserByEmail(_ context.Context, email string) (identity.CurrentUser, error) {
+	uid, ok := s.loginIndex[lower(email)]
+	if !ok {
+		return identity.CurrentUser{}, identity.ErrUserNotFound
+	}
+	return s.GetCurrentUser(context.Background(), uid)
 }
 func (s *sessionTestStore) GetCredentialByLogin(_ context.Context, login string) (identity.CredentialUser, error) {
 	uid, ok := s.loginIndex[lower(login)]
@@ -280,7 +288,12 @@ func (s *sessionTestStore) ReplaceUserRoles(context.Context, int64, int64, []str
 func (s *sessionTestStore) ReplaceUserPermissionOverrides(context.Context, int64, int64, identity.PermissionOverrides) (identity.AdminUserDetail, error) {
 	return identity.AdminUserDetail{}, nil
 }
-func (s *sessionTestStore) RecordLoginAudit(context.Context, identity.LoginAudit) error { return nil }
+func (s *sessionTestStore) RecordLoginAudit(context.Context, identity.LoginAudit) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.loginAudits++
+	return nil
+}
 func (s *sessionTestStore) CreatePasswordResetToken(context.Context, identity.CreatePasswordResetTokenInput) (identity.PasswordResetToken, error) {
 	return identity.PasswordResetToken{}, nil
 }

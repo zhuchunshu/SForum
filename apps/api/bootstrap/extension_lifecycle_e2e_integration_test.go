@@ -23,6 +23,7 @@ import (
 	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
+	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	pluginv2sdk "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2"
 	protocolwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
@@ -33,7 +34,7 @@ const productionLifecycleE2EHelperEnv = "SFORUM_PRODUCTION_LIFECYCLE_E2E_HELPER"
 
 func TestProductionLifecycleStackUninstallsPreservedDataThroughRealRuntimeAndPostgres(t *testing.T) {
 	ctx, pool := openProductionLifecycleE2EPool(t)
-	fixture := newProductionLifecycleE2EFixture(t, ctx, pool)
+	fixture := newProductionLifecycleE2EFixture(t, ctx, pool, false)
 
 	input := extensions.UninstallInput{
 		IdempotencyKey: "p4-e2e-uninstall-preserve",
@@ -54,6 +55,55 @@ func TestProductionLifecycleStackUninstallsPreservedDataThroughRealRuntimeAndPos
 	assertProductionLifecycleE2EResult(t, replayed, true)
 	if replayed.OperationID != result.OperationID {
 		t.Fatalf("replay operation id = %d, want %d", replayed.OperationID, result.OperationID)
+	}
+}
+
+// 这个回归必须从真实 enable publication 开始。旧夹具直接写 enabled，缺少
+// lifecycle registry journal 的 source fence，无法覆盖正常 disable 的 exact
+// publication 退役路径。
+func TestProductionLifecycleStackDisablesExactAuthIdentityPublication(t *testing.T) {
+	ctx, pool := openProductionLifecycleE2EPool(t)
+	fixture := newProductionLifecycleE2EFixture(t, ctx, pool, true)
+
+	disabled, err := fixture.service.DisableWithInput(ctx, fixture.actor, fixture.extension.ID, extensions.LifecycleRequestInput{
+		IdempotencyKey: "p4-e2e-disable-auth-provider",
+	})
+	if err != nil {
+		logProductionLifecycleE2EFailure(t, ctx, pool, fixture.extension.ID)
+		t.Fatalf("production lifecycle disable: %v", err)
+	}
+	if disabled.Status != extensions.StatusDisabled {
+		t.Fatalf("disabled extension status = %q", disabled.Status)
+	}
+	if _, err := fixture.manager.ActiveRuntimeInstance(fixture.extension.ID); err == nil {
+		t.Fatal("exact provider runtime remains active after disable")
+	}
+	if _, found := fixture.identityRegistry.SnapshotPublication(fixture.extension.ID); found {
+		t.Fatal("live Identity Registry publication remains after disable")
+	}
+
+	durable, err := fixture.identityStore.LoadDurableState(ctx)
+	if err != nil {
+		t.Fatalf("load durable Identity Registry state: %v", err)
+	}
+	if err := identityregistry.ValidateDurableRetirement(durable, fixture.extension.ID); err != nil {
+		t.Fatalf("durable Identity Registry retirement: %v", err)
+	}
+	var activeRootCount int
+	if err := pool.QueryRow(ctx, `
+		SELECT COUNT(*)
+		FROM (
+			SELECT DISTINCT ON (owner_extension_id) registry_state
+			FROM extension_identity_registry_publications
+			WHERE owner_extension_id = $1
+			ORDER BY owner_extension_id, revision DESC
+		) current
+		WHERE registry_state = 'active'
+	`, fixture.extension.ID).Scan(&activeRootCount); err != nil {
+		t.Fatal(err)
+	}
+	if activeRootCount != 0 {
+		t.Fatalf("active durable identity roots remain after disable: %d", activeRootCount)
 	}
 }
 
@@ -94,12 +144,12 @@ func TestProductionLifecycleE2EHelperProcess(t *testing.T) {
 	if os.Getenv(productionLifecycleE2EHelperEnv) != "1" {
 		return
 	}
-	server := pluginv2sdk.NewServer().WithRuntimeStreams(pluginv2sdk.RuntimeStreams{
+	server := pluginv2sdk.NewServer().WithFeatures(pluginv2sdk.IdentityRuntimeProtocolFeature()).WithRuntimeStreams(pluginv2sdk.RuntimeStreams{
 		Lifecycle: func(_ context.Context, request *protocolwire.LifecycleRequest, progress *pluginv2sdk.ProgressStream) error {
 			extensionID := request.GetContext().GetExtension().GetExtensionId()
 			if !strings.HasPrefix(extensionID, "p4.e2e.") ||
 				request.GetPlanVersion() != extensionID+".lifecycle@1" ||
-				!strings.HasPrefix(request.GetStepId(), "lifecycle.uninstall.") {
+				!strings.HasPrefix(request.GetStepId(), "lifecycle.") {
 				return &pluginv2sdk.RuntimeStreamError{
 					Code:   protocolwire.ErrorCode_ERROR_CODE_INVALID_ARGUMENT,
 					Reason: "p4.e2e.lifecycle_request_invalid", Message: "Unexpected lifecycle request.",
@@ -129,24 +179,27 @@ func TestProductionLifecycleE2EHelperProcess(t *testing.T) {
 }
 
 type productionLifecycleE2EFixture struct {
-	actor       identity.Actor
-	extension   extensions.Extension
-	manager     *extensionsruntime.Manager
-	service     *extensions.Service
-	identifiers extensionsruntime.ExtensionDatabaseIdentifiers
+	actor            identity.Actor
+	extension        extensions.Extension
+	manager          *extensionsruntime.Manager
+	service          *extensions.Service
+	identityRegistry *identityregistry.Registry
+	identityStore    identityregistry.PublicationStore
+	identifiers      extensionsruntime.ExtensionDatabaseIdentifiers
 }
 
 func newProductionLifecycleE2EFixture(
 	t *testing.T,
 	ctx context.Context,
 	pool *pgxpool.Pool,
+	withAuthIdentity bool,
 ) productionLifecycleE2EFixture {
 	t.Helper()
 	suffix := fmt.Sprintf("%d", time.Now().UnixNano())
 	extensionID := "p4.e2e.preserve." + suffix
 	actor := insertProductionLifecycleE2EActor(t, ctx, pool, suffix)
 	extensionRoot := t.TempDir()
-	manifest, packagePath, packageDigest := writeProductionLifecycleE2EPackage(t, extensionRoot, extensionID)
+	manifest, packagePath, packageDigest := writeProductionLifecycleE2EPackage(t, extensionRoot, extensionID, withAuthIdentity)
 	store := extensions.NewPostgresStore(pool)
 	extension, err := store.SaveInstalled(ctx, extensions.SaveInstalledInput{
 		Manifest: manifest, PackagePath: packagePath, PackageDigest: packageDigest,
@@ -158,25 +211,8 @@ func newProductionLifecycleE2EFixture(
 		t.Fatalf("ensure plugin runtime genesis before lifecycle fixture enable: %v", err)
 	}
 	assertPluginRuntimeGenesisHeader(t, ctx, pool)
-	if _, err := pool.Exec(ctx, `UPDATE extensions SET status = 'enabled' WHERE id = $1`, extensionID); err != nil {
-		t.Fatalf("enable production lifecycle fixture: %v", err)
-	}
-	extension, err = store.Get(ctx, extensionID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	writer := audit.NewPostgresWriter(pool)
 	trust := extensions.NewExecutableTrustService(store, extensions.NewPostgresExecutableTrustStore(pool)).WithAuditor(writer)
-	challenge, err := trust.Challenge(ctx, actor, extensionID)
-	if err != nil {
-		t.Fatalf("issue exact trust challenge: %v", err)
-	}
-	authority, err := trust.ConfirmLifecycleAuthority(ctx, actor, extension, challenge.Token)
-	if err != nil {
-		t.Fatalf("confirm exact lifecycle authority: %v", err)
-	}
-	seedProductionLifecycleE2EAuthority(t, ctx, pool, writer, actor, extension, authority)
 
 	provisionAuditID, err := writer.AppendReturningID(ctx, audit.Event{
 		ActorUserID: actor.ID, Action: "extension.database_provision",
@@ -223,12 +259,48 @@ func newProductionLifecycleE2EFixture(
 	if err := stack.bindService(service); err != nil {
 		t.Fatalf("bind production lifecycle service: %v", err)
 	}
-	if err := manager.Start(ctx, extension); err != nil {
-		t.Fatalf("start exact protocol-v2 runtime: %v", err)
+	if withAuthIdentity {
+		challenge, challengeErr := trust.Challenge(ctx, actor, extensionID)
+		if challengeErr != nil {
+			t.Fatalf("issue exact trust challenge: %v", challengeErr)
+		}
+		enabled, enableErr := service.Enable(ctx, actor, extensionID, extensions.EnableInput{
+			ConfirmCapabilities: true, ConfirmationToken: challenge.Token, IdempotencyKey: "p4-e2e-enable-exact-artifact",
+		})
+		if enableErr != nil {
+			logProductionLifecycleE2EFailure(t, ctx, pool, extensionID)
+			t.Fatalf("enable exact lifecycle fixture through production service: %v", enableErr)
+		}
+		if enabled.Status != extensions.StatusEnabled {
+			t.Fatalf("enabled fixture status = %q", enabled.Status)
+		}
+		extension = enabled
+	} else {
+		if _, updateErr := pool.Exec(ctx, `UPDATE extensions SET status = 'enabled' WHERE id = $1`, extensionID); updateErr != nil {
+			t.Fatalf("enable original uninstall fixture: %v", updateErr)
+		}
+		var loadErr error
+		extension, loadErr = store.Get(ctx, extensionID)
+		if loadErr != nil {
+			t.Fatal(loadErr)
+		}
+		challenge, challengeErr := trust.Challenge(ctx, actor, extensionID)
+		if challengeErr != nil {
+			t.Fatalf("issue original fixture trust challenge: %v", challengeErr)
+		}
+		authority, authorityErr := trust.ConfirmLifecycleAuthority(ctx, actor, extension, challenge.Token)
+		if authorityErr != nil {
+			t.Fatalf("confirm original fixture lifecycle authority: %v", authorityErr)
+		}
+		seedProductionLifecycleE2EAuthority(t, ctx, pool, writer, actor, extension, authority)
+		if startErr := manager.Start(ctx, extension); startErr != nil {
+			t.Fatalf("start original protocol-v2 fixture runtime: %v", startErr)
+		}
 	}
 
 	fixture := productionLifecycleE2EFixture{
-		actor: actor, extension: extension, manager: manager, service: service, identifiers: identifiers,
+		actor: actor, extension: extension, manager: manager, service: service,
+		identityRegistry: stack.IdentityRegistry, identityStore: stack.IdentityStore, identifiers: identifiers,
 	}
 	t.Cleanup(func() {
 		_ = manager.Stop(context.Background(), extension)
@@ -277,6 +349,7 @@ func writeProductionLifecycleE2EPackage(
 	t *testing.T,
 	extensionRoot string,
 	extensionID string,
+	withAuthIdentity bool,
 ) (extensions.Manifest, string, string) {
 	t.Helper()
 	packagePath := filepath.Join(extensionRoot, extensionID, "1.0.0")
@@ -318,11 +391,26 @@ func writeProductionLifecycleE2EPackage(
 			Retention: extensionmanifest.ManifestRetention{OnDisable: "retain", OnUninstall: "retain"},
 		},
 		Lifecycle: &extensions.ManifestLifecycle{
-			ContractVersion: extensionID + ".lifecycle@1", Enable: operation(), Uninstall: operation(),
+			ContractVersion: extensionID + ".lifecycle@1", Install: operation(), Enable: operation(), Disable: operation(), Uninstall: operation(),
 		},
 		PackageFiles: []extensions.ManifestPackageFile{{
 			ID: extensionID + ".file.backend", Kind: "executable", Path: "backend/plugin", Digest: backendDigest,
 		}},
+	}
+	if withAuthIdentity {
+		manifest.Identity = &extensions.ManifestIdentity{
+			ContractVersion: extensionID + ".identity@1",
+			Providers: []extensions.ManifestIdentityProvider{{
+				ID: extensionID + ".auth", ContractVersion: extensionID + ".auth@1", Kind: "auth",
+				Handler: extensionID + ".identity", Priority: 100,
+				Operations: []extensions.ManifestIdentityProviderOperation{{
+					Name: "login.start", InputSchema: extensionID + ".start.input@1", OutputSchema: extensionID + ".start.output@1",
+					TimeoutMS: 1000, FailurePolicy: "fail_closed",
+				}},
+			}},
+		}
+		writeProductionLifecycleE2ESchema(t, &manifest, packagePath, extensionID+".start.input", "schemas/start-input.json", `{"type":"object"}`)
+		writeProductionLifecycleE2ESchema(t, &manifest, packagePath, extensionID+".start.output", "schemas/start-output.json", `{"type":"object"}`)
 	}
 	if err := extensionmanifest.Validate(manifest); err != nil {
 		t.Fatalf("validate lifecycle E2E manifest: %v", err)
@@ -339,6 +427,29 @@ func writeProductionLifecycleE2EPackage(
 		t.Fatal(err)
 	}
 	return manifest, packagePath, packageDigest
+}
+
+func writeProductionLifecycleE2ESchema(
+	t *testing.T,
+	manifest *extensions.Manifest,
+	packagePath string,
+	id string,
+	path string,
+	body string,
+) {
+	t.Helper()
+	fullPath := filepath.Join(packagePath, filepath.FromSlash(path))
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	content := []byte(body)
+	if err := os.WriteFile(fullPath, content, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(content)
+	manifest.PackageFiles = append(manifest.PackageFiles, extensions.ManifestPackageFile{
+		ID: id, Kind: "schema", Path: path, Version: "1", Digest: hex.EncodeToString(digest[:]),
+	})
 }
 
 func seedProductionLifecycleE2EAuthority(

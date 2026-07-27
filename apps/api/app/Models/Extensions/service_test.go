@@ -2422,7 +2422,7 @@ func (s *fakeExtensionStore) SaveBuiltin(_ context.Context, input SaveBuiltinInp
 		Name:                input.Manifest.Name,
 		Version:             input.Manifest.Version,
 		Type:                input.Manifest.Type,
-		Status:              StatusEnabled,
+		Status:              builtinInitialStatus(input.Manifest),
 		Source:              SourceBuiltin,
 		IsSystem:            true,
 		IsDeletable:         false,

@@ -7,9 +7,22 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
+
+func TestMissingExtensionDatabaseRuntimeLeaseRoleOnlyAcceptsUndefinedObject(t *testing.T) {
+	if !isMissingExtensionDatabaseRuntimeLeaseRole(&pgconn.PgError{Code: "42704"}) {
+		t.Fatal("undefined PostgreSQL role must be an idempotent lease cleanup result")
+	}
+	if isMissingExtensionDatabaseRuntimeLeaseRole(&pgconn.PgError{Code: "42501"}) {
+		t.Fatal("permission failure must not be accepted as an idempotent lease cleanup result")
+	}
+	if isMissingExtensionDatabaseRuntimeLeaseRole(errors.New("role missing")) {
+		t.Fatal("untyped error must not be accepted as an idempotent lease cleanup result")
+	}
+}
 
 func TestExtensionDatabaseRuntimeLeaseSearchPathFollowsExactPowers(t *testing.T) {
 	tests := []struct {

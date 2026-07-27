@@ -1596,6 +1596,14 @@ func (s *httpFakeStore) GetCurrentUser(_ context.Context, userID int64) (identit
 	return s.withAccess(user), nil
 }
 
+func (s *httpFakeStore) GetCurrentUserByEmail(_ context.Context, email string) (identity.CurrentUser, error) {
+	userID, ok := s.loginIndex[strings.ToLower(email)]
+	if !ok {
+		return identity.CurrentUser{}, identity.ErrUserNotFound
+	}
+	return s.GetCurrentUser(context.Background(), userID)
+}
+
 func (s *httpFakeStore) GetCredentialByLogin(ctx context.Context, login string) (identity.CredentialUser, error) {
 	userID, ok := s.loginIndex[strings.ToLower(login)]
 	if !ok {

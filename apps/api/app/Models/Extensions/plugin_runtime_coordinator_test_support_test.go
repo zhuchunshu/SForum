@@ -13,12 +13,13 @@ import (
 type pluginRuntimeCoordinatorTestRepository struct {
 	mu sync.Mutex
 
-	publications map[int64]PluginRuntimePublication
-	latest       int64
-	node         PluginRuntimeNode
-	registered   bool
-	acks         map[int64]PluginRuntimePublicationAck
-	applied      map[int64][]PluginRuntimeAppliedMember
+	publications            map[int64]PluginRuntimePublication
+	latest                  int64
+	node                    PluginRuntimeNode
+	registered              bool
+	openLifecycleOperations []LifecycleOperation
+	acks                    map[int64]PluginRuntimePublicationAck
+	applied                 map[int64][]PluginRuntimeAppliedMember
 
 	registerCalls  int
 	heartbeatCalls int
@@ -96,6 +97,27 @@ func (r *pluginRuntimeCoordinatorTestRepository) LatestPluginRuntimePublication(
 		return PluginRuntimePublication{}, ErrPluginRuntimePublicationNotFound
 	}
 	return clonePluginRuntimePublication(publication), nil
+}
+
+func (r *pluginRuntimeCoordinatorTestRepository) ListOpenLifecycleOperations(
+	ctx context.Context,
+	limit int,
+) ([]LifecycleOperation, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if limit <= 0 || limit > len(r.openLifecycleOperations) {
+		limit = len(r.openLifecycleOperations)
+	}
+	return append([]LifecycleOperation(nil), r.openLifecycleOperations[:limit]...), nil
+}
+
+func (r *pluginRuntimeCoordinatorTestRepository) setOpenLifecycleOperations(items ...LifecycleOperation) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.openLifecycleOperations = append([]LifecycleOperation(nil), items...)
 }
 
 func (r *pluginRuntimeCoordinatorTestRepository) PluginRuntimePublicationByRevision(

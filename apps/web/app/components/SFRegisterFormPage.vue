@@ -6,7 +6,9 @@
 
 import type { AltchaWidgetElement } from 'altcha'
 import type { CurrentUser } from '~/composables/useAuthSession'
-
+import type { PublicAuthProvider } from '~/composables/useAuthProviders'
+import { apiErrorFields, apiErrorMessage, apiErrorReason } from '~/composables/useApiClient'
+import { registerErrorMessage } from '~/utils/registerErrors'
 
 type RegistrationStatus = {
   nextUserIsInitialSuperAdmin: boolean
@@ -16,12 +18,32 @@ type RegistrationStatus = {
 const { t, locale } = useI18n()
 const toast = useToast()
 const localePath = useLocalePath()
+const route = useRoute()
+const router = useRouter()
 const { apiBaseUrl, request } = useApiClient()
 const { setUser } = useAuthSession()
-const { returnFromAuth, authPageLink } = useAuthReturnNavigation()
+const { returnFromAuth, authPageLink, destination } = useAuthReturnNavigation()
 const { siteName, siteTagline, humanVerificationEnabledFor, altchaWidgetSettings, passwordPolicy } = useWebOptions()
+const {
+  registrationProviders,
+  redirectToProvider
+} = useAuthProviders()
+const {
+  alertMessage: externalAlertMessage,
+  alertVariant: externalAlertVariant
+} = useExternalAuthFeedback()
 // 有副标题时优先展示运营配置的标语，否则回退到内置品牌文案。
 const brandDescription = computed(() => siteTagline.value || t('auth.brandDesc'))
+
+// 固定 Host 续接：/register?ticket=…&redirect=…（opaque ticket，无 raw subject）。
+const registrationTicket = computed(() => {
+  const raw = route.query.ticket
+  if (typeof raw !== 'string') {
+    return ''
+  }
+  return raw.trim()
+})
+const isExternalTicketMode = computed(() => Boolean(registrationTicket.value))
 
 const form = reactive({
   username: '',
@@ -30,11 +52,16 @@ const form = reactive({
   displayName: ''
 })
 const submitting = ref(false)
+const providerStartingId = ref('')
 const errorMessage = ref('')
 const sessionUnavailable = ref(false)
 const fieldErrors = ref<Record<string, string[]>>({})
 const humanVerificationToken = ref('')
 const altchaWidget = ref<AltchaWidgetElement | null>(null)
+const surfaceError = computed(() => errorMessage.value || externalAlertMessage.value)
+const surfaceErrorVariant = computed(() =>
+  errorMessage.value ? 'danger' : (externalAlertVariant.value || 'danger')
+)
 const altchaConfiguration = computed(() => JSON.stringify({
   hideLogo: altchaWidgetSettings.value.hideLogo,
   hideFooter: altchaWidgetSettings.value.hideFooter,
@@ -70,9 +97,18 @@ const { data: registrationStatus } = await useAsyncData('auth-registration-statu
 const isBootstrapRegistration = computed(() => registrationStatus.value?.nextUserIsInitialSuperAdmin === true)
 // registrationEnabled 含 bootstrap 覆盖；缺字段时回退 true（兼容旧 API）。
 const isRegistrationOpen = computed(() => registrationStatus.value?.registrationEnabled !== false)
+// 显式第三方注册入口：Host 激活 registration 且站点开放注册、且非 ticket 续接页。
+const showExternalRegistrationProviders = computed(() =>
+  isRegistrationOpen.value
+  && !isExternalTicketMode.value
+  && !isBootstrapRegistration.value
+  && registrationProviders.value.length > 0
+)
 
 useSeoMeta({
-  title: t('auth.registerTitle')
+  title: () => isExternalTicketMode.value
+    ? t('auth.external.ticketModeTitle')
+    : t('auth.registerTitle')
 })
 
 function registerSuccessTitle() {
@@ -145,7 +181,7 @@ function passwordRequirementLabel(key: string) {
   }
 }
 
-async function submitRegister() {
+async function submitPasswordRegister() {
   if (submitting.value) {
     return
   }
@@ -202,6 +238,108 @@ async function submitRegister() {
     duration: 10000
   })
   await returnFromAuth()
+}
+
+async function submitExternalRegister() {
+  if (submitting.value) {
+    return
+  }
+  if (!registrationTicket.value) {
+    errorMessage.value = t('auth.external.reasons.ticketInvalid')
+    return
+  }
+  if (isBootstrapRegistration.value) {
+    errorMessage.value = t('auth.external.reasons.bootstrapRequired')
+    return
+  }
+  if (!isRegistrationOpen.value) {
+    errorMessage.value = t('auth.registerDisabledDescription')
+    return
+  }
+
+  errorMessage.value = ''
+  sessionUnavailable.value = false
+  fieldErrors.value = {}
+  submitting.value = true
+  const submittedHumanVerificationToken = humanVerificationEnabled.value ? humanVerificationToken.value : ''
+  // 外部注册不提交密码；凭证行由 Host 在 external-only 路径下保持缺省。
+  const body: Record<string, unknown> = {
+    ticket: registrationTicket.value,
+    username: form.username,
+    email: form.email,
+    displayName: form.displayName,
+    locale: locale.value
+  }
+  if (humanVerificationEnabled.value) {
+    body.humanVerification = {
+      provider: 'altcha',
+      token: submittedHumanVerificationToken
+    }
+  }
+
+  let currentUser: CurrentUser | null = null
+  try {
+    currentUser = await request<CurrentUser>('/auth/external-registration', {
+      method: 'POST',
+      body
+    })
+  } catch (error) {
+    fieldErrors.value = apiErrorFields(error)
+    const reason = apiErrorReason(error)
+    sessionUnavailable.value = reason === 'auth.session_unavailable'
+    if (humanVerificationEnabled.value && (submittedHumanVerificationToken || fieldError('humanVerification'))) {
+      resetHumanVerification()
+    }
+    // 票据失效后去掉 ticket query，避免用户反复提交同一 opaque token。
+    if (
+      reason === 'auth.external_registration_ticket_invalid'
+      || reason === 'auth.external_registration_ticket_expired'
+    ) {
+      const nextQuery = { ...route.query }
+      delete nextQuery.ticket
+      await router.replace({ path: route.path, query: nextQuery })
+    }
+    errorMessage.value = registerErrorMessage(error, t) || apiErrorMessage(error) || t('errors.registerFailed')
+  } finally {
+    submitting.value = false
+  }
+
+  if (!currentUser) {
+    return
+  }
+
+  setUser(currentUser)
+  toast.add({
+    color: 'success',
+    icon: 'i-lucide-check',
+    title: registerSuccessTitle(),
+    duration: 10000
+  })
+  await returnFromAuth()
+}
+
+async function submitRegister() {
+  if (isExternalTicketMode.value) {
+    await submitExternalRegister()
+    return
+  }
+  await submitPasswordRegister()
+}
+
+async function startExternalRegistration(provider: PublicAuthProvider) {
+  if (submitting.value || providerStartingId.value || !showExternalRegistrationProviders.value) {
+    return
+  }
+  errorMessage.value = ''
+  providerStartingId.value = provider.id
+  try {
+    await redirectToProvider(provider.id, 'registration', {
+      redirectHint: destination.value
+    })
+  } catch (error) {
+    errorMessage.value = apiErrorMessage(error) || t('auth.providers.startFailed')
+    providerStartingId.value = ''
+  }
 }
 </script>
 
@@ -266,8 +404,12 @@ async function submitRegister() {
           </NuxtLink>
         </nav>
 
-        <h2 class="auth-form-title">{{ t('auth.registerHeading') }}</h2>
-        <p class="auth-form-sub">{{ t('auth.registerIntro') }}</p>
+        <h2 class="auth-form-title">
+          {{ isExternalTicketMode ? t('auth.external.ticketModeHeading') : t('auth.registerHeading') }}
+        </h2>
+        <p class="auth-form-sub">
+          {{ isExternalTicketMode ? t('auth.external.ticketModeIntro') : t('auth.registerIntro') }}
+        </p>
 
         <div v-if="!isRegistrationOpen" class="auth-closed">
           <SFAlert
@@ -285,7 +427,7 @@ async function submitRegister() {
 
         <form v-else @submit.prevent="submitRegister">
           <SFAlert
-            v-if="isBootstrapRegistration"
+            v-if="isBootstrapRegistration && !isExternalTicketMode"
             :title="t('auth.firstUserAdminNotice')"
             variant="warning"
             compact
@@ -293,9 +435,17 @@ async function submitRegister() {
           />
 
           <SFAlert
-            v-if="errorMessage"
-            :title="errorMessage"
-            variant="danger"
+            v-if="isExternalTicketMode"
+            :title="t('auth.external.ticketModeNotice')"
+            variant="info"
+            compact
+            class="auth-alert"
+          />
+
+          <SFAlert
+            v-if="surfaceError"
+            :title="surfaceError"
+            :variant="surfaceErrorVariant"
             compact
             class="auth-alert"
           >
@@ -365,7 +515,7 @@ async function submitRegister() {
             />
           </div>
 
-          <div class="auth-field">
+          <div v-if="!isExternalTicketMode" class="auth-field">
             <label class="auth-label" for="reg-password-input">
               {{ t('auth.password') }}
             </label>
@@ -437,10 +587,27 @@ async function submitRegister() {
             </p>
           </div>
 
-          <button class="auth-btn" type="submit" :disabled="submitting">
-            {{ submitting ? t('auth.registering') : t('auth.submitRegister') }}
+          <button
+            class="auth-btn"
+            type="submit"
+            :disabled="submitting || Boolean(providerStartingId)"
+          >
+            {{
+              submitting
+                ? t('auth.registering')
+                : (isExternalTicketMode ? t('auth.external.submitTicketRegister') : t('auth.submitRegister'))
+            }}
           </button>
         </form>
+
+        <SFAuthProviderButtons
+          v-if="showExternalRegistrationProviders"
+          :providers="registrationProviders"
+          operation="registration"
+          :starting-id="providerStartingId"
+          :disabled="submitting"
+          @start="startExternalRegistration"
+        />
 
         <p class="auth-terms">
           {{ t('auth.agreeTo') }}

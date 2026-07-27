@@ -150,6 +150,22 @@ func builtinPluginManifest(id, version, backendEntry string) Manifest {
 	return manifest
 }
 
+func authProviderBuiltinManifest(id, version string) Manifest {
+	manifest := builtinPluginManifest(id, version, "backend/plugin")
+	manifest.Identity = &ManifestIdentity{
+		ContractVersion: "sforum.auth.fixture@1",
+		Providers: []ManifestIdentityProvider{{
+			ID: id + ".auth", ContractVersion: "sforum.auth.fixture.provider@1",
+			Kind: "auth", Handler: id + ".handler",
+			Operations: []ManifestIdentityProviderOperation{{
+				Name: "login.start", InputSchema: "schemas/start.input.json",
+				OutputSchema: "schemas/start.output.json", FailurePolicy: "fail_closed",
+			}},
+		}},
+	}
+	return manifest
+}
+
 func saveBuiltinPlugin(
 	t *testing.T,
 	fixture *pluginRuntimePublicationPGFixture,
@@ -165,6 +181,27 @@ func saveBuiltinPlugin(
 		t.Fatal(err)
 	}
 	return item
+}
+
+func TestSaveBuiltinAuthProviderDefaultsInstalledForExplicitLifecycleEnable(t *testing.T) {
+	fixture := newBuiltinPluginRuntimeSaveFixture(t, "auth_default_off")
+	const pluginID = "builtin.auth-provider"
+	digest := strings.Repeat("a", 64)
+
+	item, err := fixture.store.SaveBuiltin(fixture.ctx, SaveBuiltinInput{
+		Manifest:      authProviderBuiltinManifest(pluginID, "1.0.0"),
+		PackagePath:   "/tmp/" + pluginID + "/1.0.0",
+		PackageDigest: digest,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item.Status != StatusInstalled || item.ActiveVersionID == 0 || item.PackageDigest != digest {
+		t.Fatalf("auth provider builtin should stage exact bytes without enabling runtime: %#v", item)
+	}
+	if _, err := fixture.store.LatestPluginRuntimePublication(fixture.ctx); !errors.Is(err, ErrPluginRuntimePublicationNotFound) {
+		t.Fatalf("auth provider builtin must not publish plugin runtime on sync: %v", err)
+	}
 }
 
 func seedBuiltinPluginRuntimePublication(
@@ -194,7 +231,7 @@ func seedBuiltinPluginRuntimePublication(
 	return publication
 }
 
-func TestSaveBuiltinPluginRuntimeUpgradeDigestAToB(t *testing.T) {
+func TestSaveBuiltinEnabledPluginStagesDigestBWithoutBypassingLifecycle(t *testing.T) {
 	fixture := newBuiltinPluginRuntimeSaveFixture(t, "upgrade_a_b")
 	digestA := strings.Repeat("a", 64)
 	digestB := strings.Repeat("b", 64)
@@ -210,23 +247,21 @@ func TestSaveBuiltinPluginRuntimeUpgradeDigestAToB(t *testing.T) {
 	)
 
 	v2 := saveBuiltinPlugin(t, fixture, pluginID, "1.0.1", digestB, "backend/plugin")
-	if v2.ActiveVersionID == v1.ActiveVersionID || v2.PackageDigest != digestB {
-		t.Fatalf("active not advanced to B: %#v", v2)
+	if v2.ActiveVersionID != v1.ActiveVersionID || v2.StagedVersion == nil || v2.StagedVersion.ID == v1.ActiveVersionID {
+		t.Fatalf("enabled builtin must stage B without advancing active artifact: %#v", v2)
 	}
 	latest, err := fixture.store.LatestPluginRuntimePublication(fixture.ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if latest.Revision <= genesis.Revision ||
-		latest.Reason != PluginRuntimePublicationUpgrade ||
-		latest.ActorUserID != 0 {
-		t.Fatalf("unexpected upgrade publication: %+v", latest)
+	if latest.Revision != genesis.Revision {
+		t.Fatalf("SyncBuiltins must not bypass lifecycle with a runtime upgrade publication: %+v", latest)
 	}
 	assertPluginRuntimePublicationMembers(t, latest, PluginRuntimeMember{
-		ExtensionID: pluginID, ExtensionVersionID: v2.ActiveVersionID,
-		ExtensionVersion: "1.0.1", PackageDigest: digestB,
+		ExtensionID: pluginID, ExtensionVersionID: v1.ActiveVersionID,
+		ExtensionVersion: "1.0.0", PackageDigest: digestA,
 	})
-	assertPluginRuntimePublicationCount(t, fixture, 2)
+	assertPluginRuntimePublicationCount(t, fixture, 1)
 }
 
 // 旧旁路已把 active 推到 B，而 latest publication 仍停在 A：SaveBuiltin(B)
@@ -322,14 +357,14 @@ func TestSaveBuiltinPluginRuntimeConcurrentRepeatIdempotent(t *testing.T) {
 		},
 	)
 
-	// 先完成一次 A→B，再并发重复同一 B 同步。
-	v2 := saveBuiltinPlugin(t, fixture, pluginID, "1.0.1", digestB, "backend/plugin")
+	// 已启用制品的 B 只暂存；并发重复同步也不得绕过 lifecycle。
+	saveBuiltinPlugin(t, fixture, pluginID, "1.0.1", digestB, "backend/plugin")
 	before, err := fixture.store.LatestPluginRuntimePublication(fixture.ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if before.Reason != PluginRuntimePublicationUpgrade {
-		t.Fatalf("expected upgrade before concurrent replay: %+v", before)
+	if before.Reason != PluginRuntimePublicationStartupReconcile {
+		t.Fatalf("unexpected publication before concurrent replay: %+v", before)
 	}
 
 	workerPool, err := pgxpool.NewWithConfig(fixture.ctx, fixture.pool.Config().Copy())
@@ -365,10 +400,10 @@ func TestSaveBuiltinPluginRuntimeConcurrentRepeatIdempotent(t *testing.T) {
 	if err != nil || !samePluginRuntimePublication(latest, before) {
 		t.Fatalf("concurrent replay changed publication: before=%+v after=%+v err=%v", before, latest, err)
 	}
-	assertPluginRuntimePublicationCount(t, fixture, 2)
+	assertPluginRuntimePublicationCount(t, fixture, 1)
 	active, err := fixture.store.Get(fixture.ctx, pluginID)
-	if err != nil || active.ActiveVersionID != v2.ActiveVersionID || active.PackageDigest != digestB {
-		t.Fatalf("active after concurrent replay: %#v err=%v", active, err)
+	if err != nil || active.ActiveVersionID != v1.ActiveVersionID || active.StagedVersion == nil || active.StagedVersion.PackageDigest != digestB {
+		t.Fatalf("staged artifact after concurrent replay: %#v err=%v", active, err)
 	}
 }
 
@@ -378,7 +413,7 @@ func TestSaveBuiltinPluginRuntimeDoesNotResurrectAbsentMember(t *testing.T) {
 	digestB := strings.Repeat("b", 64)
 	const pluginID = "builtin.revoked"
 
-	// 扩展 enabled 且 active 会推进，但 latest full-set 故意不含该成员
+	// 扩展 enabled 且新制品会暂存，但 latest full-set 故意不含该成员
 	// （模拟 trust-revocation 摘除成员后 status 仍 enabled）。
 	v1 := saveBuiltinPlugin(t, fixture, pluginID, "1.0.0", digestA, "backend/plugin")
 	empty := seedBuiltinPluginRuntimePublication(
@@ -389,8 +424,8 @@ func TestSaveBuiltinPluginRuntimeDoesNotResurrectAbsentMember(t *testing.T) {
 	}
 
 	v2 := saveBuiltinPlugin(t, fixture, pluginID, "1.0.1", digestB, "backend/plugin")
-	if v2.PackageDigest != digestB || v2.ActiveVersionID == v1.ActiveVersionID {
-		t.Fatalf("active should still advance: %#v", v2)
+	if v2.ActiveVersionID != v1.ActiveVersionID || v2.StagedVersion == nil || v2.StagedVersion.PackageDigest != digestB {
+		t.Fatalf("new artifact should be staged: %#v", v2)
 	}
 	latest, err := fixture.store.LatestPluginRuntimePublication(fixture.ctx)
 	if err != nil || !samePluginRuntimePublication(latest, empty) {
@@ -449,20 +484,23 @@ func TestSaveBuiltinPluginRuntimePreservesUnrelatedMembers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if latest.Reason != PluginRuntimePublicationUpgrade {
-		t.Fatalf("expected upgrade: %+v", latest)
+	if latest.Reason != PluginRuntimePublicationStartupReconcile {
+		t.Fatalf("SyncBuiltins bypassed lifecycle: %+v", latest)
 	}
 	assertPluginRuntimePublicationMembers(t, latest,
 		PluginRuntimeMember{
-			ExtensionID: pluginID, ExtensionVersionID: upgraded.ActiveVersionID,
-			ExtensionVersion: "1.0.1", PackageDigest: digestB,
+			ExtensionID: pluginID, ExtensionVersionID: primary.ActiveVersionID,
+			ExtensionVersion: "1.0.0", PackageDigest: digestA,
 		},
 		PluginRuntimeMember{
 			ExtensionID: otherID, ExtensionVersionID: otherVersionID,
 			ExtensionVersion: "9.0.0", PackageDigest: digestOther,
 		},
 	)
-	assertPluginRuntimePublicationCount(t, fixture, 2)
+	assertPluginRuntimePublicationCount(t, fixture, 1)
+	if upgraded.ActiveVersionID != primary.ActiveVersionID || upgraded.StagedVersion == nil || upgraded.StagedVersion.PackageDigest != digestB {
+		t.Fatalf("primary upgrade was not staged: %#v", upgraded)
+	}
 }
 
 func TestSaveBuiltinPluginRuntimeNoPublicationLeavesGenesisToLater(t *testing.T) {

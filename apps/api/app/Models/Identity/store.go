@@ -12,6 +12,9 @@ type Store interface {
 	AnyUserExists(ctx context.Context) (bool, error)
 	FindRegistrationConflicts(ctx context.Context, username string, email string) (RegistrationConflicts, error)
 	GetCurrentUser(ctx context.Context, userID int64) (CurrentUser, error)
+	// GetCurrentUserByEmail 按邮箱加载用户（不要求 password credential；供 external-only 重置）。
+	// 不存在时返回 ErrUserNotFound。
+	GetCurrentUserByEmail(ctx context.Context, email string) (CurrentUser, error)
 	GetCredentialByLogin(ctx context.Context, login string) (CredentialUser, error)
 	ListPermissions(ctx context.Context) ([]Permission, error)
 	ListPermissionMatrix(ctx context.Context) (PermissionMatrix, error)

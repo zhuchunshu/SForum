@@ -425,6 +425,102 @@ func TestPostgresExtensionDatabaseRuntimeLeaseReaperConvergesAndAudits(t *testin
 	}
 }
 
+// 真实运行时可能在 Host 重启前已经由旧实例或人工恢复删除 login role。此时
+// cleanup-pending 行必须收敛为终态，而不是让下一次 API bootstrap 永久失败。
+func TestPostgresExtensionDatabaseRuntimeLeaseReaperConvergesWhenRoleWasAlreadyRemoved(t *testing.T) {
+	databaseURL := strings.TrimSpace(os.Getenv("SFORUM_TEST_DATABASE_URL"))
+	if databaseURL == "" {
+		t.Skip("SFORUM_TEST_DATABASE_URL is required for runtime lease integration test")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	pool, err := pgxpool.New(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close)
+
+	extensionID := fmt.Sprintf("p5.runtime.reaper.missing-role.%d", time.Now().UnixNano())
+	artifact := insertExtensionDatabaseRuntimeLeaseFixture(
+		t, ctx, pool, extensionID, "1.0.0", "already-removed", []string{extensionmanifest.DatabaseGrantOwnSchema},
+	)
+	identifiers, err := ExtensionDatabaseIdentifiersFor(extensionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { cleanupExtensionDatabaseRuntimeLeaseFixture(t, pool, extensionID, identifiers) })
+	registry := NewPostgresExtensionDatabaseRegistry(pool, nil)
+	credential, err := registry.IssueRuntimeLease(ctx, ExtensionDatabaseRuntimeLeaseIssue{
+		Artifact: artifact, RuntimeInstanceID: "already-removed-runtime",
+		Authority: ExtensionDatabaseLeaseAuthority{
+			Kind: ExtensionDatabaseLeaseIssuerActor, ActorUserID: 701, AuditEventID: 801,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `
+		UPDATE extension_database_runtime_leases
+		SET issued_at = statement_timestamp() - interval '4 minutes',
+		    last_heartbeat_at = statement_timestamp() - interval '2 minutes',
+		    lease_expires_at = statement_timestamp() - interval '1 minute'
+		WHERE lease_id = $1
+	`, credential.LeaseID); err != nil {
+		t.Fatal(err)
+	}
+
+	// 先走生产 reaper 的第一阶段，留下已逻辑失效但尚待物理回收的租约。
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := lockExtensionDatabaseResource(ctx, tx, identifiers.LockKey); err != nil {
+		t.Fatal(err)
+	}
+	databaseName, err := currentExtensionDatabaseName(ctx, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := reapExpiredExtensionDatabaseRuntimeLeasesLocked(
+		ctx, tx, extensionID, identifiers, databaseName, DefaultExtensionDatabaseRuntimeLeaseReapLimit,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	// 模拟旧进程/恢复工具在物理回收之间删除同一 lease role。
+	quotedRole := pgx.Identifier{credential.RoleName}.Sanitize()
+	quotedOwner := pgx.Identifier{identifiers.OwnerRole}.Sanitize()
+	for _, statement := range []string{
+		`REASSIGN OWNED BY ` + quotedRole + ` TO ` + quotedOwner,
+		`DROP OWNED BY ` + quotedRole,
+		`DROP ROLE ` + quotedRole,
+	} {
+		if _, err := pool.Exec(ctx, statement); err != nil {
+			t.Fatalf("remove runtime lease role before reaper retry: %v", err)
+		}
+	}
+
+	reaped, err := registry.reapExpiredRuntimeLeasesForExtension(
+		ctx, extensionID, DefaultExtensionDatabaseRuntimeLeaseReapLimit,
+	)
+	if err != nil || reaped != 1 {
+		t.Fatalf("reaper retry after role removal = count:%d err:%v", reaped, err)
+	}
+	ref := ExtensionDatabaseRuntimeLeaseRef{
+		Artifact: artifact, RuntimeInstanceID: credential.RuntimeInstanceID, LeaseID: credential.LeaseID,
+	}
+	snapshot, err := registry.InspectRuntimeLease(ctx, ref)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snapshot.Status != ExtensionDatabaseLeaseFailed || snapshot.FailureCode != extensionDatabaseRuntimeLeaseExpiredCode {
+		t.Fatalf("already-removed role lease did not converge: %#v", snapshot)
+	}
+}
+
 func insertExtensionDatabaseRuntimeLeaseFixture(
 	t *testing.T,
 	ctx context.Context,

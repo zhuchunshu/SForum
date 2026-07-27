@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["correlationId", "completionToken"],
+  "properties": {
+    "correlationId": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "completionToken": { "type": "string", "minLength": 1, "maxLength": 4000 },
+    "deviceFingerprint": { "type": "string", "maxLength": 200 },
+    "clientClass": { "type": "string", "maxLength": 120 },
+    "actorUserId": { "type": "integer", "minimum": 1 },
+    "targetUserId": { "type": "integer", "minimum": 1 },
+    "codeVerifier": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "callbackUrl": { "type": "string", "minLength": 1, "maxLength": 2000 }
+  },
+  "additionalProperties": false
+}

@@ -4,7 +4,7 @@ Status: **active (partial)** — E1–E6 largely landed (hooks, contributions,
 content-policy, storage plugin path); remaining north-star service slots
 continue via V3 provider/registry model. Do not restart E1–E5 from scratch.  
 Date: 2026-07-12  
-Last status pass: 2026-07-21 knowledge cleanup  
+Last status pass: 2026-07-27 notification-channel promotion
 Audience: humans and AI sessions extending provider slots / contribution density
 
 **Goal (two layers):**
@@ -12,8 +12,8 @@ Audience: humans and AI sessions extending provider slots / contribution density
 1. **Author flexibility** — plugins can filter writes, inject public UI, store
    meta, and ship real verticals without reading core internals.
 2. **Service pluginization (product north star)** — deployment-specific
-   **services** (mail, attachment storage, search, human verification, and
-   later notification channels / risk / sanitizer / payments) are selected and
+   **services** (mail, attachment storage, search, human verification,
+   notification channels, and later risk / sanitizer / payments) are selected and
    configured as **provider-slot plugins**, not hard-wired only in core.
 
    Operators should be able to: install/enable a storage or search plugin →
@@ -26,6 +26,9 @@ Audience: humans and AI sessions extending provider slots / contribution density
 **Parent strategy:** `knowledge/plans/2026-07-12-development-directions.md`  
 **Platform spine (done):** `knowledge/plans/archive/2026-07/2026-07-12-framework-hardening-waves.md`
 (F1–F4 complete including F4.4/F4.5 = E3/E4; remaining E1–E2, E5–E8)  
+**Promoted notification program:** `knowledge/plans/2026-07-27-notification-platform-v2.md`
+owns notification types, preferences, plugin emission, realtime, and
+`notification.channel`; do not implement that row independently from E8.
 **Architecture rules:**
 
 - `knowledge/decisions/2026-07-06-core-framework-plugin-first-architecture.md`
@@ -612,15 +615,16 @@ Pick one:
 
 ---
 
-## Wave E8 — Other service slots (later, same ladder)
+## Wave E8 — Other service slots (same ladder)
 
 Do not start until E6 is L4+ and at least one of E5/E7 is proven. Same ladder
-L3→L6, copy mail admin loop.
+L3→L6, copy mail admin loop. Notification Channel has now been promoted to its
+dedicated ready task book; the other rows remain demand-driven.
 
 | Slot | Priority | Notes |
 | --- | --- | --- |
 | `human_verification.provider` | Medium | Altcha stays default; captcha vendors as plugins |
-| `notification.channel` | Medium | Push/SMS/IM; core owns fanout policy |
+| `notification.channel` | **Promoted** | Execute `2026-07-27-notification-platform-v2.md`; Core owns fanout policy |
 | `auth.risk.provider` | Lower | Login risk signals |
 | `editor.sanitizer.provider` | Lower | Only if policy packs need isolation |
 | `payment.provider` | Demand-gated | Needs core intents first (framework decision) |
@@ -660,7 +664,8 @@ reference plugin → docs. **Do not** only add a catalog string.
 | 14–15 | **E6.2–E6.3** RPC + admin | |
 | 16 | **E6.4** reference storage plugin | |
 | 17–18 | **E7** search plugin slot | After storage pattern proven |
-| later | **E8** captcha / notification / … | Demand-driven |
+| promoted | **E8 notification.channel** | Dedicated Notification Platform V2 task book |
+| later | **E8 remaining slots** | Demand-driven |
 
 **Product-priority fork (your north star):** after E1.1 (and ideally E1.2),
 you may run **E6 before E2–E5** so storage pluginization lands earlier. E5

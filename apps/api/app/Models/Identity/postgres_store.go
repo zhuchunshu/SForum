@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -110,6 +111,35 @@ func (s *PostgresStore) GetCurrentUser(ctx context.Context, userID int64) (Curre
 	`, userID))
 	if err != nil {
 		return CurrentUser{}, fmt.Errorf("get current user: %w", err)
+	}
+	if err := s.loadCurrentUserAccess(ctx, &current); err != nil {
+		return CurrentUser{}, err
+	}
+	return current, nil
+}
+
+// GetCurrentUserByEmail 按邮箱加载完整 CurrentUser（不要求 password credential）。
+func (s *PostgresStore) GetCurrentUserByEmail(ctx context.Context, email string) (CurrentUser, error) {
+	email = strings.TrimSpace(email)
+	if email == "" {
+		return CurrentUser{}, ErrUserNotFound
+	}
+	current, err := scanCurrentUserWithAvatar(ctx, s.avatarBuilder, s.pool.QueryRow(ctx, `
+		SELECT users.id, users.username, users.display_name, users.email, users.locale,
+		       users.status, users.is_initial_super_admin, users.current_token_version,
+		       user_profiles.avatar_attachment_id,
+		       attachments.id, attachments.public_id, attachments.owner_user_id,
+		       attachments.content_type, attachments.status
+		FROM users
+		LEFT JOIN user_profiles ON user_profiles.user_id = users.id
+		LEFT JOIN attachments ON attachments.id = user_profiles.avatar_attachment_id
+		WHERE users.email_lower = lower($1)
+	`, email))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return CurrentUser{}, ErrUserNotFound
+		}
+		return CurrentUser{}, fmt.Errorf("get current user by email: %w", err)
 	}
 	if err := s.loadCurrentUserAccess(ctx, &current); err != nil {
 		return CurrentUser{}, err

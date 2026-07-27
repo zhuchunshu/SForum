@@ -98,16 +98,13 @@ func (s *PasswordResetService) RequestPasswordReset(ctx context.Context, input R
 	if err := s.enforceRequestRateLimit(ctx, email, input.IP); err != nil {
 		return err
 	}
-	credential, err := s.store.GetCredentialByLogin(ctx, email)
+	// 先按登录名查凭据；external-only 用户无 credential 行时回退到用户查询。
+	// 两种路径对外均非枚举：不存在/非活跃一律静默成功。
+	userID, username, status, found, err := s.lookupPasswordResetTarget(ctx, email)
 	if err != nil {
-		// 用户不存在：静默成功，不暴露邮箱是否存在。
-		if errors.Is(err, ErrCredentialNotFound) {
-			return nil
-		}
 		return err
 	}
-	if credential.Status != UserStatusActive {
-		// 非活跃用户也静默成功。
+	if !found || status != UserStatusActive {
 		return nil
 	}
 
@@ -120,7 +117,7 @@ func (s *PasswordResetService) RequestPasswordReset(ctx context.Context, input R
 
 	ipHash := hashIP(input.IP)
 	tokenInput := CreatePasswordResetTokenInput{
-		UserID:        credential.ID,
+		UserID:        userID,
 		TokenHash:     tokenHash,
 		ExpiresAt:     expiresAt,
 		RequestIPHash: ipHash,
@@ -133,7 +130,7 @@ func (s *PasswordResetService) RequestPasswordReset(ctx context.Context, input R
 	message := PasswordResetMail{
 		Recipient:      email,
 		Subject:        s.resetEmailSubject(),
-		TextBody:       s.resetEmailBody(credential.Username, resetURL, expiresAt),
+		TextBody:       s.resetEmailBody(username, resetURL, expiresAt),
 		IdempotencyKey: "password_reset:" + tokenHash,
 	}
 	if err := s.mailer.QueuePasswordReset(ctx, tokenInput, message); err != nil {
@@ -177,7 +174,32 @@ type ConfirmPasswordResetInput struct {
 	NewPassword string
 }
 
+// lookupPasswordResetTarget 解析重置目标：有密码凭据或 external-only 用户均可。
+// found=false 表示不存在（调用方静默成功，不枚举邮箱）。
+func (s *PasswordResetService) lookupPasswordResetTarget(
+	ctx context.Context,
+	email string,
+) (userID int64, username string, status UserStatus, found bool, err error) {
+	credential, err := s.store.GetCredentialByLogin(ctx, email)
+	if err == nil {
+		return credential.ID, credential.Username, credential.Status, true, nil
+	}
+	if !errors.Is(err, ErrCredentialNotFound) {
+		return 0, "", "", false, err
+	}
+	// external-only：按邮箱加载用户（无凭据）。不存在同样视为 found=false。
+	current, err := s.store.GetCurrentUserByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, ErrUserNotFound) || errors.Is(err, ErrCredentialNotFound) {
+			return 0, "", "", false, nil
+		}
+		return 0, "", "", false, err
+	}
+	return current.ID, current.Username, current.Status, true, nil
+}
+
 // ConfirmPasswordReset 校验令牌、消费令牌、更新密码（事务原子完成）。
+// external-only 用户确认时创建 password credential（见 ConfirmPasswordResetAtomic upsert）。
 func (s *PasswordResetService) ConfirmPasswordReset(ctx context.Context, input ConfirmPasswordResetInput) error {
 	token := strings.TrimSpace(input.Token)
 	if token == "" {

@@ -560,6 +560,8 @@ func identityProviderOperationPolicy(kind, name string) (string, bool) {
 		return IdentityProviderFailureOmit, true
 	case "auth:registration.start", "auth:registration.complete",
 		"auth:login.start", "auth:login.complete", "auth:link.start", "auth:link.complete",
+		// provider.probe：有界配置/可达性探测（T8B）；fail_closed，不得作为业务效应入口。
+		"auth:provider.probe",
 		"profile:section.update", "profile:account.read", "profile:account.update",
 		"recovery:recovery.start", "recovery:recovery.complete",
 		"session:session.evaluate", "risk:risk.evaluate":

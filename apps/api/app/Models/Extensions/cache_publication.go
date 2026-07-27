@@ -67,6 +67,7 @@ func (s *Service) disableLegacyCachePlugin(
 	assetMutation exactAssetMutation,
 	queryMutation RuntimeQueryPublicationMutation,
 	cacheMutation RuntimeCachePublicationMutation,
+	identityMutation RuntimeIdentityPublicationMutation,
 	actorUserID int64,
 ) (Extension, error) {
 	if cacheMutation == nil {
@@ -75,11 +76,11 @@ func (s *Service) disableLegacyCachePlugin(
 	// Both Registry publications are quarantined before persistent state changes.
 	// Query owns the final resume when present because it drained the runtime first.
 	if err := s.clearPluginProviderSelections(ctx, extension.ID); err != nil {
-		return Extension{}, s.compensateLegacyCacheDisable(assetMutation, queryMutation, cacheMutation, err)
+		return Extension{}, s.compensateLegacyCacheDisable(assetMutation, queryMutation, cacheMutation, identityMutation, err)
 	}
 	disabled, err := s.disableLegacyPluginState(ctx, extension, actorUserID)
 	if err != nil {
-		return Extension{}, s.compensateLegacyCacheDisable(assetMutation, queryMutation, cacheMutation, err)
+		return Extension{}, s.compensateLegacyCacheDisable(assetMutation, queryMutation, cacheMutation, identityMutation, err)
 	}
 	if s.pageRegistry != nil {
 		s.pageRegistry.ClearExtension(extension.ID)
@@ -100,6 +101,7 @@ func (s *Service) compensateLegacyCacheDisable(
 	assetMutation exactAssetMutation,
 	queryMutation RuntimeQueryPublicationMutation,
 	cacheMutation RuntimeCachePublicationMutation,
+	identityMutation RuntimeIdentityPublicationMutation,
 	cause error,
 ) error {
 	// Admission must remain closed if an earlier surface cannot be restored.
@@ -117,6 +119,11 @@ func (s *Service) compensateLegacyCacheDisable(
 	if queryMutation != nil {
 		if err := queryMutation.Rollback(); err != nil {
 			return errors.Join(cause, fmt.Errorf("restore query publication and runtime admission: %w", err))
+		}
+	}
+	if identityMutation != nil {
+		if err := identityMutation.Rollback(); err != nil {
+			return errors.Join(cause, fmt.Errorf("restore identity publication: %w", err))
 		}
 	}
 	return cause

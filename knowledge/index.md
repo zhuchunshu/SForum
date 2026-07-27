@@ -6,6 +6,41 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
+### Tri-State Color Mode Reliability
+
+- Status: **ready**; Automatic/Light/Dark product semantics are approved, the
+  `localhost` versus `127.0.0.1` persistence split is reproduced, and M0-M5
+  implementation/verification remain.
+- Plan: `plans/2026-07-27-tristate-color-mode-reliability.md`
+- Handoff:
+  `sessions/2026-07-27-tristate-color-mode-plan-handoff.md`
+- Decision:
+  `decisions/2026-07-27-tristate-color-mode-preference.md`
+- Module: `modules/frontend.md`
+
+### Configurable Public Navigation Platform
+
+- Status: **ready**; topbar operator rows and plugin append are present, while
+  shared topbar/sidebar/mobile/footer placement, accessible sorting, defaults,
+  snapshots, backup, and full V3 plugin/theme lifecycle wiring remain open.
+- Plan: `plans/2026-07-27-configurable-public-navigation-platform.md`
+- Handoff:
+  `sessions/2026-07-27-public-navigation-platform-plan-handoff.md`
+- Decision:
+  `decisions/2026-07-27-operator-owned-public-navigation.md`
+- Modules: `modules/options.md`, `modules/frontend.md`,
+  `modules/extensions.md`
+
+### Notification Platform V2
+
+- Status: **ready**; V1 inbox/mail projection is present, but direct topic
+  replies, approval-time reply/mention fanout, user preferences, plugin
+  notification contracts, realtime refresh, and external channels remain open.
+- Plan: `plans/2026-07-27-notification-platform-v2.md`
+- Handoff: `sessions/2026-07-27-notification-platform-plan-handoff.md`
+- Decision: `decisions/2026-07-27-notification-platform-v2.md`
+- Module: `modules/notifications.md`
+
 ### V3 production rewire honesty remediation
 
 - Status: **ready**; eight production-call-chain findings remain. Support-only
@@ -16,13 +51,16 @@ load archived sessions or completed plans as current context.
 
 ### Built-in GitHub social login
 
-- Status: **ready**; V1 ships one protected built-in GitHub OAuth plugin while
-  Core owns accounts, subject HMAC, links, callback state, risk/session policy,
-  and browser sessions.
-- Built-in discovery never auto-trusts, enables, configures, or publicly
-  activates the provider.
+- Status: **整改完成，等待独立复审** (2026-07-27). R1-R7 now have focused,
+  isolated runtime, and Browser evidence; the generic Host/plugin architecture
+  and protected built-in reference remain subject to independent acceptance.
 - Plan: `plans/2026-07-27-github-social-login-builtin-plugin.md`
-- Handoff: `sessions/2026-07-27-github-social-login-plan-handoff.md`
+- Remediation:
+  `plans/2026-07-27-external-auth-core-plugin-review-remediation.md`
+- Handoff:
+  `sessions/2026-07-27-external-auth-review-remediation-handoff.md`
+- Evidence matrix:
+  `reports/2026-07-27-external-auth-r1-r7-requirements-evidence-matrix.md`
 - Decision: `decisions/2026-07-27-github-social-login-builtin-v1.md`
 - Module: `modules/identity.md`
 
@@ -67,9 +105,21 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- Built-in GitHub social login V1 scope, Host/plugin security boundaries,
-  subject HMAC correction, and M0-M5 delivery order:
-  `sessions/2026-07-27-github-social-login-plan-handoff.md`
+- Tri-state color-mode task book: shared preference authority, explicit
+  Automatic/Light/Dark UI, canonical local origin, cache-safe persistence, and
+  M0-M5 one-conversation milestones:
+  `sessions/2026-07-27-tristate-color-mode-plan-handoff.md`
+- Configurable public navigation task book: Core-owned placement/defaults/
+  backup, theme-owned presentation, bounded V3 plugin injection, and M0-M7
+  one-conversation milestones:
+  `sessions/2026-07-27-public-navigation-platform-plan-handoff.md`
+- Notification Platform V2 task book: Core recipient correctness, layered
+  admin/user preferences, namespaced plugin emission, durable-revision SSE, and
+  a Web Push reference channel:
+  `sessions/2026-07-27-notification-platform-plan-handoff.md`
+- Built-in GitHub social login: R1-R7 remediation packet completed with
+  isolated HTTP/Browser artifacts; independent review remains required:
+  `sessions/2026-07-27-external-auth-review-remediation-handoff.md`
 - Topic create/edit selected-theme and Core-fallback shell parity, exact
   artifact activation, CSS validator boundary fix, and editor Host Island
   allowlist:

@@ -885,19 +885,31 @@ authAPITokenRotate:
 
 authProviders:
   get:
-    summary: List executable auth and recovery providers
+    summary: List effectively available auth and recovery providers
+    description: |
+      Returns only Host-effective public providers. Auth providers require live
+      Registry presence, exact-artifact Host activation, supported operations,
+      and non-Safe-Mode runtime. Responses never include raw subjects, digests,
+      tokens, Client Secrets, or callback transaction material.
     operationId: listAuthProviders
     responses:
       '200':
-        description: Redacted executable provider catalog.
+        description: Redacted effectively available provider catalog.
         content:
           application/json:
             schema:
               "$ref": "../schemas/identity.yaml#/ApiResponseAuthProviderList"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
 
 authProviderStart:
   post:
     summary: Start an external auth, link, or recovery provider flow
+    description: |
+      Host creates high-entropy callback state, PKCE material, and an absolute
+      callback URL from trusted `APP_URL`, then invokes the provider start
+      operation. Link requires an active browser session. Login/registration/
+      link require Host activation for that operation.
     operationId: startAuthProvider
     parameters:
     - name: providerId
@@ -935,7 +947,13 @@ authProviderStart:
 
 authProviderComplete:
   post:
-    summary: Complete an external auth, link, or recovery provider flow
+    summary: Complete recovery provider flow, or reject legacy auth complete
+    description: |
+      Recovery complete remains available on this path. Public
+      login/registration/link complete is closed (`410 auth.provider_callback_required`);
+      those effects only run through the reserved Host OAuth callback route so
+      callback state, activation, exact-artifact fencing, actor policy, and
+      response redaction cannot be bypassed.
     operationId: completeAuthProvider
     parameters:
     - name: providerId
@@ -957,7 +975,7 @@ authProviderComplete:
             "$ref": "../schemas/identity.yaml#/AuthProviderCompleteRequest"
     responses:
       '200':
-        description: Provider complete assertion.
+        description: Recovery complete assertion (auth operations do not succeed here).
         content:
           application/json:
             schema:
@@ -968,8 +986,337 @@ authProviderComplete:
         "$ref": "../components/responses.yaml#/NotFound"
       '409':
         "$ref": "../components/responses.yaml#/Conflict"
+      '410':
+        description: Auth login/registration/link complete requires Host OAuth callback.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+            examples:
+              callbackRequired:
+                value:
+                  code: 410
+                  message: auth.provider_callback_required
+                  data:
+                    reason: auth.provider_callback_required
       '422':
         "$ref": "../components/responses.yaml#/UnprocessableEntity"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+
+authProviderCallback:
+  get:
+    summary: Consume Host OAuth callback state and complete one external auth attempt
+    description: |
+      Reserved Core route. Host atomically consumes the callback transaction,
+      re-resolves the live exact artifact, re-checks activation, injects the
+      Host-owned PKCE verifier and absolute callback URL into plugin complete,
+      then performs login, registration-ticket, or link effects. This route is
+      intentionally closed to Route Registry replacement because callback state,
+      PKCE, and browser session authority must remain Host-owned. Failures
+      redirect to a safe local path with a minimized `ext_auth` reason and never
+      expose raw subject, digest, code, token, state, or verifier.
+    operationId: externalAuthProviderCallback
+    parameters:
+    - name: providerId
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: state
+      in: query
+      schema:
+        type: string
+      description: Host-generated opaque callback state.
+    - name: code
+      in: query
+      schema:
+        type: string
+      description: Provider authorization code (completion token).
+    - name: error
+      in: query
+      schema:
+        type: string
+      description: Provider cancellation or error code (for example access_denied).
+    responses:
+      '302':
+        description: Safe local redirect with minimized ext_auth reason.
+        headers:
+          Location:
+            schema:
+              type: string
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+
+authExternalRegistration:
+  post:
+    summary: Create a user, default role, and external link from an opaque registration ticket
+    description: |
+      Public endpoint. Validates editable fields and human verification before
+      consuming the one-time Host ticket, then creates user + default role +
+      external link atomically. Never accepts raw subjects or digests from the
+      browser. Zero-user bootstrap remains Core password registration only.
+    operationId: completeExternalRegistration
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/identity.yaml#/ExternalRegistrationRequest"
+    responses:
+      '201':
+        description: Account created and session cookie issued.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseCurrentUser"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        description: Ticket missing, invalid, or already consumed.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
+      '410':
+        description: Registration ticket expired.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+      '429':
+        "$ref": "../components/responses.yaml#/TooManyRequests"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+
+authExternalIdentities:
+  get:
+    summary: List the current user's redacted external identity links
+    description: |
+      Login required. Returns provider id, link status, linked time, and owner
+      extension id only. Never returns raw subject, subject digest, tokens, or
+      scopes.
+    operationId: listExternalIdentities
+    security:
+    - cookieAuth: []
+    responses:
+      '200':
+        description: Redacted linked external identities for the current actor.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseExternalIdentityList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+
+authExternalIdentityByID:
+  delete:
+    summary: Unlink one external identity from the current account
+    description: |
+      Login + session-bound recent authentication required. Loads the target
+      link, verifies actor ownership/active status/expected revision, and
+      enforces last-login-method protection inside the same transaction as the
+      unlink mutation. Idempotency keys are scoped to user/link/revision/request
+      and never use client IP.
+    operationId: unlinkExternalIdentity
+    security:
+    - cookieAuth: []
+    parameters:
+    - name: linkId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/identity.yaml#/ExternalIdentityUnlinkRequest"
+    responses:
+      '200':
+        description: Link unlinked (or already inert under idempotent replay).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiResponseNull"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
+      '422':
+        description: Last usable login method would be removed, or input invalid.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+
+authPasswordSetup:
+  post:
+    summary: Add or change the current user's local password
+    description: |
+      Login + session-bound recent authentication required. Creates a
+      `user_credentials` row when the user is external-only (no credential row);
+      updates password_hash when a credential already exists. Never creates a
+      fake password for external-only users elsewhere.
+    operationId: setupLocalPassword
+    security:
+    - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/identity.yaml#/SetupPasswordRequest"
+    responses:
+      '200':
+        description: Password created or updated.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiResponseNull"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+
+adminIdentityProviders:
+  get:
+    summary: List Host-owned identity provider activation catalog
+    description: |
+      Requires `identity.provider.manage`. Aggregates Registry discovery, exact
+      artifact, Host activation, probe status, Safe Mode, and reserved callback
+      path metadata. Executable trust remains `super_admin` only.
+    operationId: listAdminIdentityProviders
+    security:
+    - cookieAuth: []
+    responses:
+      '200':
+        description: Admin provider catalog with activation and health metadata.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseAdminIdentityProviderList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+
+adminIdentityProviderByID:
+  patch:
+    summary: CAS-update Host activation and ordering for one identity provider
+    description: |
+      Requires `identity.provider.manage`. Ownership and package digest are
+      Host-derived from the live Registry; browser-supplied ownership/artifact
+      claims are rejected. Uses optimistic concurrency on expected revision.
+    operationId: patchAdminIdentityProvider
+    security:
+    - cookieAuth: []
+    parameters:
+    - name: providerId
+      in: path
+      required: true
+      schema:
+        type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/identity.yaml#/AdminIdentityProviderPatchRequest"
+    responses:
+      '200':
+        description: Updated activation row (or unchanged under no-mutation).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseAdminIdentityProvider"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        description: Stale expected revision.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+
+adminIdentityProviderProbe:
+  post:
+    summary: Record a truthful configuration/reachability probe for one provider
+    description: |
+      Requires `identity.provider.manage`. Until a real provider probe RPC exists,
+      the Host records `probe_pending`/`probe_unavailable` with `ok=false` and
+      never presents pending as a successful health check.
+    operationId: probeAdminIdentityProvider
+    security:
+    - cookieAuth: []
+    parameters:
+    - name: providerId
+      in: path
+      required: true
+      schema:
+        type: string
+    responses:
+      '200':
+        description: Probe result (ok may be false for pending/unavailable).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseAdminIdentityProviderProbe"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+
+adminIdentityProvidersReset:
+  post:
+    summary: Restore recommended provider activation defaults
+    description: |
+      Requires `identity.provider.manage`. Turns login/registration/link off and
+      restores default order while preserving secrets; operators are told that
+      secrets remain.
+    operationId: resetAdminIdentityProviders
+    security:
+    - cookieAuth: []
+    responses:
+      '200':
+        description: Defaults restored for all managed providers.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseAdminIdentityProvidersReset"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
       '503':
         "$ref": "../components/responses.yaml#/ServiceUnavailable"
 

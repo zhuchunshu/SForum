@@ -100,6 +100,7 @@ function loadAppComponentForStartupTest(options: { server: boolean, routePath?: 
     'watch',
     'useActiveThemeSkin',
     'useRequestHeaders',
+    'useExternalAuthFeedback',
     executable
   )
 
@@ -149,7 +150,10 @@ function loadAppComponentForStartupTest(options: { server: boolean, routePath?: 
         themeSkinCleared = true
       }
     }),
-    () => ({ cookie: options.cookie || '' })
+    () => ({ cookie: options.cookie || '' }),
+    () => ({
+      consumeFromRoute: () => {}
+    })
   )
 
   return {

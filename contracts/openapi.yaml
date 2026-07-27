@@ -165,6 +165,24 @@ paths:
     "$ref": "./openapi/paths/identity.yaml#/authProviderStart"
   "/auth/providers/{providerId}/{operation}/complete":
     "$ref": "./openapi/paths/identity.yaml#/authProviderComplete"
+  "/auth/providers/{providerId}/callback":
+    "$ref": "./openapi/paths/identity.yaml#/authProviderCallback"
+  "/auth/external-registration":
+    "$ref": "./openapi/paths/identity.yaml#/authExternalRegistration"
+  "/auth/external-identities":
+    "$ref": "./openapi/paths/identity.yaml#/authExternalIdentities"
+  "/auth/external-identities/{linkId}":
+    "$ref": "./openapi/paths/identity.yaml#/authExternalIdentityByID"
+  "/auth/password":
+    "$ref": "./openapi/paths/identity.yaml#/authPasswordSetup"
+  "/admin/identity/providers":
+    "$ref": "./openapi/paths/identity.yaml#/adminIdentityProviders"
+  "/admin/identity/providers/{providerId}":
+    "$ref": "./openapi/paths/identity.yaml#/adminIdentityProviderByID"
+  "/admin/identity/providers/{providerId}/probe":
+    "$ref": "./openapi/paths/identity.yaml#/adminIdentityProviderProbe"
+  "/admin/identity/providers/reset":
+    "$ref": "./openapi/paths/identity.yaml#/adminIdentityProvidersReset"
   "/profile/sections":
     "$ref": "./openapi/paths/identity.yaml#/profileSectionsList"
   "/profile/sections/{sectionId}":

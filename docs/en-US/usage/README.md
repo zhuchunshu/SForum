@@ -14,6 +14,7 @@ For contributors, see [Development](../development/README.md).
 | [Forum day-to-day](./forum.md) | Taxonomy, posting, moderation |
 | [Search](./search.md) | Site search vs optional Meilisearch |
 | [Extensions & themes](./extensions.md) | Install, enable, trust, activate |
+| [GitHub login methods](./github-login.md) | Built-in GitHub setup, lifecycle, troubleshooting |
 
 ## Operator principles
 

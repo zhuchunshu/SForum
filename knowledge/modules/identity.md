@@ -10,16 +10,177 @@ helpers.
 
 Initial identity foundation is implemented.
 
-- GitHub social login is now a prioritized ready workstream. V1 ships one
-  protected built-in plugin, `sforum.auth-github`; other providers are
-  deferred. The executable Identity Registry, auth provider start/complete
-  transport, external-link persistence, and public provider catalog already
-  exist, but Host activation, truthful subject HMAC, callback/registration
-  state, external-only credentials, complete login/registration/session
-  effects, and product UI remain to implement. The authoritative checklist is
-  `plans/2026-07-27-github-social-login-builtin-plugin.md`; product/distribution
-  boundaries are frozen in
-  `decisions/2026-07-27-github-social-login-builtin-v1.md`.
+- GitHub social login V1 is **active; R1-R7 remediation complete, independent re-review requested**
+  (2026-07-27). One protected built-in plugin, `sforum.auth-github`, is
+  implemented; a fresh independent review remains before release
+  acceptance. T1A-T7
+  delivered the Host foundation includes Core-owned subject HMAC, Redis
+  callback transactions +
+  reserved Core GET callback, opaque registration tickets, atomic CAS
+  activation catalog (defaults off), credential-less users, transactional
+  external registration, external login/link/unlink orchestration,
+  session-bound recent-auth, password setup upsert, `identity.provider.manage`,
+  modular OpenAPI, Core Route Catalog entries with callback/session closed to
+  Route Registry replacement, start/callback IP rate limits, lifecycle/security
+  matrix tests, and bilingual operator docs.
+  **T1A security fixes:** `AuthProviderFlow.Complete` is assertion-only (no
+  link write); public `POST …/complete` for login/registration/link returns
+  `410 auth.provider_callback_required`; Host callback re-resolves live
+  Registry provider and compares provider/operation/owner extension/version/
+  package digest, re-checks activation before effects; link requires current
+  session actor + recent-auth before complete and persist; Host PKCE verifier
+  and absolute callback URL (from trusted `APP_URL`, production HTTPS) pass
+  into complete; `redirectHint` validated before store/plugin; registration
+  continuation is fixed `/register` + opaque ticket + independent safe
+  redirect.
+  **T1B secrets/stores:** `IDENTITY_SUBJECT_HMAC_SECRET` on `config.Config`;
+  production validation via real `APP_ENV=production` (missing/weak/dev-default
+  fail startup); bootstrap injects stable digest key (no process-random);
+  development uses stable configurable default; in-memory callback/ticket
+  stores are mutex-safe with Redis-aligned TTL clamp; Redis and memory store
+  under `sha256(opaque-token)` keys with atomic one-use consume and used-
+  tombstone replay detection; registration tickets require CreatedAt/ExpiresAt
+  and operation/provider/artifact binding on Save/Consume.
+  **T1C activation/catalog/probe:** atomic optimistic concurrency
+  (`FOR UPDATE` + `WHERE revision = expected` + RowsAffected;
+  `ErrProviderActivationNoMutation`); Host-derived ownership/artifact via
+  `PrepareActivationInput` (browser ownership rejected; unsupported ops
+  rejected); effective availability binds live Registry digest +
+  RuntimeInstanceID + supported ops + Safe Mode; public
+  `GET /auth/providers` returns only effectively available providers and fail
+  closes on Host-state lookup errors; admin probe reports
+  `probe_pending`/`probe_unavailable` with `ok=false` (never persists
+  `ok=true` before real probe RPC); actor-bound audit for activation update/
+  reset/probe.
+  **T1D recent-auth/unlink/password/registration:** recent-auth is bound to
+  `(user_id, session_fingerprint)` where fingerprint is non-reversible SID
+  SHA-256; marked after successful password and external login; cross-session
+  isolation tested. Unlink loads target link, verifies actor ownership +
+  active + expected revision, enforces last-login-method inside the same
+  transaction as the unlink mutation, and uses idempotency keys scoped to
+  user/link/revision/request (never client IP). `user_credentials.password_hash`
+  stays NOT NULL; external-only users have no credential row.
+  `POST /api/v1/auth/password` (recent-auth) creates/updates the credential;
+  password reset confirm and admin set-password upsert when absent.
+  External registration reuses authoritative username/email/reserved-name/
+  hooks/registration-mode validators and human verification; editable fields
+  are validated before opaque ticket consume; default-role assignment must
+  affect exactly one role or the TX rolls back; authenticated users reload
+  through canonical `GetCurrentUser` before session issue. Zero-user
+  bootstrap, non-enumerating email, and atomic user/role/link boundaries
+  preserved.
+  **T1E contracts/routes/tests:** modular OpenAPI for callback,
+  external-registration, password, external-identities, admin providers
+  (security + error schemas); Core Route Catalog declares reserved callback and
+  documents non-replaceability; controller HTTP allowed/denied + replay/
+  exact-artifact + redaction; model lifecycle (Safe Mode, disable, artifact
+  upgrade, revoke, expiry, actor mismatch, zero-write, unlink race) and
+  meaningful two-provider login/link execution; postgres transition/rollback
+  tests (skip without `SFORUM_TEST_DATABASE_URL`); M0 ADR corrected for Host
+  ownership of state/PKCE/callback URL/transaction + additive schemas.
+  **T2 / M2A (2026-07-27):** protected built-in package at
+  `extensions/builtin/plugins/sforum-auth-github` (`sforum.auth-github` /
+  provider `sforum.auth-github.auth`). Manifest V3 identity operations for
+  login/registration/link start+complete; settings `client_id` + SecretStore
+  `client_secret`; protocol uses Host-injected state/PKCE/callback URL, returns
+  raw `providerSubject` (numeric GitHub id) without digest; fake GitHub server
+  + protocol unit tests; truthful bounded probe;
+  `scripts/build-builtin-plugins.sh` includes the package.
+  **T3 / M2B (2026-07-27):** SyncBuiltins exact-artifact staging proof (immutable
+  snapshot under EXTENSION_ROOT, no Host activation / public catalog exposure);
+  Dockerfile + `build-builtin-plugins.sh` packaging; Protocol V2 headless E2E
+  through real plugin subprocess + local fake GitHub into Host
+  login/registration-ticket/link session effects. **M2 exit complete.**
+  **T4 / M3 (2026-07-27):** Host admin aggregate
+  (`GET /admin/identity/providers`) exposes
+  discovered/trusted/enabled/configured/probed/publiclyActivated, absolute
+  `callbackUrl` from `APP_URL`, and `settingsPath`;
+  `IsProviderConfigured` wired from extension settings; `identity.provider.manage`
+  may read/write auth-plugin settings (mail-style); Login Methods page
+  `/admin/settings/login-methods` embeds `SFExtensionSettingsRenderer` with
+  CAS toggles, callback copy, truthful probe, restore defaults (secrets
+  preserved), zh-CN/en-US, operator role template alignment. **M3 exit complete.**
+  **T5 / M4A (2026-07-27):** SSR-safe `useAuthProviders` reads Host public
+  catalog only; login/register Host islands show provider buttons solely when
+  `activatedOperations` includes login/registration; vendor `label`/`icon`
+  declared on plugin Identity provider (LocalizedText + icon), mapped into
+  Registry publication and resolved by Accept-Language on
+  `GET /auth/providers`; Core web i18n keeps only generic shell templates and
+  Host stable `ext_auth` reasons (no GitHub brand strings); opaque ticket
+  continuation at `/register?ticket=` posts `POST /auth/external-registration`
+  without password; guest middleware preserves success Toast across auth bounce.
+  **T6 / M4B (2026-07-27):** account security (`/settings/security`) shows
+  redacted external identities via `GET /auth/external-identities`; link entry
+  only when Host `activatedOperations` includes `link` and session is available;
+  unlink + last-login-method + session-bound recent-auth UX; inert status when
+  provider disabled; external-only local password setup via
+  `POST /auth/password`; catalog label/icon only (no Core GitHub brand).
+  **M4B exit complete (full M4).** **T7 / M5 (2026-07-27):** lifecycle matrix
+  (restart HMAC stability, disable/uninstall/Safe Mode/ForceDrain, staged
+  upgrade + new-digest activation + rollback, trust revoke, mid-flow artifact
+  change); security matrix (replay/expiry/cross-provider/op/actor, CAS,
+  registration ticket one-use, subject isolation, unlink race, non-enumerating
+  unlinked login); Host start/callback IP rate limits (Redis/memory);
+  redaction HTTP checks; Identity Extension Surface Matrix updated (closed
+  callback/session surfaces documented); bilingual operator docs
+  `docs/zh-CN|en-US/usage/github-login.md` + author notes. Independent review
+  rejected closure. **T8A (2026-07-27):** `CompleteRegistration` re-checks
+  Host registration activation and live Registry exact contribution
+  (provider/owner/version/digest/contract) before any account effect; re-reads
+  authoritative registration policy inside the user/role/link TX; writes
+  `auth.external_register.success` on the same TX (alongside existing
+  `identity.external_link.*` audit); emits `user.registered` observe exactly
+  once after commit. Focused PG tests call `CompleteRegistration` for
+  ticket-after-disable, artifact upgrade, policy-close race, rollback, event
+  once, audit, and zero-write denial paths.
+  **T8B (2026-07-27):** versioned `auth:provider.probe` runtime operation
+  (manifest JSON Schema + Identity Registry + identity.runtime@1 allowlists);
+  GitHub plugin invokes bounded `GitHubOAuth.Probe` with deadline and redacted
+  reason/message; Host `AuthProviderFlow.Probe` + admin
+  `POST …/providers/{id}/probe` persists real ok/reason (`probe_pending` is not
+  a product implementation); admin directory merges Host extension/package
+  catalog discovery with live Registry executable authority and activation
+  state (pre-enable discovered, disabled/drifted inspectable; trust/enable
+  authority unchanged); admin Login Methods consumes Host `label`/`icon` only
+  (no Core github id substring branches). Focused model/controller and
+  happy-dom rendered interaction tests cover discovered/trusted/enabled/
+  configured/probed/activated/disabled/drifted/Safe Mode/reset + second fake
+  provider.
+  **T8C (2026-07-27):** production ignores fake-GitHub endpoint overrides
+  (Host strips `SFORUM_AUTH_GITHUB_*_URL` when `APP_ENV=production`; plugin
+  also refuses overrides in production so OAuth material only reaches fixed
+  GitHub.com endpoints); Redis start/callback rate limit uses atomic Lua
+  `INCR`+`PEXPIRE` with no-TTL heal and fail-open + Del on script error;
+  auth start fail-closes unless external-auth service, activation store,
+  callback transaction store, and provider catalog are all wired; migration
+  `057` no longer mutates `user_credentials.password_hash` and Down preserves
+  the `NOT NULL` invariant from `055`/`0001`. Focused rate-limit, controller
+  wiring, protocol-env, migration, and plugin config tests. T8D release
+  evidence was superseded by the R1-R7 remediation packet. It retains hard 429
+  HTTP assertions, real runtime/browser evidence, and migration 058 to quarantine
+  stale unaudited enabled built-ins before they reach the Identity Registry.
+  **R4 remediation (2026-07-27):** the protected GitHub reference now declares
+  Lifecycle V2 and implements a no-side-effect lifecycle stream. A real
+  PostgreSQL production lifecycle fixture starts from normal exact-artifact
+  enable, then disables an auth-shaped provider through `DisableWithInput`; it
+  proves runtime stop plus live and durable Identity Registry retirement.
+  **R5 remediation (2026-07-27):** migration 058 is now deliberately narrow:
+  it quarantines an enabled protected built-in only when its current durable
+  root, exact successful lifecycle activation, and enable audit evidence are
+  all absent. Partial/corrupt durable history alone remains fail-closed but is
+  not reclassified as stale operator state.
+  See `reports/2026-07-27-github-social-login-t8d-requirements-matrix.md` and
+  `sessions/2026-07-27-github-social-login-final-review-handoff.md`. Authoritative
+  checklist: `plans/2026-07-27-github-social-login-builtin-plugin.md`;
+  product boundaries: `decisions/2026-07-27-github-social-login-builtin-v1.md`;
+  M0 freeze: `decisions/2026-07-27-github-social-login-m0-contract-freeze.md`.
+  **R1-R7 remediation complete (2026-07-27):** the isolated runtime packet
+  hard-asserted readiness, password fallback, configure/enable/probe/activate,
+  login, explicit registration, link/unlink/password setup, callback replay,
+  rate limit, Safe Mode, artifact drift, real disable, and restore. Its final
+  public catalog contains the exact restored provider; the request is now
+  **整改完成，等待独立复审**, not program closure. See
+  `reports/2026-07-27-external-auth-r1-r7-requirements-evidence-matrix.md`.
 
 - PostgreSQL migrations create users, credentials, roles, permissions, role
   assignments, and audit events.
@@ -37,6 +198,10 @@ Initial identity foundation is implemented.
   catalog/matrix reads, admin user listing/detail, admin user account/profile
   update (`PATCH /users/{userID}`), user role replacement, and user direct
   permission override replacement.
+- CLI `go run ./cmd/sforum users:reset-password` provides an interactive
+  out-of-band operator reset: email lookup, user-summary confirmation, hidden
+  password entry/confirmation, site password-policy validation, credential
+  upsert, token-version bump, and active-session revocation.
 - Admin user list is paged (default 20 per page, max 100). Admin user detail
   includes `createdAt`/`updatedAt`, public `profile` (bio/signature/location/
   websiteUrl), effective permissions, and permission overrides. Detail also
@@ -166,6 +331,33 @@ Initial identity foundation is implemented.
   before calling the API. Migration `202607060002_role_input_constraints`
   removes historical blank custom roles caused by the earlier missing
   validation and adds database non-blank checks.
+
+  **R1 remediation (2026-07-27):** `ExternalAuthService.ValidateLoginEffect`
+  centralizes live Provider Registry, exact owner/artifact/contract, operation,
+  activation, and Safe Mode validation for login. The Core callback invokes it
+  immediately after provider `complete`, then invokes it again inside the
+  session-policy admitted Host effect after risk evaluation and immediately
+  before `Begin`/`Save` session work. That second successful check is the
+  documented effect linearization point; it is deliberately not described as
+  impossible cross-store atomicity. A blocking risk-provider controller test
+  proves that entering Safe Mode during the in-flight callback yields no login
+  success redirect and no session cookie. The implementation is provider-ID
+  generic and leaves password login unchanged.
+  **R2 remediation (2026-07-27):** external registration now requires an
+  uncached `Options.Service.RegistrationEnabledTx` read in the same `pgx.Tx`
+  as user/default-role/link/audit writes. The Options Postgres store holds a
+  dedicated advisory transaction lock for the registration enabled/mode keys;
+  normal updates take the same lock, including when a row is absent. The old
+  independently pooled/cached callback is retained only as a pre-transaction
+  fast reject and cannot authorize the mutation. Isolated PostgreSQL tests
+  cover a post-fast-check close with zero writes, bootstrap rejection, default
+  role rollback, and reader/writer serialization.
+  **R3 remediation (2026-07-27):** external-registration audit writes now keep
+  only provider ID, owner extension ID, and correlation ID. Migration 059
+  removes `ownerPackageDigest` and all prohibited subject/OAuth/secret keys
+  only from existing `auth.external_register.success` metadata. It deliberately
+  leaves unrelated audit events and immutable extension artifact history
+  untouched; isolated PostgreSQL migration evidence verifies both boundaries.
 
 ## Architecture Decisions
 

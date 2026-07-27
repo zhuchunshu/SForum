@@ -848,7 +848,9 @@ func forumReadPolicyRoute(routeID string) bool {
 		"core.route.forum.comments",
 		"core.route.forum.topic_by_slug",
 		// 公开贡献时间线与主题详情同 guest-read 策略。
-		"core.route.forum.topic_contribution_timeline":
+		"core.route.forum.topic_contribution_timeline",
+		// 评论页码反查与评论列表同 guest-read 策略。
+		"core.route.forum.comment_page":
 		return true
 	default:
 		return false
@@ -1032,8 +1034,10 @@ type replaceRolePermissionsGuardInput struct {
 
 func requireIdentitySelfCredentialsAuthority(ctx context.Context, evaluation routes.CoreGuardEvaluation) error {
 	switch evaluation.Descriptor.RouteID {
-	case "core.route.identity.list_sessions", "core.route.identity.revoke_other_sessions":
-		// 两条路径始终以 Host 认证的 ActorID 查询/更新，不接收目标 user_id。
+	case "core.route.identity.list_sessions", "core.route.identity.revoke_other_sessions",
+		// 外部身份列表只返回当前 Actor 的 redacted 绑定，不接收目标 user_id。
+		"core.route.identity.external_identities":
+		// 路径始终以 Host 认证的 ActorID 查询/更新，不接收目标 user_id。
 		return requireAuthenticatedCoreGuardActor(ctx, evaluation)
 	case "core.route.identity.list_apitokens":
 		if err := requireCookieCredentialAuthority(ctx, evaluation); err != nil {
@@ -1064,8 +1068,21 @@ func requireIdentitySelfCredentialsAuthority(ctx context.Context, evaluation rou
 			}
 		}
 		return nil
+	case "core.route.identity.setup_password":
+		// 自助设密绑定 cookie 会话 + recent-auth（recent-auth 由 handler 二次门控）。
+		if err := requireCookieCredentialAuthority(ctx, evaluation); err != nil {
+			return err
+		}
+		var input setupPasswordGuardInput
+		if err := decodeGuardJSON(evaluation.Request.Body, &input); err != nil {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		if strings.TrimSpace(input.Password) == "" {
+			return routes.ErrCoreGuardEvaluatorUnavailable
+		}
+		return nil
 	default:
-		// 单会话撤销依赖 sid 所有权；PAT 管理还要求真实 cookie 会话。
+		// 单会话撤销 / 外部解绑依赖资源所有权；PAT 管理还要求真实 cookie 会话。
 		return routes.ErrCoreGuardEvaluatorUnavailable
 	}
 }
@@ -1074,6 +1091,11 @@ type createAPITokenGuardInput struct {
 	Name      string   `json:"name"`
 	Scopes    []string `json:"scopes"`
 	ExpiresAt *string  `json:"expiresAt"`
+}
+
+// setupPasswordGuardInput 仅校验生产 guard 可证明的最小字段；完整密码策略在 Service。
+type setupPasswordGuardInput struct {
+	Password string `json:"password"`
 }
 
 func requireCookieCredentialAuthority(ctx context.Context, evaluation routes.CoreGuardEvaluation) error {

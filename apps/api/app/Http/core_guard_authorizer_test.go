@@ -149,6 +149,7 @@ func TestProductionForumReadGuardPartitionsCatalogByProvablePolicy(t *testing.T)
 		"core.route.forum.comments":        {method: "GET"},
 		"core.route.forum.topic_contribution_timeline": {method: "GET"},
 		"core.route.forum.topic_by_slug":   {method: "GET"},
+		"core.route.forum.comment_page":    {method: "GET"},
 	}
 	var catalog []routes.CoreRoute
 	for _, route := range routes.CoreRouteCatalog() {
@@ -249,8 +250,8 @@ func TestProductionForumReadPolicyClosesDynamicCatalogRoutes(t *testing.T) {
 		}
 		policy.guestRead = "public"
 	}
-	if covered != 10 {
-		t.Fatalf("dynamic forum read routes = %d, want 10", covered)
+	if covered != 11 {
+		t.Fatalf("dynamic forum read routes = %d, want 11", covered)
 	}
 }
 
@@ -364,12 +365,20 @@ func TestProductionIdentitySelfCredentialsGuardPartitionsCatalogByProvablePolicy
 	expected := map[string]expectedRoute{
 		"core.route.identity.list_sessions":         {method: "GET", supported: true},
 		"core.route.identity.revoke_other_sessions": {method: "POST", supported: true},
+		// 外部身份列表：当前 Actor 的 redacted 绑定，允许 scope 收窄的 PAT。
+		"core.route.identity.external_identities": {method: "GET", supported: true},
+		// 自助设密：仅 cookie 会话；完整密码策略与 recent-auth 由 handler/service 门控。
+		"core.route.identity.setup_password": {
+			method: "POST", body: `{"password":"NewPassword1!"}`, cookieOnly: true, supported: true,
+		},
 
 		"core.route.identity.revoke_session":  {method: "DELETE"},
 		"core.route.identity.list_apitokens":  {method: "GET", query: "includeRevoked=false", cookieOnly: true, supported: true},
 		"core.route.identity.create_apitoken": {method: "POST", body: `{"name":"automation","scopes":["post.create"]}`, cookieOnly: true, supported: true},
 		"core.route.identity.revoke_apitoken": {method: "DELETE"},
 		"core.route.identity.rotate_apitoken": {method: "POST"},
+		// 解绑依赖 link 所有权 / revision；无资源策略时 fail closed。
+		"core.route.identity.external_identity_unlink": {method: "DELETE"},
 	}
 	var catalog []routes.CoreRoute
 	for _, route := range routes.CoreRouteCatalog() {

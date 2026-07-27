@@ -57,17 +57,22 @@ export const extensionSurfaceMatrix = {
     lifecycle: open('v1 enable/disable/upgrade/uninstall compatibility', 'P4')
   },
   identity: {
-    routes: open('auth, users, roles, tokens, sessions', 'P6'),
+    // OAuth callback + browser session issue/renew/destroy remain Host-owned and
+    // closed to Route Registry replacement; providers only return assertions.
+    // Closed deliberately (security/integrity): GET /auth/providers/{id}/callback,
+    // AuthSession issue/renew/destroy, PKCE verifier, callback state store, and
+    // subject HMAC — plugins may only return bounded assertions.
+    routes: open('auth, external providers, users, roles, tokens, sessions; OAuth callback + browser session issue/renew/destroy closed to Route Registry replacement (Host-owned state/PKCE/session integrity)', 'P6'),
     hooks: open('user.before_register and user.registered', 'P7'),
     queries: planned('P7'),
-    adminComponents: planned('P7'),
-    publicComponents: planned('P9'),
-    identityPermissions: open('RBAC, overrides, sessions, risk policy', 'P7'),
+    adminComponents: open('Login Methods host page + SFExtensionSettingsRenderer for auth plugins', 'P7'),
+    publicComponents: open('Host islands: login/register provider buttons, callback feedback, account-security linked accounts', 'P9'),
+    identityPermissions: open('RBAC, overrides, sessions, risk policy, identity.provider.manage', 'P7'),
     media: open('avatar attachment integration', 'P10'),
     navigationRegions: planned('P9'),
     cacheInvalidation: planned('P11'),
     jobs: open('identity.cleanup_sessions', 'P7'),
-    lifecycle: planned('P4')
+    lifecycle: open('external auth activation CAS; disable/uninstall/Safe Mode/ForceDrain/artifact drift remove effective availability; links retained inert; no auto-activation on SyncBuiltins', 'P7')
   },
   forum: {
     routes: open('forum read/write and taxonomy routes', 'P6'),

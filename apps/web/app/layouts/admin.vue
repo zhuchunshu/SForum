@@ -569,7 +569,7 @@ async function signOut() {
               color="neutral"
               variant="ghost"
               :aria-label="t('admin.shell.advancedSettings.close')"
-              @click="advancedSettingsOpen = false"
+              @click="() => { advancedSettingsOpen = false }"
             />
           </header>
 
@@ -611,7 +611,7 @@ async function signOut() {
             <UButton
               color="neutral"
               variant="soft"
-              @click="advancedSettingsOpen = false"
+              @click="() => { advancedSettingsOpen = false }"
             >
               {{ t('admin.shell.advancedSettings.close') }}
             </UButton>

@@ -17,6 +17,24 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	auth.Get("/providers", h.listAuthProviders)
 	auth.Post("/providers/:providerId/:operation/start", h.authProviderStart)
 	auth.Post("/providers/:providerId/:operation/complete", h.authProviderComplete)
+	// 保留 Core 回调路由（OAuth 浏览器重定向回来）：已入 Core Route Catalog，
+	// 但对 Route Registry 替换关闭（Host 独占 state/PKCE/会话权威）。
+	// 见 plans/2026-07-27-github-social-login-builtin-plugin.md M1/T1E。
+	auth.Get("/providers/:providerId/callback", h.externalAuthCallback)
+	// 外部注册：用一次性票据原子创建用户 + 默认角色 + link。
+	auth.Post("/external-registration", h.externalRegistration)
+	// 账号安全：已绑定身份列表与解绑（仅自服务）。
+	auth.Get("/external-identities", h.externalIdentities)
+	auth.Delete("/external-identities/:linkId", h.externalIdentityUnlink)
+	// 自助添加/更改本地密码（external-only 首次设置；需 recent-auth）。
+	auth.Post("/password", h.setupPassword)
+
+	// 管理员 Login Methods 界面：identity.provider.manage。
+	// 见 plans/2026-07-27-github-social-login-builtin-plugin.md M3。
+	api.Get("/admin/identity/providers", h.adminListIdentityProviders)
+	api.Patch("/admin/identity/providers/:providerId", h.adminPatchIdentityProvider)
+	api.Post("/admin/identity/providers/:providerId/probe", h.adminProbeIdentityProvider)
+	api.Post("/admin/identity/providers/reset", h.adminResetIdentityProviders)
 
 	// 扩展资料分区：仅已登录自服务。
 	api.Get("/profile/sections", h.listProfileSections)

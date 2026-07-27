@@ -37,6 +37,7 @@ func newRootCommand() *cobra.Command {
 		newMakeCommand("theme"),
 		newSeedCommand(),
 		newSeedPerfCommand(),
+		newUsersResetPasswordCommand(),
 		newRevisionsCommand(),
 		newExtensionCommand(),
 		newDevCleanupOrphanPluginsCommand(),

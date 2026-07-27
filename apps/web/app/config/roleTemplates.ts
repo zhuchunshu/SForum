@@ -48,7 +48,10 @@ export const ROLE_TEMPLATE_DEFINITIONS = [
       'category.manage',
       'tag.manage',
       'attachment.manage',
-      'attachment.settings.manage'
+      'attachment.settings.manage',
+      // 与 seeds.go SeedRoleTemplates operator 对齐：Host 登录方式激活/探测/重置。
+      'identity.provider.manage',
+      'entity_meta.manage'
     ]
   },
   {

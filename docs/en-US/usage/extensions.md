@@ -16,6 +16,13 @@
 3. High-risk powers (route replace, raw DB, …) must be declared and disclosed.  
 4. **Safe Mode** and recovery CLI are host-owned and non-overridable.  
 
+## Built-in GitHub login
+
+The protected built-in `sforum.auth-github` adapts GitHub OAuth only. Built-in
+discovery stages the artifact; it does **not** auto-trust, enable, or publicly
+activate login/registration/link. Operator setup and troubleshooting:
+[GitHub login methods](./github-login.md).
+
 ## Settings UI levels
 
 | Level | Mechanism | Operator frontend build? |

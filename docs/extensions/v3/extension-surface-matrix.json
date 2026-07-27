@@ -156,7 +156,7 @@
   "identity": {
     "routes": {
       "state": "open",
-      "contract": "auth, users, roles, tokens, sessions",
+      "contract": "auth, external providers, users, roles, tokens, sessions; OAuth callback + browser session issue/renew/destroy closed to Route Registry replacement (Host-owned state/PKCE/session integrity)",
       "phase": "P6"
     },
     "hooks": {
@@ -169,16 +169,18 @@
       "phase": "P7"
     },
     "adminComponents": {
-      "state": "planned",
+      "state": "open",
+      "contract": "Login Methods host page + SFExtensionSettingsRenderer for auth plugins",
       "phase": "P7"
     },
     "publicComponents": {
-      "state": "planned",
+      "state": "open",
+      "contract": "Host islands: login/register provider buttons, callback feedback, account-security linked accounts",
       "phase": "P9"
     },
     "identityPermissions": {
       "state": "open",
-      "contract": "RBAC, overrides, sessions, risk policy",
+      "contract": "RBAC, overrides, sessions, risk policy, identity.provider.manage",
       "phase": "P7"
     },
     "media": {
@@ -200,8 +202,9 @@
       "phase": "P7"
     },
     "lifecycle": {
-      "state": "planned",
-      "phase": "P4"
+      "state": "open",
+      "contract": "external auth activation CAS; disable/uninstall/Safe Mode/ForceDrain/artifact drift remove effective availability; links retained inert; no auto-activation on SyncBuiltins",
+      "phase": "P7"
     }
   },
   "forum": {

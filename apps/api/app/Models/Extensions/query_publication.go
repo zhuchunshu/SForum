@@ -95,6 +95,7 @@ func (s *Service) disableLegacyQueryPlugin(
 	extension Extension,
 	assetMutation exactAssetMutation,
 	queryMutation RuntimeQueryPublicationMutation,
+	identityMutation RuntimeIdentityPublicationMutation,
 	actorUserID int64,
 ) (Extension, error) {
 	if queryMutation == nil {
@@ -104,11 +105,11 @@ func (s *Service) disableLegacyQueryPlugin(
 	// the process retained until Store.Disable commits so compensation can resume
 	// that same instance rather than starting an unbound replacement.
 	if err := s.clearPluginProviderSelections(ctx, extension.ID); err != nil {
-		return Extension{}, s.compensateLegacyQueryDisable(assetMutation, queryMutation, err)
+		return Extension{}, s.compensateLegacyQueryDisable(assetMutation, queryMutation, identityMutation, err)
 	}
 	disabled, err := s.disableLegacyPluginState(ctx, extension, actorUserID)
 	if err != nil {
-		return Extension{}, s.compensateLegacyQueryDisable(assetMutation, queryMutation, err)
+		return Extension{}, s.compensateLegacyQueryDisable(assetMutation, queryMutation, identityMutation, err)
 	}
 	if s.pageRegistry != nil {
 		s.pageRegistry.ClearExtension(extension.ID)
@@ -128,6 +129,7 @@ func (s *Service) disableLegacyQueryPlugin(
 func (s *Service) compensateLegacyQueryDisable(
 	assetMutation exactAssetMutation,
 	queryMutation RuntimeQueryPublicationMutation,
+	identityMutation RuntimeIdentityPublicationMutation,
 	cause error,
 ) error {
 	// Runtime admission must remain closed if another surface cannot be restored.
@@ -136,6 +138,11 @@ func (s *Service) compensateLegacyQueryDisable(
 	}
 	if err := queryMutation.Rollback(); err != nil {
 		return errors.Join(cause, fmt.Errorf("restore query publication and runtime admission: %w", err))
+	}
+	if identityMutation != nil {
+		if err := identityMutation.Rollback(); err != nil {
+			return errors.Join(cause, fmt.Errorf("restore identity publication: %w", err))
+		}
 	}
 	return cause
 }

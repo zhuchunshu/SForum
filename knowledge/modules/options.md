@@ -91,6 +91,12 @@ Initial runtime option support is implemented.
     `web_options`; see SiteChrome module / migration
     `202607120003_site_chrome.sql` and admin personalization tabs (panel
     `apps/web/app/components/admin/SFAdminSiteChromePanel.vue`).
+- Configurable public navigation is now an approved ready program, not a theme
+  setting. Core will own the multi-location document, recommended defaults,
+  revisions, snapshots, and portable backup while preserving the current
+  SiteChrome table/API as compatibility surfaces. See
+  `../decisions/2026-07-27-operator-owned-public-navigation.md` and
+  `../plans/2026-07-27-configurable-public-navigation-platform.md`.
 
 ## Feature flags (F4.5)
 
@@ -251,6 +257,9 @@ skin behavior without admin session.
 
 ## Next Steps
 
+- Execute the configurable public navigation task book from M0. Prove the
+  current `forum.nav.items`/Navigation Registry production bridge before
+  changing persistence or contracts.
 - Wave 3+ richness blueprint: engagement switches, category policy, safety
   depth (see `knowledge/plans/2026-07-12-admin-settings-richness.md`).
 - If settings need audit history, write changes to the existing audit event

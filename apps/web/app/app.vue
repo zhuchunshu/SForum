@@ -17,6 +17,8 @@ const {
   refresh: refreshWebOptions
 } = useWebOptions()
 const { refresh: refreshAuthSession } = useAuthSession()
+// 消费 OAuth 回调 `ext_auth`：成功 Toast 在任意回跳页生效；登录/注册壳另读 alert。
+const { consumeFromRoute: consumeExternalAuthFeedback } = useExternalAuthFeedback()
 const route = useRoute()
 const adminRoutes = useAdminRoutes()
 const themeSkin = useActiveThemeSkin()
@@ -69,6 +71,10 @@ if (import.meta.server) {
     void refreshStartupState({ restoreAuth: true })
     // 公共主题 L0 皮肤不得进入独立的管理端样式边界。
     void syncThemeSkin()
+    void consumeExternalAuthFeedback()
+  })
+  watch(() => route.fullPath, () => {
+    void consumeExternalAuthFeedback()
   })
 }
 

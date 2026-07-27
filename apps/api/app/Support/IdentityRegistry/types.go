@@ -94,13 +94,22 @@ type ProviderOperation struct {
 
 // Provider stays inspectable when Operations is empty. Non-empty operations
 // require exact package Schema material and one live exact runtime.
+//
+// Label / LabelLocales / Icon 是插件声明的展示元数据（非可执行状态）。
+// Host 公共 catalog 按请求 locale 解析后注入前端；Core 不得硬编码供应商品牌文案。
 type Provider struct {
 	ID              string              `json:"id"`
 	ContractVersion string              `json:"contractVersion"`
 	Kind            string              `json:"kind"`
 	Handler         string              `json:"handler"`
 	Priority        int                 `json:"priority,omitempty"`
-	Operations      []ProviderOperation `json:"operations,omitempty"`
+	// Label 默认展示名（无 locale 匹配时回退）。
+	Label string `json:"label,omitempty"`
+	// LabelLocales 插件提供的多语文案，例如 {"zh-CN":"GitHub","en-US":"GitHub"}。
+	LabelLocales map[string]string `json:"labelLocales,omitempty"`
+	// Icon 为 Iconify / Nuxt Icon 名称（如 i-tabler-brand-github）；空则 Host 用通用图标。
+	Icon       string              `json:"icon,omitempty"`
+	Operations []ProviderOperation `json:"operations,omitempty"`
 }
 
 type IdentityDeclaration struct {

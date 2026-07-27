@@ -70,6 +70,49 @@ func TestPluginRuntimeCoordinatorStartupPollConvergesAPIAndWorker(t *testing.T) 
 	}
 }
 
+func TestPluginRuntimeCoordinatorDefersFullSetUntilLifecycleOperationCloses(t *testing.T) {
+	identity := uniquePluginRuntimeCoordinatorTestIdentity("lifecycle-fence", PluginRuntimeProcessAPI)
+	repository := newPluginRuntimeCoordinatorTestRepository()
+	publication := pluginRuntimeCoordinatorPublicationFixture(1, []PluginRuntimeMember{
+		pluginRuntimeCoordinatorMemberFixture("lifecycle-fence.plugin", 1, "a"),
+	})
+	repository.addPublication(publication)
+	repository.seedNode(identity, 0, time.Minute)
+	repository.setOpenLifecycleOperations(LifecycleOperation{
+		ID: 42, ExtensionID: "lifecycle-fence.plugin", Operation: LifecycleOperationEnable,
+	})
+	applier := &pluginRuntimeCoordinatorTestApplier{}
+	coordinator, err := NewPluginRuntimeCoordinator(
+		repository, applier, nil, pluginRuntimeCoordinatorConfigFixture(identity),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := coordinator.reconcileOnce(t.Context()); !errors.Is(err, errPluginRuntimeLifecyclePending) {
+		t.Fatalf("reconcile with open lifecycle operation = %v", err)
+	}
+	snapshot := repository.snapshot()
+	if snapshot.beginCalls != 0 || snapshot.completeCalls != 0 || snapshot.failCalls != 0 || snapshot.node.LastAppliedRevision != 0 {
+		t.Fatalf("open lifecycle operation wrote runtime evidence: %#v", snapshot)
+	}
+	if calls, _ := applier.snapshot(); len(calls) != 0 {
+		t.Fatalf("open lifecycle operation applied full set: %v", calls)
+	}
+
+	repository.setOpenLifecycleOperations()
+	if err := coordinator.reconcileOnce(t.Context()); err != nil {
+		t.Fatalf("reconcile after lifecycle completion: %v", err)
+	}
+	snapshot = repository.snapshot()
+	if snapshot.beginCalls != 1 || snapshot.completeCalls != 1 || snapshot.failCalls != 0 || snapshot.node.LastAppliedRevision != publication.Revision {
+		t.Fatalf("coordinator did not converge after lifecycle completion: %#v", snapshot)
+	}
+	if calls, _ := applier.snapshot(); !reflect.DeepEqual(calls, []int64{publication.Revision}) {
+		t.Fatalf("applied revisions = %v", calls)
+	}
+}
+
 func TestPluginRuntimeCoordinatorSupersededApplyContinuesToLatest(t *testing.T) {
 	identity := uniquePluginRuntimeCoordinatorTestIdentity("superseded", PluginRuntimeProcessAPI)
 	repository := newPluginRuntimeCoordinatorTestRepository()

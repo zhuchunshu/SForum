@@ -89,6 +89,76 @@ func TestAuthProviderStartUnavailableWithoutFlow(t *testing.T) {
 	}
 }
 
+// T8C：partial external-auth wiring 不得启动 login/registration/link OAuth。
+func TestT8C_AuthProviderStartFailsClosedOnPartialWiring(t *testing.T) {
+	// 非 nil authFlow 指针即可越过 authFlow==nil 检查；真正拒绝来自 requireExternalAuthStartWiring。
+	flow := &identity.AuthProviderFlow{}
+	cases := []struct {
+		name string
+		ctrl *Controller
+	}{
+		{
+			name: "only_auth_flow",
+			ctrl: &Controller{authFlow: flow},
+		},
+		{
+			name: "missing_callback_store",
+			ctrl: &Controller{
+				authFlow:            flow,
+				externalAuthService: identity.NewExternalAuthService(identity.ExternalAuthDeps{}),
+				// activationStore 仍 nil；callbackStateStore nil；providerCatalog nil
+			},
+		},
+		{
+			name: "missing_activation_store",
+			ctrl: &Controller{
+				authFlow:            flow,
+				externalAuthService: identity.NewExternalAuthService(identity.ExternalAuthDeps{}),
+				callbackStateStore:  identity.NewInMemoryCallbackStateStore(),
+				providerCatalog:     identityregistry.New(),
+				// activationStore 仍 nil
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			app := fiber.New()
+			api := app.Group("/api/v1")
+			tc.ctrl.RegisterRoutes(api)
+			payload, _ := json.Marshal(map[string]any{"correlationId": "c1"})
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/providers/demo.auth/login/start", bytes.NewReader(payload))
+			req.Header.Set("Content-Type", "application/json")
+			resp, err := app.Test(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusServiceUnavailable {
+				t.Fatalf("status = %d, want 503 fail-closed", resp.StatusCode)
+			}
+		})
+	}
+}
+
+func TestT8C_RequireExternalAuthStartWiring(t *testing.T) {
+	if err := (&Controller{}).requireExternalAuthStartWiring(); err == nil {
+		t.Fatal("empty controller must fail closed")
+	}
+	svc := identity.NewExternalAuthService(identity.ExternalAuthDeps{
+		ActivationStore: identity.NewMemoryProviderActivationStore(),
+	})
+	ctrl := &Controller{
+		authFlow:            &identity.AuthProviderFlow{},
+		externalAuthService: svc,
+		callbackStateStore:  identity.NewInMemoryCallbackStateStore(),
+		activationStore:     svc.ActivationStore(),
+		providerCatalog:     identityregistry.New(),
+	}
+	if err := ctrl.requireExternalAuthStartWiring(); err != nil {
+		t.Fatalf("complete wiring must pass: %v", err)
+	}
+}
+
 func TestAuthProviderStartOperationMapping(t *testing.T) {
 	tests := []struct {
 		kind string

@@ -57,26 +57,26 @@ type productionLifecycleStackConfig struct {
 // productionLifecycleStack 保留组装后的具体实例，避免 lifecycle 的不同边界
 // 意外各自创建 Manager、journal 或 schedule admission registry。
 type productionLifecycleStack struct {
-	Repository         *extensions.PostgresLifecycleRepository
-	RuntimeManager     *extensionsruntime.Manager
-	Runtime            *extensionsruntime.ExactLifecycleCoordinatorRuntimeAdapter
-	Preflight          *extensionsruntime.ProductionLifecycleBoundaryPreflight
-	StaticPreflight    extensions.LifecycleStaticPreflight
-	MigrationEngine    extensionsruntime.LifecycleMigrationEngine
-	Migrations         *extensionsruntime.ProductionLifecycleBoundaryMigrations
-	Schedules          *supportjobs.PluginScheduleAdmissionRegistry
-	JobStore           *hostapi.PostgresPluginJobLifecycleStore
-	JobCoordinator     *hostapi.PluginJobLifecycleCoordinator
-	Jobs               *extensionsruntime.PostgresLifecycleBoundaryJobs
-	RouteRegistry      *routes.Registry
-	RouteSchemas       *extensionopenapi.RouteSchemaPublication
-	ComponentRegistry     *extensionsruntime.ComponentRegistry
-	ComponentComposition  *extensionsruntime.ProductionComponentComposition
-	AssetRegistry         *assetregistry.Registry
-	CacheRegistry      *cacheregistry.Registry
-	IdentityRegistry   *identityregistry.Registry
-	IdentityStore      identityregistry.PublicationStore
-	SessionPolicyStore *identity.PostgresIdentitySessionPolicyStore
+	Repository           *extensions.PostgresLifecycleRepository
+	RuntimeManager       *extensionsruntime.Manager
+	Runtime              *extensionsruntime.ExactLifecycleCoordinatorRuntimeAdapter
+	Preflight            *extensionsruntime.ProductionLifecycleBoundaryPreflight
+	StaticPreflight      extensions.LifecycleStaticPreflight
+	MigrationEngine      extensionsruntime.LifecycleMigrationEngine
+	Migrations           *extensionsruntime.ProductionLifecycleBoundaryMigrations
+	Schedules            *supportjobs.PluginScheduleAdmissionRegistry
+	JobStore             *hostapi.PostgresPluginJobLifecycleStore
+	JobCoordinator       *hostapi.PluginJobLifecycleCoordinator
+	Jobs                 *extensionsruntime.PostgresLifecycleBoundaryJobs
+	RouteRegistry        *routes.Registry
+	RouteSchemas         *extensionopenapi.RouteSchemaPublication
+	ComponentRegistry    *extensionsruntime.ComponentRegistry
+	ComponentComposition *extensionsruntime.ProductionComponentComposition
+	AssetRegistry        *assetregistry.Registry
+	CacheRegistry        *cacheregistry.Registry
+	IdentityRegistry     *identityregistry.Registry
+	IdentityStore        identityregistry.PublicationStore
+	SessionPolicyStore   *identity.PostgresIdentitySessionPolicyStore
 	// QueryRegistry 与 QueryCoreCatalog 在进程启动时一次性构造；不得每请求重建，
 	// 也不得从 mutable Store 再生成 Core publication。
 	QueryRegistry      *queryregistry.Registry
@@ -90,8 +90,8 @@ type productionLifecycleStack struct {
 	// EditorRegistry is the P10 Tiptap node/mark/command/toolbar graph.
 	EditorRegistry *editorregistry.Registry
 	// EntityRegistry is the P10 Entity Type / Taxonomy / Field Schema graph.
-	EntityRegistry *entityregistry.Registry
-	RouteProviders *routes.ProviderSelectionAPI
+	EntityRegistry     *entityregistry.Registry
+	RouteProviders     *routes.ProviderSelectionAPI
 	ProviderSlots      *extensionsruntime.ProviderSlotSelectionAPI
 	RegistryRepository *extensionsruntime.PostgresLifecycleRegistryPublicationRepository
 	Registries         *extensionsruntime.PostgresLifecycleBoundaryRegistries
@@ -371,6 +371,7 @@ func (s *productionLifecycleStack) bindService(service *extensions.Service) erro
 	extensions.WithComponentRegistry(s.ComponentRegistry)(service)
 	service.BindRuntimeQueryPublications(s.Registries)
 	extensions.WithRuntimeCachePublications(s.Registries)(service)
+	service.BindRuntimeIdentityPublications(s.Registries)
 	return nil
 }
 

@@ -883,6 +883,20 @@ func (s *fakeStore) GetCurrentUser(_ context.Context, userID int64) (CurrentUser
 	return s.withAccess(user), nil
 }
 
+func (s *fakeStore) GetCurrentUserByEmail(_ context.Context, email string) (CurrentUser, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+	for userID, stored := range s.userEmails {
+		if strings.ToLower(stored) == email {
+			return s.GetCurrentUser(context.Background(), userID)
+		}
+	}
+	// 回退 loginIndex（部分测试只写了 loginIndex）。
+	if userID, ok := s.loginIndex[email]; ok {
+		return s.GetCurrentUser(context.Background(), userID)
+	}
+	return CurrentUser{}, ErrUserNotFound
+}
+
 func (s *fakeStore) GetCredentialByLogin(_ context.Context, login string) (CredentialUser, error) {
 	if s.credentialErr != nil {
 		return CredentialUser{}, s.credentialErr

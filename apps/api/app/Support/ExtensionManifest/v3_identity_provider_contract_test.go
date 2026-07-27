@@ -68,7 +68,7 @@ func TestManifestV3IdentityProviderKeepsLegacyHandlerNames(t *testing.T) {
 
 func TestManifestV3IdentityProviderAcceptsFrozenOperationCatalog(t *testing.T) {
 	catalog := map[string][]string{
-		"auth":     {"registration.start", "registration.complete", "login.start", "login.complete", "link.start", "link.complete"},
+		"auth":     {"registration.start", "registration.complete", "login.start", "login.complete", "link.start", "link.complete", "provider.probe"},
 		"profile":  {"sections.list", "section.read", "section.update", "account.read", "account.update"},
 		"recovery": {"recovery.start", "recovery.complete"},
 		"session":  {"session.evaluate"},

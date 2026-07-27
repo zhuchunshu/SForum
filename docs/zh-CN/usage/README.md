@@ -14,6 +14,7 @@
 | [论坛日常](./forum.md) | 版块标签、发帖回帖、版主操作 |
 | [搜索](./search.md) | 默认站点搜索与可选 Meilisearch |
 | [扩展与主题](./extensions.md) | 安装/启用插件、激活主题、信任与安全 |
+| [GitHub 登录方式](./github-login.md) | 内置 GitHub 登录配置、生命周期与排障 |
 
 ## 产品原则（运营侧）
 

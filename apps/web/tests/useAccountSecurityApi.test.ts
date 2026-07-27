@@ -119,4 +119,69 @@ describe('useAccountSecurityApi', () => {
     expect(calls[0].method).toBe('POST')
     expect(calls[0].url).toBe('/api/v1/auth/sessions/revoke-others')
   })
+
+  test('listExternalIdentities calls GET /auth/external-identities and redacts rows', async () => {
+    const csrfCookie = ref('token')
+    let calledUrl = ''
+
+    await withApiGlobals(csrfCookie, async () => {
+      globalThis.$fetch = async (url: string) => {
+        calledUrl = url
+        return {
+          code: 200,
+          message: 'ok',
+          data: [{
+            linkId: 9,
+            providerId: 'example.oauth',
+            status: 'active',
+            linkedAt: '2026-07-27T12:00:00Z',
+            providerSubject: 'must-not-leak'
+          }]
+        }
+      }
+      const { listExternalIdentities } = useAccountSecurityApi()
+      const items = await listExternalIdentities()
+      expect(items).toHaveLength(1)
+      expect(items[0].linkId).toBe(9)
+      expect(JSON.stringify(items)).not.toContain('must-not-leak')
+    })
+
+    expect(calledUrl).toBe('/api/v1/auth/external-identities')
+  })
+
+  test('unlinkExternalIdentity calls DELETE with link id', async () => {
+    const csrfCookie = ref('token')
+    const calls: Array<{ url: string, method?: string, body?: unknown }> = []
+
+    await withApiGlobals(csrfCookie, async () => {
+      globalThis.$fetch = async (url: string, options?: { method?: string, body?: unknown }) => {
+        calls.push({ url, method: options?.method, body: options?.body })
+        return { code: 200, message: 'ok', data: null }
+      }
+      const { unlinkExternalIdentity } = useAccountSecurityApi()
+      await unlinkExternalIdentity(42, { expectedRevision: 3 })
+    })
+
+    expect(calls[0].method).toBe('DELETE')
+    expect(calls[0].url).toBe('/api/v1/auth/external-identities/42')
+    expect(calls[0].body).toEqual({ expectedRevision: 3 })
+  })
+
+  test('setupPassword posts to /auth/password', async () => {
+    const csrfCookie = ref('token')
+    const calls: Array<{ url: string, method?: string, body?: unknown }> = []
+
+    await withApiGlobals(csrfCookie, async () => {
+      globalThis.$fetch = async (url: string, options?: { method?: string, body?: unknown }) => {
+        calls.push({ url, method: options?.method, body: options?.body })
+        return { code: 200, message: 'ok', data: null }
+      }
+      const { setupPassword } = useAccountSecurityApi()
+      await setupPassword('correct horse battery staple')
+    })
+
+    expect(calls[0].method).toBe('POST')
+    expect(calls[0].url).toBe('/api/v1/auth/password')
+    expect(calls[0].body).toEqual({ password: 'correct horse battery staple' })
+  })
 })

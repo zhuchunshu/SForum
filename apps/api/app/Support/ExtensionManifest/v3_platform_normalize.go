@@ -171,6 +171,15 @@ func normalizeV3Platform(manifest *Manifest) {
 			item.ContractVersion = strings.TrimSpace(item.ContractVersion)
 			item.Kind = strings.ToLower(strings.TrimSpace(item.Kind))
 			item.Handler = strings.TrimSpace(item.Handler)
+			if item.Label != nil {
+				normalized := item.Label.normalized()
+				if normalized.IsEmpty() {
+					item.Label = nil
+				} else {
+					item.Label = &normalized
+				}
+			}
+			item.Icon = strings.TrimSpace(item.Icon)
 			for operationIndex := range item.Operations {
 				operation := &item.Operations[operationIndex]
 				operation.Name = strings.ToLower(strings.TrimSpace(operation.Name))

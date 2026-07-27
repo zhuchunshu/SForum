@@ -142,6 +142,46 @@ func (p *IdentityProvider) WithIdentityProviderCatalog(registry *identityregistr
 	return p
 }
 
+// WithAuthProviderPackageCatalog wires Host 扩展/包目录 discovery for admin Login Methods.
+func (p *IdentityProvider) WithAuthProviderPackageCatalog(catalog identity.AuthProviderPackageCatalog) *IdentityProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithAuthProviderPackageCatalog(catalog)
+	}
+	return p
+}
+
+// WithExternalAuthStack wires the Host-owned external auth orchestration layer
+// (callback state, registration tickets, activation catalog, link store, audit).
+// See plans/2026-07-27-github-social-login-builtin-plugin.md M1.5.
+func (p *IdentityProvider) WithExternalAuthStack(stack identity.ExternalAuthStack) *IdentityProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithExternalAuthService(
+			stack.Service,
+			stack.CallbackStateStore,
+			stack.RegistrationTickets,
+			stack.LinkStore,
+			stack.ExternalAuthStore,
+		)
+	}
+	return p
+}
+
+// WithExternalAuthRateLimiter wires Host-owned start/callback rate limits (M5).
+func (p *IdentityProvider) WithExternalAuthRateLimiter(limiter identity.ExternalAuthRateLimiter) *IdentityProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithExternalAuthRateLimiter(limiter)
+	}
+	return p
+}
+
+// WithPublicAppURL injects trusted APP_URL + APP_ENV for absolute OAuth callbacks.
+func (p *IdentityProvider) WithPublicAppURL(appURL, appEnv string) *IdentityProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithPublicAppURL(appURL, appEnv)
+	}
+	return p
+}
+
 func (p *IdentityProvider) RegisterRoutes(api fiber.Router) {
 	p.controller.RegisterRoutes(api)
 }

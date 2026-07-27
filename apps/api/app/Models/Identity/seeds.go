@@ -62,6 +62,10 @@ const (
 	PermissionJobsManage            = "jobs.manage"
 	// PermissionEntityMetaManage 管理实体自定义字段定义与 admin 可见元数据（F4.4）。
 	PermissionEntityMetaManage = "entity_meta.manage"
+	// PermissionIdentityProviderManage 管理 Host-owned 外部认证 provider 激活/排序/探测/重置。
+	// 见 plans/2026-07-27-github-social-login-builtin-plugin.md M3。
+	// 注：executable trust 仍为 super_admin-only，即便 provider 激活被委托。
+	PermissionIdentityProviderManage = "identity.provider.manage"
 )
 
 type SeedPermission struct {
@@ -115,6 +119,7 @@ var SeedPermissions = []SeedPermission{
 	{Key: PermissionJobsView, Module: "jobs", Description: "View background jobs, queues, failures, and worker activity."},
 	{Key: PermissionJobsManage, Module: "jobs", Description: "Retry, cancel, pause, and resume background job processing."},
 	{Key: PermissionEntityMetaManage, Module: "admin", Description: "Manage entity custom field definitions and admin-visible meta values."},
+	{Key: PermissionIdentityProviderManage, Module: "identity", Description: "Activate, order, probe, and reset Host-owned external auth providers (login/registration/link). Executable trust remains super_admin-only."},
 }
 
 // SeedRoleTemplate 是内置角色模板的源码权威定义。
@@ -178,6 +183,8 @@ var SeedRoleTemplates = []SeedRoleTemplate{
 			PermissionAttachmentManage,
 			PermissionAttachmentSettings,
 			PermissionEntityMetaManage,
+			// 外部登录 provider 的 Host-owned 激活/探测/重置；executable trust 仍 super_admin-only。
+			PermissionIdentityProviderManage,
 		},
 	},
 	{

@@ -1,0 +1,11 @@
+{
+  "name": "GitHub Login",
+  "description": "Protected built-in GitHub OAuth protocol adapter. Host owns accounts, callback state, and sessions; this plugin only verifies GitHub identity.",
+  "author": { "name": "SForum" },
+  "authProvider": {
+    "sforum.auth-github.auth": {
+      "label": "GitHub",
+      "continueWith": "Continue with GitHub"
+    }
+  }
+}

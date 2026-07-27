@@ -69,6 +69,7 @@ type Service struct {
 	lifecycleFinalizer     LifecycleCleanupFinalizer
 	queryPublications      RuntimeQueryPublicationBoundary
 	cachePublications      RuntimeCachePublicationBoundary
+	identityPublications   RuntimeIdentityPublicationBoundary
 	// pluginMemorySampler 可选；测试注入固定 RSS 映射。nil 时用 OS 进程采样。
 	pluginMemorySampler func() map[string]uint64
 	// settingsLifecycle 生产后台设置权威（保存/重置/导入/升级迁移）。
@@ -307,6 +308,26 @@ func (s *Service) appendAudit(ctx context.Context, actor identity.Actor, action 
 		Action:      action,
 		Metadata:    metadata,
 	})
+}
+
+func (s *Service) appendAuditReturningID(
+	ctx context.Context,
+	actor identity.Actor,
+	action string,
+	metadata map[string]any,
+) (int64, error) {
+	if s == nil || s.auditor == nil || action == "" {
+		return 0, nil
+	}
+	event := audit.Event{
+		ActorUserID: actor.ID,
+		Action:      action,
+		Metadata:    metadata,
+	}
+	if writer, ok := s.auditor.(audit.IDWriter); ok {
+		return writer.AppendReturningID(ctx, event)
+	}
+	return 0, s.auditor.Append(ctx, event)
 }
 
 func (s *Service) ensureRequiredFeatures(ctx context.Context, required []string) error {
@@ -737,7 +758,10 @@ func (s *Service) Settings(ctx context.Context, actor identity.Actor, extensionI
 func (s *Service) AdminPageBootstrap(ctx context.Context, actor identity.Actor, extensionID, pagePath, locale string) (AdminPageBootstrap, error) {
 	// Settings 管理权限不反向继承 extension.view；先允许潜在设置管理员进入精确
 	// 扩展判定，普通/未知页面仍在下方严格要求只读目录权限。
-	if !canViewExtensions(actor) && !canManagePlugins(actor) && !canManageThemes(actor) && !actor.Can(identity.PermissionSettingsMailManage) {
+	// identity.provider.manage 与 settings.mail.manage 对称：仅可进入匹配的设置页。
+	if !canViewExtensions(actor) && !canManagePlugins(actor) && !canManageThemes(actor) &&
+		!actor.Can(identity.PermissionSettingsMailManage) &&
+		!actor.Can(identity.PermissionIdentityProviderManage) {
 		return AdminPageBootstrap{}, identity.ErrPermissionDenied
 	}
 	extension, err := s.store.Get(ctx, normalizeID(extensionID))

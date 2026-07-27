@@ -243,9 +243,10 @@ func TestLoadParsesSafeMode(t *testing.T) {
 func setValidProductionSecrets(t *testing.T) {
 	t.Helper()
 	for k, v := range map[string]string{
-		"SESSION_HASH_SECRET": "prod-valid-session-secret",
-		"ALTCHA_SECRET":       "prod-valid-altcha-secret",
-		"APP_OPTION_ENC_KEY":  "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		"SESSION_HASH_SECRET":          "prod-valid-session-secret",
+		"ALTCHA_SECRET":                "prod-valid-altcha-secret",
+		"APP_OPTION_ENC_KEY":           "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		"IDENTITY_SUBJECT_HMAC_SECRET": "prod-valid-identity-subject-hmac-secret-32b",
 	} {
 		t.Setenv(k, v)
 	}
@@ -565,6 +566,7 @@ func TestLoadRejectsInsecureSecretsInProduction(t *testing.T) {
 	os.Unsetenv("ALTCHA_SECRET")
 	os.Unsetenv("MEILI_MASTER_KEY")
 	os.Unsetenv("APP_OPTION_ENC_KEY")
+	os.Unsetenv("IDENTITY_SUBJECT_HMAC_SECRET")
 	t.Setenv("APP_ENV", "production")
 
 	// 设 placeholder 也应被拒。
@@ -573,6 +575,35 @@ func TestLoadRejectsInsecureSecretsInProduction(t *testing.T) {
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("expected Load to panic when production secrets are insecure, got no panic")
+		}
+	}()
+	Load()
+}
+
+// TestLoadRejectsWeakIdentitySubjectHMACInProduction 走真实 APP_ENV=production 路径。
+func TestLoadRejectsWeakIdentitySubjectHMACInProduction(t *testing.T) {
+	setValidProductionSecrets(t)
+	t.Setenv("APP_ENV", "production")
+	// 开发默认必须被拒。
+	t.Setenv("IDENTITY_SUBJECT_HMAC_SECRET", IdentitySubjectHMACDevDefault)
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected Load to panic on identity subject hmac dev default in production")
+		}
+	}()
+	Load()
+}
+
+// TestLoadRejectsShortIdentitySubjectHMACInProduction 生产拒绝短密钥。
+func TestLoadRejectsShortIdentitySubjectHMACInProduction(t *testing.T) {
+	setValidProductionSecrets(t)
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("IDENTITY_SUBJECT_HMAC_SECRET", "tooshort")
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected Load to panic on short identity subject hmac secret in production")
 		}
 	}()
 	Load()
@@ -587,6 +618,9 @@ func TestLoadAcceptsValidSecretsInProduction(t *testing.T) {
 	if cfg.SessionHashSecret != "prod-valid-session-secret" {
 		t.Fatalf("expected configured session secret, got %q", cfg.SessionHashSecret)
 	}
+	if cfg.IdentitySubjectHMACSecret != "prod-valid-identity-subject-hmac-secret-32b" {
+		t.Fatalf("expected configured identity subject hmac secret, got %q", cfg.IdentitySubjectHMACSecret)
+	}
 }
 
 // TestLoadDoesNotValidateSecretsInDevelopment 验证非生产环境允许默认密钥（开发友好）。
@@ -596,9 +630,13 @@ func TestLoadDoesNotValidateSecretsInDevelopment(t *testing.T) {
 	os.Unsetenv("ALTCHA_SECRET")
 	os.Unsetenv("MEILI_MASTER_KEY")
 	os.Unsetenv("APP_OPTION_ENC_KEY")
+	os.Unsetenv("IDENTITY_SUBJECT_HMAC_SECRET")
 
 	cfg := Load() // 不应 panic
 	if cfg.SessionHashSecret != "sforum-dev-session-hash-secret" {
 		t.Fatalf("expected dev default secret, got %q", cfg.SessionHashSecret)
+	}
+	if cfg.IdentitySubjectHMACSecret != IdentitySubjectHMACDevDefault {
+		t.Fatalf("expected stable identity subject hmac dev default, got %q", cfg.IdentitySubjectHMACSecret)
 	}
 }

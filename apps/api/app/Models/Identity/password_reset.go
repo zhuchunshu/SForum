@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // PasswordResetToken 是 password_reset_tokens 行的领域结构。
@@ -108,16 +110,9 @@ func (s *PostgresStore) confirmPasswordResetAtomic(ctx context.Context, tokenHas
 		return 0, fmt.Errorf("consume password reset token: %w", err)
 	}
 
-	tag, err := tx.Exec(ctx, `
-		UPDATE user_credentials
-		SET password_hash = $2, password_changed_at = now(), updated_at = now()
-		WHERE user_id = $1
-	`, userID, passwordHash)
-	if err != nil {
-		return 0, fmt.Errorf("update user password: %w", err)
-	}
-	if tag.RowsAffected() == 0 {
-		return 0, ErrCredentialNotFound
+	// external-only 用户无 credential 行：创建；已有行则更新。password_hash 始终非 null。
+	if err := upsertUserPasswordTx(ctx, tx, userID, passwordHash); err != nil {
+		return 0, err
 	}
 
 	if _, err := tx.Exec(ctx, `
@@ -141,18 +136,47 @@ func (s *PostgresStore) confirmPasswordResetAtomic(ctx context.Context, tokenHas
 	return userID, nil
 }
 
-// UpdateUserPassword 更新用户凭据哈希。
+// UpdateUserPassword 更新或创建用户密码凭据（external-only 首次设置时 INSERT）。
+// password_hash 对存在行始终非 null；无行表示 external-only。
 func (s *PostgresStore) UpdateUserPassword(ctx context.Context, userID int64, passwordHash string) error {
-	tag, err := s.pool.Exec(ctx, `
-		UPDATE user_credentials
-		SET password_hash = $2, password_changed_at = now(), updated_at = now()
-		WHERE user_id = $1
+	return upsertUserPassword(ctx, s.pool, userID, passwordHash)
+}
+
+func upsertUserPassword(ctx context.Context, pool *pgxpool.Pool, userID int64, passwordHash string) error {
+	if userID <= 0 || strings.TrimSpace(passwordHash) == "" {
+		return ErrCredentialNotFound
+	}
+	// INSERT … ON CONFLICT 保证 external-only 可首次创建，已有行则更新哈希。
+	_, err := pool.Exec(ctx, `
+		INSERT INTO user_credentials (user_id, password_hash, method, password_changed_at, created_at, updated_at)
+		VALUES ($1, $2, 'password', now(), now(), now())
+		ON CONFLICT (user_id) DO UPDATE SET
+		  password_hash = EXCLUDED.password_hash,
+		  method = 'password',
+		  password_changed_at = now(),
+		  updated_at = now()
 	`, userID, passwordHash)
 	if err != nil {
-		return fmt.Errorf("update user password: %w", err)
+		return fmt.Errorf("upsert user password: %w", err)
 	}
-	if tag.RowsAffected() == 0 {
+	return nil
+}
+
+func upsertUserPasswordTx(ctx context.Context, tx pgx.Tx, userID int64, passwordHash string) error {
+	if userID <= 0 || strings.TrimSpace(passwordHash) == "" {
 		return ErrCredentialNotFound
+	}
+	_, err := tx.Exec(ctx, `
+		INSERT INTO user_credentials (user_id, password_hash, method, password_changed_at, created_at, updated_at)
+		VALUES ($1, $2, 'password', now(), now(), now())
+		ON CONFLICT (user_id) DO UPDATE SET
+		  password_hash = EXCLUDED.password_hash,
+		  method = 'password',
+		  password_changed_at = now(),
+		  updated_at = now()
+	`, userID, passwordHash)
+	if err != nil {
+		return fmt.Errorf("upsert user password: %w", err)
 	}
 	return nil
 }

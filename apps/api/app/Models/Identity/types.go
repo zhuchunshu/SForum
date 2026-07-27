@@ -22,6 +22,16 @@ const (
 	CodeSessionPolicyDenied = "auth.session_policy_denied"
 	AuditActionLogin        = "auth.login.success"
 	AuditActionRegister     = "auth.register.success"
+	// 外部认证审计动作（见 plans/2026-07-27-github-social-login-builtin-plugin.md）。
+	// 审计 payload 不得包含 raw subject/digest/token/state/verifier/secret。
+	AuditActionExternalLogin       = "auth.external_login.success"
+	AuditActionExternalRegister    = "auth.external_register.success"
+	AuditActionExternalLink        = "auth.external_link.success"
+	AuditActionExternalUnlink      = "auth.external_unlink.success"
+	// Host 激活目录 mutation（actor-bound；无 raw secret/subject）。
+	AuditActionProviderActivationUpdate = "identity.provider.activation.update"
+	AuditActionProviderActivationReset  = "identity.provider.activation.reset"
+	AuditActionProviderProbe            = "identity.provider.probe"
 
 	FieldUsername          = "username"
 	FieldEmail             = "email"

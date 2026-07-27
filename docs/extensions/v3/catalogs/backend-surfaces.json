@@ -38,7 +38,8 @@
     "forum.composer.toolbar",
     "forum.profile.tabs",
     "admin.dashboard.widgets",
-    "system.health.checks"
+    "system.health.checks",
+    "forum.page.regions"
   ],
   "providerSlots": [
     "mail.provider",

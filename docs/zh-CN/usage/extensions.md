@@ -50,6 +50,12 @@
   L2 组件不能替换这些 `system.*` 页面。
 - 详情：[运行时主题](../../extensions/runtime-themes.md)
 
+## 内置 GitHub 登录
+
+受保护内置插件 `sforum.auth-github` 提供 GitHub OAuth 协议适配。内置发现只暂存制品，
+**不会**自动信任、启用或公开激活登录/注册/绑定。运营步骤、回调 URL、排障见
+[GitHub 登录方式](./github-login.md)。
+
 ## 开发者文档
 
 编写插件请读：
@@ -59,3 +65,5 @@
 - [场景速查](../../extensions/scenario-map.md)  
 - [Host API v2](../../extensions/host-api-v2.md)  
 - [V3 平台](../../extensions/v3/README.md)  
+- 身份提供方作者边界：`extensions/builtin/plugins/sforum-auth-github/README.md`  
+

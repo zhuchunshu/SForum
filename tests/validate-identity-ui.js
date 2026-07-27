@@ -60,6 +60,8 @@ const requiredKeys = [
   ['admin', 'permissionCatalog', 'moderation', 'manage', 'label'],
   ['admin', 'permissionCatalog', 'moderation', 'review', 'description'],
   ['admin', 'permissionCatalog', 'search', 'manage', 'label'],
+  ['admin', 'permissionCatalog', 'identity', 'provider', 'manage', 'label'],
+  ['admin', 'permissionCatalog', 'identity', 'provider', 'manage', 'description'],
   ['errors', 'permissionDenied']
 ];
 

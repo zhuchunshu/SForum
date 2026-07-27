@@ -109,6 +109,13 @@ export const adminPageDefinitions = [
     requiredPermissions: ['settings.mail.manage']
   },
   {
+    id: '/settings/login-methods',
+    labelKey: 'admin.nav.loginMethods',
+    icon: 'i-lucide-log-in',
+    componentName: 'AdminLoginMethods',
+    requiredPermissions: ['identity.provider.manage']
+  },
+  {
     id: '/settings/avatar',
     labelKey: 'admin.nav.avatarSettings',
     icon: 'i-lucide-user-round-cog',
@@ -410,6 +417,7 @@ export const adminSidebarNavigation = [
       children: [
         { type: 'page', pageId: '/settings' },
         { type: 'page', pageId: '/settings/mail' },
+        { type: 'page', pageId: '/settings/login-methods' },
         { type: 'page', pageId: '/settings/avatar' },
         { type: 'page', pageId: '/settings/features' },
         { type: 'page', pageId: '/entity-meta' },

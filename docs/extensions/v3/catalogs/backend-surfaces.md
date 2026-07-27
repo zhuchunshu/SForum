@@ -43,6 +43,7 @@
 - `forum.profile.tabs`
 - `admin.dashboard.widgets`
 - `system.health.checks`
+- `forum.page.regions`
 
 ## providerSlots
 

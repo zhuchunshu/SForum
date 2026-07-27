@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["status"],
+  "properties": {
+    "status": { "type": "string", "enum": ["continue", "redirect", "challenge"] },
+    "continueToken": { "type": "string", "maxLength": 4000 },
+    "redirectUrl": { "type": "string", "maxLength": 2000 },
+    "challengeKind": { "type": "string", "maxLength": 120 }
+  },
+  "additionalProperties": false
+}

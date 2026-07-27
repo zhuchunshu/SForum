@@ -1055,7 +1055,7 @@ ApiResponseClearUserClientIPs:
 
 AuthProviderListItem:
   type: object
-  required: [id, kind, contractVersion, operations]
+  required: [id, kind, contractVersion, operations, activatedOperations]
   properties:
     id: {type: string}
     kind: {type: string, enum: [auth, recovery]}
@@ -1064,6 +1064,24 @@ AuthProviderListItem:
     operations:
       type: array
       items: {type: string}
+    activatedOperations:
+      type: array
+      description: Host-activated public operations (login, registration, link). Empty when not Host-activated.
+      items: {type: string, enum: [login, registration, link]}
+    ownerExtensionId:
+      type: string
+      description: Owner extension id for display only; not an ownership claim.
+    label:
+      type: string
+      description: |
+        Localized display name declared by the owning plugin Identity provider
+        contribution (labelLocales/label). Host resolves Accept-Language; Core
+        does not hard-code vendor brands.
+    icon:
+      type: string
+      description: |
+        Optional Iconify/Nuxt Icon name declared by the plugin (for example
+        i-tabler-brand-github). Empty means Host uses a generic key icon.
 
 ApiResponseAuthProviderList:
   type: object
@@ -1082,7 +1100,9 @@ AuthProviderStartRequest:
     correlationId: {type: string, maxLength: 200}
     deviceFingerprint: {type: string}
     clientClass: {type: string}
-    redirectHint: {type: string}
+    redirectHint:
+      type: string
+      description: Optional safe local return path. Host validates before store/plugin.
     accountHint: {type: string}
 
 AuthProviderStartResult:
@@ -1118,10 +1138,16 @@ AuthProviderCompleteRequest:
 AuthProviderCompleteResult:
   type: object
   required: [providerId, operation]
+  description: |
+    Public recovery complete shape. Auth login/registration/link complete is
+    closed on the public POST path; Host callback never returns raw subject or
+    subject digest to the browser.
   properties:
     providerId: {type: string}
     operation: {type: string}
-    providerSubjectDigest: {type: string}
+    providerSubjectDigest:
+      type: string
+      description: Recovery-only subject digest when applicable; auth callbacks never expose this.
     displayName: {type: string}
     emailHint: {type: string}
     userHintId: {type: integer, format: int64}
@@ -1135,6 +1161,226 @@ ApiResponseAuthProviderComplete:
     code: {type: integer}
     message: {type: string}
     data: {$ref: "#/AuthProviderCompleteResult"}
+
+ExternalRegistrationRequest:
+  type: object
+  required: [ticket, username, email]
+  properties:
+    ticket:
+      type: string
+      description: Host-generated opaque one-time registration ticket.
+    username: {type: string}
+    email: {type: string, format: email}
+    displayName: {type: string}
+    locale: {type: string}
+    humanVerification:
+      type: object
+      properties:
+        provider: {type: string}
+        token: {type: string}
+
+ExternalIdentityItem:
+  type: object
+  required: [linkId, providerId, status]
+  properties:
+    linkId: {type: integer, format: int64}
+    providerId: {type: string}
+    status: {type: string, enum: [active, inert, erased]}
+    linkedAt:
+      type: string
+      format: date-time
+    ownerExtensionId: {type: string}
+
+ApiResponseExternalIdentityList:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data:
+      type: array
+      items: {$ref: "#/ExternalIdentityItem"}
+
+ExternalIdentityUnlinkRequest:
+  type: object
+  properties:
+    expectedRevision:
+      type: integer
+      format: int64
+      description: Optional optimistic revision; defaults to the loaded active link revision.
+    requestId:
+      type: string
+      description: Optional non-IP request id for idempotency; Host generates when omitted.
+
+SetupPasswordRequest:
+  type: object
+  required: [password]
+  properties:
+    password:
+      type: string
+      format: password
+      minLength: 1
+
+AdminIdentityProviderItem:
+  type: object
+  required:
+  - id
+  - kind
+  - discovered
+  - trusted
+  - enabled
+  - configured
+  - activated
+  - publiclyActivated
+  - loginEnabled
+  - registrationEnabled
+  - linkEnabled
+  - revision
+  - callbackPath
+  properties:
+    id: {type: string}
+    kind: {type: string, enum: [auth, recovery]}
+    contractVersion: {type: string}
+    priority: {type: integer}
+    operations:
+      type: array
+      items: {type: string}
+    ownerExtensionId: {type: string}
+    ownerExtensionVersion: {type: string}
+    ownerPackageDigest:
+      type: string
+      description: Live package digest for operator inspection; never a browser ownership claim.
+    discovered:
+      type: boolean
+      description: >
+        Visible in the Host extension/package catalog and/or live Identity Registry
+        (including untrusted, disabled, or pre-enable staged built-ins).
+    trusted:
+      type: boolean
+      description: >
+        Exact-artifact executable trust is granted, or the live Registry carries
+        package digest + version id. Trust/enable authority remains extension lifecycle.
+    enabled:
+      type: boolean
+      description: Live RuntimeInstanceID is present (executable process).
+    configured:
+      type: boolean
+      description: Required extension settings (including secrets) are present.
+    probed:
+      type: boolean
+      description: Last real provider.probe reported ok=true; probe_pending/unavailable must never be treated as success.
+    label:
+      type: string
+      description: >
+        Locale-resolved display label from the plugin Identity declaration (Host catalog).
+        Core must not invent vendor brands from provider or extension ids.
+    icon:
+      type: string
+      description: >
+        Iconify/Nuxt Icon name from the plugin Identity declaration (for example
+        i-tabler-brand-github). Empty means the admin UI uses a generic key icon.
+    artifactBound: {type: boolean}
+    runtimeInstanceId: {type: string}
+    activated:
+      type: boolean
+      description: Host activation intent — at least one of login/registration/link is on.
+    publiclyActivated:
+      type: boolean
+      description: Effective public availability — intent on, artifact bound, enabled, configured, and not Safe Mode.
+    loginEnabled: {type: boolean}
+    registrationEnabled: {type: boolean}
+    linkEnabled: {type: boolean}
+    revision: {type: integer, format: int64}
+    callbackPath:
+      type: string
+      description: Reserved Core callback path (relative).
+    callbackUrl:
+      type: string
+      description: Absolute callback URL derived from trusted APP_URL (never request Host).
+    settingsPath:
+      type: string
+      description: Admin path for Host-rendered extension settings (SFExtensionSettingsRenderer).
+    safeMode: {type: boolean}
+    lastProbeAt:
+      type: string
+      format: date-time
+    lastProbeOk: {type: boolean}
+    lastProbeReason: {type: string}
+
+ApiResponseAdminIdentityProviderList:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data:
+      type: array
+      items: {$ref: "#/AdminIdentityProviderItem"}
+
+AdminIdentityProviderPatchRequest:
+  type: object
+  required: [expectedRevision]
+  properties:
+    expectedRevision: {type: integer, format: int64}
+    loginEnabled: {type: boolean}
+    registrationEnabled: {type: boolean}
+    linkEnabled: {type: boolean}
+    priority: {type: integer}
+    ownerExtensionId:
+      type: string
+      description: Must be omitted or empty; browser ownership claims are rejected.
+    ownerPackageDigest:
+      type: string
+      description: Must be omitted or empty; browser artifact claims are rejected.
+
+ApiResponseAdminIdentityProvider:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data: {$ref: "#/AdminIdentityProviderItem"}
+
+AdminIdentityProviderProbeResult:
+  type: object
+  required: [providerId, ok, status]
+  properties:
+    providerId: {type: string}
+    ok: {type: boolean}
+    status:
+      type: string
+      description: Stable redacted reason code from the real provider.probe runtime operation (or probe_unavailable).
+    reason:
+      type: string
+      description: Same as status; never contains secrets, tokens, or raw subjects.
+    message:
+      type: string
+      description: Optional redacted human-readable detail; must not claim Client Secret correctness.
+
+ApiResponseAdminIdentityProviderProbe:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data: {$ref: "#/AdminIdentityProviderProbeResult"}
+
+AdminIdentityProvidersResetResult:
+  type: object
+  required: [resetCount, secretsPreserved]
+  properties:
+    resetCount: {type: integer}
+    secretsPreserved:
+      type: boolean
+      description: Always true for V1; secrets are never cleared by restore defaults.
+
+ApiResponseAdminIdentityProvidersReset:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data: {$ref: "#/AdminIdentityProvidersResetResult"}
 
 ProfileSection:
   type: object

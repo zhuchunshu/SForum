@@ -2,12 +2,14 @@ package extensionsruntime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
@@ -346,13 +348,39 @@ func cleanupExtensionDatabaseRuntimeLeaseRole(
 	}
 	retirementQueries = append(retirementQueries, `DROP OWNED BY `+role, `DROP ROLE `+role)
 	for _, query := range retirementQueries {
-		if _, err := tx.Exec(ctx, query); err != nil {
+		if err := executeExtensionDatabaseRuntimeLeaseRetirement(ctx, tx, query); err != nil {
 			return fmt.Errorf("%w: retire runtime lease role: %v", ErrExtensionDatabaseCredential, err)
 		}
 	}
 	delete(retirementOwners, roleName)
 	if err := releaseExtensionDatabaseKernelOwnerAuthority(ctx, tx, retirementOwners); err != nil {
 		return err
+	}
+	return nil
+}
+
+func isMissingExtensionDatabaseRuntimeLeaseRole(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "42704"
+}
+
+// PostgreSQL 的语句错误会中止整个事务。用 savepoint 仅吞掉“目标 role 已
+// 不存在”，才能让重启回收继续落库；权限、依赖和其它对象错误仍保持 fail-closed。
+func executeExtensionDatabaseRuntimeLeaseRetirement(ctx context.Context, tx pgx.Tx, query string) error {
+	const savepoint = "extension_database_runtime_lease_retirement"
+	if _, err := tx.Exec(ctx, `SAVEPOINT `+savepoint); err != nil {
+		return fmt.Errorf("open runtime lease retirement savepoint: %w", err)
+	}
+	if _, err := tx.Exec(ctx, query); err != nil {
+		if !isMissingExtensionDatabaseRuntimeLeaseRole(err) {
+			return err
+		}
+		if _, rollbackErr := tx.Exec(ctx, `ROLLBACK TO SAVEPOINT `+savepoint); rollbackErr != nil {
+			return fmt.Errorf("rollback missing runtime lease role retirement: %w", rollbackErr)
+		}
+	}
+	if _, err := tx.Exec(ctx, `RELEASE SAVEPOINT `+savepoint); err != nil {
+		return fmt.Errorf("release runtime lease retirement savepoint: %w", err)
 	}
 	return nil
 }

@@ -141,8 +141,11 @@ function loadGuestMiddleware(globals: {
     'defineNuxtRouteMiddleware',
     'useAuthSession',
     'useAuthReturnNavigation',
+    'useState',
     executable
   )
+
+  const state = new Map<string, { value: unknown }>()
 
   return factory(
     (middleware: (to: { query: Record<string, unknown> }) => Promise<unknown>) => middleware,
@@ -157,6 +160,12 @@ function loadGuestMiddleware(globals: {
       return {
         returnFromAuth: () => globals.returnFromAuth(explicitRedirect)
       }
+    },
+    (key: string, init?: () => unknown) => {
+      if (!state.has(key)) {
+        state.set(key, { value: init ? init() : null })
+      }
+      return state.get(key)
     }
   ) as (to: { query: Record<string, unknown> }) => Promise<unknown>
 }

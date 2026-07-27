@@ -259,11 +259,7 @@ func (s *PostgresStore) SaveBuiltin(ctx context.Context, input SaveBuiltinInput)
 		}
 	}
 
-	initialStatus := StatusEnabled
-	if input.Manifest.Type == TypeTheme {
-		// 新内置主题必须经由 ActivateTheme 发布 desired revision，不能在同步时静默生效。
-		initialStatus = StatusInstalled
-	}
+	initialStatus := builtinInitialStatus(input.Manifest)
 	inserted, err := tx.Exec(ctx, `
 		INSERT INTO extensions (id, type, name, status, source, is_system, is_deletable)
 		VALUES ($1, $2, $3, $4, 'builtin', true, false)
@@ -309,7 +305,12 @@ func (s *PostgresStore) SaveBuiltin(ctx context.Context, input SaveBuiltinInput)
 	if err != nil {
 		return Extension{}, fmt.Errorf("upsert builtin extension version: %w", err)
 	}
-	if storedType == TypeTheme && storedStatus == StatusEnabled && activeVersionID != 0 && activeVersionID != versionID {
+	// 已启用的内置制品不得由同步旁路切换 active_version。主题和可执行
+	// plugin 都可能拥有跨 registry 的 exact-artifact publication；只有正常
+	// lifecycle 才能把暂存制品升级为活动制品并原子更新全部 Host 侧状态。
+	stagedEnabledArtifact := storedStatus == StatusEnabled && activeVersionID != 0 && activeVersionID != versionID &&
+		(storedType == TypeTheme || storedType == TypePlugin)
+	if stagedEnabledArtifact {
 		if _, err := tx.Exec(ctx, `
 			UPDATE extensions
 			SET staged_version_id = $2, updated_at = now()
@@ -329,7 +330,7 @@ func (s *PostgresStore) SaveBuiltin(ctx context.Context, input SaveBuiltinInput)
 	// upgrade source 取 latest publication 成员，不读 mutable active：旧旁路
 	// 可能已把 active 推到 B 而 publication 仍停在 A，必须仍能 A→B 修复。
 	// 不重投影全部 enabled 行，避免把 trust-revocation 已摘除的成员复活。
-	if isPlugin && hasPublication {
+	if isPlugin && hasPublication && !stagedEnabledArtifact {
 		target := Extension{
 			ID: input.Manifest.ID, Name: input.Manifest.Name, Type: TypePlugin,
 			Status: StatusEnabled, Version: input.Manifest.Version,
@@ -349,6 +350,30 @@ func (s *PostgresStore) SaveBuiltin(ctx context.Context, input SaveBuiltinInput)
 		return Extension{}, fmt.Errorf("commit builtin extension sync: %w", err)
 	}
 	return s.Get(ctx, input.Manifest.ID)
+}
+
+func builtinInitialStatus(manifest Manifest) string {
+	if manifest.Type == TypeTheme {
+		// 新内置主题必须经由 ActivateTheme 发布 desired revision，不能在同步时静默生效。
+		return StatusInstalled
+	}
+	if manifest.Type == TypePlugin && builtinPluginProvidesAuthProvider(manifest) {
+		// 外部登录供应商即使是受保护内置，也必须由管理员显式启用并再做 Host 公开激活。
+		return StatusInstalled
+	}
+	return StatusEnabled
+}
+
+func builtinPluginProvidesAuthProvider(manifest Manifest) bool {
+	if manifest.Identity == nil {
+		return false
+	}
+	for _, provider := range manifest.Identity.Providers {
+		if strings.EqualFold(strings.TrimSpace(provider.Kind), "auth") {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *PostgresStore) PruneMissingBuiltins(ctx context.Context, activeIDs []string) error {

@@ -53,6 +53,22 @@ type Controller struct {
 	recoveryFlow    *identity.RecoveryProviderFlow
 	// providerCatalog 仅用于红acted 可执行提供方列表。
 	providerCatalog *identityregistry.Registry
+	// packageCatalog 是 Host 扩展/包目录 discovery（T8B）；live Registry 仍是可执行权威。
+	packageCatalog identity.AuthProviderPackageCatalog
+	// 外部认证 Host 编排（见 plans/2026-07-27-github-social-login-builtin-plugin.md M1）。
+	// 为 nil 时外部登录/注册/link 回调路由返回 unavailable。
+	externalAuthService     *identity.ExternalAuthService
+	callbackStateStore      identity.CallbackStateStore
+	registrationTicketStore identity.RegistrationTicketStore
+	externalLinkStore       identity.ExternalIdentityLinkStore
+	externalAuthStore       *identity.PostgresExternalAuthStore
+	activationStore         identity.ProviderActivationStore
+	// externalAuthRateLimiter 保护 start/callback（M5）；nil 时跳过专用限流。
+	externalAuthRateLimiter identity.ExternalAuthRateLimiter
+	// appURL 是可信公共应用基址（APP_URL），用于生成绝对 OAuth callback；
+	// 绝不使用请求 Host。appEnv 用于生产 HTTPS 强制。
+	appURL string
+	appEnv string
 }
 
 // optionsResolver 只暴露密码策略、mail-test 需要的站点名/管理员邮箱，避免全量依赖 options.Service。
@@ -156,6 +172,82 @@ func (h *Controller) WithIdentityProviderCatalog(registry *identityregistry.Regi
 		h.providerCatalog = registry
 	}
 	return h
+}
+
+// WithAuthProviderPackageCatalog injects Host 扩展/包目录 discovery（T8B）。
+// live Registry 保持可执行权威；本目录仅用于 admin 展示 discovered 状态。
+func (h *Controller) WithAuthProviderPackageCatalog(catalog identity.AuthProviderPackageCatalog) *Controller {
+	if h != nil {
+		h.packageCatalog = catalog
+	}
+	return h
+}
+
+// WithExternalAuthService 注入外部认证 Host 编排层与回调/票据/链接存储。
+// 见 plans/2026-07-27-github-social-login-builtin-plugin.md M1。
+func (h *Controller) WithExternalAuthService(
+	svc *identity.ExternalAuthService,
+	callbackStore identity.CallbackStateStore,
+	ticketStore identity.RegistrationTicketStore,
+	linkStore identity.ExternalIdentityLinkStore,
+	externalAuthStore *identity.PostgresExternalAuthStore,
+) *Controller {
+	if h != nil {
+		h.externalAuthService = svc
+		h.callbackStateStore = callbackStore
+		h.registrationTicketStore = ticketStore
+		h.externalLinkStore = linkStore
+		h.externalAuthStore = externalAuthStore
+		if svc != nil {
+			// 复用 service 依赖里的 activationStore，避免再传一个参数。
+			h.activationStore = svc.ActivationStore()
+			// T1D：外部注册复用权威 identity.Service 字段/策略校验，不维护更弱副本。
+			if h.service != nil {
+				svc.WithRegistrationValidator(h.service)
+			}
+		}
+	}
+	return h
+}
+
+// WithPublicAppURL 注入可信公共应用基址（APP_URL）与运行环境。
+// 外部 OAuth 绝对 callback URL 只从此派生，不信任请求 Host。
+func (h *Controller) WithPublicAppURL(appURL, appEnv string) *Controller {
+	if h != nil {
+		h.appURL = strings.TrimSpace(appURL)
+		h.appEnv = strings.TrimSpace(appEnv)
+	}
+	return h
+}
+
+// WithExternalAuthRateLimiter 注入外部认证 start/callback 专用限流（M5）。
+func (h *Controller) WithExternalAuthRateLimiter(limiter identity.ExternalAuthRateLimiter) *Controller {
+	if h != nil {
+		h.externalAuthRateLimiter = limiter
+	}
+	return h
+}
+
+// allowExternalAuthRate 按 IP + scope 检查限流；未配置 limiter 时放行。
+// 超限返回 false；调用方映射为 rate_limit.exceeded / 安全 redirect。
+func (h *Controller) allowExternalAuthRate(c fiber.Ctx, scope string, max int) bool {
+	if h == nil || h.externalAuthRateLimiter == nil || max <= 0 {
+		return true
+	}
+	ip := clientip.FromCtx(c)
+	key := identity.ExternalAuthRateKey(scope, ip)
+	ok, err := h.externalAuthRateLimiter.Allow(c.Context(), key, max, identity.ExternalAuthRateWindow)
+	if err != nil {
+		// 与 Redis fail-open 一致：错误时不阻断。
+		return true
+	}
+	return ok
+}
+
+// absoluteCallbackURL 从可信 APP_URL 生成绝对 callback；生产强制 HTTPS。
+func (h *Controller) absoluteCallbackURL(providerID string) (string, error) {
+	requireHTTPS := strings.EqualFold(h.appEnv, "production")
+	return identity.AbsoluteExternalAuthCallbackURL(h.appURL, providerID, requireHTTPS)
 }
 
 type registerRequest struct {
@@ -328,6 +420,13 @@ func (h *Controller) login(c fiber.Ctx) error {
 	// 登录成功后强制最大活跃设备数，best-effort 踢出最旧设备（失败不阻塞登录）。
 	// 传入本次登录的 sid，确保当前设备永不被踢。
 	h.enforceMaxSessions(c, current.ID, pendingSession.Info().SID)
+	// T1D：成功密码登录后标记当前会话 recent-auth（敏感 unlink/password setup 前置）。
+	if h.externalAuthService != nil {
+		_ = h.externalAuthService.MarkSessionAuthenticated(
+			c.Context(), current.ID, identity.SessionFingerprint(pendingSession.Info().SID),
+			"password", "",
+		)
+	}
 
 	return apphttp.OK(c, current)
 }

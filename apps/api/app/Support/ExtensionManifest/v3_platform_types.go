@@ -173,6 +173,12 @@ type ManifestIdentityProvider struct {
 	Kind            string `json:"kind"`
 	Handler         string `json:"handler"`
 	Priority        int    `json:"priority,omitempty"`
+	// Label 是插件声明的公共展示名（LocalizedText：字符串或 locale map）。
+	// 使用指针以便 omitempty 在未声明时真正省略（struct 零值不会被 omitempty 跳过）。
+	// Host 公共 catalog 按 Accept-Language 解析后注入前端；Core 不硬编码供应商品牌。
+	Label *LocalizedText `json:"label,omitempty"`
+	// Icon 为 Iconify / Nuxt Icon 名称（如 i-tabler-brand-github）；空则 Host 壳用通用图标。
+	Icon string `json:"icon,omitempty"`
 	// Operations 为空时保持既有只读目录语义；非空才允许 Host 调用。
 	Operations []ManifestIdentityProviderOperation `json:"operations,omitempty"`
 }

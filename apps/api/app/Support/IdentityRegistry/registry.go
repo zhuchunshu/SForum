@@ -648,6 +648,12 @@ func publicUserField(input UserField) UserField {
 
 func cloneProvider(input Provider) Provider {
 	result := input
+	if input.LabelLocales != nil {
+		result.LabelLocales = make(map[string]string, len(input.LabelLocales))
+		for key, value := range input.LabelLocales {
+			result.LabelLocales[key] = value
+		}
+	}
 	result.Operations = append([]ProviderOperation(nil), input.Operations...)
 	for index := range input.Operations {
 		result.Operations[index] = cloneProviderOperation(input.Operations[index])
@@ -656,13 +662,38 @@ func cloneProvider(input Provider) Provider {
 }
 
 func publicProvider(input Provider) Provider {
-	result := input
-	result.Operations = append([]ProviderOperation(nil), input.Operations...)
+	result := cloneProvider(input)
 	for index := range result.Operations {
 		result.Operations[index].boundInputSchema = nil
 		result.Operations[index].boundOutputSchema = nil
 	}
 	return result
+}
+
+// ResolveProviderLabel 按 locale 解析插件声明的展示名；无匹配时回退 Label，再回退空串。
+// Host 不在此硬编码任何供应商品牌名。
+func ResolveProviderLabel(provider Provider, locale string) string {
+	locale = strings.TrimSpace(locale)
+	if len(provider.LabelLocales) > 0 {
+		if locale != "" {
+			if value := strings.TrimSpace(provider.LabelLocales[locale]); value != "" {
+				return value
+			}
+			// zh-CN → zh 前缀回退
+			if i := strings.IndexByte(locale, '-'); i > 0 {
+				if value := strings.TrimSpace(provider.LabelLocales[locale[:i]]); value != "" {
+					return value
+				}
+			}
+		}
+		if value := strings.TrimSpace(provider.LabelLocales["en-US"]); value != "" {
+			return value
+		}
+		if value := strings.TrimSpace(provider.LabelLocales["zh-CN"]); value != "" {
+			return value
+		}
+	}
+	return strings.TrimSpace(provider.Label)
 }
 
 func cloneProviderOperation(input ProviderOperation) ProviderOperation {

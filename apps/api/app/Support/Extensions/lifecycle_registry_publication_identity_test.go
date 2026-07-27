@@ -568,6 +568,75 @@ func TestLifecycleIdentityRestartSafeModeAndConditionalDependencies(t *testing.T
 	}
 }
 
+func TestLegacyRuntimeIdentityPublicationPublishesAndRetiresExecutableProvider(t *testing.T) {
+	ctx := t.Context()
+	extension := lifecycleIdentityExtension("1.0.0", 61, "")
+	extension.Status = extensions.StatusEnabled
+	providerID := extension.ID + ".auth"
+	extension.Manifest.Identity.Providers = []extensionmanifest.ManifestIdentityProvider{{
+		ID: providerID, ContractVersion: providerID + "@1",
+		Kind: "auth", Handler: extension.ID + ".auth",
+		Operations: []extensionmanifest.ManifestIdentityProviderOperation{{
+			Name: "login.start", InputSchema: extension.ID + ".auth.start.input@1",
+			OutputSchema: extension.ID + ".auth.start.output@1", TimeoutMS: 1000,
+			FailurePolicy: "fail_closed",
+		}},
+	}}
+	writeLifecycleIdentitySchema(
+		t, &extension, extension.ID+".auth.start.input", "schemas/auth-start-input.json",
+		"1", `{"type":"object"}`,
+	)
+	writeLifecycleIdentitySchema(
+		t, &extension, extension.ID+".auth.start.output", "schemas/auth-start-output.json",
+		"1", `{"type":"object"}`,
+	)
+	manager := NewManager(ManagerConfig{Starter: newManagerStagedStarter()})
+	if err := manager.Start(ctx, extension); err != nil {
+		t.Fatal(err)
+	}
+	registry := identityregistry.New()
+	store := &memoryIdentityPublicationStore{}
+	boundary := NewPostgresLifecycleBoundaryRegistries(LifecycleRegistryBoundaryConfig{
+		Manager: manager, Identity: registry, IdentityStore: store,
+	})
+
+	published, err := boundary.PublishRuntimeIdentity(ctx, extension, 101, 201)
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider, err := registry.ResolveProvider(providerID)
+	if err != nil || provider.Artifact.RuntimeInstanceID == "" ||
+		provider.Artifact.PackageDigest != extension.PackageDigest {
+		t.Fatalf("published provider = %#v, %v", provider, err)
+	}
+	inputs := store.Inputs()
+	if len(inputs) != 1 || inputs[0].AllowedTarget == nil || inputs[0].AllowedTarget.RuntimeInstanceID == "" ||
+		inputs[0].ActorUserID != 101 || inputs[0].AuditEventID != 201 {
+		t.Fatalf("publish reconcile inputs = %#v", inputs)
+	}
+
+	retired, err := boundary.QuarantineRuntimeIdentity(ctx, extension, 102, 202)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := registry.ResolveProvider(providerID); !errors.Is(err, identityregistry.ErrNotFound) {
+		t.Fatalf("retired provider error = %v", err)
+	}
+	if err := retired.Rollback(); err != nil {
+		t.Fatal(err)
+	}
+	if provider, err := registry.ResolveProvider(providerID); err != nil ||
+		provider.Artifact.RuntimeInstanceID == "" {
+		t.Fatalf("rollback restored provider = %#v, %v", provider, err)
+	}
+	if err := published.Rollback(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := registry.ResolveProvider(providerID); !errors.Is(err, identityregistry.ErrNotFound) {
+		t.Fatalf("publish rollback provider error = %v", err)
+	}
+}
+
 func TestLifecycleIdentityDigestIsAdditiveAndAbsentSurfaceIsByteCompatible(t *testing.T) {
 	withoutIdentity := lifecycleIdentityExtension("1.0.0", 56, "")
 	withoutIdentity.Manifest.Identity = nil

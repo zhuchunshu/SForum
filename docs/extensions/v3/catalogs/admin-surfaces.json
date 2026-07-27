@@ -663,6 +663,23 @@
     "exporter": false
   },
   {
+    "id": "core.admin.page.settings_login_methods",
+    "source": "apps/web/app/pages/admin/settings/login-methods.vue",
+    "navigation": true,
+    "dashboard": false,
+    "list": true,
+    "columns": false,
+    "filters": true,
+    "rowActions": true,
+    "bulkActions": false,
+    "forms": false,
+    "notices": true,
+    "editorPanels": false,
+    "detailRegions": false,
+    "importer": true,
+    "exporter": true
+  },
+  {
     "id": "core.admin.page.settings_mail",
     "source": "apps/web/app/pages/admin/settings/mail.vue",
     "navigation": true,

@@ -165,6 +165,7 @@ const adminPagePathsById: Record<string, string> = {
   '/permissions': 'apps/web/app/pages/admin/permissions.vue',
   '/settings': 'apps/web/app/pages/admin/settings/index.vue',
   '/settings/mail': 'apps/web/app/pages/admin/settings/mail.vue',
+  '/settings/login-methods': 'apps/web/app/pages/admin/settings/login-methods.vue',
   '/settings/avatar': 'apps/web/app/pages/admin/settings/avatar.vue',
   '/settings/features': 'apps/web/app/pages/admin/settings/features.vue',
   '/entity-meta': 'apps/web/app/pages/admin/entity-meta.vue',
@@ -255,7 +256,8 @@ for (const requiredComponent of [
 
 assert(adminLayout.includes('i-lucide-'), 'Admin layout should use Nuxt Icon lucide icons')
 assert(adminLayout.includes('adminSidebarNavigation'), 'Admin layout should build sidebar navigation from the module registry')
-assert(adminLayout.includes('canAccessAdminPage'), 'Admin layout should hide registry pages by frontend-visible permissions')
+// 侧栏可见性经 shouldShowAdminPageInNav（内含 canAccessAdminPage + 专业/运维模式）过滤。
+assert(adminLayout.includes('shouldShowAdminPageInNav'), 'Admin layout should hide registry pages by frontend-visible permissions')
 assert(adminLayout.includes('<SFAdminFooter />'), 'Admin layout should render the dedicated global footer')
 assert(!adminLayout.includes('<SFFooter'), 'Admin layout should not reuse the public site footer')
 assert(adminFooter.includes('data-testid="sforum-admin-footer"'), 'Admin footer should expose a stable test id')
@@ -305,7 +307,7 @@ assert(
 )
 assert(systemFolder.children?.some(entry => entry.pageId === '/personalization'), 'System folder should contain the personalization page')
 assert(
-  systemFolder.children?.map(entry => entry.pageId).join(',') === '/settings,/settings/mail,/settings/avatar,/settings/features,/entity-meta,/personalization,/seo,/search',
+  systemFolder.children?.map(entry => entry.pageId).join(',') === '/settings,/settings/mail,/settings/login-methods,/settings/avatar,/settings/features,/entity-meta,/personalization,/seo,/search',
   'System folder should keep the approved settings submenu order without ops tools'
 )
 assert(!systemFolder.children?.some(entry => entry.pageId === '/site-chrome'), 'Site chrome should be merged into personalization, not a separate sidebar page')

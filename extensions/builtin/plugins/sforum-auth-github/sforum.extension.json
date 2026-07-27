@@ -1,0 +1,172 @@
+{
+  "manifestVersion": 3,
+  "id": "sforum.auth-github",
+  "name": "GitHub Login",
+  "description": "Protected built-in GitHub OAuth protocol adapter. Host owns accounts, callback state, and sessions.",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "author": {
+    "name": "SForum",
+    "url": "https://github.com/zhuchunshu/sforum"
+  },
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": ">=0.1.0",
+  "capabilities": [
+    "host.api",
+    "settings.own",
+    "net.outbound"
+  ],
+  "backend": {
+    "entry": "backend/plugin",
+    "rpc": "hashicorp-go-plugin",
+    "protocolVersion": 2,
+    "hostApiVersion": "sforum.host@2",
+    "digest": "d347db2b3a9839681f844571b11094c7605b2049483f316356f03d626d10e51e"
+  },
+  "includes": {
+    "admin": "manifest/admin.json",
+    "langs": "manifest/langs",
+    "settings": "manifest/settings.json"
+  },
+  "identity": {
+    "contractVersion": "sforum.auth-github.identity@1",
+    "providers": [
+      {
+        "id": "sforum.auth-github.auth",
+        "contractVersion": "sforum.auth-github.auth@1",
+        "kind": "auth",
+        "handler": "sforum.auth-github.identity",
+        "priority": 100,
+        "label": {
+          "zh-CN": "GitHub",
+          "en-US": "GitHub"
+        },
+        "icon": "i-tabler-brand-github",
+        "operations": [
+          {
+            "name": "registration.start",
+            "inputSchema": "schemas/start.input.json",
+            "outputSchema": "schemas/start.output.json",
+            "timeoutMs": 4000,
+            "failurePolicy": "fail_closed"
+          },
+          {
+            "name": "registration.complete",
+            "inputSchema": "schemas/complete.input.json",
+            "outputSchema": "schemas/auth.complete.output.json",
+            "timeoutMs": 4000,
+            "failurePolicy": "fail_closed"
+          },
+          {
+            "name": "login.start",
+            "inputSchema": "schemas/start.input.json",
+            "outputSchema": "schemas/start.output.json",
+            "timeoutMs": 4000,
+            "failurePolicy": "fail_closed"
+          },
+          {
+            "name": "login.complete",
+            "inputSchema": "schemas/complete.input.json",
+            "outputSchema": "schemas/auth.complete.output.json",
+            "timeoutMs": 4000,
+            "failurePolicy": "fail_closed"
+          },
+          {
+            "name": "link.start",
+            "inputSchema": "schemas/start.input.json",
+            "outputSchema": "schemas/start.output.json",
+            "timeoutMs": 4000,
+            "failurePolicy": "fail_closed"
+          },
+          {
+            "name": "link.complete",
+            "inputSchema": "schemas/complete.input.json",
+            "outputSchema": "schemas/auth.complete.output.json",
+            "timeoutMs": 4000,
+            "failurePolicy": "fail_closed"
+          },
+          {
+            "name": "provider.probe",
+            "inputSchema": "schemas/probe.input.json",
+            "outputSchema": "schemas/probe.output.json",
+            "timeoutMs": 3000,
+            "failurePolicy": "fail_closed"
+          }
+        ]
+      }
+    ]
+  },
+  "lifecycle": {
+    "contractVersion": "sforum.auth-github.lifecycle@1",
+    "install": {"plan": "lifecycle.install.plan", "execute": "lifecycle.install", "progressSchema": "sforum.auth-github.lifecycle.progress@1", "checkpointSchema": "sforum.auth-github.lifecycle.checkpoint@1"},
+    "enable": {"plan": "lifecycle.enable.plan", "execute": "lifecycle.enable", "progressSchema": "sforum.auth-github.lifecycle.progress@1", "checkpointSchema": "sforum.auth-github.lifecycle.checkpoint@1"},
+    "disable": {"plan": "lifecycle.disable.plan", "execute": "lifecycle.disable", "progressSchema": "sforum.auth-github.lifecycle.progress@1", "checkpointSchema": "sforum.auth-github.lifecycle.checkpoint@1"},
+    "upgrade": {"plan": "lifecycle.upgrade.plan", "execute": "lifecycle.upgrade", "progressSchema": "sforum.auth-github.lifecycle.progress@1", "checkpointSchema": "sforum.auth-github.lifecycle.checkpoint@1"},
+    "rollback": {"plan": "lifecycle.rollback.plan", "execute": "lifecycle.rollback", "progressSchema": "sforum.auth-github.lifecycle.progress@1", "checkpointSchema": "sforum.auth-github.lifecycle.checkpoint@1"},
+    "uninstall": {"plan": "lifecycle.uninstall.plan", "execute": "lifecycle.uninstall", "progressSchema": "sforum.auth-github.lifecycle.progress@1", "checkpointSchema": "sforum.auth-github.lifecycle.checkpoint@1"}
+  },
+  "packageFiles": [
+    {
+      "id": "sforum.auth-github.file.backend",
+      "kind": "executable",
+      "path": "backend/plugin",
+      "digest": "d347db2b3a9839681f844571b11094c7605b2049483f316356f03d626d10e51e"
+    },
+    {
+      "id": "sforum.auth-github.schema.lifecycle.progress",
+      "kind": "schema",
+      "path": "schemas/lifecycle.progress.json",
+      "version": "1",
+      "digest": "9bd9027d0b64a0c0c39583197cfab45b77d55a8a802609e9aacca18fd1e3cde1"
+    },
+    {
+      "id": "sforum.auth-github.schema.lifecycle.checkpoint",
+      "kind": "schema",
+      "path": "schemas/lifecycle.checkpoint.json",
+      "version": "1",
+      "digest": "9bd9027d0b64a0c0c39583197cfab45b77d55a8a802609e9aacca18fd1e3cde1"
+    },
+    {
+      "id": "sforum.auth-github.schema.start.input",
+      "kind": "schema",
+      "path": "schemas/start.input.json",
+      "version": "1",
+      "digest": "e050111f11272b97d0340e1756f9d03a1f3f7d0bfecf914a2fb14deee8750676"
+    },
+    {
+      "id": "sforum.auth-github.schema.start.output",
+      "kind": "schema",
+      "path": "schemas/start.output.json",
+      "version": "1",
+      "digest": "5f25e9910d79859a2b412ed3b2925f42d64a27b4649726f7f958f90055fad2a0"
+    },
+    {
+      "id": "sforum.auth-github.schema.complete.input",
+      "kind": "schema",
+      "path": "schemas/complete.input.json",
+      "version": "1",
+      "digest": "d64392bc7a693b6573c1442cce23ba4345eb0bca2b30958d1abfbfa1f79d5eb5"
+    },
+    {
+      "id": "sforum.auth-github.schema.auth.complete.output",
+      "kind": "schema",
+      "path": "schemas/auth.complete.output.json",
+      "version": "1",
+      "digest": "9baac20e0ea448f7e6b6e4ee9d72e46663a84b3099ed81d1a787ed2dd4f960a6"
+    },
+    {
+      "id": "sforum.auth-github.schema.probe.input",
+      "kind": "schema",
+      "path": "schemas/probe.input.json",
+      "version": "1",
+      "digest": "c104cf368d17c24cc0eccddadf5bed01149e7243f144a81e756a743e85307324"
+    },
+    {
+      "id": "sforum.auth-github.schema.probe.output",
+      "kind": "schema",
+      "path": "schemas/probe.output.json",
+      "version": "1",
+      "digest": "ec8213a0d6845edea3a465e1d05c55c1e3324e3b100a1982a40298deae62b4d7"
+    }
+  ]
+}

@@ -151,12 +151,23 @@ function routePolicy(route) {
   if (path.startsWith('/api/v1/auth/sessions') || path.startsWith('/api/v1/auth/tokens')) return ['login', 'current active actor; token/session ownership']
   if (path === '/api/v1/auth/logout' || path === '/api/v1/auth/session') return ['login', 'current browser session']
   // 外部 Identity 提供方：列表公开；link 需要登录；其余 start/complete 走 bootstrap 策略。
+  // OAuth callback 与 browser session 权威对 Route Registry 替换关闭：Host 独占 state/PKCE/会话签发。
+  if (path.startsWith('/api/v1/admin/identity/providers')) return ['permission', 'identity.provider.manage']
   if (path === '/api/v1/auth/providers') return ['public', 'identity bootstrap, risk, rate-limit, and human-verification policy']
+  if (/^\/api\/v1\/auth\/providers\/:providerId\/callback$/.test(path)) {
+    return ['public', 'Host-owned OAuth callback; reserved Core route closed to Route Registry replacement (state/PKCE/session integrity; plugins return assertions only)']
+  }
   if (/^\/api\/v1\/auth\/providers\/:providerId\/link\/(start|complete)$/.test(path)) {
     return ['login', 'current active actor; token/session ownership']
   }
   if (/^\/api\/v1\/auth\/providers\/:providerId\/[^/]+\/(start|complete)$/.test(path)) {
     return ['public', 'identity bootstrap, risk, rate-limit, and human-verification policy']
+  }
+  if (path === '/api/v1/auth/external-registration') {
+    return ['public', 'identity bootstrap, risk, rate-limit, and human-verification policy']
+  }
+  if (path.startsWith('/api/v1/auth/external-identities') || path === '/api/v1/auth/password') {
+    return ['login', 'current active actor; token/session ownership']
   }
   if (/^\/api\/v1\/auth\/(registration-status|register|login|password-reset)/.test(path)) return ['public', 'identity bootstrap, risk, rate-limit, and human-verification policy']
   if (path === '/api/v1/human-verification/challenge') return ['public', 'purpose allowlist and Redis rate/replay policy']
@@ -227,6 +238,8 @@ const reviewedGuardPolicies = new Map([
   ['public read contract', { kind: 'public' }],
   ['exact public frontend artifact trust, digest, and live runtime policy', { kind: 'public' }],
   ['current browser session', { kind: 'login' }],
+  ['identity.provider.manage', { kind: 'permission_any', permissions: ['identity.provider.manage'] }],
+  ['Host-owned OAuth callback; reserved Core route closed to Route Registry replacement (state/PKCE/session integrity; plugins return assertions only)', { kind: 'contextual', evaluatorId: 'core.guard.identity.bootstrap' }],
 
   ['attachment.upload plus upload/media policy', { kind: 'contextual', permissions: ['attachment.upload'], evaluatorId: 'core.guard.attachments.upload' }],
   ['attachment visibility and referenced resource read policy', { kind: 'contextual', evaluatorId: 'core.guard.attachments.read' }],

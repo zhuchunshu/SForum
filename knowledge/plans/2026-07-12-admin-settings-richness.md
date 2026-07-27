@@ -10,6 +10,10 @@ Related:
 
 - Runtime options module: `knowledge/modules/options.md`
 - Development directions: `knowledge/plans/2026-07-12-development-directions.md`
+- Promoted notification program:
+  `knowledge/plans/2026-07-27-notification-platform-v2.md`
+- Promoted public navigation program:
+  `knowledge/plans/2026-07-27-configurable-public-navigation-platform.md`
 - Legacy gap (partially stale): `knowledge/archive/legacy-sforum-feature-gap.md`
 - Agent rules: beginner-friendly defaults, permission-aware design, plugin-first core
 
@@ -44,7 +48,7 @@ surface**, grouped by operator mental model, with progressive disclosure
 | Forum length/cooldown/daily limits/tags/pagination/excerpt | Implemented (+ guest read, list sort, behavior pack) |
 | Categories / tags CRUD + icons | Implemented |
 | Moderation mode `off/rules/all` | Implemented (site-level only) |
-| Mail + notification channel policy | Implemented |
+| Mail provider + V1 global notification policy | Implemented; V2 dedicated admin/user surfaces are ready, not started |
 | Avatar strategy | Implemented |
 | SEO workbench | Implemented (already rich) |
 | Attachments multi-provider | Implemented (already rich) |
@@ -52,7 +56,8 @@ surface**, grouped by operator mental model, with progressive disclosure
 | Extension lifecycle | Partial product shell |
 | Maintenance mode | Wave 1: option + write middleware |
 | Newcomer trust ladder | Wave 1: options + forum enforcement |
-| Engagement (like/bookmark), scoped mods, nav editor | Missing |
+| Engagement (like/bookmark), scoped mods | Missing |
+| Public navigation editor | Topbar CRUD partial; multi-location platform ready, not started |
 
 ---
 
@@ -73,7 +78,8 @@ Sidebar shape after full richness (folders only; pages stay registry-driven):
   公告与横幅        ← 新（或并入个性化）
 系统配置
   站点设置          ← 扩 Tab：注册/新人/维护/品牌
-  邮件与通知
+  邮件
+  通知                ← 独立类型/渠道策略与投递健康
   头像
   个性化            ← + 导航 / 页脚 / 友情链接
   SEO
@@ -261,10 +267,10 @@ Store as columns or `categories.settings` JSON; inherit when null.
 
 | Key / capability | State | Store | Perm | Notes |
 | --- | --- | --- | --- | --- |
-| Global event × channel matrix | have | opt | settings.manage | reply/mention/moderation |
+| Global event × channel matrix | V1 have; V2 ready | structured policy | settings.notifications.manage | dedicated V2 task book |
 | Expand events: like, bookmark, follow, PM, digest | need | opt | settings.manage | as features ship |
 | Template subject/body edit | need | table or opt | settings.manage | safe vars only |
-| User notification preferences | need | user table | self | defaults inherit global |
+| User notification preferences | V2 ready | user table | self | inherit/enabled/disabled |
 | Digest frequency | later | opt | settings.manage | off |
 | Quiet hours | later | user | self | off |
 | Mail provider selection | have | provider | settings.manage | plugin-owned SMTP |
@@ -275,7 +281,11 @@ Store as columns or `categories.settings` JSON; inherit when null.
 | --- | --- | --- | --- | --- |
 | appearance preset / custom color | have | opt | settings.manage | pine_teal |
 | footer copyright + 3 legal links | have | opt | settings.manage | placeholders |
-| header nav items CRUD | need | table | settings.manage | Home, Categories, Tags, Search |
+| header nav items CRUD | partial | table | settings.site.manage | Existing rows/topbar; promoted task book owns completion |
+| topbar/sidebar/mobile/footer placement editor | ready | tables + registry | settings.site.manage | Core recommended location catalog |
+| accessible reorder + move/copy | ready | placement rows | settings.site.manage | Drag plus up/down/top/bottom controls |
+| navigation snapshots + import/export | ready | snapshots + versioned JSON | settings.site.manage | Automatic history + portable backup |
+| plugin navigation contributions | partial | Navigation/Region Registry | settings.site.manage + trust | Existing topbar append; promoted task book owns full lifecycle |
 | footer extra columns/links | need | table | settings.manage | empty beyond legal |
 | friend links | need | table | settings.manage | empty |
 | homepage announcement banner | need | table | settings.manage | empty |

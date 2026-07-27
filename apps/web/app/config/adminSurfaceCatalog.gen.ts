@@ -46,6 +46,7 @@ export const adminSurfacePlacements = [
   { id: "core.component.page.admin.settings", contractVersion: "sforum.component.page.admin.settings@1", route: "/admin/settings" },
   { id: "core.component.page.admin.settings.avatar", contractVersion: "sforum.component.page.admin.settings.avatar@1", route: "/admin/settings/avatar" },
   { id: "core.component.page.admin.settings.features", contractVersion: "sforum.component.page.admin.settings.features@1", route: "/admin/settings/features" },
+  { id: "core.component.page.admin.settings.login.methods", contractVersion: "sforum.component.page.admin.settings.login.methods@1", route: "/admin/settings/login-methods" },
   { id: "core.component.page.admin.settings.mail", contractVersion: "sforum.component.page.admin.settings.mail@1", route: "/admin/settings/mail" },
   { id: "core.component.page.admin.site.chrome", contractVersion: "sforum.component.page.admin.site.chrome@1", route: "/admin/site-chrome" },
   { id: "core.component.page.admin.users", contractVersion: "sforum.component.page.admin.users@1", route: "/admin/users" },

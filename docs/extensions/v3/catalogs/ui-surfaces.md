@@ -70,6 +70,7 @@ Manifest V3 component targets declare both `targetId` and `targetContractVersion
 | `core.component.page.admin.settings` | `sforum.component.page.admin.settings@1` | page | `admin` | `/admin/settings` | `apps/web/app/pages/admin/settings/index.vue` | P7 Admin Surface Registry |
 | `core.component.page.admin.settings.avatar` | `sforum.component.page.admin.settings.avatar@1` | page | `admin` | `/admin/settings/avatar` | `apps/web/app/pages/admin/settings/avatar.vue` | P7 Admin Surface Registry |
 | `core.component.page.admin.settings.features` | `sforum.component.page.admin.settings.features@1` | page | `admin` | `/admin/settings/features` | `apps/web/app/pages/admin/settings/features.vue` | P7 Admin Surface Registry |
+| `core.component.page.admin.settings.login.methods` | `sforum.component.page.admin.settings.login.methods@1` | page | `admin` | `/admin/settings/login-methods` | `apps/web/app/pages/admin/settings/login-methods.vue` | P7 Admin Surface Registry |
 | `core.component.page.admin.settings.mail` | `sforum.component.page.admin.settings.mail@1` | page | `admin` | `/admin/settings/mail` | `apps/web/app/pages/admin/settings/mail.vue` | P7 Admin Surface Registry |
 | `core.component.page.admin.site.chrome` | `sforum.component.page.admin.site.chrome@1` | page | `admin` | `/admin/site-chrome` | `apps/web/app/pages/admin/site-chrome.vue` | P7 Admin Surface Registry |
 | `core.component.page.admin.users` | `sforum.component.page.admin.users@1` | page | `admin` | `/admin/users` | `apps/web/app/pages/admin/users.vue` | P7 Admin Surface Registry |
@@ -89,6 +90,7 @@ Manifest V3 component targets declare both `targetId` and `targetContractVersion
 | `core.component.page.forum.tag.index` | `sforum.component.page.forum.tag.index@1` | page | `public` | `/tags` | `apps/web/app/pages/tags/index.vue` | P9 Component Registry |
 | `core.component.page.forum.tag.show` | `sforum.component.page.forum.tag.show@1` | page | `public` | `/tags/:tagSlug` | `apps/web/app/pages/tags/[tagSlug].vue` | P9 Component Registry |
 | `core.component.page.forum.topic.create` | `sforum.component.page.forum.topic.create@1` | page | `public` | `/topics/new` | `apps/web/app/pages/topics/new.vue` | P9 Component Registry |
+| `core.component.page.forum.topic.edit` | `sforum.component.page.forum.topic.edit@1` | page | `public` | `/topics/:topicId/edit` | `apps/web/app/pages/topics/[topicId]/edit.vue` | P9 Component Registry |
 | `core.component.page.topics.reply` | `sforum.component.page.topics.reply@1` | page | `public` | `/topics/reply` | `apps/web/app/pages/topics/reply.vue` | P9 Component Registry |
 | `core.component.page.forum.topic.show` | `sforum.component.page.forum.topic.show@1` | page | `public` | `/t/:path*` | `apps/web/app/pages/t/[...path].vue` | P9 Component Registry |
 | `core.component.page.moderation.review` | `sforum.component.page.moderation.review@1` | page | `public` | `/moderation` | `apps/web/app/pages/moderation/index.vue` | P9 Component Registry |
@@ -101,19 +103,25 @@ Manifest V3 component targets declare both `targetId` and `targetContractVersion
 | `core.component.shared.moderation_decision_rail` | `sforum.component.shared.moderation_decision_rail@1` | component | `public` | — | `apps/web/app/components/moderation/ModerationDecisionRail.vue` | P9 Component Registry |
 | `core.component.shared.moderation_decision_table` | `sforum.component.shared.moderation_decision_table@1` | component | `public`, `admin` | — | `apps/web/app/components/moderation/ModerationDecisionTable.vue` | P7/P9 Admin and Component Registries |
 | `core.component.shared.moderation_queue_item` | `sforum.component.shared.moderation_queue_item@1` | component | `public` | — | `apps/web/app/components/moderation/ModerationQueueItem.vue` | P9 Component Registry |
+| `core.component.shared.moderation_queue_rail` | `sforum.component.shared.moderation_queue_rail@1` | component | `admin` | — | `apps/web/app/components/moderation/ModerationQueueRail.vue` | P7/P9 Admin and Component Registries |
 | `core.component.shared.moderation_review_reader` | `sforum.component.shared.moderation_review_reader@1` | component | `public` | — | `apps/web/app/components/moderation/ModerationReviewReader.vue` | P9 Component Registry |
 | `core.component.shared.moderation_settings_form` | `sforum.component.shared.moderation_settings_form@1` | component | `admin` | — | `apps/web/app/components/moderation/ModerationSettingsForm.vue` | P7/P9 Admin and Component Registries |
+| `core.component.shared.moderation_workbench_nav` | `sforum.component.shared.moderation_workbench_nav@1` | component | `admin` | — | `apps/web/app/components/moderation/ModerationWorkbenchNav.vue` | P7/P9 Admin and Component Registries |
 | `core.component.shared.sfalert` | `sforum.component.shared.sfalert@1` | component | `public`, `admin` | — | `apps/web/app/components/SFAlert.vue` | P7/P9 Admin and Component Registries |
 | `core.component.shared.sfannouncement_banner` | `sforum.component.shared.sfannouncement_banner@1` | component | `public` | — | `apps/web/app/components/SFAnnouncementBanner.vue` | P9 Component Registry |
 | `core.component.shared.sfapi_connection_modal` | `sforum.component.shared.sfapi_connection_modal@1` | component | `public`, `admin` | — | `apps/web/app/components/SFApiConnectionModal.vue` | P7/P9 Admin and Component Registries |
+| `core.component.shared.sfauth_provider_buttons` | `sforum.component.shared.sfauth_provider_buttons@1` | component | `public` | — | `apps/web/app/components/SFAuthProviderButtons.vue` | P9 Component Registry |
 | `core.component.shared.sfavatar` | `sforum.component.shared.sfavatar@1` | component | `public`, `admin` | — | `apps/web/app/components/SFAvatar.vue` | P7/P9 Admin and Component Registries |
+| `core.component.shared.sfavatar_group` | `sforum.component.shared.sfavatar_group@1` | component | `public` | — | `apps/web/app/components/SFAvatarGroup.vue` | P9 Component Registry |
 | `core.component.shared.sfbadge` | `sforum.component.shared.sfbadge@1` | component | `public`, `admin` | — | `apps/web/app/components/SFBadge.vue` | P7/P9 Admin and Component Registries |
 | `core.component.shared.sfbutton` | `sforum.component.shared.sfbutton@1` | component | `public`, `admin` | — | `apps/web/app/components/SFButton.vue` | P7/P9 Admin and Component Registries |
 | `core.component.shared.sfcard` | `sforum.component.shared.sfcard@1` | component | `public`, `admin` | — | `apps/web/app/components/SFCard.vue` | P7/P9 Admin and Component Registries |
 | `core.component.shared.sfcategory_index_page` | `sforum.component.shared.sfcategory_index_page@1` | component | `public` | — | `apps/web/app/components/SFCategoryIndexPage.vue` | P9 Component Registry |
+| `core.component.shared.sfcategory_select` | `sforum.component.shared.sfcategory_select@1` | component | `public` | — | `apps/web/app/components/SFCategorySelect.vue` | P9 Component Registry |
 | `core.component.shared.sfcategory_show_page` | `sforum.component.shared.sfcategory_show_page@1` | component | `public` | — | `apps/web/app/components/SFCategoryShowPage.vue` | P9 Component Registry |
 | `core.component.shared.sfcomment` | `sforum.component.shared.sfcomment@1` | component | `public` | — | `apps/web/app/components/SFComment.vue` | P9 Component Registry |
 | `core.component.shared.sfcomment_stream_controls` | `sforum.component.shared.sfcomment_stream_controls@1` | component | `public` | — | `apps/web/app/components/SFCommentStreamControls.vue` | P9 Component Registry |
+| `core.component.shared.sfcontent_column_footer` | `sforum.component.shared.sfcontent_column_footer@1` | component | `public` | — | `apps/web/app/components/SFContentColumnFooter.vue` | P9 Component Registry |
 | `core.component.shared.sfeditor` | `sforum.component.shared.sfeditor@1` | component | `public` | — | `apps/web/app/components/SFEditor.vue` | P9 Component Registry |
 | `core.component.shared.sfempty_state` | `sforum.component.shared.sfempty_state@1` | component | `public`, `admin` | — | `apps/web/app/components/SFEmptyState.vue` | P7/P9 Admin and Component Registries |
 | `core.component.shared.sferror_page_content` | `sforum.component.shared.sferror_page_content@1` | component | `public` | — | `apps/web/app/components/SFErrorPageContent.vue` | P9 Component Registry |
@@ -130,6 +138,7 @@ Manifest V3 component targets declare both `targetId` and `targetContractVersion
 | `core.component.shared.sficon_picker` | `sforum.component.shared.sficon_picker@1` | component | `admin` | — | `apps/web/app/components/SFIconPicker.vue` | P7/P9 Admin and Component Registries |
 | `core.component.shared.sfinput` | `sforum.component.shared.sfinput@1` | component | `public`, `admin` | — | `apps/web/app/components/SFInput.vue` | P7/P9 Admin and Component Registries |
 | `core.component.shared.sflegal_document_page` | `sforum.component.shared.sflegal_document_page@1` | component | `public` | — | `apps/web/app/components/SFLegalDocumentPage.vue` | P9 Component Registry |
+| `core.component.shared.sflinked_accounts_section` | `sforum.component.shared.sflinked_accounts_section@1` | component | `public` | — | `apps/web/app/components/SFLinkedAccountsSection.vue` | P9 Component Registry |
 | `core.component.shared.sflogin_form_page` | `sforum.component.shared.sflogin_form_page@1` | component | `public` | — | `apps/web/app/components/SFLoginFormPage.vue` | P9 Component Registry |
 | `core.component.shared.sfmoderation_review_page` | `sforum.component.shared.sfmoderation_review_page@1` | component | `public` | — | `apps/web/app/components/SFModerationReviewPage.vue` | P9 Component Registry |
 | `core.component.shared.sfnavbar` | `sforum.component.shared.sfnavbar@1` | component | `public` | — | `apps/web/app/components/SFNavbar.vue` | P9 Component Registry |
@@ -149,10 +158,13 @@ Manifest V3 component targets declare both `targetId` and `targetContractVersion
 | `core.component.shared.sfprogress` | `sforum.component.shared.sfprogress@1` | component | `public`, `admin` | — | `apps/web/app/components/SFProgress.vue` | P7/P9 Admin and Component Registries |
 | `core.component.shared.sfrecovery_confirm_page` | `sforum.component.shared.sfrecovery_confirm_page@1` | component | `public` | — | `apps/web/app/components/SFRecoveryConfirmPage.vue` | P9 Component Registry |
 | `core.component.shared.sfrecovery_request_page` | `sforum.component.shared.sfrecovery_request_page@1` | component | `public` | — | `apps/web/app/components/SFRecoveryRequestPage.vue` | P9 Component Registry |
+| `core.component.shared.sfregion_outlet` | `sforum.component.shared.sfregion_outlet@1` | component | `public` | — | `apps/web/app/components/SFRegionOutlet.vue` | P9 Component Registry |
 | `core.component.shared.sfregister_form_page` | `sforum.component.shared.sfregister_form_page@1` | component | `public` | — | `apps/web/app/components/SFRegisterFormPage.vue` | P9 Component Registry |
 | `core.component.shared.sfreport_dialog` | `sforum.component.shared.sfreport_dialog@1` | component | `public` | — | `apps/web/app/components/SFReportDialog.vue` | P9 Component Registry |
 | `core.component.shared.sfsearch` | `sforum.component.shared.sfsearch@1` | component | `public` | — | `apps/web/app/components/SFSearch.vue` | P9 Component Registry |
 | `core.component.shared.sfsecurity_settings_page` | `sforum.component.shared.sfsecurity_settings_page@1` | component | `public` | — | `apps/web/app/components/SFSecuritySettingsPage.vue` | P9 Component Registry |
+| `core.component.shared.sfsettings_account_nav` | `sforum.component.shared.sfsettings_account_nav@1` | component | `public` | — | `apps/web/app/components/SFSettingsAccountNav.vue` | P9 Component Registry |
+| `core.component.shared.sfsettings_shell` | `sforum.component.shared.sfsettings_shell@1` | component | `public` | — | `apps/web/app/components/SFSettingsShell.vue` | P9 Component Registry |
 | `core.component.shared.sfskeleton` | `sforum.component.shared.sfskeleton@1` | component | `public`, `admin` | — | `apps/web/app/components/SFSkeleton.vue` | P7/P9 Admin and Component Registries |
 | `core.component.shared.sfsystem_error_actions` | `sforum.component.shared.sfsystem_error_actions@1` | component | `public` | — | `apps/web/app/components/SFSystemErrorActions.vue` | P9 Component Registry |
 | `core.component.shared.sfsystem_error_details` | `sforum.component.shared.sfsystem_error_details@1` | component | `public` | — | `apps/web/app/components/SFSystemErrorDetails.vue` | P9 Component Registry |
@@ -165,13 +177,20 @@ Manifest V3 component targets declare both `targetId` and `targetContractVersion
 | `core.component.shared.sfsystem_theme_template` | `sforum.component.shared.sfsystem_theme_template@1` | component | `public` | — | `apps/web/app/components/SFSystemThemeTemplate.vue` | P9 Component Registry |
 | `core.component.shared.sftabs` | `sforum.component.shared.sftabs@1` | component | `public`, `admin` | — | `apps/web/app/components/SFTabs.vue` | P7/P9 Admin and Component Registries |
 | `core.component.shared.sftag_index_page` | `sforum.component.shared.sftag_index_page@1` | component | `public` | — | `apps/web/app/components/SFTagIndexPage.vue` | P9 Component Registry |
+| `core.component.shared.sftag_index_right_rail` | `sforum.component.shared.sftag_index_right_rail@1` | component | `public` | — | `apps/web/app/components/SFTagIndexRightRail.vue` | P9 Component Registry |
+| `core.component.shared.sftag_input` | `sforum.component.shared.sftag_input@1` | component | `public` | — | `apps/web/app/components/SFTagInput.vue` | P9 Component Registry |
 | `core.component.shared.sftag_show_page` | `sforum.component.shared.sftag_show_page@1` | component | `public` | — | `apps/web/app/components/SFTagShowPage.vue` | P9 Component Registry |
+| `core.component.shared.sftag_show_right_rail` | `sforum.component.shared.sftag_show_right_rail@1` | component | `public` | — | `apps/web/app/components/SFTagShowRightRail.vue` | P9 Component Registry |
 | `core.component.shared.sfterms_page` | `sforum.component.shared.sfterms_page@1` | component | `public` | — | `apps/web/app/components/SFTermsPage.vue` | P9 Component Registry |
 | `core.component.shared.sftheme_template` | `sforum.component.shared.sftheme_template@1` | component | `public` | — | `apps/web/app/components/SFThemeTemplate.vue` | P9 Component Registry |
 | `core.component.shared.sftoast` | `sforum.component.shared.sftoast@1` | component | `public`, `admin` | — | `apps/web/app/components/SFToast.vue` | P7/P9 Admin and Component Registries |
 | `core.component.shared.sftoggle` | `sforum.component.shared.sftoggle@1` | component | `public`, `admin` | — | `apps/web/app/components/SFToggle.vue` | P7/P9 Admin and Component Registries |
 | `core.component.shared.sftopic_action_menu` | `sforum.component.shared.sftopic_action_menu@1` | component | `public` | — | `apps/web/app/components/SFTopicActionMenu.vue` | P9 Component Registry |
+| `core.component.shared.sftopic_composer_left_rail` | `sforum.component.shared.sftopic_composer_left_rail@1` | component | `public` | — | `apps/web/app/components/SFTopicComposerLeftRail.vue` | P9 Component Registry |
 | `core.component.shared.sftopic_composer_page` | `sforum.component.shared.sftopic_composer_page@1` | component | `public` | — | `apps/web/app/components/SFTopicComposerPage.vue` | P9 Component Registry |
+| `core.component.shared.sftopic_composer_right_rail` | `sforum.component.shared.sftopic_composer_right_rail@1` | component | `public` | — | `apps/web/app/components/SFTopicComposerRightRail.vue` | P9 Component Registry |
+| `core.component.shared.sftopic_contributors_modal` | `sforum.component.shared.sftopic_contributors_modal@1` | component | `public` | — | `apps/web/app/components/SFTopicContributorsModal.vue` | P9 Component Registry |
+| `core.component.shared.sftopic_edit_page` | `sforum.component.shared.sftopic_edit_page@1` | component | `public` | — | `apps/web/app/components/SFTopicEditPage.vue` | P9 Component Registry |
 | `core.component.shared.sftopic_editor` | `sforum.component.shared.sftopic_editor@1` | component | `public` | — | `apps/web/app/components/SFTopicEditor.vue` | P9 Component Registry |
 | `core.component.shared.sftopic_heading` | `sforum.component.shared.sftopic_heading@1` | component | `public` | — | `apps/web/app/components/SFTopicHeading.vue` | P9 Component Registry |
 | `core.component.shared.sftopic_progress_rail` | `sforum.component.shared.sftopic_progress_rail@1` | component | `public` | — | `apps/web/app/components/SFTopicProgressRail.vue` | P9 Component Registry |

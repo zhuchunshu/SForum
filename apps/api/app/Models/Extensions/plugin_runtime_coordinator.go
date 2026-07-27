@@ -18,6 +18,11 @@ var (
 	ErrPluginRuntimeCoordinatorRunning = errors.New("extensions: plugin runtime coordinator is already running")
 	ErrPluginRuntimeCoordinatorRetired = errors.New("extensions: plugin runtime coordinator boot is retired")
 	errPluginRuntimeDesiredNotSeeded   = errors.New("extensions: plugin runtime desired publication is not seeded")
+	// errPluginRuntimeLifecyclePending keeps a coordinator from applying an
+	// older full-set snapshot while a lifecycle operation is directly moving an
+	// exact runtime through its staged/published/drained boundary. The pending
+	// operation will publish its own durable revision before it completes.
+	errPluginRuntimeLifecyclePending = errors.New("extensions: plugin runtime lifecycle operation is pending")
 )
 
 // PluginRuntimeFullSetApplier owns the process-local atomic switch from the
@@ -36,6 +41,13 @@ type PluginRuntimeFullSetApplier interface {
 type pluginRuntimeCoordinatorRepository interface {
 	PluginRuntimeNodeRepository
 	LatestPluginRuntimePublication(context.Context) (PluginRuntimePublication, error)
+}
+
+// pluginRuntimeLifecycleFenceRepository is deliberately optional for narrow
+// coordinator unit doubles. Production PostgresStore implements it, making an
+// open lifecycle operation a fail-closed full-set publication fence.
+type pluginRuntimeLifecycleFenceRepository interface {
+	ListOpenLifecycleOperations(context.Context, int) ([]LifecycleOperation, error)
 }
 
 type PluginRuntimeCoordinatorConfig struct {
@@ -246,6 +258,15 @@ func (c *PluginRuntimeCoordinator) reconcileOnce(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("%w: invalid durable publication", ErrPluginRuntimeCoordinatorInvalid)
 		}
+		if fence, ok := c.repository.(pluginRuntimeLifecycleFenceRepository); ok {
+			open, fenceErr := fence.ListOpenLifecycleOperations(ctx, 1)
+			if fenceErr != nil {
+				return fmt.Errorf("inspect open lifecycle operations before runtime apply: %w", fenceErr)
+			}
+			if len(open) != 0 {
+				return errPluginRuntimeLifecyclePending
+			}
+		}
 
 		node, err := c.repository.GetPluginRuntimeNode(ctx, c.config.Identity)
 		if err != nil {
@@ -382,6 +403,9 @@ func (c *PluginRuntimeCoordinator) reconcileAndReport(ctx context.Context) (bool
 		return true, nil
 	}
 	if errors.Is(err, errPluginRuntimeDesiredNotSeeded) {
+		return false, nil
+	}
+	if errors.Is(err, errPluginRuntimeLifecyclePending) {
 		return false, nil
 	}
 	if ctx.Err() != nil {

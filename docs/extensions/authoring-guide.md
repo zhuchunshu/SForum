@@ -34,6 +34,24 @@ Plugins may observe the safe revision metadata on `topic.updated` and
 but never raw historical source, staff reasons, IPs, attachment-provider data,
 or a bypass for Core's history, restore, redaction, or CAS policy.
 
+### Identity / external auth providers
+
+Reference package: `extensions/builtin/plugins/sforum-auth-github` (Manifest V3
+`identity.runtime@1`).
+
+| Plugin may | Host alone owns |
+| --- | --- |
+| Build authorize URL from Host `state` / PKCE challenge / absolute callback | OAuth `state`, PKCE verifier, callback transaction, absolute callback URL |
+| Exchange code with bounded timeouts; return raw `providerSubject` in typed complete | Subject HMAC digest, users, links, roles, risk/session, browser sessions |
+| Discard access tokens after identity proof | Public activation CAS, rate limits, audit, public error mapping |
+
+**Closed surfaces (do not replace):** Core `GET /api/v1/auth/providers/{id}/callback`,
+AuthSession issue/renew/destroy, callback state store, registration tickets.
+Route Registry replacement of the callback is forbidden for integrity reasons.
+
+Operator docs: [zh-CN](../zh-CN/usage/github-login.md) ·
+[en-US](../en-US/usage/github-login.md).
+
 ## Where to put your package
 
 Repository layout lives under [`extensions/`](../../extensions/README.md).

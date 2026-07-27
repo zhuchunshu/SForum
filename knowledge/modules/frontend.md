@@ -27,6 +27,51 @@ responsibilities.
 
 ## Active Work
 
+### Built-in GitHub social login (public auth + account security UI)
+
+Plan: `../plans/2026-07-27-github-social-login-builtin-plugin.md`
+(**active; final review failed; T8A done**, T8B-T8D remain). Handoff:
+`../sessions/2026-07-27-github-social-login-final-review-handoff.md`.
+
+- Public login/register Host islands consume `GET /auth/providers` via
+  `useAuthProviders` (SSR-safe). Executable visibility is Host
+  `activatedOperations` only — never hard-coded per vendor.
+- Vendor presentation (`label`, `icon`) is plugin Identity declaration data
+  injected through the Host catalog. Core i18n holds only generic shell
+  templates (`Continue with {name}`) and Host stable `ext_auth` reasons.
+- Callback feedback uses minimized `ext_auth` query reasons; opaque external
+  registration continues at fixed `/register?ticket=…` without a password field.
+- Account security (`SFLinkedAccountsSection` on `SFSecuritySettingsPage`):
+  redacted `GET /auth/external-identities`, Host-gated link via
+  `linkProviders`, unlink + last-method/recent-auth UX, inert status, and
+  `POST /auth/password` local password setup. No Core GitHub brand strings.
+- Operator docs: `docs/zh-CN/usage/github-login.md`,
+  `docs/en-US/usage/github-login.md`.
+- Admin Login Methods still contains GitHub ID-based title/icon branches and
+  lacks a generic discovered-before-enable directory. T8B must consume Host
+  presentation metadata and add real rendered interaction coverage.
+
+### Tri-state color mode reliability
+
+Plan: `../plans/2026-07-27-tristate-color-mode-reliability.md` (**ready**).
+Decision: `../decisions/2026-07-27-tristate-color-mode-preference.md`.
+
+- The approved personal preference model is `system | light | dark`, presented
+  as Automatic (recommended), Light, and Dark.
+- Stored preference and resolved `light | dark` are separate; themes and
+  extensions continue consuming only the resolved appearance.
+- Browser diagnosis proved that `localhost:3000` and `127.0.0.1:3000` keep
+  independent `localStorage` preferences. Same-origin hard refresh and client
+  navigation retained the selected mode.
+- V1 keeps the existing Nuxt Color Mode storage key and browser-local
+  persistence. Cookie/server persistence is closed until anonymous SWR/SSR
+  cache isolation is designed.
+- M0-M5 must run one milestone per new Grok conversation, update the rolling
+  ledger and one hot handoff, output a small report, and print the next exact
+  new-conversation prompt.
+- Do not run this work concurrently with public-navigation milestones that
+  edit `SFNavbar.vue`.
+
 ### Current HEAD regression remediation
 
 Plan: `../plans/2026-07-22-current-head-regression-remediation.md`.
@@ -343,10 +388,17 @@ real highlight.js client plugin and no-op `highlight.server.ts` with
 
 ## Next Steps
 
-1. Keep theme-defined system error pages SSR-complete, permission-aware,
+1. Execute the tri-state color-mode task book from M0. It must freeze the
+   native dependency/control contract, SSR/cache behavior, safe canonical
+   origin mechanism, and tests before implementation.
+2. Execute the configurable public navigation task book from M0 before
+   replacing `SFNavbar` or `SFHomeNavigation`. Core owns content/placement and
+   themes own stable-location presentation; keep the user's port-3000 server
+   untouched.
+3. Keep theme-defined system error pages SSR-complete, permission-aware,
    cache-safe, localized, and covered whenever new browser-facing error
    producers are added.
-2. Keep new pages SSR-complete, permission-aware, cache-safe, localized, and
+4. Keep new pages SSR-complete, permission-aware, cache-safe, localized, and
    registered through stable Page Registry/component contracts.
 
 ## Open Questions

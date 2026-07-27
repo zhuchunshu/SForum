@@ -1,0 +1,11 @@
+{
+  "entry": "/settings",
+  "pages": [
+    {
+      "path": "/settings",
+      "label": "GitHub Login Settings",
+      "view": "settings",
+      "menu": false
+    }
+  ]
+}
