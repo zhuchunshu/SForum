@@ -15,7 +15,7 @@ Host catalog slot: **`search.provider`**.
 | Plugin | Engine transport only (store/query documents), except site search which is Host short-circuited |
 | Default | **Protected built-in site search** (`sforum.search-site`) — PostgreSQL FTS |
 
-## Current Status (2026-07-22)
+## Current Status (2026-07-27)
 
 - Core has **no** Meilisearch client; `MEILI_*` is not required.
 - Default: `sforum.search-site` (builtin, cannot uninstall). Host implements
@@ -33,6 +33,9 @@ Host catalog slot: **`search.provider`**.
 - Compose: `meilisearch` service has profile `search` only.
 - Decision: `decisions/2026-07-21-search-framework-site-default.md`
   (supersedes “default no engine → 503”).
+- Automatic reconciliation is enabled through Host ledger
+  `search_index_state` and River schedule `search.reconcile`. Decision:
+  `../decisions/2026-07-27-search-index-automatic-reconciliation.md`.
 
 ### Search regression remediation (closed 2026-07-23)
 
@@ -67,6 +70,17 @@ Task book:
   not use River uniqueness, so legacy completed jobs cannot turn a rebuild into
   a false no-op. Worker engine failures remain retryable instead of being marked
   completed.
+- `search.reconcile` runs on worker start and every 15 minutes. It compares the
+  current provider's success-only Host ledger with authoritative public topics,
+  then enqueues at most 500 missing/stale index repairs and 500 obsolete deletes
+  per run. Normal writes and reconciliation share active-state uniqueness.
+- For `sforum.search-site`, reconciliation also inspects the actual
+  `search_documents` table, repairing out-of-band missing rows and deleting
+  untracked ghosts even if the Host ledger previously looked current.
+- The site-search migration seeds ledger state from existing
+  `search_documents`, allowing the first run to clean historical ghosts.
+  External ghosts that predate the ledger and were never recorded remain
+  filtered by live hydration but require provider reset/list support to delete.
 
 ### Admin UI
 

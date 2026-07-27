@@ -136,6 +136,74 @@ func TestIndexerWithMemoryEngine(t *testing.T) {
 	}
 }
 
+type recordingIndexStateStore struct {
+	indexedProvider string
+	indexedTopicID  int64
+	indexedSourceAt time.Time
+	deletedProvider string
+	deletedTopicID  int64
+	err             error
+}
+
+func (s *recordingIndexStateStore) MarkIndexed(_ context.Context, providerID string, topicID int64, sourceUpdatedAt time.Time) error {
+	s.indexedProvider = providerID
+	s.indexedTopicID = topicID
+	s.indexedSourceAt = sourceUpdatedAt
+	return s.err
+}
+
+func (s *recordingIndexStateStore) MarkDeleted(_ context.Context, providerID string, topicID int64) error {
+	s.deletedProvider = providerID
+	s.deletedTopicID = topicID
+	return s.err
+}
+
+func (*recordingIndexStateStore) ListStaleTopicIDs(context.Context, string, int) ([]int64, error) {
+	return nil, nil
+}
+
+func (*recordingIndexStateStore) ListObsoleteTopicIDs(context.Context, string, int) ([]int64, error) {
+	return nil, nil
+}
+
+func TestIndexerCommitsStateOnlyAfterEngineSuccess(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	state := &recordingIndexStateStore{}
+	engine := NewMemorySiteEngine()
+	indexer := NewIndexer(engine, fixedTopicReader{doc: TopicSearchDoc{
+		ID: 42, Title: "stateful", Status: "active",
+		CreatedAt: now, UpdatedAt: now, LastActivityAt: now,
+	}}, nil).WithIndexStateStore(state)
+
+	if err := indexer.IndexTopic(context.Background(), 42); err != nil {
+		t.Fatal(err)
+	}
+	if state.indexedProvider != DefaultSiteSearchExtensionID ||
+		state.indexedTopicID != 42 ||
+		!state.indexedSourceAt.Equal(now) {
+		t.Fatalf("indexed state = %+v", state)
+	}
+	if err := indexer.DeleteTopic(context.Background(), 42); err != nil {
+		t.Fatal(err)
+	}
+	if state.deletedProvider != DefaultSiteSearchExtensionID || state.deletedTopicID != 42 {
+		t.Fatalf("deleted state = %+v", state)
+	}
+}
+
+func TestIndexerStateFailureRemainsRetryable(t *testing.T) {
+	expected := errors.New("state unavailable")
+	now := time.Now().UTC()
+	indexer := NewIndexer(NewMemorySiteEngine(), fixedTopicReader{doc: TopicSearchDoc{
+		ID: 42, Title: "retry", Status: "active",
+		CreatedAt: now, UpdatedAt: now, LastActivityAt: now,
+	}}, nil).WithIndexStateStore(&recordingIndexStateStore{err: expected})
+
+	if err := indexer.IndexTopic(context.Background(), 42); !errors.Is(err, expected) {
+		t.Fatalf("IndexTopic error = %v, want state error", err)
+	}
+}
+
 func TestIndexerReturnsUnavailableSoRiverCanRetry(t *testing.T) {
 	indexer := NewIndexer(UnavailableEngine{}, fixedTopicReader{doc: TopicSearchDoc{ID: 42}}, nil)
 

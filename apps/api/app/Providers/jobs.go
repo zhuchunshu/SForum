@@ -9,6 +9,7 @@ import (
 	attachmentjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Attachments"
 	auditjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Audit"
 	identityjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Identity"
+	searchjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Search"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	jobs "github.com/zhuchunshu/sforum/apps/api/app/Models/Jobs"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
@@ -38,6 +39,10 @@ func coreScheduleConstructors() map[string]jobs.ScheduleConstructor {
 		},
 		supportjobs.ScheduleAuditCleanupEvents: func() (river.JobArgs, *river.InsertOpts) {
 			return auditjobs.CleanupEventsArgs{}, nil
+		},
+		supportjobs.ScheduleSearchReconcile: func() (river.JobArgs, *river.InsertOpts) {
+			opts := searchjobs.ReconcileArgs{}.EnqueueOptions().RiverInsertOpts()
+			return searchjobs.ReconcileArgs{}, opts
 		},
 	}
 }

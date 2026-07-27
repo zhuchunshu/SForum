@@ -20,6 +20,7 @@ import (
 	identityjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Identity"
 	notificationjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Notifications"
 	queryregistryjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/QueryRegistry"
+	searchjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Search"
 	webhookjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Webhooks"
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
@@ -645,7 +646,7 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 		Logger: logger,
 	})
 	// 搜索 worker：引擎经 search.provider；无提供方时 job 立即成功。
-	registerSearchWorkers(registry, pool, extensionStore, extensionRuntime)
+	searchReconciler := registerSearchWorkers(registry, pool, extensionStore, extensionRuntime, logger)
 	registerIdentityCleanupWorker(registry, cfg, pool, logger)
 	registerForumAutoLockWorker(registry, cfg, pool, logger)
 	registerForumFlushViewCountsWorker(registry, pool, deps.HostCacheRedis, logger)
@@ -713,6 +714,13 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 				return forumjobs.FlushViewCountsArgs{}, nil
 			},
 		),
+		supportjobs.ScheduleSearchReconcile: wrapEnabled(
+			supportjobs.ScheduleSearchReconcile,
+			func() (river.JobArgs, *river.InsertOpts) {
+				opts := searchjobs.ReconcileArgs{}.EnqueueOptions().RiverInsertOpts()
+				return searchjobs.ReconcileArgs{}, opts
+			},
+		),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("schedule registry: %w", err)
@@ -746,6 +754,7 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	if err != nil {
 		return nil, fmt.Errorf("job client setup failed: %w", err)
 	}
+	searchReconciler.WithDispatcher(supportjobs.NewDispatcher(client))
 	pluginJobEnqueuer.Dispatcher = supportjobs.NewDispatcher(client)
 	if err := pluginSchedules.BindPeriodicPublisher(
 		supportjobs.NewPluginSchedulePeriodicPublisher(client.PeriodicJobs()),

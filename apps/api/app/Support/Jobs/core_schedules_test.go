@@ -24,19 +24,22 @@ func TestCoreScheduleRegistryBuildsCorePeriodics(t *testing.T) {
 		ScheduleForumFlushViewCounts: func() (river.JobArgs, *river.InsertOpts) {
 			return stubArgs{kind: ScheduleForumFlushViewCounts}, nil
 		},
+		ScheduleSearchReconcile: func() (river.JobArgs, *river.InsertOpts) {
+			return stubArgs{kind: ScheduleSearchReconcile}, nil
+		},
 	})
 	if err != nil {
 		t.Fatalf("registry: %v", err)
 	}
-	if reg.Len() != 5 {
-		t.Fatalf("expected 5 core schedules, got %d", reg.Len())
+	if reg.Len() != 6 {
+		t.Fatalf("expected 6 core schedules, got %d", reg.Len())
 	}
 	jobs, err := reg.BuildPeriodicJobs()
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
-	if len(jobs) != 5 {
-		t.Fatalf("expected 5 river periodics, got %d", len(jobs))
+	if len(jobs) != 6 {
+		t.Fatalf("expected 6 river periodics, got %d", len(jobs))
 	}
 
 	// 元数据完整性：daily、owner 明确
@@ -51,6 +54,7 @@ func TestCoreScheduleRegistryBuildsCorePeriodics(t *testing.T) {
 		ScheduleAuditCleanupEvents,
 		ScheduleForumAutoLockIdle,
 		ScheduleForumFlushViewCounts,
+		ScheduleSearchReconcile,
 	} {
 		v, ok := byID[id]
 		if !ok {
@@ -68,6 +72,10 @@ func TestCoreScheduleRegistryBuildsCorePeriodics(t *testing.T) {
 	}
 	if byID[ScheduleForumFlushViewCounts].IntervalSeconds != 45 {
 		t.Fatalf("flush views interval=%d", byID[ScheduleForumFlushViewCounts].IntervalSeconds)
+	}
+	if byID[ScheduleSearchReconcile].IntervalSeconds != int64((15*time.Minute)/time.Second) ||
+		!byID[ScheduleSearchReconcile].RunOnStart {
+		t.Fatalf("search reconcile schedule=%+v", byID[ScheduleSearchReconcile])
 	}
 	if byID[ScheduleIdentityCleanupSessions].Queue != QueueDefault {
 		t.Fatalf("session cleanup queue=%s", byID[ScheduleIdentityCleanupSessions].Queue)
@@ -89,7 +97,7 @@ func TestCoreScheduleRegistryWithoutConstructorsIsCatalogOnly(t *testing.T) {
 	if len(jobs) != 0 {
 		t.Fatalf("catalog-only should not build periodics, got %d", len(jobs))
 	}
-	if len(reg.Views()) != 5 {
+	if len(reg.Views()) != 6 {
 		t.Fatalf("views=%d", len(reg.Views()))
 	}
 }

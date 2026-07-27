@@ -54,7 +54,8 @@
     "attachments.cleanup_orphans",
     "audit.cleanup_events",
     "forum.auto_lock_idle",
-    "forum.flush_view_counts"
+    "forum.flush_view_counts",
+    "search.reconcile"
   ],
   "jobKinds": [
     {
@@ -76,6 +77,10 @@
     {
       "id": "mail.deliver",
       "source": "apps/api/app/Models/Notifications/outbox.go"
+    },
+    {
+      "id": "search.reconcile",
+      "source": "apps/api/app/Jobs/Search/reconcile.go"
     },
     {
       "id": "webhook.deliver",

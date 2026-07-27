@@ -95,7 +95,8 @@ load archived sessions or completed plans as current context.
 - **Identity:** Redis sessions, RBAC, permission overrides, first-user
   `super_admin`, and account-session management are shipped.
 - **Search:** protected PostgreSQL site search is the default; Meilisearch is an
-  optional external plugin.
+  optional external plugin; Host-ledger reconciliation repairs missing, stale,
+  and obsolete documents automatically.
 - **Extensions:** Manifest V3, exact-artifact trust, lifecycle, Host API v2,
   registries, Page Registry themes, theme-defined virtual system error pages,
   and buildless settings UI are present; extension-owned permission
@@ -105,6 +106,9 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Search automatic reconciliation: provider-neutral Host ledger, startup + 15m
+  bounded repair schedule, and real-runtime cleanup of 92 historical ghosts:
+  `sessions/2026-07-27-search-auto-reconciliation-handoff.md`
 - Tri-state color-mode task book: shared preference authority, explicit
   Automatic/Light/Dark UI, canonical local origin, cache-safe persistence, and
   M0-M5 one-conversation milestones:

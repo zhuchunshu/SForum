@@ -342,7 +342,7 @@ func (a searchProviderAdminAdapter) RestoreDefault(ctx context.Context) error {
 
 // registerSearchWorkers 在 worker 进程注册搜索索引/删除 worker。
 // 默认站内引擎始终可用；外部引擎经 search.provider 解析。
-func registerSearchWorkers(registry *supportjobs.Registry, pool *pgxpool.Pool, searchStore extensionsruntime.SearchProviderStore, extensionRuntime extensionsruntime.SearchRuntime) {
+func registerSearchWorkers(registry *supportjobs.Registry, pool *pgxpool.Pool, searchStore extensionsruntime.SearchProviderStore, extensionRuntime extensionsruntime.SearchRuntime, logger *slog.Logger) *search.Reconciler {
 	searchProviders := extensionsruntime.NewSearchProviderRegistry(searchStore)
 	siteEngine := search.NewPostgresSiteEngine(pool)
 	searchEngine := extensionsruntime.NewResolvingSearchEngine(searchProviders, extensionRuntime, siteEngine)
@@ -351,6 +351,11 @@ func registerSearchWorkers(registry *supportjobs.Registry, pool *pgxpool.Pool, s
 		slog.Warn("search: ensure index failed (worker will still start)", "err", err)
 	}
 	forumService := forum.NewService(forum.NewPostgresStore(pool))
-	indexer := search.NewIndexer(searchEngine, forumSearchReader{forum: forumService}, nil)
+	stateStore := search.NewPostgresIndexStateStore(pool)
+	indexer := search.NewIndexer(searchEngine, forumSearchReader{forum: forumService}, nil).
+		WithIndexStateStore(stateStore)
 	searchjobs.Register(registry, indexer)
+	reconciler := search.NewReconciler(searchEngine, stateStore, nil).WithLogger(logger)
+	searchjobs.RegisterReconcile(registry, reconciler)
+	return reconciler
 }

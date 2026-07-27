@@ -107,6 +107,8 @@ Plugins may render digest-approved client components there, but cannot bypass
   - `attachments.cleanup_orphans` → queue `maintenance` (handler pre-existed;
     F1.1 registered the periodic)
   - `audit.cleanup_events` → queue `maintenance` (F1.4; default retain 90 days)
+  - `search.reconcile` → queue `maintenance` (worker start + every 15 minutes;
+    bounded repair for missing/stale/obsolete search documents)
 - Admin schedule APIs (`jobs.view` / `jobs.manage`):
   - `GET /api/v1/admin/jobs/schedules` — catalog + runtime `enabled`,
     `lastRunAt` (max `river_job.created_at` per kind), estimated `nextRunAt`

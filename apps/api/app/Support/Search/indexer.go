@@ -27,6 +27,7 @@ type Indexer struct {
 	engine     Engine
 	reader     TopicReader
 	dispatcher *supportjobs.Dispatcher
+	state      IndexStateStore
 }
 
 func NewIndexer(engine Engine, reader TopicReader, dispatcher *supportjobs.Dispatcher) *Indexer {
@@ -34,6 +35,15 @@ func NewIndexer(engine Engine, reader TopicReader, dispatcher *supportjobs.Dispa
 		engine = UnavailableEngine{}
 	}
 	return &Indexer{engine: engine, reader: reader, dispatcher: dispatcher}
+}
+
+// WithIndexStateStore 在引擎操作成功后提交 Host 同步账本。
+// 账本失败会让 River 重试整个幂等操作，不能把未确认状态误记为完成。
+func (i *Indexer) WithIndexStateStore(state IndexStateStore) *Indexer {
+	if i != nil {
+		i.state = state
+	}
+	return i
 }
 
 // EnsureIndex 委托引擎幂等建索引。
@@ -103,8 +113,15 @@ func (i *Indexer) IndexTopic(ctx context.Context, topicID int64) error {
 		}
 		return err
 	}
+	providerID, err := i.selectedProviderID(ctx)
+	if err != nil {
+		return err
+	}
 	if err := i.engine.Index(ctx, doc); err != nil {
 		return fmt.Errorf("upsert topic %d to search engine: %w", topicID, err)
+	}
+	if err := i.confirmProviderAndMarkIndexed(ctx, providerID, doc); err != nil {
+		return err
 	}
 	slog.InfoContext(ctx, "search: indexed topic", "topicId", topicID)
 	return nil
@@ -115,9 +132,65 @@ func (i *Indexer) DeleteTopic(ctx context.Context, topicID int64) error {
 	if i == nil || i.engine == nil {
 		return ErrEngineUnavailable
 	}
+	providerID, err := i.selectedProviderID(ctx)
+	if err != nil {
+		return err
+	}
 	if err := i.engine.Delete(ctx, topicID); err != nil {
 		return fmt.Errorf("delete topic %d from search engine: %w", topicID, err)
 	}
+	if err := i.confirmProviderAndMarkDeleted(ctx, providerID, topicID); err != nil {
+		return err
+	}
 	slog.InfoContext(ctx, "search: deleted topic index", "topicId", topicID)
+	return nil
+}
+
+func (i *Indexer) selectedProviderID(ctx context.Context) (string, error) {
+	if resolver, ok := i.engine.(ProviderIDResolver); ok {
+		id, selected, err := resolver.SelectedID(ctx)
+		if err != nil {
+			return "", fmt.Errorf("resolve selected search provider: %w", err)
+		}
+		if !selected || strings.TrimSpace(id) == "" {
+			return "", ErrEngineUnavailable
+		}
+		return strings.TrimSpace(id), nil
+	}
+	return DefaultSiteSearchExtensionID, nil
+}
+
+func (i *Indexer) confirmProviderAndMarkIndexed(ctx context.Context, providerID string, doc TopicSearchDoc) error {
+	if i.state == nil {
+		return nil
+	}
+	current, err := i.selectedProviderID(ctx)
+	if err != nil {
+		return err
+	}
+	if current != providerID {
+		// provider 在传输过程中切换，重试后会把权威快照写到新的当前 provider。
+		return fmt.Errorf("search provider changed during topic %d indexing: %s -> %s", doc.ID, providerID, current)
+	}
+	if err := i.state.MarkIndexed(ctx, providerID, doc.ID, doc.UpdatedAt); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (i *Indexer) confirmProviderAndMarkDeleted(ctx context.Context, providerID string, topicID int64) error {
+	if i.state == nil {
+		return nil
+	}
+	current, err := i.selectedProviderID(ctx)
+	if err != nil {
+		return err
+	}
+	if current != providerID {
+		return fmt.Errorf("search provider changed during topic %d deletion: %s -> %s", topicID, providerID, current)
+	}
+	if err := i.state.MarkDeleted(ctx, providerID, topicID); err != nil {
+		return err
+	}
 	return nil
 }

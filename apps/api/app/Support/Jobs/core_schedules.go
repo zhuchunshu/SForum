@@ -16,6 +16,8 @@ const (
 	ScheduleForumAutoLockIdle = "forum.auto_lock_idle"
 	// ScheduleForumFlushViewCounts 将 Redis 浏览增量刷入 topics.view_count / hot_score。
 	ScheduleForumFlushViewCounts = "forum.flush_view_counts"
+	// ScheduleSearchReconcile 增量修复当前搜索 provider 的漏建、过期和幽灵文档。
+	ScheduleSearchReconcile = "search.reconcile"
 )
 
 // CoreScheduleDefinitions 返回宿主内置 schedule 目录模板（无 Constructor）。
@@ -71,6 +73,16 @@ func CoreScheduleDefinitions() []ScheduleDefinition {
 			Enabled:     true,
 			Description: "将 Redis 主题浏览增量刷入 PG view_count/hot_score（D3）",
 			RunOnStart:  false,
+		},
+		{
+			ID:          ScheduleSearchReconcile,
+			JobKind:     ScheduleSearchReconcile,
+			Queue:       QueueMaintenance,
+			Interval:    15 * time.Minute,
+			Owner:       "search",
+			Enabled:     true,
+			Description: "核对并修复当前搜索 provider 的缺失、过期和幽灵文档",
+			RunOnStart:  true,
 		},
 	}
 }

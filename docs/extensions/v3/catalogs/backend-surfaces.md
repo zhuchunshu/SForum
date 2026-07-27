@@ -61,6 +61,7 @@
 - `audit.cleanup_events`
 - `forum.auto_lock_idle`
 - `forum.flush_view_counts`
+- `search.reconcile`
 
 ## jobKinds
 
@@ -69,6 +70,7 @@
 - `forum.flush_view_counts` — `apps/api/app/Jobs/Forum/flush_view_counts.go`
 - `identity.cleanup_sessions` — `apps/api/app/Jobs/Identity/cleanup_sessions.go`
 - `mail.deliver` — `apps/api/app/Models/Notifications/outbox.go`
+- `search.reconcile` — `apps/api/app/Jobs/Search/reconcile.go`
 - `webhook.deliver` — `apps/api/app/Models/Webhooks/service.go`
 
 ## cache
