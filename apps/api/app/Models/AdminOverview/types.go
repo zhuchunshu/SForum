@@ -69,7 +69,7 @@ type RuntimeStats struct {
 	// 采样失败时省略；不含 PPID=1 孤儿或其它 API 的插件。
 	FamilyMemoryBytes *uint64 `json:"familyMemoryBytes,omitempty"`
 	// PluginChildCount 计入全家内存的 owned backend plugin 数量。
-	PluginChildCount int `json:"pluginChildCount"`
+	PluginChildCount int                  `json:"pluginChildCount"`
 	GoroutineCount   int                  `json:"goroutineCount"`
 	GCCount          uint32               `json:"gcCount"`
 	LastGCPauseNs    uint64               `json:"lastGcPauseNs"`

@@ -28,15 +28,24 @@ const (
 	settingsCompensationTimeout   = 5 * time.Second
 )
 
-type Service struct {
+// themePublicationState 由 ThemeService 唯一持有；serviceCore 仅共享同一指针，
+// 让 lifecycle/settings 的补偿路径继续遵守既有锁顺序而不复制 mutex。
+type themePublicationState struct {
 	themeActivationMu       sync.Mutex
 	themeRuntimeUnavailable bool
 	assetPublicationMu      sync.Mutex
-	store                   Store
-	extensionRoot           string
-	builtinRoot             string
-	externalRoots           []string
-	runtime                 RuntimeManager
+}
+
+// serviceCore 保存同包 collaborator 共用的宿主依赖与内部 helper 状态。
+// 公开产品能力只能经 Service facade 或四个 focused service 进入。
+type serviceCore struct {
+	*themePublicationState
+	host          *Service
+	store         Store
+	extensionRoot string
+	builtinRoot   string
+	externalRoots []string
+	runtime       RuntimeManager
 	// auditor 写入宿主 audit_events（F1.4）；与 extension_events 互补。
 	auditor audit.Writer
 	// trustRevoker 升级时吊销前端信任（F2.4）。
@@ -80,6 +89,25 @@ type Service struct {
 	// publicSurfaceRevision 扩展设置影响公开贡献时 bump，供 Nuxt /t/** SWR 缓存键。
 	publicSurfaceRevision PublicSurfaceRevisionBumper
 }
+
+// Service 保留历史公开契约，并把业务入口委托给 focused collaborators。
+type Service struct {
+	*serviceCore
+	catalog   *CatalogService
+	lifecycle *LifecycleService
+	theme     *ThemeService
+	settings  *SettingsService
+}
+
+type CatalogService struct{ *Service }
+type LifecycleService struct{ *Service }
+
+type ThemeService struct {
+	*Service
+	publication *themePublicationState
+}
+
+type SettingsService struct{ *Service }
 
 // SettingsLifecycleRuntime 是 SettingsLifecycle.Service 的最小边界（避免循环依赖测试替身）。
 type SettingsLifecycleRuntime interface {
@@ -278,19 +306,20 @@ func WithLifecycleCoordinator(
 	}
 }
 
-func (s *Service) ExecutableTrustStatus(ctx context.Context, actor identity.Actor, extensionID string) (ExecutableTrustStatus, error) {
-	return s.executableTrustStatus(ctx, actor, extensionID, false)
+func (s *LifecycleService) ExecutableTrustStatus(ctx context.Context, actor identity.Actor, extensionID string) (ExecutableTrustStatus, error) {
+	return executableTrustStatus(s.Service, ctx, actor, extensionID, false)
 }
 
-func (s *Service) ExecutableTrustStatusForStaged(
+func (s *LifecycleService) ExecutableTrustStatusForStaged(
 	ctx context.Context,
 	actor identity.Actor,
 	extensionID string,
 ) (ExecutableTrustStatus, error) {
-	return s.executableTrustStatus(ctx, actor, extensionID, true)
+	return executableTrustStatus(s.Service, ctx, actor, extensionID, true)
 }
 
-func (s *Service) executableTrustStatus(
+func executableTrustStatus(
+	s *Service,
 	ctx context.Context,
 	actor identity.Actor,
 	extensionID string,
@@ -320,19 +349,20 @@ func (s *Service) executableTrustStatus(
 	return status, nil
 }
 
-func (s *Service) IssueExecutableTrustChallenge(ctx context.Context, actor identity.Actor, extensionID string) (TrustChallenge, error) {
-	return s.issueExecutableTrustChallenge(ctx, actor, extensionID, false)
+func (s *LifecycleService) IssueExecutableTrustChallenge(ctx context.Context, actor identity.Actor, extensionID string) (TrustChallenge, error) {
+	return issueExecutableTrustChallenge(s.Service, ctx, actor, extensionID, false)
 }
 
-func (s *Service) IssueExecutableTrustChallengeForStaged(
+func (s *LifecycleService) IssueExecutableTrustChallengeForStaged(
 	ctx context.Context,
 	actor identity.Actor,
 	extensionID string,
 ) (TrustChallenge, error) {
-	return s.issueExecutableTrustChallenge(ctx, actor, extensionID, true)
+	return issueExecutableTrustChallenge(s.Service, ctx, actor, extensionID, true)
 }
 
-func (s *Service) issueExecutableTrustChallenge(
+func issueExecutableTrustChallenge(
+	s *Service,
 	ctx context.Context,
 	actor identity.Actor,
 	extensionID string,
@@ -347,14 +377,14 @@ func (s *Service) issueExecutableTrustChallenge(
 	return s.executableTrust.Challenge(ctx, actor, extensionID)
 }
 
-func (s *Service) RevokeExecutableTrust(ctx context.Context, actor identity.Actor, extensionID string) (ExecutableTrustStatus, error) {
+func (s *LifecycleService) RevokeExecutableTrust(ctx context.Context, actor identity.Actor, extensionID string) (ExecutableTrustStatus, error) {
 	if !s.trustChallengesEnabled || s.executableTrust == nil {
 		return ExecutableTrustStatus{}, ErrTrustNotRequired
 	}
 	return s.executableTrust.Revoke(ctx, actor, extensionID)
 }
 
-func (s *Service) appendAudit(ctx context.Context, actor identity.Actor, action string, metadata map[string]any) {
+func (s *serviceCore) appendAudit(ctx context.Context, actor identity.Actor, action string, metadata map[string]any) {
 	if s == nil || s.auditor == nil || action == "" {
 		return
 	}
@@ -365,7 +395,7 @@ func (s *Service) appendAudit(ctx context.Context, actor identity.Actor, action 
 	})
 }
 
-func (s *Service) appendAuditReturningID(
+func (s *serviceCore) appendAuditReturningID(
 	ctx context.Context,
 	actor identity.Actor,
 	action string,
@@ -385,7 +415,7 @@ func (s *Service) appendAuditReturningID(
 	return 0, s.auditor.Append(ctx, event)
 }
 
-func (s *Service) ensureRequiredFeatures(ctx context.Context, required []string) error {
+func (s *serviceCore) ensureRequiredFeatures(ctx context.Context, required []string) error {
 	if s == nil || s.featureFlags == nil || len(required) == 0 {
 		return nil
 	}
@@ -434,12 +464,22 @@ func NewServiceWithBuiltinsAndRuntime(store Store, extensionRoot string, builtin
 	if runtime == nil {
 		runtime = LocalRuntimeManager{}
 	}
-	return &Service{
-		store:         store,
-		extensionRoot: extensionRoot,
-		builtinRoot:   strings.TrimSpace(builtinRoot),
-		runtime:       runtime,
+	publication := &themePublicationState{}
+	service := &Service{
+		serviceCore: &serviceCore{
+			themePublicationState: publication,
+			store:                 store,
+			extensionRoot:         extensionRoot,
+			builtinRoot:           strings.TrimSpace(builtinRoot),
+			runtime:               runtime,
+		},
 	}
+	service.serviceCore.host = service
+	service.catalog = &CatalogService{Service: service}
+	service.lifecycle = &LifecycleService{Service: service}
+	service.theme = &ThemeService{Service: service, publication: publication}
+	service.settings = &SettingsService{Service: service}
+	return service
 }
 
 func NewServiceWithOptions(store Store, extensionRoot string, builtinRoot string, runtime RuntimeManager, options ...ServiceOption) *Service {
@@ -532,7 +572,7 @@ func canManageThemes(actor identity.Actor) bool {
 	return actor.Can(identity.PermissionExtensionThemeManage) || actor.Can(identity.PermissionExtensionManage)
 }
 
-func (s *Service) List(ctx context.Context, actor identity.Actor) ([]Extension, error) {
+func (s *CatalogService) List(ctx context.Context, actor identity.Actor) ([]Extension, error) {
 	if !canViewExtensions(actor) {
 		return nil, identity.ErrPermissionDenied
 	}
@@ -541,7 +581,7 @@ func (s *Service) List(ctx context.Context, actor identity.Actor) ([]Extension, 
 		return nil, err
 	}
 	// 整表只采样一次 ps，避免每个扩展各扫一遍进程表。
-	memoryByID := s.sampleOwnedPluginMemory()
+	memoryByID := sampleOwnedPluginMemory(s.Service)
 	for index := range items {
 		items[index] = decorateArtifactState(applyPluginMemory(s.decorateRuntime(ctx, items[index]), memoryByID))
 	}
@@ -549,7 +589,7 @@ func (s *Service) List(ctx context.Context, actor identity.Actor) ([]Extension, 
 }
 
 // Detail 只读取并装饰一个扩展，避免详情页把完整扩展目录写入 SSR payload。
-func (s *Service) Detail(ctx context.Context, actor identity.Actor, extensionID string) (Extension, error) {
+func (s *CatalogService) Detail(ctx context.Context, actor identity.Actor, extensionID string) (Extension, error) {
 	if !canViewExtensions(actor) {
 		return Extension{}, identity.ErrPermissionDenied
 	}
@@ -557,10 +597,10 @@ func (s *Service) Detail(ctx context.Context, actor identity.Actor, extensionID 
 	if err != nil {
 		return Extension{}, err
 	}
-	return decorateArtifactState(applyPluginMemory(s.decorateRuntime(ctx, item), s.sampleOwnedPluginMemory())), nil
+	return decorateArtifactState(applyPluginMemory(s.decorateRuntime(ctx, item), sampleOwnedPluginMemory(s.Service))), nil
 }
 
-func (s *Service) SyncBuiltins(ctx context.Context) ([]Extension, error) {
+func (s *CatalogService) SyncBuiltins(ctx context.Context) ([]Extension, error) {
 	if strings.TrimSpace(s.builtinRoot) == "" {
 		return nil, nil
 	}
@@ -658,21 +698,21 @@ func (s *Service) SyncBuiltins(ctx context.Context) ([]Extension, error) {
 	return items, nil
 }
 
-func (s *Service) Events(ctx context.Context, actor identity.Actor, extensionID string, limit int) ([]ExtensionEvent, error) {
+func (s *CatalogService) Events(ctx context.Context, actor identity.Actor, extensionID string, limit int) ([]ExtensionEvent, error) {
 	if !canViewExtensions(actor) {
 		return nil, identity.ErrPermissionDenied
 	}
 	return s.store.ListEvents(ctx, normalizeID(extensionID), limit)
 }
 
-func (s *Service) EventDefinitions(ctx context.Context, actor identity.Actor) ([]appevents.Definition, error) {
+func (s *CatalogService) EventDefinitions(ctx context.Context, actor identity.Actor) ([]appevents.Definition, error) {
 	if !canViewExtensions(actor) {
 		return nil, identity.ErrPermissionDenied
 	}
 	return appevents.Definitions(), nil
 }
 
-func (s *Service) EventDeliveries(ctx context.Context, actor identity.Actor, input EventDeliveryListInput) ([]ExtensionEventDelivery, error) {
+func (s *CatalogService) EventDeliveries(ctx context.Context, actor identity.Actor, input EventDeliveryListInput) ([]ExtensionEventDelivery, error) {
 	if !canViewExtensions(actor) {
 		return nil, identity.ErrPermissionDenied
 	}
@@ -680,21 +720,21 @@ func (s *Service) EventDeliveries(ctx context.Context, actor identity.Actor, inp
 	return s.store.ListEventDeliveries(ctx, input)
 }
 
-func (s *Service) ContributionPoints(_ context.Context, actor identity.Actor) ([]ContributionPointDefinition, error) {
+func (s *CatalogService) ContributionPoints(_ context.Context, actor identity.Actor) ([]ContributionPointDefinition, error) {
 	if !canViewExtensions(actor) {
 		return nil, identity.ErrPermissionDenied
 	}
 	return extensionmanifest.ContributionPointDefinitions(), nil
 }
 
-func (s *Service) Contributions(ctx context.Context, actor identity.Actor) ([]EffectiveContribution, error) {
+func (s *CatalogService) Contributions(ctx context.Context, actor identity.Actor) ([]EffectiveContribution, error) {
 	if !canViewExtensions(actor) {
 		return nil, identity.ErrPermissionDenied
 	}
 	return s.EffectiveContributions(ctx)
 }
 
-func (s *Service) EffectiveContributions(ctx context.Context) ([]EffectiveContribution, error) {
+func (s *CatalogService) EffectiveContributions(ctx context.Context) ([]EffectiveContribution, error) {
 	if s.safeMode {
 		return []EffectiveContribution{}, nil
 	}
@@ -750,7 +790,7 @@ func (s *Service) EffectiveContributions(ctx context.Context) ([]EffectiveContri
 	return contributions, nil
 }
 
-func (s *Service) Navigation(ctx context.Context, actor identity.Actor) ([]ExtensionAdminNavigationItem, error) {
+func (s *CatalogService) Navigation(ctx context.Context, actor identity.Actor) ([]ExtensionAdminNavigationItem, error) {
 	if !canViewExtensions(actor) {
 		return nil, identity.ErrPermissionDenied
 	}
@@ -793,7 +833,7 @@ func (s *Service) Navigation(ctx context.Context, actor identity.Actor) ([]Exten
 	return navigation, nil
 }
 
-func (s *Service) Settings(ctx context.Context, actor identity.Actor, extensionID string, locale string) (ExtensionSettings, error) {
+func (s *SettingsService) Settings(ctx context.Context, actor identity.Actor, extensionID string, locale string) (ExtensionSettings, error) {
 	extension, err := s.store.Get(ctx, normalizeID(extensionID))
 	if err != nil {
 		return ExtensionSettings{}, err
@@ -813,7 +853,7 @@ func (s *Service) Settings(ctx context.Context, actor identity.Actor, extensionI
 
 // AdminPageBootstrap 一次加载扩展详情页：store.Get 仅一次；未知 path 不报错，page/settings 为 null。
 // 仅当匹配页 View 声明为 settings 时才加载掩码设置，不根据 path 文本推断。
-func (s *Service) AdminPageBootstrap(ctx context.Context, actor identity.Actor, extensionID, pagePath, locale string) (AdminPageBootstrap, error) {
+func (s *CatalogService) AdminPageBootstrap(ctx context.Context, actor identity.Actor, extensionID, pagePath, locale string) (AdminPageBootstrap, error) {
 	// Settings 管理权限不反向继承 extension.view；先允许潜在设置管理员进入精确
 	// 扩展判定，普通/未知页面仍在下方严格要求只读目录权限。
 	// identity.provider.manage 与 settings.mail.manage 对称：仅可进入匹配的设置页。
@@ -826,7 +866,7 @@ func (s *Service) AdminPageBootstrap(ctx context.Context, actor identity.Actor, 
 	if err != nil {
 		return AdminPageBootstrap{}, err
 	}
-	extension = decorateArtifactState(applyPluginMemory(s.decorateRuntime(ctx, extension), s.sampleOwnedPluginMemory()))
+	extension = decorateArtifactState(applyPluginMemory(s.decorateRuntime(ctx, extension), sampleOwnedPluginMemory(s.Service)))
 	result := AdminPageBootstrap{Extension: extension}
 
 	want := normalizeRoutePath(pagePath)
@@ -859,7 +899,7 @@ func (s *Service) AdminPageBootstrap(ctx context.Context, actor identity.Actor, 
 	return result, nil
 }
 
-func (s *Service) UpdateSettings(ctx context.Context, actor identity.Actor, extensionID string, input UpdateSettingsInput, locale string) (ExtensionSettings, error) {
+func (s *SettingsService) UpdateSettings(ctx context.Context, actor identity.Actor, extensionID string, input UpdateSettingsInput, locale string) (ExtensionSettings, error) {
 	s.assetPublicationMu.Lock()
 	defer s.assetPublicationMu.Unlock()
 
@@ -906,12 +946,12 @@ func (s *Service) UpdateSettings(ctx context.Context, actor identity.Actor, exte
 	if err := s.restartPluginForSettings(ctx, extension, restart); err != nil {
 		return ExtensionSettings{}, s.restoreSettingsAfterRestartFailure(ctx, extension.ID, previousRaw, restart, err)
 	}
-	s.maybeBumpPublicSurfaceRevision(ctx, extension)
+	maybeBumpPublicSurfaceRevision(s.Service, ctx, extension)
 	// 返回解密后的视图（secret 仍在 resolve 中掩码）。
 	return resolveExtensionSettings(extension, values, locale), nil
 }
 
-func (s *Service) ResetSettings(ctx context.Context, actor identity.Actor, extensionID string, locale string) (ExtensionSettings, error) {
+func (s *SettingsService) ResetSettings(ctx context.Context, actor identity.Actor, extensionID string, locale string) (ExtensionSettings, error) {
 	s.assetPublicationMu.Lock()
 	defer s.assetPublicationMu.Unlock()
 
@@ -944,6 +984,6 @@ func (s *Service) ResetSettings(ctx context.Context, actor identity.Actor, exten
 	if err := s.restartPluginForSettings(ctx, extension, restart); err != nil {
 		return ExtensionSettings{}, s.restoreSettingsAfterRestartFailure(ctx, extension.ID, previousRaw, restart, err)
 	}
-	s.maybeBumpPublicSurfaceRevision(ctx, extension)
+	maybeBumpPublicSurfaceRevision(s.Service, ctx, extension)
 	return resolveExtensionSettings(extension, map[string]string{}, locale), nil
 }

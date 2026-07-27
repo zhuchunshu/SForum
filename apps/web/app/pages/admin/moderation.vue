@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import type { ModerationDecision, ModerationSettings } from '~/composables/useModerationApi'
+import { useModerationApi } from '~/composables/moderation/useModerationApi'
+import { useAdminPage } from '~/composables/admin/useAdminPage'
+import ModerationDecisionTable from '~/components/moderation/ModerationDecisionTable.vue'
+import ModerationSettingsForm from '~/components/moderation/ModerationSettingsForm.vue'
+import type { ModerationDecision, ModerationSettings } from '~/composables/moderation/useModerationApi'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
 defineOptions({ name: 'AdminModeration' })

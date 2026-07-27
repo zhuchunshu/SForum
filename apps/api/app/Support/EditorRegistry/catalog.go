@@ -12,11 +12,11 @@ const CatalogSchemaVersion = "sforum.editor-catalog@1"
 // declarations that load through it. Toolbar chrome is listed separately when
 // it references a command shipped by this module.
 type CatalogModule struct {
-	ExtensionID      string         `json:"extensionId"`
-	ExtensionVersion string         `json:"extensionVersion"`
-	PackageDigest    string         `json:"packageDigest"`
-	L2Module         string         `json:"l2Module"`
-	L2Digest         string         `json:"l2Digest"`
+	ExtensionID      string `json:"extensionId"`
+	ExtensionVersion string `json:"extensionVersion"`
+	PackageDigest    string `json:"packageDigest"`
+	L2Module         string `json:"l2Module"`
+	L2Digest         string `json:"l2Digest"`
 	// AssetPath is the Host package-serve path under exact package digest.
 	AssetPath string         `json:"assetPath"`
 	Nodes     []Contribution `json:"nodes,omitempty"`
@@ -63,9 +63,9 @@ func (r *Registry) BuildCatalog() Catalog {
 				module := modules[key]
 				if module == nil {
 					module = &CatalogModule{
-						ExtensionID: contribution.Artifact.ExtensionID,
+						ExtensionID:      contribution.Artifact.ExtensionID,
 						ExtensionVersion: contribution.Artifact.ExtensionVersion,
-						PackageDigest: contribution.Artifact.PackageDigest,
+						PackageDigest:    contribution.Artifact.PackageDigest,
 					}
 					modules[key] = module
 				}
@@ -77,12 +77,12 @@ func (r *Registry) BuildCatalog() Catalog {
 		module := modules[key]
 		if module == nil {
 			module = &CatalogModule{
-				ExtensionID: contribution.Artifact.ExtensionID,
+				ExtensionID:      contribution.Artifact.ExtensionID,
 				ExtensionVersion: contribution.Artifact.ExtensionVersion,
-				PackageDigest: contribution.Artifact.PackageDigest,
-				L2Module: contribution.L2Module,
-				L2Digest: contribution.L2Digest,
-				AssetPath: editorPackageAssetPath(contribution.Artifact.ExtensionID, contribution.Artifact.PackageDigest, contribution.L2Module),
+				PackageDigest:    contribution.Artifact.PackageDigest,
+				L2Module:         contribution.L2Module,
+				L2Digest:         contribution.L2Digest,
+				AssetPath:        editorPackageAssetPath(contribution.Artifact.ExtensionID, contribution.Artifact.PackageDigest, contribution.L2Module),
 			}
 			modules[key] = module
 		}

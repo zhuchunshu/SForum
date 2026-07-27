@@ -77,6 +77,60 @@ const productionFiles = [
   ...walkFiles('apps/web/app')
 ].filter(shouldScanProductionSource)
 
+const legacyExtensionsImport = 'github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions'
+const goProductionFiles = productionFiles.filter(path => path.endsWith('.go'))
+const legacyExtensionsImporters = goProductionFiles
+  .filter(path => read(path).includes(`"${legacyExtensionsImport}"`))
+  .sort()
+const allowedLegacyImporters = [...(baseline.legacyExtensionsImportAllowlist || [])].sort()
+const unexpectedLegacyImporters = legacyExtensionsImporters
+  .filter(path => !allowedLegacyImporters.includes(path))
+const staleLegacyImporters = allowedLegacyImporters
+  .filter(path => !legacyExtensionsImporters.includes(path))
+if (unexpectedLegacyImporters.length > 0) {
+  failures.push(
+    `new production imports of legacy Support/Extensions: ${unexpectedLegacyImporters.join(', ')}; depend on a stable Extension* package or a consumer-owned interface`
+  )
+}
+if (staleLegacyImporters.length > 0) {
+  failures.push(
+    `legacy Support/Extensions import allowlist has stale entries: ${staleLegacyImporters.join(', ')}; remove reclaimed compatibility paths`
+  )
+}
+
+for (const path of goProductionFiles.filter(path => path.startsWith('apps/api/app/Models/'))) {
+  if (read(path).includes(`"${legacyExtensionsImport}"`)) {
+    failures.push(`${path} imports concrete legacy Support/Extensions; Models must depend on stable or consumer-owned interfaces`)
+  }
+}
+
+const stableExtensionPackages = [
+  'apps/api/app/Support/ExtensionRuntime',
+  'apps/api/app/Support/ExtensionProtocol',
+  'apps/api/app/Support/ExtensionDatabase',
+  'apps/api/app/Support/ExtensionComposition'
+]
+const forbiddenStableImports = [
+  legacyExtensionsImport,
+  'github.com/zhuchunshu/sforum/apps/api/app/Models/',
+  'github.com/zhuchunshu/sforum/apps/api/app/Http/',
+  'github.com/zhuchunshu/sforum/apps/api/bootstrap'
+]
+for (const directory of stableExtensionPackages) {
+  const files = goProductionFiles.filter(path => path.startsWith(`${directory}/`))
+  if (files.length === 0) {
+    failures.push(`${directory} has no production implementation or contract files`)
+  }
+  for (const path of files) {
+    const content = read(path)
+    for (const forbidden of forbiddenStableImports) {
+      if (content.includes(`"${forbidden}`)) {
+        failures.push(`${path} imports forbidden higher-level or legacy package ${forbidden}`)
+      }
+    }
+  }
+}
+
 let reviewSizeFileCount = 0
 for (const path of productionFiles) {
   const content = read(path)
@@ -106,7 +160,26 @@ for (const path of productionFiles) {
   }
 }
 
-for (const rule of baseline.flatDirectoryCaps) {
+for (const rule of baseline.rootDirectoryAllowlists || []) {
+  const actual = directFiles(rule.path)
+    .map(path => path.slice(rule.path.length + 1))
+    .sort()
+  const allowed = [...rule.files].sort()
+  const unexpected = actual.filter(path => !allowed.includes(path))
+  const missing = allowed.filter(path => !actual.includes(path))
+  if (unexpected.length > 0) {
+    failures.push(
+      `${rule.path} has unapproved root files: ${unexpected.join(', ')}; place product code in a domain subdirectory`
+    )
+  }
+  if (missing.length > 0) {
+    failures.push(
+      `${rule.path} root allowlist contains missing files: ${missing.join(', ')}; remove stale allowlist entries`
+    )
+  }
+}
+
+for (const rule of baseline.flatDirectoryCaps || []) {
   const matching = directFiles(rule.path).filter((path) => {
     if (!rule.extensions.includes(extname(path))) return false
     return !(rule.excludeSuffixes || []).some(suffix => path.endsWith(suffix))
@@ -124,6 +197,42 @@ for (const rule of baseline.flatDirectoryCaps) {
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// Nuxt 会给嵌套目录生成带路径前缀的自动组件名。产品组件归位后，
+// 调用方必须显式导入原有名称，避免模板静默退化为未解析的自定义元素。
+const nestedComponentFiles = walkFiles('apps/web/app/components')
+  .filter(path => path.endsWith('.vue') && relative(
+    repoPath('apps/web/app/components'),
+    repoPath(path)
+  ).includes('/'))
+const nestedComponents = new Map()
+for (const path of nestedComponentFiles) {
+  const name = path.slice(path.lastIndexOf('/') + 1, -'.vue'.length)
+  const existing = nestedComponents.get(name)
+  if (existing) {
+    failures.push(
+      `nested component basename ${name} is ambiguous between ${existing} and ${path}`
+    )
+  } else {
+    nestedComponents.set(name, path)
+  }
+}
+for (const path of productionFiles.filter(path => path.endsWith('.vue'))) {
+  const content = read(path)
+  for (const [name, componentPath] of nestedComponents) {
+    if (path === componentPath) continue
+    const componentTag = new RegExp(`<${escapeRegExp(name)}(?:\\s|/|>)`)
+    if (!componentTag.test(content)) continue
+    const runtimeImport = new RegExp(
+      `import\\s+(?!type\\b)(?:${escapeRegExp(name)}\\b|\\{[^}]*\\b${escapeRegExp(name)}\\b[^}]*\\})`
+    )
+    if (!runtimeImport.test(content)) {
+      failures.push(
+        `${path} uses nested component ${name} without an explicit runtime import`
+      )
+    }
+  }
 }
 
 for (const rule of baseline.receiverMethodCaps) {

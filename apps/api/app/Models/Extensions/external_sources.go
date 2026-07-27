@@ -47,7 +47,7 @@ type externalSourceCandidate struct {
 
 // SyncExternalSources 扫描显式配置的第三方源码集合。
 // 新包以 uploaded/installed 保存；已有活动包的不同摘要只进入 staged。
-func (s *Service) SyncExternalSources(ctx context.Context) (ExternalSyncResult, error) {
+func (s *CatalogService) SyncExternalSources(ctx context.Context) (ExternalSyncResult, error) {
 	var result ExternalSyncResult
 	if s == nil || len(s.externalRoots) == 0 {
 		return result, nil

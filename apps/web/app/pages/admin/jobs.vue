@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { ALL_ADMIN_JOBS_FILTER, jobCanCancel, jobCanRetry, jobStateColor } from '~/utils/adminJobs'
+import { useAuthSession } from '~/composables/identity/useAuthSession'
+import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
+import { useAdminPage } from '~/composables/admin/useAdminPage'
+import { useAdminJobs } from '~/composables/admin/useAdminJobs'
+import { ALL_ADMIN_JOBS_FILTER, jobCanCancel, jobCanRetry, jobStateColor } from '~/utils/admin/adminJobs'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
 defineOptions({ name: 'AdminJobs' })

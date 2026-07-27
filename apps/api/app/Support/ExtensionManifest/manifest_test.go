@@ -419,19 +419,19 @@ func TestRegionPlacementContributionPayloadValidation(t *testing.T) {
 	}
 
 	badPayloads := map[string]string{
-		"unknown page":              `{"type":"hostLink","pages":["forum.unknown"],"region":"content_after","href":"/tags"}`,
-		"region not on page":        `{"type":"hostLink","pages":["forum.notifications"],"region":"sidebar","href":"/tags"}`,
-		"empty pages":               `{"type":"hostLink","pages":[],"region":"content_after","href":"/tags"}`,
-		"duplicate pages":           `{"type":"hostLink","pages":["forum.home","forum.home"],"region":"content_after","href":"/tags"}`,
-		"external hostLink":         `{"type":"hostLink","pages":["forum.home"],"region":"content_after","href":"https://evil.example/"}`,
-		"api hostLink":              `{"type":"hostLink","pages":["forum.home"],"region":"content_after","href":"/api/secrets"}`,
-		"hostLink with path":        `{"type":"hostLink","pages":["forum.home"],"region":"content_after","href":"/tags","path":"/x"}`,
-		"route with href":           `{"type":"extensionRoute","pages":["forum.home"],"region":"content_after","method":"POST","path":"/region/ping","href":"/tags"}`,
-		"route bad method":          `{"type":"extensionRoute","pages":["forum.home"],"region":"content_after","method":"TRACE","path":"/region/ping"}`,
-		"widget without component":  `{"type":"l2Widget","pages":["forum.home"],"region":"content_after"}`,
-		"widget with extras":        `{"type":"l2Widget","pages":["forum.home"],"region":"content_after","componentId":"demo.widget","href":"/x"}`,
-		"unknown placement type":    `{"type":"iframe","pages":["forum.home"],"region":"content_after","href":"/tags"}`,
-		"widget unknown component":  `{"type":"l2Widget","pages":["forum.home"],"region":"content_after","componentId":"demo.widget"}`,
+		"unknown page":             `{"type":"hostLink","pages":["forum.unknown"],"region":"content_after","href":"/tags"}`,
+		"region not on page":       `{"type":"hostLink","pages":["forum.notifications"],"region":"sidebar","href":"/tags"}`,
+		"empty pages":              `{"type":"hostLink","pages":[],"region":"content_after","href":"/tags"}`,
+		"duplicate pages":          `{"type":"hostLink","pages":["forum.home","forum.home"],"region":"content_after","href":"/tags"}`,
+		"external hostLink":        `{"type":"hostLink","pages":["forum.home"],"region":"content_after","href":"https://evil.example/"}`,
+		"api hostLink":             `{"type":"hostLink","pages":["forum.home"],"region":"content_after","href":"/api/secrets"}`,
+		"hostLink with path":       `{"type":"hostLink","pages":["forum.home"],"region":"content_after","href":"/tags","path":"/x"}`,
+		"route with href":          `{"type":"extensionRoute","pages":["forum.home"],"region":"content_after","method":"POST","path":"/region/ping","href":"/tags"}`,
+		"route bad method":         `{"type":"extensionRoute","pages":["forum.home"],"region":"content_after","method":"TRACE","path":"/region/ping"}`,
+		"widget without component": `{"type":"l2Widget","pages":["forum.home"],"region":"content_after"}`,
+		"widget with extras":       `{"type":"l2Widget","pages":["forum.home"],"region":"content_after","componentId":"demo.widget","href":"/x"}`,
+		"unknown placement type":   `{"type":"iframe","pages":["forum.home"],"region":"content_after","href":"/tags"}`,
+		"widget unknown component": `{"type":"l2Widget","pages":["forum.home"],"region":"content_after","componentId":"demo.widget"}`,
 	}
 	for name, payload := range badPayloads {
 		m := base

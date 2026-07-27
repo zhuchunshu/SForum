@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SFProfileShowPage from '~/components/profile/SFProfileShowPage.vue'
 /** forum.profile.show 路由壳：outlet + fail-closed；呈现由主题 L1 + SFProfileShowPage 岛拥有。 */
 definePageMeta({ public: true })
 </script>

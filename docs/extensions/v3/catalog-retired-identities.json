@@ -20,6 +20,10 @@
     {
       "id": "core.component.shared.sfmy_home_page",
       "contractVersion": "sforum.component.shared.sfmy_home_page@1"
+    },
+    {
+      "id": "core.component.admin.sfadmin_site_chrome_panel",
+      "contractVersion": "sforum.component.admin.sfadmin_site_chrome_panel@1"
     }
   ]
 }

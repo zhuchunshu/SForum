@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { useAuthSession } from '~/composables/identity/useAuthSession'
+import { useAdminProviderSlots } from '~/composables/admin/useAdminProviderSlots'
+import { useAdminPage } from '~/composables/admin/useAdminPage'
 import { apiErrorMessage, apiErrorReason } from '~/composables/useApiClient'
-import type { ProviderSlotCandidate, ProviderSlotItem, ProviderSlotProbe } from '~/composables/useAdminProviderSlots'
+import type { ProviderSlotCandidate, ProviderSlotItem, ProviderSlotProbe } from '~/composables/admin/useAdminProviderSlots'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
 defineOptions({ name: 'AdminExtensionProviderSlots' })

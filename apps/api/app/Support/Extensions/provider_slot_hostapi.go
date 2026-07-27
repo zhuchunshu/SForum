@@ -22,8 +22,8 @@ func NewProtocolV2ProviderBroker(manager *Manager, revalidate HookDocumentRevali
 	return &ProtocolV2ProviderBroker{manager: manager, revalidate: revalidate}, nil
 }
 
-func (m *Manager) ProtocolV2ProviderBroker() (hostapi.ProtocolV2ProviderBroker, error) {
-	return NewProtocolV2ProviderBroker(m, BoundedProviderDocumentRevalidator)
+func (m *RuntimeEventsProviders) ProtocolV2ProviderBroker() (hostapi.ProtocolV2ProviderBroker, error) {
+	return NewProtocolV2ProviderBroker(m.Manager, BoundedProviderDocumentRevalidator)
 }
 
 func BoundedProviderDocumentRevalidator(ctx context.Context, schema string, document map[string]any) error {
@@ -97,3 +97,9 @@ func (b *ProtocolV2ProviderBroker) InvokeProtocolV2Provider(
 }
 
 var _ hostapi.ProtocolV2ProviderBroker = (*ProtocolV2ProviderBroker)(nil)
+
+// Compatibility facade: runtime logic is owned by focused collaborators.
+
+func (m *Manager) ProtocolV2ProviderBroker() (hostapi.ProtocolV2ProviderBroker, error) {
+	return m.eventsProviders.ProtocolV2ProviderBroker()
+}

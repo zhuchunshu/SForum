@@ -13,7 +13,7 @@ import (
 //   - 读取失败向上返回，调用方 fail closed。
 //
 // 不在此处解析 Identity Registry：调用方传入已解析的 owner extension id。
-func (s *Service) AuthProviderSettingsConfigured(ctx context.Context, extensionID string) (bool, error) {
+func (s *SettingsService) AuthProviderSettingsConfigured(ctx context.Context, extensionID string) (bool, error) {
 	if s == nil {
 		return false, nil
 	}

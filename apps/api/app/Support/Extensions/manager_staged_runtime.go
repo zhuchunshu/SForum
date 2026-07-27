@@ -13,7 +13,7 @@ import (
 
 // StageRuntimeInstance starts one inert Protocol V2 process and retains its
 // Manager admission gate without changing the active runtime pointer.
-func (m *Manager) StageRuntimeInstance(ctx context.Context, extension extensions.Extension) (RuntimeInstanceSnapshot, error) {
+func (m *InstanceAdmission) StageRuntimeInstance(ctx context.Context, extension extensions.Extension) (RuntimeInstanceSnapshot, error) {
 	unlock, err := m.lockRuntimeSetTransition(ctx)
 	if err != nil {
 		return RuntimeInstanceSnapshot{}, err
@@ -22,7 +22,7 @@ func (m *Manager) StageRuntimeInstance(ctx context.Context, extension extensions
 	return m.stageRuntimeInstanceRuntimeSetLocked(ctx, extension)
 }
 
-func (m *Manager) stageRuntimeInstanceRuntimeSetLocked(ctx context.Context, extension extensions.Extension) (RuntimeInstanceSnapshot, error) {
+func (m *managerCore) stageRuntimeInstanceRuntimeSetLocked(ctx context.Context, extension extensions.Extension) (RuntimeInstanceSnapshot, error) {
 	if m == nil || ctx == nil {
 		return RuntimeInstanceSnapshot{}, ErrRuntimeAdmissionInvalid
 	}
@@ -100,7 +100,7 @@ func (m *Manager) stageRuntimeInstanceRuntimeSetLocked(ctx context.Context, exte
 
 // HealthRuntimeInstance performs health and readiness against one exact
 // staged/published/retained process and verifies the frozen artifact again.
-func (m *Manager) HealthRuntimeInstance(ctx context.Context, identity RuntimeInstanceIdentity) (ProtocolRuntimeInstanceSnapshot, error) {
+func (m *InstanceAdmission) HealthRuntimeInstance(ctx context.Context, identity RuntimeInstanceIdentity) (ProtocolRuntimeInstanceSnapshot, error) {
 	if m == nil || ctx == nil {
 		return ProtocolRuntimeInstanceSnapshot{}, ErrRuntimeAdmissionInvalid
 	}
@@ -141,7 +141,7 @@ func (m *Manager) HealthRuntimeInstance(ctx context.Context, identity RuntimeIns
 // gate is closed, then publishes the same exact identity to Manager callers.
 // The tiny cross-registry window is fail-closed because service/job admission
 // still resolves the drained old Manager pointer until this method commits.
-func (m *Manager) PublishRuntimeInstance(ctx context.Context, identity RuntimeInstanceIdentity) (RuntimeInstanceSnapshot, error) {
+func (m *InstanceAdmission) PublishRuntimeInstance(ctx context.Context, identity RuntimeInstanceIdentity) (RuntimeInstanceSnapshot, error) {
 	unlock, err := m.lockRuntimeSetTransition(ctx)
 	if err != nil {
 		return RuntimeInstanceSnapshot{}, err
@@ -152,7 +152,7 @@ func (m *Manager) PublishRuntimeInstance(ctx context.Context, identity RuntimeIn
 
 // PublishRuntimeInstanceFrom atomically proves the exact drained source is
 // still authoritative before a staged replacement can become active.
-func (m *Manager) PublishRuntimeInstanceFrom(
+func (m *InstanceAdmission) PublishRuntimeInstanceFrom(
 	ctx context.Context,
 	identity RuntimeInstanceIdentity,
 	source RuntimeInstanceArtifactIdentity,
@@ -169,7 +169,7 @@ func (m *Manager) PublishRuntimeInstanceFrom(
 
 // PublishRuntimeInstanceIfNoActive restores a retained runtime only while no
 // concurrent replacement owns the active pointer.
-func (m *Manager) PublishRuntimeInstanceIfNoActive(
+func (m *InstanceAdmission) PublishRuntimeInstanceIfNoActive(
 	ctx context.Context,
 	identity RuntimeInstanceIdentity,
 ) (RuntimeInstanceSnapshot, error) {
@@ -187,7 +187,7 @@ func (m *Manager) PublishRuntimeInstanceIfNoActive(
 // and Manager while keeping its ordinary admission gate closed. Composed
 // lifecycle publication opens it only after durable state and every registry
 // snapshot have committed.
-func (m *Manager) PublishDrainedRuntimeInstance(ctx context.Context, identity RuntimeInstanceIdentity) (RuntimeInstanceSnapshot, error) {
+func (m *InstanceAdmission) PublishDrainedRuntimeInstance(ctx context.Context, identity RuntimeInstanceIdentity) (RuntimeInstanceSnapshot, error) {
 	unlock, err := m.lockRuntimeSetTransition(ctx)
 	if err != nil {
 		return RuntimeInstanceSnapshot{}, err
@@ -196,7 +196,7 @@ func (m *Manager) PublishDrainedRuntimeInstance(ctx context.Context, identity Ru
 	return m.publishRuntimeInstanceRuntimeSetLocked(ctx, identity, true)
 }
 
-func (m *Manager) publishRuntimeInstanceRuntimeSetLocked(
+func (m *managerCore) publishRuntimeInstanceRuntimeSetLocked(
 	ctx context.Context,
 	identity RuntimeInstanceIdentity,
 	keepDraining bool,
@@ -209,7 +209,7 @@ type runtimePublicationExpectation struct {
 	requireNoActive bool
 }
 
-func (m *Manager) publishRuntimeInstanceRuntimeSetLockedWithExpectation(
+func (m *managerCore) publishRuntimeInstanceRuntimeSetLockedWithExpectation(
 	ctx context.Context,
 	identity RuntimeInstanceIdentity,
 	keepDraining bool,
@@ -368,7 +368,7 @@ func (m *Manager) publishRuntimeInstanceRuntimeSetLockedWithExpectation(
 			cancel()
 			var quarantineErr error
 			if protocolErr != nil && activeInstance != nil {
-				_, quarantineErr = m.QuarantineRuntimeInstance(RuntimeInstanceArtifactIdentity{
+				_, quarantineErr = m.host.QuarantineRuntimeInstance(RuntimeInstanceArtifactIdentity{
 					RuntimeInstanceIdentity: RuntimeInstanceIdentity{ExtensionID: identity.ExtensionID, InstanceID: activeID},
 					ExtensionVersion:        activeInstance.extensionVersion,
 					ArtifactDigest:          activeInstance.artifactDigest,
@@ -401,7 +401,7 @@ func (m *Manager) publishRuntimeInstanceRuntimeSetLockedWithExpectation(
 	return snapshot, nil
 }
 
-func (m *Manager) validateRuntimePublicationExpectationLocked(
+func (m *managerCore) validateRuntimePublicationExpectationLocked(
 	extensionID string,
 	activeID string,
 	expectation runtimePublicationExpectation,
@@ -434,7 +434,7 @@ func (m *Manager) validateRuntimePublicationExpectationLocked(
 	return nil
 }
 
-func (m *Manager) resetRuntimePublicationTransition(
+func (m *managerCore) resetRuntimePublicationTransition(
 	identity RuntimeInstanceIdentity,
 	instance *managedRuntimeInstance,
 	activeID string,
@@ -456,7 +456,7 @@ func (m *Manager) resetRuntimePublicationTransition(
 
 // StopRuntimeInstance stops one exact V2 process after its gate is drained and
 // idle. Stopping a retained instance cannot clear the active replacement.
-func (m *Manager) StopRuntimeInstance(ctx context.Context, identity RuntimeInstanceIdentity) error {
+func (m *InstanceAdmission) StopRuntimeInstance(ctx context.Context, identity RuntimeInstanceIdentity) error {
 	unlock, err := m.lockRuntimeSetTransition(ctx)
 	if err != nil {
 		return err
@@ -466,7 +466,7 @@ func (m *Manager) StopRuntimeInstance(ctx context.Context, identity RuntimeInsta
 }
 
 // DiscardRuntimeInstance destroys only an unpublished inactive candidate.
-func (m *Manager) DiscardRuntimeInstance(ctx context.Context, identity RuntimeInstanceIdentity) error {
+func (m *InstanceAdmission) DiscardRuntimeInstance(ctx context.Context, identity RuntimeInstanceIdentity) error {
 	unlock, err := m.lockRuntimeSetTransition(ctx)
 	if err != nil {
 		return err
@@ -475,7 +475,7 @@ func (m *Manager) DiscardRuntimeInstance(ctx context.Context, identity RuntimeIn
 	return m.removeManagedProtocolRuntimeSetLocked(ctx, identity, true)
 }
 
-func (m *Manager) removeManagedProtocolRuntimeSetLocked(ctx context.Context, identity RuntimeInstanceIdentity, discard bool) error {
+func (m *managerCore) removeManagedProtocolRuntimeSetLocked(ctx context.Context, identity RuntimeInstanceIdentity, discard bool) error {
 	if m == nil || ctx == nil {
 		return ErrRuntimeAdmissionInvalid
 	}
@@ -574,7 +574,7 @@ func (m *Manager) removeManagedProtocolRuntimeSetLocked(ctx context.Context, ide
 	return hookErr
 }
 
-func (m *Manager) managedRuntimeExtension(identity RuntimeInstanceIdentity) (extensions.Extension, error) {
+func (m *managerCore) managedRuntimeExtension(identity RuntimeInstanceIdentity) (extensions.Extension, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	instance, err := m.runtimeInstanceLocked(identity)
@@ -657,4 +657,45 @@ func discardStagedRuntimeAfterFailure(starter StagedRuntimeStarter, identity Run
 		return errors.Join(cause, fmt.Errorf("discard failed staged runtime: %w", err))
 	}
 	return cause
+}
+
+// Compatibility facade: runtime logic is owned by focused collaborators.
+
+func (m *Manager) StageRuntimeInstance(ctx context.Context, extension extensions.Extension) (RuntimeInstanceSnapshot, error) {
+	return m.admission.StageRuntimeInstance(ctx, extension)
+}
+
+func (m *Manager) HealthRuntimeInstance(ctx context.Context, identity RuntimeInstanceIdentity) (ProtocolRuntimeInstanceSnapshot, error) {
+	return m.admission.HealthRuntimeInstance(ctx, identity)
+}
+
+func (m *Manager) PublishRuntimeInstance(ctx context.Context, identity RuntimeInstanceIdentity) (RuntimeInstanceSnapshot, error) {
+	return m.admission.PublishRuntimeInstance(ctx, identity)
+}
+
+func (m *Manager) PublishRuntimeInstanceFrom(
+	ctx context.Context,
+	identity RuntimeInstanceIdentity,
+	source RuntimeInstanceArtifactIdentity,
+) (RuntimeInstanceSnapshot, error) {
+	return m.admission.PublishRuntimeInstanceFrom(ctx, identity, source)
+}
+
+func (m *Manager) PublishRuntimeInstanceIfNoActive(
+	ctx context.Context,
+	identity RuntimeInstanceIdentity,
+) (RuntimeInstanceSnapshot, error) {
+	return m.admission.PublishRuntimeInstanceIfNoActive(ctx, identity)
+}
+
+func (m *Manager) PublishDrainedRuntimeInstance(ctx context.Context, identity RuntimeInstanceIdentity) (RuntimeInstanceSnapshot, error) {
+	return m.admission.PublishDrainedRuntimeInstance(ctx, identity)
+}
+
+func (m *Manager) StopRuntimeInstance(ctx context.Context, identity RuntimeInstanceIdentity) error {
+	return m.admission.StopRuntimeInstance(ctx, identity)
+}
+
+func (m *Manager) DiscardRuntimeInstance(ctx context.Context, identity RuntimeInstanceIdentity) error {
+	return m.admission.DiscardRuntimeInstance(ctx, identity)
 }

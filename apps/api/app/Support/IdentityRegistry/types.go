@@ -98,11 +98,11 @@ type ProviderOperation struct {
 // Label / LabelLocales / Icon 是插件声明的展示元数据（非可执行状态）。
 // Host 公共 catalog 按请求 locale 解析后注入前端；Core 不得硬编码供应商品牌文案。
 type Provider struct {
-	ID              string              `json:"id"`
-	ContractVersion string              `json:"contractVersion"`
-	Kind            string              `json:"kind"`
-	Handler         string              `json:"handler"`
-	Priority        int                 `json:"priority,omitempty"`
+	ID              string `json:"id"`
+	ContractVersion string `json:"contractVersion"`
+	Kind            string `json:"kind"`
+	Handler         string `json:"handler"`
+	Priority        int    `json:"priority,omitempty"`
 	// Label 默认展示名（无 locale 匹配时回退）。
 	Label string `json:"label,omitempty"`
 	// LabelLocales 插件提供的多语文案，例如 {"zh-CN":"GitHub","en-US":"GitHub"}。

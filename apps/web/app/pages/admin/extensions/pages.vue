@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { useAuthSession } from '~/composables/identity/useAuthSession'
 import { apiErrorMessage } from '~/composables/useApiClient'
-import { useAdminPage } from '~/composables/useAdminPage'
-import { paginateItems } from '~/utils/adminExtensions'
+import { useAdminPage } from '~/composables/admin/useAdminPage'
+import { paginateItems } from '~/utils/admin/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',

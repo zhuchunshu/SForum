@@ -109,9 +109,9 @@ func (d *Dispatcher) dispatchBeginIdempotency(ctx context.Context, s *dispatchSe
 	var err error
 	chain := s.plan.Chain()
 	s.commit = NewRouteCommitObserver()
-		s.preservePending = false
+	s.preservePending = false
 	s.mutableReplay = routeChainHasMutableRequestFields(chain)
-			terminal := s.plan.Terminal()
+	terminal := s.plan.Terminal()
 	if terminal.Provider.Kind == ProviderPlugin {
 		policy, policyExists, policyErr := resolvePlanRouteExecutionPolicy(s.plan, terminal, d.policies)
 		if policyErr != nil {
@@ -173,11 +173,11 @@ func (d *Dispatcher) dispatchInvokeSequence(ctx context.Context, s *dispatchSess
 	chain := s.plan.Chain()
 	s.committingStep = -1
 	s.responseEligible = make([]bool, len(chain))
-							s.sequence, err = bufferedRouteInvocationSequence(s.plan)
+	s.sequence, err = bufferedRouteInvocationSequence(s.plan)
 	if err != nil {
 		return err
 	}
-			dispatchSequence:
+dispatchSequence:
 	for _, execution := range s.sequence {
 		index, stage := execution.index, execution.stage
 		step := chain[index]

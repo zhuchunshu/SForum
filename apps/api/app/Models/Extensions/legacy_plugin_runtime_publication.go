@@ -20,7 +20,7 @@ type LegacyPluginRuntimePublicationStore interface {
 	) (Extension, PluginRuntimePublication, error)
 }
 
-func (s *Service) enableLegacyPluginState(
+func (s *serviceCore) enableLegacyPluginState(
 	ctx context.Context,
 	target Extension,
 	actorUserID int64,
@@ -32,7 +32,7 @@ func (s *Service) enableLegacyPluginState(
 	return s.store.Enable(ctx, target.ID, target.Type)
 }
 
-func (s *Service) disableLegacyPluginState(
+func (s *serviceCore) disableLegacyPluginState(
 	ctx context.Context,
 	target Extension,
 	actorUserID int64,

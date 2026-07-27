@@ -136,14 +136,14 @@ func TestGitHubAuthPluginProtocolV2HeadlessHostSession(t *testing.T) {
 		githubAuthProviderID: {
 			ProviderID: githubAuthProviderID, OwnerExtensionID: extension.ID,
 			OwnerPackageDigest: extension.PackageDigest,
-			LoginEnabled: true, RegistrationEnabled: true, LinkEnabled: true,
+			LoginEnabled:       true, RegistrationEnabled: true, LinkEnabled: true,
 			Revision: 1,
 		},
 	}}
 	extAuth := identity.NewExternalAuthService(identity.ExternalAuthDeps{
-		LinkStore:       linkStore,
-		ActivationStore: activation,
-		RecentAuth:      recentAuth,
+		LinkStore:        linkStore,
+		ActivationStore:  activation,
+		RecentAuth:       recentAuth,
 		RecentAuthMarker: recentAuth,
 		ProviderContribution: func(providerID string) (identityregistry.ProviderContribution, error) {
 			return registry.ResolveProvider(providerID)
@@ -588,10 +588,10 @@ type headlessLinkStore struct {
 
 func newHeadlessLinkStore() *headlessLinkStore {
 	return &headlessLinkStore{
-		byKey: map[string]identity.ExternalIdentityLink{},
-		byID:  map[int64]identity.ExternalIdentityLink{},
+		byKey:   map[string]identity.ExternalIdentityLink{},
+		byID:    map[int64]identity.ExternalIdentityLink{},
 		digests: map[int64]string{},
-		nextID: 1,
+		nextID:  1,
 	}
 }
 
@@ -602,7 +602,7 @@ func (s *headlessLinkStore) seedActive(userID int64, providerID, digest, ownerEx
 	s.nextID++
 	link := identity.ExternalIdentityLink{
 		ID: id, UserID: userID, ProviderID: providerID,
-		Status: identity.ExternalIdentityLinkStatusActive,
+		Status:           identity.ExternalIdentityLinkStatusActive,
 		OwnerExtensionID: ownerExt, Revision: 1,
 	}
 	s.byID[id] = link
@@ -623,7 +623,7 @@ func (s *headlessLinkStore) Link(_ context.Context, input identity.LinkExternalI
 	s.nextID++
 	link := identity.ExternalIdentityLink{
 		ID: id, UserID: input.UserID, ProviderID: input.Provider.ID,
-		Status: identity.ExternalIdentityLinkStatusActive,
+		Status:           identity.ExternalIdentityLinkStatusActive,
 		OwnerExtensionID: input.Provider.Artifact.ExtensionID, Revision: 1,
 	}
 	s.byID[id] = link

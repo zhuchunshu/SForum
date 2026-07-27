@@ -8,7 +8,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 
 	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
-	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	extensioncomposition "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionComposition"
 	navigationregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/NavigationRegistry"
 )
 
@@ -26,14 +26,7 @@ var errInspectorLimit = errors.New("inspector limit is invalid")
 // ComponentCompositionInspectorSnapshot is a redacted admin view of the live
 // composition registry and recent Host-owned traces. Package paths and raw
 // props/results are never included.
-type ComponentCompositionInspectorSnapshot struct {
-	Revision          uint64                                        `json:"revision"`
-	SafeMode          bool                                          `json:"safeMode"`
-	TargetCount       int                                           `json:"targetCount"`
-	ContributionCount int                                           `json:"contributionCount"`
-	Conflicts         []extensionsruntime.ComponentProviderConflict `json:"conflicts"`
-	Traces            []extensionsruntime.ComponentCompositionTrace `json:"traces"`
-}
+type ComponentCompositionInspectorSnapshot = extensioncomposition.Snapshot
 
 // NavigationInspectorSnapshot is a redacted admin view of navigation/region
 // targets plus recent composition traces.
@@ -51,29 +44,14 @@ func (h *Controller) inspectComponentComposition(c fiber.Ctx) error {
 	if _, err := h.routeProviderViewer(c); err != nil {
 		return err
 	}
-	if h.componentComposition == nil || h.componentRegistry == nil {
+	if h.componentInspector == nil {
 		return fiber.NewError(fiber.StatusServiceUnavailable, compositionInspectorUnavailable)
 	}
 	limit, err := parseInspectorLimit(c.Query("limit"), compositionInspectorDefaultLimit, compositionInspectorMaximumLimit)
 	if err != nil {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, compositionInspectorInvalid)
 	}
-	snapshot := h.componentRegistry.Snapshot()
-	traces := h.componentComposition.InspectorTraces()
-	if limit > 0 && len(traces) > limit {
-		traces = traces[len(traces)-limit:]
-	}
-	// 始终返回 [] 而非 null，避免前端 Array.isArray 校验把空注册表当成非法响应。
-	conflicts := append([]extensionsruntime.ComponentProviderConflict{}, snapshot.Conflicts...)
-	traceCopy := append([]extensionsruntime.ComponentCompositionTrace{}, traces...)
-	return apphttp.OK(c, ComponentCompositionInspectorSnapshot{
-		Revision:          snapshot.Revision,
-		SafeMode:          snapshot.SafeMode,
-		TargetCount:       len(snapshot.Targets),
-		ContributionCount: len(snapshot.Contributions),
-		Conflicts:         conflicts,
-		Traces:            traceCopy,
-	})
+	return apphttp.OK(c, h.componentInspector.Inspect(limit))
 }
 
 func (h *Controller) inspectNavigation(c fiber.Ctx) error {

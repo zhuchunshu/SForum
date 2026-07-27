@@ -4,11 +4,10 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
-	"errors"
 	"regexp"
 	"strings"
 
-	"github.com/zhuchunshu/sforum/apps/api/database/coreauthority"
+	extensiondatabase "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionDatabase"
 )
 
 const (
@@ -22,7 +21,7 @@ const (
 )
 
 var (
-	ErrExtensionDatabaseIdentifier = errors.New("extension database identifier input is invalid")
+	ErrExtensionDatabaseIdentifier = extensiondatabase.ErrIdentifier
 	extensionDatabaseIDPattern     = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{1,80}$`)
 	postgresSafeIdentifierPattern  = regexp.MustCompile(`^[a-z_][a-z0-9_]{0,62}$`)
 )
@@ -30,32 +29,21 @@ var (
 // ExtensionDatabaseIdentifiers are Host-owned physical PostgreSQL names. A
 // manifest may describe a logical schema or role, but it cannot select a core
 // or another extension's physical identity.
-type ExtensionDatabaseIdentifiers struct {
-	Schema      string
-	OwnerRole   string
-	RuntimeRole string
-	LockKey     int64
-}
+type ExtensionDatabaseIdentifiers = extensiondatabase.Identifiers
 
 func ExtensionDatabaseIdentifiersFor(extensionID string) (ExtensionDatabaseIdentifiers, error) {
-	shared, err := coreauthority.ExtensionDatabaseIdentifiersFor(extensionID)
+	identifiers, err := extensiondatabase.ResolveIdentifiers(extensionID)
 	if err != nil {
 		return ExtensionDatabaseIdentifiers{}, ErrExtensionDatabaseIdentifier
 	}
-	identifiers := ExtensionDatabaseIdentifiers{
-		Schema:      shared.Schema,
-		OwnerRole:   shared.OwnerRole,
-		RuntimeRole: shared.RuntimeRole,
-		LockKey:     shared.LockKey,
-	}
-	if !identifiers.valid() {
+	if !identifiers.Valid() {
 		return ExtensionDatabaseIdentifiers{}, ErrExtensionDatabaseIdentifier
 	}
 	return identifiers, nil
 }
 
 func ExtensionDatabaseMigrationRoleFor(extensionID string, planDigest string) (string, error) {
-	name, err := coreauthority.ExtensionDatabaseMigrationRoleFor(extensionID, planDigest)
+	name, err := extensiondatabase.ResolveMigrationRole(extensionID, planDigest)
 	if err != nil {
 		return "", ErrExtensionDatabaseIdentifier
 	}
@@ -63,17 +51,11 @@ func ExtensionDatabaseMigrationRoleFor(extensionID string, planDigest string) (s
 }
 
 func ExtensionDatabaseRuntimeLeaseRoleFor(extensionID string, runtimeInstanceID string, leaseID string) (string, error) {
-	name, err := coreauthority.ExtensionDatabaseRuntimeLeaseRoleFor(extensionID, runtimeInstanceID, leaseID)
+	name, err := extensiondatabase.ResolveRuntimeLeaseRole(extensionID, runtimeInstanceID, leaseID)
 	if err != nil {
 		return "", ErrExtensionDatabaseIdentifier
 	}
 	return name, nil
-}
-
-func (i ExtensionDatabaseIdentifiers) valid() bool {
-	return i.Schema != i.OwnerRole && i.Schema != i.RuntimeRole && i.OwnerRole != i.RuntimeRole &&
-		validPostgresIdentifier(i.Schema) && validPostgresIdentifier(i.OwnerRole) &&
-		validPostgresIdentifier(i.RuntimeRole)
 }
 
 func extensionDatabasePhysicalName(kind string, slug string, hash string) string {

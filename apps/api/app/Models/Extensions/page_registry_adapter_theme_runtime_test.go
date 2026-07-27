@@ -8,8 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
+
+	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
 )
 
 func TestPageRegistryAdapterThemeRuntimeSwitchAndRollback(t *testing.T) {

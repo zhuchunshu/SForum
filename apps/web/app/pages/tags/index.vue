@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { forumTagsIndexPath } from '~/utils/forumTaxonomy'
+import { useSForumSeo } from '~/composables/seo/useSForumSeo'
+import SFTagIndexPage from '~/components/forum/SFTagIndexPage.vue'
+import { forumTagsIndexPath } from '~/utils/forum/forumTaxonomy'
 /** forum.tag.index 路由壳：SEO + outlet；呈现由主题 L1 + SFTagIndexPage 岛拥有。 */
 const { t } = useI18n()
 const { seoSettings, siteName } = useWebOptions()

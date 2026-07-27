@@ -1,6 +1,12 @@
 <script setup lang="ts">
+import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
+import { useAdminExtensionsManager } from '~/composables/admin/useAdminExtensionsManager'
 import { apiErrorMessage } from '~/composables/useApiClient'
-import { useAdminPage } from '~/composables/useAdminPage'
+import { useAdminPage } from '~/composables/admin/useAdminPage'
+import SFAdminExtensionEnableDialog from '~/components/admin/SFAdminExtensionEnableDialog.vue'
+import SFAdminExtensionLifecycleDialog from '~/components/admin/SFAdminExtensionLifecycleDialog.vue'
+import SFAdminExtensionUninstallDialog from '~/components/admin/SFAdminExtensionUninstallDialog.vue'
+import SFAdminFrontendTrustPanel from '~/components/admin/SFAdminFrontendTrustPanel.vue'
 import {
   canRestartPlugin,
   capabilityCount,
@@ -14,7 +20,7 @@ import {
   runtimeCapabilitySummary,
   runtimeStatusLabelKey,
   type AdminRuntimeState
-} from '~/utils/adminExtensions'
+} from '~/utils/admin/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',

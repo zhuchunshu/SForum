@@ -9,7 +9,7 @@ import (
 )
 
 // ResolveInstalledDependencyGraph 返回当前已启用扩展的确定性激活顺序。
-func (s *Service) ResolveInstalledDependencyGraph(ctx context.Context) (extensionmanifest.PackageGraph, error) {
+func (s *LifecycleService) ResolveInstalledDependencyGraph(ctx context.Context) (extensionmanifest.PackageGraph, error) {
 	items, err := s.store.List(ctx)
 	if err != nil {
 		return extensionmanifest.PackageGraph{}, fmt.Errorf("list installed extensions for dependency graph: %w", err)
@@ -29,7 +29,7 @@ func (s *Service) ResolveInstalledDependencyGraph(ctx context.Context) (extensio
 }
 
 // PreflightActivationDependencies 校验启用目标替换同 ID 记录后的完整激活集合。
-func (s *Service) PreflightActivationDependencies(ctx context.Context, id string) (extensionmanifest.PackageGraph, error) {
+func (s *LifecycleService) PreflightActivationDependencies(ctx context.Context, id string) (extensionmanifest.PackageGraph, error) {
 	candidate, err := s.store.Get(ctx, normalizeID(id))
 	if err != nil {
 		return extensionmanifest.PackageGraph{}, err
@@ -37,7 +37,7 @@ func (s *Service) PreflightActivationDependencies(ctx context.Context, id string
 	return s.preflightActivationDependencies(ctx, candidate)
 }
 
-func (s *Service) preflightActivationDependencies(ctx context.Context, candidate Extension) (extensionmanifest.PackageGraph, error) {
+func (s *serviceCore) preflightActivationDependencies(ctx context.Context, candidate Extension) (extensionmanifest.PackageGraph, error) {
 	items, err := s.store.List(ctx)
 	if err != nil {
 		return extensionmanifest.PackageGraph{}, fmt.Errorf("%w: list activation dependencies for %s: %w", ErrPreflightFailed, candidate.ID, err)

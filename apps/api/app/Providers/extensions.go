@@ -18,9 +18,12 @@ import (
 	contentregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentRegistry"
 	editorregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EditorRegistry"
 	entityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EntityRegistry"
+	extensioncomposition "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionComposition"
+	extensionprotocol "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionProtocol"
+	extensionruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionRuntime"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
-	mediaregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/MediaRegistry"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
+	mediaregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/MediaRegistry"
 	navigationregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/NavigationRegistry"
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
@@ -32,8 +35,8 @@ type ExtensionsProvider struct {
 
 type extensionRuntime interface {
 	extensions.RuntimeManager
-	RouteTarget(extensionID string) (extensionsruntime.RouteTarget, bool)
-	AcquireActiveRuntimeCall(context.Context, string, extensionsruntime.RuntimeCallClass) (extensionsruntime.RuntimeInstanceSnapshot, *extensionsruntime.RuntimeAdmissionLease, error)
+	RouteTarget(extensionID string) (extensionprotocol.RouteTarget, bool)
+	AcquireActiveRuntimeCall(context.Context, string, extensionruntime.RuntimeCallClass) (extensionruntime.RuntimeInstanceSnapshot, *extensionruntime.RuntimeAdmissionLease, error)
 }
 
 func NewExtensionsProvider(store extensions.Store, users identity.ActorStore, sessions *authsession.Manager, extensionRoot string, builtinRoot string) *ExtensionsProvider {
@@ -113,11 +116,10 @@ func (p *ExtensionsProvider) WithCacheInspector(
 
 // WithComponentCompositionInspector wires P9 composition registry traces.
 func (p *ExtensionsProvider) WithComponentCompositionInspector(
-	registry *extensionsruntime.ComponentRegistry,
-	composition *extensionsruntime.ProductionComponentComposition,
+	inspector extensioncomposition.Inspector,
 ) *ExtensionsProvider {
 	if p != nil && p.controller != nil {
-		p.controller.WithComponentCompositionInspector(registry, composition)
+		p.controller.WithComponentCompositionInspector(inspector)
 	}
 	return p
 }
@@ -217,7 +219,7 @@ type extensionRouteGateway struct {
 }
 
 func (g extensionRouteGateway) Proxy(c fiber.Ctx, input extensionscontroller.ProxyInput) error {
-	target, admission, err := g.runtime.AcquireActiveRuntimeCall(c.Context(), input.Matched.Extension.ID, extensionsruntime.RuntimeCallRoute)
+	target, admission, err := g.runtime.AcquireActiveRuntimeCall(c.Context(), input.Matched.Extension.ID, extensionruntime.RuntimeCallRoute)
 	if err != nil {
 		return errors.Join(extensions.ErrRuntimeUnavailable, err)
 	}
@@ -240,7 +242,7 @@ func (g extensionRouteGateway) Proxy(c fiber.Ctx, input extensionscontroller.Pro
 	if input.HasActor {
 		actorID = strconv.FormatInt(input.Actor.ID, 10)
 	}
-	return g.gateway.Proxy(&extensionsruntime.ProxyInput{
+	return g.gateway.Proxy(&extensionprotocol.ProxyInput{
 		Context:     admission.Context,
 		Request:     c.Request(),
 		Response:    c.Response(),

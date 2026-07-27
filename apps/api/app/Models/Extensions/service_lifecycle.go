@@ -14,7 +14,7 @@ import (
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
-func (s *Service) restoreSettingsAfterRestartFailure(
+func (s *serviceCore) restoreSettingsAfterRestartFailure(
 	ctx context.Context,
 	extensionID string,
 	previous map[string]string,
@@ -48,7 +48,7 @@ func (s *Service) restoreSettingsAfterRestartFailure(
 	return fmt.Errorf("restart extension after settings change: %w", restartErr)
 }
 
-func (s *Service) resolvePreparedSettingsMutation(
+func (s *serviceCore) resolvePreparedSettingsMutation(
 	ctx context.Context,
 	extensionID string,
 	previous map[string]string,
@@ -143,7 +143,7 @@ func extensionDeclaresAuthProvider(extension Extension) bool {
 
 // PublicActiveThemeSettings 返回当前激活主题的非 secret 设置（含默认值）。
 // 供前台主题 layer 读取可运营配置；secret 永不出现在公开响应中。
-func (s *Service) PublicActiveThemeSettings(ctx context.Context) (PublicActiveThemeSettings, error) {
+func (s *LifecycleService) PublicActiveThemeSettings(ctx context.Context) (PublicActiveThemeSettings, error) {
 	var theme Extension
 	var err error
 	if s.safeMode {
@@ -184,7 +184,7 @@ func (s *Service) PublicActiveThemeSettings(ctx context.Context) (PublicActiveTh
 	}, nil
 }
 
-func (s *Service) restartPluginForSettings(
+func (s *serviceCore) restartPluginForSettings(
 	ctx context.Context,
 	extension Extension,
 	restart RuntimeQuerySettingsRestartTransaction,
@@ -207,7 +207,7 @@ func (s *Service) restartPluginForSettings(
 	return s.runtime.Start(ctx, extension)
 }
 
-func (s *Service) preparePluginSettingsRestart(
+func (s *serviceCore) preparePluginSettingsRestart(
 	ctx context.Context,
 	extension Extension,
 ) (RuntimeQuerySettingsRestartTransaction, error) {
@@ -234,7 +234,7 @@ func (s *Service) preparePluginSettingsRestart(
 	return restarter.PrepareRuntimeQueriesForSettings(ctx, extension)
 }
 
-func (s *Service) MatchRoute(ctx context.Context, extensionID string, method string, routePath string) (MatchedRoute, error) {
+func (s *LifecycleService) MatchRoute(ctx context.Context, extensionID string, method string, routePath string) (MatchedRoute, error) {
 	if s.safeMode {
 		return MatchedRoute{}, ErrRouteNotFound
 	}
@@ -264,7 +264,7 @@ func (s *Service) MatchRoute(ctx context.Context, extensionID string, method str
 	return MatchedRoute{}, ErrRouteNotFound
 }
 
-func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, input EnableInput) (Extension, error) {
+func (s *LifecycleService) Enable(ctx context.Context, actor identity.Actor, id string, input EnableInput) (Extension, error) {
 	if !canManagePlugins(actor) {
 		return Extension{}, identity.ErrPermissionDenied
 	}
@@ -464,13 +464,13 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 	return s.decorateRuntime(ctx, enabled), nil
 }
 
-func (s *Service) Disable(ctx context.Context, actor identity.Actor, id string) (Extension, error) {
+func (s *LifecycleService) Disable(ctx context.Context, actor identity.Actor, id string) (Extension, error) {
 	return s.DisableWithInput(ctx, actor, id, LifecycleRequestInput{})
 }
 
 // DisableWithInput preserves the old Disable call surface while allowing HTTP
 // callers to bind a stable idempotency key for protocol V2 plugins.
-func (s *Service) DisableWithInput(ctx context.Context, actor identity.Actor, id string, input LifecycleRequestInput) (Extension, error) {
+func (s *LifecycleService) DisableWithInput(ctx context.Context, actor identity.Actor, id string, input LifecycleRequestInput) (Extension, error) {
 	if !canManagePlugins(actor) {
 		return Extension{}, identity.ErrPermissionDenied
 	}
@@ -603,7 +603,7 @@ func (s *Service) DisableWithInput(ctx context.Context, actor identity.Actor, id
 	return s.decorateRuntime(ctx, disabled), nil
 }
 
-func (s *Service) VerifyExtension(ctx context.Context, actor identity.Actor, id string) (Extension, error) {
+func (s *LifecycleService) VerifyExtension(ctx context.Context, actor identity.Actor, id string) (Extension, error) {
 	if !canManagePlugins(actor) {
 		return Extension{}, identity.ErrPermissionDenied
 	}
@@ -637,11 +637,11 @@ func (s *Service) VerifyExtension(ctx context.Context, actor identity.Actor, id 
 	return s.decorateRuntime(ctx, extension), nil
 }
 
-func (s *Service) ActivateTheme(ctx context.Context, actor identity.Actor, id string) (Extension, error) {
+func (s *LifecycleService) ActivateTheme(ctx context.Context, actor identity.Actor, id string) (Extension, error) {
 	return s.activateTheme(ctx, actor, id, ThemeActivationInput{}, false)
 }
 
-func (s *Service) ActivateThemeFromPreview(
+func (s *LifecycleService) ActivateThemeFromPreview(
 	ctx context.Context,
 	actor identity.Actor,
 	id string,
@@ -650,7 +650,7 @@ func (s *Service) ActivateThemeFromPreview(
 	return s.activateTheme(ctx, actor, id, input, true)
 }
 
-func (s *Service) activateTheme(
+func (s *serviceCore) activateTheme(
 	ctx context.Context,
 	actor identity.Actor,
 	id string,
@@ -869,7 +869,7 @@ func (s *Service) activateTheme(
 	return active, nil
 }
 
-func (s *Service) compensateCommittedThemeActivation(
+func (s *serviceCore) compensateCommittedThemeActivation(
 	ctx context.Context,
 	actor identity.Actor,
 	trustReceipt executableTrustGrantReceipt,

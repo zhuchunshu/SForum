@@ -14,20 +14,20 @@ import (
 )
 
 const (
-	maxPublications         = 512
-	maxEntitiesTotal        = 4096
+	maxPublications           = 512
+	maxEntitiesTotal          = 4096
 	maxEntitiesPerPublication = 256
-	maxIDLength             = extensionmanifest.ManifestIDMaximumLength
-	maxContractVersionLength = extensionmanifest.ContractVersionMaximumLength
-	maxSchemaRefLength      = extensionmanifest.SchemaReferenceMaximumLength
-	maxExtensionVersionLen  = 128
-	maxRuntimeInstanceIDLen = 512
-	maxLabelLength          = 128
-	maxStorageKeyLength     = 128
-	maxUIComponentLength    = 128
-	maxUIModuleLength       = 512
-	maxPermissionLength     = maxIDLength
-	maxRefsPerDeclaration   = 64
+	maxIDLength               = extensionmanifest.ManifestIDMaximumLength
+	maxContractVersionLength  = extensionmanifest.ContractVersionMaximumLength
+	maxSchemaRefLength        = extensionmanifest.SchemaReferenceMaximumLength
+	maxExtensionVersionLen    = 128
+	maxRuntimeInstanceIDLen   = 512
+	maxLabelLength            = 128
+	maxStorageKeyLength       = 128
+	maxUIComponentLength      = 128
+	maxUIModuleLength         = 512
+	maxPermissionLength       = maxIDLength
+	maxRefsPerDeclaration     = 64
 )
 
 var (
@@ -36,7 +36,7 @@ var (
 	contractPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*@[1-9][0-9]*$`)
 	schemaPattern   = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*@[1-9][0-9]*$`)
 	// Storage keys are lower-snake package namespaces (extension_id.entity_key).
-	storageKeyPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{1,127}$`)
+	storageKeyPattern  = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{1,127}$`)
 	uiComponentPattern = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9._-]{0,127}$`)
 )
 

@@ -85,25 +85,25 @@ type Manifest struct {
 	Capabilities []string `json:"capabilities,omitempty"`
 	// RequiresFeatures 为站点产品开关依赖（F4.5）。须为宿主 features.* 目录 key；
 	// 启用时若任一开关关闭则拒绝。主题必须为空。
-	RequiresFeatures      []string                       `json:"requiresFeatures,omitempty"`
-	Settings              []ManifestSetting              `json:"-"`
-	SettingsDocument      SettingsDocument               `json:"-"`
-	Migrations            []ManifestMigration            `json:"migrations"`
-	Backend               ManifestBackend                `json:"backend"`
-	Admin                 ManifestAdmin                  `json:"admin"`
-	AdminPages            []ManifestAdminPage            `json:"adminPages"`
-	Routes                []ManifestRoute                `json:"routes"`
-	Hooks                 []ManifestHook                 `json:"hooks"`
-	Events                []ManifestEvent                `json:"events"`
-	Jobs                  []ManifestJob                  `json:"jobs"`
-	Providers             []ManifestProvider             `json:"providers"`
-	Contributions         []ManifestContribution         `json:"contributions"`
-	Guards                []ManifestGuard                `json:"guards,omitempty"`
-	Schedules             []ManifestSchedule             `json:"schedules,omitempty"`
-	Components            []ManifestComponent            `json:"components,omitempty"`
-	Templates             []ManifestTemplate             `json:"templates,omitempty"`
-	Assets                []ManifestAsset                `json:"assets,omitempty"`
-	Content               []ManifestContent              `json:"content,omitempty"`
+	RequiresFeatures []string               `json:"requiresFeatures,omitempty"`
+	Settings         []ManifestSetting      `json:"-"`
+	SettingsDocument SettingsDocument       `json:"-"`
+	Migrations       []ManifestMigration    `json:"migrations"`
+	Backend          ManifestBackend        `json:"backend"`
+	Admin            ManifestAdmin          `json:"admin"`
+	AdminPages       []ManifestAdminPage    `json:"adminPages"`
+	Routes           []ManifestRoute        `json:"routes"`
+	Hooks            []ManifestHook         `json:"hooks"`
+	Events           []ManifestEvent        `json:"events"`
+	Jobs             []ManifestJob          `json:"jobs"`
+	Providers        []ManifestProvider     `json:"providers"`
+	Contributions    []ManifestContribution `json:"contributions"`
+	Guards           []ManifestGuard        `json:"guards,omitempty"`
+	Schedules        []ManifestSchedule     `json:"schedules,omitempty"`
+	Components       []ManifestComponent    `json:"components,omitempty"`
+	Templates        []ManifestTemplate     `json:"templates,omitempty"`
+	Assets           []ManifestAsset        `json:"assets,omitempty"`
+	Content          []ManifestContent      `json:"content,omitempty"`
 	// Editor is the P10 Tiptap node/mark/command/toolbar surface (trusted L2).
 	Editor []ManifestEditor `json:"editor,omitempty"`
 	// Entities is the P10 Entity Type / Taxonomy / Field Schema surface.

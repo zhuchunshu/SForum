@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { useRoleSuggestions } from '~/composables/identity/useRoleSuggestions'
+import { usePermissionText } from '~/composables/identity/usePermissionText'
 import { apiErrorMessage } from '~/composables/useApiClient'
-import { useAdminPage } from '~/composables/useAdminPage'
+import { useAdminPage } from '~/composables/admin/useAdminPage'
 import { ROLE_TEMPLATE_DEFINITIONS, type RoleTemplateDefinition } from '~/config/roleTemplates'
 
 definePageMeta({

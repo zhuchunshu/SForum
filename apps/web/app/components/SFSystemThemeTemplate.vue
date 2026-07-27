@@ -1,21 +1,22 @@
 <script setup lang="ts">
+import { useSystemErrorPageContext } from '~/composables/errors/useSystemErrorPageContext'
 import type { NuxtError } from '#app'
 import type { Component } from 'vue'
-import type { ThemeRenderOutput } from '~/composables/useThemeRenderOutput'
+import type { ThemeRenderOutput } from '~/composables/themes/useThemeRenderOutput'
 import {
   parseLegacyThemeHTML,
   parseThemeRenderOutput,
   renderThemeRenderNodes
-} from '~/composables/useThemeRenderOutput'
+} from '~/composables/themes/useThemeRenderOutput'
 import SFFooter from './SFFooter.vue'
 import SFNavbar from './SFNavbar.vue'
-import SFNotFoundPageContent from './SFNotFoundPageContent.vue'
-import SFSystemErrorActions from './SFSystemErrorActions.vue'
-import SFSystemErrorDetails from './SFSystemErrorDetails.vue'
-import SFSystemErrorEmergencyPage from './SFSystemErrorEmergencyPage.vue'
-import SFSystemErrorRail from './SFSystemErrorRail.vue'
-import SFSystemErrorRecovery from './SFSystemErrorRecovery.vue'
-import SFSystemErrorSidebar from './SFSystemErrorSidebar.vue'
+import SFNotFoundPageContent from './errors/SFNotFoundPageContent.vue'
+import SFSystemErrorActions from './errors/SFSystemErrorActions.vue'
+import SFSystemErrorDetails from './errors/SFSystemErrorDetails.vue'
+import SFSystemErrorEmergencyPage from './errors/SFSystemErrorEmergencyPage.vue'
+import SFSystemErrorRail from './errors/SFSystemErrorRail.vue'
+import SFSystemErrorRecovery from './errors/SFSystemErrorRecovery.vue'
+import SFSystemErrorSidebar from './errors/SFSystemErrorSidebar.vue'
 
 const props = defineProps<{
   html?: string

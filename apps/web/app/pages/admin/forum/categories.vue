@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
-import { useAdminPage } from '~/composables/useAdminPage'
+import { useAdminPage } from '~/composables/admin/useAdminPage'
 import {
   createAdminForumApi,
   createCategoryGroupPayload,
@@ -9,8 +9,8 @@ import {
   forumVisibilityChoices,
   type AdminForumCategoryGroupPayload,
   type AdminForumCategoryPayload
-} from '~/utils/adminForum'
-import type { ForumCategory, ForumCategoryGroup } from '~/utils/forumTaxonomy'
+} from '~/utils/admin/adminForum'
+import type { ForumCategory, ForumCategoryGroup } from '~/utils/forum/forumTaxonomy'
 
 definePageMeta({
   middleware: 'admin',

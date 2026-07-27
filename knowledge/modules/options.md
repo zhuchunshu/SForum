@@ -9,6 +9,12 @@ runtime without rebuilding or restarting the application.
 
 Initial runtime option support is implemented.
 
+The 2026-07-28 architecture debt program moved option normalization into
+focused site, identity, forum, SEO, attachment, and avatar files while keeping
+`service_normalize.go` as the dispatcher. Fixed admin settings tabs own their
+form lifecycle and submit only their allowed option subset; route pages remain
+SSR/query/permission shells.
+
 - PostgreSQL migration `202607050001_web_options.sql` creates
   `web_options(name, value)` and seeds `site.name = SForum`.
 - Backend module `apps/api/app/Models/Options` exposes a typed service with

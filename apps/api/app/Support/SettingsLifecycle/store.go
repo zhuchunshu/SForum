@@ -375,8 +375,8 @@ func (s *MemorySettingsKV) ReplaceSettingsCAS(_ context.Context, extensionID str
 
 // Ensure DocumentStore implementations stay honest about errors.
 var (
-	_ DocumentStore         = (*MemoryDocumentStore)(nil)
-	_ DocumentStore         = (*SettingsKVStore)(nil)
-	_ SettingsKV            = (*MemorySettingsKV)(nil)
+	_ DocumentStore          = (*MemoryDocumentStore)(nil)
+	_ DocumentStore          = (*SettingsKVStore)(nil)
+	_ SettingsKV             = (*MemorySettingsKV)(nil)
 	_ AtomicSettingsReplacer = (*MemorySettingsKV)(nil)
 )

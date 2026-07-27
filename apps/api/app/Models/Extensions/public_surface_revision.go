@@ -43,7 +43,7 @@ func ManifestAffectsPublicSurface(manifest Manifest) bool {
 	return false
 }
 
-func (s *Service) maybeBumpPublicSurfaceRevision(ctx context.Context, extension Extension) {
+func maybeBumpPublicSurfaceRevision(s *Service, ctx context.Context, extension Extension) {
 	if s == nil || s.publicSurfaceRevision == nil {
 		return
 	}

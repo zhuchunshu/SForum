@@ -7,19 +7,19 @@ import (
 // attachment.storage.provider known-slot：经 ProviderCall 承载分块 Put/Open。
 // 二进制块以 base64 放进 TypedDocument（structpb 不接受 []byte）。
 const (
-	storageProviderSlot           = "attachment.storage.provider"
-	storageLegacyContractVersion  = "1"
-	storageOpProbe                = "probe"
-	storageOpPutBegin             = "put_begin"
-	storageOpPutChunk             = "put_chunk"
-	storageOpOpen                 = "open"
-	storageOpGetChunk             = "get_chunk"
-	storageOpClose                = "close"
-	storageOpDelete               = "delete"
-	storageOpStat                 = "stat"
-	storageOpExists               = "exists"
-	storageOpPublicURL            = "public_url"
-	storageOpSignedURL            = "signed_url"
+	storageProviderSlot          = "attachment.storage.provider"
+	storageLegacyContractVersion = "1"
+	storageOpProbe               = "probe"
+	storageOpPutBegin            = "put_begin"
+	storageOpPutChunk            = "put_chunk"
+	storageOpOpen                = "open"
+	storageOpGetChunk            = "get_chunk"
+	storageOpClose               = "close"
+	storageOpDelete              = "delete"
+	storageOpStat                = "stat"
+	storageOpExists              = "exists"
+	storageOpPublicURL           = "public_url"
+	storageOpSignedURL           = "signed_url"
 )
 
 func (c *protocolV2Client) StorageProbe(StorageProbeRequest) (StorageProbeResponse, error) {

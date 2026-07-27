@@ -5,10 +5,10 @@ const root = process.cwd();
 // V3 presentation ownership：auth 路由壳 + Host body 岛（表单/ALTCHA 在岛上）。
 const registerRoutePath = 'apps/web/app/pages/register.vue';
 const loginRoutePath = 'apps/web/app/pages/login.vue';
-const registerFormPath = 'apps/web/app/components/SFRegisterFormPage.vue';
-const loginFormPath = 'apps/web/app/components/SFLoginFormPage.vue';
+const registerFormPath = 'apps/web/app/components/identity/SFRegisterFormPage.vue';
+const loginFormPath = 'apps/web/app/components/identity/SFLoginFormPage.vue';
 const requiredFiles = [
-  'apps/web/app/composables/useAuthSession.ts',
+  'apps/web/app/composables/identity/useAuthSession.ts',
   'apps/web/app/middleware/admin.ts',
   registerRoutePath,
   loginRoutePath,

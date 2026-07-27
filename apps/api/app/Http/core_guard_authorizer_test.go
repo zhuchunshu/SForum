@@ -139,17 +139,17 @@ func TestProductionForumReadGuardPartitionsCatalogByProvablePolicy(t *testing.T)
 	expected := map[string]expectedRoute{
 		"core.route.forum.composer_toolbar": {method: "GET", supported: true},
 
-		"core.route.forum.categories":      {method: "GET"},
-		"core.route.forum.category_groups": {method: "GET"},
-		"core.route.forum.replies":         {method: "GET"},
-		"core.route.forum.search":          {method: "GET"},
-		"core.route.forum.tags":            {method: "GET"},
-		"core.route.forum.topics":          {method: "GET"},
-		"core.route.forum.topic":           {method: "GET"},
-		"core.route.forum.comments":        {method: "GET"},
+		"core.route.forum.categories":                  {method: "GET"},
+		"core.route.forum.category_groups":             {method: "GET"},
+		"core.route.forum.replies":                     {method: "GET"},
+		"core.route.forum.search":                      {method: "GET"},
+		"core.route.forum.tags":                        {method: "GET"},
+		"core.route.forum.topics":                      {method: "GET"},
+		"core.route.forum.topic":                       {method: "GET"},
+		"core.route.forum.comments":                    {method: "GET"},
 		"core.route.forum.topic_contribution_timeline": {method: "GET"},
-		"core.route.forum.topic_by_slug":   {method: "GET"},
-		"core.route.forum.comment_page":    {method: "GET"},
+		"core.route.forum.topic_by_slug":               {method: "GET"},
+		"core.route.forum.comment_page":                {method: "GET"},
 	}
 	var catalog []routes.CoreRoute
 	for _, route := range routes.CoreRouteCatalog() {
@@ -520,6 +520,7 @@ func TestProductionExtensionsMutationGuardPartitionsCatalogByProvablePolicy(t *t
 		"core.route.extensions.rollback":                         {method: "POST", supported: true, permissions: plugin},
 		"core.route.extensions.revoke_executable_trust":          {method: "DELETE", supported: true, permissions: superAdmin},
 		"core.route.extensions.issue_executable_trust_challenge": {method: "POST", supported: true, permissions: superAdmin},
+		"core.route.extensions.cleanup_missing_artifacts":        {method: "POST", supported: true, permissions: superAdmin},
 		"core.route.extensions.probe_provider_slot":              {method: "POST", supported: true, permissions: superAdmin},
 		"core.route.extensions.select_provider_slot":             {method: "POST", supported: true, permissions: superAdmin},
 		"core.route.extensions.reset_provider_slot":              {method: "POST", supported: true, permissions: superAdmin},
@@ -529,6 +530,7 @@ func TestProductionExtensionsMutationGuardPartitionsCatalogByProvablePolicy(t *t
 		"core.route.extensions.install":                 {method: "POST"},
 		"core.route.extensions.uninstall":               {method: "DELETE"},
 		"core.route.extensions.enable":                  {method: "POST"},
+		"core.route.extensions.restart":                 {method: "POST"},
 		"core.route.extensions.apply_migrations":        {method: "POST"},
 		"core.route.extensions.update_settings":         {method: "PUT"},
 		"core.route.extensions.execute_settings_action": {method: "POST"},
@@ -666,30 +668,30 @@ func TestProductionExtensionsReadGuardPartitionsCatalogByProvablePolicy(t *testi
 		identity.PermissionExtensionManage,
 	}
 	expected := map[string]expectedRoute{
-		"core.route.extensions.list":                      {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.events":                    {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.lifecycle_operations":      {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.lifecycle_operation":       {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.list_migrations":           {method: "GET", supported: true, permissions: migrations},
-		"core.route.extensions.executable_trust_status":   {method: "GET", supported: true, permissions: trust},
-		"core.route.extensions.contribution_points":       {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.contributions":             {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.event_definitions":         {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.event_deliveries":          {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.navigation":                {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.inspect_provider_slots":    {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.provider_slot_events":      {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.inspect_asset":             {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.inspect_cache":             {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.inspect_route":             {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.inspect_templates":         {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.component_inspector":       {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.navigation_inspector":      {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.openapi_aggregate":         {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.generated_client_metadata": {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.route_provider_conflicts":  {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.route_provider_events":     {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.route_provider_selection":  {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.list":                         {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.events":                       {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.lifecycle_operations":         {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.lifecycle_operation":          {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.list_migrations":              {method: "GET", supported: true, permissions: migrations},
+		"core.route.extensions.executable_trust_status":      {method: "GET", supported: true, permissions: trust},
+		"core.route.extensions.contribution_points":          {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.contributions":                {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.event_definitions":            {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.event_deliveries":             {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.navigation":                   {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.inspect_provider_slots":       {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.provider_slot_events":         {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.inspect_asset":                {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.inspect_cache":                {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.inspect_route":                {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.inspect_templates":            {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.component_inspector":          {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.navigation_inspector":         {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.openapi_aggregate":            {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.generated_client_metadata":    {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.route_provider_conflicts":     {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.route_provider_events":        {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.route_provider_selection":     {method: "GET", supported: true, permissions: viewer},
 		"core.route.extensions.entity_import_export_dry_run": {method: "GET", supported: true, permissions: viewer},
 
 		"core.route.extensions.frontend_status": {method: "GET"},
@@ -799,6 +801,7 @@ func TestProductionExtensionPolicyClosesExactArtifactCatalogRoutes(t *testing.T)
 		"core.route.extensions.execute_settings_action": identity.PermissionExtensionPluginManage,
 		"core.route.extensions.reset_settings":          identity.PermissionExtensionPluginManage,
 		"core.route.extensions.upgrade":                 identity.PermissionExtensionPluginManage,
+		"core.route.extensions.restart":                 identity.PermissionExtensionPluginManage,
 		"core.route.extensions.verify":                  identity.PermissionExtensionPluginManage,
 		"core.route.extensions.frontend_status":         identity.PermissionExtensionView,
 		"core.route.extensions.frontend_asset":          identity.PermissionExtensionPluginManage,
@@ -824,7 +827,7 @@ func TestProductionExtensionPolicyClosesExactArtifactCatalogRoutes(t *testing.T)
 			t.Fatalf("%s denied error = %v", route.ID, err)
 		}
 	}
-	if covered != 12 || len(expected) != 0 {
+	if covered != 13 || len(expected) != 0 {
 		t.Fatalf("covered=%d missing=%#v", covered, expected)
 	}
 	for _, route := range routes.CoreRouteCatalog() {
@@ -858,7 +861,7 @@ func TestProductionExtensionPolicyEnforcesTypeTrustSafeModeAndDrift(t *testing.T
 	policy := &testExtensionGuardPolicy{ok: true}
 	authorizer := NewProductionRouteGuardAuthorizerWithPolicies(ProductionRouteGuardPolicies{Extensions: policy})
 
-	for _, routeID := range []string{"core.route.extensions.enable", "core.route.extensions.upgrade"} {
+	for _, routeID := range []string{"core.route.extensions.enable", "core.route.extensions.upgrade", "core.route.extensions.restart"} {
 		plan, step := productionExtensionPolicyGuardPlan(t, targets[routeID], base)
 		policy.lookup = extensions.GuardPolicyLookup{Revision: 1, TrustChallengesEnabled: true, Entry: base, Found: true}
 		manager := productionGuardRequest(identity.PermissionExtensionPluginManage)

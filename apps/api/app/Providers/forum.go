@@ -32,7 +32,11 @@ func NewForumProviderWithEvents(store forum.Store, users identity.ActorStore, se
 
 func NewForumProviderWithOptionsAndEvents(store forum.Store, optionsService *options.Service, users identity.ActorStore, sessions *authsession.Manager, publisher appevents.Publisher) *ForumProvider {
 	return &ForumProvider{
-		controller: forumcontroller.NewController(forum.NewServiceWithSettingsAndEvents(store, ForumSettingsResolver{options: optionsService}, publisher), users, sessions),
+		controller: forumcontroller.NewController(forum.NewService(forum.ServiceConfig{
+			Store:     store,
+			Settings:  ForumSettingsResolver{options: optionsService},
+			Publisher: publisher,
+		}), users, sessions),
 	}
 }
 
@@ -63,19 +67,22 @@ func NewForumProviderWithTopicSurfaces(store forum.Store, optionsService *option
 
 // NewForumProviderWithPublicContributions 注入 topic/comment/sidebar 等公开贡献解析（E2.x）。
 func NewForumProviderWithPublicContributions(store forum.Store, optionsService *options.Service, users identity.ActorStore, sessions *authsession.Manager, publisher appevents.Publisher, indexer forum.TopicSearchIndexer, searchService forumcontroller.SearchService, reindexer forumcontroller.ReindexService, topicActions forum.TopicExtensionActionProvider, commentActions forum.CommentExtensionActionProvider, topicSurfaces forum.TopicExtensionSurfaceProvider, composerToolbar forum.ComposerToolbarProvider, publicationPolicy forum.PublicationPolicy) *ForumProvider {
-	service := forum.NewServiceWithExtensionsAndPublicationPolicy(store, ForumSettingsResolver{options: optionsService}, publisher, indexer, topicActions, publicationPolicy)
+	var trustPolicy forum.TrustPolicyResolver
 	if optionsService != nil {
-		service.WithTrustPolicy(TrustPolicyAdapter{options: optionsService})
+		trustPolicy = TrustPolicyAdapter{options: optionsService}
 	}
-	if composerToolbar != nil {
-		service.WithComposerToolbar(composerToolbar)
-	}
-	if topicSurfaces != nil {
-		service.WithTopicExtensionSurfaces(topicSurfaces)
-	}
-	if commentActions != nil {
-		service.WithCommentExtensionActions(commentActions)
-	}
+	service := forum.NewService(forum.ServiceConfig{
+		Store:             store,
+		Settings:          ForumSettingsResolver{options: optionsService},
+		Publisher:         publisher,
+		Indexer:           indexer,
+		TopicActions:      topicActions,
+		CommentActions:    commentActions,
+		TopicSurfaces:     topicSurfaces,
+		ComposerToolbar:   composerToolbar,
+		PublicationPolicy: publicationPolicy,
+		TrustPolicy:       trustPolicy,
+	})
 	return &ForumProvider{
 		controller: forumcontroller.NewControllerWithSearch(service, searchService, reindexer, users, sessions),
 	}
@@ -386,17 +393,17 @@ func (r ForumSettingsResolver) ForumSettings(ctx context.Context) (forum.ForumSe
 		settings.TagPublicPages = enabled
 	}
 	for name, target := range map[string]*int{
-		options.NameForumTagMinPerTopic:           &settings.TagMinPerTopic,
-		options.NameForumTagMaxPerTopic:           &settings.TagMaxPerTopic,
-		options.NameForumTopicsPerPage:            &settings.TopicsPerPage,
-		options.NameForumCommentsPerPage:          &settings.CommentsPerPage,
-		options.NameForumTopicTitleMinRunes:       &settings.TopicTitleMinRunes,
-		options.NameForumTopicTitleMaxRunes:       &settings.TopicTitleMaxRunes,
-		options.NameForumTopicContentMinRunes:     &settings.TopicContentMinRunes,
-		options.NameForumTopicContentMaxRunes:     &settings.TopicContentMaxRunes,
-		options.NameForumTopicEditWindowMinutes:   &settings.TopicEditWindowMinutes,
-		options.NameForumTopicCooldownSeconds:     &settings.TopicCooldownSeconds,
-		options.NameForumDailyTopicLimit:          &settings.DailyTopicLimit,
+		options.NameForumTagMinPerTopic:                 &settings.TagMinPerTopic,
+		options.NameForumTagMaxPerTopic:                 &settings.TagMaxPerTopic,
+		options.NameForumTopicsPerPage:                  &settings.TopicsPerPage,
+		options.NameForumCommentsPerPage:                &settings.CommentsPerPage,
+		options.NameForumTopicTitleMinRunes:             &settings.TopicTitleMinRunes,
+		options.NameForumTopicTitleMaxRunes:             &settings.TopicTitleMaxRunes,
+		options.NameForumTopicContentMinRunes:           &settings.TopicContentMinRunes,
+		options.NameForumTopicContentMaxRunes:           &settings.TopicContentMaxRunes,
+		options.NameForumTopicEditWindowMinutes:         &settings.TopicEditWindowMinutes,
+		options.NameForumTopicCooldownSeconds:           &settings.TopicCooldownSeconds,
+		options.NameForumDailyTopicLimit:                &settings.DailyTopicLimit,
 		options.NameForumCommentMinRunes:                &settings.CommentMinRunes,
 		options.NameForumCommentMaxRunes:                &settings.CommentMaxRunes,
 		options.NameForumCommentMaxNestingDepth:         &settings.CommentMaxNestingDepth,
@@ -404,10 +411,10 @@ func (r ForumSettingsResolver) ForumSettings(ctx context.Context) (forum.ForumSe
 		options.NameForumCommentEditWindowMinutes:       &settings.CommentEditWindowMinutes,
 		options.NameForumCommentCooldownSeconds:         &settings.CommentCooldownSeconds,
 		options.NameForumDailyCommentLimit:              &settings.DailyCommentLimit,
-		options.NameForumExcerptRuneLimit:         &settings.ExcerptRuneLimit,
-		options.NameForumListHotWindowDays:        &settings.ListHotWindowDays,
-		options.NameForumTopicsAutoLockIdleDays:   &settings.AutoLockIdleDays,
-		options.NameForumMentionsMaxPerPost:       &settings.MentionsMaxPerPost,
+		options.NameForumExcerptRuneLimit:               &settings.ExcerptRuneLimit,
+		options.NameForumListHotWindowDays:              &settings.ListHotWindowDays,
+		options.NameForumTopicsAutoLockIdleDays:         &settings.AutoLockIdleDays,
+		options.NameForumMentionsMaxPerPost:             &settings.MentionsMaxPerPost,
 	} {
 		value, err = r.options.WebOption(ctx, name)
 		if err != nil {

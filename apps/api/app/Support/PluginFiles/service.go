@@ -12,8 +12,8 @@ import (
 
 // Service manages Host-rooted plugin file namespaces.
 type Service struct {
-	mu       sync.Mutex
-	baseDir  string
+	mu         sync.Mutex
+	baseDir    string
 	namespaces map[string]Namespace
 }
 

@@ -52,16 +52,19 @@ const openapi = read('contracts/openapi.yaml')
 assert(openapi.includes('/admin/extensions/{extensionID}/upgrade'), 'OpenAPI index must expose upgrade')
 assert(openapi.includes('/admin/extensions/{extensionID}/rollback'), 'OpenAPI index must expose rollback')
 
-const types = read('apps/web/app/utils/adminExtensions.ts')
+const types = read('apps/web/app/utils/admin/adminExtensions.ts')
 assert(types.includes('export type AdminExtensionVersion = {'), 'web types must define AdminExtensionVersion')
 assert(types.includes('stagedVersion?: AdminExtensionVersion'), 'AdminExtension must expose stagedVersion')
 
-const manager = read('apps/web/app/composables/useAdminExtensionsManager.ts')
+const manager = read('apps/web/app/composables/admin/useAdminExtensionsManager.ts')
+const lifecyclePresentation = read('apps/web/app/utils/admin/extensions/lifecyclePresentation.ts')
 assert(manager.includes('activationPending?: boolean'), 'upload result type must expose activationPending')
 assert(manager.includes("t('admin.extensions.upgradeStagedHint')"), 'staged upload toast must explain pending activation')
 assert(manager.includes("headers: { 'Idempotency-Key': idempotencyKey }"), 'lifecycle requests must send Idempotency-Key')
 assert(manager.includes('globalThis.crypto.randomUUID()'), 'each lifecycle operation must use a UUID idempotency key')
-assert(manager.includes("action: 'enable' | 'disable' | 'upgrade' | 'rollback'"), 'frontend lifecycle helper must cover V2 operations')
+for (const action of ["'enable'", "'disable'", "'upgrade'", "'rollback'"]) {
+  assert(lifecyclePresentation.includes(action), `frontend lifecycle helper must cover V2 operation ${action}`)
+}
 
 const overview = read('apps/web/app/pages/admin/extensions/index.vue')
 assert(overview.includes("t('admin.extensions.stagedVersionBadge'"), 'extension list must identify a staged candidate')

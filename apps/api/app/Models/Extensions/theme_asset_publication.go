@@ -25,7 +25,7 @@ type exactAssetMutation struct {
 	rollbackSafe  bool
 }
 
-func (s *Service) captureAssetPublicationSnapshot() assetPublicationSnapshot {
+func (s *serviceCore) captureAssetPublicationSnapshot() assetPublicationSnapshot {
 	if s == nil || s.assetRegistry == nil {
 		return assetPublicationSnapshot{}
 	}
@@ -33,7 +33,7 @@ func (s *Service) captureAssetPublicationSnapshot() assetPublicationSnapshot {
 	return assetPublicationSnapshot{revision: snapshot.Revision, publications: snapshot.Publications}
 }
 
-func (s *Service) validateThemeAssetTransition(
+func (s *serviceCore) validateThemeAssetTransition(
 	ctx context.Context,
 	expected assetPublicationSnapshot,
 	target,
@@ -62,7 +62,7 @@ func (s *Service) validateThemeAssetTransition(
 	return err
 }
 
-func (s *Service) publishThemeAssetTransition(
+func (s *serviceCore) publishThemeAssetTransition(
 	ctx context.Context,
 	expected assetPublicationSnapshot,
 	target,
@@ -89,7 +89,7 @@ func (s *Service) publishThemeAssetTransition(
 // rollbackThemeAssetTransition restores only the exact source captured by the
 // failed transaction. If its live trust/lifecycle authority disappeared, the
 // failed target is removed and no historical theme publication is resurrected.
-func (s *Service) rollbackThemeAssetTransition(
+func (s *serviceCore) rollbackThemeAssetTransition(
 	ctx context.Context,
 	expected assetPublicationSnapshot,
 	restoreSource,
@@ -122,7 +122,7 @@ func (s *Service) rollbackThemeAssetTransition(
 	return assetPublicationSnapshot{revision: revision, publications: desired}, nil
 }
 
-func (s *Service) quarantineCapturedThemeTarget(
+func (s *serviceCore) quarantineCapturedThemeTarget(
 	expected assetPublicationSnapshot,
 	failedTarget *Extension,
 ) error {
@@ -139,7 +139,7 @@ func (s *Service) quarantineCapturedThemeTarget(
 	return nil
 }
 
-func (s *Service) themeAssetPublication(
+func (s *serviceCore) themeAssetPublication(
 	ctx context.Context,
 	extension *Extension,
 	requireLiveAuthority bool,
@@ -153,7 +153,7 @@ func (s *Service) themeAssetPublication(
 	return s.extensionAssetPublication(ctx, *extension, requireLiveAuthority)
 }
 
-func (s *Service) validateExtensionAssetPublication(
+func (s *serviceCore) validateExtensionAssetPublication(
 	ctx context.Context,
 	expected assetPublicationSnapshot,
 	extension Extension,
@@ -185,7 +185,7 @@ func (s *Service) validateExtensionAssetPublication(
 // lifecycle writers do not turn a valid legacy enable into a full-graph CAS
 // conflict. Publish has no writer receipt, so an absent-to-present result is
 // never destructively rolled back: another exact writer is indistinguishable.
-func (s *Service) publishExactExtensionAssetPublication(
+func (s *serviceCore) publishExactExtensionAssetPublication(
 	ctx context.Context,
 	caller assetPublicationSnapshot,
 	extension Extension,
@@ -212,7 +212,7 @@ func (s *Service) publishExactExtensionAssetPublication(
 	}, nil
 }
 
-func (s *Service) extensionAssetPublication(
+func (s *serviceCore) extensionAssetPublication(
 	ctx context.Context,
 	extension Extension,
 	requireLiveAuthority bool,
@@ -271,7 +271,7 @@ func replaceExtensionAssetPublication(
 // quarantineExactAssetPublication removes one caller-captured exact artifact and
 // every current transitive hard dependent through the Registry's owner-exact
 // quarantine swap. A stale disable/uninstall cannot delete a newer publication.
-func (s *Service) quarantineExactAssetPublication(
+func (s *serviceCore) quarantineExactAssetPublication(
 	ctx context.Context,
 	caller assetPublicationSnapshot,
 	extension Extension,
@@ -334,7 +334,7 @@ func assetSnapshotHasExtension(snapshot assetPublicationSnapshot, extensionID st
 	return false
 }
 
-func (s *Service) rollbackExactAssetMutation(mutation exactAssetMutation) error {
+func (s *serviceCore) rollbackExactAssetMutation(mutation exactAssetMutation) error {
 	if s == nil || s.assetRegistry == nil || !mutation.changed {
 		return nil
 	}
@@ -345,7 +345,7 @@ func (s *Service) rollbackExactAssetMutation(mutation exactAssetMutation) error 
 	return err
 }
 
-func (s *Service) restoreEnabledAssetPublications(
+func (s *serviceCore) restoreEnabledAssetPublications(
 	ctx context.Context,
 	expected assetPublicationSnapshot,
 	items []Extension,
@@ -394,7 +394,7 @@ func (s *Service) restoreEnabledAssetPublications(
 // quarantineLifecycleAssetPublication binds terminal uninstall cleanup to the
 // immutable lifecycle authority document. It never discovers a mutable current
 // artifact and then treats that value as the caller's expectation.
-func (s *Service) quarantineLifecycleAssetPublication(operation LifecycleOperation) error {
+func (s *serviceCore) quarantineLifecycleAssetPublication(operation LifecycleOperation) error {
 	if s == nil || s.assetRegistry == nil {
 		return nil
 	}

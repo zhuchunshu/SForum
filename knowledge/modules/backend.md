@@ -15,6 +15,15 @@ implementation: `bootstrap` assembles the API runtime, `app/Http` registers an
 ordered route-provider list, `app/Http/Controllers/*` owns thin controllers and
 route declarations, `app/Providers` owns provider wiring, and `app/Models/*`
 owns domain logic.
+
+The 2026-07-28 architecture debt program split API assembly into focused
+infrastructure, extension restore/platform, domain, and HTTP stages; split the
+large Identity, Forum, and Options files by responsibility; and standardized
+Forum construction on `ServiceConfig`. Stable extension contracts now live in
+`Support/ExtensionRuntime`, `ExtensionProtocol`, `ExtensionDatabase`, and
+`ExtensionComposition`. Models cannot import the legacy concrete runtime;
+bootstrap remains the concrete assembly owner. See
+`decisions/2026-07-28-extension-stable-package-boundaries.md`.
 API startup output now keeps Fiber's useful listen metadata but replaces the
 default Fiber ASCII banner with an SForum API banner through Fiber's
 `OnPreStartupMessage` hook.

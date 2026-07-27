@@ -1,8 +1,8 @@
 import type { ApiEnvelope } from '~/composables/useApiClient'
 // TopicUrlMode 的权威定义在 forumTaxonomy（纯工具模块）；此处复用以避免
 // Nuxt auto-import 的重复类型声明警告。
-import type { TopicUrlMode } from '~/utils/forumTaxonomy'
-import type { SEOContentPolicy, SEOPageType, SEOResolverSettings } from '~/utils/seoResolver'
+import type { TopicUrlMode } from '~/utils/forum/forumTaxonomy'
+import type { SEOContentPolicy, SEOPageType, SEOResolverSettings } from '~/utils/seo/seoResolver'
 
 export type WebOption = {
   name: string

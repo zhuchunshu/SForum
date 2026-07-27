@@ -8,6 +8,10 @@ import (
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 )
 
+func (m *Manager) ProviderSlotSelections() *ProviderSlotSelectionAPI {
+	return m.eventsProviders.ProviderSlotSelections()
+}
+
 const (
 	providerSlotAvailable          = "available"
 	providerSlotUnavailable        = "unavailable"
@@ -19,7 +23,7 @@ const (
 	providerSlotSelectionStale     = "stale"
 )
 
-func (m *Manager) ProviderSlotInspection(ctx context.Context) (extensions.ProviderSlotInspection, error) {
+func (m *RuntimeEventsProviders) ProviderSlotInspection(ctx context.Context) (extensions.ProviderSlotInspection, error) {
 	if ctx == nil {
 		return extensions.ProviderSlotInspection{}, ErrProviderSlotSelectionInvalid
 	}
@@ -110,11 +114,11 @@ func providerSlotSelectionInspection(selection ProviderSlotSelection) *extension
 	}
 }
 
-func (m *Manager) providerSlotArtifactAvailable(artifact HookArtifact) bool {
+func (m *managerCore) providerSlotArtifactAvailable(artifact HookArtifact) bool {
 	if m == nil {
 		return false
 	}
-	return m.RuntimeInstanceAvailable(RuntimeInstanceIdentity{
+	return m.host.RuntimeInstanceAvailable(RuntimeInstanceIdentity{
 		ExtensionID: artifact.ExtensionID, InstanceID: artifact.RuntimeInstanceID,
 	})
 }
@@ -127,3 +131,9 @@ func providerSlotInspectionArtifact(artifact HookArtifact) extensions.ProviderSl
 }
 
 var _ extensions.ProviderSlotInspectionSource = (*Manager)(nil)
+
+// Compatibility facade: runtime logic is owned by focused collaborators.
+
+func (m *Manager) ProviderSlotInspection(ctx context.Context) (extensions.ProviderSlotInspection, error) {
+	return m.eventsProviders.ProviderSlotInspection(ctx)
+}

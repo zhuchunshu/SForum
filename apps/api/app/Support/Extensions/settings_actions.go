@@ -19,7 +19,7 @@ func (settings fixedPluginSettings) ListSettings(context.Context, string) (map[s
 
 // ProbeSettingsAction starts an isolated short-lived RPC runtime. It receives no Host API
 // token and is never registered in Manager routes, hooks, jobs, schedules, or providers.
-func (m *Manager) ProbeSettingsAction(ctx context.Context, extension extensions.Extension, providerSlot string, values map[string]string) (extensions.SettingsActionProbeResult, error) {
+func (m *RuntimeInvoker) ProbeSettingsAction(ctx context.Context, extension extensions.Extension, providerSlot string, values map[string]string) (extensions.SettingsActionProbeResult, error) {
 	starter := NewProtocolStarter(ProtocolStarterConfig{Settings: fixedPluginSettings(values)})
 	if _, err := starter.Start(ctx, extension); err != nil {
 		return extensions.SettingsActionProbeResult{}, err
@@ -35,4 +35,10 @@ func (m *Manager) ProbeSettingsAction(ctx context.Context, extension extensions.
 	}
 	response, err := starter.ProviderProbe(ctx, extension.ID, ProviderProbeRequest{Slot: providerSlot})
 	return extensions.SettingsActionProbeResult{OK: response.OK, Reason: response.Reason, Message: response.Message, Details: response.Details, Suggestions: response.Suggestions}, err
+}
+
+// Compatibility facade: runtime logic is owned by focused collaborators.
+
+func (m *Manager) ProbeSettingsAction(ctx context.Context, extension extensions.Extension, providerSlot string, values map[string]string) (extensions.SettingsActionProbeResult, error) {
+	return m.invoker.ProbeSettingsAction(ctx, extension, providerSlot, values)
 }

@@ -8,8 +8,9 @@ import {
   recommendedAvatarSettings,
   resolveAvatarSettings
 } from '~/composables/useWebOptions'
-import { useAdminPage } from '~/composables/useAdminPage'
+import { useAdminPage } from '~/composables/admin/useAdminPage'
 import { apiErrorMessage } from '~/composables/useApiClient'
+import SFAdminFormFooter from '~/components/admin/SFAdminFormFooter.vue'
 
 definePageMeta({
   middleware: 'admin',

@@ -12,7 +12,7 @@ type exactRouteInstanceInvoker interface {
 // InvokeRouteInstance dispatches through the exact process selected by a
 // caller that already owns the Manager route admission lease. It must not open
 // another lease, otherwise drain accounting becomes double-counted.
-func (m *Manager) InvokeRouteInstance(
+func (m *RuntimeInvoker) InvokeRouteInstance(
 	ctx context.Context,
 	identity RuntimeInstanceIdentity,
 	request ProtocolV2RouteRequest,
@@ -87,3 +87,13 @@ func (s *ProtocolStarter) InvokeRouteInstance(
 }
 
 var _ exactRouteInstanceInvoker = (*ProtocolStarter)(nil)
+
+// Compatibility facade: runtime logic is owned by focused collaborators.
+
+func (m *Manager) InvokeRouteInstance(
+	ctx context.Context,
+	identity RuntimeInstanceIdentity,
+	request ProtocolV2RouteRequest,
+) (ProtocolV2RouteResponse, error) {
+	return m.invoker.InvokeRouteInstance(ctx, identity, request)
+}

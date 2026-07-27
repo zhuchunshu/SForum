@@ -334,7 +334,7 @@ func (s *Service) Inspector() InspectorSnapshot {
 			Deletes: s.deletes.Load(), Bypasses: s.bypasses.Load(), Errors: s.errors.Load(),
 			Invalidations: s.invalidations.Load(),
 			AvgGetLatency: avgGet, AvgSetLatency: avgSet,
-			Provider: provider.Provider,
+			Provider:       provider.Provider,
 			ThemeRevision:  loadString(s.themeRev),
 			PluginRevision: loadString(s.pluginRev),
 		},

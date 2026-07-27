@@ -235,7 +235,7 @@ func scopeExtensionDatabaseMigrationConnection(
 	connection *pgx.Conn,
 	identifiers ExtensionDatabaseIdentifiers,
 ) error {
-	if connection == nil || !identifiers.valid() {
+	if connection == nil || !identifiers.Valid() {
 		return ErrExtensionDatabaseMigrationInvalid
 	}
 	owner := pgx.Identifier{identifiers.OwnerRole}.Sanitize()

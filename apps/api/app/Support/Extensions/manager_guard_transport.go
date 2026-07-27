@@ -11,7 +11,7 @@ type exactGuardInstanceInvoker interface {
 
 // InvokeGuardInstance uses only the exact process selected by the immutable
 // Route Registry step. The caller owns the separate guard admission lease.
-func (m *Manager) InvokeGuardInstance(
+func (m *RuntimeInvoker) InvokeGuardInstance(
 	ctx context.Context,
 	identity RuntimeInstanceIdentity,
 	request ProtocolV2GuardRequest,
@@ -81,3 +81,13 @@ func (s *ProtocolStarter) InvokeGuardInstance(
 }
 
 var _ exactGuardInstanceInvoker = (*ProtocolStarter)(nil)
+
+// Compatibility facade: runtime logic is owned by focused collaborators.
+
+func (m *Manager) InvokeGuardInstance(
+	ctx context.Context,
+	identity RuntimeInstanceIdentity,
+	request ProtocolV2GuardRequest,
+) error {
+	return m.invoker.InvokeGuardInstance(ctx, identity, request)
+}

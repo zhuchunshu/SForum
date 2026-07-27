@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import type { AdminForumCommentDetail } from '~/utils/adminForumContent'
-import { forumContentFromEditorPayload, forumEditorInitialContent } from '~/utils/forumTaxonomy'
+import { useForumApi } from '~/composables/forum/useForumApi'
+import type { AdminForumCommentDetail } from '~/utils/admin/adminForumContent'
+import { forumContentFromEditorPayload, forumEditorInitialContent } from '~/utils/forum/forumTaxonomy'
 import type { SFEditorContentPayload } from '~/utils/sfEditor'
 
 const props = defineProps<{

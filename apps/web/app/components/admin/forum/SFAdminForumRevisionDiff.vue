@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { diffLines } from 'diff'
-import type { ForumRevisionDetail } from '~/utils/adminForumContent'
+import type { ForumRevisionDetail } from '~/utils/admin/adminForumContent'
 
 const props = defineProps<{
   currentRevision: ForumRevisionDetail

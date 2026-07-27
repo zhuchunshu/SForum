@@ -1,11 +1,14 @@
 <script setup lang="ts">
+import { useAuthSession } from '~/composables/identity/useAuthSession'
+import { useAdminRouteProviders } from '~/composables/admin/useAdminRouteProviders'
+import { useAdminPage } from '~/composables/admin/useAdminPage'
 import { apiErrorMessage, apiErrorReason } from '~/composables/useApiClient'
 import {
   routeProviderConflictId,
   routeProviderRisk,
   type RouteProviderCandidate,
   type RouteProviderConflict
-} from '~/composables/useAdminRouteProviders'
+} from '~/composables/admin/useAdminRouteProviders'
 
 definePageMeta({
   middleware: 'admin',

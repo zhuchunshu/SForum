@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AvatarView } from '~/composables/useProfileApi'
+import type { AvatarView } from '~/composables/profile/useProfileApi'
 
 export type SFAvatarGroupItem = {
   id: number | string

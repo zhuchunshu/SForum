@@ -67,9 +67,9 @@ func TestExportErasePartialAndExternal(t *testing.T) {
 func TestPublishContributionWithoutGoCallback(t *testing.T) {
 	reg := New()
 	if err := reg.PublishContribution(Contribution{
-		ExtensionID:   "demo.pub",
-		PackageDigest: stringsRepeat("ab", 32),
-		Inventory:     []InventoryItem{{ID: "pub.data", Kind: KindPersonalData, Description: "published"}},
+		ExtensionID:    "demo.pub",
+		PackageDigest:  stringsRepeat("ab", 32),
+		Inventory:      []InventoryItem{{ID: "pub.data", Kind: KindPersonalData, Description: "published"}},
 		SupportsExport: true,
 	}); err != nil {
 		t.Fatal(err)

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ModerationPendingItem, ModerationReportItem, ModerationSource } from '~/composables/useModerationApi'
+import type { ModerationPendingItem, ModerationReportItem, ModerationSource } from '~/composables/moderation/useModerationApi'
 
 defineProps<{ item: ModerationPendingItem | ModerationReportItem; source: ModerationSource; active?: boolean }>()
 defineEmits<{ open: [] }>()

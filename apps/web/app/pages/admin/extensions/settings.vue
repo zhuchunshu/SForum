@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { useAdminExtensionsManager } from '~/composables/admin/useAdminExtensionsManager'
 import { apiErrorMessage } from '~/composables/useApiClient'
-import { useAdminPage } from '~/composables/useAdminPage'
-import { extensionSettingDeclarations } from '~/utils/adminExtensions'
+import { useAdminPage } from '~/composables/admin/useAdminPage'
+import { extensionSettingDeclarations } from '~/utils/admin/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',

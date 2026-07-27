@@ -12,9 +12,9 @@ const SchemaVersion = "sforum.dependency-inspector@1"
 
 // Edge is one required/optional/conflict dependency edge.
 type Edge struct {
-	From     string `json:"from"`
-	To       string `json:"to"`
-	Kind     string `json:"kind"` // required|optional|conflict|provides
+	From       string `json:"from"`
+	To         string `json:"to"`
+	Kind       string `json:"kind"` // required|optional|conflict|provides
 	Constraint string `json:"constraint,omitempty"`
 }
 

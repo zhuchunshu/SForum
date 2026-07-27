@@ -4,7 +4,7 @@ package extensionsruntime
 // active and accepting ordinary calls. The immutable registry may already hold
 // a drained target during lifecycle publication, but consumers must not observe
 // it before the durable lifecycle marker opens admission.
-func (m *Manager) AdminSurfaceSnapshot(kind string) AdminSurfaceRegistrySnapshot {
+func (m *RuntimeEventsProviders) AdminSurfaceSnapshot(kind string) AdminSurfaceRegistrySnapshot {
 	if m == nil || m.hooks == nil || m.hooks.adminSurfaces == nil {
 		return AdminSurfaceRegistrySnapshot{}
 	}
@@ -25,7 +25,7 @@ func (m *Manager) AdminSurfaceSnapshot(kind string) AdminSurfaceRegistrySnapshot
 // ResolveAdminSurface applies the same exact-runtime visibility fence as the
 // catalog read. Invocation still acquires admission after resolution so a
 // concurrent drain fails closed.
-func (m *Manager) ResolveAdminSurface(id string) (AdminSurfaceContract, error) {
+func (m *RuntimeEventsProviders) ResolveAdminSurface(id string) (AdminSurfaceContract, error) {
 	if m == nil || m.hooks == nil || m.hooks.adminSurfaces == nil {
 		return AdminSurfaceContract{}, ErrAdminSurfaceNotFound
 	}
@@ -40,4 +40,14 @@ func (m *Manager) ResolveAdminSurface(id string) (AdminSurfaceContract, error) {
 		return AdminSurfaceContract{}, ErrAdminSurfaceNotFound
 	}
 	return contract, nil
+}
+
+// Compatibility facade: runtime logic is owned by focused collaborators.
+
+func (m *Manager) AdminSurfaceSnapshot(kind string) AdminSurfaceRegistrySnapshot {
+	return m.eventsProviders.AdminSurfaceSnapshot(kind)
+}
+
+func (m *Manager) ResolveAdminSurface(id string) (AdminSurfaceContract, error) {
+	return m.eventsProviders.ResolveAdminSurface(id)
 }

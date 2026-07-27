@@ -61,7 +61,7 @@ func hasRuntimeQueryPublication(manifest Manifest) bool {
 	return len(manifest.Queries) > 0 || len(manifest.QueryResultFilters) > 0
 }
 
-func (s *Service) compensateLegacyQueryEnable(
+func (s *serviceCore) compensateLegacyQueryEnable(
 	ctx context.Context,
 	enabled Extension,
 	assetMutation exactAssetMutation,
@@ -90,7 +90,7 @@ func (s *Service) compensateLegacyQueryEnable(
 	return errors.Join(errs...)
 }
 
-func (s *Service) disableLegacyQueryPlugin(
+func (s *serviceCore) disableLegacyQueryPlugin(
 	ctx context.Context,
 	extension Extension,
 	assetMutation exactAssetMutation,
@@ -126,7 +126,7 @@ func (s *Service) disableLegacyQueryPlugin(
 	return disabled, nil
 }
 
-func (s *Service) compensateLegacyQueryDisable(
+func (s *serviceCore) compensateLegacyQueryDisable(
 	assetMutation exactAssetMutation,
 	queryMutation RuntimeQueryPublicationMutation,
 	identityMutation RuntimeIdentityPublicationMutation,

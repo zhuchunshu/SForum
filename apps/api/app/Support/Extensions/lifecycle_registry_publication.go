@@ -72,16 +72,16 @@ type LifecycleRegistryPublicationRepository interface {
 }
 
 type LifecycleRegistryBoundaryConfig struct {
-	Repository     LifecycleRegistryPublicationRepository
-	Manager        *Manager
-	Pages          *pages.Registry
-	ThemeRuntime   *pages.ThemeRuntimeRegistry
-	PageSiteName   string
-	PageLocales    []string
-	Routes         *routes.Registry
-	RouteSchemas   *extensionopenapi.RouteSchemaPublication
-	Services       *hostapi.ServiceRegistry
-	Components     *ComponentRegistry
+	Repository   LifecycleRegistryPublicationRepository
+	Manager      *Manager
+	Pages        *pages.Registry
+	ThemeRuntime *pages.ThemeRuntimeRegistry
+	PageSiteName string
+	PageLocales  []string
+	Routes       *routes.Registry
+	RouteSchemas *extensionopenapi.RouteSchemaPublication
+	Services     *hostapi.ServiceRegistry
+	Components   *ComponentRegistry
 	// ComponentComposition 可选：组件发布成功后同步编译包本地 SSR。
 	ComponentComposition *ProductionComponentComposition
 	Assets               *assetregistry.Registry

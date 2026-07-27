@@ -1,10 +1,10 @@
-import type { ThemeRenderOutput } from '~/composables/useThemeRenderOutput'
+import type { ThemeRenderOutput } from '~/composables/themes/useThemeRenderOutput'
 import { apiErrorReason, apiErrorStatusCode } from '~/composables/useApiClient'
 import {
   normalizeActiveThemeIdentity,
   sameActiveThemeIdentity,
   type ActiveThemeIdentity
-} from '~/utils/activeThemeClientCache'
+} from '~/utils/themes/activeThemeClientCache'
 
 export const PAGE_RESOLVE_REASON = {
   authoritativeCore: 'authoritative_core',

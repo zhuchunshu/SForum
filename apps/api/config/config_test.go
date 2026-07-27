@@ -23,6 +23,9 @@ func clearJobQueueEnv(t *testing.T) {
 		"WORKER_DATABASE_MIN_CONNS",
 		"REDIS_POOL_SIZE",
 		"REDIS_MIN_IDLE_CONNS",
+		"REDIS_PASSWORD",
+		"EXTERNAL_EXTENSION_ROOTS",
+		"LOG_LEVEL",
 	} {
 		t.Setenv(key, "")
 	}

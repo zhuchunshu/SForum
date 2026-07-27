@@ -21,7 +21,7 @@ import (
 	settingslifecycle "github.com/zhuchunshu/sforum/apps/api/app/Support/SettingsLifecycle"
 )
 
-func (s *Service) compensateThemeActivationTrust(
+func (s *serviceCore) compensateThemeActivationTrust(
 	ctx context.Context,
 	actor identity.Actor,
 	receipt executableTrustGrantReceipt,
@@ -79,7 +79,7 @@ func themeIDOrEmpty(e *Extension) string {
 
 // RestoreActiveThemeRegistry API 启动时恢复活动主题 + 已启用插件的页面贡献。
 // 无效/缺失主题时安全回退默认主题并写诊断事件。
-func (s *Service) RestoreActiveThemeRegistry(ctx context.Context) error {
+func (s *ThemeService) RestoreActiveThemeRegistry(ctx context.Context) error {
 	if s == nil || (s.pageRegistry == nil && s.assetRegistry == nil) {
 		return nil
 	}
@@ -172,7 +172,7 @@ func (s *Service) RestoreActiveThemeRegistry(ctx context.Context) error {
 // repairActiveThemeAfterRestoreFailure 在 preflight/注册失败时尽量自愈。
 // 优先晋升 SyncBuiltins 已 stage 的内置制品（Host 契约收紧后常见），
 // 否则回退受保护默认主题，避免非默认主题包缺失阻断启动。
-func (s *Service) repairActiveThemeAfterRestoreFailure(
+func (s *serviceCore) repairActiveThemeAfterRestoreFailure(
 	ctx context.Context,
 	active Extension,
 	cause error,
@@ -219,7 +219,7 @@ func (s *Service) repairActiveThemeAfterRestoreFailure(
 
 // promoteStagedBuiltinThemeIfHealthy 在活动包无法加载时，将已 stage 的内置 exact 制品
 // 写入 active 并追加 theme_runtime_publications，供 watcher 收敛到可预检包。
-func (s *Service) promoteStagedBuiltinThemeIfHealthy(ctx context.Context, active Extension) (Extension, error) {
+func (s *serviceCore) promoteStagedBuiltinThemeIfHealthy(ctx context.Context, active Extension) (Extension, error) {
 	if s == nil || s.store == nil || ctx == nil {
 		return Extension{}, ErrThemePublicationConflict
 	}
@@ -269,7 +269,7 @@ func healthyBuiltinThemeArtifact(theme Extension) Extension {
 }
 
 // RestoreSafeModeThemeRegistry 忽略数据库 desired theme 与全部插件贡献，只加载受保护默认主题。
-func (s *Service) RestoreSafeModeThemeRegistry(ctx context.Context) error {
+func (s *ThemeService) RestoreSafeModeThemeRegistry(ctx context.Context) error {
 	if s == nil || (s.pageRegistry == nil && s.assetRegistry == nil) {
 		return nil
 	}
@@ -281,7 +281,7 @@ func (s *Service) RestoreSafeModeThemeRegistry(ctx context.Context) error {
 // FailClosedThemeRuntime permanently closes theme mutation admission for this
 // process before installing the protected default. A healthy process restart is
 // required to reopen admission after durable watcher ownership is lost.
-func (s *Service) FailClosedThemeRuntime(ctx context.Context) error {
+func (s *ThemeService) FailClosedThemeRuntime(ctx context.Context) error {
 	if s == nil {
 		return nil
 	}
@@ -291,7 +291,7 @@ func (s *Service) FailClosedThemeRuntime(ctx context.Context) error {
 	return s.restoreSafeModeThemeRegistry(ctx)
 }
 
-func (s *Service) restoreSafeModeThemeRegistry(ctx context.Context) error {
+func (s *serviceCore) restoreSafeModeThemeRegistry(ctx context.Context) error {
 	if s.pageRegistry == nil && s.assetRegistry == nil {
 		return nil
 	}
@@ -338,7 +338,7 @@ func (s *Service) restoreSafeModeThemeRegistry(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) EnsureDefaultThemeActive(ctx context.Context) (Extension, error) {
+func (s *ThemeService) EnsureDefaultThemeActive(ctx context.Context) (Extension, error) {
 	active, err := s.store.ActiveTheme(ctx)
 	if err == nil && active.ID == DefaultThemeID && active.Source == SourceBuiltin {
 		return active, nil
@@ -357,7 +357,7 @@ func (s *Service) EnsureDefaultThemeActive(ctx context.Context) (Extension, erro
 	return result.Extension, err
 }
 
-func (s *Service) verifyExtension(ctx context.Context, extension Extension) error {
+func (s *serviceCore) verifyExtension(ctx context.Context, extension Extension) error {
 	if err := validateInstalledPackage(extension); err != nil {
 		if extension.Type == TypeTheme {
 			return fmt.Errorf("%w: %v", ErrBuildFailed, err)
@@ -450,7 +450,7 @@ func requireInstalledManifest(root string) error {
 	return nil
 }
 
-func (s *Service) recordEnableFailure(ctx context.Context, actor identity.Actor, extensionID string, cause error) {
+func (s *serviceCore) recordEnableFailure(ctx context.Context, actor identity.Actor, extensionID string, cause error) {
 	_, _ = s.store.CreateEvent(ctx, EventInput{
 		ExtensionID: extensionID,
 		ActorUserID: actor.ID,
@@ -459,7 +459,7 @@ func (s *Service) recordEnableFailure(ctx context.Context, actor identity.Actor,
 	})
 }
 
-func (s *Service) decorateRuntime(ctx context.Context, item Extension) Extension {
+func (s *serviceCore) decorateRuntime(ctx context.Context, item Extension) Extension {
 	if item.Type == TypePlugin {
 		item.CapabilityGrants = extensionmanifest.CapabilityGrants(item.Manifest)
 		if s.runtime != nil {
@@ -471,7 +471,7 @@ func (s *Service) decorateRuntime(ctx context.Context, item Extension) Extension
 }
 
 // CapabilitiesFor 返回已启用插件的有效能力集合（Host API CapabilitySource）。
-func (s *Service) CapabilitiesFor(ctx context.Context, extensionID string) (capabilities.Set, error) {
+func (s *CatalogService) CapabilitiesFor(ctx context.Context, extensionID string) (capabilities.Set, error) {
 	if s.safeMode {
 		return nil, ErrExtensionDisabled
 	}
@@ -490,7 +490,7 @@ func (s *Service) CapabilitiesFor(ctx context.Context, extensionID string) (capa
 }
 
 // DeclaredJobKinds 返回插件 manifest 声明的 job names。
-func (s *Service) DeclaredJobKinds(ctx context.Context, extensionID string) ([]string, error) {
+func (s *CatalogService) DeclaredJobKinds(ctx context.Context, extensionID string) ([]string, error) {
 	if s.safeMode {
 		return []string{}, nil
 	}
@@ -508,7 +508,7 @@ func (s *Service) DeclaredJobKinds(ctx context.Context, extensionID string) ([]s
 }
 
 // CapabilityCatalog 返回宿主能力目录（管理端审查文案）。
-func (s *Service) CapabilityCatalog(_ context.Context, actor identity.Actor) ([]capabilities.Definition, error) {
+func (s *CatalogService) CapabilityCatalog(_ context.Context, actor identity.Actor) ([]capabilities.Definition, error) {
 	if !canViewExtensions(actor) && !canManagePlugins(actor) {
 		return nil, identity.ErrPermissionDenied
 	}
@@ -877,9 +877,9 @@ func sanitizeSettingValues(manifest Manifest, input, current map[string]string) 
 
 // listDecryptedSettings 读取并解密 secret；错误密文 fail closed（不交给插件/API 明文路径）。
 // 历史明文在 cipher 启用时异步迁移写回密文。
-func (s *Service) listDecryptedSettings(ctx context.Context, extension Extension) (map[string]string, error) {
+func (s *serviceCore) listDecryptedSettings(ctx context.Context, extension Extension) (map[string]string, error) {
 	if s.settingsLifecycle != nil && len(extension.Manifest.Settings) > 0 {
-		if err := s.RegisterSettingsLifecycleFromManifest(extension); err != nil {
+		if err := s.host.RegisterSettingsLifecycleFromManifest(extension); err != nil {
 			return nil, err
 		}
 		values, err := s.settingsLifecycle.RuntimeValues(ctx, extension.ID, "settings")
@@ -898,7 +898,7 @@ func (s *Service) listDecryptedSettings(ctx context.Context, extension Extension
 	return s.decryptSettingsMap(ctx, extension, raw)
 }
 
-func (s *Service) decryptSettingsMap(ctx context.Context, extension Extension, raw map[string]string) (map[string]string, error) {
+func (s *serviceCore) decryptSettingsMap(ctx context.Context, extension Extension, raw map[string]string) (map[string]string, error) {
 	if raw == nil {
 		return map[string]string{}, nil
 	}
@@ -938,7 +938,7 @@ func secretSettingKeys(manifest Manifest) map[string]bool {
 	return out
 }
 
-func (s *Service) encryptSecretSettings(manifest Manifest, values map[string]string) (map[string]string, error) {
+func (s *serviceCore) encryptSecretSettings(manifest Manifest, values map[string]string) (map[string]string, error) {
 	if values == nil {
 		return map[string]string{}, nil
 	}
@@ -958,7 +958,7 @@ func (s *Service) encryptSecretSettings(manifest Manifest, values map[string]str
 	return out, nil
 }
 
-func (s *Service) encryptSecretValue(plaintext string) (string, error) {
+func (s *serviceCore) encryptSecretValue(plaintext string) (string, error) {
 	if s == nil || s.cipher == nil {
 		return plaintext, nil
 	}
@@ -966,7 +966,7 @@ func (s *Service) encryptSecretValue(plaintext string) (string, error) {
 }
 
 // decryptSecretValue 返回明文；migrated=true 表示存储仍是历史明文且 cipher 已启用，应回写。
-func (s *Service) decryptSecretValue(stored string) (plain string, migrated bool, err error) {
+func (s *serviceCore) decryptSecretValue(stored string) (plain string, migrated bool, err error) {
 	if stored == "" {
 		return "", false, nil
 	}
@@ -989,7 +989,7 @@ func (s *Service) decryptSecretValue(stored string) (plain string, migrated bool
 }
 
 // ListSettingsForRuntime 供插件子进程注入：返回解密后的设置；解密失败则错误。
-func (s *Service) ListSettingsForRuntime(ctx context.Context, extensionID string) (map[string]string, error) {
+func (s *SettingsService) ListSettingsForRuntime(ctx context.Context, extensionID string) (map[string]string, error) {
 	extension, err := s.store.Get(ctx, normalizeID(extensionID))
 	if err != nil {
 		return nil, err
@@ -999,7 +999,7 @@ func (s *Service) ListSettingsForRuntime(ctx context.Context, extensionID string
 
 // ListSettings 实现插件 ProtocolStarter 与 Host API 共用的只读设置接口。
 // 所有运行时读取必须经过这里，禁止直接把 Store 注入插件边界。
-func (s *Service) ListSettings(ctx context.Context, extensionID string) (map[string]string, error) {
+func (s *SettingsService) ListSettings(ctx context.Context, extensionID string) (map[string]string, error) {
 	return s.ListSettingsForRuntime(ctx, extensionID)
 }
 

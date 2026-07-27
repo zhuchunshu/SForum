@@ -47,7 +47,7 @@ func newServiceWithIndexerForTest(indexer TopicSearchIndexer) *Service {
 	store := newServiceFakeStore()
 	// 使用 staticSettingsResolver（返回 defaultForumSettings，含有效 tagMaxPerTopic），
 	// 避免 fakeSettingsResolver 默认空 settings 触发 ErrInvalidSettings。
-	svc := NewServiceWithIndexer(store, staticSettingsResolver{}, appevents.NoopPublisher{}, indexer)
+	svc := NewService(ServiceConfig{Store: store, Settings: staticSettingsResolver{}, Publisher: appevents.NoopPublisher{}, Indexer: indexer})
 	return svc
 }
 
@@ -74,13 +74,7 @@ func TestCreateTopicKeepsPendingTopicOutOfPublicIndex(t *testing.T) {
 	ctx := context.Background()
 	idx := &fakeIndexer{}
 	store := newServiceFakeStore()
-	svc := NewServiceWithPublicationPolicy(
-		store,
-		staticSettingsResolver{},
-		appevents.NoopPublisher{},
-		idx,
-		staticPublicationPolicy{decision: PublicationDecision{Pending: true, Triggers: []string{"new_user"}}},
-	)
+	svc := NewService(ServiceConfig{Store: store, Settings: staticSettingsResolver{}, Publisher: appevents.NoopPublisher{}, Indexer: idx, PublicationPolicy: staticPublicationPolicy{decision: PublicationDecision{Pending: true, Triggers: []string{"new_user"}}}})
 
 	actor := identity.Actor{ID: 1, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicCreate: true}}
 	topic, err := svc.CreateTopic(ctx, actor, CreateTopicInput{
@@ -105,13 +99,7 @@ func TestCreateCommentKeepsPendingCommentOutOfPublicIndex(t *testing.T) {
 	ctx := context.Background()
 	idx := &fakeIndexer{}
 	store := newServiceFakeStore()
-	svc := NewServiceWithPublicationPolicy(
-		store,
-		staticSettingsResolver{},
-		appevents.NoopPublisher{},
-		idx,
-		staticPublicationPolicy{decision: PublicationDecision{Pending: true, Triggers: []string{"external_link"}}},
-	)
+	svc := NewService(ServiceConfig{Store: store, Settings: staticSettingsResolver{}, Publisher: appevents.NoopPublisher{}, Indexer: idx, PublicationPolicy: staticPublicationPolicy{decision: PublicationDecision{Pending: true, Triggers: []string{"external_link"}}}})
 
 	actor := identity.Actor{ID: 5, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionPostCreate: true}}
 	comment, err := svc.CreateComment(ctx, actor, CreateCommentInput{
@@ -212,7 +200,7 @@ func TestNilIndexerIsSafe(t *testing.T) {
 	ctx := context.Background()
 	// indexer 为 nil 时应正常工作（降级为不索引）。
 	store := newServiceFakeStore()
-	svc := NewService(store) // staticSettingsResolver + nil indexer
+	svc := NewService(ServiceConfig{Store: store}) // staticSettingsResolver + nil indexer
 
 	actor := identity.Actor{ID: 1, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicCreate: true}}
 	if _, err := svc.CreateTopic(ctx, actor, CreateTopicInput{

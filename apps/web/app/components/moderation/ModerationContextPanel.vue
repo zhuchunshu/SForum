@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { useModerationApi } from '~/composables/moderation/useModerationApi'
 import { apiErrorMessage } from '~/composables/useApiClient'
-import type { ModerationAction, ModerationReviewContext } from '~/composables/useModerationApi'
+import type { ModerationAction, ModerationReviewContext } from '~/composables/moderation/useModerationApi'
 import { sanitizeHtml } from '~/utils/sfSanitize'
 
 const props = defineProps<{ context: ModerationReviewContext; reportId?: number }>()

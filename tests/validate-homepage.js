@@ -11,17 +11,17 @@ const path = require('path')
 const root = process.cwd()
 const paths = {
   page: path.resolve(root, 'apps/web/app/pages/index.vue'),
-  homeIsland: path.resolve(root, 'apps/web/app/components/SFHomePage.vue'),
-  navigation: path.resolve(root, 'apps/web/app/components/SFHomeNavigation.vue'),
-  topicRow: path.resolve(root, 'apps/web/app/components/SFHomeTopicRow.vue'),
-  rightRail: path.resolve(root, 'apps/web/app/components/SFHomeRightRail.vue'),
+  homeIsland: path.resolve(root, 'apps/web/app/components/forum/SFHomePage.vue'),
+  navigation: path.resolve(root, 'apps/web/app/components/forum/SFHomeNavigation.vue'),
+  topicRow: path.resolve(root, 'apps/web/app/components/forum/SFHomeTopicRow.vue'),
+  rightRail: path.resolve(root, 'apps/web/app/components/forum/SFHomeRightRail.vue'),
   outlet: path.resolve(root, 'apps/web/app/components/SFPageOutlet.vue'),
   hostConfig: path.resolve(root, 'apps/web/nuxt.config.ts'),
   homeCss: path.resolve(root, 'apps/web/app/assets/css/sforum-home.css'),
   themeCss: path.resolve(root, 'apps/web/app/assets/css/sforum-theme.css'),
   themePackage: path.resolve(root, 'extensions/builtin/themes/sforum-default/theme.json'),
   defaultHomeTemplate: path.resolve(root, 'extensions/builtin/themes/sforum-default/templates/home.html'),
-  seo: path.resolve(root, 'apps/web/app/utils/seoStructuredData.ts'),
+  seo: path.resolve(root, 'apps/web/app/utils/seo/seoStructuredData.ts'),
   zh: path.resolve(root, 'apps/web/i18n/locales/zh-CN.json'),
   en: path.resolve(root, 'apps/web/i18n/locales/en-US.json')
 }

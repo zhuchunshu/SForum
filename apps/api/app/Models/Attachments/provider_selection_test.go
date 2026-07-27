@@ -100,7 +100,7 @@ func TestAdapterForPluginSelectionWithRuntime(t *testing.T) {
 	// 最小 stub：只要 NewPluginStorageAdapter 成功即可。
 	service := NewService(nil, options.NewServiceWithCacheTTL(optionStore, time.Minute)).
 		WithStorageProviderCatalog(fakeStorageCatalog{available: map[string]bool{"acme.store": true}}).
-		WithStoragePluginRuntime(stubStorageRuntime{})
+		WithStoragePluginRuntime(extensionsruntime.NewPluginStorageAdapterFactory(stubStorageRuntime{}, 0))
 
 	settings, err := service.runtimeSettings(context.Background())
 	if err != nil {
@@ -191,7 +191,7 @@ func TestProbeMapsPluginFailureReason(t *testing.T) {
 	}}
 	service := NewService(nil, options.NewServiceWithCacheTTL(optionStore, time.Minute)).
 		WithStorageProviderCatalog(fakeStorageCatalog{available: map[string]bool{"acme.store": true}}).
-		WithStoragePluginRuntime(failingProbeRuntime{})
+		WithStoragePluginRuntime(extensionsruntime.NewPluginStorageAdapterFactory(failingProbeRuntime{}, 0))
 
 	actor := identity.Actor{
 		ID:          1,

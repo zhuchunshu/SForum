@@ -21,7 +21,7 @@ type ProviderSlotProbeResult struct {
 // ProbeProviderSlotCandidate checks the active exact runtime through the
 // provider's side-effect-free probe RPC. It never sends a business invocation
 // document and therefore cannot accidentally create provider-owned work.
-func (m *Manager) ProbeProviderSlotCandidate(ctx context.Context, contractID, candidateID string) (ProviderSlotProbeResult, error) {
+func (m *RuntimeEventsProviders) ProbeProviderSlotCandidate(ctx context.Context, contractID, candidateID string) (ProviderSlotProbeResult, error) {
 	started := time.Now()
 	if m == nil || ctx == nil {
 		return ProviderSlotProbeResult{}, ErrProviderSlotSelectionInvalid
@@ -71,4 +71,10 @@ func cloneProviderProbeDetails(source map[string]string) map[string]string {
 		result[key] = value
 	}
 	return result
+}
+
+// Compatibility facade: runtime logic is owned by focused collaborators.
+
+func (m *Manager) ProbeProviderSlotCandidate(ctx context.Context, contractID, candidateID string) (ProviderSlotProbeResult, error) {
+	return m.eventsProviders.ProbeProviderSlotCandidate(ctx, contractID, candidateID)
 }

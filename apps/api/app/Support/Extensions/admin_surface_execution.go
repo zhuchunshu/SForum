@@ -40,7 +40,7 @@ type adminSurfaceRuntime interface {
 
 // InvokeAdminSurface resolves one exact Registry contract and holds runtime
 // admission while the typed props/result round trip crosses Protocol V2.
-func (m *Manager) InvokeAdminSurface(
+func (m *RuntimeInvoker) InvokeAdminSurface(
 	ctx context.Context,
 	input AdminSurfaceInvocation,
 ) (AdminSurfaceInvocationResult, error) {
@@ -140,4 +140,13 @@ func adminSurfaceContractSchemaReferences(contract AdminSurfaceContract) (string
 		}
 	}
 	return propsSchema, resultSchema
+}
+
+// Compatibility facade: runtime logic is owned by focused collaborators.
+
+func (m *Manager) InvokeAdminSurface(
+	ctx context.Context,
+	input AdminSurfaceInvocation,
+) (AdminSurfaceInvocationResult, error) {
+	return m.invoker.InvokeAdminSurface(ctx, input)
 }

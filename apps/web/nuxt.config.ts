@@ -2,7 +2,7 @@ import type { NuxtPage } from 'nuxt/schema'
 import {
   LEGACY_ADMIN_ROUTE_PREFIX,
   normalizeAdminRoutePrefix
-} from './app/utils/adminRoutePrefix'
+} from './app/utils/admin/adminRoutePrefix'
 
 const appName = process.env.APP_NAME || 'SForum'
 const appUrl =

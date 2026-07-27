@@ -49,7 +49,7 @@ func (s *t1eCountingLinkStore) Link(_ context.Context, input LinkExternalIdentit
 	s.nextID++
 	link := ExternalIdentityLink{
 		ID: id, UserID: input.UserID, ProviderID: input.Provider.ID,
-		Status: ExternalIdentityLinkStatusActive,
+		Status:           ExternalIdentityLinkStatusActive,
 		OwnerExtensionID: input.Provider.Artifact.ExtensionID, Revision: 1,
 	}
 	s.digests[id] = digest

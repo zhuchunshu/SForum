@@ -1,7 +1,12 @@
 <script setup lang="ts">
+import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
+import { useAdminExtensionsManager } from '~/composables/admin/useAdminExtensionsManager'
 import { apiErrorMessage } from '~/composables/useApiClient'
-import { useAdminPage } from '~/composables/useAdminPage'
-import { capabilityCount, extensionLocalizedDisplay, extensionManageRoute, extensionSettingsPresentation, filterExtensionsByType, isExtensionArtifactAvailable, themeActionState, themeStatusLabelKey } from '~/utils/adminExtensions'
+import { useAdminPage } from '~/composables/admin/useAdminPage'
+import SFAdminExtensionEnableDialog from '~/components/admin/SFAdminExtensionEnableDialog.vue'
+import SFAdminExtensionUninstallDialog from '~/components/admin/SFAdminExtensionUninstallDialog.vue'
+import SFAdminThemeActivateDialog from '~/components/admin/SFAdminThemeActivateDialog.vue'
+import { capabilityCount, extensionLocalizedDisplay, extensionManageRoute, extensionSettingsPresentation, filterExtensionsByType, isExtensionArtifactAvailable, themeActionState, themeStatusLabelKey } from '~/utils/admin/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',

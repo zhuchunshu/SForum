@@ -108,6 +108,14 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Architecture boundary debt M0-M12 completed: fixed tabs, domain placement,
+  backend splits, focused collaborators, stable extension contracts, import
+  ratchets, ADR, and resumed final gate evidence:
+  `sessions/2026-07-28-architecture-debt-m12-handoff.md`
+- Architecture boundary debt M10: runtime `Manager` is now a 72-method
+  compatibility facade over four focused collaborators with single owners for
+  admission and event/provider state; M11 stable packages are next:
+  `sessions/2026-07-28-architecture-debt-m10-handoff.md`
 - GitHub built-in restart repair: dedicated Host restart orchestration,
   correct built-in trust preview semantics, exact staged-target recovery,
   legacy-to-Lifecycle-V2 bridge, and successful browser/database evidence

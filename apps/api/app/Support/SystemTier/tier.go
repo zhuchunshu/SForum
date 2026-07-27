@@ -31,8 +31,8 @@ var (
 
 // Member is one system-tier extension assignment.
 type Member struct {
-	ExtensionID string    `json:"extensionId"`
-	Role        string    `json:"role"`
+	ExtensionID string `json:"extensionId"`
+	Role        string `json:"role"`
 	// Priority orders load within the tier (lower first).
 	Priority  int       `json:"priority"`
 	Enabled   bool      `json:"enabled"`

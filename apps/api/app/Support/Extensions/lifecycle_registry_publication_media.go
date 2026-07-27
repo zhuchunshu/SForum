@@ -48,7 +48,7 @@ func buildLifecycleMediaPublication(
 		publication.Policies = append(publication.Policies, mediaregistry.MIMEPolicyDeclaration{
 			ID: policyID, ContractVersion: policyID + "@1", Purpose: "general",
 			Priority: pipeline.Priority, RequiredPermission: permission,
-			AllowedMIMEs: append([]string(nil), pipeline.MIMEs...),
+			AllowedMIMEs:       append([]string(nil), pipeline.MIMEs...),
 			StrictDeclaredMIME: true, Budget: mediaregistry.DefaultBudget(),
 		})
 		// Manifest media 是可组合的 transform/provider 声明；生命周期冻结为
@@ -64,14 +64,14 @@ func buildLifecycleMediaPublication(
 			Priority: pipeline.Priority, Mode: mediaregistry.ProcessorCompose,
 			Execution: execution, FailureMode: mediaregistry.FailureFallbackOriginal,
 			RequiredPermission: permission,
-			Retry: mediaregistry.RetryPolicy{MaxAttempts: 3, BaseDelaySeconds: 2, MaxDelaySeconds: 30},
+			Retry:              mediaregistry.RetryPolicy{MaxAttempts: 3, BaseDelaySeconds: 2, MaxDelaySeconds: 30},
 		})
 		for _, transform := range pipeline.Transforms {
 			variantID := pipeline.ID + "." + transform.ID
 			publication.Variants = append(publication.Variants, mediaregistry.VariantDeclaration{
 				ID: variantID, ContractVersion: variantID + "@1", Purpose: "general",
 				Name: transform.Variant, ProcessorID: pipeline.ID,
-				ProcessorContractVersion: pipeline.ContractVersion,
+				ProcessorContractVersion:  pipeline.ContractVersion,
 				ProcessorOwnerExtensionID: extension.ID,
 				ProcessorPackageDigest:    extension.PackageDigest,
 				OutputMIME:                lifecycleMediaOutputMIME(transform.Format),

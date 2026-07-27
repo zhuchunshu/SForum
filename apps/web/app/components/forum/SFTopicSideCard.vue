@@ -1,0 +1,425 @@
+<script setup lang="ts">
+import SFTopicContributorsModal from '~/components/forum/SFTopicContributorsModal.vue'
+import type { ForumTopicDetail, ForumTopicExtensionSidebarItem, ForumUserSummary } from '~/utils/forum/forumTaxonomy'
+import { forumAuthorName, forumTopicExtensionLabel, forumUserProfilePath } from '~/utils/forum/forumTaxonomy'
+import type { SFAvatarGroupItem } from '~/components/SFAvatarGroup.vue'
+
+const props = defineProps<{
+  topic: ForumTopicDetail
+  authorName: string
+  authorTo?: string
+  tags: { id: number, name: string, to: string }[]
+  categoryTo: string
+  firstCommentId?: number
+  latestCommentId?: number
+  /** forum.topic.sidebar；空时不渲染扩展卡片区 */
+  extensionSidebar?: ForumTopicExtensionSidebarItem[]
+}>()
+
+const { t, locale } = useI18n()
+const localePath = useLocalePath()
+const { request } = useApiClient()
+const toast = useToast()
+
+const contributorsOpen = ref(false)
+
+// 优先用 API 贡献者；无则退回作者，避免侧栏空白。
+const contributorUsers = computed((): ForumUserSummary[] => {
+  if (props.topic.contributors?.length) {
+    return props.topic.contributors
+  }
+  if (props.topic.author) {
+    return [props.topic.author]
+  }
+  return []
+})
+
+const contributorCount = computed(() => {
+  if (props.topic.contributorCount && props.topic.contributorCount > 0) {
+    return props.topic.contributorCount
+  }
+  return contributorUsers.value.length
+})
+
+const contributorAvatars = computed((): SFAvatarGroupItem[] => {
+  return contributorUsers.value.slice(0, 5).map(user => ({
+    id: user.id,
+    name: forumAuthorName(user, user.id),
+    avatar: user.avatar,
+    to: user.username ? localePath(forumUserProfilePath(user.username)) : undefined
+  }))
+})
+
+const contributorsAriaLabel = computed(() => {
+  if (contributorCount.value <= 1) {
+    return t('topicDetail.side.contributorsAriaOne', { name: props.authorName })
+  }
+  return t('topicDetail.side.contributorsAriaMany', { count: contributorCount.value })
+})
+
+const statusLabel = computed(() => {
+  if (props.topic.status === 'locked') {
+    return t('topicDetail.badge.locked')
+  }
+  if (props.topic.isPinned) {
+    return t('topicDetail.badge.pinned')
+  }
+  return t('topicDetail.side.statusActive')
+})
+
+const sidebarItems = computed(() => props.extensionSidebar || [])
+const runningKey = ref('')
+const currentCommentIndex = ref(1)
+
+// 评论区可能 lazy 晚于侧栏挂载，也可能翻页/补载后整表替换；
+// 仅 onMounted 扫一次 DOM 会在部分场景永远卡在 1，不会动。
+let commentObserver: IntersectionObserver | null = null
+let listMutationObserver: MutationObserver | null = null
+let rebindTimer: ReturnType<typeof setTimeout> | null = null
+let scrollRaf = 0
+
+const commentProgress = computed(() => {
+  const total = Math.max(1, props.topic.commentCount)
+  return Math.min(100, Math.max(4, currentCommentIndex.value / total * 100))
+})
+
+function collectCommentEls(): HTMLElement[] {
+  // 含树模式下的嵌套节点；flat 下也兼容（均为带 id 的 .sf-comment）
+  return Array.from(
+    document.querySelectorAll<HTMLElement>('.sf-comment-list .sf-comment[id^="comment-"]')
+  )
+}
+
+/** 优先用楼层号（分页时才是绝对进度），否则退回当前页内序号 */
+function floorOf(el: HTMLElement, fallbackIndex: number): number {
+  const floorText = el.querySelector('.sf-comment__floor')?.textContent?.trim() || ''
+  const parsed = Number.parseInt(floorText.replace(/^#/, ''), 10)
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return parsed
+  }
+  return fallbackIndex + 1
+}
+
+/** 以视口约 28% 高度为焦点线，取最近的可见评论作为当前进度 */
+function syncProgressFromScroll(comments = collectCommentEls()) {
+  if (!comments.length) {
+    return
+  }
+
+  const focusY = window.innerHeight * 0.28
+  let best: HTMLElement | null = null
+  let bestDist = Number.POSITIVE_INFINITY
+
+  for (const el of comments) {
+    const rect = el.getBoundingClientRect()
+    if (rect.bottom <= 0 || rect.top >= window.innerHeight) {
+      continue
+    }
+    const dist = Math.abs(rect.top - focusY)
+    if (dist < bestDist) {
+      bestDist = dist
+      best = el
+    }
+  }
+
+  if (!best) {
+    // 评论都在视口外：正文区用第一条，滚过讨论区用最后一条
+    const firstTop = comments[0]?.getBoundingClientRect().top ?? 0
+    best = firstTop > focusY ? comments[0]! : comments[comments.length - 1]!
+  }
+
+  const index = comments.indexOf(best)
+  if (index >= 0) {
+    currentCommentIndex.value = Math.min(
+      Math.max(1, props.topic.commentCount),
+      floorOf(best, index)
+    )
+  }
+}
+
+function onScrollOrResize() {
+  if (scrollRaf) {
+    return
+  }
+  scrollRaf = window.requestAnimationFrame(() => {
+    scrollRaf = 0
+    syncProgressFromScroll()
+  })
+}
+
+function bindCommentProgress() {
+  commentObserver?.disconnect()
+  const comments = collectCommentEls()
+  if (!comments.length) {
+    return
+  }
+
+  // IntersectionObserver 作辅助：焦点带内评论变化时立即更新
+  commentObserver = new IntersectionObserver((entries) => {
+    const visible = entries
+      .filter(entry => entry.isIntersecting)
+      .sort((a, b) => {
+        const focusY = window.innerHeight * 0.28
+        return Math.abs(a.boundingClientRect.top - focusY) - Math.abs(b.boundingClientRect.top - focusY)
+      })[0]
+    if (!visible) {
+      // 焦点带内暂时无命中时用滚动扫描兜底，避免“卡住不动”
+      syncProgressFromScroll(comments)
+      return
+    }
+    const target = visible.target as HTMLElement
+    const index = comments.indexOf(target)
+    if (index >= 0) {
+      currentCommentIndex.value = Math.min(
+        Math.max(1, props.topic.commentCount),
+        floorOf(target, index)
+      )
+    }
+  }, {
+    // 比原先更宽的焦点带，减少“带内无评论 → 不回调”的死区
+    rootMargin: '-10% 0px -45% 0px',
+    threshold: [0, 0.15, 0.35, 0.6, 1]
+  })
+
+  comments.forEach(comment => commentObserver?.observe(comment))
+  syncProgressFromScroll(comments)
+}
+
+function scheduleRebind() {
+  if (rebindTimer) {
+    clearTimeout(rebindTimer)
+  }
+  // 评论列表异步插入/翻页替换时合并多次 mutation
+  rebindTimer = setTimeout(() => {
+    rebindTimer = null
+    bindCommentProgress()
+  }, 48)
+}
+
+onMounted(async () => {
+  await nextTick()
+  bindCommentProgress()
+
+  const commentsRoot = document.querySelector('.sforum-topic-comments') || document.body
+  listMutationObserver = new MutationObserver(() => scheduleRebind())
+  listMutationObserver.observe(commentsRoot, { childList: true, subtree: true })
+
+  window.addEventListener('scroll', onScrollOrResize, { passive: true })
+  window.addEventListener('resize', onScrollOrResize, { passive: true })
+})
+
+onBeforeUnmount(() => {
+  commentObserver?.disconnect()
+  listMutationObserver?.disconnect()
+  if (rebindTimer) {
+    clearTimeout(rebindTimer)
+    rebindTimer = null
+  }
+  if (scrollRaf) {
+    window.cancelAnimationFrame(scrollRaf)
+    scrollRaf = 0
+  }
+  window.removeEventListener('scroll', onScrollOrResize)
+  window.removeEventListener('resize', onScrollOrResize)
+})
+
+function itemLabel(item: ForumTopicExtensionSidebarItem) {
+  return forumTopicExtensionLabel(item, String(locale.value || 'zh-CN')) || item.id
+}
+
+function hostLinkTo(item: ForumTopicExtensionSidebarItem) {
+  const href = `${item.url || ''}`.trim()
+  if (!href.startsWith('/') || href.startsWith('//') || href.includes('://') || href.startsWith('/api')) {
+    return ''
+  }
+  return localePath(href)
+}
+
+function extensionRoutePath(item: ForumTopicExtensionSidebarItem) {
+  const url = `${item.url || ''}`.trim()
+  if (!url.startsWith('/extensions/') || url.includes('://') || url.includes('..') || url.startsWith('/api')) {
+    return ''
+  }
+  return url
+}
+
+async function runSidebarExtensionRoute(item: ForumTopicExtensionSidebarItem) {
+  const path = extensionRoutePath(item)
+  const method = `${item.method || 'GET'}`.toUpperCase()
+  if (!path || runningKey.value) {
+    return
+  }
+  const key = `${item.extensionId}:${item.id}`
+  runningKey.value = key
+  try {
+    await request(path, {
+      method: method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+      body: method === 'GET' ? undefined : { topicId: props.topic.id }
+    })
+    toast.add({
+      color: 'primary',
+      icon: item.icon || 'i-lucide-check',
+      title: itemLabel(item),
+      duration: 10000
+    })
+  } catch (error) {
+    toast.add({
+      color: 'error',
+      icon: 'i-lucide-alert-circle',
+      title: apiErrorMessage(error) || t('topicDetail.actionFailed'),
+      // 错误 Toast 不自动关闭（项目约定）
+      duration: 0
+    })
+  } finally {
+    runningKey.value = ''
+  }
+}
+</script>
+
+<template>
+  <aside class="sforum-topic-page__side" :aria-label="t('topicDetail.side.title')">
+    <div class="sf-topic-side-card">
+      <h3>{{ t('topicDetail.side.title') }}</h3>
+      <div class="sf-topic-side-card__row">
+        <span>{{ t('topicDetail.side.status') }}</span>
+        <strong>{{ statusLabel }}</strong>
+      </div>
+      <div class="sf-topic-side-card__row">
+        <span>{{ t('topicDetail.side.category') }}</span>
+        <strong>
+          <NuxtLink :to="categoryTo">{{ topic.categoryName }}</NuxtLink>
+        </strong>
+      </div>
+      <div class="sf-topic-side-card__row">
+        <span>{{ t('topicDetail.side.replies') }}</span>
+        <strong>{{ topic.commentCount }}</strong>
+      </div>
+      <div class="sf-topic-side-card__row">
+        <span>{{ t('topicDetail.side.views') }}</span>
+        <strong>{{ topic.viewCount }}</strong>
+      </div>
+    </div>
+
+    <div v-if="contributorAvatars.length" class="sf-topic-side-card">
+      <h3>{{ t('topicDetail.side.contributors') }}</h3>
+      <div class="sf-topic-side-card__contributors">
+        <SFAvatarGroup
+          :items="contributorAvatars"
+          :max="5"
+          :total="contributorCount"
+          size="md"
+          loading="eager"
+          clickable
+          :aria-label="contributorsAriaLabel"
+          @click="contributorsOpen = true"
+        />
+        <p v-if="contributorCount > 1" class="sf-topic-side-card__contributors-meta">
+          {{ t('topicDetail.side.contributorsCount', { count: contributorCount }) }}
+        </p>
+      </div>
+      <SFTopicContributorsModal
+        v-model:open="contributorsOpen"
+        :topic-id="topic.id"
+      />
+    </div>
+
+    <div v-if="tags.length" class="sf-topic-side-card">
+      <h3>{{ t('topicDetail.side.tags') }}</h3>
+      <div class="sf-topic-side-card__tags">
+        <NuxtLink
+          v-for="tag in tags"
+          :key="tag.id"
+          :to="tag.to"
+          class="sf-topic-side-card__tag"
+        >
+          {{ tag.name }}
+        </NuxtLink>
+      </div>
+    </div>
+
+    <section v-if="topic.commentCount > 0" class="sf-topic-side-card sf-topic-side-card--progress">
+      <header class="sf-topic-side-card__progress-head">
+        <h3>{{ t('topicDetail.progress.label') }}</h3>
+        <span><b>{{ currentCommentIndex }}</b> / {{ topic.commentCount }}</span>
+      </header>
+      <div class="sf-topic-side-card__progress-track" aria-hidden="true">
+        <span :style="{ width: `${commentProgress}%` }" />
+      </div>
+      <div class="sf-topic-side-card__progress-actions">
+        <a
+          :href="firstCommentId ? `#comment-${firstCommentId}` : '#topic-latest'"
+          :aria-label="t('topicDetail.progress.first')"
+        >
+          <UIcon name="i-lucide-arrow-up" class="size-4" aria-hidden="true" />
+        </a>
+        <a
+          :href="latestCommentId ? `#comment-${latestCommentId}` : '#topic-latest'"
+          :aria-label="t('topicDetail.progress.latest')"
+        >
+          <UIcon name="i-lucide-arrow-down" class="size-4" aria-hidden="true" />
+        </a>
+        <a
+          class="sf-topic-side-card__latest-link"
+          :href="latestCommentId ? `#comment-${latestCommentId}` : '#topic-latest'"
+        >
+          <UIcon name="i-lucide-corner-right-down" class="size-4" aria-hidden="true" />
+          {{ t('topicDetail.progress.latest') }}
+        </a>
+      </div>
+    </section>
+
+    <nav class="sf-topic-side-card sf-topic-side-card--page-nav" :aria-label="t('topicDetail.side.pageNav')">
+      <h3>{{ t('topicDetail.side.pageNav') }}</h3>
+      <a href="#topic-start" class="is-active">{{ t('topicDetail.side.topicContent') }}</a>
+      <a href="#topic-latest">
+        {{ t('topicDetail.side.discussion') }}
+        <span>{{ topic.commentCount }}</span>
+      </a>
+      <a href="#topic-reply-editor">{{ t('topicDetail.side.joinDiscussion') }}</a>
+      <NuxtLink :to="localePath('/guidelines')">{{ t('home.sidebar.guidelines') }}</NuxtLink>
+    </nav>
+
+    <!-- 扩展侧栏卡片：无贡献时整块不渲染，保证空安全；顺序与宿主 order 一致 -->
+    <div
+      v-if="sidebarItems.length"
+      class="sf-topic-side-card sf-topic-side-card--extensions"
+      data-testid="topic-extension-sidebar"
+    >
+      <h3>{{ t('topicDetail.side.extensions') }}</h3>
+      <div class="sf-topic-side-card__extensions">
+        <template v-for="item in sidebarItems" :key="`${item.extensionId}:${item.id}`">
+          <NuxtLink
+            v-if="item.kind === 'hostLink' && hostLinkTo(item)"
+            :to="hostLinkTo(item)"
+            class="sf-topic-side-card__extension-link"
+          >
+            <UIcon
+              v-if="item.icon"
+              :name="item.icon"
+              class="size-4"
+              aria-hidden="true"
+            />
+            <span>{{ itemLabel(item) }}</span>
+          </NuxtLink>
+          <button
+            v-else-if="item.kind === 'extensionRoute' && extensionRoutePath(item)"
+            type="button"
+            class="sf-topic-side-card__extension-link"
+            :disabled="runningKey === `${item.extensionId}:${item.id}`"
+            @click="runSidebarExtensionRoute(item)"
+          >
+            <UIcon
+              v-if="item.icon"
+              :name="item.icon"
+              class="size-4"
+              aria-hidden="true"
+            />
+            <span>{{ itemLabel(item) }}</span>
+          </button>
+        </template>
+      </div>
+    </div>
+    <!-- 宿主区域出口等附加内容（例如 forum.topic.show sidebar 区域） -->
+    <slot />
+  </aside>
+</template>

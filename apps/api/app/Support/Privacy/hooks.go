@@ -75,8 +75,8 @@ type ExportArtifact struct {
 
 // EraseResult reports erase outcome.
 type EraseResult struct {
-	ExtensionID string   `json:"extensionId"`
-	Erased      bool     `json:"erased"`
+	ExtensionID string `json:"extensionId"`
+	Erased      bool   `json:"erased"`
 	// RetainedExternal lists resources Host cannot delete (CDN, 3rd party).
 	RetainedExternal []string `json:"retainedExternal,omitempty"`
 	Warnings         []string `json:"warnings,omitempty"`

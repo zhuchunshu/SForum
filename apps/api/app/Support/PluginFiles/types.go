@@ -124,8 +124,8 @@ type Usage struct {
 
 // CleanupResult reports uninstall/disable cleanup.
 type CleanupResult struct {
-	ExtensionID   string `json:"extensionId"`
-	RemovedFiles  int    `json:"removedFiles"`
-	RemovedBytes  int64  `json:"removedBytes"`
-	Kinds         []string `json:"kinds,omitempty"`
+	ExtensionID  string   `json:"extensionId"`
+	RemovedFiles int      `json:"removedFiles"`
+	RemovedBytes int64    `json:"removedBytes"`
+	Kinds        []string `json:"kinds,omitempty"`
 }

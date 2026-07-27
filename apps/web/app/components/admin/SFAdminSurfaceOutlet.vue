@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useAdminSurfaces } from '~/composables/admin/useAdminSurfaces'
+import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import {
   adminSurfaceKindIcon,
@@ -8,7 +10,7 @@ import {
   type AdminSurfaceKind,
   type AdminSurfacePrimitive,
   type AdminSurfaceViewModel
-} from '~/utils/adminSurfaces'
+} from '~/utils/admin/adminSurfaces'
 
 type ResolvedSurface = {
   surface: AdminSurfaceContract

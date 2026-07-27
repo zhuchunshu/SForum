@@ -43,7 +43,7 @@ func requireSuperAdminForUntrustedBackend(actor identity.Actor, source string, m
 }
 
 // denyUntrustedBackend 记录拒绝审计（不含包内容/密钥），并写 extension_events（若有 id）。
-func (s *Service) denyUntrustedBackend(ctx context.Context, actor identity.Actor, extensionID, action string) {
+func (s *serviceCore) denyUntrustedBackend(ctx context.Context, actor identity.Actor, extensionID, action string) {
 	if s == nil {
 		return
 	}

@@ -11,7 +11,7 @@ var ErrThemeRuntimeApplyFailed = errors.New("extensions: theme runtime publicati
 // ApplyThemeRuntimePublication converges process-local Page/ThemeRuntime and
 // Component Registry state. The desired database state and publication row
 // were committed by the activation transaction before this method runs.
-func (s *Service) ApplyThemeRuntimePublication(ctx context.Context, publication ThemeRuntimePublication) error {
+func (s *ThemeService) ApplyThemeRuntimePublication(ctx context.Context, publication ThemeRuntimePublication) error {
 	if s == nil || ctx == nil || s.pageRegistry == nil || !validThemeRuntimePublication(publication) {
 		return ErrThemeRuntimeApplyFailed
 	}
@@ -138,7 +138,7 @@ func (s *Service) ApplyThemeRuntimePublication(ctx context.Context, publication 
 	return nil
 }
 
-func (s *Service) themePublicationSource(
+func (s *serviceCore) themePublicationSource(
 	ctx context.Context,
 	publication ThemeRuntimePublication,
 ) (*Extension, error) {

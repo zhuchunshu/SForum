@@ -7,12 +7,12 @@ package themecompiler
 type PageViewModelKind string
 
 const (
-	ViewModelHome          PageViewModelKind = "home"
-	ViewModelList          PageViewModelKind = "list"
-	ViewModelDetail        PageViewModelKind = "detail"
-	ViewModelProfile       PageViewModelKind = "profile"
-	ViewModelError         PageViewModelKind = "error"
-	ViewModelCreate        PageViewModelKind = "create"
+	ViewModelHome    PageViewModelKind = "home"
+	ViewModelList    PageViewModelKind = "list"
+	ViewModelDetail  PageViewModelKind = "detail"
+	ViewModelProfile PageViewModelKind = "profile"
+	ViewModelError   PageViewModelKind = "error"
+	ViewModelCreate  PageViewModelKind = "create"
 
 	ViewModelSettings      PageViewModelKind = "settings"
 	ViewModelNotifications PageViewModelKind = "notifications"

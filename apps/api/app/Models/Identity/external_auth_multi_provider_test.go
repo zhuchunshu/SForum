@@ -83,8 +83,6 @@ func trimLastSegment(s string) string {
 	return s[:idx]
 }
 
-
-
 // TestMultiProvider_DiscoveryAndOrdering 两个提供商可同时发现、排序。
 func TestMultiProvider_DiscoveryAndOrdering(t *testing.T) {
 	registry := identityregistry.New()

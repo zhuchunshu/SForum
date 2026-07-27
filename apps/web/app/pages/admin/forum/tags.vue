@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
-import { useAdminPage } from '~/composables/useAdminPage'
+import { useAdminPage } from '~/composables/admin/useAdminPage'
 import {
   createAdminForumApi,
   createTagPayload,
   forumTagStatusChoices,
   type AdminForumTagPayload
-} from '~/utils/adminForum'
-import type { ForumTag, ForumTagStatus } from '~/utils/forumTaxonomy'
+} from '~/utils/admin/adminForum'
+import type { ForumTag, ForumTagStatus } from '~/utils/forum/forumTaxonomy'
 
 definePageMeta({
   middleware: 'admin',

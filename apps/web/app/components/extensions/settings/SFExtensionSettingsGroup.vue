@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import SFExtensionSettingsField from './SFExtensionSettingsField.vue'
 
-import type { AdminExtensionSettingValue, AdminExtensionSettingsGroup } from '~/utils/adminExtensions'
+import type { AdminExtensionSettingValue, AdminExtensionSettingsGroup } from '~/utils/admin/adminExtensions'
 
 defineProps<{
   group?: AdminExtensionSettingsGroup

@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/net/html/atom"
 	nethtml "golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 )
 
 // RenderHTML walks accepted native JSON into HTML before sanitization.

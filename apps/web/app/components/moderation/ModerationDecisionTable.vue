@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ModerationDecision } from '~/composables/useModerationApi'
+import type { ModerationDecision } from '~/composables/moderation/useModerationApi'
 
 defineProps<{ items: ModerationDecision[]; loading?: boolean }>()
 const { t } = useI18n()

@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { usePermissions } from '~/composables/identity/usePermissions'
+import { useAdminForumContent } from '~/composables/admin/useAdminForumContent'
+import SFTopicEditor from '~/components/forum/SFTopicEditor.vue'
 import type {
   AdminForumContentDetail,
   AdminForumContentFilters,
@@ -7,8 +10,8 @@ import type {
   AdminForumTopicDetail,
   ForumRevisionDetail,
   ForumRevisionSummary
-} from '~/utils/adminForumContent'
-import { useAdminPage } from '~/composables/useAdminPage'
+} from '~/utils/admin/adminForumContent'
+import { useAdminPage } from '~/composables/admin/useAdminPage'
 import SFAdminForumCommentEditor from '~/components/admin/forum/SFAdminForumCommentEditor.vue'
 import SFAdminForumRevisionDiff from '~/components/admin/forum/SFAdminForumRevisionDiff.vue'
 import SFAdminForumRevisionTimeline from '~/components/admin/forum/SFAdminForumRevisionTimeline.vue'

@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { usePermissionText } from '~/composables/identity/usePermissionText'
 import { apiErrorMessage } from '~/composables/useApiClient'
-import { useAdminPage } from '~/composables/useAdminPage'
+import { useAdminPage } from '~/composables/admin/useAdminPage'
 
 definePageMeta({
   middleware: 'admin',

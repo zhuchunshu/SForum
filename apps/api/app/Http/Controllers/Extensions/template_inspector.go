@@ -23,12 +23,12 @@ const (
 // Package roots, compiled template bodies, and view-model payloads are never
 // included; only stable artifact identity and contribution/override keys.
 type TemplateInspectorSnapshot struct {
-	SchemaVersion string                         `json:"schemaVersion"`
-	Revision      uint64                         `json:"revision"`
-	ActiveTheme   string                         `json:"activeTheme,omitempty"`
-	DefaultTheme  string                         `json:"defaultTheme,omitempty"`
-	SnapshotCount int                            `json:"snapshotCount"`
-	OverrideCount int                            `json:"overrideCount"`
+	SchemaVersion string                          `json:"schemaVersion"`
+	Revision      uint64                          `json:"revision"`
+	ActiveTheme   string                          `json:"activeTheme,omitempty"`
+	DefaultTheme  string                          `json:"defaultTheme,omitempty"`
+	SnapshotCount int                             `json:"snapshotCount"`
+	OverrideCount int                             `json:"overrideCount"`
 	Snapshots     []pages.ThemeRuntimeInspectItem `json:"snapshots"`
 }
 

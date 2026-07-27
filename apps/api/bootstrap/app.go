@@ -18,6 +18,8 @@ import (
 	apilts "github.com/zhuchunshu/sforum/apps/api/app/Support/APILTS"
 	avatar "github.com/zhuchunshu/sforum/apps/api/app/Support/Avatar"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
+	extensionprotocol "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionProtocol"
+	extensionruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionRuntime"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
@@ -39,9 +41,9 @@ type API struct {
 type extensionRuntime interface {
 	extensions.RuntimeManager
 	appevents.Publisher
-	RouteTarget(extensionID string) (extensionsruntime.RouteTarget, bool)
-	AcquireActiveRuntimeCall(context.Context, string, extensionsruntime.RuntimeCallClass) (extensionsruntime.RuntimeInstanceSnapshot, *extensionsruntime.RuntimeAdmissionLease, error)
-	AcquireRuntimeCall(context.Context, extensionsruntime.RuntimeInstanceIdentity, extensionsruntime.RuntimeCallClass) (*extensionsruntime.RuntimeAdmissionLease, error)
+	RouteTarget(extensionID string) (extensionprotocol.RouteTarget, bool)
+	AcquireActiveRuntimeCall(context.Context, string, extensionruntime.RuntimeCallClass) (extensionruntime.RuntimeInstanceSnapshot, *extensionruntime.RuntimeAdmissionLease, error)
+	AcquireRuntimeCall(context.Context, extensionruntime.RuntimeInstanceIdentity, extensionruntime.RuntimeCallClass) (*extensionruntime.RuntimeAdmissionLease, error)
 	AdminSurfaceSnapshot(string) extensionsruntime.AdminSurfaceRegistrySnapshot
 	ResolveAdminSurface(string) (extensionsruntime.AdminSurfaceContract, error)
 	InvokeAdminSurface(context.Context, extensionsruntime.AdminSurfaceInvocation) (extensionsruntime.AdminSurfaceInvocationResult, error)

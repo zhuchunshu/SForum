@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { buildForumHomeQuery } from '~/utils/forumHome'
-import type { SiteExtensionNavItem, SiteNavItem, SitePublicNav } from '~/composables/useSiteChromeApi'
-import {
-  forumCategoriesIndexPath,
-  forumTagsIndexPath,
-  forumTopicExtensionLabel,
-  parseForumTagPublicPagesOption
-} from '~/utils/forumTaxonomy'
+import { useNotifications } from '~/composables/notifications/useNotifications'
+import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
+import { useAuthSession } from '~/composables/identity/useAuthSession'
+import { useSiteChromeApi } from '~/composables/admin/useSiteChromeApi'
+import { buildForumHomeQuery } from '~/utils/forum/forumHome'
+import type { SiteExtensionNavItem, SiteNavItem, SitePublicNav } from '~/composables/admin/useSiteChromeApi'
+import { forumCategoriesIndexPath, forumTagsIndexPath, forumTopicExtensionLabel, parseForumTagPublicPagesOption } from '~/utils/forum/forumTaxonomy'
 
 const props = withDefaults(defineProps<{
   /** Core 404 应急页不得在 API 已失效时继续启动 chrome 请求。 */

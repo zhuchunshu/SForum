@@ -71,7 +71,7 @@ func TestServiceListCommentsPassesTreeDescendantsCap(t *testing.T) {
 	store.listCommentsResult = CommentList{Items: []Comment{{ID: 1}}, Total: 1, View: "tree"}
 	settings := testForumSettings()
 	settings.TreeDescendantsPerRoot = 7
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+	service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: settings}, Publisher: nil})
 
 	if _, err := service.ListComments(context.Background(), CommentListInput{TopicID: 10, View: "tree"}); err != nil {
 		t.Fatalf("ListComments: %v", err)

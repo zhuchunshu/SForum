@@ -1,0 +1,432 @@
+package bootstrap
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"strings"
+	"time"
+
+	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
+	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
+	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
+	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
+	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
+	"github.com/zhuchunshu/sforum/apps/api/config"
+)
+
+type apiExtensionPlatform struct {
+	infrastructure               *apiInfrastructure
+	executableTrustService       *extensions.ExecutableTrustService
+	frontendService              *extensions.FrontendService
+	pageRegistry                 *pages.Registry
+	themeRuntime                 *pages.ThemeRuntimeRegistry
+	extensionService             *extensions.Service
+	hostAPIGateway               *hostapi.Gateway
+	extensionRuntime             extensionRuntime
+	lifecycleRuntime             *extensionsruntime.Manager
+	hostCacheRuntime             *productionHostCache
+	lifecycleStack               *productionLifecycleStack
+	productionSEO                *productionSEORegistry
+	identityReviewStore          identityregistry.Store
+	pluginRuntimeCoordinator     *pluginRuntimeCoordinatorRuntime
+	pluginRuntimeStopTimeout     time.Duration
+	stopPluginRuntimeCoordinator func()
+	closePluginRuntime           func()
+}
+
+func wireAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger *slog.Logger, infrastructure *apiInfrastructure) (*apiExtensionPlatform, error) {
+	queryCacheOwnership := newQueryResultCacheStageHandoff(infrastructure.queryResultCache, logger)
+	defer queryCacheOwnership.CloseUnlessHandedOff()
+	pool := infrastructure.pool
+	databaseLeaseRegistry := infrastructure.databaseLeaseRegistry
+	hostInstallationID := infrastructure.hostInstallationID
+	queryCursorSecret := infrastructure.queryCursorSecret
+	redisStorage := infrastructure.redisStorage
+	sharedRedisClient := infrastructure.sharedRedisClient
+	queryResultCache := infrastructure.queryResultCache
+	optionCipher := infrastructure.optionCipher
+	auditWriter := infrastructure.auditWriter
+	optionsService := infrastructure.optionsService
+	seoHostPolicy := infrastructure.seoHostPolicy
+	identityStore := infrastructure.identityStore
+	identityAuthorityGate := infrastructure.identityAuthorityGate
+	moderationStore := infrastructure.moderationStore
+	attachmentStore := infrastructure.attachmentStore
+	attachmentService := infrastructure.attachmentService
+	extensionStore := infrastructure.extensionStore
+	frontendTrustStore := infrastructure.frontendTrustStore
+	executableTrustStore := infrastructure.executableTrustStore
+	activationCoordinator := infrastructure.activationCoordinator
+	jobClient := infrastructure.jobClient
+	jobDispatcher := infrastructure.jobDispatcher
+
+	executableTrustService := extensions.NewExecutableTrustService(extensionStore, executableTrustStore).
+		WithAuditor(auditWriter).
+		WithTTL(cfg.TrustChallengeTTL)
+	frontendService := extensions.NewFrontendService(extensionStore, frontendTrustStore).
+		WithAuditor(auditWriter).
+		WithSafeMode(cfg.SafeMode).
+		WithExecutableTrust(executableTrustService, cfg.V3TrustChallenges).
+		WithPublicL2(cfg.V3PublicL2)
+	// Page Registry：运行时主题 L0/L1，主题激活不重建 Nuxt、不写 current.json。
+	pageRegistryStore := pages.NewPostgresStore(pool)
+	pageRegistry := pages.NewRegistry(pageRegistryStore)
+	if err := pageRegistry.RestoreBindings(ctx); err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("restore page provider bindings failed: %w", err)
+	}
+	themeRuntime := pages.NewThemeRuntimeRegistry()
+	themeSiteName, _ := optionsService.SiteName(ctx)
+	if strings.TrimSpace(themeSiteName) == "" {
+		themeSiteName = cfg.AppName
+	}
+	pageRegistryAdapter := extensions.NewPageRegistryAdapter(pageRegistry).
+		WithThemeRuntime(themeRuntime, themeSiteName, cfg.SupportedLocales)
+	// 先构造带 Cipher 的 Service，插件启动与 Host API 才能共享同一个解密设置源。
+	// 主题激活走 Page Registry 同步路径；不再注入 theme_activate dispatcher。
+	extensionService := extensions.NewServiceWithOptions(
+		extensionStore, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot,
+		nil,
+		extensions.WithAuditor(auditWriter),
+		extensions.WithExternalExtensionRoots(cfg.ExternalExtensionRoots),
+		extensions.WithExecutableTrust(executableTrustService, cfg.V3TrustChallenges),
+		extensions.WithSafeMode(cfg.SafeMode),
+		extensions.WithActivationCoordinator(activationCoordinator),
+		// F2.4：同 id 升级且 digest 变化时吊销该扩展前端信任，要求重新授权。
+		extensions.WithTrustRevoker(frontendService),
+		// F4.5：启用时校验 manifest requiresFeatures。
+		extensions.WithFeatureFlags(optionsService),
+		// 扩展设置影响公开贡献时 bump site.public_surface_revision（Nuxt /t/** SWR varies）。
+		extensions.WithPublicSurfaceRevisionBumper(optionsService),
+		// 扩展 secret 设置与 web_options 共用 AES-GCM 密钥。
+		extensions.WithCipher(optionCipher),
+		// E6.1：禁用声明存储槽位的插件时，attachment.provider 从 plugin:<id> 回落 local。
+		extensions.WithStorageSelectionClearer(attachmentService),
+		// 运行时 Page Registry（主题激活同步注册页面贡献）。
+		extensions.WithPageRegistry(pageRegistryAdapter),
+	)
+	// F2.2 Host API 与 ProtocolStarter 共用 extensionService；错误密钥不得降级读取 store。
+	hostAPIService := hostapi.New(hostapi.Config{
+		Settings: extensionService,
+		Jobs:     &hostapi.RiverJobEnqueuer{Dispatcher: jobDispatcher},
+		Auditor:  auditWriter,
+	})
+	hostAPIGateway := hostapi.NewGateway(hostAPIService)
+	databaseCatalogBinder := postgresProtocolV2DatabaseCatalogBinder{
+		pool: pool, gateway: hostAPIGateway,
+		options: []hostapi.ProtocolV2DatabaseRuntimeOption{
+			hostapi.WithProtocolV2DatabaseTraceSink(hostapi.NewSlogDatabaseTraceSink(logger)),
+			hostapi.WithProtocolV2DatabaseQueryInvalidationJobs(jobDispatcher),
+		},
+	}
+	queryTraceSink := hostapi.NewSlogQueryTraceSink(logger)
+	queryAuthority := hostapi.NewPostgresProtocolV2QueryAuthorityResolver(pool)
+	queryRuntime, err := hostapi.NewPostgresProtocolV2QueryRuntime(
+		pool, queryAuthority,
+		hostapi.WithProtocolV2QueryTraceSink(queryTraceSink),
+	)
+	if err == nil {
+		err = hostAPIGateway.BindProtocolV2QueryRuntime(queryRuntime)
+	}
+	if err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("Host Query runtime setup failed: %w", err)
+	}
+	// 六域 Host Command 必须在首个插件 broker 注册前冻结；否则同一启动中
+	// 已运行插件会看到缺失目录，而后启动插件看到另一份能力集合。
+	if err := bindPostgresProtocolV2CommandRuntime(
+		hostAPIGateway, pool, jobDispatcher, moderationStore, attachmentStore, identityAuthorityGate,
+	); err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("Host Command runtime setup failed: %w", err)
+	}
+	extensionRuntime := bindAPIExtensionRuntime(
+		extensionStore, hostAPIGateway, extensionService, executableTrustService, databaseLeaseRegistry,
+	)
+	if runtime, ok := extensionRuntime.(interface {
+		SetStartPreparer(func(context.Context, extensions.Extension) error)
+	}); ok {
+		runtime.SetStartPreparer(protocolV2DatabaseStartPreparer(extensionStore, databaseCatalogBinder, cfg.SafeMode))
+	}
+	hostAPIService.BindPluginJobAdmission(newPluginJobEnqueueAdmission(extensionRuntime))
+	serviceAdmission := newPluginServiceProviderAdmission(extensionRuntime)
+	hostAPIService.BindServiceProviderAdmission(serviceAdmission)
+	lifecycleRuntime, err := requireProductionExtensionRuntime(extensionRuntime)
+	if err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		extensionRuntime.Close(ctx)
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, err
+	}
+	hostCacheRuntime, err := bindProductionHostCache(
+		hostInstallationID, logger, sharedRedisClient, cacheregistry.New(), serviceAdmission, hostAPIGateway,
+	)
+	if err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		extensionRuntime.Close(ctx)
+		_ = hostAPIGateway.Close()
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("Host Cache runtime setup failed: %w", err)
+	}
+	// P11 平台服务：SecretStore / HostHTTP / PluginFiles / SettingsLifecycle → Protocol V2。
+	hostPlatform, err := bindProductionHostPlatform(cfg, pool, optionCipher, extensionStore, logger, hostAPIGateway)
+	if err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		extensionRuntime.Close(ctx)
+		_ = hostAPIGateway.Close()
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("Host platform services setup failed: %w", err)
+	}
+	// 生产接线：后台设置保存/重置/导入/升级必须走 SettingsLifecycle。
+	if hostPlatform != nil && hostPlatform.Settings != nil {
+		extensionService.BindSettingsLifecycle(hostPlatform.Settings)
+	}
+	// P12 ops：RuntimeRollout / SystemTier / Marketplace / Privacy 绑定 PostgreSQL。
+	p12Ops, err := bindProductionP12Ops(cfg, pool, logger, extensionService, identityStore)
+	if err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		extensionRuntime.Close(ctx)
+		_ = hostAPIGateway.Close()
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("P12 ops services setup failed: %w", err)
+	}
+	// SystemTier：在任何 system extension 代码启动前决定加载顺序；Safe Mode 直接绕过。
+	if p12Ops != nil && p12Ops.SystemTier != nil {
+		if order, tierErr := p12Ops.SystemTier.LoadOrder(ctx, cfg.SafeMode); tierErr != nil {
+			if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+				logger.Warn("job dispatcher stop failed", "error", stopErr)
+			}
+			extensionRuntime.Close(ctx)
+			_ = hostAPIGateway.Close()
+			sharedRedisClient.Close()
+			if closeErr := redisStorage.Close(); closeErr != nil {
+				logger.Warn("redis session storage close failed", "error", closeErr)
+			}
+			pool.Close()
+			return nil, fmt.Errorf("system tier load order: %w", tierErr)
+		} else if cfg.SafeMode && order != nil {
+			if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+				logger.Warn("job dispatcher stop failed", "error", stopErr)
+			}
+			extensionRuntime.Close(ctx)
+			_ = hostAPIGateway.Close()
+			sharedRedisClient.Close()
+			if closeErr := redisStorage.Close(); closeErr != nil {
+				logger.Warn("redis session storage close failed", "error", closeErr)
+			}
+			pool.Close()
+			return nil, fmt.Errorf("bootstrap: safe mode must bypass system tier (got %d members)", len(order))
+		} else if !cfg.SafeMode && len(order) > 0 {
+			logger.Info("system tier load order resolved before system extension start",
+				"members", len(order))
+			// 顺序仅作为后续 runtime 启动输入；此处禁止执行 package 代码。
+			_ = order
+		}
+		// 绑定 RuntimeRollout 到扩展升级协调（staged → migrate → promote / rollback）。
+		if p12Ops.Rollout != nil {
+			extensionService.BindRuntimeRollout(p12Ops.Rollout)
+		}
+	}
+	if err := bindProtocolV2ProviderBroker(hostAPIGateway, lifecycleRuntime); err != nil {
+		extensionRuntime.Close(ctx)
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, err
+	}
+	lifecycleRuntime.WithActivation(activationCoordinator, extensions.NewActivationBootID())
+	lifecycleMigrationEngine := extensionsruntime.NewPostgresLifecycleMigrationEngine(pool, nil)
+	lifecycleDatabaseDisposition := extensionsruntime.NewPostgresExtensionDatabaseDisposition(pool)
+	lifecycleStack, err := newProductionLifecycleStack(productionLifecycleStackConfig{
+		Pool: pool, Store: extensionStore, Features: optionsService,
+		Trust: executableTrustService, Runtime: lifecycleRuntime, Pages: pageRegistry,
+		ThemeRuntime: themeRuntime, PageSiteName: themeSiteName, PageLocales: cfg.SupportedLocales,
+		Services: hostAPIGateway.ProtocolV2ServiceRegistry(), Caches: hostCacheRuntime.Registry, River: jobClient,
+		ExtensionRoot: cfg.ExtensionRoot, QueryCursorSecret: queryCursorSecret, MigrationEngine: lifecycleMigrationEngine,
+		Database: lifecycleDatabaseDisposition, SafeMode: cfg.SafeMode,
+	})
+	if err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		extensionRuntime.Close(ctx)
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("extension lifecycle setup failed: %w", err)
+	}
+	identityReviewStore, ok := lifecycleStack.IdentityStore.(identityregistry.Store)
+	if !ok {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		extensionRuntime.Close(ctx)
+		_ = hostAPIGateway.Close()
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("extension lifecycle identity store does not expose Host review operations")
+	}
+	frontendService.WithPublicComponentAdmission(lifecycleStack.ComponentRegistry)
+	if err := lifecycleStack.bindService(extensionService); err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		extensionRuntime.Close(ctx)
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("bind extension lifecycle service failed: %w", err)
+	}
+	// Query Registry 必须在首个插件 broker 注册前绑定。它复用 lifecycle
+	// stack 的不可变 Core snapshot，并让 caller/provider 都经过 exact-runtime gate。
+	if _, err := bindProductionQueryRegistryWithCache(
+		lifecycleStack.QueryRegistry,
+		lifecycleStack.QueryCoreCatalog,
+		queryRuntime,
+		identityStore,
+		lifecycleRuntime,
+		hostAPIGateway,
+		queryTraceSink,
+		queryResultCache.Cache(),
+	); err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		extensionRuntime.Close(ctx)
+		_ = hostAPIGateway.Close()
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("Query Registry production setup failed: %w", err)
+	}
+	productionSEO, err := bindProductionSEORegistry(
+		lifecycleStack.SEORegistry,
+		lifecycleRuntime,
+		seoHostPolicy,
+	)
+	if err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
+		extensionRuntime.Close(ctx)
+		_ = hostAPIGateway.Close()
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("SEO Registry production setup failed: %w", err)
+	}
+	// 把已构造的 extensionService 接到 Host API 能力/权限解析（避免循环构造）。
+	hostAPIService.BindCapabilitySource(extensionService)
+	hostAPIService.BindExtensionInventory(extensions.HostInventoryAdapter{Service: extensionService})
+	hostAPIGateway.BindCommandCapabilitySource(extensionService)
+	hostAPIService.BindPermissions(identityPermissionAdapter{store: identityStore})
+	// Identity user-field digests are installation-bound. GetUserSafe resolves
+	// extension declared_fields through the Host-owned store with live actor
+	// permission checks; core safe fields remain available without the store.
+	userFieldDigestKey, err := deriveIdentityUserFieldDigestKey(cfg.SessionHashSecret, hostInstallationID)
+	if err != nil {
+		return nil, fmt.Errorf("derive identity user-field digest key: %w", err)
+	}
+	userFieldValueStore, err := identity.NewPostgresIdentityUserFieldValueStore(
+		pool, lifecycleStack.IdentityRegistry, userFieldDigestKey,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create identity user-field value store: %w", err)
+	}
+	hostAPIService.BindUsers(identityUserAdapter{store: identityStore, fields: userFieldValueStore})
+	runtimeState, err := restoreAPIExtensionPlatform(ctx, cfg, logger, apiExtensionRestoreInput{
+		infrastructure:         infrastructure,
+		extensionService:       extensionService,
+		frontendService:        frontendService,
+		executableTrustService: executableTrustService,
+		databaseCatalogBinder:  databaseCatalogBinder,
+		extensionRuntime:       extensionRuntime,
+		lifecycleRuntime:       lifecycleRuntime,
+		lifecycleStack:         lifecycleStack,
+	})
+	if err != nil {
+		return nil, err
+	}
+	_ = queryCacheOwnership.HandOff()
+	return &apiExtensionPlatform{
+		infrastructure:               infrastructure,
+		executableTrustService:       executableTrustService,
+		frontendService:              frontendService,
+		pageRegistry:                 pageRegistry,
+		themeRuntime:                 themeRuntime,
+		extensionService:             extensionService,
+		hostAPIGateway:               hostAPIGateway,
+		extensionRuntime:             extensionRuntime,
+		lifecycleRuntime:             lifecycleRuntime,
+		hostCacheRuntime:             hostCacheRuntime,
+		lifecycleStack:               lifecycleStack,
+		productionSEO:                productionSEO,
+		identityReviewStore:          identityReviewStore,
+		pluginRuntimeCoordinator:     runtimeState.pluginRuntimeCoordinator,
+		pluginRuntimeStopTimeout:     runtimeState.pluginRuntimeStopTimeout,
+		stopPluginRuntimeCoordinator: runtimeState.stopPluginRuntimeCoordinator,
+		closePluginRuntime:           runtimeState.closePluginRuntime,
+	}, nil
+}

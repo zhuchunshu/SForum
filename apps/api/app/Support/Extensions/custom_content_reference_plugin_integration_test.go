@@ -142,11 +142,11 @@ func TestReferenceCustomContentPluginPublishesEntityContentEditorNavigation(t *t
 
 	// --- 真实存储 + 字段校验 ---
 	writeOK, writeErr := invokeCustomContentRouteErr(t, manager, active.Identity, extensionsruntime.ProtocolV2RouteRequest{
-		RouteID: "sforum.custom-content.route.article-write",
+		RouteID:         "sforum.custom-content.route.article-write",
 		ContractVersion: "sforum.custom-content.route.article-write@1",
-		RouteAction: extensionmanifest.RouteActionAdd,
+		RouteAction:     extensionmanifest.RouteActionAdd,
 		InvocationStage: extensionsruntime.ProtocolV2RouteInvocationStageHandler,
-		Method: http.MethodPost, Path: "/api/custom-content/articles",
+		Method:          http.MethodPost, Path: "/api/custom-content/articles",
 		RequestSchema:  "sforum.custom-content.route.article-write.request@1",
 		ResponseSchema: "sforum.custom-content.route.article-write.response@1",
 		Body: map[string]any{
@@ -166,14 +166,14 @@ func TestReferenceCustomContentPluginPublishesEntityContentEditorNavigation(t *t
 	}
 	// 字段校验失败路径
 	_, writeBadErr := invokeCustomContentRouteErr(t, manager, active.Identity, extensionsruntime.ProtocolV2RouteRequest{
-		RouteID: "sforum.custom-content.route.article-write",
+		RouteID:         "sforum.custom-content.route.article-write",
 		ContractVersion: "sforum.custom-content.route.article-write@1",
-		RouteAction: extensionmanifest.RouteActionAdd,
+		RouteAction:     extensionmanifest.RouteActionAdd,
 		InvocationStage: extensionsruntime.ProtocolV2RouteInvocationStageHandler,
-		Method: http.MethodPost, Path: "/api/custom-content/articles",
+		Method:          http.MethodPost, Path: "/api/custom-content/articles",
 		RequestSchema:  "sforum.custom-content.route.article-write.request@1",
 		ResponseSchema: "sforum.custom-content.route.article-write.response@1",
-		Body: map[string]any{"id": "bad", "title": "x", "summary": "", "slug": "BAD SLUG"}, BodyPresent: true,
+		Body:           map[string]any{"id": "bad", "title": "x", "summary": "", "slug": "BAD SLUG"}, BodyPresent: true,
 		Authority: commerceFilteredHostAuthority(),
 		Actor:     extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"*": true}),
 		Timeout:   5 * time.Second,
@@ -184,15 +184,15 @@ func TestReferenceCustomContentPluginPublishesEntityContentEditorNavigation(t *t
 
 	// --- list 读回 + databaseConnected ---
 	list := invokeCustomContentRoute(t, manager, active.Identity, extensionsruntime.ProtocolV2RouteRequest{
-		RouteID: "sforum.custom-content.route.articles",
+		RouteID:         "sforum.custom-content.route.articles",
 		ContractVersion: "sforum.custom-content.route.articles@1",
-		RouteAction: extensionmanifest.RouteActionAdd,
+		RouteAction:     extensionmanifest.RouteActionAdd,
 		InvocationStage: extensionsruntime.ProtocolV2RouteInvocationStageHandler,
-		Method: http.MethodGet, Path: "/api/custom-content/articles",
+		Method:          http.MethodGet, Path: "/api/custom-content/articles",
 		ResponseSchema: "sforum.custom-content.route.articles.response@1",
-		Authority: commerceFilteredHostAuthority(),
-		Actor:     extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"*": true}),
-		Timeout:   5 * time.Second,
+		Authority:      commerceFilteredHostAuthority(),
+		Actor:          extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"*": true}),
+		Timeout:        5 * time.Second,
 	})
 	if list.StatusCode != http.StatusOK || list.Body["databaseConnected"] != true {
 		t.Fatalf("list must use real SFORUM_DATABASE_URL: %#v", list)
@@ -200,15 +200,15 @@ func TestReferenceCustomContentPluginPublishesEntityContentEditorNavigation(t *t
 
 	// --- taxonomy ---
 	tax := invokeCustomContentRoute(t, manager, active.Identity, extensionsruntime.ProtocolV2RouteRequest{
-		RouteID: "sforum.custom-content.route.taxonomy",
+		RouteID:         "sforum.custom-content.route.taxonomy",
 		ContractVersion: "sforum.custom-content.route.taxonomy@1",
-		RouteAction: extensionmanifest.RouteActionAdd,
+		RouteAction:     extensionmanifest.RouteActionAdd,
 		InvocationStage: extensionsruntime.ProtocolV2RouteInvocationStageHandler,
-		Method: http.MethodGet, Path: "/api/custom-content/taxonomy",
+		Method:          http.MethodGet, Path: "/api/custom-content/taxonomy",
 		ResponseSchema: "sforum.custom-content.route.taxonomy.response@1",
-		Authority: commerceFilteredHostAuthority(),
-		Actor:     extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"*": true}),
-		Timeout:   5 * time.Second,
+		Authority:      commerceFilteredHostAuthority(),
+		Actor:          extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"*": true}),
+		Timeout:        5 * time.Second,
 	})
 	if tax.StatusCode != http.StatusOK || tax.Body["hierarchical"] != true {
 		t.Fatalf("taxonomy = %#v", tax)
@@ -216,16 +216,16 @@ func TestReferenceCustomContentPluginPublishesEntityContentEditorNavigation(t *t
 
 	// --- search ---
 	search := invokeCustomContentRoute(t, manager, active.Identity, extensionsruntime.ProtocolV2RouteRequest{
-		RouteID: "sforum.custom-content.route.search",
+		RouteID:         "sforum.custom-content.route.search",
 		ContractVersion: "sforum.custom-content.route.search@1",
-		RouteAction: extensionmanifest.RouteActionAdd,
+		RouteAction:     extensionmanifest.RouteActionAdd,
 		InvocationStage: extensionsruntime.ProtocolV2RouteInvocationStageHandler,
-		Method: http.MethodGet, Path: "/api/custom-content/search",
+		Method:          http.MethodGet, Path: "/api/custom-content/search",
 		QueryParameters: map[string]string{"q": "forums"},
 		ResponseSchema:  "sforum.custom-content.route.search.response@1",
-		Authority: commerceFilteredHostAuthority(),
-		Actor:     extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"*": true}),
-		Timeout:   5 * time.Second,
+		Authority:       commerceFilteredHostAuthority(),
+		Actor:           extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"*": true}),
+		Timeout:         5 * time.Second,
 	})
 	if search.StatusCode != http.StatusOK || search.Body["indexed"] != true {
 		t.Fatalf("search = %#v", search)
@@ -233,15 +233,15 @@ func TestReferenceCustomContentPluginPublishesEntityContentEditorNavigation(t *t
 
 	// --- import / export ---
 	export := invokeCustomContentRoute(t, manager, active.Identity, extensionsruntime.ProtocolV2RouteRequest{
-		RouteID: "sforum.custom-content.route.export",
+		RouteID:         "sforum.custom-content.route.export",
 		ContractVersion: "sforum.custom-content.route.export@1",
-		RouteAction: extensionmanifest.RouteActionAdd,
+		RouteAction:     extensionmanifest.RouteActionAdd,
 		InvocationStage: extensionsruntime.ProtocolV2RouteInvocationStageHandler,
-		Method: http.MethodGet, Path: "/api/custom-content/export",
+		Method:          http.MethodGet, Path: "/api/custom-content/export",
 		ResponseSchema: "sforum.custom-content.route.export.response@1",
-		Authority: commerceFilteredHostAuthority(),
-		Actor:     extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"*": true}),
-		Timeout:   5 * time.Second,
+		Authority:      commerceFilteredHostAuthority(),
+		Actor:          extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"*": true}),
+		Timeout:        5 * time.Second,
 	})
 	if export.StatusCode != http.StatusOK || export.Body["ok"] != true {
 		t.Fatalf("export = %#v", export)
@@ -252,14 +252,14 @@ func TestReferenceCustomContentPluginPublishesEntityContentEditorNavigation(t *t
 		}},
 	})
 	imp := invokeCustomContentRoute(t, manager, active.Identity, extensionsruntime.ProtocolV2RouteRequest{
-		RouteID: "sforum.custom-content.route.import",
+		RouteID:         "sforum.custom-content.route.import",
 		ContractVersion: "sforum.custom-content.route.import@1",
-		RouteAction: extensionmanifest.RouteActionAdd,
+		RouteAction:     extensionmanifest.RouteActionAdd,
 		InvocationStage: extensionsruntime.ProtocolV2RouteInvocationStageHandler,
-		Method: http.MethodPost, Path: "/api/custom-content/import",
+		Method:          http.MethodPost, Path: "/api/custom-content/import",
 		RequestSchema:  "sforum.custom-content.route.import.request@1",
 		ResponseSchema: "sforum.custom-content.route.import.response@1",
-		Body: map[string]any{"payload": string(importPayload)}, BodyPresent: true,
+		Body:           map[string]any{"payload": string(importPayload)}, BodyPresent: true,
 		Authority: commerceFilteredHostAuthority(),
 		Actor:     extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"*": true}),
 		Timeout:   5 * time.Second,
@@ -270,14 +270,14 @@ func TestReferenceCustomContentPluginPublishesEntityContentEditorNavigation(t *t
 
 	// --- schema migration（POST 必须带 frozen requestSchema）---
 	migrate := invokeCustomContentRoute(t, manager, active.Identity, extensionsruntime.ProtocolV2RouteRequest{
-		RouteID: "sforum.custom-content.route.migrate",
+		RouteID:         "sforum.custom-content.route.migrate",
 		ContractVersion: "sforum.custom-content.route.migrate@1",
-		RouteAction: extensionmanifest.RouteActionAdd,
+		RouteAction:     extensionmanifest.RouteActionAdd,
 		InvocationStage: extensionsruntime.ProtocolV2RouteInvocationStageHandler,
-		Method: http.MethodPost, Path: "/api/custom-content/migrate",
+		Method:          http.MethodPost, Path: "/api/custom-content/migrate",
 		RequestSchema:  "sforum.custom-content.route.migrate.request@1",
 		ResponseSchema: "sforum.custom-content.route.migrate.response@1",
-		Body: map[string]any{"force": true}, BodyPresent: true,
+		Body:           map[string]any{"force": true}, BodyPresent: true,
 		Authority: commerceFilteredHostAuthority(),
 		Actor:     extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"*": true}),
 		Timeout:   5 * time.Second,
@@ -295,14 +295,14 @@ func TestReferenceCustomContentPluginPublishesEntityContentEditorNavigation(t *t
 		"sforum.custom-content.block.workflow-form",
 	} {
 		rendered := invokeCustomContentRoute(t, manager, active.Identity, extensionsruntime.ProtocolV2RouteRequest{
-			RouteID: "sforum.custom-content.route.render",
+			RouteID:         "sforum.custom-content.route.render",
 			ContractVersion: "sforum.custom-content.route.render@1",
-			RouteAction: extensionmanifest.RouteActionAdd,
+			RouteAction:     extensionmanifest.RouteActionAdd,
 			InvocationStage: extensionsruntime.ProtocolV2RouteInvocationStageHandler,
-			Method: http.MethodPost, Path: "/api/custom-content/render",
+			Method:          http.MethodPost, Path: "/api/custom-content/render",
 			RequestSchema:  "sforum.custom-content.route.render.request@1",
 			ResponseSchema: "sforum.custom-content.route.render.response@1",
-			Body: map[string]any{"handler": handler, "score": "3", "title": "SKU", "label": "new"}, BodyPresent: true,
+			Body:           map[string]any{"handler": handler, "score": "3", "title": "SKU", "label": "new"}, BodyPresent: true,
 			Authority: commerceFilteredHostAuthority(),
 			Actor:     extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"*": true}),
 			Timeout:   5 * time.Second,
@@ -500,9 +500,9 @@ func assertCustomContentArticlesViaDispatcher(
 	}
 	stepInvoker := &customContentManagerStepInvoker{manager: manager, identity: identity}
 	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
-		Plans: customContentPlanResolver{plan: plan},
-		Steps: stepInvoker,
-		Guard: customContentAllowGuard{},
+		Plans:   customContentPlanResolver{plan: plan},
+		Steps:   stepInvoker,
+		Guard:   customContentAllowGuard{},
 		Schemas: customContentAcceptSchemas{},
 	})
 	result, err := dispatcher.Dispatch(ctx, routes.DispatchRequest{
@@ -578,7 +578,7 @@ func (i *customContentManagerStepInvoker) Invoke(ctx context.Context, input rout
 		RouteAction: input.Step.Action, InvocationStage: stage,
 		Method: input.Request.Method, Path: input.Request.Path,
 		ResponseSchema: input.Step.ResponseSchema,
-		Authority: commerceFilteredHostAuthority(),
+		Authority:      commerceFilteredHostAuthority(),
 		Actor: extensionsruntime.NewProtocolV2RouteActor(
 			input.Request.ActorID, input.Request.Authenticated, input.Request.Permissions,
 		),

@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import { useAdminTabs } from '~/composables/useAdminTabs'
+import { useActiveThemeSkin } from '~/composables/themes/useActiveThemeSkin'
+import { useExternalAuthFeedback } from '~/composables/identity/useExternalAuthFeedback'
+import { useAuthSession } from '~/composables/identity/useAuthSession'
+import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
+import SFApiConnectionModal from '~/components/errors/SFApiConnectionModal.vue'
+import { useAdminTabs } from '~/composables/admin/useAdminTabs'
 
 // no_prefix：中英共用 URL，不输出 hreflang 交替链接（同 URL 多语 SEO 无效）。
 // 仍保留 html lang/dir，供无障碍与浏览器语言提示。

@@ -19,9 +19,9 @@ type ProcessSignaler func(pid int, signal syscall.Signal) error
 
 // CleanupOptions 控制一次孤儿插件清理。
 type CleanupOptions struct {
-	DryRun   bool
-	List     ProcessLister
-	Signal   ProcessSignaler
+	DryRun bool
+	List   ProcessLister
+	Signal ProcessSignaler
 	// Grace 是 TERM 后等待再 KILL 的间隔；0 表示默认 150ms。
 	Grace time.Duration
 }

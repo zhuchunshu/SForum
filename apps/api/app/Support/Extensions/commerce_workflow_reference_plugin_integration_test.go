@@ -159,15 +159,15 @@ func TestReferenceCommerceWorkflowPluginAndExtenderJoinedGates(t *testing.T) {
 
 	// --- 实际执行 HTTP add route via Protocol V2 ---
 	ordersResp := invokeCommerceRoute(t, manager, active.Identity, extensionsruntime.ProtocolV2RouteRequest{
-		RouteID: "sforum.commerce-workflow.route.orders",
+		RouteID:         "sforum.commerce-workflow.route.orders",
 		ContractVersion: "sforum.commerce-workflow.route.orders@1",
-		RouteAction: extensionmanifest.RouteActionAdd,
+		RouteAction:     extensionmanifest.RouteActionAdd,
 		InvocationStage: extensionsruntime.ProtocolV2RouteInvocationStageHandler,
-		Method: http.MethodGet, Path: "/api/commerce-workflow/orders",
+		Method:          http.MethodGet, Path: "/api/commerce-workflow/orders",
 		ResponseSchema: "sforum.commerce-workflow.route.orders.response@1",
-		Authority: commerceFilteredHostAuthority(),
-		Actor:   extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"*": true}),
-		Timeout: 5 * time.Second,
+		Authority:      commerceFilteredHostAuthority(),
+		Actor:          extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"*": true}),
+		Timeout:        5 * time.Second,
 	})
 	if ordersResp.StatusCode != http.StatusOK {
 		t.Fatalf("orders route status = %d body=%#v", ordersResp.StatusCode, ordersResp.Body)
@@ -181,13 +181,13 @@ func TestReferenceCommerceWorkflowPluginAndExtenderJoinedGates(t *testing.T) {
 
 	// --- custom guard 实际执行 ---
 	guardReq := extensionsruntime.ProtocolV2GuardRequest{
-		GuardID: "sforum.commerce-workflow.guard.owner",
+		GuardID:              "sforum.commerce-workflow.guard.owner",
 		GuardContractVersion: "sforum.commerce-workflow.guard.owner@1",
-		RouteID: "sforum.commerce-workflow.route.managed-orders",
+		RouteID:              "sforum.commerce-workflow.route.managed-orders",
 		RouteContractVersion: "sforum.commerce-workflow.route.managed-orders@1",
-		Method: http.MethodGet, Path: "/api/commerce-workflow/managed-orders",
+		Method:               http.MethodGet, Path: "/api/commerce-workflow/managed-orders",
 		Authority: extensionsruntime.ProtocolV2RequestAuthority{
-			Mode: extensionsruntime.ProtocolV2RequestAuthorityFiltered,
+			Mode:      extensionsruntime.ProtocolV2RequestAuthorityFiltered,
 			GuardKind: extensionsruntime.ProtocolV2RequestGuardCustom,
 		},
 		Actor: extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{
@@ -217,13 +217,13 @@ func TestReferenceCommerceWorkflowPluginAndExtenderJoinedGates(t *testing.T) {
 
 	// managed orders handler after guard
 	managed := invokeCommerceRoute(t, manager, active.Identity, extensionsruntime.ProtocolV2RouteRequest{
-		RouteID: "sforum.commerce-workflow.route.managed-orders",
+		RouteID:         "sforum.commerce-workflow.route.managed-orders",
 		ContractVersion: "sforum.commerce-workflow.route.managed-orders@1",
-		RouteAction: extensionmanifest.RouteActionAdd,
+		RouteAction:     extensionmanifest.RouteActionAdd,
 		InvocationStage: extensionsruntime.ProtocolV2RouteInvocationStageHandler,
-		Method: http.MethodGet, Path: "/api/commerce-workflow/managed-orders",
+		Method:          http.MethodGet, Path: "/api/commerce-workflow/managed-orders",
 		ResponseSchema: "sforum.commerce-workflow.route.managed-orders.response@1",
-		Authority: commerceFilteredCustomAuthority(),
+		Authority:      commerceFilteredCustomAuthority(),
 		Actor: extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{
 			"sforum.commerce-workflow.manage": true,
 		}),
@@ -241,9 +241,9 @@ func TestReferenceCommerceWorkflowPluginAndExtenderJoinedGates(t *testing.T) {
 
 	// --- Hooks ---
 	okResult := starter.InvokeHook(ctx, commerce, extensionsruntime.HookInput{
-		DeclarationID: "sforum.commerce-workflow.hook.order-evaluate",
-		Name:          "sforum.commerce-workflow.order.evaluate",
-		Kind:          "filter",
+		DeclarationID:   "sforum.commerce-workflow.hook.order-evaluate",
+		Name:            "sforum.commerce-workflow.order.evaluate",
+		Kind:            "filter",
 		ContractVersion: "sforum.commerce-workflow.hook.order-evaluate@1",
 		Timeout:         time.Second,
 		Payload:         map[string]any{"status": "pending", "orderId": "ord-1"},
@@ -255,9 +255,9 @@ func TestReferenceCommerceWorkflowPluginAndExtenderJoinedGates(t *testing.T) {
 
 	// --- Extender hook ---
 	extResult := starter.InvokeHook(ctx, extender, extensionsruntime.HookInput{
-		DeclarationID: "sforum.commerce-workflow-ext.hook.order-enrich",
-		Name:          "sforum.commerce-workflow.order.evaluate",
-		Kind:          "filter",
+		DeclarationID:   "sforum.commerce-workflow-ext.hook.order-enrich",
+		Name:            "sforum.commerce-workflow.order.evaluate",
+		Kind:            "filter",
 		ContractVersion: "sforum.commerce-workflow.hook.order-evaluate@1",
 		Timeout:         time.Second,
 		Payload:         map[string]any{"status": "approved", "orderId": "ord-1"},
@@ -299,9 +299,9 @@ func TestReferenceCommerceWorkflowPluginAndExtenderJoinedGates(t *testing.T) {
 		t.Fatal(err)
 	}
 	afterStop := starter.InvokeHook(ctx, commerce, extensionsruntime.HookInput{
-		DeclarationID: "sforum.commerce-workflow.hook.order-evaluate",
-		Name:          "sforum.commerce-workflow.order.evaluate",
-		Kind:          "filter",
+		DeclarationID:   "sforum.commerce-workflow.hook.order-evaluate",
+		Name:            "sforum.commerce-workflow.order.evaluate",
+		Kind:            "filter",
 		ContractVersion: "sforum.commerce-workflow.hook.order-evaluate@1",
 		Timeout:         time.Second,
 		Payload:         map[string]any{"status": "pending"},
@@ -392,9 +392,9 @@ func assertCommerceOrdersViaDispatcher(
 	}
 	stepInvoker := &commerceManagerStepInvoker{manager: manager, identity: identity}
 	dispatcher := routes.NewDispatcher(routes.DispatcherConfig{
-		Plans: commercePlanResolver{plan: plan},
-		Steps: stepInvoker,
-		Guard: commerceAllowGuard{},
+		Plans:   commercePlanResolver{plan: plan},
+		Steps:   stepInvoker,
+		Guard:   commerceAllowGuard{},
 		Schemas: commerceAcceptSchemas{},
 	})
 	result, err := dispatcher.Dispatch(ctx, routes.DispatchRequest{
@@ -472,7 +472,7 @@ func (i *commerceManagerStepInvoker) Invoke(ctx context.Context, input routes.Ro
 		RouteAction: input.Step.Action, InvocationStage: stage,
 		Method: input.Request.Method, Path: input.Request.Path,
 		ResponseSchema: input.Step.ResponseSchema,
-		Authority: commerceFilteredHostAuthority(),
+		Authority:      commerceFilteredHostAuthority(),
 		Actor: extensionsruntime.NewProtocolV2RouteActor(
 			input.Request.ActorID, input.Request.Authenticated, input.Request.Permissions,
 		),
@@ -586,90 +586,90 @@ func assertCommerceModifierRoutes(t *testing.T, manager *extensionsruntime.Manag
 	t.Helper()
 	// before
 	before := invokeCommerceRoute(t, manager, identity, extensionsruntime.ProtocolV2RouteRequest{
-		RouteID: "sforum.commerce-workflow.route.topics-before",
+		RouteID:         "sforum.commerce-workflow.route.topics-before",
 		ContractVersion: "sforum.commerce-workflow.route.topics-before@1",
-		RouteAction: extensionmanifest.RouteActionBefore,
+		RouteAction:     extensionmanifest.RouteActionBefore,
 		InvocationStage: extensionsruntime.ProtocolV2RouteInvocationStageRequest,
-		Method: http.MethodGet, Path: "/api/v1/topics",
+		Method:          http.MethodGet, Path: "/api/v1/topics",
 		MutableRequestFields: []string{"/query/commerceTrace"},
-		Authority: commerceFilteredHostAuthority(),
-		Actor:   extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"*": true}),
-		Timeout: 5 * time.Second,
+		Authority:            commerceFilteredHostAuthority(),
+		Actor:                extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"*": true}),
+		Timeout:              5 * time.Second,
 	})
 	if len(before.RequestPatch) == 0 {
 		t.Fatalf("before must return request patch: %#v", before)
 	}
 	// replace（manifest 声明 core.guard.raw_request）
 	replace := invokeCommerceRoute(t, manager, identity, extensionsruntime.ProtocolV2RouteRequest{
-		RouteID: "sforum.commerce-workflow.route.create-topic-replace",
+		RouteID:         "sforum.commerce-workflow.route.create-topic-replace",
 		ContractVersion: "sforum.commerce-workflow.route.create-topic-replace@1",
-		RouteAction: extensionmanifest.RouteActionReplace,
+		RouteAction:     extensionmanifest.RouteActionReplace,
 		InvocationStage: extensionsruntime.ProtocolV2RouteInvocationStageHandler,
-		Method: http.MethodPost, Path: "/api/v1/topics",
+		Method:          http.MethodPost, Path: "/api/v1/topics",
 		RequestSchema:  "sforum.route.forum.create_topic.request@1",
 		ResponseSchema: "sforum.route.forum.create_topic.response@1",
-		Body: map[string]any{"title": "replaced"}, BodyPresent: true,
+		Body:           map[string]any{"title": "replaced"}, BodyPresent: true,
 		Authority: commerceRawRequestAuthority(),
-		Actor:   extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"topics.write": true}),
-		Timeout: 5 * time.Second,
+		Actor:     extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"topics.write": true}),
+		Timeout:   5 * time.Second,
 	})
 	if replace.StatusCode != http.StatusCreated || replace.Body["replacedBy"] != "sforum.commerce-workflow" {
 		t.Fatalf("replace = %#v", replace)
 	}
 	// wrap request stage（patch path 必须与 Manifest mutable* 精确一致）
 	wrap := invokeCommerceRoute(t, manager, identity, extensionsruntime.ProtocolV2RouteRequest{
-		RouteID: "sforum.commerce-workflow.route.create-topic-wrap",
+		RouteID:         "sforum.commerce-workflow.route.create-topic-wrap",
 		ContractVersion: "sforum.commerce-workflow.route.create-topic-wrap@1",
-		RouteAction: extensionmanifest.RouteActionWrap,
+		RouteAction:     extensionmanifest.RouteActionWrap,
 		InvocationStage: extensionsruntime.ProtocolV2RouteInvocationStageRequest,
-		Method: http.MethodPost, Path: "/api/v1/topics",
+		Method:          http.MethodPost, Path: "/api/v1/topics",
 		MutableRequestFields:  []string{"/body/commerceWrapped"},
 		MutableResponseFields: []string{"/body/commerceWrapResult"},
 		RequestSchema:         "sforum.route.forum.create_topic.request@1",
 		ResponseSchema:        "sforum.route.forum.create_topic.response@1",
-		Body: map[string]any{"title": "wrap"}, BodyPresent: true,
+		Body:                  map[string]any{"title": "wrap"}, BodyPresent: true,
 		Authority: commerceFilteredHostAuthority(),
-		Actor:   extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"topics.write": true}),
-		Timeout: 5 * time.Second,
+		Actor:     extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"topics.write": true}),
+		Timeout:   5 * time.Second,
 	})
 	if len(wrap.RequestPatch) == 0 {
 		t.Fatalf("wrap request patch missing: %#v", wrap)
 	}
 	// filter + after（response-stage 必须带 PriorResponse）
 	topicsPrior := &extensionsruntime.ProtocolV2RouteResponseDocument{
-		StatusCode: http.StatusOK,
-		Body:       map[string]any{"items": []any{}},
+		StatusCode:  http.StatusOK,
+		Body:        map[string]any{"items": []any{}},
 		BodyPresent: true,
 	}
 	filter := invokeCommerceRoute(t, manager, identity, extensionsruntime.ProtocolV2RouteRequest{
-		RouteID: "sforum.commerce-workflow.route.topics-filter",
+		RouteID:         "sforum.commerce-workflow.route.topics-filter",
 		ContractVersion: "sforum.commerce-workflow.route.topics-filter@1",
-		RouteAction: extensionmanifest.RouteActionFilter,
+		RouteAction:     extensionmanifest.RouteActionFilter,
 		InvocationStage: extensionsruntime.ProtocolV2RouteInvocationStageResponse,
-		Method: http.MethodGet, Path: "/api/v1/topics",
+		Method:          http.MethodGet, Path: "/api/v1/topics",
 		MutableResponseFields: []string{"/body/commerceFiltered"},
 		ResponseSchema:        "sforum.route.forum.topics.response@1",
 		PriorResponse:         topicsPrior,
-		Authority: commerceFilteredHostAuthority(),
-		Actor:   extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"*": true}),
-		Timeout: 5 * time.Second,
+		Authority:             commerceFilteredHostAuthority(),
+		Actor:                 extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"*": true}),
+		Timeout:               5 * time.Second,
 	})
 	if len(filter.ResponsePatch) == 0 {
 		t.Fatalf("filter response patch missing: %#v", filter)
 	}
 	after := invokeCommerceRoute(t, manager, identity, extensionsruntime.ProtocolV2RouteRequest{
-		RouteID: "sforum.commerce-workflow.route.topics-after",
+		RouteID:         "sforum.commerce-workflow.route.topics-after",
 		ContractVersion: "sforum.commerce-workflow.route.topics-after@1",
-		RouteAction: extensionmanifest.RouteActionAfter,
+		RouteAction:     extensionmanifest.RouteActionAfter,
 		InvocationStage: extensionsruntime.ProtocolV2RouteInvocationStageResponse,
-		Method: http.MethodGet, Path: "/api/v1/topics",
+		Method:          http.MethodGet, Path: "/api/v1/topics",
 		MutableResponseFields: []string{"/headers/x-commerce-trace"},
 		PriorResponse: &extensionsruntime.ProtocolV2RouteResponseDocument{
 			StatusCode: http.StatusOK,
 		},
 		Authority: commerceFilteredHostAuthority(),
-		Actor:   extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"*": true}),
-		Timeout: 5 * time.Second,
+		Actor:     extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"*": true}),
+		Timeout:   5 * time.Second,
 	})
 	if len(after.ResponsePatch) == 0 {
 		t.Fatalf("after response patch missing: %#v", after)
@@ -684,13 +684,13 @@ func assertCommerceRouteStreams(t *testing.T, manager *extensionsruntime.Manager
 	}
 	defer lease.Release()
 	stream, err := manager.OpenRouteStreamInstance(lease.Context, identity, extensionsruntime.ProtocolV2RouteStreamRequest{
-		RouteID: "sforum.commerce-workflow.route.events",
+		RouteID:         "sforum.commerce-workflow.route.events",
 		ContractVersion: "sforum.commerce-workflow.route.events@1",
-		Method: http.MethodGet, Path: "/api/commerce-workflow/events",
-		Mode:    extensionmanifest.RouteModeSSE,
+		Method:          http.MethodGet, Path: "/api/commerce-workflow/events",
+		Mode:      extensionmanifest.RouteModeSSE,
 		Authority: commerceFilteredHostAuthority(),
-		Actor:   extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"*": true}),
-		Timeout: 5 * time.Second,
+		Actor:     extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"*": true}),
+		Timeout:   5 * time.Second,
 	})
 	if err != nil {
 		t.Fatalf("open SSE: %v", err)
@@ -723,13 +723,13 @@ func assertCommerceRouteStreams(t *testing.T, manager *extensionsruntime.Manager
 	}
 	defer lease2.Release()
 	bin, err := manager.OpenRouteStreamInstance(lease2.Context, identity, extensionsruntime.ProtocolV2RouteStreamRequest{
-		RouteID: "sforum.commerce-workflow.route.stream",
+		RouteID:         "sforum.commerce-workflow.route.stream",
 		ContractVersion: "sforum.commerce-workflow.route.stream@1",
-		Method: http.MethodGet, Path: "/api/commerce-workflow/stream",
-		Mode:    extensionmanifest.RouteModeStream,
+		Method:          http.MethodGet, Path: "/api/commerce-workflow/stream",
+		Mode:      extensionmanifest.RouteModeStream,
 		Authority: commerceFilteredHostAuthority(),
-		Actor:   extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"*": true}),
-		Timeout: 5 * time.Second,
+		Actor:     extensionsruntime.NewProtocolV2RouteActor(42, true, map[string]bool{"*": true}),
+		Timeout:   5 * time.Second,
 	})
 	if err != nil {
 		t.Fatalf("open stream: %v", err)
@@ -792,9 +792,9 @@ func assertCommerceLifecycleMatrix(t *testing.T, starter *extensionsruntime.Prot
 	// 可重试：再次 uninstall.plan
 	before := len(body)
 	if _, err := starter.RunLifecycle(context.Background(), extension, extensionsruntime.LifecycleInvocation{
-		Action: extensionsruntime.LifecycleActionUninstallPlan,
+		Action:      extensionsruntime.LifecycleActionUninstallPlan,
 		PlanVersion: "sforum.commerce-workflow.lifecycle@1",
-		StepID: "commerce-uninstall-retry", DryRun: true, Forced: true,
+		StepID:      "commerce-uninstall-retry", DryRun: true, Forced: true,
 	}); err != nil {
 		t.Fatalf("retry uninstall plan: %v", err)
 	}

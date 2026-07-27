@@ -2,22 +2,11 @@ package extensionsruntime
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
-)
-
-var (
-	ErrRuntimeInstanceNotFound   = errors.New("extension runtime instance was not found")
-	ErrRuntimeInstanceNotActive  = errors.New("extension runtime instance is not active")
-	ErrRuntimeInstanceActive     = errors.New("extension runtime instance is active")
-	ErrRuntimeInstanceBusy       = errors.New("extension runtime instance still has active calls")
-	ErrRuntimeInstanceConflict   = errors.New("extension runtime instance already exists")
-	ErrRuntimeInstanceNotDrained = errors.New("extension runtime instance must be drained before transition")
-	ErrRuntimeTrustRevoked       = errors.New("extension executable trust was revoked")
 )
 
 type managedRuntimeInstance struct {
@@ -29,28 +18,9 @@ type managedRuntimeInstance struct {
 	transitioning    bool
 }
 
-// RuntimeInstanceSnapshot 是一个精确 runtime 实例的宿主侧保留句柄。
-type RuntimeInstanceSnapshot struct {
-	Identity         RuntimeInstanceIdentity
-	ExtensionVersion string
-	ArtifactDigest   string
-	VersionID        int64
-	Target           RouteTarget
-	Active           bool
-	Admission        RuntimeAdmissionSnapshot
-}
-
-// RuntimeInstanceArtifactIdentity binds an incident to one exact process and
-// immutable package so a stale event can never quarantine a replacement.
-type RuntimeInstanceArtifactIdentity struct {
-	RuntimeInstanceIdentity
-	ExtensionVersion string
-	ArtifactDigest   string
-}
-
 // AcquireActiveRuntimeCall 在线性化边界内捕获活动实例并取得普通调用 lease。
 // 返回的 target 与 lease 始终属于同一个 exact instance，调用方必须 Release。
-func (m *Manager) AcquireActiveRuntimeCall(ctx context.Context, extensionID string, class RuntimeCallClass) (RuntimeInstanceSnapshot, *RuntimeAdmissionLease, error) {
+func (m *InstanceAdmission) AcquireActiveRuntimeCall(ctx context.Context, extensionID string, class RuntimeCallClass) (RuntimeInstanceSnapshot, *RuntimeAdmissionLease, error) {
 	if ctx == nil || strings.TrimSpace(string(class)) == "" {
 		return RuntimeInstanceSnapshot{}, nil, ErrRuntimeAdmissionInvalid
 	}
@@ -86,7 +56,7 @@ func (m *Manager) AcquireActiveRuntimeCall(ctx context.Context, extensionID stri
 }
 
 // AcquireRuntimeCall 只允许普通调用进入活动实例；cleanup 可显式进入保留的 draining 实例。
-func (m *Manager) AcquireRuntimeCall(ctx context.Context, identity RuntimeInstanceIdentity, class RuntimeCallClass) (*RuntimeAdmissionLease, error) {
+func (m *InstanceAdmission) AcquireRuntimeCall(ctx context.Context, identity RuntimeInstanceIdentity, class RuntimeCallClass) (*RuntimeAdmissionLease, error) {
 	if ctx == nil || strings.TrimSpace(string(class)) == "" {
 		return nil, ErrRuntimeAdmissionInvalid
 	}
@@ -115,13 +85,13 @@ func (m *Manager) AcquireRuntimeCall(ctx context.Context, identity RuntimeInstan
 	return lease, err
 }
 
-func (m *Manager) BeginDrain(identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
+func (m *InstanceAdmission) BeginDrain(identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
 	return m.BeginDrainContext(context.Background(), identity)
 }
 
 // BeginDrainContext preserves the legacy BeginDrain surface while allowing
 // multi-step transactions to bound runtime-set barrier contention.
-func (m *Manager) BeginDrainContext(ctx context.Context, identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
+func (m *InstanceAdmission) BeginDrainContext(ctx context.Context, identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
 	unlock, err := m.lockRuntimeSetTransition(ctx)
 	if err != nil {
 		return RuntimeAdmissionSnapshot{}, err
@@ -133,7 +103,7 @@ func (m *Manager) BeginDrainContext(ctx context.Context, identity RuntimeInstanc
 // QuarantineRuntimeInstance deliberately bypasses runtime-set and lifecycle
 // transition locks. Its only lock order is Manager -> exact gate, so an
 // incident can close admission promptly even while publication is blocked.
-func (m *Manager) QuarantineRuntimeInstance(
+func (m *InstanceAdmission) QuarantineRuntimeInstance(
 	exact RuntimeInstanceArtifactIdentity,
 	cause error,
 ) (RuntimeAdmissionSnapshot, error) {
@@ -164,7 +134,7 @@ func (m *Manager) QuarantineRuntimeInstance(
 // QuarantineRuntimeArtifact closes every retained process for one exact
 // package. Trust is artifact-scoped, so a staged settings replacement and its
 // source must not be able to reopen each other after revocation.
-func (m *Manager) QuarantineRuntimeArtifact(
+func (m *InstanceAdmission) QuarantineRuntimeArtifact(
 	exact RuntimeInstanceArtifactIdentity,
 	cause error,
 ) ([]RuntimeAdmissionSnapshot, error) {
@@ -199,7 +169,7 @@ func (m *Manager) QuarantineRuntimeArtifact(
 	return snapshots, nil
 }
 
-func (m *Manager) beginDrainRuntimeSetLocked(ctx context.Context, identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
+func (m *managerCore) beginDrainRuntimeSetLocked(ctx context.Context, identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
 	identity, err := normalizeRuntimeInstanceIdentity(identity)
 	if err != nil {
 		return RuntimeAdmissionSnapshot{}, err
@@ -219,13 +189,13 @@ func (m *Manager) beginDrainRuntimeSetLocked(ctx context.Context, identity Runti
 }
 
 // ResumeRuntimeInstance 只重开仍为活动指针的 exact instance，候选发布失败时可恢复旧版本。
-func (m *Manager) ResumeRuntimeInstance(identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
+func (m *InstanceAdmission) ResumeRuntimeInstance(identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
 	return m.ResumeRuntimeInstanceContext(context.Background(), identity)
 }
 
 // ResumeRuntimeInstanceContext bounds compensation waits on the Manager-wide
 // transition barrier. It retains the exact-active-only resume fence.
-func (m *Manager) ResumeRuntimeInstanceContext(ctx context.Context, identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
+func (m *InstanceAdmission) ResumeRuntimeInstanceContext(ctx context.Context, identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
 	unlock, err := m.lockRuntimeSetTransition(ctx)
 	if err != nil {
 		return RuntimeAdmissionSnapshot{}, err
@@ -234,7 +204,7 @@ func (m *Manager) ResumeRuntimeInstanceContext(ctx context.Context, identity Run
 	return m.resumeRuntimeInstanceRuntimeSetLocked(ctx, identity)
 }
 
-func (m *Manager) resumeRuntimeInstanceRuntimeSetLocked(ctx context.Context, identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
+func (m *managerCore) resumeRuntimeInstanceRuntimeSetLocked(ctx context.Context, identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
 	identity, err := normalizeRuntimeInstanceIdentity(identity)
 	if err != nil {
 		return RuntimeAdmissionSnapshot{}, err
@@ -256,7 +226,7 @@ func (m *Manager) resumeRuntimeInstanceRuntimeSetLocked(ctx context.Context, ide
 	return instance.gate.Resume()
 }
 
-func (m *Manager) WaitDrain(ctx context.Context, identity RuntimeInstanceIdentity) error {
+func (m *InstanceAdmission) WaitDrain(ctx context.Context, identity RuntimeInstanceIdentity) error {
 	if ctx == nil {
 		return ErrRuntimeAdmissionInvalid
 	}
@@ -273,7 +243,7 @@ func (m *Manager) WaitDrain(ctx context.Context, identity RuntimeInstanceIdentit
 	return instance.gate.Wait(ctx)
 }
 
-func (m *Manager) ForceDrain(identity RuntimeInstanceIdentity, cause error) (RuntimeAdmissionSnapshot, error) {
+func (m *InstanceAdmission) ForceDrain(identity RuntimeInstanceIdentity, cause error) (RuntimeAdmissionSnapshot, error) {
 	unlock, err := m.lockRuntimeSetTransition(context.Background())
 	if err != nil {
 		return RuntimeAdmissionSnapshot{}, err
@@ -282,7 +252,7 @@ func (m *Manager) ForceDrain(identity RuntimeInstanceIdentity, cause error) (Run
 	return m.forceDrainRuntimeSetLocked(identity, cause)
 }
 
-func (m *Manager) forceDrainRuntimeSetLocked(identity RuntimeInstanceIdentity, cause error) (RuntimeAdmissionSnapshot, error) {
+func (m *managerCore) forceDrainRuntimeSetLocked(identity RuntimeInstanceIdentity, cause error) (RuntimeAdmissionSnapshot, error) {
 	identity, err := normalizeRuntimeInstanceIdentity(identity)
 	if err != nil {
 		return RuntimeAdmissionSnapshot{}, err
@@ -298,7 +268,7 @@ func (m *Manager) forceDrainRuntimeSetLocked(identity RuntimeInstanceIdentity, c
 	return instance.gate.ForceCancel(cause), nil
 }
 
-func (m *Manager) InspectRuntimeInstance(identity RuntimeInstanceIdentity) (RuntimeInstanceSnapshot, error) {
+func (m *InstanceAdmission) InspectRuntimeInstance(identity RuntimeInstanceIdentity) (RuntimeInstanceSnapshot, error) {
 	identity, err := normalizeRuntimeInstanceIdentity(identity)
 	if err != nil {
 		return RuntimeInstanceSnapshot{}, err
@@ -315,7 +285,7 @@ func (m *Manager) InspectRuntimeInstance(identity RuntimeInstanceIdentity) (Runt
 // RuntimeInstanceAvailable is the read-side visibility predicate used by
 // in-process registries. It never opens admission: execution must still acquire
 // a lease, but a staged or drained target is hidden before the durable marker.
-func (m *Manager) RuntimeInstanceAvailable(identity RuntimeInstanceIdentity) bool {
+func (m *InstanceAdmission) RuntimeInstanceAvailable(identity RuntimeInstanceIdentity) bool {
 	if m == nil {
 		return false
 	}
@@ -332,7 +302,7 @@ func (m *Manager) RuntimeInstanceAvailable(identity RuntimeInstanceIdentity) boo
 	return !instance.gate.Snapshot().Draining
 }
 
-func (m *Manager) ActiveRuntimeInstance(extensionID string) (RuntimeInstanceSnapshot, error) {
+func (m *InstanceAdmission) ActiveRuntimeInstance(extensionID string) (RuntimeInstanceSnapshot, error) {
 	extensionID = strings.TrimSpace(extensionID)
 	if extensionID == "" {
 		return RuntimeInstanceSnapshot{}, ErrRuntimeAdmissionInvalid
@@ -352,7 +322,7 @@ func (m *Manager) ActiveRuntimeInstance(extensionID string) (RuntimeInstanceSnap
 }
 
 // RemoveRuntimeInstance 只删除已停用且完全 idle 的精确实例；不会回退到当前活动实例。
-func (m *Manager) RemoveRuntimeInstance(identity RuntimeInstanceIdentity) error {
+func (m *InstanceAdmission) RemoveRuntimeInstance(identity RuntimeInstanceIdentity) error {
 	unlock, err := m.lockRuntimeSetTransition(context.Background())
 	if err != nil {
 		return err
@@ -361,7 +331,7 @@ func (m *Manager) RemoveRuntimeInstance(identity RuntimeInstanceIdentity) error 
 	return m.removeRuntimeInstanceRuntimeSetLocked(identity)
 }
 
-func (m *Manager) removeRuntimeInstanceRuntimeSetLocked(identity RuntimeInstanceIdentity) error {
+func (m *managerCore) removeRuntimeInstanceRuntimeSetLocked(identity RuntimeInstanceIdentity) error {
 	identity, err := normalizeRuntimeInstanceIdentity(identity)
 	if err != nil {
 		return err
@@ -389,7 +359,7 @@ func (m *Manager) removeRuntimeInstanceRuntimeSetLocked(identity RuntimeInstance
 
 // activateRuntimeInstanceLocked 在同一 Manager 临界区内关闭旧入口并发布新活动指针。
 // Caller holds m.mu.
-func (m *Manager) activateRuntimeInstanceLocked(extension extensions.Extension, target RouteTarget) (RouteTarget, error) {
+func (m *managerCore) activateRuntimeInstanceLocked(extension extensions.Extension, target RouteTarget) (RouteTarget, error) {
 	extensionID := strings.TrimSpace(extension.ID)
 	if extensionID == "" {
 		return RouteTarget{}, ErrRuntimeAdmissionInvalid
@@ -434,7 +404,7 @@ func (m *Manager) activateRuntimeInstanceLocked(extension extensions.Extension, 
 
 // deactivateRuntimeInstanceLocked 只停用捕获到的实例，陈旧调用不能清除替换实例。
 // Caller holds m.mu.
-func (m *Manager) deactivateRuntimeInstanceLocked(identity RuntimeInstanceIdentity) bool {
+func (m *managerCore) deactivateRuntimeInstanceLocked(identity RuntimeInstanceIdentity) bool {
 	if identity.ExtensionID == "" || identity.InstanceID == "" {
 		return false
 	}
@@ -451,7 +421,7 @@ func (m *Manager) deactivateRuntimeInstanceLocked(identity RuntimeInstanceIdenti
 	return true
 }
 
-func (m *Manager) runtimeInstanceLocked(identity RuntimeInstanceIdentity) (*managedRuntimeInstance, error) {
+func (m *managerCore) runtimeInstanceLocked(identity RuntimeInstanceIdentity) (*managedRuntimeInstance, error) {
 	instance := m.runtimeInstances[identity.ExtensionID][identity.InstanceID]
 	if instance == nil {
 		return nil, fmt.Errorf("%w: %s/%s", ErrRuntimeInstanceNotFound, identity.ExtensionID, identity.InstanceID)
@@ -459,7 +429,7 @@ func (m *Manager) runtimeInstanceLocked(identity RuntimeInstanceIdentity) (*mana
 	return instance, nil
 }
 
-func (m *Manager) runtimeInstanceSnapshotLocked(identity RuntimeInstanceIdentity, instance *managedRuntimeInstance) RuntimeInstanceSnapshot {
+func (m *managerCore) runtimeInstanceSnapshotLocked(identity RuntimeInstanceIdentity, instance *managedRuntimeInstance) RuntimeInstanceSnapshot {
 	return RuntimeInstanceSnapshot{
 		Identity:         identity,
 		ExtensionVersion: instance.extensionVersion,
@@ -471,7 +441,7 @@ func (m *Manager) runtimeInstanceSnapshotLocked(identity RuntimeInstanceIdentity
 	}
 }
 
-func (m *Manager) newLegacyRuntimeInstanceIDLocked(extensionID string) string {
+func (m *managerCore) newLegacyRuntimeInstanceIDLocked(extensionID string) string {
 	for {
 		instanceID := "legacy-" + appevents.NewID()
 		if m.runtimeInstances[extensionID][instanceID] == nil {
@@ -480,7 +450,7 @@ func (m *Manager) newLegacyRuntimeInstanceIDLocked(extensionID string) string {
 	}
 }
 
-func (m *Manager) recordRuntimeStartFailure(
+func (m *managerCore) recordRuntimeStartFailure(
 	extension extensions.Extension,
 	previousInstanceID string,
 	previousStatus extensions.RuntimeStatus,
@@ -504,12 +474,12 @@ func (m *Manager) recordRuntimeStartFailure(
 	}
 }
 
-func (m *Manager) lockRuntimeLifecycle(extensionID string) func() {
+func (m *managerCore) lockRuntimeLifecycle(extensionID string) func() {
 	unlock, _ := m.lockRuntimeLifecycleContext(context.Background(), extensionID)
 	return unlock
 }
 
-func (m *Manager) lockRuntimeLifecycleContext(ctx context.Context, extensionID string) (func(), error) {
+func (m *managerCore) lockRuntimeLifecycleContext(ctx context.Context, extensionID string) (func(), error) {
 	if m == nil || ctx == nil {
 		return nil, ErrRuntimeAdmissionInvalid
 	}
@@ -536,7 +506,7 @@ func (m *Manager) lockRuntimeLifecycleContext(ctx context.Context, extensionID s
 	}
 }
 
-func (m *Manager) lockRuntimeSetTransition(ctx context.Context) (func(), error) {
+func (m *managerCore) lockRuntimeSetTransition(ctx context.Context) (func(), error) {
 	if m == nil || ctx == nil || m.runtimeSetTransition == nil {
 		return nil, ErrRuntimeAdmissionInvalid
 	}
@@ -573,4 +543,68 @@ func runtimeInstanceMatchesExtension(instance RuntimeInstanceSnapshot, extension
 		instance.ExtensionVersion == version &&
 		instance.ArtifactDigest == extension.PackageDigest &&
 		instance.VersionID == extension.ActiveVersionID
+}
+
+// Compatibility facade: runtime logic is owned by focused collaborators.
+
+func (m *Manager) AcquireActiveRuntimeCall(ctx context.Context, extensionID string, class RuntimeCallClass) (RuntimeInstanceSnapshot, *RuntimeAdmissionLease, error) {
+	return m.admission.AcquireActiveRuntimeCall(ctx, extensionID, class)
+}
+
+func (m *Manager) AcquireRuntimeCall(ctx context.Context, identity RuntimeInstanceIdentity, class RuntimeCallClass) (*RuntimeAdmissionLease, error) {
+	return m.admission.AcquireRuntimeCall(ctx, identity, class)
+}
+
+func (m *Manager) BeginDrain(identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
+	return m.admission.BeginDrain(identity)
+}
+
+func (m *Manager) BeginDrainContext(ctx context.Context, identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
+	return m.admission.BeginDrainContext(ctx, identity)
+}
+
+func (m *Manager) QuarantineRuntimeInstance(
+	exact RuntimeInstanceArtifactIdentity,
+	cause error,
+) (RuntimeAdmissionSnapshot, error) {
+	return m.admission.QuarantineRuntimeInstance(exact, cause)
+}
+
+func (m *Manager) QuarantineRuntimeArtifact(
+	exact RuntimeInstanceArtifactIdentity,
+	cause error,
+) ([]RuntimeAdmissionSnapshot, error) {
+	return m.admission.QuarantineRuntimeArtifact(exact, cause)
+}
+
+func (m *Manager) ResumeRuntimeInstance(identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
+	return m.admission.ResumeRuntimeInstance(identity)
+}
+
+func (m *Manager) ResumeRuntimeInstanceContext(ctx context.Context, identity RuntimeInstanceIdentity) (RuntimeAdmissionSnapshot, error) {
+	return m.admission.ResumeRuntimeInstanceContext(ctx, identity)
+}
+
+func (m *Manager) WaitDrain(ctx context.Context, identity RuntimeInstanceIdentity) error {
+	return m.admission.WaitDrain(ctx, identity)
+}
+
+func (m *Manager) ForceDrain(identity RuntimeInstanceIdentity, cause error) (RuntimeAdmissionSnapshot, error) {
+	return m.admission.ForceDrain(identity, cause)
+}
+
+func (m *Manager) InspectRuntimeInstance(identity RuntimeInstanceIdentity) (RuntimeInstanceSnapshot, error) {
+	return m.admission.InspectRuntimeInstance(identity)
+}
+
+func (m *Manager) RuntimeInstanceAvailable(identity RuntimeInstanceIdentity) bool {
+	return m.admission.RuntimeInstanceAvailable(identity)
+}
+
+func (m *Manager) ActiveRuntimeInstance(extensionID string) (RuntimeInstanceSnapshot, error) {
+	return m.admission.ActiveRuntimeInstance(extensionID)
+}
+
+func (m *Manager) RemoveRuntimeInstance(identity RuntimeInstanceIdentity) error {
+	return m.admission.RemoveRuntimeInstance(identity)
 }

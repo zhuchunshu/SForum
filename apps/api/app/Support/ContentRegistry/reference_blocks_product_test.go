@@ -20,22 +20,22 @@ func TestReferenceBlocksVoteProductCardEmbedWorkflowForm(t *testing.T) {
 	}{
 		{
 			id: "sforum.ref-content.block.vote", kind: KindBlock, label: "vote",
-			html: `<div class="sf-vote" data-score="3"><button type="button">up</button><span>3</span></div>`,
+			html:     `<div class="sf-vote" data-score="3"><button type="button">up</button><span>3</span></div>`,
 			wantText: "up 3",
 		},
 		{
 			id: "sforum.ref-content.block.product-card", kind: KindBlock, label: "product-card",
-			html: `<article class="sf-product-card"><h3>Demo SKU</h3><p>¥99</p></article>`,
+			html:     `<article class="sf-product-card"><h3>Demo SKU</h3><p>¥99</p></article>`,
 			wantText: "Demo SKU ¥99",
 		},
 		{
 			id: "sforum.ref-content.block.embed", kind: KindEmbed, label: "embed",
-			html: `<figure class="sf-embed"><a href="https://example.com/v/1">watch</a></figure>`,
+			html:     `<figure class="sf-embed"><a href="https://example.com/v/1">watch</a></figure>`,
 			wantText: "watch",
 		},
 		{
 			id: "sforum.ref-content.block.workflow-form", kind: KindBlock, label: "workflow-form",
-			html: `<form class="sf-workflow-form"><label>Reason<input name="reason"></label><button type="submit">Send</button></form>`,
+			html:     `<form class="sf-workflow-form"><label>Reason<input name="reason"></label><button type="submit">Send</button></form>`,
 			wantText: "Reason Send",
 		},
 	}

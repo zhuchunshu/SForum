@@ -1,6 +1,7 @@
 package extensionsruntime_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"errors"
@@ -8,7 +9,6 @@ import (
 	"image/color"
 	"image/draw"
 	"image/png"
-	"bytes"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -374,7 +374,7 @@ func mediaPublicationFromManifest(
 		publication.Policies = append(publication.Policies, mediaregistry.MIMEPolicyDeclaration{
 			ID: policyID, ContractVersion: policyID + "@1", Purpose: "general",
 			Priority: pipeline.Priority + 20, RequiredPermission: permission,
-			AllowedMIMEs: append([]string(nil), pipeline.MIMEs...),
+			AllowedMIMEs:       append([]string(nil), pipeline.MIMEs...),
 			StrictDeclaredMIME: true, Budget: mediaregistry.DefaultBudget(),
 		})
 		execution := mediaregistry.ExecutionSync
@@ -388,7 +388,7 @@ func mediaPublicationFromManifest(
 			Priority: pipeline.Priority, Mode: mediaregistry.ProcessorCompose,
 			Execution: execution, FailureMode: mediaregistry.FailureFallbackOriginal,
 			RequiredPermission: permission,
-			Retry: mediaregistry.RetryPolicy{MaxAttempts: 3, BaseDelaySeconds: 2, MaxDelaySeconds: 30},
+			Retry:              mediaregistry.RetryPolicy{MaxAttempts: 3, BaseDelaySeconds: 2, MaxDelaySeconds: 30},
 		})
 		for _, transform := range pipeline.Transforms {
 			variantID := pipeline.ID + "." + transform.ID
@@ -402,7 +402,7 @@ func mediaPublicationFromManifest(
 			publication.Variants = append(publication.Variants, mediaregistry.VariantDeclaration{
 				ID: variantID, ContractVersion: variantID + "@1", Purpose: "general",
 				Name: transform.Variant, ProcessorID: pipeline.ID,
-				ProcessorContractVersion: pipeline.ContractVersion,
+				ProcessorContractVersion:  pipeline.ContractVersion,
 				ProcessorOwnerExtensionID: extension.ID,
 				ProcessorPackageDigest:    extension.PackageDigest,
 				OutputMIME:                outputMIME,

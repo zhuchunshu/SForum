@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { useSForumSeo } from '~/composables/seo/useSForumSeo'
+import SFCategoryIndexPage from '~/components/forum/SFCategoryIndexPage.vue'
 import {
   forumCategoriesIndexPath,
   forumCategoryPath,
   type ForumCategory,
   type ForumCategoryGroup
-} from '~/utils/forumTaxonomy'
+} from '~/utils/forum/forumTaxonomy'
 /** forum.category.index 路由壳：SEO + outlet；呈现由主题 L1 + SFCategoryIndexPage 岛拥有。 */
 const { t } = useI18n()
 const { seoSettings, siteName } = useWebOptions()

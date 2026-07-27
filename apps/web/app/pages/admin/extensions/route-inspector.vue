@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useAdminRouteInspector } from '~/composables/admin/useAdminRouteInspector'
+import { useAdminPage } from '~/composables/admin/useAdminPage'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import {
   formatDurationMicros,
@@ -12,7 +14,7 @@ import {
   type RouteInspectorProvider,
   type RouteInspectorSnapshot,
   type RouteInspectorTrace
-} from '~/composables/useAdminRouteInspector'
+} from '~/composables/admin/useAdminRouteInspector'
 
 definePageMeta({
   middleware: 'admin',

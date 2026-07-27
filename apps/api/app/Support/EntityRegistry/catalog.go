@@ -7,18 +7,18 @@ const CatalogSchemaVersion = "sforum.entity-catalog@1"
 
 // CatalogEntity is one inspectable entity type with Host-derived plan summaries.
 type CatalogEntity struct {
-	ID                 string           `json:"id"`
-	ContractVersion    string           `json:"contractVersion"`
-	StorageKey         string           `json:"storageKey,omitempty"`
-	ExtensionID        string           `json:"extensionId"`
-	ExtensionVersion   string           `json:"extensionVersion"`
-	PackageDigest      string           `json:"packageDigest"`
-	ImportExportPolicy string           `json:"importExportPolicy,omitempty"`
-	DeletionPolicy     string           `json:"deletionPolicy,omitempty"`
-	Index              IndexPlan        `json:"index"`
-	ImportExport       ImportExportPlan `json:"importExport"`
-	Deletion           DeletionPlan     `json:"deletion"`
-	Fields             []CatalogField   `json:"fields"`
+	ID                 string            `json:"id"`
+	ContractVersion    string            `json:"contractVersion"`
+	StorageKey         string            `json:"storageKey,omitempty"`
+	ExtensionID        string            `json:"extensionId"`
+	ExtensionVersion   string            `json:"extensionVersion"`
+	PackageDigest      string            `json:"packageDigest"`
+	ImportExportPolicy string            `json:"importExportPolicy,omitempty"`
+	DeletionPolicy     string            `json:"deletionPolicy,omitempty"`
+	Index              IndexPlan         `json:"index"`
+	ImportExport       ImportExportPlan  `json:"importExport"`
+	Deletion           DeletionPlan      `json:"deletion"`
+	Fields             []CatalogField    `json:"fields"`
 	Taxonomies         []CatalogTaxonomy `json:"taxonomies"`
 }
 

@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import type { ThemeRenderOutput } from '~/composables/useThemeRenderOutput'
+import { useSForumSeo } from '~/composables/seo/useSForumSeo'
+import { useNotFoundPagePresentation } from '~/composables/errors/useNotFoundPagePresentation'
+import type { ThemeRenderOutput } from '~/composables/themes/useThemeRenderOutput'
 
 /**
  * 动态公开路由宿主：匹配 Page Registry 的 action=add 贡献。

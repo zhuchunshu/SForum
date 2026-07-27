@@ -9,8 +9,8 @@ import (
 func TestToPageSEOViewAndMergeRoundTrip(t *testing.T) {
 	doc := Document{
 		Title: "主题标题", CanonicalURL: "https://example.com/t/1",
-		Meta: []MetaTag{{Attribute: "name", Key: "description", Content: "描述"}},
-		Robots: RobotsDirectives{Indexing: "index", Following: "follow", NoArchive: true},
+		Meta:     []MetaTag{{Attribute: "name", Key: "description", Content: "描述"}},
+		Robots:   RobotsDirectives{Indexing: "index", Following: "follow", NoArchive: true},
 		Hreflang: []HreflangLink{{Locale: "en-US", URL: "https://example.com/en/t/1"}},
 		JSONLD: []JSONLDDocument{{
 			Context: "https://schema.org", Type: "DiscussionForumPosting",

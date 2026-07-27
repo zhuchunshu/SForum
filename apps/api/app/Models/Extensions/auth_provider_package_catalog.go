@@ -141,7 +141,7 @@ func resolveManifestProviderLabel(label *extensionmanifest.LocalizedText) (strin
 
 // ListPackagesWithoutActor 是 Host 内部包目录读取（无权限门控）。
 // 仅供 admin identity provider discovery 使用。
-func (s *Service) ListPackagesWithoutActor(ctx context.Context) ([]Extension, error) {
+func (s *CatalogService) ListPackagesWithoutActor(ctx context.Context) ([]Extension, error) {
 	if s == nil || s.store == nil {
 		return nil, nil
 	}

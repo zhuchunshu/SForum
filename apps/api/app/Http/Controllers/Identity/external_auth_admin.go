@@ -270,14 +270,14 @@ type adminIdentityProviderItem struct {
 	// Activated 表示 Host 激活意图（任一操作开关为 on），含 artifact 漂移时的意图。
 	Activated bool `json:"activated"`
 	// PubliclyActivated 表示对访客有效：意图 on + artifactBound + enabled + configured + 非 Safe Mode。
-	PubliclyActivated   bool       `json:"publiclyActivated"`
-	LoginEnabled        bool       `json:"loginEnabled"`
-	RegistrationEnabled bool       `json:"registrationEnabled"`
-	LinkEnabled         bool       `json:"linkEnabled"`
-	Revision            int64      `json:"revision"`
-	CallbackPath        string     `json:"callbackPath"`
+	PubliclyActivated   bool   `json:"publiclyActivated"`
+	LoginEnabled        bool   `json:"loginEnabled"`
+	RegistrationEnabled bool   `json:"registrationEnabled"`
+	LinkEnabled         bool   `json:"linkEnabled"`
+	Revision            int64  `json:"revision"`
+	CallbackPath        string `json:"callbackPath"`
 	// CallbackURL 是可信 APP_URL 派生的绝对 callback；无法形成时为空字符串。
-	CallbackURL string `json:"callbackUrl,omitempty"`
+	CallbackURL  string `json:"callbackUrl,omitempty"`
 	SettingsPath string `json:"settingsPath,omitempty"`
 	SafeMode     bool   `json:"safeMode"`
 	// Label / Icon 来自插件 Identity 声明（Host 按 locale 解析）；Core 不得按 id 猜品牌。
@@ -356,13 +356,13 @@ func (h *Controller) adminPatchIdentityProvider(c fiber.Ctx) error {
 // patchIdentityProviderRequest 故意不把 ownership 当作可写权威字段。
 // 若客户端仍提交 ownerExtensionId/ownerPackageDigest，handler 拒绝。
 type patchIdentityProviderRequest struct {
-	OwnerExtensionID   string `json:"ownerExtensionId"`
-	OwnerPackageDigest string `json:"ownerPackageDigest"`
-	ExpectedRevision   int64  `json:"expectedRevision"`
-	LoginEnabled       *bool  `json:"loginEnabled"`
-	RegistrationEnabled *bool `json:"registrationEnabled"`
-	LinkEnabled        *bool  `json:"linkEnabled"`
-	Priority           *int   `json:"priority"`
+	OwnerExtensionID    string `json:"ownerExtensionId"`
+	OwnerPackageDigest  string `json:"ownerPackageDigest"`
+	ExpectedRevision    int64  `json:"expectedRevision"`
+	LoginEnabled        *bool  `json:"loginEnabled"`
+	RegistrationEnabled *bool  `json:"registrationEnabled"`
+	LinkEnabled         *bool  `json:"linkEnabled"`
+	Priority            *int   `json:"priority"`
 }
 
 // adminProbeIdentityProvider 触发真实 provider.probe 运行时操作（T8B）。

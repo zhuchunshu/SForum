@@ -26,7 +26,7 @@ func createExtensionDatabaseRuntimeLeaseRole(
 	password string,
 	expiresAt time.Time,
 ) (string, error) {
-	if !identifiers.valid() || !validPostgresIdentifier(roleName) ||
+	if !identifiers.Valid() || !validPostgresIdentifier(roleName) ||
 		!validPostgresCatalogName(databaseName) || !extensionDatabasePasswordPattern.MatchString(password) ||
 		expiresAt.IsZero() || len(powers) == 0 {
 		return "", ErrExtensionDatabaseRegistryInvalid

@@ -27,6 +27,25 @@ responsibilities.
 
 ## Active Work
 
+### Architecture boundary debt repayment
+
+Archived plan:
+`../plans/archive/2026-07/2026-07-28-architecture-boundary-debt-repayment.md`
+(**completed M0-M12**). Handoff:
+`../sessions/2026-07-28-architecture-debt-m12-handoff.md`.
+
+- Fixed Core settings tabs now use the shared `SFAdminFixedTabNav`, query-synced
+  dynamic components, and `KeepAlive`.
+- Site, forum, SEO, personalization, attachments, and mail use independent tab
+  components under `components/admin/settings/<area>/tabs/`.
+- Route shells are below 150 lines for the six migrated areas except where
+  recorded otherwise; all six inline-tab architecture baseline entries are
+  removed.
+- M7 root-directory placement completed with explicit imports and domain moves.
+- M7 typecheck, production build, architecture and V3 catalog validation, and
+  the focused tests wired into the repo gate passed.
+- Frontend milestones M1-M7 and backend milestones M8-M12 are complete.
+
 ### Built-in GitHub social login (public auth + account security UI)
 
 Plan: `../plans/2026-07-27-github-social-login-builtin-plugin.md`

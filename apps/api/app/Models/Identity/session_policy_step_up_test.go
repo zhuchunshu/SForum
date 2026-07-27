@@ -94,7 +94,7 @@ func TestMemorySessionPolicyStepUpStoreStaleAndExpired(t *testing.T) {
 		UserID: 3, TokenVersion: 2, Purpose: SessionEvaluationPurposeRenew,
 		PolicyID: "plugin.session.policy", SelectionRevision: 3,
 		RegistryRevision: 7, RegistryDigest: "digest",
-		PackageDigest: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		PackageDigest:    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		OwnerExtensionID: "plugin.membership",
 	}
 	tokenHash := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"

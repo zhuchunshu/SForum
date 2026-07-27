@@ -86,7 +86,7 @@ func WithLifecycleInspectionRepository(repository LifecycleInspectionRepository)
 	}
 }
 
-func (s *Service) LifecycleOperations(
+func (s *LifecycleService) LifecycleOperations(
 	ctx context.Context,
 	actor identity.Actor,
 	extensionID string,
@@ -116,7 +116,7 @@ func (s *Service) LifecycleOperations(
 	return result, nil
 }
 
-func (s *Service) LifecycleOperation(
+func (s *LifecycleService) LifecycleOperation(
 	ctx context.Context,
 	actor identity.Actor,
 	extensionID string,
@@ -128,7 +128,7 @@ func (s *Service) LifecycleOperation(
 	return s.lifecycleOperationDetail(ctx, extensionID, operationID)
 }
 
-func (s *Service) lifecycleOperationDetail(
+func (s *serviceCore) lifecycleOperationDetail(
 	ctx context.Context,
 	extensionID string,
 	operationID int64,

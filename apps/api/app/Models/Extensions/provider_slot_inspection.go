@@ -81,7 +81,7 @@ type ProviderSlotInspectionSource interface {
 	ProviderSlotInspection(context.Context) (ProviderSlotInspection, error)
 }
 
-func (s *Service) InspectProviderSlots(ctx context.Context, actor identity.Actor) (ProviderSlotInspection, error) {
+func (s *CatalogService) InspectProviderSlots(ctx context.Context, actor identity.Actor) (ProviderSlotInspection, error) {
 	if ctx == nil {
 		return ProviderSlotInspection{}, ErrProviderSlotInspectionUnavailable
 	}

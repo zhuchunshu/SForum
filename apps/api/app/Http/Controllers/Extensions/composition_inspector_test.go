@@ -13,7 +13,7 @@ import (
 	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
-	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	extensioncomposition "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionComposition"
 	navigationregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/NavigationRegistry"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
@@ -105,18 +105,11 @@ func newCompositionInspectorTestApp(t *testing.T, configured bool) *fiber.App {
 	}}
 	controller := NewController(nil, actors, manager)
 	if configured {
-		registry := extensionsruntime.NewComponentRegistry()
-		composition, err := extensionsruntime.NewProductionComponentComposition(
-			extensionsruntime.ProductionComponentCompositionConfig{Registry: registry},
-		)
-		if err != nil {
-			t.Fatal(err)
-		}
 		nav := navigationregistry.New()
 		if _, err := nav.Publish(navigationregistry.CorePublication()); err != nil {
 			t.Fatal(err)
 		}
-		controller.WithComponentCompositionInspector(registry, composition).
+		controller.WithComponentCompositionInspector(compositionInspectorStub{}).
 			WithNavigationInspector(navigationregistry.NewInspector(nav, navigationregistry.NewTraceRing(32)))
 	}
 	login := extensionRouteProviderFunc(func(router fiber.Router) {
@@ -129,6 +122,15 @@ func newCompositionInspectorTestApp(t *testing.T, configured bool) *fiber.App {
 	return apphttp.NewApp(config.Config{AppName: "SForum", AppEnv: "test", CSRFEnabled: false}, slog.Default(), apphttp.Dependencies{
 		RouteProviders: []apphttp.RouteProvider{controller, login},
 	})
+}
+
+type compositionInspectorStub struct{}
+
+func (compositionInspectorStub) Inspect(int) extensioncomposition.Snapshot {
+	return extensioncomposition.Snapshot{
+		Conflicts: []extensioncomposition.Conflict{},
+		Traces:    []extensioncomposition.Trace{},
+	}
 }
 
 func loginCompositionInspectorUser(t *testing.T, app *fiber.App, userID int64) *http.Cookie {

@@ -14,10 +14,10 @@ const (
 
 // perf 默认目标（可被 flag 覆盖，便于 proof seed / dry-run 测试）。
 const (
-	defaultPerfTopicCount      = 1_000_000
-	defaultPerfUsers           = 200
-	defaultPerfCategoryCount   = 20
-	defaultPerfHotComments     = 50_000
+	defaultPerfTopicCount    = 1_000_000
+	defaultPerfUsers         = 200
+	defaultPerfCategoryCount = 20
+	defaultPerfHotComments   = 50_000
 	// 普通主题默认不灌评论：成功指标依赖热帖 5e4 评论 + 列表/详情路径；
 	// 全表每帖评论会把 1e6 seed 的磁盘与时间再翻倍。需要时可 --comments-max=N。
 	defaultPerfRegularComments = 0
@@ -30,11 +30,11 @@ const (
 // perfSeedPlan 是 perf 规模种子的纯规划结果：不物化百万条正文，只描述计数与分布，
 // 供 dry-run / 单元测试断言，以及 bulk 写入路径按计划流式生成。
 type perfSeedPlan struct {
-	Profile            string
-	Users              int
-	TopicCount         int
-	CategoryCount      int
-	CategorySlugs      []string // 含 general + perf-cat-XX
+	Profile       string
+	Users         int
+	TopicCount    int
+	CategoryCount int
+	CategorySlugs []string // 含 general + perf-cat-XX
 	// TopicsPerCategory[i] 对应 CategorySlugs[i] 的目标主题数（合计 = TopicCount）。
 	TopicsPerCategory  []int
 	RegularCommentsMax int

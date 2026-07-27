@@ -33,6 +33,24 @@ type Service struct {
 	views TopicViewRecorder
 }
 
+// ServiceConfig 集中声明 Forum 服务依赖，避免随能力增加派生新的构造器排列组合。
+// 可选依赖为 nil 时保持对应能力关闭；Settings 和 Publisher 会使用安全默认值。
+type ServiceConfig struct {
+	Store             Store
+	Settings          SettingsResolver
+	Publisher         appevents.Publisher
+	Indexer           TopicSearchIndexer
+	TopicActions      TopicExtensionActionProvider
+	CommentActions    CommentExtensionActionProvider
+	TopicSurfaces     TopicExtensionSurfaceProvider
+	ComposerToolbar   ComposerToolbarProvider
+	PublicationPolicy PublicationPolicy
+	TrustPolicy       TrustPolicyResolver
+	ContentPostFilter ContentPostFilter
+	EditorSchema      EditorDocumentSchemaProvider
+	ViewRecorder      TopicViewRecorder
+}
+
 // WithComposerToolbar 注入 composer 工具栏贡献解析（F4.3）。
 func (s *Service) WithComposerToolbar(provider ComposerToolbarProvider) *Service {
 	if s != nil {
@@ -89,45 +107,25 @@ func (s *Service) RecordTopicView(ctx context.Context, topicID int64, visitorKey
 	s.views.RecordView(ctx, topicID, visitorKey)
 }
 
-func NewService(store Store) *Service {
-	return NewServiceWithEvents(store, nil)
-}
-
-func NewServiceWithEvents(store Store, publisher appevents.Publisher) *Service {
-	return NewServiceWithSettingsAndEvents(store, staticSettingsResolver{}, publisher)
-}
-
-func NewServiceWithSettingsAndEvents(store Store, settings SettingsResolver, publisher appevents.Publisher) *Service {
-	if settings == nil {
-		settings = staticSettingsResolver{}
+func NewService(config ServiceConfig) *Service {
+	if config.Settings == nil {
+		config.Settings = staticSettingsResolver{}
 	}
-	return &Service{store: store, settings: settings, events: appevents.EnsurePublisher(publisher)}
-}
-
-// NewServiceWithIndexer 在标准构造基础上注入搜索索引调度器。
-// indexer 为 nil 时自动降级（不索引），保证旧调用方与测试零破坏。
-func NewServiceWithIndexer(store Store, settings SettingsResolver, publisher appevents.Publisher, indexer TopicSearchIndexer) *Service {
-	svc := NewServiceWithSettingsAndEvents(store, settings, publisher)
-	svc.indexer = indexer
-	return svc
-}
-
-func NewServiceWithTopicExtensionActions(store Store, settings SettingsResolver, publisher appevents.Publisher, indexer TopicSearchIndexer, topicActions TopicExtensionActionProvider) *Service {
-	svc := NewServiceWithIndexer(store, settings, publisher, indexer)
-	svc.topicActions = topicActions
-	return svc
-}
-
-func NewServiceWithExtensionsAndPublicationPolicy(store Store, settings SettingsResolver, publisher appevents.Publisher, indexer TopicSearchIndexer, topicActions TopicExtensionActionProvider, policy PublicationPolicy) *Service {
-	svc := NewServiceWithPublicationPolicy(store, settings, publisher, indexer, policy)
-	svc.topicActions = topicActions
-	return svc
-}
-
-func NewServiceWithPublicationPolicy(store Store, settings SettingsResolver, publisher appevents.Publisher, indexer TopicSearchIndexer, policy PublicationPolicy) *Service {
-	svc := NewServiceWithIndexer(store, settings, publisher, indexer)
-	svc.publicationPolicy = policy
-	return svc
+	return &Service{
+		store:             config.Store,
+		settings:          config.Settings,
+		events:            appevents.EnsurePublisher(config.Publisher),
+		indexer:           config.Indexer,
+		topicActions:      config.TopicActions,
+		commentActions:    config.CommentActions,
+		topicSurfaces:     config.TopicSurfaces,
+		composerToolbar:   config.ComposerToolbar,
+		publicationPolicy: config.PublicationPolicy,
+		trust:             config.TrustPolicy,
+		contentFilter:     config.ContentPostFilter,
+		editorSchema:      config.EditorSchema,
+		views:             config.ViewRecorder,
+	}
 }
 
 func (s *Service) publicationDecision(ctx context.Context, actorUserID int64, rawContent string) (PublicationDecision, error) {

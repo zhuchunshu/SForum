@@ -8,7 +8,20 @@ import (
 	"time"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 )
+
+func (m *Manager) SendMail(ctx context.Context, extensionID string, request MailProviderRequest) (MailProviderResponse, error) {
+	return m.invoker.SendMail(ctx, extensionID, request)
+}
+
+func (m *Manager) ExecutePluginJob(ctx context.Context, invocation supportjobs.PluginJobInvocation) error {
+	return m.invoker.ExecutePluginJob(ctx, invocation)
+}
+
+func (m *Manager) RefreshMailProvider(ctx context.Context, extensionID string) error {
+	return m.invoker.RefreshMailProvider(ctx, extensionID)
+}
 
 var ErrPluginCommandRuntimeStale = errors.New("plugin command runtime contract is stale")
 
@@ -23,7 +36,7 @@ type pluginCommandRuntime interface {
 
 // ExecutePluginCommand resolves an immutable Registry contract, validates both
 // typed documents, and holds exact runtime admission for the complete RPC.
-func (m *Manager) ExecutePluginCommand(
+func (m *RuntimeInvoker) ExecutePluginCommand(
 	ctx context.Context,
 	commandID string,
 	input map[string]any,
@@ -81,4 +94,15 @@ func validateFrozenPluginCommand(contract PluginCommandContract, declarations []
 		return nil
 	}
 	return fmt.Errorf("%w: command %s", ErrPluginCommandRuntimeStale, strings.TrimSpace(contract.ID))
+}
+
+// Compatibility facade: runtime logic is owned by focused collaborators.
+
+func (m *Manager) ExecutePluginCommand(
+	ctx context.Context,
+	commandID string,
+	input map[string]any,
+	safeMode bool,
+) (PluginCommandExecutionResult, error) {
+	return m.invoker.ExecutePluginCommand(ctx, commandID, input, safeMode)
 }

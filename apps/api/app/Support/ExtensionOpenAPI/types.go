@@ -29,9 +29,9 @@ const (
 	// DefaultRequestSizeBytes is the Host default max request body (1 MiB).
 	DefaultRequestSizeBytes int64 = 1 << 20
 	// UploadRequestSizeBytes is the Host max body for multipart/upload routes.
-	UploadRequestSizeBytes int64 = 32 << 20
-	StreamContractOpaqueBytesV1  = "sforum.route.opaque_bytes@1"
-	PayloadValidationPluginOwned = "plugin_owned"
+	UploadRequestSizeBytes       int64 = 32 << 20
+	StreamContractOpaqueBytesV1        = "sforum.route.opaque_bytes@1"
+	PayloadValidationPluginOwned       = "plugin_owned"
 )
 
 // Artifact is an immutable package snapshot. Host route policies are derived
@@ -107,15 +107,15 @@ type GeneratedOperation struct {
 	IdempotencyTTLSeconds   int    `json:"idempotencyTtlSeconds,omitempty"`
 	RateLimitScope          string `json:"rateLimitScope,omitempty"`
 	// RequestSizeBytes is Host-enforced max request body for this operation.
-	RequestSizeBytes int64  `json:"requestSizeBytes,omitempty"`
+	RequestSizeBytes int64 `json:"requestSizeBytes,omitempty"`
 	// CORSPolicy is the Host CORS profile name.
-	CORSPolicy              string `json:"corsPolicy,omitempty"`
-	Security                string `json:"security"`
-	ExtensionID             string `json:"extensionId"`
-	ExtensionVersion        string `json:"extensionVersion"`
-	PackageDigest           string `json:"packageDigest"`
-	FragmentID              string `json:"fragmentId"`
-	Namespace               string `json:"namespace"`
+	CORSPolicy       string `json:"corsPolicy,omitempty"`
+	Security         string `json:"security"`
+	ExtensionID      string `json:"extensionId"`
+	ExtensionVersion string `json:"extensionVersion"`
+	PackageDigest    string `json:"packageDigest"`
+	FragmentID       string `json:"fragmentId"`
+	Namespace        string `json:"namespace"`
 }
 
 // Snapshot exposes copies only. Callers cannot mutate the canonical aggregate

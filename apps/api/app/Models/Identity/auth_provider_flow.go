@@ -72,14 +72,14 @@ type AuthProviderCompleteInput struct {
 
 // AuthProviderStartResult 是 start 操作的 Host 解析结果。
 type AuthProviderStartResult struct {
-	ProviderID      string
-	Operation       string
-	Status          string
-	CorrelationID   string
-	ContinueToken   string
-	RedirectURL     string
-	ChallengeKind   string
-	ProviderOutput  map[string]any
+	ProviderID     string
+	Operation      string
+	Status         string
+	CorrelationID  string
+	ContinueToken  string
+	RedirectURL    string
+	ChallengeKind  string
+	ProviderOutput map[string]any
 }
 
 // AuthProviderCompleteResult 是 complete 操作的 Host 解析结果。
@@ -422,10 +422,10 @@ func authProviderHasOperation(provider identityregistry.ProviderContribution, op
 }
 
 type authStartParsed struct {
-	status         string
-	continueToken  string
-	redirectURL    string
-	challengeKind  string
+	status        string
+	continueToken string
+	redirectURL   string
+	challengeKind string
 }
 
 func parseAuthStartOutput(output map[string]any) (authStartParsed, error) {
@@ -460,10 +460,10 @@ func parseAuthStartOutput(output map[string]any) (authStartParsed, error) {
 }
 
 type authCompleteParsed struct {
-	subjectDigest   string // Core 可直接使用的 digest（兼容旧 fixture 路径）
-	rawSubject      string // raw 外部 subject（Core-HMAC 模式）；非空时由调用方计算 digest
-	displayName     string
-	emailHint       string
+	subjectDigest string // Core 可直接使用的 digest（兼容旧 fixture 路径）
+	rawSubject    string // raw 外部 subject（Core-HMAC 模式）；非空时由调用方计算 digest
+	displayName   string
+	emailHint     string
 }
 
 // parseAuthCompleteOutput 支持两种契约（见 plans/2026-07-27 M0 freeze）：

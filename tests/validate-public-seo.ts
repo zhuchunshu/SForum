@@ -17,17 +17,17 @@ const surfaces = {
     markers: ["type: 'home'", 'path:']
   },
   category: {
-    path: 'apps/web/app/components/SFCategoryShowPage.vue',
+    path: 'apps/web/app/components/forum/SFCategoryShowPage.vue',
     type: 'category',
     markers: ["type: 'category'", 'path:', 'categoryName:']
   },
   tag: {
-    path: 'apps/web/app/components/SFTagShowPage.vue',
+    path: 'apps/web/app/components/forum/SFTagShowPage.vue',
     type: 'tag',
     markers: ["type: 'tag'", 'path:', 'tagName:']
   },
   topic: {
-    path: 'apps/web/app/components/SFTopicShowPage.vue',
+    path: 'apps/web/app/components/forum/SFTopicShowPage.vue',
     type: 'topic',
     markers: [
       "type: 'topic'",
@@ -41,7 +41,7 @@ const surfaces = {
     ]
   },
   profile: {
-    path: 'apps/web/app/components/SFProfileShowPage.vue',
+    path: 'apps/web/app/components/profile/SFProfileShowPage.vue',
     type: 'profile',
     markers: ["type: 'profile'", 'path:', 'authorName:']
   }

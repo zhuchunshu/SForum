@@ -12,6 +12,22 @@ import (
 
 type HookDocumentRevalidator func(context.Context, string, map[string]any) error
 
+func (m *Manager) HookBus() *HookBus {
+	return m.eventsProviders.HookBus()
+}
+
+func (m *Manager) EmitHook(ctx context.Context, name string, payload map[string]any) {
+	m.eventsProviders.EmitHook(ctx, name, payload)
+}
+
+func (m *Manager) Emit(ctx context.Context, envelope appevents.Envelope) appevents.Result {
+	return m.eventsProviders.Emit(ctx, envelope)
+}
+
+func (m *Manager) Deliver(ctx context.Context, extensionID string, deliveryID int64, envelope appevents.Envelope) appevents.Result {
+	return m.eventsProviders.Deliver(ctx, extensionID, deliveryID, envelope)
+}
+
 type VersionedHookInvocation struct {
 	HookID          string
 	ContractVersion string
@@ -32,7 +48,7 @@ type VersionedHookResult struct {
 // InvokeVersionedHook composes one frozen listener chain. A filter cannot run
 // without a Host revalidator, and every accepted patch is rechecked before the
 // next listener observes it.
-func (m *Manager) InvokeVersionedHook(ctx context.Context, input VersionedHookInvocation) VersionedHookResult {
+func (m *RuntimeEventsProviders) InvokeVersionedHook(ctx context.Context, input VersionedHookInvocation) VersionedHookResult {
 	if m == nil || ctx == nil || m.hooks == nil || m.hooks.registry == nil {
 		return versionedHookFailure(ErrHookRegistryInvalid)
 	}
@@ -128,7 +144,7 @@ func (m *Manager) InvokeVersionedHook(ctx context.Context, input VersionedHookIn
 	return result
 }
 
-func (m *Manager) enqueueVersionedHook(
+func (m *managerCore) enqueueVersionedHook(
 	ctx context.Context,
 	contract VersionedHookContract,
 	listener VersionedHookListener,
@@ -162,7 +178,7 @@ func (m *Manager) enqueueVersionedHook(
 	return nil
 }
 
-func (m *Manager) deliverVersionedHook(ctx context.Context, args EventDeliveryArgs) appevents.Result {
+func (m *managerCore) deliverVersionedHook(ctx context.Context, args EventDeliveryArgs) appevents.Result {
 	contract, listeners, err := m.hooks.registry.Resolve(args.HookID, args.ContractVersion)
 	if err != nil {
 		result := appevents.Result{OK: false, Reason: "extension.hook_contract_unavailable", Message: err.Error()}
@@ -183,7 +199,7 @@ func (m *Manager) deliverVersionedHook(ctx context.Context, args EventDeliveryAr
 	return result
 }
 
-func (m *Manager) beginVersionedHookDelivery(
+func (m *managerCore) beginVersionedHookDelivery(
 	ctx context.Context,
 	extensionID string,
 	contract VersionedHookContract,
@@ -202,13 +218,13 @@ func (m *Manager) beginVersionedHookDelivery(
 	return delivery.ID
 }
 
-func (m *Manager) failVersionedHookDelivery(ctx context.Context, deliveryID int64, reason string, err error) {
+func (m *managerCore) failVersionedHookDelivery(ctx context.Context, deliveryID int64, reason string, err error) {
 	m.finishDelivery(ctx, deliveryID, extensions.DeliveryFailed, appevents.Result{
 		OK: false, Reason: reason, Message: err.Error(),
 	}, 1)
 }
 
-func (m *Manager) invokeVersionedHookListener(
+func (m *managerCore) invokeVersionedHookListener(
 	ctx context.Context,
 	contract VersionedHookContract,
 	listener VersionedHookListener,
@@ -266,4 +282,10 @@ func cloneHookDocument(value map[string]any) (map[string]any, error) {
 		return nil, err
 	}
 	return result, nil
+}
+
+// Compatibility facade: runtime logic is owned by focused collaborators.
+
+func (m *Manager) InvokeVersionedHook(ctx context.Context, input VersionedHookInvocation) VersionedHookResult {
+	return m.eventsProviders.InvokeVersionedHook(ctx, input)
 }

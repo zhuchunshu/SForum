@@ -111,7 +111,7 @@ func TestPackageLocalComponentSSRPublishAndRender(t *testing.T) {
 	if _, err := renderer.RenderComponent(context.Background(), ComponentRenderCall{
 		Contribution: ComponentContribution{
 			ID: "demo.ssr.component.card", SSRTemplate: "demo.ssr.template.card",
-			Action: extensionmanifest.ComponentActionBefore,
+			Action:   extensionmanifest.ComponentActionBefore,
 			Artifact: HookArtifact{ExtensionID: "demo.ssr", PackageDigest: packageDigest},
 		},
 		Artifact: HookArtifact{ExtensionID: "demo.ssr", PackageDigest: packageDigest},

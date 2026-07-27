@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
-import { useAdminPage } from '~/composables/useAdminPage'
+import { useAdminPage } from '~/composables/admin/useAdminPage'
 import {
   buildDatabaseRowsQuery,
   databaseTableKey,
@@ -14,7 +14,7 @@ import {
   type DatabaseRows,
   type DatabaseTableDetail,
   type DatabaseTableSummary
-} from '~/utils/adminDatabase'
+} from '~/utils/admin/adminDatabase'
 
 definePageMeta({
   middleware: 'admin',

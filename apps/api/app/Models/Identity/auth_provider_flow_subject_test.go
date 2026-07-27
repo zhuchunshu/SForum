@@ -53,8 +53,8 @@ func TestParseAuthCompleteOutput_LegacyDigestFixtureMode(t *testing.T) {
 func TestParseAuthCompleteOutput_BothPresentPrefersRawSubject(t *testing.T) {
 	legacyDigest := strings.Repeat("b", 64)
 	parsed, err := parseAuthCompleteOutput(map[string]any{
-		"providerSubject":        "999",
-		"providerSubjectDigest":  legacyDigest,
+		"providerSubject":       "999",
+		"providerSubjectDigest": legacyDigest,
 	})
 	if err != nil {
 		t.Fatalf("parse: %v", err)

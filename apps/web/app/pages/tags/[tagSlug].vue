@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SFTagShowPage from '~/components/forum/SFTagShowPage.vue'
 /** forum.tag.show 路由壳：outlet + fail-closed 回退；SEO 在 body 岛内（依赖列表数据）。 */
 </script>
 

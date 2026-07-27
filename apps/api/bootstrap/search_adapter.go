@@ -350,7 +350,7 @@ func registerSearchWorkers(registry *supportjobs.Registry, pool *pgxpool.Pool, s
 	if err := searchEngine.EnsureIndex(context.Background()); err != nil && !errors.Is(err, search.ErrEngineUnavailable) {
 		slog.Warn("search: ensure index failed (worker will still start)", "err", err)
 	}
-	forumService := forum.NewService(forum.NewPostgresStore(pool))
+	forumService := forum.NewService(forum.ServiceConfig{Store: forum.NewPostgresStore(pool)})
 	stateStore := search.NewPostgresIndexStateStore(pool)
 	indexer := search.NewIndexer(searchEngine, forumSearchReader{forum: forumService}, nil).
 		WithIndexStateStore(stateStore)

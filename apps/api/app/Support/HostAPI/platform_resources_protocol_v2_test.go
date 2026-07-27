@@ -72,7 +72,7 @@ func TestProtocolV2SecretResolveExactRuntimeAndDeny(t *testing.T) {
 	}
 	otherCtx := ContextWithProtocolV2RuntimeIdentity(ctx, other)
 	denied, err := server.Resolve(otherCtx, &hostv2.SecretResolveRequest{
-		Context: &protocolv2.RequestContext{RequestId: "x", Extension: other},
+		Context:  &protocolv2.RequestContext{RequestId: "x", Extension: other},
 		SecretId: "sforum.secret://demo.secret/token", Purpose: "http.credential",
 	})
 	if err != nil || denied.GetError().GetReason() != "host.secret_denied" {

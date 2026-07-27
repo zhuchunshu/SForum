@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AdminExtensionSettingValue } from '~/utils/adminExtensions'
+import type { AdminExtensionSettingValue } from '~/utils/admin/adminExtensions'
 
 const props = defineProps<{
   item: AdminExtensionSettingValue

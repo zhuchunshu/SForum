@@ -1,7 +1,13 @@
 <script setup lang="ts">
+import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
+import { useAdminExtensionsManager } from '~/composables/admin/useAdminExtensionsManager'
 import { apiErrorMessage } from '~/composables/useApiClient'
-import { useAdminPage } from '~/composables/useAdminPage'
-import SFAdminMissingArtifactsCleanupDialog from '~/components/SFAdminMissingArtifactsCleanupDialog.vue'
+import { useAdminPage } from '~/composables/admin/useAdminPage'
+import SFAdminExtensionEnableDialog from '~/components/admin/SFAdminExtensionEnableDialog.vue'
+import SFAdminExtensionLifecycleDialog from '~/components/admin/SFAdminExtensionLifecycleDialog.vue'
+import SFAdminExtensionUninstallDialog from '~/components/admin/SFAdminExtensionUninstallDialog.vue'
+import SFAdminMissingArtifactsCleanupDialog from '~/components/admin/SFAdminMissingArtifactsCleanupDialog.vue'
+import SFAdminThemeActivateDialog from '~/components/admin/SFAdminThemeActivateDialog.vue'
 import {
   canRestartPlugin,
   capabilityCount,
@@ -16,7 +22,7 @@ import {
   themeStatusLabelKey,
   type AdminMissingArtifactCleanupResult,
   type AdminMissingArtifactDataMode
-} from '~/utils/adminExtensions'
+} from '~/utils/admin/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',

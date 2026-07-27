@@ -27,7 +27,7 @@ func TestForumUserSummaryCarriesAvatarView(t *testing.T) {
 
 func TestServiceCreateTopicRendersSharedPostContent(t *testing.T) {
 	store := newServiceFakeStore()
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 	actor := identity.Actor{
 		ID:          12,
 		Status:      identity.UserStatusActive,
@@ -69,7 +69,7 @@ func TestServiceCreateTopicDeduplicatesSlugOnCollision(t *testing.T) {
 	store := newServiceFakeStore()
 	// 预置占用：hello-world 与 hello-world-2 均已存在，期望最终得到 hello-world-3。
 	store.existingSlugs = map[string]bool{"hello-world": true, "hello-world-2": true}
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 	actor := identity.Actor{
 		ID:          12,
 		Status:      identity.UserStatusActive,
@@ -94,7 +94,7 @@ func TestServiceCreateTopicDeduplicatesSlugOnCollision(t *testing.T) {
 
 	// 无冲突时直接使用原始 slug。
 	store2 := newServiceFakeStore()
-	service2 := NewService(store2)
+	service2 := NewService(ServiceConfig{Store: store2})
 	topic2, err := service2.CreateTopic(context.Background(), actor, CreateTopicInput{
 		CategorySlug: "general",
 		Title:        "Hello World",
@@ -119,7 +119,7 @@ func TestServiceCreateTopicAppliesBeforeCreateFilterAndEmitsCreatedEvent(t *test
 			},
 		},
 	}}
-	service := NewServiceWithEvents(store, publisher)
+	service := NewService(ServiceConfig{Store: store, Publisher: publisher})
 	actor := identity.Actor{
 		ID:          12,
 		Status:      identity.UserStatusActive,
@@ -149,7 +149,7 @@ func TestServiceCreateTopicUsesConfiguredDefaultCategory(t *testing.T) {
 	store := newServiceFakeStore()
 	settings := testForumSettings()
 	settings.DefaultCategorySlug = "support"
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+	service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: settings}, Publisher: nil})
 	actor := topicCreator()
 
 	_, err := service.CreateTopic(context.Background(), actor, CreateTopicInput{
@@ -167,7 +167,7 @@ func TestServiceCreateTopicUsesConfiguredDefaultCategory(t *testing.T) {
 func TestServiceCreateTopicNormalizesAndDeduplicatesTagSlugs(t *testing.T) {
 	store := newServiceFakeStore()
 	publisher := &fakeEventPublisher{}
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, publisher)
+	service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: testForumSettings()}, Publisher: publisher})
 	actor := topicCreator()
 
 	_, err := service.CreateTopic(context.Background(), actor, CreateTopicInput{
@@ -193,7 +193,7 @@ func TestServiceCreateTopicNormalizesAndDeduplicatesTagSlugs(t *testing.T) {
 func TestServiceCreateTopicAllowsChineseTagSlugs(t *testing.T) {
 	store := newServiceFakeStore()
 	publisher := &fakeEventPublisher{}
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, publisher)
+	service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: testForumSettings()}, Publisher: publisher})
 	actor := topicCreator()
 
 	_, err := service.CreateTopic(context.Background(), actor, CreateTopicInput{
@@ -213,7 +213,7 @@ func TestServiceCreateTopicAllowsChineseTagSlugs(t *testing.T) {
 func TestServiceCreateTopicControlledModeRejectsUnknownTags(t *testing.T) {
 	store := newServiceFakeStore()
 	store.resolveTagsErr = ErrInvalidTag
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+	service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: testForumSettings()}, Publisher: nil})
 	actor := topicCreator()
 
 	_, err := service.CreateTopic(context.Background(), actor, CreateTopicInput{
@@ -246,7 +246,7 @@ func TestServiceCreateTopicAllowsReviewAndOpenTagCreationModes(t *testing.T) {
 			store.resolvedTags = []TopicTagSummary{{ID: 2, Slug: "new-tag", Name: "new tag", Status: tc.status}}
 			settings := testForumSettings()
 			settings.TagCreationMode = tc.mode
-			service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+			service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: settings}, Publisher: nil})
 
 			topic, err := service.CreateTopic(context.Background(), topicCreator(), CreateTopicInput{
 				CategorySlug: "general",
@@ -271,7 +271,7 @@ func TestServiceCreateTopicRejectsTooManyTags(t *testing.T) {
 	settings := testForumSettings()
 	settings.TagMaxPerTopic = 1
 	store := newServiceFakeStore()
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+	service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: settings}, Publisher: nil})
 
 	_, err := service.CreateTopic(context.Background(), topicCreator(), CreateTopicInput{
 		CategorySlug: "general",
@@ -290,7 +290,7 @@ func TestServiceCreateTopicRejectsTooManyTags(t *testing.T) {
 func TestServiceForumPaginationSettingsValidationAndPermission(t *testing.T) {
 	settings := testForumSettings()
 	manager := &fakeSettingsManager{settings: settings}
-	service := NewServiceWithSettingsAndEvents(newServiceFakeStore(), manager, nil)
+	service := NewService(ServiceConfig{Store: newServiceFakeStore(), Settings: manager, Publisher: nil})
 	categoryActor := identity.Actor{Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionCategoryManage: true}}
 	settingsActor := identity.Actor{Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionSettingsManage: true}}
 
@@ -320,7 +320,7 @@ func TestServiceUsesConfiguredPaginationDefaultsAndExplicitOverrides(t *testing.
 	settings.TopicsPerPage = 30
 	settings.CommentsPerPage = 40
 	store := newServiceFakeStore()
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+	service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: settings}, Publisher: nil})
 
 	if _, err := service.ListTopics(context.Background(), TopicListInput{}); err != nil {
 		t.Fatalf("ListTopics default: %v", err)
@@ -357,7 +357,7 @@ func TestServiceCreateTopicBeforeCreateCanPatchTagSlugs(t *testing.T) {
 			Patch: map[string]any{"tagSlugs": []string{"patched-tag"}},
 		},
 	}}
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, publisher)
+	service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: testForumSettings()}, Publisher: publisher})
 
 	_, err := service.CreateTopic(context.Background(), topicCreator(), CreateTopicInput{
 		CategorySlug: "general",
@@ -379,7 +379,7 @@ func TestServiceCreateTopicBeforeCreateCanPatchTagSlugs(t *testing.T) {
 func TestServiceCreateTopicCreatedEventIncludesTagSlugs(t *testing.T) {
 	store := newServiceFakeStore()
 	publisher := &fakeEventPublisher{}
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, publisher)
+	service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: testForumSettings()}, Publisher: publisher})
 
 	_, err := service.CreateTopic(context.Background(), topicCreator(), CreateTopicInput{
 		CategorySlug: "general",
@@ -402,7 +402,7 @@ func TestServiceCreateTopicCreatedEventIncludesTagSlugs(t *testing.T) {
 
 func TestServiceNormalizesCategoryIconColor(t *testing.T) {
 	store := newServiceFakeStore()
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 	actor := identity.Actor{
 		ID:          1,
 		Status:      identity.UserStatusActive,
@@ -445,7 +445,7 @@ func TestServiceNormalizesCategoryIconColor(t *testing.T) {
 
 func TestServiceRejectsInvalidCategoryIconColor(t *testing.T) {
 	store := newServiceFakeStore()
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 	actor := identity.Actor{
 		ID:          1,
 		Status:      identity.UserStatusActive,
@@ -476,7 +476,7 @@ func TestServiceRejectsInvalidCategoryIconColor(t *testing.T) {
 
 func TestServiceNormalizesTagIconColor(t *testing.T) {
 	store := newServiceFakeStore()
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 	actor := identity.Actor{
 		ID:          1,
 		Status:      identity.UserStatusActive,
@@ -517,7 +517,7 @@ func TestServiceNormalizesTagIconColor(t *testing.T) {
 
 func TestServiceCreateTagAllowsChineseSlug(t *testing.T) {
 	store := newServiceFakeStore()
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 	actor := identity.Actor{
 		ID:          1,
 		Status:      identity.UserStatusActive,
@@ -539,7 +539,7 @@ func TestServiceCreateTagAllowsChineseSlug(t *testing.T) {
 
 func TestServiceRejectsInvalidTagIconColor(t *testing.T) {
 	store := newServiceFakeStore()
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 	actor := identity.Actor{
 		ID:          1,
 		Status:      identity.UserStatusActive,
@@ -568,7 +568,7 @@ func TestServiceRejectsInvalidTagIconColor(t *testing.T) {
 
 func TestServiceGetTopicDecoratesExtensionActions(t *testing.T) {
 	store := newServiceFakeStore()
-	service := NewServiceWithTopicExtensionActions(store, staticSettingsResolver{}, nil, nil, fakeTopicActionProvider{
+	service := NewService(ServiceConfig{Store: store, Settings: staticSettingsResolver{}, Publisher: nil, Indexer: nil, TopicActions: fakeTopicActionProvider{
 		actions: []TopicExtensionAction{{
 			ExtensionID: "demo.plugin",
 			ID:          "demo.bookmark",
@@ -578,7 +578,7 @@ func TestServiceGetTopicDecoratesExtensionActions(t *testing.T) {
 			URL:         "/extensions/demo.plugin/topic-actions/bookmark",
 			Confirm:     true,
 		}},
-	})
+	}})
 
 	topic, err := service.GetTopic(context.Background(), 42)
 	if err != nil {
@@ -592,7 +592,7 @@ func TestServiceGetTopicDecoratesExtensionActions(t *testing.T) {
 func TestServiceRecordTopicViewDedupAndNilSafe(t *testing.T) {
 	// GetTopic 本身不计浏览；仅 RecordTopicView / controller 副作用计数。
 	counter := NewMemoryTopicViewCounter()
-	service := NewService(newServiceFakeStore()).WithViewRecorder(counter)
+	service := NewService(ServiceConfig{Store: newServiceFakeStore()}).WithViewRecorder(counter)
 	ctx := context.Background()
 	service.RecordTopicView(ctx, 42, "u:1")
 	service.RecordTopicView(ctx, 42, "u:1")
@@ -614,7 +614,7 @@ func TestServiceRecordTopicViewDedupAndNilSafe(t *testing.T) {
 
 func TestServiceGetTopicBySlugDecoratesExtensionActions(t *testing.T) {
 	store := newServiceFakeStore()
-	service := NewServiceWithTopicExtensionActions(store, staticSettingsResolver{}, nil, nil, fakeTopicActionProvider{
+	service := NewService(ServiceConfig{Store: store, Settings: staticSettingsResolver{}, Publisher: nil, Indexer: nil, TopicActions: fakeTopicActionProvider{
 		actions: []TopicExtensionAction{{
 			ExtensionID: "demo.plugin",
 			ID:          "demo.share",
@@ -623,7 +623,7 @@ func TestServiceGetTopicBySlugDecoratesExtensionActions(t *testing.T) {
 			Method:      "POST",
 			URL:         "/extensions/demo.plugin/topic-actions/share",
 		}},
-	})
+	}})
 
 	topic, err := service.GetTopicBySlug(context.Background(), "hello-world")
 	if err != nil {
@@ -636,7 +636,7 @@ func TestServiceGetTopicBySlugDecoratesExtensionActions(t *testing.T) {
 
 func TestServiceGetTopicDecoratesExtensionSurfaces(t *testing.T) {
 	store := newServiceFakeStore()
-	service := NewServiceWithTopicExtensionActions(store, staticSettingsResolver{}, nil, nil, nil)
+	service := NewService(ServiceConfig{Store: store, Settings: staticSettingsResolver{}, Publisher: nil, Indexer: nil, TopicActions: nil})
 	service.WithTopicExtensionSurfaces(fakeTopicSurfaceProvider{
 		sidebar: []TopicExtensionSidebarItem{{
 			ExtensionID: "demo.plugin",
@@ -677,7 +677,7 @@ func TestServiceListCommentsDecoratesExtensionActions(t *testing.T) {
 		PerPage: 20,
 		View:    "tree",
 	}
-	service := NewServiceWithTopicExtensionActions(store, staticSettingsResolver{}, nil, nil, nil)
+	service := NewService(ServiceConfig{Store: store, Settings: staticSettingsResolver{}, Publisher: nil, Indexer: nil, TopicActions: nil})
 	service.WithCommentExtensionActions(fakeCommentActionProvider{
 		actions: []CommentExtensionAction{{
 			ExtensionID:  "demo.plugin",
@@ -710,7 +710,7 @@ func TestServiceListTopicsDecoratesExtensionListBadges(t *testing.T) {
 		Page:    1,
 		PerPage: 20,
 	}
-	service := NewServiceWithTopicExtensionActions(store, staticSettingsResolver{}, nil, nil, nil)
+	service := NewService(ServiceConfig{Store: store, Settings: staticSettingsResolver{}, Publisher: nil, Indexer: nil, TopicActions: nil})
 	service.WithTopicExtensionSurfaces(fakeTopicSurfaceProvider{
 		listBadges: []TopicExtensionBadge{{
 			ExtensionID: "demo.plugin",
@@ -778,7 +778,7 @@ func TestBuildCommentTreeKeepsNestedChildren(t *testing.T) {
 func TestServiceCreateCommentRejectsLockedTopic(t *testing.T) {
 	store := newServiceFakeStore()
 	store.topicForComment = TopicSummary{ID: 99, Status: TopicStatusLocked}
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 	actor := identity.Actor{
 		ID:          12,
 		Status:      identity.UserStatusActive,
@@ -823,7 +823,7 @@ func TestServiceCreateCommentAppliesBeforeCreateFilterAndEmitsCreatedEvent(t *te
 			},
 		},
 	}}
-	service := NewServiceWithEvents(store, publisher)
+	service := NewService(ServiceConfig{Store: store, Publisher: publisher})
 
 	comment, err := service.CreateComment(context.Background(), commentCreator(), CreateCommentInput{
 		TopicID: 42,
@@ -866,7 +866,7 @@ func TestServiceCreateCommentBeforeCreateCanReject(t *testing.T) {
 			Message: "疑似垃圾回复",
 		},
 	}}
-	service := NewServiceWithEvents(store, publisher)
+	service := NewService(ServiceConfig{Store: store, Publisher: publisher})
 
 	_, err := service.CreateComment(context.Background(), commentCreator(), CreateCommentInput{
 		TopicID: 1,
@@ -901,7 +901,7 @@ func TestServiceCreateCommentBeforeCreateIncludesParentID(t *testing.T) {
 		RootCommentID: parentID,
 	}
 	publisher := &fakeEventPublisher{}
-	service := NewServiceWithEvents(store, publisher)
+	service := NewService(ServiceConfig{Store: store, Publisher: publisher})
 
 	_, err := service.CreateComment(context.Background(), commentCreator(), CreateCommentInput{
 		TopicID:  3,
@@ -925,7 +925,7 @@ func TestServiceCreateCommentBeforeCreateNotInvokedWhenTopicLocked(t *testing.T)
 	store := newServiceFakeStore()
 	store.topicForComment = TopicSummary{ID: 99, Status: TopicStatusLocked}
 	publisher := &fakeEventPublisher{}
-	service := NewServiceWithEvents(store, publisher)
+	service := NewService(ServiceConfig{Store: store, Publisher: publisher})
 
 	_, err := service.CreateComment(context.Background(), commentCreator(), CreateCommentInput{
 		TopicID: 99,
@@ -942,7 +942,7 @@ func TestServiceCreateCommentBeforeCreateNotInvokedWhenTopicLocked(t *testing.T)
 func TestServiceUpdateCommentAllowsOwnerAndAdmin(t *testing.T) {
 	store := newServiceFakeStore()
 	store.commentSummary = CommentSummary{ID: 5, AuthorUserID: 12, Status: CommentStatusActive, CurrentRevision: 1}
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 	owner := identity.Actor{
 		ID:          12,
 		Status:      identity.UserStatusActive,
@@ -971,7 +971,7 @@ func TestServiceUpdateCommentAllowsOwnerAndAdmin(t *testing.T) {
 func TestServiceUpdateCommentRejectsUnauthorizedActor(t *testing.T) {
 	store := newServiceFakeStore()
 	store.commentSummary = CommentSummary{ID: 5, AuthorUserID: 12, Status: CommentStatusActive, CurrentRevision: 1}
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 	actor := identity.Actor{ID: 13, Status: identity.UserStatusActive, Permissions: map[string]bool{}}
 
 	_, err := service.UpdateComment(context.Background(), actor, UpdateCommentInput{
@@ -988,7 +988,7 @@ func TestServiceUpdateCommentRejectsUnauthorizedActor(t *testing.T) {
 func TestServiceUpdateTopicAllowsOwnerAndEditor(t *testing.T) {
 	store := newServiceFakeStore()
 	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive, CurrentRevision: 1}
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+	service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: testForumSettings()}, Publisher: nil})
 	owner := identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicEditOwn: true}}
 	editor := identity.Actor{ID: 20, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicEditAny: true}}
 
@@ -1008,7 +1008,7 @@ func TestServiceUpdateTopicAllowsOwnerAndEditor(t *testing.T) {
 func TestServiceUpdateTopicRejectsUnauthorizedActor(t *testing.T) {
 	store := newServiceFakeStore()
 	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive, CurrentRevision: 1}
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 	actor := identity.Actor{ID: 13, Status: identity.UserStatusActive, Permissions: map[string]bool{}}
 
 	_, err := service.UpdateTopic(context.Background(), actor, UpdateTopicInput{TopicID: 7, ExpectedRevision: 1, Title: strPtr("x")})
@@ -1020,7 +1020,7 @@ func TestServiceUpdateTopicRejectsUnauthorizedActor(t *testing.T) {
 func TestServiceUpdateTopicRejectsEmptyTitle(t *testing.T) {
 	store := newServiceFakeStore()
 	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive, CurrentRevision: 1}
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+	service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: testForumSettings()}, Publisher: nil})
 	owner := identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicEditOwn: true}}
 
 	empty := "  "
@@ -1052,7 +1052,7 @@ func TestServiceUpdateTopicAppliesBeforeUpdateFilterAndEmitsUpdatedEvent(t *test
 			},
 		},
 	}}
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, publisher)
+	service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: testForumSettings()}, Publisher: publisher})
 
 	title := "用户标题"
 	_, err := service.UpdateTopic(context.Background(), topicEditor(), UpdateTopicInput{
@@ -1098,7 +1098,7 @@ func TestServiceUpdateTopicBeforeUpdateCanReject(t *testing.T) {
 			Message: "标题不允许修改",
 		},
 	}}
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, publisher)
+	service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: testForumSettings()}, Publisher: publisher})
 
 	title := "违禁标题"
 	_, err := service.UpdateTopic(context.Background(), topicEditor(), UpdateTopicInput{
@@ -1131,7 +1131,7 @@ func TestServiceUpdateTopicBeforeUpdateCanForceTagsWithoutRequestTags(t *testing
 			Patch: map[string]any{"tagSlugs": []string{"ops-required"}},
 		},
 	}}
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, publisher)
+	service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: testForumSettings()}, Publisher: publisher})
 
 	title := "只改标题"
 	_, err := service.UpdateTopic(context.Background(), topicEditor(), UpdateTopicInput{
@@ -1158,7 +1158,7 @@ func TestServiceUpdateTopicBeforeUpdateNotInvokedWhenUnauthorized(t *testing.T) 
 	store := newServiceFakeStore()
 	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive, CurrentRevision: 1}
 	publisher := &fakeEventPublisher{}
-	service := NewServiceWithEvents(store, publisher)
+	service := NewService(ServiceConfig{Store: store, Publisher: publisher})
 	actor := identity.Actor{ID: 13, Status: identity.UserStatusActive, Permissions: map[string]bool{}}
 
 	_, err := service.UpdateTopic(context.Background(), actor, UpdateTopicInput{
@@ -1177,7 +1177,7 @@ func TestServiceUpdateTopicStaleRevisionDoesNotInvokeFilter(t *testing.T) {
 	store := newServiceFakeStore()
 	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive, CurrentRevision: 2}
 	publisher := &fakeEventPublisher{}
-	service := NewServiceWithEvents(store, publisher)
+	service := NewService(ServiceConfig{Store: store, Publisher: publisher})
 	_, err := service.UpdateTopic(context.Background(), topicEditor(), UpdateTopicInput{TopicID: 7, ExpectedRevision: 1, Title: strPtr("stale")})
 	if !errors.Is(err, ErrRevisionConflict) {
 		t.Fatalf("expected revision conflict, got %v", err)
@@ -1191,7 +1191,7 @@ func TestServiceCrossAuthorEditRequiresReason(t *testing.T) {
 	store := newServiceFakeStore()
 	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive, CurrentRevision: 1}
 	actor := identity.Actor{ID: 20, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicEditAny: true}}
-	_, err := NewService(store).UpdateTopic(context.Background(), actor, UpdateTopicInput{TopicID: 7, ExpectedRevision: 1, Title: strPtr("staff edit")})
+	_, err := NewService(ServiceConfig{Store: store}).UpdateTopic(context.Background(), actor, UpdateTopicInput{TopicID: 7, ExpectedRevision: 1, Title: strPtr("staff edit")})
 	if !errors.Is(err, ErrRevisionReasonRequired) {
 		t.Fatalf("expected required reason, got %v", err)
 	}
@@ -1201,7 +1201,7 @@ func TestServiceUpdateCommentFilterPatchAndEvent(t *testing.T) {
 	store := newServiceFakeStore()
 	store.commentSummary = CommentSummary{ID: 9, TopicID: 7, AuthorUserID: 12, Status: CommentStatusActive, CurrentRevision: 1, CreatedAt: time.Now().UTC()}
 	publisher := &fakeEventPublisher{results: map[string]appevents.Result{appevents.CommentBeforeUpdate: {OK: true, Patch: map[string]any{"content": ContentInput{RawContent: "patched", SourceFormat: SourceFormatMarkdown}}}}}
-	updated, err := NewServiceWithEvents(store, publisher).UpdateComment(context.Background(), topicEditorWithCommentPermission(), UpdateCommentInput{CommentID: 9, ExpectedRevision: 1, Content: validMarkdownContent("original")})
+	updated, err := NewService(ServiceConfig{Store: store, Publisher: publisher}).UpdateComment(context.Background(), topicEditorWithCommentPermission(), UpdateCommentInput{CommentID: 9, ExpectedRevision: 1, Content: validMarkdownContent("original")})
 	if err != nil {
 		t.Fatalf("UpdateComment: %v", err)
 	}
@@ -1218,13 +1218,8 @@ func topicEditorWithCommentPermission() identity.Actor {
 func TestServiceUpdateTopicRequeuesPendingOnPublicationPolicy(t *testing.T) {
 	store := newServiceFakeStore()
 	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
-	svc := NewServiceWithPublicationPolicy(
-		store,
-		fakeSettingsResolver{settings: testForumSettings()},
-		appevents.NoopPublisher{},
-		nil,
-		staticPublicationPolicy{decision: PublicationDecision{Pending: true, Triggers: []string{"external_link"}}},
-	)
+	svc := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: testForumSettings()}, Publisher: appevents.NoopPublisher{}, Indexer: nil, PublicationPolicy: staticPublicationPolicy{decision: PublicationDecision{Pending: true, Triggers: []string{"external_link"}}}})
+
 	owner := identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicEditOwn: true}}
 	content := ContentInput{RawContent: "see https://evil.example", SourceFormat: SourceFormatMarkdown, EditorType: EditorTypeMarkdown}
 
@@ -1247,13 +1242,8 @@ func TestServiceUpdateTopicRequeuesPendingOnPublicationPolicy(t *testing.T) {
 func TestServiceUpdateCommentRequeuesPendingOnPublicationPolicy(t *testing.T) {
 	store := newServiceFakeStore()
 	store.commentSummary = CommentSummary{ID: 9, TopicID: 3, AuthorUserID: 12, Status: CommentStatusActive, CreatedAt: time.Now().UTC(), CurrentRevision: 1}
-	svc := NewServiceWithPublicationPolicy(
-		store,
-		fakeSettingsResolver{settings: testForumSettings()},
-		appevents.NoopPublisher{},
-		nil,
-		staticPublicationPolicy{decision: PublicationDecision{Pending: true, Triggers: []string{"external_link"}}},
-	)
+	svc := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: testForumSettings()}, Publisher: appevents.NoopPublisher{}, Indexer: nil, PublicationPolicy: staticPublicationPolicy{decision: PublicationDecision{Pending: true, Triggers: []string{"external_link"}}}})
+
 	owner := identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionPostEditOwn: true}}
 
 	updated, err := svc.UpdateComment(context.Background(), owner, UpdateCommentInput{
@@ -1271,7 +1261,7 @@ func TestServiceUpdateCommentRequeuesPendingOnPublicationPolicy(t *testing.T) {
 func TestServiceDeleteTopicAllowsOwnerAndModerator(t *testing.T) {
 	store := newServiceFakeStore()
 	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 	owner := identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicDeleteOwn: true}}
 	moderator := identity.Actor{ID: 30, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicDeleteAny: true}}
 
@@ -1289,7 +1279,7 @@ func TestServiceDeleteTopicAllowsOwnerAndModerator(t *testing.T) {
 func TestServiceDeleteTopicRejectsUnauthorizedActor(t *testing.T) {
 	store := newServiceFakeStore()
 	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 	actor := identity.Actor{ID: 13, Status: identity.UserStatusActive, Permissions: map[string]bool{}}
 
 	_, err := service.DeleteTopic(context.Background(), actor, 7)
@@ -1316,7 +1306,7 @@ func TestServiceApplyTopicActionEnforcesPermissions(t *testing.T) {
 		t.Run(tc.name+"/allowed", func(t *testing.T) {
 			store := newServiceFakeStore()
 			store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
-			service := NewService(store)
+			service := NewService(ServiceConfig{Store: store})
 			actor := identity.Actor{ID: 30, Status: identity.UserStatusActive, Permissions: map[string]bool{tc.permission: true}}
 
 			result, err := service.ApplyTopicAction(context.Background(), actor, TopicLifecycleInput{TopicID: 7, Action: tc.action})
@@ -1333,7 +1323,7 @@ func TestServiceApplyTopicActionEnforcesPermissions(t *testing.T) {
 		t.Run(tc.name+"/denied", func(t *testing.T) {
 			store := newServiceFakeStore()
 			store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
-			service := NewService(store)
+			service := NewService(ServiceConfig{Store: store})
 			actor := identity.Actor{ID: 13, Status: identity.UserStatusActive, Permissions: map[string]bool{}}
 
 			_, err := service.ApplyTopicAction(context.Background(), actor, TopicLifecycleInput{TopicID: 7, Action: tc.action})
@@ -1350,7 +1340,7 @@ func TestServiceApplyTopicActionEnforcesPermissions(t *testing.T) {
 func TestServiceApplyTopicActionRejectsInvalidAction(t *testing.T) {
 	store := newServiceFakeStore()
 	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 	actor := identity.Actor{ID: 30, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicLock: true}}
 
 	_, err := service.ApplyTopicAction(context.Background(), actor, TopicLifecycleInput{TopicID: 7, Action: "bogus"})
@@ -1362,7 +1352,7 @@ func TestServiceApplyTopicActionRejectsInvalidAction(t *testing.T) {
 func TestServiceApplyTopicActionBlocksActionsOnHiddenTopic(t *testing.T) {
 	store := newServiceFakeStore()
 	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusHidden}
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 	actor := identity.Actor{ID: 30, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicLock: true}}
 
 	_, err := service.ApplyTopicAction(context.Background(), actor, TopicLifecycleInput{TopicID: 7, Action: TopicActionLock})
@@ -1374,7 +1364,7 @@ func TestServiceApplyTopicActionBlocksActionsOnHiddenTopic(t *testing.T) {
 func TestServiceApplyTopicActionAllowsRestoreOnHiddenTopic(t *testing.T) {
 	store := newServiceFakeStore()
 	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusHidden}
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 	actor := identity.Actor{ID: 30, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicDeleteAny: true}}
 
 	result, err := service.ApplyTopicAction(context.Background(), actor, TopicLifecycleInput{TopicID: 7, Action: TopicActionRestore})
@@ -1390,7 +1380,7 @@ func TestServiceTopicActionEmitsEvents(t *testing.T) {
 	store := newServiceFakeStore()
 	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
 	publisher := &fakeEventPublisher{}
-	service := NewServiceWithEvents(store, publisher)
+	service := NewService(ServiceConfig{Store: store, Publisher: publisher})
 	actor := identity.Actor{ID: 30, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicLock: true}}
 
 	if _, err := service.ApplyTopicAction(context.Background(), actor, TopicLifecycleInput{TopicID: 7, Action: TopicActionLock}); err != nil {
@@ -1403,7 +1393,7 @@ func TestServiceTopicActionEmitsEvents(t *testing.T) {
 
 func TestListAuthorReviewItemsScopesByActor(t *testing.T) {
 	store := newServiceFakeStore()
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 	actor := identity.Actor{ID: 42, Status: identity.UserStatusActive}
 	items, err := service.ListAuthorReviewItems(context.Background(), actor)
 	if err != nil {
@@ -1483,7 +1473,7 @@ func TestServicePropagatesContentAttachmentReferences(t *testing.T) {
 
 	t.Run("create topic", func(t *testing.T) {
 		store := &serviceFakeStore{nextID: 1}
-		service := NewService(store)
+		service := NewService(ServiceConfig{Store: store})
 		actor := identity.Actor{ID: 10, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicCreate: true}}
 		_, err := service.CreateTopic(ctx, actor, CreateTopicInput{
 			CategorySlug: "general", Title: "带附件主题",
@@ -1499,7 +1489,7 @@ func TestServicePropagatesContentAttachmentReferences(t *testing.T) {
 
 	t.Run("update topic explicit empty clears", func(t *testing.T) {
 		store := &serviceFakeStore{actionTopic: TopicSummary{ID: 5, AuthorUserID: 10, Status: TopicStatusActive, CreatedAt: time.Now()}}
-		service := NewService(store)
+		service := NewService(ServiceConfig{Store: store})
 		actor := identity.Actor{ID: 10, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicEditOwn: true}}
 		empty := []int64{}
 		content := ContentInput{RawContent: "更新正文", SourceFormat: SourceFormatMarkdown, AttachmentIDs: &empty}
@@ -1513,7 +1503,7 @@ func TestServicePropagatesContentAttachmentReferences(t *testing.T) {
 
 	t.Run("update topic omitted preserves", func(t *testing.T) {
 		store := &serviceFakeStore{actionTopic: TopicSummary{ID: 5, AuthorUserID: 10, Status: TopicStatusActive, CreatedAt: time.Now()}}
-		service := NewService(store)
+		service := NewService(ServiceConfig{Store: store})
 		actor := identity.Actor{ID: 10, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicEditOwn: true}}
 		content := ContentInput{RawContent: "更新正文", SourceFormat: SourceFormatMarkdown}
 		if _, err := service.UpdateTopic(ctx, actor, UpdateTopicInput{TopicID: 5, ExpectedRevision: 1, Content: &content}); err != nil {
@@ -1530,7 +1520,7 @@ func TestServicePropagatesContentAttachmentReferences(t *testing.T) {
 			topicForComment: TopicSummary{ID: 7, Status: TopicStatusActive},
 			commentSummary:  CommentSummary{ID: 8, TopicID: 7, AuthorUserID: 10, Status: CommentStatusActive, CreatedAt: time.Now()},
 		}
-		service := NewService(store)
+		service := NewService(ServiceConfig{Store: store})
 		actor := identity.Actor{ID: 10, Status: identity.UserStatusActive, Permissions: map[string]bool{
 			identity.PermissionPostCreate: true, identity.PermissionPostEditOwn: true,
 		}}
@@ -1589,7 +1579,7 @@ func TestServiceRevisionHistoryPermissionAndPreview(t *testing.T) {
 		RenderVersion:        RenderVersion,
 		ContentHash:          "hash",
 	}
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+	service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: testForumSettings()}, Publisher: nil})
 
 	denied := identity.Actor{ID: 1, Status: identity.UserStatusActive}
 	if _, err := service.ListTopicRevisions(context.Background(), denied, 10, RevisionListInput{}); !errors.Is(err, identity.ErrPermissionDenied) {
@@ -1643,7 +1633,7 @@ func TestServiceAdminContentReadPermissionCombinations(t *testing.T) {
 		AdminForumContentRow: AdminForumContentRow{TargetType: "comment", ID: 20, TopicID: 10, CurrentRevision: 1},
 		Content:              RenderedContent{RawContent: "comment", SourceFormat: SourceFormatMarkdown},
 	}
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 	ctx := context.Background()
 
 	historyOnly := identity.Actor{ID: 1, Status: identity.UserStatusActive, Permissions: map[string]bool{
@@ -1695,7 +1685,7 @@ func TestServiceRestoreRequiresHistoryAndEditAnyAndReusesUpdatePipeline(t *testi
 	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusHidden, CurrentRevision: 2, CreatedAt: time.Now().UTC()}
 	store.revisionDetailResult = ForumRevisionDetail{ForumRevisionSummary: ForumRevisionSummary{ID: 91, RevisionNo: 1, SnapshotComplete: true}, RawContent: "historical body", SourceFormat: SourceFormatMarkdown, EditorType: EditorTypeMarkdown, EditorVersion: "test", TopicMetadata: &TopicRevisionMetadata{Title: "historical title", CategorySlug: "general", TagSlugs: []string{}}}
 	publisher := &fakeEventPublisher{}
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, publisher)
+	service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: testForumSettings()}, Publisher: publisher})
 	historyOnly := identity.Actor{ID: 20, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicRevisionViewAny: true}}
 	if _, err := service.RestoreTopic(context.Background(), historyOnly, 7, 1, RestoreRevisionInput{ExpectedRevision: 2, Reason: "restore"}); !errors.Is(err, identity.ErrPermissionDenied) {
 		t.Fatalf("history-only restore error=%v", err)
@@ -1722,7 +1712,7 @@ func TestServiceRestoreRequiresHistoryAndEditAnyAndReusesUpdatePipeline(t *testi
 
 func TestServiceRedactionIsSuperAdminOnly(t *testing.T) {
 	store := newServiceFakeStore()
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 	member := identity.Actor{ID: 2, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicRevisionViewAny: true}}
 	if err := service.RedactTopicRevision(context.Background(), member, 7, 1, RedactRevisionInput{ExpectedRevision: 2, Reason: "privacy", Confirmation: "REDACT"}); !errors.Is(err, ErrRevisionRedactionForbidden) {
 		t.Fatalf("member redaction error=%v", err)
@@ -1846,14 +1836,14 @@ type serviceFakeStore struct {
 	listCommentsInput  CommentListInput
 	listCommentsCalled bool
 	// CountCommentsBefore 可配置返回值，供 ResolveCommentPage 反查页码测试断言。
-	countCommentsBefore      int64
-	countCommentsBeforeErr   error
+	countCommentsBefore       int64
+	countCommentsBeforeErr    error
 	countCommentsBeforeCalled bool
 	// 记录最近一次调用的软删可见范围参数，供 viewer 口径断言。
 	countCommentsBeforeIncludeDeleted bool
 	countCommentsBeforeAuthorID       int64
-	listTopicsInput    TopicListInput
-	listTopicsResult   TopicList
+	listTopicsInput                   TopicListInput
+	listTopicsResult                  TopicList
 	// ListCommentReplies 可配置返回值与调用记录，供回复可见性兜底测试断言。
 	listCommentRepliesResult []Comment
 	listCommentRepliesCalled bool
@@ -2270,7 +2260,7 @@ func stringSlicesEqual(left []string, right []string) bool {
 func TestServiceListCommentsDefaultsToTreeView(t *testing.T) {
 	store := newServiceFakeStore()
 	store.listCommentsResult = CommentList{Items: []Comment{{ID: 1}}, Total: 1, View: "tree"}
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 
 	result, err := service.ListComments(context.Background(), CommentListInput{TopicID: 10})
 	if err != nil {
@@ -2290,7 +2280,7 @@ func TestServiceListCommentsDefaultsToTreeView(t *testing.T) {
 // TestServiceListCommentsRejectsInvalidView 验证非法 view 值被拒绝。
 func TestServiceListCommentsRejectsInvalidView(t *testing.T) {
 	store := newServiceFakeStore()
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 
 	if _, err := service.ListComments(context.Background(), CommentListInput{TopicID: 1, View: "nested"}); err == nil {
 		t.Fatal("expected error for invalid view, got nil")
@@ -2304,7 +2294,7 @@ func TestServiceListCommentsRejectsInvalidView(t *testing.T) {
 func TestServiceListCommentsPassesFlatView(t *testing.T) {
 	store := newServiceFakeStore()
 	store.listCommentsResult = CommentList{Items: []Comment{{ID: 1}, {ID: 2}}, Total: 2, View: "flat"}
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 
 	result, err := service.ListComments(context.Background(), CommentListInput{TopicID: 5, View: "flat"})
 	if err != nil {
@@ -2324,7 +2314,7 @@ func TestServiceListCommentsPassesFlatView(t *testing.T) {
 func TestServiceListCommentsBlocksHiddenTopic(t *testing.T) {
 	store := newServiceFakeStore()
 	store.getTopicErr = ErrTopicNotFound
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 
 	_, err := service.ListComments(context.Background(), CommentListInput{TopicID: 10, View: "tree"})
 	if !errors.Is(err, ErrTopicNotFound) {
@@ -2339,7 +2329,7 @@ func TestServiceListCommentsBlocksHiddenTopic(t *testing.T) {
 func TestServiceListCommentsAllowsVisibleTopic(t *testing.T) {
 	store := newServiceFakeStore()
 	store.listCommentsResult = CommentList{Items: []Comment{{ID: 1}}, Total: 1, View: "tree"}
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 
 	result, err := service.ListComments(context.Background(), CommentListInput{TopicID: 10, View: "tree"})
 	if err != nil {
@@ -2358,7 +2348,7 @@ func TestServiceCreateTopicBlocksDuplicateTitleWhenPolicyBlock(t *testing.T) {
 	store.existingTitles = map[string]bool{"hello": true}
 	settings := testForumSettings()
 	settings.DuplicateTitlePolicy = "block"
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+	service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: settings}, Publisher: nil})
 	actor := identity.Actor{
 		ID: 1, Status: identity.UserStatusActive,
 		Permissions: map[string]bool{identity.PermissionTopicCreate: true},
@@ -2376,7 +2366,7 @@ func TestServiceCreateTopicAllowsDuplicateTitleWhenPolicyOff(t *testing.T) {
 	store.existingTitles = map[string]bool{"hello": true}
 	settings := testForumSettings()
 	settings.DuplicateTitlePolicy = "off"
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+	service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: settings}, Publisher: nil})
 	actor := identity.Actor{
 		ID: 1, Status: identity.UserStatusActive,
 		Permissions: map[string]bool{identity.PermissionTopicCreate: true},
@@ -2393,7 +2383,7 @@ func TestServiceAuthorCanLockWhenAllowAuthorCloseReplies(t *testing.T) {
 	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
 	settings := testForumSettings()
 	settings.AllowAuthorCloseReplies = true
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+	service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: settings}, Publisher: nil})
 	author := identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{
 		identity.PermissionTopicEditOwn: true,
 	}}
@@ -2411,7 +2401,7 @@ func TestServiceAuthorCannotLockWithoutTopicEditOwn(t *testing.T) {
 	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
 	settings := testForumSettings()
 	settings.AllowAuthorCloseReplies = true
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+	service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: settings}, Publisher: nil})
 	author := identity.Actor{ID: 12, Status: identity.UserStatusActive}
 	if _, err := service.ApplyTopicAction(context.Background(), author, TopicLifecycleInput{
 		TopicID: 7, Action: TopicActionLock,
@@ -2425,7 +2415,7 @@ func TestServiceAuthorCannotLockWhenAllowAuthorCloseRepliesDisabled(t *testing.T
 	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
 	settings := testForumSettings()
 	settings.AllowAuthorCloseReplies = false
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+	service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: settings}, Publisher: nil})
 	author := identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{
 		identity.PermissionTopicEditOwn: true,
 	}}
@@ -2441,7 +2431,7 @@ func TestServiceModeratorCanLockRegardlessOfAuthorSetting(t *testing.T) {
 	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
 	settings := testForumSettings()
 	settings.AllowAuthorCloseReplies = false
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+	service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: settings}, Publisher: nil})
 	mod := identity.Actor{
 		ID: 99, Status: identity.UserStatusActive,
 		Permissions: map[string]bool{identity.PermissionTopicLock: true},
@@ -2458,7 +2448,7 @@ func TestServiceCreateCommentSkipsMentionsWhenDisabled(t *testing.T) {
 	store.topicForComment = TopicSummary{ID: 1, Status: TopicStatusActive}
 	settings := testForumSettings()
 	settings.MentionsEnabled = false
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+	service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: settings}, Publisher: nil})
 	actor := identity.Actor{
 		ID: 3, Status: identity.UserStatusActive,
 		Permissions: map[string]bool{identity.PermissionPostCreate: true},
@@ -2479,7 +2469,7 @@ func TestServiceCreateCommentParsesMentionsWhenEnabled(t *testing.T) {
 	store.topicForComment = TopicSummary{ID: 1, Status: TopicStatusActive}
 	settings := testForumSettings()
 	settings.MentionsEnabled = true
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+	service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: settings}, Publisher: nil})
 	actor := identity.Actor{
 		ID: 3, Status: identity.UserStatusActive,
 		Permissions: map[string]bool{identity.PermissionPostCreate: true},
@@ -2532,7 +2522,7 @@ func TestDeleteResponsesNeverReturnDeletedBody(t *testing.T) {
 	store := newServiceFakeStore()
 	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 5, Status: TopicStatusActive}
 	store.commentSummary = CommentSummary{ID: 8, TopicID: 7, AuthorUserID: 5, Status: CommentStatusActive}
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 	moderator := identity.Actor{ID: 1, Status: identity.UserStatusActive, Permissions: map[string]bool{
 		identity.PermissionTopicDeleteAny: true,
 		identity.PermissionPostDeleteAny:  true,
@@ -2579,7 +2569,7 @@ func TestListCommentsScopesDeletedRowsByViewer(t *testing.T) {
 			store.listCommentsResult = CommentList{Items: []Comment{deleted}, Total: 1, View: "flat"}
 			settings := testForumSettings()
 			settings.SoftDeleteVisibility = tc.visibility
-			service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+			service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: settings}, Publisher: nil})
 
 			list, err := service.ListComments(context.Background(), CommentListInput{TopicID: 1, View: "flat", Viewer: tc.viewer})
 			if err != nil {
@@ -2603,7 +2593,7 @@ func TestListCommentRepliesUsesAuthorDeletedScope(t *testing.T) {
 	store.commentSummary = CommentSummary{ID: 42, TopicID: 1, Status: CommentStatusActive}
 	settings := testForumSettings()
 	settings.SoftDeleteVisibility = "author_and_staff"
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+	service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: settings}, Publisher: nil})
 	viewer := identity.Actor{ID: 7, Status: identity.UserStatusActive}
 
 	if _, err := service.ListCommentRepliesForViewer(context.Background(), 42, viewer); err != nil {
@@ -2634,7 +2624,7 @@ func TestServiceTopicEditMarkUsesStoredContentFactAndSetting(t *testing.T) {
 		store.listTopicsResult = TopicList{Items: []TopicSummary{{ID: 1, ContentEdited: true}}}
 		settings := testForumSettings()
 		settings.ShowTopicEditMark = show
-		service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+		service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: settings}, Publisher: nil})
 		list, err := service.ListTopics(context.Background(), TopicListInput{})
 		if err != nil {
 			t.Fatal(err)
@@ -2648,7 +2638,7 @@ func TestServiceTopicEditMarkUsesStoredContentFactAndSetting(t *testing.T) {
 func TestServiceAutoLockIdleTopicsDelegates(t *testing.T) {
 	store := newServiceFakeStore()
 	store.autoLockResult = 4
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 	n, err := service.AutoLockIdleTopics(context.Background(), 14, 50)
 	if err != nil || n != 4 {
 		t.Fatalf("n=%d err=%v", n, err)
@@ -2667,7 +2657,7 @@ func TestServiceAutoLockIdleTopicsDelegates(t *testing.T) {
 func TestServiceListCommentRepliesBlocksMissingComment(t *testing.T) {
 	store := newServiceFakeStore()
 	store.commentSummaryErr = ErrCommentNotFound
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 
 	_, err := service.ListCommentReplies(context.Background(), 42)
 	if !errors.Is(err, ErrCommentNotFound) {
@@ -2685,7 +2675,7 @@ func TestServiceListCommentRepliesBlocksHiddenTopic(t *testing.T) {
 	store := newServiceFakeStore()
 	store.commentSummary = CommentSummary{ID: 42, TopicID: 10, Status: CommentStatusActive}
 	store.getTopicErr = ErrTopicNotFound
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 
 	_, err := service.ListCommentReplies(context.Background(), 42)
 	if !errors.Is(err, ErrTopicNotFound) {
@@ -2701,7 +2691,7 @@ func TestServiceListCommentRepliesAllowsVisibleTopic(t *testing.T) {
 	store := newServiceFakeStore()
 	store.commentSummary = CommentSummary{ID: 42, TopicID: 10, Status: CommentStatusActive}
 	store.listCommentRepliesResult = []Comment{{ID: 43}, {ID: 44}}
-	service := NewService(store)
+	service := NewService(ServiceConfig{Store: store})
 
 	items, err := service.ListCommentReplies(context.Background(), 42)
 	if err != nil {
@@ -2737,7 +2727,7 @@ func TestServiceResolveCommentPage(t *testing.T) {
 			store := newServiceFakeStore()
 			store.commentSummary = CommentSummary{ID: 99, TopicID: 10, Status: CommentStatusActive, PathKey: "000000000099"}
 			store.countCommentsBefore = tc.before
-			service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+			service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: testForumSettings()}, Publisher: nil})
 
 			page, perPage, err := service.ResolveCommentPage(context.Background(), 10, 99, identity.Actor{})
 			if err != nil {
@@ -2773,7 +2763,7 @@ func TestServiceResolveCommentPageViewerScope(t *testing.T) {
 	t.Run("staff计入全部墓碑", func(t *testing.T) {
 		store := newServiceFakeStore()
 		store.commentSummary = CommentSummary{ID: 99, TopicID: 10, Status: CommentStatusActive, PathKey: "000000000099"}
-		service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+		service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: testForumSettings()}, Publisher: nil})
 
 		if _, _, err := service.ResolveCommentPage(context.Background(), 10, 99, staff); err != nil {
 			t.Fatalf("ResolveCommentPage returned error: %v", err)
@@ -2786,7 +2776,7 @@ func TestServiceResolveCommentPageViewerScope(t *testing.T) {
 	t.Run("普通用户只计入自己的墓碑", func(t *testing.T) {
 		store := newServiceFakeStore()
 		store.commentSummary = CommentSummary{ID: 99, TopicID: 10, Status: CommentStatusActive, PathKey: "000000000099"}
-		service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+		service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: testForumSettings()}, Publisher: nil})
 
 		if _, _, err := service.ResolveCommentPage(context.Background(), 10, 99, author); err != nil {
 			t.Fatalf("ResolveCommentPage returned error: %v", err)
@@ -2799,7 +2789,7 @@ func TestServiceResolveCommentPageViewerScope(t *testing.T) {
 	t.Run("staff可定位软删墓碑本身", func(t *testing.T) {
 		store := newServiceFakeStore()
 		store.commentSummary = CommentSummary{ID: 99, TopicID: 10, Status: CommentStatusDeleted, PathKey: "000000000099", AuthorUserID: 8}
-		service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+		service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: testForumSettings()}, Publisher: nil})
 
 		if _, _, err := service.ResolveCommentPage(context.Background(), 10, 99, staff); err != nil {
 			t.Fatalf("staff should resolve visible tombstone, got %v", err)
@@ -2808,7 +2798,7 @@ func TestServiceResolveCommentPageViewerScope(t *testing.T) {
 	t.Run("他人软删墓碑对普通用户NotFound", func(t *testing.T) {
 		store := newServiceFakeStore()
 		store.commentSummary = CommentSummary{ID: 99, TopicID: 10, Status: CommentStatusDeleted, PathKey: "000000000099", AuthorUserID: 999}
-		service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+		service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: testForumSettings()}, Publisher: nil})
 
 		if _, _, err := service.ResolveCommentPage(context.Background(), 10, 99, author); !errors.Is(err, ErrCommentNotFound) {
 			t.Fatalf("expected ErrCommentNotFound for other user's tombstone, got %v", err)
@@ -2822,7 +2812,7 @@ func TestServiceResolveCommentPageRejectsInvalidTarget(t *testing.T) {
 	t.Run("跨主题评论返回NotFound", func(t *testing.T) {
 		store := newServiceFakeStore()
 		store.commentSummary = CommentSummary{ID: 99, TopicID: 77, Status: CommentStatusActive}
-		service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+		service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: testForumSettings()}, Publisher: nil})
 
 		_, _, err := service.ResolveCommentPage(context.Background(), 10, 99, identity.Actor{})
 		if !errors.Is(err, ErrCommentNotFound) {
@@ -2835,7 +2825,7 @@ func TestServiceResolveCommentPageRejectsInvalidTarget(t *testing.T) {
 	t.Run("软删评论返回NotFound不泄漏状态", func(t *testing.T) {
 		store := newServiceFakeStore()
 		store.commentSummary = CommentSummary{ID: 99, TopicID: 10, Status: CommentStatusDeleted}
-		service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+		service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: testForumSettings()}, Publisher: nil})
 
 		_, _, err := service.ResolveCommentPage(context.Background(), 10, 99, identity.Actor{})
 		if !errors.Is(err, ErrCommentNotFound) {
@@ -2848,7 +2838,7 @@ func TestServiceResolveCommentPageRejectsInvalidTarget(t *testing.T) {
 	t.Run("隐藏主题透传NotFound", func(t *testing.T) {
 		store := newServiceFakeStore()
 		store.getTopicErr = ErrTopicNotFound
-		service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+		service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: testForumSettings()}, Publisher: nil})
 
 		_, _, err := service.ResolveCommentPage(context.Background(), 10, 99, identity.Actor{})
 		if !errors.Is(err, ErrTopicNotFound) {
@@ -2858,7 +2848,7 @@ func TestServiceResolveCommentPageRejectsInvalidTarget(t *testing.T) {
 	t.Run("评论不存在透传NotFound", func(t *testing.T) {
 		store := newServiceFakeStore()
 		store.commentSummaryErr = ErrCommentNotFound
-		service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+		service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: testForumSettings()}, Publisher: nil})
 
 		_, _, err := service.ResolveCommentPage(context.Background(), 10, 999, identity.Actor{})
 		if !errors.Is(err, ErrCommentNotFound) {

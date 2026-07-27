@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { sanitizeHtml } from '~/utils/sfSanitize'
-import type { ModerationReviewContext } from '~/composables/useModerationApi'
-import type { ModerationWorkbenchTab } from '~/utils/moderationWorkbench'
+import type { ModerationReviewContext } from '~/composables/moderation/useModerationApi'
+import type { ModerationWorkbenchTab } from '~/utils/moderation/moderationWorkbench'
 
 defineProps<{ context: ModerationReviewContext | null; loading?: boolean; tab: ModerationWorkbenchTab }>()
 defineEmits<{ back: [] }>()

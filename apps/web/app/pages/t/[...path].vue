@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SFTopicShowPage from '~/components/forum/SFTopicShowPage.vue'
 /** forum.topic.show 路由壳：outlet + fail-closed；呈现由主题 L1 + SFTopicShowPage 岛拥有。 */
 definePageMeta({
   // 主题详情对所有人可见（公开读限定 active/locked）。

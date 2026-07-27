@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { forumAvatarToneClass } from '~/utils/forumListPresentation'
+import { forumAvatarToneClass } from '~/utils/forum/forumListPresentation'
 
 /** sm/md/lg 通用；list 为话题列表等密集行（36px） */
 type AvatarSize = 'list' | 'sm' | 'md' | 'lg'

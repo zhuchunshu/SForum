@@ -8,13 +8,13 @@ import (
 
 func TestBuildPerfSeedPlanDefaultScale(t *testing.T) {
 	opts := seedOptions{
-		Profile:      seedProfilePerf1m,
-		Count:        defaultPerfTopicCount,
-		Users:        defaultPerfUsers,
-		CommentsMax:  defaultPerfRegularComments,
+		Profile:       seedProfilePerf1m,
+		Count:         defaultPerfTopicCount,
+		Users:         defaultPerfUsers,
+		CommentsMax:   defaultPerfRegularComments,
 		CategoryCount: defaultPerfCategoryCount,
-		HotComments:  defaultPerfHotComments,
-		HotSlug:      defaultPerfHotSlug,
+		HotComments:   defaultPerfHotComments,
+		HotSlug:       defaultPerfHotSlug,
 	}
 	plan, err := buildPerfSeedPlan(opts, rand.New(rand.NewPCG(1, 2)))
 	if err != nil {

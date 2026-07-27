@@ -18,7 +18,7 @@ function assert(condition: unknown, message: string): asserts condition {
   }
 }
 
-const adminRouteModule = file('apps/web/app/utils/adminRoutePrefix.ts')
+const adminRouteModule = file('apps/web/app/utils/admin/adminRoutePrefix.ts')
 assert(existsSync(adminRouteModule), 'Missing admin route prefix helper')
 
 const routes = await import(pathToFileURL(adminRouteModule).href)
@@ -35,10 +35,10 @@ assert(routes.resolveAdminRouteChildPath('/control-panel', '/control-panel') ===
 assert(routes.resolveAdminRouteChildPath('/control-panel', '/en-US/control-panel/roles') === '/roles', 'Localized admin route should resolve to child id')
 assert(routes.resolveAdminRouteChildPath('/control-panel', '/forum') === null, 'Non-admin routes should not resolve to admin child ids')
 
-assert(existsSync(file('apps/web/app/composables/useAdminRoutes.ts')), 'Missing runtime admin route composable')
+assert(existsSync(file('apps/web/app/composables/admin/useAdminRoutes.ts')), 'Missing runtime admin route composable')
 assert(existsSync(file('apps/web/app/layouts/admin.vue')), 'Missing admin dashboard layout')
 assert(existsSync(file('apps/web/app/config/adminModules.ts')), 'Missing low-code admin module registry')
-assert(existsSync(file('apps/web/app/composables/useAdminPage.ts')), 'Missing admin page registration composable')
+assert(existsSync(file('apps/web/app/composables/admin/useAdminPage.ts')), 'Missing admin page registration composable')
 
 const adminModulesModule = await import(pathToFileURL(file('apps/web/app/config/adminModules.ts')).href)
 const adminPageDefinitions = adminModulesModule.adminPageDefinitions as Array<{
@@ -95,7 +95,7 @@ assert(
   'Plugin store should require extension.plugin.manage'
 )
 
-const adminRoutesComposable = read('apps/web/app/composables/useAdminRoutes.ts')
+const adminRoutesComposable = read('apps/web/app/composables/admin/useAdminRoutes.ts')
 assert(adminRoutesComposable.includes('useI18n'), 'Admin routes should read the active locale directly')
 assert(adminRoutesComposable.includes('defaultLocale'), 'Admin routes should compare against the default locale')
 assert(!adminRoutesComposable.includes('useLocalePath'), 'Admin routes should not rely on stale i18n path resources')
@@ -105,13 +105,13 @@ assert(nuxtConfig.includes('NUXT_PUBLIC_ADMIN_ROUTE_PREFIX'), 'Nuxt config shoul
 assert(nuxtConfig.includes('pages:extend'), 'Nuxt config should rewrite admin page routes')
 assert(nuxtConfig.includes('rewriteAdminPageRoutes'), 'Nuxt config should use a focused admin route rewrite helper')
 
-const adminExtensionsHelper = read('apps/web/app/utils/adminExtensions.ts')
+const adminExtensionsHelper = read('apps/web/app/utils/admin/adminExtensions.ts')
 for (const requiredThemeState of ["'active'", "'activateDefault'", "'activate'"]) {
   assert(adminExtensionsHelper.includes(requiredThemeState), `Theme action state should include ${requiredThemeState}`)
 }
 assert(!adminExtensionsHelper.includes('themeRelease'), 'Theme action state must not depend on a release pipeline')
 
-const executableTrustImpact = read('apps/web/app/components/SFAdminExecutableTrustImpact.vue')
+const executableTrustImpact = read('apps/web/app/components/admin/SFAdminExecutableTrustImpact.vue')
 for (const requiredDatabaseRiskContract of [
   'data-testid="extension-database-risk"',
   'database.coreCompatibility',
@@ -127,7 +127,7 @@ for (const requiredDatabaseRiskContract of [
 ]) {
   assert(executableTrustImpact.includes(requiredDatabaseRiskContract), `Executable trust impact should expose ${requiredDatabaseRiskContract}`)
 }
-const executableTrustDialog = read('apps/web/app/components/SFAdminExtensionEnableDialog.vue')
+const executableTrustDialog = read('apps/web/app/components/admin/SFAdminExtensionEnableDialog.vue')
 assert(executableTrustDialog.includes('v-if="error"'), 'Executable trust blocking errors must remain visible until resolved')
 const zhLocale = JSON.parse(read('apps/web/i18n/locales/zh-CN.json'))
 const enLocale = JSON.parse(read('apps/web/i18n/locales/en-US.json'))
@@ -145,8 +145,8 @@ assert(productionEnvExample.includes('NUXT_PUBLIC_ADMIN_ROUTE_PREFIX=/control-pa
 
 // 路由壳只保留 layout/middleware + outlet；表单与回跳逻辑在 Host body 岛组件中。
 for (const authForm of [
-  'apps/web/app/components/SFLoginFormPage.vue',
-  'apps/web/app/components/SFRegisterFormPage.vue'
+  'apps/web/app/components/identity/SFLoginFormPage.vue',
+  'apps/web/app/components/identity/SFRegisterFormPage.vue'
 ]) {
   const content = read(authForm)
   assert(content.includes('useAdminRoutes') || content.includes('useAuthReturnNavigation'), `${authForm} should use the admin route or centralized auth return helper`)
@@ -155,8 +155,8 @@ for (const authForm of [
 // Runtime Page Registry：公开 auth 页由 host 拥有，不再要求默认主题 Layer。
 assert(existsSync(file('apps/web/app/pages/login.vue')), 'Login page should live on the host after theme migration')
 assert(existsSync(file('apps/web/app/pages/register.vue')), 'Register page should live on the host after theme migration')
-assert(existsSync(file('apps/web/app/components/SFLoginFormPage.vue')), 'Login form body island should live on the host')
-assert(existsSync(file('apps/web/app/components/SFRegisterFormPage.vue')), 'Register form body island should live on the host')
+assert(existsSync(file('apps/web/app/components/identity/SFLoginFormPage.vue')), 'Login form body island should live on the host')
+assert(existsSync(file('apps/web/app/components/identity/SFRegisterFormPage.vue')), 'Register form body island should live on the host')
 
 const adminPagePathsById: Record<string, string> = {
   '/': 'apps/web/app/pages/admin/index.vue',
@@ -241,7 +241,7 @@ for (const page of adminPageDefinitions) {
 
 const adminLayout = read('apps/web/app/layouts/admin.vue')
 const adminModules = read('apps/web/app/config/adminModules.ts')
-const adminFooterPath = 'apps/web/app/components/SFAdminFooter.vue'
+const adminFooterPath = 'apps/web/app/components/admin/SFAdminFooter.vue'
 assert(existsSync(file(adminFooterPath)), 'Admin shell should have a dedicated global footer component')
 const adminFooter = read(adminFooterPath)
 for (const requiredComponent of [

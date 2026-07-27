@@ -1,6 +1,7 @@
 package extensionscontroller
 
 import (
+	"context"
 	"errors"
 	"strconv"
 	"strings"
@@ -21,6 +22,10 @@ const (
 	providerSlotStaleReason       = "extensions.provider_slot_stale"
 	providerSlotUnavailableReason = "extensions.provider_slot_unavailable"
 )
+
+type ProviderSlotProber interface {
+	ProbeProviderSlotCandidate(context.Context, string, string) (extensionsruntime.ProviderSlotProbeResult, error)
+}
 
 type providerSlotSelectRequest struct {
 	ContractID       string `json:"contractId"`

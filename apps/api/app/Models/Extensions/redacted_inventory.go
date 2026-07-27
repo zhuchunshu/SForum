@@ -11,17 +11,17 @@ import (
 // RedactedExtensionInventoryItem 是自动化可读的扩展清单行。
 // 故意不包含 packagePath、settings、trust token、完整 Manifest 或凭证。
 type RedactedExtensionInventoryItem struct {
-	ID            string   `json:"id"`
-	Name          string   `json:"name"`
-	Version       string   `json:"version"`
-	Type          string   `json:"type"`
-	Status        string   `json:"status"`
-	Source        string   `json:"source"`
-	IsSystem      bool     `json:"isSystem"`
-	PackageDigest string   `json:"packageDigest,omitempty"`
-	Capabilities  []string `json:"capabilities,omitempty"`
-	RuntimeState  string   `json:"runtimeState,omitempty"`
-	Protocol      string   `json:"protocolTransport,omitempty"`
+	ID            string    `json:"id"`
+	Name          string    `json:"name"`
+	Version       string    `json:"version"`
+	Type          string    `json:"type"`
+	Status        string    `json:"status"`
+	Source        string    `json:"source"`
+	IsSystem      bool      `json:"isSystem"`
+	PackageDigest string    `json:"packageDigest,omitempty"`
+	Capabilities  []string  `json:"capabilities,omitempty"`
+	RuntimeState  string    `json:"runtimeState,omitempty"`
+	Protocol      string    `json:"protocolTransport,omitempty"`
 	InstalledAt   time.Time `json:"installedAt"`
 	UpdatedAt     time.Time `json:"updatedAt"`
 }
@@ -29,7 +29,7 @@ type RedactedExtensionInventoryItem struct {
 // ListRedactedInventory 返回去敏扩展清单，供 Host Query extensions.read 使用。
 // 不检查人类 RBAC；调用方必须先通过进程能力 extensions.read。
 // Safe Mode 下拒绝，避免第三方自动化读取运行态目录。
-func (s *Service) ListRedactedInventory(ctx context.Context) ([]RedactedExtensionInventoryItem, error) {
+func (s *CatalogService) ListRedactedInventory(ctx context.Context) ([]RedactedExtensionInventoryItem, error) {
 	if s == nil || s.store == nil {
 		return nil, ErrRuntimeUnavailable
 	}

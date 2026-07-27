@@ -3,9 +3,9 @@
  * 审核工作台左栏 after-nav：来源 / 类型筛选 + 审阅态紧凑队列。
  * 样式完全复用 sf-home-navigation 链接语言，与首页 / 设置 after-nav 同 token。
  */
-import type { ModerationDecision, ModerationPendingItem, ModerationReportItem } from '~/composables/useModerationApi'
-import type { ModerationWorkbenchTab, ModerationWorkbenchTypeFilter } from '~/utils/moderationWorkbench'
-import { queueItemKey, selectionFromQueueItem, selectionKey } from '~/utils/moderationWorkbench'
+import type { ModerationDecision, ModerationPendingItem, ModerationReportItem } from '~/composables/moderation/useModerationApi'
+import type { ModerationWorkbenchTab, ModerationWorkbenchTypeFilter } from '~/utils/moderation/moderationWorkbench'
+import { queueItemKey, selectionFromQueueItem, selectionKey } from '~/utils/moderation/moderationWorkbench'
 
 type QueueRecord = ModerationPendingItem | ModerationReportItem | ModerationDecision
 

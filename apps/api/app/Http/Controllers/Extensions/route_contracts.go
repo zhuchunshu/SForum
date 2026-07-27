@@ -7,6 +7,8 @@ import (
 	"github.com/gofiber/fiber/v3"
 
 	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
+	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	extensionopenapi "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionOpenAPI"
 )
 
@@ -16,6 +18,25 @@ const routeContractUnavailableReason = "extensions.route_contract_unavailable"
 // Both consumer views must come from one exact snapshot revision.
 type RouteContractCatalog interface {
 	ContractSnapshot() extensionopenapi.PublishedContractSnapshot
+}
+
+type ProxyInput struct {
+	Matched             extensions.MatchedRoute
+	Actor               identity.Actor
+	HasActor            bool
+	PublicFrontendExact *PublicFrontendBridgeIdentity
+}
+
+type PublicFrontendBridgeIdentity struct {
+	ExtensionID      string
+	ExtensionVersion string
+	PackageDigest    string
+	ImpactDigest     string
+	ComponentID      string
+}
+
+type RouteGateway interface {
+	Proxy(c fiber.Ctx, input ProxyInput) error
 }
 
 type routeOpenAPIAggregateView struct {

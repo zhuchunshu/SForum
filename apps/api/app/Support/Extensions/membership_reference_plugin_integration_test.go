@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	capabilities "github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
@@ -81,16 +81,16 @@ func TestReferenceMembershipPluginJoinedGates(t *testing.T) {
 		t.Fatal(err)
 	}
 	start, err := authFlow.Start(t.Context(), identity.AuthProviderStartInput{
-		ProviderID: "sforum.membership-reference.auth",
-		Operation:  identity.AuthOperationLoginStart,
+		ProviderID:    "sforum.membership-reference.auth",
+		Operation:     identity.AuthOperationLoginStart,
 		CorrelationID: "login-ok",
 	})
 	if err != nil || start.Status != identity.AuthStartStatusContinue || start.ContinueToken == "" {
 		t.Fatalf("login.start = %#v err=%v", start, err)
 	}
 	complete, err := authFlow.Complete(t.Context(), identity.AuthProviderCompleteInput{
-		ProviderID: "sforum.membership-reference.auth",
-		Operation:  identity.AuthOperationLoginComplete,
+		ProviderID:      "sforum.membership-reference.auth",
+		Operation:       identity.AuthOperationLoginComplete,
 		CorrelationID:   "login-ok",
 		CompletionToken: "subject:member-1",
 	})
@@ -99,8 +99,8 @@ func TestReferenceMembershipPluginJoinedGates(t *testing.T) {
 	}
 	// 失败无 Core/其他提供方回退。
 	if _, err := authFlow.Start(t.Context(), identity.AuthProviderStartInput{
-		ProviderID: "sforum.membership-reference.auth",
-		Operation:  identity.AuthOperationLoginStart,
+		ProviderID:    "sforum.membership-reference.auth",
+		Operation:     identity.AuthOperationLoginStart,
 		CorrelationID: "login-fail",
 	}); err == nil {
 		t.Fatal("login.start failure must fail closed")
@@ -145,7 +145,7 @@ func TestReferenceMembershipPluginJoinedGates(t *testing.T) {
 		t.Fatalf("recovery.start = %#v err=%v", recoveryStart, err)
 	}
 	recoveryComplete, err := recoveryFlow.Complete(t.Context(), identity.RecoveryProviderCompleteInput{
-		ProviderID: "sforum.membership-reference.recovery",
+		ProviderID:    "sforum.membership-reference.recovery",
 		CorrelationID: "recovery-ok", CompletionToken: "code-1",
 	})
 	if err != nil || recoveryComplete.SubjectDigest == "" || recoveryComplete.UserHintID != 42 {
@@ -290,8 +290,8 @@ func TestReferenceMembershipPluginJoinedGates(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := authFlow.Start(t.Context(), identity.AuthProviderStartInput{
-		ProviderID: "sforum.membership-reference.auth",
-		Operation:  identity.AuthOperationLoginStart,
+		ProviderID:    "sforum.membership-reference.auth",
+		Operation:     identity.AuthOperationLoginStart,
 		CorrelationID: "safe-mode",
 	}); !errors.Is(err, identity.ErrAuthProviderNotFound) &&
 		!errors.Is(err, identity.ErrAuthProviderFlowUnavailable) {
@@ -307,8 +307,8 @@ func TestReferenceMembershipPluginJoinedGates(t *testing.T) {
 		t.Fatalf("stop membership plugin: %v", err)
 	}
 	if _, err := authFlow.Start(t.Context(), identity.AuthProviderStartInput{
-		ProviderID: "sforum.membership-reference.auth",
-		Operation:  identity.AuthOperationLoginStart,
+		ProviderID:    "sforum.membership-reference.auth",
+		Operation:     identity.AuthOperationLoginStart,
 		CorrelationID: "after-stop",
 	}); err == nil {
 		t.Fatal("stopped runtime must fail closed")
@@ -390,4 +390,3 @@ func referenceMembershipFixtureRoot(t *testing.T) string {
 	}
 	return filepath.Clean(filepath.Join(filepath.Dir(file), "../../../../../extensions/fixtures/plugins/sforum-membership-reference"))
 }
-

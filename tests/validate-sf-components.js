@@ -8,24 +8,24 @@ const CSS_FILE = path.join(ROOT, 'apps/web/app/assets/css/sforum-components.css'
 const DOCS_PAGE = path.join(ROOT, 'apps/web/app/pages/components.vue');
 
 const REQUIRED_COMPONENTS = [
-  'SFAlert',
-  'SFAvatar',
-  'SFBadge',
-  'SFButton',
-  'SFCard',
-  'SFComment',
-  'SFEditor',
-  'SFEmptyState',
-  'SFFeedRow',
-  'SFIconPicker',
-  'SFInput',
-  'SFPagination',
-  'SFProgress',
-  'SFSearch',
-  'SFSkeleton',
-  'SFTabs',
-  'SFToast',
-  'SFToggle'
+  ['SFAlert', 'SFAlert.vue'],
+  ['SFAvatar', 'SFAvatar.vue'],
+  ['SFBadge', 'SFBadge.vue'],
+  ['SFButton', 'SFButton.vue'],
+  ['SFCard', 'SFCard.vue'],
+  ['SFComment', 'forum/SFComment.vue'],
+  ['SFEditor', 'SFEditor.vue'],
+  ['SFEmptyState', 'SFEmptyState.vue'],
+  ['SFFeedRow', 'forum/SFFeedRow.vue'],
+  ['SFIconPicker', 'SFIconPicker.vue'],
+  ['SFInput', 'SFInput.vue'],
+  ['SFPagination', 'SFPagination.vue'],
+  ['SFProgress', 'SFProgress.vue'],
+  ['SFSearch', 'SFSearch.vue'],
+  ['SFSkeleton', 'SFSkeleton.vue'],
+  ['SFTabs', 'SFTabs.vue'],
+  ['SFToast', 'SFToast.vue'],
+  ['SFToggle', 'SFToggle.vue']
 ];
 
 const REQUIRED_CSS_SELECTORS = [
@@ -108,8 +108,8 @@ if (!fs.existsSync(COMPONENT_DIR)) {
   pass('components directory exists');
 }
 
-for (const componentName of REQUIRED_COMPONENTS) {
-  const file = path.join(COMPONENT_DIR, `${componentName}.vue`);
+for (const [componentName, relativePath] of REQUIRED_COMPONENTS) {
+  const file = path.join(COMPONENT_DIR, relativePath);
 
   if (!fs.existsSync(file)) {
     fail(`${componentName}.vue is missing`);

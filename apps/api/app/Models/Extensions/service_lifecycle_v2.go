@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
-	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
+	audit "github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 )
 
@@ -66,7 +66,7 @@ func usesLifecycleV2(extension Extension) bool {
 		extension.Manifest.Lifecycle != nil && strings.TrimSpace(extension.Manifest.Lifecycle.ContractVersion) != ""
 }
 
-func (s *Service) enableLifecycleV2(
+func (s *serviceCore) enableLifecycleV2(
 	ctx context.Context,
 	actor identity.Actor,
 	extension Extension,
@@ -99,7 +99,7 @@ func (s *Service) enableLifecycleV2(
 	return s.runLifecycleV2(ctx, actor, request)
 }
 
-func (s *Service) disableLifecycleV2(
+func (s *serviceCore) disableLifecycleV2(
 	ctx context.Context,
 	actor identity.Actor,
 	extension Extension,
@@ -119,7 +119,7 @@ func (s *Service) disableLifecycleV2(
 
 // Upgrade activates the exact currently staged artifact. Upload remains inert;
 // this method is the first operation allowed to execute candidate code.
-func (s *Service) Upgrade(ctx context.Context, actor identity.Actor, id string, input UpgradeInput) (Extension, error) {
+func (s *LifecycleService) Upgrade(ctx context.Context, actor identity.Actor, id string, input UpgradeInput) (Extension, error) {
 	if !canManagePlugins(actor) {
 		return Extension{}, identity.ErrPermissionDenied
 	}
@@ -154,7 +154,7 @@ func (s *Service) Upgrade(ctx context.Context, actor identity.Actor, id string, 
 
 // Rollback activates an exact historical artifact and reuses only that
 // artifact's last successful frozen authority snapshot.
-func (s *Service) Rollback(ctx context.Context, actor identity.Actor, id string, input RollbackInput) (Extension, error) {
+func (s *LifecycleService) Rollback(ctx context.Context, actor identity.Actor, id string, input RollbackInput) (Extension, error) {
 	if !canManagePlugins(actor) {
 		return Extension{}, identity.ErrPermissionDenied
 	}
@@ -200,7 +200,7 @@ func (s *Service) Rollback(ctx context.Context, actor identity.Actor, id string,
 	})
 }
 
-func (s *Service) uninstallLifecycleV2(
+func (s *serviceCore) uninstallLifecycleV2(
 	ctx context.Context,
 	actor identity.Actor,
 	extension Extension,
@@ -221,7 +221,7 @@ func (s *Service) uninstallLifecycleV2(
 	return s.finalizeLifecycleUninstall(ctx, extension.ID, removalMode, result.Operation, result.Replayed)
 }
 
-func (s *Service) runLifecycleV2(
+func (s *serviceCore) runLifecycleV2(
 	ctx context.Context,
 	actor identity.Actor,
 	request lifecycleServiceRequest,
@@ -230,7 +230,7 @@ func (s *Service) runLifecycleV2(
 	return item, err
 }
 
-func (s *Service) runLifecycleV2Operation(
+func (s *serviceCore) runLifecycleV2Operation(
 	ctx context.Context,
 	actor identity.Actor,
 	request lifecycleServiceRequest,
@@ -277,7 +277,7 @@ func (s *Service) runLifecycleV2Operation(
 	return item, result, err
 }
 
-func (s *Service) finishLifecycleV2(
+func (s *serviceCore) finishLifecycleV2(
 	ctx context.Context,
 	actor identity.Actor,
 	request lifecycleServiceRequest,
@@ -304,7 +304,7 @@ func (s *Service) finishLifecycleV2(
 		// 升级/启用成功后恢复 Schema，并在升级时跑 SettingsLifecycle 迁移（失败不改 revision）。
 		switch request.operation {
 		case LifecycleMachineEnable, LifecycleMachineUpgrade, LifecycleMachineRollback:
-			if regErr := s.RegisterSettingsLifecycleFromManifest(current); regErr != nil {
+			if regErr := s.host.RegisterSettingsLifecycleFromManifest(current); regErr != nil {
 				return Extension{}, regErr
 			}
 			if request.operation == LifecycleMachineUpgrade {
@@ -315,12 +315,12 @@ func (s *Service) finishLifecycleV2(
 				if migErr := s.migrateSettingsOnUpgrade(ctx, actor, current); migErr != nil {
 					// 失败迁移：RuntimeRollout 标记 fail，且不推进设置 revision。
 					if s.runtimeRollout != nil {
-						_, _ = s.DriveRuntimeRolloutForStagedUpgrade(ctx, actor, sourceExt, current, false, migErr)
+						_, _ = s.host.DriveRuntimeRolloutForStagedUpgrade(ctx, actor, sourceExt, current, false, migErr)
 					}
 					return Extension{}, migErr
 				}
 				// 真实 staged version → 迁移就绪 → 节点确认 → 晋升。
-				if _, rollErr := s.DriveRuntimeRolloutForStagedUpgrade(ctx, actor, sourceExt, current, true, nil); rollErr != nil {
+				if _, rollErr := s.host.DriveRuntimeRolloutForStagedUpgrade(ctx, actor, sourceExt, current, true, nil); rollErr != nil {
 					return Extension{}, rollErr
 				}
 			}
@@ -332,7 +332,7 @@ func (s *Service) finishLifecycleV2(
 // replayLifecycleV2 reconstructs the immutable request before consulting the
 // extension's now-mutated status/staged pointer. This is what makes a network
 // retry stable after state publication has already committed.
-func (s *Service) replayLifecycleV2(
+func (s *serviceCore) replayLifecycleV2(
 	ctx context.Context,
 	actor identity.Actor,
 	current Extension,
@@ -400,7 +400,7 @@ func (s *Service) replayLifecycleV2(
 	return item, true, err
 }
 
-func (s *Service) rebuildLifecycleReplay(
+func (s *serviceCore) rebuildLifecycleReplay(
 	ctx context.Context,
 	current Extension,
 	operation LifecycleOperation,
@@ -447,7 +447,7 @@ func (s *Service) rebuildLifecycleReplay(
 	return request, input, nil
 }
 
-func (s *Service) lifecycleReplaySource(ctx context.Context, current Extension, operation LifecycleOperation) (Extension, error) {
+func (s *serviceCore) lifecycleReplaySource(ctx context.Context, current Extension, operation LifecycleOperation) (Extension, error) {
 	if len(operation.Progress) > 0 && string(operation.Progress) != "{}" {
 		machine, err := decodeLifecycleCoordinatorMachine(operation.Progress)
 		if err != nil {
@@ -469,7 +469,7 @@ func (s *Service) lifecycleReplaySource(ctx context.Context, current Extension, 
 	return Extension{}, fmt.Errorf("%w: exact lifecycle source is unavailable", ErrLifecycleCoordinatorInvalid)
 }
 
-func (s *Service) lifecycleExactArtifact(
+func (s *serviceCore) lifecycleExactArtifact(
 	ctx context.Context,
 	current Extension,
 	input ExactExtensionVersionInput,
@@ -493,7 +493,7 @@ func (s *Service) lifecycleExactArtifact(
 	return extensionFromExactVersion(current, version), nil
 }
 
-func (s *Service) lifecycleServiceAuthority(
+func (s *serviceCore) lifecycleServiceAuthority(
 	ctx context.Context,
 	actor identity.Actor,
 	request lifecycleServiceRequest,
@@ -521,7 +521,7 @@ func (s *Service) lifecycleServiceAuthority(
 	return authority, nil
 }
 
-func (s *Service) appendLifecycleRequestAudit(
+func (s *serviceCore) appendLifecycleRequestAudit(
 	ctx context.Context,
 	actor identity.Actor,
 	request lifecycleServiceRequest,
@@ -578,7 +578,7 @@ func lifecycleCoordinatorServiceError(err error) error {
 	return errors.Join(ErrLifecycleCoordinatorUnavailable, err)
 }
 
-func (s *Service) emitLifecycleCompatibilityEvent(
+func (s *serviceCore) emitLifecycleCompatibilityEvent(
 	ctx context.Context,
 	actor identity.Actor,
 	operation LifecycleMachineOperation,
@@ -618,7 +618,7 @@ func normalizeLifecycleRemovalMode(value string) (string, error) {
 	}
 }
 
-func (s *Service) finalizeLifecycleUninstall(
+func (s *serviceCore) finalizeLifecycleUninstall(
 	ctx context.Context,
 	extensionID string,
 	removalMode string,

@@ -38,10 +38,9 @@ type ManagerConfig struct {
 	BootID     string
 }
 
-type Manager struct {
+type runtimeAdmissionState struct {
 	mu                   sync.RWMutex
 	runtimeSetTransition chan struct{}
-	starter              Starter
 	statuses             map[string]extensions.RuntimeStatus
 	targets              map[string]RouteTarget
 	running              map[string]extensions.Extension
@@ -49,14 +48,47 @@ type Manager struct {
 	activeInstances      map[string]string
 	runtimeLifecycleMu   sync.Mutex
 	runtimeLifecycle     map[string]chan struct{}
-	hooks                *HookBus
-	deliveryStore        DeliveryStore
-	dispatcher           EventDispatcher
-	resilience           *resilienceHub
-	activation           *extensions.ActivationCoordinator
-	bootID               string
-	startPreparer        func(context.Context, extensions.Extension) error
-	providerSelections   *ProviderSlotSelectionAPI
+}
+
+type runtimeEventsProviderState struct {
+	hooks              *HookBus
+	deliveryStore      DeliveryStore
+	dispatcher         EventDispatcher
+	resilience         *resilienceHub
+	providerSelections *ProviderSlotSelectionAPI
+}
+
+type managerCore struct {
+	*runtimeAdmissionState
+	*runtimeEventsProviderState
+	host          *Manager
+	starter       Starter
+	activation    *extensions.ActivationCoordinator
+	bootID        string
+	startPreparer func(context.Context, extensions.Extension) error
+}
+
+// Manager 保留历史 runtime 契约，并将业务入口委托给 focused collaborators。
+type Manager struct {
+	*managerCore
+	supervisor      *RuntimeSupervisor
+	admission       *InstanceAdmission
+	invoker         *RuntimeInvoker
+	eventsProviders *RuntimeEventsProviders
+}
+
+type RuntimeSupervisor struct{ *Manager }
+
+type InstanceAdmission struct {
+	*Manager
+	state *runtimeAdmissionState
+}
+
+type RuntimeInvoker struct{ *Manager }
+
+type RuntimeEventsProviders struct {
+	*Manager
+	state *runtimeEventsProviderState
 }
 
 // BindProviderSlotSelections attaches the durable exact-artifact choice to the
@@ -75,7 +107,7 @@ func (m *Manager) BindProviderSlotSelections(store ProviderSlotSelectionStore) {
 	m.providerSelections = NewProviderSlotSelectionAPI(m.hooks.ProviderSlots(), store)
 }
 
-func (m *Manager) ProviderSlotSelections() *ProviderSlotSelectionAPI {
+func (m *RuntimeEventsProviders) ProviderSlotSelections() *ProviderSlotSelectionAPI {
 	if m == nil {
 		return nil
 	}
@@ -93,7 +125,7 @@ func (m *Manager) SetStartPreparer(preparer func(context.Context, extensions.Ext
 	m.mu.Unlock()
 }
 
-func (m *Manager) prepareRuntimeStart(ctx context.Context, extension extensions.Extension) error {
+func (m *managerCore) prepareRuntimeStart(ctx context.Context, extension extensions.Extension) error {
 	m.mu.RLock()
 	preparer := m.startPreparer
 	m.mu.RUnlock()
@@ -131,22 +163,34 @@ func NewManager(config ManagerConfig) *Manager {
 	}
 	runtimeSetTransition := make(chan struct{}, 1)
 	runtimeSetTransition <- struct{}{}
-	return &Manager{
+	admission := &runtimeAdmissionState{
 		runtimeSetTransition: runtimeSetTransition,
-		starter:              starter,
 		statuses:             map[string]extensions.RuntimeStatus{},
 		targets:              map[string]RouteTarget{},
 		running:              map[string]extensions.Extension{},
 		runtimeInstances:     map[string]map[string]*managedRuntimeInstance{},
 		activeInstances:      map[string]string{},
 		runtimeLifecycle:     map[string]chan struct{}{},
-		hooks:                hooks,
-		deliveryStore:        config.DeliveryStore,
-		dispatcher:           config.Dispatcher,
-		resilience:           newResilienceHub(config.Resilience),
-		activation:           config.Activation,
-		bootID:               bootID,
 	}
+	eventsProviders := &runtimeEventsProviderState{
+		hooks:         hooks,
+		deliveryStore: config.DeliveryStore,
+		dispatcher:    config.Dispatcher,
+		resilience:    newResilienceHub(config.Resilience),
+	}
+	manager := &Manager{managerCore: &managerCore{
+		runtimeAdmissionState:      admission,
+		runtimeEventsProviderState: eventsProviders,
+		starter:                    starter,
+		activation:                 config.Activation,
+		bootID:                     bootID,
+	}}
+	manager.managerCore.host = manager
+	manager.supervisor = &RuntimeSupervisor{Manager: manager}
+	manager.admission = &InstanceAdmission{Manager: manager, state: admission}
+	manager.invoker = &RuntimeInvoker{Manager: manager}
+	manager.eventsProviders = &RuntimeEventsProviders{Manager: manager, state: eventsProviders}
+	return manager
 }
 
 func (m *Manager) WithActivation(coordinator *extensions.ActivationCoordinator, bootID string) *Manager {
@@ -158,7 +202,7 @@ func (m *Manager) WithActivation(coordinator *extensions.ActivationCoordinator, 
 	return m
 }
 
-func (m *Manager) Check(_ context.Context, extension extensions.Extension) error {
+func (m *RuntimeSupervisor) Check(_ context.Context, extension extensions.Extension) error {
 	if extension.Manifest.Backend.Entry == "" {
 		return nil
 	}
@@ -173,7 +217,7 @@ func (m *Manager) Check(_ context.Context, extension extensions.Extension) error
 	return nil
 }
 
-func (m *Manager) Start(ctx context.Context, extension extensions.Extension) error {
+func (m *RuntimeSupervisor) Start(ctx context.Context, extension extensions.Extension) error {
 	unlock, err := m.lockRuntimeSetTransition(ctx)
 	if err != nil {
 		return err
@@ -184,7 +228,7 @@ func (m *Manager) Start(ctx context.Context, extension extensions.Extension) err
 
 // startRuntimeSetLocked requires the Manager-wide runtime-set transition lock.
 // Aggregate lifecycle operations use it instead of re-entering the outer lock.
-func (m *Manager) startRuntimeSetLocked(ctx context.Context, extension extensions.Extension) error {
+func (m *managerCore) startRuntimeSetLocked(ctx context.Context, extension extensions.Extension) error {
 	unlock, err := m.lockRuntimeLifecycleContext(ctx, extension.ID)
 	if err != nil {
 		return err
@@ -258,7 +302,7 @@ func (m *Manager) startRuntimeSetLocked(ctx context.Context, extension extension
 	return nil
 }
 
-func (m *Manager) Stop(ctx context.Context, extension extensions.Extension) error {
+func (m *RuntimeSupervisor) Stop(ctx context.Context, extension extensions.Extension) error {
 	unlock, err := m.lockRuntimeSetTransition(ctx)
 	if err != nil {
 		return err
@@ -268,7 +312,7 @@ func (m *Manager) Stop(ctx context.Context, extension extensions.Extension) erro
 }
 
 // stopRuntimeSetLocked requires the Manager-wide runtime-set transition lock.
-func (m *Manager) stopRuntimeSetLocked(ctx context.Context, extension extensions.Extension) error {
+func (m *managerCore) stopRuntimeSetLocked(ctx context.Context, extension extensions.Extension) error {
 	unlock, err := m.lockRuntimeLifecycleContext(ctx, extension.ID)
 	if err != nil {
 		return err
@@ -312,7 +356,7 @@ func (m *Manager) stopRuntimeSetLocked(ctx context.Context, extension extensions
 	return errors.Join(err, hookErr)
 }
 
-func (m *Manager) Status(_ context.Context, extension extensions.Extension) extensions.RuntimeStatus {
+func (m *RuntimeSupervisor) Status(_ context.Context, extension extensions.Extension) extensions.RuntimeStatus {
 	m.mu.RLock()
 	status, ok := m.statuses[extension.ID]
 	m.mu.RUnlock()
@@ -329,7 +373,7 @@ func (m *Manager) Status(_ context.Context, extension extensions.Extension) exte
 	return m.decorateStatus(extension.ID, status)
 }
 
-func (m *Manager) RouteTarget(extensionID string) (RouteTarget, bool) {
+func (m *RuntimeSupervisor) RouteTarget(extensionID string) (RouteTarget, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	target, ok := m.targets[extensionID]
@@ -338,14 +382,14 @@ func (m *Manager) RouteTarget(extensionID string) (RouteTarget, bool) {
 
 // HookBus exposes the Manager-owned exact hook snapshot to the lifecycle
 // aggregate. Callers must still use Manager admission for execution.
-func (m *Manager) HookBus() *HookBus {
+func (m *RuntimeEventsProviders) HookBus() *HookBus {
 	if m == nil {
 		return nil
 	}
 	return m.hooks
 }
 
-func (m *Manager) SendMail(ctx context.Context, extensionID string, request MailProviderRequest) (MailProviderResponse, error) {
+func (m *RuntimeInvoker) SendMail(ctx context.Context, extensionID string, request MailProviderRequest) (MailProviderResponse, error) {
 	invoker, ok := m.starter.(MailProviderInvoker)
 	if !ok {
 		return MailProviderResponse{}, extensions.ErrRuntimeUnavailable
@@ -388,7 +432,7 @@ func (m *Manager) SendMail(ctx context.Context, extensionID string, request Mail
 
 // ExecutePluginJob rechecks the running manifest immediately before transport
 // dispatch so an upgrade cannot race a worker's earlier database resolution.
-func (m *Manager) ExecutePluginJob(ctx context.Context, invocation supportjobs.PluginJobInvocation) error {
+func (m *RuntimeInvoker) ExecutePluginJob(ctx context.Context, invocation supportjobs.PluginJobInvocation) error {
 	extension, ok := m.runningExtension(invocation.Contract.ExtensionID)
 	if !ok {
 		return extensions.ErrRuntimeUnavailable
@@ -419,7 +463,7 @@ func (m *Manager) ExecutePluginJob(ctx context.Context, invocation supportjobs.P
 	return err
 }
 
-func (m *Manager) RefreshMailProvider(ctx context.Context, extensionID string) error {
+func (m *RuntimeInvoker) RefreshMailProvider(ctx context.Context, extensionID string) error {
 	unlock, err := m.lockRuntimeSetTransition(ctx)
 	if err != nil {
 		return err
@@ -428,7 +472,7 @@ func (m *Manager) RefreshMailProvider(ctx context.Context, extensionID string) e
 	return m.refreshMailProviderRuntimeSetLocked(ctx, extensionID)
 }
 
-func (m *Manager) refreshMailProviderRuntimeSetLocked(ctx context.Context, extensionID string) error {
+func (m *managerCore) refreshMailProviderRuntimeSetLocked(ctx context.Context, extensionID string) error {
 	m.mu.RLock()
 	extension, ok := m.running[extensionID]
 	m.mu.RUnlock()
@@ -442,7 +486,7 @@ func (m *Manager) refreshMailProviderRuntimeSetLocked(ctx context.Context, exten
 	return err
 }
 
-func (m *Manager) Reconcile(ctx context.Context, items []extensions.Extension) {
+func (m *RuntimeSupervisor) Reconcile(ctx context.Context, items []extensions.Extension) {
 	unlock, err := m.lockRuntimeSetTransition(ctx)
 	if err != nil {
 		return
@@ -451,9 +495,9 @@ func (m *Manager) Reconcile(ctx context.Context, items []extensions.Extension) {
 	m.reconcileRuntimeSetLocked(ctx, items)
 }
 
-func (m *Manager) reconcileRuntimeSetLocked(ctx context.Context, items []extensions.Extension) {
+func (m *managerCore) reconcileRuntimeSetLocked(ctx context.Context, items []extensions.Extension) {
 	enabled := map[string]extensions.Extension{}
-	runtime := runtimeSetLockedManager{manager: m}
+	runtime := runtimeSetLockedManager{manager: m.host}
 	for _, item := range items {
 		if item.Type == extensions.TypePlugin && item.Status == extensions.StatusEnabled && item.Manifest.Backend.Entry != "" {
 			if m.activation != nil {
@@ -488,7 +532,7 @@ func (m *Manager) reconcileRuntimeSetLocked(ctx context.Context, items []extensi
 	}
 }
 
-func (m *Manager) Close(ctx context.Context) {
+func (m *RuntimeSupervisor) Close(ctx context.Context) {
 	unlock, err := m.lockRuntimeSetTransition(ctx)
 	if err != nil {
 		return
@@ -497,7 +541,7 @@ func (m *Manager) Close(ctx context.Context) {
 	m.closeRuntimeSetLocked(ctx)
 }
 
-func (m *Manager) closeRuntimeSetLocked(ctx context.Context) {
+func (m *managerCore) closeRuntimeSetLocked(ctx context.Context) {
 	m.mu.RLock()
 	running := make([]extensions.Extension, 0, len(m.running))
 	for _, item := range m.running {
@@ -535,11 +579,11 @@ func (m runtimeSetLockedManager) EmitHook(ctx context.Context, name string, payl
 	m.manager.EmitHook(ctx, name, payload)
 }
 
-func (m *Manager) EmitHook(ctx context.Context, name string, payload map[string]any) {
+func (m *RuntimeEventsProviders) EmitHook(ctx context.Context, name string, payload map[string]any) {
 	m.Emit(ctx, appevents.NewEnvelope(name, payload))
 }
 
-func (m *Manager) Emit(ctx context.Context, envelope appevents.Envelope) appevents.Result {
+func (m *RuntimeEventsProviders) Emit(ctx context.Context, envelope appevents.Envelope) appevents.Result {
 	envelope = normalizeEnvelope(envelope)
 	definition, ok := appevents.FindDefinition(envelope.Name)
 	if !ok {
@@ -557,7 +601,7 @@ func (m *Manager) Emit(ctx context.Context, envelope appevents.Envelope) appeven
 	return m.emitSync(ctx, envelope)
 }
 
-func (m *Manager) Deliver(ctx context.Context, extensionID string, deliveryID int64, envelope appevents.Envelope) appevents.Result {
+func (m *RuntimeEventsProviders) Deliver(ctx context.Context, extensionID string, deliveryID int64, envelope appevents.Envelope) appevents.Result {
 	envelope = normalizeEnvelope(envelope)
 	extension, ok := m.runningExtension(extensionID)
 	if !ok {
@@ -579,7 +623,7 @@ func (m *Manager) Deliver(ctx context.Context, extensionID string, deliveryID in
 	return result
 }
 
-func (m *Manager) emitObserve(ctx context.Context, envelope appevents.Envelope) appevents.Result {
+func (m *managerCore) emitObserve(ctx context.Context, envelope appevents.Envelope) appevents.Result {
 	listeners := m.hooks.Listeners(envelope.Name)
 	for _, listener := range listeners {
 		deliveryID := int64(0)
@@ -613,12 +657,12 @@ func (m *Manager) emitObserve(ctx context.Context, envelope appevents.Envelope) 
 			}
 			continue
 		}
-		m.Deliver(ctx, listener.ID, deliveryID, envelope)
+		m.host.Deliver(ctx, listener.ID, deliveryID, envelope)
 	}
 	return appevents.Result{OK: true}
 }
 
-func (m *Manager) emitSync(ctx context.Context, envelope appevents.Envelope) appevents.Result {
+func (m *managerCore) emitSync(ctx context.Context, envelope appevents.Envelope) appevents.Result {
 	definition, _ := appevents.FindDefinition(envelope.Name)
 	failOpen := definition.FailurePolicy == appevents.FailurePolicyFailOpen
 	result := appevents.Result{OK: true}
@@ -663,7 +707,7 @@ func (m *Manager) emitSync(ctx context.Context, envelope appevents.Envelope) app
 	return result
 }
 
-func (m *Manager) beginSyncDelivery(ctx context.Context, extensionID string, envelope appevents.Envelope) int64 {
+func (m *managerCore) beginSyncDelivery(ctx context.Context, extensionID string, envelope appevents.Envelope) int64 {
 	if m.deliveryStore == nil {
 		return 0
 	}
@@ -706,7 +750,7 @@ func annotateSlowOrTimeout(result appevents.Result, elapsed time.Duration, ctxEr
 	return result
 }
 
-func (m *Manager) invoke(ctx context.Context, extension extensions.Extension, input HookInput) HookResult {
+func (m *managerCore) invoke(ctx context.Context, extension extensions.Extension, input HookInput) HookResult {
 	if m.hooks == nil || m.hooks.invoker == nil {
 		return HookResult{OK: true}
 	}
@@ -718,7 +762,7 @@ func (m *Manager) invoke(ctx context.Context, extension extensions.Extension, in
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithTimeout(ctx, timeout)
 	defer cancel()
-	instance, admission, err := m.AcquireActiveRuntimeCall(ctx, extension.ID, RuntimeCallHook)
+	instance, admission, err := m.host.AcquireActiveRuntimeCall(ctx, extension.ID, RuntimeCallHook)
 	if err != nil || !runtimeInstanceMatchesExtension(instance, extension) {
 		return HookResult{
 			OK:      false,
@@ -779,7 +823,7 @@ func (m *Manager) invoke(ctx context.Context, extension extensions.Extension, in
 	return result
 }
 
-func (m *Manager) decorateStatus(extensionID string, status extensions.RuntimeStatus) extensions.RuntimeStatus {
+func (m *managerCore) decorateStatus(extensionID string, status extensions.RuntimeStatus) extensions.RuntimeStatus {
 	if source, ok := m.starter.(ProtocolTelemetrySource); ok {
 		telemetry := source.ProtocolTelemetry(extensionID)
 		status.ProtocolVersion = telemetry.ProtocolVersion
@@ -833,21 +877,21 @@ func circuitMessage(reason string) string {
 	}
 }
 
-func (m *Manager) runningExtension(extensionID string) (extensions.Extension, bool) {
+func (m *managerCore) runningExtension(extensionID string) (extensions.Extension, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	extension, ok := m.running[extensionID]
 	return extension, ok
 }
 
-func (m *Manager) updateDelivery(ctx context.Context, input extensions.EventDeliveryUpdateInput) {
+func (m *managerCore) updateDelivery(ctx context.Context, input extensions.EventDeliveryUpdateInput) {
 	if m.deliveryStore == nil || input.ID == 0 {
 		return
 	}
 	_ = m.deliveryStore.UpdateEventDelivery(ctx, input)
 }
 
-func (m *Manager) finishDelivery(ctx context.Context, deliveryID int64, status string, result appevents.Result, attempts int) {
+func (m *managerCore) finishDelivery(ctx context.Context, deliveryID int64, status string, result appevents.Result, attempts int) {
 	m.updateDelivery(ctx, extensions.EventDeliveryUpdateInput{
 		ID:           deliveryID,
 		Status:       status,
@@ -858,7 +902,7 @@ func (m *Manager) finishDelivery(ctx context.Context, deliveryID int64, status s
 	})
 }
 
-func (m *Manager) setStatus(extension extensions.Extension, status extensions.RuntimeStatus) {
+func (m *managerCore) setStatus(extension extensions.Extension, status extensions.RuntimeStatus) {
 	m.mu.Lock()
 	m.statuses[extension.ID] = status
 	m.mu.Unlock()
@@ -916,4 +960,34 @@ func (localStarter) Start(context.Context, extensions.Extension) (RouteTarget, e
 
 func (localStarter) Stop(context.Context, extensions.Extension) error {
 	return nil
+}
+
+// Compatibility facade: runtime logic is owned by focused collaborators.
+
+func (m *Manager) Check(arg0 context.Context, extension extensions.Extension) error {
+	return m.supervisor.Check(arg0, extension)
+}
+
+func (m *Manager) Start(ctx context.Context, extension extensions.Extension) error {
+	return m.supervisor.Start(ctx, extension)
+}
+
+func (m *Manager) Stop(ctx context.Context, extension extensions.Extension) error {
+	return m.supervisor.Stop(ctx, extension)
+}
+
+func (m *Manager) Status(arg0 context.Context, extension extensions.Extension) extensions.RuntimeStatus {
+	return m.supervisor.Status(arg0, extension)
+}
+
+func (m *Manager) RouteTarget(extensionID string) (RouteTarget, bool) {
+	return m.supervisor.RouteTarget(extensionID)
+}
+
+func (m *Manager) Reconcile(ctx context.Context, items []extensions.Extension) {
+	m.supervisor.Reconcile(ctx, items)
+}
+
+func (m *Manager) Close(ctx context.Context) {
+	m.supervisor.Close(ctx)
 }

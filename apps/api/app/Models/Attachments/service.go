@@ -26,7 +26,7 @@ import (
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
-	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	extensionruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionRuntime"
 	mediaregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/MediaRegistry"
 	storage "github.com/zhuchunshu/sforum/apps/api/app/Support/Storage"
 )
@@ -41,8 +41,8 @@ type StorageProviderCatalog interface {
 	IsStorageProviderAvailable(ctx context.Context, extensionID string) (bool, error)
 }
 
-// StoragePluginRuntime 是插件存储 RPC 的宿主入口（E6.2）；通常为 extension Manager。
-type StoragePluginRuntime = extensionsruntime.StorageRuntime
+// StoragePluginRuntime 是插件存储适配器的稳定工厂边界（E6.2）。
+type StoragePluginRuntime = extensionruntime.StorageAdapterFactory
 
 type Service struct {
 	store          Store
@@ -519,14 +519,14 @@ func probeFailureReason(err error) string {
 	if err == nil {
 		return CodeStorageUnavailable
 	}
-	var rpc *extensionsruntime.StorageRPCError
+	var rpc *extensionruntime.StorageRPCError
 	if errors.As(err, &rpc) && strings.TrimSpace(rpc.Reason) != "" {
 		return rpc.Reason
 	}
 	switch {
-	case errors.Is(err, extensionsruntime.ErrStorageCircuitOpen):
+	case errors.Is(err, extensionruntime.ErrStorageCircuitOpen):
 		return "extension.circuit_open"
-	case errors.Is(err, extensionsruntime.ErrStorageTimeout):
+	case errors.Is(err, extensionruntime.ErrStorageTimeout):
 		return "extension.hook_timeout"
 	case errors.Is(err, extensions.ErrRuntimeUnavailable), errors.Is(err, ErrStorageUnavailable):
 		return CodeStorageUnavailable
@@ -539,7 +539,7 @@ func probeFailureMessage(err error) string {
 	if err == nil {
 		return "Storage provider is unavailable."
 	}
-	var rpc *extensionsruntime.StorageRPCError
+	var rpc *extensionruntime.StorageRPCError
 	if errors.As(err, &rpc) {
 		if msg := strings.TrimSpace(rpc.Message); msg != "" {
 			return msg
@@ -635,7 +635,7 @@ func (s *Service) adapterForSettings(ctx context.Context, settings AttachmentSet
 		// 无 runtime（如独立 worker 未注入）时 fail-closed，勿静默改用 local。
 		return nil, ErrStorageUnavailable
 	}
-	adapter, err := extensionsruntime.NewPluginStorageAdapter(sel.ExtensionID, s.storageRuntime, 0)
+	adapter, err := s.storageRuntime.NewStorageAdapter(sel.ExtensionID)
 	if err != nil {
 		return nil, ErrStorageUnavailable
 	}
@@ -647,12 +647,12 @@ func isPluginStorageFailure(err error) bool {
 	if err == nil {
 		return false
 	}
-	var rpc *extensionsruntime.StorageRPCError
+	var rpc *extensionruntime.StorageRPCError
 	if errors.As(err, &rpc) {
 		return true
 	}
-	return errors.Is(err, extensionsruntime.ErrStorageCircuitOpen) ||
-		errors.Is(err, extensionsruntime.ErrStorageTimeout) ||
+	return errors.Is(err, extensionruntime.ErrStorageCircuitOpen) ||
+		errors.Is(err, extensionruntime.ErrStorageTimeout) ||
 		errors.Is(err, extensions.ErrRuntimeUnavailable)
 }
 

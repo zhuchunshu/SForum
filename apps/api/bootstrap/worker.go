@@ -634,7 +634,7 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	// 与 API 相同：插件存储路径需注入 runtime（E6.2）。
 	attachmentStore := attachments.NewPostgresStore(pool)
 	attachmentService := attachments.NewService(attachmentStore, workerOptions).
-		WithStoragePluginRuntime(extensionRuntime)
+		WithStoragePluginRuntime(extensionsruntime.NewPluginStorageAdapterFactory(extensionRuntime, 0))
 	attachmentjobs.Register(registry, attachmentService)
 	// 审计日志保留期清理（F1.4）：默认 90 天，handler 可后续接 runtime option。
 	auditWriter := audit.NewPostgresWriter(pool)

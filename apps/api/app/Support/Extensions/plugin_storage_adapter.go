@@ -22,6 +22,27 @@ type PluginStorageAdapter struct {
 	chunkSize   int
 }
 
+// PluginStorageAdapterFactory keeps concrete runtime RPCs behind the stable
+// ExtensionRuntime adapter-factory boundary used by product models.
+type PluginStorageAdapterFactory struct {
+	runtime   StorageRuntime
+	chunkSize int
+}
+
+func NewPluginStorageAdapterFactory(runtime StorageRuntime, chunkSize int) *PluginStorageAdapterFactory {
+	if runtime == nil {
+		return nil
+	}
+	return &PluginStorageAdapterFactory{runtime: runtime, chunkSize: chunkSize}
+}
+
+func (f *PluginStorageAdapterFactory) NewStorageAdapter(extensionID string) (storage.Adapter, error) {
+	if f == nil {
+		return nil, storage.ErrInvalidConfig
+	}
+	return NewPluginStorageAdapter(extensionID, f.runtime, f.chunkSize)
+}
+
 // NewPluginStorageAdapter 构造插件后端适配器。chunkSize<=0 时用 1 MiB。
 func NewPluginStorageAdapter(extensionID string, runtime StorageRuntime, chunkSize int) (*PluginStorageAdapter, error) {
 	extensionID = strings.TrimSpace(extensionID)

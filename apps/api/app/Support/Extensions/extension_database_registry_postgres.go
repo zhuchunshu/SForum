@@ -360,7 +360,7 @@ func activateExtensionDatabaseRuntimeRole(
 	databaseName string,
 	password string,
 ) error {
-	if !identifiers.valid() || !validPostgresCatalogName(databaseName) ||
+	if !identifiers.Valid() || !validPostgresCatalogName(databaseName) ||
 		!extensionDatabasePasswordPattern.MatchString(password) {
 		return ErrExtensionDatabaseRegistryInvalid
 	}
@@ -394,7 +394,7 @@ func validateExtensionDatabaseRuntimeLimits(
 	identifiers ExtensionDatabaseIdentifiers,
 	databaseName string,
 ) error {
-	if !identifiers.valid() || !validPostgresCatalogName(databaseName) {
+	if !identifiers.Valid() || !validPostgresCatalogName(databaseName) {
 		return ErrExtensionDatabaseRegistryInvalid
 	}
 	var canLogin, inherit, superuser, createDatabase, createRole, replication, bypassRLS bool

@@ -30,7 +30,7 @@ func TestServiceRenderContentAdmitsEditorRegistryPluginNode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	service := NewService(nil).WithEditorDocumentSchema(EditorRegistrySchemaBridge{Registry: registry})
+	service := NewService(ServiceConfig{Store: nil}).WithEditorDocumentSchema(EditorRegistrySchemaBridge{Registry: registry})
 	native := `{"type":"doc","content":[{"type":"demoVote"},{"type":"paragraph","content":[{"type":"text","text":"body"}]}]}`
 	rendered, err := service.renderContent(ContentInput{
 		RawContent:   native,
@@ -49,7 +49,7 @@ func TestServiceRenderContentAdmitsEditorRegistryPluginNode(t *testing.T) {
 
 func TestServiceRenderContentWithoutSchemaFallsBackPluginNode(t *testing.T) {
 	t.Parallel()
-	service := NewService(nil)
+	service := NewService(ServiceConfig{Store: nil})
 	native := `{"type":"doc","content":[{"type":"demoVote"},{"type":"paragraph","content":[{"type":"text","text":"body"}]}]}`
 	rendered, err := service.renderContent(ContentInput{
 		RawContent:   native,

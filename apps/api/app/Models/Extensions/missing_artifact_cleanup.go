@@ -48,7 +48,7 @@ type missingArtifactCleanupStore interface {
 	CleanupMissingArtifacts(context.Context, int64, []MissingArtifactCleanupItem) error
 }
 
-func (s *Service) CleanupMissingArtifacts(
+func (s *LifecycleService) CleanupMissingArtifacts(
 	ctx context.Context,
 	actor identity.Actor,
 	input MissingArtifactCleanupInput,

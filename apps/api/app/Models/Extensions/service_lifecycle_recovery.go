@@ -12,7 +12,7 @@ import (
 
 // RecoverLifecycleOperation 只恢复指定 durable operation。原 authority、artifact、
 // idempotency key 和 fingerprint 保持冻结；当前操作者仅作为新恢复决定的权限与审计主体。
-func (s *Service) RecoverLifecycleOperation(
+func (s *LifecycleService) RecoverLifecycleOperation(
 	ctx context.Context,
 	actor identity.Actor,
 	extensionID string,
@@ -119,7 +119,7 @@ func validateLifecycleRecoveryRequest(actor identity.Actor, input LifecycleRecov
 	return input.Decision, reason, nil
 }
 
-func (s *Service) appendLifecycleRecoveryAudit(
+func (s *serviceCore) appendLifecycleRecoveryAudit(
 	ctx context.Context,
 	actor identity.Actor,
 	operation LifecycleOperation,

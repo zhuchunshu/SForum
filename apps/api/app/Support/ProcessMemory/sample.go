@@ -9,8 +9,8 @@ import (
 
 // Sample 描述一次可测试的进程采样结果。
 type Sample struct {
-	PID     int
-	PPID    int
+	PID  int
+	PPID int
 	// RSSBytes 是该进程的常驻内存（字节）。
 	RSSBytes uint64
 	Command  string

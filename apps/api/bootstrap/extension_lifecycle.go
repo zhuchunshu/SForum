@@ -15,6 +15,7 @@ import (
 	contentregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentRegistry"
 	editorregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EditorRegistry"
 	entityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EntityRegistry"
+	extensioncomposition "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionComposition"
 	extensionopenapi "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionOpenAPI"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
@@ -72,6 +73,7 @@ type productionLifecycleStack struct {
 	RouteSchemas         *extensionopenapi.RouteSchemaPublication
 	ComponentRegistry    *extensionsruntime.ComponentRegistry
 	ComponentComposition *extensionsruntime.ProductionComponentComposition
+	ComponentInspector   extensioncomposition.Inspector
 	AssetRegistry        *assetregistry.Registry
 	CacheRegistry        *cacheregistry.Registry
 	IdentityRegistry     *identityregistry.Registry
@@ -191,6 +193,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 	if err != nil {
 		return nil, fmt.Errorf("%w: create component composition: %v", errProductionLifecycleDependency, err)
 	}
+	componentInspector := extensionsruntime.NewComponentCompositionInspector(componentRegistry, componentComposition)
 	if config.ThemeRuntime != nil {
 		// Theme L1 渲染后 preface 插件组件 HTML；无贡献时 ComposePageHTML 返回空切片。
 		config.ThemeRuntime.WithPageComposition(componentComposition)
@@ -337,8 +340,8 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 		MigrationEngine: config.MigrationEngine, Migrations: migrations,
 		Schedules: schedules, JobStore: jobStore, JobCoordinator: jobCoordinator, Jobs: jobs,
 		RouteRegistry: routeRegistry, RouteSchemas: routeSchemas, ComponentRegistry: componentRegistry,
-		ComponentComposition: componentComposition,
-		AssetRegistry:        assetRegistry, CacheRegistry: cacheRegistry,
+		ComponentComposition: componentComposition, ComponentInspector: componentInspector,
+		AssetRegistry: assetRegistry, CacheRegistry: cacheRegistry,
 		IdentityRegistry: identityRegistry, IdentityStore: identityStore,
 		SessionPolicyStore: sessionPolicyStore,
 		QueryRegistry:      queryRegistry, QueryCoreCatalog: queryCoreCatalog,

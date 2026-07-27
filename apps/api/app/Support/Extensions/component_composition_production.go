@@ -9,6 +9,7 @@ import (
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	componentcatalog "github.com/zhuchunshu/sforum/apps/api/app/Support/ComponentCatalog"
+	extensioncomposition "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionComposition"
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 )
 
@@ -465,5 +466,54 @@ func componentNonCoreHTMLSegments(segments []ComponentRenderSegment) []string {
 		}
 	}
 	walk(segments)
+	return result
+}
+
+// ComponentCompositionInspector projects runtime state into the stable,
+// redacted admin inspection contract.
+type ComponentCompositionInspector struct {
+	registry    *ComponentRegistry
+	composition *ProductionComponentComposition
+}
+
+func NewComponentCompositionInspector(registry *ComponentRegistry, composition *ProductionComponentComposition) *ComponentCompositionInspector {
+	if registry == nil || composition == nil {
+		return nil
+	}
+	return &ComponentCompositionInspector{registry: registry, composition: composition}
+}
+
+func (i *ComponentCompositionInspector) Inspect(limit int) extensioncomposition.Snapshot {
+	result := extensioncomposition.Snapshot{Conflicts: []extensioncomposition.Conflict{}, Traces: []extensioncomposition.Trace{}}
+	if i == nil || i.registry == nil || i.composition == nil {
+		return result
+	}
+	snapshot := i.registry.Snapshot()
+	result.Revision = snapshot.Revision
+	result.SafeMode = snapshot.SafeMode
+	result.TargetCount = len(snapshot.Targets)
+	result.ContributionCount = len(snapshot.Contributions)
+	for _, conflict := range snapshot.Conflicts {
+		winnerID := ""
+		if conflict.Winner != nil {
+			winnerID = conflict.Winner.ID
+		}
+		result.Conflicts = append(result.Conflicts, extensioncomposition.Conflict{
+			TargetID: conflict.TargetID, TargetContractVersion: conflict.TargetContractVersion,
+			CandidateCount: len(conflict.Candidates), WinnerContributionID: winnerID,
+			ExplicitSelection: conflict.ExplicitSelection,
+		})
+	}
+	traces := i.composition.InspectorTraces()
+	if limit > 0 && len(traces) > limit {
+		traces = traces[len(traces)-limit:]
+	}
+	for _, trace := range traces {
+		result.Traces = append(result.Traces, extensioncomposition.Trace{
+			ID: trace.ID, Revision: trace.Revision, TargetID: trace.TargetID,
+			TargetContractVersion: trace.TargetContractVersion, StartedAt: trace.StartedAt,
+			DurationMicros: trace.DurationMicros, Status: trace.Status,
+		})
+	}
 	return result
 }

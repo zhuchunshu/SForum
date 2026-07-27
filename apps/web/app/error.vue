@@ -1,10 +1,14 @@
 <script setup lang="ts">
+import { useActiveThemeSkin } from '~/composables/themes/useActiveThemeSkin'
+import { useSystemErrorPagePresentation } from '~/composables/errors/useSystemErrorPagePresentation'
+import SFSystemErrorPage from '~/components/errors/SFSystemErrorPage.vue'
+import SFErrorPageContent from '~/components/errors/SFErrorPageContent.vue'
 import type { NuxtError } from '#app'
 import {
   isThemeableSystemErrorStatus,
   resolveErrorPageContent,
   systemErrorPageIdForStatus
-} from '~/utils/errorPage'
+} from '~/utils/errors/errorPage'
 
 const props = defineProps<{
   error: NuxtError

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
 /**
  * 旧「应用商城」入口：重定向到插件商城（默认子页）。
  * 侧栏已拆成「应用商城 → 主题 / 插件」一级菜单。

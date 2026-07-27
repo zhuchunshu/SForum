@@ -17,11 +17,15 @@ Attachment system foundation is implemented.
 - Storage provider adapters live under `apps/api/app/Support/Storage`.
 - Migration `202607050004_attachments.sql` creates `attachments`,
   `attachment_references`, and the attachment permissions.
-- Admin UI `apps/web/app/pages/admin/attachments.vue` is registered as the
-  standalone top-level "Attachment settings" page with "Basic Configuration"
-  and "Attachment Management" tabs. The settings tab now leads with a
-  beginner-friendly recommended local-upload configuration and provides a
-  one-click restore-and-save action for the recommended defaults.
+- Admin UI `apps/web/app/pages/admin/attachments.vue` is a permission-aware,
+  query-synced 115-line route shell. Settings and Manager live in independent
+  components under `components/admin/settings/attachments/tabs/` and retain
+  state through `KeepAlive`.
+- Settings owns provider selection, Core driver configuration, generic plugin
+  settings navigation, connection probes, secret-preserving restore, and the
+  beginner-friendly local-upload defaults.
+- Manager owns filters, detail/reference loading, status changes, soft delete,
+  orphan cleanup, and URL copy.
 - OpenAPI contract includes upload, metadata, content, admin settings, provider
   test, list, detail, update, soft delete, and cleanup endpoints.
 
@@ -211,6 +215,9 @@ Current focused coverage includes:
   visibility, GIF rejection when disabled, and cleanup retention cutoff;
 - existing backend HTTP/options/identity tests;
 - frontend typecheck and Bun tests.
+- M6 attachment/mail focused tests, architecture validation, Nuxt typecheck,
+  and production build pass. Full repository and browser closeout remain
+  tracked in the architecture debt plan.
 
 ## Next Steps
 

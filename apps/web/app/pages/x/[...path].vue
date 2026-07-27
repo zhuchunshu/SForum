@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import type { ThemeRenderOutput } from '~/composables/useThemeRenderOutput'
+import { useSForumSeo } from '~/composables/seo/useSForumSeo'
+import { useNotFoundPagePresentation } from '~/composables/errors/useNotFoundPagePresentation'
+import type { ThemeRenderOutput } from '~/composables/themes/useThemeRenderOutput'
 
 /**
  * 兼容路径 /x/*：转发到统一 Registry 解析（与根 catch-all 相同逻辑）。

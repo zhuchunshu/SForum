@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useTrustedEditorCatalog } from '~/composables/editor/useTrustedEditorCatalog'
 import { Editor, EditorContent } from '@tiptap/vue-3'
 import type { AnyExtension } from '@tiptap/core'
 import {

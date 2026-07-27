@@ -44,17 +44,17 @@ func buildLifecycleEntityPublication(
 			PermissionUpdate: declaration.PermissionUpdate, PermissionDelete: declaration.PermissionDelete,
 			PermissionImport: declaration.PermissionImport, PermissionExport: declaration.PermissionExport,
 			ImportExportPolicy: declaration.ImportExportPolicy, DeletionPolicy: declaration.DeletionPolicy,
-			TaxonomyIDs: append([]string(nil), declaration.TaxonomyIDs...),
-			Hierarchical: declaration.Hierarchical,
-			EntityIDs:    append([]string(nil), declaration.EntityIDs...),
+			TaxonomyIDs:      append([]string(nil), declaration.TaxonomyIDs...),
+			Hierarchical:     declaration.Hierarchical,
+			EntityIDs:        append([]string(nil), declaration.EntityIDs...),
 			PermissionManage: declaration.PermissionManage, PermissionAssign: declaration.PermissionAssign,
 			EntityID: declaration.EntityID, Schema: declaration.Schema,
 			UIComponent: declaration.UIComponent, UIModule: declaration.UIModule,
 			UIDigest: declaration.UIDigest, Required: declaration.Required,
 			Indexed: declaration.Indexed, IndexKind: declaration.IndexKind,
-			PermissionFieldRead: declaration.PermissionFieldRead,
+			PermissionFieldRead:  declaration.PermissionFieldRead,
 			PermissionFieldWrite: declaration.PermissionFieldWrite,
-			Validation: declaration.Validation, Order: declaration.Order, Priority: declaration.Priority,
+			Validation:           declaration.Validation, Order: declaration.Order, Priority: declaration.Priority,
 		})
 	}
 	probe := entityregistry.New()

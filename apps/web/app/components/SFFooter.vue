@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { SiteFriendLink } from '~/composables/useSiteChromeApi'
+import { useSiteChromeApi } from '~/composables/admin/useSiteChromeApi'
+import type { SiteFriendLink } from '~/composables/admin/useSiteChromeApi'
 
 const props = withDefaults(defineProps<{
   /** Core 404 应急页只使用本地 footer，不等待已失效的 API。 */

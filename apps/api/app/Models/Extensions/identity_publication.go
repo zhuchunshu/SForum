@@ -38,7 +38,7 @@ func hasRuntimeIdentityPublication(manifest Manifest) bool {
 	return manifest.Identity != nil || len(manifest.PermissionDefinitions) > 0
 }
 
-func (s *Service) publishLegacyRuntimeIdentity(
+func (s *serviceCore) publishLegacyRuntimeIdentity(
 	ctx context.Context,
 	enabled Extension,
 	actorUserID int64,
@@ -56,7 +56,7 @@ func (s *Service) publishLegacyRuntimeIdentity(
 	return s.identityPublications.PublishRuntimeIdentity(ctx, enabled, actorUserID, auditEventID)
 }
 
-func (s *Service) quarantineLegacyRuntimeIdentity(
+func (s *serviceCore) quarantineLegacyRuntimeIdentity(
 	ctx context.Context,
 	extension Extension,
 	actorUserID int64,
@@ -74,7 +74,7 @@ func (s *Service) quarantineLegacyRuntimeIdentity(
 	return s.identityPublications.QuarantineRuntimeIdentity(ctx, extension, actorUserID, auditEventID)
 }
 
-func (s *Service) compensateLegacyIdentityEnable(
+func (s *serviceCore) compensateLegacyIdentityEnable(
 	ctx context.Context,
 	enabled Extension,
 	assetMutation exactAssetMutation,
@@ -111,7 +111,7 @@ func (s *Service) compensateLegacyIdentityEnable(
 	return errors.Join(errs...)
 }
 
-func (s *Service) compensateLegacyIdentityDisable(
+func (s *serviceCore) compensateLegacyIdentityDisable(
 	assetMutation exactAssetMutation,
 	queryMutation RuntimeQueryPublicationMutation,
 	cacheMutation RuntimeCachePublicationMutation,

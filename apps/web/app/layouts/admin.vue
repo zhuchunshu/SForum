@@ -1,5 +1,9 @@
 <script setup lang="ts">
+import { useAuthSession } from '~/composables/identity/useAuthSession'
+import { useAdminSurfaces } from '~/composables/admin/useAdminSurfaces'
+import { useAdminAdvancedSettings } from '~/composables/admin/useAdminAdvancedSettings'
 import type { DropdownMenuItem } from '@nuxt/ui/components/DropdownMenu.vue'
+import SFAdminFooter from '~/components/admin/SFAdminFooter.vue'
 import SFAdminSurfaceOutlet from '~/components/admin/SFAdminSurfaceOutlet.vue'
 import {
   ADMIN_DASHBOARD_PAGE_ID,
@@ -12,14 +16,14 @@ import {
   shouldOpenAdminNavigationEntry,
   shouldShowAdminPageInNav
 } from '~/config/adminModules'
-import { useAdminRoutes } from '~/composables/useAdminRoutes'
-import { type AdminTab, useAdminTabs } from '~/composables/useAdminTabs'
-import type { AdminExtensionNavigationItem } from '~/utils/adminExtensions'
+import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
+import { type AdminTab, useAdminTabs } from '~/composables/admin/useAdminTabs'
+import type { AdminExtensionNavigationItem } from '~/utils/admin/adminExtensions'
 import {
   adminSurfaceKindIcon,
   adminSurfacePlacementPageId,
   type AdminSurfaceContract
-} from '~/utils/adminSurfaces'
+} from '~/utils/admin/adminSurfaces'
 
 type SidebarNavigationItem = {
   label: string

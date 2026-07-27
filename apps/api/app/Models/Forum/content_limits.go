@@ -8,37 +8,37 @@ import (
 
 // 论坛内容限制硬边界：管理员可配范围，防止极端配置拖垮存储或列表。
 const (
-	HardTitleMinRunes    = 1
-	HardTitleMaxRunes    = 200
-	HardContentMinRunes  = 0
-	HardContentMaxRunes  = 200000
-	HardCommentMinRunes  = 0
-	HardCommentMaxRunes  = 50000
-	HardNestingMin              = 0
-	HardNestingMax              = 20
+	HardTitleMinRunes             = 1
+	HardTitleMaxRunes             = 200
+	HardContentMinRunes           = 0
+	HardContentMaxRunes           = 200000
+	HardCommentMinRunes           = 0
+	HardCommentMaxRunes           = 50000
+	HardNestingMin                = 0
+	HardNestingMax                = 20
 	HardTreeDescendantsPerRootMin = 1
 	HardTreeDescendantsPerRootMax = 100
-	HardEditWindowMaxMin        = 10080 // 7 天
-	HardCooldownMaxSec          = 86400 // 24 小时
-	HardDailyLimitMax           = 10000
-	HardExcerptMinRunes         = 40
-	HardExcerptMaxRunes         = 500
-	HardTagMinPerTopic          = 0
-	HardTagMaxPerTopic          = 10
+	HardEditWindowMaxMin          = 10080 // 7 天
+	HardCooldownMaxSec            = 86400 // 24 小时
+	HardDailyLimitMax             = 10000
+	HardExcerptMinRunes           = 40
+	HardExcerptMaxRunes           = 500
+	HardTagMinPerTopic            = 0
+	HardTagMaxPerTopic            = 10
 )
 
 // Recommended* 与 defaultForumSettings / web_options 推荐值保持一致。
 const (
-	RecommendedTopicTitleMinRunes       = 2
-	RecommendedTopicTitleMaxRunes       = 100
-	RecommendedTopicContentMinRunes     = 0
-	RecommendedTopicContentMaxRunes     = 50000
-	RecommendedTopicEditWindowMinutes   = 0
-	RecommendedTopicCooldownSeconds     = 0
-	RecommendedDailyTopicLimit          = 0
-	RecommendedCommentMinRunes          = 1
-	RecommendedCommentMaxRunes          = 10000
-	RecommendedCommentMaxNestingDepth   = 5
+	RecommendedTopicTitleMinRunes     = 2
+	RecommendedTopicTitleMaxRunes     = 100
+	RecommendedTopicContentMinRunes   = 0
+	RecommendedTopicContentMaxRunes   = 50000
+	RecommendedTopicEditWindowMinutes = 0
+	RecommendedTopicCooldownSeconds   = 0
+	RecommendedDailyTopicLimit        = 0
+	RecommendedCommentMinRunes        = 1
+	RecommendedCommentMaxRunes        = 10000
+	RecommendedCommentMaxNestingDepth = 5
 	// RecommendedTreeDescendantsPerRoot D2：tree 视图每根默认最多 50 个子孙。
 	RecommendedTreeDescendantsPerRoot   = 50
 	RecommendedCommentEditWindowMinutes = 0

@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { useAuthSession } from '~/composables/identity/useAuthSession'
 /**
  * F4.4：实体自定义字段定义管理（user / topic）。
  * 值读写走公开/实体 API；本页只管理字段目录。
  */
 import { apiErrorMessage } from '~/composables/useApiClient'
-import { useAdminPage } from '~/composables/useAdminPage'
+import { useAdminPage } from '~/composables/admin/useAdminPage'
+import SFAdminFormFooter from '~/components/admin/SFAdminFormFooter.vue'
 
 definePageMeta({
   middleware: 'admin',

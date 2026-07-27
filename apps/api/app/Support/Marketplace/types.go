@@ -87,7 +87,7 @@ type Entry struct {
 	Withdrawn bool     `json:"withdrawn,omitempty"`
 	Notices   []Notice `json:"notices,omitempty"`
 	// AvailableFrom/Until optional release time window.
-	AvailableFrom time.Time `json:"availableFrom,omitempty"`
+	AvailableFrom  time.Time `json:"availableFrom,omitempty"`
 	AvailableUntil time.Time `json:"availableUntil,omitempty"`
 }
 
@@ -114,11 +114,11 @@ type OperatorPolicy struct {
 
 // ResolveResult is a dependency-resolved install plan with digests (not string ids only).
 type ResolveResult struct {
-	ExtensionID   string         `json:"extensionId"`
-	Version       string         `json:"version"`
-	PackageDigest string         `json:"packageDigest"`
-	Channel       string         `json:"channel"`
-	SBOMDigest    string         `json:"sbomDigest,omitempty"`
+	ExtensionID   string `json:"extensionId"`
+	Version       string `json:"version"`
+	PackageDigest string `json:"packageDigest"`
+	Channel       string `json:"channel"`
+	SBOMDigest    string `json:"sbomDigest,omitempty"`
 	// Order is install order (dependencies first) as exact PlanSteps.
 	Order []PlanStep `json:"order"`
 	// Report is a human/operator compatibility summary.

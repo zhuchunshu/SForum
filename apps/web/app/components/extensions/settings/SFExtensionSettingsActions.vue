@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AdminExtensionSettingsAction, AdminExtensionSettingsActionResult } from '~/utils/adminExtensions'
+import type { AdminExtensionSettingsAction, AdminExtensionSettingsActionResult } from '~/utils/admin/adminExtensions'
 
 defineProps<{
   actions: AdminExtensionSettingsAction[]

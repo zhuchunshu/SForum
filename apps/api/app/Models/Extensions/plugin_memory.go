@@ -6,7 +6,7 @@ import (
 
 // sampleOwnedPluginMemory 一次 ps 采样，得到 extensionID → RSS 字节。
 // 失败时返回空 map，列表仍可展示其余 runtime 字段。
-func (s *Service) sampleOwnedPluginMemory() map[string]uint64 {
+func sampleOwnedPluginMemory(s *Service) map[string]uint64 {
 	if s != nil && s.pluginMemorySampler != nil {
 		return s.pluginMemorySampler()
 	}

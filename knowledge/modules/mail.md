@@ -20,9 +20,14 @@ SMTP, log delivery, no-op delivery, authentication, or TLS.
   mail, and mail-provider plugin settings. `extension.manage` still controls
   plugin enable/disable. Disabling the selected plugin clears the selection.
 - Core admin route `/settings/mail` is the visible **Mail and Notifications**
-  center. It owns provider selection, custom-recipient test mail, notification
-  policy, self-test notification, and delivery history; queued test mail is not
-  presented as synchronously delivered.
+  center. Its 59-line route shell composes independent Overview, Provider,
+  Notifications, and Deliveries components under
+  `components/admin/settings/mail/tabs/`; each tab loads only its own data and
+  retains state through `KeepAlive`.
+- Provider selection and settings navigation remain extension-generic.
+  Notifications owns policy save/restore and self-test; Deliveries owns status,
+  template, and reason localization. Queued test mail is not presented as
+  synchronously delivered.
 - `POST /admin/mail/test` recipient resolution: explicit JSON `recipient` first,
   otherwise `site.admin_email` via `Options.AdminEmail`. Both empty → `422
   mail.test_recipient_required`. Response `data.recipient` echoes the resolved
@@ -75,3 +80,10 @@ Startup runs idempotent migration marker `mail_provider_plugin_v1` after
 built-in sync. Legacy `mail.smtp.*` values are copied without overwriting newer
 plugin settings. Legacy `mail.provider=smtp` enables/selects `sforum.smtp`;
 `dev_log`, `noop`, blank, and unknown values become unconfigured.
+
+## Architecture Debt Checkpoint
+
+M6 focused Bun tests, architecture validation, Nuxt typecheck, production
+build, full repository gate, and desktop/mobile browser closeout passed. The
+completed program is archived at
+`../plans/archive/2026-07/2026-07-28-architecture-boundary-debt-repayment.md`.

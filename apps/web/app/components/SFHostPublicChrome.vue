@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import SFAnnouncementBanner from './SFAnnouncementBanner.vue'
+import { useActiveThemeSettings } from '~/composables/themes/useActiveThemeSettings'
+import SFAnnouncementBanner from './notifications/SFAnnouncementBanner.vue'
 import SFFooter from './SFFooter.vue'
 import SFNavbar from './SFNavbar.vue'
 

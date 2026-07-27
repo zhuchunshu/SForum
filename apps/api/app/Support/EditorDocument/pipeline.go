@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	maxDocumentBytes   = 1 << 20 // 1 MiB native JSON
-	maxNodeCount       = 20000
-	maxDepth           = 64
+	maxDocumentBytes    = 1 << 20 // 1 MiB native JSON
+	maxNodeCount        = 20000
+	maxDepth            = 64
 	defaultExcerptRunes = 160
 	maxExcerptRunes     = 500
 )

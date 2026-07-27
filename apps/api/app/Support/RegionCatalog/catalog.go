@@ -35,14 +35,14 @@ var pageRegionMatrix = map[string][]string{
 	"forum.category.index": {RegionContentBefore, RegionContentAfter, RegionSidebar},
 	// 分类详情页是两栏布局(导航 + 主列),无右栏,不暴露 sidebar。
 	"forum.category.show": {RegionContentBefore, RegionContentAfter},
-	"forum.tag.index":      {RegionContentBefore, RegionContentAfter, RegionSidebar},
-	"forum.tag.show":       {RegionContentBefore, RegionContentAfter, RegionSidebar},
-	"forum.topic.show":     {RegionContentBefore, RegionContentAfter, RegionSidebar},
-	"forum.profile.show":   {RegionContentBefore, RegionContentAfter, RegionSidebar},
-	"forum.topic.create":   {RegionContentBefore, RegionContentAfter},
-	"forum.topic.reply":    {RegionContentBefore, RegionContentAfter},
-	"forum.topic.edit":     {RegionContentBefore, RegionContentAfter},
-	"forum.notifications":  {RegionContentBefore, RegionContentAfter},
+	"forum.tag.index":     {RegionContentBefore, RegionContentAfter, RegionSidebar},
+	"forum.tag.show":      {RegionContentBefore, RegionContentAfter, RegionSidebar},
+	"forum.topic.show":    {RegionContentBefore, RegionContentAfter, RegionSidebar},
+	"forum.profile.show":  {RegionContentBefore, RegionContentAfter, RegionSidebar},
+	"forum.topic.create":  {RegionContentBefore, RegionContentAfter},
+	"forum.topic.reply":   {RegionContentBefore, RegionContentAfter},
+	"forum.topic.edit":    {RegionContentBefore, RegionContentAfter},
+	"forum.notifications": {RegionContentBefore, RegionContentAfter},
 }
 
 // StandardRegions returns a caller-owned copy of every Host region definition.

@@ -35,7 +35,7 @@ func (s *Service) BindRuntimeRollout(coord RuntimeRolloutCoordinator) *Service {
 
 // DriveRuntimeRolloutForStagedUpgrade creates/drives a rollout plan for staged upgrade.
 // Migration failure marks the plan failed without promoting.
-func (s *Service) DriveRuntimeRolloutForStagedUpgrade(
+func (s *LifecycleService) DriveRuntimeRolloutForStagedUpgrade(
 	ctx context.Context,
 	actor identity.Actor,
 	source, target Extension,

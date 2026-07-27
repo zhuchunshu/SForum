@@ -437,7 +437,7 @@ func runManifestSDKWithProcess(
 	// 再实际启动进程 + RPC。
 	shim := &countingShim{lts: lts}
 	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
-		Settings:     fixedSettings(map[string]string{}),
+		Settings:      fixedSettings(map[string]string{}),
 		ShimTelemetry: shim,
 	})
 	callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)

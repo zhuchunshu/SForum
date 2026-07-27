@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import { defineAsyncComponent, defineComponent, type Component } from 'vue'
-import type { ThemeRenderOutput } from '~/composables/useThemeRenderOutput'
+import {
+  parseLegacyThemeHTML,
+  parseThemeRenderOutput,
+  renderThemeRenderNodes,
+  type ThemeRenderOutput
+} from '~/composables/themes/useThemeRenderOutput'
+import { applyPublicPageDocumentPolicy } from '~/composables/errors/usePublicPageDocumentPolicy'
 import SFFooter from './SFFooter.vue'
 import SFNavbar from './SFNavbar.vue'
-import SFNotFoundPageContent from './SFNotFoundPageContent.vue'
-import SFTopicShowPage from './SFTopicShowPage.vue'
+import SFNotFoundPageContent from './errors/SFNotFoundPageContent.vue'
+import SFTopicShowPage from './forum/SFTopicShowPage.vue'
 import {
   collectPublicL2ComponentRefsFromRenderNodes,
   normalizePublicFrontendComponentRefs,
@@ -40,32 +46,32 @@ const HostPageIsland = defineComponent({
 const islandComponents: Record<string, Component> = {
   // 首页 body 岛由 SFHomePage 自包含数据+UI；主题 L1 拥有壳层结构。
   // 不再经 HostPageIsland 嵌回 pages/index slot（slot 仅 fail-closed 紧急回退）。
-  'forum.component.home_page': defineAsyncComponent(() => import('./SFHomePage.vue')),
-  'forum.component.category_index': defineAsyncComponent(() => import('./SFCategoryIndexPage.vue')),
-  'forum.component.category_show': defineAsyncComponent(() => import('./SFCategoryShowPage.vue')),
-  'forum.component.tag_index': defineAsyncComponent(() => import('./SFTagIndexPage.vue')),
-  'forum.component.tag_show': defineAsyncComponent(() => import('./SFTagShowPage.vue')),
+  'forum.component.home_page': defineAsyncComponent(() => import('./forum/SFHomePage.vue')),
+  'forum.component.category_index': defineAsyncComponent(() => import('./forum/SFCategoryIndexPage.vue')),
+  'forum.component.category_show': defineAsyncComponent(() => import('./forum/SFCategoryShowPage.vue')),
+  'forum.component.tag_index': defineAsyncComponent(() => import('./forum/SFTagIndexPage.vue')),
+  'forum.component.tag_show': defineAsyncComponent(() => import('./forum/SFTagShowPage.vue')),
   // 帖子详情是高频核心阅读路径，避免主题岛自身再制造一层异步导航边界。
   'forum.component.topic_show': SFTopicShowPage,
-  'forum.component.profile_show': defineAsyncComponent(() => import('./SFProfileShowPage.vue')),
-  'forum.component.notifications': defineAsyncComponent(() => import('./SFNotificationsPage.vue')),
-  'site.component.terms': defineAsyncComponent(() => import('./SFTermsPage.vue')),
-  'site.component.privacy': defineAsyncComponent(() => import('./SFPrivacyPage.vue')),
-  'site.component.guidelines': defineAsyncComponent(() => import('./SFGuidelinesPage.vue')),
+  'forum.component.profile_show': defineAsyncComponent(() => import('./profile/SFProfileShowPage.vue')),
+  'forum.component.notifications': defineAsyncComponent(() => import('./notifications/SFNotificationsPage.vue')),
+  'site.component.terms': defineAsyncComponent(() => import('./legal/SFTermsPage.vue')),
+  'site.component.privacy': defineAsyncComponent(() => import('./legal/SFPrivacyPage.vue')),
+  'site.component.guidelines': defineAsyncComponent(() => import('./legal/SFGuidelinesPage.vue')),
   // 404 正在 Nuxt error boundary 内渲染，不能再引入异步岛边界而把 SSR 留空。
   'system.component.not_found': SFNotFoundPageContent,
   'navigation.component.navbar': SFNavbar,
   'navigation.component.footer': SFFooter,
-  'navigation.component.home': defineAsyncComponent(() => import('./SFHomeNavigation.vue')),
-  'forum.component.topic_composer': defineAsyncComponent(() => import('./SFTopicComposerPage.vue')),
-  'forum.component.topic_reply': defineAsyncComponent(() => import('./SFTopicReplyPage.vue')),
-  'forum.component.topic_editor': defineAsyncComponent(() => import('./SFTopicEditPage.vue')),
-  'profile.component.settings_form': defineAsyncComponent(() => import('./SFProfileSettingsPage.vue')),
-  'identity.component.security_settings': defineAsyncComponent(() => import('./SFSecuritySettingsPage.vue')),
-  'identity.component.login_form': defineAsyncComponent(() => import('./SFLoginFormPage.vue')),
-  'identity.component.register_form': defineAsyncComponent(() => import('./SFRegisterFormPage.vue')),
-  'identity.component.recovery_request_form': defineAsyncComponent(() => import('./SFRecoveryRequestPage.vue')),
-  'identity.component.recovery_confirm_form': defineAsyncComponent(() => import('./SFRecoveryConfirmPage.vue')),
+  'navigation.component.home': defineAsyncComponent(() => import('./forum/SFHomeNavigation.vue')),
+  'forum.component.topic_composer': defineAsyncComponent(() => import('./forum/SFTopicComposerPage.vue')),
+  'forum.component.topic_reply': defineAsyncComponent(() => import('./forum/SFTopicReplyPage.vue')),
+  'forum.component.topic_editor': defineAsyncComponent(() => import('./forum/SFTopicEditPage.vue')),
+  'profile.component.settings_form': defineAsyncComponent(() => import('./settings/SFProfileSettingsPage.vue')),
+  'identity.component.security_settings': defineAsyncComponent(() => import('./settings/SFSecuritySettingsPage.vue')),
+  'identity.component.login_form': defineAsyncComponent(() => import('./identity/SFLoginFormPage.vue')),
+  'identity.component.register_form': defineAsyncComponent(() => import('./identity/SFRegisterFormPage.vue')),
+  'identity.component.recovery_request_form': defineAsyncComponent(() => import('./identity/SFRecoveryRequestPage.vue')),
+  'identity.component.recovery_confirm_form': defineAsyncComponent(() => import('./identity/SFRecoveryConfirmPage.vue')),
   'core.component.shared.sfextension_widget': defineAsyncComponent(() => import('./SFExtensionWidget.vue'))
 }
 const legacyIslandBindings = {

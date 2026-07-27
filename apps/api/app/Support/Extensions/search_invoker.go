@@ -17,7 +17,7 @@ type SearchEngineInvoker interface {
 	SearchEngineSearch(context.Context, string, SearchEngineSearchRequest) (SearchEngineSearchResponse, error)
 }
 
-func (m *Manager) callSearchEngine(
+func (m *managerCore) callSearchEngine(
 	ctx context.Context,
 	extensionID string,
 	fn func(context.Context, SearchEngineInvoker) error,
@@ -26,7 +26,7 @@ func (m *Manager) callSearchEngine(
 	if !ok {
 		return extensions.ErrRuntimeUnavailable
 	}
-	_, admission, err := m.AcquireActiveRuntimeCall(ctx, extensionID, RuntimeCallProvider)
+	_, admission, err := m.host.AcquireActiveRuntimeCall(ctx, extensionID, RuntimeCallProvider)
 	if err != nil {
 		return errors.Join(extensions.ErrRuntimeUnavailable, err)
 	}
@@ -43,7 +43,7 @@ func (m *Manager) callSearchEngine(
 	return err
 }
 
-func (m *Manager) SearchEngineProbe(ctx context.Context, extensionID string, request SearchEngineProbeRequest) (SearchEngineProbeResponse, error) {
+func (m *RuntimeInvoker) SearchEngineProbe(ctx context.Context, extensionID string, request SearchEngineProbeRequest) (SearchEngineProbeResponse, error) {
 	var response SearchEngineProbeResponse
 	err := m.callSearchEngine(ctx, extensionID, func(ctx context.Context, inv SearchEngineInvoker) error {
 		var callErr error
@@ -53,7 +53,7 @@ func (m *Manager) SearchEngineProbe(ctx context.Context, extensionID string, req
 	return response, err
 }
 
-func (m *Manager) SearchEngineEnsure(ctx context.Context, extensionID string) (SearchEngineResult, error) {
+func (m *RuntimeInvoker) SearchEngineEnsure(ctx context.Context, extensionID string) (SearchEngineResult, error) {
 	var response SearchEngineResult
 	err := m.callSearchEngine(ctx, extensionID, func(ctx context.Context, inv SearchEngineInvoker) error {
 		var callErr error
@@ -63,7 +63,7 @@ func (m *Manager) SearchEngineEnsure(ctx context.Context, extensionID string) (S
 	return response, err
 }
 
-func (m *Manager) SearchEngineIndex(ctx context.Context, extensionID string, request SearchEngineIndexRequest) (SearchEngineResult, error) {
+func (m *RuntimeInvoker) SearchEngineIndex(ctx context.Context, extensionID string, request SearchEngineIndexRequest) (SearchEngineResult, error) {
 	var response SearchEngineResult
 	err := m.callSearchEngine(ctx, extensionID, func(ctx context.Context, inv SearchEngineInvoker) error {
 		var callErr error
@@ -73,7 +73,7 @@ func (m *Manager) SearchEngineIndex(ctx context.Context, extensionID string, req
 	return response, err
 }
 
-func (m *Manager) SearchEngineDelete(ctx context.Context, extensionID string, request SearchEngineDeleteRequest) (SearchEngineResult, error) {
+func (m *RuntimeInvoker) SearchEngineDelete(ctx context.Context, extensionID string, request SearchEngineDeleteRequest) (SearchEngineResult, error) {
 	var response SearchEngineResult
 	err := m.callSearchEngine(ctx, extensionID, func(ctx context.Context, inv SearchEngineInvoker) error {
 		var callErr error
@@ -83,7 +83,7 @@ func (m *Manager) SearchEngineDelete(ctx context.Context, extensionID string, re
 	return response, err
 }
 
-func (m *Manager) SearchEngineSearch(ctx context.Context, extensionID string, request SearchEngineSearchRequest) (SearchEngineSearchResponse, error) {
+func (m *RuntimeInvoker) SearchEngineSearch(ctx context.Context, extensionID string, request SearchEngineSearchRequest) (SearchEngineSearchResponse, error) {
 	var response SearchEngineSearchResponse
 	err := m.callSearchEngine(ctx, extensionID, func(ctx context.Context, inv SearchEngineInvoker) error {
 		var callErr error
@@ -91,4 +91,26 @@ func (m *Manager) SearchEngineSearch(ctx context.Context, extensionID string, re
 		return callErr
 	})
 	return response, err
+}
+
+// Compatibility facade: runtime logic is owned by focused collaborators.
+
+func (m *Manager) SearchEngineProbe(ctx context.Context, extensionID string, request SearchEngineProbeRequest) (SearchEngineProbeResponse, error) {
+	return m.invoker.SearchEngineProbe(ctx, extensionID, request)
+}
+
+func (m *Manager) SearchEngineEnsure(ctx context.Context, extensionID string) (SearchEngineResult, error) {
+	return m.invoker.SearchEngineEnsure(ctx, extensionID)
+}
+
+func (m *Manager) SearchEngineIndex(ctx context.Context, extensionID string, request SearchEngineIndexRequest) (SearchEngineResult, error) {
+	return m.invoker.SearchEngineIndex(ctx, extensionID, request)
+}
+
+func (m *Manager) SearchEngineDelete(ctx context.Context, extensionID string, request SearchEngineDeleteRequest) (SearchEngineResult, error) {
+	return m.invoker.SearchEngineDelete(ctx, extensionID, request)
+}
+
+func (m *Manager) SearchEngineSearch(ctx context.Context, extensionID string, request SearchEngineSearchRequest) (SearchEngineSearchResponse, error) {
+	return m.invoker.SearchEngineSearch(ctx, extensionID, request)
 }

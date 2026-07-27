@@ -53,15 +53,15 @@ func TestServiceBuildsOverviewFromStoreAndRuntime(t *testing.T) {
 			{ID: 1, Slug: "general", Name: "综合讨论", TopicCount: 12, CommentCount: 33},
 		},
 	}}, StaticRuntimeProvider{Stats: RuntimeStats{
-		StartedAt:         now.Add(-2 * time.Hour),
-		UptimeSeconds:     7200,
-		MemoryBytes:       128 * 1024 * 1024,
-		HeapAllocBytes:    32 * 1024 * 1024,
-		SysBytes:          256 * 1024 * 1024,
-		PluginChildCount:  2,
-		GoroutineCount:    19,
-		GCCount:           7,
-		Database:          DatabaseRuntimeStats{MaxConnections: 16, TotalConnections: 4, AcquiredConnections: 1, IdleConnections: 3},
+		StartedAt:        now.Add(-2 * time.Hour),
+		UptimeSeconds:    7200,
+		MemoryBytes:      128 * 1024 * 1024,
+		HeapAllocBytes:   32 * 1024 * 1024,
+		SysBytes:         256 * 1024 * 1024,
+		PluginChildCount: 2,
+		GoroutineCount:   19,
+		GCCount:          7,
+		Database:         DatabaseRuntimeStats{MaxConnections: 16, TotalConnections: 4, AcquiredConnections: 1, IdleConnections: 3},
 	}}, WithClock(func() time.Time { return now }))
 
 	overview, err := service.Overview(context.Background(), adminActor())

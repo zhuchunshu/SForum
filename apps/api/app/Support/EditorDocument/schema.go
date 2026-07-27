@@ -15,7 +15,7 @@ func CoreSchema() Schema {
 			"orderedList": {
 				AllowAttrs: map[string]bool{"start": true},
 			},
-			"listItem": {},
+			"listItem":  {},
 			"hardBreak": {Atom: true},
 			"horizontalRule": {
 				Atom: true, FallbackHTML: "<hr>",

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useAdminPage } from '~/composables/admin/useAdminPage'
+import { useAdminCacheInspector } from '~/composables/admin/useAdminCacheInspector'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import {
   cacheInspectorErrorKind,
@@ -8,7 +10,7 @@ import {
   type CacheInspectorPolicy,
   type CacheInspectorSnapshot,
   type CacheInspectorTrace
-} from '~/composables/useAdminCacheInspector'
+} from '~/composables/admin/useAdminCacheInspector'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
 defineOptions({ name: 'AdminExtensionCacheInspector' })

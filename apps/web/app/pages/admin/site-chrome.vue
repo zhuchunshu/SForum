@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
 // 品牌与前台壳已并入个性化设置；保留路由以兼容旧书签与侧栏历史。
 definePageMeta({
   middleware: 'admin',

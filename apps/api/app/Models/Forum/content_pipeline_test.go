@@ -24,7 +24,7 @@ func (s *stubContentPostFilter) AfterHostRender(_ context.Context, in ContentPos
 
 func TestApplyContentPostFilterNilIsIdentity(t *testing.T) {
 	t.Parallel()
-	service := NewService(nil)
+	service := NewService(ServiceConfig{Store: nil})
 	content := RenderedContent{HTMLContent: "<p>hi</p>", PlainText: "hi"}
 	got, err := service.applyContentPostFilter(context.Background(), content, "topic", "new")
 	if err != nil {
@@ -38,7 +38,7 @@ func TestApplyContentPostFilterNilIsIdentity(t *testing.T) {
 func TestApplyContentPostFilterStubMutatesHTML(t *testing.T) {
 	t.Parallel()
 	stub := &stubContentPostFilter{marker: "<!--sf-filter-->"}
-	service := NewService(nil).WithContentPostFilter(stub)
+	service := NewService(ServiceConfig{Store: nil}).WithContentPostFilter(stub)
 	content := RenderedContent{HTMLContent: "<p>body</p>", PlainText: "body"}
 	got, err := service.applyContentPostFilter(context.Background(), content, "topic", "new")
 	if err != nil {
@@ -57,7 +57,7 @@ func TestApplyContentPostFilterStubMutatesHTML(t *testing.T) {
 
 func TestApplyContentPostFilterRejectsEmptyHTMLOverwrite(t *testing.T) {
 	t.Parallel()
-	service := NewService(nil).WithContentPostFilter(ContentPostFilterFunc(func(_ context.Context, in ContentPostFilterInput) (RenderedContent, error) {
+	service := NewService(ServiceConfig{Store: nil}).WithContentPostFilter(ContentPostFilterFunc(func(_ context.Context, in ContentPostFilterInput) (RenderedContent, error) {
 		out := in.Rendered
 		out.HTMLContent = "   "
 		return out, nil

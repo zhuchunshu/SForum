@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ForumRevisionSummary } from '~/utils/adminForumContent'
+import type { ForumRevisionSummary } from '~/utils/admin/adminForumContent'
 
 const props = defineProps<{
   revisions: ForumRevisionSummary[]

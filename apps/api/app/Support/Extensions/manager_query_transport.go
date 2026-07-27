@@ -26,7 +26,7 @@ type exactVersionedQueryInvoker interface {
 
 // InvokeQueryInstance dispatches through the exact process protected by the
 // caller's Manager admission lease. It never falls back to the active pointer.
-func (m *Manager) InvokeQueryInstance(
+func (m *RuntimeInvoker) InvokeQueryInstance(
 	ctx context.Context,
 	identity RuntimeInstanceIdentity,
 	extension extensions.Extension,
@@ -41,7 +41,7 @@ func (m *Manager) InvokeQueryInstance(
 
 // FilterQueryResultInstance has the same exact-instance boundary as the owner
 // query call; cross-plugin filters therefore cannot drift to a replacement.
-func (m *Manager) FilterQueryResultInstance(
+func (m *RuntimeInvoker) FilterQueryResultInstance(
 	ctx context.Context,
 	identity RuntimeInstanceIdentity,
 	extension extensions.Extension,
@@ -54,7 +54,7 @@ func (m *Manager) FilterQueryResultInstance(
 	return invoker.FilterQueryResultInstance(ctx, identity, extension, request)
 }
 
-func (m *Manager) exactVersionedQueryInvoker(
+func (m *managerCore) exactVersionedQueryInvoker(
 	ctx context.Context,
 	identity RuntimeInstanceIdentity,
 ) (exactVersionedQueryInvoker, error) {
@@ -152,3 +152,23 @@ func (s *ProtocolStarter) exactQueryRuntimeClient(
 }
 
 var _ exactVersionedQueryInvoker = (*ProtocolStarter)(nil)
+
+// Compatibility facade: runtime logic is owned by focused collaborators.
+
+func (m *Manager) InvokeQueryInstance(
+	ctx context.Context,
+	identity RuntimeInstanceIdentity,
+	extension extensions.Extension,
+	request VersionedQueryRequest,
+) ([]queryregistry.QueryRow, error) {
+	return m.invoker.InvokeQueryInstance(ctx, identity, extension, request)
+}
+
+func (m *Manager) FilterQueryResultInstance(
+	ctx context.Context,
+	identity RuntimeInstanceIdentity,
+	extension extensions.Extension,
+	request VersionedQueryResultFilterRequest,
+) ([]queryregistry.QueryRow, error) {
+	return m.invoker.FilterQueryResultInstance(ctx, identity, extension, request)
+}

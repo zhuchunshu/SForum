@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import type { ThemeRenderOutput } from '~/composables/useThemeRenderOutput'
+import { useAuthSession } from '~/composables/identity/useAuthSession'
+import { useNotFoundPagePresentation } from '~/composables/errors/useNotFoundPagePresentation'
+import { applyPublicPageDocumentPolicy } from '~/composables/errors/usePublicPageDocumentPolicy'
+import type { ThemeRenderOutput } from '~/composables/themes/useThemeRenderOutput'
 import {
   coreResolveFallback,
   disableSharedPageCacheForPageResolve,
@@ -15,7 +18,7 @@ import {
   fetchPageRegions,
   PAGE_REGION_PAGES,
   usePageRegionsState
-} from '~/composables/usePageRegions'
+} from '~/composables/pages/usePageRegions'
 
 const props = defineProps<{
   page: string

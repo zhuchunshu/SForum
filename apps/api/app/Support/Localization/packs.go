@@ -16,17 +16,17 @@ const (
 
 // LanguagePack is a Host-registered translation pack (plugin or operator upload).
 type LanguagePack struct {
-	ID           string            `json:"id"`
-	Domain       Domain            `json:"domain"`
-	Version      string            `json:"version"`
-	Locales      []string          `json:"locales"`
-	Status       string            `json:"status"`
+	ID      string   `json:"id"`
+	Domain  Domain   `json:"domain"`
+	Version string   `json:"version"`
+	Locales []string `json:"locales"`
+	Status  string   `json:"status"`
 	// Messages is locale -> key -> text for backend domains.
-	Messages     map[string]map[string]string `json:"-"`
-	InstalledAt  time.Time         `json:"installedAt,omitempty"`
-	EnabledAt    time.Time         `json:"enabledAt,omitempty"`
-	ExtensionID  string            `json:"extensionId,omitempty"`
-	PackageDigest string           `json:"packageDigest,omitempty"`
+	Messages      map[string]map[string]string `json:"-"`
+	InstalledAt   time.Time                    `json:"installedAt,omitempty"`
+	EnabledAt     time.Time                    `json:"enabledAt,omitempty"`
+	ExtensionID   string                       `json:"extensionId,omitempty"`
+	PackageDigest string                       `json:"packageDigest,omitempty"`
 }
 
 // PackRegistry manages pack install/enable against a Catalog.

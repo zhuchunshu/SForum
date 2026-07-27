@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
+	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 )
 
 func TestPackageContentRootLegacyUploadedZipUsesFilesDir(t *testing.T) {

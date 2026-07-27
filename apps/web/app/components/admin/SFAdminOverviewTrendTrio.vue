@@ -16,7 +16,7 @@ import {
   type AdminOverviewTrendDay,
   type AdminOverviewTrendField,
   type OverviewTrendDeltaKind
-} from '~/utils/adminOverview'
+} from '~/utils/admin/adminOverview'
 
 const props = defineProps<{
   days: AdminOverviewTrendDay[]

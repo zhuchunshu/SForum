@@ -1,0 +1,198 @@
+import { describe, expect, test } from 'bun:test'
+import { readFileSync } from 'node:fs'
+
+import {
+  commentBranchPresentation,
+  countCommentDescendants
+} from '../../app/utils/forum/forumCommentPresentation'
+
+type CommentNode = {
+  children?: CommentNode[]
+}
+
+const deepChildren: CommentNode[] = [
+  {
+    children: [
+      { children: [{ children: [] }] }
+    ]
+  }
+]
+
+const commentComponent = () => readFileSync(
+  new URL('../../app/components/forum/SFComment.vue', import.meta.url),
+  'utf8'
+)
+const commentCss = () => readFileSync(
+  new URL('../../app/assets/css/sforum-comment.css', import.meta.url),
+  'utf8'
+)
+const componentCss = () => readFileSync(
+  new URL('../../app/assets/css/sforum-components.css', import.meta.url),
+  'utf8'
+)
+
+describe('forum comment presentation', () => {
+  test('counts every comment in a descendant branch', () => {
+    expect(countCommentDescendants(deepChildren)).toBe(3)
+    expect(countCommentDescendants([])).toBe(0)
+  })
+
+  test('keeps the root branch open with one semantic connection rail', () => {
+    expect(commentBranchPresentation('tree', 0, deepChildren)).toMatchObject({
+      connectionRail: true,
+      collapsible: false,
+      followUpCount: 3,
+      indentation: 0
+    })
+  })
+
+  test('collapses depth-two descendants without adding more indentation', () => {
+    expect(commentBranchPresentation('tree', 1, deepChildren)).toMatchObject({
+      connectionRail: false,
+      collapsible: true,
+      followUpCount: 3,
+      indentation: 1
+    })
+    expect(commentBranchPresentation('tree', 2, deepChildren).collapsible).toBe(false)
+    expect(commentBranchPresentation('tree', 7, deepChildren).indentation).toBe(1)
+    expect(commentBranchPresentation('tree', 7, deepChildren).collapsible).toBe(false)
+  })
+
+  test('honors a custom collapse depth', () => {
+    expect(commentBranchPresentation('tree', 1, deepChildren, 3).collapsible).toBe(false)
+    expect(commentBranchPresentation('tree', 2, deepChildren, 3).collapsible).toBe(true)
+    expect(commentBranchPresentation('tree', 3, deepChildren, 3).collapsible).toBe(false)
+  })
+
+  test('flat presentation never indents, connects, or recurses', () => {
+    expect(commentBranchPresentation('flat', 7, deepChildren)).toMatchObject({
+      connectionRail: false,
+      collapsible: false,
+      followUpCount: 3,
+      indentation: 0
+    })
+  })
+})
+
+describe('SFComment presentation contract', () => {
+  test('declares and forwards explicit recursive presentation props', () => {
+    const source = commentComponent()
+
+    expect(source).toContain('presentation?: CommentPresentationMode')
+    expect(source).toContain('depth?: number')
+    expect(source).toContain('collapseFromDepth?: number')
+    expect(source).toContain('floorLabel?: string')
+    expect(source).toContain("presentation: 'flat'")
+    expect(source).toContain('depth: 0')
+    expect(source).toContain('collapseFromDepth: 2')
+    expect(source).toContain(':presentation="presentation"')
+    expect(source).toContain(':depth="depth + 1"')
+    expect(source).toContain(':collapse-from-depth="collapseFromDepth"')
+    expect(source).toContain(':comment-meta-builder="commentMetaBuilder"')
+    expect(source).toContain(':comment-author-link-builder="commentAuthorLinkBuilder"')
+    expect(source).toContain(':comment-actions-builder="commentActionsBuilder"')
+    expect(source).toContain('@action-comment="forwardChildAction"')
+    expect(source).toContain("emit('actionComment', comment, value)")
+  })
+
+  test('uses an accessible disclosure backed by the descendant count', () => {
+    const source = commentComponent()
+
+    expect(source).toContain('branchPresentation.followUpCount')
+    expect(source).toContain(':aria-expanded="branchExpanded"')
+    expect(source).toContain(':aria-controls="branchId"')
+    expect(source).toContain(':id="branchId"')
+  })
+
+  test('links reply context to its source and keeps child branches outside the entry', () => {
+    const source = commentComponent()
+    const entryClose = source.indexOf('</article>')
+    const branchStart = source.indexOf('class="sf-comment__branch"')
+    const replyContextTag = source.match(/<a[\s\S]*?class="sf-comment__reply-to"[\s\S]*?>/)?.[0]
+
+    expect(source).toContain("t('topicDetail.reply')")
+    expect(replyContextTag).toBeDefined()
+    expect(replyContextTag).toContain('#comment-')
+    expect(source).toContain('class="sf-comment__floor"')
+    expect(source).toContain('displayFloorLabel')
+    expect(source).not.toContain('#{{ comment.id }}')
+    expect(entryClose).toBeGreaterThan(-1)
+    expect(branchStart).toBeGreaterThan(entryClose)
+    expect(source).not.toContain('sf-comment__children')
+  })
+
+  test('does not recurse in flat presentation', () => {
+    const source = commentComponent()
+
+    expect(source).toContain("presentation === 'tree'")
+    expect(source).toContain('branchPresentation.collapsible')
+  })
+})
+
+describe('SFComment responsive CSS contract', () => {
+  test('renders top-level replies as open chronological rows', () => {
+    const source = commentCss()
+    const flatOverride = source.slice(source.indexOf('Default flat discussion stream'))
+
+    expect(flatOverride).toContain('.sf-comment-list > .sf-comment')
+    expect(flatOverride).toContain('border-radius: 0')
+    expect(flatOverride).toContain('background: transparent')
+    expect(flatOverride).toContain('box-shadow: none')
+  })
+
+  test('loads a focused comment stylesheet with one branch rail', () => {
+    const source = commentCss()
+
+    expect(componentCss()).toContain("@import './sforum-comment.css';")
+    expect(source).toContain('.sf-comment__entry')
+    expect(source).toContain('.sf-comment__branch--connected')
+    expect(source).toContain('border-left: 1px solid var(--sf-comment-branch)')
+    expect(source).not.toContain('.sf-comment__children')
+  })
+
+  test('contains rich comment content without making the page wider', () => {
+    const source = commentCss()
+
+    expect(source).toContain('overflow-wrap: anywhere')
+    expect(source).toContain('.sf-comment__content pre')
+    expect(source).toContain('overflow-x: auto')
+    expect(source).toContain('.sf-comment__content img')
+    expect(source).toContain('max-width: 100%')
+  })
+
+  test('flattens every visual depth and keeps touch actions usable on mobile', () => {
+    const source = commentCss()
+    const mobileStart = source.indexOf('@media (max-width: 640px)')
+    const mobileSource = source.slice(mobileStart)
+
+    expect(mobileStart).toBeGreaterThan(-1)
+    expect(mobileSource).toContain('.sf-comment__branch--connected')
+    expect(mobileSource).toContain('margin-left: 0')
+    expect(mobileSource).toContain('padding-left: 0')
+    expect(mobileSource).toContain('border-left: 0')
+    expect(mobileSource).toContain('min-height: 40px')
+  })
+
+  test('keeps reply source links visually restrained', () => {
+    const source = commentCss()
+    const replyRule = source.match(/\.sf-comment__reply-to\s*\{([^}]*)\}/)?.[1]
+
+    expect(replyRule).toBeDefined()
+    expect(replyRule).not.toContain('cursor: pointer')
+  })
+
+  test('highlights deep-linked target comments for a few seconds', () => {
+    const source = commentCss()
+    const comment = commentComponent()
+    const topic = readFileSync(new URL('../../app/components/forum/SFTopicShowPage.vue', import.meta.url), 'utf8')
+
+    expect(source).toContain('.sf-comment-list > .sf-comment:target')
+    expect(source).toContain('.sf-comment-list > .sf-comment.sf-comment--flash')
+    expect(source).toContain('sf-comment-target-glow')
+    expect(source).toContain('prefers-reduced-motion: reduce')
+    expect(comment).toContain("'sf-comment--flash': flash")
+    expect(topic).toContain('flashTargetComment')
+    expect(topic).toContain(':flash="flashCommentId === comment.id"')
+    expect(topic).toContain('COMMENT_FLASH_MS')
+  })
+})

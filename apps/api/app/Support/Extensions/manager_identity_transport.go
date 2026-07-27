@@ -291,11 +291,11 @@ func (r *IdentityProviderRuntime) invoke(
 	return cloneIdentityProviderResult(result), nil
 }
 
-func (m *Manager) exactIdentityManagedRuntime(
+func (m *managerCore) exactIdentityManagedRuntime(
 	identity RuntimeInstanceIdentity,
 	artifact identityregistry.Artifact,
 ) (extensions.Extension, error) {
-	snapshot, err := m.InspectRuntimeInstance(identity)
+	snapshot, err := m.host.InspectRuntimeInstance(identity)
 	if err != nil {
 		return extensions.Extension{}, errors.Join(ErrIdentityProviderUnavailable, err)
 	}

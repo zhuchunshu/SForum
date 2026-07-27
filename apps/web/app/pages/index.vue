@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useSForumSeo } from '~/composables/seo/useSForumSeo'
+import SFHomePage from '~/components/forum/SFHomePage.vue'
 /**
  * 论坛首页路由壳：SEO + Page Registry outlet。
  * 默认呈现由主题 L1（home.html → forum.component.home_page 岛）拥有；
@@ -6,8 +8,8 @@
  */
 import {
   parseForumHomeQuery
-} from '~/utils/forumHome'
-import { forumCategoryPath } from '~/utils/forumTaxonomy'
+} from '~/utils/forum/forumHome'
+import { forumCategoryPath } from '~/utils/forum/forumTaxonomy'
 
 const { t } = useI18n()
 const route = useRoute()

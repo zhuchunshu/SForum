@@ -10,7 +10,7 @@ import (
 
 // ListStorageProviderCandidates 返回已启用且声明 attachment.storage.provider 的插件候选（E6.1）。
 // 不要求 actor：由附件设置 API 在已鉴权路径调用。
-func (s *Service) ListStorageProviderCandidates(ctx context.Context) ([]storage.Candidate, error) {
+func (s *CatalogService) ListStorageProviderCandidates(ctx context.Context) ([]storage.Candidate, error) {
 	if s.safeMode {
 		return []storage.Candidate{}, nil
 	}
@@ -41,7 +41,7 @@ func (s *Service) ListStorageProviderCandidates(ctx context.Context) ([]storage.
 }
 
 // IsStorageProviderAvailable 判断扩展是否可作为存储提供方被选中。
-func (s *Service) IsStorageProviderAvailable(ctx context.Context, extensionID string) (bool, error) {
+func (s *CatalogService) IsStorageProviderAvailable(ctx context.Context, extensionID string) (bool, error) {
 	if s.safeMode {
 		return false, nil
 	}

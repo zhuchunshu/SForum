@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SFRecoveryConfirmPage from '~/components/identity/SFRecoveryConfirmPage.vue'
 /** auth.reset_password 路由壳：auth layout/middleware + outlet；表单岛为 Host 组件。 */
 definePageMeta({ public: true })
 </script>

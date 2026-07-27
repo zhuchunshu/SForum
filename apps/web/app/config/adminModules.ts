@@ -186,7 +186,7 @@ export const adminPageDefinitions = [
     labelKey: 'admin.nav.forumSettings',
     icon: 'i-lucide-sliders-horizontal',
     componentName: 'AdminForumSettings',
-    requiredPermissions: ['category.manage', 'tag.manage', 'forum.settings.manage'],
+    requiredPermissions: ['category.manage', 'tag.manage', 'forum.settings.manage', 'search.manage'],
     permissionMode: 'any'
   },
   {
@@ -576,5 +576,4 @@ export function shouldShowAdminPageInNav(
   }
   return true
 }
-
 

@@ -75,22 +75,22 @@ type KeyPlan struct {
 
 // InvalidateRequest removes keys by exact key and/or declared tags.
 type InvalidateRequest struct {
-	CacheID    string
-	Namespace  string
-	Keys       []string
-	Tags       []string
+	CacheID   string
+	Namespace string
+	Keys      []string
+	Tags      []string
 	// Actor is required for audit; empty denies.
-	Actor string
+	Actor  string
 	Reason string
 }
 
 // InvalidateResult is the Host audit outcome for one invalidation.
 type InvalidateResult struct {
-	DeletedKeys int      `json:"deletedKeys"`
-	Tags        []string `json:"tags,omitempty"`
-	AuditID     string   `json:"auditId"`
-	Actor       string   `json:"actor"`
-	Reason      string   `json:"reason,omitempty"`
+	DeletedKeys int       `json:"deletedKeys"`
+	Tags        []string  `json:"tags,omitempty"`
+	AuditID     string    `json:"auditId"`
+	Actor       string    `json:"actor"`
+	Reason      string    `json:"reason,omitempty"`
 	At          time.Time `json:"at"`
 }
 

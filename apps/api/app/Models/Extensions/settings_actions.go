@@ -14,7 +14,7 @@ import (
 
 const maxSettingsActionInputBytes = 64 * 1024
 
-func (s *Service) ExecuteSettingsAction(
+func (s *SettingsService) ExecuteSettingsAction(
 	ctx context.Context,
 	actor identity.Actor,
 	extensionID string,

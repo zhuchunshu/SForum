@@ -71,7 +71,7 @@ func TestGuestReadLoginRequiredUsesBearerAuthenticationResult(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			store := &controllerForumStore{guestRead: "login_required"}
-			controller := NewController(forum.NewServiceWithSettingsAndEvents(store, store, nil), controllerForumActors{}, nil)
+			controller := NewController(forum.NewService(forum.ServiceConfig{Store: store, Settings: store, Publisher: nil}), controllerForumActors{}, nil)
 			app := apphttp.NewApp(config.Config{AppName: "SForum", AppEnv: "test", CSRFEnabled: false, AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}, slog.Default(), apphttp.Dependencies{
 				BearerTokens:   test.bearer,
 				RouteProviders: []apphttp.RouteProvider{controller},
@@ -608,7 +608,7 @@ func newForumTestApp() (*fiber.App, *authsession.Manager, *controllerForumStore)
 		}},
 	}}
 	store := &controllerForumStore{}
-	controller := NewController(forum.NewServiceWithSettingsAndEvents(store, store, nil), users, manager)
+	controller := NewController(forum.NewService(forum.ServiceConfig{Store: store, Settings: store, Publisher: nil}), users, manager)
 	loginProvider := forumRouteProviderFunc(func(api fiber.Router) {
 		api.Post("/test-login/:id", func(c fiber.Ctx) error {
 			userID, err := strconv.ParseInt(c.Params("id"), 10, 64)
@@ -679,13 +679,13 @@ func (f forumRouteProviderFunc) RegisterRoutes(api fiber.Router) {
 }
 
 type controllerForumStore struct {
-	createdTopic         forum.CreateTopicRecord
-	updatedTopic         forum.UpdateTopicRecord
-	deletedTopicID       int64
-	appliedAction        string
-	actionTopic          forum.TopicSummary
-	lastCommentView      string
-	lastTopicList        forum.TopicListInput
+	createdTopic    forum.CreateTopicRecord
+	updatedTopic    forum.UpdateTopicRecord
+	deletedTopicID  int64
+	appliedAction   string
+	actionTopic     forum.TopicSummary
+	lastCommentView string
+	lastTopicList   forum.TopicListInput
 	// countCommentsBefore 可注入 ResolveCommentPage 的"排在前面的评论数"，模拟跨页定位。
 	countCommentsBefore  int64
 	settingsReset        bool
@@ -1208,7 +1208,7 @@ func newForumTestAppWithSearch(searchSvc SearchService) (*fiber.App, *controller
 		1: {ID: 1, Status: identity.UserStatusActive, Permissions: map[string]bool{}},
 	}}
 	store := &controllerForumStore{}
-	controller := NewControllerWithSearch(forum.NewServiceWithSettingsAndEvents(store, store, nil), searchSvc, nil, users, manager)
+	controller := NewControllerWithSearch(forum.NewService(forum.ServiceConfig{Store: store, Settings: store, Publisher: nil}), searchSvc, nil, users, manager)
 	app := apphttp.NewApp(config.Config{AppName: "SForum", AppEnv: "test", CSRFEnabled: false, AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}, slog.Default(), apphttp.Dependencies{
 		RouteProviders: []apphttp.RouteProvider{controller},
 	})
@@ -1298,7 +1298,7 @@ func newForumTestAppWithReindex(reindexer ReindexService) *fiber.App {
 		7: {ID: 7, Status: identity.UserStatusActive, Permissions: map[string]bool{}},
 	}}
 	store := &controllerForumStore{}
-	controller := NewControllerWithSearch(forum.NewServiceWithSettingsAndEvents(store, store, nil), nil, reindexer, users, manager)
+	controller := NewControllerWithSearch(forum.NewService(forum.ServiceConfig{Store: store, Settings: store, Publisher: nil}), nil, reindexer, users, manager)
 	loginProvider := forumRouteProviderFunc(func(api fiber.Router) {
 		api.Post("/test-login/:id", func(c fiber.Ctx) error {
 			userID, _ := strconv.ParseInt(c.Params("id"), 10, 64)
@@ -1439,7 +1439,7 @@ func newForumTestAppWithSearchProviders(admin SearchProviderAdmin) *fiber.App {
 		7: {ID: 7, Status: identity.UserStatusActive, Permissions: map[string]bool{}},
 	}}
 	store := &controllerForumStore{}
-	controller := NewControllerWithSearch(forum.NewServiceWithSettingsAndEvents(store, store, nil), nil, nil, users, manager).
+	controller := NewControllerWithSearch(forum.NewService(forum.ServiceConfig{Store: store, Settings: store, Publisher: nil}), nil, nil, users, manager).
 		WithSearchProviderAdmin(admin)
 	loginProvider := forumRouteProviderFunc(func(api fiber.Router) {
 		api.Post("/test-login/:id", func(c fiber.Ctx) error {

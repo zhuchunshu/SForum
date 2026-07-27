@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
+import { useAdminPage } from '~/composables/admin/useAdminPage'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import {
   type ContentCatalogView,
@@ -6,7 +8,7 @@ import {
   type EntityImportExportDryRunView,
   type MediaCatalogView,
   useAdminRegistryCatalogs
-} from '~/composables/useAdminRegistryCatalogs'
+} from '~/composables/admin/useAdminRegistryCatalogs'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
 defineOptions({ name: 'AdminExtensionRegistryCatalogs' })

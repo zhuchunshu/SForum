@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { useAuthSession } from '~/composables/identity/useAuthSession'
 /**
  * F4.5：站点产品开关。与 RBAC 正交——只控制产品面是否开启，不授予权限。
  */
 import { apiErrorMessage } from '~/composables/useApiClient'
-import { useAdminPage } from '~/composables/useAdminPage'
+import { useAdminPage } from '~/composables/admin/useAdminPage'
+import SFAdminFormFooter from '~/components/admin/SFAdminFormFooter.vue'
 
 definePageMeta({
   middleware: 'admin',

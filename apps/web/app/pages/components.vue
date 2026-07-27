@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import SFFeedRow from '~/components/forum/SFFeedRow.vue'
+import SFComment from '~/components/forum/SFComment.vue'
 if (import.meta.env.PROD) {
   showError({
     statusCode: 404,

@@ -34,7 +34,7 @@ func (s *Service) BindSettingsLifecycle(svc *settingslifecycle.Service) *Service
 }
 
 // SettingsLifecycle returns the bound lifecycle service (may be nil in tests).
-func (s *Service) SettingsLifecycle() SettingsLifecycleRuntime {
+func (s *SettingsService) SettingsLifecycle() SettingsLifecycleRuntime {
 	if s == nil {
 		return nil
 	}
@@ -43,7 +43,7 @@ func (s *Service) SettingsLifecycle() SettingsLifecycleRuntime {
 
 // RegisterSettingsLifecycleFromManifest 从 Manifest 恢复 Schema（启用/升级时调用）。
 // Migration 若已由插件 Host API / 注册表声明则保留；否则按 dataVersion 目标注册空路径。
-func (s *Service) RegisterSettingsLifecycleFromManifest(extension Extension) error {
+func (s *SettingsService) RegisterSettingsLifecycleFromManifest(extension Extension) error {
 	if s == nil || s.settingsLifecycle == nil {
 		return nil
 	}
@@ -59,14 +59,14 @@ func (s *Service) RegisterSettingsLifecycleFromManifest(extension Extension) err
 }
 
 // UpdateSettings 后台保存：有 SettingsLifecycle 时走文档 CAS + 迁移；否则旧路径。
-func (s *Service) updateSettingsViaLifecycle(
+func (s *serviceCore) updateSettingsViaLifecycle(
 	ctx context.Context,
 	actor identity.Actor,
 	extension Extension,
 	input UpdateSettingsInput,
 	locale string,
 ) (ExtensionSettings, error) {
-	if err := s.RegisterSettingsLifecycleFromManifest(extension); err != nil {
+	if err := s.host.RegisterSettingsLifecycleFromManifest(extension); err != nil {
 		return ExtensionSettings{}, err
 	}
 	actorID := settingsActorID(actor)
@@ -85,18 +85,18 @@ func (s *Service) updateSettingsViaLifecycle(
 		// lifecycle 权威已前进，不倒退 revision）。
 		return ExtensionSettings{}, err
 	}
-	s.maybeBumpPublicSurfaceRevision(ctx, extension)
+	maybeBumpPublicSurfaceRevision(s.host, ctx, extension)
 	return resolveExtensionSettings(extension, settingsDocumentViewValues(doc), locale), nil
 }
 
 // resetSettingsViaLifecycle 重置为字段默认值（推荐路径保留 SecretStore refs）。
-func (s *Service) resetSettingsViaLifecycle(
+func (s *serviceCore) resetSettingsViaLifecycle(
 	ctx context.Context,
 	actor identity.Actor,
 	extension Extension,
 	locale string,
 ) (ExtensionSettings, error) {
-	if err := s.RegisterSettingsLifecycleFromManifest(extension); err != nil {
+	if err := s.host.RegisterSettingsLifecycleFromManifest(extension); err != nil {
 		return ExtensionSettings{}, err
 	}
 	doc, err := s.settingsLifecycle.ResetDefaults(ctx, extension.ID, settingsActorID(actor), settingslifecycle.ResetOptions{
@@ -113,12 +113,12 @@ func (s *Service) resetSettingsViaLifecycle(
 	if err := s.restartPluginForSettings(ctx, extension, restart); err != nil {
 		return ExtensionSettings{}, err
 	}
-	s.maybeBumpPublicSurfaceRevision(ctx, extension)
+	maybeBumpPublicSurfaceRevision(s.host, ctx, extension)
 	return resolveExtensionSettings(extension, settingsDocumentViewValues(doc), locale), nil
 }
 
 // ImportSettings 从导出包恢复设置（经 SettingsLifecycle；拒绝密文泄漏）。
-func (s *Service) ImportSettings(
+func (s *SettingsService) ImportSettings(
 	ctx context.Context,
 	actor identity.Actor,
 	extensionID string,
@@ -138,7 +138,7 @@ func (s *Service) ImportSettings(
 	if s.settingsLifecycle == nil {
 		return ExtensionSettings{}, fmt.Errorf("extensions: settings lifecycle is not bound")
 	}
-	if err := s.RegisterSettingsLifecycleFromManifest(extension); err != nil {
+	if err := s.host.RegisterSettingsLifecycleFromManifest(extension); err != nil {
 		return ExtensionSettings{}, err
 	}
 	doc, err := s.settingsLifecycle.Import(ctx, extension.ID, settingsActorID(actor), bundle)
@@ -156,7 +156,7 @@ func (s *Service) ImportSettings(
 }
 
 // ExportSettings 导出掩码设置包（无密钥明文）。
-func (s *Service) ExportSettings(ctx context.Context, actor identity.Actor, extensionID string) (settingslifecycle.ExportBundle, error) {
+func (s *SettingsService) ExportSettings(ctx context.Context, actor identity.Actor, extensionID string) (settingslifecycle.ExportBundle, error) {
 	extension, err := s.store.Get(ctx, normalizeID(extensionID))
 	if err != nil {
 		return settingslifecycle.ExportBundle{}, err
@@ -167,18 +167,18 @@ func (s *Service) ExportSettings(ctx context.Context, actor identity.Actor, exte
 	if s.settingsLifecycle == nil {
 		return settingslifecycle.ExportBundle{}, fmt.Errorf("extensions: settings lifecycle is not bound")
 	}
-	if err := s.RegisterSettingsLifecycleFromManifest(extension); err != nil {
+	if err := s.host.RegisterSettingsLifecycleFromManifest(extension); err != nil {
 		return settingslifecycle.ExportBundle{}, err
 	}
 	return s.settingsLifecycle.Export(ctx, extension.ID)
 }
 
 // migrateSettingsOnUpgrade 升级时恢复 Schema 并触发迁移（失败不得改 revision）。
-func (s *Service) migrateSettingsOnUpgrade(ctx context.Context, actor identity.Actor, extension Extension) error {
+func (s *serviceCore) migrateSettingsOnUpgrade(ctx context.Context, actor identity.Actor, extension Extension) error {
 	if s == nil || s.settingsLifecycle == nil {
 		return nil
 	}
-	if err := s.RegisterSettingsLifecycleFromManifest(extension); err != nil {
+	if err := s.host.RegisterSettingsLifecycleFromManifest(extension); err != nil {
 		return err
 	}
 	// 读当前文档；若不存在则无迁移。Put 空 map + preserve 会跑 migrate。

@@ -119,16 +119,16 @@ func TestBuildExtensionPackageExcludeSource(t *testing.T) {
 
 func TestIsPackageSourceFile(t *testing.T) {
 	cases := map[string]bool{
-		"backend/main.go":         true,
-		"backend/go.mod":          true,
-		"backend/plugin":          false,
-		"frontend/settings.mjs":   false,
-		"frontend/settings.css":   false,
+		"backend/main.go":           true,
+		"backend/go.mod":            true,
+		"backend/plugin":            false,
+		"frontend/settings.mjs":     false,
+		"frontend/settings.css":     false,
 		"frontend/settings.mjs.map": true,
-		"frontend/Widget.vue":     true,
-		"manifest/settings.json":  false,
-		"sforum.extension.json":   false,
-		"README.md":               false,
+		"frontend/Widget.vue":       true,
+		"manifest/settings.json":    false,
+		"sforum.extension.json":     false,
+		"README.md":                 false,
 	}
 	for path, want := range cases {
 		if got := isPackageSourceFile(path); got != want {

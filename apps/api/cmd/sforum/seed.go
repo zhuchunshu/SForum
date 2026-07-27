@@ -161,7 +161,7 @@ func runSeedCommand(ctx context.Context, opts seedOptions, cmd *cobra.Command) e
 	forumStore := forum.NewPostgresStore(pool)
 	deps := seedDeps{
 		identityService: identity.NewService(identityStore),
-		forumService:    forum.NewService(forumStore),
+		forumService:    forum.NewService(forum.ServiceConfig{Store: forumStore}),
 	}
 
 	cmd.Printf("seeding forum: %d topics, %d users, up to %d comments/topic\n", opts.Count, opts.Users, opts.CommentsMax)

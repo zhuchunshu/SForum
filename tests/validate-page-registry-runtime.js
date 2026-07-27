@@ -85,9 +85,9 @@ function validateOfflineContracts() {
   assertIncludes(template, '禁止客户端再请求插件 route', 'template must document no client plugin fetch')
   // V3 presentation ownership：公开 body 岛为自包含 Host 组件，不再经 HostPageIsland 嵌回 route slot。
   // 登录/发帖等凭证或写路径岛仍必须是 Host 组件（不可被主题 L2 替换为可执行包代码）。
-  assertIncludes(template, "'identity.component.login_form': defineAsyncComponent(() => import('./SFLoginFormPage.vue'))", 'login form must stay a Host body island')
-  assertIncludes(template, "'forum.component.topic_composer': defineAsyncComponent(() => import('./SFTopicComposerPage.vue'))", 'topic composer must stay a Host body island')
-  assertIncludes(template, "'forum.component.home_page': defineAsyncComponent(() => import('./SFHomePage.vue'))", 'home body must stay a Host body island')
+  assertIncludes(template, "'identity.component.login_form': defineAsyncComponent(() => import('./identity/SFLoginFormPage.vue'))", 'login form must stay a Host body island')
+  assertIncludes(template, "'forum.component.topic_composer': defineAsyncComponent(() => import('./forum/SFTopicComposerPage.vue'))", 'topic composer must stay a Host body island')
+  assertIncludes(template, "'forum.component.home_page': defineAsyncComponent(() => import('./forum/SFHomePage.vue'))", 'home body must stay a Host body island')
   assertIncludes(template, "'system.component.not_found': SFNotFoundPageContent", 'not_found must use the dedicated Host body island')
   assertIncludes(template, "'navigation.component.navbar': SFNavbar", 'theme chrome navbar is Host-owned')
   assertIncludes(template, "'navigation.component.footer': SFFooter", 'theme chrome footer is Host-owned')
@@ -116,7 +116,7 @@ function validateOfflineContracts() {
   assertIncludes(index, 'forum.home', 'home page id')
 
   const errorPage = read('apps/web/app/error.vue')
-  const errorUtils = read('apps/web/app/utils/errorPage.ts')
+  const errorUtils = read('apps/web/app/utils/errors/errorPage.ts')
   const systemTemplate = read('apps/web/app/components/SFSystemThemeTemplate.vue')
   assertIncludes(errorPage, 'SFSystemErrorPage', 'themeable browser errors must use the system-error boundary')
   assertIncludes(errorPage, 'isThemeableSystemErrorStatus', 'only the Host-selected status matrix may enter system-error theming')

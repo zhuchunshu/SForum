@@ -19,6 +19,7 @@ import (
 	contentregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentRegistry"
 	editorregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EditorRegistry"
 	entityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EntityRegistry"
+	extensioncomposition "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionComposition"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	mediaregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/MediaRegistry"
@@ -50,20 +51,19 @@ type Controller struct {
 	routeInspector *routes.Inspector
 	cacheRegistry  *cacheregistry.Registry
 	cacheInspect   func(*cacheregistry.Registry, int) (hostapi.HostCacheInspectionSnapshot, error)
-	// componentComposition / componentRegistry / navigationInspector /
+	// componentInspector / navigationInspector /
 	// assetRegistry / themeRuntime 仅服务 admin 检查器；为 nil 时对应路由 fail closed 为 503。
-	componentComposition *extensionsruntime.ProductionComponentComposition
-	componentRegistry    *extensionsruntime.ComponentRegistry
-	navigationInspector  *navigationregistry.Inspector
-	assetRegistry        *assetregistry.Registry
-	themeRuntime         *pages.ThemeRuntimeRegistry
-	routeContracts       RouteContractCatalog
-	routeAuditor         audit.IDWriter
-	providerSlots        *extensionsruntime.ProviderSlotSelectionAPI
-	providerProber       ProviderSlotProber
-	providerAuditor      audit.IDWriter
-	adminSurfaces        AdminSurfaceRuntime
-	adminAuditor         audit.Writer
+	componentInspector  extensioncomposition.Inspector
+	navigationInspector *navigationregistry.Inspector
+	assetRegistry       *assetregistry.Registry
+	themeRuntime        *pages.ThemeRuntimeRegistry
+	routeContracts      RouteContractCatalog
+	routeAuditor        audit.IDWriter
+	providerSlots       *extensionsruntime.ProviderSlotSelectionAPI
+	providerProber      ProviderSlotProber
+	providerAuditor     audit.IDWriter
+	adminSurfaces       AdminSurfaceRuntime
+	adminAuditor        audit.Writer
 	// editorRegistry 为 nil 时公开 editor-catalog 返回空 modules（fail-closed）。
 	editorRegistry *editorregistry.Registry
 	// entityRegistry 为 nil 时公开 entity-catalog 返回空 entities（fail-closed）。
@@ -72,10 +72,6 @@ type Controller struct {
 	contentRegistry *contentregistry.Registry
 	// mediaRegistry 为 nil 时公开 media-catalog 返回空 policies/processors（fail-closed）。
 	mediaRegistry *mediaregistry.Registry
-}
-
-type ProviderSlotProber interface {
-	ProbeProviderSlotCandidate(context.Context, string, string) (extensionsruntime.ProviderSlotProbeResult, error)
 }
 
 type TrustedFrontendService interface {
@@ -100,25 +96,6 @@ type PublicFrontendRuntimeService interface {
 	// page-local L2 soft refs. Empty refs return the Host baseline when public L2
 	// gates pass.
 	PublicPagePolicyForComponents(context.Context, []extensions.PublicFrontendComponentRef) (extensions.PublicFrontendPolicy, error)
-}
-
-type ProxyInput struct {
-	Matched             extensions.MatchedRoute
-	Actor               identity.Actor
-	HasActor            bool
-	PublicFrontendExact *PublicFrontendBridgeIdentity
-}
-
-type PublicFrontendBridgeIdentity struct {
-	ExtensionID      string
-	ExtensionVersion string
-	PackageDigest    string
-	ImpactDigest     string
-	ComponentID      string
-}
-
-type RouteGateway interface {
-	Proxy(c fiber.Ctx, input ProxyInput) error
 }
 
 type updateSettingsRequest struct {
@@ -170,15 +147,10 @@ func (h *Controller) WithCacheInspector(
 	return h
 }
 
-// WithComponentCompositionInspector wires the production composition service
-// and its immutable registry for the admin composition inspector.
-func (h *Controller) WithComponentCompositionInspector(
-	registry *extensionsruntime.ComponentRegistry,
-	composition *extensionsruntime.ProductionComponentComposition,
-) *Controller {
+// WithComponentCompositionInspector wires the stable redacted inspection boundary.
+func (h *Controller) WithComponentCompositionInspector(inspector extensioncomposition.Inspector) *Controller {
 	if h != nil {
-		h.componentRegistry = registry
-		h.componentComposition = composition
+		h.componentInspector = inspector
 	}
 	return h
 }
@@ -456,22 +428,6 @@ func (h *Controller) uninstall(c fiber.Ctx) error {
 	return apphttp.OK(c, result)
 }
 
-func (h *Controller) cleanupMissingArtifacts(c fiber.Ctx) error {
-	actor, err := h.actor(c)
-	if err != nil {
-		return err
-	}
-	var input extensions.MissingArtifactCleanupInput
-	if err := c.Bind().Body(&input); err != nil {
-		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
-	}
-	result, err := h.service.CleanupMissingArtifacts(c.Context(), actor, input)
-	if err != nil {
-		return mapExtensionError(err)
-	}
-	return apphttp.OK(c, result)
-}
-
 func (h *Controller) listMigrations(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {
@@ -535,25 +491,6 @@ func (h *Controller) executableTrustStatus(c fiber.Ctx) error {
 		return mapExtensionError(err)
 	}
 	return apphttp.OK(c, status)
-}
-
-func (h *Controller) restart(c fiber.Ctx) error {
-	actor, err := h.actor(c)
-	if err != nil {
-		return err
-	}
-	var input extensions.RestartInput
-	if len(c.Body()) > 0 {
-		if err := c.Bind().Body(&input); err != nil {
-			return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
-		}
-	}
-	input.IdempotencyKey = c.Get("Idempotency-Key")
-	item, err := h.service.Restart(c.Context(), actor, c.Params("id"), input)
-	if err != nil {
-		return mapExtensionError(err)
-	}
-	return apphttp.OK(c, item)
 }
 
 func (h *Controller) issueExecutableTrustChallenge(c fiber.Ctx) error {

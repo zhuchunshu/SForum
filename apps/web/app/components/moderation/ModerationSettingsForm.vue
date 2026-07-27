@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { useModerationApi } from '~/composables/moderation/useModerationApi'
 import { apiErrorMessage } from '~/composables/useApiClient'
-import type { ModerationMode, ModerationSettings } from '~/composables/useModerationApi'
+import type { ModerationMode, ModerationSettings } from '~/composables/moderation/useModerationApi'
+import SFAdminFormFooter from '~/components/admin/SFAdminFormFooter.vue'
 
 const props = defineProps<{ modelValue: ModerationSettings }>()
 const emit = defineEmits<{ updated: [settings: ModerationSettings] }>()

@@ -29,7 +29,7 @@ type VersionedProviderInvocationResult struct {
 	Attempts          int
 }
 
-func (m *Manager) InvokeVersionedProvider(
+func (m *RuntimeInvoker) InvokeVersionedProvider(
 	ctx context.Context,
 	input VersionedProviderInvocation,
 ) (VersionedProviderInvocationResult, error) {
@@ -237,4 +237,13 @@ func providerFailureReason(err error) string {
 		return "extension.provider_timeout"
 	}
 	return "extension.provider_failed"
+}
+
+// Compatibility facade: runtime logic is owned by focused collaborators.
+
+func (m *Manager) InvokeVersionedProvider(
+	ctx context.Context,
+	input VersionedProviderInvocation,
+) (VersionedProviderInvocationResult, error) {
+	return m.invoker.InvokeVersionedProvider(ctx, input)
 }

@@ -2,8 +2,8 @@
 /**
  * 审阅决策右栏：壳用首页 sforum-home__right + sf-home-right-rail 卡片。
  */
-import type { ModerationAction, ModerationReviewContext } from '~/composables/useModerationApi'
-import { REVIEW_REQUIRED_ACTIONS, actionListForContext } from '~/utils/moderationWorkbench'
+import type { ModerationAction, ModerationReviewContext } from '~/composables/moderation/useModerationApi'
+import { REVIEW_REQUIRED_ACTIONS, actionListForContext } from '~/utils/moderation/moderationWorkbench'
 
 const props = defineProps<{
   context: ModerationReviewContext | null

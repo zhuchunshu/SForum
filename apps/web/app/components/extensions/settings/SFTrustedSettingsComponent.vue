@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
+import { useAdminFrontendTrust } from '~/composables/admin/useAdminFrontendTrust'
+import SFAdminFrontendTrustPanel from '~/components/admin/SFAdminFrontendTrustPanel.vue'
 import type {
   AdminExtensionSettingItem,
   AdminMicroFrontendBridgeV1,
@@ -7,7 +10,7 @@ import type {
 } from '@sforum/admin-sdk'
 import { ADMIN_MICRO_FRONTEND_API_VERSION } from '@sforum/admin-sdk'
 
-import type { AdminExtension, AdminExtensionSettings } from '~/utils/adminExtensions'
+import type { AdminExtension, AdminExtensionSettings } from '~/utils/admin/adminExtensions'
 import { assertAdminExtensionRelativePath, extensionRequestPath } from '~/runtime/admin-extensions/types'
 import {
   clearContributionFailures,

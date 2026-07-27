@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AdminExtensionSettingsCallout } from '~/utils/adminExtensions'
+import type { AdminExtensionSettingsCallout } from '~/utils/admin/adminExtensions'
 import { safeUrl } from '~/utils/sfUrl'
 
 const props = defineProps<{ callout: AdminExtensionSettingsCallout }>()

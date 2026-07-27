@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import { useAdminPage } from '~/composables/admin/useAdminPage'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import {
   type AssetInspectorSnapshot,
   useAdminAssetInspector
-} from '~/composables/useAdminAssetInspector'
+} from '~/composables/admin/useAdminAssetInspector'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
 defineOptions({ name: 'AdminExtensionAssetInspector' })

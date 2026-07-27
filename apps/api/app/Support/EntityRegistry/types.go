@@ -33,16 +33,16 @@ const (
 
 // EntityAction is a Host permission action against one entity type.
 const (
-	ActionCreate       = "create"
-	ActionRead         = "read"
-	ActionUpdate       = "update"
-	ActionDelete       = "delete"
-	ActionImport       = "import"
-	ActionExport       = "export"
-	ActionManageTerms  = "manage_terms"
-	ActionAssignTerms  = "assign_terms"
-	ActionReadField    = "read_field"
-	ActionWriteField   = "write_field"
+	ActionCreate      = "create"
+	ActionRead        = "read"
+	ActionUpdate      = "update"
+	ActionDelete      = "delete"
+	ActionImport      = "import"
+	ActionExport      = "export"
+	ActionManageTerms = "manage_terms"
+	ActionAssignTerms = "assign_terms"
+	ActionReadField   = "read_field"
+	ActionWriteField  = "write_field"
 )
 
 var (
@@ -101,24 +101,24 @@ type Declaration struct {
 	TaxonomyIDs []string `json:"taxonomyIds,omitempty"`
 
 	// Taxonomy fields (kind=taxonomy).
-	Hierarchical      bool     `json:"hierarchical,omitempty"`
-	EntityIDs         []string `json:"entityIds,omitempty"`
-	PermissionManage  string   `json:"permissionManage,omitempty"`
-	PermissionAssign  string   `json:"permissionAssign,omitempty"`
+	Hierarchical     bool     `json:"hierarchical,omitempty"`
+	EntityIDs        []string `json:"entityIds,omitempty"`
+	PermissionManage string   `json:"permissionManage,omitempty"`
+	PermissionAssign string   `json:"permissionAssign,omitempty"`
 
 	// Field fields (kind=field).
-	EntityID          string `json:"entityId,omitempty"`
-	Schema            string `json:"schema,omitempty"`
-	UIComponent       string `json:"uiComponent,omitempty"`
-	UIModule          string `json:"uiModule,omitempty"`
-	UIDigest          string `json:"uiDigest,omitempty"`
-	Required          bool   `json:"required,omitempty"`
-	Indexed           bool   `json:"indexed,omitempty"`
-	IndexKind         string `json:"indexKind,omitempty"`
+	EntityID             string `json:"entityId,omitempty"`
+	Schema               string `json:"schema,omitempty"`
+	UIComponent          string `json:"uiComponent,omitempty"`
+	UIModule             string `json:"uiModule,omitempty"`
+	UIDigest             string `json:"uiDigest,omitempty"`
+	Required             bool   `json:"required,omitempty"`
+	Indexed              bool   `json:"indexed,omitempty"`
+	IndexKind            string `json:"indexKind,omitempty"`
 	PermissionFieldRead  string `json:"permissionFieldRead,omitempty"`
 	PermissionFieldWrite string `json:"permissionFieldWrite,omitempty"`
-	Validation        string `json:"validation,omitempty"`
-	Order             int    `json:"order,omitempty"`
+	Validation           string `json:"validation,omitempty"`
+	Order                int    `json:"order,omitempty"`
 	// Priority orders competing field/taxonomy providers. Higher wins.
 	Priority int `json:"priority,omitempty"`
 }
@@ -147,12 +147,12 @@ type Snapshot struct {
 
 // PermissionDecision is the Host evaluation result for one action.
 type PermissionDecision struct {
-	Allowed        bool   `json:"allowed"`
-	Action         string `json:"action"`
-	TargetID       string `json:"targetId"`
-	PermissionKey  string `json:"permissionKey,omitempty"`
-	Policy         string `json:"policy,omitempty"`
-	Reason         string `json:"reason,omitempty"`
+	Allowed       bool   `json:"allowed"`
+	Action        string `json:"action"`
+	TargetID      string `json:"targetId"`
+	PermissionKey string `json:"permissionKey,omitempty"`
+	Policy        string `json:"policy,omitempty"`
+	Reason        string `json:"reason,omitempty"`
 }
 
 // IndexPlan is the Host-derived search/index projection for one entity type.
@@ -172,11 +172,11 @@ type IndexFieldPlan struct {
 
 // ImportExportPlan is the Host-derived import/export contract for one entity.
 type ImportExportPlan struct {
-	EntityID   string   `json:"entityId"`
-	Policy     string   `json:"policy"`
-	CanImport  bool     `json:"canImport"`
-	CanExport  bool     `json:"canExport"`
-	FieldIDs   []string `json:"fieldIds"`
+	EntityID    string   `json:"entityId"`
+	Policy      string   `json:"policy"`
+	CanImport   bool     `json:"canImport"`
+	CanExport   bool     `json:"canExport"`
+	FieldIDs    []string `json:"fieldIds"`
 	TaxonomyIDs []string `json:"taxonomyIds,omitempty"`
 }
 

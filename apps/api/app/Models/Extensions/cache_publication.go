@@ -25,7 +25,7 @@ type RuntimeCachePublicationBoundary interface {
 	QuarantineRuntimeCaches(context.Context, Extension) (RuntimeCachePublicationMutation, error)
 }
 
-func (s *Service) compensateLegacyCacheEnable(
+func (s *serviceCore) compensateLegacyCacheEnable(
 	ctx context.Context,
 	enabled Extension,
 	assetMutation exactAssetMutation,
@@ -61,7 +61,7 @@ func (s *Service) compensateLegacyCacheEnable(
 	return errors.Join(errs...)
 }
 
-func (s *Service) disableLegacyCachePlugin(
+func (s *serviceCore) disableLegacyCachePlugin(
 	ctx context.Context,
 	extension Extension,
 	assetMutation exactAssetMutation,
@@ -97,7 +97,7 @@ func (s *Service) disableLegacyCachePlugin(
 	return disabled, nil
 }
 
-func (s *Service) compensateLegacyCacheDisable(
+func (s *serviceCore) compensateLegacyCacheDisable(
 	assetMutation exactAssetMutation,
 	queryMutation RuntimeQueryPublicationMutation,
 	cacheMutation RuntimeCachePublicationMutation,

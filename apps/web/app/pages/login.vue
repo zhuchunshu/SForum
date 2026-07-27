@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SFLoginFormPage from '~/components/identity/SFLoginFormPage.vue'
 /** auth.login 路由壳：auth layout/middleware + outlet；表单岛为 Host 组件。 */
 definePageMeta({ layout: 'auth', middleware: 'guest' })
 </script>

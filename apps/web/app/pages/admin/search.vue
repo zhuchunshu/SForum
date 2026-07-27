@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
 import { apiErrorMessage } from '~/composables/useApiClient'
-import { useAdminPage } from '~/composables/useAdminPage'
-import { createAdminForumApi, type ReindexRun, type ReindexStatus } from '~/utils/adminForum'
+import { useAdminPage } from '~/composables/admin/useAdminPage'
+import { createAdminForumApi, type ReindexRun, type ReindexStatus } from '~/utils/admin/adminForum'
 
 definePageMeta({
   middleware: 'admin',

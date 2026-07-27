@@ -16,7 +16,7 @@ import (
 // Restart 是 Host 拥有的可恢复重启入口。普通重启先完整停用旧 runtime，
 // legacy -> Lifecycle V2 则在停用后以 exact CAS 晋升 staged 制品，再启用目标。
 // 任一步失败都保持已提交的安全状态；同一 Idempotency-Key 可继续未完成流程。
-func (s *Service) Restart(
+func (s *LifecycleService) Restart(
 	ctx context.Context,
 	actor identity.Actor,
 	id string,
@@ -123,7 +123,7 @@ func restartRequiresCapabilityConfirmation(target Extension) bool {
 	return capabilities.RequiresConfirmation(keys)
 }
 
-func (s *Service) preflightRestartTarget(ctx context.Context, target Extension) error {
+func (s *serviceCore) preflightRestartTarget(ctx context.Context, target Extension) error {
 	if err := requireArtifactAvailable(target); err != nil {
 		return err
 	}
@@ -136,7 +136,7 @@ func (s *Service) preflightRestartTarget(ctx context.Context, target Extension) 
 	return s.verifyExtension(ctx, target)
 }
 
-func (s *Service) prepareRestartTargetAuthority(
+func (s *serviceCore) prepareRestartTargetAuthority(
 	ctx context.Context,
 	actor identity.Actor,
 	target Extension,
@@ -167,7 +167,7 @@ func (s *Service) prepareRestartTargetAuthority(
 	return s.executableTrust.EnsureCompatibilityGrant(ctx, actor, target)
 }
 
-func (s *Service) promoteRestartTarget(
+func (s *serviceCore) promoteRestartTarget(
 	ctx context.Context,
 	current Extension,
 	target Extension,
@@ -214,7 +214,7 @@ func sameRestartArtifact(left Extension, right Extension) bool {
 		left.PackageDigest == right.PackageDigest
 }
 
-func (s *Service) auditRestart(
+func (s *serviceCore) auditRestart(
 	ctx context.Context,
 	actor identity.Actor,
 	source Extension,

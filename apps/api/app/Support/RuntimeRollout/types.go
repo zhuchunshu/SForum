@@ -12,22 +12,22 @@ import (
 const SchemaVersion = "sforum.runtime-rollout@1"
 
 const (
-	PhasePending    = "pending"
-	PhaseMigrating  = "migrating"
-	PhaseStaged     = "staged"
-	PhaseCanary     = "canary"
-	PhaseDraining   = "draining"
-	PhasePromoting  = "promoting"
-	PhaseActive     = "active"
+	PhasePending     = "pending"
+	PhaseMigrating   = "migrating"
+	PhaseStaged      = "staged"
+	PhaseCanary      = "canary"
+	PhaseDraining    = "draining"
+	PhasePromoting   = "promoting"
+	PhaseActive      = "active"
 	PhaseRollingBack = "rolling_back"
-	PhaseFailed     = "failed"
-	PhaseRolledBack = "rolled_back"
+	PhaseFailed      = "failed"
+	PhaseRolledBack  = "rolled_back"
 
-	HealthUnknown = "unknown"
-	HealthHealthy = "healthy"
+	HealthUnknown   = "unknown"
+	HealthHealthy   = "healthy"
 	HealthUnhealthy = "unhealthy"
 
-	DefaultCanaryPercent = 10
+	DefaultCanaryPercent  = 10
 	DefaultRetainVersions = 3
 )
 
@@ -55,7 +55,7 @@ type Plan struct {
 	// MigrationReady is set only after Host migration-once proof succeeds.
 	MigrationReady bool `json:"migrationReady"`
 	// CanaryPercent is 1-100 of admitted nodes in the first promote wave.
-	CanaryPercent int `json:"canaryPercent"`
+	CanaryPercent int    `json:"canaryPercent"`
 	Phase         string `json:"phase"`
 	// SnapshotID is the atomic multi-registry snapshot after promote.
 	SnapshotID string `json:"snapshotId,omitempty"`
@@ -77,10 +77,10 @@ type Plan struct {
 
 // NodeAck is one node's acknowledgement of a rollout phase.
 type NodeAck struct {
-	NodeID    string    `json:"nodeId"`
-	Phase     string    `json:"phase"`
-	Health    string    `json:"health"`
-	At        time.Time `json:"at"`
+	NodeID string    `json:"nodeId"`
+	Phase  string    `json:"phase"`
+	Health string    `json:"health"`
+	At     time.Time `json:"at"`
 	// Canary marks membership in the canary cohort.
 	Canary bool `json:"canary,omitempty"`
 }

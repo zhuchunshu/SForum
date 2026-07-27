@@ -7,7 +7,7 @@ const assert = (condition: unknown, message: string) => {
   if (!condition) throw new Error(message)
 }
 
-const permissions = read('apps/web/app/composables/usePermissions.ts')
+const permissions = read('apps/web/app/composables/identity/usePermissions.ts')
 assert(permissions.includes("moderationManage: 'moderation.manage'"), 'Missing moderation.manage frontend permission')
 assert(permissions.includes("moderationReview: 'moderation.review'"), 'Missing moderation.review frontend permission')
 
@@ -38,7 +38,7 @@ assert(workbenchShell.includes('SFPageOutlet'), 'Workbench route must use SFPage
 assert(workbenchShell.includes('page="moderation.review"'), 'Workbench route must declare moderation.review')
 assert(workbenchShell.includes('SFModerationReviewPage'), 'Workbench route must fail-closed to SFModerationReviewPage')
 
-const workbenchPage = read('apps/web/app/components/SFModerationReviewPage.vue')
+const workbenchPage = read('apps/web/app/components/moderation/SFModerationReviewPage.vue')
 assert(workbenchPage.includes("'pending'"), 'Workbench island must include the pending tab')
 assert(workbenchPage.includes("'reports'"), 'Workbench island must include the reports tab')
 assert(workbenchPage.includes("'history'"), 'Workbench island must include the history tab')
@@ -54,7 +54,7 @@ for (const action of ['approve', 'reject', 'keep_and_close', 'hide_and_close', '
 const composerShell = read('apps/web/app/pages/topics/new.vue')
 assert(composerShell.includes('SFPageOutlet'), 'Topic composer route must use SFPageOutlet')
 assert(composerShell.includes('SFTopicComposerPage'), 'Topic composer route must fail-closed to SFTopicComposerPage')
-const composer = read('apps/web/app/components/SFTopicComposerPage.vue')
+const composer = read('apps/web/app/components/forum/SFTopicComposerPage.vue')
 assert(composer.includes("created.status === 'pending'"), 'Topic composer island must handle pending publication')
 assert(composer.includes("submittedForReview"), 'Topic composer island must toast pending submissions')
 assert(!composer.includes('/my/content-review'), 'Pending submissions must not route to removed /my/content-review')
@@ -62,7 +62,7 @@ assert(!composer.includes('/my/content-review'), 'Pending submissions must not r
 const topicShell = read('apps/web/app/pages/t/[...path].vue')
 assert(topicShell.includes('SFPageOutlet'), 'Topic show route must use SFPageOutlet')
 assert(topicShell.includes('SFTopicShowPage'), 'Topic show route must fail-closed to SFTopicShowPage')
-const topicPage = read('apps/web/app/components/SFTopicShowPage.vue')
+const topicPage = read('apps/web/app/components/forum/SFTopicShowPage.vue')
 assert(topicPage.includes('replySubmittedForReview'), 'Comment composer island must handle pending publication')
 
 console.log('Moderation workbench validation passed')

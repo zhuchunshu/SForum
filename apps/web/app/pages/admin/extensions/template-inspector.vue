@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import { useAdminPage } from '~/composables/admin/useAdminPage'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import {
   type TemplateInspectorSnapshot,
   useAdminTemplateInspector
-} from '~/composables/useAdminTemplateInspector'
+} from '~/composables/admin/useAdminTemplateInspector'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
 defineOptions({ name: 'AdminExtensionTemplateInspector' })

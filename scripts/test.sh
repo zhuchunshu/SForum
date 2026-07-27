@@ -44,12 +44,12 @@ if [ -d apps/web/node_modules ]; then
   # P10/P13 product-path unit suites (trusted editor L2 + registry catalog admin consumer).
   echo "Running web unit tests for trusted editor L2 and registry catalogs..."
   (cd apps/web && bun test \
-    tests/editorL2Load.test.ts \
-    tests/adminRegistryCatalogs.test.ts \
-    tests/authProvidersPublicUi.test.ts \
-    tests/authRouteRendering.test.ts \
-    tests/adminLoginMethods.test.ts \
-    tests/accountSecurityM4b.test.ts)
+    tests/framework/editorL2Load.test.ts \
+    tests/admin/adminRegistryCatalogs.test.ts \
+    tests/identity/authProvidersPublicUi.test.ts \
+    tests/identity/authRouteRendering.test.ts \
+    tests/admin/adminLoginMethods.test.ts \
+    tests/identity/accountSecurityM4b.test.ts)
   echo "Running admin framework validation..."
   bun tests/validate-admin-framework.ts
 else

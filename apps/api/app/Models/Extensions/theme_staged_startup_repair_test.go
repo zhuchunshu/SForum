@@ -94,9 +94,9 @@ func TestFailClosedThemeRuntimePromotesStagedDefaultWhenActiveBroken(t *testing.
 }
 
 type digestAwarePageRegistry struct {
-	badDigest         string
-	registeredDigest  string
-	cleared           map[string]bool
+	badDigest        string
+	registeredDigest string
+	cleared          map[string]bool
 }
 
 func (r *digestAwarePageRegistry) PreflightThemePackage(_ context.Context, extension Extension, _ string) error {

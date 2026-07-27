@@ -1152,6 +1152,7 @@ func TestServiceEnableRunsPluginPreflightBeforeStatusChange(t *testing.T) {
 }
 
 func TestServiceEnableRejectsMissingInstalledPackage(t *testing.T) {
+	// 生产 fail-closed：制品路径不存在时在 store 写入前返回 ErrArtifactMissing。
 	missing := uploadedExtension("ghost.plugin", TypePlugin)
 	missing.Manifest.Backend = ManifestBackend{}
 	missing.PackagePath = filepath.Join(t.TempDir(), "ghost.plugin", "1.0.0", "package.zip")
@@ -1161,14 +1162,15 @@ func TestServiceEnableRejectsMissingInstalledPackage(t *testing.T) {
 	service := NewServiceWithRuntime(store, t.TempDir(), &fakeRuntimeManager{})
 
 	_, err := service.Enable(context.Background(), extensionManager(), missing.ID, EnableInput{ConfirmCapabilities: true})
-	if !errors.Is(err, ErrPreflightFailed) {
-		t.Fatalf("expected missing package preflight failure, got %v", err)
+	if !errors.Is(err, ErrArtifactMissing) {
+		t.Fatalf("expected missing artifact failure, got %v", err)
 	}
 	if store.enabledID != "" {
 		t.Fatalf("missing package should not enable extension, got %q", store.enabledID)
 	}
-	if last := store.events[len(store.events)-1]; last.Action != EventEnableFailed || last.Message == "" {
-		t.Fatalf("expected enable failure event, got %#v", store.events)
+	// 缺失制品在启用入口直接 fail-closed，尚未进入 preflight/event 记录路径。
+	if len(store.events) != 0 {
+		t.Fatalf("missing artifact must not record enable events, got %#v", store.events)
 	}
 }
 func TestServiceEnableRejectsTamperedDigestBackedPackage(t *testing.T) {
@@ -2127,7 +2129,8 @@ func installedExtension(id string, extensionType string, backend ManifestBackend
 			SForumVersion: "^1.0.0",
 			Backend:       backend,
 		},
-		PackagePath: "/tmp/demo.zip",
+		// 通用夹具表示制品存在；缺失制品用例会显式覆盖为不存在的路径。
+		PackagePath: os.TempDir(),
 		InstalledAt: time.Now(),
 		UpdatedAt:   time.Now(),
 	}
@@ -2175,6 +2178,8 @@ func contributionTestPlugin(id string, status string, contributions []ManifestCo
 			SForumVersion: "^1.0.0",
 			Contributions: contributions,
 		},
+		// 通用夹具表示制品存在；缺失制品用例会显式覆盖为不存在的路径。
+		PackagePath: os.TempDir(),
 		InstalledAt: time.Now(),
 		UpdatedAt:   time.Now(),
 	}

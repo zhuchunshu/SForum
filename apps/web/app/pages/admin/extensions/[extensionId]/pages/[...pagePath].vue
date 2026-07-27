@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useAdminTabs } from '~/composables/admin/useAdminTabs'
+import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
 import SFExtensionSettingsRenderer from '~/components/extensions/settings/SFExtensionSettingsRenderer.vue'
 import SFTrustedSettingsComponent from '~/components/extensions/settings/SFTrustedSettingsComponent.vue'
 import { apiErrorMessage } from '~/composables/useApiClient'
@@ -14,7 +16,7 @@ import {
   type AdminExtensionSettings,
   type AdminExtensionSettingsAction,
   type AdminExtensionSettingsActionResult
-} from '~/utils/adminExtensions'
+} from '~/utils/admin/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',

@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
-	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
+	audit "github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
 	themecompiler "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeCompiler"
@@ -31,7 +31,7 @@ func WithTrustRevoker(revoker TrustRevoker) ServiceOption {
 }
 
 // InstallArchive 安装或同 id 升级上传包（兼容旧调用方）。
-func (s *Service) InstallArchive(ctx context.Context, actor identity.Actor, input ArchiveInput) (Extension, error) {
+func (s *LifecycleService) InstallArchive(ctx context.Context, actor identity.Actor, input ArchiveInput) (Extension, error) {
 	result, err := s.InstallOrUpgradeArchive(ctx, actor, input)
 	if err != nil {
 		return Extension{}, err
@@ -41,7 +41,7 @@ func (s *Service) InstallArchive(ctx context.Context, actor identity.Actor, inpu
 
 // InstallOrUpgradeArchive 返回完整升级元数据（F2.4）。
 // V3 静态上传只保存不可变候选；活动 runtime、状态、信任和 provider 选择均保持不变。
-func (s *Service) InstallOrUpgradeArchive(ctx context.Context, actor identity.Actor, input ArchiveInput) (InstallResult, error) {
+func (s *LifecycleService) InstallOrUpgradeArchive(ctx context.Context, actor identity.Actor, input ArchiveInput) (InstallResult, error) {
 	// 上传前先挡住无扩展管理权限的调用者；包类型只能在有界静态解析后确定。
 	if !canManagePlugins(actor) && !canManageThemes(actor) {
 		return InstallResult{}, identity.ErrPermissionDenied
@@ -196,7 +196,7 @@ func (s *Service) InstallOrUpgradeArchive(ctx context.Context, actor identity.Ac
 
 // discardUnreferencedUploadedSnapshot runs while the per-digest lock is held.
 // Any Store uncertainty or active/staged reference retains the immutable bytes.
-func (s *Service) discardUnreferencedUploadedSnapshot(ctx context.Context, snapshot *extensionpackage.OwnedSnapshot) error {
+func (s *serviceCore) discardUnreferencedUploadedSnapshot(ctx context.Context, snapshot *extensionpackage.OwnedSnapshot) error {
 	if snapshot == nil || !snapshot.Created() {
 		return nil
 	}
@@ -234,14 +234,14 @@ func samePackagePath(left string, right string) bool {
 	return left != "" && right != "" && filepath.Clean(left) == filepath.Clean(right)
 }
 
-func (s *Service) Uninstall(ctx context.Context, actor identity.Actor, id string, input UninstallInput) error {
+func (s *LifecycleService) Uninstall(ctx context.Context, actor identity.Actor, id string, input UninstallInput) error {
 	_, err := s.UninstallWithResult(ctx, actor, id, input)
 	return err
 }
 
 // UninstallWithResult 先检查 durable replay，再选择 V2 coordinator 或 V1 兼容路径。
 // V2 的 package/runtime/authority 会保留到 terminal success，物理删除只能由 exact-receipt finalizer 执行。
-func (s *Service) UninstallWithResult(ctx context.Context, actor identity.Actor, id string, input UninstallInput) (UninstallResult, error) {
+func (s *LifecycleService) UninstallWithResult(ctx context.Context, actor identity.Actor, id string, input UninstallInput) (UninstallResult, error) {
 	if !canManagePlugins(actor) {
 		return UninstallResult{}, identity.ErrPermissionDenied
 	}
@@ -322,13 +322,13 @@ func (s *Service) UninstallWithResult(ctx context.Context, actor identity.Actor,
 
 	// extension_events 在硬删除时 CASCADE；身份保留时仅写宿主 audit。
 	s.appendAudit(ctx, actor, audit.ActionExtensionUninstalled, map[string]any{
-		"extensionId":       extension.ID,
-		"type":              extension.Type,
-		"version":           extension.Version,
-		"retainSettings":    input.RetainSettings,
-		"retainPackage":     input.RetainPackage,
-		"settingsDeleted":   !input.RetainSettings && !identityRetained,
-		"identityRetained":  identityRetained,
+		"extensionId":      extension.ID,
+		"type":             extension.Type,
+		"version":          extension.Version,
+		"retainSettings":   input.RetainSettings,
+		"retainPackage":    input.RetainPackage,
+		"settingsDeleted":  !input.RetainSettings && !identityRetained,
+		"identityRetained": identityRetained,
 		// v1：settings 随 extensions CASCADE 删除；RetainSettings 记入审计供后续独立备份表使用。
 	})
 	return UninstallResult{Uninstalled: true, ExtensionID: extension.ID}, nil
@@ -345,7 +345,7 @@ func isPublishedPluginRuntimeIdentityRetained(err error) bool {
 		strings.Contains(msg, "extension_version_id_extensi_fkey")
 }
 
-func (s *Service) replayLifecycleUninstall(
+func (s *serviceCore) replayLifecycleUninstall(
 	ctx context.Context,
 	actor identity.Actor,
 	extensionID string,
@@ -392,7 +392,7 @@ func (s *Service) replayLifecycleUninstall(
 // ApplyDeclaredMigrations 将 manifest.migrations 登记到账本（F2.4 v1）。
 // 不执行任意 SQL：只校验文件并记录 checksum，避免插件写核心库。
 // 非内置后端插件的迁移登记仍限 super_admin，与启用边界一致。
-func (s *Service) ApplyDeclaredMigrations(ctx context.Context, actor identity.Actor, id string) ([]MigrationRecord, error) {
+func (s *LifecycleService) ApplyDeclaredMigrations(ctx context.Context, actor identity.Actor, id string) ([]MigrationRecord, error) {
 	if !canManagePlugins(actor) {
 		return nil, identity.ErrPermissionDenied
 	}
@@ -423,7 +423,7 @@ func (s *Service) ApplyDeclaredMigrations(ctx context.Context, actor identity.Ac
 }
 
 // ListMigrations 读取迁移账本。
-func (s *Service) ListMigrations(ctx context.Context, actor identity.Actor, id string) ([]MigrationRecord, error) {
+func (s *LifecycleService) ListMigrations(ctx context.Context, actor identity.Actor, id string) ([]MigrationRecord, error) {
 	if !canViewExtensions(actor) && !canManagePlugins(actor) {
 		return nil, identity.ErrPermissionDenied
 	}
@@ -465,11 +465,11 @@ type ProviderSlotSelectionInvalidator interface {
 
 // clearPluginProviderSelections 是 V1/V2 共用的 Host-owned 幂等清理边界。
 // 它不触碰 runtime；V2 的进程 drain 只能由 durable coordinator 管理。
-func (s *Service) clearPluginProviderSelections(ctx context.Context, extensionID string) error {
+func (s *serviceCore) clearPluginProviderSelections(ctx context.Context, extensionID string) error {
 	return s.clearPluginNonRouteProviderSelections(ctx, extensionID)
 }
 
-func (s *Service) clearPluginProviderSelectionsWithAudit(
+func (s *serviceCore) clearPluginProviderSelectionsWithAudit(
 	ctx context.Context,
 	extensionID string,
 	actorUserID int64,
@@ -499,7 +499,7 @@ func (s *Service) clearPluginProviderSelectionsWithAudit(
 	return s.clearPluginNonRouteProviderSelections(ctx, extensionID)
 }
 
-func (s *Service) clearPluginNonRouteProviderSelections(ctx context.Context, extensionID string) error {
+func (s *serviceCore) clearPluginNonRouteProviderSelections(ctx context.Context, extensionID string) error {
 	if selectionStore, ok := s.store.(mailProviderSelectionStore); ok {
 		selected, err := selectionStore.SelectedMailProvider(ctx)
 		if err != nil {
@@ -521,7 +521,7 @@ func (s *Service) clearPluginNonRouteProviderSelections(ctx context.Context, ext
 }
 
 // drainPluginRuntime 禁用/升级/卸载共用的 V1 drain：停子进程、清 provider、发 disabled hook。
-func (s *Service) drainPluginRuntime(ctx context.Context, extension Extension) error {
+func (s *serviceCore) drainPluginRuntime(ctx context.Context, extension Extension) error {
 	if extension.Type != TypePlugin {
 		return nil
 	}
@@ -540,7 +540,7 @@ func (s *Service) drainPluginRuntime(ctx context.Context, extension Extension) e
 	return nil
 }
 
-func (s *Service) recordDeclaredMigrations(ctx context.Context, extension Extension) ([]MigrationRecord, error) {
+func (s *serviceCore) recordDeclaredMigrations(ctx context.Context, extension Extension) ([]MigrationRecord, error) {
 	if len(extension.Manifest.Migrations) == 0 {
 		return nil, nil
 	}

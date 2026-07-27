@@ -1,16 +1,16 @@
 <script setup lang="ts">
+import { usePermissionText } from '~/composables/identity/usePermissionText'
+import { useAdminListSurfaces } from '~/composables/admin/useAdminListSurfaces'
 import SFAdminSurfaceOutlet from '~/components/admin/SFAdminSurfaceOutlet.vue'
 import { apiErrorMessage } from '~/composables/useApiClient'
-import { useAdminPage } from '~/composables/useAdminPage'
-import { paginateItems } from '~/utils/adminExtensions'
+import { useAdminPage } from '~/composables/admin/useAdminPage'
+import { paginateItems } from '~/utils/admin/adminExtensions'
 import type {
-  AdminUserDetail,
-  AdminUserList,
+  AdminUserDetail, AdminUserList,
   AdminUserSummary,
-  Permission,
-  Role,
+  Permission, Role,
   UserStatus
-} from '~/utils/adminUsers'
+} from '~/utils/admin/adminUsers'
 
 definePageMeta({
   middleware: 'admin',

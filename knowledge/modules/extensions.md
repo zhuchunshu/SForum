@@ -15,30 +15,30 @@ does not rebuild Nuxt.
 - Manifest V3, trust/recovery, lifecycle ledger, Host API v2, registry
   families, Page Registry themes, buildless settings UI, catalogs, and P0-P12
   phase gates are present.
-- P13 implementable parity work is closed, but the platform is **not 100%**:
-  compatibility deletions remain APILTS-gated, and the production-rewire
-  acceptance review reopened eight call-chain findings.
-- Do not remove `sforum.protocol.v1` or
-  `sforum.theme.l1.request-time-loader` before RemoveAfter around 2026-11-28,
-  live zero-shim evidence, and the deletion checklist pass.
-- Fail-closed `SFPageOutlet` remains a Host emergency surface by design.
-- The 404 error boundary now accepts selected-theme L1 only when its rendered
-  source and exact extension/version/package digest/node revision match the L0
-  skin response. It stages both layers before one synchronous commit; mismatch
-  or transport failure clears theme identity/CSS and renders complete Core.
-- Forum content revisions V1 keeps history Core-owned: Core exposes
-  authorized topic/comment revision and admin content read routes, but no raw
-  revision query or mutation provider is open to plugins. Safe observe payloads
-  still must not include raw source, reason text, IPs, or attachment provider
-  internals. `topic.updated` / `comment.updated` expose revision metadata only;
-  plugins have no raw-history query, restore, redaction, or CAS override surface.
+- Architecture debt M0-M12 is complete.
+- The legacy `Models/Extensions` facade delegates to Catalog, Lifecycle,
+  Theme, and Settings collaborators. The runtime `Manager` delegates to
+  RuntimeSupervisor, InstanceAdmission, RuntimeInvoker, and
+  RuntimeEventsProviders. Both packages retain one mutable owner per state
+  family and stay under their ratcheted file/receiver caps.
+- M6 full gate and browser QA passed. M7 focused tests, typecheck, build,
+  architecture validation, and V3 catalog validation passed.
+- Compatibility facades remain only for exact allowlisted consumers and
+  tighten as those consumers migrate.
+- Stable contracts now live in `Support/ExtensionRuntime`,
+  `ExtensionProtocol`, `ExtensionDatabase`, and `ExtensionComposition`.
+  Product Models cannot import the legacy runtime package. The legacy package
+  retains named Manager, ProtocolStarter, Protocol V2 Host, lifecycle, SDK/CLI,
+  and APILTS V1 compatibility consumers under an exact architecture allowlist.
+  Decision: `../decisions/2026-07-28-extension-stable-package-boundaries.md`.
 
 Authoritative sources:
 
 - Architecture: `../decisions/2026-07-13-trusted-plugin-theme-platform-v3.md`
-- Parent task book: `../plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
+- Parent task book:
+  `../plans/archive/2026-07/2026-07-28-architecture-boundary-debt-repayment.md`
 - Progress/residual ledger:
-  `../plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
+  `../plans/archive/2026-07/2026-07-28-architecture-boundary-debt-repayment.md`
 - Production remediation:
   `../plans/2026-07-22-v3-production-rewire-honesty-remediation.md`
 - Generated traceability: `../../docs/extensions/v3/catalogs/traceability.md`

@@ -11,7 +11,7 @@ import (
 // PluginJobContract loads one enabled plugin's immutable manifest contract.
 // The Host API combines it with the authenticated runtime trust grant before
 // persisting a River row.
-func (s *Service) PluginJobContract(ctx context.Context, extensionID, jobName string) (supportjobs.PluginJobContract, error) {
+func (s *CatalogService) PluginJobContract(ctx context.Context, extensionID, jobName string) (supportjobs.PluginJobContract, error) {
 	if s == nil || s.safeMode {
 		return supportjobs.PluginJobContract{}, ErrExtensionDisabled
 	}

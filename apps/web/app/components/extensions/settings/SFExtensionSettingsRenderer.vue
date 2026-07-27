@@ -2,6 +2,7 @@
 import SFExtensionSettingsActions from './SFExtensionSettingsActions.vue'
 import SFExtensionSettingsCallout from './SFExtensionSettingsCallout.vue'
 import SFExtensionSettingsGroup from './SFExtensionSettingsGroup.vue'
+import SFAdminFormFooter from '~/components/admin/SFAdminFormFooter.vue'
 
 import type {
   AdminExtensionSettingValue,
@@ -9,7 +10,7 @@ import type {
   AdminExtensionSettingsAction,
   AdminExtensionSettingsActionResult,
   AdminExtensionSettingsGroup
-} from '~/utils/adminExtensions'
+} from '~/utils/admin/adminExtensions'
 
 const props = defineProps<{
   settings: AdminExtensionSettings | null

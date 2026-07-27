@@ -18,12 +18,12 @@ import (
 
 // Client is the Host outbound HTTP runtime.
 type Client struct {
-	mu            sync.Mutex
-	safeClient    *http.Client
-	rawClient     *http.Client
-	secrets       *secretstore.Service
-	allowHTTP     bool
-	allowRaw      bool
+	mu             sync.Mutex
+	safeClient     *http.Client
+	rawClient      *http.Client
+	secrets        *secretstore.Service
+	allowHTTP      bool
+	allowRaw       bool
 	defaultTimeout time.Duration
 
 	requests, successes, failures, ssrfDenies, retries, bytesIn atomic.Uint64

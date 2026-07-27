@@ -14,11 +14,11 @@ import (
 )
 
 const (
-	VersionV2                  = "sforum.host/v2"
-	QueryOwnSettingsID         = "sforum.extensions.settings.own"
-	QueryOwnSettingsVersion    = "1"
-	QueryOwnSettingsSchemaID   = "sforum.extensions.settings.own.result"
-	QueryOwnSettingsSchemaV1   = "1"
+	VersionV2                = "sforum.host/v2"
+	QueryOwnSettingsID       = "sforum.extensions.settings.own"
+	QueryOwnSettingsVersion  = "1"
+	QueryOwnSettingsSchemaID = "sforum.extensions.settings.own.result"
+	QueryOwnSettingsSchemaV1 = "1"
 	// QueryExtensionInventoryID 是 extensions.read 对应的稳定去敏清单查询。
 	QueryExtensionInventoryID       = "sforum.core.extensions.inventory.list"
 	QueryExtensionInventoryVersion  = "1"

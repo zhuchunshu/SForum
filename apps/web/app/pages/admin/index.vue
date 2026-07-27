@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
 import { apiErrorMessage } from '~/composables/useApiClient'
-import { useAdminPage } from '~/composables/useAdminPage'
+import { useAdminPage } from '~/composables/admin/useAdminPage'
 import SFAdminOverviewTrendTrio from '~/components/admin/SFAdminOverviewTrendTrio.vue'
 import {
   formatOverviewBytes,
@@ -12,7 +13,7 @@ import {
   type AdminOverview,
   type AdminOverviewAction,
   type AdminOverviewExtensionWidget
-} from '~/utils/adminOverview'
+} from '~/utils/admin/adminOverview'
 
 definePageMeta({
   middleware: 'admin',

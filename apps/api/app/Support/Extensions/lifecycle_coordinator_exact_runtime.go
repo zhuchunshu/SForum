@@ -46,7 +46,7 @@ func NewExactLifecycleCoordinatorRuntimeAdapter(
 // coordinator adapter allowed to use this Manager's private process starter.
 // Bootstrap therefore cannot accidentally pair admission from one Manager
 // with process execution from another ProtocolStarter.
-func (m *Manager) NewExactLifecycleCoordinatorRuntimeAdapter() (*ExactLifecycleCoordinatorRuntimeAdapter, error) {
+func (m *InstanceAdmission) NewExactLifecycleCoordinatorRuntimeAdapter() (*ExactLifecycleCoordinatorRuntimeAdapter, error) {
 	if m == nil {
 		return nil, ErrRuntimeAdmissionInvalid
 	}
@@ -403,3 +403,12 @@ func exactCoordinatorInvalid(format string, args ...any) error {
 }
 
 var _ extensions.LifecycleCoordinatorRuntime = (*ExactLifecycleCoordinatorRuntimeAdapter)(nil)
+
+// Compatibility facade: runtime logic is owned by focused collaborators.
+
+func (m *Manager) NewExactLifecycleCoordinatorRuntimeAdapter() (*ExactLifecycleCoordinatorRuntimeAdapter, error) {
+	if m == nil {
+		return nil, ErrRuntimeAdmissionInvalid
+	}
+	return m.admission.NewExactLifecycleCoordinatorRuntimeAdapter()
+}

@@ -1,3 +1,5 @@
+import { useAuthSession } from '~/composables/identity/useAuthSession'
+import { useAuthReturnNavigation } from '~/composables/identity/useAuthReturnNavigation'
 export default defineNuxtRouteMiddleware(async (to) => {
   const { user, status, refresh } = useAuthSession()
 

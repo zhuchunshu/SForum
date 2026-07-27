@@ -12,7 +12,7 @@ type exactRouteStreamInstanceInvoker interface {
 // OpenRouteStreamInstance delegates only after the caller has acquired the
 // exact runtime's route admission lease. The stream lifetime therefore remains
 // visible to drain and upgrade coordination without double-counting leases.
-func (m *Manager) OpenRouteStreamInstance(
+func (m *RuntimeInvoker) OpenRouteStreamInstance(
 	ctx context.Context,
 	identity RuntimeInstanceIdentity,
 	request ProtocolV2RouteStreamRequest,
@@ -85,3 +85,13 @@ func (s *ProtocolStarter) OpenRouteStreamInstance(
 }
 
 var _ exactRouteStreamInstanceInvoker = (*ProtocolStarter)(nil)
+
+// Compatibility facade: runtime logic is owned by focused collaborators.
+
+func (m *Manager) OpenRouteStreamInstance(
+	ctx context.Context,
+	identity RuntimeInstanceIdentity,
+	request ProtocolV2RouteStreamRequest,
+) (*ProtocolV2RouteStream, error) {
+	return m.invoker.OpenRouteStreamInstance(ctx, identity, request)
+}

@@ -22,8 +22,8 @@ var (
 
 // Document is a versioned settings payload for one extension.
 type Document struct {
-	SchemaVersion string            `json:"schemaVersion"`
-	ExtensionID   string            `json:"extensionId"`
+	SchemaVersion string `json:"schemaVersion"`
+	ExtensionID   string `json:"extensionId"`
 	// DataVersion is the settings data schema version (migrated by Host).
 	DataVersion int               `json:"dataVersion"`
 	Values      map[string]string `json:"values"`
@@ -37,11 +37,11 @@ type Document struct {
 
 // FieldSchema describes one settings field for validation and conditionals.
 type FieldSchema struct {
-	Name       string   `json:"name"`
-	Type       string   `json:"type"` // string|number|boolean|secret|select
-	Required   bool     `json:"required,omitempty"`
-	Default    string   `json:"default,omitempty"`
-	Options    []string `json:"options,omitempty"`
+	Name     string   `json:"name"`
+	Type     string   `json:"type"` // string|number|boolean|secret|select
+	Required bool     `json:"required,omitempty"`
+	Default  string   `json:"default,omitempty"`
+	Options  []string `json:"options,omitempty"`
 	// VisibleWhen is "field=value" simple condition; empty = always visible.
 	VisibleWhen string `json:"visibleWhen,omitempty"`
 	Secret      bool   `json:"secret,omitempty"`

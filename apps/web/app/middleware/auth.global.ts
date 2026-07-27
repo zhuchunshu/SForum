@@ -1,3 +1,4 @@
+import { useAuthSession } from '~/composables/identity/useAuthSession'
 export default defineNuxtRouteMiddleware(async (to) => {
   if (!to.meta.requiresAuth) {
     return

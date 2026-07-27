@@ -296,7 +296,6 @@ func writeTemplateInspectorFile(t *testing.T, root, relative, body string) {
 	}
 }
 
-
 func newTemplateInspectorTestApp(t *testing.T, configured bool) (*fiber.App, *pages.ThemeRuntimeRegistry) {
 	t.Helper()
 	manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})

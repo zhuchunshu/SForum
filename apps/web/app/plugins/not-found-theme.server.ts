@@ -1,4 +1,5 @@
-import { isThemeableSystemErrorStatus, systemErrorPageIdForStatus } from '~/utils/errorPage'
+import { useSystemErrorPagePresentation } from '~/composables/errors/useSystemErrorPagePresentation'
+import { isThemeableSystemErrorStatus, systemErrorPageIdForStatus } from '~/utils/errors/errorPage'
 
 /** 服务端内部错误请求在 Vue 首轮渲染前准备系统错误页主题快照。 */
 export default defineNuxtPlugin({

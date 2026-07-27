@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
+import { useAdminPage } from '~/composables/admin/useAdminPage'
 /**
  * 应用商城货架（01C 粘性筛选）。
  * kind 区分主题 / 插件目录；当前为本地占位数据，不接远端 API。

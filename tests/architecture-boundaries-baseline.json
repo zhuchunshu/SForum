@@ -1,21 +1,15 @@
 {
   "version": 1,
   "legacyLargeFiles": {
-    "apps/api/app/Http/Controllers/Extensions/controller.go": 1015,
-    "apps/api/app/Http/Controllers/Identity/controller.go": 1227,
     "apps/api/app/Http/Controllers/Pages/controller.go": 1113,
-    "apps/api/app/Http/core_guard_authorizer.go": 1139,
     "apps/api/app/Models/Attachments/service.go": 1225,
     "apps/api/app/Models/Extensions/service_package.go": 1016,
-    "apps/api/app/Models/Forum/postgres_store.go": 1180,
     "apps/api/app/Models/Forum/postgres_store_ops.go": 1626,
-    "apps/api/app/Models/Forum/service.go": 1111,
+    "apps/api/app/Models/Forum/service.go": 1109,
     "apps/api/app/Models/Forum/service_ops.go": 1270,
     "apps/api/app/Models/Identity/external_auth_service.go": 1046,
-    "apps/api/app/Models/Identity/postgres_store.go": 1304,
     "apps/api/app/Models/Identity/service.go": 1091,
     "apps/api/app/Models/Options/service.go": 1237,
-    "apps/api/app/Models/Options/service_normalize.go": 1014,
     "apps/api/app/Support/ExtensionManifest/manifest.go": 1035,
     "apps/api/app/Support/Extensions/lifecycle_registry_publication.go": 1166,
     "apps/api/app/Support/Extensions/plugin_runtime_full_set.go": 1015,
@@ -25,36 +19,121 @@
     "apps/api/app/Support/IdentityRegistry/postgres.go": 1008,
     "apps/api/app/Support/Pages/registry.go": 1253,
     "apps/api/app/Support/Pages/theme_runtime.go": 1019,
-    "apps/api/bootstrap/api_assembly.go": 1380,
-    "apps/web/app/components/SFNavbar.vue": 1096,
-    "apps/web/app/components/SFRegisterFormPage.vue": 1065,
-    "apps/web/app/components/SFTopicShowPage.vue": 1409,
-    "apps/web/app/composables/useAdminExtensionsManager.ts": 1010,
+    "apps/web/app/components/SFNavbar.vue": 1095,
+    "apps/web/app/components/identity/SFRegisterFormPage.vue": 1065,
+    "apps/web/app/components/forum/SFTopicShowPage.vue": 1409,
+    "apps/web/app/composables/admin/useAdminExtensionsManager.ts": 999,
     "apps/web/app/composables/useWebOptions.ts": 1027,
-    "apps/web/app/pages/admin/settings/index.vue": 2218,
     "apps/web/app/pages/admin/users.vue": 1595
   },
-  "flatDirectoryCaps": [
+  "rootDirectoryAllowlists": [
     {
       "path": "apps/web/app/components",
-      "extensions": [".vue", ".css"],
-      "maxFiles": 102
+      "files": [
+        "SFAlert.vue",
+        "SFAvatar.vue",
+        "SFAvatarGroup.vue",
+        "SFBadge.vue",
+        "SFButton.vue",
+        "SFCard.vue",
+        "SFEditor.vue",
+        "SFEmptyState.vue",
+        "SFExtensionWidget.vue",
+        "SFFooter.vue",
+        "SFHostPublicChrome.vue",
+        "SFIconPicker.vue",
+        "SFInput.vue",
+        "SFNavbar.vue",
+        "SFPageOutlet.vue",
+        "SFPageOutletRender.vue",
+        "SFPageOutletResolver.vue",
+        "SFPagination.vue",
+        "SFProgress.vue",
+        "SFRegionOutlet.vue",
+        "SFSearch.vue",
+        "SFSkeleton.vue",
+        "SFSystemThemeNode.vue",
+        "SFSystemThemeTemplate.vue",
+        "SFTabs.vue",
+        "SFThemeTemplate.vue",
+        "SFToast.vue",
+        "SFToggle.vue"
+      ]
     },
     {
       "path": "apps/web/app/composables",
-      "extensions": [".ts"],
-      "maxFiles": 52
+      "files": [
+        "useApiClient.ts",
+        "useApiConnectionError.ts",
+        "useSiteDateTime.ts",
+        "useWebOptions.ts"
+      ]
     },
     {
       "path": "apps/web/app/utils",
-      "extensions": [".ts"],
-      "maxFiles": 36
+      "files": [
+        "iconPicker.ts",
+        "pageResolve.ts",
+        "publicPagination.ts",
+        "sfEditor.ts",
+        "sfSanitize.ts",
+        "sfUrl.ts",
+        "siteDateTime.ts"
+      ]
     },
     {
       "path": "apps/web/tests",
-      "extensions": [".ts", ".js", ".mjs"],
-      "maxFiles": 89
-    },
+      "files": []
+    }
+  ],
+  "legacyExtensionsImportAllowlist": [
+    "apps/api/app/Http/Controllers/Extensions/admin_surfaces.go",
+    "apps/api/app/Http/Controllers/Extensions/controller.go",
+    "apps/api/app/Http/Controllers/Extensions/provider_slots.go",
+    "apps/api/app/Http/Controllers/Mail/controller.go",
+    "apps/api/app/Http/plugin_guard_runtime.go",
+    "apps/api/app/Http/route_dispatcher.go",
+    "apps/api/app/Http/route_dispatcher_stream_v2.go",
+    "apps/api/app/Http/route_dispatcher_v2.go",
+    "apps/api/app/Http/route_dispatcher_websocket.go",
+    "apps/api/app/Http/route_failure_recorder.go",
+    "apps/api/app/Http/route_request_authority.go",
+    "apps/api/app/Jobs/Notifications/deliver_mail.go",
+    "apps/api/app/Jobs/Notifications/render.go",
+    "apps/api/app/Providers/extensions.go",
+    "apps/api/app/Providers/mail.go",
+    "apps/api/app/Support/CompatFarm/run.go",
+    "apps/api/bootstrap/api_assembly.go",
+    "apps/api/bootstrap/api_assembly_domains.go",
+    "apps/api/bootstrap/api_assembly_extension_restore.go",
+    "apps/api/bootstrap/api_assembly_extensions.go",
+    "apps/api/bootstrap/api_assembly_http.go",
+    "apps/api/bootstrap/api_assembly_infrastructure.go",
+    "apps/api/bootstrap/app.go",
+    "apps/api/bootstrap/extension_lifecycle.go",
+    "apps/api/bootstrap/extension_lifecycle_cleanup.go",
+    "apps/api/bootstrap/extension_lifecycle_cleanup_postgres.go",
+    "apps/api/bootstrap/navigation_runtime.go",
+    "apps/api/bootstrap/plugin_job_admission.go",
+    "apps/api/bootstrap/plugin_runtime_coordinator.go",
+    "apps/api/bootstrap/plugin_schedules.go",
+    "apps/api/bootstrap/plugin_service_admission.go",
+    "apps/api/bootstrap/query_registry.go",
+    "apps/api/bootstrap/search_adapter.go",
+    "apps/api/bootstrap/seo_registry.go",
+    "apps/api/bootstrap/session_policy_evaluation.go",
+    "apps/api/bootstrap/worker.go",
+    "apps/api/cmd/sforum/plugin_command.go",
+    "apps/api/cmd/sforum/plugin_command_runtime.go",
+    "apps/api/sdk/plugin/catalogs.go",
+    "apps/api/sdk/plugin/contract.go",
+    "apps/api/sdk/plugin/protocol.go",
+    "apps/api/sdk/plugin/v2/host.go",
+    "apps/api/sdk/plugin/v2/providers.go",
+    "apps/api/sdk/plugin/v2/runtime.go",
+    "apps/api/sdk/plugin/v2/seo.go"
+  ],
+  "flatDirectoryCaps": [
     {
       "path": "apps/api/app/Support/Extensions",
       "extensions": [".go"],
@@ -72,12 +151,62 @@
     {
       "path": "apps/api/app/Support/Extensions",
       "type": "Manager",
-      "maxMethods": 117
+      "maxMethods": 72
+    },
+    {
+      "path": "apps/api/app/Support/Extensions",
+      "type": "RuntimeSupervisor",
+      "maxMethods": 7
+    },
+    {
+      "path": "apps/api/app/Support/Extensions",
+      "type": "InstanceAdmission",
+      "maxMethods": 23
+    },
+    {
+      "path": "apps/api/app/Support/Extensions",
+      "type": "RuntimeInvoker",
+      "maxMethods": 28
+    },
+    {
+      "path": "apps/api/app/Support/Extensions",
+      "type": "RuntimeEventsProviders",
+      "maxMethods": 11
+    },
+    {
+      "path": "apps/api/app/Support/Extensions",
+      "type": "managerCore",
+      "maxMethods": 45
     },
     {
       "path": "apps/api/app/Models/Extensions",
       "type": "Service",
-      "maxMethods": 151
+      "maxMethods": 72
+    },
+    {
+      "path": "apps/api/app/Models/Extensions",
+      "type": "CatalogService",
+      "maxMethods": 22
+    },
+    {
+      "path": "apps/api/app/Models/Extensions",
+      "type": "LifecycleService",
+      "maxMethods": 29
+    },
+    {
+      "path": "apps/api/app/Models/Extensions",
+      "type": "ThemeService",
+      "maxMethods": 5
+    },
+    {
+      "path": "apps/api/app/Models/Extensions",
+      "type": "SettingsService",
+      "maxMethods": 11
+    },
+    {
+      "path": "apps/api/app/Models/Extensions",
+      "type": "serviceCore",
+      "maxMethods": 79
     },
     {
       "path": "apps/api/app/Models/Identity",
@@ -95,30 +224,5 @@
       "maxMethods": 48
     }
   ],
-  "legacyInlineAdminTabPages": {
-    "apps/web/app/pages/admin/settings/index.vue": {
-      "maxLines": 2218,
-      "maxLiteralBranches": 6
-    },
-    "apps/web/app/pages/admin/forum/settings.vue": {
-      "maxLines": 939,
-      "maxLiteralBranches": 7
-    },
-    "apps/web/app/pages/admin/seo.vue": {
-      "maxLines": 659,
-      "maxLiteralBranches": 8
-    },
-    "apps/web/app/pages/admin/personalization.vue": {
-      "maxLines": 653,
-      "maxLiteralBranches": 1
-    },
-    "apps/web/app/pages/admin/attachments.vue": {
-      "maxLines": 816,
-      "maxLiteralBranches": 2
-    },
-    "apps/web/app/pages/admin/settings/mail.vue": {
-      "maxLines": 385,
-      "maxLiteralBranches": 3
-    }
-  }
+  "legacyInlineAdminTabPages": {}
 }

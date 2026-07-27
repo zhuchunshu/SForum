@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
 /**
  * 管理后台「登录方式 / Login methods」。
  * Host 聚合 Registry + 激活目录 + 设置 + callback；不硬编码 GitHub 厂商逻辑。
@@ -6,14 +7,14 @@
  */
 import SFExtensionSettingsRenderer from '~/components/extensions/settings/SFExtensionSettingsRenderer.vue'
 import { apiErrorMessage, apiErrorStatusCode } from '~/composables/useApiClient'
-import { useAdminPage } from '~/composables/useAdminPage'
+import { useAdminPage } from '~/composables/admin/useAdminPage'
 import {
   recommendedExtensionSettingValues,
   type AdminExtensionPageBootstrap,
   type AdminExtensionSettings,
   type AdminExtensionSettingsAction,
   type AdminExtensionSettingsActionResult
-} from '~/utils/adminExtensions'
+} from '~/utils/admin/adminExtensions'
 import {
   adminProbeFeedback,
   adminProbeLabelKind,
@@ -23,7 +24,7 @@ import {
   adminProviderSupportsOp,
   adminProviderTitle,
   type AdminIdentityProvider
-} from '~/utils/adminLoginMethods'
+} from '~/utils/admin/adminLoginMethods'
 
 definePageMeta({
   middleware: 'admin',

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { PageRegionItem } from '~/composables/usePageRegions'
-import { safePageRegionHref, usePageRegionsState } from '~/composables/usePageRegions'
-import { forumTopicExtensionLabel } from '~/utils/forumTaxonomy'
+import type { PageRegionItem } from '~/composables/pages/usePageRegions'
+import { safePageRegionHref, usePageRegionsState } from '~/composables/pages/usePageRegions'
+import { forumTopicExtensionLabel } from '~/utils/forum/forumTaxonomy'
 
 /**
  * 标准页面区域出口(forum.page.regions)。
