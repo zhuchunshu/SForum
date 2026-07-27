@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useColorModePreference } from '~/composables/appearance/useColorModePreference'
 import type {
   PublicFrontendBridgeV1,
   PublicFrontendCleanup,
@@ -40,7 +41,7 @@ const props = withDefaults(defineProps<{
 
 const { apiBaseUrl, request } = useApiClient()
 const { t, locale } = useI18n()
-const colorMode = useColorMode()
+const { resolvedMode } = useColorModePreference()
 const route = useRoute()
 const target = ref<HTMLElement>()
 const ssrRoot = ref<HTMLElement>()
@@ -93,7 +94,7 @@ async function dispose() {
 function appearance() {
   const styles = getComputedStyle(document.documentElement)
   return {
-    colorMode: colorMode.value === 'dark' ? 'dark' as const : 'light' as const,
+    colorMode: resolvedMode.value,
     accent: styles.getPropertyValue('--sf-accent').trim(),
     accentContrast: styles.getPropertyValue('--sf-accent-contrast').trim()
   }
@@ -209,7 +210,7 @@ watch([
   resolvedComponentId,
   () => props.componentProps,
   () => locale.value,
-  () => colorMode.value,
+  resolvedMode,
   () => route.fullPath
 ], () => void load(), { deep: true })
 

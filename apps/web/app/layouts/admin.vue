@@ -2,6 +2,7 @@
 import { useAuthSession } from '~/composables/identity/useAuthSession'
 import { useAdminSurfaces } from '~/composables/admin/useAdminSurfaces'
 import { useAdminAdvancedSettings } from '~/composables/admin/useAdminAdvancedSettings'
+import { useColorModePreference } from '~/composables/appearance/useColorModePreference'
 import type { DropdownMenuItem } from '@nuxt/ui/components/DropdownMenu.vue'
 import SFAdminFooter from '~/components/admin/SFAdminFooter.vue'
 import SFAdminSurfaceOutlet from '~/components/admin/SFAdminSurfaceOutlet.vue'
@@ -62,27 +63,41 @@ const { data: surfaceNavigation } = await useAsyncData<AdminSurfaceContract[]>(
 
 // 引入多页签状态与主题模式
 const adminTabs = useAdminTabs()
-const colorMode = useColorMode()
+const {
+  preference: colorModePreference,
+  options: colorModeOptions,
+  setPreference: setColorModePreference
+} = useColorModePreference()
 const { professionalMode, operationsMode } = useAdminAdvancedSettings()
 const advancedSettingsOpen = ref(false)
-const resolvedColorMode = ref<'light' | 'dark'>(
-  colorMode.value === 'dark' ? 'dark' : 'light'
-)
-let colorModeObserver: MutationObserver | null = null
 
 const displayName = computed(() => {
   return user.value?.displayName || user.value?.username || t('admin.shell.unknownUser')
 })
 
-const isDarkMode = computed(() => resolvedColorMode.value === 'dark')
-
-const themeToggleLabel = computed(() => {
-  return isDarkMode.value ? t('admin.shell.lightMode') : t('admin.shell.darkMode')
-})
-
-const themeToggleIcon = computed(() => {
-  return isDarkMode.value ? 'i-lucide-sun' : 'i-lucide-moon'
-})
+const currentColorModeOption = computed(() =>
+  colorModeOptions.find(option => option.value === colorModePreference.value) || colorModeOptions[0]!
+)
+const colorModePreferenceLabel = computed(() => t(currentColorModeOption.value.labelKey))
+const colorModeTriggerLabel = computed(() => t('appearance.colorMode.currentPreference', {
+  preference: colorModePreferenceLabel.value
+}))
+const colorModeTriggerIcon = computed(() => currentColorModeOption.value.icon)
+const appearanceMenuItems = computed<DropdownMenuItem[]>(() =>
+  colorModeOptions.map((option) => {
+    const isCurrent = option.value === colorModePreference.value
+    return {
+      label: t(option.labelKey),
+      description: option.descriptionKey ? t(option.descriptionKey) : undefined,
+      icon: option.icon,
+      type: 'checkbox',
+      checked: isCurrent,
+      onUpdateChecked: (checked: boolean) => {
+        if (checked) setColorModePreference(option.value)
+      }
+    }
+  })
+)
 
 // 计算当前激活标签页的标题，用于面包屑展示
 const activeTabLabel = computed(() => {
@@ -104,27 +119,6 @@ useHead(() => ({
 
 const route = useRoute()
 const currentAdminPageId = computed(() => adminRoutes.routeId(route.path) || ADMIN_DASHBOARD_PAGE_ID)
-
-onMounted(() => {
-  syncResolvedColorMode()
-  colorModeObserver = new MutationObserver(syncResolvedColorMode)
-  colorModeObserver.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['class']
-  })
-})
-
-onUnmounted(() => {
-  colorModeObserver?.disconnect()
-})
-
-watch(
-  () => colorMode.value,
-  () => {
-    syncResolvedColorMode()
-  },
-  { immediate: true }
-)
 
 // KeepAlive 页面不会重复 mounted，路由变化时用注册表同步当前 tab。
 watch(() => route.path, (newPath) => {
@@ -319,11 +313,9 @@ const userMenuItems = computed<DropdownMenuItem[][]>(() => [
       to: localePath('/')
     },
     {
-      label: themeToggleLabel.value,
-      icon: themeToggleIcon.value,
-      onSelect: () => {
-        toggleColorMode()
-      }
+      label: t('nav.appearance'),
+      icon: colorModeTriggerIcon.value,
+      children: appearanceMenuItems.value
     },
     {
       label: t('admin.shell.signOut'),
@@ -334,26 +326,6 @@ const userMenuItems = computed<DropdownMenuItem[][]>(() => [
     }
   ]
 ])
-
-function syncResolvedColorMode() {
-  if (!import.meta.client) {
-    resolvedColorMode.value = colorMode.value === 'dark' ? 'dark' : 'light'
-    return
-  }
-
-  // Nuxt Color Mode 可能先改 <html> 类名再完成水合，后台按钮以真实页面类名为准。
-  resolvedColorMode.value =
-    colorMode.value === 'dark' ||
-    document.documentElement.classList.contains('dark')
-      ? 'dark'
-      : 'light'
-}
-
-function toggleColorMode() {
-  const nextMode = isDarkMode.value ? 'light' : 'dark'
-  colorMode.preference = nextMode
-  resolvedColorMode.value = nextMode
-}
 
 function navigateAdminTab(tab: AdminTab) {
   adminTabs.activateTab(tab.id)
@@ -440,19 +412,25 @@ async function signOut() {
         <div class="flex min-w-0 w-full max-w-full flex-col gap-2">
           <!-- 桌面端快捷切换主题按钮 -->
           <ClientOnly>
-            <UButton
+            <UDropdownMenu
               v-if="!collapsed"
-              color="neutral"
-              variant="ghost"
-              block
-              class="justify-start px-2 py-2 text-[var(--text-admin-sidebar)] hover:bg-[var(--bg-admin-sidebar-hover)] hover:text-[var(--text-admin-main)]"
-              @click="toggleColorMode"
+              :items="appearanceMenuItems"
+              checked-icon="i-lucide-check"
+              :content="{ side: 'top', align: 'start' }"
             >
-              <UIcon :name="themeToggleIcon" class="size-4" />
-              <span class="text-sm font-semibold">
-                {{ themeToggleLabel }}
-              </span>
-            </UButton>
+              <UButton
+                color="neutral"
+                variant="ghost"
+                block
+                class="justify-start px-2 py-2 text-[var(--text-admin-sidebar)] hover:bg-[var(--bg-admin-sidebar-hover)] hover:text-[var(--text-admin-main)]"
+                :aria-label="colorModeTriggerLabel"
+              >
+                <UIcon :name="colorModeTriggerIcon" class="size-4" />
+                <span class="text-sm font-semibold">
+                  {{ colorModeTriggerLabel }}
+                </span>
+              </UButton>
+            </UDropdownMenu>
             <template #fallback>
               <span v-if="!collapsed" class="block h-9 rounded-md" aria-hidden="true" />
             </template>

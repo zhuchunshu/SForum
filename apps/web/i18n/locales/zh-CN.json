@@ -25,6 +25,15 @@
   "common": {
     "close": "关闭"
   },
+  "appearance": {
+    "colorMode": {
+      "system": "自动",
+      "systemDescription": "跟随系统（推荐）",
+      "light": "浅色",
+      "dark": "深色",
+      "currentPreference": "外观：{preference}"
+    }
+  },
   "legal": {
     "termsTitle": "服务条款",
     "privacyTitle": "隐私政策",

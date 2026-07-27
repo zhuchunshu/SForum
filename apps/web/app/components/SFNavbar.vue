@@ -3,6 +3,7 @@ import { useNotifications } from '~/composables/notifications/useNotifications'
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
 import { useAuthSession } from '~/composables/identity/useAuthSession'
 import { useSiteChromeApi } from '~/composables/admin/useSiteChromeApi'
+import { useColorModePreference } from '~/composables/appearance/useColorModePreference'
 import { buildForumHomeQuery } from '~/utils/forum/forumHome'
 import type { SiteExtensionNavItem, SiteNavItem, SitePublicNav } from '~/composables/admin/useSiteChromeApi'
 import { forumCategoriesIndexPath, forumTagsIndexPath, forumTopicExtensionLabel, parseForumTagPublicPagesOption } from '~/utils/forum/forumTaxonomy'
@@ -27,7 +28,11 @@ const { request } = useApiClient()
 const chromeApi = useSiteChromeApi()
 const router = useRouter()
 const route = useRoute()
-const colorMode = useColorMode()
+const {
+  preference: colorModePreference,
+  options: colorModeOptions,
+  setPreference: setColorModePreference
+} = useColorModePreference()
 const { can } = usePermissions()
 const notifications = useNotifications()
 
@@ -206,9 +211,11 @@ type NavbarMenuItem = {
   to?: string
   /** 覆盖 ULink 的路由 active，语言项按 i18n locale 判定 */
   active?: boolean
-  type?: 'label'
+  type?: 'label' | 'checkbox'
+  checked?: boolean
   color?: 'error'
   onSelect?: (event: Event) => void
+  onUpdateChecked?: (checked: boolean) => void
   children?: NavbarMenuItem[]
 }
 
@@ -216,10 +223,6 @@ const searchQuery = ref('')
 const mobileSearchOpen = ref(false)
 const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
-const resolvedColorMode = ref<'light' | 'dark'>(
-  colorMode.value === 'dark' ? 'dark' : 'light'
-)
-let colorModeObserver: MutationObserver | null = null
 
 // 发帖入口只对拥有论坛发帖权限的用户显示，API 仍负责最终鉴权。
 const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
@@ -244,12 +247,29 @@ const localeOptions = computed<LocaleOption[]>(() =>
 const currentLocaleName = computed(() =>
   localeOptions.value.find((entry) => entry.code === locale.value)?.name || locale.value
 )
-const isDarkMode = computed(() => resolvedColorMode.value === 'dark')
-const themeToggleLabel = computed(() =>
-  isDarkMode.value ? t('nav.lightMode') : t('nav.darkMode')
+const currentColorModeOption = computed(() =>
+  colorModeOptions.find(option => option.value === colorModePreference.value) || colorModeOptions[0]!
 )
-const themeToggleIcon = computed(() =>
-  isDarkMode.value ? 'i-lucide-sun' : 'i-lucide-moon'
+const colorModePreferenceLabel = computed(() => t(currentColorModeOption.value.labelKey))
+const colorModeTriggerLabel = computed(() => t('appearance.colorMode.currentPreference', {
+  preference: colorModePreferenceLabel.value
+}))
+const colorModeTriggerIcon = computed(() => currentColorModeOption.value.icon)
+const appearanceMenuItems = computed<NavbarMenuItem[]>(() =>
+  colorModeOptions.map((option) => {
+    const isCurrent = option.value === colorModePreference.value
+    return {
+      label: t(option.labelKey),
+      description: option.descriptionKey ? t(option.descriptionKey) : undefined,
+      icon: option.icon,
+      type: 'checkbox',
+      checked: isCurrent,
+      active: isCurrent,
+      onUpdateChecked: (checked: boolean) => {
+        if (checked) setColorModePreference(option.value)
+      }
+    }
+  })
 )
 
 // no_prefix：setLocale 只换文案 + cookie，URL 不变，实现无感切换。
@@ -331,45 +351,9 @@ function toggleMobileInfo() {
 
 watch(() => route.fullPath, closeMobileDrawers)
 
-watch(
-  () => colorMode.value,
-  syncResolvedColorMode,
-  { immediate: true }
-)
-
 onMounted(() => {
-  syncResolvedColorMode()
-  colorModeObserver = new MutationObserver(syncResolvedColorMode)
-  colorModeObserver.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['class']
-  })
   if (user.value) void notifications.refreshUnreadCount().catch(() => {})
 })
-
-onUnmounted(() => {
-  colorModeObserver?.disconnect()
-})
-
-function syncResolvedColorMode() {
-  if (!import.meta.client) {
-    resolvedColorMode.value = colorMode.value === 'dark' ? 'dark' : 'light'
-    return
-  }
-
-  // 颜色模式可能先更新 html class，菜单图标以页面实际状态为准。
-  resolvedColorMode.value =
-    colorMode.value === 'dark' ||
-    document.documentElement.classList.contains('dark')
-      ? 'dark'
-      : 'light'
-}
-
-function toggleColorMode() {
-  const nextMode = isDarkMode.value ? 'light' : 'dark'
-  colorMode.preference = nextMode
-  resolvedColorMode.value = nextMode
-}
 
 function submitSearch(query: string) {
   return navigateTo({
@@ -521,18 +505,22 @@ async function logout() {
         </ClientOnly>
 
         <ClientOnly>
-          <UButton
-            color="neutral"
-            variant="ghost"
-            square
-            class="navbar__control"
-            :aria-label="themeToggleLabel"
-            :aria-pressed="isDarkMode"
-            :title="themeToggleLabel"
-            @click="toggleColorMode"
+          <UDropdownMenu
+            :items="appearanceMenuItems"
+            checked-icon="i-lucide-check"
+            :content="{ align: 'end' }"
           >
-            <UIcon :name="themeToggleIcon" class="size-4" aria-hidden="true" />
-          </UButton>
+            <UButton
+              color="neutral"
+              variant="ghost"
+              square
+              class="navbar__control"
+              :aria-label="colorModeTriggerLabel"
+              :title="colorModeTriggerLabel"
+            >
+              <UIcon :name="colorModeTriggerIcon" class="size-4" aria-hidden="true" />
+            </UButton>
+          </UDropdownMenu>
           <template #fallback>
             <span class="navbar__control-placeholder" aria-hidden="true" />
           </template>

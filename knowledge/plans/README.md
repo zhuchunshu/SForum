@@ -30,7 +30,6 @@ directory. Completed, cancelled, and superseded plans live under
 | `2026-07-27-external-auth-core-plugin-review-remediation.md` | **active** -- R1-R7 remediation complete; independent re-review requested |
 | `2026-07-27-notification-platform-v2.md` | **ready** -- Core fanout correctness, layered preferences, plugin notification contracts, realtime inbox, and Web Push reference |
 | `2026-07-27-configurable-public-navigation-platform.md` | **ready** -- operator-owned multi-location navigation, defaults/history/backup, plugin contributions, and theme rendering |
-| `2026-07-27-tristate-color-mode-reliability.md` | **ready** -- Automatic/Light/Dark preference, shared public/admin authority, canonical local origin, and cache-safe persistence |
 | `2026-07-12-iteration-a-engagement-loop.md` | **ready** -- remaining engagement product work |
 | `2026-07-12-admin-settings-richness.md` | **blueprint** -- later settings waves |
 | `2026-07-12-development-directions.md` | **blueprint** -- strategy context; verify against newer V3 decisions |

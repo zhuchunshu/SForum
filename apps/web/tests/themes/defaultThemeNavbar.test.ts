@@ -77,13 +77,17 @@ describe('default theme shared navbar contract', () => {
     expect(navMarkup).not.toContain('scrollToHomeSection')
   })
 
-  test('exposes language switch and color-mode toggle in the topbar utility cluster', () => {
+  test('exposes language switch and three-state appearance menu in the topbar utility cluster', () => {
     expect(source).toContain('languageMenuItems')
     expect(source).toContain("t('nav.language')")
-    expect(source).toContain('toggleColorMode')
-    expect(source).toContain('themeToggleLabel')
     expect(source).toContain('i-lucide-globe')
-    expect(source).toContain('themeToggleIcon')
+    expect(source).toContain('appearanceMenuItems')
+    expect(source).toContain('colorModeTriggerLabel')
+    expect(source).toContain('colorModeTriggerIcon')
+    expect(source).toContain('checked-icon="i-lucide-check"')
+    expect(source).not.toContain('toggleColorMode')
+    expect(source).not.toContain('MutationObserver')
+    expect(source).not.toContain(':aria-pressed="isDarkMode"')
     // 会话区独立，便于默认主题与右栏同宽对齐
     expect(source).toContain('class="navbar__session"')
     expect(source).toContain('class="navbar__user-trigger"')

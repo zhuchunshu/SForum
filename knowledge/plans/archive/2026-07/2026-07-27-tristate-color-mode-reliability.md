@@ -1,7 +1,6 @@
 # Tri-State Color Mode Reliability - Task Book
 
-Status: **ready** - product direction accepted; no implementation milestone has
-started
+Status: **completed** - M0-M5 implemented; independent review is next
 
 Date: 2026-07-27
 
@@ -176,12 +175,12 @@ Every Grok milestone updates this table before it stops.
 
 | Milestone | Status | Evidence | Current handoff |
 | --- | --- | --- | --- |
-| M0 Audit and implementation-contract freeze | not started | - | `knowledge/sessions/2026-07-27-tristate-color-mode-plan-handoff.md` |
-| M1 Shared preference authority | not started | - | same |
-| M2 Public three-mode UI | not started | - | same |
-| M3 Admin convergence and duplicate-state removal | not started | - | same |
-| M4 Canonical origin and persistence hardening | not started | - | same |
-| M5 Integrated release gate and final report | not started | - | same |
+| M0 Audit and implementation-contract freeze | completed | Installed-source audit, browser origin/persistence reproduction, SSR/cache response probes, corrected focused tests `15 pass / 104 expect()` | `knowledge/sessions/archive/2026-07/2026-07-27-tristate-color-mode-plan-handoff.md` |
+| M1 Shared preference authority | completed | `6 pass / 23 expect()`; typecheck PASS | same |
+| M2 Public three-mode UI | completed | focused aggregate `45 pass / 300 expect()`; build PASS; selected-theme browser and Host mobile source QA | same |
+| M3 Admin convergence and duplicate-state removal | completed | authenticated admin Light/Dark/Automatic, refresh and client-navigation QA; extension bridge tests PASS | same |
+| M4 Canonical origin and persistence hardening | completed | origin helper `8 pass / 63 expect()`; live 307/no-store/path-query and exclusion probes; cache-neutral HTML probes | same |
+| M5 Integrated release gate and final report | completed | focused PASS, typecheck/build/OpenAPI/diff/architecture/Go PASS; unrelated full-suite and environment blockers recorded in final report | archived handoff |
 
 Allowed states are `not started`, `in progress`, `completed`, or `blocked`.
 Completion requires the milestone exit criteria, exact verification evidence,
@@ -246,23 +245,23 @@ Next new-conversation prompt:
 
 Tasks:
 
-- [ ] Trace every `useColorMode`, `colorMode.preference`, `colorMode.value`,
+- [x] Trace every `useColorMode`, `colorMode.preference`, `colorMode.value`,
   `.dark`/`.light` writer, route-level forced mode, and persistence key.
-- [ ] Trace Nuxt Color Mode client/server startup against current Nuxt SSR,
+- [x] Trace Nuxt Color Mode client/server startup against current Nuxt SSR,
   payload extraction, public SWR/cache rules, error pages, and hydration.
-- [ ] Reproduce same-origin refresh/navigation and local-origin split without
+- [x] Reproduce same-origin refresh/navigation and local-origin split without
   modifying browser storage directly.
-- [ ] Survey the installed maintained framework-native options, including
+- [x] Survey the installed maintained framework-native options, including
   Nuxt UI Color Mode button/select/switch and the current color-mode module.
-- [ ] Freeze the shared composable API, option metadata, trigger semantics,
+- [x] Freeze the shared composable API, option metadata, trigger semantics,
   invalid-value behavior, and exact public/admin call sites.
-- [ ] Select and document the safe local canonical-origin mechanism, including
+- [x] Select and document the safe local canonical-origin mechanism, including
   excluded paths and redirect tests.
-- [ ] Confirm the test plan for OS preference changes, explicit override,
+- [x] Confirm the test plan for OS preference changes, explicit override,
   hard refresh, client navigation, admin, extensions, SSR/cache, and origins.
-- [ ] Amend the accepted decision/task book only if repository evidence
+- [x] Amend the accepted decision/task book only if repository evidence
   contradicts a frozen assumption.
-- [ ] Run documentation/source checks and update the ledger, frontend module,
+- [x] Run documentation/source checks and update the ledger, frontend module,
   hot handoff, and index.
 
 Required checks:
@@ -278,22 +277,126 @@ M0 must report any test-path correction discovered from the current Bun setup.
 origin strategy, file scope, and verification matrix are implementation-ready.
 No user-visible behavior changes in M0.
 
+### M0 Frozen Implementation Contract
+
+#### Production call chain and cache boundary
+
+- `SFNavbar.vue` and `layouts/admin.vue` are the only production preference
+  writers. Both currently collapse the choice to `light | dark` and duplicate a
+  resolved ref plus an `<html>` class `MutationObserver`.
+- `SFExtensionWidget.vue` and
+  `components/extensions/settings/SFTrustedSettingsComponent.vue` only read
+  `colorMode.value` and pass a frozen/read-only resolved `light | dark` value.
+  No route declares `meta.colorMode`; there is no forced-mode producer.
+- Tracked demo HTML files write `.dark` directly but are inert design assets,
+  not Nuxt production entry points. Application CSS and built-in themes only
+  consume `.light`/`.dark`.
+- Nuxt UI 4.9.0 installs Nuxt Color Mode 4.0.1 (Nuxt Team, MIT). Its defaults
+  remain `preference: system`, `fallback: light`, storage `localStorage`, key
+  `nuxt-color-mode`. The Nitro plugin injects one identical early head script;
+  that script reads local storage and applies `.light`/`.dark` before hydration.
+- Server state is color-neutral (`system`, unknown until mount) and no
+  preference cookie is read. Payload extraction is disabled. Anonymous `/`,
+  `/categories`, `/tags`, `/u/**`, and eligible `/t/**` responses may be shared;
+  session/non-default-locale/query/error paths disable sharing as already
+  documented. M0 response probes found shared HTML without a mode class and
+  with the same local-storage bootstrap script; HTML 404 remained `no-store`.
+  Therefore V1 must keep browser-local storage and must not vary SSR/SWR.
+
+#### Native primitive selection
+
+- Keep Nuxt Color Mode as the sole persistence, system-media listener, resolved
+  class writer, and route-forcing authority. Add no dependency.
+- Nuxt UI `ColorModeButton` and `ColorModeSwitch` are binary and write explicit
+  `light`/`dark`, so they would destroy Automatic. `ColorModeSelect` correctly
+  models all three values but cannot express the required recommended
+  description and compact public/admin menu contract.
+- Public/admin presentation therefore uses the existing Nuxt UI
+  `UDropdownMenu`; it consumes shared SForum option metadata and delegates every
+  change to Nuxt Color Mode. Keyboard/focus/menu semantics stay library-owned.
+
+#### Shared API and call sites
+
+- M1 owns `app/composables/appearance/useColorModePreference.ts` and
+  `tests/appearance/colorModePreference.test.ts`. Export
+  `ColorModePreference`, `ResolvedColorMode`,
+  `COLOR_MODE_OPTION_DEFINITIONS`, `normalizeColorModePreference`, and
+  `useColorModePreference()`.
+- Option order and metadata are fixed as `system` / `i-lucide-monitor`, `light`
+  / `i-lucide-sun`, `dark` / `i-lucide-moon`; selection uses
+  `i-lucide-check`. Shared locale keys live under `appearance.colorMode` and
+  include `system`, `systemDescription`, `light`, `dark`, and
+  `currentPreference`.
+- `useColorModePreference()` exposes readonly `preference`, readonly
+  `resolvedMode`, shared option definitions, and `setPreference(value)`. Missing
+  or unsupported input becomes `system` and is written through
+  `colorMode.preference`; it never reads/writes storage directly. Resolution is
+  exactly `colorMode.value === 'dark' ? 'dark' : 'light'` and never overwrites a
+  valid stored `system` preference.
+- M2 changes only `SFNavbar.vue`, its focused tests, and locale presentation.
+  Desktop and mobile both show one explicit three-item menu. Trigger icon/name
+  represent stored preference, not resolved mode; `ClientOnly` fallback keeps
+  the current fixed control geometry.
+- M3 changes `layouts/admin.vue` plus focused admin tests and migrates the two
+  extension bridge reads to shared `resolvedMode`; bridges remain read-only and
+  never receive preference or setter capability. M1 does not change current
+  presentation, M2 does not change admin, and M3 does not change origin rules.
+
+#### Canonical local origin
+
+- M4 uses a focused pure helper under `server/utils/canonicalLocalOrigin.ts`
+  plus `server/middleware/canonical-local-origin.ts` and a Bun test under
+  `tests/framework/canonicalLocalOrigin.test.ts`. Use H3 `sendRedirect`; do not
+  add client navigation or a module dependency.
+- Gate the middleware to development and `GET`/`HEAD` browser document requests
+  whose `Accept` includes `text/html`. Parse the configured `APP_URL` once and
+  fail closed unless it is an origin-only `http(s)` URL with a loopback host,
+  no credentials, query, or fragment. The fixed configured origin is the whole
+  redirect authority; request `Host` may only prove that the request is a
+  supported alias (`localhost`, `127.0.0.1`, or `[::1]`) on the canonical port.
+- Preserve request pathname and query. Do nothing on the canonical origin,
+  unsupported/malformed hosts, production, non-document or unsafe requests,
+  and `/api`, `/_nuxt`, `/_sforum`, `/health` (including descendants). This
+  covers API proxy traffic, immutable assets, Vite/HMR traffic, and health
+  probes without creating an open redirect or loop. Browser OAuth callback and
+  return documents remain in scope and preserve their path/query.
+
+#### Verification ownership
+
+- M1 unit tests own normalization, all setters, valid-value compatibility,
+  Automatic versus resolution, live resolved changes, and explicit override.
+- M2/M3 mounted/source tests own public desktop/mobile and admin option order,
+  trigger semantics, selected state, stable fallback geometry, and removal of
+  both observers. Browser QA owns keyboard operation, OS emulation, refresh,
+  client/direct navigation, selected theme, Core/error fallback, and console.
+- M3 extension tests assert both bridges receive resolved `light | dark` only.
+  M4 helper/middleware tests own supported alias/canonical host, malformed
+  config, method/Accept/path exclusions, path/query preservation, and loops.
+- M4/M5 HTTP probes compare anonymous shared HTML, session/no-store responses,
+  HTML errors, the identical bootstrap script, absence of a preference cookie
+  or personalized mode class/payload, and the origin redirect matrix.
+
+M0 found no evidence contradicting the accepted decision, so the decision was
+not amended. The required test paths in the original command were stale; the
+current Bun paths are `tests/themes/defaultThemeNavbar.test.ts` and
+`tests/framework/appStartup.test.ts`.
+
 ## M1 - Shared Preference Authority
 
 Tasks:
 
-- [ ] Add one focused composable under `apps/web/app/composables/` with the
+- [x] Add one focused composable under `apps/web/app/composables/` with the
   frozen `system | light | dark` preference contract.
-- [ ] Expose normalized preference, resolved `light | dark`, option metadata,
+- [x] Expose normalized preference, resolved `light | dark`, option metadata,
   and a setter that writes preference rather than resolution.
-- [ ] Normalize missing/invalid values to Automatic without renaming or clearing
+- [x] Normalize missing/invalid values to Automatic without renaming or clearing
   the existing storage key.
-- [ ] Use stable library icon names and i18n label/description keys.
-- [ ] Keep extension appearance resolved-only and read-only.
-- [ ] Add focused behavioral tests for normalization, all three setters,
+- [x] Use stable library icon names and i18n label/description keys.
+- [x] Keep extension appearance resolved-only and read-only.
+- [x] Add focused behavioral tests for normalization, all three setters,
   Automatic vs resolved mode, and live resolved-mode changes.
-- [ ] Do not change public/admin presentation or origin handling yet.
-- [ ] Run focused tests and typecheck, then update durable memory and stop.
+- [x] Do not change public/admin presentation or origin handling yet.
+- [x] Run focused tests and typecheck, then update durable memory and stop.
 
 Required checks:
 
@@ -310,21 +413,21 @@ without duplicating state or persistence logic.
 
 Tasks:
 
-- [ ] Replace the public navbar's binary appearance button with an explicit
+- [x] Replace the public navbar's binary appearance button with an explicit
   Automatic/Light/Dark menu backed by the M1 composable.
-- [ ] Use monitor/sun/moon preference icons and a check/selected state.
-- [ ] Add a concise Automatic description identifying system following and the
+- [x] Use monitor/sun/moon preference icons and a check/selected state.
+- [x] Add a concise Automatic description identifying system following and the
   recommended default.
-- [ ] Update the mobile appearance menu to expose the same three choices.
-- [ ] Remove the public navbar's local resolved ref and `MutationObserver`.
-- [ ] Preserve navbar geometry, search, navigation, session, notifications,
+- [x] Update the mobile appearance menu to expose the same three choices.
+- [x] Remove the public navbar's local resolved ref and `MutationObserver`.
+- [x] Preserve navbar geometry, search, navigation, session, notifications,
   mobile drawers, Page Registry Host island use, selected-theme rendering, and
   Core emergency behavior.
-- [ ] Add Chinese/English copy and focused component/source tests.
-- [ ] Browser-test desktop and mobile: three selections, keyboard/menu state,
+- [x] Add Chinese/English copy and focused component/source tests.
+- [x] Browser-test desktop and mobile: three selections, keyboard/menu state,
   Automatic resolution, explicit override, client navigation, hard refresh,
   selected theme, and no relevant console errors.
-- [ ] Do not touch the admin control or canonical-origin behavior.
+- [x] Do not touch the admin control or canonical-origin behavior.
 
 Required checks:
 
@@ -342,21 +445,21 @@ three preferences without binary cycling or duplicate public state.
 
 Tasks:
 
-- [ ] Migrate every admin-shell color-mode action to the M1 authority.
-- [ ] Replace binary admin actions with explicit three-option selection while
+- [x] Migrate every admin-shell color-mode action to the M1 authority.
+- [x] Replace binary admin actions with explicit three-option selection while
   preserving the existing shell/user-menu/sidebar ergonomics.
-- [ ] Remove admin `resolvedColorMode`, `MutationObserver`, and direct duplicate
+- [x] Remove admin `resolvedColorMode`, `MutationObserver`, and direct duplicate
   preference branches.
-- [ ] Verify public and admin triggers represent stored preference, while
+- [x] Verify public and admin triggers represent stored preference, while
   document classes and extension payloads represent resolved mode.
-- [ ] Preserve admin tabs, permissions, personalization settings, extension
+- [x] Preserve admin tabs, permissions, personalization settings, extension
   micro-frontends, and SSR route guards.
-- [ ] Add focused tests for menu options, selected state, admin/public
+- [x] Add focused tests for menu options, selected state, admin/public
   convergence, and no stale observers.
-- [ ] Run authenticated admin browser QA when an existing safe session is
+- [x] Run authenticated admin browser QA when an existing safe session is
   available. Record `NOT RUN` plus the exact final-gate follow-up if no session
   is available; never fabricate credentials.
-- [ ] Do not implement canonical-origin handling yet.
+- [x] Do not implement canonical-origin handling yet.
 
 Required checks:
 
@@ -374,23 +477,23 @@ color-mode DOM observers remain, and focused behavior tests pass.
 
 Tasks:
 
-- [ ] Implement the M0-approved framework-native canonical local-origin
+- [x] Implement the M0-approved framework-native canonical local-origin
   behavior.
-- [ ] Trust only validated configured `APP_URL`; never build redirect targets
+- [x] Trust only validated configured `APP_URL`; never build redirect targets
   from an arbitrary request Host.
-- [ ] Restrict behavior to the approved development/loopback document scope and
+- [x] Restrict behavior to the approved development/loopback document scope and
   exclude API, assets, HMR, health, and non-document requests.
-- [ ] Preserve path and query and verify no redirect loop.
-- [ ] Keep V1 `localStorage` persistence and the current key unless the accepted
+- [x] Preserve path and query and verify no redirect loop.
+- [x] Keep V1 `localStorage` persistence and the current key unless the accepted
   decision was explicitly amended with cache evidence.
-- [ ] Add tests for canonical host, supported alias, excluded paths, malformed
+- [x] Add tests for canonical host, supported alias, excluded paths, malformed
   configuration, loop prevention, and query/path preservation.
-- [ ] Browser-test alias -> canonical redirect, choose each preference, hard
+- [x] Browser-test alias -> canonical redirect, choose each preference, hard
   refresh, client navigation, direct navigation, and login/auth callback return
   paths that exist in the current tree.
-- [ ] Verify anonymous public HTML/payload cache remains color-neutral and no
+- [x] Verify anonymous public HTML/payload cache remains color-neutral and no
   per-user cookie preference enters shared SSR state.
-- [ ] Update relevant development documentation if it still advertises more
+- [x] Update relevant development documentation if it still advertises more
   than one ordinary entry origin.
 
 Required checks:
@@ -410,33 +513,33 @@ survive expected navigation, and shared SSR/cache correctness is preserved.
 
 Tasks:
 
-- [ ] Audit M0-M4 against current production call paths and diffs; do not trust
+- [x] Audit M0-M4 against current production call paths and diffs; do not trust
   handoff claims alone.
-- [ ] Prove Automatic in system-light and system-dark environments and live
+- [x] Prove Automatic in system-light and system-dark environments and live
   system changes.
-- [ ] Prove explicit Light/Dark ignore later system changes.
-- [ ] Prove public desktop/mobile, authenticated admin, hard refresh, client
+- [x] Prove explicit Light/Dark ignore later system changes.
+- [x] Prove public desktop/mobile, authenticated admin, hard refresh, client
   navigation, direct navigation, error/Core fallback, selected theme, extension
   resolved appearance, and canonical-origin behavior.
-- [ ] Check no hydration/framework overlay and no relevant console warnings or
+- [x] Check no hydration/framework overlay and no relevant console warnings or
   errors.
-- [ ] Verify anonymous/session cache headers and color-neutral shared payloads.
-- [ ] Run focused tests, all web tests, typecheck, production build, OpenAPI
+- [x] Verify anonymous/session cache headers and color-neutral shared payloads.
+- [x] Run focused tests, all web tests, typecheck, production build, OpenAPI
   validation, and the full repository gate.
-- [ ] Update `knowledge/modules/frontend.md` to final truth.
-- [ ] Write
+- [x] Update `knowledge/modules/frontend.md` to final truth.
+- [x] Write
   `knowledge/reports/2026-07-27-tristate-color-mode-reliability-final.md`
   with scope, architecture, behavior matrix, origin/persistence evidence,
   cache/SSR evidence, exact commands, residual risks, and deferred account
   synchronization.
-- [ ] Mark this plan completed and move it under
+- [x] Mark this plan completed and move it under
   `knowledge/plans/archive/2026-07/`; update the archive index and
   `knowledge/plans/README.md`.
-- [ ] Move the rolling hot handoff to
+- [x] Move the rolling hot handoff to
   `knowledge/sessions/archive/2026-07/`, remove the active workstream from
   `knowledge/index.md`, and add a concise Recently Completed entry pointing to
   the final report.
-- [ ] Output the final small report and an independent Codex review prompt.
+- [x] Output the final small report and an independent Codex review prompt.
 
 Required checks:
 
@@ -671,4 +774,3 @@ resolved appearance、无障碍和测试覆盖是否完整。
   repository gate, and browser matrix have exact evidence.
 - The frontend module, decision, plan ledger/archive, hot handoff/archive,
   index, and final report agree.
-

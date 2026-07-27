@@ -6,18 +6,6 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
-### Tri-State Color Mode Reliability
-
-- Status: **ready**; Automatic/Light/Dark product semantics are approved, the
-  `localhost` versus `127.0.0.1` persistence split is reproduced, and M0-M5
-  implementation/verification remain.
-- Plan: `plans/2026-07-27-tristate-color-mode-reliability.md`
-- Handoff:
-  `sessions/2026-07-27-tristate-color-mode-plan-handoff.md`
-- Decision:
-  `decisions/2026-07-27-tristate-color-mode-preference.md`
-- Module: `modules/frontend.md`
-
 ### Configurable Public Navigation Platform
 
 - Status: **ready**; topbar operator rows and plugin append are present, while
@@ -137,10 +125,6 @@ load archived sessions or completed plans as current context.
 - Search automatic reconciliation: provider-neutral Host ledger, startup + 15m
   bounded repair schedule, and real-runtime cleanup of 92 historical ghosts:
   `sessions/2026-07-27-search-auto-reconciliation-handoff.md`
-- Tri-state color-mode task book: shared preference authority, explicit
-  Automatic/Light/Dark UI, canonical local origin, cache-safe persistence, and
-  M0-M5 one-conversation milestones:
-  `sessions/2026-07-27-tristate-color-mode-plan-handoff.md`
 - Configurable public navigation task book: Core-owned placement/defaults/
   backup, theme-owned presentation, bounded V3 plugin injection, and M0-M7
   one-conversation milestones:
@@ -181,6 +165,10 @@ load archived sessions or completed plans as current context.
 
 ## Recently Completed
 
+- Tri-state color mode reliability: shared Automatic/Light/Dark authority and
+  public/admin menus, resolved-only extension bridge, cache-neutral SSR, and
+  safe local canonical origin completed. See
+  `reports/2026-07-27-tristate-color-mode-reliability-final.md`.
 - Settings chrome: shared `sforum-settings` CSS shell, `SFSettingsAccountNav`,
   profile preview rail, security summary rail; fullwidth theme templates;
   chrome now componentized as `SFSettingsShell` (2026-07-26).

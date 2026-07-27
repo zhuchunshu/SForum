@@ -19,7 +19,7 @@
     "apps/api/app/Support/IdentityRegistry/postgres.go": 1008,
     "apps/api/app/Support/Pages/registry.go": 1253,
     "apps/api/app/Support/Pages/theme_runtime.go": 1019,
-    "apps/web/app/components/SFNavbar.vue": 1095,
+    "apps/web/app/components/SFNavbar.vue": 1083,
     "apps/web/app/components/identity/SFRegisterFormPage.vue": 1065,
     "apps/web/app/components/forum/SFTopicShowPage.vue": 1409,
     "apps/web/app/composables/admin/useAdminExtensionsManager.ts": 999,

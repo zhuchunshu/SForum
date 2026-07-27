@@ -72,8 +72,10 @@ Plan: `../plans/2026-07-27-github-social-login-builtin-plugin.md`
 
 ### Tri-state color mode reliability
 
-Plan: `../plans/2026-07-27-tristate-color-mode-reliability.md` (**ready**).
+Plan: `../plans/archive/2026-07/2026-07-27-tristate-color-mode-reliability.md`
+(**completed M0-M5**).
 Decision: `../decisions/2026-07-27-tristate-color-mode-preference.md`.
+Final report: `../reports/2026-07-27-tristate-color-mode-reliability-final.md`.
 
 - The approved personal preference model is `system | light | dark`, presented
   as Automatic (recommended), Light, and Dark.
@@ -85,11 +87,33 @@ Decision: `../decisions/2026-07-27-tristate-color-mode-preference.md`.
 - V1 keeps the existing Nuxt Color Mode storage key and browser-local
   persistence. Cookie/server persistence is closed until anonymous SWR/SSR
   cache isolation is designed.
-- M0-M5 must run one milestone per new Grok conversation, update the rolling
-  ledger and one hot handoff, output a small report, and print the next exact
-  new-conversation prompt.
-- Do not run this work concurrently with public-navigation milestones that
-  edit `SFNavbar.vue`.
+- `useColorModePreference` is the shared authority for normalized stored
+  preference, resolved mode, option metadata, and writes. Public/admin no longer
+  keep DOM observers or local resolution branches; extension bridges consume
+  only readonly resolved `light | dark`.
+- Keep Nuxt Color Mode 4.0.1 for storage, OS listening, and document classes.
+  Nuxt UI's button/switch are binary; its select proves native three-state
+  support, while SForum's explicit recommended-description menu will use the
+  existing `UDropdownMenu` plus one domain composable.
+- Public Host and admin surfaces use an explicit Nuxt UI checkbox menu ordered
+  Automatic/Light/Dark with monitor/sun/moon icons, checked state, localized
+  accessible names, and Automatic's recommended system-following description.
+- Development-only H3 middleware uses fixed, validated loopback `APP_URL` as
+  redirect authority. Only loopback-alias HTML GET/HEAD documents redirect;
+  API, Nuxt/HMR, `_sforum`, health, unsafe, malformed, and canonical requests do
+  not.
+- Authenticated browser QA selected all three modes. Dark survived hard refresh
+  and client navigation; Automatic displayed as the stored preference and
+  resolved to the current system-light environment. `localhost` redirected to
+  `127.0.0.1` with path/query intact and no relevant console errors.
+- Anonymous shared HTML remains mode-neutral, retains the identical early
+  `nuxt-color-mode` local-storage bootstrap, and sets no preference cookie.
+  Errors remain `no-store`; shared pages retain their existing SWR headers.
+- Focused aggregate verification passed 45 tests / 300 expectations; typecheck,
+  production build, OpenAPI references, architecture boundary validation, Go
+  tests, and diff whitespace checks passed. The final report records unrelated
+  full-web failures, missing compat-farm database env, and the lack of rendered
+  OS-dark/live emulation in the available browser control surface.
 
 ### Current HEAD regression remediation
 

@@ -17,4 +17,5 @@ reports; these files are not current implementation instructions.
 | `2026-07-22-forum-content-revisions-v1.md` | completed M0-M7; concurrent ExtensionManifest gate failure tracked separately |
 | `2026-07-22-forum-content-revisions-v1-m0-contract-tests.md` | completed M0 test matrix evidence |
 | `2026-07-22-social-login-provider-plugins.md` | superseded by focused built-in GitHub V1 plan |
+| `2026-07-27-tristate-color-mode-reliability.md` | completed M0-M5; residual review evidence in final report |
 | `2026-07-28-architecture-boundary-debt-repayment.md` | completed M0-M12; final gate resumed after targeted repairs |

@@ -25,6 +25,15 @@
   "common": {
     "close": "Close"
   },
+  "appearance": {
+    "colorMode": {
+      "system": "Automatic",
+      "systemDescription": "Follows your system setting (recommended)",
+      "light": "Light",
+      "dark": "Dark",
+      "currentPreference": "Appearance: {preference}"
+    }
+  },
   "legal": {
     "termsTitle": "Terms of Service",
     "privacyTitle": "Privacy Policy",

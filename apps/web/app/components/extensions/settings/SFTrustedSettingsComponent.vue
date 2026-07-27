@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useColorModePreference } from '~/composables/appearance/useColorModePreference'
 import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
 import { useAdminFrontendTrust } from '~/composables/admin/useAdminFrontendTrust'
 import SFAdminFrontendTrustPanel from '~/components/admin/SFAdminFrontendTrustPanel.vue'
@@ -35,7 +36,7 @@ const extension = computed(() => props.extension)
 const { status, load: loadTrust, mutate } = useAdminFrontendTrust(extension)
 const { request } = useApiClient()
 const { t, locale } = useI18n()
-const colorMode = useColorMode()
+const { resolvedMode } = useColorModePreference()
 const toast = useToast()
 const adminRoutes = useAdminRoutes()
 const target = ref<HTMLElement>()
@@ -94,7 +95,7 @@ function appearance() {
   const root = document.documentElement
   const styles = getComputedStyle(root)
   return {
-    colorMode: colorMode.value === 'dark' ? 'dark' as const : 'light' as const,
+    colorMode: resolvedMode.value,
     accent: styles.getPropertyValue('--sf-accent').trim(),
     accentContrast: styles.getPropertyValue('--sf-accent-contrast').trim()
   }
@@ -217,7 +218,7 @@ async function resumeComponent() {
   await load()
 }
 
-watch([() => status.value?.trustState, digest, component, locale, () => colorMode.value], () => {
+watch([() => status.value?.trustState, digest, component, locale, resolvedMode], () => {
   forcedFallback.value = currentStorage()?.getItem(fallbackKey.value) === '1'
   void load()
 })
