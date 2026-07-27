@@ -811,7 +811,10 @@ func resolveExtensionSettings(extension Extension, values map[string]string, loc
 	}
 	callouts := make([]ExtensionSettingsCallout, 0, len(document.UI.Callouts))
 	for _, callout := range document.UI.Callouts {
-		callouts = append(callouts, ExtensionSettingsCallout{ID: callout.ID, Tone: callout.Tone, Title: callout.Title.Resolve(locale), Body: callout.Body.Resolve(locale), Tab: callout.Tab, Group: callout.Group})
+		callouts = append(callouts, ExtensionSettingsCallout{
+			ID: callout.ID, Tone: callout.Tone, Title: callout.Title.Resolve(locale), Body: callout.Body.Resolve(locale),
+			LinkLabel: callout.LinkLabel.Resolve(locale), LinkURL: callout.LinkURL, Tab: callout.Tab, Group: callout.Group,
+		})
 	}
 	actions := make([]ExtensionSettingsAction, 0, len(document.Actions))
 	for _, action := range document.Actions {

@@ -401,6 +401,8 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminSurfaceInvoke"
   "/admin/extensions":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensions"
+  "/admin/extensions/missing-artifacts/uninstall":
+    "$ref": "./openapi/paths/extensions.yaml#/adminMissingArtifactUninstall"
   "/admin/extensions/navigation":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionNavigation"
   "/admin/extensions/contribution-points":
@@ -445,6 +447,8 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionUninstall"
   "/admin/extensions/{extensionID}/enable":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionEnable"
+  "/admin/extensions/{extensionID}/restart":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionRestart"
   "/admin/extensions/{extensionID}/trust":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionTrust"
   "/admin/extensions/{extensionID}/trust/challenge":

@@ -63,7 +63,7 @@ function provider(overrides: Partial<AdminIdentityProvider> = {}): AdminIdentity
     discovered: true, trusted: true, enabled: true, configured: true, probed: true,
     artifactBound: true, activated: true, publiclyActivated: true,
     loginEnabled: true, registrationEnabled: true, linkEnabled: true,
-    revision: 7, callbackPath: '/api/v1/auth/providers/example.provider.auth/callback', safeMode: false,
+    revision: 7, callbackPath: '/auth/providers/example.provider.auth/callback', safeMode: false,
     label: 'Example Login', icon: 'i-lucide-key-round', lastProbeReason: 'example.probe_ok',
     ...overrides
   }
@@ -127,9 +127,6 @@ describe('admin login-method catalog contracts', () => {
         UDashboardToolbar: { template: '<section><slot name="left" /><slot name="right" /></section>' },
         UButton: { emits: ['click'], template: '<button @click="$emit(\'click\', $event)"><slot /></button>' },
         USwitch: { props: ['modelValue'], emits: ['update:modelValue'], template: '<button data-testid="admin-operation-switch" @click="$emit(\'update:modelValue\', !modelValue)" />' },
-        UTabs: {
-          template: '<div><slot name="default" :tab="{ value: \'example.provider.auth\', label: \'Example Login\', icon: \'i-lucide-key-round\' }"></slot></div>'
-        },
         SFExtensionSettingsRenderer: adminSettingsRendererStub
       } }
     })

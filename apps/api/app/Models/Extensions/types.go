@@ -55,6 +55,7 @@ const (
 
 	CodeInvalidArchive          = "extension.archive_invalid"
 	CodeInvalidManifest         = "extension.manifest_invalid"
+	CodeArtifactMissing         = "extension.artifact_missing"
 	CodeNotFound                = "extension.not_found"
 	CodePreflightFailed         = "extension.preflight_failed"
 	CodeBuildFailed             = "extension.build_failed"
@@ -102,11 +103,15 @@ const (
 
 	SourceBuiltin  = "builtin"
 	SourceUploaded = "uploaded"
+
+	ArtifactAvailable = "available"
+	ArtifactMissing   = "missing"
 )
 
 var (
 	ErrInvalidArchive            = errors.New("extensions: invalid archive")
 	ErrInvalidManifest           = extensionmanifest.ErrInvalidManifest
+	ErrArtifactMissing           = errors.New("extensions: artifact missing")
 	ErrExtensionNotFound         = errors.New("extensions: not found")
 	ErrExtensionDisabled         = errors.New("extensions: disabled")
 	ErrSettingsRollbackFailed    = errors.New("extensions: settings rollback failed")
@@ -230,6 +235,7 @@ type ExtensionVersion struct {
 	ID                  int64     `json:"-"`
 	Version             string    `json:"version"`
 	Manifest            Manifest  `json:"manifest"`
+	ArtifactState       string    `json:"artifactState,omitempty"`
 	PackageDigest       string    `json:"packageDigest"`
 	AdminFrontendDigest string    `json:"adminFrontendDigest"`
 	PackagePath         string    `json:"packagePath"`
@@ -249,6 +255,7 @@ type Extension struct {
 	// CapabilityGrants 有效 Host 能力（显式 + 推断），供启用审查 UI（F2.1）。
 	CapabilityGrants    []CapabilityGrant `json:"capabilityGrants,omitempty"`
 	Runtime             *RuntimeStatus    `json:"runtime,omitempty"`
+	ArtifactState       string            `json:"artifactState,omitempty"`
 	PackageDigest       string            `json:"packageDigest"`
 	AdminFrontendDigest string            `json:"adminFrontendDigest,omitempty"`
 	PackagePath         string            `json:"packagePath"`
@@ -266,6 +273,13 @@ type EnableInput struct {
 	ConfirmationToken string `json:"confirmationToken,omitempty"`
 	// IdempotencyKey 来自 HTTP Idempotency-Key；不接受 body 覆盖。
 	IdempotencyKey string `json:"-"`
+}
+
+// RestartInput 由 Host 编排 runtime 重启及 legacy -> Lifecycle V2 暂存制品迁移。
+type RestartInput struct {
+	ConfirmCapabilities bool   `json:"confirmCapabilities"`
+	ConfirmationToken   string `json:"confirmationToken,omitempty"`
+	IdempotencyKey      string `json:"-"`
 }
 
 type ThemeActivationInput struct {
@@ -490,12 +504,14 @@ type ExtensionSettingsGroup struct {
 }
 
 type ExtensionSettingsCallout struct {
-	ID    string `json:"id"`
-	Tone  string `json:"tone"`
-	Title string `json:"title"`
-	Body  string `json:"body,omitempty"`
-	Tab   string `json:"tab,omitempty"`
-	Group string `json:"group,omitempty"`
+	ID        string `json:"id"`
+	Tone      string `json:"tone"`
+	Title     string `json:"title"`
+	Body      string `json:"body,omitempty"`
+	LinkLabel string `json:"linkLabel,omitempty"`
+	LinkURL   string `json:"linkUrl,omitempty"`
+	Tab       string `json:"tab,omitempty"`
+	Group     string `json:"group,omitempty"`
 }
 
 type ExtensionSettingsAction struct {

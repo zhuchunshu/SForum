@@ -18,12 +18,17 @@ off.
 
 ## Create a GitHub OAuth App
 
-1. GitHub → Settings → Developer settings → OAuth Apps → New OAuth App.
+Application page: [Create a GitHub OAuth App](https://github.com/settings/applications/new).
+
+1. Open the application page, use a recognizable **Application name**, and set
+   **Homepage URL** to the site's `APP_URL`.
 2. **Authorization callback URL** must match the Host absolute callback:  
-   `{APP_URL}/api/v1/auth/providers/sforum.auth-github.auth/callback`  
+   `{APP_URL}/auth/providers/sforum.auth-github.auth/callback`
    Copy it from **Login methods** in admin.
-3. Record the **Client ID** and create a **Client Secret** (paste only into
+3. Register the app, record the **Client ID**, and generate a **Client Secret** (paste only into
    SForum SecretStore; never into themes or browsers).
+4. Enter and save the credentials in SForum, run the probe, then enable login,
+   registration, and account linking as needed.
 
 Official reference (verified 2026-07-27):
 

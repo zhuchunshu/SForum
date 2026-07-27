@@ -18,12 +18,15 @@ import {
   extensionDisplayName,
   extensionLocalizedDisplay,
   extensionManageRoute,
+  extensionSettingDeclarations,
   extensionStats,
   filterExtensionsByType,
   findExtensionAdminPage,
   formatPluginMemoryBytes,
+  isExtensionArtifactAvailable,
   mergeExtensionDeliveries,
   mergeExtensionEvents,
+  missingArtifactCleanupCandidates,
   recommendedExtensionSettingValues,
   runtimeCapabilitySummary,
   runtimeStatusLabelKey,
@@ -266,6 +269,81 @@ describe('admin extension helpers', () => {
     expect(canRestartPlugin(item)).toBe(true)
   })
 
+  test('blocks runtime and settings helpers for a missing artifact', () => {
+    const item = extension({
+      id: 'missing.plugin',
+      name: 'Missing Plugin',
+      type: 'plugin',
+      status: 'enabled',
+      artifactState: 'missing',
+      manifest: {
+        settings: [{ key: 'enabled', label: 'Enabled', type: 'boolean' }]
+      },
+      runtime: {
+        state: 'running',
+        routeCount: 0,
+        hookCount: 0,
+        providerCount: 0
+      }
+    })
+
+    expect(isExtensionArtifactAvailable(item)).toBe(false)
+    expect(canRestartPlugin(item)).toBe(false)
+    expect(extensionSettingDeclarations([item])).toEqual([])
+  })
+
+  test('allows restart recovery for a disabled plugin with an exact staged artifact', () => {
+    const item = extension({
+      id: 'recoverable.plugin',
+      name: 'Recoverable Plugin',
+      type: 'plugin',
+      status: 'disabled',
+      stagedVersion: {
+        id: 2,
+        version: '2.0.0',
+        packageDigest: 'b'.repeat(64),
+        packagePath: 'storage/extensions/recoverable/2.0.0',
+        installedAt: '2026-07-28T00:00:00Z',
+        manifest: {
+          id: 'recoverable.plugin',
+          name: 'Recoverable Plugin',
+          version: '2.0.0',
+          type: 'plugin',
+          sforumVersion: '^1.0.0'
+        }
+      },
+      runtime: {
+        state: 'stopped',
+        routeCount: 0,
+        hookCount: 0,
+        providerCount: 0
+      }
+    })
+
+    expect(canRestartPlugin(item)).toBe(true)
+    expect(canRestartPlugin({ ...item, stagedVersion: undefined })).toBe(false)
+  })
+
+  test('selects only deletable disabled uploads whose artifacts are missing', () => {
+    const eligible = {
+      ...extension({ id: 'missing.plugin', name: 'Missing Plugin', type: 'plugin', status: 'disabled' }),
+      artifactState: 'missing' as const,
+      source: 'uploaded' as const,
+      isSystem: false,
+      isDeletable: true
+    }
+    const items: AdminExtension[] = [
+      eligible,
+      { ...eligible, id: 'available.plugin', artifactState: 'available' },
+      { ...eligible, id: 'enabled.plugin', status: 'enabled' },
+      { ...eligible, id: 'builtin.plugin', source: 'builtin' },
+      { ...eligible, id: 'system.plugin', isSystem: true },
+      { ...eligible, id: 'protected.plugin', isDeletable: false }
+    ]
+
+    expect(missingArtifactCleanupCandidates(items).map(item => item.id)).toEqual(['missing.plugin'])
+  })
+
   test('formats plugin process RSS for admin lists', () => {
     expect(formatPluginMemoryBytes(512 * 1024)).toBe('512 KiB')
     expect(formatPluginMemoryBytes(18 * 1024 * 1024)).toBe('18 MiB')
@@ -380,7 +458,9 @@ function extension(input: {
   name: string
   type: 'plugin' | 'theme'
   status?: 'installed' | 'enabled' | 'disabled'
+  artifactState?: AdminExtension['artifactState']
   source?: AdminExtension['source']
+  stagedVersion?: AdminExtension['stagedVersion']
   manifest?: Partial<AdminExtension['manifest']>
   runtime?: Partial<NonNullable<AdminExtension['runtime']>>
 }): AdminExtension {
@@ -390,7 +470,9 @@ function extension(input: {
     name: input.name,
     type: input.type,
     status: input.status || 'installed',
+    artifactState: input.artifactState,
     source: input.source,
+    stagedVersion: input.stagedVersion,
     manifest: {
       id: input.id,
       name: input.name,

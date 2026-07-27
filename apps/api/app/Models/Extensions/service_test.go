@@ -1277,6 +1277,25 @@ func TestServiceDisableStopsRuntimeAndListDecoratesRuntimeStatus(t *testing.T) {
 	}
 }
 
+func TestServiceListMarksMissingArtifactAndEnableFailsClosed(t *testing.T) {
+	item := installedExtension("missing.plugin", TypePlugin, ManifestBackend{})
+	item.PackagePath = filepath.Join(t.TempDir(), "missing")
+	store := &fakeExtensionStore{items: map[string]Extension{item.ID: item}}
+	service := NewServiceWithRuntime(store, t.TempDir(), nil)
+
+	items, err := service.List(context.Background(), extensionManager())
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(items) != 1 || items[0].ArtifactState != ArtifactMissing {
+		t.Fatalf("artifact state: %#v", items)
+	}
+
+	if _, err := service.Enable(context.Background(), extensionManager(), item.ID, EnableInput{}); !errors.Is(err, ErrArtifactMissing) {
+		t.Fatalf("expected missing artifact error, got %v", err)
+	}
+}
+
 func TestServiceListDecoratesPluginMemoryBytes(t *testing.T) {
 	store := &fakeExtensionStore{items: map[string]Extension{
 		"demo.plugin": extensionWithStatus(

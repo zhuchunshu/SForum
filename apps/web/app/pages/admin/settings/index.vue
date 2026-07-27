@@ -281,7 +281,11 @@ useSeoMeta({
 
 // 基础配置对比与重置
 const initialSiteName = computed(() => adminOptionsMap.value['site.name']?.value || 'SForum')
-const initialSiteUrl = computed(() => adminOptionsMap.value['site.url']?.value || 'http://127.0.0.1:3000')
+const initialSiteUrl = computed(() => adminOptionsMap.value['site.url']?.overrideValue ?? '')
+const siteUrlFallback = computed(() => {
+  const option = adminOptionsMap.value['site.url']
+  return option?.fallbackValue || option?.value || options.value['site.url'] || 'http://127.0.0.1:3000'
+})
 const initialDefaultLocale = computed(() => adminOptionsMap.value['site.default_locale']?.value || 'zh-CN')
 const initialSupportedLocales = computed(() => parseLocaleList(adminOptionsMap.value['site.supported_locales']?.value || 'zh-CN,en-US'))
 const initialTagline = computed(() => (adminOptionsMap.value['site.tagline']?.value || '').trim())
@@ -416,7 +420,7 @@ function applyAdminOptions(items: AdminWebOption[]) {
   adminOptionsMap.value = map
 
   form.siteName = map['site.name']?.value || 'SForum'
-  form.siteUrl = map['site.url']?.value || 'http://127.0.0.1:3000'
+  form.siteUrl = map['site.url']?.overrideValue ?? ''
   form.defaultLocale = map['site.default_locale']?.value || 'zh-CN'
   form.supportedLocales = parseLocaleList(map['site.supported_locales']?.value || 'zh-CN,en-US')
   if (!form.supportedLocales.includes(form.defaultLocale)) {
@@ -479,7 +483,7 @@ async function saveBasicSettings() {
     failureTitle: t('admin.settings.saveFailed'),
     save: () => saveAndApply([
       { name: 'site.name', value: form.siteName },
-      { name: 'site.url', value: form.siteUrl },
+      { name: 'site.url', value: form.siteUrl.trim() },
       { name: 'site.default_locale', value: form.defaultLocale },
       { name: 'site.supported_locales', value: form.supportedLocales.join(',') },
       { name: 'site.tagline', value: form.tagline.trim() },
@@ -1046,9 +1050,24 @@ function onLocaleToggle(locale: string, event: Event) {
               icon="i-lucide-link"
               type="url"
               :placeholder="t('admin.settings.siteUrlPlaceholder')"
-              required
               class="w-full"
             />
+            <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
+              <p class="text-xs text-muted">
+                {{ t('admin.settings.siteUrlHint', { url: siteUrlFallback }) }}
+              </p>
+              <UButton
+                type="button"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                icon="i-lucide-rotate-ccw"
+                :disabled="!form.siteUrl"
+                @click="form.siteUrl = ''"
+              >
+                {{ t('admin.settings.siteUrlUseEnvironment') }}
+              </UButton>
+            </div>
           </UFormField>
 
           <UFormField :label="t('admin.settings.siteTagline')" name="site-tagline">

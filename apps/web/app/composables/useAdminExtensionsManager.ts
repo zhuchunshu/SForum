@@ -315,6 +315,7 @@ export const useAdminExtensionsManager = async () => {
   const enableTrustChallenge = ref<ExecutableTrustChallenge | null>(null)
   const enableTrustError = ref('')
   const enableTrustBusy = ref(false)
+  const enableLifecycleAction = ref<'enable' | 'restart'>('enable')
   const isSuperAdmin = computed(() => user.value?.roleKeys?.includes('super_admin') === true)
 
   // Theme activation executable trust (L2). Ordinary L0/L1 themes stay operator-buildless (preview confirm only).
@@ -388,15 +389,22 @@ export const useAdminExtensionsManager = async () => {
     enableConfirmOpen.value = true
   }
 
-  async function enableExtension(item: AdminExtension) {
+  async function enableExtension(item: AdminExtension, action: 'enable' | 'restart' = 'enable') {
     resetEnableTrust()
+    enableLifecycleAction.value = action
     enableTrustBusy.value = true
     try {
-      const status = await request<ExecutableTrustStatus>(`/admin/extensions/${item.id}/trust`)
+      const status = await request<ExecutableTrustStatus>(executableTrustPath(item, action))
       enableTrustMode.value = 'exact'
       enableTrustStatus.value = status
       if (!status.trustRequired) {
-        await lifecycle(item, 'enable')
+        const capabilityCount = status.impact.capabilities?.length ?? item.capabilityGrants?.length ?? 0
+        const targetChanged = action === 'restart' && Boolean(item.stagedVersion)
+        if ((item.status !== 'enabled' || targetChanged) && capabilityCount > 0) {
+          openLegacyEnable(item)
+        } else {
+          await lifecycle(item, action)
+        }
         return
       }
       enableConfirmItem.value = item
@@ -404,10 +412,11 @@ export const useAdminExtensionsManager = async () => {
     } catch (error) {
       if (apiErrorReason(error) === 'extension.trust_not_required') {
         // V3 migration gate is off; preserve the existing boolean confirmation flow.
-        if (item.status !== 'enabled' && (item.capabilityGrants?.length ?? 0) > 0) {
+        const targetChanged = action === 'restart' && Boolean(item.stagedVersion)
+        if ((item.status !== 'enabled' || targetChanged) && (item.capabilityGrants?.length ?? 0) > 0) {
           openLegacyEnable(item)
         } else {
-          await lifecycle(item, 'enable', { confirmCapabilities: true })
+          await lifecycle(item, action, { confirmCapabilities: true })
         }
         return
       }
@@ -429,7 +438,7 @@ export const useAdminExtensionsManager = async () => {
       ? { confirmationToken: enableTrustChallenge.value?.token || undefined }
       : { confirmCapabilities: true }
     enableTrustError.value = ''
-    const result = await lifecycle(item, 'enable', body)
+    const result = await lifecycle(item, enableLifecycleAction.value, body)
     if (result.ok) {
       enableConfirmOpen.value = false
       // 保留 impact 到关闭过渡结束，避免弹窗在离场动画中闪成空内容；一次性 token 立即丢弃。
@@ -442,7 +451,9 @@ export const useAdminExtensionsManager = async () => {
     enableTrustChallenge.value = null
     if (enableTrustMode.value === 'exact') {
       try {
-        enableTrustStatus.value = await request<ExecutableTrustStatus>(`/admin/extensions/${item.id}/trust`)
+        enableTrustStatus.value = await request<ExecutableTrustStatus>(
+          executableTrustPath(item, enableLifecycleAction.value)
+        )
       } catch {
         // Keep the actionable enable failure visible; the next challenge request rechecks impact.
       }
@@ -455,10 +466,13 @@ export const useAdminExtensionsManager = async () => {
     enableTrustBusy.value = true
     enableTrustError.value = ''
     try {
-      const challenge = await request<ExecutableTrustChallenge>(`/admin/extensions/${item.id}/trust/challenge`, {
-        method: 'POST',
-        body: {}
-      })
+      const challenge = await request<ExecutableTrustChallenge>(
+        executableTrustPath(item, enableLifecycleAction.value, true),
+        {
+          method: 'POST',
+          body: {}
+        }
+      )
       enableTrustChallenge.value = challenge
       enableTrustStatus.value = {
         impact: challenge.impact,
@@ -483,6 +497,7 @@ export const useAdminExtensionsManager = async () => {
     enableTrustChallenge.value = null
     enableTrustError.value = ''
     enableTrustBusy.value = false
+    enableLifecycleAction.value = 'enable'
   }
 
   function resetThemeActivateTrust() {
@@ -636,29 +651,12 @@ export const useAdminExtensionsManager = async () => {
   }
 
   async function restartExtension(item: AdminExtension) {
-	if (item.stagedVersion) {
-		// Enabled + staged is an upgrade transaction, so it must use the same
-		// exact-artifact challenge flow as enable instead of a blind restart.
-		await enableExtension(item)
-		return
-	}
-    busyId.value = item.id
-	const idempotencyKey = lifecycleIdempotencyKey()
-    try {
-      // 已启用插件重启不要求再次确认 capabilities。
-		const updated = await request<AdminExtension>(`/admin/extensions/${item.id}/enable`, {
-			method: 'POST',
-			body: { confirmCapabilities: true },
-			headers: { 'Idempotency-Key': idempotencyKey }
-		})
-		replaceExtension(updated)
-		await loadEvents(updated.id)
-      toast.add({ color: 'success', icon: 'i-lucide-refresh-cw', title: t('admin.extensions.restarted') })
-    } catch (error) {
-      toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.extensions.actionFailed') })
-    } finally {
-      busyId.value = ''
+    if (item.stagedVersion) {
+      // staged 目标可能需要 exact trust；确认完成后仍由独立 restart Host 工作流执行。
+      await enableExtension(item, 'restart')
+      return
     }
+    await lifecycle(item, 'restart')
   }
 
   async function verifyExtension(item: AdminExtension) {
@@ -746,34 +744,34 @@ export const useAdminExtensionsManager = async () => {
 
   async function lifecycle(
     item: AdminExtension,
-    action: 'enable' | 'disable' | 'upgrade' | 'rollback',
+    action: ExtensionLifecycleAction,
     body: Record<string, unknown> = {}
   ) {
     busyId.value = item.id
-	const idempotencyKey = lifecycleIdempotencyKey()
+    const idempotencyKey = lifecycleIdempotencyKey()
     try {
-		const updated = await request<AdminExtension>(`/admin/extensions/${item.id}/${action}`, {
-			method: 'POST',
-			body,
-			headers: { 'Idempotency-Key': idempotencyKey }
-		})
-		replaceExtension(updated)
-		await loadEvents(updated.id)
-		toast.add({
-			color: 'success',
-			icon: lifecycleSuccessIcon(action),
-			title: t(lifecycleSuccessMessage(action)),
-			duration: 10000
-		})
-		return { ok: true as const, updated }
+      const updated = await request<AdminExtension>(`/admin/extensions/${item.id}/${action}`, {
+        method: 'POST',
+        body,
+        headers: { 'Idempotency-Key': idempotencyKey }
+      })
+      replaceExtension(updated)
+      await loadEvents(updated.id)
+      toast.add({
+        color: 'success',
+        icon: lifecycleSuccessIcon(action),
+        title: t(lifecycleSuccessMessage(action)),
+        duration: 10000
+      })
+      return { ok: true as const, updated }
     } catch (error) {
-		toast.add({
-			color: 'error',
-			icon: 'i-lucide-triangle-alert',
-			title: apiErrorMessage(error) || t('admin.extensions.actionFailed'),
-			duration: 0
-		})
-		return { ok: false as const, error }
+      toast.add({
+        color: 'error',
+        icon: 'i-lucide-triangle-alert',
+        title: apiErrorMessage(error) || t('admin.extensions.actionFailed'),
+        duration: 0
+      })
+      return { ok: false as const, error }
     } finally {
       busyId.value = ''
     }
@@ -994,19 +992,32 @@ function lifecycleIdempotencyKey() {
   return globalThis.crypto.randomUUID()
 }
 
-function lifecycleSuccessIcon(action: 'enable' | 'disable' | 'upgrade' | 'rollback') {
+type ExtensionLifecycleAction = 'enable' | 'disable' | 'restart' | 'upgrade' | 'rollback'
+
+function executableTrustPath(
+  item: AdminExtension,
+  action: 'enable' | 'restart',
+  challenge = false
+) {
+  const target = action === 'restart' && item.stagedVersion ? '?target=staged' : ''
+  return `/admin/extensions/${item.id}/trust${challenge ? '/challenge' : ''}${target}`
+}
+
+function lifecycleSuccessIcon(action: ExtensionLifecycleAction) {
   switch (action) {
     case 'enable': return 'i-lucide-play'
     case 'disable': return 'i-lucide-pause'
+    case 'restart': return 'i-lucide-refresh-cw'
     case 'upgrade': return 'i-lucide-package-check'
     case 'rollback': return 'i-lucide-history'
   }
 }
 
-function lifecycleSuccessMessage(action: 'enable' | 'disable' | 'upgrade' | 'rollback') {
+function lifecycleSuccessMessage(action: ExtensionLifecycleAction) {
   switch (action) {
     case 'enable': return 'admin.extensions.enabled'
     case 'disable': return 'admin.extensions.disabled'
+    case 'restart': return 'admin.extensions.restarted'
     case 'upgrade': return 'admin.extensions.upgraded'
     case 'rollback': return 'admin.extensions.rolledBack'
   }

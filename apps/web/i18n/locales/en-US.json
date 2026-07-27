@@ -652,7 +652,7 @@
       "uninstall": "Uninstall",
       "confirmUninstallTitle": "Uninstall this extension?",
       "confirmUninstallBody": "This removes “{name}” and its settings by default. Disable it first; built-in/system extensions cannot be uninstalled.",
-      "confirmUninstallV2Body": "This runs the recoverable trusted uninstall flow for “{name}”. Its package, runtime recovery material, and last successful authority remain available until terminal success.",
+      "confirmTrustedUninstallBody": "This runs the recoverable trusted uninstall flow for “{name}”. Its package, runtime recovery material, and last successful authority remain available until terminal success.",
       "confirmUninstallAction": "Uninstall",
       "confirmUninstallCancel": "Cancel",
       "uninstallModes": {
@@ -678,7 +678,7 @@
         "history": "Lifecycle operation history",
         "loading": "Loading lifecycle history",
         "emptyTitle": "No lifecycle history",
-        "emptyDescription": "This plugin has not run through the V2 lifecycle coordinator yet.",
+        "emptyDescription": "This plugin has no lifecycle operation history yet.",
         "loadFailed": "Lifecycle history could not be loaded.",
         "recoveryFailed": "The lifecycle recovery operation failed.",
         "retrySuccess": "The failed lifecycle step was recovered and retried.",
@@ -901,6 +901,33 @@
       "reactivateThemeHint": "Re-apply this theme’s page registry and static assets without switching to another theme",
       "restoreDefaultTheme": "Restore default theme",
       "activeTheme": "Active theme",
+      "artifact": {
+        "missing": "Artifact missing",
+        "missingDescription": "The database record remains, but the plugin or theme files no longer exist.",
+        "actionUnavailable": "This action is unavailable because the artifact is missing."
+      },
+      "missingCleanup": {
+        "action": "Clean missing artifacts ({count})",
+        "title": "Uninstall missing artifacts",
+        "description": "The following {count} plugin(s) or theme(s) whose files no longer exist will be removed from the extension catalog. The Host rechecks every exact artifact before committing.",
+        "listTitle": "Extensions to uninstall",
+        "dataLegend": "Settings and data handling",
+        "modes": {
+          "preserve": {
+            "label": "Keep settings and data (recommended)",
+            "description": "Keep SForum settings, lifecycle history, and plugin-owned business data for a later reinstall of the same extension ID."
+          },
+          "discardSettings": {
+            "label": "Delete Host settings, keep plugin data",
+            "description": "Delete extension settings stored by SForum while retaining lifecycle history and plugin-owned business data."
+          }
+        },
+        "preserveWarning": "The extensions leave the active catalog, but their settings and data are not deleted.",
+        "discardSettingsWarning": "Extension settings stored by SForum will be deleted and cannot be restored automatically.",
+        "businessDataNotice": "Because the plugin or theme files are missing, the Host cannot safely run export or custom cleanup hooks, so plugin-owned databases are never deleted by this action.",
+        "confirm": "Uninstall {count} extensions",
+        "success": "{count} missing-artifact extension(s) uninstalled."
+      },
       "source": {
         "builtin": "Built-in"
       },
@@ -2619,6 +2646,8 @@
       "siteNamePlaceholder": "Example: My Community",
       "siteUrl": "Site URL",
       "siteUrlPlaceholder": "Example: https://forum.example.com",
+      "siteUrlHint": "Leave blank to use the APP_URL environment value: {url}",
+      "siteUrlUseEnvironment": "Use environment APP_URL",
       "defaultLocale": "Default language",
       "supportedLocales": "Enabled languages",
       "tabs": {
@@ -3195,7 +3224,7 @@
         "categoryUpdated": "Category updated.",
         "categorySaveFailed": "Category could not be saved.",
         "structure": "Current structure",
-        "structureHelp": "Smaller position numbers appear first. Drag-and-drop sorting is deferred for v1.",
+        "structureHelp": "Smaller position numbers appear first. Drag-and-drop sorting is not currently supported.",
         "positionValue": "Position: {value}",
         "categoryMeta": "{topics} topics, {comments} replies, default sort: {sort}, position: {position}",
         "emptyCategories": "This group has no categories",

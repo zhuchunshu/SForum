@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
+import SFAdminMissingArtifactsCleanupDialog from '~/components/SFAdminMissingArtifactsCleanupDialog.vue'
 import {
   canRestartPlugin,
   capabilityCount,
@@ -8,9 +9,13 @@ import {
   extensionLocalizedDisplay,
   extensionManageRoute,
   formatPluginMemoryBytes,
+  isExtensionArtifactAvailable,
   isLifecycleV2Plugin,
+  missingArtifactCleanupCandidates,
   themeActionState,
-  themeStatusLabelKey
+  themeStatusLabelKey,
+  type AdminMissingArtifactCleanupResult,
+  type AdminMissingArtifactDataMode
 } from '~/utils/adminExtensions'
 
 definePageMeta({
@@ -24,6 +29,8 @@ defineOptions({
 
 const { format: formatSiteDateTime } = useSiteDateTime()
 const { t, locale } = useI18n()
+const { request } = useApiClient()
+const toast = useToast()
 const adminPage = useAdminPage('/extensions')
 const adminRoutes = useAdminRoutes()
 const selectedEventPage = ref(1)
@@ -104,6 +111,62 @@ const {
   statusLabel
 } = await useAdminExtensionsManager()
 const selectedEventPageInfo = computed(() => extensionEventPage(selectedEvents.value, selectedEventPage.value))
+const missingArtifacts = computed(() => missingArtifactCleanupCandidates(extensions.value))
+const missingCleanupOpen = ref(false)
+const missingCleanupBusy = ref(false)
+const missingCleanupError = ref('')
+const missingCleanupDataMode = ref<AdminMissingArtifactDataMode>('preserve')
+
+function openMissingCleanup() {
+  if (!isSuperAdmin.value || missingArtifacts.value.length === 0) return
+  missingCleanupDataMode.value = 'preserve'
+  missingCleanupError.value = ''
+  missingCleanupOpen.value = true
+}
+
+function cancelMissingCleanup() {
+  if (missingCleanupBusy.value) return
+  missingCleanupOpen.value = false
+  missingCleanupError.value = ''
+  missingCleanupDataMode.value = 'preserve'
+}
+
+async function confirmMissingCleanup() {
+  const extensionIds = missingArtifacts.value.map(item => item.id)
+  if (extensionIds.length === 0) {
+    cancelMissingCleanup()
+    return
+  }
+  missingCleanupBusy.value = true
+  missingCleanupError.value = ''
+  try {
+    const result = await request<AdminMissingArtifactCleanupResult>('/admin/extensions/missing-artifacts/uninstall', {
+      method: 'POST',
+      body: {
+        extensionIds,
+        dataMode: missingCleanupDataMode.value
+      }
+    })
+    await refresh()
+    missingCleanupOpen.value = false
+    toast.add({
+      color: 'success',
+      icon: 'i-lucide-package-check',
+      title: t('admin.extensions.missingCleanup.success', { count: result.removed.length }),
+      duration: 10000
+    })
+  } catch (error) {
+    missingCleanupError.value = apiErrorMessage(error) || t('admin.extensions.actionFailed')
+    toast.add({
+      color: 'error',
+      icon: 'i-lucide-triangle-alert',
+      title: missingCleanupError.value,
+      duration: 0
+    })
+  } finally {
+    missingCleanupBusy.value = false
+  }
+}
 
 useSeoMeta({
   title: t('admin.extensions.metaTitle')
@@ -154,6 +217,15 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
       <input ref="fileInput" class="hidden" type="file" accept=".zip,application/zip" @change="uploadArchive">
     </template>
     <template #right>
+      <UButton
+        v-if="isSuperAdmin && missingArtifacts.length"
+        icon="i-lucide-package-x"
+        color="error"
+        variant="subtle"
+        @click="openMissingCleanup"
+      >
+        {{ t('admin.extensions.missingCleanup.action', { count: missingArtifacts.length }) }}
+      </UButton>
       <UButton icon="i-lucide-rotate-cw" color="neutral" variant="subtle" :loading="pending" @click="refresh()">
         {{ t('admin.extensions.refresh') }}
       </UButton>
@@ -258,12 +330,23 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
                   <UBadge v-if="item.stagedVersion" color="warning" variant="outline" icon="i-lucide-package-plus">
                     {{ t('admin.extensions.stagedVersionBadge', { version: item.stagedVersion.version }) }}
                   </UBadge>
+                  <UBadge
+                    v-if="!isExtensionArtifactAvailable(item)"
+                    color="error"
+                    variant="subtle"
+                    icon="i-lucide-package-x"
+                  >
+                    {{ t('admin.extensions.artifact.missing') }}
+                  </UBadge>
                 </div>
                 <p
                   v-if="display.description"
                   class="mt-1.5 line-clamp-2 text-sm leading-5 text-slate-600 dark:text-zinc-300"
                 >
                   {{ display.description }}
+                </p>
+                <p v-if="!isExtensionArtifactAvailable(item)" class="mt-1.5 text-sm text-red-600 dark:text-red-400">
+                  {{ t('admin.extensions.artifact.missingDescription') }}
                 </p>
                 <p class="mt-1 truncate text-xs text-slate-500 dark:text-zinc-400">
                   {{ item.id }} · v{{ item.version }} · {{ t('admin.extensions.capabilityCount', { count: capabilityCount(item) }) }}
@@ -293,7 +376,9 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
                 color="neutral"
                 variant="ghost"
                 icon="i-lucide-settings"
-                :to="adminRoutes.path(extensionManageRoute(item))"
+                :to="isExtensionArtifactAvailable(item) ? adminRoutes.path(extensionManageRoute(item)) : undefined"
+                :disabled="!isExtensionArtifactAvailable(item)"
+                :title="!isExtensionArtifactAvailable(item) ? t('admin.extensions.artifact.actionUnavailable') : undefined"
               >
                 {{ t('admin.extensions.manage') }}
               </UButton>
@@ -301,6 +386,7 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
                 v-if="item.type === 'plugin' && item.status !== 'enabled'"
                 size="sm"
                 icon="i-lucide-play"
+                :disabled="!isExtensionArtifactAvailable(item)"
                 :loading="busyId === item.id"
                 @click="enableExtension(item)"
               >
@@ -344,6 +430,7 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
                 v-else-if="themeActionState(item) === 'activateDefault'"
                 size="sm"
                 icon="i-lucide-rotate-ccw"
+                :disabled="!isExtensionArtifactAvailable(item)"
                 :loading="busyId === item.id"
                 @click="activateTheme(item)"
               >
@@ -353,6 +440,7 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
                 v-else-if="themeActionState(item) === 'activate'"
                 size="sm"
                 icon="i-lucide-play"
+                :disabled="!isExtensionArtifactAvailable(item)"
                 :loading="busyId === item.id"
                 @click="activateTheme(item)"
               >
@@ -364,6 +452,7 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
                 color="neutral"
                 variant="subtle"
                 icon="i-lucide-refresh-cw"
+                :disabled="!isExtensionArtifactAvailable(item)"
                 :loading="busyId === item.id"
                 :title="t('admin.extensions.reactivateThemeHint')"
                 @click="activateTheme(item)"
@@ -585,6 +674,16 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
       :is-super-admin="isSuperAdmin"
       @select="selectLifecycleOperation"
       @recover="recoverLifecycleOperation"
+    />
+
+    <SFAdminMissingArtifactsCleanupDialog
+      v-model:open="missingCleanupOpen"
+      v-model:data-mode="missingCleanupDataMode"
+      :extensions="missingArtifacts"
+      :busy="missingCleanupBusy"
+      :error="missingCleanupError"
+      @cancel="cancelMissingCleanup"
+      @confirm="confirmMissingCleanup"
     />
   </div>
 </template>

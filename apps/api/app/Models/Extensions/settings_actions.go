@@ -31,6 +31,9 @@ func (s *Service) ExecuteSettingsAction(
 	if !canManageExtensionSettings(actor, extension) {
 		return result, identity.ErrPermissionDenied
 	}
+	if err := requireArtifactAvailable(extension); err != nil {
+		return result, err
+	}
 	action, ok := declaredSettingsAction(extension.Manifest, actionID)
 	if !ok {
 		return result, ErrSettingsActionInvalid

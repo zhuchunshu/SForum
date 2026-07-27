@@ -9,6 +9,7 @@ import {
   extensionSettingsPresentation,
   filterExtensionsByType,
   formatPluginMemoryBytes,
+  isExtensionArtifactAvailable,
   isLifecycleV2Plugin,
   runtimeCapabilitySummary,
   runtimeStatusLabelKey,
@@ -222,6 +223,14 @@ useSeoMeta({
               {{ t(runtimeStatusLabelKey(item)) }}
             </UBadge>
             <UBadge
+              v-if="!isExtensionArtifactAvailable(item)"
+              color="error"
+              variant="subtle"
+              icon="i-lucide-package-x"
+            >
+              {{ t('admin.extensions.artifact.missing') }}
+            </UBadge>
+            <UBadge
               v-if="item.runtime?.protocolDeprecated"
               color="warning"
               variant="subtle"
@@ -259,6 +268,9 @@ useSeoMeta({
             class="mt-1.5 line-clamp-2 text-sm leading-5 text-slate-600 dark:text-zinc-300"
           >
             {{ display.description }}
+          </p>
+          <p v-if="!isExtensionArtifactAvailable(item)" class="mt-1.5 text-sm text-red-600 dark:text-red-400">
+            {{ t('admin.extensions.artifact.missingDescription') }}
           </p>
           <p class="mt-1 truncate text-xs text-slate-500 dark:text-zinc-400">
             {{ item.id }} · v{{ item.version }} · {{ t('admin.extensions.capabilityCount', { count: capabilityCount(item) }) }}
@@ -325,7 +337,9 @@ useSeoMeta({
             color="neutral"
             variant="ghost"
             icon="i-lucide-settings"
-            :to="adminRoutes.path(extensionManageRoute(item))"
+            :to="isExtensionArtifactAvailable(item) ? adminRoutes.path(extensionManageRoute(item)) : undefined"
+            :disabled="!isExtensionArtifactAvailable(item)"
+            :title="!isExtensionArtifactAvailable(item) ? t('admin.extensions.artifact.actionUnavailable') : undefined"
           >
             {{ t('admin.extensions.manage') }}
           </UButton>
@@ -333,6 +347,7 @@ useSeoMeta({
             v-if="item.status !== 'enabled'"
             size="sm"
             icon="i-lucide-play"
+            :disabled="!isExtensionArtifactAvailable(item)"
             :loading="busyId === item.id"
             @click="enableExtension(item)"
           >

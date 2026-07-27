@@ -21,6 +21,7 @@ const (
 	ActionExtensionSettingsAction    = "extension.settings.action"
 	ActionExtensionEnable            = "extension.enable"
 	ActionExtensionDisable           = "extension.disable"
+	ActionExtensionRestart           = "extension.restart"
 	ActionExtensionActivate          = "extension.theme_activate"
 	ActionExtensionInstalled         = "extension.install"
 	ActionExtensionUpgraded          = "extension.upgrade"

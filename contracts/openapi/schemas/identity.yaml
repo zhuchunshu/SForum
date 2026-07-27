@@ -1293,7 +1293,7 @@ AdminIdentityProviderItem:
     revision: {type: integer, format: int64}
     callbackPath:
       type: string
-      description: Reserved Core callback path (relative).
+      description: Public same-origin callback path bridged by the Web Host to the reserved Core callback.
     callbackUrl:
       type: string
       description: Absolute callback URL derived from trusted APP_URL (never request Host).

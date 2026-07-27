@@ -232,6 +232,15 @@ AdminWebOption:
     value:
       type: string
       description: Empty for secret options; use secretSet to tell whether a secret is configured.
+    overrideValue:
+      type: string
+      description: Operator-provided override. Present for inheritable settings and empty when deployment configuration is authoritative.
+    fallbackValue:
+      type: string
+      description: Deployment fallback used when the operator override is empty.
+    inherited:
+      type: boolean
+      description: Whether the effective value currently comes from deployment configuration.
     public:
       type: boolean
     secret:

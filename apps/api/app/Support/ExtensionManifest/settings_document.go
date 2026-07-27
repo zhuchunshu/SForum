@@ -51,12 +51,14 @@ type SettingsGroup struct {
 }
 
 type SettingsCallout struct {
-	ID    string        `json:"id"`
-	Tone  string        `json:"tone,omitempty"`
-	Title LocalizedText `json:"title"`
-	Body  LocalizedText `json:"body,omitempty"`
-	Tab   string        `json:"tab,omitempty"`
-	Group string        `json:"group,omitempty"`
+	ID        string        `json:"id"`
+	Tone      string        `json:"tone,omitempty"`
+	Title     LocalizedText `json:"title"`
+	Body      LocalizedText `json:"body,omitempty"`
+	LinkLabel LocalizedText `json:"linkLabel,omitempty"`
+	LinkURL   string        `json:"linkUrl,omitempty"`
+	Tab       string        `json:"tab,omitempty"`
+	Group     string        `json:"group,omitempty"`
 }
 
 type SettingsComponent struct {
@@ -153,6 +155,8 @@ func normalizeSettingsDocument(manifest *Manifest) {
 		callout.Tone = strings.ToLower(strings.TrimSpace(callout.Tone))
 		callout.Title = callout.Title.normalized()
 		callout.Body = callout.Body.normalized()
+		callout.LinkLabel = callout.LinkLabel.normalized()
+		callout.LinkURL = strings.TrimSpace(callout.LinkURL)
 		callout.Tab = NormalizeID(callout.Tab)
 		callout.Group = NormalizeID(callout.Group)
 	}
@@ -238,6 +242,9 @@ func validateSettingsDocument(manifest Manifest) error {
 	}
 	for _, callout := range document.UI.Callouts {
 		if !adminComponentIDPattern.MatchString(callout.ID) || callout.Title.IsEmpty() {
+			return ErrInvalidManifest
+		}
+		if (callout.LinkURL == "") != callout.LinkLabel.IsEmpty() || (callout.LinkURL != "" && !validHTTPURL(callout.LinkURL)) {
 			return ErrInvalidManifest
 		}
 		if callout.Tab != "" {

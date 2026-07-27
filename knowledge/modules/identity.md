@@ -94,12 +94,21 @@ Initial identity foundation is implemented.
   **T4 / M3 (2026-07-27):** Host admin aggregate
   (`GET /admin/identity/providers`) exposes
   discovered/trusted/enabled/configured/probed/publiclyActivated, absolute
-  `callbackUrl` from `APP_URL`, and `settingsPath`;
+  `callbackUrl` from `APP_URL`, and `settingsPath`. Browser-facing OAuth
+  callbacks use `/auth/providers/{providerId}/callback`; the Web Host bridges
+  them to the reserved `/api/v1` Core handler so provider configuration does
+  not expose the API namespace;
   `IsProviderConfigured` wired from extension settings; `identity.provider.manage`
   may read/write auth-plugin settings (mail-style); Login Methods page
   `/admin/settings/login-methods` embeds `SFExtensionSettingsRenderer` with
   CAS toggles, callback copy, truthful probe, restore defaults (secrets
-  preserved), zh-CN/en-US, operator role template alignment. **M3 exit complete.**
+  preserved), zh-CN/en-US, operator role template alignment. The provider
+  tabs reuse the admin settings button-tab geometry; the former v3-style
+  `UTabs` contract rendered an empty track, while its full-width Nuxt UI 4
+  replacement did not match adjacent admin settings pages. Settings callouts
+  support validated external help links; the GitHub plugin supplies its
+  official OAuth App application URL and complete credential/activation steps.
+  **M3 exit complete.**
   **T5 / M4A (2026-07-27):** SSR-safe `useAuthProviders` reads Host public
   catalog only; login/register Host islands show provider buttons solely when
   `activatedOperations` includes login/registration; vendor `label`/`icon`
@@ -181,6 +190,15 @@ Initial identity foundation is implemented.
   public catalog contains the exact restored provider; the request is now
   **整改完成，等待独立复审**, not program closure. See
   `reports/2026-07-27-external-auth-r1-r7-requirements-evidence-matrix.md`.
+  **Restart repair (2026-07-28):** the admin restart action now uses the
+  Host-owned restart endpoint instead of reusing enable. The old GitHub
+  Identity Registry publication is tombstoned before the runtime is stopped,
+  then the exact Lifecycle V2 artifact is enabled and republished. Runtime
+  evidence on the development database recorded successful disable/enable
+  operations, `extension.restart` audit, and active Identity Registry revision
+  7 for exact version id `15357`; the previous
+  `extension lifecycle registry publication exact fence conflict` no longer
+  occurs.
 
 - PostgreSQL migrations create users, credentials, roles, permissions, role
   assignments, and audit events.

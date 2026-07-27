@@ -13,6 +13,9 @@ export type AdminWebOption = WebOption & {
   public: boolean
   secret: boolean
   secretSet: boolean
+  overrideValue?: string
+  fallbackValue?: string
+  inherited?: boolean
 }
 
 export type AppearanceThemePreset = 'pine_teal' | 'ocean_blue' | 'violet' | 'rose' | 'amber'

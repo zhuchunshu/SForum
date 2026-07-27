@@ -150,6 +150,66 @@ func TestExecutableTrustReviewTargetsStagedArtifactWithoutInvalidatingActiveGran
 	}
 }
 
+func TestExecutableTrustExplicitStagedTargetRecoversDisabledPlugin(t *testing.T) {
+	active := exactTrustExtension(t, "demo.disabled-staged-trust")
+	active.Status = StatusDisabled
+	active.ActiveVersionID = 1
+
+	candidate := exactTrustExtension(t, active.ID)
+	candidate.Version = "2.0.0"
+	candidate.Manifest.Version = candidate.Version
+	candidate.ActiveVersionID = 2
+	if err := writeManifest(candidate.PackagePath, candidate.Manifest); err != nil {
+		t.Fatal(err)
+	}
+	var err error
+	candidate.PackageDigest, err = extensionpackage.DigestTree(candidate.PackagePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	active.StagedVersion = &ExtensionVersion{
+		ID: candidate.ActiveVersionID, Version: candidate.Version, Manifest: candidate.Manifest,
+		PackageDigest: candidate.PackageDigest, AdminFrontendDigest: candidate.AdminFrontendDigest,
+		PackagePath: candidate.PackagePath, InstalledAt: candidate.InstalledAt,
+	}
+
+	store := &fakeExtensionStore{items: map[string]Extension{active.ID: active}}
+	trustStore := &memoryExecutableTrustStore{}
+	service := NewExecutableTrustService(store, trustStore)
+	actor := extensionManager()
+
+	currentStatus, err := service.Status(context.Background(), actor, active.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if currentStatus.Impact.ExtensionVersion != active.Version ||
+		currentStatus.Impact.PackageDigest != active.PackageDigest {
+		t.Fatalf("default disabled trust target=%#v", currentStatus.Impact)
+	}
+
+	stagedStatus, err := service.StatusForStaged(context.Background(), actor, active.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stagedStatus.Impact.ExtensionVersion != candidate.Version ||
+		stagedStatus.Impact.PackageDigest != candidate.PackageDigest {
+		t.Fatalf("explicit staged trust target=%#v", stagedStatus.Impact)
+	}
+
+	challenge, err := service.ChallengeForStaged(context.Background(), actor, active.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	authority, err := service.ConfirmLifecycleAuthority(context.Background(), actor, candidate, challenge.Token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if authority.Grant == nil || authority.Impact.ExtensionVersion != candidate.Version ||
+		authority.Impact.PackageDigest != candidate.PackageDigest {
+		t.Fatalf("staged challenge authority=%#v", authority)
+	}
+}
+
 func TestExecutableTrustAuditsChallengeDeniedGrantAndRevoke(t *testing.T) {
 	extension := exactTrustExtension(t, "demo.audit")
 	store := &fakeExtensionStore{items: map[string]Extension{extension.ID: extension}}

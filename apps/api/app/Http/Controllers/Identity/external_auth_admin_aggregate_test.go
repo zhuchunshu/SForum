@@ -84,7 +84,7 @@ func TestListAdminIdentityProviderItemsAggregateStates(t *testing.T) {
 		t.Fatalf("activation flags: activated=%v public=%v bound=%v",
 			item.Activated, item.PubliclyActivated, item.ArtifactBound)
 	}
-	if item.CallbackPath == "" || item.CallbackURL != "https://forum.example.com/api/v1/auth/providers/ext.github.auth/callback" {
+	if item.CallbackPath != "/auth/providers/ext.github.auth/callback" || item.CallbackURL != "https://forum.example.com/auth/providers/ext.github.auth/callback" {
 		t.Fatalf("callback path=%q url=%q", item.CallbackPath, item.CallbackURL)
 	}
 	if item.SettingsPath != "/extensions/ext.github/pages/settings" {

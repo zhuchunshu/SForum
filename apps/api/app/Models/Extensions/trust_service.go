@@ -122,6 +122,15 @@ func (s *ExecutableTrustService) reviewImpact(
 	actor identity.Actor,
 	extensionID string,
 ) (Extension, TrustImpact, error) {
+	return s.reviewImpactForTarget(ctx, actor, extensionID, false)
+}
+
+func (s *ExecutableTrustService) reviewImpactForTarget(
+	ctx context.Context,
+	actor identity.Actor,
+	extensionID string,
+	staged bool,
+) (Extension, TrustImpact, error) {
 	extension, err := s.extension(ctx, extensionID)
 	if err != nil {
 		return Extension{}, TrustImpact{}, err
@@ -129,7 +138,15 @@ func (s *ExecutableTrustService) reviewImpact(
 	if !canViewExtensions(actor) && !canManagePlugins(actor) && !canManageThemes(actor) {
 		return Extension{}, TrustImpact{}, identity.ErrPermissionDenied
 	}
-	extension = trustReviewArtifact(extension)
+	if staged {
+		candidate, ok := extension.StagedArtifact()
+		if !ok {
+			return Extension{}, TrustImpact{}, ErrStagedVersionNotFound
+		}
+		extension = candidate
+	} else {
+		extension = trustReviewArtifact(extension)
+	}
 	impact, err := buildTrustImpact(extension, TrustActionEnable)
 	if err != nil {
 		return Extension{}, TrustImpact{}, err
@@ -138,7 +155,24 @@ func (s *ExecutableTrustService) reviewImpact(
 }
 
 func (s *ExecutableTrustService) Status(ctx context.Context, actor identity.Actor, extensionID string) (ExecutableTrustStatus, error) {
-	extension, impact, err := s.reviewImpact(ctx, actor, extensionID)
+	return s.statusForTarget(ctx, actor, extensionID, false)
+}
+
+func (s *ExecutableTrustService) StatusForStaged(
+	ctx context.Context,
+	actor identity.Actor,
+	extensionID string,
+) (ExecutableTrustStatus, error) {
+	return s.statusForTarget(ctx, actor, extensionID, true)
+}
+
+func (s *ExecutableTrustService) statusForTarget(
+	ctx context.Context,
+	actor identity.Actor,
+	extensionID string,
+	staged bool,
+) (ExecutableTrustStatus, error) {
+	extension, impact, err := s.reviewImpactForTarget(ctx, actor, extensionID, staged)
 	if err != nil {
 		return ExecutableTrustStatus{}, err
 	}
@@ -255,20 +289,32 @@ func (s *ExecutableTrustService) hasLiveGrant(ctx context.Context, impact TrustI
 }
 
 func (s *ExecutableTrustService) Challenge(ctx context.Context, actor identity.Actor, extensionID string) (TrustChallenge, error) {
+	return s.challengeForTarget(ctx, actor, extensionID, false)
+}
+
+func (s *ExecutableTrustService) ChallengeForStaged(
+	ctx context.Context,
+	actor identity.Actor,
+	extensionID string,
+) (TrustChallenge, error) {
+	return s.challengeForTarget(ctx, actor, extensionID, true)
+}
+
+func (s *ExecutableTrustService) challengeForTarget(
+	ctx context.Context,
+	actor identity.Actor,
+	extensionID string,
+	staged bool,
+) (TrustChallenge, error) {
 	if !actor.IsSuperAdmin() {
 		return TrustChallenge{}, identity.ErrPermissionDenied
 	}
-	extension, err := s.extension(ctx, extensionID)
+	extension, impact, err := s.reviewImpactForTarget(ctx, actor, extensionID, staged)
 	if err != nil {
 		return TrustChallenge{}, err
 	}
-	extension = trustReviewArtifact(extension)
 	if !RequiresExecutableTrust(extension) {
 		return TrustChallenge{}, ErrTrustNotRequired
-	}
-	impact, err := buildTrustImpact(extension, TrustActionEnable)
-	if err != nil {
-		return TrustChallenge{}, err
 	}
 	tokenBytes := make([]byte, 32)
 	if _, err := io.ReadFull(s.random, tokenBytes); err != nil {

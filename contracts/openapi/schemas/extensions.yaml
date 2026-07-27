@@ -37,6 +37,19 @@ ApiResponseExtensionUninstall:
       type: string
     data:
       "$ref": "#/ExtensionUninstallResult"
+ApiResponseMissingArtifactCleanup:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/MissingArtifactCleanupResult"
 ApiResponseExtensionMigrationList:
   type: object
   required:
@@ -275,6 +288,70 @@ ExtensionUninstallResult:
       type: boolean
     cleanup:
       "$ref": "#/LifecycleCleanupFinalization"
+MissingArtifactCleanupInput:
+  type: object
+  required: [extensionIds]
+  additionalProperties: false
+  properties:
+    extensionIds:
+      type: array
+      minItems: 1
+      maxItems: 100
+      uniqueItems: true
+      items:
+        type: string
+        minLength: 1
+        maxLength: 128
+    dataMode:
+      type: string
+      enum: [preserve, discard_settings]
+      default: preserve
+      description: >-
+        Preserve keeps Host settings. discard_settings deletes only settings
+        stored by SForum. Lifecycle history and plugin-owned business data are
+        retained in both modes because missing code cannot run trusted export
+        or cleanup hooks.
+MissingArtifactCleanupResult:
+  type: object
+  required: [removed]
+  additionalProperties: false
+  properties:
+    removed:
+      type: array
+      items:
+        "$ref": "#/MissingArtifactCleanupItem"
+MissingArtifactCleanupItem:
+  type: object
+  required:
+  - extensionId
+  - name
+  - type
+  - version
+  - packageDigest
+  - dataMode
+  - retainSettings
+  - businessDataKept
+  additionalProperties: false
+  properties:
+    extensionId:
+      type: string
+    name:
+      type: string
+    type:
+      type: string
+      enum: [plugin, theme]
+    version:
+      type: string
+    packageDigest:
+      type: string
+    dataMode:
+      type: string
+      enum: [preserve, discard_settings]
+    retainSettings:
+      type: boolean
+    businessDataKept:
+      type: boolean
+      const: true
 LifecycleRecoveryInput:
   type: object
   required: [decision]
@@ -1011,6 +1088,8 @@ ExtensionManifestSettingsCallout:
     tone: { type: string }
     title: { "$ref": "#/LocalizedText" }
     body: { "$ref": "#/LocalizedText" }
+    linkLabel: { "$ref": "#/LocalizedText" }
+    linkUrl: { type: string, format: uri }
     tab: { type: string }
     group: { type: string }
 ExtensionManifestSettingsComponent:
@@ -1426,6 +1505,10 @@ ExtensionVersion:
       type: string
     manifest:
       "$ref": "#/ExtensionManifest"
+    artifactState:
+      type: string
+      enum: [available, missing]
+      description: Current presence of the server-local immutable package path.
     packageDigest:
       type: string
       description: Canonical immutable package tree SHA-256 digest.
@@ -1485,6 +1568,12 @@ Extension:
         "$ref": "#/ExtensionCapabilityGrant"
     runtime:
       "$ref": "#/ExtensionRuntimeStatus"
+    artifactState:
+      type: string
+      enum: [available, missing]
+      description: >-
+        Current presence of the active server-local immutable package path.
+        Management list/detail responses always include this field.
     packageDigest:
       type: string
       description: Canonical immutable package tree SHA-256 digest.
@@ -1803,6 +1892,8 @@ ExtensionSettingsCallout:
     tone: { type: string }
     title: { type: string }
     body: { type: string }
+    linkLabel: { type: string }
+    linkUrl: { type: string, format: uri }
     tab: { type: string }
     group: { type: string }
 ExtensionSettingsAction:

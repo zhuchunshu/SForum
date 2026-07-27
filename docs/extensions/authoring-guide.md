@@ -49,6 +49,13 @@ Reference package: `extensions/builtin/plugins/sforum-auth-github` (Manifest V3
 AuthSession issue/renew/destroy, callback state store, registration tickets.
 Route Registry replacement of the callback is forbidden for integrity reasons.
 
+External auth providers must ship complete operator setup guidance in their
+Settings Document: where to create provider credentials, which public site and
+callback URLs to enter, how secrets are stored, and the order for save, probe,
+and Host activation. Use callout `linkLabel` + `linkUrl` for the official
+application or documentation page; the Host validates HTTP(S) links and renders
+them without vendor-specific Core branches.
+
 Operator docs: [zh-CN](../zh-CN/usage/github-login.md) ·
 [en-US](../en-US/usage/github-login.md).
 

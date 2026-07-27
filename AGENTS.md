@@ -96,6 +96,8 @@ Build, typecheck, lint, test:
 - `cd apps/web && bun run typecheck` — Nuxt typecheck (uses
   `NUXT_BUILD_DIR=.nuxt-typecheck`).
 - `cd apps/api && go build ./...` / `go test ./...` — Go build and tests.
+- `node tests/validate-architecture-boundaries.mjs` — enforce file-size,
+  flat-directory, fixed-tab, and legacy God-object non-growth guardrails.
 - `./scripts/test.sh` — full repo test gate: `go test ./...`, OpenAPI ref
   validation, Nuxt typecheck, and the product `tests/validate-*` scripts wired in
   `scripts/test.sh` (demos remain optional offline checks).
@@ -107,6 +109,88 @@ CLI:
 - `cd apps/api && go run ./cmd/sforum` — developer console: scaffold
   plugins/themes, `seed:forum` fake data. `seed:forum` is append-only,
   triggers no events, reads `DATABASE_URL` from env or `--database-url`.
+
+## Architecture And Module Boundaries
+
+Directory placement is part of the design, not cleanup deferred until a file
+becomes unmanageable. Before adding a file, identify the owning product domain,
+layer, and stable package/component boundary.
+
+General rules:
+
+- New product code must live in a domain subdirectory. Do not add another
+  unrelated file to a crowded root directory because auto-imports or a shared
+  package make it convenient.
+- Root-level shared directories are reserved for genuinely cross-domain
+  primitives, compatibility facades, and framework entry points. A
+  product-specific component, composable, utility, test, handler, or store does
+  not qualify as shared merely because two callers currently use it.
+- When a change would grow an architecture baseline in
+  `tests/architecture-boundaries-baseline.json`, first extract or move an
+  existing responsibility. Raising a baseline requires an accepted decision
+  record explaining why a better boundary is not currently viable and naming
+  the removal/reduction condition.
+- Architecture baselines are ratchets. When a legacy file, flat directory,
+  inline-tab page, or receiver-method count shrinks, lower or remove its
+  baseline in the same change; never leave reclaimed capacity available for
+  later growth.
+- Moving files without changing ownership is not a sufficient refactor.
+  Separate state, validation, persistence, side effects, and transport at a
+  boundary that can be tested independently.
+
+Frontend rules:
+
+- Keep `apps/web/app/pages/**` as route shells: page metadata, route/query
+  state, permission selection, SSR orchestration, and composition. Product
+  forms, tables, inspectors, and other substantial surfaces belong in feature
+  components.
+- For fixed Core-owned tabs, each tab's substantial content must be a separate
+  component file under a domain path such as
+  `components/admin/settings/<area>/tabs/`. Keep its form state, validation,
+  save/reset behavior, and focused tests with that tab or its domain
+  composable. The route shell owns only tab selection and shared page-level
+  orchestration.
+- Runtime-defined extension/provider tabs are the deliberate exception: render
+  them through the generic Schema/provider renderer. Do not create
+  vendor-specific Core files merely to satisfy the one-file-per-tab rule.
+- New product components must not be placed directly in
+  `apps/web/app/components`; use domain folders such as `admin/`, `forum/`,
+  `identity/`, `settings/`, `themes/`, or another clear owner. Keep only
+  approved shared `SF*` primitives and compatibility entry points at the root.
+- Apply the same domain grouping to `composables`, `utils`, and `apps/web/tests`.
+  Use explicit imports when moving into a subdirectory would otherwise change a
+  Nuxt auto-imported component name.
+- Do not test component organization by reading a whole route file and matching
+  implementation strings. Prefer rendered behavior, exported model helpers, or
+  the focused tab/component source only when a static contract is unavoidable.
+
+Backend rules:
+
+- A Go subdirectory is a package boundary, not a visual folder. Before creating
+  it, define its public responsibility, dependency direction, transaction
+  ownership, and test boundary; avoid packages that only re-export a parent
+  package or create import cycles.
+- HTTP controllers own decoding/encoding and transport concerns; domain
+  services own authorization-aware business workflows; stores own persistence;
+  `bootstrap` owns assembly only. Do not mix SQL, request parsing, policy,
+  process control, and response formatting in one function or type.
+- Do not add new responsibilities to the legacy
+  `app/Support/Extensions` (`extensionsruntime`) or
+  `app/Models/Extensions` flat packages. Extract a focused collaborator or
+  package first. These packages and their `Manager`/`Service` receiver counts
+  are non-growth baselines.
+- A `Service`, `Manager`, `Controller`, or `Store` spanning multiple
+  independent capabilities must become a compatibility facade over focused
+  collaborators. Do not keep adding receiver methods or
+  `NewServiceWith...` constructor permutations to a God object; prefer one
+  config/options constructor and small capability interfaces.
+- Split large files inside the current package before changing package
+  boundaries when that safely reduces review risk. Extract a new package only
+  after callers depend on a stable minimal interface.
+- Prefer external black-box tests (`package foo_test`) for public behavior.
+  Use same-package tests only when verifying a private invariant that cannot be
+  covered through the public contract. New package boundaries must include
+  allowed and denied behavior tests where permissions or trust are involved.
 
 ## Core Framework And Plugin-First Development
 

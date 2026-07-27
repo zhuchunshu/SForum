@@ -38,6 +38,10 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 	case NameSiteName:
 		return value, value != "" && len([]rune(value)) <= 80
 	case NameSiteURL:
+		// 空值表示不覆盖部署环境的 APP_URL；公开读取阶段统一解析为有效地址。
+		if value == "" {
+			return "", true
+		}
 		return value, isValidURL(value)
 	case NameSiteDefaultLocale:
 		return normalizeLocaleChoice(value, builtInLocales)

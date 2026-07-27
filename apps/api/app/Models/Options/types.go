@@ -254,11 +254,14 @@ type Option struct {
 }
 
 type AdminOption struct {
-	Name      string `json:"name"`
-	Value     string `json:"value"`
-	Public    bool   `json:"public"`
-	Secret    bool   `json:"secret"`
-	SecretSet bool   `json:"secretSet"`
+	Name          string  `json:"name"`
+	Value         string  `json:"value"`
+	Public        bool    `json:"public"`
+	Secret        bool    `json:"secret"`
+	SecretSet     bool    `json:"secretSet"`
+	OverrideValue *string `json:"overrideValue,omitempty"`
+	FallbackValue string  `json:"fallbackValue,omitempty"`
+	Inherited     bool    `json:"inherited,omitempty"`
 }
 
 type UpdateInput struct {

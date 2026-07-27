@@ -226,7 +226,7 @@ func TestAbsoluteExternalAuthCallbackURL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("absolute url: %v", err)
 	}
-	want := "https://forum.example.com/api/v1/auth/providers/demo.auth/callback"
+	want := "https://forum.example.com/auth/providers/demo.auth/callback"
 	if got != want {
 		t.Fatalf("got %q want %q", got, want)
 	}

@@ -280,6 +280,176 @@ func TestControllerListsAndEnablesExtensionsForManager(t *testing.T) {
 	}
 }
 
+func TestControllerRestartBindsBodyAndIdempotencyHeader(t *testing.T) {
+	app, manager, store := newExtensionTestApp(t)
+	cookie := loginExtensionUser(t, app, manager, 1)
+	item := store.items["demo.plugin"]
+	item.Status = extensions.StatusEnabled
+	store.items[item.ID] = item
+
+	missingKey := performExtensionJSONRequest(
+		t, app, http.MethodPost, "/api/v1/admin/extensions/demo.plugin/restart", cookie,
+		`{"confirmCapabilities":true}`,
+	)
+	if missingKey.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("missing restart Idempotency-Key status=%d", missingKey.StatusCode)
+	}
+	missingKey.Body.Close()
+
+	malformed := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/admin/extensions/demo.plugin/restart",
+		strings.NewReader(`{"confirmCapabilities":`),
+	)
+	malformed.AddCookie(cookie)
+	malformed.Header.Set("Content-Type", "application/json")
+	malformed.Header.Set("Idempotency-Key", "controller-restart-malformed")
+	malformedResponse, err := app.Test(malformed, extensionControllerTestConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if malformedResponse.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("malformed restart body status=%d", malformedResponse.StatusCode)
+	}
+	malformedResponse.Body.Close()
+
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/admin/extensions/demo.plugin/restart",
+		strings.NewReader(`{"confirmCapabilities":true}`),
+	)
+	request.AddCookie(cookie)
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Idempotency-Key", "controller-restart-valid")
+	response, err := app.Test(request, extensionControllerTestConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("restart status=%d body=%s", response.StatusCode, responseBody(t, response))
+	}
+	if store.disabledID != item.ID || store.enabledID != item.ID {
+		t.Fatalf("restart lifecycle calls disabled=%q enabled=%q", store.disabledID, store.enabledID)
+	}
+}
+
+func TestControllerExecutableTrustTargetBindsExactStagedArtifact(t *testing.T) {
+	manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})
+	users := controllerActors{actors: map[int64]identity.Actor{
+		1: {
+			ID:       1,
+			Status:   identity.UserStatusActive,
+			RoleKeys: []string{identity.RoleSuperAdmin},
+		},
+	}}
+	active := extensions.Extension{
+		ID: "trust.controller", Name: "Trust Controller", Version: "1.0.0",
+		Type: extensions.TypePlugin, Status: extensions.StatusDisabled, Source: extensions.SourceUploaded,
+		Manifest: extensions.Manifest{
+			ID: "trust.controller", Name: "Trust Controller", Version: "1.0.0",
+			Type: extensions.TypePlugin,
+			Backend: extensions.ManifestBackend{
+				Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 1,
+			},
+		},
+		ActiveVersionID: 1, IsDeletable: true,
+		InstalledAt: time.Now(), UpdatedAt: time.Now(),
+	}
+	active.PackagePath, active.PackageDigest = controllerExecutablePackage(t, active.Manifest, "active")
+	stagedManifest := active.Manifest
+	stagedManifest.Version = "2.0.0"
+	stagedPath, stagedDigest := controllerExecutablePackage(t, stagedManifest, "staged")
+	active.StagedVersion = &extensions.ExtensionVersion{
+		ID: 2, Version: stagedManifest.Version, Manifest: stagedManifest,
+		PackagePath: stagedPath, PackageDigest: stagedDigest, InstalledAt: time.Now(),
+	}
+
+	store := &controllerFakeStore{items: map[string]extensions.Extension{active.ID: active}}
+	trustStore := &controllerExecutableTrustStore{}
+	trust := extensions.NewExecutableTrustService(store, trustStore)
+	service := extensions.NewServiceWithOptions(
+		store, t.TempDir(), "", extensions.LocalRuntimeManager{},
+		extensions.WithExecutableTrust(trust, true),
+	)
+	controller := NewController(service, users, manager)
+	loginProvider := extensionRouteProviderFunc(func(api fiber.Router) {
+		api.Post("/test-login/:id", func(c fiber.Ctx) error {
+			_, err := manager.Start(c, 1)
+			return err
+		})
+	})
+	app := apphttp.NewApp(
+		config.Config{AppName: "SForum", AppEnv: "test", CSRFEnabled: false},
+		slog.Default(),
+		apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{controller, loginProvider}},
+	)
+	cookie := loginExtensionUser(t, app, manager, 1)
+
+	currentResponse := performExtensionRequest(
+		t, app, http.MethodGet, "/api/v1/admin/extensions/trust.controller/trust", cookie,
+	)
+	defer currentResponse.Body.Close()
+	if currentResponse.StatusCode != http.StatusOK {
+		t.Fatalf("current trust status=%d body=%s", currentResponse.StatusCode, responseBody(t, currentResponse))
+	}
+	var current testEnvelope[extensions.ExecutableTrustStatus]
+	if err := json.NewDecoder(currentResponse.Body).Decode(&current); err != nil {
+		t.Fatal(err)
+	}
+	if current.Data.Impact.ExtensionVersion != active.Version ||
+		current.Data.Impact.PackageDigest != active.PackageDigest {
+		t.Fatalf("current trust target=%#v", current.Data.Impact)
+	}
+
+	stagedResponse := performExtensionRequest(
+		t, app, http.MethodGet, "/api/v1/admin/extensions/trust.controller/trust?target=staged", cookie,
+	)
+	defer stagedResponse.Body.Close()
+	if stagedResponse.StatusCode != http.StatusOK {
+		t.Fatalf("staged trust status=%d body=%s", stagedResponse.StatusCode, responseBody(t, stagedResponse))
+	}
+	var staged testEnvelope[extensions.ExecutableTrustStatus]
+	if err := json.NewDecoder(stagedResponse.Body).Decode(&staged); err != nil {
+		t.Fatal(err)
+	}
+	if staged.Data.Impact.ExtensionVersion != stagedManifest.Version ||
+		staged.Data.Impact.PackageDigest != stagedDigest {
+		t.Fatalf("staged trust target=%#v", staged.Data.Impact)
+	}
+
+	challengeResponse := performExtensionRequest(
+		t, app, http.MethodPost, "/api/v1/admin/extensions/trust.controller/trust/challenge?target=staged", cookie,
+	)
+	defer challengeResponse.Body.Close()
+	if challengeResponse.StatusCode != http.StatusOK {
+		t.Fatalf("staged challenge status=%d body=%s", challengeResponse.StatusCode, responseBody(t, challengeResponse))
+	}
+	var challenge testEnvelope[extensions.TrustChallenge]
+	if err := json.NewDecoder(challengeResponse.Body).Decode(&challenge); err != nil {
+		t.Fatal(err)
+	}
+	if challenge.Data.Impact.ExtensionVersion != stagedManifest.Version ||
+		challenge.Data.Impact.PackageDigest != stagedDigest ||
+		trustStore.challenge.Identity.ExtensionVersion != stagedManifest.Version {
+		t.Fatalf("staged challenge=%#v stored=%#v", challenge.Data, trustStore.challenge)
+	}
+
+	for _, endpoint := range []struct {
+		method string
+		path   string
+	}{
+		{method: http.MethodGet, path: "/api/v1/admin/extensions/trust.controller/trust?target=latest"},
+		{method: http.MethodPost, path: "/api/v1/admin/extensions/trust.controller/trust/challenge?target=latest"},
+	} {
+		response := performExtensionRequest(t, app, endpoint.method, endpoint.path, cookie)
+		if response.StatusCode != http.StatusUnprocessableEntity {
+			t.Fatalf("%s invalid trust target status=%d", endpoint.method, response.StatusCode)
+		}
+		response.Body.Close()
+	}
+}
+
 func TestControllerAdminPageBootstrapReturnsExtensionPageAndSettings(t *testing.T) {
 	manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})
 	users := controllerActors{actors: map[int64]identity.Actor{
@@ -926,6 +1096,29 @@ func controllerInstalledPackage(t *testing.T, manifest extensions.Manifest) stri
 		}
 	}
 	return packagePath
+}
+
+func controllerExecutablePackage(t *testing.T, manifest extensions.Manifest, binary string) (string, string) {
+	t.Helper()
+	root := filepath.Join(t.TempDir(), manifest.ID, manifest.Version)
+	if err := os.MkdirAll(filepath.Join(root, "backend"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "backend", "plugin"), []byte(binary), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, extensions.ManifestFileName), body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	digest, err := extensionpackage.DigestTree(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return root, digest
 }
 
 func loginExtensionUser(t *testing.T, app *fiber.App, _ *authsession.Manager, userID int64) *http.Cookie {

@@ -26,9 +26,14 @@
           "en-US": "Create a GitHub OAuth App"
         },
         "body": {
-          "zh-CN": "回调 URL 由 Host 固定生成并只读展示；请原样粘贴到 GitHub OAuth App 的 Authorization callback URL。Client Secret 保存在 SecretStore，永不返回浏览器。配置与启用插件不会自动公开登录按钮——还需在「登录方式」中显式开启操作。",
-          "en-US": "The callback URL is Host-owned and read-only. Paste it exactly into the GitHub OAuth App Authorization callback URL. Client Secret is stored in SecretStore and never returned to browsers. Configuring or enabling this plugin does not expose login until Host activation is explicit."
+          "zh-CN": "1. 打开下方官方申请页，新建 OAuth App。\n2. Application name 填便于识别的名称，Homepage URL 填站点 APP_URL。\n3. 将本页上方的回调 URL 原样填入 Authorization callback URL，然后注册应用。\n4. 在 GitHub 应用页生成 Client Secret，将 Client ID 和 Client Secret 填入下方并保存。\n5. 返回「登录方式」运行探测，再按需开启登录、注册和账号绑定。插件启用本身不会公开登录按钮。\n\nClient Secret 仅保存在 SecretStore，留空会保留已保存的密钥。",
+          "en-US": "1. Open the official application page below and create an OAuth App.\n2. Use a recognizable Application name and set Homepage URL to the site's APP_URL.\n3. Paste the callback URL shown above exactly into Authorization callback URL, then register the app.\n4. Generate a Client Secret in GitHub, enter the Client ID and Client Secret below, and save.\n5. Return to Login methods, run the probe, then enable login, registration, and account linking as needed. Enabling the plugin alone does not expose a login button.\n\nClient Secret is stored only in SecretStore; leaving it blank preserves the saved secret."
         },
+        "linkLabel": {
+          "zh-CN": "前往 GitHub 申请 OAuth App",
+          "en-US": "Create a GitHub OAuth App"
+        },
+        "linkUrl": "https://github.com/settings/applications/new",
         "tab": "application"
       }
     ]

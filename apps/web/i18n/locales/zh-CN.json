@@ -652,7 +652,7 @@
       "uninstall": "卸载",
       "confirmUninstallTitle": "确认卸载扩展？",
       "confirmUninstallBody": "将删除「{name}」的安装记录与配置（默认）。请先禁用扩展；内置/系统扩展不可卸载。",
-      "confirmUninstallV2Body": "将对「{name}」执行可恢复的受信任卸载流程。包、运行时恢复材料与最后成功授权会保留到终态成功。",
+      "confirmTrustedUninstallBody": "将对「{name}」执行可恢复的受信任卸载流程。包、运行时恢复材料与最后成功授权会保留到终态成功。",
       "confirmUninstallAction": "确认卸载",
       "confirmUninstallCancel": "取消",
       "uninstallModes": {
@@ -678,7 +678,7 @@
         "history": "生命周期操作历史",
         "loading": "正在读取生命周期记录",
         "emptyTitle": "暂无生命周期记录",
-        "emptyDescription": "此插件尚未通过 V2 生命周期协调器执行操作。",
+        "emptyDescription": "此插件暂无生命周期操作记录。",
         "loadFailed": "无法读取生命周期记录。",
         "recoveryFailed": "生命周期恢复操作失败。",
         "retrySuccess": "失败步骤已恢复并重试。",
@@ -901,6 +901,33 @@
       "reactivateThemeHint": "重新应用当前主题的页面注册与静态资源（不会切换到其他主题）",
       "restoreDefaultTheme": "恢复默认主题",
       "activeTheme": "当前主题",
+      "artifact": {
+        "missing": "制品缺失",
+        "missingDescription": "数据库记录仍在，但对应插件或主题文件已不存在。",
+        "actionUnavailable": "制品缺失，无法执行此操作。"
+      },
+      "missingCleanup": {
+        "action": "清理缺失制品（{count}）",
+        "title": "卸载缺失制品",
+        "description": "将从扩展目录卸载以下 {count} 个文件已不存在的插件或主题。提交前，Host 会再次校验每个精确制品仍然缺失。",
+        "listTitle": "本次卸载对象",
+        "dataLegend": "设置与数据处理方式",
+        "modes": {
+          "preserve": {
+            "label": "保留设置和数据（推荐）",
+            "description": "保留 SForum 设置、生命周期历史和插件自有业务数据，便于以后重装同 ID 扩展。"
+          },
+          "discardSettings": {
+            "label": "删除 Host 设置，保留插件数据",
+            "description": "删除 SForum 保存的扩展设置；生命周期历史和插件自有业务数据仍然保留。"
+          }
+        },
+        "preserveWarning": "扩展会从正常目录消失，但设置和数据不会被删除。",
+        "discardSettingsWarning": "SForum 保存的扩展设置将被删除，之后无法自动恢复。",
+        "businessDataNotice": "由于插件或主题文件已经不存在，Host 无法安全运行导出或自定义清理钩子，因此不会删除插件自有数据库。",
+        "confirm": "卸载 {count} 个扩展",
+        "success": "已卸载 {count} 个缺失制品扩展。"
+      },
       "source": {
         "builtin": "内置"
       },
@@ -2619,6 +2646,8 @@
       "siteNamePlaceholder": "例如：我的社区",
       "siteUrl": "站点地址",
       "siteUrlPlaceholder": "例如：https://forum.example.com",
+      "siteUrlHint": "留空时使用环境变量 APP_URL：{url}",
+      "siteUrlUseEnvironment": "使用环境 APP_URL",
       "defaultLocale": "默认语言",
       "supportedLocales": "启用语言",
       "tabs": {
@@ -3195,7 +3224,7 @@
         "categoryUpdated": "分类已更新。",
         "categorySaveFailed": "分类保存失败。",
         "structure": "当前结构",
-        "structureHelp": "位置数字越小越靠前。v1 暂不提供拖拽排序。",
+        "structureHelp": "位置数字越小越靠前。暂不支持拖拽排序。",
         "positionValue": "位置：{value}",
         "categoryMeta": "{topics} 个主题，{comments} 条回复，默认排序：{sort}，位置：{position}",
         "emptyCategories": "这个分组还没有分类",

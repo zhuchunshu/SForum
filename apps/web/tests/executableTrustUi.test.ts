@@ -152,4 +152,18 @@ describe('V3 exact-artifact trust operator flow', () => {
     expect(dialog).toContain(':disabled="!canConfirm"')
     expect(dialog).toContain('role="alert"')
   })
+
+  test('plugin restart uses the dedicated Host workflow and reviews staged capabilities', () => {
+    const restartBody = manager.match(
+      /async function restartExtension\(item: AdminExtension\) \{([\s\S]*?)\n  \}\n\n  async function verifyExtension/
+    )?.[1] || ''
+
+    expect(restartBody).toContain("enableExtension(item, 'restart')")
+    expect(restartBody).toContain("lifecycle(item, 'restart')")
+    expect(restartBody).not.toContain('/enable')
+    expect(manager).toContain("action === 'restart' && Boolean(item.stagedVersion)")
+    expect(manager).toContain('status.impact.capabilities?.length')
+    expect(manager).toContain("'?target=staged'")
+    expect(manager).toContain("executableTrustPath(item, enableLifecycleAction.value, true)")
+  })
 })

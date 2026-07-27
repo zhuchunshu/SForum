@@ -60,7 +60,7 @@ const riskKey = computed(() => {
             </h2>
             <p class="mt-1 break-words text-sm leading-6 text-slate-600 dark:text-zinc-300">
               {{ lifecycleV2
-                ? t('admin.extensions.confirmUninstallV2Body', { name: extension?.name?.trim() || extension?.id || '' })
+                ? t('admin.extensions.confirmTrustedUninstallBody', { name: extension?.name?.trim() || extension?.id || '' })
                 : t('admin.extensions.confirmUninstallBody', { name: extension?.name?.trim() || extension?.id || '' }) }}
             </p>
           </div>

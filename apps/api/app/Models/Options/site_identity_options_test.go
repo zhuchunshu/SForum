@@ -32,6 +32,72 @@ func TestSiteIdentityOptionsDefaults(t *testing.T) {
 	}
 }
 
+func TestSiteURLFallsBackToEnvironmentDefault(t *testing.T) {
+	store := &fakeStore{items: map[string]string{}}
+	service := NewServiceWithDefaultsAndCacheTTL(store, Defaults{
+		SiteURL: "https://env.example.com",
+	}, time.Minute)
+
+	publicURL, err := service.WebOption(context.Background(), NameSiteURL)
+	if err != nil {
+		t.Fatalf("WebOption returned error: %v", err)
+	}
+	if publicURL != "https://env.example.com" {
+		t.Fatalf("public site URL = %q, want environment fallback", publicURL)
+	}
+
+	adminItems, err := service.ListAdmin(context.Background(), settingsActor())
+	if err != nil {
+		t.Fatalf("ListAdmin returned error: %v", err)
+	}
+	option := adminSecret(adminItems, NameSiteURL)
+	if option.Value != "https://env.example.com" || option.OverrideValue == nil || *option.OverrideValue != "" || !option.Inherited {
+		t.Fatalf("admin site URL should expose an empty inherited override: %#v", option)
+	}
+	if option.FallbackValue != "https://env.example.com" {
+		t.Fatalf("admin site URL fallback metadata mismatch: %#v", option)
+	}
+}
+
+func TestEnsureDefaultsClearsLegacyMaterializedSiteURL(t *testing.T) {
+	store := &fakeStore{items: map[string]string{NameSiteURL: "https://env.example.com"}}
+	service := NewServiceWithDefaultsAndCacheTTL(store, Defaults{
+		SiteURL: "https://env.example.com",
+	}, time.Minute)
+
+	if err := service.EnsureDefaults(context.Background()); err != nil {
+		t.Fatalf("EnsureDefaults returned error: %v", err)
+	}
+	if store.items[NameSiteURL] != "" {
+		t.Fatalf("legacy materialized site URL should become an empty override, got %q", store.items[NameSiteURL])
+	}
+}
+
+func TestSiteURLOverrideCanBeCleared(t *testing.T) {
+	store := &fakeStore{items: map[string]string{NameSiteURL: "https://custom.example.com"}}
+	service := NewServiceWithDefaultsAndCacheTTL(store, Defaults{
+		SiteURL: "https://env.example.com",
+	}, time.Minute)
+
+	if got, err := service.WebOption(context.Background(), NameSiteURL); err != nil || got != "https://custom.example.com" {
+		t.Fatalf("custom site URL = %q, err = %v", got, err)
+	}
+
+	updated, err := service.UpdateMany(context.Background(), settingsActor(), []UpdateInput{
+		{Name: NameSiteURL, Value: ""},
+	})
+	if err != nil {
+		t.Fatalf("clearing site URL override returned error: %v", err)
+	}
+	option := adminSecret(updated, NameSiteURL)
+	if option.Value != "https://env.example.com" || option.OverrideValue == nil || *option.OverrideValue != "" || !option.Inherited {
+		t.Fatalf("cleared site URL should inherit environment fallback: %#v", option)
+	}
+	if store.items[NameSiteURL] != "" {
+		t.Fatalf("cleared site URL override should be stored as empty, got %q", store.items[NameSiteURL])
+	}
+}
+
 func TestSiteIdentityOptionsAcceptValidValues(t *testing.T) {
 	store := &fakeStore{items: map[string]string{}}
 	service := NewServiceWithCacheTTL(store, time.Minute)

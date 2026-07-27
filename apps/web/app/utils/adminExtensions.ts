@@ -1,6 +1,8 @@
 export type AdminExtensionType = 'plugin' | 'theme'
 export type AdminExtensionStatus = 'installed' | 'enabled' | 'disabled'
 export type AdminExtensionSource = 'builtin' | 'uploaded'
+export type AdminExtensionArtifactState = 'available' | 'missing'
+export type AdminMissingArtifactDataMode = 'preserve' | 'discard_settings'
 export type AdminThemeActionState = 'active' | 'activateDefault' | 'activate'
 export type AdminRuntimeState = 'stopped' | 'starting' | 'running' | 'degraded' | 'failed'
 export type AdminExtensionEventKind = 'observe' | 'validate' | 'filter'
@@ -175,6 +177,8 @@ export type AdminExtensionSettingsCallout = {
   tone: string
   title: string
   body?: string
+  linkLabel?: string
+  linkUrl?: string
   tab?: string
   group?: string
 }
@@ -270,6 +274,7 @@ export type AdminCapabilityGrant = {
 export type AdminExtensionVersion = {
   version: string
   manifest: AdminExtensionManifest
+  artifactState?: AdminExtensionArtifactState
   packageDigest: string
   adminFrontendDigest: string
   packagePath: string
@@ -289,12 +294,26 @@ export type AdminExtension = {
   /** F2.1 有效能力列表，启用前需运营确认。 */
   capabilityGrants?: AdminCapabilityGrant[]
   runtime?: AdminExtensionRuntime
+  artifactState?: AdminExtensionArtifactState
   packageDigest: string
   adminFrontendDigest?: string
   packagePath: string
   stagedVersion?: AdminExtensionVersion
   installedAt: string
   updatedAt: string
+}
+
+export type AdminMissingArtifactCleanupResult = {
+  removed: Array<{
+    extensionId: string
+    name: string
+    type: AdminExtensionType
+    version: string
+    packageDigest: string
+    dataMode: AdminMissingArtifactDataMode
+    retainSettings: boolean
+    businessDataKept: boolean
+  }>
 }
 
 /** 与宿主 ManifestAffectsPublicSurface 对齐：设置保存后应提示刷新帖子页并 bump 缓存键。 */
@@ -536,6 +555,19 @@ export function filterExtensionsByType(items: AdminExtension[], type: AdminExten
   return items.filter(item => item.type === type)
 }
 
+export function isExtensionArtifactAvailable(item: AdminExtension) {
+  return item.artifactState !== 'missing'
+}
+
+export function missingArtifactCleanupCandidates(items: AdminExtension[]) {
+  return items.filter(item =>
+    !isExtensionArtifactAvailable(item)
+    && item.source === 'uploaded'
+    && item.isDeletable
+    && !item.isSystem
+    && item.status !== 'enabled')
+}
+
 export function extensionStats(items: AdminExtension[]): AdminExtensionStats {
   return {
     pluginCount: filterExtensionsByType(items, 'plugin').length,
@@ -734,7 +766,8 @@ export function runtimeCapabilitySummary(item: AdminExtension) {
 }
 
 export function canRestartPlugin(item: AdminExtension) {
-  return item.type === 'plugin' && item.status === 'enabled' && Boolean(item.runtime)
+  const recoverable = item.status === 'enabled' || (item.status === 'disabled' && Boolean(item.stagedVersion))
+  return item.type === 'plugin' && isExtensionArtifactAvailable(item) && recoverable && Boolean(item.runtime)
 }
 
 export function mergeExtensionEvents(eventsByExtension: Record<string, AdminExtensionEvent[]>) {
@@ -807,12 +840,14 @@ function extensionItemsPage<T>(items: T[], page: number, pageSize = EXTENSION_EV
 }
 
 export function extensionSettingDeclarations(items: AdminExtension[], locale?: string | null) {
-  return items.flatMap((item): AdminExtensionSettingDeclaration[] => manifestSettingFields(item.manifest).map(setting => ({
-    extensionId: item.id,
-    extensionName: extensionDisplayName(item, locale),
-    extensionType: item.type,
-    setting
-  })))
+  return items
+    .filter(isExtensionArtifactAvailable)
+    .flatMap((item): AdminExtensionSettingDeclaration[] => manifestSettingFields(item.manifest).map(setting => ({
+      extensionId: item.id,
+      extensionName: extensionDisplayName(item, locale),
+      extensionType: item.type,
+      setting
+    })))
 }
 
 export function defaultExtensionIcon(type: AdminExtensionType) {

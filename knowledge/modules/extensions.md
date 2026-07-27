@@ -86,6 +86,19 @@ Prior partial evidence, not closure:
   Store/database uncertainty is fatal so boot cannot reconcile against unknown
   lifecycle state.
 - Removing a source directory does not uninstall its stored snapshot.
+- Admin list/detail responses derive `artifactState` from the active immutable
+  package path. A missing package remains visible for operator diagnosis and
+  retained lifecycle history, but enable, theme activation, settings
+  read/write/reset, settings actions, and runtime restart fail closed. Admin
+  plugin/theme/overview pages label the record as artifact-missing and exclude
+  it from the settings catalog.
+- Super admins can explicitly batch-uninstall uploaded, deletable, disabled
+  extensions whose exact package paths remain missing. The Host validates the
+  whole batch and records catalog tombstones in one transaction without
+  invoking unavailable extension code. Operators choose whether to retain or
+  delete Host-owned settings; lifecycle history and plugin-owned business data
+  remain in both modes. Re-uploading the same extension ID clears its tombstone
+  and restores its catalog identity.
 - Containers must mount every external collection read-only into API and
   standalone worker processes.
 
@@ -103,6 +116,19 @@ Decision: `../decisions/2026-07-22-external-extension-source-roots.md`.
   inherit trust, stop the active process, or change provider selection.
 - Lifecycle operations use a durable PostgreSQL operation/step ledger with CAS,
   checkpoints, attempts, actor/audit snapshots, and restart recovery.
+- Plugin restart is a dedicated Host workflow (`POST
+  /admin/extensions/{id}/restart`), not an alias for enable. It preflights the
+  exact target and any capability/trust confirmation before downtime, fully
+  disables the current runtime, and then re-enables it with deterministic
+  phase idempotency keys. A legacy active artifact with a staged Lifecycle V2
+  target is bridged through disable, exact staged CAS promotion, and V2 enable;
+  a failed bridge remains disabled and can resume the same exact target. Trust
+  status and challenge calls use `target=staged` during this recovery so the
+  token cannot bind the older active digest; the admin UI keeps this
+  disabled-plus-staged state restartable.
+  Protected built-ins and declarative artifacts return a normal trust preview
+  with `trustRequired=false` even when the uploaded-artifact trust migration
+  gate is off.
 - Disable/upgrade closes admission before draining routes, services, jobs, and
   schedules. Recovery supports retry, safe skip where declared, rollback, and
   out-of-band CLI disable.

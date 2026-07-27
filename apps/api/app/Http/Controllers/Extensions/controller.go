@@ -20,8 +20,8 @@ import (
 	editorregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EditorRegistry"
 	entityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EntityRegistry"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
-	mediaregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/MediaRegistry"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
+	mediaregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/MediaRegistry"
 	navigationregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/NavigationRegistry"
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
@@ -456,6 +456,22 @@ func (h *Controller) uninstall(c fiber.Ctx) error {
 	return apphttp.OK(c, result)
 }
 
+func (h *Controller) cleanupMissingArtifacts(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	var input extensions.MissingArtifactCleanupInput
+	if err := c.Bind().Body(&input); err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+	result, err := h.service.CleanupMissingArtifacts(c.Context(), actor, input)
+	if err != nil {
+		return mapExtensionError(err)
+	}
+	return apphttp.OK(c, result)
+}
+
 func (h *Controller) listMigrations(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {
@@ -505,11 +521,39 @@ func (h *Controller) executableTrustStatus(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	status, err := h.service.ExecutableTrustStatus(c.Context(), actor, c.Params("id"))
+	staged, err := executableTrustTargetsStaged(c)
+	if err != nil {
+		return err
+	}
+	var status extensions.ExecutableTrustStatus
+	if staged {
+		status, err = h.service.ExecutableTrustStatusForStaged(c.Context(), actor, c.Params("id"))
+	} else {
+		status, err = h.service.ExecutableTrustStatus(c.Context(), actor, c.Params("id"))
+	}
 	if err != nil {
 		return mapExtensionError(err)
 	}
 	return apphttp.OK(c, status)
+}
+
+func (h *Controller) restart(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	var input extensions.RestartInput
+	if len(c.Body()) > 0 {
+		if err := c.Bind().Body(&input); err != nil {
+			return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+		}
+	}
+	input.IdempotencyKey = c.Get("Idempotency-Key")
+	item, err := h.service.Restart(c.Context(), actor, c.Params("id"), input)
+	if err != nil {
+		return mapExtensionError(err)
+	}
+	return apphttp.OK(c, item)
 }
 
 func (h *Controller) issueExecutableTrustChallenge(c fiber.Ctx) error {
@@ -517,11 +561,31 @@ func (h *Controller) issueExecutableTrustChallenge(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	challenge, err := h.service.IssueExecutableTrustChallenge(c.Context(), actor, c.Params("id"))
+	staged, err := executableTrustTargetsStaged(c)
+	if err != nil {
+		return err
+	}
+	var challenge extensions.TrustChallenge
+	if staged {
+		challenge, err = h.service.IssueExecutableTrustChallengeForStaged(c.Context(), actor, c.Params("id"))
+	} else {
+		challenge, err = h.service.IssueExecutableTrustChallenge(c.Context(), actor, c.Params("id"))
+	}
 	if err != nil {
 		return mapExtensionError(err)
 	}
 	return apphttp.OK(c, challenge)
+}
+
+func executableTrustTargetsStaged(c fiber.Ctx) (bool, error) {
+	switch strings.TrimSpace(c.Query("target")) {
+	case "":
+		return false, nil
+	case "staged":
+		return true, nil
+	default:
+		return false, fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
 }
 
 func (h *Controller) revokeExecutableTrust(c fiber.Ctx) error {
@@ -872,6 +936,12 @@ func mapExtensionError(err error) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, extensions.CodeInvalidArchive)
 	case errors.Is(err, extensions.ErrInvalidManifest):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, extensions.CodeInvalidManifest)
+	case errors.Is(err, extensions.ErrArtifactMissing):
+		return fiber.NewError(fiber.StatusConflict, extensions.CodeArtifactMissing)
+	case errors.Is(err, extensions.ErrMissingArtifactCleanupInvalid):
+		return fiber.NewError(fiber.StatusConflict, extensions.CodeMissingArtifactCleanupInvalid)
+	case errors.Is(err, extensions.ErrMissingArtifactCleanupUnavailable):
+		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodeMissingArtifactCleanupUnavailable)
 	case errors.Is(err, extensions.ErrExtensionNotFound):
 		return fiber.NewError(fiber.StatusNotFound, extensions.CodeNotFound)
 	case errors.Is(err, extensions.ErrExtensionDisabled):

@@ -69,14 +69,6 @@ const actionResults = reactive<Record<string, Record<string, AdminExtensionSetti
 const hasProviders = computed(() => providers.value.length > 0)
 const anySafeMode = computed(() => providers.value.some(item => item.safeMode))
 
-const providerTabs = computed(() =>
-  providers.value.map(item => ({
-    value: item.id,
-    label: providerTitle(item),
-    icon: providerIcon(item),
-  }))
-)
-
 const selectedProvider = computed(() => 
   providers.value.find(p => p.id === activeTabId.value) || null
 )
@@ -512,15 +504,28 @@ watch(locale, () => {
     </div>
 
     <div v-else class="w-full">
-      <UTabs
-        v-model="activeTabId"
-        :tabs="providerTabs"
-        class="w-full mb-6"
-        :vertical="false"
+      <div
+        role="tablist"
+        :aria-label="t('admin.loginMethods.title')"
+        class="relative z-0 mb-4 flex flex-wrap gap-2 border-b border-slate-200 pb-3 dark:border-zinc-800"
       >
-        <template #default="{ tab }">
-          <div class="space-y-4 border-t border-slate-200 pt-6 dark:border-zinc-800">
-            <div v-if="activeTabId === tab.value" class="space-y-4">
+        <UButton
+          v-for="item in providers"
+          :key="item.id"
+          size="md"
+          class="min-h-10 px-4"
+          :color="activeTabId === item.id ? 'primary' : 'neutral'"
+          :variant="activeTabId === item.id ? 'solid' : 'ghost'"
+          :leading-icon="providerIcon(item)"
+          role="tab"
+          :aria-selected="activeTabId === item.id"
+          @click="expandProvider(item)"
+        >
+          {{ providerTitle(item) }}
+        </UButton>
+      </div>
+
+      <div v-if="selectedProvider" class="space-y-4">
               <p v-if="fieldErrors[selectedProvider?.id]" class="text-sm text-red-600 dark:text-red-400">
                 {{ fieldErrors[selectedProvider?.id] }}
               </p>
@@ -615,7 +620,7 @@ watch(locale, () => {
                         color="neutral"
                         variant="subtle"
                         leading-icon="i-lucide-activity"
-                        :loading="probingId === tab.value"
+                        :loading="probingId === selectedProvider.id"
                         :disabled="!selectedProvider?.enabled"
                         @click="probeProvider(selectedProvider!)"
                       >
@@ -678,10 +683,7 @@ watch(locale, () => {
                   :description="t('admin.loginMethods.settingsUnavailableDescription')"
                 />
               </section>
-            </div>
-          </div>
-        </template>
-      </UTabs>
+      </div>
     </div>
   </div>
 </template>

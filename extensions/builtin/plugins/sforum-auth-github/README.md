@@ -30,6 +30,16 @@ trust, enable, configure, or publicly activate GitHub login.
 
 ## Configuration
 
+Create the OAuth App at:
+https://github.com/settings/applications/new
+
+Use the site `APP_URL` as **Homepage URL**, and copy the exact Host-owned
+callback shown on **Admin → Settings → Login methods** into GitHub's
+**Authorization callback URL**. After saving the Client ID and generated Client
+Secret in SForum, run the provider probe and explicitly enable login,
+registration, and/or account linking. Plugin enablement alone does not expose a
+public login button.
+
 | Key | Type | Notes |
 | --- | --- | --- |
 | `client_id` | text | GitHub OAuth App Client ID |

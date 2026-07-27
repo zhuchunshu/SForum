@@ -45,6 +45,16 @@ ExtensionID:
   schema:
     type: string
   description: Stable extension id from sforum.extension.json.
+ExecutableTrustTarget:
+  name: target
+  in: query
+  required: false
+  schema:
+    type: string
+    enum: [staged]
+  description: >-
+    Select the exact staged artifact for restart recovery. When omitted, trust
+    review follows the normal enable or activation target.
 PageID:
   name: pageId
   in: path

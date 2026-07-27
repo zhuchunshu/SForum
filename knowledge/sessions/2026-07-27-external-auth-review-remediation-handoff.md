@@ -20,6 +20,16 @@ this is not a self-declared program closure.
 - R5 narrows recovery migrations 058-061 to exact durable evidence. R6 mounts
   the production Vue components in Bun tests. R7 rebuilds the HTTP/Browser
   evidence packet with hard assertions and redacted SHA-256 artifacts.
+- The Login Methods provider panel now reuses the compact admin settings
+  button-tab geometry. This replaces both the broken legacy `UTabs` contract
+  and the visually incorrect full-width Nuxt UI 4 tab track.
+- The GitHub provider settings now include end-to-end OAuth App setup steps and
+  a validated external link to GitHub's official application page. The generic
+  settings callout contract carries the link; Core does not branch on GitHub.
+- OAuth providers now receive the public callback
+  `/auth/providers/{providerId}/callback`; Nuxt proxies it to the unchanged
+  reserved Core API callback while preserving query parameters and session
+  headers.
 
 ## Evidence
 

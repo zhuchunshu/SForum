@@ -58,6 +58,8 @@ load archived sessions or completed plans as current context.
 - Remediation:
   `plans/2026-07-27-external-auth-core-plugin-review-remediation.md`
 - Handoff:
+  `sessions/2026-07-28-github-plugin-restart-handoff.md`
+- Prior remediation handoff:
   `sessions/2026-07-27-external-auth-review-remediation-handoff.md`
 - Evidence matrix:
   `reports/2026-07-27-external-auth-r1-r7-requirements-evidence-matrix.md`
@@ -106,6 +108,24 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- GitHub built-in restart repair: dedicated Host restart orchestration,
+  correct built-in trust preview semantics, exact staged-target recovery,
+  legacy-to-Lifecycle-V2 bridge, and successful browser/database evidence
+  without 409 or exact-fence conflict:
+  `sessions/2026-07-28-github-plugin-restart-handoff.md`
+- Architecture boundary guardrails: future feature work is now constrained by
+  domain placement, fixed Core Tab components, Go package responsibility, and
+  baseline-enforced non-growth for large files/flat packages/God objects:
+  `sessions/2026-07-28-architecture-boundary-guardrails-handoff.md`
+- Runtime public URL override: admin `site.url` may be cleared to inherit
+  environment `APP_URL`; public consumers receive the resolved value while
+  OAuth/CSRF/cookie security stays environment-owned:
+  `sessions/2026-07-27-app-url-runtime-fallback-handoff.md`
+- Extension artifact-presence reconciliation: DB-retained plugin/theme records
+  expose `artifactState`; missing packages fail closed and super admins can
+  explicitly batch-uninstall eligible records through an atomic, data-aware
+  confirmation flow:
+  `sessions/2026-07-27-extension-artifact-presence-handoff.md`
 - Search automatic reconciliation: provider-neutral Host ledger, startup + 15m
   bounded repair schedule, and real-runtime cleanup of 92 historical ghosts:
   `sessions/2026-07-27-search-auto-reconciliation-handoff.md`

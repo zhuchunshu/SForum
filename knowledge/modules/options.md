@@ -30,6 +30,12 @@ Initial runtime option support is implemented.
   `siteUrl`, `defaultLocale`, `supportedLocales`, `humanVerificationProvider`,
   `appearanceTheme`, footer content helpers, `refresh()`, `save()`, and admin
   batch helpers.
+- Public site URL resolution is `site.url` operator override, then deployment
+  `APP_URL`. An empty override remains empty in storage instead of materializing
+  the environment value; public/API consumers receive the effective URL, while
+  admin option metadata exposes `overrideValue`, `fallbackValue`, and
+  `inherited`. OAuth callbacks, CSRF origins, and cookie security continue to
+  use trusted environment `APP_URL` directly.
 - Admin page `apps/web/app/pages/admin/settings/index.vue` uses page-level tabs
   for basic site settings, account security (password + sessions + login
   lockout), registration/username policy, newcomer trust limits, maintenance

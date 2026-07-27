@@ -294,14 +294,14 @@ func opaqueTokenHash(token string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// ExternalAuthCallbackPath 返回 provider 的保留 Core 回调路径（相对站内）。
-// 该路由在 Route Registry 之外，受 Host 直接管理。
+// ExternalAuthCallbackPath 返回 provider 对外登记的站点回调路径。
+// Web Host 将该路径桥接到保留的 Core API 回调，第三方提供商无需感知 API 命名空间。
 func ExternalAuthCallbackPath(providerID string) string {
 	providerID = strings.ToLower(strings.TrimSpace(providerID))
-	return "/api/v1/auth/providers/" + providerID + "/callback"
+	return "/auth/providers/" + providerID + "/callback"
 }
 
-// ExternalAuthCallbackURL 返回 provider 的保留 Core 回调相对路径。
+// ExternalAuthCallbackURL 返回 provider 对外登记的回调相对路径。
 // 插件 complete 必须使用 AbsoluteExternalAuthCallbackURL 生成的绝对 URL。
 func ExternalAuthCallbackURL(providerID string) string {
 	return ExternalAuthCallbackPath(providerID)
@@ -327,7 +327,7 @@ func AbsoluteExternalAuthCallbackURL(appURL, providerID string, productionRequir
 	if productionRequireHTTPS && scheme != "https" {
 		return "", fmt.Errorf("%w: production callback requires https app url", ErrExternalAuthCallbackURLInvalid)
 	}
-	// 仅使用 scheme://host（忽略 APP_URL 路径），避免把站点子路径拼进 API callback。
+	// 仅使用 scheme://host（忽略 APP_URL 路径），避免把站点子路径拼进 callback。
 	base := &url.URL{Scheme: scheme, Host: parsed.Host}
 	return base.String() + ExternalAuthCallbackPath(providerID), nil
 }

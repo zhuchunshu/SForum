@@ -177,7 +177,7 @@ func lockExactStagedVersion(ctx context.Context, tx pgx.Tx, input StagedVersionC
 
 func getExtensionInTransaction(ctx context.Context, tx pgx.Tx, extensionID string) (Extension, error) {
 	item, err := scanExtension(tx.QueryRow(ctx, extensionSelectSQL()+`
-		WHERE extensions.id = $1
+		AND extensions.id = $1
 	`, extensionID))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Extension{}, ErrExtensionNotFound

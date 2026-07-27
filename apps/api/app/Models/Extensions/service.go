@@ -279,15 +279,70 @@ func WithLifecycleCoordinator(
 }
 
 func (s *Service) ExecutableTrustStatus(ctx context.Context, actor identity.Actor, extensionID string) (ExecutableTrustStatus, error) {
-	if !s.trustChallengesEnabled || s.executableTrust == nil {
+	return s.executableTrustStatus(ctx, actor, extensionID, false)
+}
+
+func (s *Service) ExecutableTrustStatusForStaged(
+	ctx context.Context,
+	actor identity.Actor,
+	extensionID string,
+) (ExecutableTrustStatus, error) {
+	return s.executableTrustStatus(ctx, actor, extensionID, true)
+}
+
+func (s *Service) executableTrustStatus(
+	ctx context.Context,
+	actor identity.Actor,
+	extensionID string,
+	staged bool,
+) (ExecutableTrustStatus, error) {
+	if s.executableTrust == nil {
 		return ExecutableTrustStatus{}, ErrTrustNotRequired
 	}
-	return s.executableTrust.Status(ctx, actor, extensionID)
+	var status ExecutableTrustStatus
+	var err error
+	if staged {
+		status, err = s.executableTrust.StatusForStaged(ctx, actor, extensionID)
+	} else {
+		status, err = s.executableTrust.Status(ctx, actor, extensionID)
+	}
+	if err != nil {
+		return ExecutableTrustStatus{}, err
+	}
+	// 受保护内置包和纯声明包无需 uploaded trust grant；即使迁移开关关闭，
+	// 状态预览也应返回 200，不能把正常信任状态伪装成冲突。
+	if !status.TrustRequired {
+		return status, nil
+	}
+	if !s.trustChallengesEnabled {
+		return ExecutableTrustStatus{}, ErrTrustNotRequired
+	}
+	return status, nil
 }
 
 func (s *Service) IssueExecutableTrustChallenge(ctx context.Context, actor identity.Actor, extensionID string) (TrustChallenge, error) {
+	return s.issueExecutableTrustChallenge(ctx, actor, extensionID, false)
+}
+
+func (s *Service) IssueExecutableTrustChallengeForStaged(
+	ctx context.Context,
+	actor identity.Actor,
+	extensionID string,
+) (TrustChallenge, error) {
+	return s.issueExecutableTrustChallenge(ctx, actor, extensionID, true)
+}
+
+func (s *Service) issueExecutableTrustChallenge(
+	ctx context.Context,
+	actor identity.Actor,
+	extensionID string,
+	staged bool,
+) (TrustChallenge, error) {
 	if !s.trustChallengesEnabled || s.executableTrust == nil {
 		return TrustChallenge{}, ErrTrustNotRequired
+	}
+	if staged {
+		return s.executableTrust.ChallengeForStaged(ctx, actor, extensionID)
 	}
 	return s.executableTrust.Challenge(ctx, actor, extensionID)
 }
@@ -488,7 +543,7 @@ func (s *Service) List(ctx context.Context, actor identity.Actor) ([]Extension, 
 	// 整表只采样一次 ps，避免每个扩展各扫一遍进程表。
 	memoryByID := s.sampleOwnedPluginMemory()
 	for index := range items {
-		items[index] = applyPluginMemory(s.decorateRuntime(ctx, items[index]), memoryByID)
+		items[index] = decorateArtifactState(applyPluginMemory(s.decorateRuntime(ctx, items[index]), memoryByID))
 	}
 	return items, nil
 }
@@ -502,7 +557,7 @@ func (s *Service) Detail(ctx context.Context, actor identity.Actor, extensionID 
 	if err != nil {
 		return Extension{}, err
 	}
-	return applyPluginMemory(s.decorateRuntime(ctx, item), s.sampleOwnedPluginMemory()), nil
+	return decorateArtifactState(applyPluginMemory(s.decorateRuntime(ctx, item), s.sampleOwnedPluginMemory())), nil
 }
 
 func (s *Service) SyncBuiltins(ctx context.Context) ([]Extension, error) {
@@ -746,6 +801,9 @@ func (s *Service) Settings(ctx context.Context, actor identity.Actor, extensionI
 	if !canManageExtensionSettings(actor, extension) {
 		return ExtensionSettings{}, identity.ErrPermissionDenied
 	}
+	if err := requireArtifactAvailable(extension); err != nil {
+		return ExtensionSettings{}, err
+	}
 	values, err := s.listDecryptedSettings(ctx, extension)
 	if err != nil {
 		return ExtensionSettings{}, err
@@ -768,7 +826,7 @@ func (s *Service) AdminPageBootstrap(ctx context.Context, actor identity.Actor, 
 	if err != nil {
 		return AdminPageBootstrap{}, err
 	}
-	extension = applyPluginMemory(s.decorateRuntime(ctx, extension), s.sampleOwnedPluginMemory())
+	extension = decorateArtifactState(applyPluginMemory(s.decorateRuntime(ctx, extension), s.sampleOwnedPluginMemory()))
 	result := AdminPageBootstrap{Extension: extension}
 
 	want := normalizeRoutePath(pagePath)
@@ -789,6 +847,9 @@ func (s *Service) AdminPageBootstrap(ctx context.Context, actor identity.Actor, 
 	if !canManageExtensionSettings(actor, extension) {
 		return AdminPageBootstrap{}, identity.ErrPermissionDenied
 	}
+	if err := requireArtifactAvailable(extension); err != nil {
+		return AdminPageBootstrap{}, err
+	}
 	values, err := s.listDecryptedSettings(ctx, extension)
 	if err != nil {
 		return AdminPageBootstrap{}, err
@@ -808,6 +869,9 @@ func (s *Service) UpdateSettings(ctx context.Context, actor identity.Actor, exte
 	}
 	if !canManageExtensionSettings(actor, extension) {
 		return ExtensionSettings{}, identity.ErrPermissionDenied
+	}
+	if err := requireArtifactAvailable(extension); err != nil {
+		return ExtensionSettings{}, err
 	}
 	// 生产路径：SettingsLifecycle（revision CAS + 迁移 + SecretStore）。
 	if s.settingsLifecycle != nil && len(extension.Manifest.Settings) > 0 {
@@ -857,6 +921,9 @@ func (s *Service) ResetSettings(ctx context.Context, actor identity.Actor, exten
 	}
 	if !canManageExtensionSettings(actor, extension) {
 		return ExtensionSettings{}, identity.ErrPermissionDenied
+	}
+	if err := requireArtifactAvailable(extension); err != nil {
+		return ExtensionSettings{}, err
 	}
 	if s.settingsLifecycle != nil && len(extension.Manifest.Settings) > 0 {
 		return s.resetSettingsViaLifecycle(ctx, actor, extension, locale)

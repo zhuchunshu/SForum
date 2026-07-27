@@ -14,11 +14,14 @@ SForum V1 将 GitHub 登录作为**受保护内置插件** `sforum.auth-github` 
 
 ## 在 GitHub 创建 OAuth App
 
-1. GitHub → Settings → Developer settings → OAuth Apps → New OAuth App。
+申请地址：[新建 GitHub OAuth App](https://github.com/settings/applications/new)。
+
+1. 打开申请地址，**Application name** 填便于识别的名称，**Homepage URL** 填站点 `APP_URL`。
 2. **Authorization callback URL** 必须与 Host 展示的绝对回调一致，形如：  
-   `{APP_URL}/api/v1/auth/providers/sforum.auth-github.auth/callback`  
+   `{APP_URL}/auth/providers/sforum.auth-github.auth/callback`
    在「登录方式」页可一键复制。
-3. 记录 **Client ID**，生成 **Client Secret**（仅粘贴到 SForum SecretStore，勿写入主题或浏览器）。
+3. 注册应用，记录 **Client ID**，再生成 **Client Secret**（仅粘贴到 SForum SecretStore，勿写入主题或浏览器）。
+4. 回到 SForum 填写凭证并保存，运行探测后，再按需开启登录、注册和账号绑定。
 
 官方参考（核验日 2026-07-27）：
 

@@ -289,6 +289,8 @@ type Service struct {
 	mu        sync.RWMutex
 	cached    map[string]string
 	expiresAt time.Time
+	// siteURLOverride 保留后台原始覆盖值；cached 中始终是解析后的有效公开地址。
+	siteURLOverride string
 
 	forumReadPolicy         *forumReadPolicySnapshot
 	forumReadPolicyRevision uint64
@@ -339,7 +341,27 @@ func (s *Service) WithAuditor(w audit.Writer) *Service {
 
 func (s *Service) EnsureDefaults(ctx context.Context) error {
 	defaults := s.defaultValues()
+	rows, err := s.store.List(ctx)
+	if err != nil {
+		return err
+	}
+	for _, row := range rows {
+		// 旧版本会把启动时的 APP_URL 物化为 site.url。值仍与当前环境一致时
+		// 可安全迁回“未覆盖”；真正不同的运营自定义值必须保留。
+		if normalizeName(row.Name) == NameSiteURL &&
+			strings.TrimSpace(row.Value) == defaults[NameSiteURL] {
+			if _, err := s.store.Upsert(ctx, UpdateInput{Name: NameSiteURL, Value: ""}); err != nil {
+				return err
+			}
+			break
+		}
+	}
 	for _, name := range allOptionNames() {
+		// site.url 是可选覆盖值。缺失时由 defaults 中的 APP_URL 动态兜底，
+		// 不把环境值固化进数据库，否则后续修改 APP_URL 不会生效。
+		if name == NameSiteURL {
+			continue
+		}
 		if err := s.store.InsertMissing(ctx, UpdateInput{Name: name, Value: defaults[name]}); err != nil {
 			return err
 		}
@@ -573,7 +595,11 @@ func (s *Service) UpdateMany(ctx context.Context, actor identity.Actor, inputs [
 		if !ok {
 			return nil, ErrInvalidOption
 		}
-		merged[name] = value
+		if name == NameSiteURL && value == "" {
+			merged[name] = s.defaults[NameSiteURL]
+		} else {
+			merged[name] = value
+		}
 		pending[name] = value
 	}
 
@@ -627,6 +653,7 @@ func (s *Service) UpdateMany(ctx context.Context, actor identity.Actor, inputs [
 	// 写入后让缓存失效，下次读取重新从 DB 解密加载。
 	s.mu.Lock()
 	s.cached = nil
+	s.siteURLOverride = ""
 	s.mu.Unlock()
 
 	s.Invalidate()
@@ -643,6 +670,7 @@ func (s *Service) Invalidate() {
 
 	s.cached = nil
 	s.expiresAt = time.Time{}
+	s.siteURLOverride = ""
 	s.forumReadPolicy = nil
 }
 
@@ -723,6 +751,7 @@ func (s *Service) loadMapWithFreshness(ctx context.Context, forceFresh bool) (ma
 	}
 
 	values := s.defaultValues()
+	siteURLOverride := ""
 	for _, row := range rows {
 		name := normalizeName(row.Name)
 		if !isKnownOption(name) {
@@ -736,11 +765,15 @@ func (s *Service) loadMapWithFreshness(ctx context.Context, forceFresh bool) (ma
 		value, ok := normalizeOptionValue(name, rawValue)
 		if ok {
 			values[name] = value
+			if name == NameSiteURL {
+				siteURLOverride = value
+			}
 		}
 	}
 	values = s.coerceValueSet(values)
 
 	s.cached = values
+	s.siteURLOverride = siteURLOverride
 	s.expiresAt = now.Add(s.cacheTTL)
 	s.publishForumReadPolicyLocked(values, s.expiresAt)
 	return copyValues(values), nil
@@ -763,6 +796,10 @@ func (s *Service) publishForumReadPolicyLocked(values map[string]string, expires
 }
 
 func (s *Service) adminOptions(values map[string]string, actor identity.Actor) []AdminOption {
+	s.mu.RLock()
+	siteURLOverride := s.siteURLOverride
+	s.mu.RUnlock()
+
 	items := make([]AdminOption, 0, len(optionDefinitions))
 	for _, definition := range optionDefinitions {
 		if !actor.Can(definition.managePermission) {
@@ -775,6 +812,18 @@ func (s *Service) adminOptions(values map[string]string, actor identity.Actor) [
 				Public:    definition.public,
 				Secret:    true,
 				SecretSet: strings.TrimSpace(value) != "",
+			})
+			continue
+		}
+		if definition.name == NameSiteURL {
+			overrideValue := siteURLOverride
+			items = append(items, AdminOption{
+				Name:          definition.name,
+				Value:         values[definition.name],
+				Public:        definition.public,
+				OverrideValue: &overrideValue,
+				FallbackValue: s.defaults[definition.name],
+				Inherited:     siteURLOverride == "",
 			})
 			continue
 		}

@@ -1061,8 +1061,8 @@ func TestServiceEnsureDefaultsDoesNotOverwriteExistingOptions(t *testing.T) {
 	if got := store.items[NameSiteName]; got != "Existing" {
 		t.Fatalf("expected existing site name to be kept, got %q", got)
 	}
-	if got := store.items[NameSiteURL]; got != "http://127.0.0.1:3000" {
-		t.Fatalf("expected missing site URL to be inserted, got %q", got)
+	if _, ok := store.items[NameSiteURL]; ok {
+		t.Fatalf("missing site URL must remain unset so APP_URL can stay authoritative")
 	}
 }
 

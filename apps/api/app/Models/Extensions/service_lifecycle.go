@@ -281,6 +281,10 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 		s.assetPublicationMu.Unlock()
 		return Extension{}, ErrThemeActivationRequired
 	}
+	if err := requireArtifactAvailable(extension); err != nil {
+		s.assetPublicationMu.Unlock()
+		return Extension{}, err
+	}
 	if usesLifecycleV2(extension) {
 		s.assetPublicationMu.Unlock()
 		return s.enableLifecycleV2(ctx, actor, extension, input)
@@ -685,6 +689,9 @@ func (s *Service) activateTheme(
 		if staged, ok := extension.StagedArtifact(); ok {
 			activationTarget = staged
 		}
+	}
+	if err := requireArtifactAvailable(activationTarget); err != nil {
+		return Extension{}, err
 	}
 	if requirePreview && (strings.TrimSpace(input.Version) == "" || strings.TrimSpace(input.PackageDigest) == "" ||
 		strings.TrimSpace(input.Version) != activationTarget.Version ||

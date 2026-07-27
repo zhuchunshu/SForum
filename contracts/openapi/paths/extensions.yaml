@@ -717,6 +717,51 @@ adminExtensions:
           application/json:
             schema:
               "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+adminMissingArtifactUninstall:
+  post:
+    summary: Uninstall extensions whose exact artifact files are missing
+    operationId: uninstallMissingArtifactExtensions
+    description: >-
+      Super-admin-only atomic catalog cleanup for uploaded, deletable, disabled
+      plugins and themes whose stored exact package path no longer exists. The
+      Host rechecks every extension and exact version/digest/path tuple before
+      committing, then removes the catalog identity without executing missing
+      extension code. Lifecycle history and plugin-owned business data remain.
+      Re-uploading the same extension id restores its catalog identity.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/extensions.yaml#/MissingArtifactCleanupInput"
+    responses:
+      '200':
+        description: All requested missing-artifact extensions were removed from the active catalog.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseMissingArtifactCleanup"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '409':
+        description: >-
+          The batch is stale or invalid, an artifact is available, an extension
+          is enabled, or an extension is protected from deletion. No item is
+          removed when any item fails validation.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '422':
+        description: Malformed request body.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
 adminExtensionUninstall:
   delete:
     summary: Uninstall a deletable extension
@@ -1282,6 +1327,69 @@ adminExtensionEnable:
               "$ref": "../schemas/common.yaml#/ApiErrorResponse"
       '503':
         "$ref": "../components/responses.yaml#/ServiceUnavailable"
+adminExtensionRestart:
+  post:
+    summary: Restart a plugin through the Host lifecycle
+    description: >-
+      Requires plugin management permission and a stable Idempotency-Key.
+      The Host fully disables the current runtime before starting its exact
+      replacement. If an enabled legacy artifact has an immutable staged
+      candidate, restart safely bridges it by disabling the legacy runtime,
+      promoting the staged candidate with exact CAS while it remains inert,
+      and enabling the target. A normal Lifecycle V2 staged update continues
+      to use the native upgrade ledger. Failures after disable remain
+      recoverably disabled; retrying with the same Idempotency-Key resumes the
+      exact target instead of selecting a newer artifact.
+    operationId: restartAdminExtension
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    - "$ref": "../components/parameters.yaml#/IdempotencyKey"
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            properties:
+              confirmCapabilities:
+                type: boolean
+                deprecated: true
+                description: >-
+                  Compatibility capability confirmation used when exact
+                  executable trust challenges are disabled, or when a
+                  non-trust-required staged target adds Host capabilities.
+              confirmationToken:
+                type: string
+                pattern: '^[0-9a-f]{64}$'
+                description: Actor-bound one-use token for an uploaded staged target that does not already have an exact live grant.
+    responses:
+      '200':
+        description: Exact target runtime is enabled after restart or staged migration.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtension"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        description: Another lifecycle operation is open, exact staged CAS changed, trust is missing, or Safe Mode blocks restart.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '422':
+        description: Missing or invalid Idempotency-Key, unsupported extension state, or invalid lifecycle target.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
 adminExtensionTrust:
   get:
     summary: Preview exact executable extension impact and trust state
@@ -1293,6 +1401,7 @@ adminExtensionTrust:
     operationId: getAdminExtensionTrust
     parameters:
     - "$ref": "../components/parameters.yaml#/ExtensionID"
+    - "$ref": "../components/parameters.yaml#/ExecutableTrustTarget"
     responses:
       '200':
         description: Current exact-artifact trust status and impact preview.
@@ -1307,7 +1416,13 @@ adminExtensionTrust:
       '404':
         "$ref": "../components/responses.yaml#/NotFound"
       '409':
-        description: V3 trust challenge migration gate is disabled.
+        description: The artifact requires uploaded executable trust while the V3 trust challenge migration gate is disabled.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '422':
+        description: Invalid trust review target.
         content:
           application/json:
             schema:
@@ -1347,6 +1462,7 @@ adminExtensionTrustChallenge:
     operationId: createAdminExtensionTrustChallenge
     parameters:
     - "$ref": "../components/parameters.yaml#/ExtensionID"
+    - "$ref": "../components/parameters.yaml#/ExecutableTrustTarget"
     responses:
       '200':
         description: Short-lived one-use challenge issued.
@@ -1362,6 +1478,12 @@ adminExtensionTrustChallenge:
         "$ref": "../components/responses.yaml#/NotFound"
       '409':
         description: Trust is not required for this artifact or the migration gate is disabled.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '422':
+        description: Invalid trust review target.
         content:
           application/json:
             schema:

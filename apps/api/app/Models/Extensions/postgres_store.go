@@ -48,7 +48,7 @@ func (s *PostgresStore) List(ctx context.Context) ([]Extension, error) {
 
 func (s *PostgresStore) Get(ctx context.Context, id string) (Extension, error) {
 	row := s.pool.QueryRow(ctx, extensionSelectSQL()+`
-		WHERE extensions.id = $1
+		AND extensions.id = $1
 	`, id)
 	item, err := scanExtension(row)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -184,6 +184,11 @@ func (s *PostgresStore) SaveInstalled(ctx context.Context, input SaveInstalledIn
 			return Extension{}, fmt.Errorf("update extension metadata: %w", err)
 		}
 	}
+	if _, err := tx.Exec(ctx, `
+		DELETE FROM extension_missing_artifact_removals WHERE extension_id = $1
+	`, input.Manifest.ID); err != nil {
+		return Extension{}, fmt.Errorf("restore removed extension catalog identity: %w", err)
+	}
 
 	versionID, err := ensureExtensionVersion(ctx, tx, extensionVersionInput{
 		ExtensionID:         input.Manifest.ID,
@@ -218,7 +223,7 @@ func (s *PostgresStore) SaveInstalled(ctx context.Context, input SaveInstalledIn
 		}
 	}
 	installed, err := scanExtension(tx.QueryRow(ctx, extensionSelectSQL()+`
-		WHERE extensions.id = $1
+		AND extensions.id = $1
 	`, input.Manifest.ID))
 	if err != nil {
 		return Extension{}, fmt.Errorf("load installed extension before commit: %w", err)
@@ -518,7 +523,7 @@ func (s *PostgresStore) ActivateThemeExact(ctx context.Context, id string, expec
 
 func (s *PostgresStore) ActiveTheme(ctx context.Context) (Extension, error) {
 	row := s.pool.QueryRow(ctx, extensionSelectSQL()+`
-		WHERE extensions.type = 'theme' AND extensions.status = 'enabled'
+		AND extensions.type = 'theme' AND extensions.status = 'enabled'
 		ORDER BY extensions.source = 'uploaded' DESC, extensions.updated_at DESC
 		LIMIT 1
 	`)
@@ -882,6 +887,9 @@ func extensionSelectSQL() string {
 		FROM extensions
 		JOIN extension_versions ON extension_versions.id = extensions.active_version_id
 		LEFT JOIN extension_versions AS staged_versions ON staged_versions.id = extensions.staged_version_id
+		LEFT JOIN extension_missing_artifact_removals AS missing_artifact_removals
+		  ON missing_artifact_removals.extension_id = extensions.id
+		WHERE missing_artifact_removals.extension_id IS NULL
 	`
 }
 
