@@ -18,16 +18,26 @@ Attachment system foundation is implemented.
 - Migration `202607050004_attachments.sql` creates `attachments`,
   `attachment_references`, and the attachment permissions.
 - Admin UI uses independent permission-aware routes for Basic Configuration
-  (`/attachments/settings`) and Attachment Management
+  and Compression Configuration under Attachment Configuration
+  (`/attachments/settings`), plus Attachment Management
   (`/attachments/manager`). The legacy `/attachments` route redirects to the
   requested or first accessible child. Their implementations remain
   independent components under `components/admin/settings/attachments/tabs/`.
+- Basic Configuration retains the storage/upload form. Compression
+  Configuration currently reports that no ordinary-attachment compression
+  processor is enabled; it does not expose fake save controls before a real
+  Host or plugin contract exists.
 - The stable `core.component.page.admin.attachments` Admin Surface placement is
   mapped to Attachment Management so existing governance extensions continue
   to render after the route split.
 - Settings owns provider selection, Core driver configuration, generic plugin
   settings navigation, connection probes, secret-preserving restore, and the
   beginner-friendly local-upload defaults.
+- Basic Configuration keeps guidance visible below every input, displays MB
+  and day units inline, documents list formats and path-template tokens, and
+  explains provider defaults, public URLs, credential retention, and SFTP host
+  key verification. Core provider credential fields live in the focused
+  `SFAdminAttachmentCoreProviderFields` component.
 - Manager owns filters, detail/reference loading, status changes, soft delete,
   orphan cleanup, and URL copy.
 - Site brand uploads reuse the attachment provider and validation pipeline

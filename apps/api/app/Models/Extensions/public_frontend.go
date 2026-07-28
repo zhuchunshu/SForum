@@ -385,7 +385,7 @@ func BuildPublicAssetPublication(
 	for _, file := range manifest.PackageFiles {
 		packageFiles[file.ID] = file
 	}
-	declarations := make([]assetregistry.Declaration, 0, len(manifest.Assets)+len(manifest.Components))
+	declarations := make([]assetregistry.Declaration, 0, maxPublicL2Assets)
 	for _, asset := range manifest.Assets {
 		if asset.Type != "script" && asset.Type != "style" {
 			continue

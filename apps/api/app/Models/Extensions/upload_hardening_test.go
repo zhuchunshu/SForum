@@ -34,14 +34,20 @@ func TestReadArchiveEnforcesCentralDirectoryEntryLimit(t *testing.T) {
 	if len(reader.File) != maxArchiveEntries || reader.File[0].Flags&0x8 == 0 {
 		t.Fatalf("boundary fixture must contain %d central entries and a data descriptor", maxArchiveEntries)
 	}
-	manifest, _, err := readArchive(exact)
+	manifest, _, err := extensionpackage.ReadArchive(exact, extensionpackage.ArchiveLimits{
+		Entries: maxArchiveEntries,
+		Bytes:   maxArchiveBytes,
+	})
 	if err != nil {
 		t.Fatalf("exact entry limit should be accepted: %v", err)
 	}
 	if manifest.ID != "entry-limit.theme" {
 		t.Fatalf("unexpected manifest at exact entry limit: %#v", manifest)
 	}
-	if _, _, err := readArchive(archive(maxArchiveEntries + 1)); !errors.Is(err, ErrInvalidArchive) {
+	if _, _, err := extensionpackage.ReadArchive(archive(maxArchiveEntries+1), extensionpackage.ArchiveLimits{
+		Entries: maxArchiveEntries,
+		Bytes:   maxArchiveBytes,
+	}); !errors.Is(err, extensionpackage.ErrInvalidArchive) {
 		t.Fatalf("entry limit + 1 should be rejected, got %v", err)
 	}
 }

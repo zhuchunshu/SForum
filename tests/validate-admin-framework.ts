@@ -216,6 +216,12 @@ const adminRedirectPageIds = new Set(['/site-chrome', '/settings/notifications',
 const adminStoreShelfPageIds = new Set(['/extensions/store/themes', '/extensions/store/plugins'])
 const adminStoreShelfComponent = 'apps/web/app/components/admin/SFAdminExtensionStoreShelf.vue'
 
+const attachmentConfigurationPage = read('apps/web/app/pages/admin/attachments/settings.vue')
+assert(attachmentConfigurationPage.includes('SFAdminFixedTabNav'), 'Attachment Configuration should expose fixed tabs')
+assert(attachmentConfigurationPage.includes('SFAdminAttachmentSettingsTab'), 'Attachment Configuration should retain the Basic Configuration content')
+assert(attachmentConfigurationPage.includes('SFAdminAttachmentCompressionTab'), 'Attachment Configuration should expose Compression Configuration content')
+assert(attachmentConfigurationPage.includes("'basic' | 'compression'"), 'Attachment Configuration should keep stable basic and compression tab ids')
+
 for (const page of adminPageDefinitions) {
   const adminPage = adminPagePathsById[page.id]
   assert(adminPage, `Admin module registry points to an unknown page id ${page.id}`)

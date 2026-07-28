@@ -20,32 +20,6 @@ import (
 	themecompiler "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeCompiler"
 )
 
-func TestReadZipFileLimitedCapsInflation(t *testing.T) {
-	var buffer bytes.Buffer
-	writer := zip.NewWriter(&buffer)
-	writeZipFile(t, writer, zipFile{name: "big.txt", body: strings.Repeat("A", 64)})
-	if err := writer.Close(); err != nil {
-		t.Fatalf("close zip: %v", err)
-	}
-	reader, err := zip.NewReader(bytes.NewReader(buffer.Bytes()), int64(buffer.Len()))
-	if err != nil {
-		t.Fatalf("open zip: %v", err)
-	}
-	if len(reader.File) != 1 {
-		t.Fatalf("expected 1 file, got %d", len(reader.File))
-	}
-	if _, err := readZipFileLimited(reader.File[0], 16); !errors.Is(err, ErrInvalidArchive) {
-		t.Fatalf("expected ErrInvalidArchive when inflate exceeds cap, got %v", err)
-	}
-	body, err := readZipFileLimited(reader.File[0], 128)
-	if err != nil {
-		t.Fatalf("expected success under higher cap: %v", err)
-	}
-	if len(body) != 64 {
-		t.Fatalf("expected 64 bytes, got %d", len(body))
-	}
-}
-
 func TestServiceInstallArchiveRequiresExtensionManagePermission(t *testing.T) {
 	service := NewService(&fakeExtensionStore{}, t.TempDir())
 	actor := identity.Actor{ID: 7, Status: identity.UserStatusActive, Permissions: map[string]bool{}}
@@ -71,14 +45,28 @@ func TestServiceInstallArchiveValidatesManifestAndSafeZipPaths(t *testing.T) {
 		t.Fatalf("expected missing manifest to be invalid archive, got %v", err)
 	}
 
-	_, err = service.InstallArchive(context.Background(), actor, ArchiveInput{
-		FileName: "unsafe.zip",
-		Data: extensionArchive(t, validManifest("demo.plugin", TypePlugin),
-			zipFile{name: "../escape.txt", body: "oops"},
-		),
-	})
-	if !errors.Is(err, ErrInvalidArchive) {
-		t.Fatalf("expected unsafe path to be invalid archive, got %v", err)
+	unsafePaths := []string{
+		"../escape.txt",
+		"assets/../../escape.txt",
+		"..\\escape.txt",
+		"/absolute.txt",
+		"\\\\server\\share\\escape.txt",
+		"C:\\escape.txt",
+		"assets/file..txt",
+		"assets/invalid\x00name.txt",
+	}
+	for _, unsafePath := range unsafePaths {
+		t.Run("unsafe path "+unsafePath, func(t *testing.T) {
+			_, err := service.InstallArchive(context.Background(), actor, ArchiveInput{
+				FileName: "unsafe.zip",
+				Data: extensionArchive(t, validManifest("demo.plugin", TypePlugin),
+					zipFile{name: unsafePath, body: "oops"},
+				),
+			})
+			if !errors.Is(err, ErrInvalidArchive) {
+				t.Fatalf("expected unsafe path %q to be invalid archive, got %v", unsafePath, err)
+			}
+		})
 	}
 
 	_, err = service.InstallArchive(context.Background(), actor, ArchiveInput{

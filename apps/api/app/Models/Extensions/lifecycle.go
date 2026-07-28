@@ -50,8 +50,17 @@ func (s *LifecycleService) InstallOrUpgradeArchive(ctx context.Context, actor id
 		return InstallResult{}, ErrInvalidArchive
 	}
 
-	manifest, files, err := readArchive(input.Data)
+	manifest, packageFiles, err := extensionpackage.ReadArchive(input.Data, extensionpackage.ArchiveLimits{
+		Entries: maxArchiveEntries,
+		Bytes:   maxArchiveBytes,
+	})
 	if err != nil {
+		if errors.Is(err, extensionpackage.ErrInvalidArchive) {
+			return InstallResult{}, ErrInvalidArchive
+		}
+		if errors.Is(err, extensionpackage.ErrInvalidManifest) {
+			return InstallResult{}, ErrInvalidManifest
+		}
 		return InstallResult{}, err
 	}
 	if err := validateManifest(manifest); err != nil {
@@ -96,14 +105,6 @@ func (s *LifecycleService) InstallOrUpgradeArchive(ctx context.Context, actor id
 	manifestJSON, err := json.Marshal(manifest)
 	if err != nil {
 		return InstallResult{}, err
-	}
-	packageFiles := make([]extensionpackage.File, 0, len(files))
-	for _, file := range files {
-		packageFiles = append(packageFiles, extensionpackage.File{
-			Path: file.name,
-			Mode: file.mode,
-			Body: file.body,
-		})
 	}
 	ownedSnapshot, err := extensionpackage.SnapshotUploadedOwned(s.extensionRoot, manifestJSON, packageFiles)
 	if err != nil {

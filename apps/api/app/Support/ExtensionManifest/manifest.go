@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/mail"
 	"net/url"
-	"path"
 	"regexp"
 	"strings"
 
@@ -877,35 +876,6 @@ func normalizeLocaleKey(value string) string {
 		}
 	}
 	return strings.Join(parts, "-")
-}
-
-func NormalizeRoutePath(value string) string {
-	value = strings.TrimSpace(strings.ReplaceAll(value, "\\", "/"))
-	if value == "" {
-		return ""
-	}
-	if strings.Contains(value, "..") {
-		return value
-	}
-	if !strings.HasPrefix(value, "/") {
-		value = "/" + value
-	}
-	return path.Clean(value)
-}
-
-func SafeArchivePath(name string) (string, bool) {
-	name = strings.TrimSpace(strings.ReplaceAll(name, "\\", "/"))
-	if name == "" || strings.HasPrefix(name, "/") {
-		return "", false
-	}
-	clean := path.Clean(name)
-	if clean == "." || clean == ManifestFileName {
-		return clean, true
-	}
-	if strings.HasPrefix(clean, "../") || clean == ".." || strings.Contains(clean, "/../") {
-		return "", false
-	}
-	return clean, true
 }
 
 func DeclaredEvents(manifest Manifest) []ManifestEvent {

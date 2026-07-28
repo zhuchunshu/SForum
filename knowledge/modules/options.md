@@ -96,7 +96,9 @@ SSR/query/permission shells.
   beginner-friendly pattern as other option groups.
 - Wave 2 brand & legal (2026-07-12) lives in `site_brand_options.go`:
   - Brand assets (public): `site.logo_url` / `site.logo_attachment_id`,
-    favicon and apple-touch URL + attachment id pairs. Empty → theme default.
+    favicon and apple-touch URL + attachment id pairs. Empty logo/favicon
+    values resolve to the Core `/brand/sforum-logo.svg` asset in the Web
+    presentation layer; Apple Touch icon remains unset when empty.
   - Legal Markdown stubs (public): `legal.terms|privacy|guidelines.body.zh-CN|en-US`
     with recommended short stubs and 50k-rune cap.
   - Structured public chrome (nav, friend links, announcements) is **not** in

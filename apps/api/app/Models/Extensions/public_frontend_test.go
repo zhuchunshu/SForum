@@ -707,6 +707,19 @@ func TestBuildPublicAssetPublicationUsesExtensionTypeOwnerKind(t *testing.T) {
 	}
 }
 
+func TestBuildPublicAssetPublicationRejectsDeclarationsOverLimit(t *testing.T) {
+	extension := publicAssetOnlyFixture(t, "asset.limit")
+	asset := extension.Manifest.Assets[0]
+	extension.Manifest.Assets = make([]ManifestAsset, maxPublicL2Assets+1)
+	for index := range extension.Manifest.Assets {
+		extension.Manifest.Assets[index] = asset
+	}
+
+	if _, err := BuildPublicAssetPublication(extension, strings.Repeat("a", 64)); !errors.Is(err, ErrPublicFrontendUnavailable) {
+		t.Fatalf("expected declarations over the publication limit to fail closed, got %v", err)
+	}
+}
+
 func TestValidatePublishedIdentityRejectsTupleMismatchWithoutDigestTree(t *testing.T) {
 	extension := publicFrontendFixture(t)
 	reader := &fakeFrontendExtensionReader{item: extension}

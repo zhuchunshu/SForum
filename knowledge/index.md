@@ -93,9 +93,15 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- Admin attachment navigation: Basic Configuration and Attachment Management
-  are now independent permission-aware routes under Attachment Settings; the
-  old URL redirects compatibly and the governance extension placement follows
+- Default site brand assets: the supplied V3 mark now ships at
+  `/brand/sforum-logo.svg`; empty runtime Logo/favicon options resolve to it
+  without storing the fallback, while operator URLs remain authoritative:
+  `sessions/2026-07-29-default-site-brand-assets.md`
+- Admin attachment navigation: Attachment Configuration and Attachment
+  Management are independent permission-aware routes; Attachment Configuration
+  contains Basic Configuration and Compression Configuration tabs; Basic
+  Configuration now includes persistent field guidance and units, while the old
+  URL redirects compatibly and the governance extension placement follows
   Attachment Management; operator verification remains:
   `sessions/2026-07-29-admin-attachment-submenus-handoff.md`
 - Personalization brand assets: compact click/drag uploads now auto-fill URL
@@ -130,7 +136,8 @@ load archived sessions or completed plans as current context.
   redirect targets, database pool integers, and stored Argon2 verification now
   reject unsafe input before crossing their runtime boundaries; the unpatched
   imaging dependency is gone and JPEG/PNG transforms now explicitly reject
-  TIFF:
+  TIFF; uploaded extension ZIP paths now have a CodeQL-visible strict source
+  guard plus independent snapshot containment checks:
   `sessions/2026-07-29-github-actions-release-pipeline-handoff.md`
 - Notification email opt-in defaults: admin per-type email control, Core
   transaction-scoped user preference enforcement, hard site gate, safe default

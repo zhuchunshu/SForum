@@ -26,6 +26,11 @@ import {
   resolveSEOSettings,
   resolveAppearanceTheme
 } from '../../app/composables/useWebOptions'
+import {
+  defaultSiteFaviconUrl,
+  defaultSiteLogoUrl,
+  resolveSiteBrandAssetUrl
+} from '../../app/utils/settings/siteBrand'
 
 describe('appearance theme helpers', () => {
   test('normalizes preset and custom theme values', () => {
@@ -75,6 +80,24 @@ describe('appearance theme helpers', () => {
     expect(links.map(link => link.key)).toEqual(['terms', 'privacy', 'guidelines'])
     links[0].labels['zh-CN'] = 'Changed'
     expect(recommendedFooterLinks[0].labels['zh-CN']).toBe('服务条款')
+  })
+})
+
+describe('site brand asset helpers', () => {
+  test('uses the Core logo for unset logo and favicon options', () => {
+    const asset = readFileSync(new URL('../../public/brand/sforum-logo.svg', import.meta.url), 'utf8')
+
+    expect(defaultSiteLogoUrl).toBe('/brand/sforum-logo.svg')
+    expect(defaultSiteFaviconUrl).toBe(defaultSiteLogoUrl)
+    expect(asset).toContain('<title id="title">SForum logo</title>')
+    expect(resolveSiteBrandAssetUrl('', defaultSiteLogoUrl)).toBe(defaultSiteLogoUrl)
+    expect(resolveSiteBrandAssetUrl('   ', defaultSiteFaviconUrl)).toBe(defaultSiteFaviconUrl)
+    expect(resolveSiteBrandAssetUrl(undefined, defaultSiteLogoUrl)).toBe(defaultSiteLogoUrl)
+  })
+
+  test('keeps an operator-configured brand asset URL authoritative', () => {
+    expect(resolveSiteBrandAssetUrl(' /uploads/custom-logo.png ', defaultSiteLogoUrl))
+      .toBe('/uploads/custom-logo.png')
   })
 })
 

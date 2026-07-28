@@ -6,6 +6,28 @@ import (
 	"testing"
 )
 
+func TestSafeArchivePathRejectsCrossPlatformAbsoluteAndTraversalPaths(t *testing.T) {
+	unsafePaths := []string{
+		"../escape.txt",
+		"assets/../../escape.txt",
+		"..\\escape.txt",
+		"/absolute.txt",
+		"\\\\server\\share\\escape.txt",
+		"C:\\escape.txt",
+		"c:/escape.txt",
+		"assets/invalid\x00name.txt",
+	}
+	for _, unsafePath := range unsafePaths {
+		if _, ok := SafeArchivePath(unsafePath); ok {
+			t.Fatalf("expected %q to be rejected", unsafePath)
+		}
+	}
+
+	if got, ok := SafeArchivePath("assets/icons/logo.png"); !ok || got != "assets/icons/logo.png" {
+		t.Fatalf("expected ordinary relative path to remain valid, got %q, %v", got, ok)
+	}
+}
+
 func TestContributionPointDefinitionsContainOnlyHostRenderedDescriptors(t *testing.T) {
 	points := ContributionPointDefinitions()
 	want := map[string]bool{

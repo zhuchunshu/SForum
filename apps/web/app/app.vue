@@ -93,7 +93,7 @@ useHead(() => {
     htmlAttrs.style = [htmlAttrs.style, themeStyle].filter(Boolean).join('; ')
   }
 
-  // Wave 2 品牌：运营配置的 favicon / apple-touch；空则不注入，沿用浏览器默认。
+  // favicon 已在 useWebOptions 中解析 Core 默认值；Apple Touch icon 仍仅按运营配置注入。
   const brandLinks: Array<Record<string, string>> = []
   if (siteFaviconUrl.value) {
     brandLinks.push({ rel: 'icon', href: siteFaviconUrl.value })

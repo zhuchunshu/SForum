@@ -7,7 +7,7 @@ const props = withDefaults(defineProps<{
 }>(), {
   description: undefined,
   actionLabel: undefined,
-  iconLabel: 'SF'
+  iconLabel: undefined
 })
 
 const emit = defineEmits<{
@@ -18,7 +18,8 @@ const emit = defineEmits<{
 <template>
   <div class="sf-empty-state">
     <div class="sf-empty-state__icon" aria-hidden="true">
-      {{ iconLabel }}
+      <span v-if="iconLabel">{{ iconLabel }}</span>
+      <UIcon v-else name="i-lucide-inbox" class="size-5" />
     </div>
     <h3 class="sf-empty-state__title">
       {{ title }}

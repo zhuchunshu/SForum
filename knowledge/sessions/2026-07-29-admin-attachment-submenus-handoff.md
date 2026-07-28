@@ -7,10 +7,19 @@
 - Added independent `/attachments/settings` and `/attachments/manager` pages,
   each with its own admin page registration, permission, toolbar, and refresh
   state.
+- Renamed the settings child to Attachment Configuration and split its content
+  into query-synchronized Basic Configuration and Compression Configuration
+  tabs. The compression tab reports the current no-processor state without
+  inventing persistence fields.
 - Kept `/attachments` as a permission-aware compatibility redirect that also
   honors old `?tab=manager` bookmarks.
 - Mapped the stable attachment Admin Surface placement to the new management
   page so existing extension contributions remain available.
+- Completed the Basic Configuration field guidance: all common and Core
+  provider inputs now have persistent help text, size/retention controls show
+  units, FTP toggles explain their behavior, and secret fields explain that a
+  blank value preserves the saved credential. Extracted the provider-specific
+  fields into a focused component to keep the tab shell cohesive.
 
 ## Decisions
 
@@ -19,8 +28,8 @@
 
 ## Next
 
-- The operator will manually verify both submenu links and permission-specific
-  visibility.
+- The operator will manually verify both submenu links, permission-specific
+  visibility, and the Basic Configuration help text and units.
 
 ## Open Questions
 

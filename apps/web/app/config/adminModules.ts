@@ -178,7 +178,7 @@ export const adminPageDefinitions = [
   },
   {
     id: '/attachments/settings',
-    labelKey: 'admin.attachments.tabs.settings',
+    labelKey: 'admin.attachments.configuration',
     icon: 'i-lucide-sliders-horizontal',
     componentName: 'AdminAttachmentSettings',
     requiredPermissions: ['attachment.settings.manage']

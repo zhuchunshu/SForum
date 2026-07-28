@@ -168,6 +168,11 @@ Decision: `../decisions/2026-07-22-external-extension-source-roots.md`.
 - Validation covers identity/version/compatibility, exact package-file hashes,
   dependencies/conflicts/provides, declarations, entry paths, migrations,
   capabilities, admin pages, theme assets/templates, and unsafe archive paths.
+- Uploaded ZIP entry names are rejected at the archive-reader boundary before
+  any snapshot operation when they contain `..`, NUL, an absolute/UNC prefix,
+  or a Windows drive prefix. Snapshot normalization independently rejects
+  traversal segments, symlinks, special files, duplicates, and file/directory
+  collisions before using `filepath.Join`.
 - Manifest locale fallback is exact locale, language prefix, then root display
   fields. Admin micro-frontend locales are separate from manifest identity and
   settings/contribution labels.
@@ -177,6 +182,9 @@ Decision: `../decisions/2026-07-22-external-extension-source-roots.md`.
 - `/_sforum` is a Host-reserved resource namespace. Public package bytes use
   content-addressed `/_sforum/assets`; authenticated prebuilt admin assets use
   `/_sforum/private-assets`. Route Registry contributions cannot claim either.
+- Public asset publication preallocates only the fixed 256-declaration output
+  limit and fails closed above that limit; untrusted manifest slice lengths are
+  never added together to determine an allocation size.
 - Route Registry supports add, alias, redirect, rewrite, before/after/filter,
   wrap/replace, global middleware, uploads, opaque streams, SSE, and WebSocket
   on declared public/admin/API methods and paths. Final redirect output accepts

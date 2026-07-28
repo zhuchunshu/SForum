@@ -43,6 +43,29 @@
   the media optimization fixture. JPEG/PNG transforms now use
   `golang.org/x/image/draw`; bounded `rwcarlsen/goexif` orientation reads retain
   phone-photo rotation, and TIFF is explicitly rejected before transform.
+- Hardened uploaded extension ZIP entry handling for CodeQL alert #12
+  (`go/zipslip`). The archive reader now rejects `..` directly at the tainted
+  entry-name boundary, plus NUL, absolute/UNC, and Windows drive paths before
+  normalization. Shared manifest path validation rejects cross-platform
+  absolute forms, while immutable snapshot normalization remains an
+  independent second boundary against traversal, links, special files,
+  duplicates, and file/directory collisions. ZIP reading and shared archive
+  path helpers now live in focused same-package files, lowering both affected
+  legacy architecture baselines instead of growing the oversized files.
+- Dismissed CodeQL alert #13 (`go/weak-sensitive-data-hashing`) as a false
+  positive. The reported value is a CSPRNG-generated 256-bit PostgreSQL role
+  credential; SHA-256 is retained only as a non-secret audit/rotation
+  fingerprint and is never used to verify a user-selected password.
+- Dismissed CodeQL alert #14 (`go/weak-sensitive-data-hashing`) as a false
+  positive. The short-lived ALTCHA solution has already passed HMAC signature,
+  expiry, and proof-of-work validation; SHA-256 only derives the Redis `SETNX`
+  replay key so the raw payload is not stored. A slow password hash would add
+  attacker-controlled CPU cost without strengthening this boundary.
+- Resolved CodeQL alerts #15 and #16 (`go/allocation-size-overflow`) at the
+  shared public-asset publication source. Initial declaration capacity now
+  uses the fixed 256-item publication limit instead of adding two manifest
+  slice lengths; the existing fail-closed output limit is covered by a new
+  over-limit regression test.
 
 ## Decisions
 
@@ -84,6 +107,13 @@
   zero reachable vulnerabilities, and neither module graph contains
   `disintegration/imaging`. The real media optimization plugin subprocess
   integration test also rebuilt, started, and completed successfully.
+- The complete `Models/Extensions`, `ExtensionManifest`, and
+  `ExtensionPackage` test packages passed after the Zip Slip hardening, as did
+  focused `go vet`. Regression cases cover POSIX traversal and absolute paths,
+  backslash traversal, UNC paths, Windows drive paths, NUL, and the deliberate
+  strict rejection of entry names containing embedded `..`.
+- The focused public-asset allocation regression, full `Models/Extensions`
+  package, and focused `go vet` passed after resolving alerts #15/#16.
 - A full repository gate rerun reached the PostgreSQL integration suite but was
   interrupted by one transient migration error (`could not open relation with
   OID`) in `TestNotificationReferencePluginEmitsThroughRealBroker`. The exact
@@ -102,8 +132,13 @@
   linked to `zhuchunshu/SForum`.
 - Make the CI and Security checks required after the initial `main` baseline is
   green.
-- Review the remaining CodeQL findings that may be false positives or bounded
-  hardening opportunities before changing behavior.
+- Push the Zip Slip boundary change and confirm CodeQL alert #12 closes on the
+  next scan; it remains open remotely until that scan observes this code.
+- Push the public-asset allocation change and confirm CodeQL alerts #15/#16
+  close on the next scan; they remain open remotely until that scan observes
+  this code.
+- Review CodeQL alert #17 (settings lifecycle clone allocation size)
+  separately, after operator confirmation.
 
 ## Open Questions
 

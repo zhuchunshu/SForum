@@ -2036,6 +2036,16 @@
       "source": "apps/web/app/components/admin/SFAdminMissingArtifactsCleanupDialog.vue"
     },
     {
+      "id": "core.component.admin.sfadmin_attachment_compression_tab",
+      "contractVersion": "sforum.component.admin.sfadmin_attachment_compression_tab@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/settings/attachments/tabs/SFAdminAttachmentCompressionTab.vue"
+    },
+    {
       "id": "core.component.admin.sfadmin_attachment_manager_tab",
       "contractVersion": "sforum.component.admin.sfadmin_attachment_manager_tab@1",
       "kind": "component",

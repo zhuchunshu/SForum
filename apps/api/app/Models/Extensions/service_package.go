@@ -1,13 +1,10 @@
 package extensions
 
 import (
-	"archive/zip"
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -513,95 +510,6 @@ func (s *CatalogService) CapabilityCatalog(_ context.Context, actor identity.Act
 		return nil, identity.ErrPermissionDenied
 	}
 	return capabilities.Catalog(), nil
-}
-
-type archiveFile struct {
-	name string
-	mode os.FileMode
-	body []byte
-}
-
-func readArchive(data []byte) (Manifest, []archiveFile, error) {
-	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
-	if err != nil {
-		return Manifest{}, nil, ErrInvalidArchive
-	}
-	// 中央目录本身也会占内存；目录条目同样计数，避免空文件/目录绕过字节上限。
-	if len(reader.File) > maxArchiveEntries {
-		return Manifest{}, nil, ErrInvalidArchive
-	}
-
-	var rootBody []byte
-	files := []archiveFile{}
-	fileMap := extensionmanifest.FileMapFS{}
-	seen := map[string]struct{}{}
-	var total uint64
-	for _, file := range reader.File {
-		name, ok := safeArchivePath(file.Name)
-		if !ok {
-			return Manifest{}, nil, ErrInvalidArchive
-		}
-		if file.Mode()&os.ModeSymlink != 0 {
-			return Manifest{}, nil, ErrInvalidArchive
-		}
-		if file.FileInfo().IsDir() {
-			continue
-		}
-		if _, duplicate := seen[name]; duplicate {
-			return Manifest{}, nil, ErrInvalidArchive
-		}
-		seen[name] = struct{}{}
-		// 不信任 UncompressedSize64：zip bomb 可虚报小体积。按真实读出字节累计并硬顶。
-		remaining := int64(maxArchiveBytes) - int64(total)
-		if remaining <= 0 {
-			return Manifest{}, nil, ErrInvalidArchive
-		}
-		body, err := readZipFileLimited(file, remaining)
-		if err != nil {
-			return Manifest{}, nil, ErrInvalidArchive
-		}
-		total += uint64(len(body))
-		if total > maxArchiveBytes {
-			return Manifest{}, nil, ErrInvalidArchive
-		}
-		fileMap[name] = body
-		if name == ManifestFileName {
-			rootBody = body
-			continue
-		}
-		files = append(files, archiveFile{name: name, mode: file.Mode(), body: body})
-	}
-	if rootBody == nil {
-		return Manifest{}, nil, ErrInvalidArchive
-	}
-	// 合并 includes partials 后再交给校验与快照；files 仍保留除入口外的原文。
-	manifest, err := extensionmanifest.LoadRootBytes(rootBody, fileMap)
-	if err != nil {
-		return Manifest{}, nil, ErrInvalidManifest
-	}
-	return manifest, files, nil
-}
-
-// readZipFileLimited 读取 zip 条目，最多 maxBytes 字节；超出视为炸弹/恶意包。
-func readZipFileLimited(file *zip.File, maxBytes int64) ([]byte, error) {
-	if maxBytes <= 0 {
-		return nil, ErrInvalidArchive
-	}
-	reader, err := file.Open()
-	if err != nil {
-		return nil, err
-	}
-	defer reader.Close()
-	// +1 探测是否超过上限，避免无界 ReadAll。
-	limited := io.LimitReader(reader, maxBytes+1)
-	body, err := io.ReadAll(limited)
-	if err != nil {
-		return nil, err
-	}
-	if int64(len(body)) > maxBytes {
-		return nil, ErrInvalidArchive
-	}
-	return body, nil
 }
 
 func writeManifest(versionDir string, manifest Manifest) error {

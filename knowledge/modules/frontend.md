@@ -29,6 +29,10 @@ responsibilities.
 
 ### Personalization brand asset upload
 
+- Core ships `/brand/sforum-logo.svg` as the public default for both the navbar
+  logo and document favicon. Empty runtime Logo/favicon options resolve to this
+  asset without materializing the fallback into `web_options`; operator URLs
+  remain authoritative.
 - The Brand tab exposes compact click-or-drop upload controls for the site
   logo, favicon, and Apple Touch icon. Successful uploads fill both the public
   URL and numeric attachment ID, show a small preview, and remain draft state

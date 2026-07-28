@@ -15,7 +15,7 @@ const (
 	// 非 public，避免被爬虫批量采集。
 	NameSiteAdminEmail = "site.admin_email"
 	// Wave 2 品牌资源：附件 ID（正整数字符串，可空）+ 公开 URL 回退（可空）。
-	// 前台优先解析 attachment；无法解析时用 URL；皆空则主题默认。
+	// 前台优先解析 attachment；无法解析时用 URL；皆空则使用 Core 默认品牌资源。
 	NameSiteLogoURL                    = "site.logo_url"
 	NameSiteLogoAttachmentID           = "site.logo_attachment_id"
 	NameSiteFaviconURL                 = "site.favicon_url"

@@ -3,6 +3,7 @@ import type { ApiEnvelope } from '~/composables/useApiClient'
 // Nuxt auto-import 的重复类型声明警告。
 import type { TopicUrlMode } from '~/utils/forum/forumTaxonomy'
 import type { SEOContentPolicy, SEOPageType, SEOResolverSettings } from '~/utils/seo/seoResolver'
+import { defaultSiteFaviconUrl, defaultSiteLogoUrl, resolveSiteBrandAssetUrl } from '~/utils/settings/siteBrand'
 
 export type WebOption = {
   name: string
@@ -181,7 +182,7 @@ const fallbackOptions: Record<string, string> = {
   'site.url': 'http://127.0.0.1:3000',
   // 站点副标题（可空）；管理邮箱为 admin-only，不在 public fallback 中暴露。
   'site.tagline': '',
-  // Wave 2 品牌资源：空 → 主题默认图标；附件 ID 与 URL 二选一或并存（前台优先附件解析）。
+  // Wave 2 品牌资源：空值在展示层解析为 Core 默认品牌资源；附件 ID 与 URL 二选一或并存。
   'site.logo_url': '',
   'site.logo_attachment_id': '',
   'site.favicon_url': '',
@@ -356,10 +357,9 @@ export const useWebOptions = () => {
   const siteName = computed(() => webOption('site.name', 'SForum'))
   const siteUrl = computed(() => webOption('site.url', 'http://127.0.0.1:3000'))
   const siteTagline = computed(() => webOption('site.tagline', '').trim())
-  // 品牌资源：URL 优先给简单场景；附件 ID 留给后续解析附件公开地址。
-  const siteLogoUrl = computed(() => webOption('site.logo_url', '').trim())
+  const siteLogoUrl = computed(() => resolveSiteBrandAssetUrl(webOption('site.logo_url', ''), defaultSiteLogoUrl))
   const siteLogoAttachmentId = computed(() => webOption('site.logo_attachment_id', '').trim())
-  const siteFaviconUrl = computed(() => webOption('site.favicon_url', '').trim())
+  const siteFaviconUrl = computed(() => resolveSiteBrandAssetUrl(webOption('site.favicon_url', ''), defaultSiteFaviconUrl))
   const siteFaviconAttachmentId = computed(() => webOption('site.favicon_attachment_id', '').trim())
   const siteAppleTouchIconUrl = computed(() => webOption('site.apple_touch_icon_url', '').trim())
   const siteAppleTouchIconAttachmentId = computed(() => webOption('site.apple_touch_icon_attachment_id', '').trim())
