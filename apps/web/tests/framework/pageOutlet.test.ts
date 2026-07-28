@@ -22,7 +22,7 @@ describe('SFPageOutlet catalog wiring', () => {
     ['app/pages/settings/profile.vue', 'forum.settings.profile'],
     ['app/pages/settings/security.vue', 'forum.settings.security'],
     ['app/pages/settings/notifications.vue', 'forum.settings.notifications'],
-    ['app/pages/notifications.vue', 'forum.notifications'],
+    ['app/pages/notifications/index.vue', 'forum.notifications'],
     ['app/pages/moderation/index.vue', 'moderation.review'],
     ['app/pages/login.vue', 'auth.login'],
     ['app/pages/register.vue', 'auth.register'],
@@ -128,7 +128,7 @@ describe('SFPageOutlet catalog wiring', () => {
     expect(systemNode).toContain('const self = getCurrentInstance()!.type')
     expect(systemNode).not.toContain('<SFSystemThemeNode')
     expect(systemNode).toContain("import SFNavbar from './SFNavbar.vue'")
-    expect(systemNode).toContain("import SFNotFoundPageContent from './SFNotFoundPageContent.vue'")
+    expect(systemNode).toContain("import SFNotFoundPageContent from './errors/SFNotFoundPageContent.vue'")
     expect(systemNode).toContain("import SFFooter from './SFFooter.vue'")
     expect(read('app/components/SFNavbar.vue')).not.toContain('await useAsyncData')
     expect(read('app/components/SFNavbar.vue')).toContain('fetchRemoteChrome')

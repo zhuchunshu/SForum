@@ -29,7 +29,7 @@ func TestCorePageViewModelCatalogCoversPublicPageFamilies(t *testing.T) {
 		"forum.profile.show":     ViewModelProfile,
 		"forum.settings.profile": ViewModelSettings, "forum.settings.security": ViewModelSettings,
 		"forum.settings.notifications": ViewModelSettings,
-		"forum.notifications":          ViewModelNotifications, "moderation.review": ViewModelModeration,
+		"forum.notifications":          ViewModelNotifications, "forum.notification.show": ViewModelNotifications, "moderation.review": ViewModelModeration,
 		"auth.login": ViewModelAuth, "auth.register": ViewModelAuth,
 		"auth.forgot_password": ViewModelAuth, "auth.reset_password": ViewModelAuth,
 		"site.terms": ViewModelLegal, "site.privacy": ViewModelLegal, "site.guidelines": ViewModelLegal,

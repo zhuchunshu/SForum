@@ -1,6 +1,10 @@
 # Agent Guide
 
-This file is the shared working agreement for SForum. Read it before starting any new session.
+This file is the shared working agreement for SForum. Read it before starting
+any new session. It is intentionally self-contained: do not assume contributors
+have the same personal or global Codex instructions. Personal defaults may
+supplement this file, while more specific repository instructions take
+precedence within their directory scope.
 
 ## Project Intent
 
@@ -144,6 +148,15 @@ Frontend rules:
   state, permission selection, SSR orchestration, and composition. Product
   forms, tables, inspectors, and other substantial surfaces belong in feature
   components.
+- When a route has both an index and nested detail pages, use
+  `pages/<domain>/index.vue` plus `pages/<domain>/[id].vue`. Do not combine
+  `pages/<domain>.vue` with `pages/<domain>/[id].vue` unless the parent route
+  intentionally renders `<NuxtPage>`; otherwise Nuxt keeps the parent mounted
+  and the child page never renders.
+- Adding a Page Registry page is incomplete until the catalog, route shell,
+  ThemeCompiler ViewModel registry, `PageViewModels.Source.Populate`, Host
+  island binding/allowlist, built-in theme templates, and catalog completeness
+  tests all recognize the same stable page ID and contract.
 - For fixed Core-owned tabs, each tab's substantial content must be a separate
   component file under a domain path such as
   `components/admin/settings/<area>/tabs/`. Keep its form state, validation,
@@ -327,12 +340,21 @@ future generated clients. Keep it modular as the product surface grows.
   center-column scroll ownership, and responsive collapse points. A Page
   Registry Core fallback must preserve that geometry; fallback is not
   permission to introduce a second layout.
+- Public chrome has one owner per render path. A Page Registry template that
+  mounts `sf-navbar` or `sf-footer` must not duplicate the same chrome inside
+  its Host body island. Browser completion evidence must confirm there is only
+  one visible global navbar and one visible global footer.
 - Editing a built-in runtime theme under `extensions/builtin/themes/**` does
   not update the active immutable artifact. Before calling theme UI work
   complete, rebuild built-ins, restart the API so `SyncBuiltins` stages the
   exact digest, activate that staged version through the normal admin flow,
   and verify both `/site/active-theme/skin` and `/pages/resolve` identify the
   expected provider/digest. Source-only unit tests are not runtime evidence.
+- For every new or changed Page Registry route, rendered Browser evidence must
+  also show the expected `data-provider` and `data-template="1"`. A page that
+  merely opens through `provider="core"`, `data-template="0"`, or the visible
+  fallback notice is not theme-runtime completion, even when the active skin
+  digest is correct.
 - When adding a Page Registry template, verify its Host islands are present in
   both the production binding map and the template validator allowlist. Add a
   completeness test for paired surfaces (for example create/edit) so one
@@ -352,7 +374,7 @@ future generated clients. Keep it modular as the product surface grows.
   auto-close; keep them visible until the user dismisses them or resolves the
   blocking issue.
 
-## AI Working Discipline
+## Implementation Discipline
 
 The following rules are repository-level instructions for AI coding agents:
 
@@ -366,17 +388,34 @@ The following rules are repository-level instructions for AI coding agents:
 - 以盲目修改为耻，以谨慎重构为荣。
 - 以遗忘权限为耻，以主动建模为荣。
 
-When writing code, keep the implementation simple and concise. Prefer built-in
-functions and mature existing APIs over custom code. Do not over-validate
-parameters, over-abstract, or add wrapper methods for simple behavior unless the
-same logic is reused in multiple places. Avoid nested helper chains for similar
-features; keep straightforward logic straightforward.
+Before implementing a module or feature:
 
-Develop the habit of writing useful comments while coding. Prefer Chinese
-comments for project code unless surrounding code or external API conventions
-make English clearer. Comments should explain non-obvious intent, constraints,
-business rules, or tradeoffs; do not add empty comments that merely restate what
-the next line of code already says.
+1. Define the problem precisely and inspect the existing code, documentation,
+   and real interfaces.
+2. Check mature libraries and framework-native solutions before building
+   custom infrastructure.
+3. Compare maintenance status, documentation, license, ecosystem fit, and
+   added complexity.
+4. Record the choice in `knowledge/decisions/` when it changes architecture or
+   establishes a durable dependency.
+
+While implementing:
+
+- Keep straightforward logic straightforward. Do not over-validate,
+  over-abstract, add wrappers for one-off behavior, or build nested helper
+  chains without meaningful reuse.
+- Keep routing, business logic, persistence, validation, presentation, and
+  side effects in clear ownership boundaries once the codebase needs them.
+- Avoid global mutable state, copy-pasted branches, and functions that silently
+  combine unrelated responsibilities.
+- Use small functions with explicit inputs and outputs. Extract shared behavior
+  when duplication or complexity becomes meaningful, not before.
+- Write comments for non-obvious intent, constraints, business rules, and
+  tradeoffs. Prefer Chinese for project code unless surrounding code or an
+  external API convention makes English clearer; do not narrate obvious code.
+- Treat 500 lines as a prompt to review cohesion and 1000 lines as a hard
+  warning. Split by responsibility, not arbitrary size. Keep unavoidable
+  generated files clearly identified and handwritten logic elsewhere.
 
 ## Network And Dependency Commands
 
@@ -385,45 +424,6 @@ local proxy for all network-dependent package commands (`go get`,
 `go mod tidy`, `bun install`, `bun add`, etc.) is listed at the top of the
 Commands section above — set it before running such commands and re-apply it
 when retrying network, DNS, registry, or module-download failures.
-
-## Avoiding Hard-To-Maintain Code
-
-Bad pattern:
-
-- One giant file mixes routing, database queries, validation, rendering, and side effects.
-- Feature logic depends on global mutable state without a clear owner.
-- Copy-pasted branches handle similar cases with tiny differences.
-- A function silently does many things: parses input, checks permission, writes data, sends notifications, and formats a response.
-
-Better pattern:
-
-- Keep routing, business logic, data access, validation, and presentation in separate modules once the codebase needs those boundaries.
-- Use small functions with explicit inputs and outputs.
-- Extract shared behavior when duplication becomes meaningful, not before.
-- Add useful comments, preferably in Chinese, where they clarify non-obvious intent, constraints, business rules, or tradeoffs.
-
-## Library-First Development
-
-Before implementing a feature, do a short library survey:
-
-1. Define the problem precisely.
-2. Search for mature libraries or framework-native solutions.
-3. Compare maintenance status, documentation quality, license, ecosystem fit, and complexity.
-4. Record the chosen option in `knowledge/decisions/` when the choice affects architecture.
-
-Examples:
-
-- Use a proven authentication/session library instead of hand-rolling password storage and session security.
-- Use a migration tool from the selected backend ecosystem instead of inventing a migration format.
-- Use a mature rich-text/Markdown sanitizer instead of custom HTML filtering.
-
-## File Size And Module Boundaries
-
-- Aim for cohesive files that are easy to scan.
-- Treat 500 lines as a prompt to review structure.
-- Treat 1000 lines as a hard warning sign.
-- Split by responsibility, not by arbitrary size alone.
-- If a large generated file is unavoidable, label it clearly and keep handwritten logic elsewhere.
 
 ## Knowledge Base Workflow
 

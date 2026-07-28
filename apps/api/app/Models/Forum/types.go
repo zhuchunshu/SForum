@@ -746,6 +746,20 @@ type CommentSummary struct {
 	CurrentRevision int64
 }
 
+type NotificationTargetPreview struct {
+	TopicID    int64
+	TopicTitle string
+	Content    NotificationTargetPreviewContent
+	Context    *NotificationTargetPreviewContent
+}
+
+type NotificationTargetPreviewContent struct {
+	Type    string
+	ID      int64
+	Excerpt string
+	Author  *UserSummary
+}
+
 type CreateCommentInput struct {
 	TopicID  int64        `json:"topicId"`
 	ParentID *int64       `json:"parentId,omitempty"`

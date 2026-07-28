@@ -123,7 +123,8 @@ Manifest V3 component targets declare both `targetId` and `targetContractVersion
 | `core.component.page.forum.category.index` | `sforum.component.page.forum.category.index@1` | page | `public` | `/categories` | `apps/web/app/pages/categories/index.vue` | P9 Component Registry |
 | `core.component.page.forum.category.show` | `sforum.component.page.forum.category.show@1` | page | `public` | `/c/:categorySlug` | `apps/web/app/pages/c/[categorySlug].vue` | P9 Component Registry |
 | `core.component.page.forum.home` | `sforum.component.page.forum.home@1` | page | `public` | `/` | `apps/web/app/pages/index.vue` | P9 Component Registry |
-| `core.component.page.forum.notifications` | `sforum.component.page.forum.notifications@1` | page | `public` | `/notifications` | `apps/web/app/pages/notifications.vue` | P9 Component Registry |
+| `core.component.page.forum.notification.show` | `sforum.component.page.forum.notification.show@1` | page | `public` | `/notifications/:notificationId` | `apps/web/app/pages/notifications/[notificationId].vue` | P9 Component Registry |
+| `core.component.page.forum.notifications` | `sforum.component.page.forum.notifications@1` | page | `public` | `/notifications` | `apps/web/app/pages/notifications/index.vue` | P9 Component Registry |
 | `core.component.page.forum.profile.show` | `sforum.component.page.forum.profile.show@1` | page | `public` | `/u/:username` | `apps/web/app/pages/u/[username].vue` | P9 Component Registry |
 | `core.component.page.settings.notifications` | `sforum.component.page.settings.notifications@1` | page | `public` | `/settings/notifications` | `apps/web/app/pages/settings/notifications.vue` | P9 Component Registry |
 | `core.component.page.forum.settings.profile` | `sforum.component.page.forum.settings.profile@1` | page | `public` | `/settings/profile` | `apps/web/app/pages/settings/profile.vue` | P9 Component Registry |
@@ -186,6 +187,7 @@ Manifest V3 component targets declare both `targetId` and `targetContractVersion
 | `core.component.shared.sfnot_found_emergency_page` | `sforum.component.shared.sfnot_found_emergency_page@1` | component | `public` | — | `apps/web/app/components/errors/SFNotFoundEmergencyPage.vue` | P9 Component Registry |
 | `core.component.shared.sfnot_found_page` | `sforum.component.shared.sfnot_found_page@1` | component | `public` | — | `apps/web/app/components/errors/SFNotFoundPage.vue` | P9 Component Registry |
 | `core.component.shared.sfnot_found_page_content` | `sforum.component.shared.sfnot_found_page_content@1` | component | `public` | — | `apps/web/app/components/errors/SFNotFoundPageContent.vue` | P9 Component Registry |
+| `core.component.shared.sfnotification_detail_page` | `sforum.component.shared.sfnotification_detail_page@1` | component | `public` | — | `apps/web/app/components/notifications/detail/SFNotificationDetailPage.vue` | P9 Component Registry |
 | `core.component.shared.sfnotification_settings_page` | `sforum.component.shared.sfnotification_settings_page@1` | component | `public` | — | `apps/web/app/components/settings/SFNotificationSettingsPage.vue` | P9 Component Registry |
 | `core.component.shared.sfnotifications_page` | `sforum.component.shared.sfnotifications_page@1` | component | `public` | — | `apps/web/app/components/notifications/SFNotificationsPage.vue` | P9 Component Registry |
 | `core.component.shared.sfpage_outlet` | `sforum.component.shared.sfpage_outlet@1` | component | `public` | — | `apps/web/app/components/SFPageOutlet.vue` | P9 Component Registry |

@@ -105,6 +105,22 @@
       "title": "当前通知",
       "empty": "选择一条通知后可查看详情。"
     },
+    "detailPage": {
+      "title": "通知详情",
+      "back": "返回通知列表",
+      "replyContent": "对方的回复",
+      "mentionContent": "提及你的内容",
+      "targetContent": "关联内容",
+      "repliedComment": "回复的评论",
+      "originalTopic": "原帖内容",
+      "unknownAuthor": "社区成员",
+      "emptyExcerpt": "当前内容没有可展示的文字摘要。",
+      "status": "通知状态",
+      "read": "已读",
+      "type": "类型",
+      "target": "关联目标",
+      "available": "可查看"
+    },
     "actions": {
       "markRead": "标记这条通知为已读",
       "viewReply": "查看回复",

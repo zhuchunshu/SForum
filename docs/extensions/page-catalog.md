@@ -35,6 +35,7 @@ There is no Layer activation option or frontend release runtime.
 | `forum.settings.security` | `/settings/security` | login |
 | `forum.settings.notifications` | `/settings/notifications` | login |
 | `forum.notifications` | `/notifications` | login |
+| `forum.notification.show` | `/notifications/:notificationId` | login |
 | `moderation.review` | `/moderation` | moderation |
 | `auth.login` | `/login` | guest |
 | `auth.register` | `/register` | guest/feature-gated |

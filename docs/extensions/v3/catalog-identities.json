@@ -1334,6 +1334,12 @@
       "path": "/api/v1/notifications"
     },
     {
+      "id": "core.route.notifications.detail",
+      "contractVersion": "sforum.route.notifications.detail@1",
+      "method": "GET",
+      "path": "/api/v1/notifications/:id"
+    },
+    {
       "id": "core.route.notifications.mark_read",
       "contractVersion": "sforum.route.notifications.mark_read@1",
       "method": "PATCH",
@@ -2892,6 +2898,16 @@
       "source": "apps/web/app/pages/my/index.vue"
     },
     {
+      "id": "core.component.page.forum.notification.show",
+      "contractVersion": "sforum.component.page.forum.notification.show@1",
+      "kind": "page",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/pages/notifications/[notificationId].vue"
+    },
+    {
       "id": "core.component.page.forum.notifications",
       "contractVersion": "sforum.component.page.forum.notifications@1",
       "kind": "page",
@@ -2899,7 +2915,7 @@
         "public"
       ],
       "state": "active",
-      "source": "apps/web/app/pages/notifications.vue"
+      "source": "apps/web/app/pages/notifications/index.vue"
     },
     {
       "id": "core.component.page.forum.profile.show",
@@ -3577,6 +3593,16 @@
       ],
       "state": "active",
       "source": "apps/web/app/components/errors/SFNotFoundPageContent.vue"
+    },
+    {
+      "id": "core.component.shared.sfnotification_detail_page",
+      "contractVersion": "sforum.component.shared.sfnotification_detail_page@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/notifications/detail/SFNotificationDetailPage.vue"
     },
     {
       "id": "core.component.shared.sfnotifications_page",

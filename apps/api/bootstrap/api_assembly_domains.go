@@ -235,6 +235,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		WithAPITokens(apiTokenService)
 	notificationsProvider := providers.NewNotificationsProvider(notificationStore, identityStore, authSessions, auditWriter).
 		WithTargetVisibility(forumStore).
+		WithTargetPreview(notificationTargetPreviewAdapter{store: forumStore}).
 		WithChannels(apiNotificationChannelRuntimeAdapter{runtime: lifecycleStack.RuntimeManager}, auditWriter, mailOutbox)
 	mailProvider := providers.NewMailProvider(extensionStore, notificationStore, extensionsruntime.NewMailProviderRegistry(extensionStore), identityStore, authSessions, optionsService, notificationStore)
 	// Worker 心跳 store 尽早创建，供 overview 与嵌入 worker 共用。

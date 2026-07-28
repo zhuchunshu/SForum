@@ -22,6 +22,12 @@ func (p *NotificationsProvider) WithTargetVisibility(resolver notifications.Targ
 	}
 	return p
 }
+func (p *NotificationsProvider) WithTargetPreview(resolver notifications.TargetPreviewResolver) *NotificationsProvider {
+	if p != nil {
+		p.controller.WithTargetPreview(resolver)
+	}
+	return p
+}
 func (p *NotificationsProvider) WithChannels(runtime notificationscontroller.ChannelRuntime, auditor audit.IDWriter, outbox *notifications.Outbox) *NotificationsProvider {
 	if p != nil {
 		p.controller.WithChannels(runtime, auditor, outbox)

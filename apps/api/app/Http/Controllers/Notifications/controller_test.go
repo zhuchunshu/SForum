@@ -86,6 +86,49 @@ func TestNotificationListForwardsServerFiltersAndCursor(t *testing.T) {
 	}
 }
 
+func TestNotificationDetailUsesCurrentRecipientAndReturnsPreview(t *testing.T) {
+	store := &notificationTestStore{detail: notifications.Notification{ID: 55, RecipientUserID: 42, Type: notifications.TypeReply, TargetType: "comment", TargetID: 9, Payload: json.RawMessage(`{"topicId":3}`)}}
+	controller := NewController(store, nil, nil, nil).
+		WithTargetVisibility(notificationVisibilityFixture{available: true, path: "/t/3#comment-9"}).
+		WithTargetPreview(notificationPreviewFixture{available: true, preview: notifications.TargetPreview{TopicID: 3, TopicTitle: "A topic", Content: notifications.TargetPreviewContent{Type: "comment", ID: 9, Excerpt: "A reply"}}})
+	app := apphttp.NewApp(notificationTestConfig(), slog.Default(), apphttp.Dependencies{
+		BearerTokens:   notificationBearer{auth: apitokens.Authenticated{UserID: 42, TokenID: 7, PublicID: "active"}},
+		RouteProviders: []apphttp.RouteProvider{controller},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/notifications/55", nil)
+	req.Header.Set("Authorization", "Bearer sft_active-user")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK || store.lastDetailUserID != 42 || store.lastDetailID != 55 || !bytes.Contains(body, []byte(`"topicTitle":"A topic"`)) || !bytes.Contains(body, []byte(`"targetPath":"/t/3#comment-9"`)) {
+		t.Fatalf("status=%d store=%d/%d body=%s", resp.StatusCode, store.lastDetailUserID, store.lastDetailID, body)
+	}
+}
+
+func TestNotificationDetailReturnsNotFoundWithoutLeakingForeignRows(t *testing.T) {
+	store := &notificationTestStore{detailErr: notifications.ErrNotificationNotFound}
+	controller := NewController(store, nil, nil, nil)
+	app := apphttp.NewApp(notificationTestConfig(), slog.Default(), apphttp.Dependencies{
+		BearerTokens:   notificationBearer{auth: apitokens.Authenticated{UserID: 42, TokenID: 7, PublicID: "active"}},
+		RouteProviders: []apphttp.RouteProvider{controller},
+	})
+	for _, path := range []string{"/api/v1/notifications/77", "/api/v1/notifications/not-an-id"} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.Header.Set("Authorization", "Bearer sft_active-user")
+		resp, err := app.Test(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusNotFound {
+			t.Fatalf("path=%s status=%d", path, resp.StatusCode)
+		}
+	}
+}
+
 func TestNotificationListScrubsUnavailableForumTargetsPostgres(t *testing.T) {
 	databaseURL := strings.TrimSpace(os.Getenv("SFORUM_TEST_DATABASE_URL"))
 	if databaseURL == "" {
@@ -169,6 +212,10 @@ VALUES ($1,$2,$3,$4,$5) RETURNING id`, topicID, postID, userID, fmt.Sprintf("%02
 	hiddenComment := insertComment(visibleTopic, "hidden-comment", "hidden")
 	deletedComment := insertComment(visibleTopic, "deleted-comment", "deleted")
 	hiddenTopicComment := insertComment(hiddenTopic, "hidden-topic-comment", "active")
+	preview, available, err := forum.NewPostgresStore(pool).ResolveNotificationTargetPreview(ctx, "comment", visibleComment)
+	if err != nil || !available || preview.TopicTitle != "visible-topic" || preview.Content.Excerpt != "visible-comment" || preview.Context == nil || preview.Context.Type != "topic" {
+		t.Fatalf("visible comment preview=%#v available=%t err=%v", preview, available, err)
+	}
 
 	store := notifications.NewPostgresStore(pool)
 	type expectedTarget struct {
@@ -376,6 +423,28 @@ type notificationTestStore struct {
 	revisionCalls     int
 	revisionFailAfter int
 	revisionWakes     <-chan struct{}
+	detail            notifications.Notification
+	detailErr         error
+	lastDetailUserID  int64
+	lastDetailID      int64
+}
+
+type notificationVisibilityFixture struct {
+	available bool
+	path      string
+}
+
+func (r notificationVisibilityFixture) ResolveNotificationTarget(context.Context, int64, string, int64) (bool, string, error) {
+	return r.available, r.path, nil
+}
+
+type notificationPreviewFixture struct {
+	preview   notifications.TargetPreview
+	available bool
+}
+
+func (r notificationPreviewFixture) ResolveNotificationTargetPreview(context.Context, int64, string, int64) (notifications.TargetPreview, bool, error) {
+	return r.preview, r.available, nil
 }
 
 func (s *notificationTestStore) List(_ context.Context, input notifications.ListInput) (notifications.Page, error) {
@@ -383,6 +452,12 @@ func (s *notificationTestStore) List(_ context.Context, input notifications.List
 	s.lastUserID = input.RecipientUserID
 	s.lastListInput = input
 	return notifications.Page{Items: []notifications.Notification{}}, nil
+}
+
+func (s *notificationTestStore) GetNotification(_ context.Context, userID, id int64) (notifications.Notification, error) {
+	s.lastDetailUserID = userID
+	s.lastDetailID = id
+	return s.detail, s.detailErr
 }
 
 func (s *notificationTestStore) RecipientRevision(context.Context, int64) (int64, error) {

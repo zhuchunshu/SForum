@@ -229,6 +229,8 @@ paths:
     "$ref": "./openapi/paths/notifications.yaml#/adminNotificationDeliveries"
   "/notifications":
     "$ref": "./openapi/paths/notifications.yaml#/notifications"
+  "/notifications/{id}":
+    "$ref": "./openapi/paths/notifications.yaml#/notificationDetail"
   "/notifications/unread-count":
     "$ref": "./openapi/paths/notifications.yaml#/notificationUnreadCount"
   "/notifications/{id}/read":

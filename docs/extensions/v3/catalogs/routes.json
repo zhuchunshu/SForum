@@ -2206,7 +2206,7 @@
     "handler": "listChannels",
     "method": "GET",
     "path": "/api/v1/admin/notifications/channels",
-    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:82",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:90",
     "access": "permission",
     "policy": "settings.notifications.manage or settings.manage compatibility policy",
     "guard": {
@@ -2225,7 +2225,7 @@
     "handler": "selectChannel",
     "method": "PUT",
     "path": "/api/v1/admin/notifications/channels/:channel",
-    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:83",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:91",
     "access": "permission",
     "policy": "settings.notifications.manage or settings.manage compatibility policy",
     "guard": {
@@ -2244,7 +2244,7 @@
     "handler": "resetChannel",
     "method": "POST",
     "path": "/api/v1/admin/notifications/channels/:channel/reset",
-    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:84",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:92",
     "access": "permission",
     "policy": "settings.notifications.manage or settings.manage compatibility policy",
     "guard": {
@@ -2263,7 +2263,7 @@
     "handler": "testChannel",
     "method": "POST",
     "path": "/api/v1/admin/notifications/channels/:channel/test",
-    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:85",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:93",
     "access": "permission",
     "policy": "settings.notifications.manage or settings.manage compatibility policy",
     "guard": {
@@ -2282,7 +2282,7 @@
     "handler": "listChannelDeliveries",
     "method": "GET",
     "path": "/api/v1/admin/notifications/deliveries",
-    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:86",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:94",
     "access": "permission",
     "policy": "settings.notifications.manage or settings.manage compatibility policy",
     "guard": {
@@ -2301,7 +2301,7 @@
     "handler": "listAdminPolicy",
     "method": "GET",
     "path": "/api/v1/admin/notifications/policy",
-    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:78",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:86",
     "access": "permission",
     "policy": "settings.notifications.manage or settings.manage compatibility policy",
     "guard": {
@@ -2320,7 +2320,7 @@
     "handler": "replaceAdminPolicy",
     "method": "PUT",
     "path": "/api/v1/admin/notifications/policy",
-    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:79",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:87",
     "access": "permission",
     "policy": "settings.notifications.manage or settings.manage compatibility policy",
     "guard": {
@@ -2339,7 +2339,7 @@
     "handler": "restoreAdminPolicy",
     "method": "POST",
     "path": "/api/v1/admin/notifications/policy/restore",
-    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:80",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:88",
     "access": "permission",
     "policy": "settings.notifications.manage or settings.manage compatibility policy",
     "guard": {
@@ -2358,7 +2358,7 @@
     "handler": "adminTest",
     "method": "POST",
     "path": "/api/v1/admin/notifications/test",
-    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:81",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:89",
     "access": "permission",
     "policy": "settings.notifications.manage or settings.manage compatibility policy",
     "guard": {
@@ -3814,7 +3814,7 @@
     "handler": "listPreferences",
     "method": "GET",
     "path": "/api/v1/notification-preferences",
-    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:74",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:82",
     "access": "login",
     "policy": "current recipient ownership",
     "guard": {
@@ -3830,7 +3830,7 @@
     "handler": "replacePreferences",
     "method": "PUT",
     "path": "/api/v1/notification-preferences",
-    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:75",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:83",
     "access": "login",
     "policy": "current recipient ownership",
     "guard": {
@@ -3846,7 +3846,7 @@
     "handler": "restorePreferences",
     "method": "POST",
     "path": "/api/v1/notification-preferences/restore",
-    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:76",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:84",
     "access": "login",
     "policy": "current recipient ownership",
     "guard": {
@@ -3862,7 +3862,23 @@
     "handler": "list",
     "method": "GET",
     "path": "/api/v1/notifications",
-    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:68",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:75",
+    "access": "login",
+    "policy": "current recipient ownership",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.notifications.recipient"
+    }
+  },
+  {
+    "id": "core.route.notifications.detail",
+    "contractVersion": "sforum.route.notifications.detail@1",
+    "module": "notifications",
+    "handler": "detail",
+    "method": "GET",
+    "path": "/api/v1/notifications/:id",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:80",
     "access": "login",
     "policy": "current recipient ownership",
     "guard": {
@@ -3878,7 +3894,7 @@
     "handler": "markRead",
     "method": "PATCH",
     "path": "/api/v1/notifications/:id/read",
-    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:70",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:77",
     "access": "login",
     "policy": "current recipient ownership",
     "guard": {
@@ -3894,7 +3910,7 @@
     "handler": "markAllRead",
     "method": "POST",
     "path": "/api/v1/notifications/read-all",
-    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:71",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:78",
     "access": "login",
     "policy": "current recipient ownership",
     "guard": {
@@ -3910,7 +3926,7 @@
     "handler": "stream",
     "method": "GET",
     "path": "/api/v1/notifications/stream",
-    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:72",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:79",
     "access": "login",
     "policy": "current recipient ownership",
     "guard": {
@@ -3926,7 +3942,7 @@
     "handler": "unreadCount",
     "method": "GET",
     "path": "/api/v1/notifications/unread-count",
-    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:69",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:76",
     "access": "login",
     "policy": "current recipient ownership",
     "guard": {
@@ -4963,7 +4979,7 @@
     "handler": "webPushConfig",
     "method": "GET",
     "path": "/api/v1/web-push/config",
-    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:88",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:96",
     "access": "login",
     "policy": "current recipient ownership",
     "guard": {
@@ -4979,7 +4995,7 @@
     "handler": "listWebPushSubscriptions",
     "method": "GET",
     "path": "/api/v1/web-push/subscriptions",
-    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:89",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:97",
     "access": "login",
     "policy": "current recipient ownership",
     "guard": {
@@ -4995,7 +5011,7 @@
     "handler": "createWebPushSubscription",
     "method": "POST",
     "path": "/api/v1/web-push/subscriptions",
-    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:90",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:98",
     "access": "login",
     "policy": "current recipient ownership",
     "guard": {
@@ -5011,7 +5027,7 @@
     "handler": "revokeWebPushSubscription",
     "method": "DELETE",
     "path": "/api/v1/web-push/subscriptions/:id",
-    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:91",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:99",
     "access": "login",
     "policy": "current recipient ownership",
     "guard": {

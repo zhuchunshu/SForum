@@ -3,7 +3,6 @@ import { useNotifications } from '~/composables/notifications/useNotifications'
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
 import { useForumApi } from '~/composables/forum/useForumApi'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
-import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { isUnauthenticatedAuthError } from '~/composables/identity/useAuthSession'
 import {
@@ -32,13 +31,11 @@ const { can } = usePermissions()
 const { format: formatSiteDateTime, timezone } = useSiteDateTime()
 
 const renderedAt = useState<number>('notification-inbox-rendered-at', () => Date.now())
-const activeFilter = ref<NotificationFilter>('all')
-const selectedId = ref<number | null>(null)
+const activeFilter = useState<NotificationFilter>('notification-inbox-filter', () => 'all')
 const actionError = ref('')
 const loadingMoreError = ref('')
 const loadingMore = ref(false)
 const markingAll = ref(false)
-const markingIds = ref(new Set<number>())
 const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
 
@@ -73,14 +70,9 @@ const [
 const items = ref([...notificationAsync.data.value.items])
 const hasMore = ref(notificationAsync.data.value.hasMore)
 
-if (items.value.length > 0) {
-  selectedId.value = items.value[0]?.id ?? null
-}
-
 watch(() => notificationAsync.data.value, (page) => {
   items.value = [...page.items]
   hasMore.value = page.hasMore
-  selectedId.value = page.items[0]?.id ?? null
 })
 
 const categories = computed(() => categoryAsync.data.value.flatMap(group => group.categories || []))
@@ -96,11 +88,6 @@ const visibleGroups = computed(() => groupNotificationsByDate(
   timezone.value,
   String(locale.value || 'zh-CN')
 ))
-const selectedNotification = computed(() => {
-  if (selectedId.value == null) return presentedItems.value[0] || null
-  return presentedItems.value.find(item => item.id === selectedId.value) || presentedItems.value[0] || null
-})
-const selectedRawNotification = computed(() => items.value.find(item => item.id === selectedNotification.value?.id) || null)
 const loadedUnread = computed(() => unreadLoadedCount(presentedItems.value))
 const loadedTypeCounts = computed(() => {
   const counts = new Map<NotificationFilter, number>()
@@ -159,7 +146,6 @@ async function refreshInbox() {
     const page = await notifications.list(0, PAGE_LIMIT, serverFilters(activeFilter.value))
     items.value = page.items
     hasMore.value = page.hasMore
-    selectedId.value = page.items[0]?.id ?? null
   } catch (error) {
     actionError.value = apiErrorMessage(error) || t('notifications.loadFailed')
   }
@@ -167,14 +153,6 @@ async function refreshInbox() {
 
 function notificationTime(item: NotificationPresentation) {
   return formatSiteDateTime(item.createdAt, { now: new Date(renderedAt.value) })
-}
-
-function actionLabel(item: NotificationPresentation | null) {
-  if (!item || item.target.unavailable) return t('notifications.targetUnavailable')
-  if (item.type === 'reply') return t('notifications.actions.viewReply')
-  if (item.type === 'mention') return t('notifications.actions.viewMention')
-  if (item.type === 'moderation_approved' || item.type === 'moderation_rejected') return t('notifications.actions.viewTarget')
-  return t('notifications.actions.openTarget')
 }
 
 function translatedBody(item: NotificationPresentation) {
@@ -196,40 +174,9 @@ function setNotificationRead(id: number, readAt: string | undefined) {
   }
 }
 
-async function markRead(item: NotificationPresentation | null) {
-  if (!item || item.read || markingIds.value.has(item.id)) {
-    return
-  }
-
-  const previousReadAt = selectedRawNotification.value?.readAt
-  const previousUnreadCount = notifications.unreadCount.value
-  const readAt = new Date().toISOString()
-  markingIds.value = new Set(markingIds.value).add(item.id)
-  actionError.value = ''
-  setNotificationRead(item.id, readAt)
-
-  try {
-    await notifications.markRead(item.id)
-  } catch (error) {
-    setNotificationRead(item.id, previousReadAt)
-    notifications.unreadCount.value = previousUnreadCount
-    actionError.value = apiErrorMessage(error) || t('notifications.markReadFailed')
-    toast.add({
-      color: 'error',
-      icon: 'i-lucide-triangle-alert',
-      title: actionError.value,
-      duration: 0
-    })
-  } finally {
-    const next = new Set(markingIds.value)
-    next.delete(item.id)
-    markingIds.value = next
-  }
-}
-
-async function selectNotification(item: NotificationPresentation) {
-  selectedId.value = item.id
-  await markRead(item)
+async function openNotificationDetail(item: NotificationPresentation) {
+  closeMobileDrawers()
+  await router.push(localePath(`/notifications/${item.id}`))
 }
 
 async function markAllRead() {
@@ -288,17 +235,6 @@ async function loadMore() {
   } finally {
     loadingMore.value = false
   }
-}
-
-async function openSelectedTarget() {
-  const item = selectedNotification.value
-  if (!item || item.target.unavailable) {
-    actionError.value = t('notifications.targetUnavailableHelp')
-    return
-  }
-  await markRead(item)
-  closeMobileDrawers()
-  await router.push(localePath(item.target.path))
 }
 
 let stopRealtime = () => {}
@@ -460,9 +396,8 @@ onBeforeUnmount(() => stopRealtime())
                 :key="item.id"
                 type="button"
                 class="sforum-notifications__row"
-                :class="{ 'is-unread': !item.read, 'is-selected': selectedNotification?.id === item.id }"
-                :aria-pressed="selectedNotification?.id === item.id"
-                @click="selectNotification(item)"
+                :class="{ 'is-unread': !item.read }"
+                @click="openNotificationDetail(item)"
               >
                 <SFAvatar :name="filterLabel(item.type)" :alt="filterLabel(item.type)" size="list" />
                 <span class="sforum-notifications__row-body">
@@ -506,7 +441,6 @@ onBeforeUnmount(() => stopRealtime())
 
         <SFRegionOutlet page="forum.notifications" region="content_after" />
 
-        <SFContentColumnFooter />
       </section>
 
       <aside class="sforum-notifications__right" :aria-label="t('notifications.detail.aria')">
@@ -520,55 +454,6 @@ onBeforeUnmount(() => stopRealtime())
             <span>{{ t('notifications.unreadCountLabel') }}</span>
           </div>
           <p class="sforum-notifications__rail-help">{{ t('notifications.unreadSource') }}</p>
-        </section>
-
-        <section class="sforum-notifications__rail-section">
-          <div class="sforum-notifications__rail-head">
-            <h2>{{ t('notifications.detail.title') }}</h2>
-            <span v-if="selectedNotification">{{ t(selectedNotification.typeLabelKey) }}</span>
-          </div>
-
-          <div v-if="selectedNotification" class="sforum-notifications__detail">
-            <div class="sforum-notifications__detail-person">
-              <SFAvatar :name="filterLabel(selectedNotification.type)" :alt="filterLabel(selectedNotification.type)" size="sm" />
-              <div>
-                <strong>{{ t(selectedNotification.titleKey) }}</strong>
-                <time :datetime="selectedNotification.createdAt">{{ notificationTime(selectedNotification) }}</time>
-              </div>
-            </div>
-
-            <h3>{{ selectedNotification.targetLabel || t('notifications.targetUnavailable') }}</h3>
-            <p>{{ translatedBody(selectedNotification) }}</p>
-            <p v-if="selectedNotification.detailMeta && selectedNotification.detailMeta !== selectedNotification.targetLabel" class="sforum-notifications__detail-note">
-              {{ selectedNotification.detailMeta }}
-            </p>
-
-            <div class="sforum-notifications__detail-actions">
-              <button
-                type="button"
-                class="sforum-notifications__primary-button"
-                :disabled="selectedNotification.target.unavailable"
-                @click="openSelectedTarget"
-              >
-                {{ actionLabel(selectedNotification) }}
-                <UIcon name="i-lucide-arrow-right" class="size-4" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                class="sforum-notifications__icon-button"
-                :disabled="selectedNotification.read || markingIds.has(selectedNotification.id)"
-                :aria-label="t('notifications.actions.markRead')"
-                @click="markRead(selectedNotification)"
-              >
-                <UIcon name="i-lucide-check" class="size-[18px]" aria-hidden="true" />
-              </button>
-            </div>
-          </div>
-
-          <div v-else class="sforum-notifications__detail-empty">
-            <UIcon name="i-lucide-bell" class="size-7" aria-hidden="true" />
-            <p>{{ t('notifications.detail.empty') }}</p>
-          </div>
         </section>
 
         <section class="sforum-notifications__rail-section">
@@ -633,47 +518,6 @@ onBeforeUnmount(() => stopRealtime())
             <span>{{ t('notifications.unreadCountLabel') }}</span>
           </div>
           <p class="sforum-notifications__rail-help">{{ t('notifications.unreadSource') }}</p>
-        </section>
-        <section class="sforum-notifications__rail-section">
-          <div class="sforum-notifications__rail-head">
-            <h2>{{ t('notifications.detail.title') }}</h2>
-            <span v-if="selectedNotification">{{ t(selectedNotification.typeLabelKey) }}</span>
-          </div>
-          <div v-if="selectedNotification" class="sforum-notifications__detail">
-            <div class="sforum-notifications__detail-person">
-              <SFAvatar :name="filterLabel(selectedNotification.type)" :alt="filterLabel(selectedNotification.type)" size="sm" />
-              <div>
-                <strong>{{ t(selectedNotification.titleKey) }}</strong>
-                <time :datetime="selectedNotification.createdAt">{{ notificationTime(selectedNotification) }}</time>
-              </div>
-            </div>
-            <h3>{{ selectedNotification.targetLabel || t('notifications.targetUnavailable') }}</h3>
-            <p>{{ translatedBody(selectedNotification) }}</p>
-            <div class="sforum-notifications__detail-actions">
-              <button
-                type="button"
-                class="sforum-notifications__primary-button"
-                :disabled="selectedNotification.target.unavailable"
-                @click="openSelectedTarget"
-              >
-                {{ actionLabel(selectedNotification) }}
-                <UIcon name="i-lucide-arrow-right" class="size-4" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                class="sforum-notifications__icon-button"
-                :disabled="selectedNotification.read || markingIds.has(selectedNotification.id)"
-                :aria-label="t('notifications.actions.markRead')"
-                @click="markRead(selectedNotification)"
-              >
-                <UIcon name="i-lucide-check" class="size-[18px]" aria-hidden="true" />
-              </button>
-            </div>
-          </div>
-          <div v-else class="sforum-notifications__detail-empty">
-            <UIcon name="i-lucide-bell" class="size-7" aria-hidden="true" />
-            <p>{{ t('notifications.detail.empty') }}</p>
-          </div>
         </section>
       </aside>
     </aside>

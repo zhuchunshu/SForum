@@ -14,6 +14,34 @@ export type NotificationItem = {
   createdAt: string
 }
 
+export type NotificationPreviewAuthor = {
+  id: number
+  username: string
+  displayName: string
+  avatar: {
+    kind: 'uploaded' | 'initials' | 'gravatar' | 'static'
+    url: string
+    attachmentId?: number | null
+    alt: string
+  }
+}
+
+export type NotificationPreviewContent = {
+  type: 'topic' | 'comment'
+  id: number
+  excerpt: string
+  author?: NotificationPreviewAuthor
+}
+
+export type NotificationDetail = NotificationItem & {
+  preview?: {
+    topicId: number
+    topicTitle: string
+    content: NotificationPreviewContent
+    context?: NotificationPreviewContent
+  }
+}
+
 export type NotificationListFilters = {
   category?: string
   type?: string
@@ -23,9 +51,16 @@ export type NotificationListFilters = {
 type RevisionPayload = { revision?: unknown }
 type RevisionRefresh = () => void | Promise<void>
 
+const REVISION_RECONNECT_DELAY_MS = 1000
+const REVISION_FALLBACK_REFRESH_MS = 30_000
+
 let revisionSource: EventSource | null = null
 let revisionURL = ''
 let revisionRefreshTimer: ReturnType<typeof setTimeout> | null = null
+let revisionReconnectTimer: ReturnType<typeof setTimeout> | null = null
+let revisionFallbackTimer: ReturnType<typeof setInterval> | null = null
+let revisionReconnect: (() => void) | null = null
+let visibilityListenerAttached = false
 const revisionRefreshers = new Set<RevisionRefresh>()
 
 function scheduleRevisionRefresh() {
@@ -34,6 +69,36 @@ function scheduleRevisionRefresh() {
     revisionRefreshTimer = null
     for (const refresh of revisionRefreshers) void Promise.resolve(refresh()).catch(() => {})
   }, 100)
+}
+
+function refreshWhenVisible() {
+  if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+  scheduleRevisionRefresh()
+  revisionReconnect?.()
+}
+
+function startRealtimeFallbacks() {
+  if (!revisionFallbackTimer) {
+    revisionFallbackTimer = setInterval(refreshWhenVisible, REVISION_FALLBACK_REFRESH_MS)
+  }
+  if (typeof document !== 'undefined' && !visibilityListenerAttached) {
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+    visibilityListenerAttached = true
+  }
+}
+
+function stopRealtimeFallbacks() {
+  if (revisionRefreshTimer) clearTimeout(revisionRefreshTimer)
+  if (revisionReconnectTimer) clearTimeout(revisionReconnectTimer)
+  if (revisionFallbackTimer) clearInterval(revisionFallbackTimer)
+  revisionRefreshTimer = null
+  revisionReconnectTimer = null
+  revisionFallbackTimer = null
+  revisionReconnect = null
+  if (typeof document !== 'undefined' && visibilityListenerAttached) {
+    document.removeEventListener('visibilitychange', refreshWhenVisible)
+    visibilityListenerAttached = false
+  }
 }
 
 export function useNotifications() {
@@ -51,6 +116,9 @@ export function useNotifications() {
     const query = params.toString()
     return request<{ items: NotificationItem[], hasMore: boolean }>(`/notifications${query ? `?${query}` : ''}`)
   }
+  async function get(id: number) {
+    return request<NotificationDetail>(`/notifications/${id}`, { serverInternal: import.meta.server })
+  }
   async function markRead(id: number) { await request(`/notifications/${id}/read`, { method: 'PATCH' }); if (unreadCount.value > 0) unreadCount.value-- }
   async function markAllRead() { const data = await request<{ updated: number }>('/notifications/read-all', { method: 'POST' }); unreadCount.value = 0; return data.updated }
 
@@ -58,18 +126,41 @@ export function useNotifications() {
     if (import.meta.server) return () => {}
     revisionRefreshers.add(refresh)
     const base = apiBaseUrl.replace(/\/+$/, '')
-    const url = `${base}/notifications/stream?revision=${revision.value}`
-    if (!revisionSource || revisionURL !== url) {
+    const connect = () => {
+      if (revisionRefreshers.size === 0) return
+      const url = `${base}/notifications/stream?revision=${revision.value}`
+      if (revisionSource && revisionURL === url && revisionSource.readyState !== EventSource.CLOSED) return
       revisionSource?.close()
       revisionURL = url
+      let source: EventSource
       try {
-        revisionSource = new EventSource(url, { withCredentials: true })
+        source = new EventSource(url, { withCredentials: true })
+        revisionSource = source
       } catch {
         revisionSource = null
         revisionURL = ''
-        return () => revisionRefreshers.delete(refresh)
+        if (!revisionReconnectTimer) {
+          revisionReconnectTimer = setTimeout(() => {
+            revisionReconnectTimer = null
+            connect()
+          }, REVISION_RECONNECT_DELAY_MS)
+        }
+        return
       }
-      revisionSource.addEventListener('revision', (event) => {
+      source.addEventListener('open', scheduleRevisionRefresh)
+      source.addEventListener('error', () => {
+        // EventSource 会先自行重连；同步一次 REST，避免 badge 在断线期间冻结。
+        scheduleRevisionRefresh()
+        if (revisionSource !== source || source.readyState !== EventSource.CLOSED || revisionReconnectTimer) return
+        source.close()
+        revisionSource = null
+        revisionURL = ''
+        revisionReconnectTimer = setTimeout(() => {
+          revisionReconnectTimer = null
+          connect()
+        }, REVISION_RECONNECT_DELAY_MS)
+      })
+      source.addEventListener('revision', (event) => {
         try {
           const payload = JSON.parse((event as MessageEvent<string>).data) as RevisionPayload
           const next = Number(payload.revision)
@@ -82,12 +173,16 @@ export function useNotifications() {
         }
       })
     }
+    revisionReconnect = connect
+    startRealtimeFallbacks()
+    connect()
     return () => {
       revisionRefreshers.delete(refresh)
       if (revisionRefreshers.size === 0) {
         revisionSource?.close()
         revisionSource = null
         revisionURL = ''
+        stopRealtimeFallbacks()
       }
     }
   }
@@ -97,7 +192,8 @@ export function useNotifications() {
     revisionSource?.close()
     revisionSource = null
     revisionURL = ''
+    stopRealtimeFallbacks()
   }
 
-  return { unreadCount, revision, refreshUnreadCount, list, markRead, markAllRead, startRealtime, stopRealtime }
+  return { unreadCount, revision, refreshUnreadCount, list, get, markRead, markAllRead, startRealtime, stopRealtime }
 }

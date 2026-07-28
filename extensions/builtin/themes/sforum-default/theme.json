@@ -99,6 +99,13 @@
       "contract": "sforum.page.notifications@1"
     },
     {
+      "id": "sforum.default-theme.notification_show",
+      "action": "replace",
+      "target": "forum.notification.show",
+      "template": "templates/notification-detail.html",
+      "contract": "sforum.page.notification_show@1"
+    },
+    {
       "id": "sforum.default-theme.login",
       "action": "replace",
       "target": "auth.login",

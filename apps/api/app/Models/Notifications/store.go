@@ -16,6 +16,11 @@ type Store interface {
 	ListDeliveries(context.Context, int) ([]MailDelivery, error)
 }
 
+// DetailStore 单独承载收件人自有通知点查，避免列表/投递 worker 的窄接口被详情能力污染。
+type DetailStore interface {
+	GetNotification(context.Context, int64, int64) (Notification, error)
+}
+
 // CorePolicyStore is the compatibility projection used while /admin/mail/policy
 // remains in API LTS. The V2 tables are still the authority.
 type CorePolicyStore interface {

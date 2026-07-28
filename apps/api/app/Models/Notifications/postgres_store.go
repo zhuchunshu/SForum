@@ -154,6 +154,19 @@ ORDER BY id DESC LIMIT $6`, input.RecipientUserID, input.BeforeID, input.Categor
 	return page, rows.Err()
 }
 
+func (s *PostgresStore) GetNotification(ctx context.Context, userID, id int64) (Notification, error) {
+	var item Notification
+	err := s.runner.QueryRow(ctx, `SELECT id, recipient_user_id, type, category, type_version, payload_version, actor_user_id, target_type, target_id, payload,
+dedupe_key, read_at, created_at FROM notifications WHERE id=$1 AND recipient_user_id=$2`, id, userID).Scan(
+		&item.ID, &item.RecipientUserID, &item.Type, &item.Category, &item.TypeVersion, &item.PayloadVersion,
+		&item.ActorUserID, &item.TargetType, &item.TargetID, &item.Payload, &item.DedupeKey, &item.ReadAt, &item.CreatedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Notification{}, ErrNotificationNotFound
+	}
+	return item, err
+}
+
 func (s *PostgresStore) UnreadCount(ctx context.Context, userID int64) (int64, error) {
 	var count int64
 	err := s.runner.QueryRow(ctx, `SELECT COUNT(*) FROM notifications WHERE recipient_user_id=$1 AND read_at IS NULL`, userID).Scan(&count)

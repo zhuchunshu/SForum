@@ -132,6 +132,10 @@ func BuildCorePageViewModel(request CorePageViewModelRequest) (any, error) {
 		model := valueOrZero(request.Data.Notifications)
 		model.Base = base
 		return model, nil
+	case "forum.notification.show":
+		model := valueOrZero(request.Data.Notifications)
+		model.Base = base
+		return model, nil
 	case "moderation.review":
 		model := valueOrZero(request.Data.ModerationReview)
 		model.Base = base

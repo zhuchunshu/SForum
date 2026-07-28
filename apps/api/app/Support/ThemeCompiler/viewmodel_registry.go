@@ -64,6 +64,7 @@ func newCorePageViewModelRegistry() (*PageViewModelRegistry, error) {
 		coreViewModel("forum.settings.security", "sforum.page.settings_security@1", ViewModelSettings, SecuritySettingsPageViewModel{}),
 		coreViewModel("forum.settings.notifications", "sforum.page.settings_notifications@1", ViewModelSettings, NotificationSettingsPageViewModel{}),
 		coreViewModel("forum.notifications", "sforum.page.notifications@1", ViewModelNotifications, NotificationsPageViewModel{}),
+		coreViewModel("forum.notification.show", "sforum.page.notification_show@1", ViewModelNotifications, NotificationsPageViewModel{}),
 		coreViewModel("moderation.review", "sforum.page.moderation_review@1", ViewModelModeration, ModerationReviewPageViewModel{}),
 		coreViewModel("auth.login", "sforum.page.login@1", ViewModelAuth, LoginPageViewModel{}),
 		coreViewModel("auth.register", "sforum.page.register@1", ViewModelAuth, RegisterPageViewModel{}),

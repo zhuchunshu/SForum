@@ -15,6 +15,37 @@ Notification:
     payload: {type: object, additionalProperties: true}
     readAt: {type: string, format: date-time}
     createdAt: {type: string, format: date-time}
+NotificationTargetPreviewContent:
+  type: object
+  required: [type, id, excerpt]
+  properties:
+    type: {type: string, enum: [topic, comment]}
+    id: {type: integer, format: int64}
+    excerpt: {type: string, description: Host-derived current plain-text excerpt.}
+    author:
+      type: object
+      required: [id, username, displayName, avatar]
+      properties:
+        id: {type: integer, format: int64}
+        username: {type: string}
+        displayName: {type: string}
+        avatar: {$ref: "./profile.yaml#/AvatarView"}
+NotificationTargetPreview:
+  type: object
+  required: [topicId, topicTitle, content]
+  properties:
+    topicId: {type: integer, format: int64}
+    topicTitle: {type: string}
+    content: {$ref: "#/NotificationTargetPreviewContent"}
+    context: {$ref: "#/NotificationTargetPreviewContent"}
+NotificationDetail:
+  allOf:
+  - {$ref: "#/Notification"}
+  - type: object
+    properties:
+      preview:
+        allOf: [{$ref: "#/NotificationTargetPreview"}]
+        description: Present only after the Host re-authorizes and resolves the current target.
 ApiResponseNotificationPage:
   type: object
   required: [code, message, data]
@@ -44,6 +75,13 @@ ApiResponseNotification:
     code: {type: integer}
     message: {type: string}
     data: {$ref: "#/Notification"}
+ApiResponseNotificationDetail:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data: {$ref: "#/NotificationDetail"}
 PreferenceItem:
   type: object
   required: [type, category, channel, active, enabled, recommendedEnabled, userConfigurable, required, state, effective]

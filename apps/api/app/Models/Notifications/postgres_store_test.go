@@ -3,6 +3,7 @@ package notifications
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -81,6 +82,14 @@ func (m *memoryRunner) QueryRow(_ context.Context, query string, args ...any) pg
 		}
 		return memoryRow{values: []any{count}}
 	}
+	if strings.Contains(query, "FROM notifications WHERE id=$1 AND recipient_user_id=$2") {
+		id, userID := args[0].(int64), args[1].(int64)
+		for _, item := range m.notifications {
+			if item.ID == id && item.RecipientUserID == userID {
+				return memoryRow{values: []any{item.ID, item.RecipientUserID, item.Type, item.Category, item.TypeVersion, item.PayloadVersion, item.ActorUserID, item.TargetType, item.TargetID, item.Payload, item.DedupeKey, item.ReadAt, item.CreatedAt}}
+			}
+		}
+	}
 	return memoryRow{err: pgx.ErrNoRows}
 }
 
@@ -154,6 +163,25 @@ func TestPostgresStoreMarksOnlyRecipientsNotificationRead(t *testing.T) {
 	count, err := store.UnreadCount(context.Background(), 7)
 	if err != nil || count != 0 {
 		t.Fatalf("unexpected unread count: count=%d err=%v", count, err)
+	}
+}
+
+func TestPostgresStoreGetsOnlyRecipientsNotification(t *testing.T) {
+	runner := newMemoryRunner()
+	store := newPostgresStore(runner)
+	created, err := store.Create(context.Background(), CreateInput{
+		RecipientUserID: 7, Type: TypeReply, TargetType: "comment", TargetID: 9,
+		Payload: json.RawMessage(`{"topicId":3}`), DedupeKey: "comment:9:reply:7",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	item, err := store.GetNotification(context.Background(), 7, created.ID)
+	if err != nil || item.ID != created.ID || item.RecipientUserID != 7 {
+		t.Fatalf("owner detail=%#v err=%v", item, err)
+	}
+	if _, err := store.GetNotification(context.Background(), 8, created.ID); !errors.Is(err, ErrNotificationNotFound) {
+		t.Fatalf("foreign recipient detail error=%v", err)
 	}
 }
 

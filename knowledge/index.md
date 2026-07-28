@@ -90,6 +90,11 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Notification detail preview: independent authenticated list/detail routes,
+  recipient-authoritative API, current-content preview, selected-theme runtime
+  proof, Nuxt nested-route and Page Registry completion guardrails, and
+  single-owner public chrome:
+  `sessions/2026-07-28-notification-detail-preview-handoff.md`
 - Architecture boundary debt M0-M12 completed: fixed tabs, domain placement,
   backend splits, focused collaborators, stable extension contracts, import
   ratchets, ADR, and resumed final gate evidence:

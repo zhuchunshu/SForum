@@ -105,6 +105,22 @@
       "title": "Current notification",
       "empty": "Select a notification to inspect the details."
     },
+    "detailPage": {
+      "title": "Notification detail",
+      "back": "Back to notifications",
+      "replyContent": "Their reply",
+      "mentionContent": "Content mentioning you",
+      "targetContent": "Related content",
+      "repliedComment": "Replying to",
+      "originalTopic": "Original topic",
+      "unknownAuthor": "Community member",
+      "emptyExcerpt": "There is no text preview available for this content.",
+      "status": "Notification status",
+      "read": "Read",
+      "type": "Type",
+      "target": "Related target",
+      "available": "Available"
+    },
     "actions": {
       "markRead": "Mark this notification as read",
       "viewReply": "View reply",

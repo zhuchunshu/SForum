@@ -29,6 +29,17 @@ func TestNotificationSettingsPageContract(t *testing.T) {
 	}
 }
 
+func TestNotificationDetailPageContract(t *testing.T) {
+	page, ok := Find("forum.notification.show")
+	if !ok || page.PathPattern != "/notifications/:notificationId" || page.Access != AccessLogin || !page.Replaceable || page.ContractVersion != "sforum.page.notification_show@1" {
+		t.Fatalf("notification detail contract missing or invalid: %#v ok=%v", page, ok)
+	}
+	matched, ok := MatchPath("/notifications/42")
+	if !ok || matched.ID != page.ID || RequiredThemeBodyIslandTag(page.ID) != "sf-notification-detail-page" {
+		t.Fatalf("notification detail path/island mismatch: %#v ok=%v", matched, ok)
+	}
+}
+
 func TestResolveCore(t *testing.T) {
 	resolved, err := ResolveCore("forum.home")
 	if err != nil {

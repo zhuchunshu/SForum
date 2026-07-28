@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	avatar "github.com/zhuchunshu/sforum/apps/api/app/Support/Avatar"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Outbox"
 )
 
@@ -41,6 +42,32 @@ type Notification struct {
 	DedupeKey       string          `json:"-"`
 	ReadAt          *time.Time      `json:"readAt,omitempty"`
 	CreatedAt       time.Time       `json:"createdAt"`
+}
+
+type TargetPreviewAuthor struct {
+	ID          int64       `json:"id"`
+	Username    string      `json:"username"`
+	DisplayName string      `json:"displayName"`
+	Avatar      avatar.View `json:"avatar"`
+}
+
+type TargetPreviewContent struct {
+	Type    string               `json:"type"`
+	ID      int64                `json:"id"`
+	Excerpt string               `json:"excerpt"`
+	Author  *TargetPreviewAuthor `json:"author,omitempty"`
+}
+
+type TargetPreview struct {
+	TopicID    int64                 `json:"topicId"`
+	TopicTitle string                `json:"topicTitle"`
+	Content    TargetPreviewContent  `json:"content"`
+	Context    *TargetPreviewContent `json:"context,omitempty"`
+}
+
+type NotificationDetail struct {
+	Notification
+	Preview *TargetPreview `json:"preview,omitempty"`
 }
 
 type MailDelivery struct {

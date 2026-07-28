@@ -78,6 +78,7 @@ rows retain versioned structured payload and use Host fallback presentation.
 Authenticated self-service routes:
 
 - `GET /api/v1/notifications`
+- `GET /api/v1/notifications/:id`
 - `GET /api/v1/notifications/unread-count`
 - `PATCH /api/v1/notifications/:id/read`
 - `POST /api/v1/notifications/read-all`
@@ -96,6 +97,23 @@ silently grant notification authority.
 The default theme adds `/notifications` and a Navbar unread badge. API queries
 always bind the current session user ID; another user's notification appears as
 not found.
+
+The inbox and preview use sibling routes: `/notifications` for the list and
+`/notifications/:notificationId` for the independent detail surface. Nuxt owns
+them through `pages/notifications/index.vue` and
+`pages/notifications/[notificationId].vue`; a flat parent page must not shadow
+the nested route. Clicking a row opens the detail without leaving the
+notification surface. Only the explicit target action navigates to the current
+authorized topic or comment.
+
+`GET /api/v1/notifications/:id` binds the recipient to the current actor and
+returns 404 for missing or foreign rows. Forum previews are resolved and
+re-authorized at read time, so the response contains the current visible topic
+title, reply excerpt, author, and parent/original context rather than a stored
+body snapshot. The Page Registry identity is `forum.notification.show` with
+contract `sforum.page.notification_show@1`; its theme ViewModel supplies only
+the shell while the Host detail island retains recipient authorization and
+notification data ownership.
 
 The inbox uses server-authoritative category/type/unread filters and cursor
 pagination. `useNotifications` shares one EventSource, coalesces refresh signals,

@@ -13,6 +13,20 @@ type targetResolverFixture struct {
 	err       error
 }
 
+type previewResolverFixture struct {
+	preview   TargetPreview
+	available bool
+	err       error
+	calls     *int
+}
+
+func (r previewResolverFixture) ResolveNotificationTargetPreview(context.Context, int64, string, int64) (TargetPreview, bool, error) {
+	if r.calls != nil {
+		*r.calls++
+	}
+	return r.preview, r.available, r.err
+}
+
 func (r targetResolverFixture) ResolveNotificationTarget(context.Context, int64, string, int64) (bool, string, error) {
 	return r.available, r.path, r.err
 }
@@ -48,5 +62,26 @@ func TestResolveSafeTargetsUsesOnlyHostResolvedPath(t *testing.T) {
 	item := page.Items[0]
 	if !item.TargetAvailable || item.TargetPath != "/t/8#comment-42" {
 		t.Fatalf("host target not applied: %#v", item)
+	}
+}
+
+func TestResolveNotificationDetailAddsPreviewOnlyAfterVisibilityCheck(t *testing.T) {
+	item := Notification{ID: 1, TargetType: "comment", TargetID: 42, Payload: json.RawMessage(`{"topicId":8}`)}
+	preview := TargetPreview{TopicID: 8, TopicTitle: "Topic", Content: TargetPreviewContent{Type: "comment", ID: 42, Excerpt: "reply"}}
+	detail, err := ResolveNotificationDetail(context.Background(), targetResolverFixture{available: true, path: "/t/8#comment-42"}, previewResolverFixture{preview: preview, available: true}, 7, item)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if detail.Preview == nil || detail.Preview.TopicTitle != "Topic" || detail.TargetPath != "/t/8#comment-42" {
+		t.Fatalf("detail=%#v", detail)
+	}
+
+	calls := 0
+	scrubbed, err := ResolveNotificationDetail(context.Background(), targetResolverFixture{available: false}, previewResolverFixture{preview: preview, available: true, calls: &calls}, 7, item)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if calls != 0 || scrubbed.Preview != nil || scrubbed.TargetAvailable || scrubbed.TargetID != 0 || string(scrubbed.Payload) != "{}" {
+		t.Fatalf("unsafe detail=%#v previewCalls=%d", scrubbed, calls)
 	}
 }

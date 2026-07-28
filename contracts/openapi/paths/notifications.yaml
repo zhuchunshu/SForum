@@ -12,6 +12,18 @@ notifications:
     responses:
       '200': {description: Notification page, content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/ApiResponseNotificationPage"}}}}
       '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+notificationDetail:
+  get:
+    summary: Get one current-user notification with an authorized target preview
+    description: The notification is selected by both id and the authenticated recipient. Foreign, missing, or invalid ids return the same 404 response. Target previews are omitted when the current content is unavailable or no longer visible.
+    operationId: getNotificationDetail
+    security: [{cookieAuth: []}]
+    parameters:
+    - {in: path, name: id, required: true, schema: {type: integer, format: int64}}
+    responses:
+      '200': {description: Recipient-owned notification detail, content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/ApiResponseNotificationDetail"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '404': {$ref: "../components/responses.yaml#/NotFound"}
 notificationUnreadCount:
   get:
     summary: Get the current user's unread notification count

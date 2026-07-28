@@ -1,0 +1,191 @@
+.sforum-notification-detail__head {
+  align-items: flex-end;
+}
+
+.sforum-notification-detail__back {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  color: var(--sf-public-text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.sforum-notification-detail__back:hover {
+  color: var(--sf-accent);
+}
+
+.sforum-notification-detail__reader {
+  width: min(100%, 760px);
+  margin: 0 auto;
+  padding: 30px 0 18px;
+}
+
+.sforum-notification-detail__event {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--sf-public-border);
+}
+
+.sforum-notification-detail__event > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.sforum-notification-detail__event strong {
+  color: var(--sf-public-text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.sforum-notification-detail__event time {
+  color: var(--sf-public-text-muted);
+  font-size: 12px;
+}
+
+.sforum-notification-detail__reader > h2 {
+  margin: 28px 0 4px;
+  color: var(--sf-public-text);
+  font-size: 22px;
+  line-height: 1.45;
+}
+
+.sforum-notification-detail__content-block {
+  margin-top: 24px;
+  padding: 18px 0 4px;
+  border-top: 1px solid var(--sf-public-border);
+}
+
+.sforum-notification-detail__content-block.is-context {
+  margin-top: 18px;
+}
+
+.sforum-notification-detail__section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.sforum-notification-detail__section-head h3 {
+  margin: 0;
+  color: var(--sf-public-text);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.sforum-notification-detail__section-head span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--sf-public-text-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sforum-notification-detail__content-block blockquote {
+  margin: 14px 0 0;
+  border-left: 3px solid var(--sf-accent);
+  padding: 4px 0 4px 16px;
+  color: var(--sf-public-text-secondary);
+  font-size: 15px;
+  line-height: 1.85;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.sforum-notification-detail__content-block.is-context blockquote {
+  border-left-color: var(--sf-public-border-strong);
+  color: var(--sf-public-text-muted);
+}
+
+.sforum-notification-detail__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--sf-public-border);
+}
+
+.sforum-notification-detail__meta {
+  display: grid;
+  gap: 12px;
+  margin: 14px 0 0;
+}
+
+.sforum-notification-detail__meta div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+}
+
+.sforum-notification-detail__meta dt,
+.sforum-notification-detail__meta dd {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.sforum-notification-detail__meta dt {
+  color: var(--sf-public-text-muted);
+}
+
+.sforum-notification-detail__meta dd {
+  color: var(--sf-public-text-secondary);
+  text-align: right;
+}
+
+.sforum-notification-detail__drawer-summary {
+  display: grid;
+  gap: 6px;
+  padding: 8px 4px;
+}
+
+.sforum-notification-detail__drawer-summary strong {
+  color: var(--sf-public-text);
+  font-size: 28px;
+}
+
+.sforum-notification-detail__drawer-summary span,
+.sforum-notification-detail__drawer-summary p {
+  margin: 0;
+  color: var(--sf-public-text-muted);
+  font-size: 12px;
+}
+
+@media (max-width: 560px) {
+  .sforum-notification-detail__reader {
+    padding-top: 22px;
+  }
+
+  .sforum-notification-detail__event {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .sforum-notification-detail__event > .sforum-notifications__type-label {
+    grid-column: 2;
+    width: fit-content;
+  }
+
+  .sforum-notification-detail__reader > h2 {
+    font-size: 19px;
+  }
+
+  .sforum-notification-detail__section-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .sforum-notification-detail__actions,
+  .sforum-notification-detail__actions .sforum-notifications__primary-button {
+    width: 100%;
+  }
+}

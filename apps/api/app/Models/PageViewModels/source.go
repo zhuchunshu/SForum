@@ -164,6 +164,13 @@ func (s *CorePageViewModelSource) Populate(ctx context.Context, input CorePageVi
 		request.Data.NotificationSettings = &themecompiler.NotificationSettingsPageViewModel{}
 	case "forum.notifications":
 		err = s.populateNotifications(ctx, &request, input)
+	case "forum.notification.show":
+		if input.Actor.ID <= 0 {
+			return pages.CorePageViewModelRequest{}, ErrCorePageDataUnauthorized
+		}
+		// 主题只渲染详情页壳；收件人校验和通知正文继续由 Host 岛的详情 API 负责。
+		request.SEO.Robots = "noindex,nofollow"
+		request.Data.Notifications = &themecompiler.NotificationsPageViewModel{}
 	case "moderation.review":
 		err = s.populateModeration(ctx, &request, input)
 	case "auth.login":

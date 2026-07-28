@@ -1213,11 +1213,22 @@
     "targetRegistry": "P9 Component Registry"
   },
   {
+    "id": "core.component.page.forum.notification.show",
+    "contractVersion": "sforum.component.page.forum.notification.show@1",
+    "kind": "page",
+    "route": "/notifications/:notificationId",
+    "source": "apps/web/app/pages/notifications/[notificationId].vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.page.forum.notifications",
     "contractVersion": "sforum.component.page.forum.notifications@1",
     "kind": "page",
     "route": "/notifications",
-    "source": "apps/web/app/pages/notifications.vue",
+    "source": "apps/web/app/pages/notifications/index.vue",
     "owners": [
       "public"
     ],
@@ -1863,6 +1874,16 @@
     "contractVersion": "sforum.component.shared.sfnot_found_page_content@1",
     "kind": "component",
     "source": "apps/web/app/components/errors/SFNotFoundPageContent.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfnotification_detail_page",
+    "contractVersion": "sforum.component.shared.sfnotification_detail_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/notifications/detail/SFNotificationDetailPage.vue",
     "owners": [
       "public"
     ],

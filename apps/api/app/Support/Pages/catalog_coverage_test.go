@@ -83,3 +83,40 @@ func TestCatalogCoversAllPublicNuxtPages(t *testing.T) {
 		}
 	}
 }
+
+func TestNuxtParentPagesDoNotShadowNestedRoutes(t *testing.T) {
+	repoRoot := themeCompletenessRepoRoot(t)
+	pagesRoot := filepath.Join(repoRoot, "apps", "web", "app", "pages")
+	pageFiles := map[string]string{}
+
+	err := filepath.WalkDir(pagesRoot, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".vue") {
+			return nil
+		}
+		rel, relErr := filepath.Rel(pagesRoot, path)
+		if relErr != nil {
+			return relErr
+		}
+		raw, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		pageFiles[filepath.ToSlash(rel)] = string(raw)
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for parent, raw := range pageFiles {
+		prefix := strings.TrimSuffix(parent, ".vue") + "/"
+		for child := range pageFiles {
+			if strings.HasPrefix(child, prefix) && !strings.Contains(raw, "<NuxtPage") {
+				t.Errorf("Nuxt parent page %s shadows nested route %s; move the index route to %sindex.vue or render <NuxtPage>", parent, child, prefix)
+			}
+		}
+	}
+}

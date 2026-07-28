@@ -31,6 +31,7 @@ type Controller struct {
 	users          identity.ActorStore
 	auditor        audit.Writer
 	targets        notifications.TargetVisibilityResolver
+	previews       notifications.TargetPreviewResolver
 	subscriptions  webPushSubscriptionStore
 	channels       ChannelRuntime
 	channelAuditor audit.IDWriter
@@ -63,6 +64,12 @@ func (h *Controller) WithTargetVisibility(resolver notifications.TargetVisibilit
 	}
 	return h
 }
+func (h *Controller) WithTargetPreview(resolver notifications.TargetPreviewResolver) *Controller {
+	if h != nil {
+		h.previews = resolver
+	}
+	return h
+}
 func (h *Controller) RegisterRoutes(api fiber.Router) {
 	group := api.Group("/notifications")
 	group.Get("", h.list)
@@ -70,6 +77,7 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	group.Patch("/:id/read", h.markRead)
 	group.Post("/read-all", h.markAllRead)
 	group.Get("/stream", h.stream)
+	group.Get("/:id", h.detail)
 	preferences := api.Group("/notification-preferences")
 	preferences.Get("", h.listPreferences)
 	preferences.Put("", h.replacePreferences)
@@ -416,6 +424,33 @@ func (h *Controller) list(c fiber.Ctx) error {
 		return err
 	}
 	return apphttp.OK(c, page)
+}
+
+func (h *Controller) detail(c fiber.Ctx) error {
+	userID, err := h.userID(c)
+	if err != nil {
+		return err
+	}
+	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil || id <= 0 {
+		return fiber.NewError(fiber.StatusNotFound, "notification.not_found")
+	}
+	store, ok := h.store.(notifications.DetailStore)
+	if !ok {
+		return fiber.NewError(fiber.StatusServiceUnavailable, "notification.channel_unavailable")
+	}
+	item, err := store.GetNotification(c.Context(), userID, id)
+	if errors.Is(err, notifications.ErrNotificationNotFound) {
+		return fiber.NewError(fiber.StatusNotFound, "notification.not_found")
+	}
+	if err != nil {
+		return err
+	}
+	detail, err := notifications.ResolveNotificationDetail(c.Context(), h.targets, h.previews, userID, item)
+	if err != nil {
+		return err
+	}
+	return apphttp.OK(c, detail)
 }
 
 func (h *Controller) unreadCount(c fiber.Ctx) error {

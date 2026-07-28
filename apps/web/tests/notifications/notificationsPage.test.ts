@@ -17,7 +17,10 @@ import {
 const source = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
 const pageSource = () => source('../../app/components/notifications/SFNotificationsPage.vue')
 const pageStyles = () => source('../../app/components/notifications/SFNotificationsPage.css')
+const detailPageSource = () => source('../../app/components/notifications/detail/SFNotificationDetailPage.vue')
+const detailRouteSource = () => source('../../app/pages/notifications/[notificationId].vue')
 const notificationComposableSource = () => source('../../app/composables/notifications/useNotifications.ts')
+const navbarSource = () => source('../../app/components/SFNavbar.vue')
 const zh = () => JSON.parse(source('../../i18n/locales/zh-CN.json'))
 const en = () => JSON.parse(source('../../i18n/locales/en-US.json'))
 
@@ -138,11 +141,13 @@ describe('useNotifications', () => {
       const api = useNotifications()
       await api.list()
       await api.list(88, 10, { category: 'moderation', type: 'moderation_approved', unread: true })
+      await api.get(42)
     })
 
     expect(calls).toEqual([
       '/api/v1/notifications?limit=20',
-      '/api/v1/notifications?beforeId=88&limit=10&category=moderation&type=moderation_approved&unread=true'
+      '/api/v1/notifications?beforeId=88&limit=10&category=moderation&type=moderation_approved&unread=true',
+      '/api/v1/notifications/42'
     ])
   })
 
@@ -178,8 +183,11 @@ describe('useNotifications', () => {
     const originalEventSource = globalThis.EventSource
     const sources: FakeEventSource[] = []
     class FakeEventSource {
+      static readonly CONNECTING = 0
+      static readonly OPEN = 1
       static readonly CLOSED = 2
       readonly url: string
+      readyState = FakeEventSource.OPEN
       closed = false
       listeners = new Map<string, Array<(event: MessageEvent<string>) => void>>()
       constructor(url: string) {
@@ -193,7 +201,7 @@ describe('useNotifications', () => {
       emit(type: string, data: string) {
         for (const listener of this.listeners.get(type) || []) listener({ data } as MessageEvent<string>)
       }
-      close() { this.closed = true }
+      close() { this.closed = true; this.readyState = FakeEventSource.CLOSED }
     }
 
     await withApiGlobals(async () => {
@@ -227,6 +235,49 @@ describe('useNotifications', () => {
     globalThis.EventSource = originalEventSource
   })
 
+  test('refreshes immediately after an asynchronous SSE failure and reconnects a closed source', async () => {
+    const originalEventSource = globalThis.EventSource
+    const sources: RecoveringFakeEventSource[] = []
+    class RecoveringFakeEventSource {
+      static readonly CONNECTING = 0
+      static readonly OPEN = 1
+      static readonly CLOSED = 2
+      readonly url: string
+      readyState = RecoveringFakeEventSource.OPEN
+      listeners = new Map<string, Array<(event: Event) => void>>()
+      constructor(url: string) {
+        this.url = url
+        sources.push(this)
+      }
+      addEventListener(type: string, listener: EventListenerOrEventListenerObject) {
+        const callback = listener as (event: Event) => void
+        this.listeners.set(type, [...(this.listeners.get(type) || []), callback])
+      }
+      failClosed() {
+        this.readyState = RecoveringFakeEventSource.CLOSED
+        for (const listener of this.listeners.get('error') || []) listener(new Event('error'))
+      }
+      close() { this.readyState = RecoveringFakeEventSource.CLOSED }
+    }
+
+    await withApiGlobals(async () => {
+      globalThis.EventSource = RecoveringFakeEventSource as unknown as typeof EventSource
+      const api = useNotifications()
+      let refreshes = 0
+      const stop = api.startRealtime(() => { refreshes++ })
+
+      expect(sources).toHaveLength(1)
+      sources[0]?.failClosed()
+      await new Promise(resolve => setTimeout(resolve, 130))
+      expect(refreshes).toBe(1)
+
+      await new Promise(resolve => setTimeout(resolve, 950))
+      expect(sources).toHaveLength(2)
+      stop()
+    })
+    globalThis.EventSource = originalEventSource
+  })
+
   test('keeps manual REST available when EventSource construction fails', async () => {
     const originalEventSource = globalThis.EventSource
     await withApiGlobals(async () => {
@@ -244,8 +295,15 @@ describe('useNotifications', () => {
 })
 
 describe('SFNotificationsPage contract', () => {
+  test('starts navbar realtime from the current auth state without a mount race', () => {
+    const navbar = navbarSource()
+    expect(navbar).toContain('const stopNotificationUserWatch = watch(user, current =>')
+    expect(navbar).toContain('{ immediate: true }')
+    expect(navbar).toContain('stopNotificationUserWatch()')
+  })
+
   test('compiles as a focused Page Registry island and keeps the route shell thin', () => {
-    const route = source('../../app/pages/notifications.vue')
+    const route = source('../../app/pages/notifications/index.vue')
     const page = pageSource()
     expect(page).toContain('<script setup lang="ts">')
     expect(page).toContain('<template>')
@@ -272,7 +330,7 @@ describe('SFNotificationsPage contract', () => {
     expect(page).toContain("useState<boolean>('forum-mobile-info-open'")
     expect(page).toContain('sforum-mobile-drawer sforum-mobile-drawer--left')
     expect(page).toContain('sforum-mobile-drawer sforum-mobile-drawer--right')
-    expect(page).toContain('<SFContentColumnFooter')
+    expect(page).not.toContain('<SFContentColumnFooter')
     expect(styles).toContain('.sforum-mobile-drawer .sforum-notifications__right--drawer')
     expect(styles).toContain('display: block')
     expect(styles).toContain('.sforum-notifications__main {\n    height: 100%;\n    min-height: 0;\n    overflow-y: auto;')
@@ -294,19 +352,40 @@ describe('SFNotificationsPage contract', () => {
     expect(composable).toContain('limit')
   })
 
-  test('contains real read operations, duplicate guards, optimistic rollback, persistent failures, and themed success toast', () => {
+  test('opens an independent detail route and keeps all-read rollback and themed feedback', () => {
     const page = pageSource()
 
-    expect(page).toContain('markingIds.value.has(item.id)')
+    expect(page).toContain("useState<NotificationFilter>('notification-inbox-filter'")
+    expect(page).toContain('router.push(localePath(`/notifications/${item.id}`))')
+    expect(page).not.toContain('selectedNotification')
     expect(page).toContain('markingAll.value')
     expect(page).toContain('previousUnreadCount')
-    expect(page).toContain('setNotificationRead(item.id, previousReadAt)')
-    expect(page).toContain('notifications.markRead(item.id)')
+    expect(page).toContain('setNotificationRead(previous.id, previous.readAt)')
     expect(page).toContain('notifications.markAllRead()')
     expect(page).toContain("duration: 0")
     expect(page).toContain("duration: 10000")
     expect(page).toContain("color: 'primary'")
     expect(page).toContain("color: 'error'")
+  })
+
+  test('uses an authenticated Page Registry route and marks read only after detail mounts', () => {
+    const route = detailRouteSource()
+    const detail = detailPageSource()
+
+    expect(route).toContain('definePageMeta({ requiresAuth: true })')
+    expect(route).toContain('<SFPageOutlet page="forum.notification.show">')
+    expect(route).toContain('<SFNotificationDetailPage />')
+    expect(route).not.toContain('useNotifications()')
+    expect(detail).toContain('notifications.get(notificationId)')
+    expect(detail).toContain('apiErrorStatusCode(detailAsync.error.value) === 404')
+    expect(detail).toContain('onMounted(async () =>')
+    expect(detail).toContain('await notifications.markRead(detail.value.id)')
+    expect(detail).toContain('preview.context')
+    expect(detail).toContain('router.push(localePath(presented.value.target.path))')
+    expect(detail).toContain('data-sforum-island-body="forum.component.notification_detail"')
+    expect(detail).toContain('data-layout="fullwidth-3col"')
+    expect(detail).not.toContain('<SFContentColumnFooter')
+    expect(detail).not.toContain('ssr: false')
   })
 
   test('ships bilingual copy for every notification type and state added by the page', () => {
@@ -318,6 +397,8 @@ describe('SFNotificationsPage contract', () => {
       expect(locale.notifications.body.moderation_rejected_note).toBeTruthy()
       expect(locale.notifications.actions.viewReply).toBeTruthy()
       expect(locale.notifications.detail.empty).toBeTruthy()
+      expect(locale.notifications.detailPage.repliedComment).toBeTruthy()
+      expect(locale.notifications.detailPage.originalTopic).toBeTruthy()
       expect(locale.notifications.targetUnavailableHelp).toBeTruthy()
     }
   })
