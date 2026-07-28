@@ -107,6 +107,9 @@ describe('Notification Platform V2 settings', () => {
 
   test('has a distinct permission-aware admin surface and removes the active policy tab from Mail', () => {
     expect(adminPage).toContain("useAdminPage('/settings/notifications')")
+    expect(adminPage).toContain('SFAdminFixedTabNav')
+    expect(adminPage).toContain('SFAdminNotificationPolicyPage')
+    expect(adminPage).toContain('SFAdminNotificationChannels')
     expect(adminSettings).toContain("'/admin/notifications/policy'")
     expect(adminSettings).toContain("'/admin/notifications/policy/restore'")
     expect(adminSettings).toContain("can('settings.notifications.manage')")
@@ -139,7 +142,8 @@ describe('Notification Platform V2 settings', () => {
   })
 
   test('manages generic channel selection, reset, self-test, and redacted delivery health', () => {
-    expect(adminSettings).toContain('<SFAdminNotificationChannels')
+    expect(adminSettings).not.toContain('<SFAdminNotificationChannels')
+    expect(adminPage).toContain('channels: SFAdminNotificationChannels')
     expect(adminChannelsApi).toContain("`${base}/channels`")
     expect(adminChannelsApi).toContain("`${base}/channels/${channel}`")
     expect(adminChannelsApi).toContain("`${base}/channels/${channel}/reset`")

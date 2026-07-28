@@ -3605,6 +3605,13 @@
       "title": "通知设置",
       "description": "配置社区可用的通知类型和投递渠道。",
       "toolbar": "类型策略、推荐默认值与用户控制",
+      "tabs": {
+        "label": "通知设置分类",
+        "policy": "类型策略",
+        "channels": "外部渠道"
+      },
+      "policyTitle": "通知类型策略",
+      "policyDescription": "按类型和渠道设置站点可用范围、推荐默认值与用户选择权。",
       "noPermission": "你没有管理通知设置的权限。",
       "recommendedTitle": "推荐：保持直接互动通知开启",
       "recommendedDescription": "站内通知不依赖外部提供商。推荐外部渠道前，请先检查其配置和可用性。",

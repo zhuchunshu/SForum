@@ -3605,6 +3605,13 @@
       "title": "Notification settings",
       "description": "Set which notification types and delivery channels are available to the community.",
       "toolbar": "Type policy, recommended defaults, and user controls",
+      "tabs": {
+        "label": "Notification settings sections",
+        "policy": "Type policy",
+        "channels": "External channels"
+      },
+      "policyTitle": "Notification type policy",
+      "policyDescription": "Set site availability, recommended defaults, and member control by type and channel.",
       "noPermission": "You need notification settings permission to change this policy.",
       "recommendedTitle": "Recommended: keep direct conversation notices on",
       "recommendedDescription": "In-app delivery works without an external provider. Review external channels before recommending them to members.",

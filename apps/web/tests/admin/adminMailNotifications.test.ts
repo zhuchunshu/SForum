@@ -6,8 +6,22 @@ const overviewTab = await Bun.file(new URL('../../app/components/admin/settings/
 const providerTab = await Bun.file(new URL('../../app/components/admin/settings/mail/tabs/SFAdminMailProviderTab.vue', import.meta.url)).text()
 const deliveriesTab = await Bun.file(new URL('../../app/components/admin/settings/mail/tabs/SFAdminMailDeliveriesTab.vue', import.meta.url)).text()
 const mailPage = await Bun.file(new URL('../../app/pages/admin/settings/mail.vue', import.meta.url)).text()
+const siteSettingsPage = await Bun.file(new URL('../../app/pages/admin/settings/index.vue', import.meta.url)).text()
+const notificationSettingsPage = await Bun.file(new URL('../../app/pages/admin/settings/notifications.vue', import.meta.url)).text()
 const zh = JSON.parse(await Bun.file(new URL('../../i18n/locales/zh-CN.json', import.meta.url)).text())
 const en = JSON.parse(await Bun.file(new URL('../../i18n/locales/en-US.json', import.meta.url)).text())
+
+function expectCanonicalSettingsShell(page: string) {
+  expect(page).toContain('text-xl font-bold')
+  expect(page).toContain('UDashboardToolbar')
+  expect(page).toContain('mb-6 rounded-lg border')
+  expect(page).toContain('SFAdminFixedTabNav')
+  expect(page).toContain('<KeepAlive>')
+  expect(page).toContain('<component')
+  expect(page).not.toContain('text-5xl')
+  expect(page).not.toContain('text-6xl')
+  expect(page).not.toContain('text-7xl')
+}
 
 describe('mail and notification admin center', () => {
   test('is visible in the System navigation with settings permission', () => {
@@ -30,6 +44,18 @@ describe('mail and notification admin center', () => {
     expect(mailPage).not.toContain("'notifications'")
     expect(mailPage).toContain('SFAdminMailProviderTab')
     expect(mailPage).toContain('SFAdminMailDeliveriesTab')
+  })
+
+  test('keeps Mail and Notification settings on the canonical settings shell', () => {
+    expectCanonicalSettingsShell(siteSettingsPage)
+    expectCanonicalSettingsShell(mailPage)
+    expectCanonicalSettingsShell(notificationSettingsPage)
+    for (const page of [mailPage, notificationSettingsPage]) {
+      expect(page).toContain('min-w-0')
+      expect(page).toContain(':aria-label=')
+      expect(page).toContain(':title=')
+      expect(page).toContain('hidden sm:inline')
+    }
   })
 
   test('keeps overview guidance and localizes delivery list codes', () => {

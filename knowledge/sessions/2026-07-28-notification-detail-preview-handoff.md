@@ -12,6 +12,9 @@
   built-in templates, generated catalogs, and completeness tests.
 - Removed duplicate notification Host-island footers; theme and Core fallback
   paths now each own exactly one public navbar/footer.
+- Fixed the Navbar badge remaining stale until page reload: auth-state startup
+  is immediate, EventSource errors reconcile through REST, closed sources
+  reconnect after one second, and visible pages retain a 30-second fallback.
 - Expanded `AGENTS.md` with nested-route, Page Registry completion, runtime
   provider/template, and single-owner chrome requirements. Added a Go guard
   against parent route files shadowing nested pages without `<NuxtPage>`.
@@ -32,6 +35,10 @@
   visible footer, and no new warning/error logs.
 - Chrome flow: `/notifications` row -> `/notifications/58` -> explicit target
   action -> `/t/63/vibecoding#comment-279`.
+- The operator manually verified that a newly received notification updates the
+  bell badge without reloading the page.
+- Notification frontend tests now cover asynchronous SSE failure and closed
+  source recovery; 16 focused tests and Nuxt typecheck pass.
 - Focused Go suites, 88 Bun tests, Nuxt typecheck, OpenAPI refs, V3 catalog
   check, `git diff --check`, and architecture validation pass.
 

@@ -36,6 +36,11 @@ Archived plan:
 
 - Fixed Core settings tabs now use the shared `SFAdminFixedTabNav`, query-synced
   dynamic components, and `KeepAlive`.
+- Core admin settings pages share the Site Settings geometry contract: compact
+  registry-icon title, standard toolbar, fixed-tab navigation, and one active
+  `min-w-0` panel. Mail and Notification settings have a focused regression
+  test wired into the repository gate, while desktop plus `390x844` Browser QA
+  remains mandatory for visual completion.
 - Site, forum, SEO, personalization, attachments, and mail use independent tab
   components under `components/admin/settings/<area>/tabs/`.
 - Route shells are below 150 lines for the six migrated areas except where

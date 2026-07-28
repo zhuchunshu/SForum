@@ -83,17 +83,21 @@ load archived sessions or completed plans as current context.
   localization is present; production-rewire honesty findings remain open.
 - **Notifications:** V2 is complete: transactional reply/mention/moderation
   fanout, layered policy and own-user preferences, exact-artifact plugin
-  emission, durable-revision SSE, generic channel delivery, and the protected
-  Web Push reference provider are shipped.
+  emission, durable-revision SSE with REST/reconnect fallback, generic channel
+  delivery, and the protected Web Push reference provider are shipped.
 - **Dev:** Compose owns PostgreSQL, Redis, and Mailpit. The user owns the web
   dev server on port 3000; do not kill it.
 
 ## Latest Handoff
 
-- Notification detail preview: independent authenticated list/detail routes,
-  recipient-authoritative API, current-content preview, selected-theme runtime
-  proof, Nuxt nested-route and Page Registry completion guardrails, and
-  single-owner public chrome:
+- Admin Mail and Notification settings parity: compact shared settings header,
+  standard toolbars, fixed notification policy/channel tabs, single-panel tab
+  content, and desktop/mobile Browser QA:
+  `sessions/2026-07-28-admin-mail-notification-settings-parity-handoff.md`
+- Notification detail preview and realtime badge recovery: independent
+  authenticated list/detail routes, recipient-authoritative preview, selected
+  theme proof, single-owner public chrome, immediate auth subscription, and
+  SSE error/reconnect/visible-page REST reconciliation:
   `sessions/2026-07-28-notification-detail-preview-handoff.md`
 - Architecture boundary debt M0-M12 completed: fixed tabs, domain placement,
   backend splits, focused collaborators, stable extension contracts, import

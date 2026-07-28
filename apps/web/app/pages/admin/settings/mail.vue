@@ -30,6 +30,8 @@ const components: Record<MailTab, Component> = {
 }
 const activeComponent = computed(() => components[activeTab.value])
 
+useSeoMeta({ title: t('admin.mailSettings.title') })
+
 watch(() => route.query.tab, value => { activeTab.value = normalizeTab(value) })
 watch(activeTab, async tab => {
   if (route.query.tab === tab) return
@@ -44,13 +46,37 @@ function setActiveTab(value: string) { activeTab.value = normalizeTab(value) }
 </script>
 
 <template>
-  <div class="space-y-5">
-    <header><h1 class="flex items-center gap-2 font-bold"><UIcon :name="adminPage.icon" class="size-5 text-[var(--sf-accent)]" />{{ t('admin.mailSettings.title') }}</h1><p class="mt-1 text-sm text-muted">{{ t('admin.mailSettings.description') }}</p></header>
-    <UDashboardToolbar class="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-500 dark:border-zinc-800 dark:bg-zinc-900">
-      <template #left><div class="flex items-center gap-2 text-sm"><UIcon name="i-lucide-mail" class="size-4" /><span>{{ t('admin.mailSettings.description') }}</span></div></template>
-      <template #right><UButton icon="i-lucide-rotate-cw" color="neutral" variant="outline" :loading="childRef?.pending" @click="childRef?.refresh?.()">{{ t('admin.home.refresh') }}</UButton></template>
-    </UDashboardToolbar>
-    <section class="rounded-md border border-teal-200 bg-teal-50/80 p-4 dark:border-teal-900/60 dark:bg-teal-950/30"><div class="flex gap-3"><UIcon name="i-lucide-sparkles" class="size-5 text-teal-700" /><div><h2 class="font-bold">{{ t('admin.mailSettings.recommendedTitle') }}</h2><p class="mt-1 text-sm">{{ t('admin.mailSettings.recommendedDescription') }}</p></div></div></section>
+  <div class="mb-4">
+    <h2 class="flex items-center gap-2 text-xl font-bold text-slate-900 dark:text-zinc-100">
+      <UIcon :name="adminPage.icon" class="size-5 text-[var(--sf-accent)] dark:text-[var(--sf-accent-dark)]" />
+      {{ t('admin.mailSettings.title') }}
+    </h2>
+  </div>
+
+  <UDashboardToolbar class="mb-6 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+    <template #left>
+      <div class="flex min-w-0 items-center gap-2 text-sm">
+        <UIcon name="i-lucide-mail" class="size-4" />
+        <span class="hidden truncate sm:inline">{{ t('admin.mailSettings.description') }}</span>
+      </div>
+    </template>
+    <template #right>
+      <UButton
+        leading-icon="i-lucide-refresh-cw"
+        color="neutral"
+        variant="outline"
+        :loading="childRef?.pending"
+        class="border-slate-200 dark:border-zinc-700"
+        :aria-label="t('admin.home.refresh')"
+        :title="t('admin.home.refresh')"
+        @click="childRef?.refresh?.()"
+      >
+        <span class="hidden sm:inline">{{ t('admin.home.refresh') }}</span>
+      </UButton>
+    </template>
+  </UDashboardToolbar>
+
+  <div class="flex w-full min-w-0 flex-col gap-4">
     <SFAdminFixedTabNav :items="tabs" :model-value="activeTab" :ariaLabel="t('admin.mailSettings.title')" @update:model-value="setActiveTab" />
     <KeepAlive><component :is="activeComponent" :key="activeTab" ref="childRef" /></KeepAlive>
   </div>

@@ -13,26 +13,55 @@ async function load() {
 defineExpose({ refresh: load, pending })
 </script>
 <template>
-  <UCard class="border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-    <template #header><div><h2 class="text-base font-bold">{{ t('admin.mailSettings.gettingStarted') }}</h2><p class="mt-1 text-xs text-muted">{{ t('admin.mailSettings.description') }}</p></div></template>
-    <SFAlert v-if="errorMessage" variant="danger" :title="errorMessage" />
-    <div class="grid gap-4 md:grid-cols-2">
-      <div class="rounded-md border border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-900 dark:bg-emerald-950/20"><div class="flex justify-between gap-3"><strong>{{ t('admin.mailSettings.inAppStatus') }}</strong><UBadge color="success" variant="soft">{{ t('admin.mailSettings.ready') }}</UBadge></div><p class="mt-2 text-sm">{{ t('admin.mailSettings.inAppReady') }}</p></div>
-      <div class="rounded-md border p-4" :class="configured ? 'border-emerald-200' : 'border-amber-200'"><div class="flex justify-between gap-3"><strong>{{ t('admin.mailSettings.mailStatus') }}</strong><UBadge :color="configured ? 'success' : 'warning'" variant="soft">{{ configured ? t('admin.mailSettings.ready') : t('admin.mailSettings.needsSetup') }}</UBadge></div><p class="mt-2 text-sm">{{ configured ? t('admin.mailSettings.providerReady') : t('admin.mailSettings.inAppContinues') }}</p></div>
+  <UCard class="border-slate-200 bg-white text-slate-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100">
+    <template #header>
+      <div>
+        <h2 class="text-base font-bold text-slate-900 dark:text-white">{{ t('admin.mailSettings.gettingStarted') }}</h2>
+        <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.mailSettings.description') }}</p>
+      </div>
+    </template>
+
+    <div class="max-w-5xl space-y-5">
+      <SFAlert v-if="errorMessage" variant="danger" :title="errorMessage" />
+      <UAlert
+        color="primary"
+        variant="soft"
+        icon="i-lucide-sparkles"
+        :title="t('admin.mailSettings.recommendedTitle')"
+        :description="t('admin.mailSettings.recommendedDescription')"
+      />
+
+      <section class="divide-y divide-slate-200 border-y border-slate-200 dark:divide-zinc-800 dark:border-zinc-800">
+        <div class="flex flex-col gap-2 py-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h3 class="text-sm font-semibold">{{ t('admin.mailSettings.inAppStatus') }}</h3>
+            <p class="mt-1 text-sm text-muted">{{ t('admin.mailSettings.inAppReady') }}</p>
+          </div>
+          <UBadge color="success" variant="soft">{{ t('admin.mailSettings.ready') }}</UBadge>
+        </div>
+        <div class="flex flex-col gap-2 py-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h3 class="text-sm font-semibold">{{ t('admin.mailSettings.mailStatus') }}</h3>
+            <p class="mt-1 text-sm text-muted">{{ configured ? t('admin.mailSettings.providerReady') : t('admin.mailSettings.inAppContinues') }}</p>
+          </div>
+          <UBadge :color="configured ? 'success' : 'warning'" variant="soft">{{ configured ? t('admin.mailSettings.ready') : t('admin.mailSettings.needsSetup') }}</UBadge>
+        </div>
+      </section>
+
+      <ol class="divide-y divide-slate-200 dark:divide-zinc-800">
+        <li
+          v-for="(step, index) in [
+            { title: t('admin.mailSettings.stepProvider'), help: t('admin.mailSettings.stepProviderHelp') },
+            { title: t('admin.mailSettings.stepConfigure'), help: t('admin.mailSettings.stepConfigureHelp') },
+            { title: t('admin.mailSettings.stepTest'), help: t('admin.mailSettings.stepTestHelp') }
+          ]"
+          :key="step.title"
+          class="flex gap-3 py-4"
+        >
+          <span class="grid size-7 shrink-0 place-items-center rounded-full bg-[var(--sf-accent)] text-xs font-bold text-white">{{ index + 1 }}</span>
+          <span><strong class="block text-sm">{{ step.title }}</strong><span class="mt-1 block text-xs leading-5 text-muted">{{ step.help }}</span></span>
+        </li>
+      </ol>
     </div>
-    <ol class="mt-6 grid gap-3 lg:grid-cols-3">
-      <li
-        v-for="(step, index) in [
-          { title: t('admin.mailSettings.stepProvider'), help: t('admin.mailSettings.stepProviderHelp') },
-          { title: t('admin.mailSettings.stepConfigure'), help: t('admin.mailSettings.stepConfigureHelp') },
-          { title: t('admin.mailSettings.stepTest'), help: t('admin.mailSettings.stepTestHelp') }
-        ]"
-        :key="step.title"
-        class="flex gap-3 rounded-md border border-slate-200 p-4 dark:border-zinc-800"
-      >
-        <span class="grid size-7 shrink-0 place-items-center rounded-full bg-[var(--sf-accent)] text-xs font-bold text-white">{{ index + 1 }}</span>
-        <span><strong class="block text-sm">{{ step.title }}</strong><span class="mt-1 block text-xs leading-5 text-muted">{{ step.help }}</span></span>
-      </li>
-    </ol>
   </UCard>
 </template>

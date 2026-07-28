@@ -31,6 +31,14 @@ PostgreSQL boolean columns with `BOOL_OR`/`BOOL_AND`, never `MAX(boolean)`.
 `MAX(boolean)` caused comment creation to roll back while reading notification
 policy. A real PostgreSQL regression test now covers this compatibility query.
 
+Realtime badge hotfix (2026-07-28): the public Navbar starts notification
+realtime from an immediate auth-state watcher instead of relying on child/parent
+mount ordering. An asynchronous EventSource failure now triggers an immediate
+REST reconciliation; a terminally closed source reconnects after one second.
+Visible subscribed pages also reconcile every 30 seconds and whenever the tab
+becomes visible, so API restarts, proxy interruptions, and missed wake signals
+cannot leave the bell badge frozen until a full page reload.
+
 ### Plugin Extension Surface
 
 | Surface | V2 contract |
@@ -117,8 +125,9 @@ notification data ownership.
 
 The inbox uses server-authoritative category/type/unread filters and cursor
 pagination. `useNotifications` shares one EventSource, coalesces refresh signals,
-and falls back to normal REST/manual refresh. SSE contains revision signals only;
-durable PostgreSQL rows and recipient revision remain truth.
+and reconciles through REST on connect/error, tab visibility, and a 30-second
+visible-page fallback interval. SSE contains revision signals only; durable
+PostgreSQL rows and recipient revision remain truth.
 
 The notification page uses the canonical `topic.create` permission helper for
 the shared forum navigation. Below the desktop right-rail breakpoint, the same
@@ -135,6 +144,12 @@ Push provider is `sforum.web-push`; VAPID secrets remain in SecretStore and API
 responses expose only `secretSet` plus the public key. The Host worker is fixed
 at `/_sforum/notifications/sw.js` with scope `/_sforum/notifications/`, imports
 no plugin code, and accepts only bounded same-origin click paths.
+
+The admin route uses the shared settings geometry and two fixed Core tabs:
+Type Policy and External Channels. Each tab owns one focused panel; policy and
+provider/delivery health no longer share one long scrolling surface. The route
+shell owns tab/query state and refreshes only the active tab, while API policy
+and `settings.notifications.manage` remain authoritative.
 
 Digests, scheduled summaries, unsubscribe-link semantics, broadcast/marketing,
 and additional vendor channels remain deferred.

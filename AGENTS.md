@@ -163,6 +163,20 @@ Frontend rules:
   save/reset behavior, and focused tests with that tab or its domain
   composable. The route shell owns only tab selection and shared page-level
   orchestration.
+- Core-owned admin settings pages must follow the visual geometry established
+  by `apps/web/app/pages/admin/settings/index.vue`: a compact `text-xl` page
+  title with the registry icon, the standard bordered `UDashboardToolbar`,
+  `SFAdminFixedTabNav` for fixed sections, and one active content panel in a
+  `min-w-0` column. Do not introduce a marketing-style hero heading, a second
+  page intro, a separate tab system, or several competing top-level cards.
+- The route shell owns page title, toolbar, query-synchronized tab selection,
+  and active-tab refresh. A tab component must not render another page title,
+  toolbar, or sibling tab's content. On narrow screens, toolbar commands may
+  collapse to icons only, but must retain `aria-label` and `title` text.
+- A deliberate admin-settings layout departure requires user confirmation and
+  a decision record explaining why the shared settings contract is
+  insufficient. Convenience or independently designed feature UI is not a
+  sufficient reason.
 - Runtime-defined extension/provider tabs are the deliberate exception: render
   them through the generic Schema/provider renderer. Do not create
   vendor-specific Core files merely to satisfy the one-file-per-tab rule.
@@ -359,6 +373,12 @@ future generated clients. Keep it modular as the product surface grows.
   both the production binding map and the template validator allowlist. Add a
   completeness test for paired surfaces (for example create/edit) so one
   cannot silently fall back to Core while the other uses the selected theme.
+- New or materially changed admin settings pages require rendered Browser QA
+  against `/control-panel/settings` at desktop and `390x844` mobile widths.
+  Completion evidence must cover title/toolbar/tab alignment, the active-panel
+  transition, accessible compact actions, and absence of horizontal overflow
+  or clipped controls. Source inspection and unit tests alone are not visual
+  completion evidence.
 - Use Toast feedback generously for user-triggered actions that succeed,
   complete, start a background task, copy data, reset settings, or save
   changes. Authentication success, create/update/delete success, restore

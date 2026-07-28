@@ -49,6 +49,7 @@ if [ -d apps/web/node_modules ]; then
     tests/identity/authProvidersPublicUi.test.ts \
     tests/identity/authRouteRendering.test.ts \
     tests/admin/adminLoginMethods.test.ts \
+    tests/admin/adminMailNotifications.test.ts \
     tests/identity/accountSecurityM4b.test.ts)
   echo "Running admin framework validation..."
   bun tests/validate-admin-framework.ts

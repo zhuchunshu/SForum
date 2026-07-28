@@ -23,6 +23,10 @@ SMTP, log delivery, no-op delivery, authentication, or TLS.
   and mail delivery history. Notification policy moved to the dedicated
   `/control-panel/settings/notifications` admin surface; existing `/admin/mail/policy`
   routes remain compatibility projections over the Notification resolver.
+- The admin Mail surface follows the shared settings geometry: compact page
+  title, standard refresh toolbar, fixed Overview/Mail/Delivery tabs, and one
+  settings panel per tab. Overview guidance is a vertical status and setup flow
+  inside the panel rather than a separate hero or card grid.
 - Provider selection and settings navigation remain extension-generic.
   Deliveries owns status, template, and reason localization. Queued test mail
   is not presented as synchronously delivered.
