@@ -116,6 +116,7 @@ describe('SFPageOutlet catalog wiring', () => {
     expect(systemTemplate).toContain('L0/L1')
     expect(systemTemplate).toContain('SFSystemErrorEmergencyPage')
     expect(systemTemplate).toContain('<SFSystemErrorEmergencyPage v-else')
+    expect(systemTemplate).toContain('class="sf-theme-template sf-system-theme-template"')
     expect(systemTemplate).not.toContain('SFAlert')
     expect(systemTemplate).toContain("'system.component.error_details': SFSystemErrorDetails")
     expect(systemTemplate).toContain("'system.component.error_actions': SFSystemErrorActions")

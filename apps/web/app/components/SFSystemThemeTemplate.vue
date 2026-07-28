@@ -77,7 +77,7 @@ const ThemeNodes = () => renderThemeRenderNodes(
 </script>
 
 <template>
-  <div class="sf-system-theme-template" :data-extension-id="extensionId || ''">
+  <div class="sf-theme-template sf-system-theme-template" :data-extension-id="extensionId || ''">
     <template v-if="!rendered.error">
       <ThemeNodes />
     </template>
