@@ -23,6 +23,10 @@
   stable `v3.4.0`. The Host session cleanup boundary now clears authentication
   data explicitly before commit-unknown delete/save compensation because
   Fiber 3.4 preserves in-memory session data when storage deletion fails.
+- Upgraded the Buf/Protobuf tool module's indirect `github.com/google/cel-go`
+  dependency from `v0.28.1` to `v0.29.0`, resolving the Dependabot CEL field
+  visibility advisory. The same tool graph now selects patched
+  `golang.org/x/text v0.39.0` and `github.com/klauspost/compress v1.18.7`.
 
 ## Decisions
 
@@ -46,6 +50,11 @@
   HTTP stack but remained non-green because of unrelated dirty-worktree tests
   (extension missing-artifact routing and theme search schema), allocation
   ceilings, and the sandbox-blocked `/bin/ps` test. `git diff --check` passed.
+- The tool module contains no ordinary Go packages, so its three declared
+  tools were built and executed directly: Buf `1.71.0`, protoc-gen-go
+  `v1.36.11`, and protoc-gen-go-grpc `1.6.2`. Binary `govulncheck` on Buf with
+  `cel-go v0.29.0`, `x/text v0.39.0`, and `compress v1.18.7` found zero
+  reachable vulnerabilities; the CEL, x/text, and S2 advisories are absent.
 - A full repository gate rerun reached the PostgreSQL integration suite but was
   interrupted by one transient migration error (`could not open relation with
   OID`) in `TestNotificationReferencePluginEmitsThroughRealBroker`. The exact
@@ -64,8 +73,8 @@
   linked to `zhuchunshu/SForum`.
 - Make the CI and Security checks required after the initial `main` baseline is
   green.
-- Continue Dependabot remediation with `cel-go`, then decide how to handle the
-  unpatched `disintegration/imaging` TIFF panic advisory.
+- Decide how to handle the unpatched `disintegration/imaging` TIFF panic
+  advisory.
 
 ## Open Questions
 

@@ -115,7 +115,8 @@ load archived sessions or completed plans as current context.
   `sessions/2026-07-29-extension-missing-artifact-uninstall-routing.md`
 - GitHub Actions and security remediation: reusable CI/security checks, four
   multi-platform GHCR images, version-pinned deployment, gRPC remediation, and
-  Fiber `v3.4.0` across all 18 source Go modules with session failure cleanup:
+  Fiber `v3.4.0` across all 18 source Go modules with session failure cleanup;
+  the Buf tool graph now uses patched CEL, text, and compression dependencies:
   `sessions/2026-07-29-github-actions-release-pipeline-handoff.md`
 - Notification email opt-in defaults: admin per-type email control, Core
   transaction-scoped user preference enforcement, hard site gate, safe default
