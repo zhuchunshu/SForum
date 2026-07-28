@@ -770,6 +770,54 @@
       "path": "/api/v1/admin/notifications/test"
     },
     {
+      "id": "core.route.notifications.get_policy",
+      "contractVersion": "sforum.route.notifications.get_policy@1",
+      "method": "GET",
+      "path": "/api/v1/admin/notifications/policy"
+    },
+    {
+      "id": "core.route.notifications.update_policy",
+      "contractVersion": "sforum.route.notifications.update_policy@1",
+      "method": "PUT",
+      "path": "/api/v1/admin/notifications/policy"
+    },
+    {
+      "id": "core.route.notifications.restore_policy",
+      "contractVersion": "sforum.route.notifications.restore_policy@1",
+      "method": "POST",
+      "path": "/api/v1/admin/notifications/policy/restore"
+    },
+    {
+      "id": "core.route.notifications.list_channels",
+      "contractVersion": "sforum.route.notifications.list_channels@1",
+      "method": "GET",
+      "path": "/api/v1/admin/notifications/channels"
+    },
+    {
+      "id": "core.route.notifications.select_channel_provider",
+      "contractVersion": "sforum.route.notifications.select_channel_provider@1",
+      "method": "PUT",
+      "path": "/api/v1/admin/notifications/channels/:channel"
+    },
+    {
+      "id": "core.route.notifications.reset_channel_provider",
+      "contractVersion": "sforum.route.notifications.reset_channel_provider@1",
+      "method": "POST",
+      "path": "/api/v1/admin/notifications/channels/:channel/reset"
+    },
+    {
+      "id": "core.route.notifications.test_channel",
+      "contractVersion": "sforum.route.notifications.test_channel@1",
+      "method": "POST",
+      "path": "/api/v1/admin/notifications/channels/:channel/test"
+    },
+    {
+      "id": "core.route.notifications.list_channel_deliveries",
+      "contractVersion": "sforum.route.notifications.list_channel_deliveries@1",
+      "method": "GET",
+      "path": "/api/v1/admin/notifications/deliveries"
+    },
+    {
       "id": "core.route.admin_overview.overview",
       "contractVersion": "sforum.route.admin_overview.overview@1",
       "method": "GET",
@@ -1302,6 +1350,54 @@
       "contractVersion": "sforum.route.notifications.unread_count@1",
       "method": "GET",
       "path": "/api/v1/notifications/unread-count"
+    },
+    {
+      "id": "core.route.notifications.stream",
+      "contractVersion": "sforum.route.notifications.stream@1",
+      "method": "GET",
+      "path": "/api/v1/notifications/stream"
+    },
+    {
+      "id": "core.route.notifications.get_preferences",
+      "contractVersion": "sforum.route.notifications.get_preferences@1",
+      "method": "GET",
+      "path": "/api/v1/notification-preferences"
+    },
+    {
+      "id": "core.route.notifications.update_preferences",
+      "contractVersion": "sforum.route.notifications.update_preferences@1",
+      "method": "PUT",
+      "path": "/api/v1/notification-preferences"
+    },
+    {
+      "id": "core.route.notifications.restore_preferences",
+      "contractVersion": "sforum.route.notifications.restore_preferences@1",
+      "method": "POST",
+      "path": "/api/v1/notification-preferences/restore"
+    },
+    {
+      "id": "core.route.notifications.web_push_config",
+      "contractVersion": "sforum.route.notifications.web_push_config@1",
+      "method": "GET",
+      "path": "/api/v1/web-push/config"
+    },
+    {
+      "id": "core.route.notifications.list_web_push_subscriptions",
+      "contractVersion": "sforum.route.notifications.list_web_push_subscriptions@1",
+      "method": "GET",
+      "path": "/api/v1/web-push/subscriptions"
+    },
+    {
+      "id": "core.route.notifications.create_web_push_subscription",
+      "contractVersion": "sforum.route.notifications.create_web_push_subscription@1",
+      "method": "POST",
+      "path": "/api/v1/web-push/subscriptions"
+    },
+    {
+      "id": "core.route.notifications.revoke_web_push_subscription",
+      "contractVersion": "sforum.route.notifications.revoke_web_push_subscription@1",
+      "method": "DELETE",
+      "path": "/api/v1/web-push/subscriptions/:id"
     },
     {
       "id": "core.route.pages.public_catalog",
@@ -2048,6 +2144,22 @@
       "source": "apps/web/app/components/admin/settings/mail/tabs/SFAdminMailProviderTab.vue"
     },
     {
+      "id": "core.component.admin.sfadmin_notification_policy_page",
+      "contractVersion": "sforum.component.admin.sfadmin_notification_policy_page@1",
+      "kind": "component",
+      "owners": ["admin"],
+      "state": "active",
+      "source": "apps/web/app/components/admin/settings/notifications/SFAdminNotificationPolicyPage.vue"
+    },
+    {
+      "id": "core.component.admin.sfadmin_notification_channels",
+      "contractVersion": "sforum.component.admin.sfadmin_notification_channels@1",
+      "kind": "component",
+      "owners": ["admin"],
+      "state": "active",
+      "source": "apps/web/app/components/admin/settings/notifications/SFAdminNotificationChannels.vue"
+    },
+    {
       "id": "core.component.admin.sfadmin_personalization_announcements_tab",
       "contractVersion": "sforum.component.admin.sfadmin_personalization_announcements_tab@1",
       "kind": "component",
@@ -2642,6 +2754,14 @@
       "source": "apps/web/app/pages/admin/settings/mail.vue"
     },
     {
+      "id": "core.component.page.admin.settings.notifications",
+      "contractVersion": "sforum.component.page.admin.settings.notifications@1",
+      "kind": "page",
+      "owners": ["admin"],
+      "state": "active",
+      "source": "apps/web/app/pages/admin/settings/notifications.vue"
+    },
+    {
       "id": "core.component.page.admin.site.chrome",
       "contractVersion": "sforum.component.page.admin.site.chrome@1",
       "kind": "page",
@@ -2800,6 +2920,14 @@
       ],
       "state": "active",
       "source": "apps/web/app/pages/settings/profile.vue"
+    },
+    {
+      "id": "core.component.page.settings.notifications",
+      "contractVersion": "sforum.component.page.settings.notifications@1",
+      "kind": "page",
+      "owners": ["public"],
+      "state": "active",
+      "source": "apps/web/app/pages/settings/notifications.vue"
     },
     {
       "id": "core.component.page.forum.settings.security",
@@ -3651,6 +3779,22 @@
       ],
       "state": "active",
       "source": "apps/web/app/components/settings/SFSettingsShell.vue"
+    },
+    {
+      "id": "core.component.shared.sfnotification_settings_page",
+      "contractVersion": "sforum.component.shared.sfnotification_settings_page@1",
+      "kind": "component",
+      "owners": ["public"],
+      "state": "active",
+      "source": "apps/web/app/components/settings/SFNotificationSettingsPage.vue"
+    },
+    {
+      "id": "core.component.shared.sfweb_push_settings_section",
+      "contractVersion": "sforum.component.shared.sfweb_push_settings_section@1",
+      "kind": "component",
+      "owners": ["public"],
+      "state": "active",
+      "source": "apps/web/app/components/settings/SFWebPushSettingsSection.vue"
     },
     {
       "id": "core.component.shared.sfskeleton",

@@ -12,6 +12,7 @@ For contributors, see [Development](../development/README.md).
 | [First registration & super admin](./first-login.md) | First user, `super_admin`, sessions |
 | [Admin control panel](./admin.md) | Entry, settings UX, permissions |
 | [Forum day-to-day](./forum.md) | Taxonomy, posting, moderation |
+| [Notifications](./notifications.md) | Inbox, preferences, Web Push, operator policy |
 | [Search](./search.md) | Site search vs optional Meilisearch |
 | [Extensions & themes](./extensions.md) | Install, enable, trust, activate |
 | [GitHub login methods](./github-login.md) | Built-in GitHub setup, lifecycle, troubleshooting |

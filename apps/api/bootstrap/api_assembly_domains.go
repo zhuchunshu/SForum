@@ -8,6 +8,7 @@ import (
 	"time"
 
 	httpserver "github.com/zhuchunshu/sforum/apps/api/app/Http"
+	notificationscontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Notifications"
 	apitokens "github.com/zhuchunshu/sforum/apps/api/app/Models/APITokens"
 	adminoverview "github.com/zhuchunshu/sforum/apps/api/app/Models/AdminOverview"
 	entitymeta "github.com/zhuchunshu/sforum/apps/api/app/Models/EntityMeta"
@@ -32,6 +33,43 @@ import (
 	search "github.com/zhuchunshu/sforum/apps/api/app/Support/Search"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
+
+type apiNotificationChannelRuntimeAdapter struct{ runtime *extensionsruntime.Manager }
+
+func (a apiNotificationChannelRuntimeAdapter) NotificationChannelInspection(ctx context.Context) (extensions.ProviderSlotInspection, error) {
+	return a.runtime.ProviderSlotInspection(ctx)
+}
+
+func (a apiNotificationChannelRuntimeAdapter) SelectNotificationChannel(ctx context.Context, slot, candidate string, revision, actorID, auditID int64) (any, error) {
+	if a.runtime == nil || a.runtime.ProviderSlotSelections() == nil {
+		return nil, notificationscontroller.ErrChannelRuntimeUnavailable
+	}
+	return a.runtime.ProviderSlotSelections().Select(ctx, slot, candidate, revision, actorID, auditID)
+}
+
+func (a apiNotificationChannelRuntimeAdapter) ResetNotificationChannel(ctx context.Context, slot string, revision, actorID, auditID int64) error {
+	if a.runtime == nil || a.runtime.ProviderSlotSelections() == nil {
+		return notificationscontroller.ErrChannelRuntimeUnavailable
+	}
+	return a.runtime.ProviderSlotSelections().Reset(ctx, extensionsruntime.ResetProviderSlotRequest{
+		ContractID: slot, ExpectedRevision: revision, ActorUserID: actorID,
+		AuditEventID: auditID, ReasonCode: "operator_reset",
+	})
+}
+
+func (a apiNotificationChannelRuntimeAdapter) ProbeNotificationChannel(ctx context.Context, slot, contractVersion, inputSchema string) (map[string]any, error) {
+	if a.runtime == nil {
+		return nil, notificationscontroller.ErrChannelRuntimeUnavailable
+	}
+	result, err := a.runtime.InvokeVersionedProvider(ctx, extensionsruntime.VersionedProviderInvocation{
+		SlotID: slot, ContractVersion: contractVersion,
+		Operation: extensionsruntime.VersionedProviderOperationInvoke, InputSchema: inputSchema,
+		Input: map[string]any{"operation": "probe"}, Revalidate: extensionsruntime.BoundedProviderDocumentRevalidator,
+	})
+	return result.Output, err
+}
+
+var _ notificationscontroller.ChannelRuntime = apiNotificationChannelRuntimeAdapter{}
 
 func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.Logger, infrastructure *apiInfrastructure, extensionPlatform *apiExtensionPlatform) (*apiCoreStack, error) {
 	queryCacheOwnership := newQueryResultCacheStageHandoff(infrastructure.queryResultCache, logger)
@@ -79,8 +117,10 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	pluginRuntimeStopTimeout := extensionPlatform.pluginRuntimeStopTimeout
 	stopPluginRuntimeCoordinator := extensionPlatform.stopPluginRuntimeCoordinator
 	closePluginRuntime := extensionPlatform.closePluginRuntime
-	notificationStore := notifications.NewPostgresStore(pool)
-	mailOutbox := notifications.NewOutbox(pool, notificationStore, jobDispatcher).WithPolicyReader(optionsService)
+	notificationStore := notifications.NewPostgresStore(pool).WithRevisionWakeups(ctx)
+	mailOutbox := notifications.NewOutbox(pool, notificationStore, jobDispatcher).
+		WithPolicyReader(notificationStore).
+		WithDeliveryPolicyResolver(notificationStore)
 	forumStore.WithCommentNotifications(forumNotificationAdapter{outbox: mailOutbox})
 	moderationStore.WithDecisionNotifications(moderationNotificationAdapter{outbox: mailOutbox})
 	siteName, _ := optionsService.SiteName(ctx)
@@ -193,8 +233,10 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		WithExternalAuthRateLimiter(externalAuthRateLimiter).
 		WithPublicAppURL(cfg.AppURL, cfg.AppEnv).
 		WithAPITokens(apiTokenService)
-	notificationsProvider := providers.NewNotificationsProvider(notificationStore, identityStore, authSessions)
-	mailProvider := providers.NewMailProvider(extensionStore, notificationStore, extensionsruntime.NewMailProviderRegistry(extensionStore), identityStore, authSessions, optionsService)
+	notificationsProvider := providers.NewNotificationsProvider(notificationStore, identityStore, authSessions, auditWriter).
+		WithTargetVisibility(forumStore).
+		WithChannels(apiNotificationChannelRuntimeAdapter{runtime: lifecycleStack.RuntimeManager}, auditWriter, mailOutbox)
+	mailProvider := providers.NewMailProvider(extensionStore, notificationStore, extensionsruntime.NewMailProviderRegistry(extensionStore), identityStore, authSessions, optionsService, notificationStore)
 	// Worker 心跳 store 尽早创建，供 overview 与嵌入 worker 共用。
 	heartbeatStore := health.NewRedisHeartbeatStore(sharedRedisClient)
 	adminOverviewProvider := providers.NewAdminOverviewProviderWithWidgets(
@@ -315,7 +357,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	// 导航检查器复用 SiteChrome 内部 trace ring，保证合成与审计同源。
 	extensionsProvider.WithNavigationInspector(pageSiteChromeService.NavigationInspector())
 	corePageViews := pageviewmodels.NewCorePageViewModelSource(pageviewmodels.CorePageViewModelDependencies{
-		Forum: pageForumService, Profiles: pageProfileService, Notifications: notificationStore,
+		Forum: pageForumService, Profiles: pageProfileService, Notifications: notificationStore, NotificationTargets: forumStore,
 		Moderation: pageModerationService, Options: optionsService, Registration: pageIdentityService,
 		Sessions: identityStore, SiteChrome: pageSiteChromeService, Search: searchService,
 	})

@@ -26,7 +26,7 @@ Audience: humans and AI sessions extending provider slots / contribution density
 **Parent strategy:** `knowledge/plans/2026-07-12-development-directions.md`  
 **Platform spine (done):** `knowledge/plans/archive/2026-07/2026-07-12-framework-hardening-waves.md`
 (F1–F4 complete including F4.4/F4.5 = E3/E4; remaining E1–E2, E5–E8)  
-**Promoted notification program:** `knowledge/plans/2026-07-27-notification-platform-v2.md`
+**Completed notification program:** `knowledge/plans/archive/2026-07/2026-07-27-notification-platform-v2.md`
 owns notification types, preferences, plugin emission, realtime, and
 `notification.channel`; do not implement that row independently from E8.
 **Architecture rules:**
@@ -624,7 +624,7 @@ dedicated ready task book; the other rows remain demand-driven.
 | Slot | Priority | Notes |
 | --- | --- | --- |
 | `human_verification.provider` | Medium | Altcha stays default; captcha vendors as plugins |
-| `notification.channel` | **Promoted** | Execute `2026-07-27-notification-platform-v2.md`; Core owns fanout policy |
+| `notification.channel` | **Completed** | See archived `2026-07-27-notification-platform-v2.md`; Core owns fanout policy |
 | `auth.risk.provider` | Lower | Login risk signals |
 | `editor.sanitizer.provider` | Lower | Only if policy packs need isolation |
 | `payment.provider` | Demand-gated | Needs core intents first (framework decision) |

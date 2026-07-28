@@ -3,6 +3,7 @@ package extensionsruntime
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +13,8 @@ import (
 
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
+
+var ErrRuntimeRouteIncident = errors.New("extension runtime quarantined after route execution incident")
 
 type RouteGateway struct {
 	client *http.Client

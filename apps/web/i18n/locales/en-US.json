@@ -433,6 +433,7 @@
       "rolesBadge": "RBAC",
       "settings": "Site settings",
       "mailSettings": "Mail and notifications",
+      "notificationSettings": "Notification settings",
       "loginMethods": "Login methods",
       "avatarSettings": "Avatar settings",
       "seo": "SEO settings",
@@ -2308,7 +2309,7 @@
       "settings": {
         "manage": {
           "label": "Manage all site settings (legacy)",
-          "description": "Legacy parent permission covering site, mail, avatar, appearance, and forum settings."
+          "description": "Legacy parent permission covering site, mail, notifications, avatar, appearance, and forum settings."
         },
         "site": {
           "manage": {
@@ -2318,8 +2319,14 @@
         },
         "mail": {
           "manage": {
-            "label": "Manage mail and notifications",
-            "description": "Choose mail providers, configure notification policy, send tests, and inspect deliveries."
+            "label": "Manage mail",
+            "description": "Choose mail providers, send tests, and inspect mail deliveries."
+          }
+        },
+        "notifications": {
+          "manage": {
+            "label": "Manage notification settings",
+            "description": "Configure notification type and channel policy, select channel providers, send tests, and inspect redacted delivery status."
           }
         },
         "avatar": {
@@ -3577,6 +3584,95 @@
         "smtp_recipient_rejected": "Recipient rejected by server"
       }
     },
+    "notificationSettings": {
+      "metaTitle": "Notification settings",
+      "title": "Notification settings",
+      "description": "Set which notification types and delivery channels are available to the community.",
+      "toolbar": "Type policy, recommended defaults, and user controls",
+      "noPermission": "You need notification settings permission to change this policy.",
+      "recommendedTitle": "Recommended: keep direct conversation notices on",
+      "recommendedDescription": "In-app delivery works without an external provider. Review external channels before recommending them to members.",
+      "categoryHelp": "Apply a channel policy consistently across this category. Required notices remain protected.",
+      "enableCategory": "Enable category",
+      "disableCategory": "Disable category",
+      "channelEnabled": "Channel available",
+      "recommendedEnabled": "Recommended by default",
+      "userConfigurable": "Members can choose",
+      "required": "Required",
+      "pluginOwned": "Declared by an enabled plugin. Host policy still limits its delivery.",
+      "resetChanges": "Unsaved notification policy changes were reset.",
+      "loadFailed": "Could not load notification policy.",
+      "save": "Save policy",
+      "saved": "Notification policy saved.",
+      "saveFailed": "Could not save notification policy.",
+      "restoreDefaults": "Restore recommended defaults",
+      "restored": "Recommended notification policy restored.",
+      "restoreFailed": "Could not restore notification policy.",
+      "restoreHelp": "Restoring policy does not reveal, delete, or change provider secrets.",
+      "secretsPreserved": "Saved provider secrets were preserved.",
+      "testNotification": "Send test notification",
+      "testCreated": "A test notification was created for your account.",
+      "testFailed": "Could not create a test notification.",
+      "emptyTitle": "No notification types are available",
+      "emptyDescription": "Core and enabled plugin types will appear here when their policy is available.",
+      "channelsAdmin": {
+        "title": "External delivery channels",
+        "description": "Select an exact provider artifact, run a test for your own account, and inspect redacted delivery health.",
+        "loadFailed": "Could not load notification channel health.",
+        "emptyTitle": "No external channels are registered",
+        "emptyDescription": "Enable a compatible provider plugin to make an external channel available.",
+        "provider": "Provider",
+        "timeout": "{value} ms timeout",
+        "defaultSelection": "Using the Host default selection.",
+        "select": "Select provider",
+        "selected": "Notification channel provider selected.",
+        "selectFailed": "Could not select this provider. Refresh and try again.",
+        "restoreDefault": "Restore default",
+        "reset": "Default channel provider restored.",
+        "resetFailed": "Could not restore the default provider.",
+        "sendTest": "Send test",
+        "testQueued": "A channel test was queued for your account.",
+        "testFailed": "Could not queue a channel test.",
+        "deliveryTitle": "Delivery health",
+        "deliveryDescription": "Recent generic channel deliveries. Recipient data, payloads, endpoint keys, and idempotency keys are never shown.",
+        "deliveryEmpty": "No external channel deliveries yet.",
+        "deliveryId": "Delivery",
+        "deliveryStatus": "Status",
+        "deliveryProvider": "Provider",
+        "deliveryAttempts": "Attempts",
+        "deliveryResult": "Result",
+        "deliveryUpdated": "Updated",
+        "noProvider": "No provider",
+        "availability": { "available": "Available", "unavailable": "Unavailable" },
+        "selection": { "default": "Default", "selected": "Selected", "stale": "Stale" },
+        "status": { "queued": "Queued", "sending": "Sending", "sent": "Sent", "failed": "Failed", "skipped": "Skipped" }
+      },
+      "categories": {
+        "conversation": "Conversation",
+        "mention": "Mentions",
+        "moderation": "Moderation",
+        "system": "System"
+      },
+      "channels": {
+        "in_app": "In-app",
+        "email": "Email",
+        "web_push": "Web Push"
+      },
+      "types": {
+        "reply": "Replies",
+        "mention": "Mentions",
+        "moderation_approved": "Approved content",
+        "moderation_rejected": "Rejected content",
+        "admin_test": "Administrator test"
+      },
+      "status": {
+        "required": "Required by Host",
+        "inactive": "Inactive type",
+        "channelUnavailable": "Channel provider unavailable",
+        "enabled": "Enabled",
+        "disabled": "Disabled"
+      }
+    },
     "moderation": {
       "title": "Moderation queue",
       "description": "Process user-submitted reports, update status, and record review notes.",
@@ -4372,6 +4468,93 @@
       "loadingMore": "Loading...",
       "loadFailed": "Could not load activity. Please try again.",
       "loadMoreFailed": "Could not load more activity. Please try again."
+    }
+  },
+  "notificationSettings": {
+    "metaTitle": "Notification preferences",
+    "metaDescription": "Choose how this account receives available notifications.",
+    "title": "Notification preferences",
+    "intro": "Choose which available notifications reach you. Your choices never change the community-wide policy.",
+    "recommendedTitle": "Recommended: inherit site choices",
+    "recommendedDescription": "Inherit follows the site's current recommendation. You can opt in or out of each available channel at any time.",
+    "categoryHelp": "Choose a preference for each available type and delivery channel.",
+    "enableCategory": "Enable all",
+    "disableCategory": "Disable all",
+    "inheritCategory": "Inherit site choices",
+    "required": "Required",
+    "pluginOwned": "This type is supplied by a plugin. The Host keeps the final delivery policy safe.",
+    "resetChanges": "Unsaved preference changes were reset.",
+    "loadFailed": "Could not load notification preferences.",
+    "save": "Save preferences",
+    "saved": "Notification preferences saved.",
+    "saveFailed": "Could not save notification preferences.",
+    "restoreDefaults": "Restore site recommendations",
+    "restored": "Your preferences now inherit site recommendations.",
+    "restoreFailed": "Could not restore site recommendations.",
+    "restoreHelp": "Restoring removes only your notification overrides. It never changes provider secrets or site policy.",
+    "emptyTitle": "No configurable notifications",
+    "emptyDescription": "There are no notification channels you can change right now.",
+    "refresh": "Refresh",
+    "webPush": {
+      "title": "Browser notifications",
+      "description": "Receive notifications on this device even when the forum is not open.",
+      "enableBrowser": "Enable on this browser",
+      "disableBrowser": "Disable on this browser",
+      "subscribed": "Browser notifications enabled.",
+      "unsubscribed": "Browser notifications disabled on this device.",
+      "subscribeFailed": "Could not enable browser notifications.",
+      "unsubscribeFailed": "Could not disable browser notifications.",
+      "loadFailed": "Could not load browser notification settings.",
+      "unsupported": "This browser does not support Web Push.",
+      "unavailable": "The site has no available Web Push provider right now.",
+      "permissionDenied": "Browser notification permission is blocked. Change it in your browser's site settings before trying again.",
+      "devices": "Subscriptions",
+      "empty": "No browser subscriptions are registered for this account.",
+      "thisBrowser": "This browser",
+      "updatedAt": "Updated {value}",
+      "revoke": "Revoke",
+      "revoked": "Browser subscription revoked.",
+      "revokeFailed": "Could not revoke this browser subscription.",
+      "privacy": "Only the push service origin and delivery status are shown here. Endpoints and encryption keys remain hidden.",
+      "permission": { "default": "Permission not requested", "granted": "Allowed", "denied": "Blocked", "unsupported": "Unsupported" },
+      "status": { "active": "Active", "revoked": "Revoked", "failed": "Failed" }
+    },
+    "states": {
+      "inherit": "Inherit site choice",
+      "enabled": "Enabled",
+      "disabled": "Disabled"
+    },
+    "categories": {
+      "conversation": "Conversation",
+      "mention": "Mentions",
+      "moderation": "Moderation",
+      "system": "System"
+    },
+    "channels": {
+      "in_app": "In-app",
+      "email": "Email",
+      "web_push": "Web Push"
+    },
+    "types": {
+      "reply": "Replies",
+      "mention": "Mentions",
+      "moderation_approved": "Approved content",
+      "moderation_rejected": "Rejected content",
+      "admin_test": "Administrator test"
+    },
+    "status": {
+      "required": "Required by the Host",
+      "disabledBySite": "Disabled by site policy",
+      "channelUnavailable": "Channel provider unavailable",
+      "managedBySite": "Managed by site policy",
+      "effectiveEnabled": "Currently enabled",
+      "effectiveDisabled": "Currently disabled"
+    },
+    "rail": {
+      "ariaLabel": "Notification preference summary",
+      "open": "Open notification preference summary",
+      "title": "Your notification choices",
+      "description": "Changes apply to this account only. A site policy or unavailable provider can still limit an external channel."
     }
   },
   "profileSettings": {

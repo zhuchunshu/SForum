@@ -23,6 +23,7 @@ SForum 是可维护、插件优先的开源论坛框架：核心做宿主与契�
 - [首次注册与超级管理员](./usage/first-login.md)
 - [管理后台](./usage/admin.md)
 - [论坛日常](./usage/forum.md)
+- [通知](./usage/notifications.md)
 - [搜索](./usage/search.md)
 - [扩展与主题（运营侧）](./usage/extensions.md)
 

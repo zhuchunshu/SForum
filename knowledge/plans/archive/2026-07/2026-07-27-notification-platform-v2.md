@@ -1,7 +1,7 @@
 # Notification Platform V2 - Task Book
 
-Status: **ready** - product scope and architecture direction approved; V1 is
-running, but no V2 milestone has started
+Status: **completed** - M0-M7 are complete; final implementation and release
+evidence is recorded in `../../../reports/2026-07-28-notification-platform-v2-final.md`
 
 Date: 2026-07-27
 
@@ -495,14 +495,14 @@ Use this template and replace every bracketed field:
 Work in /Users/inkedus/Code/SForum on Notification Platform V2.
 
 Implement only [MILESTONE/SLICE AND TITLE] from
-knowledge/plans/2026-07-27-notification-platform-v2.md. Do not start any later
+knowledge/plans/archive/2026-07/2026-07-27-notification-platform-v2.md. Do not start any later
 milestone.
 
 Before editing, read completely:
 - AGENTS.md
 - knowledge/index.md
 - knowledge/modules/notifications.md
-- knowledge/plans/2026-07-27-notification-platform-v2.md
+- knowledge/plans/archive/2026-07/2026-07-27-notification-platform-v2.md
 - knowledge/decisions/2026-07-27-notification-platform-v2.md
 - [CURRENT NOTIFICATION HOT HANDOFF]
 - [MILESTONE-SPECIFIC MODULES/DECISIONS]
@@ -543,7 +543,7 @@ The first implementation conversation should receive:
 Work in /Users/inkedus/Code/SForum on Notification Platform V2.
 
 Implement only M0 - Audit, Library Survey, And Contract Freeze from
-knowledge/plans/2026-07-27-notification-platform-v2.md. Do not implement M1 or
+knowledge/plans/archive/2026-07/2026-07-27-notification-platform-v2.md. Do not implement M1 or
 change production notification behavior.
 
 Before editing, read completely:
@@ -552,7 +552,7 @@ Before editing, read completely:
 - knowledge/modules/notifications.md
 - knowledge/modules/forum.md
 - knowledge/modules/extensions.md
-- knowledge/plans/2026-07-27-notification-platform-v2.md
+- knowledge/plans/archive/2026-07/2026-07-27-notification-platform-v2.md
 - knowledge/decisions/2026-07-27-notification-platform-v2.md
 - knowledge/decisions/2026-07-06-plugin-event-extension-points.md
 - knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md
@@ -614,28 +614,28 @@ report findings with file/line references.
 
 ### M0 - Audit, Library Survey, And Contract Freeze
 
-- [ ] Trace current topic/comment create, pending approval, outbox, preference,
+- [x] Trace current topic/comment create, pending approval, outbox, preference,
   controller, OpenAPI, admin UI, settings shell, Host API v2, lifecycle
   publication, and channel-provider call paths.
-- [ ] Inventory production and fixture notification types and any unknown rows
+- [x] Inventory production and fixture notification types and any unknown rows
   in a disposable/local database before choosing backfill behavior.
-- [ ] Freeze Core recipient semantics, deterministic dedupe keys, and
+- [x] Freeze Core recipient semantics, deterministic dedupe keys, and
   approval-time source loading.
-- [ ] Freeze descriptor, policy, preference, realtime revision, generic
+- [x] Freeze descriptor, policy, preference, realtime revision, generic
   delivery, and Web Push subscription schemas.
-- [ ] Freeze additive API schemas, permission migration, compatibility routes,
+- [x] Freeze additive API schemas, permission migration, compatibility routes,
   error reasons, and optimistic revision behavior.
-- [ ] Compare mature Web Push Go libraries for maintenance, documentation,
+- [x] Compare mature Web Push Go libraries for maintenance, documentation,
   license, protocol coverage, context/timeout support, payload limits, and
   ecosystem fit. Prefer an established library over custom encryption.
-- [ ] Compare Fiber-native SSE against a small standards-compliant handler;
+- [x] Compare Fiber-native SSE against a small standards-compliant handler;
   do not add a dependency when Fiber and the standard library are sufficient.
-- [ ] Prove the Host-owned minimal service-worker scope/header approach without
+- [x] Prove the Host-owned minimal service-worker scope/header approach without
   granting a plugin arbitrary origin-wide browser execution.
-- [ ] Decide whether generic channel deliveries need a new table or an outbox
+- [x] Decide whether generic channel deliveries need a new table or an outbox
   envelope over existing channel-owned tables; preserve mail history either
   way.
-- [ ] Update this plan or the ADR if repository evidence disproves an
+- [x] Update this plan or the ADR if repository evidence disproves an
   assumption.
 
 **Exit:** reviewed implementation map, library decision, frozen schemas,
@@ -644,20 +644,20 @@ change.
 
 ### M1 - Core Fanout Correctness
 
-- [ ] Extend the comment notification input with topic-author context and
+- [x] Extend the comment notification input with topic-author context and
   resolve top-level versus nested reply recipients transactionally.
-- [ ] Reuse goldmark mention parsing for active topic and comment creation.
-- [ ] Load eligible stored source, topic, parent, and author data inside pending
+- [x] Reuse goldmark mention parsing for active topic and comment creation.
+- [x] Load eligible stored source, topic, parent, and author data inside pending
   approval transactions.
-- [ ] On approval, create moderation, reply, and mention projections exactly
+- [x] On approval, create moderation, reply, and mention projections exactly
   once before commit.
-- [ ] On rejection, create only the author's moderation result.
-- [ ] Include reliable topic/comment target data for every Core type.
-- [ ] Preserve self-filtering, active-user checks, separate reply/mention
+- [x] On rejection, create only the author's moderation result.
+- [x] Include reliable topic/comment target data for every Core type.
+- [x] Preserve self-filtering, active-user checks, separate reply/mention
   intents, channel policy, and deterministic dedupe.
-- [ ] Add unit and PostgreSQL integration tests for every recipient edge,
+- [x] Add unit and PostgreSQL integration tests for every recipient edge,
   approval retry, rollback, disabled channel, and no-provider case.
-- [ ] Verify notification failure rolls back the owning content/decision
+- [x] Verify notification failure rolls back the owning content/decision
   transaction instead of committing partial state.
 
 **Exit:** direct topic replies, nested replies, create-time mentions, and
@@ -665,23 +665,23 @@ approval-time fanout are correct and transactionally proven.
 
 ### M2 - Registry, Versioned Storage, And Policy Resolver
 
-- [ ] Add additive migrations and backfill existing notifications to version 1
+- [x] Add additive migrations and backfill existing notifications to version 1
   categories without changing ids/read state/dedupe.
-- [ ] Implement immutable Notification Registry snapshots with Core
+- [x] Implement immutable Notification Registry snapshots with Core
   declarations, exact owner identity, descriptor validation, conflicts, safe
   mode, and generic fallback.
-- [ ] Add inert Manifest V3 notification declarations and lifecycle
+- [x] Add inert Manifest V3 notification declarations and lifecycle
   publication/rollback/disable/uninstall behavior.
-- [ ] Add global type/channel policy and user preference stores with optimistic
+- [x] Add global type/channel policy and user preference stores with optimistic
   revisions.
-- [ ] Implement one effective policy resolver shared by Core fanout, plugin
+- [x] Implement one effective policy resolver shared by Core fanout, plugin
   emission, admin previews, user previews, and channel projection.
-- [ ] Enforce Core-only required types and plugin-default-disabled admission.
-- [ ] Adapt existing reply/mention/moderation options and
+- [x] Enforce Core-only required types and plugin-default-disabled admission.
+- [x] Adapt existing reply/mention/moderation options and
   `/admin/mail/policy` to the new resolver without dual authorities.
-- [ ] Add cache/invalidation only if measured reads require it; correctness
+- [x] Add cache/invalidation only if measured reads require it; correctness
   must not depend on cache freshness.
-- [ ] Add migration, registry race/conflict, policy precedence, restore,
+- [x] Add migration, registry race/conflict, policy precedence, restore,
   compatibility, and unknown-history tests.
 
 **Exit:** one versioned registry and one policy resolver own all type/channel
@@ -689,21 +689,21 @@ decisions while existing APIs and rows remain compatible.
 
 ### M3 - Admin And User Settings
 
-- [ ] Add `settings.notifications.manage` migration, seed/catalog/i18n, role
+- [x] Add `settings.notifications.manage` migration, seed/catalog/i18n, role
   templates, permission UI, compatibility inheritance, and allowed/denied
   tests.
-- [ ] Add modular OpenAPI paths/schemas for admin policy and user preferences.
-- [ ] Add admin controllers/services for catalog, CAS update, restore, channel
+- [x] Add modular OpenAPI paths/schemas for admin policy and user preferences.
+- [x] Add admin controllers/services for catalog, CAS update, restore, channel
   state, test, and redacted delivery health.
-- [ ] Build `/admin/settings/notifications` and move active notification policy
+- [x] Build `/admin/settings/notifications` and move active notification policy
   controls out of Mail.
-- [ ] Build `/settings/notifications` with own-only preferences through the
+- [x] Build `/settings/notifications` with own-only preferences through the
   shared settings shell/navigation.
-- [ ] Add inherit/enabled/disabled behavior, category bulk controls, required
+- [x] Add inherit/enabled/disabled behavior, category bulk controls, required
   locks, unavailable-channel states, plugin ownership, and reset defaults.
-- [ ] Add zh-CN and en-US copy, appearance-aware Toasts, persistent errors,
+- [x] Add zh-CN and en-US copy, appearance-aware Toasts, persistent errors,
   loading/empty states, and responsive behavior.
-- [ ] Add admin/user API tests, frontend unit tests, typecheck, and desktop plus
+- [x] Add admin/user API tests, frontend unit tests, typecheck, and desktop plus
   mobile Browser QA.
 
 **Exit:** a first-time operator and ordinary user can understand, change, and
@@ -712,21 +712,21 @@ knowledge.
 
 ### M4 - Plugin Notification Host API
 
-- [ ] Add a versioned `notifications.emit` Host command family through Host API
+- [x] Add a versioned `notifications.emit` Host command family through Host API
   v2 and the Go plugin SDK.
-- [ ] Add exact-artifact/grant/epoch/instance admission and type-namespace
+- [x] Add exact-artifact/grant/epoch/instance admission and type-namespace
   ownership checks.
-- [ ] Validate payload schema/version, recipients, target descriptor, idempotency
+- [x] Validate payload schema/version, recipients, target descriptor, idempotency
   key, size, count, rate, and deadline.
-- [ ] Keep actor/session authority Host-attested; reject plugin-supplied raw
+- [x] Keep actor/session authority Host-attested; reject plugin-supplied raw
   session or forged actor evidence.
-- [ ] Compose accepted plugin emissions into the same policy/outbox transaction
+- [x] Compose accepted plugin emissions into the same policy/outbox transaction
   used by Core types.
-- [ ] Add redacted audits and stable rejection reasons without payload leakage.
-- [ ] Add a fixture plugin that declares types and proves allowed emission,
+- [x] Add redacted audits and stable rejection reasons without payload leakage.
+- [x] Add a fixture plugin that declares types and proves allowed emission,
   namespace forgery denial, required-type denial, schema denial, cross-artifact
   denial, rate limiting, disable/uninstall fallback, and historical rendering.
-- [ ] Update manifests, schemas, SDK helpers, generated docs, authoring guide,
+- [x] Update manifests, schemas, SDK helpers, generated docs, authoring guide,
   extension tests, and the Notifications Extension Surface Matrix.
 
 **Exit:** a trusted fixture plugin can create its own safe notification through
@@ -734,48 +734,48 @@ the real Host broker, and cannot cross any frozen authority boundary.
 
 ### M5 - Server Inbox Filters And Realtime SSE
 
-- [ ] Extend list queries and OpenAPI with server-side category/type/unread
+- [x] Extend list queries and OpenAPI with server-side category/type/unread
   filters while preserving cursor semantics and useful indexes.
-- [ ] Add safe Host-resolved actor/target presentation with read-time
+- [x] Add safe Host-resolved actor/target presentation with read-time
   authorization and unavailable fallback.
-- [ ] Add durable recipient revision updates in every create/read/read-all path.
-- [ ] Add commit-time PostgreSQL wake hints and a reconnecting listener; durable
+- [x] Add durable recipient revision updates in every create/read/read-all path.
+- [x] Add commit-time PostgreSQL wake hints and a reconnecting listener; durable
   revision remains authoritative.
-- [ ] Add the login-required Core SSE endpoint with cursor comparison,
+- [x] Add the login-required Core SSE endpoint with cursor comparison,
   heartbeat, cancellation, connection limits, no-store, and no sensitive data.
-- [ ] Reconcile listener reconnect/missed-wake state so existing connections
+- [x] Reconcile listener reconnect/missed-wake state so existing connections
   cannot remain stale indefinitely.
-- [ ] Update `useNotifications`, Navbar, and inbox to coalesce refreshes,
+- [x] Update `useNotifications`, Navbar, and inbox to coalesce refreshes,
   reconnect safely, and fall back to manual REST behavior.
-- [ ] Test ownership, filter pagination, hidden/deleted targets, last-event
+- [x] Test ownership, filter pagination, hidden/deleted targets, last-event
   cursor, reconnect, missed/coalesced wake, multi-node delivery, backpressure,
   logout, and server shutdown.
-- [ ] Run desktop/mobile Browser QA and confirm no badge/list layout shift.
+- [x] Run desktop/mobile Browser QA and confirm no badge/list layout shift.
 
 **Exit:** complete server-side filtering and recipient-safe realtime refresh
 work across API nodes without making SSE the source of truth.
 
 ### M6 - Notification Channel Contract And Web Push Reference
 
-- [ ] Freeze and implement versioned channel declaration, provider selection,
+- [x] Freeze and implement versioned channel declaration, provider selection,
   probe, send, status classification, timeout, and retry contracts.
-- [ ] Add generic durable channel projection and redacted delivery inspection
+- [x] Add generic durable channel projection and redacted delivery inspection
   while preserving existing mail delivery APIs/history.
-- [ ] Add lifecycle cleanup/fallback for disable, uninstall, trust revoke,
+- [x] Add lifecycle cleanup/fallback for disable, uninstall, trust revoke,
   staged upgrade, artifact drift, safe mode, and provider failure.
-- [ ] Add Host-owned authenticated Web Push subscription create/list/revoke and
+- [x] Add Host-owned authenticated Web Push subscription create/list/revoke and
   erasure flows.
-- [ ] Add the minimal Host service worker and safe notification-click handling;
+- [x] Add the minimal Host service worker and safe notification-click handling;
   it must never import plugin code or accept arbitrary script/payload actions.
-- [ ] Build one protected built-in Web Push provider plugin with VAPID secrets,
+- [x] Build one protected built-in Web Push provider plugin with VAPID secrets,
   truthful probe, payload limits, standard encryption, timeout, and redaction.
-- [ ] Extend built-in build/package/sync flows; discovery must not auto-trust,
+- [x] Extend built-in build/package/sync flows; discovery must not auto-trust,
   enable, select, configure, or activate the provider.
-- [ ] Add admin channel selection/test/health UI and user browser-permission plus
+- [x] Add admin channel selection/test/health UI and user browser-permission plus
   subscription controls with clear denial/revoke states.
-- [ ] Test local fake push endpoints and checked-in fixtures; ordinary tests
+- [x] Test local fake push endpoints and checked-in fixtures; ordinary tests
   require no network, live push service, or credentials.
-- [ ] Rebuild the exact built-in artifact, restart API, stage, confirm, enable,
+- [x] Rebuild the exact built-in artifact, restart API, stage, confirm, enable,
   select, and prove the runtime provider path before claiming completion.
 
 **Exit:** the generic channel contract is proven by a real exact-artifact Web
@@ -784,21 +784,21 @@ worker code in Core.
 
 ### M7 - Security, Lifecycle, Documentation, And Release Gate
 
-- [ ] Test restore defaults, plugin type/channel upgrade/rollback, force drain,
+- [x] Test restore defaults, plugin type/channel upgrade/rollback, force drain,
   safe mode, API/worker restart, listener disconnect, and concurrent policy
   updates.
-- [ ] Test recipient enumeration, cross-user reads/preferences/SSE,
+- [x] Test recipient enumeration, cross-user reads/preferences/SSE,
   unauthorized admin mutation, payload/target injection, external URL attempts,
   subscription theft, provider replay, and secret leakage.
-- [ ] Verify logs, audits, APIs, SSE, browser storage/history, and diagnostics
+- [x] Verify logs, audits, APIs, SSE, browser storage/history, and diagnostics
   contain no private payload, raw subscription key, VAPID secret, session
   evidence, or hidden target data.
-- [ ] Verify rate limits, connection limits, River retry/dead behavior, and
+- [x] Verify rate limits, connection limits, River retry/dead behavior, and
   idempotent replays.
-- [ ] Update OpenAPI, bilingual operator/user docs, plugin authoring docs,
+- [x] Update OpenAPI, bilingual operator/user docs, plugin authoring docs,
   notification/extension/forum modules, Extension Surface Matrix, plan/index,
   and hot handoff.
-- [ ] Run focused tests, OpenAPI reference validation, full repo gate, Nuxt
+- [x] Run focused tests, OpenAPI reference validation, full repo gate, Nuxt
   production build, and desktop/mobile Browser QA.
 
 **Exit:** Notification Platform V2 is behaviorally complete, plugin-safe,

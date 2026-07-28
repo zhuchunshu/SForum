@@ -109,6 +109,13 @@ export const adminPageDefinitions = [
     requiredPermissions: ['settings.mail.manage']
   },
   {
+    id: '/settings/notifications',
+    labelKey: 'admin.nav.notificationSettings',
+    icon: 'i-lucide-bell-ring',
+    componentName: 'AdminNotificationSettings',
+    requiredPermissions: ['settings.notifications.manage']
+  },
+  {
     id: '/settings/login-methods',
     labelKey: 'admin.nav.loginMethods',
     icon: 'i-lucide-log-in',
@@ -417,6 +424,7 @@ export const adminSidebarNavigation = [
       children: [
         { type: 'page', pageId: '/settings' },
         { type: 'page', pageId: '/settings/mail' },
+        { type: 'page', pageId: '/settings/notifications' },
         { type: 'page', pageId: '/settings/login-methods' },
         { type: 'page', pageId: '/settings/avatar' },
         { type: 'page', pageId: '/settings/features' },
@@ -576,4 +584,3 @@ export function shouldShowAdminPageInNav(
   }
   return true
 }
-

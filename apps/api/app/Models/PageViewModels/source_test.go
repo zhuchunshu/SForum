@@ -182,32 +182,33 @@ func TestCorePageViewModelSourcePopulatesEveryCatalogContract(t *testing.T) {
 		query  url.Values
 		typeOf reflect.Type
 	}{
-		"forum.home":              {"/", nil, nil, reflect.TypeOf(themecompiler.HomePageViewModel{})},
-		"forum.category.index":    {"/categories", nil, nil, reflect.TypeOf(themecompiler.CategoryIndexPageViewModel{})},
-		"forum.category.show":     {"/c/support", map[string]string{"categorySlug": "support"}, url.Values{"page": {"1"}}, reflect.TypeOf(themecompiler.CategoryShowPageViewModel{})},
-		"forum.tag.index":         {"/tags", nil, nil, reflect.TypeOf(themecompiler.TagIndexPageViewModel{})},
-		"forum.tag.show":          {"/tags/go", map[string]string{"tagSlug": "go"}, nil, reflect.TypeOf(themecompiler.TagShowPageViewModel{})},
-		"forum.topic.show":        {"/t/42/hello", map[string]string{"path": "42/hello"}, url.Values{"page": {"1"}}, reflect.TypeOf(themecompiler.TopicDetailPageViewModel{})},
-		"forum.topic.create":      {"/topics/new", nil, nil, reflect.TypeOf(themecompiler.TopicCreatePageViewModel{})},
-		"forum.topic.reply":       {"/topics/reply", nil, url.Values{"topic": {"not-a-topic"}}, reflect.TypeOf(themecompiler.TopicReplyPageViewModel{})},
-		"forum.topic.edit":        {"/topics/42/edit", map[string]string{"topicId": "42"}, nil, reflect.TypeOf(themecompiler.TopicEditPageViewModel{})},
-		"forum.profile.show":      {"/u/alice", map[string]string{"username": "alice"}, nil, reflect.TypeOf(themecompiler.ProfilePageViewModel{})},
-		"forum.settings.profile":  {"/settings/profile", nil, nil, reflect.TypeOf(themecompiler.ProfileSettingsPageViewModel{})},
-		"forum.settings.security": {"/settings/security", nil, nil, reflect.TypeOf(themecompiler.SecuritySettingsPageViewModel{})},
-		"forum.notifications":     {"/notifications", nil, nil, reflect.TypeOf(themecompiler.NotificationsPageViewModel{})},
-		"moderation.review":       {"/moderation", nil, nil, reflect.TypeOf(themecompiler.ModerationReviewPageViewModel{})},
-		"auth.login":              {"/login", nil, nil, reflect.TypeOf(themecompiler.LoginPageViewModel{})},
-		"auth.register":           {"/register", nil, nil, reflect.TypeOf(themecompiler.RegisterPageViewModel{})},
-		"auth.forgot_password":    {"/forgot-password", nil, nil, reflect.TypeOf(themecompiler.ForgotPasswordPageViewModel{})},
-		"auth.reset_password":     {"/reset-password", nil, url.Values{"token": {"exact-token"}}, reflect.TypeOf(themecompiler.ResetPasswordPageViewModel{})},
-		"site.terms":              {"/terms", nil, nil, reflect.TypeOf(themecompiler.TermsPageViewModel{})},
-		"site.privacy":            {"/privacy", nil, nil, reflect.TypeOf(themecompiler.PrivacyPageViewModel{})},
-		"site.guidelines":         {"/guidelines", nil, nil, reflect.TypeOf(themecompiler.GuidelinesPageViewModel{})},
-		"system.forbidden":        {"/forbidden", nil, nil, reflect.TypeOf(themecompiler.ErrorPageViewModel{})},
-		"system.not_found":        {"/missing", nil, nil, reflect.TypeOf(themecompiler.ErrorPageViewModel{})},
-		"system.rate_limited":     {"/rate-limited", nil, nil, reflect.TypeOf(themecompiler.ErrorPageViewModel{})},
-		"system.server_error":     {"/server-error", nil, nil, reflect.TypeOf(themecompiler.ErrorPageViewModel{})},
-		"dev.components":          {"/components", nil, nil, reflect.TypeOf(themecompiler.DevelopmentComponentsPageViewModel{})},
+		"forum.home":                   {"/", nil, nil, reflect.TypeOf(themecompiler.HomePageViewModel{})},
+		"forum.category.index":         {"/categories", nil, nil, reflect.TypeOf(themecompiler.CategoryIndexPageViewModel{})},
+		"forum.category.show":          {"/c/support", map[string]string{"categorySlug": "support"}, url.Values{"page": {"1"}}, reflect.TypeOf(themecompiler.CategoryShowPageViewModel{})},
+		"forum.tag.index":              {"/tags", nil, nil, reflect.TypeOf(themecompiler.TagIndexPageViewModel{})},
+		"forum.tag.show":               {"/tags/go", map[string]string{"tagSlug": "go"}, nil, reflect.TypeOf(themecompiler.TagShowPageViewModel{})},
+		"forum.topic.show":             {"/t/42/hello", map[string]string{"path": "42/hello"}, url.Values{"page": {"1"}}, reflect.TypeOf(themecompiler.TopicDetailPageViewModel{})},
+		"forum.topic.create":           {"/topics/new", nil, nil, reflect.TypeOf(themecompiler.TopicCreatePageViewModel{})},
+		"forum.topic.reply":            {"/topics/reply", nil, url.Values{"topic": {"not-a-topic"}}, reflect.TypeOf(themecompiler.TopicReplyPageViewModel{})},
+		"forum.topic.edit":             {"/topics/42/edit", map[string]string{"topicId": "42"}, nil, reflect.TypeOf(themecompiler.TopicEditPageViewModel{})},
+		"forum.profile.show":           {"/u/alice", map[string]string{"username": "alice"}, nil, reflect.TypeOf(themecompiler.ProfilePageViewModel{})},
+		"forum.settings.profile":       {"/settings/profile", nil, nil, reflect.TypeOf(themecompiler.ProfileSettingsPageViewModel{})},
+		"forum.settings.security":      {"/settings/security", nil, nil, reflect.TypeOf(themecompiler.SecuritySettingsPageViewModel{})},
+		"forum.settings.notifications": {"/settings/notifications", nil, nil, reflect.TypeOf(themecompiler.NotificationSettingsPageViewModel{})},
+		"forum.notifications":          {"/notifications", nil, nil, reflect.TypeOf(themecompiler.NotificationsPageViewModel{})},
+		"moderation.review":            {"/moderation", nil, nil, reflect.TypeOf(themecompiler.ModerationReviewPageViewModel{})},
+		"auth.login":                   {"/login", nil, nil, reflect.TypeOf(themecompiler.LoginPageViewModel{})},
+		"auth.register":                {"/register", nil, nil, reflect.TypeOf(themecompiler.RegisterPageViewModel{})},
+		"auth.forgot_password":         {"/forgot-password", nil, nil, reflect.TypeOf(themecompiler.ForgotPasswordPageViewModel{})},
+		"auth.reset_password":          {"/reset-password", nil, url.Values{"token": {"exact-token"}}, reflect.TypeOf(themecompiler.ResetPasswordPageViewModel{})},
+		"site.terms":                   {"/terms", nil, nil, reflect.TypeOf(themecompiler.TermsPageViewModel{})},
+		"site.privacy":                 {"/privacy", nil, nil, reflect.TypeOf(themecompiler.PrivacyPageViewModel{})},
+		"site.guidelines":              {"/guidelines", nil, nil, reflect.TypeOf(themecompiler.GuidelinesPageViewModel{})},
+		"system.forbidden":             {"/forbidden", nil, nil, reflect.TypeOf(themecompiler.ErrorPageViewModel{})},
+		"system.not_found":             {"/missing", nil, nil, reflect.TypeOf(themecompiler.ErrorPageViewModel{})},
+		"system.rate_limited":          {"/rate-limited", nil, nil, reflect.TypeOf(themecompiler.ErrorPageViewModel{})},
+		"system.server_error":          {"/server-error", nil, nil, reflect.TypeOf(themecompiler.ErrorPageViewModel{})},
+		"dev.components":               {"/components", nil, nil, reflect.TypeOf(themecompiler.DevelopmentComponentsPageViewModel{})},
 	}
 
 	if len(requests) != len(pages.Catalog()) {
@@ -276,6 +277,17 @@ func TestCorePageViewModelSourceEnforcesGuestReadBeforeForumQueries(t *testing.T
 	}
 	if forumReader.lastTopicInput.Page != 0 {
 		t.Fatal("forum data was queried before guest read authorization")
+	}
+}
+
+func TestCorePageViewModelSourceRejectsGuestNotificationSettings(t *testing.T) {
+	source := newTestSource(&sourceForum{}, defaultSourceOptions("public"))
+	_, err := source.Populate(t.Context(), CorePageViewModelInput{Request: pages.CorePageViewModelRequest{
+		PageID: "forum.settings.notifications", Locale: "en-US", Path: "/settings/notifications",
+		SEO: themecompiler.PageSEOView{Title: "Notification settings"},
+	}})
+	if !errors.Is(err, ErrCorePageDataUnauthorized) {
+		t.Fatalf("guest notification settings error = %v", err)
 	}
 }
 

@@ -137,12 +137,12 @@ describe('useNotifications', () => {
 
       const api = useNotifications()
       await api.list()
-      await api.list(88, 10)
+      await api.list(88, 10, { category: 'moderation', type: 'moderation_approved', unread: true })
     })
 
     expect(calls).toEqual([
       '/api/v1/notifications?limit=20',
-      '/api/v1/notifications?beforeId=88&limit=10'
+      '/api/v1/notifications?beforeId=88&limit=10&category=moderation&type=moderation_approved&unread=true'
     ])
   })
 
@@ -172,6 +172,74 @@ describe('useNotifications', () => {
       ['/api/v1/notifications/12/read', 'PATCH'],
       ['/api/v1/notifications/read-all', 'POST']
     ])
+  })
+
+  test('shares one EventSource and coalesces revision refreshes', async () => {
+    const originalEventSource = globalThis.EventSource
+    const sources: FakeEventSource[] = []
+    class FakeEventSource {
+      static readonly CLOSED = 2
+      readonly url: string
+      closed = false
+      listeners = new Map<string, Array<(event: MessageEvent<string>) => void>>()
+      constructor(url: string) {
+        this.url = url
+        sources.push(this)
+      }
+      addEventListener(type: string, listener: EventListenerOrEventListenerObject) {
+        const callback = listener as (event: MessageEvent<string>) => void
+        this.listeners.set(type, [...(this.listeners.get(type) || []), callback])
+      }
+      emit(type: string, data: string) {
+        for (const listener of this.listeners.get(type) || []) listener({ data } as MessageEvent<string>)
+      }
+      close() { this.closed = true }
+    }
+
+    await withApiGlobals(async () => {
+      globalThis.EventSource = FakeEventSource as unknown as typeof EventSource
+      const first = useNotifications()
+      const second = useNotifications()
+      let firstRefreshes = 0
+      let secondRefreshes = 0
+      const stopFirst = first.startRealtime(() => { firstRefreshes++ })
+      const stopSecond = second.startRealtime(() => { secondRefreshes++ })
+      expect(sources).toHaveLength(1)
+      expect(sources[0]?.url).toBe('/api/v1/notifications/stream?revision=0')
+
+      sources[0]?.emit('revision', '{"revision":1}')
+      sources[0]?.emit('revision', '{"revision":2}')
+      await new Promise(resolve => setTimeout(resolve, 130))
+      expect(firstRefreshes).toBe(1)
+      expect(secondRefreshes).toBe(1)
+      expect(first.revision.value).toBe(2)
+
+      stopFirst()
+      expect(sources[0]?.closed).toBe(false)
+      sources[0]?.emit('revision', '{"revision":3}')
+      second.stopRealtime()
+      expect(sources[0]?.closed).toBe(true)
+      await new Promise(resolve => setTimeout(resolve, 130))
+      expect(firstRefreshes).toBe(1)
+      expect(secondRefreshes).toBe(1)
+      stopSecond()
+    })
+    globalThis.EventSource = originalEventSource
+  })
+
+  test('keeps manual REST available when EventSource construction fails', async () => {
+    const originalEventSource = globalThis.EventSource
+    await withApiGlobals(async () => {
+      globalThis.EventSource = class {
+        constructor() { throw new Error('SSE unavailable') }
+      } as unknown as typeof EventSource
+      globalThis.$fetch = async () => ({ code: 200, message: 'ok', data: { count: 4 } })
+      const api = useNotifications()
+      const stop = api.startRealtime(() => {})
+      expect(await api.refreshUnreadCount()).toBe(4)
+      stop()
+    })
+    globalThis.EventSource = originalEventSource
   })
 })
 
@@ -213,14 +281,15 @@ describe('SFNotificationsPage contract', () => {
     expect(page).not.toContain('ssr: false')
   })
 
-  test('keeps type filtering honest and avoids server-filter claims', () => {
+  test('uses server-authoritative type filters while preserving cursor pagination', () => {
     const page = pageSource()
     const composable = notificationComposableSource()
 
-    expect(page).toContain('filterNotifications(presentedItems.value, activeFilter.value)')
-    expect(page).toContain("t('notifications.filter.loadedScope'")
+    expect(page).toContain('serverFilters(activeFilter.value)')
+    expect(page).toContain('notifications.list(beforeId, PAGE_LIMIT, serverFilters(activeFilter.value))')
     expect(page).toContain('notificationFilters')
-    expect(composable).not.toContain('type=')
+    expect(composable).toContain("params.set('type', filters.type)")
+    expect(composable).toContain("params.set('unread', String(filters.unread))")
     expect(composable).toContain('beforeId')
     expect(composable).toContain('limit')
   })

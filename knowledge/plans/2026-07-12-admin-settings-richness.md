@@ -11,7 +11,7 @@ Related:
 - Runtime options module: `knowledge/modules/options.md`
 - Development directions: `knowledge/plans/2026-07-12-development-directions.md`
 - Promoted notification program:
-  `knowledge/plans/2026-07-27-notification-platform-v2.md`
+  `knowledge/plans/archive/2026-07/2026-07-27-notification-platform-v2.md`
 - Promoted public navigation program:
   `knowledge/plans/2026-07-27-configurable-public-navigation-platform.md`
 - Legacy gap (partially stale): `knowledge/archive/legacy-sforum-feature-gap.md`

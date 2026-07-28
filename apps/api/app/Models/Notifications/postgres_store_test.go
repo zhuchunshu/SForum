@@ -3,12 +3,15 @@ package notifications
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func TestPostgresStoreCreateBundleUsesDeterministicKeys(t *testing.T) {
@@ -47,14 +50,15 @@ func newMemoryRunner() *memoryRunner {
 
 func (m *memoryRunner) QueryRow(_ context.Context, query string, args ...any) pgx.Row {
 	if strings.Contains(query, "INSERT INTO notifications") {
-		key := args[6].(string)
+		key := args[9].(string)
 		item, ok := m.notifications[key]
+		created := !ok
 		if !ok {
-			item = Notification{ID: m.nextID, RecipientUserID: args[0].(int64), Type: args[1].(string), TargetType: args[3].(string), TargetID: args[4].(int64), Payload: args[5].(json.RawMessage), DedupeKey: key, CreatedAt: time.Now()}
+			item = Notification{ID: m.nextID, RecipientUserID: args[0].(int64), Type: args[1].(string), Category: args[2].(string), TypeVersion: args[3].(int), PayloadVersion: args[4].(int), TargetType: args[6].(string), TargetID: args[7].(int64), Payload: args[8].(json.RawMessage), DedupeKey: key, CreatedAt: time.Now()}
 			m.nextID++
 			m.notifications[key] = item
 		}
-		return memoryRow{values: []any{item.ID, item.RecipientUserID, item.Type, item.ActorUserID, item.TargetType, item.TargetID, item.Payload, item.DedupeKey, item.ReadAt, item.CreatedAt}}
+		return memoryRow{values: []any{item.ID, item.RecipientUserID, item.Type, item.Category, item.TypeVersion, item.PayloadVersion, item.ActorUserID, item.TargetType, item.TargetID, item.Payload, item.DedupeKey, item.ReadAt, item.CreatedAt, created}}
 	}
 	if strings.Contains(query, "INSERT INTO mail_deliveries") {
 		key := args[3].(string)
@@ -124,6 +128,8 @@ func (r memoryRow) Scan(dest ...any) error {
 			*target = r.values[i].(time.Time)
 		case *json.RawMessage:
 			*target = r.values[i].(json.RawMessage)
+		case *bool:
+			*target = r.values[i].(bool)
 		}
 	}
 	return nil
@@ -150,3 +156,84 @@ func TestPostgresStoreMarksOnlyRecipientsNotificationRead(t *testing.T) {
 		t.Fatalf("unexpected unread count: count=%d err=%v", count, err)
 	}
 }
+
+func TestPostgresStoreListFiltersPreserveRecipientCursorPostgres(t *testing.T) {
+	databaseURL := strings.TrimSpace(os.Getenv("SFORUM_TEST_DATABASE_URL"))
+	if databaseURL == "" {
+		databaseURL = strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	}
+	if databaseURL == "" {
+		t.Skip("SFORUM_TEST_DATABASE_URL or DATABASE_URL is required")
+	}
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Close()
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(ctx)
+	stamp := time.Now().UnixNano()
+	insertUser := func(suffix string) int64 {
+		username := fmt.Sprintf("notification_filter_%s_%d", suffix, stamp)
+		var id int64
+		if err := tx.QueryRow(ctx, `INSERT INTO users (username, username_lower, email, email_lower, display_name, status)
+VALUES ($1,$1,$2,$2,$1,'active') RETURNING id`, username, username+"@example.test").Scan(&id); err != nil {
+			t.Fatal(err)
+		}
+		return id
+	}
+	userID := insertUser("owner")
+	otherUserID := insertUser("other")
+	store := newPostgresStore(tx)
+	create := func(recipient int64, typ, category, key string) Notification {
+		item, err := store.Create(ctx, CreateInput{
+			RecipientUserID: recipient,
+			Type:            typ,
+			Category:        category,
+			TargetType:      "system",
+			Payload:         json.RawMessage(`{"private":"rest-only"}`),
+			DedupeKey:       fmt.Sprintf("filter:%d:%s", stamp, key),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return item
+	}
+	oldReply := create(userID, TypeReply, "conversation", "old-reply")
+	_ = create(userID, TypeMention, "mention", "mention")
+	newReply := create(userID, TypeReply, "conversation", "new-reply")
+	_ = create(otherUserID, TypeReply, "conversation", "other-user")
+	if _, err := tx.Exec(ctx, `UPDATE notifications SET read_at=now() WHERE id=$1`, oldReply.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	first, err := store.List(ctx, ListInput{RecipientUserID: userID, Limit: 1, Type: TypeReply})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(first.Items) != 1 || first.Items[0].ID != newReply.ID || !first.HasMore {
+		t.Fatalf("first filtered page=%#v", first)
+	}
+	second, err := store.List(ctx, ListInput{RecipientUserID: userID, Limit: 1, BeforeID: first.Items[0].ID, Category: "conversation", Unread: boolPointer(false)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(second.Items) != 1 || second.Items[0].ID != oldReply.ID || second.HasMore {
+		t.Fatalf("second filtered page=%#v", second)
+	}
+	unread, err := store.List(ctx, ListInput{RecipientUserID: userID, Limit: 10, Unread: boolPointer(true)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range unread.Items {
+		if item.RecipientUserID != userID || item.ReadAt != nil || item.ID == oldReply.ID {
+			t.Fatalf("unread filter leaked row: %#v", item)
+		}
+	}
+}
+
+func boolPointer(value bool) *bool { return &value }

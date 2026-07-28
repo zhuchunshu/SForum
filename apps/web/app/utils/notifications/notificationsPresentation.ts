@@ -77,6 +77,12 @@ export function notificationPresentation(item: NotificationItem): NotificationPr
 }
 
 export function notificationTarget(item: NotificationItem, topicId = payloadNumber(item.payload, 'topicId'), commentId = payloadNumber(item.payload, 'commentId')): NotificationTarget {
+  if (item.targetAvailable === false) {
+    return { path: '/notifications', unavailable: true }
+  }
+  if (item.targetAvailable === true && item.targetPath?.startsWith('/')) {
+    return { path: item.targetPath, unavailable: false }
+  }
   if (topicId > 0) {
     return { path: `/t/${topicId}${commentId > 0 ? `#comment-${commentId}` : ''}`, unavailable: false }
   }

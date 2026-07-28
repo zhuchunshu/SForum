@@ -21,6 +21,7 @@ describe('SFPageOutlet catalog wiring', () => {
     ['app/pages/u/[username].vue', 'forum.profile.show'],
     ['app/pages/settings/profile.vue', 'forum.settings.profile'],
     ['app/pages/settings/security.vue', 'forum.settings.security'],
+    ['app/pages/settings/notifications.vue', 'forum.settings.notifications'],
     ['app/pages/notifications.vue', 'forum.notifications'],
     ['app/pages/moderation/index.vue', 'moderation.review'],
     ['app/pages/login.vue', 'auth.login'],

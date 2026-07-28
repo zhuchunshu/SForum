@@ -1,12 +1,17 @@
 Notification:
   type: object
-  required: [id, type, targetType, targetId, payload, createdAt]
+  required: [id, type, targetType, targetId, targetAvailable, payload, createdAt]
   properties:
     id: {type: integer, format: int64}
-    type: {type: string, enum: [reply, mention, moderation_approved, moderation_rejected, admin_test]}
+    type: {type: string, description: Core values remain compatible; extension values are namespaced.}
+    category: {type: string}
+    typeVersion: {type: integer, minimum: 1}
+    payloadVersion: {type: integer, minimum: 1}
     actorUserId: {type: integer, format: int64}
     targetType: {type: string}
     targetId: {type: integer, format: int64}
+    targetAvailable: {type: boolean, description: False when the Host cannot re-authorize the target at read time.}
+    targetPath: {type: string, description: Host-resolved same-origin path; omitted for unavailable targets.}
     payload: {type: object, additionalProperties: true}
     readAt: {type: string, format: date-time}
     createdAt: {type: string, format: date-time}
@@ -39,3 +44,177 @@ ApiResponseNotification:
     code: {type: integer}
     message: {type: string}
     data: {$ref: "#/Notification"}
+PreferenceItem:
+  type: object
+  required: [type, category, channel, active, enabled, recommendedEnabled, userConfigurable, required, state, effective]
+  properties:
+    type: {type: string}
+    category: {type: string}
+    channel: {type: string, enum: [in_app, email, web_push]}
+    active: {type: boolean}
+    enabled: {type: boolean}
+    recommendedEnabled: {type: boolean}
+    userConfigurable: {type: boolean}
+    required: {type: boolean}
+    state: {type: string, enum: [inherit, enabled, disabled]}
+    effective: {type: boolean}
+PreferenceCatalog:
+  type: object
+  required: [revision, items]
+  properties:
+    revision: {type: integer, format: int64, minimum: 0}
+    items: {type: array, items: {$ref: "#/PreferenceItem"}}
+PreferenceUpdate:
+  type: object
+  required: [type, channel, state]
+  properties:
+    type: {type: string}
+    channel: {type: string, enum: [in_app, email, web_push]}
+    state: {type: string, enum: [inherit, enabled, disabled]}
+PreferenceRevisionRequest:
+  type: object
+  required: [revision]
+  properties:
+    revision: {type: integer, format: int64, minimum: 0}
+PreferenceUpdateRequest:
+  allOf:
+  - {$ref: "#/PreferenceRevisionRequest"}
+  - type: object
+    required: [items]
+    properties:
+      items: {type: array, items: {$ref: "#/PreferenceUpdate"}, maxItems: 200}
+ApiResponsePreferenceCatalog:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data: {$ref: "#/PreferenceCatalog"}
+AdminPolicyItem:
+  type: object
+  required: [type, category, channel, active, enabled, recommendedEnabled, userConfigurable, required]
+  properties:
+    type: {type: string}
+    category: {type: string}
+    ownerExtensionId: {type: string}
+    channel: {type: string, enum: [in_app, email, web_push]}
+    active: {type: boolean}
+    enabled: {type: boolean}
+    recommendedEnabled: {type: boolean}
+    userConfigurable: {type: boolean}
+    required: {type: boolean}
+AdminPolicyCatalog:
+  type: object
+  required: [revision, items]
+  properties:
+    revision: {type: integer, format: int64, minimum: 1}
+    items: {type: array, items: {$ref: "#/AdminPolicyItem"}}
+AdminPolicyUpdate:
+  type: object
+  required: [type, channel, enabled, recommendedEnabled, userConfigurable]
+  properties:
+    type: {type: string}
+    channel: {type: string, enum: [in_app, email, web_push]}
+    enabled: {type: boolean}
+    recommendedEnabled: {type: boolean}
+    userConfigurable: {type: boolean}
+AdminPolicyUpdateRequest:
+  type: object
+  required: [revision, items]
+  properties:
+    revision: {type: integer, format: int64, minimum: 1}
+    items: {type: array, maxItems: 500, items: {$ref: "#/AdminPolicyUpdate"}}
+ApiResponseAdminPolicyCatalog:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data: {$ref: "#/AdminPolicyCatalog"}
+ChannelSelectionRequest:
+  type: object
+  required: [candidateId, expectedRevision]
+  properties:
+    candidateId: {type: string}
+    expectedRevision: {type: integer, format: int64, minimum: 0}
+ChannelResetRequest:
+  type: object
+  required: [revision]
+  properties:
+    revision: {type: integer, format: int64, minimum: 1}
+ChannelDelivery:
+  type: object
+  required: [id, type, channel, payloadVersion, status, attemptCount, createdAt, updatedAt]
+  properties:
+    id: {type: integer, format: int64}
+    notificationId: {type: integer, format: int64}
+    type: {type: string}
+    channel: {type: string, enum: [web_push]}
+    providerExtensionId: {type: string}
+    providerArtifactDigest: {type: string}
+    payloadVersion: {type: integer, minimum: 1}
+    status: {type: string, enum: [queued, sending, sent, failed, skipped]}
+    attemptCount: {type: integer, minimum: 0}
+    reason: {type: string}
+    errorSummary: {type: string, description: Bounded redacted summary; provider response bodies are never included.}
+    createdAt: {type: string, format: date-time}
+    updatedAt: {type: string, format: date-time}
+    completedAt: {type: string, format: date-time}
+ApiResponseChannelDeliveries:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data:
+      type: object
+      required: [items]
+      properties: {items: {type: array, items: {$ref: "#/ChannelDelivery"}}}
+WebPushConfig:
+  type: object
+  required: [available, workerPath, scope]
+  properties:
+    available: {type: boolean}
+    publicKey: {type: string, description: Public VAPID application server key only.}
+    workerPath: {type: string, enum: [/_sforum/notifications/sw.js]}
+    scope: {type: string, enum: [/_sforum/notifications/]}
+ApiResponseWebPushConfig:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data: {$ref: "#/WebPushConfig"}
+WebPushSubscriptionRequest:
+  type: object
+  required: [endpoint, keys]
+  properties:
+    endpoint: {type: string, format: uri, pattern: '^https://', maxLength: 4096}
+    keys:
+      type: object
+      required: [p256dh, auth]
+      properties:
+        p256dh: {type: string, minLength: 32, maxLength: 512}
+        auth: {type: string, minLength: 8, maxLength: 256}
+WebPushSubscription:
+  type: object
+  required: [id, endpointOrigin, contentEncoding, status, createdAt, updatedAt]
+  properties:
+    id: {type: integer, format: int64}
+    endpointOrigin: {type: string, format: uri}
+    contentEncoding: {type: string, enum: [aes128gcm]}
+    status: {type: string, enum: [active, revoked, failed]}
+    lastFailureReason: {type: string}
+    createdAt: {type: string, format: date-time}
+    updatedAt: {type: string, format: date-time}
+    revokedAt: {type: string, format: date-time}
+ApiResponseWebPushSubscriptions:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data:
+      type: object
+      required: [items]
+      properties: {items: {type: array, items: {$ref: "#/WebPushSubscription"}}}

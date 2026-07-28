@@ -3,32 +3,29 @@ import { useAdminPage } from '~/composables/admin/useAdminPage'
 import type { Component } from 'vue'
 import SFAdminFixedTabNav from '~/components/admin/settings/shared/SFAdminFixedTabNav.vue'
 import SFAdminMailDeliveriesTab from '~/components/admin/settings/mail/tabs/SFAdminMailDeliveriesTab.vue'
-import SFAdminMailNotificationsTab from '~/components/admin/settings/mail/tabs/SFAdminMailNotificationsTab.vue'
 import SFAdminMailOverviewTab from '~/components/admin/settings/mail/tabs/SFAdminMailOverviewTab.vue'
 import SFAdminMailProviderTab from '~/components/admin/settings/mail/tabs/SFAdminMailProviderTab.vue'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
 defineOptions({ name: 'AdminMailSettings' })
 
-type MailTab = 'overview' | 'provider' | 'notifications' | 'deliveries'
+type MailTab = 'overview' | 'provider' | 'deliveries'
 type RefreshableTab = { refresh?: () => Promise<void>, pending?: boolean }
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const adminPage = useAdminPage('/settings/mail')
 const childRef = ref<RefreshableTab | null>(null)
-const tabIds: MailTab[] = ['overview', 'provider', 'notifications', 'deliveries']
+const tabIds: MailTab[] = ['overview', 'provider', 'deliveries']
 const activeTab = ref<MailTab>(normalizeTab(route.query.tab))
 const tabs = computed(() => [
   { id: 'overview', label: t('admin.mailSettings.overview'), icon: 'i-lucide-layout-dashboard' },
   { id: 'provider', label: t('admin.mailSettings.mail'), icon: 'i-lucide-mail' },
-  { id: 'notifications', label: t('admin.mailSettings.inApp'), icon: 'i-lucide-bell' },
   { id: 'deliveries', label: t('admin.mailSettings.deliveries'), icon: 'i-lucide-list-checks' }
 ])
 const components: Record<MailTab, Component> = {
   overview: SFAdminMailOverviewTab,
   provider: SFAdminMailProviderTab,
-  notifications: SFAdminMailNotificationsTab,
   deliveries: SFAdminMailDeliveriesTab
 }
 const activeComponent = computed(() => components[activeTab.value])

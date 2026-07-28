@@ -200,6 +200,26 @@ kinds are `executable`, `frontend`, `locale`, `schema`, `migration`, `template`,
 `asset`, and `openapi`. Backend, guard, migration, template, asset, OpenAPI, and
 L2 references must resolve to the matching declared file kind and digest.
 
+### Notification types and Host emission
+
+Executable plugins may declare inert `notificationTypes`. Each type id must be
+under the plugin id namespace, bind `contractVersion: <type>@1`, and reference
+one exact `packageFiles` JSON Schema through `payloadSchema`. A plugin type
+cannot be `required`; only Core may own non-configurable required notices.
+
+At runtime use Host API v2 `notifications.emit@1` through
+`(*pluginv2.Host).EmitNotification`. The request contains one declared type and
+payload version, a structured payload, at most 50 explicit active user ids, a
+declared target descriptor, and a visible-ASCII idempotency key. The Host
+validates the exact artifact/grant/epoch/instance, schema digest and value,
+target, recipient policy, 16 KiB payload bound, count, rolling rate, and
+deadline in its transaction. It writes recipient-owned projections and
+redacted audit evidence; it never accepts a plugin actor, session, cookie,
+arbitrary URL, required type, raw notification-table write, or bulk broadcast.
+
+See the generated [notification contract](./catalogs/notifications.md) and
+`extensions/fixtures/plugins/sforum-notification-reference`.
+
 ```bash
 cd apps/api
 go run ./cmd/sforum extension digest --write <package-root>
@@ -670,7 +690,9 @@ Related fixtures:
    one deterministic, acyclic graph.
 9. **Host catalogs** — capabilities, events, contributions, providers, and jobs
    use the published generated catalogs.
-10. **Operator defaults** — settings include safe defaults and reset-friendly
+10. **Notifications** — namespaced inert types bind an exact schema file;
+    runtime emission uses `notifications.emit@1`, never raw tables or broadcast.
+11. **Operator defaults** — settings include safe defaults and reset-friendly
     recommended values so first-time operators are not blocked.
 
 ## Host API methods (v1)

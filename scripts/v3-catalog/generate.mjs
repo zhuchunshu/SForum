@@ -138,7 +138,7 @@ function routePolicy(route) {
   if (path.startsWith('/api/v1/admin/mail')) return ['permission', 'settings.mail.manage or settings.manage compatibility policy']
   if (path.startsWith('/api/v1/admin/moderation')) return ['permission', 'moderation.manage']
   if (path.startsWith('/api/v1/moderation/workbench')) return ['permission', 'moderation.review; moderation.view_ip controls sensitive fields']
-  if (path.startsWith('/api/v1/admin/notifications')) return ['permission', 'settings.manage']
+  if (path.startsWith('/api/v1/admin/notifications')) return ['permission', 'settings.notifications.manage or settings.manage compatibility policy']
   if (path.startsWith('/api/v1/admin/seo')) return ['permission', 'seo.manage']
   if (path.startsWith('/api/v1/admin/site')) return ['permission', 'settings.site.manage']
   if (path.startsWith('/api/v1/admin/webhooks')) return ['permission', 'settings.manage or settings.site.manage']
@@ -173,6 +173,7 @@ function routePolicy(route) {
   if (path === '/api/v1/human-verification/challenge') return ['public', 'purpose allowlist and Redis rate/replay policy']
   if (path.startsWith('/api/v1/profile') && !path.startsWith('/api/v1/profiles')) return ['login', 'current active actor; attachment.upload for avatar upload']
   if (path.startsWith('/api/v1/notifications')) return ['login', 'current recipient ownership']
+  if (path.startsWith('/api/v1/notification-preferences')) return ['login', 'current recipient ownership']
   if (path === '/api/v1/moderation/reports') return ['login', 'active actor and report deduplication policy']
   if (path === '/api/v1/me/content-review') return ['login', 'current active author ownership']
   if (path.startsWith('/api/v1/entity-meta/') && method !== 'GET') return ['permission', 'entity ownership plus field definition write policy']
@@ -199,6 +200,7 @@ function routePolicy(route) {
   if (path.startsWith('/api/v1/comments/') && method !== 'GET') return ['permission', 'post edit/delete own or any policy']
   if (path === '/api/v1/web-options' && method === 'PUT') return ['permission', 'option-owner permission dispatch']
   if (path.startsWith('/api/v1/webhooks/inbound')) return ['public', 'source-specific signature/idempotency policy']
+  if (path.startsWith('/api/v1/web-push')) return ['login', 'current recipient ownership']
   if (path.startsWith('/api/v1/pages/resolve')) return ['contextual', 'resolved Page Registry access enum; loader receives no raw session authority']
   if (path.startsWith('/api/v1/site/theme-assets')) return ['public', 'active package containment, digest, MIME, and path policy']
   if (path.startsWith('/api/v1/site/') || path.startsWith('/api/v1/web-options') || path.startsWith('/api/v1/profiles/')) return ['public', 'public read contract']
@@ -219,6 +221,7 @@ const reviewedGuardPolicies = new Map([
   ['search.manage', { kind: 'permission_any', permissions: ['search.manage'] }],
   ['seo.manage', { kind: 'permission_any', permissions: ['seo.manage'] }],
   ['settings.mail.manage or settings.manage compatibility policy', { kind: 'permission_any', permissions: ['settings.mail.manage', 'settings.manage'] }],
+  ['settings.notifications.manage or settings.manage compatibility policy', { kind: 'permission_any', permissions: ['settings.notifications.manage', 'settings.manage'] }],
   ['settings.manage', { kind: 'permission_any', permissions: ['settings.manage'] }],
   ['settings.manage or settings.site.manage', { kind: 'permission_any', permissions: ['settings.manage', 'settings.site.manage'] }],
   ['settings.site.manage', { kind: 'permission_any', permissions: ['settings.site.manage'] }],

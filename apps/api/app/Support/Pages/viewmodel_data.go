@@ -18,6 +18,7 @@ type CorePageViewModelData struct {
 	Profile               *themecompiler.ProfilePageViewModel
 	ProfileSettings       *themecompiler.ProfileSettingsPageViewModel
 	SecuritySettings      *themecompiler.SecuritySettingsPageViewModel
+	NotificationSettings  *themecompiler.NotificationSettingsPageViewModel
 	Notifications         *themecompiler.NotificationsPageViewModel
 	ModerationReview      *themecompiler.ModerationReviewPageViewModel
 	Login                 *themecompiler.LoginPageViewModel

@@ -7,6 +7,7 @@ require github.com/zhuchunshu/sforum/apps/api v0.0.0
 require (
 	github.com/Masterminds/semver/v3 v3.5.0 // indirect
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible // indirect
+	github.com/altcha-org/altcha-lib-go/v2 v2.0.0-20260512100103-f14102c7e9bd // indirect
 	github.com/andybalholm/brotli v1.2.1 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect

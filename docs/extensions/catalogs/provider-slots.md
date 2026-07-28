@@ -31,6 +31,7 @@ Callable transport exists (see wire RPCs).
 | `human_verification.provider` | Human verification / CAPTCHA-style checks (core Altcha default). |
 | `auth.risk.provider` | Login/registration risk signals (core default). |
 | `editor.sanitizer.provider` | Rich-text sanitizer policy (core default). |
+| `notification.channel.web_push` | Host-owned provider slot. |
 
 ## Versioned provider declaration
 

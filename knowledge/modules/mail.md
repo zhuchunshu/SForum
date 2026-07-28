@@ -19,15 +19,13 @@ SMTP, log delivery, no-op delivery, authentication, or TLS.
 - `settings.manage` protects provider selection, reset, recent deliveries, test
   mail, and mail-provider plugin settings. `extension.manage` still controls
   plugin enable/disable. Disabling the selected plugin clears the selection.
-- Core admin route `/settings/mail` is the visible **Mail and Notifications**
-  center. Its 59-line route shell composes independent Overview, Provider,
-  Notifications, and Deliveries components under
-  `components/admin/settings/mail/tabs/`; each tab loads only its own data and
-  retains state through `KeepAlive`.
+- Core admin route `/settings/mail` owns mail provider configuration, testing,
+  and mail delivery history. Notification policy moved to the dedicated
+  `/control-panel/settings/notifications` admin surface; existing `/admin/mail/policy`
+  routes remain compatibility projections over the Notification resolver.
 - Provider selection and settings navigation remain extension-generic.
-  Notifications owns policy save/restore and self-test; Deliveries owns status,
-  template, and reason localization. Queued test mail is not presented as
-  synchronously delivered.
+  Deliveries owns status, template, and reason localization. Queued test mail
+  is not presented as synchronously delivered.
 - `POST /admin/mail/test` recipient resolution: explicit JSON `recipient` first,
   otherwise `site.admin_email` via `Options.AdminEmail`. Both empty → `422
   mail.test_recipient_required`. Response `data.recipient` echoes the resolved

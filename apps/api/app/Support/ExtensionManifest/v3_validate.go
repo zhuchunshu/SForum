@@ -175,7 +175,8 @@ func (v *v3Validator) validateGuardsAndRoutes() error {
 		if routeTargetsExisting(route.Action) && route.TargetID == "" {
 			return ErrInvalidManifest
 		}
-		if route.TargetID == "core.route.system.health" || route.TargetID == "core.route.system.ready" {
+		if route.TargetID == "core.route.system.health" || route.TargetID == "core.route.system.ready" ||
+			route.TargetID == "core.route.notifications.stream" {
 			return ErrInvalidManifest
 		}
 		if route.Action == RouteActionRedirect {
@@ -425,7 +426,7 @@ func knownOrNamespacedContract(extensionID string, value string, known bool) boo
 }
 
 func validRoutePath(value string) bool {
-	if value == "/health" || value == "/ready" {
+	if value == "/health" || value == "/ready" || value == "/api/v1/notifications/stream" {
 		return false
 	}
 	return value != "" && strings.HasPrefix(value, "/") && !strings.HasPrefix(value, "//") && !strings.Contains(value, "://") && !strings.Contains(value, "..") && !strings.ContainsRune(value, '\x00')

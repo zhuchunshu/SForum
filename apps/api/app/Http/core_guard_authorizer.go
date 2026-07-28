@@ -391,10 +391,18 @@ func requireProfileSelfAuthority(_ context.Context, evaluation routes.CoreGuardE
 
 func requireNotificationRecipientAuthority(ctx context.Context, evaluation routes.CoreGuardEvaluation) error {
 	switch evaluation.Descriptor.RouteID {
-	case "core.route.notifications.list",
+	case "core.route.notifications.get_preferences",
+		"core.route.notifications.update_preferences",
+		"core.route.notifications.restore_preferences",
+		"core.route.notifications.list",
 		"core.route.notifications.mark_read",
 		"core.route.notifications.mark_all_read",
-		"core.route.notifications.unread_count":
+		"core.route.notifications.stream",
+		"core.route.notifications.unread_count",
+		"core.route.notifications.web_push_config",
+		"core.route.notifications.list_web_push_subscriptions",
+		"core.route.notifications.create_web_push_subscription",
+		"core.route.notifications.revoke_web_push_subscription":
 		// 这些路由没有可选 recipient 参数。核心 Store 始终用当前 ActorID
 		// 约束 recipient_user_id，Guard 只负责阻止匿名主体进入该所有权边界。
 		return requireAuthenticatedCoreGuardActor(ctx, evaluation)

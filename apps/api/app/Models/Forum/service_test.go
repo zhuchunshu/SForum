@@ -2464,6 +2464,48 @@ func TestServiceCreateCommentSkipsMentionsWhenDisabled(t *testing.T) {
 	}
 }
 
+func TestServiceCreateTopicSkipsMentionsWhenDisabled(t *testing.T) {
+	store := newServiceFakeStore()
+	settings := testForumSettings()
+	settings.MentionsEnabled = false
+	service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: settings}, Publisher: nil})
+	actor := identity.Actor{
+		ID: 3, Status: identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionTopicCreate: true},
+	}
+	if _, err := service.CreateTopic(context.Background(), actor, CreateTopicInput{
+		CategorySlug: "general",
+		Title:        "Topic mention disabled",
+		Content:      ContentInput{SourceFormat: SourceFormatMarkdown, RawContent: "hi @alice"},
+	}); err != nil {
+		t.Fatalf("create topic: %v", err)
+	}
+	if len(store.createdTopic.MentionedUsernames) != 0 {
+		t.Fatalf("expected no mentions when disabled, got %#v", store.createdTopic.MentionedUsernames)
+	}
+}
+
+func TestServiceCreateTopicParsesMentionsWhenEnabled(t *testing.T) {
+	store := newServiceFakeStore()
+	settings := testForumSettings()
+	settings.MentionsEnabled = true
+	service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: settings}, Publisher: nil})
+	actor := identity.Actor{
+		ID: 3, Status: identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionTopicCreate: true},
+	}
+	if _, err := service.CreateTopic(context.Background(), actor, CreateTopicInput{
+		CategorySlug: "general",
+		Title:        "Topic mention enabled",
+		Content:      ContentInput{SourceFormat: SourceFormatMarkdown, RawContent: "hi @alice and `@ignored`"},
+	}); err != nil {
+		t.Fatalf("create topic: %v", err)
+	}
+	if got := store.createdTopic.MentionedUsernames; len(got) != 1 || got[0] != "alice" {
+		t.Fatalf("unexpected topic mentions: %#v", got)
+	}
+}
+
 func TestServiceCreateCommentParsesMentionsWhenEnabled(t *testing.T) {
 	store := newServiceFakeStore()
 	store.topicForComment = TopicSummary{ID: 1, Status: TopicStatusActive}

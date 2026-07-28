@@ -145,6 +145,9 @@
     "permissionDefinitions": {
       "$ref": "#/$defs/permissionDefinitions"
     },
+    "notificationTypes": {
+      "$ref": "#/$defs/notificationTypes"
+    },
     "media": {
       "$ref": "#/$defs/media"
     },
@@ -2498,6 +2501,95 @@
           },
           "assignmentPolicy": {
             "const": "host"
+          }
+        }
+      }
+    },
+    "notificationTypes": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "maxItems": 512,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "contractVersion",
+          "payloadVersion",
+          "category",
+          "payloadSchema",
+          "label",
+          "body",
+          "targetKind",
+          "channels"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "contractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "payloadVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "category": {
+            "$ref": "#/$defs/id"
+          },
+          "payloadSchema": {
+            "$ref": "#/$defs/contract"
+          },
+          "label": {
+            "$ref": "#/$defs/localizedText"
+          },
+          "body": {
+            "$ref": "#/$defs/localizedText"
+          },
+          "icon": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "targetKind": {
+            "enum": [
+              "none",
+              "host_route",
+              "extension_route",
+              "entity"
+            ]
+          },
+          "targetId": {
+            "$ref": "#/$defs/id"
+          },
+          "channels": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 8,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "in_app",
+                "email",
+                "web_push"
+              ]
+            }
+          },
+          "recommendedChannels": {
+            "type": "array",
+            "maxItems": 8,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "in_app",
+                "email",
+                "web_push"
+              ]
+            }
+          },
+          "required": {
+            "const": false
           }
         }
       }

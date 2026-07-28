@@ -80,15 +80,16 @@ type CoreSearchViewReader interface {
 }
 
 type CorePageViewModelDependencies struct {
-	Forum         CoreForumViewReader
-	Profiles      CoreProfileViewReader
-	Notifications CoreNotificationViewReader
-	Moderation    CoreModerationViewReader
-	Options       CoreOptionViewReader
-	Registration  CoreRegistrationViewReader
-	Sessions      CoreSessionViewReader
-	SiteChrome    CoreSiteChromeViewReader
-	Search        CoreSearchViewReader
+	Forum               CoreForumViewReader
+	Profiles            CoreProfileViewReader
+	Notifications       CoreNotificationViewReader
+	NotificationTargets notifications.TargetVisibilityResolver
+	Moderation          CoreModerationViewReader
+	Options             CoreOptionViewReader
+	Registration        CoreRegistrationViewReader
+	Sessions            CoreSessionViewReader
+	SiteChrome          CoreSiteChromeViewReader
+	Search              CoreSearchViewReader
 }
 
 // CorePageViewModelInput contains normalized Host routing state plus the
@@ -155,6 +156,12 @@ func (s *CorePageViewModelSource) Populate(ctx context.Context, input CorePageVi
 		err = s.populateProfileSettings(ctx, &request, input.Actor)
 	case "forum.settings.security":
 		err = s.populateSecuritySettings(ctx, &request, input)
+	case "forum.settings.notifications":
+		if input.Actor.ID <= 0 {
+			return pages.CorePageViewModelRequest{}, ErrCorePageDataUnauthorized
+		}
+		request.SEO.Robots = "noindex,nofollow"
+		request.Data.NotificationSettings = &themecompiler.NotificationSettingsPageViewModel{}
 	case "forum.notifications":
 		err = s.populateNotifications(ctx, &request, input)
 	case "moderation.review":
@@ -534,6 +541,10 @@ func (s *CorePageViewModelSource) populateNotifications(ctx context.Context, req
 	page, err := s.deps.Notifications.List(ctx, notifications.ListInput{
 		RecipientUserID: input.Actor.ID, Limit: boundedInt(input.Query.Get("limit"), 20, 1, 100), BeforeID: boundedInt64(input.Query.Get("beforeId"), 0, 0),
 	})
+	if err != nil {
+		return err
+	}
+	page, err = notifications.ResolveSafeTargets(ctx, s.deps.NotificationTargets, input.Actor.ID, page)
 	if err != nil {
 		return err
 	}

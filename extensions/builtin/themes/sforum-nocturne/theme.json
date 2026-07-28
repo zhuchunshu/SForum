@@ -85,6 +85,13 @@
       "contract": "sforum.page.settings_security@1"
     },
     {
+      "id": "sforum.nocturne-theme.settings_notifications",
+      "action": "replace",
+      "target": "forum.settings.notifications",
+      "template": "templates/settings-notifications.html",
+      "contract": "sforum.page.settings_notifications@1"
+    },
+    {
       "id": "sforum.nocturne-theme.notifications",
       "action": "replace",
       "target": "forum.notifications",

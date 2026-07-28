@@ -10,6 +10,7 @@ import (
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
 	assetregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/AssetRegistry"
 	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
 	contentregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentRegistry"
@@ -46,13 +47,16 @@ type productionLifecycleStackConfig struct {
 	// IdentityStore is a test seam. Production leaves it nil and constructs a
 	// PostgreSQL store with extensions.ValidateStoredTrustImpact so legacy
 	// adoption has an explicit instance-scoped integrity dependency.
-	IdentityStore     identityregistry.PublicationStore
-	River             hostapi.PluginJobLifecycleRiverClient
-	ExtensionRoot     string
-	QueryCursorSecret []byte
-	MigrationEngine   extensionsruntime.LifecycleMigrationEngine
-	Database          extensionsruntime.ExtensionDatabaseDisposition
-	SafeMode          bool
+	IdentityStore identityregistry.PublicationStore
+	// NotificationRegistry is a test seam. Production leaves it nil so the
+	// lifecycle stack binds durable descriptor persistence to Pool.
+	NotificationRegistry *notifications.Registry
+	River                hostapi.PluginJobLifecycleRiverClient
+	ExtensionRoot        string
+	QueryCursorSecret    []byte
+	MigrationEngine      extensionsruntime.LifecycleMigrationEngine
+	Database             extensionsruntime.ExtensionDatabaseDisposition
+	SafeMode             bool
 }
 
 // productionLifecycleStack 保留组装后的具体实例，避免 lifecycle 的不同边界
@@ -81,10 +85,11 @@ type productionLifecycleStack struct {
 	SessionPolicyStore   *identity.PostgresIdentitySessionPolicyStore
 	// QueryRegistry 与 QueryCoreCatalog 在进程启动时一次性构造；不得每请求重建，
 	// 也不得从 mutable Store 再生成 Core publication。
-	QueryRegistry      *queryregistry.Registry
-	QueryCoreCatalog   *hostapi.QueryRegistryCoreCatalog
-	SEORegistry        *seoregistry.Registry
-	NavigationRegistry *navigationregistry.Registry
+	QueryRegistry        *queryregistry.Registry
+	QueryCoreCatalog     *hostapi.QueryRegistryCoreCatalog
+	SEORegistry          *seoregistry.Registry
+	NavigationRegistry   *navigationregistry.Registry
+	NotificationRegistry *notifications.Registry
 	// ContentRegistry is the P10 block/shortcode/embed/node/mark graph.
 	ContentRegistry *contentregistry.Registry
 	// MediaRegistry is the P10 MIME/processor/variant pipeline graph.
@@ -242,6 +247,16 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 			return nil, fmt.Errorf("%w: enter navigation registry safe mode: %v", errProductionLifecycleDependency, err)
 		}
 	}
+	// 构造阶段只建立进程内 Safe Mode 快照；durable descriptor 退役由启动
+	// lifecycle restore 在拿到完整 enabled inventory 后统一提交。
+	notificationRegistry := config.NotificationRegistry
+	if notificationRegistry == nil {
+		notificationRegistry = notifications.NewPersistentRegistry(config.Pool, config.SafeMode)
+	} else if config.SafeMode {
+		if _, err := notificationRegistry.SetSafeMode(context.Background(), true); err != nil {
+			return nil, fmt.Errorf("%w: enter notification registry safe mode: %v", errProductionLifecycleDependency, err)
+		}
+	}
 	// Content Registry：P10 声明图；Safe Mode 从首个 snapshot 起拒绝第三方。
 	contentRegistry := contentregistry.New()
 	if config.SafeMode {
@@ -315,7 +330,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 			Components: componentRegistry, ComponentComposition: componentComposition,
 			Assets: assetRegistry, Caches: cacheRegistry, Queries: queryRegistry,
 			SEO: seoRegistry, Identity: identityRegistry, IdentityStore: identityStore,
-			Navigation: navigationRegistry, Content: contentRegistry, Media: mediaRegistry, Editor: editorRegistry,
+			Navigation: navigationRegistry, Notifications: notificationRegistry, Content: contentRegistry, Media: mediaRegistry, Editor: editorRegistry,
 			Entity: entityRegistry, AssetAuthority: assetAuthority, AssetAdmission: config.Trust,
 		},
 	)
@@ -345,7 +360,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 		IdentityRegistry: identityRegistry, IdentityStore: identityStore,
 		SessionPolicyStore: sessionPolicyStore,
 		QueryRegistry:      queryRegistry, QueryCoreCatalog: queryCoreCatalog,
-		SEORegistry: seoRegistry, NavigationRegistry: navigationRegistry,
+		SEORegistry: seoRegistry, NavigationRegistry: navigationRegistry, NotificationRegistry: notificationRegistry,
 		ContentRegistry: contentRegistry, MediaRegistry: mediaRegistry, EditorRegistry: editorRegistry,
 		EntityRegistry: entityRegistry, RouteProviders: routeProviders,
 		ProviderSlots:      providerSlots,

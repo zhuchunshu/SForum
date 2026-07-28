@@ -114,6 +114,20 @@ func BuildCorePageViewModel(request CorePageViewModelRequest) (any, error) {
 			"core.route.identity.rotate_apitoken",
 		)
 		return model, nil
+	case "forum.settings.notifications":
+		model := valueOrZero(request.Data.NotificationSettings)
+		model.Base = base
+		model.Form = hostForm(
+			"notifications.component.settings",
+			"core.route.notifications.get_preferences",
+			"core.route.notifications.update_preferences",
+			"core.route.notifications.restore_preferences",
+			"core.route.notifications.web_push_config",
+			"core.route.notifications.list_web_push_subscriptions",
+			"core.route.notifications.create_web_push_subscription",
+			"core.route.notifications.revoke_web_push_subscription",
+		)
+		return model, nil
 	case "forum.notifications":
 		model := valueOrZero(request.Data.Notifications)
 		model.Base = base

@@ -118,6 +118,7 @@ type Manifest struct {
 	QueryResultFilters    []ManifestQueryResultFilter    `json:"queryResultFilters,omitempty"`
 	Identity              *ManifestIdentity              `json:"identity,omitempty"`
 	PermissionDefinitions []ManifestPermissionDefinition `json:"permissionDefinitions,omitempty"`
+	NotificationTypes     []ManifestNotificationType     `json:"notificationTypes,omitempty"`
 	Media                 []ManifestMediaPipeline        `json:"media,omitempty"`
 	Navigation            []ManifestNavigation           `json:"navigation,omitempty"`
 	Regions               []ManifestRegion               `json:"regions,omitempty"`
@@ -1001,15 +1002,6 @@ func ResolvedCapabilities(manifest Manifest) (keys []string, implied map[string]
 // CapabilityGrants 返回启用审查用的能力列表。
 func CapabilityGrants(manifest Manifest) []capabilities.Grant {
 	return capabilities.GrantsFor(CapabilityResolveInput(manifest))
-}
-
-func knownProviderSlot(slot string) bool {
-	switch slot {
-	case "mail.provider", "search.provider", "attachment.storage.provider", "human_verification.provider", "auth.risk.provider", "editor.sanitizer.provider":
-		return true
-	default:
-		return false
-	}
 }
 
 func manifestHasPermission(manifest Manifest, permission string) bool {

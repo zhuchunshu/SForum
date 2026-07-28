@@ -111,9 +111,10 @@ beyond the earlier search/cache read-path work:
   PostgreSQL database. It is read-only in v1, uses catalog metadata to validate
   table/column identifiers, excludes system schemas, masks sensitive values,
   and requires `database.manage`.
-- `notifications`: framework-only until accepted product scope requires more;
-  core may own events, preferences, delivery-attempt contracts, queue names, and
-  provider slots, while concrete channels and fanout policy belong in plugins.
+- `notifications`: Core owns recipient/fanout policy, registry, preferences,
+  inbox/revisions, safe presentation, generic delivery attempts, queue names,
+  subscription ownership, and provider selection. External transport remains
+  plugin-owned; the protected Web Push reference proves the boundary.
 - `payments`: core framework boundary when product scope requires it. Core
   should define provider-neutral payment intents, transactions, refunds,
   webhook-delivery/idempotency records, entitlement checks, events, provider

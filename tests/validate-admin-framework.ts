@@ -165,6 +165,7 @@ const adminPagePathsById: Record<string, string> = {
   '/permissions': 'apps/web/app/pages/admin/permissions.vue',
   '/settings': 'apps/web/app/pages/admin/settings/index.vue',
   '/settings/mail': 'apps/web/app/pages/admin/settings/mail.vue',
+  '/settings/notifications': 'apps/web/app/pages/admin/settings/notifications.vue',
   '/settings/login-methods': 'apps/web/app/pages/admin/settings/login-methods.vue',
   '/settings/avatar': 'apps/web/app/pages/admin/settings/avatar.vue',
   '/settings/features': 'apps/web/app/pages/admin/settings/features.vue',
@@ -307,7 +308,7 @@ assert(
 )
 assert(systemFolder.children?.some(entry => entry.pageId === '/personalization'), 'System folder should contain the personalization page')
 assert(
-  systemFolder.children?.map(entry => entry.pageId).join(',') === '/settings,/settings/mail,/settings/login-methods,/settings/avatar,/settings/features,/entity-meta,/personalization,/seo,/search',
+  systemFolder.children?.map(entry => entry.pageId).join(',') === '/settings,/settings/mail,/settings/notifications,/settings/login-methods,/settings/avatar,/settings/features,/entity-meta,/personalization,/seo,/search',
   'System folder should keep the approved settings submenu order without ops tools'
 )
 assert(!systemFolder.children?.some(entry => entry.pageId === '/site-chrome'), 'Site chrome should be merged into personalization, not a separate sidebar page')

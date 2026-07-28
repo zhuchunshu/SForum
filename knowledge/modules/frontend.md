@@ -268,8 +268,10 @@ Architecture sources:
   `?group=<group.id>`, page-local category filtering, group-local sorting, and
   a derived right rail. Topbar `SFSearch` remains global forum search.
 - The notifications page follows the same default-theme shell and shared
-  mobile drawer state as the forum homepage/navbar. Its filters are client-side
-  over loaded notifications only; the global unread total remains API-owned.
+  mobile drawer state as the forum homepage/navbar. Type/category/unread filters
+  are server-authoritative; the global unread total remains API-owned. One
+  shared EventSource coalesces revision-only refresh signals and falls back to
+  REST/manual refresh.
   Desktop-hidden right rails must explicitly opt back into display inside a
   mobile drawer.
 - `forum.topic.create` now uses the same default-theme three-column native flow:

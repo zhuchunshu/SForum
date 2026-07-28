@@ -1985,10 +1985,18 @@ func TestProductionPagesAdminGuardRejectsForeignRouteID(t *testing.T) {
 
 func TestProductionNotificationRecipientGuardClosesCatalogModule(t *testing.T) {
 	expected := map[string]string{
-		"core.route.notifications.list":          "GET",
-		"core.route.notifications.mark_read":     "PATCH",
-		"core.route.notifications.mark_all_read": "POST",
-		"core.route.notifications.unread_count":  "GET",
+		"core.route.notifications.get_preferences":              "GET",
+		"core.route.notifications.update_preferences":           "PUT",
+		"core.route.notifications.restore_preferences":          "POST",
+		"core.route.notifications.list":                         "GET",
+		"core.route.notifications.mark_read":                    "PATCH",
+		"core.route.notifications.mark_all_read":                "POST",
+		"core.route.notifications.stream":                       "GET",
+		"core.route.notifications.unread_count":                 "GET",
+		"core.route.notifications.web_push_config":              "GET",
+		"core.route.notifications.list_web_push_subscriptions":  "GET",
+		"core.route.notifications.create_web_push_subscription": "POST",
+		"core.route.notifications.revoke_web_push_subscription": "DELETE",
 	}
 	var catalog []routes.CoreRoute
 	for _, route := range routes.CoreRouteCatalog() {

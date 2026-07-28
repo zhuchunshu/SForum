@@ -32,7 +32,8 @@ Menus evolve with version and extensions. Common groups:
 | Taxonomy | Categories, tags, icons |
 | Users / roles / permissions | Members, role templates, matrix, per-user overrides |
 | Attachments | Storage provider, governance |
-| Mail & notifications | Provider selection, test mail, delivery history |
+| Mail | Mail provider selection, test mail, mail delivery history |
+| Notifications | Type/channel policy, Web Push provider, self-test, redacted delivery health |
 | Moderation | Reports, pre-publication review |
 | SEO | Metadata, robots/sitemap-related controls |
 | Extensions | Plugins, themes, settings, event log, trust |

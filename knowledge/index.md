@@ -19,16 +19,6 @@ load archived sessions or completed plans as current context.
 - Modules: `modules/options.md`, `modules/frontend.md`,
   `modules/extensions.md`
 
-### Notification Platform V2
-
-- Status: **ready**; V1 inbox/mail projection is present, but direct topic
-  replies, approval-time reply/mention fanout, user preferences, plugin
-  notification contracts, realtime refresh, and external channels remain open.
-- Plan: `plans/2026-07-27-notification-platform-v2.md`
-- Handoff: `sessions/2026-07-27-notification-platform-plan-handoff.md`
-- Decision: `decisions/2026-07-27-notification-platform-v2.md`
-- Module: `modules/notifications.md`
-
 ### V3 production rewire honesty remediation
 
 - Status: **ready**; eight production-call-chain findings remain. Support-only
@@ -91,6 +81,10 @@ load archived sessions or completed plans as current context.
   registries, Page Registry themes, theme-defined virtual system error pages,
   and buildless settings UI are present; extension-owned permission
   localization is present; production-rewire honesty findings remain open.
+- **Notifications:** V2 is complete: transactional reply/mention/moderation
+  fanout, layered policy and own-user preferences, exact-artifact plugin
+  emission, durable-revision SSE, generic channel delivery, and the protected
+  Web Push reference provider are shipped.
 - **Dev:** Compose owns PostgreSQL, Redis, and Mailpit. The user owns the web
   dev server on port 3000; do not kill it.
 
@@ -129,9 +123,9 @@ load archived sessions or completed plans as current context.
   backup, theme-owned presentation, bounded V3 plugin injection, and M0-M7
   one-conversation milestones:
   `sessions/2026-07-27-public-navigation-platform-plan-handoff.md`
-- Notification Platform V2 task book: Core recipient correctness, layered
-  admin/user preferences, namespaced plugin emission, durable-revision SSE, and
-  a Web Push reference channel:
+- Notification Platform V2 completed M0-M7 with exact-artifact Web Push,
+  real PostgreSQL multi-node/fixture evidence, hidden-target scrubbing, and a
+  green full repository gate; use this handoff only for independent review:
   `sessions/2026-07-27-notification-platform-plan-handoff.md`
 - Built-in GitHub social login: R1-R7 remediation packet completed with
   isolated HTTP/Browser artifacts; independent review remains required:

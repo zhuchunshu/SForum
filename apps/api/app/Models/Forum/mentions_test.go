@@ -6,8 +6,8 @@ import (
 )
 
 func TestMentionedUsernamesUsesMarkdownTextAndDeduplicates(t *testing.T) {
-	got := mentionedUsernames("hello @Alice and @张三, again @alice\n\n`@ignored`\n```\n@also_ignored\n```")
-	want := []string{"Alice", "张三"}
+	got := MentionedUsernames("hello @Alice and @张三, @approval_parent, again @alice\n\n`@ignored`\n```\n@also_ignored\n```")
+	want := []string{"Alice", "张三", "approval_parent"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("mentions=%#v want=%#v", got, want)
 	}

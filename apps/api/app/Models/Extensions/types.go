@@ -180,6 +180,7 @@ type ManifestIdentity = extensionmanifest.ManifestIdentity
 type ManifestIdentityProvider = extensionmanifest.ManifestIdentityProvider
 type ManifestIdentityProviderOperation = extensionmanifest.ManifestIdentityProviderOperation
 type ManifestPermissionDefinition = extensionmanifest.ManifestPermissionDefinition
+type ManifestNotificationType = extensionmanifest.ManifestNotificationType
 type ManifestMediaPipeline = extensionmanifest.ManifestMediaPipeline
 type ManifestNavigation = extensionmanifest.ManifestNavigation
 type ManifestRegion = extensionmanifest.ManifestRegion

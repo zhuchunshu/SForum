@@ -10,6 +10,7 @@ var ReservedPrefixes = []string{
 	"/_nuxt",
 	"/__nuxt",
 	"/__sforum",
+	"/_sforum",
 	"/health",
 }
 

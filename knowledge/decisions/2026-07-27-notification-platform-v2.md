@@ -3,7 +3,7 @@
 ## Status
 
 Accepted for implementation through
-`../plans/2026-07-27-notification-platform-v2.md`.
+`../plans/archive/2026-07/2026-07-27-notification-platform-v2.md`.
 
 ## Context
 
@@ -234,6 +234,26 @@ program without proving a better framework contract.
 
 ## Follow-up
 
-Execute `../plans/2026-07-27-notification-platform-v2.md` from M0. Amend this
-decision before implementation if the Web Push library/service-worker survey or
-existing API LTS evidence invalidates a frozen boundary.
+M0 evidence selected `github.com/SherClockHolmes/webpush-go@v1.4.0` and Fiber's
+native SSE writer. External channel deliveries use the additive
+`notification_channel_deliveries` ledger; `mail_deliveries`, `mail.deliver`,
+and Mail APIs remain the email authority. The Host worker boundary is viable
+only under `/_sforum/notifications/`; the survey found that `/_sforum` had not
+previously been reserved from Page Registry claims, so M6 must preserve the new
+Host reservation and regression proof. See
+`../reports/2026-07-28-notification-platform-v2-m0-library-service-worker-survey.md`.
+
+M6 implementation evidence changed one frozen storage detail. A configurable
+external channel can be enabled while `in_app` is disabled, so no canonical
+inbox row exists for that projection. Consequently,
+`notification_channel_deliveries.notification_id` is nullable and the delivery
+stores its bounded payload and target envelope directly. The ledger still binds
+recipient, type, channel, selected provider/artifact, idempotency, status, and
+attempt history. This preserves the rule that external delivery must never
+create an inbox row merely to satisfy a foreign key.
+
+Implementation uses `github.com/SherClockHolmes/webpush-go@v1.4.0`, Fiber's
+`SendStreamWriter`, a process-wide reconnecting PostgreSQL listener, and the
+Host-owned `/_sforum/notifications/` worker scope. The exact built-in Web Push
+artifact was staged, enabled, configured through SecretStore, selected, and
+invoked through River; see the final report linked from the task book.

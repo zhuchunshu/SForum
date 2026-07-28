@@ -41,16 +41,17 @@ const (
 	// PermissionModerationReportReview 保留为源码兼容别名；数据库权限已迁移为 moderation.review。
 	PermissionModerationReportReview = PermissionModerationReview
 	// PermissionSettingsManage 为兼容父权限；细粒度见 settings.* / forum.settings.manage。
-	PermissionSettingsManage           = "settings.manage"
-	PermissionSettingsSiteManage       = "settings.site.manage"
-	PermissionSettingsMailManage       = "settings.mail.manage"
-	PermissionSettingsAvatarManage     = "settings.avatar.manage"
-	PermissionSettingsAppearanceManage = "settings.appearance.manage"
-	PermissionForumSettingsManage      = "forum.settings.manage"
-	PermissionSEOManage                = "seo.manage"
-	PermissionAttachmentUpload         = "attachment.upload"
-	PermissionAttachmentManage         = "attachment.manage"
-	PermissionAttachmentSettings       = "attachment.settings.manage"
+	PermissionSettingsManage              = "settings.manage"
+	PermissionSettingsSiteManage          = "settings.site.manage"
+	PermissionSettingsMailManage          = "settings.mail.manage"
+	PermissionSettingsAvatarManage        = "settings.avatar.manage"
+	PermissionSettingsAppearanceManage    = "settings.appearance.manage"
+	PermissionSettingsNotificationsManage = "settings.notifications.manage"
+	PermissionForumSettingsManage         = "forum.settings.manage"
+	PermissionSEOManage                   = "seo.manage"
+	PermissionAttachmentUpload            = "attachment.upload"
+	PermissionAttachmentManage            = "attachment.manage"
+	PermissionAttachmentSettings          = "attachment.settings.manage"
 	// PermissionExtensionManage 为兼容父权限；细粒度见 extension.view/plugin/theme。
 	PermissionExtensionManage       = "extension.manage"
 	PermissionExtensionView         = "extension.view"
@@ -105,6 +106,7 @@ var SeedPermissions = []SeedPermission{
 	{Key: PermissionSettingsMailManage, Module: "admin", Description: "Manage mail providers, notification policy, and delivery tests."},
 	{Key: PermissionSettingsAvatarManage, Module: "admin", Description: "Manage avatar upload and default avatar settings."},
 	{Key: PermissionSettingsAppearanceManage, Module: "admin", Description: "Manage appearance theme and public chrome personalization."},
+	{Key: PermissionSettingsNotificationsManage, Module: "admin", Description: "Manage notification policy, channels, and delivery health."},
 	{Key: PermissionForumSettingsManage, Module: "forum", Description: "Manage forum runtime limits, reading, and behavior settings."},
 	{Key: PermissionSEOManage, Module: "admin", Description: "Manage search engine optimization settings."},
 	{Key: PermissionAttachmentUpload, Module: "attachment", Description: "Upload attachments."},
@@ -176,6 +178,7 @@ var SeedRoleTemplates = []SeedRoleTemplate{
 			PermissionSettingsMailManage,
 			PermissionSettingsAvatarManage,
 			PermissionSettingsAppearanceManage,
+			PermissionSettingsNotificationsManage,
 			PermissionForumSettingsManage,
 			PermissionSEOManage,
 			PermissionCategoryManage,

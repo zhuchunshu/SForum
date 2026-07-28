@@ -269,6 +269,23 @@ global middleware cannot be composed around a stream.
 
 ## Limits, deadlines, and cancellation
 
+### Notification emission command
+
+`notifications.emit@1` is an actorless Host Command for one exact plugin
+artifact's declared notification types. The Go SDK exposes
+`NotificationEmitRequest` and `EmitNotification`; no protobuf service addition
+is needed because the command uses `HostCommandService` and typed documents.
+
+The Host binds the call to the authenticated artifact, grant, epoch, instance,
+locale, deadline, and trace. It then validates namespace ownership, active type
+and payload versions, the exact schema file/digest and value, a maximum of 50
+explicit active recipients, the declared target, a 16 KiB payload, idempotency,
+effective recipient policy, and 60 committed requests per rolling minute.
+Plugin actor/session evidence is rejected before dispatch. Bulk broadcast and
+raw Core notification table access are absent. Audits contain type identity,
+sizes/counts, and stable reasons only; payload values and recipient ids are not
+logged.
+
 Current host-owned defaults are part of the compatibility test surface:
 
 | Limit | Current value |

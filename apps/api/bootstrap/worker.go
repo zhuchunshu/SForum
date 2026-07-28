@@ -71,6 +71,28 @@ type workerExtensionRuntime interface {
 	protocolV2ProviderBrokerSource
 }
 
+type workerNotificationChannelRuntime interface {
+	InvokeVersionedProvider(context.Context, extensionsruntime.VersionedProviderInvocation) (extensionsruntime.VersionedProviderInvocationResult, error)
+}
+
+type workerNotificationChannelAdapter struct {
+	runtime workerNotificationChannelRuntime
+}
+
+func (a workerNotificationChannelAdapter) InvokeNotificationChannel(ctx context.Context, request notificationjobs.ChannelProviderRequest) (notificationjobs.ChannelProviderResult, error) {
+	result, err := a.runtime.InvokeVersionedProvider(ctx, extensionsruntime.VersionedProviderInvocation{
+		SlotID: request.SlotID, ContractVersion: request.ContractVersion,
+		Operation: extensionsruntime.VersionedProviderOperationInvoke, InputSchema: request.InputSchema,
+		Input: request.Input, Revalidate: extensionsruntime.BoundedProviderDocumentRevalidator,
+	})
+	if errors.Is(err, extensionsruntime.ErrProviderSlotNoProvider) || errors.Is(err, extensionsruntime.ErrProviderSlotSelectionStale) {
+		return notificationjobs.ChannelProviderResult{}, errors.Join(notificationjobs.ErrChannelProviderUnavailable, err)
+	}
+	return notificationjobs.ChannelProviderResult{
+		ExtensionID: result.ExtensionID, ArtifactDigest: result.ProviderArtifact.PackageDigest, Output: result.Output,
+	}, err
+}
+
 // workerRuntimeDeps 控制 extension runtime / Host API 的所有权。
 // ExtensionRuntime 非 nil 时复用注入实例（embed 模式），不再二次 Reconcile，也不在 Worker.Close 中关闭。
 // ExtensionRuntime 为 nil 时由 worker 自建 Manager + Host API gateway（独立 worker 路径）。
@@ -621,6 +643,13 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	// mail.deliver 必须命中共享/本进程同一 runtime，避免 embed 时打到第二套插件进程。
 	mailProviders := extensionsruntime.NewMailProviderRegistry(extensionStore)
 	notificationjobs.Register(registry, &notificationjobs.DeliverMailWorker{Store: notificationStore, Providers: mailProviders, Sender: extensionRuntime})
+	channelRuntime, ok := extensionRuntime.(workerNotificationChannelRuntime)
+	if !ok {
+		return nil, fmt.Errorf("notification channel provider runtime is unavailable")
+	}
+	notificationjobs.RegisterChannels(registry, &notificationjobs.DeliverChannelWorker{
+		Store: notificationStore, Invoker: workerNotificationChannelAdapter{runtime: channelRuntime},
+	})
 	// F3.3：出站 webhook 投递（SSRF 安全客户端；生产禁 http；secret 解密）。
 	webhookStore := webhooks.NewPostgresStore(pool)
 	webhookSecretSvc := webhooks.NewService(webhookStore, nil, nil).WithCipher(optionCipher)

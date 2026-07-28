@@ -50,6 +50,7 @@ cd apps/api && go run ./cmd/sforum extension docs generate --check
 | `migrations` | array \| null | no | yes |
 | `name` | string | yes | no |
 | `navigation` | array \| null | no | yes |
+| `notificationTypes` | array \| null | no | no |
 | `openapi` | array \| null | no | yes |
 | `packageFiles` | array \| null | no | yes |
 | `permissionDefinitions` | array \| null | no | yes |

@@ -270,6 +270,26 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
+    "id": "core.component.admin.sfadmin_notification_channels",
+    "contractVersion": "sforum.component.admin.sfadmin_notification_channels@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/settings/notifications/SFAdminNotificationChannels.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
+    "id": "core.component.admin.sfadmin_notification_policy_page",
+    "contractVersion": "sforum.component.admin.sfadmin_notification_policy_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/settings/notifications/SFAdminNotificationPolicyPage.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
     "id": "core.component.admin.sfadmin_overview_trend_trio",
     "contractVersion": "sforum.component.admin.sfadmin_overview_trend_trio@1",
     "kind": "component",
@@ -1061,6 +1081,17 @@
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
+    "id": "core.component.page.admin.settings.notifications",
+    "contractVersion": "sforum.component.page.admin.settings.notifications@1",
+    "kind": "page",
+    "route": "/admin/settings/notifications",
+    "source": "apps/web/app/pages/admin/settings/notifications.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7 Admin Surface Registry"
+  },
+  {
     "id": "core.component.page.admin.site.chrome",
     "contractVersion": "sforum.component.page.admin.site.chrome@1",
     "kind": "page",
@@ -1198,6 +1229,17 @@
     "kind": "page",
     "route": "/u/:username",
     "source": "apps/web/app/pages/u/[username].vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.page.settings.notifications",
+    "contractVersion": "sforum.component.page.settings.notifications@1",
+    "kind": "page",
+    "route": "/settings/notifications",
+    "source": "apps/web/app/pages/settings/notifications.vue",
     "owners": [
       "public"
     ],
@@ -1827,6 +1869,16 @@
     "targetRegistry": "P9 Component Registry"
   },
   {
+    "id": "core.component.shared.sfnotification_settings_page",
+    "contractVersion": "sforum.component.shared.sfnotification_settings_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/settings/SFNotificationSettingsPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sfnotifications_page",
     "contractVersion": "sforum.component.shared.sfnotifications_page@1",
     "kind": "component",
@@ -2357,6 +2409,16 @@
     "contractVersion": "sforum.component.shared.sftopic_side_card@1",
     "kind": "component",
     "source": "apps/web/app/components/forum/SFTopicSideCard.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfweb_push_settings_section",
+    "contractVersion": "sforum.component.shared.sfweb_push_settings_section@1",
+    "kind": "component",
+    "source": "apps/web/app/components/settings/SFWebPushSettingsSection.vue",
     "owners": [
       "public"
     ],

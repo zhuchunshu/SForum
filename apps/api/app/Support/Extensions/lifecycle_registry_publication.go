@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
 	assetregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/AssetRegistry"
 	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
 	contentregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentRegistry"
@@ -91,6 +92,7 @@ type LifecycleRegistryBoundaryConfig struct {
 	Identity             *identityregistry.Registry
 	IdentityStore        identityregistry.PublicationStore
 	Navigation           *navigationregistry.Registry
+	Notifications        *notifications.Registry
 	// Content is the P10 Content Registry (block/shortcode/embed/node/mark/…).
 	Content *contentregistry.Registry
 	// Media is the P10 Media Pipeline Registry (MIME policy/processors/variants).
@@ -129,6 +131,7 @@ type PostgresLifecycleBoundaryRegistries struct {
 	identityStore  identityregistry.PublicationStore
 	identitySet    bool
 	navigation     *navigationregistry.Registry
+	notifications  *notifications.Registry
 	content        *contentregistry.Registry
 	media          *mediaregistry.Registry
 	editor         *editorregistry.Registry
@@ -141,6 +144,10 @@ func NewPostgresLifecycleBoundaryRegistries(config LifecycleRegistryBoundaryConf
 	components := config.Components
 	if components == nil {
 		components = NewComponentRegistry()
+	}
+	notificationRegistry := config.Notifications
+	if notificationRegistry == nil {
+		notificationRegistry = notifications.NewRegistry()
 	}
 	boundary := &PostgresLifecycleBoundaryRegistries{
 		repository:     config.Repository,
@@ -163,6 +170,7 @@ func NewPostgresLifecycleBoundaryRegistries(config LifecycleRegistryBoundaryConf
 		identityStore:  config.IdentityStore,
 		identitySet:    config.Identity != nil || config.IdentityStore != nil,
 		navigation:     config.Navigation,
+		notifications:  notificationRegistry,
 		content:        config.Content,
 		media:          config.Media,
 		editor:         config.Editor,
@@ -259,6 +267,9 @@ func (b *PostgresLifecycleBoundaryRegistries) RestoreRoutePublications(
 		return fmt.Errorf("restore component registry publication: %w", err)
 	}
 	if err := b.restoreIdentityPublications(ctx, items, safeMode); err != nil {
+		return err
+	}
+	if err := b.restoreNotificationPublications(ctx, items, safeMode); err != nil {
 		return err
 	}
 	if err := b.restoreQueryPublications(ctx, items, safeMode); err != nil {
@@ -452,6 +463,9 @@ func (b *PostgresLifecycleBoundaryRegistries) validatePreparedLifecycleRegistrie
 	ctx context.Context,
 	source, target *lifecycleRegistryMaterial,
 ) error {
+	if err := b.validateNotificationTransition(target); err != nil {
+		return err
+	}
 	if err := b.validateComponentTransition(source, target); err != nil {
 		return err
 	}
@@ -557,7 +571,7 @@ func (b *PostgresLifecycleBoundaryRegistries) PrepareLifecycleRegistryPublicatio
 func (b *PostgresLifecycleBoundaryRegistries) validateDependencies(ctx context.Context) error {
 	if b == nil || ctx == nil || b.repository == nil || b.manager == nil || b.hooks == nil ||
 		b.pages == nil || b.routes == nil || b.routePublisher == nil || b.routeSchemas == nil || b.services == nil || b.components == nil ||
-		b.queries == nil || b.caches == nil || b.seo == nil || b.navigation == nil ||
+		b.queries == nil || b.caches == nil || b.seo == nil || b.navigation == nil || b.notifications == nil ||
 		(b.identitySet && (b.identity == nil || b.identityStore == nil)) ||
 		(b.assets != nil && (b.assetAuthority == nil || b.assetAdmission == nil)) {
 		return ErrLifecycleRegistryPublicationUnavailable
@@ -804,6 +818,9 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileLocalRegistries(
 		}
 	}
 	if err := b.reconcileIdentity(ctx, request, source, target, desired); err != nil {
+		return err
+	}
+	if err := b.reconcileNotifications(ctx, request.TargetExtension.ID, source, target, desired); err != nil {
 		return err
 	}
 	if err := b.reconcileComponents(request.TargetExtension.ID, source, target, desired); err != nil {
@@ -1113,53 +1130,6 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcilePages(
 		}
 	}
 	return rollbackStaged(pages.ErrRevisionConflict)
-}
-
-func (b *PostgresLifecycleBoundaryRegistries) removeSupersededPageRuntimes(
-	desired *lifecycleRegistryMaterial,
-	materials ...*lifecycleRegistryMaterial,
-) error {
-	if b == nil || b.themeRuntime == nil {
-		return nil
-	}
-	var keep pages.RuntimeArtifact
-	if desired != nil {
-		keep = pages.RuntimeArtifact{
-			ExtensionID: desired.extension.ID, ExtensionVersion: desired.extension.Version,
-			PackageDigest: desired.extension.PackageDigest, RuntimeInstanceID: desired.binding.RuntimeInstanceID,
-		}
-	}
-	for _, material := range materials {
-		if material == nil {
-			continue
-		}
-		artifact := pages.RuntimeArtifact{
-			ExtensionID: material.extension.ID, ExtensionVersion: material.extension.Version,
-			PackageDigest: material.extension.PackageDigest, RuntimeInstanceID: material.binding.RuntimeInstanceID,
-		}
-		if artifact == keep {
-			continue
-		}
-		if _, err := b.themeRuntime.RemoveExact(artifact); err != nil && !errors.Is(err, pages.ErrThemeRuntimeConflict) {
-			return err
-		}
-	}
-	return nil
-}
-
-func pageArtifactAllowed(artifact pages.RuntimeArtifact, materials ...*lifecycleRegistryMaterial) bool {
-	for _, material := range materials {
-		if material == nil {
-			continue
-		}
-		if artifact.ExtensionID == material.extension.ID &&
-			artifact.ExtensionVersion == material.extension.Version &&
-			artifact.PackageDigest == material.extension.PackageDigest &&
-			artifact.RuntimeInstanceID == material.binding.RuntimeInstanceID {
-			return true
-		}
-	}
-	return false
 }
 
 var _ LifecycleBoundaryRegistries = (*PostgresLifecycleBoundaryRegistries)(nil)

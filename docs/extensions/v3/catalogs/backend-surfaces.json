@@ -47,7 +47,8 @@
     "attachment.storage.provider",
     "human_verification.provider",
     "auth.risk.provider",
-    "editor.sanitizer.provider"
+    "editor.sanitizer.provider",
+    "notification.channel.web_push"
   ],
   "schedules": [
     "identity.cleanup_sessions",
@@ -76,6 +77,10 @@
     },
     {
       "id": "mail.deliver",
+      "source": "apps/api/app/Models/Notifications/outbox.go"
+    },
+    {
+      "id": "notification.channel.deliver",
       "source": "apps/api/app/Models/Notifications/outbox.go"
     },
     {

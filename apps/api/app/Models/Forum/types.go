@@ -433,6 +433,7 @@ type CreateTopicRecord struct {
 	Content            RenderedContent
 	Status             string
 	ModerationTriggers []string
+	MentionedUsernames []string
 	// IPAddress 创建时真实客户端 IP（全文，管理/风控用，不进公开 API）。
 	IPAddress     string
 	AttachmentIDs []int64
@@ -757,6 +758,7 @@ type CreateCommentRecord struct {
 	ID                 int64
 	TopicID            int64
 	AuthorUserID       int64
+	TopicAuthorUserID  int64
 	ParentID           *int64
 	Parent             *CommentSummary
 	Content            RenderedContent

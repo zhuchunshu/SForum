@@ -65,6 +65,11 @@ func (v *v3Validator) validateUIAndPackage() error {
 			return ErrInvalidManifest
 		}
 	}
+	for _, declaration := range v.manifest.NotificationTypes {
+		if !matchingVersionedSchemaFile(packageFiles, declaration.PayloadSchema) {
+			return ErrInvalidManifest
+		}
+	}
 	for _, migration := range v.manifest.Migrations {
 		if !matchingPackageFile(packagePaths, migration.Path, "migration", migration.Digest) {
 			return ErrInvalidManifest

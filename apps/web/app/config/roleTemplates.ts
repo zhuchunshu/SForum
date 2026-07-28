@@ -41,6 +41,7 @@ export const ROLE_TEMPLATE_DEFINITIONS = [
       'user.manage',
       'settings.site.manage',
       'settings.mail.manage',
+      'settings.notifications.manage',
       'settings.avatar.manage',
       'settings.appearance.manage',
       'forum.settings.manage',

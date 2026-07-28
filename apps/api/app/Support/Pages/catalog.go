@@ -92,6 +92,7 @@ var coreCatalog = []PageDefinition{
 	{ID: "forum.profile.show", PathPattern: "/u/:username", Access: AccessPublic, ContractVersion: "sforum.page.profile_show@1", CoreComponent: "pages/u/[username]", Replaceable: true, RequiresFeatures: []string{"features.public_profiles"}},
 	{ID: "forum.settings.profile", PathPattern: "/settings/profile", Access: AccessLogin, ContractVersion: "sforum.page.settings_profile@1", CoreComponent: "pages/settings/profile", Replaceable: true},
 	{ID: "forum.settings.security", PathPattern: "/settings/security", Access: AccessLogin, ContractVersion: "sforum.page.settings_security@1", CoreComponent: "pages/settings/security", Replaceable: true},
+	{ID: "forum.settings.notifications", PathPattern: "/settings/notifications", Access: AccessLogin, ContractVersion: "sforum.page.settings_notifications@1", CoreComponent: "pages/settings/notifications", Replaceable: true},
 	{ID: "forum.notifications", PathPattern: "/notifications", Access: AccessLogin, ContractVersion: "sforum.page.notifications@1", CoreComponent: "pages/notifications", Replaceable: true},
 	{ID: "moderation.review", PathPattern: "/moderation", Access: AccessModeration, ContractVersion: "sforum.page.moderation_review@1", CoreComponent: "pages/moderation/index", Replaceable: false},
 	{ID: "auth.login", PathPattern: "/login", Access: AccessGuest, ContractVersion: "sforum.page.login@1", CoreComponent: "pages/login", Replaceable: true, Notes: "replace must embed host login form island"},

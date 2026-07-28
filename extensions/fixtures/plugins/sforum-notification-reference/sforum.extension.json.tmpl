@@ -1,0 +1,69 @@
+{
+  "manifestVersion": 3,
+  "id": "sforum.notification-reference",
+  "name": "SForum Notification Reference",
+  "description": "Protocol V2 fixture proving exact-artifact notification type ownership and bounded Host emission.",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "author": {"name": "SForum", "url": "https://github.com/zhuchunshu/sforum"},
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": ">=0.1.0",
+  "capabilities": ["host.api"],
+  "backend": {
+    "entry": "backend/plugin",
+    "rpc": "hashicorp-go-plugin",
+    "protocolVersion": 2,
+    "hostApiVersion": "sforum.host@2",
+    "digest": "__BACKEND_DIGEST__"
+  },
+  "database": {
+    "contractVersion": "sforum.notification-reference.database@1",
+    "grants": ["host_commands"],
+    "backup": {"required": false, "strategy": "pg_dump"},
+    "retention": {"onDisable": "retain", "onUninstall": "retain"}
+  },
+  "notificationTypes": [
+    {
+      "id": "sforum.notification-reference.order_ready",
+      "contractVersion": "sforum.notification-reference.order_ready@1",
+      "payloadVersion": 1,
+      "category": "commerce",
+      "payloadSchema": "sforum.notification-reference.schema.order-ready@1",
+      "label": {"en-US": "Order ready", "zh-CN": "订单已就绪"},
+      "body": {"en-US": "Your order is ready.", "zh-CN": "你的订单已就绪。"},
+      "icon": "i-lucide-package-check",
+      "targetKind": "extension_route",
+      "targetId": "sforum.notification-reference.route.orders",
+      "channels": ["in_app", "web_push"],
+      "recommendedChannels": ["in_app"]
+    }
+  ],
+  "hooks": [
+    {
+      "id": "sforum.notification-reference.hook.emit",
+      "contractVersion": "sforum.notification-reference.hook.emit@1",
+      "name": "sforum.notification-reference.emit-requested",
+      "kind": "observe",
+      "handler": "sforum.notification-reference.hook.emit",
+      "inputSchema": "sforum.notification-reference.hook.emit.input@1",
+      "execution": "sync",
+      "failurePolicy": "fail_closed",
+      "timeoutMs": 2000
+    }
+  ],
+  "packageFiles": [
+    {
+      "id": "sforum.notification-reference.file.backend",
+      "kind": "executable",
+      "path": "backend/plugin",
+      "digest": "__BACKEND_DIGEST__"
+    },
+    {
+      "id": "sforum.notification-reference.schema.order-ready",
+      "kind": "schema",
+      "path": "schemas/order-ready.json",
+      "version": "1",
+      "digest": "__PAYLOAD_SCHEMA_DIGEST__"
+    }
+  ]
+}

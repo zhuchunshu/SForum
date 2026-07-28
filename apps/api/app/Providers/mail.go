@@ -13,7 +13,7 @@ import (
 
 type MailProvider struct{ controller *mailcontroller.Controller }
 
-func NewMailProvider(extensionStore extensions.Store, deliveries notifications.Store, registry *extensionsruntime.MailProviderRegistry, users identity.ActorStore, sessions *authsession.Manager, optionService *options.Service) *MailProvider {
-	return &MailProvider{controller: mailcontroller.NewController(extensionStore, deliveries, registry, users, sessions, optionService)}
+func NewMailProvider(extensionStore extensions.Store, deliveries notifications.Store, registry *extensionsruntime.MailProviderRegistry, users identity.ActorStore, sessions *authsession.Manager, optionService *options.Service, policy notifications.CorePolicyStore) *MailProvider {
+	return &MailProvider{controller: mailcontroller.NewController(extensionStore, deliveries, registry, users, sessions, optionService, policy)}
 }
 func (p *MailProvider) RegisterRoutes(api fiber.Router) { p.controller.RegisterRoutes(api) }

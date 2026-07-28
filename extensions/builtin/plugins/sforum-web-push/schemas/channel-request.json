@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["operation"],
+  "properties": {
+    "operation": { "enum": ["probe", "send"] },
+    "deliveryId": { "type": "string", "pattern": "^[1-9][0-9]{0,18}$" },
+    "subscription": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["endpoint", "p256dh", "auth"],
+      "properties": {
+        "endpoint": { "type": "string", "format": "uri", "pattern": "^https://", "maxLength": 4096 },
+        "p256dh": { "type": "string", "minLength": 32, "maxLength": 512 },
+        "auth": { "type": "string", "minLength": 8, "maxLength": 256 }
+      }
+    },
+    "notification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "body", "url", "tag"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "body": { "type": "string", "maxLength": 3072 },
+        "url": { "type": "string", "pattern": "^/", "maxLength": 2048 },
+        "tag": { "type": "string", "maxLength": 160 }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "operation": { "const": "send" } } },
+      "then": { "required": ["deliveryId", "subscription", "notification"] }
+    }
+  ]
+}

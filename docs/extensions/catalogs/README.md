@@ -30,6 +30,7 @@ cd apps/api && go run ./cmd/sforum extension docs generate --check
 | [services.md](./services.md) | Plugin services + host-brokered discovery/invoke |
 | [jobs.md](./jobs.md) | Dynamic jobs: retry/concurrency limits + Enqueue/ExecuteJob |
 | [commands.md](./commands.md) | Plugin CLI commands + InvokeCommand boundary |
+| [notifications.md](./notifications.md) | Notification type declarations + bounded `notifications.emit@1` Host command |
 
 ## Authoring
 

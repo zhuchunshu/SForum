@@ -9,10 +9,44 @@ Goal: let operators manage topbar, sidebar, mobile, and footer navigation with
 recommended defaults, accessible ordering, versioned backup/history, bounded
 plugin contributions, and theme-independent persistence.
 
-Execute exactly one milestone per new Grok conversation. Every milestone must
-leave the repository buildable, update the knowledge base, write a small
-completion report, and print the exact prompt for the next new conversation.
-Do not continue into the next milestone in the same conversation.
+The default execution mode uses one milestone per new Grok conversation. An
+explicit user instruction may instead run M0-M7 sequentially in one
+conversation. Both modes must leave the repository buildable after every
+milestone, update the knowledge base, and produce the required small report.
+
+## Execution Modes And Optional Parallelism
+
+### Default: One New Conversation Per Milestone
+
+Finish the current milestone, print the next self-contained prompt, and stop.
+This remains the safer mode for independent review and recovery.
+
+### User-Approved: One Conversation For M0-M7
+
+When the current user explicitly authorizes one-conversation execution, the
+primary agent may continue automatically from M0 through M7, but only after the
+current milestone's exit criteria, checks, knowledge updates, ledger entry, hot
+handoff checkpoint, and small report are complete. The instruction changes only
+the stop/continue behavior; it does not merge milestones or weaken any gate.
+
+### Optional Subagents
+
+If the execution environment supports subagents, the primary agent may use them
+inside the current milestone when work is genuinely independent, such as a
+library survey, production-wiring audit, focused backend/frontend tests, or
+documentation verification. Do not spawn them for small or sequential work.
+
+- Do not parallelize dependent milestones or start work whose contract is not
+  frozen by the current milestone.
+- Give each subagent a bounded scope, relevant repository instructions, files
+  it may inspect or edit, and exact checks.
+- Avoid overlapping writes. Preserve unrelated dirty work and assign one owner
+  for shared contracts, migrations, generated catalogs, and knowledge files.
+- The primary agent waits for every required subagent, reviews its diff and
+  evidence, resolves conflicts, and runs integration checks itself.
+- Subagent output is supporting evidence only. The primary agent remains
+  responsible for permissions, compatibility, runtime truth, knowledge
+  updates, and the milestone completion claim.
 
 ## Required Reading Before Every Milestone
 
@@ -297,7 +331,9 @@ knowledge updates are present.
 At the end of every milestone, Grok must do all of the following before
 returning control:
 
-1. Stop. Do not begin the next milestone.
+1. Finish the current milestone and do not begin dependent work early. In the
+   default mode, stop. In explicitly approved one-conversation mode, continue
+   only after completing every checkpoint in this protocol.
 2. Update this task book's checklist and Milestone Ledger with exact evidence.
 3. Update every affected living module note. At least one of
    `options.md`, `frontend.md`, or `extensions.md` must change each milestone.
@@ -313,8 +349,11 @@ returning control:
    pass/fail counts where available, and anything not run.
 8. Preserve unrelated dirty work. Do not commit, push, or open a PR unless the
    user explicitly asks.
-9. Print the small report below.
-10. Print a self-contained prompt for the next milestone's **new conversation**.
+9. Produce the small report below. In one-conversation mode, retain every
+   milestone report for ordered inclusion in the final response.
+10. Prepare a self-contained prompt for the next milestone. In default mode,
+    print it and stop; in one-conversation mode, record it as recovery material
+    and continue only after the checkpoint is durable.
 
 Required small report format:
 
@@ -689,7 +728,9 @@ by exact runtime evidence.
 
 ## Delivery Rules
 
-1. One milestone per new Grok conversation. Never combine milestones.
+1. Never combine milestones. Default mode uses one new Grok conversation per
+   milestone; explicit one-conversation mode still executes M0-M7 sequentially
+   with a durable checkpoint between them.
 2. Start by verifying current code and the prior milestone's evidence; do not
    trust the handoff alone.
 3. Preserve unrelated dirty files and do not revert user work.
@@ -703,6 +744,12 @@ by exact runtime evidence.
 11. Do not commit/push unless the user explicitly asks.
 12. Stop and amend the decision/task book if production evidence contradicts a
     frozen boundary.
+13. Run `node tests/validate-architecture-boundaries.mjs` after structural
+    product-code changes and in the final gate. Do not raise a ratchet baseline
+    without the decision and reduction condition required by `AGENTS.md`.
+14. Optional subagents follow the Execution Modes rules above. The primary
+    agent owns integration and may not use parallel work to bypass milestone
+    dependencies or verification.
 
 ## New-Conversation Prompts
 

@@ -77,6 +77,11 @@ build_builtin_plugin "sforum.auth-github" \
 refresh_v3_plugin_digest \
   "$STAGING_ROOT/plugins/sforum-auth-github"
 
+build_builtin_plugin "sforum.web-push" \
+  "$STAGING_ROOT/plugins/sforum-web-push/backend"
+refresh_v3_plugin_digest \
+  "$STAGING_ROOT/plugins/sforum-web-push"
+
 write_air_env
 
 echo "Built-in plugins staged at: $STAGING_ROOT"

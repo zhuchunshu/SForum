@@ -286,6 +286,13 @@ type SecuritySettingsPageViewModel struct {
 	Devices              []SecurityDeviceView `json:"devices,omitempty"`
 }
 
+// NotificationSettingsPageViewModel 只声明 Host 岛与已审查路由边界；
+// 偏好、浏览器订阅和密钥材料不会进入主题 ViewModel。
+type NotificationSettingsPageViewModel struct {
+	Base PageViewModelBase `json:"base"`
+	Form HostFormBoundary  `json:"form"`
+}
+
 type NotificationItemView struct {
 	ID        int64  `json:"id"`
 	Kind      string `json:"kind"`

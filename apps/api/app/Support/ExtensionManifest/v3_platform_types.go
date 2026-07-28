@@ -1,5 +1,23 @@
 package extensionmanifest
 
+// ManifestNotificationType is inert package data. The Host validates it at
+// install time and publishes it only with the exact enabled artifact.
+type ManifestNotificationType struct {
+	ID                  string        `json:"id"`
+	ContractVersion     string        `json:"contractVersion"`
+	PayloadVersion      int           `json:"payloadVersion"`
+	Category            string        `json:"category"`
+	PayloadSchema       string        `json:"payloadSchema"`
+	Label               LocalizedText `json:"label"`
+	Body                LocalizedText `json:"body"`
+	Icon                string        `json:"icon,omitempty"`
+	TargetKind          string        `json:"targetKind"`
+	TargetID            string        `json:"targetId,omitempty"`
+	Channels            []string      `json:"channels"`
+	RecommendedChannels []string      `json:"recommendedChannels,omitempty"`
+	Required            bool          `json:"required,omitempty"`
+}
+
 type ManifestDatabase struct {
 	ContractVersion string `json:"contractVersion"`
 	// Authority is accepted only as a legacy manifest input. Normalize expands

@@ -697,6 +697,23 @@
     "exporter": false
   },
   {
+    "id": "core.admin.page.settings_notifications",
+    "source": "apps/web/app/pages/admin/settings/notifications.vue",
+    "navigation": true,
+    "dashboard": false,
+    "list": true,
+    "columns": false,
+    "filters": false,
+    "rowActions": false,
+    "bulkActions": false,
+    "forms": false,
+    "notices": false,
+    "editorPanels": false,
+    "detailRegions": false,
+    "importer": true,
+    "exporter": false
+  },
+  {
     "id": "core.admin.page.site_chrome",
     "source": "apps/web/app/pages/admin/site-chrome.vue",
     "navigation": true,

@@ -238,6 +238,21 @@ visibility, and mention limits.
 - Public topic/comment page sizes default to 20, accept 1-100, and remain
   server-authoritative when callers omit `perPage`.
 
+## Notification Fanout
+
+- Active top-level comments notify the topic author; nested comments notify
+  only the direct parent author. Self and inactive recipients are skipped.
+- Topic and comment creates parse mentions from the stored, filtered source via
+  goldmark. Inline/fenced code is ignored; case variants and duplicates collapse
+  per recipient while reply and mention remain distinct intents.
+- Pending topic/comment approval loads stored source and target context inside
+  the decision transaction, then writes moderation plus eligible reply/mention
+  projections exactly once. Rejection writes only the author's moderation result.
+- Notification/outbox failure rolls back the owning content or moderation
+  transaction. Topic/comment edits do not emit new mention notices in V2.
+- Notification target resolution reuses public Forum visibility: topic must be
+  active/locked in a public category; comment must also be active.
+
 ## Authorization
 
 - Topic create: login plus `topic.create`.

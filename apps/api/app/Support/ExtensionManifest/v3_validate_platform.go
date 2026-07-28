@@ -2,6 +2,15 @@ package extensionmanifest
 
 import "strings"
 
+func knownProviderSlot(slot string) bool {
+	switch slot {
+	case "mail.provider", "search.provider", "attachment.storage.provider", "human_verification.provider", "auth.risk.provider", "editor.sanitizer.provider", "notification.channel.web_push":
+		return true
+	default:
+		return false
+	}
+}
+
 const (
 	manifestDatabaseMaximumParameters         = 32
 	manifestDatabaseMaximumColumns            = 64
@@ -36,6 +45,9 @@ const (
 )
 
 func (v *v3Validator) validatePlatform() error {
+	if err := v.validateNotificationTypes(); err != nil {
+		return err
+	}
 	if err := v.validateDatabaseAndCache(); err != nil {
 		return err
 	}
@@ -55,6 +67,86 @@ func (v *v3Validator) validatePlatform() error {
 		return err
 	}
 	return nil
+}
+
+func (v *v3Validator) validateNotificationTypes() error {
+	if len(v.manifest.NotificationTypes) > ContentDeclarationsMaximum ||
+		len(v.manifest.NotificationTypes) > 0 && v.manifest.Type != TypePlugin {
+		return ErrInvalidManifest
+	}
+	for _, declaration := range v.manifest.NotificationTypes {
+		if err := v.versionedID(declaration.ID, declaration.ContractVersion, "notification_type"); err != nil {
+			return err
+		}
+		if !strings.HasPrefix(declaration.ID, v.manifest.ID+".") || declaration.ContractVersion != declaration.ID+"@1" ||
+			declaration.PayloadVersion <= 0 || !manifestIDPattern.MatchString(declaration.Category) ||
+			!validContractVersion(declaration.PayloadSchema) || declaration.Required ||
+			!validLocalizedNotificationText(declaration.Label) || !validLocalizedNotificationText(declaration.Body) ||
+			!validNotificationIcon(declaration.Icon) || !validNotificationTarget(declaration.TargetKind, declaration.TargetID) ||
+			!validNotificationChannels(declaration.Channels, declaration.RecommendedChannels) {
+			return ErrInvalidManifest
+		}
+	}
+	return nil
+}
+
+func validLocalizedNotificationText(value LocalizedText) bool {
+	if strings.TrimSpace(value.Default) == "" {
+		return false
+	}
+	values := make([]string, 0, len(value.ByLocale)+1)
+	values = append(values, value.Default)
+	for _, text := range value.ByLocale {
+		values = append(values, text)
+	}
+	for _, text := range values {
+		if text == "" || text != strings.TrimSpace(text) || len(text) > 512 || strings.ContainsAny(text, "<>") {
+			return false
+		}
+	}
+	return true
+}
+
+func validNotificationIcon(icon string) bool {
+	return icon == "" || len(icon) <= 128 && (strings.HasPrefix(icon, "i-lucide-") || strings.HasPrefix(icon, "i-tabler-"))
+}
+
+func validNotificationTarget(kind, id string) bool {
+	switch kind {
+	case "none":
+		return id == ""
+	case "host_route", "extension_route", "entity":
+		return manifestIDPattern.MatchString(id)
+	default:
+		return false
+	}
+}
+
+func validNotificationChannels(channels, recommended []string) bool {
+	if len(channels) == 0 || len(channels) > 8 || len(recommended) > len(channels) {
+		return false
+	}
+	available := make(map[string]struct{}, len(channels))
+	for _, channel := range channels {
+		if channel != "in_app" && channel != "email" && channel != "web_push" {
+			return false
+		}
+		if _, duplicate := available[channel]; duplicate {
+			return false
+		}
+		available[channel] = struct{}{}
+	}
+	seen := make(map[string]struct{}, len(recommended))
+	for _, channel := range recommended {
+		if _, ok := available[channel]; !ok {
+			return false
+		}
+		if _, duplicate := seen[channel]; duplicate {
+			return false
+		}
+		seen[channel] = struct{}{}
+	}
+	return true
 }
 
 func (v *v3Validator) validateSEO() error {

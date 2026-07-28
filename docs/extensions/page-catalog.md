@@ -33,6 +33,7 @@ There is no Layer activation option or frontend release runtime.
 | `forum.profile.show` | `/u/:username` | public/feature-gated |
 | `forum.settings.profile` | `/settings/profile` | login |
 | `forum.settings.security` | `/settings/security` | login |
+| `forum.settings.notifications` | `/settings/notifications` | login |
 | `forum.notifications` | `/notifications` | login |
 | `moderation.review` | `/moderation` | moderation |
 | `auth.login` | `/login` | guest |
@@ -58,7 +59,7 @@ only after it has already normalized a browser error status: 403, 404, 429, or
 and `noindex,nofollow`; API JSON error envelopes and 401 login redirects are
 unchanged.
 
-Admin pages, moderation workbenches, notifications, and component previews are
+Admin pages, moderation workbenches, and component previews are
 host-owned and outside public Page Registry replacement. System error pages are
 theme-replaceable presentation surfaces only: plugins cannot replace them, and
 their templates cannot declare public L2 widgets.

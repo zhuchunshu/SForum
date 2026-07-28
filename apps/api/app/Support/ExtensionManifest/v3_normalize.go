@@ -5,6 +5,22 @@ import "strings"
 func normalizeV3Manifest(manifest *Manifest) {
 	manifest.Backend.Digest = normalizeDigest(manifest.Backend.Digest)
 	manifest.Backend.HostAPIVersion = strings.TrimSpace(manifest.Backend.HostAPIVersion)
+	for index := range manifest.NotificationTypes {
+		item := &manifest.NotificationTypes[index]
+		item.ID = NormalizeID(item.ID)
+		item.ContractVersion = strings.TrimSpace(item.ContractVersion)
+		item.Category = NormalizeID(item.Category)
+		item.PayloadSchema = strings.TrimSpace(item.PayloadSchema)
+		item.Icon = strings.TrimSpace(item.Icon)
+		item.TargetKind = strings.ToLower(strings.TrimSpace(item.TargetKind))
+		item.TargetID = NormalizeID(item.TargetID)
+		for channelIndex := range item.Channels {
+			item.Channels[channelIndex] = strings.ToLower(strings.TrimSpace(item.Channels[channelIndex]))
+		}
+		for channelIndex := range item.RecommendedChannels {
+			item.RecommendedChannels[channelIndex] = strings.ToLower(strings.TrimSpace(item.RecommendedChannels[channelIndex]))
+		}
+	}
 	for index := range manifest.Migrations {
 		item := &manifest.Migrations[index]
 		item.ID = NormalizeID(item.ID)

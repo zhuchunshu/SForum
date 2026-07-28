@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "ui": { "mode": "schema", "layout": "form" },
+  "fields": [
+    {
+      "key": "subscriber",
+      "type": "text",
+      "label": { "zh-CN": "VAPID 联系地址", "en-US": "VAPID subscriber" },
+      "description": { "zh-CN": "使用 mailto: 或 https:// 地址。", "en-US": "Use a mailto: or https:// URI." },
+      "default": "mailto:admin@example.com"
+    },
+    {
+      "key": "vapid_public_key",
+      "type": "text",
+      "label": { "zh-CN": "VAPID 公钥", "en-US": "VAPID public key" },
+      "default": ""
+    },
+    {
+      "key": "vapid_private_key",
+      "type": "secret",
+      "label": { "zh-CN": "VAPID 私钥", "en-US": "VAPID private key" },
+      "description": {
+        "zh-CN": "留空会保留已保存的 SecretStore 值。",
+        "en-US": "Leave blank to preserve the saved SecretStore value."
+      },
+      "default": ""
+    }
+  ],
+  "actions": []
+}

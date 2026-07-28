@@ -14,6 +14,7 @@ import (
 	"github.com/riverqueue/river/rivertype"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
 	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
 	componentcatalog "github.com/zhuchunshu/sforum/apps/api/app/Support/ComponentCatalog"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
@@ -160,7 +161,8 @@ func newBootstrapLifecycleStackWithSafeMode(
 		Pool: pool, Store: store, Features: lifecycleFeatureFacts{}, Trust: trust,
 		Runtime: manager, Pages: pages.NewRegistry(nil), Services: hostapi.NewServiceRegistry(),
 		Caches: cacheregistry.New(), IdentityStore: bootstrapIdentityPublicationStore{},
-		River: lifecycleRiverClient{}, MigrationEngine: lifecycleMigrationEngine{},
+		NotificationRegistry: notifications.NewRegistry(),
+		River:                lifecycleRiverClient{}, MigrationEngine: lifecycleMigrationEngine{},
 		ExtensionRoot: t.TempDir(), QueryCursorSecret: bootstrapQueryCursorSecret(), Database: lifecycleDatabaseDisposition{}, SafeMode: safeMode,
 	})
 	if err != nil {

@@ -1,6 +1,8 @@
 package mailcontroller
 
 import (
+	"context"
+
 	"github.com/gofiber/fiber/v3"
 	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
@@ -18,10 +20,11 @@ type Controller struct {
 	users      identity.ActorStore
 	sessions   *authsession.Manager
 	options    *options.Service
+	policy     notifications.CorePolicyStore
 }
 
-func NewController(extensionStore extensions.Store, deliveries notifications.Store, providers *extensionsruntime.MailProviderRegistry, users identity.ActorStore, sessions *authsession.Manager, optionService *options.Service) *Controller {
-	return &Controller{extensions: extensionStore, deliveries: deliveries, providers: providers, users: users, sessions: sessions, options: optionService}
+func NewController(extensionStore extensions.Store, deliveries notifications.Store, providers *extensionsruntime.MailProviderRegistry, users identity.ActorStore, sessions *authsession.Manager, optionService *options.Service, policy notifications.CorePolicyStore) *Controller {
+	return &Controller{extensions: extensionStore, deliveries: deliveries, providers: providers, users: users, sessions: sessions, options: optionService, policy: policy}
 }
 func (h *Controller) RegisterRoutes(api fiber.Router) {
 	group := api.Group("/admin/mail")
@@ -74,7 +77,7 @@ func (h *Controller) getPolicy(c fiber.Ctx) error {
 	if _, err := h.actor(c); err != nil {
 		return err
 	}
-	policy, err := h.options.NotificationPolicy(c.Context())
+	policy, err := h.readPolicy(c.Context())
 	if err != nil {
 		return err
 	}
@@ -90,7 +93,7 @@ func (h *Controller) updatePolicy(c fiber.Ctx) error {
 	if err := c.Bind().Body(&policy); err != nil {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "notification.policy_invalid")
 	}
-	if _, err := h.options.UpdateMany(c.Context(), actor, options.NotificationPolicyUpdateInputs(policy)); err != nil {
+	if err := h.writePolicy(c.Context(), actor, policy); err != nil {
 		return err
 	}
 	return apphttp.OK(c, policy)
@@ -101,14 +104,41 @@ func (h *Controller) restorePolicy(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	if _, err := h.options.UpdateMany(c.Context(), actor, options.NotificationPolicyRecommendedInputs()); err != nil {
+	if err := h.restoreCorePolicy(c.Context(), actor); err != nil {
 		return err
 	}
-	policy, err := h.options.NotificationPolicy(c.Context())
+	policy, err := h.readPolicy(c.Context())
 	if err != nil {
 		return err
 	}
 	return apphttp.OK(c, policy)
+}
+
+func (h *Controller) readPolicy(ctx context.Context) (options.NotificationPolicy, error) {
+	if h.policy != nil {
+		return h.policy.NotificationPolicy(ctx)
+	}
+	return h.options.NotificationPolicy(ctx)
+}
+
+func (h *Controller) writePolicy(ctx context.Context, actor identity.Actor, policy options.NotificationPolicy) error {
+	if h.policy != nil {
+		if err := h.policy.UpdateCoreNotificationPolicy(ctx, policy); err != nil {
+			return err
+		}
+	}
+	_, err := h.options.UpdateMany(ctx, actor, options.NotificationPolicyUpdateInputs(policy))
+	return err
+}
+
+func (h *Controller) restoreCorePolicy(ctx context.Context, actor identity.Actor) error {
+	if h.policy != nil {
+		if err := h.policy.RestoreCoreNotificationPolicy(ctx); err != nil {
+			return err
+		}
+	}
+	_, err := h.options.UpdateMany(ctx, actor, options.NotificationPolicyRecommendedInputs())
+	return err
 }
 
 type selectRequest struct {

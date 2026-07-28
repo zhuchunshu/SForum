@@ -63,6 +63,7 @@ func KnownProviderSlots() []string {
 		"human_verification.provider",
 		"auth.risk.provider",
 		"editor.sanitizer.provider",
+		"notification.channel.web_push",
 	}
 }
 

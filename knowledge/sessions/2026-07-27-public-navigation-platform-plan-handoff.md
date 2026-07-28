@@ -7,6 +7,10 @@
   revisioned batch apply, snapshots, and portable backup.
 - Added self-contained Grok prompts and a mandatory per-milestone report and
   knowledge-update protocol.
+- Added an explicit one-conversation M0-M7 mode while retaining sequential,
+  durable milestone checkpoints.
+- Allowed optional subagents only for bounded independent work inside the
+  current milestone; the primary agent remains the integration owner.
 
 ## Decisions
 
@@ -15,6 +19,8 @@
 - Plugins contribute through the V3 Navigation/Region authority; no direct
   operator-table or DOM writes.
 - V1 keeps `settings.site.manage` and existing API/contribution compatibility.
+- Parallel work cannot cross milestone dependencies or replace primary-agent
+  review, integration tests, runtime evidence, or knowledge updates.
 
 ## Verification
 
@@ -24,8 +30,8 @@
 
 ## Next
 
-- Start M0 only using the exact M0 prompt in
-  `knowledge/plans/2026-07-27-configurable-public-navigation-platform.md`.
+- Start at M0 using either the default M0 prompt or an explicit user-approved
+  one-conversation M0-M7 prompt. Both modes keep the same milestone gates.
 - M0 must prove production wiring before selecting compatibility adapters or
   adding schemas.
 

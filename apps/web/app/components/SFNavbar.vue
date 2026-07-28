@@ -336,8 +336,27 @@ function toggleMobileInfo() {
 watch(() => route.fullPath, closeMobileDrawers)
 
 onMounted(() => {
-  if (user.value) void notifications.refreshUnreadCount().catch(() => {})
+  if (user.value) {
+    void notifications.refreshUnreadCount().catch(() => {})
+    stopNotificationRealtime = notifications.startRealtime(async () => {
+      await notifications.refreshUnreadCount()
+    })
+  }
 })
+
+let stopNotificationRealtime = () => {}
+watch(user, current => {
+  stopNotificationRealtime()
+  stopNotificationRealtime = () => {}
+  if (current) {
+    stopNotificationRealtime = notifications.startRealtime(async () => {
+      await notifications.refreshUnreadCount()
+    })
+  } else {
+    notifications.stopRealtime()
+  }
+})
+onBeforeUnmount(() => stopNotificationRealtime())
 
 function submitSearch(query: string) {
   return navigateTo({

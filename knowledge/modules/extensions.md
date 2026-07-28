@@ -394,6 +394,29 @@ Relevant plans:
 | `extensions/fixtures` | Contract and CI fixtures |
 | `docs/extensions` | Authoring, contracts, catalogs, V3 evidence |
 
+### Notifications Extension Surface
+
+- Manifest V3 `notificationTypes` is inert exact-artifact data. A declaration
+  owns only ids below its extension namespace and binds a digest-checked schema
+  package file; plugins cannot declare required notices.
+- Host API v2 `notifications.emit@1` is the sole plugin-to-Core emission path.
+  Existing broker authentication and Host Command scope resolution bind exact
+  artifact, trust grant, runtime epoch, and instance before notification policy
+  or persistence runs.
+- The Go SDK constructs actorless typed requests. Host broker validation rejects
+  raw actor/session authority; command validation rejects foreign namespaces,
+  schema/version drift, undeclared targets, inactive users, oversized/bulk
+  recipient sets, rate overflow, and expired deadlines.
+- Raw Core notification, preference, and delivery tables remain closed. Safe
+  mode/disable/uninstall close new admission while historical notification rows
+  retain Host-owned fallback rendering.
+- `notification.channel.web_push` is an independently selected provider slot.
+  Core owns subscription identity, policy, projection, River retries, and the
+  redacted ledger; the exact plugin artifact owns VAPID/Web Push transport.
+- The protected built-in `sforum.web-push` is never auto-enabled, configured,
+  or selected by discovery. Secret settings remain redacted and the Host-owned
+  service worker cannot import provider code.
+
 ## Verification
 
 - Go: `cd apps/api && go test ./...`

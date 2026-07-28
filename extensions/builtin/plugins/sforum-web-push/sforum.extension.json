@@ -1,0 +1,64 @@
+{
+  "author": {
+    "name": "SForum",
+    "url": "https://github.com/zhuchunshu/sforum"
+  },
+  "backend": {
+    "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+    "entry": "backend/plugin",
+    "hostApiVersion": "sforum.host@2",
+    "protocolVersion": 2,
+    "rpc": "hashicorp-go-plugin"
+  },
+  "capabilities": [
+    "host.api",
+    "settings.own",
+    "net.outbound"
+  ],
+  "description": "Protected built-in Web Push notification channel provider.",
+  "id": "sforum.web-push",
+  "includes": {
+    "settings": "manifest/settings.json"
+  },
+  "manifestVersion": 3,
+  "name": "SForum Web Push",
+  "packageFiles": [
+    {
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+      "id": "sforum.web-push.file.backend",
+      "kind": "executable",
+      "path": "backend/plugin"
+    },
+    {
+      "digest": "1638eabf7bd7dad488b4b44fe6ab807c654f19d3bc8968d0cff024caffc4b14d",
+      "id": "sforum.web-push.channel.request",
+      "kind": "schema",
+      "path": "schemas/channel-request.json",
+      "version": "1"
+    },
+    {
+      "digest": "8f7e8ebb93bf48ac48cdee3a1dd7087a903182494816f31f3bc1bdaa86663f70",
+      "id": "sforum.web-push.channel.response",
+      "kind": "schema",
+      "path": "schemas/channel-response.json",
+      "version": "1"
+    }
+  ],
+  "providers": [
+    {
+      "contractVersion": "sforum.web-push.channel@1",
+      "fallback": "closed",
+      "handler": "web-push.invoke",
+      "id": "sforum.web-push.channel",
+      "label": "SForum Web Push",
+      "requestSchema": "sforum.web-push.channel.request@1",
+      "responseSchema": "sforum.web-push.channel.response@1",
+      "slot": "notification.channel.web_push",
+      "timeoutMs": 5000
+    }
+  ],
+  "sforumVersion": ">=0.1.0",
+  "type": "plugin",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "version": "1.0.0"
+}

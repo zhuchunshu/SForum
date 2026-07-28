@@ -13,23 +13,29 @@ import (
 type PostgresStore struct {
 	pool          *pgxpool.Pool
 	avatarBuilder *avatar.ViewBuilder
-	notifications CommentNotificationWriter
+	notifications NotificationWriter
 	auditor       audit.TxWriter
 }
 
 type CommentNotificationInput struct {
-	CommentID, TopicID, ActorUserID, ParentAuthorUserID int64
-	MentionedUsernames                                  []string
+	CommentID, TopicID, ActorUserID, TopicAuthorUserID, ParentAuthorUserID int64
+	MentionedUsernames                                                     []string
 }
-type CommentNotificationWriter interface {
+type TopicNotificationInput struct {
+	TopicID, ActorUserID int64
+	MentionedUsernames   []string
+}
+
+type NotificationWriter interface {
 	NotifyCommentTx(context.Context, pgx.Tx, CommentNotificationInput) error
+	NotifyTopicTx(context.Context, pgx.Tx, TopicNotificationInput) error
 }
 
 func NewPostgresStore(pool *pgxpool.Pool) *PostgresStore {
 	return NewPostgresStoreWithAvatar(pool, nil)
 }
 
-func (s *PostgresStore) WithCommentNotifications(writer CommentNotificationWriter) *PostgresStore {
+func (s *PostgresStore) WithCommentNotifications(writer NotificationWriter) *PostgresStore {
 	s.notifications = writer
 	return s
 }

@@ -1,48 +1,47 @@
-# 2026-07-27 Notification Platform V2 Plan Handoff
+# 2026-07-28 Notification Platform V2 Final Handoff
 
 ## Changed
 
-- Added the ready task book
-  `plans/2026-07-27-notification-platform-v2.md`.
-- Added the accepted architecture decision
-  `decisions/2026-07-27-notification-platform-v2.md`.
-- Promoted notification correctness, admin/user preferences, plugin emission,
-  realtime refresh, and external channel providers from scattered later work
-  into one active delivery program.
-- Added the required multi-conversation execution protocol: one milestone or
-  declared slice per fresh conversation, mandatory knowledge updates, a fixed
-  small-report format, and a copy-ready prompt for the next conversation.
+- Completed M0-M7. The task book is archived at
+  `../plans/archive/2026-07/2026-07-27-notification-platform-v2.md` and the
+  detailed evidence is in
+  `../reports/2026-07-28-notification-platform-v2-final.md`.
+- Corrected transactional reply, mention, approval, and rejection fanout;
+  added the persistent Notification Registry, layered policy/preferences,
+  dedicated admin/user settings, Host API v2 plugin emission, durable-revision
+  SSE, generic channel delivery, and the protected Web Push reference plugin.
+- Registered `/settings/notifications` as the replaceable
+  `forum.settings.notifications` Page Registry page with a Host-owned settings
+  island in both built-in themes.
+- The final full repository gate passed with `.env` exported and outside the
+  process-list sandbox. No files were staged or committed.
+- Fixed a production comment-create failure in the legacy policy projection:
+  PostgreSQL boolean values now use `BOOL_OR` instead of unsupported
+  `MAX(boolean)`, with a real PostgreSQL regression test.
 
 ## Decisions
 
-- Core owns recipient policy, required notices, inbox state, idempotency,
-  outbox, safe presentation, and channel selection.
-- Top-level replies notify the topic author; nested replies notify the direct
-  parent author. Pending approval performs eligible reply/mention fanout exactly
-  once.
-- Existing Core wire types remain compatible. Plugin types are versioned,
-  namespaced, inert declarations and default disabled pending admin review.
-- Admin policy is a hard limit plus recommended defaults. User preferences use
-  inherit/enabled/disabled.
-- Plugins emit only through an exact-artifact Host API v2 command and never
-  write Core notification tables.
-- Realtime uses durable recipient revisions; PostgreSQL NOTIFY only wakes; SSE
-  carries refresh signals rather than private payloads.
-- The first `notification.channel` reference is Web Push, gated by M0 library
-  and service-worker security review. Core owns the minimal worker; the plugin
-  owns VAPID/protocol behavior.
+- Keep `mail_deliveries`, `mail.deliver`, and existing mail APIs. Generic
+  external channels use `notification_channel_deliveries` plus attempt rows.
+- `notification_channel_deliveries.notification_id` is nullable so an enabled
+  external channel does not fabricate an inbox row when `in_app=false`.
+- Web Push uses `github.com/SherClockHolmes/webpush-go@v1.4.0`; SSE uses Fiber
+  `SendStreamWriter` with PostgreSQL NOTIFY as a wake hint only.
+- Core owns the minimal `/_sforum/notifications/` service worker and click
+  safety. Provider plugins own VAPID and transport behavior, never worker code.
+- Hidden, deleted, unknown, or unauthorized targets fail closed and clear
+  actor, payload, identifiers, and route data at read time.
 
 ## Next
 
-- Start a fresh implementation conversation with the M0 prompt embedded in the
-  task book. M0 audits production paths, freezes additive schemas and
-  compatibility, completes the Web Push/SSE library survey, and proves the
-  Host-owned service-worker boundary without changing production behavior.
+- No implementation milestone remains. Start a fresh conversation only for an
+  independent adversarial review using the prompt in the final report.
+- Keep digests, scheduled summaries, unsubscribe-link semantics, broadcast,
+  marketing, and additional vendor channels deferred unless a new task book is
+  approved.
 
 ## Open Questions
 
-- M0 must choose the maintained Web Push library after checking current
-  maintenance, license, protocol support, and cancellation behavior.
-- M0 must freeze whether generic channel delivery uses a new common table or an
-  outbox envelope over channel-owned tables while preserving
-  `mail_deliveries`.
+- None for V2 closure. Independent review may reopen a finding only with a
+  concrete production call path, failing test, security proof, or contract
+  mismatch.

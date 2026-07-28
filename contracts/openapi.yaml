@@ -213,6 +213,20 @@ paths:
     "$ref": "./openapi/paths/webhooks.yaml#/webhookInbound"
   "/admin/notifications/test":
     "$ref": "./openapi/paths/notifications.yaml#/adminNotificationTest"
+  "/admin/notifications/policy":
+    "$ref": "./openapi/paths/notifications.yaml#/adminNotificationPolicyV2"
+  "/admin/notifications/policy/restore":
+    "$ref": "./openapi/paths/notifications.yaml#/adminNotificationPolicyRestoreV2"
+  "/admin/notifications/channels":
+    "$ref": "./openapi/paths/notifications.yaml#/adminNotificationChannels"
+  "/admin/notifications/channels/{channel}":
+    "$ref": "./openapi/paths/notifications.yaml#/adminNotificationChannelSelection"
+  "/admin/notifications/channels/{channel}/reset":
+    "$ref": "./openapi/paths/notifications.yaml#/adminNotificationChannelReset"
+  "/admin/notifications/channels/{channel}/test":
+    "$ref": "./openapi/paths/notifications.yaml#/adminNotificationChannelTest"
+  "/admin/notifications/deliveries":
+    "$ref": "./openapi/paths/notifications.yaml#/adminNotificationDeliveries"
   "/notifications":
     "$ref": "./openapi/paths/notifications.yaml#/notifications"
   "/notifications/unread-count":
@@ -221,6 +235,18 @@ paths:
     "$ref": "./openapi/paths/notifications.yaml#/notificationRead"
   "/notifications/read-all":
     "$ref": "./openapi/paths/notifications.yaml#/notificationsReadAll"
+  "/notifications/stream":
+    "$ref": "./openapi/paths/notifications.yaml#/notificationStream"
+  "/notification-preferences":
+    "$ref": "./openapi/paths/notifications.yaml#/notificationPreferences"
+  "/notification-preferences/restore":
+    "$ref": "./openapi/paths/notifications.yaml#/notificationPreferencesRestore"
+  "/web-push/config":
+    "$ref": "./openapi/paths/notifications.yaml#/webPushConfig"
+  "/web-push/subscriptions":
+    "$ref": "./openapi/paths/notifications.yaml#/webPushSubscriptions"
+  "/web-push/subscriptions/{id}":
+    "$ref": "./openapi/paths/notifications.yaml#/webPushSubscriptionByID"
   "/moderation/reports":
     "$ref": "./openapi/paths/moderation.yaml#/moderationReports"
   "/me/content-review":

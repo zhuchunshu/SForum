@@ -53,7 +53,7 @@ func TestPostgresProtocolV2CommandRuntimePublishesDomainCommands(t *testing.T) {
 	if engine.queryInvalidationJobs == nil {
 		t.Fatal("production command runtime omitted Query invalidation dispatcher")
 	}
-	if len(engine.definitions) != 10 {
+	if len(engine.definitions) != 11 {
 		t.Fatalf("command count = %d", len(engine.definitions))
 	}
 	for _, command := range []string{
@@ -62,6 +62,7 @@ func TestPostgresProtocolV2CommandRuntimePublishesDomainCommands(t *testing.T) {
 		CommandEntitlementsMutateID, CommandAttachmentStatusSetID,
 		CommandExtensionPluginDisableID, CommandExtensionSettingsResetID,
 		CommandExtensionSettingsUpdateID, CommandExtensionSettingsActionID,
+		CommandNotificationsEmitID,
 	} {
 		if _, ok := engine.definitions[protocolV2CommandKey{id: command, version: "1"}]; !ok {
 			t.Fatalf("missing command %s", command)

@@ -433,6 +433,7 @@
       "rolesBadge": "RBAC",
       "settings": "站点设置",
       "mailSettings": "邮箱与通知",
+      "notificationSettings": "通知设置",
       "loginMethods": "登录方式",
       "avatarSettings": "头像设置",
       "seo": "SEO 设置",
@@ -2308,7 +2309,7 @@
       "settings": {
         "manage": {
           "label": "管理全部站点设置（兼容）",
-          "description": "旧版父权限：等同于站点、邮件、头像、外观与论坛设置的全部管理能力。"
+          "description": "旧版父权限：等同于站点、邮件、通知、头像、外观与论坛设置的全部管理能力。"
         },
         "site": {
           "manage": {
@@ -2318,8 +2319,14 @@
         },
         "mail": {
           "manage": {
-            "label": "管理邮件与通知",
-            "description": "选择邮件提供商、配置通知策略、发送测试并查看投递记录。"
+            "label": "管理邮件",
+            "description": "选择邮件提供商、发送测试并查看邮件投递记录。"
+          }
+        },
+        "notifications": {
+          "manage": {
+            "label": "管理通知设置",
+            "description": "配置通知类型与渠道策略、选择渠道提供商、发送测试并查看脱敏投递状态。"
           }
         },
         "avatar": {
@@ -3577,6 +3584,95 @@
         "smtp_recipient_rejected": "收件人被服务器拒绝"
       }
     },
+    "notificationSettings": {
+      "metaTitle": "通知设置",
+      "title": "通知设置",
+      "description": "配置社区可用的通知类型和投递渠道。",
+      "toolbar": "类型策略、推荐默认值与用户控制",
+      "noPermission": "你没有管理通知设置的权限。",
+      "recommendedTitle": "推荐：保持直接互动通知开启",
+      "recommendedDescription": "站内通知不依赖外部提供商。推荐外部渠道前，请先检查其配置和可用性。",
+      "categoryHelp": "将同一渠道策略应用到整个分类。必需通知会保持受保护状态。",
+      "enableCategory": "启用分类",
+      "disableCategory": "停用分类",
+      "channelEnabled": "渠道可用",
+      "recommendedEnabled": "默认推荐开启",
+      "userConfigurable": "允许用户选择",
+      "required": "必需",
+      "pluginOwned": "由已启用插件声明，投递仍受宿主策略限制。",
+      "resetChanges": "已重置未保存的通知策略修改。",
+      "loadFailed": "无法加载通知策略。",
+      "save": "保存策略",
+      "saved": "通知策略已保存。",
+      "saveFailed": "无法保存通知策略。",
+      "restoreDefaults": "恢复推荐默认值",
+      "restored": "已恢复推荐通知策略。",
+      "restoreFailed": "无法恢复通知策略。",
+      "restoreHelp": "恢复策略不会显示、删除或修改提供商密钥。",
+      "secretsPreserved": "已保存的提供商密钥会保留。",
+      "testNotification": "发送测试通知",
+      "testCreated": "已向你的账号创建测试通知。",
+      "testFailed": "无法创建测试通知。",
+      "emptyTitle": "暂无可用通知类型",
+      "emptyDescription": "核心类型和已启用插件类型会在策略可用后显示在这里。",
+      "channelsAdmin": {
+        "title": "外部投递渠道",
+        "description": "选择精确提供商制品、向自己的账号发送测试，并查看脱敏投递健康状态。",
+        "loadFailed": "无法加载通知渠道健康状态。",
+        "emptyTitle": "暂无已注册的外部渠道",
+        "emptyDescription": "启用兼容的提供商插件后，外部渠道会显示在这里。",
+        "provider": "提供商",
+        "timeout": "超时 {value} 毫秒",
+        "defaultSelection": "正在使用宿主默认选择。",
+        "select": "选择提供商",
+        "selected": "已选择通知渠道提供商。",
+        "selectFailed": "无法选择该提供商，请刷新后重试。",
+        "restoreDefault": "恢复默认值",
+        "reset": "已恢复默认渠道提供商。",
+        "resetFailed": "无法恢复默认提供商。",
+        "sendTest": "发送测试",
+        "testQueued": "已为你的账号排队渠道测试。",
+        "testFailed": "无法排队渠道测试。",
+        "deliveryTitle": "投递健康",
+        "deliveryDescription": "最近的通用渠道投递。不会展示收件人、载荷、端点密钥或幂等键。",
+        "deliveryEmpty": "暂无外部渠道投递。",
+        "deliveryId": "投递",
+        "deliveryStatus": "状态",
+        "deliveryProvider": "提供商",
+        "deliveryAttempts": "尝试次数",
+        "deliveryResult": "结果",
+        "deliveryUpdated": "更新时间",
+        "noProvider": "无提供商",
+        "availability": { "available": "可用", "unavailable": "不可用" },
+        "selection": { "default": "默认", "selected": "已选择", "stale": "已失效" },
+        "status": { "queued": "已排队", "sending": "发送中", "sent": "已发送", "failed": "失败", "skipped": "已跳过" }
+      },
+      "categories": {
+        "conversation": "互动",
+        "mention": "提及",
+        "moderation": "审核",
+        "system": "系统"
+      },
+      "channels": {
+        "in_app": "站内通知",
+        "email": "邮件",
+        "web_push": "Web Push"
+      },
+      "types": {
+        "reply": "回复",
+        "mention": "提及",
+        "moderation_approved": "内容已通过",
+        "moderation_rejected": "内容未通过",
+        "admin_test": "管理员测试"
+      },
+      "status": {
+        "required": "宿主必需",
+        "inactive": "类型未启用",
+        "channelUnavailable": "渠道提供商不可用",
+        "enabled": "已启用",
+        "disabled": "已停用"
+      }
+    },
     "moderation": {
       "title": "审核队列",
       "description": "处理用户提交的举报，更新状态并记录审核备注。",
@@ -4372,6 +4468,93 @@
       "loadingMore": "加载中...",
       "loadFailed": "活动列表加载失败，请稍后重试。",
       "loadMoreFailed": "加载更多失败，请稍后重试。"
+    }
+  },
+  "notificationSettings": {
+    "metaTitle": "通知偏好",
+    "metaDescription": "选择当前账号接收可用通知的方式。",
+    "title": "通知偏好",
+    "intro": "选择哪些可用通知送达你的账号。你的选择不会改变全站策略。",
+    "recommendedTitle": "推荐：继承站点选择",
+    "recommendedDescription": "继承会遵循站点当前推荐。你可以随时为每个可用渠道选择开启或关闭。",
+    "categoryHelp": "为每个可用的类型和投递渠道选择偏好。",
+    "enableCategory": "全部开启",
+    "disableCategory": "全部关闭",
+    "inheritCategory": "继承站点选择",
+    "required": "必需",
+    "pluginOwned": "该类型由插件提供，最终投递策略始终由宿主安全控制。",
+    "resetChanges": "已重置未保存的偏好修改。",
+    "loadFailed": "无法加载通知偏好。",
+    "save": "保存偏好",
+    "saved": "通知偏好已保存。",
+    "saveFailed": "无法保存通知偏好。",
+    "restoreDefaults": "恢复站点推荐",
+    "restored": "你的偏好现在会继承站点推荐。",
+    "restoreFailed": "无法恢复站点推荐。",
+    "restoreHelp": "恢复只会删除你的通知覆盖项，不会修改提供商密钥或站点策略。",
+    "emptyTitle": "没有可配置的通知",
+    "emptyDescription": "当前没有你可以修改的通知渠道。",
+    "refresh": "刷新",
+    "webPush": {
+      "title": "浏览器通知",
+      "description": "即使未打开论坛，也可以在这台设备上收到通知。",
+      "enableBrowser": "在此浏览器启用",
+      "disableBrowser": "在此浏览器停用",
+      "subscribed": "已启用浏览器通知。",
+      "unsubscribed": "已在此设备停用浏览器通知。",
+      "subscribeFailed": "无法启用浏览器通知。",
+      "unsubscribeFailed": "无法停用浏览器通知。",
+      "loadFailed": "无法加载浏览器通知设置。",
+      "unsupported": "此浏览器不支持 Web Push。",
+      "unavailable": "站点目前没有可用的 Web Push 提供商。",
+      "permissionDenied": "浏览器已阻止通知权限，请先在浏览器的站点设置中允许通知。",
+      "devices": "订阅设备",
+      "empty": "此账号暂无浏览器订阅。",
+      "thisBrowser": "此浏览器",
+      "updatedAt": "更新于 {value}",
+      "revoke": "撤销",
+      "revoked": "已撤销浏览器订阅。",
+      "revokeFailed": "无法撤销该浏览器订阅。",
+      "privacy": "此处只显示推送服务来源和投递状态，端点与加密密钥始终隐藏。",
+      "permission": { "default": "尚未请求权限", "granted": "已允许", "denied": "已阻止", "unsupported": "不支持" },
+      "status": { "active": "有效", "revoked": "已撤销", "failed": "失败" }
+    },
+    "states": {
+      "inherit": "继承站点选择",
+      "enabled": "开启",
+      "disabled": "关闭"
+    },
+    "categories": {
+      "conversation": "互动",
+      "mention": "提及",
+      "moderation": "审核",
+      "system": "系统"
+    },
+    "channels": {
+      "in_app": "站内通知",
+      "email": "邮件",
+      "web_push": "Web Push"
+    },
+    "types": {
+      "reply": "回复",
+      "mention": "提及",
+      "moderation_approved": "内容已通过",
+      "moderation_rejected": "内容未通过",
+      "admin_test": "管理员测试"
+    },
+    "status": {
+      "required": "宿主必需",
+      "disabledBySite": "已被站点策略关闭",
+      "channelUnavailable": "渠道提供商不可用",
+      "managedBySite": "由站点策略管理",
+      "effectiveEnabled": "当前已开启",
+      "effectiveDisabled": "当前已关闭"
+    },
+    "rail": {
+      "ariaLabel": "通知偏好摘要",
+      "open": "打开通知偏好摘要",
+      "title": "你的通知选择",
+      "description": "修改只作用于当前账号。站点策略或不可用的提供商仍可能限制外部渠道。"
     }
   },
   "profileSettings": {

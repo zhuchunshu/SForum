@@ -11,7 +11,7 @@ import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
  */
 const props = withDefaults(defineProps<{
   /** 左栏账号导航高亮项 */
-  active: 'profile' | 'security'
+  active: 'profile' | 'security' | 'notifications'
   /** 页头 h1 的 id，供 aria-labelledby 使用 */
   titleId: string
   title: string

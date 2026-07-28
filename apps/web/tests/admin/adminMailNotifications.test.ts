@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test'
-import { mailDeliveryCodeKey, recommendedMailPolicy } from '../../app/components/admin/settings/mail/model'
+import { mailDeliveryCodeKey } from '../../app/components/admin/settings/mail/model'
 
 const modules = await Bun.file(new URL('../../app/config/adminModules.ts', import.meta.url)).text()
 const overviewTab = await Bun.file(new URL('../../app/components/admin/settings/mail/tabs/SFAdminMailOverviewTab.vue', import.meta.url)).text()
 const providerTab = await Bun.file(new URL('../../app/components/admin/settings/mail/tabs/SFAdminMailProviderTab.vue', import.meta.url)).text()
-const notificationsTab = await Bun.file(new URL('../../app/components/admin/settings/mail/tabs/SFAdminMailNotificationsTab.vue', import.meta.url)).text()
 const deliveriesTab = await Bun.file(new URL('../../app/components/admin/settings/mail/tabs/SFAdminMailDeliveriesTab.vue', import.meta.url)).text()
+const mailPage = await Bun.file(new URL('../../app/pages/admin/settings/mail.vue', import.meta.url)).text()
 const zh = JSON.parse(await Bun.file(new URL('../../i18n/locales/zh-CN.json', import.meta.url)).text())
 const en = JSON.parse(await Bun.file(new URL('../../i18n/locales/en-US.json', import.meta.url)).text())
 
@@ -25,15 +25,11 @@ describe('mail and notification admin center', () => {
     expect(providerTab).not.toContain('selected === \'sforum.smtp\'')
   })
 
-  test('owns notification policy defaults, save, restore, and self-test behavior', () => {
-    expect(recommendedMailPolicy()).toEqual({
-      reply: { inAppEnabled: true, emailEnabled: true },
-      mention: { inAppEnabled: true, emailEnabled: true },
-      moderation: { inAppEnabled: true, emailEnabled: true }
-    })
-    expect(notificationsTab).toContain("'/admin/mail/policy/restore'")
-    expect(notificationsTab).toContain("'/admin/notifications/test'")
-    expect(notificationsTab).toContain('duration: 10000')
+  test('keeps Mail focused on provider and delivery responsibilities', () => {
+    expect(mailPage).not.toContain('SFAdminMailNotificationsTab')
+    expect(mailPage).not.toContain("'notifications'")
+    expect(mailPage).toContain('SFAdminMailProviderTab')
+    expect(mailPage).toContain('SFAdminMailDeliveriesTab')
   })
 
   test('keeps overview guidance and localizes delivery list codes', () => {

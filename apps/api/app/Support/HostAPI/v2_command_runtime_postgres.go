@@ -48,6 +48,7 @@ func NewPostgresProtocolV2CommandRuntime(config PostgresProtocolV2CommandRuntime
 		newProtocolV2ExtensionSettingsResetCommandDefinition(),
 		newProtocolV2ExtensionSettingsUpdateCommandDefinition(),
 		newProtocolV2ExtensionSettingsActionCommandDefinition(),
+		newProtocolV2NotificationEmitCommandDefinition(config.Pool, config.Jobs),
 	)
 	if err != nil {
 		return nil, err

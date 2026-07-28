@@ -1946,7 +1946,7 @@
     "handler": "listDeliveries",
     "method": "GET",
     "path": "/api/v1/admin/mail/deliveries",
-    "source": "apps/api/app/Http/Controllers/Mail/controller.go:31",
+    "source": "apps/api/app/Http/Controllers/Mail/controller.go:34",
     "access": "permission",
     "policy": "settings.mail.manage or settings.manage compatibility policy",
     "guard": {
@@ -1965,7 +1965,7 @@
     "handler": "getPolicy",
     "method": "GET",
     "path": "/api/v1/admin/mail/policy",
-    "source": "apps/api/app/Http/Controllers/Mail/controller.go:32",
+    "source": "apps/api/app/Http/Controllers/Mail/controller.go:35",
     "access": "permission",
     "policy": "settings.mail.manage or settings.manage compatibility policy",
     "guard": {
@@ -1984,7 +1984,7 @@
     "handler": "updatePolicy",
     "method": "PUT",
     "path": "/api/v1/admin/mail/policy",
-    "source": "apps/api/app/Http/Controllers/Mail/controller.go:33",
+    "source": "apps/api/app/Http/Controllers/Mail/controller.go:36",
     "access": "permission",
     "policy": "settings.mail.manage or settings.manage compatibility policy",
     "guard": {
@@ -2003,7 +2003,7 @@
     "handler": "restorePolicy",
     "method": "POST",
     "path": "/api/v1/admin/mail/policy/restore",
-    "source": "apps/api/app/Http/Controllers/Mail/controller.go:34",
+    "source": "apps/api/app/Http/Controllers/Mail/controller.go:37",
     "access": "permission",
     "policy": "settings.mail.manage or settings.manage compatibility policy",
     "guard": {
@@ -2022,7 +2022,7 @@
     "handler": "selectProvider",
     "method": "PUT",
     "path": "/api/v1/admin/mail/provider",
-    "source": "apps/api/app/Http/Controllers/Mail/controller.go:29",
+    "source": "apps/api/app/Http/Controllers/Mail/controller.go:32",
     "access": "permission",
     "policy": "settings.mail.manage or settings.manage compatibility policy",
     "guard": {
@@ -2041,7 +2041,7 @@
     "handler": "resetProvider",
     "method": "POST",
     "path": "/api/v1/admin/mail/provider/reset",
-    "source": "apps/api/app/Http/Controllers/Mail/controller.go:30",
+    "source": "apps/api/app/Http/Controllers/Mail/controller.go:33",
     "access": "permission",
     "policy": "settings.mail.manage or settings.manage compatibility policy",
     "guard": {
@@ -2060,7 +2060,7 @@
     "handler": "listProviders",
     "method": "GET",
     "path": "/api/v1/admin/mail/providers",
-    "source": "apps/api/app/Http/Controllers/Mail/controller.go:28",
+    "source": "apps/api/app/Http/Controllers/Mail/controller.go:31",
     "access": "permission",
     "policy": "settings.mail.manage or settings.manage compatibility policy",
     "guard": {
@@ -2200,18 +2200,171 @@
     }
   },
   {
+    "id": "core.route.notifications.list_channels",
+    "contractVersion": "sforum.route.notifications.list_channels@1",
+    "module": "notifications",
+    "handler": "listChannels",
+    "method": "GET",
+    "path": "/api/v1/admin/notifications/channels",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:82",
+    "access": "permission",
+    "policy": "settings.notifications.manage or settings.manage compatibility policy",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.notifications.manage",
+        "settings.manage"
+      ],
+      "evaluatorId": ""
+    }
+  },
+  {
+    "id": "core.route.notifications.select_channel_provider",
+    "contractVersion": "sforum.route.notifications.select_channel_provider@1",
+    "module": "notifications",
+    "handler": "selectChannel",
+    "method": "PUT",
+    "path": "/api/v1/admin/notifications/channels/:channel",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:83",
+    "access": "permission",
+    "policy": "settings.notifications.manage or settings.manage compatibility policy",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.notifications.manage",
+        "settings.manage"
+      ],
+      "evaluatorId": ""
+    }
+  },
+  {
+    "id": "core.route.notifications.reset_channel_provider",
+    "contractVersion": "sforum.route.notifications.reset_channel_provider@1",
+    "module": "notifications",
+    "handler": "resetChannel",
+    "method": "POST",
+    "path": "/api/v1/admin/notifications/channels/:channel/reset",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:84",
+    "access": "permission",
+    "policy": "settings.notifications.manage or settings.manage compatibility policy",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.notifications.manage",
+        "settings.manage"
+      ],
+      "evaluatorId": ""
+    }
+  },
+  {
+    "id": "core.route.notifications.test_channel",
+    "contractVersion": "sforum.route.notifications.test_channel@1",
+    "module": "notifications",
+    "handler": "testChannel",
+    "method": "POST",
+    "path": "/api/v1/admin/notifications/channels/:channel/test",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:85",
+    "access": "permission",
+    "policy": "settings.notifications.manage or settings.manage compatibility policy",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.notifications.manage",
+        "settings.manage"
+      ],
+      "evaluatorId": ""
+    }
+  },
+  {
+    "id": "core.route.notifications.list_channel_deliveries",
+    "contractVersion": "sforum.route.notifications.list_channel_deliveries@1",
+    "module": "notifications",
+    "handler": "listChannelDeliveries",
+    "method": "GET",
+    "path": "/api/v1/admin/notifications/deliveries",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:86",
+    "access": "permission",
+    "policy": "settings.notifications.manage or settings.manage compatibility policy",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.notifications.manage",
+        "settings.manage"
+      ],
+      "evaluatorId": ""
+    }
+  },
+  {
+    "id": "core.route.notifications.get_policy",
+    "contractVersion": "sforum.route.notifications.get_policy@1",
+    "module": "notifications",
+    "handler": "listAdminPolicy",
+    "method": "GET",
+    "path": "/api/v1/admin/notifications/policy",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:78",
+    "access": "permission",
+    "policy": "settings.notifications.manage or settings.manage compatibility policy",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.notifications.manage",
+        "settings.manage"
+      ],
+      "evaluatorId": ""
+    }
+  },
+  {
+    "id": "core.route.notifications.update_policy",
+    "contractVersion": "sforum.route.notifications.update_policy@1",
+    "module": "notifications",
+    "handler": "replaceAdminPolicy",
+    "method": "PUT",
+    "path": "/api/v1/admin/notifications/policy",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:79",
+    "access": "permission",
+    "policy": "settings.notifications.manage or settings.manage compatibility policy",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.notifications.manage",
+        "settings.manage"
+      ],
+      "evaluatorId": ""
+    }
+  },
+  {
+    "id": "core.route.notifications.restore_policy",
+    "contractVersion": "sforum.route.notifications.restore_policy@1",
+    "module": "notifications",
+    "handler": "restoreAdminPolicy",
+    "method": "POST",
+    "path": "/api/v1/admin/notifications/policy/restore",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:80",
+    "access": "permission",
+    "policy": "settings.notifications.manage or settings.manage compatibility policy",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "settings.notifications.manage",
+        "settings.manage"
+      ],
+      "evaluatorId": ""
+    }
+  },
+  {
     "id": "core.route.notifications.admin_test",
     "contractVersion": "sforum.route.notifications.admin_test@1",
     "module": "notifications",
     "handler": "adminTest",
     "method": "POST",
     "path": "/api/v1/admin/notifications/test",
-    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:37",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:81",
     "access": "permission",
-    "policy": "settings.manage",
+    "policy": "settings.notifications.manage or settings.manage compatibility policy",
     "guard": {
       "kind": "permission_any",
       "permissions": [
+        "settings.notifications.manage",
         "settings.manage"
       ],
       "evaluatorId": ""
@@ -3655,13 +3808,61 @@
     }
   },
   {
+    "id": "core.route.notifications.get_preferences",
+    "contractVersion": "sforum.route.notifications.get_preferences@1",
+    "module": "notifications",
+    "handler": "listPreferences",
+    "method": "GET",
+    "path": "/api/v1/notification-preferences",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:74",
+    "access": "login",
+    "policy": "current recipient ownership",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.notifications.recipient"
+    }
+  },
+  {
+    "id": "core.route.notifications.update_preferences",
+    "contractVersion": "sforum.route.notifications.update_preferences@1",
+    "module": "notifications",
+    "handler": "replacePreferences",
+    "method": "PUT",
+    "path": "/api/v1/notification-preferences",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:75",
+    "access": "login",
+    "policy": "current recipient ownership",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.notifications.recipient"
+    }
+  },
+  {
+    "id": "core.route.notifications.restore_preferences",
+    "contractVersion": "sforum.route.notifications.restore_preferences@1",
+    "module": "notifications",
+    "handler": "restorePreferences",
+    "method": "POST",
+    "path": "/api/v1/notification-preferences/restore",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:76",
+    "access": "login",
+    "policy": "current recipient ownership",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.notifications.recipient"
+    }
+  },
+  {
     "id": "core.route.notifications.list",
     "contractVersion": "sforum.route.notifications.list@1",
     "module": "notifications",
     "handler": "list",
     "method": "GET",
     "path": "/api/v1/notifications",
-    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:33",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:68",
     "access": "login",
     "policy": "current recipient ownership",
     "guard": {
@@ -3677,7 +3878,7 @@
     "handler": "markRead",
     "method": "PATCH",
     "path": "/api/v1/notifications/:id/read",
-    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:35",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:70",
     "access": "login",
     "policy": "current recipient ownership",
     "guard": {
@@ -3693,7 +3894,23 @@
     "handler": "markAllRead",
     "method": "POST",
     "path": "/api/v1/notifications/read-all",
-    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:36",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:71",
+    "access": "login",
+    "policy": "current recipient ownership",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.notifications.recipient"
+    }
+  },
+  {
+    "id": "core.route.notifications.stream",
+    "contractVersion": "sforum.route.notifications.stream@1",
+    "module": "notifications",
+    "handler": "stream",
+    "method": "GET",
+    "path": "/api/v1/notifications/stream",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:72",
     "access": "login",
     "policy": "current recipient ownership",
     "guard": {
@@ -3709,7 +3926,7 @@
     "handler": "unreadCount",
     "method": "GET",
     "path": "/api/v1/notifications/unread-count",
-    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:34",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:69",
     "access": "login",
     "policy": "current recipient ownership",
     "guard": {
@@ -4737,6 +4954,70 @@
       "kind": "public",
       "permissions": [],
       "evaluatorId": ""
+    }
+  },
+  {
+    "id": "core.route.notifications.web_push_config",
+    "contractVersion": "sforum.route.notifications.web_push_config@1",
+    "module": "notifications",
+    "handler": "webPushConfig",
+    "method": "GET",
+    "path": "/api/v1/web-push/config",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:88",
+    "access": "login",
+    "policy": "current recipient ownership",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.notifications.recipient"
+    }
+  },
+  {
+    "id": "core.route.notifications.list_web_push_subscriptions",
+    "contractVersion": "sforum.route.notifications.list_web_push_subscriptions@1",
+    "module": "notifications",
+    "handler": "listWebPushSubscriptions",
+    "method": "GET",
+    "path": "/api/v1/web-push/subscriptions",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:89",
+    "access": "login",
+    "policy": "current recipient ownership",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.notifications.recipient"
+    }
+  },
+  {
+    "id": "core.route.notifications.create_web_push_subscription",
+    "contractVersion": "sforum.route.notifications.create_web_push_subscription@1",
+    "module": "notifications",
+    "handler": "createWebPushSubscription",
+    "method": "POST",
+    "path": "/api/v1/web-push/subscriptions",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:90",
+    "access": "login",
+    "policy": "current recipient ownership",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.notifications.recipient"
+    }
+  },
+  {
+    "id": "core.route.notifications.revoke_web_push_subscription",
+    "contractVersion": "sforum.route.notifications.revoke_web_push_subscription@1",
+    "module": "notifications",
+    "handler": "revokeWebPushSubscription",
+    "method": "DELETE",
+    "path": "/api/v1/web-push/subscriptions/:id",
+    "source": "apps/api/app/Http/Controllers/Notifications/controller.go:91",
+    "access": "login",
+    "policy": "current recipient ownership",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.notifications.recipient"
     }
   },
   {

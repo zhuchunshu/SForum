@@ -23,6 +23,7 @@ SForum is a maintainable, plugin-first open-source forum framework: core is the 
 - [First registration & super admin](./usage/first-login.md)
 - [Admin control panel](./usage/admin.md)
 - [Forum day-to-day](./usage/forum.md)
+- [Notifications](./usage/notifications.md)
 - [Search](./usage/search.md)
 - [Extensions & themes (operators)](./usage/extensions.md)
 

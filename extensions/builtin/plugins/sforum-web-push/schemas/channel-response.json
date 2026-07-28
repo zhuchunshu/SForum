@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["ok", "reason"],
+  "properties": {
+    "ok": { "type": "boolean" },
+    "classification": { "enum": ["temporary", "permanent"] },
+    "reason": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "message": { "type": "string", "maxLength": 512 },
+    "publicKey": { "type": "string", "maxLength": 512 }
+  }
+}

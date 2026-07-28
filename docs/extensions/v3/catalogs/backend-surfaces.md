@@ -53,6 +53,7 @@
 - `human_verification.provider`
 - `auth.risk.provider`
 - `editor.sanitizer.provider`
+- `notification.channel.web_push`
 
 ## schedules
 
@@ -70,6 +71,7 @@
 - `forum.flush_view_counts` — `apps/api/app/Jobs/Forum/flush_view_counts.go`
 - `identity.cleanup_sessions` — `apps/api/app/Jobs/Identity/cleanup_sessions.go`
 - `mail.deliver` — `apps/api/app/Models/Notifications/outbox.go`
+- `notification.channel.deliver` — `apps/api/app/Models/Notifications/outbox.go`
 - `search.reconcile` — `apps/api/app/Jobs/Search/reconcile.go`
 - `webhook.deliver` — `apps/api/app/Models/Webhooks/service.go`
 

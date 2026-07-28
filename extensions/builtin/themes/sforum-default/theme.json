@@ -85,6 +85,13 @@
       "contract": "sforum.page.settings_security@1"
     },
     {
+      "id": "sforum.default-theme.settings_notifications",
+      "action": "replace",
+      "target": "forum.settings.notifications",
+      "template": "templates/settings-notifications.html",
+      "contract": "sforum.page.settings_notifications@1"
+    },
+    {
       "id": "sforum.default-theme.notifications",
       "action": "replace",
       "target": "forum.notifications",

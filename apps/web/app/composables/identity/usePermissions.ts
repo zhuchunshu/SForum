@@ -20,6 +20,7 @@ export const FORUM_PERMISSIONS = {
   settingsManage: 'settings.manage',
   settingsSiteManage: 'settings.site.manage',
   settingsMailManage: 'settings.mail.manage',
+  settingsNotificationsManage: 'settings.notifications.manage',
   settingsAvatarManage: 'settings.avatar.manage',
   settingsAppearanceManage: 'settings.appearance.manage',
   attachmentUpload: 'attachment.upload',
@@ -34,6 +35,7 @@ const LEGACY_PERMISSION_CHILDREN: Record<string, string[]> = {
   'settings.manage': [
     'settings.site.manage',
     'settings.mail.manage',
+    'settings.notifications.manage',
     'settings.avatar.manage',
     'settings.appearance.manage',
     'forum.settings.manage'

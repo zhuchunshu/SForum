@@ -62,6 +62,7 @@ func newCorePageViewModelRegistry() (*PageViewModelRegistry, error) {
 		coreViewModel("forum.profile.show", "sforum.page.profile_show@1", ViewModelProfile, ProfilePageViewModel{}),
 		coreViewModel("forum.settings.profile", "sforum.page.settings_profile@1", ViewModelSettings, ProfileSettingsPageViewModel{}),
 		coreViewModel("forum.settings.security", "sforum.page.settings_security@1", ViewModelSettings, SecuritySettingsPageViewModel{}),
+		coreViewModel("forum.settings.notifications", "sforum.page.settings_notifications@1", ViewModelSettings, NotificationSettingsPageViewModel{}),
 		coreViewModel("forum.notifications", "sforum.page.notifications@1", ViewModelNotifications, NotificationsPageViewModel{}),
 		coreViewModel("moderation.review", "sforum.page.moderation_review@1", ViewModelModeration, ModerationReviewPageViewModel{}),
 		coreViewModel("auth.login", "sforum.page.login@1", ViewModelAuth, LoginPageViewModel{}),
@@ -201,6 +202,8 @@ func pageViewModelBase(value any) (PageViewModelBase, bool) {
 		return model.Base, true
 	case SecuritySettingsPageViewModel:
 		return model.Base, true
+	case NotificationSettingsPageViewModel:
+		return model.Base, true
 	case NotificationsPageViewModel:
 		return model.Base, true
 	case ModerationReviewPageViewModel:
@@ -255,6 +258,17 @@ func validatePageSpecificBoundaries(value any) error {
 			"core.route.identity.revoke_other_sessions",
 			"core.route.identity.revoke_session",
 			"core.route.identity.rotate_apitoken",
+		}
+	case NotificationSettingsPageViewModel:
+		form, expectedComponent = model.Form, "notifications.component.settings"
+		expectedRoutes = []string{
+			"core.route.notifications.get_preferences",
+			"core.route.notifications.update_preferences",
+			"core.route.notifications.restore_preferences",
+			"core.route.notifications.web_push_config",
+			"core.route.notifications.list_web_push_subscriptions",
+			"core.route.notifications.create_web_push_subscription",
+			"core.route.notifications.revoke_web_push_subscription",
 		}
 	case LoginPageViewModel:
 		form, expectedComponent = model.Form, "identity.component.login_form"

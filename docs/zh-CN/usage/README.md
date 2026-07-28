@@ -12,6 +12,7 @@
 | [首次注册与超级管理员](./first-login.md) | 首用户、`super_admin`、登录与会话 |
 | [管理后台](./admin.md) | 后台入口、设置习惯、权限与个性化 |
 | [论坛日常](./forum.md) | 版块标签、发帖回帖、版主操作 |
+| [通知](./notifications.md) | 站内信、个人偏好、Web Push 与管理员策略 |
 | [搜索](./search.md) | 默认站点搜索与可选 Meilisearch |
 | [扩展与主题](./extensions.md) | 安装/启用插件、激活主题、信任与安全 |
 | [GitHub 登录方式](./github-login.md) | 内置 GitHub 登录配置、生命周期与排障 |

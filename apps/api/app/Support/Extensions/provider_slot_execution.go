@@ -23,6 +23,7 @@ type VersionedProviderInvocation struct {
 type VersionedProviderInvocationResult struct {
 	ProviderID        string
 	ExtensionID       string
+	ProviderArtifact  HookArtifact
 	RuntimeInstanceID string
 	ResponseSchema    string
 	Output            map[string]any
@@ -221,6 +222,7 @@ func (m *RuntimeInvoker) InvokeVersionedProvider(
 		admission.Release()
 		return VersionedProviderInvocationResult{
 			ProviderID: candidate.ID, ExtensionID: candidate.Artifact.ExtensionID,
+			ProviderArtifact:  candidate.Artifact,
 			RuntimeInstanceID: candidate.Artifact.RuntimeInstanceID,
 			ResponseSchema:    resolution.Contract.ResponseSchema,
 			Output:            output, Attempts: index + 1,

@@ -29,9 +29,14 @@ type Notification struct {
 	ID              int64           `json:"id"`
 	RecipientUserID int64           `json:"-"`
 	Type            string          `json:"type"`
+	Category        string          `json:"category,omitempty"`
+	TypeVersion     int             `json:"typeVersion,omitempty"`
+	PayloadVersion  int             `json:"payloadVersion,omitempty"`
 	ActorUserID     *int64          `json:"actorUserId,omitempty"`
 	TargetType      string          `json:"targetType"`
 	TargetID        int64           `json:"targetId"`
+	TargetAvailable bool            `json:"targetAvailable"`
+	TargetPath      string          `json:"targetPath,omitempty"`
 	Payload         json.RawMessage `json:"payload"`
 	DedupeKey       string          `json:"-"`
 	ReadAt          *time.Time      `json:"readAt,omitempty"`
@@ -58,11 +63,29 @@ type MailDelivery struct {
 type CreateInput struct {
 	RecipientUserID int64
 	Type            string
+	Category        string
+	TypeVersion     int
+	PayloadVersion  int
 	ActorUserID     *int64
 	TargetType      string
 	TargetID        int64
 	Payload         json.RawMessage
 	DedupeKey       string
+}
+
+func categoryForType(typ string) string {
+	switch typ {
+	case TypeReply:
+		return "conversation"
+	case TypeMention:
+		return "mention"
+	case TypeModerationApproved, TypeModerationRejected:
+		return "moderation"
+	case TypeAdminTest:
+		return "system"
+	default:
+		return "plugin_unknown"
+	}
 }
 
 type CreateDeliveryInput struct {
@@ -76,6 +99,9 @@ type CreateDeliveryInput struct {
 type CreateBundleInput struct {
 	Notification CreateInput
 	Delivery     CreateDeliveryInput
+	// Channels is the validated type declaration. Empty preserves the legacy
+	// Core bundle contract (in_app + email).
+	Channels []string
 }
 
 type Bundle struct {
@@ -87,6 +113,9 @@ type ListInput struct {
 	RecipientUserID int64
 	Limit           int
 	BeforeID        int64
+	Category        string
+	Type            string
+	Unread          *bool
 }
 
 type Page struct {

@@ -1,6 +1,7 @@
 package pages
 
 import (
+	"slices"
 	"testing"
 
 	themecompiler "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeCompiler"
@@ -40,5 +41,31 @@ func TestBuildCorePageViewModelOverridesHostFormBoundary(t *testing.T) {
 	created := model.(themecompiler.TopicCreatePageViewModel)
 	if created.Form.ComponentID != "forum.component.topic_composer" || len(created.Form.ActionRouteIDs) != 1 || created.Form.ActionRouteIDs[0] != "core.route.forum.create_topic" {
 		t.Fatalf("untrusted form boundary survived: %#v", created.Form)
+	}
+}
+
+func TestBuildNotificationSettingsViewModelFreezesHostBoundary(t *testing.T) {
+	input := &themecompiler.NotificationSettingsPageViewModel{Form: themecompiler.HostFormBoundary{
+		ComponentID: "plugin.capture.settings", ActionRouteIDs: []string{"plugin.capture.secrets"},
+	}}
+	model, err := BuildCorePageViewModel(CorePageViewModelRequest{
+		PageID: "forum.settings.notifications", Locale: "en-US", Path: "/settings/notifications",
+		Data: CorePageViewModelData{NotificationSettings: input},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	settings := model.(themecompiler.NotificationSettingsPageViewModel)
+	wantRoutes := []string{
+		"core.route.notifications.get_preferences", "core.route.notifications.update_preferences",
+		"core.route.notifications.restore_preferences", "core.route.notifications.web_push_config",
+		"core.route.notifications.list_web_push_subscriptions", "core.route.notifications.create_web_push_subscription",
+		"core.route.notifications.revoke_web_push_subscription",
+	}
+	if settings.Form.ComponentID != "notifications.component.settings" || !slices.Equal(settings.Form.ActionRouteIDs, wantRoutes) {
+		t.Fatalf("Host notification boundary drifted: %#v", settings.Form)
+	}
+	if input.Form.ComponentID != "plugin.capture.settings" {
+		t.Fatal("factory mutated source-owned notification payload")
 	}
 }

@@ -45,6 +45,7 @@
 | `core.admin.page.settings` | `apps/web/app/pages/admin/settings/index.vue` | yes | no | yes | no | yes | no | no | no | yes | no | no | yes | no |
 | `core.admin.page.settings_login_methods` | `apps/web/app/pages/admin/settings/login-methods.vue` | yes | no | yes | no | yes | yes | no | no | yes | no | no | yes | yes |
 | `core.admin.page.settings_mail` | `apps/web/app/pages/admin/settings/mail.vue` | yes | no | yes | no | no | no | no | no | no | no | no | yes | no |
+| `core.admin.page.settings_notifications` | `apps/web/app/pages/admin/settings/notifications.vue` | yes | no | yes | no | no | no | no | no | no | no | no | yes | no |
 | `core.admin.page.site_chrome` | `apps/web/app/pages/admin/site-chrome.vue` | yes | no | no | no | no | no | no | no | no | no | no | yes | no |
 | `core.admin.page.users` | `apps/web/app/pages/admin/users.vue` | yes | no | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | no |
 | `core.admin.page.webhooks` | `apps/web/app/pages/admin/webhooks.vue` | yes | no | yes | no | yes | yes | no | yes | yes | no | yes | yes | no |

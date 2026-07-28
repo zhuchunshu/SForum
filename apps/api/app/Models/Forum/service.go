@@ -606,6 +606,13 @@ func (s *Service) CreateTopic(ctx context.Context, actor identity.Actor, input C
 	if err != nil {
 		return TopicDetail{}, err
 	}
+	var mentionNames []string
+	if settings.MentionsEnabled {
+		mentionNames = MentionedUsernames(content.RawContent)
+		if settings.MentionsMaxPerPost > 0 && len(mentionNames) > settings.MentionsMaxPerPost {
+			return TopicDetail{}, ErrMentionsLimit
+		}
+	}
 	attachmentIDs, _, err := normalizeContentAttachmentIDs(input.Content.AttachmentIDs)
 	if err != nil {
 		return TopicDetail{}, err
@@ -633,6 +640,7 @@ func (s *Service) CreateTopic(ctx context.Context, actor identity.Actor, input C
 		Content:            content,
 		Status:             status,
 		ModerationTriggers: publication.Triggers,
+		MentionedUsernames: mentionNames,
 		IPAddress:          strings.TrimSpace(input.IPAddress),
 		AttachmentIDs:      attachmentIDs,
 	})
@@ -996,7 +1004,7 @@ func (s *Service) CreateComment(ctx context.Context, actor identity.Actor, input
 	// max=0 表示不限制条数。
 	var mentionNames []string
 	if settings.MentionsEnabled {
-		mentionNames = mentionedUsernames(input.Content.RawContent)
+		mentionNames = MentionedUsernames(input.Content.RawContent)
 		if settings.MentionsMaxPerPost > 0 && len(mentionNames) > settings.MentionsMaxPerPost {
 			return Comment{}, ErrMentionsLimit
 		}
@@ -1042,6 +1050,7 @@ func (s *Service) CreateComment(ctx context.Context, actor identity.Actor, input
 	created, err := s.store.CreateComment(ctx, CreateCommentRecord{
 		TopicID:            input.TopicID,
 		AuthorUserID:       actor.ID,
+		TopicAuthorUserID:  topic.AuthorUserID,
 		ParentID:           input.ParentID,
 		Parent:             parent,
 		Content:            content,
@@ -1077,33 +1086,4 @@ func (s *Service) CreateComment(ctx context.Context, actor identity.Actor, input
 		s.indexTopic(ctx, created.TopicID)
 	}
 	return created, nil
-}
-
-// applyCommentBeforeCreate 调用 comment.before_create 同步 filter。
-// 仅允许补丁 content；parentId/topicId 由 host 权威，不接受插件改写。
-func (s *Service) applyCommentBeforeCreate(ctx context.Context, actor identity.Actor, input CreateCommentInput) (CreateCommentInput, error) {
-	payload := map[string]any{
-		"actorUserId": actor.ID,
-		"topicId":     input.TopicID,
-		"content":     input.Content,
-	}
-	if input.ParentID != nil {
-		payload["parentId"] = *input.ParentID
-	}
-	envelope := appevents.NewEnvelope(appevents.CommentBeforeCreate, payload)
-	envelope.ActorUserID = actor.ID
-	envelope.ResourceType = "comment"
-	// 创建前尚无 commentId；用 topicId 作关联资源便于投递日志检索。
-	envelope.ResourceID = strconv.FormatInt(input.TopicID, 10)
-	result := s.events.Emit(ctx, envelope)
-	if !result.OK {
-		return CreateCommentInput{}, appevents.Reject(result)
-	}
-	if len(result.Patch) == 0 {
-		return input, nil
-	}
-	if value, ok := contentInputFromPatch(result.Patch["content"]); ok {
-		input.Content = value
-	}
-	return input, nil
 }

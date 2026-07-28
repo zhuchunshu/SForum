@@ -199,7 +199,7 @@ func (s *PostgresStore) CreateComment(ctx context.Context, input CreateCommentRe
 		if input.Parent != nil {
 			parentAuthorID = input.Parent.AuthorUserID
 		}
-		if err := s.notifications.NotifyCommentTx(ctx, tx, CommentNotificationInput{CommentID: commentID, TopicID: input.TopicID, ActorUserID: input.AuthorUserID, ParentAuthorUserID: parentAuthorID, MentionedUsernames: input.MentionedUsernames}); err != nil {
+		if err := s.notifications.NotifyCommentTx(ctx, tx, CommentNotificationInput{CommentID: commentID, TopicID: input.TopicID, ActorUserID: input.AuthorUserID, TopicAuthorUserID: input.TopicAuthorUserID, ParentAuthorUserID: parentAuthorID, MentionedUsernames: input.MentionedUsernames}); err != nil {
 			return Comment{}, fmt.Errorf("create comment notifications: %w", err)
 		}
 	}

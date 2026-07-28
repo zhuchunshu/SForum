@@ -42,6 +42,12 @@ const markingIds = ref(new Set<number>())
 const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
 
+function serverFilters(filter: NotificationFilter) {
+  if (filter === 'all') return {}
+  if (filter === 'unread') return { unread: true }
+  return { type: filter }
+}
+
 const [
   notificationAsync,
   unreadAsync,
@@ -49,7 +55,7 @@ const [
 ] = await Promise.all([
   useAsyncData(
     'notification-inbox',
-    () => notifications.list(0, PAGE_LIMIT),
+    () => notifications.list(0, PAGE_LIMIT, serverFilters(activeFilter.value)),
     { default: () => ({ items: [], hasMore: false }) }
   ),
   useAsyncData(
@@ -138,8 +144,25 @@ function closeMobileDrawers() {
 }
 
 function selectFilter(filter: NotificationFilter) {
+	if (activeFilter.value === filter) {
+		closeMobileDrawers()
+		return
+	}
   activeFilter.value = filter
   closeMobileDrawers()
+  void refreshInbox()
+}
+
+async function refreshInbox() {
+  actionError.value = ''
+  try {
+    const page = await notifications.list(0, PAGE_LIMIT, serverFilters(activeFilter.value))
+    items.value = page.items
+    hasMore.value = page.hasMore
+    selectedId.value = page.items[0]?.id ?? null
+  } catch (error) {
+    actionError.value = apiErrorMessage(error) || t('notifications.loadFailed')
+  }
 }
 
 function notificationTime(item: NotificationPresentation) {
@@ -256,7 +279,7 @@ async function loadMore() {
   loadingMoreError.value = ''
   try {
     const beforeId = items.value[items.value.length - 1]?.id || 0
-    const page = await notifications.list(beforeId, PAGE_LIMIT)
+    const page = await notifications.list(beforeId, PAGE_LIMIT, serverFilters(activeFilter.value))
     const seen = new Set(items.value.map(item => item.id))
     items.value = [...items.value, ...page.items.filter(item => !seen.has(item.id))]
     hasMore.value = page.hasMore
@@ -277,6 +300,14 @@ async function openSelectedTarget() {
   closeMobileDrawers()
   await router.push(localePath(item.target.path))
 }
+
+let stopRealtime = () => {}
+onMounted(() => {
+  stopRealtime = notifications.startRealtime(async () => {
+    await Promise.allSettled([notifications.refreshUnreadCount(), refreshInbox()])
+  })
+})
+onBeforeUnmount(() => stopRealtime())
 </script>
 
 <template>

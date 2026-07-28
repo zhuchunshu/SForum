@@ -22,6 +22,13 @@ func TestCatalogUniqueAndHasHome(t *testing.T) {
 	}
 }
 
+func TestNotificationSettingsPageContract(t *testing.T) {
+	page, ok := Find("forum.settings.notifications")
+	if !ok || page.PathPattern != "/settings/notifications" || page.Access != AccessLogin || !page.Replaceable || page.ContractVersion != "sforum.page.settings_notifications@1" {
+		t.Fatalf("notification settings contract missing or invalid: %#v ok=%v", page, ok)
+	}
+}
+
 func TestResolveCore(t *testing.T) {
 	resolved, err := ResolveCore("forum.home")
 	if err != nil {
@@ -62,7 +69,7 @@ func TestMatchPath(t *testing.T) {
 }
 
 func TestReservedPaths(t *testing.T) {
-	for _, p := range []string{"/admin", "/admin/x", "/control-panel", "/api/v1/x", "/_nuxt/foo", "/health"} {
+	for _, p := range []string{"/admin", "/admin/x", "/control-panel", "/api/v1/x", "/_nuxt/foo", "/_sforum/notifications/sw.js", "/health"} {
 		if !IsReservedPath(p) {
 			t.Fatalf("expected reserved %q", p)
 		}

@@ -216,6 +216,7 @@ func TestManifestV3RejectsUnsafeContracts(t *testing.T) {
 		}},
 		{name: "missing contract", change: func(manifest *Manifest) { manifest.Commands[0].ContractVersion = "" }},
 		{name: "reserved health path", change: func(manifest *Manifest) { manifest.Routes[0].Path = "/health" }},
+		{name: "reserved notification stream", change: func(manifest *Manifest) { manifest.Routes[0].Path = "/api/v1/notifications/stream" }},
 		{name: "missing digest", change: func(manifest *Manifest) { manifest.Assets[0].Digest = "" }},
 		{name: "unsafe package path", change: func(manifest *Manifest) { manifest.OpenAPI[0].Path = "../openapi.yaml" }},
 		{name: "plugin self grants permission", change: func(manifest *Manifest) {

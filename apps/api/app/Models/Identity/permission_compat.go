@@ -11,6 +11,7 @@ var legacyPermissionChildren = map[string][]string{
 		PermissionSettingsMailManage,
 		PermissionSettingsAvatarManage,
 		PermissionSettingsAppearanceManage,
+		PermissionSettingsNotificationsManage,
 		PermissionForumSettingsManage,
 		PermissionEntityMetaManage,
 	},

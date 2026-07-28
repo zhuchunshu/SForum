@@ -28,11 +28,12 @@ const (
 	DocSchedules          = "schedules.md"
 	DocManifestV3         = "manifest-v3.md"
 	// P7 冻结家族目录（与 hooks/services/providers/jobs/schedules/commands 对齐）。
-	DocHooks    = "hooks.md"
-	DocServices = "services.md"
-	DocJobs     = "jobs.md"
-	DocCommands = "commands.md"
-	DocFamilies = "families.md"
+	DocHooks         = "hooks.md"
+	DocServices      = "services.md"
+	DocJobs          = "jobs.md"
+	DocCommands      = "commands.md"
+	DocFamilies      = "families.md"
+	DocNotifications = "notifications.md"
 )
 
 // genMarker 出现在每个生成文件顶部；人工编辑应改代码目录，再 re-generate。
@@ -59,6 +60,7 @@ func GenerateCatalogDocs() GeneratedDocs {
 		DocServices:           ensureNL(renderServices()),
 		DocJobs:               ensureNL(renderJobs()),
 		DocCommands:           ensureNL(renderCommands()),
+		DocNotifications:      ensureNL(renderNotifications()),
 	}
 	return GeneratedDocs{Files: files}
 }
@@ -156,6 +158,7 @@ func renderIndex() string {
 	b.WriteString("| [services.md](./services.md) | Plugin services + host-brokered discovery/invoke |\n")
 	b.WriteString("| [jobs.md](./jobs.md) | Dynamic jobs: retry/concurrency limits + Enqueue/ExecuteJob |\n")
 	b.WriteString("| [commands.md](./commands.md) | Plugin CLI commands + InvokeCommand boundary |\n")
+	b.WriteString("| [notifications.md](./notifications.md) | Notification type declarations + bounded `notifications.emit@1` Host command |\n")
 	b.WriteString("\n## Authoring\n\n")
 	b.WriteString("- Hand-written guide: [../authoring-guide.md](../authoring-guide.md)\n")
 	b.WriteString("- Go SDK: `github.com/zhuchunshu/sforum/apps/api/sdk/plugin` and `/v2`\n")
@@ -683,6 +686,30 @@ func renderManifestV3() string {
 	b.WriteString("- V3 packages must set `manifestVersion: 3`; V3-only declarations in V1/V2 packages fail instead of upgrading implicitly.\n")
 	b.WriteString("- Future manifest versions fail closed until the host implements them.\n")
 	b.WriteString("\nAuthoritative schemas: `apps/api/app/Support/ExtensionManifest/schemas/manifest-v3.schema.json` and `contracts/openapi/schemas/extensions-v3-*.yaml`. Reference fixtures: `apps/api/app/Support/ExtensionManifest/testdata/v3/`.\n")
+	return b.String()
+}
+
+func renderNotifications() string {
+	var b strings.Builder
+	b.WriteString(renderHeader(
+		"Notification emission",
+		"Manifest V3 plugins may declare inert, namespaced notification types and emit them only through the exact-runtime Host API v2 command.",
+	))
+	b.WriteString("## Frozen contracts\n\n")
+	b.WriteString("| Contract | Value |\n")
+	b.WriteString("| --- | --- |\n")
+	b.WriteString("| Host command | `notifications.emit@1` |\n")
+	b.WriteString("| Input schema | `sforum.notifications.emit.input@1` |\n")
+	b.WriteString("| Result schema | `sforum.notifications.emit.result@1` |\n")
+	b.WriteString("| Maximum recipients per request | 50 explicit active user ids |\n")
+	b.WriteString("| Maximum structured payload | 16384 bytes |\n")
+	b.WriteString("| Maximum payload schema | 65536 bytes |\n")
+	b.WriteString("| Request rate | 60 committed requests per extension per rolling minute |\n")
+	b.WriteString("\n`notificationTypes[].id` must be owned by the manifest namespace. `payloadSchema` resolves to one exact `packageFiles` schema id/version/digest. Types cannot set `required: true`; lifecycle code cannot assign preferences. Targets are declared Host route, extension route, entity, or none descriptors, never arbitrary URLs.\n")
+	b.WriteString("\n## Authority\n\n")
+	b.WriteString("The actorless command accepts only the broker-attested extension, artifact, trust grant, runtime epoch, and instance. The Host validates deadline, payload schema/version, active recipients, target equality, idempotency, count, rate, and effective recipient policy in the command transaction. Plugin-supplied actor/session/cookie evidence is rejected by the broker and input decoder. Bulk broadcast is not part of this contract.\n")
+	b.WriteString("\nAccepted command audits contain only exact artifact identity and bounded impact counts. Rejection audits contain stable reasons and sizes/counts, never payload values or recipient ids. Historical rows keep versioned structured payloads; an inactive/uninstalled type renders through the Host fallback and cannot emit again.\n")
+	b.WriteString("\nGo SDK: `(*pluginv2.Host).NotificationEmitRequest` and `(*pluginv2.Host).EmitNotification`. Reference fixture: `extensions/fixtures/plugins/sforum-notification-reference`.\n")
 	return b.String()
 }
 

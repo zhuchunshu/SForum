@@ -95,6 +95,9 @@ type protocolV2CommandPreparation struct {
 	Policy          []*hostv2.PolicyDecision
 	Impact          []*hostv2.ImpactItem
 	ProjectedResult *protocolv2.TypedDocument
+	// private carries Host-only prepared state from the authoritative read phase
+	// into Execute. It is never serialized into a plugin-visible plan or audit.
+	private any
 }
 
 type protocolV2CommandExecution struct {

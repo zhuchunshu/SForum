@@ -1,16 +1,21 @@
 notifications:
   get:
     summary: List the current user's notifications
+    operationId: listNotifications
     security: [{cookieAuth: []}]
     parameters:
     - {in: query, name: limit, schema: {type: integer, default: 20, maximum: 100}}
     - {in: query, name: beforeId, schema: {type: integer, format: int64}}
+    - {in: query, name: category, schema: {type: string}}
+    - {in: query, name: type, schema: {type: string}}
+    - {in: query, name: unread, schema: {type: boolean}}
     responses:
       '200': {description: Notification page, content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/ApiResponseNotificationPage"}}}}
       '401': {$ref: "../components/responses.yaml#/Unauthorized"}
 notificationUnreadCount:
   get:
     summary: Get the current user's unread notification count
+    operationId: notificationUnreadCount
     security: [{cookieAuth: []}]
     responses:
       '200': {description: Unread count, content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/ApiResponseUnreadCount"}}}}
@@ -18,6 +23,7 @@ notificationUnreadCount:
 notificationRead:
   patch:
     summary: Mark one current-user notification as read
+    operationId: markNotificationRead
     security: [{cookieAuth: []}]
     parameters:
     - {in: path, name: id, required: true, schema: {type: integer, format: int64}}
@@ -28,16 +34,209 @@ notificationRead:
 notificationsReadAll:
   post:
     summary: Mark all current-user notifications as read
+    operationId: markAllNotificationsRead
     security: [{cookieAuth: []}]
     responses:
       '200': {description: Updated count}
       '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+notificationPreferences:
+  get:
+    summary: Get the current user's resolved notification preferences
+    operationId: listNotificationPreferences
+    security: [{cookieAuth: []}]
+    responses:
+      '200': {description: Preference catalog, content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/ApiResponsePreferenceCatalog"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+  put:
+    summary: Replace the current user's notification overrides
+    operationId: replaceNotificationPreferences
+    security: [{cookieAuth: []}]
+    requestBody:
+      required: true
+      content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/PreferenceUpdateRequest"}}}
+    responses:
+      '200': {description: Updated preference catalog, content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/ApiResponsePreferenceCatalog"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '409': {description: The submitted preference revision is stale}
+      '422': {description: Invalid or non-configurable preference}
+notificationPreferencesRestore:
+  post:
+    summary: Delete the current user's notification overrides
+    operationId: restoreNotificationPreferences
+    security: [{cookieAuth: []}]
+    requestBody:
+      required: true
+      content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/PreferenceRevisionRequest"}}}
+    responses:
+      '200': {description: Restored preference catalog, content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/ApiResponsePreferenceCatalog"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '409': {description: The submitted preference revision is stale}
+      '422': {description: Invalid preference revision}
+notificationStream:
+  get:
+    summary: Stream current-recipient notification revision signals
+    description: Host-owned, non-replaceable SSE. Durable revisions remain authoritative and no notification payload is sent.
+    operationId: streamNotificationRevisions
+    security: [{cookieAuth: []}]
+    parameters:
+    - {in: header, name: Last-Event-ID, schema: {type: integer, format: int64, minimum: 0}}
+    - {in: query, name: revision, schema: {type: integer, format: int64, minimum: 0}}
+    responses:
+      '200':
+        description: SSE revision and heartbeat stream.
+        headers:
+          Cache-Control: {schema: {type: string}, description: Always no-store, no-transform.}
+        content:
+          text/event-stream: {schema: {type: string}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '429': {description: Recipient or process SSE connection limit reached.}
+adminNotificationPolicyV2:
+  get:
+    summary: Read the versioned notification type/channel policy catalog
+    description: Requires settings.notifications.manage (or settings.manage compatibility inheritance).
+    operationId: listAdminNotificationPolicy
+    security: [{cookieAuth: []}]
+    responses:
+      '200': {description: Policy catalog, content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/ApiResponseAdminPolicyCatalog"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+  put:
+    summary: Replace configurable notification policy rows using CAS
+    operationId: replaceAdminNotificationPolicy
+    security: [{cookieAuth: []}]
+    requestBody:
+      required: true
+      content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/AdminPolicyUpdateRequest"}}}
+    responses:
+      '200': {description: Updated policy catalog, content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/ApiResponseAdminPolicyCatalog"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+      '409': {description: The submitted policy revision is stale.}
+      '422': {description: Invalid, required, inactive, or unavailable policy row.}
+adminNotificationPolicyRestoreV2:
+  post:
+    summary: Restore Host notification recommendations while preserving provider secrets
+    operationId: restoreAdminNotificationPolicy
+    security: [{cookieAuth: []}]
+    requestBody:
+      required: true
+      content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/PreferenceRevisionRequest"}}}
+    responses:
+      '200': {description: Restored policy catalog, content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/ApiResponseAdminPolicyCatalog"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+      '409': {description: The submitted policy revision is stale.}
+      '422': {description: Invalid policy revision.}
 adminNotificationTest:
   post:
     summary: Create an in-app test notification for the current administrator
-    description: Requires settings.manage. The recipient is always the current actor and no email projection is created.
+    operationId: createAdminTestNotification
+    description: Requires settings.notifications.manage. The recipient is always the current actor and no email projection is created.
     security: [{cookieAuth: []}]
     responses:
       '201': {description: Test notification created, content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/ApiResponseNotification"}}}}
       '401': {$ref: "../components/responses.yaml#/Unauthorized"}
       '403': {$ref: "../components/responses.yaml#/Forbidden"}
+adminNotificationChannels:
+  get:
+    summary: Inspect notification channel candidates, selection, and health
+    operationId: listAdminNotificationChannels
+    description: Requires settings.notifications.manage. Provider secrets are never returned.
+    security: [{cookieAuth: []}]
+    responses:
+      '200': {description: Redacted channel provider catalog}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+adminNotificationChannelSelection:
+  put:
+    summary: Select an exact notification channel provider
+    operationId: selectAdminNotificationChannel
+    security: [{cookieAuth: []}]
+    parameters:
+    - {in: path, name: channel, required: true, schema: {type: string, enum: [web_push]}}
+    requestBody:
+      required: true
+      content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/ChannelSelectionRequest"}}}
+    responses:
+      '200': {description: Exact-artifact provider selection}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+      '409': {description: Selection revision or exact artifact changed}
+      '422': {description: Invalid channel selection}
+adminNotificationChannelReset:
+  post:
+    summary: Reset a notification channel provider selection
+    operationId: resetAdminNotificationChannel
+    security: [{cookieAuth: []}]
+    parameters:
+    - {in: path, name: channel, required: true, schema: {type: string, enum: [web_push]}}
+    requestBody:
+      required: true
+      content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/ChannelResetRequest"}}}
+    responses:
+      '200': {description: Selection reset; provider secrets preserved}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+      '409': {description: Selection revision changed}
+      '422': {description: Invalid reset request}
+adminNotificationChannelTest:
+  post:
+    summary: Queue a channel test for the current administrator
+    operationId: testAdminNotificationChannel
+    description: The recipient is always the authenticated administrator; no target user id is accepted.
+    security: [{cookieAuth: []}]
+    parameters:
+    - {in: path, name: channel, required: true, schema: {type: string, enum: [web_push]}}
+    responses:
+      '202': {description: Generic channel delivery queued}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+adminNotificationDeliveries:
+  get:
+    summary: List redacted generic notification channel delivery health
+    operationId: listAdminNotificationDeliveries
+    security: [{cookieAuth: []}]
+    parameters:
+    - {in: query, name: limit, schema: {type: integer, minimum: 1, maximum: 200, default: 50}}
+    responses:
+      '200': {description: Delivery health, content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/ApiResponseChannelDeliveries"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+webPushConfig:
+  get:
+    summary: Get current Web Push availability and public VAPID material
+    operationId: getWebPushConfig
+    security: [{cookieAuth: []}]
+    responses:
+      '200': {description: Host worker scope and public provider configuration, content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/ApiResponseWebPushConfig"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+webPushSubscriptions:
+  get:
+    summary: List the current user's browser subscriptions
+    operationId: listWebPushSubscriptions
+    security: [{cookieAuth: []}]
+    responses:
+      '200': {description: Own redacted subscriptions, content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/ApiResponseWebPushSubscriptions"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+  post:
+    summary: Associate an authenticated browser subscription with the current user
+    operationId: createWebPushSubscription
+    security: [{cookieAuth: []}]
+    requestBody:
+      required: true
+      content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/WebPushSubscriptionRequest"}}}
+    responses:
+      '201': {description: Own redacted subscription}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '422': {description: Invalid or already-owned-by-another-recipient subscription}
+webPushSubscriptionByID:
+  delete:
+    summary: Revoke one current-user browser subscription
+    operationId: revokeWebPushSubscription
+    security: [{cookieAuth: []}]
+    parameters:
+    - {in: path, name: id, required: true, schema: {type: integer, format: int64}}
+    responses:
+      '200': {description: Subscription revoked}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '404': {$ref: "../components/responses.yaml#/NotFound"}

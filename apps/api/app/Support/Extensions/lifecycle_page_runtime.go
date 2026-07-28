@@ -47,3 +47,50 @@ func buildExactPluginPageRuntime(
 	}
 	return snapshot, err
 }
+
+func (b *PostgresLifecycleBoundaryRegistries) removeSupersededPageRuntimes(
+	desired *lifecycleRegistryMaterial,
+	materials ...*lifecycleRegistryMaterial,
+) error {
+	if b == nil || b.themeRuntime == nil {
+		return nil
+	}
+	var keep pages.RuntimeArtifact
+	if desired != nil {
+		keep = pages.RuntimeArtifact{
+			ExtensionID: desired.extension.ID, ExtensionVersion: desired.extension.Version,
+			PackageDigest: desired.extension.PackageDigest, RuntimeInstanceID: desired.binding.RuntimeInstanceID,
+		}
+	}
+	for _, material := range materials {
+		if material == nil {
+			continue
+		}
+		artifact := pages.RuntimeArtifact{
+			ExtensionID: material.extension.ID, ExtensionVersion: material.extension.Version,
+			PackageDigest: material.extension.PackageDigest, RuntimeInstanceID: material.binding.RuntimeInstanceID,
+		}
+		if artifact == keep {
+			continue
+		}
+		if _, err := b.themeRuntime.RemoveExact(artifact); err != nil && !errors.Is(err, pages.ErrThemeRuntimeConflict) {
+			return err
+		}
+	}
+	return nil
+}
+
+func pageArtifactAllowed(artifact pages.RuntimeArtifact, materials ...*lifecycleRegistryMaterial) bool {
+	for _, material := range materials {
+		if material == nil {
+			continue
+		}
+		if artifact.ExtensionID == material.extension.ID &&
+			artifact.ExtensionVersion == material.extension.Version &&
+			artifact.PackageDigest == material.extension.PackageDigest &&
+			artifact.RuntimeInstanceID == material.binding.RuntimeInstanceID {
+			return true
+		}
+	}
+	return false
+}

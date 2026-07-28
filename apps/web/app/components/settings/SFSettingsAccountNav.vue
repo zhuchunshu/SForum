@@ -4,7 +4,7 @@
  * 样式复用 sf-home-navigation 链接语言，与通知/审核 after-nav 一致。
  */
 defineProps<{
-  active: 'profile' | 'security'
+  active: 'profile' | 'security' | 'notifications'
   publicProfilePath?: string
 }>()
 
@@ -39,6 +39,17 @@ const localePath = useLocalePath()
       <span class="sf-home-navigation__link-main">
         <UIcon name="i-lucide-shield-check" class="size-[18px]" aria-hidden="true" />
         {{ t('accountSecurity.title') }}
+      </span>
+    </NuxtLink>
+    <NuxtLink
+      :to="localePath('/settings/notifications')"
+      class="sf-home-navigation__link"
+      :class="{ 'is-active': active === 'notifications' }"
+      @click="emit('navigate')"
+    >
+      <span class="sf-home-navigation__link-main">
+        <UIcon name="i-lucide-bell" class="size-[18px]" aria-hidden="true" />
+        {{ t('notificationSettings.title') }}
       </span>
     </NuxtLink>
 
