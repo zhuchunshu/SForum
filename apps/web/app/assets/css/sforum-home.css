@@ -818,8 +818,6 @@
   }
 
   .sforum-home__main {
-    position: sticky;
-    top: var(--sf-public-topbar-height);
     height: calc(100vh - var(--sf-public-topbar-height));
     min-height: 0;
     overflow-y: auto;

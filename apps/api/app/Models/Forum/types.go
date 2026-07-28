@@ -313,6 +313,8 @@ type TopicSummary struct {
 type TopicDetail struct {
 	TopicSummary
 	Content RenderedContent `json:"content"`
+	// EditedAt 是当前已接受修订的提交时间；仅在编辑标记设置开启时对外保留。
+	EditedAt *time.Time `json:"editedAt,omitempty"`
 	// UpdateApplied 仅供写路径抑制 no-op 的事件、缓存和索引副作用，不进入 API。
 	UpdateApplied       bool     `json:"-"`
 	UpdateChangedFields []string `json:"-"`
@@ -719,6 +721,8 @@ type Comment struct {
 	CurrentRevision int64 `json:"currentRevision"`
 	// Edited 评论是否曾被编辑（showCommentEditMark 开启时填充）。
 	Edited bool `json:"edited,omitempty"`
+	// EditedAt 是当前已接受修订的提交时间；仅在编辑标记设置开启时对外保留。
+	EditedAt *time.Time `json:"editedAt,omitempty"`
 	// ContentEdited 由存储层根据 post_revisions 得出，不直接暴露。
 	ContentEdited bool `json:"-"`
 	// UpdateApplied 仅供写路径抑制 no-op 的事件、缓存和索引副作用，不进入 API。

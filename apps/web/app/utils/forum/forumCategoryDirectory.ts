@@ -1,6 +1,12 @@
-import type { ForumCategory, ForumCategoryGroup } from './forumTaxonomy'
+import {
+  isCreatedWithinDays,
+  tagHotThreshold,
+  type ForumCategory,
+  type ForumCategoryGroup
+} from './forumTaxonomy'
 
 export type CategoryDirectorySort = 'default' | 'active' | 'name'
+export type CategoryDirectoryFilter = 'all' | 'hot' | 'week' | 'az'
 
 export type CategoryDirectoryGroup = ForumCategoryGroup & {
   categories: ForumCategory[]
@@ -58,10 +64,11 @@ export function sortCategoryDirectoryCategories(
 export function buildCategoryDirectoryDisplayGroups(
   groups: CategoryDirectoryGroup[],
   options: {
-    sort: CategoryDirectorySort
+    filter: CategoryDirectoryFilter
     locale?: string
     focusedGroupKey?: string
     query?: string
+    nowMs?: number
   }
 ) {
   const focused = options.focusedGroupKey
@@ -69,18 +76,36 @@ export function buildCategoryDirectoryDisplayGroups(
     : undefined
   const source = focused ? [focused] : groups
   const query = normalizeDirectoryQuery(options.query)
+  const hotThreshold = tagHotThreshold(source
+    .flatMap((group) => group.categories)
+    .map((category) => category.topicCount))
 
   return source
     .map((group) => {
-      const filtered = query
+      let filtered = query
         ? group.categories.filter((category) => categoryMatchesDirectoryQuery(category, query))
         : group.categories
+
+      if (options.filter === 'hot') {
+        filtered = filtered.filter((category) => safeCount(category.topicCount) >= hotThreshold)
+      } else if (options.filter === 'week') {
+        filtered = filtered.filter((category) => isCreatedWithinDays(category.createdAt, 7, options.nowMs))
+      }
+
+      const sortMode: CategoryDirectorySort = options.filter === 'hot'
+        ? 'active'
+        : options.filter === 'az'
+          ? 'name'
+          : 'default'
+
       return {
         ...group,
-        categories: sortCategoryDirectoryCategories(filtered, options.sort, options.locale)
+        categories: sortCategoryDirectoryCategories(filtered, sortMode, options.locale)
       }
     })
-    .filter((group) => !query || group.categories.length > 0)
+    .filter((group) => (
+      !query && options.filter !== 'hot' && options.filter !== 'week'
+    ) || group.categories.length > 0)
 }
 
 export function categoryMatchesDirectoryQuery(category: ForumCategory, normalizedQuery: string) {
@@ -118,15 +143,6 @@ export function activeCategoryDirectoryCategories(
     'active',
     locale
   ).slice(0, Math.trunc(limit))
-}
-
-export function categoryDirectoryDistribution(groups: CategoryDirectoryGroup[]) {
-  const max = Math.max(1, ...groups.map((group) => group.categories.length))
-  return groups.map((group) => ({
-    group,
-    count: group.categories.length,
-    percent: Math.round((group.categories.length / max) * 100)
-  }))
 }
 
 function summarizeCategoryList(groupCount: number, categories: ForumCategory[]): CategoryDirectoryStats {

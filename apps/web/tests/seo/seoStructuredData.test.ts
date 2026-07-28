@@ -13,6 +13,11 @@ describe('buildSEOStructuredData', () => {
     const graph = buildSEOStructuredData(base)['@graph']
     expect(graph.map(node => node['@type'])).toEqual(['WebSite', 'Organization', 'CollectionPage', 'BreadcrumbList'])
     expect(graph[0].name).toBe('SForum Developers')
+    expect(graph[0].potentialAction).toEqual({
+      '@type': 'SearchAction',
+      target: 'https://example.com/search?q={search_term_string}',
+      'query-input': 'required name=search_term_string'
+    })
   })
 
   test('builds a discussion node only for indexable public topics', () => {

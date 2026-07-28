@@ -42,13 +42,13 @@ const (
 	genCommentsPrefix = "forum:gen:comments:"
 
 	// 缓存 key 前缀。
-	// v2：TopicDetail 增加 contributors 字段后换前缀，避免旧缓存缺字段被长期复用。
-	prefixTopicDetail = "forum:topic:v2:"
-	prefixTopicBySlug = "forum:topic-slug:v2:"
+	// v3：TopicDetail 增加 editedAt 字段后换前缀，避免旧缓存缺字段。
+	prefixTopicDetail = "forum:topic:v3:"
+	prefixTopicBySlug = "forum:topic-slug:v3:"
 	// id→slug 反向映射：写路径只有 topicID 时也能同时失效 by-slug 详情缓存。
-	prefixTopicIDSlug  = "forum:topic-id-slug:v2:"
+	prefixTopicIDSlug  = "forum:topic-id-slug:v3:"
 	prefixTopicsList   = "forum:topics:"
-	prefixCommentsList = "forum:comments:"
+	prefixCommentsList = "forum:comments:v2:"
 	prefixCatsList     = "forum:cats"
 	prefixGroupsList   = "forum:groups"
 	prefixTagsList     = "forum:tags"

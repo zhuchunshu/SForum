@@ -14,6 +14,11 @@ accepted revisions, lifecycle states, public read models, and forum policy.
   actors, max 5 + count) and `GET /topics/{id}/contribution-timeline` for a
   header-only publish/edit timeline. Staff actors are fully exposed by default;
   full revision source remains `topic.revision.view_any` only.
+- Topic detail and comment rows expose optional `editedAt` from the current
+  accepted `post_revisions` entry when the corresponding edit-mark setting is
+  enabled. The public detail UI shows relative publish/edit times through one
+  month and forces older values to site-timezone `Y-m-d H:i:s`; resource
+  `updatedAt` remains lifecycle/counter metadata and is not used as edit time.
 - Default-theme topic creation now has a production UI shell that reuses the
   existing create-topic API, category/tag policy, content limits, permission
   check (`topic.create`), `SFEditor`, field errors, Toast feedback, successful

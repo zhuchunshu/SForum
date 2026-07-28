@@ -2928,6 +2928,16 @@
       "source": "apps/web/app/pages/u/[username].vue"
     },
     {
+      "id": "core.component.page.forum.search",
+      "contractVersion": "sforum.component.page.forum.search@1",
+      "kind": "page",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/pages/search.vue"
+    },
+    {
       "id": "core.component.page.forum.settings.profile",
       "contractVersion": "sforum.component.page.forum.settings.profile@1",
       "kind": "page",

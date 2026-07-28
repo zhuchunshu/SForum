@@ -7,6 +7,7 @@ import themecompiler "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeCom
 // or arbitrary maps from crossing the theme execution boundary.
 type CorePageViewModelData struct {
 	Home                  *themecompiler.HomePageViewModel
+	Search                *themecompiler.HomePageViewModel
 	CategoryIndex         *themecompiler.CategoryIndexPageViewModel
 	CategoryShow          *themecompiler.CategoryShowPageViewModel
 	TagIndex              *themecompiler.TagIndexPageViewModel

@@ -115,6 +115,23 @@ func TestEffectivePostCurrentRevisionSQL_CountsMixedLegacyRows(t *testing.T) {
 	}
 }
 
+func TestContentEditedAtSQLUsesAcceptedRevisionTime(t *testing.T) {
+	t.Parallel()
+	sql := contentEditedAtSQL("posts")
+	for _, fragment := range []string{
+		"CASE WHEN",
+		"COALESCE(pr_edited_at.committed_at, pr_edited_at.created_at)",
+		"pr_edited_at.post_id = posts.id",
+		"pr_edited_at.revision_no = posts.current_revision",
+		"pr_edited_at.revision_no DESC NULLS LAST",
+		"posts.updated_at",
+	} {
+		if !strings.Contains(sql, fragment) {
+			t.Fatalf("edited-at SQL missing %q:\n%s", fragment, sql)
+		}
+	}
+}
+
 func TestListTopicsPageSQL_CategoryUsesCategoryIDEquality(t *testing.T) {
 	t.Parallel()
 	sql, args, err := listTopicsPageSQL("general", "", "active", 1, 20, 21, nil)

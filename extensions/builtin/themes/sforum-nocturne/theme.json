@@ -8,6 +8,13 @@
       "contract": "sforum.page.home@1"
     },
     {
+      "id": "sforum.nocturne-theme.search",
+      "action": "replace",
+      "target": "forum.search",
+      "template": "templates/search.html",
+      "contract": "sforum.page.search@1"
+    },
+    {
       "id": "sforum.nocturne-theme.category_index",
       "action": "replace",
       "target": "forum.category.index",

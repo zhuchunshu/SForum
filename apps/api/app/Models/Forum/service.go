@@ -493,8 +493,7 @@ func (s *Service) applyTopicDetailExcerpt(ctx context.Context, topic TopicDetail
 		showEdit = settings.ShowTopicEditMark
 	}
 	topic = applyTopicDetailExcerpt(topic, limit)
-	topic.Edited = showEdit && topic.ContentEdited
-	return topic
+	return applyTopicEditMark(topic, showEdit)
 }
 
 func applyTopicDetailExcerpt(topic TopicDetail, limit int) TopicDetail {
@@ -796,8 +795,7 @@ func (s *Service) UpdateTopic(ctx context.Context, actor identity.Actor, input U
 	}
 
 	if !updated.UpdateApplied {
-		updated.Edited = settings.ShowTopicEditMark && updated.ContentEdited
-		return updated, nil
+		return applyTopicEditMark(updated, settings.ShowTopicEditMark), nil
 	}
 	payload := map[string]any{
 		"topicId":       updated.ID,
@@ -821,8 +819,7 @@ func (s *Service) UpdateTopic(ctx context.Context, actor identity.Actor, input U
 	} else {
 		s.deleteTopicIndex(ctx, updated.ID)
 	}
-	updated.Edited = settings.ShowTopicEditMark && updated.ContentEdited
-	return updated, nil
+	return applyTopicEditMark(updated, settings.ShowTopicEditMark), nil
 }
 
 func matchesExpectedRevision(expected, current int64) bool {
@@ -879,6 +876,7 @@ func (s *Service) DeleteTopic(ctx context.Context, actor identity.Actor, topicID
 	deleted.Content = RenderedContent{SourceFormat: deleted.Content.SourceFormat}
 	deleted.Excerpt = ""
 	deleted.Edited = false
+	deleted.EditedAt = nil
 	return deleted, nil
 }
 

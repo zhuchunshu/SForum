@@ -186,6 +186,7 @@ func TestCorePageViewModelSourcePopulatesEveryCatalogContract(t *testing.T) {
 		typeOf reflect.Type
 	}{
 		"forum.home":                   {"/", nil, nil, reflect.TypeOf(themecompiler.HomePageViewModel{})},
+		"forum.search":                 {"/search", nil, url.Values{"q": {"production"}}, reflect.TypeOf(themecompiler.HomePageViewModel{})},
 		"forum.category.index":         {"/categories", nil, nil, reflect.TypeOf(themecompiler.CategoryIndexPageViewModel{})},
 		"forum.category.show":          {"/c/support", map[string]string{"categorySlug": "support"}, url.Values{"page": {"1"}}, reflect.TypeOf(themecompiler.CategoryShowPageViewModel{})},
 		"forum.tag.index":              {"/tags", nil, nil, reflect.TypeOf(themecompiler.TagIndexPageViewModel{})},

@@ -15,6 +15,7 @@ const props = defineProps<{
   categoryTo: string
   tags: TopicHeadingTag[]
   publishedLabel: string
+  updatedLabel?: string
   /** forum.topic.badges；空数组/未传时不渲染扩展徽章区 */
   extensionBadges?: ForumTopicExtensionBadge[]
 }>()
@@ -85,7 +86,8 @@ function badgeHref(badge: ForumTopicExtensionBadge) {
       <time :datetime="topic.createdAt">{{ publishedLabel }}</time>
       <span v-if="topic.edited" class="sf-topic-heading__state">
         <UIcon name="i-lucide-pencil" class="size-3.5" aria-hidden="true" />
-        {{ t('topicDetail.edited') }}
+        <time v-if="topic.editedAt && updatedLabel" :datetime="topic.editedAt">{{ updatedLabel }}</time>
+        <template v-else>{{ t('topicDetail.edited') }}</template>
       </span>
       <span class="sf-topic-heading__metric">
         {{ topic.commentCount }} {{ t('topicDetail.statsComments') }}

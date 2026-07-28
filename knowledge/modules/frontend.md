@@ -27,6 +27,20 @@ responsibilities.
 
 ## Active Work
 
+### Canonical public search route
+
+- Public keyword search now owns `/search?q=...` and the replaceable Page
+  Registry identity `forum.search`; the homepage no longer serves as the
+  canonical search result URL.
+- The search route reuses the existing forum feed Host implementation while
+  retaining an independent route shell, ViewModel contract, Host island,
+  region surface, built-in theme templates, SEO metadata, and component catalog
+  identity. Empty search stays an inert prompt rather than loading the home
+  topic feed.
+- Navbar, system-error recovery, and Schema.org `SearchAction` target `/search`.
+  Legacy `/?q=...` links redirect to the canonical route with filters and page
+  preserved.
+
 ### Announcement authoring
 
 - Personalization announcements use the shared `SFEditor` basic-field preset:
@@ -333,7 +347,13 @@ Architecture sources:
 - `/categories` uses the default-theme grouped directory surface: real
   `ForumCategoryGroup`/`ForumCategory` DTOs, URL-backed group focus via
   `?group=<group.id>`, page-local category filtering, group-local sorting, and
-  a derived right rail. Topbar `SFSearch` remains global forum search.
+  a derived right rail. Group focus lives in the center toolbar instead of
+  repeating every group in the left rail. The left rail and mobile navigation
+  drawer expose the same all/hot/week/A-Z category filters as the center
+  toolbar; hot uses the visible scope's real topic-count upper quartile and
+  week means categories created in the last seven days. The right rail is
+  limited to the directory overview and the five most active categories.
+  Topbar `SFSearch` remains global forum search.
 - The notifications page follows the same default-theme shell and shared
   mobile drawer state as the forum homepage/navbar. Type/category/unread filters
   are server-authoritative; the global unread total remains API-owned. One
@@ -360,19 +380,25 @@ Architecture sources:
   links remain independently owned, and operator-created footer links render
   alongside them when configured.
 - On desktop, the default-theme full-width three-column shell keeps the navbar
-  and viewport-height center column sticky, with the center retaining its
-  independent content scroll. Left navigation and the right rail use natural
-  height without inline vertical scrolling; when either grows beyond the
-  viewport, the document scrolls to expose it. Grid rail boxes stretch to the
-  row height so their divider lines remain continuous without constraining the
-  rail content. Mobile keeps ordinary document scrolling plus drawer scrolling
-  to avoid scroll traps.
-- Homepage, topic detail, and notifications place the public footer inside the
-  center content column through `SFContentColumnFooter`; full-width L1 footer is
-  hidden for `fullwidth-3col` shells so the footer scrolls with content instead
-  of occupying global chrome. Footer-owning center columns use a shared flex
-  contract so short content pushes the footer to the viewport bottom while long
-  content keeps it after the complete content stream.
+  sticky while the viewport-height center column starts in normal flow and
+  retains its independent content scroll. Do not apply the navbar height again
+  as a sticky `top` offset: the theme chrome already places the body below the
+  navbar. Left navigation and the right rail use natural height without inline
+  vertical scrolling; when either grows beyond the viewport, the document
+  scrolls to expose it. Grid rail boxes stretch to the row height so their
+  divider lines remain continuous without constraining the rail content. Mobile
+  keeps ordinary document scrolling plus drawer scrolling to avoid scroll
+  traps.
+- Homepage, topic detail, category detail, and notifications place the public
+  footer inside the center content column through `SFContentColumnFooter`;
+  full-width L1 and Host fallback footers are hidden when the body island owns a
+  content-column footer, so it scrolls with content instead of occupying global
+  chrome. Footer-owning center columns use a shared flex contract so short
+  content pushes the footer to the viewport bottom while long content keeps it
+  after the complete content stream. On desktop its top border reaches the
+  center scrollport edges while adjacent rail dividers sit on those same edges,
+  keeping the three lines joined without horizontal overflow or moving footer
+  text.
 - `/tags` is the `forum.tag.index` Page Registry body island. It renders the
   default-theme three-column heat overview from real `listTags` and
   `listCategoryGroups` API data, with all/hot/week/A-Z filters, localized empty

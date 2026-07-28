@@ -126,9 +126,9 @@ describe('default theme shared navbar contract', () => {
     expect(source).not.toContain('useSwitchLocalePath')
   })
 
-  test('submits compact search to the locale-aware homepage query', () => {
+  test('submits compact search to the locale-aware search page', () => {
     expect(source).toMatch(
-      /function submitSearch\(query: string\)[\s\S]*navigateTo\(\{[\s\S]*path: localePath\('\/'\),[\s\S]*query: buildForumHomeQuery\(\{[\s\S]*query,[\s\S]*categorySlug: '',[\s\S]*tagSlug: ''/
+      /function submitSearch\(query: string\)[\s\S]*path: localePath\(normalizedQuery \? '\/search' : '\/'\)[\s\S]*query: buildForumHomeQuery\(\{[\s\S]*query: normalizedQuery,[\s\S]*categorySlug: '',[\s\S]*tagSlug: ''/
     )
   })
 

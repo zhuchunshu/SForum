@@ -47,6 +47,7 @@ const islandComponents: Record<string, Component> = {
   // 首页 body 岛由 SFHomePage 自包含数据+UI；主题 L1 拥有壳层结构。
   // 不再经 HostPageIsland 嵌回 pages/index slot（slot 仅 fail-closed 紧急回退）。
   'forum.component.home_page': defineAsyncComponent(() => import('./forum/SFHomePage.vue')),
+  'forum.component.search_page': defineAsyncComponent(() => import('./forum/SFHomePage.vue')),
   'forum.component.category_index': defineAsyncComponent(() => import('./forum/SFCategoryIndexPage.vue')),
   'forum.component.category_show': defineAsyncComponent(() => import('./forum/SFCategoryShowPage.vue')),
   'forum.component.tag_index': defineAsyncComponent(() => import('./forum/SFTagIndexPage.vue')),
@@ -78,6 +79,7 @@ const islandComponents: Record<string, Component> = {
 }
 const legacyIslandBindings = {
   'sf-home-page': { componentId: 'forum.component.home_page' },
+  'sf-search-page': { componentId: 'forum.component.search_page' },
   'sf-category-index-page': { componentId: 'forum.component.category_index' },
   'sf-category-show-page': { componentId: 'forum.component.category_show' },
   'sf-tag-index-page': { componentId: 'forum.component.tag_index' },

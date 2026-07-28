@@ -233,8 +233,7 @@ type SearchResultView struct {
 	Excerpt string `json:"excerpt,omitempty"`
 }
 
-// SearchStateView lives inside the existing home/list contracts. There is no
-// standalone public search Page Registry identity today.
+// SearchStateView lives inside the shared home/search/list presentation contracts.
 type SearchStateView struct {
 	Query   string             `json:"query"`
 	Results []SearchResultView `json:"results"`

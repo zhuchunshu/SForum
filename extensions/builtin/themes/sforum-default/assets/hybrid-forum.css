@@ -545,8 +545,6 @@
   .sforum-notifications__main,
   .sforum-settings__main,
   .sforum-moderation__main {
-    position: sticky;
-    top: var(--sf-public-topbar-height);
     height: calc(100vh - var(--sf-public-topbar-height));
     min-height: 0;
     overflow-y: auto;
@@ -579,6 +577,11 @@
     height: auto;
     min-height: 0;
     overflow: visible;
+  }
+
+  .sforum-topic-page__sidebar,
+  .sforum-topic-page__side {
+    position: relative;
   }
 }
 

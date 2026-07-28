@@ -29,6 +29,16 @@ func TestNotificationSettingsPageContract(t *testing.T) {
 	}
 }
 
+func TestSearchPageContract(t *testing.T) {
+	page, ok := Find("forum.search")
+	if !ok || page.PathPattern != "/search" || page.Access != AccessPublic || !page.Replaceable || page.ContractVersion != "sforum.page.search@1" {
+		t.Fatalf("search page contract missing or invalid: %#v ok=%v", page, ok)
+	}
+	if RequiredThemeBodyIslandTag(page.ID) != "sf-search-page" {
+		t.Fatalf("search page body island mismatch: %q", RequiredThemeBodyIslandTag(page.ID))
+	}
+}
+
 func TestNotificationDetailPageContract(t *testing.T) {
 	page, ok := Find("forum.notification.show")
 	if !ok || page.PathPattern != "/notifications/:notificationId" || page.Access != AccessLogin || !page.Replaceable || page.ContractVersion != "sforum.page.notification_show@1" {
@@ -61,6 +71,8 @@ func TestMatchPath(t *testing.T) {
 	}{
 		{"/", "forum.home", true},
 		{"/en", "forum.home", true},
+		{"/search", "forum.search", true},
+		{"/en/search", "forum.search", true},
 		{"/categories", "forum.category.index", true},
 		{"/en/categories", "forum.category.index", true},
 		{"/c/general", "forum.category.show", true},

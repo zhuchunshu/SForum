@@ -137,6 +137,13 @@
       "admin_test": "站内通知投递测试成功"
     }
   },
+  "search": {
+    "title": "站内搜索",
+    "metaTitle": "站内搜索",
+    "metaDescription": "搜索社区中的帖子标题与内容。",
+    "emptyTitle": "搜索社区内容",
+    "emptyDescription": "在顶部搜索框输入关键词后查看匹配结果。"
+  },
   "home": {
     "metaTitle": "{siteName} 社区首页",
     "metaDescription": "{siteName} 是一个可维护、高性能的极简社区论坛。",
@@ -4320,6 +4327,8 @@
     "viewTree": "树状",
     "viewFlat": "平铺",
     "edited": "已编辑",
+    "publishedAt": "发布于 {time}",
+    "updatedAt": "更新于 {time}",
     "opBadge": "楼主",
     "emptyComments": {
       "title": "还没有评论",
@@ -5115,15 +5124,17 @@
       "description": "浏览按分组整理的全部板块，快速找到合适的讨论空间。",
       "filterPlaceholder": "筛选分类名称、简介或 slug",
       "clearFilter": "清除筛选",
-      "sortLabel": "分类排序",
-      "groupNavLabel": "分类分组",
+      "showAllCategories": "显示全部分类",
+      "filterLabel": "分类筛选",
+      "groupFilterLabel": "筛选分组",
       "allGroups": "全部分组",
       "returnAllGroups": "返回全部分组",
       "visibleSummary": "{groups} 个分组 · {categories} 个分类",
-      "sorts": {
-        "all": "默认顺序",
-        "active": "按活跃",
-        "name": "按名称"
+      "filters": {
+        "all": "全部",
+        "hot": "热门",
+        "week": "本周",
+        "az": "A–Z"
       },
       "enter": "进入",
       "noDescription": "暂无简介",
@@ -5132,23 +5143,19 @@
       "groupCount": "{count} 个分类",
       "emptyGroup": "这个分组当前没有公开分类。",
       "filterEmptyTitle": "没有匹配的分类",
-      "filterEmptyDescription": "当前公开分类中没有匹配项。换个关键词或返回全部分组。",
+      "filterEmptyDescription": "当前公开分类中没有匹配项。换个关键词或显示全部分类。",
+      "emptyHotTitle": "暂无热门分类",
+      "emptyHotDescription": "当前范围内还没有达到热门阈值的分类。",
+      "emptyWeekTitle": "本周暂无新增分类",
+      "emptyWeekDescription": "本周筛选基于分类创建时间，当前近 7 天没有新增分类。",
       "loadFailedTitle": "分类加载失败",
       "loadFailedDescription": "无法读取当前可见的公开分类，请稍后重试。",
       "rightRailLabel": "分类信息",
       "overviewTitle": "分类概览",
       "publicScope": "当前可见",
-      "distributionTitle": "分组分布",
-      "byCategoryCount": "按分类数",
       "activeTitle": "活跃分类",
       "byTopicCount": "按主题数",
       "noActiveCategories": "暂无可排序的活跃分类。",
-      "tipsTitle": "浏览提示",
-      "tips": {
-        "focus": "从左侧选择分组，可进入分组聚焦视图。",
-        "filter": "页面内筛选只匹配当前 API 返回的分类目录。",
-        "sort": "排序只改变组内分类顺序，不打乱分组关系。"
-      },
       "stats": {
         "groups": "分组",
         "categories": "分类",

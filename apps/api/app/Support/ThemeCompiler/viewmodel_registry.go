@@ -51,6 +51,7 @@ func ValidateCorePageViewModelCatalog() error {
 func newCorePageViewModelRegistry() (*PageViewModelRegistry, error) {
 	definitions := []registeredPageViewModel{
 		coreViewModel("forum.home", "sforum.page.home@1", ViewModelHome, HomePageViewModel{}),
+		coreViewModel("forum.search", "sforum.page.search@1", ViewModelHome, HomePageViewModel{}),
 		coreViewModel("forum.category.index", "sforum.page.category_index@1", ViewModelList, CategoryIndexPageViewModel{}),
 		coreViewModel("forum.category.show", "sforum.page.category_show@1", ViewModelList, CategoryShowPageViewModel{}),
 		coreViewModel("forum.tag.index", "sforum.page.tag_index@1", ViewModelList, TagIndexPageViewModel{}),

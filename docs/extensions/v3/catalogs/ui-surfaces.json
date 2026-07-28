@@ -1246,6 +1246,17 @@
     "targetRegistry": "P9 Component Registry"
   },
   {
+    "id": "core.component.page.forum.search",
+    "contractVersion": "sforum.component.page.forum.search@1",
+    "kind": "page",
+    "route": "/search",
+    "source": "apps/web/app/pages/search.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.page.settings.notifications",
     "contractVersion": "sforum.component.page.settings.notifications@1",
     "kind": "page",

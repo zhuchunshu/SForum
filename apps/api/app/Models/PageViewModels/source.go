@@ -119,6 +119,8 @@ func (s *CorePageViewModelSource) Populate(ctx context.Context, input CorePageVi
 	switch request.PageID {
 	case "forum.home":
 		err = s.populateHome(ctx, &request, input)
+	case "forum.search":
+		err = s.populateSearch(ctx, &request, input)
 	case "forum.category.index":
 		err = s.populateCategoryIndex(ctx, &request, input)
 	case "forum.category.show":
@@ -260,6 +262,14 @@ func (s *CorePageViewModelSource) populateCommon(ctx context.Context, request *p
 }
 
 func (s *CorePageViewModelSource) populateHome(ctx context.Context, request *pages.CorePageViewModelRequest, input CorePageViewModelInput) error {
+	return s.populateForumFeed(ctx, request, input, false)
+}
+
+func (s *CorePageViewModelSource) populateSearch(ctx context.Context, request *pages.CorePageViewModelRequest, input CorePageViewModelInput) error {
+	return s.populateForumFeed(ctx, request, input, true)
+}
+
+func (s *CorePageViewModelSource) populateForumFeed(ctx context.Context, request *pages.CorePageViewModelRequest, input CorePageViewModelInput, searchOnly bool) error {
 	if err := s.requireForumRead(input.Actor); err != nil {
 		return err
 	}
@@ -281,9 +291,11 @@ func (s *CorePageViewModelSource) populateHome(ctx context.Context, request *pag
 	tagSlug := strings.TrimSpace(input.Query.Get("tag"))
 	model := themecompiler.HomePageViewModel{Categories: mapCategories(groups), Tags: mapTags(tags)}
 	if query != "" {
-		enabled, featureErr := s.deps.Options.IsFeatureEnabled(ctx, options.NameFeatureSearch)
-		if featureErr != nil || !enabled {
-			return fmt.Errorf("%w: search feature disabled or unavailable", ErrCorePageDataUnavailable)
+		if !searchOnly {
+			enabled, featureErr := s.deps.Options.IsFeatureEnabled(ctx, options.NameFeatureSearch)
+			if featureErr != nil || !enabled {
+				return fmt.Errorf("%w: search feature disabled or unavailable", ErrCorePageDataUnavailable)
+			}
 		}
 		if s.deps.Search == nil {
 			return ErrCorePageDataUnavailable
@@ -296,7 +308,7 @@ func (s *CorePageViewModelSource) populateHome(ctx context.Context, request *pag
 		model.Search = &themecompiler.SearchStateView{Query: query, Results: mapSearchResults(found.Items, mode)}
 		request.Pagination = paginationView(request.Path, input.Query, found.Page, found.PerPage, found.Total)
 		applyPaginatedSEO(request, input.Query, found.Page, request.Path)
-	} else {
+	} else if !searchOnly {
 		list, listErr := s.deps.Forum.ListTopics(ctx, forum.TopicListInput{Page: page, CategorySlug: categorySlug, TagSlug: tagSlug, Sort: input.Query.Get("sort")})
 		if listErr != nil {
 			return listErr
@@ -312,8 +324,15 @@ func (s *CorePageViewModelSource) populateHome(ctx context.Context, request *pag
 		}
 		request.Regions = mapAnnouncements(request.Locale, announcements)
 	}
-	request.SEO.StructuredData = []themecompiler.StructuredDataView{{Kind: "WebSite", Name: request.SEO.Title, URL: request.SEO.CanonicalURL}}
-	request.Data.Home = &model
+	if searchOnly {
+		request.SEO.Title = localizedText(request.Locale, "站内搜索", "Site search")
+		request.SEO.Robots = "noindex,follow"
+		request.Breadcrumbs = breadcrumbs(homeLabel(request.Locale), request.SEO.Title, request.Path)
+		request.Data.Search = &model
+	} else {
+		request.SEO.StructuredData = []themecompiler.StructuredDataView{{Kind: "WebSite", Name: request.SEO.Title, URL: request.SEO.CanonicalURL}}
+		request.Data.Home = &model
+	}
 	return nil
 }
 

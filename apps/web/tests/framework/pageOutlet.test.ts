@@ -11,6 +11,7 @@ function read(rel: string) {
 describe('SFPageOutlet catalog wiring', () => {
   const catalogPages: Array<[string, string]> = [
     ['app/pages/index.vue', 'forum.home'],
+    ['app/pages/search.vue', 'forum.search'],
     ['app/pages/categories/index.vue', 'forum.category.index'],
     ['app/pages/c/[categorySlug].vue', 'forum.category.show'],
     ['app/pages/tags/index.vue', 'forum.tag.index'],
@@ -185,6 +186,7 @@ describe('SFPageOutlet catalog wiring', () => {
     expect(template).toContain("'forum.component.topic_reply': defineAsyncComponent(() => import('./forum/SFTopicReplyPage.vue'))")
     expect(template).toContain("'forum.component.topic_editor': defineAsyncComponent(() => import('./forum/SFTopicEditPage.vue'))")
     expect(template).toContain("'forum.component.home_page': defineAsyncComponent(() => import('./forum/SFHomePage.vue'))")
+    expect(template).toContain("'forum.component.search_page': defineAsyncComponent(() => import('./forum/SFHomePage.vue'))")
     expect(template).toContain("'system.component.not_found': SFNotFoundPageContent")
     expect(read('app/components/SFSystemThemeTemplate.vue')).toContain("'system.component.error_details': SFSystemErrorDetails")
     expect(template).not.toContain('resolveComponent(')

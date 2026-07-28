@@ -25,6 +25,7 @@ describe('public pagination URL helpers', () => {
   test('builds an SSR canonical path with encoded query values', () => {
     expect(publicPagePath('/', 2)).toBe('/?page=2')
     expect(publicPagePath('/', 3, { q: 'Go 语言' })).toBe('/?q=Go+%E8%AF%AD%E8%A8%80&page=3')
+    expect(publicPagePath('/search', 1, { q: '啊' })).toBe('/search?q=%E5%95%8A')
   })
 })
 

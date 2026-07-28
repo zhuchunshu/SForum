@@ -2647,16 +2647,30 @@ func TestListCommentRepliesUsesAuthorDeletedScope(t *testing.T) {
 }
 
 func TestApplyCommentEditMarks(t *testing.T) {
+	editedAt := time.Date(2026, time.July, 29, 8, 0, 0, 0, time.UTC)
 	items := []Comment{{
-		ID: 1, ContentEdited: true,
+		ID: 1, ContentEdited: true, EditedAt: &editedAt,
 	}}
 	marked := applyCommentEditMarks(items, true)
-	if !marked[0].Edited {
-		t.Fatal("expected edited mark")
+	if !marked[0].Edited || marked[0].EditedAt == nil {
+		t.Fatal("expected edited mark and accepted revision time")
 	}
 	unmarked := applyCommentEditMarks(items, false)
-	if unmarked[0].Edited {
-		t.Fatal("expected no edited mark when disabled")
+	if unmarked[0].Edited || unmarked[0].EditedAt != nil {
+		t.Fatal("expected edit metadata to be hidden when disabled")
+	}
+}
+
+func TestApplyTopicEditMarkMasksAcceptedRevisionTime(t *testing.T) {
+	editedAt := time.Date(2026, time.July, 29, 8, 0, 0, 0, time.UTC)
+	topic := TopicDetail{EditedAt: &editedAt}
+	marked := applyTopicEditMark(topic, true)
+	if !marked.Edited || marked.EditedAt == nil {
+		t.Fatal("expected edited mark and accepted revision time")
+	}
+	unmarked := applyTopicEditMark(topic, false)
+	if unmarked.Edited || unmarked.EditedAt != nil {
+		t.Fatal("expected edit metadata to be hidden when disabled")
 	}
 }
 

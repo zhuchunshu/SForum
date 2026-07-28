@@ -11,6 +11,7 @@ import (
 func productionThemeIslandBindings() map[string]themecompiler.IslandBinding {
 	return map[string]themecompiler.IslandBinding{
 		"sf-home-page":                {ComponentID: "forum.component.home_page"},
+		"sf-search-page":              {ComponentID: "forum.component.search_page"},
 		"sf-category-index-page":      {ComponentID: "forum.component.category_index"},
 		"sf-category-show-page":       {ComponentID: "forum.component.category_show"},
 		"sf-tag-index-page":           {ComponentID: "forum.component.tag_index"},
@@ -58,6 +59,8 @@ func RequiredThemeBodyIslandTag(pageID string) string {
 	switch strings.TrimSpace(pageID) {
 	case "forum.home":
 		return "sf-home-page"
+	case "forum.search":
+		return "sf-search-page"
 	case "forum.category.index":
 		return "sf-category-index-page"
 	case "forum.category.show":

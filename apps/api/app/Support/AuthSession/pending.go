@@ -199,6 +199,10 @@ func (m *Manager) scrubSessionCredentialWithin(
 	if attemptTimeout <= 0 {
 		attemptTimeout = time.Nanosecond
 	}
+	// Fiber 3.4 preserves the in-memory payload when storage deletion fails.
+	// Clear it explicitly so a commit-unknown cleanup can only persist an
+	// unauthenticated session, regardless of Fiber's internal delete ordering.
+	clearSessionData(sess)
 	destroyFailed := true
 	func() {
 		destroyCtx, cancelDestroy := context.WithTimeout(ctx, attemptTimeout)
@@ -217,9 +221,8 @@ func (m *Manager) scrubSessionCredentialWithin(
 		destroyFailed = destroyErr != nil
 	}()
 	if destroyFailed && sessionID != "" {
-		// Fiber clears the in-memory payload before Delete. Retry with a detached
-		// budget, then best-effort overwrite a commit-unknown payload with the
-		// already-cleared session data.
+		// Retry with a detached budget, then best-effort overwrite a
+		// commit-unknown payload with the already-cleared session data.
 		func() {
 			deleteCtx, cancelDelete := context.WithTimeout(ctx, attemptTimeout)
 			defer cancelDelete()
@@ -236,6 +239,15 @@ func (m *Manager) scrubSessionCredentialWithin(
 				_ = sess.Save()
 			}
 		}()
+	}
+}
+
+func clearSessionData(sess *session.Session) {
+	if sess == nil {
+		return
+	}
+	for _, key := range sess.Keys() {
+		sess.Delete(key)
 	}
 }
 

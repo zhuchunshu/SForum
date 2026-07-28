@@ -136,7 +136,7 @@ func TestPageViewModelRejectsUnsafeOrAmbiguousSEOURLs(t *testing.T) {
 	}
 }
 
-func TestSearchStateUsesExistingHomeAndListContracts(t *testing.T) {
+func TestSearchStateUsesHomeAndSearchContracts(t *testing.T) {
 	registry := CorePageViewModelRegistry()
 	home := validHomeViewModel()
 	home.Search = &SearchStateView{
@@ -145,10 +145,12 @@ func TestSearchStateUsesExistingHomeAndListContracts(t *testing.T) {
 	if _, err := registry.Bind("forum.home", "sforum.page.home@1", viewModelThemeDigest, home); err != nil {
 		t.Fatal(err)
 	}
-	for _, schema := range registry.Catalog() {
-		if schema.PageID == "forum.search" || schema.SchemaVersion == "sforum.page.search@1" {
-			t.Fatalf("standalone search identity must first exist in Page Registry: %#v", schema)
-		}
+	home.Base.PageID = "forum.search"
+	home.Base.SchemaVersion = "sforum.page.search@1"
+	home.Base.Route.Path = "/search"
+	home.Base.SEO.CanonicalURL = "https://example.com/search"
+	if _, err := registry.Bind("forum.search", "sforum.page.search@1", viewModelThemeDigest, home); err != nil {
+		t.Fatal(err)
 	}
 }
 

@@ -30,6 +30,7 @@ import {
 } from '~/utils/forum/forumTaxonomy'
 import type { SFEditorContentPayload } from '~/utils/sfEditor'
 import { buildCommentActionMenuItems, buildTopicActionMenuItems } from '~/utils/forum/forumTopicPresentation'
+import { useForumContentTime } from '~/composables/forum/useForumContentTime'
 
 const route = useRoute()
 const router = useRouter()
@@ -38,7 +39,7 @@ const localePath = useLocalePath()
 const { seoSettings, webOption } = useWebOptions()
 // 当前帖子 URL 形态：决定 catch-all 解析方式与规范化目标。
 const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
-const { format: formatSiteDateTime } = useSiteDateTime()
+const { publishedTime, updatedTime, commentMeta } = useForumContentTime()
 const forumApi = useForumApi()
 const { can, canEditTopic, canDeleteTopic } = usePermissions()
 const { user: reportUser } = useAuthSession()
@@ -519,9 +520,6 @@ const headingTags = computed(() => (topic.value?.tags || []).map(tag => ({
   to: tagPath(tag.slug)
 })))
 
-// 按站点时区与日期时间格式展示（不再硬编码 UTC）。
-function formatDate(value: string) { return formatSiteDateTime(value) }
-
 function commentAuthorName(comment: ForumComment) {
   return forumAuthorName(comment.author, comment.authorUserId)
 }
@@ -531,11 +529,6 @@ function commentAuthorPath(comment: ForumComment) {
     return ''
   }
   return localePath(forumUserProfilePath(comment.author.username))
-}
-
-function commentMeta(comment: ForumComment) {
-  const suffix = comment.edited ? ` · ${t('topicDetail.edited')}` : ''
-  return `${formatDate(comment.createdAt)}${suffix}`
 }
 
 // 主题生命周期动作。前端仅做 UX 提示，后端 policy 是权威。
@@ -1166,7 +1159,8 @@ async function submitReport() {
                       :author-to="authorPath"
                       :category-to="categoryPath(topic.categorySlug)"
                       :tags="headingTags"
-                      :published-label="formatDate(topic.createdAt)"
+                      :published-label="publishedTime(topic.createdAt)"
+                      :updated-label="topic.editedAt ? updatedTime(topic.editedAt) : ''"
                       :extension-badges="topic.extensionBadges || []"
                     />
                     <SFTopicActionMenu

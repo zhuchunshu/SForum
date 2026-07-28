@@ -7,12 +7,14 @@ import SFHomePage from '~/components/forum/SFHomePage.vue'
  * 本页 slot 仅作 SFPageOutlet fail-closed 紧急回退（永不删除）。
  */
 import {
+  buildForumHomeQuery,
   parseForumHomeQuery
 } from '~/utils/forum/forumHome'
 import { forumCategoryPath } from '~/utils/forum/forumTaxonomy'
 
 const { t } = useI18n()
 const route = useRoute()
+const localePath = useLocalePath()
 const { seoSettings } = useWebOptions()
 const committedFilters = computed(() => parseForumHomeQuery(route.query))
 const currentPage = computed(() => parsePublicPage(route.query.page))
@@ -22,9 +24,18 @@ const hasActiveFilters = computed(() => Boolean(
   || committedFilters.value.tagSlug
 ))
 
-// 统一到干净 URL：/?category=xxx -> /c/xxx
-if (route.query.category && !route.path.startsWith('/c/')) {
-  navigateTo(forumCategoryPath(route.query.category as string))
+// 统一到独立搜索页；旧首页查询链接保留筛选和分页后永久跳转。
+if (committedFilters.value.query) {
+  await navigateTo(
+    publicPageLocation(
+      localePath('/search'),
+      currentPage.value,
+      buildForumHomeQuery(committedFilters.value)
+    ),
+    { redirectCode: 301, replace: true }
+  )
+} else if (route.query.category && !route.path.startsWith('/c/')) {
+  await navigateTo(forumCategoryPath(route.query.category as string), { redirectCode: 301, replace: true })
 }
 
 useSForumSeo(computed(() => ({

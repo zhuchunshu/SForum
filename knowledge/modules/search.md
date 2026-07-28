@@ -57,6 +57,10 @@ Task book:
 
 ### Runtime behavior
 
+- Public search owns the canonical `/search?q=...` product route and Page
+  Registry identity `forum.search` (`sforum.page.search@1`). Legacy homepage
+  queries `/?q=...` permanently redirect while preserving declared filters and
+  pagination. The API remains `GET /api/v1/search`.
 - Public search always has a resolved provider (site search when nothing pinned).
 - Topic write path enqueues index/delete for the selected engine.
 - Restore defaults → clear pin → site search.

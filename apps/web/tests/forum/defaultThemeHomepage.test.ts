@@ -6,7 +6,9 @@ const source = (path: string) => readFileSync(new URL(path, import.meta.url), 'u
 // 首页呈现已迁到 SFHomePage 岛；pages/index 仅为 SEO + fail-closed 壳。
 const homepageIsland = () => source('../../app/components/forum/SFHomePage.vue')
 const homepageRoute = () => source('../../app/pages/index.vue')
+const searchRoute = () => source('../../app/pages/search.vue')
 const defaultHomeTemplate = () => source('../../../../extensions/builtin/themes/sforum-default/templates/home.html')
+const defaultSearchTemplate = () => source('../../../../extensions/builtin/themes/sforum-default/templates/search.html')
 const nocturneHomeTemplate = () => source('../../../../extensions/builtin/themes/sforum-nocturne/templates/home.html')
 const themeTemplate = () => source('../../app/components/SFThemeTemplate.vue')
 const topicRow = () => source('../../app/components/forum/SFHomeTopicRow.vue')
@@ -47,6 +49,22 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(nocturneTpl).toContain('data-theme-owned="presentation"')
     expect(nocturneTpl).toContain('<sf-home-page>')
     expect(nocturneTpl).toContain('nh-hero')
+  })
+
+  test('search owns a distinct Page Registry route while reusing the forum feed island', () => {
+    const route = searchRoute()
+    expect(route).toContain('page="forum.search"')
+    expect(route).toContain('<SFHomePage')
+    expect(route).toContain("publicPagePath('/search'")
+    expect(route).toContain('noindex: true')
+
+    const template = defaultSearchTemplate()
+    expect(template).toContain('data-page="forum.search"')
+    expect(template).toContain('<sf-search-page>')
+    expect(template).toContain('<sf-navbar>')
+    expect(template).toContain('<sf-footer>')
+    expect(homepageRoute()).toContain("localePath('/search')")
+    expect(homepageRoute()).toContain('redirectCode: 301')
   })
 
   test('uses the shared public layout with left sidebar and topic table', () => {
@@ -203,6 +221,9 @@ describe('default theme V32 left-nav homepage contract', () => {
       expect(page).not.toContain('bg-[#E6F4F1]')
     }
 
+    expect(categoryPage).toContain('sforum-home__main sforum-content-column')
+    expect(categoryPage).toContain('SFContentColumnFooter')
+
     // 标签详情页已对齐索引页三栏壳与右栏
     expect(tagPage).toContain('sforum-home__layout--with-right')
     expect(tagPage).toContain('data-layout="fullwidth-3col"')
@@ -237,7 +258,7 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(page).toContain('setTimeout')
     expect(page).toContain('SEARCH_DEBOUNCE_MS')
     expect(page).toContain('router.replace({')
-    expect(page).toContain("path: localePath('/'),")
+    expect(page).toContain('path: surfacePath.value')
     expect(page).toContain('query: buildForumHomeQuery(nextFilters)')
     expect(page).toContain('function resetFilters()')
     expect(page).toContain('@select-category="selectCategory"')
@@ -359,8 +380,13 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(contentFooter).toContain('<SFFooter')
     expect(contentFooter).toContain('margin-top: auto')
     expect(contentFooter).toContain('padding-top: 20px')
+    expect(contentFooter).toContain('margin-left: -24px')
+    expect(contentFooter).toContain('margin-right: -24px')
+    expect(contentFooter).toContain('padding-left: 24px')
+    expect(contentFooter).toContain('padding-right: 24px')
     expect(homepageIsland()).toContain('sforum-home__main sforum-content-column')
     expect(themeCss()).toContain('.sforum-content-column')
+    expect(themeCss()).toContain('.sf-host-public-chrome--fullwidth-3col:has(.sforum-content-footer)')
     expect(defaultHomeTemplate()).toContain('<sf-footer>')
     expect(source('../../app/components/SFHostPublicChrome.vue')).toContain('<SFFooter')
     expect(defaultThemeHybridCss()).not.toContain('.sf-theme--default:not(.sf-page--not-found) .sf-footer')
@@ -384,7 +410,7 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(css).toContain('padding: 24px 24px 20px 28px;')
     expect(css).toContain('padding: 34px 28px;')
     expect(css).toContain('height: 40px;')
-    expect(css).toContain('.sforum-home__main {\n    position: sticky;\n    top: var(--sf-public-topbar-height);\n    height: calc(100vh - var(--sf-public-topbar-height));\n    min-height: 0;\n    overflow-y: auto;')
+    expect(css).toContain('.sforum-home__main {\n    height: calc(100vh - var(--sf-public-topbar-height));\n    min-height: 0;\n    overflow-y: auto;')
     expect(css).toContain('.sforum-home__sidebar,\n  .sforum-home__right {\n    position: static;')
     expect(css).toContain('height: auto;\n    min-height: 0;\n    overflow: visible;')
     expect(hybrid).toContain('.sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col')

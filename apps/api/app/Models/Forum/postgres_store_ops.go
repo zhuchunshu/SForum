@@ -1117,6 +1117,7 @@ func topicDetailSQL() string {
 		  topics.comment_count, topics.view_count,
 		  ` + effectivePostCurrentRevisionSQL("posts") + `,
 		  ` + contentEditedSQL("posts") + `,
+		  ` + contentEditedAtSQL("posts") + `,
 		  topics.created_at, topics.updated_at, topics.last_activity_at,
 		  posts.id, posts.raw_content, posts.html_content, posts.plain_text,
 		  posts.source_format, posts.editor_type, posts.editor_version,
@@ -1128,27 +1129,6 @@ func topicDetailSQL() string {
 		LEFT JOIN user_profiles author_profiles ON author_profiles.user_id = users.id
 		LEFT JOIN attachments author_attachments ON author_attachments.id = author_profiles.avatar_attachment_id
 	`
-}
-
-func effectivePostCurrentRevisionSQL(postAlias string) string {
-	alias := strings.TrimSpace(postAlias)
-	if alias == "" {
-		alias = "posts"
-	}
-	// Backfill 前 current_revision=0。M1 仍保留旧编辑写入，可能产生 revision_no
-	// 为空的 legacy 行；读取时把它们计入有效版本，避免公开 API 暴露过渡哨兵
-	// 或把混合期编辑误判为未编辑。backfill/M3 完成后 null 计数应回到 0。
-	return `CASE
-		  WHEN ` + alias + `.current_revision > 0 THEN ` + alias + `.current_revision + (
-		    SELECT COUNT(*) FROM post_revisions pr_effective
-		    WHERE pr_effective.post_id = ` + alias + `.id AND pr_effective.revision_no IS NULL
-		  )
-		  ELSE 1 + (SELECT COUNT(*) FROM post_revisions pr_effective WHERE pr_effective.post_id = ` + alias + `.id)
-		END`
-}
-
-func contentEditedSQL(postAlias string) string {
-	return `(` + effectivePostCurrentRevisionSQL(postAlias) + `) > 1`
 }
 
 func scanTopicSummary(row RowScanner) (TopicSummary, error) {
@@ -1347,6 +1327,7 @@ func scanTopicDetail(row RowScanner) (TopicDetail, error) {
 		&detail.ViewCount,
 		&detail.CurrentRevision,
 		&detail.ContentEdited,
+		&detail.EditedAt,
 		&detail.CreatedAt,
 		&detail.UpdatedAt,
 		&detail.LastActivityAt,
@@ -1407,6 +1388,7 @@ func scanTopicDetailWithAvatar(row RowScanner, builder *avatar.ViewBuilder) (Top
 		&detail.ViewCount,
 		&detail.CurrentRevision,
 		&detail.ContentEdited,
+		&detail.EditedAt,
 		&detail.CreatedAt,
 		&detail.UpdatedAt,
 		&detail.LastActivityAt,
@@ -1468,6 +1450,7 @@ func commentSelectSQL() string {
 		  parent_attachments.content_type, parent_attachments.status,
 		  ` + effectivePostCurrentRevisionSQL("posts") + `,
 		  ` + contentEditedSQL("posts") + `,
+		  ` + contentEditedAtSQL("posts") + `,
 		  comments.created_at, comments.updated_at
 		FROM comments
 		JOIN posts ON posts.id = comments.content_id
@@ -1572,6 +1555,7 @@ func scanCommentWithAvatar(row RowScanner, builder *avatar.ViewBuilder) (Comment
 		&parentAttachmentStatus,
 		&comment.CurrentRevision,
 		&comment.ContentEdited,
+		&comment.EditedAt,
 		&comment.CreatedAt,
 		&comment.UpdatedAt,
 	); err != nil {

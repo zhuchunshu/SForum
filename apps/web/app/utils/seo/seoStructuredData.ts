@@ -22,7 +22,7 @@ export function buildSEOStructuredData(input: SEOStructuredDataInput) {
   const siteUrl = input.siteUrl.replace(/\/+$/, '')
   const website: Record<string, unknown> = { '@type': 'WebSite', '@id': `${siteUrl}/#website`, url: siteUrl, name: input.siteName }
   if (input.searchActionEnabled) {
-    website.potentialAction = { '@type': 'SearchAction', target: `${siteUrl}/?q={search_term_string}`, 'query-input': 'required name=search_term_string' }
+    website.potentialAction = { '@type': 'SearchAction', target: `${siteUrl}/search?q={search_term_string}`, 'query-input': 'required name=search_term_string' }
   }
   const organization: Record<string, unknown> = { '@type': 'Organization', '@id': `${siteUrl}/#organization`, name: input.siteName, url: siteUrl }
   if (input.organizationLogoUrl) organization.logo = input.organizationLogoUrl

@@ -4,7 +4,6 @@ import { readFileSync } from 'node:fs'
 import {
   activeCategoryDirectoryCategories,
   buildCategoryDirectoryDisplayGroups,
-  categoryDirectoryDistribution,
   categoryDirectoryGroupKey,
   findCategoryDirectoryGroup,
   sortCategoryDirectoryCategories,
@@ -55,8 +54,8 @@ const fixtures = () => [
     slug: 'support',
     name: 'Support',
     categories: [
-      category({ id: 20, groupId: 2, groupSlug: 'support', groupName: 'Support', slug: 'bugs', name: 'Bug reports', description: 'Report reproducible bugs', position: 2, topicCount: 5, commentCount: 30 }),
-      category({ id: 21, groupId: 2, groupSlug: 'support', groupName: 'Support', slug: 'appeals', name: 'Appeals', position: 1, topicCount: 0, commentCount: 0 }),
+      category({ id: 20, groupId: 2, groupSlug: 'support', groupName: 'Support', slug: 'bugs', name: 'Bug reports', description: 'Report reproducible bugs', position: 2, topicCount: 5, commentCount: 30, createdAt: '2026-07-28T00:00:00Z' }),
+      category({ id: 21, groupId: 2, groupSlug: 'support', groupName: 'Support', slug: 'appeals', name: 'Appeals', position: 1, topicCount: 0, commentCount: 0, createdAt: '2026-06-01T00:00:00Z' }),
       category({ id: 22, groupId: 2, groupSlug: 'support', groupName: 'Support', slug: 'hidden', name: 'Hidden', position: 3, visibility: 'hidden', topicCount: 99 })
     ]
   }),
@@ -80,8 +79,8 @@ const fixtures = () => [
     slug: 'community',
     name: 'Community',
     categories: [
-      category({ id: 10, slug: 'general', name: 'General', description: 'Open discussion', position: 1, topicCount: 9, commentCount: 12 }),
-      category({ id: 11, slug: 'code', name: 'Code', description: 'Implementation notes', position: 2, topicCount: 1, commentCount: 1 })
+      category({ id: 10, slug: 'general', name: 'General', description: 'Open discussion', position: 1, topicCount: 9, commentCount: 12, createdAt: '2026-07-29T00:00:00Z' }),
+      category({ id: 11, slug: 'code', name: 'Code', description: 'Implementation notes', position: 2, topicCount: 1, commentCount: 1, createdAt: '2026-06-01T00:00:00Z' })
     ]
   })
 ]
@@ -127,33 +126,52 @@ describe('category directory helpers', () => {
     expect(sortCategoryDirectoryCategories(categories, 'name', 'en-US').map((item) => item.slug)).toEqual(['appeals', 'bugs'])
   })
 
-  test('focuses a group by stable id, returns all groups, and combines focus with sorting', () => {
+  test('focuses a group by stable id, returns all groups, and combines focus with filtering', () => {
     const visible = visibleCategoryDirectoryGroups(fixtures())
     const focusedKey = categoryDirectoryGroupKey(visible[0]!)
     expect(focusedKey).toBe('2')
     expect(findCategoryDirectoryGroup(visible, focusedKey)?.slug).toBe('support')
 
-    const focused = buildCategoryDirectoryDisplayGroups(visible, { sort: 'active', focusedGroupKey: focusedKey })
+    const focused = buildCategoryDirectoryDisplayGroups(visible, { filter: 'hot', focusedGroupKey: focusedKey })
     expect(focused.map((item) => item.slug)).toEqual(['support'])
-    expect(focused[0]?.categories.map((item) => item.slug)).toEqual(['bugs', 'appeals'])
+    expect(focused[0]?.categories.map((item) => item.slug)).toEqual(['bugs'])
 
-    const all = buildCategoryDirectoryDisplayGroups(visible, { sort: 'default' })
+    const all = buildCategoryDirectoryDisplayGroups(visible, { filter: 'all' })
     expect(all.map((item) => item.slug)).toEqual(['support', 'empty', 'community'])
+  })
+
+  test('filters hot and recent categories from real counters and timestamps, then supports A-Z sorting', () => {
+    const visible = visibleCategoryDirectoryGroups(fixtures())
+    const nowMs = Date.parse('2026-07-29T12:00:00Z')
+
+    const hot = buildCategoryDirectoryDisplayGroups(visible, { filter: 'hot' })
+    expect(hot.map((item) => [item.slug, item.categories.map((category) => category.slug)])).toEqual([
+      ['community', ['general']]
+    ])
+
+    const week = buildCategoryDirectoryDisplayGroups(visible, { filter: 'week', nowMs })
+    expect(week.map((item) => [item.slug, item.categories.map((category) => category.slug)])).toEqual([
+      ['support', ['bugs']],
+      ['community', ['general']]
+    ])
+
+    const az = buildCategoryDirectoryDisplayGroups(visible, { filter: 'az', focusedGroupKey: '2', locale: 'en-US' })
+    expect(az[0]?.categories.map((item) => item.slug)).toEqual(['appeals', 'bugs'])
   })
 
   test('filters only the returned directory by category name, description, or slug', () => {
     const visible = visibleCategoryDirectoryGroups(fixtures())
-    const byDescription = buildCategoryDirectoryDisplayGroups(visible, { sort: 'default', query: 'implementation' })
+    const byDescription = buildCategoryDirectoryDisplayGroups(visible, { filter: 'all', query: 'implementation' })
     expect(byDescription.map((item) => [item.slug, item.categories.map((category) => category.slug)])).toEqual([
       ['community', ['code']]
     ])
 
-    const bySlug = buildCategoryDirectoryDisplayGroups(visible, { sort: 'default', focusedGroupKey: '2', query: 'appeals' })
+    const bySlug = buildCategoryDirectoryDisplayGroups(visible, { filter: 'all', focusedGroupKey: '2', query: 'appeals' })
     expect(bySlug.map((item) => [item.slug, item.categories.map((category) => category.slug)])).toEqual([
       ['support', ['appeals']]
     ])
 
-    const empty = buildCategoryDirectoryDisplayGroups(visible, { sort: 'default', query: 'does-not-exist' })
+    const empty = buildCategoryDirectoryDisplayGroups(visible, { filter: 'all', query: 'does-not-exist' })
     expect(empty).toEqual([])
   })
 
@@ -166,18 +184,13 @@ describe('category directory helpers', () => {
       commentCount: 43
     })
 
-    const display = buildCategoryDirectoryDisplayGroups(visible, { sort: 'default', focusedGroupKey: '2' })
+    const display = buildCategoryDirectoryDisplayGroups(visible, { filter: 'all', focusedGroupKey: '2' })
     expect(summarizeCategoryDirectoryDisplay(display)).toEqual({
       groupCount: 1,
       categoryCount: 2,
       topicCount: 5,
       commentCount: 30
     })
-    expect(categoryDirectoryDistribution(visible).map((item) => [item.group.slug, item.count, item.percent])).toEqual([
-      ['support', 2, 100],
-      ['empty', 0, 0],
-      ['community', 2, 100]
-    ])
     expect(activeCategoryDirectoryCategories(visible, 2).map((item) => item.slug)).toEqual(['general', 'bugs'])
   })
 })

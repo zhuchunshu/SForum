@@ -137,6 +137,13 @@
       "admin_test": "In-app notification test delivered"
     }
   },
+  "search": {
+    "title": "Site search",
+    "metaTitle": "Site search",
+    "metaDescription": "Search thread titles and content across the community.",
+    "emptyTitle": "Search the community",
+    "emptyDescription": "Enter keywords in the search field above to view matching results."
+  },
   "home": {
     "metaTitle": "{siteName} Community",
     "metaDescription": "{siteName} is a maintainable, high-performance minimalist community forum.",
@@ -4320,6 +4327,8 @@
     "viewTree": "Tree",
     "viewFlat": "Flat",
     "edited": "edited",
+    "publishedAt": "Published {time}",
+    "updatedAt": "Updated {time}",
     "opBadge": "OP",
     "emptyComments": {
       "title": "No comments yet",
@@ -5115,15 +5124,17 @@
       "description": "Browse every visible board by group and find the right discussion space quickly.",
       "filterPlaceholder": "Filter category name, description, or slug",
       "clearFilter": "Clear filter",
-      "sortLabel": "Category sorting",
-      "groupNavLabel": "Category groups",
+      "showAllCategories": "Show all categories",
+      "filterLabel": "Category filters",
+      "groupFilterLabel": "Filter by group",
       "allGroups": "All groups",
       "returnAllGroups": "Back to all groups",
       "visibleSummary": "{groups} groups · {categories} categories",
-      "sorts": {
-        "all": "Default",
-        "active": "By activity",
-        "name": "By name"
+      "filters": {
+        "all": "All",
+        "hot": "Hot",
+        "week": "This week",
+        "az": "A–Z"
       },
       "enter": "Enter",
       "noDescription": "No description yet",
@@ -5132,23 +5143,19 @@
       "groupCount": "{count} categories",
       "emptyGroup": "This group has no public categories right now.",
       "filterEmptyTitle": "No matching categories",
-      "filterEmptyDescription": "No visible public categories match. Try another keyword or return to all groups.",
+      "filterEmptyDescription": "No visible public categories match. Try another keyword or show all categories.",
+      "emptyHotTitle": "No hot categories yet",
+      "emptyHotDescription": "No categories in the current scope meet the hot threshold yet.",
+      "emptyWeekTitle": "No new categories this week",
+      "emptyWeekDescription": "This-week filtering uses category creation time; no categories were added in the last 7 days.",
       "loadFailedTitle": "Categories could not be loaded",
       "loadFailedDescription": "The visible public category directory could not be read. Try again in a moment.",
       "rightRailLabel": "Category information",
       "overviewTitle": "Category overview",
       "publicScope": "Visible now",
-      "distributionTitle": "Group distribution",
-      "byCategoryCount": "By categories",
       "activeTitle": "Active categories",
       "byTopicCount": "By topics",
       "noActiveCategories": "No active categories to rank yet.",
-      "tipsTitle": "Browsing tips",
-      "tips": {
-        "focus": "Choose a group on the left to enter a focused group view.",
-        "filter": "The page filter only matches the category directory returned by the API.",
-        "sort": "Sorting changes category order inside each group without breaking the group relationship."
-      },
       "stats": {
         "groups": "Groups",
         "categories": "Categories",

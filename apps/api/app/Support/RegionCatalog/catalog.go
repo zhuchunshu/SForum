@@ -32,6 +32,7 @@ var standardRegions = []Region{
 // Pages without a right rail do not expose the sidebar region.
 var pageRegionMatrix = map[string][]string{
 	"forum.home":           {RegionContentBefore, RegionContentAfter, RegionSidebar},
+	"forum.search":         {RegionContentBefore, RegionContentAfter, RegionSidebar},
 	"forum.category.index": {RegionContentBefore, RegionContentAfter, RegionSidebar},
 	// 分类详情页是两栏布局(导航 + 主列),无右栏,不暴露 sidebar。
 	"forum.category.show": {RegionContentBefore, RegionContentAfter},

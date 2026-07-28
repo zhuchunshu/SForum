@@ -50,7 +50,11 @@
   stretch to the row height so both vertical dividers remain continuous.
 - `SFContentColumnFooter` now uses the shared content-column flex contract: it
   sits at the viewport bottom for short center content and remains after all
-  content when the center column overflows.
+  content when the center column overflows. Its desktop top border reaches the
+  center scrollport edges, and topic rail dividers share those edges so the
+  lines join without horizontal overflow or moving footer text. Category detail
+  pages now mount the same center-column footer; theme and Host fallback chrome
+  suppress their outer footer whenever that content footer is present.
 - Core link icon overrides are tri-state: inherit the built-in default, select
   a custom icon, or explicitly render no icon for the current placement. The
   public contract carries the suppression flag through topbar/sidebar/mobile/

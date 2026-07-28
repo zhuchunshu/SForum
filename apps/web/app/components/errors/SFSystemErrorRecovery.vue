@@ -5,7 +5,7 @@ import SFSystemErrorRail from '~/components/errors/SFSystemErrorRail.vue'
 const { t } = useI18n()
 const localePath = useLocalePath()
 const { activeTags, categories } = useSystemErrorRecoveryData()
-const searchAction = computed(() => localePath('/'))
+const searchAction = computed(() => localePath('/search'))
 const mobileMenuOpen = useState<boolean>('system-error-mobile-menu-open', () => false)
 const mobileInfoOpen = useState<boolean>('system-error-mobile-info-open', () => false)
 

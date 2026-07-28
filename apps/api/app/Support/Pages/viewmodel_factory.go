@@ -59,6 +59,10 @@ func BuildCorePageViewModel(request CorePageViewModelRequest) (any, error) {
 		model := valueOrZero(request.Data.Home)
 		model.Base = base
 		return model, nil
+	case "forum.search":
+		model := valueOrZero(request.Data.Search)
+		model.Base = base
+		return model, nil
 	case "forum.category.index":
 		model := valueOrZero(request.Data.CategoryIndex)
 		model.Base = base

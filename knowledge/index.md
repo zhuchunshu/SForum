@@ -93,6 +93,18 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Category directory layout: removed the duplicate desktop top offset, moved
+  group focus into the main toolbar, and reduced both side rails; immutable
+  theme refresh and desktop/mobile manual verification remain:
+  `sessions/2026-07-29-category-directory-layout-handoff.md`
+- Forum content relative time: topic/comment publish and accepted-edit times
+  now use a one-month relative window with site-timezone `Y-m-d H:i:s`
+  fallback; automated and manual verification remain for the user:
+  `sessions/2026-07-29-forum-content-relative-time-handoff.md`
+- Canonical public search route: `/search?q=...` now owns a complete
+  `forum.search` Page Registry/theme surface; old homepage search URLs redirect,
+  and operator runtime verification remains:
+  `sessions/2026-07-29-public-search-route-handoff.md`
 - Announcement authoring: labeled bilingual create form, field-oriented
   SForum editor preset, time-window controls, local validation, and
   server-sanitized Markdown presentation; operator Browser QA remains:
@@ -101,9 +113,9 @@ load archived sessions or completed plans as current context.
   selected missing extension, ordinary lifecycle DELETE fails closed, and
   immutable publication history no longer causes refresh-time reappearance:
   `sessions/2026-07-29-extension-missing-artifact-uninstall-routing.md`
-- GitHub Actions release pipeline: reusable CI and security checks, four
-  multi-platform GHCR images, scan/attestation/exact-image smoke before tag
-  promotion, plus version-pinned Compose deployment:
+- GitHub Actions and security remediation: reusable CI/security checks, four
+  multi-platform GHCR images, version-pinned deployment, gRPC remediation, and
+  Fiber `v3.4.0` across all 18 source Go modules with session failure cleanup:
   `sessions/2026-07-29-github-actions-release-pipeline-handoff.md`
 - Notification email opt-in defaults: admin per-type email control, Core
   transaction-scoped user preference enforcement, hard site gate, safe default

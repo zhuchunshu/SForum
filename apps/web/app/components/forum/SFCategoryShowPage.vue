@@ -4,6 +4,7 @@ import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePer
 import { useForumApi } from '~/composables/forum/useForumApi'
 import SFHomeTopicRow from '~/components/forum/SFHomeTopicRow.vue'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
+import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
 /**
  * 宿主 body 岛：forum.category.show。主题 L1 挂载；路由页仅 SEO + fail-closed 回退。
  */
@@ -142,7 +143,7 @@ function topicActivity(topic: ForumTopicSummary) {
         />
       </div>
 
-      <section class="sforum-home__main" aria-labelledby="category-page-title">
+      <section class="sforum-home__main sforum-content-column" aria-labelledby="category-page-title">
         <div class="sforum-home__mobile-nav">
           <SFHomeNavigation
             mobile-only
@@ -206,6 +207,8 @@ function topicActivity(topic: ForumTopicSummary) {
         </div>
 
         <SFRegionOutlet page="forum.category.show" region="content_after" />
+
+        <SFContentColumnFooter />
       </section>
     </div>
   </main>

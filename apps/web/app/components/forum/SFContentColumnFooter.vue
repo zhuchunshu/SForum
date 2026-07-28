@@ -28,4 +28,17 @@ import SFFooter from '../SFFooter.vue'
   padding-bottom: 14px;
   padding-left: 0;
 }
+
+@media (min-width: 981px) {
+  .sforum-content-footer {
+    margin-right: -24px;
+    margin-left: -24px;
+  }
+
+  .sforum-content-footer :deep(.sf-footer__inner),
+  .sforum-content-footer :deep(.sf-footer__friends-inner) {
+    padding-right: 24px;
+    padding-left: 24px;
+  }
+}
 </style>

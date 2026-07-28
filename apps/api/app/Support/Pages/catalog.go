@@ -79,6 +79,7 @@ type ResolvedPage struct {
 
 var coreCatalog = []PageDefinition{
 	{ID: "forum.home", PathPattern: "/", Access: AccessPublic, ContractVersion: "sforum.page.home@1", CoreComponent: "pages/index", Replaceable: true},
+	{ID: "forum.search", PathPattern: "/search", Access: AccessPublic, ContractVersion: "sforum.page.search@1", CoreComponent: "pages/search", Replaceable: true, RequiresFeatures: []string{"features.search"}},
 	{ID: "forum.category.index", PathPattern: "/categories", Access: AccessPublic, ContractVersion: "sforum.page.category_index@1", CoreComponent: "pages/categories/index", Replaceable: true},
 	{ID: "forum.category.show", PathPattern: "/c/:categorySlug", Access: AccessPublic, ContractVersion: "sforum.page.category_show@1", CoreComponent: "pages/c/[categorySlug]", Replaceable: true},
 	{ID: "forum.tag.index", PathPattern: "/tags", Access: AccessPublic, ContractVersion: "sforum.page.tag_index@1", CoreComponent: "pages/tags/index", Replaceable: true, Notes: "gated by forum.tags.public_pages"},

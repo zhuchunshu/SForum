@@ -170,6 +170,8 @@ export function forumEditorInitialContent(
 
 export type ForumTopicDetail = ForumTopicSummary & {
   content: ForumRenderedContent
+  /** 当前已接受修订的提交时间；仅在编辑标记开启且主题已编辑时返回。 */
+  editedAt?: string
   /** 主题正文贡献者（作者 + 编辑/恢复 actor），作者优先，最多 5 个 */
   contributors?: ForumUserSummary[]
   /** 去重后的贡献者总数，可大于 contributors.length */
@@ -285,6 +287,8 @@ export type ForumComment = {
   updatedAt: string
   currentRevision: number
   edited?: boolean
+  /** 当前已接受修订的提交时间；仅在编辑标记开启且评论已编辑时返回。 */
+  editedAt?: string
 }
 
 export type ForumCommentList = {

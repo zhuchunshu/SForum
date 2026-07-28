@@ -2,6 +2,7 @@
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
 import { useForumApi } from '~/composables/forum/useForumApi'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
+import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
 /**
  * 宿主 body 岛：forum.category.index。主题 L1 挂载；路由页仅 SEO + fail-closed 回退。
  */
@@ -9,13 +10,12 @@ import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import {
   activeCategoryDirectoryCategories,
   buildCategoryDirectoryDisplayGroups,
-  categoryDirectoryDistribution,
   categoryDirectoryGroupKey,
   findCategoryDirectoryGroup,
   summarizeCategoryDirectory,
   summarizeCategoryDirectoryDisplay,
   visibleCategoryDirectoryGroups,
-  type CategoryDirectorySort
+  type CategoryDirectoryFilter
 } from '~/utils/forum/forumCategoryDirectory'
 import {
   forumCategoryPath,
@@ -30,11 +30,20 @@ const localePath = useLocalePath()
 const forumApi = useForumApi()
 const { can } = usePermissions()
 
-const sort = ref<CategoryDirectorySort>('default')
+const CATEGORY_FILTERS: Array<{ key: CategoryDirectoryFilter, icon: string, labelKey: string }> = [
+  { key: 'all', icon: 'i-lucide-layout-grid', labelKey: 'taxonomy.categories.filters.all' },
+  { key: 'hot', icon: 'i-lucide-flame', labelKey: 'taxonomy.categories.filters.hot' },
+  { key: 'week', icon: 'i-lucide-calendar-days', labelKey: 'taxonomy.categories.filters.week' },
+  { key: 'az', icon: 'i-lucide-arrow-down-a-z', labelKey: 'taxonomy.categories.filters.az' }
+]
+
+const filter = ref<CategoryDirectoryFilter>('all')
 const filterDraft = ref('')
 const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
 const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
+const ALL_GROUPS_VALUE = '__all_groups__'
+const renderedAt = useState<number>('forum-categories-index-rendered-at', () => Date.now())
 
 const { data: groups, pending, error, refresh } = await useAsyncData(
   'forum-categories-index',
@@ -53,14 +62,36 @@ const focusedGroup = computed(() => focusedGroupKey.value
 const hasFocusedGroup = computed(() => Boolean(focusedGroup.value))
 const normalizedFocusedKey = computed(() => focusedGroup.value ? categoryDirectoryGroupKey(focusedGroup.value) : '')
 const displayGroups = computed(() => buildCategoryDirectoryDisplayGroups(visibleGroups.value, {
-  sort: sort.value,
+  filter: filter.value,
   locale: locale.value,
   focusedGroupKey: normalizedFocusedKey.value,
-  query: filterDraft.value
+  query: filterDraft.value,
+  nowMs: renderedAt.value
 }))
 const displayStats = computed(() => summarizeCategoryDirectoryDisplay(displayGroups.value))
-const distribution = computed(() => categoryDirectoryDistribution(visibleGroups.value))
 const activeCategories = computed(() => activeCategoryDirectoryCategories(visibleGroups.value, 5, locale.value))
+const groupOptions = computed(() => [
+  { label: t('taxonomy.categories.allGroups'), value: ALL_GROUPS_VALUE },
+  ...visibleGroups.value.map(group => ({
+    label: group.name,
+    value: categoryDirectoryGroupKey(group)
+  }))
+])
+const selectedGroupKey = computed({
+  get: () => normalizedFocusedKey.value || ALL_GROUPS_VALUE,
+  set: (value: string) => {
+    if (value === ALL_GROUPS_VALUE) {
+      void showAllGroups()
+      return
+    }
+    const group = findCategoryDirectoryGroup(visibleGroups.value, value)
+    if (group) {
+      void focusGroup(group)
+      return
+    }
+    void showAllGroups()
+  }
+})
 const pageTitle = computed(() => focusedGroup.value?.name || t('taxonomy.categories.title'))
 const pageDescription = computed(() =>
   focusedGroup.value?.description
@@ -75,6 +106,18 @@ const showFilterEmpty = computed(() =>
   && visibleGroups.value.length > 0
   && displayGroups.value.length === 0
 )
+const filterEmptyTitle = computed(() => {
+  if (hasFilter.value) return t('taxonomy.categories.filterEmptyTitle')
+  if (filter.value === 'hot') return t('taxonomy.categories.emptyHotTitle')
+  if (filter.value === 'week') return t('taxonomy.categories.emptyWeekTitle')
+  return t('taxonomy.categories.filterEmptyTitle')
+})
+const filterEmptyDescription = computed(() => {
+  if (hasFilter.value) return t('taxonomy.categories.filterEmptyDescription')
+  if (filter.value === 'hot') return t('taxonomy.categories.emptyHotDescription')
+  if (filter.value === 'week') return t('taxonomy.categories.emptyWeekDescription')
+  return t('taxonomy.categories.filterEmptyDescription')
+})
 
 function queryValue(value: unknown) {
   return Array.isArray(value) ? String(value[0] || '') : String(value || '')
@@ -101,8 +144,11 @@ function categoryIconName(category: ForumCategory) {
   return icon.startsWith('i-') ? icon : 'i-lucide-folder'
 }
 
-function setSort(next: CategoryDirectorySort) {
-  sort.value = next
+function setFilter(next: CategoryDirectoryFilter, closeDrawer = false) {
+  filter.value = next
+  if (closeDrawer) {
+    closeMobileDrawers()
+  }
 }
 
 function closeMobileDrawers() {
@@ -131,6 +177,11 @@ function clearFilter() {
   filterDraft.value = ''
 }
 
+function showAllCategories() {
+  filterDraft.value = ''
+  filter.value = 'all'
+}
+
 async function retryLoad() {
   await refresh()
 }
@@ -155,42 +206,28 @@ async function retryLoad() {
           :show-categories="false"
         >
           <template #after-navigation>
-            <nav class="sforum-category-directory__group-nav" :aria-label="t('taxonomy.categories.groupNavLabel')">
-              <div class="sf-home-navigation__label">{{ t('taxonomy.categories.groupNavLabel') }}</div>
+            <nav class="sforum-category-directory__filter-nav" :aria-label="t('taxonomy.categories.filterLabel')">
+              <div class="sf-home-navigation__label">{{ t('taxonomy.categories.filterLabel') }}</div>
               <button
+                v-for="item in CATEGORY_FILTERS"
+                :key="item.key"
                 type="button"
                 class="sf-home-navigation__link"
-                :class="{ 'is-active': !hasFocusedGroup }"
-                :aria-pressed="!hasFocusedGroup"
-                @click="showAllGroups"
+                :class="{ 'is-active': filter === item.key }"
+                :aria-pressed="filter === item.key"
+                @click="setFilter(item.key)"
               >
                 <span class="sf-home-navigation__link-main">
-                  <UIcon name="i-lucide-layers-3" class="size-[18px]" aria-hidden="true" />
-                  {{ t('taxonomy.categories.allGroups') }}
+                  <UIcon :name="item.icon" class="size-[18px]" aria-hidden="true" />
+                  {{ t(item.labelKey) }}
                 </span>
-                <span class="sf-home-navigation__count">{{ totalStats.groupCount }}</span>
-              </button>
-              <button
-                v-for="group in visibleGroups"
-                :key="group.id"
-                type="button"
-                class="sf-home-navigation__link"
-                :class="{ 'is-active': normalizedFocusedKey === categoryDirectoryGroupKey(group) }"
-                :aria-pressed="normalizedFocusedKey === categoryDirectoryGroupKey(group)"
-                @click="focusGroup(group)"
-              >
-                <span class="sf-home-navigation__link-main">
-                  <span class="sforum-category-directory__group-dot" aria-hidden="true" />
-                  {{ group.name }}
-                </span>
-                <span class="sf-home-navigation__count">{{ group.categories.length }}</span>
               </button>
             </nav>
           </template>
         </SFHomeNavigation>
       </div>
 
-      <section class="sforum-home__main sforum-category-directory__main" aria-labelledby="category-directory-title">
+      <section class="sforum-home__main sforum-category-directory__main sforum-content-column" aria-labelledby="category-directory-title">
         <SFRegionOutlet page="forum.category.index" region="content_before" />
 
         <header class="sforum-category-directory__head">
@@ -217,52 +254,46 @@ async function retryLoad() {
         </header>
 
         <div class="sforum-category-directory__toolbar">
-          <label class="sforum-category-directory__filter">
-            <UIcon name="i-lucide-search" class="size-4" aria-hidden="true" />
-            <input
-              v-model="filterDraft"
-              type="search"
-              :placeholder="t('taxonomy.categories.filterPlaceholder')"
-              :aria-label="t('taxonomy.categories.filterPlaceholder')"
-            >
-            <button
-              v-if="hasFilter"
-              type="button"
-              :aria-label="t('taxonomy.categories.clearFilter')"
-              :title="t('taxonomy.categories.clearFilter')"
-              @click="clearFilter"
-            >
-              <UIcon name="i-lucide-x" class="size-4" aria-hidden="true" />
-            </button>
-          </label>
+          <div class="sforum-category-directory__filters">
+            <USelect
+              v-model="selectedGroupKey"
+              :items="groupOptions"
+              value-key="value"
+              label-key="label"
+              class="sforum-category-directory__group-select"
+              :aria-label="t('taxonomy.categories.groupFilterLabel')"
+            />
+            <label class="sforum-category-directory__filter">
+              <UIcon name="i-lucide-search" class="size-4" aria-hidden="true" />
+              <input
+                v-model="filterDraft"
+                type="search"
+                :placeholder="t('taxonomy.categories.filterPlaceholder')"
+                :aria-label="t('taxonomy.categories.filterPlaceholder')"
+              >
+              <button
+                v-if="hasFilter"
+                type="button"
+                :aria-label="t('taxonomy.categories.clearFilter')"
+                :title="t('taxonomy.categories.clearFilter')"
+                @click="clearFilter"
+              >
+                <UIcon name="i-lucide-x" class="size-4" aria-hidden="true" />
+              </button>
+            </label>
+          </div>
 
-          <div class="sforum-category-directory__sorts" role="group" :aria-label="t('taxonomy.categories.sortLabel')">
+          <div class="sforum-category-directory__sorts" role="group" :aria-label="t('taxonomy.categories.filterLabel')">
             <button
+              v-for="item in CATEGORY_FILTERS"
+              :key="`main-${item.key}`"
               type="button"
               class="sforum-category-directory__sort"
-              :class="{ 'is-active': sort === 'default' }"
-              :aria-pressed="sort === 'default'"
-              @click="setSort('default')"
+              :class="{ 'is-active': filter === item.key }"
+              :aria-pressed="filter === item.key"
+              @click="setFilter(item.key)"
             >
-              {{ t('taxonomy.categories.sorts.all') }}
-            </button>
-            <button
-              type="button"
-              class="sforum-category-directory__sort"
-              :class="{ 'is-active': sort === 'active' }"
-              :aria-pressed="sort === 'active'"
-              @click="setSort('active')"
-            >
-              {{ t('taxonomy.categories.sorts.active') }}
-            </button>
-            <button
-              type="button"
-              class="sforum-category-directory__sort"
-              :class="{ 'is-active': sort === 'name' }"
-              :aria-pressed="sort === 'name'"
-              @click="setSort('name')"
-            >
-              {{ t('taxonomy.categories.sorts.name') }}
+              {{ t(item.labelKey) }}
             </button>
           </div>
         </div>
@@ -354,10 +385,10 @@ async function retryLoad() {
 
         <div v-else-if="showFilterEmpty" class="sforum-category-directory__state">
           <SFEmptyState
-            :title="t('taxonomy.categories.filterEmptyTitle')"
-            :description="t('taxonomy.categories.filterEmptyDescription')"
-            :action-label="t('taxonomy.categories.clearFilter')"
-            @action="clearFilter"
+            :title="filterEmptyTitle"
+            :description="filterEmptyDescription"
+            :action-label="t('taxonomy.categories.showAllCategories')"
+            @action="showAllCategories"
           />
         </div>
 
@@ -369,6 +400,8 @@ async function retryLoad() {
         </div>
 
         <SFRegionOutlet page="forum.category.index" region="content_after" />
+
+        <SFContentColumnFooter />
       </section>
 
       <aside class="sforum-home__right sforum-category-directory__right" :aria-label="t('taxonomy.categories.rightRailLabel')">
@@ -401,29 +434,6 @@ async function retryLoad() {
 
           <section class="sf-home-right-rail__card sforum-category-directory__rail-section">
             <header class="sf-home-right-rail__head">
-              <h3 class="sf-home-right-rail__title">{{ t('taxonomy.categories.distributionTitle') }}</h3>
-              <span class="sf-home-right-rail__meta">{{ t('taxonomy.categories.byCategoryCount') }}</span>
-            </header>
-            <div class="sforum-category-directory__distribution">
-              <div
-                v-for="item in distribution"
-                :key="item.group.id"
-                class="sforum-category-directory__distribution-row"
-              >
-                <span>{{ item.group.name }}</span>
-                <b>{{ formatCount(item.count) }}</b>
-                <span class="sforum-category-directory__distribution-track" aria-hidden="true">
-                  <i :style="{ width: `${item.percent}%` }" />
-                </span>
-              </div>
-            </div>
-            <p v-if="!distribution.length" class="sf-home-right-rail__empty">
-              {{ t('taxonomy.categories.emptyDescription') }}
-            </p>
-          </section>
-
-          <section class="sf-home-right-rail__card sforum-category-directory__rail-section">
-            <header class="sf-home-right-rail__head">
               <h3 class="sf-home-right-rail__title">{{ t('taxonomy.categories.activeTitle') }}</h3>
               <span class="sf-home-right-rail__meta">{{ t('taxonomy.categories.byTopicCount') }}</span>
             </header>
@@ -445,25 +455,6 @@ async function retryLoad() {
             </p>
           </section>
 
-          <section class="sf-home-right-rail__card sforum-category-directory__rail-section">
-            <header class="sf-home-right-rail__head">
-              <h3 class="sf-home-right-rail__title">{{ t('taxonomy.categories.tipsTitle') }}</h3>
-            </header>
-            <ul class="sforum-category-directory__tips">
-              <li>
-                <UIcon name="i-lucide-mouse-pointer-click" class="size-4" aria-hidden="true" />
-                <span>{{ t('taxonomy.categories.tips.focus') }}</span>
-              </li>
-              <li>
-                <UIcon name="i-lucide-search" class="size-4" aria-hidden="true" />
-                <span>{{ t('taxonomy.categories.tips.filter') }}</span>
-              </li>
-              <li>
-                <UIcon name="i-lucide-arrow-up-down" class="size-4" aria-hidden="true" />
-                <span>{{ t('taxonomy.categories.tips.sort') }}</span>
-              </li>
-            </ul>
-          </section>
         </div>
       </aside>
     </div>
@@ -494,35 +485,21 @@ async function retryLoad() {
         :show-categories="false"
       >
         <template #after-navigation>
-          <nav class="sforum-category-directory__group-nav" :aria-label="t('taxonomy.categories.groupNavLabel')">
-            <div class="sf-home-navigation__label">{{ t('taxonomy.categories.groupNavLabel') }}</div>
+          <nav class="sforum-category-directory__filter-nav" :aria-label="t('taxonomy.categories.filterLabel')">
+            <div class="sf-home-navigation__label">{{ t('taxonomy.categories.filterLabel') }}</div>
             <button
+              v-for="item in CATEGORY_FILTERS"
+              :key="`drawer-${item.key}`"
               type="button"
               class="sf-home-navigation__link"
-              :class="{ 'is-active': !hasFocusedGroup }"
-              :aria-pressed="!hasFocusedGroup"
-              @click="showAllGroups"
+              :class="{ 'is-active': filter === item.key }"
+              :aria-pressed="filter === item.key"
+              @click="setFilter(item.key, true)"
             >
               <span class="sf-home-navigation__link-main">
-                <UIcon name="i-lucide-layers-3" class="size-[18px]" aria-hidden="true" />
-                {{ t('taxonomy.categories.allGroups') }}
+                <UIcon :name="item.icon" class="size-[18px]" aria-hidden="true" />
+                {{ t(item.labelKey) }}
               </span>
-              <span class="sf-home-navigation__count">{{ totalStats.groupCount }}</span>
-            </button>
-            <button
-              v-for="group in visibleGroups"
-              :key="group.id"
-              type="button"
-              class="sf-home-navigation__link"
-              :class="{ 'is-active': normalizedFocusedKey === categoryDirectoryGroupKey(group) }"
-              :aria-pressed="normalizedFocusedKey === categoryDirectoryGroupKey(group)"
-              @click="focusGroup(group)"
-            >
-              <span class="sf-home-navigation__link-main">
-                <span class="sforum-category-directory__group-dot" aria-hidden="true" />
-                {{ group.name }}
-              </span>
-              <span class="sf-home-navigation__count">{{ group.categories.length }}</span>
             </button>
           </nav>
         </template>
@@ -564,21 +541,6 @@ async function retryLoad() {
           </section>
           <section class="sf-home-right-rail__card sforum-category-directory__rail-section">
             <header class="sf-home-right-rail__head">
-              <h3 class="sf-home-right-rail__title">{{ t('taxonomy.categories.distributionTitle') }}</h3>
-              <span class="sf-home-right-rail__meta">{{ t('taxonomy.categories.byCategoryCount') }}</span>
-            </header>
-            <div class="sforum-category-directory__distribution">
-              <div v-for="item in distribution" :key="item.group.id" class="sforum-category-directory__distribution-row">
-                <span>{{ item.group.name }}</span>
-                <b>{{ formatCount(item.count) }}</b>
-                <span class="sforum-category-directory__distribution-track" aria-hidden="true">
-                  <i :style="{ width: `${item.percent}%` }" />
-                </span>
-              </div>
-            </div>
-          </section>
-          <section class="sf-home-right-rail__card sforum-category-directory__rail-section">
-            <header class="sf-home-right-rail__head">
               <h3 class="sf-home-right-rail__title">{{ t('taxonomy.categories.activeTitle') }}</h3>
               <span class="sf-home-right-rail__meta">{{ t('taxonomy.categories.byTopicCount') }}</span>
             </header>
@@ -596,25 +558,6 @@ async function retryLoad() {
                 <b>{{ t('taxonomy.categories.topicCount', { count: formatCount(category.topicCount) }) }}</b>
               </NuxtLink>
             </div>
-          </section>
-          <section class="sf-home-right-rail__card sforum-category-directory__rail-section">
-            <header class="sf-home-right-rail__head">
-              <h3 class="sf-home-right-rail__title">{{ t('taxonomy.categories.tipsTitle') }}</h3>
-            </header>
-            <ul class="sforum-category-directory__tips">
-              <li>
-                <UIcon name="i-lucide-mouse-pointer-click" class="size-4" aria-hidden="true" />
-                <span>{{ t('taxonomy.categories.tips.focus') }}</span>
-              </li>
-              <li>
-                <UIcon name="i-lucide-search" class="size-4" aria-hidden="true" />
-                <span>{{ t('taxonomy.categories.tips.filter') }}</span>
-              </li>
-              <li>
-                <UIcon name="i-lucide-arrow-up-down" class="size-4" aria-hidden="true" />
-                <span>{{ t('taxonomy.categories.tips.sort') }}</span>
-              </li>
-            </ul>
           </section>
         </div>
       </aside>

@@ -126,6 +126,7 @@ Manifest V3 component targets declare both `targetId` and `targetContractVersion
 | `core.component.page.forum.notification.show` | `sforum.component.page.forum.notification.show@1` | page | `public` | `/notifications/:notificationId` | `apps/web/app/pages/notifications/[notificationId].vue` | P9 Component Registry |
 | `core.component.page.forum.notifications` | `sforum.component.page.forum.notifications@1` | page | `public` | `/notifications` | `apps/web/app/pages/notifications/index.vue` | P9 Component Registry |
 | `core.component.page.forum.profile.show` | `sforum.component.page.forum.profile.show@1` | page | `public` | `/u/:username` | `apps/web/app/pages/u/[username].vue` | P9 Component Registry |
+| `core.component.page.forum.search` | `sforum.component.page.forum.search@1` | page | `public` | `/search` | `apps/web/app/pages/search.vue` | P9 Component Registry |
 | `core.component.page.settings.notifications` | `sforum.component.page.settings.notifications@1` | page | `public` | `/settings/notifications` | `apps/web/app/pages/settings/notifications.vue` | P9 Component Registry |
 | `core.component.page.forum.settings.profile` | `sforum.component.page.forum.settings.profile@1` | page | `public` | `/settings/profile` | `apps/web/app/pages/settings/profile.vue` | P9 Component Registry |
 | `core.component.page.forum.settings.security` | `sforum.component.page.forum.settings.security@1` | page | `public` | `/settings/security` | `apps/web/app/pages/settings/security.vue` | P9 Component Registry |

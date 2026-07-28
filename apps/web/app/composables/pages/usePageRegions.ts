@@ -10,6 +10,7 @@ import { normalizePublicFrontendComponentRefs } from '~/runtime/public-extension
 /** 与后端 RegionCatalog pageRegionMatrix 同步的白名单;其余页面不发区域请求。 */
 export const PAGE_REGION_PAGES: ReadonlySet<string> = new Set([
   'forum.home',
+  'forum.search',
   'forum.category.index',
   'forum.category.show',
   'forum.tag.index',

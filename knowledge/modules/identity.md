@@ -487,7 +487,9 @@ Initial identity foundation is implemented.
 - `apps/api/app/Support/AuthSession` owns authenticated browser session
   lifecycle: login session reset, current-user lookup, idle TTL refresh,
   periodic session-id renewal, logout destruction, and salted session-id hashes
-  for audit correlation.
+  for audit correlation. Its failed-write cleanup clears the local payload
+  before delete/save compensation; this is required with Fiber 3.4, which
+  preserves session data when a storage delete fails.
 - `apps/api/app/Support/HumanVerify` owns the provider boundary, ALTCHA v2
   challenge/verification adapter, Redis-backed replay/rate-limit store, and
   in-memory test/local store.

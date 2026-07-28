@@ -7,8 +7,8 @@ import SFHomeRightRail from '~/components/forum/SFHomeRightRail.vue'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
 /**
- * 宿主 body 岛：论坛首页完整交互 UI（主题 L1 挂载点）。
- * pages/index.vue 只负责 SEO + SFPageOutlet fail-closed 回退。
+ * 宿主 body 岛：论坛首页与搜索页共享的完整交互 UI（主题 L1 挂载点）。
+ * 路由页只负责 SEO + SFPageOutlet fail-closed 回退。
  */
 import {
   buildForumHomeQuery,
@@ -33,6 +33,9 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const localePath = useLocalePath()
+const isSearchPage = computed(() => route.path === localePath('/search'))
+const registryPage = computed(() => isSearchPage.value ? 'forum.search' : 'forum.home')
+const surfacePath = computed(() => isSearchPage.value ? localePath('/search') : localePath('/'))
 const { seoSettings } = useWebOptions()
 const forumApi = useForumApi()
 const { can } = usePermissions()
@@ -49,7 +52,7 @@ const {
 const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
 const committedFilters = computed(() => parseForumHomeQuery(route.query))
 const currentPage = computed(() => parsePublicPage(route.query.page))
-const activeFeedKey = computed(() => forumHomeFeedKey(committedFilters.value))
+const activeFeedKey = computed(() => `${registryPage.value}:${forumHomeFeedKey(committedFilters.value)}`)
 const activePageFeedKey = computed(() => `${activeFeedKey.value}:${currentPage.value}`)
 const topicDataKey = computed(() => `forum-home-topics:${activePageFeedKey.value}`)
 const searchDraft = ref(committedFilters.value.query)
@@ -96,6 +99,10 @@ function loadTopicPage(
       tagSlug: filters.tagSlug,
       page
     })
+  }
+
+  if (isSearchPage.value) {
+    return Promise.resolve(emptyTopicList())
   }
 
   // M5：有 nextCursor 时用 after keyset，避免深 OFFSET
@@ -184,14 +191,22 @@ const feedState = computed(() => {
 const selectedCategory = computed(() => categories.value.find(
   category => category.slug === selectedCategorySlug.value
 ))
-const feedTitle = computed(() => selectedCategory.value?.name || t('home.feed.latestTitle'))
+const feedTitle = computed(() => isSearchPage.value
+  ? t('search.title')
+  : selectedCategory.value?.name || t('home.feed.latestTitle'))
 const emptyTitle = computed(() => {
+  if (isSearchPage.value && !hasActiveFilters.value) {
+    return t('search.emptyTitle')
+  }
   if (hasActiveFilters.value) {
     return t('home.emptyState.title')
   }
   return homeEmptyTitle.value || t('home.emptyState.title')
 })
 const emptyDescription = computed(() => {
+  if (isSearchPage.value && !hasActiveFilters.value) {
+    return t('search.emptyDescription')
+  }
   if (hasActiveFilters.value) {
     return t('home.emptyState.filteredDescription')
   }
@@ -352,13 +367,13 @@ function commitFilters(nextFilters: ForumHomeFilters) {
     return
   }
   return router.replace({
-    path: localePath('/'),
+    path: surfacePath.value,
     query: buildForumHomeQuery(nextFilters)
   })
 }
 
 function homePageTo(page: number) {
-  return publicPageLocation(localePath('/'), page, buildForumHomeQuery(committedFilters.value))
+  return publicPageLocation(surfacePath.value, page, buildForumHomeQuery(committedFilters.value))
 }
 
 watch(() => committedFilters.value.query, (query) => {
@@ -488,7 +503,7 @@ onBeforeUnmount(() => {
 <template>
   <main
     class="sforum-home"
-    data-sforum-island-body="forum.component.home_page"
+    :data-sforum-island-body="isSearchPage ? 'forum.component.search_page' : 'forum.component.home_page'"
     data-layout="fullwidth-3col"
     :data-feed-state="feedState"
   >
@@ -521,7 +536,7 @@ onBeforeUnmount(() => {
           />
         </div>
 
-        <SFRegionOutlet page="forum.home" region="content_before" />
+        <SFRegionOutlet :page="registryPage" region="content_before" />
 
         <div
           v-if="homeNotice"
@@ -704,7 +719,7 @@ onBeforeUnmount(() => {
           <span v-else class="sforum-home__sentinel" aria-hidden="true" />
         </div>
 
-        <SFRegionOutlet page="forum.home" region="content_after" />
+        <SFRegionOutlet :page="registryPage" region="content_after" />
 
         <SFContentColumnFooter />
       </section>
@@ -722,7 +737,7 @@ onBeforeUnmount(() => {
         :can-create-topic="canCreateTopic"
         @select-tag="selectTag"
       >
-        <SFRegionOutlet page="forum.home" region="sidebar" />
+        <SFRegionOutlet :page="registryPage" region="sidebar" />
       </SFHomeRightRail>
     </div>
 

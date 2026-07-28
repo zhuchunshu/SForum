@@ -231,18 +231,6 @@ func (s *Service) ResolveCommentPage(ctx context.Context, topicID int64, comment
 	return page, perPage, nil
 }
 
-// applyCommentEditMarks 只决定是否暴露存储层基于 post_revisions 得出的事实。
-// show=false 时清除 Edited，避免缓存/复用结构体泄漏标记。
-func applyCommentEditMarks(items []Comment, show bool) []Comment {
-	for i := range items {
-		items[i].Edited = show && items[i].ContentEdited
-		if len(items[i].Children) > 0 {
-			items[i].Children = applyCommentEditMarks(items[i].Children, show)
-		}
-	}
-	return items
-}
-
 func softDeleteQueryScope(visibility string, viewer identity.Actor) (include bool, authorUserID int64) {
 	staff := viewer.Can(identity.PermissionPostDeleteAny) || viewer.Can(identity.PermissionModerationReview)
 	switch visibility {
@@ -434,8 +422,7 @@ func (s *Service) UpdateComment(ctx context.Context, actor identity.Actor, input
 		return Comment{}, err
 	}
 	if !updated.UpdateApplied {
-		updated.Edited = settings.ShowCommentEditMark && updated.ContentEdited
-		return updated, nil
+		return applyCommentEditMark(updated, settings.ShowCommentEditMark), nil
 	}
 	payload := map[string]any{
 		"commentId": updated.ID, "topicId": summary.TopicID, "actorUserId": actor.ID,
@@ -456,8 +443,7 @@ func (s *Service) UpdateComment(ctx context.Context, actor identity.Actor, input
 	} else if summary.Status == CommentStatusActive {
 		s.indexTopic(ctx, summary.TopicID)
 	}
-	updated.Edited = settings.ShowCommentEditMark && updated.ContentEdited
-	return updated, nil
+	return applyCommentEditMark(updated, settings.ShowCommentEditMark), nil
 }
 
 func (s *Service) applyCommentBeforeUpdate(ctx context.Context, actor identity.Actor, summary CommentSummary, input UpdateCommentInput) (UpdateCommentInput, error) {
@@ -491,6 +477,7 @@ func (s *Service) DeleteComment(ctx context.Context, actor identity.Actor, comme
 	}
 	deleted.Content = RenderedContent{SourceFormat: deleted.Content.SourceFormat}
 	deleted.Edited = false
+	deleted.EditedAt = nil
 	return deleted, nil
 }
 

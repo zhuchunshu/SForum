@@ -104,7 +104,8 @@ type NavbarMenuItem = {
   children?: NavbarMenuItem[]
 }
 
-const searchQuery = ref('')
+const routeSearchQuery = computed(() => typeof route.query.q === 'string' ? route.query.q.trim() : '')
+const searchQuery = ref(routeSearchQuery.value)
 const mobileSearchOpen = ref(false)
 const mobileMenuOpen = useState<boolean>('public-mobile-navigation-open', () => false)
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
@@ -219,6 +220,11 @@ function toggleMobileInfo() {
 }
 
 watch(() => route.fullPath, closeMobileDrawers)
+watch(routeSearchQuery, (query) => {
+  if (searchQuery.value !== query) {
+    searchQuery.value = query
+  }
+})
 
 let stopNotificationRealtime = () => {}
 const stopNotificationUserWatch = watch(user, current => {
@@ -238,10 +244,11 @@ onBeforeUnmount(() => {
 })
 
 function submitSearch(query: string) {
+  const normalizedQuery = query.trim()
   return navigateTo({
-    path: localePath('/'),
+    path: localePath(normalizedQuery ? '/search' : '/'),
     query: buildForumHomeQuery({
-      query,
+      query: normalizedQuery,
       categorySlug: '',
       tagSlug: ''
     })

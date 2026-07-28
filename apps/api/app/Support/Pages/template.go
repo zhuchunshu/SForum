@@ -29,6 +29,7 @@ const (
 // 本身不执行包代码；后续 ThemeCompiler 仍会强制 exact 组件身份。
 var allowedHostIslands = map[string]struct{}{
 	"sf-home-page":                {},
+	"sf-search-page":              {},
 	"sf-category-index-page":      {},
 	"sf-category-show-page":       {},
 	"sf-tag-index-page":           {},

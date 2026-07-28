@@ -102,6 +102,7 @@ describe('forum.page.regions payload parsing', () => {
       'forum.home',
       'forum.notifications',
       'forum.profile.show',
+      'forum.search',
       'forum.tag.index',
       'forum.tag.show',
       'forum.topic.create',

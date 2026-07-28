@@ -1113,6 +1113,10 @@ TopicDetail:
     properties:
       content:
         "$ref": "#/RenderedContent"
+      editedAt:
+        type: string
+        format: date-time
+        description: Commit time of the current accepted revision. Present only when the topic edit mark is enabled and the topic has been edited.
       contributors:
         type: array
         description: |
@@ -1548,6 +1552,10 @@ Comment:
     edited:
       type: boolean
       description: True only when showCommentEditMark is enabled and the comment has a persisted content revision; clients must not infer this from timestamps.
+    editedAt:
+      type: string
+      format: date-time
+      description: Commit time of the current accepted revision. Present only when the comment edit mark is enabled and the comment has been edited.
 ReplyReference:
   type: object
   required:
