@@ -319,7 +319,10 @@ Initial identity foundation is implemented.
   failures remain fail-open.
   Registration and password reset confirmation
   share the same backend `PasswordPolicy` validator; password hashing only owns
-  Argon2id hashing and no longer hard-codes product policy.
+  Argon2id hashing and no longer hard-codes product policy. Stored Argon2id
+  hashes are parsed with unsigned width checks and current-cost ceilings before
+  derivation; salt and key lengths must match the Host-generated format, so a
+  malformed database value cannot wrap parameters or request unbounded work.
 - Nuxt has login/register pages, an admin route middleware, an admin overview,
   user management, editable user-group management, and a permission matrix. The
   matrix is an audit/comparison view rather than the primary editor: it caps the
@@ -473,8 +476,9 @@ Initial identity foundation is implemented.
   checks, permission catalog/matrix reads, admin user reads, user role
   replacement, user direct permission override replacement, and configurable
   password policy enforcement for registration.
-- `apps/api/app/Models/Identity/password.go` owns Argon2id hashing plus the
-  shared `PasswordPolicy` model used before password creation/update.
+- `apps/api/app/Models/Identity/password.go` owns bounded Argon2id hashing and
+  verification plus the shared `PasswordPolicy` model used before password
+  creation/update.
 - `apps/api/app/Models/Identity/policy.go` keeps permission checks small:
   `super_admin` receives all permissions while active, and other users rely on
   enabled role permissions plus user direct allows minus direct denies.

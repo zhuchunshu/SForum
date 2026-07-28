@@ -13,13 +13,11 @@ import (
 	"image/png"
 	"strings"
 	"time"
-
-	"github.com/disintegration/imaging"
 )
 
 // 真实图片处理：metadata 读取 + thumbnail + WebP 近似输出（PNG 编码为 lossless
 // 变体；当输入声明 webp 时仍产出可解码位图并标记 outputMIME）。
-// 使用成熟库 disintegration/imaging（与 Host attachment 路径一致）。
+// 使用 x/image/draw（与 Host attachment 路径一致）。
 
 type imageMeta struct {
 	Width    int    `json:"width"`
@@ -51,11 +49,11 @@ type processOptions struct {
 }
 
 var (
-	errImageCorrupt   = errors.New("corrupt image")
-	errImageTooLarge  = errors.New("image dimensions exceed limit")
-	errImageTimeout   = errors.New("image processing timeout")
-	errMIMESpoof      = errors.New("mime spoof: declared mime does not match payload")
-	errScanRejected   = errors.New("scan provider rejected payload")
+	errImageCorrupt  = errors.New("corrupt image")
+	errImageTooLarge = errors.New("image dimensions exceed limit")
+	errImageTimeout  = errors.New("image processing timeout")
+	errMIMESpoof     = errors.New("mime spoof: declared mime does not match payload")
+	errScanRejected  = errors.New("scan provider rejected payload")
 )
 
 // controllableScanProvider 开发用扫描 Provider：payload 标记控制通过/拒绝。
@@ -149,7 +147,7 @@ func processImage(payload []byte, opts processOptions) (variantResult, imageMeta
 	if meta.Width > maxW || meta.Height > maxH {
 		return variantResult{}, meta, errImageTooLarge
 	}
-	img, err := imaging.Decode(bytes.NewReader(payload), imaging.AutoOrientation(true))
+	img, _, err := decodeAutoOrientedImage(bytes.NewReader(payload))
 	if err != nil {
 		return variantResult{}, meta, fmt.Errorf("%w: %v", errImageCorrupt, err)
 	}
@@ -161,7 +159,7 @@ func processImage(payload []byte, opts processOptions) (variantResult, imageMeta
 		th = opts.MaxHeight
 	}
 	// 真实缩略图。
-	thumb := imaging.Fill(img, tw, th, imaging.Center, imaging.Lanczos)
+	thumb := centerFillImage(img, tw, th)
 	var buf bytes.Buffer
 	outMIME := "image/png"
 	name := opts.VariantName

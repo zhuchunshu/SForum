@@ -17,15 +17,27 @@ Attachment system foundation is implemented.
 - Storage provider adapters live under `apps/api/app/Support/Storage`.
 - Migration `202607050004_attachments.sql` creates `attachments`,
   `attachment_references`, and the attachment permissions.
-- Admin UI `apps/web/app/pages/admin/attachments.vue` is a permission-aware,
-  query-synced 115-line route shell. Settings and Manager live in independent
-  components under `components/admin/settings/attachments/tabs/` and retain
-  state through `KeepAlive`.
+- Admin UI uses independent permission-aware routes for Basic Configuration
+  (`/attachments/settings`) and Attachment Management
+  (`/attachments/manager`). The legacy `/attachments` route redirects to the
+  requested or first accessible child. Their implementations remain
+  independent components under `components/admin/settings/attachments/tabs/`.
+- The stable `core.component.page.admin.attachments` Admin Surface placement is
+  mapped to Attachment Management so existing governance extensions continue
+  to render after the route split.
 - Settings owns provider selection, Core driver configuration, generic plugin
   settings navigation, connection probes, secret-preserving restore, and the
   beginner-friendly local-upload defaults.
 - Manager owns filters, detail/reference loading, status changes, soft delete,
   orphan cleanup, and URL copy.
+- Site brand uploads reuse the attachment provider and validation pipeline
+  through `POST /admin/site/brand-assets`, but are authorized by
+  `settings.site.manage` and forced to active public images. Saving the matching
+  web option establishes the existing `site` attachment reference.
+- Brand SVG input is capped at 2 MB, parsed with `oksvg`, rendered through
+  `rasterx` to a non-empty transparent PNG with a maximum 1024-pixel edge, and
+  only then enters storage. The global active-content SVG rejection remains in
+  force for every ordinary attachment path.
 - OpenAPI contract includes upload, metadata, content, admin settings, provider
   test, list, detail, update, soft delete, and cleanup endpoints.
 
@@ -144,6 +156,11 @@ upload and presigned upload credentials are intentionally deferred.
   `avatar.allow_gif`, `avatar.compress_enabled`, `avatar.target_dimension`,
   and `avatar.compress_quality`) instead of the general attachment allow-list.
   Avatar attachments are always stored with public visibility.
+- Compressed JPEG/PNG avatars use `golang.org/x/image/draw` for center-crop and
+  resize. A bounded EXIF Orientation read preserves phone-photo rotation, while
+  the transform decoder rejects every format except JPEG/PNG and does not
+  register TIFF support. GIF bypass behavior remains governed by
+  `avatar.allow_gif`.
 - The service generates a random public id and object key from the configured
   path template, streams the object to the provider, and computes SHA-256 during
   upload.
@@ -212,7 +229,8 @@ Current focused coverage includes:
 - local adapter put/open/stat/delete and unsafe key rejection;
 - upload metadata creation, SHA-256 calculation, remote rollback on DB failure,
   permission denial, invalid extension, avatar JPEG compression/public
-  visibility, GIF rejection when disabled, and cleanup retention cutoff;
+  visibility, all eight EXIF orientations, TIFF transform rejection, GIF
+  rejection when disabled, and cleanup retention cutoff;
 - existing backend HTTP/options/identity tests;
 - frontend typecheck and Bun tests.
 - M6 attachment/mail focused tests, architecture validation, Nuxt typecheck,

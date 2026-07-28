@@ -14,7 +14,7 @@ import (
 	protocolwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 )
 
-// P13 media-optimize reference: 真实 imaging 处理 + 可控 scan Provider +
+// P13 media-optimize reference: 真实图片处理 + 可控 scan Provider +
 // River job 重试/去重/original fallback/retention。
 
 const (

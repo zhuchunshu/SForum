@@ -97,6 +97,27 @@ ApiResponseSiteChromeDeleted:
       properties:
         deleted: { type: boolean }
 
+ApiResponseSiteBrandAsset:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      "$ref": "#/SiteBrandAsset"
+
+SiteBrandAsset:
+  type: object
+  required: [id, publicId, url, contentType, size]
+  properties:
+    id: { type: integer, format: int64 }
+    publicId: { type: string }
+    url: { type: string }
+    contentType: { type: string }
+    size: { type: integer, format: int64 }
+    width: { type: integer }
+    height: { type: integer }
+
 SiteNavItem:
   type: object
   required: [id, labelZhCN, labelEnUS, href, openInNewTab, position, enabled, createdAt, updatedAt]

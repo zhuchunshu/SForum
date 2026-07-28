@@ -2,7 +2,7 @@
   "version": 1,
   "legacyLargeFiles": {
     "apps/api/app/Http/Controllers/Pages/controller.go": 1113,
-    "apps/api/app/Models/Attachments/service.go": 1225,
+    "apps/api/app/Models/Attachments/service.go": 1223,
     "apps/api/app/Models/Extensions/service_package.go": 1016,
     "apps/api/app/Models/Forum/postgres_store_ops.go": 1626,
     "apps/api/app/Models/Forum/service.go": 1089,

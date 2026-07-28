@@ -27,7 +27,7 @@ import (
 )
 
 // TestReferenceMediaOptimizePluginPublishesMIMETransformAndFallsBack proves the
-// P13 media-optimize package executes real imaging (metadata/thumbnail/WebP),
+// P13 media-optimize package executes real image processing (metadata/thumbnail/WebP),
 // controllable scan Provider, River-style Protocol V2 jobs (retry/dedupe/
 // original fallback/retention), and CDN provider selection — not plan-only.
 func TestReferenceMediaOptimizePluginPublishesMIMETransformAndFallsBack(t *testing.T) {

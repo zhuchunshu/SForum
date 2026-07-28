@@ -134,40 +134,70 @@ func VerifyPassword(password string, encodedHash string) (bool, error) {
 		return false, fmt.Errorf("invalid password hash params")
 	}
 
-	memory, err := parseParam(params[0], "m")
+	memory, err := parseUint32Param(params[0], "m", passwordMemory)
 	if err != nil {
 		return false, err
 	}
-	time, err := parseParam(params[1], "t")
+	time, err := parseUint32Param(params[1], "t", passwordTime)
 	if err != nil {
 		return false, err
 	}
-	threads, err := parseParam(params[2], "p")
+	threads, err := parseUint8Param(params[2], "p", passwordThreads)
+	if err != nil {
+		return false, err
+	}
+	if memory < 8*uint32(threads) {
+		return false, fmt.Errorf("password hash param m out of range")
+	}
+
+	salt, err := decodePasswordHashPart(parts[4], "salt", passwordSaltBytes)
+	if err != nil {
+		return false, err
+	}
+	expectedKey, err := decodePasswordHashPart(parts[5], "key", int(passwordKeyBytes))
 	if err != nil {
 		return false, err
 	}
 
-	salt, err := base64.RawStdEncoding.DecodeString(parts[4])
-	if err != nil {
-		return false, fmt.Errorf("decode password salt: %w", err)
-	}
-	expectedKey, err := base64.RawStdEncoding.DecodeString(parts[5])
-	if err != nil {
-		return false, fmt.Errorf("decode password key: %w", err)
-	}
-
-	actualKey := argon2.IDKey([]byte(password), salt, uint32(time), uint32(memory), uint8(threads), uint32(len(expectedKey)))
+	actualKey := argon2.IDKey([]byte(password), salt, time, memory, threads, passwordKeyBytes)
 	return subtle.ConstantTimeCompare(actualKey, expectedKey) == 1, nil
 }
 
-func parseParam(value string, key string) (int, error) {
+func parseUint32Param(value string, key string, max uint32) (uint32, error) {
+	parsed, err := parseUintParam(value, key, 32, uint64(max))
+	return uint32(parsed), err
+}
+
+func parseUint8Param(value string, key string, max uint8) (uint8, error) {
+	parsed, err := parseUintParam(value, key, 8, uint64(max))
+	return uint8(parsed), err
+}
+
+func parseUintParam(value string, key string, bitSize int, max uint64) (uint64, error) {
 	prefix := key + "="
 	if !strings.HasPrefix(value, prefix) {
 		return 0, fmt.Errorf("missing password hash param %s", key)
 	}
-	parsed, err := strconv.Atoi(strings.TrimPrefix(value, prefix))
+	parsed, err := strconv.ParseUint(strings.TrimPrefix(value, prefix), 10, bitSize)
 	if err != nil {
 		return 0, fmt.Errorf("parse password hash param %s: %w", key, err)
 	}
+	if parsed == 0 || parsed > max {
+		return 0, fmt.Errorf("password hash param %s out of range", key)
+	}
 	return parsed, nil
+}
+
+func decodePasswordHashPart(encoded string, name string, expectedBytes int) ([]byte, error) {
+	if len(encoded) != base64.RawStdEncoding.EncodedLen(expectedBytes) {
+		return nil, fmt.Errorf("invalid password hash %s length", name)
+	}
+	decoded, err := base64.RawStdEncoding.DecodeString(encoded)
+	if err != nil {
+		return nil, fmt.Errorf("decode password hash %s: %w", name, err)
+	}
+	if len(decoded) != expectedBytes {
+		return nil, fmt.Errorf("invalid password hash %s length", name)
+	}
+	return decoded, nil
 }

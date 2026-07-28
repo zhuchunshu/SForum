@@ -62,6 +62,38 @@ siteAnnouncements:
             schema:
               "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteAnnouncementList"
 
+adminSiteBrandAssets:
+  post:
+    summary: Upload a site brand image
+    operationId: adminUploadSiteBrandAsset
+    tags: [Site chrome]
+    description: Requires settings.site.manage. Stores an active public image for a logo, favicon, or Apple Touch icon draft. SVG input is parsed and rasterized to a bounded transparent PNG before storage; executable SVG source is never published. The corresponding web options are saved separately.
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [context, file]
+            properties:
+              context:
+                type: string
+                enum: [logo, favicon, apple-touch-icon]
+              file:
+                type: string
+                format: binary
+    responses:
+      '201':
+        description: Public image uploaded and ready to be assigned to the brand options.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteBrandAsset"
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+      '503': { "$ref": "../components/responses.yaml#/ServiceUnavailable" }
+
 adminSiteNavigation:
   get:
     summary: Read editable navigation document

@@ -95,7 +95,12 @@ const fieldTypes = new Set<AdminSurfaceField['type']>(['text', 'textarea', 'numb
 
 export function resolveAdminSurfacePlacement(pageId: string): AdminSurfacePlacement | undefined {
   const normalized = normalizeAdminSurfaceRoute(pageId)
-  const exact = adminSurfacePlacements.find(item => item.route === normalized)
+  const placementRoutes = normalized === '/admin/attachments/manager'
+    ? [normalized, '/admin/attachments']
+    : [normalized]
+  const exact = placementRoutes
+    .map(route => adminSurfacePlacements.find(item => item.route === route))
+    .find((item): item is AdminSurfacePlacement => Boolean(item))
   if (exact) return exact
 
   return adminSurfacePlacements.find(item => routePatternMatches(item.route, normalized))
@@ -104,6 +109,7 @@ export function resolveAdminSurfacePlacement(pageId: string): AdminSurfacePlacem
 export function adminSurfacePlacementPageId(placementId?: string) {
   const placement = adminSurfacePlacements.find(item => item.id === placementId)
   if (!placement || placement.route.includes(':')) return undefined
+  if (placement.id === 'core.component.page.admin.attachments') return '/attachments/manager'
   return placement.route === '/admin' ? '/' : placement.route.replace(/^\/admin/, '') || '/'
 }
 

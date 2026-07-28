@@ -493,6 +493,43 @@ func TestLoadFallsBackForInvalidWorkerConfig(t *testing.T) {
 	}
 }
 
+func TestLoadBoundsDatabasePoolConnectionsToInt32(t *testing.T) {
+	t.Setenv("APP_ENV", "test")
+	clearJobQueueEnv(t)
+
+	for _, key := range []string{
+		"DATABASE_MAX_CONNS",
+		"DATABASE_MIN_CONNS",
+		"WORKER_DATABASE_MAX_CONNS",
+		"WORKER_DATABASE_MIN_CONNS",
+	} {
+		t.Setenv(key, "2147483647")
+	}
+	maximum := Load()
+	if maximum.DatabaseMaxConns != 2147483647 || maximum.DatabaseMinConns != 2147483647 ||
+		maximum.WorkerDatabaseMaxConns != 2147483647 || maximum.WorkerDatabaseMinConns != 2147483647 {
+		t.Fatalf("expected int32 maximum database pool values, got api=%d/%d worker=%d/%d",
+			maximum.DatabaseMaxConns, maximum.DatabaseMinConns,
+			maximum.WorkerDatabaseMaxConns, maximum.WorkerDatabaseMinConns)
+	}
+
+	for _, key := range []string{
+		"DATABASE_MAX_CONNS",
+		"DATABASE_MIN_CONNS",
+		"WORKER_DATABASE_MAX_CONNS",
+		"WORKER_DATABASE_MIN_CONNS",
+	} {
+		t.Setenv(key, "2147483648")
+	}
+	overflow := Load()
+	if overflow.DatabaseMaxConns != 10 || overflow.DatabaseMinConns != 2 ||
+		overflow.WorkerDatabaseMaxConns != 10 || overflow.WorkerDatabaseMinConns != 2 {
+		t.Fatalf("expected overflowing database pool values to fall back, got api=%d/%d worker=%d/%d",
+			overflow.DatabaseMaxConns, overflow.DatabaseMinConns,
+			overflow.WorkerDatabaseMaxConns, overflow.WorkerDatabaseMinConns)
+	}
+}
+
 func TestLoadClampsSessionAbsoluteTimeoutToIdleTimeout(t *testing.T) {
 	t.Setenv("APP_ENV", "test")
 	t.Setenv("SESSION_IDLE_TIMEOUT", "24h")

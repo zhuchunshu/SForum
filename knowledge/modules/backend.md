@@ -75,7 +75,9 @@ beyond the earlier search/cache read-path work:
   `sharedRedisClient`; session storage stays separate. Close-chain leak fixed.
 - **PostgreSQL**: `postgres.NewPoolWithOptions` + `PoolOptions` expose
   MinConns/MaxConnIdleTime/MaxConnLifetime/ConnectTimeout for both API and
-  worker pools.
+  worker pools. API and worker min/max connection environment values are parsed
+  directly into the positive `int32` range; invalid or overflowing values use
+  the environment-specific defaults instead of wrapping negative.
 - **Meilisearch**: `search.NewClientWithTimeout` injects `http.Client.Timeout`
   (default 5s); `go mod tidy` promoted `meilisearch-go` to a direct dependency.
 - Decision record: `decisions/2026-07-08-performance-hardening.md`.

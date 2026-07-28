@@ -123,7 +123,7 @@
 ### [ ] L2. 图片 EXIF/GPS 元数据未清洗
 - **位置**：`apps/api/app/Models/Attachments/service.go:397-408`（仅 `image.DecodeConfig` 读尺寸，字节原样存储；4MB LimitReader 已防解码 DoS）。
 - **修复方向**：存储前去除 EXIF/重编码（隐私）。
-- **待办（2026-07-09）**：降级处理。avatar 上传路径（含人脸照片，隐私最敏感）已通过 `prepareAvatarUpload` 的 imaging 重编码去除 EXIF；通用附件的完整 EXIF 清洗需重构上传字节流（影响 sha256/size/多格式 encoder），收益（低危隐私）与成本不匹配。建议后续在附件存储层引入统一的图片处理管线时一并实现。
+- **待办（2026-07-09）**：降级处理。avatar 上传路径（含人脸照片，隐私最敏感）已通过 `prepareAvatarUpload` 的图片重编码去除 EXIF；通用附件的完整 EXIF 清洗需重构上传字节流（影响 sha256/size/多格式 encoder），收益（低危隐私）与成本不匹配。建议后续在附件存储层引入统一的图片处理管线时一并实现。
 
 ### [x] L3. `Forum.paramInt` 解析失败静默返回 0
 - **位置**：`apps/api/app/Http/Controllers/Forum/controller.go:458`（`paramInt`）、`:453`（`queryInt`）。当前靠 `GetTopic` 的 `topicID<=0 → 404` 兜底安全，但与 `Identity`（`controller.go:559` `paramInt64` 返回 error → 422）不一致，纵深防御风险。

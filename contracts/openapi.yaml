@@ -351,6 +351,8 @@ paths:
     "$ref": "./openapi/paths/pages.yaml#/adminPageRestoreCore"
   "/admin/site/nav-items":
     "$ref": "./openapi/paths/site_chrome.yaml#/adminSiteNavItems"
+  "/admin/site/brand-assets":
+    "$ref": "./openapi/paths/site_chrome.yaml#/adminSiteBrandAssets"
   "/admin/site/nav-items/{itemID}":
     "$ref": "./openapi/paths/site_chrome.yaml#/adminSiteNavItemByID"
   "/admin/site/navigation":

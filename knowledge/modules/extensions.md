@@ -179,7 +179,9 @@ Decision: `../decisions/2026-07-22-external-extension-source-roots.md`.
   `/_sforum/private-assets`. Route Registry contributions cannot claim either.
 - Route Registry supports add, alias, redirect, rewrite, before/after/filter,
   wrap/replace, global middleware, uploads, opaque streams, SSE, and WebSocket
-  on declared public/admin/API methods and paths.
+  on declared public/admin/API methods and paths. Final redirect output accepts
+  only absolute-path references without query, fragment, CR/LF, or backslash;
+  this remains enforced even for restored or otherwise prebuilt plans.
 - Core-owned handlers keep authoritative policy checks. A trusted replacement
   handler or custom guard owns only the authorization contract it explicitly
   declares and must remain inspectable/auditable.

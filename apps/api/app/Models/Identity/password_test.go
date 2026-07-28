@@ -1,6 +1,10 @@
 package identity
 
-import "testing"
+import (
+	"fmt"
+	"strings"
+	"testing"
+)
 
 func TestHashAndVerifyPassword(t *testing.T) {
 	hash, err := HashPassword("correct horse battery staple")
@@ -32,6 +36,61 @@ func TestVerifyPasswordRejectsWrongPassword(t *testing.T) {
 	}
 	if ok {
 		t.Fatal("expected wrong password to fail")
+	}
+}
+
+func TestVerifyPasswordRejectsUnsafeArgon2Parameters(t *testing.T) {
+	hash, err := HashPassword("correct horse battery staple")
+	if err != nil {
+		t.Fatalf("HashPassword returned error: %v", err)
+	}
+
+	tests := []struct {
+		name        string
+		oldParam    string
+		unsafeParam string
+	}{
+		{name: "memory zero", oldParam: "m=65536", unsafeParam: "m=0"},
+		{name: "memory below Argon2 minimum", oldParam: "m=65536", unsafeParam: "m=31"},
+		{name: "memory above cost limit", oldParam: "m=65536", unsafeParam: "m=65537"},
+		{name: "memory uint32 wrap", oldParam: "m=65536", unsafeParam: "m=4295032832"},
+		{name: "time zero", oldParam: "t=1", unsafeParam: "t=0"},
+		{name: "time above cost limit", oldParam: "t=1", unsafeParam: "t=2"},
+		{name: "time uint32 wrap", oldParam: "t=1", unsafeParam: "t=4294967297"},
+		{name: "threads zero", oldParam: "p=4", unsafeParam: "p=0"},
+		{name: "threads above cost limit", oldParam: "p=4", unsafeParam: "p=5"},
+		{name: "threads uint8 wrap", oldParam: "p=4", unsafeParam: "p=260"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			unsafeHash := strings.Replace(hash, tt.oldParam, tt.unsafeParam, 1)
+			if ok, err := VerifyPassword("correct horse battery staple", unsafeHash); err == nil || ok {
+				t.Fatalf("expected unsafe params to fail before Argon2, ok=%v err=%v", ok, err)
+			}
+		})
+	}
+}
+
+func TestVerifyPasswordRejectsUnexpectedSaltAndKeyLengths(t *testing.T) {
+	hash, err := HashPassword("correct horse battery staple")
+	if err != nil {
+		t.Fatalf("HashPassword returned error: %v", err)
+	}
+
+	parts := strings.Split(hash, "$")
+	if len(parts) != 6 {
+		t.Fatalf("unexpected generated hash format: %q", hash)
+	}
+
+	for _, index := range []int{4, 5} {
+		t.Run(fmt.Sprintf("part %d", index), func(t *testing.T) {
+			changed := append([]string(nil), parts...)
+			changed[index] += "AA"
+			if ok, err := VerifyPassword("correct horse battery staple", strings.Join(changed, "$")); err == nil || ok {
+				t.Fatalf("expected unexpected hash part length to fail, ok=%v err=%v", ok, err)
+			}
+		})
 	}
 }
 

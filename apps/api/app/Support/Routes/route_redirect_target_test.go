@@ -140,7 +140,10 @@ func TestRedirectLocationPreservesEscapesAndRejectsNonPathReferences(t *testing.
 			t.Fatalf("location %q = %q, %v", test.path, got, err)
 		}
 	}
-	for _, path := range []string{"", "relative", "//evil.example/path", "https://evil.example/path", "/path?query=1", "/path#fragment", "/bad\r\nvalue"} {
+	for _, path := range []string{
+		"", "relative", "//evil.example/path", "/\\evil.example/path", "https://evil.example/path",
+		"/safe\\segment", "/path?query=1", "/path#fragment", "/bad\r\nvalue",
+	} {
 		if _, err := routeRedirectLocation(RouteExecutionStep{TargetID: "core.route.target", TargetPath: path}); !errors.Is(err, ErrInvalidExecutionPlan) {
 			t.Fatalf("invalid location %q error = %v", path, err)
 		}

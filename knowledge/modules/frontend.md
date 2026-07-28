@@ -27,6 +27,19 @@ responsibilities.
 
 ## Active Work
 
+### Personalization brand asset upload
+
+- The Brand tab exposes compact click-or-drop upload controls for the site
+  logo, favicon, and Apple Touch icon. Successful uploads fill both the public
+  URL and numeric attachment ID, show a small preview, and remain draft state
+  until the operator saves the brand options.
+- Manual URL edits clear the prior attachment ID so presentation and attachment
+  lifecycle ownership cannot silently diverge. Replace/remove, loading, field
+  error, and ten-second success toast states are explicit.
+- File selection accepts SVG in addition to JPG, PNG, GIF, and WebP. The API
+  returns the safe rasterized PNG URL and attachment ID for the same preview and
+  save flow.
+
 ### Canonical public search route
 
 - Public keyword search now owns `/search?q=...` and the replaceable Page

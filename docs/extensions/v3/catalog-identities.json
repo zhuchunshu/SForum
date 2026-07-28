@@ -2367,7 +2367,27 @@
         "admin"
       ],
       "state": "active",
-      "source": "apps/web/app/pages/admin/attachments.vue"
+      "source": "apps/web/app/pages/admin/attachments/manager.vue"
+    },
+    {
+      "id": "core.component.page.admin.attachments.redirect",
+      "contractVersion": "sforum.component.page.admin.attachments.redirect@1",
+      "kind": "page",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/pages/admin/attachments/index.vue"
+    },
+    {
+      "id": "core.component.page.admin.attachments.settings",
+      "contractVersion": "sforum.component.page.admin.attachments.settings@1",
+      "kind": "page",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/pages/admin/attachments/settings.vue"
     },
     {
       "id": "core.component.page.admin.database",

@@ -93,6 +93,16 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Admin attachment navigation: Basic Configuration and Attachment Management
+  are now independent permission-aware routes under Attachment Settings; the
+  old URL redirects compatibly and the governance extension placement follows
+  Attachment Management; operator verification remains:
+  `sessions/2026-07-29-admin-attachment-submenus-handoff.md`
+- Personalization brand assets: compact click/drag uploads now auto-fill URL
+  plus attachment ID and show previews; brand SVG is safely rasterized to PNG
+  without weakening the ordinary attachment denylist:
+  `sessions/2026-07-29-personalization-brand-asset-upload.md`,
+  `decisions/2026-07-29-brand-svg-rasterization.md`
 - Category directory layout: removed the duplicate desktop top offset, moved
   group focus into the main toolbar, and reduced both side rails; immutable
   theme refresh and desktop/mobile manual verification remain:
@@ -116,7 +126,11 @@ load archived sessions or completed plans as current context.
 - GitHub Actions and security remediation: reusable CI/security checks, four
   multi-platform GHCR images, version-pinned deployment, gRPC remediation, and
   Fiber `v3.4.0` across all 18 source Go modules with session failure cleanup;
-  the Buf tool graph now uses patched CEL, text, and compression dependencies:
+  the Buf tool graph now uses patched CEL, text, and compression dependencies;
+  redirect targets, database pool integers, and stored Argon2 verification now
+  reject unsafe input before crossing their runtime boundaries; the unpatched
+  imaging dependency is gone and JPEG/PNG transforms now explicitly reject
+  TIFF:
   `sessions/2026-07-29-github-actions-release-pipeline-handoff.md`
 - Notification email opt-in defaults: admin per-type email control, Core
   transaction-scoped user preference enforcement, hard site gate, safe default

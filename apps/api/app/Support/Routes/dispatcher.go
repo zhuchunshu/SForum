@@ -165,7 +165,7 @@ func routeRedirectLocation(step RouteExecutionStep) (string, error) {
 	if step.TargetID != "" {
 		location = step.TargetPath
 	}
-	if location == "" || !strings.HasPrefix(location, "/") || strings.HasPrefix(location, "//") || strings.ContainsAny(location, "?#\r\n") {
+	if location == "" || !strings.HasPrefix(location, "/") || strings.HasPrefix(location, "//") || strings.ContainsAny(location, "?#\\\r\n") {
 		return "", fmt.Errorf("%w: redirect target path is invalid", ErrInvalidExecutionPlan)
 	}
 	parsed, err := url.ParseRequestURI(location)

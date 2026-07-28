@@ -63,6 +63,8 @@ for (const requiredPageId of [
   '/seo',
   '/database',
   '/attachments',
+  '/attachments/settings',
+  '/attachments/manager',
   '/forum/categories',
   '/forum/tags',
   '/forum/settings',
@@ -175,7 +177,9 @@ const adminPagePathsById: Record<string, string> = {
   '/moderation': 'apps/web/app/pages/admin/moderation.vue',
   '/seo': 'apps/web/app/pages/admin/seo.vue',
   '/database': 'apps/web/app/pages/admin/database.vue',
-  '/attachments': 'apps/web/app/pages/admin/attachments.vue',
+  '/attachments': 'apps/web/app/pages/admin/attachments/index.vue',
+  '/attachments/settings': 'apps/web/app/pages/admin/attachments/settings.vue',
+  '/attachments/manager': 'apps/web/app/pages/admin/attachments/manager.vue',
   '/forum/categories': 'apps/web/app/pages/admin/forum/categories.vue',
   '/forum/tags': 'apps/web/app/pages/admin/forum/tags.vue',
   '/forum/settings': 'apps/web/app/pages/admin/forum/settings.vue',
@@ -207,7 +211,7 @@ const adminPagePathsById: Record<string, string> = {
 }
 
 // 纯重定向页：只校验 layout + 组件名 + 不走 tab 手写
-const adminRedirectPageIds = new Set(['/site-chrome', '/settings/notifications', '/extensions/store'])
+const adminRedirectPageIds = new Set(['/site-chrome', '/settings/notifications', '/extensions/store', '/attachments'])
 // 商城货架：页内用共享组件注册 useAdminPage，不强制 UDashboardToolbar
 const adminStoreShelfPageIds = new Set(['/extensions/store/themes', '/extensions/store/plugins'])
 const adminStoreShelfComponent = 'apps/web/app/components/admin/SFAdminExtensionStoreShelf.vue'
@@ -352,6 +356,16 @@ assert(
   !firstSidebarGroup.some(entry => entry.type === 'page' && (entry.pageId === '/database' || entry.pageId === '/jobs')),
   'Database and jobs should live under the operations folder, not the top-level sidebar'
 )
+const attachmentsFolder = firstSidebarGroup.find(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.attachments')
+assert(attachmentsFolder, 'Admin sidebar should expose attachment settings as a folder')
+assert(
+  !firstSidebarGroup.some(entry => entry.type === 'page' && entry.pageId === '/attachments'),
+  'Attachment settings should expose Basic Configuration and Attachment Management as submenus'
+)
+assert(
+  attachmentsFolder.children?.map(entry => entry.pageId).join(',') === '/attachments/settings,/attachments/manager',
+  'Attachment settings folder should expose independent settings and manager routes'
+)
 const extensionFolderIndex = firstSidebarGroup.findIndex(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.extensions')
 const extensionStoreFolderIndex = firstSidebarGroup.findIndex(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.extensionStore')
 const operationsFolderIndex = firstSidebarGroup.findIndex(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.operations')
@@ -373,6 +387,9 @@ assert(isAdminNavigationEntryActive(operationsFolder, '/jobs'), 'Operations fold
 assert(!isAdminNavigationEntryActive(systemFolder, '/database'), 'System folder should not be active for operations child pages')
 assert(shouldOpenAdminNavigationEntry(extensionFolder, '/extensions/themes'), 'Active sidebar folders should open initially')
 assert(shouldOpenAdminNavigationEntry(operationsFolder, '/jobs'), 'Active operations folder should open initially')
+assert(isAdminNavigationEntryActive(attachmentsFolder, '/attachments/settings'), 'Attachment folder should be active for Basic Configuration')
+assert(isAdminNavigationEntryActive(attachmentsFolder, '/attachments/manager'), 'Attachment folder should be active for Attachment Management')
+assert(shouldOpenAdminNavigationEntry(attachmentsFolder, '/attachments/manager'), 'Attachment folder should open for its active submenu')
 assert(shouldOpenAdminNavigationEntry(extensionFolder, '/extensions/sforum.default-theme/pages/about'), 'Extension folder should open for dynamic extension admin pages')
 assert(!shouldOpenAdminNavigationEntry(systemFolder, '/extensions/themes'), 'Inactive sidebar folders should stay collapsed by default')
 assert(firstSidebarGroup

@@ -15,9 +15,10 @@ import (
 )
 
 type Controller struct {
-	service  *sitechrome.Service
-	users    identity.ActorStore
-	sessions *authsession.Manager
+	service     *sitechrome.Service
+	brandAssets *sitechrome.BrandAssetService
+	users       identity.ActorStore
+	sessions    *authsession.Manager
 }
 
 func NewController(service *sitechrome.Service, users identity.ActorStore, sessions *authsession.Manager) *Controller {

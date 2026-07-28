@@ -20,8 +20,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/disintegration/imaging"
-
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
@@ -856,7 +854,7 @@ func prepareAvatarUpload(input UploadInput, avatarOptions options.AvatarOptions)
 	if _, err := input.File.Seek(0, io.SeekStart); err != nil {
 		return preparedUpload{}, err
 	}
-	img, err := imaging.Decode(input.File, imaging.AutoOrientation(true))
+	img, _, err := decodeAutoOrientedImage(input.File)
 	if err != nil {
 		return preparedUpload{}, ErrInvalidAttachment
 	}
@@ -864,7 +862,7 @@ func prepareAvatarUpload(input UploadInput, avatarOptions options.AvatarOptions)
 	if target <= 0 {
 		target = 256
 	}
-	processed := imaging.Fill(img, target, target, imaging.Center, imaging.Lanczos)
+	processed := centerFillImage(img, target, target)
 	var buf bytes.Buffer
 	if err := jpeg.Encode(&buf, processed, &jpeg.Options{Quality: avatarOptions.CompressQuality}); err != nil {
 		return preparedUpload{}, err

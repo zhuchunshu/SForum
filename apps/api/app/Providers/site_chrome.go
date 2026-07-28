@@ -13,6 +13,13 @@ type SiteChromeProvider struct {
 	controller *sitechromecontroller.Controller
 }
 
+func (p *SiteChromeProvider) WithBrandAssets(uploader sitechrome.BrandAssetUploader) *SiteChromeProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithBrandAssets(sitechrome.NewBrandAssetService(uploader))
+	}
+	return p
+}
+
 func NewSiteChromeProvider(store sitechrome.Store, users identity.ActorStore, sessions *authsession.Manager) *SiteChromeProvider {
 	return NewSiteChromeProviderWithExtensionNav(store, users, sessions, nil)
 }

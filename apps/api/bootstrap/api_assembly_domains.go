@@ -352,7 +352,8 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		WithNavigationCommandDependencies(siteChromeStore, auditWriter, options.NewPublicSurfaceRevisionTxBumper(optionsService))
 	// HTTP and Page Registry intentionally share this resolver. A separate API
 	// service would lose the lifecycle-published exact-artifact graph.
-	siteChromeProvider := providers.NewSiteChromeProviderWithService(pageSiteChromeService, identityStore, authSessions)
+	siteChromeProvider := providers.NewSiteChromeProviderWithService(pageSiteChromeService, identityStore, authSessions).
+		WithBrandAssets(attachmentService)
 	// 导航检查器复用 SiteChrome 内部 trace ring，保证合成与审计同源。
 	extensionsProvider.WithNavigationInspector(pageSiteChromeService.NavigationInspector())
 	corePageViews := pageviewmodels.NewCorePageViewModelSource(pageviewmodels.CorePageViewModelDependencies{

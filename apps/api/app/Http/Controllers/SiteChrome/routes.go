@@ -11,6 +11,7 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 
 	// 管理：settings.site.manage。
 	admin := api.Group("/admin/site")
+	admin.Post("/brand-assets", h.adminUploadBrandAsset)
 	admin.Get("/nav-items", h.adminNavItems)
 	admin.Post("/nav-items", h.adminCreateNavItem)
 	admin.Patch("/nav-items/:itemID", h.adminUpdateNavItem)

@@ -13,6 +13,8 @@ describe('admin surface consumers', () => {
       contractVersion: 'sforum.component.page.admin.users@1',
       route: '/admin/users'
     })
+    expect(resolveAdminSurfacePlacement('/attachments/manager')?.id).toBe('core.component.page.admin.attachments')
+    expect(adminSurfacePlacementPageId('core.component.page.admin.attachments')).toBe('/attachments/manager')
     expect(resolveAdminSurfacePlacement('/extensions/demo.plugin/pages/audit/log')).toEqual({
       id: 'core.component.page.admin.extensions.extension.id.pages.page.path',
       contractVersion: 'sforum.component.page.admin.extensions.extension.id.pages.page.path@1',

@@ -7,7 +7,6 @@ require (
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible
 	github.com/altcha-org/altcha-lib-go/v2 v2.0.0-20260512100103-f14102c7e9bd
 	github.com/charmbracelet/huh v1.0.0
-	github.com/disintegration/imaging v1.6.2
 	github.com/evanphx/json-patch/v5 v5.9.11
 	github.com/fasthttp/websocket v1.5.12
 	github.com/gofiber/fiber/v3 v3.4.0
@@ -26,13 +25,17 @@ require (
 	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.40.0
 	github.com/riverqueue/river/rivertype v0.40.0
 	github.com/robfig/cron/v3 v3.0.1
+	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/spf13/cobra v1.10.2
+	github.com/srwiley/oksvg v0.0.0-20221011165216-be6e8873101c
+	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef
 	github.com/tailscale/hujson v0.0.0-20260302212456-ecc657c15afd
 	github.com/tencentyun/cos-go-sdk-v5 v0.7.74
 	github.com/valyala/fasthttp v1.72.0
 	github.com/yuin/goldmark v1.8.2
 	golang.org/x/crypto v0.53.0
+	golang.org/x/image v0.43.0
 	golang.org/x/net v0.56.0
 	golang.org/x/sys v0.46.0
 	golang.org/x/text v0.39.0
@@ -108,7 +111,6 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/goleak v1.3.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/image v0.43.0 // indirect
 	golang.org/x/sync v0.21.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260420184626-e10c466a9529 // indirect

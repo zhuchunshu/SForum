@@ -27,6 +27,22 @@
   dependency from `v0.28.1` to `v0.29.0`, resolving the Dependabot CEL field
   visibility advisory. The same tool graph now selects patched
   `golang.org/x/text v0.39.0` and `github.com/klauspost/compress v1.18.7`.
+- Hardened the Route Registry's final redirect response boundary to reject
+  backslashes, preventing browser normalization of `/\\host/...` into an
+  external network-path redirect even if an invalid execution plan bypasses
+  declaration-time path validation.
+- Replaced unchecked database pool `int` to `int32` casts with bounded parsing
+  for API and worker min/max connection environment variables. Values outside
+  `1..2147483647` now follow the existing invalid-config fallback contract.
+- Hardened stored Argon2id hash verification: `m`, `t`, and `p` now use
+  unsigned width checks plus the current Host cost ceilings before derivation,
+  and salt/key lengths are rejected before Base64 allocation when they do not
+  match the generated format. Values that previously wrapped back to valid
+  `uint32`/`uint8` parameters no longer reach Argon2.
+- Removed unpatched `github.com/disintegration/imaging v1.6.2` from Core and
+  the media optimization fixture. JPEG/PNG transforms now use
+  `golang.org/x/image/draw`; bounded `rwcarlsen/goexif` orientation reads retain
+  phone-photo rotation, and TIFF is explicitly rejected before transform.
 
 ## Decisions
 
@@ -55,6 +71,19 @@
   `v1.36.11`, and protoc-gen-go-grpc `1.6.2`. Binary `govulncheck` on Buf with
   `cel-go v0.29.0`, `x/text v0.39.0`, and `compress v1.18.7` found zero
   reachable vulnerabilities; the CEL, x/text, and S2 advisories are absent.
+- The redirect backslash regression test, full `Support/Routes` package, and
+  HTTP redirect/alias/rewrite focused tests passed.
+- Database pool maximum-bound and overflow regression tests passed together
+  with the full config and PostgreSQL pool packages.
+- The full Identity model package passed with regression coverage for Argon2
+  zero, cost-limit, integer-wrap, minimum-memory, salt-length, and key-length
+  rejection while normal and wrong-password verification remain green.
+- Core Attachments and the media optimization fixture tests and `go vet`
+  passed. Tests cover eight EXIF transforms, a real orientation-bearing JPEG,
+  output dimensions, and TIFF rejection. Both focused `govulncheck` runs found
+  zero reachable vulnerabilities, and neither module graph contains
+  `disintegration/imaging`. The real media optimization plugin subprocess
+  integration test also rebuilt, started, and completed successfully.
 - A full repository gate rerun reached the PostgreSQL integration suite but was
   interrupted by one transient migration error (`could not open relation with
   OID`) in `TestNotificationReferencePluginEmitsThroughRealBroker`. The exact
@@ -73,8 +102,8 @@
   linked to `zhuchunshu/SForum`.
 - Make the CI and Security checks required after the initial `main` baseline is
   green.
-- Decide how to handle the unpatched `disintegration/imaging` TIFF panic
-  advisory.
+- Review the remaining CodeQL findings that may be false positives or bounded
+  hardening opportunities before changing behavior.
 
 ## Open Questions
 

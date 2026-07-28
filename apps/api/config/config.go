@@ -141,8 +141,8 @@ func Load() Config {
 	// 开发态默认更瘦的 River / 连接池，避免本地 idle 撑满生产档并发槽位。
 	// 非 development（含 production/test）保持生产规模默认；显式环境变量始终优先。
 	jobDefaults := productionJobQueueDefaults()
-	dbMaxConnsDefault := 10
-	dbMinConnsDefault := 2
+	dbMaxConnsDefault := int32(10)
+	dbMinConnsDefault := int32(2)
 	redisPoolDefault := 20
 	redisMinIdleDefault := 5
 	if isDev {
@@ -169,14 +169,14 @@ func Load() Config {
 		// 默认启用 TLS（sslmode=require）；本地开发无 TLS 的 Postgres 需显式设置 sslmode=disable。
 		DatabaseURL:                   env("DATABASE_URL", "postgres://sforum:sforum@postgres:5432/sforum?sslmode=require"),
 		MigrateOnStartup:              envBool("MIGRATE_ON_STARTUP", true),
-		DatabaseMaxConns:              int32(envPositiveInt("DATABASE_MAX_CONNS", dbMaxConnsDefault)),
-		DatabaseMinConns:              int32(envPositiveInt("DATABASE_MIN_CONNS", dbMinConnsDefault)),
+		DatabaseMaxConns:              envPositiveInt32("DATABASE_MAX_CONNS", dbMaxConnsDefault),
+		DatabaseMinConns:              envPositiveInt32("DATABASE_MIN_CONNS", dbMinConnsDefault),
 		DatabaseMaxConnIdleTime:       envDuration("DATABASE_MAX_CONN_IDLE_TIME", 30*time.Minute),
 		DatabaseMaxConnLifetime:       envDuration("DATABASE_MAX_CONN_LIFETIME", time.Hour),
 		DatabaseConnectTimeout:        envDuration("DATABASE_CONNECT_TIMEOUT", 10*time.Second),
 		EmbedWorkerInAPI:              envBool("EMBED_WORKER_IN_API", strings.EqualFold(appEnv, "development")),
-		WorkerDatabaseMaxConns:        int32(envPositiveInt("WORKER_DATABASE_MAX_CONNS", dbMaxConnsDefault)),
-		WorkerDatabaseMinConns:        int32(envPositiveInt("WORKER_DATABASE_MIN_CONNS", dbMinConnsDefault)),
+		WorkerDatabaseMaxConns:        envPositiveInt32("WORKER_DATABASE_MAX_CONNS", dbMaxConnsDefault),
+		WorkerDatabaseMinConns:        envPositiveInt32("WORKER_DATABASE_MIN_CONNS", dbMinConnsDefault),
 		WorkerDatabaseMaxConnIdleTime: envDuration("WORKER_DATABASE_MAX_CONN_IDLE_TIME", 30*time.Minute),
 		WorkerDatabaseMaxConnLifetime: envDuration("WORKER_DATABASE_MAX_CONN_LIFETIME", time.Hour),
 		WorkerDatabaseConnectTimeout:  envDuration("WORKER_DATABASE_CONNECT_TIMEOUT", 10*time.Second),
@@ -375,6 +375,18 @@ func envPositiveInt(key string, fallback int) int {
 		return fallback
 	}
 	return value
+}
+
+func envPositiveInt32(key string, fallback int32) int32 {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || parsed <= 0 || parsed > int64(1<<31-1) {
+		return fallback
+	}
+	return int32(parsed)
 }
 
 func envBool(key string, fallback bool) bool {

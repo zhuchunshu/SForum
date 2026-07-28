@@ -172,9 +172,23 @@ export const adminPageDefinitions = [
     id: '/attachments',
     labelKey: 'admin.nav.attachments',
     icon: 'i-lucide-paperclip',
-    componentName: 'AdminAttachments',
+    componentName: 'AdminAttachmentsRedirect',
     requiredPermissions: ['attachment.settings.manage', 'attachment.manage'],
     permissionMode: 'any'
+  },
+  {
+    id: '/attachments/settings',
+    labelKey: 'admin.attachments.tabs.settings',
+    icon: 'i-lucide-sliders-horizontal',
+    componentName: 'AdminAttachmentSettings',
+    requiredPermissions: ['attachment.settings.manage']
+  },
+  {
+    id: '/attachments/manager',
+    labelKey: 'admin.attachments.tabs.manager',
+    icon: 'i-lucide-folder-search',
+    componentName: 'AdminAttachmentManager',
+    requiredPermissions: ['attachment.manage']
   },
   {
     id: '/forum/categories',
@@ -480,7 +494,15 @@ export const adminSidebarNavigation = [
         { type: 'page', pageId: '/webhooks' }
       ]
     },
-    { type: 'page', pageId: '/attachments' }
+    {
+      type: 'folder',
+      labelKey: 'admin.nav.attachments',
+      icon: 'i-lucide-paperclip',
+      children: [
+        { type: 'page', pageId: '/attachments/settings' },
+        { type: 'page', pageId: '/attachments/manager' }
+      ]
+    }
   ],
   [
     {
