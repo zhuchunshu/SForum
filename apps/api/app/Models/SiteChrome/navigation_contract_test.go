@@ -25,26 +25,62 @@ func TestNavigationV1ContractIsFrozen(t *testing.T) {
 			t.Fatalf("location[%d] = %q, want %q", index, locations[index], location)
 		}
 	}
-	if NavigationMaxDefinitions <= 0 || NavigationMaxPlacements < NavigationMaxDefinitions || NavigationMaxSnapshots != 20 {
-		t.Fatalf("unexpected navigation bounds: definitions=%d placements=%d snapshots=%d", NavigationMaxDefinitions, NavigationMaxPlacements, NavigationMaxSnapshots)
+	if NavigationMaxDefinitions <= 0 || NavigationMaxPlacements < NavigationMaxDefinitions || NavigationMaxSnapshots != 20 || NavigationMaxDynamicItems != 100 {
+		t.Fatalf("unexpected navigation bounds: definitions=%d placements=%d snapshots=%d dynamicItems=%d", NavigationMaxDefinitions, NavigationMaxPlacements, NavigationMaxSnapshots, NavigationMaxDynamicItems)
 	}
 	if NavigationPreviewChangeLocation != "location" || NavigationPreviewChangeDefinitions != "definitions" || NavigationPreviewWarningExtensionReferenceInert != "extension_reference_inert" {
 		t.Fatalf("unexpected navigation preview vocabulary: %q %q %q", NavigationPreviewChangeLocation, NavigationPreviewChangeDefinitions, NavigationPreviewWarningExtensionReferenceInert)
 	}
 	defaults := NavigationRecommendedPlacements()
-	if len(defaults) != 14 {
-		t.Fatalf("recommended placement count = %d, want 14", len(defaults))
+	if len(defaults) != 10 {
+		t.Fatalf("recommended placement count = %d, want 10", len(defaults))
+	}
+	wantByLocation := map[string]int{
+		NavigationLocationTopbar:  3,
+		NavigationLocationSidebar: 4,
+		NavigationLocationMobile:  3,
+		NavigationLocationFooter:  0,
 	}
 	for _, location := range locations {
-		found := false
+		count := 0
 		for _, placement := range defaults {
 			if placement.Location == location {
-				found = true
-				break
+				count++
 			}
 		}
-		if !found {
-			t.Fatalf("recommended defaults missing %q", location)
+		if count != wantByLocation[location] {
+			t.Fatalf("recommended defaults for %q = %d, want %d", location, count, wantByLocation[location])
+		}
+	}
+}
+
+func TestNavigationDynamicItemLimitIsBoundedAndSourceSpecific(t *testing.T) {
+	valid := NavigationDocument{Placements: []NavigationPlacement{{
+		SourceKey: "core.dynamic.categories", Location: NavigationLocationSidebar, Order: 40,
+		Enabled: true, Visibility: NavigationVisibilityPublic, MaxItems: 12,
+	}}}
+	if normalized, err := normalizeNavigationDocument(valid); err != nil || normalized.Placements[0].MaxItems != 12 {
+		t.Fatalf("valid dynamic item limit normalized=%#v err=%v", normalized, err)
+	}
+	restored := navigationDefaultsDocument(valid, []string{NavigationLocationSidebar})
+	foundDynamic := false
+	for _, placement := range restored.Placements {
+		if placement.SourceKey == "core.dynamic.categories" {
+			foundDynamic = true
+			if placement.MaxItems != 0 {
+				t.Fatalf("recommended dynamic item limit = %d, want unlimited", placement.MaxItems)
+			}
+		}
+	}
+	if !foundDynamic {
+		t.Fatal("recommended sidebar defaults omitted dynamic categories")
+	}
+	for _, invalid := range []NavigationPlacement{
+		{SourceKey: "core.dynamic.categories", Location: NavigationLocationSidebar, Order: 40, Enabled: true, Visibility: NavigationVisibilityPublic, MaxItems: NavigationMaxDynamicItems + 1},
+		{SourceKey: "core.home", Location: NavigationLocationSidebar, Order: 10, Enabled: true, Visibility: NavigationVisibilityPublic, MaxItems: 5},
+	} {
+		if _, err := normalizeNavigationDocument(NavigationDocument{Placements: []NavigationPlacement{invalid}}); err != ErrInvalid {
+			t.Fatalf("invalid max-items placement accepted: %#v err=%v", invalid, err)
 		}
 	}
 }

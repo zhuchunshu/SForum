@@ -25,6 +25,8 @@ const props = withDefaults(defineProps<{
   maxCharacters?: number
   submitLabel?: string
   compact?: boolean
+  preset?: 'full' | 'basic-field'
+  ariaLabel?: string
   cancelLabel?: string
   supportLabel?: string
   // Host-admitted trusted L2 Tiptap extensions (digest-verified before pass-in).
@@ -42,6 +44,8 @@ const props = withDefaults(defineProps<{
   maxCharacters: 12000,
   submitLabel: '发布回复',
   compact: false,
+  preset: 'full',
+  ariaLabel: '正文编辑器',
   cancelLabel: '',
   supportLabel: '支持 Markdown',
   trustedExtensions: () => [],
@@ -71,6 +75,7 @@ const editorClass = computed(() => [
   props.disabled ? 'sf-editor--disabled' : '',
   props.error ? 'sf-editor--invalid' : '',
   props.compact ? 'sf-editor--compact' : '',
+  props.preset === 'basic-field' ? 'sf-editor--basic-field' : '',
   viewMode.value !== 'write' ? 'sf-editor--inspection' : ''
 ].filter(Boolean).join(' '))
 
@@ -117,12 +122,13 @@ const footerText = computed(() => {
   return `${count}${suffix} 字`
 })
 
-const catalogReady = ref(!props.loadTrustedCatalog)
+const shouldLoadTrustedCatalog = props.loadTrustedCatalog && props.preset === 'full'
+const catalogReady = ref(!shouldLoadTrustedCatalog)
 const admittedExtensions = shallowRef<unknown[]>(props.trustedExtensions || [])
 
 onMounted(async () => {
   let trusted = props.trustedExtensions || []
-  if (props.loadTrustedCatalog) {
+  if (shouldLoadTrustedCatalog) {
     try {
       const { loadAdmittedExtensions } = useTrustedEditorCatalog()
       const admitted = await loadAdmittedExtensions()
@@ -145,6 +151,7 @@ onMounted(async () => {
     extensions: createSFEditorExtensions({
       placeholder: props.placeholder,
       maxCharacters: props.maxCharacters,
+      preset: props.preset,
       trustedExtensions: trusted
     }) as AnyExtension[],
     onCreate: ({ editor: createdEditor }) => {
@@ -159,7 +166,7 @@ onMounted(async () => {
     editorProps: {
       attributes: {
         class: 'sf-editor__content',
-        'aria-label': '正文编辑器'
+        'aria-label': props.ariaLabel
       }
     }
   })
@@ -379,6 +386,7 @@ function submitContent() {
           <UIcon name="i-lucide-italic" class="sf-editor__tool-icon" />
         </button>
         <button
+          v-if="preset === 'full'"
           type="button"
           class="sf-editor__tool"
           :class="{ 'sf-editor__tool--active': isActive('underline') }"
@@ -390,6 +398,7 @@ function submitContent() {
           <UIcon name="i-lucide-underline" class="sf-editor__tool-icon" />
         </button>
         <button
+          v-if="preset === 'full'"
           type="button"
           class="sf-editor__tool"
           :class="{ 'sf-editor__tool--active': isActive('code') }"
@@ -402,6 +411,7 @@ function submitContent() {
         </button>
         <span class="sf-editor__separator" aria-hidden="true" />
         <button
+          v-if="preset === 'full'"
           type="button"
           class="sf-editor__tool"
           :class="{ 'sf-editor__tool--active': isActive('heading', { level: 2 }) }"
@@ -413,6 +423,7 @@ function submitContent() {
           H2
         </button>
         <button
+          v-if="preset === 'full'"
           type="button"
           class="sf-editor__tool"
           :class="{ 'sf-editor__tool--active': isActive('blockquote') }"
@@ -446,6 +457,7 @@ function submitContent() {
           <UIcon name="i-lucide-list-ordered" class="sf-editor__tool-icon" />
         </button>
         <button
+          v-if="preset === 'full'"
           type="button"
           class="sf-editor__tool"
           :class="{ 'sf-editor__tool--active': isActive('codeBlock') }"
@@ -469,6 +481,7 @@ function submitContent() {
           <UIcon name="i-lucide-link" class="sf-editor__tool-icon" />
         </button>
         <button
+          v-if="preset === 'full'"
           type="button"
           class="sf-editor__tool"
           title="插入图片"
@@ -479,6 +492,7 @@ function submitContent() {
           <UIcon name="i-lucide-image" class="sf-editor__tool-icon" />
         </button>
         <button
+          v-if="preset === 'full'"
           type="button"
           class="sf-editor__tool"
           title="自定义表情"
@@ -490,7 +504,7 @@ function submitContent() {
         </button>
       </div>
 
-      <div class="sf-editor__modes" aria-label="内容视图">
+      <div v-if="preset === 'full'" class="sf-editor__modes" aria-label="内容视图">
         <button
           v-for="mode in modeItems"
           :key="mode.value"
@@ -504,7 +518,7 @@ function submitContent() {
       </div>
     </div>
 
-    <div v-if="!compact && showEmojiPanel" class="sf-editor__emoji-panel">
+    <div v-if="!compact && preset === 'full' && showEmojiPanel" class="sf-editor__emoji-panel">
       <button
         v-for="emoji in sforumEditorEmojiItems"
         :key="emoji.name"
@@ -582,6 +596,14 @@ function submitContent() {
             {{ submitLabel }}
           </SFButton>
         </div>
+      </template>
+      <template v-else-if="preset === 'basic-field'">
+        <span
+          class="sf-editor__status"
+          :class="{ 'sf-editor__status--error': error }"
+        >
+          {{ footerText }}
+        </span>
       </template>
       <template v-else>
         <span

@@ -1422,6 +1422,10 @@
   background: var(--sf-muted);
 }
 
+.sf-editor--basic-field .sf-editor__topbar {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .sf-editor__toolbar {
   display: flex;
   flex-wrap: wrap;

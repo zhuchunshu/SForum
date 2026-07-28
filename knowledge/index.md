@@ -10,8 +10,9 @@ load archived sessions or completed plans as current context.
 
 - Status: **active, M0-M6 complete**; all four public locations share the
   canonical actor-sensitive navigation authority, sidebar taxonomy expands
-  through `core.dynamic.categories`, and exact active-theme capability is
-  projected from immutable runtime state. M7 is the final lifecycle and
+  through `core.dynamic.categories`, stored placements now match the admin
+  document (footer navigation defaults empty), and exact active-theme capability
+  is projected from immutable runtime state. M7 is the final lifecycle and
   release gate.
 - Plan: `plans/2026-07-27-configurable-public-navigation-platform.md`
 - Handoff:
@@ -92,6 +93,10 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Announcement authoring: labeled bilingual create form, field-oriented
+  SForum editor preset, time-window controls, local validation, and
+  server-sanitized Markdown presentation; operator Browser QA remains:
+  `sessions/2026-07-29-announcement-editor-handoff.md`
 - Missing-artifact uninstall routing: per-row cleanup now targets only the
   selected missing extension, ordinary lifecycle DELETE fails closed, and
   immutable publication history no longer causes refresh-time reappearance:

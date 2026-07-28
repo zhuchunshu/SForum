@@ -40,12 +40,6 @@ func (s *Service) ResolvePublicNavigation(
 		definitions[definition.SourceKey] = definition
 	}
 	placements := navigationPlacementsByKey(document.Placements)
-	for _, recommended := range NavigationRecommendedPlacements() {
-		key := navigationPlacementKey(recommended.SourceKey, recommended.Location)
-		if _, exists := placements[key]; !exists {
-			placements[key] = NavigationPlacement{SourceKey: recommended.SourceKey, Location: recommended.Location, Order: recommended.Order, Enabled: true, Visibility: NavigationVisibilityPublic}
-		}
-	}
 
 	result := ResolvedNavigation{SchemaVersion: NavigationDocumentSchemaVersion, Revision: document.Revision, Locations: make([]ResolvedNavigationLocation, 0, len(selected))}
 	for _, location := range selected {
@@ -222,7 +216,9 @@ func resolvedNavigationItem(definition NavigationDefinition, placement Navigatio
 	if placement.LabelEnUS != "" {
 		labelEn = placement.LabelEnUS
 	}
-	if placement.Icon != "" {
+	if placement.IconHidden {
+		icon = ""
+	} else if placement.Icon != "" {
 		icon = placement.Icon
 	}
 	label := labelZh
@@ -233,7 +229,7 @@ func resolvedNavigationItem(definition NavigationDefinition, placement Navigatio
 		label = labelEn
 	}
 	return ResolvedNavigationItem{SourceKey: definition.SourceKey, SourceKind: definition.SourceKind, LinkKind: definition.LinkKind,
-		Label: label, Href: definition.Href, Icon: icon, OpenInNewTab: definition.OpenInNewTab}
+		Label: label, Href: definition.Href, Icon: icon, IconHidden: placement.IconHidden, MaxItems: placement.MaxItems, OpenInNewTab: definition.OpenInNewTab}
 }
 
 func validPublicNavigationDefinition(definition NavigationDefinition) bool {

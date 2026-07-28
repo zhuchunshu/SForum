@@ -53,7 +53,7 @@ func readNavigationDocument(ctx context.Context, query navigationDocumentQuerier
 	}
 
 	placements, err := query.Query(ctx, `
-		SELECT source_key, location, position, enabled, visibility, permission, label_zh_cn, label_en_us, icon
+		SELECT source_key, location, position, enabled, visibility, permission, label_zh_cn, label_en_us, icon, icon_hidden, max_items
 		FROM site_navigation_placements
 		ORDER BY location ASC, position ASC, source_key ASC
 	`)
@@ -64,7 +64,7 @@ func readNavigationDocument(ctx context.Context, query navigationDocumentQuerier
 	for placements.Next() {
 		var placement NavigationPlacement
 		if err := placements.Scan(&placement.SourceKey, &placement.Location, &placement.Order, &placement.Enabled,
-			&placement.Visibility, &placement.Permission, &placement.LabelZhCN, &placement.LabelEnUS, &placement.Icon); err != nil {
+			&placement.Visibility, &placement.Permission, &placement.LabelZhCN, &placement.LabelEnUS, &placement.Icon, &placement.IconHidden, &placement.MaxItems); err != nil {
 			return NavigationDocument{}, fmt.Errorf("scan navigation placement: %w", err)
 		}
 		document.Placements = append(document.Placements, placement)
@@ -156,10 +156,10 @@ func replaceNavigationDocument(ctx context.Context, tx pgx.Tx, document Navigati
 	for _, placement := range placements {
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO site_navigation_placements
-			(source_key, location, position, enabled, visibility, permission, label_zh_cn, label_en_us, icon)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+			(source_key, location, position, enabled, visibility, permission, label_zh_cn, label_en_us, icon, icon_hidden, max_items)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
 		`, placement.SourceKey, placement.Location, placement.Order, placement.Enabled, placement.Visibility,
-			placement.Permission, placement.LabelZhCN, placement.LabelEnUS, placement.Icon); err != nil {
+			placement.Permission, placement.LabelZhCN, placement.LabelEnUS, placement.Icon, placement.IconHidden, placement.MaxItems); err != nil {
 			return fmt.Errorf("insert navigation placement: %w", err)
 		}
 	}

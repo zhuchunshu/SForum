@@ -49,6 +49,8 @@ export type SiteAnnouncement = {
   titleEnUS: string
   bodyZhCN: string
   bodyEnUS: string
+  bodyHtmlZhCN: string
+  bodyHtmlEnUS: string
   style: SiteAnnouncementStyle
   href: string
   dismissible: boolean
@@ -97,6 +99,8 @@ export type SiteNavigationPlacement = {
   labelZhCN?: string
   labelEnUS?: string
   icon?: string
+  iconHidden?: boolean
+  maxItems?: number
 }
 
 export type SiteNavigationThemeLocation = { location: SiteNavigationLocation, supported: boolean }

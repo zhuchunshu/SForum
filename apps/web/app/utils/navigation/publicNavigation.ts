@@ -28,6 +28,8 @@ export type PublicNavigationItem = {
   label: string
   href?: string
   icon?: string
+  iconHidden?: boolean
+  maxItems?: number
   openInNewTab?: boolean
 }
 
@@ -81,4 +83,15 @@ export function isCoreDynamicCategories(item: PublicNavigationItem) {
     && item.sourceKind === 'dynamic'
     && item.linkKind === 'dynamicBlock'
     && !item.href
+}
+
+export function limitDynamicNavigationItems<T extends { slug: string }>(items: readonly T[], maxItems?: number, selectedSlug = '') {
+  const limit = Math.min(100, Math.max(0, Math.trunc(Number(maxItems) || 0)))
+  if (limit === 0 || items.length <= limit) return [...items]
+  const visible = items.slice(0, limit)
+  const selected = items.find(item => item.slug === selectedSlug)
+  if (selected && !visible.some(item => item.slug === selected.slug)) {
+    visible[limit - 1] = selected
+  }
+  return visible
 }

@@ -6,6 +6,7 @@ import {
   isCoreDynamicCategories,
   isExternalNavigationItem,
   isInternalNavigationItem,
+  limitDynamicNavigationItems,
   PUBLIC_NAVIGATION_LOCATIONS,
   PUBLIC_NAVIGATION_SCHEMA,
   publicNavigationItems,
@@ -110,6 +111,15 @@ describe('public navigation document utilities', () => {
       linkKind: 'coreRoute'
     }))).toBe(false)
   })
+
+  test('limits dynamic categories while retaining the selected category', () => {
+    const categories = Array.from({ length: 6 }, (_, index) => ({ slug: `category-${index + 1}` }))
+
+    expect(limitDynamicNavigationItems(categories, 0)).toEqual(categories)
+    expect(limitDynamicNavigationItems(categories, undefined)).toEqual(categories)
+    expect(limitDynamicNavigationItems(categories, 3).map(item => item.slug)).toEqual(['category-1', 'category-2', 'category-3'])
+    expect(limitDynamicNavigationItems(categories, 3, 'category-6').map(item => item.slug)).toEqual(['category-1', 'category-2', 'category-6'])
+  })
 })
 
 describe('public navigation fetch and renderer contracts', () => {
@@ -184,6 +194,13 @@ describe('public navigation fetch and renderer contracts', () => {
     expect(sidebarSource).toContain("return 'i-lucide-folder'")
     expect(sidebarSource).toContain('category.topicCount')
     expect(sidebarSource).toContain("selectedCategorySlug === category.slug")
+    expect(sidebarSource).toContain('const visibleCategories = computed')
+    expect(sidebarSource).toContain('dynamicCategoryItem.value?.maxItems')
+    expect(sidebarSource).toContain('limitDynamicNavigationItems(props.categories')
+    expect(sidebarSource).toContain('v-for="category in visibleCategories"')
+    expect(sidebarSource).toContain('const hasHiddenCategories = computed')
+    expect(sidebarSource).toContain("t('home.sidebar.viewAllCategories')")
+    expect(sidebarSource).toContain(':to="localePath(\'/categories\')"')
   })
 
   test('fails the dynamic category block closed without hiding ordinary sidebar links', () => {

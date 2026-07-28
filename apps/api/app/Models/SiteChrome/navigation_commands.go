@@ -324,7 +324,9 @@ func normalizeNavigationDocument(input NavigationDocument) (NavigationDocument, 
 		placement.Location = strings.TrimSpace(placement.Location)
 		placement.Visibility = strings.TrimSpace(placement.Visibility)
 		placement.Permission = strings.TrimSpace(placement.Permission)
-		if !isNavigationLocation(placement.Location) || definitions[placement.SourceKey].SourceKey == "" || !validNavigationPlacement(placement) {
+		definition := definitions[placement.SourceKey]
+		if !isNavigationLocation(placement.Location) || definition.SourceKey == "" || !validNavigationPlacement(placement) ||
+			(placement.MaxItems != 0 && definition.LinkKind != NavigationLinkDynamicBlock) {
 			return NavigationDocument{}, ErrInvalid
 		}
 		key := navigationPlacementKey(placement.SourceKey, placement.Location)
@@ -375,7 +377,7 @@ func validInertExtensionDefinition(definition NavigationDefinition) bool {
 }
 
 func validNavigationPlacement(placement NavigationPlacement) bool {
-	if placement.Order < positionMin || placement.Order > positionMax || utf8.RuneCountInString(placement.LabelZhCN) > NavigationMaxLabelRunes || utf8.RuneCountInString(placement.LabelEnUS) > NavigationMaxLabelRunes || utf8.RuneCountInString(placement.Icon) > NavigationMaxIconRunes || utf8.RuneCountInString(placement.Permission) > 120 || containsUnsafeNavigationText(placement.LabelZhCN) || containsUnsafeNavigationText(placement.LabelEnUS) || containsUnsafeNavigationText(placement.Icon) || containsUnsafeNavigationText(placement.Permission) {
+	if placement.Order < positionMin || placement.Order > positionMax || placement.MaxItems < 0 || placement.MaxItems > NavigationMaxDynamicItems || (placement.IconHidden && placement.Icon != "") || utf8.RuneCountInString(placement.LabelZhCN) > NavigationMaxLabelRunes || utf8.RuneCountInString(placement.LabelEnUS) > NavigationMaxLabelRunes || utf8.RuneCountInString(placement.Icon) > NavigationMaxIconRunes || utf8.RuneCountInString(placement.Permission) > 120 || containsUnsafeNavigationText(placement.LabelZhCN) || containsUnsafeNavigationText(placement.LabelEnUS) || containsUnsafeNavigationText(placement.Icon) || containsUnsafeNavigationText(placement.Permission) {
 		return false
 	}
 	switch placement.Visibility {

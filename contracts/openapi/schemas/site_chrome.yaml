@@ -169,13 +169,15 @@ SiteFriendLinkUpdateInput:
 
 SiteAnnouncement:
   type: object
-  required: [id, titleZhCN, titleEnUS, bodyZhCN, bodyEnUS, style, href, dismissible, position, enabled, createdAt, updatedAt]
+  required: [id, titleZhCN, titleEnUS, bodyZhCN, bodyEnUS, bodyHtmlZhCN, bodyHtmlEnUS, style, href, dismissible, position, enabled, createdAt, updatedAt]
   properties:
     id: { type: integer, format: int64 }
     titleZhCN: { type: string }
     titleEnUS: { type: string }
     bodyZhCN: { type: string }
     bodyEnUS: { type: string }
+    bodyHtmlZhCN: { type: string, description: Server-rendered and sanitized Chinese announcement body. }
+    bodyHtmlEnUS: { type: string, description: Server-rendered and sanitized English announcement body. }
     style:
       type: string
       enum: [info, success, warning, danger]
@@ -301,6 +303,15 @@ SiteNavigationPlacement:
     labelZhCN: { type: string, maxLength: 80 }
     labelEnUS: { type: string, maxLength: 80 }
     icon: { type: string, maxLength: 120 }
+    iconHidden:
+      type: boolean
+      description: Explicitly suppresses the definition icon for this placement. When false, an empty icon inherits the definition icon.
+    maxItems:
+      type: integer
+      minimum: 0
+      maximum: 100
+      default: 0
+      description: Maximum items rendered by a dynamic block at this location. Zero preserves the historical unlimited behavior; non-dynamic placements must use zero.
 
 SiteNavigationThemeLocation:
   type: object
@@ -341,6 +352,14 @@ SiteResolvedNavigationItem:
     label: { type: string }
     href: { type: string }
     icon: { type: string }
+    iconHidden:
+      type: boolean
+      description: When true, renderers must suppress the icon even if a definition or cached item still contains an icon name.
+    maxItems:
+      type: integer
+      minimum: 0
+      maximum: 100
+      description: Dynamic block item limit. Zero or omission means unlimited.
     openInNewTab: { type: boolean }
     active: { type: boolean }
 

@@ -27,6 +27,17 @@ responsibilities.
 
 ## Active Work
 
+### Announcement authoring
+
+- Personalization announcements use the shared `SFEditor` basic-field preset:
+  Markdown-backed Tiptap editing with undo/redo, emphasis, links, and lists,
+  without image, emoji, code, mode-switching, submit, or trusted L2 surfaces.
+- The admin create form exposes labeled bilingual content, style, destination,
+  order, active window, dismissibility, and initial enabled state with local
+  validation. Public and admin previews render only server-derived sanitized
+  HTML and retain a plain-text compatibility fallback during rolling updates.
+- Rendered desktop/mobile QA is intentionally pending for the operator.
+
 ### Configurable public navigation M6
 
 - The Personalization Navigation tab edits one local revisioned document for
@@ -335,17 +346,26 @@ Architecture sources:
   summary/settings/checks from live form state. Desktop uses a fixed bottom
   publish dock with extra content padding; mobile collapses to a single column
   and keeps category, tags, draft, errors, and publish controls available.
-- `SFHomeNavigation` owns shared public left-rail links and footer links. Its
-  host CSS must style the footer too, because homepage, topic, and taxonomy
-  pages reuse the component inside desktop sidebars and mobile left drawers.
+- `SFHomeNavigation` owns shared public left-rail links and the bounded dynamic
+  category block. Homepage, topic, and taxonomy pages reuse it inside desktop
+  sidebars and mobile left drawers.
+- The dynamic category block reads its placement-level `maxItems` value from
+  canonical public navigation. `0` keeps the historical show-all behavior;
+  `1..100` limits both the desktop category list and its mobile selector, while
+  retaining the currently selected category inside that bound. When the limit
+  hides categories, both render modes expose a localized link to `/categories`.
 - Default-theme public pages must still render the global `SFFooter` from L1
-  chrome; the left-rail legal links are navigation shortcuts, not a replacement
-  for the site footer.
+  chrome. Configurable footer navigation starts empty; copyright and friend
+  links remain independently owned, and operator-created footer links render
+  alongside them when configured.
 - On desktop, the default-theme full-width three-column shell fixes the navbar,
-  left navigation, and right rail in the viewport; only the center content
-  column scrolls. The rail divider lines touch the topbar and viewport bottom
-  directly; spacing belongs inside each column, not on the outer layout. Mobile
-  keeps ordinary document scrolling plus drawer scrolling to avoid scroll traps.
+  left navigation, and right rail in the viewport; the center and either side
+  column scroll independently when their content exceeds the available height.
+  Side columns hide horizontal overflow, contain scroll chaining, and reserve a
+  stable scrollbar gutter. The rail divider lines touch the topbar and viewport
+  bottom directly; spacing belongs inside each column, not on the outer layout.
+  Mobile keeps ordinary document scrolling plus drawer scrolling to avoid scroll
+  traps.
 - Homepage, topic detail, and notifications place the public footer inside the
   center content column through `SFContentColumnFooter`; full-width L1 footer is
   hidden for `fullwidth-3col` shells so the footer scrolls with content instead

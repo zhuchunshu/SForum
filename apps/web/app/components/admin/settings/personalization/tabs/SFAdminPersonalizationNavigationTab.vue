@@ -36,7 +36,7 @@ const activeLocation = ref<SiteNavigationLocation>('public.topbar.primary')
 const editorModalOpen = ref(false)
 const editingKey = ref<string | null>(null)
 const formError = ref('')
-const form = reactive({ labelZhCN: '', labelEnUS: '', href: '/', icon: '', openInNewTab: false, visibility: 'public' as SiteNavigationVisibility, permission: '', linkKind: 'internalLink' as SiteNavigationLinkKind })
+const form = reactive({ labelZhCN: '', labelEnUS: '', href: '/', icon: '', iconHidden: false, maxItems: 0, openInNewTab: false, visibility: 'public' as SiteNavigationVisibility, permission: '', linkKind: 'internalLink' as SiteNavigationLinkKind })
 
 const locationLabelKeys: Record<SiteNavigationLocation, string> = {
   'public.topbar.primary': 'topbar',
@@ -52,6 +52,10 @@ const sectionOptions = computed(() => [
 const dirty = computed(() => !navigationDocumentsEqual(document.value, baseline.value))
 const selectedItems = computed(() => document.value ? navigationItemsAt(document.value, activeLocation.value) : [])
 const activeThemeSupported = computed(() => document.value?.themeLocations.find(item => item.location === activeLocation.value)?.supported !== false)
+const editingCore = computed(() => document.value?.definitions.find(item => item.sourceKey === editingKey.value)?.sourceKind === 'core')
+const editingDynamic = computed(() => document.value?.definitions.find(item => item.sourceKey === editingKey.value)?.sourceKind === 'dynamic')
+const editingBuiltIn = computed(() => editingCore.value || editingDynamic.value)
+const editorHintKey = computed(() => editingDynamic.value ? 'admin.navigationEditor.dynamicFormHint' : editingCore.value ? 'admin.navigationEditor.coreFormHint' : 'admin.navigationEditor.formHint')
 
 defineExpose({ refresh: load, loading })
 onMounted(load)
@@ -89,6 +93,7 @@ async function save() {
     const saved = await api.applyAdminNavigation({ expectedRevision: document.value.revision, reason: 'operator_editor_save', document: document.value })
     document.value = cloneNavigationDocument(saved)
     baseline.value = cloneNavigationDocument(saved)
+    clearNuxtData(key => key.startsWith('site-public-navigation:'))
     toast.add({ color: 'primary', icon: 'i-lucide-check', title: t('admin.navigationEditor.saved'), duration: 10000 })
   } catch (error) {
     persistentError.value = isConflict(error) ? t('admin.navigationEditor.stale') : apiErrorMessage(error) || t('admin.navigationEditor.saveFailed')
@@ -104,9 +109,21 @@ function createOrUpdate() {
   if (editingKey.value) {
     const definition = document.value.definitions.find(item => item.sourceKey === editingKey.value)
     const placement = document.value.placements.find(item => item.sourceKey === editingKey.value && item.location === activeLocation.value)
-    if (!definition || definition.sourceKind !== 'operator') return
-    Object.assign(definition, normalizedForm())
-    if (placement) Object.assign(placement, { visibility: form.visibility, permission: form.visibility === 'permission' ? form.permission.trim() : '' })
+    if (!definition || !placement) return
+    if (definition.sourceKind === 'operator') {
+      Object.assign(definition, normalizedForm())
+    } else if (definition.sourceKind === 'core' || definition.sourceKind === 'dynamic') {
+      Object.assign(placement, {
+        labelZhCN: presentationOverride(form.labelZhCN, definition.labelZhCN),
+        labelEnUS: presentationOverride(form.labelEnUS, definition.labelEnUS),
+        icon: form.iconHidden ? '' : presentationOverride(form.icon, definition.icon),
+        iconHidden: form.iconHidden,
+        maxItems: definition.sourceKind === 'dynamic' ? form.maxItems : 0
+      })
+    } else {
+      return
+    }
+    Object.assign(placement, { visibility: form.visibility, permission: form.visibility === 'permission' ? form.permission.trim() : '' })
   } else {
     const definition: SiteNavigationDefinition = { sourceKey: operatorKey(), sourceKind: 'operator', ...normalizedForm() }
     document.value.definitions.push(definition)
@@ -124,11 +141,37 @@ function beginCreate() {
 function beginEdit(sourceKey: string) {
   const definition = document.value?.definitions.find(item => item.sourceKey === sourceKey)
   const placement = document.value?.placements.find(item => item.sourceKey === sourceKey && item.location === activeLocation.value)
-  if (!definition || definition.sourceKind !== 'operator' || !placement) return
+  if (!definition || !['operator', 'core', 'dynamic'].includes(definition.sourceKind) || !placement) return
   editingKey.value = sourceKey
-  Object.assign(form, { labelZhCN: definition.labelZhCN || '', labelEnUS: definition.labelEnUS || '', href: definition.href || '', icon: definition.icon || '', openInNewTab: Boolean(definition.openInNewTab), linkKind: definition.linkKind, visibility: placement.visibility, permission: placement.permission || '' })
+  Object.assign(form, {
+    labelZhCN: placement.labelZhCN || definition.labelZhCN || '',
+    labelEnUS: placement.labelEnUS || definition.labelEnUS || '',
+    href: definition.href || '',
+    icon: placement.icon || definition.icon || '',
+    iconHidden: Boolean(placement.iconHidden),
+    maxItems: placement.maxItems || 0,
+    openInNewTab: Boolean(definition.openInNewTab),
+    linkKind: definition.linkKind,
+    visibility: placement.visibility,
+    permission: placement.permission || ''
+  })
   formError.value = ''
   editorModalOpen.value = true
+}
+
+function restoreBuiltInDefaults() {
+  const definition = document.value?.definitions.find(item => item.sourceKey === editingKey.value)
+  if (!definition || !['core', 'dynamic'].includes(definition.sourceKind)) return
+  Object.assign(form, {
+    labelZhCN: definition.labelZhCN || '',
+    labelEnUS: definition.labelEnUS || '',
+    icon: definition.icon || '',
+    iconHidden: false,
+    maxItems: 0,
+    visibility: 'public',
+    permission: ''
+  })
+  formError.value = ''
 }
 
 function closeEditor() {
@@ -163,11 +206,16 @@ function transfer(sourceKey: string, target: SiteNavigationLocation, copy: boole
 function resetForm() {
   editingKey.value = null
   formError.value = ''
-  Object.assign(form, { labelZhCN: '', labelEnUS: '', href: '/', icon: '', openInNewTab: false, visibility: 'public', permission: '', linkKind: 'internalLink' })
+  Object.assign(form, { labelZhCN: '', labelEnUS: '', href: '/', icon: '', iconHidden: false, maxItems: 0, openInNewTab: false, visibility: 'public', permission: '', linkKind: 'internalLink' })
 }
 
 function normalizedForm() {
   return { labelZhCN: form.labelZhCN.trim(), labelEnUS: form.labelEnUS.trim(), href: form.href.trim(), icon: form.icon.trim(), openInNewTab: form.openInNewTab, linkKind: form.linkKind }
+}
+
+function presentationOverride(value: string, defaultValue?: string) {
+  const normalized = value.trim()
+  return normalized === (defaultValue || '').trim() ? '' : normalized
 }
 
 function validateForm() {
@@ -175,6 +223,7 @@ function validateForm() {
   if (form.linkKind === 'internalLink' && (!form.href.startsWith('/') || form.href.startsWith('//') || form.href.startsWith('/api') || form.href.startsWith('/admin'))) return t('admin.navigationEditor.validation.internal')
   if (form.linkKind === 'externalLink' && !/^https?:\/\/[^\s/$.?#].[^\s]*$/i.test(form.href.trim())) return t('admin.navigationEditor.validation.external')
   if (form.visibility === 'permission' && !form.permission.trim()) return t('admin.navigationEditor.validation.permission')
+  if (editingDynamic.value && (!Number.isInteger(form.maxItems) || form.maxItems < 0 || form.maxItems > 100)) return t('admin.navigationEditor.validation.maxItems')
   return ''
 }
 
@@ -252,7 +301,7 @@ function selectSection(section: string) {
       <template #content>
         <form class="flex max-h-[85vh] flex-col" @submit.prevent="createOrUpdate">
           <div class="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4 dark:border-zinc-800">
-            <div class="min-w-0"><h3 class="text-base font-bold text-slate-900 dark:text-white">{{ editingKey ? t('admin.navigationEditor.edit') : t('admin.navigationEditor.add') }}</h3><p class="mt-1 text-xs text-muted">{{ t('admin.navigationEditor.formHint') }}</p></div>
+            <div class="min-w-0"><h3 class="text-base font-bold text-slate-900 dark:text-white">{{ editingKey ? t('admin.navigationEditor.edit') : t('admin.navigationEditor.add') }}</h3><p class="mt-1 text-xs text-muted">{{ t(editorHintKey) }}</p></div>
             <UButton type="button" color="neutral" variant="ghost" icon="i-lucide-x" :aria-label="t('admin.navigationEditor.cancel')" :title="t('admin.navigationEditor.cancel')" @click="closeEditor" />
           </div>
 
@@ -261,18 +310,24 @@ function selectSection(section: string) {
             <div class="grid gap-4 md:grid-cols-2">
               <UFormField :label="t('admin.navigationEditor.labelZh')"><UInput v-model="form.labelZhCN" class="w-full" /></UFormField>
               <UFormField :label="t('admin.navigationEditor.labelEn')"><UInput v-model="form.labelEnUS" class="w-full" /></UFormField>
-              <UFormField :label="t('admin.navigationEditor.targetType')"><USelect v-model="form.linkKind" class="w-full" :items="[{ label: t('admin.navigationEditor.internal'), value: 'internalLink' }, { label: t('admin.navigationEditor.external'), value: 'externalLink' }]" /></UFormField>
-              <UFormField :label="t('admin.navigationEditor.href')"><UInput v-model="form.href" class="w-full" icon="i-lucide-link" /></UFormField>
+              <UFormField :label="t('admin.navigationEditor.targetType')"><USelect v-model="form.linkKind" class="w-full" :disabled="editingBuiltIn" :items="editingDynamic ? [{ label: t('admin.navigationEditor.dynamicBlock'), value: 'dynamicBlock' }] : editingCore ? [{ label: t('admin.navigationEditor.coreRoute'), value: 'coreRoute' }] : [{ label: t('admin.navigationEditor.internal'), value: 'internalLink' }, { label: t('admin.navigationEditor.external'), value: 'externalLink' }]" /></UFormField>
+              <UFormField :label="t('admin.navigationEditor.href')"><UInput v-model="form.href" class="w-full" icon="i-lucide-link" :disabled="editingBuiltIn" /></UFormField>
             </div>
-            <LazySFIconPicker v-model="form.icon" :label="t('admin.navigationEditor.iconPicker')" :hint="t('admin.navigationEditor.iconPickerHint')" :show-custom-input="false" />
+            <LazySFIconPicker v-model="form.icon" :label="t('admin.navigationEditor.iconPicker')" :hint="t('admin.navigationEditor.iconPickerHint')" :disabled="editingBuiltIn && form.iconHidden" :show-custom-input="false" />
+            <UCheckbox v-if="editingBuiltIn" v-model="form.iconHidden" :label="t('admin.navigationEditor.hideIcon')" />
+            <UFormField v-if="editingDynamic" :label="t('admin.navigationEditor.maxItems')">
+              <UInputNumber v-model="form.maxItems" class="w-full" :min="0" :max="100" />
+              <p class="mt-2 text-xs text-muted">{{ t('admin.navigationEditor.maxItemsHint') }}</p>
+            </UFormField>
             <div class="grid gap-4 md:grid-cols-2">
               <UFormField :label="t('admin.navigationEditor.visibility')"><USelect v-model="form.visibility" class="w-full" :items="[{ label: t('admin.navigationEditor.public'), value: 'public' }, { label: t('admin.navigationEditor.anonymous'), value: 'anonymous' }, { label: t('admin.navigationEditor.authenticated'), value: 'authenticated' }, { label: t('admin.navigationEditor.permission'), value: 'permission' }]" /></UFormField>
               <UFormField v-if="form.visibility === 'permission'" :label="t('admin.navigationEditor.permissionKey')"><UInput v-model="form.permission" class="w-full" /></UFormField>
             </div>
-            <UCheckbox v-model="form.openInNewTab" :label="t('admin.navigationEditor.newTab')" />
+            <UCheckbox v-model="form.openInNewTab" :disabled="editingBuiltIn" :label="t('admin.navigationEditor.newTab')" />
           </div>
 
           <div class="flex flex-wrap justify-end gap-2 border-t border-slate-200 px-5 py-4 dark:border-zinc-800">
+            <UButton v-if="editingBuiltIn" type="button" class="mr-auto" color="neutral" variant="outline" icon="i-lucide-rotate-ccw" @click="restoreBuiltInDefaults">{{ t('admin.navigationEditor.restoreDefault') }}</UButton>
             <UButton type="button" color="neutral" variant="ghost" @click="closeEditor">{{ t('admin.navigationEditor.cancel') }}</UButton>
             <UButton type="submit" :icon="editingKey ? 'i-lucide-save' : 'i-lucide-plus'">{{ editingKey ? t('admin.navigationEditor.update') : t('admin.navigationEditor.add') }}</UButton>
           </div>

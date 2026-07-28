@@ -108,20 +108,22 @@ type UpdateFriendLinkInput struct {
 
 // Announcement 首页公告横幅。
 type Announcement struct {
-	ID          int64      `json:"id"`
-	TitleZhCN   string     `json:"titleZhCN"`
-	TitleEnUS   string     `json:"titleEnUS"`
-	BodyZhCN    string     `json:"bodyZhCN"`
-	BodyEnUS    string     `json:"bodyEnUS"`
-	Style       string     `json:"style"`
-	Href        string     `json:"href"`
-	Dismissible bool       `json:"dismissible"`
-	Position    int        `json:"position"`
-	Enabled     bool       `json:"enabled"`
-	StartsAt    *time.Time `json:"startsAt,omitempty"`
-	EndsAt      *time.Time `json:"endsAt,omitempty"`
-	CreatedAt   time.Time  `json:"createdAt"`
-	UpdatedAt   time.Time  `json:"updatedAt"`
+	ID           int64      `json:"id"`
+	TitleZhCN    string     `json:"titleZhCN"`
+	TitleEnUS    string     `json:"titleEnUS"`
+	BodyZhCN     string     `json:"bodyZhCN"`
+	BodyEnUS     string     `json:"bodyEnUS"`
+	BodyHTMLZhCN string     `json:"bodyHtmlZhCN"`
+	BodyHTMLEnUS string     `json:"bodyHtmlEnUS"`
+	Style        string     `json:"style"`
+	Href         string     `json:"href"`
+	Dismissible  bool       `json:"dismissible"`
+	Position     int        `json:"position"`
+	Enabled      bool       `json:"enabled"`
+	StartsAt     *time.Time `json:"startsAt,omitempty"`
+	EndsAt       *time.Time `json:"endsAt,omitempty"`
+	CreatedAt    time.Time  `json:"createdAt"`
+	UpdatedAt    time.Time  `json:"updatedAt"`
 }
 
 type CreateAnnouncementInput struct {

@@ -2,7 +2,7 @@
 import { useSiteChromeApi } from '~/composables/admin/useSiteChromeApi'
 import type { SiteAnnouncement } from '~/composables/admin/useSiteChromeApi'
 
-const { locale } = useI18n()
+const { t, locale } = useI18n()
 const chromeApi = useSiteChromeApi()
 
 const STORAGE_KEY = 'sforum.dismissed-announcements'
@@ -53,7 +53,13 @@ function titleOf(item: SiteAnnouncement) {
     : (item.titleZhCN || item.titleEnUS)
 }
 
-function bodyOf(item: SiteAnnouncement) {
+function bodyHTMLOf(item: SiteAnnouncement) {
+  return isEnglish.value
+    ? (item.bodyHtmlEnUS || item.bodyHtmlZhCN)
+    : (item.bodyHtmlZhCN || item.bodyHtmlEnUS)
+}
+
+function bodyTextOf(item: SiteAnnouncement) {
   return isEnglish.value
     ? (item.bodyEnUS || item.bodyZhCN)
     : (item.bodyZhCN || item.bodyEnUS)
@@ -71,7 +77,7 @@ function dismiss(item: SiteAnnouncement) {
 </script>
 
 <template>
-  <div v-if="visibleAnnouncements.length" class="sf-announcements" role="region" aria-label="Announcements">
+  <div v-if="visibleAnnouncements.length" class="sf-announcements" role="region" :aria-label="t('admin.siteChrome.announcements.title')">
     <div
       v-for="item in visibleAnnouncements"
       :key="item.id"
@@ -91,15 +97,15 @@ function dismiss(item: SiteAnnouncement) {
           </a>
           <span v-else>{{ titleOf(item) }}</span>
         </p>
-        <p v-if="bodyOf(item)" class="sf-announcement__text">
-          {{ bodyOf(item) }}
-        </p>
+        <div v-if="bodyHTMLOf(item)" class="sf-announcement__text" v-html="bodyHTMLOf(item)" />
+        <p v-else-if="bodyTextOf(item)" class="sf-announcement__text">{{ bodyTextOf(item) }}</p>
       </div>
       <button
         v-if="item.dismissible"
         type="button"
         class="sf-announcement__dismiss"
-        aria-label="Dismiss"
+        :aria-label="t('admin.siteChrome.announcements.dismiss')"
+        :title="t('admin.siteChrome.announcements.dismiss')"
         @click="dismiss(item)"
       >
         <UIcon name="i-lucide-x" class="size-4" />
@@ -169,6 +175,23 @@ function dismiss(item: SiteAnnouncement) {
 .sf-announcement__text {
   margin: 2px 0 0;
   opacity: 0.92;
+}
+
+.sf-announcement__text :deep(p) {
+  margin: 0.15rem 0 0;
+}
+
+.sf-announcement__text :deep(ul),
+.sf-announcement__text :deep(ol) {
+  margin: 0.3rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.sf-announcement__text :deep(a) {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
 }
 
 .sf-announcement__link {

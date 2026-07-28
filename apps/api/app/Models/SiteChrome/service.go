@@ -11,6 +11,7 @@ import (
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	audit "github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
+	markdown "github.com/zhuchunshu/sforum/apps/api/app/Support/Markdown"
 )
 
 const (
@@ -209,14 +210,22 @@ func (s *Service) DeleteFriendLink(ctx context.Context, actor identity.Actor, id
 // --- Announcements ---
 
 func (s *Service) ListPublicAnnouncements(ctx context.Context) ([]Announcement, error) {
-	return s.store.ListAnnouncements(ctx, true, true)
+	items, err := s.store.ListAnnouncements(ctx, true, true)
+	if err != nil {
+		return nil, err
+	}
+	return renderAnnouncements(items)
 }
 
 func (s *Service) ListAdminAnnouncements(ctx context.Context, actor identity.Actor) ([]Announcement, error) {
 	if !s.canManage(actor) {
 		return nil, identity.ErrPermissionDenied
 	}
-	return s.store.ListAnnouncements(ctx, false, false)
+	items, err := s.store.ListAnnouncements(ctx, false, false)
+	if err != nil {
+		return nil, err
+	}
+	return renderAnnouncements(items)
 }
 
 func (s *Service) CreateAnnouncement(ctx context.Context, actor identity.Actor, input CreateAnnouncementInput) (Announcement, error) {
@@ -227,7 +236,11 @@ func (s *Service) CreateAnnouncement(ctx context.Context, actor identity.Actor, 
 	if err != nil {
 		return Announcement{}, err
 	}
-	return s.store.CreateAnnouncement(ctx, normalized)
+	item, err := s.store.CreateAnnouncement(ctx, normalized)
+	if err != nil {
+		return Announcement{}, err
+	}
+	return renderAnnouncement(item)
 }
 
 func (s *Service) UpdateAnnouncement(ctx context.Context, actor identity.Actor, input UpdateAnnouncementInput) (Announcement, error) {
@@ -241,7 +254,11 @@ func (s *Service) UpdateAnnouncement(ctx context.Context, actor identity.Actor, 
 	if err != nil {
 		return Announcement{}, err
 	}
-	return s.store.UpdateAnnouncement(ctx, normalized)
+	item, err := s.store.UpdateAnnouncement(ctx, normalized)
+	if err != nil {
+		return Announcement{}, err
+	}
+	return renderAnnouncement(item)
 }
 
 func (s *Service) DeleteAnnouncement(ctx context.Context, actor identity.Actor, id int64) error {
@@ -252,6 +269,30 @@ func (s *Service) DeleteAnnouncement(ctx context.Context, actor identity.Actor, 
 		return ErrInvalid
 	}
 	return s.store.DeleteAnnouncement(ctx, id)
+}
+
+func renderAnnouncements(items []Announcement) ([]Announcement, error) {
+	for index := range items {
+		rendered, err := renderAnnouncement(items[index])
+		if err != nil {
+			return nil, err
+		}
+		items[index] = rendered
+	}
+	return items, nil
+}
+
+func renderAnnouncement(item Announcement) (Announcement, error) {
+	var err error
+	item.BodyHTMLZhCN, err = markdown.RenderSafe(item.BodyZhCN)
+	if err != nil {
+		return Announcement{}, err
+	}
+	item.BodyHTMLEnUS, err = markdown.RenderSafe(item.BodyEnUS)
+	if err != nil {
+		return Announcement{}, err
+	}
+	return item, nil
 }
 
 // --- normalize helpers ---

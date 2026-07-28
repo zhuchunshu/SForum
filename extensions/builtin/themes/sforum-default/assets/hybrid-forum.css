@@ -578,13 +578,10 @@
     top: auto;
     height: 100%;
     min-height: 0;
-    overflow: hidden;
-  }
-
-  /* 左栏工具区可滚动，避免进度/要点被裁切 */
-  .sforum-topic-composer .sforum-home__sidebar {
+    overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
+    scrollbar-gutter: stable;
   }
 }
 

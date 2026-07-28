@@ -20,7 +20,7 @@ func (locations navigationThemeLocations) SupportsNavigationLocation(location st
 	return locations[location]
 }
 
-func TestResolvePublicNavigationUsesRecommendedCatalogAndMigratedRows(t *testing.T) {
+func TestResolvePublicNavigationUsesOnlyStoredPlacements(t *testing.T) {
 	service := NewService(newFakeStore()).WithNavigationDocumentStore(memoryNavigationDocumentStore{document: NavigationDocument{
 		Revision: 7,
 		Definitions: []NavigationDefinition{{
@@ -28,7 +28,9 @@ func TestResolvePublicNavigationUsesRecommendedCatalogAndMigratedRows(t *testing
 			LabelZhCN: "文档", LabelEnUS: "Docs", Href: "https://example.test/docs", OpenInNewTab: true,
 		}},
 		Placements: []NavigationPlacement{{
-			SourceKey: "operator.migrated.abc", Location: NavigationLocationTopbar, Order: 15, Enabled: true, Visibility: NavigationVisibilityPublic,
+			SourceKey: "core.home", Location: NavigationLocationTopbar, Order: 10, Enabled: true, Visibility: NavigationVisibilityPublic,
+		}, {
+			SourceKey: "operator.migrated.abc", Location: NavigationLocationTopbar, Order: 20, Enabled: true, Visibility: NavigationVisibilityPublic,
 		}, {
 			SourceKey: "core.tags", Location: NavigationLocationTopbar, Order: 30, Enabled: false, Visibility: NavigationVisibilityPublic,
 		}},
@@ -42,17 +44,22 @@ func TestResolvePublicNavigationUsesRecommendedCatalogAndMigratedRows(t *testing
 		t.Fatalf("resolved=%#v", resolved)
 	}
 	topbar := resolved.Locations[0].Items
-	if len(topbar) != 3 || topbar[0].SourceKey != "core.home" || topbar[1].SourceKey != "operator.migrated.abc" || topbar[1].Label != "Docs" || topbar[2].SourceKey != "core.categories" {
+	if len(topbar) != 2 || topbar[0].SourceKey != "core.home" || topbar[1].SourceKey != "operator.migrated.abc" || topbar[1].Label != "Docs" {
 		t.Fatalf("migrated/disabled topbar=%#v", topbar)
 	}
-	if len(resolved.Locations[1].Items) != 3 || resolved.Locations[1].Items[0].SourceKey != "core.terms" {
-		t.Fatalf("recommended footer=%#v", resolved.Locations[1])
+	if len(resolved.Locations[1].Items) != 0 {
+		t.Fatalf("unstored footer items=%#v", resolved.Locations[1])
 	}
 }
 
 func TestResolvePublicNavigationReportsActiveThemeCapabilityWithoutDroppingConfiguration(t *testing.T) {
 	service := NewService(newFakeStore()).
-		WithNavigationDocumentStore(memoryNavigationDocumentStore{document: NavigationDocument{Revision: 1}}).
+		WithNavigationDocumentStore(memoryNavigationDocumentStore{document: NavigationDocument{
+			Revision: 1,
+			Placements: []NavigationPlacement{{
+				SourceKey: "core.terms", Location: NavigationLocationFooter, Order: 10, Enabled: true, Visibility: NavigationVisibilityPublic,
+			}},
+		}}).
 		WithNavigationThemeLocations(navigationThemeLocations{NavigationLocationTopbar: true})
 	resolved, err := service.ResolvePublicNavigation(t.Context(), identity.Actor{}, "en-US", []string{NavigationLocationTopbar, NavigationLocationFooter})
 	if err != nil {

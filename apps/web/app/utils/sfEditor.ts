@@ -134,19 +134,29 @@ export const sforumEditorEmojiItems: SForumEmojiItem[] = [
 export function createSFEditorExtensions(options: {
   placeholder: string
   maxCharacters: number
+  preset?: 'full' | 'basic-field'
   // Trusted L2 plugin extensions already digest-verified by Host loader.
   // Failures must be filtered before calling this helper so core stays usable.
   trustedExtensions?: unknown[]
 }) {
+  const full = options.preset !== 'basic-field'
   const trusted = Array.isArray(options.trustedExtensions)
     ? options.trustedExtensions.filter(Boolean)
     : []
   return [
     StarterKit.configure({
       link: false,
-      underline: false
+      underline: false,
+      ...(full ? {} : {
+        blockquote: false,
+        code: false,
+        codeBlock: false,
+        heading: false,
+        horizontalRule: false,
+        strike: false
+      })
     }),
-    Underline,
+    ...(full ? [Underline] : []),
     Link.configure({
       autolink: true,
       linkOnPaste: true,
@@ -159,15 +169,17 @@ export function createSFEditorExtensions(options: {
       },
       isAllowedUri: allowedLinkUri
     }),
-    Image.configure({
-      allowBase64: false,
-      HTMLAttributes: {
-        loading: 'lazy',
-        decoding: 'async',
-        referrerpolicy: 'no-referrer'
-      }
-    }),
-    SForumEmoji,
+    ...(full ? [
+      Image.configure({
+        allowBase64: false,
+        HTMLAttributes: {
+          loading: 'lazy',
+          decoding: 'async',
+          referrerpolicy: 'no-referrer'
+        }
+      }),
+      SForumEmoji
+    ] : []),
     Placeholder.configure({
       placeholder: options.placeholder
     }),
@@ -184,7 +196,7 @@ export function createSFEditorExtensions(options: {
     }),
     // Plugin L2 extensions append after Host core so core marks/nodes win on
     // name conflicts inside Tiptap's extension manager.
-    ...trusted
+    ...(full ? trusted : [])
   ]
 }
 

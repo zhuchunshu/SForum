@@ -42,7 +42,7 @@ function isActive(item: PublicNavigationItem) {
 
 const overflowMenuItems = computed(() => overflowItems.value.map(item => ({
   label: item.label,
-  icon: item.icon || undefined,
+  icon: item.iconHidden ? undefined : item.icon || undefined,
   to: itemTo(item),
   target: item.openInNewTab || isExternalNavigationItem(item) ? '_blank' : undefined,
   rel: item.openInNewTab || isExternalNavigationItem(item) ? 'noopener noreferrer' : undefined,
@@ -70,7 +70,7 @@ const overflowActive = computed(() => overflowItems.value.some(isActive))
         :title="item.label"
         @click="emit('navigate')"
       >
-        <UIcon v-if="item.icon" :name="item.icon" class="size-4" aria-hidden="true" />
+        <UIcon v-if="!item.iconHidden && item.icon" :name="item.icon" class="size-4" aria-hidden="true" />
         <span>{{ item.label }}</span>
       </a>
       <NuxtLink
@@ -83,7 +83,7 @@ const overflowActive = computed(() => overflowItems.value.some(isActive))
         :title="item.label"
         @click="emit('navigate')"
       >
-        <UIcon v-if="item.icon" :name="item.icon" class="size-4" aria-hidden="true" />
+        <UIcon v-if="!item.iconHidden && item.icon" :name="item.icon" class="size-4" aria-hidden="true" />
         <span>{{ item.label }}</span>
       </NuxtLink>
     </template>

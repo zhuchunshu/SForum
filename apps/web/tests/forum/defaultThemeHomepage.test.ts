@@ -367,7 +367,7 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(themeCss()).toContain('.sf-page--not-found > .sf-footer')
   })
 
-  test('desktop three-column shell keeps side rails fixed and scrolls only the content column', () => {
+  test('desktop three-column shell scrolls overflowing columns independently', () => {
     const css = homepageCss()
     const hybrid = defaultThemeHybridCss()
 
@@ -380,18 +380,19 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(css).toContain('height: 40px;')
     expect(css).toContain('.sforum-home__main {\n    height: 100%;\n    min-height: 0;\n    overflow-y: auto;')
     expect(css).toContain('.sforum-home__sidebar,\n  .sforum-home__right {\n    position: static;')
-    expect(css).toContain('overflow: hidden;')
+    expect(css).toContain('overflow-x: hidden;\n    overflow-y: auto;\n    overscroll-behavior: contain;\n    scrollbar-gutter: stable;')
     expect(hybrid).toContain('.sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col')
     expect(hybrid).toContain('height: 100vh')
     expect(hybrid).toContain('padding: 0 18px;')
     expect(hybrid).toContain('.sforum-home__main,\n  .sforum-topic-page__main,\n  .sforum-notifications__main')
     expect(hybrid).toContain('overflow-y: auto')
     expect(hybrid).toContain('.sforum-home__sidebar,\n  .sforum-home__right,\n  .sforum-topic-page__sidebar')
-    expect(hybrid).toContain('overflow: hidden')
+    expect(hybrid).toContain('overflow-x: hidden;\n    overflow-y: auto;\n    overscroll-behavior: contain;\n    scrollbar-gutter: stable;')
     expect(themeCss()).toContain('已安装的旧默认主题')
     expect(themeCss()).toContain('.sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col')
     expect(themeCss()).toContain('padding-top: 0')
     expect(themeCss()).toContain('padding-bottom: 0')
+    expect(themeCss()).toContain('桌面三栏各自管理纵向滚动')
     expect(themeCss()).toContain('overflow-y: auto')
   })
 })

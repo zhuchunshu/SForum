@@ -103,6 +103,10 @@ SSR/query/permission shells.
     `web_options`; see SiteChrome module / migration
     `202607120003_site_chrome.sql` and admin personalization tabs (panel
     `apps/web/app/components/admin/SFAdminSiteChromePanel.vue`).
+  - Announcement bodies remain Markdown in `body_zh_cn` / `body_en_us`.
+    SiteChrome derives `bodyHtmlZhCN` / `bodyHtmlEnUS` with the shared safe
+    Markdown support renderer for API presentation; no client-authored HTML is
+    trusted and no announcement data migration is required.
 - Configurable public navigation is a Core-owned multi-location document, not
   a theme setting. M1 added additive migration `202607280072` for definitions,
   placements, document revision, and future snapshots; it migrates legacy
@@ -123,7 +127,14 @@ SSR/query/permission shells.
   response actor-sensitive and explicitly `private, no-store`; Page ViewModels
   and Web topbar/mobile now consume the same canonical resolver rather than
   the legacy flat projection. M6 adds canonical sidebar/footer consumers and
-  keeps the dynamic taxonomy payload in Forum. See
+  keeps the dynamic taxonomy payload in Forum. Migration `202607290074`
+  materializes missing topbar/sidebar/mobile recommended placements so admin
+  and public reads share stored placement truth; the resolver no longer injects
+  missing defaults. Footer navigation defaults to empty while copyright and
+  friend links retain their existing owners. The Personalization editor lets
+  operators override a Core link's location-scoped label, icon, and visibility
+  without changing its route identity, explicitly suppress its icon, and clear
+  those overrides back to the code-owned defaults from the same edit dialog. See
   `../decisions/2026-07-27-operator-owned-public-navigation.md` and
   `../plans/2026-07-27-configurable-public-navigation-platform.md`.
 
@@ -300,6 +311,11 @@ skin behavior without admin session.
   capabilities, and both built-in declarations are complete; M7 owns the final
   lifecycle, recovery, and release gate. See
   `../sessions/2026-07-28-public-navigation-platform-handoff.md`.
+- The `core.dynamic.categories` placement accepts `maxItems=0..100` in the
+  public-navigation document. `0` is the recommended backward-compatible
+  default and means show all categories; positive values bound the shared
+  sidebar category renderer. Only dynamic block placements may use a non-zero
+  value, and the database column defaults to zero for existing documents.
 - Wave 3+ richness blueprint: engagement switches, category policy, safety
   depth (see `knowledge/plans/2026-07-12-admin-settings-richness.md`).
 - If settings need audit history, write changes to the existing audit event

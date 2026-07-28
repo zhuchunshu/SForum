@@ -27,6 +27,8 @@ type NavigationPlacement struct {
 	LabelZhCN  string `json:"labelZhCN,omitempty"`
 	LabelEnUS  string `json:"labelEnUS,omitempty"`
 	Icon       string `json:"icon,omitempty"`
+	IconHidden bool   `json:"iconHidden,omitempty"`
+	MaxItems   int    `json:"maxItems,omitempty"`
 }
 
 type NavigationDocument struct {
@@ -120,6 +122,8 @@ type ResolvedNavigationItem struct {
 	Label        string `json:"label"`
 	Href         string `json:"href,omitempty"`
 	Icon         string `json:"icon,omitempty"`
+	IconHidden   bool   `json:"iconHidden,omitempty"`
+	MaxItems     int    `json:"maxItems,omitempty"`
 	OpenInNewTab bool   `json:"openInNewTab,omitempty"`
 }
 

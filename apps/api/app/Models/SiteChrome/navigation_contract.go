@@ -28,13 +28,14 @@ const (
 	NavigationLinkExtensionRoute = "extensionRoute"
 	NavigationLinkDynamicBlock   = "dynamicBlock"
 
-	NavigationMaxDefinitions = 200
-	NavigationMaxPlacements  = 800
-	NavigationMaxSnapshots   = 20
-	NavigationMaxLabelRunes  = 80
-	NavigationMaxIconRunes   = 120
-	NavigationMaxReasonRunes = 240
-	NavigationMaxBackupBytes = 512 * 1024
+	NavigationMaxDefinitions  = 200
+	NavigationMaxPlacements   = 800
+	NavigationMaxSnapshots    = 20
+	NavigationMaxLabelRunes   = 80
+	NavigationMaxIconRunes    = 120
+	NavigationMaxReasonRunes  = 240
+	NavigationMaxBackupBytes  = 512 * 1024
+	NavigationMaxDynamicItems = 100
 
 	NavigationPreviewChangeLocation    = "location"
 	NavigationPreviewChangeDefinitions = "definitions"
@@ -75,9 +76,5 @@ func NavigationRecommendedPlacements() []NavigationRecommendedPlacement {
 		{SourceKey: "core.home", Location: NavigationLocationMobile, Order: 10},
 		{SourceKey: "core.categories", Location: NavigationLocationMobile, Order: 20},
 		{SourceKey: "core.tags", Location: NavigationLocationMobile, Order: 30},
-		{SourceKey: "core.dynamic.categories", Location: NavigationLocationMobile, Order: 40},
-		{SourceKey: "core.terms", Location: NavigationLocationFooter, Order: 10},
-		{SourceKey: "core.privacy", Location: NavigationLocationFooter, Order: 20},
-		{SourceKey: "core.guidelines", Location: NavigationLocationFooter, Order: 30},
 	}
 }

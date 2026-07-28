@@ -6,6 +6,7 @@ import {
   isCoreDynamicCategories,
   isExternalNavigationItem,
   isInternalNavigationItem,
+  limitDynamicNavigationItems,
   type PublicNavigationItem
 } from '~/utils/navigation/publicNavigation'
 
@@ -62,7 +63,10 @@ const resolvedSidebarItems = computed(() => sidebarItems.value.filter((item) => 
   if (isCoreDynamicCategories(item)) return props.showCategories
   return Boolean(item.label.trim()) && (isExternalNavigationItem(item) || isInternalNavigationItem(item))
 }))
-const hasDynamicCategories = computed(() => props.showCategories && sidebarItems.value.some(isCoreDynamicCategories))
+const dynamicCategoryItem = computed(() => sidebarItems.value.find(isCoreDynamicCategories))
+const hasDynamicCategories = computed(() => props.showCategories && Boolean(dynamicCategoryItem.value))
+const visibleCategories = computed(() => limitDynamicNavigationItems(props.categories, dynamicCategoryItem.value?.maxItems, props.selectedCategorySlug))
+const hasHiddenCategories = computed(() => visibleCategories.value.length < props.categories.length)
 
 function allTopicsTo() {
   return localePath('/')
@@ -137,13 +141,17 @@ function categoryIconName(category: ForumCategory) {
             @change="selectFromMenu"
           >
             <option value="">{{ t('home.allTopics') }} ({{ totalTopics }})</option>
-            <option v-for="category in categories" :key="category.slug" :value="category.slug">
+            <option v-for="category in visibleCategories" :key="category.slug" :value="category.slug">
               {{ category.name }} ({{ category.topicCount }})
             </option>
           </select>
           <UIcon name="i-lucide-chevron-down" class="size-4" aria-hidden="true" />
         </span>
       </label>
+      <NuxtLink v-if="hasHiddenCategories" :to="localePath('/categories')" class="sf-home-navigation__more">
+        {{ t('home.sidebar.viewAllCategories') }}
+        <UIcon name="i-lucide-arrow-right" class="size-4" aria-hidden="true" />
+      </NuxtLink>
     </div>
 
     <div v-if="!mobileOnly" class="sf-home-navigation__desktop">
@@ -175,7 +183,7 @@ function categoryIconName(category: ForumCategory) {
           </div>
           <template v-if="useRouteLinks">
             <NuxtLink
-              v-for="category in categories"
+              v-for="category in visibleCategories"
               :key="category.slug"
               :to="categoryTo(category.slug)"
               class="sf-home-navigation__link"
@@ -192,7 +200,7 @@ function categoryIconName(category: ForumCategory) {
           </template>
           <template v-else>
             <button
-              v-for="category in categories"
+              v-for="category in visibleCategories"
               :key="category.slug"
               type="button"
               class="sf-home-navigation__link"
@@ -209,6 +217,10 @@ function categoryIconName(category: ForumCategory) {
               <span v-if="navShowCounts" class="sf-home-navigation__count">{{ category.topicCount }}</span>
             </button>
           </template>
+          <NuxtLink v-if="hasHiddenCategories" :to="localePath('/categories')" class="sf-home-navigation__more">
+            {{ t('home.sidebar.viewAllCategories') }}
+            <UIcon name="i-lucide-arrow-right" class="size-4" aria-hidden="true" />
+          </NuxtLink>
         </template>
         <button
           v-else-if="isHomeFilterControl(item)"
@@ -219,7 +231,7 @@ function categoryIconName(category: ForumCategory) {
           @click="selectCategory('')"
         >
           <span class="sf-home-navigation__link-main">
-            <UIcon v-if="item.icon" :name="item.icon" class="size-[18px]" aria-hidden="true" />
+            <UIcon v-if="!item.iconHidden && item.icon" :name="item.icon" class="size-[18px]" aria-hidden="true" />
             {{ item.label }}
           </span>
           <span v-if="navShowCounts" class="sf-home-navigation__count">{{ navigationItemCount(item) }}</span>
@@ -233,7 +245,7 @@ function categoryIconName(category: ForumCategory) {
           :title="item.label"
         >
           <span class="sf-home-navigation__link-main">
-            <UIcon v-if="item.icon" :name="item.icon" class="size-[18px]" aria-hidden="true" />
+            <UIcon v-if="!item.iconHidden && item.icon" :name="item.icon" class="size-[18px]" aria-hidden="true" />
             {{ item.label }}
           </span>
           <span v-if="navShowCounts && navigationItemCount(item) !== undefined" class="sf-home-navigation__count">{{ navigationItemCount(item) }}</span>
@@ -248,7 +260,7 @@ function categoryIconName(category: ForumCategory) {
           :title="item.label"
         >
           <span class="sf-home-navigation__link-main">
-            <UIcon v-if="item.icon" :name="item.icon" class="size-[18px]" aria-hidden="true" />
+            <UIcon v-if="!item.iconHidden && item.icon" :name="item.icon" class="size-[18px]" aria-hidden="true" />
             {{ item.label }}
           </span>
           <span v-if="navShowCounts && navigationItemCount(item) !== undefined" class="sf-home-navigation__count">{{ navigationItemCount(item) }}</span>

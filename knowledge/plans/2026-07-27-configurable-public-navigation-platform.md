@@ -218,8 +218,8 @@ preserve:
 - a usable topbar without duplicating the topbar search control;
 - the current forum sidebar entry points and dynamic category list;
 - a usable mobile menu;
-- current legal/footer behavior unless the footer location deliberately
-  adopts those links.
+- an empty footer navigation location by default; copyright and friend links
+  retain their existing owners, while operators may add footer links explicitly.
 
 Restore-defaults previews the diff, creates a snapshot, and atomically restores
 one or all locations. It does not delete extension declarations or secrets.

@@ -41,6 +41,14 @@ function sourceLabel(source: NavigationEditorItem['definition']['sourceKind']) {
   return t(`admin.navigationEditor.sources.${source}`)
 }
 
+function itemLabel(item: NavigationEditorItem) {
+  return item.placement.labelZhCN
+    || item.definition.labelZhCN
+    || item.placement.labelEnUS
+    || item.definition.labelEnUS
+    || item.definition.sourceKey
+}
+
 function disabledTransferOptions(item: NavigationEditorItem) {
   return props.locations.filter(option => option.value !== item.placement.location)
 }
@@ -59,9 +67,9 @@ function disabledTransferOptions(item: NavigationEditorItem) {
       <li v-for="(item, index) in dragItems" :key="item.definition.sourceKey" class="grid min-w-0 gap-2 px-3 py-3 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center">
         <UButton class="sf-navigation-drag-handle cursor-grab active:cursor-grabbing" size="xs" color="neutral" variant="ghost" icon="i-lucide-grip-vertical" :aria-label="`Drag ${item.definition.sourceKey}`" :title="`Drag ${item.definition.sourceKey}`" />
         <div class="flex min-w-0 items-center gap-2.5">
-          <UIcon v-if="item.placement.icon || item.definition.icon" :name="item.placement.icon || item.definition.icon" class="size-5 shrink-0 text-muted" aria-hidden="true" />
+          <UIcon v-if="!item.placement.iconHidden && (item.placement.icon || item.definition.icon)" :name="item.placement.icon || item.definition.icon" class="size-5 shrink-0 text-muted" aria-hidden="true" />
           <div class="min-w-0">
-            <div class="flex flex-wrap items-center gap-2"><strong class="truncate">{{ item.definition.labelZhCN || item.definition.labelEnUS || item.definition.sourceKey }}</strong><UBadge :color="sourceTone(item.definition.sourceKind)" variant="subtle">{{ sourceLabel(item.definition.sourceKind) }}</UBadge><UBadge v-if="!item.placement.enabled" color="neutral" variant="subtle">{{ t('admin.navigationEditor.hidden') }}</UBadge><UBadge v-if="item.definition.sourceKind === 'extension'" color="warning" variant="subtle">{{ t('admin.navigationEditor.extensionUnavailable') }}</UBadge></div>
+            <div class="flex flex-wrap items-center gap-2"><strong class="truncate">{{ itemLabel(item) }}</strong><UBadge :color="sourceTone(item.definition.sourceKind)" variant="subtle">{{ sourceLabel(item.definition.sourceKind) }}</UBadge><UBadge v-if="item.definition.sourceKind === 'dynamic'" color="neutral" variant="subtle">{{ item.placement.maxItems ? t('admin.navigationEditor.maxItemsCount', { count: item.placement.maxItems }) : t('admin.navigationEditor.maxItemsAll') }}</UBadge><UBadge v-if="!item.placement.enabled" color="neutral" variant="subtle">{{ t('admin.navigationEditor.hidden') }}</UBadge><UBadge v-if="item.definition.sourceKind === 'extension'" color="warning" variant="subtle">{{ t('admin.navigationEditor.extensionUnavailable') }}</UBadge></div>
             <p class="truncate font-mono text-xs text-muted">{{ item.definition.href || item.definition.sourceKey }}</p>
           </div>
         </div>
@@ -71,7 +79,7 @@ function disabledTransferOptions(item: NavigationEditorItem) {
           <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-chevron-down" :disabled="index === dragItems.length - 1" :aria-label="`Move ${item.definition.sourceKey} down`" :title="`Move ${item.definition.sourceKey} down`" @click="emit('move', item.definition.sourceKey, index + 1)" />
           <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-chevrons-down" :disabled="index === dragItems.length - 1" :aria-label="`Move ${item.definition.sourceKey} to bottom`" :title="`Move ${item.definition.sourceKey} to bottom`" @click="emit('move', item.definition.sourceKey, dragItems.length - 1)" />
           <UButton size="xs" color="neutral" variant="ghost" :icon="item.placement.enabled ? 'i-lucide-eye-off' : 'i-lucide-eye'" :aria-label="`Toggle ${item.definition.sourceKey}`" :title="`Toggle ${item.definition.sourceKey}`" @click="emit('toggle', item.definition.sourceKey)" />
-          <UButton v-if="item.definition.sourceKind === 'operator'" size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="`Edit ${item.definition.sourceKey}`" :title="`Edit ${item.definition.sourceKey}`" @click="emit('edit', item.definition.sourceKey)" />
+          <UButton v-if="['operator', 'core', 'dynamic'].includes(item.definition.sourceKind)" size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="`Edit ${item.definition.sourceKey}`" :title="`Edit ${item.definition.sourceKey}`" @click="emit('edit', item.definition.sourceKey)" />
           <UButton v-if="item.definition.sourceKind === 'operator'" size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="`Delete ${item.definition.sourceKey}`" :title="`Delete ${item.definition.sourceKey}`" @click="emit('remove', item.definition.sourceKey)" />
           <USelect v-model="destination[item.definition.sourceKey]" class="w-36" :items="disabledTransferOptions(item)" value-key="value" label-key="label" :placeholder="t('admin.navigationEditor.moveTo')" />
           <UButton size="xs" color="neutral" variant="outline" icon="i-lucide-arrow-right" :disabled="!destination[item.definition.sourceKey]" :aria-label="`Move ${item.definition.sourceKey} to selected location`" :title="`Move ${item.definition.sourceKey} to selected location`" @click="destination[item.definition.sourceKey] && emit('transfer', item.definition.sourceKey, destination[item.definition.sourceKey]!, false)" />

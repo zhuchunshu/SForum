@@ -10,8 +10,13 @@
   Topbar/mobile/sidebar/footer fail closed without replacing Host utilities or
   target API authorization.
 - Sidebar ordinary links and `core.dynamic.categories` render in resolver
-  order; Forum remains the only taxonomy data owner. Footer legal links are
-  canonical while copyright/friend links retain their owners.
+  order; Forum remains the only taxonomy data owner. Mobile defaults contain
+  the three rendered route links, while footer navigation defaults to empty and
+  copyright/friend links retain their owners.
+- Fixed admin/public document divergence: migration `202607290074` materializes
+  missing topbar/sidebar/mobile defaults without overwriting explicit placement
+  settings, and the public resolver no longer injects invisible read-time
+  defaults. Missing placements now remain absent in both admin and public views.
 - Exact active-theme runtime state projects validated `navigationLocations`.
   Default and Nocturne declare all four v1 locations; Core emergency fallback
   supports all four without rewriting operator configuration.
@@ -34,8 +39,37 @@
 - The navigation list now renders each item's effective icon (location override
   first, definition fallback), and Core-owned routes use an explicit system
   built-in source label.
+- Core-owned links can now edit location-scoped label, icon, and visibility
+  overrides while their route identity remains read-only. The editor provides
+  a one-click reset to the code-owned presentation defaults before draft save.
+- Desktop full-width three-column shells now give the left and right rails
+  independent vertical overflow, contained overscroll, and stable scrollbar
+  gutters instead of clipping long navigation or contextual content. Host/Core
+  compatibility CSS and the default-theme source share the same rule.
+- Core link icon overrides are tri-state: inherit the built-in default, select
+  a custom icon, or explicitly render no icon for the current placement. The
+  public contract carries the suppression flag through topbar/sidebar/mobile/
+  footer renderers, and admin save invalidates cached public-navigation data.
+- Admins can edit `core.dynamic.categories` and set a placement-level maximum
+  of `0..100` categories. Zero is the recommended legacy-compatible unlimited
+  default. The API persists and validates the limit, public resolution carries
+  it, and `SFHomeNavigation` applies it to desktop and mobile category lists;
+  truncated lists expose a localized `/categories` link below the control.
 
 ## Verification
+
+### Stored navigation authority correction
+
+- PASS current development database migration: embedded migrator applied
+  `202607290074_materialize_public_navigation_defaults.sql` as the only pending
+  Core migration. Browser, unit, integration, typecheck, and build verification
+  were not run; the user owns desktop/mobile manual verification.
+
+### Side-rail overflow correction
+
+- Source and static contract changes only by explicit request. Browser, focused
+  test, typecheck, build, built-in restaging, and exact-theme activation were not
+  run; the user owns rendered verification and active-artifact refresh.
 
 ### Authenticated hard-refresh cache fix
 

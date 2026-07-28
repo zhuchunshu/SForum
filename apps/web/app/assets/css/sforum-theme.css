@@ -569,7 +569,7 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
 }
 
 @media (min-width: 981px) {
-  /* 兼容已安装的旧默认主题 artifact：桌面三栏只允许中间内容列滚动。 */
+  /* 兼容已安装的旧默认主题 artifact：桌面三栏各自管理纵向滚动。 */
   .sf-theme-template[data-extension-id="sforum.default-theme"]
     .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col {
     display: flex;
@@ -669,7 +669,10 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
     top: auto;
     height: 100%;
     min-height: 0;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
   }
 
   .sf-theme-template[data-extension-id="sforum.default-theme"]

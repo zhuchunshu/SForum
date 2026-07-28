@@ -21,6 +21,7 @@ import (
 
 const siteNavigationV1MigrationVersion = int64(202607280072)
 const siteNavigationSnapshotActorMigrationVersion = int64(202607280073)
+const siteNavigationMaterializedDefaultsMigrationVersion = int64(202607290074)
 
 func TestSiteNavigationV1MigrationPreservesLegacyTopbarRows(t *testing.T) {
 	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
@@ -91,6 +92,64 @@ func TestSiteNavigationV1MigrationPreservesLegacyTopbarRows(t *testing.T) {
 	var legacyActorID sql.NullInt64
 	if err := db.QueryRowContext(ctx, `SELECT actor_user_id FROM site_navigation_snapshots WHERE operation = 'legacy_snapshot'`).Scan(&legacyActorID); err != nil || legacyActorID.Valid {
 		t.Fatalf("legacy snapshot actor=%#v err=%v, want null", legacyActorID, err)
+	}
+}
+
+func TestSiteNavigationMaterializedDefaultsPreserveExplicitPlacements(t *testing.T) {
+	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	if databaseURL == "" {
+		t.Skip("DATABASE_URL is required for site navigation migration integration test")
+	}
+	ctx := context.Background()
+	db, provider := openIsolatedLifecycleLeaseMigrationDB(t, ctx, databaseURL)
+	if _, err := provider.UpTo(ctx, siteNavigationSnapshotActorMigrationVersion); err != nil {
+		t.Fatalf("migrate site navigation schema: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `
+		INSERT INTO site_navigation_placements
+		(source_key, location, position, enabled, visibility)
+		VALUES ('core.home', 'public.sidebar.primary', 77, FALSE, 'public')
+	`); err != nil {
+		t.Fatalf("seed explicit sidebar override: %v", err)
+	}
+
+	if _, err := provider.ApplyVersion(ctx, siteNavigationMaterializedDefaultsMigrationVersion, true); err != nil {
+		t.Fatalf("apply materialized navigation defaults: %v", err)
+	}
+
+	var revision int64
+	if err := db.QueryRowContext(ctx, `SELECT revision FROM site_navigation_state WHERE id = 1`).Scan(&revision); err != nil || revision != 2 {
+		t.Fatalf("navigation revision=%d err=%v, want 2", revision, err)
+	}
+	for location, want := range map[string]int{
+		"public.topbar.primary":  3,
+		"public.sidebar.primary": 4,
+		"public.mobile.primary":  3,
+		"public.footer.primary":  0,
+	} {
+		var count int
+		if err := db.QueryRowContext(ctx, `SELECT count(*) FROM site_navigation_placements WHERE location = $1`, location).Scan(&count); err != nil || count != want {
+			t.Fatalf("navigation placement count for %s=%d err=%v, want %d", location, count, err, want)
+		}
+	}
+	var enabled bool
+	var position int
+	if err := db.QueryRowContext(ctx, `
+		SELECT enabled, position
+		FROM site_navigation_placements
+		WHERE source_key = 'core.home' AND location = 'public.sidebar.primary'
+	`).Scan(&enabled, &position); err != nil || enabled || position != 77 {
+		t.Fatalf("explicit sidebar placement enabled=%t position=%d err=%v", enabled, position, err)
+	}
+	var sourceKind, href, icon string
+	if err := db.QueryRowContext(ctx, `
+		SELECT source_kind, href, icon FROM site_navigation_definitions WHERE source_key = 'core.dynamic.categories'
+	`).Scan(&sourceKind, &href, &icon); err != nil || sourceKind != "dynamic" || href != "" || icon != "i-lucide-folders" {
+		t.Fatalf("dynamic category definition kind=%q href=%q icon=%q err=%v", sourceKind, href, icon, err)
+	}
+	var publicRevision string
+	if err := db.QueryRowContext(ctx, `SELECT value FROM web_options WHERE name = 'site.public_surface_revision'`).Scan(&publicRevision); err != nil || publicRevision != "2" {
+		t.Fatalf("public surface revision=%q err=%v, want 2", publicRevision, err)
 	}
 }
 

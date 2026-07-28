@@ -75,7 +75,16 @@ Resolved navigation composes three sources:
 3. Enabled plugin contributions.
 
 Core definitions use stable keys and a code-owned recommended placement
-catalog. Recommended defaults are not migration-only seed data.
+catalog. Recommended defaults are not migration-only seed data. The stored
+placement document, rather than a read-time resolver overlay, is the effective
+Core placement authority: missing placements stay absent until initialization
+or an explicit restore-defaults command materializes them.
+
+The recommended V1 locations are Home/Categories/Tags in the topbar,
+Home/Categories/Tags plus the dynamic Categories block in the sidebar, and
+Home/Categories/Tags in the mobile menu. Footer navigation starts empty;
+copyright and friend links retain their existing owners, and operators may add
+footer navigation explicitly.
 
 Operator-created links use portable stable keys that do not depend on database
 sequence ids.
@@ -83,7 +92,8 @@ sequence ids.
 Plugin contributions remain owned by the active exact artifact. They are not
 copied into the operator item table. Operator preferences reference the stable
 `extension id + contribution id` identity and may override placement, order,
-visibility, label, or icon within Host policy. Runtime resolution still binds
+visibility, label, or icon (including explicitly suppressing it) within Host
+policy. Runtime resolution still binds
 the contribution to the active artifact.
 
 The existing `forum.nav.items` path is compatibility input. The implementation
