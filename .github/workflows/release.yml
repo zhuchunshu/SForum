@@ -58,12 +58,14 @@ jobs:
           else
             stable=true
           fi
-          echo "tag=$REQUESTED_TAG" >> "$GITHUB_OUTPUT"
-          echo "version=${REQUESTED_TAG#v}" >> "$GITHUB_OUTPUT"
-          echo "stable=$stable" >> "$GITHUB_OUTPUT"
           commit="$(git rev-parse HEAD)"
-          echo "commit=$commit" >> "$GITHUB_OUTPUT"
-          echo "sha=sha-$commit" >> "$GITHUB_OUTPUT"
+          {
+            echo "tag=$REQUESTED_TAG"
+            echo "version=${REQUESTED_TAG#v}"
+            echo "stable=$stable"
+            echo "commit=$commit"
+            echo "sha=sha-$commit"
+          } >> "$GITHUB_OUTPUT"
 
   publish-candidate:
     name: Publish candidate / ${{ matrix.image }}
