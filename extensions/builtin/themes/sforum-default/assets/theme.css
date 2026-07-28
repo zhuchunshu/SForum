@@ -184,10 +184,6 @@
 }
 
 .sforum-home__sidebar {
-  position: sticky;
-  top: var(--sf-public-topbar-height);
-  height: calc(100vh - var(--sf-public-topbar-height));
-  overflow: auto;
   border-right: 1px solid var(--sf-public-border);
   padding: 12px 0 24px;
   background: var(--sf-public-surface-muted);
@@ -201,10 +197,6 @@
 
 /* 右侧辅助栏：热帖 / 统计 / 标签，不抢主列表注意力 */
 .sforum-home__right {
-  position: sticky;
-  top: var(--sf-public-topbar-height);
-  height: calc(100vh - var(--sf-public-topbar-height));
-  overflow: auto;
   border-left: 1px solid var(--sf-public-border);
   padding: 12px 12px 24px;
   background: var(--sf-public-surface-muted);
@@ -1292,7 +1284,7 @@
   min-height: calc(100vh - var(--sf-public-topbar-height));
   width: 100%;
   max-width: none;
-  align-items: start;
+  align-items: stretch;
 }
 
 .sforum-topic-page__layout--with-side {
@@ -1300,10 +1292,6 @@
 }
 
 .sforum-topic-page__sidebar {
-  position: sticky;
-  top: var(--sf-public-topbar-height);
-  height: calc(100vh - var(--sf-public-topbar-height));
-  overflow: auto;
   border-right: 1px solid var(--sf-public-border);
   padding: 12px 0 24px;
   background: var(--sf-public-surface-muted);
@@ -1603,12 +1591,8 @@
   display: none;
 }
 
-/* 右侧信息卡：作为三栏第三列，贴边 sticky */
+/* 右侧信息卡：作为三栏第三列，随长侧栏参与页面滚动 */
 .sforum-topic-page__side {
-  position: sticky;
-  top: var(--sf-public-topbar-height);
-  height: calc(100vh - var(--sf-public-topbar-height));
-  overflow: auto;
   min-width: 0;
   padding: 12px 12px 24px;
   border-left: 1px solid var(--sf-public-border);

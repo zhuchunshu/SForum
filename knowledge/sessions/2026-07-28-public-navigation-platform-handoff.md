@@ -42,10 +42,15 @@
 - Core-owned links can now edit location-scoped label, icon, and visibility
   overrides while their route identity remains read-only. The editor provides
   a one-click reset to the code-owned presentation defaults before draft save.
-- Desktop full-width three-column shells now give the left and right rails
-  independent vertical overflow, contained overscroll, and stable scrollbar
-  gutters instead of clipping long navigation or contextual content. Host/Core
-  compatibility CSS and the default-theme source share the same rule.
+- Desktop full-width three-column shells keep the center column's existing
+  viewport-height scroll while left and right rails use natural height. Long
+  navigation or contextual content now extends the document and is reached by
+  page scrolling without nested rail scrollbars. Host/Core compatibility CSS
+  and the default-theme source share the same rule. Topic-detail grid rails
+  stretch to the row height so both vertical dividers remain continuous.
+- `SFContentColumnFooter` now uses the shared content-column flex contract: it
+  sits at the viewport bottom for short center content and remains after all
+  content when the center column overflows.
 - Core link icon overrides are tri-state: inherit the built-in default, select
   a custom icon, or explicitly render no icon for the current placement. The
   public contract carries the suppression flag through topbar/sidebar/mobile/

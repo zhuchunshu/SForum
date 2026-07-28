@@ -73,7 +73,7 @@ function closeMobileDrawers() {
         </SFHomeNavigation>
       </div>
 
-      <section class="sforum-settings__main" :aria-labelledby="props.titleId">
+      <section class="sforum-settings__main sforum-content-column" :aria-labelledby="props.titleId">
         <div class="sforum-settings__mobile-nav">
           <SFHomeNavigation
             mobile-only

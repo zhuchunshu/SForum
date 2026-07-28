@@ -353,8 +353,14 @@ describe('default theme V32 left-nav homepage contract', () => {
   })
 
   test('footer remains available via theme L1 and fail-closed host chrome', () => {
+    const contentFooter = source('../../app/components/forum/SFContentColumnFooter.vue')
+
     expect(footer()).toContain('sf-footer')
-    expect(source('../../app/components/forum/SFContentColumnFooter.vue')).toContain('<SFFooter')
+    expect(contentFooter).toContain('<SFFooter')
+    expect(contentFooter).toContain('margin-top: auto')
+    expect(contentFooter).toContain('padding-top: 20px')
+    expect(homepageIsland()).toContain('sforum-home__main sforum-content-column')
+    expect(themeCss()).toContain('.sforum-content-column')
     expect(defaultHomeTemplate()).toContain('<sf-footer>')
     expect(source('../../app/components/SFHostPublicChrome.vue')).toContain('<SFFooter')
     expect(defaultThemeHybridCss()).not.toContain('.sf-theme--default:not(.sf-page--not-found) .sf-footer')
@@ -367,7 +373,7 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(themeCss()).toContain('.sf-page--not-found > .sf-footer')
   })
 
-  test('desktop three-column shell scrolls overflowing columns independently', () => {
+  test('desktop shell keeps center scrolling while long rails use page scroll', () => {
     const css = homepageCss()
     const hybrid = defaultThemeHybridCss()
 
@@ -378,21 +384,21 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(css).toContain('padding: 24px 24px 20px 28px;')
     expect(css).toContain('padding: 34px 28px;')
     expect(css).toContain('height: 40px;')
-    expect(css).toContain('.sforum-home__main {\n    height: 100%;\n    min-height: 0;\n    overflow-y: auto;')
+    expect(css).toContain('.sforum-home__main {\n    position: sticky;\n    top: var(--sf-public-topbar-height);\n    height: calc(100vh - var(--sf-public-topbar-height));\n    min-height: 0;\n    overflow-y: auto;')
     expect(css).toContain('.sforum-home__sidebar,\n  .sforum-home__right {\n    position: static;')
-    expect(css).toContain('overflow-x: hidden;\n    overflow-y: auto;\n    overscroll-behavior: contain;\n    scrollbar-gutter: stable;')
+    expect(css).toContain('height: auto;\n    min-height: 0;\n    overflow: visible;')
     expect(hybrid).toContain('.sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col')
-    expect(hybrid).toContain('height: 100vh')
+    expect(hybrid).not.toContain('\n    height: 100vh;')
     expect(hybrid).toContain('padding: 0 18px;')
     expect(hybrid).toContain('.sforum-home__main,\n  .sforum-topic-page__main,\n  .sforum-notifications__main')
     expect(hybrid).toContain('overflow-y: auto')
     expect(hybrid).toContain('.sforum-home__sidebar,\n  .sforum-home__right,\n  .sforum-topic-page__sidebar')
-    expect(hybrid).toContain('overflow-x: hidden;\n    overflow-y: auto;\n    overscroll-behavior: contain;\n    scrollbar-gutter: stable;')
+    expect(hybrid).toContain('height: auto;\n    min-height: 0;\n    overflow: visible;')
     expect(themeCss()).toContain('已安装的旧默认主题')
     expect(themeCss()).toContain('.sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col')
     expect(themeCss()).toContain('padding-top: 0')
     expect(themeCss()).toContain('padding-bottom: 0')
-    expect(themeCss()).toContain('桌面三栏各自管理纵向滚动')
+    expect(themeCss()).toContain('中栏独立滚动，长侧栏参与页面滚动')
     expect(themeCss()).toContain('overflow-y: auto')
   })
 })

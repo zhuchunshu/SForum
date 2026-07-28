@@ -25,10 +25,6 @@
 }
 
 .sforum-notifications__right {
-  position: sticky;
-  top: var(--sf-public-topbar-height);
-  height: calc(100vh - var(--sf-public-topbar-height));
-  overflow: auto;
   border-left: 1px solid var(--sf-public-border);
   padding: 26px 20px;
   background: var(--sf-public-surface);
@@ -599,15 +595,10 @@
 }
 
 @media (min-width: 981px) {
-  .sforum-notifications,
-  .sforum-notifications__layout {
-    height: calc(100vh - var(--sf-public-topbar-height));
-    min-height: 0;
-    overflow: hidden;
-  }
-
   .sforum-notifications__main {
-    height: 100%;
+    position: sticky;
+    top: var(--sf-public-topbar-height);
+    height: calc(100vh - var(--sf-public-topbar-height));
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -618,9 +609,9 @@
   .sforum-notifications__right {
     position: static;
     top: auto;
-    height: 100%;
+    height: auto;
     min-height: 0;
-    overflow: hidden;
+    overflow: visible;
   }
 }
 

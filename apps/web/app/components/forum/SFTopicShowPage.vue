@@ -1131,7 +1131,7 @@ async function submitReport() {
         />
       </div>
 
-      <div class="sforum-topic-page__main">
+      <div class="sforum-topic-page__main sforum-content-column">
         <div class="sforum-topic-page__mobile-nav">
           <SFHomeNavigation
             mobile-only

@@ -27,10 +27,6 @@
 }
 
 .sforum-settings__right {
-  position: sticky;
-  top: var(--sf-public-topbar-height);
-  height: calc(100vh - var(--sf-public-topbar-height));
-  overflow: auto;
   border-left: 1px solid var(--sf-public-border);
   padding: 26px 20px;
   background: var(--sf-public-surface);
@@ -256,15 +252,10 @@
 }
 
 @media (min-width: 981px) {
-  .sforum-settings,
-  .sforum-settings__layout {
-    height: calc(100vh - var(--sf-public-topbar-height));
-    min-height: 0;
-    overflow: hidden;
-  }
-
   .sforum-settings__main {
-    height: 100%;
+    position: sticky;
+    top: var(--sf-public-topbar-height);
+    height: calc(100vh - var(--sf-public-topbar-height));
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -275,20 +266,20 @@
   .sforum-settings__right {
     position: static;
     top: auto;
-    height: 100%;
+    height: auto;
     min-height: 0;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .sforum-settings__sidebar .sf-home-navigation,
   .sforum-settings__sidebar .sf-home-navigation__desktop {
-    height: 100%;
+    height: auto;
     min-height: 0;
-    overflow: auto;
+    overflow: visible;
   }
 
   .sforum-settings__right {
-    overflow: auto;
+    overflow: visible;
   }
 }
 

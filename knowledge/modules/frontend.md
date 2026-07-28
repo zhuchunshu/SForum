@@ -275,7 +275,8 @@ Plan: `../plans/2026-07-22-theme-defined-system-error-pages.md`
 - `SFHostPublicChrome` preserves the selected theme's public shell geometry
   during a Core page fallback. Its `fullwidth-3col` contract uses the same
   topbar grid, 24 px viewport inset, 230 px left rail, 270 px right rail,
-  column padding, and center-column scroll ownership as the default theme.
+  column padding, sticky center-column scroll ownership, and document-scrolling
+  side rails as the default theme.
   Runtime fallback may change ownership/content, not page geometry.
 - Public chrome islands such as `SFNavbar` and `SFFooter` must stay statically
   reachable from runtime theme templates so critical scoped CSS is present
@@ -358,18 +359,20 @@ Architecture sources:
   chrome. Configurable footer navigation starts empty; copyright and friend
   links remain independently owned, and operator-created footer links render
   alongside them when configured.
-- On desktop, the default-theme full-width three-column shell fixes the navbar,
-  left navigation, and right rail in the viewport; the center and either side
-  column scroll independently when their content exceeds the available height.
-  Side columns hide horizontal overflow, contain scroll chaining, and reserve a
-  stable scrollbar gutter. The rail divider lines touch the topbar and viewport
-  bottom directly; spacing belongs inside each column, not on the outer layout.
-  Mobile keeps ordinary document scrolling plus drawer scrolling to avoid scroll
-  traps.
+- On desktop, the default-theme full-width three-column shell keeps the navbar
+  and viewport-height center column sticky, with the center retaining its
+  independent content scroll. Left navigation and the right rail use natural
+  height without inline vertical scrolling; when either grows beyond the
+  viewport, the document scrolls to expose it. Grid rail boxes stretch to the
+  row height so their divider lines remain continuous without constraining the
+  rail content. Mobile keeps ordinary document scrolling plus drawer scrolling
+  to avoid scroll traps.
 - Homepage, topic detail, and notifications place the public footer inside the
   center content column through `SFContentColumnFooter`; full-width L1 footer is
   hidden for `fullwidth-3col` shells so the footer scrolls with content instead
-  of occupying global chrome.
+  of occupying global chrome. Footer-owning center columns use a shared flex
+  contract so short content pushes the footer to the viewport bottom while long
+  content keeps it after the complete content stream.
 - `/tags` is the `forum.tag.index` Page Registry body island. It renders the
   default-theme three-column heat overview from real `listTags` and
   `listCategoryGroups` API data, with all/hot/week/A-Z filters, localized empty

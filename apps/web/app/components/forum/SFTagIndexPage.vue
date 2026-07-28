@@ -189,7 +189,7 @@ function retryTags() {
         </SFHomeNavigation>
       </div>
 
-      <section class="sforum-home__main sforum-tags-page__main" aria-labelledby="tag-index-title">
+      <section class="sforum-home__main sforum-tags-page__main sforum-content-column" aria-labelledby="tag-index-title">
         <SFRegionOutlet page="forum.tag.index" region="content_before" />
 
         <header class="sforum-tags-page__head">

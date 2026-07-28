@@ -258,7 +258,7 @@ function topicActivity(topic: ForumTopicSummary) {
         </SFHomeNavigation>
       </div>
 
-      <section class="sforum-home__main sforum-tags-page__main" aria-labelledby="tag-page-title">
+      <section class="sforum-home__main sforum-tags-page__main sforum-content-column" aria-labelledby="tag-page-title">
         <SFRegionOutlet page="forum.tag.show" region="content_before" />
 
         <header class="sforum-home__page-header">

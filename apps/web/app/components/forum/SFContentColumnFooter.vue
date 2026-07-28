@@ -10,7 +10,9 @@ import SFFooter from '../SFFooter.vue'
 
 <style scoped>
 .sforum-content-footer {
-  margin-top: 20px;
+  flex: 0 0 auto;
+  margin-top: auto;
+  padding-top: 20px;
 }
 
 .sforum-content-footer :deep(.sf-footer) {

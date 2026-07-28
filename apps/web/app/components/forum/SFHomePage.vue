@@ -508,7 +508,7 @@ onBeforeUnmount(() => {
         />
       </div>
 
-      <section class="sforum-home__main" aria-labelledby="forum-feed-title">
+      <section class="sforum-home__main sforum-content-column" aria-labelledby="forum-feed-title">
         <div class="sforum-home__mobile-nav">
           <SFHomeNavigation
             mobile-only

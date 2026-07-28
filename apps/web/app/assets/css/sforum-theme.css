@@ -211,13 +211,16 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
   flex: 1 1 auto;
 }
 
+.sforum-content-column {
+  display: flex;
+  flex-direction: column;
+}
+
 @media (min-width: 981px) {
   .sf-host-public-chrome--fullwidth-3col {
     display: flex;
-    height: 100vh;
     min-height: 100vh;
     flex-direction: column;
-    overflow: hidden;
   }
 
   .sf-host-public-chrome--fullwidth-3col > .navbar {
@@ -226,7 +229,7 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
 
   .sf-host-public-chrome--fullwidth-3col > .sf-host-public-chrome__body {
     min-height: 0;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .sf-host-public-chrome--fullwidth-3col :is(
@@ -242,9 +245,9 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
     .sforum-settings__layout,
     .sforum-moderation__layout
   ) {
-    height: 100%;
-    min-height: 0;
-    overflow: hidden;
+    height: auto;
+    min-height: calc(100vh - var(--sf-public-topbar-height));
+    overflow: visible;
   }
 
   .sf-host-public-chrome--fullwidth-3col :is(
@@ -254,7 +257,9 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
     .sforum-settings__main,
     .sforum-moderation__main
   ) {
-    height: 100%;
+    position: sticky;
+    top: var(--sf-public-topbar-height);
+    height: calc(100vh - var(--sf-public-topbar-height));
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -271,11 +276,10 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
   ) {
     position: static;
     top: auto;
-    height: 100%;
+    height: auto;
     min-height: 0;
     padding: 24px 24px 20px 28px;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    overflow: visible;
   }
 
   .sf-host-public-chrome--fullwidth-3col .sforum-home__main {
@@ -288,11 +292,10 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
   ) {
     position: static;
     top: auto;
-    height: 100%;
+    height: auto;
     min-height: 0;
     padding: 34px 28px;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    overflow: visible;
   }
 
   .sf-host-public-chrome--fullwidth-3col .navbar__inner {
@@ -569,14 +572,12 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
 }
 
 @media (min-width: 981px) {
-  /* 兼容已安装的旧默认主题 artifact：桌面三栏各自管理纵向滚动。 */
+  /* 兼容已安装的旧默认主题 artifact：中栏独立滚动，长侧栏参与页面滚动。 */
   .sf-theme-template[data-extension-id="sforum.default-theme"]
     .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col {
     display: flex;
-    height: 100vh;
     min-height: 100vh;
     flex-direction: column;
-    overflow: hidden;
   }
 
   .sf-theme-template[data-extension-id="sforum.default-theme"]
@@ -588,7 +589,7 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
     .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col > .sf-theme-chrome-body {
     flex: 1 1 auto;
     min-height: 0;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .sf-theme-template[data-extension-id="sforum.default-theme"]
@@ -602,9 +603,9 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
       .sforum-settings,
       .sforum-moderation
     ) {
-    height: 100%;
-    min-height: 0;
-    overflow: hidden;
+    height: auto;
+    min-height: calc(100vh - var(--sf-public-topbar-height));
+    overflow: visible;
     padding-top: 0;
     padding-bottom: 0;
   }
@@ -619,9 +620,9 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
       .sforum-settings__layout,
       .sforum-moderation__layout
     ) {
-    height: 100%;
-    min-height: 0;
-    overflow: hidden;
+    height: auto;
+    min-height: calc(100vh - var(--sf-public-topbar-height));
+    overflow: visible;
   }
 
   .sf-theme-template[data-extension-id="sforum.default-theme"]
@@ -632,7 +633,9 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
       .sforum-settings__main,
       .sforum-moderation__main
     ) {
-    height: 100%;
+    position: sticky;
+    top: var(--sf-public-topbar-height);
+    height: calc(100vh - var(--sf-public-topbar-height));
     min-height: 0;
     padding-bottom: 28px;
     overflow-y: auto;
@@ -644,7 +647,7 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
   .sf-theme-template[data-extension-id="sforum.default-theme"]
     .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col
     .sforum-topic-composer__main {
-    height: 100%;
+    height: calc(100vh - var(--sf-public-topbar-height));
     min-height: 0;
     padding-bottom: 112px;
     overflow-y: auto;
@@ -667,28 +670,9 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
     ) {
     position: static;
     top: auto;
-    height: 100%;
+    height: auto;
     min-height: 0;
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-gutter: stable;
-  }
-
-  .sf-theme-template[data-extension-id="sforum.default-theme"]
-    .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col
-    .sforum-topic-composer
-    .sforum-home__sidebar {
-    overflow-y: auto;
-    overscroll-behavior: contain;
-  }
-
-  .sf-theme-template[data-extension-id="sforum.default-theme"]
-    .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col
-    .sforum-topic-composer
-    .sforum-home__right {
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    overflow: visible;
   }
 
   /*

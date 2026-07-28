@@ -30,10 +30,6 @@
 }
 
 .sforum-home__sidebar {
-  position: sticky;
-  top: var(--sf-public-topbar-height);
-  height: calc(100vh - var(--sf-public-topbar-height));
-  overflow: auto;
   border-right: 1px solid var(--sf-public-border);
   padding: 12px 0 24px;
   background: var(--sf-public-surface-muted);
@@ -47,10 +43,6 @@
 
 /* 右侧辅助栏：热帖 / 统计 / 标签，不抢主列表注意力 */
 .sforum-home__right {
-  position: sticky;
-  top: var(--sf-public-topbar-height);
-  height: calc(100vh - var(--sf-public-topbar-height));
-  overflow: auto;
   border-left: 1px solid var(--sf-public-border);
   padding: 12px 12px 24px;
   background: var(--sf-public-surface-muted);
@@ -821,15 +813,14 @@
 @media (min-width: 981px) {
   .sforum-home__layout {
     gap: 12px;
-    height: calc(100vh - var(--sf-public-topbar-height));
-    min-height: 0;
-    overflow: hidden;
     padding: 0 18px;
     background: var(--sf-public-surface);
   }
 
   .sforum-home__main {
-    height: 100%;
+    position: sticky;
+    top: var(--sf-public-topbar-height);
+    height: calc(100vh - var(--sf-public-topbar-height));
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -840,12 +831,9 @@
   .sforum-home__right {
     position: static;
     top: auto;
-    height: 100%;
+    height: auto;
     min-height: 0;
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-gutter: stable;
+    overflow: visible;
   }
 
   /*
@@ -860,8 +848,6 @@
 
   .sf-host-public-chrome--fullwidth-3col .sforum-home__sidebar {
     padding: 24px 24px 20px 28px;
-    overflow-y: auto;
-    overscroll-behavior: contain;
   }
 
   .sf-host-public-chrome--fullwidth-3col .sforum-home__main {
@@ -870,8 +856,6 @@
 
   .sf-host-public-chrome--fullwidth-3col .sforum-home__right {
     padding: 34px 28px;
-    overflow-y: auto;
-    overscroll-behavior: contain;
   }
 }
 

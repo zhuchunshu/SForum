@@ -13,7 +13,7 @@
   min-height: calc(100vh - var(--sf-public-topbar-height));
   width: 100%;
   max-width: none;
-  align-items: start;
+  align-items: stretch;
 }
 
 .sforum-topic-page__layout--with-side {
@@ -21,10 +21,6 @@
 }
 
 .sforum-topic-page__sidebar {
-  position: sticky;
-  top: var(--sf-public-topbar-height);
-  height: calc(100vh - var(--sf-public-topbar-height));
-  overflow: auto;
   border-right: 1px solid var(--sf-public-border);
   padding: 12px 0 24px;
   background: var(--sf-public-surface-muted);
@@ -397,10 +393,6 @@
 
 /* 右侧信息卡：三栏第三列 */
 .sforum-topic-page__side {
-  position: sticky;
-  top: var(--sf-public-topbar-height);
-  height: calc(100vh - var(--sf-public-topbar-height));
-  overflow: auto;
   min-width: 0;
   padding: 12px 12px 24px;
   border-left: 1px solid var(--sf-public-border);
@@ -814,15 +806,14 @@
 @media (min-width: 981px) {
   .sforum-topic-page__layout {
     gap: 12px;
-    height: calc(100vh - var(--sf-public-topbar-height));
-    min-height: 0;
-    overflow: hidden;
     padding: 0 18px;
     background: var(--sf-public-surface);
   }
 
   .sforum-topic-page__main {
-    height: 100%;
+    position: sticky;
+    top: var(--sf-public-topbar-height);
+    height: calc(100vh - var(--sf-public-topbar-height));
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -833,9 +824,9 @@
   .sforum-topic-page__side {
     position: static;
     top: auto;
-    height: 100%;
+    height: auto;
     min-height: 0;
-    overflow: hidden;
+    overflow: visible;
   }
 }
 

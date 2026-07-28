@@ -378,9 +378,9 @@ describe('SFNotificationsPage contract', () => {
     expect(page).not.toContain('<SFContentColumnFooter')
     expect(styles).toContain('.sforum-mobile-drawer .sforum-notifications__right--drawer')
     expect(styles).toContain('display: block')
-    expect(styles).toContain('.sforum-notifications__main {\n    height: 100%;\n    min-height: 0;\n    overflow-y: auto;')
+    expect(styles).toContain('.sforum-notifications__main {\n    position: sticky;\n    top: var(--sf-public-topbar-height);\n    height: calc(100vh - var(--sf-public-topbar-height));\n    min-height: 0;\n    overflow-y: auto;')
     expect(styles).toContain('.sforum-notifications__sidebar,\n  .sforum-notifications__right {\n    position: static;')
-    expect(styles).toContain('overflow: hidden;')
+    expect(styles).toContain('height: auto;\n    min-height: 0;\n    overflow: visible;')
     expect(page).not.toContain('ssr: false')
   })
 

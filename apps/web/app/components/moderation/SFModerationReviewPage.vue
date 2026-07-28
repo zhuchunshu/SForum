@@ -366,7 +366,7 @@ function isItemActive(item: QueueRecord) {
 
       <section
         v-if="!reviewMode"
-        class="sforum-home__main sforum-moderation__main"
+        class="sforum-home__main sforum-moderation__main sforum-content-column"
         :aria-labelledby="'moderation-page-title'"
       >
         <div class="sforum-moderation__mobile-nav">

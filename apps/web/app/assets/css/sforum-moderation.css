@@ -621,15 +621,14 @@
 }
 
 @media (min-width: 981px) {
-  .sforum-moderation,
   .sforum-moderation .sforum-home__layout {
-    height: calc(100vh - var(--sf-public-topbar-height));
-    min-height: 0;
-    overflow: hidden;
+    min-height: calc(100vh - var(--sf-public-topbar-height));
   }
 
   .sforum-moderation .sforum-home__main {
-    height: 100%;
+    position: sticky;
+    top: var(--sf-public-topbar-height);
+    height: calc(100vh - var(--sf-public-topbar-height));
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -640,10 +639,9 @@
   .sforum-moderation .sforum-home__right:not(.sforum-moderation__right--drawer) {
     position: static;
     top: auto;
-    height: 100%;
+    height: auto;
     min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    overflow: visible;
   }
 }
 
