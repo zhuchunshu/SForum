@@ -1,6 +1,7 @@
 import { getQuery } from 'h3'
 
 import { proxyRouteRequest } from '../../../utils/pluginRouteProxy'
+import { proxyNotificationStream } from '../../../utils/notifications/notificationStreamProxy'
 
 export default defineEventHandler((event) => {
   const pathParam = event.context.params?.path
@@ -22,5 +23,7 @@ export default defineEventHandler((event) => {
     }
   }
 
-  return proxyRouteRequest(event, target)
+  return path === 'notifications/stream'
+    ? proxyNotificationStream(event, target)
+    : proxyRouteRequest(event, target)
 })

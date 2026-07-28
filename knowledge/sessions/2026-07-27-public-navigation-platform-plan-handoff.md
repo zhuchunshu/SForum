@@ -5,10 +5,10 @@
 - Added the configurable public navigation task book with M0-M7 delivery.
 - Froze Core/operator/plugin/theme ownership, four public locations, defaults,
   revisioned batch apply, snapshots, and portable backup.
-- Added self-contained Grok prompts and a mandatory per-milestone report and
-  knowledge-update protocol.
-- Added an explicit one-conversation M0-M7 mode while retaining sequential,
-  durable milestone checkpoints.
+- Replaced the prior per-conversation prompts with one persistent Codex Goal
+  and a single Outcome/Constraints/Verification launch text.
+- Retained sequential M0-M7 boundaries, per-milestone reports, durable Ledger
+  and hot-handoff checkpoints, plus first-incomplete-milestone recovery.
 - Allowed optional subagents only for bounded independent work inside the
   current milestone; the primary agent remains the integration owner.
 
@@ -21,6 +21,8 @@
 - V1 keeps `settings.site.manage` and existing API/contribution compatibility.
 - Parallel work cannot cross milestone dependencies or replace primary-agent
   review, integration tests, runtime evidence, or knowledge updates.
+- Goal mode does not broaden sandbox, approval, exact-artifact trust, or
+  operator authority; it pauses rather than bypassing those boundaries.
 
 ## Verification
 
@@ -30,8 +32,8 @@
 
 ## Next
 
-- Start at M0 using either the default M0 prompt or an explicit user-approved
-  one-conversation M0-M7 prompt. Both modes keep the same milestone gates.
+- Start a new Codex chat with `/goal`, then use the task book's Codex Goal
+  Launch Prompt. The Goal begins at M0 and advances only through durable gates.
 - M0 must prove production wiring before selecting compatibility adapters or
   adding schemas.
 

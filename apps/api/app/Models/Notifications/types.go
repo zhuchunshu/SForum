@@ -27,29 +27,32 @@ const (
 var ErrNotificationNotFound = errors.New("notifications: notification not found")
 
 type Notification struct {
-	ID              int64           `json:"id"`
-	RecipientUserID int64           `json:"-"`
-	Type            string          `json:"type"`
-	Category        string          `json:"category,omitempty"`
-	TypeVersion     int             `json:"typeVersion,omitempty"`
-	PayloadVersion  int             `json:"payloadVersion,omitempty"`
-	ActorUserID     *int64          `json:"actorUserId,omitempty"`
-	TargetType      string          `json:"targetType"`
-	TargetID        int64           `json:"targetId"`
-	TargetAvailable bool            `json:"targetAvailable"`
-	TargetPath      string          `json:"targetPath,omitempty"`
-	Payload         json.RawMessage `json:"payload"`
-	DedupeKey       string          `json:"-"`
-	ReadAt          *time.Time      `json:"readAt,omitempty"`
-	CreatedAt       time.Time       `json:"createdAt"`
+	ID              int64              `json:"id"`
+	RecipientUserID int64              `json:"-"`
+	Type            string             `json:"type"`
+	Category        string             `json:"category,omitempty"`
+	TypeVersion     int                `json:"typeVersion,omitempty"`
+	PayloadVersion  int                `json:"payloadVersion,omitempty"`
+	ActorUserID     *int64             `json:"actorUserId,omitempty"`
+	Actor           *NotificationActor `json:"actor,omitempty"`
+	TargetType      string             `json:"targetType"`
+	TargetID        int64              `json:"targetId"`
+	TargetAvailable bool               `json:"targetAvailable"`
+	TargetPath      string             `json:"targetPath,omitempty"`
+	Payload         json.RawMessage    `json:"payload"`
+	DedupeKey       string             `json:"-"`
+	ReadAt          *time.Time         `json:"readAt,omitempty"`
+	CreatedAt       time.Time          `json:"createdAt"`
 }
 
-type TargetPreviewAuthor struct {
+type NotificationActor struct {
 	ID          int64       `json:"id"`
 	Username    string      `json:"username"`
 	DisplayName string      `json:"displayName"`
 	Avatar      avatar.View `json:"avatar"`
 }
+
+type TargetPreviewAuthor = NotificationActor
 
 type TargetPreviewContent struct {
 	Type    string               `json:"type"`

@@ -20,6 +20,8 @@ import (
 const (
 	maxPreferenceUpdates  = 200
 	maxAdminPolicyUpdates = 500
+	// 代理或浏览器未正确传播断开时，租期仍会回收订阅额度。
+	notificationStreamMaxLifetime = time.Minute
 )
 
 type Controller struct {
@@ -224,7 +226,7 @@ func (h *Controller) stream(c fiber.Ctx) error {
 		if release != nil {
 			defer release()
 		}
-		streamContext, cancel := context.WithCancel(baseContext)
+		streamContext, cancel := notificationStreamContext(baseContext)
 		defer cancel()
 		go func() {
 			select {
@@ -235,6 +237,10 @@ func (h *Controller) stream(c fiber.Ctx) error {
 		}()
 		streamRevisionEvents(streamContext, writer, h.revisions, userID, wakes, clientRevision, 10*time.Second, 15*time.Second)
 	})
+}
+
+func notificationStreamContext(parent context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(parent, notificationStreamMaxLifetime)
 }
 
 func streamRevisionEvents(ctx context.Context, writer *bufio.Writer, revisions notifications.RecipientRevisionStore, userID int64, wakes <-chan struct{}, clientRevision int64, heartbeatEvery, reconcileEvery time.Duration) {

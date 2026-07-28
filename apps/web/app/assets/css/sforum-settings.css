@@ -303,7 +303,17 @@
 
   .sforum-settings__mobile-nav {
     display: block;
+    min-width: 0;
     margin-bottom: 16px;
+  }
+
+  .sforum-settings__mobile-nav .sf-home-navigation,
+  .sforum-settings__mobile-nav .sf-home-navigation__mobile,
+  .sforum-settings__mobile-nav .sf-home-navigation__select-wrap,
+  .sforum-settings__mobile-nav .sf-home-navigation__select-control {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .sforum-settings__main {

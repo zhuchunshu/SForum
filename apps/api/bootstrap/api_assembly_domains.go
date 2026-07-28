@@ -117,9 +117,8 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	pluginRuntimeStopTimeout := extensionPlatform.pluginRuntimeStopTimeout
 	stopPluginRuntimeCoordinator := extensionPlatform.stopPluginRuntimeCoordinator
 	closePluginRuntime := extensionPlatform.closePluginRuntime
-	notificationStore := notifications.NewPostgresStore(pool).WithRevisionWakeups(ctx)
+	notificationStore := notifications.NewPostgresStoreWithAvatar(pool, avatarOptionsAdapter{options: infrastructure.optionsService}).WithRevisionWakeups(ctx)
 	mailOutbox := notifications.NewOutbox(pool, notificationStore, jobDispatcher).
-		WithPolicyReader(notificationStore).
 		WithDeliveryPolicyResolver(notificationStore)
 	forumStore.WithCommentNotifications(forumNotificationAdapter{outbox: mailOutbox})
 	moderationStore.WithDecisionNotifications(moderationNotificationAdapter{outbox: mailOutbox})

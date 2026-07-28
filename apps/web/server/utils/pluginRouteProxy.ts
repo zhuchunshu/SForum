@@ -77,19 +77,34 @@ export function canFallbackAfterRouteProbeFailure(method: string) {
   return method === 'GET' || method === 'HEAD'
 }
 
+function proxyRequestAbortSignal(event: H3Event) {
+  const controller = new AbortController()
+  const webSignal = event.web?.request?.signal
+  if (webSignal?.aborted) {
+    controller.abort(webSignal.reason)
+  } else {
+    webSignal?.addEventListener('abort', () => controller.abort(webSignal.reason), { once: true })
+  }
+  event.node.res.once('close', () => controller.abort())
+  return controller.signal
+}
+
 export async function retrySafeProxyRequest<T>(
   method: string,
   request: () => Promise<T>,
-  sleep: (ms: number) => Promise<void> = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+  sleep: (ms: number) => Promise<void> = (ms) => new Promise(resolve => setTimeout(resolve, ms)),
+  signal?: AbortSignal
 ) {
   const attempts = canFallbackAfterRouteProbeFailure(method) ? SAFE_PROXY_ATTEMPTS : 1
   let lastError: unknown
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
+    if (signal?.aborted) throw lastError || signal.reason || new Error('proxy request aborted')
     try {
       return await request()
     } catch (error) {
       lastError = error
+      if (signal?.aborted) throw error
       if (attempt < attempts) {
         await sleep(SAFE_PROXY_RETRY_DELAY_MS)
       }
@@ -129,6 +144,7 @@ export async function proxyRouteRequest(
 ) {
   const headers = pluginRouteProxyHeaders(getProxyRequestHeaders(event), options.omitCredentials)
   const hasRequestBody = event.method !== 'GET' && event.method !== 'HEAD'
+  const signal = proxyRequestAbortSignal(event)
   return retrySafeProxyRequest(event.method, () => sendProxy(event, target.toString(), {
     headers,
     sendStream: true,
@@ -146,8 +162,9 @@ export async function proxyRouteRequest(
     fetchOptions: {
       method: event.method,
       redirect: 'manual',
+      signal,
       body: hasRequestBody ? getRequestWebStream(event) : undefined,
       duplex: hasRequestBody ? 'half' : undefined
     }
-  }))
+  }), undefined, signal)
 }

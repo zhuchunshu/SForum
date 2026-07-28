@@ -106,9 +106,11 @@ export const adminPageDefinitions = [
     labelKey: 'admin.nav.mailSettings',
     icon: 'i-lucide-mail',
     componentName: 'AdminMailSettings',
-    requiredPermissions: ['settings.mail.manage']
+    requiredPermissions: ['settings.mail.manage', 'settings.notifications.manage'],
+    permissionMode: 'any'
   },
   {
+    // 保留旧通知设置地址供书签兼容；统一入口位于 /settings/mail。
     id: '/settings/notifications',
     labelKey: 'admin.nav.notificationSettings',
     icon: 'i-lucide-bell-ring',
@@ -424,7 +426,6 @@ export const adminSidebarNavigation = [
       children: [
         { type: 'page', pageId: '/settings' },
         { type: 'page', pageId: '/settings/mail' },
-        { type: 'page', pageId: '/settings/notifications' },
         { type: 'page', pageId: '/settings/login-methods' },
         { type: 'page', pageId: '/settings/avatar' },
         { type: 'page', pageId: '/settings/features' },

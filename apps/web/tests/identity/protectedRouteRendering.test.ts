@@ -27,10 +27,10 @@ describe('protected route rendering', () => {
 
   test('disables route cache for protected user workflows', () => {
     const config = readFileSync(new URL('../../nuxt.config.ts', import.meta.url), 'utf8')
-    // /t/** 允许匿名短 SWR；登录/?edit= 由 topic-page-cache 中间件禁缓存（见下测）。
     const protectedRoutes = [
       '/settings/**',
-      '/topics/new'
+      '/topics/new',
+      '/t/**'
     ]
 
     for (const route of protectedRoutes) {
@@ -39,11 +39,10 @@ describe('protected route rendering', () => {
     }
   })
 
-  test('topic detail allows anonymous SWR but gates auth/edit via middleware', () => {
+  test('topic detail disables whole-page caching and applies explicit response policies', () => {
     const config = readFileSync(new URL('../../nuxt.config.ts', import.meta.url), 'utf8')
-    expect(config).toMatch(/['"]\/t\/\*\*['"]\s*:/)
-    expect(config).toMatch(/swr\s*:\s*60/)
-    expect(config).toContain('x-sforum-public-surface-revision')
+    expect(config).toMatch(/['"]\/t\/\*\*['"]\s*:\s*\{\s*cache\s*:\s*false\s*\}/)
+    expect(config).not.toContain('x-sforum-public-surface-revision')
     expect(config).not.toContain("'/en/t/**'")
 
     const middlewarePath = new URL('../../server/middleware/topic-page-cache.ts', import.meta.url)
@@ -51,13 +50,10 @@ describe('protected route rendering', () => {
     const source = readFileSync(middlewarePath, 'utf8')
     expect(source).toContain('sforum_session')
     expect(source).toContain('searchParams.has(\'edit\')')
-    expect(source).toContain('routeRules.cache = false')
-    expect(source).toContain('routeRules.swr = false')
-    expect(source).toContain('loadPublicSurfaceRevision')
-    expect(source).toContain('PUBLIC_SURFACE_REVISION_HEADER')
-    const utilPath = new URL('../../server/utils/publicSurfaceRevision.ts', import.meta.url)
-    expect(existsSync(utilPath)).toBe(true)
-    expect(readFileSync(utilPath, 'utf8')).toContain('x-sforum-public-surface-revision')
+    expect(source).toContain("setHeader(event, 'cache-control', 'private, no-store')")
+    expect(source).toContain("setHeader(event, 'cache-control', 'public, no-cache')")
+    expect(source).not.toContain('routeRules')
+    expect(source).not.toContain('loadPublicSurfaceRevision')
   })
 
   test('bypasses shared SWR when non-default locale cookie is present', () => {

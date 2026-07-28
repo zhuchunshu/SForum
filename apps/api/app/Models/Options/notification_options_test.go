@@ -5,12 +5,12 @@ import (
 	"testing"
 )
 
-func TestNotificationPolicyDefaultsToAllChannelsEnabled(t *testing.T) {
+func TestNotificationPolicyDefaultsToInAppOnly(t *testing.T) {
 	got := notificationPolicyFromValues(nil)
 	want := NotificationPolicy{
-		Reply:      ChannelPolicy{InAppEnabled: true, EmailEnabled: true},
-		Mention:    ChannelPolicy{InAppEnabled: true, EmailEnabled: true},
-		Moderation: ChannelPolicy{InAppEnabled: true, EmailEnabled: true},
+		Reply:      ChannelPolicy{InAppEnabled: true, EmailEnabled: false},
+		Mention:    ChannelPolicy{InAppEnabled: true, EmailEnabled: false},
+		Moderation: ChannelPolicy{InAppEnabled: true, EmailEnabled: false},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("policy=%#v want=%#v", got, want)
@@ -20,6 +20,7 @@ func TestNotificationPolicyDefaultsToAllChannelsEnabled(t *testing.T) {
 func TestNotificationPolicyResolvesChannelsIndependently(t *testing.T) {
 	got := notificationPolicyFromValues(map[string]string{
 		NameNotificationReplyInApp:   "disabled",
+		NameNotificationReplyEmail:   "enabled",
 		NameNotificationMentionEmail: "disabled",
 	})
 	if got.Reply.InAppEnabled || !got.Reply.EmailEnabled {
@@ -28,7 +29,7 @@ func TestNotificationPolicyResolvesChannelsIndependently(t *testing.T) {
 	if !got.Mention.InAppEnabled || got.Mention.EmailEnabled {
 		t.Fatalf("unexpected mention policy: %#v", got.Mention)
 	}
-	if !got.Moderation.InAppEnabled || !got.Moderation.EmailEnabled {
+	if !got.Moderation.InAppEnabled || got.Moderation.EmailEnabled {
 		t.Fatalf("unexpected moderation policy: %#v", got.Moderation)
 	}
 }
@@ -49,8 +50,12 @@ func TestNotificationPolicyUpdateAndRecommendedInputs(t *testing.T) {
 	}
 
 	for _, input := range NotificationPolicyRecommendedInputs() {
-		if input.Value != "enabled" {
-			t.Fatalf("recommended input %s=%q", input.Name, input.Value)
+		want := "enabled"
+		if input.Name == NameNotificationReplyEmail || input.Name == NameNotificationMentionEmail || input.Name == NameNotificationModerationEmail {
+			want = "disabled"
+		}
+		if input.Value != want {
+			t.Fatalf("recommended input %s=%q want=%q", input.Name, input.Value, want)
 		}
 	}
 }

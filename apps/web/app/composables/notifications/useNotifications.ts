@@ -1,20 +1,4 @@
-export type NotificationItem = {
-  id: number
-  type: string
-  category?: string
-  typeVersion?: number
-  payloadVersion?: number
-  actorUserId?: number
-  targetType: string
-  targetId: number
-  targetAvailable?: boolean
-  targetPath?: string
-  payload: Record<string, unknown>
-  readAt?: string
-  createdAt: string
-}
-
-export type NotificationPreviewAuthor = {
+export type NotificationActor = {
   id: number
   username: string
   displayName: string
@@ -25,6 +9,25 @@ export type NotificationPreviewAuthor = {
     alt: string
   }
 }
+
+export type NotificationItem = {
+  id: number
+  type: string
+  category?: string
+  typeVersion?: number
+  payloadVersion?: number
+  actorUserId?: number
+  actor?: NotificationActor
+  targetType: string
+  targetId: number
+  targetAvailable?: boolean
+  targetPath?: string
+  payload: Record<string, unknown>
+  readAt?: string
+  createdAt: string
+}
+
+export type NotificationPreviewAuthor = NotificationActor
 
 export type NotificationPreviewContent = {
   type: 'topic' | 'comment'
@@ -51,7 +54,8 @@ export type NotificationListFilters = {
 type RevisionPayload = { revision?: unknown }
 type RevisionRefresh = () => void | Promise<void>
 
-const REVISION_RECONNECT_DELAY_MS = 1000
+const REVISION_RECONNECT_INITIAL_DELAY_MS = 1000
+const REVISION_RECONNECT_MAX_DELAY_MS = 30_000
 const REVISION_FALLBACK_REFRESH_MS = 30_000
 
 let revisionSource: EventSource | null = null
@@ -60,6 +64,7 @@ let revisionRefreshTimer: ReturnType<typeof setTimeout> | null = null
 let revisionReconnectTimer: ReturnType<typeof setTimeout> | null = null
 let revisionFallbackTimer: ReturnType<typeof setInterval> | null = null
 let revisionReconnect: (() => void) | null = null
+let revisionReconnectDelayMs = REVISION_RECONNECT_INITIAL_DELAY_MS
 let visibilityListenerAttached = false
 const revisionRefreshers = new Set<RevisionRefresh>()
 
@@ -95,6 +100,7 @@ function stopRealtimeFallbacks() {
   revisionReconnectTimer = null
   revisionFallbackTimer = null
   revisionReconnect = null
+  revisionReconnectDelayMs = REVISION_RECONNECT_INITIAL_DELAY_MS
   if (typeof document !== 'undefined' && visibilityListenerAttached) {
     document.removeEventListener('visibilitychange', refreshWhenVisible)
     visibilityListenerAttached = false
@@ -126,8 +132,17 @@ export function useNotifications() {
     if (import.meta.server) return () => {}
     revisionRefreshers.add(refresh)
     const base = apiBaseUrl.replace(/\/+$/, '')
+    const scheduleReconnect = () => {
+      if (revisionReconnectTimer || revisionRefreshers.size === 0) return
+      const delay = revisionReconnectDelayMs
+      revisionReconnectDelayMs = Math.min(delay * 2, REVISION_RECONNECT_MAX_DELAY_MS)
+      revisionReconnectTimer = setTimeout(() => {
+        revisionReconnectTimer = null
+        connect()
+      }, delay)
+    }
     const connect = () => {
-      if (revisionRefreshers.size === 0) return
+      if (revisionRefreshers.size === 0 || revisionReconnectTimer) return
       const url = `${base}/notifications/stream?revision=${revision.value}`
       if (revisionSource && revisionURL === url && revisionSource.readyState !== EventSource.CLOSED) return
       revisionSource?.close()
@@ -139,26 +154,22 @@ export function useNotifications() {
       } catch {
         revisionSource = null
         revisionURL = ''
-        if (!revisionReconnectTimer) {
-          revisionReconnectTimer = setTimeout(() => {
-            revisionReconnectTimer = null
-            connect()
-          }, REVISION_RECONNECT_DELAY_MS)
-        }
+        scheduleReconnect()
         return
       }
-      source.addEventListener('open', scheduleRevisionRefresh)
-      source.addEventListener('error', () => {
-        // EventSource 会先自行重连；同步一次 REST，避免 badge 在断线期间冻结。
+      source.addEventListener('open', () => {
+        if (revisionSource !== source) return
+        revisionReconnectDelayMs = REVISION_RECONNECT_INITIAL_DELAY_MS
         scheduleRevisionRefresh()
-        if (revisionSource !== source || source.readyState !== EventSource.CLOSED || revisionReconnectTimer) return
+      })
+      source.addEventListener('error', () => {
+        // 禁用 EventSource 的无界原生重连，由这里统一退避并保留 REST 降级刷新。
+        scheduleRevisionRefresh()
         source.close()
+        if (revisionSource !== source) return
         revisionSource = null
         revisionURL = ''
-        revisionReconnectTimer = setTimeout(() => {
-          revisionReconnectTimer = null
-          connect()
-        }, REVISION_RECONNECT_DELAY_MS)
+        scheduleReconnect()
       })
       source.addEventListener('revision', (event) => {
         try {
@@ -196,4 +207,14 @@ export function useNotifications() {
   }
 
   return { unreadCount, revision, refreshUnreadCount, list, get, markRead, markAllRead, startRealtime, stopRealtime }
+}
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    revisionRefreshers.clear()
+    revisionSource?.close()
+    revisionSource = null
+    revisionURL = ''
+    stopRealtimeFallbacks()
+  })
 }

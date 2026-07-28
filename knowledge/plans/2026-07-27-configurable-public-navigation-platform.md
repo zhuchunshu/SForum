@@ -4,30 +4,42 @@ Status: **ready** - architecture approved; the current topbar-only baseline is
 present, but no milestone in this task book has started
 
 Date: 2026-07-27
+Last updated: 2026-07-28 - converted delivery to one persistent Codex Goal
 
 Goal: let operators manage topbar, sidebar, mobile, and footer navigation with
 recommended defaults, accessible ordering, versioned backup/history, bounded
 plugin contributions, and theme-independent persistence.
 
-The default execution mode uses one milestone per new Grok conversation. An
-explicit user instruction may instead run M0-M7 sequentially in one
-conversation. Both modes must leave the repository buildable after every
-milestone, update the knowledge base, and produce the required small report.
+Execute this program as one persistent Codex Goal. The Goal runs M0-M7
+sequentially, leaves the repository buildable after every milestone, updates
+durable repository memory before advancing, and completes only after the final
+definition of done is verified.
 
-## Execution Modes And Optional Parallelism
+## Codex Goal Execution And Optional Parallelism
 
-### Default: One New Conversation Per Milestone
+### Primary Mode: One Persistent Goal
 
-Finish the current milestone, print the next self-contained prompt, and stop.
-This remains the safer mode for independent review and recovery.
+Start Goal mode from a new Codex chat and use the launch text in this task book.
+The Goal text is both the requested outcome and its completion criteria. Keep
+M0-M7 in the same Goal so the primary agent can preserve the plan, constraints,
+tool evidence, and milestone ordering.
 
-### User-Approved: One Conversation For M0-M7
+The primary agent completes one milestone at a time. It may advance only after
+the current milestone's exit criteria, checks, knowledge updates, ledger entry,
+hot handoff checkpoint, and small report are durable. Milestones remain review
+boundaries; Goal mode does not merge them or weaken their gates.
 
-When the current user explicitly authorizes one-conversation execution, the
-primary agent may continue automatically from M0 through M7, but only after the
-current milestone's exit criteria, checks, knowledge updates, ledger entry, hot
-handoff checkpoint, and small report are complete. The instruction changes only
-the stop/continue behavior; it does not merge milestones or weaken any gate.
+Goal mode does not expand filesystem, network, sandbox, approval, trust, or
+operator authority. If an approval or material product decision is required,
+pause and request it rather than bypassing the boundary or claiming completion.
+
+### Recovery After Interruption
+
+The Milestone Ledger and current hot handoff are the recovery authority. If the
+Goal is paused, interrupted, compacted, or resumed in a new chat, verify the
+existing diff and evidence, then continue from the first incomplete milestone.
+Do not redo a completed milestone unless its evidence is invalid or later work
+exposed a regression.
 
 ### Optional Subagents
 
@@ -47,6 +59,11 @@ documentation verification. Do not spawn them for small or sequential work.
 - Subagent output is supporting evidence only. The primary agent remains
   responsible for permissions, compatibility, runtime truth, knowledge
   updates, and the milestone completion claim.
+
+Official Goal-mode behavior and prompting basis:
+
+- `https://learn.chatgpt.com/docs/long-running-work`
+- `https://learn.chatgpt.com/docs/prompting#goal-mode`
 
 ## Required Reading Before Every Milestone
 
@@ -309,7 +326,7 @@ label/icon overrides. They cannot:
 
 ## Milestone Ledger
 
-Every Grok milestone updates this table before it stops.
+The primary Goal updates this table before advancing to the next milestone.
 
 | Milestone | Status | Evidence | Current handoff |
 | --- | --- | --- | --- |
@@ -328,11 +345,10 @@ knowledge updates are present.
 
 ## Milestone Completion Protocol
 
-At the end of every milestone, Grok must do all of the following before
-returning control:
+At the end of every milestone, the primary Goal must do all of the following
+before advancing:
 
-1. Finish the current milestone and do not begin dependent work early. In the
-   default mode, stop. In explicitly approved one-conversation mode, continue
+1. Finish the current milestone and do not begin dependent work early. Continue
    only after completing every checkpoint in this protocol.
 2. Update this task book's checklist and Milestone Ledger with exact evidence.
 3. Update every affected living module note. At least one of
@@ -349,11 +365,10 @@ returning control:
    pass/fail counts where available, and anything not run.
 8. Preserve unrelated dirty work. Do not commit, push, or open a PR unless the
    user explicitly asks.
-9. Produce the small report below. In one-conversation mode, retain every
-   milestone report for ordered inclusion in the final response.
-10. Prepare a self-contained prompt for the next milestone. In default mode,
-    print it and stop; in one-conversation mode, record it as recovery material
-    and continue only after the checkpoint is durable.
+9. Produce the small report below and retain every milestone report for ordered
+   inclusion in the final response.
+10. Record the next milestone or recovery instruction in the hot handoff, then
+    continue only after the checkpoint is durable.
 
 Required small report format:
 
@@ -381,13 +396,13 @@ Knowledge base:
 Remaining risks:
 - ...
 
-Next new-conversation prompt:
-<one self-contained prompt; do not say only "continue">
+Next:
+<next milestone, recovery instruction, or independent final review>
 ```
 
-If blocked, the next prompt must describe the exact blocker and ask for the
-smallest evidence-gathering or unblock task. Never claim completion to keep the
-sequence moving.
+If blocked, record the exact blocker and smallest evidence-gathering or unblock
+action, then pause the Goal for user input or approval. Never mark the Goal
+complete merely to stop or keep the sequence moving.
 
 ## M0 - Contract And Production-Wiring Freeze
 
@@ -539,7 +554,10 @@ Tasks:
 - [ ] Add a responsive active-theme preview without nesting cards or cloning a
   second navigation implementation.
 - [ ] Add component/composable tests, typecheck, production build, and
-  desktop/mobile interaction QA.
+  rendered Browser QA on the actual navigation route at desktop and `390x844`,
+  using `/control-panel/settings` as the shared admin-settings geometry
+  reference. Prove title/toolbar/tab alignment, accessible compact actions,
+  active-panel transition, and no horizontal overflow or clipped controls.
 
 Required checks:
 
@@ -600,6 +618,9 @@ Tasks:
 - [ ] Wire Core emergency/Page Registry fallback to the same resolved document.
 - [ ] Preserve fail-closed behavior when navigation, extension, or theme
   resolution fails.
+- [ ] Prove each public render path has one visible global navbar and one
+  visible global footer; a Page Registry template and its Host body island must
+  not both own the same chrome.
 - [ ] Verify anonymous/authenticated SSR, hard refresh, SPA navigation, locale,
   dark mode, cache/no-store behavior, mobile drawer, missing plugin, Safe Mode,
   and Core fallback.
@@ -633,6 +654,9 @@ Tasks:
 - [ ] Rebuild built-ins, restart the API, stage/activate the exact digest
   through the normal admin flow, and verify `/site/active-theme/skin` plus
   `/pages/resolve` identify the expected artifact.
+- [ ] For every changed Page Registry route, prove rendered Browser output has
+  the expected `data-provider` and `data-template="1"`, no visible fallback
+  notice, and no duplicate navbar/footer.
 - [ ] Perform desktop/mobile screenshot and interaction QA on the actual active
   immutable artifact.
 
@@ -692,6 +716,7 @@ ruby scripts/validate-openapi-refs.rb
 cd apps/web && bun test
 cd apps/web && bun run typecheck
 cd apps/web && bun run build
+node tests/validate-architecture-boundaries.mjs
 ./scripts/test.sh
 ```
 
@@ -728,9 +753,8 @@ by exact runtime evidence.
 
 ## Delivery Rules
 
-1. Never combine milestones. Default mode uses one new Grok conversation per
-   milestone; explicit one-conversation mode still executes M0-M7 sequentially
-   with a durable checkpoint between them.
+1. One Codex Goal owns M0-M7 sequentially. Never combine milestones or begin
+   dependent work before the current contract and exit gate are complete.
 2. Start by verifying current code and the prior milestone's evidence; do not
    trust the handoff alone.
 3. Preserve unrelated dirty files and do not revert user work.
@@ -742,218 +766,105 @@ by exact runtime evidence.
 9. Do not kill the user's port-3000 web server.
 10. Do not claim runtime theme completion from source tests alone.
 11. Do not commit/push unless the user explicitly asks.
-12. Stop and amend the decision/task book if production evidence contradicts a
+12. Pause and amend the decision/task book if production evidence contradicts a
     frozen boundary.
 13. Run `node tests/validate-architecture-boundaries.mjs` after structural
     product-code changes and in the final gate. Do not raise a ratchet baseline
     without the decision and reduction condition required by `AGENTS.md`.
-14. Optional subagents follow the Execution Modes rules above. The primary
-    agent owns integration and may not use parallel work to bypass milestone
+14. Optional subagents follow the Goal execution rules above. The primary agent
+    owns integration and may not use parallel work to bypass milestone
     dependencies or verification.
+15. Do not mark the Goal complete while any milestone, required runtime proof,
+    knowledge update, final report, or verification gate remains unfinished.
+    Pause for approvals or material user decisions and resume the same Goal.
 
-## New-Conversation Prompts
+## Codex Goal Launch Prompt
 
-Use the prompt for the next incomplete milestone. These are intentionally
-self-contained; Grok must still inspect the repository rather than assume the
-previous report is correct.
-
-### Prompt For M0
-
-```text
-Work in /Users/inkedus/Code/SForum. Implement only M0 "Contract And
-Production-Wiring Freeze" from
-knowledge/plans/2026-07-27-configurable-public-navigation-platform.md.
-
-Before acting, read AGENTS.md, knowledge/index.md, knowledge/modules/options.md,
-knowledge/modules/frontend.md, knowledge/modules/extensions.md,
-knowledge/decisions/2026-07-27-operator-owned-public-navigation.md,
-knowledge/decisions/2026-07-12-site-chrome-tables.md,
-knowledge/decisions/2026-07-13-trusted-plugin-theme-platform-v3.md, the current
-public-navigation hot handoff, and the full task book. Inspect the current dirty
-worktree and preserve unrelated changes.
-
-Trace real production wiring rather than assuming interfaces are connected.
-Complete only M0's audit, library survey, contract/schema freeze, compatibility
-plan, source/contract tests, and required verification. Do not implement M1 and
-do not create a parallel navigation/plugin registry.
-
-Before stopping, follow the task book's Milestone Completion Protocol: update
-the ledger/checklist, affected living module notes, knowledge/index.md as
-needed, and the single current hot handoff. Output the required small report
-with exact test results and a fully self-contained prompt for an M1 new
-conversation. Do not commit, push, or start M1.
-```
-
-### Prompt For M1
+In a new Codex chat, enter `/goal`, then use the following text as the Goal.
+If Goal mode is unavailable on the current surface, use the same text as the
+task prompt and keep the work in that chat.
 
 ```text
-Work in /Users/inkedus/Code/SForum. Implement only M1 "Backend Persistence And
-Public Resolver" from
-knowledge/plans/2026-07-27-configurable-public-navigation-platform.md.
+Work in /Users/inkedus/Code/SForum.
 
-Read AGENTS.md, knowledge/index.md, the three required module notes, the
-operator-owned navigation decision, the full task book, and the current
-public-navigation hot handoff. Audit the M0 diff/contracts/tests and verify M0
-is actually complete before relying on it. Preserve unrelated dirty changes.
+Outcome:
+Complete M0-M7 of
+knowledge/plans/2026-07-27-configurable-public-navigation-platform.md and ship
+the configurable public navigation platform end to end. Operators must be able
+to manage topbar, sidebar, mobile, and footer navigation with safe recommended
+defaults, accessible drag and button ordering, placement management, bounded
+plugin contributions, theme-owned presentation, snapshots, restore, and
+portable JSON backup/import.
 
-Implement only the approved additive migration, compatible existing-row
-projection, cohesive backend persistence/domain files, canonical four-location
-public resolver, exact-artifact extension composition, visibility/safety,
-revision/cache behavior, legacy topbar projection, tests, contracts, and M1
-verification. Do not implement admin mutation/snapshot/import commands from M2
-and do not create another registry.
+Start by reading the latest AGENTS.md, knowledge/index.md, the task book's
+required living module notes and decisions, and the current public-navigation
+hot handoff. Inspect the dirty worktree and preserve all unrelated changes.
+Verify real interfaces and production call chains before implementing.
 
-Then stop and follow the Milestone Completion Protocol. Update the plan ledger,
-affected living module notes, current hot handoff, and index as needed. Output
-the required small report with exact checks and a self-contained M2
-new-conversation prompt. Do not commit, push, or start M2.
-```
+Constraints:
+- Execute M0 through M7 strictly in order. Do not merge milestones or start
+  dependent work before the current exit gate passes.
+- After each milestone, update its checklist and Ledger, affected living module
+  notes, the single hot handoff, and index/plan status when applicable. Produce
+  and retain the required small milestone report, then continue automatically.
+- If interrupted or compacted, verify repository evidence and resume from the
+  first incomplete Ledger entry. Do not redo accepted work without cause.
+- Reuse SiteChrome, the V3 Navigation/Region Registry, Page Registry, current
+  permission policy, cache revision, audit, and compatibility systems. Do not
+  create a parallel registry, raw plugin database path, or DOM/script injection.
+- Keep transport, domain workflows, persistence, validation, and presentation
+  in their owning boundaries. Follow architecture ratchets and domain
+  directories; do not grow legacy God objects or baselines.
+- Use mature dependencies only after the M0 survey. Apply the repository proxy
+  before network-dependent Go or Bun commands.
+- Keep API authorization authoritative and add allowed plus denied tests for
+  unsafe routes.
+- Preserve the user-owned web server on port 3000. Do not commit, push, or open
+  a PR unless explicitly requested.
+- Optional subagents may handle bounded independent work inside the current
+  milestone. Do not parallelize dependent milestones or overlapping writes.
+  Wait for every required subagent, review its diff/evidence, and run primary
+  integration checks yourself.
+- A Goal does not broaden sandbox, approval, extension trust, or operator
+  authority. Pause and ask for approval or a material product decision when
+  required; never bypass the boundary or mark incomplete work complete.
 
-### Prompt For M2
+Verification:
+- Run each milestone's focused checks before advancing.
+- Run node tests/validate-architecture-boundaries.mjs after structural changes.
+- Perform rendered admin Browser QA at desktop and 390x844, proving shared
+  settings geometry, accessible compact actions, active-panel transitions, and
+  no clipped or horizontally overflowing controls.
+- For changed Page Registry routes, prove the expected data-provider and
+  data-template="1", no visible fallback notice, and exactly one visible global
+  navbar and footer.
+- After built-in theme changes, rebuild built-ins, restart the API, activate the
+  exact staged digest through the normal admin flow, and verify
+  /site/active-theme/skin plus /pages/resolve. Source tests are not runtime
+  evidence.
+- At M7 run from the repository root:
+  (cd apps/api && go test ./...)
+  ruby scripts/validate-openapi-refs.rb
+  (cd apps/web && bun test)
+  (cd apps/web && bun run typecheck)
+  (cd apps/web && bun run build)
+  node tests/validate-architecture-boundaries.mjs
+  ./scripts/test.sh
+- Complete the required desktop/mobile, SSR, cache, Safe Mode, plugin lifecycle,
+  theme switch/rollback, Core fallback, backup/restore, and concurrency matrix.
 
-```text
-Work in /Users/inkedus/Code/SForum. Implement only M2 "Revisioned Commands,
-Defaults, Snapshots, And Backup" from
-knowledge/plans/2026-07-27-configurable-public-navigation-platform.md.
-
-Read AGENTS.md, knowledge/index.md, required module notes, navigation decision,
-full task book, and current public-navigation hot handoff. Verify the M0/M1
-contracts and production code/tests in the worktree; preserve unrelated dirty
-changes.
-
-Implement only revisioned admin reads and CAS batch apply, transactional
-definition/placement commands, recommended-default preview/apply, newest-20
-automatic snapshots and restore, versioned JSON export, two-phase merge/replace
-import, permissions, audit, public revision invalidation, compatibility, and
-the M2 tests/checks. Do not build the admin editor from M3.
-
-Then stop and follow the Milestone Completion Protocol. Update the plan ledger,
-affected module notes, current hot handoff, and index as needed. Output the
-small report with exact verification and a self-contained M3 new-conversation
-prompt. Do not commit, push, or start M3.
-```
-
-### Prompt For M3
-
-```text
-Work in /Users/inkedus/Code/SForum. Implement only M3 "Admin Editor And
-Accessible Ordering" from
-knowledge/plans/2026-07-27-configurable-public-navigation-platform.md.
-
-Read AGENTS.md, knowledge/index.md, required module notes, navigation decision,
-full task book, and current public-navigation hot handoff. Verify the completed
-backend contracts and tests before changing the UI. Preserve unrelated dirty
-changes and do not kill the user's port-3000 server.
-
-Implement only the location-based Navigation editor, typed item forms, source
-and inactive-state presentation, M0-approved drag library, equivalent
-up/down/top/bottom keyboard-safe controls, move/copy, local draft plus one CAS
-batch save, conflict/unsaved/loading/error/Toast states, bilingual copy,
-responsive preview, focused tests, typecheck, build, and M3 QA. Apply the
-AGENTS.md proxy before any bun dependency command. Do not implement M4 backup
-and history UI beyond links/placeholders required by the current API.
-
-Then stop and follow the Milestone Completion Protocol. Update knowledge and
-output the required small report plus a self-contained M4 new-conversation
-prompt. Do not commit, push, or start M4.
-```
-
-### Prompt For M4
-
-```text
-Work in /Users/inkedus/Code/SForum. Implement only M4 "Backup, History,
-Restore, And Import UI" from
-knowledge/plans/2026-07-27-configurable-public-navigation-platform.md.
-
-Read AGENTS.md, knowledge/index.md, required module notes, navigation decision,
-full task book, and current public-navigation hot handoff. Verify the backend
-backup/default/snapshot contracts and M3 editor state. Preserve unrelated dirty
-changes and the user's port-3000 server.
-
-Implement only default diff/confirmation, snapshot history/preview/restore,
-portable JSON export, import validation/diff plus merge/replace apply,
-missing-plugin/schema/stale/permission/error states, bilingual copy, tests,
-typecheck, build, and M4 responsive QA. Keep secrets and plugin declarations
-out of destructive-reset claims.
-
-Then stop and follow the Milestone Completion Protocol. Update knowledge and
-output the required small report plus a self-contained M5 new-conversation
-prompt. Do not commit, push, or start M5.
-```
-
-### Prompt For M5
-
-```text
-Work in /Users/inkedus/Code/SForum. Implement only M5 "Topbar, Mobile, And Core
-Fallback Runtime Wiring" from
-knowledge/plans/2026-07-27-configurable-public-navigation-platform.md.
-
-Read AGENTS.md, knowledge/index.md, required module notes, navigation decision,
-full task book, and current public-navigation hot handoff. Verify earlier
-contracts/editor behavior and preserve unrelated dirty changes. Do not kill the
-user's port-3000 server.
-
-Replace only the topbar/mobile ad-hoc navigation merge and Core fallback path
-with the canonical shared SSR document. Preserve locale, tag policy, active
-state, safe links, extension routes, search, auth/session/registration and
-Host-owned utility controls; add bounded overflow and fail-closed/cache-safe
-behavior. Run all M5 tests, typecheck, build, API checks, and browser matrix.
-Do not start sidebar/theme artifact work from M6.
-
-Then stop and follow the Milestone Completion Protocol. Update knowledge and
-output the required small report plus a self-contained M6 new-conversation
-prompt. Do not commit, push, or start M6.
-```
-
-### Prompt For M6
-
-```text
-Work in /Users/inkedus/Code/SForum. Implement only M6 "Sidebar Dynamic Block And
-Built-In Theme Locations" from
-knowledge/plans/2026-07-27-configurable-public-navigation-platform.md.
-
-Read AGENTS.md, knowledge/index.md, required module notes, navigation decision,
-full task book, and current public-navigation hot handoff. Verify M0-M5 in code
-and tests. Preserve unrelated dirty changes and the user's port-3000 server.
-
-Wire only the sidebar location and core.dynamic.categories while preserving
-forum filter/route behavior, taxonomy ownership, compose permission, counts,
-mobile selector, moderation/settings consumers, and shell geometry. Bind and
-test all required locations in default and Nocturne themes plus validators and
-Core fallback. Rebuild built-ins, restart only the API as appropriate, activate
-the exact staged artifact through the normal admin flow, and capture the
-required runtime/API/browser evidence. Do not start final plugin lifecycle
-hardening from M7.
-
-Then stop and follow the Milestone Completion Protocol. Update knowledge and
-output the required small report plus a self-contained M7 new-conversation
-prompt. Do not commit, push, or start M7.
-```
-
-### Prompt For M7
-
-```text
-Work in /Users/inkedus/Code/SForum. Implement only M7 "Plugin Lifecycle, Theme
-Capability, And Final Release Gate" from
-knowledge/plans/2026-07-27-configurable-public-navigation-platform.md.
-
-Read AGENTS.md, knowledge/index.md, required module notes, navigation decision,
-full task book, and current public-navigation hot handoff. Audit all prior
-milestones in production call chains and tests; do not accept support-only
-evidence. Preserve unrelated dirty changes and the user's port-3000 server.
-
-Complete the real fixture/reference plugin injection and trusted-modifier
-lifecycle matrix, theme capability/switch/rollback matrix, cache/concurrency
-and missing-plugin/import tests, Extension Surface Matrix, SDK/author/operator
-docs, generated catalogs, OpenAPI, bilingual copy, full repository gate, exact
-theme artifact activation, and desktop/mobile Browser QA. Write the required
-final report under knowledge/reports, close/archive the plan and handoffs
-according to knowledge rules, and update index/modules to final truth.
-
-Then stop and output the required final small report. Because M7 is final, the
-"Next new-conversation prompt" must ask for an independent Codex review of the
-completed implementation and final report; it must not invent an M8. Do not
-commit or push unless explicitly requested.
+Completion criteria:
+- Every M0-M7 Ledger entry and checklist is complete with exact evidence.
+- The task book Definition Of Done and verification matrix are satisfied.
+- The final report exists at
+  knowledge/reports/YYYY-MM-DD-configurable-public-navigation-final.md.
+- Living modules, decision follow-up, hot handoff, knowledge/index.md, plan
+  status/archive, extension documentation, OpenAPI, and generated catalogs are
+  current.
+- The final response contains the eight milestone reports, exact PASS/FAIL/NOT
+  RUN results, runtime evidence, residual risks, final report path, and a
+  self-contained prompt for an independent Codex review.
+- Do not create M8. Do not mark the Goal complete while required work remains.
 ```
 
 ## Definition Of Done

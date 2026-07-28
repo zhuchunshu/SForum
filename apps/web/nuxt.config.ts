@@ -95,14 +95,9 @@ export default defineNuxtConfig({
       '/tags': { swr: 600 },
       '/tags/**': { cache: false },
       '/u/**': { swr: 3600 },
-      // 主题详情：匿名短 SWR（SEO/首屏）；登录或 ?edit= 由 server/middleware/topic-page-cache 禁缓存。
-      // varies：扩展公开贡献设置变更会 bump site.public_surface_revision，中间件写入同名请求头。
-      '/t/**': {
-        swr: 60,
-        cache: {
-          varies: ['x-sforum-public-surface-revision']
-        }
-      },
+      // 主题详情含实时评论与会话权限，整页缓存会让 SSR payload 在写入后继续水合旧数据。
+      // 主题和评论读路径由 API 的 topic-scoped Redis generation 缓存承担。
+      '/t/**': { cache: false },
       // 登录/注册/密码找回与受保护用户页保持 SSR，受保护页显式禁缓存，避免继承公开内容页 SWR。
       '/settings/**': { cache: false, robots: { index: false } },
       '/topics/new': { cache: false, robots: { index: false } },

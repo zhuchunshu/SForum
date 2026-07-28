@@ -36,6 +36,7 @@ func ResolveSafeTargets(ctx context.Context, resolver TargetVisibilityResolver, 
 			continue
 		}
 		item.ActorUserID = nil
+		item.Actor = nil
 		item.TargetType = "unavailable"
 		item.TargetID = 0
 		item.TargetAvailable = false

@@ -1,4 +1,4 @@
-import type { NotificationItem } from '~/composables/notifications/useNotifications'
+import type { NotificationActor, NotificationItem } from '~/composables/notifications/useNotifications'
 
 export type NotificationFilter = 'all' | 'unread' | NotificationItem['type']
 export type NotificationGroupKey = 'today' | 'earlier'
@@ -19,6 +19,7 @@ export type NotificationPresentation = {
   targetLabel: string
   detailMeta: string
   icon: string
+  actor?: NotificationActor
   target: NotificationTarget
   createdAt: string
   readAt?: string
@@ -30,12 +31,14 @@ export type NotificationDateGroup<T> = {
 }
 
 const notificationIcons: Record<NotificationItem['type'], string> = {
-  reply: 'i-lucide-reply',
-  mention: 'i-lucide-at-sign',
-  moderation_approved: 'i-lucide-shield-check',
-  moderation_rejected: 'i-lucide-shield-alert',
-  admin_test: 'i-lucide-bell-ring'
+  reply: 'i-tabler-message-reply',
+  mention: 'i-tabler-at',
+  moderation_approved: 'i-tabler-shield-check',
+  moderation_rejected: 'i-tabler-shield-x',
+  admin_test: 'i-tabler-bell-ringing'
 }
+
+const userAuthoredTypes = new Set<NotificationItem['type']>(['reply', 'mention'])
 
 export const notificationFilters: NotificationFilter[] = [
   'all',
@@ -69,7 +72,8 @@ export function notificationPresentation(item: NotificationItem): NotificationPr
     typeLabelKey: `notifications.filter.${item.type}`,
     targetLabel,
     detailMeta,
-    icon: notificationIcons[item.type] || 'i-lucide-bell',
+    icon: notificationIcons[item.type] || 'i-tabler-bell',
+    actor: userAuthoredTypes.has(item.type) ? item.actor : undefined,
     target,
     createdAt: item.createdAt,
     readAt: item.readAt
@@ -119,6 +123,16 @@ export function groupNotificationsByDate<T extends { createdAt: string }>(
 
 export function unreadLoadedCount(items: Array<{ read: boolean }>) {
   return items.filter(item => !item.read).length
+}
+
+export function notificationFilterCounts(items: Array<{ type: NotificationItem['type'], read: boolean }>) {
+  const counts = new Map<NotificationFilter, number>()
+  counts.set('all', items.length)
+  counts.set('unread', unreadLoadedCount(items))
+  for (const item of items) {
+    counts.set(item.type, (counts.get(item.type) || 0) + 1)
+  }
+  return counts
 }
 
 function bodyKeyForType(type: NotificationItem['type'], hasTarget: boolean, hasReviewNote: boolean) {

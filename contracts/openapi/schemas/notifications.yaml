@@ -8,6 +8,9 @@ Notification:
     typeVersion: {type: integer, minimum: 1}
     payloadVersion: {type: integer, minimum: 1}
     actorUserId: {type: integer, format: int64}
+    actor:
+      allOf: [{$ref: "#/NotificationActor"}]
+      description: Present for user-authored notification types when the actor remains safe to disclose.
     targetType: {type: string}
     targetId: {type: integer, format: int64}
     targetAvailable: {type: boolean, description: False when the Host cannot re-authorize the target at read time.}
@@ -15,6 +18,14 @@ Notification:
     payload: {type: object, additionalProperties: true}
     readAt: {type: string, format: date-time}
     createdAt: {type: string, format: date-time}
+NotificationActor:
+  type: object
+  required: [id, username, displayName, avatar]
+  properties:
+    id: {type: integer, format: int64}
+    username: {type: string}
+    displayName: {type: string}
+    avatar: {$ref: "./profile.yaml#/AvatarView"}
 NotificationTargetPreviewContent:
   type: object
   required: [type, id, excerpt]
@@ -22,14 +33,7 @@ NotificationTargetPreviewContent:
     type: {type: string, enum: [topic, comment]}
     id: {type: integer, format: int64}
     excerpt: {type: string, description: Host-derived current plain-text excerpt.}
-    author:
-      type: object
-      required: [id, username, displayName, avatar]
-      properties:
-        id: {type: integer, format: int64}
-        username: {type: string}
-        displayName: {type: string}
-        avatar: {$ref: "./profile.yaml#/AvatarView"}
+    author: {$ref: "#/NotificationActor"}
 NotificationTargetPreview:
   type: object
   required: [topicId, topicTitle, content]
@@ -90,12 +94,12 @@ PreferenceItem:
     category: {type: string}
     channel: {type: string, enum: [in_app, email, web_push]}
     active: {type: boolean}
-    enabled: {type: boolean}
+    enabled: {type: boolean, description: Site-level hard gate. False cannot be overridden by a user preference.}
     recommendedEnabled: {type: boolean}
     userConfigurable: {type: boolean}
     required: {type: boolean}
     state: {type: string, enum: [inherit, enabled, disabled]}
-    effective: {type: boolean}
+    effective: {type: boolean, description: Final result after active type, site policy, and current-user preference resolution.}
 PreferenceCatalog:
   type: object
   required: [revision, items]
@@ -137,8 +141,8 @@ AdminPolicyItem:
     ownerExtensionId: {type: string}
     channel: {type: string, enum: [in_app, email, web_push]}
     active: {type: boolean}
-    enabled: {type: boolean}
-    recommendedEnabled: {type: boolean}
+    enabled: {type: boolean, description: Site-level hard gate for this type and channel.}
+    recommendedEnabled: {type: boolean, description: Inherited user default; must be false when enabled is false.}
     userConfigurable: {type: boolean}
     required: {type: boolean}
 AdminPolicyCatalog:

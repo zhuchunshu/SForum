@@ -81,6 +81,14 @@ rows retain versioned structured payload and use Host fallback presentation.
   and provider availability. Existing Mail policy routes are compatibility
   projections over this authority.
 
+Core email delivery is opt-in by default: recommended restoration keeps
+`in_app` enabled and sets `email` disabled for reply, mention, and moderation
+types. Migration `202607280071_notification_email_opt_in_defaults.sql` applies
+that transition only to untouched V2 rows without a saved legacy choice, so an
+operator's explicit existing email policy is not overwritten. Core fanout now
+resolves all three channels through the same transaction-scoped layered policy;
+a saved user `enabled` override cannot bypass a site-disabled email channel.
+
 ## API and UI
 
 Authenticated self-service routes:
@@ -129,27 +137,61 @@ and reconciles through REST on connect/error, tab visibility, and a 30-second
 visible-page fallback interval. SSE contains revision signals only; durable
 PostgreSQL rows and recipient revision remain truth.
 
+Notification SSE connections use bounded leases and controlled reconnection.
+The Nuxt API route owns a dedicated Node stream proxy that destroys both the
+upstream request and response when the downstream browser disconnects. The API
+also expires every stream after one minute so abandoned proxy connections
+cannot retain one of the four per-recipient slots indefinitely. The client
+closes `EventSource` after any error, reconnects with exponential backoff capped
+at 30 seconds, and disposes the source during Vite HMR; native unbounded
+`EventSource` retry is not relied on. REST reconciliation remains available
+during every disconnect.
+
+The inbox and independent detail page share `SFNotificationTypeNav` in the
+desktop left rail and mobile navigation drawer. Both surfaces use the same
+loaded-scope count semantics and fixed type/icon catalog. On a detail page the
+current notification type is highlighted; selecting any type restores the
+existing inbox filter state and returns to `/notifications`.
+
 The notification page uses the canonical `topic.create` permission helper for
 the shared forum navigation. Below the desktop right-rail breakpoint, the same
 unread summary/current-detail component is shown in the right mobile drawer;
 do not hide the drawer instance with the desktop rail media rule.
 
+Notification list sources are type-aware. Core `reply` and `mention` rows carry
+a current actor summary and use the actor's configured `AvatarView`; moderation
+results, admin tests, actorless plugin notifications, and unknown types use a
+bounded Tabler icon fallback instead of fabricated notification-name initials.
+The actor summary is populated in the recipient-owned list/detail store only
+for user-authored Core types and is cleared together with actor/target/payload
+when target re-authorization fails.
+
 Forum targets are re-authorized at read time. Hidden/deleted/non-public topics,
 inactive comments, unknown targets, and resolver errors fail closed by clearing
 actor, payload, target id/type/path and returning `targetAvailable=false`.
 
-Admin policy lives at `/control-panel/settings/notifications`; personal
-preferences and Web Push live at `/settings/notifications`. The selected Web
+Admin policy and external-channel management live as tabs under the unified
+`/control-panel/settings/mail` surface; the old
+`/control-panel/settings/notifications` URL redirects to the corresponding
+tab. Personal preferences and Web Push live at `/settings/notifications`. The selected Web
 Push provider is `sforum.web-push`; VAPID secrets remain in SecretStore and API
 responses expose only `secretSet` plus the public key. The Host worker is fixed
 at `/_sforum/notifications/sw.js` with scope `/_sforum/notifications/`, imports
 no plugin code, and accepts only bounded same-origin click paths.
 
-The admin route uses the shared settings geometry and two fixed Core tabs:
-Type Policy and External Channels. Each tab owns one focused panel; policy and
-provider/delivery health no longer share one long scrolling surface. The route
-shell owns tab/query state and refreshes only the active tab, while API policy
-and `settings.notifications.manage` remain authoritative.
+The unified admin route uses the shared settings geometry. Type Policy and
+External Channels remain independent fixed Core tabs and focused panels beside
+the mail tabs. The route shell owns tab/query state and refreshes only the
+active tab, while API policy and `settings.notifications.manage` remain
+authoritative and do not grant mail access.
+
+The admin policy row uses a dedicated email-notification control. Disabling a
+channel also clears its recommended state. Personal settings render a chooser
+only for active, site-enabled, available, user-configurable channels; a
+site-disabled email row renders a managed-state badge instead, even when a
+historical user override remains stored. The shared settings mobile navigation
+constrains its category select to the content width to prevent horizontal
+overflow at `390x844`.
 
 Digests, scheduled summaries, unsubscribe-link semantics, broadcast/marketing,
 and additional vendor channels remain deferred.

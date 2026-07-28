@@ -3,11 +3,13 @@ import { useNotifications } from '~/composables/notifications/useNotifications'
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
 import { useForumApi } from '~/composables/forum/useForumApi'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
+import SFNotificationTypeNav from '~/components/notifications/SFNotificationTypeNav.vue'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { isUnauthenticatedAuthError } from '~/composables/identity/useAuthSession'
 import {
   filterNotifications,
   groupNotificationsByDate,
+  notificationFilterCounts,
   notificationFilters,
   notificationPresentation,
   unreadLoadedCount,
@@ -89,15 +91,7 @@ const visibleGroups = computed(() => groupNotificationsByDate(
   String(locale.value || 'zh-CN')
 ))
 const loadedUnread = computed(() => unreadLoadedCount(presentedItems.value))
-const loadedTypeCounts = computed(() => {
-  const counts = new Map<NotificationFilter, number>()
-  counts.set('all', presentedItems.value.length)
-  counts.set('unread', loadedUnread.value)
-  for (const item of presentedItems.value) {
-    counts.set(item.type, (counts.get(item.type) || 0) + 1)
-  }
-  return counts
-})
+const loadedTypeCounts = computed(() => notificationFilterCounts(presentedItems.value))
 const isInitialLoading = computed(() => notificationAsync.pending.value || unreadAsync.pending.value)
 const initialError = computed(() => notificationAsync.error.value || unreadAsync.error.value)
 const hasActionableUnread = computed(() => unreadTotal.value > 0 || loadedUnread.value > 0)
@@ -106,23 +100,6 @@ const unreadSummaryLabel = computed(() => t('notifications.unreadSummary', { cou
 
 function filterLabel(filter: NotificationFilter) {
   return t(`notifications.filter.${filter}`)
-}
-
-function filterIcon(filter: NotificationFilter) {
-  const icons: Record<NotificationFilter, string> = {
-    all: 'i-lucide-bell',
-    unread: 'i-lucide-dot',
-    reply: 'i-lucide-reply',
-    mention: 'i-lucide-at-sign',
-    moderation_approved: 'i-lucide-shield-check',
-    moderation_rejected: 'i-lucide-shield-alert',
-    admin_test: 'i-lucide-bell-ring'
-  }
-  return icons[filter]
-}
-
-function filterCount(filter: NotificationFilter) {
-  return loadedTypeCounts.value.get(filter) || 0
 }
 
 function closeMobileDrawers() {
@@ -264,25 +241,12 @@ onBeforeUnmount(() => stopRealtime())
           :show-categories="false"
         >
           <template #after-navigation>
-            <nav class="sforum-notifications__type-nav" :aria-label="t('notifications.filter.aria')">
-              <div class="sforum-notifications__rail-label">{{ t('notifications.filter.title') }}</div>
-              <button
-                v-for="filter in notificationFilters"
-                :key="filter"
-                type="button"
-                class="sforum-notifications__rail-link"
-                :class="{ 'is-active': activeFilter === filter }"
-                :aria-pressed="activeFilter === filter"
-                @click="selectFilter(filter)"
-              >
-                <span class="sforum-notifications__rail-link-main">
-                  <UIcon :name="filterIcon(filter)" class="size-[18px]" aria-hidden="true" />
-                  {{ filterLabel(filter) }}
-                </span>
-                <span class="sforum-notifications__rail-count">{{ filterCount(filter) }}</span>
-              </button>
-              <p class="sforum-notifications__filter-scope">{{ filterScopeLabel }}</p>
-            </nav>
+            <SFNotificationTypeNav
+              :active-filter="activeFilter"
+              :counts="loadedTypeCounts"
+              :loaded-count="presentedItems.length"
+              @select="selectFilter"
+            />
           </template>
         </SFHomeNavigation>
       </div>
@@ -399,7 +363,21 @@ onBeforeUnmount(() => stopRealtime())
                 :class="{ 'is-unread': !item.read }"
                 @click="openNotificationDetail(item)"
               >
-                <SFAvatar :name="filterLabel(item.type)" :alt="filterLabel(item.type)" size="list" />
+                <SFAvatar
+                  v-if="item.actor"
+                  :name="item.actor.displayName || item.actor.username"
+                  :avatar="item.actor.avatar"
+                  :alt="item.actor.displayName || item.actor.username"
+                  size="list"
+                />
+                <span
+                  v-else
+                  class="sforum-notifications__source-icon"
+                  :data-type="item.type"
+                  aria-hidden="true"
+                >
+                  <UIcon :name="item.icon" class="size-5" />
+                </span>
                 <span class="sforum-notifications__row-body">
                   <span class="sforum-notifications__row-lead">
                     {{ t(item.titleKey) }}
@@ -497,7 +475,17 @@ onBeforeUnmount(() => stopRealtime())
         :total-topics="categoryTopicTotal"
         :pending="categoriesPending"
         :can-create-topic="canCreateTopic"
-      />
+        :show-categories="false"
+      >
+        <template #after-navigation>
+          <SFNotificationTypeNav
+            :active-filter="activeFilter"
+            :counts="loadedTypeCounts"
+            :loaded-count="presentedItems.length"
+            @select="selectFilter"
+          />
+        </template>
+      </SFHomeNavigation>
     </aside>
 
     <aside v-if="mobileInfoOpen" class="sforum-mobile-drawer sforum-mobile-drawer--right">

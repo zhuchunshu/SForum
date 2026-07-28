@@ -16,7 +16,6 @@ import (
 	"github.com/riverqueue/river/rivertype"
 	moderation "github.com/zhuchunshu/sforum/apps/api/app/Models/Moderation"
 	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
-	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 )
 
@@ -32,12 +31,6 @@ type fakeTxEnqueuer struct{}
 
 func (fakeTxEnqueuer) EnqueueTx(context.Context, pgx.Tx, river.JobArgs, supportjobs.EnqueueOptions) (*rivertype.JobInsertResult, error) {
 	return &rivertype.JobInsertResult{}, nil
-}
-
-type staticPolicyReader struct{ policy options.NotificationPolicy }
-
-func (r staticPolicyReader) NotificationPolicy(context.Context) (options.NotificationPolicy, error) {
-	return r.policy, nil
 }
 
 type moderationNotificationAdapter struct {
@@ -133,16 +126,53 @@ func TestCoreNotificationRecipientMatrixPostgres(t *testing.T) {
 	})
 
 	t.Run("disabled email skips delivery while in-app remains", func(t *testing.T) {
-		policy := options.NotificationPolicy{
-			Reply: options.ChannelPolicy{InAppEnabled: true, EmailEnabled: false},
+		if _, err := f.pool.Exec(f.ctx, `UPDATE notification_type_policies SET enabled=FALSE, recommended_enabled=FALSE WHERE type='reply' AND channel='email'`); err != nil {
+			t.Fatal(err)
 		}
-		policyOutbox := notifications.NewOutbox(f.pool, store, fakeTxEnqueuer{}).WithPolicyReader(staticPolicyReader{policy: policy})
-		f.notifyComment(t, policyOutbox, notifications.CommentEvent{
+		f.notifyComment(t, outbox, notifications.CommentEvent{
 			CommentID: 1006, TopicID: topicID, ActorUserID: actor, TopicAuthorUserID: topicAuthor,
 		})
 		f.assertNotification(t, 1006, notifications.TypeReply, topicAuthor, "comment")
 		if got := f.deliveryCount(t, "comment:1006:%"); got != 0 {
 			t.Fatalf("disabled email created %d deliveries", got)
+		}
+		if _, err := f.pool.Exec(f.ctx, `UPDATE notification_type_policies SET enabled=TRUE WHERE type='reply' AND channel='email'`); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("recipient email preference is bounded by site policy", func(t *testing.T) {
+		if _, err := f.pool.Exec(f.ctx, `INSERT INTO notification_preferences (user_id,type,channel,state) VALUES ($1,'reply','email','disabled')`, topicAuthor); err != nil {
+			t.Fatal(err)
+		}
+		f.notifyComment(t, outbox, notifications.CommentEvent{
+			CommentID: 1009, TopicID: topicID, ActorUserID: actor, TopicAuthorUserID: topicAuthor,
+		})
+		if got := f.deliveryCount(t, "comment:1009:%"); got != 0 {
+			t.Fatalf("recipient-disabled email created %d deliveries", got)
+		}
+
+		if _, err := f.pool.Exec(f.ctx, `UPDATE notification_preferences SET state='enabled' WHERE user_id=$1 AND type='reply' AND channel='email'`, topicAuthor); err != nil {
+			t.Fatal(err)
+		}
+		f.notifyComment(t, outbox, notifications.CommentEvent{
+			CommentID: 1010, TopicID: topicID, ActorUserID: actor, TopicAuthorUserID: topicAuthor,
+		})
+		if got := f.deliveryCount(t, "comment:1010:%"); got != 1 {
+			t.Fatalf("recipient-enabled email created %d deliveries, want 1", got)
+		}
+
+		if _, err := f.pool.Exec(f.ctx, `UPDATE notification_type_policies SET enabled=FALSE WHERE type='reply' AND channel='email'`); err != nil {
+			t.Fatal(err)
+		}
+		f.notifyComment(t, outbox, notifications.CommentEvent{
+			CommentID: 1011, TopicID: topicID, ActorUserID: actor, TopicAuthorUserID: topicAuthor,
+		})
+		if got := f.deliveryCount(t, "comment:1011:%"); got != 0 {
+			t.Fatalf("site-disabled email accepted recipient override and created %d deliveries", got)
+		}
+		if _, err := f.pool.Exec(f.ctx, `UPDATE notification_type_policies SET enabled=TRUE WHERE type='reply' AND channel='email'`); err != nil {
+			t.Fatal(err)
 		}
 	})
 
@@ -472,8 +502,36 @@ CREATE TABLE categories (
   comment_count BIGINT NOT NULL DEFAULT 0,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-INSERT INTO categories DEFAULT VALUES;
-CREATE TABLE posts (id BIGSERIAL PRIMARY KEY, raw_content TEXT NOT NULL);
+	INSERT INTO categories DEFAULT VALUES;
+	CREATE TABLE notification_type_descriptors (
+	  type TEXT PRIMARY KEY,
+	  category TEXT NOT NULL,
+	  active BOOLEAN NOT NULL
+	);
+	INSERT INTO notification_type_descriptors (type,category,active) VALUES
+	  ('reply','conversation',TRUE), ('mention','mention',TRUE),
+	  ('moderation_approved','moderation',TRUE), ('moderation_rejected','moderation',TRUE);
+	CREATE TABLE notification_type_policies (
+	  type TEXT NOT NULL,
+	  channel TEXT NOT NULL,
+	  enabled BOOLEAN NOT NULL,
+	  recommended_enabled BOOLEAN NOT NULL,
+	  user_configurable BOOLEAN NOT NULL,
+	  required BOOLEAN NOT NULL,
+	  PRIMARY KEY (type,channel)
+	);
+	INSERT INTO notification_type_policies (type,channel,enabled,recommended_enabled,user_configurable,required)
+	SELECT type, channel, channel IN ('in_app','email'), channel IN ('in_app','email'), TRUE, FALSE
+	FROM notification_type_descriptors
+	CROSS JOIN (VALUES ('in_app'),('email'),('web_push')) AS channels(channel);
+	CREATE TABLE notification_preferences (
+	  user_id BIGINT NOT NULL,
+	  type TEXT NOT NULL,
+	  channel TEXT NOT NULL,
+	  state TEXT NOT NULL,
+	  PRIMARY KEY (user_id,type,channel)
+	);
+	CREATE TABLE posts (id BIGSERIAL PRIMARY KEY, raw_content TEXT NOT NULL);
 CREATE TABLE topics (
   id BIGSERIAL PRIMARY KEY,
   category_id BIGINT NOT NULL REFERENCES categories(id),

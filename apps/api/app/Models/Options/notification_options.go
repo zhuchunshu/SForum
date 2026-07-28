@@ -33,14 +33,17 @@ func (s *Service) NotificationPolicy(ctx context.Context) (NotificationPolicy, e
 }
 
 func notificationPolicyFromValues(values map[string]string) NotificationPolicy {
-	enabled := func(name string) bool {
+	enabled := func(name string, recommended bool) bool {
 		value, ok := values[name]
-		return !ok || value == "" || isEnabledOption(value)
+		if !ok || value == "" {
+			return recommended
+		}
+		return isEnabledOption(value)
 	}
 	return NotificationPolicy{
-		Reply:      ChannelPolicy{InAppEnabled: enabled(NameNotificationReplyInApp), EmailEnabled: enabled(NameNotificationReplyEmail)},
-		Mention:    ChannelPolicy{InAppEnabled: enabled(NameNotificationMentionInApp), EmailEnabled: enabled(NameNotificationMentionEmail)},
-		Moderation: ChannelPolicy{InAppEnabled: enabled(NameNotificationModerationInApp), EmailEnabled: enabled(NameNotificationModerationEmail)},
+		Reply:      ChannelPolicy{InAppEnabled: enabled(NameNotificationReplyInApp, true), EmailEnabled: enabled(NameNotificationReplyEmail, false)},
+		Mention:    ChannelPolicy{InAppEnabled: enabled(NameNotificationMentionInApp, true), EmailEnabled: enabled(NameNotificationMentionEmail, false)},
+		Moderation: ChannelPolicy{InAppEnabled: enabled(NameNotificationModerationInApp, true), EmailEnabled: enabled(NameNotificationModerationEmail, false)},
 	}
 }
 
@@ -56,6 +59,6 @@ func NotificationPolicyUpdateInputs(policy NotificationPolicy) []UpdateInput {
 }
 
 func NotificationPolicyRecommendedInputs() []UpdateInput {
-	allEnabled := ChannelPolicy{InAppEnabled: true, EmailEnabled: true}
-	return NotificationPolicyUpdateInputs(NotificationPolicy{Reply: allEnabled, Mention: allEnabled, Moderation: allEnabled})
+	recommended := ChannelPolicy{InAppEnabled: true, EmailEnabled: false}
+	return NotificationPolicyUpdateInputs(NotificationPolicy{Reply: recommended, Mention: recommended, Moderation: recommended})
 }

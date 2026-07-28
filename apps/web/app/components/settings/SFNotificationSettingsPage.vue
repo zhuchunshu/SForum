@@ -201,6 +201,7 @@ async function restoreDefaults() {
               <p v-if="item.ownerExtensionId" class="mt-1 text-xs text-muted">{{ t('notificationSettings.pluginOwned') }}</p>
             </div>
             <USelect
+              v-if="canOverrideNotificationPreference(item)"
               v-model="draft[notificationPreferenceKey(item)]"
               :items="stateItems"
               value-key="value"
@@ -209,6 +210,9 @@ async function restoreDefaults() {
               class="w-full"
               :aria-label="`${typeLabel(item)} ${channelLabel(item.channel)}`"
             />
+            <UBadge v-else color="neutral" variant="soft" class="justify-center py-1.5">
+              {{ itemStatus(item) }}
+            </UBadge>
           </li>
         </ul>
       </section>

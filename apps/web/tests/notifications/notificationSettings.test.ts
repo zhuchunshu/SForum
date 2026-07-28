@@ -22,6 +22,7 @@ const defaultThemeSettings = await source('../../../../extensions/builtin/themes
 const nocturneThemeSettings = await source('../../../../extensions/builtin/themes/sforum-nocturne/templates/settings-notifications.html')
 const themeRenderer = await source('../../app/components/SFThemeTemplate.vue')
 const userSettings = await source('../../app/components/settings/SFNotificationSettingsPage.vue')
+const settingsStyles = await source('../../app/assets/css/sforum-settings.css')
 const preferencesApi = await source('../../app/composables/notifications/useNotificationPreferences.ts')
 const webPushApi = await source('../../app/composables/notifications/useWebPush.ts')
 const webPushSettings = await source('../../app/components/settings/SFWebPushSettingsSection.vue')
@@ -58,6 +59,7 @@ describe('Notification Platform V2 settings', () => {
     expect(canOverrideNotificationPreference(preference({ required: true }))).toBe(false)
     expect(canOverrideNotificationPreference(preference({ active: false }))).toBe(false)
     expect(canOverrideNotificationPreference(preference({ enabled: false }))).toBe(false)
+    expect(canOverrideNotificationPreference(preference({ channel: 'email', enabled: false, state: 'enabled' }))).toBe(false)
     expect(canOverrideNotificationPreference(preference({ channelAvailable: false }))).toBe(false)
     expect(canOverrideNotificationPreference(preference({ userConfigurable: false }))).toBe(false)
     expect(preferenceUpdateItems([
@@ -89,6 +91,8 @@ describe('Notification Platform V2 settings', () => {
     expect(preferencesApi).toContain("'/notification-preferences/restore'")
     expect(userSettings).toContain('applyCategory')
     expect(userSettings).toContain('canOverrideNotificationPreference')
+    expect(userSettings).toContain('v-if="canOverrideNotificationPreference(item)"')
+    expect(settingsStyles).toContain('.sforum-settings__mobile-nav .sf-home-navigation__select-control')
     expect(accountNav).toContain("localePath('/settings/notifications')")
   })
 
@@ -105,18 +109,18 @@ describe('Notification Platform V2 settings', () => {
     expect(themeRenderer).toContain("'sf-notification-settings': { componentId: 'notifications.component.settings' }")
   })
 
-  test('has a distinct permission-aware admin surface and removes the active policy tab from Mail', () => {
-    expect(adminPage).toContain("useAdminPage('/settings/notifications')")
-    expect(adminPage).toContain('SFAdminFixedTabNav')
-    expect(adminPage).toContain('SFAdminNotificationPolicyPage')
-    expect(adminPage).toContain('SFAdminNotificationChannels')
+  test('uses permission-aware tabs in the unified Mail and Notifications admin surface', () => {
+    expect(adminPage).toContain("adminRoutes.path('/settings/mail')")
+    expect(mailPage).toContain('SFAdminFixedTabNav')
+    expect(mailPage).toContain('SFAdminNotificationPolicyPage')
+    expect(mailPage).toContain('SFAdminNotificationChannels')
     expect(adminSettings).toContain("'/admin/notifications/policy'")
     expect(adminSettings).toContain("'/admin/notifications/policy/restore'")
     expect(adminSettings).toContain("can('settings.notifications.manage')")
     expect(adminSettings).toContain("'/admin/notifications/test'")
     expect(mailPage).not.toContain('SFAdminMailNotificationsTab')
-    expect(mailPage).not.toContain("'notifications'")
     expect(adminModules).toContain("id: '/settings/notifications'")
+    expect(adminModules).toContain("requiredPermissions: ['settings.mail.manage', 'settings.notifications.manage']")
     expect(adminModules).toContain("requiredPermissions: ['settings.notifications.manage']")
     expect(roleTemplates).toContain("'settings.notifications.manage'")
   })
@@ -143,7 +147,7 @@ describe('Notification Platform V2 settings', () => {
 
   test('manages generic channel selection, reset, self-test, and redacted delivery health', () => {
     expect(adminSettings).not.toContain('<SFAdminNotificationChannels')
-    expect(adminPage).toContain('channels: SFAdminNotificationChannels')
+    expect(mailPage).toContain('channels: SFAdminNotificationChannels')
     expect(adminChannelsApi).toContain("`${base}/channels`")
     expect(adminChannelsApi).toContain("`${base}/channels/${channel}`")
     expect(adminChannelsApi).toContain("`${base}/channels/${channel}/reset`")
@@ -161,6 +165,8 @@ describe('Notification Platform V2 settings', () => {
     expect(zh.notificationSettings.states.inherit).toBe('继承站点选择')
     expect(en.admin.notificationSettings.channelEnabled).toBe('Channel available')
     expect(zh.admin.notificationSettings.channelEnabled).toBe('渠道可用')
+    expect(en.admin.notificationSettings.emailEnabled).toBe('Send email notification')
+    expect(zh.admin.notificationSettings.emailEnabled).toBe('发送邮件通知')
     expect(en.admin.nav.notificationSettings).toBe('Notification settings')
     expect(zh.admin.nav.notificationSettings).toBe('通知设置')
     expect(en.notificationSettings.webPush.enableBrowser).toBe('Enable on this browser')

@@ -47,7 +47,7 @@ func TestResolveSafeTargetsScrubsUnavailableAndResolverFailures(t *testing.T) {
 			t.Fatal(err)
 		}
 		item := page.Items[0]
-		if item.ActorUserID != nil || item.TargetType != "unavailable" || item.TargetID != 0 || item.TargetAvailable || item.TargetPath != "" || string(item.Payload) != "{}" {
+		if item.ActorUserID != nil || item.Actor != nil || item.TargetType != "unavailable" || item.TargetID != 0 || item.TargetAvailable || item.TargetPath != "" || string(item.Payload) != "{}" {
 			t.Fatalf("unsafe fallback: %#v", item)
 		}
 	}

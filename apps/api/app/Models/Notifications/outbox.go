@@ -9,7 +9,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
-	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 )
 
@@ -17,17 +16,12 @@ type TxEnqueuer interface {
 	EnqueueTx(context.Context, pgx.Tx, river.JobArgs, supportjobs.EnqueueOptions) (*rivertype.JobInsertResult, error)
 }
 
-type PolicyReader interface {
-	NotificationPolicy(context.Context) (options.NotificationPolicy, error)
-}
-
 type Outbox struct {
 	pool interface {
 		Begin(context.Context) (pgx.Tx, error)
 	}
-	store  *PostgresStore
-	jobs   TxEnqueuer
-	policy PolicyReader
+	store *PostgresStore
+	jobs  TxEnqueuer
 }
 
 func NewOutbox(pool interface {
@@ -36,21 +30,11 @@ func NewOutbox(pool interface {
 	return &Outbox{pool: pool, store: store, jobs: jobs}
 }
 
-func (o *Outbox) WithPolicyReader(policy PolicyReader) *Outbox { o.policy = policy; return o }
-
 func (o *Outbox) WithDeliveryPolicyResolver(resolver DeliveryPolicyResolver) *Outbox {
 	// Kept as a compatibility builder while all transactional projection paths
 	// resolve through the store on the caller's transaction snapshot.
 	_ = resolver
 	return o
-}
-
-func (o *Outbox) notificationPolicy(ctx context.Context) (options.NotificationPolicy, error) {
-	if o.policy != nil {
-		return o.policy.NotificationPolicy(ctx)
-	}
-	all := options.ChannelPolicy{InAppEnabled: true, EmailEnabled: true}
-	return options.NotificationPolicy{Reply: all, Mention: all, Moderation: all}, nil
 }
 
 type QueueMailInput struct {

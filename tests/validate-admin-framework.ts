@@ -207,7 +207,7 @@ const adminPagePathsById: Record<string, string> = {
 }
 
 // 纯重定向页：只校验 layout + 组件名 + 不走 tab 手写
-const adminRedirectPageIds = new Set(['/site-chrome', '/extensions/store'])
+const adminRedirectPageIds = new Set(['/site-chrome', '/settings/notifications', '/extensions/store'])
 // 商城货架：页内用共享组件注册 useAdminPage，不强制 UDashboardToolbar
 const adminStoreShelfPageIds = new Set(['/extensions/store/themes', '/extensions/store/plugins'])
 const adminStoreShelfComponent = 'apps/web/app/components/admin/SFAdminExtensionStoreShelf.vue'
@@ -308,8 +308,13 @@ assert(
 )
 assert(systemFolder.children?.some(entry => entry.pageId === '/personalization'), 'System folder should contain the personalization page')
 assert(
-  systemFolder.children?.map(entry => entry.pageId).join(',') === '/settings,/settings/mail,/settings/notifications,/settings/login-methods,/settings/avatar,/settings/features,/entity-meta,/personalization,/seo,/search',
+  systemFolder.children?.map(entry => entry.pageId).join(',') === '/settings,/settings/mail,/settings/login-methods,/settings/avatar,/settings/features,/entity-meta,/personalization,/seo,/search',
   'System folder should keep the approved settings submenu order without ops tools'
+)
+assert(!systemFolder.children?.some(entry => entry.pageId === '/settings/notifications'), 'Notification settings should be tabs inside the unified Mail and Notifications page')
+assert(
+  adminPageDefinitions.find(page => page.id === '/settings/mail')?.permissionMode === 'any',
+  'Unified Mail and Notifications settings should allow either fine-grained permission'
 )
 assert(!systemFolder.children?.some(entry => entry.pageId === '/site-chrome'), 'Site chrome should be merged into personalization, not a separate sidebar page')
 assert(

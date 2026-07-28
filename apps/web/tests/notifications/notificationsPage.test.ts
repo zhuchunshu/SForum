@@ -7,6 +7,7 @@ import { useNotifications, type NotificationItem } from '../../app/composables/n
 import {
   filterNotifications,
   groupNotificationsByDate,
+  notificationFilterCounts,
   notificationPresentation,
   notificationTarget,
   unreadLoadedCount
@@ -18,6 +19,7 @@ const source = (path: string) => readFileSync(new URL(path, import.meta.url), 'u
 const pageSource = () => source('../../app/components/notifications/SFNotificationsPage.vue')
 const pageStyles = () => source('../../app/components/notifications/SFNotificationsPage.css')
 const detailPageSource = () => source('../../app/components/notifications/detail/SFNotificationDetailPage.vue')
+const typeNavSource = () => source('../../app/components/notifications/SFNotificationTypeNav.vue')
 const detailRouteSource = () => source('../../app/pages/notifications/[notificationId].vue')
 const notificationComposableSource = () => source('../../app/composables/notifications/useNotifications.ts')
 const navbarSource = () => source('../../app/components/SFNavbar.vue')
@@ -33,7 +35,8 @@ function item(input: Partial<NotificationItem>): NotificationItem {
     payload: input.payload || {},
     createdAt: input.createdAt || '2026-07-23T08:00:00.000Z',
     readAt: input.readAt,
-    actorUserId: input.actorUserId
+    actorUserId: input.actorUserId,
+    actor: input.actor
   }
 }
 
@@ -93,6 +96,36 @@ describe('notification presentation helpers', () => {
       target: { path: '/t/9#comment-15', unavailable: false }
     })
     expect(view.bodyKey).toBe('notifications.body.mention')
+  })
+
+  test('uses actor avatars only for user-authored notification types', () => {
+    const actor = {
+      id: 8,
+      username: 'alice',
+      displayName: 'Alice',
+      avatar: { kind: 'uploaded' as const, url: '/api/v1/attachments/avatar/content', alt: 'Alice' }
+    }
+
+    expect(notificationPresentation(item({ type: 'reply', actor })).actor).toEqual(actor)
+    expect(notificationPresentation(item({ type: 'mention', actor })).actor).toEqual(actor)
+
+    const system = notificationPresentation(item({ type: 'moderation_approved', actor }))
+    expect(system.actor).toBeUndefined()
+    expect(system.icon).toBe('i-tabler-shield-check')
+  })
+
+  test('counts the loaded notification scope for the shared type menu', () => {
+    const counts = notificationFilterCounts([
+      { type: 'reply', read: false },
+      { type: 'reply', read: true },
+      { type: 'mention', read: true }
+    ])
+
+    expect(counts.get('all')).toBe(3)
+    expect(counts.get('unread')).toBe(1)
+    expect(counts.get('reply')).toBe(2)
+    expect(counts.get('mention')).toBe(1)
+    expect(counts.get('moderation_approved')).toBeUndefined()
   })
 
   test('groups by today and earlier using the current locale timezone boundary', () => {
@@ -235,7 +268,7 @@ describe('useNotifications', () => {
     globalThis.EventSource = originalEventSource
   })
 
-  test('refreshes immediately after an asynchronous SSE failure and reconnects a closed source', async () => {
+  test('closes a failed EventSource and reconnects it through the controlled timer', async () => {
     const originalEventSource = globalThis.EventSource
     const sources: RecoveringFakeEventSource[] = []
     class RecoveringFakeEventSource {
@@ -253,8 +286,8 @@ describe('useNotifications', () => {
         const callback = listener as (event: Event) => void
         this.listeners.set(type, [...(this.listeners.get(type) || []), callback])
       }
-      failClosed() {
-        this.readyState = RecoveringFakeEventSource.CLOSED
+      failWhileConnecting() {
+        this.readyState = RecoveringFakeEventSource.CONNECTING
         for (const listener of this.listeners.get('error') || []) listener(new Event('error'))
       }
       close() { this.readyState = RecoveringFakeEventSource.CLOSED }
@@ -267,7 +300,8 @@ describe('useNotifications', () => {
       const stop = api.startRealtime(() => { refreshes++ })
 
       expect(sources).toHaveLength(1)
-      sources[0]?.failClosed()
+      sources[0]?.failWhileConnecting()
+      expect(sources[0]?.readyState).toBe(RecoveringFakeEventSource.CLOSED)
       await new Promise(resolve => setTimeout(resolve, 130))
       expect(refreshes).toBe(1)
 
@@ -314,6 +348,17 @@ describe('SFNotificationsPage contract', () => {
     expect(route).not.toContain('useNotifications()')
   })
 
+  test('renders user-authored sources as avatars and system sources as Tabler icons', () => {
+    const page = pageSource()
+    const styles = pageStyles()
+
+    expect(page).toContain('v-if="item.actor"')
+    expect(page).toContain(':avatar="item.actor.avatar"')
+    expect(page).toContain('sforum-notifications__source-icon')
+    expect(page).not.toContain(':name="filterLabel(item.type)"')
+    expect(styles).toContain('.sforum-notifications__source-icon')
+  })
+
   test('uses the default theme three-column shell, shared community nav, and mobile drawer state', () => {
     const page = pageSource()
     const styles = pageStyles()
@@ -350,6 +395,20 @@ describe('SFNotificationsPage contract', () => {
     expect(composable).toContain("params.set('unread', String(filters.unread))")
     expect(composable).toContain('beforeId')
     expect(composable).toContain('limit')
+  })
+
+  test('shares the notification type menu between list and detail sidebars', () => {
+    const page = pageSource()
+    const detail = detailPageSource()
+    const typeNav = typeNavSource()
+
+    expect(page).toContain('<SFNotificationTypeNav')
+    expect(detail).toContain('<SFNotificationTypeNav')
+    expect(detail).toContain("notifications.list(0, 20)")
+    expect(detail).toContain("useState<NotificationFilter>('notification-inbox-filter'")
+    expect(detail).toContain("router.push(localePath('/notifications'))")
+    expect(typeNav).toContain('v-for="filter in notificationFilters"')
+    expect(typeNav).toContain("t('notifications.filter.loadedScope', { count: loadedCount })")
   })
 
   test('opens an independent detail route and keeps all-read rollback and themed feedback', () => {

@@ -353,6 +353,19 @@ func TestRevisionStreamStopsOnCancellation(t *testing.T) {
 	}
 }
 
+func TestNotificationStreamContextHasBoundedLifetime(t *testing.T) {
+	ctx, cancel := notificationStreamContext(context.Background())
+	defer cancel()
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		t.Fatal("notification stream context has no deadline")
+	}
+	remaining := time.Until(deadline)
+	if remaining <= 0 || remaining > notificationStreamMaxLifetime {
+		t.Fatalf("notification stream lifetime=%s want within %s", remaining, notificationStreamMaxLifetime)
+	}
+}
+
 func TestNotificationStreamReturnsConnectionLimitWithoutBody(t *testing.T) {
 	store := &notificationTestStore{revisionErr: notifications.ErrRevisionConnectionLimit}
 	controller := NewController(store, nil, nil, nil)

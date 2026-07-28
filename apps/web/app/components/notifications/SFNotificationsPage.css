@@ -70,7 +70,6 @@
 
 .sforum-notifications__head p,
 .sforum-notifications__filter-note,
-.sforum-notifications__filter-scope,
 .sforum-notifications__rail-help {
   margin: 6px 0 0;
   color: var(--sf-public-text-muted);
@@ -278,6 +277,45 @@
   height: 18px;
   border-radius: 2px;
   background: var(--sf-accent);
+}
+
+.sforum-notifications__source-icon {
+  display: inline-grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  flex: 0 0 36px;
+  border: 1px solid var(--sf-public-border);
+  border-radius: 50%;
+  background: var(--sf-public-surface-muted);
+  color: var(--sf-public-text-secondary);
+}
+
+.sforum-notifications__source-icon[data-type="moderation_approved"] {
+  background: color-mix(in srgb, #23966c 12%, var(--sf-public-surface));
+  color: #1f805f;
+}
+
+.sforum-notifications__source-icon[data-type="moderation_rejected"] {
+  background: color-mix(in srgb, #dd654d 12%, var(--sf-public-surface));
+  color: #c34e39;
+}
+
+.sforum-notifications__source-icon[data-type="admin_test"] {
+  background: color-mix(in srgb, #b77916 12%, var(--sf-public-surface));
+  color: #9a6411;
+}
+
+.dark .sforum-notifications__source-icon[data-type="moderation_approved"] {
+  color: #60c69d;
+}
+
+.dark .sforum-notifications__source-icon[data-type="moderation_rejected"] {
+  color: #ff927d;
+}
+
+.dark .sforum-notifications__source-icon[data-type="admin_test"] {
+  color: #e5b75d;
 }
 
 .sforum-notifications__row-body {
@@ -542,72 +580,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.sforum-notifications__type-nav {
-  padding: 0;
-}
-
-.sforum-notifications__rail-label {
-  padding: 10px 16px 6px;
-  color: var(--sf-public-text-muted);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.sforum-notifications__rail-link {
-  width: 100%;
-  min-height: 34px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  border: 0;
-  border-left: 2px solid transparent;
-  border-radius: 0;
-  padding: 7px 16px;
-  background: transparent;
-  color: var(--sf-public-text-secondary);
-  font-size: 13px;
-  font-weight: 400;
-  text-align: left;
-  cursor: pointer;
-}
-
-.sforum-notifications__rail-link:hover {
-  background: var(--sf-public-surface-muted);
-  color: var(--sf-public-text);
-}
-
-.sforum-notifications__rail-link.is-active {
-  position: relative;
-  background: var(--sf-accent-soft);
-  color: var(--sf-accent);
-  border-left-color: var(--sf-accent);
-  font-weight: 600;
-}
-
-.dark .sforum-notifications__rail-link.is-active {
-  color: var(--sf-accent-dark, var(--sf-accent));
-}
-
-.sforum-notifications__rail-link-main {
-  min-width: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 11px;
-}
-
-.sforum-notifications__rail-count {
-  color: var(--sf-public-text-muted);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
-
-.sforum-notifications__rail-link.is-active .sforum-notifications__rail-count {
-  color: inherit;
-}
-
 @media (max-width: 1100px) {
   .sforum-notifications__layout {
     grid-template-columns: var(--sf-public-sidebar-width) minmax(0, 1fr);
@@ -664,6 +636,18 @@
   .sforum-notifications__mobile-nav {
     display: block;
     margin-bottom: 16px;
+  }
+
+  .sforum-notifications__mobile-nav :deep(.sf-home-navigation__select-wrap) {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sforum-notifications__mobile-nav :deep(.sf-home-navigation__select-label),
+  .sforum-notifications__mobile-nav :deep(.sf-home-navigation__select-control) {
+    width: 100%;
+    min-width: 0;
   }
 
   .sforum-notifications__main {

@@ -370,8 +370,9 @@ Relevant plans:
 - Provider probes run in restricted short-lived processes without a Host API
   token or runtime registrations.
 - Public contributions gated by settings bump
-  `site.public_surface_revision`; anonymous topic SWR varies by that revision so
-  operators do not reactivate a theme after toggling a badge/sidebar item.
+  `site.public_surface_revision`. Topic HTML no longer consumes that revision
+  because `/t/**` disables whole-page caching; each SSR request resolves current
+  Page Registry and contribution state without requiring theme reactivation.
 - Admin surfaces include overview, plugin/theme lists and details, settings,
   event log, extension points, Page Registry, lifecycle progress/recovery, and
   provider inspection. The App Store remains a local framework shell until a

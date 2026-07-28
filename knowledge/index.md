@@ -90,9 +90,30 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- Admin Mail and Notification settings parity: compact shared settings header,
-  standard toolbars, fixed notification policy/channel tabs, single-panel tab
-  content, and desktop/mobile Browser QA:
+- Notification email opt-in defaults: admin per-type email control, Core
+  transaction-scoped user preference enforcement, hard site gate, safe default
+  migration, personal managed state, and desktop/mobile Browser QA:
+  `sessions/2026-07-28-notification-email-opt-in-handoff.md`
+- Notification stream lifecycle hotfix: downstream disconnect now destroys the
+  Nuxt upstream SSE socket, API subscriptions have one-minute leases, and the
+  client uses bounded backoff plus HMR cleanup instead of native retry storms:
+  `sessions/2026-07-28-notification-stream-lifecycle-hotfix-handoff.md`
+- Notification detail type navigation: list/detail now share the same type
+  rail, loaded-scope counts, current-type highlight, and filter-state return;
+  focused verification passed while rendered Browser QA remains to repeat
+  after the Chrome control timeout:
+  `sessions/2026-07-28-notification-detail-type-nav-handoff.md`
+- Notification list source identity: reply/mention rows now use the actor's
+  configured avatar, system rows use Tabler icons, hidden targets scrub actor
+  summaries, and desktop/mobile Browser QA is complete:
+  `sessions/2026-07-28-notification-source-avatar-handoff.md`
+- Topic detail stale-comment repair: `/t/**` whole-page SWR removed, explicit
+  anonymous/session cache-control policies, API generation caches retained,
+  and direct anchor/runtime proof with all current comments:
+  `sessions/2026-07-28-topic-page-cache-correctness-handoff.md`
+- Unified Admin Mail and Notification settings: one permission-aware fixed-tab
+  surface, compact shared settings geometry, legacy notification-route redirect,
+  and desktop/mobile Browser QA:
   `sessions/2026-07-28-admin-mail-notification-settings-parity-handoff.md`
 - Notification detail preview and realtime badge recovery: independent
   authenticated list/detail routes, recipient-authoritative preview, selected
@@ -128,9 +149,9 @@ load archived sessions or completed plans as current context.
 - Search automatic reconciliation: provider-neutral Host ledger, startup + 15m
   bounded repair schedule, and real-runtime cleanup of 92 historical ghosts:
   `sessions/2026-07-27-search-auto-reconciliation-handoff.md`
-- Configurable public navigation task book: Core-owned placement/defaults/
-  backup, theme-owned presentation, bounded V3 plugin injection, and M0-M7
-  one-conversation milestones:
+- Configurable public navigation task book: one persistent Codex Goal for
+  sequential M0-M7, with Core-owned placement/defaults/backup, theme-owned
+  presentation, bounded V3 plugin injection, and durable recovery checkpoints:
   `sessions/2026-07-27-public-navigation-platform-plan-handoff.md`
 - Notification Platform V2 completed M0-M7 with exact-artifact Web Push,
   real PostgreSQL multi-node/fixture evidence, hidden-target scrubbing, and a

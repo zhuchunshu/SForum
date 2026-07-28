@@ -19,6 +19,10 @@
 - Codified the Site Settings geometry as the repository-wide admin-settings UI
   contract in `AGENTS.md`, added a shell regression covering Site, Mail, and
   Notification settings, and wired that regression into `./scripts/test.sh`.
+- Merged Mail and Notification administration into one permission-aware fixed
+  tab surface at `/control-panel/settings/mail`. The old Notification admin URL
+  redirects to the matching Policy or External Channels tab and no longer
+  appears as a second sidebar entry.
 
 ## Decisions
 
@@ -29,6 +33,9 @@
 - Admin settings UI work is not complete without desktop and `390x844` Browser
   comparison against `/control-panel/settings`; source and unit checks are only
   the structural guard.
+- The unified registry entry is visible with either fine-grained permission;
+  the route renders only the tab family authorized for the current actor. API
+  authorization and the two permission keys remain independent.
 
 ## Next
 

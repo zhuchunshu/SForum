@@ -19,14 +19,20 @@ SMTP, log delivery, no-op delivery, authentication, or TLS.
 - `settings.manage` protects provider selection, reset, recent deliveries, test
   mail, and mail-provider plugin settings. `extension.manage` still controls
   plugin enable/disable. Disabling the selected plugin clears the selection.
-- Core admin route `/settings/mail` owns mail provider configuration, testing,
-  and mail delivery history. Notification policy moved to the dedicated
-  `/control-panel/settings/notifications` admin surface; existing `/admin/mail/policy`
+- Core admin route `/settings/mail` is the unified Mail and Notifications
+  settings surface. It owns mail provider configuration, mail delivery history,
+  notification type policy, and external channels; existing `/admin/mail/policy`
   routes remain compatibility projections over the Notification resolver.
 - The admin Mail surface follows the shared settings geometry: compact page
-  title, standard refresh toolbar, fixed Overview/Mail/Delivery tabs, and one
-  settings panel per tab. Overview guidance is a vertical status and setup flow
-  inside the panel rather than a separate hero or card grid.
+  title, standard refresh toolbar, fixed Overview/Mail/Delivery/Type
+  Policy/External Channels tabs, and one settings panel per tab. Tabs are
+  filtered by the actor's independent mail and notification permissions.
+  Overview guidance is a vertical status and setup flow inside the panel rather
+  than a separate hero or card grid.
+- Notification email is opt-in by default. Restoring the notification policy
+  enables in-app delivery but disables reply, mention, and moderation email;
+  operators can enable email per notification type, after which members may
+  choose their own email preference.
 - Provider selection and settings navigation remain extension-generic.
   Deliveries owns status, template, and reason localization. Queued test mail
   is not presented as synchronously delivered.

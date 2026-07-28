@@ -26,7 +26,8 @@ function expectCanonicalSettingsShell(page: string) {
 describe('mail and notification admin center', () => {
   test('is visible in the System navigation with settings permission', () => {
     expect(modules).toContain("pageId: '/settings/mail'")
-    expect(modules).toContain("requiredPermissions: ['settings.mail.manage']")
+    expect(modules).toContain("requiredPermissions: ['settings.mail.manage', 'settings.notifications.manage']")
+    expect(modules).toContain("permissionMode: 'any'")
     expect(zh.admin.nav.mailSettings).toBe('邮箱与通知')
     expect(en.admin.nav.mailSettings).toBe('Mail and notifications')
   })
@@ -39,23 +40,25 @@ describe('mail and notification admin center', () => {
     expect(providerTab).not.toContain('selected === \'sforum.smtp\'')
   })
 
-  test('keeps Mail focused on provider and delivery responsibilities', () => {
+  test('combines Mail and Notification responsibilities into permission-aware tabs', () => {
     expect(mailPage).not.toContain('SFAdminMailNotificationsTab')
-    expect(mailPage).not.toContain("'notifications'")
     expect(mailPage).toContain('SFAdminMailProviderTab')
     expect(mailPage).toContain('SFAdminMailDeliveriesTab')
+    expect(mailPage).toContain('SFAdminNotificationPolicyPage')
+    expect(mailPage).toContain('SFAdminNotificationChannels')
+    expect(mailPage).toContain("can('settings.mail.manage')")
+    expect(mailPage).toContain("can('settings.notifications.manage')")
+    expect(notificationSettingsPage).toContain("adminRoutes.path('/settings/mail')")
+    expect(notificationSettingsPage).toContain("route.query.tab === 'channels' ? 'channels' : 'policy'")
   })
 
   test('keeps Mail and Notification settings on the canonical settings shell', () => {
     expectCanonicalSettingsShell(siteSettingsPage)
     expectCanonicalSettingsShell(mailPage)
-    expectCanonicalSettingsShell(notificationSettingsPage)
-    for (const page of [mailPage, notificationSettingsPage]) {
-      expect(page).toContain('min-w-0')
-      expect(page).toContain(':aria-label=')
-      expect(page).toContain(':title=')
-      expect(page).toContain('hidden sm:inline')
-    }
+    expect(mailPage).toContain('min-w-0')
+    expect(mailPage).toContain(':aria-label=')
+    expect(mailPage).toContain(':title=')
+    expect(mailPage).toContain('hidden sm:inline')
   })
 
   test('keeps overview guidance and localizes delivery list codes', () => {

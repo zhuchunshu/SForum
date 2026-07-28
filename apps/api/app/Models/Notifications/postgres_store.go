@@ -2,6 +2,7 @@ package notifications
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	avatar "github.com/zhuchunshu/sforum/apps/api/app/Support/Avatar"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Outbox"
 )
 
@@ -20,15 +22,23 @@ type queryRunner interface {
 }
 
 type PostgresStore struct {
-	runner queryRunner
-	pool   *pgxpool.Pool
-	wakes  *RevisionHub
+	runner        queryRunner
+	pool          *pgxpool.Pool
+	wakes         *RevisionHub
+	avatarBuilder *avatar.ViewBuilder
 }
 
 func NewPostgresStore(pool *pgxpool.Pool) *PostgresStore {
-	return &PostgresStore{runner: pool, pool: pool}
+	return NewPostgresStoreWithAvatar(pool, nil)
 }
-func newPostgresStore(runner queryRunner) *PostgresStore { return &PostgresStore{runner: runner} }
+
+func NewPostgresStoreWithAvatar(pool *pgxpool.Pool, avatarOptions avatar.OptionResolver) *PostgresStore {
+	return &PostgresStore{runner: pool, pool: pool, avatarBuilder: avatar.NewViewBuilder(avatarOptions)}
+}
+
+func newPostgresStore(runner queryRunner) *PostgresStore {
+	return &PostgresStore{runner: runner, avatarBuilder: avatar.NewViewBuilder(nil)}
+}
 
 // WithRevisionWakeups starts the process-wide LISTEN connection used by SSE.
 // Durable revisions remain authoritative when this hint connection is down.
@@ -129,20 +139,28 @@ func (s *PostgresStore) List(ctx context.Context, input ListInput) (Page, error)
 	if limit <= 0 || limit > 100 {
 		limit = 20
 	}
-	rows, err := s.runner.Query(ctx, `SELECT id, recipient_user_id, type, category, type_version, payload_version, actor_user_id, target_type, target_id, payload,
-dedupe_key, read_at, created_at FROM notifications
-WHERE recipient_user_id=$1 AND ($2::bigint=0 OR id<$2)
-  AND ($3='' OR category=$3) AND ($4='' OR type=$4)
-  AND ($5::boolean IS NULL OR (read_at IS NULL)=$5)
-ORDER BY id DESC LIMIT $6`, input.RecipientUserID, input.BeforeID, input.Category, input.Type, input.Unread, limit+1)
+	rows, err := s.runner.Query(ctx, `SELECT notifications.id, notifications.recipient_user_id, notifications.type, notifications.category,
+notifications.type_version, notifications.payload_version, notifications.actor_user_id, notifications.target_type,
+notifications.target_id, notifications.payload, notifications.dedupe_key, notifications.read_at, notifications.created_at,
+actor_users.id, actor_users.username, actor_users.display_name, actor_users.email,
+actor_profiles.avatar_attachment_id, actor_avatars.id, actor_avatars.public_id, actor_avatars.owner_user_id,
+actor_avatars.content_type, actor_avatars.status
+FROM notifications
+LEFT JOIN users actor_users ON actor_users.id=notifications.actor_user_id
+LEFT JOIN user_profiles actor_profiles ON actor_profiles.user_id=actor_users.id
+LEFT JOIN attachments actor_avatars ON actor_avatars.id=actor_profiles.avatar_attachment_id
+WHERE notifications.recipient_user_id=$1 AND ($2::bigint=0 OR notifications.id<$2)
+  AND ($3='' OR notifications.category=$3) AND ($4='' OR notifications.type=$4)
+  AND ($5::boolean IS NULL OR (notifications.read_at IS NULL)=$5)
+ORDER BY notifications.id DESC LIMIT $6`, input.RecipientUserID, input.BeforeID, input.Category, input.Type, input.Unread, limit+1)
 	if err != nil {
 		return Page{}, err
 	}
 	defer rows.Close()
 	page := Page{Items: make([]Notification, 0, limit)}
 	for rows.Next() {
-		var item Notification
-		if err := rows.Scan(&item.ID, &item.RecipientUserID, &item.Type, &item.Category, &item.TypeVersion, &item.PayloadVersion, &item.ActorUserID, &item.TargetType, &item.TargetID, &item.Payload, &item.DedupeKey, &item.ReadAt, &item.CreatedAt); err != nil {
+		item, err := s.scanNotificationWithActor(ctx, rows)
+		if err != nil {
 			return Page{}, err
 		}
 		if len(page.Items) == limit {
@@ -155,16 +173,83 @@ ORDER BY id DESC LIMIT $6`, input.RecipientUserID, input.BeforeID, input.Categor
 }
 
 func (s *PostgresStore) GetNotification(ctx context.Context, userID, id int64) (Notification, error) {
-	var item Notification
-	err := s.runner.QueryRow(ctx, `SELECT id, recipient_user_id, type, category, type_version, payload_version, actor_user_id, target_type, target_id, payload,
-dedupe_key, read_at, created_at FROM notifications WHERE id=$1 AND recipient_user_id=$2`, id, userID).Scan(
-		&item.ID, &item.RecipientUserID, &item.Type, &item.Category, &item.TypeVersion, &item.PayloadVersion,
-		&item.ActorUserID, &item.TargetType, &item.TargetID, &item.Payload, &item.DedupeKey, &item.ReadAt, &item.CreatedAt,
-	)
+	item, err := s.scanNotificationWithActor(ctx, s.runner.QueryRow(ctx, `SELECT notifications.id, notifications.recipient_user_id,
+notifications.type, notifications.category, notifications.type_version, notifications.payload_version,
+notifications.actor_user_id, notifications.target_type, notifications.target_id, notifications.payload,
+notifications.dedupe_key, notifications.read_at, notifications.created_at,
+actor_users.id, actor_users.username, actor_users.display_name, actor_users.email,
+actor_profiles.avatar_attachment_id, actor_avatars.id, actor_avatars.public_id, actor_avatars.owner_user_id,
+actor_avatars.content_type, actor_avatars.status
+FROM notifications
+LEFT JOIN users actor_users ON actor_users.id=notifications.actor_user_id
+LEFT JOIN user_profiles actor_profiles ON actor_profiles.user_id=actor_users.id
+LEFT JOIN attachments actor_avatars ON actor_avatars.id=actor_profiles.avatar_attachment_id
+WHERE notifications.id=$1 AND notifications.recipient_user_id=$2`, id, userID))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Notification{}, ErrNotificationNotFound
 	}
 	return item, err
+}
+
+type notificationScanner interface {
+	Scan(...any) error
+}
+
+func (s *PostgresStore) scanNotificationWithActor(ctx context.Context, row notificationScanner) (Notification, error) {
+	var item Notification
+	var actorID sql.NullInt64
+	var username, displayName, email sql.NullString
+	var avatarAttachmentID, attachmentID, attachmentOwnerID sql.NullInt64
+	var attachmentPublicID, attachmentContentType, attachmentStatus sql.NullString
+	if err := row.Scan(
+		&item.ID, &item.RecipientUserID, &item.Type, &item.Category, &item.TypeVersion, &item.PayloadVersion,
+		&item.ActorUserID, &item.TargetType, &item.TargetID, &item.Payload, &item.DedupeKey, &item.ReadAt, &item.CreatedAt,
+		&actorID, &username, &displayName, &email, &avatarAttachmentID, &attachmentID, &attachmentPublicID,
+		&attachmentOwnerID, &attachmentContentType, &attachmentStatus,
+	); err != nil {
+		return Notification{}, err
+	}
+	if notificationUsesUserAvatar(item.Type) && actorID.Valid {
+		item.Actor = &NotificationActor{
+			ID:          actorID.Int64,
+			Username:    username.String,
+			DisplayName: displayName.String,
+			Avatar: s.avatarBuilder.AvatarView(ctx, avatar.User{
+				UserID: actorID.Int64, Username: username.String, DisplayName: displayName.String, Email: email.String,
+			}, avatar.Source{
+				AttachmentID: nullableNotificationID(avatarAttachmentID),
+				Attachment:   notificationAvatarAttachment(attachmentID, attachmentPublicID, attachmentOwnerID, attachmentContentType, attachmentStatus),
+			}),
+		}
+	}
+	return item, nil
+}
+
+func notificationUsesUserAvatar(typ string) bool {
+	return typ == TypeReply || typ == TypeMention
+}
+
+func nullableNotificationID(value sql.NullInt64) *int64 {
+	if !value.Valid || value.Int64 <= 0 {
+		return nil
+	}
+	id := value.Int64
+	return &id
+}
+
+func notificationAvatarAttachment(
+	id sql.NullInt64,
+	publicID sql.NullString,
+	ownerID sql.NullInt64,
+	contentType, status sql.NullString,
+) *avatar.Attachment {
+	if !id.Valid || id.Int64 <= 0 {
+		return nil
+	}
+	return &avatar.Attachment{
+		ID: id.Int64, PublicID: publicID.String, OwnerUserID: ownerID.Int64,
+		ContentType: contentType.String, Status: status.String,
+	}
 }
 
 func (s *PostgresStore) UnreadCount(ctx context.Context, userID int64) (int64, error) {

@@ -62,6 +62,12 @@ function channelLabel(channel: string) {
   return label('admin.notificationSettings.channels', channel)
 }
 
+function channelEnabledLabel(item: NotificationPolicyItem) {
+  return item.channel === 'email'
+    ? t('admin.notificationSettings.emailEnabled')
+    : t('admin.notificationSettings.channelEnabled')
+}
+
 function itemStatus(item: NotificationPolicyItem) {
   if (item.required) return t('admin.notificationSettings.status.required')
   if (!item.active) return t('admin.notificationSettings.status.inactive')
@@ -74,9 +80,14 @@ function applyCategory(category: string, enabled: boolean) {
   for (const item of catalog.value.items) {
     if (item.category === category && canEditNotificationPolicy(item)) {
       item.enabled = enabled
-      if (enabled) item.recommendedEnabled = true
+      item.recommendedEnabled = enabled
     }
   }
+}
+
+function setChannelEnabled(item: NotificationPolicyItem, enabled: boolean | 'indeterminate') {
+  item.enabled = enabled === true
+  if (!item.enabled) item.recommendedEnabled = false
 }
 
 function resetChanges() {
@@ -215,7 +226,7 @@ onMounted(load)
                   <p class="mt-1 text-sm text-muted">{{ channelLabel(item.channel) }} · {{ itemStatus(item) }}</p>
                   <p v-if="item.ownerExtensionId" class="mt-1 text-xs text-muted">{{ t('admin.notificationSettings.pluginOwned') }}</p>
                 </div>
-                <UCheckbox v-model="item.enabled" :disabled="!canManage || !canEditNotificationPolicy(item)" :label="t('admin.notificationSettings.channelEnabled')" />
+                <UCheckbox :model-value="item.enabled" :disabled="!canManage || !canEditNotificationPolicy(item)" :label="channelEnabledLabel(item)" @update:model-value="setChannelEnabled(item, $event)" />
                 <UCheckbox v-model="item.recommendedEnabled" :disabled="!canManage || !canEditNotificationPolicy(item) || !item.enabled" :label="t('admin.notificationSettings.recommendedEnabled')" />
                 <UCheckbox v-model="item.userConfigurable" :disabled="!canManage || !canEditNotificationPolicy(item)" :label="t('admin.notificationSettings.userConfigurable')" />
               </li>

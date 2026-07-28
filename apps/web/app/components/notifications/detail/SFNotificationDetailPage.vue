@@ -4,7 +4,13 @@ import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePer
 import { useForumApi } from '~/composables/forum/useForumApi'
 import { apiErrorMessage, apiErrorStatusCode } from '~/composables/useApiClient'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
-import { notificationPresentation } from '~/utils/notifications/notificationsPresentation'
+import SFNotificationTypeNav from '~/components/notifications/SFNotificationTypeNav.vue'
+import {
+  notificationFilterCounts,
+  notificationFilters,
+  notificationPresentation,
+  type NotificationFilter
+} from '~/utils/notifications/notificationsPresentation'
 
 /** forum.notification.show：独立路由详情岛，只呈现 Host 已重新授权的当前摘要。 */
 
@@ -23,13 +29,16 @@ if (!Number.isSafeInteger(notificationId) || notificationId <= 0) {
   throw createError({ statusCode: 404, statusMessage: 'Notification not found' })
 }
 
-const [detailAsync, unreadAsync, categoryAsync] = await Promise.all([
+const [detailAsync, unreadAsync, categoryAsync, sidebarAsync] = await Promise.all([
   useAsyncData(`notification-detail:${notificationId}`, () => notifications.get(notificationId)),
   useAsyncData('notification-detail-unread-count', () => notifications.refreshUnreadCount(), {
     default: () => notifications.unreadCount.value
   }),
   useAsyncData('notification-detail-categories', () => forumApi.listCategoryGroups(), {
     default: () => []
+  }),
+  useAsyncData('notification-detail-sidebar-items', () => notifications.list(0, 20), {
+    default: () => ({ items: [], hasMore: false })
   })
 ])
 
@@ -44,6 +53,13 @@ const categories = computed(() => categoryAsync.data.value.flatMap(group => grou
 const categoryTopicTotal = computed(() => categories.value.reduce((sum, category) => sum + category.topicCount, 0))
 const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
 const unreadTotal = computed(() => notifications.unreadCount.value)
+const sidebarItems = computed(() => sidebarAsync.data.value.items.map(notificationPresentation))
+const sidebarCounts = computed(() => notificationFilterCounts(sidebarItems.value))
+const activeDetailFilter = computed<NotificationFilter>(() => {
+  const type = presented.value?.type
+  return type && notificationFilters.includes(type) ? type : 'all'
+})
+const inboxFilter = useState<NotificationFilter>('notification-inbox-filter', () => 'all')
 const markingRead = ref(false)
 const actionError = ref('')
 const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
@@ -86,12 +102,20 @@ async function openTarget() {
   await router.push(localePath(presented.value.target.path))
 }
 
+async function selectNotificationFilter(filter: NotificationFilter) {
+  inboxFilter.value = filter
+  closeMobileDrawers()
+  await router.push(localePath('/notifications'))
+}
+
 onMounted(async () => {
   if (!detail.value || detail.value.readAt || markingRead.value) return
   markingRead.value = true
   try {
     await notifications.markRead(detail.value.id)
     detail.value.readAt = new Date().toISOString()
+    const sidebarItem = sidebarAsync.data.value.items.find(item => item.id === detail.value?.id)
+    if (sidebarItem) sidebarItem.readAt = detail.value.readAt
   } catch (error) {
     actionError.value = apiErrorMessage(error) || t('notifications.markReadFailed')
     toast.add({
@@ -124,7 +148,16 @@ useHead(() => ({ title: preview.value?.topicTitle || t('notifications.detailPage
           :pending="categoryAsync.pending.value"
           :can-create-topic="canCreateTopic"
           :show-categories="false"
-        />
+        >
+          <template #after-navigation>
+            <SFNotificationTypeNav
+              :active-filter="activeDetailFilter"
+              :counts="sidebarCounts"
+              :loaded-count="sidebarItems.length"
+              @select="selectNotificationFilter"
+            />
+          </template>
+        </SFHomeNavigation>
       </div>
 
       <section class="sforum-notifications__main" aria-labelledby="notification-detail-title">
@@ -285,7 +318,17 @@ useHead(() => ({ title: preview.value?.topicTitle || t('notifications.detailPage
         :total-topics="categoryTopicTotal"
         :pending="categoryAsync.pending.value"
         :can-create-topic="canCreateTopic"
-      />
+        :show-categories="false"
+      >
+        <template #after-navigation>
+          <SFNotificationTypeNav
+            :active-filter="activeDetailFilter"
+            :counts="sidebarCounts"
+            :loaded-count="sidebarItems.length"
+            @select="selectNotificationFilter"
+          />
+        </template>
+      </SFHomeNavigation>
     </aside>
 
     <aside v-if="mobileInfoOpen" class="sforum-mobile-drawer sforum-mobile-drawer--right">

@@ -2,6 +2,7 @@ package notifications
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -55,7 +56,7 @@ func (m *memoryRunner) QueryRow(_ context.Context, query string, args ...any) pg
 		item, ok := m.notifications[key]
 		created := !ok
 		if !ok {
-			item = Notification{ID: m.nextID, RecipientUserID: args[0].(int64), Type: args[1].(string), Category: args[2].(string), TypeVersion: args[3].(int), PayloadVersion: args[4].(int), TargetType: args[6].(string), TargetID: args[7].(int64), Payload: args[8].(json.RawMessage), DedupeKey: key, CreatedAt: time.Now()}
+			item = Notification{ID: m.nextID, RecipientUserID: args[0].(int64), Type: args[1].(string), Category: args[2].(string), TypeVersion: args[3].(int), PayloadVersion: args[4].(int), ActorUserID: args[5].(*int64), TargetType: args[6].(string), TargetID: args[7].(int64), Payload: args[8].(json.RawMessage), DedupeKey: key, CreatedAt: time.Now()}
 			m.nextID++
 			m.notifications[key] = item
 		}
@@ -82,11 +83,16 @@ func (m *memoryRunner) QueryRow(_ context.Context, query string, args ...any) pg
 		}
 		return memoryRow{values: []any{count}}
 	}
-	if strings.Contains(query, "FROM notifications WHERE id=$1 AND recipient_user_id=$2") {
+	if strings.Contains(query, "WHERE notifications.id=$1 AND notifications.recipient_user_id=$2") {
 		id, userID := args[0].(int64), args[1].(int64)
 		for _, item := range m.notifications {
 			if item.ID == id && item.RecipientUserID == userID {
-				return memoryRow{values: []any{item.ID, item.RecipientUserID, item.Type, item.Category, item.TypeVersion, item.PayloadVersion, item.ActorUserID, item.TargetType, item.TargetID, item.Payload, item.DedupeKey, item.ReadAt, item.CreatedAt}}
+				return memoryRow{values: []any{
+					item.ID, item.RecipientUserID, item.Type, item.Category, item.TypeVersion, item.PayloadVersion,
+					item.ActorUserID, item.TargetType, item.TargetID, item.Payload, item.DedupeKey, item.ReadAt, item.CreatedAt,
+					sql.NullInt64{}, sql.NullString{}, sql.NullString{}, sql.NullString{}, sql.NullInt64{},
+					sql.NullInt64{}, sql.NullString{}, sql.NullInt64{}, sql.NullString{}, sql.NullString{},
+				}}
 			}
 		}
 	}
@@ -139,6 +145,10 @@ func (r memoryRow) Scan(dest ...any) error {
 			*target = r.values[i].(json.RawMessage)
 		case *bool:
 			*target = r.values[i].(bool)
+		case *sql.NullInt64:
+			*target = r.values[i].(sql.NullInt64)
+		case *sql.NullString:
+			*target = r.values[i].(sql.NullString)
 		}
 	}
 	return nil
@@ -216,12 +226,14 @@ VALUES ($1,$1,$2,$2,$1,'active') RETURNING id`, username, username+"@example.tes
 	}
 	userID := insertUser("owner")
 	otherUserID := insertUser("other")
+	actorUserID := insertUser("actor")
 	store := newPostgresStore(tx)
 	create := func(recipient int64, typ, category, key string) Notification {
 		item, err := store.Create(ctx, CreateInput{
 			RecipientUserID: recipient,
 			Type:            typ,
 			Category:        category,
+			ActorUserID:     &actorUserID,
 			TargetType:      "system",
 			Payload:         json.RawMessage(`{"private":"rest-only"}`),
 			DedupeKey:       fmt.Sprintf("filter:%d:%s", stamp, key),
@@ -245,6 +257,9 @@ VALUES ($1,$1,$2,$2,$1,'active') RETURNING id`, username, username+"@example.tes
 	}
 	if len(first.Items) != 1 || first.Items[0].ID != newReply.ID || !first.HasMore {
 		t.Fatalf("first filtered page=%#v", first)
+	}
+	if first.Items[0].Actor == nil || first.Items[0].Actor.ID != actorUserID || first.Items[0].Actor.Username == "" || first.Items[0].Actor.Avatar.Kind != "initials" {
+		t.Fatalf("reply actor summary=%#v", first.Items[0].Actor)
 	}
 	second, err := store.List(ctx, ListInput{RecipientUserID: userID, Limit: 1, BeforeID: first.Items[0].ID, Category: "conversation", Unread: boolPointer(false)})
 	if err != nil {

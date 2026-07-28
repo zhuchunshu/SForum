@@ -107,7 +107,8 @@ func (s *PostgresStore) UpdateCoreNotificationPolicy(ctx context.Context, policy
 func (s *PostgresStore) RestoreCoreNotificationPolicy(ctx context.Context) error {
 	_, err := s.runner.Exec(ctx, `
 		UPDATE notification_type_policies
-		SET enabled = TRUE, recommended_enabled = TRUE, revision = revision + 1, updated_at = now()
+		SET enabled = (channel = 'in_app'), recommended_enabled = (channel = 'in_app'),
+		    revision = revision + 1, updated_at = now()
 		WHERE type IN ('reply', 'mention', 'moderation_approved', 'moderation_rejected')
 		  AND channel IN ('in_app', 'email')`)
 	return err

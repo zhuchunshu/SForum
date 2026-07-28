@@ -9,17 +9,10 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
-	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 )
 
-func channelsForType(policy options.NotificationPolicy, kind string) (bool, bool) {
-	channel := policy.Moderation
-	if kind == TypeReply {
-		channel = policy.Reply
-	} else if kind == TypeMention {
-		channel = policy.Mention
-	}
-	return channel.InAppEnabled, channel.EmailEnabled
+func coreDeliveryChannels() []string {
+	return []string{"in_app", "email", "web_push"}
 }
 
 type CommentEvent struct {
@@ -42,12 +35,9 @@ type ModerationEvent struct {
 }
 
 func (o *Outbox) NotifyModerationTx(ctx context.Context, tx pgx.Tx, event ModerationEvent) error {
-	policy, err := o.notificationPolicy(ctx)
-	if err != nil {
-		return err
-	}
 	var authorID sql.NullInt64
 	topicID := event.TargetID
+	var err error
 	switch event.TargetType {
 	case "topic":
 		err = tx.QueryRow(ctx, `SELECT author_user_id FROM topics WHERE id=$1`, event.TargetID).Scan(&authorID)
@@ -76,11 +66,11 @@ func (o *Outbox) NotifyModerationTx(ctx context.Context, tx pgx.Tx, event Modera
 			}
 			payload, _ := json.Marshal(payloadData)
 			key := fmt.Sprintf("moderation:%d:%s:%d", event.DecisionID, kind, authorID.Int64)
-			inApp, emailEnabled := channelsForType(policy, kind)
-			if err := o.createProjectionsTx(ctx, tx, CreateBundleInput{
+			if err := o.CreateProjectionsTx(ctx, tx, CreateBundleInput{
 				Notification: CreateInput{RecipientUserID: authorID.Int64, Type: kind, ActorUserID: &event.ReviewerUserID, TargetType: event.TargetType, TargetID: event.TargetID, Payload: payload, DedupeKey: key},
 				Delivery:     CreateDeliveryInput{Recipient: email, TemplateKey: "forum." + kind, TemplateData: payload, IdempotencyKey: key},
-			}, inApp, emailEnabled); err != nil {
+				Channels:     coreDeliveryChannels(),
+			}); err != nil {
 				return err
 			}
 		}
@@ -129,10 +119,6 @@ func (o *Outbox) notifyApprovedContentTx(ctx context.Context, tx pgx.Tx, event M
 }
 
 func (o *Outbox) NotifyCommentTx(ctx context.Context, tx pgx.Tx, event CommentEvent) error {
-	policy, err := o.notificationPolicy(ctx)
-	if err != nil {
-		return err
-	}
 	type recipient struct {
 		id          int64
 		email, kind string
@@ -167,11 +153,11 @@ func (o *Outbox) NotifyCommentTx(ctx context.Context, tx pgx.Tx, event CommentEv
 	for key, item := range recipients {
 		payload, _ := json.Marshal(map[string]any{"commentId": event.CommentID, "topicId": event.TopicID})
 		dedupe := fmt.Sprintf("comment:%d:%s", event.CommentID, key)
-		inApp, emailEnabled := channelsForType(policy, item.kind)
-		if err := o.createProjectionsTx(ctx, tx, CreateBundleInput{
+		if err := o.CreateProjectionsTx(ctx, tx, CreateBundleInput{
 			Notification: CreateInput{RecipientUserID: item.id, Type: item.kind, ActorUserID: &event.ActorUserID, TargetType: "comment", TargetID: event.CommentID, Payload: payload, DedupeKey: dedupe},
 			Delivery:     CreateDeliveryInput{Recipient: item.email, TemplateKey: "forum." + item.kind, TemplateData: payload, IdempotencyKey: dedupe},
-		}, inApp, emailEnabled); err != nil {
+			Channels:     coreDeliveryChannels(),
+		}); err != nil {
 			return err
 		}
 	}
@@ -182,10 +168,6 @@ func (o *Outbox) NotifyCommentTx(ctx context.Context, tx pgx.Tx, event CommentEv
 // Topic authors are not notified about their own new topic; only explicit active
 // mentions become projections.
 func (o *Outbox) NotifyTopicTx(ctx context.Context, tx pgx.Tx, event TopicEvent) error {
-	policy, err := o.notificationPolicy(ctx)
-	if err != nil {
-		return err
-	}
 	recipients := make(map[int64]string, len(event.MentionedUsernames))
 	for _, username := range event.MentionedUsernames {
 		var recipientID int64
@@ -202,11 +184,11 @@ func (o *Outbox) NotifyTopicTx(ctx context.Context, tx pgx.Tx, event TopicEvent)
 	for recipientID, email := range recipients {
 		payload, _ := json.Marshal(map[string]any{"topicId": event.TopicID})
 		key := fmt.Sprintf("topic:%d:mention:%d", event.TopicID, recipientID)
-		inApp, emailEnabled := channelsForType(policy, TypeMention)
-		if err := o.createProjectionsTx(ctx, tx, CreateBundleInput{
+		if err := o.CreateProjectionsTx(ctx, tx, CreateBundleInput{
 			Notification: CreateInput{RecipientUserID: recipientID, Type: TypeMention, ActorUserID: &event.ActorUserID, TargetType: "topic", TargetID: event.TopicID, Payload: payload, DedupeKey: key},
 			Delivery:     CreateDeliveryInput{Recipient: email, TemplateKey: "forum." + TypeMention, TemplateData: payload, IdempotencyKey: key},
-		}, inApp, emailEnabled); err != nil {
+			Channels:     coreDeliveryChannels(),
+		}); err != nil {
 			return err
 		}
 	}

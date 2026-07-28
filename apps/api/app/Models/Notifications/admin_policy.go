@@ -91,8 +91,8 @@ func (s *PostgresStore) mutateAdminPolicy(ctx context.Context, expectedRevision 
 	if restore {
 		_, err = tx.Exec(ctx, `
 			UPDATE notification_type_policies policy
-			SET enabled = CASE WHEN descriptor.owner_extension_id='' AND policy.channel IN ('in_app','email') THEN TRUE ELSE FALSE END,
-			    recommended_enabled = CASE WHEN descriptor.owner_extension_id='' AND policy.channel IN ('in_app','email') THEN TRUE ELSE FALSE END,
+			SET enabled = CASE WHEN descriptor.owner_extension_id='' AND policy.channel='in_app' THEN TRUE ELSE FALSE END,
+			    recommended_enabled = CASE WHEN descriptor.owner_extension_id='' AND policy.channel='in_app' THEN TRUE ELSE FALSE END,
 			    user_configurable = NOT policy.required,
 			    revision=policy.revision+1, updated_at=now()
 			FROM notification_type_descriptors descriptor
@@ -102,6 +102,9 @@ func (s *PostgresStore) mutateAdminPolicy(ctx context.Context, expectedRevision 
 		}
 	} else {
 		for _, update := range updates {
+			if !update.Enabled && update.RecommendedEnabled {
+				return AdminPolicyCatalog{}, ErrPreferenceInvalid
+			}
 			var required bool
 			if err := tx.QueryRow(ctx, `SELECT required FROM notification_type_policies WHERE type=$1 AND channel=$2 FOR UPDATE`, update.Type, update.Channel).Scan(&required); err != nil {
 				if errors.Is(err, pgx.ErrNoRows) {

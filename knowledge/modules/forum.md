@@ -206,8 +206,11 @@ live in `../reports/` and
   bump only affected scopes plus global.
 - Topic detail caches support ID and slug lookup with reverse-map invalidation.
   There is deliberately no composite topic-page cache.
-- Anonymous `/t/**` may use Nuxt SWR; session-bearing or fail-closed responses
-  must be `no-store`.
+- Nuxt `/t/**` disables whole-page caching because SSR embeds live comment and
+  permission-aware payloads. Anonymous responses use `public, no-cache` for
+  mandatory revalidation; session/edit responses use `private, no-store`.
+  Topic/detail/comment scale remains owned by the API's topic-scoped Redis
+  caches and generation invalidation.
 - Horizontal default remains one PostgreSQL primary plus shared Redis. Read
   replicas are deferred to measured thresholds; no `DATABASE_READ_URL` runtime
   path exists yet.

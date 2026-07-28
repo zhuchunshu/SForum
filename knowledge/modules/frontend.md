@@ -252,11 +252,14 @@ Architecture sources:
   same-origin asset URLs. A known theme change cannot reuse prior-theme state.
 - Theme asset URLs place `packageDigest` in the path rather than a query so CSS
   relative fonts/images retain the same immutable identity.
-- Anonymous public pages may be shared/SWR cached. Requests carrying
-  `sforum_session` restore auth during SSR and must disable HTML/payload cache.
-  Browser `onMounted` still revalidates session state.
-- Public contributions controlled by extension settings vary topic SWR through
-  `site.public_surface_revision`.
+- Anonymous public pages may be shared/SWR cached only when their route contract
+  permits stale HTML. Topic detail is the explicit exception: `/t/**` embeds
+  live comments and permission-aware payloads, so it disables whole-page cache
+  and requires revalidation even for anonymous responses. Requests carrying
+  `sforum_session` restore auth during SSR and must use `private, no-store`.
+- `site.public_surface_revision` remains the Host revision fact for extension
+  contribution changes, but no longer keys topic HTML because `/t/**` is not
+  whole-page cached.
 
 ## Public Forum UI
 

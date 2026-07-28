@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'bun:test'
+import { EventEmitter, once } from 'node:events'
 import { readFileSync } from 'node:fs'
-import { createServer, type Server } from 'node:http'
-import { createApp, eventHandler, getRequestURL, toNodeListener } from 'h3'
+import { createServer, type ClientRequest, type IncomingMessage, type Server } from 'node:http'
+import { PassThrough } from 'node:stream'
+import { createApp, eventHandler, getRequestURL, toNodeListener, type H3Event } from 'h3'
 
 import {
   buildPluginRouteTarget,
@@ -20,6 +22,7 @@ import {
   proxyRouteRequest,
   retrySafeProxyRequest
 } from '../../server/utils/pluginRouteProxy'
+import { proxyNotificationStream } from '../../server/utils/notifications/notificationStreamProxy'
 
 const source = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
 
@@ -120,14 +123,34 @@ describe('trusted plugin arbitrary-route proxy', () => {
     expect(attempts).toBe(1)
   })
 
+  test('stops retrying when the downstream request is aborted', async () => {
+    const controller = new AbortController()
+    let attempts = 0
+    let waits = 0
+    const failure = new Error('downstream closed')
+
+    await expect(retrySafeProxyRequest('GET', async () => {
+      attempts++
+      controller.abort()
+      throw failure
+    }, async () => {
+      waits++
+    }, controller.signal)).rejects.toBe(failure)
+
+    expect(attempts).toBe(1)
+    expect(waits).toBe(0)
+  })
+
   test('middleware probes before proxying while ordinary API proxy remains streaming', () => {
     const middleware = source('../../server/middleware/plugin-route-proxy.ts')
     const apiProxy = source('../../server/routes/api/v1/[...path].ts')
     const proxyUtility = source('../../server/utils/pluginRouteProxy.ts')
     expect(middleware).toContain('proxyDeclaredPluginRoute(event)')
     expect(apiProxy).toContain('proxyRouteRequest(event, target)')
+    expect(apiProxy).toContain('proxyNotificationStream(event, target)')
     expect(proxyUtility).toContain('getRequestWebStream(event)')
     expect(proxyUtility).toContain('sendStream: true')
+    expect(proxyUtility).toContain('const signal = proxyRequestAbortSignal(event)')
     expect(proxyUtility).toContain("duplex: hasRequestBody ? 'half' : undefined")
 
     const caddy = source('../../../../deploy/caddy/Caddyfile')
@@ -141,9 +164,53 @@ describe('trusted plugin arbitrary-route proxy', () => {
     expect(caddy.indexOf(websocketProxy)).toBeLessThan(caddy.indexOf(webProxy))
     expect(caddy).not.toMatch(/header_up\s+(?:Host|Origin|Cookie|Authorization|Sec-WebSocket-\S+)/i)
 
-    const productionCompose = source('../../../compose.prod.yaml')
+    const productionCompose = source('../../../../compose.prod.yaml')
     expect(productionCompose).toContain('- "127.0.0.1:${API_PORT:-18080}:8080"')
-    expect(source('../../../.env.production.example')).toContain('API_PORT=18080')
+    expect(source('../../../../.env.production.example')).toContain('API_PORT=18080')
+  })
+
+  test('aborts the upstream stream after the downstream client disconnects', async () => {
+    const downstream = new PassThrough() as PassThrough & {
+      statusCode: number
+      statusMessage: string
+      setHeader: (name: string, value: string | string[]) => void
+    }
+    downstream.statusCode = 200
+    downstream.statusMessage = ''
+    downstream.setHeader = () => {}
+    const downstreamRequest = new EventEmitter()
+    const event = {
+      node: { req: downstreamRequest, res: downstream }
+    } as unknown as H3Event
+    let requestDestroyed = false
+    let responseDestroyed = false
+    const upstreamRequest = new EventEmitter() as ClientRequest
+    upstreamRequest.end = () => upstreamRequest
+    upstreamRequest.destroy = () => {
+      requestDestroyed = true
+      return upstreamRequest
+    }
+    const upstreamResponse = new PassThrough() as IncomingMessage
+    upstreamResponse.statusCode = 200
+    upstreamResponse.statusMessage = 'OK'
+    upstreamResponse.headers = { 'content-type': 'text/event-stream' }
+    const destroyResponse = upstreamResponse.destroy.bind(upstreamResponse)
+    upstreamResponse.destroy = () => {
+      responseDestroyed = true
+      return destroyResponse()
+    }
+    const request = ((_target: URL, _options: unknown, callback: (response: IncomingMessage) => void) => {
+      callback(upstreamResponse)
+      return upstreamRequest
+    }) as typeof import('node:http').request
+
+    const proxy = proxyNotificationStream(event, new URL('http://api.test/stream'), request)
+    upstreamResponse.write(': ready\n\n')
+    await once(downstream, 'data')
+    downstream.emit('close')
+    await proxy
+    expect(requestDestroyed).toBe(true)
+    expect(responseDestroyed).toBe(true)
   })
 
   test('proxies matched unsafe bodies and leaves explicit misses to Nuxt', async () => {
