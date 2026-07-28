@@ -31,7 +31,7 @@ const route = useRoute()
 const {
   preference: colorModePreference,
   options: colorModeOptions,
-  setPreference: setColorModePreference
+  cyclePreference: cycleColorModePreference
 } = useColorModePreference()
 const { can } = usePermissions()
 const notifications = useNotifications()
@@ -255,22 +255,6 @@ const colorModeTriggerLabel = computed(() => t('appearance.colorMode.currentPref
   preference: colorModePreferenceLabel.value
 }))
 const colorModeTriggerIcon = computed(() => currentColorModeOption.value.icon)
-const appearanceMenuItems = computed<NavbarMenuItem[]>(() =>
-  colorModeOptions.map((option) => {
-    const isCurrent = option.value === colorModePreference.value
-    return {
-      label: t(option.labelKey),
-      description: option.descriptionKey ? t(option.descriptionKey) : undefined,
-      icon: option.icon,
-      type: 'checkbox',
-      checked: isCurrent,
-      active: isCurrent,
-      onUpdateChecked: (checked: boolean) => {
-        if (checked) setColorModePreference(option.value)
-      }
-    }
-  })
-)
 
 // no_prefix：setLocale 只换文案 + cookie，URL 不变，实现无感切换。
 const languageMenuItems = computed<NavbarMenuItem[]>(() =>
@@ -278,7 +262,7 @@ const languageMenuItems = computed<NavbarMenuItem[]>(() =>
     const isCurrent = entry.code === locale.value
     return {
       label: entry.name || entry.code,
-      icon: isCurrent ? 'i-lucide-check' : 'i-lucide-languages',
+      icon: isCurrent ? 'i-lucide-check' : 'i-tabler-language',
       active: isCurrent,
       onSelect: (event: Event) => {
         if (isCurrent) {
@@ -496,7 +480,7 @@ async function logout() {
               :aria-label="t('nav.language')"
               :title="currentLocaleName"
             >
-              <UIcon name="i-lucide-globe" class="size-4" aria-hidden="true" />
+              <UIcon name="i-tabler-language" class="size-5" aria-hidden="true" />
             </UButton>
           </UDropdownMenu>
           <template #fallback>
@@ -505,22 +489,17 @@ async function logout() {
         </ClientOnly>
 
         <ClientOnly>
-          <UDropdownMenu
-            :items="appearanceMenuItems"
-            checked-icon="i-lucide-check"
-            :content="{ align: 'end' }"
+          <UButton
+            color="neutral"
+            variant="ghost"
+            square
+            class="navbar__control"
+            :aria-label="colorModeTriggerLabel"
+            :title="colorModeTriggerLabel"
+            @click="cycleColorModePreference"
           >
-            <UButton
-              color="neutral"
-              variant="ghost"
-              square
-              class="navbar__control"
-              :aria-label="colorModeTriggerLabel"
-              :title="colorModeTriggerLabel"
-            >
-              <UIcon :name="colorModeTriggerIcon" class="size-4" aria-hidden="true" />
-            </UButton>
-          </UDropdownMenu>
+            <UIcon :name="colorModeTriggerIcon" class="size-5" aria-hidden="true" />
+          </UButton>
           <template #fallback>
             <span class="navbar__control-placeholder" aria-hidden="true" />
           </template>

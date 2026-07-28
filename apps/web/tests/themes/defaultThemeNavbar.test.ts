@@ -77,14 +77,16 @@ describe('default theme shared navbar contract', () => {
     expect(navMarkup).not.toContain('scrollToHomeSection')
   })
 
-  test('exposes language switch and three-state appearance menu in the topbar utility cluster', () => {
+  test('exposes language switch and cyclic appearance control in the topbar utility cluster', () => {
     expect(source).toContain('languageMenuItems')
     expect(source).toContain("t('nav.language')")
-    expect(source).toContain('i-lucide-globe')
-    expect(source).toContain('appearanceMenuItems')
+    expect(source).toContain('i-tabler-language')
+    expect(source).toContain('cycleColorModePreference')
     expect(source).toContain('colorModeTriggerLabel')
-    expect(source).toContain('colorModeTriggerIcon')
-    expect(source).toContain('checked-icon="i-lucide-check"')
+    expect(source).toContain('const colorModeTriggerIcon = computed')
+    expect(source).toContain('@click="cycleColorModePreference"')
+    expect(source).toContain('i-tabler-language" class="size-5"')
+    expect(source).toContain(':name="colorModeTriggerIcon" class="size-5"')
     expect(source).not.toContain('toggleColorMode')
     expect(source).not.toContain('MutationObserver')
     expect(source).not.toContain(':aria-pressed="isDarkMode"')

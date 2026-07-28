@@ -17,6 +17,7 @@ Object.assign(globalThis, {
 
 const {
   COLOR_MODE_OPTION_DEFINITIONS,
+  nextColorModePreference,
   normalizeColorModePreference,
   useColorModePreference
 } = await import('../../app/composables/appearance/useColorModePreference')
@@ -55,9 +56,9 @@ describe('color-mode preference authority', () => {
       'dark'
     ])
     expect(COLOR_MODE_OPTION_DEFINITIONS.map(option => option.icon)).toEqual([
-      'i-lucide-monitor',
-      'i-lucide-sun',
-      'i-lucide-moon'
+      'i-tabler-brightness-filled',
+      'i-tabler-sun-high',
+      'i-tabler-moon-stars'
     ])
     expect(Object.isFrozen(COLOR_MODE_OPTION_DEFINITIONS)).toBe(true)
   })
@@ -79,6 +80,21 @@ describe('color-mode preference authority', () => {
     expect(model.resolvedMode.value).toBe('dark')
 
     model.setPreference('unsupported')
+    expect(colorMode.preference).toBe('system')
+  })
+
+  test('cycles preferences in the fixed Automatic, Light, Dark order', () => {
+    expect(nextColorModePreference('system')).toBe('light')
+    expect(nextColorModePreference('light')).toBe('dark')
+    expect(nextColorModePreference('dark')).toBe('system')
+    expect(nextColorModePreference('invalid')).toBe('light')
+
+    const model = usePreference()
+    model.cyclePreference()
+    expect(colorMode.preference).toBe('light')
+    model.cyclePreference()
+    expect(colorMode.preference).toBe('dark')
+    model.cyclePreference()
     expect(colorMode.preference).toBe('system')
   })
 

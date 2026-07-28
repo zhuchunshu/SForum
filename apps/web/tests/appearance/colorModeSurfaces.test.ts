@@ -12,16 +12,15 @@ const [navbar, adminLayout, publicBridge, adminBridge, zhCN, enUS] = await Promi
 ])
 
 describe('color-mode presentation surfaces', () => {
-  test('public desktop and mobile utility share one explicit preference menu', () => {
+  test('public desktop and mobile utility cycle the color-mode preference', () => {
     expect(navbar).toContain("from '~/composables/appearance/useColorModePreference'")
-    expect(navbar).toContain('const appearanceMenuItems')
-    expect(navbar).toContain("type: 'checkbox'")
-    expect(navbar).toContain('checked: isCurrent')
-    expect(navbar).toContain('setColorModePreference(option.value)')
-    expect(navbar).toContain('description: option.descriptionKey')
-    expect(navbar).toContain('checked-icon="i-lucide-check"')
+    expect(navbar).toContain('cyclePreference: cycleColorModePreference')
+    expect(navbar).toContain('@click="cycleColorModePreference"')
+    expect(navbar).not.toContain('const appearanceMenuItems')
     expect(navbar).toContain('class="navbar__control"')
     expect(navbar).toContain(':aria-label="colorModeTriggerLabel"')
+    expect(navbar).toContain('const colorModeTriggerIcon = computed')
+    expect(navbar).toContain('i-tabler-language')
     expect(navbar).not.toContain('toggleColorMode')
     expect(navbar).not.toContain('resolvedColorMode')
     expect(navbar).not.toContain('MutationObserver')
@@ -32,8 +31,8 @@ describe('color-mode presentation surfaces', () => {
     expect(adminLayout).toContain('const appearanceMenuItems')
     expect(adminLayout).toContain("type: 'checkbox'")
     expect(adminLayout).toContain('children: appearanceMenuItems.value')
-    expect(adminLayout).toContain(':items="appearanceMenuItems"')
-    expect(adminLayout).toContain('checked-icon="i-lucide-check"')
+    expect(adminLayout).toContain('@click="cycleColorModePreference"')
+    expect(adminLayout).toContain('const colorModeTriggerIcon = computed')
     expect(adminLayout).not.toContain('toggleColorMode')
     expect(adminLayout).not.toContain('resolvedColorMode')
     expect(adminLayout).not.toContain('MutationObserver')

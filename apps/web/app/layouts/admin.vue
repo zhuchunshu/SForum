@@ -66,7 +66,8 @@ const adminTabs = useAdminTabs()
 const {
   preference: colorModePreference,
   options: colorModeOptions,
-  setPreference: setColorModePreference
+  setPreference: setColorModePreference,
+  cyclePreference: cycleColorModePreference
 } = useColorModePreference()
 const { professionalMode, operationsMode } = useAdminAdvancedSettings()
 const advancedSettingsOpen = ref(false)
@@ -412,25 +413,20 @@ async function signOut() {
         <div class="flex min-w-0 w-full max-w-full flex-col gap-2">
           <!-- 桌面端快捷切换主题按钮 -->
           <ClientOnly>
-            <UDropdownMenu
+            <UButton
               v-if="!collapsed"
-              :items="appearanceMenuItems"
-              checked-icon="i-lucide-check"
-              :content="{ side: 'top', align: 'start' }"
+              color="neutral"
+              variant="ghost"
+              block
+              class="justify-start px-2 py-2 text-[var(--text-admin-sidebar)] hover:bg-[var(--bg-admin-sidebar-hover)] hover:text-[var(--text-admin-main)]"
+              :aria-label="colorModeTriggerLabel"
+              @click="cycleColorModePreference"
             >
-              <UButton
-                color="neutral"
-                variant="ghost"
-                block
-                class="justify-start px-2 py-2 text-[var(--text-admin-sidebar)] hover:bg-[var(--bg-admin-sidebar-hover)] hover:text-[var(--text-admin-main)]"
-                :aria-label="colorModeTriggerLabel"
-              >
-                <UIcon :name="colorModeTriggerIcon" class="size-4" />
-                <span class="text-sm font-semibold">
-                  {{ colorModeTriggerLabel }}
-                </span>
-              </UButton>
-            </UDropdownMenu>
+              <UIcon :name="colorModeTriggerIcon" class="size-4" />
+              <span class="text-sm font-semibold">
+                {{ colorModeTriggerLabel }}
+              </span>
+            </UButton>
             <template #fallback>
               <span v-if="!collapsed" class="block h-9 rounded-md" aria-hidden="true" />
             </template>

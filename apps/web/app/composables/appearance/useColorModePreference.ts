@@ -15,18 +15,18 @@ export type ColorModeOptionDefinition = Readonly<{
 export const COLOR_MODE_OPTION_DEFINITIONS: readonly ColorModeOptionDefinition[] = Object.freeze([
   Object.freeze({
     value: 'system',
-    icon: 'i-lucide-monitor',
+    icon: 'i-tabler-brightness-filled',
     labelKey: 'appearance.colorMode.system',
     descriptionKey: 'appearance.colorMode.systemDescription'
   }),
   Object.freeze({
     value: 'light',
-    icon: 'i-lucide-sun',
+    icon: 'i-tabler-sun-high',
     labelKey: 'appearance.colorMode.light'
   }),
   Object.freeze({
     value: 'dark',
-    icon: 'i-lucide-moon',
+    icon: 'i-tabler-moon-stars',
     labelKey: 'appearance.colorMode.dark'
   })
 ])
@@ -35,6 +35,11 @@ export function normalizeColorModePreference(value: unknown): ColorModePreferenc
   return COLOR_MODE_PREFERENCES.includes(value as ColorModePreference)
     ? value as ColorModePreference
     : 'system'
+}
+
+export function nextColorModePreference(value: unknown): ColorModePreference {
+  const currentIndex = COLOR_MODE_PREFERENCES.indexOf(normalizeColorModePreference(value))
+  return COLOR_MODE_PREFERENCES[(currentIndex + 1) % COLOR_MODE_PREFERENCES.length]!
 }
 
 export function useColorModePreference() {
@@ -63,10 +68,15 @@ export function useColorModePreference() {
     colorMode.preference = normalizeColorModePreference(value)
   }
 
+  function cyclePreference() {
+    setPreference(nextColorModePreference(colorMode.preference))
+  }
+
   return {
     preference,
     resolvedMode,
     options: COLOR_MODE_OPTION_DEFINITIONS,
-    setPreference
+    setPreference,
+    cyclePreference
   }
 }
