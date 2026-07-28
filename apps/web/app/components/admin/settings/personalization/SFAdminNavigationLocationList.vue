@@ -58,9 +58,12 @@ function disabledTransferOptions(item: NavigationEditorItem) {
     <ul ref="parent" class="divide-y divide-slate-200 dark:divide-zinc-800">
       <li v-for="(item, index) in dragItems" :key="item.definition.sourceKey" class="grid min-w-0 gap-2 px-3 py-3 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center">
         <UButton class="sf-navigation-drag-handle cursor-grab active:cursor-grabbing" size="xs" color="neutral" variant="ghost" icon="i-lucide-grip-vertical" :aria-label="`Drag ${item.definition.sourceKey}`" :title="`Drag ${item.definition.sourceKey}`" />
-        <div class="min-w-0">
-          <div class="flex flex-wrap items-center gap-2"><strong class="truncate">{{ item.definition.labelZhCN || item.definition.labelEnUS || item.definition.sourceKey }}</strong><UBadge :color="sourceTone(item.definition.sourceKind)" variant="subtle">{{ sourceLabel(item.definition.sourceKind) }}</UBadge><UBadge v-if="!item.placement.enabled" color="neutral" variant="subtle">{{ t('admin.navigationEditor.hidden') }}</UBadge><UBadge v-if="item.definition.sourceKind === 'extension'" color="warning" variant="subtle">{{ t('admin.navigationEditor.extensionUnavailable') }}</UBadge></div>
-          <p class="truncate font-mono text-xs text-muted">{{ item.definition.href || item.definition.sourceKey }}</p>
+        <div class="flex min-w-0 items-center gap-2.5">
+          <UIcon v-if="item.placement.icon || item.definition.icon" :name="item.placement.icon || item.definition.icon" class="size-5 shrink-0 text-muted" aria-hidden="true" />
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-2"><strong class="truncate">{{ item.definition.labelZhCN || item.definition.labelEnUS || item.definition.sourceKey }}</strong><UBadge :color="sourceTone(item.definition.sourceKind)" variant="subtle">{{ sourceLabel(item.definition.sourceKind) }}</UBadge><UBadge v-if="!item.placement.enabled" color="neutral" variant="subtle">{{ t('admin.navigationEditor.hidden') }}</UBadge><UBadge v-if="item.definition.sourceKind === 'extension'" color="warning" variant="subtle">{{ t('admin.navigationEditor.extensionUnavailable') }}</UBadge></div>
+            <p class="truncate font-mono text-xs text-muted">{{ item.definition.href || item.definition.sourceKey }}</p>
+          </div>
         </div>
         <div class="flex flex-wrap items-center gap-1">
           <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-chevrons-up" :disabled="index === 0" :aria-label="`Move ${item.definition.sourceKey} to top`" :title="`Move ${item.definition.sourceKey} to top`" @click="emit('move', item.definition.sourceKey, 0)" />

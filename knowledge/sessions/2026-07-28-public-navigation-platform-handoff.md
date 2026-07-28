@@ -31,6 +31,9 @@
 - Refined the Personalization navigation editor into separate Public
   Navigation and Recovery/Transfer tab cards. Add/edit operator-link forms now
   open in one shared modal instead of permanently occupying a side column.
+- The navigation list now renders each item's effective icon (location override
+  first, definition fallback), and Core-owned routes use an explicit system
+  built-in source label.
 
 ## Verification
 

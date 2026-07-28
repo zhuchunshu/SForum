@@ -2622,7 +2622,7 @@
       "storedOnly": "Stored only",
       "hidden": "Hidden",
       "extensionUnavailable": "Unavailable until published",
-      "sources": { "core": "Core", "operator": "Operator", "extension": "Extension", "dynamic": "Dynamic" },
+      "sources": { "core": "Built-in", "operator": "Operator", "extension": "Extension", "dynamic": "Dynamic" },
       "moveTo": "Move to",
       "emptyLocation": "No items in this location.",
       "add": "Add link",

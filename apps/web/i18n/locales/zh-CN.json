@@ -2622,7 +2622,7 @@
       "storedOnly": "仅保存",
       "hidden": "已隐藏",
       "extensionUnavailable": "待扩展发布后可用",
-      "sources": { "core": "核心", "operator": "运营", "extension": "扩展", "dynamic": "动态区块" },
+      "sources": { "core": "系统内置", "operator": "运营", "extension": "扩展", "dynamic": "动态区块" },
       "moveTo": "移动到",
       "emptyLocation": "此位置暂无项目。",
       "add": "添加链接",
