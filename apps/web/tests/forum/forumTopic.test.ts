@@ -80,21 +80,21 @@ describe('forum topic helpers', () => {
 
 describe('parseTopicPath', () => {
   test('id_slug mode parses [id, slug] segments', () => {
-    expect(parseTopicPath(['42', 'hello-world'], 'id_slug')).toEqual({ topicId: 42, slug: 'hello-world' })
+    expect(parseTopicPath(['42', 'hello-world'], 'id_slug')).toEqual({ topicId: 42, slug: 'hello-world', page: 1 })
     // 缺少 slug 段时仍返回 id（详情页可据此加载再规范化重定向）。
-    expect(parseTopicPath(['42'], 'id_slug')).toEqual({ topicId: 42, slug: '' })
+    expect(parseTopicPath(['42'], 'id_slug')).toEqual({ topicId: 42, slug: '', page: 1 })
   })
 
   test('id mode parses single numeric segment', () => {
-    expect(parseTopicPath(['42'], 'id')).toEqual({ topicId: 42 })
+    expect(parseTopicPath(['42'], 'id')).toEqual({ topicId: 42, page: 1 })
     // 非数字视为无效。
     expect(parseTopicPath(['hello'], 'id')).toBeNull()
   })
 
   test('slug mode parses single slug segment', () => {
-    expect(parseTopicPath(['hello-world'], 'slug')).toEqual({ slug: 'hello-world' })
+    expect(parseTopicPath(['hello-world'], 'slug')).toEqual({ slug: 'hello-world', page: 1 })
     // 编码后的 slug 应被解码。
-    expect(parseTopicPath([encodeURIComponent('你好 世界')], 'slug')).toEqual({ slug: '你好 世界' })
+    expect(parseTopicPath([encodeURIComponent('你好 世界')], 'slug')).toEqual({ slug: '你好 世界', page: 1 })
   })
 
   test('rejects empty segments', () => {

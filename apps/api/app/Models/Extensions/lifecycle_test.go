@@ -183,6 +183,29 @@ func TestUninstallRetainPackageKeepsDirectory(t *testing.T) {
 	}
 }
 
+func TestUninstallMissingArtifactRequiresDedicatedCleanup(t *testing.T) {
+	item := installedExtension("missing.plugin", TypePlugin, ManifestBackend{})
+	item.Status = StatusDisabled
+	item.Source = SourceUploaded
+	item.IsDeletable = true
+	item.PackagePath = filepath.Join(t.TempDir(), "missing")
+	item.Manifest.Lifecycle = &ManifestLifecycle{ContractVersion: "missing.plugin.lifecycle@1"}
+	store := &fakeExtensionStore{items: map[string]Extension{item.ID: item}}
+	runtime := &fakeRuntimeManager{}
+	service := newLifecycleService(store, t.TempDir(), runtime)
+
+	err := service.Uninstall(context.Background(), extensionManager(), item.ID, UninstallInput{})
+	if !errors.Is(err, ErrArtifactMissing) {
+		t.Fatalf("expected dedicated missing artifact cleanup error, got %v", err)
+	}
+	if _, err := store.Get(context.Background(), item.ID); err != nil {
+		t.Fatalf("ordinary uninstall must retain the catalog record, got %v", err)
+	}
+	if len(runtime.stopped) != 0 {
+		t.Fatalf("ordinary uninstall must not mutate runtime before rejecting missing artifact, got %#v", runtime.stopped)
+	}
+}
+
 func TestDisableDrainsRuntimeBeforeStatusChange(t *testing.T) {
 	store := &fakeExtensionStore{items: map[string]Extension{
 		"drain.plugin": {

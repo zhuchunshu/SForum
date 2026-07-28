@@ -27,6 +27,49 @@ responsibilities.
 
 ## Active Work
 
+### Configurable public navigation M6
+
+- The Personalization Navigation tab edits one local revisioned document for
+  topbar, sidebar, mobile, and footer. It reuses `SFIconPicker`, uses FormKit
+  drag plus accessible ordering buttons, and includes source/state badges,
+  typed safe links, transfer controls, dirty-route protection, and one batch
+  save against SiteChrome.
+- The navigation editor separates ordinary location editing from recovery and
+  transfer as two local fixed-tab cards. Operator link creation and editing use
+  one shared modal, leaving the location list focused on ordering and actions.
+- The same document owner now exposes confirmed one/all-location defaults,
+  actor-attributed snapshot history/detail/restore, backend-document JSON
+  export, and fenced merge/replace import. Structured changes and inert
+  extension warnings remain next to the workflow; dirty editor state disables
+  recovery actions.
+- Public topbar and mobile now consume one canonical actor/locale-sensitive
+  `/site/navigation` payload. `SFNavbar` no longer merges `/site/nav-items`,
+  extension items, or hardcoded fallback links; ordinary navigation fails
+  closed while Host utility controls remain available.
+- SiteChrome now carries configured topbar placement order through Navigation
+  Registry composition. Registry normalization no longer falls back to source-
+  key ordering for Core/operator items; the Host-owned search control remains
+  independent and duplicate `/search` links stay suppressed by design.
+- Focused navigation components own safe internal/external rendering and the
+  independent mobile drawer. Topbar shows four items at most and projects the
+  remainder into the existing Nuxt UI overflow menu. Explicit imports avoid
+  Nuxt hydration ambiguity, and the architecture ratchet for `SFNavbar.vue`
+  is reduced to 902 lines.
+- Authenticated selected-theme Browser QA passed at desktop and `390x844` with
+  `data-provider="sforum.default-theme"`, `data-template="1"`, one visible
+  navbar/footer, no fallback notice, no overflow, and no console errors.
+- `SFHomeNavigation` now renders ordinary sidebar links and the bounded
+  `core.dynamic.categories` block in resolver order. Forum remains the sole
+  owner of taxonomy names, visibility, icons, counts, and ordering; filter and
+  route modes, compose authorization, shell consumers, and safe external links
+  are preserved.
+- `SFFooter` consumes the canonical footer location while copyright and friend
+  links keep their existing owners. One actor/locale-sensitive request supplies
+  all four public locations.
+- Mobile homepage QA at `390x844` proved the category selector is visible,
+  constrained to the content width, and navigates `general` to `/c/general`
+  without overflow. M7 owns the final lifecycle and release matrix.
+
 ### Architecture boundary debt repayment
 
 Archived plan:
@@ -253,10 +296,14 @@ Architecture sources:
 - Theme asset URLs place `packageDigest` in the path rather than a query so CSS
   relative fonts/images retain the same immutable identity.
 - Anonymous public pages may be shared/SWR cached only when their route contract
-  permits stale HTML. Topic detail is the explicit exception: `/t/**` embeds
-  live comments and permission-aware payloads, so it disables whole-page cache
-  and requires revalidation even for anonymous responses. Requests carrying
-  `sforum_session` restore auth during SSR and must use `private, no-store`.
+  permits stale HTML. `/categories`, `/tags`, `/u/**`, `/c/**`, `/tags/**`, and
+  `/t/**` all disable Nitro whole-page caching while retaining SSR because
+  their first render depends on actor-sensitive navigation, permissions, or
+  live/query-specific data. This must be a static route rule: request-time
+  middleware cannot bypass Nitro's startup-wrapped cached handler.
+- Requests carrying `sforum_session` restore auth during SSR and their HTML or
+  Nuxt payload responses use `Cache-Control: private, no-store`. Do not vary a
+  shared HTML cache by Cookie and never cache authenticated HTML.
 - `site.public_surface_revision` remains the Host revision fact for extension
   contribution changes, but no longer keys topic HTML because `/t/**` is not
   whole-page cached.
@@ -444,10 +491,9 @@ real highlight.js client plugin and no-op `highlight.server.ts` with
 1. Execute the tri-state color-mode task book from M0. It must freeze the
    native dependency/control contract, SSR/cache behavior, safe canonical
    origin mechanism, and tests before implementation.
-2. Execute the configurable public navigation task book from M0 before
-   replacing `SFNavbar` or `SFHomeNavigation`. Core owns content/placement and
-   themes own stable-location presentation; keep the user's port-3000 server
-   untouched.
+2. Continue configurable public navigation at M7 only: execute the plugin/theme
+   lifecycle, recovery, documentation, full repository, and final Browser
+   release matrix. Keep the user's port-3000 server untouched.
 3. Keep theme-defined system error pages SSR-complete, permission-aware,
    cache-safe, localized, and covered whenever new browser-facing error
    producers are added.

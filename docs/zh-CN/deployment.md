@@ -27,7 +27,48 @@
 
 ## 部署入口
 
-交互式（支持中英菜单）：
+### 使用正式发布镜像（推荐）
+
+正式版本发布到 GitHub Container Registry，包含以下镜像：
+
+- `ghcr.io/zhuchunshu/sforum-api`
+- `ghcr.io/zhuchunshu/sforum-worker`
+- `ghcr.io/zhuchunshu/sforum-migrate`
+- `ghcr.io/zhuchunshu/sforum-web`
+
+每个正式版本同时提供 `linux/amd64` 和 `linux/arm64`。部署时固定完整版本，
+不要在生产环境固定使用 `latest`：
+
+```sh
+./deploy.sh --version v2.8.0
+./deploy.sh --version v2.8.0 --lang zh
+./deploy.sh --version v2.8.0 --lang en
+```
+
+该模式组合 `compose.yaml`、`compose.prod.yaml` 与
+`compose.release.yaml`，先拉取指定版本，再备份、迁移并启动相同版本的
+API、Worker 和 Web。需要 Docker Compose 2.24.4 或更高版本，以支持
+`!reset` 覆盖构建配置。
+
+等价的非交互命令：
+
+```sh
+export SFORUM_VERSION=v2.8.0
+docker compose --env-file .env.production \
+  -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull
+docker compose --env-file .env.production \
+  -f compose.yaml -f compose.prod.yaml -f compose.release.yaml run --rm -T migrate
+docker compose --env-file .env.production \
+  -f compose.yaml -f compose.prod.yaml -f compose.release.yaml up -d --no-build
+```
+
+GHCR 包首次创建后，仓库管理员需要在 GitHub Packages 中确认四个包均为
+公开可读并关联到本仓库。发布流水线使用仓库 `GITHUB_TOKEN` 写入，不需要
+长期 Registry 密钥。
+
+### 从源码构建
+
+开发版本或需要自定义源码时仍可使用原有入口：
 
 ```sh
 ./deploy.sh
@@ -37,7 +78,7 @@
 
 首次会选择语言并写入 `.deployrc`。菜单通常包括安装/更新、迁移、备份等（以脚本实际菜单为准）。
 
-等价 Compose 思路：
+等价 Compose 命令：
 
 ```sh
 docker compose --env-file .env.production -f compose.yaml -f compose.prod.yaml up -d --build

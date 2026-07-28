@@ -3,6 +3,7 @@ package sitechromecontroller
 import (
 	"errors"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -92,6 +93,24 @@ func (h *Controller) publicNavItems(c fiber.Ctx) error {
 		Items:          items,
 		ExtensionItems: h.service.ListPublicExtensionNavItems(c.Context()),
 	})
+}
+
+func (h *Controller) publicNavigation(c fiber.Ctx) error {
+	c.Set(fiber.HeaderCacheControl, "private, no-store")
+	c.Vary(fiber.HeaderCookie, fiber.HeaderAuthorization, fiber.HeaderAcceptLanguage)
+	actor, err := apphttp.OptionalActor(c, h.sessions, h.users)
+	if err != nil {
+		return err
+	}
+	var locations []string
+	if raw := strings.TrimSpace(c.Query("locations")); raw != "" {
+		locations = strings.Split(raw, ",")
+	}
+	resolved, err := h.service.ResolvePublicNavigation(c.Context(), actor, c.Get("Accept-Language"), locations)
+	if err != nil {
+		return mapError(err)
+	}
+	return apphttp.OK(c, resolved)
 }
 
 func (h *Controller) adminNavItems(c fiber.Ctx) error {
@@ -413,6 +432,8 @@ func mapError(err error) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, sitechrome.CodeInvalid)
 	case errors.Is(err, sitechrome.ErrNotFound):
 		return fiber.NewError(fiber.StatusNotFound, sitechrome.CodeNotFound)
+	case errors.Is(err, sitechrome.ErrConflict):
+		return fiber.NewError(fiber.StatusConflict, sitechrome.CodeConflict)
 	default:
 		return err
 	}

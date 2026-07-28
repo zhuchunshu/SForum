@@ -1,10 +1,10 @@
 # Configurable Public Navigation Platform - Task Book
 
-Status: **ready** - architecture approved; the current topbar-only baseline is
-present, but no milestone in this task book has started
+Status: **active** - M0-M6 are complete; M7 final lifecycle and release gate is
+next
 
 Date: 2026-07-27
-Last updated: 2026-07-28 - converted delivery to one persistent Codex Goal
+Last updated: 2026-07-29 - M6 completed with exact-artifact runtime and Browser evidence
 
 Goal: let operators manage topbar, sidebar, mobile, and footer navigation with
 recommended defaults, accessible ordering, versioned backup/history, bounded
@@ -330,13 +330,13 @@ The primary Goal updates this table before advancing to the next milestone.
 
 | Milestone | Status | Evidence | Current handoff |
 | --- | --- | --- | --- |
-| M0 Contract and production-wiring freeze | not started | - | `knowledge/sessions/2026-07-27-public-navigation-platform-plan-handoff.md` |
-| M1 Backend persistence and public resolver | not started | - | same |
-| M2 Revisioned commands, defaults, snapshots, backup | not started | - | same |
-| M3 Admin editor and accessible ordering | not started | - | same |
-| M4 Backup, history, restore, and import UI | not started | - | same |
-| M5 Topbar, mobile, and Core fallback runtime wiring | not started | - | same |
-| M6 Sidebar dynamic block and built-in theme locations | not started | - | same |
+| M0 Contract and production-wiring freeze | completed | Production Page Registry chain mapped; v1 SiteChrome vocabulary, recommended placements, limits, and modular resolver/command/backup OpenAPI frozen. `ruby scripts/validate-openapi-refs.rb` (2450 refs), `go test ./app/Models/SiteChrome/... ./app/Support/NavigationRegistry/...`, `cd apps/web && bun test` (696 pass), and architecture validation pass. | `knowledge/sessions/2026-07-28-public-navigation-platform-handoff.md` |
+| M1 Backend persistence and public resolver | completed | Additive `202607280072` definitions/placements/state/snapshot schema with legacy topbar migration; canonical four-location resolver; `GET /site/navigation`; exact-artifact Registry composition; visibility/link/theme-capability tests; isolated PostgreSQL migration test; full backend/controller/registry/bootstrap, OpenAPI, and architecture checks pass. | `knowledge/sessions/2026-07-28-public-navigation-platform-handoff.md` |
+| M2 Revisioned commands, defaults, snapshots, backup | completed | Revisioned admin commands, bounded server-side preview fences, defaults, automatic newest-20 snapshots, restore, portable export/import, Audit `AppendTx`, and post-commit Options cache invalidation are wired through one PostgreSQL transaction. Focused service/controller/bootstrap/migrator suites, isolated PostgreSQL command proof, OpenAPI, and architecture checks pass. | `knowledge/sessions/2026-07-28-public-navigation-platform-handoff.md` |
+| M3 Admin editor and accessible ordering | completed | Revisioned four-location Personalization editor with shared icon picker, typed links, source/state badges, FormKit drag plus keyboard-safe ordering controls, cross-location transfer, dirty/stale handling, and one-save CAS. Authenticated desktop and 390x844 Browser QA proved geometry, no overflow, location transitions, save/toast/revision behavior, and user-confirmed drag reorder; full Web tests/typecheck/build and architecture checks pass. | `knowledge/sessions/2026-07-28-public-navigation-platform-handoff.md` |
+| M4 Backup, history, restore, and import UI | completed | Existing editor now provides confirmed defaults, actor-attributed snapshot history/detail/restore, portable export, and fenced merge/replace import with structured inert-extension warnings. Web tests (702 pass), typecheck/build, focused Go and isolated PostgreSQL tests, OpenAPI (2457 refs), architecture, diff check, authenticated desktop/mobile Browser QA, and user-confirmed export/import pass. | `knowledge/sessions/2026-07-28-public-navigation-platform-handoff.md` |
+| M5 Topbar, mobile, and Core fallback runtime wiring | completed | Canonical actor-sensitive SSR navigation now owns topbar/mobile/Page ViewModels; legacy Web merge and hardcoded fallback links are removed; cache isolation, Safe Mode, missing-plugin and Core emergency behavior are covered. Web tests (714 pass), typecheck/build, focused Go suites, architecture/diff checks, API headers, and authenticated desktop/390x844 selected-theme Browser QA pass with one visible navbar/footer. | `knowledge/sessions/2026-07-28-public-navigation-platform-handoff.md` |
+| M6 Sidebar dynamic block and built-in theme locations | completed | Canonical sidebar/footer rendering, bounded `core.dynamic.categories`, exact active-theme capability projection, both built-in declarations, Core fallback, full Web/Go/build/architecture gates, exact digest activation, and desktop/390x844 Browser QA pass. | `knowledge/sessions/2026-07-28-public-navigation-platform-handoff.md` |
 | M7 Plugin lifecycle, theme capability, and final release gate | not started | - | same |
 
 Allowed milestone states are `not started`, `in progress`, `completed`, or
@@ -421,27 +421,27 @@ Additional required reading:
 
 Tasks:
 
-- [ ] Trace the production call chain from extension manifest contribution to
+- [x] Trace the production call chain from extension manifest contribution to
   `forum.nav.items`, Navigation Registry publication, SiteChrome projection,
   public API, SSR, selected theme, and Core fallback.
-- [ ] Record which path is production-authoritative and which paths are
+- [x] Record which path is production-authoritative and which paths are
   compatibility/adapters. Do not infer wiring from support-only tests.
-- [ ] Inventory current navigation data, defaults, permissions, API consumers,
+- [x] Inventory current navigation data, defaults, permissions, API consumers,
   cache keys/revisions, theme islands, plugin actions, and lifecycle behavior.
-- [ ] Perform a short library survey for accessible Vue/Nuxt drag sorting:
+- [x] Perform a short library survey for accessible Vue/Nuxt drag sorting:
   maintenance, SSR behavior, keyboard/accessibility support, license, bundle
   cost, and compatibility. Prefer a mature library; arrow controls remain
   mandatory regardless.
-- [ ] Freeze the new admin/public/backup API semantics and schemas in modular
+- [x] Freeze the new admin/public/backup API semantics and schemas in modular
   OpenAPI without implementing persistence.
-- [ ] Freeze additive migration semantics for definitions, placements,
+- [x] Freeze additive migration semantics for definitions, placements,
   revisions, snapshots, and compatibility projection.
-- [ ] Freeze bounded counts/sizes, stable reasons, audit events, location ids,
+- [x] Freeze bounded counts/sizes, stable reasons, audit events, location ids,
   source kinds, visibility modes, backup schema, merge/replace semantics, and
   default placements.
-- [ ] Add contract/source tests that fail until later milestones wire the
+- [x] Add contract/source tests that fail until later milestones wire the
   production behavior, but do not leave the normal repository test gate red.
-- [ ] Amend the navigation decision before coding if production evidence
+- [x] Confirm production evidence does not invalidate a frozen rule; no decision amendment is needed.
   invalidates a frozen rule.
 
 Required checks:
@@ -460,27 +460,27 @@ cache revision, or compatibility path owns navigation.
 
 Tasks:
 
-- [ ] Add the approved additive migrations and indexes without rewriting
+- [x] Add the approved additive migrations and indexes without rewriting
   existing migration files.
-- [ ] Migrate existing `site_nav_items` into topbar placements without data
+- [x] Migrate existing `site_nav_items` into topbar placements without data
   loss or order changes.
-- [ ] Implement cohesive store/domain files for definitions, placements,
+- [x] Implement cohesive store/domain files for definitions, placements,
   stable source references, document revision, and Core default catalog.
-- [ ] Keep handwritten files focused; do not put the whole module in one giant
+- [x] Keep handwritten files focused; do not put the whole module in one giant
   controller or store file.
-- [ ] Compose Core, operator, and active exact-artifact extension sources
+- [x] Compose Core, operator, and active exact-artifact extension sources
   through the canonical registry/projection selected by M0.
-- [ ] Implement location, locale, actor visibility, permission, active
+- [x] Implement location, locale, actor visibility, permission, active
   artifact, and active-theme-capability resolution.
-- [ ] Preserve typed safe link/block kinds and reject reserved/unsafe targets.
-- [ ] Implement the new public resolved-document endpoint and the legacy
+- [x] Preserve typed safe link/block kinds and reject reserved/unsafe targets.
+- [x] Implement the new public resolved-document endpoint and the legacy
   topbar projection.
-- [ ] Bump/cache by navigation/public-surface revision correctly; do not cache
+- [x] Bump/cache by navigation/public-surface revision correctly; do not cache
   personalized output as anonymous HTML.
-- [ ] Add migration/store/service/controller tests, including empty database,
+- [x] Add migration/store/service/controller tests, including empty database,
   migrated custom rows, disabled items, actor visibility, missing extension,
   Safe Mode, and denied route shapes.
-- [ ] Update generated/declared contracts and catalogs through repository
+- [x] Update generated/declared contracts and catalogs through repository
   generators rather than hand-editing generated output.
 
 Required checks:
@@ -497,23 +497,23 @@ locations while existing topbar clients and stored rows remain compatible.
 
 Tasks:
 
-- [ ] Implement admin read plus compare-and-swap batch apply.
-- [ ] Implement create/update/delete definition semantics through the batch
+- [x] Implement admin read plus compare-and-swap batch apply.
+- [x] Implement create/update/delete definition semantics through the batch
   document without allowing source-ownership forgery.
-- [ ] Implement move, copy, reorder, enable, hide, bounded overrides, and
+- [x] Implement move, copy, reorder, enable, hide, bounded overrides, and
   location-specific ordering transactionally.
-- [ ] Implement one-location and all-location recommended-default preview/apply.
-- [ ] Implement automatic snapshot creation, newest-20 retention, list/detail,
+- [x] Implement one-location and all-location recommended-default preview/apply.
+- [x] Implement automatic snapshot creation, newest-20 retention, list/detail,
   and restore-current-after-snapshot semantics.
-- [ ] Implement portable JSON export.
-- [ ] Implement import validation/diff preview and fenced merge/replace apply.
-- [ ] Preserve unresolved plugin references as inert admin state and omit them
+- [x] Implement portable JSON export.
+- [x] Implement import validation/diff preview and fenced merge/replace apply.
+- [x] Preserve unresolved plugin references as inert admin state and omit them
   from public output.
-- [ ] Add authoritative `settings.site.manage` checks and allowed/denied tests
+- [x] Add authoritative `settings.site.manage` checks and allowed/denied tests
   for every unsafe endpoint.
-- [ ] Add audit events, stale-revision errors, idempotency behavior where
+- [x] Add audit events, stale-revision errors, idempotency behavior where
   needed, and public-surface revision invalidation.
-- [ ] Test rollback on validation/store/audit failure, concurrent admins,
+- [x] Test rollback on validation/store/audit failure, concurrent admins,
   default restore, snapshot retention, restore, malformed/oversized backup,
   missing plugin, and database-id-free round trips.
 
@@ -535,25 +535,25 @@ environment from `AGENTS.md`.
 
 Tasks:
 
-- [ ] Upgrade the Personalization Navigation tab to a location-based editor for
+- [x] Upgrade the Personalization Navigation tab to a location-based editor for
   topbar, sidebar, mobile, and footer.
-- [ ] Show source badges for Core, operator, and each extension.
-- [ ] Implement typed create/edit forms with inline validation and safe
+- [x] Show source badges for Core, operator, and each extension.
+- [x] Implement typed create/edit forms with inline validation and safe
   internal/external target choices.
-- [ ] Implement drag handles using the approved mature library.
-- [ ] Implement equivalent up, down, top, and bottom icon controls with
+- [x] Implement drag handles using the approved mature library.
+- [x] Implement equivalent up, down, top, and bottom icon controls with
   tooltips, disabled boundary states, keyboard operation, and mobile support.
-- [ ] Implement move and copy between locations.
-- [ ] Keep reorder changes local until one explicit batch save.
-- [ ] Handle stale revisions with a clear reload/compare path; do not silently
+- [x] Implement move and copy between locations.
+- [x] Keep reorder changes local until one explicit batch save.
+- [x] Handle stale revisions with a clear reload/compare path; do not silently
   overwrite another administrator.
-- [ ] Show active-theme unsupported locations and inactive/missing-plugin
+- [x] Show active-theme unsupported locations and inactive/missing-plugin
   items without deleting them.
-- [ ] Add unsaved-change protection, success Toasts with 10-second dismissal,
+- [x] Add unsaved-change protection, success Toasts with 10-second dismissal,
   persistent errors, loading/empty/error states, and zh-CN/en-US copy.
-- [ ] Add a responsive active-theme preview without nesting cards or cloning a
+- [x] Add a responsive active-theme preview without nesting cards or cloning a
   second navigation implementation.
-- [ ] Add component/composable tests, typecheck, production build, and
+- [x] Add component/composable tests, typecheck, production build, and
   rendered Browser QA on the actual navigation route at desktop and `390x844`,
   using `/control-panel/settings` as the shared admin-settings geometry
   reference. Prove title/toolbar/tab alignment, accessible compact actions,
@@ -576,18 +576,18 @@ drag, buttons, keyboard, one save, clear ownership, and conflict handling.
 
 Tasks:
 
-- [ ] Add recommended-default preview for one location and all locations.
-- [ ] Require explicit confirmation for destructive replace/reset operations.
-- [ ] State clearly that plugin declarations and secrets are not deleted.
-- [ ] Add automatic snapshot history with actor, time, reason, affected
+- [x] Add recommended-default preview for one location and all locations.
+- [x] Require explicit confirmation for destructive replace/reset operations.
+- [x] State clearly that plugin declarations and secrets are not deleted.
+- [x] Add automatic snapshot history with actor, time, reason, affected
   locations, preview, and restore.
-- [ ] Add JSON export/download using the backend-provided document.
-- [ ] Add import file validation, structured diff preview, merge/replace
+- [x] Add JSON export/download using the backend-provided document.
+- [x] Add import file validation, structured diff preview, merge/replace
   choice, missing-plugin warnings, and explicit apply.
-- [ ] Surface schema incompatibility, oversized documents, stale preview
+- [x] Surface schema incompatibility, oversized documents, stale preview
   tokens/revisions, and partial-failure prevention next to the workflow.
-- [ ] Show success Toasts and persistent errors according to repository rules.
-- [ ] Test reset, restore, export/import round trip, missing plugin, malformed
+- [x] Show success Toasts and persistent errors according to repository rules.
+- [x] Test reset, restore, export/import round trip, missing plugin, malformed
   file, stale state, permission denial, desktop, and mobile.
 
 Required checks:
@@ -605,23 +605,23 @@ between compatible SForum sites without touching raw database ids.
 
 Tasks:
 
-- [ ] Replace `SFNavbar`'s ad-hoc operator/plugin merge with the canonical
+- [x] Replace `SFNavbar`'s ad-hoc operator/plugin merge with the canonical
   resolved topbar and mobile locations.
-- [ ] Share one SSR navigation payload per request instead of independent
+- [x] Share one SSR navigation payload per request instead of independent
   component fetches.
-- [ ] Preserve locale labels, tag-public-page policy, active state, external
+- [x] Preserve locale labels, tag-public-page policy, active state, external
   target safety, extension routes, search, session controls, permissions, and
   registration behavior.
-- [ ] Keep Host-owned utility controls outside ordinary operator item deletion.
-- [ ] Implement bounded overflow instead of silently dropping items when a
+- [x] Keep Host-owned utility controls outside ordinary operator item deletion.
+- [x] Implement bounded overflow instead of silently dropping items when a
   theme/topbar lacks width.
-- [ ] Wire Core emergency/Page Registry fallback to the same resolved document.
-- [ ] Preserve fail-closed behavior when navigation, extension, or theme
+- [x] Wire Core emergency/Page Registry fallback to the same resolved document.
+- [x] Preserve fail-closed behavior when navigation, extension, or theme
   resolution fails.
-- [ ] Prove each public render path has one visible global navbar and one
+- [x] Prove each public render path has one visible global navbar and one
   visible global footer; a Page Registry template and its Host body island must
   not both own the same chrome.
-- [ ] Verify anonymous/authenticated SSR, hard refresh, SPA navigation, locale,
+- [x] Verify anonymous/authenticated SSR, hard refresh, SPA navigation, locale,
   dark mode, cache/no-store behavior, mobile drawer, missing plugin, Safe Mode,
   and Core fallback.
 
@@ -641,23 +641,23 @@ navigation authority without duplicating Host utility controls.
 
 Tasks:
 
-- [ ] Replace fixed sidebar link ownership with the resolved sidebar location.
-- [ ] Represent the category list as `core.dynamic.categories`; keep taxonomy
+- [x] Replace fixed sidebar link ownership with the resolved sidebar location.
+- [x] Represent the category list as `core.dynamic.categories`; keep taxonomy
   names, visibility, icons, counts, and order in the Forum module.
-- [ ] Preserve filter versus route behavior, selected category, topic counts,
+- [x] Preserve filter versus route behavior, selected category, topic counts,
   compose permission, mobile category selector, moderation/settings shell
   consumers, and current responsive geometry.
-- [ ] Bind all four required locations in the default and Nocturne built-in
+- [x] Bind all four required locations in the default and Nocturne built-in
   themes and their reviewed Host-island validator/production maps.
-- [ ] Add completeness tests so paired pages and Core fallback cannot silently
+- [x] Add completeness tests so paired pages and Core fallback cannot silently
   use a different sidebar/navigation authority.
-- [ ] Rebuild built-ins, restart the API, stage/activate the exact digest
+- [x] Rebuild built-ins, restart the API, stage/activate the exact digest
   through the normal admin flow, and verify `/site/active-theme/skin` plus
   `/pages/resolve` identify the expected artifact.
-- [ ] For every changed Page Registry route, prove rendered Browser output has
+- [x] For every changed Page Registry route, prove rendered Browser output has
   the expected `data-provider` and `data-template="1"`, no visible fallback
   notice, and no duplicate navbar/footer.
-- [ ] Perform desktop/mobile screenshot and interaction QA on the actual active
+- [x] Perform desktop/mobile screenshot and interaction QA on the actual active
   immutable artifact.
 
 Required checks:

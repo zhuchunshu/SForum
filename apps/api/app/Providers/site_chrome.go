@@ -17,6 +17,12 @@ func NewSiteChromeProvider(store sitechrome.Store, users identity.ActorStore, se
 	return NewSiteChromeProviderWithExtensionNav(store, users, sessions, nil)
 }
 
+// NewSiteChromeProviderWithService keeps the HTTP API and Page Registry on one
+// production service instance, including the exact-artifact registry runtime.
+func NewSiteChromeProviderWithService(service *sitechrome.Service, users identity.ActorStore, sessions *authsession.Manager) *SiteChromeProvider {
+	return &SiteChromeProvider{controller: sitechromecontroller.NewController(service, users, sessions)}
+}
+
 // NewSiteChromeProviderWithExtensionNav 注入 forum.nav.items 解析（E2.3）。
 func NewSiteChromeProviderWithExtensionNav(store sitechrome.Store, users identity.ActorStore, sessions *authsession.Manager, nav sitechrome.ExtensionNavItemProvider) *SiteChromeProvider {
 	service := sitechrome.NewService(store)

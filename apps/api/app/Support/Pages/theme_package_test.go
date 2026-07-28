@@ -68,3 +68,23 @@ func TestAllowedThemeAssetExtNoSVG(t *testing.T) {
 		t.Fatal("js must not be allowed")
 	}
 }
+
+func TestLoadThemePackageValidatesNavigationLocationBindings(t *testing.T) {
+	root := t.TempDir()
+	valid := `{"navigationLocations":{"public.topbar.primary":"sf-navbar","public.sidebar.primary":"sf-home-navigation","public.mobile.primary":"sf-navbar","public.footer.primary":"sf-footer"},"skin":{"css":[]}}`
+	if err := os.WriteFile(filepath.Join(root, "theme.json"), []byte(valid), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pkg, err := LoadThemePackage(root)
+	if err != nil || len(pkg.NavigationLocations) != 4 {
+		t.Fatalf("valid navigation locations: pkg=%#v err=%v", pkg.NavigationLocations, err)
+	}
+
+	invalid := `{"navigationLocations":{"public.sidebar.primary":"sf-footer"},"skin":{"css":[]}}`
+	if err := os.WriteFile(filepath.Join(root, "theme.json"), []byte(invalid), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadThemePackage(root); err == nil {
+		t.Fatal("mismatched navigation island must fail closed")
+	}
+}

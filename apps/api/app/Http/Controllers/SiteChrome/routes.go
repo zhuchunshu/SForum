@@ -5,6 +5,7 @@ import "github.com/gofiber/fiber/v3"
 func (h *Controller) RegisterRoutes(api fiber.Router) {
 	// 公开：前台 navbar / footer / banner。
 	api.Get("/site/nav-items", h.publicNavItems)
+	api.Get("/site/navigation", h.publicNavigation)
 	api.Get("/site/friend-links", h.publicFriendLinks)
 	api.Get("/site/announcements", h.publicAnnouncements)
 
@@ -14,6 +15,16 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	admin.Post("/nav-items", h.adminCreateNavItem)
 	admin.Patch("/nav-items/:itemID", h.adminUpdateNavItem)
 	admin.Delete("/nav-items/:itemID", h.adminDeleteNavItem)
+	admin.Get("/navigation", h.adminNavigationDocument)
+	admin.Post("/navigation/apply", h.adminApplyNavigation)
+	admin.Post("/navigation/defaults/preview", h.adminPreviewNavigationDefaults)
+	admin.Post("/navigation/defaults/apply", h.adminApplyNavigationPreview)
+	admin.Get("/navigation/snapshots", h.adminNavigationSnapshots)
+	admin.Get("/navigation/snapshots/:snapshotID", h.adminNavigationSnapshot)
+	admin.Post("/navigation/snapshots/:snapshotID/restore", h.adminRestoreNavigationSnapshot)
+	admin.Get("/navigation/export", h.adminExportNavigation)
+	admin.Post("/navigation/import/preview", h.adminPreviewNavigationImport)
+	admin.Post("/navigation/import/apply", h.adminApplyNavigationPreview)
 
 	admin.Get("/friend-links", h.adminFriendLinks)
 	admin.Post("/friend-links", h.adminCreateFriendLink)

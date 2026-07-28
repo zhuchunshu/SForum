@@ -268,6 +268,9 @@ func (s *LifecycleService) UninstallWithResult(ctx context.Context, actor identi
 	if extension.ID == DefaultThemeID {
 		return UninstallResult{}, ErrNotDeletable
 	}
+	if err := requireArtifactAvailable(extension); err != nil {
+		return UninstallResult{}, err
+	}
 	if usesLifecycleV2(extension) && (extension.Status == StatusEnabled || extension.Status == StatusDisabled) {
 		return s.uninstallLifecycleV2(ctx, actor, extension, input)
 	}
@@ -286,6 +289,9 @@ func (s *LifecycleService) UninstallWithResult(ctx context.Context, actor identi
 	}
 	if extension.Status == StatusEnabled {
 		return UninstallResult{}, ErrMustDisableFirst
+	}
+	if err := requireArtifactAvailable(extension); err != nil {
+		return UninstallResult{}, err
 	}
 	assetBefore := s.captureAssetPublicationSnapshot()
 	assetMutation, err := s.quarantineExactAssetPublication(ctx, assetBefore, extension)

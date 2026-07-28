@@ -54,6 +54,10 @@ if [ -d apps/web/node_modules ]; then
   echo "Running admin framework validation..."
   bun tests/validate-admin-framework.ts
 else
+  if [ "${CI:-}" = "true" ]; then
+    echo "apps/web/node_modules is required in CI; run bun install --frozen-lockfile first." >&2
+    exit 1
+  fi
   echo "Skipping Nuxt typecheck because apps/web/node_modules is missing."
 fi
 

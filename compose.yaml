@@ -62,6 +62,7 @@ services:
       REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-sforum-dev-redis}
       SESSION_HASH_SECRET: ${SESSION_HASH_SECRET:-sforum-dev-session-hash-secret}
+      IDENTITY_SUBJECT_HMAC_SECRET: ${IDENTITY_SUBJECT_HMAC_SECRET:-sforum-dev-identity-subject-hmac-secret}
       APP_OPTION_ENC_KEY: ${APP_OPTION_ENC_KEY:-}
       HUMAN_VERIFICATION_PROVIDER: ${HUMAN_VERIFICATION_PROVIDER:-disabled}
       ALTCHA_SECRET: ${ALTCHA_SECRET:-sforum-dev-altcha-secret}
@@ -100,6 +101,7 @@ services:
       REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-sforum-dev-redis}
       SESSION_HASH_SECRET: ${SESSION_HASH_SECRET:-sforum-dev-session-hash-secret}
+      IDENTITY_SUBJECT_HMAC_SECRET: ${IDENTITY_SUBJECT_HMAC_SECRET:-sforum-dev-identity-subject-hmac-secret}
       APP_OPTION_ENC_KEY: ${APP_OPTION_ENC_KEY:-}
       HUMAN_VERIFICATION_PROVIDER: ${HUMAN_VERIFICATION_PROVIDER:-disabled}
       ALTCHA_SECRET: ${ALTCHA_SECRET:-sforum-dev-altcha-secret}

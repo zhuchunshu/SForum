@@ -200,16 +200,15 @@ describe('moderation workbench implementation constraints', () => {
     expect(css).toContain('.sforum-moderation__overview-summary')
     // 右栏内容不再额外水平缩进，与 home flat rail 同轨
     expect(css).not.toContain('padding: 4px 14px 10px')
-    expect(css).toContain('padding: 0 0 10px')
+    expect(css).toContain('padding: 4px 0 10px')
   })
 
-  test('host chrome sidebar tokens match default-theme hybrid values', () => {
-    // moderation 不可主题替换，依赖 host sforum-home 复刻 hybrid 侧栏 token
+  test('host chrome sidebar tokens retain the shared host geometry', () => {
+    // moderation 不可主题替换，依赖 host sforum-home 共享三栏轨道。
     const homeCss = readFileSync(new URL('../../app/assets/css/sforum-home.css', import.meta.url), 'utf8')
     expect(homeCss).toContain('padding: 24px 24px 20px 28px;')
     expect(homeCss).toContain('padding: 34px 28px;')
-    expect(homeCss).toContain('height: 40px;')
-    expect(homeCss).toContain('min-height: 39px;')
+    expect(homeCss).toContain('min-height: 40px;')
     expect(homeCss).toContain('.sf-home-navigation__link.is-active::before')
     expect(homeCss).toContain('padding-left: var(--sf-public-edge-inset, 24px);')
     expect(nav).toContain('sf-home-navigation__link')

@@ -85,6 +85,27 @@ func (s *PostgresStore) Upsert(ctx context.Context, input UpdateInput) (Option, 
 	return option, nil
 }
 
+func (s *PostgresStore) BumpPublicSurfaceRevisionTx(ctx context.Context, tx pgx.Tx) (int64, error) {
+	if s == nil || tx == nil {
+		return 0, fmt.Errorf("bump public surface revision: transaction is required")
+	}
+	var raw string
+	err := tx.QueryRow(ctx, `SELECT value FROM web_options WHERE name = $1 FOR UPDATE`, NamePublicSurfaceRevision).Scan(&raw)
+	if errors.Is(err, pgx.ErrNoRows) {
+		raw = strconv.Itoa(publicSurfaceRevisionDefault)
+	} else if err != nil {
+		return 0, fmt.Errorf("lock public surface revision: %w", err)
+	}
+	next := parsePublicSurfaceRevision(raw) + 1
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO web_options (name, value) VALUES ($1, $2)
+		ON CONFLICT (name) DO UPDATE SET value = EXCLUDED.value
+	`, NamePublicSurfaceRevision, strconv.FormatInt(next, 10)); err != nil {
+		return 0, fmt.Errorf("write public surface revision: %w", err)
+	}
+	return next, nil
+}
+
 // UpsertMany keeps the registration-policy advisory lock and every affected
 // write in one explicit PostgreSQL transaction. pg_advisory_xact_lock called
 // through Pool.Exec would release before the following upsert, which is not a

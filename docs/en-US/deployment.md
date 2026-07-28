@@ -23,6 +23,51 @@ Change at least:
 
 ## Deploy entrypoint
 
+### Published images (recommended)
+
+Stable releases publish these images to GitHub Container Registry:
+
+- `ghcr.io/zhuchunshu/sforum-api`
+- `ghcr.io/zhuchunshu/sforum-worker`
+- `ghcr.io/zhuchunshu/sforum-migrate`
+- `ghcr.io/zhuchunshu/sforum-web`
+
+Every release supports `linux/amd64` and `linux/arm64`. Pin a complete version
+in production instead of deploying `latest`:
+
+```sh
+./deploy.sh --version v2.8.0
+./deploy.sh --version v2.8.0 --lang en
+./deploy.sh --version v2.8.0 --lang zh
+```
+
+This combines `compose.yaml`, `compose.prod.yaml`, and `compose.release.yaml`.
+It pulls the selected version before backup, migration, and startup, so the
+API, worker, migration command, and web app use one release. Docker Compose
+2.24.4 or newer is required for the `!reset` override.
+
+Equivalent non-interactive commands:
+
+```sh
+export SFORUM_VERSION=v2.8.0
+docker compose --env-file .env.production \
+  -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull
+docker compose --env-file .env.production \
+  -f compose.yaml -f compose.prod.yaml -f compose.release.yaml run --rm -T migrate
+docker compose --env-file .env.production \
+  -f compose.yaml -f compose.prod.yaml -f compose.release.yaml up -d --no-build
+```
+
+After GHCR creates the packages for the first time, a repository administrator
+must confirm that all four packages are public and linked to this repository.
+The release workflow publishes with `GITHUB_TOKEN`; no long-lived registry
+credential is required.
+
+### Source builds
+
+Development versions and source customizations can keep using the original
+entrypoint:
+
 ```sh
 ./deploy.sh
 ./deploy.sh --lang en

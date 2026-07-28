@@ -28,7 +28,7 @@ directory. Completed, cancelled, and superseded plans live under
 | `2026-07-22-theme-defined-system-error-pages.md` | **completed** -- 403/404/429/5xx virtual system pages use selected-theme L0/L1 with Host-owned truth/fallback |
 | `2026-07-27-github-social-login-builtin-plugin.md` | **active** -- R1-R7 remediation complete; independent re-review requested, do not declare closure |
 | `2026-07-27-external-auth-core-plugin-review-remediation.md` | **active** -- R1-R7 remediation complete; independent re-review requested |
-| `2026-07-27-configurable-public-navigation-platform.md` | **ready** -- operator-owned multi-location navigation, defaults/history/backup, plugin contributions, and theme rendering |
+| `2026-07-27-configurable-public-navigation-platform.md` | **active** -- M0-M6 complete; M7 lifecycle, recovery, documentation, and final release gate is next |
 | `2026-07-12-iteration-a-engagement-loop.md` | **ready** -- remaining engagement product work |
 | `2026-07-12-admin-settings-richness.md` | **blueprint** -- later settings waves |
 | `2026-07-12-development-directions.md` | **blueprint** -- strategy context; verify against newer V3 decisions |

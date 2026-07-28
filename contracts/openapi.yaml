@@ -323,6 +323,8 @@ paths:
     "$ref": "./openapi/paths/entity_meta.yaml#/adminEntityMetaDefinitionByKey"
   "/site/nav-items":
     "$ref": "./openapi/paths/site_chrome.yaml#/siteNavItems"
+  "/site/navigation":
+    "$ref": "./openapi/paths/site_chrome.yaml#/siteNavigation"
   "/site/friend-links":
     "$ref": "./openapi/paths/site_chrome.yaml#/siteFriendLinks"
   "/site/announcements":
@@ -351,6 +353,26 @@ paths:
     "$ref": "./openapi/paths/site_chrome.yaml#/adminSiteNavItems"
   "/admin/site/nav-items/{itemID}":
     "$ref": "./openapi/paths/site_chrome.yaml#/adminSiteNavItemByID"
+  "/admin/site/navigation":
+    "$ref": "./openapi/paths/site_chrome.yaml#/adminSiteNavigation"
+  "/admin/site/navigation/apply":
+    "$ref": "./openapi/paths/site_chrome.yaml#/adminSiteNavigationApply"
+  "/admin/site/navigation/defaults/preview":
+    "$ref": "./openapi/paths/site_chrome.yaml#/adminSiteNavigationDefaultsPreview"
+  "/admin/site/navigation/defaults/apply":
+    "$ref": "./openapi/paths/site_chrome.yaml#/adminSiteNavigationDefaultsApply"
+  "/admin/site/navigation/snapshots":
+    "$ref": "./openapi/paths/site_chrome.yaml#/adminSiteNavigationSnapshots"
+  "/admin/site/navigation/snapshots/{snapshotID}":
+    "$ref": "./openapi/paths/site_chrome.yaml#/adminSiteNavigationSnapshotByID"
+  "/admin/site/navigation/snapshots/{snapshotID}/restore":
+    "$ref": "./openapi/paths/site_chrome.yaml#/adminSiteNavigationSnapshotRestore"
+  "/admin/site/navigation/export":
+    "$ref": "./openapi/paths/site_chrome.yaml#/adminSiteNavigationExport"
+  "/admin/site/navigation/import/preview":
+    "$ref": "./openapi/paths/site_chrome.yaml#/adminSiteNavigationImportPreview"
+  "/admin/site/navigation/import/apply":
+    "$ref": "./openapi/paths/site_chrome.yaml#/adminSiteNavigationImportApply"
   "/admin/site/friend-links":
     "$ref": "./openapi/paths/site_chrome.yaml#/adminSiteFriendLinks"
   "/admin/site/friend-links/{linkID}":

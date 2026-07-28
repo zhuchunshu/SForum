@@ -139,12 +139,15 @@ func (sourceSessions) ListUserSessions(context.Context, int64, string, bool, int
 
 type sourceChrome struct{}
 
-func (sourceChrome) ListPublicNavItems(context.Context) ([]sitechrome.NavItem, error) {
-	return []sitechrome.NavItem{{ID: 1, LabelZhCN: "文档", LabelEnUS: "Docs", Href: "/docs", Enabled: true}}, nil
-}
-
-func (sourceChrome) ListPublicExtensionNavItems(context.Context) []sitechrome.ExtensionNavItem {
-	return []sitechrome.ExtensionNavItem{{ExtensionID: "reference.nav", ID: "guide", Label: map[string]string{"en-US": "Guide"}, URL: "/guide"}}
+func (sourceChrome) ResolvePublicNavigation(context.Context, identity.Actor, string, []string) (sitechrome.ResolvedNavigation, error) {
+	return sitechrome.ResolvedNavigation{SchemaVersion: sitechrome.NavigationDocumentSchemaVersion, Revision: 1, Locations: []sitechrome.ResolvedNavigationLocation{{
+		Location: sitechrome.NavigationLocationTopbar, Supported: true, Items: []sitechrome.ResolvedNavigationItem{
+			{SourceKey: "core.home", Label: "Home", Href: "/"},
+			{SourceKey: "core.categories", Label: "Categories", Href: "/categories"},
+			{SourceKey: "operator.docs", Label: "Docs", Href: "/docs"},
+			{SourceKey: "extension.reference.nav.guide", Label: "Guide", Href: "/guide"},
+		},
+	}}}, nil
 }
 
 func (sourceChrome) ListPublicAnnouncements(context.Context) ([]sitechrome.Announcement, error) {
@@ -307,6 +310,68 @@ func TestCorePageViewModelSourceDoesNotBypassDisabledSearch(t *testing.T) {
 	if forumReader.lastTopicInput.Page != 0 {
 		t.Fatal("disabled search fell through to an alternate topic query")
 	}
+}
+
+func TestCorePageViewModelSourceUsesActorAwareResolvedTopbar(t *testing.T) {
+	chrome := &recordingSourceChrome{resolved: sitechrome.ResolvedNavigation{
+		SchemaVersion: sitechrome.NavigationDocumentSchemaVersion,
+		Revision:      9,
+		Locations: []sitechrome.ResolvedNavigationLocation{{
+			Location:  sitechrome.NavigationLocationTopbar,
+			Supported: true,
+			Items:     []sitechrome.ResolvedNavigationItem{{SourceKey: "operator.members", Label: "Members", Href: "/members"}},
+		}},
+	}}
+	source := NewCorePageViewModelSource(CorePageViewModelDependencies{
+		Options: defaultSourceOptions("public"), Registration: sourceRegistration{}, SiteChrome: chrome,
+	})
+	actor := identity.Actor{ID: 17, Status: identity.UserStatusActive, Permissions: map[string]bool{"forum.members": true}}
+	request, err := source.Populate(t.Context(), CorePageViewModelInput{
+		Request: pages.CorePageViewModelRequest{PageID: "auth.login", Locale: "en-US", Path: "/members", SEO: themecompiler.PageSEOView{Title: "Login"}},
+		Actor:   actor,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if chrome.actor.ID != actor.ID || chrome.locale != "en-US" || !reflect.DeepEqual(chrome.locations, []string{sitechrome.NavigationLocationTopbar}) {
+		t.Fatalf("resolver input actor=%#v locale=%q locations=%#v", chrome.actor, chrome.locale, chrome.locations)
+	}
+	if len(request.Navigation) != 1 || request.Navigation[0].ID != "operator.members" || !request.Navigation[0].Active {
+		t.Fatalf("resolved navigation projection=%#v", request.Navigation)
+	}
+}
+
+func TestCorePageViewModelSourceFailsClosedWhenNavigationResolutionFails(t *testing.T) {
+	source := NewCorePageViewModelSource(CorePageViewModelDependencies{
+		Options:      defaultSourceOptions("public"),
+		Registration: sourceRegistration{},
+		SiteChrome:   &recordingSourceChrome{err: errors.New("registry unavailable")},
+	})
+	_, err := source.Populate(t.Context(), CorePageViewModelInput{
+		Request: pages.CorePageViewModelRequest{PageID: "auth.login", Locale: "en-US", Path: "/login", SEO: themecompiler.PageSEOView{Title: "Login"}},
+	})
+	if !errors.Is(err, ErrCorePageDataUnavailable) {
+		t.Fatalf("navigation resolver error=%v", err)
+	}
+}
+
+type recordingSourceChrome struct {
+	resolved  sitechrome.ResolvedNavigation
+	err       error
+	actor     identity.Actor
+	locale    string
+	locations []string
+}
+
+func (s *recordingSourceChrome) ResolvePublicNavigation(_ context.Context, actor identity.Actor, locale string, locations []string) (sitechrome.ResolvedNavigation, error) {
+	s.actor = actor
+	s.locale = locale
+	s.locations = append([]string(nil), locations...)
+	return s.resolved, s.err
+}
+
+func (*recordingSourceChrome) ListPublicAnnouncements(context.Context) ([]sitechrome.Announcement, error) {
+	return nil, nil
 }
 
 func TestCorePageViewModelSourceRendersRealProductDataThroughThemeCompiler(t *testing.T) {

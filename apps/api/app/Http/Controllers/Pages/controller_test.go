@@ -25,6 +25,7 @@ import (
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	pageviewmodels "github.com/zhuchunshu/sforum/apps/api/app/Models/PageViewModels"
+	sitechrome "github.com/zhuchunshu/sforum/apps/api/app/Models/SiteChrome"
 	apilts "github.com/zhuchunshu/sforum/apps/api/app/Support/APILTS"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
@@ -531,6 +532,27 @@ func (topicReplyViewOptions) ForumReadPolicySnapshot() (string, string, uint64, 
 	return "public", "author_and_staff", 1, true
 }
 
+type topicReplyChrome struct{}
+
+func (topicReplyChrome) ResolvePublicNavigation(context.Context, identity.Actor, string, []string) (sitechrome.ResolvedNavigation, error) {
+	return sitechrome.ResolvedNavigation{
+		SchemaVersion: sitechrome.NavigationDocumentSchemaVersion,
+		Revision:      1,
+		Locations: []sitechrome.ResolvedNavigationLocation{{
+			Location:  sitechrome.NavigationLocationTopbar,
+			Supported: true,
+			Items: []sitechrome.ResolvedNavigationItem{{
+				SourceKey: "core.home", SourceKind: sitechrome.NavigationSourceCore,
+				LinkKind: sitechrome.NavigationLinkCoreRoute, Label: "Home", Href: "/",
+			}},
+		}},
+	}, nil
+}
+
+func (topicReplyChrome) ListPublicAnnouncements(context.Context) ([]sitechrome.Announcement, error) {
+	return nil, nil
+}
+
 func TestResolveTopicReplyUsesSelectedThemeAndRequiresLogin(t *testing.T) {
 	repoRoot := filepath.Clean(filepath.Join(fixtureDemoRoot(t), "..", "..", "..", ".."))
 	for _, test := range []struct {
@@ -574,7 +596,7 @@ func TestResolveTopicReplyUsesSelectedThemeAndRequiresLogin(t *testing.T) {
 			controller := NewControllerWithThemes(registry, users, manager, &pagesThemeStore{}).
 				WithThemeRuntime(runtimeRegistry).
 				WithCorePageViewModels(pageviewmodels.NewCorePageViewModelSource(pageviewmodels.CorePageViewModelDependencies{
-					Options: topicReplyViewOptions{},
+					Options: topicReplyViewOptions{}, SiteChrome: topicReplyChrome{},
 				}))
 			app := apphttp.NewApp(config.Config{AppName: "SForum", AppEnv: "test", CSRFEnabled: false, AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN"}}, slog.Default(), apphttp.Dependencies{
 				RouteProviders: []apphttp.RouteProvider{

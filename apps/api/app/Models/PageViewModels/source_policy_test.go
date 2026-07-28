@@ -67,7 +67,7 @@ func (r *policyRegistration) RegistrationStatus(context.Context) (identity.Regis
 func TestProfileViewModelEnforcesGuestReadBeforeLoadingRecentTopics(t *testing.T) {
 	profiles := &policyProfiles{}
 	source := NewCorePageViewModelSource(CorePageViewModelDependencies{
-		Options: policyOptions{guestRead: "login_required"}, Profiles: profiles,
+		Options: policyOptions{guestRead: "login_required"}, Profiles: profiles, SiteChrome: sourceChrome{},
 	})
 	request := pages.CorePageViewModelRequest{
 		PageID: "forum.profile.show", Locale: "en-US", Path: "/u/alice",
@@ -109,7 +109,7 @@ func TestRegisterViewModelHonorsCatalogFeatureRequirement(t *testing.T) {
 }
 
 func TestNotFoundViewModelIsNeverIndexable(t *testing.T) {
-	source := NewCorePageViewModelSource(CorePageViewModelDependencies{Options: policyOptions{guestRead: "public"}})
+	source := NewCorePageViewModelSource(CorePageViewModelDependencies{Options: policyOptions{guestRead: "public"}, SiteChrome: sourceChrome{}})
 	populated, err := source.Populate(t.Context(), CorePageViewModelInput{Request: pages.CorePageViewModelRequest{
 		PageID: "system.not_found", Locale: "en-US", Path: "/missing", SEO: themecompiler.PageSEOView{Title: "system.not_found"},
 	}})
@@ -142,7 +142,7 @@ func TestPublicTopicNotFoundDoesNotRevealVisibilityToPrivilegedActors(t *testing
 }
 
 func TestTopicReplyViewModelRequiresLoginAndKeepsHostFormBoundary(t *testing.T) {
-	source := NewCorePageViewModelSource(CorePageViewModelDependencies{Options: policyOptions{guestRead: "public"}})
+	source := NewCorePageViewModelSource(CorePageViewModelDependencies{Options: policyOptions{guestRead: "public"}, SiteChrome: sourceChrome{}})
 	request := pages.CorePageViewModelRequest{
 		PageID: "forum.topic.reply", Locale: "en-US", Path: "/topics/reply",
 		SEO: themecompiler.PageSEOView{Title: "forum.topic.reply"},
@@ -168,7 +168,7 @@ func TestTopicReplyViewModelRequiresLoginAndKeepsHostFormBoundary(t *testing.T) 
 }
 
 func TestTopicEditViewModelRequiresLoginAndKeepsHostFormBoundary(t *testing.T) {
-	source := NewCorePageViewModelSource(CorePageViewModelDependencies{Options: policyOptions{guestRead: "public"}})
+	source := NewCorePageViewModelSource(CorePageViewModelDependencies{Options: policyOptions{guestRead: "public"}, SiteChrome: sourceChrome{}})
 	request := pages.CorePageViewModelRequest{
 		PageID: "forum.topic.edit", Locale: "en-US", Path: "/topics/42/edit",
 		RouteParams: map[string]string{"topicId": "42"},

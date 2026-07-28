@@ -98,6 +98,42 @@ func TestThemeRuntimeSnapshotCompilesOnceAndRendersExactProvider(t *testing.T) {
 	}
 }
 
+func TestThemeRuntimeNavigationCapabilitiesFollowExactActiveArtifact(t *testing.T) {
+	full := buildThemeRuntimeFixture(t, "theme.full", strings.Repeat("7", 64), "theme.full.home")
+	full.navigationLocations = cloneStringMap(themeNavigationLocationBindings)
+	limited := buildThemeRuntimeFixture(t, "theme.limited", strings.Repeat("8", 64), "theme.limited.home")
+	limited.navigationLocations = map[string]string{"public.topbar.primary": "sf-navbar"}
+
+	registry := NewThemeRuntimeRegistry()
+	if !registry.SupportsNavigationLocation("public.sidebar.primary") {
+		t.Fatal("Core fallback must support all locations without an active theme")
+	}
+	if _, _, err := registry.Stage(full); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := registry.ActivateExact(full.Artifact()); err != nil {
+		t.Fatal(err)
+	}
+	if !registry.SupportsNavigationLocation("public.sidebar.primary") {
+		t.Fatal("full active artifact lost sidebar capability")
+	}
+	if _, _, err := registry.Stage(limited); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := registry.ActivateExact(limited.Artifact()); err != nil {
+		t.Fatal(err)
+	}
+	if registry.SupportsNavigationLocation("public.sidebar.primary") || !registry.SupportsNavigationLocation("public.topbar.primary") {
+		t.Fatal("capabilities did not switch with the exact active artifact")
+	}
+	if _, err := registry.ActivateExact(full.Artifact()); err != nil {
+		t.Fatal(err)
+	}
+	if !registry.SupportsNavigationLocation("public.footer.primary") {
+		t.Fatal("reactivating the prior exact artifact did not restore capabilities")
+	}
+}
+
 func TestThemeRuntimeEmitsExactPublicL2HostIslandWithSSRContent(t *testing.T) {
 	root := t.TempDir()
 	body := `<main><sf-extension-widget extension-id="demo.public" component-id="demo.public.component.card"><article>Primary SSR content</article></sf-extension-widget><sf-home-page></sf-home-page></main>`

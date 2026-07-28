@@ -198,98 +198,35 @@ func mapModerationItems(items []moderation.PendingItem) []themecompiler.Moderati
 	return result
 }
 
-func mapNavigation(locale, currentPath string, items []sitechrome.NavItem, extensionItems []sitechrome.ExtensionNavItem) []themecompiler.NavigationItem {
-	result := make([]themecompiler.NavigationItem, 0, len(items)+len(extensionItems)+2)
-	result = append(result, coreNavigationAnchors(locale, currentPath)...)
-	for _, item := range items {
-		label := item.LabelZhCN
-		if strings.HasPrefix(strings.ToLower(locale), "en") && strings.TrimSpace(item.LabelEnUS) != "" {
-			label = item.LabelEnUS
-		}
-		result = append(result, themecompiler.NavigationItem{
-			ID: "operator." + strconv.FormatInt(item.ID, 10), Label: label, URL: item.Href, Active: currentPath == item.Href,
-		})
-	}
-	for _, item := range extensionItems {
-		result = append(result, themecompiler.NavigationItem{
-			ID:    "extension." + item.ExtensionID + "." + item.ID,
-			Label: localizedLabel(locale, item.Label, item.ID), URL: item.URL, Active: currentPath == item.URL,
-		})
-	}
-	return result
-}
-
-// mapComposedNavigation 将 Host Navigation Registry 合成结果压成主题可用的扁平/
-// 浅树导航。Core 首页/分类锚点始终保留，避免部署缺省菜单时丢入口。
-func mapComposedNavigation(
-	locale, currentPath string,
-	composed sitechrome.NavigationRegionViewModel,
-	extensionItems []sitechrome.ExtensionNavItem,
-) []themecompiler.NavigationItem {
-	result := make([]themecompiler.NavigationItem, 0, 8+len(extensionItems))
-	result = append(result, coreNavigationAnchors(locale, currentPath)...)
-	seen := map[string]bool{"/": true, "/categories": true}
-	for _, menu := range composed.Menus {
-		for _, child := range menu.Children {
-			result = append(result, mapChromeNavigationNode(child, currentPath, seen)...)
-		}
-	}
-	// 合成菜单本身也可作为顶层入口（无 children 的 add 项）。
-	for _, menu := range composed.Menus {
-		if strings.TrimSpace(menu.Href) == "" {
+func mapResolvedNavigation(currentPath string, resolved sitechrome.ResolvedNavigation, location string) ([]themecompiler.NavigationItem, bool) {
+	for _, resolvedLocation := range resolved.Locations {
+		if resolvedLocation.Location != location {
 			continue
 		}
-		result = append(result, mapChromeNavigationNode(menu, currentPath, seen)...)
-	}
-	for _, item := range composed.Headers {
-		result = append(result, mapChromeNavigationNode(item, currentPath, seen)...)
-	}
-	for _, item := range extensionItems {
-		url := strings.TrimSpace(item.URL)
-		if url == "" || seen[url] {
-			continue
+		items := make([]themecompiler.NavigationItem, 0, len(resolvedLocation.Items))
+		for _, item := range resolvedLocation.Items {
+			items = append(items, themecompiler.NavigationItem{
+				ID: item.SourceKey, Label: item.Label, URL: item.Href,
+				Active: navigationItemActive(item.SourceKey, item.Href, currentPath),
+			})
 		}
-		seen[url] = true
-		result = append(result, themecompiler.NavigationItem{
-			ID:    "extension." + item.ExtensionID + "." + item.ID,
-			Label: localizedLabel(locale, item.Label, item.ID), URL: url, Active: currentPath == url,
-		})
+		return items, true
 	}
-	return result
+	return nil, false
 }
 
-func coreNavigationAnchors(locale, currentPath string) []themecompiler.NavigationItem {
-	return []themecompiler.NavigationItem{
-		{ID: "core.home", Label: localizedText(locale, "首页", "Home"), URL: "/", Active: currentPath == "/"},
-		{
-			ID: "core.categories", Label: localizedText(locale, "分类", "Categories"), URL: "/categories",
-			Active: strings.HasPrefix(currentPath, "/categories") || strings.HasPrefix(currentPath, "/c/"),
-		},
+func navigationItemActive(sourceKey, href, currentPath string) bool {
+	if href != "" && currentPath == href {
+		return true
 	}
-}
-
-func mapChromeNavigationNode(
-	node sitechrome.ChromeNodeViewModel,
-	currentPath string,
-	seen map[string]bool,
-) []themecompiler.NavigationItem {
-	url := strings.TrimSpace(node.Href)
-	if url != "" {
-		if seen[url] {
-			return nil
-		}
-		seen[url] = true
+	switch sourceKey {
+	case "core.categories":
+		return strings.HasPrefix(currentPath, "/categories") || strings.HasPrefix(currentPath, "/c/")
+	case "core.tags":
+		return strings.HasPrefix(currentPath, "/tags")
+	default:
+		return false
 	}
-	item := themecompiler.NavigationItem{
-		ID: node.ID, Label: node.Label, URL: url, Active: url != "" && currentPath == url,
-	}
-	for _, child := range node.Children {
-		item.Children = append(item.Children, mapChromeNavigationNode(child, currentPath, seen)...)
-	}
-	if url == "" && len(item.Children) == 0 {
-		return nil
-	}
-	return []themecompiler.NavigationItem{item}
 }
 
 func mapAnnouncements(locale string, items []sitechrome.Announcement) []themecompiler.PageRegion {

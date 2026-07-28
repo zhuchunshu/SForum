@@ -230,3 +230,304 @@ SiteAnnouncementUpdateInput:
       format: date-time
       nullable: true
       description: Null clears the end time.
+
+# Configurable public navigation v1. M0 freezes this contract before M1/M2
+# persistence and controllers land; legacy SiteNavItem endpoints remain LTS
+# projections of public.topbar.primary.
+SiteNavigationLocation:
+  type: string
+  enum:
+    - public.topbar.primary
+    - public.sidebar.primary
+    - public.mobile.primary
+    - public.footer.primary
+
+SiteNavigationSourceKind:
+  type: string
+  enum: [core, operator, extension, dynamic]
+
+SiteNavigationVisibility:
+  type: string
+  enum: [public, anonymous, authenticated, permission]
+
+SiteNavigationLinkKind:
+  type: string
+  enum: [coreRoute, internalLink, externalLink, extensionHostLink, extensionRoute, dynamicBlock]
+
+SiteNavigationDefinition:
+  type: object
+  required: [sourceKey, sourceKind, linkKind]
+  properties:
+    sourceKey:
+      type: string
+      maxLength: 160
+      description: Portable stable key. Core and dynamic keys are code-owned; extension keys are extension id plus contribution id; operator keys never contain database IDs.
+    sourceKind:
+      "$ref": "#/SiteNavigationSourceKind"
+    linkKind:
+      "$ref": "#/SiteNavigationLinkKind"
+    labelZhCN: { type: string, maxLength: 80 }
+    labelEnUS: { type: string, maxLength: 80 }
+    href:
+      type: string
+      maxLength: 500
+      description: Typed safe target. Internal and extension targets are site-relative; external targets are http(s) only.
+    icon: { type: string, maxLength: 120 }
+    openInNewTab: { type: boolean, default: false }
+    extensionId:
+      type: string
+      maxLength: 120
+      description: Present only for extension source references; runtime still verifies the active exact artifact.
+    contributionId:
+      type: string
+      maxLength: 120
+    missing:
+      type: boolean
+      description: Admin-only inert state for an unavailable extension source. It is never emitted publicly.
+
+SiteNavigationPlacement:
+  type: object
+  required: [sourceKey, location, order, enabled, visibility]
+  properties:
+    sourceKey: { type: string, maxLength: 160 }
+    location: { "$ref": "#/SiteNavigationLocation" }
+    order: { type: integer, minimum: -100000, maximum: 100000 }
+    enabled: { type: boolean }
+    visibility: { "$ref": "#/SiteNavigationVisibility" }
+    permission:
+      type: string
+      maxLength: 120
+      description: Required only when visibility is permission. Presentation filtering does not grant target access.
+    labelZhCN: { type: string, maxLength: 80 }
+    labelEnUS: { type: string, maxLength: 80 }
+    icon: { type: string, maxLength: 120 }
+
+SiteNavigationThemeLocation:
+  type: object
+  required: [location, supported]
+  properties:
+    location: { "$ref": "#/SiteNavigationLocation" }
+    supported: { type: boolean }
+    description: { type: string }
+
+SiteNavigationDocument:
+  type: object
+  required: [revision, definitions, placements, themeLocations]
+  properties:
+    revision:
+      type: integer
+      format: int64
+      minimum: 1
+      description: Monotonic compare-and-swap revision.
+    definitions:
+      type: array
+      maxItems: 200
+      items: { "$ref": "#/SiteNavigationDefinition" }
+    placements:
+      type: array
+      maxItems: 800
+      items: { "$ref": "#/SiteNavigationPlacement" }
+    themeLocations:
+      type: array
+      items: { "$ref": "#/SiteNavigationThemeLocation" }
+
+SiteResolvedNavigationItem:
+  type: object
+  required: [sourceKey, sourceKind, linkKind, label]
+  properties:
+    sourceKey: { type: string }
+    sourceKind: { "$ref": "#/SiteNavigationSourceKind" }
+    linkKind: { "$ref": "#/SiteNavigationLinkKind" }
+    label: { type: string }
+    href: { type: string }
+    icon: { type: string }
+    openInNewTab: { type: boolean }
+    active: { type: boolean }
+
+SiteResolvedNavigationLocation:
+  type: object
+  required: [location, supported, items]
+  properties:
+    location: { "$ref": "#/SiteNavigationLocation" }
+    supported: { type: boolean }
+    items:
+      type: array
+      items: { "$ref": "#/SiteResolvedNavigationItem" }
+
+SiteResolvedNavigation:
+  type: object
+  required: [schemaVersion, revision, locations]
+  properties:
+    schemaVersion: { type: string, enum: [sforum.site-navigation@1] }
+    revision: { type: integer, format: int64, minimum: 1 }
+    locations:
+      type: array
+      items: { "$ref": "#/SiteResolvedNavigationLocation" }
+
+SiteNavigationApplyRequest:
+  type: object
+  required: [expectedRevision, document]
+  properties:
+    expectedRevision: { type: integer, format: int64, minimum: 1 }
+    reason: { type: string, maxLength: 240 }
+    document:
+      "$ref": "#/SiteNavigationDocument"
+
+SiteNavigationDefaultsPreviewRequest:
+  type: object
+  required: [expectedRevision, scope]
+  properties:
+    expectedRevision: { type: integer, format: int64, minimum: 1 }
+    scope:
+      type: string
+      enum: [location, all]
+    location:
+      "$ref": "#/SiteNavigationLocation"
+
+SiteNavigationImportMode:
+  type: string
+  enum: [merge, replace]
+
+SiteNavigationBackup:
+  type: object
+  required: [schema, definitions, placements]
+  properties:
+    schema: { type: string, enum: [sforum.site-navigation-backup@1] }
+    exportedAt: { type: string, format: date-time }
+    definitions:
+      type: array
+      maxItems: 200
+      items: { "$ref": "#/SiteNavigationDefinition" }
+    placements:
+      type: array
+      maxItems: 800
+      items: { "$ref": "#/SiteNavigationPlacement" }
+
+SiteNavigationImportPreviewRequest:
+  type: object
+  required: [expectedRevision, mode, backup]
+  properties:
+    expectedRevision: { type: integer, format: int64, minimum: 1 }
+    mode: { "$ref": "#/SiteNavigationImportMode" }
+    backup: { "$ref": "#/SiteNavigationBackup" }
+
+SiteNavigationPreview:
+  type: object
+  required: [previewToken, expectedRevision, mode, changes, warnings, changeEntries, warningEntries]
+  properties:
+    previewToken: { type: string }
+    expectedRevision: { type: integer, format: int64, minimum: 1 }
+    mode: { type: string, enum: [defaults, merge, replace] }
+    changes:
+      type: array
+      items: { type: string }
+    warnings:
+      type: array
+      items: { type: string }
+    changeEntries:
+      type: array
+      description: Typed additive projection of changes. Legacy changes remains available for compatibility.
+      items: { "$ref": "#/SiteNavigationPreviewChange" }
+    warningEntries:
+      type: array
+      description: Stable machine-readable warnings. Legacy warnings remains available for compatibility.
+      items: { "$ref": "#/SiteNavigationPreviewWarning" }
+
+SiteNavigationPreviewChange:
+  type: object
+  required: [kind, beforeCount, afterCount]
+  properties:
+    kind: { type: string, enum: [location, definitions] }
+    location: { "$ref": "#/SiteNavigationLocation" }
+    beforeCount: { type: integer, minimum: 0 }
+    afterCount: { type: integer, minimum: 0 }
+
+SiteNavigationPreviewWarning:
+  type: object
+  required: [code]
+  properties:
+    code:
+      type: string
+      enum: [extension_reference_inert]
+      description: The imported extension reference remains inert unless an active artifact publishes it; this does not claim the extension is currently missing.
+    sourceKey: { type: string, maxLength: 160 }
+    extensionId: { type: string, maxLength: 120 }
+
+SiteNavigationPreviewApplyRequest:
+  type: object
+  required: [expectedRevision, previewToken]
+  properties:
+    expectedRevision: { type: integer, format: int64, minimum: 1 }
+    previewToken: { type: string }
+    reason: { type: string, maxLength: 240 }
+
+SiteNavigationSnapshotRestoreRequest:
+  type: object
+  required: [expectedRevision]
+  properties:
+    expectedRevision: { type: integer, format: int64, minimum: 1 }
+    reason: { type: string, maxLength: 240 }
+
+SiteNavigationSnapshot:
+  type: object
+  required: [id, revision, operation, affectedLocations, createdAt]
+  properties:
+    id: { type: integer, format: int64 }
+    revision: { type: integer, format: int64, minimum: 1 }
+    actorUserId:
+      type: integer
+      format: int64
+      minimum: 1
+      description: Actor responsible for the mutation. Omitted for snapshots created before actor attribution was added.
+    operation: { type: string }
+    reason: { type: string }
+    affectedLocations:
+      type: array
+      items: { "$ref": "#/SiteNavigationLocation" }
+    createdAt: { type: string, format: date-time }
+    document: { "$ref": "#/SiteNavigationDocument" }
+
+ApiResponseSiteResolvedNavigation:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/SiteResolvedNavigation" }
+ApiResponseSiteNavigationDocument:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/SiteNavigationDocument" }
+ApiResponseSiteNavigationPreview:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/SiteNavigationPreview" }
+ApiResponseSiteNavigationSnapshotList:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      type: array
+      items: { "$ref": "#/SiteNavigationSnapshot" }
+ApiResponseSiteNavigationSnapshot:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/SiteNavigationSnapshot" }
+ApiResponseSiteNavigationBackup:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/SiteNavigationBackup" }

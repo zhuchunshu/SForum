@@ -106,6 +106,7 @@ type ThemeRuntimeSnapshot struct {
 	overrides           map[string]ThemeRuntimeProviderBinding
 	pluginContracts     map[string]*themecompiler.PluginPageViewModelContract
 	plan                *themeRenderPlan
+	navigationLocations map[string]string
 	publicationRevision uint64
 }
 
@@ -128,6 +129,14 @@ func BuildThemeRuntimeSnapshot(input ThemeRuntimeBuildInput) (*ThemeRuntimeSnaps
 	if kind != RuntimeTemplateTheme && kind != RuntimeTemplatePlugin {
 		return nil, ErrThemeRuntimeInvalid
 	}
+	themePackage, err := LoadThemePackage(realRoot)
+	if err != nil {
+		return nil, fmt.Errorf("%w: load theme package: %v", ErrThemeRuntimeInvalid, err)
+	}
+	if kind == RuntimeTemplatePlugin && len(themePackage.NavigationLocations) > 0 {
+		return nil, fmt.Errorf("%w: plugins cannot declare theme navigation locations", ErrThemeRuntimeConflict)
+	}
+	navigationLocations := cloneStringMap(themePackage.NavigationLocations)
 	providers := make(map[string]ThemeRuntimeProviderBinding)
 	providerContributions := make(map[string]PageContribution)
 	pageBindings := make(map[string]themecompiler.PageTemplateBinding)
@@ -287,7 +296,7 @@ func BuildThemeRuntimeSnapshot(input ThemeRuntimeBuildInput) (*ThemeRuntimeSnaps
 		routes[page.ID] = page.PathPattern
 	}
 	islands := productionThemeIslandBindings()
-	bindingRevision, err := themeBindingRevision(input.Artifact, kind, providers, overrides, assets, input.Locales, contracts, islands)
+	bindingRevision, err := themeBindingRevision(input.Artifact, kind, providers, overrides, assets, input.Locales, contracts, islands, navigationLocations)
 	if err != nil {
 		return nil, err
 	}
@@ -323,7 +332,19 @@ func BuildThemeRuntimeSnapshot(input ThemeRuntimeBuildInput) (*ThemeRuntimeSnaps
 		artifact: input.Artifact, compiled: compiled, providers: providers, assets: assets,
 		locales: normalizedLocales(input.Locales), contracts: contracts, islandTags: islandTags,
 		kind: kind, overrides: overrides, pluginContracts: pluginContracts,
+		navigationLocations: navigationLocations,
 	}, nil
+}
+
+func cloneStringMap(input map[string]string) map[string]string {
+	if len(input) == 0 {
+		return nil
+	}
+	result := make(map[string]string, len(input))
+	for key, value := range input {
+		result[key] = value
+	}
+	return result
 }
 
 func pluginBusinessDataRequested(contribution PageContribution) bool {
@@ -746,6 +767,22 @@ func (r *ThemeRuntimeRegistry) ActiveSkin() (ActiveSkinPublic, bool) {
 	return assets, true
 }
 
+// SupportsNavigationLocation projects capabilities from the exact active
+// immutable theme snapshot. With no active snapshot, Core fallback owns all
+// locations and must remain usable.
+func (r *ThemeRuntimeRegistry) SupportsNavigationLocation(location string) bool {
+	if r == nil {
+		return true
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	snapshot := r.snapshots[r.active]
+	if snapshot == nil {
+		return true
+	}
+	return snapshot.navigationLocations[strings.TrimSpace(location)] != ""
+}
+
 func (r *ThemeRuntimeRegistry) ensureSnapshots() {
 	if r.snapshots == nil {
 		r.snapshots = make(map[RuntimeArtifact]*ThemeRuntimeSnapshot)
@@ -769,18 +806,20 @@ func themeBindingRevision(
 	locales []string,
 	contracts map[string]string,
 	islands map[string]themecompiler.IslandBinding,
+	navigationLocations map[string]string,
 ) (string, error) {
 	document := struct {
-		Schema    string                                 `json:"schema"`
-		Artifact  RuntimeArtifact                        `json:"artifact"`
-		Kind      RuntimeTemplatePackageKind             `json:"kind"`
-		Providers map[string]ThemeRuntimeProviderBinding `json:"providers"`
-		Overrides map[string]ThemeRuntimeProviderBinding `json:"overrides"`
-		Assets    ActiveSkinPublic                       `json:"assets"`
-		Locales   []string                               `json:"locales"`
-		Contracts map[string]string                      `json:"contracts"`
-		Islands   map[string]themecompiler.IslandBinding `json:"islands"`
-	}{"sforum.theme-runtime-binding@2", artifact, kind, providers, overrides, assets, normalizedLocales(locales), contracts, islands}
+		Schema              string                                 `json:"schema"`
+		Artifact            RuntimeArtifact                        `json:"artifact"`
+		Kind                RuntimeTemplatePackageKind             `json:"kind"`
+		Providers           map[string]ThemeRuntimeProviderBinding `json:"providers"`
+		Overrides           map[string]ThemeRuntimeProviderBinding `json:"overrides"`
+		Assets              ActiveSkinPublic                       `json:"assets"`
+		Locales             []string                               `json:"locales"`
+		Contracts           map[string]string                      `json:"contracts"`
+		Islands             map[string]themecompiler.IslandBinding `json:"islands"`
+		NavigationLocations map[string]string                      `json:"navigationLocations,omitempty"`
+	}{"sforum.theme-runtime-binding@2", artifact, kind, providers, overrides, assets, normalizedLocales(locales), contracts, islands, navigationLocations}
 	raw, err := json.Marshal(document)
 	if err != nil {
 		return "", err
@@ -848,77 +887,4 @@ func selectedThemePrefix(selected map[string]struct{}, prefix string) bool {
 		}
 	}
 	return false
-}
-
-// ThemeRuntimeInspection is a redacted admin view of staged theme/plugin
-// runtime snapshots and the active/default theme selection.
-type ThemeRuntimeInspection struct {
-	Revision      uint64                    `json:"revision"`
-	ActiveTheme   string                    `json:"activeTheme,omitempty"`
-	DefaultTheme  string                    `json:"defaultTheme,omitempty"`
-	SnapshotCount int                       `json:"snapshotCount"`
-	OverrideCount int                       `json:"overrideCount"`
-	Snapshots     []ThemeRuntimeInspectItem `json:"snapshots"`
-}
-
-// ThemeRuntimeInspectItem summarizes one staged runtime package without
-// exposing package filesystem roots or compiled template bodies.
-type ThemeRuntimeInspectItem struct {
-	ExtensionID      string   `json:"extensionId"`
-	ExtensionVersion string   `json:"extensionVersion"`
-	PackageDigest    string   `json:"packageDigest"`
-	Kind             string   `json:"kind"`
-	ContributionIDs  []string `json:"contributionIds,omitempty"`
-	OverrideTargets  []string `json:"overrideTargets,omitempty"`
-	Active           bool     `json:"active,omitempty"`
-	Default          bool     `json:"default,omitempty"`
-}
-
-// InspectSnapshot returns a detached redacted inspection of the live registry.
-func (r *ThemeRuntimeRegistry) InspectSnapshot() ThemeRuntimeInspection {
-	if r == nil {
-		return ThemeRuntimeInspection{}
-	}
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	items := make([]ThemeRuntimeInspectItem, 0, len(r.snapshots))
-	overrideCount := 0
-	for artifact, snapshot := range r.snapshots {
-		if snapshot == nil {
-			continue
-		}
-		contribs := make([]string, 0, len(snapshot.providers))
-		for _, binding := range snapshot.providers {
-			if id := strings.TrimSpace(binding.ContributionID); id != "" {
-				contribs = append(contribs, id)
-			}
-		}
-		sort.Strings(contribs)
-		overrides := make([]string, 0, len(snapshot.overrides))
-		for target := range snapshot.overrides {
-			overrides = append(overrides, target)
-		}
-		sort.Strings(overrides)
-		overrideCount += len(overrides)
-		kind := "theme"
-		if snapshot.kind == RuntimeTemplatePlugin {
-			kind = "plugin"
-		}
-		items = append(items, ThemeRuntimeInspectItem{
-			ExtensionID: artifact.ExtensionID, ExtensionVersion: artifact.ExtensionVersion,
-			PackageDigest: artifact.PackageDigest, Kind: kind,
-			ContributionIDs: contribs, OverrideTargets: overrides,
-			Active: r.active == artifact, Default: r.defaultArtifact == artifact,
-		})
-	}
-	sort.Slice(items, func(i, j int) bool {
-		if items[i].ExtensionID == items[j].ExtensionID {
-			return items[i].PackageDigest < items[j].PackageDigest
-		}
-		return items[i].ExtensionID < items[j].ExtensionID
-	})
-	return ThemeRuntimeInspection{
-		Revision: r.revision, ActiveTheme: r.active.ExtensionID, DefaultTheme: r.defaultArtifact.ExtensionID,
-		SnapshotCount: len(items), OverrideCount: overrideCount, Snapshots: items,
-	}
 }

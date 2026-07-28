@@ -183,6 +183,12 @@
       "contract": "sforum.page.server_error@1"
     }
   ],
+  "navigationLocations": {
+    "public.topbar.primary": "sf-navbar",
+    "public.sidebar.primary": "sf-home-navigation",
+    "public.mobile.primary": "sf-navbar",
+    "public.footer.primary": "sf-footer"
+  },
   "skin": {
     "css": [
       "assets/theme.css",

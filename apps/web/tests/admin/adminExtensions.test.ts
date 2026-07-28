@@ -3,6 +3,7 @@ import { describe, expect, test } from 'bun:test'
 import {
   EXTENSION_EVENT_PAGE_SIZE,
   activeTheme,
+  canRequestExtensionUninstall,
   canRestartPlugin,
   capabilityCount,
   extensionContributionLabel,
@@ -30,6 +31,7 @@ import {
   recommendedExtensionSettingValues,
   runtimeCapabilitySummary,
   runtimeStatusLabelKey,
+  selectMissingArtifactCleanupTargets,
   themeActionState,
   themeStatusLabelKey,
   type AdminEffectiveContribution,
@@ -342,6 +344,13 @@ describe('admin extension helpers', () => {
     ]
 
     expect(missingArtifactCleanupCandidates(items).map(item => item.id)).toEqual(['missing.plugin'])
+    expect(selectMissingArtifactCleanupTargets(items).map(item => item.id)).toEqual(['missing.plugin'])
+    expect(selectMissingArtifactCleanupTargets(items, 'missing.plugin').map(item => item.id)).toEqual(['missing.plugin'])
+    expect(selectMissingArtifactCleanupTargets(items, 'available.plugin')).toEqual([])
+    expect(canRequestExtensionUninstall(eligible, true)).toBe(true)
+    expect(canRequestExtensionUninstall(eligible, false)).toBe(false)
+    expect(canRequestExtensionUninstall({ ...eligible, status: 'enabled' }, true)).toBe(false)
+    expect(canRequestExtensionUninstall(items[1], false)).toBe(true)
   })
 
   test('formats plugin process RSS for admin lists', () => {

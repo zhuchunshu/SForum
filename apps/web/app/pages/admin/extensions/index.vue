@@ -9,6 +9,7 @@ import SFAdminExtensionUninstallDialog from '~/components/admin/SFAdminExtension
 import SFAdminMissingArtifactsCleanupDialog from '~/components/admin/SFAdminMissingArtifactsCleanupDialog.vue'
 import SFAdminThemeActivateDialog from '~/components/admin/SFAdminThemeActivateDialog.vue'
 import {
+  canRequestExtensionUninstall,
   canRestartPlugin,
   capabilityCount,
   extensionEventPage,
@@ -16,10 +17,11 @@ import {
   extensionManageRoute,
   formatPluginMemoryBytes,
   isExtensionArtifactAvailable,
-  isLifecycleV2Plugin,
   missingArtifactCleanupCandidates,
+  selectMissingArtifactCleanupTargets,
   themeActionState,
   themeStatusLabelKey,
+  type AdminExtension,
   type AdminMissingArtifactCleanupResult,
   type AdminMissingArtifactDataMode
 } from '~/utils/admin/adminExtensions'
@@ -122,23 +124,35 @@ const missingCleanupOpen = ref(false)
 const missingCleanupBusy = ref(false)
 const missingCleanupError = ref('')
 const missingCleanupDataMode = ref<AdminMissingArtifactDataMode>('preserve')
+const missingCleanupTargets = ref<AdminExtension[]>([])
 
-function openMissingCleanup() {
-  if (!isSuperAdmin.value || missingArtifacts.value.length === 0) return
+function openMissingCleanup(extensionId = '') {
+  const targets = selectMissingArtifactCleanupTargets(extensions.value, extensionId)
+  if (!isSuperAdmin.value || targets.length === 0) return
+  missingCleanupTargets.value = targets
   missingCleanupDataMode.value = 'preserve'
   missingCleanupError.value = ''
   missingCleanupOpen.value = true
 }
 
+function openExtensionUninstall(item: AdminExtension) {
+  if (!isExtensionArtifactAvailable(item)) {
+    openMissingCleanup(item.id)
+    return
+  }
+  openUninstallExtension(item)
+}
+
 function cancelMissingCleanup() {
   if (missingCleanupBusy.value) return
   missingCleanupOpen.value = false
+  missingCleanupTargets.value = []
   missingCleanupError.value = ''
   missingCleanupDataMode.value = 'preserve'
 }
 
 async function confirmMissingCleanup() {
-  const extensionIds = missingArtifacts.value.map(item => item.id)
+  const extensionIds = missingCleanupTargets.value.map(item => item.id)
   if (extensionIds.length === 0) {
     cancelMissingCleanup()
     return
@@ -155,6 +169,7 @@ async function confirmMissingCleanup() {
     })
     await refresh()
     missingCleanupOpen.value = false
+    missingCleanupTargets.value = []
     toast.add({
       color: 'success',
       icon: 'i-lucide-package-check',
@@ -228,7 +243,7 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
         icon="i-lucide-package-x"
         color="error"
         variant="subtle"
-        @click="openMissingCleanup"
+        @click="openMissingCleanup()"
       >
         {{ t('admin.extensions.missingCleanup.action', { count: missingArtifacts.length }) }}
       </UButton>
@@ -466,13 +481,13 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
                 {{ t('admin.extensions.reactivateTheme') }}
               </UButton>
               <UButton
-                v-if="item.isDeletable && item.source !== 'builtin' && !item.isSystem && (item.status !== 'enabled' || isLifecycleV2Plugin(item))"
+                v-if="canRequestExtensionUninstall(item, isSuperAdmin)"
                 size="sm"
                 color="error"
                 variant="ghost"
                 icon="i-lucide-trash-2"
                 :loading="busyId === item.id"
-                @click="openUninstallExtension(item)"
+                @click="openExtensionUninstall(item)"
               >
                 {{ t('admin.extensions.uninstall') }}
               </UButton>
@@ -685,7 +700,7 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
     <SFAdminMissingArtifactsCleanupDialog
       v-model:open="missingCleanupOpen"
       v-model:data-mode="missingCleanupDataMode"
-      :extensions="missingArtifacts"
+      :extensions="missingCleanupTargets"
       :busy="missingCleanupBusy"
       :error="missingCleanupError"
       @cancel="cancelMissingCleanup"

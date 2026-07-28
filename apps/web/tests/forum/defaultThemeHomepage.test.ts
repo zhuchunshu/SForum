@@ -150,6 +150,7 @@ describe('default theme V32 left-nav homepage contract', () => {
 
   test('left navigation exposes compose, all topics, and category counts', () => {
     const nav = homeNav()
+    const css = homepageCss()
 
     expect(nav).toContain('sf-home-navigation__compose')
     // 侧边栏分类：管理端 icon + iconColor
@@ -171,6 +172,9 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(nav).toContain('forumCategoryPath')
     expect(nav).not.toContain('unread')
     expect(nav).not.toContain('ranking')
+    expect(css).toContain('.sf-home-navigation__mobile,\n  .sforum-home__mobile-nav {\n    display: block;')
+    expect(css).not.toContain('.sforum-home__mobile-nav {\n    display: none;')
+    expect(css).toContain('width: 100%;\n  min-width: 0;\n  min-height: 40px;')
   })
 
   test('legacy theme navigation islands compile with safe empty defaults', () => {

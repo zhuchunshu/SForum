@@ -56,6 +56,14 @@ describe('protected route rendering', () => {
     expect(source).not.toContain('loadPublicSurfaceRevision')
   })
 
+  test('public profiles keep SSR but disable whole-page caching', () => {
+    const config = readFileSync(new URL('../../nuxt.config.ts', import.meta.url), 'utf8')
+    expect(config).toMatch(/['"]\/u\/\*\*['"]\s*:\s*\{\s*cache\s*:\s*false\s*\}/)
+    expect(config).not.toMatch(/['"]\/u\/\*\*['"]\s*:\s*\{[^}]*swr\s*:/)
+    expect(config).not.toMatch(/['"]\/u\/\*\*['"]\s*:\s*\{[^}]*ssr\s*:\s*false/)
+    expect(config).not.toMatch(/varies\s*:\s*\[['"]cookie['"]\]/)
+  })
+
   test('bypasses shared SWR when non-default locale cookie is present', () => {
     const middlewarePath = new URL('../../server/middleware/locale-cache.ts', import.meta.url)
     expect(existsSync(middlewarePath)).toBe(true)
@@ -75,7 +83,7 @@ describe('protected route rendering', () => {
     expect(source).toContain('301')
   })
 
-  test('disables shared page caching for every session-bearing SSR request', () => {
+  test('marks every session-bearing SSR response private without mutating route rules', () => {
     const middlewarePath = new URL('../../server/middleware/public-session-cache.ts', import.meta.url)
     expect(existsSync(middlewarePath)).toBe(true)
 
@@ -83,9 +91,9 @@ describe('protected route rendering', () => {
     expect(source).toContain('sforum_session')
     expect(source).toContain("accept.includes('text/html')")
     expect(source).toContain("path.endsWith('/_payload.json')")
-    expect(source).toContain("setHeader(event, 'cache-control', 'no-store')")
-    expect(source).toContain('routeRules.cache = false')
-    expect(source).toContain('routeRules.swr = false')
+    expect(source).toContain("setHeader(event, 'cache-control', 'private, no-store')")
+    expect(source).not.toContain('routeRules')
+    expect(source).not.toContain('varies')
   })
 
   test('has a global middleware that enforces requiresAuth page metadata', () => {

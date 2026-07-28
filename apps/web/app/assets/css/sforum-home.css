@@ -524,6 +524,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
+  min-width: 0;
   min-height: 40px;
   border: 1px solid var(--sf-public-border);
   border-radius: 8px;
@@ -645,13 +647,9 @@
     max-width: none;
   }
 
-  .sf-home-navigation__mobile {
-    display: block;
-  }
-
-  /* Demo 的移动导航由双抽屉承载，主列不重复显示类别选择器。 */
+  .sf-home-navigation__mobile,
   .sforum-home__mobile-nav {
-    display: none;
+    display: block;
   }
 
 }
@@ -717,6 +715,7 @@
 .sf-home-navigation__compose {
   width: 100%;
   height: 38px;
+  flex-shrink: 0;
   margin: 0 0 18px;
   background: var(--sf-accent);
   color: #fff;

@@ -11,6 +11,31 @@ siteNavItems:
             schema:
               "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteNavItemList"
 
+siteNavigation:
+  get:
+    summary: Resolve public navigation document
+    operationId: resolveSiteNavigation
+    tags: [Site chrome]
+    description: Resolves the canonical navigation document for the current locale and actor. Visibility is presentation-only; target authorization remains authoritative.
+    parameters:
+      - name: locations
+        in: query
+        required: false
+        description: Optional comma-separated stable locations. Omitted resolves all supported v1 locations.
+        schema:
+          type: array
+          items:
+            "$ref": "../schemas/site_chrome.yaml#/SiteNavigationLocation"
+        style: form
+        explode: false
+    responses:
+      '200':
+        description: Safe resolved items for the requested actor and locale. Missing or inactive extension contributions are omitted.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteResolvedNavigation"
+
 siteFriendLinks:
   get:
     summary: List public friend links
@@ -36,6 +61,227 @@ siteAnnouncements:
           application/json:
             schema:
               "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteAnnouncementList"
+
+adminSiteNavigation:
+  get:
+    summary: Read editable navigation document
+    operationId: adminGetSiteNavigation
+    tags: [Site chrome]
+    description: Requires settings.site.manage. Returns the revision used by every unsafe navigation command.
+    responses:
+      '200':
+        description: Full operator document, including inert extension references and active-theme location capabilities.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteNavigationDocument"
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+
+adminSiteNavigationApply:
+  post:
+    summary: Compare-and-swap apply navigation document
+    operationId: adminApplySiteNavigation
+    tags: [Site chrome]
+    description: Requires settings.site.manage. Validates the whole document, snapshots the prior document, writes one revision, and rejects stale revisions atomically.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/site_chrome.yaml#/SiteNavigationApplyRequest"
+    responses:
+      '200':
+        description: Applied document and new revision.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteNavigationDocument"
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '409': { "$ref": "../components/responses.yaml#/Conflict" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+
+adminSiteNavigationDefaultsPreview:
+  post:
+    summary: Preview recommended navigation defaults
+    operationId: adminPreviewSiteNavigationDefaults
+    tags: [Site chrome]
+    description: Requires settings.site.manage. Preview has no writes and never removes extension declarations or secrets.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/site_chrome.yaml#/SiteNavigationDefaultsPreviewRequest"
+    responses:
+      '200':
+        description: Diff and current-revision fenced preview token.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteNavigationPreview"
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '409': { "$ref": "../components/responses.yaml#/Conflict" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+
+adminSiteNavigationDefaultsApply:
+  post:
+    summary: Restore recommended navigation defaults
+    operationId: adminApplySiteNavigationDefaults
+    tags: [Site chrome]
+    description: Requires settings.site.manage. Applies a previously previewed one-location or all-location restore with compare-and-swap protection.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/site_chrome.yaml#/SiteNavigationPreviewApplyRequest"
+    responses:
+      '200':
+        description: Applied document and new revision.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteNavigationDocument"
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '409': { "$ref": "../components/responses.yaml#/Conflict" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+
+adminSiteNavigationSnapshots:
+  get:
+    summary: List navigation snapshots
+    operationId: adminListSiteNavigationSnapshots
+    tags: [Site chrome]
+    description: Requires settings.site.manage. V1 retains the newest 20 automatic snapshots.
+    responses:
+      '200':
+        description: Snapshot metadata in newest-first order.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteNavigationSnapshotList"
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+
+adminSiteNavigationSnapshotByID:
+  get:
+    summary: Read a navigation snapshot
+    operationId: adminGetSiteNavigationSnapshot
+    tags: [Site chrome]
+    description: Requires settings.site.manage.
+    parameters:
+      - name: snapshotID
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    responses:
+      '200':
+        description: Snapshot metadata and portable document.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteNavigationSnapshot"
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '404': { "$ref": "../components/responses.yaml#/NotFound" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+
+adminSiteNavigationSnapshotRestore:
+  post:
+    summary: Restore a navigation snapshot
+    operationId: adminRestoreSiteNavigationSnapshot
+    tags: [Site chrome]
+    description: Requires settings.site.manage. The current document is snapshotted before restore.
+    parameters:
+      - name: snapshotID
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/site_chrome.yaml#/SiteNavigationSnapshotRestoreRequest"
+    responses:
+      '200':
+        description: Restored document and new revision.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteNavigationDocument"
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '404': { "$ref": "../components/responses.yaml#/NotFound" }
+      '409': { "$ref": "../components/responses.yaml#/Conflict" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+
+adminSiteNavigationExport:
+  get:
+    summary: Export portable navigation backup
+    operationId: adminExportSiteNavigation
+    tags: [Site chrome]
+    description: Requires settings.site.manage. The document has no database IDs, secrets, artifact bytes, or executable material.
+    responses:
+      '200':
+        description: sforum.site-navigation-backup@1 portable document.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteNavigationBackup"
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+
+adminSiteNavigationImportPreview:
+  post:
+    summary: Preview navigation backup import
+    operationId: adminPreviewSiteNavigationImport
+    tags: [Site chrome]
+    description: Requires settings.site.manage. Validation and structured diff preview do not write state.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/site_chrome.yaml#/SiteNavigationImportPreviewRequest"
+    responses:
+      '200':
+        description: Import diff, inert extension-reference warnings, and a current-revision fenced preview token.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteNavigationPreview"
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '409': { "$ref": "../components/responses.yaml#/Conflict" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+
+adminSiteNavigationImportApply:
+  post:
+    summary: Apply a previewed navigation backup import
+    operationId: adminApplySiteNavigationImport
+    tags: [Site chrome]
+    description: Requires settings.site.manage. Merge and replace both use the preview token and expected revision fence.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/site_chrome.yaml#/SiteNavigationPreviewApplyRequest"
+    responses:
+      '200':
+        description: Applied document and new revision.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteNavigationDocument"
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '409': { "$ref": "../components/responses.yaml#/Conflict" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
 
 adminSiteNavItems:
   get:

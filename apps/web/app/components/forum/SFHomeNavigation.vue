@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { useActiveThemeSettings } from '~/composables/themes/useActiveThemeSettings'
+import { usePublicNavigation } from '~/composables/navigation/usePublicNavigation'
 import { forumCategoryPath, type ForumCategory } from '~/utils/forum/forumTaxonomy'
+import {
+  isCoreDynamicCategories,
+  isExternalNavigationItem,
+  isInternalNavigationItem,
+  type PublicNavigationItem
+} from '~/utils/navigation/publicNavigation'
 
 const props = withDefaults(defineProps<{
   categories?: ForumCategory[]
@@ -41,29 +48,21 @@ const router = useRouter()
 const route = useRoute()
 const { navShowCompose, navShowCounts } = useActiveThemeSettings()
 const { siteName } = useWebOptions()
+const { sidebarItems } = usePublicNavigation()
 
 const useRouteLinks = computed(() => props.navigationMode === 'route')
 const routePath = computed(() => route.path.replace(/\/+$/, '') || '/')
 const homePath = computed(() => localePath('/').replace(/\/+$/, '') || '/')
-const categoriesPath = computed(() => localePath('/categories').replace(/\/+$/, ''))
-const tagsPath = computed(() => localePath('/tags').replace(/\/+$/, ''))
-const activeTopLevel = computed(() => {
-  if (!useRouteLinks.value) {
-    return ''
-  }
-  if (routePath.value === tagsPath.value || routePath.value.startsWith(`${tagsPath.value}/`)) {
-    return 'tags'
-  }
-  if (routePath.value === categoriesPath.value) {
-    return 'categories'
-  }
-  return routePath.value === homePath.value ? 'home' : ''
-})
 const allTopicsActive = computed(() => useRouteLinks.value
-  ? activeTopLevel.value === 'home' && !props.selectedCategorySlug
+  ? routePath.value === homePath.value && !props.selectedCategorySlug
   : !props.selectedCategorySlug
 )
 const showCategorySkeleton = computed(() => props.showCategories && props.pending && props.categories.length === 0)
+const resolvedSidebarItems = computed(() => sidebarItems.value.filter((item) => {
+  if (isCoreDynamicCategories(item)) return props.showCategories
+  return Boolean(item.label.trim()) && (isExternalNavigationItem(item) || isInternalNavigationItem(item))
+}))
+const hasDynamicCategories = computed(() => props.showCategories && sidebarItems.value.some(isCoreDynamicCategories))
 
 function allTopicsTo() {
   return localePath('/')
@@ -71,6 +70,26 @@ function allTopicsTo() {
 
 function categoryTo(slug: string) {
   return localePath(forumCategoryPath(slug))
+}
+
+function navigationItemTo(item: PublicNavigationItem) {
+  const href = (item.href || '').trim()
+  return isExternalNavigationItem(item) ? href : localePath(href || '/')
+}
+
+function navigationItemActive(item: PublicNavigationItem) {
+  if (isExternalNavigationItem(item)) return false
+  if (item.sourceKey === 'core.home') return allTopicsActive.value
+  const target = String(navigationItemTo(item)).split('?')[0]?.replace(/\/+$/, '') || '/'
+  return routePath.value === target || routePath.value.startsWith(`${target}/`)
+}
+
+function isHomeFilterControl(item: PublicNavigationItem) {
+  return !useRouteLinks.value && item.sourceKey === 'core.home' && isInternalNavigationItem(item)
+}
+
+function navigationItemCount(item: PublicNavigationItem) {
+  return item.sourceKey === 'core.home' ? props.totalTopics : undefined
 }
 
 function selectCategory(slug: string) {
@@ -106,8 +125,8 @@ function categoryIconName(category: ForumCategory) {
 </script>
 
 <template>
-  <aside class="sf-home-navigation" :aria-busy="pending">
-    <div v-if="!desktopOnly" class="sf-home-navigation__mobile">
+  <aside class="sf-home-navigation" data-navigation-location="public.sidebar.primary" :aria-busy="pending">
+    <div v-if="!desktopOnly && hasDynamicCategories" class="sf-home-navigation__mobile">
       <label class="sf-home-navigation__select-wrap">
         <span class="sf-home-navigation__select-label">{{ t('home.categories') }}</span>
         <span class="sf-home-navigation__select-control">
@@ -148,112 +167,97 @@ function categoryIconName(category: ForumCategory) {
       </template>
 
       <div class="sf-home-navigation__label">{{ t('home.sidebar.navTitle') }}</div>
-      <NuxtLink
-        v-if="useRouteLinks"
-        :to="allTopicsTo()"
-        class="sf-home-navigation__link"
-        :class="{ 'is-active': allTopicsActive }"
-      >
-        <span class="sf-home-navigation__link-main">
-          <UIcon name="i-lucide-layout-list" class="size-[18px]" aria-hidden="true" />
-          {{ t('home.allTopics') }}
-        </span>
-        <span v-if="navShowCounts" class="sf-home-navigation__count">{{ totalTopics }}</span>
-      </NuxtLink>
-      <button
-        v-else
-        type="button"
-        class="sf-home-navigation__link"
-        :class="{ 'is-active': allTopicsActive }"
-        :aria-pressed="allTopicsActive"
-        @click="selectCategory('')"
-      >
-        <span class="sf-home-navigation__link-main">
-          <UIcon name="i-lucide-layout-list" class="size-[18px]" aria-hidden="true" />
-          {{ t('home.allTopics') }}
-        </span>
-        <span v-if="navShowCounts" class="sf-home-navigation__count">{{ totalTopics }}</span>
-      </button>
-
-      <NuxtLink
-        :to="localePath('/categories')"
-        class="sf-home-navigation__link"
-        :class="{ 'is-active': activeTopLevel === 'categories' }"
-      >
-        <span class="sf-home-navigation__link-main">
-          <UIcon name="i-lucide-layout-grid" class="size-[18px]" aria-hidden="true" />
-          {{ t('home.categories') }}
-        </span>
-      </NuxtLink>
-      <NuxtLink
-        :to="localePath('/tags')"
-        class="sf-home-navigation__link"
-        :class="{ 'is-active': activeTopLevel === 'tags' }"
-      >
-        <span class="sf-home-navigation__link-main">
-          <UIcon name="i-lucide-tags" class="size-[18px]" aria-hidden="true" />
-          {{ t('home.tags') }}
-        </span>
-      </NuxtLink>
-
-      <div v-if="props.showCategories" class="sf-home-navigation__label">{{ t('home.categories') }}</div>
-      <div v-if="showCategorySkeleton" class="sf-home-navigation__pending">
-        <SFSkeleton v-for="item in 4" :key="item" :lines="1" />
-      </div>
-      <template v-if="props.showCategories">
-        <template v-if="useRouteLinks">
-          <NuxtLink
-            v-for="category in categories"
-            :key="category.slug"
-            :to="categoryTo(category.slug)"
-            class="sf-home-navigation__link"
-            :class="{ 'is-active': selectedCategorySlug === category.slug }"
-          >
-            <span class="sf-home-navigation__link-main">
-              <span
-                class="sf-home-navigation__cat-icon"
-                :style="{ color: categoryIconColor(category) }"
-                aria-hidden="true"
-              >
-                <UIcon :name="categoryIconName(category)" class="size-[18px]" />
+      <template v-for="item in resolvedSidebarItems" :key="item.sourceKey">
+        <template v-if="isCoreDynamicCategories(item)">
+          <div class="sf-home-navigation__label">{{ item.label }}</div>
+          <div v-if="showCategorySkeleton" class="sf-home-navigation__pending">
+            <SFSkeleton v-for="skeleton in 4" :key="skeleton" :lines="1" />
+          </div>
+          <template v-if="useRouteLinks">
+            <NuxtLink
+              v-for="category in categories"
+              :key="category.slug"
+              :to="categoryTo(category.slug)"
+              class="sf-home-navigation__link"
+              :class="{ 'is-active': selectedCategorySlug === category.slug }"
+            >
+              <span class="sf-home-navigation__link-main">
+                <span class="sf-home-navigation__cat-icon" :style="{ color: categoryIconColor(category) }" aria-hidden="true">
+                  <UIcon :name="categoryIconName(category)" class="size-[18px]" />
+                </span>
+                {{ category.name }}
               </span>
-              {{ category.name }}
-            </span>
-            <span v-if="navShowCounts" class="sf-home-navigation__count">{{ category.topicCount }}</span>
-          </NuxtLink>
-        </template>
-        <template v-else>
-          <button
-            v-for="category in categories"
-            :key="category.slug"
-            type="button"
-            class="sf-home-navigation__link"
-            :class="{ 'is-active': selectedCategorySlug === category.slug }"
-            :aria-pressed="selectedCategorySlug === category.slug"
-            @click="selectCategory(category.slug)"
-          >
-            <span class="sf-home-navigation__link-main">
-              <span
-                class="sf-home-navigation__cat-icon"
-                :style="{ color: categoryIconColor(category) }"
-                aria-hidden="true"
-              >
-                <UIcon :name="categoryIconName(category)" class="size-[18px]" />
+              <span v-if="navShowCounts" class="sf-home-navigation__count">{{ category.topicCount }}</span>
+            </NuxtLink>
+          </template>
+          <template v-else>
+            <button
+              v-for="category in categories"
+              :key="category.slug"
+              type="button"
+              class="sf-home-navigation__link"
+              :class="{ 'is-active': selectedCategorySlug === category.slug }"
+              :aria-pressed="selectedCategorySlug === category.slug"
+              @click="selectCategory(category.slug)"
+            >
+              <span class="sf-home-navigation__link-main">
+                <span class="sf-home-navigation__cat-icon" :style="{ color: categoryIconColor(category) }" aria-hidden="true">
+                  <UIcon :name="categoryIconName(category)" class="size-[18px]" />
+                </span>
+                {{ category.name }}
               </span>
-              {{ category.name }}
-            </span>
-            <span v-if="navShowCounts" class="sf-home-navigation__count">{{ category.topicCount }}</span>
-          </button>
+              <span v-if="navShowCounts" class="sf-home-navigation__count">{{ category.topicCount }}</span>
+            </button>
+          </template>
         </template>
+        <button
+          v-else-if="isHomeFilterControl(item)"
+          type="button"
+          class="sf-home-navigation__link"
+          :class="{ 'is-active': navigationItemActive(item) }"
+          :aria-pressed="navigationItemActive(item)"
+          @click="selectCategory('')"
+        >
+          <span class="sf-home-navigation__link-main">
+            <UIcon v-if="item.icon" :name="item.icon" class="size-[18px]" aria-hidden="true" />
+            {{ item.label }}
+          </span>
+          <span v-if="navShowCounts" class="sf-home-navigation__count">{{ navigationItemCount(item) }}</span>
+        </button>
+        <a
+          v-else-if="item.openInNewTab || isExternalNavigationItem(item)"
+          :href="navigationItemTo(item)"
+          class="sf-home-navigation__link"
+          target="_blank"
+          rel="noopener noreferrer"
+          :title="item.label"
+        >
+          <span class="sf-home-navigation__link-main">
+            <UIcon v-if="item.icon" :name="item.icon" class="size-[18px]" aria-hidden="true" />
+            {{ item.label }}
+          </span>
+          <span v-if="navShowCounts && navigationItemCount(item) !== undefined" class="sf-home-navigation__count">{{ navigationItemCount(item) }}</span>
+        </a>
+        <NuxtLink
+          v-else
+          :to="navigationItemTo(item)"
+          class="sf-home-navigation__link"
+          :class="{ 'is-active': navigationItemActive(item) }"
+          active-class=""
+          exact-active-class=""
+          :title="item.label"
+        >
+          <span class="sf-home-navigation__link-main">
+            <UIcon v-if="item.icon" :name="item.icon" class="size-[18px]" aria-hidden="true" />
+            {{ item.label }}
+          </span>
+          <span v-if="navShowCounts && navigationItemCount(item) !== undefined" class="sf-home-navigation__count">{{ navigationItemCount(item) }}</span>
+        </NuxtLink>
       </template>
 
       <slot name="after-navigation" />
 
       <div class="sf-home-navigation__foot">
-        <NuxtLink :to="localePath('/guidelines')">
-          <UIcon name="i-lucide-book-open" class="size-4" aria-hidden="true" />
-          {{ t('home.sidebar.guidelines') }}
-        </NuxtLink>
         <span class="sf-home-navigation__foot-item">
           <UIcon name="i-lucide-info" class="size-4" aria-hidden="true" />
           {{ t('home.sidebar.aboutSite', { siteName }) }}

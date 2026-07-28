@@ -20,7 +20,7 @@ describe('admin surface placement catalog', () => {
     }
 
     // 与 apps/web/app/pages/admin 下页面及 v3-catalog 生成结果对齐；新增后台页必须先进入 generator。
-    expect(adminSurfacePlacements.length).toBe(44)
+    expect(adminSurfacePlacements.length).toBe(45)
     expect(adminSurfacePlacements).toContainEqual({
       id: 'core.component.page.admin.users',
       contractVersion: 'sforum.component.page.admin.users@1',

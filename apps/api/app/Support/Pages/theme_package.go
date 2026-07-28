@@ -13,9 +13,17 @@ import (
 
 // ThemePackage 描述 L0/L1 运行时主题包（theme.json + assets + templates）。
 type ThemePackage struct {
-	Pages   []ThemePageDecl `json:"pages"`
-	Skin    ThemeSkin       `json:"skin"`
-	Widgets []ThemeWidget   `json:"widgets,omitempty"` // L2 声明保留解析，运行时不加载
+	Pages               []ThemePageDecl   `json:"pages"`
+	Skin                ThemeSkin         `json:"skin"`
+	NavigationLocations map[string]string `json:"navigationLocations,omitempty"`
+	Widgets             []ThemeWidget     `json:"widgets,omitempty"` // L2 声明保留解析，运行时不加载
+}
+
+var themeNavigationLocationBindings = map[string]string{
+	"public.topbar.primary":  "sf-navbar",
+	"public.sidebar.primary": "sf-home-navigation",
+	"public.mobile.primary":  "sf-navbar",
+	"public.footer.primary":  "sf-footer",
 }
 
 type ThemePageDecl struct {
@@ -65,7 +73,33 @@ func LoadThemePackage(packageRoot string) (ThemePackage, error) {
 	if err := json.Unmarshal(raw, &pkg); err != nil {
 		return ThemePackage{}, fmt.Errorf("pages: invalid theme.json: %w", err)
 	}
+	locations, err := normalizeThemeNavigationLocations(pkg.NavigationLocations)
+	if err != nil {
+		return ThemePackage{}, err
+	}
+	pkg.NavigationLocations = locations
 	return pkg, nil
+}
+
+func normalizeThemeNavigationLocations(input map[string]string) (map[string]string, error) {
+	if len(input) == 0 {
+		return nil, nil
+	}
+	result := make(map[string]string, len(input))
+	bindings := productionThemeIslandBindings()
+	for location, island := range input {
+		location = strings.TrimSpace(location)
+		island = strings.TrimSpace(strings.ToLower(island))
+		expected, known := themeNavigationLocationBindings[location]
+		if !known || island != expected {
+			return nil, fmt.Errorf("pages: invalid theme navigation location binding %q=%q", location, island)
+		}
+		if _, allowed := allowedHostIslands[island]; !allowed || bindings[island].ComponentID == "" {
+			return nil, fmt.Errorf("pages: unreviewed theme navigation island %q", island)
+		}
+		result[location] = island
+	}
+	return result, nil
 }
 
 func defaultSkinCSSIfPresent(packageRoot string) []string {

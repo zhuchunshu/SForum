@@ -8,12 +8,14 @@ load archived sessions or completed plans as current context.
 
 ### Configurable Public Navigation Platform
 
-- Status: **ready**; topbar operator rows and plugin append are present, while
-  shared topbar/sidebar/mobile/footer placement, accessible sorting, defaults,
-  snapshots, backup, and full V3 plugin/theme lifecycle wiring remain open.
+- Status: **active, M0-M6 complete**; all four public locations share the
+  canonical actor-sensitive navigation authority, sidebar taxonomy expands
+  through `core.dynamic.categories`, and exact active-theme capability is
+  projected from immutable runtime state. M7 is the final lifecycle and
+  release gate.
 - Plan: `plans/2026-07-27-configurable-public-navigation-platform.md`
 - Handoff:
-  `sessions/2026-07-27-public-navigation-platform-plan-handoff.md`
+  `sessions/2026-07-28-public-navigation-platform-handoff.md`
 - Decision:
   `decisions/2026-07-27-operator-owned-public-navigation.md`
 - Modules: `modules/options.md`, `modules/frontend.md`,
@@ -90,6 +92,14 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Missing-artifact uninstall routing: per-row cleanup now targets only the
+  selected missing extension, ordinary lifecycle DELETE fails closed, and
+  immutable publication history no longer causes refresh-time reappearance:
+  `sessions/2026-07-29-extension-missing-artifact-uninstall-routing.md`
+- GitHub Actions release pipeline: reusable CI and security checks, four
+  multi-platform GHCR images, scan/attestation/exact-image smoke before tag
+  promotion, plus version-pinned Compose deployment:
+  `sessions/2026-07-29-github-actions-release-pipeline-handoff.md`
 - Notification email opt-in defaults: admin per-type email control, Core
   transaction-scoped user preference enforcement, hard site gate, safe default
   migration, personal managed state, and desktop/mobile Browser QA:
@@ -149,10 +159,11 @@ load archived sessions or completed plans as current context.
 - Search automatic reconciliation: provider-neutral Host ledger, startup + 15m
   bounded repair schedule, and real-runtime cleanup of 92 historical ghosts:
   `sessions/2026-07-27-search-auto-reconciliation-handoff.md`
-- Configurable public navigation task book: one persistent Codex Goal for
-  sequential M0-M7, with Core-owned placement/defaults/backup, theme-owned
-  presentation, bounded V3 plugin injection, and durable recovery checkpoints:
-  `sessions/2026-07-27-public-navigation-platform-plan-handoff.md`
+- Configurable public navigation M0-M6: revisioned four-location editor,
+  recovery/backup, canonical topbar/sidebar/mobile/footer SSR authority,
+  dynamic taxonomy, exact theme capabilities, and selected-theme
+  desktop/mobile Browser QA are complete; M7 final gate is next:
+  `sessions/2026-07-28-public-navigation-platform-handoff.md`
 - Notification Platform V2 completed M0-M7 with exact-artifact Web Push,
   real PostgreSQL multi-node/fixture evidence, hidden-target scrubbing, and a
   green full repository gate; use this handoff only for independent review:

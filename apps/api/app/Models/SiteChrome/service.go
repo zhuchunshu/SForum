@@ -7,7 +7,10 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/jackc/pgx/v5"
+
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	audit "github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 )
 
 const (
@@ -24,13 +27,60 @@ const (
 var announcementStyles = []string{StyleInfo, StyleSuccess, StyleWarning, StyleDanger}
 
 type Service struct {
-	store        Store
-	extensionNav ExtensionNavItemProvider
-	navigation   *navigationRegistryConfig
+	store               Store
+	navigationDocuments NavigationDocumentStore
+	navigationTheme     NavigationThemeLocationProvider
+	extensionNav        ExtensionNavItemProvider
+	navigation          *navigationRegistryConfig
+	navigationCommands  NavigationCommandStore
+	navigationAudit     audit.TxWriter
+	navigationRevision  NavigationPublicSurfaceRevisionBumper
+	navigationPreviews  *navigationPreviewStore
 }
 
 func NewService(store Store) *Service {
-	return &Service{store: store}
+	service := &Service{store: store, navigationPreviews: newNavigationPreviewStore()}
+	if documents, ok := store.(NavigationDocumentStore); ok {
+		service.navigationDocuments = documents
+	}
+	return service
+}
+
+// NavigationPublicSurfaceRevisionBumper is deliberately the smallest cross-
+// domain capability SiteChrome needs. It is implemented by Options.Service.
+type NavigationPublicSurfaceRevisionBumper interface {
+	BumpPublicSurfaceRevisionTx(context.Context, pgx.Tx) (int64, error)
+	Invalidate()
+}
+
+// WithNavigationCommandDependencies wires M2's transactional command path
+// without widening the legacy SiteChrome store or exposing Options internals.
+func (s *Service) WithNavigationCommandDependencies(store NavigationCommandStore, auditor audit.TxWriter, revision NavigationPublicSurfaceRevisionBumper) *Service {
+	if s != nil {
+		s.navigationCommands = store
+		s.navigationAudit = auditor
+		s.navigationRevision = revision
+		if store != nil {
+			s.navigationDocuments = store
+		}
+	}
+	return s
+}
+
+// WithNavigationDocumentStore exists for focused tests and future read-only
+// replicas. It does not add mutation behavior to the legacy Store contract.
+func (s *Service) WithNavigationDocumentStore(store NavigationDocumentStore) *Service {
+	if s != nil {
+		s.navigationDocuments = store
+	}
+	return s
+}
+
+func (s *Service) WithNavigationThemeLocations(provider NavigationThemeLocationProvider) *Service {
+	if s != nil {
+		s.navigationTheme = provider
+	}
+	return s
 }
 
 // WithExtensionNavItems 注入 forum.nav.items 解析（E2.3）。

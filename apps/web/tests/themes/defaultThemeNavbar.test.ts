@@ -5,6 +5,18 @@ const source = readFileSync(
   new URL('../../app/components/SFNavbar.vue', import.meta.url),
   'utf8'
 )
+const navigationLinksSource = readFileSync(
+  new URL('../../app/components/navigation/SFPublicNavigationLinks.vue', import.meta.url),
+  'utf8'
+)
+const mobileNavigationSource = readFileSync(
+  new URL('../../app/components/navigation/SFPublicMobileNavigation.vue', import.meta.url),
+  'utf8'
+)
+const navigationComposableSource = readFileSync(
+  new URL('../../app/composables/navigation/usePublicNavigation.ts', import.meta.url),
+  'utf8'
+)
 const themeTemplateSource = readFileSync(
   new URL('../../app/components/SFThemeTemplate.vue', import.meta.url),
   'utf8'
@@ -36,12 +48,12 @@ describe('default theme shared navbar contract', () => {
   })
 
   test('marks desktop nav active with exact home match and underline class', () => {
-    expect(source).toContain('function isDesktopNavActive')
-    expect(source).toContain("class=\"navbar__nav-link\"")
-    expect(source).toContain(":class=\"{ 'is-active': isDesktopNavActive(item.href) }\"")
-    expect(source).toContain('active-class=""')
-    expect(source).toContain('exact-active-class=""')
-    expect(source).toContain('.navbar__nav-link.is-active::after')
+    expect(navigationLinksSource).toContain('function isActive')
+    expect(navigationLinksSource).toContain("class=\"sf-public-navigation-links__link\"")
+    expect(navigationLinksSource).toContain(":class=\"{ 'is-active': isActive(item) }\"")
+    expect(navigationLinksSource).toContain('active-class=""')
+    expect(navigationLinksSource).toContain('exact-active-class=""')
+    expect(navigationLinksSource).toContain('.sf-public-navigation-links--topbar .sf-public-navigation-links__link.is-active::after')
   })
 
   test('orders the desktop identity, home nav, search, compose, utility, and session columns', () => {
@@ -51,7 +63,7 @@ describe('default theme shared navbar contract', () => {
     const newTopicIndex = source.indexOf('class="navbar__new-topic"')
     const utilityIndex = source.indexOf('class="navbar__utility"')
     const sessionIndex = source.indexOf('class="navbar__session"')
-    const navMarkup = source.slice(navIndex, source.indexOf('</nav>', navIndex))
+    const navMarkup = source.slice(navIndex, source.indexOf('/>', navIndex))
 
     expect(identityIndex).toBeGreaterThan(-1)
     expect(navIndex).toBeGreaterThan(identityIndex)
@@ -59,17 +71,23 @@ describe('default theme shared navbar contract', () => {
     expect(newTopicIndex).toBeGreaterThan(searchIndex)
     expect(utilityIndex).toBeGreaterThan(newTopicIndex)
     expect(sessionIndex).toBeGreaterThan(utilityIndex)
-    expect(navMarkup).toContain('desktopNavItems')
-    expect(source).toContain("t('home.filter.latest')")
-    expect(source).toContain("t('home.filter.categories')")
-    expect(source).toContain("t('home.filter.tags')")
-    expect(source).toContain('forumCategoriesIndexPath()')
-    expect(source).toContain('forumTagsIndexPath()')
+    expect(navMarkup).toContain('visibleTopbarItems')
     expect(source).toContain('publicTagPagesEnabled')
-    // E2.3：运营 items 在前，扩展 extensionItems 次之
-    expect(source).toContain('listPublicNav')
-    expect(source).toContain('extensionItems')
-    expect(source).toContain('isSafePublicNavHref')
+    expect(source).toContain('usePublicNavigation(props.fetchRemoteChrome)')
+    expect(source).not.toContain('/site/nav-items')
+    expect(source).not.toContain('fallback-home')
+    expect(source).not.toContain('listPublicNav')
+    expect(source).not.toContain('extensionItems')
+    expect(source).not.toContain('desktopNavItems')
+    expect(source).not.toContain("t('home.filter.latest')")
+    expect(source).not.toContain("t('home.filter.categories')")
+    expect(source).not.toContain("t('home.filter.tags')")
+    expect(source).not.toContain('forumCategoriesIndexPath()')
+    expect(source).not.toContain('forumTagsIndexPath()')
+    expect(source).not.toContain('isSafePublicNavHref')
+    expect(navigationComposableSource).toContain('/site/navigation?locations=')
+    expect(navigationComposableSource).toContain('PUBLIC_NAVIGATION_LOCATIONS.topbar')
+    expect(navigationComposableSource).toContain('PUBLIC_NAVIGATION_LOCATIONS.mobile')
     expect(navMarkup).not.toContain('/topics/new')
     expect(navMarkup).not.toContain('canCreateTopic')
     expect(navMarkup).not.toContain('热门')
@@ -139,22 +157,39 @@ describe('default theme shared navbar contract', () => {
     expect(themeTemplateSource).not.toContain("'navigation.component.footer': resolveComponent('SFFooter')")
   })
 
-  test('keeps mobile compose visible and out of the mobile dropdown', () => {
+  test('keeps Host utilities available when canonical navigation is empty', () => {
+    expect(source).toContain('<SFSearch')
+    expect(source).toContain('class="navbar__utility"')
+    expect(source).toContain('languageMenuItems')
+    expect(source).toContain('cycleColorModePreference')
+    expect(source).toContain('class="navbar__session"')
+    expect(source).not.toContain('v-if="visibleTopbarItems.length"')
+  })
+
+  test('keeps mobile compose visible and uses a dedicated canonical navigation drawer', () => {
     const linkIndex = source.indexOf('class="navbar__mobile-new-topic"')
     const linkMarkup = source.slice(
       source.lastIndexOf('<NuxtLink', linkIndex),
       source.indexOf('</NuxtLink>', linkIndex)
     )
-    const menuItemsStart = source.indexOf('const mobileMenuItems')
-    const menuItemsEnd = source.indexOf('\n\nwatch(', menuItemsStart)
-    const menuItems = source.slice(menuItemsStart, menuItemsEnd)
-
     expect(linkIndex).toBeGreaterThan(-1)
     expect(linkMarkup).toContain('v-if="canCreateTopic"')
     expect(linkMarkup).toContain(':to="localePath(\'/topics/new\')"')
     expect(linkMarkup).toContain('i-lucide-square-pen')
     expect(linkMarkup).toContain(':aria-label="t(\'nav.newTopic\')"')
-    expect(menuItems).not.toContain('/topics/new')
-    expect(menuItems).not.toContain("t('nav.newTopic')")
+    expect(source).toContain('<SFPublicMobileNavigation')
+    expect(source).toContain(':items="visibleMobileItems"')
+    expect(source).toContain("'public-mobile-navigation-open'")
+    expect(source).not.toContain("'forum-mobile-menu-open'")
+    expect(mobileNavigationSource).toContain('data-navigation-location="public.mobile.primary"')
+    expect(mobileNavigationSource).toContain('<SFPublicNavigationLinks mode="mobile"')
+  })
+
+  test('bounds topbar items and keeps external destinations safe', () => {
+    expect(navigationLinksSource).toContain('visibleLimit: 4')
+    expect(navigationLinksSource).toContain('<UDropdownMenu')
+    expect(navigationLinksSource).toContain("t('nav.more')")
+    expect(navigationLinksSource).toContain('target="_blank"')
+    expect(navigationLinksSource).toContain('rel="noopener noreferrer"')
   })
 })

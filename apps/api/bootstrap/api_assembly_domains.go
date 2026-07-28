@@ -17,6 +17,7 @@ import (
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	moderation "github.com/zhuchunshu/sforum/apps/api/app/Models/Moderation"
 	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
+	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	pageviewmodels "github.com/zhuchunshu/sforum/apps/api/app/Models/PageViewModels"
 	profile "github.com/zhuchunshu/sforum/apps/api/app/Models/Profile"
 	sitechrome "github.com/zhuchunshu/sforum/apps/api/app/Models/SiteChrome"
@@ -300,13 +301,6 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	moderationProvider := providers.NewModerationWorkbenchProviderWithIndexer(moderationStore, forumStore, identityStore, authSessions, searchIndexer)
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
 	siteChromeStore := sitechrome.NewPostgresStore(pool)
-	// E2.3：公开顶栏合并 forum.nav.items（核心/运营项之后）。
-	siteChromeProvider := providers.NewSiteChromeProviderWithExtensionNav(
-		siteChromeStore,
-		identityStore,
-		authSessions,
-		providers.NewExtensionNavItemProvider(extensionService),
-	)
 	attachmentsProvider := providers.NewAttachmentsProviderWithService(attachmentService, attachmentStore, identityStore, authSessions)
 	seoProvider := providers.NewSEOProvider(pool, optionsService)
 	databaseProvider := providers.NewDatabaseProvider(databaseStore, identityStore, authSessions)
@@ -353,7 +347,12 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	pageSiteChromeService := sitechrome.NewService(siteChromeStore).
 		WithExtensionNavItems(providers.NewExtensionNavItemProvider(extensionService)).
 		WithNavigationRegistry(pageNavigationRegistry).
-		WithNavigationRuntime(pageNavigationRuntime, pageNavigationRuntime)
+		WithNavigationRuntime(pageNavigationRuntime, pageNavigationRuntime).
+		WithNavigationThemeLocations(themeRuntime).
+		WithNavigationCommandDependencies(siteChromeStore, auditWriter, options.NewPublicSurfaceRevisionTxBumper(optionsService))
+	// HTTP and Page Registry intentionally share this resolver. A separate API
+	// service would lose the lifecycle-published exact-artifact graph.
+	siteChromeProvider := providers.NewSiteChromeProviderWithService(pageSiteChromeService, identityStore, authSessions)
 	// 导航检查器复用 SiteChrome 内部 trace ring，保证合成与审计同源。
 	extensionsProvider.WithNavigationInspector(pageSiteChromeService.NavigationInspector())
 	corePageViews := pageviewmodels.NewCorePageViewModelSource(pageviewmodels.CorePageViewModelDependencies{

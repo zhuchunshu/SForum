@@ -559,6 +559,16 @@ export function isExtensionArtifactAvailable(item: AdminExtension) {
   return item.artifactState !== 'missing'
 }
 
+export function canRequestExtensionUninstall(item: AdminExtension, isSuperAdmin: boolean) {
+  if (!item.isDeletable || item.source === 'builtin' || item.isSystem) {
+    return false
+  }
+  if (!isExtensionArtifactAvailable(item)) {
+    return isSuperAdmin && item.status !== 'enabled'
+  }
+  return item.status !== 'enabled' || isLifecycleV2Plugin(item)
+}
+
 export function missingArtifactCleanupCandidates(items: AdminExtension[]) {
   return items.filter(item =>
     !isExtensionArtifactAvailable(item)
@@ -566,6 +576,12 @@ export function missingArtifactCleanupCandidates(items: AdminExtension[]) {
     && item.isDeletable
     && !item.isSystem
     && item.status !== 'enabled')
+}
+
+export function selectMissingArtifactCleanupTargets(items: AdminExtension[], extensionId = '') {
+  const candidates = missingArtifactCleanupCandidates(items)
+  const targetId = extensionId.trim()
+  return targetId ? candidates.filter(item => item.id === targetId) : candidates
 }
 
 export function extensionStats(items: AdminExtension[]): AdminExtensionStats {

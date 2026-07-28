@@ -87,21 +87,9 @@ func (s *Service) ComposeNavigation(
 	if err != nil {
 		return NavigationRegionViewModel{}, err
 	}
-	locale := siteChromeLocale(input.Locale)
-	if s.navigation == nil {
-		return defaultNavigationViewModel(items, locale), nil
-	}
-	if s.navigation.err != nil || s.navigation.composer == nil {
-		return NavigationRegionViewModel{}, fmt.Errorf("site_chrome: configure navigation registry: %w", s.navigation.err)
-	}
-
-	visibility := navigationregistry.VisibilityInput{
-		Authenticated: input.Actor.ID > 0 && input.Actor.IsActive(),
-		Permissions:   effectiveNavigationPermissions(input.Actor, s.navigation.registry.Snapshot()),
-		HiddenIDs:     input.HiddenIDs, DisabledProviders: input.DisabledProviders,
-	}
-	core := navigationregistry.CorePublication().Artifact
 	base := make([]navigationregistry.ComposedItem, 0, len(items))
+	locale := siteChromeLocale(input.Locale)
+	core := navigationregistry.CorePublication().Artifact
 	for _, item := range items {
 		id := "core.navigation.site.item." + strconv.FormatInt(item.ID, 10)
 		attributes := map[string]string(nil)
@@ -113,6 +101,27 @@ func (s *Service) ComposeNavigation(
 			Kind: navigationregistry.NavigationKindItem, Order: item.Position,
 			Label: localizedNavItemLabel(item, locale), Href: item.Href, Attributes: attributes, Artifact: core,
 		})
+	}
+	return s.composeNavigationBase(ctx, input, base)
+}
+
+func (s *Service) composeNavigationBase(
+	ctx context.Context,
+	input NavigationCompositionInput,
+	base []navigationregistry.ComposedItem,
+) (NavigationRegionViewModel, error) {
+	locale := siteChromeLocale(input.Locale)
+	if s.navigation == nil {
+		return defaultNavigationViewModelFromBase(base, locale), nil
+	}
+	if s.navigation.err != nil || s.navigation.composer == nil {
+		return NavigationRegionViewModel{}, fmt.Errorf("site_chrome: configure navigation registry: %w", s.navigation.err)
+	}
+
+	visibility := navigationregistry.VisibilityInput{
+		Authenticated: input.Actor.ID > 0 && input.Actor.IsActive(),
+		Permissions:   effectiveNavigationPermissions(input.Actor, s.navigation.registry.Snapshot()),
+		HiddenIDs:     input.HiddenIDs, DisabledProviders: input.DisabledProviders,
 	}
 	composition, err := s.navigation.composer.Compose(ctx, navigationregistry.CompositionRequest{
 		Locale: locale, Visibility: visibility,
@@ -219,16 +228,21 @@ func cloneChromeAttributes(input map[string]string) map[string]string {
 }
 
 func defaultNavigationViewModel(items []NavItem, locale string) NavigationRegionViewModel {
-	children := make([]ChromeNodeViewModel, 0, len(items))
+	base := make([]navigationregistry.ComposedItem, 0, len(items))
 	for _, item := range items {
 		attributes := map[string]string(nil)
 		if item.OpenInNewTab {
 			attributes = map[string]string{"open-in-new-tab": "true"}
 		}
-		children = append(children, ChromeNodeViewModel{
-			ID: "core.navigation.site.item." + strconv.FormatInt(item.ID, 10), Kind: navigationregistry.NavigationKindItem,
-			Label: localizedNavItemLabel(item, locale), Href: item.Href, Attributes: attributes,
-		})
+		base = append(base, navigationregistry.ComposedItem{ID: "core.navigation.site.item." + strconv.FormatInt(item.ID, 10), Kind: navigationregistry.NavigationKindItem, Label: localizedNavItemLabel(item, locale), Href: item.Href, Attributes: attributes})
+	}
+	return defaultNavigationViewModelFromBase(base, locale)
+}
+
+func defaultNavigationViewModelFromBase(base []navigationregistry.ComposedItem, locale string) NavigationRegionViewModel {
+	children := make([]ChromeNodeViewModel, 0, len(base))
+	for _, item := range base {
+		children = append(children, ChromeNodeViewModel{ID: item.ID, Kind: item.Kind, Label: item.Label, Href: item.Href, Attributes: cloneChromeAttributes(item.Attributes)})
 	}
 	result := NavigationRegionViewModel{
 		SchemaVersion: NavigationViewModelSchemaVersion, Locale: locale,

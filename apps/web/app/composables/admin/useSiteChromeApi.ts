@@ -69,6 +69,83 @@ export type SiteNavItemInput = {
   enabled?: boolean
 }
 
+export type SiteNavigationLocation = 'public.topbar.primary' | 'public.sidebar.primary' | 'public.mobile.primary' | 'public.footer.primary'
+export type SiteNavigationSourceKind = 'core' | 'operator' | 'extension' | 'dynamic'
+export type SiteNavigationLinkKind = 'coreRoute' | 'internalLink' | 'externalLink' | 'extensionHostLink' | 'extensionRoute' | 'dynamicBlock'
+export type SiteNavigationVisibility = 'public' | 'anonymous' | 'authenticated' | 'permission'
+
+export type SiteNavigationDefinition = {
+  sourceKey: string
+  sourceKind: SiteNavigationSourceKind
+  linkKind: SiteNavigationLinkKind
+  labelZhCN?: string
+  labelEnUS?: string
+  href?: string
+  icon?: string
+  openInNewTab?: boolean
+  extensionId?: string
+  contributionId?: string
+}
+
+export type SiteNavigationPlacement = {
+  sourceKey: string
+  location: SiteNavigationLocation
+  order: number
+  enabled: boolean
+  visibility: SiteNavigationVisibility
+  permission?: string
+  labelZhCN?: string
+  labelEnUS?: string
+  icon?: string
+}
+
+export type SiteNavigationThemeLocation = { location: SiteNavigationLocation, supported: boolean }
+export type SiteNavigationDocument = {
+  revision: number
+  definitions: SiteNavigationDefinition[]
+  placements: SiteNavigationPlacement[]
+  themeLocations: SiteNavigationThemeLocation[]
+}
+
+export type SiteNavigationImportMode = 'merge' | 'replace'
+
+export type SiteNavigationBackup = {
+  schema: 'sforum.site-navigation-backup@1'
+  exportedAt?: string
+  definitions: SiteNavigationDefinition[]
+  placements: SiteNavigationPlacement[]
+}
+
+export type SiteNavigationPreview = {
+  previewToken: string
+  expectedRevision: number
+  mode: 'defaults' | SiteNavigationImportMode
+  changes: string[]
+  warnings: string[]
+  changeEntries?: Array<{
+    kind: 'location' | 'definitions'
+    location?: SiteNavigationLocation
+    beforeCount: number
+    afterCount: number
+  }>
+  warningEntries?: Array<{
+    code: 'extension_reference_inert'
+    sourceKey?: string
+    extensionId?: string
+  }>
+}
+
+export type SiteNavigationSnapshot = {
+  id: number
+  revision: number
+  operation: string
+  reason?: string
+  affectedLocations: SiteNavigationLocation[]
+  createdAt: string
+  actorUserId?: number | null
+  document?: SiteNavigationDocument
+}
+
 export type SiteFriendLinkInput = {
   name: string
   url: string
@@ -109,6 +186,23 @@ export function useSiteChromeApi() {
       request<SiteNavItem>(`/admin/site/nav-items/${id}`, { method: 'PATCH', body }),
     deleteNavItem: (id: number) =>
       request<{ deleted: boolean }>(`/admin/site/nav-items/${id}`, { method: 'DELETE' }),
+
+    getAdminNavigation: () => request<SiteNavigationDocument>('/admin/site/navigation'),
+    applyAdminNavigation: (body: { expectedRevision: number, reason?: string, document: SiteNavigationDocument }) =>
+      request<SiteNavigationDocument>('/admin/site/navigation/apply', { method: 'POST', body }),
+    previewNavigationDefaults: (body: { expectedRevision: number, scope: 'location' | 'all', location?: SiteNavigationLocation }) =>
+      request<SiteNavigationPreview>('/admin/site/navigation/defaults/preview', { method: 'POST', body }),
+    applyNavigationDefaults: (body: { expectedRevision: number, previewToken: string, reason?: string }) =>
+      request<SiteNavigationDocument>('/admin/site/navigation/defaults/apply', { method: 'POST', body }),
+    listNavigationSnapshots: () => request<SiteNavigationSnapshot[]>('/admin/site/navigation/snapshots'),
+    getNavigationSnapshot: (id: number) => request<SiteNavigationSnapshot>(`/admin/site/navigation/snapshots/${id}`),
+    restoreNavigationSnapshot: (id: number, body: { expectedRevision: number, reason?: string }) =>
+      request<SiteNavigationDocument>(`/admin/site/navigation/snapshots/${id}/restore`, { method: 'POST', body }),
+    exportNavigationBackup: () => request<SiteNavigationBackup>('/admin/site/navigation/export'),
+    previewNavigationImport: (body: { expectedRevision: number, mode: SiteNavigationImportMode, backup: SiteNavigationBackup }) =>
+      request<SiteNavigationPreview>('/admin/site/navigation/import/preview', { method: 'POST', body }),
+    applyNavigationImport: (body: { expectedRevision: number, previewToken: string, reason?: string }) =>
+      request<SiteNavigationDocument>('/admin/site/navigation/import/apply', { method: 'POST', body }),
 
     listPublicFriendLinks: () => request<SiteFriendLink[]>('/site/friend-links'),
     listAdminFriendLinks: () => request<SiteFriendLink[]>('/admin/site/friend-links'),

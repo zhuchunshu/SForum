@@ -27,6 +27,17 @@ func TestBuiltinThemesCoverAllReplaceablePages(t *testing.T) {
 			if err != nil {
 				t.Fatalf("load theme package: %v", err)
 			}
+			for location, island := range themeNavigationLocationBindings {
+				if pkg.NavigationLocations[location] != island {
+					t.Fatalf("navigation location %s=%q want %q", location, pkg.NavigationLocations[location], island)
+				}
+				if _, allowed := allowedHostIslands[island]; !allowed {
+					t.Fatalf("navigation island %s is not template-allowlisted", island)
+				}
+				if productionThemeIslandBindings()[island].ComponentID == "" {
+					t.Fatalf("navigation island %s has no production binding", island)
+				}
+			}
 			byTarget := make(map[string]ThemePageDecl, len(pkg.Pages))
 			for _, page := range pkg.Pages {
 				if strings.EqualFold(strings.TrimSpace(page.Action), string(ActionReplace)) {

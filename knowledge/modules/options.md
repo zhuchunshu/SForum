@@ -103,10 +103,27 @@ SSR/query/permission shells.
     `web_options`; see SiteChrome module / migration
     `202607120003_site_chrome.sql` and admin personalization tabs (panel
     `apps/web/app/components/admin/SFAdminSiteChromePanel.vue`).
-- Configurable public navigation is now an approved ready program, not a theme
-  setting. Core will own the multi-location document, recommended defaults,
-  revisions, snapshots, and portable backup while preserving the current
-  SiteChrome table/API as compatibility surfaces. See
+- Configurable public navigation is a Core-owned multi-location document, not
+  a theme setting. M1 added additive migration `202607280072` for definitions,
+  placements, document revision, and future snapshots; it migrates legacy
+  `site_nav_items` into `public.topbar.primary` without changing that table or
+  its API-LTS endpoint. The canonical `GET /site/navigation` resolver returns
+  four locations with locale/actor/permission filtering, exact-artifact
+  Navigation Registry contributions, and active-theme support status. M6 binds
+  this status to validated location metadata from the exact active theme
+  runtime snapshot; Core emergency fallback supports all v1 locations. M2 now
+  provides `settings.site.manage`-guarded document CAS,
+  defaults/import previews fenced by bounded actor-bound server tokens,
+  newest-20 snapshots, restore, and portable backup. `Options` exposes this
+  cross-domain write only through `NewPublicSurfaceRevisionTxBumper`: its
+  transaction update commits with SiteChrome and the Options cache invalidates
+  only after success. M4 adds nullable snapshot `actor_user_id` attribution and
+  exposes these commands through the existing Personalization document owner;
+  old snapshots remain valid and unattributed. M5 makes the public navigation
+  response actor-sensitive and explicitly `private, no-store`; Page ViewModels
+  and Web topbar/mobile now consume the same canonical resolver rather than
+  the legacy flat projection. M6 adds canonical sidebar/footer consumers and
+  keeps the dynamic taxonomy payload in Forum. See
   `../decisions/2026-07-27-operator-owned-public-navigation.md` and
   `../plans/2026-07-27-configurable-public-navigation-platform.md`.
 
@@ -269,9 +286,20 @@ skin behavior without admin session.
 
 ## Next Steps
 
-- Execute the configurable public navigation task book from M0. Prove the
-  current `forum.nav.items`/Navigation Registry production bridge before
-  changing persistence or contracts.
+- Configurable public navigation M0-M6 is complete. The production HTTP API
+  and Page Registry share one `pageSiteChromeService`, and its mutation path
+  uses an isolated transaction-capable Options collaborator rather than adding
+  another legacy `Options.Service` receiver. Preserve `/site/nav-items` and
+  `site_nav_items` as API-LTS compatibility surfaces. The Personalization
+  editor now owns one local revisioned document across all four locations,
+  with a shared icon picker and one explicit batch save. Its recovery panel
+  now uses the same M2 API for confirmed defaults, actor-attributed snapshots,
+  portable export, and fenced merge/replace import. Topbar, mobile, and Core
+  fallback now consume one canonical actor/locale-sensitive SSR authority.
+  Sidebar dynamic categories, footer links, exact active-theme location
+  capabilities, and both built-in declarations are complete; M7 owns the final
+  lifecycle, recovery, and release gate. See
+  `../sessions/2026-07-28-public-navigation-platform-handoff.md`.
 - Wave 3+ richness blueprint: engagement switches, category policy, safety
   depth (see `knowledge/plans/2026-07-12-admin-settings-richness.md`).
 - If settings need audit history, write changes to the existing audit event

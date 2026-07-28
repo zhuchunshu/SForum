@@ -112,7 +112,7 @@ describe('public taxonomy list pages (T02 + C04)', () => {
     expect(source).not.toContain('growth')
   })
 
-  test('theme registers taxonomy CSS and host routeRules cover list roots', () => {
+  test('theme registers taxonomy CSS and taxonomy routes disable whole-page caching', () => {
     expect(hostNuxtConfig()).toContain('sforum-taxonomy.css')
     expect(hostNuxtConfig()).toContain('sforum-tags.css')
     expect(tagsCss()).toContain('.sforum-tags-page__heat-board')
@@ -124,8 +124,12 @@ describe('public taxonomy list pages (T02 + C04)', () => {
     expect(taxonomyCss()).toContain('.sforum-taxonomy__tile')
     expect(taxonomyCss()).toContain('.sforum-category-directory__board-grid')
     expect(taxonomyCss()).toContain('.sforum-category-directory__facts')
-    expect(hostNuxtConfig()).toContain("'/categories': { swr: 600 }")
-    expect(hostNuxtConfig()).toContain("'/tags': { swr: 600 }")
+    const config = hostNuxtConfig()
+    for (const route of ['/categories', '/tags', '/c/**', '/tags/**']) {
+      expect(config).toContain(`'${route}': { cache: false }`)
+    }
+    expect(config).not.toContain("'/categories': { swr:")
+    expect(config).not.toContain("'/tags': { swr:")
   })
 
   test('topbar search remains the global search entry', () => {
@@ -141,14 +145,11 @@ describe('public taxonomy list pages (T02 + C04)', () => {
 
   test('shared home navigation highlights taxonomy routes in route mode', () => {
     const source = homeNavigation()
-    expect(source).toContain("localePath('/tags')")
-    expect(source).toContain("localePath('/categories')")
-    expect(source).toContain('routePath.value === tagsPath.value')
-    expect(source).toContain('routePath.value.startsWith(`${tagsPath.value}/`)')
-    expect(source).toContain('routePath.value === categoriesPath.value')
-    expect(source).toContain("activeTopLevel === 'tags'")
-    expect(source).toContain("activeTopLevel === 'categories'")
-    expect(source).toContain("activeTopLevel.value === 'home' && !props.selectedCategorySlug")
+    expect(source).toContain("const target = String(navigationItemTo(item)).split('?')[0]")
+    expect(source).toContain('routePath.value === target || routePath.value.startsWith(`${target}/`)')
+    expect(source).toContain("if (item.sourceKey === 'core.home') return allTopicsActive.value")
+    expect(source).toContain("selectedCategorySlug === category.slug")
+    expect(source).toContain("void router.push(slug ? categoryTo(slug) : allTopicsTo())")
     expect(homeCss()).toContain('.sf-home-navigation__foot')
     expect(homeCss()).toContain('.sf-home-navigation__foot a')
   })

@@ -6,6 +6,8 @@ cd "$ROOT_DIR"
 
 DEPLOY_RC=".deployrc"
 LANGUAGE=""
+RELEASE_VERSION="${SFORUM_VERSION:-}"
+RELEASE_MODE=false
 COMPOSE=(docker compose --env-file .env.production -f compose.yaml -f compose.prod.yaml)
 
 while [ $# -gt 0 ]; do
@@ -18,12 +20,30 @@ while [ $# -gt 0 ]; do
       LANGUAGE="${1#*=}"
       shift
       ;;
+    --version)
+      RELEASE_VERSION="${2:-}"
+      shift 2
+      ;;
+    --version=*)
+      RELEASE_VERSION="${1#*=}"
+      shift
+      ;;
     *)
       echo "Unknown option: $1"
       exit 1
       ;;
   esac
 done
+
+if [[ -n "$RELEASE_VERSION" ]]; then
+  if [[ ! "$RELEASE_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+    echo "--version must look like v2.8.0 or v2.8.0-beta.1" >&2
+    exit 1
+  fi
+  export SFORUM_VERSION="$RELEASE_VERSION"
+  RELEASE_MODE=true
+  COMPOSE+=(-f compose.release.yaml)
+fi
 
 load_language() {
   if [ "$LANGUAGE" != "" ]; then
@@ -75,8 +95,9 @@ t() {
       no_compose) echo "Docker Compose plugin is required." ;;
       invalid_public_api_base) echo "NUXT_PUBLIC_API_BASE_URL must be /api/v1 so ordinary API traffic stays same-origin through Nuxt." ;;
       backup_first) echo "Creating backup before deploy..." ;;
+      pulling_release) echo "Pulling release images: $RELEASE_VERSION" ;;
       migrations_running) echo "Running database migrations..." ;;
-      rollback_later) echo "Rollback metadata is not available yet. This will be enabled when release image tags are introduced." ;;
+      rollback_later) echo "Automatic rollback metadata is not available yet. Re-run deploy.sh with the previous --version only after checking migration compatibility." ;;
       confirm_restore) echo "Type RESTORE to confirm database restore:" ;;
       backup_path) echo "Backup file path:" ;;
       web_url) echo "Web is bound to:" ;;
@@ -105,8 +126,9 @@ t() {
       no_compose) echo "需要 Docker Compose 插件。" ;;
       invalid_public_api_base) echo "NUXT_PUBLIC_API_BASE_URL 必须是 /api/v1，确保普通 API 流量继续同源经过 Nuxt。" ;;
       backup_first) echo "部署前正在创建备份..." ;;
+      pulling_release) echo "正在拉取发布镜像：$RELEASE_VERSION" ;;
       migrations_running) echo "正在运行数据库迁移..." ;;
-      rollback_later) echo "暂未记录可回滚版本；引入发布镜像标签后会启用。" ;;
+      rollback_later) echo "暂未记录自动回滚元数据；确认数据库迁移兼容后，可用上一个 --version 重新部署。" ;;
       confirm_restore) echo "请输入 RESTORE 确认恢复数据库：" ;;
       backup_path) echo "备份文件路径：" ;;
       web_url) echo "Web 已绑定到：" ;;
@@ -166,6 +188,7 @@ preflight() {
   fi
   ensure_env
   validate_env_contract
+  "${COMPOSE[@]}" config --quiet
 }
 
 install() {
@@ -175,21 +198,37 @@ install() {
 
 deploy_update() {
   preflight
+  if [ "$RELEASE_MODE" = true ]; then
+    echo "$(t pulling_release)"
+    "${COMPOSE[@]}" pull migrate api worker web
+  fi
   echo "$(t backup_first)"
   ./deploy/scripts/backup-postgres.sh || true
   run_migrations_command
-  "${COMPOSE[@]}" up -d --build
+  if [ "$RELEASE_MODE" = true ]; then
+    "${COMPOSE[@]}" up -d --no-build
+  else
+    "${COMPOSE[@]}" up -d --build
+  fi
   "${COMPOSE[@]}" ps
   print_web_url
 }
 
 run_migrations_command() {
   echo "$(t migrations_running)"
-  "${COMPOSE[@]}" run --rm -T --build migrate
+  if [ "$RELEASE_MODE" = true ]; then
+    "${COMPOSE[@]}" run --rm -T migrate
+  else
+    "${COMPOSE[@]}" run --rm -T --build migrate
+  fi
 }
 
 run_migrations() {
   preflight
+  if [ "$RELEASE_MODE" = true ]; then
+    echo "$(t pulling_release)"
+    "${COMPOSE[@]}" pull migrate
+  fi
   run_migrations_command
 }
 

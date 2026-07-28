@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useSiteChromeApi } from '~/composables/admin/useSiteChromeApi'
 import type { SiteFriendLink } from '~/composables/admin/useSiteChromeApi'
+import { usePublicNavigation } from '~/composables/navigation/usePublicNavigation'
+import SFPublicNavigationLinks from '~/components/navigation/SFPublicNavigationLinks.vue'
 
 const props = withDefaults(defineProps<{
   /** Core 404 应急页只使用本地 footer，不等待已失效的 API。 */
@@ -12,11 +14,10 @@ const props = withDefaults(defineProps<{
 const { locale } = useI18n()
 const {
   siteName,
-  footerCopyrightTemplate,
-  footerLinks,
-  footerLinkLabel
+  footerCopyrightTemplate
 } = useWebOptions()
 const chromeApi = useSiteChromeApi()
+const { footerItems } = usePublicNavigation(props.fetchRemoteChrome)
 
 // 动态计算当前年份，以保证版权年份的正确性
 const currentYear = computed(() => new Date().getFullYear())
@@ -25,16 +26,6 @@ const copyrightText = computed(() => {
     .replace(/\{year\}/g, String(currentYear.value))
     .replace(/\{siteName\}/g, siteName.value)
 })
-const visibleLinks = computed(() => {
-  return footerLinks.value
-    .filter((link) => link.url.trim() !== '')
-    .map((link) => ({
-      key: link.key,
-      label: footerLinkLabel(link, locale.value),
-      url: link.url
-    }))
-})
-
 // 主题错误树不会等待嵌套异步 setup；footer 先同步挂载，友情链接抵达后再填充。
 const emptyFriendLinks = () => [] as SiteFriendLink[]
 const friendLinks = props.fetchRemoteChrome
@@ -56,16 +47,11 @@ const visibleFriendLinks = computed(() => friendLinks.value || [])
       <div v-if="copyrightText" class="sf-footer__copyright">
         {{ copyrightText }}
       </div>
-      <div v-if="visibleLinks.length" class="sf-footer__links">
-        <a
-          v-for="link in visibleLinks"
-          :key="link.key"
-          :href="link.url"
-          class="sf-footer__link"
-        >
-          {{ link.label }}
-        </a>
-      </div>
+      <SFPublicNavigationLinks
+        v-if="footerItems.length"
+        mode="footer"
+        :items="footerItems"
+      />
     </div>
 
     <div v-if="visibleFriendLinks.length" class="sf-footer__friends">
@@ -123,26 +109,6 @@ const visibleFriendLinks = computed(() => friendLinks.value || [])
 .sf-footer__copyright {
   font-size: 0.8125rem;
   color: var(--text-muted);
-}
-
-.sf-footer__links {
-  display: flex;
-  align-items: center;
-  gap: 1.25rem;
-}
-
-.sf-footer__link {
-  font-size: 0.8125rem;
-  color: var(--text-muted);
-  transition: color 0.15s ease;
-}
-
-.sf-footer__link:hover {
-  color: var(--sf-accent);
-}
-
-.dark .sf-footer__link:hover {
-  color: var(--sf-accent-dark);
 }
 
 .sf-footer__friends {

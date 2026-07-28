@@ -1,14 +1,5 @@
-type MutableRouteRulesContext = {
-  _nitro?: {
-    routeRules?: {
-      cache?: false | Record<string, unknown>
-      swr?: false | number
-    }
-  }
-}
-
 /**
- * 登录用户的公共页面会在 SSR 阶段恢复会话，因此绝不能进入共享页面缓存。
+ * 登录用户的公共页面会在 SSR 阶段恢复会话，因此响应绝不能被共享缓存保存。
  * 这里只处理 HTML 与 Nuxt payload；API、构建资源和普通静态资源保留原缓存策略。
  */
 export default defineEventHandler((event) => {
@@ -30,12 +21,5 @@ export default defineEventHandler((event) => {
     return
   }
 
-  setHeader(event, 'cache-control', 'no-store')
-  const routeRules = (event.context as MutableRouteRulesContext)._nitro?.routeRules
-  if (!routeRules) {
-    return
-  }
-
-  routeRules.cache = false
-  routeRules.swr = false
+  setHeader(event, 'cache-control', 'private, no-store')
 })

@@ -6,8 +6,50 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
+
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 )
+
+// PublicSurfaceRevisionTxBumper keeps a cross-domain mutation in the caller's
+// transaction. SiteChrome uses this narrow capability instead of writing
+// web_options directly.
+type PublicSurfaceRevisionTxBumper interface {
+	BumpPublicSurfaceRevisionTx(context.Context, pgx.Tx) (int64, error)
+	Invalidate()
+}
+
+type publicSurfaceRevisionTxStore interface {
+	BumpPublicSurfaceRevisionTx(context.Context, pgx.Tx) (int64, error)
+}
+
+type publicSurfaceRevisionTxBumper struct {
+	store      publicSurfaceRevisionTxStore
+	invalidate func()
+}
+
+// NewPublicSurfaceRevisionTxBumper keeps transaction-only mutation outside the
+// legacy Options.Service method set while retaining its cache invalidation.
+func NewPublicSurfaceRevisionTxBumper(service *Service) PublicSurfaceRevisionTxBumper {
+	if service == nil {
+		return nil
+	}
+	store, _ := service.store.(publicSurfaceRevisionTxStore)
+	return &publicSurfaceRevisionTxBumper{store: store, invalidate: service.Invalidate}
+}
+
+func (b *publicSurfaceRevisionTxBumper) BumpPublicSurfaceRevisionTx(ctx context.Context, tx pgx.Tx) (int64, error) {
+	if b == nil || b.store == nil || tx == nil {
+		return 0, fmt.Errorf("bump public surface revision: transaction support is required")
+	}
+	return b.store.BumpPublicSurfaceRevisionTx(ctx, tx)
+}
+
+func (b *publicSurfaceRevisionTxBumper) Invalidate() {
+	if b != nil && b.invalidate != nil {
+		b.invalidate()
+	}
+}
 
 // 公开前端贡献面 revision 默认从 1 起；未写入时读路径也回落 1。
 const publicSurfaceRevisionDefault = 1

@@ -64,15 +64,8 @@ type CoreSessionViewReader interface {
 }
 
 type CoreSiteChromeViewReader interface {
-	ListPublicNavItems(context.Context) ([]sitechrome.NavItem, error)
-	ListPublicExtensionNavItems(context.Context) []sitechrome.ExtensionNavItem
+	ResolvePublicNavigation(context.Context, identity.Actor, string, []string) (sitechrome.ResolvedNavigation, error)
 	ListPublicAnnouncements(context.Context) ([]sitechrome.Announcement, error)
-}
-
-// CoreNavigationComposer 是可选的 V3 导航合成路径。实现时优先于扁平 nav 列表，
-// 以便权限/区域/Provider 选择在 Host 边界完成后再进入主题。
-type CoreNavigationComposer interface {
-	ComposePublicNavigation(ctx context.Context, actor identity.Actor, locale string) (sitechrome.NavigationRegionViewModel, error)
 }
 
 type CoreSearchViewReader interface {
@@ -251,24 +244,17 @@ func (s *CorePageViewModelSource) populateCommon(ctx context.Context, request *p
 	if request.SEO.Robots == "" {
 		request.SEO.Robots = "index,follow"
 	}
-	if s.deps.SiteChrome != nil {
-		extensionItems := s.deps.SiteChrome.ListPublicExtensionNavItems(ctx)
-		// 优先走 Navigation Registry 合成：Core 菜单 + SiteChrome 运营项 + 插件声明。
-		if composer, ok := s.deps.SiteChrome.(CoreNavigationComposer); ok {
-			composed, navErr := composer.ComposePublicNavigation(ctx, actor, request.Locale)
-			if navErr != nil {
-				return fmt.Errorf("%w: navigation: %v", ErrCorePageDataUnavailable, navErr)
-			}
-			request.Navigation = mapComposedNavigation(request.Locale, request.Path, composed, extensionItems)
-		} else {
-			items, navErr := s.deps.SiteChrome.ListPublicNavItems(ctx)
-			if navErr != nil {
-				return fmt.Errorf("%w: navigation: %v", ErrCorePageDataUnavailable, navErr)
-			}
-			request.Navigation = mapNavigation(request.Locale, request.Path, items, extensionItems)
-		}
-	} else {
-		request.Navigation = mapNavigation(request.Locale, request.Path, nil, nil)
+	if s.deps.SiteChrome == nil {
+		return fmt.Errorf("%w: navigation resolver missing", ErrCorePageDataUnavailable)
+	}
+	resolved, navErr := s.deps.SiteChrome.ResolvePublicNavigation(ctx, actor, request.Locale, []string{sitechrome.NavigationLocationTopbar})
+	if navErr != nil {
+		return fmt.Errorf("%w: navigation: %v", ErrCorePageDataUnavailable, navErr)
+	}
+	var ok bool
+	request.Navigation, ok = mapResolvedNavigation(request.Path, resolved, sitechrome.NavigationLocationTopbar)
+	if !ok {
+		return fmt.Errorf("%w: navigation topbar missing", ErrCorePageDataUnavailable)
 	}
 	return nil
 }

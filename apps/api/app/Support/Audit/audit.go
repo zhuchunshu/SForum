@@ -18,6 +18,10 @@ import (
 // 稳定 action 常量。新增敏感操作时优先复用或扩展此列表。
 const (
 	ActionSettingsUpdate                 = "settings.update"
+	ActionSiteNavigationApply            = "site_navigation.apply"
+	ActionSiteNavigationDefaultsRestore  = "site_navigation.defaults_restore"
+	ActionSiteNavigationSnapshotRestore  = "site_navigation.snapshot_restore"
+	ActionSiteNavigationImport           = "site_navigation.import"
 	ActionNotificationPreferencesUpdate  = "notification.preferences.update"
 	ActionNotificationPreferencesRestore = "notification.preferences.restore"
 	ActionNotificationPolicyUpdate       = "notification.policy.update"

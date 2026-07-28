@@ -378,7 +378,7 @@ describe('login page navigation', () => {
 
 // 登录/注册表单已抽到 Host body 岛组件；路由页只保留 layout/middleware + outlet。
 const authFormComponentsUrl = new URL(
-  '../../app/components/',
+  '../../app/components/identity/',
   import.meta.url
 )
 
@@ -419,6 +419,7 @@ async function loadRegisterPageForSubmitTest(options: { registerError?: unknown 
 
   const factory = new Function(
     '__vue',
+    'SFAuthProviderButtons',
     'definePageMeta',
     'useI18n',
     'useToast',
@@ -449,6 +450,7 @@ async function loadRegisterPageForSubmitTest(options: { registerError?: unknown 
       withAsyncContext: (fn: () => Promise<unknown>) => [fn(), () => {}],
       defineComponent: (options: unknown) => options
     },
+    {},
     () => {},
     () => ({ t: (key: string) => key, locale: ref('zh-CN') }),
     () => ({ add: (toast: unknown) => toasts.push(toast) }),
@@ -542,6 +544,7 @@ async function loadLoginPageForSubmitTest() {
 
   const factory = new Function(
     '__vue',
+    'SFAuthProviderButtons',
     'definePageMeta',
     'useI18n',
     'useToast',
@@ -567,6 +570,7 @@ async function loadLoginPageForSubmitTest() {
       withAsyncContext: (fn: () => Promise<unknown>) => [fn(), () => {}],
       defineComponent: (options: unknown) => options
     },
+    {},
     () => {},
     () => ({ t: (key: string) => key, locale: ref('zh-CN') }),
     () => ({ add: (toast: unknown) => toasts.push(toast) }),

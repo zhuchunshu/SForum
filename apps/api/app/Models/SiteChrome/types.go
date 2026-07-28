@@ -14,11 +14,13 @@ const (
 
 	CodeInvalid  = "site_chrome.invalid"
 	CodeNotFound = "site_chrome.not_found"
+	CodeConflict = "site_chrome.conflict"
 )
 
 var (
 	ErrInvalid  = errors.New("site_chrome: invalid input")
 	ErrNotFound = errors.New("site_chrome: not found")
+	ErrConflict = errors.New("site_chrome: revision conflict")
 )
 
 // NavItem 顶部导航项（双语标签）。

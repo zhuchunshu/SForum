@@ -82,19 +82,20 @@ export default defineNuxtConfig({
   nitro: {
     // 静态资源（带 hash 的 _nuxt 文件）压缩为 brotli + gzip。
     compressPublicAssets: { brotli: true, gzip: true },
-    // 路由级渲染模式与缓存：公开内容页走 stale-while-revalidate，全部页面保持 SSR 彻底避免空壳白屏。
+    // 路由级渲染模式与缓存：全部页面保持 SSR，只有不依赖会话的公开页面才允许共享 SWR。
     // i18n strategy=no_prefix：URL 不含语言前缀，无需 /en/** 镜像规则。
     // 非默认语 cookie 由 server/middleware/locale-cache.ts 绕过共享 SWR，避免串语言。
     routeRules: {
       // 公开内容页：短到中等 swr，命中缓存的同时保持最终一致。
       // 根路由的 query 变体由 middleware 设为 no-store；基础页仍交给 CDN 做 SWR。
       '/': publicHomepageRouteRule,
-      // 分类/标签详情包含分页 query；Nuxt payload 路径不携带该 query，不能共享 SWR 缓存。
+      // 分类、标签、个人主页与主题的 SSR 内容依赖会话、权限或实时数据，不能共享整页缓存。
+      // 分类/标签详情还包含分页 query；Nuxt payload 路径不携带该 query，同样不能共享 SWR。
       '/c/**': { cache: false },
-      '/categories': { swr: 600 },
-      '/tags': { swr: 600 },
+      '/categories': { cache: false },
+      '/tags': { cache: false },
       '/tags/**': { cache: false },
-      '/u/**': { swr: 3600 },
+      '/u/**': { cache: false },
       // 主题详情含实时评论与会话权限，整页缓存会让 SSR payload 在写入后继续水合旧数据。
       // 主题和评论读路径由 API 的 topic-scoped Redis generation 缓存承担。
       '/t/**': { cache: false },

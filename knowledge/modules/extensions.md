@@ -99,6 +99,10 @@ Prior partial evidence, not closure:
   delete Host-owned settings; lifecycle history and plugin-owned business data
   remain in both modes. Re-uploading the same extension ID clears its tombstone
   and restores its catalog identity.
+- A missing artifact's per-row uninstall action uses that same tombstone cleanup
+  with only the selected extension ID. Ordinary lifecycle uninstall rejects a
+  missing package before V1/V2 dispatch, so immutable runtime-publication
+  history cannot produce a misleading success followed by catalog reappearance.
 - Containers must mount every external collection read-only into API and
   standalone worker processes.
 
@@ -310,6 +314,11 @@ should use dedicated registries instead of raw database or whole-route power.
   catch-all. Access declarations fail closed.
 - Activation verifies exact artifacts, prewarms runtime state, replaces page
   contributions/skin atomically, and preserves rollback.
+- Theme packages declare a validated `navigationLocations` capability using
+  only the four stable v1 location IDs. The runtime projects capability from
+  the exact active immutable snapshot; unsupported locations retain operator
+  configuration, while Core emergency fallback reports all v1 locations as
+  supported. Default and Nocturne declare all four locations.
 - Template validation and runtime island binding are separate gates. Every
   Host island used by a theme template must be present in both
   `allowedHostIslands` and `productionThemeIslandBindings`; paired public

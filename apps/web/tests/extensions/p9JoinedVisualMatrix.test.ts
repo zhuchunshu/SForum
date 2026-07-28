@@ -30,11 +30,14 @@ describe('P9 joined desktop/mobile visual matrix', () => {
 
     // desktop shell
     expect(navbar).toContain('navbar__desktop-nav')
-    expect(navbar).toContain('desktopNavItems')
+    expect(navbar).toContain('SFPublicNavigationLinks')
+    expect(navbar).toContain('visibleTopbarItems')
     expect(navbar).toContain('min-height: var(--sf-public-topbar-height, 52px)')
-    // mobile shell（全宽 3 列后：壳层按钮 + 共用 desktopNavItems，无独立 mobileMenuItems）
+    // mobile shell owns a dedicated canonical public.mobile.primary drawer.
     expect(navbar).toContain('navbar__mobile-shell-button')
     expect(navbar).toContain('navbar__mobile-new-topic')
+    expect(navbar).toContain('SFPublicMobileNavigation')
+    expect(navbar).toContain('visibleMobileItems')
     expect(navbar).toContain('mobileMenuOpen')
     expect(navbar).toContain('i-lucide-menu')
     expect(navbar).toContain(':aria-label="t(\'nav.openMenu\')"')

@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { useNotifications } from '~/composables/notifications/useNotifications'
+import SFPublicMobileNavigation from '~/components/navigation/SFPublicMobileNavigation.vue'
+import SFPublicNavigationLinks from '~/components/navigation/SFPublicNavigationLinks.vue'
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
 import { useAuthSession } from '~/composables/identity/useAuthSession'
-import { useSiteChromeApi } from '~/composables/admin/useSiteChromeApi'
+import { usePublicNavigation } from '~/composables/navigation/usePublicNavigation'
 import { useColorModePreference } from '~/composables/appearance/useColorModePreference'
 import { buildForumHomeQuery } from '~/utils/forum/forumHome'
-import type { SiteExtensionNavItem, SiteNavItem, SitePublicNav } from '~/composables/admin/useSiteChromeApi'
-import { forumCategoriesIndexPath, forumTagsIndexPath, forumTopicExtensionLabel, parseForumTagPublicPagesOption } from '~/utils/forum/forumTaxonomy'
+import { parseForumTagPublicPagesOption } from '~/utils/forum/forumTaxonomy'
 
 const props = withDefaults(defineProps<{
   /** Core 404 应急页不得在 API 已失效时继续启动 chrome 请求。 */
@@ -25,7 +26,6 @@ const {
   webOption
 } = useWebOptions()
 const { request } = useApiClient()
-const chromeApi = useSiteChromeApi()
 const router = useRouter()
 const route = useRoute()
 const {
@@ -35,57 +35,12 @@ const {
 } = useColorModePreference()
 const { can } = usePermissions()
 const notifications = useNotifications()
+const { topbarItems, mobileItems } = usePublicNavigation(props.fetchRemoteChrome)
 
 // 标签公开列表受运行时选项控制；关闭时隐藏导航入口（详情页同样 404）。
 const publicTagPagesEnabled = computed(() => parseForumTagPublicPagesOption(
   webOption('forum.tags.public_pages', 'enabled')
 ))
-
-// Wave 2 + E2.3：运营配置 items 在前；forum.nav.items 贡献次之。失败时回退内置 Home/Categories/Tags。
-type DesktopNavItem = {
-  key: string
-  label: string
-  href: string
-  openInNewTab: boolean
-  icon?: string
-}
-
-const emptyPublicNav = (): SitePublicNav => ({ items: [], extensionItems: [] })
-// 保持 setup 同步：主题错误树通过运行时 VNode 挂载 navbar，生产 SSR 不能依赖异步 setup。
-const publicNav = props.fetchRemoteChrome
-  ? useAsyncData('site-public-nav-items', async () => {
-      try {
-        return await chromeApi.listPublicNav()
-      } catch {
-        return emptyPublicNav()
-      }
-    }, { default: emptyPublicNav }).data
-  : shallowRef<SitePublicNav>(emptyPublicNav())
-
-const isEnglishLocale = computed(() => String(locale.value).toLowerCase().startsWith('en'))
-
-function operatorNavLabel(item: SiteNavItem) {
-  return isEnglishLocale.value ? item.labelEnUS : item.labelZhCN
-}
-
-function extensionNavLabel(item: SiteExtensionNavItem) {
-  return forumTopicExtensionLabel(item, String(locale.value || 'zh-CN')) || item.id
-}
-
-// 仅消费宿主已校验的站内相对路径或扩展代理 URL；拒绝外链与 admin。
-function isSafePublicNavHref(href: string) {
-  const value = `${href || ''}`.trim()
-  if (!value.startsWith('/') || value.startsWith('//') || value.includes('://')) {
-    return false
-  }
-  if (value === '/api' || value.startsWith('/api/')) {
-    return false
-  }
-  if (value === '/admin' || value.startsWith('/admin/')) {
-    return false
-  }
-  return true
-}
 
 function filterTagNav(href: string) {
   if (publicTagPagesEnabled.value) {
@@ -94,80 +49,10 @@ function filterTagNav(href: string) {
   return !href.replace(/\/$/, '').endsWith('/tags')
 }
 
-const desktopNavItems = computed((): DesktopNavItem[] => {
-  const configured = (publicNav.value?.items || [])
-    .map((item) => ({
-      key: `core-${item.id}`,
-      label: operatorNavLabel(item),
-      href: item.href,
-      openInNewTab: item.openInNewTab
-    }))
-    .filter((item) => item.label && item.href)
-    .filter((item) => filterTagNav(item.href))
-    // 顶栏已有完整搜索框，避免运营默认项再次占用一个“搜索”导航位。
-    .filter((item) => item.href.replace(/\/$/, '') !== '/search')
-
-  // 核心/运营项在前；无运营配置时回退内置三项。
-  const core: DesktopNavItem[] = configured.length > 0
-    ? configured
-    : [
-        { key: 'fallback-home', label: t('home.filter.latest'), href: '/', openInNewTab: false },
-        { key: 'fallback-categories', label: t('home.filter.categories'), href: forumCategoriesIndexPath(), openInNewTab: false },
-        ...(publicTagPagesEnabled.value
-          ? [{ key: 'fallback-tags', label: t('home.filter.tags'), href: forumTagsIndexPath(), openInNewTab: false }]
-          : [])
-      ]
-
-  // E2.3：扩展贡献次之，按 order 追加。
-  const extensions = [...(publicNav.value?.extensionItems || [])]
-    .slice()
-    .sort((a, b) => (a.order || 0) - (b.order || 0))
-    .map((item) => ({
-      key: `ext-${item.extensionId}:${item.id}`,
-      label: extensionNavLabel(item),
-      href: item.url,
-      openInNewTab: false,
-      icon: item.icon
-    }))
-    .filter((item) => item.label && isSafePublicNavHref(item.href))
-    .filter((item) => filterTagNav(item.href))
-
-  return [...core, ...extensions]
-})
-
-function resolveNavTo(href: string) {
-  const value = href.trim()
-  if (!value) {
-    return localePath('/')
-  }
-  if (value.startsWith('http://') || value.startsWith('https://')) {
-    return value
-  }
-  // 扩展代理路径走 API 前缀以外的站内路由；/extensions/* 由宿主代理。
-  return localePath(value.startsWith('/') ? value : `/${value}`)
-}
-
-function isExternalHref(href: string) {
-  return href.startsWith('http://') || href.startsWith('https://')
-}
-
-/** 顶栏 active 与 demo 一致：首页精确匹配，其它路径前缀匹配。 */
-function isDesktopNavActive(href: string) {
-  if (isExternalHref(href)) {
-    return false
-  }
-  const resolved = resolveNavTo(href)
-  if (typeof resolved !== 'string' || !resolved.startsWith('/')) {
-    return false
-  }
-  const targetPath = resolved.split('?')[0]?.replace(/\/$/, '') || '/'
-  const currentPath = route.path.replace(/\/$/, '') || '/'
-  const homePath = String(localePath('/')).replace(/\/$/, '') || '/'
-  if (targetPath === homePath) {
-    return currentPath === homePath
-  }
-  return currentPath === targetPath || currentPath.startsWith(`${targetPath}/`)
-}
+const visibleTopbarItems = computed(() => topbarItems.value
+  .filter(item => !item.href || filterTagNav(item.href)))
+const visibleMobileItems = computed(() => mobileItems.value
+  .filter(item => !item.href || filterTagNav(item.href)))
 
 // 导航栏注册入口以 registration-status 为准（含 bootstrap 覆盖）。
 type RegistrationStatus = {
@@ -221,7 +106,7 @@ type NavbarMenuItem = {
 
 const searchQuery = ref('')
 const mobileSearchOpen = ref(false)
-const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
+const mobileMenuOpen = useState<boolean>('public-mobile-navigation-open', () => false)
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
 
 // 发帖入口只对拥有论坛发帖权限的用户显示，API 仍负责最终鉴权。
@@ -410,32 +295,10 @@ async function logout() {
         </span>
       </NuxtLink>
 
-      <nav class="navbar__desktop-nav" :aria-label="t('nav.mainNav')">
-        <template v-for="item in desktopNavItems" :key="item.key">
-          <a
-            v-if="item.openInNewTab || isExternalHref(item.href)"
-            :href="resolveNavTo(item.href)"
-            class="navbar__nav-link"
-            :class="{ 'is-active': isDesktopNavActive(item.href) }"
-            :target="item.openInNewTab || isExternalHref(item.href) ? '_blank' : undefined"
-            :rel="item.openInNewTab || isExternalHref(item.href) ? 'noopener noreferrer' : undefined"
-          >
-            <UIcon v-if="item.icon" :name="item.icon" class="size-3.5" aria-hidden="true" />
-            {{ item.label }}
-          </a>
-          <NuxtLink
-            v-else
-            :to="resolveNavTo(item.href)"
-            class="navbar__nav-link"
-            :class="{ 'is-active': isDesktopNavActive(item.href) }"
-            active-class=""
-            exact-active-class=""
-          >
-            <UIcon v-if="item.icon" :name="item.icon" class="size-3.5" aria-hidden="true" />
-            {{ item.label }}
-          </NuxtLink>
-        </template>
-      </nav>
+      <SFPublicNavigationLinks
+        class="navbar__desktop-nav"
+        :items="visibleTopbarItems"
+      />
 
       <SFSearch
         v-model="searchQuery"
@@ -588,6 +451,11 @@ async function logout() {
       </div>
     </div>
   </header>
+  <SFPublicMobileNavigation
+    :open="mobileMenuOpen"
+    :items="visibleMobileItems"
+    @close="mobileMenuOpen = false"
+  />
 </template>
 
 <style scoped>
@@ -613,7 +481,6 @@ async function logout() {
 
 .navbar__logo,
 .navbar__desktop-nav,
-.navbar__nav-link,
 .navbar__new-topic,
 .navbar__mobile-new-topic,
 .navbar__utility,
@@ -686,38 +553,7 @@ async function logout() {
 
 .navbar__desktop-nav {
   align-self: stretch;
-  flex-shrink: 0;
-  gap: 24px;
-}
-
-.navbar__nav-link {
-  position: relative;
-  gap: 6px;
-  min-height: 100%;
-  padding: 0;
-  border-radius: 0;
-  color: var(--sf-public-text-secondary, #4f5869);
-  font-size: 13px;
-  font-weight: 600;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.navbar__nav-link:hover,
-.navbar__nav-link.is-active {
-  color: var(--sf-public-text, #151922);
-  background: transparent;
-}
-
-/* demo .top-nav a.is-active::after：底边 2px 强调色下划线 */
-.navbar__nav-link.is-active::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 2px;
-  background: var(--sf-accent);
+  flex: 0 1 auto;
 }
 
 .navbar__new-topic,
@@ -930,22 +766,11 @@ async function logout() {
   color: #052e2b;
 }
 
-.dark .navbar__nav-link,
 .dark .navbar__control,
 .dark .navbar__user-trigger,
 .dark .navbar__mobile-trigger,
 .dark .navbar__mobile-search-close {
   color: #d4d4d8;
-}
-
-.dark .navbar__nav-link:hover,
-.dark .navbar__nav-link.is-active {
-  color: #f4f4f5;
-  background: transparent;
-}
-
-.dark .navbar__nav-link.is-active::after {
-  background: var(--sf-accent-dark);
 }
 
 .dark .navbar__auth-link--quiet {

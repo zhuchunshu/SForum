@@ -52,6 +52,15 @@ Process probes (F1.2): `GET /api/v1/health` is cheap liveness; `GET
 /api/v1/ready` evaluates dependencies via `app/Support/Health` (PostgreSQL
 required; Redis and Meilisearch failures are degraded-ready).
 
+Release automation (2026-07-29) uses reusable GitHub Actions CI plus a
+tag-driven GHCR pipeline. `sforum-api`, `sforum-worker`, `sforum-migrate`, and
+`sforum-web` are built for `linux/amd64` and `linux/arm64`; commit-addressed
+candidates must pass Trivy and an exact-image PostgreSQL/Redis Compose smoke
+before version and stable aliases move. `compose.release.yaml` and
+`deploy.sh --version vX.Y.Z` consume one immutable application version without
+building on the operator host. GitHub does not deploy to operator-owned hosts.
+See `decisions/2026-07-29-ghcr-multi-platform-release-pipeline.md`.
+
 Performance hardening (2026-07-08) covers the network and connection layers
 beyond the earlier search/cache read-path work:
 
