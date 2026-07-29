@@ -37,6 +37,8 @@ describe('mail and notification admin center', () => {
     expect(providerTab).toContain('`/extensions/${selected}/pages/settings`')
     expect(providerTab).toContain("item.name === 'site.admin_email'")
     expect(providerTab).toContain('recipientOrAdminEmailRequired')
+	    expect(providerTab).toContain("'mail.welcome.enabled'")
+	    expect(providerTab).toContain('welcomeEnabledHelp')
     expect(providerTab).not.toContain('selected === \'sforum.smtp\'')
   })
 
@@ -70,6 +72,8 @@ describe('mail and notification admin center', () => {
     expect(en.admin.mailSettings.deliveryStatus.sent).toBe('Sent')
     expect(zh.admin.mailSettings.templates.admin_test).toBe('管理后台测试邮件')
     expect(en.admin.mailSettings.templates.identity_password_reset).toBe('Password reset')
+	    expect(zh.admin.mailSettings.templates.identity_welcome).toBe('注册欢迎')
+	    expect(en.admin.mailSettings.welcomeEnabled).toBe('Send a registration welcome email')
     expect(zh.admin.mailSettings.reasons.provider_unavailable).toBe('邮件提供商不可用')
     expect(en.admin.mailSettings.reasons.smtp_transport_failed).toBe('SMTP transport failed')
   })

@@ -76,6 +76,17 @@ ApiResponseAttachmentProbe:
       type: string
     data:
       "$ref": "#/AttachmentProbe"
+ApiResponseAttachmentDelete:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      type: object
+      required: [deleted]
+      properties:
+        deleted: { type: boolean, example: true }
 ApiResponseAttachmentCleanup:
   type: object
   required:
@@ -382,9 +393,10 @@ AttachmentProbe:
       type: boolean
     message:
       type: string
+      description: Localized probe outcome for the request locale.
     reason:
       type: string
-      description: Stable machine code (e.g. storage.ok, attachment.storage_unavailable, plugin RPC reason).
+      description: Stable machine-readable probe reason; do not render directly to operators.
 AttachmentCleanupResult:
   type: object
   required:
@@ -413,6 +425,7 @@ AttachmentStorageProviderField:
     default: { type: string }
     recommendedValue: { type: string }
     placeholder: { type: string }
+    required: { type: boolean }
     secretSet: { type: boolean }
     options:
       type: array

@@ -10,6 +10,25 @@
   draft probes, configuration, removal, and isolated per-instance backends.
 - Added protected `sforum.storage-s3` using AWS SDK v2 for AWS S3, MinIO,
   Cloudflare R2, and compatible services.
+- Prevented the multi-instance S3 plugin itself from appearing as a writable
+  attachment provider. Only configured `instance:<uuid>` selections are now
+  accepted by both Admin and API validation.
+- Added a plugin-list **Configure storage** action that opens Attachment
+  Configuration with the S3 instance editor ready, and moved provider-specific
+  public URL and credential editing fully into that instance Schema flow.
+- New built-in storage-provider plugins now start installed instead of enabled.
+  Existing enabled statuses and the filesystem reference plugin remain intact
+  so historical `plugin:sforum.storage-fs` attachments stay readable.
+- Fixed the create-instance locale path: Attachment Settings now resolves the
+  multi-instance provider name, field labels, descriptions, placeholders, and
+  options using the request locale instead of the English fallback Schema.
+- Extended the generic provider-field contract with `required`; S3 `1.0.1`
+  declares Bucket as required and provides clearer AWS, R2, MinIO, credential,
+  prefix, and secret-retention guidance.
+- The instance editor now marks required/optional fields, hides noisy empty
+  defaults, explains that draft probing needs no save, and keeps the current
+  probe result visible until any field changes. Draft probing still performs a
+  real temporary object write/read/delete cycle.
 - Removed protected FTP/SFTP plugins and rewired local/Docker build manifests.
 - Fixed the local built-in staging sync so excluded backend binaries from
   removed plugins cannot leave manifest-less directories that break API boot.
@@ -49,11 +68,16 @@
 - The staging cleanup and published-built-in prune regression tests, migration,
   and API startup were not run for the follow-up fixes at the user's request;
   manual verification remains.
+- The provider-form follow-up ran JSON parsing, scoped diff checks, built-in
+  source-baseline regeneration, and OpenAPI reference validation only. Browser
+  QA and test suites were intentionally left to manual verification.
 
 ## Next
 
 - Apply migration `202607300001_attachment_storage_instances.sql` in the normal
   deployment flow, enable `sforum.storage-s3`, and create/probe an instance.
+- Existing installations may disable `sforum.storage-fs` after confirming no
+  historical attachments still use `plugin:sforum.storage-fs`.
 - Runtime operator QA against real AWS S3, MinIO, or R2 credentials remains.
 
 ## Open Questions

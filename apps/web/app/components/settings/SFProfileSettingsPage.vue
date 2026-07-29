@@ -3,6 +3,7 @@ import { useSForumSeo } from '~/composables/seo/useSForumSeo'
 import { useProfileApi } from '~/composables/profile/useProfileApi'
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
 import { useAuthSession } from '~/composables/identity/useAuthSession'
+import { useUserLanguage } from '~/composables/identity/useUserLanguage'
 import SFSettingsShell from '~/components/settings/SFSettingsShell.vue'
 import SFProfileSettingsPreview from '~/components/settings/SFProfileSettingsPreview.vue'
 /**
@@ -17,6 +18,7 @@ type ProfileDraft = {
   signature: string
   location: string
   websiteUrl: string
+  locale: string
 }
 
 type SaveState = 'idle' | 'saving' | 'error' | 'success'
@@ -24,8 +26,9 @@ type SaveState = 'idle' | 'saving' | 'error' | 'success'
 const { t } = useI18n()
 const localePath = useLocalePath()
 const toast = useToast()
-const { siteName, avatarSettings } = useWebOptions()
+const { siteName, siteDomain, avatarSettings } = useWebOptions()
 const { user: authUser, setUser } = useAuthSession()
+const { currentLanguage, languageOptions, updateLanguage } = useUserLanguage()
 const { can } = usePermissions()
 const { formatDateOnly } = useSiteDateTime()
 const profileApi = useProfileApi()
@@ -46,13 +49,15 @@ const draft = reactive<ProfileDraft>({
   bio: '',
   signature: '',
   location: '',
-  websiteUrl: ''
+  websiteUrl: '',
+  locale: currentLanguage.value
 })
 const baseline = ref<ProfileDraft>({
   bio: '',
   signature: '',
   location: '',
-  websiteUrl: ''
+  websiteUrl: '',
+  locale: currentLanguage.value
 })
 const formReady = ref(false)
 
@@ -68,6 +73,7 @@ let successTimer: ReturnType<typeof setTimeout> | undefined
 const currentAvatar = computed(() => profile.value?.profile.avatar || null)
 const displayName = computed(() => profile.value?.displayName || profile.value?.username || '')
 const publicProfilePath = computed(() => profile.value ? localePath(`/u/${profile.value.username}`) : undefined)
+const publicProfilePrefix = computed(() => `${siteDomain.value}/u/`)
 const joinedLabel = computed(() => profile.value ? formatDateOnly(profile.value.joinedAt) : '')
 const avatarAccept = computed(() => avatarSettings.value.allowGif ? 'image/jpeg,image/png,image/gif' : 'image/jpeg,image/png')
 const canUploadAvatar = computed(() => avatarSettings.value.allowUpload && can(FORUM_PERMISSIONS.attachmentUpload))
@@ -94,6 +100,7 @@ const isDirty = computed(() => (
   || draft.signature !== baseline.value.signature
   || draft.location !== baseline.value.location
   || draft.websiteUrl !== baseline.value.websiteUrl
+  || draft.locale !== baseline.value.locale
 ))
 const canSave = computed(() => saveState.value !== 'saving' && !pending.value && isDirty.value)
 const hasUploadedAvatar = computed(() => Boolean(
@@ -128,7 +135,8 @@ function profileValues(data: ProfileData): ProfileDraft {
     bio: data.bio || '',
     signature: data.signature || '',
     location: data.location || '',
-    websiteUrl: data.websiteUrl || ''
+    websiteUrl: data.websiteUrl || '',
+    locale: currentLanguage.value
   }
 }
 
@@ -190,13 +198,25 @@ async function save() {
   successMessage.value = ''
   fieldErrors.value = {}
   try {
-    const updated = await profileApi.updateMyProfile({
-      bio: draft.bio,
-      signature: draft.signature,
-      location: draft.location,
-      websiteUrl: draft.websiteUrl
-    })
-    applyProfileUpdate(updated, { resetDraft: true })
+    let updated = profile.value?.profile
+    const profileChanged = draft.bio !== baseline.value.bio
+      || draft.signature !== baseline.value.signature
+      || draft.location !== baseline.value.location
+      || draft.websiteUrl !== baseline.value.websiteUrl
+    if (profileChanged) {
+      updated = await profileApi.updateMyProfile({
+        bio: draft.bio,
+        signature: draft.signature,
+        location: draft.location,
+        websiteUrl: draft.websiteUrl
+      })
+    }
+    if (draft.locale !== baseline.value.locale) {
+      await updateLanguage(draft.locale)
+    }
+    if (updated) {
+      applyProfileUpdate(updated, { resetDraft: true })
+    }
     saveState.value = 'success'
     showSuccess(t('profileSettings.saved'))
     toast.add({
@@ -384,10 +404,23 @@ async function removeAvatar() {
           <div class="sforum-settings-profile__field sforum-settings-profile__field--spaced">
             <label for="profile-settings-username">{{ t('profileSettings.username') }}</label>
             <div class="sforum-settings-profile__prefix-field">
-              <span>{{ t('profileSettings.profilePathPrefix') }}</span>
+              <span>{{ publicProfilePrefix }}</span>
               <input id="profile-settings-username" :value="profile.username" type="text" readonly>
             </div>
             <p>{{ t('profileSettings.usernameHint') }}</p>
+          </div>
+          <div class="sforum-settings-profile__field">
+            <label for="profile-settings-locale">{{ t('profileSettings.defaultLanguage') }}</label>
+            <USelect
+              id="profile-settings-locale"
+              v-model="draft.locale"
+              :items="languageOptions"
+              value-key="value"
+              label-key="label"
+              class="w-full"
+              :disabled="saveState === 'saving'"
+            />
+            <p>{{ t('profileSettings.defaultLanguageHint') }}</p>
           </div>
         </div>
       </section>

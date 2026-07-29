@@ -1,0 +1,25 @@
+/* ALTCHA renders outside Vue's component tree. Keep its semantic colors on the
+ * widget host so every authentication flow inherits the active SForum mode. */
+.auth-altcha,
+.sf-recovery-altcha {
+  width: 100%;
+  --altcha-max-width: 100%;
+  --altcha-border-radius: 7px;
+  --altcha-border-color: var(--sf-border);
+  --altcha-color-base: var(--sf-card);
+  --altcha-color-base-content: var(--sf-fg);
+  --altcha-color-neutral: var(--sf-border);
+  --altcha-color-neutral-content: var(--sf-fg-secondary);
+  --altcha-color-primary: var(--sf-accent);
+  --altcha-color-primary-content: var(--sf-accent-contrast, #ffffff);
+  --altcha-color-success: var(--sf-accent);
+  --altcha-color-success-content: var(--sf-accent-contrast, #ffffff);
+  --altcha-color-error: var(--sf-danger);
+  --altcha-color-error-content: #ffffff;
+  --altcha-checkbox-border-color: var(--sf-fg-tertiary);
+  --altcha-input-background-color: var(--sf-card);
+  --altcha-input-color: var(--sf-fg);
+  --altcha-spinner-color: var(--sf-fg-secondary);
+  --altcha-switch-background-color: var(--sf-muted);
+  --altcha-switch-toggle-color: var(--sf-fg-secondary);
+}

@@ -159,6 +159,54 @@ describe('password recovery production forms', () => {
     expect(wrapper.get('[data-testid="recovery-request-view"] [href="/"]').exists()).toBe(true)
   })
 
+  test('includes the ALTCHA verification payload when the scenario is enabled', async () => {
+    commonGlobals()
+    const calls: Array<{ path: string, options: Record<string, unknown> }> = []
+    Object.assign(globalThis, {
+      useToast: () => ({ add: () => {} }),
+      useWebOptions: () => ({
+        siteName: Vue.ref('SForum'),
+        humanVerificationEnabledFor: () => true,
+        altchaWidgetSettings: Vue.ref({
+          hideLogo: true,
+          hideFooter: true,
+          minDuration: 0,
+          type: 'checkbox',
+          auto: 'off',
+          display: 'standard',
+          workers: 1
+        })
+      }),
+      useApiClient: () => ({
+        apiBaseUrl: 'http://api.test',
+        request: async (path: string, options: Record<string, unknown>) => {
+          calls.push({ path, options })
+          return { sent: true }
+        }
+      })
+    })
+
+    const wrapper = mount(SFRecoveryRequestPage, { global: globalComponents })
+    activeWrappers.push(wrapper)
+    await wrapper.get('#recovery-email').setValue('name@example.com')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(calls).toEqual([{
+      path: '/auth/password-reset/request',
+      options: {
+        method: 'POST',
+        body: {
+          email: 'name@example.com',
+          humanVerification: {
+            provider: 'altcha',
+            token: ''
+          }
+        }
+      }
+    }])
+  })
+
   test('enforces runtime password policy, toggles visibility, and reaches completion', async () => {
     commonGlobals()
     const calls: Array<{ path: string, options: Record<string, unknown> }> = []

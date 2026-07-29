@@ -13,6 +13,7 @@ import (
 var (
 	ErrUnknownPage         = errors.New("pages: unknown page")
 	ErrNotReplaceable      = errors.New("pages: page is not replaceable")
+	ErrNotThemeable        = errors.New("pages: page does not allow a theme template")
 	ErrReservedPath        = errors.New("pages: path is reserved")
 	ErrConflictProvider    = errors.New("pages: multiple providers claim page")
 	ErrApprovalRequired    = errors.New("pages: replace requires approval")
@@ -174,7 +175,7 @@ func (r *Registry) RestoreThemePublication(ctx context.Context, snapshot ThemePu
 	}
 	prepared := make(map[string][]PageContribution, len(snapshot.Contributions))
 	for extensionID, contributions := range snapshot.Contributions {
-		items, err := prepareContributions(extensionID, contributions)
+		items, err := prepareThemeContributions(extensionID, contributions)
 		if err != nil {
 			return err
 		}
@@ -289,7 +290,17 @@ func (r *Registry) logWarn(msg string, args ...any) {
 // RegisterContributions 注册某扩展的页面贡献（启用/激活时调用；禁用时 ClearExtension）。
 // 先完整校验全部条目，再原子替换该扩展的旧贡献，避免半注册状态。
 func (r *Registry) RegisterContributions(extensionID string, items []PageContribution) error {
-	prepared, err := prepareContributions(extensionID, items)
+	return r.registerContributions(extensionID, items, contributionSourceExtension)
+}
+
+// RegisterThemeContributions 注册主题呈现候选。主题可以为 Themeable 页面
+// 提供受限 L1 模板，但不能借此获得插件替换权限。
+func (r *Registry) RegisterThemeContributions(extensionID string, items []PageContribution) error {
+	return r.registerContributions(extensionID, items, contributionSourceTheme)
+}
+
+func (r *Registry) registerContributions(extensionID string, items []PageContribution, source contributionSource) error {
+	prepared, err := prepareContributionsFor(extensionID, items, source)
 	if err != nil {
 		return err
 	}
@@ -337,7 +348,7 @@ func (r *Registry) ReplaceExtensionContributions(extensionID string, items []Pag
 // 按「最终状态」校验（新旧主题相同 add 路径允许；与其它扩展冲突仍失败）。
 // 失败时内存 snapshot 完全不变。
 func (r *Registry) ReplaceThemeContributions(newThemeID string, newItems []PageContribution, oldThemeID string) error {
-	prepared, err := prepareContributions(newThemeID, newItems)
+	prepared, err := prepareThemeContributions(newThemeID, newItems)
 	if err != nil {
 		return err
 	}
@@ -359,7 +370,7 @@ func (r *Registry) ReplaceThemeContributions(newThemeID string, newItems []PageC
 // SwitchThemeContributions removes old theme approvals and publishes the new
 // theme as presentation candidates without granting any Core replacement.
 func (r *Registry) SwitchThemeContributions(ctx context.Context, newThemeID string, newItems []PageContribution, oldThemeID string) error {
-	prepared, err := prepareContributions(newThemeID, newItems)
+	prepared, err := prepareThemeContributions(newThemeID, newItems)
 	if err != nil {
 		return err
 	}
@@ -423,7 +434,7 @@ func (r *Registry) ActivateThemeContributionsReplacing(
 	if approvedBy <= 0 {
 		return ErrApprovalRequired
 	}
-	prepared, err := prepareContributions(newThemeID, newItems)
+	prepared, err := prepareThemeContributions(newThemeID, newItems)
 	if err != nil {
 		return err
 	}
@@ -506,7 +517,7 @@ func (r *Registry) RestoreThemeContributions(
 	items []PageContribution,
 	staleThemeIDs []string,
 ) error {
-	prepared, err := prepareContributions(activeThemeID, items)
+	prepared, err := prepareThemeContributions(activeThemeID, items)
 	if err != nil {
 		return err
 	}
@@ -630,106 +641,26 @@ func (r *Registry) applyContributionsLocked(prepared []PageContribution) {
 	SortCompiledRoutes(r.compiledAdds)
 }
 
-// prepareContributions 校验并规范化贡献列表（不修改 Registry）。
-func prepareContributions(extensionID string, items []PageContribution) ([]PageContribution, error) {
-	prepared := make([]PageContribution, 0, len(items))
-	seenAddSigs := map[string]struct{}{}
-	for _, item := range items {
-		item.ExtensionID = extensionID
-		// access 规范化（空 → public；未知 → 失败）
-		access, err := NormalizeAccess(string(item.Access))
-		if err != nil {
-			return nil, err
-		}
-		item.Access = access
-		if access == AccessPermission {
-			if strings.TrimSpace(item.Permission) == "" {
-				return nil, fmt.Errorf("%w: permission key required for access=permission", ErrInvalidAccess)
-			}
-		}
-		if err := validateContribution(item); err != nil {
-			return nil, err
-		}
-		// data route 预检
-		if strings.TrimSpace(item.DataRoute) != "" {
-			if err := ValidateDataRoute(item.DataRoute); err != nil {
-				return nil, fmt.Errorf("%w: %v", ErrInvalidContribution, err)
-			}
-			if item.DataSource == "" {
-				item.DataSource = "plugin"
-			}
-		}
-		switch item.Action {
-		case ActionReplace:
-			target := strings.TrimSpace(item.Target)
-			page, ok := Find(target)
-			if !ok {
-				return nil, fmt.Errorf("%w: target %q", ErrUnknownPage, target)
-			}
-			if !page.Replaceable {
-				return nil, fmt.Errorf("%w: %s", ErrNotReplaceable, target)
-			}
-			// replace 必须声明 contract，且与核心目录一致
-			if strings.TrimSpace(item.Contract) == "" {
-				return nil, fmt.Errorf("%w: replace requires contract", ErrInvalidContribution)
-			}
-			if page.ContractVersion != "" && item.Contract != page.ContractVersion {
-				return nil, fmt.Errorf("%w: contribution contract %q != core %q", ErrContractMismatch, item.Contract, page.ContractVersion)
-			}
-		case ActionAdd:
-			path := normalizePublicPath(item.Path)
-			item.Path = path
-			if IsReservedPath(path) {
-				return nil, fmt.Errorf("%w: %s", ErrReservedPath, path)
-			}
-			// 与核心目录路径冲突（精确或参数化语义）
-			if _, ok := MatchPath(path); ok {
-				return nil, fmt.Errorf("%w: path %s collides with core page", ErrConflictProvider, path)
-			}
-			// 也检查与核心 path pattern 的 signature 冲突
-			sig, err := CanonicalRouteSignature(path)
-			if err != nil {
-				return nil, err
-			}
-			item.RouteSignature = sig
-			for _, page := range Catalog() {
-				if page.PathPattern == "" {
-					continue
-				}
-				coreSig, err := CanonicalRouteSignature(page.PathPattern)
-				if err != nil {
-					continue
-				}
-				if signaturesConflict(sig, coreSig) {
-					return nil, fmt.Errorf("%w: path signature %s collides with core page %s", ErrConflictProvider, sig, page.ID)
-				}
-			}
-			if _, ok := seenAddSigs[sig]; ok {
-				return nil, fmt.Errorf("%w: duplicate add signature %s", ErrInvalidContribution, sig)
-			}
-			seenAddSigs[sig] = struct{}{}
-			// 编译校验
-			if _, err := CompileRoute(path, item); err != nil {
-				return nil, err
-			}
-		default:
-			return nil, fmt.Errorf("%w: action %q", ErrInvalidContribution, item.Action)
-		}
-		prepared = append(prepared, item)
-	}
-	return prepared, nil
-}
-
 // PreflightContributions 仅校验贡献是否可注册，不修改状态（激活预检用）。
 // replaceExtensionID 非空时，预检按「替换该扩展」的最终状态计算（主题切换）。
 func (r *Registry) PreflightContributions(extensionID string, items []PageContribution) error {
 	return r.PreflightContributionsReplacing(extensionID, items, extensionID)
 }
 
+// PreflightThemeContributionsReplacing 校验主题最终态，允许 Themeable 页面
+// 使用 Host 审核过的岛，同时保留普通扩展的 Replaceable 限制。
+func (r *Registry) PreflightThemeContributionsReplacing(extensionID string, items []PageContribution, ignoreExtensionIDs ...string) error {
+	return r.preflightContributionsReplacing(extensionID, items, contributionSourceTheme, ignoreExtensionIDs...)
+}
+
 // PreflightContributionsReplacing 按「忽略 ignoreExtensionIDs 后的最终状态」校验。
 // 主题激活：ignore = [newTheme, oldTheme]，使新旧主题同路径可切换。
 func (r *Registry) PreflightContributionsReplacing(extensionID string, items []PageContribution, ignoreExtensionIDs ...string) error {
-	prepared, err := prepareContributions(extensionID, items)
+	return r.preflightContributionsReplacing(extensionID, items, contributionSourceExtension, ignoreExtensionIDs...)
+}
+
+func (r *Registry) preflightContributionsReplacing(extensionID string, items []PageContribution, source contributionSource, ignoreExtensionIDs ...string) error {
+	prepared, err := prepareContributionsFor(extensionID, items, source)
 	if err != nil {
 		return err
 	}

@@ -35,6 +35,7 @@ type ModerationEvent struct {
 }
 
 func (o *Outbox) NotifyModerationTx(ctx context.Context, tx pgx.Tx, event ModerationEvent) error {
+	brand := resolveMailBrand(ctx, o.brandResolver)
 	var authorID sql.NullInt64
 	topicID := event.TargetID
 	var err error
@@ -54,13 +55,13 @@ func (o *Outbox) NotifyModerationTx(ctx context.Context, tx pgx.Tx, event Modera
 		kind = TypeModerationApproved
 	}
 	if authorID.Valid && authorID.Int64 != event.ReviewerUserID {
-		var email string
-		err := tx.QueryRow(ctx, `SELECT email FROM users WHERE id=$1 AND status='active'`, authorID.Int64).Scan(&email)
+		var email, locale, displayName string
+		err := tx.QueryRow(ctx, `SELECT email, locale, display_name FROM users WHERE id=$1 AND status='active'`, authorID.Int64).Scan(&email, &locale, &displayName)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return fmt.Errorf("load moderation notification recipient: %w", err)
 		}
 		if err == nil {
-			payloadData := map[string]any{"targetType": event.TargetType, "targetId": event.TargetID, "topicId": topicID, "reviewNote": event.ReviewNote}
+			payloadData := mailTemplateData(map[string]any{"targetType": event.TargetType, "targetId": event.TargetID, "topicId": topicID, "reviewNote": event.ReviewNote, "locale": resolveMailLocale(ctx, locale, o.localeResolver), "recipientName": displayName}, brand)
 			if event.TargetType == "comment" {
 				payloadData["commentId"] = event.TargetID
 			}
@@ -119,9 +120,10 @@ func (o *Outbox) notifyApprovedContentTx(ctx context.Context, tx pgx.Tx, event M
 }
 
 func (o *Outbox) NotifyCommentTx(ctx context.Context, tx pgx.Tx, event CommentEvent) error {
+	brand := resolveMailBrand(ctx, o.brandResolver)
 	type recipient struct {
-		id          int64
-		email, kind string
+		id                        int64
+		email, kind, locale, name string
 	}
 	recipients := map[string]recipient{}
 	replyRecipientID := event.ParentAuthorUserID
@@ -129,29 +131,29 @@ func (o *Outbox) NotifyCommentTx(ctx context.Context, tx pgx.Tx, event CommentEv
 		replyRecipientID = event.TopicAuthorUserID
 	}
 	if replyRecipientID > 0 && replyRecipientID != event.ActorUserID {
-		var email string
-		err := tx.QueryRow(ctx, `SELECT email FROM users WHERE id=$1 AND status='active'`, replyRecipientID).Scan(&email)
+		var email, locale, name string
+		err := tx.QueryRow(ctx, `SELECT email, locale, display_name FROM users WHERE id=$1 AND status='active'`, replyRecipientID).Scan(&email, &locale, &name)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return fmt.Errorf("load reply notification recipient: %w", err)
 		}
 		if err == nil {
-			recipients[fmt.Sprintf("reply:%d", replyRecipientID)] = recipient{replyRecipientID, email, TypeReply}
+			recipients[fmt.Sprintf("reply:%d", replyRecipientID)] = recipient{id: replyRecipientID, email: email, kind: TypeReply, locale: locale, name: name}
 		}
 	}
 	for _, username := range event.MentionedUsernames {
 		var id int64
-		var email string
-		err := tx.QueryRow(ctx, `SELECT id,email FROM users WHERE username_lower=LOWER($1) AND status='active'`, username).Scan(&id, &email)
+		var email, locale, name string
+		err := tx.QueryRow(ctx, `SELECT id, email, locale, display_name FROM users WHERE username_lower=LOWER($1) AND status='active'`, username).Scan(&id, &email, &locale, &name)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return fmt.Errorf("load mention notification recipient: %w", err)
 		}
 		if err != nil || id == event.ActorUserID {
 			continue
 		}
-		recipients[fmt.Sprintf("mention:%d", id)] = recipient{id, email, TypeMention}
+		recipients[fmt.Sprintf("mention:%d", id)] = recipient{id: id, email: email, kind: TypeMention, locale: locale, name: name}
 	}
 	for key, item := range recipients {
-		payload, _ := json.Marshal(map[string]any{"commentId": event.CommentID, "topicId": event.TopicID})
+		payload, _ := json.Marshal(mailTemplateData(map[string]any{"commentId": event.CommentID, "topicId": event.TopicID, "locale": resolveMailLocale(ctx, item.locale, o.localeResolver), "recipientName": item.name}, brand))
 		dedupe := fmt.Sprintf("comment:%d:%s", event.CommentID, key)
 		if err := o.CreateProjectionsTx(ctx, tx, CreateBundleInput{
 			Notification: CreateInput{RecipientUserID: item.id, Type: item.kind, ActorUserID: &event.ActorUserID, TargetType: "comment", TargetID: event.CommentID, Payload: payload, DedupeKey: dedupe},
@@ -168,29 +170,38 @@ func (o *Outbox) NotifyCommentTx(ctx context.Context, tx pgx.Tx, event CommentEv
 // Topic authors are not notified about their own new topic; only explicit active
 // mentions become projections.
 func (o *Outbox) NotifyTopicTx(ctx context.Context, tx pgx.Tx, event TopicEvent) error {
-	recipients := make(map[int64]string, len(event.MentionedUsernames))
+	brand := resolveMailBrand(ctx, o.brandResolver)
+	type recipient struct{ email, locale, name string }
+	recipients := make(map[int64]recipient, len(event.MentionedUsernames))
 	for _, username := range event.MentionedUsernames {
 		var recipientID int64
-		var email string
-		err := tx.QueryRow(ctx, `SELECT id, email FROM users WHERE username_lower=LOWER($1) AND status='active'`, username).Scan(&recipientID, &email)
+		var email, locale, name string
+		err := tx.QueryRow(ctx, `SELECT id, email, locale, display_name FROM users WHERE username_lower=LOWER($1) AND status='active'`, username).Scan(&recipientID, &email, &locale, &name)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return fmt.Errorf("load topic mention notification recipient: %w", err)
 		}
 		if err != nil || recipientID == event.ActorUserID {
 			continue
 		}
-		recipients[recipientID] = email
+		recipients[recipientID] = recipient{email: email, locale: locale, name: name}
 	}
-	for recipientID, email := range recipients {
-		payload, _ := json.Marshal(map[string]any{"topicId": event.TopicID})
+	for recipientID, recipient := range recipients {
+		payload, _ := json.Marshal(mailTemplateData(map[string]any{"topicId": event.TopicID, "locale": resolveMailLocale(ctx, recipient.locale, o.localeResolver), "recipientName": recipient.name}, brand))
 		key := fmt.Sprintf("topic:%d:mention:%d", event.TopicID, recipientID)
 		if err := o.CreateProjectionsTx(ctx, tx, CreateBundleInput{
 			Notification: CreateInput{RecipientUserID: recipientID, Type: TypeMention, ActorUserID: &event.ActorUserID, TargetType: "topic", TargetID: event.TopicID, Payload: payload, DedupeKey: key},
-			Delivery:     CreateDeliveryInput{Recipient: email, TemplateKey: "forum." + TypeMention, TemplateData: payload, IdempotencyKey: key},
+			Delivery:     CreateDeliveryInput{Recipient: recipient.email, TemplateKey: "forum." + TypeMention, TemplateData: payload, IdempotencyKey: key},
 			Channels:     coreDeliveryChannels(),
 		}); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func mailTemplateData(data map[string]any, brand MailBrand) map[string]any {
+	for name, value := range brand.TemplateData() {
+		data[name] = value
+	}
+	return data
 }

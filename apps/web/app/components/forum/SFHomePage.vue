@@ -6,6 +6,7 @@ import SFHomeTopicRow from '~/components/forum/SFHomeTopicRow.vue'
 import SFHomeRightRail from '~/components/forum/SFHomeRightRail.vue'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
+import SFPublicPageHeader from '~/components/public/SFPublicPageHeader.vue'
 /**
  * 宿主 body 岛：论坛首页与搜索页共享的完整交互 UI（主题 L1 挂载点）。
  * 路由页只负责 SEO + SFPageOutlet fail-closed 回退。
@@ -547,48 +548,51 @@ onBeforeUnmount(() => {
         </div>
 
         <!-- 列表抬头由宿主提供真实筛选状态，默认主题只通过 token 换肤。 -->
-        <div class="sforum-home__feed-head">
-          <div>
-            <h2 id="forum-feed-title" class="sforum-home__feed-title">{{ feedTitle }}</h2>
-            <p class="sforum-home__feed-subtitle">
-              {{ !selectedCategorySlug && !selectedTagSlug
-                ? t('home.feed.subtitle')
-                : t('home.feed.topicCountMeta', { count: totalTopics }) }}
-            </p>
-          </div>
-          <div class="sforum-home__feed-tools" role="group" :aria-label="t('home.filter.sortLabel')">
-            <button
-              type="button"
-              class="sforum-home__feed-sort"
-              :class="{ 'is-active': feedSort === 'latest' }"
-              :aria-pressed="feedSort === 'latest'"
-              @click="feedSort = 'latest'"
-            >
-              {{ t('home.filter.latest') }}
-            </button>
-            <button
-              type="button"
-              class="sforum-home__feed-sort max-[560px]:hidden"
-              :class="{ 'is-active': feedSort === 'replies' }"
-              :aria-pressed="feedSort === 'replies'"
-              @click="feedSort = 'replies'"
-            >
-              {{ t('home.filter.mostReplies') }}
-            </button>
-            <button
-              type="button"
-              class="sforum-home__feed-filter-button"
-              :class="{ 'is-active': filterPanelOpen || hasActiveFilters }"
-              :title="t('home.filter.openFilters')"
-              :aria-label="t('home.filter.openFilters')"
-              :aria-expanded="filterPanelOpen"
-              aria-controls="home-topic-filters"
-              @click="filterPanelOpen = !filterPanelOpen"
-            >
-              <UIcon name="i-lucide-sliders-horizontal" class="size-[19px]" aria-hidden="true" />
-            </button>
-          </div>
-        </div>
+        <SFPublicPageHeader
+          class="sforum-home__feed-head"
+          title-id="forum-feed-title"
+          :title="feedTitle"
+          :subtitle="!selectedCategorySlug && !selectedTagSlug
+            ? t('home.feed.subtitle')
+            : t('home.feed.topicCountMeta', { count: totalTopics })"
+          :level="2"
+          variant="section"
+        >
+          <template #aside>
+            <div class="sforum-home__feed-tools" role="group" :aria-label="t('home.filter.sortLabel')">
+              <button
+                type="button"
+                class="sforum-home__feed-sort"
+                :class="{ 'is-active': feedSort === 'latest' }"
+                :aria-pressed="feedSort === 'latest'"
+                @click="feedSort = 'latest'"
+              >
+                {{ t('home.filter.latest') }}
+              </button>
+              <button
+                type="button"
+                class="sforum-home__feed-sort max-[560px]:hidden"
+                :class="{ 'is-active': feedSort === 'replies' }"
+                :aria-pressed="feedSort === 'replies'"
+                @click="feedSort = 'replies'"
+              >
+                {{ t('home.filter.mostReplies') }}
+              </button>
+              <button
+                type="button"
+                class="sforum-home__feed-filter-button"
+                :class="{ 'is-active': filterPanelOpen || hasActiveFilters }"
+                :title="t('home.filter.openFilters')"
+                :aria-label="t('home.filter.openFilters')"
+                :aria-expanded="filterPanelOpen"
+                aria-controls="home-topic-filters"
+                @click="filterPanelOpen = !filterPanelOpen"
+              >
+                <UIcon name="i-lucide-sliders-horizontal" class="size-[19px]" aria-hidden="true" />
+              </button>
+            </div>
+          </template>
+        </SFPublicPageHeader>
 
         <p
           v-if="committedFilters.query"

@@ -107,6 +107,33 @@ Implications:
 - Themes under `builtin/themes/` are copied into staging; they are buildless
   runtime packages (no go-plugin binary).
 
+### Built-in theme change workflow
+
+Treat the source package, staged package, and active immutable artifact as
+different objects. For every change under `extensions/builtin/themes/<dir>/`:
+
+1. Keep each `theme.json.pages[].template` path synchronized with exactly one
+   Manifest V3 `templates[]` declaration and one `packageFiles[]` entry whose
+   kind is `template`. The path and SHA-256 digest must match across the exact
+   declarations; `theme.json` alone is not a runtime declaration.
+2. From `apps/api`, refresh and verify the source package:
+
+   ```bash
+   go run ./cmd/sforum extension digest --write ../../extensions/builtin/themes/<dir>
+   go run ./cmd/sforum extension validate ../../extensions/builtin/themes/<dir>
+   go run ./cmd/sforum extension test ../../extensions/builtin/themes/<dir>
+   ```
+
+3. Run `./scripts/build-builtin-plugins.sh` from the repository root. Restart
+   the API so `SyncBuiltins` stages the new immutable digest.
+4. Activate that staged digest through the normal admin theme flow, then verify
+   the resolved provider/digest. A source edit never changes the active theme.
+
+Never edit `storage/builtin-dev/` or `storage/extensions/**` as source. Those
+directories contain generated staging data or immutable runtime snapshots.
+Missing exact template declarations fail activation with
+`extension.build_failed`.
+
 ### Third-party / optional plugins
 
 1. Develop anywhere (often `extensions/dev/…` or an external folder).

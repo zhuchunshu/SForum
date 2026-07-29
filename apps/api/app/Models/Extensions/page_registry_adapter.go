@@ -73,7 +73,7 @@ func (a *PageRegistryAdapter) registerThemePackage(ctx context.Context, extensio
 	publication := a.Bridge.Registry.CaptureThemePublication(append([]string{extension.ID}, oldThemeIDs...)...)
 	var publishErr error
 	if oldThemeIDs == nil {
-		publishErr = a.Bridge.Registry.RegisterContributions(extension.ID, contributions)
+		publishErr = a.Bridge.Registry.RegisterThemeContributions(extension.ID, contributions)
 	} else {
 		publishErr = a.Bridge.Registry.RestoreThemeContributions(ctx, extension.ID, contributions, oldThemeIDs)
 	}

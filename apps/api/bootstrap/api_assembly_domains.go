@@ -120,7 +120,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	stopPluginRuntimeCoordinator := extensionPlatform.stopPluginRuntimeCoordinator
 	closePluginRuntime := extensionPlatform.closePluginRuntime
 	notificationStore := notifications.NewPostgresStoreWithAvatar(pool, avatarOptionsAdapter{options: infrastructure.optionsService}).WithRevisionWakeups(ctx)
-	mailOutbox := notifications.NewOutbox(pool, notificationStore, jobDispatcher).
+	mailOutbox := notifications.NewOutbox(pool, notificationStore, jobDispatcher, options.NewMailSettings(optionsService)).
 		WithDeliveryPolicyResolver(notificationStore)
 	forumStore.WithCommentNotifications(forumNotificationAdapter{outbox: mailOutbox})
 	moderationStore.WithDecisionNotifications(moderationNotificationAdapter{outbox: mailOutbox})
@@ -129,7 +129,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	passwordResetService := identity.NewPasswordResetServiceWithPasswordPolicy(identityStore, passwordResetOutbox{outbox: mailOutbox}, identity.PasswordResetConfig{
 		SiteName: siteName,
 		SiteURL:  siteURL,
-	}, optionsService).WithRateLimiter(authsupport.NewPasswordResetLimiter(sharedRedisClient))
+	}, optionsService).WithLocaleResolver(options.NewMailSettings(optionsService)).WithBrandResolver(options.NewMailSettings(optionsService)).WithRateLimiter(authsupport.NewPasswordResetLimiter(sharedRedisClient))
 	loginLockout := authsupport.NewLoginLockout(sharedRedisClient)
 	// F3.3：出站 webhook 扇出包装在事件发布路径上（observe 成功后异步入队）。
 	webhookStore := webhooks.NewPostgresStore(pool)

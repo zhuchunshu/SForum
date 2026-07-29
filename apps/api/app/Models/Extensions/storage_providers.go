@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	storage "github.com/zhuchunshu/sforum/apps/api/app/Support/Storage"
 )
 
@@ -37,6 +38,7 @@ func (s *CatalogService) ListStorageProviderCandidates(ctx context.Context) ([]s
 			if strings.TrimSpace(provider.Slot) == storage.ProviderSlot {
 				candidate.MultiInstance = provider.MultiInstance
 				if provider.MultiInstance {
+					candidate.SettingsPath = "/attachments/settings?provider=" + item.ID
 					schema := storageProviderSchema(item, "")
 					candidate.Schema = &schema
 				}
@@ -111,6 +113,9 @@ func (a *AttachmentStorageProviderCatalog) StorageProviderSchema(ctx context.Con
 
 func storageProviderSchema(item Extension, locale string) storage.ProviderSchema {
 	label, _ := storageProviderLabel(item)
+	if localizedName := strings.TrimSpace(extensionmanifest.LocalizedDisplay(item.Manifest, locale).Name); localizedName != "" {
+		label = localizedName
+	}
 	fields := make([]storage.ProviderField, 0, len(item.Manifest.Settings))
 	for _, field := range item.Manifest.Settings {
 		options := make([]storage.ProviderOption, 0, len(field.Options))
@@ -120,7 +125,7 @@ func storageProviderSchema(item Extension, locale string) storage.ProviderSchema
 		fields = append(fields, storage.ProviderField{
 			Key: field.Key, Label: field.Label.Resolve(locale), Description: field.Description.Resolve(locale),
 			Type: field.Type, Default: field.Default, RecommendedValue: field.RecommendedValue,
-			Placeholder: field.Placeholder.Resolve(locale), Options: options,
+			Placeholder: field.Placeholder.Resolve(locale), Required: field.Required, Options: options,
 		})
 	}
 	return storage.ProviderSchema{ExtensionID: item.ID, Label: label, Fields: fields}

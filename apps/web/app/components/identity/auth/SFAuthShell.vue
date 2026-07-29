@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { useColorModePreference } from '~/composables/appearance/useColorModePreference'
+import { useNavbarLanguageMenu } from '~/composables/navigation/useNavbarLanguageMenu'
 
 const props = defineProps<{
   recoveryPhase?: 1 | 2 | 3
-})
+}>()
 
 const { t } = useI18n()
 const localePath = useLocalePath()
 const { siteLogoUrl, siteName, siteTagline } = useWebOptions()
+const { currentLocaleName, languageMenuItems } = useNavbarLanguageMenu()
 const {
   preference: colorModePreference,
   options: colorModeOptions,
@@ -93,18 +95,66 @@ const recoverySteps = computed(() => [
         <span>{{ siteName }}</span>
       </NuxtLink>
 
-      <ClientOnly>
-        <button
-          type="button"
-          class="sf-auth-shell__color-mode"
-          :aria-label="colorModeTriggerLabel"
-          :title="colorModeTriggerLabel"
-          @click="cycleColorModePreference"
-        >
-          <UIcon :name="currentColorModeOption.icon" aria-hidden="true" />
-        </button>
-        <template #fallback><span class="sf-auth-shell__color-mode-placeholder" aria-hidden="true" /></template>
-      </ClientOnly>
+      <div class="sf-auth-shell__utilities">
+        <ClientOnly>
+          <UDropdownMenu :items="languageMenuItems" :content="{ align: 'end' }">
+            <UButton
+              color="neutral"
+              variant="ghost"
+              square
+              class="sf-auth-shell__utility"
+              :aria-label="t('nav.language')"
+              :title="currentLocaleName"
+            >
+              <UIcon name="i-tabler-language" aria-hidden="true" />
+            </UButton>
+          </UDropdownMenu>
+          <template #fallback>
+            <UButton
+              color="neutral"
+              variant="ghost"
+              square
+              class="sf-auth-shell__utility"
+              :aria-label="t('nav.language')"
+              :title="currentLocaleName"
+              aria-hidden="true"
+              tabindex="-1"
+              data-ssr-fallback="auth-language"
+            >
+              <UIcon name="i-tabler-language" aria-hidden="true" />
+            </UButton>
+          </template>
+        </ClientOnly>
+
+        <ClientOnly>
+          <UButton
+            color="neutral"
+            variant="ghost"
+            square
+            class="sf-auth-shell__utility"
+            :aria-label="colorModeTriggerLabel"
+            :title="colorModeTriggerLabel"
+            @click="cycleColorModePreference"
+          >
+            <UIcon :name="currentColorModeOption.icon" aria-hidden="true" />
+          </UButton>
+          <template #fallback>
+            <UButton
+              color="neutral"
+              variant="ghost"
+              square
+              class="sf-auth-shell__utility"
+              :aria-label="t('nav.appearance')"
+              :title="t('nav.appearance')"
+              aria-hidden="true"
+              tabindex="-1"
+              data-ssr-fallback="auth-appearance"
+            >
+              <UIcon name="i-tabler-brightness-filled" aria-hidden="true" />
+            </UButton>
+          </template>
+        </ClientOnly>
+      </div>
 
       <div class="sf-auth-shell__content">
         <NuxtLink v-if="isRecovery" :to="localePath('/login')" class="sf-auth-shell__back-link">
@@ -143,13 +193,14 @@ const recoverySteps = computed(() => [
 .sf-auth-shell__recovery-note svg { width: 15px; height: 15px; }
 .sf-auth-shell__panel { position: relative; display: flex; min-width: 0; align-items: center; justify-content: center; padding: 48px 40px; }
 .sf-auth-shell__content { width: min(100%, 410px); }
-.sf-auth-shell__color-mode { position: absolute; top: 28px; right: 32px; display: grid; width: 38px; height: 38px; place-items: center; border: 1px solid var(--sf-border); border-radius: 7px; background: var(--sf-card); color: var(--sf-fg-secondary); cursor: pointer; }
-.sf-auth-shell__color-mode:hover { background: var(--sf-muted); color: var(--sf-fg); }
-.sf-auth-shell__color-mode svg { width: 18px; height: 18px; }
-.sf-auth-shell__color-mode-placeholder { position: absolute; top: 28px; right: 32px; width: 38px; height: 38px; }
+.sf-auth-shell__utilities { position: absolute; top: 28px; right: 32px; display: flex; gap: 8px; }
+.sf-auth-shell__utility { width: 38px; height: 38px; border: 1px solid var(--sf-border); border-radius: 7px; background: var(--sf-card); color: var(--sf-fg-secondary); }
+.sf-auth-shell__utility:hover { background: var(--sf-muted); color: var(--sf-fg); }
+.sf-auth-shell__utility svg { width: 18px; height: 18px; }
+[data-ssr-fallback] { pointer-events: none; }
 .sf-auth-shell__mobile-brand { display: none; }
 .sf-auth-shell__back-link { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 34px; color: var(--sf-fg-secondary); font-size: 13px; font-weight: 620; text-decoration: none; }
 .sf-auth-shell__back-link:hover { color: var(--sf-accent); }
 .sf-auth-shell__back-link svg { width: 16px; height: 16px; }
-@media (max-width: 720px) { .sf-auth-shell { display: block; } .sf-auth-shell__brand { display: none; } .sf-auth-shell__panel { min-height: 100svh; align-items: flex-start; padding: 94px 20px 48px; } .sf-auth-shell__mobile-brand { position: absolute; top: 24px; left: 20px; display: inline-flex; font-size: 15px; } .sf-auth-shell__mobile-brand .sf-auth-shell__logo { width: 29px; height: 29px; flex-basis: 29px; } .sf-auth-shell__color-mode, .sf-auth-shell__color-mode-placeholder { top: 20px; right: 20px; } .sf-auth-shell__content { max-width: 430px; margin: 0 auto; } .sf-auth-shell__back-link { margin-bottom: 28px; } }
+@media (max-width: 720px) { .sf-auth-shell { display: block; } .sf-auth-shell__brand { display: none; } .sf-auth-shell__panel { min-height: 100svh; align-items: flex-start; padding: 94px 20px 48px; } .sf-auth-shell__mobile-brand { position: absolute; top: 24px; left: 20px; display: inline-flex; font-size: 15px; } .sf-auth-shell__mobile-brand .sf-auth-shell__logo { width: 29px; height: 29px; flex-basis: 29px; } .sf-auth-shell__utilities { top: 20px; right: 20px; } .sf-auth-shell__content { max-width: 430px; margin: 0 auto; } .sf-auth-shell__back-link { margin-bottom: 28px; } }
 </style>

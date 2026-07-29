@@ -17,7 +17,7 @@ const { layoutShowFooter, layoutShowAnnouncements } = useActiveThemeSettings()
     data-host-chrome="public"
     data-layout="fullwidth-3col"
   >
-    <SFNavbar />
+    <SFNavbar layout="fullwidth-3col" />
     <SFAnnouncementBanner v-if="layoutShowAnnouncements" />
     <div class="sf-host-public-chrome__body">
       <slot />

@@ -113,6 +113,12 @@ Prior partial evidence, not closure:
   rebuilt, the API restarts and stages the new digest, and an authorized admin
   activates that exact version. Browser QA must inspect the resolved
   provider/digest; checking repository templates alone cannot prove activation.
+- Both protected built-in themes declare every `theme.json` page template as an
+  exact Manifest V3 `templates` + `packageFiles` pair. The CLI regression gate
+  validates both source packages so a page mapping cannot ship without its
+  immutable template identity and digest. The source-to-activation workflow is
+  now a repository rule and is documented in `extensions/README.md` and the
+  extension authoring/CLI guides.
 - Uploaded packages are immutable snapshots under `EXTENSION_ROOT`; they are
   separate from public attachments.
 - `EXTERNAL_EXTENSION_ROOTS` accepts comma-separated collection roots whose
@@ -466,6 +472,11 @@ Relevant plans:
   `site.public_surface_revision`. Topic HTML no longer consumes that revision
   because `/t/**` disables whole-page caching; each SSR request resolves current
   Page Registry and contribution state without requiring theme reactivation.
+- Page Registry separates behavior replacement from theme presentation:
+  `replaceable` admits trusted plugin replacement after approval, while
+  `themeable` admits only selected-theme L1 templates around reviewed Host
+  islands. Existing replaceable pages remain themeable; `moderation.review` is
+  the first themeable/non-replaceable Core surface.
 - Admin surfaces include overview, plugin/theme lists and details, settings,
   event log, extension points, Page Registry, lifecycle progress/recovery, and
   provider inspection. The App Store remains a local framework shell until a
@@ -538,5 +549,8 @@ Relevant plans:
    zero-use evidence all pass.
 4. Keep system error pages plugin-closed and L0/L1-only when adding future
    status families or browser-facing producers.
-5. Keep new product integrations on stable provider/registry contracts and
+5. Keep sensitive Core workbenches plugin-closed unless behavior replacement is
+   an explicit product decision; use `themeable` only for constrained Host-island
+   presentation.
+6. Keep new product integrations on stable provider/registry contracts and
    regenerate the affected Extension Surface Matrix.

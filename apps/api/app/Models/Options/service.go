@@ -73,10 +73,8 @@ const sessionsMaxDevicesMax = 20
 // 历史会话保留天数取值范围（1-365）。
 const sessionsKeepDaysMin = 1
 const sessionsKeepDaysMax = 365
-const customAppearanceThemePrefix = "custom:"
 
 var builtInLocales = []string{localization.DefaultLocale, "en-US"}
-var appearanceThemes = []string{"pine_teal", "ocean_blue", "violet", "rose", "amber"}
 var footerLinkKeys = []string{"terms", "privacy", "guidelines"}
 var seoTwitterCards = []string{"summary", "summary_large_image"}
 var altchaWidgetTypes = []string{"native", "checkbox", "switch"}
@@ -93,7 +91,7 @@ type humanVerificationScenario struct {
 
 var humanVerificationScenarios = []humanVerificationScenario{
 	{name: NameHumanVerificationRegister, purpose: humanverify.PurposeRegister, defaultEnabled: true},
-	{name: NameHumanVerificationPasswordReset, purpose: humanverify.PurposePasswordReset},
+	{name: NameHumanVerificationPasswordReset, purpose: humanverify.PurposePasswordReset, defaultEnabled: true},
 	{name: NameHumanVerificationLoginRisk, purpose: humanverify.PurposeLoginRisk},
 	{name: NameHumanVerificationPostRisk, purpose: humanverify.PurposePostRisk},
 }
@@ -156,6 +154,7 @@ var optionDefinitions = []optionDefinition{
 	{name: NameAltchaWidgetWorkers, public: true, managePermission: identity.PermissionSettingsSiteManage},
 	{name: NameAltchaWidgetMinDuration, public: true, managePermission: identity.PermissionSettingsSiteManage},
 	{name: NameAppearanceTheme, public: true, managePermission: identity.PermissionSettingsAppearanceManage},
+	{name: NameAppearanceLightBackground, public: true, managePermission: identity.PermissionSettingsAppearanceManage},
 	{name: NameFooterCopyrightZHCN, public: true, managePermission: identity.PermissionSettingsAppearanceManage},
 	{name: NameFooterCopyrightENUS, public: true, managePermission: identity.PermissionSettingsAppearanceManage},
 	{name: NameFooterLinks, public: true, managePermission: identity.PermissionSettingsAppearanceManage},
@@ -893,9 +892,7 @@ func (s *Service) coerceValueSet(values map[string]string) map[string]string {
 	if _, ok := parseBoundedInt(coerced[NameAltchaWidgetMinDuration], altchaWidgetMinDurationMin, altchaWidgetMinDurationMax); !ok {
 		coerced[NameAltchaWidgetMinDuration] = defaults[NameAltchaWidgetMinDuration]
 	}
-	if _, ok := normalizeAppearanceTheme(coerced[NameAppearanceTheme]); !ok {
-		coerced[NameAppearanceTheme] = defaults[NameAppearanceTheme]
-	}
+	coerceAppearanceOptions(coerced, defaults)
 	if _, ok := normalizeFooterCopyright(coerced[NameFooterCopyrightZHCN]); !ok {
 		coerced[NameFooterCopyrightZHCN] = defaults[NameFooterCopyrightZHCN]
 	}
@@ -1025,6 +1022,7 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 	values := map[string]string{
 		NameSiteName:                            "SForum",
 		NameSiteURL:                             "http://127.0.0.1:3000",
+		NameSiteDomain:                          "127.0.0.1:3000",
 		NameSiteTagline:                         "",
 		NameSiteAdminEmail:                      "",
 		NameSiteDefaultLocale:                   localization.DefaultLocale,
@@ -1035,7 +1033,7 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameSiteStartOfWeek:                     strconv.Itoa(recommendedSiteStartOfWeek),
 		NameHumanVerificationProvider:           humanverify.ProviderDisabled,
 		NameHumanVerificationRegister:           enabledOptionValue(true),
-		NameHumanVerificationPasswordReset:      enabledOptionValue(false),
+		NameHumanVerificationPasswordReset:      enabledOptionValue(true),
 		NameHumanVerificationLoginRisk:          enabledOptionValue(false),
 		NameHumanVerificationPostRisk:           enabledOptionValue(false),
 		NameAltchaSecret:                        "",
@@ -1049,6 +1047,7 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameAltchaWidgetWorkers:                 "2",
 		NameAltchaWidgetMinDuration:             "500",
 		NameAppearanceTheme:                     "pine_teal",
+		NameAppearanceLightBackground:           "pure_white",
 		NameFooterCopyrightZHCN:                 "© {year} {siteName}。保留所有权利。",
 		NameFooterCopyrightENUS:                 "© {year} {siteName}. All rights reserved.",
 		NameFooterLinks:                         defaultFooterLinksValue(),
@@ -1152,6 +1151,7 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 	if value := strings.TrimSpace(defaults.SiteURL); isValidURL(value) {
 		values[NameSiteURL] = value
 	}
+	values[NameSiteDomain] = siteDomainFromURL(values[NameSiteURL])
 	if len(defaults.SupportedLocales) > 0 {
 		if locales := normalizeLocaleList(defaults.SupportedLocales); len(locales) > 0 {
 			values[NameSiteSupportedLocales] = strings.Join(locales, ",")

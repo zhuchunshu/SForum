@@ -17,7 +17,8 @@ type ProbeResult = {
   reason?: string
 }
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
+const route = useRoute()
 const toast = useToast()
 const { request } = useApiClient()
 const form = reactive(createDefaultAttachmentSettings())
@@ -30,7 +31,7 @@ const coreProviderLabels: Record<string, string> = {
 }
 
 const providerChoices = computed(() => {
-  const candidates = form.candidates?.filter(item => item.available !== false) ?? []
+  const candidates = form.candidates?.filter(item => item.available !== false && !(item.kind === 'plugin' && item.multiInstance)) ?? []
   if (candidates.length > 0) {
     return candidates.map(item => ({
       label: item.kind === 'core' && coreProviderLabels[item.value]
@@ -49,7 +50,13 @@ const providerChoices = computed(() => {
   }))
 })
 
-const selectedProviderIsPlugin = computed(() => form.provider.startsWith('plugin:'))
+const coreProviderChoices = computed(() => providerChoices.value.filter(item => item.kind === 'core'))
+const instanceProviderChoices = computed(() => providerChoices.value.filter(item => item.kind === 'instance'))
+const compatibilityPluginChoices = computed(() => providerChoices.value.filter(item => item.kind === 'plugin'))
+const hasEnabledMultiInstanceProvider = computed(() => form.candidates?.some(item => item.kind === 'plugin' && item.available !== false && item.multiInstance) ?? false)
+const initialStorageProvider = computed(() => typeof route.query.provider === 'string' ? route.query.provider : '')
+const selectedProviderIsPlugin = computed(() => providerChoices.value.find(item => item.value === form.provider)?.kind === 'plugin')
+const selectedProviderIsInstance = computed(() => providerChoices.value.find(item => item.value === form.provider)?.kind === 'instance')
 const selectedPluginSettingsPath = computed(() => providerChoices.value.find(item => item.value === form.provider)?.settingsPath || '')
 const allowedExtensionsText = computed({
   get: () => form.allowedExtensions.join(','),
@@ -83,6 +90,8 @@ const { data: settings, pending, error, refresh } = await useAsyncData(
   'admin-attachment-settings-tab',
   () => request<AttachmentSettings>('/admin/attachment-settings')
 )
+
+watch(locale, () => refresh())
 
 watch(settings, value => {
   if (value) applySettings(value)
@@ -141,6 +150,13 @@ async function testConnection() {
   } finally {
     testing.value = false
   }
+}
+
+async function handleStorageInstanceChanged(provider?: string) {
+  if (provider) {
+    form.provider = provider
+  }
+  await refresh()
 }
 
 function applySettings(value: AttachmentSettings) {
@@ -221,7 +237,12 @@ function providerLabel(provider: string) {
       </p>
     </section>
 
-    <SFAdminAttachmentStorageInstances :candidates="form.candidates || []" @changed="refresh" />
+    <SFAdminAttachmentStorageInstances
+      :candidates="form.candidates || []"
+      :current-provider="form.provider"
+      :initial-provider="initialStorageProvider"
+      @changed="handleStorageInstanceChanged"
+    />
 
     <UCard class="border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900" :ui="{ footer: 'sticky bottom-0 z-20 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border-t border-slate-200 dark:border-zinc-800 p-4 sm:px-6' }">
       <template #header>
@@ -235,7 +256,7 @@ function providerLabel(provider: string) {
             </p>
           </div>
           <UButton type="button" color="neutral" variant="outline" leading-icon="i-lucide-plug-zap" :loading="testing" @click="testConnection">
-            {{ t('admin.attachments.testConnection') }}
+            {{ t('admin.attachments.testCurrentStorage') }}
           </UButton>
         </div>
       </template>
@@ -243,12 +264,32 @@ function providerLabel(provider: string) {
       <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div class="grid gap-4">
           <div class="grid gap-4 md:grid-cols-2">
-            <UFormField :label="t('admin.attachments.provider')" :help="t('admin.attachments.fieldHelp.provider')" name="attachment-provider">
+            <UFormField :label="t('admin.attachments.currentWriter')" :help="t('admin.attachments.fieldHelp.provider')" name="attachment-provider">
               <select v-model="form.provider" class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100">
-                <option v-for="choice in providerChoices" :key="choice.value" :value="choice.value">
-                  {{ choice.label }}
-                </option>
+                <optgroup v-if="coreProviderChoices.length" :label="t('admin.attachments.providerGroups.core')">
+                  <option v-for="choice in coreProviderChoices" :key="choice.value" :value="choice.value">
+                    {{ choice.label }}
+                  </option>
+                </optgroup>
+                <optgroup v-if="instanceProviderChoices.length" :label="t('admin.attachments.providerGroups.instances')">
+                  <option v-for="choice in instanceProviderChoices" :key="choice.value" :value="choice.value">
+                    {{ choice.label }}
+                  </option>
+                </optgroup>
+                <optgroup v-else :label="t('admin.attachments.providerGroups.instances')">
+                  <option disabled value="__storage_instance_hint__">
+                    {{ hasEnabledMultiInstanceProvider ? t('admin.attachments.addStorageInstanceHint') : t('admin.attachments.enableStoragePluginHint') }}
+                  </option>
+                </optgroup>
+                <optgroup v-if="compatibilityPluginChoices.length" :label="t('admin.attachments.providerGroups.compatibility')">
+                  <option v-for="choice in compatibilityPluginChoices" :key="choice.value" :value="choice.value">
+                    {{ choice.label }}
+                  </option>
+                </optgroup>
               </select>
+              <p v-if="selectedProviderIsInstance" class="mt-1.5 text-xs text-slate-500 dark:text-zinc-400">
+                {{ t('admin.attachments.instanceProviderHint') }}
+              </p>
               <p v-if="selectedProviderIsPlugin" class="mt-1.5 text-xs text-slate-500 dark:text-zinc-400">
                 {{ t('admin.attachments.pluginProviderHint') }}
                 <NuxtLink
@@ -289,9 +330,6 @@ function providerLabel(provider: string) {
           </UFormField>
 
           <div class="grid gap-4 md:grid-cols-2">
-            <UFormField :label="t('admin.attachments.publicBaseUrl')" :help="t('admin.attachments.fieldHelp.publicBaseUrl')" name="attachment-public-base-url">
-              <UInput v-model="form.publicBaseUrl" size="lg" type="url" icon="i-lucide-link" class="w-full" />
-            </UFormField>
             <UFormField :label="t('admin.attachments.defaultVisibility')" :help="t('admin.attachments.fieldHelp.defaultVisibility')" name="attachment-visibility">
               <select v-model="form.defaultVisibility" class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100">
                 <option value="public">{{ t('admin.attachments.visibility.public') }}</option>
@@ -363,7 +401,7 @@ function providerLabel(provider: string) {
                     :loading="testing"
                     @click="testConnection"
                   >
-                    {{ t('admin.attachments.testConnection') }}
+                    {{ t('admin.attachments.testCurrentStorage') }}
                   </UButton>
                 </div>
               </div>
@@ -374,7 +412,7 @@ function providerLabel(provider: string) {
         <aside class="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm dark:border-zinc-800 dark:bg-zinc-950/60">
           <h3 class="font-bold text-slate-900 dark:text-zinc-100">{{ t('admin.attachments.summary') }}</h3>
           <dl class="mt-3 space-y-3">
-            <div><dt class="text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.attachments.provider') }}</dt><dd class="font-medium">{{ providerLabel(form.provider) }}</dd></div>
+            <div><dt class="text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.attachments.currentWriter') }}</dt><dd class="font-medium">{{ providerLabel(form.provider) }}</dd></div>
             <div><dt class="text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.attachments.maxFileSize') }}</dt><dd class="font-medium">{{ form.maxFileSizeMb }} MB</dd></div>
             <div><dt class="text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.attachments.defaultVisibility') }}</dt><dd class="font-medium">{{ t(`admin.attachments.visibility.${form.defaultVisibility}`) }}</dd></div>
             <div><dt class="text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.attachments.allowedExtensions') }}</dt><dd class="break-words font-mono text-xs">{{ form.allowedExtensions.join(', ') }}</dd></div>

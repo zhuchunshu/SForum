@@ -114,6 +114,9 @@ const activeTabLabel = computed(() => {
 
 // 后台 SEO 标题固定为：页面名 - 管理后台 - 网站名（覆盖 app.vue 的前台模板）
 useHead(() => ({
+  bodyAttrs: {
+    class: 'sforum-admin-shell'
+  },
   titleTemplate: (title?: string) => applyAdminSEOTitleTemplate(
     (title || '').trim() || activeTabLabel.value,
     t('nav.admin'),
@@ -365,7 +368,7 @@ async function signOut() {
 </script>
 
 <template>
-  <UDashboardGroup storage-key="sforum-admin">
+  <UDashboardGroup storage-key="sforum-admin" class="sforum-admin-shell">
     <UDashboardSidebar
       id="sforum-admin-sidebar"
       collapsible
@@ -436,7 +439,20 @@ async function signOut() {
               </span>
             </UButton>
             <template #fallback>
-              <span v-if="!collapsed" class="block h-9 rounded-md" aria-hidden="true" />
+              <UButton
+                v-if="!collapsed"
+                color="neutral"
+                variant="ghost"
+                block
+                class="pointer-events-none justify-start px-2 py-2 text-[var(--text-admin-sidebar)]"
+                :aria-label="t('nav.appearance')"
+                aria-hidden="true"
+                tabindex="-1"
+                data-ssr-fallback="admin-appearance"
+              >
+                <UIcon name="i-tabler-brightness-filled" class="size-4" />
+                <span class="text-sm font-semibold">{{ t('nav.appearance') }}</span>
+              </UButton>
             </template>
           </ClientOnly>
 
@@ -464,9 +480,9 @@ async function signOut() {
       </template>
     </UDashboardSidebar>
 
-    <UDashboardPanel class="flex flex-col min-w-0 flex-1 bg-[var(--bg-admin-app)] text-[var(--text-admin-main)]">
+    <UDashboardPanel class="sforum-admin-panel flex flex-col min-w-0 flex-1 bg-[var(--bg-admin-app)] text-[var(--text-admin-main)]">
       <!-- 1. 置顶全局 Topbar -->
-      <div class="flex items-center justify-between h-[68px] sm:h-[76px] px-4 sm:px-8 bg-[var(--bg-admin-card)] border-b border-[var(--border-admin)] flex-shrink-0 z-20 transition-all">
+      <div class="sforum-admin-topbar flex items-center justify-between h-[68px] sm:h-[76px] px-4 sm:px-8 bg-[var(--bg-admin-card)] border-b border-[var(--border-admin)] flex-shrink-0 z-20 transition-all">
         <div class="flex min-w-0 items-center gap-2 sm:gap-3">
           <UDashboardSidebarToggle class="shrink-0" />
           <div class="flex min-w-0 items-center gap-2 sm:gap-3">
@@ -531,7 +547,7 @@ async function signOut() {
         页面 slot 包一层 full-width 容器：多根页面（Fragment）的 UAlert/UCard 等
         不再与 footer 同为 flex 子项，避免宽度 shrink / 背景“没撑开”。
       -->
-      <div class="flex min-h-0 flex-1 flex-col overflow-y-auto bg-[var(--bg-admin-app)] p-4 sm:p-6">
+      <div class="sforum-admin-scroll-area flex min-h-0 flex-1 flex-col overflow-y-auto bg-[var(--bg-admin-app)] p-4 sm:p-6">
         <div class="sforum-admin-page min-w-0 w-full">
           <SFAdminSurfaceOutlet :page-id="currentAdminPageId" />
           <slot />

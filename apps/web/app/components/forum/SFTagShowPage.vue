@@ -6,6 +6,7 @@ import SFTagShowRightRail from '~/components/forum/SFTagShowRightRail.vue'
 import SFHomeTopicRow from '~/components/forum/SFHomeTopicRow.vue'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
+import SFPublicPageHeader from '~/components/public/SFPublicPageHeader.vue'
 /**
  * 宿主 body 岛：forum.tag.show。
  * 三栏壳对齐标签索引 / 首页 / 通知；主题 L1 挂载，路由页仅 SEO + fail-closed 回退。
@@ -261,14 +262,21 @@ function topicActivity(topic: ForumTopicSummary) {
       <section class="sforum-home__main sforum-tags-page__main sforum-content-column" aria-labelledby="tag-page-title">
         <SFRegionOutlet page="forum.tag.show" region="content_before" />
 
-        <header class="sforum-home__page-header">
-          <p class="sforum-home__page-group">{{ tagsHeading }}</p>
-          <h1 id="tag-page-title">#{{ tag?.name }}</h1>
-          <p v-if="tag?.description">{{ tag.description }}</p>
-          <div class="sforum-home__page-meta">
-            {{ topicListTotalLabel }}
-          </div>
-        </header>
+        <SFPublicPageHeader
+          class="sforum-home__page-header"
+          title-id="tag-page-title"
+          :title="tag?.name ? `#${tag.name}` : ''"
+          :subtitle="tag?.description || ''"
+        >
+          <template #eyebrow>
+            <p class="sforum-home__page-group">{{ tagsHeading }}</p>
+          </template>
+          <template #meta>
+            <div class="sforum-home__page-meta">
+              {{ topicListTotalLabel }}
+            </div>
+          </template>
+        </SFPublicPageHeader>
 
         <div v-if="hasActiveTags" class="sforum-home__filters">
           <div class="sforum-home__tag-list">

@@ -91,6 +91,8 @@ var (
 	ErrUserNotFound = errors.New("identity: user not found")
 	// 管理员更新账户/资料时字段不合法。
 	ErrInvalidUserUpdate = errors.New("identity: invalid user update")
+	// 未接入语言偏好写入存储时，自服务语言更新不可用。
+	ErrUserLocaleUpdateUnavailable = errors.New("identity: user locale update unavailable")
 	// 禁止通过管理路径修改自己的账号状态（避免自锁）。
 	ErrSelfStatusChange = errors.New("identity: cannot change own status via admin path")
 )

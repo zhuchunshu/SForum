@@ -2,6 +2,7 @@ package pages
 
 import (
 	"context"
+	"errors"
 	"testing"
 )
 
@@ -62,6 +63,35 @@ func TestRegistryRejectsNonReplaceable(t *testing.T) {
 	}})
 	if err == nil {
 		t.Fatal("expected not replaceable")
+	}
+}
+
+func TestRegistryAllowsThemePresentationForNonReplaceableModerationPage(t *testing.T) {
+	reg := NewRegistry(NewMemoryStore())
+	err := reg.RegisterThemeContributions("review.theme", []PageContribution{{
+		ID: "review.theme.mod", Action: ActionReplace, Target: "moderation.review",
+		Template: "templates/moderation-review.html", Contract: "sforum.page.moderation_review@1",
+		Version: "1.0.0", PackageDigest: "abc",
+	}})
+	if err != nil {
+		t.Fatalf("theme presentation should be allowed: %v", err)
+	}
+	if err := reg.ApproveReplace(t.Context(), ProviderBinding{
+		PageID: "moderation.review", ExtensionID: "review.theme", ContributionID: "review.theme.mod",
+		Version: "1.0.0", PackageDigest: "abc", ContractVersion: "sforum.page.moderation_review@1", ApprovedBy: 1,
+	}); !errors.Is(err, ErrNotReplaceable) {
+		t.Fatalf("generic provider approval must not bypass moderation ownership: %v", err)
+	}
+}
+
+func TestRegistryRejectsThemeForNonThemeablePage(t *testing.T) {
+	reg := NewRegistry(NewMemoryStore())
+	err := reg.RegisterThemeContributions("review.theme", []PageContribution{{
+		ID: "review.theme.dev", Action: ActionReplace, Target: "dev.components",
+		Template: "templates/dev.html", Contract: "sforum.page.dev_components@1",
+	}})
+	if !errors.Is(err, ErrNotThemeable) {
+		t.Fatalf("non-themeable page error=%v", err)
 	}
 }
 

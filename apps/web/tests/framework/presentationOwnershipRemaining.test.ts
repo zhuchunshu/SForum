@@ -125,15 +125,21 @@ describe('remaining public presentation ownership', () => {
     expect(notFoundBody).toContain('sforum-not-found-page__sidebar sforum-home__sidebar')
   })
 
-  test('moderation.review stays Host-owned (non-replaceable workbench)', () => {
+  test('moderation.review stays Host-owned while the selected theme owns its presentation shell', () => {
     const route = read('app/pages/moderation/index.vue')
     expect(route).toContain('SFPageOutlet')
     expect(route).toContain('page="moderation.review"')
     expect(route).toContain('<SFModerationReviewPage')
-    // 不可主题替换：theme.json 不应声明 moderation.review replace。
+    const catalog = read('../../apps/api/app/Support/Pages/catalog.go')
+    expect(catalog).toMatch(/ID: "moderation\.review"[^\n]+Replaceable: false, Themeable: true/)
     for (const theme of ['sforum-default', 'sforum-nocturne']) {
       const themeJson = read(`../../extensions/builtin/themes/${theme}/theme.json`)
-      expect(themeJson).not.toContain('"target": "moderation.review"')
+      const template = read(`../../extensions/builtin/themes/${theme}/templates/moderation-review.html`)
+      expect(themeJson).toContain('"target": "moderation.review"')
+      expect(template).toContain('data-theme-owned="presentation"')
+      expect(template).toContain('<sf-moderation-review')
+      expect(template).toContain('<sf-navbar')
+      expect(template).toContain('<sf-footer')
     }
   })
 })

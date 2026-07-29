@@ -144,7 +144,7 @@ func (h *Controller) settings(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	settings, err := h.service.Settings(c.Context(), actor)
+	settings, err := h.service.Settings(c.Context(), actor, apphttp.Locale(c))
 	if err != nil {
 		return mapAttachmentError(err)
 	}
@@ -160,7 +160,7 @@ func (h *Controller) updateSettings(c fiber.Ctx) error {
 	if err := c.Bind().Body(&req); err != nil {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, attachments.CodeInvalidAttachment)
 	}
-	settings, err := h.service.UpdateSettings(c.Context(), actor, req)
+	settings, err := h.service.UpdateSettings(c.Context(), actor, req, apphttp.Locale(c))
 	if err != nil {
 		return mapAttachmentError(err)
 	}
@@ -172,7 +172,7 @@ func (h *Controller) testSettings(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	result, err := h.service.Probe(c.Context(), actor)
+	result, err := h.service.Probe(c.Context(), actor, apphttp.Locale(c))
 	if err != nil {
 		return mapAttachmentError(err)
 	}
@@ -270,7 +270,7 @@ func (h *Controller) deleteStorageInstance(c fiber.Ctx) error {
 	if err := h.service.DeleteStorageInstance(c.Context(), actor, c.Params("id")); err != nil {
 		return mapAttachmentError(err)
 	}
-	return c.SendStatus(fiber.StatusNoContent)
+	return apphttp.OK(c, fiber.Map{"deleted": true})
 }
 
 func (h *Controller) listAdmin(c fiber.Ctx) error {

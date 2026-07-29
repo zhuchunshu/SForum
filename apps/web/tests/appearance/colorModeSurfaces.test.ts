@@ -2,11 +2,31 @@ import { describe, expect, test } from 'bun:test'
 
 const read = (path: string) => Bun.file(new URL(path, import.meta.url)).text()
 
-const [navbar, adminLayout, publicBridge, adminBridge, zhCN, enUS] = await Promise.all([
+const lightBackgroundPresets = [
+  'pure_white',
+  'porcelain',
+  'paper',
+  'parchment',
+  'mist_gray',
+  'cool_frost',
+  'cloud_blue',
+  'mint_mist',
+  'sage',
+  'sakura',
+  'lilac_mist',
+  'morning_apricot'
+]
+
+const [navbar, adminLayout, publicBridge, adminBridge, altchaStyles, themeStyles, appRoot, errorRoot, nuxtConfig, zhCN, enUS] = await Promise.all([
   read('../../app/components/SFNavbar.vue'),
   read('../../app/layouts/admin.vue'),
   read('../../app/components/SFExtensionWidget.vue'),
   read('../../app/components/extensions/settings/SFTrustedSettingsComponent.vue'),
+  read('../../app/assets/css/sforum-altcha.css'),
+  read('../../app/assets/css/sforum-theme.css'),
+  read('../../app/app.vue'),
+  read('../../app/error.vue'),
+  read('../../nuxt.config.ts'),
   Bun.file(new URL('../../i18n/locales/zh-CN.json', import.meta.url)).json(),
   Bun.file(new URL('../../i18n/locales/en-US.json', import.meta.url)).json()
 ])
@@ -33,6 +53,8 @@ describe('color-mode presentation surfaces', () => {
     expect(adminLayout).toContain('children: appearanceMenuItems.value')
     expect(adminLayout).toContain('@click="cycleColorModePreference"')
     expect(adminLayout).toContain('const colorModeTriggerIcon = computed')
+    expect(adminLayout).toContain('data-ssr-fallback="admin-appearance"')
+    expect(adminLayout).toMatch(/class="pointer-events-none[^\n]*"[\s\S]*?:aria-label="t\('nav\.appearance'\)"[\s\S]*?aria-hidden="true"[\s\S]*?tabindex="-1"[\s\S]*?data-ssr-fallback="admin-appearance"/)
     expect(adminLayout).not.toContain('toggleColorMode')
     expect(adminLayout).not.toContain('resolvedColorMode')
     expect(adminLayout).not.toContain('MutationObserver')
@@ -45,6 +67,43 @@ describe('color-mode presentation surfaces', () => {
       expect(bridge).not.toContain('setColorModePreference')
       expect(bridge).not.toContain('colorMode.preference')
     }
+  })
+
+  test('ALTCHA inherits the active SForum surface and color tokens', () => {
+    expect(nuxtConfig).toContain("'~/assets/css/sforum-altcha.css'")
+    for (const selector of ['.auth-altcha', '.sf-recovery-altcha']) {
+      expect(altchaStyles).toContain(selector)
+    }
+    expect(altchaStyles).toContain('--altcha-color-base: var(--sf-card);')
+    expect(altchaStyles).toContain('--altcha-color-base-content: var(--sf-fg);')
+    expect(altchaStyles).toContain('--altcha-input-background-color: var(--sf-card);')
+    expect(altchaStyles).toContain('--altcha-input-color: var(--sf-fg);')
+    expect(altchaStyles).toContain('--altcha-color-primary: var(--sf-accent);')
+  })
+
+  test('daytime background presets cannot override dark-mode surface tokens', () => {
+    expect(appRoot).toContain("'data-sforum-light-background': appliedLightBackground.value")
+    expect(appRoot).toContain(': lightBackground.value)')
+    expect(errorRoot).toContain("'data-sforum-light-background': lightBackground.value")
+    for (const preset of lightBackgroundPresets) {
+      expect(themeStyles).toContain(`html:not(.dark)[data-sforum-light-background="${preset}"]`)
+    }
+    expect(themeStyles).not.toContain('.dark[data-sforum-light-background')
+    expect(themeStyles).toContain('--sf-public-bg: #111413;')
+    expect(themeStyles).toContain('--sf-public-surface: #1b201f;')
+    expect(themeStyles).toContain('--sf-public-surface-muted: #242a29;')
+  })
+
+  test('admin light surfaces follow the selected daytime palette without a dark selector', () => {
+    expect(adminLayout).toContain("class: 'sforum-admin-shell'")
+    expect(adminLayout).toContain('class="sforum-admin-shell"')
+    expect(themeStyles).toContain('html:not(.dark)[data-sforum-light-background] .sforum-admin-shell')
+    expect(themeStyles).toContain('--bg-admin-app: var(--sf-light-background);')
+    expect(themeStyles).toContain('--bg-admin-card: var(--sf-light-surface);')
+    expect(themeStyles).toContain('--bg-admin-sidebar: var(--sf-light-surface);')
+    expect(themeStyles).toContain('--ui-bg: var(--sf-light-surface);')
+    expect(themeStyles).not.toContain('.dark .sforum-admin-shell')
+    expect(themeStyles).not.toContain('.dark[data-sforum-light-background')
   })
 
   test('ships the accepted Chinese and English preference copy', () => {

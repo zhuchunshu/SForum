@@ -13,8 +13,9 @@ import (
 )
 
 type fakeStorageCatalog struct {
-	candidates []storage.Candidate
-	available  map[string]bool
+	candidates      []storage.Candidate
+	available       map[string]bool
+	schemaForLocale func(string) storage.ProviderSchema
 }
 
 func (f fakeStorageCatalog) ListStorageProviderCandidates(context.Context) ([]storage.Candidate, error) {
@@ -28,7 +29,10 @@ func (f fakeStorageCatalog) IsStorageProviderAvailable(_ context.Context, extens
 	return f.available[extensionID], nil
 }
 
-func (f fakeStorageCatalog) StorageProviderSchema(_ context.Context, extensionID, _ string) (storage.ProviderSchema, error) {
+func (f fakeStorageCatalog) StorageProviderSchema(_ context.Context, extensionID, locale string) (storage.ProviderSchema, error) {
+	if f.schemaForLocale != nil {
+		return f.schemaForLocale(locale), nil
+	}
 	return storage.ProviderSchema{ExtensionID: extensionID, Label: extensionID}, nil
 }
 
@@ -41,7 +45,7 @@ func TestSettingsIncludesPluginCandidates(t *testing.T) {
 			},
 		})
 
-	settings, err := service.Settings(context.Background(), attachmentSettingsActor())
+	settings, err := service.Settings(context.Background(), attachmentSettingsActor(), "zh-CN")
 	if err != nil {
 		t.Fatalf("Settings: %v", err)
 	}
@@ -63,6 +67,32 @@ func TestSettingsIncludesPluginCandidates(t *testing.T) {
 	}
 }
 
+func TestSettingsLocalizesMultiInstanceProviderSchema(t *testing.T) {
+	candidate := storage.PluginCandidate("sforum.storage-s3", "S3-compatible storage", "")
+	candidate.MultiInstance = true
+	service := NewService(nil, options.NewServiceWithCacheTTL(&fakeOptionStore{items: map[string]string{}}, time.Minute)).
+		WithStorageProviderCatalog(fakeStorageCatalog{
+			candidates: []storage.Candidate{candidate},
+			schemaForLocale: func(locale string) storage.ProviderSchema {
+				return storage.ProviderSchema{ExtensionID: candidate.ExtensionID, Label: map[string]string{"zh-CN": "S3 兼容存储", "en-US": "S3-compatible storage"}[locale]}
+			},
+		})
+
+	settings, err := service.Settings(context.Background(), attachmentSettingsActor(), "zh-CN")
+	if err != nil {
+		t.Fatalf("Settings: %v", err)
+	}
+	for _, item := range settings.Candidates {
+		if item.ExtensionID == candidate.ExtensionID {
+			if item.Label != "S3 兼容存储" || item.Schema == nil || item.Schema.Label != "S3 兼容存储" {
+				t.Fatalf("localized candidate=%#v", item)
+			}
+			return
+		}
+	}
+	t.Fatalf("missing multi-instance candidate: %#v", settings.Candidates)
+}
+
 func TestUpdateSettingsRejectsUnavailablePlugin(t *testing.T) {
 	optionStore := &fakeOptionStore{items: map[string]string{}}
 	service := NewService(nil, options.NewServiceWithCacheTTL(optionStore, time.Minute)).
@@ -70,9 +100,25 @@ func TestUpdateSettingsRejectsUnavailablePlugin(t *testing.T) {
 
 	input := settingsFromValues(map[string]string{}, nil)
 	input.Provider = "plugin:missing.store"
-	_, err := service.UpdateSettings(context.Background(), attachmentSettingsActor(), input)
+	_, err := service.UpdateSettings(context.Background(), attachmentSettingsActor(), input, "zh-CN")
 	if !errors.Is(err, ErrStorageUnavailable) {
 		t.Fatalf("expected ErrStorageUnavailable, got %v", err)
+	}
+}
+
+func TestUpdateSettingsRejectsMultiInstancePluginWithoutInstance(t *testing.T) {
+	optionStore := &fakeOptionStore{items: map[string]string{}}
+	candidate := storage.PluginCandidate("sforum.storage-s3", "S3-compatible storage", "/attachments/settings?provider=sforum.storage-s3")
+	candidate.Available = true
+	candidate.MultiInstance = true
+	service := NewService(nil, options.NewServiceWithCacheTTL(optionStore, time.Minute)).
+		WithStorageProviderCatalog(fakeStorageCatalog{candidates: []storage.Candidate{candidate}})
+
+	input := settingsFromValues(map[string]string{}, nil)
+	input.Provider = "plugin:sforum.storage-s3"
+	_, err := service.UpdateSettings(context.Background(), attachmentSettingsActor(), input, "zh-CN")
+	if !errors.Is(err, storage.ErrInvalidConfig) {
+		t.Fatalf("expected invalid config for multi-instance plugin selection, got %v", err)
 	}
 }
 
@@ -81,7 +127,9 @@ func TestAdapterForPluginSelectionFailClosedWithoutRuntime(t *testing.T) {
 		options.NameAttachmentProvider: "plugin:acme.store",
 	}}
 	service := NewService(nil, options.NewServiceWithCacheTTL(optionStore, time.Minute)).
-		WithStorageProviderCatalog(fakeStorageCatalog{available: map[string]bool{"acme.store": true}})
+		WithStorageProviderCatalog(fakeStorageCatalog{candidates: []storage.Candidate{
+			storage.PluginCandidate("acme.store", "Acme Store", "/extensions/acme.store/pages/settings"),
+		}})
 
 	settings, err := service.runtimeSettings(context.Background())
 	if err != nil {
@@ -103,7 +151,9 @@ func TestAdapterForPluginSelectionWithRuntime(t *testing.T) {
 	}}
 	// 最小 stub：只要 NewPluginStorageAdapter 成功即可。
 	service := NewService(nil, options.NewServiceWithCacheTTL(optionStore, time.Minute)).
-		WithStorageProviderCatalog(fakeStorageCatalog{available: map[string]bool{"acme.store": true}}).
+		WithStorageProviderCatalog(fakeStorageCatalog{candidates: []storage.Candidate{
+			storage.PluginCandidate("acme.store", "Acme Store", "/extensions/acme.store/pages/settings"),
+		}}).
 		WithStoragePluginRuntime(extensionsruntime.NewPluginStorageAdapterFactory(stubStorageRuntime{}, 0))
 
 	settings, err := service.runtimeSettings(context.Background())
@@ -194,7 +244,9 @@ func TestProbeMapsPluginFailureReason(t *testing.T) {
 		options.NameAttachmentProvider: "plugin:acme.store",
 	}}
 	service := NewService(nil, options.NewServiceWithCacheTTL(optionStore, time.Minute)).
-		WithStorageProviderCatalog(fakeStorageCatalog{available: map[string]bool{"acme.store": true}}).
+		WithStorageProviderCatalog(fakeStorageCatalog{candidates: []storage.Candidate{
+			storage.PluginCandidate("acme.store", "Acme Store", "/extensions/acme.store/pages/settings"),
+		}}).
 		WithStoragePluginRuntime(extensionsruntime.NewPluginStorageAdapterFactory(failingProbeRuntime{}, 0))
 
 	actor := identity.Actor{
@@ -202,15 +254,23 @@ func TestProbeMapsPluginFailureReason(t *testing.T) {
 		Status:      identity.UserStatusActive,
 		Permissions: map[string]bool{identity.PermissionAttachmentSettings: true},
 	}
-	result, err := service.Probe(context.Background(), actor)
+	result, err := service.Probe(context.Background(), actor, "zh-CN")
 	if err != nil {
 		t.Fatalf("Probe: %v", err)
 	}
 	if result.OK || result.Reason != "storage.fs.config" {
 		t.Fatalf("expected mapped reason, got %#v", result)
 	}
-	if result.Message != "root missing" {
+	if result.Message != "附件存储暂时不可用，请检查存储配置。" {
 		t.Fatalf("message=%q", result.Message)
+	}
+
+	result, err = service.Probe(context.Background(), actor, "en-US")
+	if err != nil {
+		t.Fatalf("Probe en-US: %v", err)
+	}
+	if result.Message != "Attachment storage is temporarily unavailable. Check the storage settings." {
+		t.Fatalf("English message=%q", result.Message)
 	}
 }
 

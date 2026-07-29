@@ -215,13 +215,47 @@ func TestPasswordResetRequestRateLimited(t *testing.T) {
 	}
 }
 
-func TestPasswordResetEmailContainsResetURL(t *testing.T) {
-	service := NewPasswordResetService(nil, nil, PasswordResetConfig{SiteName: "TestSite", SiteURL: "https://forum.test"})
-	body := service.resetEmailBody("alice", "https://forum.test/reset-password?token=abc", time.Now().Add(30*time.Minute))
-	if !strings.Contains(body, "https://forum.test/reset-password?token=abc") {
-		t.Fatalf("expected reset URL in body, got %q", body)
+func TestPasswordResetRequestCarriesTemplateData(t *testing.T) {
+	store := newResetFakeStore()
+	queue := &fakeResetQueue{store: store}
+	service := NewPasswordResetService(store, queue, PasswordResetConfig{SiteName: "TestSite", SiteURL: "https://forum.test"})
+	if err := service.RequestPasswordReset(context.Background(), RequestPasswordResetInput{Email: "alice@example.com", Locale: "en-US"}); err != nil {
+		t.Fatal(err)
 	}
-	if !strings.Contains(body, "alice") {
-		t.Fatalf("expected username in body, got %q", body)
+	if !strings.Contains(queue.mail.ResetURL, "https://forum.test/reset-password?token=") || queue.mail.Username != "alice" || queue.mail.Locale != "en-US" || queue.mail.SiteName != "TestSite" {
+		t.Fatalf("unexpected password reset mail: %#v", queue.mail)
+	}
+}
+
+type staticMailLocaleResolver struct{ locale string }
+
+func (r staticMailLocaleResolver) DefaultMailLocale(context.Context) (string, error) {
+	return r.locale, nil
+}
+
+func TestPasswordResetMailLocaleUsesBrowserThenAccountThenSiteDefault(t *testing.T) {
+	store := newResetFakeStore()
+	store.users[42] = CurrentUser{ID: 42, Username: "alice", Locale: "en-US", Status: UserStatusActive}
+	queue := &fakeResetQueue{store: store}
+	service := NewPasswordResetService(store, queue, PasswordResetConfig{}).WithLocaleResolver(staticMailLocaleResolver{locale: "zh-CN"})
+
+	if err := service.RequestPasswordReset(context.Background(), RequestPasswordResetInput{Email: "alice@example.com", Locale: "zh-CN"}); err != nil {
+		t.Fatal(err)
+	}
+	if queue.mail.Locale != "zh-CN" {
+		t.Fatalf("browser locale = %q, want zh-CN", queue.mail.Locale)
+	}
+	if err := service.RequestPasswordReset(context.Background(), RequestPasswordResetInput{Email: "alice@example.com"}); err != nil {
+		t.Fatal(err)
+	}
+	if queue.mail.Locale != "en-US" {
+		t.Fatalf("account locale = %q, want en-US", queue.mail.Locale)
+	}
+	store.users[42] = CurrentUser{ID: 42, Username: "alice", Status: UserStatusActive}
+	if err := service.RequestPasswordReset(context.Background(), RequestPasswordResetInput{Email: "alice@example.com"}); err != nil {
+		t.Fatal(err)
+	}
+	if queue.mail.Locale != "zh-CN" {
+		t.Fatalf("site locale = %q, want zh-CN", queue.mail.Locale)
 	}
 }

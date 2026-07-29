@@ -7,8 +7,9 @@ import (
 )
 
 const (
-	NameSiteName = "site.name"
-	NameSiteURL  = "site.url"
+	NameSiteName   = "site.name"
+	NameSiteURL    = "site.url"
+	NameSiteDomain = "site.domain"
 	// 站点副标题/标语（短文本，可空）。用于导航副标、登录页等，不等于 SEO 描述。
 	NameSiteTagline = "site.tagline"
 	// 站点管理员联系邮箱（可空）。系统通知/运营联系人；不是 SMTP From，也不当 secret。
@@ -58,6 +59,7 @@ const (
 	NameAltchaWidgetWorkers              = "human_verification.altcha.widget.workers"
 	NameAltchaWidgetMinDuration          = "human_verification.altcha.widget.min_duration_ms"
 	NameAppearanceTheme                  = "appearance.theme"
+	NameAppearanceLightBackground        = "appearance.light_background"
 	NameFooterCopyrightZHCN              = "footer.copyright.zh-CN"
 	NameFooterCopyrightENUS              = "footer.copyright.en-US"
 	NameFooterLinks                      = "footer.links"
@@ -76,6 +78,8 @@ const (
 	NameIdentityRegistrationRequireEmailVerification = "identity.registration.require_email_verification"
 	// 未验证邮箱时是否禁止发帖/回帖（依赖 require_email_verification）。
 	NameIdentityRegistrationBlockPostingUntilVerified = "identity.registration.block_posting_until_verified"
+	// 新用户注册完成后是否发送欢迎邮件。默认关闭，避免新站点在未明确选择时产生额外邮件。
+	NameMailWelcomeEnabled = "mail.welcome.enabled"
 	// 用户名长度与字符集策略（注册时服务端强制）。
 	NameIdentityUsernameMinLength = "identity.username.min_length"
 	NameIdentityUsernameMaxLength = "identity.username.max_length"

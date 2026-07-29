@@ -20,6 +20,7 @@ func productionThemeIslandBindings() map[string]themecompiler.IslandBinding {
 		"sf-profile-page":             {ComponentID: "forum.component.profile_show"},
 		"sf-notifications-page":       {ComponentID: "forum.component.notifications"},
 		"sf-notification-detail-page": {ComponentID: "forum.component.notification_detail"},
+		"sf-moderation-review":        {ComponentID: "forum.component.moderation_review"},
 		"sf-terms-page":               {ComponentID: "site.component.terms"},
 		"sf-privacy-page":             {ComponentID: "site.component.privacy"},
 		"sf-guidelines-page":          {ComponentID: "site.component.guidelines"},
@@ -89,6 +90,8 @@ func RequiredThemeBodyIslandTag(pageID string) string {
 		return "sf-notifications-page"
 	case "forum.notification.show":
 		return "sf-notification-detail-page"
+	case "moderation.review":
+		return "sf-moderation-review"
 	case "auth.login":
 		return "sf-login-form"
 	case "auth.register":

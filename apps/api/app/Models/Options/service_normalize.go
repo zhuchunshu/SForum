@@ -36,6 +36,8 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 			return "", true
 		}
 		return value, isValidURL(value)
+	case NameSiteDomain:
+		return normalizeSiteDomain(value)
 	case NameSiteDefaultLocale:
 		return normalizeLocaleChoice(value, builtInLocales)
 	case NameSiteSupportedLocales:
@@ -105,6 +107,8 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return strconv.Itoa(parsed), true
 	case NameAppearanceTheme:
 		return normalizeAppearanceTheme(value)
+	case NameAppearanceLightBackground:
+		return normalizeAppearanceLightBackground(value)
 	case NameFooterCopyrightZHCN, NameFooterCopyrightENUS:
 		return normalizeFooterCopyright(value)
 	case NameFooterLinks:
@@ -113,7 +117,7 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return normalizeBoundedInt(value, passwordMinLengthMin, passwordMinLengthMax)
 	case NameIdentityPasswordMaxLength:
 		return normalizeBoundedInt(value, passwordMaxLengthMin, passwordMaxLengthMax)
-	case NameIdentityPasswordRequireLowercase, NameIdentityPasswordRequireUppercase, NameIdentityPasswordRequireNumber, NameIdentityPasswordRequireSymbol, NameIdentityRegistrationEnabled:
+	case NameIdentityPasswordRequireLowercase, NameIdentityPasswordRequireUppercase, NameIdentityPasswordRequireNumber, NameIdentityPasswordRequireSymbol, NameIdentityRegistrationEnabled, NameMailWelcomeEnabled:
 		return normalizeEnabledOption(value)
 	case NameIdentityRegistrationMode,
 		NameIdentityRegistrationRequireEmailVerification,

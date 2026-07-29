@@ -11,10 +11,10 @@ import (
 	themecompiler "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeCompiler"
 )
 
-// TestBuiltinThemesCoverAllReplaceablePages is the P13 reference-theme gate:
-// default and nocturne must declare every replaceable Page Registry id, ship
+// TestBuiltinThemesCoverAllThemeablePages is the P13 reference-theme gate:
+// default and nocturne must declare every themeable Page Registry id, ship
 // the template file, embed the required host body island, and compile.
-func TestBuiltinThemesCoverAllReplaceablePages(t *testing.T) {
+func TestBuiltinThemesCoverAllThemeablePages(t *testing.T) {
 	repoRoot := themeCompletenessRepoRoot(t)
 	for _, themeRel := range []string{
 		"extensions/builtin/themes/sforum-default",
@@ -55,7 +55,7 @@ func TestBuiltinThemesCoverAllReplaceablePages(t *testing.T) {
 			// 仅编译 theme.json 声明的页模板；plugin override 不走 Page ViewModel 绑定。
 			selected := map[string]struct{}{}
 			for _, page := range Catalog() {
-				if !page.Replaceable {
+				if !page.Themeable {
 					continue
 				}
 				decl, ok := byTarget[page.ID]
@@ -75,7 +75,7 @@ func TestBuiltinThemesCoverAllReplaceablePages(t *testing.T) {
 				}
 				tag := RequiredThemeBodyIslandTag(page.ID)
 				if tag == "" {
-					t.Fatalf("no body island mapping for replaceable page %s", page.ID)
+					t.Fatalf("no body island mapping for themeable page %s", page.ID)
 				}
 				if !strings.Contains(string(raw), "<"+tag) {
 					t.Fatalf("%s template %s missing required island <%s>", page.ID, decl.Template, tag)
@@ -126,7 +126,7 @@ func TestBuiltinThemesCoverAllReplaceablePages(t *testing.T) {
 				t.Fatalf("compile theme package: %v", err)
 			}
 			for _, page := range Catalog() {
-				if !page.Replaceable {
+				if !page.Themeable {
 					continue
 				}
 				decl := byTarget[page.ID]

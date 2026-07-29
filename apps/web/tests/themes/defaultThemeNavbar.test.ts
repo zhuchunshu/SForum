@@ -117,16 +117,12 @@ describe('default theme shared navbar contract', () => {
     expect(source).toContain('class="navbar__user-trigger"')
   })
 
-  test('switches locale via setLocale without locale-prefixed routes', () => {
-    // no_prefix：setLocale 只换文案 + cookie，不生成 /en 路径
+  test('switches locale through the persisted user-language authority without locale-prefixed routes', () => {
     expect(source).toContain('useNavbarLanguageMenu')
-    expect(languageMenuComposableSource).toContain('setLocale')
-    expect(languageMenuComposableSource).toMatch(/void setLocale\(entry\.code\)/)
+    expect(languageMenuComposableSource).toContain('useUserLanguage')
+    expect(languageMenuComposableSource).toContain('languageOptions')
+    expect(languageMenuComposableSource).toMatch(/void updateLanguage\(entry\.value\)/)
     expect(languageMenuComposableSource).toContain('active: isCurrent')
-    expect(languageMenuComposableSource).toContain("const supportedLocaleCodes = ['zh-CN', 'en'] as const")
-    expect(languageMenuComposableSource).toContain('function isLocaleCode(value: string): value is LocaleCode')
-    expect(languageMenuComposableSource).toContain('if (typeof code !== \'string\' || !isLocaleCode(code))')
-    expect(languageMenuComposableSource).not.toContain('type LocaleCode = string')
     expect(languageMenuComposableSource).not.toContain('to: switchLocalePath')
     expect(languageMenuComposableSource).not.toContain('useSwitchLocalePath')
   })
@@ -149,8 +145,16 @@ describe('default theme shared navbar contract', () => {
     expect(source).not.toContain('onClickOutside')
     expect(source).not.toContain("document.addEventListener('click'")
     expect(source.match(/<ClientOnly(?:\s|>)/g)?.length).toBe(3)
-    expect(source).toContain('navbar__control-placeholder')
-    expect(source).toContain('navbar__session-placeholder')
+    expect(source).toContain('data-ssr-fallback="navbar-language"')
+    expect(source).toContain('data-ssr-fallback="navbar-appearance"')
+    expect(source).toContain('data-ssr-fallback="navbar-user"')
+    expect(source).toContain('i-tabler-brightness-filled')
+    expect(source).toContain('class="navbar__session-loading"')
+    expect(source).not.toContain('navbar__control-placeholder')
+    expect(source).not.toContain('navbar__session-placeholder')
+    expect(source.match(/aria-hidden="true"[\s\S]*?tabindex="-1"[\s\S]*?data-ssr-fallback=/g)?.length).toBe(3)
+    expect(source).toContain('[data-ssr-fallback]')
+    expect(source).toContain('pointer-events: none')
   })
 
   test('keeps navbar and footer statically reachable from runtime theme templates', () => {

@@ -104,6 +104,13 @@ go run ./cmd/sforum extension validate <package-root> --json   # 打印合并后
 
 加载包、解析 `includes`、校验 Manifest V3，并对显式 V3 包做页面模板运行时预检。
 
+Page Registry 主题采用失败即关闭的三方一致性规则：每个
+`theme.json.pages[].template` 路径都必须对应唯一的 Manifest V3
+`templates[]` 声明，以及一个 `kind: "template"` 的 `packageFiles[]`
+条目；路径与 SHA-256 摘要必须一致。`theme.json` 只定义页面映射，不能替代
+精确制品声明。缺失或摘要过期会使校验失败，并在激活时返回
+`extension.build_failed`。
+
 ### 精确摘要 — `digest`
 
 Manifest V3 用 `packageFiles` 的 SHA-256 绑定可执行文件、前端、迁移等。**改过包内文件后必须刷新**：
@@ -112,6 +119,11 @@ Manifest V3 用 `packageFiles` 的 SHA-256 绑定可执行文件、前端、迁�
 go run ./cmd/sforum extension digest <package-root>           # 只检查
 go run ./cmd/sforum extension digest --write <package-root>   # 写回根 manifest 并再校验
 ```
+
+主题新增模板时，应先补齐 `templates[]` 的身份、契约和 ViewModel 声明，以及
+对应的 `packageFiles[]` 文件条目，再运行 `digest --write`。该命令会刷新
+`packageFiles[]` 及已声明的内联模板摘要，但不会从 `theme.json` 推断模板身份
+或文件成员关系。
 
 ### 契约测试 — `test`
 
@@ -124,6 +136,18 @@ go run ./cmd/sforum extension test --json <package-root>
 
 对照 host catalog 检查能力、事件、贡献点、provider、job、后端入口等。  
 `--allow-scaffold` 是 `--skip-backend-binary` 的别名。
+
+内置主题修改后，从 `apps/api` 依次运行：
+
+```sh
+go run ./cmd/sforum extension digest --write ../../extensions/builtin/themes/<dir>
+go run ./cmd/sforum extension validate ../../extensions/builtin/themes/<dir>
+go run ./cmd/sforum extension test ../../extensions/builtin/themes/<dir>
+```
+
+然后在仓库根目录运行 `./scripts/build-builtin-plugins.sh`，重启 API 让
+`SyncBuiltins` 暂存新摘要，并通过管理后台激活该版本。不要直接修改
+`storage/builtin-dev/` 或 `storage/extensions/**`。
 
 ### 打包 — `package`
 

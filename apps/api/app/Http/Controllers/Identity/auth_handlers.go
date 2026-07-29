@@ -17,6 +17,7 @@ import (
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	clientip "github.com/zhuchunshu/sforum/apps/api/app/Support/ClientIP"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
+	localization "github.com/zhuchunshu/sforum/apps/api/app/Support/Localization"
 )
 
 func (h *Controller) register(c fiber.Ctx) error {
@@ -49,6 +50,7 @@ func (h *Controller) register(c fiber.Ctx) error {
 	if err != nil {
 		return mapIdentityError(err)
 	}
+	h.queueWelcomeMail(c.Context(), req.Email, h.browserMailLocale(c), current)
 
 	var pendingSession *authsession.Pending
 	if err := h.runSessionIssue(c.Context(), current.ID, current.CurrentTokenVersion, req.StepUpEvidence, func(effectCtx context.Context) error {
@@ -181,6 +183,55 @@ func (h *Controller) session(c fiber.Ctx) error {
 	return apphttp.OK(c, current)
 }
 
+func (h *Controller) updateCurrentUserLocale(c fiber.Ctx) error {
+	userID, ok, err := h.sessionUserID(c)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fiber.NewError(fiber.StatusUnauthorized, "auth.required")
+	}
+	var req struct {
+		Locale string `json:"locale"`
+	}
+	if err := c.Bind().Body(&req); err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+	locale, valid := h.resolveUserLocale(c.Context(), req.Locale)
+	if !valid {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+	current, err := h.service.UpdateCurrentUserLocale(c.Context(), userID, locale)
+	if err != nil {
+		return mapIdentityError(err)
+	}
+	return apphttp.OK(c, current)
+}
+
+func (h *Controller) resolveUserLocale(ctx context.Context, requested string) (string, bool) {
+	supported := localization.ParseSupportedLocales("")
+	defaultLocale := localization.DefaultLocale
+	if h.options != nil {
+		if value, err := h.options.WebOption(ctx, "site.supported_locales"); err == nil {
+			supported = localization.ParseSupportedLocales(value)
+		}
+		if value, err := h.options.WebOption(ctx, "site.default_locale"); err == nil {
+			defaultLocale = localization.Normalize(value, supported)
+		}
+	}
+	requested = strings.TrimSpace(requested)
+	if requested == "" {
+		return defaultLocale, true
+	}
+	canonical := localization.Normalize(requested, nil)
+	for _, candidate := range supported {
+		if canonical == candidate {
+			return candidate, true
+		}
+	}
+	return "", false
+}
+
 // passwordResetRequest 发起密码重置。响应始终为成功，不暴露邮箱是否存在。
 func (h *Controller) passwordResetRequest(c fiber.Ctx) error {
 	if h.passwordReset == nil {
@@ -202,10 +253,22 @@ func (h *Controller) passwordResetRequest(c fiber.Ctx) error {
 	ip := clientip.FromCtx(c)
 	_ = h.passwordReset.RequestPasswordReset(c.Context(), identity.RequestPasswordResetInput{
 		// 规范化邮箱：trim 后传给 service，与 register/login 路径的输入处理保持一致。
-		Email: strings.TrimSpace(req.Email),
-		IP:    ip,
+		Email:  strings.TrimSpace(req.Email),
+		IP:     ip,
+		Locale: h.browserMailLocale(c),
 	})
 	return apphttp.OK(c, map[string]any{"sent": true})
+}
+
+func (h *Controller) browserMailLocale(c fiber.Ctx) string {
+	if strings.TrimSpace(c.Get("Accept-Language")) == "" {
+		return ""
+	}
+	locale, valid := h.resolveUserLocale(c.Context(), c.Get("Accept-Language"))
+	if !valid {
+		return ""
+	}
+	return locale
 }
 
 // passwordResetConfirm 校验令牌并更新密码。

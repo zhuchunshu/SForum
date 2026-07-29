@@ -95,6 +95,53 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- SSR-stable chrome controls: anonymous SSR now renders guest actions
+  immediately, while language, appearance, and authenticated-user ClientOnly
+  surfaces keep visible, inert, geometry-stable fallbacks until hydration;
+  focused tests, raw HTML checks, and desktop/mobile Browser QA pass:
+  `sessions/2026-07-30-ssr-stable-chrome-controls.md`
+- Shared public page headings: category, tag, home/search, notification,
+  account-settings, and moderation list shells now use one Core header
+  component with centralized page/section typography tokens; focused tests
+  pass and operator visual verification remains:
+  `sessions/2026-07-30-shared-public-page-headings.md`
+- Daytime background admin follow: Core Personalization now offers 12 localized
+  light palettes shared by public and admin surfaces; preset choices preview
+  immediately in admin memory, persist only after save, and every background
+  mapping remains outside `.dark`. Focused automation and operator interaction
+  verification pass:
+  `sessions/2026-07-30-daytime-background-admin-follow.md`
+- Moderation theme presentation repair: complete and operator-verified; the
+  plugin-closed workbench now renders through a constrained active-theme L1
+  shell, Host fallback navbar geometry is scoped, and moderation/profile center
+  columns use the correct foreground surface token:
+  `sessions/2026-07-30-moderation-theme-presentation-repair.md`
+- Built-in theme activation repair: the default and Nocturne themes now bind all
+  27 Page Registry templates to exact Manifest V3 declarations; source and
+  staged-artifact validation pass, and the repaired default digest is staged for
+  operator activation:
+  `sessions/2026-07-30-builtin-theme-v3-template-declarations.md`
+- Localized transactional mail: Core now produces paired HTML/text password
+  reset, registration welcome, reply, mention, and moderation templates; mail
+  language is snapshotted before queueing, and the new welcome-email Mail
+  Settings control defaults off. Authenticated Browser QA is blocked by the
+  current login-page `$setup.t is not a function` error:
+  `sessions/2026-07-30-localized-transactional-mail.md`
+- Profile settings runtime identity: `/settings/profile` now persists the
+  private `users.locale` preference through `PUT /auth/locale` and displays its
+  username path from normalized public `site.domain`; the domain defaults from
+  the trusted `site.url` host, strips protocols/trailing slashes on save, and
+  focused domain tests pass while operator UI verification remains:
+  `sessions/2026-07-30-account-default-language.md`
+- S3 storage provider Admin UX: multi-instance plugin roots can no longer be
+  selected as writers, plugin configuration deep-links to the attachment
+  instance editor, and new built-in storage providers require explicit enable:
+  `sessions/2026-07-30-multi-instance-s3-storage-handoff.md`
+- Attachment storage localization: storage-instance UI messages are now in the
+  correct attachment namespace, and probe data messages follow request locale
+  while retaining stable reasons and raw stored diagnostics; rendered Browser
+  QA needs an authenticated administrator session:
+  `sessions/2026-07-30-attachment-storage-i18n-fix.md`
 - Registration settings state fix: a legacy disabled registration switch with
   no mode now renders as `closed` in Site Settings, while fresh defaults remain
   open; focused unit coverage passes and administrator-session Browser QA is
@@ -108,8 +155,10 @@ load archived sessions or completed plans as current context.
   `sessions/2026-07-30-extension-black-box-tests-split.md`
 - Authentication shared shell: login, registration, and password recovery now
   share runtime public branding and appearance tokens; both built-in themes
-  mount the operator-owned footer on all four authentication templates. Manual
-  desktop/mobile verification and active-artifact activation remain pending:
+  mount the operator-owned footer on all four authentication templates.
+  Password-recovery ALTCHA is now enabled by default once the operator enables
+  and configures the provider. Manual desktop/mobile verification and
+  active-artifact activation remain pending:
   `sessions/2026-07-30-password-recovery-frontend-handoff.md`
 - Multi-instance S3-compatible attachment storage: Core now owns named
   instance identity, SecretStore references, exact historical routing, probe

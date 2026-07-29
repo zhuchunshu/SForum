@@ -27,6 +27,21 @@ responsibilities.
 
 ## Active Work
 
+### Shared public page headings
+
+- `SFPublicPageHeader` is the single typography owner for Core public list and
+  workbench headers. The `page` level provides the compact 22px/700 desktop and
+  20px mobile title used by taxonomy, notifications, account settings, and
+  moderation; the `section` level preserves the 20px/600 home and search feed
+  heading. Both levels consume semantic tokens from `sforum-theme.css`.
+- Forum home/search, category index/detail, tag index/detail, notification
+  index/detail, account settings, and moderation queue shells use the shared
+  header. Their domain styles own only geometry, counters, and actions; they
+  must not reintroduce page-local `h1` font sizing or weight.
+- Post titles, composers, profiles, authentication, legal documents, and error
+  pages have different content semantics and remain outside this shared list-
+  page header contract.
+
 ### Authentication account flow
 
 - `SFAuthShell` is the shared Host chrome for login, registration, and password
@@ -514,6 +529,19 @@ Architecture sources:
   client highlight directive plus a no-op SSR directive registration.
 - Runtime appearance owns accent and dark-mode tokens. The default theme must
   not pin a product-specific accent.
+- `appearance.light_background` exposes 12 curated light palettes through
+  Personalization. Root and error documents project the selected key as
+  `data-sforum-light-background`; `html:not(.dark)` maps it to public tokens and
+  the admin shell's semantic/Nuxt UI surface tokens. A scoped compatibility
+  bridge covers legacy Core admin white/slate utilities without touching any
+  `.dark` rule. Preset cards use visible `button[role=radio]` controls rather
+  than off-screen native radio inputs so focus cannot resize or scroll the fixed
+  admin shell. The recommended `pure_white` preset preserves the prior visual
+  default. While the Appearance tab is active, preset and custom-color edits
+  feed an admin-only in-memory preview consumed by the root head resolver. The
+  preview adds reduced-motion-aware color transitions, is cleared on
+  deactivation/unmount, and never replaces the persisted public option until
+  save succeeds.
 
 ## Editor And Content UI
 
@@ -551,6 +579,16 @@ Architecture sources:
 - Admin route middleware must stay narrow and avoid component-context-only
   composables such as direct `useI18n()` calls.
 
+## Public Chrome Geometry
+
+- `SFNavbar` owns its scoped layout rules. Host fallback chrome passes the
+  explicit `layout="fullwidth-3col"` variant; global theme CSS must not try to
+  override the component's base `display` mode by stylesheet order. Theme L1
+  paths continue to own their navbar geometry through exact theme assets.
+- A Core-owned product surface may be `themeable` without being `replaceable`.
+  In that case the theme controls only the reviewed L1 shell and must mount the
+  required Host island.
+
 ## Request And SSR Regression Rules
 
 ### CSRF
@@ -564,6 +602,17 @@ the CSRF cookie when absent, adds `X-Csrf-Token`, and retries once after
 Never serialize user auth into shared anonymous public payloads. Session-bearing
 SSR restores auth before render and disables cache; protected/admin middleware
 remains a UX guard while API policy is authoritative.
+
+Anonymous SSR requests without an `sforum_session` cookie initialize auth as
+`guest` before rendering; the client may still revalidate in the background.
+This keeps login/register chrome deterministic without adding a shared session
+request or serializing user data.
+
+Public navbar, authentication-shell, and admin chrome controls that retain a
+`ClientOnly` boundary for Nuxt UI/Reka hydration safety must render a visible,
+geometry-equivalent SSR fallback. The fallback is presentation-only: mark it
+`aria-hidden`, remove it from tab order, and disable pointer events. The
+hydrated control remains the sole interaction owner.
 
 ### Rendered-content directives
 

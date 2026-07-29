@@ -4,6 +4,7 @@ import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePer
 import { useForumApi } from '~/composables/forum/useForumApi'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFNotificationTypeNav from '~/components/notifications/SFNotificationTypeNav.vue'
+import SFPublicPageHeader from '~/components/public/SFPublicPageHeader.vue'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { isUnauthenticatedAuthError } from '~/composables/identity/useAuthSession'
 import {
@@ -265,31 +266,34 @@ onBeforeUnmount(() => stopRealtime())
 
         <SFRegionOutlet page="forum.notifications" region="content_before" />
 
-        <header class="sforum-notifications__head">
-          <div class="sforum-notifications__head-copy">
-            <h1 id="notification-page-title">{{ t('notifications.title') }}</h1>
-            <p>{{ unreadSummaryLabel }}</p>
-          </div>
-          <div class="sforum-notifications__head-actions">
-            <button
-              type="button"
-              class="sforum-notifications__text-button"
-              :disabled="!hasActionableUnread || markingAll"
-              @click="markAllRead"
-            >
-              <UIcon name="i-lucide-check-check" class="size-4" aria-hidden="true" />
-              <span>{{ markingAll ? t('notifications.markingAllRead') : t('notifications.markAllRead') }}</span>
-            </button>
-            <button
-              type="button"
-              class="sforum-notifications__icon-button sforum-notifications__desktop-hidden"
-              :aria-label="t('notifications.detail.open')"
-              @click="mobileInfoOpen = true"
-            >
-              <UIcon name="i-lucide-panel-right" class="size-[18px]" aria-hidden="true" />
-            </button>
-          </div>
-        </header>
+        <SFPublicPageHeader
+          class="sforum-notifications__head"
+          title-id="notification-page-title"
+          :title="t('notifications.title')"
+          :subtitle="unreadSummaryLabel"
+        >
+          <template #aside>
+            <div class="sforum-notifications__head-actions">
+              <button
+                type="button"
+                class="sforum-notifications__text-button"
+                :disabled="!hasActionableUnread || markingAll"
+                @click="markAllRead"
+              >
+                <UIcon name="i-lucide-check-check" class="size-4" aria-hidden="true" />
+                <span>{{ markingAll ? t('notifications.markingAllRead') : t('notifications.markAllRead') }}</span>
+              </button>
+              <button
+                type="button"
+                class="sforum-notifications__icon-button sforum-notifications__desktop-hidden"
+                :aria-label="t('notifications.detail.open')"
+                @click="mobileInfoOpen = true"
+              >
+                <UIcon name="i-lucide-panel-right" class="size-[18px]" aria-hidden="true" />
+              </button>
+            </div>
+          </template>
+        </SFPublicPageHeader>
 
         <div class="sforum-notifications__filter-strip" :aria-label="t('notifications.filter.aria')">
           <button

@@ -64,9 +64,16 @@ Foundation scaffold exists:
   `zh-CN`.
 - Return localized API `message` values in the unified response envelope.
 - Return stable machine-readable reason keys in `data.reason` for API errors.
+- For successful API data that includes an administrator-facing outcome message,
+  localize that message from the request locale and keep its reason as a
+  machine-readable field rather than rendering the reason in the frontend.
 - Localize backend-owned emails, notifications, moderation reason labels, and
   seed/admin labels when they are rendered by the backend.
 - Store user locale preference separately from user-generated content.
+- `identity.Service.UserLocale` reads the persisted user preference, while
+  `UpdateCurrentUserLocale` writes a self-service preference only after the
+  HTTP boundary resolves it against runtime site locales. An empty update
+  restores the runtime site default.
 - API request locale negotiation reads runtime `site.default_locale` and
   `site.supported_locales`; if option loading fails, it falls back to startup
   configuration.

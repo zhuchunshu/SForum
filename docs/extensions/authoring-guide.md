@@ -191,6 +191,15 @@ kinds are `executable`, `frontend`, `locale`, `schema`, `migration`, `template`,
 `asset`, and `openapi`. Backend, guard, migration, template, asset, OpenAPI, and
 L2 references must resolve to the matching declared file kind and digest.
 
+Page Registry themes have an additional three-way identity invariant. Every
+`theme.json.pages[].template` path must resolve to exactly one Manifest V3
+`templates[]` declaration and one `packageFiles[]` entry of kind `template`.
+The Manifest template and package-file paths must be identical, and their
+SHA-256 digests must match the file. `theme.json` defines page mappings only; it
+does not replace either exact-artifact declaration. A missing or stale entry is
+rejected by `extension validate` and causes activation to fail closed with
+`extension.build_failed`.
+
 ### Notification types and Host emission
 
 Executable plugins may declare inert `notificationTypes`. Each type id must be
@@ -218,10 +227,14 @@ go run ./cmd/sforum extension validate <package-root>
 go run ./cmd/sforum extension test <package-root>
 ```
 
-`digest --write` updates inline `packageFiles` after local file changes and then
+`digest --write` updates inline `packageFiles` after local file changes,
+synchronizes digest-bearing inline declarations such as `templates[]`, and then
 revalidates the whole package. Keep `packageFiles` inline when using this helper;
 included package-file shards remain valid but must be refreshed by the package
-authoring pipeline.
+authoring pipeline. For themes, add both the corresponding `templates[]`
+declaration and `packageFiles[]` entry before running the helper; digest refresh
+cannot infer Page Registry template identity, contract version, ViewModel
+schema, or package-file membership from `theme.json`.
 
 Dependency entries use exactly one of `id` or `capability`:
 

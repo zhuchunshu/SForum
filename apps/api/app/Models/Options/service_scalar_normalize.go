@@ -159,37 +159,6 @@ func normalizeBoundedInt(value string, min int, max int) (string, bool) {
 	return strconv.Itoa(parsed), true
 }
 
-func normalizeAppearanceTheme(value string) (string, bool) {
-	value = strings.ToLower(strings.TrimSpace(value))
-	for _, theme := range appearanceThemes {
-		if value == theme {
-			return theme, true
-		}
-	}
-
-	if strings.HasPrefix(value, customAppearanceThemePrefix) {
-		color, ok := normalizeAppearanceThemeColor(strings.TrimPrefix(value, customAppearanceThemePrefix))
-		if ok {
-			return customAppearanceThemePrefix + color, true
-		}
-	}
-	return "", false
-}
-
-func normalizeAppearanceThemeColor(value string) (string, bool) {
-	value = strings.TrimSpace(strings.ToLower(value))
-	value = strings.TrimPrefix(value, "#")
-	if len(value) != 6 {
-		return "", false
-	}
-	for _, char := range value {
-		if (char < '0' || char > '9') && (char < 'a' || char > 'f') {
-			return "", false
-		}
-	}
-	return "#" + value, true
-}
-
 func normalizeFooterCopyright(value string) (string, bool) {
 	value = strings.TrimSpace(value)
 	return value, len([]rune(value)) <= footerCopyrightMaxRunes

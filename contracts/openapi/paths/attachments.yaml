@@ -210,7 +210,11 @@ adminAttachmentStorageInstance:
     summary: Delete an unreferenced standby storage instance
     operationId: deleteAttachmentStorageInstance
     responses:
-      '204': { description: Instance deleted. }
+      '200':
+        description: Instance deleted.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/attachments.yaml#/ApiResponseAttachmentDelete" }
       '403': { "$ref": "../components/responses.yaml#/Forbidden" }
       '409': { "$ref": "../components/responses.yaml#/Conflict" }
 adminAttachmentStorageInstanceActivate:

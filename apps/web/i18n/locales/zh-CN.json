@@ -607,35 +607,6 @@
       "title": "均衡指挥台",
       "intro": "用一屏掌握论坛运行状态、社区活跃度和需要处理的后台事项。",
       "refresh": "刷新",
-      "storageInstances": {
-        "title": "存储服务实例",
-        "description": "为同一个 S3 兼容插件配置多个服务商。切换只影响新上传，历史附件继续从原实例读取。",
-        "add": "添加实例",
-        "useLocal": "切换到本地存储",
-        "current": "当前写入",
-        "makeCurrent": "设为当前",
-        "name": "实例名称",
-        "provider": "提供方插件",
-        "createTitle": "添加存储实例",
-        "editTitle": "编辑存储实例",
-        "saved": "存储实例已保存。",
-        "saveFailed": "存储实例保存失败。",
-        "activated": "已切换到 {name}，仅新附件使用此实例。",
-        "localActivated": "已切换到本地存储，仅新附件使用本地存储。",
-        "activateFailed": "存储实例切换失败。",
-        "deleted": "存储实例已删除。",
-        "delete": "删除",
-        "deleteFailed": "存储实例删除失败。",
-        "deleteTitle": "删除存储实例",
-        "deleteConfirm": "确定删除“{name}”吗？此操作只允许没有历史附件引用的待命实例。",
-        "deleteBlocked": "存在历史附件引用时不能删除。",
-        "historyCount": "历史附件：{count}",
-        "empty": "还没有存储实例。启用支持多实例的 S3 兼容插件后即可添加。",
-        "pluginRequired": "请先启用支持多实例的存储插件。",
-        "loadFailed": "存储实例加载失败。",
-        "schemaAfterFirstSave": "该插件暂未提供可渲染的实例配置字段。",
-        "status": { "unverified": "未测试", "ready": "可用", "error": "异常" }
-      },
       "loadFailed": "后台总览加载失败",
       "toolbar": {
         "loading": "正在读取后台总览...",
@@ -759,6 +730,8 @@
       "intro": "查看已安装插件与主题的整体状态，并上传符合 SForum manifest 规范的 ZIP 扩展包。",
       "refresh": "刷新",
       "upload": "上传 ZIP",
+      "configureStorage": "配置存储",
+      "configureStorageEnableFirst": "请先启用插件，再配置存储服务实例。",
       "loadFailed": "扩展列表加载失败。",
       "uploaded": "扩展已安装。",
       "upgraded": "扩展已升级。",
@@ -1237,6 +1210,8 @@
         "enabled": "启用",
         "defaultValue": "默认值：{value}",
         "emptyValue": "空",
+        "requiredField": "必填",
+        "optionalField": "可选",
         "resetDefaults": "恢复推荐默认值",
         "saveSettings": "保存设置",
         "emptySettingsTitle": "暂无可配置项",
@@ -1873,7 +1848,7 @@
       "configuration": "附件配置",
       "configurationDescription": "管理附件存储、上传规则与压缩处理策略。",
       "configurationTabsLabel": "附件配置页签",
-      "intro": "配置上传存储提供商、访问链接和附件治理规则。",
+      "intro": "配置附件当前写入位置、访问链接和附件治理规则。",
       "toolbar": "附件上传由 API 权限控制，后台配置只影响运行时存储策略。",
       "refresh": "刷新",
       "settingsLoadFailed": "附件设置加载失败。",
@@ -1884,9 +1859,46 @@
         "manager": "附件管理"
       },
       "settingsTitle": "基础配置",
-      "settingsDescription": "选择存储提供商，设置路径模板、访问域名、大小限制和文件类型规则。",
+      "settingsDescription": "选择当前写入存储，设置路径模板、大小限制和文件类型规则。S3 连接参数由存储服务实例管理。",
       "managerDescription": "查看、筛选和治理已上传的附件及其内容引用。",
       "managerToolbar": "附件治理操作由 attachment.manage 权限控制。",
+      "storageInstances": {
+        "title": "存储服务实例",
+        "description": "为同一个 S3 兼容插件配置多个服务商。切换只影响新上传，历史附件继续从原实例读取。",
+        "add": "添加实例",
+        "useLocal": "切换到本地存储",
+        "current": "当前写入",
+        "makeCurrent": "设为当前",
+        "name": "实例名称",
+        "namePlaceholder": "例如：生产环境 R2",
+        "provider": "提供方插件",
+        "guideTitle": "按字段提示填写后可直接测试",
+        "guideDescription": "带 * 的字段必须填写。测试使用当前表单内容，不需要先保存；测试会实际写入、读取并删除一个临时对象。",
+        "missingRequired": "请先填写必填项：{fields}",
+        "testDraft": "测试当前填写",
+        "testDraftHint": "无需保存即可测试；修改任一字段后请重新测试。",
+        "draftTestPassed": "当前填写连接正常",
+        "draftTestFailed": "当前填写测试失败",
+        "createTitle": "添加存储实例",
+        "editTitle": "编辑存储实例",
+        "saved": "存储实例已保存。",
+        "saveFailed": "存储实例保存失败。",
+        "activated": "已切换到 {name}，仅新附件使用此实例。",
+        "localActivated": "已切换到本地存储，仅新附件使用本地存储。",
+        "activateFailed": "存储实例切换失败。",
+        "deleted": "存储实例已删除。",
+        "delete": "删除",
+        "deleteFailed": "存储实例删除失败。",
+        "deleteTitle": "删除存储实例",
+        "deleteConfirm": "确定删除“{name}”吗？此操作只允许没有历史附件引用的待命实例。",
+        "deleteBlocked": "存在历史附件引用时不能删除。",
+        "historyCount": "历史附件：{count}",
+        "empty": "还没有存储实例。启用支持多实例的 S3 兼容插件后即可添加。",
+        "pluginRequired": "请先启用支持多实例的存储插件。",
+        "loadFailed": "存储实例加载失败。",
+        "schemaAfterFirstSave": "该插件暂未提供可渲染的实例配置字段。",
+        "status": { "unverified": "未测试", "ready": "可用", "error": "异常" }
+      },
       "compression": {
         "description": "管理普通附件上传后的压缩处理策略。",
         "emptyTitle": "暂无可配置的附件压缩项",
@@ -1911,9 +1923,19 @@
       },
       "saveSettings": "保存附件设置",
       "testConnection": "测试连接",
+      "testCurrentStorage": "测试当前存储",
       "testPassed": "存储连接正常。",
       "testFailed": "存储连接测试失败。",
       "provider": "存储提供商",
+      "currentWriter": "当前写入存储",
+      "providerGroups": {
+        "core": "内置存储",
+        "instances": "已配置的存储实例",
+        "compatibility": "兼容插件"
+      },
+      "addStorageInstanceHint": "请先在上方添加 S3 存储实例",
+      "enableStoragePluginHint": "启用 S3 兼容存储插件后可添加云存储",
+      "instanceProviderHint": "切换只影响新上传；历史附件继续使用原存储实例。",
       "providers": {
         "local": "本地上传",
         "aliyunOss": "阿里云 OSS",
@@ -1944,7 +1966,7 @@
         "days": "天"
       },
       "fieldHelp": {
-        "provider": "选择附件实际写入的位置。插件提供商的凭据需要前往对应扩展设置页配置。",
+        "provider": "选择新附件实际写入的位置。S3 凭据在上方存储服务实例中管理；兼容插件使用各自的扩展设置页。",
         "maxFileSize": "每个附件允许上传的最大体积，可设置 1–1024 MB。",
         "pathTemplate": "支持 {yyyy}、{mm}、{dd}、{public_id} 和 {ext}；{ext} 包含扩展名前的点。",
         "publicBaseUrl": "可选。填写后优先用它生成公开附件地址；留空时使用所选存储提供商的地址。",
@@ -2966,8 +2988,62 @@
         "friendLinks": "友情链接"
       },
       "theme": {
-        "title": "配色预设",
+        "title": "主题强调色",
         "description": "选择一个主色预设，统一驱动导航、按钮、焦点和后台强调色。"
+      },
+      "lightBackground": {
+        "title": "日间背景",
+        "description": "选择前台与后台在日间模式下的页面和内容面配色。夜间模式始终保持当前主题的深色方案。",
+        "presets": {
+          "pure_white": {
+            "label": "纯白",
+            "description": "推荐默认，保持当前明亮简洁的页面效果。"
+          },
+          "porcelain": {
+            "label": "瓷白",
+            "description": "略带灰绿的精致白色，观感干净柔和。"
+          },
+          "paper": {
+            "label": "暖纸",
+            "description": "柔和的暖白层次，适合长时间阅读。"
+          },
+          "parchment": {
+            "label": "羊皮纸",
+            "description": "更明显的暖纸质感，适合人文与阅读社区。"
+          },
+          "mist_gray": {
+            "label": "雾灰",
+            "description": "以浅灰画布衬托白色内容面，层次更清晰。"
+          },
+          "cool_frost": {
+            "label": "冷霜",
+            "description": "清冷克制的浅色背景，适合技术型社区。"
+          },
+          "cloud_blue": {
+            "label": "云蓝",
+            "description": "通透的淡蓝画布，营造安静清晰的空间感。"
+          },
+          "mint_mist": {
+            "label": "薄荷雾",
+            "description": "清新的浅薄荷色，柔和但仍保持良好层次。"
+          },
+          "sage": {
+            "label": "鼠尾草",
+            "description": "低饱和自然绿，适合沉静、专注的社区氛围。"
+          },
+          "sakura": {
+            "label": "樱雾",
+            "description": "极浅的柔粉色，为页面增加温和亲近感。"
+          },
+          "lilac_mist": {
+            "label": "丁香雾",
+            "description": "克制的浅紫灰，适合创作与设计类社区。"
+          },
+          "morning_apricot": {
+            "label": "晨杏",
+            "description": "轻柔的杏色暖调，明亮而不过分偏黄。"
+          }
+        }
       },
       "themes": {
         "pine_teal": {
@@ -3027,6 +3103,10 @@
       "siteUrlPlaceholder": "例如：https://forum.example.com",
       "siteUrlHint": "留空时使用环境变量 APP_URL：{url}",
       "siteUrlUseEnvironment": "使用环境 APP_URL",
+      "siteDomain": "网站域名",
+      "siteDomainPlaceholder": "例如：forum.example.com",
+      "siteDomainHint": "只填写域名，不含 http://、https:// 或结尾斜杠；保存时会自动清理。",
+      "siteDomainUseSiteUrl": "使用站点地址域名",
       "defaultLocale": "默认语言",
       "supportedLocales": "启用语言",
       "tabs": {
@@ -3199,7 +3279,7 @@
           },
           "passwordReset": {
             "label": "密码找回",
-            "description": "发起账号找回或重置邮件前要求验证码；对应流程接入后生效。"
+            "description": "发起账号找回或发送重置邮件前要求完成验证码。"
           },
           "loginRisk": {
             "label": "登录风险",
@@ -3872,6 +3952,10 @@
       "needsSetup": "需要配置",
       "providerConfigTitle": "邮件提供商",
       "providerConfigDescription": "选择提供商后，再前往插件设置填写连接参数。",
+      "welcomeEnabled": "发送注册欢迎邮件",
+      "welcomeEnabledHelp": "默认关闭。开启后，新用户完成注册时会收到欢迎邮件；邮件语言按浏览语言、个人语言和站点默认语言依次确定。",
+      "saveWelcome": "保存欢迎邮件设置",
+      "welcomeSaved": "注册欢迎邮件设置已保存。",
       "policyTitle": "事件投递策略",
       "policyDescription": "推荐保持全部开启；可按业务需要独立关闭某个渠道。",
       "provider": "投递方式",
@@ -3926,6 +4010,7 @@
       "templates": {
         "admin_test": "管理后台测试邮件",
         "identity_password_reset": "密码重置",
+        "identity_welcome": "注册欢迎",
         "forum_reply": "回复通知",
         "forum_mention": "提及通知",
         "forum_moderation_approved": "审核通过",
@@ -4963,9 +5048,10 @@
       "linksDescription": "这两项完全可选，只添加你愿意公开分享的内容。"
     },
     "viewPublicProfile": "查看公开主页",
-    "profilePathPrefix": "sforum.dev/u/",
     "username": "用户名",
     "usernameHint": "用户名暂不支持修改。",
+    "defaultLanguage": "常用语言",
+    "defaultLanguageHint": "用于登录后默认显示站点内容和系统提示。",
     "avatar": "头像",
     "avatarCurrent": "当前头像",
     "avatarHint": "支持 {types}，最大 {size} KB，源图最长边不超过 {dimension}px。",

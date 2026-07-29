@@ -20,14 +20,21 @@ type Outbox struct {
 	pool interface {
 		Begin(context.Context) (pgx.Tx, error)
 	}
-	store *PostgresStore
-	jobs  TxEnqueuer
+	store          *PostgresStore
+	jobs           TxEnqueuer
+	localeResolver MailLocaleResolver
+	brandResolver  MailBrandResolver
 }
 
 func NewOutbox(pool interface {
 	Begin(context.Context) (pgx.Tx, error)
-}, store *PostgresStore, jobs TxEnqueuer) *Outbox {
-	return &Outbox{pool: pool, store: store, jobs: jobs}
+}, store *PostgresStore, jobs TxEnqueuer, localeResolvers ...MailLocaleResolver) *Outbox {
+	var localeResolver MailLocaleResolver
+	if len(localeResolvers) > 0 {
+		localeResolver = localeResolvers[0]
+	}
+	brandResolver, _ := localeResolver.(MailBrandResolver)
+	return &Outbox{pool: pool, store: store, jobs: jobs, localeResolver: localeResolver, brandResolver: brandResolver}
 }
 
 func (o *Outbox) WithDeliveryPolicyResolver(resolver DeliveryPolicyResolver) *Outbox {

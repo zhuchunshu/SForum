@@ -1,6 +1,6 @@
 PageDefinition:
   type: object
-  required: [id, pathPattern, access, contractVersion, coreComponent, replaceable, virtual]
+  required: [id, pathPattern, access, contractVersion, coreComponent, replaceable, themeable, virtual]
   properties:
     id: { type: string }
     pathPattern: { type: string }
@@ -10,7 +10,12 @@ PageDefinition:
       description: "Empty/omitted access normalizes to public at register time; unknown values fail closed."
     contractVersion: { type: string }
     coreComponent: { type: string }
-    replaceable: { type: boolean }
+    replaceable:
+      type: boolean
+      description: "Whether a trusted extension may replace the Core page behavior after explicit approval."
+    themeable:
+      type: boolean
+      description: "Whether the selected theme may provide an L1 presentation template around required Host-owned islands."
     virtual:
       type: boolean
       description: "True for Host-selected system surfaces that have no public route pattern and never participate in ordinary path matching."

@@ -30,7 +30,7 @@ const showSecret = ref(false)
 
 const scenarioFallbacks: Record<HumanVerificationScenario, boolean> = {
   register: true,
-  password_reset: false,
+  password_reset: true,
   login_risk: false,
   post_risk: false
 }
@@ -195,8 +195,7 @@ function boundedInteger(value: unknown, fallback: number, min: number, max: numb
 }
 
 function normalizeCost(value: unknown) {
-  const parsed = positiveInteger(value, 1000)
-  return [1000, 3000, 5000].reduce((closest, candidate) => Math.abs(candidate - parsed) < Math.abs(closest - parsed) ? candidate : closest)
+  return positiveInteger(value, 1000)
 }
 
 function normalizeProvider(value: string | undefined) {
@@ -283,7 +282,7 @@ function blockNonIntegerKey(event: KeyboardEvent) {
 
         <section class="grid gap-4 border-t border-slate-200 pt-4 dark:border-zinc-800 md:grid-cols-2">
           <UFormField :label="t('admin.settings.verification.challengeTTL')" name="challenge-ttl"><UInput v-model.number="form.challengeTTLMinutes" type="number" min="1" required class="w-full" @keydown="blockNonIntegerKey" /><p class="mt-2 text-xs text-muted">{{ t('admin.settings.verification.challengeTTLHint') }}</p></UFormField>
-          <UFormField :label="t('admin.settings.verification.cost')" name="altcha-cost"><UInput v-model.number="form.cost" type="number" min="1" step="100" required class="w-full" @keydown="blockNonIntegerKey" /><p class="mt-2 text-xs text-muted">{{ t('admin.settings.verification.costHint') }}</p></UFormField>
+          <UFormField :label="t('admin.settings.verification.cost')" name="altcha-cost"><UInput v-model.number="form.cost" type="number" min="1" step="1" required class="w-full" @keydown="blockNonIntegerKey" /><p class="mt-2 text-xs text-muted">{{ t('admin.settings.verification.costHint') }}</p></UFormField>
         </section>
 
         <section class="space-y-3 border-t border-slate-200 pt-4 dark:border-zinc-800">

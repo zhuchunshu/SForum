@@ -23,6 +23,18 @@
   --sf-public-sidebar-width: 230px;
   --sf-public-right-rail-width: 270px;
   --sf-public-topbar-height: 58px;
+  --sf-public-heading-font-family: "Noto Sans SC", "DM Sans", system-ui, sans-serif;
+  --sf-public-page-title-size: 1.375rem;
+  --sf-public-page-title-mobile-size: 1.25rem;
+  --sf-public-page-title-weight: 700;
+  --sf-public-page-title-line-height: 1.3;
+  --sf-public-page-subtitle-size: 0.75rem;
+  --sf-public-page-subtitle-line-height: 1.6;
+  --sf-public-section-title-size: 20px;
+  --sf-public-section-title-weight: 600;
+  --sf-public-section-title-line-height: 1.25;
+  --sf-public-section-subtitle-size: 11px;
+  --sf-public-section-subtitle-line-height: 1.45;
   /* 公开壳左右边距：顶栏与三栏内容不贴视口边缘 */
   --sf-public-edge-inset: 24px;
   --sf-public-radius: 4px;
@@ -63,6 +75,203 @@
   --sf-fg-tertiary: #a1a1aa;
   --sf-border: #3f3f46;
   --sf-border-light: #27272a;
+}
+
+/* 运营配置只接管日间公共表面；选择器在 .dark 时不匹配，夜间主题值保持原样。 */
+html:not(.dark)[data-sforum-light-background] {
+  --sf-public-bg: var(--sf-light-background);
+  --sf-public-surface: var(--sf-light-surface);
+  --sf-public-surface-muted: var(--sf-light-muted);
+  --sf-public-border: var(--sf-light-border);
+  --sf-public-border-strong: var(--sf-light-border-strong);
+  --sf-public-glass: var(--sf-light-glass);
+  --sf-public-row-hover: var(--sf-light-row-hover);
+  --sf-surface: var(--sf-public-bg);
+  --sf-card: var(--sf-public-surface);
+  --sf-muted: var(--sf-public-surface-muted);
+  --sf-border: var(--sf-public-border);
+  --sf-border-light: var(--sf-public-border);
+}
+
+/* 后台与公共站点共用同一日间画布；深色模式不匹配此选择器。 */
+html:not(.dark)[data-sforum-light-background] .sforum-admin-shell {
+  --bg-admin-sidebar: var(--sf-light-surface);
+  --bg-admin-sidebar-hover: var(--sf-light-muted);
+  --bg-admin-app: var(--sf-light-background);
+  --bg-admin-card: var(--sf-light-surface);
+  --border-admin: var(--sf-light-border);
+  --ui-bg: var(--sf-light-surface);
+  --ui-bg-muted: var(--sf-light-muted);
+  --ui-bg-elevated: var(--sf-light-muted);
+  --ui-bg-accented: var(--sf-light-border);
+  --ui-border: var(--sf-light-border);
+  --ui-border-muted: var(--sf-light-border);
+  --ui-border-accented: var(--sf-light-border-strong);
+}
+
+/* 兼容仍使用 Tailwind 中性色工具类的 Core 后台表面。 */
+html:not(.dark)[data-sforum-light-background] .sforum-admin-shell :where(.bg-white, .bg-white\/95) {
+  background-color: var(--sf-light-surface);
+}
+
+html:not(.dark)[data-sforum-light-background] .sforum-admin-shell :where(.bg-slate-50, .bg-gray-50) {
+  background-color: var(--sf-light-muted);
+}
+
+html:not(.dark)[data-sforum-light-background] .sforum-admin-shell :where(.bg-slate-100, .bg-gray-100) {
+  background-color: var(--sf-light-border);
+}
+
+html:not(.dark)[data-sforum-light-background] .sforum-admin-shell :where(.border-slate-100, .border-slate-200, .border-gray-100, .border-gray-200) {
+  border-color: var(--sf-light-border);
+}
+
+html:not(.dark)[data-sforum-light-background] .sforum-admin-shell :where(.divide-slate-100, .divide-slate-200, .divide-gray-100, .divide-gray-200) > :not(:last-child) {
+  border-color: var(--sf-light-border);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html[data-sforum-admin-appearance-preview="active"] .sforum-admin-shell :where(
+    .sforum-admin-sidebar,
+    .sforum-admin-panel,
+    .sforum-admin-topbar,
+    .sforum-admin-tabs,
+    .sforum-admin-scroll-area,
+    .bg-white,
+    .bg-white\/95,
+    .bg-slate-50,
+    .bg-gray-50,
+    .bg-slate-100,
+    .bg-gray-100,
+    button,
+    a,
+    [role="radio"],
+    [role="tab"]
+  ) {
+    transition-duration: 180ms;
+    transition-property: background-color, border-color, color, box-shadow;
+    transition-timing-function: ease;
+  }
+}
+
+html:not(.dark)[data-sforum-light-background="pure_white"] {
+  --sf-light-background: #ffffff;
+  --sf-light-surface: #ffffff;
+  --sf-light-muted: #f5f5f8;
+  --sf-light-border: #e9e8ed;
+  --sf-light-border-strong: #d8d6df;
+  --sf-light-glass: rgb(255 255 255 / 0.94);
+  --sf-light-row-hover: #f5f5f8;
+}
+
+html:not(.dark)[data-sforum-light-background="porcelain"] {
+  --sf-light-background: #f8faf9;
+  --sf-light-surface: #ffffff;
+  --sf-light-muted: #eff3f1;
+  --sf-light-border: #dce5e1;
+  --sf-light-border-strong: #c5d2cd;
+  --sf-light-glass: rgb(255 255 255 / 0.94);
+  --sf-light-row-hover: #eff3f1;
+}
+
+html:not(.dark)[data-sforum-light-background="paper"] {
+  --sf-light-background: #f7f5ef;
+  --sf-light-surface: #fffdf8;
+  --sf-light-muted: #f1ede4;
+  --sf-light-border: #ded8cb;
+  --sf-light-border-strong: #cbc2b2;
+  --sf-light-glass: rgb(255 253 248 / 0.94);
+  --sf-light-row-hover: #f1ede4;
+}
+
+html:not(.dark)[data-sforum-light-background="parchment"] {
+  --sf-light-background: #f4eedf;
+  --sf-light-surface: #fcf8ef;
+  --sf-light-muted: #ebe2cf;
+  --sf-light-border: #d8ccb5;
+  --sf-light-border-strong: #c4b497;
+  --sf-light-glass: rgb(252 248 239 / 0.94);
+  --sf-light-row-hover: #ebe2cf;
+}
+
+html:not(.dark)[data-sforum-light-background="mist_gray"] {
+  --sf-light-background: #f3f5f7;
+  --sf-light-surface: #ffffff;
+  --sf-light-muted: #eaedf1;
+  --sf-light-border: #dde1e6;
+  --sf-light-border-strong: #c9d0d8;
+  --sf-light-glass: rgb(255 255 255 / 0.94);
+  --sf-light-row-hover: #eaedf1;
+}
+
+html:not(.dark)[data-sforum-light-background="cool_frost"] {
+  --sf-light-background: #f4f7fa;
+  --sf-light-surface: #fbfcfe;
+  --sf-light-muted: #eaf0f5;
+  --sf-light-border: #d9e2ea;
+  --sf-light-border-strong: #bdcad6;
+  --sf-light-glass: rgb(251 252 254 / 0.94);
+  --sf-light-row-hover: #eaf0f5;
+}
+
+html:not(.dark)[data-sforum-light-background="cloud_blue"] {
+  --sf-light-background: #f1f6fb;
+  --sf-light-surface: #f9fcff;
+  --sf-light-muted: #e6eff8;
+  --sf-light-border: #d3e0ec;
+  --sf-light-border-strong: #b8cadb;
+  --sf-light-glass: rgb(249 252 255 / 0.94);
+  --sf-light-row-hover: #e6eff8;
+}
+
+html:not(.dark)[data-sforum-light-background="mint_mist"] {
+  --sf-light-background: #f1f8f5;
+  --sf-light-surface: #fbfffd;
+  --sf-light-muted: #e4f0eb;
+  --sf-light-border: #cfe1d9;
+  --sf-light-border-strong: #b5d0c4;
+  --sf-light-glass: rgb(251 255 253 / 0.94);
+  --sf-light-row-hover: #e4f0eb;
+}
+
+html:not(.dark)[data-sforum-light-background="sage"] {
+  --sf-light-background: #f2f5ef;
+  --sf-light-surface: #fbfcfa;
+  --sf-light-muted: #e6ebe1;
+  --sf-light-border: #d2dccb;
+  --sf-light-border-strong: #b9c8b0;
+  --sf-light-glass: rgb(251 252 250 / 0.94);
+  --sf-light-row-hover: #e6ebe1;
+}
+
+html:not(.dark)[data-sforum-light-background="sakura"] {
+  --sf-light-background: #fcf4f5;
+  --sf-light-surface: #fffbfb;
+  --sf-light-muted: #f7e7e9;
+  --sf-light-border: #ebd4d8;
+  --sf-light-border-strong: #ddbbc2;
+  --sf-light-glass: rgb(255 251 251 / 0.94);
+  --sf-light-row-hover: #f7e7e9;
+}
+
+html:not(.dark)[data-sforum-light-background="lilac_mist"] {
+  --sf-light-background: #f7f4fa;
+  --sf-light-surface: #fdfbff;
+  --sf-light-muted: #ede7f3;
+  --sf-light-border: #dfd4e8;
+  --sf-light-border-strong: #cabbd8;
+  --sf-light-glass: rgb(253 251 255 / 0.94);
+  --sf-light-row-hover: #ede7f3;
+}
+
+html:not(.dark)[data-sforum-light-background="morning_apricot"] {
+  --sf-light-background: #fcf4eb;
+  --sf-light-surface: #fffaf5;
+  --sf-light-muted: #f6e7d7;
+  --sf-light-border: #ebd5bd;
+  --sf-light-border-strong: #dcc0a1;
+  --sf-light-glass: rgb(255 250 245 / 0.94);
+  --sf-light-row-hover: #f6e7d7;
 }
 
 .navbar,
@@ -312,59 +521,6 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
     position: relative;
   }
 
-  .sf-host-public-chrome--fullwidth-3col .navbar__inner {
-    display: grid;
-    min-height: 58px;
-    grid-template-columns:
-      var(--sf-public-sidebar-width, 230px)
-      auto
-      minmax(0, 1fr)
-      auto
-      auto
-      var(--sf-public-right-rail-width, 270px) !important;
-    gap: 10px;
-    padding: 0 var(--sf-public-edge-inset, 24px);
-  }
-
-  .sf-host-public-chrome--fullwidth-3col .navbar__logo {
-    padding-left: 16px;
-  }
-
-  .sf-host-public-chrome--fullwidth-3col .navbar__desktop-nav {
-    gap: 28px;
-  }
-
-  .sf-host-public-chrome--fullwidth-3col .navbar__search {
-    width: min(260px, 100%);
-    max-width: 280px;
-    min-width: 0;
-    justify-self: start;
-  }
-
-  .sf-host-public-chrome--fullwidth-3col .navbar__search .sf-search__box {
-    min-height: 36px;
-  }
-
-  .sf-host-public-chrome--fullwidth-3col .navbar__new-topic {
-    width: 100%;
-  }
-
-  .sf-host-public-chrome--fullwidth-3col .navbar__utility {
-    justify-content: flex-end;
-    gap: 2px;
-  }
-
-  .sf-host-public-chrome--fullwidth-3col .navbar__session {
-    box-sizing: border-box;
-    width: 100%;
-    min-width: 0;
-    justify-content: flex-end;
-    padding: 0 16px 0 12px;
-  }
-
-  .sf-host-public-chrome--fullwidth-3col .navbar__user-trigger {
-    max-width: 100%;
-  }
 }
 
 @media (max-width: 980px) {

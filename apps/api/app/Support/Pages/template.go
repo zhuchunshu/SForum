@@ -38,6 +38,7 @@ var allowedHostIslands = map[string]struct{}{
 	"sf-profile-page":             {},
 	"sf-notifications-page":       {},
 	"sf-notification-detail-page": {},
+	"sf-moderation-review":        {},
 	"sf-terms-page":               {},
 	"sf-privacy-page":             {},
 	"sf-guidelines-page":          {},

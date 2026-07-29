@@ -14,6 +14,7 @@ import {
 
 const zhCN = JSON.parse(await Bun.file(new URL('../../i18n/locales/zh-CN.json', import.meta.url)).text())
 const enUS = JSON.parse(await Bun.file(new URL('../../i18n/locales/en-US.json', import.meta.url)).text())
+const authShellSource = await Bun.file(new URL('../../app/components/identity/auth/SFAuthShell.vue', import.meta.url)).text()
 
 const mountWindow = new Window({ url: 'http://localhost/login' })
 Object.assign(globalThis, {
@@ -65,6 +66,21 @@ const SFRegisterFormPage = await compileMountedComponent(
 )
 
 describe('auth route support contracts', () => {
+  test('shares the persisted language menu through the authentication shell', () => {
+    expect(authShellSource).toContain("from '~/composables/navigation/useNavbarLanguageMenu'")
+    expect(authShellSource).toContain('const { currentLocaleName, languageMenuItems } = useNavbarLanguageMenu()')
+    expect(authShellSource).toContain('<UDropdownMenu :items="languageMenuItems"')
+    expect(authShellSource).toContain(":aria-label=\"t('nav.language')\"")
+    expect(authShellSource).toContain(':title="currentLocaleName"')
+    expect(authShellSource).toContain('i-tabler-language')
+    expect(authShellSource).toContain('data-ssr-fallback="auth-language"')
+    expect(authShellSource).toContain('data-ssr-fallback="auth-appearance"')
+    expect(authShellSource).toContain('i-tabler-brightness-filled')
+    expect(authShellSource).not.toContain('sf-auth-shell__utility-placeholder')
+    expect(authShellSource.match(/aria-hidden="true"[\s\S]*?tabindex="-1"[\s\S]*?data-ssr-fallback="auth-/g)?.length).toBe(2)
+    expect(authShellSource).toContain('[data-ssr-fallback] { pointer-events: none; }')
+  })
+
   test('preserves local return targets and rejects auth-page or external redirects', () => {
     expect(buildAuthPageLink('/register', '/topics/123?page=2')).toEqual({
       path: '/register', query: { redirect: '/topics/123?page=2' }

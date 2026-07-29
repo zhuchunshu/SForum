@@ -42,6 +42,9 @@ Member public profiles and current-user profile settings.
   option `avatar.allow_upload` must be enabled.
 - `DELETE /api/v1/profile/avatar` removes the uploaded avatar and returns the
   profile decorated with the configured fallback avatar.
+- `PUT /api/v1/auth/locale` updates the logged-in user's private default
+  language. Empty input restores the runtime `site.default_locale`; other
+  values must be among `site.supported_locales`.
 
 Profile update is login-required and current-user only; no admin profile
 editor in V1.
@@ -89,6 +92,11 @@ editor in V1.
   dirty, reset discards unsaved changes with a neutral Toast, save/avatar
   success Toasts auto-dismiss after 10 seconds, field-level validation stays
   beside the relevant inputs, and blocking errors remain visible.
+- The profile identity section includes a private default-language selector.
+  `useUserLanguage` maps API BCP 47 values (such as `en-US`) to Nuxt locale
+  keys (such as `en`), persists a signed-in choice, and applies it to i18n.
+- The read-only username field displays its public path prefix from the runtime
+  `site.domain` option (`{domain}/u/`) instead of a hard-coded product domain.
 - Navbar user menu links to public profile and profile settings.
 - `useProfileApi` composable + `AvatarView`/`ProfileData`/`PublicProfile`
   types.

@@ -35,6 +35,36 @@ Attachment system foundation is implemented.
 - Settings owns provider selection, named multi-instance configuration,
   connection probes, one-click writer switching, secret-preserving edits, and
   the beginner-friendly local-upload defaults.
+- Multi-instance provider manifests are configuration schemas, not directly
+  selectable writers. The Admin provider picker excludes their bare
+  `plugin:<extensionId>` value and only accepts a configured
+  `instance:<uuid>`; the API enforces the same rule.
+- Multi-instance storage plugins expose a **Configure storage** action in the
+  plugin list. It deep-links to Attachment Configuration and opens the
+  provider-specific instance editor after candidates load. New built-in
+  storage providers start installed rather than enabled, while existing
+  statuses and historical filesystem-plugin attachment readers are preserved.
+- Basic Configuration labels the selector as the current write target and
+  groups built-in storage, configured instances, and compatibility plugins.
+  When no instance exists, the selector explains whether the operator must
+  enable a multi-instance plugin or add an instance instead of implying that
+  the bare S3 plugin is directly selectable.
+- Storage-provider fields now preserve the request locale from Attachment
+  Settings through the provider Schema projection. Provider manifests may
+  declare required fields; Admin marks and validates them before save or draft
+  probe, while the API remains authoritative. Draft probes use unsaved values,
+  display a persistent in-dialog result, and write/read/delete a temporary
+  object without first creating the instance.
+- Storage-instance strings live under `admin.attachments.storageInstances` in
+  both frontend catalogs. Probe responses keep `reason` as a stable machine
+  code, return a request-locale `message`, and persist a raw diagnostic only
+  for the historical probe record.
+- Storage-instance deletion returns the standard `200` API envelope with
+  `data.deleted = true`; it must not return `204` because the shared Nuxt API
+  client expects every successful mutation to include an envelope.
+- The storage-instance section consumes the same current writer value as the
+  main settings form: its local-switch command is hidden for `local`, and a
+  successful writer switch updates the form selector before server refresh.
 - Basic Configuration keeps guidance visible below every input, displays MB
   and day units inline, documents list formats and path-template tokens, and
   explains provider defaults, public URLs, and credential retention.

@@ -64,6 +64,12 @@ type ActorStore interface {
 	LoadActor(ctx context.Context, userID int64) (Actor, error)
 }
 
+// CurrentUserLocaleStore is kept separate from Store so older test seams that
+// do not exercise account-language changes stay focused on their own behavior.
+type CurrentUserLocaleStore interface {
+	UpdateCurrentUserLocale(ctx context.Context, userID int64, locale string) (CurrentUser, error)
+}
+
 type TxStore interface {
 	AnyUserExists(ctx context.Context) (bool, error)
 	FindRegistrationConflicts(ctx context.Context, username string, email string) (RegistrationConflicts, error)

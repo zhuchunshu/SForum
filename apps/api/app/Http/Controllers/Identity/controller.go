@@ -2,7 +2,9 @@ package identitycontroller
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -20,17 +22,19 @@ import (
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
+	mail "github.com/zhuchunshu/sforum/apps/api/app/Support/Mail"
 )
 
 var _ optionsResolver = (*options.Service)(nil)
 
 type Controller struct {
-	service       *identity.Service
-	authSessions  *authsession.Manager
-	verifier      humanverify.Verifier
-	passwordReset *identity.PasswordResetService
-	mailQueue     adminMailQueue
-	options       optionsResolver
+	service            *identity.Service
+	authSessions       *authsession.Manager
+	verifier           humanverify.Verifier
+	passwordReset      *identity.PasswordResetService
+	mailQueue          adminMailQueue
+	options            optionsResolver
+	welcomeMailOptions WelcomeMailOptions
 	// apiTokens 可选：个人访问令牌（F3.4）。
 	apiTokens *apitokens.Service
 	auditor   audit.Writer
@@ -90,6 +94,11 @@ type adminMailQueue interface {
 	QueueMail(context.Context, notifications.QueueMailInput) (notifications.MailDelivery, error)
 }
 
+type WelcomeMailOptions interface {
+	WelcomeMailEnabled(context.Context) (bool, error)
+	MailBrand(context.Context) (mail.Brand, error)
+}
+
 func NewControllerWithPasswordReset(service *identity.Service, sessions *authsession.Manager, verifier humanverify.Verifier, passwordReset *identity.PasswordResetService, mailQueue adminMailQueue, options optionsResolver) *Controller {
 	if verifier == nil {
 		verifier = humanverify.NewDisabledService()
@@ -102,6 +111,57 @@ func NewControllerWithPasswordReset(service *identity.Service, sessions *authses
 		mailQueue:     mailQueue,
 		options:       options,
 	}
+}
+
+func (h *Controller) WithWelcomeMailOptions(settings WelcomeMailOptions) *Controller {
+	if h != nil {
+		h.welcomeMailOptions = settings
+	}
+	return h
+}
+
+// queueWelcomeMail is deliberately best-effort: an already-created account and
+// successful session must not be rolled back by a mail queue outage.
+func (h *Controller) queueWelcomeMail(ctx context.Context, recipient, browserLocale string, current identity.CurrentUser) {
+	if h.mailQueue == nil || h.options == nil {
+		return
+	}
+	if h.welcomeMailOptions == nil {
+		return
+	}
+	enabled, err := h.welcomeMailOptions.WelcomeMailEnabled(ctx)
+	if err != nil || !enabled {
+		return
+	}
+	locale := strings.TrimSpace(browserLocale)
+	if locale == "" {
+		locale = strings.TrimSpace(current.Locale)
+	}
+	if locale == "" {
+		locale, _ = h.resolveUserLocale(ctx, "")
+	}
+	siteName := "SForum"
+	if value, err := h.options.SiteName(ctx); err == nil && strings.TrimSpace(value) != "" {
+		siteName = strings.TrimSpace(value)
+	}
+	siteURL, _ := h.options.WebOption(ctx, "site.url")
+	brand, brandErr := h.welcomeMailOptions.MailBrand(ctx)
+	if brandErr != nil {
+		brand = mail.DefaultBrand(siteName, siteURL)
+	}
+	data := brand.TemplateData()
+	data["locale"] = locale
+	data["username"] = current.DisplayName
+	data["siteName"] = siteName
+	data["siteUrl"] = strings.TrimSpace(siteURL)
+	encoded, err := json.Marshal(data)
+	if err != nil {
+		return
+	}
+	_, _ = h.mailQueue.QueueMail(ctx, notifications.QueueMailInput{
+		Recipient: strings.TrimSpace(recipient), TemplateKey: "identity.welcome", TemplateData: encoded,
+		IdempotencyKey: fmt.Sprintf("identity_welcome:%d", current.ID),
+	})
 }
 
 // WithAPITokens 注入 PAT 服务（账号安全页创建/轮换/撤销）。
@@ -411,6 +471,8 @@ func mapIdentityError(err error) error {
 		return fiber.NewError(fiber.StatusNotFound, "user.not_found")
 	case errors.Is(err, identity.ErrInvalidUserUpdate):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "user.invalid_update")
+	case errors.Is(err, identity.ErrUserLocaleUpdateUnavailable):
+		return fiber.NewError(fiber.StatusServiceUnavailable, "identity.locale_unavailable")
 	case errors.Is(err, identity.ErrSelfStatusChange):
 		return fiber.NewError(fiber.StatusForbidden, "user.cannot_change_own_status")
 	case errors.Is(err, identity.ErrUsernameOrEmailNotUnique):

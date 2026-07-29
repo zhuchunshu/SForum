@@ -82,11 +82,11 @@ func (b *ExtensionBridge) PreflightThemePackage(ext ThemeExtension, previousActi
 		if previousActiveThemeID != "" && previousActiveThemeID != ext.ID {
 			ignore = append(ignore, previousActiveThemeID)
 		}
-		if err := b.Registry.PreflightContributionsReplacing(ext.ID, contribs, ignore...); err != nil {
+		if err := b.Registry.PreflightThemeContributionsReplacing(ext.ID, contribs, ignore...); err != nil {
 			return nil, err
 		}
 	} else {
-		if _, err := prepareContributions(ext.ID, contribs); err != nil {
+		if _, err := prepareThemeContributions(ext.ID, contribs); err != nil {
 			return nil, err
 		}
 	}
@@ -103,7 +103,7 @@ func (b *ExtensionBridge) RegisterThemePackage(ctx context.Context, ext ThemeExt
 		return err
 	}
 	// 仅注册候选；核心页 replace 必须 super_admin 明确批准。
-	if err := b.Registry.RegisterContributions(ext.ID, contribs); err != nil {
+	if err := b.Registry.RegisterThemeContributions(ext.ID, contribs); err != nil {
 		return err
 	}
 	return nil

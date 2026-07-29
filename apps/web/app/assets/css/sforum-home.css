@@ -344,21 +344,6 @@
   margin-bottom: 14px;
 }
 
-.sforum-home__page-header h1 {
-  margin: 0 0 6px;
-  color: var(--sf-public-text);
-  font-size: 1.35rem;
-  font-weight: 800;
-  line-height: 1.25;
-}
-
-.sforum-home__page-header p {
-  margin: 0;
-  color: var(--sf-public-text-muted);
-  font-size: 0.875rem;
-  line-height: 1.55;
-}
-
 .sforum-home__page-meta {
   margin-top: 8px;
   color: var(--sf-public-text-faint);
@@ -703,24 +688,6 @@
   margin-bottom: 20px;
 }
 
-/* demo body[data-variant] .feed-head h1：Noto Sans SC 20/600（非衬线 27）
- * 选择器对齐 hybrid 的 .sf-theme--default 权重，避免旧 L0 包里的衬线 27 抢胜。 */
-.sforum-home__feed-title,
-.sf-theme--default .sforum-home__feed-title,
-.sf-page.sf-theme--default .sforum-home__feed-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8px;
-  margin: 0;
-  color: var(--sf-public-text);
-  font-family: "Noto Sans SC", "DM Sans", system-ui, sans-serif;
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 1.25;
-  letter-spacing: 0;
-}
-
 .sforum-home__feed-list {
   overflow: visible;
   border: 0;
@@ -862,9 +829,6 @@
     padding: 18px 12px 48px;
   }
 
-  .sforum-home__feed-title {
-    font-size: 18px;
-  }
 }
 
 /* hybrid demo fidelity: 显式 CSS 兜底，避免任意断点类未生成时退回桌面五列。 */

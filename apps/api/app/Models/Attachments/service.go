@@ -25,6 +25,7 @@ import (
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionRuntime"
+	localization "github.com/zhuchunshu/sforum/apps/api/app/Support/Localization"
 	mediaregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/MediaRegistry"
 	secretstore "github.com/zhuchunshu/sforum/apps/api/app/Support/SecretStore"
 	storage "github.com/zhuchunshu/sforum/apps/api/app/Support/Storage"
@@ -452,7 +453,7 @@ func (s *Service) cleanupOrphans(ctx context.Context, limit int) (CleanupResult,
 	return result, nil
 }
 
-func (s *Service) Settings(ctx context.Context, actor identity.Actor) (AttachmentSettings, error) {
+func (s *Service) Settings(ctx context.Context, actor identity.Actor, locale string) (AttachmentSettings, error) {
 	if !actor.Can(identity.PermissionAttachmentSettings) {
 		return AttachmentSettings{}, identity.ErrPermissionDenied
 	}
@@ -468,10 +469,10 @@ func (s *Service) Settings(ctx context.Context, actor identity.Actor) (Attachmen
 			secrets[item.Name] = item.SecretSet
 		}
 	}
-	return s.decorateSettings(ctx, settingsFromValues(values, secrets)), nil
+	return s.decorateSettings(ctx, settingsFromValues(values, secrets), locale), nil
 }
 
-func (s *Service) UpdateSettings(ctx context.Context, actor identity.Actor, input AttachmentSettings) (AttachmentSettings, error) {
+func (s *Service) UpdateSettings(ctx context.Context, actor identity.Actor, input AttachmentSettings, locale string) (AttachmentSettings, error) {
 	if !actor.Can(identity.PermissionAttachmentSettings) {
 		return AttachmentSettings{}, identity.ErrPermissionDenied
 	}
@@ -491,10 +492,10 @@ func (s *Service) UpdateSettings(ctx context.Context, actor identity.Actor, inpu
 			secrets[item.Name] = item.SecretSet
 		}
 	}
-	return s.decorateSettings(ctx, settingsFromValues(values, secrets)), nil
+	return s.decorateSettings(ctx, settingsFromValues(values, secrets), locale), nil
 }
 
-func (s *Service) Probe(ctx context.Context, actor identity.Actor) (ProbeResult, error) {
+func (s *Service) Probe(ctx context.Context, actor identity.Actor, locale string) (ProbeResult, error) {
 	if !actor.Can(identity.PermissionAttachmentSettings) {
 		return ProbeResult{}, identity.ErrPermissionDenied
 	}
@@ -509,23 +510,33 @@ func (s *Service) Probe(ctx context.Context, actor identity.Actor) (ProbeResult,
 			Provider: settings.Provider,
 			OK:       false,
 			Reason:   CodeStorageUnavailable,
-			Message:  probeFailureMessage(err),
+			Message:  localizedProbeMessage(locale, CodeStorageUnavailable),
 		}, nil
 	}
 	if err := adapter.Probe(ctx); err != nil {
+		reason := probeFailureReason(err)
 		return ProbeResult{
 			Provider: settings.Provider,
 			OK:       false,
-			Reason:   probeFailureReason(err),
-			Message:  probeFailureMessage(err),
+			Reason:   reason,
+			Message:  localizedProbeMessage(locale, reason),
 		}, nil
 	}
 	return ProbeResult{
 		Provider: settings.Provider,
 		OK:       true,
 		Reason:   "storage.ok",
-		Message:  "ok",
+		Message:  localizedProbeMessage(locale, "storage.ok"),
 	}, nil
+}
+
+// localizedProbeMessage 保留 RPC reason 作为稳定机器契约，展示给管理员的消息跟随请求语言。
+func localizedProbeMessage(locale, reason string) string {
+	message := localization.Message(locale, reason)
+	if message != reason {
+		return message
+	}
+	return localization.Message(locale, CodeStorageUnavailable)
 }
 
 func probeFailureReason(err error) string {
@@ -576,12 +587,12 @@ func (s *Service) runtimeSettings(ctx context.Context) (AttachmentSettings, erro
 }
 
 // decorateSettings 填充 Candidates（core + 启用插件）。
-func (s *Service) decorateSettings(ctx context.Context, settings AttachmentSettings) AttachmentSettings {
-	settings.Candidates = s.listCandidates(ctx)
+func (s *Service) decorateSettings(ctx context.Context, settings AttachmentSettings, locale string) AttachmentSettings {
+	settings.Candidates = s.listCandidates(ctx, locale)
 	return settings
 }
 
-func (s *Service) listCandidates(ctx context.Context) []storage.Candidate {
+func (s *Service) listCandidates(ctx context.Context, locale string) []storage.Candidate {
 	core := storage.CoreCandidates()
 	if s.providers == nil {
 		return core
@@ -589,6 +600,17 @@ func (s *Service) listCandidates(ctx context.Context) []storage.Candidate {
 	plugins, err := s.providers.ListStorageProviderCandidates(ctx)
 	if err != nil {
 		return core
+	}
+	for i := range plugins {
+		if !plugins[i].MultiInstance || plugins[i].ExtensionID == "" {
+			continue
+		}
+		schema, schemaErr := s.providers.StorageProviderSchema(ctx, plugins[i].ExtensionID, locale)
+		if schemaErr != nil {
+			continue
+		}
+		plugins[i].Schema = &schema
+		plugins[i].Label = schema.Label
 	}
 	out := storage.MergeCandidates(core, plugins)
 	if s.instanceStore != nil {
@@ -638,14 +660,21 @@ func (s *Service) ensureProviderSelectable(ctx context.Context, provider string)
 		// 无扩展目录时不允许选择插件（避免静默成功）。
 		return ErrStorageUnavailable
 	}
-	ok, err := s.providers.IsStorageProviderAvailable(ctx, sel.ExtensionID)
+	candidates, err := s.providers.ListStorageProviderCandidates(ctx)
 	if err != nil {
 		return err
 	}
-	if !ok {
-		return ErrStorageUnavailable
+	for _, candidate := range candidates {
+		if candidate.ExtensionID != sel.ExtensionID || candidate.Available == false {
+			continue
+		}
+		if candidate.MultiInstance {
+			// 多实例插件本体没有一份可用于写入的全局配置，必须选择 instance:<uuid>。
+			return storage.ErrInvalidConfig
+		}
+		return nil
 	}
-	return nil
+	return ErrStorageUnavailable
 }
 
 func (s *Service) adapterForSettings(ctx context.Context, settings AttachmentSettings, provider string) (storage.Adapter, error) {
@@ -691,14 +720,8 @@ func (s *Service) adapterForSettings(ctx context.Context, settings AttachmentSet
 	if !sel.IsValidPluginSelection() {
 		return nil, storage.ErrInvalidConfig
 	}
-	if s.providers != nil {
-		ok, err := s.providers.IsStorageProviderAvailable(ctx, sel.ExtensionID)
-		if err != nil {
-			return nil, err
-		}
-		if !ok {
-			return nil, ErrStorageUnavailable
-		}
+	if err := s.ensureProviderSelectable(ctx, provider); err != nil {
+		return nil, err
 	}
 	if s.storageRuntime == nil {
 		// 无 runtime（如独立 worker 未注入）时 fail-closed，勿静默改用 local。

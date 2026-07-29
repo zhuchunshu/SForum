@@ -143,6 +143,8 @@ paths:
     "$ref": "./openapi/paths/identity.yaml#/authLogout"
   "/auth/session":
     "$ref": "./openapi/paths/identity.yaml#/authSession"
+  "/auth/locale":
+    "$ref": "./openapi/paths/identity.yaml#/authLocale"
   "/auth/sessions":
     "$ref": "./openapi/paths/identity.yaml#/authSessions"
   "/auth/sessions/revoke-others":
@@ -707,6 +709,8 @@ components:
       "$ref": "./openapi/schemas/attachments.yaml#/ApiResponseAttachmentSettings"
     ApiResponseAttachmentProbe:
       "$ref": "./openapi/schemas/attachments.yaml#/ApiResponseAttachmentProbe"
+    ApiResponseAttachmentDelete:
+      "$ref": "./openapi/schemas/attachments.yaml#/ApiResponseAttachmentDelete"
     ApiResponseAttachmentCleanup:
       "$ref": "./openapi/schemas/attachments.yaml#/ApiResponseAttachmentCleanup"
     ApiResponseExtension:

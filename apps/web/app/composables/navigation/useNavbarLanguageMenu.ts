@@ -1,14 +1,4 @@
-const supportedLocaleCodes = ['zh-CN', 'en'] as const
-
-type LocaleCode = typeof supportedLocaleCodes[number]
-type LocaleOption = {
-  code: LocaleCode
-  name?: string
-}
-type ConfiguredLocale = string | {
-  code?: unknown
-  name?: unknown
-}
+import { useUserLanguage } from '~/composables/identity/useUserLanguage'
 
 export type NavbarMenuItem = {
   label: string
@@ -25,32 +15,19 @@ export type NavbarMenuItem = {
   children?: NavbarMenuItem[]
 }
 
-function isLocaleCode(value: string): value is LocaleCode {
-  return supportedLocaleCodes.includes(value as LocaleCode)
-}
-
 export function useNavbarLanguageMenu() {
-  const { locale, locales, setLocale } = useI18n()
-  const localeOptions = computed<LocaleOption[]>(() =>
-    (locales.value as readonly ConfiguredLocale[]).flatMap((entry) => {
-      const code = typeof entry === 'string' ? entry : entry.code
-      if (typeof code !== 'string' || !isLocaleCode(code)) {
-        return []
-      }
-      const name = typeof entry === 'string' ? entry : entry.name
-      return [{ code, name: typeof name === 'string' && name.trim() ? name : code }]
-    })
-  )
+  const { locale } = useI18n()
+  const { languageOptions, updateLanguage } = useUserLanguage()
   const currentLocaleName = computed(() =>
-    localeOptions.value.find(entry => entry.code === locale.value)?.name || locale.value
+    languageOptions.value.find(entry => entry.appCode === locale.value)?.label || locale.value
   )
 
-  // no_prefix：setLocale 只换文案与 cookie，URL 保持不变。
+  // no_prefix：切换后 URL 保持不变；登录用户会同步更新默认语言和 i18n cookie。
   const languageMenuItems = computed<NavbarMenuItem[]>(() =>
-    localeOptions.value.map((entry) => {
-      const isCurrent = entry.code === locale.value
+    languageOptions.value.map((entry) => {
+      const isCurrent = entry.appCode === locale.value
       return {
-        label: entry.name || entry.code,
+        label: entry.label,
         icon: isCurrent ? 'i-lucide-check' : 'i-tabler-language',
         active: isCurrent,
         onSelect: (event: Event) => {
@@ -58,7 +35,7 @@ export function useNavbarLanguageMenu() {
             event.preventDefault()
             return
           }
-          void setLocale(entry.code)
+          void updateLanguage(entry.value)
         }
       }
     })

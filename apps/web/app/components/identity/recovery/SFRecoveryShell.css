@@ -618,10 +618,6 @@
   flex: 0 0 13px;
 }
 
-.sf-recovery-altcha {
-  width: 100%;
-}
-
 @keyframes sf-recovery-view-in {
   from {
     opacity: 0;

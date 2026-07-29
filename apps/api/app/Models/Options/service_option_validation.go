@@ -74,7 +74,7 @@ func isValidValueSet(values map[string]string) bool {
 	if _, ok := parseBoundedInt(values[NameAltchaWidgetMinDuration], altchaWidgetMinDurationMin, altchaWidgetMinDurationMax); !ok {
 		return false
 	}
-	if _, ok := normalizeAppearanceTheme(values[NameAppearanceTheme]); !ok {
+	if !validateAppearanceOptions(values) {
 		return false
 	}
 	if _, ok := normalizeFooterCopyright(values[NameFooterCopyrightZHCN]); !ok {

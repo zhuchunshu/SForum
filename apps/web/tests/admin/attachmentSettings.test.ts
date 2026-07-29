@@ -11,7 +11,19 @@ import {
   humanFileSize
 } from '../../app/components/admin/settings/attachments/model'
 
+const [zhCN, enUS] = await Promise.all([
+  Bun.file(new URL('../../i18n/locales/zh-CN.json', import.meta.url)).json(),
+  Bun.file(new URL('../../i18n/locales/en-US.json', import.meta.url)).json()
+]) as Array<Record<string, any>>
+
 describe('attachment settings defaults', () => {
+  test('keeps storage instance translations in the attachment namespace', () => {
+    expect(zhCN.admin.attachments.storageInstances.title).toBe('存储服务实例')
+    expect(enUS.admin.attachments.storageInstances.title).toBe('Storage service instances')
+    expect(zhCN.admin.home.storageInstances).toBeUndefined()
+    expect(enUS.admin.home.storageInstances).toBeUndefined()
+  })
+
   test('provides a beginner-friendly local storage default', () => {
     const defaults = createDefaultAttachmentSettings()
 

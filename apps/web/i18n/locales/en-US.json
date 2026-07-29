@@ -607,35 +607,6 @@
       "title": "Balanced Command Center",
       "intro": "See forum runtime health, community activity, and admin work that needs attention in one screen.",
       "refresh": "Refresh",
-      "storageInstances": {
-        "title": "Storage service instances",
-        "description": "Configure multiple vendors through one S3-compatible plugin. Switching affects new uploads only; existing attachments keep using their original instance.",
-        "add": "Add instance",
-        "useLocal": "Switch to local storage",
-        "current": "Current writer",
-        "makeCurrent": "Make current",
-        "name": "Instance name",
-        "provider": "Provider plugin",
-        "createTitle": "Add storage instance",
-        "editTitle": "Edit storage instance",
-        "saved": "Storage instance saved.",
-        "saveFailed": "Storage instance could not be saved.",
-        "activated": "Switched to {name}. Only new attachments use this instance.",
-        "localActivated": "Switched to local storage. Only new attachments use local storage.",
-        "activateFailed": "Storage instance could not be activated.",
-        "deleted": "Storage instance deleted.",
-        "delete": "Delete",
-        "deleteFailed": "Storage instance could not be deleted.",
-        "deleteTitle": "Delete storage instance",
-        "deleteConfirm": "Delete “{name}”? Only standby instances with no historical attachment references can be deleted.",
-        "deleteBlocked": "Instances referenced by historical attachments cannot be deleted.",
-        "historyCount": "Historical attachments: {count}",
-        "empty": "No storage instances yet. Enable a multi-instance S3-compatible plugin to add one.",
-        "pluginRequired": "Enable a storage plugin that supports multiple instances first.",
-        "loadFailed": "Storage instances could not be loaded.",
-        "schemaAfterFirstSave": "This plugin does not currently expose renderable instance settings.",
-        "status": { "unverified": "Untested", "ready": "Ready", "error": "Error" }
-      },
       "loadFailed": "Failed to load the admin overview",
       "toolbar": {
         "loading": "Loading admin overview...",
@@ -759,6 +730,8 @@
       "intro": "Review installed plugins and themes, and upload ZIP extension packages with an SForum manifest.",
       "refresh": "Refresh",
       "upload": "Upload ZIP",
+      "configureStorage": "Configure storage",
+      "configureStorageEnableFirst": "Enable the plugin before configuring storage service instances.",
       "loadFailed": "Extensions could not be loaded.",
       "uploaded": "Extension installed.",
       "upgraded": "Extension upgraded.",
@@ -1237,6 +1210,8 @@
         "enabled": "Enabled",
         "defaultValue": "Default: {value}",
         "emptyValue": "empty",
+        "requiredField": "Required",
+        "optionalField": "Optional",
         "resetDefaults": "Restore recommended defaults",
         "saveSettings": "Save settings",
         "emptySettingsTitle": "No configurable settings",
@@ -1873,7 +1848,7 @@
       "configuration": "Attachment Configuration",
       "configurationDescription": "Manage attachment storage, upload rules, and compression processing policies.",
       "configurationTabsLabel": "Attachment configuration tabs",
-      "intro": "Configure upload storage providers, access URLs, and attachment governance rules.",
+      "intro": "Configure the current attachment write target, access URLs, and attachment governance rules.",
       "toolbar": "Attachment upload is controlled by API permissions; admin settings change runtime storage behavior.",
       "refresh": "Refresh",
       "settingsLoadFailed": "Attachment settings could not be loaded.",
@@ -1884,9 +1859,46 @@
         "manager": "Attachment Management"
       },
       "settingsTitle": "Basic Configuration",
-      "settingsDescription": "Choose a storage provider and configure path templates, public domains, size limits, and file type rules.",
+      "settingsDescription": "Choose the current write target and configure path templates, size limits, and file type rules. S3 connection settings are managed by storage service instances.",
       "managerDescription": "View, filter, and govern uploaded attachments and their content references.",
       "managerToolbar": "Attachment governance actions are controlled by the attachment.manage permission.",
+      "storageInstances": {
+        "title": "Storage service instances",
+        "description": "Configure multiple vendors through one S3-compatible plugin. Switching affects new uploads only; existing attachments keep using their original instance.",
+        "add": "Add instance",
+        "useLocal": "Switch to local storage",
+        "current": "Current writer",
+        "makeCurrent": "Make current",
+        "name": "Instance name",
+        "namePlaceholder": "For example: Production R2",
+        "provider": "Provider plugin",
+        "guideTitle": "Complete the fields, then test directly",
+        "guideDescription": "Fields marked * are required. The test uses the current form without saving first and writes, reads, then removes a temporary object.",
+        "missingRequired": "Complete the required fields first: {fields}",
+        "testDraft": "Test current values",
+        "testDraftHint": "No save is required. Test again after changing any field.",
+        "draftTestPassed": "Current values connected successfully",
+        "draftTestFailed": "Current values failed the test",
+        "createTitle": "Add storage instance",
+        "editTitle": "Edit storage instance",
+        "saved": "Storage instance saved.",
+        "saveFailed": "Storage instance could not be saved.",
+        "activated": "Switched to {name}. Only new attachments use this instance.",
+        "localActivated": "Switched to local storage. Only new attachments use local storage.",
+        "activateFailed": "Storage instance could not be activated.",
+        "deleted": "Storage instance deleted.",
+        "delete": "Delete",
+        "deleteFailed": "Storage instance could not be deleted.",
+        "deleteTitle": "Delete storage instance",
+        "deleteConfirm": "Delete “{name}”? Only standby instances with no historical attachment references can be deleted.",
+        "deleteBlocked": "Instances referenced by historical attachments cannot be deleted.",
+        "historyCount": "Historical attachments: {count}",
+        "empty": "No storage instances yet. Enable a multi-instance S3-compatible plugin to add one.",
+        "pluginRequired": "Enable a storage plugin that supports multiple instances first.",
+        "loadFailed": "Storage instances could not be loaded.",
+        "schemaAfterFirstSave": "This plugin does not currently expose renderable instance settings.",
+        "status": { "unverified": "Untested", "ready": "Ready", "error": "Error" }
+      },
       "compression": {
         "description": "Manage compression processing policies for regular attachment uploads.",
         "emptyTitle": "No attachment compression settings available",
@@ -1911,9 +1923,19 @@
       },
       "saveSettings": "Save attachment settings",
       "testConnection": "Test connection",
+      "testCurrentStorage": "Test current storage",
       "testPassed": "Storage connection is healthy.",
       "testFailed": "Storage connection test failed.",
       "provider": "Storage provider",
+      "currentWriter": "Current write target",
+      "providerGroups": {
+        "core": "Built-in storage",
+        "instances": "Configured storage instances",
+        "compatibility": "Compatibility plugins"
+      },
+      "addStorageInstanceHint": "Add an S3 storage instance above first",
+      "enableStoragePluginHint": "Enable the S3-compatible storage plugin to add cloud storage",
+      "instanceProviderHint": "Switching affects new uploads only; existing attachments keep their original storage instance.",
       "providers": {
         "local": "Local upload",
         "aliyunOss": "Alibaba Cloud OSS",
@@ -1944,7 +1966,7 @@
         "days": "days"
       },
       "fieldHelp": {
-        "provider": "Choose where attachments are stored. Configure credentials for plugin providers on the corresponding extension settings page.",
+        "provider": "Choose where new attachments are written. Manage S3 credentials in storage service instances above; compatibility plugins use their own extension settings pages.",
         "maxFileSize": "Maximum size allowed for each attachment, from 1 to 1024 MB.",
         "pathTemplate": "Supports {yyyy}, {mm}, {dd}, {public_id}, and {ext}; {ext} includes the leading dot.",
         "publicBaseUrl": "Optional. When set, this URL takes priority for public attachment links; otherwise the selected storage provider URL is used.",
@@ -2966,8 +2988,62 @@
         "friendLinks": "Friend links"
       },
       "theme": {
-        "title": "Appearance preset",
+        "title": "Theme accent",
         "description": "Choose one main color preset for navigation, buttons, focus states, and admin accents."
+      },
+      "lightBackground": {
+        "title": "Daytime background",
+        "description": "Choose the page and content surface palette used across the public site and admin in light mode. Dark mode always keeps the active theme's current dark palette.",
+        "presets": {
+          "pure_white": {
+            "label": "Pure white",
+            "description": "Recommended. Keeps the current bright, minimal appearance."
+          },
+          "porcelain": {
+            "label": "Porcelain",
+            "description": "A refined white with a subtle gray-green cast."
+          },
+          "paper": {
+            "label": "Warm paper",
+            "description": "A gentle warm-white palette for comfortable long-form reading."
+          },
+          "parchment": {
+            "label": "Parchment",
+            "description": "A richer warm-paper palette for literary and reading communities."
+          },
+          "mist_gray": {
+            "label": "Mist gray",
+            "description": "A soft gray canvas that gives white content surfaces more definition."
+          },
+          "cool_frost": {
+            "label": "Cool frost",
+            "description": "A restrained cool background suited to technical communities."
+          },
+          "cloud_blue": {
+            "label": "Cloud blue",
+            "description": "An airy pale-blue canvas with a calm, clear sense of space."
+          },
+          "mint_mist": {
+            "label": "Mint mist",
+            "description": "A fresh pale mint that stays soft while preserving clear layers."
+          },
+          "sage": {
+            "label": "Sage",
+            "description": "A low-saturation natural green for focused, quiet communities."
+          },
+          "sakura": {
+            "label": "Sakura",
+            "description": "A very light pink that adds a gentle, welcoming character."
+          },
+          "lilac_mist": {
+            "label": "Lilac mist",
+            "description": "A restrained lilac-gray palette for creative communities."
+          },
+          "morning_apricot": {
+            "label": "Morning apricot",
+            "description": "A light apricot warmth that remains bright and balanced."
+          }
+        }
       },
       "themes": {
         "pine_teal": {
@@ -3027,6 +3103,10 @@
       "siteUrlPlaceholder": "Example: https://forum.example.com",
       "siteUrlHint": "Leave blank to use the APP_URL environment value: {url}",
       "siteUrlUseEnvironment": "Use environment APP_URL",
+      "siteDomain": "Website domain",
+      "siteDomainPlaceholder": "Example: forum.example.com",
+      "siteDomainHint": "Enter only the domain, without http://, https://, or a trailing slash. It is cleaned automatically when saved.",
+      "siteDomainUseSiteUrl": "Use site URL domain",
       "defaultLocale": "Default language",
       "supportedLocales": "Enabled languages",
       "tabs": {
@@ -3199,7 +3279,7 @@
           },
           "passwordReset": {
             "label": "Password reset",
-            "description": "Require verification before account recovery or reset email requests once that flow is wired."
+            "description": "Require verification before account recovery or a reset email request."
           },
           "loginRisk": {
             "label": "Login risk",
@@ -3872,6 +3952,10 @@
       "needsSetup": "Setup required",
       "providerConfigTitle": "Mail provider",
       "providerConfigDescription": "Choose a provider, then open its plugin settings for connection details.",
+      "welcomeEnabled": "Send a registration welcome email",
+      "welcomeEnabledHelp": "Off by default. When enabled, newly registered members receive a welcome email in their browsing language, account language, or the site default, in that order.",
+      "saveWelcome": "Save welcome email setting",
+      "welcomeSaved": "Registration welcome email setting saved.",
       "policyTitle": "Event delivery policy",
       "policyDescription": "Keeping every channel enabled is recommended; disable individual channels only when needed.",
       "provider": "Provider",
@@ -3926,6 +4010,7 @@
       "templates": {
         "admin_test": "Admin test mail",
         "identity_password_reset": "Password reset",
+        "identity_welcome": "Registration welcome",
         "forum_reply": "Reply notification",
         "forum_mention": "Mention notification",
         "forum_moderation_approved": "Moderation approved",
@@ -4963,9 +5048,10 @@
       "linksDescription": "Both are optional. Add only what you want to share publicly."
     },
     "viewPublicProfile": "View public profile",
-    "profilePathPrefix": "sforum.dev/u/",
     "username": "Username",
     "usernameHint": "Username cannot be changed yet.",
+    "defaultLanguage": "Default language",
+    "defaultLanguageHint": "Used as the default site language and for system messages after sign-in.",
     "avatar": "Avatar",
     "avatarCurrent": "Current avatar",
     "avatarHint": "Supports {types}, up to {size} KB, with source images no larger than {dimension}px on the longest edge.",

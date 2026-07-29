@@ -5,6 +5,7 @@ import { useForumApi } from '~/composables/forum/useForumApi'
 import SFHomeTopicRow from '~/components/forum/SFHomeTopicRow.vue'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
+import SFPublicPageHeader from '~/components/public/SFPublicPageHeader.vue'
 /**
  * 宿主 body 岛：forum.category.show。主题 L1 挂载；路由页仅 SEO + fail-closed 回退。
  */
@@ -158,14 +159,21 @@ function topicActivity(topic: ForumTopicSummary) {
 
         <SFRegionOutlet page="forum.category.show" region="content_before" />
 
-        <header class="sforum-home__page-header">
-          <p v-if="category?.groupName" class="sforum-home__page-group">{{ category.groupName }}</p>
-          <h1 id="category-page-title">{{ category?.name }}</h1>
-          <p v-if="category?.description">{{ category.description }}</p>
-          <div class="sforum-home__page-meta">
-            {{ formatForumTopicListTotal(topicList, t) }}
-          </div>
-        </header>
+        <SFPublicPageHeader
+          class="sforum-home__page-header"
+          title-id="category-page-title"
+          :title="category?.name || ''"
+          :subtitle="category?.description || ''"
+        >
+          <template #eyebrow>
+            <p v-if="category?.groupName" class="sforum-home__page-group">{{ category.groupName }}</p>
+          </template>
+          <template #meta>
+            <div class="sforum-home__page-meta">
+              {{ formatForumTopicListTotal(topicList, t) }}
+            </div>
+          </template>
+        </SFPublicPageHeader>
 
         <div id="feed-list-container" class="sforum-home__feed-list" data-sf-region="topic-list">
           <template v-if="topicsPending">

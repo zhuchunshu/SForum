@@ -17,6 +17,7 @@ export type AdminExtensionSetting = {
   default?: string
   placeholder?: string
   recommendedValue?: string
+  required?: boolean
   /** Schema UI control width: default (capped) or full (fill column). */
   width?: 'default' | 'full' | string
   group?: string
@@ -90,7 +91,7 @@ export type AdminExtensionManifest = {
   hooks?: Array<{ name: string }>
   events?: Array<{ name: string, kind?: AdminExtensionEventKind, timeoutMs?: number }>
   jobs?: Array<{ name: string }>
-  providers?: Array<{ slot: string, label: string, timeoutMs?: number }>
+  providers?: Array<{ slot: string, label: string, timeoutMs?: number, multiInstance?: boolean }>
   contributions?: AdminManifestContribution[]
 }
 
@@ -136,6 +137,7 @@ export type AdminExtensionSettingValue = {
   secretSet?: boolean
   placeholder?: string
   recommendedValue?: string
+  required?: boolean
   /** Schema UI control width: default (capped) or full (fill column). */
   width?: 'default' | 'full' | string
   group?: string

@@ -2,9 +2,12 @@
 import { useActiveThemeSkin } from '~/composables/themes/useActiveThemeSkin'
 import { useExternalAuthFeedback } from '~/composables/identity/useExternalAuthFeedback'
 import { useAuthSession } from '~/composables/identity/useAuthSession'
+import { useUserLanguage } from '~/composables/identity/useUserLanguage'
 import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
 import SFApiConnectionModal from '~/components/errors/SFApiConnectionModal.vue'
 import { useAdminTabs } from '~/composables/admin/useAdminTabs'
+import { useAdminAppearancePreview } from '~/composables/admin/settings/useAdminAppearancePreview'
+import { resolveAppearanceTheme } from '~/utils/settings/appearance'
 
 // no_prefix：中英共用 URL，不输出 hreflang 交替链接（同 URL 多语 SEO 无效）。
 // 仍保留 html lang/dir，供无障碍与浏览器语言提示。
@@ -15,17 +18,20 @@ const localeHead = useLocaleHead({
 })
 const {
   siteName,
+  lightBackground,
   resolvedAppearanceTheme,
   seoSettings,
   siteFaviconUrl,
   siteAppleTouchIconUrl,
   refresh: refreshWebOptions
 } = useWebOptions()
-const { refresh: refreshAuthSession } = useAuthSession()
+const { refresh: refreshAuthSession, setUser: setAuthUser } = useAuthSession()
+const { applyStoredLanguage } = useUserLanguage()
 // 消费 OAuth 回调 `ext_auth`：成功 Toast 在任意回跳页生效；登录/注册壳另读 alert。
 const { consumeFromRoute: consumeExternalAuthFeedback } = useExternalAuthFeedback()
 const route = useRoute()
 const adminRoutes = useAdminRoutes()
+const { preview: adminAppearancePreview } = useAdminAppearancePreview()
 const themeSkin = useActiveThemeSkin()
 const startupOptionsTimeout = import.meta.dev ? 800 : 2000
 const hasServerSession = import.meta.server
@@ -33,6 +39,13 @@ const hasServerSession = import.meta.server
 
 // 引入页签缓存控制列表
 const { cachedTabNames } = useAdminTabs()
+const isAdminRoute = computed(() => adminRoutes.routeId(route.path) !== null)
+const appliedAppearanceTheme = computed(() => adminAppearancePreview.value && isAdminRoute.value
+  ? resolveAppearanceTheme(adminAppearancePreview.value.theme)
+  : resolvedAppearanceTheme.value)
+const appliedLightBackground = computed(() => adminAppearancePreview.value && isAdminRoute.value
+  ? adminAppearancePreview.value.lightBackground
+  : lightBackground.value)
 
 async function refreshStartupState(options: { restoreAuth: boolean }) {
   // 开发热重载时 API 可能还在编译，首屏先使用本地默认状态。
@@ -45,6 +58,7 @@ async function refreshStartupState(options: { restoreAuth: boolean }) {
   }
 
   await Promise.all(tasks)
+  await applyStoredLanguage()
   return true
 }
 
@@ -60,6 +74,10 @@ async function syncThemeSkin() {
 }
 
 if (import.meta.server) {
+  // 无会话 Cookie 的请求可在 SSR 阶段确定为访客，避免公开 chrome 首屏留白。
+  if (!hasServerSession) {
+    setAuthUser(null)
+  }
   // 带会话的页面由 public-session-cache 禁止共享缓存，可以安全输出登录态首屏。
   await useAsyncData('app-startup', async () => {
     await Promise.all([
@@ -86,9 +104,11 @@ if (import.meta.server) {
 useHead(() => {
   const htmlAttrs: Record<string, string | undefined> = {
     ...localeHead.value.htmlAttrs,
-    'data-sforum-theme': resolvedAppearanceTheme.value.dataTheme
+    'data-sforum-theme': appliedAppearanceTheme.value.dataTheme,
+    'data-sforum-light-background': appliedLightBackground.value,
+    'data-sforum-admin-appearance-preview': adminAppearancePreview.value && isAdminRoute.value ? 'active' : undefined
   }
-  const themeStyle = resolvedAppearanceTheme.value.style
+  const themeStyle = appliedAppearanceTheme.value.style
   if (themeStyle) {
     htmlAttrs.style = [htmlAttrs.style, themeStyle].filter(Boolean).join('; ')
   }

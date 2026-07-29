@@ -130,6 +130,7 @@ func mergeCommunityPolicyDefaults(values map[string]string) {
 			values[name] = value
 		}
 	}
+	values[NameMailWelcomeEnabled] = enabledOptionValue(false)
 }
 
 func coerceCommunityPolicyOptions(coerced, defaults map[string]string) {

@@ -692,6 +692,7 @@ func resolveExtensionSettings(extension Extension, values map[string]string, loc
 			Value:            value,
 			Placeholder:      presentation.Placeholder,
 			RecommendedValue: setting.RecommendedValue,
+			Required:         setting.Required,
 			Width:            setting.Width,
 			Group:            presentation.Group,
 			GroupID:          setting.GroupID,

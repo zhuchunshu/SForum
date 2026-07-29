@@ -8,6 +8,27 @@ SMTP, log delivery, no-op delivery, authentication, or TLS.
 - `mail.provider` is a first-class extension provider slot.
 - `mail_deliveries` records `queued/sending/sent/failed/skipped` state without
   storing provider credentials.
+- Core renders password-reset, registration-welcome, reply, mention, and
+  moderation email as paired text/HTML transactional templates. The HTML
+  structure follows the mail template studio's restrained branded card layout;
+  untrusted names, review notes, and URLs are escaped before insertion.
+- Core snapshots the active public brand with each delivery: configured
+  `site.logo_url` is preferred, then `site.favicon_url`, then the first visible
+  character of `site.name`; `appearance.theme` supplies the accent, soft, and
+  border colors. Relative brand URLs become absolute from `site.url`, so mail
+  clients never need to infer the forum origin.
+- Every queued Core template stores its resolved `locale`. Password-reset and
+  registration flows choose the request browser language first, then the
+  account language, then `site.default_locale`; recipient notifications carry
+  the recipient's saved language snapshot because they are emitted outside the
+  recipient's request, and fall back to `site.default_locale` when a legacy
+  account locale is empty. A later preference or site-default change never
+  changes an already queued email.
+- `mail.welcome.enabled` is controlled from Mail settings, defaults to
+  `disabled`, and is authorized by `settings.mail.manage` (with the existing
+  settings compatibility grant). Welcome delivery is best-effort after a
+  successful password or external registration, so a queue outage cannot block
+  account creation.
 - River job `mail.deliver` carries only a delivery ID and runs on the `mail`
   queue. Standalone workers reconcile enabled plugin runtimes themselves;
   when the worker is embedded in the API it reuses the API extension runtime

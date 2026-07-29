@@ -118,6 +118,23 @@ func (s *PostgresStore) GetCurrentUser(ctx context.Context, userID int64) (Curre
 	return current, nil
 }
 
+// UpdateCurrentUserLocale persists a private account preference and returns the
+// same current-user projection used by the authenticated session endpoint.
+func (s *PostgresStore) UpdateCurrentUserLocale(ctx context.Context, userID int64, locale string) (CurrentUser, error) {
+	result, err := s.pool.Exec(ctx, `
+		UPDATE users
+		SET locale = $2, updated_at = now()
+		WHERE id = $1
+	`, userID, locale)
+	if err != nil {
+		return CurrentUser{}, fmt.Errorf("update user locale: %w", err)
+	}
+	if result.RowsAffected() == 0 {
+		return CurrentUser{}, ErrUserNotFound
+	}
+	return s.GetCurrentUser(ctx, userID)
+}
+
 // GetCurrentUserByEmail 按邮箱加载完整 CurrentUser（不要求 password credential）。
 func (s *PostgresStore) GetCurrentUserByEmail(ctx context.Context, email string) (CurrentUser, error) {
 	email = strings.TrimSpace(email)

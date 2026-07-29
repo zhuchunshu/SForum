@@ -358,6 +358,14 @@ future generated clients. Keep it modular as the product surface grows.
   mounts `sf-navbar` or `sf-footer` must not duplicate the same chrome inside
   its Host body island. Browser completion evidence must confirm there is only
   one visible global navbar and one visible global footer.
+- Page Registry theme files have a fail-closed three-way identity contract.
+  Every `theme.json.pages[].template` path must have exactly one matching
+  Manifest V3 `templates[]` declaration and one matching
+  `packageFiles[]` entry of kind `template`; all three paths and both digests
+  must agree. `theme.json` is only the page mapping and never substitutes for
+  these exact-artifact declarations. After adding or changing a template, run
+  `extension digest --write`, `extension validate`, and `extension test` on
+  the source package before staging or activation.
 - Editing a built-in runtime theme under `extensions/builtin/themes/**` does
   not update the active immutable artifact. Before calling theme UI work
   complete, rebuild built-ins, restart the API so `SyncBuiltins` stages the

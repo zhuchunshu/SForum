@@ -15,9 +15,40 @@ func TestRenderDeliveryUsesStoredPasswordResetContent(t *testing.T) {
 		t.Fatalf("unexpected request: %#v", request)
 	}
 }
-func TestRenderDeliveryCreatesBilingualForumMail(t *testing.T) {
+func TestRenderDeliveryCreatesLocalizedForumMail(t *testing.T) {
 	request := renderDelivery(notifications.MailDelivery{ID: 2, Recipient: "u@example.com", TemplateKey: "forum.mention", TemplateData: json.RawMessage(`{"topicId":42}`)})
-	if !strings.Contains(request.Subject, "mentioned") || !strings.Contains(request.TextBody, "提到") {
+	if !strings.Contains(request.Subject, "提及") || !strings.Contains(request.TextBody, "提到了") || !strings.Contains(request.HTMLBody, "邮件由你的通知偏好") {
 		t.Fatalf("unexpected request: %#v", request)
+	}
+}
+
+func TestRenderDeliveryRendersEnglishPasswordResetTemplate(t *testing.T) {
+	request := renderDelivery(notifications.MailDelivery{ID: 3, Recipient: "u@example.com", TemplateKey: "identity.password_reset", TemplateData: json.RawMessage(`{"locale":"en-US","username":"<Alex>","resetUrl":"https://forum.test/reset?token=secret","siteName":"Forum"}`)})
+	if !strings.Contains(request.Subject, "Reset your Forum password") || strings.Contains(request.TextBody, "重置") || !strings.Contains(request.HTMLBody, "&lt;Alex&gt;") || !strings.Contains(request.HTMLBody, "Reset password") {
+		t.Fatalf("unexpected localized reset template: %#v", request)
+	}
+}
+
+func TestRenderDeliveryRendersWelcomeTemplate(t *testing.T) {
+	request := renderDelivery(notifications.MailDelivery{ID: 4, Recipient: "u@example.com", TemplateKey: "identity.welcome", TemplateData: json.RawMessage(`{"locale":"zh-CN","username":"林墨","siteName":"SForum","siteUrl":"https://forum.test"}`)})
+	if !strings.Contains(request.Subject, "欢迎来到 SForum") || !strings.Contains(request.HTMLBody, "开始逛逛") || !strings.Contains(request.TextBody, "补充头像") {
+		t.Fatalf("unexpected welcome template: %#v", request)
+	}
+}
+
+func TestRenderDeliveryUsesQueuedBrandLogoAndAppearance(t *testing.T) {
+	request := renderDelivery(notifications.MailDelivery{ID: 5, Recipient: "u@example.com", TemplateKey: "identity.password_reset", TemplateData: json.RawMessage(`{
+"locale":"zh-CN","username":"蓝海","resetUrl":"https://forum.test/reset","siteName":"蓝色论坛",
+"brandLogoUrl":"https://forum.test/brand/logo.png","brandAccent":"#2563eb","brandAccentSoft":"#eff6ff","brandAccentSoftBorder":"#b9d1ff"}`)})
+	if !strings.Contains(request.HTMLBody, `src="https://forum.test/brand/logo.png"`) || !strings.Contains(request.HTMLBody, `background:#2563eb`) || strings.Contains(request.HTMLBody, `>S</span>`) {
+		t.Fatalf("expected queued logo and blue theme, got %#v", request)
+	}
+}
+
+func TestRenderDeliveryUsesSiteMarkWhenNoImageIsConfigured(t *testing.T) {
+	request := renderDelivery(notifications.MailDelivery{ID: 6, Recipient: "u@example.com", TemplateKey: "identity.welcome", TemplateData: json.RawMessage(`{
+"locale":"zh-CN","username":"用户","siteName":"大佬论坛","siteUrl":"https://forum.test","brandMark":"大","brandAccent":"#7c3aed"}`)})
+	if !strings.Contains(request.HTMLBody, `>大</span>`) || strings.Contains(request.HTMLBody, `>S</span>`) || !strings.Contains(request.HTMLBody, `background:#7c3aed`) {
+		t.Fatalf("expected site mark and violet theme, got %#v", request)
 	}
 }

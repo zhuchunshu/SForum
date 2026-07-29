@@ -11,6 +11,7 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	auth.Post("/login", h.login)
 	auth.Post("/logout", h.logout)
 	auth.Get("/session", h.session)
+	auth.Put("/locale", h.updateCurrentUserLocale)
 	auth.Post("/password-reset/request", h.passwordResetRequest)
 	auth.Post("/password-reset/confirm", h.passwordResetConfirm)
 	// 外部 Identity 提供方：列表公开；start/complete 按操作决定是否要求登录。

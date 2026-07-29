@@ -3,6 +3,7 @@ import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePer
 import { useForumApi } from '~/composables/forum/useForumApi'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
+import SFPublicPageHeader from '~/components/public/SFPublicPageHeader.vue'
 /**
  * 宿主 body 岛：forum.category.index。主题 L1 挂载；路由页仅 SEO + fail-closed 回退。
  */
@@ -230,28 +231,31 @@ async function retryLoad() {
       <section class="sforum-home__main sforum-category-directory__main sforum-content-column" aria-labelledby="category-directory-title">
         <SFRegionOutlet page="forum.category.index" region="content_before" />
 
-        <header class="sforum-category-directory__head">
-          <div class="sforum-category-directory__headline">
-            <h1 id="category-directory-title">{{ pageTitle }}</h1>
-            <p>{{ pageDescription }}</p>
-          </div>
-          <div
-            class="sforum-category-directory__summary"
-            :aria-label="t('taxonomy.categories.visibleSummary', {
-              groups: formatCount(displayStats.groupCount),
-              categories: formatCount(displayStats.categoryCount)
-            })"
-          >
-            <div>
-              <strong>{{ formatCount(displayStats.groupCount) }}</strong>
-              <span>{{ t('taxonomy.categories.stats.groups') }}</span>
+        <SFPublicPageHeader
+          class="sforum-category-directory__head"
+          title-id="category-directory-title"
+          :title="pageTitle"
+          :subtitle="pageDescription"
+        >
+          <template #aside>
+            <div
+              class="sforum-category-directory__summary"
+              :aria-label="t('taxonomy.categories.visibleSummary', {
+                groups: formatCount(displayStats.groupCount),
+                categories: formatCount(displayStats.categoryCount)
+              })"
+            >
+              <div>
+                <strong>{{ formatCount(displayStats.groupCount) }}</strong>
+                <span>{{ t('taxonomy.categories.stats.groups') }}</span>
+              </div>
+              <div>
+                <strong>{{ formatCount(displayStats.categoryCount) }}</strong>
+                <span>{{ t('taxonomy.categories.stats.categories') }}</span>
+              </div>
             </div>
-            <div>
-              <strong>{{ formatCount(displayStats.categoryCount) }}</strong>
-              <span>{{ t('taxonomy.categories.stats.categories') }}</span>
-            </div>
-          </div>
-        </header>
+          </template>
+        </SFPublicPageHeader>
 
         <div class="sforum-category-directory__toolbar">
           <div class="sforum-category-directory__filters">

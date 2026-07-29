@@ -1,27 +1,451 @@
 {
-  "manifestVersion": 3,
-  "id": "sforum.default-theme",
-  "name": "SForum Default Theme",
-  "description": "The protected default SForum public theme with complete Page Registry L1 coverage, inline sf-navbar/sf-footer chrome islands, and Schema settings (runtime L0/L1 + host islands).",
-  "url": "https://sforum.local/themes/sforum-default",
   "author": {
     "name": "SForum Team",
     "url": "https://sforum.local"
   },
-  "version": "1.0.0",
-  "type": "theme",
-  "sforumVersion": "^1.0.0",
+  "description": "The protected default SForum public theme with complete Page Registry L1 coverage, inline sf-navbar/sf-footer chrome islands, and Schema settings (runtime L0/L1 + host islands).",
+  "id": "sforum.default-theme",
+  "includes": {
+    "admin": "manifest/admin.json",
+    "settings": "manifest/settings.json"
+  },
   "langs": {
     "zh": {
-      "name": "SForum 默认主题",
-      "description": "受保护的 SForum 默认公开主题。",
       "author": {
         "name": "SForum 团队"
-      }
+      },
+      "description": "受保护的 SForum 默认公开主题。",
+      "name": "SForum 默认主题"
     }
   },
-  "includes": {
-    "settings": "manifest/settings.json",
-    "admin": "manifest/admin.json"
-  }
+  "manifestVersion": 3,
+  "name": "SForum Default Theme",
+  "packageFiles": [
+    {
+      "digest": "6099603ab3748e985054f0623ed09a36c7211c7392aeafe87c2fecdfd184d968",
+      "id": "sforum.default-theme.file.template.home",
+      "kind": "template",
+      "path": "templates/home.html"
+    },
+    {
+      "digest": "c05543978d17169e1a92b213e2b949fdd67d53b114ce393df355bdae52f6dff2",
+      "id": "sforum.default-theme.file.template.search",
+      "kind": "template",
+      "path": "templates/search.html"
+    },
+    {
+      "digest": "2359b51c47348535645ce915367df54014b09c940f03bdfc7865c343dd423a97",
+      "id": "sforum.default-theme.file.template.category-index",
+      "kind": "template",
+      "path": "templates/category-index.html"
+    },
+    {
+      "digest": "fd2fcc9eef120362b906aa03515b96c8f56c1275eb6dcd15cfffa896a9b7836e",
+      "id": "sforum.default-theme.file.template.category-show",
+      "kind": "template",
+      "path": "templates/category-show.html"
+    },
+    {
+      "digest": "c09c4d7ac054aacf5d8e1bb9cbcd919125b0511821d18d25ee428f65574577e2",
+      "id": "sforum.default-theme.file.template.tag-index",
+      "kind": "template",
+      "path": "templates/tag-index.html"
+    },
+    {
+      "digest": "b4e65fa8bbbedb4dc4b3f9db5998c406f9c23d5b06152b5c2124e328f0dea86f",
+      "id": "sforum.default-theme.file.template.tag-show",
+      "kind": "template",
+      "path": "templates/tag-show.html"
+    },
+    {
+      "digest": "3e5e65da41dcd2ed1421a87484365ce1bd7fe15bcc5934041dbc447ebe8a96bc",
+      "id": "sforum.default-theme.file.template.topic-show",
+      "kind": "template",
+      "path": "templates/topic-show.html"
+    },
+    {
+      "digest": "ed9be79f7d470aec08eb2a9843194c5030eb5e8960c76554a2cf966ceea2e7c5",
+      "id": "sforum.default-theme.file.template.topic-create",
+      "kind": "template",
+      "path": "templates/topic-create.html"
+    },
+    {
+      "digest": "9d5833b7bf74c43a1bcf0a6ac263fd476cd506e6e823b06ca2892628d0743917",
+      "id": "sforum.default-theme.file.template.topic-reply",
+      "kind": "template",
+      "path": "templates/topic-reply.html"
+    },
+    {
+      "digest": "d3bb2ff5c159bab0990410b69b8deca42a8563ea36571e714de86345380b7b28",
+      "id": "sforum.default-theme.file.template.topic-edit",
+      "kind": "template",
+      "path": "templates/topic-edit.html"
+    },
+    {
+      "digest": "1de508da8a3d6f8731e926c2756b5a14b2732339b2ed353367bb375a83a58c24",
+      "id": "sforum.default-theme.file.template.profile-show",
+      "kind": "template",
+      "path": "templates/profile-show.html"
+    },
+    {
+      "digest": "38547a8ea843bd2fc9c7e7221d0cf0c461c330f3b4e16055f24562a974e4c38b",
+      "id": "sforum.default-theme.file.template.settings-profile",
+      "kind": "template",
+      "path": "templates/settings-profile.html"
+    },
+    {
+      "digest": "d6406a10b9398d5c1d9e182dbf60e223a17f64d35ff9a59839dc069e31efed7c",
+      "id": "sforum.default-theme.file.template.settings-security",
+      "kind": "template",
+      "path": "templates/settings-security.html"
+    },
+    {
+      "digest": "144fb47979ea6dba4206be6da75b7bddcce9db65c560c70f2b8fcd1e4c22132a",
+      "id": "sforum.default-theme.file.template.settings-notifications",
+      "kind": "template",
+      "path": "templates/settings-notifications.html"
+    },
+    {
+      "digest": "0e0bd27f8a80518504a96a1f91d8255b9e613239816945ee1fa1d7f5c8690e1a",
+      "id": "sforum.default-theme.file.template.notifications",
+      "kind": "template",
+      "path": "templates/notifications.html"
+    },
+    {
+      "digest": "346d2aa74511772af39dd26fc1b8e94a2a92465f6242964fd4e3a11710102f4e",
+      "id": "sforum.default-theme.file.template.notification-show",
+      "kind": "template",
+      "path": "templates/notification-detail.html"
+    },
+    {
+      "digest": "5936a043ed375a813c4c8eb139f68369a3f3efab333417b64065a2ffd99972d0",
+      "id": "sforum.default-theme.file.template.login",
+      "kind": "template",
+      "path": "templates/login.html"
+    },
+    {
+      "digest": "de3428634c2f87ad495375acc63ef12accf52a1c5bf33dccfc9696c608a54137",
+      "id": "sforum.default-theme.file.template.register",
+      "kind": "template",
+      "path": "templates/register.html"
+    },
+    {
+      "digest": "a1e3d1bff8643583c4becdc6d7135c1cd86fd7d86c9892186cdcff23b08ce430",
+      "id": "sforum.default-theme.file.template.forgot-password",
+      "kind": "template",
+      "path": "templates/forgot-password.html"
+    },
+    {
+      "digest": "4ec1f6f2235ba31cf2d5d878eb1cb05830aad352155b1ed6562f6811987e43e4",
+      "id": "sforum.default-theme.file.template.reset-password",
+      "kind": "template",
+      "path": "templates/reset-password.html"
+    },
+    {
+      "digest": "7d5d7f19ca01915f1ab41e641fe88e5a9a8444c7c763baa4a5afaca445cf1fac",
+      "id": "sforum.default-theme.file.template.terms",
+      "kind": "template",
+      "path": "templates/terms.html"
+    },
+    {
+      "digest": "f530994ae564c6d06821f66221e1f8893cbf017f3abe6b3e63c41eaadfb32dba",
+      "id": "sforum.default-theme.file.template.privacy",
+      "kind": "template",
+      "path": "templates/privacy.html"
+    },
+    {
+      "digest": "949ef018eb7b405fecdc4ce8fdcd0847f597430ea516f87736b8269f5c4c7944",
+      "id": "sforum.default-theme.file.template.guidelines",
+      "kind": "template",
+      "path": "templates/guidelines.html"
+    },
+    {
+      "digest": "a8dc23a35bbeb3c2f5afa56823f2d0345f74e83bda93c484412a6f3f4856342b",
+      "id": "sforum.default-theme.file.template.forbidden",
+      "kind": "template",
+      "path": "templates/forbidden.html"
+    },
+    {
+      "digest": "72c433061c0337aa5af68508090c55c946ab246c1dc8092776d788b9952c9b36",
+      "id": "sforum.default-theme.file.template.not-found",
+      "kind": "template",
+      "path": "templates/not-found.html"
+    },
+    {
+      "digest": "7fe0f34bb75aed32a6354c98e9be5555494314a2103b7eed1ce5738c961410e3",
+      "id": "sforum.default-theme.file.template.rate-limited",
+      "kind": "template",
+      "path": "templates/rate-limited.html"
+    },
+    {
+      "digest": "3b538c86bb66c8e295a0a3acfa8528ba2efa1ebd58982e1a9efa54aaf330c57c",
+      "id": "sforum.default-theme.file.template.server-error",
+      "kind": "template",
+      "path": "templates/server-error.html"
+    },
+    {
+      "digest": "6a4588cc3966896d77c23501db9489b2396e334a86be245bd6311ae030723633",
+      "id": "sforum.default-theme.file.template.moderation-review",
+      "kind": "template",
+      "path": "templates/moderation-review.html"
+    }
+  ],
+  "sforumVersion": "^1.0.0",
+  "templates": [
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.home@1",
+      "digest": "6099603ab3748e985054f0623ed09a36c7211c7392aeafe87c2fecdfd184d968",
+      "id": "sforum.default-theme.template.home",
+      "path": "templates/home.html",
+      "themeOverrideKey": "sforum.default-theme.home",
+      "viewModelSchema": "sforum.page.home@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.search@1",
+      "digest": "c05543978d17169e1a92b213e2b949fdd67d53b114ce393df355bdae52f6dff2",
+      "id": "sforum.default-theme.template.search",
+      "path": "templates/search.html",
+      "themeOverrideKey": "sforum.default-theme.search",
+      "viewModelSchema": "sforum.page.search@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.category-index@1",
+      "digest": "2359b51c47348535645ce915367df54014b09c940f03bdfc7865c343dd423a97",
+      "id": "sforum.default-theme.template.category-index",
+      "path": "templates/category-index.html",
+      "themeOverrideKey": "sforum.default-theme.category_index",
+      "viewModelSchema": "sforum.page.category_index@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.category-show@1",
+      "digest": "fd2fcc9eef120362b906aa03515b96c8f56c1275eb6dcd15cfffa896a9b7836e",
+      "id": "sforum.default-theme.template.category-show",
+      "path": "templates/category-show.html",
+      "themeOverrideKey": "sforum.default-theme.category_show",
+      "viewModelSchema": "sforum.page.category_show@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.tag-index@1",
+      "digest": "c09c4d7ac054aacf5d8e1bb9cbcd919125b0511821d18d25ee428f65574577e2",
+      "id": "sforum.default-theme.template.tag-index",
+      "path": "templates/tag-index.html",
+      "themeOverrideKey": "sforum.default-theme.tag_index",
+      "viewModelSchema": "sforum.page.tag_index@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.tag-show@1",
+      "digest": "b4e65fa8bbbedb4dc4b3f9db5998c406f9c23d5b06152b5c2124e328f0dea86f",
+      "id": "sforum.default-theme.template.tag-show",
+      "path": "templates/tag-show.html",
+      "themeOverrideKey": "sforum.default-theme.tag_show",
+      "viewModelSchema": "sforum.page.tag_show@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.topic-show@1",
+      "digest": "3e5e65da41dcd2ed1421a87484365ce1bd7fe15bcc5934041dbc447ebe8a96bc",
+      "id": "sforum.default-theme.template.topic-show",
+      "path": "templates/topic-show.html",
+      "themeOverrideKey": "sforum.default-theme.topic_show",
+      "viewModelSchema": "sforum.page.topic_show@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.topic-create@1",
+      "digest": "ed9be79f7d470aec08eb2a9843194c5030eb5e8960c76554a2cf966ceea2e7c5",
+      "id": "sforum.default-theme.template.topic-create",
+      "path": "templates/topic-create.html",
+      "themeOverrideKey": "sforum.default-theme.topic_create",
+      "viewModelSchema": "sforum.page.topic_create@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.topic-reply@1",
+      "digest": "9d5833b7bf74c43a1bcf0a6ac263fd476cd506e6e823b06ca2892628d0743917",
+      "id": "sforum.default-theme.template.topic-reply",
+      "path": "templates/topic-reply.html",
+      "themeOverrideKey": "sforum.default-theme.topic_reply",
+      "viewModelSchema": "sforum.page.topic_reply@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.topic-edit@1",
+      "digest": "d3bb2ff5c159bab0990410b69b8deca42a8563ea36571e714de86345380b7b28",
+      "id": "sforum.default-theme.template.topic-edit",
+      "path": "templates/topic-edit.html",
+      "themeOverrideKey": "sforum.default-theme.topic_edit",
+      "viewModelSchema": "sforum.page.topic_edit@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.profile-show@1",
+      "digest": "1de508da8a3d6f8731e926c2756b5a14b2732339b2ed353367bb375a83a58c24",
+      "id": "sforum.default-theme.template.profile-show",
+      "path": "templates/profile-show.html",
+      "themeOverrideKey": "sforum.default-theme.profile_show",
+      "viewModelSchema": "sforum.page.profile_show@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.settings-profile@1",
+      "digest": "38547a8ea843bd2fc9c7e7221d0cf0c461c330f3b4e16055f24562a974e4c38b",
+      "id": "sforum.default-theme.template.settings-profile",
+      "path": "templates/settings-profile.html",
+      "themeOverrideKey": "sforum.default-theme.settings_profile",
+      "viewModelSchema": "sforum.page.settings_profile@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.settings-security@1",
+      "digest": "d6406a10b9398d5c1d9e182dbf60e223a17f64d35ff9a59839dc069e31efed7c",
+      "id": "sforum.default-theme.template.settings-security",
+      "path": "templates/settings-security.html",
+      "themeOverrideKey": "sforum.default-theme.settings_security",
+      "viewModelSchema": "sforum.page.settings_security@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.settings-notifications@1",
+      "digest": "144fb47979ea6dba4206be6da75b7bddcce9db65c560c70f2b8fcd1e4c22132a",
+      "id": "sforum.default-theme.template.settings-notifications",
+      "path": "templates/settings-notifications.html",
+      "themeOverrideKey": "sforum.default-theme.settings_notifications",
+      "viewModelSchema": "sforum.page.settings_notifications@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.notifications@1",
+      "digest": "0e0bd27f8a80518504a96a1f91d8255b9e613239816945ee1fa1d7f5c8690e1a",
+      "id": "sforum.default-theme.template.notifications",
+      "path": "templates/notifications.html",
+      "themeOverrideKey": "sforum.default-theme.notifications",
+      "viewModelSchema": "sforum.page.notifications@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.notification-show@1",
+      "digest": "346d2aa74511772af39dd26fc1b8e94a2a92465f6242964fd4e3a11710102f4e",
+      "id": "sforum.default-theme.template.notification-show",
+      "path": "templates/notification-detail.html",
+      "themeOverrideKey": "sforum.default-theme.notification_show",
+      "viewModelSchema": "sforum.page.notification_show@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.login@1",
+      "digest": "5936a043ed375a813c4c8eb139f68369a3f3efab333417b64065a2ffd99972d0",
+      "id": "sforum.default-theme.template.login",
+      "path": "templates/login.html",
+      "themeOverrideKey": "sforum.default-theme.login",
+      "viewModelSchema": "sforum.page.login@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.register@1",
+      "digest": "de3428634c2f87ad495375acc63ef12accf52a1c5bf33dccfc9696c608a54137",
+      "id": "sforum.default-theme.template.register",
+      "path": "templates/register.html",
+      "themeOverrideKey": "sforum.default-theme.register",
+      "viewModelSchema": "sforum.page.register@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.forgot-password@1",
+      "digest": "a1e3d1bff8643583c4becdc6d7135c1cd86fd7d86c9892186cdcff23b08ce430",
+      "id": "sforum.default-theme.template.forgot-password",
+      "path": "templates/forgot-password.html",
+      "themeOverrideKey": "sforum.default-theme.forgot_password",
+      "viewModelSchema": "sforum.page.forgot_password@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.reset-password@1",
+      "digest": "4ec1f6f2235ba31cf2d5d878eb1cb05830aad352155b1ed6562f6811987e43e4",
+      "id": "sforum.default-theme.template.reset-password",
+      "path": "templates/reset-password.html",
+      "themeOverrideKey": "sforum.default-theme.reset_password",
+      "viewModelSchema": "sforum.page.reset_password@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.terms@1",
+      "digest": "7d5d7f19ca01915f1ab41e641fe88e5a9a8444c7c763baa4a5afaca445cf1fac",
+      "id": "sforum.default-theme.template.terms",
+      "path": "templates/terms.html",
+      "themeOverrideKey": "sforum.default-theme.terms",
+      "viewModelSchema": "sforum.page.terms@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.privacy@1",
+      "digest": "f530994ae564c6d06821f66221e1f8893cbf017f3abe6b3e63c41eaadfb32dba",
+      "id": "sforum.default-theme.template.privacy",
+      "path": "templates/privacy.html",
+      "themeOverrideKey": "sforum.default-theme.privacy",
+      "viewModelSchema": "sforum.page.privacy@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.guidelines@1",
+      "digest": "949ef018eb7b405fecdc4ce8fdcd0847f597430ea516f87736b8269f5c4c7944",
+      "id": "sforum.default-theme.template.guidelines",
+      "path": "templates/guidelines.html",
+      "themeOverrideKey": "sforum.default-theme.guidelines",
+      "viewModelSchema": "sforum.page.guidelines@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.forbidden@1",
+      "digest": "a8dc23a35bbeb3c2f5afa56823f2d0345f74e83bda93c484412a6f3f4856342b",
+      "id": "sforum.default-theme.template.forbidden",
+      "path": "templates/forbidden.html",
+      "themeOverrideKey": "sforum.default-theme.forbidden",
+      "viewModelSchema": "sforum.page.forbidden@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.not-found@1",
+      "digest": "72c433061c0337aa5af68508090c55c946ab246c1dc8092776d788b9952c9b36",
+      "id": "sforum.default-theme.template.not-found",
+      "path": "templates/not-found.html",
+      "themeOverrideKey": "sforum.default-theme.not_found",
+      "viewModelSchema": "sforum.page.not_found@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.rate-limited@1",
+      "digest": "7fe0f34bb75aed32a6354c98e9be5555494314a2103b7eed1ce5738c961410e3",
+      "id": "sforum.default-theme.template.rate-limited",
+      "path": "templates/rate-limited.html",
+      "themeOverrideKey": "sforum.default-theme.rate_limited",
+      "viewModelSchema": "sforum.page.rate_limited@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.server-error@1",
+      "digest": "3b538c86bb66c8e295a0a3acfa8528ba2efa1ebd58982e1a9efa54aaf330c57c",
+      "id": "sforum.default-theme.template.server-error",
+      "path": "templates/server-error.html",
+      "themeOverrideKey": "sforum.default-theme.server_error",
+      "viewModelSchema": "sforum.page.server_error@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.moderation-review@1",
+      "digest": "6a4588cc3966896d77c23501db9489b2396e334a86be245bd6311ae030723633",
+      "id": "sforum.default-theme.template.moderation-review",
+      "path": "templates/moderation-review.html",
+      "themeOverrideKey": "sforum.default-theme.moderation_review",
+      "viewModelSchema": "sforum.page.moderation_review@1"
+    }
+  ],
+  "type": "theme",
+  "url": "https://sforum.local/themes/sforum-default",
+  "version": "1.0.0"
 }

@@ -365,11 +365,20 @@ func builtinInitialStatus(manifest Manifest) string {
 		// 新内置主题必须经由 ActivateTheme 发布 desired revision，不能在同步时静默生效。
 		return StatusInstalled
 	}
-	if manifest.Type == TypePlugin && builtinPluginProvidesAuthProvider(manifest) {
-		// 外部登录供应商即使是受保护内置，也必须由管理员显式启用并再做 Host 公开激活。
+	if manifest.Type == TypePlugin && (builtinPluginProvidesAuthProvider(manifest) || builtinPluginProvidesStorageProvider(manifest)) {
+		// 需要运营配置的供应商即使是受保护内置，也必须由管理员显式启用。
 		return StatusInstalled
 	}
 	return StatusEnabled
+}
+
+func builtinPluginProvidesStorageProvider(manifest Manifest) bool {
+	for _, provider := range manifest.Providers {
+		if strings.TrimSpace(provider.Slot) == "attachment.storage.provider" {
+			return true
+		}
+	}
+	return false
 }
 
 func builtinPluginProvidesAuthProvider(manifest Manifest) bool {

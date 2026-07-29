@@ -149,6 +149,7 @@ type ManifestSetting struct {
 	Default          string        `json:"default,omitempty"`
 	Placeholder      LocalizedText `json:"placeholder,omitempty"`
 	RecommendedValue string        `json:"recommendedValue,omitempty"`
+	Required         bool          `json:"required,omitempty"`
 	// Width 控制 Schema UI 控件横向占位：default（受限宽度）或 full（占满可用列宽）。
 	// 省略时等价于 default。
 	Width   string                  `json:"width,omitempty"`

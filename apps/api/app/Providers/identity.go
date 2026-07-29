@@ -10,6 +10,7 @@ import (
 	apitokens "github.com/zhuchunshu/sforum/apps/api/app/Models/APITokens"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
+	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
@@ -43,25 +44,29 @@ type adminMailQueue interface {
 	QueueMail(context.Context, notifications.QueueMailInput) (notifications.MailDelivery, error)
 }
 
-func NewIdentityProviderWithPasswordReset(store identity.Store, sessions *authsession.Manager, verifier humanverify.Verifier, publisher appevents.Publisher, passwordReset *identity.PasswordResetService, mailQueue adminMailQueue, options optionsResolver) *IdentityProvider {
-	return NewIdentityProviderWithPasswordResetAndLockout(store, sessions, verifier, publisher, passwordReset, mailQueue, options, nil)
+func NewIdentityProviderWithPasswordReset(store identity.Store, sessions *authsession.Manager, verifier humanverify.Verifier, publisher appevents.Publisher, passwordReset *identity.PasswordResetService, mailQueue adminMailQueue, optionSettings optionsResolver) *IdentityProvider {
+	return NewIdentityProviderWithPasswordResetAndLockout(store, sessions, verifier, publisher, passwordReset, mailQueue, optionSettings, nil)
 }
 
 // NewIdentityProviderWithPasswordResetAndLockout 额外注入登录失败锁定 store（通常 Redis）。
-func NewIdentityProviderWithPasswordResetAndLockout(store identity.Store, sessions *authsession.Manager, verifier humanverify.Verifier, publisher appevents.Publisher, passwordReset *identity.PasswordResetService, mailQueue adminMailQueue, options optionsResolver, lockout identity.LoginLockoutStore) *IdentityProvider {
-	svc := identity.NewServiceWithPolicies(store, publisher, options, options)
-	if options != nil {
-		svc.WithUsernamePolicy(options)
+func NewIdentityProviderWithPasswordResetAndLockout(store identity.Store, sessions *authsession.Manager, verifier humanverify.Verifier, publisher appevents.Publisher, passwordReset *identity.PasswordResetService, mailQueue adminMailQueue, optionSettings optionsResolver, lockout identity.LoginLockoutStore) *IdentityProvider {
+	svc := identity.NewServiceWithPolicies(store, publisher, optionSettings, optionSettings)
+	if optionSettings != nil {
+		svc.WithUsernamePolicy(optionSettings)
 		if lockout != nil {
-			svc.WithLoginLockout(lockout, options)
+			svc.WithLoginLockout(lockout, optionSettings)
 		}
+	}
+	controller := identitycontroller.NewControllerWithPasswordReset(
+		svc,
+		sessions, verifier, passwordReset, mailQueue, optionSettings,
+	)
+	if optionService, ok := optionSettings.(*options.Service); ok {
+		controller.WithWelcomeMailOptions(options.NewMailSettings(optionService))
 	}
 	return &IdentityProvider{
 		// options 同时作为密码策略与开放注册策略解析器。
-		controller: identitycontroller.NewControllerWithPasswordReset(
-			svc,
-			sessions, verifier, passwordReset, mailQueue, options,
-		),
+		controller: controller,
 	}
 }
 

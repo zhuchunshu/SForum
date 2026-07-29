@@ -50,6 +50,16 @@ func TestNotificationDetailPageContract(t *testing.T) {
 	}
 }
 
+func TestModerationPageAllowsOnlyThemePresentation(t *testing.T) {
+	page, ok := Find("moderation.review")
+	if !ok || page.Replaceable || !page.Themeable || page.Access != AccessModeration {
+		t.Fatalf("moderation presentation boundary missing or invalid: %#v ok=%v", page, ok)
+	}
+	if RequiredThemeBodyIslandTag(page.ID) != "sf-moderation-review" {
+		t.Fatalf("moderation body island mismatch: %q", RequiredThemeBodyIslandTag(page.ID))
+	}
+}
+
 func TestResolveCore(t *testing.T) {
 	resolved, err := ResolveCore("forum.home")
 	if err != nil {

@@ -20,6 +20,7 @@ export type AttachmentStorageCandidate = {
       default?: string
       recommendedValue?: string
       placeholder?: string
+      required?: boolean
       options?: Array<{ value: string, label: string, description?: string }>
       secretSet?: boolean
     }>

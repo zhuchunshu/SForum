@@ -16,8 +16,11 @@ import { parseForumTagPublicPagesOption } from '~/utils/forum/forumTaxonomy'
 const props = withDefaults(defineProps<{
   /** Core 404 应急页不得在 API 已失效时继续启动 chrome 请求。 */
   fetchRemoteChrome?: boolean
+  /** Host 回退壳的桌面导航几何；主题路径继续由主题 CSS 管理。 */
+  layout?: 'default' | 'fullwidth-3col'
 }>(), {
-  fetchRemoteChrome: true
+  fetchRemoteChrome: true,
+  layout: 'default'
 })
 
 const { t } = useI18n()
@@ -217,7 +220,10 @@ async function logout() {
 </script>
 
 <template>
-  <header class="navbar">
+  <header
+    class="navbar"
+    :class="{ 'navbar--fullwidth-3col': props.layout === 'fullwidth-3col' }"
+  >
     <div class="navbar__inner">
       <button
         type="button"
@@ -311,7 +317,19 @@ async function logout() {
             </UButton>
           </UDropdownMenu>
           <template #fallback>
-            <span class="navbar__control-placeholder" aria-hidden="true" />
+            <UButton
+              color="neutral"
+              variant="ghost"
+              square
+              class="navbar__control"
+              :aria-label="t('nav.language')"
+              :title="currentLocaleName"
+              aria-hidden="true"
+              tabindex="-1"
+              data-ssr-fallback="navbar-language"
+            >
+              <UIcon name="i-tabler-language" class="size-5" aria-hidden="true" />
+            </UButton>
           </template>
         </ClientOnly>
 
@@ -328,7 +346,19 @@ async function logout() {
             <UIcon :name="colorModeTriggerIcon" class="size-5" aria-hidden="true" />
           </UButton>
           <template #fallback>
-            <span class="navbar__control-placeholder" aria-hidden="true" />
+            <UButton
+              color="neutral"
+              variant="ghost"
+              square
+              class="navbar__control"
+              :aria-label="t('nav.appearance')"
+              :title="t('nav.appearance')"
+              aria-hidden="true"
+              tabindex="-1"
+              data-ssr-fallback="navbar-appearance"
+            >
+              <UIcon name="i-tabler-brightness-filled" class="size-5" aria-hidden="true" />
+            </UButton>
           </template>
         </ClientOnly>
       </div>
@@ -376,10 +406,35 @@ async function logout() {
             </UButton>
           </UDropdownMenu>
           <template #fallback>
-            <span class="navbar__session-placeholder" aria-hidden="true" />
+            <UButton
+              color="neutral"
+              variant="ghost"
+              class="navbar__user-trigger"
+              :aria-label="t('nav.userMenu')"
+              aria-hidden="true"
+              tabindex="-1"
+              data-ssr-fallback="navbar-user"
+            >
+              <SFAvatar
+                :name="displayName"
+                :avatar="user.avatar"
+                size="sm"
+                shape="circle"
+              />
+              <span class="navbar__username">{{ displayName }}</span>
+              <UIcon name="i-lucide-chevron-down" class="size-3.5" aria-hidden="true" />
+            </UButton>
           </template>
         </ClientOnly>
-        <span v-else class="navbar__session-placeholder" aria-hidden="true" />
+        <span
+          v-else
+          class="navbar__session-loading"
+          :aria-label="t('nav.userMenu')"
+          aria-busy="true"
+        >
+          <span class="navbar__session-loading-avatar" aria-hidden="true" />
+          <span class="navbar__session-loading-name" aria-hidden="true" />
+        </span>
       </div>
     </div>
 
@@ -569,11 +624,96 @@ async function logout() {
   min-width: 0;
 }
 
-.navbar__session-placeholder {
+.navbar__session-loading {
   width: 112px;
   height: 36px;
-  display: block;
+  display: flex;
   flex: 0 0 112px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-radius: 7px;
+}
+
+.navbar__session-loading-avatar,
+.navbar__session-loading-name {
+  display: block;
+  background: var(--sf-public-surface-muted);
+}
+
+.navbar__session-loading-avatar {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border-radius: 50%;
+}
+
+.navbar__session-loading-name {
+  width: 56px;
+  height: 10px;
+  border-radius: 4px;
+}
+
+[data-ssr-fallback] {
+  pointer-events: none;
+}
+
+@media (min-width: 981px) {
+  .navbar--fullwidth-3col .navbar__inner {
+    display: grid;
+    min-height: 58px;
+    grid-template-columns:
+      var(--sf-public-sidebar-width, 230px)
+      auto
+      minmax(0, 1fr)
+      auto
+      auto
+      var(--sf-public-right-rail-width, 270px);
+    gap: 10px;
+    padding: 0 var(--sf-public-edge-inset, 24px);
+  }
+
+  .navbar--fullwidth-3col .navbar__logo {
+    padding-left: 16px;
+  }
+
+  .navbar--fullwidth-3col .navbar__desktop-nav {
+    gap: 28px;
+  }
+
+  .navbar--fullwidth-3col .navbar__search {
+    width: min(260px, 100%);
+    min-width: 0;
+    max-width: 280px;
+    margin-left: 0;
+    justify-self: start;
+  }
+
+  .navbar--fullwidth-3col .navbar__new-topic,
+  .navbar--fullwidth-3col .navbar__session {
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  .navbar--fullwidth-3col .navbar__utility,
+  .navbar--fullwidth-3col .navbar__session {
+    justify-content: flex-end;
+  }
+
+  .navbar--fullwidth-3col .navbar__utility {
+    gap: 2px;
+  }
+
+  .navbar--fullwidth-3col .navbar__session {
+    min-width: 0;
+    padding: 0 16px 0 12px;
+  }
+
+  .navbar--fullwidth-3col .navbar__user-trigger {
+    max-width: 100%;
+  }
 }
 
 .navbar__control,
@@ -586,13 +726,6 @@ async function logout() {
 .navbar__control {
   width: 36px;
   color: #4b5563;
-}
-
-.navbar__control-placeholder {
-  width: 36px;
-  height: 36px;
-  display: block;
-  flex: 0 0 36px;
 }
 
 .navbar__auth-link {
@@ -778,9 +911,14 @@ async function logout() {
     margin-left: auto;
   }
 
-  .navbar__session-placeholder {
+  .navbar__session-loading {
     width: 40px;
     flex-basis: 40px;
+    padding: 0 4px;
+  }
+
+  .navbar__session-loading-name {
+    display: none;
   }
 
   .navbar__username {

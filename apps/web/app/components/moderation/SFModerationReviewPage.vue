@@ -4,6 +4,7 @@ import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePer
 import { useForumApi } from '~/composables/forum/useForumApi'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
+import SFPublicPageHeader from '~/components/public/SFPublicPageHeader.vue'
 import ModerationDecisionRail from '~/components/moderation/ModerationDecisionRail.vue'
 import ModerationQueueItem from '~/components/moderation/ModerationQueueItem.vue'
 import ModerationQueueRail from '~/components/moderation/ModerationQueueRail.vue'
@@ -380,38 +381,41 @@ function isItemActive(item: QueueRecord) {
           />
         </div>
 
-        <header class="sforum-moderation__head">
-          <div class="sforum-moderation__head-copy">
-            <h1 id="moderation-page-title">{{ headerTitle }}</h1>
-            <p>{{ headerDescription }}</p>
-          </div>
-          <div class="sforum-moderation__head-actions">
-            <button
-              type="button"
-              class="sforum-moderation-icon-button"
-              :aria-label="t('admin.home.refresh')"
-              @click="refreshAll"
-            >
-              <UIcon name="i-lucide-refresh-cw" class="size-4" :class="{ 'animate-spin': listPending }" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              class="sforum-moderation-icon-button sforum-moderation__desktop-hidden"
-              :aria-label="t('moderation.workbench.openRightRail')"
-              @click="mobileInfoOpen = true"
-            >
-              <UIcon name="i-lucide-panel-right" class="size-[18px]" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              class="sforum-moderation-icon-button sforum-moderation__desktop-hidden sforum-moderation__menu-button"
-              :aria-label="t('moderation.workbench.openQueueDrawer')"
-              @click="mobileMenuOpen = true"
-            >
-              <UIcon name="i-lucide-menu" class="size-[18px]" aria-hidden="true" />
-            </button>
-          </div>
-        </header>
+        <SFPublicPageHeader
+          class="sforum-moderation__head"
+          title-id="moderation-page-title"
+          :title="headerTitle"
+          :subtitle="headerDescription"
+        >
+          <template #aside>
+            <div class="sforum-moderation__head-actions">
+              <button
+                type="button"
+                class="sforum-moderation-icon-button"
+                :aria-label="t('admin.home.refresh')"
+                @click="refreshAll"
+              >
+                <UIcon name="i-lucide-refresh-cw" class="size-4" :class="{ 'animate-spin': listPending }" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                class="sforum-moderation-icon-button sforum-moderation__desktop-hidden"
+                :aria-label="t('moderation.workbench.openRightRail')"
+                @click="mobileInfoOpen = true"
+              >
+                <UIcon name="i-lucide-panel-right" class="size-[18px]" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                class="sforum-moderation-icon-button sforum-moderation__desktop-hidden sforum-moderation__menu-button"
+                :aria-label="t('moderation.workbench.openQueueDrawer')"
+                @click="mobileMenuOpen = true"
+              >
+                <UIcon name="i-lucide-menu" class="size-[18px]" aria-hidden="true" />
+              </button>
+            </div>
+          </template>
+        </SFPublicPageHeader>
 
         <div class="sforum-moderation__filter-strip" :aria-label="t('moderation.workbench.queueTabs')">
           <button
@@ -655,5 +659,3 @@ function isItemActive(item: QueueRecord) {
     </aside>
   </main>
 </template>
-
-<style src="~/assets/css/sforum-moderation.css" lang="css"></style>

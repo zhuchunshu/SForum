@@ -75,6 +75,7 @@ AdminWebOption:
       - site.apple_touch_icon_url
       - site.apple_touch_icon_attachment_id
       - site.url
+      - site.domain
       - site.default_locale
       - site.supported_locales
       - site.timezone
@@ -104,6 +105,7 @@ AdminWebOption:
       - human_verification.altcha.widget.workers
       - human_verification.altcha.widget.min_duration_ms
       - appearance.theme
+      - appearance.light_background
       - footer.copyright.zh-CN
       - footer.copyright.en-US
       - footer.links
@@ -239,6 +241,7 @@ WebOptionInput:
       - site.apple_touch_icon_url
       - site.apple_touch_icon_attachment_id
       - site.url
+      - site.domain
       - site.default_locale
       - site.supported_locales
       - site.timezone
@@ -265,6 +268,7 @@ WebOptionInput:
       - human_verification.altcha.widget.workers
       - human_verification.altcha.widget.min_duration_ms
       - appearance.theme
+      - appearance.light_background
       - footer.copyright.zh-CN
       - footer.copyright.en-US
       - footer.links
@@ -382,6 +386,7 @@ AdminWebOptionInput:
       - site.apple_touch_icon_url
       - site.apple_touch_icon_attachment_id
       - site.url
+      - site.domain
       - site.default_locale
       - site.supported_locales
       - site.timezone

@@ -12,11 +12,16 @@ Initial identity foundation is implemented.
 
 - Password recovery now has a production dual-column Host flow shared by
   `/forgot-password` and `/reset-password`. Request initiation remains
-  non-enumerating, supports the existing optional `password_reset` ALTCHA
-  purpose, masks the submitted email, and limits safe resend attempts with a
-  30-second client cooldown. Confirmation uses the runtime password policy,
-  rejects missing/invalid tokens explicitly, and exposes completed, mismatch,
-  and password-visibility states without changing the existing API contract.
+  non-enumerating, requires the `password_reset` ALTCHA purpose by default
+  once ALTCHA is configured (the per-scenario admin toggle remains available),
+  masks the submitted email, and limits safe resend attempts with a 30-second
+  client cooldown. Confirmation uses the runtime password policy, rejects
+  missing/invalid tokens explicitly, and exposes completed, mismatch, and
+  password-visibility states without changing the existing API contract.
+- Login, registration, and both password-recovery routes share `SFAuthShell`.
+  Its header utilities now include the same language menu as the public
+  navbar, so guests change locale locally while signed-in users persist their
+  preference through the existing identity locale flow.
 - Extension permission role suggestions preserve immutable review history.
   Approval requires the exact active plugin artifact, live permission
   declaration/catalog, enabled target role, `role.manage`, CAS, grant evidence,

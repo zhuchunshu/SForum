@@ -6,9 +6,32 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
+
+func TestExtensionValidateBuiltinThemes(t *testing.T) {
+	_, currentFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", "..", "..", ".."))
+
+	for _, theme := range []string{"sforum-default", "sforum-nocturne"} {
+		t.Run(theme, func(t *testing.T) {
+			root := filepath.Join(repoRoot, "extensions", "builtin", "themes", theme)
+			cmd := newRootCommand()
+			cmd.SetArgs([]string{"extension", "validate", root})
+			var out strings.Builder
+			cmd.SetOut(&out)
+			cmd.SetErr(&out)
+			if err := cmd.Execute(); err != nil {
+				t.Fatalf("validate built-in theme: %v\n%s", err, out.String())
+			}
+		})
+	}
+}
 
 func TestExtensionValidateAndTestRejectMissingV3TemplateDeclaration(t *testing.T) {
 	missing := writeCLIThemePackage(t, false)

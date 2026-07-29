@@ -27,9 +27,10 @@ const controlClass = computed(() => (
     <div class="min-w-0">
       <label :for="`extension-setting-${item.key}`" class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
         {{ item.label }}
+        <span v-if="item.required" class="text-red-600 dark:text-red-400" aria-hidden="true">*</span>
       </label>
-      <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-zinc-400">
-        {{ item.description || item.key }}
+      <p v-if="item.description" class="mt-1 text-xs leading-5 text-slate-500 dark:text-zinc-400">
+        {{ item.description }}
       </p>
     </div>
     <div class="min-w-0">
@@ -42,6 +43,7 @@ const controlClass = computed(() => (
           type="checkbox"
           class="size-4 accent-[var(--sf-accent)]"
           :checked="modelValue === 'true'"
+          :aria-required="item.required || undefined"
           @change="emit('update:modelValue', ($event.target as HTMLInputElement).checked ? 'true' : 'false')"
         >
         <span>{{ t('admin.extensions.dynamic.enabled') }}</span>
@@ -55,6 +57,7 @@ const controlClass = computed(() => (
         label-key="label"
         :items="item.options"
         :placeholder="item.placeholder"
+        :required="item.required"
         @update:model-value="emit('update:modelValue', String($event ?? ''))"
       />
       <UTextarea
@@ -65,6 +68,7 @@ const controlClass = computed(() => (
         :rows="4"
         autoresize
         :placeholder="item.placeholder"
+        :required="item.required"
         @update:model-value="emit('update:modelValue', String($event ?? ''))"
       />
       <UInput
@@ -74,10 +78,13 @@ const controlClass = computed(() => (
         :class="controlClass"
         :type="item.type === 'secret' ? 'password' : item.type === 'number' ? 'number' : 'text'"
         :placeholder="secretPlaceholder()"
+        :required="item.required"
+        :aria-required="item.required || undefined"
         @update:model-value="emit('update:modelValue', String($event ?? ''))"
       />
       <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-zinc-400">
-        <span>{{ t('admin.extensions.dynamic.defaultValue', { value: item.recommendedValue || item.default || t('admin.extensions.dynamic.emptyValue') }) }}</span>
+        <span v-if="item.recommendedValue || item.default">{{ t('admin.extensions.dynamic.defaultValue', { value: item.recommendedValue || item.default }) }}</span>
+        <span v-else>{{ t(item.required ? 'admin.extensions.dynamic.requiredField' : 'admin.extensions.dynamic.optionalField') }}</span>
         <UBadge v-if="item.type === 'secret' && item.secretSet" color="success" variant="soft" size="sm">
           {{ t('admin.extensions.dynamic.secretConfigured') }}
         </UBadge>

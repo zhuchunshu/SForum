@@ -33,7 +33,7 @@ SSR/query/permission shells.
   `seo.*` options require the independent `seo.manage` permission, and
   attachment options require `attachment.settings.manage`.
 - Nuxt composable `useWebOptions()` provides `webOption()`, `siteName`,
-  `siteUrl`, `defaultLocale`, `supportedLocales`, `humanVerificationProvider`,
+  `siteUrl`, `siteDomain`, `defaultLocale`, `supportedLocales`, `humanVerificationProvider`,
   `appearanceTheme`, footer content helpers, `refresh()`, `save()`, and admin
   batch helpers.
 - Public site URL resolution is `site.url` operator override, then deployment
@@ -42,6 +42,12 @@ SSR/query/permission shells.
   admin option metadata exposes `overrideValue`, `fallbackValue`, and
   `inherited`. OAuth callbacks use this same effective URL for newly started
   flows; CSRF origins and cookie security remain environment/startup concerns.
+- `site.domain` is the public, display-only website domain used for profile URL
+  prefixes. Admin input strips `http://`/`https://` and trailing slashes before
+  save; the Options service repeats normalization authoritatively and rejects
+  paths, queries, fragments, credentials, and non-HTTP schemes. Its initial
+  default is derived from the trusted `site.url` host rather than a product
+  domain literal.
 - Admin page `apps/web/app/pages/admin/settings/index.vue` uses page-level tabs
   for basic site settings, account security (password + sessions + login
   lockout), registration/username policy, newcomer trust limits, maintenance
@@ -184,7 +190,7 @@ skin behavior without admin session.
 
 ## Implementation Notes
 
-- Current public options are `site.name`, `site.url`, `site.tagline`,
+- Current public options are `site.name`, `site.url`, `site.domain`, `site.tagline`,
   `site.default_locale`, `site.supported_locales`, `site.timezone`,
   `site.date_format`, `site.time_format`, `site.start_of_week`,
   `human_verification.provider`,
@@ -212,6 +218,11 @@ skin behavior without admin session.
   `avatar.gravatar_base_url`, `avatar.gravatar_hash_algorithm`,
   `avatar.max_size_kb`, `avatar.allow_gif`, and
   `avatar.compress_enabled`.
+
+- `human_verification.scenarios.password_reset` defaults to enabled across the
+  API, public-client fallback, and admin form. The verification provider itself
+  remains disabled until an operator configures ALTCHA and its secret, so the
+  default does not block a fresh installation.
 - Current admin-only options are `site.admin_email` (operator contact, not
   SMTP From and not public), `human_verification.altcha.secret`,
   `human_verification.altcha.challenge_ttl`,
@@ -268,6 +279,17 @@ skin behavior without admin session.
   call it "配色预设 / appearance preset" rather than "theme". It accepts preset
   keys (`pine_teal`, `ocean_blue`, `violet`, `rose`, or `amber`) and the
   controlled custom format `custom:#rrggbb`.
+- Daytime background remains a Core-owned Personalization option named
+  `appearance.light_background`; it is not part of a built-in theme's settings.
+  The 12 accepted presets are `pure_white` (recommended), `porcelain`, `paper`,
+  `parchment`, `mist_gray`, `cool_frost`, `cloud_blue`, `mint_mist`, `sage`,
+  `sakura`, `lilac_mist`, and `morning_apricot`. The same light palette drives
+  public and admin surfaces, while resolved dark mode keeps its existing theme
+  tokens unchanged. The Personalization appearance tab previews accent and
+  daytime-background edits through client-only admin state. This preview never
+  updates `web_options`, is ignored outside admin routes, and is cleared when
+  the appearance surface deactivates; only the explicit save action persists
+  and publishes the selected values.
 - Footer settings are frontend-safe public options: copyright text supports
   `{year}` and `{siteName}`, and `footer.links` stores the fixed Terms,
   Privacy, and Guidelines links as normalized JSON.

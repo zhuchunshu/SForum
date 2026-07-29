@@ -144,6 +144,27 @@ authSession:
               "$ref": "../schemas/identity.yaml#/ApiResponseCurrentUser"
       '401':
         "$ref": "../components/responses.yaml#/Unauthorized"
+authLocale:
+  put:
+    summary: Update the current user's default language
+    operationId: updateCurrentUserLocale
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/identity.yaml#/UpdateCurrentUserLocaleRequest"
+    responses:
+      '200':
+        description: Current user with the saved language preference.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseCurrentUser"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
 passwordResetRequest:
   post:
     summary: Request a password reset email

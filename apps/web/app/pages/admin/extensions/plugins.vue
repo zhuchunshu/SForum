@@ -19,6 +19,7 @@ import {
   isLifecycleV2Plugin,
   runtimeCapabilitySummary,
   runtimeStatusLabelKey,
+  type AdminExtension,
   type AdminRuntimeState
 } from '~/utils/admin/adminExtensions'
 
@@ -93,6 +94,12 @@ function runtimeColor(state?: AdminRuntimeState) {
     return 'warning'
   }
   return 'neutral'
+}
+
+function storageInstancesRoute(item: AdminExtension) {
+  const provider = item.manifest.providers?.find(candidate => candidate.slot === 'attachment.storage.provider' && candidate.multiInstance)
+  if (!provider) return ''
+  return `${adminRoutes.path('/attachments/settings')}?provider=${encodeURIComponent(item.id)}`
 }
 
 useSeoMeta({
@@ -329,6 +336,18 @@ useSeoMeta({
           <SFAdminFrontendTrustPanel :extension="item" />
         </div>
         <div class="flex items-center gap-2">
+          <UButton
+            v-if="storageInstancesRoute(item)"
+            size="sm"
+            color="neutral"
+            variant="subtle"
+            icon="i-lucide-database"
+            :to="item.status === 'enabled' ? storageInstancesRoute(item) : undefined"
+            :disabled="item.status !== 'enabled'"
+            :title="item.status === 'enabled' ? t('admin.extensions.configureStorage') : t('admin.extensions.configureStorageEnableFirst')"
+          >
+            {{ t('admin.extensions.configureStorage') }}
+          </UButton>
           <UButton
             size="sm"
             color="neutral"

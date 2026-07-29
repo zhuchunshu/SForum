@@ -77,6 +77,7 @@ func TestMessageLocalizesSiteChromeAndRecentAdminCodes(t *testing.T) {
 		"mail.test_recipient_required":                 {"请填写测试邮件收件人。", "Enter a recipient for the test email."},
 		"csrf.invalid":                                 {"请求校验失败，请刷新页面后重试。", "Request validation failed. Refresh the page and try again."},
 		"route.probe_invalid":                          {"路由探测请求无效。", "The route probe request is invalid."},
+		"storage.ok":                                   {"存储连接正常。", "Storage connection is healthy."},
 		"extensions.admin_surface_invalid":             {"管理端界面扩展请求不正确，请检查契约版本和输入数据。", "The Admin Surface request is invalid. Check the contract version and input data."},
 		"extensions.admin_surface_not_found":           {"管理端界面扩展不存在或当前不可用。", "The Admin Surface does not exist or is not currently available."},
 		"extensions.admin_surface_not_invokable":       {"该管理端界面扩展未声明可调用的类型化处理器。", "This Admin Surface does not declare an invokable typed handler."},

@@ -5,6 +5,7 @@ import { useForumApi } from '~/composables/forum/useForumApi'
 import { apiErrorMessage, apiErrorStatusCode } from '~/composables/useApiClient'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFNotificationTypeNav from '~/components/notifications/SFNotificationTypeNav.vue'
+import SFPublicPageHeader from '~/components/public/SFPublicPageHeader.vue'
 import {
   notificationFilterCounts,
   notificationFilters,
@@ -172,24 +173,29 @@ useHead(() => ({ title: preview.value?.topicTitle || t('notifications.detailPage
           />
         </div>
 
-        <header class="sforum-notifications__head sforum-notification-detail__head">
-          <div class="sforum-notifications__head-copy">
+        <SFPublicPageHeader
+          class="sforum-notifications__head sforum-notification-detail__head"
+          title-id="notification-detail-title"
+          :title="t('notifications.detailPage.title')"
+          :subtitle="presented ? t(presented.titleKey) : ''"
+        >
+          <template #eyebrow>
             <NuxtLink class="sforum-notification-detail__back" :to="localePath('/notifications')">
               <UIcon name="i-lucide-arrow-left" class="size-4" aria-hidden="true" />
               {{ t('notifications.detailPage.back') }}
             </NuxtLink>
-            <h1 id="notification-detail-title">{{ t('notifications.detailPage.title') }}</h1>
-            <p v-if="presented">{{ t(presented.titleKey) }}</p>
-          </div>
-          <button
-            type="button"
-            class="sforum-notifications__icon-button sforum-notifications__desktop-hidden"
-            :aria-label="t('notifications.detail.open')"
-            @click="mobileInfoOpen = true"
-          >
-            <UIcon name="i-lucide-panel-right" class="size-[18px]" aria-hidden="true" />
-          </button>
-        </header>
+          </template>
+          <template #aside>
+            <button
+              type="button"
+              class="sforum-notifications__icon-button sforum-notifications__desktop-hidden"
+              :aria-label="t('notifications.detail.open')"
+              @click="mobileInfoOpen = true"
+            >
+              <UIcon name="i-lucide-panel-right" class="size-[18px]" aria-hidden="true" />
+            </button>
+          </template>
+        </SFPublicPageHeader>
 
         <SFAlert
           v-if="actionError"

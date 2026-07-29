@@ -105,6 +105,14 @@ go run ./cmd/sforum extension validate <package-root> --json   # merged Manifest
 
 Loads the package, resolves `includes`, validates Manifest V3, and preflights page templates for explicit V3 packages.
 
+Page Registry themes use a fail-closed three-way identity rule: every
+`theme.json.pages[].template` path must have exactly one matching Manifest V3
+`templates[]` declaration and one `packageFiles[]` entry with
+`kind: "template"`. Paths and SHA-256 digests must agree. `theme.json` defines
+page mappings only and cannot replace the exact-artifact declarations. Missing
+or stale declarations fail validation and surface as `extension.build_failed`
+during activation.
+
 ### Exact digests — `digest`
 
 Manifest V3 binds executables, frontends, migrations, and more via SHA-256 in `packageFiles`. **Refresh after any packaged file change:**
@@ -113,6 +121,12 @@ Manifest V3 binds executables, frontends, migrations, and more via SHA-256 in `p
 go run ./cmd/sforum extension digest <package-root>           # inspect
 go run ./cmd/sforum extension digest --write <package-root>   # rewrite root manifest + revalidate
 ```
+
+When adding a theme template, first add its identity, contract, and ViewModel
+declaration to `templates[]` plus its corresponding `packageFiles[]` entry,
+then run `digest --write`. The command refreshes `packageFiles[]` and linked
+inline template digests, but cannot infer template identity or file membership
+from `theme.json`.
 
 ### Contract tests — `test`
 
@@ -125,6 +139,19 @@ go run ./cmd/sforum extension test --json <package-root>
 
 Checks capabilities, events, contribution points, providers, jobs, backend entry, and related host catalogs.  
 `--allow-scaffold` is an alias of `--skip-backend-binary`.
+
+After modifying a built-in theme, run this sequence from `apps/api`:
+
+```sh
+go run ./cmd/sforum extension digest --write ../../extensions/builtin/themes/<dir>
+go run ./cmd/sforum extension validate ../../extensions/builtin/themes/<dir>
+go run ./cmd/sforum extension test ../../extensions/builtin/themes/<dir>
+```
+
+Then run `./scripts/build-builtin-plugins.sh` from the repository root, restart
+the API so `SyncBuiltins` stages the new digest, and activate that version in
+the admin UI. Never edit `storage/builtin-dev/` or `storage/extensions/**`
+directly.
 
 ### Package — `package`
 

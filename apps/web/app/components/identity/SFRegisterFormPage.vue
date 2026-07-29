@@ -805,16 +805,6 @@ async function startExternalRegistration(provider: PublicAuthProvider) {
 
 .auth-input::placeholder { color: var(--sf-fg-tertiary); }
 
-.auth-altcha {
-  width: 100%;
-  --altcha-max-width: 100%;
-  --altcha-border-radius: 7px;
-  --altcha-border-color: var(--sf-border);
-  --altcha-color-primary: var(--sf-accent);
-  --altcha-color-primary-content: #ffffff;
-  --altcha-color-success: var(--sf-accent);
-}
-
 .auth-altcha--invalid {
   --altcha-border-color: #dc2626;
 }

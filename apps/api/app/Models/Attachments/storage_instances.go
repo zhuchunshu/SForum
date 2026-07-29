@@ -160,6 +160,7 @@ func (s *Service) ProbeStorageInstance(ctx context.Context, actor identity.Actor
 	if existing != nil {
 		_ = s.instanceStore.UpdateStorageInstanceProbe(ctx, existing.ID, map[bool]string{true: "ok", false: "error"}[result.OK], result.Message)
 	}
+	result.Message = localizedProbeMessage(locale, result.Reason)
 	return result, nil
 }
 
@@ -374,6 +375,10 @@ func (s *Service) isMultiInstanceStorageProvider(ctx context.Context, extensionI
 }
 
 func validateStorageField(field storage.ProviderField, value string) error {
+	value = strings.TrimSpace(value)
+	if field.Required && value == "" {
+		return fmt.Errorf("%w: field %s is required", ErrStorageInstanceInvalid, field.Key)
+	}
 	if field.Type == "boolean" && value != "true" && value != "false" {
 		return ErrStorageInstanceInvalid
 	}

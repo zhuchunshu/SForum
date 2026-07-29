@@ -16,6 +16,7 @@ import {
   type SiteDateFormat,
   type SiteTimeFormat
 } from '~/utils/siteDateTime'
+import { normalizeSiteDomain, siteDomainFromUrl } from '~/utils/settings/siteDomain'
 
 const props = defineProps<{ items: AdminWebOption[] }>()
 const emit = defineEmits<{ saved: [items: AdminWebOption[]] }>()
@@ -28,6 +29,7 @@ const map = computed(() => adminOptionMap(props.items))
 const form = reactive({
   siteName: 'SForum',
   siteUrl: '',
+  siteDomain: '',
   defaultLocale: 'zh-CN',
   supportedLocales: ['zh-CN', 'en-US'],
   tagline: '',
@@ -66,6 +68,7 @@ const timezoneChoices = computed(() => {
 const initial = computed(() => ({
   siteName: map.value['site.name']?.value || 'SForum',
   siteUrl: map.value['site.url']?.overrideValue ?? '',
+  siteDomain: normalizeSiteDomain(map.value['site.domain']?.value),
   defaultLocale: map.value['site.default_locale']?.value || 'zh-CN',
   supportedLocales: parseLocaleList(map.value['site.supported_locales']?.value || 'zh-CN,en-US'),
   tagline: (map.value['site.tagline']?.value || '').trim(),
@@ -94,12 +97,14 @@ function resetFromItems() {
 }
 
 async function save() {
+  form.siteDomain = normalizeSiteDomain(form.siteDomain)
   await section.runSave({
     successTitle: t('admin.settings.saved'),
     failureTitle: t('admin.settings.saveFailed'),
     save: () => saveOptions([
       { name: 'site.name', value: form.siteName },
       { name: 'site.url', value: form.siteUrl.trim() },
+      { name: 'site.domain', value: form.siteDomain },
       { name: 'site.default_locale', value: form.defaultLocale },
       { name: 'site.supported_locales', value: form.supportedLocales.join(',') },
       { name: 'site.tagline', value: form.tagline.trim() },
@@ -148,6 +153,10 @@ function parseLocaleList(value: string) {
 function useEnvironmentSiteUrl() {
   form.siteUrl = ''
 }
+
+function useSiteUrlDomain() {
+  form.siteDomain = siteDomainFromUrl(form.siteUrl || siteUrlFallback.value)
+}
 </script>
 
 <template>
@@ -176,6 +185,15 @@ function useEnvironmentSiteUrl() {
             <p class="text-xs text-muted">{{ t('admin.settings.siteUrlHint', { url: siteUrlFallback }) }}</p>
             <UButton type="button" color="neutral" variant="ghost" size="xs" icon="i-lucide-rotate-ccw" :disabled="!form.siteUrl" @click="useEnvironmentSiteUrl">
               {{ t('admin.settings.siteUrlUseEnvironment') }}
+            </UButton>
+          </div>
+        </UFormField>
+        <UFormField :label="t('admin.settings.siteDomain')" name="site-domain">
+          <UInput v-model="form.siteDomain" size="lg" icon="i-lucide-globe-2" type="text" inputmode="url" :placeholder="t('admin.settings.siteDomainPlaceholder')" maxlength="253" required class="w-full" />
+          <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
+            <p class="text-xs text-muted">{{ t('admin.settings.siteDomainHint') }}</p>
+            <UButton type="button" color="neutral" variant="ghost" size="xs" icon="i-lucide-rotate-ccw" @click="useSiteUrlDomain">
+              {{ t('admin.settings.siteDomainUseSiteUrl') }}
             </UButton>
           </div>
         </UFormField>

@@ -479,7 +479,7 @@ func TestServiceUpdateSettingsPersistsLocalRoot(t *testing.T) {
 	settings := settingsFromValues(nil, nil)
 	settings.Local.Root = "storage/custom-attachments"
 
-	_, err := service.UpdateSettings(context.Background(), attachmentSettingsActor(), settings)
+	_, err := service.UpdateSettings(context.Background(), attachmentSettingsActor(), settings, "zh-CN")
 	if err != nil {
 		t.Fatalf("UpdateSettings returned error: %v", err)
 	}

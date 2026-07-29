@@ -27,6 +27,7 @@ type PageRow = {
     access: string
     contractVersion: string
     replaceable: boolean
+    themeable: boolean
     virtual?: boolean
   }
   provider: string

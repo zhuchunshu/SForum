@@ -98,6 +98,43 @@ func TestSiteURLOverrideCanBeCleared(t *testing.T) {
 	}
 }
 
+func TestSiteDomainDefaultsFromSiteURLAndNormalizesInput(t *testing.T) {
+	store := &fakeStore{items: map[string]string{}}
+	service := NewServiceWithDefaultsAndCacheTTL(store, Defaults{
+		SiteURL: "https://Forum.Example.com:8443/base",
+	}, time.Minute)
+
+	domain, err := service.WebOption(context.Background(), NameSiteDomain)
+	if err != nil {
+		t.Fatalf("WebOption returned error: %v", err)
+	}
+	if domain != "forum.example.com:8443" {
+		t.Fatalf("default site domain = %q, want forum.example.com:8443", domain)
+	}
+
+	items, err := service.UpdateMany(context.Background(), settingsActor(), []UpdateInput{
+		{Name: NameSiteDomain, Value: "  HTTPS://Community.Example.com///  "},
+	})
+	if err != nil {
+		t.Fatalf("UpdateMany returned error: %v", err)
+	}
+	if got := adminValue(items, NameSiteDomain); got != "community.example.com" {
+		t.Fatalf("normalized admin site domain = %q", got)
+	}
+	if got := store.items[NameSiteDomain]; got != "community.example.com" {
+		t.Fatalf("stored site domain = %q", got)
+	}
+}
+
+func TestSiteDomainRejectsNonDomainValues(t *testing.T) {
+	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
+	for _, value := range []string{"", "ftp://forum.example.com", "forum.example.com/community", "forum.example.com?preview=1"} {
+		if _, err := service.Update(context.Background(), settingsActor(), UpdateInput{Name: NameSiteDomain, Value: value}); err == nil {
+			t.Fatalf("expected site domain %q to be rejected", value)
+		}
+	}
+}
+
 func TestSiteIdentityOptionsAcceptValidValues(t *testing.T) {
 	store := &fakeStore{items: map[string]string{}}
 	service := NewServiceWithCacheTTL(store, time.Minute)

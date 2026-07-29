@@ -324,6 +324,7 @@ func (h *Controller) externalRegistration(c fiber.Ctx) error {
 	if err != nil {
 		return mapExternalAuthRegistrationError(err)
 	}
+	h.queueWelcomeMail(c.Context(), input.Email, h.browserMailLocale(c), result.User)
 	// 注册成功后建立会话（与密码注册一致；result.User 已走权威 CurrentUser）。
 	if err := h.runRiskEvaluation(c.Context(), result.User.ID, "register"); err != nil {
 		return mapIdentityError(err)

@@ -24,6 +24,45 @@ func TestServiceReturnsDefaultSiteName(t *testing.T) {
 	}
 }
 
+func TestWelcomeMailDefaultsDisabledAndRequiresMailPermission(t *testing.T) {
+	store := &fakeStore{}
+	service := NewServiceWithCacheTTL(store, time.Minute)
+	mailSettings := NewMailSettings(service)
+	enabled, err := mailSettings.WelcomeMailEnabled(context.Background())
+	if err != nil || enabled {
+		t.Fatalf("welcome mail default enabled=%v err=%v", enabled, err)
+	}
+	noPermissionActor := identity.Actor{ID: 2, Status: identity.UserStatusActive, Permissions: map[string]bool{}}
+	if _, err := service.Update(context.Background(), noPermissionActor, UpdateInput{Name: NameMailWelcomeEnabled, Value: "enabled"}); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("actor without settings authority should not manage welcome mail: %v", err)
+	}
+	mailActor := identity.Actor{ID: 1, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionSettingsMailManage: true}}
+	if _, err := service.Update(context.Background(), mailActor, UpdateInput{Name: NameMailWelcomeEnabled, Value: "enabled"}); err != nil {
+		t.Fatalf("mail settings actor should enable welcome mail: %v", err)
+	}
+	enabled, err = mailSettings.WelcomeMailEnabled(context.Background())
+	if err != nil || !enabled {
+		t.Fatalf("welcome mail enabled=%v err=%v", enabled, err)
+	}
+}
+
+func TestMailSettingsSnapshotsConfiguredBrand(t *testing.T) {
+	service := NewServiceWithCacheTTL(&fakeStore{items: map[string]string{
+		NameSiteName:        "蓝色论坛",
+		NameSiteURL:         "https://forum.test",
+		NameSiteLogoURL:     "/assets/logo.png",
+		NameSiteFaviconURL:  "/assets/icon.png",
+		NameAppearanceTheme: "ocean_blue",
+	}}, time.Minute)
+	brand, err := NewMailSettings(service).MailBrand(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if brand.LogoURL != "https://forum.test/assets/logo.png" || brand.IconURL != "https://forum.test/assets/icon.png" || brand.AccentColor != "#2563eb" {
+		t.Fatalf("mail brand = %#v", brand)
+	}
+}
+
 func TestServiceListsOnlyPublicOptions(t *testing.T) {
 	store := &fakeStore{items: map[string]string{
 		NameAltchaSecret: "secret",
@@ -42,6 +81,9 @@ func TestServiceListsOnlyPublicOptions(t *testing.T) {
 	}
 	if adminValueFromPublic(items, NameHumanVerificationRegister) != "enabled" {
 		t.Fatalf("expected public register verification scenario, got %#v", items)
+	}
+	if adminValueFromPublic(items, NameHumanVerificationPasswordReset) != "enabled" {
+		t.Fatalf("expected public password reset verification scenario, got %#v", items)
 	}
 	if adminValueFromPublic(items, NameHumanVerificationLoginRisk) != "disabled" {
 		t.Fatalf("expected public login risk verification scenario, got %#v", items)
@@ -936,6 +978,10 @@ func TestServicePersonalizationDefaultsAndValidation(t *testing.T) {
 	if theme != "pine_teal" {
 		t.Fatalf("expected default pine teal theme, got %q", theme)
 	}
+	background, err := service.WebOption(context.Background(), NameAppearanceLightBackground)
+	if err != nil || background != "pure_white" {
+		t.Fatalf("expected default pure white background, got %q err=%v", background, err)
+	}
 	footerCopyright, err := service.WebOption(context.Background(), NameFooterCopyrightZHCN)
 	if err != nil {
 		t.Fatalf("default footer copyright returned error: %v", err)
@@ -967,6 +1013,17 @@ func TestServicePersonalizationDefaultsAndValidation(t *testing.T) {
 	}
 	if _, err := service.Update(context.Background(), actor, UpdateInput{Name: NameAppearanceTheme, Value: "custom:not-a-color"}); !errors.Is(err, ErrInvalidOption) {
 		t.Fatalf("expected invalid custom theme color, got %v", err)
+	}
+	backgroundOption, err := service.Update(context.Background(), actor, UpdateInput{Name: NameAppearanceLightBackground, Value: " PAPER "})
+	if err != nil || backgroundOption.Value != "paper" {
+		t.Fatalf("expected normalized paper background, got %#v err=%v", backgroundOption, err)
+	}
+	backgroundOption, err = service.Update(context.Background(), actor, UpdateInput{Name: NameAppearanceLightBackground, Value: " MORNING_APRICOT "})
+	if err != nil || backgroundOption.Value != "morning_apricot" {
+		t.Fatalf("expected normalized morning apricot background, got %#v err=%v", backgroundOption, err)
+	}
+	if _, err := service.Update(context.Background(), actor, UpdateInput{Name: NameAppearanceLightBackground, Value: "night_blue"}); !errors.Is(err, ErrInvalidOption) {
+		t.Fatalf("expected unknown light background to be invalid, got %v", err)
 	}
 	if _, err := service.Update(context.Background(), actor, UpdateInput{Name: NameFooterCopyrightZHCN, Value: stringsOfRunes("长", 201)}); !errors.Is(err, ErrInvalidOption) {
 		t.Fatalf("expected oversized footer copyright to be invalid, got %v", err)

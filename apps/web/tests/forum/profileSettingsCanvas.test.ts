@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
+import { normalizeSiteDomain, siteDomainFromUrl } from '../../app/utils/settings/siteDomain'
 
 const source = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
 const page = () => source('../../app/components/settings/SFProfileSettingsPage.vue')
@@ -23,7 +24,7 @@ describe('profile settings canvas', () => {
     expect(themeTemplate()).toContain('<sf-profile-settings')
   })
 
-  test('loads and saves only existing profile API fields', () => {
+  test('loads and saves profile fields plus the private default language', () => {
     const src = page()
     expect(src).toContain('profileApi.getMyProfile()')
     expect(src).toContain('profileApi.updateMyProfile({')
@@ -31,10 +32,22 @@ describe('profile settings canvas', () => {
     expect(src).toContain('signature: draft.signature')
     expect(src).toContain('location: draft.location')
     expect(src).toContain('websiteUrl: draft.websiteUrl')
+    expect(src).toContain('updateLanguage(draft.locale)')
+    expect(src).toContain('v-model="draft.locale"')
     expect(src).not.toContain('company')
     expect(src).not.toContain('portfolio')
     expect(src).not.toContain('followers')
     expect(src).not.toContain('privacy')
+  })
+
+  test('uses the runtime website domain for the public profile path', () => {
+    const src = page()
+    expect(src).toContain('const { siteName, siteDomain, avatarSettings } = useWebOptions()')
+    expect(src).toContain('`${siteDomain.value}/u/`')
+    expect(src).toContain('{{ publicProfilePrefix }}')
+    expect(src).not.toContain("t('profileSettings.profilePathPrefix')")
+    expect(normalizeSiteDomain(' https://Forum.Example.com/// ')).toBe('Forum.Example.com')
+    expect(siteDomainFromUrl('https://forum.example.com:8443/base')).toBe('forum.example.com:8443')
   })
 
   test('preserves avatar upload and removal through the real profile API', () => {
@@ -92,6 +105,7 @@ describe('profile settings canvas', () => {
     expect(shellSrc).toContain('sforum-mobile-drawer sforum-mobile-drawer--right')
     expect(shellSrc).toContain('<style src="~/assets/css/sforum-settings.css" lang="css"></style>')
     expect(chromeCss).toContain('grid-template-columns: var(--sf-public-sidebar-width) minmax(0, 1fr) var(--sf-public-right-rail-width)')
+    expect(chromeCss).toMatch(/\.sforum-settings__main\s*\{[^}]*background: var\(--sf-public-surface\);/s)
     expect(chromeCss).toContain('@media (max-width: 1100px)')
     expect(chromeCss).toContain('@media (max-width: 980px)')
     expect(css).toContain('sforum-settings-profile__form')
@@ -123,6 +137,8 @@ describe('profile settings canvas', () => {
       expect(copy.avatarUploadPermissionDenied).toBeTruthy()
       expect(copy.resetChanges).toBeTruthy()
       expect(copy.resetDone).toBeTruthy()
+      expect(copy.defaultLanguage).toBeTruthy()
+      expect(copy.defaultLanguageHint).toBeTruthy()
       expect(copy.saved).toBeTruthy()
       expect(copy.saveFailed).toBeTruthy()
       expect(messages.accountSecurity.rail.devicesTitle).toBeTruthy()

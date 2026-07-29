@@ -2,6 +2,7 @@ package options
 
 import (
 	"net/mail"
+	"net/url"
 	"strings"
 	"unicode/utf8"
 
@@ -20,6 +21,7 @@ func init() {
 
 func siteIdentityOptionDefinitions() []optionDefinition {
 	return []optionDefinition{
+		{name: NameSiteDomain, public: true, managePermission: identity.PermissionSettingsSiteManage},
 		// 标语对前台可见，用于导航/登录页。
 		{name: NameSiteTagline, public: true, managePermission: identity.PermissionSettingsSiteManage},
 		// 管理邮箱仅后台可读，降低公开爬取风险。
@@ -29,9 +31,42 @@ func siteIdentityOptionDefinitions() []optionDefinition {
 
 func siteIdentityRecommendedDefaults() map[string]string {
 	return map[string]string{
+		NameSiteDomain:     "127.0.0.1:3000",
 		NameSiteTagline:    "",
 		NameSiteAdminEmail: "",
 	}
+}
+
+func normalizeSiteDomain(value string) (string, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", false
+	}
+
+	candidate := value
+	if !strings.Contains(candidate, "://") {
+		candidate = "https://" + candidate
+	}
+	parsed, err := url.Parse(candidate)
+	if err != nil || parsed == nil || parsed.Host == "" || parsed.User != nil {
+		return "", false
+	}
+	if !strings.EqualFold(parsed.Scheme, "http") && !strings.EqualFold(parsed.Scheme, "https") {
+		return "", false
+	}
+	if strings.Trim(parsed.Path, "/") != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return "", false
+	}
+
+	return strings.ToLower(parsed.Host), true
+}
+
+func siteDomainFromURL(value string) string {
+	parsed, err := url.Parse(strings.TrimSpace(value))
+	if err == nil && parsed != nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.Host != "" {
+		return strings.ToLower(parsed.Host)
+	}
+	return "127.0.0.1:3000"
 }
 
 func normalizeSiteTagline(value string) (string, bool) {
@@ -60,6 +95,11 @@ func normalizeSiteAdminEmail(value string) (string, bool) {
 }
 
 func coerceSiteIdentityOptions(coerced map[string]string, defaults map[string]string) {
+	if value, ok := normalizeSiteDomain(coerced[NameSiteDomain]); ok {
+		coerced[NameSiteDomain] = value
+	} else {
+		coerced[NameSiteDomain] = defaults[NameSiteDomain]
+	}
 	if value, ok := normalizeSiteTagline(coerced[NameSiteTagline]); ok {
 		coerced[NameSiteTagline] = value
 	} else {
@@ -73,6 +113,9 @@ func coerceSiteIdentityOptions(coerced map[string]string, defaults map[string]st
 }
 
 func isValidSiteIdentityOptions(values map[string]string) bool {
+	if _, ok := normalizeSiteDomain(values[NameSiteDomain]); !ok {
+		return false
+	}
 	if _, ok := normalizeSiteTagline(values[NameSiteTagline]); !ok {
 		return false
 	}

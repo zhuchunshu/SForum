@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	mail "github.com/zhuchunshu/sforum/apps/api/app/Support/Mail"
 )
 
 // PasswordResetConfig 是密码重置流程的可选依赖。
@@ -39,11 +41,29 @@ type PasswordResetService struct {
 	config           PasswordResetConfig
 	passwordPolicies PasswordPolicyResolver
 	rateLimiter      PasswordResetRateLimiter
+	localeResolver   PasswordResetLocaleResolver
+	brandResolver    PasswordResetBrandResolver
 }
 
-type PasswordResetMail struct{ Recipient, Subject, TextBody, IdempotencyKey string }
+type PasswordResetMail struct {
+	Recipient, IdempotencyKey  string
+	Locale, Username, ResetURL string
+	ExpiresAt                  time.Time
+	SiteName                   string
+	Brand                      mail.Brand
+}
 type PasswordResetQueue interface {
 	QueuePasswordReset(context.Context, CreatePasswordResetTokenInput, PasswordResetMail) error
+}
+
+// PasswordResetLocaleResolver keeps the site-default fallback live without
+// coupling the identity workflow to the options implementation.
+type PasswordResetLocaleResolver interface {
+	DefaultMailLocale(context.Context) (string, error)
+}
+
+type PasswordResetBrandResolver interface {
+	MailBrand(context.Context) (mail.Brand, error)
 }
 
 func NewPasswordResetService(store Store, mailer PasswordResetQueue, config PasswordResetConfig) *PasswordResetService {
@@ -80,10 +100,23 @@ func (s *PasswordResetService) WithRateLimiter(limiter PasswordResetRateLimiter)
 	return s
 }
 
+func (s *PasswordResetService) WithLocaleResolver(resolver PasswordResetLocaleResolver) *PasswordResetService {
+	if s != nil {
+		s.localeResolver = resolver
+	}
+	return s
+}
+
+func (s *PasswordResetService) WithBrandResolver(resolver PasswordResetBrandResolver) *PasswordResetService {
+	if s != nil {
+		s.brandResolver = resolver
+	}
+	return s
+}
+
 // RequestPasswordResetInput 是发起密码重置的入参。
 type RequestPasswordResetInput struct {
-	Email string
-	IP    string
+	Email, IP, Locale string
 }
 
 // RequestPasswordReset 查找用户并投递重置邮件。
@@ -100,7 +133,7 @@ func (s *PasswordResetService) RequestPasswordReset(ctx context.Context, input R
 	}
 	// 先按登录名查凭据；external-only 用户无 credential 行时回退到用户查询。
 	// 两种路径对外均非枚举：不存在/非活跃一律静默成功。
-	userID, username, status, found, err := s.lookupPasswordResetTarget(ctx, email)
+	userID, username, userLocale, status, found, err := s.lookupPasswordResetTarget(ctx, email)
 	if err != nil {
 		return err
 	}
@@ -127,11 +160,16 @@ func (s *PasswordResetService) RequestPasswordReset(ctx context.Context, input R
 		return err
 	}
 	resetURL := s.buildResetURL(rawToken)
+	brand := s.resolveMailBrand(ctx)
 	message := PasswordResetMail{
 		Recipient:      email,
-		Subject:        s.resetEmailSubject(),
-		TextBody:       s.resetEmailBody(username, resetURL, expiresAt),
 		IdempotencyKey: "password_reset:" + tokenHash,
+		Locale:         s.resolveMailLocale(ctx, input.Locale, userLocale),
+		Username:       username,
+		ResetURL:       resetURL,
+		ExpiresAt:      expiresAt,
+		SiteName:       brand.SiteName,
+		Brand:          brand,
 	}
 	if err := s.mailer.QueuePasswordReset(ctx, tokenInput, message); err != nil {
 		// 投递失败：记录但不向调用方暴露用户信息。
@@ -140,6 +178,15 @@ func (s *PasswordResetService) RequestPasswordReset(ctx context.Context, input R
 		return nil
 	}
 	return nil
+}
+
+func (s *PasswordResetService) resolveMailBrand(ctx context.Context) mail.Brand {
+	if s != nil && s.brandResolver != nil {
+		if brand, err := s.brandResolver.MailBrand(ctx); err == nil {
+			return brand
+		}
+	}
+	return mail.DefaultBrand(s.siteName(), s.config.SiteURL)
 }
 
 func (s *PasswordResetService) enforceRequestRateLimit(ctx context.Context, email, ip string) error {
@@ -179,23 +226,23 @@ type ConfirmPasswordResetInput struct {
 func (s *PasswordResetService) lookupPasswordResetTarget(
 	ctx context.Context,
 	email string,
-) (userID int64, username string, status UserStatus, found bool, err error) {
+) (userID int64, username, userLocale string, status UserStatus, found bool, err error) {
 	credential, err := s.store.GetCredentialByLogin(ctx, email)
 	if err == nil {
-		return credential.ID, credential.Username, credential.Status, true, nil
+		return credential.ID, credential.Username, credential.Locale, credential.Status, true, nil
 	}
 	if !errors.Is(err, ErrCredentialNotFound) {
-		return 0, "", "", false, err
+		return 0, "", "", "", false, err
 	}
 	// external-only：按邮箱加载用户（无凭据）。不存在同样视为 found=false。
 	current, err := s.store.GetCurrentUserByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, ErrUserNotFound) || errors.Is(err, ErrCredentialNotFound) {
-			return 0, "", "", false, nil
+			return 0, "", "", "", false, nil
 		}
-		return 0, "", "", false, err
+		return 0, "", "", "", false, err
 	}
-	return current.ID, current.Username, current.Status, true, nil
+	return current.ID, current.Username, current.Locale, current.Status, true, nil
 }
 
 // ConfirmPasswordReset 校验令牌、消费令牌、更新密码（事务原子完成）。
@@ -231,23 +278,27 @@ func (s *PasswordResetService) buildResetURL(rawToken string) string {
 	return base + s.config.ResetPathBase + rawToken
 }
 
-func (s *PasswordResetService) resetEmailSubject() string {
+func (s *PasswordResetService) siteName() string {
 	name := s.config.SiteName
 	if name == "" {
 		name = "SForum"
 	}
-	return fmt.Sprintf("[%s] 重置你的密码 / Reset your password", name)
+	return name
 }
 
-func (s *PasswordResetService) resetEmailBody(username, resetURL string, expiresAt time.Time) string {
-	name := s.config.SiteName
-	if name == "" {
-		name = "SForum"
+func (s *PasswordResetService) resolveMailLocale(ctx context.Context, browserLocale, userLocale string) string {
+	if locale := strings.TrimSpace(browserLocale); locale != "" {
+		return locale
 	}
-	return fmt.Sprintf(
-		"你好 %s，\n\n你（或某人）请求重置在 %s 的密码。\n\n请访问以下链接重置密码：\n%s\n\n该链接将于 %s 失效。\n如果你没有发起此请求，请忽略本邮件。\n",
-		username, name, resetURL, expiresAt.Format(time.RFC3339),
-	)
+	if locale := strings.TrimSpace(userLocale); locale != "" {
+		return locale
+	}
+	if s.localeResolver != nil {
+		if locale, err := s.localeResolver.DefaultMailLocale(ctx); err == nil && strings.TrimSpace(locale) != "" {
+			return locale
+		}
+	}
+	return "zh-CN"
 }
 
 // generateResetToken 生成 32 字节随机令牌并编码为 hex。

@@ -51,6 +51,7 @@ type PageDefinition struct {
 	ContractVersion  string   `json:"contractVersion"`
 	CoreComponent    string   `json:"coreComponent"`
 	Replaceable      bool     `json:"replaceable"`
+	Themeable        bool     `json:"themeable"`
 	Virtual          bool     `json:"virtual"`
 	RequiresFeatures []string `json:"requiresFeatures,omitempty"`
 	Notes            string   `json:"notes,omitempty"`
@@ -96,7 +97,7 @@ var coreCatalog = []PageDefinition{
 	{ID: "forum.settings.notifications", PathPattern: "/settings/notifications", Access: AccessLogin, ContractVersion: "sforum.page.settings_notifications@1", CoreComponent: "pages/settings/notifications", Replaceable: true},
 	{ID: "forum.notifications", PathPattern: "/notifications", Access: AccessLogin, ContractVersion: "sforum.page.notifications@1", CoreComponent: "pages/notifications/index", Replaceable: true},
 	{ID: "forum.notification.show", PathPattern: "/notifications/:notificationId", Access: AccessLogin, ContractVersion: "sforum.page.notification_show@1", CoreComponent: "pages/notifications/[notificationId]", Replaceable: true},
-	{ID: "moderation.review", PathPattern: "/moderation", Access: AccessModeration, ContractVersion: "sforum.page.moderation_review@1", CoreComponent: "pages/moderation/index", Replaceable: false},
+	{ID: "moderation.review", PathPattern: "/moderation", Access: AccessModeration, ContractVersion: "sforum.page.moderation_review@1", CoreComponent: "pages/moderation/index", Replaceable: false, Themeable: true, Notes: "theme may place the Host-owned moderation island; plugins cannot replace the workbench"},
 	{ID: "auth.login", PathPattern: "/login", Access: AccessGuest, ContractVersion: "sforum.page.login@1", CoreComponent: "pages/login", Replaceable: true, Notes: "replace must embed host login form island"},
 	{ID: "auth.register", PathPattern: "/register", Access: AccessGuest, ContractVersion: "sforum.page.register@1", CoreComponent: "pages/register", Replaceable: true, RequiresFeatures: []string{"features.registration"}},
 	{ID: "auth.forgot_password", PathPattern: "/forgot-password", Access: AccessPublic, ContractVersion: "sforum.page.forgot_password@1", CoreComponent: "pages/forgot-password", Replaceable: true},
@@ -115,6 +116,9 @@ var coreCatalog = []PageDefinition{
 func Catalog() []PageDefinition {
 	out := make([]PageDefinition, len(coreCatalog))
 	copy(out, coreCatalog)
+	for index := range out {
+		out[index] = normalizePageDefinition(out[index])
+	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out
 }
@@ -124,10 +128,17 @@ func Find(id string) (PageDefinition, bool) {
 	id = strings.TrimSpace(id)
 	for _, page := range coreCatalog {
 		if page.ID == id {
-			return page, true
+			return normalizePageDefinition(page), true
 		}
 	}
 	return PageDefinition{}, false
+}
+
+// Replaceable 页面保持既有主题能力；Themeable 可单独开放受限 L1 壳层，
+// 而不允许插件接管 Core 页面行为。
+func normalizePageDefinition(page PageDefinition) PageDefinition {
+	page.Themeable = page.Themeable || page.Replaceable
+	return page
 }
 
 // IsSystemErrorPage reports whether a page is a Host-selected virtual error surface.

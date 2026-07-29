@@ -4,6 +4,7 @@ import { useForumApi } from '~/composables/forum/useForumApi'
 import SFTagIndexRightRail from '~/components/forum/SFTagIndexRightRail.vue'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
+import SFPublicPageHeader from '~/components/public/SFPublicPageHeader.vue'
 /**
  * 宿主 body 岛：forum.tag.index。
  * 三栏壳对齐首页 / 通知 / 分类目录；呈现由主题 L1 挂载，路由页仅 SEO + fail-closed 回退。
@@ -192,16 +193,19 @@ function retryTags() {
       <section class="sforum-home__main sforum-tags-page__main sforum-content-column" aria-labelledby="tag-index-title">
         <SFRegionOutlet page="forum.tag.index" region="content_before" />
 
-        <header class="sforum-tags-page__head">
-          <div class="sforum-tags-page__head-copy">
-            <h1 id="tag-index-title">{{ t('taxonomy.tags.title') }}</h1>
-            <p>{{ t('taxonomy.tags.description') }}</p>
-          </div>
-          <div class="sforum-tags-page__head-count">
-            <strong>{{ formatCount(overview.totalTags) }}</strong>
-            <span>{{ t('taxonomy.tags.headerCount') }}</span>
-          </div>
-        </header>
+        <SFPublicPageHeader
+          class="sforum-tags-page__head"
+          title-id="tag-index-title"
+          :title="t('taxonomy.tags.title')"
+          :subtitle="t('taxonomy.tags.description')"
+        >
+          <template #aside>
+            <div class="sforum-tags-page__head-count">
+              <strong>{{ formatCount(overview.totalTags) }}</strong>
+              <span>{{ t('taxonomy.tags.headerCount') }}</span>
+            </div>
+          </template>
+        </SFPublicPageHeader>
 
         <div class="sforum-tags-page__toolbar">
           <label class="sforum-tags-page__search">

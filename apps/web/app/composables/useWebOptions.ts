@@ -4,6 +4,35 @@ import type { ApiEnvelope } from '~/composables/useApiClient'
 import type { TopicUrlMode } from '~/utils/forum/forumTaxonomy'
 import type { SEOContentPolicy, SEOPageType, SEOResolverSettings } from '~/utils/seo/seoResolver'
 import { defaultSiteFaviconUrl, defaultSiteLogoUrl, resolveSiteBrandAssetUrl } from '~/utils/settings/siteBrand'
+import { normalizeSiteDomain, siteDomainFromUrl } from '~/utils/settings/siteDomain'
+import {
+  normalizeAppearanceThemeValue,
+  normalizeLightBackground,
+  recommendedAppearanceTheme,
+  recommendedLightBackground,
+  resolveAppearanceTheme,
+  type AppearanceTheme
+} from '~/utils/settings/appearance'
+export {
+  appearanceThemes,
+  buildCustomAppearanceThemeValue,
+  customColorFromAppearanceTheme,
+  defaultCustomThemeColor,
+  isAppearanceThemePreset,
+  lightBackgroundPalettes,
+  lightBackgroundPresets,
+  normalizeAppearanceThemeValue,
+  normalizeHexColor,
+  normalizeLightBackground,
+  recommendedAppearanceTheme,
+  recommendedLightBackground,
+  resolveAppearanceTheme,
+  type AppearanceTheme,
+  type AppearanceThemePreset,
+  type LightBackgroundPalette,
+  type LightBackgroundPreset,
+  type ResolvedAppearanceTheme
+} from '~/utils/settings/appearance'
 
 export type WebOption = {
   name: string
@@ -19,15 +48,6 @@ export type AdminWebOption = WebOption & {
   inherited?: boolean
 }
 
-export type AppearanceThemePreset = 'pine_teal' | 'ocean_blue' | 'violet' | 'rose' | 'amber'
-export type AppearanceTheme = AppearanceThemePreset | `custom:${string}`
-export type ResolvedAppearanceTheme = {
-  theme: AppearanceTheme
-  dataTheme: AppearanceThemePreset | 'custom'
-  customColor: string
-  cssVars: Record<string, string>
-  style: string
-}
 export type FooterLocale = 'zh-CN' | 'en-US'
 export type FooterLinkKey = 'terms' | 'privacy' | 'guidelines'
 export type HumanVerificationScenario = 'register' | 'password_reset' | 'login_risk' | 'post_risk'
@@ -128,9 +148,6 @@ type RefreshOptions = {
   serverInternal?: boolean
 }
 
-export const appearanceThemes: AppearanceThemePreset[] = ['pine_teal', 'ocean_blue', 'violet', 'rose', 'amber']
-export const recommendedAppearanceTheme: AppearanceThemePreset = 'pine_teal'
-export const defaultCustomThemeColor = '#2563eb'
 export const humanVerificationScenarios: HumanVerificationScenario[] = ['register', 'password_reset', 'login_risk', 'post_risk']
 export const altchaWidgetTypes: AltchaWidgetType[] = ['native', 'checkbox', 'switch']
 export const altchaWidgetAutoModes: AltchaWidgetAuto[] = ['off', 'onfocus', 'onload', 'onsubmit']
@@ -144,12 +161,11 @@ export const recommendedPasswordPolicy: PasswordPolicy = {
   requireSymbol: false
 }
 
-const customThemePrefix = 'custom:'
 const enabledOption = 'enabled'
 const disabledOption = 'disabled'
 const humanVerificationScenarioDefaults: Record<HumanVerificationScenario, boolean> = {
   register: true,
-  password_reset: false,
+  password_reset: true,
   login_risk: false,
   post_risk: false
 }
@@ -205,7 +221,7 @@ const fallbackOptions: Record<string, string> = {
   'site.start_of_week': '1',
   'human_verification.provider': 'disabled',
   'human_verification.scenarios.register': enabledOption,
-  'human_verification.scenarios.password_reset': disabledOption,
+  'human_verification.scenarios.password_reset': enabledOption,
   'human_verification.scenarios.login_risk': disabledOption,
   'human_verification.scenarios.post_risk': disabledOption,
   'human_verification.altcha.widget.type': 'checkbox',
@@ -216,6 +232,7 @@ const fallbackOptions: Record<string, string> = {
   'human_verification.altcha.widget.workers': '2',
   'human_verification.altcha.widget.min_duration_ms': '500',
   'appearance.theme': recommendedAppearanceTheme,
+  'appearance.light_background': recommendedLightBackground,
   'footer.copyright.zh-CN': recommendedFooterCopyright['zh-CN'],
   'footer.copyright.en-US': recommendedFooterCopyright['en-US'],
   'footer.links': JSON.stringify(recommendedFooterLinks),
@@ -356,6 +373,7 @@ export const useWebOptions = () => {
 
   const siteName = computed(() => webOption('site.name', 'SForum'))
   const siteUrl = computed(() => webOption('site.url', 'http://127.0.0.1:3000'))
+  const siteDomain = computed(() => normalizeSiteDomain(options.value['site.domain']) || siteDomainFromUrl(siteUrl.value))
   const siteTagline = computed(() => webOption('site.tagline', '').trim())
   const siteLogoUrl = computed(() => resolveSiteBrandAssetUrl(webOption('site.logo_url', ''), defaultSiteLogoUrl))
   const siteLogoAttachmentId = computed(() => webOption('site.logo_attachment_id', '').trim())
@@ -374,6 +392,7 @@ export const useWebOptions = () => {
   })
   const appearanceTheme = computed(() => parseAppearanceTheme(webOption('appearance.theme', recommendedAppearanceTheme)))
   const resolvedAppearanceTheme = computed(() => resolveAppearanceTheme(appearanceTheme.value))
+  const lightBackground = computed(() => normalizeLightBackground(webOption('appearance.light_background', recommendedLightBackground)))
   const footerCopyright = computed<Record<FooterLocale, string>>(() => ({
     'zh-CN': webOption('footer.copyright.zh-CN', fallbackOptions['footer.copyright.zh-CN']),
     'en-US': webOption('footer.copyright.en-US', fallbackOptions['footer.copyright.en-US'])
@@ -428,6 +447,7 @@ export const useWebOptions = () => {
     options,
     siteName,
     siteUrl,
+    siteDomain,
     siteTagline,
     siteLogoUrl,
     siteLogoAttachmentId,
@@ -443,6 +463,7 @@ export const useWebOptions = () => {
     siteStartOfWeek,
     appearanceTheme,
     resolvedAppearanceTheme,
+    lightBackground,
     footerCopyright,
     footerLinks,
     humanVerificationProvider,
@@ -742,66 +763,6 @@ export function applyAdminSEOTitleTemplate(pageTitle: string, adminLabel: string
   return `${cleanTitle} - ${cleanAdminLabel} - ${cleanSiteName}`
 }
 
-export function normalizeAppearanceThemeValue(value: string | undefined): AppearanceTheme {
-  const raw = value?.trim().toLowerCase() || ''
-  if (isAppearanceThemePreset(raw)) {
-    return raw
-  }
-
-  if (raw.startsWith(customThemePrefix)) {
-    const color = normalizeHexColor(raw.slice(customThemePrefix.length))
-    return color ? (`${customThemePrefix}${color}` as AppearanceTheme) : recommendedAppearanceTheme
-  }
-
-  const color = normalizeHexColor(raw)
-  return color ? (`${customThemePrefix}${color}` as AppearanceTheme) : recommendedAppearanceTheme
-}
-
-export function isAppearanceThemePreset(value: string): value is AppearanceThemePreset {
-  return appearanceThemes.includes(value as AppearanceThemePreset)
-}
-
-export function buildCustomAppearanceThemeValue(color: string): AppearanceTheme {
-  return `${customThemePrefix}${normalizeHexColor(color) || defaultCustomThemeColor}` as AppearanceTheme
-}
-
-export function customColorFromAppearanceTheme(value: string): string | null {
-  const normalized = normalizeAppearanceThemeValue(value)
-  if (!normalized.startsWith(customThemePrefix)) {
-    return null
-  }
-  return normalizeHexColor(normalized.slice(customThemePrefix.length))
-}
-
-export function resolveAppearanceTheme(value: string): ResolvedAppearanceTheme {
-  const theme = normalizeAppearanceThemeValue(value)
-  const customColor = customColorFromAppearanceTheme(theme) || defaultCustomThemeColor
-
-  if (isAppearanceThemePreset(theme)) {
-    return {
-      theme,
-      dataTheme: theme,
-      customColor,
-      cssVars: {},
-      style: ''
-    }
-  }
-
-  const cssVars = buildCustomThemeVars(customColor)
-  return {
-    theme,
-    dataTheme: 'custom',
-    customColor,
-    cssVars,
-    style: cssVarsToStyle(cssVars)
-  }
-}
-
-export function normalizeHexColor(value: string | undefined): string | null {
-  const raw = value?.trim().toLowerCase().replace(/^#/, '') || ''
-  return /^[0-9a-f]{6}$/.test(raw) ? `#${raw}` : null
-}
-
 export function humanVerificationScenarioOptionName(scenario: HumanVerificationScenario) {
   return `human_verification.scenarios.${scenario}`
 }
@@ -938,90 +899,4 @@ function normalizeBoundedInteger(value: string | undefined, fallback: number, mi
   }
   const normalized = Math.trunc(parsed)
   return normalized >= min && normalized <= max ? normalized : fallback
-}
-
-function buildCustomThemeVars(color: string): Record<string, string> {
-  const accent = normalizeHexColor(color) || defaultCustomThemeColor
-  const rgb = hexToRgb(accent)
-  const hover = mixHex(accent, '#000000', 0.16)
-  const dark = mixHex(accent, '#ffffff', 0.32)
-
-  return {
-    '--sf-accent': accent,
-    '--sf-accent-hover': hover,
-    '--sf-accent-soft': mixHex(accent, '#ffffff', 0.92),
-    '--sf-accent-soft-border': mixHex(accent, '#ffffff', 0.68),
-    '--sf-accent-dark': dark,
-    '--sf-accent-rgb': `${rgb.r} ${rgb.g} ${rgb.b}`,
-    '--sf-accent-contrast': relativeLuminance(rgb) > 0.55 ? '#111827' : '#ffffff',
-    '--sf-primary-50': mixHex(accent, '#ffffff', 0.94),
-    '--sf-primary-100': mixHex(accent, '#ffffff', 0.88),
-    '--sf-primary-200': mixHex(accent, '#ffffff', 0.72),
-    '--sf-primary-300': mixHex(accent, '#ffffff', 0.52),
-    '--sf-primary-400': mixHex(accent, '#ffffff', 0.28),
-    '--sf-primary-500': accent,
-    '--sf-primary-600': accent,
-    '--sf-primary-700': hover,
-    '--sf-primary-800': mixHex(accent, '#000000', 0.3),
-    '--sf-primary-900': mixHex(accent, '#000000', 0.45),
-    '--sf-primary-950': mixHex(accent, '#000000', 0.62),
-    // Nuxt UI 的 success 色槽用于成功 Toast，保持与当前外观主色一致。
-    '--ui-color-success-50': 'var(--sf-primary-50)',
-    '--ui-color-success-100': 'var(--sf-primary-100)',
-    '--ui-color-success-200': 'var(--sf-primary-200)',
-    '--ui-color-success-300': 'var(--sf-primary-300)',
-    '--ui-color-success-400': 'var(--sf-primary-400)',
-    '--ui-color-success-500': 'var(--sf-primary-500)',
-    '--ui-color-success-600': 'var(--sf-primary-600)',
-    '--ui-color-success-700': 'var(--sf-primary-700)',
-    '--ui-color-success-800': 'var(--sf-primary-800)',
-    '--ui-color-success-900': 'var(--sf-primary-900)',
-    '--ui-color-success-950': 'var(--sf-primary-950)'
-  }
-}
-
-function cssVarsToStyle(vars: Record<string, string>) {
-  return Object.entries(vars)
-    .map(([name, value]) => `${name}: ${value}`)
-    .join('; ')
-}
-
-type RGB = {
-  r: number
-  g: number
-  b: number
-}
-
-function hexToRgb(hex: string): RGB {
-  const value = (normalizeHexColor(hex) || defaultCustomThemeColor).slice(1)
-  return {
-    r: Number.parseInt(value.slice(0, 2), 16),
-    g: Number.parseInt(value.slice(2, 4), 16),
-    b: Number.parseInt(value.slice(4, 6), 16)
-  }
-}
-
-function mixHex(from: string, to: string, amount: number) {
-  const start = hexToRgb(from)
-  const end = hexToRgb(to)
-  const mix = (a: number, b: number) => Math.round(a + (b - a) * amount)
-  return rgbToHex({
-    r: mix(start.r, end.r),
-    g: mix(start.g, end.g),
-    b: mix(start.b, end.b)
-  })
-}
-
-function rgbToHex(rgb: RGB) {
-  return `#${[rgb.r, rgb.g, rgb.b].map((value) => value.toString(16).padStart(2, '0')).join('')}`
-}
-
-function relativeLuminance(rgb: RGB) {
-  const channel = (value: number) => {
-    const normalized = value / 255
-    return normalized <= 0.03928
-      ? normalized / 12.92
-      : ((normalized + 0.055) / 1.055) ** 2.4
-  }
-  return 0.2126 * channel(rgb.r) + 0.7152 * channel(rgb.g) + 0.0722 * channel(rgb.b)
 }

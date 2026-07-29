@@ -53,6 +53,11 @@ frontend moderator workbench.
 
 ## Frontend
 
+- `moderation.review` remains a Core-owned, non-replaceable workbench. It is
+  separately `themeable`: the active theme may provide the public navbar/body/
+  footer L1 shell only when it embeds the required `sf-moderation-review` Host
+  island. Middleware, permissions, state, API calls, rendering safety, and
+  decisions stay inside `SFModerationReviewPage` and Core APIs.
 - Admin sidebar places **Moderation management** under the Forum management
   folder (`admin.nav.forum`), alongside categories, tags, and forum settings.
 - The admin page is policy management plus a read-only complete audit table.
@@ -68,6 +73,12 @@ frontend moderator workbench.
   source/filter/page, including history items whose source is a report. Rows
   are fully clickable, context uses the existing safe-rendered HTML path, and
   history remains read-only.
+- The workbench center column uses `--sf-public-surface`; the surrounding page
+  canvas keeps `--sf-public-bg`. This matches profile settings and preserves
+  the active theme's intended foreground/background contrast.
+- Workbench CSS is registered in Nuxt's initial global stylesheet set rather
+  than the async theme island, so a hard refresh cannot briefly inherit the
+  generic oversized `h1` rule before the moderation styles arrive.
 - Destructive actions require a review note. Successful actions use the active
   theme color and auto-dismiss after 10 seconds; blocking errors stay visible.
 - Pending topic creation shows a toast and returns the author home; review

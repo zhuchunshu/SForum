@@ -155,6 +155,7 @@ describe('moderation workbench implementation constraints', () => {
   const nav = readFileSync(new URL('../../app/components/moderation/ModerationWorkbenchNav.vue', import.meta.url), 'utf8')
   const state = readFileSync(new URL('../../app/utils/moderation/moderationWorkbench.ts', import.meta.url), 'utf8')
   const css = readFileSync(new URL('../../app/assets/css/sforum-moderation.css', import.meta.url), 'utf8')
+  const nuxtConfig = readFileSync(new URL('../../nuxt.config.ts', import.meta.url), 'utf8')
 
   test('uses the formal moderation API composable and query-backed review state', () => {
     expect(page).toContain('useModerationApi()')
@@ -198,13 +199,14 @@ describe('moderation workbench implementation constraints', () => {
     expect(rail).toContain('sforum-home__right')
     expect(rail).toContain('sf-home-right-rail')
     expect(css).toContain('.sforum-moderation__overview-summary')
+    expect(css).toMatch(/\.sforum-moderation__main\s*\{[^}]*background: var\(--sf-public-surface\);/s)
     // 右栏内容不再额外水平缩进，与 home flat rail 同轨
     expect(css).not.toContain('padding: 4px 14px 10px')
     expect(css).toContain('padding: 4px 0 10px')
   })
 
   test('host chrome sidebar tokens retain the shared host geometry', () => {
-    // moderation 不可主题替换，依赖 host sforum-home 共享三栏轨道。
+    // fail-closed host 路径仍依赖 sforum-home 共享三栏轨道。
     const homeCss = readFileSync(new URL('../../app/assets/css/sforum-home.css', import.meta.url), 'utf8')
     expect(homeCss).toContain('padding: 24px 24px 20px 28px;')
     expect(homeCss).toContain('padding: 34px 28px;')
@@ -213,5 +215,10 @@ describe('moderation workbench implementation constraints', () => {
     expect(homeCss).toContain('padding-left: var(--sf-public-edge-inset, 24px);')
     expect(nav).toContain('sf-home-navigation__link')
     expect(nav).toContain('sf-home-navigation__label')
+  })
+
+  test('loads workbench styles with the initial Nuxt document instead of the async island', () => {
+    expect(nuxtConfig).toContain("'~/assets/css/sforum-moderation.css'")
+    expect(page).not.toContain('<style src="~/assets/css/sforum-moderation.css"')
   })
 })

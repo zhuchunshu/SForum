@@ -13,6 +13,7 @@ type ProviderField struct {
 	Default          string           `json:"default,omitempty"`
 	RecommendedValue string           `json:"recommendedValue,omitempty"`
 	Placeholder      string           `json:"placeholder,omitempty"`
+	Required         bool             `json:"required,omitempty"`
 	Options          []ProviderOption `json:"options,omitempty"`
 	SecretSet        bool             `json:"secretSet,omitempty"`
 }

@@ -21,6 +21,7 @@ const { t } = useI18n()
 const localeHead = useLocaleHead({ dir: true, lang: true, seo: false })
 const {
   siteName,
+  lightBackground,
   resolvedAppearanceTheme
 } = useWebOptions()
 const themeSkin = useActiveThemeSkin()
@@ -38,7 +39,8 @@ if (isThemeableSystemError.value) {
   useHead(() => {
     const htmlAttrs: Record<string, string | undefined> = {
       ...localeHead.value.htmlAttrs,
-      'data-sforum-theme': resolvedAppearanceTheme.value.dataTheme
+      'data-sforum-theme': resolvedAppearanceTheme.value.dataTheme,
+      'data-sforum-light-background': lightBackground.value
     }
     if (resolvedAppearanceTheme.value.style) {
       htmlAttrs.style = [htmlAttrs.style, resolvedAppearanceTheme.value.style]

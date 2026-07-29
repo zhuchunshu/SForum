@@ -8,13 +8,17 @@ import {
   applyAdminSEOTitleTemplate,
   applySEOTitleTemplate,
   isSEOIndexingAllowed,
+  lightBackgroundPalettes,
+  lightBackgroundPresets,
   normalizeAppearanceThemeValue,
   normalizeEnabledOption,
+  normalizeLightBackground,
   passwordPolicyProgress,
   passwordPolicyProgressLevel,
   passwordPolicyRequirements,
   recommendedPasswordPolicy,
   recommendedAppearanceTheme,
+  recommendedLightBackground,
   recommendedAvatarSettings,
   recommendedFooterCopyright,
   recommendedFooterLinks,
@@ -49,6 +53,20 @@ describe('appearance theme helpers', () => {
     expect(resolved.cssVars['--sf-accent-rgb']).toBe('79 70 229')
     expect(resolved.style).toContain('--sf-primary-500: #4f46e5')
     expect(resolved.cssVars['--ui-color-success-500']).toBe('var(--sf-primary-500)')
+  })
+
+  test('normalizes the curated daytime background presets', () => {
+    expect(normalizeLightBackground(' PAPER ')).toBe('paper')
+    expect(normalizeLightBackground(' MORNING_APRICOT ')).toBe('morning_apricot')
+    expect(normalizeLightBackground('night_blue')).toBe('pure_white')
+    expect(recommendedLightBackground).toBe('pure_white')
+    expect(lightBackgroundPresets).toHaveLength(12)
+    expect(lightBackgroundPalettes.paper).toEqual({
+      background: '#f7f5ef',
+      surface: '#fffdf8',
+      muted: '#f1ede4',
+      border: '#ded8cb'
+    })
   })
 
   test('bridges Nuxt UI success tokens to the active SForum theme color', () => {

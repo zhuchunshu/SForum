@@ -108,6 +108,13 @@ type storageInstanceRuntime struct {
 	values   map[string]string
 }
 
+func TestValidateStorageFieldRejectsMissingRequiredValue(t *testing.T) {
+	err := validateStorageField(storage.ProviderField{Key: "bucket", Type: "string", Required: true}, "  ")
+	if !errors.Is(err, ErrStorageInstanceInvalid) {
+		t.Fatalf("expected required field rejection, got %v", err)
+	}
+}
+
 func (r *storageInstanceRuntime) NewStorageAdapter(string) (storage.Adapter, error) {
 	return nil, storage.ErrInvalidConfig
 }
@@ -202,6 +209,34 @@ func TestActivateStorageInstanceProbesResolvedSecretsBeforeSwitch(t *testing.T) 
 	}
 	if got := optionStore.items[options.NameAttachmentProvider]; got != storage.ProviderLocal {
 		t.Fatalf("failed probe changed provider to %q", got)
+	}
+}
+
+func TestProbeStorageInstanceLocalizesResponseWithoutLosingStoredDiagnostic(t *testing.T) {
+	store := newFakeStorageInstanceStore()
+	secrets, _ := secretstore.New(secretstore.NewMemoryStore(), nil)
+	runtime := &storageInstanceRuntime{probeErr: &extensionruntime.StorageRPCError{Reason: "storage.s3.probe", Message: "unreachable"}}
+	service := NewService(store, newAttachmentOptions(nil)).
+		WithStorageProviderCatalog(storageInstanceCatalog{}).
+		WithStoragePluginRuntime(runtime).
+		WithSecretStore(secrets)
+	actor := attachmentSettingsActor()
+	created, err := service.CreateStorageInstance(context.Background(), actor, StorageInstanceInput{
+		ExtensionID: "sforum.storage-s3", Name: "Primary", Values: map[string]string{"bucket": "uploads", "secret_access_key": "top-secret"},
+	}, "zh-CN")
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	result, err := service.ProbeStorageInstance(context.Background(), actor, StorageInstanceProbeInput{InstanceID: created.ID}, "zh-CN")
+	if err != nil {
+		t.Fatalf("probe: %v", err)
+	}
+	if result.Reason != "storage.s3.probe" || result.Message != "附件存储暂时不可用，请检查存储配置。" {
+		t.Fatalf("localized result: %#v", result)
+	}
+	if got := store.items[created.ID].LastProbeMessage; got != "unreachable" {
+		t.Fatalf("stored diagnostic=%q", got)
 	}
 }
 

@@ -309,6 +309,13 @@ CurrentUser:
       type: array
       items:
         type: string
+UpdateCurrentUserLocaleRequest:
+  type: object
+  additionalProperties: false
+  properties:
+    locale:
+      type: string
+      description: An enabled site locale. Omit or send an empty value to restore the site default locale.
 RegistrationStatus:
   type: object
   required:

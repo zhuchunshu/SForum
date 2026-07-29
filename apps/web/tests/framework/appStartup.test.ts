@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { parse, compileScript } from '@vue/compiler-sfc'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 describe('app startup rendering', () => {
-  test('does not embed auth state during root app SSR startup', async () => {
+  test('initializes anonymous SSR as guest without requesting the session', async () => {
     const page = loadAppComponentForStartupTest({ server: true })
 
     await page.component.setup({}, { expose: () => {} })
@@ -12,6 +12,7 @@ describe('app startup rendering', () => {
     expect(page.loaderStarted()).toBe(true)
     expect(page.webOptionsRefreshStarted()).toBe(true)
     expect(page.authRefreshStarted()).toBe(false)
+    expect(page.guestInitialized()).toBe(true)
     expect(page.themeSkinRefreshStarted()).toBe(true)
   })
 
@@ -26,6 +27,7 @@ describe('app startup rendering', () => {
     expect(page.loaderStarted()).toBe(true)
     expect(page.webOptionsRefreshStarted()).toBe(true)
     expect(page.authRefreshStarted()).toBe(true)
+    expect(page.guestInitialized()).toBe(false)
     expect(page.themeSkinRefreshStarted()).toBe(true)
   })
 
@@ -81,6 +83,7 @@ function loadAppComponentForStartupTest(options: { server: boolean, routePath?: 
   let loaderStarted = false
   let webOptionsRefreshStarted = false
   let authRefreshStarted = false
+  let guestInitialized = false
   let themeSkinRefreshStarted = false
   let themeSkinCleared = false
   const mountedCallbacks: Array<() => void | Promise<void>> = []
@@ -91,6 +94,7 @@ function loadAppComponentForStartupTest(options: { server: boolean, routePath?: 
     'useLocaleHead',
     'useWebOptions',
     'useAuthSession',
+    'useUserLanguage',
     'useRoute',
     'useAdminRoutes',
     'useAdminTabs',
@@ -102,6 +106,9 @@ function loadAppComponentForStartupTest(options: { server: boolean, routePath?: 
     'useActiveThemeSkin',
     'useRequestHeaders',
     'useExternalAuthFeedback',
+    'useAdminAppearancePreview',
+    'resolveAppearanceTheme',
+    'computed',
     'SFApiConnectionModal',
     executable
   )
@@ -115,6 +122,7 @@ function loadAppComponentForStartupTest(options: { server: boolean, routePath?: 
     () => ({
       siteName: ref('SForum'),
       resolvedAppearanceTheme: ref({ dataTheme: 'pine_teal', style: '' }),
+      lightBackground: ref('pure_white'),
       seoSettings: ref({ metaTitleTemplate: '' }),
       siteFaviconUrl: ref(''),
       siteAppleTouchIconUrl: ref(''),
@@ -127,8 +135,12 @@ function loadAppComponentForStartupTest(options: { server: boolean, routePath?: 
       refresh: () => {
         authRefreshStarted = true
         return options.server ? Promise.resolve(true) : never
+      },
+      setUser: (user: unknown) => {
+        guestInitialized = user === null
       }
     }),
+    () => ({ applyStoredLanguage: async () => {} }),
     () => ({ path: options.routePath || '/' }),
     () => ({ routeId: (path: string) => path.startsWith('/control-panel') ? '/' : null }),
     () => ({ cachedTabNames: ref([]) }),
@@ -156,6 +168,9 @@ function loadAppComponentForStartupTest(options: { server: boolean, routePath?: 
     () => ({
       consumeFromRoute: () => {}
     }),
+    () => ({ preview: ref(null) }),
+    (theme: string) => ({ dataTheme: theme, style: '' }),
+    computed,
     {}
   )
 
@@ -164,6 +179,7 @@ function loadAppComponentForStartupTest(options: { server: boolean, routePath?: 
     loaderStarted: () => loaderStarted,
     webOptionsRefreshStarted: () => webOptionsRefreshStarted,
     authRefreshStarted: () => authRefreshStarted,
+    guestInitialized: () => guestInitialized,
     themeSkinRefreshStarted: () => themeSkinRefreshStarted,
     themeSkinCleared: () => themeSkinCleared,
     runMounted: async () => {

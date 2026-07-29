@@ -4,6 +4,7 @@ import { useForumApi } from '~/composables/forum/useForumApi'
 import SFSettingsAccountNav from '~/components/settings/SFSettingsAccountNav.vue'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
+import SFPublicPageHeader from '~/components/public/SFPublicPageHeader.vue'
 /**
  * 账号设置页共享 chrome：三栏布局 + 左侧导航 + 页头 + 移动端抽屉。
  * 页面通过插槽提供主内容 (default)、右栏 (rail，桌面 aside 与移动抽屉复用同一份)、
@@ -85,31 +86,34 @@ function closeMobileDrawers() {
           />
         </div>
 
-        <header class="sforum-settings__head">
-          <div class="sforum-settings__head-copy">
-            <h1 :id="props.titleId">{{ props.title }}</h1>
-            <p>{{ props.description }}</p>
-          </div>
-          <div class="sforum-settings__head-actions">
-            <slot name="head-actions" />
-            <button
-              type="button"
-              class="sforum-settings__icon-button sforum-settings__desktop-hidden"
-              :aria-label="props.railOpenLabel"
-              @click="mobileInfoOpen = true"
-            >
-              <UIcon name="i-lucide-panel-right" class="size-[18px]" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              class="sforum-settings__icon-button sforum-settings__desktop-hidden"
-              :aria-label="t('home.sidebar.drawerTitle')"
-              @click="mobileMenuOpen = true"
-            >
-              <UIcon name="i-lucide-menu" class="size-[18px]" aria-hidden="true" />
-            </button>
-          </div>
-        </header>
+        <SFPublicPageHeader
+          class="sforum-settings__head"
+          :title-id="props.titleId"
+          :title="props.title"
+          :subtitle="props.description"
+        >
+          <template #aside>
+            <div class="sforum-settings__head-actions">
+              <slot name="head-actions" />
+              <button
+                type="button"
+                class="sforum-settings__icon-button sforum-settings__desktop-hidden"
+                :aria-label="props.railOpenLabel"
+                @click="mobileInfoOpen = true"
+              >
+                <UIcon name="i-lucide-panel-right" class="size-[18px]" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                class="sforum-settings__icon-button sforum-settings__desktop-hidden"
+                :aria-label="t('home.sidebar.drawerTitle')"
+                @click="mobileMenuOpen = true"
+              >
+                <UIcon name="i-lucide-menu" class="size-[18px]" aria-hidden="true" />
+              </button>
+            </div>
+          </template>
+        </SFPublicPageHeader>
 
         <slot />
 

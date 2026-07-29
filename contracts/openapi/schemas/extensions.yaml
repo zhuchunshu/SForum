@@ -993,6 +993,9 @@ ExtensionManifestSetting:
     recommendedValue:
       type: string
       description: Provider-declared value used by the generic restore-recommended action. Secrets are never restored or cleared through this field.
+    required:
+      type: boolean
+      description: Marks a field that must be non-empty in provider configuration flows.
     width:
       type: string
       description: Schema UI control width. default caps the control (max-w-xl); full fills the available column width. Omitted values are treated as default.
@@ -1954,6 +1957,8 @@ ExtensionSettingValue:
       type: string
     recommendedValue:
       type: string
+    required:
+      type: boolean
     width:
       type: string
       description: Schema UI control width resolved from the manifest. default caps the control; full fills the available column width.
