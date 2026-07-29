@@ -19,7 +19,7 @@ type protocolV2JobServer struct {
 func (s *protocolV2JobServer) Enqueue(ctx context.Context, request *hostv2.JobEnqueueRequest) (*hostv2.JobEnqueueResponse, error) {
 	response := &hostv2.JobEnqueueResponse{Context: protocolV2ResponseContext(request.GetContext())}
 	if request.GetIdempotencyKey() != "" || request.GetDelay().AsDuration() != 0 {
-		response.Error = protocolV2Unsupported("host.job_options_unsupported", "The v1 compatibility queue cannot honor idempotency keys or delayed delivery.")
+		response.Error = protocolV2Unsupported("host.job_options_unsupported", "The legacy Host queue adapter cannot honor idempotency keys or delayed delivery.")
 		return response, nil
 	}
 	if request.GetPayload() == nil || request.GetPayload().GetSchemaId() == "" || request.GetPayloadVersion() == "" {
@@ -137,13 +137,13 @@ func pluginJobLeaseFailure(lease PluginJobEnqueueLease) error {
 func (s *protocolV2JobServer) Cancel(_ context.Context, request *hostv2.JobCancelRequest) (*hostv2.JobCancelResponse, error) {
 	return &hostv2.JobCancelResponse{
 		Context: protocolV2ResponseContext(request.GetContext()),
-		Error:   protocolV2Unsupported("host.job_cancel_unavailable", "Job cancellation has no v1 compatibility adapter."),
+		Error:   protocolV2Unsupported("host.job_cancel_unavailable", "Job cancellation has no legacy Host adapter."),
 	}, nil
 }
 
 func (s *protocolV2JobServer) Watch(request *hostv2.JobWatchRequest, stream grpc.ServerStreamingServer[protocolv2.ProgressUpdate]) error {
 	return stream.Send(&protocolv2.ProgressUpdate{
 		Context: protocolV2ResponseContext(request.GetContext()),
-		Error:   protocolV2Unsupported("host.job_watch_unavailable", "Job progress has no v1 compatibility adapter."),
+		Error:   protocolV2Unsupported("host.job_watch_unavailable", "Job progress has no legacy Host adapter."),
 	})
 }

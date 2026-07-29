@@ -214,13 +214,13 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return normalizeChoice(value, []string{"id_slug", "id", "slug"})
 	case NameAttachmentProvider:
 		return normalizeAttachmentProvider(value)
-	case NameAttachmentUploadEnabled, NameAttachmentFTPPassive, NameAttachmentFTPExplicitTLS:
+	case NameAttachmentUploadEnabled:
 		return normalizeEnabledOption(value)
 	case NameAttachmentPathTemplate:
 		return normalizeAttachmentPathTemplate(value)
 	case NameAttachmentLocalRoot:
 		return normalizeAttachmentLocalRoot(value)
-	case NameAttachmentPublicBaseURL, NameAttachmentLocalPublicPrefix, NameAttachmentTencentCDNDomain, NameAttachmentFTPPublicBaseURL, NameAttachmentSFTPPublicBaseURL:
+	case NameAttachmentPublicBaseURL, NameAttachmentLocalPublicPrefix:
 		return normalizeOptionalURL(value)
 	case NameAttachmentMaxFileSizeMB:
 		return normalizeBoundedInt(value, 1, 1024)
@@ -232,17 +232,6 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return normalizeStringChoice(value, attachmentVisibilities)
 	case NameAttachmentCleanupOrphanDays:
 		return normalizeBoundedInt(value, 1, 3650)
-	case NameAttachmentFTPPort, NameAttachmentSFTPPort:
-		return normalizeBoundedInt(value, 1, 65535)
-	case NameAttachmentAliyunEndpoint, NameAttachmentAliyunBucket, NameAttachmentAliyunRegion, NameAttachmentAliyunAccessKeyID,
-		NameAttachmentTencentRegion, NameAttachmentTencentBucket, NameAttachmentTencentSecretID,
-		NameAttachmentFTPHost, NameAttachmentFTPUsername,
-		NameAttachmentSFTPHost, NameAttachmentSFTPUsername, NameAttachmentSFTPHostKeyFingerprint:
-		return normalizeBoundedText(value, attachmentProviderTextMaxRunes)
-	case NameAttachmentFTPRootPath, NameAttachmentSFTPRootPath:
-		return normalizeAttachmentRootPath(value)
-	case NameAttachmentAliyunAccessKeySecret, NameAttachmentTencentSecretKey, NameAttachmentFTPPassword, NameAttachmentSFTPPassword, NameAttachmentSFTPPrivateKey, NameAttachmentSFTPPassphrase:
-		return normalizeBoundedText(value, attachmentSecretMaxRunes)
 	case NameAvatarAllowUpload, NameAvatarAllowGIF, NameAvatarCompressEnabled:
 		return normalizeEnabledOption(value)
 	case NameAvatarDefaultProvider:

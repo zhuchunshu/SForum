@@ -17,6 +17,8 @@ const (
 	SourceURL = "https://github.com/zhuchunshu/SForum"
 )
 
+const developmentCoreCompatibilityVersion = "1.0.0"
+
 // These values are replaced by release builds through -ldflags. Current is the
 // shared application version and remains the authority for compatibility gates.
 var (
@@ -74,6 +76,16 @@ func Get() BuildInfo {
 		info.Version += "-" + shortCommit(info.Commit, 5)
 	}
 	return info
+}
+
+// CoreCompatibilityVersion keeps the local build label separate from the
+// strict semantic version used by database and high-risk extension fences.
+func CoreCompatibilityVersion() string {
+	current := strings.TrimSpace(Current)
+	if current == "dev" {
+		return developmentCoreCompatibilityVersion
+	}
+	return current
 }
 
 func resolveDevelopmentCommit() string {

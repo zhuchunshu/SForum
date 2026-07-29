@@ -202,6 +202,32 @@ func TestPageRegistryAdapterPublishesPluginOnlyAfterCompiledSnapshot(t *testing.
 	}
 }
 
+func TestPageRegistryAdapterClearsPluginWithoutPageContributions(t *testing.T) {
+	registry := pages.NewRegistry(pages.NewMemoryStore())
+	runtimeRegistry := pages.NewThemeRuntimeRegistry()
+	adapter := NewPageRegistryAdapter(registry).WithThemeRuntime(runtimeRegistry, "SForum", []string{"zh-CN"})
+	plugin := themeRuntimeExtensionFixture(t, "plugin.backend-only", strings.Repeat("a", 64), "/stale-plugin-page", false)
+	plugin.Type = TypePlugin
+	if err := adapter.RegisterPluginPackage(t.Context(), plugin); err != nil {
+		t.Fatal(err)
+	}
+	if !runtimeRegistry.Claims(plugin.ID, "forum.home", plugin.ID+".home") {
+		t.Fatal("plugin runtime fixture was not registered")
+	}
+	if err := os.Remove(filepath.Join(plugin.PackagePath, "theme.json")); err != nil {
+		t.Fatal(err)
+	}
+	if err := adapter.RegisterPluginPackage(t.Context(), plugin); err != nil {
+		t.Fatal(err)
+	}
+	if snapshot, exists := registry.ExtensionSnapshot(plugin.ID); exists {
+		t.Fatalf("backend-only plugin retained Page Registry artifact: %#v", snapshot)
+	}
+	if runtimeRegistry.Claims(plugin.ID, "forum.home", plugin.ID+".home") {
+		t.Fatal("backend-only plugin retained ThemeRuntime state")
+	}
+}
+
 func TestPageRegistryAdapterRestoresDefaultFallbackBeforeCustomTheme(t *testing.T) {
 	registry := pages.NewRegistry(pages.NewMemoryStore())
 	runtimeRegistry := pages.NewThemeRuntimeRegistry()

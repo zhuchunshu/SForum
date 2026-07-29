@@ -396,6 +396,7 @@ func TestExecutableTrustChallengeRejectsEveryExecutableDigestChange(t *testing.T
 			name: "backend bytes and package digest",
 			change: func(t *testing.T, extension *Extension) {
 				writeTrustFile(t, extension, "backend/plugin", "changed-plugin-binary", 0o755)
+				refreshTrustDeclaredFileDigest(t, extension, "backend/plugin")
 				refreshTrustPackageIdentity(t, extension)
 			},
 		},
@@ -403,6 +404,7 @@ func TestExecutableTrustChallengeRejectsEveryExecutableDigestChange(t *testing.T
 			name: "migration bytes",
 			change: func(t *testing.T, extension *Extension) {
 				writeTrustFile(t, extension, "migrations/001.sql", "SELECT 2;", 0o600)
+				refreshTrustDeclaredFileDigest(t, extension, "migrations/001.sql")
 				refreshTrustPackageIdentity(t, extension)
 			},
 		},
@@ -410,7 +412,14 @@ func TestExecutableTrustChallengeRejectsEveryExecutableDigestChange(t *testing.T
 			name: "migration declaration",
 			change: func(t *testing.T, extension *Extension) {
 				writeTrustFile(t, extension, "migrations/002.sql", "SELECT 2;", 0o600)
-				extension.Manifest.Migrations = append(extension.Manifest.Migrations, ManifestMigration{Path: "migrations/002.sql"})
+				const digest = "8e7003d62f9d8cbd28da2f243bb0d215bfd4622c716be09be89a8764d9f4c7cb"
+				extension.Manifest.Migrations = append(extension.Manifest.Migrations, ManifestMigration{
+					ID: extension.ID + ".migration.second", ContractVersion: extension.ID + ".migration.second@1",
+					Path: "migrations/002.sql", Digest: digest, Transaction: "required",
+				})
+				extension.Manifest.PackageFiles = append(extension.Manifest.PackageFiles, ManifestPackageFile{
+					ID: extension.ID + ".file.migration-second", Kind: "migration", Path: "migrations/002.sql", Digest: digest,
+				})
 				refreshTrustPackageIdentity(t, extension)
 			},
 		},
@@ -789,8 +798,8 @@ func TestV3StaticInstallByDelegatedManagerDoesNotExecutePackage(t *testing.T) {
 	trust := NewExecutableTrustService(store, &memoryExecutableTrustStore{})
 	service := NewServiceWithOptions(store, t.TempDir(), "", runtime, WithExecutableTrust(trust, true))
 	archive := extensionArchive(t, validManifest("delegated.backend", TypePlugin),
-		zipFile{name: "backend/plugin", body: "binary", mode: 0o755},
-		zipFile{name: "migrations/001_init.sql", body: "SELECT 1", mode: 0o644},
+		zipFile{name: "backend/plugin", body: "#!/bin/sh\n", mode: 0o755},
+		zipFile{name: "migrations/001_init.sql", body: "SELECT 1;", mode: 0o644},
 	)
 
 	result, err := service.InstallOrUpgradeArchive(context.Background(), techAdminPluginManager(), ArchiveInput{FileName: "plugin.zip", Data: archive})
@@ -1000,13 +1009,30 @@ func completeV3TrustExtension(t *testing.T, id string) Extension {
 
 func exactTrustExtension(t *testing.T, id string) Extension {
 	t.Helper()
-	item := installedExtension(id, TypePlugin, ManifestBackend{Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 1})
+	const (
+		backendDigest   = "7f512da80a46ab9883d159705be0e5467d4e2e8f03d4efc75c9165e7c7c597f6"
+		migrationDigest = "17db4fd369edb9244b9f91d9aeed145c3d04ad8ba6e95d06247f07a63527d11a"
+	)
+	item := installedExtension(id, TypePlugin, ManifestBackend{Entry: "backend/plugin"})
+	item.Manifest.Backend.Digest = backendDigest
 	item.Source = SourceUploaded
 	item.IsDeletable = true
 	item.Manifest.Permissions = []string{"topic.create"}
-	item.Manifest.Routes = []ManifestRoute{{Path: "/run", Methods: []string{"POST"}, Access: RouteAccessPermission, Permission: "topic.create"}}
-	item.Manifest.Migrations = []ManifestMigration{{Path: "migrations/001.sql"}}
+	item.Manifest.Routes = []ManifestRoute{{
+		ID: id + ".route.run", ContractVersion: id + ".route.run@1", Action: "add",
+		Path: "/run", Methods: []string{"POST"}, Guard: "core.guard.permission",
+		Access: RouteAccessPermission, Permission: "topic.create", Fallback: "closed", Mode: "http",
+		Handler: "demo.run", RequestSchema: id + ".route.run.request@1", ResponseSchema: id + ".route.run.response@1",
+	}}
+	item.Manifest.Migrations = []ManifestMigration{{
+		ID: id + ".migration.init", ContractVersion: id + ".migration.init@1",
+		Path: "migrations/001.sql", Digest: migrationDigest, Transaction: "required",
+	}}
 	item.Manifest.Capabilities = []string{"net.outbound"}
+	item.Manifest.PackageFiles = []ManifestPackageFile{
+		{ID: id + ".file.backend", Kind: "executable", Path: "backend/plugin", Digest: backendDigest},
+		{ID: id + ".file.migration", Kind: "migration", Path: "migrations/001.sql", Digest: migrationDigest},
+	}
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "backend"), 0o755); err != nil {
 		t.Fatal(err)
@@ -1054,6 +1080,27 @@ func writeTrustFile(t *testing.T, extension *Extension, relative, body string, m
 	}
 	if err := os.WriteFile(target, []byte(body), mode); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func refreshTrustDeclaredFileDigest(t *testing.T, extension *Extension, relative string) {
+	t.Helper()
+	digest, err := digestInstalledFile(*extension, relative)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if extension.Manifest.Backend.Entry == relative {
+		extension.Manifest.Backend.Digest = digest
+	}
+	for index := range extension.Manifest.Migrations {
+		if extension.Manifest.Migrations[index].Path == relative {
+			extension.Manifest.Migrations[index].Digest = digest
+		}
+	}
+	for index := range extension.Manifest.PackageFiles {
+		if extension.Manifest.PackageFiles[index].Path == relative {
+			extension.Manifest.PackageFiles[index].Digest = digest
+		}
 	}
 }
 

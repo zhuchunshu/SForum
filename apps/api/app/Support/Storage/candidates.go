@@ -23,11 +23,7 @@ type Candidate struct {
 func CoreCandidates() []Candidate {
 	// 标签与历史 Admin i18n 对齐；前端仍可再本地化。
 	labels := map[string]string{
-		ProviderLocal:      "Local filesystem",
-		ProviderAliyunOSS:  "Aliyun OSS",
-		ProviderTencentCOS: "Tencent COS",
-		ProviderFTP:        "FTP",
-		ProviderSFTP:       "SFTP",
+		ProviderLocal: "Local filesystem",
 	}
 	out := make([]Candidate, 0, len(DriverCatalog()))
 	for _, id := range DriverCatalog() {

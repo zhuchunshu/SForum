@@ -12,11 +12,33 @@ import (
 
 func TestRootCommandIncludesOutOfBandRecoveryCommands(t *testing.T) {
 	root := newRootCommand()
-	for _, path := range []string{"extension list", "extension disable", "extension disable-all"} {
+	for _, path := range []string{"extension list", "extension disable", "extension disable-all", "extension quarantine"} {
 		command, _, err := root.Find(strings.Fields(path))
 		if err != nil || command == nil {
 			t.Fatalf("find %q: command=%v err=%v", path, command, err)
 		}
+	}
+}
+
+func TestProtectedQuarantineRequiresExactArtifactFlags(t *testing.T) {
+	command := newExtensionRecoveryQuarantineCommand()
+	command.SetArgs([]string{"sforum.auth-github"})
+	err := command.ExecuteContext(t.Context())
+	if err == nil || !strings.Contains(err.Error(), "--expect-version and --expect-digest are required") {
+		t.Fatalf("quarantine flags error=%v", err)
+	}
+}
+
+func TestProtectedQuarantineRejectsNonCanonicalDigestBeforeDatabaseAccess(t *testing.T) {
+	command := newExtensionRecoveryQuarantineCommand()
+	command.SetArgs([]string{
+		"sforum.auth-github",
+		"--expect-version", "1.0.0",
+		"--expect-digest", strings.Repeat("A", 64),
+	})
+	err := command.ExecuteContext(t.Context())
+	if err == nil || !strings.Contains(err.Error(), "64-character lowercase SHA-256") {
+		t.Fatalf("quarantine digest error=%v", err)
 	}
 }
 

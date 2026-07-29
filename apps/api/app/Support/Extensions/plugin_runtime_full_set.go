@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
@@ -36,16 +35,11 @@ type ManagerPluginRuntimeFullSetApplier struct {
 	manager      *Manager
 	inventory    PluginRuntimeFullSetInventory
 	drainTimeout time.Duration
-
-	// initialProtocolV1Compatibility 仅 bootstrap 首轮 full-set 允许 cold-start exact V1。
-	// 成功 Apply 返回 applied evidence 后单调关闭；失败重试仍可再次 cold-start。
-	initialProtocolV1Compatibility atomic.Bool
 }
 
 var _ extensions.PluginRuntimeFullSetApplier = (*ManagerPluginRuntimeFullSetApplier)(nil)
 
-// NewManagerPluginRuntimeFullSetApplier 构造普通 full-set 适配器。
-// 缺少可复用 Protocol V1 时 fail-closed，不会 cold-start 任何 V1 进程。
+// NewManagerPluginRuntimeFullSetApplier 构造 Protocol V2 full-set 适配器。
 func NewManagerPluginRuntimeFullSetApplier(
 	manager *Manager,
 	inventory PluginRuntimeFullSetInventory,
@@ -56,21 +50,6 @@ func NewManagerPluginRuntimeFullSetApplier(
 	return &ManagerPluginRuntimeFullSetApplier{
 		manager: manager, inventory: inventory, drainTimeout: RecommendedPluginRuntimeFullSetDrainTimeout,
 	}, nil
-}
-
-// NewInitialBootstrapManagerPluginRuntimeFullSetApplier 构造 production bootstrap
-// 专用 full-set 适配器。仅首轮成功 Apply 前允许在单 barrier 内 cold-start
-// publication 中的 exact Protocol V1 成员；成功后单调关闭该窗口。
-func NewInitialBootstrapManagerPluginRuntimeFullSetApplier(
-	manager *Manager,
-	inventory PluginRuntimeFullSetInventory,
-) (*ManagerPluginRuntimeFullSetApplier, error) {
-	applier, err := NewManagerPluginRuntimeFullSetApplier(manager, inventory)
-	if err != nil {
-		return nil, err
-	}
-	applier.initialProtocolV1Compatibility.Store(true)
-	return applier, nil
 }
 
 // ApplyPluginRuntimeFullSet 将 Manager 收敛到 publication 描述的完整 exact 集合。
@@ -107,28 +86,6 @@ func (a *ManagerPluginRuntimeFullSetApplier) ApplyPluginRuntimeFullSet(
 		return nil, err
 	}
 	if err := a.requireNonRegressivePluginRuntimePublication(publication.Revision); err != nil {
-		return nil, err
-	}
-
-	// 本轮 Apply 新启动的 V1 必须在任意后续失败时回滚；已存在 exact 复用不在账本内。
-	// 启动循环失败时也保留账本，由本 defer 唯一执行逆序回滚（禁止内层二次 stop）。
-	var startedThisApply []initialProtocolV1StartedMember
-	defer func() {
-		if err == nil {
-			// 仅在成功返回 applied evidence 后关闭初始兼容窗口。
-			a.disarmInitialProtocolV1Compatibility()
-			return
-		}
-		if len(startedThisApply) == 0 {
-			return
-		}
-		err = errors.Join(err, a.rollbackInitialProtocolV1Starts(startedThisApply))
-	}()
-
-	// INITIAL-BOOTSTRAP-ONLY：解析 exact publication 且持有单 barrier 之后、
-	// build plan 之前，按需 cold-start missing exact V1（从不预启动 V2）。
-	startedThisApply, err = a.startInitialProtocolV1CompatibilityLocked(ctx, desired)
-	if err != nil {
 		return nil, err
 	}
 
@@ -397,18 +354,7 @@ func (a *ManagerPluginRuntimeFullSetApplier) resolvePluginRuntimeFullSet(
 }
 
 func validatePluginRuntimeFullSetDesiredExtension(extension extensions.Extension) error {
-	if manifestProtocolVersion(extension) == 2 {
-		return validateManagedStagedExtension(extension)
-	}
-	if manifestProtocolVersion(extension) != 1 || extension.ID == "" || extension.ID != strings.TrimSpace(extension.ID) ||
-		extension.Version == "" || extension.Version != strings.TrimSpace(extension.Version) ||
-		extension.PackageDigest == "" || extension.PackageDigest != strings.TrimSpace(extension.PackageDigest) ||
-		extension.Type != extensions.TypePlugin || extension.Manifest.ID != extension.ID ||
-		extension.Manifest.Version != extension.Version || extension.Manifest.Type != extensions.TypePlugin ||
-		strings.TrimSpace(extension.Manifest.Backend.Entry) == "" {
-		return fmt.Errorf("%w: exact supported Protocol V1/V2 artifact is required", ErrRuntimeAdmissionInvalid)
-	}
-	return nil
+	return validateManagedStagedExtension(extension)
 }
 
 // pluginRuntimeExactExtension 用不可变版本快照构造 exact Extension，不信任当前活动版本字段。
@@ -476,9 +422,6 @@ func (a *ManagerPluginRuntimeFullSetApplier) buildPluginRuntimeFullSetPlan(
 			if pluginRuntimeActiveMatchesDesired(instance, item.extension, item.member) {
 				memberPlan.reuse = true
 			}
-		}
-		if !memberPlan.reuse && manifestProtocolVersion(item.extension) != 2 {
-			return nil, fmt.Errorf("%w: Protocol V1 runtime %s is not an exact reusable artifact", ErrProtocolInstanceTransitionBlocked, item.member.ExtensionID)
 		}
 		plan.desired = append(plan.desired, memberPlan)
 	}
@@ -550,12 +493,6 @@ func (a *ManagerPluginRuntimeFullSetApplier) recheckReusedPluginRuntimes(
 		}
 		snapshot, err := a.healthPluginRuntimeFullSetIdentity(ctx, item.extension, item.old)
 		if err != nil || snapshot.Identity != item.old {
-			if manifestProtocolVersion(item.extension) == 1 {
-				if err == nil {
-					err = ErrRuntimeInstanceConflict
-				}
-				return fmt.Errorf("Protocol V1 compatibility runtime %s is unhealthy: %w", item.old.ExtensionID, err)
-			}
 			item.reuse = false
 			continue
 		}
@@ -607,27 +544,7 @@ func (a *ManagerPluginRuntimeFullSetApplier) healthPluginRuntimeFullSetIdentity(
 	extension extensions.Extension,
 	identity RuntimeInstanceIdentity,
 ) (ProtocolRuntimeInstanceSnapshot, error) {
-	if manifestProtocolVersion(extension) == 2 {
-		return a.manager.HealthRuntimeInstance(ctx, identity)
-	}
-	starter, ok := a.manager.starter.(StagedRuntimeStarter)
-	if !ok {
-		return ProtocolRuntimeInstanceSnapshot{}, ErrProtocolInstanceUnsupported
-	}
-	if _, err := starter.HealthInstance(ctx, identity); err != nil {
-		return ProtocolRuntimeInstanceSnapshot{}, err
-	}
-	snapshot, err := starter.InspectInstance(identity)
-	if err != nil {
-		return ProtocolRuntimeInstanceSnapshot{}, err
-	}
-	if err := validatePluginRuntimeFullSetProtocolSnapshot(snapshot, extension, identity, ""); err != nil {
-		return ProtocolRuntimeInstanceSnapshot{}, err
-	}
-	if !snapshot.Healthy || !snapshot.Ready {
-		return ProtocolRuntimeInstanceSnapshot{}, ErrProtocolInstanceNotReady
-	}
-	return snapshot, nil
+	return a.manager.HealthRuntimeInstance(ctx, identity)
 }
 
 func validatePluginRuntimeFullSetProtocolSnapshot(
@@ -636,21 +553,7 @@ func validatePluginRuntimeFullSetProtocolSnapshot(
 	identity RuntimeInstanceIdentity,
 	wantState ProtocolRuntimeInstanceState,
 ) error {
-	protocolVersion := manifestProtocolVersion(extension)
-	if protocolVersion == 2 {
-		return validateManagedProtocolSnapshot(snapshot, extension, identity, wantState)
-	}
-	manifestDigest, err := protocolRuntimeManifestDigest(extension.Manifest)
-	if err != nil {
-		return err
-	}
-	if snapshot.Identity != identity || snapshot.Target.InstanceID != identity.InstanceID ||
-		snapshot.ExtensionVersion != extension.Version || snapshot.ArtifactDigest != extension.PackageDigest ||
-		snapshot.ManifestDigest != manifestDigest || snapshot.ProtocolVersion != protocolVersion ||
-		(wantState != "" && snapshot.State != wantState) {
-		return fmt.Errorf("%w: protocol snapshot does not match exact artifact", ErrRuntimeInstanceConflict)
-	}
-	return nil
+	return validateManagedProtocolSnapshot(snapshot, extension, identity, wantState)
 }
 
 // pluginRuntimeFullSetVisible verifies the normal no-op replay without writing

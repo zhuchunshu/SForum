@@ -10,7 +10,7 @@ off.
 ## Prerequisites
 
 1. First-user bootstrap is done (initial `super_admin` must use Core registration).
-2. Trusted public `APP_URL` is set (HTTPS in production).
+2. The admin site URL is configured, or environment `APP_URL` is set as its fallback (HTTPS in production).
 3. Production has a strong random `IDENTITY_SUBJECT_HMAC_SECRET` (identity
    binding backup material; rotation needs a dual-read migration).
 4. You have extension administration and `identity.provider.manage` (or
@@ -21,9 +21,9 @@ off.
 Application page: [Create a GitHub OAuth App](https://github.com/settings/applications/new).
 
 1. Open the application page, use a recognizable **Application name**, and set
-   **Homepage URL** to the site's `APP_URL`.
+   **Homepage URL** to the site URL configured in admin.
 2. **Authorization callback URL** must match the Host absolute callback:  
-   `{APP_URL}/auth/providers/sforum.auth-github.auth/callback`
+   `{site URL}/auth/providers/sforum.auth-github.auth/callback`
    Copy it from **Login methods** in admin.
 3. Register the app, record the **Client ID**, and generate a **Client Secret** (paste only into
    SForum SecretStore; never into themes or browsers).
@@ -78,7 +78,7 @@ Restore recommended defaults turns operations off and **preserves** secrets
 | Expired / replayed callback | 10-minute TTL; do not refresh the callback URL; shared Redis across instances |
 | `auth.provider_unavailable` | Artifact drift, missing config, runtime down |
 | `auth.external_identity_unlinked` | Not linked yet; register or password-login then link |
-| Production boot failure | `IDENTITY_SUBJECT_HMAC_SECRET` / `APP_URL` |
+| Production boot failure | Check `IDENTITY_SUBJECT_HMAC_SECRET` and ensure the admin site URL or `APP_URL` uses HTTPS |
 | `rate_limit.exceeded` | Per-IP start/callback limits; retry later |
 
 **Security:** logs, audits, APIs, browser history, and diagnostics must never

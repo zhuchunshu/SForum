@@ -1296,7 +1296,7 @@ AdminIdentityProviderItem:
       description: Public same-origin callback path bridged by the Web Host to the reserved Core callback.
     callbackUrl:
       type: string
-      description: Absolute callback URL derived from trusted APP_URL (never request Host).
+      description: Absolute callback URL derived from runtime site.url, with trusted APP_URL fallback (never request Host).
     settingsPath:
       type: string
       description: Admin path for Host-rendered extension settings (SFExtensionSettingsRenderer).

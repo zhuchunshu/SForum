@@ -103,7 +103,7 @@ func (h *Controller) listAdminIdentityProviderItems(ctx context.Context, locale 
 				}, locale),
 				Icon: strings.TrimSpace(candidate.Icon),
 			}
-			if abs, absErr := h.absoluteCallbackURL(candidate.ProviderID); absErr == nil {
+			if abs, absErr := h.absoluteCallbackURL(ctx, candidate.ProviderID); absErr == nil {
 				item.CallbackURL = abs
 			}
 			byID[candidate.ProviderID] = item
@@ -122,7 +122,7 @@ func (h *Controller) listAdminIdentityProviderItems(ctx context.Context, locale 
 			}
 			callbackPath := identity.ExternalAuthCallbackPath(provider.ID)
 			callbackURL := ""
-			if abs, absErr := h.absoluteCallbackURL(provider.ID); absErr == nil {
+			if abs, absErr := h.absoluteCallbackURL(ctx, provider.ID); absErr == nil {
 				callbackURL = abs
 			}
 			label := identityregistry.ResolveProviderLabel(provider.Provider, locale)
@@ -276,7 +276,7 @@ type adminIdentityProviderItem struct {
 	LinkEnabled         bool   `json:"linkEnabled"`
 	Revision            int64  `json:"revision"`
 	CallbackPath        string `json:"callbackPath"`
-	// CallbackURL 是可信 APP_URL 派生的绝对 callback；无法形成时为空字符串。
+	// CallbackURL 优先由后台 site.url 派生，未设置时回退 APP_URL；无法形成时为空字符串。
 	CallbackURL  string `json:"callbackUrl,omitempty"`
 	SettingsPath string `json:"settingsPath,omitempty"`
 	SafeMode     bool   `json:"safeMode"`

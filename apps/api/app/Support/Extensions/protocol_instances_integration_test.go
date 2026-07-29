@@ -34,15 +34,15 @@ func TestProtocolV2StagesPublishesRollsBackAndStopsExactInstances(t *testing.T) 
 		t.Fatalf("first published service = %#v, %v", resolved, err)
 	}
 	firstProvider := resolved.Winner.Provider
-	legacyTransition := extension
-	legacyTransition.Manifest.Backend.ProtocolVersion = 1
-	legacyTransition.Manifest.Backend.HostAPIVersion = ""
-	if _, err := starter.Start(context.Background(), legacyTransition); !errors.Is(err, extensionsruntime.ErrProtocolInstanceTransitionBlocked) {
-		t.Fatalf("v2 to v1 transition error = %v", err)
+	unsupportedTransition := extension
+	unsupportedTransition.Manifest.Backend.ProtocolVersion = 1
+	unsupportedTransition.Manifest.Backend.HostAPIVersion = ""
+	if _, err := starter.Start(context.Background(), unsupportedTransition); !errors.Is(err, extensionsruntime.ErrUnsupportedProtocol) {
+		t.Fatalf("unsupported protocol admission error = %v", err)
 	}
 	resolved, err = gateway.ProtocolV2ServiceRegistry().ResolveExact("runtime.v2.service.echo", "1.0.0")
 	if err != nil || resolved.Winner.InstanceID != first.InstanceID {
-		t.Fatalf("blocked v1 transition changed active service = %#v, %v", resolved, err)
+		t.Fatalf("rejected protocol start changed active service = %#v, %v", resolved, err)
 	}
 
 	// Start 的请求 context 只约束启动；候选进程由 exact lifecycle 持有。
@@ -451,10 +451,10 @@ func assertProtocolV2RuntimeSetOwners(
 	}
 }
 
-func TestProtocolV1MustStopBeforeStagingProtocolV2(t *testing.T) {
-	legacy := protocolV2TestExtension(t, "v1")
-	legacy.Manifest.Backend.ProtocolVersion = 1
-	legacy.Manifest.Backend.HostAPIVersion = ""
+func TestUnsupportedProtocolIsRejectedBeforeStagingProtocolV2(t *testing.T) {
+	unsupported := protocolV2TestExtension(t, "unsupported")
+	unsupported.Manifest.Backend.ProtocolVersion = 1
+	unsupported.Manifest.Backend.HostAPIVersion = ""
 	candidate := protocolV2TestExtension(t, "v2")
 	gateway, _ := newProtocolV2HostGateway()
 	t.Cleanup(func() { _ = gateway.Close() })
@@ -462,26 +462,18 @@ func TestProtocolV1MustStopBeforeStagingProtocolV2(t *testing.T) {
 		Trust:   staticRuntimeTrust{identity: extensions.RuntimeTrustIdentity{TrustGrantID: "41", ImpactDigest: "impact-41"}},
 		HostAPI: gateway,
 	})
-	t.Cleanup(func() { _ = starter.Stop(context.Background(), candidate) })
-
-	legacyTarget, err := starter.Start(context.Background(), legacy)
+	if _, err := starter.Start(context.Background(), unsupported); !errors.Is(err, extensionsruntime.ErrUnsupportedProtocol) {
+		t.Fatalf("unsupported protocol start error = %v", err)
+	}
+	target, err := starter.StartInstance(context.Background(), candidate)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("stage v2 after rejecting v1: %v", err)
 	}
-	if _, err := starter.StartInstance(context.Background(), candidate); !errors.Is(err, extensionsruntime.ErrProtocolInstanceTransitionBlocked) {
-		t.Fatalf("v1 to staged v2 transition error = %v", err)
-	}
-	legacyIdentity := extensionsruntime.RuntimeInstanceIdentity{ExtensionID: legacy.ID, InstanceID: legacyTarget.InstanceID}
-	legacySnapshot, err := starter.InspectInstance(legacyIdentity)
-	if err != nil || legacySnapshot.State != extensionsruntime.ProtocolRuntimePublished || legacySnapshot.ProtocolVersion != 1 {
-		t.Fatalf("blocked transition changed legacy runtime = %#v, %v", legacySnapshot, err)
-	}
-	if err := starter.Stop(context.Background(), legacy); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := starter.StartInstance(context.Background(), candidate); err != nil {
-		t.Fatalf("stage v2 after explicit stop: %v", err)
-	}
+	t.Cleanup(func() {
+		_ = starter.DiscardInstance(context.Background(), extensionsruntime.RuntimeInstanceIdentity{
+			ExtensionID: candidate.ID, InstanceID: target.InstanceID,
+		})
+	})
 }
 
 func TestProtocolV2ConcurrentPublishAndStaleStopKeepsReplacement(t *testing.T) {

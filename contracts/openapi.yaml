@@ -885,14 +885,6 @@ components:
       "$ref": "./openapi/schemas/attachments.yaml#/AttachmentSettings"
     AttachmentLocalSettings:
       "$ref": "./openapi/schemas/attachments.yaml#/AttachmentLocalSettings"
-    AttachmentAliyunOSSSettings:
-      "$ref": "./openapi/schemas/attachments.yaml#/AttachmentAliyunOSSSettings"
-    AttachmentTencentCOSSettings:
-      "$ref": "./openapi/schemas/attachments.yaml#/AttachmentTencentCOSSettings"
-    AttachmentFTPSettings:
-      "$ref": "./openapi/schemas/attachments.yaml#/AttachmentFTPSettings"
-    AttachmentSFTPSettings:
-      "$ref": "./openapi/schemas/attachments.yaml#/AttachmentSFTPSettings"
     AttachmentProbe:
       "$ref": "./openapi/schemas/attachments.yaml#/AttachmentProbe"
     AttachmentCleanupResult:

@@ -10,9 +10,8 @@ import (
 const attachmentPathTemplateMaxRunes = 160
 const attachmentListOptionMaxRunes = 1000
 const attachmentProviderTextMaxRunes = 240
-const attachmentSecretMaxRunes = 8000
 
-var attachmentProviders = []string{storage.ProviderLocal, storage.ProviderAliyunOSS, storage.ProviderTencentCOS, storage.ProviderFTP, storage.ProviderSFTP}
+var attachmentProviders = []string{storage.ProviderLocal}
 var attachmentVisibilities = []string{"public", "private"}
 
 // attachmentActiveContentDenylist 是禁止作为公开附件存储的"主动内容"MIME 类型。
@@ -50,33 +49,6 @@ func attachmentOptionNames() []string {
 		NameAttachmentCleanupOrphanDays,
 		NameAttachmentLocalRoot,
 		NameAttachmentLocalPublicPrefix,
-		NameAttachmentAliyunEndpoint,
-		NameAttachmentAliyunBucket,
-		NameAttachmentAliyunRegion,
-		NameAttachmentAliyunAccessKeyID,
-		NameAttachmentAliyunAccessKeySecret,
-		NameAttachmentTencentRegion,
-		NameAttachmentTencentBucket,
-		NameAttachmentTencentSecretID,
-		NameAttachmentTencentSecretKey,
-		NameAttachmentTencentCDNDomain,
-		NameAttachmentFTPHost,
-		NameAttachmentFTPPort,
-		NameAttachmentFTPUsername,
-		NameAttachmentFTPPassword,
-		NameAttachmentFTPRootPath,
-		NameAttachmentFTPPassive,
-		NameAttachmentFTPExplicitTLS,
-		NameAttachmentFTPPublicBaseURL,
-		NameAttachmentSFTPHost,
-		NameAttachmentSFTPPort,
-		NameAttachmentSFTPUsername,
-		NameAttachmentSFTPPassword,
-		NameAttachmentSFTPPrivateKey,
-		NameAttachmentSFTPPassphrase,
-		NameAttachmentSFTPRootPath,
-		NameAttachmentSFTPHostKeyFingerprint,
-		NameAttachmentSFTPPublicBaseURL,
 	}
 }
 
@@ -107,23 +79,7 @@ func isValidAttachmentOptions(values map[string]string) bool {
 	if storage.IsPluginSelection(provider) {
 		return true
 	}
-	switch provider {
-	case storage.ProviderLocal:
-		return true
-	case storage.ProviderAliyunOSS:
-		return allNonBlank(values, NameAttachmentAliyunEndpoint, NameAttachmentAliyunBucket, NameAttachmentAliyunAccessKeyID, NameAttachmentAliyunAccessKeySecret)
-	case storage.ProviderTencentCOS:
-		return allNonBlank(values, NameAttachmentTencentRegion, NameAttachmentTencentBucket, NameAttachmentTencentSecretID, NameAttachmentTencentSecretKey)
-	case storage.ProviderFTP:
-		return allNonBlank(values, NameAttachmentFTPHost, NameAttachmentFTPUsername, NameAttachmentFTPPassword)
-	case storage.ProviderSFTP:
-		if !allNonBlank(values, NameAttachmentSFTPHost, NameAttachmentSFTPUsername) {
-			return false
-		}
-		return strings.TrimSpace(values[NameAttachmentSFTPPassword]) != "" || strings.TrimSpace(values[NameAttachmentSFTPPrivateKey]) != ""
-	default:
-		return false
-	}
+	return provider == storage.ProviderLocal
 }
 
 func normalizeAttachmentProvider(value string) (string, bool) {
@@ -245,17 +201,6 @@ func normalizeAttachmentMIMETypes(value string) (string, bool) {
 	return joined, joined != "" && len([]rune(joined)) <= attachmentListOptionMaxRunes
 }
 
-func normalizeAttachmentRootPath(value string) (string, bool) {
-	value = strings.TrimSpace(strings.ReplaceAll(value, "\\", "/"))
-	if value == "" {
-		return "/", true
-	}
-	if strings.Contains(value, "..") || len([]rune(value)) > attachmentProviderTextMaxRunes {
-		return "", false
-	}
-	return value, true
-}
-
 func normalizeAttachmentLocalRoot(value string) (string, bool) {
 	value = strings.TrimSpace(strings.ReplaceAll(value, "\\", "/"))
 	if value == "" || len([]rune(value)) > attachmentProviderTextMaxRunes {
@@ -276,13 +221,4 @@ func normalizeAttachmentLocalRoot(value string) (string, bool) {
 		return "", false
 	}
 	return cleaned, true
-}
-
-func allNonBlank(values map[string]string, names ...string) bool {
-	for _, name := range names {
-		if strings.TrimSpace(values[name]) == "" {
-			return false
-		}
-	}
-	return true
 }

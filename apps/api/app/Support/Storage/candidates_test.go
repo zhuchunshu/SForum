@@ -4,7 +4,7 @@ import "testing"
 
 func TestCoreCandidates(t *testing.T) {
 	got := CoreCandidates()
-	if len(got) != 5 {
+	if len(got) != 1 {
 		t.Fatalf("len=%d", len(got))
 	}
 	if got[0].Value != ProviderLocal || got[0].Kind != SelectionKindCore || !got[0].Available {
@@ -18,7 +18,7 @@ func TestPluginCandidateAndMerge(t *testing.T) {
 		t.Fatalf("%#v", p)
 	}
 	merged := MergeCandidates(CoreCandidates(), []Candidate{p})
-	if len(merged) != 6 || merged[5].Value != "plugin:sforum.s3" {
+	if len(merged) != 2 || merged[1].Value != "plugin:sforum.s3" {
 		t.Fatalf("merge: %#v", merged)
 	}
 }

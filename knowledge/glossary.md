@@ -35,8 +35,8 @@ marketing names in code and contracts.
 | **Page Registry** | Host catalog of public page views themes may add/replace. |
 | **L0 / L1 / L2** | Theme levels: skin tokens, SSR templates/partials, prebuilt client assets. |
 | **Safe Mode** | Host boot mode that filters third-party executable contributions. |
-| **Host API v2** | Versioned gRPC/Protobuf plugin transport (Protocol V2 preferred). |
-| **Protocol V1** | Legacy compatibility transport; LTS-gated for removal. |
+| **Host API v2** | Required versioned gRPC/Protobuf plugin transport. |
+| **Protocol V2** | The only supported executable extension transport. |
 | **River** | Durable job queue used by API/worker. |
 | **Site search** | Protected built-in PG FTS engine (`sforum.search-site`). |
 | **Meilisearch plugin** | Optional search engine package; not required for core. |

@@ -1,4 +1,5 @@
 {
+  "manifestVersion": 3,
   "id": "sforum.nocturne-theme",
   "name": "Nocturne Harbor",
   "description": "A cool indigo-harbor public theme: deep navy surfaces, cyan accent, and soft card chrome. Runtime L0/L1 package (no Nuxt rebuild).",

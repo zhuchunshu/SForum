@@ -15,7 +15,7 @@ func TestDriverCatalogAndNormalize(t *testing.T) {
 	if NormalizeProvider("") != ProviderLocal {
 		t.Fatal("blank → local")
 	}
-	if got := len(DriverCatalog()); got != 5 {
+	if got := len(DriverCatalog()); got != 1 {
 		t.Fatalf("drivers=%d", got)
 	}
 	// plugin: 不是 core 驱动；Normalize 保留前缀供 ParseSelection 使用。

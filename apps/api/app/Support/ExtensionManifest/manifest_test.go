@@ -59,16 +59,22 @@ func TestContributionPointDefinitionsContainOnlyHostRenderedDescriptors(t *testi
 
 func TestF43ContributionPayloadValidation(t *testing.T) {
 	base := Manifest{
-		ID:            "demo.f43",
-		Name:          "F43 Demo",
-		Description:   "F4.3 contribution payload tests.",
-		URL:           "https://example.com/f43",
-		Author:        ManifestAuthor{Name: "Demo"},
-		Version:       "1.0.0",
-		Type:          TypePlugin,
-		SForumVersion: "^1.0.0",
+		ManifestVersion: ManifestVersionV3,
+		ID:              "demo.f43",
+		Name:            "F43 Demo",
+		Description:     "F4.3 contribution payload tests.",
+		URL:             "https://example.com/f43",
+		Author:          ManifestAuthor{Name: "Demo"},
+		Version:         "1.0.0",
+		Type:            TypePlugin,
+		SForumVersion:   "^1.0.0",
 		Routes: []ManifestRoute{
-			{Path: "/actions/x", Methods: []string{"POST"}, Access: RouteAccessLogin},
+			{
+				ID: "demo.f43.route.action", ContractVersion: "demo.f43.route.action@1", Action: RouteActionAdd,
+				Path: "/actions/x", Methods: []string{"POST"}, Guard: GuardCoreLogin, Fallback: "closed",
+				Mode: RouteModeHTTP, Handler: "action.handle", RequestSchema: "demo.f43.action.request@1",
+				ResponseSchema: "demo.f43.action.response@1",
+			},
 		},
 	}
 
@@ -205,14 +211,15 @@ func TestF43ContributionPayloadValidation(t *testing.T) {
 func TestManifestLangsOptionalAndLocalizedDisplay(t *testing.T) {
 	// 无 langs 时保持顶层默认，不要求翻译。
 	withoutLangs := Manifest{
-		ID:            "demo.plugin",
-		Name:          "Demo Plugin",
-		Description:   "Demo plugin.",
-		URL:           "https://example.com/demo",
-		Author:        ManifestAuthor{Name: "Demo Studio", URL: "https://example.com"},
-		Version:       "1.0.0",
-		Type:          TypePlugin,
-		SForumVersion: "^1.0.0",
+		ManifestVersion: ManifestVersionV3,
+		ID:              "demo.plugin",
+		Name:            "Demo Plugin",
+		Description:     "Demo plugin.",
+		URL:             "https://example.com/demo",
+		Author:          ManifestAuthor{Name: "Demo Studio", URL: "https://example.com"},
+		Version:         "1.0.0",
+		Type:            TypePlugin,
+		SForumVersion:   "^1.0.0",
 	}
 	if err := Validate(withoutLangs); err != nil {
 		t.Fatalf("manifest without langs should validate: %v", err)
@@ -223,6 +230,7 @@ func TestManifestLangsOptionalAndLocalizedDisplay(t *testing.T) {
 	}
 
 	body := []byte(`{
+		"manifestVersion":3,
 		"id":"demo.plugin",
 		"name":"Demo Plugin",
 		"description":"Demo plugin.",
@@ -276,6 +284,7 @@ func TestManifestLangsOptionalAndLocalizedDisplay(t *testing.T) {
 
 func TestAdminManifestV2NormalizeValidateAndResolveManagePath(t *testing.T) {
 	body := []byte(`{
+		"manifestVersion":3,
 		"id":"demo.plugin",
 		"name":"Demo Plugin",
 		"description":"Demo plugin.",
@@ -326,14 +335,15 @@ func TestAdminManifestV2NormalizeValidateAndResolveManagePath(t *testing.T) {
 
 func TestAdminManifestV2RejectsBrokenEntryAndExternalPaths(t *testing.T) {
 	base := Manifest{
-		ID:            "demo.plugin",
-		Name:          "Demo Plugin",
-		Description:   "Demo plugin.",
-		URL:           "https://example.com/demo",
-		Author:        ManifestAuthor{Name: "Demo Studio"},
-		Version:       "1.0.0",
-		Type:          TypePlugin,
-		SForumVersion: "^1.0.0",
+		ManifestVersion: ManifestVersionV3,
+		ID:              "demo.plugin",
+		Name:            "Demo Plugin",
+		Description:     "Demo plugin.",
+		URL:             "https://example.com/demo",
+		Author:          ManifestAuthor{Name: "Demo Studio"},
+		Version:         "1.0.0",
+		Type:            TypePlugin,
+		SForumVersion:   "^1.0.0",
 	}
 
 	cases := []struct {
@@ -379,14 +389,15 @@ func TestAdminManifestV2RejectsBrokenEntryAndExternalPaths(t *testing.T) {
 
 func TestLegacyAdminPagesRemainCompatible(t *testing.T) {
 	manifest := Manifest{
-		ID:            "legacy.plugin",
-		Name:          "Legacy Plugin",
-		Description:   "Legacy plugin.",
-		URL:           "https://example.com/legacy",
-		Author:        ManifestAuthor{Name: "Demo Studio"},
-		Version:       "1.0.0",
-		Type:          TypePlugin,
-		SForumVersion: "^1.0.0",
+		ManifestVersion: ManifestVersionV3,
+		ID:              "legacy.plugin",
+		Name:            "Legacy Plugin",
+		Description:     "Legacy plugin.",
+		URL:             "https://example.com/legacy",
+		Author:          ManifestAuthor{Name: "Demo Studio"},
+		Version:         "1.0.0",
+		Type:            TypePlugin,
+		SForumVersion:   "^1.0.0",
 		AdminPages: []ManifestAdminPage{
 			{Path: "/settings", Label: "Settings", View: "settings", Menu: true},
 		},
@@ -407,16 +418,22 @@ func TestLegacyAdminPagesRemainCompatible(t *testing.T) {
 
 func TestRegionPlacementContributionPayloadValidation(t *testing.T) {
 	base := Manifest{
-		ID:            "demo.regions",
-		Name:          "Region Demo",
-		Description:   "forum.page.regions payload tests.",
-		URL:           "https://example.com/regions",
-		Author:        ManifestAuthor{Name: "Demo"},
-		Version:       "1.0.0",
-		Type:          TypePlugin,
-		SForumVersion: "^1.0.0",
+		ManifestVersion: ManifestVersionV3,
+		ID:              "demo.regions",
+		Name:            "Region Demo",
+		Description:     "forum.page.regions payload tests.",
+		URL:             "https://example.com/regions",
+		Author:          ManifestAuthor{Name: "Demo"},
+		Version:         "1.0.0",
+		Type:            TypePlugin,
+		SForumVersion:   "^1.0.0",
 		Routes: []ManifestRoute{
-			{Path: "/region/ping", Methods: []string{"POST"}, Access: RouteAccessLogin},
+			{
+				ID: "demo.regions.route.ping", ContractVersion: "demo.regions.route.ping@1", Action: RouteActionAdd,
+				Path: "/region/ping", Methods: []string{"POST"}, Guard: GuardCoreLogin, Fallback: "closed",
+				Mode: RouteModeHTTP, Handler: "region.ping", RequestSchema: "demo.regions.ping.request@1",
+				ResponseSchema: "demo.regions.ping.response@1",
+			},
 		},
 	}
 
@@ -497,6 +514,7 @@ func TestRegionPlacementContributionPayloadValidation(t *testing.T) {
 
 func TestManifestContributionsNormalizeAndValidateTopicAction(t *testing.T) {
 	body := []byte(`{
+		"manifestVersion":3,
 		"id":"demo.plugin",
 		"name":"Demo Plugin",
 		"description":"Demo plugin.",
@@ -548,14 +566,15 @@ func TestManifestContributionsNormalizeAndValidateTopicAction(t *testing.T) {
 
 func TestManifestContributionsRejectUnsafeDeclarations(t *testing.T) {
 	base := Manifest{
-		ID:            "demo.plugin",
-		Name:          "Demo Plugin",
-		Description:   "Demo plugin.",
-		URL:           "https://example.com/demo",
-		Author:        ManifestAuthor{Name: "Demo Studio"},
-		Version:       "1.0.0",
-		Type:          TypePlugin,
-		SForumVersion: "^1.0.0",
+		ManifestVersion: ManifestVersionV3,
+		ID:              "demo.plugin",
+		Name:            "Demo Plugin",
+		Description:     "Demo plugin.",
+		URL:             "https://example.com/demo",
+		Author:          ManifestAuthor{Name: "Demo Studio"},
+		Version:         "1.0.0",
+		Type:            TypePlugin,
+		SForumVersion:   "^1.0.0",
 	}
 	valid := ManifestContribution{
 		Point: "forum.topic.actions",
@@ -667,14 +686,15 @@ func TestManifestContributionsRejectUnsafeDeclarations(t *testing.T) {
 // validBaseManifest 构造一个最小合法 manifest，供 C1 Version 校验测试复用。
 func validBaseManifest() Manifest {
 	return Manifest{
-		ID:            "demo.plugin",
-		Name:          "Demo",
-		Description:   "Demo plugin.",
-		URL:           "https://example.com/demo",
-		Author:        ManifestAuthor{Name: "Demo"},
-		Version:       "1.0.0",
-		Type:          "plugin",
-		SForumVersion: "^1.0.0",
+		ManifestVersion: ManifestVersionV3,
+		ID:              "demo.plugin",
+		Name:            "Demo",
+		Description:     "Demo plugin.",
+		URL:             "https://example.com/demo",
+		Author:          ManifestAuthor{Name: "Demo"},
+		Version:         "1.0.0",
+		Type:            "plugin",
+		SForumVersion:   "^1.0.0",
 	}
 }
 
@@ -698,12 +718,22 @@ func TestManifestVersionRejectsPathTraversal(t *testing.T) {
 
 // TestManifestVersionAcceptsValidSemver 验证 C1：合法版本号仍被接受。
 func TestManifestVersionAcceptsValidSemver(t *testing.T) {
-	valid := []string{"1.0.0", "2.5.1-beta.1", "1.0.0+build.123", "0.0.1", "v1.2.3", "1.0"}
+	valid := []string{"1.0.0", "2.5.1-beta.1", "1.0.0+build.123", "0.0.1"}
 	for _, v := range valid {
 		m := validBaseManifest()
 		m.Version = v
 		if err := Validate(m); err != nil {
 			t.Fatalf("expected Version %q to be accepted, got %v", v, err)
+		}
+	}
+}
+
+func TestManifestVersionRejectsNonStrictSemver(t *testing.T) {
+	for _, version := range []string{"v1.2.3", "1.0"} {
+		manifest := validBaseManifest()
+		manifest.Version = version
+		if err := Validate(manifest); !errors.Is(err, ErrInvalidManifest) {
+			t.Fatalf("expected non-strict Version %q to be rejected, got %v", version, err)
 		}
 	}
 }

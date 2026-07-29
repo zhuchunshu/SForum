@@ -63,9 +63,19 @@ refresh_v3_plugin_digest \
   "$STAGING_ROOT/plugins/sforum-content-policy"
 
 build_builtin_plugin "sforum.storage-fs" \
-  "$STAGING_ROOT/plugins/sforum-storage-fs/backend"
+	"$STAGING_ROOT/plugins/sforum-storage-fs/backend"
 refresh_v3_plugin_digest \
-  "$STAGING_ROOT/plugins/sforum-storage-fs"
+	"$STAGING_ROOT/plugins/sforum-storage-fs"
+
+build_builtin_plugin "sforum.storage-ftp" \
+	"$STAGING_ROOT/plugins/sforum-storage-ftp/backend"
+refresh_v3_plugin_digest \
+	"$STAGING_ROOT/plugins/sforum-storage-ftp"
+
+build_builtin_plugin "sforum.storage-sftp" \
+	"$STAGING_ROOT/plugins/sforum-storage-sftp/backend"
+refresh_v3_plugin_digest \
+	"$STAGING_ROOT/plugins/sforum-storage-sftp"
 
 build_builtin_plugin "sforum.search-site" \
   "$STAGING_ROOT/plugins/sforum-search-site/backend"

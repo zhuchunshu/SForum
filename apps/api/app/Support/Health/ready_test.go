@@ -49,3 +49,19 @@ func TestEvaluateOptionalFailureDegradedReady(t *testing.T) {
 		t.Fatalf("expected degraded status, got %q", report.Status)
 	}
 }
+
+func TestApplyRecoveryRequirementForcesNotReady(t *testing.T) {
+	requirement := &RecoveryRequirement{
+		Code: PluginRuntimeRecoveryCode, Component: "plugin_runtime", Message: "stage failed",
+		PublicationRevision: 935,
+		Artifacts:           []RecoveryArtifact{{ExtensionID: "sforum.auth-github", Version: "1.0.0", Digest: "digest"}},
+	}
+	report := ApplyRecoveryRequirement(Evaluate(context.Background(), nil), requirement)
+	if report.Ready || report.Status != "not_ready" || report.Recovery != requirement {
+		t.Fatalf("recovery readiness = %#v", report)
+	}
+	if len(report.Components) != 1 || report.Components[0].Name != "plugin_runtime" ||
+		!report.Components[0].Required || report.Components[0].Status != StatusError {
+		t.Fatalf("recovery component = %#v", report.Components)
+	}
+}

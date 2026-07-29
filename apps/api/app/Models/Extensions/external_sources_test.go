@@ -144,6 +144,18 @@ func writeExternalTestPackage(t *testing.T, root, id, extensionType, readme stri
 	if err := os.WriteFile(filepath.Join(packageRoot, ManifestFileName), []byte(validManifest(id, extensionType)), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.MkdirAll(filepath.Join(packageRoot, "backend"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(packageRoot, "backend", "plugin"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(packageRoot, "migrations"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(packageRoot, "migrations", "001_init.sql"), []byte("SELECT 1;"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(filepath.Join(packageRoot, "README.md"), []byte(readme), 0o644); err != nil {
 		t.Fatal(err)
 	}

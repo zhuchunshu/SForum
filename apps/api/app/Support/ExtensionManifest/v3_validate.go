@@ -66,10 +66,10 @@ func (v *v3Validator) validateBackendAndMigrations() error {
 		if !validPackagePath(backend.Entry) || backend.RPC != "hashicorp-go-plugin" || !validDigest(backend.Digest) {
 			return ErrInvalidManifest
 		}
-		if backend.ProtocolVersion < 1 || backend.ProtocolVersion > 2 {
+		if backend.ProtocolVersion != 2 {
 			return ErrInvalidManifest
 		}
-		if backend.ProtocolVersion == 2 && !validContractVersion(backend.HostAPIVersion) {
+		if !validContractVersion(backend.HostAPIVersion) {
 			return ErrInvalidManifest
 		}
 	}

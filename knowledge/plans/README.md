@@ -20,7 +20,7 @@ directory. Completed, cancelled, and superseded plans live under
 
 | Plan | Status |
 | --- | --- |
-| `2026-07-13-trusted-plugin-theme-platform-v3.md` | **active** -- P13 LTS residual and production-rewire honesty reopen |
+| `2026-07-13-trusted-plugin-theme-platform-v3.md` | **active** -- Protocol migration complete; theme-loader LTS residual and production-rewire honesty remain |
 | `2026-07-13-trusted-plugin-theme-platform-v3-progress.md` | **active** -- durable residual ledger; do not claim 100% |
 | `2026-07-22-v3-production-rewire-honesty-remediation.md` | **ready** -- M0-M8 production-call-chain findings |
 | `2026-07-22-current-head-regression-remediation.md` | **completed** -- M0-M7 closed; archive after the focused 404 handoff consumes it |

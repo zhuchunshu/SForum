@@ -104,8 +104,8 @@ func TestPreflightExactTemplateRuntimeRunsProductionPackagePreflight(t *testing.
 	}
 }
 
-func TestPreflightExactTemplateRuntimeSkipsLegacyAndL0(t *testing.T) {
-	// Legacy V1 theme with page templates must not gain V3 exact declaration enforcement.
+func TestPreflightExactTemplateRuntimeRejectsLegacyAndSkipsL0(t *testing.T) {
+	// Legacy manifests are rejected before template preflight.
 	legacyRoot := t.TempDir()
 	writePackageFile(t, legacyRoot, "templates/home.html", `<main>home</main><sf-home-page></sf-home-page>`)
 	writePackageFile(t, legacyRoot, "theme.json", `{
@@ -122,12 +122,8 @@ func TestPreflightExactTemplateRuntimeSkipsLegacyAndL0(t *testing.T) {
   "type": "theme",
   "sforumVersion": "^1.0.0"
 }`)
-	legacyManifest, err := extensionmanifest.LoadPackage(legacyRoot)
-	if err != nil {
-		t.Fatalf("legacy LoadPackage: %v", err)
-	}
-	if err := PreflightExactTemplateRuntime(legacyRoot, legacyManifest); err != nil {
-		t.Fatalf("legacy V1 must skip exact preflight: %v", err)
+	if _, err := extensionmanifest.LoadPackage(legacyRoot); err == nil {
+		t.Fatal("legacy manifest must be rejected")
 	}
 
 	// L0-only V3 theme (no page templates) must pass.

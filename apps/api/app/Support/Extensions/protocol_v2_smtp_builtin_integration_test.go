@@ -19,12 +19,12 @@ import (
 )
 
 // TestProtocolV2SMTPBuiltinMailProvider 证明默认 sforum.smtp 制品走 gRPC V2，
-// known-slot probe 仍可用，且不再计入 Protocol V1 弃用遥测。
+// known-slot probe 仍可用。
 func TestProtocolV2SMTPBuiltinMailProvider(t *testing.T) {
-	repositoryRoot := protocolV1RepositoryRoot(t)
+	repositoryRoot := protocolTestRepositoryRoot(t)
 	extension := buildProtocolV2SMTPBuiltin(t, repositoryRoot)
 	host, port, wait := startSMTPProbeServer(t)
-	settings := protocolV1BuiltinSettings{
+	settings := protocolTestSettings{
 		"host": host, "port": strconv.Itoa(port), "encryption": "none",
 		"from_address": "noreply@example.com", "from_name": "SForum",
 	}

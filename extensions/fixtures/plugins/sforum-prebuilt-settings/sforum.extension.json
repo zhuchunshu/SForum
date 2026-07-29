@@ -1,4 +1,5 @@
 {
+  "manifestVersion": 3,
   "id": "sforum.fixture-prebuilt-settings",
   "name": "Prebuilt Settings Fixture",
   "description": "Framework-neutral Admin Micro-frontend API v1 fixture with Schema fallback.",

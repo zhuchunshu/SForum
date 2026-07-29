@@ -47,16 +47,16 @@ load archived sessions or completed plans as current context.
 - Decision: `decisions/2026-07-27-github-social-login-builtin-v1.md`
 - Module: `modules/identity.md`
 
-### V3 P13 LTS residual
+### V3 P13 residual
 
-- Status: P0-P12 complete; implementable P13 work is closed except honesty
-  remediation above and compatibility deletions gated by APILTS.
-- Do not remove `sforum.protocol.v1` or
-  `sforum.theme.l1.request-time-loader` before RemoveAfter around 2026-11-28
-  plus zero-shim evidence.
+- Status: P0-P12 complete; Manifest V3 + Protocol V2 are now the only accepted
+  extension contracts. Remaining P13 work is the honesty remediation above and
+  the independent request-time theme-loader APILTS residual.
+- Do not remove `sforum.theme.l1.request-time-loader` before its RemoveAfter
+  date plus zero-shim evidence.
 - Plan: `plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
 - Progress ledger: `plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
-- Handoff: `sessions/2026-07-21-trusted-plugin-theme-platform-v3-p13-lts-residual-handoff.md`
+- Handoff: `sessions/2026-07-29-manifest-v3-protocol-v2-only.md`
 - Module: `modules/extensions.md`
 
 ### Content-addressed asset namespace
@@ -83,7 +83,9 @@ load archived sessions or completed plans as current context.
 - **Extensions:** Manifest V3, exact-artifact trust, lifecycle, Host API v2,
   registries, Page Registry themes, theme-defined virtual system error pages,
   and buildless settings UI are present; extension-owned permission
-  localization is present; production-rewire honesty findings remain open.
+  localization is present; Bootstrap ABI v1 is independent from Protocol V2,
+  and failed initial plugin convergence leaves the API in Host recovery-only
+  mode; production-rewire honesty findings remain open.
 - **Notifications:** V2 is complete: transactional reply/mention/moderation
   fanout, layered policy and own-user preferences, exact-artifact plugin
   emission, durable-revision SSE with REST/reconnect fallback, generic channel
@@ -93,6 +95,34 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Plugin bootstrap startup recovery: restored the historical Bootstrap ABI v1
+  cookie independently from Protocol V2, added cross-built compatibility and
+  built-in version gates, kept the API alive in recovery-only mode on initial
+  convergence failure, and added exact protected-artifact quarantine; manual
+  operator verification remains:
+  `sessions/2026-07-30-plugin-bootstrap-startup-recovery.md`
+- Manifest V3 / Protocol V2 only: package installation and executable runtime
+  now reject every older or missing contract; V1 runtime, SDK, fixtures,
+  built-ins, rollback artifacts, and documentation were removed before public
+  release:
+  `sessions/2026-07-29-manifest-v3-protocol-v2-only.md`,
+  `decisions/2026-07-29-manifest-v3-protocol-v2-only.md`
+- Runtime site URL OAuth callbacks: external-auth display and execution now use
+  the admin `site.url` first and inherit environment `APP_URL` only when empty;
+  request Host remains untrusted, production stays HTTPS-only, and start-time
+  callback transactions remain stable:
+  `sessions/2026-07-29-runtime-site-url-oauth-callback.md`,
+  `decisions/2026-07-29-runtime-site-url-oauth-callback.md`
+- Lifecycle Identity stale recovery: exact failed-disable evidence can now
+  repair the pre-fix `enabled + tombstone` state at startup, while new durable
+  Identity changes commit atomically with the aggregate registry phase;
+  disable, enable, restart, settings restart, and cold-start verification pass:
+  `sessions/2026-07-29-lifecycle-identity-stale-recovery.md`
+- CI quality gate repair: architecture growth was split into focused owners,
+  stale fixtures and performance budgets now match current dependencies, and
+  the PostgreSQL 17 Actions service is migrated on the required-test port while
+  compatibility credentials remain isolated from opt-in suites:
+  `sessions/2026-07-29-ci-quality-gate-fix.md`
 - Lifecycle V2 settings restart: enabled plugins such as
   `sforum.auth-github` now preflight before persistence and restart the exact
   active artifact through Host lifecycle orchestration; stable recovery errors
@@ -111,7 +141,9 @@ load archived sessions or completed plans as current context.
   contains Basic Configuration and Compression Configuration tabs; Basic
   Configuration now includes persistent field guidance and units, while the old
   URL redirects compatibly and the governance extension placement follows
-  Attachment Management; operator verification remains:
+  Attachment Management; the manager now provides server-backed button
+  pagination with filter reset and stale-page recovery; operator verification
+  remains:
   `sessions/2026-07-29-admin-attachment-submenus-handoff.md`
 - Personalization brand assets: compact click/drag uploads now auto-fill URL
   plus attachment ID and show previews; brand SVG is safely rasterized to PNG

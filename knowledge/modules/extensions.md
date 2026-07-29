@@ -15,6 +15,15 @@ does not rebuild Nuxt.
 - Manifest V3, trust/recovery, lifecycle ledger, Host API v2, registry
   families, Page Registry themes, buildless settings UI, catalogs, and P0-P12
   phase gates are present.
+- Package installation accepts only Manifest V3. Executable packages accept
+  only Protocol V2 with a valid Host API V2 declaration; V1 loaders, runtime
+  adapters, SDK entry points, built-in artifacts, fixtures, and rollback paths
+  have been removed before the first public release.
+- Executable process bootstrap is deliberately separate from application
+  protocol negotiation: Host and SDK share the fixed HashiCorp go-plugin
+  Bootstrap ABI v1 cookie, while only the post-launch gRPC application contract
+  is Protocol V2. Cross-built compatibility coverage prevents those version
+  axes from drifting together.
 - Architecture debt M0-M12 is complete.
 - The legacy `Models/Extensions` facade delegates to Catalog, Lifecycle,
   Theme, and Settings collaborators. The runtime `Manager` delegates to
@@ -31,11 +40,21 @@ does not rebuild Nuxt.
   permissions remain scoped to the owning auth/mail plugin. Preflight failure
   leaves settings untouched, while a post-persistence restart failure returns
   an explicit recovery error instead of a generic 500.
+- Lifecycle registry compensation reverses source and target fences before
+  reconciling durable Identity state. Backend-only plugins with zero page
+  contributions are absent from Page Registry and ThemeRuntime; legacy startup
+  registration clears stale state instead of creating a blank artifact that
+  can never satisfy the Lifecycle V2 exact fence.
+- The settings restart coordinator now lives with the existing settings
+  lifecycle owner instead of adding another file to the legacy flat package;
+  role-suggestion decisions likewise live in a focused Identity Registry file.
+  Architecture ratchets remain non-growth constraints rather than being raised
+  to accommodate these changes.
 - Stable contracts now live in `Support/ExtensionRuntime`,
   `ExtensionProtocol`, `ExtensionDatabase`, and `ExtensionComposition`.
   Product Models cannot import the legacy runtime package. The legacy package
-  retains named Manager, ProtocolStarter, Protocol V2 Host, lifecycle, SDK/CLI,
-  and APILTS V1 compatibility consumers under an exact architecture allowlist.
+  retains named Manager, ProtocolStarter, Protocol V2 Host, lifecycle, and
+  SDK/CLI consumers under an exact architecture allowlist.
   Decision: `../decisions/2026-07-28-extension-stable-package-boundaries.md`.
 
 Authoritative sources:
@@ -48,8 +67,8 @@ Authoritative sources:
 - Production remediation:
   `../plans/2026-07-22-v3-production-rewire-honesty-remediation.md`
 - Generated traceability: `../../docs/extensions/v3/catalogs/traceability.md`
-- LTS handoff:
-  `../sessions/2026-07-21-trusted-plugin-theme-platform-v3-p13-lts-residual-handoff.md`
+- Manifest/protocol decision:
+  `../decisions/2026-07-29-manifest-v3-protocol-v2-only.md`
 
 ## Open Production Findings
 
@@ -107,7 +126,7 @@ Prior partial evidence, not closure:
   and restores its catalog identity.
 - A missing artifact's per-row uninstall action uses that same tombstone cleanup
   with only the selected extension ID. Ordinary lifecycle uninstall rejects a
-  missing package before V1/V2 dispatch, so immutable runtime-publication
+  missing package before runtime dispatch, so immutable runtime-publication
   history cannot produce a misleading success followed by catalog reappearance.
 - Containers must mount every external collection read-only into API and
   standalone worker processes.
@@ -141,7 +160,17 @@ Decision: `../decisions/2026-07-22-external-extension-source-roots.md`.
   gate is off.
 - Disable/upgrade closes admission before draining routes, services, jobs, and
   schedules. Recovery supports retry, safe skip where declared, rollback, and
-  out-of-band CLI disable.
+  out-of-band CLI disable. Initial API plugin convergence failure enters a
+  Host-owned recovery-only HTTP mode: health remains live, readiness reports
+  the immutable desired revision/artifacts, and every product route returns
+  `503` without changing active or staged database authority. The recovery
+  readiness and guard paths do not re-read the failed extension catalog, so a
+  malformed or incompatible artifact cannot block the fallback HTTP surface a
+  second time.
+- Ordinary uploaded packages remain recoverable through `extension disable`.
+  A protected built-in/system executable requires `extension quarantine` with
+  the exact active version and 64-character digest; the command atomically
+  disables that artifact and appends immutable runtime and audit evidence.
 - Safe mode, pre-plugin boot health, immutable snapshot rollback, and CLI
   recovery are Host-owned and non-overridable.
 - Raw request/session authority and raw core database access are independent
@@ -218,9 +247,13 @@ catalog IDs do not rely on string replacement as sanitization.
 
 ## Host API And Runtime
 
-- Protocol v2 uses HashiCorp go-plugin gRPC/AutoMTLS and exact
-  Manifest-selected contracts. Protocol v1 is an isolated compatibility path,
-  not a silent downgrade.
+- Protocol V2 uses HashiCorp go-plugin gRPC/AutoMTLS and exact
+  Manifest-selected contracts. No alternate executable transport or silent
+  downgrade is supported.
+- Bootstrap ABI v1, application Protocol V2, and Host API V2 are distinct
+  contracts. Startup diagnostics classify cookie, CPU/exec format, dynamic
+  dependency, and executable-permission failures without exposing raw child
+  stderr through public readiness responses.
 - Each process receives a runtime-scoped Host broker bound to token, artifact,
   grant, epoch, instance, authority, deadline, locale, and trace. Plugin-supplied
   actor identity is rejected unless Host-attested delegation exists.
@@ -387,6 +420,13 @@ Relevant plans:
   one matching runtime full-set revision. They do not apply when successful
   lifecycle evidence exists, do not auto-enable code, and do not relax the
   Identity Registry exact-artifact fence.
+- Lifecycle registry publication now appends durable Identity revisions in the
+  same Serializable PostgreSQL transaction as the aggregate registry phase.
+  A later registry-family failure therefore cannot leave an Identity tombstone
+  committed while the aggregate phase remains at source. Startup also repairs
+  the pre-fix shape only when the exact enabled artifact, latest failed disable,
+  uncommitted publication, source state/registry phases, actor, and audit event
+  all agree; ambiguous or drifted history remains fail-closed.
 - R1-R7 remediation runtime evidence was completed against isolated PostgreSQL:
   real lifecycle disable retired the exact provider publication and made both
   catalog and login start fail closed; real enable, probe, and activation then
@@ -422,6 +462,8 @@ Relevant plans:
 | --- | --- |
 | `apps/api/app/Models/Extensions` | Package, trust, lifecycle, registries, settings |
 | `apps/api/app/Support/ExtensionRuntime` | Plugin process/runtime coordination |
+| `apps/api/app/Support/Extensions/LifecycleRecovery` | Exact-evidence durable publication startup recovery |
+| `apps/api/app/Support/PluginBootstrap` | Shared Host/SDK process bootstrap ABI and startup diagnostics |
 | `apps/api/app/Support/HostAPI` | Host broker and compatibility API |
 | `apps/api/sdk/plugin` | Public Go plugin SDK |
 | `apps/web/app/pages/admin/extensions` | Admin extension surfaces |

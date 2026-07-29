@@ -54,7 +54,7 @@ export const extensionSurfaceMatrix = {
     navigationRegions: open('manifest admin navigation', 'P9'),
     cacheInvalidation: planned('P11'),
     jobs: open('extension.plugin_job and event delivery', 'P7'),
-    lifecycle: open('v1 enable/disable/upgrade/uninstall compatibility', 'P4')
+    lifecycle: open('Protocol V2 enable/disable/upgrade/uninstall lifecycle', 'P4')
   },
   identity: {
     // OAuth callback + browser session issue/renew/destroy remain Host-owned and

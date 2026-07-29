@@ -172,7 +172,10 @@ func graphManifest(id string) Manifest {
 func graphReplaceManifest(id string) Manifest {
 	digest := strings.Repeat("c", 64)
 	manifest := graphManifest(id)
-	manifest.Backend = ManifestBackend{Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 1, Digest: digest}
+	manifest.Backend = ManifestBackend{
+		Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 2,
+		Digest: digest, HostAPIVersion: "sforum.host@2",
+	}
 	manifest.PackageFiles = []ManifestPackageFile{{ID: id + ".file.backend", Kind: "executable", Path: "backend/plugin", Digest: digest}}
 	manifest.Routes = []ManifestRoute{{
 		ID: id + ".route.replace", ContractVersion: id + ".route.replace@1",

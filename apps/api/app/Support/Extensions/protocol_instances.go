@@ -14,16 +14,14 @@ import (
 	"github.com/hashicorp/go-plugin"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
-	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 )
 
 var (
-	ErrProtocolInstanceUnsupported       = errors.New("protocol runtime instance operation is unsupported")
-	ErrProtocolInstancePublished         = errors.New("protocol runtime instance has been published")
-	ErrProtocolInstanceTransitionBlocked = errors.New("protocol v1 and v2 runtime transition requires an explicit stop")
-	ErrProtocolInstanceUnhealthy         = errors.New("protocol runtime instance is unhealthy")
-	ErrProtocolInstanceNotReady          = errors.New("protocol runtime instance is not ready")
+	ErrProtocolInstanceUnsupported = errors.New("protocol runtime instance operation is unsupported")
+	ErrProtocolInstancePublished   = errors.New("protocol runtime instance has been published")
+	ErrProtocolInstanceUnhealthy   = errors.New("protocol runtime instance is unhealthy")
+	ErrProtocolInstanceNotReady    = errors.New("protocol runtime instance is not ready")
 )
 
 type ProtocolRuntimeInstanceState string
@@ -50,7 +48,6 @@ type ProtocolRuntimeInstanceSnapshot struct {
 }
 
 // StagedRuntimeStarter 是 lifecycle coordinator 使用的 V2 exact-process 最小契约。
-// 普通 Starter.Start/Stop 继续保留兼容语义，不代表 V1 支持双实例。
 type StagedRuntimeStarter interface {
 	StartInstance(context.Context, extensions.Extension) (RouteTarget, error)
 	InspectInstance(RuntimeInstanceIdentity) (ProtocolRuntimeInstanceSnapshot, error)
@@ -59,13 +56,6 @@ type StagedRuntimeStarter interface {
 	RunLifecycleInstance(context.Context, RuntimeInstanceIdentity, extensions.Extension, LifecycleInvocation) (LifecycleRunResult, error)
 	StopInstance(context.Context, RuntimeInstanceIdentity) error
 	DiscardInstance(context.Context, RuntimeInstanceIdentity) error
-}
-
-// RetainedRuntimeStopper 只回收已经从完整活动集合退役的 exact process。
-// Protocol V1 不支持 staged replacement，但 trust revoke/disable 仍必须能在
-// full-set 已原子摘除其 transport 后按 instance identity 完成进程清理。
-type RetainedRuntimeStopper interface {
-	StopRetainedInstance(context.Context, RuntimeInstanceIdentity) error
 }
 
 // StagedRuntimeSetStarter publishes the complete desired V2 process set at
@@ -153,8 +143,8 @@ type protocolRuntimeInstance struct {
 	startedAt        time.Time
 }
 
-// Start 保留 Starter 兼容语义：V2 内部完成 stage+publish，V1 继续硬替换。
-// 需要跨 health/drain 边界编排时，V2 调用方应使用 StartInstance + PublishInstance。
+// Start 内部完成 stage+publish。需要跨 health/drain 边界编排时，调用方应使用
+// StartInstance + PublishInstance。
 func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extension) (RouteTarget, error) {
 	if s == nil {
 		return RouteTarget{}, extensions.ErrRuntimeUnavailable
@@ -169,10 +159,6 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 		return RouteTarget{}, err
 	}
 	defer unlock()
-	version := manifestProtocolVersion(extension)
-	if s.protocolTransitionBlockedLocked(extension.ID, version) {
-		return RouteTarget{}, ErrProtocolInstanceTransitionBlocked
-	}
 	return s.startProtocolInstanceLocked(ctx, extension, true)
 }
 
@@ -189,9 +175,6 @@ func (s *ProtocolStarter) StartInstance(ctx context.Context, extension extension
 		return RouteTarget{}, err
 	}
 	defer unlock()
-	if s.protocolTransitionBlockedLocked(extension.ID, 2) {
-		return RouteTarget{}, ErrProtocolInstanceTransitionBlocked
-	}
 	return s.startProtocolInstanceLocked(ctx, extension, false)
 }
 
@@ -230,35 +213,10 @@ func (s *ProtocolStarter) HealthInstance(ctx context.Context, identity RuntimeIn
 	if instance == nil {
 		return PluginHealth{}, protocolInstanceNotFound(identity)
 	}
-	if instance.protocolVersion == 1 {
-		return s.healthProtocolV1InstanceLocked(instance)
-	}
 	if instance.protocolVersion != 2 {
 		return PluginHealth{}, ErrProtocolInstanceUnsupported
 	}
 	return s.healthProtocolInstanceLocked(ctx, instance)
-}
-
-func (s *ProtocolStarter) healthProtocolV1InstanceLocked(instance *protocolRuntimeInstance) (PluginHealth, error) {
-	if instance == nil || instance.client == nil || instance.client.Exited() {
-		return PluginHealth{}, ErrProtocolInstanceUnhealthy
-	}
-	health, err := instance.protocol.Health()
-	healthOK := err == nil && health.OK
-	s.mu.Lock()
-	if current := s.runtimeInstanceLocked(instance.identity); current == instance {
-		current.healthy = healthOK
-		current.ready = healthOK
-		current.readinessChecked = false
-	}
-	s.mu.Unlock()
-	if err != nil {
-		return health, fmt.Errorf("%w: %v", ErrProtocolInstanceUnhealthy, err)
-	}
-	if !health.OK {
-		return health, ErrProtocolInstanceUnhealthy
-	}
-	return health, nil
 }
 
 // PublishInstance 健康检查后原子替换 V2 Service Registry，再切换活动 transport 指针。
@@ -361,9 +319,9 @@ func (s *ProtocolStarter) PublishInstanceSet(
 	publications := make([]hostapi.ServiceRuntimePublication, 0, len(desired))
 	for extensionID, instanceID := range s.activeRuntimeInstances {
 		instance := s.runtimeInstances[extensionID][instanceID]
-		if instance == nil || (instance.protocolVersion != 1 && instance.protocolVersion != 2) {
+		if instance == nil || instance.protocolVersion != 2 {
 			s.mu.Unlock()
-			return nil, nil, ErrProtocolInstanceTransitionBlocked
+			return nil, nil, ErrProtocolInstanceUnsupported
 		}
 	}
 	for _, identity := range desired {
@@ -372,7 +330,7 @@ func (s *ProtocolStarter) PublishInstanceSet(
 			s.mu.Unlock()
 			return nil, nil, protocolInstanceNotFound(identity)
 		}
-		if instance.protocolVersion != 1 && instance.protocolVersion != 2 {
+		if instance.protocolVersion != 2 {
 			s.mu.Unlock()
 			return nil, nil, ErrProtocolInstanceUnsupported
 		}
@@ -380,14 +338,12 @@ func (s *ProtocolStarter) PublishInstanceSet(
 			s.mu.Unlock()
 			return nil, nil, ErrProtocolInstanceUnhealthy
 		}
-		if !instance.ready || (instance.protocolVersion == 2 && !instance.readinessChecked) {
+		if !instance.ready || !instance.readinessChecked {
 			s.mu.Unlock()
 			return nil, nil, ErrProtocolInstanceNotReady
 		}
 		instances = append(instances, instance)
-		if instance.protocolVersion == 2 {
-			publications = append(publications, instance.serviceRuntime)
-		}
+		publications = append(publications, instance.serviceRuntime)
 	}
 	s.mu.Unlock()
 
@@ -586,23 +542,16 @@ func (s *ProtocolStarter) restoreRuntimeInstanceSetUnderLease(
 			s.mu.Unlock()
 			return nil, protocolInstanceNotFound(identity)
 		}
-		if instance.protocolVersion != 1 && instance.protocolVersion != 2 {
+		if instance.protocolVersion != 2 {
 			s.mu.Unlock()
 			return nil, ErrProtocolInstanceUnsupported
 		}
 		instances = append(instances, instance)
-		if instance.protocolVersion == 2 {
-			publications = append(publications, instance.serviceRuntime)
-		}
+		publications = append(publications, instance.serviceRuntime)
 	}
 	s.mu.Unlock()
 	for _, instance := range instances {
-		var err error
-		if instance.protocolVersion == 1 {
-			_, err = s.healthProtocolV1InstanceLocked(instance)
-		} else {
-			_, err = s.healthProtocolInstanceLocked(ctx, instance)
-		}
+		_, err := s.healthProtocolInstanceLocked(ctx, instance)
 		if err != nil {
 			return nil, err
 		}
@@ -706,14 +655,12 @@ func (s *ProtocolStarter) RuntimeInstanceSetVisible(ctx context.Context, identit
 	publications := make([]hostapi.ServiceRuntimePublication, 0, len(desired))
 	for _, identity := range desired {
 		instance := s.runtimeInstanceLocked(identity)
-		if instance == nil || !instance.published || (instance.protocolVersion != 1 && instance.protocolVersion != 2) ||
+		if instance == nil || !instance.published || instance.protocolVersion != 2 ||
 			s.activeRuntimeInstances[identity.ExtensionID] != identity.InstanceID {
 			s.mu.Unlock()
 			return false
 		}
-		if instance.protocolVersion == 2 {
-			publications = append(publications, instance.serviceRuntime)
-		}
+		publications = append(publications, instance.serviceRuntime)
 	}
 	s.mu.Unlock()
 	registry := protocolV2ServiceRegistryFor(s.hostAPI)
@@ -754,9 +701,8 @@ func (s *ProtocolStarter) StopInstance(ctx context.Context, identity RuntimeInst
 	return s.stopProtocolInstanceLocked(identity, false)
 }
 
-// StopRetainedInstance stops one exact V1/V2 process only after complete-set
-// publication has made it unreachable. It cannot stop an active or staged
-// candidate and therefore does not widen Protocol V1 replacement semantics.
+// StopRetainedInstance stops one exact V2 process only after complete-set
+// publication has made it unreachable. It cannot stop an active or staged candidate.
 func (s *ProtocolStarter) StopRetainedInstance(ctx context.Context, identity RuntimeInstanceIdentity) error {
 	if s == nil {
 		return extensions.ErrRuntimeUnavailable
@@ -787,7 +733,7 @@ func (s *ProtocolStarter) StopRetainedInstance(ctx context.Context, identity Run
 	}
 	active := s.activeRuntimeInstances[identity.ExtensionID] == identity.InstanceID
 	retained := instance.everPublished && !instance.published && !active
-	supported := instance.protocolVersion == 1 || instance.protocolVersion == 2
+	supported := instance.protocolVersion == 2
 	s.mu.Unlock()
 	if !supported {
 		return ErrProtocolInstanceUnsupported
@@ -879,42 +825,31 @@ func (s *ProtocolStarter) publishProtocolInstanceLocked(
 		// Registry compensation can remove this exact service set while the
 		// retained process remains published. Idempotent publication must rebuild
 		// it from the startup-frozen handshake instead of trusting process state.
-		if instance.protocolVersion == 2 {
-			registry := protocolV2ServiceRegistryFor(s.hostAPI)
-			if registry == nil {
-				if len(instance.registrations) > 0 {
-					return ProtocolRuntimeInstanceSnapshot{}, fmt.Errorf("protocol v2 service registry is not configured")
-				}
-			} else if err := registry.PublishProtocolV2ServiceRuntime(instance.serviceRuntime); err != nil {
-				return ProtocolRuntimeInstanceSnapshot{}, fmt.Errorf("reconcile protocol v2 services: %w", err)
-			}
-		}
-		return s.InspectInstance(identity)
-	}
-	if instance.protocolVersion == 2 {
-		if s.activeProtocolVersion(identity.ExtensionID) == 1 {
-			return ProtocolRuntimeInstanceSnapshot{}, ErrProtocolInstanceTransitionBlocked
-		}
-		if recheckHealth {
-			if _, err := s.healthProtocolInstanceLocked(ctx, instance); err != nil {
-				return ProtocolRuntimeInstanceSnapshot{}, err
-			}
-		}
 		registry := protocolV2ServiceRegistryFor(s.hostAPI)
 		if registry == nil {
 			if len(instance.registrations) > 0 {
 				return ProtocolRuntimeInstanceSnapshot{}, fmt.Errorf("protocol v2 service registry is not configured")
 			}
 		} else if err := registry.PublishProtocolV2ServiceRuntime(instance.serviceRuntime); err != nil {
-			return ProtocolRuntimeInstanceSnapshot{}, fmt.Errorf("register protocol v2 services: %w", err)
+			return ProtocolRuntimeInstanceSnapshot{}, fmt.Errorf("reconcile protocol v2 services: %w", err)
 		}
-	} else {
-		if s.hasProtocolV2Instance(identity.ExtensionID) {
-			return ProtocolRuntimeInstanceSnapshot{}, ErrProtocolInstanceTransitionBlocked
+		return s.InspectInstance(identity)
+	}
+	if instance.protocolVersion != 2 {
+		return ProtocolRuntimeInstanceSnapshot{}, ErrProtocolInstanceUnsupported
+	}
+	if recheckHealth {
+		if _, err := s.healthProtocolInstanceLocked(ctx, instance); err != nil {
+			return ProtocolRuntimeInstanceSnapshot{}, err
 		}
-		if registry := protocolV2ServiceRegistryFor(s.hostAPI); registry != nil {
-			registry.UnregisterProtocolV2Services(identity.ExtensionID)
+	}
+	registry := protocolV2ServiceRegistryFor(s.hostAPI)
+	if registry == nil {
+		if len(instance.registrations) > 0 {
+			return ProtocolRuntimeInstanceSnapshot{}, fmt.Errorf("protocol v2 service registry is not configured")
 		}
+	} else if err := registry.PublishProtocolV2ServiceRuntime(instance.serviceRuntime); err != nil {
+		return ProtocolRuntimeInstanceSnapshot{}, fmt.Errorf("register protocol v2 services: %w", err)
 	}
 
 	var previous *protocolRuntimeInstance
@@ -929,9 +864,6 @@ func (s *ProtocolStarter) publishProtocolInstanceLocked(
 		previous = s.runtimeInstances[identity.ExtensionID][previousID]
 		if previous != nil {
 			previous.published = false
-			if instance.protocolVersion == 1 {
-				delete(s.runtimeInstances[identity.ExtensionID], previousID)
-			}
 		}
 	}
 	instance.published = true
@@ -942,14 +874,6 @@ func (s *ProtocolStarter) publishProtocolInstanceLocked(
 	snapshot := protocolRuntimeSnapshot(instance)
 	s.mu.Unlock()
 
-	// V1 沿用单实例硬替换；V2 previous 则保留供 drain/rollback。
-	if instance.protocolVersion == 1 && previous != nil && previous.client != nil {
-		if previous.databaseLease != nil {
-			previous.databaseLease.stopHeartbeat()
-		}
-		previous.client.Kill()
-		_ = s.revokeProtocolDatabaseLease(previous)
-	}
 	return snapshot, nil
 }
 
@@ -1072,48 +996,6 @@ func (s *ProtocolStarter) activeProtocolInstanceID(extensionID string) string {
 	return s.activeRuntimeInstances[extensionID]
 }
 
-func (s *ProtocolStarter) activeProtocolVersion(extensionID string) int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	instanceID := s.activeRuntimeInstances[extensionID]
-	instance := s.runtimeInstances[extensionID][instanceID]
-	if instance == nil {
-		return 0
-	}
-	return instance.protocolVersion
-}
-
-func (s *ProtocolStarter) hasProtocolV2Instance(extensionID string) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for _, instance := range s.runtimeInstances[extensionID] {
-		if instance.protocolVersion == 2 {
-			return true
-		}
-	}
-	return false
-}
-
-// Caller holds the extension lifecycle lock.
-func (s *ProtocolStarter) protocolTransitionBlockedLocked(extensionID string, version int) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if version == 1 {
-		for _, instance := range s.runtimeInstances[extensionID] {
-			if instance.protocolVersion == 2 {
-				return true
-			}
-		}
-		return false
-	}
-	if version == 2 {
-		activeID := s.activeRuntimeInstances[extensionID]
-		active := s.runtimeInstances[extensionID][activeID]
-		return active != nil && active.protocolVersion == 1
-	}
-	return false
-}
-
 func protocolRuntimeSnapshot(instance *protocolRuntimeInstance) ProtocolRuntimeInstanceSnapshot {
 	state := ProtocolRuntimeStaged
 	if instance.published {
@@ -1150,14 +1032,7 @@ func normalizeProtocolRuntimeInstanceSet(identities []RuntimeInstanceIdentity) (
 }
 
 func manifestProtocolVersion(extension extensions.Extension) int {
-	if extension.Manifest.Backend.ProtocolVersion == 0 {
-		return 1
-	}
 	return extension.Manifest.Backend.ProtocolVersion
-}
-
-func newProtocolRuntimeInstanceID() string {
-	return "legacy-" + appevents.NewID()
 }
 
 func protocolInstanceNotFound(identity RuntimeInstanceIdentity) error {

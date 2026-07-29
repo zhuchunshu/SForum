@@ -149,70 +149,21 @@ type AttachmentSettings struct {
 	// Candidates 为 core 驱动 + 已启用且声明槽位的插件（E6.1）。
 	Candidates []storage.Candidate `json:"candidates"`
 	// Provider 为 attachment.provider：core 驱动 id 或 plugin:<extensionId>。
-	Provider               string             `json:"provider"`
-	UploadEnabled          bool               `json:"uploadEnabled"`
-	PathTemplate           string             `json:"pathTemplate"`
-	PublicBaseURL          string             `json:"publicBaseUrl"`
-	MaxFileSizeMB          int                `json:"maxFileSizeMb"`
-	AllowedExtensions      []string           `json:"allowedExtensions"`
-	AllowedMIMETypes       []string           `json:"allowedMimeTypes"`
-	DefaultVisibility      string             `json:"defaultVisibility"`
-	CleanupOrphanAfterDays int                `json:"cleanupOrphanAfterDays"`
-	Local                  LocalSettings      `json:"local"`
-	AliyunOSS              AliyunOSSSettings  `json:"aliyunOss"`
-	TencentCOS             TencentCOSSettings `json:"tencentCos"`
-	FTP                    FTPSettings        `json:"ftp"`
-	SFTP                   SFTPSettings       `json:"sftp"`
+	Provider               string        `json:"provider"`
+	UploadEnabled          bool          `json:"uploadEnabled"`
+	PathTemplate           string        `json:"pathTemplate"`
+	PublicBaseURL          string        `json:"publicBaseUrl"`
+	MaxFileSizeMB          int           `json:"maxFileSizeMb"`
+	AllowedExtensions      []string      `json:"allowedExtensions"`
+	AllowedMIMETypes       []string      `json:"allowedMimeTypes"`
+	DefaultVisibility      string        `json:"defaultVisibility"`
+	CleanupOrphanAfterDays int           `json:"cleanupOrphanAfterDays"`
+	Local                  LocalSettings `json:"local"`
 }
 
 type LocalSettings struct {
 	Root         string `json:"root"`
 	PublicPrefix string `json:"publicPrefix"`
-}
-
-type AliyunOSSSettings struct {
-	Endpoint           string `json:"endpoint"`
-	Bucket             string `json:"bucket"`
-	Region             string `json:"region"`
-	AccessKeyID        string `json:"accessKeyId"`
-	AccessKeySecret    string `json:"accessKeySecret,omitempty"`
-	AccessKeySecretSet bool   `json:"accessKeySecretSet"`
-}
-
-type TencentCOSSettings struct {
-	Region       string `json:"region"`
-	Bucket       string `json:"bucket"`
-	SecretID     string `json:"secretId"`
-	SecretKey    string `json:"secretKey,omitempty"`
-	SecretKeySet bool   `json:"secretKeySet"`
-	CDNDomain    string `json:"cdnDomain"`
-}
-
-type FTPSettings struct {
-	Host          string `json:"host"`
-	Port          int    `json:"port"`
-	Username      string `json:"username"`
-	Password      string `json:"password,omitempty"`
-	PasswordSet   bool   `json:"passwordSet"`
-	RootPath      string `json:"rootPath"`
-	Passive       bool   `json:"passive"`
-	ExplicitTLS   bool   `json:"explicitTls"`
-	PublicBaseURL string `json:"publicBaseUrl"`
-}
-
-type SFTPSettings struct {
-	Host               string `json:"host"`
-	Port               int    `json:"port"`
-	Username           string `json:"username"`
-	Password           string `json:"password,omitempty"`
-	PasswordSet        bool   `json:"passwordSet"`
-	PrivateKey         string `json:"privateKey,omitempty"`
-	PrivateKeySet      bool   `json:"privateKeySet"`
-	Passphrase         string `json:"passphrase,omitempty"`
-	PassphraseSet      bool   `json:"passphraseSet"`
-	RootPath           string `json:"rootPath"`
-	HostKeyFingerprint string `json:"hostKeyFingerprint"`
-	PublicBaseURL      string `json:"publicBaseUrl"`
 }
 
 type CleanupResult struct {

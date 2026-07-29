@@ -21,15 +21,14 @@ type Matrix struct {
 
 // Cell is one compatibility farm cell.
 type Cell struct {
-	ID                   string `yaml:"id" json:"id"`
-	SForum               string `yaml:"sforum" json:"sforum"`
-	Protocol             string `yaml:"protocol" json:"protocol"`
-	Manifest             string `yaml:"manifest" json:"manifest"`
-	Database             string `yaml:"database" json:"database"`
-	Browser              string `yaml:"browser" json:"browser"`
-	Status               string `yaml:"status" json:"status"` // required|deprecated
-	ExpectsShimTelemetry bool   `yaml:"expects_shim_telemetry" json:"expectsShimTelemetry,omitempty"`
-	Command              string `yaml:"command" json:"command,omitempty"`
+	ID       string `yaml:"id" json:"id"`
+	SForum   string `yaml:"sforum" json:"sforum"`
+	Protocol string `yaml:"protocol" json:"protocol"`
+	Manifest string `yaml:"manifest" json:"manifest"`
+	Database string `yaml:"database" json:"database"`
+	Browser  string `yaml:"browser" json:"browser"`
+	Status   string `yaml:"status" json:"status"` // required|deprecated
+	Command  string `yaml:"command" json:"command,omitempty"`
 }
 
 // LoadMatrix reads a YAML matrix file.
@@ -75,7 +74,7 @@ func (m Matrix) RequiredCells() []Cell {
 	return out
 }
 
-// DeprecatedCells returns deprecated fixture cells (shim telemetry expected).
+// DeprecatedCells returns deprecated fixture cells.
 func (m Matrix) DeprecatedCells() []Cell {
 	out := make([]Cell, 0)
 	for _, cell := range m.Cells {

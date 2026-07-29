@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 const (
@@ -223,6 +225,15 @@ type Store interface {
 type PublicationStore interface {
 	Reconcile(ctx context.Context, input ReconcilePublicationInput) (DurableState, error)
 	LoadDurableState(ctx context.Context) (DurableState, error)
+}
+
+// TransactionalPublicationStore lets a Host-owned aggregate publication keep
+// Identity Registry revisions in the same PostgreSQL transaction as its
+// durable decision marker.
+type TransactionalPublicationStore interface {
+	PublicationStore
+	LoadDurableStateTx(ctx context.Context, tx pgx.Tx) (DurableState, error)
+	ReconcileTx(ctx context.Context, tx pgx.Tx, input ReconcilePublicationInput) (DurableState, error)
 }
 
 // LegacyPublicationAdopter is an optional, narrowly scoped capability for a

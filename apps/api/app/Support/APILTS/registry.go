@@ -13,10 +13,6 @@ import (
 // SchemaVersion is the LTS registry contract.
 const SchemaVersion = "sforum.api-lts@1"
 
-// ProtocolV1ContractID is the stable LTS id for net/rpc protocol shims.
-// Production ProtocolStarter records shim calls against this id.
-const ProtocolV1ContractID = "sforum.protocol.v1"
-
 // ThemeRequestTimeLoaderContractID tracks request-time LoadTemplate/RenderTemplate
 // residual used only when ThemeRuntimeSnapshot does not cover a contribution.
 // Activation-time package validation must not record this id.
@@ -78,13 +74,6 @@ func New() *Registry {
 		{ID: "sforum.host.v2", Kind: "host", Status: "current", Introduced: now},
 		{ID: "sforum.protocol.v2", Kind: "protocol", Status: "current", Introduced: now},
 		{ID: "sforum.manifest.v3", Kind: "manifest", Status: "current", Introduced: now},
-		{
-			ID: ProtocolV1ContractID, Kind: "protocol", Status: "deprecated",
-			Introduced:   now.Add(-365 * 24 * time.Hour),
-			DeprecatedAt: now.Add(-30 * 24 * time.Hour),
-			RemoveAfter:  now.Add(-30*24*time.Hour + DefaultMinDeprecation),
-			Replacement:  "sforum.protocol.v2", ShimEnabled: true,
-		},
 		{
 			// 请求路径上的 LoadTemplate/{{var}} 正则渲染；ThemeRuntimeSnapshot 热路径不记数。
 			ID: ThemeRequestTimeLoaderContractID, Kind: "frontend", Status: "deprecated",

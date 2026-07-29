@@ -9,11 +9,7 @@ import (
 )
 
 const (
-	ProviderLocal      = "local"
-	ProviderAliyunOSS  = "aliyun_oss"
-	ProviderTencentCOS = "tencent_cos"
-	ProviderFTP        = "ftp"
-	ProviderSFTP       = "sftp"
+	ProviderLocal = "local"
 )
 
 var (
@@ -51,67 +47,16 @@ type Config struct {
 	PublicBaseURL string
 
 	Local LocalConfig
-	OSS   AliyunOSSConfig
-	COS   TencentCOSConfig
-	FTP   FTPConfig
-	SFTP  SFTPConfig
 }
 
 type LocalConfig struct {
 	PublicPrefix string
 }
 
-type AliyunOSSConfig struct {
-	Endpoint        string
-	Bucket          string
-	Region          string
-	AccessKeyID     string
-	AccessKeySecret string
-}
-
-type TencentCOSConfig struct {
-	Region    string
-	Bucket    string
-	SecretID  string
-	SecretKey string
-	CDNDomain string
-}
-
-type FTPConfig struct {
-	Host          string
-	Port          int
-	Username      string
-	Password      string
-	RootPath      string
-	Passive       bool
-	ExplicitTLS   bool
-	PublicBaseURL string
-}
-
-type SFTPConfig struct {
-	Host               string
-	Port               int
-	Username           string
-	Password           string
-	PrivateKey         string
-	Passphrase         string
-	RootPath           string
-	HostKeyFingerprint string
-	PublicBaseURL      string
-}
-
 func NewAdapter(config Config) (Adapter, error) {
 	switch strings.TrimSpace(config.Provider) {
 	case "", ProviderLocal:
 		return NewLocalAdapter(config.LocalRoot, firstNonBlank(config.Local.PublicPrefix, config.PublicBaseURL))
-	case ProviderAliyunOSS:
-		return NewAliyunOSSAdapter(config.OSS, config.PublicBaseURL)
-	case ProviderTencentCOS:
-		return NewTencentCOSAdapter(config.COS, config.PublicBaseURL)
-	case ProviderFTP:
-		return NewFTPAdapter(config.FTP)
-	case ProviderSFTP:
-		return NewSFTPAdapter(config.SFTP)
 	default:
 		return nil, ErrInvalidConfig
 	}

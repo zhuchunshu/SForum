@@ -23,6 +23,26 @@ func PublishPluginRuntimeRecoveryTx(
 	tx pgx.Tx,
 	mutate func() ([]string, error),
 ) (PluginRuntimePublication, error) {
+	return publishPluginRuntimeRecoveryTx(ctx, tx, mutate, false)
+}
+
+// PublishProtectedPluginRuntimeQuarantineTx is the exact-artifact emergency
+// path for built-in/system executables. The caller must CAS the protected row
+// before returning its id; this function only accepts protected disabled rows.
+func PublishProtectedPluginRuntimeQuarantineTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	mutate func() ([]string, error),
+) (PluginRuntimePublication, error) {
+	return publishPluginRuntimeRecoveryTx(ctx, tx, mutate, true)
+}
+
+func publishPluginRuntimeRecoveryTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	mutate func() ([]string, error),
+	protected bool,
+) (PluginRuntimePublication, error) {
 	if ctx == nil || tx == nil || mutate == nil {
 		return PluginRuntimePublication{}, ErrPluginRuntimePublicationConflict
 	}
@@ -66,7 +86,7 @@ func PublishPluginRuntimeRecoveryTx(
 	if err != nil {
 		return PluginRuntimePublication{}, err
 	}
-	if err := validateRecoveryDisabledExtensionsTx(ctx, tx, disabledIDs, disabled); err != nil {
+	if err := validateRecoveryDisabledExtensionsTx(ctx, tx, disabledIDs, disabled, protected); err != nil {
 		return PluginRuntimePublication{}, err
 	}
 
@@ -101,6 +121,7 @@ func validateRecoveryDisabledExtensionsTx(
 	tx pgx.Tx,
 	ids []string,
 	canonical map[string]struct{},
+	protected bool,
 ) error {
 	if len(canonical) == 0 {
 		return nil
@@ -123,8 +144,9 @@ func validateRecoveryDisabledExtensionsTx(
 		if err := rows.Scan(&id, &status, &source, &isSystem); err != nil {
 			return fmt.Errorf("scan recovery disabled extension: %w", err)
 		}
+		isProtected := source == SourceBuiltin || isSystem
 		if _, expected := canonical[id]; !expected || status != StatusDisabled ||
-			source == SourceBuiltin || isSystem {
+			isProtected != protected {
 			return ErrPluginRuntimePublicationConflict
 		}
 		seen[id] = struct{}{}

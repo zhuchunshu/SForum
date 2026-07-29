@@ -131,8 +131,7 @@ func startPluginRuntimeCoordinator(
 			onReady func(),
 			onError func(error),
 		) (pluginRuntimeCoordinatorRunner, error) {
-			// API 与 standalone worker 共用此路径：bootstrap 首轮 full-set
-			// 允许在单 barrier 内 cold-start exact Protocol V1；成功后窗口关闭。
+			// API 与 standalone worker 共用同一个 Protocol V2 full-set 收敛路径。
 			applier, err := newProductionPluginRuntimeFullSetApplier(
 				config.Manager, config.Store,
 			)
@@ -473,10 +472,10 @@ func validPluginRuntimeCoordinatorGenesis(publication extensions.PluginRuntimePu
 }
 
 // newProductionPluginRuntimeFullSetApplier 是 API 与 worker 共用的 production
-// full-set 适配器构造点。initial-bootstrap Protocol V1 兼容窗口只在此开启。
+// Protocol V2 full-set 适配器构造点。
 func newProductionPluginRuntimeFullSetApplier(
 	manager *extensionsruntime.Manager,
 	inventory extensionsruntime.PluginRuntimeFullSetInventory,
 ) (*extensionsruntime.ManagerPluginRuntimeFullSetApplier, error) {
-	return extensionsruntime.NewInitialBootstrapManagerPluginRuntimeFullSetApplier(manager, inventory)
+	return extensionsruntime.NewManagerPluginRuntimeFullSetApplier(manager, inventory)
 }

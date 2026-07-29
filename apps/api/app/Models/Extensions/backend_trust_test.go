@@ -68,6 +68,7 @@ func TestTechAdminCanInstallFrontendOnlyPlugin(t *testing.T) {
 	service := NewService(&fakeExtensionStore{}, t.TempDir())
 	// 无 backend.entry：纯前端/配置类插件仍可由 plugin.manage 安装。
 	manifest := `{
+		"manifestVersion": 3,
 		"id": "ui.plugin",
 		"name": "UI Plugin",
 		"description": "Frontend only plugin.",
@@ -75,8 +76,7 @@ func TestTechAdminCanInstallFrontendOnlyPlugin(t *testing.T) {
 		"author": {"name": "SForum Team"},
 		"version": "1.0.0",
 		"type": "plugin",
-		"sforumVersion": "^1.0.0",
-		"frontend": {"layer": "frontend/layer"}
+		"sforumVersion": "^1.0.0"
 	}`
 	installed, err := service.InstallArchive(context.Background(), techAdminPluginManager(), ArchiveInput{
 		FileName: "ui.zip",
@@ -111,10 +111,9 @@ func TestTechAdminCannotEnableUploadedBackendPlugin(t *testing.T) {
 }
 
 func TestTechAdminCanEnableBuiltinBackendPlugin(t *testing.T) {
-	item := withInstalledPackage(t, protectedBuiltinExtension("sforum.demo", TypePlugin))
-	item.Manifest.Backend = ManifestBackend{Entry: "backend/plugin"}
+	item := protectedBuiltinExtension("sforum.demo", TypePlugin)
+	item.Manifest = installedExtension(item.ID, TypePlugin, ManifestBackend{Entry: "backend/plugin"}).Manifest
 	item.Status = StatusInstalled
-	// withInstalledPackage 后写入口文件。
 	item = withInstalledPackage(t, item)
 	store := &fakeExtensionStore{items: map[string]Extension{item.ID: item}}
 	service := NewServiceWithRuntime(store, t.TempDir(), &fakeRuntimeManager{})

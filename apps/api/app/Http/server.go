@@ -25,6 +25,7 @@ import (
 type healthResponse struct {
 	Name             string    `json:"name"`
 	Status           string    `json:"status"`
+	RecoveryRequired bool      `json:"recoveryRequired,omitempty"`
 	Environment      string    `json:"environment"`
 	Locale           string    `json:"locale"`
 	SupportedLocales []string  `json:"supportedLocales"`
@@ -57,6 +58,9 @@ type Dependencies struct {
 	BearerTokens BearerAuthenticator
 	// Auditor 可选：PAT 写请求轻量审计。
 	Auditor audit.Writer
+	// Recovery restricts HTTP to Host-owned liveness/readiness after plugin
+	// bootstrap fails. It does not enable or mutate any extension artifact.
+	Recovery *health.RecoveryRequirement
 }
 
 func NewApp(cfg config.Config, logger *slog.Logger, deps Dependencies) *fiber.App {
@@ -106,6 +110,7 @@ func NewApp(cfg config.Config, logger *slog.Logger, deps Dependencies) *fiber.Ap
 	app.Use(recover.New())
 	// 响应压缩：根据 Accept-Encoding 自动 brotli/gzip，降低带宽占用。
 	app.Use(compress.New(compress.Config{Level: compress.Level(cfg.CompressLevel)}))
+	app.Use(recoveryOnlyMiddleware(deps.Recovery))
 	app.Use(routeRegistryIngressMiddleware(deps.RoutePlans))
 	// 写接口限流：跳过 GET/HEAD/OPTIONS，按 IP 限制单位时间内的写操作次数。
 	// Storage 注入时为分布式限流（多实例共享），否则退化为进程内存限流。
@@ -186,9 +191,14 @@ func registerRoutes(app *fiber.App, cfg config.Config, deps Dependencies) {
 	// Liveness：进程存活即可，不探测依赖（K8s/Compose liveness probe 用）。
 	api.Get("/health", func(c fiber.Ctx) error {
 		settings := runtimeSettings(c.Context(), cfg, deps.Options)
+		status := "ok"
+		if deps.Recovery.Active() {
+			status = "recovery_required"
+		}
 		return OK(c, healthResponse{
 			Name:             settings.SiteName,
-			Status:           "ok",
+			Status:           status,
+			RecoveryRequired: deps.Recovery.Active(),
 			Environment:      cfg.AppEnv,
 			Locale:           settings.DefaultLocale,
 			SupportedLocales: settings.SupportedLocales,
@@ -216,6 +226,20 @@ func registerRoutes(app *fiber.App, cfg config.Config, deps Dependencies) {
 		}
 		return OK(c, report)
 	})
+}
+
+func recoveryOnlyMiddleware(requirement *health.RecoveryRequirement) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		if !requirement.Active() {
+			return c.Next()
+		}
+		switch c.Path() {
+		case "/api/v1/health", "/api/v1/ready":
+			return c.Next()
+		default:
+			return JSON(c, fiber.StatusServiceUnavailable, "service.recovery_required", requirement)
+		}
+	}
 }
 
 func runtimeSettings(ctx context.Context, cfg config.Config, service *options.Service) options.RuntimeSettings {

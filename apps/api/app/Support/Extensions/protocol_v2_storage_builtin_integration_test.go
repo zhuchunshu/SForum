@@ -17,12 +17,12 @@ import (
 )
 
 // TestProtocolV2StorageBuiltinRoundTrip 证明默认 sforum.storage-fs 制品走 gRPC V2，
-// known-slot 分块 Put/Open/Delete 可用，且不再计入 Protocol V1 弃用遥测。
+// known-slot 分块 Put/Open/Delete 可用。
 func TestProtocolV2StorageBuiltinRoundTrip(t *testing.T) {
-	repositoryRoot := protocolV1RepositoryRoot(t)
+	repositoryRoot := protocolTestRepositoryRoot(t)
 	extension := buildProtocolV2StorageBuiltin(t, repositoryRoot)
 	root := filepath.Join(t.TempDir(), "objects")
-	settings := protocolV1BuiltinSettings{
+	settings := protocolTestSettings{
 		"root_path": root, "public_base_url": "https://cdn.example.test/files",
 	}
 	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{

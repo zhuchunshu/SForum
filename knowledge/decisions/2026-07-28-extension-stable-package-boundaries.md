@@ -12,8 +12,8 @@ Accepted
 database authority, registry composition, product adapters, and compatibility
 shims in one Go package. M9 and M10 established focused collaborators and
 single mutable state owners, but moving every implementation mechanically
-would recreate cycles or duplicate runtime locks. Protocol V1 also remains an
-active APILTS compatibility surface through its declared removal window.
+would recreate cycles or duplicate runtime locks. The temporary protocol
+compatibility surface described at the time was removed before public release.
 
 ## Decision
 
@@ -32,8 +32,8 @@ active APILTS compatibility surface through its declared removal window.
 - Product Models cannot import `Support/Extensions`; they use consumer-owned
   or stable interfaces.
 - Bootstrap is the concrete assembly layer. The legacy package may retain
-  Manager, ProtocolStarter, V2 Host integration, lifecycle composition, and
-  APILTS V1 adapters as named compatibility implementations, but new
+  Manager, ProtocolStarter, V2 Host integration, and lifecycle composition as
+  named implementations, but new
   production imports are forbidden by an exact allowlist ratchet.
 
 ## Consequences

@@ -8,7 +8,7 @@
   "version": "1.0.0",
   "type": "plugin",
   "sforumVersion": "^1.0.0",
-  "backend": {"entry": "backend/plugin", "rpc": "hashicorp-go-plugin", "protocolVersion": 1, "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+  "backend": {"entry": "backend/plugin", "rpc": "hashicorp-go-plugin", "protocolVersion": 2, "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "hostApiVersion": "sforum.host@2"},
   "packageFiles": [
     {"id": "fixture.raw-db.file.backend", "kind": "executable", "path": "backend/plugin", "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
   ],

@@ -62,3 +62,23 @@ func TestDevelopmentVersionIncludesShortCommitOnce(t *testing.T) {
 		t.Fatalf("development summary = %q", summary)
 	}
 }
+
+func TestCoreCompatibilityVersionSeparatesDevelopmentBuildIdentity(t *testing.T) {
+	originalCurrent := Current
+	t.Cleanup(func() { Current = originalCurrent })
+
+	Current = "dev"
+	if got := CoreCompatibilityVersion(); got != "1.0.0" {
+		t.Fatalf("development Core compatibility version = %q", got)
+	}
+
+	Current = " 2.8.0-beta.1 "
+	if got := CoreCompatibilityVersion(); got != "2.8.0-beta.1" {
+		t.Fatalf("injected Core compatibility version = %q", got)
+	}
+
+	Current = "not-semver"
+	if got := CoreCompatibilityVersion(); got != "not-semver" {
+		t.Fatalf("invalid injected version was rewritten to %q", got)
+	}
+}

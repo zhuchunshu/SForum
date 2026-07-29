@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -21,6 +22,10 @@ import (
 var (
 	errRecoveryExtensionNotFound = errors.New("recovery: extension not found")
 	errRecoveryProtected         = errors.New("recovery: built-in or system extension is protected")
+	errRecoveryNotProtected      = errors.New("recovery: extension is not a built-in or system extension")
+	errRecoveryArtifactMismatch  = errors.New("recovery: exact extension artifact does not match")
+	errRecoveryNotEnabled        = errors.New("recovery: extension is not enabled")
+	recoveryDigestPattern        = regexp.MustCompile(`^[0-9a-f]{64}$`)
 )
 
 type recoveryExtension struct {
@@ -38,6 +43,7 @@ type recoveryRepository interface {
 	List(context.Context) ([]recoveryExtension, error)
 	Disable(context.Context, string) (recoveryExtension, error)
 	DisableAllThirdParty(context.Context) ([]recoveryExtension, error)
+	QuarantineProtected(context.Context, string, string, string) (recoveryExtension, error)
 }
 
 type postgresRecoveryRepository struct {
@@ -47,6 +53,12 @@ type postgresRecoveryRepository struct {
 type recoveryOptions struct {
 	DatabaseURL string
 	JSON        bool
+}
+
+type recoveryQuarantineOptions struct {
+	recoveryOptions
+	ExpectedVersion string
+	ExpectedDigest  string
 }
 
 func newExtensionRecoveryListCommand() *cobra.Command {
@@ -124,6 +136,40 @@ func newExtensionRecoveryDisableAllCommand() *cobra.Command {
 		},
 	}
 	addRecoveryFlags(cmd, &opts, false)
+	return cmd
+}
+
+func newExtensionRecoveryQuarantineCommand() *cobra.Command {
+	opts := recoveryQuarantineOptions{}
+	cmd := &cobra.Command{
+		Use:   "quarantine <extension-id>",
+		Short: "Quarantine one exact built-in or system artifact out of band",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			extensionID := strings.TrimSpace(args[0])
+			expectedVersion := strings.TrimSpace(opts.ExpectedVersion)
+			expectedDigest := strings.TrimSpace(opts.ExpectedDigest)
+			if expectedVersion == "" || expectedDigest == "" {
+				return fmt.Errorf("--expect-version and --expect-digest are required")
+			}
+			if !recoveryDigestPattern.MatchString(expectedDigest) {
+				return fmt.Errorf("--expect-digest must be a 64-character lowercase SHA-256 digest")
+			}
+			return withRecoveryRepository(cmd.Context(), opts.DatabaseURL, func(store recoveryRepository) error {
+				item, err := store.QuarantineProtected(
+					cmd.Context(), extensionID, expectedVersion, expectedDigest,
+				)
+				if err != nil {
+					return err
+				}
+				cmd.Printf("quarantined %s (%s %s %s)\n", item.ID, item.Type, item.Version, item.PackageDigest)
+				return nil
+			})
+		},
+	}
+	addRecoveryFlags(cmd, &opts.recoveryOptions, false)
+	cmd.Flags().StringVar(&opts.ExpectedVersion, "expect-version", "", "Exact active version to quarantine")
+	cmd.Flags().StringVar(&opts.ExpectedDigest, "expect-digest", "", "Exact active package digest to quarantine")
 	return cmd
 }
 
@@ -258,6 +304,71 @@ func (s *postgresRecoveryRepository) DisableAllThirdParty(ctx context.Context) (
 		items[index].Status = "disabled"
 	}
 	return items, nil
+}
+
+func (s *postgresRecoveryRepository) QuarantineProtected(
+	ctx context.Context,
+	extensionID string,
+	expectedVersion string,
+	expectedDigest string,
+) (recoveryExtension, error) {
+	if extensionID == "" {
+		return recoveryExtension{}, errRecoveryExtensionNotFound
+	}
+	if expectedVersion == "" || !recoveryDigestPattern.MatchString(expectedDigest) {
+		return recoveryExtension{}, errRecoveryArtifactMismatch
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return recoveryExtension{}, fmt.Errorf("begin protected extension quarantine: %w", err)
+	}
+	defer func() { _ = tx.Rollback(context.Background()) }()
+
+	var item recoveryExtension
+	publication, err := extensions.PublishProtectedPluginRuntimeQuarantineTx(ctx, tx, func() ([]string, error) {
+		var scanErr error
+		item, scanErr = scanRecoveryExtension(tx.QueryRow(
+			ctx,
+			recoveryExtensionSelectSQL()+` WHERE extensions.id = $1 FOR UPDATE OF extensions`,
+			extensionID,
+		))
+		if errors.Is(scanErr, pgx.ErrNoRows) {
+			return nil, errRecoveryExtensionNotFound
+		}
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		if item.Source != "builtin" && !item.IsSystem {
+			return nil, errRecoveryNotProtected
+		}
+		if item.Status != "enabled" {
+			return nil, errRecoveryNotEnabled
+		}
+		if item.Version != expectedVersion || item.PackageDigest != expectedDigest {
+			return nil, fmt.Errorf(
+				"%w: active=%s@%s requested=%s@%s",
+				errRecoveryArtifactMismatch,
+				item.Version,
+				item.PackageDigest,
+				expectedVersion,
+				expectedDigest,
+			)
+		}
+		if err := disableRecoveryExtensions(ctx, tx, []recoveryExtension{item}, "quarantine_protected_exact"); err != nil {
+			return nil, err
+		}
+		return []string{item.ID}, nil
+	})
+	if err != nil {
+		return recoveryExtension{}, err
+	}
+	if err := commitRecoveryPublication(
+		ctx, tx, extensions.NewPostgresStore(s.pool), publication,
+	); err != nil {
+		return recoveryExtension{}, fmt.Errorf("commit protected extension quarantine: %w", err)
+	}
+	item.Status = "disabled"
+	return item, nil
 }
 
 func commitRecoveryPublication(

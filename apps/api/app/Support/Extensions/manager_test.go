@@ -39,7 +39,7 @@ func TestManagerTracksStartStopStatusAndRouteTargets(t *testing.T) {
 func TestManagerExposesProtocolDeprecationTelemetry(t *testing.T) {
 	lastCall := time.Date(2026, 7, 13, 18, 0, 0, 0, time.UTC)
 	starter := telemetryStarter{snapshot: ProtocolTelemetrySnapshot{
-		ProtocolVersion: 1, Transport: "net/rpc", Deprecated: true,
+		ProtocolVersion: 2, Transport: "grpc",
 		StartCount: 2, CallCount: 9, LastCallAt: &lastCall,
 	}}
 	manager := NewManager(ManagerConfig{Starter: starter})
@@ -48,7 +48,7 @@ func TestManagerExposesProtocolDeprecationTelemetry(t *testing.T) {
 		t.Fatal(err)
 	}
 	status := manager.Status(context.Background(), extension)
-	if status.ProtocolVersion != 1 || status.ProtocolTransport != "net/rpc" || !status.ProtocolDeprecated ||
+	if status.ProtocolVersion != 2 || status.ProtocolTransport != "grpc" || status.ProtocolDeprecated ||
 		status.ProtocolStartCount != 2 || status.ProtocolCallCount != 9 || status.ProtocolLastCallAt == nil ||
 		!status.ProtocolLastCallAt.Equal(lastCall) {
 		t.Fatalf("unexpected protocol telemetry status: %#v", status)
@@ -253,13 +253,14 @@ func runtimeExtension(id string) extensions.Extension {
 		Type:   extensions.TypePlugin,
 		Status: extensions.StatusEnabled,
 		Manifest: extensions.Manifest{
-			ID:            id,
-			Name:          "Demo Plugin",
-			Version:       "1.0.0",
-			Type:          extensions.TypePlugin,
-			SForumVersion: "^1.0.0",
-			Backend:       extensions.ManifestBackend{Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 1},
-			Routes:        []extensions.ManifestRoute{{Path: "/hello", Methods: []string{"GET"}, Access: extensions.RouteAccessPublic}},
+			ManifestVersion: 3,
+			ID:              id,
+			Name:            "Demo Plugin",
+			Version:         "1.0.0",
+			Type:            extensions.TypePlugin,
+			SForumVersion:   "^1.0.0",
+			Backend:         extensions.ManifestBackend{Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 2, HostAPIVersion: "sforum.host@2"},
+			Routes:          []extensions.ManifestRoute{{Path: "/hello", Methods: []string{"GET"}, Access: extensions.RouteAccessPublic}},
 		},
 	}
 }

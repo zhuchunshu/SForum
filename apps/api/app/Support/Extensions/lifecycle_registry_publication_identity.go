@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
+
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
 )
@@ -47,13 +49,22 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileIdentity(
 	request LifecycleBoundaryRequest,
 	source, target, desired *lifecycleRegistryMaterial,
 ) error {
+	return b.reconcileIdentityTx(ctx, nil, request, source, target, desired)
+}
+
+func (b *PostgresLifecycleBoundaryRegistries) reconcileIdentityTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	request LifecycleBoundaryRequest,
+	source, target, desired *lifecycleRegistryMaterial,
+) error {
 	if !lifecycleMaterialsPublishIdentity(source, target) {
 		return nil
 	}
 	if b == nil || b.identity == nil || b.identityStore == nil || ctx == nil {
 		return ErrLifecycleRegistryPublicationUnavailable
 	}
-	tombstones, err := b.reconcileIdentityDurable(ctx, request, source, target, desired)
+	tombstones, err := b.reconcileIdentityDurable(ctx, tx, request, source, target, desired)
 	if err != nil {
 		return err
 	}
@@ -62,6 +73,7 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileIdentity(
 
 func (b *PostgresLifecycleBoundaryRegistries) reconcileIdentityDurable(
 	ctx context.Context,
+	tx pgx.Tx,
 	request LifecycleBoundaryRequest,
 	source, target, desired *lifecycleRegistryMaterial,
 ) ([]identityregistry.Tombstone, error) {
@@ -69,12 +81,23 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileIdentityDurable(
 		return nil, ErrLifecycleRegistryPublicationUnavailable
 	}
 	desiredPublication := lifecycleIdentityPublication(desired)
-	durable, err := b.identityStore.Reconcile(ctx, identityregistry.ReconcilePublicationInput{
+	input := identityregistry.ReconcilePublicationInput{
 		ExtensionID:   request.TargetExtension.ID,
 		AllowedSource: lifecycleIdentityArtifact(source),
 		AllowedTarget: lifecycleIdentityArtifact(target),
 		Desired:       desiredPublication, ActorUserID: request.ActorUserID, AuditEventID: request.AuditEventID,
-	})
+	}
+	var durable identityregistry.DurableState
+	var err error
+	if tx != nil {
+		store, ok := b.identityStore.(identityregistry.TransactionalPublicationStore)
+		if !ok {
+			return nil, ErrLifecycleRegistryPublicationUnavailable
+		}
+		durable, err = store.ReconcileTx(ctx, tx, input)
+	} else {
+		durable, err = b.identityStore.Reconcile(ctx, input)
+	}
 	if err != nil {
 		return nil, wrapLifecycleIdentityError("reconcile durable identity registry", err)
 	}
@@ -233,6 +256,21 @@ func (b *PostgresLifecycleBoundaryRegistries) restoreIdentityPublications(
 				return err
 			}
 			validateErr := identityregistry.ValidateDurablePublication(durable, item.publication)
+			if errors.Is(validateErr, identityregistry.ErrStale) && b.identityRecovery != nil {
+				recovered, repaired, recoveryErr := b.identityRecovery.RecoverStaleIdentityPublication(
+					ctx, item.publication,
+				)
+				if recoveryErr != nil {
+					return wrapLifecycleIdentityError(
+						"recover stale durable identity publication for "+item.extensionID,
+						recoveryErr,
+					)
+				}
+				if repaired {
+					durable = recovered
+					validateErr = identityregistry.ValidateDurablePublication(durable, item.publication)
+				}
+			}
 			if validateErr != nil {
 				if !errors.Is(validateErr, identityregistry.ErrNotFound) {
 					action := "validate durable identity publication for " + item.extensionID
@@ -457,7 +495,7 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileLegacyRuntimeIdentity(
 	if err := b.validateIdentityTransition(source, target); err != nil {
 		return err
 	}
-	tombstones, err := b.reconcileIdentityDurable(ctx, request, source, target, desired)
+	tombstones, err := b.reconcileIdentityDurable(ctx, nil, request, source, target, desired)
 	if err != nil {
 		return err
 	}
@@ -475,17 +513,17 @@ func (b *PostgresLifecycleBoundaryRegistries) restoreLegacyRuntimeIdentityDurabl
 	request LifecycleBoundaryRequest,
 	source, target, desired *lifecycleRegistryMaterial,
 ) error {
+	_ = target
 	if desired == nil {
 		if source == nil {
 			return nil
 		}
 		request.Operation = extensions.LifecycleMachineEnable
-		_, err := b.reconcileIdentityDurable(ctx, request, source, source, source)
+		_, err := b.reconcileIdentityDurable(ctx, nil, request, nil, source, source)
 		return err
 	}
 	request.Operation = extensions.LifecycleMachineDisable
-	_, err := b.reconcileIdentityDurable(ctx, request, nil, desired, nil)
-	_ = target
+	_, err := b.reconcileIdentityDurable(ctx, nil, request, desired, nil, nil)
 	return err
 }
 

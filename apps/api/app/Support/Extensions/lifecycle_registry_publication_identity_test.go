@@ -14,6 +14,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
+
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
@@ -129,6 +131,98 @@ func TestLifecycleIdentityGraphRejectsForeignAndDriftedActiveArtifact(t *testing
 	if _, err := lifecycleIdentityGraph(registry.Snapshot(), sourceExtension.ID, target, &drifted, target); !errors.Is(err, ErrLifecycleRegistryPublicationConflict) {
 		t.Fatalf("drift error = %v", err)
 	}
+}
+
+func TestLifecycleIdentityMaterialsForPhaseOrientsPublicationAndRestore(t *testing.T) {
+	sourceExtension := lifecycleIdentityExtension("1.0.0", 48, "")
+	targetExtension := lifecycleIdentityExtension("2.0.0", 49, "")
+	sourcePublication, err := buildLifecycleIdentityPublication(sourceExtension, extensions.LifecycleRuntimeBinding{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	targetPublication, err := buildLifecycleIdentityPublication(targetExtension, extensions.LifecycleRuntimeBinding{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := &lifecycleRegistryMaterial{extension: sourceExtension, identityPublication: sourcePublication}
+	target := &lifecycleRegistryMaterial{extension: targetExtension, identityPublication: targetPublication}
+	tests := []struct {
+		name                    string
+		phase                   LifecycleRegistryPublicationPhase
+		source, target, desired *lifecycleRegistryMaterial
+		wantSource, wantTarget  *lifecycleRegistryMaterial
+	}{
+		{name: "enable publish", phase: LifecycleRegistryPublicationTarget, target: target, desired: target, wantTarget: target},
+		{name: "enable restore", phase: LifecycleRegistryPublicationSource, target: target, wantSource: target},
+		{name: "upgrade publish", phase: LifecycleRegistryPublicationTarget, source: source, target: target, desired: target, wantSource: source, wantTarget: target},
+		{name: "upgrade restore", phase: LifecycleRegistryPublicationSource, source: source, target: target, desired: source, wantSource: target, wantTarget: source},
+		{name: "disable publish", phase: LifecycleRegistryPublicationTarget, source: source, wantSource: source},
+		{name: "disable restore", phase: LifecycleRegistryPublicationSource, source: source, desired: source, wantTarget: source},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			gotSource, gotTarget := lifecycleIdentityMaterialsForPhase(test.phase, test.source, test.target)
+			if gotSource != test.wantSource || gotTarget != test.wantTarget {
+				t.Fatalf("oriented transition source=%p target=%p want source=%p target=%p", gotSource, gotTarget, test.wantSource, test.wantTarget)
+			}
+			if test.desired != nil && gotTarget != test.desired {
+				t.Fatalf("desired publication is not the exact allowed target")
+			}
+			registry := identityregistry.New()
+			if publication := lifecycleIdentityPublication(gotSource); publication != nil {
+				if _, err := registry.Publish(*publication); err != nil {
+					t.Fatal(err)
+				}
+			}
+			store := &memoryIdentityPublicationStore{}
+			boundary := &PostgresLifecycleBoundaryRegistries{identity: registry, identityStore: store, identitySet: true}
+			request := LifecycleBoundaryRequest{TargetExtension: sourceExtension, ActorUserID: 41, AuditEventID: 81}
+			if err := boundary.reconcileIdentity(t.Context(), request, gotSource, gotTarget, test.desired); err != nil {
+				t.Fatal(err)
+			}
+			inputs := store.Inputs()
+			if len(inputs) != 1 || !sameOptionalIdentityArtifact(inputs[0].AllowedSource, lifecycleIdentityArtifact(gotSource)) ||
+				!sameOptionalIdentityArtifact(inputs[0].AllowedTarget, lifecycleIdentityArtifact(gotTarget)) {
+				t.Fatalf("durable reconcile inputs = %#v", inputs)
+			}
+		})
+	}
+}
+
+func sameOptionalIdentityArtifact(left, right *identityregistry.Artifact) bool {
+	return left == nil && right == nil || left != nil && right != nil && *left == *right
+}
+
+func TestLifecycleIdentityPublicationFailsClosedWithoutTransactionalStore(t *testing.T) {
+	extension := lifecycleIdentityExtension("1.0.0", 50, "")
+	publication, err := buildLifecycleIdentityPublication(extension, extensions.LifecycleRuntimeBinding{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	material := &lifecycleRegistryMaterial{extension: extension, identityPublication: publication}
+	repository := &transactionalMemoryLifecycleRegistryRepository{memoryLifecycleRegistryRepository: &memoryLifecycleRegistryRepository{}}
+	transaction := &postgresLifecycleRegistryTransaction{
+		boundary: &PostgresLifecycleBoundaryRegistries{
+			repository: repository, identityStore: &memoryIdentityPublicationStore{},
+		},
+		source: material,
+	}
+	if err := transaction.Restore(t.Context()); !errors.Is(err, ErrLifecycleRegistryPublicationUnavailable) {
+		t.Fatalf("non-transactional Identity store error = %v", err)
+	}
+}
+
+type transactionalMemoryLifecycleRegistryRepository struct {
+	*memoryLifecycleRegistryRepository
+}
+
+func (r *transactionalMemoryLifecycleRegistryRepository) MoveLifecycleRegistryPublicationTx(
+	_ context.Context,
+	_ LifecycleRegistryPublicationRef,
+	_ LifecycleRegistryPublicationPhase,
+	apply func(pgx.Tx) error,
+) error {
+	return apply(nil)
 }
 
 func TestBuildLifecycleIdentityPublicationSkipsAbsentSurface(t *testing.T) {
@@ -566,6 +660,23 @@ func TestLifecycleIdentityRestartSafeModeAndConditionalDependencies(t *testing.T
 	); !errors.Is(err, ErrLifecycleRegistryPublicationConflict) {
 		t.Fatalf("tombstoned restart error = %v", err)
 	}
+	recovery := &memoryLifecycleIdentityStartupRecovery{store: store}
+	recoveredBoundary := &PostgresLifecycleBoundaryRegistries{
+		identity: identityregistry.New(), identityStore: store, identitySet: true,
+		identityRecovery: recovery,
+	}
+	if err := recoveredBoundary.restoreIdentityPublications(
+		t.Context(), []extensions.Extension{extension}, false,
+	); err != nil {
+		t.Fatalf("recover exact tombstoned publication: %v", err)
+	}
+	if recovery.calls != 1 {
+		t.Fatalf("startup recovery calls=%d want=1", recovery.calls)
+	}
+	if snapshot := recoveredBoundary.identity.Snapshot(); len(snapshot.Publications) != 1 ||
+		snapshot.Publications[0].Artifact.ExtensionID != extension.ID {
+		t.Fatalf("recovered identity snapshot=%#v", snapshot)
+	}
 }
 
 func TestLegacyRuntimeIdentityPublicationPublishesAndRetiresExecutableProvider(t *testing.T) {
@@ -637,6 +748,38 @@ func TestLegacyRuntimeIdentityPublicationPublishesAndRetiresExecutableProvider(t
 	}
 }
 
+func TestRestoreLegacyRuntimeIdentityDurableOrientsCompensation(t *testing.T) {
+	extension := lifecycleIdentityExtension("1.0.0", 62, "")
+	publication, err := buildLifecycleIdentityPublication(extension, extensions.LifecycleRuntimeBinding{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	material := &lifecycleRegistryMaterial{extension: extension, identityPublication: publication}
+	store := &memoryIdentityPublicationStore{}
+	boundary := &PostgresLifecycleBoundaryRegistries{identityStore: store}
+	request := LifecycleBoundaryRequest{TargetExtension: extension, ActorUserID: 103, AuditEventID: 203}
+
+	if err := boundary.restoreLegacyRuntimeIdentityDurable(
+		t.Context(), request, material, nil, nil,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if err := boundary.restoreLegacyRuntimeIdentityDurable(
+		t.Context(), request, nil, material, material,
+	); err != nil {
+		t.Fatal(err)
+	}
+	inputs := store.Inputs()
+	if len(inputs) != 2 || inputs[0].AllowedSource != nil || inputs[0].AllowedTarget == nil ||
+		inputs[0].Desired == nil || inputs[0].Desired.Artifact != *inputs[0].AllowedTarget {
+		t.Fatalf("retire compensation input = %#v", inputs)
+	}
+	if inputs[1].AllowedSource == nil || inputs[1].AllowedTarget != nil || inputs[1].Desired != nil ||
+		*inputs[1].AllowedSource != material.identityPublication.Artifact {
+		t.Fatalf("publish compensation input = %#v", inputs)
+	}
+}
+
 func TestLifecycleIdentityDigestIsAdditiveAndAbsentSurfaceIsByteCompatible(t *testing.T) {
 	withoutIdentity := lifecycleIdentityExtension("1.0.0", 56, "")
 	withoutIdentity.Manifest.Identity = nil
@@ -683,6 +826,24 @@ type memoryIdentityPublicationStore struct {
 	failure error
 }
 
+type memoryLifecycleIdentityStartupRecovery struct {
+	store *memoryIdentityPublicationStore
+	calls int
+}
+
+func (r *memoryLifecycleIdentityStartupRecovery) RecoverStaleIdentityPublication(
+	ctx context.Context,
+	publication identityregistry.Publication,
+) (identityregistry.DurableState, bool, error) {
+	r.calls++
+	state, err := r.store.Reconcile(ctx, identityregistry.ReconcilePublicationInput{
+		ExtensionID: publication.Artifact.ExtensionID, AllowedSource: &publication.Artifact,
+		AllowedTarget: &publication.Artifact, Desired: &publication,
+		ActorUserID: 48, AuditEventID: 88,
+	})
+	return state, err == nil, err
+}
+
 func (s *memoryIdentityPublicationStore) Reconcile(
 	_ context.Context,
 	input identityregistry.ReconcilePublicationInput,
@@ -690,6 +851,9 @@ func (s *memoryIdentityPublicationStore) Reconcile(
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.inputs = append(s.inputs, input)
+	if input.Desired != nil && (input.AllowedTarget == nil || input.Desired.Artifact != *input.AllowedTarget) {
+		return identityregistry.DurableState{}, identityregistry.ErrInvalid
+	}
 	if s.failure != nil {
 		return identityregistry.DurableState{}, s.failure
 	}

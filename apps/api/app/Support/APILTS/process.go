@@ -3,8 +3,7 @@ package apilts
 import "sync"
 
 // processRegistry is the API/worker process-local LTS + shim telemetry store.
-// Protocol V1 traffic records here so operators can prove non-zero usage before
-// LTS deletion. Each process has its own counters (API vs standalone worker).
+// Each process has its own counters (API vs standalone worker).
 var (
 	processMu       sync.Mutex
 	processRegistry *Registry

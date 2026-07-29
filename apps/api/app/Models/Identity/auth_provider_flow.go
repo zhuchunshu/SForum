@@ -53,7 +53,7 @@ type AuthProviderStartInput struct {
 // AuthProviderCompleteInput 是 Host 拥有的完成声明。插件返回的是外部主体断言，
 // 不是授权结果；Host 仍负责用户创建、链接与会话。
 //
-// CodeVerifier / CallbackURL 必须由 Host 从一次性 callback 事务与可信 APP_URL 注入；
+// CodeVerifier / CallbackURL 必须由 Host 从一次性 callback 事务与可信站点基址注入；
 // 绝不可从浏览器输入重建。
 type AuthProviderCompleteInput struct {
 	ProviderID        string

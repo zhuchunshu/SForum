@@ -15,6 +15,7 @@ func TestSnapshotUploadedCanonicalizesManifestAndReusesIdenticalContent(t *testi
 	destination := t.TempDir()
 	firstManifest := []byte(`{
   "version": "1.0.0",
+  "manifestVersion": 3,
   "author": {"name": "SForum Test"},
   "url": "https://example.com/demo",
   "description": "Snapshot test plugin.",
@@ -23,7 +24,7 @@ func TestSnapshotUploadedCanonicalizesManifestAndReusesIdenticalContent(t *testi
   "type": "plugin",
   "id": "demo.plugin"
 }`)
-	secondManifest := []byte(`{"id":"demo.plugin","type":"plugin","name":"Demo Plugin","description":"Snapshot test plugin.","url":"https://example.com/demo","author":{"name":"SForum Test"},"sforumVersion":"^1.0.0","version":"1.0.0"}`)
+	secondManifest := []byte(`{"manifestVersion":3,"id":"demo.plugin","type":"plugin","name":"Demo Plugin","description":"Snapshot test plugin.","url":"https://example.com/demo","author":{"name":"SForum Test"},"sforumVersion":"^1.0.0","version":"1.0.0"}`)
 
 	first, err := SnapshotUploaded(destination, firstManifest, []File{
 		{Path: `frontend\\admin\\components\\Cell.vue`, Mode: 0o644, Body: []byte("<template>cell</template>")},
@@ -251,6 +252,7 @@ func TestSnapshotBuiltinCopiesCanonicalPackage(t *testing.T) {
 func TestSnapshotUploadedMergesIncludesAndKeepsPartials(t *testing.T) {
 	destination := t.TempDir()
 	rootBody := []byte(`{
+	  "manifestVersion": 3,
   "id": "includes.plugin",
   "name": "Includes Plugin",
   "description": "Uses includes.",
@@ -309,7 +311,7 @@ func snapshotTestManifest(id string, version string) []byte {
 }
 
 func snapshotTestManifestString(id string, version string) string {
-	return `{"id":"` + id + `","name":"Snapshot Test","description":"Snapshot package test.","url":"https://example.com/snapshot","author":{"name":"SForum Test"},"version":"` + version + `","type":"plugin","sforumVersion":"^1.0.0"}`
+	return `{"manifestVersion":3,"id":"` + id + `","name":"Snapshot Test","description":"Snapshot package test.","url":"https://example.com/snapshot","author":{"name":"SForum Test"},"version":"` + version + `","type":"plugin","sforumVersion":"^1.0.0"}`
 }
 
 func writeSnapshotTestFile(t *testing.T, root string, relativePath string, body string, mode os.FileMode) {

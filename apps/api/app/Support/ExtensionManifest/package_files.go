@@ -8,9 +8,6 @@ import (
 
 // ValidatePackageFiles verifies exact bytes without executing package code.
 func ValidatePackageFiles(manifest Manifest, pkg PackageFS) error {
-	if EffectiveManifestVersion(manifest) != ManifestVersionV3 {
-		return nil
-	}
 	for _, file := range manifest.PackageFiles {
 		body, err := pkg.ReadFile(file.Path)
 		if err != nil {

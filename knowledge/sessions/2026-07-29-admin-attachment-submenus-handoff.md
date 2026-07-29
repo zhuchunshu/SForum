@@ -13,6 +13,9 @@
   inventing persistence fields.
 - Kept `/attachments` as a permission-aware compatibility redirect that also
   honors old `?tab=manager` bookmarks.
+- Added server-backed button pagination to Attachment Management, including
+  list range/total feedback, first-page filter resets, and last-page recovery
+  after cleanup removes the current page.
 - Mapped the stable attachment Admin Surface placement to the new management
   page so existing extension contributions remain available.
 - Completed the Basic Configuration field guidance: all common and Core
@@ -29,7 +32,8 @@
 ## Next
 
 - The operator will manually verify both submenu links, permission-specific
-  visibility, and the Basic Configuration help text and units.
+  visibility, the Basic Configuration help text and units, and Attachment
+  Management paging with more than 20 matching files.
 
 ## Open Questions
 

@@ -299,6 +299,14 @@ func (r *Registry) RegisterContributions(extensionID string, items []PageContrib
 		return err
 	}
 	r.clearExtensionLocked(extensionID)
+	if len(prepared) == 0 {
+		// This legacy entry point has no exact RuntimeArtifact input. An empty
+		// contribution set therefore means absence, not an artifact with blank
+		// version, digest, and runtime fields. Lifecycle publication uses
+		// PublishExtensionIfRevision when it needs an exact empty set.
+		r.revision++
+		return nil
+	}
 	r.applyContributionsLocked(prepared)
 	r.extensionArtifacts[extensionID] = pageArtifactFromContributions(extensionID, prepared)
 	r.revision++

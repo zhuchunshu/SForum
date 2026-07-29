@@ -1,0 +1,1 @@
+{ "name": "SForum SFTP Storage", "description": "Protected built-in SFTP attachment storage provider with required SSH host-key verification.", "author": { "name": "SForum" } }

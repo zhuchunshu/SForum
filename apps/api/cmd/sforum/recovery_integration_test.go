@@ -49,6 +49,16 @@ func TestPostgresRecoveryRepositoryPublishesImmutableFullSetsWithoutPackageReads
 	if _, err := repository.Disable(ctx, builtinID); !errors.Is(err, errRecoveryProtected) {
 		t.Fatalf("disable protected extension: %v", err)
 	}
+	if _, err := repository.QuarantineProtected(
+		ctx, firstID, "1.0.0", strings.Repeat("a", 64),
+	); !errors.Is(err, errRecoveryNotProtected) {
+		t.Fatalf("quarantine ordinary extension: %v", err)
+	}
+	if _, err := repository.QuarantineProtected(
+		ctx, builtinID, "1.0.0", strings.Repeat("b", 64),
+	); !errors.Is(err, errRecoveryArtifactMismatch) {
+		t.Fatalf("quarantine wrong built-in artifact: %v", err)
+	}
 	disabled, err := repository.Disable(ctx, firstID)
 	if err != nil || disabled.Status != "disabled" {
 		t.Fatalf("disable first=%#v err=%v", disabled, err)
@@ -97,6 +107,41 @@ func TestPostgresRecoveryRepositoryPublishesImmutableFullSetsWithoutPackageReads
 		SELECT count(*) FROM plugin_runtime_publications
 	`).Scan(&publicationCount); err != nil || publicationCount != 3 {
 		t.Fatalf("publication count=%d err=%v", publicationCount, err)
+	}
+}
+
+func TestPostgresRecoveryRepositoryQuarantinesExactProtectedArtifact(t *testing.T) {
+	fixture := newRecoveryPostgresFixture(t)
+	const builtinID = "recovery.builtin.exact"
+	if err := insertRecoveryFixture(fixture.ctx, fixture.pool, builtinID, "builtin", true); err != nil {
+		t.Fatal(err)
+	}
+
+	repository := &postgresRecoveryRepository{pool: fixture.pool}
+	quarantined, err := repository.QuarantineProtected(
+		fixture.ctx, builtinID, "1.0.0", strings.Repeat("a", 64),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if quarantined.Status != "disabled" || quarantined.ID != builtinID {
+		t.Fatalf("quarantined=%#v", quarantined)
+	}
+	publication := latestRecoveryPublication(t, fixture.pool)
+	if publication.Reason != extensions.PluginRuntimePublicationRecovery ||
+		publication.MemberCount != 0 || len(publication.Members) != 0 {
+		t.Fatalf("publication=%+v", publication)
+	}
+	var mode string
+	if err := fixture.pool.QueryRow(fixture.ctx, `
+		SELECT metadata->>'mode' FROM audit_events
+		WHERE action = 'extension.cli_recovery'
+		ORDER BY id DESC LIMIT 1
+	`).Scan(&mode); err != nil {
+		t.Fatal(err)
+	}
+	if mode != "quarantine_protected_exact" {
+		t.Fatalf("audit mode=%q", mode)
 	}
 }
 

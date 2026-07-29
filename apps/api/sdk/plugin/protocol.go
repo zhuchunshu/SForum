@@ -48,12 +48,6 @@ type (
 	StorageResult           = extensionsruntime.StorageResult
 )
 
-// Serve 以 HashiCorp go-plugin 协议运行插件进程（阻塞）。
-// 通常在 main 中调用：plugin.Serve(myPlugin{})。
-func Serve(impl Protocol) {
-	extensionsruntime.ServeProtocolPlugin(impl)
-}
-
 // Noop 提供全部 RPC 的默认实现，便于只覆盖需要的方法。
 // 嵌入后可只实现 Health / InvokeHook / SendMail / Storage* 中的子集。
 type Noop struct {

@@ -115,6 +115,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	productionSEO := extensionPlatform.productionSEO
 	identityReviewStore := extensionPlatform.identityReviewStore
 	pluginRuntimeCoordinator := extensionPlatform.pluginRuntimeCoordinator
+	pluginRuntimeRecovery := extensionPlatform.pluginRuntimeRecovery
 	pluginRuntimeStopTimeout := extensionPlatform.pluginRuntimeStopTimeout
 	stopPluginRuntimeCoordinator := extensionPlatform.stopPluginRuntimeCoordinator
 	closePluginRuntime := extensionPlatform.closePluginRuntime
@@ -378,34 +379,46 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	// Meilisearch 已拆为可选 search.provider 插件，不再作为 core readiness 组件。
 	// F4.3：合并 system.health.checks 贡献（不调用插件 RPC）。
 	readyEvaluate := func(ctx context.Context) health.ReadyReport {
-		return health.EvaluateWithExtensionContributions(ctx, []health.Checker{
+		checkers := []health.Checker{
 			health.PostgresChecker{Pool: pool},
 			health.RedisChecker{Client: sharedRedisClient},
-		}, extensionService, extensionRuntime)
+		}
+		var report health.ReadyReport
+		if pluginRuntimeRecovery.Active() {
+			// Recovery readiness must not inspect the failed artifact again or
+			// expose its process error through extension health contributions.
+			report = health.Evaluate(ctx, checkers)
+		} else {
+			report = health.EvaluateWithExtensionContributions(ctx, checkers, extensionService, extensionRuntime)
+		}
+		return health.ApplyRecoveryRequirement(report, pluginRuntimeRecovery)
 	}
+	recoveryOnly := pluginRuntimeRecovery.Active()
 	extensionGuardPolicy := extensions.NewGuardPolicyCatalog(
 		extensionStore,
 		executableTrustService,
 		frontendTrustStore,
 		extensions.GuardPolicyConfig{
-			SafeMode: cfg.SafeMode, TrustChallengesEnabled: cfg.V3TrustChallenges,
+			SafeMode: cfg.SafeMode || recoveryOnly, TrustChallengesEnabled: cfg.V3TrustChallenges,
 		},
 	)
 	executableTrustService.WithRevocationSink(extensionsruntime.NewExecutableTrustRevocationFence(
 		lifecycleStack.RuntimeManager, extensionGuardPolicy,
 	))
-	if err := extensionGuardPolicy.Refresh(ctx); err != nil {
-		stopPluginRuntimeCoordinator()
-		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
-			logger.Warn("job dispatcher stop failed", "error", stopErr)
+	if !recoveryOnly {
+		if err := extensionGuardPolicy.Refresh(ctx); err != nil {
+			stopPluginRuntimeCoordinator()
+			if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+				logger.Warn("job dispatcher stop failed", "error", stopErr)
+			}
+			closePluginRuntime()
+			sharedRedisClient.Close()
+			if closeErr := redisStorage.Close(); closeErr != nil {
+				logger.Warn("redis session storage close failed", "error", closeErr)
+			}
+			pool.Close()
+			return nil, fmt.Errorf("refresh extension guard policy failed: %w", err)
 		}
-		closePluginRuntime()
-		sharedRedisClient.Close()
-		if closeErr := redisStorage.Close(); closeErr != nil {
-			logger.Warn("redis session storage close failed", "error", closeErr)
-		}
-		pool.Close()
-		return nil, fmt.Errorf("refresh extension guard policy failed: %w", err)
 	}
 	routeFailureRecorder, err := httpserver.NewRouteFailureRecorder(
 		lifecycleStack.RuntimeManager,
@@ -494,6 +507,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		optionsService:            optionsService,
 		pagesProvider:             pagesProvider,
 		pluginRuntimeCoordinator:  pluginRuntimeCoordinator,
+		pluginRuntimeRecovery:     pluginRuntimeRecovery,
 		pluginRuntimeStopTimeout:  pluginRuntimeStopTimeout,
 		pool:                      pool,
 		productionSEO:             productionSEO,

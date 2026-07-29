@@ -4,10 +4,7 @@ import "strings"
 
 // Host provider slot for attachment object storage。
 //
-// 历史（F3.5）：具体驱动（local / OSS / COS / FTP / SFTP）由 core
-// Support/Storage 适配器实现，运营通过 web_options.attachment.provider 选择。
-//
-// 目标（E6，决策 2026-07-12-attachment-storage-plugin-provider）：
+// E6：
 //   - 槽位达到 mail 同级 L4–L6：插件可注册为候选，选中后 host 经 RPC 转发
 //     Put/Open/Delete/Probe；密钥进 extension_settings。
 //   - core 至少保留 local 作为 zero-config 与 restore 默认。
@@ -17,15 +14,10 @@ import "strings"
 // NewAdapter 只接受 core 驱动 id；plugin: 选择由 Attachments.adapterForSettings 解析。
 const ProviderSlot = "attachment.storage.provider"
 
-// DriverCatalog 返回 core 内置驱动 id（与 options 校验一致）。
+// DriverCatalog 返回 core 内置驱动 id。Core 只保留 local 作为零配置回退；
+// 远程存储必须经 attachment.storage.provider 插件槽实现。
 func DriverCatalog() []string {
-	return []string{
-		ProviderLocal,
-		ProviderAliyunOSS,
-		ProviderTencentCOS,
-		ProviderFTP,
-		ProviderSFTP,
-	}
+	return []string{ProviderLocal}
 }
 
 // IsKnownDriver 判断 provider 是否为 core 内置驱动。
@@ -34,12 +26,7 @@ func IsKnownDriver(provider string) bool {
 	if IsPluginSelection(provider) {
 		return false
 	}
-	switch NormalizeProvider(provider) {
-	case ProviderLocal, ProviderAliyunOSS, ProviderTencentCOS, ProviderFTP, ProviderSFTP:
-		return true
-	default:
-		return false
-	}
+	return NormalizeProvider(provider) == ProviderLocal
 }
 
 // NormalizeProvider 空白视为 local。

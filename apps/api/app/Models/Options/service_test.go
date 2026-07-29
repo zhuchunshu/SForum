@@ -903,32 +903,6 @@ func TestServiceAttachmentLocalRootDefaultsAndValidation(t *testing.T) {
 	}
 }
 
-func TestServiceAttachmentOptionsMaskAndKeepSecrets(t *testing.T) {
-	store := &fakeStore{items: map[string]string{
-		NameAttachmentProvider:              "aliyun_oss",
-		NameAttachmentAliyunEndpoint:        "https://oss-cn-hangzhou.aliyuncs.com",
-		NameAttachmentAliyunBucket:          "sforum",
-		NameAttachmentAliyunAccessKeyID:     "access-key-id",
-		NameAttachmentAliyunAccessKeySecret: "existing-secret",
-	}}
-	service := NewServiceWithCacheTTL(store, time.Minute)
-	actor := attachmentSettingsActor()
-
-	updated, err := service.UpdateMany(context.Background(), actor, []UpdateInput{
-		{Name: NameAttachmentAliyunAccessKeySecret, Value: "   "},
-		{Name: NameAttachmentPathTemplate, Value: "files/{yyyy}/{public_id}{ext}"},
-	})
-	if err != nil {
-		t.Fatalf("UpdateMany should keep existing attachment secret: %v", err)
-	}
-	if store.items[NameAttachmentAliyunAccessKeySecret] != "existing-secret" {
-		t.Fatalf("expected blank secret update to keep existing secret, got %q", store.items[NameAttachmentAliyunAccessKeySecret])
-	}
-	if item := adminSecret(updated, NameAttachmentAliyunAccessKeySecret); !item.Secret || !item.SecretSet || item.Value != "" {
-		t.Fatalf("expected masked existing attachment secret, got %#v", item)
-	}
-}
-
 func TestServiceAttachmentOptionsValidation(t *testing.T) {
 	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
 	actor := attachmentSettingsActor()
@@ -947,7 +921,7 @@ func TestServiceAttachmentOptionsValidation(t *testing.T) {
 	}
 
 	if _, err := service.Update(context.Background(), actor, UpdateInput{Name: NameAttachmentProvider, Value: "aliyun_oss"}); !errors.Is(err, ErrInvalidOption) {
-		t.Fatalf("expected cloud provider without required secrets to be invalid, got %v", err)
+		t.Fatalf("expected removed core provider to be invalid, got %v", err)
 	}
 }
 

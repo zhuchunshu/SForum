@@ -11,6 +11,7 @@ import (
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	health "github.com/zhuchunshu/sforum/apps/api/app/Support/Health"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
@@ -33,6 +34,7 @@ type apiExtensionPlatform struct {
 	productionSEO                *productionSEORegistry
 	identityReviewStore          identityregistry.Store
 	pluginRuntimeCoordinator     *pluginRuntimeCoordinatorRuntime
+	pluginRuntimeRecovery        *health.RecoveryRequirement
 	pluginRuntimeStopTimeout     time.Duration
 	stopPluginRuntimeCoordinator func()
 	closePluginRuntime           func()
@@ -425,6 +427,7 @@ func wireAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger *sl
 		productionSEO:                productionSEO,
 		identityReviewStore:          identityReviewStore,
 		pluginRuntimeCoordinator:     runtimeState.pluginRuntimeCoordinator,
+		pluginRuntimeRecovery:        runtimeState.pluginRuntimeRecovery,
 		pluginRuntimeStopTimeout:     runtimeState.pluginRuntimeStopTimeout,
 		stopPluginRuntimeCoordinator: runtimeState.stopPluginRuntimeCoordinator,
 		closePluginRuntime:           runtimeState.closePluginRuntime,

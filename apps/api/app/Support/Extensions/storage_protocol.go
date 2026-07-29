@@ -1,7 +1,7 @@
 package extensionsruntime
 
 // 附件存储插件 RPC 契约（E6.2）。
-// 与 mail 一样走 go-plugin net/rpc；大对象用分块，默认 chunk 1 MiB（见 Support/Storage）。
+// 与 mail 一样走 go-plugin Protocol V2；大对象用分块，默认 chunk 1 MiB（见 Support/Storage）。
 // 业务层只见 storage.Adapter；本文件定义跨进程载荷。
 
 // StorageResult 是无载荷写操作的通用结果（PutChunk / Close / Delete）。

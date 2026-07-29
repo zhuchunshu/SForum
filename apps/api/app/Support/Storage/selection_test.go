@@ -22,8 +22,7 @@ func TestParseSelectionCoreDrivers(t *testing.T) {
 	}{
 		{"", ProviderLocal},
 		{"local", ProviderLocal},
-		{"  aliyun_oss ", ProviderAliyunOSS},
-		{ProviderSFTP, ProviderSFTP},
+		{"  local ", ProviderLocal},
 	} {
 		sel := ParseSelection(tc.in)
 		if sel.Kind != SelectionKindCore || sel.Driver != tc.driver {

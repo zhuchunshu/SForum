@@ -1,7 +1,8 @@
 # Decision: Host API V2 Protobuf, gRPC, And Buf Toolchain
 
 Date: 2026-07-13
-Status: Accepted for V3 P3
+Status: Accepted for V3 P3; compatibility section superseded by
+`2026-07-29-manifest-v3-protocol-v2-only.md`
 
 ## Context
 
@@ -80,19 +81,11 @@ adapters and policy enforcement stay outside generated packages.
 the pinned local `buf`, `protoc-gen-go`, and `protoc-gen-go-grpc` tools. Remote
 Buf Schema Registry plugins are not required to build or test SForum.
 
-### Protocol selection and compatibility
+### Protocol selection and compatibility (superseded 2026-07-29)
 
-- go-plugin protocol version 1 remains `net/rpc` and continues to use the
-  existing `sforum-plugin-v1` adapter without source or wire changes.
-- protocol version 2 uses go-plugin gRPC and generated Protobuf services.
-- `VersionedPlugins` performs the go-plugin handshake, but the installed
-  Manifest selects the exact allowed protocol. A package declaring v2 does not
-  silently fall back to v1, and a v1 package is never upgraded implicitly.
-- Existing `Serve` remains the v1 SDK entry point. The v2 SDK exposes an
-  explicit v2 server entry point; dual-protocol serving is a separate explicit
-  compatibility helper.
-- Rolling a migrated plugin back to v1 requires selecting the trusted v1
-  artifact/Manifest. V1 is not removed before the P13 compatibility gates.
+- Protocol V2 uses go-plugin gRPC and generated Protobuf services. The original
+  temporary coexistence policy is superseded: only Manifest V3 and Protocol V2
+  are now accepted, with no dual-protocol server or fallback.
 
 ### Bidirectional Host API
 

@@ -229,6 +229,36 @@ func ValidateDurablePublicationSet(state DurableState, publications []Publicatio
 	return nil
 }
 
+// ValidateDurablePublicationTombstone proves that the latest durable root and
+// every declaration owned by one exact publication are retired without
+// changing artifact or contract identity. Startup recovery uses this stricter
+// shape before it may append a compensating active revision.
+func ValidateDurablePublicationTombstone(state DurableState, publication Publication) error {
+	if _, err := DurableStateToTombstones(state); err != nil {
+		return err
+	}
+	normalized, _, digest, err := canonicalDurableRootPublication(publication)
+	if err != nil || normalized.Artifact.Core {
+		return ErrInvalid
+	}
+	roots, err := durableRootPublications(state)
+	if err != nil {
+		return err
+	}
+	root, found := roots[normalized.Artifact.ExtensionID]
+	if !found {
+		return ErrNotFound
+	}
+	if root.tip.RegistryState != RegistryStateTombstone {
+		return ErrStale
+	}
+	if durableRootTipArtifactIdentity(root.tip) != durableArtifactIdentityOf(normalized.Artifact) ||
+		root.tip.PublicationDigest != digest || !EqualPublicContract(root.publication, normalized) {
+		return ErrArtifactConflict
+	}
+	return validateDurableTombstoneLeaves(state, normalized)
+}
+
 // ValidateDurableRetirement proves that one plugin has no active root or leaf
 // before the process graph removes it.
 func ValidateDurableRetirement(state DurableState, extensionID string) error {

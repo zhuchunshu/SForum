@@ -186,8 +186,8 @@ func (h *Controller) authProviderStart(c fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusServiceUnavailable, "auth.provider_unavailable")
 	}
-	// 绝对 callback URL 来自可信 APP_URL，绝不使用请求 Host。
-	callbackURL, err := h.absoluteCallbackURL(providerID)
+	// 绝对 callback URL 优先来自后台 site.url，未设置时回退 APP_URL；绝不使用请求 Host。
+	callbackURL, err := h.absoluteCallbackURL(c.Context(), providerID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusServiceUnavailable, "auth.provider_unavailable")
 	}

@@ -3,8 +3,10 @@ package extensionscontroller
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"maps"
@@ -367,10 +369,12 @@ func TestControllerExecutableTrustTargetBindsExactStagedArtifact(t *testing.T) {
 		ID: "trust.controller", Name: "Trust Controller", Version: "1.0.0",
 		Type: extensions.TypePlugin, Status: extensions.StatusDisabled, Source: extensions.SourceUploaded,
 		Manifest: extensions.Manifest{
-			ID: "trust.controller", Name: "Trust Controller", Version: "1.0.0",
-			Type: extensions.TypePlugin,
+			ManifestVersion: 3,
+			ID:              "trust.controller", Name: "Trust Controller", Version: "1.0.0",
+			Type: extensions.TypePlugin, SForumVersion: "^1.0.0",
 			Backend: extensions.ManifestBackend{
-				Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 1,
+				Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 2,
+				HostAPIVersion: "sforum.host@2",
 			},
 		},
 		ActiveVersionID: 1, IsDeletable: true,
@@ -709,15 +713,16 @@ func TestControllerProxiesOnlyDeclaredPluginRoutesAfterHostAuthorization(t *test
 		Type:    extensions.TypePlugin,
 		Status:  extensions.StatusEnabled,
 		Manifest: extensions.Manifest{
-			ID:            "demo.plugin",
-			Name:          "Demo Plugin",
-			Description:   "Demo plugin for controller tests.",
-			URL:           "https://example.com/demo-plugin",
-			Author:        extensions.ManifestAuthor{Name: "SForum Team", URL: "https://example.com", Email: "dev@example.com"},
-			Version:       "1.0.0",
-			Type:          extensions.TypePlugin,
-			SForumVersion: "^1.0.0",
-			Permissions:   []string{"extension.demo.manage"},
+			ManifestVersion: 3,
+			ID:              "demo.plugin",
+			Name:            "Demo Plugin",
+			Description:     "Demo plugin for controller tests.",
+			URL:             "https://example.com/demo-plugin",
+			Author:          extensions.ManifestAuthor{Name: "SForum Team", URL: "https://example.com", Email: "dev@example.com"},
+			Version:         "1.0.0",
+			Type:            extensions.TypePlugin,
+			SForumVersion:   "^1.0.0",
+			Permissions:     []string{"extension.demo.manage"},
 			Routes: []extensions.ManifestRoute{
 				{Path: "/hello", Methods: []string{"GET"}, Access: extensions.RouteAccessPublic},
 				{Path: "/profile", Methods: []string{"GET"}, Access: extensions.RouteAccessLogin},
@@ -1033,14 +1038,15 @@ func newExtensionTestApp(t *testing.T) (*fiber.App, *authsession.Manager, *contr
 		Status:  extensions.StatusInstalled,
 		Source:  extensions.SourceUploaded,
 		Manifest: extensions.Manifest{
-			ID:            "demo.plugin",
-			Name:          "Demo Plugin",
-			Description:   "Demo plugin for route tests.",
-			URL:           "https://example.com/demo-plugin",
-			Author:        extensions.ManifestAuthor{Name: "SForum Team", URL: "https://example.com", Email: "dev@example.com"},
-			Version:       "1.0.0",
-			Type:          extensions.TypePlugin,
-			SForumVersion: "^1.0.0",
+			ManifestVersion: 3,
+			ID:              "demo.plugin",
+			Name:            "Demo Plugin",
+			Description:     "Demo plugin for route tests.",
+			URL:             "https://example.com/demo-plugin",
+			Author:          extensions.ManifestAuthor{Name: "SForum Team", URL: "https://example.com", Email: "dev@example.com"},
+			Version:         "1.0.0",
+			Type:            extensions.TypePlugin,
+			SForumVersion:   "^1.0.0",
 		},
 		InstalledAt: time.Now(),
 		UpdatedAt:   time.Now(),
@@ -1054,14 +1060,15 @@ func newExtensionTestApp(t *testing.T) (*fiber.App, *authsession.Manager, *contr
 		Status:  extensions.StatusInstalled,
 		Source:  extensions.SourceUploaded,
 		Manifest: extensions.Manifest{
-			ID:            "demo.theme",
-			Name:          "Demo Theme",
-			Description:   "Demo theme for controller tests.",
-			URL:           "https://example.com/demo-theme",
-			Author:        extensions.ManifestAuthor{Name: "SForum Team", URL: "https://example.com", Email: "dev@example.com"},
-			Version:       "1.0.0",
-			Type:          extensions.TypeTheme,
-			SForumVersion: "^1.0.0",
+			ManifestVersion: 3,
+			ID:              "demo.theme",
+			Name:            "Demo Theme",
+			Description:     "Demo theme for controller tests.",
+			URL:             "https://example.com/demo-theme",
+			Author:          extensions.ManifestAuthor{Name: "SForum Team", URL: "https://example.com", Email: "dev@example.com"},
+			Version:         "1.0.0",
+			Type:            extensions.TypeTheme,
+			SForumVersion:   "^1.0.0",
 		},
 		InstalledAt: time.Now(),
 		UpdatedAt:   time.Now(),
@@ -1120,6 +1127,20 @@ func controllerInstalledPackage(t *testing.T, manifest extensions.Manifest) stri
 
 func controllerExecutablePackage(t *testing.T, manifest extensions.Manifest, binary string) (string, string) {
 	t.Helper()
+	manifest.ManifestVersion = 3
+	if manifest.SForumVersion == "" {
+		manifest.SForumVersion = "^1.0.0"
+	}
+	if manifest.Backend.Entry != "" {
+		digest := sha256.Sum256([]byte(binary))
+		manifest.Backend.RPC = "hashicorp-go-plugin"
+		manifest.Backend.ProtocolVersion = 2
+		manifest.Backend.HostAPIVersion = "sforum.host@2"
+		manifest.Backend.Digest = fmt.Sprintf("%x", digest)
+		manifest.PackageFiles = []extensions.ManifestPackageFile{{
+			ID: manifest.ID + ".file.backend", Kind: "executable", Path: manifest.Backend.Entry, Digest: manifest.Backend.Digest,
+		}}
+	}
 	root := filepath.Join(t.TempDir(), manifest.ID, manifest.Version)
 	if err := os.MkdirAll(filepath.Join(root, "backend"), 0o755); err != nil {
 		t.Fatal(err)

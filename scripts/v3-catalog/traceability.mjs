@@ -17,7 +17,7 @@ const phaseContracts = {
 
 const phaseRollback = {
   P0: 'Revert catalog and governance documents; runtime is unchanged.',
-  P1: 'Disable new grants while retaining safe mode and v1 compatibility.',
+  P1: 'Disable new grants while retaining host-owned safe mode and CLI recovery.',
   P2: 'Reject Manifest V3 while keeping V1/V2 packages usable.',
   P3: 'Select protocol v1 per plugin; retain the v2 contract additively.',
   P4: 'Keep v1 lifecycle for old packages; never downgrade after migrations start.',

@@ -359,7 +359,7 @@ func (g *GitHubOAuth) apiGET(ctx context.Context, path, accessToken string) (int
 	return resp.StatusCode, body, nil
 }
 
-// requireAbsoluteHTTPSOrHTTP 拒绝相对路径与无 scheme 的 callback；Host 应注入 APP_URL 绝对地址。
+// requireAbsoluteHTTPSOrHTTP 拒绝相对路径与无 scheme 的 callback；Host 应注入可信站点绝对地址。
 func requireAbsoluteHTTPSOrHTTP(raw string) error {
 	parsed, err := url.Parse(raw)
 	if err != nil || parsed.Scheme == "" || parsed.Host == "" {

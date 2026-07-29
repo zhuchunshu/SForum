@@ -11,14 +11,15 @@ import (
 
 func baseIdentity() map[string]any {
 	return map[string]any{
-		"id":            "demo.plugin",
-		"name":          "Demo Plugin",
-		"description":   "Demo description.",
-		"url":           "https://example.com/demo",
-		"author":        map[string]any{"name": "Demo Author"},
-		"version":       "1.0.0",
-		"type":          "plugin",
-		"sforumVersion": "^1.0.0",
+		"manifestVersion": ManifestVersionV3,
+		"id":              "demo.plugin",
+		"name":            "Demo Plugin",
+		"description":     "Demo description.",
+		"url":             "https://example.com/demo",
+		"author":          map[string]any{"name": "Demo Author"},
+		"version":         "1.0.0",
+		"type":            "plugin",
+		"sforumVersion":   "^1.0.0",
 	}
 }
 

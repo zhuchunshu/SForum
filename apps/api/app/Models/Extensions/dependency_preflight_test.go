@@ -235,7 +235,8 @@ func TestEnableStopsBeforePackageAndRuntimePreflightWhenDependenciesFail(t *test
 	})
 	digest := strings.Repeat("a", 64)
 	candidate.Manifest.Backend = ManifestBackend{
-		Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 1, Digest: digest,
+		Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 2,
+		HostAPIVersion: "sforum.host@2", Digest: digest,
 	}
 	candidate.Manifest.PackageFiles = []ManifestPackageFile{{
 		ID: candidate.ID + ".backend", Kind: "executable", Path: "backend/plugin", Digest: digest,

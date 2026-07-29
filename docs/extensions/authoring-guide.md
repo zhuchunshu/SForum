@@ -20,8 +20,7 @@ schedules.
 | Manifest V3 `sforum.extension.json` (+ optional `includes`) | Versioned Registry/platform declarations and exact package-file identity |
 | Go SDK `github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2` | New typed backend server, generated Host clients, exact runtime binding, health/readiness |
 | Host API v2 wire `sforum.host/v2` | Typed queries/commands and versioned platform services over the runtime-scoped Host broker |
-| Go SDK + Host API v1 | Compatibility for existing SMTP, storage, and content-policy plugins until P13 |
-| go-plugin v2 gRPC / v1 net-rpc | Exact Manifest-selected process protocol; no silent downgrade |
+| go-plugin gRPC Protocol V2 | The only executable process protocol accepted by the Host; no fallback or downgrade |
 | Published catalogs | Which events/points/slots/capabilities exist |
 
 **Do not** import `app/Models/*` or other host business packages from a
@@ -156,25 +155,19 @@ Minimal backend using the public SDK:
 ```go
 package main
 
-import pluginsdk "github.com/zhuchunshu/sforum/apps/api/sdk/plugin"
+import pluginv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2"
 
-type myPlugin struct{ pluginsdk.Noop }
-
-func (myPlugin) InvokeHook(req pluginsdk.HookRequest) (pluginsdk.HookResponse, error) {
-	// filter/validate: stay cheap; observe: never block the host write path.
-	return pluginsdk.HookResponse{OK: true}, nil
+func main() {
+	pluginv2.Serve(pluginv2.NewServer())
 }
-
-func main() { pluginsdk.Serve(myPlugin{}) }
 ```
 
 Build the executable to the path declared in `backend.entry` (usually
 `backend/plugin`) before enabling the plugin in admin.
 
-The scaffold and current built-in references still demonstrate protocol v1
-while their v2 migrations are completed. New typed runtime work should follow
-[Host API v2 and non-Go runtimes](./host-api-v2.md), including the generated Go
-SDK, AutoMTLS broker, exact trust binding, and non-Go interoperability rules.
+Scaffolds and built-in references use Protocol V2. Follow
+[Host API v2 and non-Go runtimes](./host-api-v2.md) for the generated Go SDK,
+AutoMTLS broker, exact trust binding, and non-Go interoperability rules.
 
 ## Manifest V3 package contract
 
@@ -182,13 +175,11 @@ All new CLI scaffolds emit explicit `manifestVersion: 3`. The complete generated
 root-field catalog is [manifest-v3.md](./catalogs/manifest-v3.md); the embedded
 Draft 2020-12 schema and Go semantic validator are both authoritative.
 
-Version handling is fail-closed:
-
-- omitted `manifestVersion` remains the legacy V1 contract;
-- explicit V2 remains accepted for compatibility;
-- V3-only declarations require explicit version 3 and never upgrade a V1/V2
-  package implicitly;
-- future versions are rejected until the host implements them.
+Version handling is fail-closed. Every package must declare
+`manifestVersion: 3`; omitted, V1, V2, and future versions are rejected during
+inert installation preflight. Executable packages must additionally declare
+`backend.protocolVersion: 2` and `backend.hostContract: sforum.host@2`. The Host
+never normalizes an older package or falls back to an older process protocol.
 
 Large manifests may shard supported families through `includes`. A family must
 be declared either at the root or through its include, never both. Include paths
@@ -586,15 +577,14 @@ Key RPC methods (host streams ~1 MiB chunks by default):
 Minimal author shape:
 
 ```go
-type storePlugin struct{ pluginsdk.Noop }
-
-func (storePlugin) StorageProbe(pluginsdk.StorageProbeRequest) (pluginsdk.StorageProbeResponse, error) {
-	return pluginsdk.StorageProbeResponse{OK: true}, nil
+func main() {
+	pluginv2.Serve(newStorageServer())
 }
-// … implement PutBegin/PutChunk/Open/GetChunk/Close/Delete …
-
-func main() { pluginsdk.Serve(storePlugin{}) }
 ```
+
+`newStorageServer` returns a Protocol V2 server with the attachment storage
+provider registry attached. The generated storage scaffold and
+`sforum-storage-fs` built-in are the executable references.
 
 ```bash
 cd apps/api

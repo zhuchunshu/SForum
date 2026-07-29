@@ -910,9 +910,10 @@ authProviderStart:
     summary: Start an external auth, link, or recovery provider flow
     description: |
       Host creates high-entropy callback state, PKCE material, and an absolute
-      callback URL from trusted `APP_URL`, then invokes the provider start
-      operation. Link requires an active browser session. Login/registration/
-      link require Host activation for that operation.
+      callback URL from the runtime `site.url` setting, falling back to trusted
+      `APP_URL` when the setting is empty, then invokes the provider start
+      operation. Request Host is never used. Link requires an active browser
+      session. Login/registration/link require Host activation for that operation.
     operationId: startAuthProvider
     parameters:
     - name: providerId

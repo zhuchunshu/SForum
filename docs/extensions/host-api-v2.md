@@ -60,28 +60,19 @@ A v2 backend declares the exact pair:
 }
 ```
 
-These identifiers belong to different compatibility layers and must not be
-substituted blindly:
+Executable packages must select the current contracts explicitly:
 
 | Identifier | Meaning |
 | --- | --- |
-| `sforum.host@2` | Canonical Manifest V3 `backend.hostApiVersion` for new packages |
-| `sforum.host-api@2` | Legacy P2 Manifest identifier, accepted for already published fixtures and trust documents |
-| `sforum.host/v2` | Canonical wire value in `HandshakeRequest.host_api_version` and generated SDK constants; accepted as a Manifest input alias only for early v2 compatibility |
+| `sforum.host@2` | Manifest V3 `backend.hostApiVersion` |
+| `sforum.host/v2` | Wire value in `HandshakeRequest.host_api_version` and generated SDK constants |
 
-The host maps the canonical Manifest identifier and compatibility aliases to
-the canonical wire `host_api_version`; a plugin handshake must select
-`sforum.host/v2`. The host permits only gRPC for this declaration. It fails
-startup on a missing or unsupported Manifest Host API contract, a different
-wire Host API version, a net/rpc subprocess, or an incompatible protocol
-response. It never retries the same artifact as v1. New packages should emit
-only `sforum.host@2` in the Manifest.
-
-Protocol v1 remains the compatibility path for existing packages: omitted or
-`protocolVersion: 1` selects the existing net/rpc runtime and `sforum.host/v1`.
-Rolling a migrated plugin back means selecting its previously trusted v1
-artifact and Manifest. It is not a fallback after any v2 lifecycle or migration
-work starts, and it can require a new exact-artifact trust confirmation.
+The host maps the Manifest identifier to the canonical wire
+`host_api_version`; a plugin handshake must select `sforum.host/v2`. Only gRPC
+Protocol V2 is accepted. Installation or startup fails on a missing or invalid
+Manifest V3 declaration, any `protocolVersion` other than `2`, an unsupported
+Host API contract, or an incompatible handshake response. There is no runtime
+downgrade or legacy transport fallback.
 
 ## Go runtime
 

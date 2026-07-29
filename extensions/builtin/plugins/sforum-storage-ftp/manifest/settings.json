@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "ui": {
+    "mode": "schema",
+    "layout": "tabs",
+    "tabs": [{ "id": "connection", "label": { "zh-CN": "连接设置", "en-US": "Connection" }, "groups": ["connection", "authentication", "paths"] }],
+    "groups": [
+      { "id": "connection", "label": { "zh-CN": "FTP 服务器", "en-US": "FTP server" }, "columns": 2 },
+      { "id": "authentication", "label": { "zh-CN": "登录认证", "en-US": "Authentication" }, "columns": 2 },
+      { "id": "paths", "label": { "zh-CN": "文件路径", "en-US": "File paths" }, "columns": 2 }
+    ],
+    "callouts": [{ "id": "ftp-security", "tone": "warning", "title": { "zh-CN": "优先使用 SFTP", "en-US": "Prefer SFTP" }, "body": { "zh-CN": "FTP 密码与内容默认不加密。仅在兼容旧服务器时使用，并优先启用显式 TLS。", "en-US": "FTP does not encrypt credentials or file data by default. Use it only for legacy servers and enable explicit TLS where available." }, "tab": "connection" }]
+  },
+  "fields": [
+    { "key": "host", "label": { "zh-CN": "服务器地址", "en-US": "Host" }, "description": { "zh-CN": "不要包含 ftp:// 或路径。", "en-US": "Do not include ftp:// or a path." }, "type": "text", "default": "", "group": { "zh-CN": "FTP 服务器", "en-US": "FTP server" } },
+    { "key": "port", "label": { "zh-CN": "端口", "en-US": "Port" }, "description": { "zh-CN": "默认 FTP 端口为 21。", "en-US": "The default FTP port is 21." }, "type": "number", "default": "21", "recommendedValue": "21", "group": { "zh-CN": "FTP 服务器", "en-US": "FTP server" } },
+    { "key": "passive", "label": { "zh-CN": "被动模式", "en-US": "Passive mode" }, "description": { "zh-CN": "通常适合防火墙或 NAT 后的服务器。", "en-US": "Usually works better behind firewalls or NAT." }, "type": "boolean", "default": "true", "recommendedValue": "true", "group": { "zh-CN": "FTP 服务器", "en-US": "FTP server" } },
+    { "key": "explicit_tls", "label": { "zh-CN": "显式 TLS", "en-US": "Explicit TLS" }, "description": { "zh-CN": "服务器支持时必须开启，用于加密控制和数据连接。", "en-US": "Enable when the server supports it to encrypt control and data channels." }, "type": "boolean", "default": "false", "group": { "zh-CN": "FTP 服务器", "en-US": "FTP server" } },
+    { "key": "username", "label": { "zh-CN": "用户名", "en-US": "Username" }, "type": "text", "default": "", "group": { "zh-CN": "登录认证", "en-US": "Authentication" } },
+    { "key": "password", "label": { "zh-CN": "密码", "en-US": "Password" }, "description": { "zh-CN": "留空会保留已保存的密码。", "en-US": "Leave blank to keep the saved password." }, "type": "secret", "default": "", "group": { "zh-CN": "登录认证", "en-US": "Authentication" } },
+    { "key": "root_path", "label": { "zh-CN": "远程根目录", "en-US": "Remote root path" }, "description": { "zh-CN": "附件对象会写入此目录下。", "en-US": "Attachment objects are stored under this directory." }, "type": "text", "default": "/", "recommendedValue": "/", "group": { "zh-CN": "文件路径", "en-US": "File paths" } },
+    { "key": "public_base_url", "label": { "zh-CN": "公开 URL 前缀", "en-US": "Public URL prefix" }, "description": { "zh-CN": "可选。留空时附件继续通过 SForum 内容接口访问。", "en-US": "Optional. Leave blank to keep serving attachments through SForum content APIs." }, "type": "text", "default": "", "group": { "zh-CN": "文件路径", "en-US": "File paths" } }
+  ],
+  "actions": [{ "id": "probe", "kind": "provider_probe", "label": { "zh-CN": "测试 FTP 连接", "en-US": "Test FTP connection" }, "description": { "zh-CN": "验证网络、TLS 和登录认证，不写入附件。", "en-US": "Checks network, TLS, and authentication without storing an attachment." }, "placement": "footer", "useDraftValues": true }]
+}

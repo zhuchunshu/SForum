@@ -959,7 +959,7 @@ func canViewAttachment(actor identity.Actor, attachment Attachment) bool {
 	return actor.Can(identity.PermissionAttachmentManage)
 }
 
-func settingsFromValues(values map[string]string, secrets map[string]bool) AttachmentSettings {
+func settingsFromValues(values map[string]string, _ map[string]bool) AttachmentSettings {
 	// provider 保留原始选择（含 plugin:）；Normalize 仅用于 core 空白→local。
 	rawProvider := strings.TrimSpace(read(values, options.NameAttachmentProvider, storage.ProviderLocal))
 	sel := storage.ParseSelection(rawProvider)
@@ -985,47 +985,6 @@ func settingsFromValues(values map[string]string, secrets map[string]bool) Attac
 			Root:         read(values, options.NameAttachmentLocalRoot, "storage/app/attachments"),
 			PublicPrefix: read(values, options.NameAttachmentLocalPublicPrefix, ""),
 		},
-		AliyunOSS: AliyunOSSSettings{
-			Endpoint:           read(values, options.NameAttachmentAliyunEndpoint, ""),
-			Bucket:             read(values, options.NameAttachmentAliyunBucket, ""),
-			Region:             read(values, options.NameAttachmentAliyunRegion, ""),
-			AccessKeyID:        read(values, options.NameAttachmentAliyunAccessKeyID, ""),
-			AccessKeySecret:    read(values, options.NameAttachmentAliyunAccessKeySecret, ""),
-			AccessKeySecretSet: secretSet(secrets, options.NameAttachmentAliyunAccessKeySecret),
-		},
-		TencentCOS: TencentCOSSettings{
-			Region:       read(values, options.NameAttachmentTencentRegion, ""),
-			Bucket:       read(values, options.NameAttachmentTencentBucket, ""),
-			SecretID:     read(values, options.NameAttachmentTencentSecretID, ""),
-			SecretKey:    read(values, options.NameAttachmentTencentSecretKey, ""),
-			SecretKeySet: secretSet(secrets, options.NameAttachmentTencentSecretKey),
-			CDNDomain:    read(values, options.NameAttachmentTencentCDNDomain, ""),
-		},
-		FTP: FTPSettings{
-			Host:          read(values, options.NameAttachmentFTPHost, ""),
-			Port:          readInt(values, options.NameAttachmentFTPPort, 21),
-			Username:      read(values, options.NameAttachmentFTPUsername, ""),
-			Password:      read(values, options.NameAttachmentFTPPassword, ""),
-			PasswordSet:   secretSet(secrets, options.NameAttachmentFTPPassword),
-			RootPath:      read(values, options.NameAttachmentFTPRootPath, "/"),
-			Passive:       enabled(values, options.NameAttachmentFTPPassive, true),
-			ExplicitTLS:   enabled(values, options.NameAttachmentFTPExplicitTLS, false),
-			PublicBaseURL: read(values, options.NameAttachmentFTPPublicBaseURL, ""),
-		},
-		SFTP: SFTPSettings{
-			Host:               read(values, options.NameAttachmentSFTPHost, ""),
-			Port:               readInt(values, options.NameAttachmentSFTPPort, 22),
-			Username:           read(values, options.NameAttachmentSFTPUsername, ""),
-			Password:           read(values, options.NameAttachmentSFTPPassword, ""),
-			PasswordSet:        secretSet(secrets, options.NameAttachmentSFTPPassword),
-			PrivateKey:         read(values, options.NameAttachmentSFTPPrivateKey, ""),
-			PrivateKeySet:      secretSet(secrets, options.NameAttachmentSFTPPrivateKey),
-			Passphrase:         read(values, options.NameAttachmentSFTPPassphrase, ""),
-			PassphraseSet:      secretSet(secrets, options.NameAttachmentSFTPPassphrase),
-			RootPath:           read(values, options.NameAttachmentSFTPRootPath, "/"),
-			HostKeyFingerprint: read(values, options.NameAttachmentSFTPHostKeyFingerprint, ""),
-			PublicBaseURL:      read(values, options.NameAttachmentSFTPPublicBaseURL, ""),
-		},
 	}
 }
 
@@ -1042,40 +1001,6 @@ func settingsUpdateInputs(settings AttachmentSettings) []options.UpdateInput {
 		{Name: options.NameAttachmentCleanupOrphanDays, Value: strconv.Itoa(settings.CleanupOrphanAfterDays)},
 		{Name: options.NameAttachmentLocalRoot, Value: settings.Local.Root},
 		{Name: options.NameAttachmentLocalPublicPrefix, Value: settings.Local.PublicPrefix},
-		{Name: options.NameAttachmentAliyunEndpoint, Value: settings.AliyunOSS.Endpoint},
-		{Name: options.NameAttachmentAliyunBucket, Value: settings.AliyunOSS.Bucket},
-		{Name: options.NameAttachmentAliyunRegion, Value: settings.AliyunOSS.Region},
-		{Name: options.NameAttachmentAliyunAccessKeyID, Value: settings.AliyunOSS.AccessKeyID},
-		{Name: options.NameAttachmentTencentRegion, Value: settings.TencentCOS.Region},
-		{Name: options.NameAttachmentTencentBucket, Value: settings.TencentCOS.Bucket},
-		{Name: options.NameAttachmentTencentSecretID, Value: settings.TencentCOS.SecretID},
-		{Name: options.NameAttachmentTencentCDNDomain, Value: settings.TencentCOS.CDNDomain},
-		{Name: options.NameAttachmentFTPHost, Value: settings.FTP.Host},
-		{Name: options.NameAttachmentFTPPort, Value: strconv.Itoa(settings.FTP.Port)},
-		{Name: options.NameAttachmentFTPUsername, Value: settings.FTP.Username},
-		{Name: options.NameAttachmentFTPRootPath, Value: settings.FTP.RootPath},
-		{Name: options.NameAttachmentFTPPassive, Value: enabledValue(settings.FTP.Passive)},
-		{Name: options.NameAttachmentFTPExplicitTLS, Value: enabledValue(settings.FTP.ExplicitTLS)},
-		{Name: options.NameAttachmentFTPPublicBaseURL, Value: settings.FTP.PublicBaseURL},
-		{Name: options.NameAttachmentSFTPHost, Value: settings.SFTP.Host},
-		{Name: options.NameAttachmentSFTPPort, Value: strconv.Itoa(settings.SFTP.Port)},
-		{Name: options.NameAttachmentSFTPUsername, Value: settings.SFTP.Username},
-		{Name: options.NameAttachmentSFTPRootPath, Value: settings.SFTP.RootPath},
-		{Name: options.NameAttachmentSFTPHostKeyFingerprint, Value: settings.SFTP.HostKeyFingerprint},
-		{Name: options.NameAttachmentSFTPPublicBaseURL, Value: settings.SFTP.PublicBaseURL},
-	}
-	secretInputs := []options.UpdateInput{
-		{Name: options.NameAttachmentAliyunAccessKeySecret, Value: settings.AliyunOSS.AccessKeySecret},
-		{Name: options.NameAttachmentTencentSecretKey, Value: settings.TencentCOS.SecretKey},
-		{Name: options.NameAttachmentFTPPassword, Value: settings.FTP.Password},
-		{Name: options.NameAttachmentSFTPPassword, Value: settings.SFTP.Password},
-		{Name: options.NameAttachmentSFTPPrivateKey, Value: settings.SFTP.PrivateKey},
-		{Name: options.NameAttachmentSFTPPassphrase, Value: settings.SFTP.Passphrase},
-	}
-	for _, input := range secretInputs {
-		if strings.TrimSpace(input.Value) != "" {
-			inputs = append(inputs, input)
-		}
 	}
 	return inputs
 }
@@ -1087,41 +1012,6 @@ func storageConfig(settings AttachmentSettings) storage.Config {
 		PublicBaseURL: settings.PublicBaseURL,
 		Local: storage.LocalConfig{
 			PublicPrefix: settings.Local.PublicPrefix,
-		},
-		OSS: storage.AliyunOSSConfig{
-			Endpoint:        settings.AliyunOSS.Endpoint,
-			Bucket:          settings.AliyunOSS.Bucket,
-			Region:          settings.AliyunOSS.Region,
-			AccessKeyID:     settings.AliyunOSS.AccessKeyID,
-			AccessKeySecret: settings.AliyunOSS.AccessKeySecret,
-		},
-		COS: storage.TencentCOSConfig{
-			Region:    settings.TencentCOS.Region,
-			Bucket:    settings.TencentCOS.Bucket,
-			SecretID:  settings.TencentCOS.SecretID,
-			SecretKey: settings.TencentCOS.SecretKey,
-			CDNDomain: settings.TencentCOS.CDNDomain,
-		},
-		FTP: storage.FTPConfig{
-			Host:          settings.FTP.Host,
-			Port:          settings.FTP.Port,
-			Username:      settings.FTP.Username,
-			Password:      settings.FTP.Password,
-			RootPath:      settings.FTP.RootPath,
-			Passive:       settings.FTP.Passive,
-			ExplicitTLS:   settings.FTP.ExplicitTLS,
-			PublicBaseURL: settings.FTP.PublicBaseURL,
-		},
-		SFTP: storage.SFTPConfig{
-			Host:               settings.SFTP.Host,
-			Port:               settings.SFTP.Port,
-			Username:           settings.SFTP.Username,
-			Password:           settings.SFTP.Password,
-			PrivateKey:         settings.SFTP.PrivateKey,
-			Passphrase:         settings.SFTP.Passphrase,
-			RootPath:           settings.SFTP.RootPath,
-			HostKeyFingerprint: settings.SFTP.HostKeyFingerprint,
-			PublicBaseURL:      settings.SFTP.PublicBaseURL,
 		},
 	}
 }
@@ -1209,13 +1099,6 @@ func splitList(value string) []string {
 		}
 	}
 	return items
-}
-
-func secretSet(secrets map[string]bool, name string) bool {
-	if secrets == nil {
-		return false
-	}
-	return secrets[name]
 }
 
 func (s AttachmentSettings) String() string {

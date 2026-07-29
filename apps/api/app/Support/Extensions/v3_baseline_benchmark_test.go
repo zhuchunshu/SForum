@@ -1,9 +1,6 @@
 package extensionsruntime
 
 import (
-	"context"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -42,39 +39,6 @@ func BenchmarkRouteGatewayV1Baseline(b *testing.B) {
 		response.Reset()
 		if err := gateway.Proxy(&input); err != nil {
 			b.Fatal(err)
-		}
-	}
-}
-
-// BenchmarkPluginRPCV1Baseline 使用真实 go-plugin 子进程测量 net/rpc health 往返。
-func BenchmarkPluginRPCV1Baseline(b *testing.B) {
-	packageRoot := filepath.Join(b.TempDir(), "benchmark.plugin", "1.0.0")
-	filesRoot := filepath.Join(packageRoot, "files", "backend")
-	if err := os.MkdirAll(filesRoot, 0o755); err != nil {
-		b.Fatal(err)
-	}
-	targetBinary := filepath.Join(filesRoot, "plugin")
-	if err := os.WriteFile(targetBinary, []byte(helperPluginLauncher(b)), 0o755); err != nil {
-		b.Fatal(err)
-	}
-	starter := NewProtocolStarter(ProtocolStarterConfig{})
-	extension := runtimeExtension("benchmark.plugin")
-	extension.PackagePath = filepath.Join(packageRoot, "package.zip")
-	if _, err := starter.Start(context.Background(), extension); err != nil {
-		b.Fatal(err)
-	}
-	defer starter.Stop(context.Background(), extension)
-	protocol := starter.protocolFor(extension.ID)
-	if protocol == nil {
-		b.Fatal("protocol was not registered")
-	}
-
-	b.ReportAllocs()
-	b.ResetTimer()
-	for range b.N {
-		health, err := protocol.Health()
-		if err != nil || !health.OK {
-			b.Fatalf("health=%#v err=%v", health, err)
 		}
 	}
 }

@@ -263,64 +263,6 @@ func TestContentPolicyBuiltInManifestStartsWithProtocolV2(t *testing.T) {
 	}
 }
 
-func TestContentPolicyV1RollbackManifestStarts(t *testing.T) {
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve fixture path")
-	}
-	sourceRoot := filepath.Dir(filepath.Dir(file))
-	packageRoot := filepath.Join(t.TempDir(), "sforum-content-policy-v1")
-	if err := copyContentPolicyPackage(sourceRoot, packageRoot); err != nil {
-		t.Fatal(err)
-	}
-	v1Manifest, err := os.ReadFile(filepath.Join(sourceRoot, "sforum.extension.v1.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(packageRoot, "sforum.extension.json"), v1Manifest, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	binary := filepath.Join(packageRoot, "backend", "plugin")
-	command := exec.Command("go", "build", "-tags", "protocol_v1", "-trimpath", "-buildvcs=false", "-o", binary, ".")
-	command.Dir = filepath.Dir(file)
-	if output, err := command.CombinedOutput(); err != nil {
-		t.Fatalf("build protocol v1 rollback binary: %v\n%s", err, output)
-	}
-	if info, err := os.Stat(binary); err != nil || info.Mode()&0o111 == 0 {
-		t.Fatalf("v1 rollback artifact is not executable: %v", err)
-	}
-	manifest, err := extensionmanifest.LoadPackage(packageRoot)
-	if err != nil {
-		t.Fatalf("load protocol v1 rollback manifest: %v", err)
-	}
-	if manifest.Backend.ProtocolVersion != 1 || manifest.Version != "1.0.0" || len(manifest.Services) != 0 {
-		t.Fatalf("unexpected protocol v1 rollback manifest: %#v", manifest)
-	}
-	extension := extensions.Extension{
-		ID: manifest.ID, Name: manifest.Name, Version: manifest.Version, Type: manifest.Type,
-		Status: extensions.StatusEnabled, Source: extensions.SourceBuiltin,
-		Manifest: manifest, PackagePath: packageRoot,
-	}
-	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
-		Settings: contentPolicyTestSettings{"enabled": "true", "keywords": "blocked", "mode": "reject"},
-	})
-	if _, err := starter.Start(context.Background(), extension); err != nil {
-		t.Fatalf("start protocol v1 rollback package: %v", err)
-	}
-	t.Cleanup(func() { _ = starter.Stop(context.Background(), extension) })
-	result := starter.InvokeHook(context.Background(), extension, extensionsruntime.HookInput{
-		Name: "comment.before_create", Kind: "filter", Timeout: 2 * time.Second,
-		Payload: map[string]any{"content": "blocked reply"},
-	})
-	if result.OK || result.Reason != "content_policy.keyword_blocked" {
-		t.Fatalf("unexpected protocol v1 rollback decision: %#v", result)
-	}
-	telemetry := starter.ProtocolTelemetry(extension.ID)
-	if telemetry.ProtocolVersion != 1 || telemetry.Transport != "net/rpc" || !telemetry.Deprecated {
-		t.Fatalf("unexpected protocol v1 telemetry: %#v", telemetry)
-	}
-}
-
 type contentPolicyTestSettings map[string]string
 
 func (settings contentPolicyTestSettings) ListSettings(context.Context, string) (map[string]string, error) {

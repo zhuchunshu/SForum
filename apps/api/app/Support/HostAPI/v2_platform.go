@@ -38,7 +38,7 @@ func (s *protocolV2PermissionServer) Check(ctx context.Context, request *hostv2.
 func (s *protocolV2PermissionServer) List(_ context.Context, request *hostv2.PermissionListRequest) (*hostv2.PermissionListResponse, error) {
 	return &hostv2.PermissionListResponse{
 		Context: protocolV2ResponseContext(request.GetContext()),
-		Error:   protocolV2Unsupported("host.permission_catalog_unavailable", "Permission catalog discovery is not available through the v1 compatibility source."),
+		Error:   protocolV2Unsupported("host.permission_catalog_unavailable", "Permission catalog discovery is not available through the legacy Host source."),
 	}, nil
 }
 
@@ -75,7 +75,7 @@ func (s *protocolV2IdentityServer) GetUser(ctx context.Context, request *hostv2.
 func (s *protocolV2IdentityServer) InvokeProvider(_ context.Context, request *hostv2.IdentityProviderRequest) (*hostv2.IdentityProviderResponse, error) {
 	return &hostv2.IdentityProviderResponse{
 		Context: protocolV2ResponseContext(request.GetContext()),
-		Error:   protocolV2Unsupported("host.identity_provider_unavailable", "Identity provider invocation has no v1 compatibility adapter."),
+		Error:   protocolV2Unsupported("host.identity_provider_unavailable", "Identity provider invocation has no legacy Host adapter."),
 	}, nil
 }
 
@@ -119,6 +119,6 @@ func (s *protocolV2AuditServer) Append(ctx context.Context, request *hostv2.Audi
 func (s *protocolV2AuditServer) List(_ context.Context, request *hostv2.AuditListRequest) (*hostv2.AuditListResponse, error) {
 	return &hostv2.AuditListResponse{
 		Context: protocolV2ResponseContext(request.GetContext()),
-		Error:   protocolV2Unsupported("host.audit_list_unavailable", "Audit reads have no v1 compatibility adapter."),
+		Error:   protocolV2Unsupported("host.audit_list_unavailable", "Audit reads have no legacy Host adapter."),
 	}, nil
 }

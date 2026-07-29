@@ -1,84 +1,52 @@
-# P13 Migration Policy And LTS Compatibility
+# P13 Manifest And Protocol Migration Policy
 
-This document freezes the Host/Frontend API LTS rules that gate **when** V3
-may delete compatibility paths. It does **not** delete legacy code.
+SForum has not published a stable extension ecosystem. The platform therefore
+uses one package and runtime baseline instead of carrying a compatibility
+window for unpublished contracts.
 
-## Compatibility windows (Host API)
+## Supported baseline
 
-| Surface | Current | Compatibility shim | Earliest removal |
-| --- | --- | --- | --- |
-| Protocol V1 (net/rpc) built-ins (SMTP/storage) | Supported | Metrics + fixtures remain green | After published LTS window + zero shim telemetry |
-| Manifest V1 normalization | Supported for unambiguous packages | Reject ambiguous; prefer V3 | After all built-ins migrate to V3 + LTS window |
-| Theme.json synthetic template identity | Supported for legacy packages | `RequireDeclaredTemplates=false` path | After default presentation parity gates |
-| Request-time `LoadTemplate` / `{{var}}` render | Residual for unmigrated add/replace without snapshot | APILTS `sforum.theme.l1.request-time-loader` | After RemoveAfter + zero shim (snapshot-covered paths already free) |
-| Core Nuxt public pages | Thin shells + Host body islands | Theme L1 owns shells/chrome (`sf-navbar`/`sf-footer`); fail-closed `SFHostPublicChrome` | Host island CSS residual; fail-closed Page Outlet never removed |
-| Legacy Page Outlet fallback to core slot | Required safety | Emergency fallback remains | Never fully remove fail-closed fallback |
-
-Authoritative LTS telemetry lives in `apps/api/app/Support/APILTS`.
-
-### Production wiring (P13 residual honesty)
-
-- Stable shim contract ids:
-  - `sforum.protocol.v1` (`apilts.ProtocolV1ContractID`)
-  - `sforum.theme.l1.request-time-loader` (`apilts.ThemeRequestTimeLoaderContractID`)
-- API and worker bootstrap inject `apilts.Process()` into
-  `ProtocolStarterConfig.ShimTelemetry`.
-- Every Protocol V1 **start** and **RPC call** increments process-local
-  `RecordShimCall("sforum.protocol.v1")`. Protocol V2 gRPC does not.
-- Page resolve increments `sforum.theme.l1.request-time-loader` only when the
-  request falls back to `LoadTemplate`/`RenderTemplate` outside an exact
-  `ThemeRuntimeSnapshot`. Snapshot-covered resolves do not record.
-- Deletion gate helper: `Registry.CanRemoveWithZeroShim(contractID, now)` —
-  requires both the published `RemoveAfter` window and **zero** process-local
-  shim calls.
-- Operator inspect (offline policy + this-process counters):
-
-  ```bash
-  cd apps/api && go run ./cmd/sforum extension api-lts
-  cd apps/api && go run ./cmd/sforum extension api-lts --json
-  ```
-
-  Live V1 traffic counters accumulate in the **API/worker process**, not in a
-  one-shot CLI process (CLI usage is usually zero and still prints the seeded
-  contract policy).
-
-## Built-in plugin migration status
-
-| Package | Protocol | Status |
+| Surface | Required contract | Failure behavior |
 | --- | --- | --- |
-| `sforum.content-policy` | V2 | Primary workflow reference; V1 rollback fixture retained until final gates |
-| `sforum.smtp` | **V2** (default) | Mail provider via known-slot `ProviderCall` probe/send; V1 rollback via `sforum.extension.v1.json` + `-tags protocol_v1` |
-| `sforum.storage-fs` | **V2** (default) | Attachment storage via known-slot `ProviderCall` (probe/put_begin/put_chunk/open/get_chunk/…; binary chunks base64); V1 rollback via `sforum.extension.v1.json` + `-tags protocol_v1` |
+| Package manifest | `manifestVersion: 3` | Missing or different versions fail installation |
+| Executable transport | `backend.protocolVersion: 2` | Missing or different versions fail validation/startup |
+| Host API | `backend.hostApiVersion: sforum.host@2` | Missing or unsupported contracts fail validation/startup |
+| Go runtime | `apps/api/sdk/plugin/v2` | Old SDK entry points are not provided |
 
-## Reference plugins (installable fixtures)
+There is no automatic normalization, transport downgrade, or legacy artifact
+rollback. An older package must be rebuilt with a valid Manifest V3, Protocol
+V2 backend, exact digests, and `packageFiles` declarations before installation.
+Static install remains inert; the ordinary exact-artifact trust and lifecycle
+rules still apply before any executable code runs.
 
-| Class | Package id | Location |
-| --- | --- | --- |
-| SEO | `sforum.seo-reference` | `extensions/fixtures/plugins/sforum-seo-reference` |
-| Identity | `sforum.membership-reference` | `extensions/fixtures/plugins/sforum-membership-reference` |
-| Custom content | `sforum.custom-content` | `extensions/fixtures/plugins/sforum-custom-content` |
-| Media | `sforum.media-optimize` | `extensions/fixtures/plugins/sforum-media-optimize` |
-| Commerce | `sforum.commerce-workflow` (+ `-ext`) | `extensions/fixtures/plugins/sforum-commerce-workflow*` |
+## Built-in status
 
-These packages are independently installable (build backend binary, fill digests,
-enable with trust). They must not require core product route or schema edits.
+All executable built-ins ship one Manifest V3 and one Protocol V2 entry point.
+Their build scripts generate only the V2 binary and refresh its exact digest.
 
-## Deletion checklist (must all be true)
+| Package | Runtime surface |
+| --- | --- |
+| `sforum.content-policy` | Typed hook filters |
+| `sforum.smtp` | Mail provider registry |
+| `sforum.storage-fs` | Attachment storage provider registry |
+| `sforum.search-site` | Search provider registry |
+| `sforum.auth-github` | Identity provider registry |
 
-1. Five-reference-plugin matrix product tests green on `main`.
-2. Default + Nocturne cover every replaceable Page Registry id.
-3. `go test ./...`, `go build ./...`, OpenAPI refs, Nuxt typecheck/build, `./scripts/test.sh` green.
-4. Safe Mode, CLI recovery, multi-node revision, upgrade/rollback/uninstall scenarios green.
-5. Browser desktop/mobile + JS-disabled public surface evidence recorded.
-6. APILTS shim usage telemetry shows zero for the target contract for one full LTS window.
-7. Security review for guards, raw DB, route replace, L2, files, secrets, HTTP, OpenAPI, plugin-to-plugin authority signed off.
+## Remaining LTS work
 
-Until then: **keep** v1 adapters, request-time template loader residual paths,
-emergency Page Outlet fallback, and migration ledgers. Public presentation page
-+ chrome ownership is already theme L1 (2026-07-21).
+The protocol migration is complete. APILTS still governs independently
+published surfaces such as the request-time theme loader. Removing the old protocol
+does not authorize early removal of those unrelated compatibility contracts or
+the Host-owned emergency Page Outlet fallback.
 
-## Rollback
+## Verification
 
-If a deletion lands prematurely, restore the previous immutable package digests
-and re-enable the LTS shim via desired revision rollback (`RuntimeRollout`).
-Database rollback is never assumed; migration backup policy governs data.
+The release gate must include:
+
+1. Manifest loader rejection tests for missing and unsupported versions.
+2. Protocol starter rejection tests for any non-V2 executable package.
+3. CLI scaffold and built-in package validation.
+4. Real V2 subprocess coverage for hooks and provider slots.
+5. A formal ZIP install, trust, enable, restart, upgrade, rollback, disable,
+   and uninstall chain against a clean database.
+6. Full Go, architecture, OpenAPI, web typecheck, and repository test gates.

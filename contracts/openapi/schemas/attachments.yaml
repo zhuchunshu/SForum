@@ -92,8 +92,7 @@ ApiResponseAttachmentCleanup:
 AttachmentProvider:
   type: string
   description: >
-    Core driver id (local, aliyun_oss, tencent_cos, ftp, sftp) or plugin
-    selection plugin:<extensionId> (E6.1).
+    Core driver id (local) or plugin selection plugin:<extensionId> (E6.1).
   examples:
   - local
   - plugin:sforum.s3
@@ -290,10 +289,6 @@ AttachmentSettings:
   - defaultVisibility
   - cleanupOrphanAfterDays
   - local
-  - aliyunOss
-  - tencentCos
-  - ftp
-  - sftp
   properties:
     providerSlot:
       type: string
@@ -353,14 +348,6 @@ AttachmentSettings:
       maximum: 3650
     local:
       "$ref": "#/AttachmentLocalSettings"
-    aliyunOss:
-      "$ref": "#/AttachmentAliyunOSSSettings"
-    tencentCos:
-      "$ref": "#/AttachmentTencentCOSSettings"
-    ftp:
-      "$ref": "#/AttachmentFTPSettings"
-    sftp:
-      "$ref": "#/AttachmentSFTPSettings"
 AttachmentLocalSettings:
   type: object
   required:
@@ -375,131 +362,6 @@ AttachmentLocalSettings:
     publicPrefix:
       type: string
       description: Optional public URL prefix for locally stored objects.
-AttachmentAliyunOSSSettings:
-  type: object
-  required:
-  - endpoint
-  - bucket
-  - region
-  - accessKeyId
-  - accessKeySecretSet
-  properties:
-    endpoint:
-      type: string
-    bucket:
-      type: string
-    region:
-      type: string
-    accessKeyId:
-      type: string
-    accessKeySecret:
-      type: string
-      format: password
-      description: Blank on update keeps the existing secret.
-    accessKeySecretSet:
-      type: boolean
-AttachmentTencentCOSSettings:
-  type: object
-  required:
-  - region
-  - bucket
-  - secretId
-  - secretKeySet
-  - cdnDomain
-  properties:
-    region:
-      type: string
-    bucket:
-      type: string
-    secretId:
-      type: string
-    secretKey:
-      type: string
-      format: password
-      description: Blank on update keeps the existing secret.
-    secretKeySet:
-      type: boolean
-    cdnDomain:
-      type: string
-AttachmentFTPSettings:
-  type: object
-  required:
-  - host
-  - port
-  - username
-  - passwordSet
-  - rootPath
-  - passive
-  - explicitTls
-  - publicBaseUrl
-  properties:
-    host:
-      type: string
-    port:
-      type: integer
-      minimum: 1
-      maximum: 65535
-    username:
-      type: string
-    password:
-      type: string
-      format: password
-      description: Blank on update keeps the existing secret.
-    passwordSet:
-      type: boolean
-    rootPath:
-      type: string
-    passive:
-      type: boolean
-    explicitTls:
-      type: boolean
-    publicBaseUrl:
-      type: string
-AttachmentSFTPSettings:
-  type: object
-  required:
-  - host
-  - port
-  - username
-  - passwordSet
-  - privateKeySet
-  - passphraseSet
-  - rootPath
-  - hostKeyFingerprint
-  - publicBaseUrl
-  properties:
-    host:
-      type: string
-    port:
-      type: integer
-      minimum: 1
-      maximum: 65535
-    username:
-      type: string
-    password:
-      type: string
-      format: password
-      description: Blank on update keeps the existing secret.
-    passwordSet:
-      type: boolean
-    privateKey:
-      type: string
-      format: password
-      description: Blank on update keeps the existing private key.
-    privateKeySet:
-      type: boolean
-    passphrase:
-      type: string
-      format: password
-      description: Blank on update keeps the existing passphrase.
-    passphraseSet:
-      type: boolean
-    rootPath:
-      type: string
-    hostKeyFingerprint:
-      type: string
-    publicBaseUrl:
-      type: string
 AttachmentProbe:
   type: object
   required:

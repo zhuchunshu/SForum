@@ -83,7 +83,7 @@ type CallbackTransaction struct {
 	ClientClass             string                `json:"clientClass"`
 	DeviceFingerprint       string                `json:"deviceFingerprint"`
 	RedirectPath            string                `json:"redirectPath"`
-	// AbsoluteCallbackURL 是 start 时由可信 APP_URL 生成的绝对 callback URL；
+	// AbsoluteCallbackURL 是 start 时由可信站点基址生成的绝对 callback URL；
 	// complete 必须传入同一值，不可从请求 Host 重建。
 	AbsoluteCallbackURL string    `json:"absoluteCallbackUrl"`
 	CodeChallenge       string    `json:"codeChallenge"`
@@ -307,7 +307,7 @@ func ExternalAuthCallbackURL(providerID string) string {
 	return ExternalAuthCallbackPath(providerID)
 }
 
-// AbsoluteExternalAuthCallbackURL 从可信应用配置（APP_URL）生成绝对 callback URL。
+// AbsoluteExternalAuthCallbackURL 从可信站点基址生成绝对 callback URL。
 // 绝不使用请求 Host。productionRequireHTTPS 为 true 时要求 scheme=https。
 // appURL 非法、缺 scheme/host、或生产非 HTTPS 时返回错误。
 func AbsoluteExternalAuthCallbackURL(appURL, providerID string, productionRequireHTTPS bool) (string, error) {
@@ -327,7 +327,7 @@ func AbsoluteExternalAuthCallbackURL(appURL, providerID string, productionRequir
 	if productionRequireHTTPS && scheme != "https" {
 		return "", fmt.Errorf("%w: production callback requires https app url", ErrExternalAuthCallbackURLInvalid)
 	}
-	// 仅使用 scheme://host（忽略 APP_URL 路径），避免把站点子路径拼进 callback。
+	// 仅使用 scheme://host（忽略站点基址路径），避免把站点子路径拼进 callback。
 	base := &url.URL{Scheme: scheme, Host: parsed.Host}
 	return base.String() + ExternalAuthCallbackPath(providerID), nil
 }
@@ -365,7 +365,7 @@ func ExternalRegistrationContinuationPath(ticket, safeRedirect string) string {
 	return u.String()
 }
 
-// ErrExternalAuthCallbackURLInvalid 可信绝对 callback URL 无法从 APP_URL 形成。
+// ErrExternalAuthCallbackURLInvalid 无法从可信站点基址形成绝对 callback URL。
 var ErrExternalAuthCallbackURLInvalid = errors.New("auth.provider_callback_url_invalid")
 
 // --- 内存实现（并发安全 + 与 Redis 相同的 TTL 语义） ---

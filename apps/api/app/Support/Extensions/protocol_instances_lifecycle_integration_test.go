@@ -10,7 +10,7 @@ import (
 )
 
 func TestProtocolV2ExactLifecycleRunsOnStagedAndRetainedInstances(t *testing.T) {
-	extension := p4LifecycleExtension(t, "v2")
+	extension := p4LifecycleExtension(t)
 	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{Trust: p4LifecycleTrust{}})
 	t.Cleanup(func() { _ = starter.Stop(context.Background(), extension) })
 

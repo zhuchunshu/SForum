@@ -34,7 +34,7 @@ jobs:
           POSTGRES_USER: sforum
           POSTGRES_PASSWORD: sforum
         ports:
-          - 5432:5432
+          - 15432:5432
         options: >-
           --health-cmd "pg_isready -U sforum -d sforum"
           --health-interval 10s
@@ -69,10 +69,17 @@ jobs:
         working-directory: apps/web
         run: bun install --frozen-lockfile
 
+      - name: Run database migrations
+        working-directory: apps/api
+        env:
+          DATABASE_URL: postgres://sforum:sforum@127.0.0.1:15432/sforum?sslmode=disable
+        run: go run ./cmd/migrate
+
       - name: Run repository test gate
         env:
           CI: "true"
-          SFORUM_COMPAT_DATABASE_URL: postgres://sforum:sforum@127.0.0.1:5432/sforum?sslmode=disable
+          SFORUM_COMPAT_DATABASE_URL: postgres://sforum:sforum@127.0.0.1:15432/sforum?sslmode=disable
+          SFORUM_BUILTIN_VERSION_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: ./scripts/test.sh
 
       - name: Build Go commands

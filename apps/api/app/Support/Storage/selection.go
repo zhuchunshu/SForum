@@ -5,7 +5,7 @@ import (
 )
 
 // 选择值编码（E6.0 决策）：
-//   - core 驱动：local / aliyun_oss / tencent_cos / ftp / sftp（空白 → local）
+//   - core 驱动：local（空白 → local）
 //   - 插件：plugin:<extensionId>
 // 见 knowledge/decisions/2026-07-12-attachment-storage-plugin-provider.md
 

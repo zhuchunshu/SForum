@@ -46,7 +46,7 @@ func TestManifestV3SEOContractRejectsAmbiguousOrUncallableDeclarations(t *testin
 		{name: "implicit failure policy", change: func(value *Manifest) { value.SEO[0].FailurePolicy = "" }},
 		{name: "priority overflow", change: func(value *Manifest) { value.SEO[0].Priority = ManifestSEOMaximumPriority + 1 }},
 		{name: "timeout overflow", change: func(value *Manifest) { value.SEO[0].TimeoutMS = ManifestSEOMaximumTimeoutMS + 1 }},
-		{name: "protocol v1", change: func(value *Manifest) { value.Backend.ProtocolVersion = 1; value.Backend.HostAPIVersion = "" }},
+		{name: "unsupported protocol 1", change: func(value *Manifest) { value.Backend.ProtocolVersion = 1; value.Backend.HostAPIVersion = "" }},
 		{name: "missing backend", change: func(value *Manifest) { value.Backend = ManifestBackend{} }},
 		{name: "theme authority", change: func(value *Manifest) { value.Type = TypeTheme }},
 	}

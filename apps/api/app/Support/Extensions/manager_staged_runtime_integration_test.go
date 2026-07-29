@@ -9,7 +9,7 @@ import (
 )
 
 func TestManagerStagedRuntimeUsesRealProtocolV2Process(t *testing.T) {
-	extension := p4LifecycleExtension(t, "v2")
+	extension := p4LifecycleExtension(t)
 	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{Trust: p4LifecycleTrust{}})
 	manager := extensionsruntime.NewManager(extensionsruntime.ManagerConfig{Starter: starter})
 

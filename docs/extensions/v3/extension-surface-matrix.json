@@ -149,7 +149,7 @@
     },
     "lifecycle": {
       "state": "open",
-      "contract": "v1 enable/disable/upgrade/uninstall compatibility",
+      "contract": "Protocol V2 enable/disable/upgrade/uninstall lifecycle",
       "phase": "P4"
     }
   },

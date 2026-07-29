@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import SFAdminFormFooter from '~/components/admin/SFAdminFormFooter.vue'
-import SFAdminAttachmentCoreProviderFields from '~/components/admin/settings/attachments/SFAdminAttachmentCoreProviderFields.vue'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import {
   createDefaultAttachmentSettings,
@@ -26,11 +25,7 @@ const restoring = ref(false)
 const testing = ref(false)
 
 const coreProviderLabels: Record<string, string> = {
-  local: t('admin.attachments.providers.local'),
-  aliyun_oss: t('admin.attachments.providers.aliyunOss'),
-  tencent_cos: t('admin.attachments.providers.tencentCos'),
-  ftp: t('admin.attachments.providers.ftp'),
-  sftp: t('admin.attachments.providers.sftp')
+  local: t('admin.attachments.providers.local')
 }
 
 const providerChoices = computed(() => {
@@ -156,11 +151,7 @@ function settingsPayload(): AttachmentSettings {
     ...form,
     allowedExtensions: [...form.allowedExtensions],
     allowedMimeTypes: [...form.allowedMimeTypes],
-    local: { ...form.local },
-    aliyunOss: { ...form.aliyunOss },
-    tencentCos: { ...form.tencentCos },
-    ftp: { ...form.ftp },
-    sftp: { ...form.sftp }
+    local: { ...form.local }
   }
 }
 
@@ -322,8 +313,6 @@ function providerLabel(provider: string) {
               </template>
             </UInput>
           </UFormField>
-
-          <SFAdminAttachmentCoreProviderFields v-if="!selectedProviderIsPlugin" :settings="form" />
 
           <!-- 插件提供方的凭证只在通用扩展设置页管理。 -->
           <div

@@ -14,7 +14,7 @@ import (
 )
 
 func TestLifecycleCoordinatorRuntimeAdapterUsesFrozenProtocolV2(t *testing.T) {
-	starter, extension := p4LifecycleStart(t, "v2")
+	starter, extension := p4LifecycleStart(t)
 	adapter := extensionsruntime.NewLifecycleCoordinatorRuntimeAdapter(starter)
 
 	// The adapter supplies the caller snapshot, while ProtocolStarter remains
@@ -40,7 +40,7 @@ func TestLifecycleCoordinatorRuntimeAdapterUsesFrozenProtocolV2(t *testing.T) {
 }
 
 func TestLifecycleCoordinatorRuntimeAdapterCallbackFailureCancelsStream(t *testing.T) {
-	starter, extension := p4LifecycleStart(t, "v2")
+	starter, extension := p4LifecycleStart(t)
 	adapter := extensionsruntime.NewLifecycleCoordinatorRuntimeAdapter(starter)
 	cancelled := filepath.Join(t.TempDir(), "cancelled")
 	sentinel := errors.New("persist progress failed")

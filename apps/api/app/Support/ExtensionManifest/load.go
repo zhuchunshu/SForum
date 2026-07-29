@@ -93,10 +93,11 @@ func LoadRootBytes(rootBody []byte, pkg PackageFS) (Manifest, error) {
 	if err := json.Unmarshal(rootBody, &version); err != nil {
 		return Manifest{}, fmt.Errorf("%w: %v", ErrInvalidManifest, err)
 	}
-	if version.ManifestVersion == ManifestVersionV3 {
-		if err := ValidateV3JSONSchema(rootBody); err != nil {
-			return Manifest{}, err
-		}
+	if version.ManifestVersion != ManifestVersionV3 {
+		return Manifest{}, fmt.Errorf("%w: manifestVersion must be %d", ErrInvalidManifest, ManifestVersionV3)
+	}
+	if err := ValidateV3JSONSchema(rootBody); err != nil {
+		return Manifest{}, err
 	}
 	var manifest Manifest
 	if err := json.Unmarshal(rootBody, &manifest); err != nil {
@@ -108,22 +109,18 @@ func LoadRootBytes(rootBody []byte, pkg PackageFS) (Manifest, error) {
 		}
 	}
 	manifest = Normalize(manifest)
-	if EffectiveManifestVersion(manifest) == ManifestVersionV3 {
-		canonical, err := json.Marshal(manifest)
-		if err != nil {
-			return Manifest{}, fmt.Errorf("%w: marshal V3 manifest: %v", ErrInvalidManifest, err)
-		}
-		if err := ValidateV3JSONSchema(canonical); err != nil {
-			return Manifest{}, err
-		}
+	canonical, err := json.Marshal(manifest)
+	if err != nil {
+		return Manifest{}, fmt.Errorf("%w: marshal V3 manifest: %v", ErrInvalidManifest, err)
+	}
+	if err := ValidateV3JSONSchema(canonical); err != nil {
+		return Manifest{}, err
 	}
 	if err := Validate(manifest); err != nil {
 		return Manifest{}, err
 	}
-	if EffectiveManifestVersion(manifest) == ManifestVersionV3 {
-		if err := ValidatePackageFiles(manifest, pkg); err != nil {
-			return Manifest{}, err
-		}
+	if err := ValidatePackageFiles(manifest, pkg); err != nil {
+		return Manifest{}, err
 	}
 	return manifest, nil
 }

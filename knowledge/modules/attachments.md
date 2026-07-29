@@ -38,8 +38,10 @@ Attachment system foundation is implemented.
   explains provider defaults, public URLs, credential retention, and SFTP host
   key verification. Core provider credential fields live in the focused
   `SFAdminAttachmentCoreProviderFields` component.
-- Manager owns filters, detail/reference loading, status changes, soft delete,
-  orphan cleanup, and URL copy.
+- Manager owns filters, server-backed button pagination, detail/reference
+  loading, status changes, soft delete, orphan cleanup, and URL copy. Filters
+  restart at page one, while cleanup recovers to the last available page when
+  the current page becomes empty.
 - Site brand uploads reuse the attachment provider and validation pipeline
   through `POST /admin/site/brand-assets`, but are authorized by
   `settings.site.manage` and forced to active public images. Saving the matching

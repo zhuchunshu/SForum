@@ -616,7 +616,7 @@ replace it. With a running API and an authenticated account, verify:
 ## Out Of Scope
 
 - V3 production-rewire findings already owned by the related task book.
-- Protocol V1/request-time-loader LTS deletion before its removal window.
+- Request-time-loader LTS deletion before its removal window.
 - Social-login provider implementation.
 - Likes/reactions/bookmarks.
 - Payments, Marketplace product UI expansion, or category-scoped ACL.

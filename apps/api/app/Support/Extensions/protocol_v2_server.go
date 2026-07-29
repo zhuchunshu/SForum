@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-plugin"
+	pluginbootstrap "github.com/zhuchunshu/sforum/apps/api/app/Support/PluginBootstrap"
 	pluginv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -13,7 +14,6 @@ import (
 )
 
 const (
-	pluginProtocolV2Name              = "sforum-plugin-v2"
 	DefaultProtocolV2MaxMessageBytes  = 4 << 20
 	DefaultProtocolV2ConcurrentCalls  = 16
 	DefaultProtocolV2RequestTimeout   = 5 * time.Second
@@ -27,17 +27,18 @@ type ProtocolV2ServerConfig struct {
 	DefaultTimeout  time.Duration
 }
 
-// ServeProtocolV2Plugin serves only HashiCorp go-plugin protocol 2 over gRPC.
-// Protocol v1 remains available through ServeProtocolPlugin.
+// ServeProtocolV2Plugin serves HashiCorp go-plugin Protocol V2 over gRPC.
 func ServeProtocolV2Plugin(server pluginv2.PluginRuntimeServiceServer, config ProtocolV2ServerConfig) {
 	if server == nil {
 		panic("protocol v2 plugin server is required")
 	}
 	config = normalizeProtocolV2ServerConfig(config)
 	plugin.Serve(&plugin.ServeConfig{
-		HandshakeConfig: handshakeConfig,
+		HandshakeConfig: pluginbootstrap.HandshakeV1(),
 		VersionedPlugins: map[int]plugin.PluginSet{
-			2: {pluginProtocolV2Name: &protocolV2Plugin{server: server}},
+			pluginbootstrap.ApplicationProtocolV2: {
+				pluginbootstrap.ApplicationProtocolV2Name: &protocolV2Plugin{server: server},
+			},
 		},
 		GRPCServer: protocolV2GRPCServerFactory(config),
 	})

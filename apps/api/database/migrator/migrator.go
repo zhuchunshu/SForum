@@ -49,7 +49,7 @@ func Up(ctx context.Context, cfg Config) error {
 	}
 	targetVersion := strings.TrimSpace(cfg.TargetCoreVersion)
 	if targetVersion == "" {
-		targetVersion = platformversion.Current
+		targetVersion = platformversion.CoreCompatibilityVersion()
 	}
 	return withCorePhysicalAuthoritySession(ctx, adminDB, func(adminConnection *sql.Conn) error {
 		return runCoreMigrationsLocked(ctx, cfg, logger, adminDB, adminConnection, targetVersion)

@@ -1,5 +1,3 @@
-//go:build !protocol_v1
-
 package main
 
 import (
@@ -16,9 +14,9 @@ import (
 
 // 与 Host protocol_v2_storage.providerCall 对齐的 known-slot schema。
 const (
-	storageSlot                   = "attachment.storage.provider"
-	storageLegacyContractVersion  = "1"
-	storageSchemaPrefix           = "sforum.provider.attachment.storage.provider."
+	storageSlot                  = "attachment.storage.provider"
+	storageLegacyContractVersion = "1"
+	storageSchemaPrefix          = "sforum.provider.attachment.storage.provider."
 )
 
 // fsStoragePluginV2 覆盖 ProviderCall，承接 Host 遗留 known-slot 分块存储 RPC。

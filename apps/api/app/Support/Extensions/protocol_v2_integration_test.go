@@ -13,11 +13,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	capabilities "github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
-	pluginsdk "github.com/zhuchunshu/sforum/apps/api/sdk/plugin"
 	pluginv2sdk "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2"
 	pluginwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
 	protocolwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
@@ -450,8 +450,8 @@ func TestProtocolV2HelperProcess(t *testing.T) {
 			readinessFail: os.Getenv("SFORUM_PLUGIN_HELPER") == "protocol-v2-readiness-fail",
 		})
 		os.Exit(0)
-	case "protocol-v1":
-		pluginsdk.Serve(protocolV1Helper{})
+	case "protocol-v2-no-services":
+		pluginv2sdk.Serve(&protocolV2Helper{Server: pluginv2sdk.NewServer()})
 		os.Exit(0)
 	}
 }
@@ -459,6 +459,47 @@ func TestProtocolV2HelperProcess(t *testing.T) {
 type protocolV2Helper struct {
 	*pluginv2sdk.Server
 	readinessFail bool
+}
+
+func (s *protocolV2Helper) Health(ctx context.Context, request *protocolwire.HealthRequest) (*protocolwire.HealthResponse, error) {
+	response, err := s.Server.Health(ctx, request)
+	if err != nil || !response.GetHealthy() {
+		return response, err
+	}
+	expectation := os.Getenv("SFORUM_PLUGIN_EXPECT_DATABASE")
+	if expectation == "" {
+		return response, nil
+	}
+	for _, key := range []string{
+		"SFORUM_DATABASE_URL", "SFORUM_DATABASE_LEASE_ID", "SFORUM_DATABASE_LEASE_EXPIRES_AT",
+		"SFORUM_DATABASE_GRANTS", "SFORUM_DATABASE_SCHEMA", "SFORUM_DATABASE_SEARCH_PATH",
+	} {
+		if strings.TrimSpace(os.Getenv(key)) == "" {
+			return nil, errors.New("missing exact database lease environment: " + key)
+		}
+	}
+	connectionURL := os.Getenv("SFORUM_DATABASE_URL")
+	if expectation == "lease" && (!strings.Contains(connectionURL, "lease_role:lease_secret@") || strings.Contains(connectionURL, "host_secret")) {
+		return nil, errors.New("database lease URL contains the wrong authority")
+	}
+	if expectation != "connect" {
+		return response, nil
+	}
+	connectCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(connectCtx, connectionURL)
+	if err != nil {
+		return nil, err
+	}
+	defer connection.Close(context.Background())
+	var currentUser, searchPath string
+	if err := connection.QueryRow(connectCtx, `SELECT current_user, current_setting('search_path')`).Scan(&currentUser, &searchPath); err != nil {
+		return nil, err
+	}
+	if currentUser == "" || !strings.Contains(searchPath, os.Getenv("SFORUM_DATABASE_SCHEMA")) {
+		return nil, errors.New("database lease role or search_path is not exact")
+	}
+	return response, nil
 }
 
 func (s *protocolV2Helper) ProviderCall(ctx context.Context, request *pluginwire.ProviderCallRequest) (*pluginwire.ProviderCallResponse, error) {
@@ -602,8 +643,6 @@ func hasProtocolV2Authority(ctx *protocolwire.RequestContext, key string) bool {
 	}
 	return false
 }
-
-type protocolV1Helper struct{ pluginsdk.Noop }
 
 type staticRuntimeTrust struct {
 	identity extensions.RuntimeTrustIdentity

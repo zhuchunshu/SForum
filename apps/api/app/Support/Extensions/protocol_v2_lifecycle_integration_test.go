@@ -13,7 +13,6 @@ import (
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
-	pluginsdk "github.com/zhuchunshu/sforum/apps/api/sdk/plugin"
 	pluginv2sdk "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2"
 	protocolwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 	"google.golang.org/grpc"
@@ -24,7 +23,7 @@ import (
 const p4LifecycleHelperEnv = "p4-lifecycle-runtime"
 
 func TestProtocolV2LifecycleAdapterAcrossRealSubprocess(t *testing.T) {
-	starter, extension := p4LifecycleStart(t, "v2")
+	starter, extension := p4LifecycleStart(t)
 
 	t.Run("exact invocation and successful progress", func(t *testing.T) {
 		invocation := p4LifecycleInvocation(t, "success")
@@ -168,7 +167,7 @@ func TestProtocolV2LifecycleAdapterAcrossRealSubprocess(t *testing.T) {
 }
 
 func TestProtocolV2LifecycleUsesFrozenManifestContract(t *testing.T) {
-	extension := p4LifecycleExtension(t, "v2")
+	extension := p4LifecycleExtension(t)
 	extension.Manifest.Lifecycle.Rollback = nil
 	original := extension.Manifest.Lifecycle
 	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{Trust: p4LifecycleTrust{}})
@@ -199,25 +198,12 @@ func TestProtocolV2LifecycleUsesFrozenManifestContract(t *testing.T) {
 	}
 }
 
-func TestProtocolV1RuntimeDoesNotClaimLifecycleV2(t *testing.T) {
-	starter, extension := p4LifecycleStart(t, "v1")
-	_, err := starter.RunLifecycle(context.Background(), extension, p4LifecycleInvocation(t, "success"))
-	if !errors.Is(err, extensionsruntime.ErrLifecycleV2Unsupported) {
-		t.Fatalf("protocol v1 lifecycle error = %v", err)
-	}
-}
-
 func TestP4LifecycleHelperProcess(t *testing.T) {
 	if os.Getenv("SFORUM_PLUGIN_HELPER") != p4LifecycleHelperEnv {
 		return
 	}
-	switch os.Getenv("SFORUM_P4_LIFECYCLE_PROTOCOL") {
-	case "v1":
-		pluginsdk.Serve(struct{ pluginsdk.Noop }{})
-	case "v2":
-		server := &p4LifecycleServer{Server: pluginv2sdk.NewServer().WithRuntimeStreams(pluginv2sdk.RuntimeStreams{Lifecycle: p4LifecycleHandler})}
-		pluginv2sdk.Serve(server)
-	}
+	server := &p4LifecycleServer{Server: pluginv2sdk.NewServer().WithRuntimeStreams(pluginv2sdk.RuntimeStreams{Lifecycle: p4LifecycleHandler})}
+	pluginv2sdk.Serve(server)
 	os.Exit(0)
 }
 
@@ -350,18 +336,18 @@ func (p4LifecycleTrust) RuntimeIdentity(context.Context, extensions.Extension) (
 	return extensions.RuntimeTrustIdentity{TrustGrantID: "p4-grant", ImpactDigest: "p4-impact"}, nil
 }
 
-func p4LifecycleStart(t *testing.T, protocol string) (*extensionsruntime.ProtocolStarter, extensions.Extension) {
+func p4LifecycleStart(t *testing.T) (*extensionsruntime.ProtocolStarter, extensions.Extension) {
 	t.Helper()
-	extension := p4LifecycleExtension(t, protocol)
+	extension := p4LifecycleExtension(t)
 	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{Trust: p4LifecycleTrust{}})
 	if _, err := starter.Start(context.Background(), extension); err != nil {
-		t.Fatalf("start lifecycle %s helper: %v", protocol, err)
+		t.Fatalf("start lifecycle v2 helper: %v", err)
 	}
 	t.Cleanup(func() { _ = starter.Stop(context.Background(), extension) })
 	return starter, extension
 }
 
-func p4LifecycleExtension(t *testing.T, protocol string) extensions.Extension {
+func p4LifecycleExtension(t *testing.T) extensions.Extension {
 	t.Helper()
 	packageRoot := filepath.Join(t.TempDir(), "p4-lifecycle")
 	if err := os.MkdirAll(filepath.Join(packageRoot, "backend"), 0o755); err != nil {
@@ -373,43 +359,26 @@ func p4LifecycleExtension(t *testing.T, protocol string) extensions.Extension {
 	}
 	launcher := "#!/bin/sh\n" +
 		"SFORUM_PLUGIN_HELPER=" + p4LifecycleShellQuote(p4LifecycleHelperEnv) + " " +
-		"SFORUM_P4_LIFECYCLE_PROTOCOL=" + p4LifecycleShellQuote(protocol) + " " +
 		"exec " + p4LifecycleShellQuote(testBinary) + " -test.run='^TestP4LifecycleHelperProcess$' -- \"$@\"\n"
 	if err := os.WriteFile(filepath.Join(packageRoot, "backend", "plugin"), []byte(launcher), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	protocolVersion := 2
-	hostAPI := "sforum.host@2"
-	source := extensions.SourceUploaded
-	packageDigest := strings.Repeat("d", 64)
-	if protocol == "v1" {
-		protocolVersion = 1
-		hostAPI = ""
-		source = extensions.SourceBuiltin
-		packageDigest = ""
+	operation := func() *extensionmanifest.ManifestLifecycleOperation {
+		return &extensionmanifest.ManifestLifecycleOperation{
+			Plan: "lifecycle.operation.plan", Execute: "lifecycle.operation.execute",
+			ProgressSchema: "p4.lifecycle.progress@1", CheckpointSchema: "p4.lifecycle.checkpoint@1",
+		}
 	}
-	manifestVersion := 3
-	var lifecycle *extensions.ManifestLifecycle
-	if protocol == "v2" {
-		operation := func() *extensionmanifest.ManifestLifecycleOperation {
-			return &extensionmanifest.ManifestLifecycleOperation{
-				Plan: "lifecycle.operation.plan", Execute: "lifecycle.operation.execute",
-				ProgressSchema: "p4.lifecycle.progress@1", CheckpointSchema: "p4.lifecycle.checkpoint@1",
-			}
-		}
-		lifecycle = &extensions.ManifestLifecycle{
-			ContractVersion: "p4.lifecycle@1",
-			Install:         operation(), Enable: operation(), Disable: operation(), Upgrade: operation(), Rollback: operation(), Uninstall: operation(),
-		}
-	} else {
-		manifestVersion = 0
+	lifecycle := &extensions.ManifestLifecycle{
+		ContractVersion: "p4.lifecycle@1",
+		Install:         operation(), Enable: operation(), Disable: operation(), Upgrade: operation(), Rollback: operation(), Uninstall: operation(),
 	}
 	return extensions.Extension{
 		ID: "p4.lifecycle.fixture", Name: "P4 Lifecycle Fixture", Version: "1.0.0", Type: extensions.TypePlugin,
-		Status: extensions.StatusEnabled, Source: source, PackageDigest: packageDigest, PackagePath: packageRoot,
+		Status: extensions.StatusEnabled, Source: extensions.SourceUploaded, PackageDigest: strings.Repeat("d", 64), PackagePath: packageRoot,
 		Manifest: extensions.Manifest{
-			ManifestVersion: manifestVersion, ID: "p4.lifecycle.fixture", Name: "P4 Lifecycle Fixture", Version: "1.0.0", Type: extensions.TypePlugin,
-			Backend:   extensions.ManifestBackend{Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: protocolVersion, HostAPIVersion: hostAPI},
+			ManifestVersion: 3, ID: "p4.lifecycle.fixture", Name: "P4 Lifecycle Fixture", Version: "1.0.0", Type: extensions.TypePlugin,
+			Backend:   extensions.ManifestBackend{Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 2, HostAPIVersion: "sforum.host@2"},
 			Lifecycle: lifecycle,
 		},
 	}

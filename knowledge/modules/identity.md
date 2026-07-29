@@ -35,8 +35,9 @@ Initial identity foundation is implemented.
   Registry provider and compares provider/operation/owner extension/version/
   package digest, re-checks activation before effects; link requires current
   session actor + recent-auth before complete and persist; Host PKCE verifier
-  and absolute callback URL (from trusted `APP_URL`, production HTTPS) pass
-  into complete; `redirectHint` validated before store/plugin; registration
+  and absolute callback URL (runtime `site.url`, then trusted `APP_URL`
+  fallback; production HTTPS) pass into complete; `redirectHint` validated
+  before store/plugin; registration
   continuation is fixed `/register` + opaque ticket + independent safe
   redirect.
   **T1B secrets/stores:** `IDENTITY_SUBJECT_HMAC_SECRET` on `config.Config`;
@@ -100,7 +101,8 @@ Initial identity foundation is implemented.
   **T4 / M3 (2026-07-27):** Host admin aggregate
   (`GET /admin/identity/providers`) exposes
   discovered/trusted/enabled/configured/probed/publiclyActivated, absolute
-  `callbackUrl` from `APP_URL`, and `settingsPath`. Browser-facing OAuth
+  `callbackUrl` from effective `site.url` with `APP_URL` fallback, and
+  `settingsPath`. Browser-facing OAuth
   callbacks use `/auth/providers/{providerId}/callback`; the Web Host bridges
   them to the reserved `/api/v1` Core handler so provider configuration does
   not expose the API namespace;
@@ -204,7 +206,19 @@ Initial identity foundation is implemented.
   operations, `extension.restart` audit, and active Identity Registry revision
   7 for exact version id `15357`; the previous
   `extension lifecycle registry publication exact fence conflict` no longer
-  occurs. **Evidence output hardening (2026-07-29):** the isolated external-auth
+  occurs. **Interrupted disable recovery (2026-07-29):** durable Identity
+  publication now shares the aggregate registry phase transaction. Startup may
+  append a compensating active revision for an exact tombstoned graph only when
+  the enabled artifact and latest failed, uncommitted disable ledger prove that
+  state and registry publication both returned to source. Artifact drift,
+  committed deactivation, incomplete tips, missing audit evidence, and older
+  non-latest operations remain closed. The affected development database
+  started successfully through `./scripts/api-dev.sh` after appending the
+  compensating active revision. Development operations `4041`-`4045` then
+  verified disable, enable, staged restart, and settings-triggered restart;
+  all committed their target Registry and extension-state publications, with
+  durable Identity active at revision 14 for exact version id `18215`.
+  **Evidence output hardening (2026-07-29):** the isolated external-auth
   packet keeps credential login as an assertion-only operation with no returned
   evidence and records only a literal verified marker after success; credential
   setup records explicit status and empty-response proof. Its printable schema

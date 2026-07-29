@@ -55,13 +55,14 @@ func TestResolvedCapabilitiesImpliesBackend(t *testing.T) {
 
 func validPluginManifest() Manifest {
 	return Manifest{
-		ID:            "demo.plugin",
-		Name:          "Demo Plugin",
-		Description:   "Demo plugin.",
-		URL:           "https://example.com/demo",
-		Author:        ManifestAuthor{Name: "Demo Studio", URL: "https://example.com"},
-		Version:       "1.0.0",
-		Type:          TypePlugin,
-		SForumVersion: "^1.0.0",
+		ManifestVersion: ManifestVersionV3,
+		ID:              "demo.plugin",
+		Name:            "Demo Plugin",
+		Description:     "Demo plugin.",
+		URL:             "https://example.com/demo",
+		Author:          ManifestAuthor{Name: "Demo Studio", URL: "https://example.com"},
+		Version:         "1.0.0",
+		Type:            TypePlugin,
+		SForumVersion:   "^1.0.0",
 	}
 }

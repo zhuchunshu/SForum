@@ -23,8 +23,8 @@
   registry orchestration remain named compatibility implementations. Moving
   them now would either duplicate M10's single mutable state owners or create
   stable-to-legacy cycles.
-- Protocol V1 remains on the legacy import surface until its APILTS removal
-  date and zero-shim conditions are both satisfied.
+- The unpublished Protocol V1 import surface was removed on 2026-07-29;
+  stable package ownership remains unchanged.
 - Stable packages must not import Models, HTTP, bootstrap, or the legacy
   runtime package. Bootstrap owns concrete assembly.
 
@@ -43,5 +43,4 @@
 
 ## Open Questions
 
-- Protocol V1 physical implementation extraction remains governed by APILTS;
-  it is not part of this debt program's deletion scope.
+- No protocol-boundary extraction remains from this debt milestone.

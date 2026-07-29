@@ -16,8 +16,7 @@ filesystem backend under the plugin process, not a replacement for core local.
 
 | Artifact | Protocol | Notes |
 | --- | --- | --- |
-| Default `sforum.extension.json` | **V2** (gRPC) | `protocolVersion: 2`, digests + `hostApiVersion` |
-| Rollback `sforum.extension.v1.json` | V1 (net/rpc) | Build with `-tags protocol_v1` until LTS zero-shim |
+| `sforum.extension.json` | **V2** (gRPC) | `protocolVersion: 2`, digests + `hostApiVersion` |
 
 ## Settings (env injection)
 
@@ -33,8 +32,6 @@ filesystem backend under the plugin process, not a replacement for core local.
 cd extensions/builtin/plugins/sforum-storage-fs/backend
 go test ./...
 go build -o plugin .
-# LTS rollback binary:
-go build -tags protocol_v1 -o plugin .
 ```
 
 ## Contract test
@@ -55,8 +52,7 @@ go run ./cmd/sforum extension test --skip-backend-binary \
 
 ## Author notes
 
-- Default binary overrides Protocol V2 `ProviderCall` for known-slot storage ops;
-  shared filesystem logic remains in `plugin.go` for V1 rollback.
+- The binary implements Protocol V2 `ProviderCall` for known-slot storage ops.
 - Object keys are host-generated; plugin must not invent alternate namespaces.
 - Fail closed on missing root, path escape, or I/O errors.
 

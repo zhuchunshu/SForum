@@ -316,6 +316,42 @@ func TestPublishPluginRuntimeRecoveryTxRejectsProtectedOrUnchangedRows(t *testin
 	}
 }
 
+func TestPublishProtectedPluginRuntimeQuarantineTxAcceptsOnlyProtectedRows(t *testing.T) {
+	fixture := newPluginRuntimePublicationPGFixture(t, "recovery_protected_quarantine")
+	preparePluginRuntimeRecoveryFixture(t, fixture)
+	target := fixture.firstMember().ExtensionID
+	if _, err := fixture.pool.Exec(fixture.ctx, `
+		UPDATE extensions SET source = $2, is_system = true WHERE id = $1
+	`, target, SourceBuiltin); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fixture.store.publishPluginRuntimePublication(
+		fixture.ctx, PluginRuntimePublicationStartupReconcile, 0, nil,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	tx, err := fixture.pool.Begin(fixture.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback(context.Background()) }()
+	publication, err := PublishProtectedPluginRuntimeQuarantineTx(fixture.ctx, tx, func() ([]string, error) {
+		if _, err := tx.Exec(fixture.ctx, `
+			UPDATE extensions SET status = 'disabled' WHERE id = $1
+		`, target); err != nil {
+			return nil, err
+		}
+		return []string{target}, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if publication.Reason != PluginRuntimePublicationRecovery {
+		t.Fatalf("publication=%+v", publication)
+	}
+}
+
 func TestCanonicalRecoveryExtensionIDsRejectsNonCanonicalInput(t *testing.T) {
 	for _, ids := range [][]string{{""}, {" plugin.id"}, {"plugin.id", "plugin.id"}} {
 		if _, err := canonicalRecoveryExtensionIDs(ids); !errors.Is(err, ErrPluginRuntimePublicationConflict) {

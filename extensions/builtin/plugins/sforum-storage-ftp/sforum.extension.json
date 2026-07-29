@@ -1,0 +1,26 @@
+{
+  "id": "sforum.storage-ftp",
+  "name": "SForum FTP Storage",
+  "description": "Protected built-in FTP/FTPS storage provider for attachment.storage.provider.",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "author": { "name": "SForum", "url": "https://github.com/zhuchunshu/sforum" },
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": ">=0.1.0",
+  "manifestVersion": 3,
+  "capabilities": ["settings.own", "net.outbound"],
+  "backend": {
+    "entry": "backend/plugin",
+    "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+    "rpc": "hashicorp-go-plugin",
+    "protocolVersion": 2,
+    "hostApiVersion": "sforum.host@2"
+  },
+  "packageFiles": [
+    { "id": "sforum.storage-ftp.file.backend", "kind": "executable", "path": "backend/plugin", "digest": "0000000000000000000000000000000000000000000000000000000000000000" }
+  ],
+  "providers": [
+    { "id": "sforum.storage-ftp.provider.storage", "contractVersion": "sforum.storage-ftp.provider.storage@1", "slot": "attachment.storage.provider", "label": "FTP / FTPS", "handler": "storage.ftp", "timeoutMs": 120000 }
+  ],
+  "includes": { "langs": "manifest/langs", "admin": "manifest/admin.json", "settings": "manifest/settings.json" }
+}

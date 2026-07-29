@@ -19,6 +19,7 @@ import (
 	extensioncomposition "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionComposition"
 	extensionopenapi "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionOpenAPI"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	lifecyclerecovery "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions/LifecycleRecovery"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
@@ -321,6 +322,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 		return nil, fmt.Errorf("%w: provider slot selections", errProductionLifecycleDependency)
 	}
 	registryRepository := extensionsruntime.NewPostgresLifecycleRegistryPublicationRepository(config.Pool)
+	identityRecovery := lifecyclerecovery.NewPostgresIdentityStartupRecovery(config.Pool, identityStore)
 	assetAuthority := extensionsruntime.NewPostgresLifecycleAssetAuthority(config.Pool, repository)
 	registries := extensionsruntime.NewPostgresLifecycleBoundaryRegistries(
 		extensionsruntime.LifecycleRegistryBoundaryConfig{
@@ -330,7 +332,8 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 			Components: componentRegistry, ComponentComposition: componentComposition,
 			Assets: assetRegistry, Caches: cacheRegistry, Queries: queryRegistry,
 			SEO: seoRegistry, Identity: identityRegistry, IdentityStore: identityStore,
-			Navigation: navigationRegistry, Notifications: notificationRegistry, Content: contentRegistry, Media: mediaRegistry, Editor: editorRegistry,
+			IdentityRecovery: identityRecovery,
+			Navigation:       navigationRegistry, Notifications: notificationRegistry, Content: contentRegistry, Media: mediaRegistry, Editor: editorRegistry,
 			Entity: entityRegistry, AssetAuthority: assetAuthority, AssetAdmission: config.Trust,
 		},
 	)

@@ -188,7 +188,7 @@ func TestManifestV3IdentityProviderRejectsUnsafeExecutableContracts(t *testing.T
 		{name: "timeout overflow", mutate: func(value *Manifest) {
 			value.Identity.Providers[0].Operations[0].TimeoutMS = ManifestIdentityProviderMaximumTimeoutMS + 1
 		}},
-		{name: "protocol v1", mutate: func(value *Manifest) { value.Backend.ProtocolVersion = 1 }},
+		{name: "unsupported protocol 1", mutate: func(value *Manifest) { value.Backend.ProtocolVersion = 1 }},
 		{name: "missing output schema file", mutate: func(value *Manifest) { value.PackageFiles = value.PackageFiles[:len(value.PackageFiles)-1] }},
 		{name: "schema version drift", mutate: func(value *Manifest) { value.PackageFiles[len(value.PackageFiles)-1].Version = "2" }},
 		{name: "schema kind drift", mutate: func(value *Manifest) { value.PackageFiles[len(value.PackageFiles)-1].Kind = "asset" }},

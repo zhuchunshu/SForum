@@ -51,3 +51,22 @@ func TestLifecyclePagePublicationRetainsExactEmptySet(t *testing.T) {
 		t.Fatalf("empty exact page set = %#v, %t", snapshot, ok)
 	}
 }
+
+func TestLegacyEmptyPagePublicationClearsWithoutBlankArtifact(t *testing.T) {
+	registry := NewRegistry(nil)
+	if err := registry.RegisterContributions("demo.empty", []PageContribution{{
+		ID: "demo.empty.docs", Action: ActionAdd, Path: "/legacy-docs",
+		Version: "1.0.0", PackageDigest: "digest-legacy",
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.RegisterContributions("demo.empty", nil); err != nil {
+		t.Fatal(err)
+	}
+	if snapshot, exists := registry.ExtensionSnapshot("demo.empty"); exists {
+		t.Fatalf("legacy empty publication retained blank artifact: %#v", snapshot)
+	}
+	if _, exists := registry.ResolveAddedPath("/legacy-docs"); exists {
+		t.Fatal("legacy empty publication retained old page contribution")
+	}
+}

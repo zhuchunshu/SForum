@@ -174,7 +174,7 @@ func (p *IdentityProvider) WithExternalAuthRateLimiter(limiter identity.External
 	return p
 }
 
-// WithPublicAppURL injects trusted APP_URL + APP_ENV for absolute OAuth callbacks.
+// WithPublicAppURL injects APP_URL fallback + APP_ENV for absolute OAuth callbacks.
 func (p *IdentityProvider) WithPublicAppURL(appURL, appEnv string) *IdentityProvider {
 	if p != nil && p.controller != nil {
 		p.controller.WithPublicAppURL(appURL, appEnv)

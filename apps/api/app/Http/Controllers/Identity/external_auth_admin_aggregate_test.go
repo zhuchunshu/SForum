@@ -7,11 +7,47 @@ import (
 	"time"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
 )
 
 // M3/T8B Host 聚合：discovered/trusted/enabled/configured/probed/publiclyActivated、
 // 绝对 callbackUrl、label/icon、包目录 discovery、第二 fake provider、Safe Mode/reset。
+
+type callbackURLTestOptions struct {
+	siteURL string
+}
+
+func (o callbackURLTestOptions) SiteName(context.Context) (string, error)   { return "SForum", nil }
+func (o callbackURLTestOptions) AdminEmail(context.Context) (string, error) { return "", nil }
+func (o callbackURLTestOptions) PasswordPolicy(context.Context) (identity.PasswordPolicy, error) {
+	return identity.PasswordPolicy{}, nil
+}
+func (o callbackURLTestOptions) WebOption(_ context.Context, name string) (string, error) {
+	if name == options.NameSiteURL {
+		return o.siteURL, nil
+	}
+	return "", nil
+}
+
+func TestAbsoluteCallbackURLPrefersSiteSettingThenAppURL(t *testing.T) {
+	h := &Controller{
+		options: callbackURLTestOptions{siteURL: "https://test.dalao.me"},
+		appURL:  "http://127.0.0.1:3000",
+		appEnv:  "development",
+	}
+
+	got, err := h.absoluteCallbackURL(context.Background(), "demo.auth")
+	if err != nil || got != "https://test.dalao.me/auth/providers/demo.auth/callback" {
+		t.Fatalf("site.url callback=%q err=%v", got, err)
+	}
+
+	h.options = callbackURLTestOptions{}
+	got, err = h.absoluteCallbackURL(context.Background(), "demo.auth")
+	if err != nil || got != "http://127.0.0.1:3000/auth/providers/demo.auth/callback" {
+		t.Fatalf("APP_URL fallback callback=%q err=%v", got, err)
+	}
+}
 
 func TestListAdminIdentityProviderItemsAggregateStates(t *testing.T) {
 	store := identity.NewMemoryProviderActivationStore()

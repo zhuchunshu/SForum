@@ -530,7 +530,7 @@ func TestValidateManagedStagedExtensionRejectsMalformedOrNonV2(t *testing.T) {
 	}
 
 	tests := map[string]func(extensions.Extension) extensions.Extension{
-		"protocol v1": func(extension extensions.Extension) extensions.Extension {
+		"unsupported protocol 1": func(extension extensions.Extension) extensions.Extension {
 			extension.Manifest.Backend.ProtocolVersion = 1
 			return extension
 		},

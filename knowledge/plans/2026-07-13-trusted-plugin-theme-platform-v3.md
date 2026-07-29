@@ -1,7 +1,8 @@
 # Trusted Plugin And Theme Platform V3
 
-Status: **active residual** -- P0-P12 phase checklists complete; P13 APILTS
-residual and production-rewire honesty remediation remain open
+Status: **active residual** -- P0-P12 phase checklists complete; Manifest V3 /
+Protocol V2 migration is complete; theme-loader APILTS and production-rewire
+honesty remediation remain open
 Started: 2026-07-13
 Last compacted: 2026-07-22
 
@@ -51,8 +52,9 @@ contracts.
   dependencies or rebuild Nuxt.
 - Every core module maintains an Extension Surface Matrix; deliberately closed
   surfaces state their security/integrity/ownership reason.
-- Compatibility is removed only through APILTS date, telemetry, zero-shim, and
-  deletion gates.
+- Published compatibility surfaces are removed only through their applicable
+  APILTS date, telemetry, zero-shim, and deletion gates. The unpublished V1
+  extension protocol had no release compatibility window and is removed.
 
 ## Phase Index
 
@@ -101,10 +103,9 @@ Do not raise the V3 percentage from intermediate remediation milestones.
 
 ## Current Work Package B: P13 APILTS Residual
 
-Keep these compatibility contracts until all removal gates pass:
+Keep this independent compatibility contract until all removal gates pass:
 
 - `sforum.theme.l1.request-time-loader`
-- `sforum.protocol.v1`
 - Dependent compatibility/deletion checklist rows
 
 Minimum removal conditions:

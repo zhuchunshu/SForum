@@ -1,4 +1,5 @@
 {
+  "manifestVersion": 3,
   "id": "sforum.fixture-schema-theme",
   "name": "Schema Theme Fixture",
   "description": "Runtime theme fixture with buildless tabbed settings.",

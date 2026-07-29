@@ -379,12 +379,20 @@ func transitionFixturePlugin(
 ) Extension {
 	t.Helper()
 	manifest := Manifest{
-		ID: id, Name: "Transition Fixture", Description: "Plugin runtime transition fixture.",
+		ManifestVersion: 3,
+		ID:              id, Name: "Transition Fixture", Description: "Plugin runtime transition fixture.",
 		URL: "https://example.com/transition-fixture", Author: ManifestAuthor{Name: "SForum"},
 		Version: version, Type: TypePlugin, SForumVersion: "^1.0.0",
 	}
 	if backendEntry != "" {
-		manifest.Backend = ManifestBackend{Entry: backendEntry, RPC: "hashicorp-go-plugin"}
+		backendDigest := strings.Repeat("e", 64)
+		manifest.Backend = ManifestBackend{
+			Entry: backendEntry, RPC: "hashicorp-go-plugin", ProtocolVersion: 2,
+			HostAPIVersion: "sforum.host@2", Digest: backendDigest,
+		}
+		manifest.PackageFiles = []ManifestPackageFile{{
+			ID: id + ".file.backend", Kind: "executable", Path: backendEntry, Digest: backendDigest,
+		}}
 	}
 	return Extension{
 		ID: id, Name: manifest.Name, Version: version, Type: TypePlugin,

@@ -1,6 +1,7 @@
 package identityregistry
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
@@ -8,6 +9,36 @@ import (
 	"sync"
 	"testing"
 )
+
+func TestPostgresPublicationStoreReconcileTxRollsBackWithCaller(t *testing.T) {
+	fixture := newIdentityRegistryStoreFixture(t)
+	artifact := publicationStoreArtifact(101, "1.0.0", "a", "runtime-v1")
+	publication := publicationStoreFixture(artifact, 1, nil)
+	tx, err := fixture.pool.Begin(fixture.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state, reconcileErr := fixture.store.ReconcileTx(fixture.ctx, tx, ReconcilePublicationInput{
+		ExtensionID: fixtureExtensionID, AllowedTarget: &artifact, Desired: &publication,
+		ActorUserID: fixture.actorID, AuditEventID: 8001,
+	}); reconcileErr != nil {
+		_ = tx.Rollback(context.Background())
+		t.Fatal(reconcileErr)
+	} else if validateErr := ValidateDurablePublication(state, publication); validateErr != nil {
+		_ = tx.Rollback(context.Background())
+		t.Fatalf("transactional publication state: %v", validateErr)
+	}
+	if err := tx.Rollback(fixture.ctx); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := fixture.store.LoadDurableState(fixture.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateDurablePublication(loaded, publication); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("rolled-back publication remained durable: %v", err)
+	}
+}
 
 func TestPostgresPublicationStoreEnableExactReplayAndNoImplicitGrant(t *testing.T) {
 	fixture := newIdentityRegistryStoreFixture(t)

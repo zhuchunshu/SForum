@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -10,7 +11,9 @@ import (
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	health "github.com/zhuchunshu/sforum/apps/api/app/Support/Health"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
+	pluginbootstrap "github.com/zhuchunshu/sforum/apps/api/app/Support/PluginBootstrap"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
@@ -27,6 +30,7 @@ type apiExtensionRestoreInput struct {
 
 type apiExtensionRuntimeState struct {
 	pluginRuntimeCoordinator     *pluginRuntimeCoordinatorRuntime
+	pluginRuntimeRecovery        *health.RecoveryRequirement
 	pluginRuntimeStopTimeout     time.Duration
 	stopPluginRuntimeCoordinator func()
 	closePluginRuntime           func()
@@ -101,6 +105,7 @@ func restoreAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger 
 		return nil, fmt.Errorf("adopt legacy mail settings: %w", err)
 	}
 	var pluginRuntimeCoordinator *pluginRuntimeCoordinatorRuntime
+	var pluginRuntimeRecovery *health.RecoveryRequirement
 	pluginRuntimeStopTimeout := normalizedPluginRuntimeCoordinatorStopTimeout(cfg.WorkerShutdownTimeout)
 	stopPluginRuntimeCoordinator := func() {
 		if pluginRuntimeCoordinator == nil {
@@ -133,6 +138,25 @@ func restoreAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger 
 			reconciledExtensions, err = extensionStore.List(ctx)
 		}
 	}
+	if err != nil && !cfg.SafeMode {
+		convergenceErr := err
+		stopPluginRuntimeCoordinator()
+		pluginRuntimeCoordinator = nil
+		pluginRuntimeRecovery = newPluginRuntimeRecoveryRequirement(ctx, extensionStore, convergenceErr)
+		logger.Error(
+			"plugin runtime convergence failed; entering Host recovery-only mode",
+			"error", convergenceErr,
+			"publication_revision", pluginRuntimeRecovery.PublicationRevision,
+			"artifacts", len(pluginRuntimeRecovery.Artifacts),
+		)
+		if restoreErr := extensionService.RestoreSafeModeThemeRegistry(ctx); restoreErr != nil {
+			logger.Warn("restore recovery-only default theme registry failed", "error", restoreErr)
+		}
+		reconciledExtensions, err = reconcileAPIExtensionRuntime(ctx, true, extensionStore, extensionRuntime)
+		if err != nil {
+			err = fmt.Errorf("enter recovery-only mode after %v: %w", convergenceErr, err)
+		}
+	}
 	if err != nil {
 		stopPluginRuntimeCoordinator()
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
@@ -146,7 +170,8 @@ func restoreAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger 
 		pool.Close()
 		return nil, fmt.Errorf("start exact plugin runtime reconciliation failed: %w", err)
 	}
-	if err := lifecycleStack.Registries.RestoreRoutePublications(ctx, reconciledExtensions, cfg.SafeMode); err != nil {
+	effectiveSafeMode := cfg.SafeMode || pluginRuntimeRecovery.Active()
+	if err := lifecycleStack.Registries.RestoreRoutePublications(ctx, reconciledExtensions, effectiveSafeMode); err != nil {
 		stopPluginRuntimeCoordinator()
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 			logger.Warn("job dispatcher stop failed", "error", stopErr)
@@ -176,8 +201,55 @@ func restoreAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger 
 	}
 	return &apiExtensionRuntimeState{
 		pluginRuntimeCoordinator:     pluginRuntimeCoordinator,
+		pluginRuntimeRecovery:        pluginRuntimeRecovery,
 		pluginRuntimeStopTimeout:     pluginRuntimeStopTimeout,
 		stopPluginRuntimeCoordinator: stopPluginRuntimeCoordinator,
 		closePluginRuntime:           closePluginRuntime,
 	}, nil
+}
+
+func newPluginRuntimeRecoveryRequirement(
+	ctx context.Context,
+	store *extensions.PostgresStore,
+	cause error,
+) *health.RecoveryRequirement {
+	requirement := &health.RecoveryRequirement{
+		Code:      health.PluginRuntimeRecoveryCode,
+		Component: "plugin_runtime",
+		Message:   pluginRuntimeRecoveryMessage(cause),
+	}
+	if store == nil {
+		return requirement
+	}
+	publication, err := store.LatestPluginRuntimePublication(ctx)
+	if err != nil {
+		return requirement
+	}
+	requirement.PublicationRevision = publication.Revision
+	requirement.Artifacts = make([]health.RecoveryArtifact, 0, len(publication.Members))
+	for _, member := range publication.Members {
+		requirement.Artifacts = append(requirement.Artifacts, health.RecoveryArtifact{
+			ExtensionID: member.ExtensionID,
+			Version:     member.ExtensionVersion,
+			Digest:      member.PackageDigest,
+		})
+	}
+	return requirement
+}
+
+func pluginRuntimeRecoveryMessage(err error) string {
+	switch {
+	case errors.Is(err, pluginbootstrap.ErrBootstrapABIIncompatible):
+		return "plugin process bootstrap ABI is incompatible"
+	case errors.Is(err, pluginbootstrap.ErrExecutableArchitecture):
+		return "plugin executable architecture is incompatible"
+	case errors.Is(err, pluginbootstrap.ErrExecutableDependency):
+		return "plugin executable dependency is unavailable"
+	case errors.Is(err, pluginbootstrap.ErrExecutablePermission):
+		return "plugin executable permission was denied"
+	case errors.Is(err, pluginbootstrap.ErrProcessStart):
+		return "plugin process failed to start"
+	default:
+		return "plugin runtime convergence failed; inspect API logs for the exact cause"
+	}
 }

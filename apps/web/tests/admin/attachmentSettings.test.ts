@@ -29,12 +29,10 @@ describe('attachment settings defaults', () => {
 
   test('resets custom attachment settings to the recommended defaults', () => {
     const custom = createDefaultAttachmentSettings()
-    custom.provider = 'aliyun_oss'
+    custom.provider = 'plugin:sforum.storage-sftp'
     custom.uploadEnabled = false
     custom.maxFileSizeMb = 200
     custom.pathTemplate = 'custom/{public_id}{ext}'
-    custom.aliyunOss.accessKeySecret = 'typed-but-unsaved'
-    custom.aliyunOss.accessKeySecretSet = true
 
     const restored = resetAttachmentSettingsToRecommended(custom)
 
@@ -42,8 +40,6 @@ describe('attachment settings defaults', () => {
     expect(restored.uploadEnabled).toBe(true)
     expect(restored.maxFileSizeMb).toBe(20)
     expect(restored.pathTemplate).toBe('{yyyy}/{mm}/{dd}/{public_id}{ext}')
-    expect(restored.aliyunOss.accessKeySecret).toBe('')
-    expect(restored.aliyunOss.accessKeySecretSet).toBe(true)
     expect(isRecommendedAttachmentSettings(restored)).toBe(true)
   })
 

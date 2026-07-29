@@ -3,13 +3,8 @@ package extensionsruntime
 import (
 	"context"
 	"errors"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
-	"time"
-
-	"github.com/jackc/pgx/v5"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 )
@@ -152,176 +147,26 @@ func TestProtocolStarterRequiresBackendEntry(t *testing.T) {
 	}
 }
 
-func TestProtocolV1DoesNotExposeStagedInstanceLifecycle(t *testing.T) {
+func TestProtocolStarterRejectsLegacyManifestAndProtocolVersions(t *testing.T) {
 	starter := NewProtocolStarter(ProtocolStarterConfig{})
-	extension := runtimeExtension("legacy.protocol")
-	if _, err := starter.StartInstance(context.Background(), extension); !errors.Is(err, ErrProtocolInstanceUnsupported) {
-		t.Fatalf("protocol v1 staged start error = %v", err)
-	}
-}
-
-func TestProtocolStarterPerformsHashicorpHandshake(t *testing.T) {
-	packageRoot := filepath.Join(t.TempDir(), "runtime.plugin", "1.0.0")
-	filesRoot := filepath.Join(packageRoot, "files", "backend")
-	if err := os.MkdirAll(filesRoot, 0o755); err != nil {
-		t.Fatalf("create installed file tree: %v", err)
-	}
-	targetBinary := filepath.Join(filesRoot, "plugin")
-	if err := os.WriteFile(targetBinary, []byte(helperPluginLauncher(t)), 0o755); err != nil {
-		t.Fatalf("install helper plugin launcher: %v", err)
-	}
-
-	starter := NewProtocolStarter(ProtocolStarterConfig{Settings: staticPluginSettings{"runtime.plugin": {"host": "smtp.example.com"}}})
-	extension := runtimeExtension("runtime.plugin")
-	extension.PackagePath = filepath.Join(packageRoot, "package.zip")
-
-	target, err := starter.Start(context.Background(), extension)
-	if err != nil {
-		t.Fatalf("Start returned error: %v", err)
-	}
-	defer starter.Stop(context.Background(), extension)
-	if target.BaseURL != "http://127.0.0.1:43123" {
-		t.Fatalf("unexpected route target: %#v", target)
-	}
-	if target.InstanceID == "" {
-		t.Fatalf("legacy runtime must still have a host-local exact identity: %#v", target)
-	}
-	legacySnapshot, err := starter.InspectInstance(RuntimeInstanceIdentity{ExtensionID: extension.ID, InstanceID: target.InstanceID})
-	if err != nil || legacySnapshot.ProtocolVersion != 1 || legacySnapshot.State != ProtocolRuntimePublished {
-		t.Fatalf("legacy runtime snapshot = %#v, %v", legacySnapshot, err)
-	}
-	if err := starter.StopInstance(context.Background(), legacySnapshot.Identity); !errors.Is(err, ErrProtocolInstanceUnsupported) {
-		t.Fatalf("protocol v1 exact stop error = %v", err)
-	}
-	response, err := starter.SendMail(context.Background(), extension.ID, MailProviderRequest{
-		DeliveryID: "41", To: []string{"member@example.com"}, Subject: "Mention",
-	})
-	if err != nil {
-		t.Fatalf("send mail rpc: %v", err)
-	}
-	if !response.OK || response.Reason != "smtp.accepted" {
-		t.Fatalf("unexpected mail response: %#v", response)
-	}
-	providerProbe, err := starter.ProviderProbe(context.Background(), extension.ID, ProviderProbeRequest{Slot: "mail.provider"})
-	if err != nil {
-		t.Fatalf("provider probe rpc: %v", err)
-	}
-	if providerProbe.OK || providerProbe.Reason != "plugin.provider_probe_not_implemented" {
-		t.Fatalf("expected provider probe not implemented, got %#v", providerProbe)
-	}
-	// E6.2：未实现存储的插件经 ProtocolNoop 返回明确 reason。
-	probe, err := starter.StorageProbe(context.Background(), extension.ID, StorageProbeRequest{})
-	if err != nil {
-		t.Fatalf("storage probe rpc: %v", err)
-	}
-	if probe.OK || probe.Reason != "plugin.storage_not_implemented" {
-		t.Fatalf("expected storage not implemented, got %#v", probe)
-	}
-	telemetry := starter.ProtocolTelemetry(extension.ID)
-	if telemetry.ProtocolVersion != 1 || telemetry.Transport != "net/rpc" || !telemetry.Deprecated ||
-		telemetry.StartCount != 1 || telemetry.CallCount != 3 || telemetry.LastCallAt == nil {
-		t.Fatalf("unexpected v1 telemetry: %#v", telemetry)
-	}
-
-	replacement, err := starter.Start(context.Background(), extension)
-	if err != nil {
-		t.Fatalf("replace protocol v1 runtime: %v", err)
-	}
-	if replacement.InstanceID == target.InstanceID {
-		t.Fatalf("protocol v1 replacement reused identity %q", replacement.InstanceID)
-	}
-	if _, err := starter.InspectInstance(legacySnapshot.Identity); !errors.Is(err, ErrRuntimeInstanceNotFound) {
-		t.Fatalf("protocol v1 hard replacement retained old process: %v", err)
-	}
-	replacementSnapshot, err := starter.InspectInstance(RuntimeInstanceIdentity{ExtensionID: extension.ID, InstanceID: replacement.InstanceID})
-	if err != nil || replacementSnapshot.State != ProtocolRuntimePublished || replacementSnapshot.ProtocolVersion != 1 {
-		t.Fatalf("protocol v1 replacement snapshot = %#v, %v", replacementSnapshot, err)
-	}
-}
-
-type staticPluginSettings map[string]map[string]string
-
-func (s staticPluginSettings) ListSettings(_ context.Context, extensionID string) (map[string]string, error) {
-	return s[extensionID], nil
-}
-
-func TestProtocolStarterHelperProcess(t *testing.T) {
-	if os.Getenv("SFORUM_PLUGIN_HELPER") != "1" {
-		return
-	}
-	ServeProtocolPlugin(helperProtocol{})
-	os.Exit(0)
-}
-
-func helperPluginLauncher(t testing.TB) string {
-	t.Helper()
-	testBinary, err := filepath.Abs(os.Args[0])
-	if err != nil {
-		t.Fatalf("locate test binary: %v", err)
-	}
-	return "#!/bin/sh\nSFORUM_PLUGIN_HELPER=1 exec " + shellQuote(testBinary) + " -test.run=TestProtocolStarterHelperProcess -- \"$@\"\n"
-}
-
-func shellQuote(value string) string {
-	return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
-}
-
-type helperProtocol struct {
-	ProtocolNoop
-}
-
-func (helperProtocol) Health() (PluginHealth, error) {
-	databaseExpectation := os.Getenv("SFORUM_PLUGIN_EXPECT_DATABASE")
-	if databaseExpectation != "" {
-		for _, key := range []string{
-			protocolDatabaseURLEnv, protocolDatabaseLeaseIDEnv, protocolDatabaseExpiresAtEnv,
-			protocolDatabaseGrantsEnv, protocolDatabaseSchemaEnv, protocolDatabaseSearchEnv,
-		} {
-			if strings.TrimSpace(os.Getenv(key)) == "" {
-				return PluginHealth{}, errors.New("missing exact database lease environment: " + key)
+	for _, test := range []struct {
+		name            string
+		manifestVersion int
+		protocolVersion int
+	}{
+		{name: "manifest v2", manifestVersion: 2, protocolVersion: 2},
+		{name: "unsupported protocol 1", manifestVersion: 3, protocolVersion: 1},
+		{name: "missing protocol", manifestVersion: 3, protocolVersion: 0},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			extension := runtimeExtension("legacy.protocol")
+			extension.Manifest.ManifestVersion = test.manifestVersion
+			extension.Manifest.Backend.ProtocolVersion = test.protocolVersion
+			if _, err := starter.Start(context.Background(), extension); !errors.Is(err, ErrUnsupportedProtocol) {
+				t.Fatalf("Start error = %v, want ErrUnsupportedProtocol", err)
 			}
-		}
-		connectionURL := os.Getenv(protocolDatabaseURLEnv)
-		if databaseExpectation == "lease" && (!strings.Contains(connectionURL, "lease_role:lease_secret@") ||
-			strings.Contains(connectionURL, "host_secret")) {
-			return PluginHealth{}, errors.New("database lease URL contains the wrong authority")
-		}
-		if databaseExpectation == "connect" {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			connection, err := pgx.Connect(ctx, connectionURL)
-			if err != nil {
-				return PluginHealth{}, err
-			}
-			defer connection.Close(context.Background())
-			var currentUser, searchPath string
-			if err := connection.QueryRow(ctx, `SELECT current_user, current_setting('search_path')`).Scan(&currentUser, &searchPath); err != nil {
-				return PluginHealth{}, err
-			}
-			if currentUser == "" || !strings.Contains(searchPath, os.Getenv(protocolDatabaseSchemaEnv)) {
-				return PluginHealth{}, errors.New("database lease role or search_path is not exact")
-			}
-		}
+		})
 	}
-	return PluginHealth{OK: true}, nil
-}
-
-func (helperProtocol) RouteTarget() (PluginRouteTarget, error) {
-	return PluginRouteTarget{BaseURL: "http://127.0.0.1:43123"}, nil
-}
-
-func (helperProtocol) InvokeHook(PluginHookRequest) (PluginHookResponse, error) {
-	return PluginHookResponse{OK: true}, nil
-}
-
-func (helperProtocol) SendMail(request MailProviderRequest) (MailProviderResponse, error) {
-	if request.DeliveryID != "41" || len(request.To) != 1 {
-		return MailProviderResponse{Classification: "permanent", Reason: "smtp.invalid_request"}, nil
-	}
-	if os.Getenv("SFORUM_SETTING_HOST") != "smtp.example.com" {
-		return MailProviderResponse{Classification: "permanent", Reason: "smtp.settings_missing"}, nil
-	}
-	return MailProviderResponse{OK: true, Reason: "smtp.accepted"}, nil
 }
 
 var _ Starter = (*ProtocolStarter)(nil)

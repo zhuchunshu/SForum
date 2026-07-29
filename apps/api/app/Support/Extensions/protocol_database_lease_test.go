@@ -150,7 +150,7 @@ func protocolDatabaseLeaseExtension(t *testing.T, expectDatabaseEnv bool) extens
 	if expectDatabaseEnv {
 		launcher += "SFORUM_PLUGIN_EXPECT_DATABASE=lease "
 	}
-	launcher += "SFORUM_PLUGIN_HELPER=1 exec " + shellQuote(os.Args[0]) + " -test.run=TestProtocolStarterHelperProcess -- \"$@\"\n"
+	launcher += "SFORUM_PLUGIN_HELPER=protocol-v2-no-services exec " + shellQuote(os.Args[0]) + " -test.run=TestProtocolV2HelperProcess -- \"$@\"\n"
 	if err := os.WriteFile(filepath.Join(filesRoot, "plugin"), []byte(launcher), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -165,6 +165,10 @@ func protocolDatabaseLeaseExtension(t *testing.T, expectDatabaseEnv bool) extens
 		Grants:          []string{extensionmanifest.DatabaseGrantOwnSchema},
 	}
 	return extension
+}
+
+func shellQuote(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
 }
 
 type protocolDatabaseTrust struct{}

@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/jackc/pgx/v5"
+
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
 	assetregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/AssetRegistry"
@@ -72,6 +74,25 @@ type LifecycleRegistryPublicationRepository interface {
 	) error
 }
 
+type transactionalLifecycleRegistryPublicationRepository interface {
+	MoveLifecycleRegistryPublicationTx(
+		context.Context,
+		LifecycleRegistryPublicationRef,
+		LifecycleRegistryPublicationPhase,
+		func(pgx.Tx) error,
+	) error
+}
+
+// LifecycleIdentityStartupRecovery repairs only an exact source publication
+// whose failed deactivation never committed and whose aggregate registry and
+// extension-state transactions both durably returned to source.
+type LifecycleIdentityStartupRecovery interface {
+	RecoverStaleIdentityPublication(
+		context.Context,
+		identityregistry.Publication,
+	) (identityregistry.DurableState, bool, error)
+}
+
 type LifecycleRegistryBoundaryConfig struct {
 	Repository   LifecycleRegistryPublicationRepository
 	Manager      *Manager
@@ -91,6 +112,7 @@ type LifecycleRegistryBoundaryConfig struct {
 	SEO                  *seoregistry.Registry
 	Identity             *identityregistry.Registry
 	IdentityStore        identityregistry.PublicationStore
+	IdentityRecovery     LifecycleIdentityStartupRecovery
 	Navigation           *navigationregistry.Registry
 	Notifications        *notifications.Registry
 	// Content is the P10 Content Registry (block/shortcode/embed/node/mark/…).
@@ -109,35 +131,36 @@ type LifecycleRegistryBoundaryConfig struct {
 // Protocol-v2 Service Registry, Page, Route, Component, and Asset registries,
 // plus the exact package schema publication consumed by the Route dispatcher.
 type PostgresLifecycleBoundaryRegistries struct {
-	publicationMu  sync.Mutex
-	repository     LifecycleRegistryPublicationRepository
-	manager        *Manager
-	hooks          *HookBus
-	pages          *pages.Registry
-	themeRuntime   *pages.ThemeRuntimeRegistry
-	pageSiteName   string
-	pageLocales    []string
-	routes         *routes.Registry
-	routePublisher lifecycleRoutePublicationCAS
-	routeSchemas   *extensionopenapi.RouteSchemaPublication
-	services       *hostapi.ServiceRegistry
-	components     *ComponentRegistry
-	componentSSR   *ProductionComponentComposition
-	assets         *assetregistry.Registry
-	caches         *cacheregistry.Registry
-	queries        *queryregistry.Registry
-	seo            *seoregistry.Registry
-	identity       *identityregistry.Registry
-	identityStore  identityregistry.PublicationStore
-	identitySet    bool
-	navigation     *navigationregistry.Registry
-	notifications  *notifications.Registry
-	content        *contentregistry.Registry
-	media          *mediaregistry.Registry
-	editor         *editorregistry.Registry
-	entity         *entityregistry.Registry
-	assetAuthority LifecycleAssetAuthority
-	assetAdmission LifecycleAssetAdmission
+	publicationMu    sync.Mutex
+	repository       LifecycleRegistryPublicationRepository
+	manager          *Manager
+	hooks            *HookBus
+	pages            *pages.Registry
+	themeRuntime     *pages.ThemeRuntimeRegistry
+	pageSiteName     string
+	pageLocales      []string
+	routes           *routes.Registry
+	routePublisher   lifecycleRoutePublicationCAS
+	routeSchemas     *extensionopenapi.RouteSchemaPublication
+	services         *hostapi.ServiceRegistry
+	components       *ComponentRegistry
+	componentSSR     *ProductionComponentComposition
+	assets           *assetregistry.Registry
+	caches           *cacheregistry.Registry
+	queries          *queryregistry.Registry
+	seo              *seoregistry.Registry
+	identity         *identityregistry.Registry
+	identityStore    identityregistry.PublicationStore
+	identityRecovery LifecycleIdentityStartupRecovery
+	identitySet      bool
+	navigation       *navigationregistry.Registry
+	notifications    *notifications.Registry
+	content          *contentregistry.Registry
+	media            *mediaregistry.Registry
+	editor           *editorregistry.Registry
+	entity           *entityregistry.Registry
+	assetAuthority   LifecycleAssetAuthority
+	assetAdmission   LifecycleAssetAdmission
 }
 
 func NewPostgresLifecycleBoundaryRegistries(config LifecycleRegistryBoundaryConfig) *PostgresLifecycleBoundaryRegistries {
@@ -150,33 +173,34 @@ func NewPostgresLifecycleBoundaryRegistries(config LifecycleRegistryBoundaryConf
 		notificationRegistry = notifications.NewRegistry()
 	}
 	boundary := &PostgresLifecycleBoundaryRegistries{
-		repository:     config.Repository,
-		manager:        config.Manager,
-		pages:          config.Pages,
-		themeRuntime:   config.ThemeRuntime,
-		pageSiteName:   config.PageSiteName,
-		pageLocales:    append([]string(nil), config.PageLocales...),
-		routes:         config.Routes,
-		routePublisher: config.Routes,
-		routeSchemas:   config.RouteSchemas,
-		services:       config.Services,
-		components:     components,
-		componentSSR:   config.ComponentComposition,
-		assets:         config.Assets,
-		caches:         config.Caches,
-		queries:        config.Queries,
-		seo:            config.SEO,
-		identity:       config.Identity,
-		identityStore:  config.IdentityStore,
-		identitySet:    config.Identity != nil || config.IdentityStore != nil,
-		navigation:     config.Navigation,
-		notifications:  notificationRegistry,
-		content:        config.Content,
-		media:          config.Media,
-		editor:         config.Editor,
-		entity:         config.Entity,
-		assetAuthority: config.AssetAuthority,
-		assetAdmission: config.AssetAdmission,
+		repository:       config.Repository,
+		manager:          config.Manager,
+		pages:            config.Pages,
+		themeRuntime:     config.ThemeRuntime,
+		pageSiteName:     config.PageSiteName,
+		pageLocales:      append([]string(nil), config.PageLocales...),
+		routes:           config.Routes,
+		routePublisher:   config.Routes,
+		routeSchemas:     config.RouteSchemas,
+		services:         config.Services,
+		components:       components,
+		componentSSR:     config.ComponentComposition,
+		assets:           config.Assets,
+		caches:           config.Caches,
+		queries:          config.Queries,
+		seo:              config.SEO,
+		identity:         config.Identity,
+		identityStore:    config.IdentityStore,
+		identityRecovery: config.IdentityRecovery,
+		identitySet:      config.Identity != nil || config.IdentityStore != nil,
+		navigation:       config.Navigation,
+		notifications:    notificationRegistry,
+		content:          config.Content,
+		media:            config.Media,
+		editor:           config.Editor,
+		entity:           config.Entity,
+		assetAuthority:   config.AssetAuthority,
+		assetAdmission:   config.AssetAdmission,
 	}
 	if boundary.queries == nil {
 		boundary.queries = queryregistry.New()
@@ -784,15 +808,28 @@ func (t *postgresLifecycleRegistryTransaction) move(
 	if t == nil || t.boundary == nil || ctx == nil {
 		return ErrLifecycleRegistryPublicationUnavailable
 	}
+	repository, repositoryTx := t.boundary.repository.(transactionalLifecycleRegistryPublicationRepository)
+	_, identityTx := t.boundary.identityStore.(identityregistry.TransactionalPublicationStore)
+	if lifecycleMaterialsPublishIdentity(t.source, t.target) && (!repositoryTx || !identityTx) {
+		return ErrLifecycleRegistryPublicationUnavailable
+	}
+	if repositoryTx {
+		return repository.MoveLifecycleRegistryPublicationTx(ctx, t.ref, phase, func(tx pgx.Tx) error {
+			return t.boundary.reconcileLocalRegistries(
+				ctx, tx, t.request, t.source, t.target, desired, t.assetPlan, phase,
+			)
+		})
+	}
 	return t.boundary.repository.MoveLifecycleRegistryPublication(ctx, t.ref, phase, func() error {
 		return t.boundary.reconcileLocalRegistries(
-			ctx, t.request, t.source, t.target, desired, t.assetPlan, phase,
+			ctx, nil, t.request, t.source, t.target, desired, t.assetPlan, phase,
 		)
 	})
 }
 
 func (b *PostgresLifecycleBoundaryRegistries) reconcileLocalRegistries(
 	ctx context.Context,
+	tx pgx.Tx,
 	request LifecycleBoundaryRequest,
 	source, target, desired *lifecycleRegistryMaterial,
 	assetPlan *lifecycleAssetPlan,
@@ -807,62 +844,63 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileLocalRegistries(
 		return err
 	}
 	if err := b.validateLifecycleRoutePolicyState(request.TargetExtension.ID, desired, source, target); err != nil {
-		return err
+		return fmt.Errorf("route policy registry: %w", err)
 	}
 	if phase == LifecycleRegistryPublicationTarget && desired != nil {
 		identity := RuntimeInstanceIdentity{ExtensionID: desired.extension.ID, InstanceID: desired.binding.RuntimeInstanceID}
 		snapshot, err := b.manager.ActiveRuntimeInstance(desired.extension.ID)
 		if err != nil || snapshot.Identity != identity || !runtimeInstanceMatchesExtension(snapshot, desired.extension) ||
 			!snapshot.Admission.Draining || snapshot.Admission.ActiveTotal != 0 {
-			return fmt.Errorf("%w: target runtime is not published and drained", ErrLifecycleRegistryPublicationConflict)
+			return fmt.Errorf("runtime registry: %w: target runtime is not published and drained", ErrLifecycleRegistryPublicationConflict)
 		}
 	}
-	if err := b.reconcileIdentity(ctx, request, source, target, desired); err != nil {
-		return err
+	identitySource, identityTarget := lifecycleIdentityMaterialsForPhase(phase, source, target)
+	if err := b.reconcileIdentityTx(ctx, tx, request, identitySource, identityTarget, desired); err != nil {
+		return fmt.Errorf("identity registry: %w", err)
 	}
 	if err := b.reconcileNotifications(ctx, request.TargetExtension.ID, source, target, desired); err != nil {
-		return err
+		return fmt.Errorf("notification registry: %w", err)
 	}
 	if err := b.reconcileComponents(request.TargetExtension.ID, source, target, desired); err != nil {
-		return err
+		return fmt.Errorf("component registry: %w", err)
 	}
 	if err := b.reconcileQueries(request.TargetExtension.ID, source, target, desired); err != nil {
-		return err
+		return fmt.Errorf("query registry: %w", err)
 	}
 	if err := b.reconcileCaches(ctx, request.TargetExtension.ID, source, target, desired); err != nil {
-		return err
+		return fmt.Errorf("cache registry: %w", err)
 	}
 	if err := b.reconcileSEO(ctx, request.TargetExtension.ID, source, target, desired); err != nil {
-		return err
+		return fmt.Errorf("SEO registry: %w", err)
 	}
 	if err := b.reconcileNavigation(ctx, request.TargetExtension.ID, source, target, desired); err != nil {
-		return err
+		return fmt.Errorf("navigation registry: %w", err)
 	}
 	if err := b.reconcileContent(ctx, request.TargetExtension.ID, source, target, desired); err != nil {
-		return err
+		return fmt.Errorf("content registry: %w", err)
 	}
 	if err := b.reconcileMedia(ctx, request.TargetExtension.ID, source, target, desired); err != nil {
-		return err
+		return fmt.Errorf("media registry: %w", err)
 	}
 	if err := b.reconcileEditor(ctx, request.TargetExtension.ID, source, target, desired); err != nil {
-		return err
+		return fmt.Errorf("editor registry: %w", err)
 	}
 	if err := b.reconcileEntity(ctx, request.TargetExtension.ID, source, target, desired); err != nil {
-		return err
+		return fmt.Errorf("entity registry: %w", err)
 	}
 	if err := b.applyAssetPlan(ctx, assetPlan, phase); err != nil {
-		return err
+		return fmt.Errorf("asset registry: %w", err)
 	}
 	if err := b.reconcileServices(request.TargetExtension.ID, source, target, desired, phase); err != nil {
-		return err
+		return fmt.Errorf("service registry: %w", err)
 	}
 	if err := b.reconcileRoutePolicyPublications(
 		ctx, request.TargetExtension.ID, source, target, desired,
 	); err != nil {
-		return err
+		return fmt.Errorf("route publication registry: %w", err)
 	}
 	if err := b.reconcilePages(ctx, request.TargetExtension.ID, source, target, desired); err != nil {
-		return err
+		return fmt.Errorf("page registry: %w", err)
 	}
 	if desired == nil {
 		if err := b.unregisterAllowedHookRuntime(request.TargetExtension.ID, source, target); err != nil {
@@ -874,6 +912,16 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileLocalRegistries(
 		}
 	}
 	return nil
+}
+
+func lifecycleIdentityMaterialsForPhase(
+	phase LifecycleRegistryPublicationPhase,
+	source, target *lifecycleRegistryMaterial,
+) (*lifecycleRegistryMaterial, *lifecycleRegistryMaterial) {
+	if phase == LifecycleRegistryPublicationSource {
+		return target, source
+	}
+	return source, target
 }
 
 func (b *PostgresLifecycleBoundaryRegistries) reconcileRouteSchemas(
@@ -1106,7 +1154,14 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcilePages(
 		}
 		snapshot, exists := b.pages.ExtensionSnapshot(extensionID)
 		if exists && !pageArtifactAllowed(snapshot.Artifact, source, target) {
-			return rollbackStaged(ErrLifecycleRegistryPublicationConflict)
+			return rollbackStaged(fmt.Errorf(
+				"%w: active page artifact %s@%s digest=%s runtime=%s is outside the lifecycle source/target fence",
+				ErrLifecycleRegistryPublicationConflict,
+				snapshot.Artifact.ExtensionID,
+				snapshot.Artifact.ExtensionVersion,
+				snapshot.Artifact.PackageDigest,
+				snapshot.Artifact.RuntimeInstanceID,
+			))
 		}
 		if desired != nil {
 			artifact := pages.RuntimeArtifact{

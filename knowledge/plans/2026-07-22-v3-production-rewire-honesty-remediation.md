@@ -22,9 +22,9 @@ must be bound so that:
    “marketplace disabled” mode — never a silent half-wire).
 6. CompatFarm and commerce reference gates prove what they claim.
 
-**Do not claim V3 program 100%.** P13 LTS residual
-(`sforum.protocol.v1`, `sforum.theme.l1.request-time-loader` until RemoveAfter ≈
-2026-11-28 + zero-shim) remains open and is **out of scope** here.
+**Do not claim V3 program 100%.** The independent P13 theme-loader LTS
+residual (`sforum.theme.l1.request-time-loader`) remains open and is **out of
+scope** here. Manifest V3 / Protocol V2 exclusivity was completed separately.
 
 **Do not raise the V3 overall percentage** until every exit criterion in this
 book is verified on production paths (bootstrap → Models → HTTP/CLI), not only
@@ -148,7 +148,7 @@ Do not leave “required in code, absent in deploy templates.”
 
 ### D8. Scope discipline
 
-- Do not delete Protocol V1 or request-time loader shims in this book.
+- Do not delete the request-time loader shim in this book.
 - Do not refactor unrelated frontend theme work except to clear **blocking**
   gate failures listed in Task H.
 - Keep working-tree unrelated WIP; do not roll back foreign changes.
@@ -481,7 +481,7 @@ Rollback mean what their names say.
 
 ## Non-Goals
 
-- V3 P13 LTS deletion of Protocol V1 / request-time loader.
+- V3 P13 LTS deletion of the request-time loader.
 - Full multi-region browser E2E matrix (unless operator explicitly expands M6).
 - New marketplace storefront UI polish beyond install/rollback ops.
 - Payments / commerce product beyond reference plugin honesty.

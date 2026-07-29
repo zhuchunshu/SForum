@@ -10,7 +10,6 @@ Parent layout map (not product install): [../README.md](../README.md).
 | --- | --- |
 | `plugins/page-registry-demo` | Page Registry lifecycle, templates, outlets, and L1 fallback |
 | `plugins/sforum-admin-surface-reference` | Complete Protocol V2 Admin Surface reference plugin |
-| `plugins/sforum-contract-hostapi` | Backend go-plugin + Host API Ping + filter/observe events |
 | `plugins/sforum-contract-events` | Manifest-only events + `forum.topic.actions` contribution |
 | `plugins/sforum-contract-schedules` | Manifest-only reminder that schedules stay host-owned |
 | `plugins/sforum-prebuilt-settings` | Digest-trusted, author-prebuilt admin settings ESM/CSS |
@@ -37,12 +36,7 @@ Validate / test from repo root:
 ```bash
 cd apps/api
 go run ./cmd/sforum extension test ../../extensions/fixtures/plugins/sforum-contract-events
-go run ./cmd/sforum extension test --skip-backend-binary ../../extensions/fixtures/plugins/sforum-contract-hostapi
 ```
-
-Host API runtime handshake is covered by
-`apps/api/sdk/plugin/fixture_contract_test.go` (builds the hostapi fixture binary
-in a temp dir when needed).
 
 The public L2 production path is covered by
 `apps/api/bootstrap/public_l2_production_e2e_test.go`; the fixture intentionally

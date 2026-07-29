@@ -21,7 +21,7 @@ Command:
 ```bash
 cd apps/api
 go test ./app/Models/Extensions ./app/Support/Pages ./app/Support/Extensions \
-  -run '^$' -bench 'V1Baseline' -benchmem -count=3
+  -run '^$' -bench 'Baseline' -benchmem -count=3
 ```
 
 | Path | Median | Observed range | Bytes/op | Allocs/op | Coverage |
@@ -29,7 +29,6 @@ go test ./app/Models/Extensions ./app/Support/Pages ./app/Support/Extensions \
 | Extension enable v1 | 26.769 us | 24.015-28.630 us | 2,384 | 17 | package/Manifest recheck, store transition, event, runtime decoration; no backend start |
 | Theme resolve v1 | 328.3 ns | 293.5-335.1 ns | 0 | 0 | in-memory binding plus version/digest/contract match |
 | Namespaced route proxy v1 | 694.333 us | 341.600-951.232 us | 15,116-15,159 | 45 | loopback HTTP; benchmark peer closes each response |
-| Plugin RPC v1 health | 145.720 us | 128.970-158.224 us | 336 | 9 | real HashiCorp go-plugin subprocess and net/rpc call |
 
 The route gateway currently constructs a new `fasthttp.HostClient` per proxy
 call. A first unbounded run without a peer `Connection: close` reached loopback

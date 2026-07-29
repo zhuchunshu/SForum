@@ -232,9 +232,8 @@ func (i *BufferedRouteStepInvoker) Invoke(ctx context.Context, input routes.Rout
 	}
 	if input.Stage != routes.InvocationStageHandler ||
 		input.Step.Action != extensionmanifest.RouteActionAdd && input.Step.Action != extensionmanifest.RouteActionReplace {
-		// Protocol V1 cannot express bounded request/response patches. Keep its
-		// namespaced handler compatibility, but never treat a full HTTP response as
-		// a modifier result.
+		// Loopback HTTP handlers cannot express bounded request/response patches,
+		// so never treat a full HTTP response as a modifier result.
 		return routes.RouteInvocationResult{}, ErrRouteRuntimeTarget
 	}
 	target, err := exactLoopbackRouteURL(snapshot.Target.BaseURL, input.Request.Path, input.Request.Query)

@@ -3,9 +3,9 @@
 ## Status
 
 **Implementable P11/P12/P13 production wiring closed on evidence.**  
-Do **not** claim V3 program **100%** — P13 LTS residual remains
-(`sforum.protocol.v1`, `sforum.theme.l1.request-time-loader` until
-APILTS `RemoveAfter` ≈ 2026-11-28 + zero-shim + checklist).
+Do **not** claim V3 program **100%** — the request-time theme-loader APILTS
+residual remains. Manifest V3 / Protocol V2 exclusivity was completed on
+2026-07-29.
 
 Forbidden this pass (and enforced in tests): progress-doc-only work,
 Support-only mock credit, `_ = p12Ops`, CompatFarm `SkipBackendBinary`,
@@ -103,8 +103,8 @@ Full `./scripts/test.sh` not re-run end-to-end this session; package gates above
 
 - Optional: full `./scripts/test.sh` + live multi-node / browser matrix if env
   available.
-- Keep APILTS LTS residuals open until RemoveAfter + zero-shim.
-- Do not delete Protocol V1 / request-time loader shims early.
+- Keep the theme-loader APILTS residual open until RemoveAfter + zero-shim.
+- Do not delete the request-time loader shim early.
 
 ## Open Questions
 

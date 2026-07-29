@@ -1,6 +1,5 @@
-// Package compatfarm loads and executes the V3 P12 multi-version compatibility matrix.
+// Package compatfarm loads and executes the supported compatibility matrix.
 // Every cell must start a real Host/plugin process and perform at least one RPC.
-// Tests must not call RecordShimCall directly; V1 shim counts come from real V1 RPCs.
 package compatfarm
 
 import (
@@ -50,14 +49,13 @@ type CellEvidence struct {
 
 // CellResult is one cell's execution report.
 type CellResult struct {
-	ID       string        `json:"id"`
-	Status   string        `json:"status"` // required|deprecated from matrix
-	Outcome  CellOutcome   `json:"outcome"`
-	Duration time.Duration `json:"duration"`
-	Message  string        `json:"message,omitempty"`
-	// ShimCalls is set when expects_shim_telemetry was verified via real V1 RPC.
-	ShimCalls uint64       `json:"shimCalls,omitempty"`
-	Evidence  CellEvidence `json:"evidence,omitempty"`
+	ID        string        `json:"id"`
+	Status    string        `json:"status"` // required|deprecated from matrix
+	Outcome   CellOutcome   `json:"outcome"`
+	Duration  time.Duration `json:"duration"`
+	Message   string        `json:"message,omitempty"`
+	ShimCalls uint64        `json:"shimCalls,omitempty"`
+	Evidence  CellEvidence  `json:"evidence,omitempty"`
 }
 
 // RunResult is the full farm report.
@@ -186,10 +184,6 @@ func evidenceComplete(cr CellResult) bool {
 	if strings.TrimSpace(cr.Evidence.Request) == "" || strings.TrimSpace(cr.Evidence.Response) == "" {
 		return false
 	}
-	// expects_shim_telemetry 的 cell 必须有真实 V1 RPC 产生的计数。
-	if cr.ID == "deprecated-protocol-v1-shim" && cr.Evidence.ShimCalls == 0 {
-		return false
-	}
 	return true
 }
 
@@ -220,8 +214,6 @@ func executeCell(
 	switch {
 	case cell.Command == "extension-test-builtin" || cell.ID == "manifest-v3-contract":
 		return runManifestSDKWithProcess(ctx, base, repoRoot, builtinOverride, workDir, lts)
-	case protocol == "v1" && cell.ExpectsShimTelemetry:
-		return runProtocolV1RealProcessRPC(ctx, base, repoRoot, workDir, lts)
 	case protocol == "v2" && (manifest == "v3" || manifest == "3"):
 		return runProtocolV2RealProcessRPC(ctx, base, repoRoot, workDir, lts, builtinOverride)
 	default:
@@ -246,7 +238,7 @@ func runProtocolV2RealProcessRPC(
 		return base
 	}
 
-	extension, pluginPath, err := buildBuiltinPlugin(ctx, repoRoot, workDir, "sforum-smtp", "", "", builtinOverride)
+	extension, pluginPath, err := buildBuiltinPlugin(ctx, repoRoot, workDir, "sforum-smtp", builtinOverride)
 	if err != nil {
 		base.Outcome = OutcomeFail
 		base.Message = "build v2 plugin: " + err.Error()
@@ -255,13 +247,11 @@ func runProtocolV2RealProcessRPC(
 	base.Evidence.PluginPath = pluginPath
 	base.Evidence.Protocol = 2
 
-	shim := &countingShim{lts: lts}
 	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
 		Settings: fixedSettings(map[string]string{
 			"host": "127.0.0.1", "port": "25", "encryption": "none",
 			"from_address": "noreply@example.com", "from_name": "SForum",
 		}),
-		ShimTelemetry: shim,
 	})
 	callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -295,105 +285,8 @@ func runProtocolV2RealProcessRPC(
 		base.Message = "v2 process start not recorded in telemetry"
 		return base
 	}
-	// V2 不得抬高 V1 shim。
-	if lts.ShimCalls(apilts.ProtocolV1ContractID) > 0 {
-		base.Outcome = OutcomeFail
-		base.Message = "v2 path must not record protocol.v1 shim"
-		return base
-	}
 	base.Outcome = OutcomePass
 	base.Message = fmt.Sprintf("host.v2+protocol.v2 process rpc ok package=%s", extension.ID)
-	return base
-}
-
-// runProtocolV1RealProcessRPC 启动真实 V1 插件并执行 RPC；shim 计数必须来自 ProtocolStarter。
-func runProtocolV1RealProcessRPC(
-	ctx context.Context,
-	base CellResult,
-	repoRoot, workDir string,
-	lts *apilts.Registry,
-) CellResult {
-	snap := lts.Snapshot()
-	var contract *apilts.Contract
-	for i := range snap.Contracts {
-		if snap.Contracts[i].ID == apilts.ProtocolV1ContractID {
-			contract = &snap.Contracts[i]
-			break
-		}
-	}
-	if contract == nil {
-		base.Outcome = OutcomeFail
-		base.Message = "protocol v1 LTS contract missing"
-		return base
-	}
-	if contract.Status != "deprecated" || !contract.ShimEnabled {
-		base.Outcome = OutcomeFail
-		base.Message = fmt.Sprintf("protocol v1 status=%s shim=%v", contract.Status, contract.ShimEnabled)
-		return base
-	}
-
-	before := lts.ShimCalls(apilts.ProtocolV1ContractID)
-
-	extension, pluginPath, err := buildBuiltinPlugin(ctx, repoRoot, workDir, "sforum-smtp", "sforum.extension.v1.json", "protocol_v1", "")
-	if err != nil {
-		base.Outcome = OutcomeFail
-		base.Message = "build v1 plugin: " + err.Error()
-		return base
-	}
-	base.Evidence.PluginPath = pluginPath
-	base.Evidence.Protocol = 1
-
-	shim := &countingShim{lts: lts}
-	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
-		Settings: fixedSettings(map[string]string{
-			"host": "127.0.0.1", "port": "25", "encryption": "none",
-			"from_address": "noreply@example.com", "from_name": "SForum",
-		}),
-		ShimTelemetry: shim,
-	})
-	callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	base.Evidence.Request = "Start+ProviderProbe(mail.provider) [protocol v1]"
-	target, err := starter.Start(callCtx, extension)
-	if err != nil {
-		base.Outcome = OutcomeFail
-		base.Message = "start v1 process: " + err.Error()
-		return base
-	}
-	base.Evidence.ProcessStarted = true
-	defer func() { _ = starter.Stop(context.Background(), extension) }()
-
-	probe, err := starter.ProviderProbe(callCtx, extension.ID, extensionsruntime.ProviderProbeRequest{Slot: "mail.provider"})
-	if err != nil {
-		base.Evidence.Response = "probe_err=" + err.Error()
-	} else {
-		base.Evidence.Response = fmt.Sprintf("probe ok=%v reason=%s instance=%s", probe.OK, probe.Reason, target.InstanceID)
-	}
-
-	tel := starter.ProtocolTelemetry(extension.ID)
-	if tel.ProtocolVersion != 1 || tel.Transport != "net/rpc" || !tel.Deprecated {
-		base.Outcome = OutcomeFail
-		base.Message = fmt.Sprintf("expected protocol v1 net/rpc telemetry, got %#v", tel)
-		return base
-	}
-	if tel.StartCount < 1 {
-		base.Outcome = OutcomeFail
-		base.Message = "v1 process start not recorded"
-		return base
-	}
-
-	after := lts.ShimCalls(apilts.ProtocolV1ContractID)
-	if after <= before {
-		base.Outcome = OutcomeFail
-		base.Message = fmt.Sprintf("shim telemetry did not increment from real V1 RPC (before=%d after=%d)", before, after)
-		return base
-	}
-	// 禁止测试直接 RecordShimCall：计数必须来自 ProtocolStarter 路径。
-	base.ShimCalls = after
-	base.Evidence.ShimCalls = after
-	base.Outcome = OutcomePass
-	base.Message = fmt.Sprintf("protocol v1 real process rpc shim_calls=%d", after)
 	return base
 }
 
@@ -406,10 +299,10 @@ func runManifestSDKWithProcess(
 	lts *apilts.Registry,
 ) CellResult {
 	// 先构建真实二进制（禁止 SkipBackendBinary）。
-	extension, pluginPath, err := buildBuiltinPlugin(ctx, repoRoot, workDir, "sforum-search-site", "", "", builtinOverride)
+	extension, pluginPath, err := buildBuiltinPlugin(ctx, repoRoot, workDir, "sforum-search-site", builtinOverride)
 	if err != nil {
 		// search-site 可能无 backend；回退 smtp。
-		extension, pluginPath, err = buildBuiltinPlugin(ctx, repoRoot, workDir, "sforum-smtp", "", "", builtinOverride)
+		extension, pluginPath, err = buildBuiltinPlugin(ctx, repoRoot, workDir, "sforum-smtp", builtinOverride)
 		if err != nil {
 			base.Outcome = OutcomeFail
 			base.Message = "build plugin for sdk contract: " + err.Error()
@@ -435,10 +328,8 @@ func runManifestSDKWithProcess(
 	}
 
 	// 再实际启动进程 + RPC。
-	shim := &countingShim{lts: lts}
 	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
-		Settings:      fixedSettings(map[string]string{}),
-		ShimTelemetry: shim,
+		Settings: fixedSettings(map[string]string{}),
 	})
 	callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -463,17 +354,6 @@ func runManifestSDKWithProcess(
 	base.Outcome = OutcomePass
 	base.Message = fmt.Sprintf("manifest/sdk+process ok id=%s", report.Manifest.ID)
 	return base
-}
-
-type countingShim struct {
-	lts *apilts.Registry
-}
-
-func (c *countingShim) RecordShimCall(contractID string) {
-	if c == nil || c.lts == nil {
-		return
-	}
-	c.lts.RecordShimCall(contractID)
 }
 
 type fixedSettings map[string]string
@@ -533,7 +413,7 @@ func provePostgres(ctx context.Context, databaseURL string) error {
 // 禁止 SkipBackendBinary：二进制必须真实存在。
 func buildBuiltinPlugin(
 	ctx context.Context,
-	repoRoot, workDir, packageName, manifestName, buildTags, override string,
+	repoRoot, workDir, packageName, override string,
 ) (extensions.Extension, string, error) {
 	_ = ctx
 	sourceRoot := strings.TrimSpace(override)
@@ -544,23 +424,9 @@ func buildBuiltinPlugin(
 	if err != nil || !info.IsDir() {
 		return extensions.Extension{}, "", fmt.Errorf("plugin source missing: %s", sourceRoot)
 	}
-	if manifestName == "" {
-		manifestName = "sforum.extension.json"
-	}
 	packageRoot := filepath.Join(workDir, "compat-farm-"+packageName+"-"+fmt.Sprintf("%d", time.Now().UnixNano()))
 	if err := copyDir(sourceRoot, packageRoot); err != nil {
 		return extensions.Extension{}, "", err
-	}
-	// V1 fixture：用 sforum.extension.v1.json 覆盖主 manifest。
-	if manifestName != "sforum.extension.json" {
-		src := filepath.Join(sourceRoot, manifestName)
-		body, readErr := os.ReadFile(src)
-		if readErr != nil {
-			return extensions.Extension{}, "", readErr
-		}
-		if err := os.WriteFile(filepath.Join(packageRoot, "sforum.extension.json"), body, 0o644); err != nil {
-			return extensions.Extension{}, "", err
-		}
 	}
 	// 丢弃源树可能拷入的旧二进制；必须先构建再 LoadPackage（digest 校验需要文件）。
 	_ = os.Remove(filepath.Join(packageRoot, "backend", "plugin"))
@@ -578,11 +444,7 @@ func buildBuiltinPlugin(
 	if err := os.MkdirAll(filepath.Dir(binaryPath), 0o755); err != nil {
 		return extensions.Extension{}, "", err
 	}
-	args := []string{"build", "-trimpath", "-buildvcs=false", "-o", binaryPath}
-	if strings.TrimSpace(buildTags) != "" {
-		args = append(args, "-tags", buildTags)
-	}
-	args = append(args, ".")
+	args := []string{"build", "-trimpath", "-buildvcs=false", "-o", binaryPath, "."}
 	cmd := exec.Command("go", args...)
 	// 必须在源 backend 构建：go.mod replace 指向 monorepo 相对路径，临时拷贝会断链。
 	moduleRoot := filepath.Join(sourceRoot, "backend")

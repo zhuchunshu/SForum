@@ -17,12 +17,12 @@ func newExtensionAPILTSCommand() *cobra.Command {
 		Short: "Print Host/Frontend API LTS contracts and process-local shim telemetry",
 		Long: `Print the seeded Host/Frontend API LTS policy and this process's shim usage.
 
-The running API/worker process records Protocol V1 net/rpc traffic into its own
+The running API/worker process records remaining compatibility shims in its own
 process-local counters (apilts.Process). This CLI process starts empty unless
 you only need the published contract policy (status, RemoveAfter, replacement).
 
-Deletion of sforum.protocol.v1 and sforum.theme.l1.request-time-loader requires
-CanRemoveWithZeroShim true for a full LTS window — see
+Deletion of sforum.theme.l1.request-time-loader requires CanRemoveWithZeroShim
+true for a full LTS window — see
 docs/extensions/v3/p13-migration-and-lts.md.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -32,9 +32,6 @@ docs/extensions/v3/p13-migration-and-lts.md.`,
 			now := time.Now().UTC()
 			report := struct {
 				apilts.Snapshot
-				ProtocolV1Calls                 uint64 `json:"protocolV1Calls"`
-				ProtocolV1CanRemoveWindow       bool   `json:"protocolV1CanRemoveWindow"`
-				ProtocolV1CanRemoveWithZero     bool   `json:"protocolV1CanRemoveWithZeroShim"`
 				ThemeRequestTimeLoaderCalls     uint64 `json:"themeRequestTimeLoaderCalls"`
 				ThemeRequestTimeCanRemoveWindow bool   `json:"themeRequestTimeLoaderCanRemoveWindow"`
 				ThemeRequestTimeCanRemoveZero   bool   `json:"themeRequestTimeLoaderCanRemoveWithZeroShim"`
@@ -42,9 +39,6 @@ docs/extensions/v3/p13-migration-and-lts.md.`,
 				Note                            string `json:"note"`
 			}{
 				Snapshot:                        snap,
-				ProtocolV1Calls:                 reg.ShimCalls(apilts.ProtocolV1ContractID),
-				ProtocolV1CanRemoveWindow:       reg.CanRemove(apilts.ProtocolV1ContractID, now),
-				ProtocolV1CanRemoveWithZero:     reg.CanRemoveWithZeroShim(apilts.ProtocolV1ContractID, now),
 				ThemeRequestTimeLoaderCalls:     reg.ShimCalls(apilts.ThemeRequestTimeLoaderContractID),
 				ThemeRequestTimeCanRemoveWindow: reg.CanRemove(apilts.ThemeRequestTimeLoaderContractID, now),
 				ThemeRequestTimeCanRemoveZero:   reg.CanRemoveWithZeroShim(apilts.ThemeRequestTimeLoaderContractID, now),
@@ -58,9 +52,6 @@ docs/extensions/v3/p13-migration-and-lts.md.`,
 			}
 			cmd.Printf("schema: %s\n", snap.SchemaVersion)
 			cmd.Printf("minDeprecation: %s\n", snap.MinDeprecation)
-			cmd.Printf("protocolV1Calls: %d\n", report.ProtocolV1Calls)
-			cmd.Printf("protocolV1CanRemoveWindow: %v\n", report.ProtocolV1CanRemoveWindow)
-			cmd.Printf("protocolV1CanRemoveWithZeroShim: %v\n", report.ProtocolV1CanRemoveWithZero)
 			cmd.Printf("themeRequestTimeLoaderCalls: %d\n", report.ThemeRequestTimeLoaderCalls)
 			cmd.Printf("themeRequestTimeLoaderCanRemoveWindow: %v\n", report.ThemeRequestTimeCanRemoveWindow)
 			cmd.Printf("themeRequestTimeLoaderCanRemoveWithZeroShim: %v\n", report.ThemeRequestTimeCanRemoveZero)

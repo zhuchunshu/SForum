@@ -268,6 +268,7 @@ func TestServiceInstallArchiveAllowsThemeSettingsAndAdminPages(t *testing.T) {
 	themeWithAdmin, err := service.InstallArchive(context.Background(), actor, ArchiveInput{
 		FileName: "starter-theme-admin.zip",
 		Data: extensionArchive(t, `{
+			"manifestVersion":3,
 			"id":"starter.admin.theme",
 			"name":"Starter Admin Theme",
 			"description":"Theme with admin settings.",
@@ -277,10 +278,8 @@ func TestServiceInstallArchiveAllowsThemeSettingsAndAdminPages(t *testing.T) {
 			"type":"theme",
 			"sforumVersion":"^1.0.0",
 			"settings":[{"key":"theme.banner","label":"Banner","type":"text","default":"Welcome"}],
-			"adminPages":[{"path":"/settings","label":"Settings","view":"settings","icon":"i-lucide-settings","order":10}],
-			"frontend":{"layer":"frontend/layer"}
+			"adminPages":[{"path":"/settings","label":"Settings","view":"settings","icon":"i-lucide-settings","order":10}]
 		}`,
-			zipFile{name: "frontend/layer/nuxt.config.ts", body: "export default defineNuxtConfig({})\n"},
 		),
 	})
 	if err != nil {
@@ -713,6 +712,7 @@ func TestServiceInstallArchiveValidatesRuntimeManifestDeclarations(t *testing.T)
 	}
 
 	eventManifest := `{
+		"manifestVersion":3,
 		"id":"event.plugin",
 		"name":"Event Plugin",
 		"description":"Event plugin.",
@@ -721,7 +721,16 @@ func TestServiceInstallArchiveValidatesRuntimeManifestDeclarations(t *testing.T)
 		"version":"1.0.0",
 		"type":"plugin",
 		"sforumVersion":"^1.0.0",
-		"events":[{"name":"topic.before_create","kind":"filter","timeoutMs":1000}]
+		"events":[{
+			"id":"event.plugin.event.topic-before-create",
+			"contractVersion":"event.plugin.event.topic-before-create@1",
+			"name":"topic.before_create",
+			"kind":"filter",
+			"handler":"demo.topic-before-create",
+			"inputSchema":"event.plugin.topic-before-create.input@1",
+			"resultSchema":"event.plugin.topic-before-create.result@1",
+			"timeoutMs":1000
+		}]
 	}`
 	installed, err = service.InstallArchive(context.Background(), actor, ArchiveInput{
 		FileName: "event.zip",
@@ -1989,6 +1998,7 @@ func techAdminPluginManager() identity.Actor {
 
 func validManifest(id string, extensionType string) string {
 	return `{
+		"manifestVersion": 3,
 		"id": "` + id + `",
 		"name": "Demo Extension",
 		"description": "Demo extension for SForum tests.",
@@ -1998,18 +2008,63 @@ func validManifest(id string, extensionType string) string {
 		"type": "` + extensionType + `",
 		"sforumVersion": "^1.0.0",
 		"permissions": ["topic.create"],
-		"settings": [{"key": "demo.enabled", "label": "Enabled", "type": "boolean"}],
-		"migrations": [{"path": "migrations/001_init.sql"}],
-		"backend": {"entry": "backend/plugin", "rpc": "hashicorp-go-plugin"},
-		"adminPages": [{"path": "/demo", "label": "Demo", "permission": "extension.demo.manage"}],
-		"routes": [{"path": "/hello", "methods": ["GET"]}],
-		"hooks": [{"name": "topic.created"}],
-		"jobs": [{"name": "demo.sync"}]
+		"migrations": [{
+			"id": "` + id + `.migration.init",
+			"contractVersion": "` + id + `.migration.init@1",
+			"path": "migrations/001_init.sql",
+			"digest": "17db4fd369edb9244b9f91d9aeed145c3d04ad8ba6e95d06247f07a63527d11a",
+			"transaction": "required"
+		}],
+		"backend": {
+			"entry": "backend/plugin",
+			"rpc": "hashicorp-go-plugin",
+			"protocolVersion": 2,
+			"hostApiVersion": "sforum.host@2",
+			"digest": "a8076d3d28d21e02012b20eaf7dbf75409a6277134439025f282e368e3305abf"
+		},
+		"routes": [{
+			"id": "` + id + `.route.hello",
+			"contractVersion": "` + id + `.route.hello@1",
+			"action": "add",
+			"path": "/hello",
+			"methods": ["GET"],
+			"guard": "core.guard.public",
+			"fallback": "closed",
+			"mode": "http",
+			"handler": "demo.hello",
+			"responseSchema": "` + id + `.route.hello.response@1"
+		}],
+		"hooks": [{
+			"id": "` + id + `.hook.topic-created",
+			"contractVersion": "` + id + `.hook.topic-created@1",
+			"name": "topic.created",
+			"kind": "observe",
+			"handler": "demo.topic-created",
+			"inputSchema": "` + id + `.hook.topic-created.input@1",
+			"execution": "sync",
+			"failurePolicy": "fail_open",
+			"timeoutMs": 1000
+		}],
+		"jobs": [{
+			"id": "` + id + `.job.sync",
+			"contractVersion": "` + id + `.job.sync@1",
+			"name": "demo.sync",
+			"handler": "demo.sync",
+			"payloadSchema": "` + id + `.job.sync.payload@1",
+			"retryPolicy": "none",
+			"maxAttempts": 1,
+			"concurrencyLimit": 1
+		}],
+		"packageFiles": [
+			{"id": "` + id + `.file.backend", "kind": "executable", "path": "backend/plugin", "digest": "a8076d3d28d21e02012b20eaf7dbf75409a6277134439025f282e368e3305abf"},
+			{"id": "` + id + `.file.migration", "kind": "migration", "path": "migrations/001_init.sql", "digest": "17db4fd369edb9244b9f91d9aeed145c3d04ad8ba6e95d06247f07a63527d11a"}
+		]
 	}`
 }
 
 func validThemeManifest(id string) string {
 	return `{
+		"manifestVersion": 3,
 		"id": "` + id + `",
 		"name": "Demo Theme",
 		"description": "Demo theme for SForum tests.",
@@ -2034,6 +2089,16 @@ func extensionArchive(t *testing.T, manifest string, files ...zipFile) []byte {
 	writer := zip.NewWriter(&buffer)
 	if manifest != "" {
 		writeZipFile(t, writer, zipFile{name: ManifestFileName, body: manifest})
+	}
+	present := make(map[string]bool, len(files))
+	for _, file := range files {
+		present[file.name] = true
+	}
+	if strings.Contains(manifest, `"path": "backend/plugin"`) && !present["backend/plugin"] {
+		writeZipFile(t, writer, zipFile{name: "backend/plugin", body: "#!/bin/sh\n", mode: 0o755})
+	}
+	if strings.Contains(manifest, `"path": "migrations/001_init.sql"`) && !present["migrations/001_init.sql"] {
+		writeZipFile(t, writer, zipFile{name: "migrations/001_init.sql", body: "SELECT 1;", mode: 0o644})
 	}
 	for _, file := range files {
 		writeZipFile(t, writer, file)
@@ -2070,6 +2135,7 @@ func withInstalledPackage(t *testing.T, item Extension) Extension {
 		if err := writeManifest(root, item.Manifest); err != nil {
 			t.Fatalf("write builtin manifest: %v", err)
 		}
+		writeTestExecutablePackageFiles(t, root, item)
 		writeTestThemeContract(t, root, item)
 		return item
 	}
@@ -2085,8 +2151,23 @@ func withInstalledPackage(t *testing.T, item Extension) Extension {
 	if err := writeManifest(root, item.Manifest); err != nil {
 		t.Fatalf("write uploaded manifest: %v", err)
 	}
+	writeTestExecutablePackageFiles(t, root, item)
 	writeTestThemeContract(t, root, item)
 	return item
+}
+
+func writeTestExecutablePackageFiles(t *testing.T, root string, item Extension) {
+	t.Helper()
+	if item.Manifest.Backend.Entry == "" {
+		return
+	}
+	target := filepath.Join(root, filepath.FromSlash(item.Manifest.Backend.Entry))
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		t.Fatalf("create backend directory: %v", err)
+	}
+	if err := os.WriteFile(target, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatalf("write backend fixture: %v", err)
+	}
 }
 
 func writeTestThemeContract(t *testing.T, root string, item Extension) {
@@ -2100,6 +2181,16 @@ func writeTestThemeContract(t *testing.T, root string, item Extension) {
 }
 
 func installedExtension(id string, extensionType string, backend ManifestBackend) Extension {
+	packageFiles := []ManifestPackageFile(nil)
+	if backend.Entry != "" {
+		backend.RPC = "hashicorp-go-plugin"
+		backend.ProtocolVersion = 2
+		backend.HostAPIVersion = "sforum.host@2"
+		backend.Digest = "a8076d3d28d21e02012b20eaf7dbf75409a6277134439025f282e368e3305abf"
+		packageFiles = []ManifestPackageFile{{
+			ID: id + ".file.backend", Kind: "executable", Path: backend.Entry, Digest: backend.Digest,
+		}}
+	}
 	return Extension{
 		ID:      id,
 		Name:    "Demo Extension",
@@ -2107,15 +2198,17 @@ func installedExtension(id string, extensionType string, backend ManifestBackend
 		Type:    extensionType,
 		Status:  StatusInstalled,
 		Manifest: Manifest{
-			ID:            id,
-			Name:          "Demo Extension",
-			Description:   "Demo extension for SForum tests.",
-			URL:           "https://example.com/demo-extension",
-			Author:        ManifestAuthor{Name: "SForum Team", URL: "https://example.com", Email: "dev@example.com"},
-			Version:       "1.0.0",
-			Type:          extensionType,
-			SForumVersion: "^1.0.0",
-			Backend:       backend,
+			ManifestVersion: 3,
+			ID:              id,
+			Name:            "Demo Extension",
+			Description:     "Demo extension for SForum tests.",
+			URL:             "https://example.com/demo-extension",
+			Author:          ManifestAuthor{Name: "SForum Team", URL: "https://example.com", Email: "dev@example.com"},
+			Version:         "1.0.0",
+			Type:            extensionType,
+			SForumVersion:   "^1.0.0",
+			Backend:         backend,
+			PackageFiles:    packageFiles,
 		},
 		// 通用夹具表示制品存在；缺失制品用例会显式覆盖为不存在的路径。
 		PackagePath: os.TempDir(),

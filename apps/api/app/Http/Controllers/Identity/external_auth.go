@@ -99,10 +99,10 @@ func (h *Controller) externalAuthCallback(c fiber.Ctx) error {
 	case identity.ExternalAuthOperationLink:
 		completeOp = identity.AuthOperationLinkComplete
 	}
-	// 绝对 callback：优先事务内绑定值；缺失时从可信 APP_URL 重建（仍不使用请求 Host）。
+	// 绝对 callback：优先事务内绑定值；缺失时按 site.url -> APP_URL 重建。
 	callbackURL := strings.TrimSpace(tx.AbsoluteCallbackURL)
 	if callbackURL == "" {
-		callbackURL, err = h.absoluteCallbackURL(providerID)
+		callbackURL, err = h.absoluteCallbackURL(c.Context(), providerID)
 		if err != nil {
 			return externalAuthRedirect(c, returnPath, "auth.provider_unavailable")
 		}

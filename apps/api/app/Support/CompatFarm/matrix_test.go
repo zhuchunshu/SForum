@@ -31,14 +31,13 @@ func TestLoadMatrixShape(t *testing.T) {
 	if matrix.Schema != SchemaVersion || len(matrix.RequiredCells()) < 1 {
 		t.Fatalf("matrix = %#v", matrix)
 	}
-	if len(matrix.DeprecatedCells()) == 0 {
-		t.Fatal("expected deprecated protocol-v1 cell")
+	if len(matrix.DeprecatedCells()) != 0 {
+		t.Fatalf("removed compatibility cells remain: %#v", matrix.DeprecatedCells())
 	}
 }
 
-// TestRunMatrixGatePassesRequiredAndDeprecated 跑完整农场：真实进程 + RPC + shim。
-// 不得直接 RecordShimCall；V1 计数必须来自 ProtocolStarter。
-func TestRunMatrixGatePassesRequiredAndDeprecated(t *testing.T) {
+// TestRunMatrixGatePassesRequired 跑完整农场：真实进程 + RPC。
+func TestRunMatrixGatePassesRequired(t *testing.T) {
 	if testing.Short() {
 		t.Skip("compat farm builds real plugin binaries")
 	}
@@ -72,8 +71,8 @@ func TestRunMatrixGatePassesRequiredAndDeprecated(t *testing.T) {
 		}
 		t.Fatalf("farm not ok")
 	}
-	if len(result.Cells) < 3 {
-		t.Fatalf("expected >=3 cells, got %d", len(result.Cells))
+	if len(result.Cells) != 2 {
+		t.Fatalf("expected 2 cells, got %d", len(result.Cells))
 	}
 	for _, cell := range result.Cells {
 		if cell.Outcome != OutcomePass {
@@ -84,9 +83,6 @@ func TestRunMatrixGatePassesRequiredAndDeprecated(t *testing.T) {
 		}
 		if cell.Evidence.Request == "" || cell.Evidence.Response == "" {
 			t.Fatalf("cell %s missing request/response evidence: %#v", cell.ID, cell.Evidence)
-		}
-		if cell.ID == "deprecated-protocol-v1-shim" && cell.ShimCalls == 0 {
-			t.Fatal("deprecated cell must prove shim telemetry from real V1 RPC")
 		}
 	}
 }

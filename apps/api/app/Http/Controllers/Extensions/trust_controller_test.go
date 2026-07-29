@@ -2,7 +2,9 @@ package extensionscontroller
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -153,11 +155,21 @@ func newExecutableTrustTestApp(t *testing.T) (*fiber.App, *authsession.Manager, 
 func executableTrustHTTPFixture(t *testing.T) extensions.Extension {
 	t.Helper()
 	manifest := extensions.Manifest{
-		ID: "demo.trust", Name: "Trust Demo", Description: "Trust HTTP fixture.",
+		ManifestVersion: 3,
+		ID:              "demo.trust", Name: "Trust Demo", Description: "Trust HTTP fixture.",
 		URL: "https://example.test/trust", Author: extensions.ManifestAuthor{Name: "SForum"},
 		Version: "1.0.0", Type: extensions.TypePlugin, SForumVersion: "^1.0.0",
-		Backend: extensions.ManifestBackend{Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 1},
+		Backend: extensions.ManifestBackend{
+			Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 2,
+			HostAPIVersion: "sforum.host@2",
+		},
 	}
+	binary := []byte("binary")
+	binaryDigest := sha256.Sum256(binary)
+	manifest.Backend.Digest = fmt.Sprintf("%x", binaryDigest)
+	manifest.PackageFiles = []extensions.ManifestPackageFile{{
+		ID: manifest.ID + ".file.backend", Kind: "executable", Path: manifest.Backend.Entry, Digest: manifest.Backend.Digest,
+	}}
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "backend"), 0o755); err != nil {
 		t.Fatal(err)
@@ -169,7 +181,7 @@ func executableTrustHTTPFixture(t *testing.T) extensions.Extension {
 	if err := os.WriteFile(filepath.Join(root, extensions.ManifestFileName), manifestBody, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "backend/plugin"), []byte("binary"), 0o755); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "backend/plugin"), binary, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	digest, err := extensionpackage.DigestTree(root)

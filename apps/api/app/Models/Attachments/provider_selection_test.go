@@ -54,7 +54,7 @@ func TestSettingsIncludesPluginCandidates(t *testing.T) {
 	if !found {
 		t.Fatalf("expected plugin candidate, got %#v", settings.Candidates)
 	}
-	if len(settings.Drivers) != 5 {
+	if len(settings.Drivers) != 1 {
 		t.Fatalf("drivers=%d", len(settings.Drivers))
 	}
 }

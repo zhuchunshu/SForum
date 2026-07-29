@@ -71,7 +71,7 @@ pipeline rather than runtime inclusion.
 
 - v2 work should start with plugin usability and a mail provider slice before
   attempting marketplace or arbitrary frontend extension UIs.
-- Existing `adminPages` behavior should be treated as v1 compatibility; new
+- Existing `adminPages` behavior should be treated as a legacy manifest alias; new
   work should converge on `admin.entry` and explicit `admin.pages[].menu`.
 - Theme activation remains blocked until a deployment-style Nuxt build and
   rollback runtime exists.

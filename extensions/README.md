@@ -92,7 +92,7 @@ Apply the same mapping to a standalone `worker` service.
 1. rsync/copy `extensions/builtin/` → `storage/builtin-dev/` (gitignored).
 2. `go build` **only the plugins hard-coded in that script** (today:
    `sforum-smtp`, `sforum-content-policy`, `sforum-storage-fs`,
-   `sforum-search-site`).
+   `sforum-storage-ftp`, `sforum-storage-sftp`, `sforum-search-site`).
 3. Refresh Manifest V3 digests **in staging only** (source tree digests stay
    stable for git).
 4. Export `BUILTIN_EXTENSION_ROOT=…/storage/builtin-dev` for Air.

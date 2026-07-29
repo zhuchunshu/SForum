@@ -29,8 +29,8 @@ func TestExtensionAPILTSCommandJSON(t *testing.T) {
 	if payload["schemaVersion"] != apilts.SchemaVersion {
 		t.Fatalf("schemaVersion = %#v", payload["schemaVersion"])
 	}
-	if payload["protocolV1Calls"] != float64(0) {
-		t.Fatalf("protocolV1Calls = %#v", payload["protocolV1Calls"])
+	if _, exists := payload["protocolV1Calls"]; exists {
+		t.Fatalf("removed protocol telemetry remains in payload: %#v", payload)
 	}
 	if payload["themeRequestTimeLoaderCalls"] != float64(0) {
 		t.Fatalf("themeRequestTimeLoaderCalls = %#v", payload["themeRequestTimeLoaderCalls"])
@@ -56,9 +56,7 @@ func TestExtensionAPILTSCommandText(t *testing.T) {
 	out := buf.String()
 	for _, want := range []string{
 		"schema: " + apilts.SchemaVersion,
-		apilts.ProtocolV1ContractID,
 		apilts.ThemeRequestTimeLoaderContractID,
-		"protocolV1Calls: 0",
 		"themeRequestTimeLoaderCalls: 0",
 	} {
 		if !strings.Contains(out, want) {

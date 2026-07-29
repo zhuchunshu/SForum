@@ -90,7 +90,7 @@ func TestManifestV3RedirectDefaultIsCanonical(t *testing.T) {
 }
 
 func TestLegacyManifestRejectsRedirectStatusCode(t *testing.T) {
-	for _, version := range []int{0, ManifestVersionV1, ManifestVersionV2} {
+	for _, version := range []int{0, 1, 2} {
 		manifest := versionedTestManifest(version)
 		manifest.Routes = []ManifestRoute{{
 			Path: "/legacy", Methods: []string{"GET"}, Access: RouteAccessPublic, StatusCode: 301,

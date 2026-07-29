@@ -2,17 +2,17 @@ package apilts
 
 import "testing"
 
-func TestProcessRegistryRecordsProtocolV1Shim(t *testing.T) {
+func TestProcessRegistryRecordsThemeRequestTimeLoaderShim(t *testing.T) {
 	reg := New()
 	ResetProcessForTest(reg)
 	t.Cleanup(func() { ResetProcessForTest(nil) })
 
-	Process().RecordShimCall(ProtocolV1ContractID)
-	Process().RecordShimCall(ProtocolV1ContractID)
+	Process().RecordShimCall(ThemeRequestTimeLoaderContractID)
+	Process().RecordShimCall(ThemeRequestTimeLoaderContractID)
 
 	var calls uint64
 	for _, row := range Process().Snapshot().ShimUsage {
-		if row.ContractID == ProtocolV1ContractID {
+		if row.ContractID == ThemeRequestTimeLoaderContractID {
 			calls = row.Calls
 		}
 	}
@@ -31,11 +31,11 @@ func TestProcessCreatesSeededRegistry(t *testing.T) {
 	}
 	found := false
 	for _, c := range snap.Contracts {
-		if c.ID == ProtocolV1ContractID && c.Status == "deprecated" && c.ShimEnabled {
+		if c.ID == ThemeRequestTimeLoaderContractID && c.Status == "deprecated" && c.ShimEnabled {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatalf("missing seeded protocol v1: %#v", snap.Contracts)
+		t.Fatalf("missing seeded theme request-time loader: %#v", snap.Contracts)
 	}
 }

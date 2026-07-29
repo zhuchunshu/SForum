@@ -50,6 +50,43 @@ func (s *PostgresStore) Reconcile(
 	return runSessionPolicyMutationGate(ctx, s.sessionPolicyMutationGate, run)
 }
 
+// LoadDurableStateTx reads the durable graph inside an existing publication
+// transaction so recovery validation and mutation share one snapshot.
+func (s *PostgresStore) LoadDurableStateTx(ctx context.Context, tx pgx.Tx) (DurableState, error) {
+	if s == nil || s.pool == nil || ctx == nil || tx == nil {
+		return DurableState{}, ErrInvalid
+	}
+	return loadDurableStateFrom(ctx, tx)
+}
+
+// ReconcileTx appends an Identity Registry revision inside the caller's
+// PostgreSQL transaction. Lifecycle registry publication uses it so the
+// durable Identity graph and aggregate registry phase cannot commit apart.
+func (s *PostgresStore) ReconcileTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	input ReconcilePublicationInput,
+) (DurableState, error) {
+	if s == nil || s.pool == nil || ctx == nil || tx == nil {
+		return DurableState{}, ErrInvalid
+	}
+	normalized, err := normalizeReconcilePublicationInput(input)
+	if err != nil {
+		return DurableState{}, err
+	}
+	desired, err := desiredDurableDeclarations(normalized.desired)
+	if err != nil {
+		return DurableState{}, err
+	}
+	desiredRoot, err := desiredDurableRootPublication(normalized.desired)
+	if err != nil {
+		return DurableState{}, err
+	}
+	return runSessionPolicyMutationGate(ctx, s.sessionPolicyMutationGate, func() (DurableState, error) {
+		return s.reconcilePublicationTx(ctx, tx, normalized, desiredRoot, desired)
+	})
+}
+
 func (s *PostgresStore) reconcilePublicationOnce(
 	ctx context.Context,
 	input normalizedReconcilePublicationInput,
@@ -61,6 +98,23 @@ func (s *PostgresStore) reconcilePublicationOnce(
 		return DurableState{}, mapStoreError(err)
 	}
 	defer func() { _ = tx.Rollback(context.Background()) }()
+	state, err := s.reconcilePublicationTx(ctx, tx, input, desiredRoot, desired)
+	if err != nil {
+		return DurableState{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return DurableState{}, mapStoreError(err)
+	}
+	return state, nil
+}
+
+func (s *PostgresStore) reconcilePublicationTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	input normalizedReconcilePublicationInput,
+	desiredRoot *durableDesiredRootPublication,
+	desired []durableDesiredDeclaration,
+) (DurableState, error) {
 
 	if err := lockReconcileArtifacts(ctx, tx, input.extensionID, input.artifacts); err != nil {
 		return DurableState{}, err
@@ -196,9 +250,6 @@ func (s *PostgresStore) reconcilePublicationOnce(
 	state, err := loadDurableStateFrom(ctx, tx)
 	if err != nil {
 		return DurableState{}, err
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return DurableState{}, mapStoreError(err)
 	}
 	return state, nil
 }

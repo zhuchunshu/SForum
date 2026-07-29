@@ -8,7 +8,7 @@ SForum V1 将 GitHub 登录作为**受保护内置插件** `sforum.auth-github` 
 ## 前置条件
 
 1. 站点已完成首次注册（首个 `super_admin` 必须走核心注册，不能用 GitHub）。
-2. 已配置可信公开地址 `APP_URL`（生产须 HTTPS）。
+2. 已在后台配置站点地址，或设置环境 `APP_URL` 作为兜底（生产须 HTTPS）。
 3. 生产已设置强随机 `IDENTITY_SUBJECT_HMAC_SECRET`（身份绑定备份密钥，轮换需迁移方案）。
 4. 你具备扩展管理与 `identity.provider.manage`（或 `super_admin`）。
 
@@ -16,9 +16,9 @@ SForum V1 将 GitHub 登录作为**受保护内置插件** `sforum.auth-github` 
 
 申请地址：[新建 GitHub OAuth App](https://github.com/settings/applications/new)。
 
-1. 打开申请地址，**Application name** 填便于识别的名称，**Homepage URL** 填站点 `APP_URL`。
+1. 打开申请地址，**Application name** 填便于识别的名称，**Homepage URL** 填后台配置的站点地址。
 2. **Authorization callback URL** 必须与 Host 展示的绝对回调一致，形如：  
-   `{APP_URL}/auth/providers/sforum.auth-github.auth/callback`
+   `{站点地址}/auth/providers/sforum.auth-github.auth/callback`
    在「登录方式」页可一键复制。
 3. 注册应用，记录 **Client ID**，再生成 **Client Secret**（仅粘贴到 SForum SecretStore，勿写入主题或浏览器）。
 4. 回到 SForum 填写凭证并保存，运行探测后，再按需开启登录、注册和账号绑定。
@@ -68,7 +68,7 @@ SForum V1 将 GitHub 登录作为**受保护内置插件** `sforum.auth-github` 
 | 回调后提示过期/重放 | 10 分钟 TTL；勿刷新回调 URL；检查多实例是否共享 Redis |
 | `auth.provider_unavailable` | 制品漂移、未配置、运行时未就绪、探测失败 |
 | `auth.external_identity_unlinked` | 该 GitHub 账号尚未绑定；引导注册或先密码登录再绑定 |
-| 生产启动失败 | 检查 `IDENTITY_SUBJECT_HMAC_SECRET` / `APP_URL` |
+| 生产启动失败 | 检查 `IDENTITY_SUBJECT_HMAC_SECRET`，并确保后台站点地址或 `APP_URL` 为 HTTPS |
 | 限流 `rate_limit.exceeded` | start/callback 按 IP 限流；稍后重试 |
 
 **安全**：日志、审计、API、浏览器历史、诊断中都不应出现 code、token、Client Secret、PKCE verifier、raw state、raw subject、subject digest 或上游错误正文。若发现泄漏，立即轮换 GitHub Client Secret 并报告。

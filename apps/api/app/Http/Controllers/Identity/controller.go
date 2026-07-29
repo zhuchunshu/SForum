@@ -59,7 +59,7 @@ type Controller struct {
 	activationStore         identity.ProviderActivationStore
 	// externalAuthRateLimiter 保护 start/callback（M5）；nil 时跳过专用限流。
 	externalAuthRateLimiter identity.ExternalAuthRateLimiter
-	// appURL 是可信公共应用基址（APP_URL），用于生成绝对 OAuth callback；
+	// appURL 是环境 APP_URL fallback；OAuth callback 优先使用运行时 site.url。
 	// 绝不使用请求 Host。appEnv 用于生产 HTTPS 强制。
 	appURL string
 	appEnv string
@@ -204,8 +204,8 @@ func (h *Controller) WithExternalAuthService(
 	return h
 }
 
-// WithPublicAppURL 注入可信公共应用基址（APP_URL）与运行环境。
-// 外部 OAuth 绝对 callback URL 只从此派生，不信任请求 Host。
+// WithPublicAppURL 注入环境 APP_URL fallback 与运行环境。
+// 外部 OAuth 绝对 callback URL 优先使用运行时 site.url，且不信任请求 Host。
 func (h *Controller) WithPublicAppURL(appURL, appEnv string) *Controller {
 	if h != nil {
 		h.appURL = strings.TrimSpace(appURL)
@@ -238,10 +238,21 @@ func (h *Controller) allowExternalAuthRate(c fiber.Ctx, scope string, max int) b
 	return ok
 }
 
-// absoluteCallbackURL 从可信 APP_URL 生成绝对 callback；生产强制 HTTPS。
-func (h *Controller) absoluteCallbackURL(providerID string) (string, error) {
+// absoluteCallbackURL 优先从后台 site.url 生成绝对 callback；未设置时回退 APP_URL。
+// 配置读取失败时 fail closed，生产环境始终强制 HTTPS。
+func (h *Controller) absoluteCallbackURL(ctx context.Context, providerID string) (string, error) {
+	baseURL := strings.TrimSpace(h.appURL)
+	if h.options != nil {
+		siteURL, err := h.options.WebOption(ctx, options.NameSiteURL)
+		if err != nil {
+			return "", err
+		}
+		if siteURL = strings.TrimSpace(siteURL); siteURL != "" {
+			baseURL = siteURL
+		}
+	}
 	requireHTTPS := strings.EqualFold(h.appEnv, "production")
-	return identity.AbsoluteExternalAuthCallbackURL(h.appURL, providerID, requireHTTPS)
+	return identity.AbsoluteExternalAuthCallbackURL(baseURL, providerID, requireHTTPS)
 }
 
 type registerRequest struct {

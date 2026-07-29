@@ -20,7 +20,7 @@ func validateExtensionDatabaseCoreCompatibility(
 	powers []string,
 ) error {
 	return validateExtensionDatabaseCoreCompatibilityForHost(
-		ctx, queryer, declaration, powers, platformversion.Current,
+		ctx, queryer, declaration, powers, platformversion.CoreCompatibilityVersion(),
 	)
 }
 

@@ -59,6 +59,7 @@ type apiCoreStack struct {
 	optionsService               *options.Service
 	pagesProvider                *providers.PagesProvider
 	pluginRuntimeCoordinator     *pluginRuntimeCoordinatorRuntime
+	pluginRuntimeRecovery        *health.RecoveryRequirement
 	pluginRuntimeStopTimeout     time.Duration
 	pool                         *pgxpool.Pool
 	productionSEO                *productionSEORegistry

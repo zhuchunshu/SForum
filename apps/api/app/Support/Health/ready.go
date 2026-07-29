@@ -34,10 +34,11 @@ type ComponentResult struct {
 
 // ReadyReport 是 /ready 响应体。
 type ReadyReport struct {
-	Status     string            `json:"status"` // ready | not_ready
-	Ready      bool              `json:"ready"`
-	CheckedAt  time.Time         `json:"checkedAt"`
-	Components []ComponentResult `json:"components"`
+	Status     string               `json:"status"` // ready | not_ready
+	Ready      bool                 `json:"ready"`
+	CheckedAt  time.Time            `json:"checkedAt"`
+	Components []ComponentResult    `json:"components"`
+	Recovery   *RecoveryRequirement `json:"recovery,omitempty"`
 }
 
 // Evaluate 运行全部 checker 并汇总。

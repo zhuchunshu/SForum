@@ -24,24 +24,16 @@ export type AttachmentSettings = {
   defaultVisibility: 'public' | 'private'
   cleanupOrphanAfterDays: number
   local: { root: string, publicPrefix: string }
-  aliyunOss: { endpoint: string, bucket: string, region: string, accessKeyId: string, accessKeySecret?: string, accessKeySecretSet: boolean }
-  tencentCos: { region: string, bucket: string, secretId: string, secretKey?: string, secretKeySet: boolean, cdnDomain: string }
-  ftp: { host: string, port: number, username: string, password?: string, passwordSet: boolean, rootPath: string, passive: boolean, explicitTls: boolean, publicBaseUrl: string }
-  sftp: { host: string, port: number, username: string, password?: string, passwordSet: boolean, privateKey?: string, privateKeySet: boolean, passphrase?: string, passphraseSet: boolean, rootPath: string, hostKeyFingerprint: string, publicBaseUrl: string }
 }
 
 const defaultCoreCandidates: AttachmentStorageCandidate[] = [
-  { value: 'local', kind: 'core', label: 'Local filesystem', available: true },
-  { value: 'aliyun_oss', kind: 'core', label: 'Aliyun OSS', available: true },
-  { value: 'tencent_cos', kind: 'core', label: 'Tencent COS', available: true },
-  { value: 'ftp', kind: 'core', label: 'FTP', available: true },
-  { value: 'sftp', kind: 'core', label: 'SFTP', available: true }
+  { value: 'local', kind: 'core', label: 'Local filesystem', available: true }
 ]
 
 export function createDefaultAttachmentSettings(): AttachmentSettings {
   return {
     providerSlot: 'attachment.storage.provider',
-    drivers: ['local', 'aliyun_oss', 'tencent_cos', 'ftp', 'sftp'],
+    drivers: ['local'],
     candidates: defaultCoreCandidates.map(item => ({ ...item })),
     provider: 'local',
     uploadEnabled: true,
@@ -52,11 +44,7 @@ export function createDefaultAttachmentSettings(): AttachmentSettings {
     allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'text/plain', 'application/zip'],
     defaultVisibility: 'public',
     cleanupOrphanAfterDays: 30,
-    local: { root: 'storage/app/attachments', publicPrefix: '' },
-    aliyunOss: { endpoint: '', bucket: '', region: '', accessKeyId: '', accessKeySecret: '', accessKeySecretSet: false },
-    tencentCos: { region: '', bucket: '', secretId: '', secretKey: '', secretKeySet: false, cdnDomain: '' },
-    ftp: { host: '', port: 21, username: '', password: '', passwordSet: false, rootPath: '/', passive: true, explicitTls: false, publicBaseUrl: '' },
-    sftp: { host: '', port: 22, username: '', password: '', passwordSet: false, privateKey: '', privateKeySet: false, passphrase: '', passphraseSet: false, rootPath: '/', hostKeyFingerprint: '', publicBaseUrl: '' }
+    local: { root: 'storage/app/attachments', publicPrefix: '' }
   }
 }
 
@@ -70,13 +58,6 @@ export function resetAttachmentSettingsToRecommended(current?: AttachmentSetting
     return defaults
   }
 
-  // 恢复推荐配置不主动清空已保存密钥；密钥输入留空时后端会保留原值。
-  defaults.aliyunOss.accessKeySecretSet = current.aliyunOss.accessKeySecretSet
-  defaults.tencentCos.secretKeySet = current.tencentCos.secretKeySet
-  defaults.ftp.passwordSet = current.ftp.passwordSet
-  defaults.sftp.passwordSet = current.sftp.passwordSet
-  defaults.sftp.privateKeySet = current.sftp.privateKeySet
-  defaults.sftp.passphraseSet = current.sftp.passphraseSet
   return defaults
 }
 

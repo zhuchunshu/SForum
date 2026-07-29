@@ -14,20 +14,21 @@ import (
 )
 
 type scaffoldManifest struct {
-	ID            string                               `json:"id"`
-	Name          string                               `json:"name"`
-	Description   string                               `json:"description"`
-	URL           string                               `json:"url"`
-	Author        extensionmanifest.ManifestAuthor     `json:"author"`
-	Version       string                               `json:"version"`
-	Type          string                               `json:"type"`
-	SForumVersion string                               `json:"sforumVersion"`
-	Permissions   []string                             `json:"permissions,omitempty"`
-	Settings      *extensionmanifest.SettingsDocument  `json:"settings,omitempty"`
-	Providers     []extensionmanifest.ManifestProvider `json:"providers,omitempty"`
-	Backend       *extensionmanifest.ManifestBackend   `json:"backend,omitempty"`
-	Admin         extensionmanifest.ManifestAdmin      `json:"admin,omitempty"`
-	Includes      map[string]string                    `json:"includes,omitempty"`
+	ManifestVersion int                                  `json:"manifestVersion"`
+	ID              string                               `json:"id"`
+	Name            string                               `json:"name"`
+	Description     string                               `json:"description"`
+	URL             string                               `json:"url"`
+	Author          extensionmanifest.ManifestAuthor     `json:"author"`
+	Version         string                               `json:"version"`
+	Type            string                               `json:"type"`
+	SForumVersion   string                               `json:"sforumVersion"`
+	Permissions     []string                             `json:"permissions,omitempty"`
+	Settings        *extensionmanifest.SettingsDocument  `json:"settings,omitempty"`
+	Providers       []extensionmanifest.ManifestProvider `json:"providers,omitempty"`
+	Backend         *extensionmanifest.ManifestBackend   `json:"backend,omitempty"`
+	Admin           extensionmanifest.ManifestAdmin      `json:"admin,omitempty"`
+	Includes        map[string]string                    `json:"includes,omitempty"`
 }
 
 func GenerateExtensionScaffold(opts makeOptions) (string, error) {
@@ -52,9 +53,6 @@ func GenerateExtensionScaffold(opts makeOptions) (string, error) {
 		}
 	} else {
 		manifest := buildManifest(opts)
-		if err := validateGeneratedManifest(manifest); err != nil {
-			return "", err
-		}
 		if err := writeJSON(filepath.Join(target, extensionmanifest.ManifestFileName), manifest); err != nil {
 			return "", err
 		}
@@ -109,14 +107,15 @@ func validateMakeOptions(opts makeOptions) error {
 
 func buildManifest(opts makeOptions) scaffoldManifest {
 	manifest := scaffoldManifest{
-		ID:            opts.ID,
-		Name:          opts.Name,
-		Description:   opts.Description,
-		URL:           opts.URL,
-		Author:        extensionmanifest.ManifestAuthor{Name: opts.AuthorName, URL: opts.AuthorURL, Email: opts.AuthorEmail},
-		Version:       "0.1.0",
-		Type:          opts.Kind,
-		SForumVersion: "^1.0.0",
+		ManifestVersion: extensionmanifest.ManifestVersionV3,
+		ID:              opts.ID,
+		Name:            opts.Name,
+		Description:     opts.Description,
+		URL:             opts.URL,
+		Author:          extensionmanifest.ManifestAuthor{Name: opts.AuthorName, URL: opts.AuthorURL, Email: opts.AuthorEmail},
+		Version:         "0.1.0",
+		Type:            opts.Kind,
+		SForumVersion:   "^1.0.0",
 		Settings: scaffoldSettingsDocument(opts, []extensionmanifest.ManifestSetting{{
 			Key:         opts.ID + ".enabled",
 			Label:       extensionmanifest.LocalizedText{Default: "Enabled"},
@@ -140,7 +139,9 @@ func buildManifest(opts makeOptions) scaffoldManifest {
 	if opts.Kind == extensionmanifest.TypePlugin {
 		manifest.Permissions = []string{opts.ID + ".manage"}
 		if opts.Backend {
-			manifest.Backend = &extensionmanifest.ManifestBackend{Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 1}
+			manifest.Backend = &extensionmanifest.ManifestBackend{
+				Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 2, HostAPIVersion: "sforum.host@2",
+			}
 		}
 		if opts.ProviderSlot != "" {
 			manifest.Providers = []extensionmanifest.ManifestProvider{{Slot: opts.ProviderSlot, Label: opts.Name, TimeoutMS: 15000}}
@@ -192,30 +193,19 @@ func scaffoldSettingsDocument(opts makeOptions, fields []extensionmanifest.Manif
 	return document
 }
 
-func validateGeneratedManifest(manifest scaffoldManifest) error {
-	body, err := json.Marshal(manifest)
-	if err != nil {
-		return err
-	}
-	var model extensionmanifest.Manifest
-	if err := json.Unmarshal(body, &model); err != nil {
-		return err
-	}
-	return extensionmanifest.Validate(model)
-}
-
 // writeComplexPluginScaffold 写出薄入口 + includes（langs 目录、settings 分片、admin）。
 func writeComplexPluginScaffold(target string, opts makeOptions) error {
 	root := scaffoldManifest{
-		ID:            opts.ID,
-		Name:          opts.Name,
-		Description:   opts.Description,
-		URL:           opts.URL,
-		Author:        extensionmanifest.ManifestAuthor{Name: opts.AuthorName, URL: opts.AuthorURL, Email: opts.AuthorEmail},
-		Version:       "0.1.0",
-		Type:          extensionmanifest.TypePlugin,
-		SForumVersion: "^1.0.0",
-		Permissions:   []string{opts.ID + ".manage"},
+		ManifestVersion: extensionmanifest.ManifestVersionV3,
+		ID:              opts.ID,
+		Name:            opts.Name,
+		Description:     opts.Description,
+		URL:             opts.URL,
+		Author:          extensionmanifest.ManifestAuthor{Name: opts.AuthorName, URL: opts.AuthorURL, Email: opts.AuthorEmail},
+		Version:         "0.1.0",
+		Type:            extensionmanifest.TypePlugin,
+		SForumVersion:   "^1.0.0",
+		Permissions:     []string{opts.ID + ".manage"},
 		Includes: map[string]string{
 			"langs":    "manifest/langs",
 			"settings": "manifest/settings.json",
@@ -223,7 +213,9 @@ func writeComplexPluginScaffold(target string, opts makeOptions) error {
 		},
 	}
 	if opts.Backend {
-		root.Backend = &extensionmanifest.ManifestBackend{Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 1}
+		root.Backend = &extensionmanifest.ManifestBackend{
+			Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 2, HostAPIVersion: "sforum.host@2",
+		}
 	}
 	if opts.ProviderSlot != "" {
 		root.Providers = []extensionmanifest.ManifestProvider{{Slot: opts.ProviderSlot, Label: opts.Name, TimeoutMS: 15000}}
@@ -587,7 +579,7 @@ func readmeBody(opts makeOptions) string {
 
 func pluginBackendReadme(opts makeOptions) string {
 	return "# Backend Stub\n\nBuild a HashiCorp go-plugin compatible executable named `plugin` in this directory before enabling `" + opts.ID + "`.\n\n" +
-		"Prefer the public Go SDK:\n\n```go\npackage main\n\nimport pluginsdk \"github.com/zhuchunshu/sforum/apps/api/sdk/plugin\"\n\ntype myPlugin struct{ pluginsdk.Noop }\n\nfunc main() { pluginsdk.Serve(myPlugin{}) }\n```\n\n" +
+		"Use the Protocol V2 public Go SDK:\n\n```go\npackage main\n\nimport pluginv2 \"github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2\"\n\nfunc main() { pluginv2.Serve(pluginv2.NewServer()) }\n```\n\n" +
 		"After replacing the generated stub, refresh the exact file digests:\n\n```bash\ncd apps/api && go run ./cmd/sforum extension digest --write <package-root>\n```\n\n" +
 		"Contract test (no binary required while scaffolding):\n\n```bash\ncd apps/api && go run ./cmd/sforum extension test --allow-scaffold <package-root>\n```\n"
 }

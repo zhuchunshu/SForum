@@ -12,15 +12,6 @@ cells:
     database: postgres
     browser: none
     status: required
-  # Deprecated Protocol V1 shim must record APILTS telemetry before removal.
-  - id: deprecated-protocol-v1-shim
-    sforum: current
-    protocol: v1
-    manifest: v3
-    database: postgres
-    browser: none
-    status: deprecated
-    expects_shim_telemetry: true
   # Manifest V3 + SDK contract on a shipped builtin plugin.
   - id: manifest-v3-contract
     sforum: current

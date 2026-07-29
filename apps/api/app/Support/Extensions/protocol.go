@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/rpc"
 	"net/url"
 	"os"
 	"os/exec"
@@ -15,17 +14,12 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-plugin"
-
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	extensionobservability "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionObservability"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
+	pluginbootstrap "github.com/zhuchunshu/sforum/apps/api/app/Support/PluginBootstrap"
 	queryregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/QueryRegistry"
-)
-
-const (
-	hashicorpGoPluginRPC = "hashicorp-go-plugin"
-	pluginProtocolName   = "sforum-plugin-v1"
 )
 
 var (
@@ -33,12 +27,6 @@ var (
 	ErrInvalidPluginJobStream = errors.New("invalid protocol v2 plugin job progress stream")
 	// ErrUnsafePluginRouteTarget 插件回报的 BaseURL 不允许被 API 代理（SSRF 防护）。
 	ErrUnsafePluginRouteTarget = errors.New("plugin route target is not allowed")
-
-	handshakeConfig = plugin.HandshakeConfig{
-		ProtocolVersion:  1,
-		MagicCookieKey:   "SFORUM_PLUGIN",
-		MagicCookieValue: "sforum-plugin-v1",
-	}
 
 	// 插件子进程环境白名单：不继承 DATABASE_URL / SESSION_* 等宿主密钥。
 	pluginEnvAllowlist = map[string]bool{
@@ -69,12 +57,6 @@ type HostAPIRegistrar interface {
 	UnregisterExtension(extensionID string)
 }
 
-// ProtocolShimTelemetry records Host/Frontend API LTS deprecation usage.
-// Production injects APILTS process registry; nil disables process-wide counters.
-type ProtocolShimTelemetry interface {
-	RecordShimCall(contractID string)
-}
-
 type ProtocolStarterConfig struct {
 	Settings PluginSettings
 	// HostAPI 可选；注入后向子进程写入 SFORUM_HOST_API_* 环境变量。
@@ -83,8 +65,6 @@ type ProtocolStarterConfig struct {
 	Trust RuntimeTrustSource
 	// DatabaseLeases 为声明直接数据库权限的 exact runtime 签发独立短租约。
 	DatabaseLeases RuntimeDatabaseLeaseRegistry
-	// ShimTelemetry 可选；V1 net/rpc 调用时写入 APILTS 弃用遥测。
-	ShimTelemetry ProtocolShimTelemetry
 	// 测试可缩短心跳；生产零值使用推荐值。
 	DatabaseLeaseHeartbeatInterval time.Duration
 	DatabaseLeaseOperationTimeout  time.Duration
@@ -104,7 +84,6 @@ type ProtocolStarter struct {
 	hostAPI                HostAPIRegistrar
 	trust                  RuntimeTrustSource
 	databaseLeases         RuntimeDatabaseLeaseRegistry
-	shimTelemetry          ProtocolShimTelemetry
 	databaseLeaseHeartbeat time.Duration
 	databaseLeaseTimeout   time.Duration
 }
@@ -129,8 +108,7 @@ type PluginProtocol interface {
 	StorageProbe(StorageProbeRequest) (StorageProbeResponse, error)
 }
 
-// pluginHookContextInvoker lets typed transports propagate Host cancellation
-// without changing the protocol-v1 net/rpc compatibility interface.
+// pluginHookContextInvoker lets the typed transport propagate Host cancellation.
 type pluginHookContextInvoker interface {
 	InvokeHookContext(context.Context, PluginHookRequest) (PluginHookResponse, error)
 }
@@ -262,8 +240,6 @@ type MailProviderResponse struct {
 	Message        string
 }
 
-type PluginEmptyRequest struct{}
-
 func NewProtocolStarter(config ProtocolStarterConfig) *ProtocolStarter {
 	heartbeatInterval := config.DatabaseLeaseHeartbeatInterval
 	if heartbeatInterval <= 0 {
@@ -287,7 +263,6 @@ func NewProtocolStarter(config ProtocolStarterConfig) *ProtocolStarter {
 		hostAPI:                config.HostAPI,
 		trust:                  config.Trust,
 		databaseLeases:         config.DatabaseLeases,
-		shimTelemetry:          config.ShimTelemetry,
 		databaseLeaseHeartbeat: heartbeatInterval,
 		databaseLeaseTimeout:   operationTimeout,
 	}
@@ -304,13 +279,13 @@ func (s *ProtocolStarter) startProtocolInstanceLocked(
 	if err := ctx.Err(); err != nil {
 		return RouteTarget{}, err
 	}
-	if extension.Manifest.Backend.RPC != "" && extension.Manifest.Backend.RPC != hashicorpGoPluginRPC {
-		return RouteTarget{}, ErrUnsupportedProtocol
-	}
 	if extension.Manifest.Backend.Entry == "" {
 		return RouteTarget{}, fmt.Errorf("backend entry is required")
 	}
-	if extension.Manifest.Backend.ProtocolVersion < 0 || extension.Manifest.Backend.ProtocolVersion > 2 {
+	if extension.Manifest.ManifestVersion != 3 || !pluginbootstrap.SupportsProtocolV2(
+		extension.Manifest.Backend.RPC,
+		extension.Manifest.Backend.ProtocolVersion,
+	) {
 		return RouteTarget{}, ErrUnsupportedProtocol
 	}
 	manifestDigest, err := protocolRuntimeManifestDigest(extension.Manifest)
@@ -329,15 +304,9 @@ func (s *ProtocolStarter) startProtocolInstanceLocked(
 	cmd := exec.Command(path)
 	cmd.Env = buildPluginProcessEnv(os.Environ())
 	protocolVersion := extension.Manifest.Backend.ProtocolVersion
-	if protocolVersion == 0 {
-		protocolVersion = 1
-	}
-	instanceID := newProtocolRuntimeInstanceID()
-	if protocolVersion == 2 {
-		instanceID, err = newProtocolV2RuntimeInstanceID()
-		if err != nil {
-			return RouteTarget{}, err
-		}
+	instanceID, err := newProtocolV2RuntimeInstanceID()
+	if err != nil {
+		return RouteTarget{}, err
 	}
 	if s.settings != nil {
 		values, err := s.settings.ListSettings(ctx, extension.ID)
@@ -353,22 +322,6 @@ func (s *ProtocolStarter) startProtocolInstanceLocked(
 			cmd.Env = append(cmd.Env, pluginSettingEnvName(key)+"="+values[key])
 		}
 	}
-	// v1 保留 loopback 兼容凭证；v2 只使用当前 go-plugin broker 会话。
-	hostAPIRegistered := false
-	keepHostAPI := false
-	if protocolVersion == 1 && s.hostAPI != nil {
-		if _, hostEnv, err := s.hostAPI.RegisterExtension(extension.ID); err != nil {
-			return RouteTarget{}, fmt.Errorf("register host api: %w", err)
-		} else {
-			cmd.Env = append(cmd.Env, hostEnv...)
-			hostAPIRegistered = true
-		}
-	}
-	defer func() {
-		if hostAPIRegistered && !keepHostAPI {
-			s.hostAPI.UnregisterExtension(extension.ID)
-		}
-	}()
 	clientConfig, protocolName, err := s.newPluginClientConfig(ctx, extension, cmd, instanceID)
 	if err != nil {
 		return RouteTarget{}, err
@@ -391,7 +344,11 @@ func (s *ProtocolStarter) startProtocolInstanceLocked(
 	rpcClient, err := client.Client()
 	if err != nil {
 		client.Kill()
-		return RouteTarget{}, err
+		diagnostic := ""
+		if buffer, ok := clientConfig.Stderr.(*pluginbootstrap.DiagnosticBuffer); ok {
+			diagnostic = buffer.String()
+		}
+		return RouteTarget{}, pluginbootstrap.ClassifyStartError(err, diagnostic)
 	}
 	raw, err := rpcClient.Dispense(protocolName)
 	if err != nil {
@@ -421,8 +378,8 @@ func (s *ProtocolStarter) startProtocolInstanceLocked(
 		return RouteTarget{}, fmt.Errorf("plugin health check failed")
 	}
 	readinessChecked := false
-	ready := protocolVersion == 1
-	if publish && protocolVersion == 2 {
+	ready := false
+	if publish {
 		v2, ok := protocol.(interface{ Readiness(context.Context) error })
 		if !ok {
 			client.Kill()
@@ -506,7 +463,6 @@ func (s *ProtocolStarter) startProtocolInstanceLocked(
 	s.mu.Lock()
 	s.recordProtocolStartLocked(extension.ID, protocolVersion)
 	s.mu.Unlock()
-	keepHostAPI = true
 	keepDatabaseLease = true
 	return targetResult, nil
 }
@@ -758,9 +714,6 @@ func (s *ProtocolStarter) watchClientExit(identity RuntimeInstanceIdentity, prot
 	if protocolVersion == 2 {
 		s.unregisterProtocolV2Services(identity.ExtensionID, protocol)
 	}
-	if protocolVersion == 1 && active && s.hostAPI != nil {
-		s.hostAPI.UnregisterExtension(identity.ExtensionID)
-	}
 	_ = s.revokeProtocolDatabaseLease(instance)
 }
 
@@ -820,7 +773,7 @@ func (s *ProtocolStarter) invokeHook(ctx context.Context, extension extensions.E
 		resp, err := contextual.InvokeHookContext(ctx, req)
 		return protocolHookResult(ctx, resp, err)
 	}
-	// net/rpc 无原生 context；用 goroutine + select 保证宿主 deadline 生效（F2.3）。
+	// 统一用 goroutine + select 约束所有 provider 实现的宿主 deadline。
 	type outcome struct {
 		resp PluginHookResponse
 		err  error
@@ -969,7 +922,7 @@ func (s *ProtocolStarter) protocolFor(extensionID string) PluginProtocol {
 	return protocol
 }
 
-// callStorage 在 ctx 截止前执行一次存储 RPC（net/rpc 无原生 context）。
+// callStorage 在 ctx 截止前执行一次存储 RPC。
 // 超时返回 onTimeout（err=nil），与 SendMail 一致，便于宿主按 OK/Reason 处理。
 func callStorage[T any](ctx context.Context, protocol PluginProtocol, fn func(PluginProtocol) (T, error), onTimeout T) (T, error) {
 	var zero T
@@ -1057,228 +1010,4 @@ func (s *ProtocolStarter) StorageProbe(ctx context.Context, extensionID string, 
 	return callStorage(ctx, s.protocolFor(extensionID), func(p PluginProtocol) (StorageProbeResponse, error) {
 		return p.StorageProbe(request)
 	}, StorageProbeResponse{Reason: "extension.hook_timeout", Message: "Storage Probe exceeded the host timeout."})
-}
-
-func ServeProtocolPlugin(impl PluginProtocol) {
-	plugin.Serve(&plugin.ServeConfig{
-		HandshakeConfig: handshakeConfig,
-		Plugins: map[string]plugin.Plugin{
-			pluginProtocolName: &netRPCPlugin{Impl: impl},
-		},
-	})
-}
-
-type netRPCPlugin struct {
-	Impl PluginProtocol
-}
-
-func (p *netRPCPlugin) Server(*plugin.MuxBroker) (interface{}, error) {
-	if p.Impl == nil {
-		return nil, fmt.Errorf("plugin protocol implementation is required")
-	}
-	return &netRPCServer{Impl: p.Impl}, nil
-}
-
-func (*netRPCPlugin) Client(_ *plugin.MuxBroker, client *rpc.Client) (interface{}, error) {
-	return &netRPCClient{client: client}, nil
-}
-
-type netRPCClient struct {
-	client *rpc.Client
-}
-
-func (c *netRPCClient) Health() (PluginHealth, error) {
-	var response PluginHealth
-	err := c.client.Call("Plugin.Health", PluginEmptyRequest{}, &response)
-	return response, err
-}
-
-func (c *netRPCClient) RouteTarget() (PluginRouteTarget, error) {
-	var response PluginRouteTarget
-	err := c.client.Call("Plugin.RouteTarget", PluginEmptyRequest{}, &response)
-	return response, err
-}
-
-func (c *netRPCClient) InvokeHook(input PluginHookRequest) (PluginHookResponse, error) {
-	var response PluginHookResponse
-	err := c.client.Call("Plugin.InvokeHook", input, &response)
-	return response, err
-}
-
-func (c *netRPCClient) ProviderProbe(input ProviderProbeRequest) (ProviderProbeResponse, error) {
-	var response ProviderProbeResponse
-	err := c.client.Call("Plugin.ProviderProbe", input, &response)
-	return response, err
-}
-
-func (c *netRPCClient) SendMail(input MailProviderRequest) (MailProviderResponse, error) {
-	var response MailProviderResponse
-	err := c.client.Call("Plugin.SendMail", input, &response)
-	return response, err
-}
-
-func (c *netRPCClient) StoragePutBegin(input StoragePutBeginRequest) (StorageSessionResponse, error) {
-	var response StorageSessionResponse
-	err := c.client.Call("Plugin.StoragePutBegin", input, &response)
-	return response, err
-}
-
-func (c *netRPCClient) StoragePutChunk(input StoragePutChunkRequest) (StorageResult, error) {
-	var response StorageResult
-	err := c.client.Call("Plugin.StoragePutChunk", input, &response)
-	return response, err
-}
-
-func (c *netRPCClient) StorageOpen(input StorageOpenRequest) (StorageSessionResponse, error) {
-	var response StorageSessionResponse
-	err := c.client.Call("Plugin.StorageOpen", input, &response)
-	return response, err
-}
-
-func (c *netRPCClient) StorageGetChunk(input StorageGetChunkRequest) (StorageGetChunkResponse, error) {
-	var response StorageGetChunkResponse
-	err := c.client.Call("Plugin.StorageGetChunk", input, &response)
-	return response, err
-}
-
-func (c *netRPCClient) StorageClose(input StorageCloseRequest) (StorageResult, error) {
-	var response StorageResult
-	err := c.client.Call("Plugin.StorageClose", input, &response)
-	return response, err
-}
-
-func (c *netRPCClient) StorageDelete(input StorageObjectRequest) (StorageResult, error) {
-	var response StorageResult
-	err := c.client.Call("Plugin.StorageDelete", input, &response)
-	return response, err
-}
-
-func (c *netRPCClient) StorageStat(input StorageStatRequest) (StorageStatResponse, error) {
-	var response StorageStatResponse
-	err := c.client.Call("Plugin.StorageStat", input, &response)
-	return response, err
-}
-
-func (c *netRPCClient) StorageExists(input StorageExistsRequest) (StorageExistsResponse, error) {
-	var response StorageExistsResponse
-	err := c.client.Call("Plugin.StorageExists", input, &response)
-	return response, err
-}
-
-func (c *netRPCClient) StoragePublicURL(input StoragePublicURLRequest) (StorageURLResponse, error) {
-	var response StorageURLResponse
-	err := c.client.Call("Plugin.StoragePublicURL", input, &response)
-	return response, err
-}
-
-func (c *netRPCClient) StorageSignedURL(input StorageSignedURLRequest) (StorageURLResponse, error) {
-	var response StorageURLResponse
-	err := c.client.Call("Plugin.StorageSignedURL", input, &response)
-	return response, err
-}
-
-func (c *netRPCClient) StorageProbe(input StorageProbeRequest) (StorageProbeResponse, error) {
-	var response StorageProbeResponse
-	err := c.client.Call("Plugin.StorageProbe", input, &response)
-	return response, err
-}
-
-type netRPCServer struct {
-	Impl PluginProtocol
-}
-
-func (s *netRPCServer) Health(_ PluginEmptyRequest, response *PluginHealth) error {
-	health, err := s.Impl.Health()
-	*response = health
-	return err
-}
-
-func (s *netRPCServer) RouteTarget(_ PluginEmptyRequest, response *PluginRouteTarget) error {
-	target, err := s.Impl.RouteTarget()
-	*response = target
-	return err
-}
-
-func (s *netRPCServer) InvokeHook(input PluginHookRequest, response *PluginHookResponse) error {
-	result, err := s.Impl.InvokeHook(input)
-	*response = result
-	return err
-}
-
-func (s *netRPCServer) ProviderProbe(input ProviderProbeRequest, response *ProviderProbeResponse) error {
-	result, err := s.Impl.ProviderProbe(input)
-	*response = result
-	return err
-}
-
-func (s *netRPCServer) SendMail(input MailProviderRequest, response *MailProviderResponse) error {
-	result, err := s.Impl.SendMail(input)
-	*response = result
-	return err
-}
-
-func (s *netRPCServer) StoragePutBegin(input StoragePutBeginRequest, response *StorageSessionResponse) error {
-	result, err := s.Impl.StoragePutBegin(input)
-	*response = result
-	return err
-}
-
-func (s *netRPCServer) StoragePutChunk(input StoragePutChunkRequest, response *StorageResult) error {
-	result, err := s.Impl.StoragePutChunk(input)
-	*response = result
-	return err
-}
-
-func (s *netRPCServer) StorageOpen(input StorageOpenRequest, response *StorageSessionResponse) error {
-	result, err := s.Impl.StorageOpen(input)
-	*response = result
-	return err
-}
-
-func (s *netRPCServer) StorageGetChunk(input StorageGetChunkRequest, response *StorageGetChunkResponse) error {
-	result, err := s.Impl.StorageGetChunk(input)
-	*response = result
-	return err
-}
-
-func (s *netRPCServer) StorageClose(input StorageCloseRequest, response *StorageResult) error {
-	result, err := s.Impl.StorageClose(input)
-	*response = result
-	return err
-}
-
-func (s *netRPCServer) StorageDelete(input StorageObjectRequest, response *StorageResult) error {
-	result, err := s.Impl.StorageDelete(input)
-	*response = result
-	return err
-}
-
-func (s *netRPCServer) StorageStat(input StorageStatRequest, response *StorageStatResponse) error {
-	result, err := s.Impl.StorageStat(input)
-	*response = result
-	return err
-}
-
-func (s *netRPCServer) StorageExists(input StorageExistsRequest, response *StorageExistsResponse) error {
-	result, err := s.Impl.StorageExists(input)
-	*response = result
-	return err
-}
-
-func (s *netRPCServer) StoragePublicURL(input StoragePublicURLRequest, response *StorageURLResponse) error {
-	result, err := s.Impl.StoragePublicURL(input)
-	*response = result
-	return err
-}
-
-func (s *netRPCServer) StorageSignedURL(input StorageSignedURLRequest, response *StorageURLResponse) error {
-	result, err := s.Impl.StorageSignedURL(input)
-	*response = result
-	return err
-}
-
-func (s *netRPCServer) StorageProbe(input StorageProbeRequest, response *StorageProbeResponse) error {
-	result, err := s.Impl.StorageProbe(input)
-	*response = result
-	return err
 }

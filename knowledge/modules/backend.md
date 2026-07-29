@@ -67,6 +67,9 @@ building on the operator host. GitHub does not deploy to operator-owned hosts.
 Core, Web, and all shipped Go processes share one `SFORUM_VERSION`; local builds
 display `dev-<commit5>` when Git metadata is available (otherwise `dev`), while
 release tags replace it together with the exact commit and commit timestamp.
+Database migration and high-risk extension compatibility fences resolve the
+exact local `dev` sentinel to the existing `1.0.0` development Core baseline;
+release builds continue to use their injected semantic version unchanged.
 Maintainers trigger this pipeline through `scripts/release.sh`. Its Chinese-
 default bilingual interface supports interactive and non-interactive use,
 validates a clean synchronized `main`, rejects duplicate or development tags,
@@ -79,6 +82,13 @@ GitHub Actions owns the complete test, build, database compatibility, container,
 scan, and smoke gate. `--local-checks` opts into the redundant local gate when
 the required local services are available, and `--dry-run` creates no tag.
 See `decisions/2026-07-29-ghcr-multi-platform-release-pipeline.md`.
+
+The CI quality job provisions PostgreSQL 17 on the same host port `15432` used
+by the repository's required database-backed tests, runs the embedded migrator
+before the repository gate, and passes a separate
+`SFORUM_COMPAT_DATABASE_URL` only to the compatibility farm. It deliberately
+does not export the broad `DATABASE_URL` or `SFORUM_TEST_DATABASE_URL` during
+`go test ./...`, so opt-in destructive integration suites remain opt-in.
 
 Performance hardening (2026-07-08) covers the network and connection layers
 beyond the earlier search/cache read-path work:

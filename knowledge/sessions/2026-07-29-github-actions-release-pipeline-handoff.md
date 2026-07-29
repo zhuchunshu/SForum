@@ -30,6 +30,10 @@
   timestamp; Core and Web use that same version, shown once beside the SForum
   brand in the admin sidebar. The protected overview runtime card exposes the
   remaining commit, build, and process diagnostics.
+- Fixed local startup compatibility after the build-identity change: the
+  visible version remains `dev-<commit5>`, while database migrations and
+  high-risk extension fences resolve the exact `dev` sentinel to the existing
+  `1.0.0` development Core baseline. Manual startup verification remains.
 - Production Compose now passes `IDENTITY_SUBJECT_HMAC_SECRET`, internal
   PostgreSQL defaults to the actual non-TLS Compose network, and the API image
   includes the protected Web Push plugin.

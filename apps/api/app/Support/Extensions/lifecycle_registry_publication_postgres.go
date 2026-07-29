@@ -142,6 +142,29 @@ func (r *PostgresLifecycleRegistryPublicationRepository) MoveLifecycleRegistryPu
 	destination LifecycleRegistryPublicationPhase,
 	apply func() error,
 ) error {
+	if apply == nil {
+		return ErrLifecycleRegistryPublicationInvalid
+	}
+	return r.moveLifecycleRegistryPublication(ctx, ref, destination, func(pgx.Tx) error {
+		return apply()
+	})
+}
+
+func (r *PostgresLifecycleRegistryPublicationRepository) MoveLifecycleRegistryPublicationTx(
+	ctx context.Context,
+	ref LifecycleRegistryPublicationRef,
+	destination LifecycleRegistryPublicationPhase,
+	apply func(pgx.Tx) error,
+) error {
+	return r.moveLifecycleRegistryPublication(ctx, ref, destination, apply)
+}
+
+func (r *PostgresLifecycleRegistryPublicationRepository) moveLifecycleRegistryPublication(
+	ctx context.Context,
+	ref LifecycleRegistryPublicationRef,
+	destination LifecycleRegistryPublicationPhase,
+	apply func(pgx.Tx) error,
+) error {
 	if r == nil || r.pool == nil || r.moveConnectionSlots == nil || ctx == nil ||
 		!validLifecycleRegistryRef(ref) || apply == nil ||
 		(destination != LifecycleRegistryPublicationSource && destination != LifecycleRegistryPublicationTarget) {
@@ -163,7 +186,7 @@ func (r *PostgresLifecycleRegistryPublicationRepository) MoveLifecycleRegistryPu
 	defer func() {
 		cleanupLifecycleRegistryPublicationMoveConnection(ctx, tx, connection)
 	}()
-	tx, err = connection.Begin(ctx)
+	tx, err = connection.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.Serializable})
 	if err != nil {
 		return fmt.Errorf("begin lifecycle registry publication move: %w", err)
 	}
@@ -179,7 +202,7 @@ func (r *PostgresLifecycleRegistryPublicationRepository) MoveLifecycleRegistryPu
 	}
 	// The row locks remain held while this node swaps its local immutable
 	// snapshots. Other nodes perform the same deterministic reconstruction.
-	if err := apply(); err != nil {
+	if err := apply(tx); err != nil {
 		return err
 	}
 	if record.Phase != destination {

@@ -57,6 +57,39 @@ func TestDurableRootPublicationRejectsTamperAndProvesRetirement(t *testing.T) {
 	if err := ValidateDurablePublication(retired, publication); !errors.Is(err, ErrStale) {
 		t.Fatalf("retired publication validation error=%v", err)
 	}
+	if err := ValidateDurablePublicationTombstone(retired, publication); err != nil {
+		t.Fatalf("validate exact publication tombstone: %v", err)
+	}
+	drifted := publication
+	drifted.Artifact.PackageDigest = strings.Repeat("f", 64)
+	if err := ValidateDurablePublicationTombstone(retired, drifted); !errors.Is(err, ErrArtifactConflict) {
+		t.Fatalf("drifted publication tombstone error=%v", err)
+	}
+	if err := ValidateDurablePublicationTombstone(state, publication); !errors.Is(err, ErrStale) {
+		t.Fatalf("active publication accepted as tombstone error=%v", err)
+	}
+}
+
+func TestDurablePublicationTombstoneRequiresEveryExactLeafRetired(t *testing.T) {
+	publication := publicationStoreFixture(
+		publicationStoreArtifact(101, "1.0.0", "a", "runtime-v1"), 1, nil,
+	)
+	retired := durableStateForPublication(t, publication, 41, 81)
+	retired.RootTips[0].RegistryState = RegistryStateTombstone
+	retired.RootTips[0].Revision++
+	for index := range retired.Tips {
+		retired.Tips[index].RegistryState = RegistryStateTombstone
+		retired.Tips[index].Revision++
+	}
+	if err := ValidateDurablePublicationTombstone(retired, publication); err != nil {
+		t.Fatalf("validate full publication tombstone: %v", err)
+	}
+	partial := retired
+	partial.Tips = append([]DurableDeclarationTip(nil), retired.Tips...)
+	partial.Tips[0].RegistryState = RegistryStateActive
+	if err := ValidateDurablePublicationTombstone(partial, publication); !errors.Is(err, ErrStale) {
+		t.Fatalf("partial publication tombstone error=%v", err)
+	}
 }
 
 func TestDurableRootPublicationRejectsUnboundSessionPolicy(t *testing.T) {

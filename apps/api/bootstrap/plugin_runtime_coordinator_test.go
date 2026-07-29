@@ -391,7 +391,7 @@ func TestPluginRuntimeCoordinatorBootstrapRejectsStartupErrors(t *testing.T) {
 }
 
 // API 与 standalone worker 都经 startPluginRuntimeCoordinator 进入同一 production
-// applier 构造点。此处只断言 wiring 绑定 NewInitialBootstrap... 且可构造；
+// applier 构造点。此处只断言 wiring 绑定 Protocol V2 full-set applier 且可构造；
 // cold-start / disarm / 回滚语义由 Support/Extensions InitialBootstrap 行为测试覆盖。
 func TestNewProductionPluginRuntimeFullSetApplierWiresInitialBootstrapConstructor(t *testing.T) {
 	manager := extensionsruntime.NewManager(extensionsruntime.ManagerConfig{})
@@ -401,7 +401,7 @@ func TestNewProductionPluginRuntimeFullSetApplierWiresInitialBootstrapConstructo
 		t.Fatal(err)
 	}
 	if production == nil {
-		t.Fatal("production applier must be constructed via NewInitialBootstrapManagerPluginRuntimeFullSetApplier")
+		t.Fatal("production applier must be constructed via NewManagerPluginRuntimeFullSetApplier")
 	}
 	// 对照：普通构造器仍可用；两者类型相同，差异仅在首轮 Apply 行为（Extensions 包证明）。
 	ordinary, err := extensionsruntime.NewManagerPluginRuntimeFullSetApplier(manager, inventory)

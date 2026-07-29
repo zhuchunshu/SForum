@@ -37,6 +37,7 @@ func finishAPIHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 		Ready:        core.readyEvaluate,
 		BearerTokens: httpserver.TokenServiceAdapter{Service: core.apiTokenService},
 		Auditor:      core.auditWriter,
+		Recovery:     core.pluginRuntimeRecovery,
 	})
 	var themeRuntimeWatcher *apiThemeRuntimeWatcherRuntime
 	themeRuntimeStopTimeout := normalizedPluginRuntimeCoordinatorStopTimeout(cfg.WorkerShutdownTimeout)
@@ -56,7 +57,7 @@ func finishAPIHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 			stopThemeRuntimeWatcher()
 		}
 	}()
-	if !cfg.SafeMode {
+	if !cfg.SafeMode && !core.pluginRuntimeRecovery.Active() {
 		themeRuntimeWatcher, err = startAPIThemeRuntimeWatcher(
 			ctx, core.extensionStore, core.extensionService, logger, themeRuntimeStopTimeout,
 		)
@@ -82,7 +83,7 @@ func finishAPIHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 	heartbeatCtx, heartbeatCancel := context.WithCancel(context.Background())
 
 	var embeddedWorker *Worker
-	if shouldEmbedWorkerInAPI(cfg) {
+	if shouldEmbedWorkerInAPI(cfg) && !core.pluginRuntimeRecovery.Active() {
 		workerQueryInvalidation := newEmbeddedWorkerQueryInvalidationRuntime(cfg, core.hostInstallationID, logger)
 		// Embed 时复用 API 已 Reconcile 的 core.extensionRuntime，避免每个后端插件双起子进程。
 		// 插件 runtime 复用，但 Query invalidator 独占 Redis client，避免 worker
@@ -134,7 +135,9 @@ func finishAPIHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 	forumReadPolicyCtx, forumReadPolicyCancel := context.WithCancel(context.Background())
 	go core.optionsService.RunForumReadPolicyRefresh(forumReadPolicyCtx, options.RecommendedForumReadPolicyRefreshInterval)
 	extensionGuardPolicyCtx, extensionGuardPolicyCancel := context.WithCancel(context.Background())
-	go core.extensionGuardPolicy.RunRefresh(extensionGuardPolicyCtx, extensions.RecommendedGuardPolicyRefreshInterval)
+	if !core.pluginRuntimeRecovery.Active() {
+		go core.extensionGuardPolicy.RunRefresh(extensionGuardPolicyCtx, extensions.RecommendedGuardPolicyRefreshInterval)
+	}
 	databaseLeaseReaperCtx, databaseLeaseReaperCancel := context.WithCancel(context.Background())
 	var databaseLeaseReaperWait sync.WaitGroup
 	databaseLeaseReaperWait.Add(1)

@@ -1,4 +1,5 @@
 {
+  "manifestVersion": 3,
   "id": "sforum.contract.schedules",
   "name": "Contract Schedules Fixture",
   "description": "CI fixture that documents host schedule catalog expectations for plugins (F4.1). No backend binary.",

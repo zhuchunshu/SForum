@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-plugin"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	hostwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2"
 	pluginwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
@@ -30,6 +31,11 @@ const (
 	p3CompatMatrixInput     = "p3.compat.matrix.hook-input"
 	p3CompatMatrixResult    = "p3.compat.matrix.hook-result"
 )
+
+func TestProtocolV2AcceptsHistoricalBootstrapABIV1(t *testing.T) {
+	starter, extension, _, _ := p3CompatMatrixStart(t, "historical-bootstrap-v1")
+	p3CompatMatrixStop(t, starter, extension)
+}
 
 func TestP3ProtocolCompatibilityMatrixGoPluginTransportGaps(t *testing.T) {
 	t.Run("caller cancellation reaches plugin handler", func(t *testing.T) {
@@ -183,7 +189,25 @@ func TestP3CompatMatrixHelperProcess(t *testing.T) {
 	if os.Getenv("SFORUM_PLUGIN_HELPER") != p3CompatMatrixHelperEnv {
 		return
 	}
-	ServeProtocolV2Plugin(&p3CompatMatrixPluginServer{mode: os.Getenv("SFORUM_P3_COMPAT_MATRIX_MODE")}, ProtocolV2ServerConfig{})
+	mode := os.Getenv("SFORUM_P3_COMPAT_MATRIX_MODE")
+	server := &p3CompatMatrixPluginServer{mode: mode}
+	if mode == "historical-bootstrap-v1" {
+		// This helper intentionally does not import the current bootstrap contract.
+		// It models an already-installed V3/P2 binary built by the historical SDK.
+		plugin.Serve(&plugin.ServeConfig{
+			HandshakeConfig: plugin.HandshakeConfig{
+				ProtocolVersion:  1,
+				MagicCookieKey:   "SFORUM_PLUGIN",
+				MagicCookieValue: "sforum-plugin-v1",
+			},
+			VersionedPlugins: map[int]plugin.PluginSet{
+				2: {"sforum-plugin-v2": &protocolV2Plugin{server: server}},
+			},
+			GRPCServer: protocolV2GRPCServerFactory(normalizeProtocolV2ServerConfig(ProtocolV2ServerConfig{})),
+		})
+		os.Exit(0)
+	}
+	ServeProtocolV2Plugin(server, ProtocolV2ServerConfig{})
 	os.Exit(0)
 }
 

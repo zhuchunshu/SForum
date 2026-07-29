@@ -96,6 +96,56 @@ func validateDurableLeaves(state DurableState, normalized Publication) error {
 	return nil
 }
 
+func validateDurableTombstoneLeaves(state DurableState, normalized Publication) error {
+	desired, err := desiredDurableDeclarations(&normalized)
+	if err != nil {
+		return err
+	}
+	desiredByKey := make(map[string]durableDesiredDeclaration, len(desired))
+	for _, declaration := range desired {
+		desiredByKey[ownershipKey(declaration.kind, declaration.stableID)] = declaration
+	}
+	owners := make(map[string]string, len(state.Owners))
+	for _, owner := range state.Owners {
+		owners[ownershipKey(owner.IdentityKind, owner.StableID)] = owner.OwnerExtensionID
+	}
+	tips := latestDurableDeclarationTips(state.Tips)
+	for key, declaration := range desiredByKey {
+		if owner := owners[key]; owner == "" {
+			return ErrInvalid
+		} else if owner != normalized.Artifact.ExtensionID {
+			return ErrConflict
+		}
+		tip, found := tips[key]
+		if !found {
+			return ErrInvalid
+		}
+		if tip.RegistryState != RegistryStateTombstone {
+			return ErrStale
+		}
+		if tip.OwnerExtensionID != normalized.Artifact.ExtensionID ||
+			durableTipArtifactIdentity(tip) != durableArtifactIdentityOf(declaration.artifact) ||
+			tip.ContractVersion != declaration.contractVersion || tip.DeclarationDigest != declaration.digest {
+			return ErrArtifactConflict
+		}
+	}
+	for key, tip := range tips {
+		if tip.OwnerExtensionID != normalized.Artifact.ExtensionID {
+			continue
+		}
+		if tip.RegistryState != RegistryStateTombstone {
+			return ErrStale
+		}
+		// Tombstoned declarations removed by an earlier exact upgrade remain
+		// immutable ownership history and are not part of the publication being
+		// compensated now.
+		if _, found := desiredByKey[key]; !found {
+			continue
+		}
+	}
+	return nil
+}
+
 func normalizeReconcilePublicationInput(input ReconcilePublicationInput) (normalizedReconcilePublicationInput, error) {
 	extensionID := strings.ToLower(strings.TrimSpace(input.ExtensionID))
 	if !idPattern.MatchString(extensionID) || strings.HasPrefix(extensionID, "core.") ||

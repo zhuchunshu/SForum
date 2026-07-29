@@ -5,8 +5,7 @@ Protocol v2 built-in migration reference.
 
 It is **not** a provider-slot plugin (contrast `sforum.smtp` for `mail.provider`).
 It demonstrates typed gRPC filter events, settings, public contributions, an
-exact backend digest, and the public Go plugin SDK. The old net/rpc entry remains
-buildable for rollback until the P13 compatibility exit gates pass.
+exact backend digest, and the public Protocol V2 Go plugin SDK.
 
 ## What it does
 
@@ -52,20 +51,6 @@ the same `-trimpath -buildvcs=false` flags, refreshes the Linux digest inside th
 image, and runs both `extension validate` and `extension test` before publishing
 the runtime stage.
 
-## Protocol v1 rollback
-
-The v1 source and manifest are intentionally retained:
-
-```bash
-cd extensions/builtin/plugins/sforum-content-policy
-cp sforum.extension.v1.json sforum.extension.json
-cd backend
-go build -tags protocol_v1 -trimpath -buildvcs=false -o plugin .
-```
-
-Recompute the package snapshot before re-enabling. Do not use the v2 digest in
-the v1 manifest; the legacy manifest intentionally selects protocol 1.
-
 ## Contract test
 
 ```bash
@@ -78,7 +63,7 @@ Protocol v2 hook calls are bound to the complete Manifest event declaration:
 event id, name, kind, contract version, and input schema must all match. Results
 use `sforum.content-policy.hook-result@1`; patches use the derived
 `sforum.content-policy.hook-result.patch@1`. Contract or schema drift returns a
-typed wire error and never falls back to the v1 handler.
+typed wire error and never falls back to another transport.
 
 ## Operator path
 
@@ -94,6 +79,6 @@ typed wire error and never falls back to the v1 handler.
 
 - Filters stay cheap: substring match only; no Host API / network / jobs inside
   `InvokeHook`.
-- Optional `audit.append` is declared for future observe-path use; v1 filters do
+- Optional `audit.append` is declared for future observe-path use; filters do
   not call Host API (keep fail_closed path fast).
 - Force-tag requires the tag slug to already exist under host tag policy.

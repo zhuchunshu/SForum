@@ -6,6 +6,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	pluginbootstrap "github.com/zhuchunshu/sforum/apps/api/app/Support/PluginBootstrap"
 )
 
 func TestAPIRuntimeCoordinatorSupervisorClosesAdmissionBeforeReporting(t *testing.T) {
@@ -103,5 +105,15 @@ func TestMergeAPIRuntimeFailureSourcesWithoutSourcesIsInactive(t *testing.T) {
 	defer cancel()
 	if merged != nil {
 		t.Fatalf("inactive merge returned failure source %#v", merged)
+	}
+}
+
+func TestPluginRuntimeRecoveryMessageDoesNotExposePrivateDiagnostics(t *testing.T) {
+	cause := errors.Join(
+		pluginbootstrap.ErrBootstrapABIIncompatible,
+		errors.New("/private/operator/path/backend/plugin"),
+	)
+	if message := pluginRuntimeRecoveryMessage(cause); message != "plugin process bootstrap ABI is incompatible" {
+		t.Fatalf("public recovery message=%q", message)
 	}
 }

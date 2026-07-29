@@ -43,6 +43,7 @@ type apiErrorData struct {
 type healthResponse struct {
 	Name             string    `json:"name"`
 	Status           string    `json:"status"`
+	RecoveryRequired bool      `json:"recoveryRequired"`
 	Environment      string    `json:"environment"`
 	Locale           string    `json:"locale"`
 	SupportedLocales []string  `json:"supportedLocales"`
@@ -241,6 +242,52 @@ func TestReadyEndpointReturns503WhenNotReady(t *testing.T) {
 	}
 	if ready, _ := body.Data["ready"].(bool); ready {
 		t.Fatalf("expected ready false, got %#v", body.Data)
+	}
+}
+
+func TestRecoveryOnlyModeExposesOnlyHostHealthAndReadiness(t *testing.T) {
+	cfg := config.Config{AppName: "SForum", AppEnv: "test", AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN"}}
+	recovery := &health.RecoveryRequirement{
+		Code: health.PluginRuntimeRecoveryCode, Component: "plugin_runtime", Message: "stage failed",
+		PublicationRevision: 935,
+	}
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{
+		Recovery: recovery,
+		Ready: func(context.Context) health.ReadyReport {
+			return health.ApplyRecoveryRequirement(health.ReadyReport{
+				Status: "ready", Ready: true, CheckedAt: time.Now().UTC(),
+			}, recovery)
+		},
+		RouteProviders: []apphttp.RouteProvider{routeProviderFunc(func(api fiber.Router) {
+			api.Get("/probe", func(c fiber.Ctx) error { return c.SendString("must not run") })
+		})},
+	})
+
+	healthResp, err := app.Test(httptest.NewRequest(nethttp.MethodGet, "/api/v1/health", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer healthResp.Body.Close()
+	if healthResp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("health status=%d", healthResp.StatusCode)
+	}
+	var healthBody apiEnvelope[healthResponse]
+	if err := json.NewDecoder(healthResp.Body).Decode(&healthBody); err != nil {
+		t.Fatal(err)
+	}
+	if healthBody.Data.Status != "recovery_required" || !healthBody.Data.RecoveryRequired {
+		t.Fatalf("health body=%#v", healthBody.Data)
+	}
+
+	for _, path := range []string{"/api/v1/ready", "/api/v1/probe", "/unmanaged"} {
+		response, err := app.Test(httptest.NewRequest(nethttp.MethodGet, path, nil))
+		if err != nil {
+			t.Fatalf("%s: %v", path, err)
+		}
+		response.Body.Close()
+		if response.StatusCode != nethttp.StatusServiceUnavailable {
+			t.Fatalf("%s status=%d", path, response.StatusCode)
+		}
 	}
 }
 

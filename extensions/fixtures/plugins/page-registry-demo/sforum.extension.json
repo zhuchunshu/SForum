@@ -1,4 +1,5 @@
 {
+  "manifestVersion": 3,
   "id": "sforum.page-registry-demo",
   "name": "Page Registry Demo",
   "description": "Fixture plugin proving add/replace page contributions via theme.json contract.",

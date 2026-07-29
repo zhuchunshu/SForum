@@ -4,6 +4,23 @@ import "encoding/json"
 
 type manifestJSONAlias Manifest
 
+func (locale ManifestLocale) MarshalJSON() ([]byte, error) {
+	type localeDocument struct {
+		Name        string          `json:"name,omitempty"`
+		Description string          `json:"description,omitempty"`
+		URL         string          `json:"url,omitempty"`
+		Author      *ManifestAuthor `json:"author,omitempty"`
+	}
+	var author *ManifestAuthor
+	if locale.Author != (ManifestAuthor{}) {
+		copy := locale.Author
+		author = &copy
+	}
+	return json.Marshal(localeDocument{
+		Name: locale.Name, Description: locale.Description, URL: locale.URL, Author: author,
+	})
+}
+
 func (manifest *Manifest) UnmarshalJSON(body []byte) error {
 	var object map[string]json.RawMessage
 	if err := json.Unmarshal(body, &object); err != nil {

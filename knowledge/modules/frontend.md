@@ -95,8 +95,9 @@ responsibilities.
 - Focused navigation components own safe internal/external rendering and the
   independent mobile drawer. Topbar shows four items at most and projects the
   remainder into the existing Nuxt UI overflow menu. Explicit imports avoid
-  Nuxt hydration ambiguity, and the architecture ratchet for `SFNavbar.vue`
-  is reduced to 902 lines.
+  Nuxt hydration ambiguity. Language-menu state now belongs to
+  `navigation/useNavbarLanguageMenu.ts`, reducing the architecture ratchet for
+  `SFNavbar.vue` to 851 lines.
 - Authenticated selected-theme Browser QA passed at desktop and `390x844` with
   `data-provider="sforum.default-theme"`, `data-template="1"`, one visible
   navbar/footer, no fallback notice, no overflow, and no console errors.

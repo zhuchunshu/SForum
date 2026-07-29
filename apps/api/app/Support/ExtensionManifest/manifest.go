@@ -65,7 +65,7 @@ var (
 )
 
 type Manifest struct {
-	// ManifestVersion 省略时按历史 V1 解析；显式版本控制可用声明和严格校验规则。
+	// ManifestVersion 必须显式为 V3；旧版清单不再进入安装或运行时。
 	ManifestVersion int            `json:"manifestVersion,omitempty"`
 	ID              string         `json:"id"`
 	Name            string         `json:"name"`
@@ -491,11 +491,7 @@ func validateManifest(manifest Manifest, points []ContributionPointDefinition) e
 	if manifest.Type == TypeTheme && !isThemeManifestSupported(manifest) {
 		return ErrInvalidManifest
 	}
-	if EffectiveManifestVersion(manifest) == ManifestVersionV3 {
-		if err := validateV3Manifest(manifest); err != nil {
-			return err
-		}
-	} else if err := validateLegacyRuntimeDeclarations(manifest); err != nil {
+	if err := validateV3Manifest(manifest); err != nil {
 		return err
 	}
 	// F2.1：capabilities 必须落在宿主目录内；主题禁止声明。
@@ -577,9 +573,6 @@ func Normalize(manifest Manifest) Manifest {
 	normalizeSettingsDocument(&manifest)
 	manifest.Backend.Entry = strings.TrimSpace(manifest.Backend.Entry)
 	manifest.Backend.RPC = strings.TrimSpace(manifest.Backend.RPC)
-	if manifest.Backend.ProtocolVersion == 0 && manifest.Backend.RPC != "" {
-		manifest.Backend.ProtocolVersion = 1
-	}
 	manifest.Admin.Entry = NormalizeRoutePath(manifest.Admin.Entry)
 	normalizeAdminPageSlice(manifest.Admin.Pages)
 	normalizeAdminPageSlice(manifest.AdminPages)
@@ -615,9 +608,7 @@ func Normalize(manifest Manifest) Manifest {
 	for index := range manifest.Contributions {
 		manifest.Contributions[index] = normalizeContribution(manifest.Contributions[index])
 	}
-	if EffectiveManifestVersion(manifest) == ManifestVersionV3 {
-		normalizeV3Manifest(&manifest)
-	}
+	normalizeV3Manifest(&manifest)
 	return manifest
 }
 
@@ -935,16 +926,14 @@ func isThemeManifestSupported(manifest Manifest) bool {
 		len(manifest.Contributions) != 0 {
 		return false
 	}
-	if EffectiveManifestVersion(manifest) == ManifestVersionV3 {
-		if len(manifest.Guards) != 0 || len(manifest.Schedules) != 0 ||
-			len(manifest.Content) != 0 || len(manifest.Editor) != 0 || len(manifest.Entities) != 0 ||
-			manifest.Database != nil || len(manifest.Cache) != 0 || len(manifest.SEO) != 0 ||
-			len(manifest.Services) != 0 || len(manifest.Commands) != 0 ||
-			len(manifest.AdminSurfaces) != 0 || len(manifest.Queries) != 0 || len(manifest.QueryResultFilters) != 0 ||
-			manifest.Identity != nil || len(manifest.PermissionDefinitions) != 0 ||
-			len(manifest.Media) != 0 || manifest.Lifecycle != nil || len(manifest.OpenAPI) != 0 {
-			return false
-		}
+	if len(manifest.Guards) != 0 || len(manifest.Schedules) != 0 ||
+		len(manifest.Content) != 0 || len(manifest.Editor) != 0 || len(manifest.Entities) != 0 ||
+		manifest.Database != nil || len(manifest.Cache) != 0 || len(manifest.SEO) != 0 ||
+		len(manifest.Services) != 0 || len(manifest.Commands) != 0 ||
+		len(manifest.AdminSurfaces) != 0 || len(manifest.Queries) != 0 || len(manifest.QueryResultFilters) != 0 ||
+		manifest.Identity != nil || len(manifest.PermissionDefinitions) != 0 ||
+		len(manifest.Media) != 0 || manifest.Lifecycle != nil || len(manifest.OpenAPI) != 0 {
+		return false
 	}
 	return true
 }

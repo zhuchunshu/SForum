@@ -53,7 +53,7 @@ LTS deletion gates pass. Small intermediate fixes do not raise it.
 | P0 Governance | 3% | complete | Governance, stable identities, matrices, catalogs, baseline |
 | P1 Trust/recovery | 6% | complete | Exact-artifact actor-bound trust, Safe Mode, CLI recovery |
 | P2 Manifest/contracts | 7% | complete | Manifest V3, sharded declarations, schema/package validation |
-| P3 Host API v2 | 8% | complete | gRPC/AutoMTLS protocol v2 and Host broker; v1 compatibility retained |
+| P3 Host API v2 | 8% | complete | gRPC/AutoMTLS Protocol V2 and Host broker; V1 runtime removed before release |
 | P4 Lifecycle/dependencies | 7% | complete | Durable lifecycle ledger, admission/drain, staged upgrade, jobs |
 | P5 Database/commands | 8% | complete | Database powers, lease roles, Host Commands, entitlements |
 | P6 Routes/middleware | 10% | complete | Route Registry, policy metadata, streams, replay, inspectors |
@@ -98,11 +98,10 @@ Acceptance rules:
 
 ## P13 LTS Residual
 
-The following compatibility surfaces remain deliberately present:
+The following compatibility surface remains deliberately present:
 
 1. `sforum.theme.l1.request-time-loader`
-2. `sforum.protocol.v1`
-3. Compatibility removal/checklist rows that depend on those contracts
+2. Compatibility removal/checklist rows that depend on that contract
 
 Deletion requires all of the following:
 

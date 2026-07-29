@@ -1,4 +1,5 @@
 {
+  "manifestVersion": 3,
   "id": "sforum.contract.events",
   "name": "Contract Events Fixture",
   "description": "CI fixture that only declares host-catalog events and a topic action contribution (F4.1).",
@@ -12,14 +13,36 @@
   "sforumVersion": ">=0.1.0",
   "routes": [
     {
+      "id": "sforum.contract.events.route.ping",
+      "contractVersion": "sforum.contract.events.route.ping@1",
+      "action": "add",
       "path": "/contract/ping",
       "methods": ["POST"],
-      "access": "login"
+      "guard": "core.guard.login",
+      "fallback": "closed",
+      "mode": "http",
+      "handler": "contract.ping",
+      "requestSchema": "sforum.contract.events.route.ping.request@1",
+      "responseSchema": "sforum.contract.events.route.ping.response@1"
     }
   ],
   "events": [
-    { "name": "comment.created", "kind": "observe" },
-    { "name": "user.registered", "kind": "observe" }
+    {
+      "id": "sforum.contract.events.event.comment-created",
+      "contractVersion": "sforum.contract.events.event.comment-created@1",
+      "name": "comment.created",
+      "kind": "observe",
+      "handler": "contract.observe",
+      "inputSchema": "sforum.contract.events.comment-created.input@1"
+    },
+    {
+      "id": "sforum.contract.events.event.user-registered",
+      "contractVersion": "sforum.contract.events.event.user-registered@1",
+      "name": "user.registered",
+      "kind": "observe",
+      "handler": "contract.observe",
+      "inputSchema": "sforum.contract.events.user-registered.input@1"
+    }
   ],
   "contributions": [
     {

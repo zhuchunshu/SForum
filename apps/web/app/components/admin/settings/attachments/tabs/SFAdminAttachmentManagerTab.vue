@@ -25,13 +25,12 @@ const filters = reactive<AttachmentFilters>({
   contentType: '',
   referenceStatus: ''
 })
+const totalPages = computed(() => Math.max(1, Math.ceil(list.value.total / list.value.perPage)))
+const listStart = computed(() => list.value.total === 0 ? 0 : (list.value.page - 1) * list.value.perPage + 1)
+const listEnd = computed(() => Math.min(list.value.total, list.value.page * list.value.perPage))
 
 const coreProviderLabels = computed<Record<string, string>>(() => ({
-  local: t('admin.attachments.providers.local'),
-  aliyun_oss: t('admin.attachments.providers.aliyunOss'),
-  tencent_cos: t('admin.attachments.providers.tencentCos'),
-  ftp: t('admin.attachments.providers.ftp'),
-  sftp: t('admin.attachments.providers.sftp')
+  local: t('admin.attachments.providers.local')
 }))
 const providerChoices = computed(() => {
   const values = new Set([...Object.keys(coreProviderLabels.value), ...list.value.items.map(item => item.provider)])
@@ -42,15 +41,36 @@ const providerChoices = computed(() => {
 onMounted(fetchAttachments)
 defineExpose({ refresh: fetchAttachments, pending: loadingAttachments })
 
-async function fetchAttachments() {
+async function requestAttachmentPage(page: number) {
+  return request<AttachmentList>(`/admin/attachments?${buildAttachmentListQuery({ page, perPage: list.value.perPage }, filters)}`)
+}
+
+async function fetchAttachments(page = list.value.page) {
   loadingAttachments.value = true
   try {
-    list.value = await request<AttachmentList>(`/admin/attachments?${buildAttachmentListQuery(list.value, filters)}`)
+    let result = await requestAttachmentPage(page)
+    const lastPage = Math.max(1, Math.ceil(result.total / result.perPage))
+    if (result.total > 0 && result.page > lastPage) {
+      result = await requestAttachmentPage(lastPage)
+    }
+    list.value = result
   } catch (error) {
     toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.attachments.listLoadFailed') })
   } finally {
     loadingAttachments.value = false
   }
+}
+
+async function applyFilters() {
+  selected.value = null
+  await fetchAttachments(1)
+}
+
+async function goToPage(page: number) {
+  const nextPage = Math.min(totalPages.value, Math.max(1, page))
+  if (nextPage === list.value.page || loadingAttachments.value) return
+  selected.value = null
+  await fetchAttachments(nextPage)
 }
 
 async function updateAttachmentStatus(item: AdminAttachment, status: 'active' | 'disabled') {
@@ -132,7 +152,7 @@ function isPreviewableImage(item: AdminAttachment) {
     <UCard class="border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
       <template #header>
         <div class="grid gap-3 lg:grid-cols-[1fr_150px_150px_150px_auto]">
-          <UInput v-model="filters.query" size="lg" icon="i-lucide-search" :placeholder="t('admin.attachments.searchPlaceholder')" @keyup.enter="fetchAttachments" />
+          <UInput v-model="filters.query" size="lg" icon="i-lucide-search" :placeholder="t('admin.attachments.searchPlaceholder')" @keyup.enter="applyFilters" />
           <select v-model="filters.provider" class="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950">
             <option value="">{{ t('admin.attachments.allProviders') }}</option>
             <option v-for="choice in providerChoices" :key="choice.value" :value="choice.value">{{ choice.label }}</option>
@@ -149,7 +169,7 @@ function isPreviewableImage(item: AdminAttachment) {
             <option value="orphan">{{ t('admin.attachments.orphan') }}</option>
           </select>
           <div class="flex gap-2">
-            <UButton color="primary" leading-icon="i-lucide-search" :loading="loadingAttachments" @click="fetchAttachments">{{ t('admin.attachments.filter') }}</UButton>
+            <UButton color="primary" leading-icon="i-lucide-search" :loading="loadingAttachments" @click="applyFilters">{{ t('admin.attachments.filter') }}</UButton>
             <UButton color="neutral" variant="outline" leading-icon="i-lucide-trash-2" @click="cleanupAttachments">{{ t('admin.attachments.cleanup') }}</UButton>
           </div>
         </div>
@@ -192,6 +212,23 @@ function isPreviewableImage(item: AdminAttachment) {
       </div>
 
       <SFEmptyState v-if="!loadingAttachments && list.items.length === 0" :title="t('admin.attachments.empty')" />
+
+      <div
+        v-if="list.total > 0"
+        class="mt-4 flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800"
+      >
+        <p class="text-xs text-slate-500 dark:text-zinc-400">
+          {{ t('admin.attachments.paginationSummary', { start: listStart, end: listEnd, total: list.total }) }}
+        </p>
+        <UPagination
+          v-if="totalPages > 1"
+          :page="list.page"
+          :total="list.total"
+          :items-per-page="list.perPage"
+          class="justify-end"
+          @update:page="goToPage"
+        />
+      </div>
     </UCard>
 
     <aside class="rounded-lg border border-slate-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">

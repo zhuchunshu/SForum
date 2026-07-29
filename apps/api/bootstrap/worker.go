@@ -31,7 +31,6 @@ import (
 	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	webhooks "github.com/zhuchunshu/sforum/apps/api/app/Models/Webhooks"
-	apilts "github.com/zhuchunshu/sforum/apps/api/app/Support/APILTS"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
@@ -317,8 +316,6 @@ var newStandaloneWorkerRuntimeManager = func(
 			HostAPI:        hostAPI,
 			Trust:          trust,
 			DatabaseLeases: databaseLeases,
-			// 独立 worker 进程同样累计 V1 shim 遥测（与 API 进程计数分离）。
-			ShimTelemetry: apilts.Process(),
 		}),
 		DeliveryStore: store,
 	})

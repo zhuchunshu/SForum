@@ -20,7 +20,7 @@ import (
 
 // Production-path evidence: Fiber → managed Route Registry middleware →
 // Dispatcher → Protocol V2 fake runtime for every P6 modifier family.
-// Protocol V1 modifier fencing lives in route_dispatcher_v1_modifier_fence_test.go;
+// Invalid loopback target fencing lives in route_dispatcher_invalid_target_modifier_fence_test.go;
 // re-asserting it here would only duplicate that Host fence.
 func TestRouteActionV2FiberModifierChainOrderAndHostPatches(t *testing.T) {
 	const (

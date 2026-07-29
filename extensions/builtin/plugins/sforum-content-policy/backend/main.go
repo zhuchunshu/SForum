@@ -1,5 +1,3 @@
-//go:build !protocol_v1
-
 package main
 
 import (

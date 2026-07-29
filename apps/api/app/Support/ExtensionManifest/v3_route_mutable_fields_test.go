@@ -270,7 +270,7 @@ func TestManifestV3RouteMutableFieldBudgetUsesUTF8Bytes(t *testing.T) {
 }
 
 func TestLegacyManifestRejectsRouteMutableFields(t *testing.T) {
-	for _, version := range []int{0, ManifestVersionV1, ManifestVersionV2} {
+	for _, version := range []int{0, 1, 2} {
 		for _, direction := range []string{"request", "response"} {
 			t.Run(fmt.Sprintf("version_%d_%s", version, direction), func(t *testing.T) {
 				manifest := versionedTestManifest(version)

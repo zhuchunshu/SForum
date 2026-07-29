@@ -21,6 +21,7 @@ import (
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
+	pluginbootstrap "github.com/zhuchunshu/sforum/apps/api/app/Support/PluginBootstrap"
 	pluginv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
 	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 	"google.golang.org/grpc"
@@ -147,21 +148,15 @@ func (s *ProtocolStarter) newPluginClientConfig(
 	instanceID string,
 ) (*plugin.ClientConfig, string, error) {
 	version := extension.Manifest.Backend.ProtocolVersion
-	if version == 0 {
-		version = 1
-	}
+	diagnostics := pluginbootstrap.NewDiagnosticBuffer(pluginbootstrap.DefaultDiagnosticLimit)
 	base := &plugin.ClientConfig{
-		HandshakeConfig: handshakeConfig,
+		HandshakeConfig: pluginbootstrap.HandshakeV1(),
 		Logger:          hclog.NewNullLogger(),
 		Cmd:             cmd,
+		Stderr:          diagnostics,
+		SyncStderr:      diagnostics,
 	}
 	switch version {
-	case 1:
-		base.VersionedPlugins = map[int]plugin.PluginSet{
-			1: {pluginProtocolName: &netRPCPlugin{}},
-		}
-		base.AllowedProtocols = []plugin.Protocol{plugin.ProtocolNetRPC}
-		return base, pluginProtocolName, nil
 	case 2:
 		if !supportsProtocolV2HostAPI(extension.Manifest.Backend.HostAPIVersion) {
 			return nil, "", fmt.Errorf("%w: host API %q", ErrUnsupportedProtocol, extension.Manifest.Backend.HostAPIVersion)
@@ -171,7 +166,9 @@ func (s *ProtocolStarter) newPluginClientConfig(
 			return nil, "", err
 		}
 		base.VersionedPlugins = map[int]plugin.PluginSet{
-			2: {pluginProtocolV2Name: &protocolV2Plugin{clientConfig: &clientConfig}},
+			pluginbootstrap.ApplicationProtocolV2: {
+				pluginbootstrap.ApplicationProtocolV2Name: &protocolV2Plugin{clientConfig: &clientConfig},
+			},
 		}
 		base.AllowedProtocols = []plugin.Protocol{plugin.ProtocolGRPC}
 		base.AutoMTLS = true
@@ -179,7 +176,7 @@ func (s *ProtocolStarter) newPluginClientConfig(
 			grpc.MaxCallRecvMsgSize(DefaultProtocolV2MaxMessageBytes),
 			grpc.MaxCallSendMsgSize(DefaultProtocolV2MaxMessageBytes),
 		)}
-		return base, pluginProtocolV2Name, nil
+		return base, pluginbootstrap.ApplicationProtocolV2Name, nil
 	default:
 		return nil, "", ErrUnsupportedProtocol
 	}

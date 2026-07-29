@@ -71,14 +71,15 @@ record compatibility impact.
 
 - P0–P12: complete (task-book checkboxes closed; catalogs, registries, Protocol
   V2 defaults, presentation ownership, and product-path adoption landed).
-- P13: final gates green (~99.7% overall). Open residual is **LTS-only**:
-  request-time template loader, Protocol V1 paths, and compatibility removal
-  after `RemoveAfter` ≈ 2026-11-28 + live zero-shim + deletion checklist 1–7.
-  Fail-closed `SFPageOutlet` is never fully removed by design.
+- P13 protocol migration is complete: packages require Manifest V3 and
+  executable backends require Protocol V2. The remaining LTS residual is the
+  independent request-time theme loader. Fail-closed `SFPageOutlet` is never
+  fully removed by design.
 - Catalog inventory gate: **253** routes / **145** UI surfaces / **99**
   traceability rows (`tests/validate-v3-p0-catalogs.mjs`).
 - Progress authority: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
   and `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`.
 - Large deferred (not LTS, not thin wiring): Protocol-leased content filter
   dispatch, Media Plan/Execute/Receipt product authority, EntityStore I/O.
-- Named v1 compatibility shims remain until their APILTS removal gate passes.
+- Published compatibility surfaces other than the removed extension protocol
+  remain governed by their own APILTS removal gates.

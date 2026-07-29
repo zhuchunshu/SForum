@@ -181,7 +181,14 @@ func (a *PageRegistryAdapter) RegisterPluginPackage(ctx context.Context, extensi
 	if err != nil {
 		return err
 	}
-	if len(contributions) == 0 || a.ThemeRuntime == nil {
+	if len(contributions) == 0 {
+		// A plugin without theme.json pages owns no Page Registry artifact.
+		// Clear any previous contribution/runtime instead of publishing a
+		// legacy placeholder that cannot satisfy Lifecycle V2 exact fences.
+		a.ClearExtension(extension.ID)
+		return nil
+	}
+	if a.ThemeRuntime == nil {
 		return a.Bridge.Registry.RegisterContributions(extension.ID, contributions)
 	}
 	snapshot, err := a.buildTemplateRuntime(extension, contributions, pages.RuntimeTemplatePlugin)

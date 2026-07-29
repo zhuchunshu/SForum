@@ -15,7 +15,6 @@ import (
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
-	apilts "github.com/zhuchunshu/sforum/apps/api/app/Support/APILTS"
 	avatar "github.com/zhuchunshu/sforum/apps/api/app/Support/Avatar"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionprotocol "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionProtocol"
@@ -74,8 +73,6 @@ var newExtensionRuntimeManager = func(
 			HostAPI:        hostAPI,
 			Trust:          trust,
 			DatabaseLeases: databaseLeases,
-			// 生产 V1 net/rpc 流量写入 process-local APILTS，供 LTS 删除门禁证明。
-			ShimTelemetry: apilts.Process(),
 		}),
 		DeliveryStore: store,
 	})

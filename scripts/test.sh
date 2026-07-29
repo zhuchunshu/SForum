@@ -10,6 +10,9 @@ echo "Running release script validation..."
 echo "Running architecture boundary validation..."
 node tests/validate-architecture-boundaries.mjs
 
+echo "Running built-in plugin release version validation..."
+node tests/validate-builtin-plugin-versions.mjs
+
 echo "Running Go tests..."
 (cd apps/api && go test ./...)
 

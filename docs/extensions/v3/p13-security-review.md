@@ -23,7 +23,8 @@ Scope: V3 Host registries and five reference plugin classes.
 
 1. Media Manifest freezes transform-stage processors only; scan/metadata/CDN stages are Host-runtime plans, not plugin Manifest fields.
 2. Reference plugins prove declarations + Protocol V2 load paths; full browser E2E for every surface remains a final-gate item.
-3. Protocol V1 built-ins remain until LTS telemetry is zero.
+3. All executable built-ins require Protocol V2; no runtime downgrade path is
+   retained.
 
 ## Verdict
 
