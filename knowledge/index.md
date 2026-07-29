@@ -93,6 +93,11 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Lifecycle V2 settings restart: enabled plugins such as
+  `sforum.auth-github` now preflight before persistence and restart the exact
+  active artifact through Host lifecycle orchestration; stable recovery errors
+  replace the prior generic 500, while operator verification remains:
+  `sessions/2026-07-29-lifecycle-v2-settings-restart-fix.md`
 - Stale extension permission suggestions: approval remains exact-artifact
   fail-closed, while authorized rejection can now close pending records after
   disable, uninstall, missing-artifact cleanup, or replacement:
@@ -145,7 +150,8 @@ load archived sessions or completed plans as current context.
   evidence now logs only credential-neutral primitive projections; release
   tags now inject one shared Core/Web/API/worker/migrator/CLI build identity,
   shown once beside the SForum admin brand, while the protected overview shows
-  build and runtime diagnostics:
+  build and runtime diagnostics; the bilingual `scripts/release.sh` validates
+  and pushes the annotated release tag without building locally:
   `sessions/2026-07-29-github-actions-release-pipeline-handoff.md`
 - Notification email opt-in defaults: admin per-type email control, Core
   transaction-scoped user preference enforcement, hard site gate, safe default

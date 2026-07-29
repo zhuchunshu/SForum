@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	settingslifecycle "github.com/zhuchunshu/sforum/apps/api/app/Support/SettingsLifecycle"
 )
 
 func TestAuthProviderSettingsConfigured(t *testing.T) {
@@ -94,5 +95,109 @@ func TestAdminPageBootstrapAllowsIdentityProviderManageForAuthSettings(t *testin
 	_, err = service.AdminPageBootstrap(context.Background(), actor, item.ID, "/about", "zh-CN")
 	if !errors.Is(err, identity.ErrPermissionDenied) {
 		t.Fatalf("manage-only actor must not read about page, got %v", err)
+	}
+}
+
+func TestAuthProviderSettingsRestartEnabledLifecycleV2ExactArtifact(t *testing.T) {
+	item := lifecycleV2ServiceArtifact(t, "sforum.auth-github", "1.0.0", SourceBuiltin)
+	item.Status = StatusEnabled
+	item.Manifest.Settings = []ManifestSetting{{Key: "client_id", Type: "text", Default: ""}}
+	item.Manifest.Identity = &ManifestIdentity{
+		ContractVersion: "sforum.auth-github.identity@1",
+		Providers: []ManifestIdentityProvider{{
+			ID: "sforum.auth-github.auth", Kind: "auth", Handler: "sforum.auth-github.identity",
+		}},
+	}
+	refreshTrustPackageIdentity(t, &item)
+	store := newFakeExtensionStore(map[string]Extension{item.ID: item})
+	actor := identity.Actor{
+		ID: 77, Status: identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionIdentityProviderManage: true},
+	}
+	trust := NewExecutableTrustService(store, &memoryExecutableTrustStore{})
+	frozenAuthority, err := trust.ConfirmLifecycleAuthority(t.Context(), extensionManager(), item, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	operations := []LifecycleMachineOperation{}
+	runner := &lifecycleV2RecordingRunner{beforeRun: func(input LifecycleCoordinatorRunInput) {
+		operation := LifecycleMachineOperation(input.Acquire.Operation)
+		operations = append(operations, operation)
+		stored := store.items[item.ID]
+		switch operation {
+		case LifecycleMachineDisable:
+			stored.Status = StatusDisabled
+		case LifecycleMachineEnable:
+			stored.Status = StatusEnabled
+		}
+		store.items[item.ID] = stored
+	}}
+	service := NewServiceWithOptions(store, t.TempDir(), "", LocalRuntimeManager{},
+		WithAuditor(&lifecycleV2AuditWriter{nextID: 100}),
+		WithExecutableTrust(trust, true),
+		WithLifecycleCoordinator(
+			runner,
+			func(context.Context, LifecycleMachineOperation, *Extension, Extension) error { return nil },
+			lifecycleV2AuthorityStore{authority: frozenAuthority},
+		),
+	)
+	settings := settingslifecycle.New(nil)
+	service.BindSettingsLifecycle(settings)
+
+	updated, err := service.UpdateSettings(t.Context(), actor, item.ID, UpdateSettingsInput{
+		Values: map[string]string{"client_id": "Iv1.updated"},
+	}, "zh-CN")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(operations) != 2 || operations[0] != LifecycleMachineDisable || operations[1] != LifecycleMachineEnable {
+		t.Fatalf("settings restart operations = %v", operations)
+	}
+	if store.items[item.ID].Status != StatusEnabled || settingValue(updated, "client_id") != "Iv1.updated" {
+		t.Fatalf("settings restart result: status=%q settings=%#v", store.items[item.ID].Status, updated)
+	}
+}
+
+func TestAuthProviderSettingsLifecycleV2PreflightFailureDoesNotPersist(t *testing.T) {
+	item := lifecycleV2ServiceArtifact(t, "sforum.auth-preflight", "1.0.0", SourceBuiltin)
+	item.Status = StatusEnabled
+	item.Manifest.Settings = []ManifestSetting{{Key: "client_id", Type: "text", Default: ""}}
+	item.Manifest.Identity = &ManifestIdentity{
+		Providers: []ManifestIdentityProvider{{ID: "sforum.auth-preflight.auth", Kind: "auth"}},
+	}
+	refreshTrustPackageIdentity(t, &item)
+	store := newFakeExtensionStore(map[string]Extension{item.ID: item})
+	actor := identity.Actor{
+		ID: 78, Status: identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionIdentityProviderManage: true},
+	}
+	trust := NewExecutableTrustService(store, &memoryExecutableTrustStore{})
+	frozenAuthority, err := trust.ConfirmLifecycleAuthority(t.Context(), extensionManager(), item, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner := &lifecycleV2RecordingRunner{}
+	settings := settingslifecycle.New(nil)
+	service := NewServiceWithOptions(store, t.TempDir(), "", LocalRuntimeManager{},
+		WithAuditor(&lifecycleV2AuditWriter{nextID: 200}),
+		WithExecutableTrust(trust, true),
+		WithLifecycleCoordinator(
+			runner,
+			func(context.Context, LifecycleMachineOperation, *Extension, Extension) error {
+				return errors.New("static preflight unavailable")
+			},
+			lifecycleV2AuthorityStore{authority: frozenAuthority},
+		),
+	)
+	service.BindSettingsLifecycle(settings)
+
+	_, err = service.UpdateSettings(t.Context(), actor, item.ID, UpdateSettingsInput{
+		Values: map[string]string{"client_id": "must-not-persist"},
+	}, "zh-CN")
+	if !errors.Is(err, ErrSettingsRestartUnavailable) || runner.calls != 0 {
+		t.Fatalf("preflight result: err=%v runner=%d", err, runner.calls)
+	}
+	if _, getErr := settings.Get(t.Context(), item.ID); !errors.Is(getErr, settingslifecycle.ErrNotFound) {
+		t.Fatalf("preflight failure persisted settings: %v", getErr)
 	}
 }

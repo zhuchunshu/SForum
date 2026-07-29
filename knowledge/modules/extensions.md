@@ -25,6 +25,12 @@ does not rebuild Nuxt.
   architecture validation, and V3 catalog validation passed.
 - Compatibility facades remain only for exact allowlisted consumers and
   tighten as those consumers migrate.
+- Enabled Lifecycle V2 plugins now use Host-owned exact disable/enable
+  orchestration after a settings mutation. The Host preflights both phases
+  before changing the SettingsLifecycle document; delegated provider-settings
+  permissions remain scoped to the owning auth/mail plugin. Preflight failure
+  leaves settings untouched, while a post-persistence restart failure returns
+  an explicit recovery error instead of a generic 500.
 - Stable contracts now live in `Support/ExtensionRuntime`,
   `ExtensionProtocol`, `ExtensionDatabase`, and `ExtensionComposition`.
   Product Models cannot import the legacy runtime package. The legacy package

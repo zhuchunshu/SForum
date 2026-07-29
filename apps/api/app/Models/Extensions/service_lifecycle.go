@@ -186,13 +186,21 @@ func (s *LifecycleService) PublicActiveThemeSettings(ctx context.Context) (Publi
 
 func (s *serviceCore) restartPluginForSettings(
 	ctx context.Context,
+	actor identity.Actor,
 	extension Extension,
 	restart RuntimeQuerySettingsRestartTransaction,
+	mutationKey string,
 ) error {
 	if s.safeMode {
 		return nil
 	}
 	if extension.Type != TypePlugin || extension.Status != StatusEnabled || extension.Manifest.Backend.Entry == "" || s.runtime == nil {
+		return nil
+	}
+	if usesLifecycleV2(extension) {
+		if err := s.restartLifecycleV2ForSettings(ctx, actor, extension, mutationKey); err != nil {
+			return errors.Join(ErrSettingsRestartFailed, err)
+		}
 		return nil
 	}
 	if hasRuntimeQueryPublication(extension.Manifest) {
@@ -209,6 +217,7 @@ func (s *serviceCore) restartPluginForSettings(
 
 func (s *serviceCore) preparePluginSettingsRestart(
 	ctx context.Context,
+	actor identity.Actor,
 	extension Extension,
 ) (RuntimeQuerySettingsRestartTransaction, error) {
 	if s.safeMode || extension.Type != TypePlugin || extension.Status != StatusEnabled ||
@@ -216,10 +225,10 @@ func (s *serviceCore) preparePluginSettingsRestart(
 		return nil, nil
 	}
 	if usesLifecycleV2(extension) {
-		if hasRuntimeQueryPublication(extension.Manifest) {
-			return nil, errors.Join(ErrRuntimeSettingsRestartUnavailable, ErrRuntimeQuerySettingsRestartUnavailable)
+		if err := s.preflightLifecycleV2SettingsRestart(ctx, actor, extension); err != nil {
+			return nil, errors.Join(ErrSettingsRestartUnavailable, err)
 		}
-		return nil, ErrRuntimeSettingsRestartUnavailable
+		return nil, nil
 	}
 	if !hasRuntimeQueryPublication(extension.Manifest) {
 		return nil, nil

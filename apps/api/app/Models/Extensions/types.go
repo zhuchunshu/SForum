@@ -74,10 +74,13 @@ const (
 	CodeFrontendTrustNotFound      = "extension.frontend_trust_not_found"
 	// 插件已禁用：设置读写、自定义管理页等功能性能力不可用。
 	CodeExtensionDisabled = "extension.disabled"
-	// 设置已写入但插件重启失败，且旧设置恢复也失败，需要运营介入。
-	CodeSettingsRollbackFailed    = "extension.settings_rollback_failed"
-	CodeSettingsActionInvalid     = "extension.settings_action_invalid"
-	CodeSettingsActionUnavailable = "extension.settings_action_unavailable"
+	// 设置重启预检失败时不得写入；写入后的重启失败必须明确告知设置已持久化。
+	CodeSettingsRevisionConflict   = "extension.settings_revision_conflict"
+	CodeSettingsRestartUnavailable = "extension.settings_restart_unavailable"
+	CodeSettingsRestartFailed      = "extension.settings_restart_failed"
+	CodeSettingsRollbackFailed     = "extension.settings_rollback_failed"
+	CodeSettingsActionInvalid      = "extension.settings_action_invalid"
+	CodeSettingsActionUnavailable  = "extension.settings_action_unavailable"
 	// 启用前需运营确认 capability 授权（F2.1）。
 	CodeCapabilityConfirmationRequired = "extension.capability_confirmation_required"
 	// CodeFeaturesRequired F4.5：站点产品开关未满足 requiresFeatures。
@@ -109,24 +112,26 @@ const (
 )
 
 var (
-	ErrInvalidArchive            = errors.New("extensions: invalid archive")
-	ErrInvalidManifest           = extensionmanifest.ErrInvalidManifest
-	ErrArtifactMissing           = errors.New("extensions: artifact missing")
-	ErrExtensionNotFound         = errors.New("extensions: not found")
-	ErrExtensionDisabled         = errors.New("extensions: disabled")
-	ErrSettingsRollbackFailed    = errors.New("extensions: settings rollback failed")
-	ErrSettingsCommitUnknown     = errors.New("extensions: settings commit outcome is unknown")
-	ErrSettingsActionInvalid     = errors.New("extensions: settings action invalid")
-	ErrSettingsActionUnavailable = errors.New("extensions: settings action unavailable")
-	ErrPreflightFailed           = errors.New("extensions: preflight failed")
-	ErrBuildFailed               = errors.New("extensions: build failed")
-	ErrThemeActivationRequired   = errors.New("extensions: themes must be activated")
-	ErrThemeRuntimeUnavailable   = errors.New("extensions: theme activation runtime unavailable")
-	ErrThemePreviewStale         = errors.New("extensions: theme activation preview is stale")
-	ErrRuntimeFailed             = errors.New("extensions: runtime failed")
-	ErrRouteNotFound             = errors.New("extensions: route not found")
-	ErrRouteMethodNotAllowed     = errors.New("extensions: route method not allowed")
-	ErrRuntimeUnavailable        = errors.New("extensions: runtime unavailable")
+	ErrInvalidArchive             = errors.New("extensions: invalid archive")
+	ErrInvalidManifest            = extensionmanifest.ErrInvalidManifest
+	ErrArtifactMissing            = errors.New("extensions: artifact missing")
+	ErrExtensionNotFound          = errors.New("extensions: not found")
+	ErrExtensionDisabled          = errors.New("extensions: disabled")
+	ErrSettingsRestartUnavailable = errors.New("extensions: settings restart is unavailable")
+	ErrSettingsRestartFailed      = errors.New("extensions: settings persisted but restart failed")
+	ErrSettingsRollbackFailed     = errors.New("extensions: settings rollback failed")
+	ErrSettingsCommitUnknown      = errors.New("extensions: settings commit outcome is unknown")
+	ErrSettingsActionInvalid      = errors.New("extensions: settings action invalid")
+	ErrSettingsActionUnavailable  = errors.New("extensions: settings action unavailable")
+	ErrPreflightFailed            = errors.New("extensions: preflight failed")
+	ErrBuildFailed                = errors.New("extensions: build failed")
+	ErrThemeActivationRequired    = errors.New("extensions: themes must be activated")
+	ErrThemeRuntimeUnavailable    = errors.New("extensions: theme activation runtime unavailable")
+	ErrThemePreviewStale          = errors.New("extensions: theme activation preview is stale")
+	ErrRuntimeFailed              = errors.New("extensions: runtime failed")
+	ErrRouteNotFound              = errors.New("extensions: route not found")
+	ErrRouteMethodNotAllowed      = errors.New("extensions: route method not allowed")
+	ErrRuntimeUnavailable         = errors.New("extensions: runtime unavailable")
 	// ErrCapabilityConfirmationRequired 启用插件前需 confirmCapabilities=true。
 	ErrCapabilityConfirmationRequired = errors.New("extensions: capability confirmation required")
 	ErrCapabilityDenied               = errors.New("extensions: capability denied")

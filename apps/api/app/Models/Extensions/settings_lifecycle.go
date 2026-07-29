@@ -69,6 +69,10 @@ func (s *serviceCore) updateSettingsViaLifecycle(
 	if err := s.host.RegisterSettingsLifecycleFromManifest(extension); err != nil {
 		return ExtensionSettings{}, err
 	}
+	restart, err := s.preparePluginSettingsRestart(ctx, actor, extension)
+	if err != nil {
+		return ExtensionSettings{}, err
+	}
 	actorID := settingsActorID(actor)
 	// 合并：未提交字段由 lifecycle Put 保留；secret 空串保留。
 	doc, err := s.settingsLifecycle.Put(ctx, extension.ID, actorID, input.Values, true)
@@ -76,13 +80,9 @@ func (s *serviceCore) updateSettingsViaLifecycle(
 		return ExtensionSettings{}, mapSettingsLifecycleError(err)
 	}
 	// 重启插件以加载新设置（与旧路径一致）。
-	restart, err := s.preparePluginSettingsRestart(ctx, extension)
-	if err != nil {
-		return ExtensionSettings{}, err
-	}
-	if err := s.restartPluginForSettings(ctx, extension, restart); err != nil {
-		// 设置已 CAS 提交；重启失败时尽力回读并表面错误（与旧路径 restore 不同：
-		// lifecycle 权威已前进，不倒退 revision）。
+	if err := s.restartPluginForSettings(ctx, actor, extension, restart, settingsRestartMutationKey(extension, doc)); err != nil {
+		// 设置已 CAS 提交；Lifecycle 权威已前进，不倒退 revision。明确返回
+		// “已保存但重启失败”，由生命周期账本保留安全恢复状态。
 		return ExtensionSettings{}, err
 	}
 	maybeBumpPublicSurfaceRevision(s.host, ctx, extension)
@@ -99,6 +99,10 @@ func (s *serviceCore) resetSettingsViaLifecycle(
 	if err := s.host.RegisterSettingsLifecycleFromManifest(extension); err != nil {
 		return ExtensionSettings{}, err
 	}
+	restart, err := s.preparePluginSettingsRestart(ctx, actor, extension)
+	if err != nil {
+		return ExtensionSettings{}, err
+	}
 	doc, err := s.settingsLifecycle.ResetDefaults(ctx, extension.ID, settingsActorID(actor), settingslifecycle.ResetOptions{
 		// 初学者友好：重置表单默认值时保留密钥引用。
 		PreserveSecrets: true,
@@ -106,11 +110,7 @@ func (s *serviceCore) resetSettingsViaLifecycle(
 	if err != nil {
 		return ExtensionSettings{}, mapSettingsLifecycleError(err)
 	}
-	restart, err := s.preparePluginSettingsRestart(ctx, extension)
-	if err != nil {
-		return ExtensionSettings{}, err
-	}
-	if err := s.restartPluginForSettings(ctx, extension, restart); err != nil {
+	if err := s.restartPluginForSettings(ctx, actor, extension, restart, settingsRestartMutationKey(extension, doc)); err != nil {
 		return ExtensionSettings{}, err
 	}
 	maybeBumpPublicSurfaceRevision(s.host, ctx, extension)
@@ -141,15 +141,15 @@ func (s *SettingsService) ImportSettings(
 	if err := s.host.RegisterSettingsLifecycleFromManifest(extension); err != nil {
 		return ExtensionSettings{}, err
 	}
+	restart, err := s.preparePluginSettingsRestart(ctx, actor, extension)
+	if err != nil {
+		return ExtensionSettings{}, err
+	}
 	doc, err := s.settingsLifecycle.Import(ctx, extension.ID, settingsActorID(actor), bundle)
 	if err != nil {
 		return ExtensionSettings{}, mapSettingsLifecycleError(err)
 	}
-	restart, err := s.preparePluginSettingsRestart(ctx, extension)
-	if err != nil {
-		return ExtensionSettings{}, err
-	}
-	if err := s.restartPluginForSettings(ctx, extension, restart); err != nil {
+	if err := s.restartPluginForSettings(ctx, actor, extension, restart, settingsRestartMutationKey(extension, doc)); err != nil {
 		return ExtensionSettings{}, err
 	}
 	return resolveExtensionSettings(extension, settingsDocumentViewValues(doc), locale), nil

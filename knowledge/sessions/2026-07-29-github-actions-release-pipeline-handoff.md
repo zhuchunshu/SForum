@@ -11,6 +11,14 @@
   candidate Compose smoke, verified tag promotion, and GitHub Release creation.
 - Added `compose.release.yaml` and `deploy.sh --version vX.Y.Z`; release deploys
   pull one exact version and never rebuild application images locally.
+- Added `scripts/release.sh` as the beginner-facing maintainer entry point. It
+  defaults to Chinese, supports English plus interactive/non-interactive use,
+  verifies a clean synchronized `main`, runs release checks, rejects duplicate
+  and development tags, and pushes one annotated `vX.Y.Z[-prerelease]` tag.
+  Interactive mode suggests the next patch or prerelease number from the latest
+  valid remote release tag and accepts Enter for that default; manual input
+  remains authoritative. Dry-run and explicit check/wait controls are
+  available; image publication remains entirely owned by GitHub Actions.
 - Added one build-identity authority for API, worker, migrator, and developer
   CLI version output. Release images inject the tag, exact commit, and commit
   timestamp; Core and Web use that same version, shown once beside the SForum
@@ -133,6 +141,12 @@
   `git diff --check`, and a full Nuxt production build. A locally injected
   `2.8.0` binary printed the expected
   `SForum 2.8.0 (0123456789ab)` summary.
+- The release helper passed Bash syntax and ShellCheck validation plus an
+  isolated temporary-repository test covering Chinese/English help, invalid
+  input, required non-interactive version, interactive default/override,
+  no-mutation dry-run, annotated tag push, and local/remote duplicate-tag
+  rejection. The test never contacts the SForum GitHub remote and is included
+  in `scripts/test.sh`.
 - After the dependency remediation, `govulncheck ./...` passed independently
   for Core and all six protected built-in plugin modules with zero reachable
   vulnerabilities. The only module-level advisory is the unmaintained

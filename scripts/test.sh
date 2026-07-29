@@ -4,6 +4,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+echo "Running release script validation..."
+./scripts/release_test.sh
+
 echo "Running architecture boundary validation..."
 node tests/validate-architecture-boundaries.mjs
 

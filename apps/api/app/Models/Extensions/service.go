@@ -934,7 +934,7 @@ func (s *SettingsService) UpdateSettings(ctx context.Context, actor identity.Act
 	if err != nil {
 		return ExtensionSettings{}, err
 	}
-	restart, err := s.preparePluginSettingsRestart(ctx, extension)
+	restart, err := s.preparePluginSettingsRestart(ctx, actor, extension)
 	if err != nil {
 		return ExtensionSettings{}, err
 	}
@@ -943,7 +943,7 @@ func (s *SettingsService) UpdateSettings(ctx context.Context, actor identity.Act
 			return ExtensionSettings{}, err
 		}
 	}
-	if err := s.restartPluginForSettings(ctx, extension, restart); err != nil {
+	if err := s.restartPluginForSettings(ctx, actor, extension, restart, legacySettingsRestartMutationKey(extension, actor)); err != nil {
 		return ExtensionSettings{}, s.restoreSettingsAfterRestartFailure(ctx, extension.ID, previousRaw, restart, err)
 	}
 	maybeBumpPublicSurfaceRevision(s.Service, ctx, extension)
@@ -972,7 +972,7 @@ func (s *SettingsService) ResetSettings(ctx context.Context, actor identity.Acto
 	if err != nil {
 		return ExtensionSettings{}, err
 	}
-	restart, err := s.preparePluginSettingsRestart(ctx, extension)
+	restart, err := s.preparePluginSettingsRestart(ctx, actor, extension)
 	if err != nil {
 		return ExtensionSettings{}, err
 	}
@@ -981,7 +981,7 @@ func (s *SettingsService) ResetSettings(ctx context.Context, actor identity.Acto
 			return ExtensionSettings{}, err
 		}
 	}
-	if err := s.restartPluginForSettings(ctx, extension, restart); err != nil {
+	if err := s.restartPluginForSettings(ctx, actor, extension, restart, legacySettingsRestartMutationKey(extension, actor)); err != nil {
 		return ExtensionSettings{}, s.restoreSettingsAfterRestartFailure(ctx, extension.ID, previousRaw, restart, err)
 	}
 	maybeBumpPublicSurfaceRevision(s.Service, ctx, extension)

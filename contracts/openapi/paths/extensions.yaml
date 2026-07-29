@@ -1180,6 +1180,12 @@ adminExtensionSettings:
         "$ref": "../components/responses.yaml#/Forbidden"
       '404':
         "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        description: Settings revision conflict; refresh the current document before retrying.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
       '422':
         description: Unknown setting key or invalid settings payload.
         content:
@@ -1187,7 +1193,11 @@ adminExtensionSettings:
             schema:
               "$ref": "../schemas/common.yaml#/ApiErrorResponse"
       '503':
-        description: Plugin restart failed; reason extension.settings_rollback_failed means restoring the previous settings also failed and requires operator intervention.
+        description: >-
+          Safe restart preflight failed before persistence, or settings were
+          persisted but the enabled plugin failed to restart. Stable reasons
+          distinguish extension.settings_restart_unavailable from
+          extension.settings_restart_failed.
         content:
           application/json:
             schema:
@@ -1211,8 +1221,18 @@ adminExtensionSettingsReset:
         "$ref": "../components/responses.yaml#/Forbidden"
       '404':
         "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        description: Settings revision conflict; refresh the current document before retrying.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
       '503':
-        description: Plugin restart failed; reason extension.settings_rollback_failed means restoring the previous settings also failed and requires operator intervention.
+        description: >-
+          Safe restart preflight failed before persistence, or defaults were
+          persisted but the enabled plugin failed to restart. Stable reasons
+          distinguish extension.settings_restart_unavailable from
+          extension.settings_restart_failed.
         content:
           application/json:
             schema:

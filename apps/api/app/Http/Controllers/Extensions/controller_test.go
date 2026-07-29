@@ -58,6 +58,25 @@ func TestMapExtensionSettingsRollbackFailure(t *testing.T) {
 	}
 }
 
+func TestMapExtensionSettingsRestartErrors(t *testing.T) {
+	tests := []struct {
+		err    error
+		status int
+		reason string
+	}{
+		{err: extensions.ErrSettingsRevisionConflict, status: http.StatusConflict, reason: extensions.CodeSettingsRevisionConflict},
+		{err: extensions.ErrSettingsRestartUnavailable, status: http.StatusServiceUnavailable, reason: extensions.CodeSettingsRestartUnavailable},
+		{err: extensions.ErrSettingsRestartFailed, status: http.StatusServiceUnavailable, reason: extensions.CodeSettingsRestartFailed},
+	}
+	for _, test := range tests {
+		mapped := mapExtensionError(errors.Join(test.err, errors.New("private runtime detail")))
+		fiberErr, ok := mapped.(*fiber.Error)
+		if !ok || fiberErr.Code != test.status || fiberErr.Message != test.reason {
+			t.Fatalf("mapping %q = %#v", test.reason, mapped)
+		}
+	}
+}
+
 func TestMapLifecycleErrorDoesNotExposeInternalFailure(t *testing.T) {
 	mapped := mapExtensionError(errors.Join(
 		extensions.ErrLifecycleCoordinatorActionFailed,

@@ -883,6 +883,12 @@ func mapExtensionError(err error) error {
 		return fiber.NewError(fiber.StatusNotFound, extensions.CodeNotFound)
 	case errors.Is(err, extensions.ErrExtensionDisabled):
 		return fiber.NewError(fiber.StatusConflict, extensions.CodeExtensionDisabled)
+	case errors.Is(err, extensions.ErrSettingsRevisionConflict):
+		return fiber.NewError(fiber.StatusConflict, extensions.CodeSettingsRevisionConflict)
+	case errors.Is(err, extensions.ErrSettingsRestartUnavailable):
+		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodeSettingsRestartUnavailable)
+	case errors.Is(err, extensions.ErrSettingsRestartFailed):
+		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodeSettingsRestartFailed)
 	case errors.Is(err, extensions.ErrSettingsRollbackFailed):
 		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodeSettingsRollbackFailed)
 	case errors.Is(err, extensions.ErrSettingsActionInvalid):

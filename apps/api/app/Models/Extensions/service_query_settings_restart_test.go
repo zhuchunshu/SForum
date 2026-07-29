@@ -83,7 +83,7 @@ func TestLegacyQuerySettingsRequireRuntimeBeforeStoreMutation(t *testing.T) {
 	}
 }
 
-func TestLifecycleV2QuerySettingsFailClosedBeforeStoreMutation(t *testing.T) {
+func TestLifecycleV2QuerySettingsRequireLifecycleCoordinatorBeforeStoreMutation(t *testing.T) {
 	item := querySettingsRestartExtension(t, legacyQueryServiceExtension)
 	item.Manifest.Lifecycle = &ManifestLifecycle{ContractVersion: item.ID + ".lifecycle@1"}
 	store := newFakeExtensionStore(map[string]Extension{item.ID: item})
@@ -94,13 +94,13 @@ func TestLifecycleV2QuerySettingsFailClosedBeforeStoreMutation(t *testing.T) {
 	_, err := service.UpdateSettings(t.Context(), extensionManager(), item.ID, UpdateSettingsInput{
 		Values: map[string]string{"name": "after"},
 	}, "zh-CN")
-	if !errors.Is(err, ErrRuntimeQuerySettingsRestartUnavailable) || store.replaceCalls != 0 ||
+	if !errors.Is(err, ErrSettingsRestartUnavailable) || store.replaceCalls != 0 ||
 		boundary.prepareCalls != 0 || boundary.restartCalls != 0 || store.settings[item.ID]["name"] != "before" {
 		t.Fatalf("Lifecycle V2 Query settings did not fail closed: err=%v calls=%d boundary=%#v", err, store.replaceCalls, boundary)
 	}
 }
 
-func TestLifecycleV2SettingsWithoutQueryFailClosedBeforeStoreMutation(t *testing.T) {
+func TestLifecycleV2SettingsWithoutQueryRequireLifecycleCoordinatorBeforeStoreMutation(t *testing.T) {
 	for _, operation := range []string{"update", "reset"} {
 		t.Run(operation, func(t *testing.T) {
 			item := installedExtension("lifecycle-settings.plugin", TypePlugin, ManifestBackend{
@@ -122,7 +122,7 @@ func TestLifecycleV2SettingsWithoutQueryFailClosedBeforeStoreMutation(t *testing
 			} else {
 				_, err = service.ResetSettings(t.Context(), extensionManager(), item.ID, "zh-CN")
 			}
-			if !errors.Is(err, ErrRuntimeSettingsRestartUnavailable) || store.replaceCalls != 0 ||
+			if !errors.Is(err, ErrSettingsRestartUnavailable) || store.replaceCalls != 0 ||
 				store.settings[item.ID]["name"] != "before" || len(runtime.started) != 0 || len(runtime.stopped) != 0 {
 				t.Fatalf("Lifecycle V2 %s crossed fail-closed preflight: err=%v store=%#v runtime=%#v", operation, err, store, runtime)
 			}
