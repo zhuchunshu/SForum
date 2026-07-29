@@ -6,6 +6,8 @@ import (
 
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
+
+	platformversion "github.com/zhuchunshu/sforum/apps/api/version"
 )
 
 type makeOptions struct {
@@ -29,10 +31,13 @@ type makeOptions struct {
 
 func newRootCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "sforum",
-		Short: "SForum developer console",
+		Use:     "sforum",
+		Short:   "SForum developer console",
+		Version: platformversion.Summary(),
 	}
+	cmd.SetVersionTemplate("{{.Version}}\n")
 	cmd.AddCommand(
+		newVersionCommand(),
 		newMakeCommand("plugin"),
 		newMakeCommand("theme"),
 		newSeedCommand(),
@@ -43,6 +48,17 @@ func newRootCommand() *cobra.Command {
 		newDevCleanupOrphanPluginsCommand(),
 	)
 	return cmd
+}
+
+func newVersionCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "version",
+		Short: "Print SForum build information",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, _ []string) {
+			cmd.Println(platformversion.Summary())
+		},
+	}
 }
 
 func newMakeCommand(kind string) *cobra.Command {

@@ -600,6 +600,12 @@
       "runtime": {
         "title": "系统运行状态",
         "description": "API 进程、Worker 心跳、队列积压与数据库连接池状态。",
+        "commit": "构建提交",
+        "builtAt": "构建时间",
+        "goVersion": "Go 版本",
+        "dirty": "有本地修改",
+        "unavailable": "暂无数据",
+        "source": "查看 SForum 源代码",
         "uptime": "运行时间",
         "worker": "后台 Worker",
         "workerOk": "正常（{age}s 前）",
@@ -2047,7 +2053,7 @@
         "rejectDescription": "这会拒绝扩展 {extension} 向 {role} 用户组建议的 {permission}，不会授予任何权限。",
         "approvedToast": "权限映射已批准并应用。",
         "rejectedToast": "权限映射已拒绝。",
-        "stale": "该扩展制品已不再处于活动状态，请刷新列表后重新审批。",
+        "stale": "该扩展制品已不再处于活动状态，无法批准；如无需采纳此建议，可将其拒绝并关闭。",
         "revisionConflict": "审批记录在打开后已发生变化，请刷新后重试。",
         "targetUnavailable": "目标用户组或权限目录已不可用。",
         "status": {

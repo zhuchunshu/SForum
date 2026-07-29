@@ -10,6 +10,12 @@ helpers.
 
 Initial identity foundation is implemented.
 
+- Extension permission role suggestions preserve immutable review history.
+  Approval requires the exact active plugin artifact, live permission
+  declaration/catalog, enabled target role, `role.manage`, CAS, grant evidence,
+  and audit. Rejection remains actor-bound and audited but does not consume
+  extension authority, so an authorized operator can close a pending suggestion
+  after its artifact is disabled, uninstalled, missing, or superseded.
 - GitHub social login V1 is **active; R1-R7 remediation complete, independent re-review requested**
   (2026-07-27). One protected built-in plugin, `sforum.auth-github`, is
   implemented; a fresh independent review remains before release
@@ -198,7 +204,15 @@ Initial identity foundation is implemented.
   operations, `extension.restart` audit, and active Identity Registry revision
   7 for exact version id `15357`; the previous
   `extension lifecycle registry publication exact fence conflict` no longer
-  occurs.
+  occurs. **Evidence output hardening (2026-07-29):** the isolated external-auth
+  packet keeps credential login as an assertion-only operation with no returned
+  evidence and records only a literal verified marker after success; credential
+  setup records explicit status and empty-response proof. Its printable schema
+  rejects password-named keys and checks the actual submitted secret values, so
+  credentials and full credential-endpoint responses cannot become part of the
+  persisted or logged evidence contract. The exact validated evidence document
+  is then written and SHA-256 checksummed for reproducibility; this digest is
+  not used for credential derivation, verification, or storage.
 
 - PostgreSQL migrations create users, credentials, roles, permissions, role
   assignments, and audit events.

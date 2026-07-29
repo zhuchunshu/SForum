@@ -3,9 +3,11 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SFORUM_VERSION="${1:-}"
+EXPECTED_VERSION="${2:-}"
+EXPECTED_COMMIT="${3:-}"
 
-if [[ -z "$SFORUM_VERSION" ]]; then
-  echo "Usage: scripts/ci/release-smoke.sh IMAGE_TAG" >&2
+if [[ -z "$SFORUM_VERSION" || -z "$EXPECTED_VERSION" || -z "$EXPECTED_COMMIT" ]]; then
+  echo "Usage: scripts/ci/release-smoke.sh IMAGE_TAG EXPECTED_VERSION EXPECTED_COMMIT" >&2
   exit 2
 fi
 
@@ -43,6 +45,17 @@ cleanup() {
 trap cleanup EXIT
 
 "${compose[@]}" pull migrate api worker web
+
+expected_summary="SForum $EXPECTED_VERSION (${EXPECTED_COMMIT:0:12})"
+for service in api worker migrate; do
+  binary="sforum-$service"
+  actual_summary="$("${compose[@]}" run --rm -T --no-deps "$service" "$binary" --version)"
+  if [[ "$actual_summary" != "$expected_summary" ]]; then
+    echo "$service build identity mismatch: got '$actual_summary', want '$expected_summary'" >&2
+    exit 1
+  fi
+done
+
 "${compose[@]}" up -d postgres redis
 "${compose[@]}" run --rm -T migrate
 "${compose[@]}" up -d api worker web

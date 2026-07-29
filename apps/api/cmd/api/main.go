@@ -12,9 +12,13 @@ import (
 
 	"github.com/zhuchunshu/sforum/apps/api/bootstrap"
 	"github.com/zhuchunshu/sforum/apps/api/config"
+	platformversion "github.com/zhuchunshu/sforum/apps/api/version"
 )
 
 func main() {
+	if platformversion.PrintIfRequested(os.Stdout, os.Args[1:]) {
+		return
+	}
 	cfg := config.Load()
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: cfg.LogLevel,
@@ -45,9 +49,11 @@ type productionAPILifecycle struct {
 
 func (lifecycle *productionAPILifecycle) Listen() error {
 	if lifecycle.logger != nil {
+		build := platformversion.Get()
 		lifecycle.logger.Info(
 			"starting api server", "addr", lifecycle.api.Addr,
 			"env", lifecycle.cfg.AppEnv, "locale", lifecycle.cfg.AppLocale,
+			"version", build.Version, "commit", build.Commit,
 		)
 	}
 	// air 热重载存在新旧进程端口交接窗口；对 EADDRINUSE 做短暂重试。

@@ -362,8 +362,20 @@ func TestPostgresStoreDecideRoleSuggestionApproveRejectAndGuards(t *testing.T) {
 	if _, err := fixture.store.DecideRoleSuggestion(fixture.ctx, DecideRoleSuggestionInput{
 		ID: staleID, ExpectedRevision: 1, ApprovalState: RoleSuggestionApproved, ActorUserID: fixture.actorID,
 	}); !errors.Is(err, ErrStale) {
-		t.Fatalf("stale exact-artifact decision error=%v", err)
+		t.Fatalf("stale exact-artifact approval error=%v", err)
 	}
+	staleRejected, err := fixture.store.DecideRoleSuggestion(fixture.ctx, DecideRoleSuggestionInput{
+		ID: staleID, ExpectedRevision: 1, ApprovalState: RoleSuggestionRejected, ActorUserID: fixture.actorID,
+	})
+	if err != nil {
+		t.Fatalf("reject stale exact-artifact suggestion: %v", err)
+	}
+	if staleRejected.ApprovalState != RoleSuggestionRejected || staleRejected.Revision != 2 ||
+		staleRejected.Applied || staleRejected.DecisionAuditEventID <= 0 {
+		t.Fatalf("stale rejected suggestion = %#v", staleRejected)
+	}
+	fixture.assertAudit(t, staleRejected.DecisionAuditEventID, staleRejected,
+		"identity.role_suggestion.reject", boolExpectation(false), false)
 
 	rolePermsAfter := fixture.countRolePermissions(t)
 	if rolePermsAfter != rolePermsBefore+1 {

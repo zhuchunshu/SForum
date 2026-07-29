@@ -11,6 +11,11 @@
   candidate Compose smoke, verified tag promotion, and GitHub Release creation.
 - Added `compose.release.yaml` and `deploy.sh --version vX.Y.Z`; release deploys
   pull one exact version and never rebuild application images locally.
+- Added one build-identity authority for API, worker, migrator, and developer
+  CLI version output. Release images inject the tag, exact commit, and commit
+  timestamp; Core and Web use that same version, shown once beside the SForum
+  brand in the admin sidebar. The protected overview runtime card exposes the
+  remaining commit, build, and process diagnostics.
 - Production Compose now passes `IDENTITY_SUBJECT_HMAC_SECRET`, internal
   PostgreSQL defaults to the actual non-TLS Compose network, and the API image
   includes the protected Web Push plugin.
@@ -66,11 +71,55 @@
   uses the fixed 256-item publication limit instead of adding two manifest
   slice lengths; the existing fail-closed output limit is covered by a new
   over-limit regression test.
+- Resolved CodeQL alert #17 (`go/allocation-size-overflow`) in the in-memory
+  SettingsLifecycle CAS store. Cloning now preallocates exactly `len(values)`;
+  Go grows the map only when a missing revision must be added, avoiding the
+  unnecessary `len(values)+1` overflow expression without mutating caller
+  input or changing revision behavior.
+- Resolved CodeQL alerts #18-#21 (`go/bad-redirect-check`) with explicit,
+  query-recognizable network-path guards. Route declarations, normalized
+  request paths, and final redirect `Location` values now reject `/` or `\\`
+  in the second byte; route-mutation JSON pointers apply the same rule because
+  empty or backslash-prefixed root tokens are never valid mutable fields.
+- Remediated CodeQL alert #4 (`js/clear-text-logging`) in the isolated
+  external-auth evidence generator. Credential login is now assertion-only and
+  returns no evidence; a literal verified marker is recorded only after all
+  login/session assertions pass. Credential setup likewise records only status
+  and empty-response proof. The printable evidence schema uses
+  credential-neutral field names and rejects any password-named output key
+  plus the actual submitted password and client-secret values before hashing,
+  writing, or logging. Submitted credentials remain confined to request
+  payloads.
+- Resolved CodeQL alert #3 (`js/incomplete-sanitization`) in the V3 catalog
+  generator. Route methods already come from the generator's fixed registration
+  enum, so an explicit identity map now maps `All` from `*` to `all`, assigns
+  each ordinary method its stable lowercase identity, and rejects unsupported
+  or wildcard-shaped values. Stable route IDs no longer misuse a
+  single-occurrence string replacement as sanitization.
+- Remediated CodeQL alert #2 (`js/insufficient-password-hash`) at the same
+  external-auth evidence boundary as alert #4. The query's two modeled sources
+  were calls to the former `loginPassword`; credential checks are now
+  assertion-only and their results do not flow into evidence. The script
+  constructs one final evidence document, rejects its actual submitted secret
+  values, then writes and SHA-256 checksums those exact validated bytes solely
+  for artifact reproducibility, never credential derivation or storage.
+- Resolved CodeQL alert #1 (`js/reflected-xss`) in the Nuxt plugin-route proxy
+  integration fixture. The test server no longer echoes request method, query,
+  or body into its HTTP response. It captures those values only in server-side
+  test state, while returning fixed `text/plain` content with `nosniff`.
+  Active-content query/body samples prove exact request forwarding without
+  reflection; production trusted-plugin response bytes remain unmodified.
 
 ## Decisions
 
 - GitHub publishes artifacts but never deploys to operator-owned hosts.
 - Stable aliases move only after scan and real runtime smoke pass.
+- Git tags are the release-version authority; deterministic build time is the
+  commit timestamp. Core, Web, and every shipped Go process use one version;
+  local builds display `dev-<commit5>` when Git metadata exists (otherwise
+  `dev`), and release builds replace it from the tag.
+- Full build identity remains behind the existing `admin.access` policy;
+  operator `APP_NAME` branding does not redefine SForum program identity.
 - See `decisions/2026-07-29-ghcr-multi-platform-release-pipeline.md`.
 
 ## Verification
@@ -79,6 +128,11 @@
   config/merge (all four application services had `build=none`), Go build,
   Nuxt typecheck, Nuxt production build, architecture validation, the focused
   Route Registry test, and the focused taxonomy navigation test.
+- Build-identity follow-up passed focused Go package/command tests, admin
+  overview Bun tests, OpenAPI reference validation, release-smoke shell syntax,
+  `git diff --check`, and a full Nuxt production build. A locally injected
+  `2.8.0` binary printed the expected
+  `SForum 2.8.0 (0123456789ab)` summary.
 - After the dependency remediation, `govulncheck ./...` passed independently
   for Core and all six protected built-in plugin modules with zero reachable
   vulnerabilities. The only module-level advisory is the unmaintained
@@ -114,6 +168,32 @@
   strict rejection of entry names containing embedded `..`.
 - The focused public-asset allocation regression, full `Models/Extensions`
   package, and focused `go vet` passed after resolving alerts #15/#16.
+- The focused missing-revision CAS regression, full `SettingsLifecycle`
+  package, and focused `go vet` passed after resolving alert #17.
+- The focused network-path and JSON Pointer regressions, complete `Routes`
+  package, and focused `go vet` passed after resolving alerts #18-#21.
+- `node --check` and the focused credential-output schema regression passed for
+  the external-auth evidence generator after remediating alert #4; `git diff
+  --check` also passed for the touched files.
+- The focused V3 route-method identity regression and generator syntax check
+  passed after resolving alert #3. It covers every admitted method plus empty,
+  repeated-wildcard, mixed-wildcard, and lowercase rejection. The complete
+  generator drift check and V3 P0 validator remain blocked by unrelated stable
+  identity drift already present at the scanned commit: first
+  `POST /api/v1/admin/site/brand-assets`, and on the preceding baseline
+  `GET /api/v1/admin/site/navigation`.
+- The external-auth evidence syntax and exact-document boundary regressions
+  passed after remediating alert #2. They verify that the old modeled password
+  sources are absent, the submitted-secret checks precede the digest call, and
+  the writer hashes the same validated bytes that it persists.
+- The focused Bun plugin-route proxy suite passed after resolving alert #1,
+  including active-content request forwarding, fixed non-reflective response,
+  `text/plain`, and `nosniff` assertions. Web TypeScript checking completed
+  without diagnostics, and `git diff --check` passed for this boundary.
+- Security run `30407889823` completed successfully at commit `4de052011`;
+  CodeQL automatically marked Zip Slip alert #12 and allocation alerts
+  #15/#16 fixed. Alerts #13/#14 remain dismissed with documented false-positive
+  reasoning.
 - A full repository gate rerun reached the PostgreSQL integration suite but was
   interrupted by one transient migration error (`could not open relation with
   OID`) in `TestNotificationReferencePluginEmitsThroughRealBroker`. The exact
@@ -132,16 +212,25 @@
   linked to `zhuchunshu/SForum`.
 - Make the CI and Security checks required after the initial `main` baseline is
   green.
-- Push the Zip Slip boundary change and confirm CodeQL alert #12 closes on the
-  next scan; it remains open remotely until that scan observes this code.
-- Push the public-asset allocation change and confirm CodeQL alerts #15/#16
-  close on the next scan; they remain open remotely until that scan observes
-  this code.
-- Review CodeQL alert #17 (settings lifecycle clone allocation size)
-  separately, after operator confirmation.
+- Push the SettingsLifecycle and route-boundary changes, then confirm CodeQL
+  alerts #17-#21 close on the following scan.
+- Push the external-auth evidence change and confirm alert #4 closes on the
+  following scan. Its credential-neutral source names may also remove alert #2,
+  but that remains a separate remote-scan result rather than a local closure
+  claim.
+- Push the V3 catalog generator change and confirm alert #3 closes on the
+  following scan.
+- Confirm alert #2 closes with alert #4 after the external-auth evidence change
+  reaches CodeQL; do not dismiss either alert before the rescan.
+- Push the plugin-route fixture change and confirm alert #1 closes on the next
+  CodeQL scan. All currently open CodeQL findings are then locally addressed.
+- Complete the admin overview desktop and `390x844` visual check; automated
+  browser QA was deliberately left to the operator for this follow-up.
 
 ## Open Questions
 
 - Automatic recording of the previously deployed image digest and guarded
   one-click application rollback remain open. Database down-migration is not
   implied by image rollback.
+- Repository license and legal copyright holder remain undecided. Do not infer
+  either value from the GitHub owner or package module path.

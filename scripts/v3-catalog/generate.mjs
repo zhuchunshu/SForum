@@ -3,6 +3,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { dirname, extname, join, relative, resolve } from 'node:path'
+import { routeMethodIdentity } from './route-method-identity.mjs'
 import { buildTraceability } from './traceability.mjs'
 import { currentBackendSurfaces, extensionSurfaceMatrix, matrixFamilies } from './surfaces.mjs'
 
@@ -324,7 +325,8 @@ function discoverRoutes() {
   for (const item of items) idCount.set(`${item.module}.${snake(item.handler)}`, (idCount.get(`${item.module}.${snake(item.handler)}`) || 0) + 1)
   return items.map(item => {
     const base = `${item.module}.${snake(item.handler)}`
-    const suffix = idCount.get(base) > 1 ? `.${item.method.toLowerCase().replace('*', 'all')}` : ''
+    const methodIdentity = routeMethodIdentity(item.method)
+    const suffix = idCount.get(base) > 1 ? `.${methodIdentity}` : ''
     const [access, policy] = routePolicy(item)
     return {
       id: `core.route.${base}${suffix}`,

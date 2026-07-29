@@ -38,6 +38,7 @@ jobs:
       stable: ${{ steps.version.outputs.stable }}
       sha: ${{ steps.version.outputs.sha }}
       commit: ${{ steps.version.outputs.commit }}
+      build_time: ${{ steps.version.outputs.build_time }}
     steps:
       - name: Check out release tag
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -59,11 +60,13 @@ jobs:
             stable=true
           fi
           commit="$(git rev-parse HEAD)"
+          build_time="$(git show -s --format=%cI HEAD)"
           {
             echo "tag=$REQUESTED_TAG"
             echo "version=${REQUESTED_TAG#v}"
             echo "stable=$stable"
             echo "commit=$commit"
+            echo "build_time=$build_time"
             echo "sha=sha-$commit"
           } >> "$GITHUB_OUTPUT"
 
@@ -135,6 +138,10 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            SFORUM_VERSION=${{ needs.prepare.outputs.version }}
+            SFORUM_COMMIT=${{ needs.prepare.outputs.commit }}
+            SFORUM_BUILD_TIME=${{ needs.prepare.outputs.build_time }}
           cache-from: type=gha,scope=release-${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=release-${{ matrix.image }}
           provenance: mode=max
@@ -182,7 +189,11 @@ jobs:
       - name: Start exact published images
         env:
           SFORUM_REGISTRY: ${{ env.REGISTRY }}/${{ github.repository_owner }}
-        run: ./scripts/ci/release-smoke.sh "${{ needs.prepare.outputs.sha }}"
+        run: >-
+          ./scripts/ci/release-smoke.sh
+          "${{ needs.prepare.outputs.sha }}"
+          "${{ needs.prepare.outputs.version }}"
+          "${{ needs.prepare.outputs.commit }}"
 
   promote:
     name: Promote / ${{ matrix.image }}

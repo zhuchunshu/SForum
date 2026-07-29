@@ -600,6 +600,12 @@
       "runtime": {
         "title": "System runtime status",
         "description": "API process, worker heartbeat, queue lag, and database pool status.",
+        "commit": "Build commit",
+        "builtAt": "Build time",
+        "goVersion": "Go version",
+        "dirty": "Local changes",
+        "unavailable": "Unavailable",
+        "source": "View SForum source code",
         "uptime": "Uptime",
         "worker": "Background worker",
         "workerOk": "Healthy ({age}s ago)",
@@ -2047,7 +2053,7 @@
         "rejectDescription": "This rejects {permission} from {extension} for the {role} group and grants nothing.",
         "approvedToast": "Permission mapping approved and applied.",
         "rejectedToast": "Permission mapping rejected.",
-        "stale": "This extension artifact is no longer active. Refresh the list before reviewing it.",
+        "stale": "This extension artifact is no longer active and cannot be approved. Reject it to close the recommendation if it is no longer needed.",
         "revisionConflict": "This review changed while it was open. Refresh before trying again.",
         "targetUnavailable": "The target group or permission catalog is no longer available.",
         "status": {

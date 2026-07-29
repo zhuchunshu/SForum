@@ -101,6 +101,9 @@ func TestOverviewReturnsEnvelope(t *testing.T) {
 	if body.Data.Runtime.MemoryBytes == 0 {
 		t.Fatalf("expected runtime memory in payload, got %#v", body.Data.Runtime)
 	}
+	if body.Data.Runtime.Build.Name != "SForum" || body.Data.Runtime.Build.Version == "" {
+		t.Fatalf("expected build identity in payload, got %#v", body.Data.Runtime.Build)
+	}
 }
 
 func newOverviewTestApp(actor identity.Actor, store *overviewHTTPStore) (*fiber.App, *http.Cookie) {

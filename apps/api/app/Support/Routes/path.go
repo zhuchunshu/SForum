@@ -28,7 +28,8 @@ type compiledPath struct {
 
 func compileRoutePath(pattern string) (compiledPath, error) {
 	if pattern == "" || pattern != strings.TrimSpace(pattern) || !strings.HasPrefix(pattern, "/") ||
-		strings.HasPrefix(pattern, "//") || strings.ContainsAny(pattern, "\\?#\x00") || strings.Contains(pattern, "..") {
+		len(pattern) > 1 && (pattern[1] == '/' || pattern[1] == '\\') ||
+		strings.ContainsAny(pattern, "\\?#\x00") || strings.Contains(pattern, "..") {
 		return compiledPath{}, fmt.Errorf("%w: invalid path %q", ErrInvalidRoute, pattern)
 	}
 	if clean := pathpkg.Clean(pattern); clean != pattern {
@@ -111,7 +112,8 @@ func normalizeRequestPath(value string) (string, error) {
 	if index := strings.IndexByte(value, '?'); index >= 0 {
 		value = value[:index]
 	}
-	if value == "" || !strings.HasPrefix(value, "/") || strings.HasPrefix(value, "//") ||
+	if value == "" || !strings.HasPrefix(value, "/") ||
+		len(value) > 1 && (value[1] == '/' || value[1] == '\\') ||
 		strings.ContainsAny(value, "\\#\x00") || strings.Contains(value, "..") {
 		return "", fmt.Errorf("%w: invalid request path", ErrInvalidRoute)
 	}

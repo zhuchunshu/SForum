@@ -150,6 +150,23 @@ func TestRedirectLocationPreservesEscapesAndRejectsNonPathReferences(t *testing.
 	}
 }
 
+func TestRoutePathBoundariesRejectNetworkPathReferences(t *testing.T) {
+	for _, value := range []string{"//evil.example/path", "/\\evil.example/path"} {
+		if _, err := compileRoutePath(value); !errors.Is(err, ErrInvalidRoute) {
+			t.Fatalf("route pattern %q error = %v", value, err)
+		}
+		if _, err := normalizeRequestPath(value); !errors.Is(err, ErrInvalidRoute) {
+			t.Fatalf("request path %q error = %v", value, err)
+		}
+	}
+	if _, err := compileRoutePath("/safe/path"); err != nil {
+		t.Fatalf("safe route pattern rejected: %v", err)
+	}
+	if got, err := normalizeRequestPath("/safe/path?query=1"); err != nil || got != "/safe/path" {
+		t.Fatalf("safe request path = %q, %v", got, err)
+	}
+}
+
 func TestRedirectOutputRemainsHostOwnedAfterModifier(t *testing.T) {
 	registry := NewRegistry()
 	target := coreRoute("core.route.redirect.authority", http.MethodGet, "/canonical")

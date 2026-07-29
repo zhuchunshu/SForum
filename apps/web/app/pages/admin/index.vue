@@ -2,12 +2,12 @@
 import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/admin/useAdminPage'
+import SFAdminOverviewRuntimeCard from '~/components/admin/SFAdminOverviewRuntimeCard.vue'
 import SFAdminOverviewTrendTrio from '~/components/admin/SFAdminOverviewTrendTrio.vue'
 import {
   formatOverviewBytes,
   formatOverviewCount,
   formatOverviewDate,
-  formatOverviewUptime,
   overviewActionTone,
   overviewPercent,
   type AdminOverview,
@@ -84,69 +84,6 @@ const kpiCards = computed(() => {
       meta: t('admin.home.kpi.actions.meta', { reports: formatOverviewCount(data.moderation.openCount + data.moderation.reviewingCount) }),
       icon: 'i-lucide-list-checks',
       tone: actionCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
-    }
-  ]
-})
-
-const runtimeRows = computed(() => {
-  const runtime = overview.value?.runtime
-  if (!runtime) return []
-  const worker = runtime.worker
-  const workerValue = !worker
-    ? t('admin.home.runtime.workerUnavailable')
-    : worker.status === 'ok'
-      ? t('admin.home.runtime.workerOk', { age: formatOverviewCount(worker.ageSeconds ?? 0) })
-      : worker.status === 'stale'
-        ? t('admin.home.runtime.workerStale', { age: formatOverviewCount(worker.ageSeconds ?? 0) })
-        : t('admin.home.runtime.workerUnknown')
-  const lag = runtime.queueLag
-  const lagValue = !lag
-    ? t('admin.home.runtime.queueLagUnavailable')
-    : t('admin.home.runtime.queueLagValue', {
-        waiting: formatOverviewCount(lag.waiting),
-        running: formatOverviewCount(lag.running),
-        failed: formatOverviewCount(lag.failed)
-      })
-  return [
-    {
-      label: t('admin.home.runtime.uptime'),
-      value: formatOverviewUptime(runtime.uptimeSeconds),
-      icon: 'i-lucide-clock-3'
-    },
-    {
-      label: t('admin.home.runtime.worker'),
-      value: workerValue,
-      icon: worker?.stale === false ? 'i-lucide-heart-pulse' : 'i-lucide-heart-off',
-      tone: worker?.status === 'ok'
-        ? 'text-emerald-600 dark:text-emerald-400'
-        : worker?.status === 'stale'
-          ? 'text-amber-600 dark:text-amber-400'
-          : 'text-slate-500'
-    },
-    {
-      label: t('admin.home.runtime.queueLag'),
-      value: lagValue,
-      icon: 'i-lucide-layers'
-    },
-    {
-      label: t('admin.home.runtime.goroutines'),
-      value: formatOverviewCount(runtime.goroutineCount),
-      icon: 'i-lucide-git-branch'
-    },
-    {
-      label: t('admin.home.runtime.gc'),
-      value: formatOverviewCount(runtime.gcCount),
-      icon: 'i-lucide-repeat-2'
-    },
-    {
-      label: t('admin.home.runtime.goSys'),
-      value: formatOverviewBytes(runtime.sysBytes ?? 0),
-      icon: 'i-lucide-cpu'
-    },
-    {
-      label: t('admin.home.runtime.database'),
-      value: `${formatOverviewCount(runtime.database.acquiredConnections)} / ${formatOverviewCount(runtime.database.maxConnections)}`,
-      icon: 'i-lucide-database'
     }
   ]
 })
@@ -353,39 +290,7 @@ function extensionWidgetColor(widget: AdminOverviewExtensionWidget) {
       />
     </UCard>
 
-    <!-- 运行状态与健康度等同排，避免再占一整行空壳 -->
-    <div class="grid gap-6 xl:grid-cols-2 2xl:grid-cols-4">
-      <UCard class="elegant-card border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
-        <template #header>
-          <div class="flex items-center justify-between gap-3">
-            <div>
-              <h3 class="text-base font-bold text-slate-900 dark:text-white">
-                {{ t('admin.home.runtime.title') }}
-              </h3>
-              <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
-                {{ t('admin.home.runtime.description') }}
-              </p>
-            </div>
-            <UIcon name="i-lucide-server" class="size-5 shrink-0 text-slate-400 dark:text-zinc-500" />
-          </div>
-        </template>
-
-        <div class="space-y-2.5">
-          <div v-for="row in runtimeRows" :key="row.label" class="flex items-center gap-3 rounded-md border border-slate-100 px-3 py-2.5 dark:border-zinc-800">
-            <span class="grid size-8 shrink-0 place-items-center rounded-md bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300">
-              <UIcon :name="row.icon" class="size-4" />
-            </span>
-            <span class="min-w-0 flex-1">
-              <span class="block truncate text-xs text-slate-500 dark:text-zinc-400">{{ row.label }}</span>
-              <span
-                class="block truncate text-sm font-bold"
-                :class="row.tone || 'text-slate-900 dark:text-white'"
-              >{{ row.value }}</span>
-            </span>
-          </div>
-        </div>
-      </UCard>
-
+    <div class="grid gap-6 xl:grid-cols-3">
       <UCard class="elegant-card border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
         <template #header>
           <h3 class="text-base font-bold text-slate-900 dark:text-white">
@@ -541,5 +446,7 @@ function extensionWidgetColor(widget: AdminOverviewExtensionWidget) {
         </NuxtLink>
       </div>
     </UCard>
+
+    <SFAdminOverviewRuntimeCard :runtime="overview.runtime" />
   </div>
 </template>

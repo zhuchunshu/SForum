@@ -540,6 +540,7 @@ func routeMutationStatus(value any) (int, error) {
 func validRouteMutationPointer(value string) bool {
 	if value == "" || value != strings.TrimSpace(value) ||
 		len(value) > extensionmanifest.RouteMutableFieldMaximumBytes || value[0] != '/' ||
+		len(value) > 1 && (value[1] == '/' || value[1] == '\\') ||
 		strings.Count(value, "/") > extensionmanifest.RouteMutableFieldMaximumTokens {
 		return false
 	}

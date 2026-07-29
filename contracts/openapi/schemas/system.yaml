@@ -199,6 +199,7 @@ AdminOverviewRuntime:
   required:
   - startedAt
   - uptimeSeconds
+  - build
   - memoryBytes
   - heapAllocBytes
   - heapSysBytes
@@ -215,6 +216,8 @@ AdminOverviewRuntime:
     uptimeSeconds:
       type: integer
       format: int64
+    build:
+      "$ref": "#/AdminOverviewBuildInfo"
     memoryBytes:
       type: integer
       format: int64
@@ -269,6 +272,39 @@ AdminOverviewRuntime:
       "$ref": "#/AdminOverviewWorkerRuntime"
     queueLag:
       "$ref": "#/AdminOverviewQueueLag"
+AdminOverviewBuildInfo:
+  type: object
+  required:
+  - name
+  - version
+  - goVersion
+  - dirty
+  - sourceUrl
+  properties:
+    name:
+      type: string
+      examples:
+      - SForum
+    version:
+      type: string
+      description: Unified SForum version shared by Core, Web, and release artifacts.
+      examples:
+      - 2.8.0
+    commit:
+      type: string
+      description: Full Git commit when available from release injection or Go VCS metadata.
+    builtAt:
+      type: string
+      format: date-time
+      description: Deterministic release commit time when available.
+    goVersion:
+      type: string
+    dirty:
+      type: boolean
+      description: Whether Go VCS metadata reports local source modifications.
+    sourceUrl:
+      type: string
+      format: uri
 AdminOverviewWorkerRuntime:
   type: object
   required:

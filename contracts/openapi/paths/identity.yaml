@@ -263,10 +263,11 @@ roleSuggestions:
   get:
     summary: List extension permission role suggestions
     description: |
-      Returns Host-reviewable permission recommendations from exact active
-      extension artifacts. This endpoint accepts only a browser session cookie
-      from an active actor with `role.manage`; personal access tokens are not
-      review authority. Installation and enablement never approve a suggestion.
+      Returns Host-reviewable permission recommendations, including pending
+      records whose exact extension artifact later became inactive. This endpoint
+      accepts only a browser session cookie from an active actor with
+      `role.manage`; personal access tokens are not review authority. Installation
+      and enablement never approve a suggestion.
     operationId: listExtensionRoleSuggestions
     security:
     - cookieAuth: []
@@ -325,8 +326,10 @@ roleSuggestionDecision:
       Performs one actor-bound Host decision with optimistic concurrency.
       Approval adds only the declared permission mapping to the target role and
       records immutable grant and audit evidence in the same transaction.
-      Rejection grants nothing. The repository rechecks the live actor,
-      permission catalog, exact active extension artifact, and target role.
+      Rejection grants nothing and may close a pending recommendation after its
+      exact artifact becomes inactive. The repository always rechecks the live
+      actor; approval additionally rechecks the permission catalog, exact active
+      extension artifact, declaration, and target role.
     operationId: decideExtensionRoleSuggestion
     security:
     - cookieAuth: []
@@ -358,7 +361,7 @@ roleSuggestionDecision:
       '404':
         "$ref": "../components/responses.yaml#/NotFound"
       '409':
-        description: The revision, exact artifact, permission catalog, or target role changed; refresh before retrying.
+        description: The revision changed, or an approval target, catalog entry, declaration, or exact artifact is unavailable.
         content:
           application/json:
             schema:

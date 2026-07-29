@@ -3,6 +3,8 @@ package adminoverview
 import (
 	"context"
 	"time"
+
+	platformversion "github.com/zhuchunshu/sforum/apps/api/version"
 )
 
 const (
@@ -55,8 +57,9 @@ type StoreSnapshot struct {
 }
 
 type RuntimeStats struct {
-	StartedAt     time.Time `json:"startedAt"`
-	UptimeSeconds int64     `json:"uptimeSeconds"`
+	StartedAt     time.Time                 `json:"startedAt"`
+	UptimeSeconds int64                     `json:"uptimeSeconds"`
+	Build         platformversion.BuildInfo `json:"build"`
 	// MemoryBytes 是 API 进程常驻内存（RSS，字节）。主 KPI；不再使用 Go MemStats.Sys。
 	MemoryBytes uint64 `json:"memoryBytes"`
 	// HeapAllocBytes 是当前存活堆对象（Go HeapAlloc）。

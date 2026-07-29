@@ -189,7 +189,14 @@ Decision: `../decisions/2026-07-22-external-extension-source-roots.md`.
   wrap/replace, global middleware, uploads, opaque streams, SSE, and WebSocket
   on declared public/admin/API methods and paths. Final redirect output accepts
   only absolute-path references without query, fragment, CR/LF, or backslash;
-  this remains enforced even for restored or otherwise prebuilt plans.
+  declaration paths, normalized request paths, and final `Location` values
+  explicitly reject a second `/` or `\\` so browser network-path
+  normalization remains impossible even for restored or prebuilt plans.
+- Nuxt plugin-route proxy integration fixtures capture forwarded method, query,
+  and body server-side and return a fixed `text/plain` + `nosniff` response;
+  attacker-shaped request material is never reflected by the test HTTP server.
+  Production proxying still preserves the trusted plugin's declared response
+  bytes and media type rather than applying a Host HTML sanitizer.
 - Core-owned handlers keep authoritative policy checks. A trusted replacement
   handler or custom guard owns only the authorization contract it explicitly
   declares and must remain inspectable/auditable.
@@ -197,7 +204,11 @@ Decision: `../decisions/2026-07-22-external-extension-source-roots.md`.
   handlers, and rollback snapshots must be visible to operators.
 
 Generated author catalogs live under `docs/extensions/catalogs/`; V3 runtime
-catalogs and governance live under `docs/extensions/v3/`.
+catalogs and governance live under `docs/extensions/v3/`. Route discovery uses
+an explicit map for the fixed Fiber registration-method domain; `All` receives
+the stable method identity `all`, ordinary methods have fixed lowercase
+identities, and unsupported or wildcard-shaped values fail closed. Stable
+catalog IDs do not rely on string replacement as sanitization.
 
 ## Host API And Runtime
 

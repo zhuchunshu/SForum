@@ -316,8 +316,12 @@ func (s *PostgresStore) decideRoleSuggestionOnce(
 	if current.Revision != input.ExpectedRevision {
 		return RoleSuggestion{}, ErrRevisionConflict
 	}
-	if err := lockActiveRoleSuggestionArtifact(ctx, tx, current); err != nil {
-		return RoleSuggestion{}, err
+	// Approval consumes live extension authority; rejection only closes a Host
+	// recommendation and must remain possible after disable or uninstall.
+	if approvalState == RoleSuggestionApproved {
+		if err := lockActiveRoleSuggestionArtifact(ctx, tx, current); err != nil {
+			return RoleSuggestion{}, err
+		}
 	}
 	// Actor uses KEY SHARE only and is checked before role_permissions writes so
 	// concurrent role replacement cannot deadlock on users then mappings.

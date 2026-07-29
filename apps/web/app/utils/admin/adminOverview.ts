@@ -40,6 +40,7 @@ export type AdminOverviewQueueLag = {
 export type AdminOverviewRuntime = {
   startedAt: string
   uptimeSeconds: number
+  build: AdminOverviewBuildInfo
   /** Primary KPI: API process RSS (bytes), not Go MemStats.Sys. */
   memoryBytes: number
   heapAllocBytes: number
@@ -60,6 +61,16 @@ export type AdminOverviewRuntime = {
   }
   worker?: AdminOverviewWorkerRuntime
   queueLag?: AdminOverviewQueueLag
+}
+
+export type AdminOverviewBuildInfo = {
+  name: string
+  version: string
+  commit?: string
+  builtAt?: string
+  goVersion: string
+  dirty: boolean
+  sourceUrl: string
 }
 
 export type AdminOverviewCommunity = {
@@ -333,6 +344,22 @@ export function formatOverviewDate(value: string) {
   const minutes = padDatePart(date.getMinutes())
   const seconds = padDatePart(date.getSeconds())
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+}
+
+export function formatOverviewCommit(value: string) {
+  const commit = String(value || '').trim()
+  return commit.length > 12 ? commit.slice(0, 12) : commit
+}
+
+export function formatOverviewVersion(name: string, version: string, commit = '') {
+  const product = String(name || '').trim()
+  const release = String(version || '').trim() || 'dev'
+  const revision = String(commit || '').trim()
+  const displayVersion = release === 'dev' && revision
+    ? `dev-${revision.slice(0, 5)}`
+    : release
+  const prefix = /^\d+\.\d+\.\d+(?:-|$)/.test(release) ? 'v' : ''
+  return `${product} ${prefix}${displayVersion}`.trim()
 }
 
 function trimOneDecimal(value: number) {

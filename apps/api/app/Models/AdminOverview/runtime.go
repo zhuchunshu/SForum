@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	health "github.com/zhuchunshu/sforum/apps/api/app/Support/Health"
+	platformversion "github.com/zhuchunshu/sforum/apps/api/version"
 )
 
 type RuntimeCollector struct {
@@ -81,6 +82,7 @@ func (c RuntimeCollector) Snapshot() RuntimeStats {
 	return RuntimeStats{
 		StartedAt:         c.startedAt,
 		UptimeSeconds:     int64(time.Since(c.startedAt).Seconds()),
+		Build:             platformversion.Get(),
 		MemoryBytes:       memoryBytes,
 		HeapAllocBytes:    stats.HeapAlloc,
 		HeapSysBytes:      stats.HeapSys,

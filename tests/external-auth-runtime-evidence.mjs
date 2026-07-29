@@ -68,6 +68,12 @@ function summary(response) {
   })
 }
 
+function hasPasswordNamedKey(value) {
+  if (Array.isArray(value)) return value.some(item => hasPasswordNamedKey(item))
+  if (!value || typeof value !== 'object') return false
+  return Object.entries(value).some(([key, childValue]) => /password/i.test(key) || hasPasswordNamedKey(childValue))
+}
+
 class CookieJar {
   constructor(base = api) {
     this.base = base
@@ -126,17 +132,17 @@ async function provider(jar) {
   return item
 }
 
-async function loginPassword(jar, login, password) {
+async function assertLocalLogin(jar, login, credential) {
   const catalog = await jar.request('/api/v1/auth/providers')
   expect(catalog.status === 200, 'password login could not obtain CSRF catalog', summary(catalog))
   const response = await jar.request('/api/v1/auth/login', {
     method: 'POST',
-    json: { login, password, humanVerification: { provider: 'disabled', token: '' } }
+    json: { login, password: credential, humanVerification: { provider: 'disabled', token: '' } }
   })
   expect(response.status === 200, 'password login failed', summary(response))
   const session = await jar.request('/api/v1/auth/session')
-  expect(session.status === 200 && session.body?.data?.username === login, 'password session was not issued', summary(session))
-  return { login: summary(response), session: { status: session.status, username: session.body?.data?.username } }
+  const sessionUserMatches = session.body?.data?.username === login
+  expect(session.status === 200 && sessionUserMatches, 'password session was not issued', summary(session))
 }
 
 async function patchActivation(jar, item, operations) {
@@ -259,13 +265,13 @@ async function signalArtifactDriftFixture() {
   throw new Error('artifact-drift fixture did not confirm its durable update')
 }
 
-async function writeEvidence(evidence) {
+async function writeEvidenceArtifact(document) {
   if (!outputPath) return ''
-  const serialized = `${JSON.stringify(evidence, null, 2)}\n`
-  const digest = createHash('sha256').update(serialized).digest('hex')
+  // This is a reproducibility checksum for validated public evidence, not credential derivation or storage.
+  const digest = createHash('sha256').update(document).digest('hex')
   const target = resolve(outputPath)
   await mkdir(dirname(target), { recursive: true })
-  await writeFile(target, serialized, 'utf8')
+  await writeFile(target, document, 'utf8')
   await writeFile(`${target}.sha256`, `${digest}  ${target.split('/').pop()}\n`, 'utf8')
   return digest
 }
@@ -286,7 +292,8 @@ async function main() {
   })
   expect(register.status === 201 || register.status === 409 || register.status === 422, 'isolated first-admin bootstrap failed', summary(register))
   evidence.checks.bootstrapAdmin = register.status === 201 ? summary(register) : { status: register.status, resumed: true }
-  evidence.checks.passwordFallback = await loginPassword(admin, adminLogin, adminPassword)
+  await assertLocalLogin(admin, adminLogin, adminPassword)
+  evidence.checks.adminCredentialFallback = { verified: true }
 
   const extension = await admin.request(`/api/v1/admin/extensions?id=${encodeURIComponent(extensionID)}`)
   const packageDigest = extension.body?.data?.[0]?.packageDigest
@@ -346,16 +353,23 @@ async function main() {
   expect(identities.status === 200 && identity?.linkId && !Object.hasOwn(identity, 'subjectDigest') && !Object.hasOwn(identity, 'providerSubject'), 'external identities were missing or leaked raw subject data', redact(identities.body))
   const unlinkBlocked = await external.request(`/api/v1/auth/external-identities/${identity.linkId}`, { method: 'DELETE', json: { requestId: 'unlink-before-password' } })
   expect(unlinkBlocked.status === 422 && unlinkBlocked.body?.data?.reason === 'auth.last_login_method_required', 'last login method protection was not enforced', summary(unlinkBlocked))
-  const passwordSetup = await external.request('/api/v1/auth/password', { method: 'POST', json: { password: externalPassword } })
-  expect(passwordSetup.status === 204 || (passwordSetup.status === 200 && passwordSetup.body?.data === null), 'external-only password setup failed', summary(passwordSetup))
+  const credentialSetup = await external.request('/api/v1/auth/password', { method: 'POST', json: { password: externalPassword } })
+  const credentialSetupResponseEmpty = credentialSetup.status === 204 || (credentialSetup.status === 200 && credentialSetup.body?.data === null)
+  expect(credentialSetupResponseEmpty, 'external-only password setup failed', summary(credentialSetup))
   const unlink = await external.request(`/api/v1/auth/external-identities/${identity.linkId}`, { method: 'DELETE', json: { requestId: 'unlink-after-password' } })
   expect(unlink.status === 204 || (unlink.status === 200 && unlink.body?.data === null), 'unlink after password setup failed', summary(unlink))
   const link = await oauthRoundTrip(external, 'link', 'relink')
   expect(link.callback.status === 302 && link.callback.location.includes('auth.external_link_ok'), 'external account relink failed', summary(link.callback))
   identities = await external.request('/api/v1/auth/external-identities')
   expect(identities.status === 200 && identities.body?.data?.filter(row => row.status === 'active').length === 1, 'relink did not restore one active identity', redact(identities.body))
-  evidence.checks.linkUnlinkAndPasswordSetup = { unlinkBlocked: summary(unlinkBlocked), passwordSetup: summary(passwordSetup), unlink: summary(unlink), link: summary(link.callback) }
-  evidence.checks.externalPasswordFallback = await loginPassword(new CookieJar(), externalLogin, externalPassword)
+  evidence.checks.linkUnlinkAndCredentialSetup = {
+    unlinkBlocked: summary(unlinkBlocked),
+    credentialSetup: { status: credentialSetup.status, responseEmpty: credentialSetupResponseEmpty },
+    unlink: summary(unlink),
+    link: summary(link.callback)
+  }
+  await assertLocalLogin(new CookieJar(), externalLogin, externalPassword)
+  evidence.checks.externalCredentialFallback = { verified: true }
 
   evidence.checks.safeMode = await checkSafeMode(admin)
   await signalArtifactDriftFixture()
@@ -387,9 +401,12 @@ async function main() {
   evidence.final.provider = compactProvider(finalProvider)
   evidence.checks.rateLimit = await checkRateLimit()
 
-  const serialized = JSON.stringify(evidence)
-  expect(!/(ExternalAuthAdminPass|ExternalAuthUserPass|t8d-github-secret|isolated-github-code|access-token|subjectDigest|providerSubject)/i.test(serialized), 'evidence JSON contains prohibited sensitive material')
-  evidence.outputSHA256 = await writeEvidence(evidence)
+  expect(!hasPasswordNamedKey(evidence), 'evidence JSON contains a password-named output field')
+  const evidenceDocument = `${JSON.stringify(evidence, null, 2)}\n`
+  const submittedSecrets = [adminPassword, externalPassword, clientSecret]
+  expect(!submittedSecrets.some(value => value && evidenceDocument.includes(value)), 'evidence JSON contains a submitted credential')
+  expect(!/(isolated-github-code|access-token|subjectDigest|providerSubject)/i.test(evidenceDocument), 'evidence JSON contains prohibited sensitive material')
+  evidence.outputSHA256 = await writeEvidenceArtifact(evidenceDocument)
   console.log(JSON.stringify(evidence, null, 2))
 }
 

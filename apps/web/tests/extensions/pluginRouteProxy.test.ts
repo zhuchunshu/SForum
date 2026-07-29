@@ -214,7 +214,7 @@ describe('trusted plugin arbitrary-route proxy', () => {
   })
 
   test('proxies matched unsafe bodies and leaves explicit misses to Nuxt', async () => {
-    const actualRequests: Array<{ method?: string, body: string, authorization?: string, probe?: string }> = []
+    const actualRequests: Array<{ method?: string, search: string, body: string, authorization?: string, probe?: string }> = []
     let publicAssetCredentials: { authorization?: string, cookie?: string } = {}
     let retryReadRequests = 0
     const api = createServer(async (request, response) => {
@@ -271,12 +271,15 @@ describe('trusted plugin arbitrary-route proxy', () => {
       const body = Buffer.concat(chunks).toString()
       actualRequests.push({
         method: request.method,
+        search: url.search,
         body,
         authorization: request.headers.authorization,
         probe: request.headers[INTERNAL_ROUTE_PROBE_HEADER] as string | undefined
       })
       response.statusCode = 200
-      response.end(`plugin:${request.method}:${url.search}:${body}`)
+      response.setHeader('Content-Type', 'text/plain; charset=utf-8')
+      response.setHeader('X-Content-Type-Options', 'nosniff')
+      response.end('plugin-response')
     })
     const apiURL = await listen(api)
 
@@ -315,7 +318,9 @@ describe('trusted plugin arbitrary-route proxy', () => {
       expect(missingAsset.headers.get('cache-control')).toBe('no-store')
       expect(missingAsset.headers.get('set-cookie')).toBeNull()
 
-      const pluginResponse = await fetch(`${webURL}/plugin/echo?q=1`, {
+      const pluginSearch = '?q=%3Cscript%3EglobalThis.compromised%3Dtrue%3C%2Fscript%3E'
+      const pluginBody = '<img src=x onerror="globalThis.compromised=true">'
+      const pluginResponse = await fetch(`${webURL}/plugin/echo${pluginSearch}`, {
         method: 'POST',
         headers: {
           authorization: 'Bearer sft_real',
@@ -323,12 +328,14 @@ describe('trusted plugin arbitrary-route proxy', () => {
           [INTERNAL_ROUTE_PROBE_HEADER]: INTERNAL_ROUTE_PROBE_VERSION,
           [INTERNAL_ROUTE_METHOD_HEADER]: 'DELETE'
         },
-        body: 'streamed-body'
+        body: pluginBody
       })
       expect(pluginResponse.status).toBe(200)
-      expect(await pluginResponse.text()).toBe('plugin:POST:?q=1:streamed-body')
+      expect(pluginResponse.headers.get('content-type')).toBe('text/plain; charset=utf-8')
+      expect(pluginResponse.headers.get('x-content-type-options')).toBe('nosniff')
+      expect(await pluginResponse.text()).toBe('plugin-response')
       expect(actualRequests).toEqual([{
-        method: 'POST', body: 'streamed-body', authorization: 'Bearer sft_real', probe: undefined
+        method: 'POST', search: pluginSearch, body: pluginBody, authorization: 'Bearer sft_real', probe: undefined
       }])
 
       const retryReadResponse = await fetch(`${webURL}/plugin/retry-read`)

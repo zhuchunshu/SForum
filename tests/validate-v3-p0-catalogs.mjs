@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { routeMethodIdentity } from '../scripts/v3-catalog/route-method-identity.mjs'
 
 const root = process.cwd()
 
@@ -60,6 +61,26 @@ function validateRouteSource(route) {
   assert(routers.has(registration[1]), `${route.id} source router ${registration[1]} has no discoverable group`)
   const path = normalizeRoutePath('/api/v1', routers.get(registration[1]), registration[3])
   assert(path === route.path, `${route.id} source path ${path} does not match ${route.path}`)
+}
+
+for (const [method, identity] of [
+  ['*', 'all'],
+  ['DELETE', 'delete'],
+  ['GET', 'get'],
+  ['PATCH', 'patch'],
+  ['POST', 'post'],
+  ['PUT', 'put']
+]) {
+  assert(routeMethodIdentity(method) === identity, `${method} route method identity drifted`)
+}
+for (const method of ['', '**', 'GET*', 'get']) {
+  let rejected = false
+  try {
+    routeMethodIdentity(method)
+  } catch {
+    rejected = true
+  }
+  assert(rejected, `unsupported route method ${JSON.stringify(method)} was accepted`)
 }
 
 const generated = runGenerator('--check')

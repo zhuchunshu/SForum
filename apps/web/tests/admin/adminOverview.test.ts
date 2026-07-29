@@ -3,8 +3,10 @@ import { describe, expect, test } from 'bun:test'
 import {
   formatOverviewBytes,
   formatOverviewCount,
+  formatOverviewCommit,
   formatOverviewDate,
   formatOverviewTrendDayCount,
+  formatOverviewVersion,
   overviewActionTone,
   overviewPercent,
   overviewTrendBarHeightPx,
@@ -32,6 +34,15 @@ describe('admin overview helpers', () => {
     const runtime: AdminOverviewRuntime = {
       startedAt: '2026-07-21T00:00:00.000Z',
       uptimeSeconds: 60,
+      build: {
+        name: 'SForum',
+        version: '2.8.0',
+        commit: '0123456789abcdef',
+        builtAt: '2026-07-29T02:00:00Z',
+        goVersion: 'go1.26.5',
+        dirty: false,
+        sourceUrl: 'https://github.com/zhuchunshu/SForum'
+      },
       memoryBytes: 160 * 1024 * 1024,
       heapAllocBytes: 80 * 1024 * 1024,
       heapSysBytes: 100 * 1024 * 1024,
@@ -53,6 +64,10 @@ describe('admin overview helpers', () => {
     expect(runtime.pluginChildCount).toBe(4)
     expect(formatOverviewBytes(runtime.memoryBytes)).toBe('160 MiB')
     expect(formatOverviewBytes(runtime.familyMemoryBytes!)).toBe('230 MiB')
+    expect(formatOverviewCommit(runtime.build.commit!)).toBe('0123456789ab')
+    expect(formatOverviewVersion(runtime.build.name, runtime.build.version)).toBe('SForum v2.8.0')
+    expect(formatOverviewVersion('SForum', 'dev')).toBe('SForum dev')
+    expect(formatOverviewVersion('SForum', 'dev', '0123456789abcdef')).toBe('SForum dev-01234')
   })
 
   test('formats large counts for dashboard cards', () => {

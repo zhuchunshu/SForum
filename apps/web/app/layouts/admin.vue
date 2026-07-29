@@ -25,6 +25,7 @@ import {
   adminSurfacePlacementPageId,
   type AdminSurfaceContract
 } from '~/utils/admin/adminSurfaces'
+import { formatOverviewVersion } from '~/utils/admin/adminOverview'
 
 type SidebarNavigationItem = {
   label: string
@@ -44,6 +45,8 @@ const adminRoutes = useAdminRoutes()
 const { user, can } = useAuthSession()
 const { request } = useApiClient()
 const { siteName } = useWebOptions()
+const sforumBuild = useRuntimeConfig().public.sforumBuild
+const sforumVersion = formatOverviewVersion('', sforumBuild.version, sforumBuild.commit)
 const { data: extensionNavigation } = await useAsyncData<AdminExtensionNavigationItem[]>(
   'admin-extension-navigation',
   () => (can('extension.view') || can('extension.plugin.manage') || can('extension.theme.manage') || can('extension.manage'))
@@ -376,14 +379,19 @@ async function signOut() {
         <NuxtLink
           :to="adminRoutes.path('/')"
           class="flex h-[50px] min-w-0 max-w-full items-center gap-2.5 rounded-md px-2 text-[var(--text-admin-main)] hover:bg-[var(--bg-admin-sidebar-hover)]"
-          :aria-label="siteName"
+          aria-label="SForum"
         >
-          <span class="grid size-[30px] shrink-0 place-items-center rounded-md bg-[var(--sf-accent)] text-[var(--sf-accent-contrast)]">
-            <UIcon name="i-lucide-message-square-text" class="size-[17px]" />
-          </span>
+          <img
+            src="/brand/sforum-logo.svg"
+            alt=""
+            class="size-[30px] shrink-0 object-contain"
+          >
           <span v-if="!collapsed" class="min-w-0 flex-1 overflow-hidden">
-            <span class="block truncate text-[14.5px] font-bold text-[var(--text-admin-main)]">
-              {{ siteName }}
+            <span class="flex min-w-0 items-center gap-2 text-[14.5px] font-bold text-[var(--text-admin-main)]">
+              <span class="truncate">SForum</span>
+              <UBadge color="neutral" variant="soft" size="sm" class="ml-auto shrink-0 font-mono text-[10px] font-semibold">
+                {{ sforumVersion }}
+              </UBadge>
             </span>
             <span class="block truncate text-xs font-medium text-slate-500 dark:text-zinc-400">
               {{ t('admin.shell.section') }}
@@ -460,11 +468,14 @@ async function signOut() {
       <!-- 1. 置顶全局 Topbar -->
       <div class="flex items-center justify-between h-[68px] sm:h-[76px] px-4 sm:px-8 bg-[var(--bg-admin-card)] border-b border-[var(--border-admin)] flex-shrink-0 z-20 transition-all">
         <div class="flex min-w-0 items-center gap-2 sm:gap-3">
-          <span class="shrink-0 text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 tracking-wide">
-            {{ t('admin.shell.controlPanel', { siteName }) }}
-          </span>
-          <span class="shrink-0 text-sm text-slate-300 dark:text-zinc-600">/</span>
-          <span class="truncate text-sm sm:text-base font-semibold text-slate-600 dark:text-zinc-300">{{ activeTabLabel }}</span>
+          <UDashboardSidebarToggle class="shrink-0" />
+          <div class="flex min-w-0 items-center gap-2 sm:gap-3">
+            <span class="shrink-0 text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 tracking-wide">
+              {{ t('admin.shell.controlPanel', { siteName }) }}
+            </span>
+            <span class="shrink-0 text-sm text-slate-300 dark:text-zinc-600">/</span>
+            <span class="truncate text-sm sm:text-base font-semibold text-slate-600 dark:text-zinc-300">{{ activeTabLabel }}</span>
+          </div>
         </div>
         <div class="flex items-center gap-4 text-sm">
           <button

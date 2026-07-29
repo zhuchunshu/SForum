@@ -11,9 +11,13 @@ import (
 
 	"github.com/zhuchunshu/sforum/apps/api/bootstrap"
 	"github.com/zhuchunshu/sforum/apps/api/config"
+	platformversion "github.com/zhuchunshu/sforum/apps/api/version"
 )
 
 func main() {
+	if platformversion.PrintIfRequested(os.Stdout, os.Args[1:]) {
+		return
+	}
 	cfg := config.Load()
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: cfg.LogLevel,
@@ -50,7 +54,8 @@ func runWorkerLifecycle(ctx context.Context, cfg config.Config, logger *slog.Log
 	}
 	defer worker.Close()
 	if logger != nil {
-		logger.Info("starting worker", "env", cfg.AppEnv, "locale", cfg.AppLocale)
+		build := platformversion.Get()
+		logger.Info("starting worker", "env", cfg.AppEnv, "locale", cfg.AppLocale, "version", build.Version, "commit", build.Commit)
 	}
 	if err := worker.Start(ctx); err != nil {
 		return fmt.Errorf("worker start: %w", err)

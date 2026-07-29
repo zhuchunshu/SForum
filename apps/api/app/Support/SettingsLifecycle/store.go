@@ -359,7 +359,7 @@ func (s *MemorySettingsKV) ReplaceSettingsCAS(_ context.Context, extensionID str
 	if nextRev < 1 {
 		nextRev = 1
 	}
-	cloned := make(map[string]string, len(values)+1)
+	cloned := make(map[string]string, len(values))
 	for k, v := range values {
 		cloned[k] = v
 	}

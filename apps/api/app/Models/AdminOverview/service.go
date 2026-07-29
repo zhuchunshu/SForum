@@ -5,6 +5,7 @@ import (
 	"time"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	platformversion "github.com/zhuchunshu/sforum/apps/api/version"
 )
 
 type Store interface {
@@ -94,9 +95,13 @@ func (s *Service) listWidgets(ctx context.Context) ([]ExtensionWidget, error) {
 
 func (s *Service) runtimeSnapshot() RuntimeStats {
 	if s.runtime == nil {
-		return RuntimeStats{}
+		return RuntimeStats{Build: platformversion.Get()}
 	}
-	return s.runtime.Snapshot()
+	stats := s.runtime.Snapshot()
+	if stats.Build.Name == "" {
+		stats.Build = platformversion.Get()
+	}
+	return stats
 }
 
 func overviewActions(snapshot StoreSnapshot) []OverviewAction {

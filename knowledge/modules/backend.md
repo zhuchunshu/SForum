@@ -47,6 +47,11 @@ runtime memory/heap/GC/goroutines, pgx pool stats, community counts,
 attachments, moderation, extensions, 7-day trends, top categories, and
 server-generated safe action summaries. F1.2 adds `runtime.worker` (Redis
 heartbeat last_seen / stale) and `runtime.queueLag` (cheap River aggregates).
+The protected runtime payload also includes SForum build identity from
+`apps/api/version`: the unified SForum version, Git commit, deterministic build
+time, Go version, dirty state, and source URL. The same package is the single
+authority for `--version` output from the API, worker, migrator, and developer
+CLI processes.
 
 Process probes (F1.2): `GET /api/v1/health` is cheap liveness; `GET
 /api/v1/ready` evaluates dependencies via `app/Support/Health` (PostgreSQL
@@ -59,6 +64,9 @@ candidates must pass Trivy and an exact-image PostgreSQL/Redis Compose smoke
 before version and stable aliases move. `compose.release.yaml` and
 `deploy.sh --version vX.Y.Z` consume one immutable application version without
 building on the operator host. GitHub does not deploy to operator-owned hosts.
+Core, Web, and all shipped Go processes share one `SFORUM_VERSION`; local builds
+display `dev-<commit5>` when Git metadata is available (otherwise `dev`), while
+release tags replace it together with the exact commit and commit timestamp.
 See `decisions/2026-07-29-ghcr-multi-platform-release-pipeline.md`.
 
 Performance hardening (2026-07-08) covers the network and connection layers

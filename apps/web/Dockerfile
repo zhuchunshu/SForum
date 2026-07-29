@@ -14,6 +14,12 @@ CMD ["bun", "run", "dev"]
 
 FROM deps AS build
 
+ARG SFORUM_VERSION=dev
+ARG SFORUM_COMMIT=
+ARG SFORUM_BUILD_TIME=
+ENV NUXT_PUBLIC_SFORUM_VERSION=$SFORUM_VERSION
+ENV NUXT_PUBLIC_SFORUM_COMMIT=$SFORUM_COMMIT
+ENV NUXT_PUBLIC_SFORUM_BUILD_TIME=$SFORUM_BUILD_TIME
 COPY apps/web/ ./
 COPY extensions/builtin /app/extensions/builtin
 RUN ln -sfn .nuxt-build .nuxt && bun run build

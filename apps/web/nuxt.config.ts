@@ -1,4 +1,5 @@
 import type { NuxtPage } from 'nuxt/schema'
+import { execFileSync } from 'node:child_process'
 import {
   LEGACY_ADMIN_ROUTE_PREFIX,
   normalizeAdminRoutePrefix
@@ -16,6 +17,8 @@ const adminRoutePrefix = normalizeAdminRoutePrefix(
 // 公开主题经 Page Registry 运行时注入；管理端预构建组件按 digest 动态加载。
 const nitroOutputDir = process.env.SFORUM_NITRO_OUTPUT_DIR?.trim()
 const devtoolsEnabled = process.env.NUXT_DEVTOOLS === 'true'
+const sforumVersion = process.env.NUXT_PUBLIC_SFORUM_VERSION?.trim() || 'dev'
+const sforumCommit = resolveSForumCommit(process.env.NUXT_PUBLIC_SFORUM_COMMIT)
 // Nuxt 4.4 的提取式 payload 依赖路由缓存保持开启；会话页在请求内切到
 // no-store 后，`_payload.json` 会退化成 HTML，进而中断客户端导航。
 // SSR 数据内联可继续保留 SPA 导航，同时让开发与生产行为一致。
@@ -38,6 +41,20 @@ const nuxtGeneratedIgnores = [
   'playwright-report/**',
   'test-results/**'
 ]
+
+function resolveSForumCommit(injected: string | undefined) {
+  const commit = injected?.trim()
+  if (commit) return commit
+
+  try {
+    return execFileSync('git', ['rev-parse', 'HEAD'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore']
+    }).trim()
+  } catch {
+    return ''
+  }
+}
 
 const generatedOutputWatchIgnores = [
   '**/.nuxt/**',
@@ -245,6 +262,11 @@ export default defineNuxtConfig({
       adminRoutePrefix,
       appLocale: process.env.APP_LOCALE || 'zh-CN',
       supportedLocales: process.env.SUPPORTED_LOCALES || 'zh-CN,en-US',
+      sforumBuild: {
+        version: sforumVersion,
+        commit: sforumCommit,
+        builtAt: process.env.NUXT_PUBLIC_SFORUM_BUILD_TIME || ''
+      },
       i18n: {
         baseUrl: appUrl
       }

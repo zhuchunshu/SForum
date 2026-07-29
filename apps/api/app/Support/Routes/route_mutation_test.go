@@ -505,7 +505,7 @@ func TestValidRouteMutationPointerMatchesManifestBudgets(t *testing.T) {
 			t.Fatalf("valid pointer rejected: %q", pointer)
 		}
 	}
-	invalid := []string{"", "body", " /body", "/body ", "/body/~2",
+	invalid := []string{"", "body", " /body", "/body ", "//body", "/\\body", "/body/~2",
 		"/" + strings.Repeat("a", extensionmanifest.RouteMutableFieldMaximumBytes),
 		strings.Repeat("/token", extensionmanifest.RouteMutableFieldMaximumTokens+1)}
 	for _, pointer := range invalid {

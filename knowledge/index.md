@@ -93,6 +93,10 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Stale extension permission suggestions: approval remains exact-artifact
+  fail-closed, while authorized rejection can now close pending records after
+  disable, uninstall, missing-artifact cleanup, or replacement:
+  `sessions/2026-07-29-stale-extension-role-suggestion-rejection.md`
 - Default site brand assets: the supplied V3 mark now ships at
   `/brand/sforum-logo.svg`; empty runtime Logo/favicon options resolve to it
   without storing the fallback, while operator URLs remain authoritative:
@@ -137,7 +141,11 @@ load archived sessions or completed plans as current context.
   reject unsafe input before crossing their runtime boundaries; the unpatched
   imaging dependency is gone and JPEG/PNG transforms now explicitly reject
   TIFF; uploaded extension ZIP paths now have a CodeQL-visible strict source
-  guard plus independent snapshot containment checks:
+  guard plus independent snapshot containment checks; external-auth runtime
+  evidence now logs only credential-neutral primitive projections; release
+  tags now inject one shared Core/Web/API/worker/migrator/CLI build identity,
+  shown once beside the SForum admin brand, while the protected overview shows
+  build and runtime diagnostics:
   `sessions/2026-07-29-github-actions-release-pipeline-handoff.md`
 - Notification email opt-in defaults: admin per-type email control, Core
   transaction-scoped user preference enforcement, hard site gate, safe default

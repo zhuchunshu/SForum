@@ -505,6 +505,13 @@ Architecture sources:
   back to Schema UI on import/API/mount/CSS/cleanup/quarantine failure.
 - There is no runtime SFC compiler, extension dependency installer, Nuxt build
   supervisor, host-peer resolver, or frontend release supervisor.
+- The admin home renders protected SForum build identity in
+  `SFAdminOverviewRuntimeCard`: commit/build time, Go version, uptime,
+  worker/queue/GC/database diagnostics, and the canonical source link. The
+  unified Core/Web version is displayed once beside the SForum brand in the
+  admin sidebar header; local builds show `dev-<commit5>` when Git metadata is
+  available (otherwise `dev`), and release images receive the tag version
+  through the shared build argument.
 - Admin route middleware must stay narrow and avoid component-context-only
   composables such as direct `useI18n()` calls.
 

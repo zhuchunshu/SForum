@@ -241,6 +241,26 @@ func TestSettingsKVStoreRoundTripAndCAS(t *testing.T) {
 	}
 }
 
+func TestMemorySettingsKVReplaceSettingsCASAddsMissingRevision(t *testing.T) {
+	kv := NewMemorySettingsKV()
+	values := map[string]string{"title": "hello"}
+
+	revision, err := kv.ReplaceSettingsCAS(context.Background(), "demo.kv", 0, values)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored, err := kv.ListSettings(context.Background(), "demo.kv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if revision != 1 || stored[metaRevisionKey] != "1" || stored["title"] != "hello" {
+		t.Fatalf("unexpected stored settings: revision=%d values=%#v", revision, stored)
+	}
+	if _, mutated := values[metaRevisionKey]; mutated {
+		t.Fatalf("ReplaceSettingsCAS mutated caller values: %#v", values)
+	}
+}
+
 func TestActorRequired(t *testing.T) {
 	ctx := context.Background()
 	svc := New(nil)
