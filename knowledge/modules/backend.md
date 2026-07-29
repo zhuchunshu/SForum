@@ -74,8 +74,10 @@ runs the local release gates by default, and pushes only an annotated release
 tag. Interactive mode requires an explicit alpha, beta, or stable selection
 before the base version; it suggests the next base and prerelease number from
 the latest valid remote release tags, while explicit input remains authoritative.
-`--dry-run` performs the checks without creating a tag; `--skip-checks`
-leaves the authoritative GitHub Actions gate enabled but prints a warning.
+Local release execution performs only Git and tag safety checks by default;
+GitHub Actions owns the complete test, build, database compatibility, container,
+scan, and smoke gate. `--local-checks` opts into the redundant local gate when
+the required local services are available, and `--dry-run` creates no tag.
 See `decisions/2026-07-29-ghcr-multi-platform-release-pipeline.md`.
 
 Performance hardening (2026-07-08) covers the network and connection layers

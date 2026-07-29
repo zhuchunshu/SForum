@@ -11,7 +11,7 @@ RELEASE_TYPE=""
 RELEASE_TYPE_SET=false
 ASSUME_YES=false
 DRY_RUN=false
-SKIP_CHECKS=false
+LOCAL_CHECKS=false
 WAIT_MODE="auto"
 SHOW_HELP=false
 
@@ -48,7 +48,7 @@ SForum 一键发布脚本
   --non-interactive       禁止提问，版本必须通过参数提供
   --yes, -y               交互模式下跳过最终标签确认
   --dry-run               仅检查并显示计划，不创建或推送标签
-  --skip-checks           跳过本地测试和构建（GitHub Actions 仍会执行门禁）
+  --local-checks          推送前额外执行本地测试和构建（需要本地数据库等依赖）
   --wait                  推送后等待 GitHub Actions 发布流程完成
   --no-wait               推送后立即返回
   --help, -h              显示帮助
@@ -83,7 +83,7 @@ Options:
   --non-interactive       Never prompt; the version must be an argument
   --yes, -y               Skip the final tag confirmation in interactive mode
   --dry-run               Check and show the plan without creating or pushing a tag
-  --skip-checks           Skip local tests and builds (GitHub Actions still gates release)
+  --local-checks          Also run local tests/builds before pushing (requires local services)
   --wait                  Wait for the GitHub Actions release workflow after pushing
   --no-wait               Return immediately after pushing
   --help, -h              Show help
@@ -149,7 +149,7 @@ say() {
       checking_tools) message="Checking release prerequisites" ;;
       checking_git) message="Checking Git state and remote synchronization" ;;
       running_checks) message="Running local release checks" ;;
-      checks_skipped) message="WARNING: local tests and builds were skipped. GitHub Actions will still run the release gate." ;;
+      checks_delegated) message="Tests, builds, database compatibility, and image validation will run in GitHub Actions." ;;
       command_failed) message="Release check failed: $1" ;;
       summary) message="Release plan" ;;
       summary_version) message="Version" ;;
@@ -161,9 +161,9 @@ say() {
       summary_beta) message="beta prerelease" ;;
       summary_branch) message="Branch" ;;
       summary_commit) message="Commit" ;;
-      summary_checks) message="Local checks" ;;
-      summary_run) message="enabled" ;;
-      summary_skip) message="skipped" ;;
+      summary_checks) message="Release gate" ;;
+      summary_run) message="local checks + GitHub Actions" ;;
+      summary_github) message="GitHub Actions" ;;
       summary_action) message="Action" ;;
       action_dry_run) message="check only; no tag or push" ;;
       action_release) message="create annotated tag and push it to origin" ;;
@@ -224,7 +224,7 @@ say() {
       checking_tools) message="检查发布工具" ;;
       checking_git) message="检查 Git 状态和远端同步情况" ;;
       running_checks) message="执行本地发布检查" ;;
-      checks_skipped) message="警告：已跳过本地测试和构建。GitHub Actions 仍会执行发布门禁。" ;;
+      checks_delegated) message="测试、构建、数据库兼容验证和镜像验证将统一在 GitHub Actions 中执行。" ;;
       command_failed) message="发布检查失败：$1" ;;
       summary) message="发布计划" ;;
       summary_version) message="版本" ;;
@@ -236,9 +236,9 @@ say() {
       summary_beta) message="beta 预发布版" ;;
       summary_branch) message="分支" ;;
       summary_commit) message="提交" ;;
-      summary_checks) message="本地检查" ;;
-      summary_run) message="执行" ;;
-      summary_skip) message="跳过" ;;
+      summary_checks) message="发布门禁" ;;
+      summary_run) message="本地检查 + GitHub Actions" ;;
+      summary_github) message="GitHub Actions" ;;
       summary_action) message="将要执行" ;;
       action_dry_run) message="仅检查，不创建或推送标签" ;;
       action_release) message="创建带说明的标签并推送到 origin" ;;
@@ -473,8 +473,12 @@ while [[ $# -gt 0 ]]; do
       DRY_RUN=true
       shift
       ;;
+    --local-checks)
+      LOCAL_CHECKS=true
+      shift
+      ;;
     --skip-checks)
-      SKIP_CHECKS=true
+      LOCAL_CHECKS=false
       shift
       ;;
     --wait)
@@ -614,9 +618,7 @@ fi
 
 ensure_remote_tag_available
 
-if [[ "$SKIP_CHECKS" == true ]]; then
-  warn checks_skipped
-else
+if [[ "$LOCAL_CHECKS" == true ]]; then
   step running_checks
   CHECK_COMMANDS=(
     "./scripts/test.sh"
@@ -630,6 +632,8 @@ else
       die command_failed "$check_command"
     fi
   done
+else
+  printf '\n%s\n' "$(say checks_delegated)"
 fi
 
 if ! ensure_clean_worktree || [[ "$(git rev-parse HEAD)" != "$HEAD_COMMIT" ]]; then
@@ -651,10 +655,10 @@ printf '  %-18s %s\n' "$(say summary_tag):" "$TAG"
 printf '  %-18s %s\n' "$(say summary_channel):" "$CHANNEL"
 printf '  %-18s %s\n' "$(say summary_branch):" "$BRANCH"
 printf '  %-18s %s\n' "$(say summary_commit):" "$HEAD_COMMIT"
-if [[ "$SKIP_CHECKS" == true ]]; then
-  printf '  %-18s %s\n' "$(say summary_checks):" "$(say summary_skip)"
-else
+if [[ "$LOCAL_CHECKS" == true ]]; then
   printf '  %-18s %s\n' "$(say summary_checks):" "$(say summary_run)"
+else
+  printf '  %-18s %s\n' "$(say summary_checks):" "$(say summary_github)"
 fi
 if [[ "$DRY_RUN" == true ]]; then
   printf '  %-18s %s\n' "$(say summary_action):" "$(say action_dry_run)"

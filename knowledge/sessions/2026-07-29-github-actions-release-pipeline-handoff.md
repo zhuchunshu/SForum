@@ -20,6 +20,11 @@
   remote release tags. Enter accepts each suggested value; manual input remains
   authoritative. Dry-run and explicit check/wait controls are available; image
   publication remains entirely owned by GitHub Actions.
+- Local tests and builds are opt-in through `--local-checks`; the default
+  release path runs Git/tag safety checks locally and delegates the complete
+  repository, PostgreSQL compatibility, build, container, scan, and smoke gate
+  to GitHub Actions, whose CI job provisions PostgreSQL and the compatibility
+  database environment.
 - Added one build-identity authority for API, worker, migrator, and developer
   CLI version output. Release images inject the tag, exact commit, and commit
   timestamp; Core and Web use that same version, shown once beside the SForum
