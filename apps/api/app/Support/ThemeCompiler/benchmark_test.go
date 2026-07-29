@@ -15,9 +15,12 @@ func TestThemeCompilerAllocationBudgets(t *testing.T) {
 		maxAllocs int64
 	}{
 		{name: "compile small", benchmark: BenchmarkCompileSmall, maxBytes: 48 * 1024, maxAllocs: 224},
-		{name: "compile large", benchmark: BenchmarkCompileLarge, maxBytes: 2816 * 1024, maxAllocs: 25_000},
-		{name: "render small", benchmark: BenchmarkRenderSmall, maxBytes: 16 * 1024, maxAllocs: 80},
-		{name: "render large", benchmark: BenchmarkRenderLarge, maxBytes: 2560 * 1024, maxAllocs: 25_000},
+		// x/net/html v0.56 uses more, smaller allocations than v0.55 for the same
+		// source. Keep byte ceilings unchanged and retain roughly 10% headroom over
+		// the v0.56 baselines (41,074 / 82 / 34,861 allocations per operation).
+		{name: "compile large", benchmark: BenchmarkCompileLarge, maxBytes: 2816 * 1024, maxAllocs: 45_000},
+		{name: "render small", benchmark: BenchmarkRenderSmall, maxBytes: 16 * 1024, maxAllocs: 88},
+		{name: "render large", benchmark: BenchmarkRenderLarge, maxBytes: 2560 * 1024, maxAllocs: 38_500},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

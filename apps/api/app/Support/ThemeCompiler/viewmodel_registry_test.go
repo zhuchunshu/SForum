@@ -20,7 +20,7 @@ func TestCorePageViewModelCatalogCoversPublicPageFamilies(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string]PageViewModelKind{
-		"forum.home":           ViewModelHome,
+		"forum.home": ViewModelHome, "forum.search": ViewModelHome,
 		"forum.category.index": ViewModelList, "forum.category.show": ViewModelList,
 		"forum.tag.index": ViewModelList, "forum.tag.show": ViewModelList,
 		"forum.topic.show": ViewModelDetail, "forum.topic.create": ViewModelCreate,

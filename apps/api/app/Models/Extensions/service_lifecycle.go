@@ -198,7 +198,7 @@ func (s *serviceCore) restartPluginForSettings(
 		return nil
 	}
 	if usesLifecycleV2(extension) {
-		if err := s.restartLifecycleV2ForSettings(ctx, actor, extension, mutationKey); err != nil {
+		if err := newSettingsRestartCoordinator(s).restartLifecycleV2(ctx, actor, extension, mutationKey); err != nil {
 			return errors.Join(ErrSettingsRestartFailed, err)
 		}
 		return nil
@@ -225,7 +225,7 @@ func (s *serviceCore) preparePluginSettingsRestart(
 		return nil, nil
 	}
 	if usesLifecycleV2(extension) {
-		if err := s.preflightLifecycleV2SettingsRestart(ctx, actor, extension); err != nil {
+		if err := newSettingsRestartCoordinator(s).preflightLifecycleV2(ctx, actor, extension); err != nil {
 			return nil, errors.Join(ErrSettingsRestartUnavailable, err)
 		}
 		return nil, nil

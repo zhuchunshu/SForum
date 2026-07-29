@@ -22,7 +22,7 @@ Desktop.ini
 .envrc
 .deployrc
 .deployrc.*
-
+apps/api/api
 # Logs
 *.log
 logs/

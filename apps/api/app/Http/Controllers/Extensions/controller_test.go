@@ -110,7 +110,6 @@ func TestControllerBindsLifecycleIdempotencyHeaderAndRequiresItForV2(t *testing.
 	users := controllerActors{actors: map[int64]identity.Actor{
 		1: {ID: 1, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionExtensionManage: true}},
 	}}
-	digest := strings.Repeat("a", 64)
 	plugin := extensions.Extension{
 		ID: "v2.controller", Name: "V2 Controller", Version: "1.0.0",
 		Type: extensions.TypePlugin, Status: extensions.StatusEnabled, Source: extensions.SourceUploaded,
@@ -119,9 +118,11 @@ func TestControllerBindsLifecycleIdempotencyHeaderAndRequiresItForV2(t *testing.
 			Backend:   extensions.ManifestBackend{ProtocolVersion: 2},
 			Lifecycle: &extensions.ManifestLifecycle{ContractVersion: "v2.controller.lifecycle@1"},
 		},
-		PackageDigest: digest, ActiveVersionID: 11,
-		IsDeletable: true,
+		ActiveVersionID: 11,
+		IsDeletable:     true,
 	}
+	plugin.PackagePath, plugin.PackageDigest = controllerExecutablePackage(t, plugin.Manifest, "controller-v2")
+	digest := plugin.PackageDigest
 	store := &controllerFakeStore{items: map[string]extensions.Extension{plugin.ID: plugin}}
 	runner := &controllerLifecycleRunner{}
 	authority := extensions.LifecycleAuthoritySnapshot{

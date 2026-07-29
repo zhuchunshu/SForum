@@ -4,6 +4,10 @@ import SFPublicMobileNavigation from '~/components/navigation/SFPublicMobileNavi
 import SFPublicNavigationLinks from '~/components/navigation/SFPublicNavigationLinks.vue'
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
 import { useAuthSession } from '~/composables/identity/useAuthSession'
+import {
+  type NavbarMenuItem,
+  useNavbarLanguageMenu
+} from '~/composables/navigation/useNavbarLanguageMenu'
 import { usePublicNavigation } from '~/composables/navigation/usePublicNavigation'
 import { useColorModePreference } from '~/composables/appearance/useColorModePreference'
 import { buildForumHomeQuery } from '~/utils/forum/forumHome'
@@ -16,7 +20,7 @@ const props = withDefaults(defineProps<{
   fetchRemoteChrome: true
 })
 
-const { t, locale, locales, setLocale } = useI18n()
+const { t } = useI18n()
 const localePath = useLocalePath()
 const { user, status, refresh } = useAuthSession()
 const {
@@ -79,31 +83,6 @@ const logoAriaLabel = computed(() => {
   return tagline ? `${siteName.value} — ${tagline}` : siteName.value
 })
 
-const supportedLocaleCodes = ['zh-CN', 'en'] as const
-type LocaleCode = typeof supportedLocaleCodes[number]
-type LocaleOption = {
-  code: LocaleCode
-  name?: string
-}
-type ConfiguredLocale = string | {
-  code?: unknown
-  name?: unknown
-}
-type NavbarMenuItem = {
-  label: string
-  description?: string
-  icon?: string
-  to?: string
-  /** 覆盖 ULink 的路由 active，语言项按 i18n locale 判定 */
-  active?: boolean
-  type?: 'label' | 'checkbox'
-  checked?: boolean
-  color?: 'error'
-  onSelect?: (event: Event) => void
-  onUpdateChecked?: (checked: boolean) => void
-  children?: NavbarMenuItem[]
-}
-
 const routeSearchQuery = computed(() => typeof route.query.q === 'string' ? route.query.q.trim() : '')
 const searchQuery = ref(routeSearchQuery.value)
 const mobileSearchOpen = ref(false)
@@ -116,23 +95,7 @@ const canReviewContent = computed(() => can(FORUM_PERMISSIONS.moderationReview))
 const displayName = computed(() =>
   user.value?.displayName || user.value?.username || ''
 )
-function isLocaleCode(value: string): value is LocaleCode {
-  return supportedLocaleCodes.includes(value as LocaleCode)
-}
-
-const localeOptions = computed<LocaleOption[]>(() =>
-  (locales.value as readonly ConfiguredLocale[]).flatMap((entry) => {
-    const code = typeof entry === 'string' ? entry : entry.code
-    if (typeof code !== 'string' || !isLocaleCode(code)) {
-      return []
-    }
-    const name = typeof entry === 'string' ? entry : entry.name
-    return [{ code, name: typeof name === 'string' && name.trim() ? name : code }]
-  })
-)
-const currentLocaleName = computed(() =>
-  localeOptions.value.find((entry) => entry.code === locale.value)?.name || locale.value
-)
+const { currentLocaleName, languageMenuItems } = useNavbarLanguageMenu()
 const currentColorModeOption = computed(() =>
   colorModeOptions.find(option => option.value === colorModePreference.value) || colorModeOptions[0]!
 )
@@ -141,25 +104,6 @@ const colorModeTriggerLabel = computed(() => t('appearance.colorMode.currentPref
   preference: colorModePreferenceLabel.value
 }))
 const colorModeTriggerIcon = computed(() => currentColorModeOption.value.icon)
-
-// no_prefix：setLocale 只换文案 + cookie，URL 不变，实现无感切换。
-const languageMenuItems = computed<NavbarMenuItem[]>(() =>
-  localeOptions.value.map((entry) => {
-    const isCurrent = entry.code === locale.value
-    return {
-      label: entry.name || entry.code,
-      icon: isCurrent ? 'i-lucide-check' : 'i-tabler-language',
-      active: isCurrent,
-      onSelect: (event: Event) => {
-        if (isCurrent) {
-          event.preventDefault()
-          return
-        }
-        void setLocale(entry.code)
-      }
-    }
-  })
-)
 
 const userMenuItems = computed<NavbarMenuItem[][]>(() => {
   if (!user.value) {

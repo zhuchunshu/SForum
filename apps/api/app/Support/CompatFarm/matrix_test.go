@@ -44,8 +44,12 @@ func TestRunMatrixGatePassesRequiredAndDeprecated(t *testing.T) {
 	}
 	root := repoRoot(t)
 	matrixPath := filepath.Join(root, "tests", "compat", "matrix.yaml")
-	// postgres cells 需要 DATABASE_URL；开发 compose 默认端口 15432。
-	dbURL := os.Getenv("DATABASE_URL")
+	// CI 使用隔离变量，避免让整轮 go test 误启共享数据库集成测试。
+	// 本地仍兼容通用变量，并默认连接开发 compose 的 15432 端口。
+	dbURL := os.Getenv("SFORUM_COMPAT_DATABASE_URL")
+	if dbURL == "" {
+		dbURL = os.Getenv("DATABASE_URL")
+	}
 	if dbURL == "" {
 		dbURL = os.Getenv("SFORUM_TEST_DATABASE_URL")
 	}

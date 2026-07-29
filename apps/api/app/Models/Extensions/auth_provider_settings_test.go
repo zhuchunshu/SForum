@@ -99,16 +99,7 @@ func TestAdminPageBootstrapAllowsIdentityProviderManageForAuthSettings(t *testin
 }
 
 func TestAuthProviderSettingsRestartEnabledLifecycleV2ExactArtifact(t *testing.T) {
-	item := lifecycleV2ServiceArtifact(t, "sforum.auth-github", "1.0.0", SourceBuiltin)
-	item.Status = StatusEnabled
-	item.Manifest.Settings = []ManifestSetting{{Key: "client_id", Type: "text", Default: ""}}
-	item.Manifest.Identity = &ManifestIdentity{
-		ContractVersion: "sforum.auth-github.identity@1",
-		Providers: []ManifestIdentityProvider{{
-			ID: "sforum.auth-github.auth", Kind: "auth", Handler: "sforum.auth-github.identity",
-		}},
-	}
-	refreshTrustPackageIdentity(t, &item)
+	item := authProviderSettingsLifecycleV2Artifact(t, "sforum.auth-github")
 	store := newFakeExtensionStore(map[string]Extension{item.ID: item})
 	actor := identity.Actor{
 		ID: 77, Status: identity.UserStatusActive,
@@ -159,13 +150,7 @@ func TestAuthProviderSettingsRestartEnabledLifecycleV2ExactArtifact(t *testing.T
 }
 
 func TestAuthProviderSettingsLifecycleV2PreflightFailureDoesNotPersist(t *testing.T) {
-	item := lifecycleV2ServiceArtifact(t, "sforum.auth-preflight", "1.0.0", SourceBuiltin)
-	item.Status = StatusEnabled
-	item.Manifest.Settings = []ManifestSetting{{Key: "client_id", Type: "text", Default: ""}}
-	item.Manifest.Identity = &ManifestIdentity{
-		Providers: []ManifestIdentityProvider{{ID: "sforum.auth-preflight.auth", Kind: "auth"}},
-	}
-	refreshTrustPackageIdentity(t, &item)
+	item := authProviderSettingsLifecycleV2Artifact(t, "sforum.auth-preflight")
 	store := newFakeExtensionStore(map[string]Extension{item.ID: item})
 	actor := identity.Actor{
 		ID: 78, Status: identity.UserStatusActive,
@@ -200,4 +185,30 @@ func TestAuthProviderSettingsLifecycleV2PreflightFailureDoesNotPersist(t *testin
 	if _, getErr := settings.Get(t.Context(), item.ID); !errors.Is(getErr, settingslifecycle.ErrNotFound) {
 		t.Fatalf("preflight failure persisted settings: %v", getErr)
 	}
+}
+
+func authProviderSettingsLifecycleV2Artifact(t *testing.T, id string) Extension {
+	t.Helper()
+	item := completeV3TrustExtension(t, id)
+	item.Status = StatusEnabled
+	item.Source = SourceBuiltin
+	item.IsSystem = true
+	item.IsDeletable = false
+	item.Manifest.Dependencies = nil
+	item.Manifest.Settings = []ManifestSetting{{
+		Key: "client_id", Label: LocalizedText{Default: "Client ID"}, Type: "text", Default: "",
+	}}
+	item.Manifest.Identity = &ManifestIdentity{
+		ContractVersion: id + ".identity@1",
+		Providers: []ManifestIdentityProvider{{
+			ID: id + ".auth", ContractVersion: id + ".auth@1",
+			Kind: "auth", Handler: id + ".identity",
+		}},
+	}
+	item.Manifest = normalizeManifest(item.Manifest)
+	if err := validateManifest(item.Manifest); err != nil {
+		t.Fatalf("auth provider settings fixture manifest: %v", err)
+	}
+	refreshTrustPackageIdentity(t, &item)
+	return item
 }

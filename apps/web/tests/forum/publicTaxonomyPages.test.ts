@@ -144,7 +144,7 @@ describe('public taxonomy list pages (T02 + C04)', () => {
     expect(source).toContain('<SFSearch')
     expect(source).toContain("t('home.searchPlaceholder')")
     expect(source).toContain('@submit="submitSearch"')
-    expect(source).toContain("path: localePath('/')")
+    expect(source).toContain("path: localePath(normalizedQuery ? '/search' : '/')")
     expect(source).toContain('buildForumHomeQuery')
     expect(source).not.toContain('filterDraft')
     expect(source).not.toContain('taxonomy.categories.filterPlaceholder')

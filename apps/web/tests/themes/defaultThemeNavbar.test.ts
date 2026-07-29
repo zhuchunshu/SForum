@@ -17,6 +17,10 @@ const navigationComposableSource = readFileSync(
   new URL('../../app/composables/navigation/usePublicNavigation.ts', import.meta.url),
   'utf8'
 )
+const languageMenuComposableSource = readFileSync(
+  new URL('../../app/composables/navigation/useNavbarLanguageMenu.ts', import.meta.url),
+  'utf8'
+)
 const themeTemplateSource = readFileSync(
   new URL('../../app/components/SFThemeTemplate.vue', import.meta.url),
   'utf8'
@@ -115,15 +119,16 @@ describe('default theme shared navbar contract', () => {
 
   test('switches locale via setLocale without locale-prefixed routes', () => {
     // no_prefix：setLocale 只换文案 + cookie，不生成 /en 路径
-    expect(source).toContain('setLocale')
-    expect(source).toMatch(/void setLocale\(entry\.code\)/)
-    expect(source).toContain('active: isCurrent')
-    expect(source).toContain("const supportedLocaleCodes = ['zh-CN', 'en'] as const")
-    expect(source).toContain('function isLocaleCode(value: string): value is LocaleCode')
-    expect(source).toContain('if (typeof code !== \'string\' || !isLocaleCode(code))')
-    expect(source).not.toContain('type LocaleCode = string')
-    expect(source).not.toContain('to: switchLocalePath')
-    expect(source).not.toContain('useSwitchLocalePath')
+    expect(source).toContain('useNavbarLanguageMenu')
+    expect(languageMenuComposableSource).toContain('setLocale')
+    expect(languageMenuComposableSource).toMatch(/void setLocale\(entry\.code\)/)
+    expect(languageMenuComposableSource).toContain('active: isCurrent')
+    expect(languageMenuComposableSource).toContain("const supportedLocaleCodes = ['zh-CN', 'en'] as const")
+    expect(languageMenuComposableSource).toContain('function isLocaleCode(value: string): value is LocaleCode')
+    expect(languageMenuComposableSource).toContain('if (typeof code !== \'string\' || !isLocaleCode(code))')
+    expect(languageMenuComposableSource).not.toContain('type LocaleCode = string')
+    expect(languageMenuComposableSource).not.toContain('to: switchLocalePath')
+    expect(languageMenuComposableSource).not.toContain('useSwitchLocalePath')
   })
 
   test('submits compact search to the locale-aware search page', () => {
