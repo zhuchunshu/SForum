@@ -320,6 +320,13 @@ export default defineNuxtConfig({
     'pages:extend'(pages) {
       rewriteAdminPageRoutes(pages)
     },
+    // Nitro 已处理 sitemap 的重定向和 XML 响应；Nuxt 为 redirect rule 注入的空页面组件会触发 Vue SSR 警告。
+    'pages:resolved'(pages) {
+      const sitemapRouteIndex = pages.findIndex(page => page.path === '/sitemap.xml')
+      if (sitemapRouteIndex !== -1) {
+        pages.splice(sitemapRouteIndex, 1)
+      }
+    },
     'prepare:types'(options) {
       options.tsConfig.compilerOptions ||= {}
       options.tsConfig.compilerOptions.paths ||= {}

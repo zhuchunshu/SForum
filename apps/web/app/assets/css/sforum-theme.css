@@ -67,7 +67,7 @@
 
 .navbar,
 .sf-footer,
-.auth-shell {
+.sf-auth-shell {
   color: var(--sf-fg);
 }
 
@@ -96,20 +96,10 @@
   box-shadow: var(--sf-public-shadow);
 }
 
-.navbar__logo-icon,
-.auth-logo-icon {
+.navbar__logo-icon {
   display: block;
   width: 15px;
   height: 15px;
-}
-
-.auth-logo-icon {
-  color: #ffffff;
-}
-
-.auth-feature-icon-svg {
-  width: 12px;
-  height: 12px;
 }
 
 .sf-footer {

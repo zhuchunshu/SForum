@@ -27,12 +27,17 @@ responsibilities.
 
 ## Active Work
 
-### Password recovery account flow
+### Authentication account flow
 
-- `SFRecoveryShell` owns the approved 46/54 desktop geometry, mobile collapse,
-  runtime logo/site name, appearance tokens, tri-state color-mode control,
-  progress rail, and shared account-recovery chrome. Request and confirmation
-  content remain focused Identity components, not route-shell implementations.
+- `SFAuthShell` is the shared Host chrome for login, registration, and password
+  recovery: its runtime `siteLogoUrl`, `siteName`, and `siteTagline` match the
+  public navbar, and its token-based desktop/mobile layout owns the color-mode
+  control, brand region, and recovery progress rail. Login, registration,
+  request, and confirmation content remain focused Identity components, not
+  route-shell implementations.
+- Both protected built-in themes mount one `sf-footer` after each authentication
+  body island, so copyright, navigation, and friend links remain operator-owned
+  through the existing public footer contract.
 - The request view provides field validation, optional ALTCHA, non-enumerating
   completion, masked email, resend cooldown, success Toast, and a help route
   back to the community. It does not expose private `site.admin_email`; a
@@ -41,10 +46,9 @@ responsibilities.
 - The confirmation view consumes the runtime password policy, renders a
   segmented readiness meter and requirement list, supports password visibility,
   and has explicit invalid-link and completion states.
-- Existing `auth.forgot_password` and `auth.reset_password` Page Registry IDs,
-  Host islands, route shells, and API contracts remain authoritative. Rendered
-  QA covered the selected theme at desktop and `390x844` without overflow or
-  console warnings.
+- Existing authentication Page Registry IDs, Host islands, route shells, and API
+  contracts remain authoritative. The shared-shell follow-up awaits manual
+  desktop and mobile theme verification.
 
 ### Comment user preview
 

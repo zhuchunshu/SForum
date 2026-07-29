@@ -95,17 +95,21 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Registration settings state fix: a legacy disabled registration switch with
+  no mode now renders as `closed` in Site Settings, while fresh defaults remain
+  open; focused unit coverage passes and administrator-session Browser QA is
+  still pending:
+  `sessions/2026-07-30-registration-settings-state-fix.md`
 - Extension black-box test split: all 28 public-contract and joined-runtime
   tests now live in a focused `IntegrationTests` package, the one necessary
   root subprocess helper is ratcheted, and ordinary plus race suites pass;
   the full gate remains blocked by concurrent out-of-scope
   `Models/Extensions` architecture growth:
   `sessions/2026-07-30-extension-black-box-tests-split.md`
-- Password recovery frontend: the approved dual-column design now ships on
-  the existing forgot/reset Page Registry surfaces with non-enumerating email
-  requests, ALTCHA integration, resend cooldown, runtime password policy,
-  explicit invalid/completed states, bilingual copy, and desktop/mobile
-  selected-theme QA:
+- Authentication shared shell: login, registration, and password recovery now
+  share runtime public branding and appearance tokens; both built-in themes
+  mount the operator-owned footer on all four authentication templates. Manual
+  desktop/mobile verification and active-artifact activation remain pending:
   `sessions/2026-07-30-password-recovery-frontend-handoff.md`
 - Multi-instance S3-compatible attachment storage: Core now owns named
   instance identity, SecretStore references, exact historical routing, probe

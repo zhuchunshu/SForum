@@ -4,6 +4,7 @@ import { useAuthSession } from '~/composables/identity/useAuthSession'
 import { useAuthReturnNavigation } from '~/composables/identity/useAuthReturnNavigation'
 import { useAuthProviders } from '~/composables/identity/useAuthProviders'
 import SFAuthProviderButtons from '~/components/identity/SFAuthProviderButtons.vue'
+import SFAuthShell from '~/components/identity/auth/SFAuthShell.vue'
 /**
  * 宿主 body 岛：auth.login（凭证表单仍为 Host 组件，不经主题可执行代码）。
  * 路由页保留 layout/middleware meta + fail-closed 回退。
@@ -20,7 +21,7 @@ const localePath = useLocalePath()
 const { apiBaseUrl, request } = useApiClient()
 const { setUser } = useAuthSession()
 const { returnFromAuth, authPageLink, destination } = useAuthReturnNavigation()
-const { siteName, siteTagline, altchaWidgetSettings } = useWebOptions()
+const { altchaWidgetSettings } = useWebOptions()
 const {
   loginProviders,
   redirectToProvider
@@ -29,8 +30,6 @@ const {
   alertMessage: externalAlertMessage,
   alertVariant: externalAlertVariant
 } = useExternalAuthFeedback()
-// 有副标题时优先展示运营配置的标语，否则回退到内置品牌文案。
-const brandDescription = computed(() => siteTagline.value || t('auth.brandDesc'))
 
 type RegistrationStatus = {
   nextUserIsInitialSuperAdmin: boolean
@@ -169,54 +168,8 @@ async function startExternalLogin(provider: PublicAuthProvider) {
 
 <template>
 
-<div class="auth-shell">
-
-    <!-- 左侧品牌区 -->
-    <div class="auth-left">
-      <NuxtLink :to="localePath('/')" class="auth-logo">
-        <span class="auth-logo-mark" aria-hidden="true">
-          <UIcon name="i-lucide-message-circle" class="auth-logo-icon" />
-        </span>
-        {{ siteName }}
-      </NuxtLink>
-
-      <div class="auth-left-body">
-        <h1 class="auth-headline">
-          {{ t('auth.brandHeadlineL1') }}<br />{{ t('auth.brandHeadlineL2') }}
-        </h1>
-        <p class="auth-desc">
-          {{ brandDescription }}
-        </p>
-        <ul class="auth-features">
-          <li class="auth-feature">
-            <span class="auth-feature-icon" aria-hidden="true">
-              <UIcon name="i-lucide-check" class="auth-feature-icon-svg" />
-            </span>
-            {{ t('auth.feature1') }}
-          </li>
-          <li class="auth-feature">
-            <span class="auth-feature-icon" aria-hidden="true">
-              <UIcon name="i-lucide-check" class="auth-feature-icon-svg" />
-            </span>
-            {{ t('auth.feature2') }}
-          </li>
-          <li class="auth-feature">
-            <span class="auth-feature-icon" aria-hidden="true">
-              <UIcon name="i-lucide-check" class="auth-feature-icon-svg" />
-            </span>
-            {{ t('auth.feature3') }}
-          </li>
-        </ul>
-      </div>
-
-      <p class="auth-left-footer">
-        © 2026 {{ siteName }}
-      </p>
-    </div>
-
-    <!-- 右侧表单区 -->
-    <div class="auth-right">
-      <div class="auth-form-wrap">
+<SFAuthShell>
+  <div class="auth-form-wrap">
 
         <!-- 页面导航 tab -->
         <nav class="auth-tabs" aria-label="登录或注册">
@@ -325,123 +278,11 @@ async function startExternalLogin(provider: PublicAuthProvider) {
           <NuxtLink :to="authPageLink('/register')">{{ t('auth.goRegister') }}</NuxtLink>
         </p>
 
-      </div>
-    </div>
-
   </div>
+</SFAuthShell>
 </template>
 
 <style scoped>
-/* 整体双栏布局 */
-.auth-shell {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  min-height: 100vh;
-}
-
-/* ====== 左侧 ====== */
-.auth-left {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 48px 52px;
-  background: var(--sf-muted);
-  border-right: 1px solid var(--sf-border);
-}
-
-.auth-logo {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--sf-fg);
-  letter-spacing: -0.01em;
-  text-decoration: none;
-}
-
-.auth-logo-mark {
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
-  background: var(--sf-accent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-}
-
-.auth-left-body {
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
-}
-
-.auth-headline {
-  font-size: clamp(26px, 2.6vw, 40px);
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.15;
-  color: var(--sf-fg);
-  margin: 0;
-}
-
-.auth-desc {
-  font-size: 15px;
-  color: var(--sf-fg-secondary);
-  line-height: 1.75;
-  margin: 0;
-  max-width: 340px;
-}
-
-.auth-features {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 13px;
-  padding: 0;
-  margin: 0;
-}
-
-.auth-feature {
-  display: flex;
-  align-items: flex-start;
-  gap: 11px;
-  font-size: 13.5px;
-  color: var(--sf-fg-secondary);
-  line-height: 1.5;
-}
-
-.auth-feature-icon {
-  width: 20px;
-  height: 20px;
-  border-radius: 5px;
-  border: 1px solid var(--sf-border);
-  background: var(--sf-card);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  flex-shrink: 0;
-  margin-top: 1px;
-  color: var(--sf-accent);
-}
-
-.auth-left-footer {
-  font-size: 12px;
-  color: var(--sf-fg-tertiary);
-  margin: 0;
-}
-
-/* ====== 右侧 ====== */
-.auth-right {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 48px 40px;
-  background: var(--sf-card);
-}
-
 .auth-form-wrap {
   width: 100%;
   max-width: 380px;
@@ -614,17 +455,4 @@ async function startExternalLogin(provider: PublicAuthProvider) {
   border-bottom-color: var(--sf-fg-tertiary);
 }
 
-@media (max-width: 720px) {
-  .auth-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .auth-left {
-    display: none;
-  }
-
-  .auth-right {
-    min-height: 100vh;
-  }
-}
 </style>

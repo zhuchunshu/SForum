@@ -4,8 +4,7 @@ import SFAdminFormFooter from '~/components/admin/SFAdminFormFooter.vue'
 import { enabledOptionValue, normalizeEnabledOption } from '~/composables/useWebOptions'
 import { adminOptionMap, useAdminOptionTab } from '~/composables/admin/settings/useAdminOptionTab'
 import { useSettingsSection } from '~/composables/settings/useSettingsSection'
-
-type RegistrationMode = 'open' | 'invite' | 'approval' | 'closed'
+import { resolveRegistrationMode, type RegistrationMode } from '~/utils/settings/registrationPolicy'
 
 const props = defineProps<{ items: AdminWebOption[] }>()
 const emit = defineEmits<{ saved: [items: AdminWebOption[]] }>()
@@ -25,9 +24,9 @@ const form = reactive({
   usernameReserved: ''
 })
 const initial = computed(() => {
-  const rawMode = (map.value['identity.registration.mode']?.value || 'open').trim()
+  const rawMode = map.value['identity.registration.mode']?.value
   const enabled = normalizeEnabledOption(map.value['identity.registration.enabled']?.value, true)
-  const registrationMode = (['open', 'invite', 'approval', 'closed'].includes(rawMode) ? rawMode : enabled ? 'open' : 'closed') as RegistrationMode
+  const registrationMode = resolveRegistrationMode(rawMode, enabled)
   return {
     registrationMode,
     requireEmailVerification: normalizeEnabledOption(map.value['identity.registration.require_email_verification']?.value, false),

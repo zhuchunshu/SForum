@@ -52,13 +52,16 @@ async function compileMountedComponent(
 }
 
 const SFAuthProviderButtons = await compileMountedComponent('app/components/identity/SFAuthProviderButtons.vue')
+const SFAuthShell = mountVue.defineComponent({
+  template: '<main data-testid="auth-shell"><slot /></main>'
+})
 const SFLoginFormPage = await compileMountedComponent(
   'app/components/identity/SFLoginFormPage.vue',
-  { SFAuthProviderButtons }
+  { SFAuthProviderButtons, SFAuthShell }
 )
 const SFRegisterFormPage = await compileMountedComponent(
   'app/components/identity/SFRegisterFormPage.vue',
-  { SFAuthProviderButtons }
+  { SFAuthProviderButtons, SFAuthShell }
 )
 
 describe('auth route support contracts', () => {

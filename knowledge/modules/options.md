@@ -291,6 +291,9 @@ skin behavior without admin session.
   fresh install cannot lock itself out. Public `GET /auth/registration-status`
   exposes `registrationEnabled` with that bootstrap override; it still never
   leaks the super-admin bootstrap window via `nextUserIsInitialSuperAdmin`.
+  The admin selector gives a valid `identity.registration.mode` precedence; for
+  legacy rows without that key it derives `open` or `closed` from the existing
+  `identity.registration.enabled` value.
 - Avatar defaults are upload enabled, local initials fallback, Gravatar base
   URL `https://gravatar.com/avatar/`, Gravatar hash `sha256`, GIF disabled,
   compression enabled, max upload 2048 KB, source max edge 2048 px, output
