@@ -1,1 +1,0 @@
-{ "name": "SForum FTP 存储", "description": "面向旧式 FTP/FTPS 服务器的受保护内置附件存储提供方。优先使用 SFTP。", "author": { "name": "SForum" } }

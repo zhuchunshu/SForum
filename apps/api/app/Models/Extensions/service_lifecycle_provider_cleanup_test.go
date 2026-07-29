@@ -76,6 +76,33 @@ func (c *lifecycleStorageSelectionClearer) ClearStorageProviderSelectionIfMatch(
 	return nil
 }
 
+func TestRemovedBuiltinPruneClearsHostProviderSelections(t *testing.T) {
+	removed := lifecycleV2ServiceArtifact(t, "builtin.removed-provider", "1.0.0", SourceBuiltin)
+	kept := lifecycleV2ServiceArtifact(t, "builtin.kept-provider", "1.0.0", SourceBuiltin)
+	store := &lifecycleProviderSelectionStore{
+		fakeExtensionStore: newFakeExtensionStore(map[string]Extension{
+			removed.ID: removed,
+			kept.ID:    kept,
+		}),
+		selectedMail: removed.ID,
+	}
+	storage := &lifecycleStorageSelectionClearer{}
+	service := NewServiceWithOptions(
+		store, t.TempDir(), "", nil,
+		WithStorageSelectionClearer(storage),
+	)
+
+	if err := service.catalog.pruneMissingBuiltins(t.Context(), []string{kept.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if store.selectedMail != "" || store.restoreCalls != 1 {
+		t.Fatalf("mail selection=%q restoreCalls=%d", store.selectedMail, store.restoreCalls)
+	}
+	if len(storage.calls) != 1 || storage.calls[0] != removed.ID {
+		t.Fatalf("storage selection calls=%v", storage.calls)
+	}
+}
+
 func TestLegacyProviderCleanupDoesNotRequireV2RouteAuditEvidence(t *testing.T) {
 	item := lifecycleV2ServiceArtifact(t, "legacy-provider-cleanup", "1.0.0", SourceBuiltin)
 	item.Status = StatusEnabled

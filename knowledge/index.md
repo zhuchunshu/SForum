@@ -95,6 +95,29 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Extension black-box test split: all 28 public-contract and joined-runtime
+  tests now live in a focused `IntegrationTests` package, the one necessary
+  root subprocess helper is ratcheted, and ordinary plus race suites pass;
+  the full gate remains blocked by concurrent out-of-scope
+  `Models/Extensions` architecture growth:
+  `sessions/2026-07-30-extension-black-box-tests-split.md`
+- Password recovery frontend: the approved dual-column design now ships on
+  the existing forgot/reset Page Registry surfaces with non-enumerating email
+  requests, ALTCHA integration, resend cooldown, runtime password policy,
+  explicit invalid/completed states, bilingual copy, and desktop/mobile
+  selected-theme QA:
+  `sessions/2026-07-30-password-recovery-frontend-handoff.md`
+- Multi-instance S3-compatible attachment storage: Core now owns named
+  instance identity, SecretStore references, exact historical routing, probe
+  and one-click writer selection; protected `sforum.storage-s3` owns AWS
+  S3/MinIO/R2 behavior, while FTP/SFTP protected built-ins were removed:
+  `sessions/2026-07-30-multi-instance-s3-storage-handoff.md`,
+  `decisions/2026-07-30-multi-instance-s3-storage.md`
+- Comment user preview: comment avatars and author names now open the compact
+  A profile card before canonical profile navigation; focused tests, build,
+  and component-level desktop/mobile Browser QA pass, while real topic-theme
+  QA remains pending API recovery:
+  `sessions/2026-07-30-comment-user-preview-handoff.md`
 - Plugin bootstrap startup recovery: restored the historical Bootstrap ABI v1
   cookie independently from Protocol V2, added cross-built compatibility and
   built-in version gates, kept the API alive in recovery-only mode on initial

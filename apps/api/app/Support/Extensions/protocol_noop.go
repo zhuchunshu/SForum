@@ -81,3 +81,16 @@ func (ProtocolNoop) StorageProbe(StorageProbeRequest) (StorageProbeResponse, err
 	r := storageNotImplementedResult()
 	return StorageProbeResponse{Reason: r.Reason, Message: r.Message}, nil
 }
+
+func (ProtocolNoop) StorageConfigureInstance(StorageConfigureInstanceRequest) (StorageResult, error) {
+	return storageNotImplementedResult(), nil
+}
+
+func (ProtocolNoop) StorageRemoveInstance(StorageRemoveInstanceRequest) (StorageResult, error) {
+	return storageNotImplementedResult(), nil
+}
+
+func (ProtocolNoop) StorageProbeConfig(StorageProbeConfigRequest) (StorageProbeResponse, error) {
+	r := storageNotImplementedResult()
+	return StorageProbeResponse{Reason: r.Reason, Message: r.Message}, nil
+}

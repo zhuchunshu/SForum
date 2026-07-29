@@ -170,12 +170,12 @@ gocache="${SFORUM_QUERY_CACHE_JOINED_GOCACHE:-$tmp_dir/go-build}"
     TMPDIR="$tmp_dir" GOCACHE="$gocache" go test -race -c -o "$binary" ./app/Support/HostAPI
     TMPDIR="$tmp_dir" GOCACHE="$gocache" go test -race -c -o "$worker_binary" ./bootstrap
     TMPDIR="$tmp_dir" GOCACHE="$gocache" go test -race -c -o "$query_binary" ./app/Support/QueryRegistry
-    TMPDIR="$tmp_dir" GOCACHE="$gocache" go test -race -c -o "$reference_binary" ./app/Support/Extensions
+    TMPDIR="$tmp_dir" GOCACHE="$gocache" go test -race -c -o "$reference_binary" ./app/Support/Extensions/IntegrationTests
   else
     TMPDIR="$tmp_dir" GOCACHE="$gocache" go test -c -o "$binary" ./app/Support/HostAPI
     TMPDIR="$tmp_dir" GOCACHE="$gocache" go test -c -o "$worker_binary" ./bootstrap
     TMPDIR="$tmp_dir" GOCACHE="$gocache" go test -c -o "$query_binary" ./app/Support/QueryRegistry
-    TMPDIR="$tmp_dir" GOCACHE="$gocache" go test -c -o "$reference_binary" ./app/Support/Extensions
+    TMPDIR="$tmp_dir" GOCACHE="$gocache" go test -c -o "$reference_binary" ./app/Support/Extensions/IntegrationTests
   fi
 )
 

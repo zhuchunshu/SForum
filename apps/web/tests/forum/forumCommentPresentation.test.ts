@@ -26,6 +26,10 @@ const commentCss = () => readFileSync(
   new URL('../../app/assets/css/sforum-comment.css', import.meta.url),
   'utf8'
 )
+const userPreviewComponent = () => readFileSync(
+  new URL('../../app/components/forum/SFCommentUserPreview.vue', import.meta.url),
+  'utf8'
+)
 const componentCss = () => readFileSync(
   new URL('../../app/assets/css/sforum-components.css', import.meta.url),
   'utf8'
@@ -126,6 +130,27 @@ describe('SFComment presentation contract', () => {
 
     expect(source).toContain("presentation === 'tree'")
     expect(source).toContain('branchPresentation.collapsible')
+  })
+
+  test('opens an anchored public-profile preview before navigating', () => {
+    const comment = commentComponent()
+    const preview = userPreviewComponent()
+    const styles = commentCss()
+
+    expect(comment).toContain('canPreviewUser')
+    expect(comment).toContain('toggleUserPreview')
+    expect(comment).toContain("document.addEventListener('pointerdown', onDocumentPointerDown)")
+    expect(comment).toContain("event.key === 'Escape'")
+    expect(comment).toContain('<SFCommentUserPreview')
+    expect(preview).toContain('profileApi.getPublicProfile(props.username)')
+    expect(preview).toContain("useState<Record<string, PublicProfile>>('profile:comment-user-preview-cache'")
+    expect(preview).toContain(':to="profilePath"')
+    expect(preview).not.toContain('follow')
+    expect(preview).not.toContain('message')
+    expect(styles).toContain('.sf-comment__user-preview-layer')
+    expect(styles).toMatch(/\.sf-comment \{[\s\S]*?position: relative/)
+    expect(styles).toContain('position: absolute')
+    expect(styles).toContain('width: min(340px, calc(100% - 4px))')
   })
 })
 

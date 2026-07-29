@@ -1,6 +1,7 @@
 package extensionsruntime
 
 import (
+	"context"
 	"encoding/base64"
 )
 
@@ -20,10 +21,31 @@ const (
 	storageOpExists              = "exists"
 	storageOpPublicURL           = "public_url"
 	storageOpSignedURL           = "signed_url"
+	storageOpConfigureInstance   = "configure_instance"
+	storageOpRemoveInstance      = "remove_instance"
+	storageOpProbeConfig         = "probe_config"
 )
 
-func (c *protocolV2Client) StorageProbe(StorageProbeRequest) (StorageProbeResponse, error) {
-	response, err := c.providerCall(storageProviderSlot, storageOpProbe, map[string]any{})
+func (s *ProtocolStarter) StorageConfigureInstance(ctx context.Context, extensionID string, request StorageConfigureInstanceRequest) (StorageResult, error) {
+	return callStorage(ctx, s.protocolFor(extensionID), func(p PluginProtocol) (StorageResult, error) {
+		return p.StorageConfigureInstance(request)
+	}, StorageResult{Reason: "extension.hook_timeout", Message: "Storage ConfigureInstance exceeded the host timeout."})
+}
+
+func (s *ProtocolStarter) StorageRemoveInstance(ctx context.Context, extensionID string, request StorageRemoveInstanceRequest) (StorageResult, error) {
+	return callStorage(ctx, s.protocolFor(extensionID), func(p PluginProtocol) (StorageResult, error) {
+		return p.StorageRemoveInstance(request)
+	}, StorageResult{Reason: "extension.hook_timeout", Message: "Storage RemoveInstance exceeded the host timeout."})
+}
+
+func (s *ProtocolStarter) StorageProbeConfig(ctx context.Context, extensionID string, request StorageProbeConfigRequest) (StorageProbeResponse, error) {
+	return callStorage(ctx, s.protocolFor(extensionID), func(p PluginProtocol) (StorageProbeResponse, error) {
+		return p.StorageProbeConfig(request)
+	}, StorageProbeResponse{Reason: "extension.hook_timeout", Message: "Storage ProbeConfig exceeded the host timeout."})
+}
+
+func (c *protocolV2Client) StorageProbe(input StorageProbeRequest) (StorageProbeResponse, error) {
+	response, err := c.providerCall(storageProviderSlot, storageOpProbe, map[string]any{"instanceId": input.InstanceID})
 	if err != nil {
 		return StorageProbeResponse{}, err
 	}
@@ -36,7 +58,7 @@ func (c *protocolV2Client) StorageProbe(StorageProbeRequest) (StorageProbeRespon
 
 func (c *protocolV2Client) StoragePutBegin(input StoragePutBeginRequest) (StorageSessionResponse, error) {
 	response, err := c.providerCall(storageProviderSlot, storageOpPutBegin, map[string]any{
-		"key": input.Key, "contentType": input.ContentType, "size": input.Size,
+		"instanceId": input.InstanceID, "key": input.Key, "contentType": input.ContentType, "size": input.Size,
 	})
 	if err != nil {
 		return StorageSessionResponse{}, err
@@ -58,7 +80,7 @@ func (c *protocolV2Client) StoragePutChunk(input StoragePutChunkRequest) (Storag
 
 func (c *protocolV2Client) StorageOpen(input StorageOpenRequest) (StorageSessionResponse, error) {
 	response, err := c.providerCall(storageProviderSlot, storageOpOpen, map[string]any{
-		"key": input.Key,
+		"instanceId": input.InstanceID, "key": input.Key,
 	})
 	if err != nil {
 		return StorageSessionResponse{}, err
@@ -98,7 +120,7 @@ func (c *protocolV2Client) StorageClose(input StorageCloseRequest) (StorageResul
 
 func (c *protocolV2Client) StorageDelete(input StorageObjectRequest) (StorageResult, error) {
 	response, err := c.providerCall(storageProviderSlot, storageOpDelete, map[string]any{
-		"key": input.Key,
+		"instanceId": input.InstanceID, "key": input.Key,
 	})
 	if err != nil {
 		return StorageResult{}, err
@@ -108,7 +130,7 @@ func (c *protocolV2Client) StorageDelete(input StorageObjectRequest) (StorageRes
 
 func (c *protocolV2Client) StorageStat(input StorageStatRequest) (StorageStatResponse, error) {
 	response, err := c.providerCall(storageProviderSlot, storageOpStat, map[string]any{
-		"key": input.Key,
+		"instanceId": input.InstanceID, "key": input.Key,
 	})
 	if err != nil {
 		return StorageStatResponse{}, err
@@ -124,7 +146,7 @@ func (c *protocolV2Client) StorageStat(input StorageStatRequest) (StorageStatRes
 
 func (c *protocolV2Client) StorageExists(input StorageExistsRequest) (StorageExistsResponse, error) {
 	response, err := c.providerCall(storageProviderSlot, storageOpExists, map[string]any{
-		"key": input.Key,
+		"instanceId": input.InstanceID, "key": input.Key,
 	})
 	if err != nil {
 		return StorageExistsResponse{}, err
@@ -138,7 +160,7 @@ func (c *protocolV2Client) StorageExists(input StorageExistsRequest) (StorageExi
 
 func (c *protocolV2Client) StoragePublicURL(input StoragePublicURLRequest) (StorageURLResponse, error) {
 	response, err := c.providerCall(storageProviderSlot, storageOpPublicURL, map[string]any{
-		"key": input.Key,
+		"instanceId": input.InstanceID, "key": input.Key,
 	})
 	if err != nil {
 		return StorageURLResponse{}, err
@@ -148,12 +170,39 @@ func (c *protocolV2Client) StoragePublicURL(input StoragePublicURLRequest) (Stor
 
 func (c *protocolV2Client) StorageSignedURL(input StorageSignedURLRequest) (StorageURLResponse, error) {
 	response, err := c.providerCall(storageProviderSlot, storageOpSignedURL, map[string]any{
-		"key": input.Key, "ttlSeconds": input.TTLSeconds,
+		"instanceId": input.InstanceID, "key": input.Key, "ttlSeconds": input.TTLSeconds,
 	})
 	if err != nil {
 		return StorageURLResponse{}, err
 	}
 	return storageURLFromValues(protocolV2Values(response.GetOutput())), nil
+}
+
+func (c *protocolV2Client) StorageConfigureInstance(input StorageConfigureInstanceRequest) (StorageResult, error) {
+	response, err := c.providerCall(storageProviderSlot, storageOpConfigureInstance, map[string]any{
+		"instanceId": input.InstanceID, "settings": input.Settings,
+	})
+	if err != nil {
+		return StorageResult{}, err
+	}
+	return storageResultFromValues(protocolV2Values(response.GetOutput())), nil
+}
+
+func (c *protocolV2Client) StorageRemoveInstance(input StorageRemoveInstanceRequest) (StorageResult, error) {
+	response, err := c.providerCall(storageProviderSlot, storageOpRemoveInstance, map[string]any{"instanceId": input.InstanceID})
+	if err != nil {
+		return StorageResult{}, err
+	}
+	return storageResultFromValues(protocolV2Values(response.GetOutput())), nil
+}
+
+func (c *protocolV2Client) StorageProbeConfig(input StorageProbeConfigRequest) (StorageProbeResponse, error) {
+	response, err := c.providerCall(storageProviderSlot, storageOpProbeConfig, map[string]any{"settings": input.Settings})
+	if err != nil {
+		return StorageProbeResponse{}, err
+	}
+	values := protocolV2Values(response.GetOutput())
+	return StorageProbeResponse{OK: booleanValue(values, "ok"), Reason: stringValue(values, "reason"), Message: stringValue(values, "message")}, nil
 }
 
 func storageSessionFromValues(values map[string]any) StorageSessionResponse {

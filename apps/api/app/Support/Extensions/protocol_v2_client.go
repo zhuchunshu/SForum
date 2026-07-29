@@ -901,60 +901,6 @@ func (c *protocolV2Client) SendMail(input MailProviderRequest) (MailProviderResp
 	}, nil
 }
 
-func (c *protocolV2Client) InvokeVersionedProvider(
-	parent context.Context,
-	input VersionedProviderRequest,
-) (VersionedProviderResponse, error) {
-	if input.Operation != VersionedProviderOperationInvoke {
-		return VersionedProviderResponse{}, fmt.Errorf("protocol v2 provider operation %q is not declared", input.Operation)
-	}
-	var declaration *extensions.ManifestProvider
-	for index := range c.providers {
-		candidate := &c.providers[index]
-		if candidate.ID == input.DeclarationID && candidate.Slot == input.Slot && candidate.ContractVersion == input.ContractVersion {
-			declaration = candidate
-			break
-		}
-	}
-	if declaration == nil || declaration.RequestSchema != input.RequestSchema || declaration.ResponseSchema != input.ResponseSchema {
-		return VersionedProviderResponse{}, fmt.Errorf("protocol v2 provider %q contract is not declared", input.DeclarationID)
-	}
-	timeout := input.Timeout
-	if timeout <= 0 || timeout > DefaultProtocolV2RequestTimeout {
-		timeout = DefaultProtocolV2RequestTimeout
-	}
-	ctx, cancel := protocolV2Deadline(parent, timeout)
-	defer cancel()
-	requestSchemaID, requestSchemaVersion, err := protocolV2SchemaRef(input.RequestSchema)
-	if err != nil {
-		return VersionedProviderResponse{}, err
-	}
-	document, err := protocolV2Document(requestSchemaID, requestSchemaVersion, input.Input)
-	if err != nil {
-		return VersionedProviderResponse{}, err
-	}
-	response, err := c.client.ProviderCall(ctx, &pluginv2.ProviderCallRequest{
-		Context: c.requestContext(ctx, input.Operation), SlotId: input.Slot, Operation: input.Operation,
-		ContractVersion: input.ContractVersion, Input: document, DeclarationId: input.DeclarationID,
-	})
-	if err != nil {
-		switch status.Code(err) {
-		case codes.DeadlineExceeded:
-			return VersionedProviderResponse{}, context.DeadlineExceeded
-		case codes.Canceled:
-			return VersionedProviderResponse{}, context.Canceled
-		}
-		return VersionedProviderResponse{}, err
-	}
-	if err := protocolV2Error(response.GetError()); err != nil {
-		return VersionedProviderResponse{}, err
-	}
-	if err := validateProtocolV2DocumentRef(response.GetOutput(), input.ResponseSchema, "provider output"); err != nil {
-		return VersionedProviderResponse{}, err
-	}
-	return VersionedProviderResponse{Output: protocolV2Values(response.GetOutput())}, nil
-}
-
 func (c *protocolV2Client) InvokeVersionedSEO(
 	parent context.Context,
 	input VersionedSEORequest,

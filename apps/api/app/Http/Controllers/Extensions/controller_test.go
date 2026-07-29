@@ -1430,7 +1430,7 @@ func (s *controllerFakeStore) SaveBuiltin(_ context.Context, input extensions.Sa
 	return item, nil
 }
 
-func (s *controllerFakeStore) PruneMissingBuiltins(_ context.Context, activeIDs []string) error {
+func (s *controllerFakeStore) PruneMissingBuiltins(_ context.Context, activeIDs []string) (extensions.BuiltinPruneResult, error) {
 	active := map[string]bool{}
 	for _, id := range activeIDs {
 		active[id] = true
@@ -1440,7 +1440,7 @@ func (s *controllerFakeStore) PruneMissingBuiltins(_ context.Context, activeIDs 
 			delete(s.items, id)
 		}
 	}
-	return nil
+	return extensions.BuiltinPruneResult{}, nil
 }
 
 func (s *controllerFakeStore) Enable(_ context.Context, id string, _ string) (extensions.Extension, error) {

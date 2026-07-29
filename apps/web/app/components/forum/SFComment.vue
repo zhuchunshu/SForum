@@ -7,6 +7,7 @@ export const COMMENT_EDITOR_RENDERER_KEY = 'sforum-comment-editor-renderer'
 </script>
 
 <script setup lang="ts">
+import SFCommentUserPreview from '~/components/forum/SFCommentUserPreview.vue'
 import {
   forumAuthorName,
   type ForumComment
@@ -100,10 +101,67 @@ const branchPresentation = computed(() => commentBranchPresentation(
 const branchExpanded = ref(false)
 const branchId = `sf-comment-branch-${useId()}`
 const branchVisible = computed(() => !branchPresentation.value.collapsible || branchExpanded.value)
+const userPreviewId = `sf-comment-user-preview-${useId()}`
+const userPreviewOpen = ref(false)
+const avatarPreviewTrigger = ref<HTMLElement | null>(null)
+const authorPreviewTrigger = ref<HTMLElement | null>(null)
+const userPreviewCard = ref<HTMLElement | null>(null)
+const lastPreviewTrigger = ref<HTMLElement | null>(null)
+const previewUsername = computed(() => props.comment?.author?.username?.trim() || '')
+const canPreviewUser = computed(() => Boolean(props.authorLink && previewUsername.value))
 
 function toggleBranch() {
   branchExpanded.value = !branchExpanded.value
 }
+
+function toggleUserPreview(event: MouseEvent) {
+  if (!canPreviewUser.value) {
+    return
+  }
+  lastPreviewTrigger.value = event.currentTarget as HTMLElement
+  userPreviewOpen.value = !userPreviewOpen.value
+}
+
+function closeUserPreview(restoreFocus = false) {
+  if (!userPreviewOpen.value) {
+    return
+  }
+  userPreviewOpen.value = false
+  if (restoreFocus) {
+    nextTick(() => lastPreviewTrigger.value?.focus())
+  }
+}
+
+function onDocumentPointerDown(event: PointerEvent) {
+  if (!userPreviewOpen.value || !(event.target instanceof Node)) {
+    return
+  }
+  const target = event.target
+  if (
+    userPreviewCard.value?.contains(target)
+    || avatarPreviewTrigger.value?.contains(target)
+    || authorPreviewTrigger.value?.contains(target)
+  ) {
+    return
+  }
+  closeUserPreview()
+}
+
+function onDocumentKeyDown(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    closeUserPreview(true)
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('pointerdown', onDocumentPointerDown)
+  document.addEventListener('keydown', onDocumentKeyDown)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', onDocumentPointerDown)
+  document.removeEventListener('keydown', onDocumentKeyDown)
+})
 
 // 操作按钮点击。
 function onAction(actionItem: CommentAction) {
@@ -189,24 +247,41 @@ const InlineEditorHost = () => {
     :data-visual-depth="branchPresentation.indentation"
   >
     <article class="sf-comment__entry">
-      <component
-        :is="authorLink ? 'NuxtLink' : 'div'"
-        v-if="authorLink"
-        :to="authorLink"
-        class="sf-comment__avatar-link"
+      <button
+        v-if="canPreviewUser"
+        ref="avatarPreviewTrigger"
+        type="button"
+        class="sf-comment__avatar-trigger"
+        :aria-label="t('topicDetail.userPreview.open', { name: author })"
+        aria-haspopup="dialog"
+        :aria-expanded="userPreviewOpen"
+        :aria-controls="userPreviewOpen ? userPreviewId : undefined"
+        @click="toggleUserPreview"
       >
         <SFAvatar :name="author" :avatar="avatar" size="sm" />
-      </component>
+      </button>
+      <NuxtLink v-else-if="authorLink" :to="authorLink" class="sf-comment__avatar-link">
+        <SFAvatar :name="author" :avatar="avatar" size="sm" />
+      </NuxtLink>
       <SFAvatar v-else :name="author" :avatar="avatar" size="sm" />
       <div class="sf-comment__body">
         <header class="sf-comment__header">
-          <component
-            :is="authorLink ? 'NuxtLink' : 'span'"
-            :to="authorLink"
-            class="sf-comment__author"
+          <button
+            v-if="canPreviewUser"
+            ref="authorPreviewTrigger"
+            type="button"
+            class="sf-comment__author sf-comment__author-trigger"
+            aria-haspopup="dialog"
+            :aria-expanded="userPreviewOpen"
+            :aria-controls="userPreviewOpen ? userPreviewId : undefined"
+            @click="toggleUserPreview"
           >
             {{ author }}
-          </component>
+          </button>
+          <NuxtLink v-else-if="authorLink" :to="authorLink" class="sf-comment__author">
+            {{ author }}
+          </NuxtLink>
+          <span v-else class="sf-comment__author">{{ author }}</span>
           <span v-if="isOpAuthor" class="sf-comment__op-badge">{{ t('topicDetail.opBadge') }}</span>
           <!-- 时间与楼层合并为头部右侧的 meta 组；楼层保留 .sf-comment__floor 类与 #N 文本供进度条读取 -->
           <span v-if="meta || (comment && displayFloorLabel)" class="sf-comment__meta-group">
@@ -220,6 +295,20 @@ const InlineEditorHost = () => {
             >{{ displayFloorLabel }}</a>
           </span>
         </header>
+
+        <div
+          v-if="userPreviewOpen && canPreviewUser"
+          :id="userPreviewId"
+          ref="userPreviewCard"
+          class="sf-comment__user-preview-layer"
+        >
+          <SFCommentUserPreview
+            :author="author"
+            :username="previewUsername"
+            :avatar="avatar"
+            :profile-path="authorLink || ''"
+          />
+        </div>
 
         <a
           v-if="replyTo"

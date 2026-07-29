@@ -19,6 +19,10 @@ accepted revisions, lifecycle states, public read models, and forum policy.
   enabled. The public detail UI shows relative publish/edit times through one
   month and forces older values to site-timezone `Y-m-d H:i:s`; resource
   `updatedAt` remains lifecycle/counter metadata and is not used as edit time.
+- Comment avatars and author names now open a compact public-profile preview
+  before navigation. The card reads the existing public profile contract,
+  exposes only real topic/comment counts and profile data, and keeps the
+  canonical `/u/:username` navigation inside the card.
 - Default-theme topic creation now has a production UI shell that reuses the
   existing create-topic API, category/tag policy, content limits, permission
   check (`topic.create`), `SFEditor`, field errors, Toast feedback, successful

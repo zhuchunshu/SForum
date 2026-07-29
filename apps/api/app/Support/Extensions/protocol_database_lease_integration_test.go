@@ -58,7 +58,7 @@ func TestProtocolStarterUsesRealExactDatabaseLease(t *testing.T) {
 		t.Fatal(err)
 	}
 	launcher := "#!/bin/sh\nSFORUM_PLUGIN_EXPECT_DATABASE=connect SFORUM_PLUGIN_HELPER=protocol-v2-no-services exec " +
-		shellQuote(os.Args[0]) + " -test.run=TestProtocolV2HelperProcess -- \"$@\"\n"
+		shellQuote(os.Args[0]) + " -test.run=TestProtocolV2DatabaseLeaseHelperProcess -- \"$@\"\n"
 	if err := os.WriteFile(filepath.Join(packageRoot, "backend", "plugin"), []byte(launcher), 0o755); err != nil {
 		t.Fatal(err)
 	}

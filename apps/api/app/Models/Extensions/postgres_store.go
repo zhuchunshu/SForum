@@ -289,6 +289,9 @@ func (s *PostgresStore) SaveBuiltin(ctx context.Context, input SaveBuiltinInput)
 	if !created && storedSource != SourceBuiltin {
 		return Extension{}, ErrNotDeletable
 	}
+	if _, err := tx.Exec(ctx, `DELETE FROM extension_builtin_removals WHERE extension_id = $1`, input.Manifest.ID); err != nil {
+		return Extension{}, fmt.Errorf("restore builtin extension catalog identity: %w", err)
+	}
 	if !created {
 		if _, err := tx.Exec(ctx, `
 			UPDATE extensions
@@ -379,32 +382,6 @@ func builtinPluginProvidesAuthProvider(manifest Manifest) bool {
 		}
 	}
 	return false
-}
-
-func (s *PostgresStore) PruneMissingBuiltins(ctx context.Context, activeIDs []string) error {
-	if len(activeIDs) == 0 {
-		return nil
-	}
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("begin builtin extension prune: %w", err)
-	}
-	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('sforum.theme.activation.v1'))`); err != nil {
-		return fmt.Errorf("lock builtin extension prune: %w", err)
-	}
-	if _, err := tx.Exec(ctx, `
-		DELETE FROM extensions
-		WHERE source = 'builtin'
-		  AND NOT (id = ANY($1::text[]))
-		  AND NOT (type = 'theme' AND status = 'enabled')
-	`, activeIDs); err != nil {
-		return fmt.Errorf("prune missing builtin extensions: %w", err)
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("commit builtin extension prune: %w", err)
-	}
-	return nil
 }
 
 // Delete 卸载扩展：CASCADE 清理 versions/settings/events/ledger 等。
@@ -889,7 +866,10 @@ func extensionSelectSQL() string {
 		LEFT JOIN extension_versions AS staged_versions ON staged_versions.id = extensions.staged_version_id
 		LEFT JOIN extension_missing_artifact_removals AS missing_artifact_removals
 		  ON missing_artifact_removals.extension_id = extensions.id
+		LEFT JOIN extension_builtin_removals AS builtin_removals
+		  ON builtin_removals.extension_id = extensions.id
 		WHERE missing_artifact_removals.extension_id IS NULL
+		  AND builtin_removals.extension_id IS NULL
 	`
 }
 

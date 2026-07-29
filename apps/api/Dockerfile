@@ -16,9 +16,7 @@ RUN cd /app/extensions/builtin/plugins/sforum-smtp/backend && \
 	CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -o plugin . && \
 	cd /app/extensions/builtin/plugins/sforum-storage-fs/backend && \
 	CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -o plugin . && \
-	cd /app/extensions/builtin/plugins/sforum-storage-ftp/backend && \
-	CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -o plugin . && \
-	cd /app/extensions/builtin/plugins/sforum-storage-sftp/backend && \
+	cd /app/extensions/builtin/plugins/sforum-storage-s3/backend && \
 	CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -o plugin . && \
 	cd /app/extensions/builtin/plugins/sforum-search-site/backend && \
 	CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -o plugin . && \
@@ -34,10 +32,8 @@ RUN cd /app/extensions/builtin/plugins/sforum-smtp/backend && \
 	CGO_ENABLED=0 go run ./cmd/sforum extension test /app/extensions/builtin/plugins/sforum-content-policy && \
 	CGO_ENABLED=0 go run ./cmd/sforum extension digest --write /app/extensions/builtin/plugins/sforum-storage-fs && \
 	CGO_ENABLED=0 go run ./cmd/sforum extension test /app/extensions/builtin/plugins/sforum-storage-fs && \
-	CGO_ENABLED=0 go run ./cmd/sforum extension digest --write /app/extensions/builtin/plugins/sforum-storage-ftp && \
-	CGO_ENABLED=0 go run ./cmd/sforum extension test /app/extensions/builtin/plugins/sforum-storage-ftp && \
-	CGO_ENABLED=0 go run ./cmd/sforum extension digest --write /app/extensions/builtin/plugins/sforum-storage-sftp && \
-	CGO_ENABLED=0 go run ./cmd/sforum extension test /app/extensions/builtin/plugins/sforum-storage-sftp && \
+	CGO_ENABLED=0 go run ./cmd/sforum extension digest --write /app/extensions/builtin/plugins/sforum-storage-s3 && \
+	CGO_ENABLED=0 go run ./cmd/sforum extension test /app/extensions/builtin/plugins/sforum-storage-s3 && \
 	CGO_ENABLED=0 go run ./cmd/sforum extension digest --write /app/extensions/builtin/plugins/sforum-search-site && \
 	CGO_ENABLED=0 go run ./cmd/sforum extension test /app/extensions/builtin/plugins/sforum-search-site && \
 	CGO_ENABLED=0 go run ./cmd/sforum extension digest --write /app/extensions/builtin/plugins/sforum-auth-github && \

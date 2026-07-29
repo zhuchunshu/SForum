@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "ui": { "mode": "schema", "layout": "form" },
+  "fields": [
+    { "key": "endpoint", "label": { "zh-CN": "Endpoint", "en-US": "Endpoint" }, "description": { "zh-CN": "AWS S3 可留空；MinIO、R2 等填写完整 HTTPS 地址。", "en-US": "Leave empty for AWS S3; enter the full HTTPS URL for MinIO, R2, or another compatible service." }, "type": "string", "default": "", "placeholder": { "zh-CN": "https://<account>.r2.cloudflarestorage.com", "en-US": "https://<account>.r2.cloudflarestorage.com" } },
+    { "key": "region", "label": { "zh-CN": "区域", "en-US": "Region" }, "description": { "zh-CN": "服务商要求的区域；R2 通常使用 auto。", "en-US": "Provider region; Cloudflare R2 commonly uses auto." }, "type": "string", "default": "us-east-1", "recommendedValue": "us-east-1" },
+    { "key": "bucket", "label": { "zh-CN": "Bucket", "en-US": "Bucket" }, "description": { "zh-CN": "用于保存附件的 Bucket 名称。", "en-US": "Bucket used to store attachment objects." }, "type": "string", "default": "" },
+    { "key": "access_key_id", "label": { "zh-CN": "Access Key ID", "en-US": "Access Key ID" }, "description": { "zh-CN": "留空时使用 AWS 默认凭据链。", "en-US": "Leave empty to use the AWS default credential chain." }, "type": "secret", "default": "" },
+    { "key": "secret_access_key", "label": { "zh-CN": "Secret Access Key", "en-US": "Secret Access Key" }, "type": "secret", "default": "" },
+    { "key": "session_token", "label": { "zh-CN": "Session Token", "en-US": "Session Token" }, "description": { "zh-CN": "仅临时凭据需要。", "en-US": "Required only for temporary credentials." }, "type": "secret", "default": "" },
+    { "key": "object_prefix", "label": { "zh-CN": "对象前缀", "en-US": "Object prefix" }, "description": { "zh-CN": "可选，例如 attachments。", "en-US": "Optional, for example attachments." }, "type": "string", "default": "" },
+    { "key": "use_path_style", "label": { "zh-CN": "使用 Path-style", "en-US": "Use path-style addressing" }, "description": { "zh-CN": "MinIO 等自建服务通常需要开启。", "en-US": "Commonly required by self-hosted MinIO endpoints." }, "type": "boolean", "default": "false", "recommendedValue": "false" },
+    { "key": "public_base_url", "label": { "zh-CN": "公开 Base URL", "en-US": "Public base URL" }, "description": { "zh-CN": "可选 CDN 或公开 Bucket 地址；留空时公开附件仍走 Host 代理。", "en-US": "Optional CDN or public bucket URL; leave empty to use the Host content proxy." }, "type": "string", "default": "" }
+  ]
+}

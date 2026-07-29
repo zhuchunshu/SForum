@@ -132,6 +132,104 @@ adminAttachmentSettingsTest:
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
         "$ref": "../components/responses.yaml#/Forbidden"
+adminAttachmentStorageInstances:
+  get:
+    summary: List Host-owned attachment storage instances
+    operationId: listAttachmentStorageInstances
+    responses:
+      '200':
+        description: Storage instances with provider-defined schemas and historical attachment counts.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/attachments.yaml#/ApiResponseAttachmentStorageInstances"
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+  post:
+    summary: Create an attachment storage instance
+    operationId: createAttachmentStorageInstance
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { "$ref": "../schemas/attachments.yaml#/AttachmentStorageInstanceInput" }
+    responses:
+      '201':
+        description: Instance created in an unverified state.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/attachments.yaml#/ApiResponseAttachmentStorageInstance" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+adminAttachmentStorageInstancesProbe:
+  post:
+    summary: Probe draft storage instance configuration without activating it
+    operationId: probeAttachmentStorageInstance
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { "$ref": "../schemas/attachments.yaml#/AttachmentStorageInstanceProbeInput" }
+    responses:
+      '200':
+        description: Draft probe result.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/attachments.yaml#/ApiResponseAttachmentProbe" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+adminAttachmentStorageLocalActivate:
+  post:
+    summary: Make Core local storage the writer for new attachments
+    operationId: activateLocalAttachmentStorage
+    responses:
+      '200': { description: Local storage activated. }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+adminAttachmentStorageInstance:
+  parameters:
+  - name: storageInstanceID
+    in: path
+    required: true
+    schema: { type: string, format: uuid }
+  put:
+    summary: Update an attachment storage instance using its configuration revision
+    operationId: updateAttachmentStorageInstance
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { "$ref": "../schemas/attachments.yaml#/AttachmentStorageInstanceInput" }
+    responses:
+      '200':
+        description: Instance updated.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/attachments.yaml#/ApiResponseAttachmentStorageInstance" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+  delete:
+    summary: Delete an unreferenced standby storage instance
+    operationId: deleteAttachmentStorageInstance
+    responses:
+      '204': { description: Instance deleted. }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '409': { "$ref": "../components/responses.yaml#/Conflict" }
+adminAttachmentStorageInstanceActivate:
+  post:
+    summary: Probe and make an instance the writer for new attachments
+    operationId: activateAttachmentStorageInstance
+    parameters:
+    - name: storageInstanceID
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    responses:
+      '200':
+        description: Instance activated after a successful real probe.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/attachments.yaml#/ApiResponseAttachmentStorageInstance" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '503': { "$ref": "../components/responses.yaml#/ServiceUnavailable" }
 adminAttachments:
   get:
     summary: List attachments for administration

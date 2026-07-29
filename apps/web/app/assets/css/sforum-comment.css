@@ -2,6 +2,7 @@
 .sf-comment {
   --sf-comment-branch: var(--sf-accent);
   --sf-comment-branch-soft: var(--sf-accent-soft);
+  position: relative;
   width: 100%;
   min-width: 0;
   max-width: 100%;
@@ -36,8 +37,23 @@
 }
 
 .sf-comment__entry > .sf-avatar,
-.sf-comment__avatar-link {
+.sf-comment__avatar-link,
+.sf-comment__avatar-trigger {
   flex: 0 0 auto;
+}
+
+.sf-comment__avatar-trigger,
+.sf-comment__author-trigger {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+
+.sf-comment__avatar-trigger {
+  display: inline-flex;
+  border-radius: 999px;
 }
 
 .sf-comment__body,
@@ -63,6 +79,119 @@
   color: var(--sf-fg);
   font-size: 0.86rem;
   font-weight: 800;
+  text-decoration: none;
+}
+
+.sf-comment__author-trigger:hover,
+.sf-comment__author-trigger:focus-visible,
+.sf-comment__author:hover,
+.sf-comment__author:focus-visible {
+  color: var(--sf-accent);
+}
+
+.sf-comment__user-preview-layer {
+  position: absolute;
+  top: 52px;
+  left: 2px;
+  z-index: 30;
+  width: min(340px, calc(100% - 4px));
+}
+
+.sf-comment-user-preview {
+  width: 100%;
+  border: 1px solid var(--sf-public-border);
+  border-radius: 7px;
+  padding: 14px;
+  background: var(--sf-public-surface);
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--sf-fg) 14%, transparent);
+  color: var(--sf-fg);
+}
+
+.sf-comment-user-preview__identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sf-comment-user-preview__names {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sf-comment-user-preview__name {
+  overflow: hidden;
+  color: var(--sf-fg);
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.3;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sf-comment-user-preview__name:hover,
+.sf-comment-user-preview__name:focus-visible {
+  color: var(--sf-accent);
+}
+
+.sf-comment-user-preview__username {
+  overflow: hidden;
+  color: var(--sf-public-text-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sf-comment-user-preview__bio,
+.sf-comment-user-preview__status {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 10px 0 0;
+  color: var(--sf-fg-secondary);
+  font-size: 12px;
+  line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.sf-comment-user-preview__status {
+  color: var(--sf-public-text-muted);
+}
+
+.sf-comment-user-preview__skeleton {
+  margin-top: 12px;
+}
+
+.sf-comment-user-preview__stats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 9px;
+  color: var(--sf-public-text-muted);
+  font-size: 11px;
+}
+
+.sf-comment-user-preview__primary {
+  display: inline-flex;
+  width: 100%;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 12px;
+  border-radius: 4px;
+  background: var(--sf-accent);
+  color: var(--sf-accent-contrast, #fff);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.sf-comment-user-preview__primary:hover,
+.sf-comment-user-preview__primary:focus-visible {
+  background: var(--sf-accent-hover, var(--sf-accent));
 }
 
 /* 楼主身份徽标：仅评论作者与主题作者相同时渲染 */
@@ -222,7 +351,8 @@
 .sf-comment__action:focus-visible,
 .sf-comment__disclosure:focus-visible,
 .sf-comment__author:focus-visible,
-.sf-comment__avatar-link:focus-visible {
+.sf-comment__avatar-link:focus-visible,
+.sf-comment__avatar-trigger:focus-visible {
   outline: 2px solid var(--sf-accent);
   outline-offset: 2px;
 }
@@ -311,6 +441,11 @@
   .sf-comment__inline-editor {
     width: 100%;
     max-width: 100%;
+  }
+
+  .sf-comment__user-preview-layer {
+    top: 48px;
+    width: min(340px, calc(100vw - 36px));
   }
 
   .sf-comment__actions {

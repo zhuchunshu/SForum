@@ -2545,17 +2545,22 @@ func (s *fakeExtensionStore) SaveBuiltin(_ context.Context, input SaveBuiltinInp
 	return item, nil
 }
 
-func (s *fakeExtensionStore) PruneMissingBuiltins(_ context.Context, activeIDs []string) error {
+func (s *fakeExtensionStore) PruneMissingBuiltins(_ context.Context, activeIDs []string) (BuiltinPruneResult, error) {
 	active := map[string]bool{}
 	for _, id := range activeIDs {
 		active[id] = true
 	}
+	result := BuiltinPruneResult{}
 	for id, item := range s.items {
 		if item.Source == SourceBuiltin && !active[id] {
+			if item.Type == TypePlugin {
+				result.DisabledPluginIDs = append(result.DisabledPluginIDs, id)
+			}
 			delete(s.items, id)
 		}
 	}
-	return nil
+	slices.Sort(result.DisabledPluginIDs)
+	return result, nil
 }
 
 func (s *fakeExtensionStore) Enable(_ context.Context, id string, extensionType string) (Extension, error) {

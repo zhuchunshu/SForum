@@ -1,0 +1,5 @@
+{
+  "name": "SForum S3 兼容存储",
+  "description": "内置多实例 S3 兼容附件存储插件，支持 AWS S3、MinIO、Cloudflare R2 等服务。",
+  "author": { "name": "SForum" }
+}

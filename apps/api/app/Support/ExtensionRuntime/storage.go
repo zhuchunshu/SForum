@@ -1,6 +1,7 @@
 package extensionruntime
 
 import (
+	"context"
 	"errors"
 
 	storage "github.com/zhuchunshu/sforum/apps/api/app/Support/Storage"
@@ -10,6 +11,9 @@ import (
 // models. Bootstrap supplies an adapter backed by the legacy runtime.
 type StorageAdapterFactory interface {
 	NewStorageAdapter(extensionID string) (storage.Adapter, error)
+	NewStorageInstanceAdapter(ctx context.Context, extensionID, instanceID string, settings map[string]string) (storage.Adapter, error)
+	ProbeStorageInstance(ctx context.Context, extensionID string, settings map[string]string) error
+	RemoveStorageInstance(ctx context.Context, extensionID, instanceID string) error
 }
 
 var (

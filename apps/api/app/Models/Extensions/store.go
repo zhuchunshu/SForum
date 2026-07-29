@@ -4,6 +4,10 @@ import (
 	"context"
 )
 
+type BuiltinPruneResult struct {
+	DisabledPluginIDs []string
+}
+
 type Store interface {
 	List(ctx context.Context) ([]Extension, error)
 	Get(ctx context.Context, id string) (Extension, error)
@@ -11,7 +15,7 @@ type Store interface {
 	PromoteStagedVersion(ctx context.Context, input StagedVersionCASInput) (Extension, error)
 	DiscardStagedVersion(ctx context.Context, input StagedVersionCASInput) (Extension, error)
 	SaveBuiltin(ctx context.Context, input SaveBuiltinInput) (Extension, error)
-	PruneMissingBuiltins(ctx context.Context, activeIDs []string) error
+	PruneMissingBuiltins(ctx context.Context, activeIDs []string) (BuiltinPruneResult, error)
 	// Delete 删除扩展行（CASCADE settings/events/versions）。F2.4 卸载。
 	Delete(ctx context.Context, id string) error
 	Enable(ctx context.Context, id string, extensionType string) (Extension, error)

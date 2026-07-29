@@ -1,7 +1,9 @@
 package extensionsruntime
 
 import (
+	"context"
 	"errors"
+	"fmt"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
@@ -93,4 +95,71 @@ func pageArtifactAllowed(artifact pages.RuntimeArtifact, materials ...*lifecycle
 		}
 	}
 	return false
+}
+
+func (b *PostgresLifecycleBoundaryRegistries) reconcilePages(
+	ctx context.Context,
+	extensionID string,
+	source, target, desired *lifecycleRegistryMaterial,
+) error {
+	var stagedRuntime *pages.ThemeRuntimeSnapshot
+	staged := false
+	if desired != nil && b.themeRuntime != nil {
+		runtimeSnapshot, err := buildExactPluginPageRuntime(
+			desired.extension, desired.binding, desired.pages, b.pageSiteName, b.pageLocales,
+		)
+		if err != nil {
+			return fmt.Errorf("build exact plugin page runtime: %w", err)
+		}
+		if runtimeSnapshot != nil {
+			if _, staged, err = b.themeRuntime.Stage(runtimeSnapshot); err != nil {
+				return fmt.Errorf("stage exact plugin page runtime: %w", err)
+			}
+			stagedRuntime = runtimeSnapshot
+		}
+	}
+	rollbackStaged := func(cause error) error {
+		if !staged || stagedRuntime == nil || b.themeRuntime == nil {
+			return cause
+		}
+		_, removeErr := b.themeRuntime.RemoveExact(stagedRuntime.Artifact())
+		return errors.Join(cause, removeErr)
+	}
+	for attempts := 0; attempts < 16; attempts++ {
+		if err := ctx.Err(); err != nil {
+			return rollbackStaged(err)
+		}
+		snapshot, exists := b.pages.ExtensionSnapshot(extensionID)
+		if exists && !pageArtifactAllowed(snapshot.Artifact, source, target) {
+			return rollbackStaged(fmt.Errorf(
+				"%w: active page artifact %s@%s digest=%s runtime=%s is outside the lifecycle source/target fence",
+				ErrLifecycleRegistryPublicationConflict,
+				snapshot.Artifact.ExtensionID,
+				snapshot.Artifact.ExtensionVersion,
+				snapshot.Artifact.PackageDigest,
+				snapshot.Artifact.RuntimeInstanceID,
+			))
+		}
+		if desired != nil {
+			artifact := pages.RuntimeArtifact{
+				ExtensionID: desired.extension.ID, ExtensionVersion: desired.extension.Version,
+				PackageDigest: desired.extension.PackageDigest, RuntimeInstanceID: desired.binding.RuntimeInstanceID,
+			}
+			if _, err := b.pages.PublishExtensionIfRevision(artifact, desired.pages, snapshot.Revision); err == nil {
+				return b.removeSupersededPageRuntimes(desired, source, target)
+			} else if !errors.Is(err, pages.ErrRevisionConflict) {
+				return rollbackStaged(err)
+			}
+			continue
+		}
+		if !exists {
+			return b.removeSupersededPageRuntimes(nil, source, target)
+		}
+		if _, err := b.pages.RemoveExtensionIfRevision(extensionID, snapshot.Artifact, snapshot.Revision); err == nil {
+			return b.removeSupersededPageRuntimes(nil, source, target)
+		} else if !errors.Is(err, pages.ErrRevisionConflict) {
+			return rollbackStaged(err)
+		}
+	}
+	return rollbackStaged(pages.ErrRevisionConflict)
 }

@@ -18,6 +18,7 @@ const DefaultPluginChunkSize = 1 << 20
 // 业务代码只依赖 storage.Adapter 接口。
 type PluginStorageAdapter struct {
 	extensionID string
+	instanceID  string
 	runtime     StorageRuntime
 	chunkSize   int
 }
@@ -26,6 +27,7 @@ type PluginStorageAdapter struct {
 // ExtensionRuntime adapter-factory boundary used by product models.
 type PluginStorageAdapterFactory struct {
 	runtime   StorageRuntime
+	instances StorageInstanceRuntime
 	chunkSize int
 }
 
@@ -33,7 +35,11 @@ func NewPluginStorageAdapterFactory(runtime StorageRuntime, chunkSize int) *Plug
 	if runtime == nil {
 		return nil
 	}
-	return &PluginStorageAdapterFactory{runtime: runtime, chunkSize: chunkSize}
+	instances, _ := runtime.(StorageInstanceRuntime)
+	if manager, ok := runtime.(*Manager); ok {
+		instances = &StorageInstanceInvoker{Manager: manager}
+	}
+	return &PluginStorageAdapterFactory{runtime: runtime, instances: instances, chunkSize: chunkSize}
 }
 
 func (f *PluginStorageAdapterFactory) NewStorageAdapter(extensionID string) (storage.Adapter, error) {
@@ -43,8 +49,63 @@ func (f *PluginStorageAdapterFactory) NewStorageAdapter(extensionID string) (sto
 	return NewPluginStorageAdapter(extensionID, f.runtime, f.chunkSize)
 }
 
+func (f *PluginStorageAdapterFactory) NewStorageInstanceAdapter(ctx context.Context, extensionID, instanceID string, settings map[string]string) (storage.Adapter, error) {
+	if f == nil || f.runtime == nil || strings.TrimSpace(instanceID) == "" {
+		return nil, storage.ErrInvalidConfig
+	}
+	if f.instances == nil {
+		return nil, storage.ErrInvalidConfig
+	}
+	result, err := f.instances.StorageConfigureInstance(ctx, extensionID, StorageConfigureInstanceRequest{InstanceID: instanceID, Settings: settings})
+	if err != nil {
+		return nil, err
+	}
+	if !result.OK {
+		return nil, storageRPCErr(result.Reason, result.Message)
+	}
+	return newPluginStorageAdapter(extensionID, instanceID, f.runtime, f.chunkSize)
+}
+
+func (f *PluginStorageAdapterFactory) ProbeStorageInstance(ctx context.Context, extensionID string, settings map[string]string) error {
+	if f == nil || f.runtime == nil {
+		return storage.ErrInvalidConfig
+	}
+	if f.instances == nil {
+		return storage.ErrInvalidConfig
+	}
+	result, err := f.instances.StorageProbeConfig(ctx, extensionID, StorageProbeConfigRequest{Settings: settings})
+	if err != nil {
+		return err
+	}
+	if !result.OK {
+		return storageRPCErr(result.Reason, result.Message)
+	}
+	return nil
+}
+
+func (f *PluginStorageAdapterFactory) RemoveStorageInstance(ctx context.Context, extensionID, instanceID string) error {
+	if f == nil || f.runtime == nil {
+		return storage.ErrInvalidConfig
+	}
+	if f.instances == nil {
+		return storage.ErrInvalidConfig
+	}
+	result, err := f.instances.StorageRemoveInstance(ctx, extensionID, StorageRemoveInstanceRequest{InstanceID: instanceID})
+	if err != nil {
+		return err
+	}
+	if !result.OK {
+		return storageRPCErr(result.Reason, result.Message)
+	}
+	return nil
+}
+
 // NewPluginStorageAdapter 构造插件后端适配器。chunkSize<=0 时用 1 MiB。
 func NewPluginStorageAdapter(extensionID string, runtime StorageRuntime, chunkSize int) (*PluginStorageAdapter, error) {
+	return newPluginStorageAdapter(extensionID, "", runtime, chunkSize)
+}
+
+func newPluginStorageAdapter(extensionID, instanceID string, runtime StorageRuntime, chunkSize int) (*PluginStorageAdapter, error) {
 	extensionID = strings.TrimSpace(extensionID)
 	if extensionID == "" || runtime == nil {
 		return nil, storage.ErrInvalidConfig
@@ -54,6 +115,7 @@ func NewPluginStorageAdapter(extensionID string, runtime StorageRuntime, chunkSi
 	}
 	return &PluginStorageAdapter{
 		extensionID: extensionID,
+		instanceID:  strings.TrimSpace(instanceID),
 		runtime:     runtime,
 		chunkSize:   chunkSize,
 	}, nil
@@ -67,6 +129,7 @@ func (a *PluginStorageAdapter) Put(ctx context.Context, key string, input storag
 		return fmt.Errorf("%w: empty reader", storage.ErrInvalidConfig)
 	}
 	begin, err := a.runtime.StoragePutBegin(ctx, a.extensionID, StoragePutBeginRequest{
+		InstanceID:  a.instanceID,
 		Key:         key,
 		ContentType: input.ContentType,
 		Size:        input.Size,
@@ -134,7 +197,7 @@ func (a *PluginStorageAdapter) Put(ctx context.Context, key string, input storag
 }
 
 func (a *PluginStorageAdapter) Open(ctx context.Context, key string) (io.ReadCloser, error) {
-	open, err := a.runtime.StorageOpen(ctx, a.extensionID, StorageOpenRequest{Key: key})
+	open, err := a.runtime.StorageOpen(ctx, a.extensionID, StorageOpenRequest{InstanceID: a.instanceID, Key: key})
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +214,7 @@ func (a *PluginStorageAdapter) Open(ctx context.Context, key string) (io.ReadClo
 }
 
 func (a *PluginStorageAdapter) Delete(ctx context.Context, key string) error {
-	result, err := a.runtime.StorageDelete(ctx, a.extensionID, StorageObjectRequest{Key: key})
+	result, err := a.runtime.StorageDelete(ctx, a.extensionID, StorageObjectRequest{InstanceID: a.instanceID, Key: key})
 	if err != nil {
 		return err
 	}
@@ -162,7 +225,7 @@ func (a *PluginStorageAdapter) Delete(ctx context.Context, key string) error {
 }
 
 func (a *PluginStorageAdapter) Stat(ctx context.Context, key string) (storage.ObjectInfo, error) {
-	resp, err := a.runtime.StorageStat(ctx, a.extensionID, StorageStatRequest{Key: key})
+	resp, err := a.runtime.StorageStat(ctx, a.extensionID, StorageStatRequest{InstanceID: a.instanceID, Key: key})
 	if err != nil {
 		return storage.ObjectInfo{}, err
 	}
@@ -184,7 +247,7 @@ func (a *PluginStorageAdapter) Stat(ctx context.Context, key string) (storage.Ob
 }
 
 func (a *PluginStorageAdapter) Exists(ctx context.Context, key string) (bool, error) {
-	resp, err := a.runtime.StorageExists(ctx, a.extensionID, StorageExistsRequest{Key: key})
+	resp, err := a.runtime.StorageExists(ctx, a.extensionID, StorageExistsRequest{InstanceID: a.instanceID, Key: key})
 	if err != nil {
 		return false, err
 	}
@@ -195,7 +258,7 @@ func (a *PluginStorageAdapter) Exists(ctx context.Context, key string) (bool, er
 }
 
 func (a *PluginStorageAdapter) PublicURL(key string) string {
-	resp, err := a.runtime.StoragePublicURL(context.Background(), a.extensionID, StoragePublicURLRequest{Key: key})
+	resp, err := a.runtime.StoragePublicURL(context.Background(), a.extensionID, StoragePublicURLRequest{InstanceID: a.instanceID, Key: key})
 	if err != nil || !resp.OK {
 		return ""
 	}
@@ -208,6 +271,7 @@ func (a *PluginStorageAdapter) SignedURL(ctx context.Context, key string, ttl ti
 		seconds = 300
 	}
 	resp, err := a.runtime.StorageSignedURL(ctx, a.extensionID, StorageSignedURLRequest{
+		InstanceID: a.instanceID,
 		Key:        key,
 		TTLSeconds: seconds,
 	})
@@ -221,7 +285,7 @@ func (a *PluginStorageAdapter) SignedURL(ctx context.Context, key string, ttl ti
 }
 
 func (a *PluginStorageAdapter) Probe(ctx context.Context) error {
-	resp, err := a.runtime.StorageProbe(ctx, a.extensionID, StorageProbeRequest{})
+	resp, err := a.runtime.StorageProbe(ctx, a.extensionID, StorageProbeRequest{InstanceID: a.instanceID})
 	if err != nil {
 		return err
 	}

@@ -276,3 +276,42 @@ func TestNewPluginStorageAdapterRequiresRuntime(t *testing.T) {
 		t.Fatal("expected error for nil runtime")
 	}
 }
+
+type instanceRecordingRuntime struct {
+	*memoryStorageRuntime
+	configuredID string
+	putID        string
+}
+
+func (r *instanceRecordingRuntime) StorageConfigureInstance(_ context.Context, _ string, req StorageConfigureInstanceRequest) (StorageResult, error) {
+	r.configuredID = req.InstanceID
+	return StorageResult{OK: true}, nil
+}
+
+func (r *instanceRecordingRuntime) StorageRemoveInstance(context.Context, string, StorageRemoveInstanceRequest) (StorageResult, error) {
+	return StorageResult{OK: true}, nil
+}
+
+func (r *instanceRecordingRuntime) StorageProbeConfig(context.Context, string, StorageProbeConfigRequest) (StorageProbeResponse, error) {
+	return StorageProbeResponse{OK: true}, nil
+}
+
+func (r *instanceRecordingRuntime) StoragePutBegin(ctx context.Context, extensionID string, req StoragePutBeginRequest) (StorageSessionResponse, error) {
+	r.putID = req.InstanceID
+	return r.memoryStorageRuntime.StoragePutBegin(ctx, extensionID, req)
+}
+
+func TestStorageInstanceAdapterCarriesInstanceID(t *testing.T) {
+	runtime := &instanceRecordingRuntime{memoryStorageRuntime: newMemoryStorageRuntime()}
+	factory := NewPluginStorageAdapterFactory(runtime, 32)
+	adapter, err := factory.NewStorageInstanceAdapter(context.Background(), "acme.store", "instance-a", map[string]string{"bucket": "uploads"})
+	if err != nil {
+		t.Fatalf("instance adapter: %v", err)
+	}
+	if err := adapter.Put(context.Background(), "file.txt", storage.PutInput{Reader: bytes.NewReader([]byte("ok")), Size: 2}); err != nil {
+		t.Fatalf("put: %v", err)
+	}
+	if runtime.configuredID != "instance-a" || runtime.putID != "instance-a" {
+		t.Fatalf("instance ids: configured=%q put=%q", runtime.configuredID, runtime.putID)
+	}
+}

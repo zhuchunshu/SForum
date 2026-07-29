@@ -92,10 +92,12 @@ ApiResponseAttachmentCleanup:
 AttachmentProvider:
   type: string
   description: >
-    Core driver id (local) or plugin selection plugin:<extensionId> (E6.1).
+    Core driver id (local), legacy plugin selection plugin:<extensionId>, or
+    Host-owned provider instance selection instance:<uuid>.
   examples:
   - local
   - plugin:sforum.s3
+  - instance:550e8400-e29b-41d4-a716-446655440000
 AttachmentStorageCandidate:
   type: object
   required:
@@ -112,6 +114,7 @@ AttachmentStorageCandidate:
       enum:
       - core
       - plugin
+      - instance
     label:
       type: string
     extensionId:
@@ -121,6 +124,10 @@ AttachmentStorageCandidate:
       description: Optional admin path for plugin settings
     available:
       type: boolean
+    multiInstance:
+      type: boolean
+    schema:
+      "$ref": "#/AttachmentStorageProviderSchema"
 AttachmentStatus:
   type: string
   enum:
@@ -388,3 +395,90 @@ AttachmentCleanupResult:
       type: integer
     failed:
       type: integer
+AttachmentStorageProviderOption:
+  type: object
+  required: [value, label]
+  properties:
+    value: { type: string }
+    label: { type: string }
+    description: { type: string }
+AttachmentStorageProviderField:
+  type: object
+  required: [key, label, type]
+  properties:
+    key: { type: string }
+    label: { type: string }
+    description: { type: string }
+    type: { type: string, enum: [string, text, textarea, number, boolean, secret, select] }
+    default: { type: string }
+    recommendedValue: { type: string }
+    placeholder: { type: string }
+    secretSet: { type: boolean }
+    options:
+      type: array
+      items: { "$ref": "#/AttachmentStorageProviderOption" }
+AttachmentStorageProviderSchema:
+  type: object
+  required: [extensionId, label, fields]
+  properties:
+    extensionId: { type: string }
+    label: { type: string }
+    fields:
+      type: array
+      items: { "$ref": "#/AttachmentStorageProviderField" }
+AttachmentStorageInstance:
+  type: object
+  required: [id, extensionId, name, values, schema, configRevision, status, attachmentCount, active, createdAt, updatedAt]
+  properties:
+    id: { type: string, format: uuid }
+    extensionId: { type: string }
+    name: { type: string }
+    values:
+      type: object
+      additionalProperties: { type: string }
+      description: Secret fields are always returned as empty strings.
+    schema: { "$ref": "#/AttachmentStorageProviderSchema" }
+    configRevision: { type: integer, format: int64 }
+    status: { type: string, enum: [unverified, ready, error] }
+    lastProbeStatus: { type: string }
+    lastProbeMessage: { type: string }
+    lastProbeAt: { type: string, format: date-time }
+    attachmentCount: { type: integer, format: int64 }
+    active: { type: boolean }
+    createdAt: { type: string, format: date-time }
+    updatedAt: { type: string, format: date-time }
+AttachmentStorageInstanceInput:
+  type: object
+  required: [extensionId, name, values]
+  properties:
+    extensionId: { type: string }
+    name: { type: string, minLength: 1, maxLength: 120 }
+    values:
+      type: object
+      additionalProperties: { type: string }
+    configRevision: { type: integer, format: int64, minimum: 1 }
+AttachmentStorageInstanceProbeInput:
+  type: object
+  required: [extensionId, values]
+  properties:
+    extensionId: { type: string }
+    instanceId: { type: string, format: uuid }
+    values:
+      type: object
+      additionalProperties: { type: string }
+ApiResponseAttachmentStorageInstance:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/AttachmentStorageInstance" }
+ApiResponseAttachmentStorageInstances:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      type: array
+      items: { "$ref": "#/AttachmentStorageInstance" }

@@ -15,24 +15,58 @@ const (
 	StatusDisabled = "disabled"
 	StatusDeleted  = "deleted"
 
-	CodeInvalidAttachment  = "attachment.invalid"
-	CodeUploadDisabled     = "attachment.upload_disabled"
-	CodeReferenced         = "attachment.referenced"
-	CodeStorageUnavailable = "attachment.storage_unavailable"
+	CodeInvalidAttachment         = "attachment.invalid"
+	CodeUploadDisabled            = "attachment.upload_disabled"
+	CodeReferenced                = "attachment.referenced"
+	CodeStorageUnavailable        = "attachment.storage_unavailable"
+	CodeStorageInstanceInvalid    = "attachment.storage_instance_invalid"
+	CodeStorageInstanceReferenced = "attachment.storage_instance_referenced"
 )
 
 var (
-	ErrInvalidAttachment  = errors.New("attachments: invalid attachment")
-	ErrUploadDisabled     = errors.New("attachments: upload disabled")
-	ErrAttachmentNotFound = errors.New("attachments: not found")
-	ErrReferenced         = errors.New("attachments: attachment is referenced")
-	ErrStorageUnavailable = errors.New("attachments: storage unavailable")
+	ErrInvalidAttachment         = errors.New("attachments: invalid attachment")
+	ErrUploadDisabled            = errors.New("attachments: upload disabled")
+	ErrAttachmentNotFound        = errors.New("attachments: not found")
+	ErrReferenced                = errors.New("attachments: attachment is referenced")
+	ErrStorageUnavailable        = errors.New("attachments: storage unavailable")
+	ErrStorageInstanceInvalid    = errors.New("attachments: invalid storage instance")
+	ErrStorageInstanceReferenced = errors.New("attachments: storage instance is referenced")
 )
 
 type OwnerSummary struct {
 	ID          int64  `json:"id"`
 	Username    string `json:"username"`
 	DisplayName string `json:"displayName"`
+}
+
+type StorageInstance struct {
+	ID               string                 `json:"id"`
+	ExtensionID      string                 `json:"extensionId"`
+	Name             string                 `json:"name"`
+	Values           map[string]string      `json:"values"`
+	Schema           storage.ProviderSchema `json:"schema"`
+	ConfigRevision   int64                  `json:"configRevision"`
+	Status           string                 `json:"status"`
+	LastProbeStatus  string                 `json:"lastProbeStatus,omitempty"`
+	LastProbeMessage string                 `json:"lastProbeMessage,omitempty"`
+	LastProbeAt      *time.Time             `json:"lastProbeAt,omitempty"`
+	AttachmentCount  int64                  `json:"attachmentCount"`
+	Active           bool                   `json:"active"`
+	CreatedAt        time.Time              `json:"createdAt"`
+	UpdatedAt        time.Time              `json:"updatedAt"`
+}
+
+type StorageInstanceInput struct {
+	ExtensionID    string            `json:"extensionId"`
+	Name           string            `json:"name"`
+	Values         map[string]string `json:"values"`
+	ConfigRevision int64             `json:"configRevision,omitempty"`
+}
+
+type StorageInstanceProbeInput struct {
+	ExtensionID string            `json:"extensionId"`
+	InstanceID  string            `json:"instanceId,omitempty"`
+	Values      map[string]string `json:"values"`
 }
 
 type Attachment struct {

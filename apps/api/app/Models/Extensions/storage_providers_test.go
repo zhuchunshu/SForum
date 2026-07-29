@@ -20,7 +20,7 @@ func TestListStorageProviderCandidatesOnlyEnabledSlot(t *testing.T) {
 		ID: "acme.store", Type: TypePlugin, Status: StatusEnabled, Name: "Acme",
 		Manifest: Manifest{
 			ID: "acme.store", Type: TypePlugin, Name: "Acme Store",
-			Providers: []ManifestProvider{{Slot: storage.ProviderSlot, Label: "Acme Object Storage"}},
+			Providers: []ManifestProvider{{Slot: storage.ProviderSlot, Label: "Acme Object Storage", MultiInstance: true}},
 			Admin:     ManifestAdmin{Entry: "/settings"},
 		},
 	}
@@ -42,6 +42,9 @@ func TestListStorageProviderCandidatesOnlyEnabledSlot(t *testing.T) {
 	}
 	if got[0].SettingsPath == "" {
 		t.Fatal("expected settings path")
+	}
+	if !got[0].MultiInstance || got[0].Schema == nil {
+		t.Fatalf("expected multi-instance schema projection, got %#v", got[0])
 	}
 
 	ok, err := service.IsStorageProviderAvailable(context.Background(), "acme.store")

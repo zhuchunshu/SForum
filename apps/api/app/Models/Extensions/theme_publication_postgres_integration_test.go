@@ -340,7 +340,7 @@ func TestPostgresRemovedActiveBuiltinConvergesBeforePrune(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := fixture.store.PruneMissingBuiltins(fixture.ctx, []string{replacement.ID}); err != nil {
+	if _, err := fixture.store.PruneMissingBuiltins(fixture.ctx, []string{replacement.ID}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := fixture.store.Get(fixture.ctx, removed.ID); err != nil {
@@ -357,7 +357,7 @@ func TestPostgresRemovedActiveBuiltinConvergesBeforePrune(t *testing.T) {
 	if repaired.Publication.Reason != ThemeRuntimePublicationStartupRepair || repaired.Extension.ID != replacement.ID {
 		t.Fatalf("startup repair=%#v", repaired)
 	}
-	if err := fixture.store.PruneMissingBuiltins(fixture.ctx, []string{replacement.ID}); err != nil {
+	if _, err := fixture.store.PruneMissingBuiltins(fixture.ctx, []string{replacement.ID}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := fixture.store.Get(fixture.ctx, removed.ID); !errors.Is(err, ErrExtensionNotFound) {
@@ -540,7 +540,7 @@ func newThemePublicationPGFixtureWithInitialPublication(
 		removeSchema()
 		t.Fatalf("migrate isolated theme schema to registry: %v", err)
 	}
-	for _, version := range []int64{202607150019, 202607150020, 202607150021} {
+	for _, version := range []int64{202607150019, 202607150020, 202607150021, 202607160027, 202607300002} {
 		if _, err := provider.ApplyVersion(ctx, version, true); err != nil {
 			db.Close()
 			removeSchema()

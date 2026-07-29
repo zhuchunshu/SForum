@@ -1,1 +1,0 @@
-{ "name": "SForum SFTP 存储", "description": "受保护的内置 SFTP 附件存储提供方，要求验证 SSH 主机密钥。", "author": { "name": "SForum" } }

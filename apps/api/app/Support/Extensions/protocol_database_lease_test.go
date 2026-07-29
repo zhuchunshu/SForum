@@ -150,7 +150,7 @@ func protocolDatabaseLeaseExtension(t *testing.T, expectDatabaseEnv bool) extens
 	if expectDatabaseEnv {
 		launcher += "SFORUM_PLUGIN_EXPECT_DATABASE=lease "
 	}
-	launcher += "SFORUM_PLUGIN_HELPER=protocol-v2-no-services exec " + shellQuote(os.Args[0]) + " -test.run=TestProtocolV2HelperProcess -- \"$@\"\n"
+	launcher += "SFORUM_PLUGIN_HELPER=protocol-v2-no-services exec " + shellQuote(os.Args[0]) + " -test.run=TestProtocolV2DatabaseLeaseHelperProcess -- \"$@\"\n"
 	if err := os.WriteFile(filepath.Join(filesRoot, "plugin"), []byte(launcher), 0o755); err != nil {
 		t.Fatal(err)
 	}

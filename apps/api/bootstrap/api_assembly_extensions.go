@@ -226,6 +226,9 @@ func wireAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger *sl
 	if hostPlatform != nil && hostPlatform.Settings != nil {
 		extensionService.BindSettingsLifecycle(hostPlatform.Settings)
 	}
+	if hostPlatform != nil {
+		attachmentService.WithSecretStore(hostPlatform.Secrets)
+	}
 	// P12 ops：RuntimeRollout / SystemTier / Marketplace / Privacy 绑定 PostgreSQL。
 	p12Ops, err := bindProductionP12Ops(cfg, pool, logger, extensionService, identityStore)
 	if err != nil {

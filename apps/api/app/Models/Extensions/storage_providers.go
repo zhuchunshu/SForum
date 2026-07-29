@@ -32,7 +32,18 @@ func (s *CatalogService) ListStorageProviderCandidates(ctx context.Context) ([]s
 			// 管理端扩展设置页固定命名空间。
 			settingsPath = "/extensions/" + item.ID + "/pages/settings"
 		}
-		out = append(out, storage.PluginCandidate(item.ID, label, settingsPath))
+		candidate := storage.PluginCandidate(item.ID, label, settingsPath)
+		for _, provider := range item.Manifest.Providers {
+			if strings.TrimSpace(provider.Slot) == storage.ProviderSlot {
+				candidate.MultiInstance = provider.MultiInstance
+				if provider.MultiInstance {
+					schema := storageProviderSchema(item, "")
+					candidate.Schema = &schema
+				}
+				break
+			}
+		}
+		out = append(out, candidate)
 	}
 	sort.Slice(out, func(i, j int) bool {
 		return out[i].ExtensionID < out[j].ExtensionID
@@ -61,6 +72,58 @@ func (s *CatalogService) IsStorageProviderAvailable(ctx context.Context, extensi
 	}
 	_, ok := storageProviderLabel(item)
 	return ok, nil
+}
+
+type AttachmentStorageProviderCatalog struct{ catalog *CatalogService }
+
+func NewAttachmentStorageProviderCatalog(service *Service) *AttachmentStorageProviderCatalog {
+	if service == nil {
+		return nil
+	}
+	return &AttachmentStorageProviderCatalog{catalog: service.catalog}
+}
+
+func (a *AttachmentStorageProviderCatalog) ListStorageProviderCandidates(ctx context.Context) ([]storage.Candidate, error) {
+	return a.catalog.ListStorageProviderCandidates(ctx)
+}
+
+func (a *AttachmentStorageProviderCatalog) IsStorageProviderAvailable(ctx context.Context, extensionID string) (bool, error) {
+	return a.catalog.IsStorageProviderAvailable(ctx, extensionID)
+}
+
+func (a *AttachmentStorageProviderCatalog) StorageProviderSchema(ctx context.Context, extensionID, locale string) (storage.ProviderSchema, error) {
+	if a == nil || a.catalog == nil {
+		return storage.ProviderSchema{}, ErrExtensionNotFound
+	}
+	if a.catalog.safeMode {
+		return storage.ProviderSchema{}, ErrSafeModeActive
+	}
+	item, err := a.catalog.store.Get(ctx, normalizeID(extensionID))
+	if err != nil {
+		return storage.ProviderSchema{}, err
+	}
+	_, ok := storageProviderLabel(item)
+	if !ok {
+		return storage.ProviderSchema{}, ErrInvalidManifest
+	}
+	return storageProviderSchema(item, locale), nil
+}
+
+func storageProviderSchema(item Extension, locale string) storage.ProviderSchema {
+	label, _ := storageProviderLabel(item)
+	fields := make([]storage.ProviderField, 0, len(item.Manifest.Settings))
+	for _, field := range item.Manifest.Settings {
+		options := make([]storage.ProviderOption, 0, len(field.Options))
+		for _, option := range field.Options {
+			options = append(options, storage.ProviderOption{Value: option.Value, Label: option.Label.Resolve(locale), Description: option.Description.Resolve(locale)})
+		}
+		fields = append(fields, storage.ProviderField{
+			Key: field.Key, Label: field.Label.Resolve(locale), Description: field.Description.Resolve(locale),
+			Type: field.Type, Default: field.Default, RecommendedValue: field.RecommendedValue,
+			Placeholder: field.Placeholder.Resolve(locale), Options: options,
+		})
+	}
+	return storage.ProviderSchema{ExtensionID: item.ID, Label: label, Fields: fields}
 }
 
 func storageProviderLabel(item Extension) (string, bool) {

@@ -26,6 +26,7 @@ import (
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionRuntime"
 	mediaregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/MediaRegistry"
+	secretstore "github.com/zhuchunshu/sforum/apps/api/app/Support/SecretStore"
 	storage "github.com/zhuchunshu/sforum/apps/api/app/Support/Storage"
 )
 
@@ -37,6 +38,7 @@ type StorageProviderCatalog interface {
 	ListStorageProviderCandidates(ctx context.Context) ([]storage.Candidate, error)
 	// IsStorageProviderAvailable 校验 plugin 选择是否仍可用（启用 + 声明槽位）。
 	IsStorageProviderAvailable(ctx context.Context, extensionID string) (bool, error)
+	StorageProviderSchema(ctx context.Context, extensionID, locale string) (storage.ProviderSchema, error)
 }
 
 // StoragePluginRuntime 是插件存储适配器的稳定工厂边界（E6.2）。
@@ -53,6 +55,8 @@ type Service struct {
 	storageRuntime StoragePluginRuntime
 	// mediaRegistry 可选：已发布 MIME 策略时叠加拒绝；无策略时不介入。
 	mediaRegistry *mediaregistry.Registry
+	instanceStore StorageInstanceStore
+	secrets       *secretstore.Service
 }
 
 func NewService(store Store, optionsService *options.Service) *Service {
@@ -60,12 +64,23 @@ func NewService(store Store, optionsService *options.Service) *Service {
 }
 
 func NewServiceWithEvents(store Store, optionsService *options.Service, publisher appevents.Publisher) *Service {
-	return &Service{
+	service := &Service{
 		store:          store,
 		options:        optionsService,
 		events:         appevents.EnsurePublisher(publisher),
 		adapterFactory: storage.NewAdapter,
 	}
+	if instances, ok := store.(StorageInstanceStore); ok {
+		service.instanceStore = instances
+	}
+	return service
+}
+
+func (s *Service) WithSecretStore(secrets *secretstore.Service) *Service {
+	if s != nil {
+		s.secrets = secrets
+	}
+	return s
 }
 
 func NewServiceWithAdapterFactory(store Store, optionsService *options.Service, factory func(storage.Config) (storage.Adapter, error)) *Service {
@@ -572,10 +587,19 @@ func (s *Service) listCandidates(ctx context.Context) []storage.Candidate {
 		return core
 	}
 	plugins, err := s.providers.ListStorageProviderCandidates(ctx)
-	if err != nil || len(plugins) == 0 {
+	if err != nil {
 		return core
 	}
-	return storage.MergeCandidates(core, plugins)
+	out := storage.MergeCandidates(core, plugins)
+	if s.instanceStore != nil {
+		instances, listErr := s.instanceStore.ListStorageInstances(ctx)
+		if listErr == nil {
+			for _, instance := range instances {
+				out = append(out, storage.Candidate{Value: storage.FormatInstanceSelection(instance.ID), Kind: storage.SelectionKindInstance, Label: instance.Name, ExtensionID: instance.ExtensionID, Available: true})
+			}
+		}
+	}
+	return out
 }
 
 // ensureProviderSelectable 校验要写入的 provider：core 已知驱动，或可用插件。
@@ -584,6 +608,26 @@ func (s *Service) ensureProviderSelectable(ctx context.Context, provider string)
 	if sel.IsCoreDriverSelection() {
 		if !storage.IsKnownDriver(sel.Driver) {
 			return storage.ErrInvalidConfig
+		}
+		return nil
+	}
+	if sel.IsValidInstanceSelection() {
+		if s.instanceStore == nil {
+			return ErrStorageUnavailable
+		}
+		instance, err := s.instanceStore.GetStorageInstance(ctx, sel.InstanceID)
+		if err != nil {
+			return err
+		}
+		if s.providers == nil {
+			return ErrStorageUnavailable
+		}
+		ok, err := s.providers.IsStorageProviderAvailable(ctx, instance.ExtensionID)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return ErrStorageUnavailable
 		}
 		return nil
 	}
@@ -615,6 +659,33 @@ func (s *Service) adapterForSettings(ctx context.Context, settings AttachmentSet
 		}
 		config.Provider = driver
 		return s.adapterFactory(config)
+	}
+	if sel.IsValidInstanceSelection() {
+		if s.instanceStore == nil || s.storageRuntime == nil {
+			return nil, ErrStorageUnavailable
+		}
+		instance, err := s.instanceStore.GetStorageInstance(ctx, sel.InstanceID)
+		if err != nil {
+			return nil, ErrStorageUnavailable
+		}
+		if s.providers != nil {
+			ok, availableErr := s.providers.IsStorageProviderAvailable(ctx, instance.ExtensionID)
+			if availableErr != nil {
+				return nil, availableErr
+			}
+			if !ok {
+				return nil, ErrStorageUnavailable
+			}
+		}
+		values, err := s.storageInstanceRuntimeValues(ctx, instance, "system")
+		if err != nil {
+			return nil, ErrStorageUnavailable
+		}
+		adapter, err := s.storageRuntime.NewStorageInstanceAdapter(ctx, instance.ExtensionID, instance.ID, values)
+		if err != nil {
+			return nil, ErrStorageUnavailable
+		}
+		return adapter, nil
 	}
 	// 插件路径：校验可用性后经 PluginStorageAdapter 走 RPC（E6.2）。
 	if !sel.IsValidPluginSelection() {
@@ -669,7 +740,14 @@ func (s *Service) ClearStorageProviderSelectionIfMatch(ctx context.Context, exte
 		return err
 	}
 	current := storage.ParseSelection(values[options.NameAttachmentProvider])
-	if !current.IsValidPluginSelection() || current.ExtensionID != extensionID {
+	if current.IsValidInstanceSelection() && s.instanceStore != nil {
+		instance, loadErr := s.instanceStore.GetStorageInstance(ctx, current.InstanceID)
+		if loadErr == nil && instance.ExtensionID == extensionID {
+			// continue to local fallback
+		} else {
+			return nil
+		}
+	} else if !current.IsValidPluginSelection() || current.ExtensionID != extensionID {
 		return nil
 	}
 	// 系统回落：写 local 并校验整组 attachment 选项仍合法。

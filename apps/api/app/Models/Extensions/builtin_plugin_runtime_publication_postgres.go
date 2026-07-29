@@ -3,7 +3,9 @@ package extensions
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -179,4 +181,133 @@ func loadBuiltinPluginRuntimeMemberArtifact(
 		)
 	}
 	return extension, nil
+}
+
+type missingBuiltinExtension struct {
+	id            string
+	extensionType string
+	versionID     int64
+	version       string
+	packageDigest string
+}
+
+// PruneMissingBuiltins removes absent built-ins from the live catalog without
+// deleting immutable extension identities referenced by historical runtime
+// publications. Executable plugins are first removed from the latest desired
+// full-set in the same transaction.
+func (s *PostgresStore) PruneMissingBuiltins(
+	ctx context.Context,
+	activeIDs []string,
+) (BuiltinPruneResult, error) {
+	if s == nil || s.pool == nil || ctx == nil || len(activeIDs) == 0 {
+		return BuiltinPruneResult{}, nil
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return BuiltinPruneResult{}, fmt.Errorf("begin builtin extension prune: %w", err)
+	}
+	defer func() { _ = tx.Rollback(context.Background()) }()
+
+	latest, err := lockLatestPluginRuntimePublication(ctx, tx)
+	hasPublication := err == nil
+	if err != nil && !errors.Is(err, ErrPluginRuntimePublicationNotFound) {
+		return BuiltinPruneResult{}, fmt.Errorf("load builtin prune runtime publication: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext($1))`, themeRuntimeActivationLockKey); err != nil {
+		return BuiltinPruneResult{}, fmt.Errorf("lock builtin extension prune: %w", err)
+	}
+
+	rows, err := tx.Query(ctx, `
+		SELECT e.id, e.type, v.id, v.version, v.package_digest
+		FROM extensions AS e
+		JOIN extension_versions AS v ON v.id = e.active_version_id
+		LEFT JOIN extension_builtin_removals AS removed ON removed.extension_id = e.id
+		WHERE e.source = 'builtin'
+		  AND NOT (e.id = ANY($1::text[]))
+		  AND NOT (e.type = 'theme' AND e.status = 'enabled')
+		  AND removed.extension_id IS NULL
+		ORDER BY e.id COLLATE "C"
+		FOR UPDATE OF e
+	`, activeIDs)
+	if err != nil {
+		return BuiltinPruneResult{}, fmt.Errorf("load missing builtin extensions: %w", err)
+	}
+	var missing []missingBuiltinExtension
+	for rows.Next() {
+		var item missingBuiltinExtension
+		if err := rows.Scan(&item.id, &item.extensionType, &item.versionID, &item.version, &item.packageDigest); err != nil {
+			rows.Close()
+			return BuiltinPruneResult{}, fmt.Errorf("scan missing builtin extension: %w", err)
+		}
+		missing = append(missing, item)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return BuiltinPruneResult{}, fmt.Errorf("iterate missing builtin extensions: %w", err)
+	}
+	rows.Close()
+
+	result := BuiltinPruneResult{}
+	missingPluginIDs := make(map[string]bool, len(missing))
+	for _, item := range missing {
+		if item.extensionType == TypePlugin {
+			missingPluginIDs[item.id] = true
+			result.DisabledPluginIDs = append(result.DisabledPluginIDs, item.id)
+		}
+	}
+	sort.Strings(result.DisabledPluginIDs)
+
+	if hasPublication && len(missingPluginIDs) > 0 {
+		nextMembers := make([]PluginRuntimeMember, 0, len(latest.Members))
+		for _, member := range latest.Members {
+			if !missingPluginIDs[member.ExtensionID] {
+				nextMembers = append(nextMembers, member)
+			}
+		}
+		if len(nextMembers) != len(latest.Members) {
+			if _, err := insertPluginRuntimePublication(
+				ctx, tx, PluginRuntimePublicationStartupReconcile, 0, nextMembers,
+			); err != nil {
+				return BuiltinPruneResult{}, fmt.Errorf("publish missing builtin runtime removal: %w", err)
+			}
+		}
+	}
+
+	if len(result.DisabledPluginIDs) > 0 {
+		if _, err := tx.Exec(ctx, `
+			UPDATE extensions
+			SET status = 'disabled', staged_version_id = NULL,
+			    updated_at = statement_timestamp()
+			WHERE id = ANY($1::text[]) AND type = 'plugin'
+		`, result.DisabledPluginIDs); err != nil {
+			return BuiltinPruneResult{}, fmt.Errorf("disable missing builtin plugins: %w", err)
+		}
+		if _, err := tx.Exec(ctx, `
+			DELETE FROM mail_provider_selection WHERE extension_id = ANY($1::text[])
+		`, result.DisabledPluginIDs); err != nil {
+			return BuiltinPruneResult{}, fmt.Errorf("clear missing builtin provider selections: %w", err)
+		}
+	}
+
+	for _, item := range missing {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO extension_builtin_removals (
+				extension_id, extension_type, extension_version_id,
+				extension_version, package_digest
+			) VALUES ($1, $2, $3, $4, $5)
+			ON CONFLICT (extension_id) DO UPDATE SET
+				extension_type = EXCLUDED.extension_type,
+				extension_version_id = EXCLUDED.extension_version_id,
+				extension_version = EXCLUDED.extension_version,
+				package_digest = EXCLUDED.package_digest,
+				removed_at = statement_timestamp()
+		`, item.id, item.extensionType, item.versionID, item.version, item.packageDigest); err != nil {
+			return BuiltinPruneResult{}, fmt.Errorf("record removed builtin %s: %w", item.id, err)
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return BuiltinPruneResult{}, fmt.Errorf("commit builtin extension prune: %w", err)
+	}
+	return result, nil
 }

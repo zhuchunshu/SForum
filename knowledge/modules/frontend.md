@@ -27,6 +27,37 @@ responsibilities.
 
 ## Active Work
 
+### Password recovery account flow
+
+- `SFRecoveryShell` owns the approved 46/54 desktop geometry, mobile collapse,
+  runtime logo/site name, appearance tokens, tri-state color-mode control,
+  progress rail, and shared account-recovery chrome. Request and confirmation
+  content remain focused Identity components, not route-shell implementations.
+- The request view provides field validation, optional ALTCHA, non-enumerating
+  completion, masked email, resend cooldown, success Toast, and a help route
+  back to the community. It does not expose private `site.admin_email`; a
+  direct administrator contact action requires a separate public contact
+  contract.
+- The confirmation view consumes the runtime password policy, renders a
+  segmented readiness meter and requirement list, supports password visibility,
+  and has explicit invalid-link and completion states.
+- Existing `auth.forgot_password` and `auth.reset_password` Page Registry IDs,
+  Host islands, route shells, and API contracts remain authoritative. Rendered
+  QA covered the selected theme at desktop and `390x844` without overflow or
+  console warnings.
+
+### Comment user preview
+
+- `SFComment` treats an eligible avatar or author name as a preview trigger;
+  the first click opens `SFCommentUserPreview` instead of navigating directly.
+- The non-modal card is anchored to its comment node, remains 340px wide when
+  space allows, scrolls away with the comment, and closes on outside pointer
+  input or Escape. Escape restores focus to the last trigger.
+- The card uses `GET /profiles/:username`, caches successful public profiles
+  per Nuxt state, and keeps the existing comment identity plus `/u/:username`
+  entry available when profile details cannot load. It does not fabricate
+  follow, message, or other unsupported actions.
+
 ### Personalization brand asset upload
 
 - Core ships `/brand/sforum-logo.svg` as the public default for both the navbar

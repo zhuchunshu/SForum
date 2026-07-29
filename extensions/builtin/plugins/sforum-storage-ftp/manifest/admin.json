@@ -1,1 +1,0 @@
-{ "entry": "/settings", "pages": [{ "path": "/settings", "label": "FTP Storage Settings", "view": "settings", "menu": false }] }

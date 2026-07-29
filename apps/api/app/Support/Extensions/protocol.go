@@ -106,6 +106,7 @@ type PluginProtocol interface {
 	StoragePublicURL(StoragePublicURLRequest) (StorageURLResponse, error)
 	StorageSignedURL(StorageSignedURLRequest) (StorageURLResponse, error)
 	StorageProbe(StorageProbeRequest) (StorageProbeResponse, error)
+	StorageInstanceProtocol
 }
 
 // pluginHookContextInvoker lets the typed transport propagate Host cancellation.

@@ -76,7 +76,7 @@ func isValidAttachmentOptions(values map[string]string) bool {
 	}
 	// E6.1：插件选择的凭证在 extension_settings，不要求 core 云字段齐全。
 	// 启用/槽位合法性在 Attachments 服务写路径与 Probe 中 fail-closed 校验。
-	if storage.IsPluginSelection(provider) {
+	if storage.IsPluginSelection(provider) || storage.IsInstanceSelection(provider) {
 		return true
 	}
 	return provider == storage.ProviderLocal
@@ -104,6 +104,24 @@ func normalizeAttachmentProvider(value string) (string, bool) {
 				return "", false
 			}
 			if !ok {
+				return "", false
+			}
+		}
+		return sel.Raw, true
+	}
+	if storage.IsInstanceSelection(value) {
+		sel := storage.ParseSelection(value)
+		if !sel.IsValidInstanceSelection() || len(sel.InstanceID) != 36 {
+			return "", false
+		}
+		for i, r := range sel.InstanceID {
+			if i == 8 || i == 13 || i == 18 || i == 23 {
+				if r != '-' {
+					return "", false
+				}
+				continue
+			}
+			if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F')) {
 				return "", false
 			}
 		}

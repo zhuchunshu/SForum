@@ -141,7 +141,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	// 与 extensionService 共享同一 attachmentService 实例（禁用回落 + 候选目录 + 事件 + 存储 RPC）。
 	// MediaRegistry MIME 策略在已发布时叠加；无策略时 no-op。
 	_ = attachmentService.WithEvents(eventPublisher).
-		WithStorageProviderCatalog(extensionService).
+		WithStorageProviderCatalog(extensions.NewAttachmentStorageProviderCatalog(extensionService)).
 		WithStoragePluginRuntime(extensionsruntime.NewPluginStorageAdapterFactory(extensionRuntime, 0)).
 		WithMediaRegistry(lifecycleStack.MediaRegistry)
 

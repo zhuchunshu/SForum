@@ -1,0 +1,5 @@
+{
+  "name": "SForum S3-compatible Storage",
+  "description": "Built-in multi-instance S3-compatible attachment storage for AWS S3, MinIO, Cloudflare R2, and similar services.",
+  "author": { "name": "SForum" }
+}

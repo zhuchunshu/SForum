@@ -22,6 +22,9 @@ type StorageProviderInvoker interface {
 	StoragePublicURL(ctx context.Context, extensionID string, request StoragePublicURLRequest) (StorageURLResponse, error)
 	StorageSignedURL(ctx context.Context, extensionID string, request StorageSignedURLRequest) (StorageURLResponse, error)
 	StorageProbe(ctx context.Context, extensionID string, request StorageProbeRequest) (StorageProbeResponse, error)
+	StorageConfigureInstance(ctx context.Context, extensionID string, request StorageConfigureInstanceRequest) (StorageResult, error)
+	StorageRemoveInstance(ctx context.Context, extensionID string, request StorageRemoveInstanceRequest) (StorageResult, error)
+	StorageProbeConfig(ctx context.Context, extensionID string, request StorageProbeConfigRequest) (StorageProbeResponse, error)
 }
 
 // StorageRuntime 是 Attachments / PluginStorageAdapter 依赖的最小 runtime 面。
@@ -39,6 +42,16 @@ type StorageRuntime interface {
 	StorageSignedURL(ctx context.Context, extensionID string, request StorageSignedURLRequest) (StorageURLResponse, error)
 	StorageProbe(ctx context.Context, extensionID string, request StorageProbeRequest) (StorageProbeResponse, error)
 }
+
+type StorageInstanceRuntime interface {
+	StorageConfigureInstance(ctx context.Context, extensionID string, request StorageConfigureInstanceRequest) (StorageResult, error)
+	StorageRemoveInstance(ctx context.Context, extensionID string, request StorageRemoveInstanceRequest) (StorageResult, error)
+	StorageProbeConfig(ctx context.Context, extensionID string, request StorageProbeConfigRequest) (StorageProbeResponse, error)
+}
+
+// StorageInstanceInvoker owns Host-side multi-instance storage calls without
+// growing the legacy Manager or RuntimeInvoker facades.
+type StorageInstanceInvoker struct{ *Manager }
 
 // storageCall 在运行中的扩展上执行一次存储 RPC，并走 F2.3 闸门/熔断。
 // success 由调用方根据响应 OK（及传输 err）判定。
@@ -242,6 +255,45 @@ func (m *RuntimeInvoker) StorageProbe(ctx context.Context, extensionID string, r
 	var response StorageProbeResponse
 	err := m.storageCall(ctx, extensionID, func(ctx context.Context, invoker StorageProviderInvoker) (bool, string, error) {
 		resp, err := invoker.StorageProbe(ctx, extensionID, request)
+		response = resp
+		if err != nil {
+			return false, "", err
+		}
+		return resp.OK, resp.Reason, nil
+	})
+	return response, err
+}
+
+func (m *StorageInstanceInvoker) StorageConfigureInstance(ctx context.Context, extensionID string, request StorageConfigureInstanceRequest) (StorageResult, error) {
+	var response StorageResult
+	err := m.storageCall(ctx, extensionID, func(ctx context.Context, invoker StorageProviderInvoker) (bool, string, error) {
+		resp, err := invoker.StorageConfigureInstance(ctx, extensionID, request)
+		response = resp
+		if err != nil {
+			return false, "", err
+		}
+		return resp.OK, resp.Reason, nil
+	})
+	return response, err
+}
+
+func (m *StorageInstanceInvoker) StorageRemoveInstance(ctx context.Context, extensionID string, request StorageRemoveInstanceRequest) (StorageResult, error) {
+	var response StorageResult
+	err := m.storageCall(ctx, extensionID, func(ctx context.Context, invoker StorageProviderInvoker) (bool, string, error) {
+		resp, err := invoker.StorageRemoveInstance(ctx, extensionID, request)
+		response = resp
+		if err != nil {
+			return false, "", err
+		}
+		return resp.OK, resp.Reason, nil
+	})
+	return response, err
+}
+
+func (m *StorageInstanceInvoker) StorageProbeConfig(ctx context.Context, extensionID string, request StorageProbeConfigRequest) (StorageProbeResponse, error) {
+	var response StorageProbeResponse
+	err := m.storageCall(ctx, extensionID, func(ctx context.Context, invoker StorageProviderInvoker) (bool, string, error) {
+		resp, err := invoker.StorageProbeConfig(ctx, extensionID, request)
 		response = resp
 		if err != nil {
 			return false, "", err

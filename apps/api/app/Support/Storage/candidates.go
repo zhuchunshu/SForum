@@ -2,6 +2,33 @@ package storage
 
 import "strings"
 
+// ProviderField is one provider-defined configuration field rendered by the
+// generic attachment storage instance editor. Vendor-specific fields stay in
+// extension manifests instead of Core UI code.
+type ProviderField struct {
+	Key              string           `json:"key"`
+	Label            string           `json:"label"`
+	Description      string           `json:"description,omitempty"`
+	Type             string           `json:"type"`
+	Default          string           `json:"default,omitempty"`
+	RecommendedValue string           `json:"recommendedValue,omitempty"`
+	Placeholder      string           `json:"placeholder,omitempty"`
+	Options          []ProviderOption `json:"options,omitempty"`
+	SecretSet        bool             `json:"secretSet,omitempty"`
+}
+
+type ProviderOption struct {
+	Value       string `json:"value"`
+	Label       string `json:"label"`
+	Description string `json:"description,omitempty"`
+}
+
+type ProviderSchema struct {
+	ExtensionID string          `json:"extensionId"`
+	Label       string          `json:"label"`
+	Fields      []ProviderField `json:"fields"`
+}
+
 // Candidate 是 attachment.storage.provider 的可选条目（E6.1）。
 // Core 驱动与插件提供方共用此形状，便于 Admin 下拉与 OpenAPI。
 type Candidate struct {
@@ -17,6 +44,10 @@ type Candidate struct {
 	SettingsPath string `json:"settingsPath,omitempty"`
 	// Available false 表示已声明但当前不可用；E6.1 候选列表通常只含可用项。
 	Available bool `json:"available"`
+	// MultiInstance means the provider accepts Host-owned named instance
+	// documents and can participate in one-click writer switching.
+	MultiInstance bool            `json:"multiInstance,omitempty"`
+	Schema        *ProviderSchema `json:"schema,omitempty"`
 }
 
 // CoreCandidates 返回内置驱动候选（始终 available）。

@@ -10,6 +10,13 @@ helpers.
 
 Initial identity foundation is implemented.
 
+- Password recovery now has a production dual-column Host flow shared by
+  `/forgot-password` and `/reset-password`. Request initiation remains
+  non-enumerating, supports the existing optional `password_reset` ALTCHA
+  purpose, masks the submitted email, and limits safe resend attempts with a
+  30-second client cooldown. Confirmation uses the runtime password policy,
+  rejects missing/invalid tokens explicitly, and exposes completed, mismatch,
+  and password-visibility states without changing the existing API contract.
 - Extension permission role suggestions preserve immutable review history.
   Approval requires the exact active plugin artifact, live permission
   declaration/catalog, enabled target role, `role.manage`, CAS, grant evidence,

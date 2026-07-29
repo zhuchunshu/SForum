@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted (E6.0 — contract only; implementation waves E6.1–E6.5)
+Accepted; multi-instance selection, Host SecretStore ownership, and the removal
+of FTP/SFTP built-ins are superseded by
+`2026-07-30-multi-instance-s3-storage.md`.
 
 ## Context
 

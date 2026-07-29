@@ -25,6 +25,11 @@ does not rebuild Nuxt.
   is Protocol V2. Cross-built compatibility coverage prevents those version
   axes from drifting together.
 - Architecture debt M0-M12 is complete.
+- The 28 public-contract and joined-runtime black-box test files now live in
+  `Support/Extensions/IntegrationTests`; the legacy package root retains only
+  one allowlisted external test helper needed by database-lease subprocess
+  tests. Focused recursive test commands must use
+  `go test ./app/Support/Extensions/...`.
 - The legacy `Models/Extensions` facade delegates to Catalog, Lifecycle,
   Theme, and Settings collaborators. The runtime `Manager` delegates to
   RuntimeSupervisor, InstanceAdmission, RuntimeInvoker, and
@@ -50,6 +55,10 @@ does not rebuild Nuxt.
   role-suggestion decisions likewise live in a focused Identity Registry file.
   Architecture ratchets remain non-growth constraints rather than being raised
   to accommodate these changes.
+- The lifecycle page reconciliation loop now lives with exact page runtime
+  staging, Protocol V2 provider invocation lives with provider-slot execution,
+  and Page Registry operator binding management has its own focused file. The
+  corresponding large-file ratchets were lowered after these extractions.
 - Stable contracts now live in `Support/ExtensionRuntime`,
   `ExtensionProtocol`, `ExtensionDatabase`, and `ExtensionComposition`.
   Product Models cannot import the legacy runtime package. The legacy package
@@ -94,6 +103,11 @@ Prior partial evidence, not closure:
 
 - Protected built-ins are discovered only under `extensions/builtin/` and are
   boot-synchronized through `SyncBuiltins`.
+- A protected built-in removed from the release tree is atomically removed
+  from the latest plugin runtime desired set, disabled, and hidden behind a
+  Host catalog tombstone. Immutable extension/version rows referenced by
+  historical publications are retained. If the same built-in ID ships again,
+  synchronization clears the tombstone but does not silently re-enable it.
 - Built-in source, staged immutable version, and active immutable version are
   distinct states. A theme source edit reaches runtime only after built-ins are
   rebuilt, the API restarts and stages the new digest, and an authorized admin
@@ -276,8 +290,11 @@ catalog IDs do not rely on string replacement as sanitization.
   external-integration behavior belongs in plugins.
 - Site PostgreSQL search is the protected default; Meilisearch is an optional
   external plugin.
-- SMTP is a protected built-in plugin. Attachment storage supports local and
-  plugin provider selection through the current storage contract.
+- SMTP is a protected built-in plugin. Attachment storage keeps Core `local`
+  as the safe default and supports legacy single-provider selections plus
+  Host-owned named plugin instances. The protected `sforum.storage-s3` plugin
+  implements AWS S3, MinIO, Cloudflare R2, and compatible services without
+  putting vendor SDK behavior in Core; the former FTP/SFTP built-ins are gone.
 - GitHub social login V1 is planned as the protected built-in plugin
   `sforum.auth-github`. Built-in discovery stages it but does not automatically
   trust, enable, configure, or publicly activate it. Core retains all account,

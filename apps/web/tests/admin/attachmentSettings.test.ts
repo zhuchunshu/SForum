@@ -29,7 +29,7 @@ describe('attachment settings defaults', () => {
 
   test('resets custom attachment settings to the recommended defaults', () => {
     const custom = createDefaultAttachmentSettings()
-    custom.provider = 'plugin:sforum.storage-sftp'
+    custom.provider = 'plugin:acme.storage'
     custom.uploadEnabled = false
     custom.maxFileSizeMb = 200
     custom.pathTemplate = 'custom/{public_id}{ext}'

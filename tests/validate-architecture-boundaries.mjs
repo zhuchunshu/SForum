@@ -179,6 +179,27 @@ for (const rule of baseline.rootDirectoryAllowlists || []) {
   }
 }
 
+for (const rule of baseline.testPackageRootAllowlists || []) {
+  const packagePrefix = `package ${rule.package}\n`
+  const actual = directFiles(rule.path)
+    .filter(path => path.endsWith('_test.go') && read(path).startsWith(packagePrefix))
+    .map(path => path.slice(rule.path.length + 1))
+    .sort()
+  const allowed = [...rule.files].sort()
+  const unexpected = actual.filter(path => !allowed.includes(path))
+  const missing = allowed.filter(path => !actual.includes(path))
+  if (unexpected.length > 0) {
+    failures.push(
+      `${rule.path} has unapproved ${rule.package} root tests: ${unexpected.join(', ')}; place black-box tests in their focused test package`
+    )
+  }
+  if (missing.length > 0) {
+    failures.push(
+      `${rule.path} ${rule.package} root-test allowlist contains missing files: ${missing.join(', ')}; remove stale allowlist entries`
+    )
+  }
+}
+
 for (const rule of baseline.flatDirectoryCaps || []) {
   const matching = directFiles(rule.path).filter((path) => {
     if (!rule.extensions.includes(extname(path))) return false

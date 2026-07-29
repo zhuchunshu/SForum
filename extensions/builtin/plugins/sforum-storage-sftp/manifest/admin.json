@@ -1,1 +1,0 @@
-{ "entry": "/settings", "pages": [{ "path": "/settings", "label": "SFTP Storage Settings", "view": "settings", "menu": false }] }

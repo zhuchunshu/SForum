@@ -14,9 +14,9 @@ STAGING_ROOT="${SFORUM_BUILTIN_DEV_ROOT:-$ROOT_DIR/storage/builtin-dev}"
 
 prepare_staging_tree() {
   mkdir -p "$STAGING_ROOT"
-  # 从源树同步主题 + 插件源码；排除 gitignored 的旧二进制，稍后在 staging 重建。
+  # 从源树同步主题 + 插件源码；删除 staging 中被排除的旧二进制，防止已移除插件残留空目录。
   if command -v rsync >/dev/null 2>&1; then
-    rsync -a --delete \
+    rsync -a --delete --delete-excluded \
       --exclude 'plugins/*/backend/plugin' \
       --exclude '.DS_Store' \
       --exclude 'air.env' \
@@ -50,49 +50,50 @@ write_air_env() {
   printf 'BUILTIN_EXTENSION_ROOT=%s\n' "$STAGING_ROOT" >"$STAGING_ROOT/air.env"
 }
 
-prepare_staging_tree
+main() {
+  prepare_staging_tree
 
-build_builtin_plugin "sforum.smtp" \
-  "$STAGING_ROOT/plugins/sforum-smtp/backend"
-refresh_v3_plugin_digest \
-  "$STAGING_ROOT/plugins/sforum-smtp"
+  build_builtin_plugin "sforum.smtp" \
+    "$STAGING_ROOT/plugins/sforum-smtp/backend"
+  refresh_v3_plugin_digest \
+    "$STAGING_ROOT/plugins/sforum-smtp"
 
-build_builtin_plugin "sforum.content-policy" \
-  "$STAGING_ROOT/plugins/sforum-content-policy/backend"
-refresh_v3_plugin_digest \
-  "$STAGING_ROOT/plugins/sforum-content-policy"
+  build_builtin_plugin "sforum.content-policy" \
+    "$STAGING_ROOT/plugins/sforum-content-policy/backend"
+  refresh_v3_plugin_digest \
+    "$STAGING_ROOT/plugins/sforum-content-policy"
 
-build_builtin_plugin "sforum.storage-fs" \
-	"$STAGING_ROOT/plugins/sforum-storage-fs/backend"
-refresh_v3_plugin_digest \
-	"$STAGING_ROOT/plugins/sforum-storage-fs"
+  build_builtin_plugin "sforum.storage-fs" \
+    "$STAGING_ROOT/plugins/sforum-storage-fs/backend"
+  refresh_v3_plugin_digest \
+    "$STAGING_ROOT/plugins/sforum-storage-fs"
 
-build_builtin_plugin "sforum.storage-ftp" \
-	"$STAGING_ROOT/plugins/sforum-storage-ftp/backend"
-refresh_v3_plugin_digest \
-	"$STAGING_ROOT/plugins/sforum-storage-ftp"
+  build_builtin_plugin "sforum.storage-s3" \
+    "$STAGING_ROOT/plugins/sforum-storage-s3/backend"
+  refresh_v3_plugin_digest \
+    "$STAGING_ROOT/plugins/sforum-storage-s3"
 
-build_builtin_plugin "sforum.storage-sftp" \
-	"$STAGING_ROOT/plugins/sforum-storage-sftp/backend"
-refresh_v3_plugin_digest \
-	"$STAGING_ROOT/plugins/sforum-storage-sftp"
+  build_builtin_plugin "sforum.search-site" \
+    "$STAGING_ROOT/plugins/sforum-search-site/backend"
+  refresh_v3_plugin_digest \
+    "$STAGING_ROOT/plugins/sforum-search-site"
 
-build_builtin_plugin "sforum.search-site" \
-  "$STAGING_ROOT/plugins/sforum-search-site/backend"
-refresh_v3_plugin_digest \
-  "$STAGING_ROOT/plugins/sforum-search-site"
+  build_builtin_plugin "sforum.auth-github" \
+    "$STAGING_ROOT/plugins/sforum-auth-github/backend"
+  refresh_v3_plugin_digest \
+    "$STAGING_ROOT/plugins/sforum-auth-github"
 
-build_builtin_plugin "sforum.auth-github" \
-  "$STAGING_ROOT/plugins/sforum-auth-github/backend"
-refresh_v3_plugin_digest \
-  "$STAGING_ROOT/plugins/sforum-auth-github"
+  build_builtin_plugin "sforum.web-push" \
+    "$STAGING_ROOT/plugins/sforum-web-push/backend"
+  refresh_v3_plugin_digest \
+    "$STAGING_ROOT/plugins/sforum-web-push"
 
-build_builtin_plugin "sforum.web-push" \
-  "$STAGING_ROOT/plugins/sforum-web-push/backend"
-refresh_v3_plugin_digest \
-  "$STAGING_ROOT/plugins/sforum-web-push"
+  write_air_env
 
-write_air_env
+  echo "Built-in plugins staged at: $STAGING_ROOT"
+  echo "Source tree manifests under extensions/builtin were not modified."
+}
 
-echo "Built-in plugins staged at: $STAGING_ROOT"
-echo "Source tree manifests under extensions/builtin were not modified."
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

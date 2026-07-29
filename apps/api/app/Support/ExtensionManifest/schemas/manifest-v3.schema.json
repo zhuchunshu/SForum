@@ -1243,6 +1243,9 @@
               "closed"
             ]
           },
+          "multiInstance": {
+            "type": "boolean"
+          },
           "priority": {
             "type": "integer"
           },

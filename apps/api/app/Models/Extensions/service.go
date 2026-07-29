@@ -667,7 +667,7 @@ func (s *CatalogService) SyncBuiltins(ctx context.Context) ([]Extension, error) 
 		for id := range activeBuiltinIDs {
 			ids = append(ids, id)
 		}
-		if err := s.store.PruneMissingBuiltins(ctx, ids); err != nil {
+		if err := s.pruneMissingBuiltins(ctx, ids); err != nil {
 			return nil, err
 		}
 	}
@@ -691,11 +691,27 @@ func (s *CatalogService) SyncBuiltins(ctx context.Context) ([]Extension, error) 
 		for id := range activeBuiltinIDs {
 			ids = append(ids, id)
 		}
-		if err := s.store.PruneMissingBuiltins(ctx, ids); err != nil {
+		if err := s.pruneMissingBuiltins(ctx, ids); err != nil {
 			return nil, err
 		}
 	}
 	return items, nil
+}
+
+func (s *CatalogService) pruneMissingBuiltins(ctx context.Context, activeIDs []string) error {
+	result, err := s.store.PruneMissingBuiltins(ctx, activeIDs)
+	if err != nil {
+		return err
+	}
+	for _, extensionID := range result.DisabledPluginIDs {
+		if err := s.clearPluginProviderSelections(ctx, extensionID); err != nil {
+			return fmt.Errorf("clear removed builtin provider selections for %s: %w", extensionID, err)
+		}
+		if s.pageRegistry != nil {
+			s.pageRegistry.ClearExtension(extensionID)
+		}
+	}
+	return nil
 }
 
 func (s *CatalogService) Events(ctx context.Context, actor identity.Actor, extensionID string, limit int) ([]ExtensionEvent, error) {

@@ -28,6 +28,10 @@ func (f fakeStorageCatalog) IsStorageProviderAvailable(_ context.Context, extens
 	return f.available[extensionID], nil
 }
 
+func (f fakeStorageCatalog) StorageProviderSchema(_ context.Context, extensionID, _ string) (storage.ProviderSchema, error) {
+	return storage.ProviderSchema{ExtensionID: extensionID, Label: extensionID}, nil
+}
+
 func TestSettingsIncludesPluginCandidates(t *testing.T) {
 	optionStore := &fakeOptionStore{items: map[string]string{}}
 	service := NewService(nil, options.NewServiceWithCacheTTL(optionStore, time.Minute)).

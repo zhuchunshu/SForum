@@ -179,6 +179,100 @@ func (h *Controller) testSettings(c fiber.Ctx) error {
 	return apphttp.OK(c, result)
 }
 
+func (h *Controller) listStorageInstances(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	items, err := h.service.ListStorageInstances(c.Context(), actor, apphttp.Locale(c))
+	if err != nil {
+		return mapAttachmentError(err)
+	}
+	return apphttp.OK(c, items)
+}
+
+func (h *Controller) createStorageInstance(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	var input attachments.StorageInstanceInput
+	if err := c.Bind().Body(&input); err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, attachments.CodeStorageInstanceInvalid)
+	}
+	item, err := h.service.CreateStorageInstance(c.Context(), actor, input, apphttp.Locale(c))
+	if err != nil {
+		return mapAttachmentError(err)
+	}
+	return apphttp.Created(c, item)
+}
+
+func (h *Controller) updateStorageInstance(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	var input attachments.StorageInstanceInput
+	if err := c.Bind().Body(&input); err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, attachments.CodeStorageInstanceInvalid)
+	}
+	item, err := h.service.UpdateStorageInstance(c.Context(), actor, c.Params("id"), input, apphttp.Locale(c))
+	if err != nil {
+		return mapAttachmentError(err)
+	}
+	return apphttp.OK(c, item)
+}
+
+func (h *Controller) probeStorageInstance(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	var input attachments.StorageInstanceProbeInput
+	if err := c.Bind().Body(&input); err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, attachments.CodeStorageInstanceInvalid)
+	}
+	result, err := h.service.ProbeStorageInstance(c.Context(), actor, input, apphttp.Locale(c))
+	if err != nil {
+		return mapAttachmentError(err)
+	}
+	return apphttp.OK(c, result)
+}
+
+func (h *Controller) activateStorageInstance(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	item, err := h.service.ActivateStorageInstance(c.Context(), actor, c.Params("id"), apphttp.Locale(c))
+	if err != nil {
+		return mapAttachmentError(err)
+	}
+	return apphttp.OK(c, item)
+}
+
+func (h *Controller) activateLocalStorage(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	if err := h.service.RestoreLocalStorage(c.Context(), actor); err != nil {
+		return mapAttachmentError(err)
+	}
+	return apphttp.OK(c, map[string]any{"provider": "local", "active": true})
+}
+
+func (h *Controller) deleteStorageInstance(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	if err := h.service.DeleteStorageInstance(c.Context(), actor, c.Params("id")); err != nil {
+		return mapAttachmentError(err)
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
 func (h *Controller) listAdmin(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {
@@ -280,6 +374,10 @@ func mapAttachmentError(err error) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, attachments.CodeInvalidAttachment)
 	case errors.Is(err, attachments.ErrReferenced):
 		return fiber.NewError(fiber.StatusConflict, attachments.CodeReferenced)
+	case errors.Is(err, attachments.ErrStorageInstanceReferenced):
+		return fiber.NewError(fiber.StatusConflict, attachments.CodeStorageInstanceReferenced)
+	case errors.Is(err, attachments.ErrStorageInstanceInvalid):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, attachments.CodeStorageInstanceInvalid)
 	case errors.Is(err, attachments.ErrAttachmentNotFound):
 		return fiber.NewError(fiber.StatusNotFound, attachments.CodeInvalidAttachment)
 	case errors.Is(err, attachments.ErrStorageUnavailable):

@@ -49,3 +49,18 @@ func TestParseSelectionEmptyPluginID(t *testing.T) {
 		t.Fatalf("empty ext id should be invalid plugin selection: %#v", sel)
 	}
 }
+
+func TestFormatAndParseInstanceSelection(t *testing.T) {
+	const id = "2de27c58-fd46-433f-8b74-c25248ce8b62"
+	raw := FormatInstanceSelection("  " + id + "  ")
+	if raw != "instance:"+id {
+		t.Fatalf("format: %q", raw)
+	}
+	sel := ParseSelection(raw)
+	if sel.Kind != SelectionKindInstance || sel.InstanceID != id || !sel.IsValidInstanceSelection() {
+		t.Fatalf("parse instance: %#v", sel)
+	}
+	if ParseSelection("instance:").IsValidInstanceSelection() {
+		t.Fatal("empty instance id must be invalid")
+	}
+}

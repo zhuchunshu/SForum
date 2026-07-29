@@ -271,8 +271,8 @@ type ManifestProvider struct {
 	Fallback        string `json:"fallback,omitempty"`
 	Priority        int    `json:"priority,omitempty"`
 	TimeoutMS       int    `json:"timeoutMs,omitempty"`
+	MultiInstance   bool   `json:"multiInstance,omitempty"`
 }
-
 type ManifestContribution struct {
 	Point   string            `json:"point"`
 	ID      string            `json:"id"`

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import SFAdminFormFooter from '~/components/admin/SFAdminFormFooter.vue'
+import SFAdminAttachmentStorageInstances from '~/components/admin/settings/attachments/providers/SFAdminAttachmentStorageInstances.vue'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import {
   createDefaultAttachmentSettings,
@@ -220,6 +221,8 @@ function providerLabel(provider: string) {
       </p>
     </section>
 
+    <SFAdminAttachmentStorageInstances :candidates="form.candidates || []" @changed="refresh" />
+
     <UCard class="border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900" :ui="{ footer: 'sticky bottom-0 z-20 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border-t border-slate-200 dark:border-zinc-800 p-4 sm:px-6' }">
       <template #header>
         <div class="flex flex-wrap items-center justify-between gap-3">
@@ -313,6 +316,15 @@ function providerLabel(provider: string) {
               </template>
             </UInput>
           </UFormField>
+
+          <div v-if="form.provider === 'local'" class="grid gap-4 md:grid-cols-2">
+            <UFormField :label="t('admin.attachments.localRoot')" :help="t('admin.attachments.localRootDescription')" name="attachment-local-root">
+              <UInput v-model="form.local.root" size="lg" icon="i-lucide-folder-tree" class="w-full font-mono" />
+            </UFormField>
+            <UFormField :label="t('admin.attachments.localPublicPrefix')" :help="t('admin.attachments.fieldHelp.localPublicPrefix')" name="attachment-local-prefix">
+              <UInput v-model="form.local.publicPrefix" size="lg" type="url" icon="i-lucide-folder" class="w-full" />
+            </UFormField>
+          </div>
 
           <!-- 插件提供方的凭证只在通用扩展设置页管理。 -->
           <div

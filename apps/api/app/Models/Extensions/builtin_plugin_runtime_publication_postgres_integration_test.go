@@ -89,6 +89,10 @@ func newBuiltinPluginRuntimeSaveFixture(t *testing.T, label string) *pluginRunti
 		CREATE TABLE extension_lifecycle_operations (
 			id BIGSERIAL PRIMARY KEY,
 			completed_at TIMESTAMPTZ
+		);
+		CREATE TABLE mail_provider_selection (
+			slot TEXT PRIMARY KEY,
+			extension_id TEXT
 		)
 	`); err != nil {
 		db.Close()
@@ -110,6 +114,12 @@ func newBuiltinPluginRuntimeSaveFixture(t *testing.T, label string) *pluginRunti
 		removeSchema()
 		admin.Close()
 		t.Fatalf("apply plugin runtime publication migration: %v", err)
+	}
+	if _, err := provider.ApplyVersion(ctx, 202607300002, true); err != nil {
+		db.Close()
+		removeSchema()
+		admin.Close()
+		t.Fatalf("apply builtin removal migration: %v", err)
 	}
 	if err := db.Close(); err != nil {
 		removeSchema()
@@ -229,6 +239,82 @@ func seedBuiltinPluginRuntimePublication(
 		t.Fatal(err)
 	}
 	return publication
+}
+
+func TestPruneMissingPublishedBuiltinPluginRetainsHistoryAndPublishesRemoval(t *testing.T) {
+	fixture := newBuiltinPluginRuntimeSaveFixture(t, "prune_published")
+	const (
+		keptID    = "builtin.kept"
+		removedID = "builtin.removed"
+	)
+	keptDigest := strings.Repeat("a", 64)
+	removedDigest := strings.Repeat("b", 64)
+	kept := saveBuiltinPlugin(t, fixture, keptID, "1.0.0", keptDigest, "backend/plugin")
+	removed := saveBuiltinPlugin(t, fixture, removedID, "1.0.0", removedDigest, "backend/plugin")
+	seedBuiltinPluginRuntimePublication(
+		t, fixture, PluginRuntimePublicationStartupReconcile,
+		PluginRuntimeMember{
+			ExtensionID: keptID, ExtensionVersionID: kept.ActiveVersionID,
+			ExtensionVersion: kept.Version, PackageDigest: keptDigest,
+		},
+		PluginRuntimeMember{
+			ExtensionID: removedID, ExtensionVersionID: removed.ActiveVersionID,
+			ExtensionVersion: removed.Version, PackageDigest: removedDigest,
+		},
+	)
+
+	result, err := fixture.store.PruneMissingBuiltins(fixture.ctx, []string{keptID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.DisabledPluginIDs) != 1 || result.DisabledPluginIDs[0] != removedID {
+		t.Fatalf("disabled plugins=%v", result.DisabledPluginIDs)
+	}
+	latest, err := fixture.store.LatestPluginRuntimePublication(fixture.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if latest.Reason != PluginRuntimePublicationStartupReconcile {
+		t.Fatalf("publication reason=%s", latest.Reason)
+	}
+	assertPluginRuntimePublicationMembers(t, latest, PluginRuntimeMember{
+		ExtensionID: keptID, ExtensionVersionID: kept.ActiveVersionID,
+		ExtensionVersion: kept.Version, PackageDigest: keptDigest,
+	})
+	assertPluginRuntimePublicationCount(t, fixture, 2)
+
+	if _, err := fixture.store.Get(fixture.ctx, removedID); !errors.Is(err, ErrExtensionNotFound) {
+		t.Fatalf("removed builtin remained visible: %v", err)
+	}
+	var status string
+	var versionCount, historicalMemberCount int
+	if err := fixture.pool.QueryRow(fixture.ctx, `SELECT status FROM extensions WHERE id = $1`, removedID).Scan(&status); err != nil {
+		t.Fatal(err)
+	}
+	if err := fixture.pool.QueryRow(fixture.ctx, `SELECT count(*) FROM extension_versions WHERE extension_id = $1`, removedID).Scan(&versionCount); err != nil {
+		t.Fatal(err)
+	}
+	if err := fixture.pool.QueryRow(fixture.ctx, `SELECT count(*) FROM plugin_runtime_publication_members WHERE extension_id = $1`, removedID).Scan(&historicalMemberCount); err != nil {
+		t.Fatal(err)
+	}
+	if status != StatusDisabled || versionCount != 1 || historicalMemberCount != 1 {
+		t.Fatalf("retained state: status=%s versions=%d historicalMembers=%d", status, versionCount, historicalMemberCount)
+	}
+
+	replay, err := fixture.store.PruneMissingBuiltins(fixture.ctx, []string{keptID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(replay.DisabledPluginIDs) != 0 {
+		t.Fatalf("idempotent prune disabled=%v", replay.DisabledPluginIDs)
+	}
+	assertPluginRuntimePublicationCount(t, fixture, 2)
+
+	restored := saveBuiltinPlugin(t, fixture, removedID, "1.0.0", removedDigest, "backend/plugin")
+	if restored.Status != StatusDisabled {
+		t.Fatalf("restored builtin status=%s", restored.Status)
+	}
+	assertPluginRuntimePublicationCount(t, fixture, 2)
 }
 
 func TestSaveBuiltinEnabledPluginStagesDigestBWithoutBypassingLifecycle(t *testing.T) {

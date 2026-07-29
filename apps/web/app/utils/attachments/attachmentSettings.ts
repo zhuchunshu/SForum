@@ -3,11 +3,27 @@ export type AttachmentProvider = string
 
 export type AttachmentStorageCandidate = {
   value: string
-  kind: 'core' | 'plugin'
+  kind: 'core' | 'plugin' | 'instance'
   label: string
   extensionId?: string
   settingsPath?: string
   available: boolean
+  multiInstance?: boolean
+  schema?: {
+    extensionId: string
+    label: string
+    fields: Array<{
+      key: string
+      label: string
+      description?: string
+      type: string
+      default?: string
+      recommendedValue?: string
+      placeholder?: string
+      options?: Array<{ value: string, label: string, description?: string }>
+      secretSet?: boolean
+    }>
+  }
 }
 
 export type AttachmentSettings = {

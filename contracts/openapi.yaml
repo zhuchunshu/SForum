@@ -397,6 +397,16 @@ paths:
     "$ref": "./openapi/paths/attachments.yaml#/adminAttachmentSettings"
   "/admin/attachment-settings/test":
     "$ref": "./openapi/paths/attachments.yaml#/adminAttachmentSettingsTest"
+  "/admin/attachment-storage-instances":
+    "$ref": "./openapi/paths/attachments.yaml#/adminAttachmentStorageInstances"
+  "/admin/attachment-storage-instances/probe":
+    "$ref": "./openapi/paths/attachments.yaml#/adminAttachmentStorageInstancesProbe"
+  "/admin/attachment-storage-instances/local/activate":
+    "$ref": "./openapi/paths/attachments.yaml#/adminAttachmentStorageLocalActivate"
+  "/admin/attachment-storage-instances/{storageInstanceID}":
+    "$ref": "./openapi/paths/attachments.yaml#/adminAttachmentStorageInstance"
+  "/admin/attachment-storage-instances/{storageInstanceID}/activate":
+    "$ref": "./openapi/paths/attachments.yaml#/adminAttachmentStorageInstanceActivate"
   "/admin/attachments":
     "$ref": "./openapi/paths/attachments.yaml#/adminAttachments"
   "/admin/attachments/cleanup":

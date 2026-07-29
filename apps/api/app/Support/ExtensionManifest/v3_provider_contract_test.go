@@ -1,6 +1,7 @@
 package extensionmanifest
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -16,6 +17,18 @@ func TestManifestV3NormalizesProviderSlotDefaults(t *testing.T) {
 	}
 	if err := Validate(normalized); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestManifestV3ProviderAcceptsMultiInstanceDeclaration(t *testing.T) {
+	manifest := completeV3Manifest()
+	manifest.Providers[0].MultiInstance = true
+	body, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateV3JSONSchema(body); err != nil {
+		t.Fatalf("multi-instance provider schema: %v", err)
 	}
 }
 

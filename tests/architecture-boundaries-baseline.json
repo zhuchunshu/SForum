@@ -2,21 +2,21 @@
   "version": 1,
   "legacyLargeFiles": {
     "apps/api/app/Http/Controllers/Pages/controller.go": 1113,
-    "apps/api/app/Models/Attachments/service.go": 1223,
+    "apps/api/app/Models/Attachments/service.go": 1184,
     "apps/api/app/Models/Extensions/service_package.go": 924,
     "apps/api/app/Models/Forum/postgres_store_ops.go": 1610,
     "apps/api/app/Models/Forum/service.go": 1087,
     "apps/api/app/Models/Forum/service_ops.go": 1257,
     "apps/api/app/Models/Identity/external_auth_service.go": 1046,
     "apps/api/app/Models/Identity/service.go": 1091,
-    "apps/api/app/Models/Options/service.go": 1237,
+    "apps/api/app/Models/Options/service.go": 1183,
     "apps/api/app/Support/ExtensionManifest/manifest.go": 986,
-    "apps/api/app/Support/Extensions/lifecycle_registry_publication.go": 1136,
+    "apps/api/app/Support/Extensions/lifecycle_registry_publication.go": 1124,
     "apps/api/app/Support/Extensions/plugin_runtime_full_set.go": 918,
-    "apps/api/app/Support/Extensions/protocol.go": 1019,
+    "apps/api/app/Support/Extensions/protocol.go": 1014,
     "apps/api/app/Support/Extensions/protocol_instances.go": 1052,
-    "apps/api/app/Support/Extensions/protocol_v2_client.go": 1179,
-    "apps/api/app/Support/Pages/registry.go": 1253,
+    "apps/api/app/Support/Extensions/protocol_v2_client.go": 1131,
+    "apps/api/app/Support/Pages/registry.go": 1124,
     "apps/api/app/Support/Pages/theme_runtime.go": 890,
     "apps/web/app/components/identity/SFRegisterFormPage.vue": 1065,
     "apps/web/app/components/forum/SFTopicShowPage.vue": 1403,
@@ -82,6 +82,13 @@
     {
       "path": "apps/web/tests",
       "files": []
+    }
+  ],
+  "testPackageRootAllowlists": [
+    {
+      "path": "apps/api/app/Support/Extensions",
+      "package": "extensionsruntime_test",
+      "files": ["protocol_database_lease_helper_test.go"]
     }
   ],
   "legacyExtensionsImportAllowlist": [

@@ -49,20 +49,25 @@ type StorageBackend interface {
 
 type StorageBackendFactory func() (StorageBackend, error)
 
+type StorageInstanceBackendFactory func(settings map[string]string) (StorageBackend, error)
+
 // StorageProvider 将一个 StorageBackend 暴露为 attachment.storage.provider。
 // 远程写入先落在短生命周期临时文件，避免把整个对象放进 RPC 或进程内存。
 type StorageProvider struct {
 	Noop
 
-	mu           sync.Mutex
-	factory      StorageBackendFactory
-	reasonPrefix string
-	puts         map[string]*storagePutSession
-	reads        map[string]io.ReadCloser
+	mu              sync.Mutex
+	factory         StorageBackendFactory
+	instanceFactory StorageInstanceBackendFactory
+	backends        map[string]StorageBackend
+	reasonPrefix    string
+	puts            map[string]*storagePutSession
+	reads           map[string]io.ReadCloser
 }
 
 type storagePutSession struct {
 	key         string
+	instanceID  string
 	contentType string
 	size        int64
 	written     int64
@@ -76,7 +81,16 @@ func NewStorageProvider(reasonPrefix string, factory StorageBackendFactory) *Sto
 		reasonPrefix: strings.Trim(strings.TrimSpace(reasonPrefix), "."),
 		puts:         map[string]*storagePutSession{},
 		reads:        map[string]io.ReadCloser{},
+		backends:     map[string]StorageBackend{},
 	}
+}
+
+// NewMultiStorageProvider creates a provider whose concrete backends are
+// configured by Host-owned instance documents at runtime.
+func NewMultiStorageProvider(reasonPrefix string, factory StorageInstanceBackendFactory) *StorageProvider {
+	p := NewStorageProvider(reasonPrefix, nil)
+	p.instanceFactory = factory
+	return p
 }
 
 func (p *StorageProvider) Health() (Health, error) {
@@ -87,8 +101,8 @@ func (p *StorageProvider) RouteTarget() (RouteTarget, error) {
 	return RouteTarget{}, nil
 }
 
-func (p *StorageProvider) StorageProbe(StorageProbeRequest) (StorageProbeResponse, error) {
-	backend, err := p.backend()
+func (p *StorageProvider) StorageProbe(req StorageProbeRequest) (StorageProbeResponse, error) {
+	backend, err := p.backend(req.InstanceID)
 	if err != nil {
 		return StorageProbeResponse{Reason: p.reason("config"), Message: err.Error()}, nil
 	}
@@ -105,7 +119,7 @@ func (p *StorageProvider) StoragePutBegin(req StoragePutBeginRequest) (StorageSe
 	if req.Size < 0 {
 		return StorageSessionResponse{Reason: p.reason("invalid_size"), Message: "object size must not be negative"}, nil
 	}
-	if _, err := p.backend(); err != nil {
+	if _, err := p.backend(req.InstanceID); err != nil {
 		return StorageSessionResponse{Reason: p.reason("config"), Message: err.Error()}, nil
 	}
 	file, err := os.CreateTemp("", "sforum-storage-put-*")
@@ -114,7 +128,7 @@ func (p *StorageProvider) StoragePutBegin(req StoragePutBeginRequest) (StorageSe
 	}
 	id := storageProviderSessionID()
 	p.mu.Lock()
-	p.puts[id] = &storagePutSession{key: req.Key, contentType: req.ContentType, size: req.Size, tempPath: file.Name(), file: file}
+	p.puts[id] = &storagePutSession{instanceID: req.InstanceID, key: req.Key, contentType: req.ContentType, size: req.Size, tempPath: file.Name(), file: file}
 	p.mu.Unlock()
 	return StorageSessionResponse{OK: true, SessionID: id}, nil
 }
@@ -155,7 +169,7 @@ func (p *StorageProvider) StoragePutChunk(req StoragePutChunkRequest) (StorageRe
 		p.abortPut(req.SessionID)
 		return StorageResult{Reason: p.reason("temporary_open"), Message: err.Error()}, nil
 	}
-	backend, err := p.backend()
+	backend, err := p.backend(session.instanceID)
 	if err == nil {
 		err = backend.Put(session.key, session.contentType, reader)
 	}
@@ -174,7 +188,7 @@ func (p *StorageProvider) StorageOpen(req StorageOpenRequest) (StorageSessionRes
 	if err := ValidateStorageObjectKey(req.Key); err != nil {
 		return StorageSessionResponse{Reason: p.reason("invalid_key"), Message: err.Error()}, nil
 	}
-	backend, err := p.backend()
+	backend, err := p.backend(req.InstanceID)
 	if err != nil {
 		return StorageSessionResponse{Reason: p.reason("config"), Message: err.Error()}, nil
 	}
@@ -238,7 +252,7 @@ func (p *StorageProvider) StorageDelete(req StorageObjectRequest) (StorageResult
 	if err := ValidateStorageObjectKey(req.Key); err != nil {
 		return StorageResult{Reason: p.reason("invalid_key"), Message: err.Error()}, nil
 	}
-	backend, err := p.backend()
+	backend, err := p.backend(req.InstanceID)
 	if err == nil {
 		err = backend.Delete(req.Key)
 	}
@@ -252,7 +266,7 @@ func (p *StorageProvider) StorageStat(req StorageStatRequest) (StorageStatRespon
 	if err := ValidateStorageObjectKey(req.Key); err != nil {
 		return StorageStatResponse{Reason: p.reason("invalid_key"), Message: err.Error()}, nil
 	}
-	backend, err := p.backend()
+	backend, err := p.backend(req.InstanceID)
 	if err == nil {
 		var info StorageObjectInfo
 		info, err = backend.Stat(req.Key)
@@ -267,7 +281,7 @@ func (p *StorageProvider) StorageExists(req StorageExistsRequest) (StorageExists
 	if err := ValidateStorageObjectKey(req.Key); err != nil {
 		return StorageExistsResponse{Reason: p.reason("invalid_key"), Message: err.Error()}, nil
 	}
-	backend, err := p.backend()
+	backend, err := p.backend(req.InstanceID)
 	if err == nil {
 		var exists bool
 		exists, err = backend.Exists(req.Key)
@@ -282,7 +296,7 @@ func (p *StorageProvider) StoragePublicURL(req StoragePublicURLRequest) (Storage
 	if err := ValidateStorageObjectKey(req.Key); err != nil {
 		return StorageURLResponse{Reason: p.reason("invalid_key"), Message: err.Error()}, nil
 	}
-	backend, err := p.backend()
+	backend, err := p.backend(req.InstanceID)
 	if err != nil {
 		return StorageURLResponse{Reason: p.reason("config"), Message: err.Error()}, nil
 	}
@@ -293,7 +307,7 @@ func (p *StorageProvider) StorageSignedURL(req StorageSignedURLRequest) (Storage
 	if err := ValidateStorageObjectKey(req.Key); err != nil {
 		return StorageURLResponse{Reason: p.reason("invalid_key"), Message: err.Error()}, nil
 	}
-	backend, err := p.backend()
+	backend, err := p.backend(req.InstanceID)
 	if err != nil {
 		return StorageURLResponse{Reason: p.reason("config"), Message: err.Error()}, nil
 	}
@@ -305,15 +319,76 @@ func (p *StorageProvider) StorageSignedURL(req StorageSignedURLRequest) (Storage
 	return StorageURLResponse{OK: true, URL: url}, nil
 }
 
-func (p *StorageProvider) backend() (StorageBackend, error) {
-	if p == nil || p.factory == nil {
+func (p *StorageProvider) backend(instanceID string) (StorageBackend, error) {
+	if p == nil {
+		return nil, fmt.Errorf("storage backend is not configured")
+	}
+	instanceID = strings.TrimSpace(instanceID)
+	if instanceID != "" {
+		p.mu.Lock()
+		backend := p.backends[instanceID]
+		p.mu.Unlock()
+		if backend == nil {
+			return nil, fmt.Errorf("storage instance is not configured")
+		}
+		return backend, nil
+	}
+	if p.factory == nil {
 		return nil, fmt.Errorf("storage backend is not configured")
 	}
 	return p.factory()
 }
 
+func (p *StorageProvider) StorageConfigureInstance(req StorageConfigureInstanceRequest) (StorageResult, error) {
+	id := strings.TrimSpace(req.InstanceID)
+	if id == "" || p == nil || p.instanceFactory == nil {
+		return StorageResult{Reason: p.reason("config"), Message: "storage instance configuration is unsupported"}, nil
+	}
+	backend, err := p.instanceFactory(cloneStorageSettings(req.Settings))
+	if err != nil {
+		return StorageResult{Reason: p.reason("config"), Message: err.Error()}, nil
+	}
+	p.mu.Lock()
+	p.backends[id] = backend
+	p.mu.Unlock()
+	return StorageResult{OK: true}, nil
+}
+
+func (p *StorageProvider) StorageRemoveInstance(req StorageRemoveInstanceRequest) (StorageResult, error) {
+	id := strings.TrimSpace(req.InstanceID)
+	if id == "" {
+		return StorageResult{Reason: p.reason("config"), Message: "storage instance id is required"}, nil
+	}
+	p.mu.Lock()
+	delete(p.backends, id)
+	p.mu.Unlock()
+	return StorageResult{OK: true}, nil
+}
+
+func (p *StorageProvider) StorageProbeConfig(req StorageProbeConfigRequest) (StorageProbeResponse, error) {
+	if p == nil || p.instanceFactory == nil {
+		return StorageProbeResponse{Reason: p.reason("config"), Message: "storage instance configuration is unsupported"}, nil
+	}
+	backend, err := p.instanceFactory(cloneStorageSettings(req.Settings))
+	if err == nil {
+		err = backend.Probe()
+	}
+	if err != nil {
+		return StorageProbeResponse{Reason: p.reason("probe"), Message: err.Error()}, nil
+	}
+	return StorageProbeResponse{OK: true, Reason: "storage.ok", Message: "ok"}, nil
+}
+
+func cloneStorageSettings(settings map[string]string) map[string]string {
+	out := make(map[string]string, len(settings))
+	for key, value := range settings {
+		out[key] = value
+	}
+	return out
+}
+
 func (p *StorageProvider) reason(operation string) string {
-	if p.reasonPrefix == "" {
+	if p == nil || p.reasonPrefix == "" {
 		return "storage." + operation
 	}
 	return p.reasonPrefix + "." + operation
@@ -441,11 +516,11 @@ func (p *StorageProviderV2) call(response *pluginwire.ProviderCallResponse, oper
 	var err error
 	switch operation {
 	case "probe":
-		result, callErr := p.impl.StorageProbe(StorageProbeRequest{})
+		result, callErr := p.impl.StorageProbe(StorageProbeRequest{InstanceID: storageString(values, "instanceId")})
 		err = callErr
 		output = map[string]any{"ok": result.OK, "reason": result.Reason, "message": result.Message}
 	case "put_begin":
-		result, callErr := p.impl.StoragePutBegin(StoragePutBeginRequest{Key: storageString(values, "key"), ContentType: storageString(values, "contentType"), Size: storageInt64(values, "size")})
+		result, callErr := p.impl.StoragePutBegin(StoragePutBeginRequest{InstanceID: storageString(values, "instanceId"), Key: storageString(values, "key"), ContentType: storageString(values, "contentType"), Size: storageInt64(values, "size")})
 		err = callErr
 		output = storageSessionOutput(result)
 	case "put_chunk":
@@ -458,7 +533,7 @@ func (p *StorageProviderV2) call(response *pluginwire.ProviderCallResponse, oper
 		err = callErr
 		output = storageResultOutput(result)
 	case "open":
-		result, callErr := p.impl.StorageOpen(StorageOpenRequest{Key: storageString(values, "key")})
+		result, callErr := p.impl.StorageOpen(StorageOpenRequest{InstanceID: storageString(values, "instanceId"), Key: storageString(values, "key")})
 		err = callErr
 		output = storageSessionOutput(result)
 	case "get_chunk":
@@ -470,25 +545,37 @@ func (p *StorageProviderV2) call(response *pluginwire.ProviderCallResponse, oper
 		err = callErr
 		output = storageResultOutput(result)
 	case "delete":
-		result, callErr := p.impl.StorageDelete(StorageObjectRequest{Key: storageString(values, "key")})
+		result, callErr := p.impl.StorageDelete(StorageObjectRequest{InstanceID: storageString(values, "instanceId"), Key: storageString(values, "key")})
 		err = callErr
 		output = storageResultOutput(result)
 	case "stat":
-		result, callErr := p.impl.StorageStat(StorageStatRequest{Key: storageString(values, "key")})
+		result, callErr := p.impl.StorageStat(StorageStatRequest{InstanceID: storageString(values, "instanceId"), Key: storageString(values, "key")})
 		err = callErr
 		output = map[string]any{"ok": result.OK, "exists": result.Exists, "size": result.Size, "contentType": result.ContentType, "modifiedUnix": result.ModifiedUnix, "reason": result.Reason, "message": result.Message}
 	case "exists":
-		result, callErr := p.impl.StorageExists(StorageExistsRequest{Key: storageString(values, "key")})
+		result, callErr := p.impl.StorageExists(StorageExistsRequest{InstanceID: storageString(values, "instanceId"), Key: storageString(values, "key")})
 		err = callErr
 		output = map[string]any{"ok": result.OK, "exists": result.Exists, "reason": result.Reason, "message": result.Message}
 	case "public_url":
-		result, callErr := p.impl.StoragePublicURL(StoragePublicURLRequest{Key: storageString(values, "key")})
+		result, callErr := p.impl.StoragePublicURL(StoragePublicURLRequest{InstanceID: storageString(values, "instanceId"), Key: storageString(values, "key")})
 		err = callErr
 		output = storageURLOutput(result)
 	case "signed_url":
-		result, callErr := p.impl.StorageSignedURL(StorageSignedURLRequest{Key: storageString(values, "key"), TTLSeconds: storageInt64(values, "ttlSeconds")})
+		result, callErr := p.impl.StorageSignedURL(StorageSignedURLRequest{InstanceID: storageString(values, "instanceId"), Key: storageString(values, "key"), TTLSeconds: storageInt64(values, "ttlSeconds")})
 		err = callErr
 		output = storageURLOutput(result)
+	case "configure_instance":
+		result, callErr := p.impl.StorageConfigureInstance(StorageConfigureInstanceRequest{InstanceID: storageString(values, "instanceId"), Settings: storageStringMap(values, "settings")})
+		err = callErr
+		output = storageResultOutput(result)
+	case "remove_instance":
+		result, callErr := p.impl.StorageRemoveInstance(StorageRemoveInstanceRequest{InstanceID: storageString(values, "instanceId")})
+		err = callErr
+		output = storageResultOutput(result)
+	case "probe_config":
+		result, callErr := p.impl.StorageProbeConfig(StorageProbeConfigRequest{Settings: storageStringMap(values, "settings")})
+		err = callErr
+		output = map[string]any{"ok": result.OK, "reason": result.Reason, "message": result.Message}
 	default:
 		response.Error = storageProviderError(protocolwire.ErrorCode_ERROR_CODE_INVALID_ARGUMENT, "provider.operation_unsupported", "attachment.storage.provider operation is not supported")
 		return response, nil
@@ -528,6 +615,20 @@ func storageString(values map[string]any, key string) string {
 		return value
 	}
 	return ""
+}
+
+func storageStringMap(values map[string]any, key string) map[string]string {
+	out := map[string]string{}
+	if values == nil {
+		return out
+	}
+	raw, _ := values[key].(map[string]any)
+	for name, value := range raw {
+		if text, ok := value.(string); ok {
+			out[name] = text
+		}
+	}
+	return out
 }
 
 func storageBool(values map[string]any, key string) bool {

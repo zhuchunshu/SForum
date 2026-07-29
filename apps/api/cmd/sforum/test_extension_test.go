@@ -152,8 +152,8 @@ func TestDockerBuildsProtectedBuiltinBackendsAndValidatesV3Digest(t *testing.T) 
 	}
 	text := string(body)
 	const linuxBuild = "CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -o plugin ."
-	if count := strings.Count(text, linuxBuild); count < 8 {
-		t.Errorf("Dockerfile builds only %d protected builtin Linux backends, want at least 8", count)
+	if count := strings.Count(text, linuxBuild); count < 7 {
+		t.Errorf("Dockerfile builds only %d protected builtin Linux backends, want at least 7", count)
 	}
 	const builtinCopy = "COPY --from=build --chown=sforum:sforum /app/extensions/builtin /app/extensions/builtin"
 	if count := strings.Count(text, builtinCopy); count != 2 {
@@ -163,8 +163,7 @@ func TestDockerBuildsProtectedBuiltinBackendsAndValidatesV3Digest(t *testing.T) 
 		"cd /app/extensions/builtin/plugins/sforum-smtp/backend",
 		"cd /app/extensions/builtin/plugins/sforum-content-policy/backend",
 		"cd /app/extensions/builtin/plugins/sforum-storage-fs/backend",
-		"cd /app/extensions/builtin/plugins/sforum-storage-ftp/backend",
-		"cd /app/extensions/builtin/plugins/sforum-storage-sftp/backend",
+		"cd /app/extensions/builtin/plugins/sforum-storage-s3/backend",
 		"cd /app/extensions/builtin/plugins/sforum-search-site/backend",
 		"cd /app/extensions/builtin/plugins/sforum-auth-github/backend",
 		// 受保护插件均需 digest --write + extension test，避免 Linux 镜像摘要漂移。
@@ -175,10 +174,8 @@ func TestDockerBuildsProtectedBuiltinBackendsAndValidatesV3Digest(t *testing.T) 
 		"extension test /app/extensions/builtin/plugins/sforum-content-policy",
 		"extension digest --write /app/extensions/builtin/plugins/sforum-storage-fs",
 		"extension test /app/extensions/builtin/plugins/sforum-storage-fs",
-		"extension digest --write /app/extensions/builtin/plugins/sforum-storage-ftp",
-		"extension test /app/extensions/builtin/plugins/sforum-storage-ftp",
-		"extension digest --write /app/extensions/builtin/plugins/sforum-storage-sftp",
-		"extension test /app/extensions/builtin/plugins/sforum-storage-sftp",
+		"extension digest --write /app/extensions/builtin/plugins/sforum-storage-s3",
+		"extension test /app/extensions/builtin/plugins/sforum-storage-s3",
 		"extension digest --write /app/extensions/builtin/plugins/sforum-search-site",
 		"extension test /app/extensions/builtin/plugins/sforum-search-site",
 		"extension digest --write /app/extensions/builtin/plugins/sforum-auth-github",
@@ -187,5 +184,53 @@ func TestDockerBuildsProtectedBuiltinBackendsAndValidatesV3Digest(t *testing.T) 
 		if !strings.Contains(text, required) {
 			t.Errorf("Dockerfile is missing protected builtin Linux package gate %q", required)
 		}
+	}
+}
+
+func TestBuiltinDevStagingSyncPrunesRemovedExcludedPluginBinary(t *testing.T) {
+	if _, err := exec.LookPath("rsync"); err != nil {
+		t.Skip("rsync is not available")
+	}
+
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "../../../.."))
+	script := filepath.Join(repoRoot, "scripts/build-builtin-plugins.sh")
+
+	fakeRoot := t.TempDir()
+	sourcePlugin := filepath.Join(fakeRoot, "extensions/builtin/plugins/sforum-current")
+	if err := os.MkdirAll(sourcePlugin, 0o755); err != nil {
+		t.Fatalf("create source plugin: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(sourcePlugin, "sforum.extension.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatalf("write source manifest: %v", err)
+	}
+
+	stagingRoot := filepath.Join(t.TempDir(), "builtin-dev")
+	staleBinary := filepath.Join(stagingRoot, "plugins/sforum-removed/backend/plugin")
+	if err := os.MkdirAll(filepath.Dir(staleBinary), 0o755); err != nil {
+		t.Fatalf("create stale plugin directory: %v", err)
+	}
+	if err := os.WriteFile(staleBinary, []byte("stale"), 0o755); err != nil {
+		t.Fatalf("write stale plugin binary: %v", err)
+	}
+
+	cmd := exec.Command("bash", "-c", `
+source "$1"
+ROOT_DIR="$2"
+STAGING_ROOT="$3"
+prepare_staging_tree
+`, "bash", script, fakeRoot, stagingRoot)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("prepare staging tree: %v\n%s", err, output)
+	}
+
+	if _, err := os.Stat(filepath.Join(stagingRoot, "plugins/sforum-removed")); !os.IsNotExist(err) {
+		t.Fatalf("removed plugin survived staging sync: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(stagingRoot, "plugins/sforum-current/sforum.extension.json")); err != nil {
+		t.Fatalf("current plugin was not synchronized: %v", err)
 	}
 }

@@ -1,0 +1,47 @@
+{
+  "author": {
+    "name": "SForum",
+    "url": "https://github.com/zhuchunshu/sforum"
+  },
+  "backend": {
+    "digest": "d93979bed563d2b22cae55026a698935712f124010feb8008fb547ac2206d661",
+    "entry": "backend/plugin",
+    "hostApiVersion": "sforum.host@2",
+    "protocolVersion": 2,
+    "rpc": "hashicorp-go-plugin"
+  },
+  "capabilities": [
+    "net.outbound"
+  ],
+  "description": "Protected built-in multi-instance S3-compatible attachment storage provider.",
+  "id": "sforum.storage-s3",
+  "includes": {
+    "langs": "manifest/langs",
+    "settings": "manifest/settings.json"
+  },
+  "manifestVersion": 3,
+  "name": "SForum S3-compatible Storage",
+  "packageFiles": [
+    {
+      "digest": "d93979bed563d2b22cae55026a698935712f124010feb8008fb547ac2206d661",
+      "id": "sforum.storage-s3.file.backend",
+      "kind": "executable",
+      "path": "backend/plugin"
+    }
+  ],
+  "providers": [
+    {
+      "contractVersion": "sforum.storage-s3.provider.storage@1",
+      "handler": "storage.s3",
+      "id": "sforum.storage-s3.provider.storage",
+      "label": "S3-compatible storage",
+      "multiInstance": true,
+      "slot": "attachment.storage.provider",
+      "timeoutMs": 120000
+    }
+  ],
+  "sforumVersion": "\u003e=0.1.0",
+  "type": "plugin",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "version": "1.0.0"
+}

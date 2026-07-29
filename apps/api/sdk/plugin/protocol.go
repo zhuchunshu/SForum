@@ -28,24 +28,27 @@ type (
 	MailResponse = extensionsruntime.MailProviderResponse
 
 	// 附件存储槽 attachment.storage.provider（E6.2 分块 RPC）。
-	StoragePutBeginRequest  = extensionsruntime.StoragePutBeginRequest
-	StoragePutChunkRequest  = extensionsruntime.StoragePutChunkRequest
-	StorageOpenRequest      = extensionsruntime.StorageOpenRequest
-	StorageGetChunkRequest  = extensionsruntime.StorageGetChunkRequest
-	StorageGetChunkResponse = extensionsruntime.StorageGetChunkResponse
-	StorageCloseRequest     = extensionsruntime.StorageCloseRequest
-	StorageObjectRequest    = extensionsruntime.StorageObjectRequest
-	StorageStatRequest      = extensionsruntime.StorageStatRequest
-	StorageStatResponse     = extensionsruntime.StorageStatResponse
-	StorageExistsRequest    = extensionsruntime.StorageExistsRequest
-	StorageExistsResponse   = extensionsruntime.StorageExistsResponse
-	StoragePublicURLRequest = extensionsruntime.StoragePublicURLRequest
-	StorageSignedURLRequest = extensionsruntime.StorageSignedURLRequest
-	StorageURLResponse      = extensionsruntime.StorageURLResponse
-	StorageProbeRequest     = extensionsruntime.StorageProbeRequest
-	StorageProbeResponse    = extensionsruntime.StorageProbeResponse
-	StorageSessionResponse  = extensionsruntime.StorageSessionResponse
-	StorageResult           = extensionsruntime.StorageResult
+	StoragePutBeginRequest          = extensionsruntime.StoragePutBeginRequest
+	StoragePutChunkRequest          = extensionsruntime.StoragePutChunkRequest
+	StorageOpenRequest              = extensionsruntime.StorageOpenRequest
+	StorageGetChunkRequest          = extensionsruntime.StorageGetChunkRequest
+	StorageGetChunkResponse         = extensionsruntime.StorageGetChunkResponse
+	StorageCloseRequest             = extensionsruntime.StorageCloseRequest
+	StorageObjectRequest            = extensionsruntime.StorageObjectRequest
+	StorageStatRequest              = extensionsruntime.StorageStatRequest
+	StorageStatResponse             = extensionsruntime.StorageStatResponse
+	StorageExistsRequest            = extensionsruntime.StorageExistsRequest
+	StorageExistsResponse           = extensionsruntime.StorageExistsResponse
+	StoragePublicURLRequest         = extensionsruntime.StoragePublicURLRequest
+	StorageSignedURLRequest         = extensionsruntime.StorageSignedURLRequest
+	StorageURLResponse              = extensionsruntime.StorageURLResponse
+	StorageProbeRequest             = extensionsruntime.StorageProbeRequest
+	StorageProbeResponse            = extensionsruntime.StorageProbeResponse
+	StorageSessionResponse          = extensionsruntime.StorageSessionResponse
+	StorageResult                   = extensionsruntime.StorageResult
+	StorageConfigureInstanceRequest = extensionsruntime.StorageConfigureInstanceRequest
+	StorageRemoveInstanceRequest    = extensionsruntime.StorageRemoveInstanceRequest
+	StorageProbeConfigRequest       = extensionsruntime.StorageProbeConfigRequest
 )
 
 // Noop 提供全部 RPC 的默认实现，便于只覆盖需要的方法。

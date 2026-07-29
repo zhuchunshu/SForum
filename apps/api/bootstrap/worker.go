@@ -41,6 +41,7 @@ import (
 	installationidentity "github.com/zhuchunshu/sforum/apps/api/app/Support/InstallationIdentity"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
+	secretstore "github.com/zhuchunshu/sforum/apps/api/app/Support/SecretStore"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
@@ -659,8 +660,25 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	// 孤儿附件清理：handler 已存在，F1 通过 schedule registry 挂上 daily maintenance。
 	// 与 API 相同：插件存储路径需注入 runtime（E6.2）。
 	attachmentStore := attachments.NewPostgresStore(pool)
+	attachmentSecretStore, err := secretstore.NewPostgresStore(pool)
+	if err != nil {
+		return nil, fmt.Errorf("create worker attachment secret store: %w", err)
+	}
+	attachmentSecretAudit, err := secretstore.NewPostgresAuditStore(pool)
+	if err != nil {
+		return nil, fmt.Errorf("create worker attachment secret audit store: %w", err)
+	}
+	requireSecretEncryption := strings.EqualFold(cfg.AppEnv, "production") || strings.EqualFold(cfg.AppEnv, "staging")
+	attachmentSecrets, err := secretstore.NewWithOptions(secretstore.Options{
+		Store: attachmentSecretStore, Audit: attachmentSecretAudit, Cipher: optionCipher,
+		RequireEncryption: requireSecretEncryption, AllowTransparent: !requireSecretEncryption,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create worker attachment secret service: %w", err)
+	}
 	attachmentService := attachments.NewService(attachmentStore, workerOptions).
-		WithStoragePluginRuntime(extensionsruntime.NewPluginStorageAdapterFactory(extensionRuntime, 0))
+		WithStoragePluginRuntime(extensionsruntime.NewPluginStorageAdapterFactory(extensionRuntime, 0)).
+		WithSecretStore(attachmentSecrets)
 	attachmentjobs.Register(registry, attachmentService)
 	// 审计日志保留期清理（F1.4）：默认 90 天，handler 可后续接 runtime option。
 	auditWriter := audit.NewPostgresWriter(pool)

@@ -16,7 +16,9 @@ Attachment system foundation is implemented.
   admin APIs under `/api/v1`.
 - Storage provider adapters live under `apps/api/app/Support/Storage`.
 - Migration `202607050004_attachments.sql` creates `attachments`,
-  `attachment_references`, and the attachment permissions.
+  `attachment_references`, and the attachment permissions. Migration
+  `202607300001_attachment_storage_instances.sql` adds Host-owned named storage
+  instances with revisioned configuration and probe state.
 - Admin UI uses independent permission-aware routes for Basic Configuration
   and Compression Configuration under Attachment Configuration
   (`/attachments/settings`), plus Attachment Management
@@ -30,14 +32,12 @@ Attachment system foundation is implemented.
 - The stable `core.component.page.admin.attachments` Admin Surface placement is
   mapped to Attachment Management so existing governance extensions continue
   to render after the route split.
-- Settings owns provider selection, Core driver configuration, generic plugin
-  settings navigation, connection probes, secret-preserving restore, and the
-  beginner-friendly local-upload defaults.
+- Settings owns provider selection, named multi-instance configuration,
+  connection probes, one-click writer switching, secret-preserving edits, and
+  the beginner-friendly local-upload defaults.
 - Basic Configuration keeps guidance visible below every input, displays MB
   and day units inline, documents list formats and path-template tokens, and
-  explains provider defaults, public URLs, credential retention, and SFTP host
-  key verification. Core provider credential fields live in the focused
-  `SFAdminAttachmentCoreProviderFields` component.
+  explains provider defaults, public URLs, and credential retention.
 - Manager owns filters, server-backed button pagination, detail/reference
   loading, status changes, soft delete, orphan cleanup, and URL copy. Filters
   restart at page one, while cleanup recovers to the last available page when
@@ -74,6 +74,10 @@ permissions for navigation and tab usability.
   avatar, or future resource types.
 - `reference_count > 0` blocks physical deletion. Referenced attachments can be
   disabled/hidden, but not physically removed by cleanup.
+- `attachment_storage_instances` stores a UUID, owning extension, display name,
+  revisioned non-secret settings plus SecretStore references, probe state, and
+  audit timestamps. An instance cannot be deleted while selected or referenced
+  by any attachment.
 
 ## Provider Slot (F3.5 → E6)
 
@@ -89,15 +93,16 @@ Host contract slot: `attachment.storage.provider` (`Support/Storage.ProviderSlot
 | E6.2 chunked storage RPC | **Done** — PluginProtocol Storage* + `PluginStorageAdapter` + Manager gate/timeout |
 | E6.3 admin select/test/settings polish | **Done** — plugin panel (no core secret forms), Probe `reason`, toast detail |
 | E6.4 reference storage plugin | **Done** — builtin `sforum.storage-fs` (filesystem; S3-shaped RPC, no cloud SDK) |
+| E6.5 named instances + S3-compatible builtin | **Done** — `instance:<uuid>`, Host SecretStore, one-click writer switching, protected `sforum.storage-s3` |
 
-**Runtime today (L4–L6 for storage slot):** concrete drivers remain **in core**
-under `Support/Storage`. Operators select via `attachment.provider` (core id or
-`plugin:<extensionId>`). Admin settings return `providerSlot`, `drivers[]`, and
-`candidates[]`. Plugin path uses chunked RPC; Probe returns `reason` + message.
-Reference: enable `sforum.storage-fs`, select `plugin:sforum.storage-fs`, set
-root path, test connection, upload. Disable plugin → selection falls back to
-`local`. Multi-backend migration and browser presigned upload remain out of
-scope for E6.
+**Runtime today (L4–L6 for storage slot):** Core permanently owns `local` plus
+the provider contract. Legacy single-provider plugins use
+`plugin:<extensionId>`; plugins declaring `multiInstance: true` use named
+Host-owned instances selected as `instance:<uuid>`. Every attachment stores the
+exact selection used for its write, so switching the current writer affects
+only new attachments and historical reads continue through their original
+instance. Disabling the selected plugin falls back new writes to `local`.
+Cross-instance copy/migration and browser direct upload remain out of scope.
 
 ## Runtime Configuration
 
@@ -145,15 +150,19 @@ SForum owns a small `StorageAdapter` interface:
 - `SignedURL`
 - `Probe`
 
-Supported providers in the first implementation:
+Supported providers:
 
-- `local`: local filesystem under `attachment.local.root`.
-- `aliyun_oss`: Aliyun OSS through `github.com/aliyun/aliyun-oss-go-sdk/oss`.
-- `tencent_cos`: Tencent Cloud COS through
-  `github.com/tencentyun/cos-go-sdk-v5`.
-- `ftp`: FTP through `github.com/jlaffaye/ftp` v0.2.0, chosen to keep project
-  Go compatibility at 1.25.7.
-- `sftp`: SSH/SFTP through `github.com/pkg/sftp` and `golang.org/x/crypto/ssh`.
+- `local`: permanent zero-configuration Core filesystem fallback under
+  `attachment.local.root`.
+- `sforum.storage-fs`: protected single-instance filesystem reference plugin.
+- `sforum.storage-s3`: protected multi-instance AWS SDK v2 plugin for AWS S3,
+  MinIO, Cloudflare R2, and compatible endpoints. It supports endpoint/region,
+  path-style addressing, prefix, public base URL, static credentials, session
+  tokens, and the AWS default credential chain.
+
+The former protected FTP and SFTP built-ins are removed. Vendor credentials for
+named instances are encrypted by Host SecretStore; instance documents and API
+responses never contain plaintext secrets.
 
 The first version uses server-mediated multipart upload only. Browser direct
 upload and presigned upload credentials are intentionally deferred.
