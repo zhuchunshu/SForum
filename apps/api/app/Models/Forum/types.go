@@ -147,6 +147,20 @@ var (
 	ErrRevisionRedactionForbidden    = errors.New("forum: revision redaction forbidden")
 )
 
+// CooldownError 携带服务端权威恢复时间，并保留 errors.Is 所需的稳定错误原因。
+type CooldownError struct {
+	Cause   error
+	RetryAt time.Time
+}
+
+func (e *CooldownError) Error() string {
+	return e.Cause.Error()
+}
+
+func (e *CooldownError) Unwrap() error {
+	return e.Cause
+}
+
 // TopicSearchIndexer 是 forum 包对搜索索引调度的抽象。
 // 由 search 支持包实现并注入 Service，避免 forum 反向依赖 job/搜索引擎。
 // 实现应异步（入队）且对调用方安全；nil 时 Service 自动降级为不索引。

@@ -12,7 +12,9 @@ defineProps<{
   avatar?: AvatarView | null
   replyTarget?: { author: string, href?: string, floorLabel?: string } | null
   submitting?: boolean
+  submitDisabled?: boolean
   error?: string
+  errorClosable?: boolean
   /** 高级回复独立页路径（含 query）；空则不渲染入口 */
   advancedTo?: string
 }>()
@@ -69,6 +71,7 @@ const { t } = useI18n()
       :cancel-label="t('topicDetail.cancel')"
       :support-label="t('topicDetail.markdownSupported')"
       :disabled="submitting"
+      :submit-disabled="submitDisabled"
       @update:model-value="emit('update:modelValue', $event)"
       @cancel="emit('cancel')"
       @submit="emit('submit', $event)"
@@ -78,7 +81,7 @@ const { t } = useI18n()
       v-if="error"
       variant="danger"
       :title="error"
-      closable
+      :closable="errorClosable !== false"
       class="mt-3"
       @close="emit('dismiss-error')"
     />

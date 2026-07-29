@@ -1,6 +1,10 @@
 package http
 
 import (
+	"math"
+	"strconv"
+	"time"
+
 	"github.com/gofiber/fiber/v3"
 
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Localization"
@@ -15,14 +19,17 @@ type Response struct {
 }
 
 type ErrorData struct {
-	Reason string              `json:"reason"`
-	Fields map[string][]string `json:"fields,omitempty"`
+	Reason            string              `json:"reason"`
+	Fields            map[string][]string `json:"fields,omitempty"`
+	RetryAfterSeconds *int                `json:"retryAfterSeconds,omitempty"`
+	RetryAt           *time.Time          `json:"retryAt,omitempty"`
 }
 
 type APIError struct {
-	Status int
-	Reason string
-	Fields map[string][]string
+	Status  int
+	Reason  string
+	Fields  map[string][]string
+	RetryAt *time.Time
 }
 
 func (e *APIError) Error() string {
@@ -57,6 +64,11 @@ func NewErrorWithFields(status int, reason string, fields map[string][]string) *
 	return &APIError{Status: status, Reason: reason, Fields: fields}
 }
 
+func NewErrorWithRetryAt(status int, reason string, retryAt time.Time) *APIError {
+	retryAt = retryAt.UTC()
+	return &APIError{Status: status, Reason: reason, RetryAt: &retryAt}
+}
+
 func LocalizeFields(c fiber.Ctx, fields map[string][]string) map[string][]string {
 	if len(fields) == 0 {
 		return nil
@@ -79,4 +91,15 @@ func ErrorResponse(c fiber.Ctx, status int, reason string) error {
 
 func ErrorResponseWithFields(c fiber.Ctx, status int, reason string, fields map[string][]string) error {
 	return JSON(c, status, reason, ErrorData{Reason: reason, Fields: fields})
+}
+
+func ErrorResponseWithRetryAt(c fiber.Ctx, status int, reason string, retryAt time.Time) error {
+	retryAt = retryAt.UTC()
+	retryAfterSeconds := max(1, int(math.Ceil(time.Until(retryAt).Seconds())))
+	c.Set(fiber.HeaderRetryAfter, strconv.Itoa(retryAfterSeconds))
+	return JSON(c, status, reason, ErrorData{
+		Reason:            reason,
+		RetryAfterSeconds: &retryAfterSeconds,
+		RetryAt:           &retryAt,
+	})
 }

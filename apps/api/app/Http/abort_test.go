@@ -5,7 +5,9 @@ import (
 	"log/slog"
 	nethttp "net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 
@@ -89,5 +91,41 @@ func TestAbortHelperUsesErrorEnvelope(t *testing.T) {
 	}
 	if body.Data.Reason != "internal_error" {
 		t.Fatalf("expected internal_error reason, got %q", body.Data.Reason)
+	}
+}
+
+func TestRetryableErrorUsesHeaderAndStructuredRecoveryTime(t *testing.T) {
+	retryAt := time.Now().UTC().Add(30 * time.Second)
+	app := apphttp.NewApp(config.Config{
+		AppName: "SForum", AppEnv: "test", AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"},
+	}, slog.Default(), apphttp.Dependencies{
+		RouteProviders: []apphttp.RouteProvider{routeProviderFunc(func(api fiber.Router) {
+			api.Post("/cooldown", func(fiber.Ctx) error {
+				return apphttp.NewErrorWithRetryAt(fiber.StatusTooManyRequests, "forum.comment_cooldown", retryAt)
+			})
+		})},
+	})
+
+	resp, err := app.Test(httptest.NewRequest(nethttp.MethodPost, "/api/v1/cooldown", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != nethttp.StatusTooManyRequests {
+		t.Fatalf("status = %d", resp.StatusCode)
+	}
+	headerSeconds, err := strconv.Atoi(resp.Header.Get("Retry-After"))
+	if err != nil || headerSeconds < 29 || headerSeconds > 30 {
+		t.Fatalf("Retry-After = %q, err = %v", resp.Header.Get("Retry-After"), err)
+	}
+	var body apiEnvelope[apiErrorData]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Data.Reason != "forum.comment_cooldown" || body.Data.RetryAfterSeconds != headerSeconds {
+		t.Fatalf("unexpected retry response %#v", body.Data)
+	}
+	if !body.Data.RetryAt.Equal(retryAt) {
+		t.Fatalf("retryAt = %s, want %s", body.Data.RetryAt, retryAt)
 	}
 }

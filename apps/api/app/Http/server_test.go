@@ -36,8 +36,10 @@ type apiEnvelope[T any] struct {
 }
 
 type apiErrorData struct {
-	Reason string              `json:"reason"`
-	Fields map[string][]string `json:"fields"`
+	Reason            string              `json:"reason"`
+	Fields            map[string][]string `json:"fields"`
+	RetryAfterSeconds int                 `json:"retryAfterSeconds"`
+	RetryAt           time.Time           `json:"retryAt"`
 }
 
 type healthResponse struct {

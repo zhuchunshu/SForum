@@ -10,6 +10,7 @@ import {
 
 const alwaysShowExtensionPageIds = ['/extensions', '/extensions/plugins', '/extensions/themes'] as const
 const operationsPageIds = ['/database', '/jobs', '/schedules', '/webhooks'] as const
+const systemProfessionalPageIds = ['/settings/features', '/entity-meta'] as const
 
 const bothOff = { professionalMode: false, operationsMode: false }
 const proOnly = { professionalMode: true, operationsMode: false }
@@ -34,6 +35,14 @@ describe('admin advanced settings navigation', () => {
     }
   })
 
+  test('marks specialized system pages as professional-mode only', () => {
+    for (const pageId of systemProfessionalPageIds) {
+      const page = adminPageDefinitions.find(item => item.id === pageId)
+      expect(page?.professionalMode).toBe(true)
+      expect(page?.operationsMode).toBeFalsy()
+    }
+  })
+
   test('marks operations pages as operations-mode only', () => {
     for (const pageId of operationsPageIds) {
       const page = adminPageDefinitions.find(item => item.id === pageId)
@@ -51,6 +60,12 @@ describe('admin advanced settings navigation', () => {
     expect(shouldShowAdminPageInNav(pagesPage, allowAll, proOnly)).toBe(true)
     expect(shouldShowAdminPageInNav(overviewPage, allowAll, bothOff)).toBe(true)
     expect(shouldShowAdminPageInNav(overviewPage, allowAll, bothOn)).toBe(true)
+
+    for (const pageId of systemProfessionalPageIds) {
+      const page = adminPageDefinitions.find(item => item.id === pageId)!
+      expect(shouldShowAdminPageInNav(page, allowAll, bothOff)).toBe(false)
+      expect(shouldShowAdminPageInNav(page, allowAll, proOnly)).toBe(true)
+    }
   })
 
   test('hides operations pages from nav when operations mode is off', () => {

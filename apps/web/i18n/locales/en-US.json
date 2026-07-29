@@ -4598,6 +4598,7 @@
     "commentLink": "Link",
     "commentLinkCopied": "Comment link copied",
     "replyFailed": "Reply failed, please try again.",
+    "commentCooldown": "You are posting comments too quickly. Try again in {seconds}s.",
     "replyPosted": "Reply posted.",
     "replySubmittedForReview": "Reply submitted for review and will appear after approval.",
     "editFailed": "Edit failed, please try again.",
@@ -4746,6 +4747,7 @@
     "save": "Save",
     "submitting": "Submitting...",
     "submitFailed": "Publish failed, please try again.",
+    "topicCooldown": "You are creating topics too quickly. Try again in {seconds}s.",
     "submittedForReview": "Content submitted for review and will appear after approval.",
     "permissionDenied": {
       "title": "No permission to post",

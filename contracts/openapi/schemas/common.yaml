@@ -13,6 +13,14 @@ ApiErrorData:
         type: array
         items:
           type: string
+    retryAfterSeconds:
+      type: integer
+      minimum: 1
+      description: Whole seconds until a rate-limited operation may be retried.
+    retryAt:
+      type: string
+      format: date-time
+      description: Server-authoritative UTC time when a rate-limited operation may be retried.
 ApiErrorResponse:
   type: object
   required:

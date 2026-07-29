@@ -71,3 +71,19 @@ func TestEditWindowAndCooldownHelpers(t *testing.T) {
 		t.Fatal("cooldown should have elapsed")
 	}
 }
+
+func TestCooldownErrorPreservesCauseAndRetryAt(t *testing.T) {
+	lastAt := time.Date(2026, 7, 30, 12, 0, 0, 0, time.FixedZone("CST", 8*60*60))
+	err := newCooldownError(ErrCommentCooldown, lastAt, 45)
+	if !errors.Is(err, ErrCommentCooldown) {
+		t.Fatalf("expected comment cooldown cause, got %v", err)
+	}
+	var cooldown *CooldownError
+	if !errors.As(err, &cooldown) {
+		t.Fatalf("expected CooldownError, got %T", err)
+	}
+	want := time.Date(2026, 7, 30, 4, 0, 45, 0, time.UTC)
+	if !cooldown.RetryAt.Equal(want) || cooldown.RetryAt.Location() != time.UTC {
+		t.Fatalf("retryAt = %s, want UTC %s", cooldown.RetryAt, want)
+	}
+}

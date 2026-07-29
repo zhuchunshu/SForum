@@ -3,6 +3,7 @@ import { useSForumSeo } from '~/composables/seo/useSForumSeo'
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
 import { useAuthSession } from '~/composables/identity/useAuthSession'
 import { useForumContentLimits } from '~/composables/forum/useForumContentLimits'
+import { useForumCooldownError } from '~/composables/forum/useForumCooldownError'
 import { useForumApi } from '~/composables/forum/useForumApi'
 import SFTopicComposerRightRail from '~/components/forum/SFTopicComposerRightRail.vue'
 import SFTopicComposerLeftRail from '~/components/forum/SFTopicComposerLeftRail.vue'
@@ -121,6 +122,12 @@ const {
 type SubmitState = 'idle' | 'submitting' | 'error' | 'success'
 const submitState = ref<SubmitState>('idle')
 const errorMessage = ref('')
+const {
+  active: topicCooldownActive,
+  message: topicCooldownMessage,
+  capture: captureTopicCooldown
+} = useForumCooldownError('topic')
+const displayErrorMessage = computed(() => topicCooldownMessage.value || errorMessage.value)
 const fieldErrors = ref<Record<string, string[]>>({})
 const draftSavedAt = ref('')
 const draftSaving = ref(false)
@@ -145,7 +152,7 @@ const bodyHint = computed(() => t('composer.bodyHintWithLimit', {
 }))
 
 const canSubmit = computed(() => {
-  if (!canCreate.value || submitState.value === 'submitting') {
+  if (!canCreate.value || submitState.value === 'submitting' || topicCooldownActive.value) {
     return false
   }
   // 允许 contentMin=0 时正文可为空字符串以外的空白由后端 RenderContent 再判。
@@ -353,7 +360,7 @@ function onLeftRailSaveDraft() {
 }
 
 async function submit(payload?: { markdown?: string; native?: unknown; text?: string }) {
-  if (!canCreate.value || submitState.value === 'submitting') {
+  if (!canCreate.value || submitState.value === 'submitting' || topicCooldownActive.value) {
     return
   }
   const markdown = payload?.markdown ?? bodyMarkdown.value
@@ -410,7 +417,9 @@ async function submit(payload?: { markdown?: string; native?: unknown; text?: st
     await navigateTo(localePath(forumTopicPath(created, topicUrlMode.value)))
   } catch (error) {
     submitState.value = 'error'
-    errorMessage.value = apiErrorMessage(error) || t('composer.submitFailed')
+    errorMessage.value = captureTopicCooldown(error)
+      ? ''
+      : apiErrorMessage(error) || t('composer.submitFailed')
     fieldErrors.value = apiErrorFields(error)
   }
 }
@@ -619,10 +628,10 @@ onBeforeRouteLeave(() => {
 
             <!-- 全局错误（不自动消失） -->
             <SFAlert
-              v-if="errorMessage"
+              v-if="displayErrorMessage"
               variant="danger"
-              :title="errorMessage"
-              closable
+              :title="displayErrorMessage"
+              :closable="!topicCooldownActive"
               class="sforum-topic-composer__alert"
               @close="errorMessage = ''"
             />
@@ -713,6 +722,7 @@ onBeforeRouteLeave(() => {
                   :placeholder="t('composer.bodyPlaceholder')"
                   :submit-label="submitLabel"
                   :disabled="submitState === 'submitting'"
+                  :submit-disabled="topicCooldownActive"
                   :max-characters="limits.topicContentMaxRunes"
                   :error="fieldErrors.content?.join(', ')"
                   :rows="14"

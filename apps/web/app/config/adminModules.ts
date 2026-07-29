@@ -136,7 +136,8 @@ export const adminPageDefinitions = [
     labelKey: 'admin.nav.featureFlags',
     icon: 'i-lucide-toggle-left',
     componentName: 'AdminFeatureFlags',
-    requiredPermissions: ['settings.site.manage']
+    requiredPermissions: ['settings.site.manage'],
+    professionalMode: true
   },
   {
     id: '/entity-meta',
@@ -144,7 +145,8 @@ export const adminPageDefinitions = [
     icon: 'i-lucide-tags',
     componentName: 'AdminEntityMeta',
     requiredPermissions: ['entity_meta.manage', 'settings.manage'],
-    permissionMode: 'any'
+    permissionMode: 'any',
+    professionalMode: true
   },
   {
     id: '/moderation',

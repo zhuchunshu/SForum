@@ -95,6 +95,11 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Forum cooldown recovery feedback: topic/comment cooldowns stay independently
+  configured, while 429 responses now publish standard and structured recovery
+  timing and all create surfaces show a server-authoritative countdown without
+  locking drafts:
+  `sessions/2026-07-30-forum-cooldown-recovery-feedback.md`
 - SSR-stable chrome controls: anonymous SSR now renders guest actions
   immediately, while language, appearance, and authenticated-user ClientOnly
   surfaces keep visible, inert, geometry-stable fallbacks until hydration;

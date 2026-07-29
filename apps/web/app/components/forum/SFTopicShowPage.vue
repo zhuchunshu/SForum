@@ -4,6 +4,7 @@ import { useModerationApi } from '~/composables/moderation/useModerationApi'
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
 import { useAuthSession } from '~/composables/identity/useAuthSession'
 import { useForumApi } from '~/composables/forum/useForumApi'
+import { useTopicCommentSubmission } from '~/composables/forum/useTopicCommentSubmission'
 import SFReportDialog from '~/components/moderation/SFReportDialog.vue'
 import SFTopicSideCard from '~/components/forum/SFTopicSideCard.vue'
 import SFTopicReplyComposer from '~/components/forum/SFTopicReplyComposer.vue'
@@ -49,13 +50,6 @@ const replyActorName = computed(() => reportUser.value?.displayName || reportUse
 function showSuccessToast(title: string) {
   toast.add({ color: 'success', icon: 'i-lucide-check', title, duration: 10000 })
 }
-
-// 顶级回复编辑器状态（始终展开，无折叠态）。
-const replyMarkdown = ref('')
-const replySubmitting = ref(false)
-const replyError = ref('')
-const showReplyError = ref(false)
-const showReplyEditor = computed(() => Boolean(topic.value && topic.value.status !== 'locked' && can(FORUM_PERMISSIONS.postCreate)))
 
 // 未登录访客：评论区块照常展示，但用登录引导替代回复编辑器；登录后跳回当前帖子。
 const isGuest = computed(() => !reportUser.value)
@@ -295,6 +289,12 @@ if (import.meta.server) {
 }
 const { data: topic, error: topicError } = topicResult
 const { data: commentData, pending: commentsPending, error: commentsError, refresh: refreshComments } = commentsAsync
+const replyingTo = ref<ForumComment | null>(null)
+const {
+  replyMarkdown, replySubmitting, replyError, showReplyError,
+  commentCooldownActive, replyDisplayError, submitReply
+} = useTopicCommentSubmission({ topic, replyingTo, refreshComments })
+const showReplyEditor = computed(() => Boolean(topic.value && topic.value.status !== 'locked' && can(FORUM_PERMISSIONS.postCreate)))
 const { data: categoryGroups, pending: categoriesPending } = categoryGroupsAsync
 const navCategories = computed(() => categoryGroups.value.flatMap((group) => group.categories || []))
 const navTotalTopics = computed(() => navCategories.value.reduce((sum, category) => sum + category.topicCount, 0))
@@ -728,45 +728,6 @@ async function handleCommentAction(_value: string) {
   // 回复入口由 Task 3 的内联编辑器处理；这里先预留。
 }
 
-// 提交顶级回复。
-async function submitReply(payload?: { markdown?: string; native?: unknown; text?: string }) {
-  if (!topic.value || replySubmitting.value) {
-    return
-  }
-  const markdown = payload?.markdown ?? replyMarkdown.value
-  if (!(payload?.text || markdown).trim()) {
-    return
-  }
-  const content = forumContentFromEditorPayload({
-    markdown,
-    native: payload?.native,
-    text: payload?.text
-  })
-  replySubmitting.value = true
-  replyError.value = ''
-  showReplyError.value = false
-  try {
-    const created = await forumApi.createTopicComment(topic.value.id, content, replyingTo.value?.id)
-    replyMarkdown.value = ''
-    replyingTo.value = null
-    if (created.status === 'pending') {
-      toast.add({ color: 'primary', icon: 'i-lucide-clock-3', title: t('topicDetail.replySubmittedForReview'), duration: 10000 })
-    } else {
-      await refreshComments()
-      showSuccessToast(t('topicDetail.replyPosted'))
-    }
-  } catch (error) {
-    replyError.value = apiErrorMessage(error) || t('topicDetail.replyFailed')
-    showReplyError.value = true
-  } finally {
-    replySubmitting.value = false
-  }
-}
-
-function onReplyEditorSubmit(payload: { markdown: string; native?: unknown; text?: string }) {
-  submitReply(payload)
-}
-
 // 评论编辑。
 function startEditComment(comment: ForumComment) {
   editingCommentId.value = comment.id
@@ -833,9 +794,6 @@ async function deleteComment(comment: ForumComment) {
     deletingCommentId.value = null
   }
 }
-
-// 评论回复统一汇入评论流末尾的主编辑器，避免多个内联编辑器打断阅读。
-const replyingTo = ref<ForumComment | null>(null)
 
 function startReply(comment: ForumComment) {
   cancelEditComment()
@@ -1286,10 +1244,12 @@ async function submitReport() {
                     :avatar="reportUser?.avatar"
                     :reply-target="replyTarget"
                     :submitting="replySubmitting"
-                    :error="showReplyError ? replyError : ''"
+                    :submit-disabled="commentCooldownActive"
+                    :error="showReplyError ? replyDisplayError : ''"
+                    :error-closable="!commentCooldownActive"
                     :advanced-to="advancedReplyTo"
                     @cancel="cancelReply"
-                    @submit="onReplyEditorSubmit"
+                    @submit="submitReply"
                     @dismiss-error="showReplyError = false"
                     @advanced="prepareAdvancedReply"
                   />

@@ -9,6 +9,8 @@ export type ApiEnvelope<T> = {
 export type ApiErrorData = {
   reason?: string
   fields?: Record<string, string[]>
+  retryAfterSeconds?: number
+  retryAt?: string
 }
 
 type ApiRequestBody = BodyInit | Record<string, unknown> | null
@@ -206,6 +208,16 @@ export function apiErrorMessage(error: unknown) {
 export function apiErrorReason(error: unknown) {
   const reason = apiErrorEnvelope(error)?.data?.reason
   return typeof reason === 'string' ? reason : ''
+}
+
+export function apiErrorRetryAfterSeconds(error: unknown) {
+  const value = Number(apiErrorEnvelope(error)?.data?.retryAfterSeconds)
+  return Number.isFinite(value) && value > 0 ? Math.ceil(value) : 0
+}
+
+export function apiErrorRetryAt(error: unknown) {
+  const value = apiErrorEnvelope(error)?.data?.retryAt
+  return typeof value === 'string' ? value : ''
 }
 
 /** 统一读取 ofetch 与 Host envelope 的 HTTP 状态，供只读请求策略复用。 */

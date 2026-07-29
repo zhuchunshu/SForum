@@ -529,7 +529,7 @@ func (s *Service) enforceTopicCreateLimitsForActor(ctx context.Context, actor id
 			return err
 		}
 		if !cooldownElapsed(lastAt, ok, cooldown, now) {
-			return ErrTopicCooldown
+			return newCooldownError(ErrTopicCooldown, lastAt, cooldown)
 		}
 	}
 	if daily > 0 {
@@ -566,7 +566,7 @@ func (s *Service) enforceCommentCreateLimitsForActor(ctx context.Context, actor 
 			return err
 		}
 		if !cooldownElapsed(lastAt, ok, cooldown, now) {
-			return ErrCommentCooldown
+			return newCooldownError(ErrCommentCooldown, lastAt, cooldown)
 		}
 	}
 	if daily > 0 {

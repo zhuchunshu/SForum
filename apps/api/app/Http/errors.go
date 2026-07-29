@@ -14,6 +14,9 @@ func errorHandler(logger *slog.Logger) fiber.ErrorHandler {
 		var apiErr *APIError
 
 		if errors.As(err, &apiErr) {
+			if apiErr.RetryAt != nil {
+				return ErrorResponseWithRetryAt(c, apiErr.Status, apiErr.Reason, *apiErr.RetryAt)
+			}
 			return ErrorResponseWithFields(c, apiErr.Status, apiErr.Reason, LocalizeFields(c, apiErr.Fields))
 		}
 

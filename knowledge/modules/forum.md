@@ -10,6 +10,10 @@ accepted revisions, lifecycle states, public read models, and forum policy.
 - Core taxonomy, topic/comment creation and lifecycle, public/admin UI, runtime
   settings, moderation integration, search projection, and million-scale read
   path M0-M7 are implemented.
+- Topic and comment create cooldowns remain independently configurable. A
+  cooldown rejection now returns HTTP `429` with standard `Retry-After` plus
+  `retryAfterSeconds` / `retryAt`; topic creation and both comment composers
+  show a server-authoritative countdown while preserving editable drafts.
 - Topic detail exposes public **contributors** (author + body edit/restore
   actors, max 5 + count) and `GET /topics/{id}/contribution-timeline` for a
   header-only publish/edit timeline. Staff actors are fully exposed by default;

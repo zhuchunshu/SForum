@@ -188,6 +188,8 @@ topics:
         "$ref": "../components/responses.yaml#/Forbidden"
       '409':
         "$ref": "../components/responses.yaml#/Conflict"
+      '429':
+        "$ref": "../components/responses.yaml#/TooManyRequests"
       '422':
         "$ref": "../components/responses.yaml#/UnprocessableEntity"
 adminForumCategoryGroups:
@@ -1202,6 +1204,8 @@ topicComments:
         "$ref": "../components/responses.yaml#/NotFound"
       '409':
         "$ref": "../components/responses.yaml#/Conflict"
+      '429':
+        "$ref": "../components/responses.yaml#/TooManyRequests"
       '422':
         "$ref": "../components/responses.yaml#/UnprocessableEntity"
 topicCommentPage:

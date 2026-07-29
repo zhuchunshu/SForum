@@ -3,7 +3,14 @@ import { readFileSync } from 'node:fs'
 import { parse, compileScript } from '@vue/compiler-sfc'
 import { computed, reactive, ref } from 'vue'
 
-import { apiErrorFields, apiErrorMessage, apiErrorReason, useApiClient } from '../../app/composables/useApiClient'
+import {
+  apiErrorFields,
+  apiErrorMessage,
+  apiErrorReason,
+  apiErrorRetryAfterSeconds,
+  apiErrorRetryAt,
+  useApiClient
+} from '../../app/composables/useApiClient'
 import { isApiConnectionError, useApiConnectionError } from '../../app/composables/useApiConnectionError'
 import { isUnauthenticatedAuthError } from '../../app/composables/identity/useAuthSession'
 import { registerErrorMessage } from '../../app/utils/identity/registerErrors'
@@ -66,6 +73,23 @@ describe('api error helpers', () => {
       username: ['请填写用户名。'],
       email: ['邮箱格式不正确。']
     })
+  })
+
+  test('reads structured cooldown recovery details', () => {
+    const error = {
+      data: {
+        code: 429,
+        message: '评论过于频繁，请稍后再试。',
+        data: {
+          reason: 'forum.comment_cooldown',
+          retryAfterSeconds: 42.1,
+          retryAt: '2026-07-30T12:34:56Z'
+        }
+      }
+    }
+
+    expect(apiErrorRetryAfterSeconds(error)).toBe(43)
+    expect(apiErrorRetryAt(error)).toBe('2026-07-30T12:34:56Z')
   })
 })
 

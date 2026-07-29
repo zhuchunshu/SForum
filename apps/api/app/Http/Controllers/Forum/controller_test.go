@@ -32,6 +32,23 @@ type forumTestErrorData struct {
 	Reason string `json:"reason"`
 }
 
+func TestMapForumCooldownErrorKeepsIndependentReasonAndRetryAt(t *testing.T) {
+	retryAt := time.Date(2026, 7, 30, 12, 0, 30, 0, time.UTC)
+	for _, test := range []struct {
+		cause  error
+		reason string
+	}{
+		{cause: forum.ErrTopicCooldown, reason: forum.CodeTopicCooldown},
+		{cause: forum.ErrCommentCooldown, reason: forum.CodeCommentCooldown},
+	} {
+		mapped := mapForumError(&forum.CooldownError{Cause: test.cause, RetryAt: retryAt})
+		apiErr, ok := mapped.(*apphttp.APIError)
+		if !ok || apiErr.Reason != test.reason || apiErr.RetryAt == nil || !apiErr.RetryAt.Equal(retryAt) {
+			t.Fatalf("mapped cooldown = %#v", mapped)
+		}
+	}
+}
+
 func TestControllerListsPublicForumData(t *testing.T) {
 	app, _, _ := newForumTestApp()
 

@@ -168,6 +168,13 @@ func cooldownElapsed(lastAt time.Time, ok bool, cooldownSeconds int, now time.Ti
 	return !now.Before(lastAt.Add(time.Duration(cooldownSeconds) * time.Second))
 }
 
+func newCooldownError(cause error, lastAt time.Time, cooldownSeconds int) error {
+	return &CooldownError{
+		Cause:   cause,
+		RetryAt: lastAt.Add(time.Duration(cooldownSeconds) * time.Second).UTC(),
+	}
+}
+
 func dayStartUTC(now time.Time) time.Time {
 	y, m, d := now.UTC().Date()
 	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)

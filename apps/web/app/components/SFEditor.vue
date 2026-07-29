@@ -21,6 +21,7 @@ const props = withDefaults(defineProps<{
   rows?: number
   hint?: string
   disabled?: boolean
+  submitDisabled?: boolean
   error?: string
   maxCharacters?: number
   submitLabel?: string
@@ -40,6 +41,7 @@ const props = withDefaults(defineProps<{
   rows: 6,
   hint: undefined,
   disabled: false,
+  submitDisabled: false,
   error: undefined,
   maxCharacters: 12000,
   submitLabel: '发布回复',
@@ -331,6 +333,9 @@ function onMarkdownInput(event: Event) {
 }
 
 function submitContent() {
+  if (props.disabled || props.submitDisabled) {
+    return
+  }
   emit('submit', currentPayload.value)
 }
 </script>
@@ -587,7 +592,7 @@ function submitContent() {
           </SFButton>
           <SFButton
             size="sm"
-            :disabled="disabled || currentPayload.isEmpty"
+            :disabled="disabled || submitDisabled || currentPayload.isEmpty"
             @click="submitContent"
           >
             <template #leading>
@@ -618,7 +623,7 @@ function submitContent() {
         </div>
         <SFButton
           size="sm"
-          :disabled="disabled || currentPayload.isEmpty"
+          :disabled="disabled || submitDisabled || currentPayload.isEmpty"
           @click="submitContent"
         >
           {{ submitLabel }}

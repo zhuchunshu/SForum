@@ -42,6 +42,12 @@ ServiceUnavailable:
         "$ref": "../schemas/common.yaml#/ApiErrorResponse"
 TooManyRequests:
   description: Rate limit exceeded.
+  headers:
+    Retry-After:
+      description: Whole seconds until the request may be retried.
+      schema:
+        type: integer
+        minimum: 1
   content:
     application/json:
       schema:

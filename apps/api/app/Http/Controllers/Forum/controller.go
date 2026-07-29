@@ -734,9 +734,14 @@ func (h *Controller) requireGuestRead(c fiber.Ctx) error {
 
 func mapForumError(err error) error {
 	var rejected *appevents.RejectedError
+	var cooldown *forum.CooldownError
 	switch {
 	case errors.As(err, &rejected):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, rejected.Reason)
+	case errors.As(err, &cooldown) && errors.Is(cooldown, forum.ErrTopicCooldown):
+		return apphttp.NewErrorWithRetryAt(fiber.StatusTooManyRequests, forum.CodeTopicCooldown, cooldown.RetryAt)
+	case errors.As(err, &cooldown) && errors.Is(cooldown, forum.ErrCommentCooldown):
+		return apphttp.NewErrorWithRetryAt(fiber.StatusTooManyRequests, forum.CodeCommentCooldown, cooldown.RetryAt)
 	case errors.Is(err, ErrSearchUnavailable):
 		return fiber.NewError(fiber.StatusServiceUnavailable, "forum.search_unavailable")
 	case errors.Is(err, identity.ErrPermissionDenied):

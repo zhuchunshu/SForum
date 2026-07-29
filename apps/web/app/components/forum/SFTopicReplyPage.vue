@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useSForumSeo } from '~/composables/seo/useSForumSeo'
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
+import { useForumCooldownError } from '~/composables/forum/useForumCooldownError'
 import { useForumApi } from '~/composables/forum/useForumApi'
 /**
  * 宿主 body 岛：forum.topic.reply。
@@ -55,6 +56,12 @@ const {
 const bodyMarkdown = ref('')
 const submitState = ref<'idle' | 'submitting' | 'error'>('idle')
 const errorMessage = ref('')
+const {
+  active: commentCooldownActive,
+  message: commentCooldownMessage,
+  capture: captureCommentCooldown
+} = useForumCooldownError('comment')
+const displayErrorMessage = computed(() => commentCooldownMessage.value || errorMessage.value)
 
 // 从紧凑评论框交接草稿（若有）。
 onMounted(() => {
@@ -101,7 +108,7 @@ const submitLabel = computed(() => {
 })
 
 async function submit(payload?: { markdown?: string, native?: unknown, text?: string }) {
-  if (!topic.value || submitState.value === 'submitting' || locked.value || !canReply.value) {
+  if (!topic.value || submitState.value === 'submitting' || commentCooldownActive.value || locked.value || !canReply.value) {
     return
   }
   const markdown = payload?.markdown ?? bodyMarkdown.value
@@ -143,7 +150,9 @@ async function submit(payload?: { markdown?: string, native?: unknown, text?: st
     await navigateTo(`${topicReturnPath.value}${anchor}`)
   } catch (error) {
     submitState.value = 'error'
-    errorMessage.value = apiErrorMessage(error) || t('topicDetail.replyFailed')
+    errorMessage.value = captureCommentCooldown(error)
+      ? ''
+      : apiErrorMessage(error) || t('topicDetail.replyFailed')
   } finally {
     if (submitState.value === 'submitting') {
       submitState.value = 'idle'
@@ -211,10 +220,10 @@ function onCancel() {
 
       <template v-else-if="topic">
         <SFAlert
-          v-if="errorMessage"
+          v-if="displayErrorMessage"
           variant="danger"
-          :title="errorMessage"
-          closable
+          :title="displayErrorMessage"
+          :closable="!commentCooldownActive"
           class="mb-4"
           @close="errorMessage = ''"
         />
@@ -235,6 +244,7 @@ function onCancel() {
             :submit-label="submitLabel"
             :cancel-label="t('topicDetail.cancel')"
             :disabled="submitState === 'submitting'"
+            :submit-disabled="commentCooldownActive"
             @cancel="onCancel"
             @submit="onEditorSubmit"
           />
