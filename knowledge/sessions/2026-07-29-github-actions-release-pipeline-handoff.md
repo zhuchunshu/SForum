@@ -15,10 +15,11 @@
   defaults to Chinese, supports English plus interactive/non-interactive use,
   verifies a clean synchronized `main`, runs release checks, rejects duplicate
   and development tags, and pushes one annotated `vX.Y.Z[-prerelease]` tag.
-  Interactive mode suggests the next patch or prerelease number from the latest
-  valid remote release tag and accepts Enter for that default; manual input
-  remains authoritative. Dry-run and explicit check/wait controls are
-  available; image publication remains entirely owned by GitHub Actions.
+  Interactive mode requires an explicit alpha, beta, or stable selection before
+  the base version, then suggests the next base and prerelease number from valid
+  remote release tags. Enter accepts each suggested value; manual input remains
+  authoritative. Dry-run and explicit check/wait controls are available; image
+  publication remains entirely owned by GitHub Actions.
 - Added one build-identity authority for API, worker, migrator, and developer
   CLI version output. Release images inject the tag, exact commit, and commit
   timestamp; Core and Web use that same version, shown once beside the SForum
@@ -128,6 +129,9 @@
   `dev`), and release builds replace it from the tag.
 - Full build identity remains behind the existing `admin.access` policy;
   operator `APP_NAME` branding does not redefine SForum program identity.
+- The repository uses the MIT License with copyright attributed to Inkedus;
+  separately licensed third-party material retains its own terms. See
+  `decisions/2026-07-29-mit-project-license.md`.
 - See `decisions/2026-07-29-ghcr-multi-platform-release-pipeline.md`.
 
 ## Verification
@@ -246,5 +250,3 @@
 - Automatic recording of the previously deployed image digest and guarded
   one-click application rollback remain open. Database down-migration is not
   implied by image rollback.
-- Repository license and legal copyright holder remain undecided. Do not infer
-  either value from the GitHub owner or package module path.

@@ -71,8 +71,9 @@ Maintainers trigger this pipeline through `scripts/release.sh`. Its Chinese-
 default bilingual interface supports interactive and non-interactive use,
 validates a clean synchronized `main`, rejects duplicate or development tags,
 runs the local release gates by default, and pushes only an annotated release
-tag. Interactive mode suggests the next patch or prerelease number from the
-latest valid remote release tag, while explicit input remains authoritative.
+tag. Interactive mode requires an explicit alpha, beta, or stable selection
+before the base version; it suggests the next base and prerelease number from
+the latest valid remote release tags, while explicit input remains authoritative.
 `--dry-run` performs the checks without creating a tag; `--skip-checks`
 leaves the authoritative GitHub Actions gate enabled but prints a warning.
 See `decisions/2026-07-29-ghcr-multi-platform-release-pipeline.md`.

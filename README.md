@@ -68,6 +68,11 @@ cp .env.production.example .env.production
 
 Details: [docs/zh-CN/deployment.md](./docs/zh-CN/deployment.md) / [docs/en-US/deployment.md](./docs/en-US/deployment.md).
 
+## Community
+
+- Report vulnerabilities privately according to [`SECURITY.md`](./SECURITY.md).
+- SForum is available under the [`MIT License`](./LICENSE).
+
 ## Contributing / agents
 
 1. Read [`AGENTS.md`](./AGENTS.md)  

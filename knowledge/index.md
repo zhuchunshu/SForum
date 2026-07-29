@@ -151,8 +151,11 @@ load archived sessions or completed plans as current context.
   tags now inject one shared Core/Web/API/worker/migrator/CLI build identity,
   shown once beside the SForum admin brand, while the protected overview shows
   build and runtime diagnostics; the bilingual `scripts/release.sh` validates
-  and pushes the annotated release tag without building locally:
-  `sessions/2026-07-29-github-actions-release-pipeline-handoff.md`
+  and pushes the annotated release tag without building locally; repository
+  licensing is now explicitly MIT under Inkedus while separately licensed
+  third-party material retains its own terms:
+  `sessions/2026-07-29-github-actions-release-pipeline-handoff.md`,
+  `decisions/2026-07-29-mit-project-license.md`
 - Notification email opt-in defaults: admin per-type email control, Core
   transaction-scoped user preference enforcement, hard site gate, safe default
   migration, personal managed state, and desktop/mobile Browser QA:

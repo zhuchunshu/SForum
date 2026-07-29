@@ -7,6 +7,8 @@ LANGUAGE="zh"
 LANGUAGE_SET=false
 MODE="auto"
 VERSION_INPUT=""
+RELEASE_TYPE=""
+RELEASE_TYPE_SET=false
 ASSUME_YES=false
 DRY_RUN=false
 SKIP_CHECKS=false
@@ -40,6 +42,7 @@ SForum 一键发布脚本
 
 选项：
   --version VERSION       发布版本，例如 2.8.0 或 2.8.0-beta.1
+  --type TYPE             发布类型：alpha、beta 或 stable
   --lang zh|en            界面语言（默认：zh）
   --interactive           强制使用交互模式，并自动建议下一个版本
   --non-interactive       禁止提问，版本必须通过参数提供
@@ -74,6 +77,7 @@ Usage:
 
 Options:
   --version VERSION       Release version, such as 2.8.0 or 2.8.0-beta.1
+  --type TYPE             Release type: alpha, beta, or stable
   --lang zh|en            Interface language (default: zh)
   --interactive           Force interactive mode and suggest the next version
   --non-interactive       Never prompt; the version must be an argument
@@ -110,9 +114,19 @@ say() {
       duplicate_version) message="Specify the version only once." ;;
       invalid_language) message="Unsupported language: $1 (use zh or en)." ;;
       version_required) message="A version is required in non-interactive mode. Use --version 2.8.0." ;;
+      select_release_type) message="Select the release type:" ;;
+      alpha_description) message="1) alpha  - internal testing; features may be incomplete" ;;
+      beta_description) message="2) beta   - public testing; release candidate validation" ;;
+      stable_description) message="3) stable - official production release" ;;
+      release_type_prompt) message="Enter 1, 2, or 3: " ;;
+      invalid_release_type) message="Invalid release type: $1. Choose alpha, beta, or stable." ;;
+      release_type_mismatch) message="Release type $1 does not match version $2." ;;
       latest_release) message="Latest release: $1" ;;
       no_previous_release) message="No previous release tag was found; using the initial recommended version." ;;
-      enter_version) message="Release version [$1] (press Enter to use the default): " ;;
+      enter_base_version) message="Base version [$1] (press Enter to use the default): " ;;
+      enter_prerelease_number) message="$1 prerelease number [$2] (press Enter to use the default): " ;;
+      invalid_base_version) message="Invalid base version: $1. Use X.Y.Z without a prerelease suffix." ;;
+      invalid_prerelease_number) message="Invalid prerelease number: $1. Use a positive integer." ;;
       invalid_version) message="Invalid release version: $1. Use X.Y.Z or X.Y.Z-prerelease; do not use dev, latest, or a branch name." ;;
       error_prefix) message="Error" ;;
       git_required) message="git is required to release SForum." ;;
@@ -143,6 +157,8 @@ say() {
       summary_channel) message="Channel" ;;
       summary_stable) message="stable" ;;
       summary_prerelease) message="prerelease" ;;
+      summary_alpha) message="alpha prerelease" ;;
+      summary_beta) message="beta prerelease" ;;
       summary_branch) message="Branch" ;;
       summary_commit) message="Commit" ;;
       summary_checks) message="Local checks" ;;
@@ -173,9 +189,19 @@ say() {
       duplicate_version) message="版本只能指定一次。" ;;
       invalid_language) message="不支持的语言：$1（请使用 zh 或 en）。" ;;
       version_required) message="非交互模式必须指定版本，请使用 --version 2.8.0。" ;;
+      select_release_type) message="请选择发布类型：" ;;
+      alpha_description) message="1) alpha  - 内部测试，功能可能尚未完整" ;;
+      beta_description) message="2) beta   - 公开测试，用于发布候选验证" ;;
+      stable_description) message="3) stable - 正式生产版本" ;;
+      release_type_prompt) message="请输入 1、2 或 3：" ;;
+      invalid_release_type) message="发布类型无效：$1。请选择 alpha、beta 或 stable。" ;;
+      release_type_mismatch) message="发布类型 $1 与版本 $2 不匹配。" ;;
       latest_release) message="最近发布版本：$1" ;;
       no_previous_release) message="未找到历史发布标签，将使用推荐的初始版本。" ;;
-      enter_version) message="请输入发布版本 [$1]（直接回车使用默认值）：" ;;
+      enter_base_version) message="请输入基础版本 [$1]（直接回车使用默认值）：" ;;
+      enter_prerelease_number) message="请输入 $1 预发布编号 [$2]（直接回车使用默认值）：" ;;
+      invalid_base_version) message="基础版本无效：$1。请使用不带预发布后缀的 X.Y.Z。" ;;
+      invalid_prerelease_number) message="预发布编号无效：$1。请输入正整数。" ;;
       invalid_version) message="发布版本无效：$1。请使用 X.Y.Z 或 X.Y.Z-预发布标识，不要填写 dev、latest 或分支名。" ;;
       error_prefix) message="错误" ;;
       git_required) message="发布 SForum 需要安装 git。" ;;
@@ -206,6 +232,8 @@ say() {
       summary_channel) message="发布通道" ;;
       summary_stable) message="正式版" ;;
       summary_prerelease) message="预发布版" ;;
+      summary_alpha) message="alpha 预发布版" ;;
+      summary_beta) message="beta 预发布版" ;;
       summary_branch) message="分支" ;;
       summary_commit) message="提交" ;;
       summary_checks) message="本地检查" ;;
@@ -281,6 +309,7 @@ ensure_remote_tag_available() {
 
 validate_and_set_version() {
   local candidate="${VERSION_INPUT#v}"
+  local inferred_type="stable"
 
   if [[ "$candidate" == dev || "$candidate" == dev-* || "$candidate" == latest ]]; then
     die invalid_version "$VERSION_INPUT"
@@ -289,30 +318,48 @@ validate_and_set_version() {
     die invalid_version "$VERSION_INPUT"
   fi
 
+  if [[ "$candidate" =~ -alpha\.([1-9][0-9]*)$ ]]; then
+    inferred_type="alpha"
+  elif [[ "$candidate" =~ -beta\.([1-9][0-9]*)$ ]]; then
+    inferred_type="beta"
+  elif [[ "$candidate" == *-* ]]; then
+    inferred_type="prerelease"
+  fi
+
+  if [[ "$RELEASE_TYPE_SET" == true ]]; then
+    case "$RELEASE_TYPE" in
+      stable)
+        [[ "$inferred_type" == "stable" ]] || die release_type_mismatch "$RELEASE_TYPE" "$candidate"
+        ;;
+      alpha|beta)
+        [[ "$inferred_type" == "$RELEASE_TYPE" ]] || die release_type_mismatch "$RELEASE_TYPE" "$candidate"
+        ;;
+    esac
+  else
+    RELEASE_TYPE="$inferred_type"
+  fi
+
   VERSION="$candidate"
   TAG="v$VERSION"
-  if [[ "$VERSION" == *-* ]]; then
-    CHANNEL="$(say summary_prerelease)"
-  else
-    CHANNEL="$(say summary_stable)"
-  fi
+  case "$RELEASE_TYPE" in
+    alpha) CHANNEL="$(say summary_alpha)" ;;
+    beta) CHANNEL="$(say summary_beta)" ;;
+    stable) CHANNEL="$(say summary_stable)" ;;
+    *) CHANNEL="$(say summary_prerelease)" ;;
+  esac
 }
 
-resolve_suggested_version() {
-  local remote_tags=""
+resolve_release_history() {
   local _object=""
   local ref=""
   local tag=""
   local released_version=""
   local base_version=""
-  local prerelease=""
   local major=""
   local minor=""
   local patch=""
-  local prerelease_prefix=""
-  local prerelease_number=""
 
-  if ! remote_tags="$(git ls-remote --tags --refs --sort=-version:refname origin 'refs/tags/v*')"; then
+  if ! REMOTE_RELEASE_TAGS="$(git ls-remote --tags --refs --sort=-version:refname origin 'refs/tags/v*')"; then
     die remote_tags_failed
   fi
 
@@ -323,10 +370,10 @@ resolve_suggested_version() {
       LATEST_RELEASE="$tag"
       break
     fi
-  done <<< "$remote_tags"
+  done <<< "$REMOTE_RELEASE_TAGS"
 
   if [[ -z "$LATEST_RELEASE" ]]; then
-    SUGGESTED_VERSION="0.1.0"
+    SUGGESTED_BASE_VERSION="0.1.0"
     return
   fi
 
@@ -335,18 +382,53 @@ resolve_suggested_version() {
   IFS='.' read -r major minor patch <<< "$base_version"
 
   if [[ "$released_version" != *-* ]]; then
-    SUGGESTED_VERSION="$major.$minor.$((10#$patch + 1))"
-    return
-  fi
-
-  prerelease="${released_version#*-}"
-  if [[ "$prerelease" =~ ^(.*\.)([0-9]+)$ ]]; then
-    prerelease_prefix="${BASH_REMATCH[1]}"
-    prerelease_number="${BASH_REMATCH[2]}"
-    SUGGESTED_VERSION="$base_version-$prerelease_prefix$((10#$prerelease_number + 1))"
+    SUGGESTED_BASE_VERSION="$major.$minor.$((10#$patch + 1))"
   else
-    SUGGESTED_VERSION="$base_version-$prerelease.1"
+    SUGGESTED_BASE_VERSION="$base_version"
   fi
+}
+
+suggest_prerelease_number() {
+  local base_version="$1"
+  local release_type="$2"
+  local _object=""
+  local ref=""
+  local tag=""
+  local prefix="v$base_version-$release_type."
+  local number=""
+  local highest=0
+
+  while IFS=$'\t' read -r _object ref; do
+    tag="${ref#refs/tags/}"
+    if [[ "$tag" == "$prefix"* ]]; then
+      number="${tag#"$prefix"}"
+      if [[ "$number" =~ ^[1-9][0-9]*$ ]] && ((10#$number > highest)); then
+        highest=$((10#$number))
+      fi
+    fi
+  done <<< "$REMOTE_RELEASE_TAGS"
+
+  SUGGESTED_PRERELEASE_NUMBER=$((highest + 1))
+}
+
+select_release_type() {
+  local choice=""
+
+  printf '\n%s\n' "$(say select_release_type)"
+  printf '  %s\n' "$(say alpha_description)"
+  printf '  %s\n' "$(say beta_description)"
+  printf '  %s\n' "$(say stable_description)"
+  while true; do
+    say release_type_prompt
+    read -r choice
+    case "$choice" in
+      1|alpha) RELEASE_TYPE="alpha"; break ;;
+      2|beta) RELEASE_TYPE="beta"; break ;;
+      3|stable) RELEASE_TYPE="stable"; break ;;
+      *) warn invalid_release_type "$choice" ;;
+    esac
+  done
+  RELEASE_TYPE_SET=true
 }
 
 set_version() {
@@ -367,6 +449,12 @@ while [[ $# -gt 0 ]]; do
       [[ $# -ge 2 ]] || die missing_value --lang
       LANGUAGE="$2"
       LANGUAGE_SET=true
+      shift 2
+      ;;
+    --type)
+      [[ $# -ge 2 ]] || die missing_value --type
+      RELEASE_TYPE="$2"
+      RELEASE_TYPE_SET=true
       shift 2
       ;;
     --interactive)
@@ -416,6 +504,13 @@ case "$LANGUAGE" in
   *) die invalid_language "$LANGUAGE" ;;
 esac
 
+if [[ "$RELEASE_TYPE_SET" == true ]]; then
+  case "$RELEASE_TYPE" in
+    alpha|beta|stable) ;;
+    *) die invalid_release_type "$RELEASE_TYPE" ;;
+  esac
+fi
+
 if [[ "$SHOW_HELP" == true ]]; then
   if [[ "$LANGUAGE" == "en" ]]; then
     usage_en
@@ -446,6 +541,9 @@ fi
 if [[ -z "$VERSION_INPUT" ]]; then
   if [[ "$MODE" == "non-interactive" ]]; then
     die version_required
+  fi
+  if [[ "$RELEASE_TYPE_SET" == false ]]; then
+    select_release_type
   fi
 else
   validate_and_set_version
@@ -485,16 +583,32 @@ ORIGIN_COMMIT="$(git rev-parse refs/remotes/origin/main)"
 [[ "$HEAD_COMMIT" == "$ORIGIN_COMMIT" ]] || die head_mismatch
 
 if [[ -z "$VERSION_INPUT" ]]; then
-  resolve_suggested_version
+  resolve_release_history
   if [[ -n "$LATEST_RELEASE" ]]; then
     say latest_release "$LATEST_RELEASE"
   else
     say no_previous_release
   fi
   printf '\n'
-  say enter_version "$SUGGESTED_VERSION"
-  read -r VERSION_INPUT
-  VERSION_INPUT="${VERSION_INPUT:-$SUGGESTED_VERSION}"
+  say enter_base_version "$SUGGESTED_BASE_VERSION"
+  read -r base_version_input
+  base_version_input="${base_version_input:-$SUGGESTED_BASE_VERSION}"
+  if [[ ! "$base_version_input" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    die invalid_base_version "$base_version_input"
+  fi
+
+  if [[ "$RELEASE_TYPE" == "stable" ]]; then
+    VERSION_INPUT="$base_version_input"
+  else
+    suggest_prerelease_number "$base_version_input" "$RELEASE_TYPE"
+    say enter_prerelease_number "$RELEASE_TYPE" "$SUGGESTED_PRERELEASE_NUMBER"
+    read -r prerelease_number_input
+    prerelease_number_input="${prerelease_number_input:-$SUGGESTED_PRERELEASE_NUMBER}"
+    if [[ ! "$prerelease_number_input" =~ ^[1-9][0-9]*$ ]]; then
+      die invalid_prerelease_number "$prerelease_number_input"
+    fi
+    VERSION_INPUT="$base_version_input-$RELEASE_TYPE.$prerelease_number_input"
+  fi
   validate_and_set_version
 fi
 
