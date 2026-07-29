@@ -254,8 +254,7 @@
 
   .sforum-settings__sidebar .sf-home-navigation,
   .sforum-settings__sidebar .sf-home-navigation__desktop {
-    height: auto;
-    min-height: 0;
+    min-height: 100%;
     overflow: visible;
   }
 
