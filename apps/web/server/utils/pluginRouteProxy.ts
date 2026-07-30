@@ -28,6 +28,7 @@ export function isHostReservedPath(pathname: string) {
   return isCoreAPIPath(pathname)
     || pathname === '/_sforum' || pathname.startsWith('/_sforum/')
     || pathname === '/_nuxt' || pathname.startsWith('/_nuxt/')
+    || pathname === '/media/avatars' || pathname.startsWith('/media/avatars/')
 }
 
 export function buildPluginRouteTarget(apiBaseURL: string, requestURL: URL) {

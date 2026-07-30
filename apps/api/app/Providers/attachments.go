@@ -36,6 +36,13 @@ func NewAttachmentsProviderWithService(attachmentService *attachments.Service, s
 	return provider
 }
 
+func (p *AttachmentsProvider) WithCompressionService(service *attachments.CompressionService) *AttachmentsProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithCompressionService(service)
+	}
+	return p
+}
+
 func (p *AttachmentsProvider) RegisterRoutes(api fiber.Router) {
 	p.controller.RegisterRoutes(api)
 	if p.seoController != nil {

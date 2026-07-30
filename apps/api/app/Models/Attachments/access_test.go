@@ -88,7 +88,7 @@ func TestDecorateURLAlwaysProxiesAuthorizedResources(t *testing.T) {
 	store := &accessFakeStore{
 		item: Attachment{
 			ID: 1, PublicID: "pub1", Status: StatusActive, Visibility: VisibilityPublic,
-			ObjectKey: "k", Provider: "local",
+			ObjectKey: "k", Provider: "local", ContentType: "image/jpeg",
 		},
 		refs: []ReferenceAccess{forumAccess("post", "active", "active", "public", 1)},
 	}
@@ -101,17 +101,24 @@ func TestDecorateURLAlwaysProxiesAuthorizedResources(t *testing.T) {
 	})
 	// 需要 import storage — 用 decorate 直接测
 	decorated := service.decorateURL(context.Background(), store.item)
-	if decorated.URL != contentURLPath("pub1") {
+	if decorated.URL != displayVariantURLPath("pub1") {
 		t.Fatalf("expected proxy URL, got %q", decorated.URL)
 	}
 	optStore.items[options.NameForumGuestRead] = "public"
 	service.options.Invalidate()
 	decorated = service.decorateURL(context.Background(), store.item)
-	if decorated.URL != contentURLPath("pub1") {
+	if decorated.URL != displayVariantURLPath("pub1") {
 		t.Fatalf("public forum mode must still use revocable proxy URL, got %q", decorated.URL)
 	}
 
+	store.item.ContentType = "application/pdf"
+	decorated = service.decorateURL(context.Background(), store.item)
+	if decorated.URL != contentURLPath("pub1") {
+		t.Fatalf("non-image attachments must keep the original proxy URL, got %q", decorated.URL)
+	}
+
 	// 头像仍可用 CDN
+	store.item.ContentType = "image/jpeg"
 	store.refs = []ReferenceAccess{{AttachmentReference: AttachmentReference{ResourceType: ResourceTypeUser, Context: ContextAvatar}, Exists: true}}
 	decorated = service.decorateURL(context.Background(), store.item)
 	if decorated.URL != "https://cdn.example.com/k" {

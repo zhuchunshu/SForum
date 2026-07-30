@@ -4,6 +4,7 @@ import (
 	"path"
 	"strings"
 
+	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	storage "github.com/zhuchunshu/sforum/apps/api/app/Support/Storage"
 )
 
@@ -13,6 +14,46 @@ const attachmentProviderTextMaxRunes = 240
 
 var attachmentProviders = []string{storage.ProviderLocal}
 var attachmentVisibilities = []string{"public", "private"}
+
+func attachmentOptionDefinitions() []optionDefinition {
+	return []optionDefinition{
+		{name: NameAttachmentProvider, managePermission: identity.PermissionAttachmentSettings},
+		{name: NameAttachmentUploadEnabled, public: true, managePermission: identity.PermissionAttachmentSettings},
+		{name: NameAttachmentPathTemplate, managePermission: identity.PermissionAttachmentSettings},
+		{name: NameAttachmentPublicBaseURL, managePermission: identity.PermissionAttachmentSettings},
+		{name: NameAttachmentMaxFileSizeMB, public: true, managePermission: identity.PermissionAttachmentSettings},
+		{name: NameAttachmentAllowedExtensions, public: true, managePermission: identity.PermissionAttachmentSettings},
+		{name: NameAttachmentAllowedMIMETypes, public: true, managePermission: identity.PermissionAttachmentSettings},
+		{name: NameAttachmentDefaultVisibility, managePermission: identity.PermissionAttachmentSettings},
+		{name: NameAttachmentCleanupOrphanDays, managePermission: identity.PermissionAttachmentSettings},
+		{name: NameAttachmentLocalRoot, managePermission: identity.PermissionAttachmentSettings},
+		{name: NameAttachmentLocalPublicPrefix, managePermission: identity.PermissionAttachmentSettings},
+		{name: NameAttachmentCompressionEnabled, managePermission: identity.PermissionAttachmentSettings},
+		{name: NameAttachmentCompressionStrength, managePermission: identity.PermissionAttachmentSettings},
+		{name: NameAttachmentCompressionMaxDimension, managePermission: identity.PermissionAttachmentSettings},
+		{name: NameAttachmentCompressionMinSizeKB, managePermission: identity.PermissionAttachmentSettings},
+		{name: NameAttachmentCompressionMinSavingsPercent, managePermission: identity.PermissionAttachmentSettings},
+	}
+}
+
+func mergeAttachmentDefaults(values map[string]string) {
+	values[NameAttachmentProvider] = storage.ProviderLocal
+	values[NameAttachmentUploadEnabled] = enabledOptionValue(true)
+	values[NameAttachmentPathTemplate] = "{yyyy}/{mm}/{dd}/{public_id}{ext}"
+	values[NameAttachmentPublicBaseURL] = ""
+	values[NameAttachmentMaxFileSizeMB] = "20"
+	values[NameAttachmentAllowedExtensions] = ".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.zip"
+	values[NameAttachmentAllowedMIMETypes] = "image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,application/zip"
+	values[NameAttachmentDefaultVisibility] = "public"
+	values[NameAttachmentCleanupOrphanDays] = "30"
+	values[NameAttachmentLocalRoot] = "storage/app/attachments"
+	values[NameAttachmentLocalPublicPrefix] = ""
+	values[NameAttachmentCompressionEnabled] = enabledOptionValue(true)
+	values[NameAttachmentCompressionStrength] = "55"
+	values[NameAttachmentCompressionMaxDimension] = "2560"
+	values[NameAttachmentCompressionMinSizeKB] = "256"
+	values[NameAttachmentCompressionMinSavingsPercent] = "8"
+}
 
 // attachmentActiveContentDenylist 是禁止作为公开附件存储的"主动内容"MIME 类型。
 // 这些类型在浏览器同源 inline 响应下可执行脚本/HTML，构成存储型 XSS 或同源脚本执行面，
@@ -49,6 +90,11 @@ func attachmentOptionNames() []string {
 		NameAttachmentCleanupOrphanDays,
 		NameAttachmentLocalRoot,
 		NameAttachmentLocalPublicPrefix,
+		NameAttachmentCompressionEnabled,
+		NameAttachmentCompressionStrength,
+		NameAttachmentCompressionMaxDimension,
+		NameAttachmentCompressionMinSizeKB,
+		NameAttachmentCompressionMinSavingsPercent,
 	}
 }
 

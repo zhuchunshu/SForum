@@ -181,10 +181,13 @@ type RegistrationTicket struct {
 	OwnerExtensionVersion   string                `json:"ownerExtensionVersion,omitempty"`
 	OwnerPackageDigest      string                `json:"ownerPackageDigest"`
 	Operation               ExternalAuthOperation `json:"operation"`
+	SourceOperation         ExternalAuthOperation `json:"sourceOperation"`
 	ProviderSubject         string                `json:"providerSubject"` // raw subject，Core 校验后立即消费
 	SubjectDigest           string                `json:"subjectDigest"`   // 兼容旧 fixture 路径；raw subject 为空时使用
+	UsernameHint            string                `json:"usernameHint"`
 	DisplayName             string                `json:"displayName"`
 	EmailHint               string                `json:"emailHint"`
+	EmailVerified           bool                  `json:"emailVerified"`
 	CorrelationID           string                `json:"correlationId"`
 	CreatedAt               time.Time             `json:"createdAt"`
 	ExpiresAt               time.Time             `json:"expiresAt"`
@@ -205,6 +208,9 @@ func (t RegistrationTicket) ValidateBinding() error {
 		return ErrRegistrationTicketInvalid
 	}
 	if t.Operation != ExternalAuthOperationRegistration {
+		return ErrRegistrationTicketInvalid
+	}
+	if t.SourceOperation != ExternalAuthOperationRegistration && t.SourceOperation != ExternalAuthOperationLogin {
 		return ErrRegistrationTicketInvalid
 	}
 	if t.CreatedAt.IsZero() || t.ExpiresAt.IsZero() {
@@ -233,6 +239,8 @@ func (t *RegistrationTicket) normalizeTimestamps(now time.Time, ttl time.Duratio
 // RegistrationTicketStore 是注册票据的存储抽象。
 type RegistrationTicketStore interface {
 	Save(ctx context.Context, ticket RegistrationTicket) error
+	// Inspect validates and returns an active ticket without consuming it.
+	Inspect(ctx context.Context, token string) (RegistrationTicket, error)
 	// Consume 原子取出并删除；重放必失败。
 	Consume(ctx context.Context, token string) (RegistrationTicket, error)
 }
@@ -548,6 +556,27 @@ func (s *InMemoryRegistrationTicketStore) Consume(_ context.Context, token strin
 	return ticket, nil
 }
 
+func (s *InMemoryRegistrationTicketStore) Inspect(_ context.Context, token string) (RegistrationTicket, error) {
+	if strings.TrimSpace(token) == "" {
+		return RegistrationTicket{}, ErrRegistrationTicketInvalid
+	}
+	key := s.storageKey(token)
+	now := time.Now()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	ticket, ok := s.entries[key]
+	if !ok {
+		return RegistrationTicket{}, ErrRegistrationTicketInvalid
+	}
+	if ticket.IsExpired(now) {
+		return RegistrationTicket{}, ErrRegistrationTicketExpired
+	}
+	if err := ticket.ValidateBinding(); err != nil {
+		return RegistrationTicket{}, err
+	}
+	return ticket, nil
+}
+
 // --- Redis 实现 ---
 
 // RedisCallbackStateStore 使用 Redis SET + lua 原子 GETDEL + 消费墓碑。
@@ -734,6 +763,27 @@ func (s *RedisRegistrationTicketStore) Consume(ctx context.Context, token string
 	}
 	var ticket RegistrationTicket
 	if err := json.Unmarshal([]byte(str), &ticket); err != nil {
+		return RegistrationTicket{}, fmt.Errorf("decode registration ticket: %w", err)
+	}
+	if ticket.IsExpired(time.Now()) {
+		return RegistrationTicket{}, ErrRegistrationTicketExpired
+	}
+	if err := ticket.ValidateBinding(); err != nil {
+		return RegistrationTicket{}, err
+	}
+	return ticket, nil
+}
+
+func (s *RedisRegistrationTicketStore) Inspect(ctx context.Context, token string) (RegistrationTicket, error) {
+	if s.client == nil || strings.TrimSpace(token) == "" {
+		return RegistrationTicket{}, ErrRegistrationTicketInvalid
+	}
+	raw, err := s.client.Get(ctx, s.activeKey(token)).Result()
+	if err != nil {
+		return RegistrationTicket{}, ErrRegistrationTicketInvalid
+	}
+	var ticket RegistrationTicket
+	if err := json.Unmarshal([]byte(raw), &ticket); err != nil {
 		return RegistrationTicket{}, fmt.Errorf("decode registration ticket: %w", err)
 	}
 	if ticket.IsExpired(time.Now()) {

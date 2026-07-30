@@ -240,6 +240,16 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return normalizeStringChoice(value, attachmentVisibilities)
 	case NameAttachmentCleanupOrphanDays:
 		return normalizeBoundedInt(value, 1, 3650)
+	case NameAttachmentCompressionEnabled:
+		return normalizeEnabledOption(value)
+	case NameAttachmentCompressionStrength:
+		return normalizeBoundedInt(value, 0, 100)
+	case NameAttachmentCompressionMaxDimension:
+		return normalizeBoundedInt(value, 320, 8192)
+	case NameAttachmentCompressionMinSizeKB:
+		return normalizeBoundedInt(value, 1, 1024*1024)
+	case NameAttachmentCompressionMinSavingsPercent:
+		return normalizeBoundedInt(value, 0, 90)
 	case NameAvatarAllowUpload, NameAvatarAllowGIF, NameAvatarCompressEnabled:
 		return normalizeEnabledOption(value)
 	case NameAvatarDefaultProvider:

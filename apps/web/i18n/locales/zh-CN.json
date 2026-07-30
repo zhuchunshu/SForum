@@ -35,6 +35,46 @@
       "currentPreference": "外观：{preference}"
     }
   },
+  "userAppearanceSettings": {
+    "metaTitle": "个人外观",
+    "metaDescription": "设置你的主题强调色与日间背景。",
+    "title": "个人外观",
+    "intro": "选择跟随站点外观，或保存仅对当前账号生效的配色。",
+    "source": {
+      "title": "外观来源",
+      "description": "跟随站点时，管理员之后的外观调整也会自动应用到你的账号。",
+      "site": {
+        "label": "跟随站点设置",
+        "description": "推荐。使用后台当前设置的强调色与日间背景。"
+      },
+      "custom": {
+        "label": "使用个人设置",
+        "description": "为当前账号保存独立的强调色与日间背景。"
+      }
+    },
+    "themeDescription": "选择强调色预设，或输入自定义颜色。",
+    "backgroundDescription": "日间背景只在浅色模式生效，深色模式保持主题的深色方案。",
+    "customColor": "自定义强调色",
+    "save": "保存外观设置",
+    "saved": "个人外观已保存。",
+    "siteDefaultsSaved": "已恢复跟随站点设置。",
+    "saveFailed": "外观设置保存失败。",
+    "reset": "已撤销未保存的外观更改。",
+    "resetChanges": "撤销更改",
+    "unsaved": "当前预览尚未保存。",
+    "savedState": "当前外观已保存。",
+    "status": {
+      "site": "跟随站点设置",
+      "personal": "个人设置"
+    },
+    "rail": {
+      "ariaLabel": "外观设置说明",
+      "open": "打开外观设置说明",
+      "title": "当前外观来源",
+      "description": "点选会立即预览；只有保存后才会在刷新和下次登录时继续生效。",
+      "currentSource": "已保存状态"
+    }
+  },
   "legal": {
     "termsTitle": "服务条款",
     "privacyTitle": "隐私政策",
@@ -1855,7 +1895,7 @@
       "tabs": {
         "label": "附件设置页签",
         "settings": "基础配置",
-        "compression": "压缩配置",
+        "compression": "图片优化",
         "manager": "附件管理"
       },
       "settingsTitle": "基础配置",
@@ -1900,9 +1940,52 @@
         "status": { "unverified": "未测试", "ready": "可用", "error": "异常" }
       },
       "compression": {
-        "description": "管理普通附件上传后的压缩处理策略。",
-        "emptyTitle": "暂无可配置的附件压缩项",
-        "emptyDescription": "当前未启用附件压缩处理器，普通附件会按原文件保存。"
+        "description": "管理 JPEG、PNG 图片上传后的异步优化策略。",
+        "toolbar": "原图始终保留；优化版本生成失败或不可用时自动回退原图。",
+        "loadFailed": "图片优化设置或统计数据加载失败。",
+        "recommendedTitle": "推荐图片优化策略",
+        "recommendedApplied": "当前为推荐值",
+        "recommendedDescription": "默认只处理 256 KB 以上或尺寸超过 2560 像素的 JPEG、PNG 图片，至少节省 8% 才保留优化版本。",
+        "automaticTitle": "自动优化新图片",
+        "automaticDescription": "上传完成后在后台生成 display 版本，不阻塞上传，也不会覆盖原文件。",
+        "enabled": "启用自动图片优化",
+        "strength": "压缩强度",
+        "strengthDescription": "强度越高，JPEG 文件通常越小；PNG 使用逐级增强的无损压缩。",
+        "lighter": "更清晰",
+        "smaller": "更小",
+        "jpegQuality": "JPEG 质量 {quality}",
+        "maxDimension": "最长边（像素）",
+        "maxDimensionDescription": "超出时等比缩小",
+        "minSize": "最小源文件（KB）",
+        "minSizeDescription": "小文件跳过处理",
+        "minSavings": "最小节省比例（%）",
+        "minSavingsDescription": "不足时使用原图",
+        "originalsTitle": "原文件保持不变",
+        "originalsDescription": "下载、审计与重新处理始终以不可变原图为准；访问优化版本仍执行原附件的可见性和内容权限检查。",
+        "previewTitle": "体积预估",
+        "previewDescription": "调整压缩强度可查看照片类 JPEG 的经验预估。",
+        "exampleOriginalSize": "示例原图大小（MB）",
+        "before": "优化前",
+        "estimatedAfter": "预计优化后",
+        "estimatedSavings": "预计节省 {size}（{percent}%）",
+        "estimateDisclaimer": "这是基于常见照片的近似值。实际结果取决于图片内容、原始编码、尺寸和格式；PNG 无损压缩的差异可能很大。",
+        "stats": {
+          "ready": "可用优化版本",
+          "pending": "等待或处理中",
+          "failed": "待重试失败任务",
+          "saved": "累计节省空间"
+        },
+        "backfillTitle": "优化已有图片",
+        "backfillDescription": "按当前策略为尚未处理的历史 JPEG、PNG 创建后台任务；重复点击不会重复排队。",
+        "backfillAction": "优化已有图片",
+        "backfillScheduled": "已安排 {count} 张历史图片进行优化。",
+        "backfillFailed": "历史图片优化任务创建失败。",
+        "save": "保存图片优化设置",
+        "saved": "图片优化设置已保存。",
+        "saveFailed": "图片优化设置保存失败。",
+        "restored": "已恢复并保存推荐图片优化设置。",
+        "restoreFailed": "推荐图片优化设置恢复失败。",
+        "unsavedHint": "保存后仅影响新任务；已有优化版本不会被覆盖，除非手动重新安排历史图片。"
       },
       "settingsSaved": "附件设置已保存。",
       "settingsSaveFailed": "附件设置保存失败。",
@@ -4625,6 +4708,28 @@
     "advancedReplyMetaDescription": "使用完整编辑器撰写回复。",
     "advancedReplySubtitle": "回复话题「{title}」",
     "advancedReplyParent": "回复评论 #{id}",
+    "composerDrawer": {
+      "close": "关闭编辑器",
+      "editTitle": "编辑回复",
+      "replyTitle": "回复 {name}",
+      "editSubtitle": "正在编辑你在 {floor} 的回复",
+      "replySubtitle": "在当前话题中回复 {floor}",
+      "thisReply": "这条回复",
+      "topicContext": "话题",
+      "replyingTo": "回复给",
+      "originalReply": "原回复",
+      "backToContent": "回到原文",
+      "saving": "保存中...",
+      "editReason": "编辑原因",
+      "editReasonPlaceholder": "说明这次跨作者编辑的必要原因",
+      "editReasonHint": "编辑其他用户的内容时，此原因会写入审计记录。",
+      "editReasonRequired": "编辑其他用户的内容时必须填写原因。",
+      "discardTitle": "放弃未保存的内容？",
+      "discardDescription": "关闭后，本次修改不会保留。",
+      "keepEditing": "继续编辑",
+      "discard": "放弃",
+      "redirecting": "正在返回话题并打开回复编辑器..."
+    },
     "advancedReplyDenied": {
       "title": "暂无回复权限",
       "description": "登录并获得发帖权限后即可回复。"

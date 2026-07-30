@@ -99,8 +99,10 @@ type AuthProviderCompleteResult struct {
 	Operation               string
 	ProviderSubject         string // raw subject（Core-HMAC 模式）
 	SubjectDigest           string // 兼容旧 fixture 的 plugin-computed digest
+	UsernameHint            string
 	DisplayName             string
 	EmailHint               string
+	EmailVerified           bool
 	ProviderContractVersion string
 	// Live artifact 快照（解析自当前 Registry，供 callback 与事务比对）。
 	OwnerExtensionID      string
@@ -280,8 +282,10 @@ func (f *AuthProviderFlow) Complete(ctx context.Context, input AuthProviderCompl
 				ProviderSubject:         parsed.rawSubject,
 				SubjectDigest:           resolvedDigest,
 				ProviderContractVersion: provider.ContractVersion,
+				UsernameHint:            parsed.usernameHint,
 				DisplayName:             parsed.displayName,
 				EmailHint:               parsed.emailHint,
+				EmailVerified:           parsed.emailVerified,
 				OwnerExtensionID:        provider.Artifact.ExtensionID,
 				OwnerExtensionVersion:   provider.Artifact.ExtensionVersion,
 				OwnerPackageDigest:      provider.Artifact.PackageDigest,
@@ -462,8 +466,10 @@ func parseAuthStartOutput(output map[string]any) (authStartParsed, error) {
 type authCompleteParsed struct {
 	subjectDigest string // Core 可直接使用的 digest（兼容旧 fixture 路径）
 	rawSubject    string // raw 外部 subject（Core-HMAC 模式）；非空时由调用方计算 digest
+	usernameHint  string
 	displayName   string
 	emailHint     string
+	emailVerified bool
 }
 
 // parseAuthCompleteOutput 支持两种契约（见 plans/2026-07-27 M0 freeze）：
@@ -496,16 +502,23 @@ func parseAuthCompleteOutput(output map[string]any) (authCompleteParsed, error) 
 	if len(rawSubject) > 320 {
 		return authCompleteParsed{}, ErrAuthProviderFlowUnavailable
 	}
+	usernameHint := strings.TrimSpace(stringFromAuthOutput(output, "usernameHint"))
 	displayName := strings.TrimSpace(stringFromAuthOutput(output, "displayName"))
 	emailHint := strings.TrimSpace(strings.ToLower(stringFromAuthOutput(output, "emailHint")))
-	if len(displayName) > 200 || len(emailHint) > 320 {
+	emailVerified, _ := output["emailVerified"].(bool)
+	if len(usernameHint) > 64 || len(displayName) > 200 || len(emailHint) > 320 {
 		return authCompleteParsed{}, ErrAuthProviderFlowUnavailable
+	}
+	if emailHint == "" {
+		emailVerified = false
 	}
 	return authCompleteParsed{
 		subjectDigest: digest,
 		rawSubject:    rawSubject,
+		usernameHint:  usernameHint,
 		displayName:   displayName,
 		emailHint:     emailHint,
+		emailVerified: emailVerified,
 	}, nil
 }
 

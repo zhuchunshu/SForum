@@ -93,6 +93,8 @@ var (
 	ErrInvalidUserUpdate = errors.New("identity: invalid user update")
 	// 未接入语言偏好写入存储时，自服务语言更新不可用。
 	ErrUserLocaleUpdateUnavailable = errors.New("identity: user locale update unavailable")
+	ErrInvalidAppearancePreference = errors.New("identity: invalid appearance preference")
+	ErrAppearanceUpdateUnavailable = errors.New("identity: appearance preference update unavailable")
 	// 禁止通过管理路径修改自己的账号状态（避免自锁）。
 	ErrSelfStatusChange = errors.New("identity: cannot change own status via admin path")
 )
@@ -167,20 +169,28 @@ type PostSummary struct {
 }
 
 type CurrentUser struct {
-	ID                  int64       `json:"id"`
-	Username            string      `json:"username"`
-	DisplayName         string      `json:"displayName"`
-	Avatar              avatar.View `json:"avatar"`
-	Locale              string      `json:"locale"`
-	Status              UserStatus  `json:"status"`
-	IsInitialSuperAdmin bool        `json:"isInitialSuperAdmin"`
-	RoleKeys            []string    `json:"roleKeys"`
-	Permissions         []string    `json:"permissions"`
+	ID                  int64                 `json:"id"`
+	Username            string                `json:"username"`
+	DisplayName         string                `json:"displayName"`
+	Avatar              avatar.View           `json:"avatar"`
+	Locale              string                `json:"locale"`
+	Appearance          *AppearancePreference `json:"appearance"`
+	Status              UserStatus            `json:"status"`
+	IsInitialSuperAdmin bool                  `json:"isInitialSuperAdmin"`
+	RoleKeys            []string              `json:"roleKeys"`
+	Permissions         []string              `json:"permissions"`
 	// CreatedAt 注册时间；不强制暴露给所有前端，但 Actor 构建需要。
 	CreatedAt time.Time `json:"-"`
 	// CurrentTokenVersion binds a successful credential proof to the authority
 	// revision that existed when the credential row was read.
 	CurrentTokenVersion int64 `json:"-"`
+}
+
+// AppearancePreference is a private current-user override. A nil preference
+// means the account follows the operator-owned site appearance.
+type AppearancePreference struct {
+	Theme           string `json:"theme"`
+	LightBackground string `json:"lightBackground"`
 }
 
 type RegistrationStatus struct {

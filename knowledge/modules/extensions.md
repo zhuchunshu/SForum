@@ -15,6 +15,12 @@ does not rebuild Nuxt.
 - Manifest V3, trust/recovery, lifecycle ledger, Host API v2, registry
   families, Page Registry themes, buildless settings UI, catalogs, and P0-P12
   phase gates are present.
+- Custom image sticker contributions are in approved design, not
+  implementation. Plugin authors will maintain conventional sticker
+  directories; the extension CLI will generate one exact catalog and Manifest
+  V3 will reference that catalog once rather than listing every image. See
+  `../plans/2026-07-30-image-sticker-platform.md` and
+  `../decisions/2026-07-30-image-sticker-catalog.md`.
 - Package installation accepts only Manifest V3. Executable packages accept
   only Protocol V2 with a valid Host API V2 declaration; V1 loaders, runtime
   adapters, SDK entry points, built-in artifacts, fixtures, and rollback paths
@@ -220,6 +226,11 @@ Decision: `../decisions/2026-07-22-external-extension-source-roots.md`.
 
 - Root manifest: `sforum.extension.json`; complex V3 packages may shard through
   `includes` while simple packages keep a single file.
+- The planned sticker contract deliberately does not use a handwritten
+  `stickerPacks` array or `includes.stickers`. One generated catalog exact-lists
+  directory-discovered media, and one constant-size Manifest reference binds
+  that catalog. Static install validates it without executing plugin code;
+  lifecycle activation imports bytes into Core-owned immutable storage.
 - Validation covers identity/version/compatibility, exact package-file hashes,
   dependencies/conflicts/provides, declarations, entry paths, migrations,
   capabilities, admin pages, theme assets/templates, and unsafe archive paths.
@@ -544,17 +555,19 @@ Relevant plans:
 
 ## Next Steps
 
-1. Execute `../plans/2026-07-22-v3-production-rewire-honesty-remediation.md`
+1. Complete the new editor product design before implementing the image sticker
+   generated-catalog and lifecycle contract.
+2. Execute `../plans/2026-07-22-v3-production-rewire-honesty-remediation.md`
    M0-M8 with production-path evidence.
-2. Execute public navigation M0 before extending `forum.nav.items`; prove and
+3. Execute public navigation M0 before extending `forum.nav.items`; prove and
    document its production bridge to Navigation Registry instead of adding
    another contribution stack.
-3. Keep APILTS compatibility shims until their removal gate, date, and live
+4. Keep APILTS compatibility shims until their removal gate, date, and live
    zero-use evidence all pass.
-4. Keep system error pages plugin-closed and L0/L1-only when adding future
+5. Keep system error pages plugin-closed and L0/L1-only when adding future
    status families or browser-facing producers.
-5. Keep sensitive Core workbenches plugin-closed unless behavior replacement is
+6. Keep sensitive Core workbenches plugin-closed unless behavior replacement is
    an explicit product decision; use `themeable` only for constrained Host-island
    presentation.
-6. Keep new product integrations on stable provider/registry contracts and
+7. Keep new product integrations on stable provider/registry contracts and
    regenerate the affected Extension Surface Matrix.

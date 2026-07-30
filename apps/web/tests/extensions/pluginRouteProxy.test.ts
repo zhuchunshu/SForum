@@ -35,6 +35,7 @@ describe('trusted plugin arbitrary-route proxy', () => {
     expect(isHostReservedPath('/_sforum/assets/themes/demo/digest/theme.css')).toBe(true)
     expect(isHostReservedPath('/_sforum/private-assets/extensions/demo/digest/entry')).toBe(true)
     expect(isHostReservedPath('/_nuxt/app.js')).toBe(true)
+    expect(isHostReservedPath('/media/avatars/3cfb087097f8cb1a3fec5bc63b1d85cb')).toBe(true)
   })
 
   test('builds only same configured API-origin targets without path-based SSRF', () => {
@@ -144,10 +145,13 @@ describe('trusted plugin arbitrary-route proxy', () => {
   test('middleware probes before proxying while ordinary API proxy remains streaming', () => {
     const middleware = source('../../server/middleware/plugin-route-proxy.ts')
     const apiProxy = source('../../server/routes/api/v1/[...path].ts')
+    const avatarProxy = source('../../server/routes/media/avatars/[publicId].ts')
     const proxyUtility = source('../../server/utils/pluginRouteProxy.ts')
     expect(middleware).toContain('proxyDeclaredPluginRoute(event)')
     expect(apiProxy).toContain('proxyRouteRequest(event, target)')
     expect(apiProxy).toContain('proxyNotificationStream(event, target)')
+    expect(avatarProxy).toContain('/attachments/${encodeURIComponent(publicId)}/content')
+    expect(avatarProxy).toContain('proxyRouteRequest(event, target, { omitCredentials: true })')
     expect(proxyUtility).toContain('getRequestWebStream(event)')
     expect(proxyUtility).toContain('sendStream: true')
     expect(proxyUtility).toContain('const signal = proxyRequestAbortSignal(event)')

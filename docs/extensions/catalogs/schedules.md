@@ -27,6 +27,7 @@ Authoring/catalog only — no honest callable transport from the plugin process.
 | --- | --- | --- | --- | --- | --- | --- |
 | `identity.cleanup_sessions` | `identity.cleanup_sessions` | default | 1d | identity | true | 清理已下线超过保留期的历史会话行 |
 | `attachments.cleanup_orphans` | `attachments.cleanup_orphans` | maintenance | 1d | attachments | true | 清理超过保留期且无引用的孤儿附件 |
+| `attachments.reconcile_compression` | `attachments.reconcile_compression` | maintenance | 1m | attachments | true | 补偿附件图片压缩任务入队失败并继续待处理任务 |
 | `audit.cleanup_events` | `audit.cleanup_events` | maintenance | 1d | audit | true | 清理超过保留期的审计日志（默认 90 天） |
 | `forum.auto_lock_idle` | `forum.auto_lock_idle` | maintenance | 1d | forum | true | 按站点 autoLockIdleDays 锁定闲置主题（0 关闭时 job 空跑） |
 | `forum.flush_view_counts` | `forum.flush_view_counts` | maintenance | 45s | forum | true | 将 Redis 主题浏览增量刷入 PG view_count/hot_score（D3） |

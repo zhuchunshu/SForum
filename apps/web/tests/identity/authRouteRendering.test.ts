@@ -110,7 +110,7 @@ describe('auth route support contracts', () => {
       operations: ['login.start'], activatedOperations: ['login'], label: 'Example Login', icon: 'i-lucide-key-round'
     }])
     Object.assign(globalThis, {
-      computed: mountVue.computed, ref: mountVue.ref, reactive: mountVue.reactive,
+      computed: mountVue.computed, ref: mountVue.ref, reactive: mountVue.reactive, watch: mountVue.watch,
       useI18n: () => ({ locale, t: (key: string, values?: Record<string, string>) => key === 'auth.providers.continueWith' ? `Continue with ${values?.name}` : key }),
       useToast: () => ({ add: () => {} }), useLocalePath: () => (path: string) => path,
       useApiClient: () => ({ apiBaseUrl: 'http://api.test', request: async (path: string) => path === '/auth/registration-status' ? { nextUserIsInitialSuperAdmin: false, registrationEnabled: true } : { id: 1 } }),
@@ -119,7 +119,7 @@ describe('auth route support contracts', () => {
       useWebOptions: () => ({ siteName: mountVue.ref('SForum'), siteTagline: mountVue.ref(''), altchaWidgetSettings: mountVue.ref({ hideLogo: true, hideFooter: true, minDuration: 0 }) }),
       useAuthProviders: () => ({ loginProviders: providers, redirectToProvider: async (id: string, operation: string) => { starts.push([id, operation]) } }),
       useExternalAuthFeedback: () => ({ alertMessage: mountVue.ref(''), alertVariant: mountVue.ref('danger') }),
-      useAsyncData: async (_key: string, handler: () => Promise<unknown>) => ({ data: mountVue.ref(await handler()) }),
+      useAsyncData: async (_key: string, handler: () => Promise<unknown>) => ({ data: mountVue.ref(await handler()), pending: mountVue.ref(false) }),
       useSeoMeta: () => {}, apiErrorMessage: () => '', apiErrorReason: () => '',
       authProviderDisplayMeta: (provider: { label?: string, icon?: string }, fallback: string) => ({ label: provider.label || fallback, icon: provider.icon || 'i-lucide-key-round' })
     })
@@ -152,7 +152,7 @@ describe('auth route support contracts', () => {
       operations: ['registration.start'], activatedOperations: ['registration'], label: 'Example Register', icon: 'i-lucide-key-round'
     }])
     Object.assign(globalThis, {
-      computed: mountVue.computed, ref: mountVue.ref, reactive: mountVue.reactive,
+      computed: mountVue.computed, ref: mountVue.ref, reactive: mountVue.reactive, watch: mountVue.watch,
       useI18n: () => ({ locale: mountVue.ref('en-US'), t: (key: string, values?: Record<string, string>) => key === 'auth.providers.continueWith' ? `Continue with ${values?.name}` : key }),
       useToast: () => ({ add: () => {} }), useLocalePath: () => (path: string) => path,
       useRoute: () => ({ path: '/register', query: {} }), useRouter: () => ({ replace: async () => {} }),
@@ -162,7 +162,7 @@ describe('auth route support contracts', () => {
       useWebOptions: () => ({ siteName: mountVue.ref('SForum'), siteTagline: mountVue.ref(''), humanVerificationEnabledFor: () => false, altchaWidgetSettings: mountVue.ref({ hideLogo: true, hideFooter: true, minDuration: 0, type: 'checkbox', auto: 'off', display: 'default', workers: 1 }), passwordPolicy: mountVue.ref({ minLength: 1, maxLength: 64 }) }),
       useAuthProviders: () => ({ registrationProviders: providers, redirectToProvider: async (id: string, operation: string) => { starts.push([id, operation]); throw new Error('provider start failed') } }),
       useExternalAuthFeedback: () => ({ alertMessage: mountVue.ref(''), alertVariant: mountVue.ref('danger') }),
-      useAsyncData: async (_key: string, handler: () => Promise<unknown>) => ({ data: mountVue.ref(await handler()) }),
+      useAsyncData: async (_key: string, handler: () => Promise<unknown>) => ({ data: mountVue.ref(await handler()), pending: mountVue.ref(false) }),
       useSeoMeta: () => {}, apiErrorFields: () => ({}), apiErrorMessage: (error: Error) => error.message, apiErrorReason: () => '',
       registerErrorMessage: () => '', passwordPolicyProgress: () => 100, passwordPolicyProgressLevel: () => 'strong', passwordPolicyRequirements: () => [],
       authProviderDisplayMeta: (provider: { label?: string, icon?: string }, fallback: string) => ({ label: provider.label || fallback, icon: provider.icon || 'i-lucide-key-round' })
@@ -181,6 +181,60 @@ describe('auth route support contracts', () => {
       await mountVue.nextTick()
       expect(wrapper.find('[data-testid="auth-provider-buttons"]').exists()).toBe(false)
       expect(wrapper.get('#reg-password-input').exists()).toBe(true)
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  test('reuses the registration form and autofills only verified external hints', async () => {
+    const submitted: Array<{ path: string, body: Record<string, unknown> }> = []
+    Object.assign(globalThis, {
+      computed: mountVue.computed, ref: mountVue.ref, reactive: mountVue.reactive, watch: mountVue.watch,
+      useI18n: () => ({ locale: mountVue.ref('en-US'), t: (key: string) => key }),
+      useToast: () => ({ add: () => {} }), useLocalePath: () => (path: string) => path,
+      useRoute: () => ({ path: '/register', query: { ticket: 'opaque-ticket', redirect: '/topics' } }),
+      useRouter: () => ({ replace: async () => {} }),
+      useApiClient: () => ({
+        apiBaseUrl: 'http://api.test',
+        request: async (path: string, options?: { body?: Record<string, unknown> }) => {
+          if (path === '/auth/external-registration/prepare') {
+            expect(options?.body).toEqual({ ticket: 'opaque-ticket' })
+            return { usernameHint: 'octocat', emailHint: 'octocat@example.com', displayName: 'The Octocat', emailVerified: true }
+          }
+          if (path === '/auth/registration-status') {
+            return { nextUserIsInitialSuperAdmin: false, registrationEnabled: true }
+          }
+          if (path === '/auth/external-registration') {
+            submitted.push({ path, body: options?.body || {} })
+            return { id: 42, username: 'octocat' }
+          }
+          throw new Error(`unexpected request ${path}`)
+        }
+      }),
+      useAuthSession: () => ({ setUser: () => {} }),
+      useAuthReturnNavigation: () => ({ returnFromAuth: async () => {}, authPageLink: (path: string) => path, destination: mountVue.ref('/topics') }),
+      useWebOptions: () => ({ humanVerificationEnabledFor: () => false, altchaWidgetSettings: mountVue.ref({ hideLogo: true, hideFooter: true, minDuration: 0, type: 'checkbox', auto: 'off', display: 'default', workers: 1 }), passwordPolicy: mountVue.ref({ minLength: 1, maxLength: 64 }) }),
+      useAuthProviders: () => ({ registrationProviders: mountVue.ref([]), redirectToProvider: async () => {} }),
+      useExternalAuthFeedback: () => ({ alertMessage: mountVue.ref(''), alertVariant: mountVue.ref('danger') }),
+      useAsyncData: async (_key: string, handler: () => Promise<unknown>) => ({ data: mountVue.ref(await handler()), pending: mountVue.ref(false) }),
+      useSeoMeta: () => {}, apiErrorFields: () => ({}), apiErrorMessage: () => '', apiErrorReason: () => '',
+      registerErrorMessage: () => '', passwordPolicyProgress: () => 100, passwordPolicyProgressLevel: () => 'strong', passwordPolicyRequirements: () => []
+    })
+    const wrapper = mount({ components: { SFRegisterFormPage }, template: '<Suspense><SFRegisterFormPage /></Suspense>' }, {
+      global: { stubs: { NuxtLink: { template: '<a><slot /></a>' }, UIcon: true, SFAlert: { props: ['title'], template: '<div>{{ title }}<slot /></div>' }, ClientOnly: true, 'altcha-widget': true, SFAuthProviderButtons } }
+    })
+    try {
+      await flushPromises()
+      expect((wrapper.get('#username-input').element as HTMLInputElement).value).toBe('octocat')
+      expect((wrapper.get('#email-input').element as HTMLInputElement).value).toBe('octocat@example.com')
+      expect((wrapper.get('#displayname-input').element as HTMLInputElement).value).toBe('The Octocat')
+      expect(wrapper.find('#reg-password-input').exists()).toBe(false)
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+      expect(submitted).toHaveLength(1)
+      expect(submitted[0]?.body).toMatchObject({
+        ticket: 'opaque-ticket', username: 'octocat', email: 'octocat@example.com', displayName: 'The Octocat'
+      })
     } finally {
       wrapper.unmount()
     }

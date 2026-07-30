@@ -171,11 +171,15 @@ func handleComplete(
 	out := map[string]any{
 		"providerSubject": assertion.ProviderSubject,
 	}
+	if assertion.UsernameHint != "" {
+		out["usernameHint"] = assertion.UsernameHint
+	}
 	if assertion.DisplayName != "" {
 		out["displayName"] = assertion.DisplayName
 	}
 	if assertion.EmailHint != "" {
 		out["emailHint"] = assertion.EmailHint
+		out["emailVerified"] = assertion.EmailVerified
 	}
 	// 绝不输出 providerSubjectDigest：Host 用 IDENTITY_SUBJECT_HMAC_SECRET 计算。
 	return pluginv2.NewTypedDocument(schemaID("auth.complete.output@1"), out)

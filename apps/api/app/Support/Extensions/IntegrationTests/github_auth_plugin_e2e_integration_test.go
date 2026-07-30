@@ -236,6 +236,7 @@ func TestGitHubAuthPluginProtocolV2HeadlessHostSession(t *testing.T) {
 		OwnerExtensionID:        extension.ID,
 		OwnerPackageDigest:      extension.PackageDigest,
 		Operation:               identity.ExternalAuthOperationRegistration,
+		SourceOperation:         identity.ExternalAuthOperationRegistration,
 		ProviderSubject:         regAssertion.ProviderSubject,
 		SubjectDigest:           regAssertion.SubjectDigest,
 		DisplayName:             regAssertion.DisplayName,

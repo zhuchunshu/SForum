@@ -147,8 +147,10 @@ func (h *Controller) externalAuthCallback(c fiber.Ctx) error {
 		Operation:               tx.Operation,
 		ProviderSubject:         flowResult.ProviderSubject,
 		SubjectDigest:           flowResult.SubjectDigest, // 兼容旧 fixture 路径
+		UsernameHint:            flowResult.UsernameHint,
 		DisplayName:             flowResult.DisplayName,
 		EmailHint:               flowResult.EmailHint,
+		EmailVerified:           flowResult.EmailVerified,
 		CorrelationID:           tx.CorrelationID,
 	}
 	// Provider complete only proves an external assertion. Re-check the current
@@ -177,8 +179,12 @@ func (h *Controller) handleExternalLoginCallback(c fiber.Ctx, tx identity.Callba
 	result, err := h.externalAuthService.CompleteLogin(c.Context(), assertion)
 	if err != nil {
 		if errors.Is(err, identity.ErrExternalIdentityUnlinked) {
-			// 未绑定：引导用户选择显式注册或登录已有账号后绑定。不暴露存在性。
-			return externalAuthRedirect(c, "/login", "auth.external_identity_unlinked")
+			// 未绑定且 registration 仍有效开放时，复用同一个 Host 注册 continuation。
+			target, continuationErr := h.createExternalRegistrationContinuation(c.Context(), assertion, returnPath)
+			if continuationErr == nil {
+				return c.Redirect().Status(fiber.StatusFound).To(target)
+			}
+			return externalAuthRedirect(c, "/login", mapRegistrationContinuationReason(continuationErr))
 		}
 		return externalAuthRedirect(c, returnPath, mapExternalAuthReason(err))
 	}
@@ -219,36 +225,11 @@ func (h *Controller) handleExternalLoginCallback(c fiber.Ctx, tx identity.Callba
 // handleExternalRegistrationCallback 生成不透明一次性注册票据，302 到固定 Host 注册路由。
 // 浏览器只看到 ticket 字符串；raw subject 只存在票据内部（Redis）。
 // safe redirect 作为独立 query，不得改写注册 continuation 路由本身。
-func (h *Controller) handleExternalRegistrationCallback(c fiber.Ctx, tx identity.CallbackTransaction, assertion identity.ExternalAuthAssertion, returnPath string) error {
-	if h.registrationTicketStore == nil {
-		return externalAuthRedirect(c, returnPath, "auth.provider_unavailable")
-	}
-	ticket, err := identity.GenerateOpaqueToken()
+func (h *Controller) handleExternalRegistrationCallback(c fiber.Ctx, _ identity.CallbackTransaction, assertion identity.ExternalAuthAssertion, returnPath string) error {
+	target, err := h.createExternalRegistrationContinuation(c.Context(), assertion, returnPath)
 	if err != nil {
-		return externalAuthRedirect(c, returnPath, "auth.provider_unavailable")
+		return externalAuthRedirect(c, returnPath, mapRegistrationContinuationReason(err))
 	}
-	now := time.Now()
-	regTicket := identity.RegistrationTicket{
-		Token:                   ticket,
-		ProviderID:              assertion.ProviderID,
-		ProviderContractVersion: assertion.ProviderContractVersion,
-		OwnerExtensionID:        assertion.OwnerExtensionID,
-		OwnerExtensionVersion:   assertion.OwnerExtensionVersion,
-		OwnerPackageDigest:      assertion.OwnerPackageDigest,
-		Operation:               assertion.Operation,
-		ProviderSubject:         assertion.ProviderSubject,
-		SubjectDigest:           assertion.SubjectDigest, // 兼容旧 fixture
-		DisplayName:             assertion.DisplayName,
-		EmailHint:               assertion.EmailHint,
-		CorrelationID:           assertion.CorrelationID,
-		CreatedAt:               now,
-		ExpiresAt:               now.Add(identity.RegistrationTicketDefaultTTL),
-	}
-	if err := h.registrationTicketStore.Save(c.Context(), regTicket); err != nil {
-		return externalAuthRedirect(c, returnPath, "auth.provider_unavailable")
-	}
-	// 固定 Host 注册路由 + opaque ticket + 独立安全 redirect。
-	target := identity.ExternalRegistrationContinuationPath(ticket, returnPath)
 	return c.Redirect().Status(fiber.StatusFound).To(target)
 }
 
@@ -314,10 +295,13 @@ func (h *Controller) externalRegistration(c fiber.Ctx) error {
 		OwnerExtensionVersion:   ticket.OwnerExtensionVersion,
 		OwnerPackageDigest:      ticket.OwnerPackageDigest,
 		Operation:               identity.ExternalAuthOperationRegistration,
+		SourceOperation:         ticket.SourceOperation,
 		ProviderSubject:         ticket.ProviderSubject,
 		SubjectDigest:           ticket.SubjectDigest,
+		UsernameHint:            ticket.UsernameHint,
 		DisplayName:             ticket.DisplayName,
 		EmailHint:               ticket.EmailHint,
+		EmailVerified:           ticket.EmailVerified,
 		CorrelationID:           ticket.CorrelationID,
 	}
 	result, err := h.externalAuthService.CompleteRegistration(c.Context(), assertion, input)

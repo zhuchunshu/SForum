@@ -94,6 +94,12 @@
       "path": "templates/settings-profile.html"
     },
     {
+      "digest": "e0147f0425d11431237e12551a561459c93fdf1dd076b4f883782db24e59127f",
+      "id": "sforum.nocturne-theme.file.template.settings-appearance",
+      "kind": "template",
+      "path": "templates/settings-appearance.html"
+    },
+    {
       "digest": "dee4e473d02fee2c748acbe7f689dcaa555767311dcc41119b3b5226793cb2ac",
       "id": "sforum.nocturne-theme.file.template.settings-login-methods",
       "kind": "template",
@@ -317,6 +323,15 @@
       "path": "templates/settings-profile.html",
       "themeOverrideKey": "sforum.nocturne-theme.settings_profile",
       "viewModelSchema": "sforum.page.settings_profile@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.nocturne-theme.template.settings-appearance@1",
+      "digest": "e0147f0425d11431237e12551a561459c93fdf1dd076b4f883782db24e59127f",
+      "id": "sforum.nocturne-theme.template.settings-appearance",
+      "path": "templates/settings-appearance.html",
+      "themeOverrideKey": "sforum.nocturne-theme.settings_appearance",
+      "viewModelSchema": "sforum.page.settings_appearance@1"
     },
     {
       "action": "add",

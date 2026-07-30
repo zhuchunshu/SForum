@@ -101,10 +101,12 @@ func (s *PostgresStore) GetCurrentUser(ctx context.Context, userID int64) (Curre
 	current, err := scanCurrentUserWithAvatar(ctx, s.avatarBuilder, s.pool.QueryRow(ctx, `
 		SELECT users.id, users.username, users.display_name, users.email, users.locale,
 		       users.status, users.is_initial_super_admin, users.current_token_version,
+		       user_appearance_preferences.theme, user_appearance_preferences.light_background,
 		       user_profiles.avatar_attachment_id,
 		       attachments.id, attachments.public_id, attachments.owner_user_id,
 		       attachments.content_type, attachments.status
 		FROM users
+		LEFT JOIN user_appearance_preferences ON user_appearance_preferences.user_id = users.id
 		LEFT JOIN user_profiles ON user_profiles.user_id = users.id
 		LEFT JOIN attachments ON attachments.id = user_profiles.avatar_attachment_id
 		WHERE users.id = $1
@@ -135,6 +137,36 @@ func (s *PostgresStore) UpdateCurrentUserLocale(ctx context.Context, userID int6
 	return s.GetCurrentUser(ctx, userID)
 }
 
+func (s *PostgresStore) UpdateCurrentUserAppearance(ctx context.Context, userID int64, preference AppearancePreference) (CurrentUser, error) {
+	result, err := s.pool.Exec(ctx, `
+		INSERT INTO user_appearance_preferences (user_id, theme, light_background, created_at, updated_at)
+		SELECT id, $2, $3, now(), now() FROM users WHERE id = $1
+		ON CONFLICT (user_id) DO UPDATE
+		SET theme = EXCLUDED.theme, light_background = EXCLUDED.light_background, updated_at = now()
+	`, userID, preference.Theme, preference.LightBackground)
+	if err != nil {
+		return CurrentUser{}, fmt.Errorf("update user appearance: %w", err)
+	}
+	if result.RowsAffected() == 0 {
+		return CurrentUser{}, ErrUserNotFound
+	}
+	return s.GetCurrentUser(ctx, userID)
+}
+
+func (s *PostgresStore) ClearCurrentUserAppearance(ctx context.Context, userID int64) (CurrentUser, error) {
+	var exists bool
+	if err := s.pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM users WHERE id = $1)`, userID).Scan(&exists); err != nil {
+		return CurrentUser{}, fmt.Errorf("check user before clearing appearance: %w", err)
+	}
+	if !exists {
+		return CurrentUser{}, ErrUserNotFound
+	}
+	if _, err := s.pool.Exec(ctx, `DELETE FROM user_appearance_preferences WHERE user_id = $1`, userID); err != nil {
+		return CurrentUser{}, fmt.Errorf("clear user appearance: %w", err)
+	}
+	return s.GetCurrentUser(ctx, userID)
+}
+
 // GetCurrentUserByEmail 按邮箱加载完整 CurrentUser（不要求 password credential）。
 func (s *PostgresStore) GetCurrentUserByEmail(ctx context.Context, email string) (CurrentUser, error) {
 	email = strings.TrimSpace(email)
@@ -144,10 +176,12 @@ func (s *PostgresStore) GetCurrentUserByEmail(ctx context.Context, email string)
 	current, err := scanCurrentUserWithAvatar(ctx, s.avatarBuilder, s.pool.QueryRow(ctx, `
 		SELECT users.id, users.username, users.display_name, users.email, users.locale,
 		       users.status, users.is_initial_super_admin, users.current_token_version,
+		       user_appearance_preferences.theme, user_appearance_preferences.light_background,
 		       user_profiles.avatar_attachment_id,
 		       attachments.id, attachments.public_id, attachments.owner_user_id,
 		       attachments.content_type, attachments.status
 		FROM users
+		LEFT JOIN user_appearance_preferences ON user_appearance_preferences.user_id = users.id
 		LEFT JOIN user_profiles ON user_profiles.user_id = users.id
 		LEFT JOIN attachments ON attachments.id = user_profiles.avatar_attachment_id
 		WHERE users.email_lower = lower($1)
@@ -169,11 +203,13 @@ func (s *PostgresStore) GetCredentialByLogin(ctx context.Context, login string) 
 		SELECT users.id, users.username, users.display_name, users.email, users.locale,
 		       users.status, users.is_initial_super_admin, users.current_token_version,
 		       user_credentials.password_hash,
+		       user_appearance_preferences.theme, user_appearance_preferences.light_background,
 		       user_profiles.avatar_attachment_id,
 		       attachments.id, attachments.public_id, attachments.owner_user_id,
 		       attachments.content_type, attachments.status
 		FROM users
 		JOIN user_credentials ON user_credentials.user_id = users.id
+		LEFT JOIN user_appearance_preferences ON user_appearance_preferences.user_id = users.id
 		LEFT JOIN user_profiles ON user_profiles.user_id = users.id
 		LEFT JOIN attachments ON attachments.id = user_profiles.avatar_attachment_id
 		WHERE users.username_lower = lower($1) OR users.email_lower = lower($1)
@@ -198,6 +234,8 @@ func scanCurrentUserWithAvatar(ctx context.Context, builder *avatar.ViewBuilder,
 	var current CurrentUser
 	var email string
 	var status string
+	var appearanceTheme sql.NullString
+	var appearanceLightBackground sql.NullString
 	var avatarAttachmentID sql.NullInt64
 	var attachmentID sql.NullInt64
 	var attachmentPublicID sql.NullString
@@ -213,6 +251,8 @@ func scanCurrentUserWithAvatar(ctx context.Context, builder *avatar.ViewBuilder,
 		&status,
 		&current.IsInitialSuperAdmin,
 		&current.CurrentTokenVersion,
+		&appearanceTheme,
+		&appearanceLightBackground,
 		&avatarAttachmentID,
 		&attachmentID,
 		&attachmentPublicID,
@@ -223,6 +263,7 @@ func scanCurrentUserWithAvatar(ctx context.Context, builder *avatar.ViewBuilder,
 		return CurrentUser{}, err
 	}
 	current.Status = UserStatus(status)
+	current.Appearance = scanAppearancePreference(appearanceTheme, appearanceLightBackground)
 	current.Avatar = currentUserAvatar(ctx, builder, current, email, avatarAttachmentID, attachmentID, attachmentPublicID, attachmentOwnerID, attachmentContentType, attachmentStatus)
 	return current, nil
 }
@@ -232,6 +273,8 @@ func scanCredentialUserWithAvatar(ctx context.Context, builder *avatar.ViewBuild
 	var email string
 	var status string
 	var passwordHash string
+	var appearanceTheme sql.NullString
+	var appearanceLightBackground sql.NullString
 	var avatarAttachmentID sql.NullInt64
 	var attachmentID sql.NullInt64
 	var attachmentPublicID sql.NullString
@@ -248,6 +291,8 @@ func scanCredentialUserWithAvatar(ctx context.Context, builder *avatar.ViewBuild
 		&current.IsInitialSuperAdmin,
 		&current.CurrentTokenVersion,
 		&passwordHash,
+		&appearanceTheme,
+		&appearanceLightBackground,
 		&avatarAttachmentID,
 		&attachmentID,
 		&attachmentPublicID,
@@ -258,8 +303,16 @@ func scanCredentialUserWithAvatar(ctx context.Context, builder *avatar.ViewBuild
 		return CurrentUser{}, "", err
 	}
 	current.Status = UserStatus(status)
+	current.Appearance = scanAppearancePreference(appearanceTheme, appearanceLightBackground)
 	current.Avatar = currentUserAvatar(ctx, builder, current, email, avatarAttachmentID, attachmentID, attachmentPublicID, attachmentOwnerID, attachmentContentType, attachmentStatus)
 	return current, passwordHash, nil
+}
+
+func scanAppearancePreference(theme sql.NullString, lightBackground sql.NullString) *AppearancePreference {
+	if !theme.Valid || !lightBackground.Valid {
+		return nil
+	}
+	return &AppearancePreference{Theme: theme.String, LightBackground: lightBackground.String}
 }
 
 func currentUserAvatar(ctx context.Context, builder *avatar.ViewBuilder, current CurrentUser, email string, avatarAttachmentID sql.NullInt64, attachmentID sql.NullInt64, attachmentPublicID sql.NullString, attachmentOwnerID sql.NullInt64, attachmentContentType sql.NullString, attachmentStatus sql.NullString) avatar.View {

@@ -18,6 +18,7 @@ type CorePageViewModelData struct {
 	TopicEdit             *themecompiler.TopicEditPageViewModel
 	Profile               *themecompiler.ProfilePageViewModel
 	ProfileSettings       *themecompiler.ProfileSettingsPageViewModel
+	AppearanceSettings    *themecompiler.AppearanceSettingsPageViewModel
 	LoginMethodsSettings  *themecompiler.LoginMethodsSettingsPageViewModel
 	LocalPasswordSettings *themecompiler.LocalPasswordSettingsPageViewModel
 	SecuritySettings      *themecompiler.SecuritySettingsPageViewModel

@@ -1,11 +1,16 @@
 import { apiErrorMessage, apiErrorReason } from '../useApiClient'
 import type { AvatarView } from '../profile/useProfileApi'
+import type { AppearanceTheme, LightBackgroundPreset } from '~/utils/settings/appearance'
 
 export type CurrentUser = {
   id: number
   username: string
   displayName: string
   locale: string
+  appearance: {
+    theme: AppearanceTheme
+    lightBackground: LightBackgroundPreset
+  } | null
   status: 'active' | 'disabled' | 'banned'
   isInitialSuperAdmin: boolean
   avatar: AvatarView

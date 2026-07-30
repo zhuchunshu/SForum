@@ -660,6 +660,63 @@ func newTestService(t *testing.T) (*Service, *fakeStore) {
 	return NewService(store), store
 }
 
+func TestCurrentUserAppearancePreferenceLifecycle(t *testing.T) {
+	t.Parallel()
+	_, store := newTestService(t)
+	service := NewAppearancePreferenceService(store)
+	store.users[1] = CurrentUser{ID: 1, Username: "alice", Status: UserStatusActive}
+
+	updated, err := service.Update(context.Background(), 1, AppearancePreference{
+		Theme: "custom:#4f46e5", LightBackground: "paper",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Appearance == nil || updated.Appearance.Theme != "custom:#4f46e5" || updated.Appearance.LightBackground != "paper" {
+		t.Fatalf("appearance was not persisted: %#v", updated.Appearance)
+	}
+
+	cleared, err := service.Clear(context.Background(), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cleared.Appearance != nil {
+		t.Fatalf("cleared appearance should inherit site defaults: %#v", cleared.Appearance)
+	}
+}
+
+func TestCurrentUserAppearanceRejectsIncompletePreference(t *testing.T) {
+	t.Parallel()
+	_, store := newTestService(t)
+	service := NewAppearancePreferenceService(store)
+	_, err := service.Update(context.Background(), 1, AppearancePreference{Theme: "pine_teal"})
+	if !errors.Is(err, ErrInvalidAppearancePreference) {
+		t.Fatalf("expected invalid appearance preference, got %v", err)
+	}
+}
+
+func TestCurrentUserAppearanceNormalizesAndRejectsUnknownValues(t *testing.T) {
+	t.Parallel()
+	_, store := newTestService(t)
+	service := NewAppearancePreferenceService(store)
+	store.users[1] = CurrentUser{ID: 1, Username: "alice", Status: UserStatusActive}
+	updated, err := service.Update(context.Background(), 1, AppearancePreference{
+		Theme: " CUSTOM:#4F46E5 ", LightBackground: " PAPER ",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Appearance == nil || updated.Appearance.Theme != "custom:#4f46e5" || updated.Appearance.LightBackground != "paper" {
+		t.Fatalf("appearance was not normalized: %#v", updated.Appearance)
+	}
+	_, err = service.Update(context.Background(), 1, AppearancePreference{
+		Theme: "neon", LightBackground: "night_blue",
+	})
+	if !errors.Is(err, ErrInvalidAppearancePreference) {
+		t.Fatalf("expected invalid appearance preference, got %v", err)
+	}
+}
+
 type fakeIdentityEventPublisher struct {
 	names     []string
 	payloads  []map[string]any
@@ -764,6 +821,27 @@ type fakeStore struct {
 	revokeCalls    []fakeRevokeCall
 	enforceCalls   []int // 每次调用传入的 maxDevices
 	sessionRevoked map[string]bool
+}
+
+func (s *fakeStore) UpdateCurrentUserAppearance(ctx context.Context, userID int64, preference AppearancePreference) (CurrentUser, error) {
+	user, ok := s.users[userID]
+	if !ok {
+		return CurrentUser{}, ErrUserNotFound
+	}
+	copy := preference
+	user.Appearance = &copy
+	s.users[userID] = user
+	return s.GetCurrentUser(ctx, userID)
+}
+
+func (s *fakeStore) ClearCurrentUserAppearance(ctx context.Context, userID int64) (CurrentUser, error) {
+	user, ok := s.users[userID]
+	if !ok {
+		return CurrentUser{}, ErrUserNotFound
+	}
+	user.Appearance = nil
+	s.users[userID] = user
+	return s.GetCurrentUser(ctx, userID)
 }
 
 type fakeSessionRow struct {

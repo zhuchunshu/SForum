@@ -18,7 +18,7 @@ const adminPage = useAdminPage('/attachments/settings')
 const pageRef = ref<RefreshablePage | null>(null)
 const tabs = computed(() => [
   { id: 'basic', label: t('admin.attachments.tabs.settings'), icon: 'i-lucide-sliders-horizontal' },
-  { id: 'compression', label: t('admin.attachments.tabs.compression'), icon: 'i-lucide-file-archive' }
+  { id: 'compression', label: t('admin.attachments.tabs.compression'), icon: 'i-lucide-image-down' }
 ])
 const activeTab = ref<AttachmentConfigurationTab>(normalizeTab(route.query.tab))
 const components: Record<AttachmentConfigurationTab, Component> = {
@@ -29,7 +29,7 @@ const activeComponent = computed(() => components[activeTab.value])
 const toolbarPending = computed(() => Boolean(pageRef.value?.pending))
 const canRefresh = computed(() => Boolean(pageRef.value?.refresh))
 const toolbarText = computed(() => activeTab.value === 'compression'
-  ? t('admin.attachments.compression.emptyDescription')
+  ? t('admin.attachments.compression.toolbar')
   : t('admin.attachments.toolbar'))
 
 watch(() => route.query.tab, value => {

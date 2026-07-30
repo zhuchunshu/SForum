@@ -11,6 +11,8 @@ import {
 type TopicCommentSubmissionOptions = {
   topic: Ref<ForumTopicDetail | null | undefined>
   replyingTo: Ref<ForumComment | null>
+  /** 兼容旧高级回复链接：目标评论不在当前页时仍保留服务端 parentId。 */
+  replyParentId?: Ref<number | null>
   refreshComments: () => Promise<unknown>
 }
 
@@ -41,19 +43,24 @@ export function useTopicCommentSubmission(options: TopicCommentSubmissionOptions
       const created = await forumApi.createTopicComment(
         options.topic.value.id,
         forumContentFromEditorPayload({ markdown, native: payload?.native, text: payload?.text }),
-        options.replyingTo.value?.id
+        options.replyParentId?.value ?? options.replyingTo.value?.id
       )
       replyMarkdown.value = ''
       options.replyingTo.value = null
+      if (options.replyParentId) {
+        options.replyParentId.value = null
+      }
       if (created.status === 'pending') {
         toast.add({ color: 'primary', icon: 'i-lucide-clock-3', title: t('topicDetail.replySubmittedForReview'), duration: 10000 })
       } else {
         await options.refreshComments()
         toast.add({ color: 'success', icon: 'i-lucide-check', title: t('topicDetail.replyPosted'), duration: 10000 })
       }
+      return created
     } catch (error) {
       replyError.value = captureCommentCooldown(error) ? '' : apiErrorMessage(error) || t('topicDetail.replyFailed')
       showReplyError.value = true
+      return null
     } finally {
       replySubmitting.value = false
     }

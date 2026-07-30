@@ -107,6 +107,15 @@ func BuildCorePageViewModel(request CorePageViewModelRequest) (any, error) {
 		model.Base = base
 		model.Form = hostForm("profile.component.settings_form", "core.route.profile.update_my_profile")
 		return model, nil
+	case "forum.settings.appearance":
+		model := valueOrZero(request.Data.AppearanceSettings)
+		model.Base = base
+		model.Form = hostForm(
+			"identity.component.appearance_settings",
+			"core.route.identity.update_current_user_appearance",
+			"core.route.identity.clear_current_user_appearance",
+		)
+		return model, nil
 	case "forum.settings.login_methods":
 		model := valueOrZero(request.Data.LoginMethodsSettings)
 		model.Base = base

@@ -15,6 +15,9 @@ func TestCoreScheduleRegistryBuildsCorePeriodics(t *testing.T) {
 		ScheduleAttachmentsCleanupOrphans: func() (river.JobArgs, *river.InsertOpts) {
 			return stubArgs{kind: ScheduleAttachmentsCleanupOrphans}, nil
 		},
+		ScheduleAttachmentsReconcileCompression: func() (river.JobArgs, *river.InsertOpts) {
+			return stubArgs{kind: ScheduleAttachmentsReconcileCompression}, nil
+		},
 		ScheduleAuditCleanupEvents: func() (river.JobArgs, *river.InsertOpts) {
 			return stubArgs{kind: ScheduleAuditCleanupEvents}, nil
 		},
@@ -31,15 +34,15 @@ func TestCoreScheduleRegistryBuildsCorePeriodics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("registry: %v", err)
 	}
-	if reg.Len() != 6 {
-		t.Fatalf("expected 6 core schedules, got %d", reg.Len())
+	if reg.Len() != 7 {
+		t.Fatalf("expected 7 core schedules, got %d", reg.Len())
 	}
 	jobs, err := reg.BuildPeriodicJobs()
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
-	if len(jobs) != 6 {
-		t.Fatalf("expected 6 river periodics, got %d", len(jobs))
+	if len(jobs) != 7 {
+		t.Fatalf("expected 7 river periodics, got %d", len(jobs))
 	}
 
 	// 元数据完整性：daily、owner 明确
@@ -51,6 +54,7 @@ func TestCoreScheduleRegistryBuildsCorePeriodics(t *testing.T) {
 	for _, id := range []string{
 		ScheduleIdentityCleanupSessions,
 		ScheduleAttachmentsCleanupOrphans,
+		ScheduleAttachmentsReconcileCompression,
 		ScheduleAuditCleanupEvents,
 		ScheduleForumAutoLockIdle,
 		ScheduleForumFlushViewCounts,
@@ -77,6 +81,10 @@ func TestCoreScheduleRegistryBuildsCorePeriodics(t *testing.T) {
 		!byID[ScheduleSearchReconcile].RunOnStart {
 		t.Fatalf("search reconcile schedule=%+v", byID[ScheduleSearchReconcile])
 	}
+	if byID[ScheduleAttachmentsReconcileCompression].IntervalSeconds != 60 ||
+		!byID[ScheduleAttachmentsReconcileCompression].RunOnStart {
+		t.Fatalf("attachment compression reconcile schedule=%+v", byID[ScheduleAttachmentsReconcileCompression])
+	}
 	if byID[ScheduleIdentityCleanupSessions].Queue != QueueDefault {
 		t.Fatalf("session cleanup queue=%s", byID[ScheduleIdentityCleanupSessions].Queue)
 	}
@@ -97,7 +105,7 @@ func TestCoreScheduleRegistryWithoutConstructorsIsCatalogOnly(t *testing.T) {
 	if len(jobs) != 0 {
 		t.Fatalf("catalog-only should not build periodics, got %d", len(jobs))
 	}
-	if len(reg.Views()) != 6 {
+	if len(reg.Views()) != 7 {
 		t.Fatalf("views=%d", len(reg.Views()))
 	}
 }

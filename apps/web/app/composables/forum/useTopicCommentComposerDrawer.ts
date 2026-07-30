@@ -1,0 +1,318 @@
+import type { ComputedRef, Ref } from 'vue'
+import { apiErrorMessage } from '~/composables/useApiClient'
+import { useForumApi } from '~/composables/forum/useForumApi'
+import { useTopicCommentSubmission } from '~/composables/forum/useTopicCommentSubmission'
+import {
+  advancedReplyDraftStorageKey,
+  flattenCommentTree,
+  forumContentFromEditorPayload,
+  forumEditorInitialContent,
+  type ForumComment,
+  type ForumTopicDetail
+} from '~/utils/forum/forumTaxonomy'
+import type { SFEditorContentPayload } from '~/utils/sfEditor'
+
+export type TopicCommentComposerMode = 'advanced' | 'reply' | 'edit'
+
+export type TopicCommentComposerContext = {
+  author: string
+  excerpt: string
+  floorLabel?: string
+  href?: string
+}
+
+type TopicCommentComposerDrawerOptions = {
+  topic: Ref<ForumTopicDetail | null | undefined>
+  comments: ComputedRef<ForumComment[]>
+  currentUserId: ComputedRef<number | null | undefined>
+  legacyParentId: ComputedRef<number>
+  refreshComments: () => Promise<unknown>
+  commentAuthorName: (comment: ForumComment) => string
+  commentFloor: (comment: ForumComment) => string
+}
+
+export function useLegacyTopicCommentComposerParent() {
+  const route = useRoute()
+  return computed(() => {
+    if (route.query.compose !== 'advanced') return 0
+    const raw = Array.isArray(route.query.parent) ? route.query.parent[0] : route.query.parent
+    const id = Number(raw)
+    return Number.isInteger(id) && id > 0 ? id : 0
+  })
+}
+
+export function useTopicCommentComposerDrawer(options: TopicCommentComposerDrawerOptions) {
+  const route = useRoute()
+  const router = useRouter()
+  const { t } = useI18n()
+  const forumApi = useForumApi()
+  const toast = useToast()
+
+  const mode = ref<TopicCommentComposerMode | null>(null)
+  const editorVersion = ref(0)
+  const replyingTo = ref<ForumComment | null>(null)
+  const replyParentId = ref<number | null>(null)
+  const editingComment = ref<ForumComment | null>(null)
+  const editingMarkdown = ref('')
+  // editor-document 的 rawContent 是 Tiptap JSON，只能经 initialContent 加载。
+  const editingInitialContent = ref<string | Record<string, unknown>>('')
+  const editingSubmitting = ref(false)
+  const editingError = ref('')
+  const editingReason = ref('')
+  const editingReasonError = ref('')
+
+  const {
+    replyMarkdown,
+    replySubmitting,
+    replyError,
+    showReplyError,
+    commentCooldownActive,
+    replyDisplayError,
+    submitReply
+  } = useTopicCommentSubmission({
+    topic: options.topic,
+    replyingTo,
+    replyParentId,
+    refreshComments: options.refreshComments
+  })
+
+  const open = computed(() => mode.value != null)
+  const editingAnotherAuthor = computed(() => Boolean(
+    editingComment.value
+    && options.currentUserId.value
+    && editingComment.value.authorUserId !== options.currentUserId.value
+  ))
+  const context = computed<TopicCommentComposerContext | null>(() => {
+    const comment = mode.value === 'edit' ? editingComment.value : replyingTo.value
+    if (comment) {
+      return {
+        author: options.commentAuthorName(comment),
+        excerpt: comment.content.excerpt,
+        floorLabel: options.commentFloor(comment),
+        href: `#comment-${comment.id}`
+      }
+    }
+    if (mode.value === 'reply' && replyParentId.value) {
+      return {
+        author: `#${replyParentId.value}`,
+        excerpt: t('topicDetail.advancedReplyParent', { id: replyParentId.value }),
+        href: `#comment-${replyParentId.value}`
+      }
+    }
+    return null
+  })
+  const modelValue = computed(() => mode.value === 'edit' ? editingMarkdown.value : replyMarkdown.value)
+  const initialContent = computed(() => mode.value === 'edit' ? editingInitialContent.value : undefined)
+  const submitting = computed(() => mode.value === 'edit' ? editingSubmitting.value : replySubmitting.value)
+  const error = computed(() => mode.value === 'edit'
+    ? editingError.value
+    : (showReplyError.value ? replyDisplayError.value : ''))
+  const editorKey = computed(() => `${mode.value || 'closed'}-${editingComment.value?.id || replyParentId.value || 0}-${editorVersion.value}`)
+
+  function updateModelValue(value: string) {
+    if (mode.value === 'edit') {
+      editingMarkdown.value = value
+    } else {
+      replyMarkdown.value = value
+    }
+  }
+
+  function updateReason(value: string) {
+    editingReason.value = value
+    editingReasonError.value = ''
+  }
+
+  function removeReplyDraft() {
+    if (!import.meta.client || !options.topic.value) return
+    try {
+      sessionStorage.removeItem(advancedReplyDraftStorageKey(options.topic.value.id))
+    } catch {
+      // sessionStorage 不可用时忽略。
+    }
+  }
+
+  watch(replyMarkdown, (draft) => {
+    if (!import.meta.client || !options.topic.value || mode.value === 'edit') return
+    try {
+      const key = advancedReplyDraftStorageKey(options.topic.value.id)
+      if (draft) sessionStorage.setItem(key, draft)
+      else sessionStorage.removeItem(key)
+    } catch {
+      // 草稿持久化失败不阻断编辑。
+    }
+  })
+
+  function resetEditingState() {
+    editingComment.value = null
+    editingMarkdown.value = ''
+    editingInitialContent.value = ''
+    editingError.value = ''
+    editingReason.value = ''
+    editingReasonError.value = ''
+  }
+
+  function startEdit(comment: ForumComment) {
+    replyingTo.value = null
+    replyParentId.value = null
+    editingComment.value = comment
+    editingMarkdown.value = ''
+    editingInitialContent.value = forumEditorInitialContent(comment.content)
+    editingError.value = ''
+    editingReason.value = ''
+    editingReasonError.value = ''
+    mode.value = 'edit'
+    editorVersion.value += 1
+  }
+
+  function startReply(comment: ForumComment) {
+    resetEditingState()
+    replyingTo.value = comment
+    replyParentId.value = comment.id
+    replyMarkdown.value = ''
+    replyError.value = ''
+    showReplyError.value = false
+    mode.value = 'reply'
+    editorVersion.value += 1
+  }
+
+  function openAdvancedReply() {
+    resetEditingState()
+    replyingTo.value = null
+    replyParentId.value = null
+    replyError.value = ''
+    showReplyError.value = false
+    if (import.meta.client && options.topic.value) {
+      try {
+        replyMarkdown.value = sessionStorage.getItem(advancedReplyDraftStorageKey(options.topic.value.id)) || replyMarkdown.value
+      } catch {
+        // sessionStorage 不可用时保留当前内存草稿。
+      }
+    }
+    mode.value = 'advanced'
+    editorVersion.value += 1
+  }
+
+  function cancelReply() {
+    replyingTo.value = null
+    replyParentId.value = null
+    replyMarkdown.value = ''
+    replyError.value = ''
+    showReplyError.value = false
+    removeReplyDraft()
+  }
+
+  function close() {
+    if (mode.value === 'edit') resetEditingState()
+    else cancelReply()
+    mode.value = null
+  }
+
+  function updateOpen(value: boolean) {
+    if (!value) close()
+  }
+
+  function dismissError() {
+    if (mode.value === 'edit') editingError.value = ''
+    else showReplyError.value = false
+  }
+
+  async function saveCommentEdit(comment: ForumComment, payload: SFEditorContentPayload) {
+    const reason = editingReason.value.trim()
+    if (editingAnotherAuthor.value && !reason) {
+      editingReasonError.value = t('topicDetail.composerDrawer.editReasonRequired')
+      return
+    }
+    const markdown = payload.markdown ?? editingMarkdown.value
+    const text = payload.text ?? markdown
+    if (!text.trim() || editingSubmitting.value) return
+
+    editingSubmitting.value = true
+    editingError.value = ''
+    editingReasonError.value = ''
+    try {
+      await forumApi.updateComment(
+        comment.id,
+        forumContentFromEditorPayload({ markdown, native: payload.native, text }),
+        comment.currentRevision,
+        reason || undefined
+      )
+      mode.value = null
+      resetEditingState()
+      await options.refreshComments()
+      toast.add({ color: 'success', icon: 'i-lucide-check', title: t('topicDetail.commentUpdated'), duration: 10000 })
+    } catch (cause) {
+      editingError.value = apiErrorMessage(cause) || t('topicDetail.editFailed')
+    } finally {
+      editingSubmitting.value = false
+    }
+  }
+
+  async function submit(payload: SFEditorContentPayload) {
+    if (mode.value === 'edit') {
+      if (editingComment.value) await saveCommentEdit(editingComment.value, payload)
+      return
+    }
+    const created = await submitReply(payload)
+    if (created) {
+      mode.value = null
+      removeReplyDraft()
+    }
+  }
+
+  const legacyComposerOpened = ref(false)
+  watch(
+    [() => options.topic.value?.id || 0, options.comments],
+    async ([loadedTopicId]) => {
+      if (!import.meta.client || !loadedTopicId || route.query.compose !== 'advanced' || legacyComposerOpened.value) return
+
+      legacyComposerOpened.value = true
+      const parentId = options.legacyParentId.value
+      if (parentId > 0) {
+        const parent = flattenCommentTree(options.comments.value).find(comment => comment.id === parentId)
+        if (parent) {
+          startReply(parent)
+        } else {
+          resetEditingState()
+          replyingTo.value = null
+          replyParentId.value = parentId
+          replyMarkdown.value = ''
+          mode.value = 'reply'
+          editorVersion.value += 1
+        }
+      } else {
+        openAdvancedReply()
+      }
+
+      const query = { ...route.query }
+      delete query.compose
+      delete query.parent
+      await router.replace({ path: route.path, query, hash: route.hash })
+    },
+    { immediate: true, flush: 'post' }
+  )
+
+  return {
+    mode,
+    open,
+    context,
+    modelValue,
+    initialContent,
+    submitting,
+    error,
+    editorKey,
+    editingReason,
+    editingReasonError,
+    editingAnotherAuthor,
+    commentCooldownActive,
+    replyError,
+    showReplyError,
+    startEdit,
+    startReply,
+    openAdvancedReply,
+    updateOpen,
+    updateModelValue,
+    updateReason,
+    dismissError,
+    submit
+  }
+}

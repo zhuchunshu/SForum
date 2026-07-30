@@ -37,6 +37,7 @@ func productionThemeIslandBindings() map[string]themecompiler.IslandBinding {
 		"sf-topic-reply":              {ComponentID: "forum.component.topic_reply"},
 		"sf-topic-editor":             {ComponentID: "forum.component.topic_editor"},
 		"sf-profile-settings":         {ComponentID: "profile.component.settings_form"},
+		"sf-appearance-settings":      {ComponentID: "identity.component.appearance_settings"},
 		"sf-login-methods-settings":   {ComponentID: "identity.component.login_methods_settings"},
 		"sf-local-password-settings":  {ComponentID: "identity.component.local_password_settings"},
 		"sf-security-settings":        {ComponentID: "identity.component.security_settings"},
@@ -85,6 +86,8 @@ func RequiredThemeBodyIslandTag(pageID string) string {
 		return "sf-profile-page"
 	case "forum.settings.profile":
 		return "sf-profile-settings"
+	case "forum.settings.appearance":
+		return "sf-appearance-settings"
 	case "forum.settings.login_methods":
 		return "sf-login-methods-settings"
 	case "forum.settings.password":

@@ -272,6 +272,13 @@ type ProfileSettingsPageViewModel struct {
 	Profile PublicUserView    `json:"profile"`
 }
 
+// AppearanceSettingsPageViewModel exposes only the Host preference boundary;
+// private account values remain in the authenticated Host island.
+type AppearanceSettingsPageViewModel struct {
+	Base PageViewModelBase `json:"base"`
+	Form HostFormBoundary  `json:"form"`
+}
+
 type SecurityDeviceView struct {
 	Label      string `json:"label"`
 	Current    bool   `json:"current"`

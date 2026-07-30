@@ -4,7 +4,9 @@
 
 | Stable ID | Source | navigation | dashboard | list | columns | filters | rowActions | bulkActions | forms | notices | editorPanels | detailRegions | importer | exporter |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `core.admin.page.attachments` | `apps/web/app/pages/admin/attachments.vue` | yes | no | yes | no | yes | no | no | no | yes | no | no | yes | no |
+| `core.admin.page.attachments` | `apps/web/app/pages/admin/attachments/index.vue` | yes | no | no | no | no | no | no | no | no | no | no | yes | no |
+| `core.admin.page.attachments_manager` | `apps/web/app/pages/admin/attachments/manager.vue` | yes | no | yes | no | yes | no | no | no | no | no | no | yes | no |
+| `core.admin.page.attachments_settings` | `apps/web/app/pages/admin/attachments/settings.vue` | yes | no | yes | no | no | no | no | no | no | no | no | yes | no |
 | `core.admin.page.database` | `apps/web/app/pages/admin/database.vue` | yes | no | yes | yes | yes | no | no | yes | yes | no | yes | yes | yes |
 | `core.admin.page.entity_meta` | `apps/web/app/pages/admin/entity-meta.vue` | yes | no | yes | no | yes | no | no | yes | yes | no | no | yes | no |
 | `core.admin.page.extensions_extension_id_pages_page_path` | `apps/web/app/pages/admin/extensions/[extensionId]/pages/[...pagePath].vue` | yes | no | yes | no | no | yes | no | no | yes | no | no | yes | no |
@@ -44,8 +46,8 @@
 | `core.admin.page.settings_features` | `apps/web/app/pages/admin/settings/features.vue` | yes | no | yes | no | no | yes | no | yes | yes | no | no | yes | no |
 | `core.admin.page.settings` | `apps/web/app/pages/admin/settings/index.vue` | yes | no | yes | no | yes | no | no | no | yes | no | no | yes | no |
 | `core.admin.page.settings_login_methods` | `apps/web/app/pages/admin/settings/login-methods.vue` | yes | no | yes | no | yes | yes | no | no | yes | no | no | yes | yes |
-| `core.admin.page.settings_mail` | `apps/web/app/pages/admin/settings/mail.vue` | yes | no | yes | no | no | no | no | no | no | no | no | yes | no |
-| `core.admin.page.settings_notifications` | `apps/web/app/pages/admin/settings/notifications.vue` | yes | no | yes | no | no | no | no | no | no | no | no | yes | no |
+| `core.admin.page.settings_mail` | `apps/web/app/pages/admin/settings/mail.vue` | yes | no | yes | no | no | no | no | no | yes | no | no | yes | no |
+| `core.admin.page.settings_notifications` | `apps/web/app/pages/admin/settings/notifications.vue` | yes | no | no | no | no | no | no | no | no | no | no | yes | no |
 | `core.admin.page.site_chrome` | `apps/web/app/pages/admin/site-chrome.vue` | yes | no | no | no | no | no | no | no | no | no | no | yes | no |
 | `core.admin.page.users` | `apps/web/app/pages/admin/users.vue` | yes | no | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | no |
 | `core.admin.page.webhooks` | `apps/web/app/pages/admin/webhooks.vue` | yes | no | yes | no | yes | yes | no | yes | yes | no | yes | yes | no |

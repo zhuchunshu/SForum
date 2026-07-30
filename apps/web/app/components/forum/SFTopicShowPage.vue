@@ -4,10 +4,14 @@ import { useModerationApi } from '~/composables/moderation/useModerationApi'
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
 import { useAuthSession } from '~/composables/identity/useAuthSession'
 import { useForumApi } from '~/composables/forum/useForumApi'
-import { useTopicCommentSubmission } from '~/composables/forum/useTopicCommentSubmission'
+import {
+  useLegacyTopicCommentComposerParent,
+  useTopicCommentComposerDrawer
+} from '~/composables/forum/useTopicCommentComposerDrawer'
 import SFReportDialog from '~/components/moderation/SFReportDialog.vue'
 import SFTopicSideCard from '~/components/forum/SFTopicSideCard.vue'
 import SFTopicReplyComposer from '~/components/forum/SFTopicReplyComposer.vue'
+import SFTopicCommentComposerDrawer from '~/components/forum/SFTopicCommentComposerDrawer.vue'
 import SFTopicHeading from '~/components/forum/SFTopicHeading.vue'
 import SFTopicActionMenu from '~/components/forum/SFTopicActionMenu.vue'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
@@ -19,9 +23,9 @@ import { buildAuthPageLink } from '~/utils/identity/authReturn'
  */
 
 import {
-  advancedReplyDraftStorageKey, commentFloorLabel, forumAuthorName,
-  forumCategoryPath, forumContentFromEditorPayload, forumEditorInitialContent,
-  forumTagPath, forumTopicAdvancedReplyPath, forumTopicEditPath,
+  commentFloorLabel, forumAuthorName,
+  forumCategoryPath,
+  forumTagPath, forumTopicEditPath,
   forumTopicExtensionActionLabel, forumTopicPath, forumUserProfilePath,
   parseTopicPath, topicPathLookupCandidates, FORUM_TOPIC_ACTIONS,
   type ForumCategoryGroup, type ForumComment,
@@ -29,7 +33,6 @@ import {
   type ForumTopicDetail, type ForumTopicExtensionAction,
   type TopicPathLookup
 } from '~/utils/forum/forumTaxonomy'
-import type { SFEditorContentPayload } from '~/utils/sfEditor'
 import { buildCommentActionMenuItems, buildTopicActionMenuItems } from '~/utils/forum/forumTopicPresentation'
 import { useForumContentTime } from '~/composables/forum/useForumContentTime'
 
@@ -55,13 +58,6 @@ function showSuccessToast(title: string) {
 const isGuest = computed(() => !reportUser.value)
 const guestLoginTo = computed(() => buildAuthPageLink(localePath('/login'), route.fullPath))
 
-// 评论编辑/删除状态：同一时刻只允许一个内联编辑器或回复目标。
-const editingCommentId = ref<number | null>(null)
-const editingMarkdown = ref('')
-// editor-document 的 rawContent 是 Tiptap JSON，只能经 initialContent 加载，不能当 Markdown v-model。
-const editingInitialContent = ref<string | Record<string, unknown>>('')
-const editingSubmitting = ref(false)
-const editingError = ref('')
 const deletingCommentId = ref<number | null>(null)
 
 // catch-all 路由参数解析：按当前 mode 把 /t/<...> 段解析为定位键。
@@ -127,6 +123,7 @@ const explicitCommentPage = computed(() => {
 // route.hash 在 SPA 导航下可靠；但整页刷新时 SSR 拿不到 fragment（不发服务器），
 // hydration 后 route.hash 可能为空，故客户端额外读 window.location.hash 兜底。
 const clientLocationHash = ref('')
+const legacyComposerParentId = useLegacyTopicCommentComposerParent()
 const targetCommentId = computed(() => {
   const sources = [route.hash, clientLocationHash.value]
   for (const hash of sources) {
@@ -135,7 +132,7 @@ const targetCommentId = computed(() => {
       return Number(match[1])
     }
   }
-  return 0
+  return legacyComposerParentId.value
 })
 
 // 默认主题只提供连续时间流；回复关系由引用块表达，不再暴露树/平铺切换。
@@ -289,11 +286,6 @@ if (import.meta.server) {
 }
 const { data: topic, error: topicError } = topicResult
 const { data: commentData, pending: commentsPending, error: commentsError, refresh: refreshComments } = commentsAsync
-const replyingTo = ref<ForumComment | null>(null)
-const {
-  replyMarkdown, replySubmitting, replyError, showReplyError,
-  commentCooldownActive, replyDisplayError, submitReply
-} = useTopicCommentSubmission({ topic, replyingTo, refreshComments })
 const showReplyEditor = computed(() => Boolean(topic.value && topic.value.status !== 'locked' && can(FORUM_PERMISSIONS.postCreate)))
 const { data: categoryGroups, pending: categoriesPending } = categoryGroupsAsync
 const navCategories = computed(() => categoryGroups.value.flatMap((group) => group.categories || []))
@@ -378,6 +370,8 @@ onBeforeUnmount(() => {
 // 每个锚点目标只定位一次：hash 整个访问期间留在 URL 里，不去重的话发回复/编辑/删除
 // 触发的 refreshComments 都会把视口重新拽回锚点评论并再次闪烁。
 const scrolledCommentId = ref(0)
+const topicPageMounted = ref(false)
+onMounted(() => { topicPageMounted.value = true })
 // 当前页找不到目标评论时的一次性兜底反查：显式页码深链（如个人主页动态）
 // 可能因软删占位、钳页或评论被删而指错页，向后端按当前 viewer 重新反查并跳转。
 const anchorFallbackTriedId = ref(0)
@@ -407,9 +401,9 @@ async function resolveAnchorPageFallback() {
 }
 
 watch(
-  [() => commentData.value, targetCommentId],
+  [() => commentData.value, targetCommentId, topicPageMounted],
   async () => {
-    if (import.meta.server || targetCommentId.value <= 0) {
+    if (import.meta.server || !topicPageMounted.value || targetCommentId.value <= 0) {
       return
     }
     if (scrolledCommentId.value === targetCommentId.value) {
@@ -470,30 +464,6 @@ const commentTotalPages = computed(() => Math.ceil(commentTotal.value / Math.max
 const commentFloorLabelsById = computed(() => new Map<number, string>(
   comments.value.map((comment, index) => [comment.id, commentFloorLabel(index, commentData.value)])
 ))
-const replyTarget = computed(() => replyingTo.value ? {
-  author: commentAuthorName(replyingTo.value),
-  href: `#comment-${replyingTo.value.id}`,
-  floorLabel: commentFloor(replyingTo.value)
-} : null)
-
-// 高级回复：完整编辑器独立页；带上当前回复目标与草稿交接。
-const advancedReplyTo = computed(() => {
-  if (!topic.value) {
-    return ''
-  }
-  return localePath(forumTopicAdvancedReplyPath(topic.value.id, replyingTo.value?.id))
-})
-
-function prepareAdvancedReply() {
-  if (!import.meta.client || !topic.value) {
-    return
-  }
-  try {
-    sessionStorage.setItem(advancedReplyDraftStorageKey(topic.value.id), replyMarkdown.value)
-  } catch {
-    // sessionStorage 不可用时仍允许跳转
-  }
-}
 // E2.2：列表级评论扩展动作；requiresAuth 仅 UX 过滤，鉴权在扩展路由代理。
 const commentExtensionActions = computed(() => commentData.value?.extensionActions || [])
 const commentExtensionActionRunning = ref('')
@@ -523,6 +493,39 @@ const headingTags = computed(() => (topic.value?.tags || []).map(tag => ({
 function commentAuthorName(comment: ForumComment) {
   return forumAuthorName(comment.author, comment.authorUserId)
 }
+
+const {
+  mode: composerMode,
+  open: composerOpen,
+  context: composerContext,
+  modelValue: composerModelValue,
+  initialContent: composerInitialContent,
+  submitting: composerSubmitting,
+  error: composerError,
+  editorKey: composerEditorKey,
+  editingReason,
+  editingReasonError,
+  editingAnotherAuthor,
+  commentCooldownActive,
+  replyError,
+  showReplyError,
+  startEdit: startEditComment,
+  startReply,
+  openAdvancedReply,
+  updateOpen: updateComposerOpen,
+  updateModelValue: updateComposerModel,
+  updateReason: updateComposerReason,
+  dismissError: dismissComposerError,
+  submit: submitComposer
+} = useTopicCommentComposerDrawer({
+  topic,
+  comments,
+  currentUserId: computed(() => reportUser.value?.id),
+  legacyParentId: legacyComposerParentId,
+  refreshComments,
+  commentAuthorName,
+  commentFloor
+})
 
 function commentAuthorPath(comment: ForumComment) {
   if (!comment.author?.username) {
@@ -724,56 +727,6 @@ function handleCommentClick(comment: ForumComment, value: string) {
 // 回复：仅在主题未锁定且当前用户有 post.create 时允许。
 const canReplyToComments = computed(() => Boolean(topic.value && topic.value.status !== 'locked' && can(FORUM_PERMISSIONS.postCreate)))
 
-async function handleCommentAction(_value: string) {
-  // 回复入口由 Task 3 的内联编辑器处理；这里先预留。
-}
-
-// 评论编辑。
-function startEditComment(comment: ForumComment) {
-  editingCommentId.value = comment.id
-  editingMarkdown.value = ''
-  editingInitialContent.value = forumEditorInitialContent(comment.content)
-  editingError.value = ''
-}
-
-function cancelEditComment() {
-  editingCommentId.value = null
-  editingMarkdown.value = ''
-  editingInitialContent.value = ''
-  editingError.value = ''
-}
-
-async function saveCommentEdit(
-  comment: ForumComment,
-  payload?: Pick<SFEditorContentPayload, 'markdown' | 'native' | 'text'>
-) {
-  const markdown = payload?.markdown ?? editingMarkdown.value
-  const text = payload?.text ?? markdown
-  if (!text.trim() || editingSubmitting.value) {
-    return
-  }
-  editingSubmitting.value = true
-  editingError.value = ''
-  try {
-    await forumApi.updateComment(
-      comment.id,
-      forumContentFromEditorPayload({
-        markdown,
-        native: payload?.native,
-        text
-      }),
-      comment.currentRevision
-    )
-    cancelEditComment()
-    await refreshComments()
-    showSuccessToast(t('topicDetail.commentUpdated'))
-  } catch (error) {
-    editingError.value = apiErrorMessage(error) || t('topicDetail.editFailed')
-  } finally {
-    editingSubmitting.value = false
-  }
-}
-
 // 评论删除（软删）。
 async function deleteComment(comment: ForumComment) {
   if (deletingCommentId.value) {
@@ -793,19 +746,6 @@ async function deleteComment(comment: ForumComment) {
   } finally {
     deletingCommentId.value = null
   }
-}
-
-function startReply(comment: ForumComment) {
-  cancelEditComment()
-  replyingTo.value = comment
-  nextTick(() => scrollToElement('topic-reply-editor'))
-}
-
-function cancelReply() {
-  replyingTo.value = null
-  replyMarkdown.value = ''
-  replyError.value = ''
-  showReplyError.value = false
 }
 
 // D2：树视图截断后，用 ListCommentReplies 合并直系回复到本地树。
@@ -857,42 +797,6 @@ async function loadMoreCommentReplies(comment: ForumComment) {
     loadingMoreCommentId.value = null
   }
 }
-
-// 评论内联编辑器渲染器：provide 给 SFComment 递归树，让任意层级的评论都能在原位
-// 渲染编辑/回复编辑器。用 h() 构造 vnode，替代递归 slot 透传（避免 Volar 类型循环）。
-// 顶层评论的编辑器也走这条路径，保证整棵树行为一致。
-// key 与 SFComment.vue 内 inject 的字符串保持一致。
-const COMMENT_EDITOR_RENDERER_KEY = 'sforum-comment-editor-renderer'
-const SFEditorComponent = resolveComponent('LazySFEditor')
-const SFButtonComponent = resolveComponent('SFButton')
-const commentEditorRenderer = (comment: ForumComment | null) => {
-  if (!comment) return null
-  const nodes: unknown[] = []
-  // 编辑态：initialContent 还原 editor-document；v-model 仅同步 Markdown。
-  if (editingCommentId.value === comment.id) {
-    nodes.push(
-      h(SFEditorComponent, {
-        key: `comment-edit-${comment.id}-${comment.currentRevision}`,
-        modelValue: editingMarkdown.value,
-        initialContent: editingInitialContent.value,
-        'onUpdate:modelValue': (v: string) => { editingMarkdown.value = v },
-        placeholder: t('topicDetail.editPlaceholder'),
-        submitLabel: t('topicDetail.saveEdit'),
-        disabled: editingSubmitting.value,
-        error: editingError.value,
-        onSubmit: (payload: SFEditorContentPayload) => saveCommentEdit(comment, payload)
-      }),
-      h('div', { class: 'flex gap-2 mt-2' }, [
-        h(SFButtonComponent, {
-          variant: 'ghost', size: 'sm', disabled: editingSubmitting.value,
-          onClick: cancelEditComment
-        }, () => t('topicDetail.cancel'))
-      ])
-    )
-  }
-  return nodes.length ? nodes : null
-}
-provide(COMMENT_EDITOR_RENDERER_KEY, commentEditorRenderer)
 
 // 举报对话框：支持举报主题或评论。同一时刻只展开一个。
 const reportingTarget = ref<{ type: 'topic' | 'comment'; id: number } | null>(null)
@@ -980,20 +884,11 @@ async function handleTopicActionSelect(id: string) {
   }
 }
 
-function scrollToElement(id: string) {
-  if (!import.meta.client) {
-    return
-  }
-  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
-
-async function startTopLevelReply() {
+function startTopLevelReply() {
   if (!showReplyEditor.value) {
     return
   }
-  replyingTo.value = null
-  await nextTick()
-  scrollToElement('topic-reply-editor')
+  openAdvancedReply()
 }
 
 async function copyCommentLink(comment: ForumComment) {
@@ -1201,8 +1096,7 @@ async function submitReport() {
                         :author="commentAuthorName(comment)"
                         :avatar="comment.author?.avatar"
                         :author-link="commentAuthorPath(comment)"
-                        :html-content="editingCommentId === comment.id ? undefined : comment.content.htmlContent"
-                        :content="editingCommentId === comment.id ? '' : undefined"
+                        :html-content="comment.content.htmlContent"
                         :meta="commentMeta(comment)"
                         :floor-label="commentFloor(comment)"
                         :presentation="commentView"
@@ -1239,19 +1133,9 @@ async function submitReport() {
 
                   <SFTopicReplyComposer
                     v-if="showReplyEditor"
-                    v-model="replyMarkdown"
                     :actor-name="replyActorName"
                     :avatar="reportUser?.avatar"
-                    :reply-target="replyTarget"
-                    :submitting="replySubmitting"
-                    :submit-disabled="commentCooldownActive"
-                    :error="showReplyError ? replyDisplayError : ''"
-                    :error-closable="!commentCooldownActive"
-                    :advanced-to="advancedReplyTo"
-                    @cancel="cancelReply"
-                    @submit="submitReply"
-                    @dismiss-error="showReplyError = false"
-                    @advanced="prepareAdvancedReply"
+                    @open="openAdvancedReply"
                   />
 
                   <div
@@ -1344,6 +1228,32 @@ async function submitReport() {
         :extension-sidebar="topic.extensionSidebar || []"
       />
     </aside>
+
+    <SFTopicCommentComposerDrawer
+      v-if="topic"
+      :open="composerOpen"
+      :mode="composerMode || 'advanced'"
+      :editor-key="composerEditorKey"
+      :topic-title="topic.title"
+      :topic-excerpt="topic.content.excerpt"
+      :actor-name="replyActorName"
+      :avatar="reportUser?.avatar"
+      :context="composerContext"
+      :model-value="composerModelValue"
+      :initial-content="composerInitialContent"
+      :submitting="composerSubmitting"
+      :submit-disabled="composerMode === 'edit' ? false : commentCooldownActive"
+      :error="composerError"
+      :error-closable="composerMode === 'edit' || !commentCooldownActive"
+      :reason="editingReason"
+      :require-reason="composerMode === 'edit' && editingAnotherAuthor"
+      :reason-error="editingReasonError"
+      @update:open="updateComposerOpen"
+      @update:model-value="updateComposerModel"
+      @update:reason="updateComposerReason"
+      @submit="submitComposer"
+      @dismiss-error="dismissComposerError"
+    />
 
     <SFReportDialog
       :open="Boolean(reportingTarget)"

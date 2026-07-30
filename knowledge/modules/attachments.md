@@ -3,12 +3,17 @@
 ## Purpose
 
 Owns user-uploaded files, storage provider configuration, attachment metadata,
-admin governance, and orphan cleanup.
+derived display variants, admin governance, and orphan cleanup.
 
 ## Current Status
 
 Attachment system foundation is implemented.
 
+- The approved custom image sticker design will reuse the selected attachment
+  storage adapter and Media Registry through a dedicated `sticker` purpose.
+  Sticker assets will not become user-owned post attachments, and their
+  revision-history retention remains owned by the future sticker domain. See
+  `../plans/2026-07-30-image-sticker-platform.md`.
 - Backend module `apps/api/app/Models/Attachments` owns upload rules,
   metadata, settings DTO conversion, admin list/detail/status/delete actions,
   and orphan cleanup.
@@ -18,17 +23,22 @@ Attachment system foundation is implemented.
 - Migration `202607050004_attachments.sql` creates `attachments`,
   `attachment_references`, and the attachment permissions. Migration
   `202607300001_attachment_storage_instances.sql` adds Host-owned named storage
-  instances with revisioned configuration and probe state.
+  instances with revisioned configuration and probe state. Migration
+  `202607300003_attachment_image_compression.sql` adds display variants and the
+  durable compression-task ledger.
 - Admin UI uses independent permission-aware routes for Basic Configuration
   and Compression Configuration under Attachment Configuration
   (`/attachments/settings`), plus Attachment Management
   (`/attachments/manager`). The legacy `/attachments` route redirects to the
   requested or first accessible child. Their implementations remain
   independent components under `components/admin/settings/attachments/tabs/`.
-- Basic Configuration retains the storage/upload form. Compression
-  Configuration currently reports that no ordinary-attachment compression
-  processor is enabled; it does not expose fake save controls before a real
-  Host or plugin contract exists.
+- Basic Configuration retains the storage/upload form. Image Optimization owns
+  the Host JPEG/PNG display policy, recommended-default reset, adjacent size
+  estimate, task and savings statistics, and explicit history backfill.
+- Ordinary proxied JPEG/PNG metadata returns an authorized `display` variant
+  URL. Missing, stale, disabled, unreadable, or unprofitable variants fall back
+  to the immutable original; explicit site-public CDN assets keep their direct
+  provider URL.
 - The stable `core.component.page.admin.attachments` Admin Surface placement is
   mapped to Attachment Management so existing governance extensions continue
   to render after the route split.
@@ -108,6 +118,10 @@ permissions for navigation and tab usability.
   revisioned non-secret settings plus SecretStore references, probe state, and
   audit timestamps. An instance cannot be deleted while selected or referenced
   by any attachment.
+- `attachment_variants` stores provider/object identity, size, checksum,
+  dimensions, source checksum, and policy digest for named derived bytes.
+- `attachment_compression_tasks` persists pending/running/succeeded/skipped/
+  failed state independently from River delivery and deduplicates a policy run.
 
 ## Provider Slot (F3.5 → E6)
 
@@ -166,6 +180,11 @@ Important runtime options:
 - `attachment.default_visibility`
 - `attachment.cleanup_orphan_after_days`
 - `attachment.local.root`
+- `attachment.compression.enabled`
+- `attachment.compression.strength`
+- `attachment.compression.max_dimension`
+- `attachment.compression.min_size_kb`
+- `attachment.compression.min_savings_percent`
 
 ## Storage Providers
 
@@ -215,6 +234,14 @@ upload and presigned upload credentials are intentionally deferred.
 - The service generates a random public id and object key from the configured
   path template, streams the object to the provider, and computes SHA-256 during
   upload.
+- Eligible JPEG/PNG uploads enqueue a durable `display` task after metadata
+  creation. Processing is bounded to 64 MB and 80 million source pixels,
+  applies EXIF orientation, optionally resizes proportionally, and stores output
+  only when the configured minimum savings is reached.
+- River job `attachments.compress_image` processes a claimed task. The
+  one-minute `attachments.reconcile_compression` schedule compensates failed
+  queue insertion and stale 15-minute leases; three attempts leave an
+  observable terminal failure.
 - If metadata insert fails after object upload, the service best-effort deletes
   the remote object.
 - Admin delete is soft delete. Orphan cleanup only physically deletes rows with
@@ -223,6 +250,10 @@ upload and presigned upload credentials are intentionally deferred.
 - Profile avatar replacement writes `attachment_references` with resource
   `user` and context `avatar`, decrementing the old avatar reference and
   incrementing the new one so referenced avatars are not orphan-cleaned.
+- Browser-rendered avatars use the Host-owned
+  `/media/avatars/{publicId}` route. Nuxt proxies it without request
+  credentials to the authoritative attachment content endpoint; only a
+  backend-authorized anonymous `200` receives immutable public caching.
 - Forum topic/comment content now submits explicit `content.attachmentIds`.
   The forum write transaction validates active public attachments owned by the
   editor, replaces references, and updates `reference_count`; topic/comment
@@ -255,13 +286,18 @@ User-facing:
   attachment.
 - `GET /api/v1/attachments/:publicId`
 - `GET /api/v1/attachments/:publicId/content`
+- `GET /api/v1/attachments/:publicId/variants/:variant/content`
 
 Admin:
 
 - `GET /api/v1/admin/attachment-settings`
 - `PUT /api/v1/admin/attachment-settings`
 - `POST /api/v1/admin/attachment-settings/test`
+- `GET /api/v1/admin/attachment-compression-settings`
+- `PUT /api/v1/admin/attachment-compression-settings`
 - `GET /api/v1/admin/attachments`
+- `GET /api/v1/admin/attachments/compression-stats`
+- `POST /api/v1/admin/attachments/compression/backfill`
 - `GET /api/v1/admin/attachments/:id`
 - `PATCH /api/v1/admin/attachments/:id`
 - `DELETE /api/v1/admin/attachments/:id`
@@ -283,7 +319,10 @@ Current focused coverage includes:
   visibility, all eight EXIF orientations, TIFF transform rejection, GIF
   rejection when disabled, and cleanup retention cutoff;
 - existing backend HTTP/options/identity tests;
-- frontend typecheck and Bun tests.
+- compression policy permissions and invalid input, JPEG/PNG transforms, EXIF
+  orientation, minimum savings, durable task dedupe/claim/lease recovery,
+  variant upsert/statistics/backfill, authorization, and original fallback;
+- frontend model/Bun tests plus desktop and 390x844 Chrome rendering checks.
 - M6 attachment/mail focused tests, architecture validation, Nuxt typecheck,
   and production build pass. Full repository and browser closeout remain
   tracked in the architecture debt plan.
@@ -294,8 +333,9 @@ Current focused coverage includes:
   registration has a dependency assembly pattern.
 - Add attachment reference writes from post/topic/avatar features when those
   modules land.
-- Add optional image thumbnail/transcoding and virus scanning as separate
-  background capabilities.
+- Add virus scanning as a separate background capability. Consider WebP/AVIF,
+  thumbnails, and plugin transforms only after a dedicated Media Pipeline
+  contract decision.
 - Consider WebDAV/rclone and direct browser upload only after the first
   provider set is stable.
 

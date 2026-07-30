@@ -29,6 +29,7 @@ var _ optionsResolver = (*options.Service)(nil)
 
 type Controller struct {
 	service            *identity.Service
+	appearance         *identity.AppearancePreferenceService
 	authSessions       *authsession.Manager
 	verifier           humanverify.Verifier
 	passwordReset      *identity.PasswordResetService
@@ -116,6 +117,13 @@ func NewControllerWithPasswordReset(service *identity.Service, sessions *authses
 func (h *Controller) WithWelcomeMailOptions(settings WelcomeMailOptions) *Controller {
 	if h != nil {
 		h.welcomeMailOptions = settings
+	}
+	return h
+}
+
+func (h *Controller) WithAppearancePreferences(service *identity.AppearancePreferenceService) *Controller {
+	if h != nil {
+		h.appearance = service
 	}
 	return h
 }
@@ -473,6 +481,10 @@ func mapIdentityError(err error) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "user.invalid_update")
 	case errors.Is(err, identity.ErrUserLocaleUpdateUnavailable):
 		return fiber.NewError(fiber.StatusServiceUnavailable, "identity.locale_unavailable")
+	case errors.Is(err, identity.ErrInvalidAppearancePreference):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "appearance.invalid")
+	case errors.Is(err, identity.ErrAppearanceUpdateUnavailable):
+		return fiber.NewError(fiber.StatusServiceUnavailable, "appearance.unavailable")
 	case errors.Is(err, identity.ErrSelfStatusChange):
 		return fiber.NewError(fiber.StatusForbidden, "user.cannot_change_own_status")
 	case errors.Is(err, identity.ErrUsernameOrEmailNotUnique):

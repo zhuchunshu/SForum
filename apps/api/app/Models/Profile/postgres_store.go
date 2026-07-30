@@ -442,9 +442,6 @@ func scanAvatarAttachment(row profileScanner) (AvatarAttachment, error) {
 	if ownerID.Valid {
 		attachment.OwnerUserID = ownerID.Int64
 	}
-	if attachment.PublicID != "" {
-		attachment.URL = "/api/v1/attachments/" + attachment.PublicID + "/content"
-	}
 	return attachment, nil
 }
 

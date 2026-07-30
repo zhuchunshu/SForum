@@ -10,6 +10,13 @@ helpers.
 
 Initial identity foundation is implemented.
 
+- Personal appearance is an authenticated self-service preference at
+  `/settings/appearance`. `CurrentUser.appearance` is nullable: a missing
+  `user_appearance_preferences` row means the account inherits the current
+  operator-configured accent and daytime background. `PUT /auth/appearance`
+  saves a validated override; `DELETE /auth/appearance` restores inheritance.
+  The page keeps edits in memory for immediate preview and persists them only
+  after the explicit save action.
 - Account settings now split login methods, local password, device sessions,
   and personal access tokens into independent `/settings/*` routes. Personal
   access tokens live at `/settings/tokens`, use separate Create/Manage tabs,
@@ -49,6 +56,17 @@ Initial identity foundation is implemented.
   modular OpenAPI, Core Route Catalog entries with callback/session closed to
   Route Registry replacement, start/callback IP rate limits, lifecycle/security
   matrix tests, and bilingual operator docs.
+  **Unlinked login registration continuation (2026-07-30):** a successful
+  provider `login.complete` with no local link now enters the existing
+  `/register?ticket=` page when both login and registration operations remain
+  effectively active. The opaque one-use ticket preserves the source operation
+  and exact artifact binding; a non-consuming prepare endpoint exposes only
+  editable username/display-name hints and explicitly verified email. It never
+  matches or links an existing account by email. Final submission still uses
+  `POST /auth/external-registration`, where registration policy, provider
+  activation, live artifact, field conflicts, user creation, default role,
+  external link, and audit retain their authoritative checks and atomic
+  transaction boundary.
   **T1A security fixes:** `AuthProviderFlow.Complete` is assertion-only (no
   link write); public `POST …/complete` for login/registration/link returns
   `410 auth.provider_callback_required`; Host callback re-resolves live

@@ -149,6 +149,12 @@ func (s *CorePageViewModelSource) Populate(ctx context.Context, input CorePageVi
 		err = s.populateProfile(ctx, &request, input.Actor)
 	case "forum.settings.profile":
 		err = s.populateProfileSettings(ctx, &request, input.Actor)
+	case "forum.settings.appearance":
+		if input.Actor.ID <= 0 {
+			return pages.CorePageViewModelRequest{}, ErrCorePageDataUnauthorized
+		}
+		request.SEO.Robots = "noindex,nofollow"
+		request.Data.AppearanceSettings = &themecompiler.AppearanceSettingsPageViewModel{}
 	case "forum.settings.login_methods":
 		if input.Actor.ID <= 0 {
 			return pages.CorePageViewModelRequest{}, ErrCorePageDataUnauthorized

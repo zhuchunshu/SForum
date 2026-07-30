@@ -18,8 +18,10 @@ func TestParseAuthCompleteOutput_RawSubjectCoreHMACMode(t *testing.T) {
 
 	parsed, err := parseAuthCompleteOutput(map[string]any{
 		"providerSubject": "12345",
+		"usernameHint":    "octocat",
 		"displayName":     "octocat",
 		"emailHint":       "octo@example.com",
+		"emailVerified":   true,
 	})
 	if err != nil {
 		t.Fatalf("parse: %v", err)
@@ -29,6 +31,22 @@ func TestParseAuthCompleteOutput_RawSubjectCoreHMACMode(t *testing.T) {
 	}
 	if parsed.subjectDigest != "" {
 		t.Fatalf("subjectDigest should be empty in Core-HMAC mode, got %q", parsed.subjectDigest)
+	}
+	if parsed.usernameHint != "octocat" || !parsed.emailVerified {
+		t.Fatalf("provider hints = %#v", parsed)
+	}
+}
+
+func TestParseAuthCompleteOutput_EmailVerificationRequiresHint(t *testing.T) {
+	parsed, err := parseAuthCompleteOutput(map[string]any{
+		"providerSubject": "12345",
+		"emailVerified":   true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if parsed.emailVerified {
+		t.Fatal("email without a hint must not remain verified")
 	}
 }
 

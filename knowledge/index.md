@@ -6,6 +6,18 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
+### Custom Image Sticker Platform
+
+- Status: **active design**; Core/plugin/storage/rendering architecture is
+  approved, including the generated plugin catalog and immutable historical
+  assets. Forum Canvas (direction 01) is selected for editor refinement; no
+  sticker product implementation is complete.
+- Plan: `plans/2026-07-30-image-sticker-platform.md`
+- Handoff: `sessions/2026-07-30-image-sticker-platform-design.md`
+- Decision: `decisions/2026-07-30-image-sticker-catalog.md`
+- Modules: `modules/forum.md`, `modules/extensions.md`,
+  `modules/attachments.md`
+
 ### Configurable Public Navigation Platform
 
 - Status: **active, M0-M6 complete**; all four public locations share the
@@ -95,6 +107,35 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Attachment image optimization: ordinary proxied JPEG/PNG uploads now produce
+  durable `display` variants in the background, use them through the existing
+  attachment URL with transparent original fallback, and expose policy,
+  statistics, and explicit backfill controls in Attachment Configuration:
+  `sessions/2026-07-30-attachment-image-compression.md`
+- Personal appearance settings: logged-in users now have a dedicated
+  `/settings/appearance` sidebar page with immediate unsaved preview,
+  save-only persistence, and explicit restoration to live site inheritance;
+  anonymous and unset accounts continue to use operator settings:
+  `sessions/2026-07-30-personal-appearance-settings.md`
+- Unlinked external login registration continuation: an authenticated but
+  unbound provider subject now enters the existing registration page with
+  verified provider hints, while exact-artifact revalidation, atomic binding,
+  and the prohibition on email-based account matching remain authoritative:
+  `sessions/2026-07-30-external-login-registration-continuation.md`
+- Shared topic comment composer: advanced reply, comment reply, and comment
+  edit now use one responsive drawer; the legacy advanced-reply page redirects
+  into that drawer, and desktop/mobile Browser QA plus hydration checks pass:
+  `sessions/2026-07-30-shared-comment-composer-drawer.md`
+- Custom image sticker platform design: Forum Canvas (direction 01) is selected
+  for refinement and now uses quiet input focus treatment; its supplied D01
+  stickers still exercise search, recent use, insertion, preview, and the
+  approved `128x128` desktop / `96x96` mobile caps:
+  `sessions/2026-07-30-image-sticker-platform-design.md`
+- Uploaded avatar media route repair: AvatarView now exposes stable
+  `/media/avatars/{publicId}` URLs, the Nuxt Host proxies them to the existing
+  attachment authority, and uploaded avatars bypass IPX so they render instead
+  of falling back to initials:
+  `sessions/2026-07-30-avatar-media-route-repair.md`
 - API startup deadlock and theme replay repair: notification LISTEN lifecycle
   now closes before the shared PostgreSQL pool, so bootstrap errors remain
   visible; theme binding replay tolerates a deleted historical approver, and

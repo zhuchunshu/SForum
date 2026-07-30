@@ -680,6 +680,8 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 		WithStoragePluginRuntime(extensionsruntime.NewPluginStorageAdapterFactory(extensionRuntime, 0)).
 		WithSecretStore(attachmentSecrets)
 	attachmentjobs.Register(registry, attachmentService)
+	compressionService := attachments.NewCompressionService(attachmentStore, attachmentService, workerOptions, nil)
+	attachmentjobs.RegisterCompression(registry, attachmentStore, compressionService, logger)
 	// 审计日志保留期清理（F1.4）：默认 90 天，handler 可后续接 runtime option。
 	auditWriter := audit.NewPostgresWriter(pool)
 	auditjobs.Register(registry, &auditjobs.CleanupEventsWorker{
@@ -738,6 +740,12 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 			func() (river.JobArgs, *river.InsertOpts) {
 				// Limit=0 时 worker 使用默认批大小 100。
 				return attachmentjobs.CleanupOrphansArgs{}, nil
+			},
+		),
+		supportjobs.ScheduleAttachmentsReconcileCompression: wrapEnabled(
+			supportjobs.ScheduleAttachmentsReconcileCompression,
+			func() (river.JobArgs, *river.InsertOpts) {
+				return attachmentjobs.ReconcileCompressionArgs{}, nil
 			},
 		),
 		supportjobs.ScheduleAuditCleanupEvents: wrapEnabled(

@@ -55,6 +55,7 @@ var allowedHostIslands = map[string]struct{}{
 	"sf-topic-editor":             {},
 	"sf-topic-reply":              {},
 	"sf-profile-settings":         {},
+	"sf-appearance-settings":      {},
 	"sf-login-methods-settings":   {},
 	"sf-local-password-settings":  {},
 	"sf-security-settings":        {},

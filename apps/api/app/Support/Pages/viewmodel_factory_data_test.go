@@ -96,6 +96,27 @@ func TestBuildLoginMethodsSettingsViewModelFreezesHostBoundary(t *testing.T) {
 	}
 }
 
+func TestBuildAppearanceSettingsViewModelFreezesHostBoundary(t *testing.T) {
+	input := &themecompiler.AppearanceSettingsPageViewModel{Form: themecompiler.HostFormBoundary{
+		ComponentID: "plugin.capture.appearance", ActionRouteIDs: []string{"plugin.capture.preferences"},
+	}}
+	model, err := BuildCorePageViewModel(CorePageViewModelRequest{
+		PageID: "forum.settings.appearance", Locale: "en-US", Path: "/settings/appearance",
+		Data: CorePageViewModelData{AppearanceSettings: input},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	settings := model.(themecompiler.AppearanceSettingsPageViewModel)
+	wantRoutes := []string{"core.route.identity.update_current_user_appearance", "core.route.identity.clear_current_user_appearance"}
+	if settings.Form.ComponentID != "identity.component.appearance_settings" || !slices.Equal(settings.Form.ActionRouteIDs, wantRoutes) {
+		t.Fatalf("Host appearance boundary drifted: %#v", settings.Form)
+	}
+	if input.Form.ComponentID != "plugin.capture.appearance" {
+		t.Fatal("factory mutated source-owned appearance payload")
+	}
+}
+
 func TestBuildLocalPasswordSettingsViewModelFreezesHostBoundary(t *testing.T) {
 	input := &themecompiler.LocalPasswordSettingsPageViewModel{Form: themecompiler.HostFormBoundary{
 		ComponentID: "plugin.capture.password", ActionRouteIDs: []string{"plugin.capture.password"},

@@ -10,6 +10,13 @@ import {
   buildAttachmentListQuery,
   humanFileSize
 } from '../../app/components/admin/settings/attachments/model'
+import {
+  compressionJPEGQuality,
+  estimatedOutputBytes,
+  isRecommendedAttachmentCompressionSettings,
+  normalizeAttachmentCompressionSettings,
+  recommendedAttachmentCompressionSettings
+} from '../../app/components/admin/settings/attachments/compressionModel'
 
 const [zhCN, enUS] = await Promise.all([
   Bun.file(new URL('../../i18n/locales/zh-CN.json', import.meta.url)).json(),
@@ -86,5 +93,32 @@ describe('attachment settings defaults', () => {
     expect(attachmentStatusColor('active')).toBe('success')
     expect(attachmentStatusColor('disabled')).toBe('warning')
     expect(attachmentStatusColor('deleted')).toBe('neutral')
+  })
+
+  test('keeps compression strength aligned with the backend JPEG quality mapping', () => {
+    expect(compressionJPEGQuality(0)).toBe(95)
+    expect(compressionJPEGQuality(55)).toBe(81)
+    expect(compressionJPEGQuality(100)).toBe(70)
+    expect(compressionJPEGQuality(-10)).toBe(95)
+    expect(compressionJPEGQuality(110)).toBe(70)
+  })
+
+  test('provides a monotonic adjacent size estimate without presenting it as exact output', () => {
+    const original = 5 * 1024 * 1024
+
+    expect(estimatedOutputBytes(original, 80)).toBeLessThan(estimatedOutputBytes(original, 20))
+    expect(estimatedOutputBytes(0, 55)).toBe(0)
+    expect(zhCN.admin.attachments.compression.estimateDisclaimer).toContain('近似值')
+    expect(enUS.admin.attachments.compression.estimateDisclaimer).toContain('approximation')
+  })
+
+  test('normalizes and recognizes recommended compression settings', () => {
+    const recommended = normalizeAttachmentCompressionSettings(recommendedAttachmentCompressionSettings)
+    const custom = normalizeAttachmentCompressionSettings({ strength: 90, maxDimension: 1200 })
+
+    expect(recommended.jpegQuality).toBe(81)
+    expect(isRecommendedAttachmentCompressionSettings(recommended)).toBe(true)
+    expect(isRecommendedAttachmentCompressionSettings(custom)).toBe(false)
+    expect(normalizeAttachmentCompressionSettings({ strength: 200 }).strength).toBe(100)
   })
 })

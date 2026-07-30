@@ -21,7 +21,7 @@
     "rpc": "hashicorp-go-plugin",
     "protocolVersion": 2,
     "hostApiVersion": "sforum.host@2",
-    "digest": "d347db2b3a9839681f844571b11094c7605b2049483f316356f03d626d10e51e"
+    "digest": "f21bfbc710ab95e6a0ffaa85873446f8004b7164363939b3f6af8b5d3aa45bae"
   },
   "includes": {
     "admin": "manifest/admin.json",
@@ -110,7 +110,7 @@
       "id": "sforum.auth-github.file.backend",
       "kind": "executable",
       "path": "backend/plugin",
-      "digest": "d347db2b3a9839681f844571b11094c7605b2049483f316356f03d626d10e51e"
+      "digest": "f21bfbc710ab95e6a0ffaa85873446f8004b7164363939b3f6af8b5d3aa45bae"
     },
     {
       "id": "sforum.auth-github.schema.lifecycle.progress",
@@ -152,7 +152,7 @@
       "kind": "schema",
       "path": "schemas/auth.complete.output.json",
       "version": "1",
-      "digest": "9baac20e0ea448f7e6b6e4ee9d72e46663a84b3099ed81d1a787ed2dd4f960a6"
+      "digest": "85123301a905b34e7c77d59b5b53754c6dc11f06f6d517972c19bc0aa441f425"
     },
     {
       "id": "sforum.auth-github.schema.probe.input",

@@ -155,6 +155,10 @@ func contentURLPath(publicID string) string {
 	return "/api/v1/attachments/" + publicID + "/content"
 }
 
+func displayVariantURLPath(publicID string) string {
+	return "/api/v1/attachments/" + publicID + "/variants/" + CompressionVariantDisplay + "/content"
+}
+
 // shouldProxyAuthorizedURL 只有站点公开资产可返回永久 URL；论坛与未引用媒体始终走代理。
 func (s *Service) shouldProxyAuthorizedURL(ctx context.Context, attachment Attachment) bool {
 	refs, err := s.store.ListReferenceAccess(ctx, attachment.ID)
@@ -167,4 +171,36 @@ func (s *Service) shouldProxyAuthorizedURL(ctx context.Context, attachment Attac
 		}
 	}
 	return true
+}
+
+func (s *Service) decorateURL(ctx context.Context, attachment Attachment) Attachment {
+	if s.shouldProxyAuthorizedURL(ctx, attachment) {
+		if attachment.ContentType == "image/jpeg" || attachment.ContentType == "image/png" {
+			attachment.URL = displayVariantURLPath(attachment.PublicID)
+		} else {
+			attachment.URL = contentURLPath(attachment.PublicID)
+		}
+		return attachment
+	}
+	settings, err := s.runtimeSettings(ctx)
+	if err != nil {
+		attachment.URL = contentURLPath(attachment.PublicID)
+		return attachment
+	}
+	adapter, err := s.adapterForSettings(ctx, settings, attachment.Provider)
+	if err == nil {
+		// 远程 provider 若仅有永久公网 URL，在需授权时仍回退代理（上面已处理）。
+		// 此处 public 模式可直接用 PublicURL；有 SignedURL 能力时优先短时签名。
+		if attachment.Visibility == VisibilityPrivate {
+			if signed, signErr := adapter.SignedURL(ctx, attachment.ObjectKey, defaultSignedURLTTL); signErr == nil && signed != "" {
+				attachment.URL = signed
+			}
+		} else {
+			attachment.URL = adapter.PublicURL(attachment.ObjectKey)
+		}
+	}
+	if attachment.URL == "" {
+		attachment.URL = contentURLPath(attachment.PublicID)
+	}
+	return attachment
 }

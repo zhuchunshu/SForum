@@ -10,10 +10,23 @@ accepted revisions, lifecycle states, public read models, and forum policy.
 - Core taxonomy, topic/comment creation and lifecycle, public/admin UI, runtime
   settings, moderation integration, search projection, and million-scale read
   path M0-M7 are implemented.
+- A custom image sticker platform is in approved design, not implementation.
+  Core will own pack/item state, immutable asset revisions, a dedicated
+  `sforumSticker` editor-document node, rendering/retention, admin authority,
+  and a cacheable effective catalog. Forum Canvas (direction 01) is selected
+  for refinement from the standalone editor/sticker demos under
+  `../../tmp/demos/sforum-editor-sticker-directions-20260730/`. See
+  `../plans/2026-07-30-image-sticker-platform.md` and
+  `../decisions/2026-07-30-image-sticker-catalog.md`.
 - Topic and comment create cooldowns remain independently configurable. A
   cooldown rejection now returns HTTP `429` with standard `Retry-After` plus
   `retryAfterSeconds` / `retryAt`; topic creation and both comment composers
   show a server-authoritative countdown while preserving editable drafts.
+- Topic reply, comment reply, and comment edit now share one responsive
+  `USlideover` composer: a right drawer on desktop and a bottom drawer on
+  mobile. The former standalone advanced-reply route is compatibility-only and
+  redirects into this drawer without changing create/update authorization,
+  revision CAS, moderation, or cross-author audit-reason rules.
 - Topic detail exposes public **contributors** (author + body edit/restore
   actors, max 5 + count) and `GET /topics/{id}/contribution-timeline` for a
   header-only publish/edit timeline. Staff actors are fully exposed by default;
@@ -150,6 +163,11 @@ V1 boundaries:
   empty array clears them.
 - Hidden/deleted/moderation-only content stays out of public SSR, sitemap, and
   search indexes.
+- Planned custom image stickers are distinct from Unicode `sforumEmoji` and
+  generic images. Accepted content will snapshot a stable sticker ID plus exact
+  asset digest, while Core rendering will cap display at `128x128` CSS pixels
+  on desktop/tablet and `96x96` on mobile. This contract is approved but not
+  yet implemented.
 
 ## Public URLs And Reads
 
@@ -297,6 +315,10 @@ visibility, and mention limits.
   project from stable Core contracts.
 - Regenerate the Forum Extension Surface Matrix when revision events/catalogs
   change.
+- Planned plugin sticker packs use a generated exact catalog and Core import;
+  no executable registration or remote media URL is required. Disable,
+  upgrade, rollback, uninstall, and Safe Mode must leave accepted historical
+  sticker content renderable.
 
 ## Important Paths
 
@@ -312,9 +334,14 @@ visibility, and mention limits.
 
 ## Next Steps
 
-1. Continue content revisions V1 from M4 without changing the accepted ledger,
-   CAS, authorization, or redaction boundaries.
-2. Keep OpenAPI, allowed/denied policy tests, module status, and Extension
+1. Keep comment composer behavior consolidated in
+   `useTopicCommentComposerDrawer`; do not reintroduce page-local edit/reply
+   state or a standalone advanced-reply editor.
+2. Complete the new editor product design before starting the custom image
+   sticker platform implementation.
+3. Preserve the accepted revision ledger, CAS, authorization, and redaction
+   boundaries when sticker references enter topic/comment content.
+4. Keep OpenAPI, allowed/denied policy tests, module status, and Extension
    Surface Matrix synchronized at each milestone.
-3. Treat role-scoped category ACL, reactions/bookmarks, and structured-editor
-   storage as separate future tracks rather than revision scope.
+5. Treat role-scoped category ACL and reactions/bookmarks as separate future
+   tracks rather than sticker scope.

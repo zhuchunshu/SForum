@@ -62,6 +62,7 @@ func newCorePageViewModelRegistry() (*PageViewModelRegistry, error) {
 		coreViewModel("forum.topic.edit", "sforum.page.topic_edit@1", ViewModelCreate, TopicEditPageViewModel{}),
 		coreViewModel("forum.profile.show", "sforum.page.profile_show@1", ViewModelProfile, ProfilePageViewModel{}),
 		coreViewModel("forum.settings.profile", "sforum.page.settings_profile@1", ViewModelSettings, ProfileSettingsPageViewModel{}),
+		coreViewModel("forum.settings.appearance", "sforum.page.settings_appearance@1", ViewModelSettings, AppearanceSettingsPageViewModel{}),
 		coreViewModel("forum.settings.login_methods", "sforum.page.settings_login_methods@1", ViewModelSettings, LoginMethodsSettingsPageViewModel{}),
 		coreViewModel("forum.settings.password", "sforum.page.settings_password@1", ViewModelSettings, LocalPasswordSettingsPageViewModel{}),
 		coreViewModel("forum.settings.security", "sforum.page.settings_security@1", ViewModelSettings, SecuritySettingsPageViewModel{}),
@@ -205,6 +206,8 @@ func pageViewModelBase(value any) (PageViewModelBase, bool) {
 		return model.Base, true
 	case ProfileSettingsPageViewModel:
 		return model.Base, true
+	case AppearanceSettingsPageViewModel:
+		return model.Base, true
 	case LoginMethodsSettingsPageViewModel:
 		return model.Base, true
 	case LocalPasswordSettingsPageViewModel:
@@ -259,6 +262,12 @@ func validatePageSpecificBoundaries(value any) error {
 	case ProfileSettingsPageViewModel:
 		form, expectedComponent = model.Form, "profile.component.settings_form"
 		expectedRoutes = []string{"core.route.profile.update_my_profile"}
+	case AppearanceSettingsPageViewModel:
+		form, expectedComponent = model.Form, "identity.component.appearance_settings"
+		expectedRoutes = []string{
+			"core.route.identity.update_current_user_appearance",
+			"core.route.identity.clear_current_user_appearance",
+		}
 	case LoginMethodsSettingsPageViewModel:
 		form, expectedComponent = model.Form, "identity.component.login_methods_settings"
 		expectedRoutes = []string{

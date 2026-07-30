@@ -17,6 +17,7 @@ const topicComponents = [
   ['SFTopicSideCard', 'forum'],
   ['SFTopicActionMenu', 'forum'],
   ['SFTopicReplyComposer', 'forum'],
+  ['SFTopicCommentComposerDrawer', 'forum'],
   ['SFReportDialog', 'moderation']
 ] as const
 
@@ -71,6 +72,7 @@ describe('default theme V32 topic page contract', () => {
 
   test('preserves routing, SEO, rich-content, editor, and extension boundaries', () => {
     const source = topicPage()
+    const commentComposer = sourceFile('../../app/composables/forum/useTopicCommentComposerDrawer.ts')
 
     expect(source).toContain('topicPathLookupCandidates(')
     expect(source).toContain("useRequestHeaders(['accept']).accept")
@@ -100,12 +102,16 @@ describe('default theme V32 topic page contract', () => {
     expect(source).toContain('applyCommentExtensionAction')
     expect(source).toContain('extensionActions')
     // 评论编辑：editor-document 经 initialContent 还原，提交走 forumContentFromEditorPayload
-    expect(source).toContain('forumEditorInitialContent')
-    expect(source).toContain('editingInitialContent')
-    expect(source).toContain('initialContent: editingInitialContent.value')
-    expect(source).not.toContain('editingMarkdown.value = comment.content.rawContent')
-    expect(source).toContain('forumContentFromEditorPayload({')
-    expect(source).toContain('saveCommentEdit(comment, payload)')
+    expect(source).toContain('useTopicCommentComposerDrawer({')
+    expect(commentComposer).toContain('forumEditorInitialContent')
+    expect(commentComposer).toContain('editingInitialContent')
+    expect(source).toContain(':initial-content="composerInitialContent"')
+    expect(commentComposer).not.toContain('editingMarkdown.value = comment.content.rawContent')
+    expect(commentComposer).toContain('forumContentFromEditorPayload({')
+    expect(commentComposer).toContain('saveCommentEdit(editingComment.value, payload)')
+    const commentDrawer = sourceFile('../../app/components/forum/SFTopicCommentComposerDrawer.vue')
+    expect(commentDrawer).toContain(':initial-content="initialContent"')
+    expect(commentDrawer).toContain('<USlideover')
   })
 
   test('uses a full-width three-column shell with left nav and topic side card', () => {
@@ -136,24 +142,22 @@ describe('default theme V32 topic page contract', () => {
     expect(source).toContain('sf-comment-stream-controls__latest')
     const replyComposer = sourceFile('../../app/components/forum/SFTopicReplyComposer.vue')
     expect(source).toContain('<SFTopicReplyComposer')
-    expect(replyComposer).toContain('<LazySFEditor')
-    // 评论输入始终展开，无折叠态 / open 开关
-    expect(replyComposer).not.toContain('v-if="open"')
-    expect(replyComposer).not.toContain('open: boolean')
-    expect(source).not.toContain('replyComposerOpen')
-    expect(replyComposer).toContain('compact')
-    expect(replyComposer).toContain("t('topicDetail.markdownSupported')")
-    // 高级回复：右上角文字链 → 完整编辑器独立页
+    expect(replyComposer).toContain('sforum-topic-comments__reply-launcher')
+    expect(replyComposer).toContain("emit('open')")
+    // 高级回复、回复评论和编辑评论共用同一个完整编辑抽屉。
     expect(replyComposer).toContain("t('topicDetail.advancedReply')")
     expect(replyComposer).toContain('sforum-topic-comments__reply-advanced')
-    expect(source).toContain('forumTopicAdvancedReplyPath')
-    expect(source).toContain(':advanced-to="advancedReplyTo"')
+    expect(source).toContain('<SFTopicCommentComposerDrawer')
+    expect(source).not.toContain('forumTopicAdvancedReplyPath')
+    expect(source).not.toContain(':advanced-to="advancedReplyTo"')
     expect(sourceFile('../../app/pages/topics/reply.vue')).toContain('forum.topic.reply')
     const advancedReplyPage = sourceFile('../../app/components/forum/SFTopicReplyPage.vue')
-    expect(advancedReplyPage).toContain('<LazySFEditor')
-    // 完整编辑器：不传 compact prop
-    expect(advancedReplyPage).not.toContain(':compact')
-    expect(advancedReplyPage).not.toContain('compact\n')
+    expect(advancedReplyPage).toContain("compose: 'advanced'")
+    expect(advancedReplyPage).toContain('await navigateTo({')
+    const commentDrawer = sourceFile('../../app/components/forum/SFTopicCommentComposerDrawer.vue')
+    expect(commentDrawer).toContain('<LazySFEditor')
+    expect(commentDrawer).toContain(':submit-visible="false"')
+    expect(commentDrawer).not.toContain(' compact')
     expect(sourceFile('../../app/components/SFEditor.vue')).toContain('sf-editor--compact')
     expect(sourceFile('../../app/components/SFEditor.vue')).toContain("emit('cancel')")
     expect(source).toContain('showTopicSide')
@@ -171,6 +175,7 @@ describe('default theme V32 topic page contract', () => {
 
   test('keeps mutation errors persistent and fixes the default discussion to a flat stream', () => {
     const source = topicPage()
+    const commentComposer = sourceFile('../../app/composables/forum/useTopicCommentComposerDrawer.ts')
 
     expect(source).not.toContain('watch(showActionError')
     expect(source).toContain(':presentation="commentView"')
@@ -184,7 +189,7 @@ describe('default theme V32 topic page contract', () => {
     const commentRequest = source.slice(source.indexOf('const commentQuery'), source.indexOf('function emptyCommentList'))
     expect(commentRequest).not.toContain('perPage')
     expect(source).toContain('commentData.value.perPage')
-    expect(source).toContain('replyingTo.value?.id')
+    expect(commentComposer).toContain('replyParentId.value')
     expect(source).toContain('copyCommentLink')
   })
 

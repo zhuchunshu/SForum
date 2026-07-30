@@ -17,6 +17,10 @@ Member public profiles and current-user profile settings.
   back to the configured default provider (`initials`, `gravatar`, or
   `static`). The older `avatarAttachmentId` field remains for compatibility,
   but avatar changes should use the dedicated avatar endpoints.
+- Uploaded avatar views use the stable browser media URL
+  `/media/avatars/{publicId}`. The Nuxt Host proxies that URL to the
+  versioned attachment content API, keeping API versioning out of rendered
+  profile and forum image URLs.
 - Avatar view construction is shared through the neutral
   `apps/api/app/Support/Avatar` builder so Identity and Forum summaries reuse
   the same fallback behavior without importing the Profile model package.
@@ -78,12 +82,12 @@ editor in V1.
 - The three-column settings chrome (left `SFHomeNavigation` +
   `SFSettingsAccountNav`, page head with drawer toggles, right rail, mobile
   drawers, `SFContentColumnFooter`, category-group fetch) is owned by the
-  shared `SFSettingsShell` component; profile, login methods, local password,
-  security, personal access tokens, and notification settings pages only fill
-  its `default` / `#rail` / `#head-actions` slots. The rail slot renders once
-  and is reused by both the desktop aside and the mobile right drawer. New
-  account settings pages should add a link in `SFSettingsAccountNav` and wrap
-  content in `SFSettingsShell`.
+  shared `SFSettingsShell` component; profile, personal appearance, login
+  methods, local password, security, personal access tokens, and notification
+  settings pages only fill its `default` / `#rail` / `#head-actions` slots. The
+  rail slot renders once and is reused by both the desktop aside and the mobile
+  right drawer. New account settings pages should add a link in
+  `SFSettingsAccountNav` and wrap content in `SFSettingsShell`.
 - The profile settings page keeps all writes on the existing `useProfileApi`
   contract: `GET /profile`, `PUT /profile`, `POST /profile/avatar`, and
   `DELETE /profile/avatar`. Avatar upload UI requires both public runtime
@@ -107,3 +111,7 @@ editor in V1.
   SSR HTML. It falls back to initials only after the image reports a real load
   error; do not reintroduce client-only preloading that swaps avatars after the
   first paint.
+- Uploaded avatars are already normalized by the backend and render through a
+  plain `<img>` at `/media/avatars/{publicId}`. Do not send these API-backed
+  relative URLs through Nuxt IPX: IPX treats them as local filesystem assets
+  and returns `IPX_FILE_NOT_FOUND`.

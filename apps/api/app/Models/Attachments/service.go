@@ -58,6 +58,9 @@ type Service struct {
 	mediaRegistry *mediaregistry.Registry
 	instanceStore StorageInstanceStore
 	secrets       *secretstore.Service
+	compression   interface {
+		Schedule(context.Context, Attachment) error
+	}
 }
 
 func NewService(store Store, optionsService *options.Service) *Service {
@@ -151,12 +154,16 @@ func (s *Service) Upload(ctx context.Context, actor identity.Actor, input Upload
 	if err := s.applyMediaRegistryMIME("general", metadata); err != nil {
 		return Attachment{}, err
 	}
-	return s.storePreparedUpload(ctx, actor, settings, preparedUpload{
+	created, err := s.storePreparedUpload(ctx, actor, settings, preparedUpload{
 		Reader:     input.File,
 		SizeBytes:  input.SizeBytes,
 		Metadata:   metadata,
 		Visibility: settings.DefaultVisibility,
 	})
+	if err == nil && s.compression != nil {
+		_ = s.compression.Schedule(ctx, created)
+	}
+	return created, err
 }
 
 func (s *Service) UploadAvatar(ctx context.Context, actor identity.Actor, input UploadInput) (Attachment, error) {
@@ -409,48 +416,6 @@ func (s *Service) Delete(ctx context.Context, actor identity.Actor, id int64) (A
 		return Attachment{}, err
 	}
 	return s.decorateURL(ctx, updated), nil
-}
-
-func (s *Service) Cleanup(ctx context.Context, actor identity.Actor, limit int) (CleanupResult, error) {
-	if !actor.Can(identity.PermissionAttachmentManage) {
-		return CleanupResult{}, identity.ErrPermissionDenied
-	}
-	return s.cleanupOrphans(ctx, limit)
-}
-
-func (s *Service) CleanupOrphanAttachments(ctx context.Context, limit int) error {
-	_, err := s.cleanupOrphans(ctx, limit)
-	return err
-}
-
-func (s *Service) cleanupOrphans(ctx context.Context, limit int) (CleanupResult, error) {
-	settings, err := s.runtimeSettings(ctx)
-	if err != nil {
-		return CleanupResult{}, err
-	}
-	cutoff := time.Now().AddDate(0, 0, -settings.CleanupOrphanAfterDays)
-	items, err := s.store.ListCleanupCandidates(ctx, cutoff, limit)
-	if err != nil {
-		return CleanupResult{}, err
-	}
-	result := CleanupResult{}
-	for _, item := range items {
-		adapter, err := s.adapterForSettings(ctx, settings, item.Provider)
-		if err != nil {
-			result.Failed++
-			continue
-		}
-		if err := adapter.Delete(ctx, item.ObjectKey); err != nil {
-			result.Failed++
-			continue
-		}
-		if err := s.store.DeleteMetadata(ctx, item.ID); err != nil {
-			result.Failed++
-			continue
-		}
-		result.Deleted++
-	}
-	return result, nil
 }
 
 func (s *Service) Settings(ctx context.Context, actor identity.Actor, locale string) (AttachmentSettings, error) {
@@ -783,35 +748,6 @@ func (s *Service) ClearStorageProviderSelectionIfMatch(ctx context.Context, exte
 		{Name: options.NameAttachmentProvider, Value: storage.ProviderLocal},
 	})
 	return err
-}
-
-func (s *Service) decorateURL(ctx context.Context, attachment Attachment) Attachment {
-	// login_required 下的帖子媒体走 API 代理，避免永久 CDN URL 绕过会话策略。
-	if s.shouldProxyAuthorizedURL(ctx, attachment) {
-		attachment.URL = contentURLPath(attachment.PublicID)
-		return attachment
-	}
-	settings, err := s.runtimeSettings(ctx)
-	if err != nil {
-		attachment.URL = contentURLPath(attachment.PublicID)
-		return attachment
-	}
-	adapter, err := s.adapterForSettings(ctx, settings, attachment.Provider)
-	if err == nil {
-		// 远程 provider 若仅有永久公网 URL，在需授权时仍回退代理（上面已处理）。
-		// 此处 public 模式可直接用 PublicURL；有 SignedURL 能力时优先短时签名。
-		if attachment.Visibility == VisibilityPrivate {
-			if signed, signErr := adapter.SignedURL(ctx, attachment.ObjectKey, defaultSignedURLTTL); signErr == nil && signed != "" {
-				attachment.URL = signed
-			}
-		} else {
-			attachment.URL = adapter.PublicURL(attachment.ObjectKey)
-		}
-	}
-	if attachment.URL == "" {
-		attachment.URL = contentURLPath(attachment.PublicID)
-	}
-	return attachment
 }
 
 type uploadMetadata struct {

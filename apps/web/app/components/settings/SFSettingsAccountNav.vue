@@ -4,7 +4,7 @@
  * 样式复用 sf-home-navigation 链接语言，与通知/审核 after-nav 一致。
  */
 defineProps<{
-  active: 'profile' | 'loginMethods' | 'password' | 'security' | 'tokens' | 'notifications'
+  active: 'profile' | 'appearance' | 'loginMethods' | 'password' | 'security' | 'tokens' | 'notifications'
   publicProfilePath?: string
 }>()
 
@@ -28,6 +28,17 @@ const localePath = useLocalePath()
       <span class="sf-home-navigation__link-main">
         <UIcon name="i-lucide-user-round" class="size-[18px]" aria-hidden="true" />
         {{ t('profileSettings.title') }}
+      </span>
+    </NuxtLink>
+    <NuxtLink
+      :to="localePath('/settings/appearance')"
+      class="sf-home-navigation__link"
+      :class="{ 'is-active': active === 'appearance' }"
+      @click="emit('navigate')"
+    >
+      <span class="sf-home-navigation__link-main">
+        <UIcon name="i-lucide-palette" class="size-[18px]" aria-hidden="true" />
+        {{ t('userAppearanceSettings.title') }}
       </span>
     </NuxtLink>
     <NuxtLink

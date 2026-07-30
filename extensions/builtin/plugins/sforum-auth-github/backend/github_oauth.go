@@ -18,8 +18,10 @@ import (
 // 不含 digest、access token 或任何 Host 会话材料。
 type IdentityAssertion struct {
 	ProviderSubject string // GitHub 稳定数字 id（十进制字符串）
+	UsernameHint    string
 	DisplayName     string
 	EmailHint       string
+	EmailVerified   bool
 }
 
 // ProbeResult 是有界配置/可达性探测结果。
@@ -163,11 +165,17 @@ func (g *GitHubOAuth) CompleteWithCode(ctx context.Context, code, codeVerifier, 
 	if len(emailHint) > 320 {
 		emailHint = emailHint[:320]
 	}
+	usernameHint := strings.TrimSpace(user.Login)
+	if len(usernameHint) > 64 {
+		usernameHint = usernameHint[:64]
+	}
 
 	return IdentityAssertion{
 		ProviderSubject: strconv.FormatInt(user.ID, 10),
+		UsernameHint:    usernameHint,
 		DisplayName:     display,
 		EmailHint:       strings.ToLower(strings.TrimSpace(emailHint)),
+		EmailVerified:   strings.TrimSpace(emailHint) != "",
 	}, nil
 }
 

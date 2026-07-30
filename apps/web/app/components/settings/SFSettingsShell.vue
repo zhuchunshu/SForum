@@ -12,7 +12,7 @@ import SFPublicPageHeader from '~/components/public/SFPublicPageHeader.vue'
  */
 const props = withDefaults(defineProps<{
   /** 左栏账号导航高亮项 */
-  active: 'profile' | 'loginMethods' | 'password' | 'security' | 'tokens' | 'notifications'
+  active: 'profile' | 'appearance' | 'loginMethods' | 'password' | 'security' | 'tokens' | 'notifications'
   /** 页头 h1 的 id，供 aria-labelledby 使用 */
   titleId: string
   title: string

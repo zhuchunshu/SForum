@@ -82,6 +82,33 @@ func (s *sessionTestStore) GetCurrentUserByEmail(_ context.Context, email string
 	}
 	return s.GetCurrentUser(context.Background(), uid)
 }
+func (s *sessionTestStore) UpdateCurrentUserAppearance(ctx context.Context, userID int64, preference identity.AppearancePreference) (identity.CurrentUser, error) {
+	s.mu.Lock()
+	user, ok := s.users[userID]
+	if ok {
+		copy := preference
+		user.Appearance = &copy
+		s.users[userID] = user
+	}
+	s.mu.Unlock()
+	if !ok {
+		return identity.CurrentUser{}, identity.ErrUserNotFound
+	}
+	return s.GetCurrentUser(ctx, userID)
+}
+func (s *sessionTestStore) ClearCurrentUserAppearance(ctx context.Context, userID int64) (identity.CurrentUser, error) {
+	s.mu.Lock()
+	user, ok := s.users[userID]
+	if ok {
+		user.Appearance = nil
+		s.users[userID] = user
+	}
+	s.mu.Unlock()
+	if !ok {
+		return identity.CurrentUser{}, identity.ErrUserNotFound
+	}
+	return s.GetCurrentUser(ctx, userID)
+}
 func (s *sessionTestStore) GetCredentialByLogin(_ context.Context, login string) (identity.CredentialUser, error) {
 	uid, ok := s.loginIndex[lower(login)]
 	if !ok {
@@ -386,7 +413,8 @@ func newSessionTestApp(t *testing.T) (*fiber.App, *sessionTestStore) {
 			TokenVersion: store.GetUserTokenVersion,
 		},
 	)
-	controller := NewControllerWithAuthSessions(service, manager, nil)
+	controller := NewControllerWithAuthSessions(service, manager, nil).
+		WithAppearancePreferences(identity.NewAppearancePreferenceService(store))
 	app := apphttp.NewApp(config.Config{CSRFEnabled: false}, nil, apphttp.Dependencies{
 		RouteProviders: []apphttp.RouteProvider{controller},
 	})
@@ -557,6 +585,63 @@ func TestListSessionsRequiresAuth(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != nethttp.StatusUnauthorized {
 		t.Fatalf("expected 401 unauthenticated, got %d", resp.StatusCode)
+	}
+}
+
+func TestAppearancePreferenceRequiresAuth(t *testing.T) {
+	app, _ := newSessionTestApp(t)
+	req := httptest.NewRequest(nethttp.MethodPut, "/api/v1/auth/appearance", bytes.NewBufferString(`{"theme":"ocean_blue","lightBackground":"paper"}`))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != nethttp.StatusUnauthorized {
+		t.Fatalf("expected 401 unauthenticated, got %d", resp.StatusCode)
+	}
+}
+
+func TestAppearancePreferenceSaveValidateAndClear(t *testing.T) {
+	app, store := newSessionTestApp(t)
+	cookie := registerAndLogin(t, app)
+
+	put := func(body string) *nethttp.Response {
+		req := httptest.NewRequest(nethttp.MethodPut, "/api/v1/auth/appearance", bytes.NewBufferString(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(cookie)
+		resp, err := app.Test(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return resp
+	}
+
+	invalid := put(`{"theme":"neon","lightBackground":"night_blue"}`)
+	invalid.Body.Close()
+	if invalid.StatusCode != nethttp.StatusUnprocessableEntity {
+		t.Fatalf("expected 422 invalid preference, got %d", invalid.StatusCode)
+	}
+
+	saved := put(`{"theme":"CUSTOM:#4F46E5","lightBackground":"PAPER"}`)
+	saved.Body.Close()
+	if saved.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200 saved preference, got %d", saved.StatusCode)
+	}
+	preference := store.users[1].Appearance
+	if preference == nil || preference.Theme != "custom:#4f46e5" || preference.LightBackground != "paper" {
+		t.Fatalf("unexpected saved preference: %#v", preference)
+	}
+
+	clearReq := httptest.NewRequest(nethttp.MethodDelete, "/api/v1/auth/appearance", nil)
+	clearReq.AddCookie(cookie)
+	cleared, err := app.Test(clearReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cleared.Body.Close()
+	if cleared.StatusCode != nethttp.StatusOK || store.users[1].Appearance != nil {
+		t.Fatalf("clear should restore site inheritance: status=%d preference=%#v", cleared.StatusCode, store.users[1].Appearance)
 	}
 }
 

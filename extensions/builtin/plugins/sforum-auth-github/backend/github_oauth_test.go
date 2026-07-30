@@ -122,8 +122,14 @@ func TestCompleteWithCode_SuccessLoginRegistrationLinkFields(t *testing.T) {
 	if assertion.DisplayName != "The Octocat" {
 		t.Fatalf("displayName: %q", assertion.DisplayName)
 	}
+	if assertion.UsernameHint != "octocat" {
+		t.Fatalf("usernameHint: %q", assertion.UsernameHint)
+	}
 	if assertion.EmailHint != "octocat@example.com" {
 		t.Fatalf("emailHint: %q", assertion.EmailHint)
+	}
+	if !assertion.EmailVerified {
+		t.Fatal("primary verified email must be marked verified")
 	}
 	if fake.TokenExchanges != 1 || fake.UserFetches != 1 || fake.EmailFetches != 1 {
 		t.Fatalf("fetch counts token=%d user=%d email=%d", fake.TokenExchanges, fake.UserFetches, fake.EmailFetches)
@@ -239,6 +245,9 @@ func TestCompleteWithCode_EmailUnavailableSoft(t *testing.T) {
 	}
 	if assertion.EmailHint != "" {
 		t.Fatalf("emailHint should be empty, got %q", assertion.EmailHint)
+	}
+	if assertion.EmailVerified {
+		t.Fatal("missing email must not be marked verified")
 	}
 }
 
@@ -381,8 +390,14 @@ func TestHandleStartAndComplete_ViaIdentityHandlers(t *testing.T) {
 		if values["displayName"] != "The Octocat" {
 			t.Fatalf("%s displayName: %#v", opName, values)
 		}
+		if values["usernameHint"] != "octocat" {
+			t.Fatalf("%s usernameHint: %#v", opName, values)
+		}
 		if values["emailHint"] != "octocat@example.com" {
 			t.Fatalf("%s emailHint: %#v", opName, values)
+		}
+		if values["emailVerified"] != true {
+			t.Fatalf("%s emailVerified: %#v", opName, values)
 		}
 		if _, hasDigest := values["providerSubjectDigest"]; hasDigest {
 			t.Fatalf("%s must not emit digest", opName)

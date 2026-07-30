@@ -9,8 +9,10 @@ import (
 
 	httpserver "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	notificationscontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Notifications"
+	attachmentjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Attachments"
 	apitokens "github.com/zhuchunshu/sforum/apps/api/app/Models/APITokens"
 	adminoverview "github.com/zhuchunshu/sforum/apps/api/app/Models/AdminOverview"
+	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
 	entitymeta "github.com/zhuchunshu/sforum/apps/api/app/Models/EntityMeta"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
@@ -303,7 +305,14 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	moderationProvider := providers.NewModerationWorkbenchProviderWithIndexer(moderationStore, forumStore, identityStore, authSessions, searchIndexer)
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
 	siteChromeStore := sitechrome.NewPostgresStore(pool)
-	attachmentsProvider := providers.NewAttachmentsProviderWithService(attachmentService, attachmentStore, identityStore, authSessions)
+	compressionService := attachments.NewCompressionService(attachmentStore, attachmentService, optionsService, func(ctx context.Context, taskID int64) error {
+		args := attachmentjobs.CompressImageArgs{TaskID: taskID}
+		_, err := jobDispatcher.Enqueue(ctx, args, args.EnqueueOptions())
+		return err
+	})
+	attachmentService.WithCompressionScheduler(compressionService)
+	attachmentsProvider := providers.NewAttachmentsProviderWithService(attachmentService, attachmentStore, identityStore, authSessions).
+		WithCompressionService(compressionService)
 	seoProvider := providers.NewSEOProvider(pool, optionsService)
 	databaseProvider := providers.NewDatabaseProvider(databaseStore, identityStore, authSessions)
 	jobsProvider := providers.NewJobsProvider(pool, jobClient, identityStore, authSessions)

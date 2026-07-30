@@ -192,6 +192,9 @@ Attachment:
       format: int64
     url:
       type: string
+      description: >
+        Authorized content URL. Eligible proxied JPEG and PNG attachments use
+        the display-variant endpoint with transparent original fallback.
     status:
       "$ref": "#/AttachmentStatus"
     provider:
@@ -407,6 +410,82 @@ AttachmentCleanupResult:
       type: integer
     failed:
       type: integer
+AttachmentCompressionSettingsInput:
+  type: object
+  required: [enabled, strength, maxDimension, minSizeKb, minSavingsPercent]
+  properties:
+    enabled:
+      type: boolean
+      description: Generate display variants for new eligible JPEG and PNG attachments.
+    strength:
+      type: integer
+      minimum: 0
+      maximum: 100
+      description: Higher values produce smaller JPEG output and stronger PNG encoding.
+    maxDimension:
+      type: integer
+      minimum: 320
+      maximum: 8192
+      description: Maximum width or height of the display variant.
+    minSizeKb:
+      type: integer
+      minimum: 1
+    minSavingsPercent:
+      type: integer
+      minimum: 0
+      maximum: 90
+      description: Discard a generated variant unless it saves at least this percentage.
+AttachmentCompressionSettings:
+  allOf:
+  - { "$ref": "#/AttachmentCompressionSettingsInput" }
+  - type: object
+    required: [jpegQuality, policyDigest]
+    properties:
+      jpegQuality:
+        type: integer
+        minimum: 70
+        maximum: 95
+        readOnly: true
+      policyDigest:
+        type: string
+        readOnly: true
+AttachmentCompressionStats:
+  type: object
+  required: [pending, running, failed, readyVariants, originalBytes, variantBytes, savedBytes]
+  properties:
+    pending: { type: integer, format: int64 }
+    running: { type: integer, format: int64 }
+    failed: { type: integer, format: int64 }
+    readyVariants: { type: integer, format: int64 }
+    originalBytes: { type: integer, format: int64 }
+    variantBytes: { type: integer, format: int64 }
+    savedBytes: { type: integer, format: int64 }
+AttachmentCompressionBackfillResult:
+  type: object
+  required: [scheduled]
+  properties:
+    scheduled: { type: integer, format: int64 }
+ApiResponseAttachmentCompressionSettings:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/AttachmentCompressionSettings" }
+ApiResponseAttachmentCompressionStats:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/AttachmentCompressionStats" }
+ApiResponseAttachmentCompressionBackfill:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/AttachmentCompressionBackfillResult" }
 AttachmentStorageProviderOption:
   type: object
   required: [value, label]

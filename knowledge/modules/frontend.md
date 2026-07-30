@@ -551,6 +551,13 @@ Architecture sources:
   preview adds reduced-motion-aware color transitions, is cleared on
   deactivation/unmount, and never replaces the persisted public option until
   save succeeds.
+- `/settings/appearance` is the dedicated account appearance surface and Page
+  Registry page `forum.settings.appearance`. It uses `SFSettingsShell`, has its
+  own account-sidebar item, and offers explicit site-inheritance or personal
+  override modes. Selection updates the root appearance tokens immediately;
+  reload discards unsaved edits, while save updates `CurrentUser.appearance`.
+  Saving site inheritance clears the user row instead of copying current site
+  values, so later operator changes continue to flow through.
 
 ## Editor And Content UI
 
@@ -598,7 +605,8 @@ Architecture sources:
   In that case the theme controls only the reviewed L1 shell and must mount the
   required Host island.
 - Account settings now expose separate Page Registry-backed route shells for
-  login methods (`/settings/login-methods`), local password
+  personal appearance (`/settings/appearance`), login methods
+  (`/settings/login-methods`), local password
   (`/settings/password`), account security (`/settings/security`), personal
   access tokens (`/settings/tokens`), and notification preferences. Keep the
   shared `SFSettingsShell` three-column geometry and account sidebar contract

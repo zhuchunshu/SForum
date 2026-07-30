@@ -21,6 +21,7 @@ describe('SFPageOutlet catalog wiring', () => {
     ['app/pages/topics/reply.vue', 'forum.topic.reply'],
     ['app/pages/u/[username].vue', 'forum.profile.show'],
     ['app/pages/settings/profile.vue', 'forum.settings.profile'],
+    ['app/pages/settings/appearance.vue', 'forum.settings.appearance'],
     ['app/pages/settings/login-methods.vue', 'forum.settings.login_methods'],
     ['app/pages/settings/password.vue', 'forum.settings.password'],
     ['app/pages/settings/security.vue', 'forum.settings.security'],

@@ -18,6 +18,12 @@ type RegistrationStatus = {
   nextUserIsInitialSuperAdmin: boolean
   registrationEnabled?: boolean
 }
+type ExternalRegistrationPreparation = {
+  usernameHint: string
+  emailHint: string
+  displayName: string
+  emailVerified: boolean
+}
 const { t, locale } = useI18n()
 const toast = useToast()
 const localePath = useLocalePath()
@@ -61,6 +67,42 @@ const surfaceError = computed(() => errorMessage.value || externalAlertMessage.v
 const surfaceErrorVariant = computed(() =>
   errorMessage.value ? 'danger' : (externalAlertVariant.value || 'danger')
 )
+
+const { data: externalRegistrationPreparation, pending: preparingExternalRegistration } = await useAsyncData(
+  'auth-external-registration-preparation',
+  async () => {
+    if (!registrationTicket.value) {
+      return null
+    }
+    try {
+      return await request<ExternalRegistrationPreparation>('/auth/external-registration/prepare', {
+        method: 'POST',
+        body: { ticket: registrationTicket.value }
+      })
+    } catch (error) {
+      errorMessage.value = registerErrorMessage(error, t)
+        || apiErrorMessage(error)
+        || t('auth.external.reasons.ticketInvalid')
+      return null
+    }
+  },
+  { watch: [registrationTicket] }
+)
+
+watch(externalRegistrationPreparation, (preparation) => {
+  if (!preparation) {
+    return
+  }
+  if (!form.username) {
+    form.username = preparation.usernameHint || ''
+  }
+  if (!form.email && preparation.emailVerified) {
+    form.email = preparation.emailHint || ''
+  }
+  if (!form.displayName) {
+    form.displayName = preparation.displayName || ''
+  }
+}, { immediate: true })
 const altchaConfiguration = computed(() => JSON.stringify({
   hideLogo: altchaWidgetSettings.value.hideLogo,
   hideFooter: altchaWidgetSettings.value.hideFooter,
@@ -543,7 +585,7 @@ async function startExternalRegistration(provider: PublicAuthProvider) {
           <button
             class="auth-btn"
             type="submit"
-            :disabled="submitting || Boolean(providerStartingId)"
+            :disabled="submitting || preparingExternalRegistration || Boolean(providerStartingId)"
           >
             {{
               submitting

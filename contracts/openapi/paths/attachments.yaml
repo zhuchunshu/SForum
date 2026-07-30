@@ -43,7 +43,8 @@ attachmentByPublicID:
           visibility, author, and moderation permissions. Only explicit
           site-public assets (avatars, SEO/brand/favicon images) may expose a
           permanent provider URL; forum and unreferenced media use the API
-          content proxy.
+          proxy. Eligible JPEG and PNG metadata points to the display-variant
+          proxy, which transparently falls back to the immutable original.
         content:
           application/json:
             schema:
@@ -80,6 +81,30 @@ attachmentContent:
         "$ref": "../components/responses.yaml#/NotFound"
       '503':
         "$ref": "../components/responses.yaml#/ServiceUnavailable"
+attachmentVariantContent:
+  get:
+    summary: Render an attachment display variant with original fallback
+    operationId: getAttachmentVariantContent
+    parameters:
+    - "$ref": "../components/parameters.yaml#/AttachmentPublicID"
+    - name: variant
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [display]
+    responses:
+      '200':
+        description: >
+          Streams the ready variant after applying the original attachment access policy.
+          Missing, stale, or unavailable variants transparently fall back to the immutable original.
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '404': { "$ref": "../components/responses.yaml#/NotFound" }
+      '503': { "$ref": "../components/responses.yaml#/ServiceUnavailable" }
 adminAttachmentSettings:
   get:
     summary: Get attachment runtime settings
@@ -132,6 +157,35 @@ adminAttachmentSettingsTest:
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
         "$ref": "../components/responses.yaml#/Forbidden"
+adminAttachmentCompressionSettings:
+  get:
+    summary: Get regular attachment image compression settings
+    operationId: getAttachmentCompressionSettings
+    responses:
+      '200':
+        description: Current Host-owned image compression policy.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/attachments.yaml#/ApiResponseAttachmentCompressionSettings" }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+  put:
+    summary: Update regular attachment image compression settings
+    operationId: updateAttachmentCompressionSettings
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { "$ref": "../schemas/attachments.yaml#/AttachmentCompressionSettingsInput" }
+    responses:
+      '200':
+        description: Compression policy saved for future tasks.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/attachments.yaml#/ApiResponseAttachmentCompressionSettings" }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
 adminAttachmentStorageInstances:
   get:
     summary: List Host-owned attachment storage instances
@@ -325,6 +379,39 @@ adminAttachmentCleanup:
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
         "$ref": "../components/responses.yaml#/Forbidden"
+adminAttachmentCompressionStats:
+  get:
+    summary: Get attachment image compression queue and savings statistics
+    operationId: getAttachmentCompressionStats
+    responses:
+      '200':
+        description: Current task counts and ready display-variant byte savings.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/attachments.yaml#/ApiResponseAttachmentCompressionStats" }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+adminAttachmentCompressionBackfill:
+  post:
+    summary: Schedule existing eligible JPEG and PNG attachments for compression
+    operationId: backfillAttachmentCompression
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              limit: { type: integer, minimum: 1, maximum: 10000, default: 5000 }
+    responses:
+      '200':
+        description: Number of durable tasks newly scheduled.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/attachments.yaml#/ApiResponseAttachmentCompressionBackfill" }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
 adminAttachmentByID:
   get:
     summary: Get attachment detail for administration

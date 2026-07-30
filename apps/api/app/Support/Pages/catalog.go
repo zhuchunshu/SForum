@@ -93,6 +93,7 @@ var coreCatalog = []PageDefinition{
 	{ID: "forum.topic.edit", PathPattern: "/topics/:topicId/edit", Access: AccessLogin, ContractVersion: "sforum.page.topic_edit@1", CoreComponent: "pages/topics/[topicId]/edit", Replaceable: true},
 	{ID: "forum.profile.show", PathPattern: "/u/:username", Access: AccessPublic, ContractVersion: "sforum.page.profile_show@1", CoreComponent: "pages/u/[username]", Replaceable: true, RequiresFeatures: []string{"features.public_profiles"}},
 	{ID: "forum.settings.profile", PathPattern: "/settings/profile", Access: AccessLogin, ContractVersion: "sforum.page.settings_profile@1", CoreComponent: "pages/settings/profile", Replaceable: true},
+	{ID: "forum.settings.appearance", PathPattern: "/settings/appearance", Access: AccessLogin, ContractVersion: "sforum.page.settings_appearance@1", CoreComponent: "pages/settings/appearance", Replaceable: true},
 	{ID: "forum.settings.login_methods", PathPattern: "/settings/login-methods", Access: AccessLogin, ContractVersion: "sforum.page.settings_login_methods@1", CoreComponent: "pages/settings/login-methods", Replaceable: true},
 	{ID: "forum.settings.password", PathPattern: "/settings/password", Access: AccessLogin, ContractVersion: "sforum.page.settings_password@1", CoreComponent: "pages/settings/password", Replaceable: true},
 	{ID: "forum.settings.security", PathPattern: "/settings/security", Access: AccessLogin, ContractVersion: "sforum.page.settings_security@1", CoreComponent: "pages/settings/security", Replaceable: true},

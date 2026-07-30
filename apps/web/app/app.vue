@@ -7,6 +7,7 @@ import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
 import SFApiConnectionModal from '~/components/errors/SFApiConnectionModal.vue'
 import { useAdminTabs } from '~/composables/admin/useAdminTabs'
 import { useAdminAppearancePreview } from '~/composables/admin/settings/useAdminAppearancePreview'
+import { useUserAppearancePreference } from '~/composables/appearance/useUserAppearancePreference'
 import { resolveAppearanceTheme } from '~/utils/settings/appearance'
 
 // no_prefix：中英共用 URL，不输出 hreflang 交替链接（同 URL 多语 SEO 无效）。
@@ -32,6 +33,7 @@ const { consumeFromRoute: consumeExternalAuthFeedback } = useExternalAuthFeedbac
 const route = useRoute()
 const adminRoutes = useAdminRoutes()
 const { preview: adminAppearancePreview } = useAdminAppearancePreview()
+const { saved: savedUserAppearance, preview: userAppearancePreview } = useUserAppearancePreference()
 const themeSkin = useActiveThemeSkin()
 const startupOptionsTimeout = import.meta.dev ? 800 : 2000
 const hasServerSession = import.meta.server
@@ -40,12 +42,21 @@ const hasServerSession = import.meta.server
 // 引入页签缓存控制列表
 const { cachedTabNames } = useAdminTabs()
 const isAdminRoute = computed(() => adminRoutes.routeId(route.path) !== null)
-const appliedAppearanceTheme = computed(() => adminAppearancePreview.value && isAdminRoute.value
-  ? resolveAppearanceTheme(adminAppearancePreview.value.theme)
-  : resolvedAppearanceTheme.value)
-const appliedLightBackground = computed(() => adminAppearancePreview.value && isAdminRoute.value
-  ? adminAppearancePreview.value.lightBackground
-  : lightBackground.value)
+const effectiveUserAppearance = computed(() => userAppearancePreview.value || savedUserAppearance.value)
+const appliedAppearanceTheme = computed(() => {
+  if (adminAppearancePreview.value && isAdminRoute.value) {
+    return resolveAppearanceTheme(adminAppearancePreview.value.theme)
+  }
+  return effectiveUserAppearance.value
+    ? resolveAppearanceTheme(effectiveUserAppearance.value.theme)
+    : resolvedAppearanceTheme.value
+})
+const appliedLightBackground = computed(() => {
+  if (adminAppearancePreview.value && isAdminRoute.value) {
+    return adminAppearancePreview.value.lightBackground
+  }
+  return effectiveUserAppearance.value?.lightBackground || lightBackground.value
+})
 
 async function refreshStartupState(options: { restoreAuth: boolean }) {
   // 开发热重载时 API 可能还在编译，首屏先使用本地默认状态。
@@ -106,7 +117,9 @@ useHead(() => {
     ...localeHead.value.htmlAttrs,
     'data-sforum-theme': appliedAppearanceTheme.value.dataTheme,
     'data-sforum-light-background': appliedLightBackground.value,
-    'data-sforum-admin-appearance-preview': adminAppearancePreview.value && isAdminRoute.value ? 'active' : undefined
+    'data-sforum-admin-appearance-preview': adminAppearancePreview.value && isAdminRoute.value ? 'active' : undefined,
+    'data-sforum-user-appearance': savedUserAppearance.value ? 'custom' : 'site-default',
+    'data-sforum-user-appearance-preview': userAppearancePreview.value ? 'active' : undefined
   }
   const themeStyle = appliedAppearanceTheme.value.style
   if (themeStyle) {

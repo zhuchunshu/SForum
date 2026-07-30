@@ -17,9 +17,17 @@ import (
 )
 
 type Controller struct {
-	service  *attachments.Service
-	users    identity.ActorStore
-	sessions *authsession.Manager
+	service     *attachments.Service
+	compression *attachments.CompressionService
+	users       identity.ActorStore
+	sessions    *authsession.Manager
+}
+
+func (h *Controller) WithCompressionService(service *attachments.CompressionService) *Controller {
+	if h != nil {
+		h.compression = service
+	}
+	return h
 }
 
 func NewController(service *attachments.Service, users identity.ActorStore, sessions *authsession.Manager) *Controller {
@@ -125,6 +133,93 @@ func (h *Controller) content(c fiber.Ctx) error {
 	c.Set("X-Content-Type-Options", "nosniff")
 	c.Set(fiber.HeaderContentDisposition, attachmentContentDisposition(item.ContentType, item.OriginalName))
 	return c.SendStream(reader)
+}
+
+func (h *Controller) variantContent(c fiber.Ctx) error {
+	actor, err := h.optionalActor(c)
+	if err != nil {
+		return err
+	}
+	if h.compression == nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, attachments.CodeStorageUnavailable)
+	}
+	item, reader, err := h.compression.OpenVariant(c.Context(), actor, c.Params("publicId"), c.Params("variant"))
+	if err != nil {
+		return mapAttachmentError(err)
+	}
+	defer reader.Close()
+	c.Set(fiber.HeaderContentType, item.ContentType)
+	c.Set("X-Content-Type-Options", "nosniff")
+	c.Set(fiber.HeaderContentDisposition, attachmentContentDisposition(item.ContentType, item.OriginalName))
+	return c.SendStream(reader)
+}
+
+func (h *Controller) compressionSettings(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	if h.compression == nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, attachments.CodeStorageUnavailable)
+	}
+	settings, err := h.compression.Settings(c.Context(), actor)
+	if err != nil {
+		return mapAttachmentError(err)
+	}
+	return apphttp.OK(c, settings)
+}
+
+func (h *Controller) updateCompressionSettings(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	if h.compression == nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, attachments.CodeStorageUnavailable)
+	}
+	var input attachments.CompressionSettings
+	if err := c.Bind().Body(&input); err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, attachments.CodeInvalidAttachment)
+	}
+	settings, err := h.compression.UpdateSettings(c.Context(), actor, input)
+	if err != nil {
+		return mapAttachmentError(err)
+	}
+	return apphttp.OK(c, settings)
+}
+
+func (h *Controller) compressionStats(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	if h.compression == nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, attachments.CodeStorageUnavailable)
+	}
+	stats, err := h.compression.Stats(c.Context(), actor)
+	if err != nil {
+		return mapAttachmentError(err)
+	}
+	return apphttp.OK(c, stats)
+}
+
+func (h *Controller) backfillCompression(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	if h.compression == nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, attachments.CodeStorageUnavailable)
+	}
+	var input struct {
+		Limit int `json:"limit"`
+	}
+	_ = c.Bind().Body(&input)
+	result, err := h.compression.Backfill(c.Context(), actor, input.Limit)
+	if err != nil {
+		return mapAttachmentError(err)
+	}
+	return apphttp.OK(c, result)
 }
 
 // attachmentContentDisposition 按 MIME 决定内联或强制下载，并安全拼装文件名。

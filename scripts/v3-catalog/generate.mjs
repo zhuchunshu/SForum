@@ -125,7 +125,7 @@ function routePolicy(route) {
   if (path === '/api/v1/admin/extensions/:id/page-bootstrap') return ['permission', 'extension.view for metadata pages; matching plugin/theme settings manage permission for declared settings views']
   if (path.startsWith('/api/v1/admin/extensions')) return ['permission', method === 'GET' ? 'extension.view or matching manage permission' : 'extension.plugin.manage or extension.theme.manage; operation-specific service policy']
   if (path.startsWith('/api/v1/admin/pages')) return ['permission', 'extension.view for inspection; theme/plugin manage and super_admin approval where required']
-  if (path.startsWith('/api/v1/admin/attachment-settings')) return ['permission', 'attachment.settings.manage']
+  if (path.startsWith('/api/v1/admin/attachment-settings') || path.startsWith('/api/v1/admin/attachment-compression-settings') || path.startsWith('/api/v1/admin/attachment-storage-instances') || path === '/api/v1/admin/attachments/compression-stats') return ['permission', 'attachment.settings.manage']
   if (path.startsWith('/api/v1/admin/attachments')) return ['permission', 'attachment.manage']
   if (path.startsWith('/api/v1/admin/database')) return ['permission', 'database.manage']
   if (path.startsWith('/api/v1/admin/entity-meta')) return ['permission', 'entity_meta.manage or settings.manage']
@@ -149,7 +149,7 @@ function routePolicy(route) {
   if (path.startsWith('/api/v1/admin/admin-surfaces')) return ['permission', 'admin.access']
   if (path.startsWith('/api/v1/roles/suggestions')) return ['permission', 'active cookie session with role.manage; PAT denied; Host explicit decision']
   if (/^\/api\/v1\/(permissions|roles|users)(\/|$)/.test(path)) return ['permission', 'identity service route-specific user.view/user.manage/role.manage/user.ban policy']
-  if (path.startsWith('/api/v1/auth/sessions') || path.startsWith('/api/v1/auth/tokens')) return ['login', 'current active actor; token/session ownership']
+  if (path.startsWith('/api/v1/auth/sessions') || path.startsWith('/api/v1/auth/tokens') || path === '/api/v1/auth/appearance' || path === '/api/v1/auth/locale') return ['login', 'current active actor; token/session ownership']
   if (path === '/api/v1/auth/logout' || path === '/api/v1/auth/session') return ['login', 'current browser session']
   // 外部 Identity 提供方：列表公开；link 需要登录；其余 start/complete 走 bootstrap 策略。
   // OAuth callback 与 browser session 权威对 Route Registry 替换关闭：Host 独占 state/PKCE/会话签发。
@@ -164,7 +164,7 @@ function routePolicy(route) {
   if (/^\/api\/v1\/auth\/providers\/:providerId\/[^/]+\/(start|complete)$/.test(path)) {
     return ['public', 'identity bootstrap, risk, rate-limit, and human-verification policy']
   }
-  if (path === '/api/v1/auth/external-registration') {
+  if (path === '/api/v1/auth/external-registration' || path === '/api/v1/auth/external-registration/prepare') {
     return ['public', 'identity bootstrap, risk, rate-limit, and human-verification policy']
   }
   if (path.startsWith('/api/v1/auth/external-identities') || path === '/api/v1/auth/password') {

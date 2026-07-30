@@ -25,6 +25,8 @@ const props = withDefaults(defineProps<{
   error?: string
   maxCharacters?: number
   submitLabel?: string
+  /** 由抽屉等宿主提供统一底部操作区时，可隐藏编辑器内建提交按钮。 */
+  submitVisible?: boolean
   compact?: boolean
   preset?: 'full' | 'basic-field'
   ariaLabel?: string
@@ -45,6 +47,7 @@ const props = withDefaults(defineProps<{
   error: undefined,
   maxCharacters: 12000,
   submitLabel: '发布回复',
+  submitVisible: true,
   compact: false,
   preset: 'full',
   ariaLabel: '正文编辑器',
@@ -622,6 +625,7 @@ function submitContent() {
           <span>HTML / Markdown / JSON</span>
         </div>
         <SFButton
+          v-if="submitVisible"
           size="sm"
           :disabled="disabled || submitDisabled || currentPayload.isEmpty"
           @click="submitContent"

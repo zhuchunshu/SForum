@@ -29,6 +29,16 @@ func TestNotificationSettingsPageContract(t *testing.T) {
 	}
 }
 
+func TestAppearanceSettingsPageContract(t *testing.T) {
+	page, ok := Find("forum.settings.appearance")
+	if !ok || page.PathPattern != "/settings/appearance" || page.Access != AccessLogin || !page.Replaceable || page.ContractVersion != "sforum.page.settings_appearance@1" {
+		t.Fatalf("appearance settings contract missing or invalid: %#v ok=%v", page, ok)
+	}
+	if RequiredThemeBodyIslandTag(page.ID) != "sf-appearance-settings" {
+		t.Fatalf("appearance settings body island mismatch: %q", RequiredThemeBodyIslandTag(page.ID))
+	}
+}
+
 func TestLoginMethodsSettingsPageContract(t *testing.T) {
 	page, ok := Find("forum.settings.login_methods")
 	if !ok || page.PathPattern != "/settings/login-methods" || page.Access != AccessLogin || !page.Replaceable || page.ContractVersion != "sforum.page.settings_login_methods@1" {

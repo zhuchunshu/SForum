@@ -36,6 +36,11 @@ SSR/query/permission shells.
   `siteUrl`, `siteDomain`, `defaultLocale`, `supportedLocales`, `humanVerificationProvider`,
   `appearanceTheme`, footer content helpers, `refresh()`, `save()`, and admin
   batch helpers.
+- Operator appearance remains the anonymous and inherited account default.
+  Logged-in users may save a private accent/background override through the
+  Identity module; clearing that override resumes live inheritance, including
+  future operator changes. The root appearance resolver applies admin preview,
+  user preview, saved user preference, then operator default in that order.
 - Public site URL resolution is `site.url` operator override, then deployment
   `APP_URL`. An empty override remains empty in storage instead of materializing
   the environment value; public/API consumers receive the effective URL, while

@@ -85,6 +85,13 @@
       "contract": "sforum.page.settings_profile@1"
     },
     {
+      "id": "sforum.default-theme.settings_appearance",
+      "action": "replace",
+      "target": "forum.settings.appearance",
+      "template": "templates/settings-appearance.html",
+      "contract": "sforum.page.settings_appearance@1"
+    },
+    {
       "id": "sforum.default-theme.settings_login_methods",
       "action": "replace",
       "target": "forum.settings.login_methods",

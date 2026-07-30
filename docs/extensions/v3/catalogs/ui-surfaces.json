@@ -1,5 +1,15 @@
 [
   {
+    "id": "core.component.admin.sfadmin_attachment_compression_tab",
+    "contractVersion": "sforum.component.admin.sfadmin_attachment_compression_tab@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/settings/attachments/tabs/SFAdminAttachmentCompressionTab.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
     "id": "core.component.admin.sfadmin_attachment_manager_tab",
     "contractVersion": "sforum.component.admin.sfadmin_attachment_manager_tab@1",
     "kind": "component",
@@ -14,6 +24,26 @@
     "contractVersion": "sforum.component.admin.sfadmin_attachment_settings_tab@1",
     "kind": "component",
     "source": "apps/web/app/components/admin/settings/attachments/tabs/SFAdminAttachmentSettingsTab.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
+    "id": "core.component.admin.sfadmin_attachment_storage_instances",
+    "contractVersion": "sforum.component.admin.sfadmin_attachment_storage_instances@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/settings/attachments/providers/SFAdminAttachmentStorageInstances.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
+    "id": "core.component.admin.sfadmin_brand_asset_field",
+    "contractVersion": "sforum.component.admin.sfadmin_brand_asset_field@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/settings/personalization/SFAdminBrandAssetField.vue",
     "owners": [
       "admin"
     ],
@@ -270,6 +300,56 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
+    "id": "core.component.admin.sfadmin_navigation_defaults_dialog",
+    "contractVersion": "sforum.component.admin.sfadmin_navigation_defaults_dialog@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/settings/personalization/navigation/SFAdminNavigationDefaultsDialog.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
+    "id": "core.component.admin.sfadmin_navigation_history",
+    "contractVersion": "sforum.component.admin.sfadmin_navigation_history@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/settings/personalization/navigation/SFAdminNavigationHistory.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
+    "id": "core.component.admin.sfadmin_navigation_import_dialog",
+    "contractVersion": "sforum.component.admin.sfadmin_navigation_import_dialog@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/settings/personalization/navigation/SFAdminNavigationImportDialog.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
+    "id": "core.component.admin.sfadmin_navigation_location_list",
+    "contractVersion": "sforum.component.admin.sfadmin_navigation_location_list@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/settings/personalization/SFAdminNavigationLocationList.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
+    "id": "core.component.admin.sfadmin_navigation_recovery_panel",
+    "contractVersion": "sforum.component.admin.sfadmin_navigation_recovery_panel@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/settings/personalization/navigation/SFAdminNavigationRecoveryPanel.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
     "id": "core.component.admin.sfadmin_notification_channels",
     "contractVersion": "sforum.component.admin.sfadmin_notification_channels@1",
     "kind": "component",
@@ -284,6 +364,16 @@
     "contractVersion": "sforum.component.admin.sfadmin_notification_policy_page@1",
     "kind": "component",
     "source": "apps/web/app/components/admin/settings/notifications/SFAdminNotificationPolicyPage.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
+    "id": "core.component.admin.sfadmin_overview_runtime_card",
+    "contractVersion": "sforum.component.admin.sfadmin_overview_runtime_card@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/SFAdminOverviewRuntimeCard.vue",
     "owners": [
       "admin"
     ],
@@ -641,11 +731,33 @@
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
+    "id": "core.component.page.admin.attachments.redirect",
+    "contractVersion": "sforum.component.page.admin.attachments.redirect@1",
+    "kind": "page",
+    "route": "/admin/attachments",
+    "source": "apps/web/app/pages/admin/attachments/index.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7 Admin Surface Registry"
+  },
+  {
     "id": "core.component.page.admin.attachments",
     "contractVersion": "sforum.component.page.admin.attachments@1",
     "kind": "page",
-    "route": "/admin/attachments",
-    "source": "apps/web/app/pages/admin/attachments.vue",
+    "route": "/admin/attachments/manager",
+    "source": "apps/web/app/pages/admin/attachments/manager.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7 Admin Surface Registry"
+  },
+  {
+    "id": "core.component.page.admin.attachments.settings",
+    "contractVersion": "sforum.component.page.admin.attachments.settings@1",
+    "kind": "page",
+    "route": "/admin/attachments/settings",
+    "source": "apps/web/app/pages/admin/attachments/settings.vue",
     "owners": [
       "admin"
     ],
@@ -1257,11 +1369,44 @@
     "targetRegistry": "P9 Component Registry"
   },
   {
+    "id": "core.component.page.forum.settings.appearance",
+    "contractVersion": "sforum.component.page.forum.settings.appearance@1",
+    "kind": "page",
+    "route": "/settings/appearance",
+    "source": "apps/web/app/pages/settings/appearance.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.page.forum.settings.login_methods",
+    "contractVersion": "sforum.component.page.forum.settings.login_methods@1",
+    "kind": "page",
+    "route": "/settings/login-methods",
+    "source": "apps/web/app/pages/settings/login-methods.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.page.settings.notifications",
     "contractVersion": "sforum.component.page.settings.notifications@1",
     "kind": "page",
     "route": "/settings/notifications",
     "source": "apps/web/app/pages/settings/notifications.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.page.forum.settings.password",
+    "contractVersion": "sforum.component.page.forum.settings.password@1",
+    "kind": "page",
+    "route": "/settings/password",
+    "source": "apps/web/app/pages/settings/password.vue",
     "owners": [
       "public"
     ],
@@ -1284,6 +1429,17 @@
     "kind": "page",
     "route": "/settings/security",
     "source": "apps/web/app/pages/settings/security.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.page.forum.settings.tokens",
+    "contractVersion": "sforum.component.page.forum.settings.tokens@1",
+    "kind": "page",
+    "route": "/settings/tokens",
+    "source": "apps/web/app/pages/settings/tokens.vue",
     "owners": [
       "public"
     ],
@@ -1535,10 +1691,30 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
+    "id": "core.component.shared.sfappearance_settings_page",
+    "contractVersion": "sforum.component.shared.sfappearance_settings_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/settings/SFAppearanceSettingsPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sfauth_provider_buttons",
     "contractVersion": "sforum.component.shared.sfauth_provider_buttons@1",
     "kind": "component",
     "source": "apps/web/app/components/identity/SFAuthProviderButtons.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfauth_shell",
+    "contractVersion": "sforum.component.shared.sfauth_shell@1",
+    "kind": "component",
+    "source": "apps/web/app/components/identity/auth/SFAuthShell.vue",
     "owners": [
       "public"
     ],
@@ -1643,6 +1819,16 @@
     "contractVersion": "sforum.component.shared.sfcomment_stream_controls@1",
     "kind": "component",
     "source": "apps/web/app/components/forum/SFCommentStreamControls.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfcomment_user_preview",
+    "contractVersion": "sforum.component.shared.sfcomment_user_preview@1",
+    "kind": "component",
+    "source": "apps/web/app/components/forum/SFCommentUserPreview.vue",
     "owners": [
       "public"
     ],
@@ -1831,10 +2017,30 @@
     "targetRegistry": "P9 Component Registry"
   },
   {
+    "id": "core.component.shared.sflocal_password_settings_page",
+    "contractVersion": "sforum.component.shared.sflocal_password_settings_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/settings/SFLocalPasswordSettingsPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sflogin_form_page",
     "contractVersion": "sforum.component.shared.sflogin_form_page@1",
     "kind": "component",
     "source": "apps/web/app/components/identity/SFLoginFormPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sflogin_methods_settings_page",
+    "contractVersion": "sforum.component.shared.sflogin_methods_settings_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/settings/SFLoginMethodsSettingsPage.vue",
     "owners": [
       "public"
     ],
@@ -1911,6 +2117,16 @@
     "targetRegistry": "P9 Component Registry"
   },
   {
+    "id": "core.component.shared.sfnotification_type_nav",
+    "contractVersion": "sforum.component.shared.sfnotification_type_nav@1",
+    "kind": "component",
+    "source": "apps/web/app/components/notifications/SFNotificationTypeNav.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sfnotifications_page",
     "contractVersion": "sforum.component.shared.sfnotifications_page@1",
     "kind": "component",
@@ -1960,6 +2176,16 @@
       "admin"
     ],
     "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
+    "id": "core.component.shared.sfpersonal_access_tokens_page",
+    "contractVersion": "sforum.component.shared.sfpersonal_access_tokens_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/settings/SFPersonalAccessTokensPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.sfprivacy_page",
@@ -2023,6 +2249,36 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
+    "id": "core.component.shared.sfpublic_mobile_navigation",
+    "contractVersion": "sforum.component.shared.sfpublic_mobile_navigation@1",
+    "kind": "component",
+    "source": "apps/web/app/components/navigation/SFPublicMobileNavigation.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfpublic_navigation_links",
+    "contractVersion": "sforum.component.shared.sfpublic_navigation_links@1",
+    "kind": "component",
+    "source": "apps/web/app/components/navigation/SFPublicNavigationLinks.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfpublic_page_header",
+    "contractVersion": "sforum.component.shared.sfpublic_page_header@1",
+    "kind": "component",
+    "source": "apps/web/app/components/public/SFPublicPageHeader.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sfrecovery_confirm_page",
     "contractVersion": "sforum.component.shared.sfrecovery_confirm_page@1",
     "kind": "component",
@@ -2037,6 +2293,16 @@
     "contractVersion": "sforum.component.shared.sfrecovery_request_page@1",
     "kind": "component",
     "source": "apps/web/app/components/identity/SFRecoveryRequestPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfrecovery_shell",
+    "contractVersion": "sforum.component.shared.sfrecovery_shell@1",
+    "kind": "component",
+    "source": "apps/web/app/components/identity/recovery/SFRecoveryShell.vue",
     "owners": [
       "public"
     ],
@@ -2321,6 +2587,16 @@
     "contractVersion": "sforum.component.shared.sftopic_action_menu@1",
     "kind": "component",
     "source": "apps/web/app/components/forum/SFTopicActionMenu.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sftopic_comment_composer_drawer",
+    "contractVersion": "sforum.component.shared.sftopic_comment_composer_drawer@1",
+    "kind": "component",
+    "source": "apps/web/app/components/forum/SFTopicCommentComposerDrawer.vue",
     "owners": [
       "public"
     ],

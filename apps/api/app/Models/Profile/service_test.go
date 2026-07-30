@@ -194,7 +194,7 @@ func TestAvatarBuilderPrefersUploadedAttachment(t *testing.T) {
 			Status:   attachments.StatusActive,
 		},
 	})
-	if view.Kind != AvatarKindUploaded || view.URL != "/api/v1/attachments/avatar-public/content" {
+	if view.Kind != AvatarKindUploaded || view.URL != "/media/avatars/avatar-public" {
 		t.Fatalf("expected uploaded avatar URL, got %#v", view)
 	}
 	if view.AttachmentID == nil || *view.AttachmentID != avatarID {
@@ -251,7 +251,6 @@ func TestServiceUploadAvatarSetsProfileReference(t *testing.T) {
 			OwnerUserID: 7,
 			ContentType: "image/jpeg",
 			Status:      "active",
-			URL:         "/api/v1/attachments/avatar-public/content",
 		},
 	}
 	uploader := &fakeAvatarUploader{attachment: attachments.Attachment{ID: avatarID, PublicID: "avatar-public"}}

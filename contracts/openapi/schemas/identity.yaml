@@ -276,6 +276,7 @@ CurrentUser:
   - username
   - displayName
   - locale
+  - appearance
   - status
   - isInitialSuperAdmin
   - avatar
@@ -291,6 +292,11 @@ CurrentUser:
       type: string
     locale:
       type: string
+    appearance:
+      oneOf:
+      - "$ref": "#/UserAppearancePreference"
+      - type: 'null'
+      description: A private account override. Null means the user follows site appearance settings.
     status:
       type: string
       enum:
@@ -316,6 +322,34 @@ UpdateCurrentUserLocaleRequest:
     locale:
       type: string
       description: An enabled site locale. Omit or send an empty value to restore the site default locale.
+UserAppearancePreference:
+  type: object
+  additionalProperties: false
+  required:
+  - theme
+  - lightBackground
+  properties:
+    theme:
+      type: string
+      description: A Core preset name or custom:#rrggbb.
+    lightBackground:
+      type: string
+      enum:
+      - pure_white
+      - porcelain
+      - paper
+      - parchment
+      - mist_gray
+      - cool_frost
+      - cloud_blue
+      - mint_mist
+      - sage
+      - sakura
+      - lilac_mist
+      - morning_apricot
+UpdateCurrentUserAppearanceRequest:
+  allOf:
+  - "$ref": "#/UserAppearancePreference"
 RegistrationStatus:
   type: object
   required:
@@ -1185,6 +1219,42 @@ ExternalRegistrationRequest:
       properties:
         provider: {type: string}
         token: {type: string}
+
+ExternalRegistrationPreparationRequest:
+  type: object
+  additionalProperties: false
+  required: [ticket]
+  properties:
+    ticket:
+      type: string
+      description: Host-generated opaque one-time registration ticket.
+
+ExternalRegistrationPreparation:
+  type: object
+  additionalProperties: false
+  required: [usernameHint, emailHint, displayName, emailVerified]
+  properties:
+    usernameHint:
+      type: string
+      description: Editable provider username candidate; local policy remains authoritative.
+    emailHint:
+      type: string
+      description: Empty unless the provider explicitly proved the email verified.
+    displayName:
+      type: string
+      description: Editable provider display-name candidate.
+    emailVerified:
+      type: boolean
+      description: True only when the owning provider explicitly asserted verified email ownership.
+
+ApiResponseExternalRegistrationPreparation:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data:
+      "$ref": "#/ExternalRegistrationPreparation"
 
 ExternalIdentityItem:
   type: object

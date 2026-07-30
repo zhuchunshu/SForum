@@ -8,8 +8,9 @@ import (
 
 // 核心 schedule 稳定 ID。新增维护任务时先加常量与 CoreScheduleDefinitions，再在 bootstrap 注入 Constructor。
 const (
-	ScheduleIdentityCleanupSessions   = "identity.cleanup_sessions"
-	ScheduleAttachmentsCleanupOrphans = "attachments.cleanup_orphans"
+	ScheduleIdentityCleanupSessions         = "identity.cleanup_sessions"
+	ScheduleAttachmentsCleanupOrphans       = "attachments.cleanup_orphans"
+	ScheduleAttachmentsReconcileCompression = "attachments.reconcile_compression"
 	// ScheduleAuditCleanupEvents 清理过期 audit_events（F1.4 保留期 job）。
 	ScheduleAuditCleanupEvents = "audit.cleanup_events"
 	// ScheduleForumAutoLockIdle 按站点 autoLockIdleDays 锁定闲置主题。
@@ -43,6 +44,16 @@ func CoreScheduleDefinitions() []ScheduleDefinition {
 			Enabled:     true,
 			Description: "清理超过保留期且无引用的孤儿附件",
 			RunOnStart:  false,
+		},
+		{
+			ID:          ScheduleAttachmentsReconcileCompression,
+			JobKind:     ScheduleAttachmentsReconcileCompression,
+			Queue:       QueueMaintenance,
+			Interval:    time.Minute,
+			Owner:       "attachments",
+			Enabled:     true,
+			Description: "补偿附件图片压缩任务入队失败并继续待处理任务",
+			RunOnStart:  true,
 		},
 		{
 			ID:          ScheduleAuditCleanupEvents,

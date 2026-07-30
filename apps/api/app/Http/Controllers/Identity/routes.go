@@ -12,6 +12,8 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	auth.Post("/logout", h.logout)
 	auth.Get("/session", h.session)
 	auth.Put("/locale", h.updateCurrentUserLocale)
+	auth.Put("/appearance", h.updateCurrentUserAppearance)
+	auth.Delete("/appearance", h.clearCurrentUserAppearance)
 	auth.Post("/password-reset/request", h.passwordResetRequest)
 	auth.Post("/password-reset/confirm", h.passwordResetConfirm)
 	// 外部 Identity 提供方：列表公开；start/complete 按操作决定是否要求登录。
@@ -23,6 +25,7 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	// 见 plans/2026-07-27-github-social-login-builtin-plugin.md M1/T1E。
 	auth.Get("/providers/:providerId/callback", h.externalAuthCallback)
 	// 外部注册：用一次性票据原子创建用户 + 默认角色 + link。
+	auth.Post("/external-registration/prepare", h.externalRegistrationPreparation)
 	auth.Post("/external-registration", h.externalRegistration)
 	// 账号安全：已绑定身份列表与解绑（仅自服务）。
 	auth.Get("/external-identities", h.externalIdentities)

@@ -2,10 +2,8 @@ package identity
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -45,11 +43,16 @@ type ExternalAuthAssertion struct {
 	OwnerExtensionVersion   string // 存在时与 live ExtensionVersion 精确比对
 	OwnerPackageDigest      string
 	Operation               ExternalAuthOperation
-	ProviderSubject         string // raw subject，仅 Host 内部（Core-HMAC 模式）
-	SubjectDigest           string // 兼容旧 fixture 路径的 plugin-computed digest
-	DisplayName             string
-	EmailHint               string
-	CorrelationID           string
+	// SourceOperation preserves the provider assertion operation when a Host
+	// continuation targets registration. Empty means the same as Operation.
+	SourceOperation ExternalAuthOperation
+	ProviderSubject string // raw subject，仅 Host 内部（Core-HMAC 模式）
+	SubjectDigest   string // 兼容旧 fixture 路径的 plugin-computed digest
+	UsernameHint    string
+	DisplayName     string
+	EmailHint       string
+	EmailVerified   bool
+	CorrelationID   string
 }
 
 // MatchesLiveContribution 将断言/票据中的 provider、owner extension、package digest、
@@ -103,13 +106,6 @@ type ExternalAuthLoginResult struct {
 	ProviderID  string
 }
 
-// ExternalAuthRegistrationResult 是外部注册（用户+默认角色+link 原子事务）结果。
-type ExternalAuthRegistrationResult struct {
-	User       CurrentUser
-	ProviderID string
-	LinkID     int64
-}
-
 // ExternalAuthLinkResult 是 link.complete 成功后的结果。
 type ExternalAuthLinkResult struct {
 	User       CurrentUser
@@ -138,11 +134,6 @@ type RecentAuthChecker interface {
 // RecentAuthMarker 在成功密码/外部认证后标记当前会话。
 type RecentAuthMarker interface {
 	MarkSessionRecentlyAuthenticated(ctx context.Context, userID int64, sessionFingerprint, method, providerID string, ttl time.Duration) error
-}
-
-// ExternalRegistrationValidator 复用权威注册字段/策略校验（无密码、无更弱副本）。
-type ExternalRegistrationValidator interface {
-	ValidateExternalRegister(ctx context.Context, input ExternalRegistrationInput) error
 }
 
 // ExternalAuthDeps 收集 ExternalAuthService 的依赖。
@@ -187,23 +178,6 @@ func NewExternalAuthService(deps ExternalAuthDeps) *ExternalAuthService {
 func (s *ExternalAuthService) WithCurrentUserLoader(fn func(context.Context, int64) (CurrentUser, error)) *ExternalAuthService {
 	if s != nil {
 		s.deps.LoadCurrentUser = fn
-	}
-	return s
-}
-
-// WithRegistrationValidator 注入权威外部注册校验器。
-func (s *ExternalAuthService) WithRegistrationValidator(v ExternalRegistrationValidator) *ExternalAuthService {
-	if s != nil {
-		s.deps.ValidateRegistration = v
-	}
-	return s
-}
-
-// WithRegistrationPolicyTx 注入 CompleteRegistration 使用的权威 Options
-// 事务读取器。事务外快速拒绝仍可保留，但账号创建必须依赖该读取器。
-func (s *ExternalAuthService) WithRegistrationPolicyTx(fn func(context.Context, pgx.Tx) (bool, error)) *ExternalAuthService {
-	if s != nil {
-		s.deps.RegistrationEnabledTx = fn
 	}
 	return s
 }
@@ -455,227 +429,6 @@ func (s *ExternalAuthService) CompleteLogin(ctx context.Context, assertion Exter
 		ProviderID:  assertion.ProviderID,
 		NewlyLinked: false,
 	}, nil
-}
-
-// CompleteRegistration 原子地创建用户 + 默认角色 + external link。
-// 不创建密码凭据（外部账号）。首用户 bootstrap 规则仍生效：零用户站点
-// 禁止外部注册（首用户必须用 Core 密码 bootstrap）。
-//
-// T8A 授权/事务边界：
-//  1. 任何账号创建效果前重新校验 registration 操作的 Host 有效激活；
-//  2. 将 ticket/assertion 的 provider/owner/digest/contract/version 与 live Registry 精确比对；
-//  3. 在创建 user/default role/external link 的同一事务内重新读取权威 registration policy；
-//  4. 成功提交后恰好一次发出 user.registered observe；
-//  5. 注册 mutation audit 写入同一事务（复用 audit_events，不另建审计子系统）。
-//
-// 调用方应在消费票据前完成可编辑字段校验；本方法在事务内再次检查权威策略。
-func (s *ExternalAuthService) CompleteRegistration(ctx context.Context, assertion ExternalAuthAssertion, input ExternalRegistrationInput) (ExternalAuthRegistrationResult, error) {
-	if assertion.Operation != ExternalAuthOperationRegistration {
-		return ExternalAuthRegistrationResult{}, ErrExternalAuthOperationMismatch
-	}
-	input = input.Normalized()
-	// 事务外权威字段/策略校验（调用方通常已做过；此处纵深）。
-	if err := s.validateExternalRegistrationInput(ctx, input); err != nil {
-		return ExternalAuthRegistrationResult{}, err
-	}
-
-	// 1. 任何账号效果前：registration 操作必须仍有效激活（含 Safe Mode / disable / artifact）。
-	if err := s.RequireActivated(ctx, assertion.ProviderID, ExternalAuthOperationRegistration); err != nil {
-		return ExternalAuthRegistrationResult{}, err
-	}
-
-	// 2. live Registry exact contribution 与 ticket/assertion 绑定比对。
-	contribution, err := s.providerContribution(assertion.ProviderID)
-	if err != nil {
-		// 卸载 / trust revoke / Safe Mode / 不可见 → fail closed。
-		return ExternalAuthRegistrationResult{}, ErrExternalAuthProviderUnavailable
-	}
-	if !assertion.MatchesLiveContribution(contribution) {
-		return ExternalAuthRegistrationResult{}, ErrExternalAuthArtifactMismatch
-	}
-	if !authProviderHasOperation(contribution, AuthOperationRegistrationComplete) {
-		return ExternalAuthRegistrationResult{}, ErrExternalAuthProviderUnavailable
-	}
-
-	digest, err := assertion.resolvedDigest()
-	if err != nil {
-		return ExternalAuthRegistrationResult{}, err
-	}
-
-	// 事务外快速拒绝（权威校验仍在事务内）。
-	if err := s.ensureExternalRegistrationPolicy(ctx, false); err != nil {
-		return ExternalAuthRegistrationResult{}, err
-	}
-
-	postgresLink, ok := s.deps.LinkStore.(*PostgresExternalIdentityLinkStore)
-	if !ok || s.deps.Pool == nil {
-		return ExternalAuthRegistrationResult{}, ErrExternalIdentityLinkStoreUnavailable
-	}
-
-	// 3. 事务：policy 再读 + user + 默认角色 + link + registration audit 原子。
-	tx, err := s.deps.Pool.Begin(ctx)
-	if err != nil {
-		return ExternalAuthRegistrationResult{}, err
-	}
-	defer tx.Rollback(ctx)
-
-	if err := s.ensureExternalRegistrationPolicyTx(ctx, tx); err != nil {
-		return ExternalAuthRegistrationResult{}, err
-	}
-	// 冲突校验（username/email）—— 非枚举：字段级 taken，与 Core 注册一致。
-	if err := registrationConflictsTx(ctx, tx, input.Username, input.Email); err != nil {
-		return ExternalAuthRegistrationResult{}, err
-	}
-	current, err := createUserWithoutCredentialTx(ctx, tx, CreateUserInput{
-		Username:    input.Username,
-		Email:       input.Email,
-		DisplayName: input.DisplayName,
-		Locale:      input.Locale,
-	})
-	if err != nil {
-		return ExternalAuthRegistrationResult{}, err
-	}
-	// 默认角色必须恰好影响 1 行，否则回滚 user/link/audit。
-	if err := assignDefaultRoleTx(ctx, tx, current.ID); err != nil {
-		return ExternalAuthRegistrationResult{}, err
-	}
-
-	linkInput := LinkExternalIdentityInput{
-		UserID:                current.ID,
-		Provider:              contribution,
-		ProviderOperation:     AuthOperationRegistrationComplete,
-		ProviderSubjectDigest: digest,
-		ActorUserID:           0,
-		IdempotencyKey:        "registration:" + assertion.CorrelationID,
-	}
-	mutation, err := postgresLink.LinkTx(ctx, tx, linkInput)
-	if err != nil {
-		return ExternalAuthRegistrationResult{}, err
-	}
-	// 注册 mutation audit 与 user/role/link 同事务；后续 session audit 不能替代。
-	if _, err := insertExternalRegistrationAuditTx(ctx, tx, externalRegistrationAuditInput{
-		UserID:           current.ID,
-		ProviderID:       contribution.ID,
-		OwnerExtensionID: contribution.Artifact.ExtensionID,
-		CorrelationID:    assertion.CorrelationID,
-	}); err != nil {
-		return ExternalAuthRegistrationResult{}, err
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return ExternalAuthRegistrationResult{}, err
-	}
-
-	// 4. 成功提交后恰好一次发出 user.registered（与密码注册同一 observe 语义）。
-	s.emitUserRegistered(ctx, current, input.Email)
-
-	// 通过权威 CurrentUser 路径重载完整 claims 后再签发会话。
-	current, err = s.loadCurrentUser(ctx, current.ID)
-	if err != nil {
-		return ExternalAuthRegistrationResult{}, err
-	}
-	return ExternalAuthRegistrationResult{
-		User:       current,
-		ProviderID: assertion.ProviderID,
-		LinkID:     mutation.Link.ID,
-	}, nil
-}
-
-// ensureExternalRegistrationPolicy 事务外快速策略检查。
-// insideTx=false 时使用 pool/依赖；权威结果仍以 ensureExternalRegistrationPolicyTx 为准。
-func (s *ExternalAuthService) ensureExternalRegistrationPolicy(ctx context.Context, _ bool) error {
-	hasAny, err := s.anyUser(ctx)
-	if err != nil {
-		return err
-	}
-	if !hasAny {
-		return ErrExternalAuthBootstrapRequired
-	}
-	enabled, err := s.registrationEnabled(ctx)
-	if err != nil {
-		return err
-	}
-	if !enabled {
-		return ErrRegistrationDisabled
-	}
-	return nil
-}
-
-// ensureExternalRegistrationPolicyTx 在创建 user 的同一事务内重新读取权威策略。
-// 用户计数来自事务快照；开放注册意图再读运营配置（与密码注册 WithBootstrapTx 一致）。
-func (s *ExternalAuthService) ensureExternalRegistrationPolicyTx(ctx context.Context, tx pgx.Tx) error {
-	var txCount int
-	if err := tx.QueryRow(ctx, `SELECT COUNT(*) FROM users`).Scan(&txCount); err != nil {
-		return err
-	}
-	if txCount == 0 {
-		return ErrExternalAuthBootstrapRequired
-	}
-	// 运营策略必须通过同一个 pgx.Tx 读取；独立 pool/cache 会把“同一事务”
-	// 的声明变成谎言。生产 Options 实现用 advisory xact lock 与更新串行化。
-	if s.deps.RegistrationEnabledTx == nil {
-		return fmt.Errorf("transactional registration policy is unavailable")
-	}
-	enabled, err := s.deps.RegistrationEnabledTx(ctx, tx)
-	if err != nil {
-		return err
-	}
-	if !enabled {
-		return ErrRegistrationDisabled
-	}
-	return nil
-}
-
-func (s *ExternalAuthService) emitUserRegistered(ctx context.Context, current CurrentUser, email string) {
-	publisher := appevents.EnsurePublisher(s.deps.Events)
-	publisher.Emit(ctx, appevents.Envelope{
-		Name:          appevents.UserRegistered,
-		Kind:          appevents.KindObserve,
-		ActorUserID:   current.ID,
-		ResourceType:  "user",
-		ResourceID:    strconv.FormatInt(current.ID, 10),
-		CorrelationID: appevents.NewID(),
-		Payload: map[string]any{
-			"userId":   current.ID,
-			"username": current.Username,
-			"email":    email,
-			"locale":   current.Locale,
-		},
-		OccurredAt: time.Now().UTC(),
-	})
-}
-
-// externalRegistrationAuditInput 是注册提交边界的 mutation audit（无 raw subject/token）。
-type externalRegistrationAuditInput struct {
-	UserID           int64
-	ProviderID       string
-	OwnerExtensionID string
-	CorrelationID    string
-}
-
-// insertExternalRegistrationAuditTx 复用 audit_events 事务写入路径。
-// action = auth.external_register.success；metadata 仅含 provider/owner 公开绑定字段。
-func insertExternalRegistrationAuditTx(ctx context.Context, tx pgx.Tx, input externalRegistrationAuditInput) (int64, error) {
-	if input.UserID <= 0 || strings.TrimSpace(input.ProviderID) == "" {
-		return 0, fmt.Errorf("external registration audit input invalid")
-	}
-	metadata, err := json.Marshal(map[string]any{
-		"providerId":       input.ProviderID,
-		"ownerExtensionId": input.OwnerExtensionID,
-		// correlation 仅作请求关联；不得含 subject/digest/token/state/verifier。
-		"correlationId": input.CorrelationID,
-	})
-	if err != nil {
-		return 0, fmt.Errorf("encode external registration audit: %w", err)
-	}
-	var auditID int64
-	if err := tx.QueryRow(ctx, `
-		INSERT INTO audit_events (actor_user_id, target_user_id, action, metadata)
-		VALUES ($1, $2, $3, $4::jsonb)
-		RETURNING id
-	`, input.UserID, input.UserID, AuditActionExternalRegister, metadata).Scan(&auditID); err != nil {
-		return 0, fmt.Errorf("record external registration audit: %w", err)
-	}
-	return auditID, nil
 }
 
 // CompleteLink 把一次 link.complete 断言绑定到已登录用户。
@@ -934,96 +687,11 @@ func (s *ExternalAuthService) loadCurrentUser(ctx context.Context, userID int64)
 	return current, nil
 }
 
-func (s *ExternalAuthService) anyUser(ctx context.Context) (bool, error) {
-	if s.deps.AnyUserExists != nil {
-		return s.deps.AnyUserExists(ctx)
-	}
-	if s.deps.Pool == nil {
-		return false, fmt.Errorf("identity pool unavailable")
-	}
-	var count int
-	err := s.deps.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM users`).Scan(&count)
-	return count > 0, err
-}
-
-func (s *ExternalAuthService) registrationEnabled(ctx context.Context) (bool, error) {
-	if s.deps.RegistrationEnabled != nil {
-		return s.deps.RegistrationEnabled(ctx)
-	}
-	return true, nil
-}
-
 func (s *ExternalAuthService) providerContribution(providerID string) (identityregistry.ProviderContribution, error) {
 	if s.deps.ProviderContribution != nil {
 		return s.deps.ProviderContribution(providerID)
 	}
 	return identityregistry.ProviderContribution{}, ErrExternalIdentityLinkStoreUnavailable
-}
-
-func (s *ExternalAuthService) validateExternalRegistrationInput(ctx context.Context, input ExternalRegistrationInput) error {
-	if s.deps.ValidateRegistration != nil {
-		return s.deps.ValidateRegistration.ValidateExternalRegister(ctx, input)
-	}
-	// 测试兼容：最小非空检查（生产注入权威 Service）。
-	return validateRegistrationLocalInputMinimal(input)
-}
-
-// ExternalRegistrationInput 是外部注册时收集的本地必填字段。
-type ExternalRegistrationInput struct {
-	Username    string
-	Email       string
-	DisplayName string
-	Locale      string
-}
-
-// Normalized 返回 trim 后的字段，displayName 缺省回落到 username。
-func (input ExternalRegistrationInput) Normalized() ExternalRegistrationInput {
-	username := strings.TrimSpace(input.Username)
-	displayName := strings.TrimSpace(input.DisplayName)
-	if displayName == "" {
-		displayName = username
-	}
-	locale := strings.TrimSpace(input.Locale)
-	if locale == "" {
-		locale = "zh-CN"
-	}
-	return ExternalRegistrationInput{
-		Username:    username,
-		Email:       strings.TrimSpace(input.Email),
-		DisplayName: displayName,
-		Locale:      locale,
-	}
-}
-
-func validateRegistrationLocalInputMinimal(input ExternalRegistrationInput) error {
-	input = input.Normalized()
-	if input.Username == "" {
-		return ErrExternalRegistrationFieldUsername
-	}
-	if input.Email == "" {
-		return ErrExternalRegistrationFieldEmail
-	}
-	return nil
-}
-
-// registrationConflictsTx 在事务里检查 username/email 冲突。
-func registrationConflictsTx(ctx context.Context, tx pgx.Tx, username, email string) error {
-	var usernameTaken, emailTaken bool
-	err := tx.QueryRow(ctx, `
-		SELECT
-		  EXISTS (SELECT 1 FROM users WHERE username_lower = lower($1)),
-		  EXISTS (SELECT 1 FROM users WHERE email_lower = lower($2))
-	`, username, email).Scan(&usernameTaken, &emailTaken)
-	if err != nil {
-		return err
-	}
-	if usernameTaken {
-		return ErrExternalRegistrationFieldUsername
-	}
-	if emailTaken {
-		return ErrExternalRegistrationFieldEmail
-	}
-	return nil
 }
 
 // --- 错误定义 ---

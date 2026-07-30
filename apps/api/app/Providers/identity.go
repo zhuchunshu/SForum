@@ -34,8 +34,10 @@ func NewIdentityProviderWithAuthSessions(store identity.Store, sessions *authses
 }
 
 func NewIdentityProviderWithEvents(store identity.Store, sessions *authsession.Manager, verifier humanverify.Verifier, publisher appevents.Publisher) *IdentityProvider {
+	appearanceStore, _ := store.(identity.CurrentUserAppearanceStore)
 	return &IdentityProvider{
-		controller: identitycontroller.NewControllerWithAuthSessions(identity.NewServiceWithEvents(store, publisher), sessions, verifier),
+		controller: identitycontroller.NewControllerWithAuthSessions(identity.NewServiceWithEvents(store, publisher), sessions, verifier).
+			WithAppearancePreferences(identity.NewAppearancePreferenceService(appearanceStore)),
 	}
 }
 
@@ -61,6 +63,8 @@ func NewIdentityProviderWithPasswordResetAndLockout(store identity.Store, sessio
 		svc,
 		sessions, verifier, passwordReset, mailQueue, optionSettings,
 	)
+	appearanceStore, _ := store.(identity.CurrentUserAppearanceStore)
+	controller.WithAppearancePreferences(identity.NewAppearancePreferenceService(appearanceStore))
 	if optionService, ok := optionSettings.(*options.Service); ok {
 		controller.WithWelcomeMailOptions(options.NewMailSettings(optionService))
 	}

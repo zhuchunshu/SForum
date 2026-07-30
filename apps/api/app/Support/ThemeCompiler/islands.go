@@ -33,6 +33,7 @@ var requiredPageComponents = map[string][]string{
 	"forum.topic.reply":            {"forum.component.topic_reply"},
 	"forum.topic.edit":             {"forum.component.topic_editor"},
 	"forum.settings.profile":       {"profile.component.settings_form"},
+	"forum.settings.appearance":    {"identity.component.appearance_settings"},
 	"forum.settings.login_methods": {"identity.component.login_methods_settings"},
 	"forum.settings.password":      {"identity.component.local_password_settings"},
 	"forum.settings.security":      {"identity.component.security_settings"},

@@ -14,7 +14,7 @@ AvatarView:
       - static
     url:
       type: string
-      description: Empty when kind is initials and no image URL should be loaded.
+      description: Empty when kind is initials. Uploaded avatars use the stable browser media path /media/avatars/{publicId}.
     attachmentId:
       type:
       - integer

@@ -23,6 +23,8 @@ const (
 
 	HashMD5    = "md5"
 	HashSHA256 = "sha256"
+
+	uploadedMediaPath = "/media/avatars/"
 )
 
 type View struct {
@@ -85,7 +87,7 @@ func (b *ViewBuilder) AvatarView(ctx context.Context, user User, source Source) 
 		id := source.Attachment.ID
 		url := strings.TrimSpace(source.Attachment.URL)
 		if url == "" && source.Attachment.PublicID != "" {
-			url = "/api/v1/attachments/" + source.Attachment.PublicID + "/content"
+			url = uploadedMediaPath + source.Attachment.PublicID
 		}
 		return View{Kind: KindUploaded, URL: url, AttachmentID: &id, Alt: alt}
 	}

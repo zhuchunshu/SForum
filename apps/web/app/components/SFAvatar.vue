@@ -84,6 +84,7 @@ const toneSeed = computed(() => {
 // 原样使用 AvatarView / src
 const imageSrc = computed(() => `${props.avatar?.url || props.src || ''}`.trim())
 const isRemoteImage = computed(() => /^https?:\/\//i.test(imageSrc.value))
+const bypassImageOptimization = computed(() => props.avatar?.kind === 'uploaded' || isRemoteImage.value)
 
 const imageFailed = ref(false)
 const showImage = computed(() => Boolean(imageSrc.value) && !imageFailed.value)
@@ -116,9 +117,9 @@ watch(imageSrc, resetImageFailure)
 
 <template>
   <span :class="avatarClass" :aria-hidden="isDecorative ? 'true' : undefined">
-    <!-- Gravatar 必须进入 SSR HTML；只有实际加载失败后才退回字头。 -->
+    <!-- 上传头像由后端预处理，直接请求稳定媒体 URL；远程头像同样不经过 IPX。 -->
     <img
-      v-if="showImage && imageSrc && isRemoteImage"
+      v-if="showImage && imageSrc && bypassImageOptimization"
       class="size-full object-cover"
       :src="imageSrc"
       :alt="imageAlt"

@@ -2,6 +2,7 @@ package identity
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"sync"
 	"testing"
@@ -23,6 +24,7 @@ func validRegistrationTicket(token string, expiresAt time.Time) RegistrationTick
 		OwnerExtensionID:   "sforum.auth-github",
 		OwnerPackageDigest: strings.Repeat("a", 64),
 		Operation:          ExternalAuthOperationRegistration,
+		SourceOperation:    ExternalAuthOperationRegistration,
 		ProviderSubject:    "raw-subject-123",
 		CreatedAt:          created,
 		ExpiresAt:          expiresAt,
@@ -328,6 +330,7 @@ func TestInMemoryRegistrationTicketStore_RequiresBindingAndTimestamps(t *testing
 		OwnerExtensionID:   "ext",
 		OwnerPackageDigest: strings.Repeat("b", 64),
 		Operation:          ExternalAuthOperationRegistration,
+		SourceOperation:    ExternalAuthOperationRegistration,
 		ProviderSubject:    "42",
 	}
 	if err := store.Save(ctx, ok); err != nil {
@@ -342,6 +345,35 @@ func TestInMemoryRegistrationTicketStore_RequiresBindingAndTimestamps(t *testing
 	}
 	if got.ExpiresAt.Sub(got.CreatedAt) > RegistrationTicketDefaultTTL+time.Second {
 		t.Fatalf("expires must clamp to default TTL")
+	}
+}
+
+func TestInMemoryRegistrationTicketStore_InspectDoesNotConsume(t *testing.T) {
+	store := NewInMemoryRegistrationTicketStore()
+	ticket := validRegistrationTicket("inspect-ticket", time.Now().Add(time.Minute))
+	ticket.SourceOperation = ExternalAuthOperationLogin
+	if err := store.Save(t.Context(), ticket); err != nil {
+		t.Fatal(err)
+	}
+	first, err := store.Inspect(t.Context(), ticket.Token)
+	if err != nil || first.SourceOperation != ExternalAuthOperationLogin {
+		t.Fatalf("inspect ticket=%#v err=%v", first, err)
+	}
+	second, err := store.Inspect(t.Context(), ticket.Token)
+	if err != nil || second.ProviderSubject != ticket.ProviderSubject {
+		t.Fatalf("second inspect ticket=%#v err=%v", second, err)
+	}
+	if _, err := store.Consume(t.Context(), ticket.Token); err != nil {
+		t.Fatalf("inspect consumed ticket: %v", err)
+	}
+}
+
+func TestInMemoryRegistrationTicketStore_RejectsMissingSourceOperation(t *testing.T) {
+	store := NewInMemoryRegistrationTicketStore()
+	ticket := validRegistrationTicket("missing-source", time.Now().Add(time.Minute))
+	ticket.SourceOperation = ""
+	if err := store.Save(t.Context(), ticket); !errors.Is(err, ErrRegistrationTicketInvalid) {
+		t.Fatalf("missing source operation err=%v", err)
 	}
 }
 

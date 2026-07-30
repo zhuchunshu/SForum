@@ -197,6 +197,7 @@ func TestCorePageViewModelSourcePopulatesEveryCatalogContract(t *testing.T) {
 		"forum.topic.edit":             {"/topics/42/edit", map[string]string{"topicId": "42"}, nil, reflect.TypeOf(themecompiler.TopicEditPageViewModel{})},
 		"forum.profile.show":           {"/u/alice", map[string]string{"username": "alice"}, nil, reflect.TypeOf(themecompiler.ProfilePageViewModel{})},
 		"forum.settings.profile":       {"/settings/profile", nil, nil, reflect.TypeOf(themecompiler.ProfileSettingsPageViewModel{})},
+		"forum.settings.appearance":    {"/settings/appearance", nil, nil, reflect.TypeOf(themecompiler.AppearanceSettingsPageViewModel{})},
 		"forum.settings.login_methods": {"/settings/login-methods", nil, nil, reflect.TypeOf(themecompiler.LoginMethodsSettingsPageViewModel{})},
 		"forum.settings.password":      {"/settings/password", nil, nil, reflect.TypeOf(themecompiler.LocalPasswordSettingsPageViewModel{})},
 		"forum.settings.security":      {"/settings/security", nil, nil, reflect.TypeOf(themecompiler.SecuritySettingsPageViewModel{})},

@@ -8,7 +8,9 @@ export type AdminSurfacePlacement = {
 
 export const adminSurfacePlacements = [
   { id: "core.component.page.admin", contractVersion: "sforum.component.page.admin@1", route: "/admin" },
-  { id: "core.component.page.admin.attachments", contractVersion: "sforum.component.page.admin.attachments@1", route: "/admin/attachments" },
+  { id: "core.component.page.admin.attachments.redirect", contractVersion: "sforum.component.page.admin.attachments.redirect@1", route: "/admin/attachments" },
+  { id: "core.component.page.admin.attachments", contractVersion: "sforum.component.page.admin.attachments@1", route: "/admin/attachments/manager" },
+  { id: "core.component.page.admin.attachments.settings", contractVersion: "sforum.component.page.admin.attachments.settings@1", route: "/admin/attachments/settings" },
   { id: "core.component.page.admin.database", contractVersion: "sforum.component.page.admin.database@1", route: "/admin/database" },
   { id: "core.component.page.admin.entity.meta", contractVersion: "sforum.component.page.admin.entity.meta@1", route: "/admin/entity-meta" },
   { id: "core.component.page.admin.extensions", contractVersion: "sforum.component.page.admin.extensions@1", route: "/admin/extensions" },

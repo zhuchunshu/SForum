@@ -145,6 +145,8 @@ paths:
     "$ref": "./openapi/paths/identity.yaml#/authSession"
   "/auth/locale":
     "$ref": "./openapi/paths/identity.yaml#/authLocale"
+  "/auth/appearance":
+    "$ref": "./openapi/paths/identity.yaml#/authAppearance"
   "/auth/sessions":
     "$ref": "./openapi/paths/identity.yaml#/authSessions"
   "/auth/sessions/revoke-others":
@@ -171,6 +173,8 @@ paths:
     "$ref": "./openapi/paths/identity.yaml#/authProviderCallback"
   "/auth/external-registration":
     "$ref": "./openapi/paths/identity.yaml#/authExternalRegistration"
+  "/auth/external-registration/prepare":
+    "$ref": "./openapi/paths/identity.yaml#/authExternalRegistrationPrepare"
   "/auth/external-identities":
     "$ref": "./openapi/paths/identity.yaml#/authExternalIdentities"
   "/auth/external-identities/{linkId}":
@@ -395,10 +399,14 @@ paths:
     "$ref": "./openapi/paths/attachments.yaml#/attachmentByPublicID"
   "/attachments/{publicId}/content":
     "$ref": "./openapi/paths/attachments.yaml#/attachmentContent"
+  "/attachments/{publicId}/variants/{variant}/content":
+    "$ref": "./openapi/paths/attachments.yaml#/attachmentVariantContent"
   "/admin/attachment-settings":
     "$ref": "./openapi/paths/attachments.yaml#/adminAttachmentSettings"
   "/admin/attachment-settings/test":
     "$ref": "./openapi/paths/attachments.yaml#/adminAttachmentSettingsTest"
+  "/admin/attachment-compression-settings":
+    "$ref": "./openapi/paths/attachments.yaml#/adminAttachmentCompressionSettings"
   "/admin/attachment-storage-instances":
     "$ref": "./openapi/paths/attachments.yaml#/adminAttachmentStorageInstances"
   "/admin/attachment-storage-instances/probe":
@@ -413,6 +421,10 @@ paths:
     "$ref": "./openapi/paths/attachments.yaml#/adminAttachments"
   "/admin/attachments/cleanup":
     "$ref": "./openapi/paths/attachments.yaml#/adminAttachmentCleanup"
+  "/admin/attachments/compression-stats":
+    "$ref": "./openapi/paths/attachments.yaml#/adminAttachmentCompressionStats"
+  "/admin/attachments/compression/backfill":
+    "$ref": "./openapi/paths/attachments.yaml#/adminAttachmentCompressionBackfill"
   "/admin/attachments/{attachmentID}":
     "$ref": "./openapi/paths/attachments.yaml#/adminAttachmentByID"
   "/admin/database/tables":
@@ -713,6 +725,12 @@ components:
       "$ref": "./openapi/schemas/attachments.yaml#/ApiResponseAttachmentDelete"
     ApiResponseAttachmentCleanup:
       "$ref": "./openapi/schemas/attachments.yaml#/ApiResponseAttachmentCleanup"
+    ApiResponseAttachmentCompressionSettings:
+      "$ref": "./openapi/schemas/attachments.yaml#/ApiResponseAttachmentCompressionSettings"
+    ApiResponseAttachmentCompressionStats:
+      "$ref": "./openapi/schemas/attachments.yaml#/ApiResponseAttachmentCompressionStats"
+    ApiResponseAttachmentCompressionBackfill:
+      "$ref": "./openapi/schemas/attachments.yaml#/ApiResponseAttachmentCompressionBackfill"
     ApiResponseExtension:
       "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseExtension"
     ApiResponseExtensionList:
@@ -903,6 +921,10 @@ components:
       "$ref": "./openapi/schemas/attachments.yaml#/AttachmentProbe"
     AttachmentCleanupResult:
       "$ref": "./openapi/schemas/attachments.yaml#/AttachmentCleanupResult"
+    AttachmentCompressionSettings:
+      "$ref": "./openapi/schemas/attachments.yaml#/AttachmentCompressionSettings"
+    AttachmentCompressionStats:
+      "$ref": "./openapi/schemas/attachments.yaml#/AttachmentCompressionStats"
     ContentInput:
       "$ref": "./openapi/schemas/forum.yaml#/ContentInput"
     RenderedContent:

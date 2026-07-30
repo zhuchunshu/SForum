@@ -9,8 +9,10 @@
       "maxLength": 320,
       "description": "Stable GitHub numeric user id as decimal string. Host computes keyed HMAC digest; plugin must not emit a digest."
     },
+    "usernameHint": { "type": "string", "maxLength": 64 },
     "displayName": { "type": "string", "maxLength": 200 },
-    "emailHint": { "type": "string", "maxLength": 320 }
+    "emailHint": { "type": "string", "maxLength": 320 },
+    "emailVerified": { "type": "boolean" }
   },
   "additionalProperties": false
 }

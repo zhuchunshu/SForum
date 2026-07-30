@@ -57,8 +57,8 @@ func TestServiceSchedulesReturnsCoreCatalog(t *testing.T) {
 	if err != nil {
 		t.Fatalf("schedules: %v", err)
 	}
-	if len(items) != 6 {
-		t.Fatalf("expected 6 core schedules, got %d", len(items))
+	if len(items) != 7 {
+		t.Fatalf("expected 7 core schedules, got %d", len(items))
 	}
 	ids := map[string]bool{}
 	for _, item := range items {
@@ -77,6 +77,7 @@ func TestServiceSchedulesReturnsCoreCatalog(t *testing.T) {
 	for _, id := range []string{
 		"identity.cleanup_sessions",
 		"attachments.cleanup_orphans",
+		supportjobs.ScheduleAttachmentsReconcileCompression,
 		"audit.cleanup_events",
 		"forum.auto_lock_idle",
 		"forum.flush_view_counts",

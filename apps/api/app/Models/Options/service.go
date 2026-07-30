@@ -16,7 +16,6 @@ import (
 	crypto "github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	localization "github.com/zhuchunshu/sforum/apps/api/app/Support/Localization"
-	storage "github.com/zhuchunshu/sforum/apps/api/app/Support/Storage"
 )
 
 const defaultCacheTTL = 30 * time.Second
@@ -133,7 +132,7 @@ type optionDefinition struct {
 	managePermission string
 }
 
-var optionDefinitions = []optionDefinition{
+var optionDefinitions = append([]optionDefinition{
 	{name: NameSiteName, public: true, managePermission: identity.PermissionSettingsSiteManage},
 	{name: NameSiteURL, public: true, managePermission: identity.PermissionSettingsSiteManage},
 	{name: NameSiteDefaultLocale, public: true, managePermission: identity.PermissionSettingsSiteManage},
@@ -217,17 +216,6 @@ var optionDefinitions = []optionDefinition{
 	{name: NameSEOSchemaOrgOrganizationLogo, public: true, managePermission: identity.PermissionSEOManage},
 	// 帖子 URL 形态：public（前端 SSR 需读取以拼接链接），SEO 管理权限可改。
 	{name: NameSEOTopicURLMode, public: true, managePermission: identity.PermissionSEOManage},
-	{name: NameAttachmentProvider, managePermission: identity.PermissionAttachmentSettings},
-	{name: NameAttachmentUploadEnabled, public: true, managePermission: identity.PermissionAttachmentSettings},
-	{name: NameAttachmentPathTemplate, managePermission: identity.PermissionAttachmentSettings},
-	{name: NameAttachmentPublicBaseURL, managePermission: identity.PermissionAttachmentSettings},
-	{name: NameAttachmentMaxFileSizeMB, public: true, managePermission: identity.PermissionAttachmentSettings},
-	{name: NameAttachmentAllowedExtensions, public: true, managePermission: identity.PermissionAttachmentSettings},
-	{name: NameAttachmentAllowedMIMETypes, public: true, managePermission: identity.PermissionAttachmentSettings},
-	{name: NameAttachmentDefaultVisibility, managePermission: identity.PermissionAttachmentSettings},
-	{name: NameAttachmentCleanupOrphanDays, managePermission: identity.PermissionAttachmentSettings},
-	{name: NameAttachmentLocalRoot, managePermission: identity.PermissionAttachmentSettings},
-	{name: NameAttachmentLocalPublicPrefix, managePermission: identity.PermissionAttachmentSettings},
 	// 头像：allow_upload/default_provider/gravatar_base_url/max_size_kb/allow_gif/compress_enabled 对前端公开，
 	// 用于客户端预校验上传；default_static_url/max_dimension/target_dimension/compress_quality 仅供后台管理。
 	{name: NameAvatarAllowUpload, public: true, managePermission: identity.PermissionSettingsAvatarManage},
@@ -247,7 +235,7 @@ var optionDefinitions = []optionDefinition{
 	{name: NameNotificationMentionEmail, managePermission: identity.PermissionSettingsMailManage},
 	{name: NameNotificationModerationInApp, managePermission: identity.PermissionSettingsMailManage},
 	{name: NameNotificationModerationEmail, managePermission: identity.PermissionSettingsMailManage},
-}
+}, attachmentOptionDefinitions()...)
 
 type Service struct {
 	store    Store
@@ -1107,17 +1095,6 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameSEOSchemaOrgDiscussion:              enabledOptionValue(true),
 		NameSEOSchemaOrgOrganizationLogo:        "",
 		NameSEOTopicURLMode:                     "id_slug",
-		NameAttachmentProvider:                  storage.ProviderLocal,
-		NameAttachmentUploadEnabled:             enabledOptionValue(true),
-		NameAttachmentPathTemplate:              "{yyyy}/{mm}/{dd}/{public_id}{ext}",
-		NameAttachmentPublicBaseURL:             "",
-		NameAttachmentMaxFileSizeMB:             "20",
-		NameAttachmentAllowedExtensions:         ".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.zip",
-		NameAttachmentAllowedMIMETypes:          "image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,application/zip",
-		NameAttachmentDefaultVisibility:         "public",
-		NameAttachmentCleanupOrphanDays:         "30",
-		NameAttachmentLocalRoot:                 "storage/app/attachments",
-		NameAttachmentLocalPublicPrefix:         "",
 		// 邮件：开发默认 dev_log，配合 Mailpit/控制台调试；生产未配置 SMTP 时回退 noop。
 		// 头像：默认 identicon（离线可用，符合"开箱即用"原则）；上传与压缩默认开启。
 		NameAvatarAllowUpload:           enabledOptionValue(true),
@@ -1138,6 +1115,7 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameNotificationModerationInApp: enabledOptionValue(true),
 		NameNotificationModerationEmail: enabledOptionValue(true),
 	}
+	mergeAttachmentDefaults(values)
 	mergeCommunityPolicyDefaults(values)
 	mergeSiteBrandDefaults(values)
 	mergeFeatureFlagDefaults(values)
