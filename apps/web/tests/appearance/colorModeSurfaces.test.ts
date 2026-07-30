@@ -83,8 +83,7 @@ describe('color-mode presentation surfaces', () => {
 
   test('daytime background presets cannot override dark-mode surface tokens', () => {
     expect(appRoot).toContain("'data-sforum-light-background': appliedLightBackground.value")
-    expect(appRoot).toContain(': lightBackground.value)')
-    expect(errorRoot).toContain("'data-sforum-light-background': lightBackground.value")
+    expect(errorRoot).toContain("'data-sforum-light-background': appliedLightBackground.value")
     for (const preset of lightBackgroundPresets) {
       expect(themeStyles).toContain(`html:not(.dark)[data-sforum-light-background="${preset}"]`)
     }

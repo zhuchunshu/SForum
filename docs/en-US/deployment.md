@@ -21,6 +21,34 @@ Change at least:
 - `APP_URL` / `APP_DOMAIN`  
 - session/CSRF-related secrets per example comments  
 
+## Maintainer releases
+
+Maintainers create a version from a clean `main` worktree synchronized with
+`origin/main`:
+
+```sh
+./scripts/release.sh
+```
+
+The helper returns immediately after pushing the version tag while GitHub
+Actions continues the release. Use `--wait` only when the current terminal must
+track the result; `--no-wait` is the default. On GitHub, Release waits for and
+reuses the exact commit's existing `main` push CI result. Image build, scan, and
+promotion begin only after that run succeeds, without repeating the repository
+gate for the tag. After image scan and Compose smoke pass, the GitHub Release
+also publishes:
+
+- the `sforum` management CLI for Linux, macOS, and Windows on amd64 and arm64;
+- Linux amd64 and arm64 backend bundles containing API, worker, migrator, CLI,
+  and the exact protected built-ins extracted from the scanned candidate image;
+- `SHA256SUMS` for every archive plus GitHub build provenance attestations.
+
+The Linux backend bundle does not contain the Nuxt web runtime, PostgreSQL, or
+Redis, so it is not a complete site installer. The four version-matched Docker
+images below remain the recommended production path. Verify a downloaded asset
+with `gh attestation verify <file> --repo zhuchunshu/SForum` and its entry in
+`SHA256SUMS`.
+
 ## Deploy entrypoint
 
 ### Published images (recommended)

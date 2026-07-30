@@ -1,5 +1,5 @@
 import { useActiveThemeSkin } from '~/composables/themes/useActiveThemeSkin'
-import { useAuthSession } from '~/composables/identity/useAuthSession'
+import { useErrorPageStartupState } from '~/composables/errors/useErrorPageStartupState'
 import { useSystemErrorPageResolve } from '~/composables/errors/useSystemErrorPageResolve'
 import type { MaybeRefOrGetter } from 'vue'
 import {
@@ -11,16 +11,8 @@ import {
 
 export function useSystemErrorPagePresentation(pageId: MaybeRefOrGetter<string>) {
   const systemResolve = useSystemErrorPageResolve(pageId)
-  const { refresh: refreshWebOptions } = useWebOptions()
-  const {
-    refresh: refreshAuthSession,
-    status: authStatus,
-    lastRefreshError: authRefreshError
-  } = useAuthSession()
+  const startupState = useErrorPageStartupState()
   const themeSkin = useActiveThemeSkin()
-  const startupTimeout = import.meta.dev ? 1000 : 1200
-  const hasServerSession = import.meta.server
-    && /(?:^|;\s*)sforum_session=/.test(useRequestHeaders(['cookie']).cookie || '')
 
   function enterCoreEmergency(reason: PageResolveReason, error?: unknown): PageResolvePayload {
     themeSkin.clear({ resetIdentity: true })
@@ -40,8 +32,10 @@ export function useSystemErrorPagePresentation(pageId: MaybeRefOrGetter<string>)
     }
 
     try {
+      const startupTask = startupState.refresh()
       const resolved = await systemResolve.refresh({ deferCommit: true })
       if (resolved.provider === 'core' || resolved.fallback) {
+        await startupTask
         themeSkin.clear({ resetIdentity: true })
         const fallback = systemResolve.commit(resolved)
         if (systemResolve.failure.value) {
@@ -64,26 +58,9 @@ export function useSystemErrorPagePresentation(pageId: MaybeRefOrGetter<string>)
         expectedIdentity,
         requireLinks: true
       })
-      const optionsTask = refreshWebOptions({
-        timeout: startupTimeout,
-        serverInternal: import.meta.server
-      }).then(
-        () => ({ ok: true as const }),
-        error => ({ ok: false as const, error })
-      )
-      const authTask = hasServerSession
-        ? refreshAuthSession({
-            timeout: startupTimeout,
-            serverInternal: true
-          }).then(() => authStatus.value === 'unavailable'
-            ? { ok: false as const, error: authRefreshError.value }
-            : { ok: true as const })
-        : Promise.resolve({ ok: true as const })
-
-      const [skinResult, optionsResult, authResult] = await Promise.all([
+      const [skinResult, startupResult] = await Promise.all([
         skinTask,
-        optionsTask,
-        authTask
+        startupTask
       ])
       if (skinResult.status !== 'success') {
         return enterCoreEmergency(
@@ -93,11 +70,8 @@ export function useSystemErrorPagePresentation(pageId: MaybeRefOrGetter<string>)
           skinResult.error
         )
       }
-      if (!optionsResult.ok) {
-        return enterCoreEmergency(PAGE_RESOLVE_REASON.transportUnavailable, optionsResult.error)
-      }
-      if (!authResult.ok) {
-        return enterCoreEmergency(PAGE_RESOLVE_REASON.transportUnavailable, authResult.error)
+      if (!startupResult.ok) {
+        return enterCoreEmergency(PAGE_RESOLVE_REASON.transportUnavailable, startupResult.error)
       }
       if (!themeSkin.commit(skinResult)) {
         return enterCoreEmergency(PAGE_RESOLVE_REASON.artifactMismatch)

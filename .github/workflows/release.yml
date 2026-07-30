@@ -22,15 +22,8 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  gate:
-    name: Release gate
-    uses: ./.github/workflows/ci.yml
-    with:
-      ref: ${{ inputs.tag || github.ref }}
-
   prepare:
     name: Prepare release
-    needs: gate
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.version.outputs.tag }}
@@ -70,9 +63,42 @@ jobs:
             echo "sha=sha-$commit"
           } >> "$GITHUB_OUTPUT"
 
+  verify-ci:
+    name: Verify main CI
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Check out release commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - name: Verify release commit belongs to main
+        env:
+          RELEASE_COMMIT: ${{ needs.prepare.outputs.commit }}
+        run: |
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor "$RELEASE_COMMIT" refs/remotes/origin/main; then
+            echo "Release commit $RELEASE_COMMIT is not reachable from origin/main" >&2
+            exit 1
+          fi
+
+      - name: Wait for exact main CI result
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_COMMIT: ${{ needs.prepare.outputs.commit }}
+        run: ./scripts/ci/verify-main-ci.sh "$RELEASE_COMMIT"
+
   publish-candidate:
     name: Publish candidate / ${{ matrix.image }}
-    needs: prepare
+    needs:
+      - prepare
+      - verify-ci
     runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:
@@ -87,15 +113,19 @@ jobs:
           - image: sforum-api
             dockerfile: apps/api/Dockerfile
             target: api
+            ci_cache: ci-api
           - image: sforum-worker
             dockerfile: apps/api/Dockerfile
             target: worker
+            ci_cache: ci-worker
           - image: sforum-migrate
             dockerfile: apps/api/Dockerfile
             target: migrate
+            ci_cache: ci-migrate
           - image: sforum-web
             dockerfile: apps/web/Dockerfile
             target: prod
+            ci_cache: ci-web
     steps:
       - name: Check out release commit
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -142,7 +172,9 @@ jobs:
             SFORUM_VERSION=${{ needs.prepare.outputs.version }}
             SFORUM_COMMIT=${{ needs.prepare.outputs.commit }}
             SFORUM_BUILD_TIME=${{ needs.prepare.outputs.build_time }}
-          cache-from: type=gha,scope=release-${{ matrix.image }}
+          cache-from: |
+            type=gha,scope=${{ matrix.ci_cache }}
+            type=gha,scope=release-${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=release-${{ matrix.image }}
           provenance: mode=max
           sbom: true
@@ -195,11 +227,120 @@ jobs:
           "${{ needs.prepare.outputs.version }}"
           "${{ needs.prepare.outputs.commit }}"
 
+  release-assets:
+    name: Release asset / ${{ matrix.goos }} / ${{ matrix.goarch }}
+    needs:
+      - prepare
+      - publish-candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+          - goos: windows
+            goarch: arm64
+    steps:
+      - name: Check out release commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: apps/api/go.sum
+
+      - name: Log in to GHCR for Linux bundle extraction
+        if: matrix.goos == 'linux'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build release assets
+        env:
+          SFORUM_REGISTRY: ${{ env.REGISTRY }}/${{ github.repository_owner }}
+        run: >-
+          ./scripts/ci/build-release-assets.sh
+          "${{ needs.prepare.outputs.version }}"
+          "${{ needs.prepare.outputs.commit }}"
+          "${{ needs.prepare.outputs.build_time }}"
+          "${{ needs.prepare.outputs.sha }}"
+          "${{ matrix.goos }}"
+          "${{ matrix.goarch }}"
+          "$GITHUB_WORKSPACE/dist"
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-asset-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
+  verify-release-assets:
+    name: Verify release assets
+    needs:
+      - prepare
+      - release-assets
+    runs-on: ubuntu-latest
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out release commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - name: Download release asset matrix
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          pattern: release-asset-*
+          path: dist
+          merge-multiple: true
+
+      - name: Verify release assets and generate checksums
+        run: ./scripts/ci/finalize-release-assets.sh "${{ needs.prepare.outputs.version }}" dist
+
+      - name: Attest release assets
+        uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661 # v3
+        with:
+          subject-path: dist/*
+
+      - name: Upload verified release assets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: verified-release-assets
+          path: dist/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
   promote:
     name: Promote / ${{ matrix.image }}
     needs:
       - prepare
       - smoke
+      - verify-release-assets
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -242,22 +383,58 @@ jobs:
     needs:
       - prepare
       - promote
+      - verify-release-assets
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: write
     steps:
+      - name: Download verified release assets
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: verified-release-assets
+          path: dist
+
       - name: Create release after image promotion
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
           STABLE: ${{ needs.prepare.outputs.stable }}
         run: |
+          shopt -s nullglob
+          assets=(dist/*)
+          if (( ${#assets[@]} == 0 )); then
+            echo "No verified release assets are available" >&2
+            exit 1
+          fi
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "GitHub Release $RELEASE_TAG already exists"
+            existing_assets="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
+            if [[ -z "$existing_assets" ]]; then
+              gh release upload "$RELEASE_TAG" "${assets[@]}" --repo "$GITHUB_REPOSITORY"
+              echo "Added verified assets to existing GitHub Release $RELEASE_TAG"
+              exit 0
+            fi
+            local_names="$(printf '%s\n' "${assets[@]##*/}" | sort)"
+            remote_names="$(sort <<< "$existing_assets")"
+            if [[ "$local_names" != "$remote_names" ]]; then
+              echo "GitHub Release $RELEASE_TAG has a partial or conflicting asset set; refusing to overwrite it" >&2
+              exit 1
+            fi
+            remote_dir="$(mktemp -d)"
+            trap 'rm -rf "$remote_dir"' EXIT
+            gh release download "$RELEASE_TAG" --dir "$remote_dir" --repo "$GITHUB_REPOSITORY"
+            for asset in "${assets[@]}"; do
+              asset_name="$(basename "$asset")"
+              if ! cmp -s "$asset" "$remote_dir/$asset_name"; then
+                echo "GitHub Release $RELEASE_TAG asset $asset_name differs from the verified artifact; refusing to overwrite it" >&2
+                exit 1
+              fi
+            done
+            echo "GitHub Release $RELEASE_TAG already contains the exact verified asset set"
             exit 0
           fi
           args=(--verify-tag --generate-notes --title "SForum $RELEASE_TAG")
           if [[ "$STABLE" != "true" ]]; then
             args+=(--prerelease)
           fi
-          gh release create "$RELEASE_TAG" "${args[@]}" --repo "$GITHUB_REPOSITORY"
+          gh release create "$RELEASE_TAG" "${assets[@]}" "${args[@]}" --repo "$GITHUB_REPOSITORY"

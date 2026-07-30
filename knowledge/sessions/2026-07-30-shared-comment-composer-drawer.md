@@ -2,9 +2,13 @@
 
 ## Changed
 
-- Replaced the inline comment editor and standalone advanced-reply page with
-  one `SFTopicCommentComposerDrawer` for advanced reply, comment reply, and
-  comment edit.
+- Kept top-level quick reply in the page with the compact editor and direct
+  submission; focusing it no longer opens the advanced composer.
+- Advanced reply, comment reply, and comment edit use one
+  `SFTopicCommentComposerDrawer`; the standalone advanced-reply page remains a
+  compatibility redirect.
+- The shared drawer now opens from the bottom on desktop and mobile. Its top
+  handle supports pointer dragging plus Arrow/Home/End keyboard height changes.
 - Added `useTopicCommentComposerDrawer` for mode, draft, legacy-query,
   submission, revision-CAS, cross-author reason, and close/discard state.
 - Reduced `SFTopicShowPage.vue` from 1475 to 1273 lines and lowered its
@@ -16,20 +20,24 @@
 
 ## Decisions
 
-- Desktop uses a right drawer up to 640px; mobile uses a bottom drawer around
-  90dvh. All modes reuse the full `SFEditor` and drawer-owned footer actions.
+- Desktop defaults to a bottom drawer around 76dvh; mobile defaults around
+  90dvh. Both clamp manual height changes to the current viewport. All advanced,
+  reply, and edit modes reuse the full `SFEditor` and drawer-owned footer actions.
 - Existing API authorization, cooldown, moderation, expected-revision CAS, and
   cross-author audit-reason behavior remain authoritative.
 
 ## Verification
 
-- `bun test tests/forum/defaultThemeTopicPage.test.ts tests/forum/forumTopic.test.ts`:
-  31 passed.
-- `bun run typecheck`: passed.
+- `bun test tests/forum/defaultThemeTopicPage.test.ts tests/forum/forumCooldownFeedback.test.ts`:
+  10 passed.
 - `bun run build`: passed through client, SSR, and Nitro output.
-- Browser QA on `/t/87/topic-1oa3k5k` passed advanced reply, comment reply,
-  edit, dirty-discard, legacy redirect, and console checks at `1440x1000` and
-  `390x844`. Mobile measured 390x759.6 with no horizontal overflow.
+- `bun run typecheck`: this change adds no type errors; the worktree still has
+  unrelated pre-existing errors in attachment settings, personalization,
+  language, search SEO, and admin-surface typing.
+- Browser QA on `/t/87/topic-1oa3k5k` passed inline focus without drawer open,
+  bottom-drawer identity, pointer resizing, keyboard resizing, console checks,
+  and no horizontal overflow at `1280x720` and `390x844`. Desktop height moved
+  from about 547px to 627px; mobile moved from about 760px to 660px.
 - Architecture validation reports only unrelated concurrent API baselines.
 
 ## Next

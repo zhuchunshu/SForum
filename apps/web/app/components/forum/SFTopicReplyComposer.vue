@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useTopicCommentSubmission } from '~/composables/forum/useTopicCommentSubmission'
+import type { ForumComment, ForumTopicDetail } from '~/utils/forum/forumTaxonomy'
+
 type AvatarView = {
   kind: 'uploaded' | 'initials' | 'gravatar' | 'static'
   url: string
@@ -6,16 +9,38 @@ type AvatarView = {
   alt: string
 }
 
-defineProps<{
+const props = defineProps<{
+  topic: ForumTopicDetail
+  refreshComments: () => Promise<unknown>
   actorName?: string
   avatar?: AvatarView | null
 }>()
 
 const emit = defineEmits<{
-  open: []
+  open: [draft: string]
 }>()
 
 const { t } = useI18n()
+const replyingTo = ref<ForumComment | null>(null)
+const {
+  replyMarkdown,
+  replySubmitting,
+  replyError,
+  showReplyError,
+  commentCooldownActive,
+  replyDisplayError,
+  submitReply
+} = useTopicCommentSubmission({
+  topic: toRef(props, 'topic'),
+  replyingTo,
+  refreshComments: props.refreshComments
+})
+
+function cancelReply() {
+  replyMarkdown.value = ''
+  replyError.value = ''
+  showReplyError.value = false
+}
 </script>
 
 <template>
@@ -26,14 +51,32 @@ const { t } = useI18n()
         <strong>{{ t('topicDetail.replyTitle') }}</strong>
         <small v-if="actorName">{{ t('topicDetail.replyAs', { name: actorName }) }}</small>
       </span>
-      <button type="button" class="sforum-topic-comments__reply-advanced" @click="emit('open')">
+      <button type="button" class="sforum-topic-comments__reply-advanced" @click="emit('open', replyMarkdown)">
         {{ t('topicDetail.advancedReply') }}
       </button>
     </header>
 
-    <button type="button" class="sforum-topic-comments__reply-launcher" @click="emit('open')">
-      <span>{{ t('topicDetail.replyPlaceholder') }}</span>
-      <UIcon name="i-lucide-expand" class="size-4" aria-hidden="true" />
-    </button>
+    <LazySFEditor
+      v-model="replyMarkdown"
+      compact
+      :rows="5"
+      :placeholder="t('topicDetail.replyPlaceholder')"
+      :submit-label="replySubmitting ? t('topicDetail.submitting') : t('topicDetail.submitReply')"
+      :cancel-label="t('topicDetail.cancel')"
+      :support-label="t('topicDetail.markdownSupported')"
+      :disabled="replySubmitting"
+      :submit-disabled="commentCooldownActive"
+      @cancel="cancelReply"
+      @submit="submitReply"
+    />
+
+    <SFAlert
+      v-if="showReplyError"
+      variant="danger"
+      :title="replyDisplayError"
+      :closable="!commentCooldownActive"
+      class="mx-3 mb-3"
+      @close="showReplyError = false"
+    />
   </section>
 </template>

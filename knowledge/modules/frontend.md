@@ -342,6 +342,11 @@ Plan: `../plans/2026-07-22-theme-defined-system-error-pages.md`
   not-found, rate-limited, and server-error templates/styles. A final default
   theme mobile CSS fix collapses the hidden-sidebar system-error layout to one
   full-width column below 960 px.
+- A 2026-07-30 follow-up moved effective appearance resolution into one shared
+  composable used by `app.vue` and `error.vue`. Authenticated 403/404/429/5xx
+  hard refreshes now honor user accent and daytime-background overrides, and
+  both public-resource and system-error Core fallbacks restore public options
+  plus session state before rendering their final appearance.
 - Focused browser QA covered real unknown-route 404, selected-theme markers,
   status preservation, recovery search, dark mode, mobile, and English locale.
   Current QA data has no natural full-page 429/5xx producer, so those families
@@ -557,7 +562,9 @@ Architecture sources:
   override modes. Selection updates the root appearance tokens immediately;
   reload discards unsaved edits, while save updates `CurrentUser.appearance`.
   Saving site inheritance clears the user row instead of copying current site
-  values, so later operator changes continue to flow through.
+  values, so later operator changes continue to flow through. `app.vue` and
+  theme-defined `error.vue` documents share this same resolver rather than
+  maintaining separate precedence branches.
 
 ## Editor And Content UI
 

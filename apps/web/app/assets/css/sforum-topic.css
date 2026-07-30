@@ -1070,34 +1070,6 @@
   border-radius: 5px;
 }
 
-.sforum-topic-comments__reply-launcher {
-  display: flex;
-  width: calc(100% - 28px);
-  min-height: 84px;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 14px;
-  border: 1px solid var(--sf-public-border);
-  border-radius: 5px;
-  padding: 12px 13px;
-  background: var(--sf-public-surface-muted);
-  color: var(--sf-public-text-muted);
-  font-size: 13px;
-  text-align: left;
-  cursor: text;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
-}
-
-.sforum-topic-comments__reply-launcher:hover {
-  border-color: var(--sf-public-border-strong);
-  background: var(--sf-public-surface);
-}
-
-.sforum-topic-comments__reply-launcher svg {
-  flex: 0 0 auto;
-}
-
 @media (max-width: 960px) {
   .sforum-topic-page__main {
     padding: 22px 16px 56px;

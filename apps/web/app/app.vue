@@ -7,8 +7,7 @@ import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
 import SFApiConnectionModal from '~/components/errors/SFApiConnectionModal.vue'
 import { useAdminTabs } from '~/composables/admin/useAdminTabs'
 import { useAdminAppearancePreview } from '~/composables/admin/settings/useAdminAppearancePreview'
-import { useUserAppearancePreference } from '~/composables/appearance/useUserAppearancePreference'
-import { resolveAppearanceTheme } from '~/utils/settings/appearance'
+import { useAppliedAppearance } from '~/composables/appearance/useAppliedAppearance'
 
 // no_prefix：中英共用 URL，不输出 hreflang 交替链接（同 URL 多语 SEO 无效）。
 // 仍保留 html lang/dir，供无障碍与浏览器语言提示。
@@ -19,8 +18,6 @@ const localeHead = useLocaleHead({
 })
 const {
   siteName,
-  lightBackground,
-  resolvedAppearanceTheme,
   seoSettings,
   siteFaviconUrl,
   siteAppleTouchIconUrl,
@@ -33,7 +30,6 @@ const { consumeFromRoute: consumeExternalAuthFeedback } = useExternalAuthFeedbac
 const route = useRoute()
 const adminRoutes = useAdminRoutes()
 const { preview: adminAppearancePreview } = useAdminAppearancePreview()
-const { saved: savedUserAppearance, preview: userAppearancePreview } = useUserAppearancePreference()
 const themeSkin = useActiveThemeSkin()
 const startupOptionsTimeout = import.meta.dev ? 800 : 2000
 const hasServerSession = import.meta.server
@@ -42,21 +38,15 @@ const hasServerSession = import.meta.server
 // 引入页签缓存控制列表
 const { cachedTabNames } = useAdminTabs()
 const isAdminRoute = computed(() => adminRoutes.routeId(route.path) !== null)
-const effectiveUserAppearance = computed(() => userAppearancePreview.value || savedUserAppearance.value)
-const appliedAppearanceTheme = computed(() => {
-  if (adminAppearancePreview.value && isAdminRoute.value) {
-    return resolveAppearanceTheme(adminAppearancePreview.value.theme)
-  }
-  return effectiveUserAppearance.value
-    ? resolveAppearanceTheme(effectiveUserAppearance.value.theme)
-    : resolvedAppearanceTheme.value
-})
-const appliedLightBackground = computed(() => {
-  if (adminAppearancePreview.value && isAdminRoute.value) {
-    return adminAppearancePreview.value.lightBackground
-  }
-  return effectiveUserAppearance.value?.lightBackground || lightBackground.value
-})
+const activeAdminAppearancePreview = computed(() =>
+  adminAppearancePreview.value && isAdminRoute.value ? adminAppearancePreview.value : null
+)
+const {
+  appliedAppearanceTheme,
+  appliedLightBackground,
+  savedUserAppearance,
+  userAppearancePreview
+} = useAppliedAppearance(activeAdminAppearancePreview)
 
 async function refreshStartupState(options: { restoreAuth: boolean }) {
   // 开发热重载时 API 可能还在编译，首屏先使用本地默认状态。

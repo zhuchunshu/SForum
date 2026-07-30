@@ -16,7 +16,9 @@ Initial identity foundation is implemented.
   operator-configured accent and daytime background. `PUT /auth/appearance`
   saves a validated override; `DELETE /auth/appearance` restores inheritance.
   The page keeps edits in memory for immediate preview and persists them only
-  after the explicit save action.
+  after the explicit save action. Normal documents and theme-defined system
+  error documents consume the same effective appearance precedence, including
+  authenticated hard-refresh errors.
 - Account settings now split login methods, local password, device sessions,
   and personal access tokens into independent `/settings/*` routes. Personal
   access tokens live at `/settings/tokens`, use separate Create/Manage tabs,

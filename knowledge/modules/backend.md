@@ -73,14 +73,22 @@ release builds continue to use their injected semantic version unchanged.
 Maintainers trigger this pipeline through `scripts/release.sh`. Its Chinese-
 default bilingual interface supports interactive and non-interactive use,
 validates a clean synchronized `main`, rejects duplicate or development tags,
-runs the local release gates by default, and pushes only an annotated release
-tag. Interactive mode requires an explicit alpha, beta, or stable selection
-before the base version; it suggests the next base and prerelease number from
-the latest valid remote release tags, while explicit input remains authoritative.
-Local release execution performs only Git and tag safety checks by default;
-GitHub Actions owns the complete test, build, database compatibility, container,
-scan, and smoke gate. `--local-checks` opts into the redundant local gate when
-the required local services are available, and `--dry-run` creates no tag.
+runs only Git and tag safety checks by default, and pushes one annotated release
+tag. It returns immediately after the push; explicit `--wait` retains synchronous
+terminal monitoring. Interactive mode requires an explicit alpha, beta, or stable
+selection before the base version; it suggests the next base and prerelease number
+from the latest valid remote release tags, while explicit input remains
+authoritative. GitHub verifies that the tag commit is reachable from `main`, then
+waits for the exact commit's successful `main` push CI instead of rerunning the
+same repository gate. Release builds restore both CI and release cache scopes
+before scan, exact-image smoke, and promotion. GitHub Release then publishes
+six Linux/macOS/Windows amd64/arm64 CLI archives, two Linux backend bundles
+whose service binaries and protected built-ins come from the scanned candidate
+images, one checksum manifest, and provenance attestations. Backend bundles do
+not claim to include the Nuxt Web runtime, PostgreSQL, or Redis; version-matched
+Compose images remain the complete production distribution. `--local-checks`
+opts into the redundant local gate when the required local services are
+available, and `--dry-run` creates no tag.
 See `decisions/2026-07-29-ghcr-multi-platform-release-pipeline.md`.
 
 The CI quality job provisions PostgreSQL 17 on the same host port `15432` used

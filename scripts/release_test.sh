@@ -43,9 +43,11 @@ git -C "$WORK_DIR" push origin v2.7.7 >/dev/null 2>&1
 
 ZH_HELP="$(cd "$WORK_DIR" && bash scripts/release.sh --help)"
 [[ "$ZH_HELP" == *"SForum 一键发布脚本"* ]] || fail "Chinese help is not the default"
+[[ "$ZH_HELP" == *"--no-wait"*"默认"* ]] || fail "Chinese help does not describe asynchronous release as the default"
 
 EN_HELP="$(cd "$WORK_DIR" && bash scripts/release.sh --lang en --help)"
 [[ "$EN_HELP" == *"SForum release helper"* ]] || fail "English help was not selected"
+[[ "$EN_HELP" == *"--no-wait"*"default"* ]] || fail "English help does not describe asynchronous release as the default"
 
 expect_failure "不支持的语言" bash "$WORK_DIR/scripts/release.sh" --lang fr --help
 expect_failure "非交互模式必须指定版本" bash "$WORK_DIR/scripts/release.sh" --non-interactive
@@ -83,7 +85,9 @@ if git --git-dir="$ORIGIN_DIR" show-ref --verify --quiet refs/tags/v2.8.0; then
   fail "dry run pushed a remote tag"
 fi
 
-(cd "$WORK_DIR" && bash scripts/release.sh 2.8.0 --lang en --non-interactive --no-wait >/dev/null 2>&1)
+DEFAULT_ASYNC_OUTPUT="$(cd "$WORK_DIR" && bash scripts/release.sh 2.8.0 --lang en --interactive --yes 2>&1)"
+[[ "$DEFAULT_ASYNC_OUTPUT" == *"Release continues in GitHub Actions"* ]] || fail "interactive release did not return asynchronously by default"
+[[ "$DEFAULT_ASYNC_OUTPUT" != *"cannot wait for the workflow"* ]] || fail "interactive release unexpectedly entered wait mode"
 [[ "$(git -C "$WORK_DIR" cat-file -t v2.8.0)" == "tag" ]] || fail "local release tag is not annotated"
 [[ "$(git --git-dir="$ORIGIN_DIR" cat-file -t v2.8.0)" == "tag" ]] || fail "remote release tag was not pushed"
 

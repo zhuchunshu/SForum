@@ -7,6 +7,12 @@ cd "$ROOT_DIR"
 echo "Running release script validation..."
 ./scripts/release_test.sh
 
+echo "Running exact main CI release gate validation..."
+./scripts/ci/verify-main-ci_test.sh
+
+echo "Running release asset packaging validation..."
+./scripts/ci/release_assets_test.sh
+
 echo "Running architecture boundary validation..."
 node tests/validate-architecture-boundaries.mjs
 

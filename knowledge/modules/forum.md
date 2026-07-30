@@ -22,11 +22,13 @@ accepted revisions, lifecycle states, public read models, and forum policy.
   cooldown rejection now returns HTTP `429` with standard `Retry-After` plus
   `retryAfterSeconds` / `retryAt`; topic creation and both comment composers
   show a server-authoritative countdown while preserving editable drafts.
-- Topic reply, comment reply, and comment edit now share one responsive
-  `USlideover` composer: a right drawer on desktop and a bottom drawer on
-  mobile. The former standalone advanced-reply route is compatibility-only and
-  redirects into this drawer without changing create/update authorization,
-  revision CAS, moderation, or cross-author audit-reason rules.
+- Top-level quick replies use the compact inline editor and submit without
+  opening an overlay. Advanced topic reply, comment reply, and comment edit
+  share one responsive `USlideover` composer that opens from the bottom on
+  desktop and mobile and exposes a pointer/keyboard height handle. The former
+  standalone advanced-reply route is compatibility-only and redirects into
+  this drawer without changing create/update authorization, revision CAS,
+  moderation, or cross-author audit-reason rules.
 - Topic detail exposes public **contributors** (author + body edit/restore
   actors, max 5 + count) and `GET /topics/{id}/contribution-timeline` for a
   header-only publish/edit timeline. Staff actors are fully exposed by default;

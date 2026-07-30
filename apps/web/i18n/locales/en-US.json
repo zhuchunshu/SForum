@@ -4670,6 +4670,8 @@
     "advancedReplyParent": "Replying to comment #{id}",
     "composerDrawer": {
       "close": "Close editor",
+      "resizeHeight": "Resize editor height",
+      "resizeHeightHint": "Drag vertically to resize, or use the arrow keys",
       "editTitle": "Edit reply",
       "replyTitle": "Reply to {name}",
       "editSubtitle": "Editing your reply at {floor}",

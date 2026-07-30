@@ -175,13 +175,15 @@ export function useTopicCommentComposerDrawer(options: TopicCommentComposerDrawe
     editorVersion.value += 1
   }
 
-  function openAdvancedReply() {
+  function openAdvancedReply(initialDraft?: string) {
     resetEditingState()
     replyingTo.value = null
     replyParentId.value = null
     replyError.value = ''
     showReplyError.value = false
-    if (import.meta.client && options.topic.value) {
+    if (typeof initialDraft === 'string') {
+      replyMarkdown.value = initialDraft
+    } else if (import.meta.client && options.topic.value) {
       try {
         replyMarkdown.value = sessionStorage.getItem(advancedReplyDraftStorageKey(options.topic.value.id)) || replyMarkdown.value
       } catch {

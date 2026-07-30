@@ -107,6 +107,11 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Release pipeline artifacts: the maintainer helper returns immediately by
+  default; GitHub reuses the exact main CI, publishes four multi-platform
+  images, six cross-platform CLI archives, two Linux backend bundles,
+  checksums, and provenance after scan and smoke:
+  `sessions/2026-07-30-release-pipeline-artifacts.md`
 - Attachment image optimization: ordinary proxied JPEG/PNG uploads now produce
   durable `display` variants in the background, use them through the existing
   attachment URL with transparent original fallback, and expose policy,
@@ -115,16 +120,18 @@ load archived sessions or completed plans as current context.
 - Personal appearance settings: logged-in users now have a dedicated
   `/settings/appearance` sidebar page with immediate unsaved preview,
   save-only persistence, and explicit restoration to live site inheritance;
-  anonymous and unset accounts continue to use operator settings:
+  normal and system-error documents share the same user-first appearance
+  resolution, including authenticated hard-refresh errors:
   `sessions/2026-07-30-personal-appearance-settings.md`
 - Unlinked external login registration continuation: an authenticated but
   unbound provider subject now enters the existing registration page with
   verified provider hints, while exact-artifact revalidation, atomic binding,
   and the prohibition on email-based account matching remain authoritative:
   `sessions/2026-07-30-external-login-registration-continuation.md`
-- Shared topic comment composer: advanced reply, comment reply, and comment
-  edit now use one responsive drawer; the legacy advanced-reply page redirects
-  into that drawer, and desktop/mobile Browser QA plus hydration checks pass:
+- Shared topic comment composer: quick reply remains inline; advanced reply,
+  comment reply, and comment edit use one bottom drawer with pointer/keyboard
+  height adjustment. The legacy advanced-reply page redirects into that drawer,
+  and desktop/mobile Browser QA plus hydration checks pass:
   `sessions/2026-07-30-shared-comment-composer-drawer.md`
 - Custom image sticker platform design: Forum Canvas (direction 01) is selected
   for refinement and now uses quiet input focus treatment; its supplied D01

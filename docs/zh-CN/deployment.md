@@ -25,6 +25,31 @@
 
 3. 可选 Meilisearch：仅在使用 Meili 插件时启用对应服务与配置  
 
+## 维护者发布
+
+维护者从已同步到 `origin/main` 的干净 `main` 工作区创建版本：
+
+```sh
+./scripts/release.sh
+```
+
+脚本推送版本标签后默认立即返回，发布状态继续由 GitHub Actions 管理。只有
+需要占用当前终端同步确认结果时才使用 `--wait`；`--no-wait` 是默认行为。
+Release 会在 GitHub 端等待并复用相同提交已经触发的 `main` CI，只有精确
+SHA 的 `push` CI 成功后才构建、扫描和提升发布镜像，不会再为标签重复运行
+整套仓库门禁。镜像通过扫描和 Compose 冒烟后，GitHub Release 同时发布：
+
+- `linux/amd64`、`linux/arm64`、`darwin/amd64`、`darwin/arm64`、
+  `windows/amd64`、`windows/arm64` 的 `sforum` 管理 CLI；
+- `linux/amd64` 和 `linux/arm64` 后端运行包，包含 API、Worker、迁移、CLI
+  以及从同一已扫描候选镜像提取的精确内置扩展；
+- 覆盖全部压缩包的 `SHA256SUMS` 和 GitHub 构建来源证明。
+
+Linux 后端包不包含 Nuxt Web、PostgreSQL 或 Redis，因此不是完整站点安装包；
+生产部署仍推荐使用下方四个版本一致的 Docker 镜像。下载后可使用
+`gh attestation verify <文件> --repo zhuchunshu/SForum` 验证构建来源，并按
+`SHA256SUMS` 验证文件摘要。
+
 ## 部署入口
 
 ### 使用正式发布镜像（推荐）

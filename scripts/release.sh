@@ -12,7 +12,7 @@ RELEASE_TYPE_SET=false
 ASSUME_YES=false
 DRY_RUN=false
 LOCAL_CHECKS=false
-WAIT_MODE="auto"
+WAIT_MODE="no-wait"
 SHOW_HELP=false
 
 if [[ -t 1 ]]; then
@@ -50,13 +50,13 @@ SForum 一键发布脚本
   --dry-run               仅检查并显示计划，不创建或推送标签
   --local-checks          推送前额外执行本地测试和构建（需要本地数据库等依赖）
   --wait                  推送后等待 GitHub Actions 发布流程完成
-  --no-wait               推送后立即返回
+  --no-wait               推送后立即返回（默认）
   --help, -h              显示帮助
 
 发布原理：
   脚本验证 main 与 origin/main 完全同步后，创建并推送带说明的
-  vX.Y.Z 标签。GitHub Actions 负责测试、构建镜像、安全扫描、冒烟
-  验证和创建 GitHub Release。交互模式根据最近的远端发布标签建议
+  vX.Y.Z 标签。GitHub Actions 负责测试、构建镜像和跨平台发布资产、
+  安全扫描、冒烟验证和创建 GitHub Release。交互模式根据最近的远端发布标签建议
   下一版本；脚本不会修改源码中的 dev 版本。
 
 示例：
@@ -85,13 +85,13 @@ Options:
   --dry-run               Check and show the plan without creating or pushing a tag
   --local-checks          Also run local tests/builds before pushing (requires local services)
   --wait                  Wait for the GitHub Actions release workflow after pushing
-  --no-wait               Return immediately after pushing
+  --no-wait               Return immediately after pushing (default)
   --help, -h              Show help
 
 How it works:
   After verifying that main exactly matches origin/main, this script creates
-  and pushes an annotated vX.Y.Z tag. GitHub Actions owns testing, image builds,
-  security scans, smoke tests, and the GitHub Release. Interactive mode suggests
+  and pushes an annotated vX.Y.Z tag. GitHub Actions owns testing, image and
+  cross-platform asset builds, security scans, smoke tests, and the GitHub Release. Interactive mode suggests
   the next version from the latest remote release tag. The script never changes
   the dev version stored in source code.
 
@@ -174,6 +174,7 @@ say() {
       pushing_tag) message="Pushing $1 to origin..." ;;
       push_failed) message="The tag push failed. The local tag $1 was kept so you can inspect the state safely." ;;
       release_triggered) message="Release $1 has been triggered." ;;
+      release_continues) message="Release continues in GitHub Actions. Use --wait only when synchronous status is required." ;;
       actions_url) message="GitHub Actions: $1" ;;
       wait_unavailable) message="GitHub CLI is unavailable or not authenticated, so the script cannot wait for the workflow." ;;
       finding_run) message="Waiting for the GitHub Actions release run to appear..." ;;
@@ -249,6 +250,7 @@ say() {
       pushing_tag) message="正在向 origin 推送 $1..." ;;
       push_failed) message="标签推送失败。为便于安全排查，本地标签 $1 已保留。" ;;
       release_triggered) message="已触发 $1 发布。" ;;
+      release_continues) message="发布流程将在 GitHub Actions 中继续运行；仅在需要同步确认结果时使用 --wait。" ;;
       actions_url) message="GitHub Actions：$1" ;;
       wait_unavailable) message="GitHub CLI 不可用或尚未登录，脚本无法等待工作流。" ;;
       finding_run) message="正在等待 GitHub Actions 发布任务出现..." ;;
@@ -705,15 +707,8 @@ if [[ -n "$REPOSITORY_URL" ]]; then
   printf '\n'
 fi
 
-if [[ "$WAIT_MODE" == "auto" ]]; then
-  if [[ "$MODE" == "interactive" ]]; then
-    WAIT_MODE="wait"
-  else
-    WAIT_MODE="no-wait"
-  fi
-fi
-
 if [[ "$WAIT_MODE" != "wait" ]]; then
+  success release_continues
   exit 0
 fi
 

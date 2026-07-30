@@ -8,9 +8,16 @@ const read = (path: string) => readFileSync(join(root, path), 'utf8')
 describe('personal appearance settings', () => {
   test('global appearance precedence includes preview, saved preference, and site default', () => {
     const app = read('app/app.vue')
-    expect(app).toContain('userAppearancePreview.value || savedUserAppearance.value')
-    expect(app).toContain(': resolvedAppearanceTheme.value')
-    expect(app).toContain('effectiveUserAppearance.value?.lightBackground || lightBackground.value')
+    const errorPage = read('app/error.vue')
+    const appliedAppearance = read('app/composables/appearance/useAppliedAppearance.ts')
+
+    expect(appliedAppearance).toContain('appearanceOverride.value || userAppearancePreview.value || savedUserAppearance.value')
+    expect(appliedAppearance).toContain(': siteAppearanceTheme.value')
+    expect(appliedAppearance).toContain('effectiveAppearance.value?.lightBackground || siteLightBackground.value')
+    expect(app).toContain('useAppliedAppearance(activeAdminAppearancePreview)')
+    expect(errorPage).toContain('useAppliedAppearance()')
+    expect(errorPage).toContain("'data-sforum-theme': appliedAppearanceTheme.value.dataTheme")
+    expect(errorPage).toContain("'data-sforum-light-background': appliedLightBackground.value")
   })
 
   test('settings surface previews drafts and persists only on save', () => {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useActiveThemeSkin } from '~/composables/themes/useActiveThemeSkin'
+import { useAppliedAppearance } from '~/composables/appearance/useAppliedAppearance'
 import { useSystemErrorPagePresentation } from '~/composables/errors/useSystemErrorPagePresentation'
 import SFSystemErrorPage from '~/components/errors/SFSystemErrorPage.vue'
 import SFErrorPageContent from '~/components/errors/SFErrorPageContent.vue'
@@ -20,10 +21,14 @@ const systemPageId = computed(() => systemErrorPageIdForStatus(nuxtError.value?.
 const { t } = useI18n()
 const localeHead = useLocaleHead({ dir: true, lang: true, seo: false })
 const {
-  siteName,
-  lightBackground,
-  resolvedAppearanceTheme
+  siteName
 } = useWebOptions()
+const {
+  appliedAppearanceTheme,
+  appliedLightBackground,
+  savedUserAppearance,
+  userAppearancePreview
+} = useAppliedAppearance()
 const themeSkin = useActiveThemeSkin()
 const systemTitle = computed(() => t(systemPage.value.titleKey, { siteName: siteName.value }))
 const systemDescription = computed(() => t(systemPage.value.descriptionKey, { siteName: siteName.value }))
@@ -39,11 +44,13 @@ if (isThemeableSystemError.value) {
   useHead(() => {
     const htmlAttrs: Record<string, string | undefined> = {
       ...localeHead.value.htmlAttrs,
-      'data-sforum-theme': resolvedAppearanceTheme.value.dataTheme,
-      'data-sforum-light-background': lightBackground.value
+      'data-sforum-theme': appliedAppearanceTheme.value.dataTheme,
+      'data-sforum-light-background': appliedLightBackground.value,
+      'data-sforum-user-appearance': savedUserAppearance.value ? 'custom' : 'site-default',
+      'data-sforum-user-appearance-preview': userAppearancePreview.value ? 'active' : undefined
     }
-    if (resolvedAppearanceTheme.value.style) {
-      htmlAttrs.style = [htmlAttrs.style, resolvedAppearanceTheme.value.style]
+    if (appliedAppearanceTheme.value.style) {
+      htmlAttrs.style = [htmlAttrs.style, appliedAppearanceTheme.value.style]
         .filter(Boolean)
         .join('; ')
     }

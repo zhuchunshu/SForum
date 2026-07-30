@@ -107,7 +107,7 @@ function loadAppComponentForStartupTest(options: { server: boolean, routePath?: 
     'useRequestHeaders',
     'useExternalAuthFeedback',
     'useAdminAppearancePreview',
-    'resolveAppearanceTheme',
+    'useAppliedAppearance',
     'computed',
     'SFApiConnectionModal',
     executable
@@ -169,7 +169,12 @@ function loadAppComponentForStartupTest(options: { server: boolean, routePath?: 
       consumeFromRoute: () => {}
     }),
     () => ({ preview: ref(null) }),
-    (theme: string) => ({ dataTheme: theme, style: '' }),
+    () => ({
+      appliedAppearanceTheme: ref({ dataTheme: 'pine_teal', style: '' }),
+      appliedLightBackground: ref('pure_white'),
+      savedUserAppearance: ref(null),
+      userAppearancePreview: ref(null)
+    }),
     computed,
     {}
   )

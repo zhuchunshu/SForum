@@ -4710,6 +4710,8 @@
     "advancedReplyParent": "回复评论 #{id}",
     "composerDrawer": {
       "close": "关闭编辑器",
+      "resizeHeight": "调整编辑器高度",
+      "resizeHeightHint": "上下拖动调整高度，也可使用方向键",
       "editTitle": "编辑回复",
       "replyTitle": "回复 {name}",
       "editSubtitle": "正在编辑你在 {floor} 的回复",

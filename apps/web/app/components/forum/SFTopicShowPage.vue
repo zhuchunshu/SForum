@@ -1130,14 +1130,14 @@ async function submitReport() {
                       :description="t('topicDetail.emptyComments.description')"
                     />
                   </div>
-
                   <SFTopicReplyComposer
                     v-if="showReplyEditor"
+                    :topic="topic"
+                    :refresh-comments="refreshComments"
                     :actor-name="replyActorName"
                     :avatar="reportUser?.avatar"
                     @open="openAdvancedReply"
                   />
-
                   <div
                     v-else-if="isGuest && !isLocked"
                     class="sforum-topic-comments__guest-notice"

@@ -12,6 +12,9 @@
   success feedback.
 - Registered `forum.settings.appearance` across Page Registry, ViewModels,
   Host islands, and both built-in theme source packages.
+- Unified normal and system-error document appearance resolution. Authenticated
+  403/404/429/5xx pages now honor saved user accent/background overrides, while
+  Core error fallbacks restore public options and session state before render.
 
 ## Decisions
 
@@ -38,6 +41,12 @@
   than growing the legacy Identity service. Architecture validation still
   reports unrelated concurrent growth in Identity external-auth, Extensions,
   and ExtensionManifest files.
+- Error-page follow-up: 50 focused frontend tests passed and the production
+  build completed. Authenticated Browser QA compared a normal page with a hard
+  refreshed 404 at desktop and 390x844: both resolved `violet`, `cloud_blue`,
+  `#7c3aed`, and `#f1f6fb`; the 404 reported `sforum.default-theme`,
+  `data-template="1"`, no overflow, no framework overlay, and no console
+  warnings. The QA account was restored to site inheritance afterward.
 
 ## Next
 
