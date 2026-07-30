@@ -4,8 +4,10 @@ import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePer
 import { useForumApi } from '~/composables/forum/useForumApi'
 import { apiErrorMessage, apiErrorStatusCode } from '~/composables/useApiClient'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
+import SFResponsivePublicSidebar from '~/components/forum/navigation/SFResponsivePublicSidebar.vue'
 import SFNotificationTypeNav from '~/components/notifications/SFNotificationTypeNav.vue'
 import SFPublicPageHeader from '~/components/public/SFPublicPageHeader.vue'
+import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSidebarDrawer'
 import {
   notificationFilterCounts,
   notificationFilters,
@@ -63,8 +65,8 @@ const activeDetailFilter = computed<NotificationFilter>(() => {
 const inboxFilter = useState<NotificationFilter>('notification-inbox-filter', () => 'all')
 const markingRead = ref(false)
 const actionError = ref('')
-const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
+const { closeDrawer: closeMobileMenu } = usePublicSidebarDrawer()
 
 const contentHeading = computed(() => {
   if (detail.value?.type === 'reply') return t('notifications.detailPage.replyContent')
@@ -93,7 +95,7 @@ function notificationTime(value: string) {
 }
 
 function closeMobileDrawers() {
-  mobileMenuOpen.value = false
+  closeMobileMenu()
   mobileInfoOpen.value = false
 }
 
@@ -140,7 +142,11 @@ useHead(() => ({ title: preview.value?.topicTitle || t('notifications.detailPage
     data-layout="fullwidth-3col"
   >
     <div class="sforum-notifications__layout">
-      <div class="sforum-notifications__sidebar sforum-home__sidebar">
+      <SFResponsivePublicSidebar
+        owner-id="forum.notification.detail"
+        :title="t('home.sidebar.drawerTitle')"
+        class="sforum-notifications__sidebar sforum-home__sidebar"
+      >
         <SFHomeNavigation
           desktop-only
           navigation-mode="route"
@@ -159,7 +165,7 @@ useHead(() => ({ title: preview.value?.topicTitle || t('notifications.detailPage
             />
           </template>
         </SFHomeNavigation>
-      </div>
+      </SFResponsivePublicSidebar>
 
       <section class="sforum-notifications__main" aria-labelledby="notification-detail-title">
         <SFPublicPageHeader
@@ -292,39 +298,12 @@ useHead(() => ({ title: preview.value?.topicTitle || t('notifications.detailPage
     </div>
 
     <button
-      v-if="mobileMenuOpen || mobileInfoOpen"
+      v-if="mobileInfoOpen"
       type="button"
       class="sforum-mobile-drawer__backdrop"
       :aria-label="t('common.close')"
       @click="closeMobileDrawers"
     />
-
-    <aside v-if="mobileMenuOpen" class="sforum-mobile-drawer sforum-mobile-drawer--left">
-      <header class="sforum-mobile-drawer__head">
-        <strong>{{ t('home.sidebar.drawerTitle') }}</strong>
-        <button type="button" :aria-label="t('common.close')" @click="closeMobileDrawers">
-          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
-        </button>
-      </header>
-      <SFHomeNavigation
-        desktop-only
-        navigation-mode="route"
-        :categories="categories"
-        :total-topics="categoryTopicTotal"
-        :pending="categoryAsync.pending.value"
-        :can-create-topic="canCreateTopic"
-        :show-categories="false"
-      >
-        <template #after-navigation>
-          <SFNotificationTypeNav
-            :active-filter="activeDetailFilter"
-            :counts="sidebarCounts"
-            :loaded-count="sidebarItems.length"
-            @select="selectNotificationFilter"
-          />
-        </template>
-      </SFHomeNavigation>
-    </aside>
 
     <aside v-if="mobileInfoOpen" class="sforum-mobile-drawer sforum-mobile-drawer--right">
       <header class="sforum-mobile-drawer__head">

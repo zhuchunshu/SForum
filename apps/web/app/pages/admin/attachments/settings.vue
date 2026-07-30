@@ -2,38 +2,56 @@
 import type { Component } from 'vue'
 import SFAdminAttachmentCompressionTab from '~/components/admin/settings/attachments/tabs/SFAdminAttachmentCompressionTab.vue'
 import SFAdminAttachmentSettingsTab from '~/components/admin/settings/attachments/tabs/SFAdminAttachmentSettingsTab.vue'
+import SFAdminAttachmentUploadPoliciesTab from '~/components/admin/settings/attachments/tabs/SFAdminAttachmentUploadPoliciesTab.vue'
 import SFAdminFixedTabNav from '~/components/admin/settings/shared/SFAdminFixedTabNav.vue'
 import { useAdminPage } from '~/composables/admin/useAdminPage'
+import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
 defineOptions({ name: 'AdminAttachmentSettings' })
 
 type RefreshablePage = { refresh?: () => Promise<void>, pending?: boolean }
-type AttachmentConfigurationTab = 'basic' | 'compression'
+type AttachmentConfigurationTab = 'basic' | 'compression' | 'policies'
 
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const adminPage = useAdminPage('/attachments/settings')
+const { can } = usePermissions()
 const pageRef = ref<RefreshablePage | null>(null)
-const tabs = computed(() => [
-  { id: 'basic', label: t('admin.attachments.tabs.settings'), icon: 'i-lucide-sliders-horizontal' },
-  { id: 'compression', label: t('admin.attachments.tabs.compression'), icon: 'i-lucide-image-down' }
-])
+const tabs = computed(() => {
+  const items: Array<{ id: AttachmentConfigurationTab, label: string, icon: string }> = []
+  if (can(FORUM_PERMISSIONS.attachmentSettingsManage)) {
+    items.push(
+      { id: 'basic', label: t('admin.attachments.tabs.settings'), icon: 'i-lucide-sliders-horizontal' },
+      { id: 'compression', label: t('admin.attachments.tabs.compression'), icon: 'i-lucide-image-down' }
+    )
+  }
+  if (can(FORUM_PERMISSIONS.attachmentUploadPolicyManage)) {
+    items.push({ id: 'policies', label: t('admin.attachments.tabs.policies'), icon: 'i-lucide-shield-check' })
+  }
+  return items
+})
 const activeTab = ref<AttachmentConfigurationTab>(normalizeTab(route.query.tab))
 const components: Record<AttachmentConfigurationTab, Component> = {
   basic: SFAdminAttachmentSettingsTab,
-  compression: SFAdminAttachmentCompressionTab
+  compression: SFAdminAttachmentCompressionTab,
+  policies: SFAdminAttachmentUploadPoliciesTab
 }
 const activeComponent = computed(() => components[activeTab.value])
 const toolbarPending = computed(() => Boolean(pageRef.value?.pending))
 const canRefresh = computed(() => Boolean(pageRef.value?.refresh))
-const toolbarText = computed(() => activeTab.value === 'compression'
-  ? t('admin.attachments.compression.toolbar')
-  : t('admin.attachments.toolbar'))
+const toolbarText = computed(() => {
+  if (activeTab.value === 'compression') return t('admin.attachments.compression.toolbar')
+  if (activeTab.value === 'policies') return t('admin.attachments.uploadPolicies.toolbar')
+  return t('admin.attachments.toolbar')
+})
 
 watch(() => route.query.tab, value => {
   activeTab.value = normalizeTab(value)
+})
+watch(tabs, items => {
+  if (!items.some(item => item.id === activeTab.value) && items[0]) activeTab.value = items[0].id
 })
 watch(activeTab, async tab => {
   if (route.query.tab === tab) return
@@ -44,7 +62,9 @@ useSeoMeta({ title: t('admin.attachments.configuration') })
 
 function normalizeTab(value: unknown): AttachmentConfigurationTab {
   const raw = Array.isArray(value) ? value[0] : value
-  return raw === 'compression' ? 'compression' : 'basic'
+  if (raw === 'policies' && can(FORUM_PERMISSIONS.attachmentUploadPolicyManage)) return 'policies'
+  if ((raw === 'basic' || raw === 'compression') && can(FORUM_PERMISSIONS.attachmentSettingsManage)) return raw
+  return (tabs.value[0]?.id || 'basic') as AttachmentConfigurationTab
 }
 
 function setActiveTab(value: string) {

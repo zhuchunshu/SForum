@@ -14,7 +14,7 @@ export type SFEditorToolbarAction =
   | 'image'
 
 export type SFEditorBlockFormat = 'paragraph' | 'heading-2' | 'heading-3'
-export type SFEditorViewMode = 'write' | 'preview' | 'markdown' | 'native'
+export type SFEditorViewMode = 'write' | 'preview'
 
 const props = defineProps<{
   preset: 'full' | 'basic-field'
@@ -61,9 +61,7 @@ const insertActions = computed(() => [
 
 const modeItems: Array<{ value: SFEditorViewMode, label: string }> = [
   { value: 'write', label: '撰写' },
-  { value: 'preview', label: '预览' },
-  { value: 'markdown', label: 'Markdown' },
-  { value: 'native', label: 'JSON' }
+  { value: 'preview', label: '预览' }
 ]
 
 function selectBlockFormat(event: Event) {

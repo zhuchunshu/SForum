@@ -169,8 +169,6 @@
 
 .sforum-topic-composer :deep(.sf-editor__content),
 .sforum-topic-composer :deep(.sf-editor__preview),
-.sforum-topic-composer :deep(.sf-editor__source),
-.sforum-topic-composer :deep(.sf-editor__native),
 .sforum-topic-composer :deep(.sf-editor__loading) {
   min-height: 360px;
 }
@@ -315,8 +313,6 @@
 
   .sforum-topic-composer :deep(.sf-editor__content),
   .sforum-topic-composer :deep(.sf-editor__preview),
-  .sforum-topic-composer :deep(.sf-editor__source),
-  .sforum-topic-composer :deep(.sf-editor__native),
   .sforum-topic-composer :deep(.sf-editor__loading) {
     min-height: 330px;
   }

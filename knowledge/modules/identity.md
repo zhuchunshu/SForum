@@ -10,6 +10,13 @@ helpers.
 
 Initial identity foundation is implemented.
 
+- Attachment upload eligibility continues to use the existing
+  `attachment.upload` effective permission, including role grants and direct
+  user allow/deny overrides. Attachment-domain size policies are deliberately
+  separate: they cannot grant upload authority, and editing the RBAC side still
+  requires `role.manage` or `user.permission_override`. The default member seed
+  now explicitly includes the upload permission already granted by the original
+  attachment migration.
 - Personal appearance is an authenticated self-service preference at
   `/settings/appearance`. `CurrentUser.appearance` is nullable: a missing
   `user_appearance_preferences` row means the account inherits the current
@@ -299,7 +306,11 @@ Initial identity foundation is implemented.
   out-of-band operator reset: email lookup, user-summary confirmation, hidden
   password entry/confirmation, site password-policy validation, credential
   upsert, token-version bump, and active-session revocation.
-- Admin user list is paged (default 20 per page, max 100). Admin user detail
+- Admin user list is paged (default 20 per page, max 100) and server-sorted
+  through the OpenAPI `sortBy` / `sortOrder` contract. The whitelist supports
+  registration time, update time, username, display name, email, and account
+  status; omitted or invalid values resolve to newest registration first, and
+  every order uses `id` as a deterministic pagination tiebreaker. Admin user detail
   includes `createdAt`/`updatedAt`, public `profile` (bio/signature/location/
   websiteUrl), effective permissions, and permission overrides. Detail also
   carries admin-only inspection fields for the users-page preview modal:
@@ -412,7 +423,10 @@ Initial identity foundation is implemented.
   suggestions and supports Host-owned approve/reject/apply decisions with
   optimistic revision checks. Installation and enable never grant a mapping.
   Decision refresh preserves unrelated unsaved role fields and merges only the
-  exact newly approved permission into a dirty draft before a later save.
+  exact newly approved permission into a dirty draft before a later save. The
+  screen separates the user-group list and permission reviews into query-synced
+  fixed tabs; review data loads only after its tab is first opened, while the
+  route-owned toolbar follows the active workflow.
 - Protected Nuxt routes preserve `to.fullPath` in the login `redirect` query.
   Auth return navigation accepts only validated local absolute paths, rejects
   external, protocol-relative, malformed, and login/register destinations, and
@@ -552,9 +566,12 @@ Initial identity foundation is implemented.
 
 - `apps/api/app/Models/Identity/service.go` owns registration, login,
   registration status, current-user loading, actor loading, role-management
-  checks, permission catalog/matrix reads, admin user reads, user role
+  checks, permission catalog/matrix reads, admin user detail reads, user role
   replacement, user direct permission override replacement, and configurable
   password policy enforcement for registration.
+- `apps/api/app/Models/Identity/admin_user_sort.go` owns admin user-list
+  authorization, filter normalization, and the public sort whitelist/defaults;
+  the PostgreSQL store maps only those normalized values to SQL expressions.
 - `apps/api/app/Models/Identity/password.go` owns bounded Argon2id hashing and
   verification plus the shared `PasswordPolicy` model used before password
   creation/update.

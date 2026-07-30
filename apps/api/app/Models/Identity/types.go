@@ -320,11 +320,13 @@ type AdminUpdateUserInput struct {
 }
 
 type UserListInput struct {
-	Page    int
-	PerPage int
-	Query   string
-	Status  string
-	RoleKey string
+	Page      int
+	PerPage   int
+	Query     string
+	Status    string
+	RoleKey   string
+	SortBy    string
+	SortOrder string
 }
 
 type AdminUserList struct {

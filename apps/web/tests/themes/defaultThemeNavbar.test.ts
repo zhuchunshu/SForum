@@ -13,6 +13,10 @@ const mobileNavigationSource = readFileSync(
   new URL('../../app/components/navigation/SFPublicMobileNavigation.vue', import.meta.url),
   'utf8'
 )
+const sidebarDrawerSource = readFileSync(
+  new URL('../../app/composables/navigation/usePublicSidebarDrawer.ts', import.meta.url),
+  'utf8'
+)
 const navigationComposableSource = readFileSync(
   new URL('../../app/composables/navigation/usePublicNavigation.ts', import.meta.url),
   'utf8'
@@ -191,7 +195,10 @@ describe('default theme shared navbar contract', () => {
     expect(source).toContain(':items="visibleSidebarItems"')
     expect(source).toContain('const { topbarItems, sidebarItems } = usePublicNavigation')
     expect(source).not.toContain('mobileItems')
-    expect(source).toContain("'public-mobile-navigation-open'")
+    expect(source).toContain('usePublicSidebarDrawer()')
+    expect(source).toContain('mobileMenuOpen && !hasPageSidebarOwner')
+    expect(sidebarDrawerSource).toContain("'public-sidebar-drawer-open'")
+    expect(source).not.toContain("'public-mobile-navigation-open'")
     expect(source).not.toContain("'forum-mobile-menu-open'")
     expect(mobileNavigationSource).toContain('data-navigation-location="public.sidebar.primary"')
     expect(mobileNavigationSource).toContain('data-navigation-viewport="mobile"')

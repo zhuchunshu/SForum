@@ -28,7 +28,10 @@ accepted revisions, lifecycle states, public read models, and forum policy.
   desktop and mobile and exposes a pointer/keyboard height handle. The former
   standalone advanced-reply route is compatibility-only and redirects into
   this drawer without changing create/update authorization, revision CAS,
-  moderation, or cross-author audit-reason rules.
+  moderation, or cross-author audit-reason rules. Inside the drawer, the full
+  editor uses a stable toolbar/canvas/status grid: extra drawer height expands
+  only the canvas, while compact heights scroll the drawer body instead of
+  clipping the editor status row.
 - Topic detail exposes public **contributors** (author + body edit/restore
   actors, max 5 + count) and `GET /topics/{id}/contribution-timeline` for a
   header-only publish/edit timeline. Staff actors are fully exposed by default;
@@ -161,6 +164,11 @@ V1 boundaries:
   the ambiguous legacy `json` format is rejected by both runtime and schema.
 - Markdown renders with `goldmark` plus GFM extensions; display HTML is
   sanitized with `bluemonday`.
+- Sanitized `<pre><code>` content is progressively enhanced in the browser with
+  a language label, line numbers, syntax highlighting, and copy feedback. A
+  declared supported language selects its grammar; an unknown declared
+  language keeps its honest label without guessed tokens, and an undeclared
+  block is always localized plain text rather than auto-detected.
 - `RenderVersion` is `goldmark-bluemonday-v2`; existing rows keep earlier HTML
   until a later edit or explicit migration.
 - Content/excerpt limits are Unicode-rune based. Excerpts derive at read time

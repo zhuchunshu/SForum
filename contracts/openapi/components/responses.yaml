@@ -34,6 +34,12 @@ UnprocessableEntity:
     application/json:
       schema:
         "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+PayloadTooLarge:
+  description: The uploaded file exceeds the effective per-file limit.
+  content:
+    application/json:
+      schema:
+        "$ref": "../schemas/common.yaml#/ApiErrorResponse"
 ServiceUnavailable:
   description: A required backend service or storage provider is unavailable.
   content:

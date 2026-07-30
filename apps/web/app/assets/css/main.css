@@ -225,21 +225,22 @@ html.dark {
   background: color-mix(in srgb, var(--sf-accent) 18%, transparent);
 }
 
-/* 代码块：深色背景，留出空间给 highlight.js token 着色 */
+/* 代码块 SSR fallback；客户端增强后的完整结构由 highlight-theme.css 接管。 */
 .sf-prose :where(pre) {
-  background: #0f172a;
-  color: #e2e8f0;
-  padding: 18px 20px;
-  border-radius: 10px;
-  border: 1px solid rgba(0, 0, 0, 0.2);
+  background: var(--sf-code-bg, #f8f9fb);
+  color: var(--sf-code-text, #354052);
+  padding: 16px 18px;
+  border-radius: 6px;
+  border: 1px solid var(--sf-code-border, #dfe2e8);
   overflow-x: auto;
-  font-size: 0.86em;
-  line-height: 1.6;
+  font-size: 13px;
+  line-height: 1.72;
   margin: 1.4em 0;
 }
 .dark .sf-prose :where(pre) {
-  background: #09090b;
-  border-color: var(--border-default);
+  background: var(--sf-code-bg, #111615);
+  border-color: var(--sf-code-border, #2f3a37);
+  color: var(--sf-code-text, #dce6e3);
 }
 /* pre 内的 code 恢复为透明，让 hljs token 配色生效 */
 .sf-prose :where(pre) :where(code),

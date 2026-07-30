@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { useSystemErrorRecoveryData } from '~/composables/errors/useSystemErrorRecoveryData'
-import SFSystemErrorSidebar from '~/components/errors/SFSystemErrorSidebar.vue'
 import SFSystemErrorRail from '~/components/errors/SFSystemErrorRail.vue'
+import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSidebarDrawer'
 const { t } = useI18n()
 const localePath = useLocalePath()
 const { activeTags, categories } = useSystemErrorRecoveryData()
 const searchAction = computed(() => localePath('/search'))
-const mobileMenuOpen = useState<boolean>('system-error-mobile-menu-open', () => false)
 const mobileInfoOpen = useState<boolean>('system-error-mobile-info-open', () => false)
+const { openDrawer: openMobileMenu, closeDrawer: closeMobileMenu } = usePublicSidebarDrawer()
 
 const recoveryLinks = computed(() => [
   { key: 'home', label: t('errors.page.recovery.home'), to: localePath('/'), icon: 'i-lucide-house' },
@@ -17,7 +17,7 @@ const recoveryLinks = computed(() => [
 ])
 
 function closeMobileDrawers() {
-  mobileMenuOpen.value = false
+  closeMobileMenu()
   mobileInfoOpen.value = false
 }
 </script>
@@ -25,7 +25,7 @@ function closeMobileDrawers() {
 <template>
   <section class="sforum-system-error__recovery" data-system-error-region="recovery">
     <div class="sforum-system-error__mobile-tools" role="group" :aria-label="t('errors.page.recovery.mobileTools')">
-      <button type="button" class="sforum-system-error__mobile-tool" @click="mobileMenuOpen = true">
+      <button type="button" class="sforum-system-error__mobile-tool" @click="openMobileMenu">
         <UIcon name="i-lucide-menu" aria-hidden="true" />
         {{ t('home.sidebar.drawerTitle') }}
       </button>
@@ -83,21 +83,12 @@ function closeMobileDrawers() {
     </div>
 
     <button
-      v-if="mobileMenuOpen || mobileInfoOpen"
+      v-if="mobileInfoOpen"
       type="button"
       class="sforum-mobile-drawer__backdrop"
       :aria-label="t('topicDetail.cancel')"
       @click="closeMobileDrawers"
     />
-    <aside v-if="mobileMenuOpen" class="sforum-mobile-drawer sforum-mobile-drawer--left">
-      <header class="sforum-mobile-drawer__head">
-        <strong>{{ t('home.sidebar.drawerTitle') }}</strong>
-        <button type="button" :aria-label="t('topicDetail.cancel')" @click="closeMobileDrawers">
-          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
-        </button>
-      </header>
-      <SFSystemErrorSidebar />
-    </aside>
     <aside v-if="mobileInfoOpen" class="sforum-mobile-drawer sforum-mobile-drawer--right">
       <header class="sforum-mobile-drawer__head">
         <strong>{{ t('home.rightRail.drawerTitle') }}</strong>

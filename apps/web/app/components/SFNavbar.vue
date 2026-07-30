@@ -9,6 +9,7 @@ import {
   useNavbarLanguageMenu
 } from '~/composables/navigation/useNavbarLanguageMenu'
 import { usePublicNavigation } from '~/composables/navigation/usePublicNavigation'
+import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSidebarDrawer'
 import { useColorModePreference } from '~/composables/appearance/useColorModePreference'
 import { buildForumHomeQuery } from '~/utils/forum/forumHome'
 import { parseForumTagPublicPagesOption } from '~/utils/forum/forumTaxonomy'
@@ -89,7 +90,12 @@ const logoAriaLabel = computed(() => {
 const routeSearchQuery = computed(() => typeof route.query.q === 'string' ? route.query.q.trim() : '')
 const searchQuery = ref(routeSearchQuery.value)
 const mobileSearchOpen = ref(false)
-const mobileMenuOpen = useState<boolean>('public-mobile-navigation-open', () => false)
+const {
+  open: mobileMenuOpen,
+  hasPageOwner: hasPageSidebarOwner,
+  closeDrawer: closeMobileMenu,
+  toggleDrawer: toggleMobileSidebar
+} = usePublicSidebarDrawer()
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
 
 // 发帖入口只对拥有论坛发帖权限的用户显示，API 仍负责最终鉴权。
@@ -150,14 +156,14 @@ const userMenuItems = computed<NavbarMenuItem[][]>(() => {
 })
 
 function closeMobileDrawers() {
-  mobileMenuOpen.value = false
+  closeMobileMenu()
   mobileInfoOpen.value = false
 }
 
 function toggleMobileMenu() {
   const opening = !mobileMenuOpen.value
   closeMobileDrawers()
-  mobileMenuOpen.value = opening
+  if (opening) toggleMobileSidebar()
 }
 
 function toggleMobileInfo() {
@@ -458,9 +464,9 @@ async function logout() {
     </div>
   </header>
   <SFPublicMobileNavigation
-    :open="mobileMenuOpen"
+    :open="mobileMenuOpen && !hasPageSidebarOwner"
     :items="visibleSidebarItems"
-    @close="mobileMenuOpen = false"
+    @close="closeMobileMenu"
   />
 </template>
 

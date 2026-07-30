@@ -22,8 +22,31 @@ const modes = computed<Array<{ value: ForumTagCreationMode, label: string, descr
   <SFAdminForumTabFrame tab="tags" :dirty="tab.hasChanges.value" :validation-key="tab.validationKey.value" :saving="tab.saving.value" :restoring="tab.restoring.value" :can-save="tab.canSave.value" @save="tab.saveCurrent" @reset="tab.resetChanges" @restore="tab.restoreCurrent">
     <section class="space-y-3">
       <h3 class="text-sm font-semibold">{{ t('admin.forum.settings.tagCreationMode') }}</h3>
-      <div class="grid gap-3 md:grid-cols-3">
-        <button v-for="mode in modes" :key="mode.value" type="button" :disabled="!canManage" class="rounded-md border border-slate-200 p-3 text-left disabled:opacity-60 dark:border-zinc-700" @click="tab.form.tagCreationMode = mode.value"><strong class="block text-sm">{{ mode.label }}</strong><span class="mt-1 block text-xs text-muted">{{ mode.description }}</span></button>
+      <div class="grid gap-3 md:grid-cols-3" role="radiogroup" :aria-label="t('admin.forum.settings.tagCreationMode')">
+        <button
+          v-for="mode in modes"
+          :key="mode.value"
+          type="button"
+          role="radio"
+          :aria-checked="tab.form.tagCreationMode === mode.value"
+          :disabled="!canManage"
+          class="rounded-md border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sf-accent-focus)] disabled:cursor-not-allowed disabled:opacity-60"
+          :class="tab.form.tagCreationMode === mode.value
+            ? 'border-[var(--sf-accent)] bg-[var(--sf-accent-soft)] ring-1 ring-[var(--sf-accent)] dark:border-[var(--sf-accent-dark)] dark:bg-[rgb(var(--sf-accent-rgb)/0.15)] dark:ring-[var(--sf-accent-dark)]'
+            : 'border-slate-200 hover:border-[var(--sf-accent-soft-border)] dark:border-zinc-700 dark:hover:border-[rgb(var(--sf-accent-rgb)/0.45)]'"
+          @click="tab.form.tagCreationMode = mode.value"
+        >
+          <span class="flex items-start justify-between gap-3">
+            <strong class="block text-sm">{{ mode.label }}</strong>
+            <UIcon
+              name="i-lucide-check"
+              class="size-4 shrink-0 text-[var(--sf-accent)] transition-opacity dark:text-[var(--sf-accent-dark)]"
+              :class="tab.form.tagCreationMode === mode.value ? 'opacity-100' : 'opacity-0'"
+              aria-hidden="true"
+            />
+          </span>
+          <span class="mt-1 block text-xs text-muted">{{ mode.description }}</span>
+        </button>
       </div>
     </section>
     <section class="grid gap-4 border-t border-slate-200 pt-5 dark:border-zinc-800 md:grid-cols-2">

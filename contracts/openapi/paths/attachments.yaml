@@ -27,8 +27,21 @@ attachments:
         "$ref": "../components/responses.yaml#/Forbidden"
       '422':
         "$ref": "../components/responses.yaml#/UnprocessableEntity"
+      '413':
+        "$ref": "../components/responses.yaml#/PayloadTooLarge"
       '503':
         "$ref": "../components/responses.yaml#/ServiceUnavailable"
+attachmentUploadPolicy:
+  get:
+    summary: Get the current user's effective attachment upload policy
+    operationId: getAttachmentUploadPolicy
+    responses:
+      '200':
+        description: Effective permission plus site, identity, and transport size limits.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/attachments.yaml#/ApiResponseAttachmentUploadPolicy" }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
 attachmentByPublicID:
   get:
     summary: Get attachment metadata
@@ -157,6 +170,103 @@ adminAttachmentSettingsTest:
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
         "$ref": "../components/responses.yaml#/Forbidden"
+adminAttachmentUploadPolicyRoles:
+  get:
+    summary: List attachment upload permission and size policy for every role
+    operationId: listAttachmentUploadRolePolicies
+    description: Requires attachment.upload_policy.manage.
+    responses:
+      '200':
+        description: Role upload permission state and inherited or configured size limits.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/attachments.yaml#/ApiResponseAttachmentUploadRolePolicies" }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+adminAttachmentUploadPolicyRole:
+  parameters:
+  - name: roleKey
+    in: path
+    required: true
+    schema: { type: string }
+  put:
+    summary: Set a role attachment upload size limit
+    operationId: setAttachmentUploadRolePolicy
+    description: The attachment.upload permission remains owned by the existing RBAC role API.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { "$ref": "../schemas/attachments.yaml#/AttachmentUploadLimitInput" }
+    responses:
+      '200':
+        description: Updated role policy.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/attachments.yaml#/ApiResponseAttachmentUploadRolePolicy" }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+  delete:
+    summary: Restore a role attachment upload size limit to site inheritance
+    operationId: deleteAttachmentUploadRolePolicy
+    responses:
+      '200':
+        description: Role policy restored to inheritance.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/attachments.yaml#/ApiResponseAttachmentUploadRolePolicy" }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+adminAttachmentUploadPolicyUser:
+  parameters:
+  - name: userID
+    in: path
+    required: true
+    schema: { type: integer, format: int64, minimum: 1 }
+  get:
+    summary: Get one user's effective attachment upload policy
+    operationId: getAttachmentUploadUserPolicy
+    description: Requires attachment.upload_policy.manage and user.view.
+    responses:
+      '200':
+        description: User-specific policy plus the resolved effective result.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/attachments.yaml#/ApiResponseAttachmentUploadUserPolicy" }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+  put:
+    summary: Set a user-specific attachment upload size limit
+    operationId: setAttachmentUploadUserPolicy
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { "$ref": "../schemas/attachments.yaml#/AttachmentUploadLimitInput" }
+    responses:
+      '200':
+        description: Updated user policy.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/attachments.yaml#/ApiResponseAttachmentUploadUserPolicy" }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
+  delete:
+    summary: Restore a user's upload size limit to role inheritance
+    operationId: deleteAttachmentUploadUserPolicy
+    responses:
+      '200':
+        description: User policy restored to role or site inheritance.
+        content:
+          application/json:
+            schema: { "$ref": "../schemas/attachments.yaml#/ApiResponseAttachmentUploadUserPolicy" }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '422': { "$ref": "../components/responses.yaml#/UnprocessableEntity" }
 adminAttachmentCompressionSettings:
   get:
     summary: Get regular attachment image compression settings

@@ -1,4 +1,6 @@
 export type UserStatus = 'active' | 'disabled' | 'banned'
+export type AdminUserSortField = 'createdAt' | 'updatedAt' | 'username' | 'displayName' | 'email' | 'status'
+export type AdminUserSortOrder = 'asc' | 'desc'
 
 export type Role = {
   id: number

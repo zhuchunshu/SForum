@@ -10,6 +10,8 @@ import SFTopicComposerLeftRail from '~/components/forum/SFTopicComposerLeftRail.
 import SFTagInput from '~/components/forum/SFTagInput.vue'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFCategorySelect from '~/components/forum/SFCategorySelect.vue'
+import SFResponsivePublicSidebar from '~/components/forum/navigation/SFResponsivePublicSidebar.vue'
+import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSidebarDrawer'
 /**
  * 宿主 body 岛：forum.topic.create。主题 L1 挂载；路由页仅 outlet + fail-closed 回退。
  */
@@ -34,8 +36,8 @@ const { can } = usePermissions()
 const toast = useToast()
 const { locale } = useI18n()
 const { user } = useAuthSession()
-const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
+const { closeDrawer: closeMobileMenu } = usePublicSidebarDrawer()
 const topicDraftKey = computed(() => {
   const actorKey = user.value?.id || user.value?.username || 'authenticated'
   return `sforum.topic-composer.draft.v1:${actorKey}`
@@ -324,7 +326,7 @@ function onEditorContentChange(payload: SFEditorContentPayload) {
 }
 
 function closeMobileDrawers() {
-  mobileMenuOpen.value = false
+  closeMobileMenu()
   mobileInfoOpen.value = false
 }
 
@@ -557,7 +559,11 @@ onBeforeRouteLeave(() => {
       :class="{ 'sforum-home__layout--with-right': canCreate }"
     >
       <!-- 左栏：通知页模式 — 无类别列表，挂发帖实用工具 -->
-      <div class="sforum-home__sidebar">
+      <SFResponsivePublicSidebar
+        owner-id="forum.topic.composer"
+        :title="t('home.sidebar.drawerTitle')"
+        class="sforum-home__sidebar"
+      >
         <SFHomeNavigation
           desktop-only
           navigation-mode="route"
@@ -579,7 +585,7 @@ onBeforeRouteLeave(() => {
             />
           </template>
         </SFHomeNavigation>
-      </div>
+      </SFResponsivePublicSidebar>
 
       <section
         class="sforum-home__main sforum-topic-composer__main"
@@ -721,6 +727,7 @@ onBeforeRouteLeave(() => {
                   v-model="bodyMarkdown"
                   :placeholder="t('composer.bodyPlaceholder')"
                   :submit-label="submitLabel"
+                  :submit-visible="false"
                   :disabled="submitState === 'submitting'"
                   :submit-disabled="topicCooldownActive"
                   :max-characters="limits.topicContentMaxRunes"
@@ -787,42 +794,12 @@ onBeforeRouteLeave(() => {
     </div>
 
     <button
-      v-if="mobileMenuOpen || mobileInfoOpen"
+      v-if="mobileInfoOpen"
       type="button"
       class="sforum-mobile-drawer__backdrop"
       :aria-label="t('common.close')"
       @click="closeMobileDrawers"
     />
-
-    <aside v-if="mobileMenuOpen" class="sforum-mobile-drawer sforum-mobile-drawer--left">
-      <header class="sforum-mobile-drawer__head">
-        <strong>{{ t('home.sidebar.drawerTitle') }}</strong>
-        <button type="button" :aria-label="t('common.close')" @click="closeMobileDrawers">
-          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
-        </button>
-      </header>
-      <SFHomeNavigation
-        desktop-only
-        navigation-mode="route"
-        :categories="categories"
-        selected-category-slug=""
-        :total-topics="totalTopics"
-        :pending="categoriesPending"
-        :can-create-topic="canCreate"
-        :show-categories="false"
-      >
-        <template #after-navigation>
-          <SFTopicComposerLeftRail
-            :checks="prePublishChecks"
-            :draft-saving="draftSaving"
-            :draft-status-label="draftStatusLabel"
-            :can-create="canCreate"
-            @focus-field="focusComposerField"
-            @save-draft="onLeftRailSaveDraft"
-          />
-        </template>
-      </SFHomeNavigation>
-    </aside>
 
     <aside v-if="mobileInfoOpen && canCreate" class="sforum-mobile-drawer sforum-mobile-drawer--right">
       <header class="sforum-mobile-drawer__head">

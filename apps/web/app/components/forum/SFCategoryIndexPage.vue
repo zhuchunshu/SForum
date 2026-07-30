@@ -2,8 +2,10 @@
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
 import { useForumApi } from '~/composables/forum/useForumApi'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
+import SFResponsivePublicSidebar from '~/components/forum/navigation/SFResponsivePublicSidebar.vue'
 import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
 import SFPublicPageHeader from '~/components/public/SFPublicPageHeader.vue'
+import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSidebarDrawer'
 /**
  * 宿主 body 岛：forum.category.index。主题 L1 挂载；路由页仅 SEO + fail-closed 回退。
  */
@@ -40,8 +42,8 @@ const CATEGORY_FILTERS: Array<{ key: CategoryDirectoryFilter, icon: string, labe
 
 const filter = ref<CategoryDirectoryFilter>('all')
 const filterDraft = ref('')
-const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
+const { closeDrawer: closeMobileMenu } = usePublicSidebarDrawer()
 const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
 const ALL_GROUPS_VALUE = '__all_groups__'
 const renderedAt = useState<number>('forum-categories-index-rendered-at', () => Date.now())
@@ -153,7 +155,7 @@ function setFilter(next: CategoryDirectoryFilter, closeDrawer = false) {
 }
 
 function closeMobileDrawers() {
-  mobileMenuOpen.value = false
+  closeMobileMenu()
   mobileInfoOpen.value = false
 }
 
@@ -195,7 +197,11 @@ async function retryLoad() {
     data-layout="fullwidth-3col"
   >
     <div class="sforum-home__layout sforum-home__layout--with-right sforum-category-directory__layout">
-      <div class="sforum-home__sidebar">
+      <SFResponsivePublicSidebar
+        owner-id="forum.category.index"
+        :title="t('home.sidebar.drawerTitle')"
+        class="sforum-home__sidebar"
+      >
         <SFHomeNavigation
           desktop-only
           navigation-mode="route"
@@ -216,7 +222,7 @@ async function retryLoad() {
                 class="sf-home-navigation__link"
                 :class="{ 'is-active': filter === item.key }"
                 :aria-pressed="filter === item.key"
-                @click="setFilter(item.key)"
+                @click="setFilter(item.key, true)"
               >
                 <span class="sf-home-navigation__link-main">
                   <UIcon :name="item.icon" class="size-[18px]" aria-hidden="true" />
@@ -226,7 +232,7 @@ async function retryLoad() {
             </nav>
           </template>
         </SFHomeNavigation>
-      </div>
+      </SFResponsivePublicSidebar>
 
       <section class="sforum-home__main sforum-category-directory__main sforum-content-column" aria-labelledby="category-directory-title">
         <SFRegionOutlet page="forum.category.index" region="content_before" />
@@ -464,51 +470,12 @@ async function retryLoad() {
     </div>
 
     <button
-      v-if="mobileMenuOpen || mobileInfoOpen"
+      v-if="mobileInfoOpen"
       type="button"
       class="sforum-mobile-drawer__backdrop"
       :aria-label="t('topicDetail.cancel')"
       @click="closeMobileDrawers"
     />
-
-    <aside v-if="mobileMenuOpen" class="sforum-mobile-drawer sforum-mobile-drawer--left">
-      <header class="sforum-mobile-drawer__head">
-        <strong>{{ t('home.sidebar.drawerTitle') }}</strong>
-        <button type="button" :aria-label="t('topicDetail.cancel')" @click="closeMobileDrawers">
-          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
-        </button>
-      </header>
-      <SFHomeNavigation
-        desktop-only
-        navigation-mode="route"
-        :categories="categories"
-        :selected-category-slug="''"
-        :total-topics="totalStats.topicCount"
-        :pending="pending"
-        :can-create-topic="canCreateTopic"
-        :show-categories="false"
-      >
-        <template #after-navigation>
-          <nav class="sforum-category-directory__filter-nav" :aria-label="t('taxonomy.categories.filterLabel')">
-            <div class="sf-home-navigation__label">{{ t('taxonomy.categories.filterLabel') }}</div>
-            <button
-              v-for="item in CATEGORY_FILTERS"
-              :key="`drawer-${item.key}`"
-              type="button"
-              class="sf-home-navigation__link"
-              :class="{ 'is-active': filter === item.key }"
-              :aria-pressed="filter === item.key"
-              @click="setFilter(item.key, true)"
-            >
-              <span class="sf-home-navigation__link-main">
-                <UIcon :name="item.icon" class="size-[18px]" aria-hidden="true" />
-                {{ t(item.labelKey) }}
-              </span>
-            </button>
-          </nav>
-        </template>
-      </SFHomeNavigation>
-    </aside>
 
     <aside v-if="mobileInfoOpen" class="sforum-mobile-drawer sforum-mobile-drawer--right">
       <header class="sforum-mobile-drawer__head">

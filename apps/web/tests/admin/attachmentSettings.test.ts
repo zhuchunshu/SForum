@@ -17,6 +17,12 @@ import {
   normalizeAttachmentCompressionSettings,
   recommendedAttachmentCompressionSettings
 } from '../../app/components/admin/settings/attachments/compressionModel'
+import {
+  formatUploadLimit,
+  replaceUploadPermissionOverride,
+  uploadLimitMaxMB,
+  uploadPermissionMode
+} from '../../app/components/admin/settings/attachments/uploadPolicyModel'
 
 const [zhCN, enUS] = await Promise.all([
   Bun.file(new URL('../../i18n/locales/zh-CN.json', import.meta.url)).json(),
@@ -120,5 +126,24 @@ describe('attachment settings defaults', () => {
     expect(isRecommendedAttachmentCompressionSettings(recommended)).toBe(true)
     expect(isRecommendedAttachmentCompressionSettings(custom)).toBe(false)
     expect(normalizeAttachmentCompressionSettings({ strength: 200 }).strength).toBe(100)
+  })
+
+  test('resolves upload permission overrides without changing unrelated permissions', () => {
+    const original = { allow: ['topic.create'], deny: ['post.create'] }
+    const denied = replaceUploadPermissionOverride(original, 'deny')
+
+    expect(uploadPermissionMode(original)).toBe('inherit')
+    expect(uploadPermissionMode(denied)).toBe('deny')
+    expect(denied).toEqual({ allow: ['topic.create'], deny: ['post.create', 'attachment.upload'] })
+    expect(replaceUploadPermissionOverride(denied, 'allow')).toEqual({
+      allow: ['topic.create', 'attachment.upload'],
+      deny: ['post.create']
+    })
+  })
+
+  test('uses the lower site or transport limit for policy inputs', () => {
+    expect(uploadLimitMaxMB(20 * 1024 * 1024, 63 * 1024 * 1024)).toBe(20)
+    expect(uploadLimitMaxMB(20 * 1024 * 1024, 9 * 1024 * 1024)).toBe(9)
+    expect(formatUploadLimit(15 * 1024 * 1024)).toBe('15 MB')
   })
 })

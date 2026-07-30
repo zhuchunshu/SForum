@@ -79,7 +79,10 @@ describe('security settings chrome', () => {
     expect(shellSrc).toContain('navigation-mode="route"')
     expect(shellSrc).toContain(':show-categories="false"')
     expect(shellSrc).toContain('<SFSettingsAccountNav')
-    expect(shellSrc).toContain("useState<boolean>('forum-mobile-menu-open'")
+    expect(shellSrc).toContain('<SFResponsivePublicSidebar')
+    expect(shellSrc).toContain('owner-id="forum.settings"')
+    expect(shellSrc).toContain('usePublicSidebarDrawer()')
+    expect(shellSrc).not.toContain("useState<boolean>('forum-mobile-menu-open'")
     expect(shellSrc).toContain("useState<boolean>('forum-mobile-info-open'")
   })
 

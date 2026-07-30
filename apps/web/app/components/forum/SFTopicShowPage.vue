@@ -16,7 +16,9 @@ import SFTopicHeading from '~/components/forum/SFTopicHeading.vue'
 import SFTopicActionMenu from '~/components/forum/SFTopicActionMenu.vue'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
+import SFResponsivePublicSidebar from '~/components/forum/navigation/SFResponsivePublicSidebar.vue'
 import SFComment from '~/components/forum/SFComment.vue'
+import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSidebarDrawer'
 import { buildAuthPageLink } from '~/utils/identity/authReturn'
 /**
  * 宿主 body 岛：forum.topic.show。主题 L1 挂载；路由页仅 outlet + fail-closed 回退。
@@ -292,13 +294,13 @@ const navCategories = computed(() => categoryGroups.value.flatMap((group) => gro
 const navTotalTopics = computed(() => navCategories.value.reduce((sum, category) => sum + category.topicCount, 0))
 const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
 const showTopicSide = computed(() => Boolean(topic.value))
-const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
+const { closeDrawer: closeMobileMenu } = usePublicSidebarDrawer()
 const canNormalizeTopicURL = import.meta.client
   || (useRequestHeaders(['accept']).accept || '').includes('text/html')
 
 function closeMobileDrawers() {
-  mobileMenuOpen.value = false
+  closeMobileMenu()
   mobileInfoOpen.value = false
 }
 
@@ -965,7 +967,11 @@ async function submitReport() {
       class="sforum-topic-page__layout"
       :class="{ 'sforum-topic-page__layout--with-side': showTopicSide }"
     >
-      <div class="sforum-topic-page__sidebar">
+      <SFResponsivePublicSidebar
+        owner-id="forum.topic.show"
+        :title="t('home.sidebar.navTitle')"
+        class="sforum-topic-page__sidebar"
+      >
         <SFHomeNavigation
           desktop-only
           navigation-mode="route"
@@ -975,7 +981,7 @@ async function submitReport() {
           :pending="categoriesPending"
           :can-create-topic="canCreateTopic"
         />
-      </div>
+      </SFResponsivePublicSidebar>
 
       <div class="sforum-topic-page__main sforum-content-column">
         <div class="sforum-topic-page__inner">
@@ -1173,30 +1179,12 @@ async function submitReport() {
     </div>
 
     <button
-      v-if="mobileMenuOpen || mobileInfoOpen"
+      v-if="mobileInfoOpen"
       type="button"
       class="sforum-mobile-drawer__backdrop"
       :aria-label="t('topicDetail.cancel')"
       @click="closeMobileDrawers"
     />
-
-    <aside v-if="mobileMenuOpen" class="sforum-mobile-drawer sforum-mobile-drawer--left">
-      <header class="sforum-mobile-drawer__head">
-        <strong>{{ t('home.sidebar.navTitle') }}</strong>
-        <button type="button" :aria-label="t('topicDetail.cancel')" @click="closeMobileDrawers">
-          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
-        </button>
-      </header>
-      <SFHomeNavigation
-        desktop-only
-        navigation-mode="route"
-        :categories="navCategories"
-        :selected-category-slug="topic?.categorySlug || ''"
-        :total-topics="navTotalTopics"
-        :pending="categoriesPending"
-        :can-create-topic="canCreateTopic"
-      />
-    </aside>
 
     <aside v-if="mobileInfoOpen && topic" class="sforum-mobile-drawer sforum-mobile-drawer--right">
       <header class="sforum-mobile-drawer__head">

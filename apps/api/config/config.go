@@ -164,7 +164,7 @@ func Load() Config {
 		HTTPReadTimeout:  envDuration("HTTP_READ_TIMEOUT", 10*time.Second),
 		HTTPWriteTimeout: envDuration("HTTP_WRITE_TIMEOUT", 20*time.Second),
 		HTTPIdleTimeout:  envDuration("HTTP_IDLE_TIMEOUT", 120*time.Second),
-		HTTPBodyLimit:    envPositiveInt("HTTP_BODY_LIMIT", 4*1024*1024),
+		HTTPBodyLimit:    envPositiveInt("HTTP_BODY_LIMIT", 64*1024*1024),
 		CompressLevel:    compressLevelFromEnv(env("COMPRESS_LEVEL", "default")),
 		// 默认启用 TLS（sslmode=require）；本地开发无 TLS 的 Postgres 需显式设置 sslmode=disable。
 		DatabaseURL:                   env("DATABASE_URL", "postgres://sforum:sforum@postgres:5432/sforum?sslmode=require"),

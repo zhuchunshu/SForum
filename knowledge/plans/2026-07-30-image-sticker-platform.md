@@ -4,7 +4,7 @@ Status: **active** - platform architecture is approved; the Forum Canvas base
 editor is implemented, while the sticker contract and product remain unbuilt
 
 Date: 2026-07-30
-Last updated: 2026-07-30 - Forum Canvas production base verified
+Last updated: 2026-07-31 - Forum Canvas source inspection modes removed
 
 Goal: let operators upload and manage custom image sticker packs, let plugins
 contribute packs without a large handwritten Manifest, and let forum content
@@ -66,9 +66,11 @@ Interactive comparison demos live at
 The operator selected Forum Canvas as the base direction. Its input surfaces
 use quiet focus treatment without an accent outline or hover fill; command
 buttons retain visible keyboard focus and selected states. The production
-`SFEditor` now uses this base geometry and retains write, preview, Markdown,
-and native JSON modes. The Unicode emoji picker is removed from the toolbar,
-but historical `sforumEmoji` documents remain supported.
+`SFEditor` now uses this base geometry and exposes write plus preview modes.
+Markdown source editing and native JSON inspection are no longer visible, while
+the internal Markdown/native document payload remains unchanged. The Unicode
+emoji picker is removed from the toolbar, but historical `sforumEmoji`
+documents remain supported.
 
 All three use the supplied D01 image sticker pack, not Unicode emoji. They
 share search, recent-use tabs, insertion at the current selection, preview

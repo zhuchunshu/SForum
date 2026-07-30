@@ -36,6 +36,7 @@ export type AttachmentSettings = {
   pathTemplate: string
   publicBaseUrl: string
   maxFileSizeMb: number
+  transportMaxFileSizeBytes?: number
   allowedExtensions: string[]
   allowedMimeTypes: string[]
   defaultVisibility: 'public' | 'private'

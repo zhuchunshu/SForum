@@ -71,6 +71,10 @@ const allowedMimeTypesText = computed({
   }
 })
 const recommendedApplied = computed(() => isRecommendedAttachmentSettings(form))
+const transportMaxFileSizeMB = computed(() => form.transportMaxFileSizeBytes
+  ? Math.max(1, Math.floor(form.transportMaxFileSizeBytes / (1024 * 1024)))
+  : 1024)
+const maxFileSizeExceedsTransport = computed(() => form.maxFileSizeMb > transportMaxFileSizeMB.value)
 const beginnerDefaults = computed(() => [
   { icon: 'i-lucide-hard-drive', label: t('admin.attachments.beginner.defaults.local') },
   { icon: 'i-lucide-upload-cloud', label: t('admin.attachments.beginner.defaults.uploads') },
@@ -302,11 +306,14 @@ function providerLabel(provider: string) {
               </p>
             </UFormField>
             <UFormField :label="t('admin.attachments.maxFileSize')" :help="t('admin.attachments.fieldHelp.maxFileSize')" name="attachment-max-size">
-              <UInput v-model.number="form.maxFileSizeMb" size="lg" type="number" min="1" max="1024" icon="i-lucide-hard-drive-upload" class="w-full">
+              <UInput v-model.number="form.maxFileSizeMb" size="lg" type="number" min="1" :max="transportMaxFileSizeMB" icon="i-lucide-hard-drive-upload" class="w-full">
                 <template #trailing>
                   <span class="pointer-events-none text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.attachments.units.megabytes') }}</span>
                 </template>
               </UInput>
+              <p v-if="maxFileSizeExceedsTransport" class="mt-2 text-xs text-error" role="alert">
+                {{ t('admin.attachments.transportLimitExceeded', { limit: transportMaxFileSizeMB }) }}
+              </p>
             </UFormField>
           </div>
 

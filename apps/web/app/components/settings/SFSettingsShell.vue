@@ -3,8 +3,10 @@ import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePer
 import { useForumApi } from '~/composables/forum/useForumApi'
 import SFSettingsAccountNav from '~/components/settings/SFSettingsAccountNav.vue'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
+import SFResponsivePublicSidebar from '~/components/forum/navigation/SFResponsivePublicSidebar.vue'
 import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
 import SFPublicPageHeader from '~/components/public/SFPublicPageHeader.vue'
+import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSidebarDrawer'
 /**
  * 账号设置页共享 chrome：三栏布局 + 左侧导航 + 页头 + 移动端抽屉。
  * 页面通过插槽提供主内容 (default)、右栏 (rail，桌面 aside 与移动抽屉复用同一份)、
@@ -43,11 +45,11 @@ const categories = computed(() => categoryGroups.value.flatMap(group => group.ca
 const categoryTopicTotal = computed(() => categories.value.reduce((sum, category) => sum + (category.topicCount || 0), 0))
 const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
 
-const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
+const { openDrawer: openMobileMenu, closeDrawer: closeMobileMenu } = usePublicSidebarDrawer()
 
 function closeMobileDrawers() {
-  mobileMenuOpen.value = false
+  closeMobileMenu()
   mobileInfoOpen.value = false
 }
 </script>
@@ -55,7 +57,11 @@ function closeMobileDrawers() {
 <template>
   <main class="sforum-settings" data-layout="fullwidth-3col">
     <div class="sforum-settings__layout">
-      <div class="sforum-settings__sidebar sforum-home__sidebar">
+      <SFResponsivePublicSidebar
+        owner-id="forum.settings"
+        :title="t('home.sidebar.drawerTitle')"
+        class="sforum-settings__sidebar sforum-home__sidebar"
+      >
         <SFHomeNavigation
           desktop-only
           navigation-mode="route"
@@ -69,10 +75,11 @@ function closeMobileDrawers() {
             <SFSettingsAccountNav
               :active="props.active"
               :public-profile-path="props.publicProfilePath"
+              @navigate="closeMobileDrawers"
             />
           </template>
         </SFHomeNavigation>
-      </div>
+      </SFResponsivePublicSidebar>
 
       <section class="sforum-settings__main sforum-content-column" :aria-labelledby="props.titleId">
         <SFPublicPageHeader
@@ -96,7 +103,7 @@ function closeMobileDrawers() {
                 type="button"
                 class="sforum-settings__icon-button sforum-settings__desktop-hidden"
                 :aria-label="t('home.sidebar.drawerTitle')"
-                @click="mobileMenuOpen = true"
+                @click="openMobileMenu"
               >
                 <UIcon name="i-lucide-menu" class="size-[18px]" aria-hidden="true" />
               </button>
@@ -119,38 +126,12 @@ function closeMobileDrawers() {
     </div>
 
     <button
-      v-if="mobileMenuOpen || mobileInfoOpen"
+      v-if="mobileInfoOpen"
       type="button"
       class="sforum-mobile-drawer__backdrop"
       :aria-label="t('common.close')"
       @click="closeMobileDrawers"
     />
-
-    <aside v-if="mobileMenuOpen" class="sforum-mobile-drawer sforum-mobile-drawer--left">
-      <header class="sforum-mobile-drawer__head">
-        <strong>{{ t('home.sidebar.drawerTitle') }}</strong>
-        <button type="button" :aria-label="t('common.close')" @click="closeMobileDrawers">
-          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
-        </button>
-      </header>
-      <SFHomeNavigation
-        desktop-only
-        navigation-mode="route"
-        :categories="categories"
-        :total-topics="categoryTopicTotal"
-        :pending="categoriesPending"
-        :can-create-topic="canCreateTopic"
-        :show-categories="false"
-      >
-        <template #after-navigation>
-          <SFSettingsAccountNav
-            :active="props.active"
-            :public-profile-path="props.publicProfilePath"
-            @navigate="closeMobileDrawers"
-          />
-        </template>
-      </SFHomeNavigation>
-    </aside>
 
     <aside v-if="props.showRail && mobileInfoOpen" class="sforum-mobile-drawer sforum-mobile-drawer--right">
       <header class="sforum-mobile-drawer__head">

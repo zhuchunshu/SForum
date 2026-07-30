@@ -322,7 +322,7 @@ onBeforeUnmount(() => {
         :key="editorKey"
         :model-value="modelValue"
         :initial-content="initialContent"
-        :rows="12"
+        :rows="6"
         :placeholder="mode === 'edit' ? t('topicDetail.editPlaceholder') : t('topicDetail.replyPlaceholder')"
         :submit-label="submitLabel"
         :submit-visible="false"
@@ -424,8 +424,17 @@ onBeforeUnmount(() => {
 .sf-topic-composer-drawer__context-meta strong { color: var(--sf-public-text-secondary, var(--sf-fg-secondary)); }
 .sf-topic-composer-drawer__context-meta a { margin-left: auto; color: var(--sf-accent); font-weight: 650; }
 .sf-topic-composer-drawer__context p { display: -webkit-box; margin: 6px 0 0; overflow: hidden; color: var(--sf-public-text-secondary, var(--sf-fg-secondary)); font-size: 12px; line-height: 1.55; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.sf-topic-composer-drawer .sf-editor { min-height: 0; flex: 1 1 auto; border-radius: 6px; }
-.sf-topic-composer-drawer .sf-editor__body { min-height: clamp(180px, 32vh, 360px); }
+.sf-topic-composer-drawer .sf-editor {
+  display: grid;
+  min-height: 268px;
+  flex: 1 0 268px;
+  grid-template-rows: auto minmax(180px, 1fr) auto;
+  border-radius: 6px;
+}
+.sf-topic-composer-drawer .sf-editor__body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.sf-topic-composer-drawer .sf-editor__loading,
+.sf-topic-composer-drawer .sf-editor__content,
+.sf-topic-composer-drawer .sf-editor__preview { min-height: 100%; }
 .sf-topic-composer-drawer__reason { display: grid; flex: 0 0 auto; gap: 6px; }
 .sf-topic-composer-drawer__reason > span { font-size: 12px; font-weight: 700; }
 .sf-topic-composer-drawer__reason textarea { width: 100%; resize: vertical; border: 1px solid var(--sf-public-border, var(--sf-border)); border-radius: 6px; padding: 9px 10px; outline: 0; background: var(--sf-public-surface, var(--sf-card)); color: var(--sf-public-text, var(--sf-fg)); font-size: 12px; line-height: 1.5; }
@@ -451,7 +460,7 @@ onBeforeUnmount(() => {
   .sf-topic-composer-drawer__body { gap: 10px; padding: 10px 14px; }
   .sf-topic-composer-drawer__context { padding: 8px 10px; }
   .sf-topic-composer-drawer__context p { -webkit-line-clamp: 1; }
-  .sf-topic-composer-drawer .sf-editor__body { min-height: 190px; }
+  .sf-topic-composer-drawer .sf-editor { min-height: 328px; flex-basis: 328px; grid-template-rows: auto minmax(190px, 1fr) auto; }
   .sf-topic-composer-drawer__footer { min-height: 64px; padding: 9px 14px; }
   .sf-topic-composer-drawer__actor { display: none; }
   .sf-topic-composer-drawer__actions { width: 100%; }

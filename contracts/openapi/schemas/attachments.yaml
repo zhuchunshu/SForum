@@ -340,6 +340,12 @@ AttachmentSettings:
       type: integer
       minimum: 1
       maximum: 1024
+    transportMaxFileSizeBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      readOnly: true
+      description: API request-body hard ceiling after reserving multipart metadata overhead.
     allowedExtensions:
       type: array
       items:
@@ -574,3 +580,86 @@ ApiResponseAttachmentStorageInstances:
     data:
       type: array
       items: { "$ref": "#/AttachmentStorageInstance" }
+AttachmentUploadPolicy:
+  type: object
+  required: [allowed, reason, source, effectiveMaxFileSizeBytes, siteMaxFileSizeBytes, transportMaxFileSizeBytes]
+  properties:
+    allowed: { type: boolean }
+    reason: { type: string }
+    source: { type: string, enum: [site, role, user] }
+    effectiveMaxFileSizeBytes: { type: integer, format: int64, minimum: 0 }
+    siteMaxFileSizeBytes: { type: integer, format: int64, minimum: 0 }
+    transportMaxFileSizeBytes: { type: integer, format: int64, minimum: 0 }
+AttachmentUploadRolePolicy:
+  type: object
+  required: [roleKey, alias, enabled, grantsUpload, protected, effectiveMaxFileSizeBytes]
+  properties:
+    roleKey: { type: string }
+    alias: { type: string }
+    enabled: { type: boolean }
+    grantsUpload: { type: boolean }
+    protected: { type: boolean }
+    configuredMaxFileSizeMb: { type: [integer, 'null'], minimum: 1 }
+    effectiveMaxFileSizeBytes: { type: integer, format: int64, minimum: 0 }
+    updatedAt: { type: string, format: date-time }
+AttachmentUploadRolePolicyCatalog:
+  type: object
+  required: [uploadEnabled, siteMaxFileSizeBytes, transportMaxFileSizeBytes, items]
+  properties:
+    uploadEnabled: { type: boolean }
+    siteMaxFileSizeBytes: { type: integer, format: int64, minimum: 0 }
+    transportMaxFileSizeBytes: { type: integer, format: int64, minimum: 0 }
+    items:
+      type: array
+      items: { "$ref": "#/AttachmentUploadRolePolicy" }
+AttachmentUploadUserPolicy:
+  type: object
+  required: [userId, username, displayName, status, roleKeys, canUpload, protected, effectiveMaxFileSizeBytes, source, reason]
+  properties:
+    userId: { type: integer, format: int64 }
+    username: { type: string }
+    displayName: { type: string }
+    status: { type: string }
+    roleKeys:
+      type: array
+      items: { type: string }
+    canUpload: { type: boolean }
+    protected: { type: boolean }
+    configuredMaxFileSizeMb: { type: [integer, 'null'], minimum: 1 }
+    effectiveMaxFileSizeBytes: { type: integer, format: int64, minimum: 0 }
+    source: { type: string, enum: [site, role, user] }
+    reason: { type: string }
+    updatedAt: { type: string, format: date-time }
+AttachmentUploadLimitInput:
+  type: object
+  required: [maxFileSizeMb]
+  properties:
+    maxFileSizeMb: { type: integer, minimum: 1, maximum: 1024 }
+ApiResponseAttachmentUploadPolicy:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/AttachmentUploadPolicy" }
+ApiResponseAttachmentUploadRolePolicy:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/AttachmentUploadRolePolicy" }
+ApiResponseAttachmentUploadRolePolicies:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/AttachmentUploadRolePolicyCatalog" }
+ApiResponseAttachmentUploadUserPolicy:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/AttachmentUploadUserPolicy" }

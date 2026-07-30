@@ -3,8 +3,10 @@ import { useNotifications } from '~/composables/notifications/useNotifications'
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
 import { useForumApi } from '~/composables/forum/useForumApi'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
+import SFResponsivePublicSidebar from '~/components/forum/navigation/SFResponsivePublicSidebar.vue'
 import SFNotificationTypeNav from '~/components/notifications/SFNotificationTypeNav.vue'
 import SFPublicPageHeader from '~/components/public/SFPublicPageHeader.vue'
+import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSidebarDrawer'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { isUnauthenticatedAuthError } from '~/composables/identity/useAuthSession'
 import {
@@ -39,8 +41,8 @@ const actionError = ref('')
 const loadingMoreError = ref('')
 const loadingMore = ref(false)
 const markingAll = ref(false)
-const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
+const { closeDrawer: closeMobileMenu } = usePublicSidebarDrawer()
 
 function serverFilters(filter: NotificationFilter) {
   if (filter === 'all') return {}
@@ -104,7 +106,7 @@ function filterLabel(filter: NotificationFilter) {
 }
 
 function closeMobileDrawers() {
-  mobileMenuOpen.value = false
+  closeMobileMenu()
   mobileInfoOpen.value = false
 }
 
@@ -231,7 +233,11 @@ onBeforeUnmount(() => stopRealtime())
     data-layout="fullwidth-3col"
   >
     <div class="sforum-notifications__layout">
-      <div class="sforum-notifications__sidebar sforum-home__sidebar">
+      <SFResponsivePublicSidebar
+        owner-id="forum.notifications"
+        :title="t('home.sidebar.drawerTitle')"
+        class="sforum-notifications__sidebar sforum-home__sidebar"
+      >
         <SFHomeNavigation
           desktop-only
           navigation-mode="route"
@@ -250,7 +256,7 @@ onBeforeUnmount(() => stopRealtime())
             />
           </template>
         </SFHomeNavigation>
-      </div>
+      </SFResponsivePublicSidebar>
 
       <section class="sforum-notifications__main" aria-labelledby="notification-page-title">
         <SFRegionOutlet page="forum.notifications" region="content_before" />
@@ -447,39 +453,12 @@ onBeforeUnmount(() => stopRealtime())
     </div>
 
     <button
-      v-if="mobileMenuOpen || mobileInfoOpen"
+      v-if="mobileInfoOpen"
       type="button"
       class="sforum-mobile-drawer__backdrop"
       :aria-label="t('common.close')"
       @click="closeMobileDrawers"
     />
-
-    <aside v-if="mobileMenuOpen" class="sforum-mobile-drawer sforum-mobile-drawer--left">
-      <header class="sforum-mobile-drawer__head">
-        <strong>{{ t('home.sidebar.drawerTitle') }}</strong>
-        <button type="button" :aria-label="t('common.close')" @click="closeMobileDrawers">
-          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
-        </button>
-      </header>
-      <SFHomeNavigation
-        desktop-only
-        navigation-mode="route"
-        :categories="categories"
-        :total-topics="categoryTopicTotal"
-        :pending="categoriesPending"
-        :can-create-topic="canCreateTopic"
-        :show-categories="false"
-      >
-        <template #after-navigation>
-          <SFNotificationTypeNav
-            :active-filter="activeFilter"
-            :counts="loadedTypeCounts"
-            :loaded-count="presentedItems.length"
-            @select="selectFilter"
-          />
-        </template>
-      </SFHomeNavigation>
-    </aside>
 
     <aside v-if="mobileInfoOpen" class="sforum-mobile-drawer sforum-mobile-drawer--right">
       <header class="sforum-mobile-drawer__head">

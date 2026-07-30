@@ -26,6 +26,14 @@
   "common": {
     "close": "关闭"
   },
+  "codeBlock": {
+    "code": "代码块",
+    "copy": "复制",
+    "copied": "已复制",
+    "copySuccess": "代码已复制",
+    "copyFailed": "复制失败，请手动选择代码",
+    "plainText": "纯文本"
+  },
   "appearance": {
     "colorMode": {
       "system": "自动",
@@ -1909,11 +1917,67 @@
       "toolbar": "附件上传由 API 权限控制，后台配置只影响运行时存储策略。",
       "refresh": "刷新",
       "settingsLoadFailed": "附件设置加载失败。",
+      "transportLimitExceeded": "当前 API 传输硬上限只允许最多 {limit} MB；请降低此值或提高 HTTP_BODY_LIMIT。",
       "tabs": {
         "label": "附件设置页签",
         "settings": "基础配置",
         "compression": "图片优化",
+        "policies": "上传权限",
         "manager": "附件管理"
+      },
+      "uploadPolicies": {
+        "toolbar": "上传资格由 RBAC 决定，单文件上限按站点、用户组和用户策略合并。",
+        "loadFailed": "上传权限策略加载失败。",
+        "loading": "正在加载用户组策略…",
+        "loadingUser": "正在加载用户有效策略…",
+        "siteDisabled": "全站附件上传已关闭，所有用户和用户组策略暂不生效。",
+        "transportMismatch": "API 传输硬上限低于站点设置",
+        "transportMismatchHelp": "当前实际最多只能上传 {limit}。请提高 HTTP_BODY_LIMIT，或降低基础配置中的站点上限。",
+        "rolesTitle": "用户组上传策略",
+        "rolesDescription": "attachment.upload 决定能否上传；大小为空时继承站点上限。用户属于多个可上传组时取其中最大值。",
+        "rolePermissionsLoadFailed": "用户组权限明细加载失败。",
+        "rolePermissionsLoadFailedHelp": "大小上限仍可管理；为避免覆盖其它权限，上传权限开关已暂时禁用。刷新页面后重试。",
+        "siteLimit": "站点上限 {limit}",
+        "transportLimit": "传输上限 {limit}",
+        "effectiveLimit": "有效单文件上限：{limit}",
+        "protected": "系统保护",
+        "permissionEnabled": "允许上传",
+        "permissionDisabled": "禁止上传",
+        "uploadPermissionFor": "{role} 的附件上传权限",
+        "restoreInheritance": "恢复继承",
+        "saveRoleLimit": "保存用户组上限",
+        "permissionSaved": "附件上传权限已保存。",
+        "permissionSaveFailed": "附件上传权限保存失败。",
+        "limitSaved": "用户组单文件上限已保存。",
+        "limitRestored": "用户组已恢复继承站点上限。",
+        "limitSaveFailed": "上传大小上限保存失败。",
+        "usersTitle": "用户例外",
+        "usersDescription": "用户级权限覆盖决定例外允许或拒绝；用户级大小设置会替代用户组计算结果，但仍受站点与传输上限约束。",
+        "userViewRequired": "需要 user.view 权限后才能搜索和检查用户策略。",
+        "userSearchPlaceholder": "搜索用户名、昵称或邮箱",
+        "search": "搜索",
+        "userSearchFailed": "用户搜索失败。",
+        "userLoadFailed": "用户上传策略加载失败。",
+        "canUpload": "可以上传",
+        "cannotUpload": "不能上传",
+        "userEffective": "有效上限 {limit} · 来源：{source}",
+        "userPermission": "上传权限例外",
+        "savePermission": "保存权限例外",
+        "overridePermissionRequired": "需要 user.permission_override 权限才能修改用户例外。",
+        "userLimit": "用户单文件上限",
+        "saveUserLimit": "保存用户上限",
+        "userLimitSaved": "用户单文件上限已保存。",
+        "userLimitRestored": "用户已恢复继承用户组策略。",
+        "permissionMode": {
+          "inherit": "继承用户组",
+          "allow": "例外允许",
+          "deny": "例外拒绝"
+        },
+        "source": {
+          "site": "站点",
+          "role": "用户组",
+          "user": "用户"
+        }
       },
       "settingsTitle": "基础配置",
       "settingsDescription": "选择当前写入存储，设置路径模板、大小限制和文件类型规则。S3 连接参数由存储服务实例管理。",
@@ -2180,7 +2244,12 @@
     "roles": {
       "metaTitle": "用户组",
       "title": "用户组",
-      "intro": "用户组用于批量授予权限；用户页可以继续设置单个用户的允许或拒绝例外。",
+      "intro": "管理用户组授予的权限，并审批扩展建议的用户组权限映射。",
+      "tabs": {
+        "label": "用户组管理页签",
+        "groups": "用户组列表",
+        "approvals": "权限审批"
+      },
       "caption": "论坛用户组列表",
       "refresh": "刷新",
       "create": "新建用户组",
@@ -2294,6 +2363,18 @@
       "caption": "论坛用户列表",
       "refresh": "刷新",
       "searchPlaceholder": "搜索用户名、邮箱或显示名",
+      "sortByLabel": "排序字段",
+      "sortByValue": "排序：{value}",
+      "sortCreatedAt": "注册时间",
+      "sortUpdatedAt": "更新时间",
+      "sortUsername": "用户名",
+      "sortDisplayName": "显示名",
+      "sortEmail": "邮箱",
+      "sortStatus": "账号状态",
+      "sortOrderLabel": "排序方式",
+      "sortOrderValue": "方式：{value}",
+      "sortDescending": "降序（新到旧 / Z-A）",
+      "sortAscending": "升序（旧到新 / A-Z）",
       "count": "{count} 个用户",
       "username": "用户",
       "email": "邮箱",
@@ -2684,6 +2765,12 @@
           "manage": {
             "label": "管理附件设置",
             "description": "修改附件存储提供商、上传限制、访问 URL 和密钥配置。"
+          }
+        },
+        "upload_policy": {
+          "manage": {
+            "label": "管理附件上传策略",
+            "description": "设置用户组与用户的附件单文件大小上限。"
           }
         }
       },

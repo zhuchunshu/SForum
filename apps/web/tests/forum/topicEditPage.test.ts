@@ -7,6 +7,13 @@ const editPage = readFileSync(
 )
 
 describe('standalone topic edit page behavior contract', () => {
+  test('uses the page dock as the only visible save action', () => {
+    expect(editPage).toContain('<LazySFEditor')
+    expect(editPage).toContain(':submit-visible="false"')
+    expect(editPage).toContain('sforum-topic-composer__dock')
+    expect(editPage).toContain('@click="submitCurrent"')
+  })
+
   test('resets all topic-scoped editor and feedback state when the route is reused', () => {
     expect(editPage).toContain('editorPayload.value = null')
     expect(editPage).toContain("submitState.value = 'idle'")

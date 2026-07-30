@@ -16,16 +16,30 @@ both surfaces are the same left navigation at different viewport widths.
 Independent operator configuration and separate renderers allowed ordering,
 dynamic categories, counts, compose actions, and footer links to drift.
 
-Page-specific settings, notification, profile, moderation, and forum drawers
-already reuse their desktop sidebar components. The remaining divergence was
-the navbar-owned public mobile drawer and its separate editor location.
+Even after the data placement was unified, rendering still had two owners.
+`SFNavbar` opened a generic navigation drawer, while forum, settings,
+notification, profile, moderation, and error pages kept separate state and a
+second copy of their desktop sidebar markup. The topbar therefore showed
+generic categories where the desktop page showed filters, account sections,
+notification types, composer progress, or moderation queues.
 
 ## Decision
 
 `public.sidebar.primary` is the only product source for the public left
-navigation on desktop and mobile. The public web client requests sidebar items
-once and renders them through one `SFPublicSidebarContent` component inside the
-desktop rail or the mobile drawer container.
+navigation on desktop and mobile. A page with a desktop left sidebar claims the
+shared drawer owner and renders its existing sidebar DOM through
+`SFResponsivePublicSidebar`: it is a grid rail above 980px and the left drawer
+at 980px or below. The page does not render a second mobile copy.
+
+`SFNavbar` only toggles `usePublicSidebarDrawer`. The shared state contains
+serializable `{ open, owner }` data, never components, VNodes, slots, or
+callbacks. Owner tokens prevent an old route instance from clearing a newer
+page owner during unmount. When no page claims the owner, Navbar mounts
+`SFPublicMobileNavigation` as the generic fallback; otherwise the current page
+sidebar is authoritative.
+
+Page-specific right information rails remain independent drawers because they
+are a different surface and action. They do not share the left-sidebar owner.
 
 The Personalization navigation editor exposes topbar, sidebar, and footer.
 Its sidebar description makes the responsive behavior explicit. Operators no
@@ -39,14 +53,19 @@ sidebar. Removing the compatibility location requires the normal API-LTS and
 extension/theme compatibility evidence.
 
 Themes may style the mobile drawer differently because its geometry and input
-mode differ. They must not introduce a second content, ordering, permission,
-or dynamic-block authority.
+mode differ. They must not introduce a second content, state, ordering,
+permission, or dynamic-block authority.
 
 ## Consequences
 
 - Desktop and mobile left navigation share labels, ordering, visibility,
   dynamic categories, counts, compose behavior, active state, and the About
   entry.
+- Contextual page sections such as taxonomy filters, account settings,
+  notification types, composer progress, and moderation queues are identical
+  on desktop and mobile because they are the same rendered DOM.
+- Pages without a desktop left sidebar continue to receive the generic public
+  navigation fallback from Navbar.
 - The public chrome fetches topbar, sidebar, and footer locations; it no longer
   requests an independent mobile location.
 - Older backups and clients remain parseable during the compatibility window.

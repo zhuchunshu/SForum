@@ -6,7 +6,9 @@ import SFTagShowRightRail from '~/components/forum/SFTagShowRightRail.vue'
 import SFHomeTopicRow from '~/components/forum/SFHomeTopicRow.vue'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
+import SFResponsivePublicSidebar from '~/components/forum/navigation/SFResponsivePublicSidebar.vue'
 import SFPublicPageHeader from '~/components/public/SFPublicPageHeader.vue'
+import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSidebarDrawer'
 /**
  * 宿主 body 岛：forum.tag.show。
  * 三栏壳对齐标签索引 / 首页 / 通知；主题 L1 挂载，路由页仅 SEO + fail-closed 回退。
@@ -48,8 +50,8 @@ const publicTagPagesEnabled = computed(() => parseForumTagPublicPagesOption(
 ))
 const currentPage = computed(() => parsePublicPage(route.query.page))
 const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
-const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
+const { closeDrawer: closeMobileMenu } = usePublicSidebarDrawer()
 const renderedAt = useState<number>('forum-taxonomy-rendered-at', () => Date.now())
 const emptyTopicList = (): ForumTopicList => ({
   items: [],
@@ -174,7 +176,7 @@ function tagTo(slug: string) {
 }
 
 function closeMobileDrawers() {
-  mobileMenuOpen.value = false
+  closeMobileMenu()
   mobileInfoOpen.value = false
 }
 
@@ -218,7 +220,11 @@ function topicActivity(topic: ForumTopicSummary) {
     data-layout="fullwidth-3col"
   >
     <div class="sforum-home__layout sforum-home__layout--with-right">
-      <div class="sforum-home__sidebar">
+      <SFResponsivePublicSidebar
+        owner-id="forum.tag.show"
+        :title="translate('home.sidebar.drawerTitle')"
+        class="sforum-home__sidebar"
+      >
         <SFHomeNavigation
           desktop-only
           navigation-mode="route"
@@ -257,7 +263,7 @@ function topicActivity(topic: ForumTopicSummary) {
             </nav>
           </template>
         </SFHomeNavigation>
-      </div>
+      </SFResponsivePublicSidebar>
 
       <section class="sforum-home__main sforum-tags-page__main sforum-content-column" aria-labelledby="tag-page-title">
         <SFRegionOutlet page="forum.tag.show" region="content_before" />
@@ -355,61 +361,12 @@ function topicActivity(topic: ForumTopicSummary) {
     </div>
 
     <button
-      v-if="mobileMenuOpen || mobileInfoOpen"
+      v-if="mobileInfoOpen"
       type="button"
       class="sforum-mobile-drawer__backdrop"
       :aria-label="translate('common.close')"
       @click="closeMobileDrawers"
     />
-
-    <aside v-if="mobileMenuOpen" class="sforum-mobile-drawer sforum-mobile-drawer--left">
-      <header class="sforum-mobile-drawer__head">
-        <strong>{{ translate('home.sidebar.drawerTitle') }}</strong>
-        <button type="button" :aria-label="translate('common.close')" @click="closeMobileDrawers">
-          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
-        </button>
-      </header>
-      <SFHomeNavigation
-        desktop-only
-        navigation-mode="route"
-        :categories="categories"
-        selected-category-slug=""
-        :total-topics="totalTopics"
-        :pending="categoriesPending"
-        :can-create-topic="canCreateTopic"
-        :show-categories="false"
-      >
-        <template #after-navigation>
-          <nav class="sforum-tags-page__filter-nav" :aria-label="translate('taxonomy.tags.show.relatedNav')">
-            <div class="sf-home-navigation__label">{{ translate('taxonomy.tags.show.relatedNav') }}</div>
-            <NuxtLink
-              :to="localePath(forumTagsIndexPath())"
-              class="sf-home-navigation__link"
-              @click="closeMobileDrawers"
-            >
-              <span class="sf-home-navigation__link-main">
-                <UIcon name="i-lucide-layout-grid" class="size-[18px]" aria-hidden="true" />
-                {{ translate('taxonomy.tags.show.viewAll') }}
-              </span>
-            </NuxtLink>
-            <NuxtLink
-              v-for="item in relatedNavTags"
-              :key="`drawer-${item.slug}`"
-              :to="tagTo(item.slug)"
-              class="sf-home-navigation__link"
-              :class="{ 'is-active': item.slug === tagSlug }"
-              @click="closeMobileDrawers"
-            >
-              <span class="sf-home-navigation__link-main">
-                <UIcon name="i-lucide-hash" class="size-[18px]" aria-hidden="true" />
-                {{ item.name }}
-              </span>
-              <span class="sf-home-navigation__count">{{ item.topicCount || 0 }}</span>
-            </NuxtLink>
-          </nav>
-        </template>
-      </SFHomeNavigation>
-    </aside>
 
     <aside v-if="mobileInfoOpen && tag" class="sforum-mobile-drawer sforum-mobile-drawer--right">
       <header class="sforum-mobile-drawer__head">

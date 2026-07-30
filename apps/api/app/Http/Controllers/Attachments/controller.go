@@ -10,6 +10,7 @@ import (
 
 	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
+	uploadpolicy "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments/UploadPolicy"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
@@ -83,6 +84,16 @@ func (h *Controller) upload(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {
 		return err
+	}
+	policy, err := h.service.UploadPolicy(c.Context(), actor)
+	if err != nil {
+		return mapAttachmentError(err)
+	}
+	if !policy.Allowed {
+		if policy.Reason == attachments.CodeUploadDisabled {
+			return mapAttachmentError(attachments.ErrUploadDisabled)
+		}
+		return mapAttachmentError(identity.ErrPermissionDenied)
 	}
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
@@ -455,6 +466,7 @@ func (h *Controller) optionalActor(c fiber.Ctx) (identity.Actor, error) {
 
 func mapAttachmentError(err error) error {
 	var rejected *appevents.RejectedError
+	var tooLarge *attachments.FileTooLargeError
 	switch {
 	case errors.Is(err, identity.ErrPermissionDenied):
 		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
@@ -463,6 +475,12 @@ func mapAttachmentError(err error) error {
 	// 插件 attachment.before_upload 等同步拒绝：422 + 稳定 reason。
 	case errors.As(err, &rejected):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, rejected.Reason)
+	case errors.As(err, &tooLarge):
+		return fiber.NewError(fiber.StatusRequestEntityTooLarge, attachments.CodeFileTooLarge)
+	case errors.Is(err, uploadpolicy.ErrProtectedActor):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, attachments.CodeUploadPolicyProtected)
+	case errors.Is(err, uploadpolicy.ErrInvalidPolicy):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, attachments.CodeUploadPolicyInvalid)
 	case errors.Is(err, attachments.ErrUploadDisabled):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, attachments.CodeUploadDisabled)
 	case errors.Is(err, attachments.ErrInvalidAttachment):

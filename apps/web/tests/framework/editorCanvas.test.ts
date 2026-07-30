@@ -11,12 +11,18 @@ describe('Forum Canvas editor surface', () => {
   const styles = source('../../app/assets/css/sforum-components.css')
   const editorExtensions = source('../../app/utils/sfEditor.ts')
 
-  it('uses the focused toolbar component without a Unicode emoji picker', () => {
+  it('keeps write and preview while removing source modes and the Unicode emoji picker', () => {
     expect(editor).toContain('<SFEditorToolbar')
     expect(toolbar).toContain("{ action: 'strike' as const")
-    expect(toolbar).toContain("{ value: 'markdown', label: 'Markdown' }")
-    expect(toolbar).toContain("{ value: 'native', label: 'JSON' }")
 
+    expect(toolbar).toContain("export type SFEditorViewMode = 'write' | 'preview'")
+    expect(toolbar).toContain("{ value: 'write', label: '撰写' }")
+    expect(toolbar).toContain("{ value: 'preview', label: '预览' }")
+    expect(toolbar).not.toContain("value: 'markdown'")
+    expect(toolbar).not.toContain("value: 'native'")
+    expect(editor).toContain('sf-editor__preview')
+    expect(editor).not.toContain('sf-editor__source')
+    expect(editor).not.toContain('sf-editor__native')
     expect(editor).not.toContain('showEmojiPanel')
     expect(editor).not.toContain('sforumEditorEmojiItems')
     expect(toolbar).not.toContain('i-lucide-smile')

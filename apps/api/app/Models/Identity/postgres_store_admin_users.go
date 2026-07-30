@@ -23,7 +23,7 @@ func (s *PostgresStore) ListUsers(ctx context.Context, input UserListInput) (Adm
 		    WHERE user_roles.user_id = users.id AND roles.key = $3
 		  ))
 	`
-	const listSQL = `
+	const listSQLPrefix = `
 		SELECT id, username, email, display_name, locale, status, is_initial_super_admin, created_at, updated_at
 		FROM users
 		WHERE ($1 = '' OR username_lower LIKE '%' || lower($1) || '%' ESCAPE '\' OR email_lower LIKE '%' || lower($1) || '%' ESCAPE '\' OR lower(display_name) LIKE '%' || lower($1) || '%' ESCAPE '\')
@@ -34,7 +34,8 @@ func (s *PostgresStore) ListUsers(ctx context.Context, input UserListInput) (Adm
 		    JOIN roles ON roles.id = user_roles.role_id
 		    WHERE user_roles.user_id = users.id AND roles.key = $3
 		  ))
-		ORDER BY id ASC
+		ORDER BY `
+	const listSQLSuffix = `
 		LIMIT $4 OFFSET $5
 	`
 
@@ -44,6 +45,7 @@ func (s *PostgresStore) ListUsers(ctx context.Context, input UserListInput) (Adm
 	}
 
 	offset := (input.Page - 1) * input.PerPage
+	listSQL := listSQLPrefix + adminUserOrderBy(input.SortBy, input.SortOrder) + listSQLSuffix
 	rows, err := s.pool.Query(ctx, listSQL, input.Query, input.Status, input.RoleKey, input.PerPage, offset)
 	if err != nil {
 		return AdminUserList{}, fmt.Errorf("list admin users: %w", err)
@@ -78,6 +80,29 @@ func (s *PostgresStore) ListUsers(ctx context.Context, input UserListInput) (Adm
 	}
 
 	return AdminUserList{Items: items, Total: total, Page: input.Page, PerPage: input.PerPage}, nil
+}
+
+func adminUserOrderBy(sortBy, sortOrder string) string {
+	sortBy, sortOrder = normalizeUserListSorting(sortBy, sortOrder)
+	direction := "DESC"
+	if sortOrder == UserListSortOrderAsc {
+		direction = "ASC"
+	}
+
+	column := "created_at"
+	switch sortBy {
+	case UserListSortUpdatedAt:
+		column = "updated_at"
+	case UserListSortUsername:
+		column = "username_lower"
+	case UserListSortDisplayName:
+		column = "lower(display_name)"
+	case UserListSortEmail:
+		column = "email_lower"
+	case UserListSortStatus:
+		column = "status"
+	}
+	return column + " " + direction + ", id " + direction
 }
 
 func (s *PostgresStore) GetAdminUser(ctx context.Context, userID int64) (AdminUserDetail, error) {

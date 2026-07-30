@@ -5,6 +5,7 @@ import { useForumApi } from '~/composables/forum/useForumApi'
 import SFHomeTopicRow from '~/components/forum/SFHomeTopicRow.vue'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
+import SFResponsivePublicSidebar from '~/components/forum/navigation/SFResponsivePublicSidebar.vue'
 import SFPublicPageHeader from '~/components/public/SFPublicPageHeader.vue'
 /**
  * 宿主 body 岛：forum.category.show。主题 L1 挂载；路由页仅 SEO + fail-closed 回退。
@@ -132,7 +133,11 @@ function topicActivity(topic: ForumTopicSummary) {
 
 <main class="sforum-home">
     <div class="sforum-home__layout">
-      <div class="sforum-home__sidebar">
+      <SFResponsivePublicSidebar
+        owner-id="forum.category.show"
+        :title="t('home.sidebar.drawerTitle')"
+        class="sforum-home__sidebar"
+      >
         <SFHomeNavigation
           desktop-only
           navigation-mode="route"
@@ -142,7 +147,7 @@ function topicActivity(topic: ForumTopicSummary) {
           :pending="categoriesPending"
           :can-create-topic="canCreateTopic"
         />
-      </div>
+      </SFResponsivePublicSidebar>
 
       <section class="sforum-home__main sforum-content-column" aria-labelledby="category-page-title">
         <SFRegionOutlet page="forum.category.show" region="content_before" />

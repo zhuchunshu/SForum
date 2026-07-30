@@ -536,6 +536,28 @@ users:
       in: query
       schema:
         type: string
+    - name: sortBy
+      in: query
+      description: Sort field. Defaults to registration time.
+      schema:
+        type: string
+        default: createdAt
+        enum:
+        - createdAt
+        - updatedAt
+        - username
+        - displayName
+        - email
+        - status
+    - name: sortOrder
+      in: query
+      description: Sort direction. Defaults to descending.
+      schema:
+        type: string
+        default: desc
+        enum:
+        - asc
+        - desc
     responses:
       '200':
         description: Paged admin user list.

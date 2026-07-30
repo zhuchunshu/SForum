@@ -15,6 +15,7 @@ import (
 
 	adminoverview "github.com/zhuchunshu/sforum/apps/api/app/Models/AdminOverview"
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
+	uploadpolicy "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments/UploadPolicy"
 	database "github.com/zhuchunshu/sforum/apps/api/app/Models/Database"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
@@ -251,8 +252,10 @@ func wireAPIInfrastructure(ctx context.Context, cfg config.Config, logger *slog.
 	profileStore := profile.NewPostgresStore(pool)
 	moderationStore := moderation.NewPostgresStore(pool)
 	attachmentStore := attachments.NewPostgresStore(pool)
+	attachmentUploadPolicy := uploadpolicy.NewService(uploadpolicy.NewPostgresStore(pool), identityStore)
 	// E6.1：附件服务先创建，稍后注入扩展目录与禁用回落。
-	attachmentService := attachments.NewServiceWithEvents(attachmentStore, optionsService, nil)
+	attachmentService := attachments.NewServiceWithEvents(attachmentStore, optionsService, nil).
+		WithUploadPolicy(attachmentUploadPolicy, int64(cfg.HTTPBodyLimit))
 	databaseStore := database.NewPostgresStore(pool)
 	extensionStore := extensions.NewPostgresStore(pool)
 	frontendTrustStore := extensions.NewPostgresFrontendTrustStore(pool)

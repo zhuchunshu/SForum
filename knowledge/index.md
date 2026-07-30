@@ -107,9 +107,35 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Admin user sorting: `/control-panel/users` now requests stable server-side
+  ordering by joined/updated time, username, display name, email, or status,
+  with selectable direction and page-1 reset. Automated gates pass; rendered
+  desktop/mobile Browser QA remains pending after Chrome tab-claim timeouts:
+  `sessions/2026-07-31-admin-user-sorting.md`
+- Forum code highlighting: topic/comment rich content now uses the selected
+  paper-line code block with language labels, sticky line numbers, copy Toasts,
+  expanded grammars, and light/dark styling. `/t/59` now treats undeclared code
+  as `纯文本 / TXT` and has no nested rounded border:
+  `sessions/2026-07-31-forum-code-highlighting.md`
+- Admin user-group tabs: `/control-panel/roles` now separates group management
+  and extension permission reviews into query-synced fixed tabs, lazily loads
+  review data, and preserves the exact approved-permission merge into dirty
+  role drafts. Typecheck and focused source tests pass; rendered manual QA is
+  pending:
+  `sessions/2026-07-31-admin-role-tabs.md`
+- Attachment upload policies: existing RBAC remains the upload-eligibility
+  authority, while audited role/user policies resolve per-file limits under
+  site and HTTP transport caps. The admin page exposes role and user controls,
+  and oversize ordinary uploads return a specific 413 response:
+  `sessions/2026-07-31-attachment-upload-policies.md`
+- Flat comment separator rendering: removed the row bottom border that looked
+  like an intermittent horizontal scrollbar while moving across comments;
+  tree-mode branch separators and code-block scrolling remain unchanged:
+  `sessions/2026-07-31-comment-separator-rendering.md`
 - Responsive public sidebar: desktop and mobile now share
-  `public.sidebar.primary` plus one renderer; Personalization no longer exposes
-  an independent mobile location, while V1 mobile data remains compatible:
+  `public.sidebar.primary`, one serializable drawer owner, and the same
+  page-sidebar DOM; Navbar falls back to generic navigation only on pages
+  without a desktop left rail, while V1 mobile data remains compatible:
   `sessions/2026-07-31-responsive-public-sidebar.md`
 - Mobile comment actions now keep reply/permalink inline, move secondary
   actions into a floor-adjacent menu at narrow widths, and preserve the full
@@ -152,15 +178,18 @@ load archived sessions or completed plans as current context.
   `sessions/2026-07-30-external-login-registration-continuation.md`
 - Shared topic comment composer: quick reply remains inline; advanced reply,
   comment reply, and comment edit use one bottom drawer with pointer/keyboard
-  height adjustment. The legacy advanced-reply page redirects into that drawer,
-  and desktop/mobile Browser QA plus hydration checks pass:
+  height adjustment. Its toolbar/canvas/status layout now expands only the
+  canvas and preserves the status row when compact heights require scrolling.
+  The legacy advanced-reply page redirects into that drawer, and desktop/mobile
+  Browser QA plus hydration checks pass:
   `sessions/2026-07-30-shared-comment-composer-drawer.md`
 - Custom image sticker platform design: the Forum Canvas base is now live in
   `SFEditor` with quiet focus, responsive toolbar scrolling, and preserved
-  write/preview/Markdown/JSON plus trusted L2 contracts. The Unicode emoji
-  picker is gone, while the real sticker command remains gated on the immutable
-  catalog and `sforumSticker` node; size caps remain `128x128` desktop and
-  `96x96` mobile:
+  write/preview plus trusted L2 contracts. Markdown source and native JSON
+  inspection are no longer exposed, while their persistence payloads remain.
+  The Unicode emoji picker is gone, while the real sticker command remains
+  gated on the immutable catalog and `sforumSticker` node; size caps remain
+  `128x128` desktop and `96x96` mobile:
   `sessions/2026-07-30-image-sticker-platform-design.md`
 - Uploaded avatar media route repair: AvatarView now exposes stable
   `/media/avatars/{publicId}` URLs, the Nuxt Host proxies them to the existing

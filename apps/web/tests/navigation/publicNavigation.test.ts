@@ -24,7 +24,25 @@ const sidebarSource = source('../../app/components/forum/SFHomeNavigation.vue')
 const sidebarContentSource = source('../../app/components/forum/navigation/SFPublicSidebarContent.vue')
 const categoryBlockSource = source('../../app/components/forum/navigation/SFCategoryNavigationBlock.vue')
 const mobileSidebarSource = source('../../app/components/forum/navigation/SFMobileSidebarContent.vue')
+const responsiveSidebarSource = source('../../app/components/forum/navigation/SFResponsivePublicSidebar.vue')
+const sidebarDrawerSource = source('../../app/composables/navigation/usePublicSidebarDrawer.ts')
 const footerSource = source('../../app/components/SFFooter.vue')
+const pageSidebarSources = [
+  '../../app/components/forum/SFHomePage.vue',
+  '../../app/components/forum/SFCategoryIndexPage.vue',
+  '../../app/components/forum/SFCategoryShowPage.vue',
+  '../../app/components/forum/SFTagIndexPage.vue',
+  '../../app/components/forum/SFTagShowPage.vue',
+  '../../app/components/forum/SFTopicComposerPage.vue',
+  '../../app/components/forum/SFTopicEditPage.vue',
+  '../../app/components/forum/SFTopicShowPage.vue',
+  '../../app/components/profile/SFProfileShowPage.vue',
+  '../../app/components/settings/SFSettingsShell.vue',
+  '../../app/components/notifications/SFNotificationsPage.vue',
+  '../../app/components/notifications/detail/SFNotificationDetailPage.vue',
+  '../../app/components/moderation/SFModerationReviewPage.vue',
+  '../../app/components/errors/SFSystemErrorSidebar.vue'
+].map(source)
 
 function item(overrides: Partial<PublicNavigationItem> = {}): PublicNavigationItem {
   return {
@@ -127,6 +145,25 @@ describe('public navigation document utilities', () => {
 })
 
 describe('public navigation fetch and renderer contracts', () => {
+  test('uses one responsive page-sidebar owner across desktop and mobile', () => {
+    for (const pageSource of pageSidebarSources) {
+      expect(pageSource).toContain('<SFResponsivePublicSidebar')
+      expect(pageSource).not.toContain('sforum-mobile-drawer--left')
+      expect(pageSource).not.toContain('forum-mobile-menu-open')
+      expect(pageSource).not.toContain('public-mobile-navigation-open')
+      expect(pageSource).not.toContain('system-error-mobile-menu-open')
+    }
+
+    expect(sidebarDrawerSource).toContain("useState<boolean>('public-sidebar-drawer-open'")
+    expect(sidebarDrawerSource).toContain("useState<PublicSidebarOwner | null>('public-sidebar-drawer-owner'")
+    expect(sidebarDrawerSource).toContain('owner.value?.token !== token')
+    expect(responsiveSidebarSource).toContain('claimOwner(props.ownerId, ownerToken)')
+    expect(responsiveSidebarSource).toContain('releaseOwner(ownerToken)')
+    expect(responsiveSidebarSource).toContain('<slot />')
+    expect(responsiveSidebarSource).toContain("'sforum-mobile-drawer sforum-mobile-drawer--left': open")
+    expect(navbarSource).toContain('mobileMenuOpen && !hasPageSidebarOwner')
+  })
+
   test('uses one canonical request for the three rendered public locations', () => {
     expect(composableSource.match(/request<PublicNavigationDocument>/g)?.length).toBe(1)
     expect(composableSource).toContain('`/site/navigation?locations=${encodeURIComponent(requestedLocations)}`')

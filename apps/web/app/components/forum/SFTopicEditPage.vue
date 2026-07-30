@@ -9,6 +9,8 @@ import SFTopicComposerLeftRail from '~/components/forum/SFTopicComposerLeftRail.
 import SFTagInput from '~/components/forum/SFTagInput.vue'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFCategorySelect from '~/components/forum/SFCategorySelect.vue'
+import SFResponsivePublicSidebar from '~/components/forum/navigation/SFResponsivePublicSidebar.vue'
+import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSidebarDrawer'
 /**
  * 宿主 body 岛：forum.topic.edit。
  * 主题编辑独立页：复用发帖页三栏壳（sforum-home__* + SFTopicComposerPage.css），
@@ -37,8 +39,8 @@ const forumApi = useForumApi()
 const { canEditTopic } = usePermissions()
 const { user } = useAuthSession()
 const toast = useToast()
-const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
+const { closeDrawer: closeMobileMenu } = usePublicSidebarDrawer()
 
 const topicId = computed(() => {
   const raw = Array.isArray(route.params.topicId) ? route.params.topicId[0] : route.params.topicId
@@ -362,7 +364,7 @@ function onEditorContentChange(payload: SFEditorContentPayload) {
 }
 
 function closeMobileDrawers() {
-  mobileMenuOpen.value = false
+  closeMobileMenu()
   mobileInfoOpen.value = false
 }
 
@@ -520,7 +522,11 @@ onBeforeRouteLeave(() => {
       :class="{ 'sforum-home__layout--with-right': canEdit }"
     >
       <!-- 左栏：与发帖页一致 — 无类别列表，挂编辑进度与写作要点 -->
-      <div class="sforum-home__sidebar">
+      <SFResponsivePublicSidebar
+        owner-id="forum.topic.edit"
+        :title="t('home.sidebar.drawerTitle')"
+        class="sforum-home__sidebar"
+      >
         <SFHomeNavigation
           desktop-only
           navigation-mode="route"
@@ -541,7 +547,7 @@ onBeforeRouteLeave(() => {
             />
           </template>
         </SFHomeNavigation>
-      </div>
+      </SFResponsivePublicSidebar>
 
       <section
         class="sforum-home__main sforum-topic-composer__main"
@@ -720,6 +726,7 @@ onBeforeRouteLeave(() => {
                   :initial-content="editorInitialContent"
                   :placeholder="t('composer.bodyPlaceholder')"
                   :submit-label="submitLabel"
+                  :submit-visible="false"
                   :disabled="submitState === 'submitting'"
                   :max-characters="limits.topicContentMaxRunes"
                   :error="fieldErrors.content?.join(', ')"
@@ -786,41 +793,12 @@ onBeforeRouteLeave(() => {
     </div>
 
     <button
-      v-if="mobileMenuOpen || mobileInfoOpen"
+      v-if="mobileInfoOpen"
       type="button"
       class="sforum-mobile-drawer__backdrop"
       :aria-label="t('common.close')"
       @click="closeMobileDrawers"
     />
-
-    <aside v-if="mobileMenuOpen" class="sforum-mobile-drawer sforum-mobile-drawer--left">
-      <header class="sforum-mobile-drawer__head">
-        <strong>{{ t('home.sidebar.drawerTitle') }}</strong>
-        <button type="button" :aria-label="t('common.close')" @click="closeMobileDrawers">
-          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
-        </button>
-      </header>
-      <SFHomeNavigation
-        desktop-only
-        navigation-mode="route"
-        :categories="categories"
-        selected-category-slug=""
-        :total-topics="totalTopics"
-        :pending="categoriesPending"
-        :can-create-topic="canEdit"
-        :show-categories="false"
-      >
-        <template #after-navigation>
-          <SFTopicComposerLeftRail
-            :checks="prePublishChecks"
-            :draft-status-label="editStateLabel"
-            :can-create="canEdit"
-            :show-draft-action="false"
-            @focus-field="focusComposerField"
-          />
-        </template>
-      </SFHomeNavigation>
-    </aside>
 
     <aside v-if="mobileInfoOpen && canEdit" class="sforum-mobile-drawer sforum-mobile-drawer--right">
       <header class="sforum-mobile-drawer__head">

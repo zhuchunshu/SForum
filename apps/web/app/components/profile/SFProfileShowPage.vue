@@ -6,6 +6,8 @@ import { useAuthSession } from '~/composables/identity/useAuthSession'
 import { useForumApi } from '~/composables/forum/useForumApi'
 import SFProfileRightRail from '~/components/profile/SFProfileRightRail.vue'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
+import SFResponsivePublicSidebar from '~/components/forum/navigation/SFResponsivePublicSidebar.vue'
+import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSidebarDrawer'
 /**
  * 宿主 body 岛：forum.profile.show。主题 L1 挂载；路由页仅 outlet + fail-closed 回退。
  * 布局对齐 demo B1：intro + 分区 tab（主题 / 回复 / 关于）+ 分日时间线。
@@ -51,8 +53,8 @@ const profileApi = useProfileApi()
 const forumApi = useForumApi()
 const { user: authUser } = useAuthSession()
 const { can } = usePermissions()
-const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
+const { closeDrawer: closeMobileMenu } = usePublicSidebarDrawer()
 
 const username = computed(() => String(route.params.username ?? ''))
 const renderedAt = useState<number>(`forum-profile-rendered-at-${username.value}`, () => Date.now())
@@ -317,7 +319,7 @@ async function loadMoreActivities() {
 }
 
 function closeMobileDrawers() {
-  mobileMenuOpen.value = false
+  closeMobileMenu()
   mobileInfoOpen.value = false
 }
 
@@ -372,7 +374,11 @@ async function shareProfile() {
 
     <template v-else-if="profilePending && !profile">
       <div class="sforum-home__layout sforum-home__layout--with-right sf-profile-layout">
-        <aside class="sforum-home__sidebar">
+        <SFResponsivePublicSidebar
+          owner-id="forum.profile.show"
+          :title="t('home.sidebar.navTitle')"
+          class="sforum-home__sidebar"
+        >
           <SFHomeNavigation
             :categories="navCategories"
             :total-topics="navTotalTopics"
@@ -381,7 +387,7 @@ async function shareProfile() {
             navigation-mode="route"
             desktop-only
           />
-        </aside>
+        </SFResponsivePublicSidebar>
         <section class="sforum-home__main sf-profile-main">
           <SFSkeleton :lines="6" />
         </section>
@@ -390,7 +396,11 @@ async function shareProfile() {
 
     <template v-else-if="profile">
       <div class="sforum-home__layout sforum-home__layout--with-right sf-profile-layout">
-        <aside class="sforum-home__sidebar">
+        <SFResponsivePublicSidebar
+          owner-id="forum.profile.show"
+          :title="t('home.sidebar.navTitle')"
+          class="sforum-home__sidebar"
+        >
           <SFHomeNavigation
             :categories="navCategories"
             :total-topics="navTotalTopics"
@@ -399,7 +409,7 @@ async function shareProfile() {
             navigation-mode="route"
             desktop-only
           />
-        </aside>
+        </SFResponsivePublicSidebar>
 
         <section class="sforum-home__main sf-profile-main" aria-labelledby="profile-name">
           <SFRegionOutlet page="forum.profile.show" region="content_before" />
@@ -623,29 +633,12 @@ async function shareProfile() {
     </template>
 
     <button
-      v-if="profile && (mobileMenuOpen || mobileInfoOpen)"
+      v-if="profile && mobileInfoOpen"
       type="button"
       class="sforum-mobile-drawer__backdrop"
       :aria-label="t('common.close')"
       @click="closeMobileDrawers"
     />
-
-    <aside v-if="profile && mobileMenuOpen" class="sforum-mobile-drawer sforum-mobile-drawer--left">
-      <header class="sforum-mobile-drawer__head">
-        <strong>{{ t('home.sidebar.navTitle') }}</strong>
-        <button type="button" :aria-label="t('common.close')" @click="closeMobileDrawers">
-          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
-        </button>
-      </header>
-      <SFHomeNavigation
-        :categories="navCategories"
-        :total-topics="navTotalTopics"
-        :pending="categoriesPending"
-        :can-create-topic="canCreateTopic"
-        navigation-mode="route"
-        desktop-only
-      />
-    </aside>
 
     <aside v-if="profile && mobileInfoOpen" class="sforum-mobile-drawer sforum-mobile-drawer--right">
       <header class="sforum-mobile-drawer__head">

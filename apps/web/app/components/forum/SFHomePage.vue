@@ -6,7 +6,9 @@ import SFHomeTopicRow from '~/components/forum/SFHomeTopicRow.vue'
 import SFHomeRightRail from '~/components/forum/SFHomeRightRail.vue'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
+import SFResponsivePublicSidebar from '~/components/forum/navigation/SFResponsivePublicSidebar.vue'
 import SFPublicPageHeader from '~/components/public/SFPublicPageHeader.vue'
+import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSidebarDrawer'
 /**
  * 宿主 body 岛：论坛首页与搜索页共享的完整交互 UI（主题 L1 挂载点）。
  * 路由页只负责 SEO + SFPageOutlet fail-closed 回退。
@@ -60,8 +62,8 @@ const searchDraft = ref(committedFilters.value.query)
 const selectedCategorySlug = computed(() => committedFilters.value.categorySlug)
 const selectedTagSlug = computed(() => committedFilters.value.tagSlug)
 const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
-const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
+const { closeDrawer: closeMobileMenu } = usePublicSidebarDrawer()
 const renderedAt = useState<number>('forum-home-rendered-at', () => Date.now())
 const feedSort = ref<'latest' | 'replies'>('latest')
 const filterPanelOpen = ref(false)
@@ -408,7 +410,7 @@ function selectCategory(slug: string) {
 }
 
 function closeMobileDrawers() {
-  mobileMenuOpen.value = false
+  closeMobileMenu()
   mobileInfoOpen.value = false
 }
 
@@ -512,7 +514,11 @@ onBeforeUnmount(() => {
       class="sforum-home__layout"
       :class="{ 'sforum-home__layout--with-right': rightRailEnabled }"
     >
-      <div class="sforum-home__sidebar">
+      <SFResponsivePublicSidebar
+        :owner-id="registryPage"
+        :title="t('home.sidebar.drawerTitle')"
+        class="sforum-home__sidebar"
+      >
         <SFHomeNavigation
           desktop-only
           :categories="categories"
@@ -520,9 +526,9 @@ onBeforeUnmount(() => {
           :total-topics="totalTopics"
           :pending="categoriesPending"
           :can-create-topic="canCreateTopic"
-          @select-category="selectCategory"
+          @select-category="selectMobileCategory"
         />
-      </div>
+      </SFResponsivePublicSidebar>
 
       <section class="sforum-home__main sforum-content-column" aria-labelledby="forum-feed-title">
         <SFRegionOutlet :page="registryPage" region="content_before" />
@@ -734,30 +740,12 @@ onBeforeUnmount(() => {
     </div>
 
     <button
-      v-if="mobileMenuOpen || mobileInfoOpen"
+      v-if="mobileInfoOpen"
       type="button"
       class="sforum-mobile-drawer__backdrop"
       :aria-label="t('topicDetail.cancel')"
       @click="closeMobileDrawers"
     />
-
-    <aside v-if="mobileMenuOpen" class="sforum-mobile-drawer sforum-mobile-drawer--left">
-      <header class="sforum-mobile-drawer__head">
-        <strong>{{ t('home.sidebar.drawerTitle') }}</strong>
-        <button type="button" :aria-label="t('topicDetail.cancel')" @click="closeMobileDrawers">
-          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
-        </button>
-      </header>
-      <SFHomeNavigation
-        desktop-only
-        :categories="categories"
-        :selected-category-slug="selectedCategorySlug"
-        :total-topics="totalTopics"
-        :pending="categoriesPending"
-        :can-create-topic="canCreateTopic"
-        @select-category="selectMobileCategory"
-      />
-    </aside>
 
     <aside v-if="mobileInfoOpen" class="sforum-mobile-drawer sforum-mobile-drawer--right">
       <header class="sforum-mobile-drawer__head">

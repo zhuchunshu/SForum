@@ -7,6 +7,7 @@ const registerRoutePath = 'apps/web/app/pages/register.vue';
 const loginRoutePath = 'apps/web/app/pages/login.vue';
 const registerFormPath = 'apps/web/app/components/identity/SFRegisterFormPage.vue';
 const loginFormPath = 'apps/web/app/components/identity/SFLoginFormPage.vue';
+const adminUsersToolbarPath = 'apps/web/app/components/admin/identity/users/SFAdminUserListToolbar.vue';
 const requiredFiles = [
   'apps/web/app/composables/identity/useAuthSession.ts',
   'apps/web/app/middleware/admin.ts',
@@ -14,6 +15,7 @@ const requiredFiles = [
   loginRoutePath,
   registerFormPath,
   loginFormPath,
+  adminUsersToolbarPath,
   'apps/web/app/pages/admin/index.vue',
   'apps/web/app/pages/admin/roles.vue',
   'apps/web/app/pages/admin/users.vue',
@@ -40,6 +42,8 @@ const requiredKeys = [
   ['admin', 'roles', 'permissionEditor'],
   ['admin', 'users', 'permissionSection'],
   ['admin', 'users', 'overrideMode', 'deny'],
+  ['admin', 'users', 'sortByLabel'],
+  ['admin', 'users', 'sortOrderLabel'],
   ['admin', 'permissions', 'matrix'],
   ['admin', 'permissions', 'comparisonScope'],
   ['admin', 'permissions', 'roleSearchPlaceholder'],
@@ -70,6 +74,7 @@ function valueAt(object, keyPath) {
 }
 
 const adminUsersPage = fs.readFileSync(path.resolve(root, 'apps/web/app/pages/admin/users.vue'), 'utf8');
+const adminUsersToolbar = fs.readFileSync(path.resolve(root, adminUsersToolbarPath), 'utf8');
 const adminRolesPage = fs.readFileSync(path.resolve(root, 'apps/web/app/pages/admin/roles.vue'), 'utf8');
 const adminPermissionsPage = fs.readFileSync(path.resolve(root, 'apps/web/app/pages/admin/permissions.vue'), 'utf8');
 
@@ -81,7 +86,7 @@ for (const [name, content] of [
   if (!content.includes("layout: 'admin'")) {
     throw new Error(`${name} should use the admin layout`);
   }
-  if (!content.includes('UDashboardToolbar')) {
+  if (!content.includes('UDashboardToolbar') && !(name === 'admin/users.vue' && adminUsersToolbar.includes('UDashboardToolbar'))) {
     throw new Error(`${name} should render a dashboard toolbar`);
   }
   if (!content.includes('i-lucide-')) {

@@ -71,7 +71,6 @@ const editor = shallowRef<Editor | null>(null)
 const editorForContent = computed(() => editor.value || undefined)
 const viewMode = ref<SFEditorViewMode>('write')
 // modelValue 只承载 Markdown；原生 JSON 必须走 initialContent，避免把 rawContent 当正文。
-const markdownDraft = ref(typeof props.modelValue === 'string' ? props.modelValue : '')
 const editorStateTick = ref(0)
 const lastEmittedMarkdown = ref('')
 
@@ -82,8 +81,7 @@ const editorClass = computed(() => [
   props.disabled ? 'sf-editor--disabled' : '',
   props.error ? 'sf-editor--invalid' : '',
   props.compact ? 'sf-editor--compact' : '',
-  props.preset === 'basic-field' ? 'sf-editor--basic-field' : '',
-  viewMode.value !== 'write' ? 'sf-editor--inspection' : ''
+  props.preset === 'basic-field' ? 'sf-editor--basic-field' : ''
 ].filter(Boolean).join(' '))
 
 const blockFormat = computed<SFEditorBlockFormat>(() => {
@@ -123,8 +121,6 @@ const currentPayload = computed<SFEditorContentPayload>(() => {
     isEmpty: currentEditor.isEmpty
   }
 })
-
-const nativeContent = computed(() => JSON.stringify(currentPayload.value.native, null, 2))
 
 const footerText = computed(() => {
   if (props.error) {
@@ -219,7 +215,6 @@ watch(() => props.modelValue, value => {
     return
   }
 
-  markdownDraft.value = nextMarkdown
   lastEmittedMarkdown.value = nextMarkdown
   currentEditor.commands.setContent(nextMarkdown, {
     contentType: 'markdown',
@@ -257,8 +252,6 @@ function syncFromEditor(sourceEditor: TiptapContentReader) {
     wordCount: sourceEditor.storage.characterCount.words(),
     isEmpty: sourceEditor.isEmpty
   }
-
-  markdownDraft.value = payload.markdown
 
   if (payload.markdown !== lastEmittedMarkdown.value) {
     lastEmittedMarkdown.value = payload.markdown
@@ -367,15 +360,6 @@ function setBlockFormat(format: SFEditorBlockFormat) {
   })
 }
 
-function onMarkdownInput(event: Event) {
-  const value = (event.target as HTMLTextAreaElement).value
-  markdownDraft.value = value
-
-  editor.value?.commands.setContent(value, {
-    contentType: 'markdown'
-  })
-}
-
 function submitContent() {
   if (props.disabled || props.submitDisabled) {
     return
@@ -422,21 +406,6 @@ function submitContent() {
         v-highlight
         v-html="sanitizeHtml(currentPayload.html)"
       />
-
-      <textarea
-        v-show="viewMode === 'markdown'"
-        class="sf-editor__source"
-        :value="markdownDraft"
-        :disabled="disabled"
-        spellcheck="false"
-        aria-label="Markdown 源码"
-        @input="onMarkdownInput"
-      />
-
-      <pre
-        v-show="viewMode === 'native'"
-        class="sf-editor__native"
-      >{{ nativeContent }}</pre>
     </div>
 
     <div class="sf-editor__footer">

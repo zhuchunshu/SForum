@@ -3,8 +3,10 @@ import { useModerationApi } from '~/composables/moderation/useModerationApi'
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
 import { useForumApi } from '~/composables/forum/useForumApi'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
+import SFResponsivePublicSidebar from '~/components/forum/navigation/SFResponsivePublicSidebar.vue'
 import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
 import SFPublicPageHeader from '~/components/public/SFPublicPageHeader.vue'
+import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSidebarDrawer'
 import ModerationDecisionRail from '~/components/moderation/ModerationDecisionRail.vue'
 import ModerationQueueItem from '~/components/moderation/ModerationQueueItem.vue'
 import ModerationQueueRail from '~/components/moderation/ModerationQueueRail.vue'
@@ -66,9 +68,8 @@ const noteDrafts = ref<Record<string, string>>({})
 const fieldError = ref('')
 const loadError = ref('')
 const submitting = ref<ModerationAction | null>(null)
-// 与首页/通知页共用抽屉状态，避免各页自造一套移动端 chrome
-const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
+const { openDrawer: openMobileMenu, closeDrawer: closeMobileMenu } = usePublicSidebarDrawer()
 const openedReviewFromQueue = ref(false)
 
 const emptyCounts = (): ModerationQueueCounts => ({
@@ -208,7 +209,7 @@ watch(reviewKey, () => {
   fieldError.value = ''
   loadError.value = ''
   mobileInfoOpen.value = false
-  mobileMenuOpen.value = false
+  closeMobileMenu()
 })
 
 watch(reviewMode, async (active, previous) => {
@@ -228,7 +229,7 @@ function saveScrollPosition() {
 }
 
 function closeMobileDrawers() {
-  mobileMenuOpen.value = false
+  closeMobileMenu()
   mobileInfoOpen.value = false
 }
 
@@ -337,7 +338,11 @@ function isItemActive(item: QueueRecord) {
     :class="{ 'sforum-moderation--review': reviewMode }"
   >
     <div class="sforum-home__layout sforum-home__layout--with-right">
-      <div class="sforum-home__sidebar">
+      <SFResponsivePublicSidebar
+        owner-id="forum.moderation.review"
+        :title="t('home.sidebar.drawerTitle')"
+        class="sforum-home__sidebar"
+      >
         <SFHomeNavigation
           desktop-only
           navigation-mode="route"
@@ -360,10 +365,11 @@ function isItemActive(item: QueueRecord) {
               @select-type="selectType"
               @open-item="openItem"
               @back="returnToQueue"
+              @navigate="closeMobileDrawers"
             />
           </template>
         </SFHomeNavigation>
-      </div>
+      </SFResponsivePublicSidebar>
 
       <section
         v-if="!reviewMode"
@@ -398,7 +404,7 @@ function isItemActive(item: QueueRecord) {
                 type="button"
                 class="sforum-moderation-icon-button sforum-moderation__desktop-hidden sforum-moderation__menu-button"
                 :aria-label="t('moderation.workbench.openQueueDrawer')"
-                @click="mobileMenuOpen = true"
+                @click="openMobileMenu"
               >
                 <UIcon name="i-lucide-menu" class="size-[18px]" aria-hidden="true" />
               </button>
@@ -509,7 +515,7 @@ function isItemActive(item: QueueRecord) {
               type="button"
               class="sforum-moderation-icon-button sforum-moderation__desktop-hidden sforum-moderation__menu-button"
               :aria-label="t('moderation.workbench.openQueueDrawer')"
-              @click="mobileMenuOpen = true"
+              @click="openMobileMenu"
             >
               <UIcon name="i-lucide-menu" class="size-[18px]" aria-hidden="true" />
             </button>
@@ -555,47 +561,12 @@ function isItemActive(item: QueueRecord) {
     </div>
 
     <button
-      v-if="mobileMenuOpen || mobileInfoOpen"
+      v-if="mobileInfoOpen"
       type="button"
       class="sforum-mobile-drawer__backdrop"
       :aria-label="t('common.close')"
       @click="closeMobileDrawers"
     />
-
-    <aside v-if="mobileMenuOpen" class="sforum-mobile-drawer sforum-mobile-drawer--left">
-      <header class="sforum-mobile-drawer__head">
-        <strong>{{ t('home.sidebar.drawerTitle') }}</strong>
-        <button type="button" :aria-label="t('common.close')" @click="closeMobileDrawers">
-          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
-        </button>
-      </header>
-      <SFHomeNavigation
-        desktop-only
-        navigation-mode="route"
-        :categories="categories"
-        :total-topics="categoryTopicTotal"
-        :pending="categoriesPending"
-        :can-create-topic="canCreateTopic"
-        :show-categories="false"
-      >
-        <template #after-navigation>
-          <ModerationWorkbenchNav
-            :source-tabs="sourceTabs"
-            :type-filters="typeFilters"
-            :tab="tab"
-            :type-filter="typeFilter"
-            :review-mode="reviewMode"
-            :items="items"
-            :active-key="reviewKey"
-            @select-tab="selectTab"
-            @select-type="selectType"
-            @open-item="openItem"
-            @back="returnToQueue"
-            @navigate="closeMobileDrawers"
-          />
-        </template>
-      </SFHomeNavigation>
-    </aside>
 
     <aside v-if="mobileInfoOpen" class="sforum-mobile-drawer sforum-mobile-drawer--right">
       <header class="sforum-mobile-drawer__head">

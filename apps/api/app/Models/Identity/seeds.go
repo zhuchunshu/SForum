@@ -41,17 +41,18 @@ const (
 	// PermissionModerationReportReview 保留为源码兼容别名；数据库权限已迁移为 moderation.review。
 	PermissionModerationReportReview = PermissionModerationReview
 	// PermissionSettingsManage 为兼容父权限；细粒度见 settings.* / forum.settings.manage。
-	PermissionSettingsManage              = "settings.manage"
-	PermissionSettingsSiteManage          = "settings.site.manage"
-	PermissionSettingsMailManage          = "settings.mail.manage"
-	PermissionSettingsAvatarManage        = "settings.avatar.manage"
-	PermissionSettingsAppearanceManage    = "settings.appearance.manage"
-	PermissionSettingsNotificationsManage = "settings.notifications.manage"
-	PermissionForumSettingsManage         = "forum.settings.manage"
-	PermissionSEOManage                   = "seo.manage"
-	PermissionAttachmentUpload            = "attachment.upload"
-	PermissionAttachmentManage            = "attachment.manage"
-	PermissionAttachmentSettings          = "attachment.settings.manage"
+	PermissionSettingsManage               = "settings.manage"
+	PermissionSettingsSiteManage           = "settings.site.manage"
+	PermissionSettingsMailManage           = "settings.mail.manage"
+	PermissionSettingsAvatarManage         = "settings.avatar.manage"
+	PermissionSettingsAppearanceManage     = "settings.appearance.manage"
+	PermissionSettingsNotificationsManage  = "settings.notifications.manage"
+	PermissionForumSettingsManage          = "forum.settings.manage"
+	PermissionSEOManage                    = "seo.manage"
+	PermissionAttachmentUpload             = "attachment.upload"
+	PermissionAttachmentManage             = "attachment.manage"
+	PermissionAttachmentSettings           = "attachment.settings.manage"
+	PermissionAttachmentUploadPolicyManage = "attachment.upload_policy.manage"
 	// PermissionExtensionManage 为兼容父权限；细粒度见 extension.view/plugin/theme。
 	PermissionExtensionManage       = "extension.manage"
 	PermissionExtensionView         = "extension.view"
@@ -112,6 +113,7 @@ var SeedPermissions = []SeedPermission{
 	{Key: PermissionAttachmentUpload, Module: "attachment", Description: "Upload attachments."},
 	{Key: PermissionAttachmentManage, Module: "attachment", Description: "Manage uploaded attachments."},
 	{Key: PermissionAttachmentSettings, Module: "attachment", Description: "Manage attachment storage and upload settings."},
+	{Key: PermissionAttachmentUploadPolicyManage, Module: "attachment", Description: "Manage per-role and per-user attachment upload size policies."},
 	{Key: PermissionExtensionManage, Module: "extension", Description: "Legacy parent: manage all extension capabilities."},
 	{Key: PermissionExtensionView, Module: "extension", Description: "View installed extensions, events, and contributions."},
 	{Key: PermissionExtensionPluginManage, Module: "extension", Description: "Enable, disable, and configure plugins. Installing or enabling non-builtin plugins with a backend entry requires super_admin."},
@@ -141,6 +143,7 @@ var SeedMemberPermissions = []string{
 	PermissionPostCreate,
 	PermissionPostEditOwn,
 	PermissionPostDeleteOwn,
+	PermissionAttachmentUpload,
 }
 
 // SeedRoleTemplates 内置岗位模板：版主 / 站点运营 / 技术管理。
@@ -185,6 +188,7 @@ var SeedRoleTemplates = []SeedRoleTemplate{
 			PermissionTagManage,
 			PermissionAttachmentManage,
 			PermissionAttachmentSettings,
+			PermissionAttachmentUploadPolicyManage,
 			PermissionEntityMetaManage,
 			// 外部登录 provider 的 Host-owned 激活/探测/重置；executable trust 仍 super_admin-only。
 			PermissionIdentityProviderManage,

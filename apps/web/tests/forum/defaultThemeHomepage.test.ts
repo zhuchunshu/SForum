@@ -237,7 +237,8 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(tagPage).toContain(':show-categories="false"')
     expect(tagPage).toContain('SFTagShowRightRail')
     expect(tagPage).toContain('SFContentColumnFooter')
-    expect(tagPage).toContain('sforum-mobile-drawer--left')
+    expect(tagPage).toContain('<SFResponsivePublicSidebar')
+    expect(tagPage).not.toContain('sforum-mobile-drawer--left')
     expect(tagPage).toContain('sforum-mobile-drawer--right')
   })
 
@@ -267,7 +268,7 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(page).toContain('path: surfacePath.value')
     expect(page).toContain('query: buildForumHomeQuery(nextFilters)')
     expect(page).toContain('function resetFilters()')
-    expect(page).toContain('@select-category="selectCategory"')
+    expect(page).toContain('@select-category="selectMobileCategory"')
     expect(page).toContain('@click="selectTag(tag.slug)"')
   })
 

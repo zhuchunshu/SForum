@@ -55,11 +55,13 @@ func (h *Controller) listUsers(c fiber.Ctx) error {
 	}
 
 	users, err := h.service.ListUsers(c.Context(), actor, identity.UserListInput{
-		Page:    queryInt(c, "page"),
-		PerPage: queryInt(c, "perPage"),
-		Query:   c.Query("query"),
-		Status:  c.Query("status"),
-		RoleKey: c.Query("roleKey"),
+		Page:      queryInt(c, "page"),
+		PerPage:   queryInt(c, "perPage"),
+		Query:     c.Query("query"),
+		Status:    c.Query("status"),
+		RoleKey:   c.Query("roleKey"),
+		SortBy:    c.Query("sortBy"),
+		SortOrder: c.Query("sortOrder"),
 	})
 	if err != nil {
 		return mapIdentityError(err)

@@ -399,6 +399,8 @@ paths:
     "$ref": "./openapi/paths/seo.yaml#/seoSitemapEntries"
   "/attachments":
     "$ref": "./openapi/paths/attachments.yaml#/attachments"
+  "/attachments/upload-policy":
+    "$ref": "./openapi/paths/attachments.yaml#/attachmentUploadPolicy"
   "/attachments/{publicId}":
     "$ref": "./openapi/paths/attachments.yaml#/attachmentByPublicID"
   "/attachments/{publicId}/content":
@@ -409,6 +411,12 @@ paths:
     "$ref": "./openapi/paths/attachments.yaml#/adminAttachmentSettings"
   "/admin/attachment-settings/test":
     "$ref": "./openapi/paths/attachments.yaml#/adminAttachmentSettingsTest"
+  "/admin/attachment-upload-policies/roles":
+    "$ref": "./openapi/paths/attachments.yaml#/adminAttachmentUploadPolicyRoles"
+  "/admin/attachment-upload-policies/roles/{roleKey}":
+    "$ref": "./openapi/paths/attachments.yaml#/adminAttachmentUploadPolicyRole"
+  "/admin/attachment-upload-policies/users/{userID}":
+    "$ref": "./openapi/paths/attachments.yaml#/adminAttachmentUploadPolicyUser"
   "/admin/attachment-compression-settings":
     "$ref": "./openapi/paths/attachments.yaml#/adminAttachmentCompressionSettings"
   "/admin/attachment-storage-instances":

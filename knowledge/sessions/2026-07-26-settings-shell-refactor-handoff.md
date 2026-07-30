@@ -6,10 +6,13 @@
   chrome for `/settings/*` account pages. Owns the left `SFHomeNavigation` +
   `SFSettingsAccountNav`, the category-group `useAsyncData` fetch (key unified
   to `settings-categories`, shared cache across settings pages), the page head
-  (title/description + drawer toggle buttons), the right rail aside, both
-  mobile drawers + backdrop (`forum-mobile-menu-open` /
-  `forum-mobile-info-open`), `SFContentColumnFooter`, and the
+  (title/description + drawer toggle buttons), the right rail aside, the
+  mobile right drawer + backdrop (`forum-mobile-info-open`),
+  `SFContentColumnFooter`, and the
   `sforum-settings.css` import.
+- The left sidebar was subsequently migrated to `SFResponsivePublicSidebar`
+  and `usePublicSidebarDrawer`, which reuse one sidebar instance across desktop
+  and mobile instead of maintaining a settings-specific mobile copy.
 - Shell slots: `default` (main column), `#rail` (rendered once, reused by the
   desktop aside and the mobile right drawer — removes the previous in-file
   duplication of rail markup), `#head-actions` (extra head buttons, e.g.

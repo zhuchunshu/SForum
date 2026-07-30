@@ -4,7 +4,9 @@ import { useForumApi } from '~/composables/forum/useForumApi'
 import SFTagIndexRightRail from '~/components/forum/SFTagIndexRightRail.vue'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
+import SFResponsivePublicSidebar from '~/components/forum/navigation/SFResponsivePublicSidebar.vue'
 import SFPublicPageHeader from '~/components/public/SFPublicPageHeader.vue'
+import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSidebarDrawer'
 /**
  * 宿主 body 岛：forum.tag.index。
  * 三栏壳对齐首页 / 通知 / 分类目录；呈现由主题 L1 挂载，路由页仅 SEO + fail-closed 回退。
@@ -58,8 +60,8 @@ if (!publicTagPagesEnabled.value) {
 
 const filter = ref<TagIndexFilter>('all')
 const searchQuery = ref('')
-const mobileMenuOpen = useState<boolean>('forum-mobile-menu-open', () => false)
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
+const { closeDrawer: closeMobileMenu } = usePublicSidebarDrawer()
 const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
 const renderedAt = useState<number>('forum-tags-index-rendered-at', () => Date.now())
 
@@ -118,7 +120,7 @@ const emptyDescription = computed(() => {
 })
 
 function closeMobileDrawers() {
-  mobileMenuOpen.value = false
+  closeMobileMenu()
   mobileInfoOpen.value = false
 }
 
@@ -157,7 +159,11 @@ function retryTags() {
     data-layout="fullwidth-3col"
   >
     <div class="sforum-home__layout sforum-home__layout--with-right">
-      <div class="sforum-home__sidebar">
+      <SFResponsivePublicSidebar
+        owner-id="forum.tag.index"
+        :title="t('home.sidebar.drawerTitle')"
+        class="sforum-home__sidebar"
+      >
         <SFHomeNavigation
           desktop-only
           navigation-mode="route"
@@ -178,7 +184,7 @@ function retryTags() {
                 class="sf-home-navigation__link"
                 :class="{ 'is-active': filter === item.key }"
                 :aria-pressed="filter === item.key"
-                @click="setFilter(item.key)"
+                @click="setFilter(item.key, true)"
               >
                 <span class="sf-home-navigation__link-main">
                   <UIcon :name="item.icon" class="size-[18px]" aria-hidden="true" />
@@ -188,7 +194,7 @@ function retryTags() {
             </nav>
           </template>
         </SFHomeNavigation>
-      </div>
+      </SFResponsivePublicSidebar>
 
       <section class="sforum-home__main sforum-tags-page__main sforum-content-column" aria-labelledby="tag-index-title">
         <SFRegionOutlet page="forum.tag.index" region="content_before" />
@@ -329,51 +335,12 @@ function retryTags() {
     </div>
 
     <button
-      v-if="mobileMenuOpen || mobileInfoOpen"
+      v-if="mobileInfoOpen"
       type="button"
       class="sforum-mobile-drawer__backdrop"
       :aria-label="t('common.close')"
       @click="closeMobileDrawers"
     />
-
-    <aside v-if="mobileMenuOpen" class="sforum-mobile-drawer sforum-mobile-drawer--left">
-      <header class="sforum-mobile-drawer__head">
-        <strong>{{ t('home.sidebar.drawerTitle') }}</strong>
-        <button type="button" :aria-label="t('common.close')" @click="closeMobileDrawers">
-          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
-        </button>
-      </header>
-      <SFHomeNavigation
-        desktop-only
-        navigation-mode="route"
-        :categories="categories"
-        selected-category-slug=""
-        :total-topics="totalTopics"
-        :pending="categoriesPending"
-        :can-create-topic="canCreateTopic"
-        :show-categories="false"
-      >
-        <template #after-navigation>
-          <nav class="sforum-tags-page__filter-nav" :aria-label="t('taxonomy.tags.filterLabel')">
-            <div class="sf-home-navigation__label">{{ t('taxonomy.tags.filterLabel') }}</div>
-            <button
-              v-for="item in TAG_FILTERS"
-              :key="`drawer-${item.key}`"
-              type="button"
-              class="sf-home-navigation__link"
-              :class="{ 'is-active': filter === item.key }"
-              :aria-pressed="filter === item.key"
-              @click="setFilter(item.key, true)"
-            >
-              <span class="sf-home-navigation__link-main">
-                <UIcon :name="item.icon" class="size-[18px]" aria-hidden="true" />
-                {{ t(item.labelKey) }}
-              </span>
-            </button>
-          </nav>
-        </template>
-      </SFHomeNavigation>
-    </aside>
 
     <aside v-if="mobileInfoOpen" class="sforum-mobile-drawer sforum-mobile-drawer--right">
       <header class="sforum-mobile-drawer__head">

@@ -551,7 +551,6 @@
   position: relative;
   overflow: visible;
   border: 0;
-  border-bottom: 1px solid var(--sf-border-light);
   border-radius: 0;
   padding: 0;
   background: transparent;

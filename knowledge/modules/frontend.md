@@ -27,6 +27,35 @@ responsibilities.
 
 ## Active Work
 
+### Admin user list sorting
+
+- `/control-panel/users` exposes compact field and direction selectors for
+  registration time, update time, username, display name, email, and account
+  status. Changes reset pagination to page 1 and request server-side sorting,
+  so the operator is never shown a client-only reordering of the current page.
+- `SFAdminUserListToolbar` owns the search, status/group filters, sort controls,
+  refresh action, and count badges. Extracting it reduced the legacy route shell
+  from 1595 to 1570 lines and the architecture ratchet was lowered accordingly.
+- Component interaction tests and Nuxt typecheck pass. Rendered desktop/mobile
+  QA remains pending because the in-app browser had no admin session and the
+  logged-in Chrome tab timed out twice while being claimed by Browser control.
+
+### Forum code blocks
+
+- Sanitized topic, comment, moderation, and editor-preview code blocks share the
+  Demo 02 paper-line presentation: compact language header, sticky line-number
+  gutter, internal horizontal scrolling, and an accessible copy command with
+  localized success/error Toast feedback.
+- The client directive uses the existing `highlight.js` package through its
+  common language bundle plus Dart, Dockerfile, HTTP, Nginx, and PowerShell.
+  Forum aliases resolve to canonical grammars, while unknown explicit labels
+  remain visible without guessed highlighting and unspecified blocks remain
+  localized plain text. Enhancement is idempotent across directive updates.
+- Light and dark themes use SForum semantic code tokens. The enhanced figure is
+  the only framed surface; nested `pre` elements must stay transparent,
+  borderless, and square so selected-theme prose rules cannot reintroduce a
+  second rounded border.
+
 ### Responsive public sidebar source
 
 - Desktop and mobile public left navigation now consume
@@ -34,8 +63,17 @@ responsibilities.
   separate mobile item list.
 - `SFPublicSidebarContent` owns compose behavior, ordinary links, active state,
   dynamic category placement, counts, contextual slots, and the About entry.
-  Desktop rails and the navbar mobile drawer only provide their respective
-  containers and data-loading boundary.
+  `SFResponsivePublicSidebar` renders each page's one sidebar DOM as the
+  desktop rail above 980px and as the shared left drawer at narrow widths.
+- `usePublicSidebarDrawer` is the single serializable open/owner authority.
+  `SFNavbar` only toggles it: a claimed page owner opens the contextual page
+  sidebar, while pages without a desktop left rail use
+  `SFPublicMobileNavigation` as the generic fallback.
+- Home/search, category index/detail, tag index/detail, topic detail/create/edit,
+  profile, settings, notification index/detail, moderation, and system error
+  sidebars use this contract. They do not keep separate mobile left-sidebar
+  markup or legacy page-specific menu state. Independent right information
+  drawers remain page-owned.
 - Personalization exposes topbar, sidebar, and footer as editable locations and
   states that mobile follows sidebar. `public.mobile.primary` remains readable
   in V1 documents, snapshots, and imports for compatibility but is not rendered
@@ -472,6 +510,10 @@ Architecture sources:
   colors. Keep them quiet rather than accent-colored; page-local scroll
   containers should use the global contract unless they deliberately use
   `.no-scrollbar`.
+- The default flat comment stream does not draw bottom borders between rows.
+  Those borders resembled scrollbar tracks and could be partially repainted by
+  the browser while moving the pointer across comment content. Spacing remains
+  the row boundary; tree-mode branch separators are unchanged.
 - `/categories` uses the default-theme grouped directory surface: real
   `ForumCategoryGroup`/`ForumCategory` DTOs, URL-backed group focus via
   `?group=<group.id>`, page-local category filtering, group-local sorting, and
@@ -586,7 +628,8 @@ Architecture sources:
   segment `/page/N` (old `?page=N` still resolves and is normalized
   client-side after hydration).
 - `.sf-prose` is the shared sanitized rich-content surface. Code blocks use the
-  client highlight directive plus a no-op SSR directive registration.
+  idempotent client enhancement described above plus a no-op SSR directive
+  registration; server-rendered source remains readable before hydration.
 - Runtime appearance owns accent and dark-mode tokens. The default theme must
   not pin a product-specific accent.
 - `appearance.light_background` exposes 12 curated light palettes through
@@ -621,10 +664,12 @@ Architecture sources:
   generous document padding, and horizontally scrollable mobile tools. The
   compact and `basic-field` presets keep their denser 14px content padding.
 - The full toolbar exposes paragraph/H2/H3, marks, lists, quote, code, link,
-  image, and write/preview/Markdown/JSON modes. The Unicode emoji picker was
-  removed, while the historical `sforumEmoji` node remains admitted so old
-  editor documents still load. Trusted digest-verified L2 extensions keep the
-  existing fail-closed loading path.
+  image, and write/preview modes. Markdown source editing and native JSON
+  inspection are no longer exposed; the editor still emits both formats for
+  the existing persistence contract. The Unicode emoji picker was removed,
+  while the historical `sforumEmoji` node remains admitted so old editor
+  documents still load. Trusted digest-verified L2 extensions keep the existing
+  fail-closed loading path.
 - The production toolbar deliberately has no sticker command yet. It must be
   added with the Host-owned catalog and immutable `sforumSticker` node rather
   than inserting a generic image or bundling a client-only pack.
@@ -705,7 +750,7 @@ hydrated control remains the sole interaction owner.
 ### Rendered-content directives
 
 Every directive used by SSR templates needs a server registration. Keep the
-real highlight.js client plugin and no-op `highlight.server.ts` with
+real code-block client plugin and no-op `highlight.server.ts` with
 `getSSRProps`.
 
 ## Important Paths

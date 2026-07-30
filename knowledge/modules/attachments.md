@@ -9,6 +9,17 @@ derived display variants, admin governance, and orphan cleanup.
 
 Attachment system foundation is implemented.
 
+- General attachment uploads now resolve an authoritative typed upload policy:
+  `attachment.upload` controls eligibility, a user-specific per-file limit
+  overrides role limits, and multiple upload-enabled roles use their largest
+  configured or inherited limit. The result is always capped by the site
+  setting and `HTTP_BODY_LIMIT` minus a 1 MiB multipart reserve. Avatar, SEO,
+  and brand upload paths retain their specialized policies.
+- Attachment Configuration includes an Upload Permissions tab. Operators with
+  `attachment.upload_policy.manage` can set/reset role and user size limits;
+  existing `role.manage` and `user.permission_override` remain required for
+  changing the corresponding RBAC upload grants. User search additionally
+  requires `user.view`.
 - The approved custom image sticker design will reuse the selected attachment
   storage adapter and Media Registry through a dedicated `sticker` purpose.
   Sticker assets will not become user-owned post attachments, and their
@@ -25,7 +36,9 @@ Attachment system foundation is implemented.
   `202607300001_attachment_storage_instances.sql` adds Host-owned named storage
   instances with revisioned configuration and probe state. Migration
   `202607300003_attachment_image_compression.sql` adds display variants and the
-  durable compression-task ledger.
+  durable compression-task ledger. Migration
+  `202607310002_attachment_upload_policies.sql` adds role/user upload-size
+  policies plus the dedicated management permission.
 - Admin UI uses independent permission-aware routes for Basic Configuration
   and Compression Configuration under Attachment Configuration
   (`/attachments/settings`), plus Attachment Management
@@ -101,6 +114,12 @@ Attachment system foundation is implemented.
   up attachments. Granted to `super_admin`.
 - `attachment.settings.manage`: manage storage provider and upload settings.
   Granted to `super_admin`.
+- `attachment.upload_policy.manage`: manage per-role and per-user upload size
+  limits. Granted to `super_admin` and the built-in `operator` template.
+
+Role upload grants still require `role.manage`; direct user allow/deny
+exceptions still require `user.permission_override`. A size-policy manager
+cannot grant upload permission through the attachment policy APIs.
 
 Backend policy checks are authoritative. Frontend visibility only mirrors these
 permissions for navigation and tab usability.
@@ -122,6 +141,9 @@ permissions for navigation and tab usability.
   dimensions, source checksum, and policy digest for named derived bytes.
 - `attachment_compression_tasks` persists pending/running/succeeded/skipped/
   failed state independently from River delivery and deduplicates a policy run.
+- `attachment_role_upload_policies` and `attachment_user_upload_policies`
+  store positive byte limits with target and updater foreign keys. Policy
+  changes are actor-bound and append audit events in the same transaction.
 
 ## Provider Slot (F3.5 → E6)
 
@@ -287,12 +309,16 @@ User-facing:
 - `GET /api/v1/attachments/:publicId`
 - `GET /api/v1/attachments/:publicId/content`
 - `GET /api/v1/attachments/:publicId/variants/:variant/content`
+- `GET /api/v1/attachments/upload-policy`
 
 Admin:
 
 - `GET /api/v1/admin/attachment-settings`
 - `PUT /api/v1/admin/attachment-settings`
 - `POST /api/v1/admin/attachment-settings/test`
+- `GET /api/v1/admin/attachment-upload-policies/roles`
+- `PUT|DELETE /api/v1/admin/attachment-upload-policies/roles/:roleKey`
+- `GET|PUT|DELETE /api/v1/admin/attachment-upload-policies/users/:userID`
 - `GET /api/v1/admin/attachment-compression-settings`
 - `PUT /api/v1/admin/attachment-compression-settings`
 - `GET /api/v1/admin/attachments`
@@ -323,6 +349,9 @@ Current focused coverage includes:
   orientation, minimum savings, durable task dedupe/claim/lease recovery,
   variant upsert/statistics/backfill, authorization, and original fallback;
 - frontend model/Bun tests plus desktop and 390x844 Chrome rendering checks.
+- upload-policy precedence, permission denial, protected super-admin targets,
+  transport caps, fail-closed assembly, migration structure, 413 mapping, and
+  frontend permission-override preservation;
 - M6 attachment/mail focused tests, architecture validation, Nuxt typecheck,
   and production build pass. Full repository and browser closeout remain
   tracked in the architecture debt plan.

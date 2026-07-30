@@ -16,7 +16,10 @@ const (
 	StatusDeleted  = "deleted"
 
 	CodeInvalidAttachment         = "attachment.invalid"
+	CodeFileTooLarge              = "attachment.file_too_large"
 	CodeUploadDisabled            = "attachment.upload_disabled"
+	CodeUploadPolicyInvalid       = "attachment.upload_policy_invalid"
+	CodeUploadPolicyProtected     = "attachment.upload_policy_protected"
 	CodeReferenced                = "attachment.referenced"
 	CodeStorageUnavailable        = "attachment.storage_unavailable"
 	CodeStorageInstanceInvalid    = "attachment.storage_instance_invalid"
@@ -169,6 +172,15 @@ type UploadInput struct {
 	File         ReadSeekCloser
 }
 
+type FileTooLargeError struct {
+	ActualBytes int64 `json:"actualBytes"`
+	MaxBytes    int64 `json:"maxBytes"`
+}
+
+func (e *FileTooLargeError) Error() string {
+	return "attachments: file exceeds the effective upload limit"
+}
+
 type ReadSeekCloser interface {
 	Read([]byte) (int, error)
 	Seek(offset int64, whence int) (int64, error)
@@ -183,16 +195,17 @@ type AttachmentSettings struct {
 	// Candidates 为 core 驱动 + 已启用且声明槽位的插件（E6.1）。
 	Candidates []storage.Candidate `json:"candidates"`
 	// Provider 为 attachment.provider：core 驱动 id 或 plugin:<extensionId>。
-	Provider               string        `json:"provider"`
-	UploadEnabled          bool          `json:"uploadEnabled"`
-	PathTemplate           string        `json:"pathTemplate"`
-	PublicBaseURL          string        `json:"publicBaseUrl"`
-	MaxFileSizeMB          int           `json:"maxFileSizeMb"`
-	AllowedExtensions      []string      `json:"allowedExtensions"`
-	AllowedMIMETypes       []string      `json:"allowedMimeTypes"`
-	DefaultVisibility      string        `json:"defaultVisibility"`
-	CleanupOrphanAfterDays int           `json:"cleanupOrphanAfterDays"`
-	Local                  LocalSettings `json:"local"`
+	Provider                  string        `json:"provider"`
+	UploadEnabled             bool          `json:"uploadEnabled"`
+	PathTemplate              string        `json:"pathTemplate"`
+	PublicBaseURL             string        `json:"publicBaseUrl"`
+	MaxFileSizeMB             int           `json:"maxFileSizeMb"`
+	TransportMaxFileSizeBytes int64         `json:"transportMaxFileSizeBytes"`
+	AllowedExtensions         []string      `json:"allowedExtensions"`
+	AllowedMIMETypes          []string      `json:"allowedMimeTypes"`
+	DefaultVisibility         string        `json:"defaultVisibility"`
+	CleanupOrphanAfterDays    int           `json:"cleanupOrphanAfterDays"`
+	Local                     LocalSettings `json:"local"`
 }
 
 type LocalSettings struct {

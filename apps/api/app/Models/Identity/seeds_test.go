@@ -107,6 +107,7 @@ func TestSeedRoleTemplatesPermissionPacks(t *testing.T) {
 		PermissionTagManage,
 		PermissionAttachmentManage,
 		PermissionAttachmentSettings,
+		PermissionAttachmentUploadPolicyManage,
 	} {
 		if !slices.Contains(operator.PermissionKeys, key) {
 			t.Fatalf("operator missing %s", key)
@@ -172,6 +173,7 @@ func TestSeedMemberPermissionsStayNarrow(t *testing.T) {
 		PermissionPostCreate,
 		PermissionPostEditOwn,
 		PermissionPostDeleteOwn,
+		PermissionAttachmentUpload,
 	} {
 		if !slices.Contains(SeedMemberPermissions, key) {
 			t.Fatalf("member missing %s", key)
@@ -272,6 +274,7 @@ func TestSeedPermissionsCoverCurrentAdminAndForumSurfaces(t *testing.T) {
 		PermissionAttachmentUpload,
 		PermissionAttachmentManage,
 		PermissionAttachmentSettings,
+		PermissionAttachmentUploadPolicyManage,
 		PermissionExtensionManage,
 		PermissionExtensionView,
 		PermissionExtensionPluginManage,

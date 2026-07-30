@@ -2,11 +2,13 @@
 import { usePermissionText } from '~/composables/identity/usePermissionText'
 import { useAdminListSurfaces } from '~/composables/admin/useAdminListSurfaces'
 import SFAdminSurfaceOutlet from '~/components/admin/SFAdminSurfaceOutlet.vue'
+import SFAdminUserListToolbar from '~/components/admin/identity/users/SFAdminUserListToolbar.vue'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/admin/useAdminPage'
 import { paginateItems } from '~/utils/admin/adminExtensions'
 import type {
   AdminUserDetail, AdminUserList,
+  AdminUserSortField, AdminUserSortOrder,
   AdminUserSummary,
   Permission, Role,
   UserStatus
@@ -36,6 +38,8 @@ const adminPage = useAdminPage('/users')
 const search = ref('')
 const status = ref('')
 const roleKey = ref('')
+const sortBy = ref<AdminUserSortField>('createdAt')
+const sortOrder = ref<AdminUserSortOrder>('desc')
 const users = ref<AdminUserSummary[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -129,7 +133,13 @@ const userListSurfaces = useAdminListSurfaces({
     page: page.value,
     perPage: perPage.value,
     total: total.value,
-    coreFilters: { query: search.value.trim(), status: status.value, roleKey: roleKey.value }
+    coreFilters: {
+      query: search.value.trim(),
+      status: status.value,
+      roleKey: roleKey.value,
+      sortBy: sortBy.value,
+      sortOrder: sortOrder.value
+    }
   })),
   refreshHost: refreshUsers
 })
@@ -256,6 +266,8 @@ async function loadUsers() {
   if (roleKey.value) {
     params.set('roleKey', roleKey.value)
   }
+  params.set('sortBy', sortBy.value)
+  params.set('sortOrder', sortOrder.value)
 
   const result = await request<AdminUserList>(`/users?${params.toString()}`)
   users.value = result.items
@@ -595,7 +607,7 @@ async function resetUserPassword() {
   }
 }
 
-watch([status, roleKey], () => {
+watch([status, roleKey, sortBy, sortOrder], () => {
   void applyFilters()
 })
 </script>
@@ -611,71 +623,34 @@ watch([status, roleKey], () => {
     </p>
   </div>
 
-  <UDashboardToolbar class="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-lg px-4 py-2.5 mb-6 text-slate-500 dark:text-zinc-400">
-    <template #left>
-      <div class="flex flex-wrap items-center gap-2">
-        <UInput
-          v-model="search"
-          icon="i-lucide-search"
-          :placeholder="t('admin.users.searchPlaceholder')"
-          class="w-72 max-w-full"
-          @keyup.enter="applyFilters"
-        />
-        <select
-          v-model="status"
-          class="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-[var(--sf-accent)] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
-        >
-          <option value="">{{ t('admin.users.allStatuses') }}</option>
-          <option value="active">{{ t('admin.users.statusActive') }}</option>
-          <option value="disabled">{{ t('admin.users.statusDisabled') }}</option>
-          <option value="banned">{{ t('admin.users.statusBanned') }}</option>
-        </select>
-        <select
-          v-model="roleKey"
-          class="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-[var(--sf-accent)] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
-        >
-          <option value="">{{ t('admin.users.allRoles') }}</option>
-          <option v-for="role in roleOptions" :key="role.key" :value="role.key">
-            {{ role.label }}
-          </option>
-        </select>
-        <label v-for="item in userListSurfaces.filters.value" :key="item.surface.id" class="flex items-center gap-2">
-          <span class="sr-only">{{ item.view.title || item.surface.label }}</span>
-          <select
-            :value="userListSurfaces.filterValue(item.surface.id)"
-            :disabled="userListSurfaces.pending.value"
-            class="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-[var(--sf-accent)] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
-            @change="userListSurfaces.setFilter(item.surface.id, ($event.target as HTMLSelectElement).value)"
-          >
-            <option value="">{{ item.view.title || item.surface.label }}: {{ t('admin.surfaces.filterAll') }}</option>
-            <option v-for="option in item.view.options" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-        </label>
-      </div>
-    </template>
-    <template #right>
-      <div class="flex items-center gap-3">
-        <UButton
-          color="neutral"
-          variant="outline"
-          leading-icon="i-lucide-refresh-cw"
-          :loading="pending"
-          class="border-slate-200 dark:border-zinc-700"
-          @click="refreshUsers"
-        >
-          {{ t('admin.users.refresh') }}
-        </UButton>
-        <UBadge color="neutral" variant="soft" class="border border-slate-200 dark:border-zinc-800 font-medium">
-          {{ t('admin.users.count', { count: total }) }}
-        </UBadge>
-        <UBadge color="neutral" variant="outline" class="font-medium">
-          {{ t('admin.users.perPageHint', { count: perPage }) }}
-        </UBadge>
-      </div>
-    </template>
-  </UDashboardToolbar>
+  <SFAdminUserListToolbar
+    v-model:search="search"
+    v-model:status="status"
+    v-model:role-key="roleKey"
+    v-model:sort-by="sortBy"
+    v-model:sort-order="sortOrder"
+    :role-options="roleOptions"
+    :pending="pending"
+    :total="total"
+    :per-page="perPage"
+    @apply="applyFilters"
+    @refresh="refreshUsers"
+  >
+    <label v-for="item in userListSurfaces.filters.value" :key="item.surface.id" class="flex items-center gap-2">
+      <span class="sr-only">{{ item.view.title || item.surface.label }}</span>
+      <select
+        :value="userListSurfaces.filterValue(item.surface.id)"
+        :disabled="userListSurfaces.pending.value"
+        class="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-[var(--sf-accent)] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+        @change="userListSurfaces.setFilter(item.surface.id, ($event.target as HTMLSelectElement).value)"
+      >
+        <option value="">{{ item.view.title || item.surface.label }}: {{ t('admin.surfaces.filterAll') }}</option>
+        <option v-for="option in item.view.options" :key="option.value" :value="option.value">
+          {{ option.label }}
+        </option>
+      </select>
+    </label>
+  </SFAdminUserListToolbar>
 
   <div class="flex flex-col gap-4">
     <UAlert

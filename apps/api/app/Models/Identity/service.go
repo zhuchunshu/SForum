@@ -630,18 +630,6 @@ func (s *Service) ListRoles(ctx context.Context, actor Actor) ([]Role, error) {
 	return s.store.ListRoles(ctx)
 }
 
-func (s *Service) ListUsers(ctx context.Context, actor Actor, input UserListInput) (AdminUserList, error) {
-	// 只读列表：user.view；user.manage 父权限通过兼容层也可通过。
-	if !actor.Can(PermissionUserView) {
-		return AdminUserList{}, ErrPermissionDenied
-	}
-	input.Page, input.PerPage = normalizePage(input.Page, input.PerPage)
-	input.Query = escapeLike(strings.TrimSpace(input.Query))
-	input.Status = strings.TrimSpace(input.Status)
-	input.RoleKey = strings.TrimSpace(input.RoleKey)
-	return s.store.ListUsers(ctx, input)
-}
-
 func (s *Service) GetAdminUser(ctx context.Context, actor Actor, userID int64) (AdminUserDetail, error) {
 	if !actor.Can(PermissionUserView) {
 		return AdminUserDetail{}, ErrPermissionDenied

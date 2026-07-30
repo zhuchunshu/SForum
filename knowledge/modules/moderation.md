@@ -66,8 +66,10 @@ frontend moderator workbench.
   chrome from home/notifications: left shell is `SFHomeNavigation` (route mode)
   plus workbench sources/type filters in `#after-navigation`; right rail uses
   the same section stack language (large overview number + `dl` stats + help
-  copy in queue mode; decision rail in review mode). Mobile drawers share
-  `forum-mobile-menu-open` / `forum-mobile-info-open` with other public pages.
+  copy in queue mode; decision rail in review mode). The left navigation uses
+  `SFResponsivePublicSidebar` and the shared `usePublicSidebarDrawer`
+  controller, so desktop and mobile render one sidebar instance; the separate
+  right information drawer continues to use `forum-mobile-info-open`.
   Queue mode is URL-backed by source, content type, and page; review mode adds
   stable item query fields and keeps navigation inside the current
   source/filter/page, including history items whose source is a report. Rows

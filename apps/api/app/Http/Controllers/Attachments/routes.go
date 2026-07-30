@@ -4,6 +4,7 @@ import "github.com/gofiber/fiber/v3"
 
 func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Post("/attachments", h.upload)
+	api.Get("/attachments/upload-policy", h.currentUploadPolicy)
 	api.Get("/attachments/:publicId", h.get)
 	api.Get("/attachments/:publicId/content", h.content)
 	api.Get("/attachments/:publicId/variants/:variant/content", h.variantContent)
@@ -11,6 +12,12 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Get("/admin/attachment-settings", h.settings)
 	api.Put("/admin/attachment-settings", h.updateSettings)
 	api.Post("/admin/attachment-settings/test", h.testSettings)
+	api.Get("/admin/attachment-upload-policies/roles", h.listRoleUploadPolicies)
+	api.Put("/admin/attachment-upload-policies/roles/:roleKey", h.setRoleUploadPolicy)
+	api.Delete("/admin/attachment-upload-policies/roles/:roleKey", h.deleteRoleUploadPolicy)
+	api.Get("/admin/attachment-upload-policies/users/:userID", h.getUserUploadPolicy)
+	api.Put("/admin/attachment-upload-policies/users/:userID", h.setUserUploadPolicy)
+	api.Delete("/admin/attachment-upload-policies/users/:userID", h.deleteUserUploadPolicy)
 	api.Get("/admin/attachment-compression-settings", h.compressionSettings)
 	api.Put("/admin/attachment-compression-settings", h.updateCompressionSettings)
 	api.Get("/admin/attachment-storage-instances", h.listStorageInstances)

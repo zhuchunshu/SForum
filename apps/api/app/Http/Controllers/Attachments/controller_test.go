@@ -1,6 +1,14 @@
 package attachmentscontroller
 
-import "testing"
+import (
+	"errors"
+	"testing"
+
+	"github.com/gofiber/fiber/v3"
+
+	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
+	uploadpolicy "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments/UploadPolicy"
+)
 
 // TestAttachmentContentDispositionForcesDownloadOnActiveContent 验证 content 响应对
 // 主动内容类型强制下载（attachment），对安全类型保持内联（inline）。
@@ -33,5 +41,27 @@ func TestAttachmentContentDispositionSanitizesFilename(t *testing.T) {
 	want := `inline; filename="evil.txt"`
 	if got != want {
 		t.Fatalf("unsanitized filename, got %q, want %q", got, want)
+	}
+}
+
+func TestAttachmentUploadErrorsUseSpecificHTTPReasons(t *testing.T) {
+	tests := []struct {
+		err        error
+		wantStatus int
+		wantReason string
+	}{
+		{err: &attachments.FileTooLargeError{ActualBytes: 2, MaxBytes: 1}, wantStatus: fiber.StatusRequestEntityTooLarge, wantReason: attachments.CodeFileTooLarge},
+		{err: uploadpolicy.ErrInvalidPolicy, wantStatus: fiber.StatusUnprocessableEntity, wantReason: attachments.CodeUploadPolicyInvalid},
+		{err: uploadpolicy.ErrProtectedActor, wantStatus: fiber.StatusUnprocessableEntity, wantReason: attachments.CodeUploadPolicyProtected},
+	}
+	for _, test := range tests {
+		mapped := mapAttachmentError(test.err)
+		var fiberError *fiber.Error
+		if !errors.As(mapped, &fiberError) {
+			t.Fatalf("expected Fiber error for %v, got %T", test.err, mapped)
+		}
+		if fiberError.Code != test.wantStatus || fiberError.Message != test.wantReason {
+			t.Fatalf("mapped %v to %d/%q", test.err, fiberError.Code, fiberError.Message)
+		}
 	}
 }

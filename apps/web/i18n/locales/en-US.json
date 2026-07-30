@@ -26,6 +26,14 @@
   "common": {
     "close": "Close"
   },
+  "codeBlock": {
+    "code": "code block",
+    "copy": "Copy",
+    "copied": "Copied",
+    "copySuccess": "Code copied",
+    "copyFailed": "Copy failed. Select the code manually.",
+    "plainText": "Plain text"
+  },
   "appearance": {
     "colorMode": {
       "system": "Automatic",
@@ -1869,11 +1877,67 @@
       "toolbar": "Attachment upload is controlled by API permissions; admin settings change runtime storage behavior.",
       "refresh": "Refresh",
       "settingsLoadFailed": "Attachment settings could not be loaded.",
+      "transportLimitExceeded": "The current API transport hard limit allows at most {limit} MB. Lower this value or raise HTTP_BODY_LIMIT.",
       "tabs": {
         "label": "Attachment settings tabs",
         "settings": "Basic Configuration",
         "compression": "Image Optimization",
+        "policies": "Upload Permissions",
         "manager": "Attachment Management"
+      },
+      "uploadPolicies": {
+        "toolbar": "RBAC decides upload eligibility; site, role, and user policies resolve the per-file limit.",
+        "loadFailed": "Upload permission policies could not be loaded.",
+        "loading": "Loading role policies…",
+        "loadingUser": "Loading the user's effective policy…",
+        "siteDisabled": "Site-wide attachment uploads are disabled, so role and user policies are currently inactive.",
+        "transportMismatch": "The API transport hard limit is below the site setting",
+        "transportMismatchHelp": "Uploads are currently capped at {limit}. Raise HTTP_BODY_LIMIT or lower the site limit in Basic Configuration.",
+        "rolesTitle": "Role upload policies",
+        "rolesDescription": "attachment.upload controls eligibility. An empty size inherits the site limit. When several upload-enabled roles apply, the largest grant wins.",
+        "rolePermissionsLoadFailed": "Role permission details could not be loaded.",
+        "rolePermissionsLoadFailedHelp": "Size limits remain available. Upload permission switches are disabled to avoid overwriting unrelated permissions. Refresh and try again.",
+        "siteLimit": "Site limit {limit}",
+        "transportLimit": "Transport limit {limit}",
+        "effectiveLimit": "Effective per-file limit: {limit}",
+        "protected": "System protected",
+        "permissionEnabled": "Upload allowed",
+        "permissionDisabled": "Upload denied",
+        "uploadPermissionFor": "Attachment upload permission for {role}",
+        "restoreInheritance": "Restore inheritance",
+        "saveRoleLimit": "Save role limit",
+        "permissionSaved": "Attachment upload permission saved.",
+        "permissionSaveFailed": "Attachment upload permission could not be saved.",
+        "limitSaved": "Role per-file limit saved.",
+        "limitRestored": "The role now inherits the site limit.",
+        "limitSaveFailed": "The upload size limit could not be saved.",
+        "usersTitle": "User exceptions",
+        "usersDescription": "A user permission override can explicitly allow or deny uploads. A user size limit replaces the role result but remains capped by site and transport limits.",
+        "userViewRequired": "user.view is required to search for users and inspect their policies.",
+        "userSearchPlaceholder": "Search username, display name, or email",
+        "search": "Search",
+        "userSearchFailed": "User search failed.",
+        "userLoadFailed": "The user's upload policy could not be loaded.",
+        "canUpload": "Can upload",
+        "cannotUpload": "Cannot upload",
+        "userEffective": "Effective limit {limit} · Source: {source}",
+        "userPermission": "Upload permission exception",
+        "savePermission": "Save permission exception",
+        "overridePermissionRequired": "user.permission_override is required to change user exceptions.",
+        "userLimit": "User per-file limit",
+        "saveUserLimit": "Save user limit",
+        "userLimitSaved": "User per-file limit saved.",
+        "userLimitRestored": "The user now inherits the role policy.",
+        "permissionMode": {
+          "inherit": "Inherit roles",
+          "allow": "Explicitly allow",
+          "deny": "Explicitly deny"
+        },
+        "source": {
+          "site": "Site",
+          "role": "Role",
+          "user": "User"
+        }
       },
       "settingsTitle": "Basic Configuration",
       "settingsDescription": "Choose the current write target and configure path templates, size limits, and file type rules. S3 connection settings are managed by storage service instances.",
@@ -2140,7 +2204,12 @@
     "roles": {
       "metaTitle": "User Groups",
       "title": "User Groups",
-      "intro": "Groups grant permissions in bulk. User management can add per-user allow or deny exceptions.",
+      "intro": "Manage group permission grants and review group mappings recommended by extensions.",
+      "tabs": {
+        "label": "User group management tabs",
+        "groups": "User groups",
+        "approvals": "Permission reviews"
+      },
       "caption": "Forum user group list",
       "refresh": "Refresh",
       "create": "New group",
@@ -2254,6 +2323,18 @@
       "caption": "Forum user list",
       "refresh": "Refresh",
       "searchPlaceholder": "Search username, email, or display name",
+      "sortByLabel": "Sort field",
+      "sortByValue": "Sort: {value}",
+      "sortCreatedAt": "Joined",
+      "sortUpdatedAt": "Updated",
+      "sortUsername": "Username",
+      "sortDisplayName": "Display name",
+      "sortEmail": "Email",
+      "sortStatus": "Account status",
+      "sortOrderLabel": "Sort order",
+      "sortOrderValue": "Order: {value}",
+      "sortDescending": "Descending (newest / Z-A)",
+      "sortAscending": "Ascending (oldest / A-Z)",
       "count": "{count} users",
       "username": "User",
       "email": "Email",
@@ -2644,6 +2725,12 @@
           "manage": {
             "label": "Manage attachment settings",
             "description": "Edit storage providers, upload limits, access URLs, and secret configuration."
+          }
+        },
+        "upload_policy": {
+          "manage": {
+            "label": "Manage attachment upload policies",
+            "description": "Set per-role and per-user attachment upload size limits."
           }
         }
       },

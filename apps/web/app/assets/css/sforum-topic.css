@@ -315,20 +315,28 @@
   height: auto;
 }
 
-/* demo body[data-variant] .prose pre：4px 圆角、#252a31、12/1.75 */
+/* 代码块 SSR fallback；客户端增强后的工具条与行号由 highlight-theme.css 接管。 */
 .sforum-topic-page__prose pre,
 .sforum-topic-page__prose.sf-prose :where(pre),
 .sf-theme--default .sforum-topic-page__prose.sf-prose :where(pre) {
   max-width: 100%;
   overflow-x: auto;
   margin: 22px 0;
-  border: 0;
-  border-radius: 4px;
-  padding: 18px 20px;
-  background: #252a31;
-  color: #edf1f8;
-  font-size: 12px;
-  line-height: 1.75;
+  border: 1px solid var(--sf-code-border, #dfe2e8);
+  border-radius: 6px;
+  padding: 16px 18px;
+  background: var(--sf-code-bg, #f8f9fb);
+  color: var(--sf-code-text, #354052);
+  font-size: 13px;
+  line-height: 1.72;
+}
+
+.dark .sforum-topic-page__prose pre,
+.dark .sforum-topic-page__prose.sf-prose :where(pre),
+.dark .sf-theme--default .sforum-topic-page__prose.sf-prose :where(pre) {
+  border-color: var(--sf-code-border, #2f3a37);
+  background: var(--sf-code-bg, #111615);
+  color: var(--sf-code-text, #dce6e3);
 }
 
 .sforum-topic-page__prose blockquote {

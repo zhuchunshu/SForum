@@ -24,6 +24,11 @@ export const FORUM_PERMISSIONS = {
   settingsAvatarManage: 'settings.avatar.manage',
   settingsAppearanceManage: 'settings.appearance.manage',
   attachmentUpload: 'attachment.upload',
+  attachmentSettingsManage: 'attachment.settings.manage',
+  attachmentUploadPolicyManage: 'attachment.upload_policy.manage',
+  roleManage: 'role.manage',
+  userView: 'user.view',
+  userPermissionOverride: 'user.permission_override',
   forumSettingsManage: 'forum.settings.manage',
   moderationManage: 'moderation.manage',
   moderationReview: 'moderation.review',
@@ -46,8 +51,7 @@ const LEGACY_PERMISSION_CHILDREN: Record<string, string[]> = {
     'extension.theme.manage'
   ],
   'user.manage': [
-    'user.view',
-    'user.permission_override'
+    'user.view'
   ]
 }
 

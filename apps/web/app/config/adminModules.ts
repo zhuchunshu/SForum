@@ -175,7 +175,7 @@ export const adminPageDefinitions = [
     labelKey: 'admin.nav.attachments',
     icon: 'i-lucide-paperclip',
     componentName: 'AdminAttachmentsRedirect',
-    requiredPermissions: ['attachment.settings.manage', 'attachment.manage'],
+    requiredPermissions: ['attachment.settings.manage', 'attachment.upload_policy.manage', 'attachment.manage'],
     permissionMode: 'any'
   },
   {
@@ -183,7 +183,8 @@ export const adminPageDefinitions = [
     labelKey: 'admin.attachments.configuration',
     icon: 'i-lucide-sliders-horizontal',
     componentName: 'AdminAttachmentSettings',
-    requiredPermissions: ['attachment.settings.manage']
+    requiredPermissions: ['attachment.settings.manage', 'attachment.upload_policy.manage'],
+    permissionMode: 'any'
   },
   {
     id: '/attachments/manager',

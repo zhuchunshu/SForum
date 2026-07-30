@@ -1559,9 +1559,7 @@
 
 .sf-editor__loading,
 .sf-editor__content,
-.sf-editor__preview,
-.sf-editor__source,
-.sf-editor__native {
+.sf-editor__preview {
   width: 100%;
   min-height: var(--sf-editor-min-height);
 }
@@ -1639,12 +1637,20 @@
 .sf-editor__preview pre {
   overflow-x: auto;
   margin: 0.65rem 0;
-  padding: 0.75rem;
-  border-radius: 8px;
-  background: #111827;
-  color: #f8fafc;
-  font-size: 0.8rem;
-  line-height: 1.6;
+  padding: 16px 18px;
+  border: 1px solid var(--sf-code-border, #dfe2e8);
+  border-radius: 6px;
+  background: var(--sf-code-bg, #f8f9fb);
+  color: var(--sf-code-text, #354052);
+  font-size: 13px;
+  line-height: 1.72;
+}
+
+.dark .sf-editor__content pre,
+.dark .sf-editor__preview pre {
+  border-color: var(--sf-code-border, #2f3a37);
+  background: var(--sf-code-bg, #111615);
+  color: var(--sf-code-text, #dce6e3);
 }
 
 .sf-editor__content pre code,
@@ -1694,29 +1700,6 @@
   color: var(--sf-fg);
   font-size: 1rem;
   line-height: 1.82;
-}
-
-.sf-editor__source,
-.sf-editor__native {
-  display: block;
-  margin: 0;
-  padding: 0.9rem;
-  border: 0;
-  background: var(--sf-surface);
-  color: var(--sf-fg);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 0.8rem;
-  line-height: 1.7;
-  outline: 0;
-}
-
-.sf-editor__source {
-  resize: vertical;
-}
-
-.sf-editor__native {
-  overflow: auto;
-  white-space: pre-wrap;
 }
 
 .sf-editor__loading {
@@ -2218,8 +2201,6 @@
 
 .dark .sf-editor__content code,
 .dark .sf-editor__preview code,
-.dark .sf-editor__source,
-.dark .sf-editor__native,
 .dark .sf-editor-contract__code {
   background: #09090b;
   color: var(--sf-fg);
