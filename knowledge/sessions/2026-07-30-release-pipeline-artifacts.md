@@ -4,6 +4,8 @@
 
 - `scripts/release.sh` returns after tag push by default; explicit `--wait`
   retains synchronous terminal monitoring.
+- Optional interactive/`--notes`/`--notes-file` release highlights are stored
+  in the annotated tag and prepended to GitHub's generated changelog.
 - Release verifies the exact SHA's successful `main` push CI instead of
   rerunning the repository gate, and candidate builds restore CI caches.
 - GitHub Actions now builds six cross-platform CLI archives and two Linux

@@ -78,7 +78,9 @@ tag. It returns immediately after the push; explicit `--wait` retains synchronou
 terminal monitoring. Interactive mode requires an explicit alpha, beta, or stable
 selection before the base version; it suggests the next base and prerelease number
 from the latest valid remote release tags, while explicit input remains
-authoritative. GitHub verifies that the tag commit is reachable from `main`, then
+authoritative. Optional one-line `--notes` or multi-line `--notes-file` highlights
+are stored in the annotated tag and prepended to GitHub's generated release notes.
+GitHub verifies that the tag commit is reachable from `main`, then
 waits for the exact commit's successful `main` push CI instead of rerunning the
 same repository gate. Release builds restore both CI and release cache scopes
 before scan, exact-image smoke, and promotion. GitHub Release then publishes

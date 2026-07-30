@@ -389,6 +389,12 @@ jobs:
       actions: read
       contents: write
     steps:
+      - name: Check out release tag
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.prepare.outputs.tag }}
+
       - name: Download verified release assets
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
@@ -433,7 +439,11 @@ jobs:
             echo "GitHub Release $RELEASE_TAG already contains the exact verified asset set"
             exit 0
           fi
+          release_notes="$(git for-each-ref --format='%(contents:body)' "refs/tags/$RELEASE_TAG")"
           args=(--verify-tag --generate-notes --title "SForum $RELEASE_TAG")
+          if [[ -n "${release_notes//[[:space:]]/}" ]]; then
+            args+=(--notes "$release_notes")
+          fi
           if [[ "$STABLE" != "true" ]]; then
             args+=(--prerelease)
           fi

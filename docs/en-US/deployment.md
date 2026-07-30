@@ -32,7 +32,11 @@ Maintainers create a version from a clean `main` worktree synchronized with
 
 The helper returns immediately after pushing the version tag while GitHub
 Actions continues the release. Use `--wait` only when the current terminal must
-track the result; `--no-wait` is the default. On GitHub, Release waits for and
+track the result; `--no-wait` is the default. Interactive releases accept a
+one-line operator-written highlight; pressing Enter uses generated notes only.
+Use `./scripts/release.sh 2.8.0 --notes-file /tmp/release-notes.md` for multi-line
+Markdown. Manual highlights are prepended to GitHub's complete generated notes.
+On GitHub, Release waits for and
 reuses the exact commit's existing `main` push CI result. Image build, scan, and
 promotion begin only after that run succeeds, without repeating the repository
 gate for the tag. After image scan and Compose smoke pass, the GitHub Release

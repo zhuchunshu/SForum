@@ -47,6 +47,11 @@ would not improve deployment or establish a rollback artifact.
    authority over backup, migration timing, startup, and rollback.
 11. The maintainer release helper returns after pushing the tag by default.
    Synchronous terminal monitoring remains available through explicit `--wait`.
+12. Release notes use a hybrid contract: optional operator-written highlights
+    are stored in the annotated tag and prepended to GitHub's generated notes.
+    Generated notes remain authoritative for the complete change list; manual
+    text is reserved for user-facing highlights, breaking changes, and upgrade
+    guidance.
 
 ## Consequences
 

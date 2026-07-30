@@ -14,6 +14,8 @@ DRY_RUN=false
 LOCAL_CHECKS=false
 WAIT_MODE="no-wait"
 SHOW_HELP=false
+RELEASE_NOTES=""
+RELEASE_NOTES_SET=false
 
 if [[ -t 1 ]]; then
   COLOR_RED=$'\033[31m'
@@ -47,6 +49,8 @@ SForum 一键发布脚本
   --interactive           强制使用交互模式，并自动建议下一个版本
   --non-interactive       禁止提问，版本必须通过参数提供
   --yes, -y               交互模式下跳过最终标签确认
+  --notes TEXT            发布重点；将显示在自动生成的完整变更记录之前
+  --notes-file FILE       从 Markdown/文本文件读取多行发布重点
   --dry-run               仅检查并显示计划，不创建或推送标签
   --local-checks          推送前额外执行本地测试和构建（需要本地数据库等依赖）
   --wait                  推送后等待 GitHub Actions 发布流程完成
@@ -56,12 +60,15 @@ SForum 一键发布脚本
 发布原理：
   脚本验证 main 与 origin/main 完全同步后，创建并推送带说明的
   vX.Y.Z 标签。GitHub Actions 负责测试、构建镜像和跨平台发布资产、
-  安全扫描、冒烟验证和创建 GitHub Release。交互模式根据最近的远端发布标签建议
-  下一版本；脚本不会修改源码中的 dev 版本。
+  安全扫描、冒烟验证和创建 GitHub Release，并自动生成完整变更记录。
+  交互模式可填写一行发布重点；多行说明可使用 --notes-file。脚本不会
+  修改源码中的 dev 版本。
 
 示例：
   ./scripts/release.sh
   ./scripts/release.sh 2.8.0 --dry-run
+  ./scripts/release.sh 2.8.0-alpha.1 --notes "首次公开测试"
+  ./scripts/release.sh 2.8.0 --notes-file /tmp/release-notes.md
   ./scripts/release.sh --version 2.8.0 --non-interactive --no-wait
 EOF
 }
@@ -82,6 +89,8 @@ Options:
   --interactive           Force interactive mode and suggest the next version
   --non-interactive       Never prompt; the version must be an argument
   --yes, -y               Skip the final tag confirmation in interactive mode
+  --notes TEXT            Release highlights prepended to generated release notes
+  --notes-file FILE       Read multi-line release highlights from a Markdown/text file
   --dry-run               Check and show the plan without creating or pushing a tag
   --local-checks          Also run local tests/builds before pushing (requires local services)
   --wait                  Wait for the GitHub Actions release workflow after pushing
@@ -91,13 +100,16 @@ Options:
 How it works:
   After verifying that main exactly matches origin/main, this script creates
   and pushes an annotated vX.Y.Z tag. GitHub Actions owns testing, image and
-  cross-platform asset builds, security scans, smoke tests, and the GitHub Release. Interactive mode suggests
-  the next version from the latest remote release tag. The script never changes
-  the dev version stored in source code.
+  cross-platform asset builds, security scans, smoke tests, and the GitHub
+  Release, including a generated changelog. Interactive mode accepts one-line
+  release highlights; use --notes-file for multi-line notes. The script never
+  changes the dev version stored in source code.
 
 Examples:
   ./scripts/release.sh
   ./scripts/release.sh 2.8.0 --dry-run
+  ./scripts/release.sh 2.8.0-alpha.1 --notes "First public test"
+  ./scripts/release.sh 2.8.0 --notes-file /tmp/release-notes.md
   ./scripts/release.sh --version 2.8.0 --non-interactive --no-wait
 EOF
 }
@@ -112,6 +124,8 @@ say() {
       unknown_option) message="Unknown option: $1" ;;
       missing_value) message="Missing value for $1." ;;
       duplicate_version) message="Specify the version only once." ;;
+      duplicate_notes) message="Use only one of --notes or --notes-file." ;;
+      notes_file_missing) message="Release notes file does not exist or is not a regular file: $1" ;;
       invalid_language) message="Unsupported language: $1 (use zh or en)." ;;
       version_required) message="A version is required in non-interactive mode. Use --version 2.8.0." ;;
       select_release_type) message="Select the release type:" ;;
@@ -125,6 +139,7 @@ say() {
       no_previous_release) message="No previous release tag was found; using the initial recommended version." ;;
       enter_base_version) message="Base version [$1] (press Enter to use the default): " ;;
       enter_prerelease_number) message="$1 prerelease number [$2] (press Enter to use the default): " ;;
+      release_notes_prompt) message="Release highlights (optional, one line; press Enter for generated notes only): " ;;
       invalid_base_version) message="Invalid base version: $1. Use X.Y.Z without a prerelease suffix." ;;
       invalid_prerelease_number) message="Invalid prerelease number: $1. Use a positive integer." ;;
       invalid_version) message="Invalid release version: $1. Use X.Y.Z or X.Y.Z-prerelease; do not use dev, latest, or a branch name." ;;
@@ -162,6 +177,8 @@ say() {
       summary_branch) message="Branch" ;;
       summary_commit) message="Commit" ;;
       summary_checks) message="Release gate" ;;
+      summary_notes) message="Release highlights" ;;
+      summary_notes_auto) message="generated automatically" ;;
       summary_run) message="local checks + GitHub Actions" ;;
       summary_github) message="GitHub Actions" ;;
       summary_action) message="Action" ;;
@@ -188,6 +205,8 @@ say() {
       unknown_option) message="未知选项：$1" ;;
       missing_value) message="$1 缺少参数值。" ;;
       duplicate_version) message="版本只能指定一次。" ;;
+      duplicate_notes) message="--notes 与 --notes-file 只能使用其中一个。" ;;
+      notes_file_missing) message="发布说明文件不存在或不是普通文件：$1" ;;
       invalid_language) message="不支持的语言：$1（请使用 zh 或 en）。" ;;
       version_required) message="非交互模式必须指定版本，请使用 --version 2.8.0。" ;;
       select_release_type) message="请选择发布类型：" ;;
@@ -201,6 +220,7 @@ say() {
       no_previous_release) message="未找到历史发布标签，将使用推荐的初始版本。" ;;
       enter_base_version) message="请输入基础版本 [$1]（直接回车使用默认值）：" ;;
       enter_prerelease_number) message="请输入 $1 预发布编号 [$2]（直接回车使用默认值）：" ;;
+      release_notes_prompt) message="发布重点（可选，单行；直接回车仅使用自动变更记录）：" ;;
       invalid_base_version) message="基础版本无效：$1。请使用不带预发布后缀的 X.Y.Z。" ;;
       invalid_prerelease_number) message="预发布编号无效：$1。请输入正整数。" ;;
       invalid_version) message="发布版本无效：$1。请使用 X.Y.Z 或 X.Y.Z-预发布标识，不要填写 dev、latest 或分支名。" ;;
@@ -238,6 +258,8 @@ say() {
       summary_branch) message="分支" ;;
       summary_commit) message="提交" ;;
       summary_checks) message="发布门禁" ;;
+      summary_notes) message="发布重点" ;;
+      summary_notes_auto) message="由 GitHub 自动生成" ;;
       summary_run) message="本地检查 + GitHub Actions" ;;
       summary_github) message="GitHub Actions" ;;
       summary_action) message="将要执行" ;;
@@ -440,6 +462,20 @@ set_version() {
   VERSION_INPUT="$1"
 }
 
+set_release_notes() {
+  if [[ "$RELEASE_NOTES_SET" == true ]]; then
+    die duplicate_notes
+  fi
+  RELEASE_NOTES="$1"
+  RELEASE_NOTES_SET=true
+}
+
+load_release_notes_file() {
+  local notes_file="$1"
+  [[ -f "$notes_file" ]] || die notes_file_missing "$notes_file"
+  set_release_notes "$(<"$notes_file")"
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --version)
@@ -470,6 +506,16 @@ while [[ $# -gt 0 ]]; do
     --yes|-y)
       ASSUME_YES=true
       shift
+      ;;
+    --notes)
+      [[ $# -ge 2 ]] || die missing_value --notes
+      set_release_notes "$2"
+      shift 2
+      ;;
+    --notes-file)
+      [[ $# -ge 2 ]] || die missing_value --notes-file
+      load_release_notes_file "$2"
+      shift 2
       ;;
     --dry-run)
       DRY_RUN=true
@@ -618,6 +664,12 @@ if [[ -z "$VERSION_INPUT" ]]; then
   validate_and_set_version
 fi
 
+if [[ "$MODE" == "interactive" && "$RELEASE_NOTES_SET" == false ]]; then
+  say release_notes_prompt
+  IFS= read -r RELEASE_NOTES || RELEASE_NOTES=""
+  RELEASE_NOTES_SET=true
+fi
+
 ensure_remote_tag_available
 
 if [[ "$LOCAL_CHECKS" == true ]]; then
@@ -662,6 +714,14 @@ if [[ "$LOCAL_CHECKS" == true ]]; then
 else
   printf '  %-18s %s\n' "$(say summary_checks):" "$(say summary_github)"
 fi
+if [[ -z "$RELEASE_NOTES" ]]; then
+  printf '  %-18s %s\n' "$(say summary_notes):" "$(say summary_notes_auto)"
+else
+  printf '  %-18s\n' "$(say summary_notes):"
+  while IFS= read -r note_line || [[ -n "$note_line" ]]; do
+    printf '    %s\n' "$note_line"
+  done <<< "$RELEASE_NOTES"
+fi
 if [[ "$DRY_RUN" == true ]]; then
   printf '  %-18s %s\n' "$(say summary_action):" "$(say action_dry_run)"
 else
@@ -682,7 +742,11 @@ fi
 
 say creating_tag "$TAG"
 printf '\n'
-git tag -a "$TAG" -m "SForum $VERSION"
+TAG_MESSAGE="SForum $VERSION"
+if [[ -n "$RELEASE_NOTES" ]]; then
+  TAG_MESSAGE+=$'\n\n'"$RELEASE_NOTES"
+fi
+git tag -a "$TAG" -m "$TAG_MESSAGE"
 
 say pushing_tag "$TAG"
 printf '\n'

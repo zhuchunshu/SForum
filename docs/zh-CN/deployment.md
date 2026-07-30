@@ -35,6 +35,10 @@
 
 脚本推送版本标签后默认立即返回，发布状态继续由 GitHub Actions 管理。只有
 需要占用当前终端同步确认结果时才使用 `--wait`；`--no-wait` 是默认行为。
+交互发布可填写一行面向用户的“发布重点”，直接回车则只使用 GitHub 自动
+生成的完整变更记录。多行 Markdown 可通过
+`./scripts/release.sh 2.8.0 --notes-file /tmp/release-notes.md` 提供；手写重点会
+显示在自动变更记录之前。
 Release 会在 GitHub 端等待并复用相同提交已经触发的 `main` CI，只有精确
 SHA 的 `push` CI 成功后才构建、扫描和提升发布镜像，不会再为标签重复运行
 整套仓库门禁。镜像通过扫描和 Compose 冒烟后，GitHub Release 同时发布：
