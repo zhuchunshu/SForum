@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestLocalAdapterPutOpenStatAndDelete(t *testing.T) {
@@ -41,6 +42,9 @@ func TestLocalAdapterPutOpenStatAndDelete(t *testing.T) {
 	}
 	if got := adapter.PublicURL("2026/07/file.txt"); got != "https://cdn.example.com/uploads/2026/07/file.txt" {
 		t.Fatalf("unexpected public url: %q", got)
+	}
+	if got, err := adapter.SignedURL(ctx, "2026/07/file.txt", time.Minute); err != nil || got != "" {
+		t.Fatalf("local signed URL must be unsupported, got %q err=%v", got, err)
 	}
 
 	reader, err := adapter.Open(ctx, "2026/07/file.txt")

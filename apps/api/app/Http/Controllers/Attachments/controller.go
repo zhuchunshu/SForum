@@ -25,6 +25,11 @@ type Controller struct {
 	sessions    *authsession.Manager
 }
 
+const (
+	mediaDeliveryHeader = "X-SForum-Media-Delivery"
+	mediaDeliveryDirect = "redirect-v1"
+)
+
 func (h *Controller) WithCompressionService(service *attachments.CompressionService) *Controller {
 	if h != nil {
 		h.compression = service
@@ -135,11 +140,18 @@ func (h *Controller) content(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	item, reader, err := h.service.OpenContent(c.Context(), actor, c.Params("publicId"))
+	if c.Get(mediaDeliveryHeader) != mediaDeliveryDirect {
+		item, reader, openErr := h.service.OpenContent(c.Context(), actor, c.Params("publicId"))
+		if openErr != nil {
+			return mapAttachmentError(openErr)
+		}
+		return sendAttachmentContent(c, item.ContentType, item.OriginalName, reader)
+	}
+	delivery, err := h.service.ResolveContentDelivery(c.Context(), actor, c.Params("publicId"))
 	if err != nil {
 		return mapAttachmentError(err)
 	}
-	return sendAttachmentContent(c, item.ContentType, item.OriginalName, reader)
+	return sendAttachmentDelivery(c, delivery)
 }
 
 func (h *Controller) variantContent(c fiber.Ctx) error {
@@ -150,11 +162,31 @@ func (h *Controller) variantContent(c fiber.Ctx) error {
 	if h.compression == nil {
 		return fiber.NewError(fiber.StatusServiceUnavailable, attachments.CodeStorageUnavailable)
 	}
-	item, reader, err := h.compression.OpenVariant(c.Context(), actor, c.Params("publicId"), c.Params("variant"))
+	if c.Get(mediaDeliveryHeader) != mediaDeliveryDirect {
+		item, reader, openErr := h.compression.OpenVariant(c.Context(), actor, c.Params("publicId"), c.Params("variant"))
+		if openErr != nil {
+			return mapAttachmentError(openErr)
+		}
+		return sendAttachmentContent(c, item.ContentType, item.OriginalName, reader)
+	}
+	delivery, err := h.compression.ResolveVariantDelivery(c.Context(), actor, c.Params("publicId"), c.Params("variant"))
 	if err != nil {
 		return mapAttachmentError(err)
 	}
-	return sendAttachmentContent(c, item.ContentType, item.OriginalName, reader)
+	return sendAttachmentDelivery(c, delivery)
+}
+
+func sendAttachmentDelivery(c fiber.Ctx, delivery attachments.ContentDelivery) error {
+	if delivery.RedirectURL != "" {
+		// The signed location is capability-bearing and must never be cached as a
+		// shared response. The object store serves the bytes after this redirect.
+		c.Set(fiber.HeaderCacheControl, "private, no-store")
+		return c.Redirect().Status(fiber.StatusFound).To(delivery.RedirectURL)
+	}
+	if delivery.Reader == nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, attachments.CodeStorageUnavailable)
+	}
+	return sendAttachmentContent(c, delivery.ContentType, delivery.OriginalName, delivery.Reader)
 }
 
 func sendAttachmentContent(c fiber.Ctx, contentType, originalName string, reader io.ReadCloser) error {

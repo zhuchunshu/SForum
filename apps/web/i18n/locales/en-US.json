@@ -4943,6 +4943,10 @@
     "bodyPlaceholder": "Write what you want to share...",
     "imageUpload": {
       "uploading": "Uploading image",
+      "dialogTitle": "Upload images",
+      "dialogDescription": "Images will be inserted at the current cursor position.",
+      "dialogPrompt": "Click to choose images, or drop them here",
+      "dialogHint": "Multiple raster images are supported. SVG is not supported.",
       "invalidType": "Only raster images can be uploaded. SVG is not supported.",
       "notAllowed": "Your account cannot upload attachments, or uploads are disabled for this site.",
       "tooLarge": "{fileName} exceeds the current {maxSize} upload limit.",

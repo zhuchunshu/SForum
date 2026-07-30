@@ -19,5 +19,7 @@ export default defineEventHandler((event) => {
 
   const apiBaseUrl = (process.env.NUXT_API_INTERNAL_BASE_URL || 'http://api:8080/api/v1').replace(/\/+$/, '')
   const target = new URL(`${apiBaseUrl}/attachments/${encodeURIComponent(publicId)}/variants/display/content`)
-  return proxyRouteRequest(event, target)
+  return proxyRouteRequest(event, target, {
+    requestHeaders: { 'x-sforum-media-delivery': 'redirect-v1' }
+  })
 })

@@ -5,6 +5,7 @@ import SFEditorToolbar, {
   type SFEditorToolbarAction,
   type SFEditorViewMode
 } from '~/components/editor/SFEditorToolbar.vue'
+import SFEditorImageUploadModal from '~/components/editor/SFEditorImageUploadModal.vue'
 import { Editor, EditorContent } from '@tiptap/vue-3'
 import type { AnyExtension } from '@tiptap/core'
 import {
@@ -15,7 +16,7 @@ import {
   type SFEditorContentPayload,
   type TiptapContentReader
 } from '~/utils/sfEditor'
-import { useEditorImageUpload } from '~/composables/editor/useEditorImageUpload'
+import { imageFilesFromList, useEditorImageUpload } from '~/composables/editor/useEditorImageUpload'
 
 const props = withDefaults(defineProps<{
   modelValue?: string
@@ -74,7 +75,7 @@ const viewMode = ref<SFEditorViewMode>('write')
 // modelValue 只承载 Markdown；原生 JSON 必须走 initialContent，避免把 rawContent 当正文。
 const editorStateTick = ref(0)
 const lastEmittedMarkdown = ref('')
-const imageInput = ref<HTMLInputElement | null>(null)
+const imageDialogOpen = ref(false)
 const imageInsertPosition = ref<number | null>(null)
 const { t } = useI18n()
 const { pendingUploadCount, uploadImages } = useEditorImageUpload({
@@ -174,7 +175,8 @@ onMounted(async () => {
   const initialContent = props.initialContent !== undefined && props.initialContent !== null
     ? props.initialContent
     : (props.modelValue || '')
-  editor.value = new Editor({
+  let nextEditor: Editor
+  nextEditor = new Editor({
     content: initialContent,
     ...(typeof initialContent === 'string' ? { contentType: 'markdown' as const } : {}),
     editable: !props.disabled,
@@ -200,9 +202,18 @@ onMounted(async () => {
       attributes: {
         class: 'sf-editor__content',
         'aria-label': props.ariaLabel
+      },
+      handlePaste: (_view, event) => {
+        const files = imageFilesFromList(event.clipboardData?.files)
+        if (files.length === 0) return false
+
+        event.preventDefault()
+        void uploadImages(nextEditor, files, nextEditor.state.selection.from)
+        return true
       }
     }
   })
+  editor.value = nextEditor
 })
 
 onBeforeUnmount(() => {
@@ -337,21 +348,22 @@ function setLink() {
   currentEditor.chain().focus().extendMarkRange('link').setLink({ href }).run()
 }
 
-function openImagePicker() {
+function openImageDialog() {
   const currentEditor = editor.value
 
   if (!currentEditor || props.disabled) {
     return
   }
   imageInsertPosition.value = currentEditor.state.selection.from
-  if (imageInput.value) imageInput.value.value = ''
-  imageInput.value?.click()
+  imageDialogOpen.value = true
 }
 
-function onImageFilesSelected(event: Event) {
-  const input = event.target as HTMLInputElement
-  const files = Array.from(input.files || [])
-  input.value = ''
+function onImageDialogOpenChange(open: boolean) {
+  imageDialogOpen.value = open
+  if (!open) imageInsertPosition.value = null
+}
+
+function onImageFilesSelected(files: File[]) {
   const currentEditor = editor.value
   const position = imageInsertPosition.value
   imageInsertPosition.value = null
@@ -366,7 +378,7 @@ function runToolbarAction(action: SFEditorToolbarAction) {
     return
   }
   if (action === 'image') {
-    openImagePicker()
+    openImageDialog()
     return
   }
 
@@ -406,16 +418,6 @@ function submitContent() {
     :class="editorClass"
     :style="{ '--sf-editor-min-height': editorMinHeight }"
   >
-    <input
-      ref="imageInput"
-      class="sr-only"
-      type="file"
-      accept="image/*"
-      multiple
-      tabindex="-1"
-      aria-hidden="true"
-      @change="onImageFilesSelected"
-    >
     <SFEditorToolbar
       v-if="!compact"
       :preset="preset"
@@ -428,6 +430,13 @@ function submitContent() {
       @action="runToolbarAction"
       @block-format="setBlockFormat"
       @view-mode="viewMode = $event"
+    />
+
+    <SFEditorImageUploadModal
+      :open="imageDialogOpen"
+      :disabled="disabled"
+      @update:open="onImageDialogOpenChange"
+      @select="onImageFilesSelected"
     />
 
     <div class="sf-editor__body">

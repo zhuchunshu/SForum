@@ -142,9 +142,12 @@ export async function proxyDeclaredPluginRoute(event: H3Event) {
 export async function proxyRouteRequest(
   event: H3Event,
   target: URL,
-  options: { omitCredentials?: boolean } = {}
+  options: { omitCredentials?: boolean, requestHeaders?: HeadersInit } = {}
 ) {
   const headers = pluginRouteProxyHeaders(getProxyRequestHeaders(event), options.omitCredentials)
+  for (const [name, value] of new Headers(options.requestHeaders)) {
+    headers.set(name, value)
+  }
   const hasRequestBody = event.method !== 'GET' && event.method !== 'HEAD'
   const signal = proxyRequestAbortSignal(event)
   return retrySafeProxyRequest(event.method, () => sendProxy(event, target.toString(), {

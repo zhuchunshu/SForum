@@ -57,6 +57,30 @@ func TestSendAttachmentContentKeepsStreamOpenUntilResponseWrite(t *testing.T) {
 	}
 }
 
+func TestSendAttachmentDeliveryRedirectsWithoutBuffering(t *testing.T) {
+	app := fiber.New()
+	app.Get("/image", func(c fiber.Ctx) error {
+		return sendAttachmentDelivery(c, attachments.ContentDelivery{
+			RedirectURL: "https://objects.example.test/signed?token=abc",
+		})
+	})
+
+	response, err := app.Test(httptest.NewRequest("GET", "/image", nil))
+	if err != nil {
+		t.Fatalf("request attachment redirect: %v", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != fiber.StatusFound {
+		t.Fatalf("redirect status = %d, want %d", response.StatusCode, fiber.StatusFound)
+	}
+	if got := response.Header.Get(fiber.HeaderLocation); got != "https://objects.example.test/signed?token=abc" {
+		t.Fatalf("redirect location = %q", got)
+	}
+	if got := response.Header.Get(fiber.HeaderCacheControl); got != "private, no-store" {
+		t.Fatalf("redirect cache-control = %q", got)
+	}
+}
+
 // TestAttachmentContentDispositionForcesDownloadOnActiveContent 验证 content 响应对
 // 主动内容类型强制下载（attachment），对安全类型保持内联（inline）。
 // 这是审计 P2 附件主动内容风险的响应层兜底防护。

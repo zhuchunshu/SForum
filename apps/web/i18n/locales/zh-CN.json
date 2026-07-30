@@ -4983,6 +4983,10 @@
     "bodyPlaceholder": "写下你想分享的内容...",
     "imageUpload": {
       "uploading": "图片上传中",
+      "dialogTitle": "上传图片",
+      "dialogDescription": "将图片插入当前光标位置。",
+      "dialogPrompt": "点击选择图片，或将图片拖到此处",
+      "dialogHint": "支持多张常见栅格图片，不支持 SVG",
       "invalidType": "只能上传栅格图片，暂不支持 SVG。",
       "notAllowed": "当前账号没有上传附件的权限，或站点已关闭附件上传。",
       "tooLarge": "{fileName} 超过当前上传上限 {maxSize}。",

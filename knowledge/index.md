@@ -107,13 +107,13 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- Editor image upload: the shared Tiptap editor now supports toolbar and exact-
-  position drag uploads through the existing attachment policy, persists
+- Editor image upload: the shared Tiptap editor now opens a click-or-drop
+  upload modal from its toolbar, supports clipboard image uploads and
+  exact-position drag uploads through the existing attachment policy, persists
   transactional attachment identity, and renders authorized display variants
-  through `/media/attachments/{publicId}`. Automated gates and user manual QA
-  pass; the advanced local static URL prefix remains optional and empty by
-  default:
-  `sessions/2026-07-31-editor-image-upload.md`
+  through `/media/attachments/{publicId}`. Typecheck and focused tests pass;
+  the advanced local static URL prefix remains optional and empty by default:
+  `sessions/2026-07-31-editor-image-upload-modal-and-paste.md`
 - Extension fixture audit: all 18 tracked fixture packages now satisfy the
   Manifest V3 / Protocol V2 baseline; three stale static manifests were fixed,
   a full static inventory gate was added, and the deleted V1 Host API reference

@@ -155,9 +155,11 @@ describe('trusted plugin arbitrary-route proxy', () => {
     expect(avatarProxy).toContain('/attachments/${encodeURIComponent(publicId)}/content')
     expect(avatarProxy).toContain('proxyRouteRequest(event, target, { omitCredentials: true })')
     expect(attachmentProxy).toContain('/attachments/${encodeURIComponent(publicId)}/variants/display/content')
-    expect(attachmentProxy).toContain('proxyRouteRequest(event, target)')
+    expect(attachmentProxy).toContain('proxyRouteRequest(event, target, {')
     expect(attachmentProxy).not.toContain('omitCredentials')
+    expect(attachmentProxy).toContain("'x-sforum-media-delivery': 'redirect-v1'")
     expect(proxyUtility).toContain('getRequestWebStream(event)')
+    expect(proxyUtility).toContain('new Headers(options.requestHeaders)')
     expect(proxyUtility).toContain('sendStream: true')
     expect(proxyUtility).toContain('const signal = proxyRequestAbortSignal(event)')
     expect(proxyUtility).toContain("duplex: hasRequestBody ? 'half' : undefined")
@@ -225,6 +227,7 @@ describe('trusted plugin arbitrary-route proxy', () => {
   test('proxies matched unsafe bodies and leaves explicit misses to Nuxt', async () => {
     const actualRequests: Array<{ method?: string, search: string, body: string, authorization?: string, probe?: string }> = []
     let publicAssetCredentials: { authorization?: string, cookie?: string } = {}
+    let directDeliveryHeader: string | undefined
     let retryReadRequests = 0
     const api = createServer(async (request, response) => {
       const url = new URL(request.url || '/', 'http://api.test')
@@ -239,6 +242,14 @@ describe('trusted plugin arbitrary-route proxy', () => {
         response.setHeader('Set-Cookie', 'csrf_=private')
         response.setHeader('Vary', 'Cookie, Accept-Encoding')
         response.end('immutable-body')
+        return
+      }
+      if (url.pathname === '/direct-delivery') {
+        directDeliveryHeader = request.headers['x-sforum-media-delivery'] as string | undefined
+        response.statusCode = 302
+        response.setHeader('Location', 'https://objects.example.test/signed?token=abc')
+        response.setHeader('Cache-Control', 'private, no-store')
+        response.end()
         return
       }
       if (request.method === 'HEAD' && request.headers[INTERNAL_ROUTE_PROBE_HEADER] === INTERNAL_ROUTE_PROBE_VERSION) {
@@ -299,6 +310,11 @@ describe('trusted plugin arbitrary-route proxy', () => {
     app.use('/asset-proxy', eventHandler(event => proxyRouteRequest(
       event, new URL(`${apiURL}/public-asset`), { omitCredentials: true }
     )))
+    app.use('/direct-delivery', eventHandler(event => proxyRouteRequest(
+      event,
+      new URL(`${apiURL}/direct-delivery`),
+      { requestHeaders: { 'x-sforum-media-delivery': 'redirect-v1' } }
+    )))
     app.use(eventHandler(event => proxyDeclaredPluginRoute(event)))
     app.use(eventHandler(event => `nuxt:${event.method}:${getRequestURL(event).pathname}`))
     const web = createServer(toNodeListener(app))
@@ -326,6 +342,12 @@ describe('trusted plugin arbitrary-route proxy', () => {
       expect(missingAsset.status).toBe(404)
       expect(missingAsset.headers.get('cache-control')).toBe('no-store')
       expect(missingAsset.headers.get('set-cookie')).toBeNull()
+
+      const directDelivery = await fetch(`${webURL}/direct-delivery`, { redirect: 'manual' })
+      expect(directDelivery.status).toBe(302)
+      expect(directDelivery.headers.get('location')).toBe('https://objects.example.test/signed?token=abc')
+      expect(directDelivery.headers.get('cache-control')).toBe('private, no-store')
+      expect(directDeliveryHeader).toBe('redirect-v1')
 
       const pluginSearch = '?q=%3Cscript%3EglobalThis.compromised%3Dtrue%3C%2Fscript%3E'
       const pluginBody = '<img src=x onerror="globalThis.compromised=true">'

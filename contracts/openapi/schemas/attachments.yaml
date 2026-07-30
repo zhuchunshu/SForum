@@ -193,8 +193,9 @@ Attachment:
     url:
       type: string
       description: >
-        Authorized content URL. Eligible proxied JPEG and PNG attachments use
-        the display-variant endpoint with transparent original fallback.
+        Stable authorized content URL. Remote content may be redirected to a
+        short-lived provider URL after authorization; callers must not persist
+        a provider URL or a signed query string.
     status:
       "$ref": "#/AttachmentStatus"
     provider:

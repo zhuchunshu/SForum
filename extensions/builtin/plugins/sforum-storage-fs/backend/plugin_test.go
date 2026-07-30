@@ -86,6 +86,10 @@ func TestFSStorageRoundTrip(t *testing.T) {
 	if err != nil || url.URL != "https://cdn.example/files/a/b/demo.bin" {
 		t.Fatalf("public url: %#v err=%v", url, err)
 	}
+	signed, err := p.StorageSignedURL(pluginsdk.StorageSignedURLRequest{Key: "a/b/demo.bin", TTLSeconds: 300})
+	if err != nil || !signed.OK || signed.URL != "" {
+		t.Fatalf("filesystem signed URL must be unsupported: %#v err=%v", signed, err)
+	}
 
 	del, err := p.StorageDelete(pluginsdk.StorageObjectRequest{Key: "a/b/demo.bin"})
 	if err != nil || !del.OK {

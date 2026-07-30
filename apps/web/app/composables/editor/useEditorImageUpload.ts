@@ -42,6 +42,10 @@ function isImageFile(file: File) {
     || /\.(?:avif|bmp|gif|heic|heif|jpe?g|png|tiff?|webp)$/i.test(file.name)
 }
 
+export function imageFilesFromList(files: FileList | null | undefined) {
+  return Array.from(files || []).filter(isImageFile)
+}
+
 function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) {
     return `${Math.max(1, Math.round(bytes / 1024))} KB`
@@ -182,4 +186,3 @@ export function useEditorImageUpload(labels: EditorImageUploadLabels) {
     uploadImages
   }
 }
-

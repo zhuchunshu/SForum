@@ -127,6 +127,14 @@ func (s *Service) WithMediaRegistry(registry *mediaregistry.Registry) *Service {
 }
 
 func (s *Service) Get(ctx context.Context, actor identity.Actor, publicID string) (Attachment, error) {
+	attachment, err := s.authorizedAttachment(ctx, actor, publicID)
+	if err != nil {
+		return Attachment{}, err
+	}
+	return s.decorateURL(ctx, attachment), nil
+}
+
+func (s *Service) authorizedAttachment(ctx context.Context, actor identity.Actor, publicID string) (Attachment, error) {
 	attachment, err := s.store.GetByPublicID(ctx, publicID)
 	if err != nil {
 		return Attachment{}, err
@@ -134,11 +142,11 @@ func (s *Service) Get(ctx context.Context, actor identity.Actor, publicID string
 	if err := s.authorizeAttachmentView(ctx, actor, attachment); err != nil {
 		return Attachment{}, err
 	}
-	return s.decorateURL(ctx, attachment), nil
+	return attachment, nil
 }
 
 func (s *Service) OpenContent(ctx context.Context, actor identity.Actor, publicID string) (Attachment, io.ReadCloser, error) {
-	attachment, err := s.Get(ctx, actor, publicID)
+	attachment, err := s.authorizedAttachment(ctx, actor, publicID)
 	if err != nil {
 		return Attachment{}, nil, err
 	}

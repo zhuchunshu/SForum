@@ -307,9 +307,9 @@ func (p *fsStoragePlugin) StoragePublicURL(req pluginsdk.StoragePublicURLRequest
 }
 
 func (p *fsStoragePlugin) StorageSignedURL(req pluginsdk.StorageSignedURLRequest) (pluginsdk.StorageURLResponse, error) {
-	// 文件系统后端无签名 URL；回落 PublicURL。
+	// 文件系统后端没有时间受限的能力 URL，必须由宿主流式返回。
 	_ = req.TTLSeconds
-	return p.StoragePublicURL(pluginsdk.StoragePublicURLRequest{Key: req.Key})
+	return pluginsdk.StorageURLResponse{OK: true, URL: ""}, nil
 }
 
 func (p *fsStoragePlugin) abortPut(sessionID string) {

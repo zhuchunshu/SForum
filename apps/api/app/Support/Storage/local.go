@@ -93,7 +93,10 @@ func (a *LocalAdapter) PublicURL(key string) string {
 }
 
 func (a *LocalAdapter) SignedURL(_ context.Context, key string, _ time.Duration) (string, error) {
-	return a.PublicURL(key), nil
+	// Local files do not have a time-limited capability URL. Authorized
+	// requests must remain on the Host unless an external static mapping is
+	// explicitly used for site-public assets.
+	return "", nil
 }
 
 func (a *LocalAdapter) Probe(_ context.Context) error {

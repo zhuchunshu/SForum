@@ -77,10 +77,10 @@ attachmentContent:
     responses:
       '200':
         description: >
-          Attachment bytes streamed from the configured provider. Same access
-          policy as getAttachment. Forum and unreferenced media are never
-          served through a permanent public provider URL; this route rechecks
-          the referenced resource on every request.
+          Attachment bytes streamed from the configured provider after the
+          same access policy as getAttachment is rechecked. The browser-facing
+          Host media route may opt into an internal signed-redirect delivery
+          mode; this public API operation keeps its byte-stream response.
         content:
           application/octet-stream:
             schema:
@@ -109,8 +109,10 @@ attachmentVariantContent:
     responses:
       '200':
         description: >
-          Streams the ready variant after applying the original attachment access policy.
-          Missing, stale, or unavailable variants transparently fall back to the immutable original.
+          Streams the ready variant after applying the original attachment
+          access policy. Missing, stale, or unavailable variants transparently
+          fall back to the immutable original. The browser-facing Host media
+          route may internally request signed-redirect delivery.
         content:
           application/octet-stream:
             schema: { type: string, format: binary }

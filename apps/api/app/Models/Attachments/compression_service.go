@@ -172,35 +172,78 @@ func (s *CompressionService) ProcessTask(ctx context.Context, taskID int64) erro
 	return nil
 }
 
-func (s *CompressionService) OpenVariant(ctx context.Context, actor identity.Actor, publicID, name string) (VariantContent, io.ReadCloser, error) {
-	if strings.TrimSpace(name) != CompressionVariantDisplay {
-		return s.openOriginal(ctx, actor, publicID)
+type variantStorageSource struct {
+	content   VariantContent
+	provider  string
+	objectKey string
+	adapter   storage.Adapter
+}
+
+// ResolveVariantDelivery keeps the display-to-original fallback while allowing
+// ready remote variants to be read directly from object storage after Host
+// authorization succeeds.
+func (s *CompressionService) ResolveVariantDelivery(ctx context.Context, actor identity.Actor, publicID, name string) (ContentDelivery, error) {
+	source, fallback, err := s.variantSource(ctx, actor, publicID, name)
+	if err != nil {
+		return ContentDelivery{}, err
 	}
-	attachment, err := s.attachments.Get(ctx, actor, publicID)
+	if fallback {
+		return s.attachments.ResolveContentDelivery(ctx, actor, publicID)
+	}
+	delivery, err := storageContentDelivery(ctx, source.adapter, source.provider, source.objectKey, source.content.ContentType, source.content.OriginalName)
+	if err != nil {
+		return s.attachments.ResolveContentDelivery(ctx, actor, publicID)
+	}
+	return delivery, nil
+}
+
+func (s *CompressionService) OpenVariant(ctx context.Context, actor identity.Actor, publicID, name string) (VariantContent, io.ReadCloser, error) {
+	source, fallback, err := s.variantSource(ctx, actor, publicID, name)
 	if err != nil {
 		return VariantContent{}, nil, err
+	}
+	if fallback {
+		return s.openOriginal(ctx, actor, publicID)
+	}
+	reader, err := source.adapter.Open(ctx, source.objectKey)
+	if err != nil {
+		return s.openOriginal(ctx, actor, publicID)
+	}
+	return source.content, reader, nil
+}
+
+func (s *CompressionService) variantSource(ctx context.Context, actor identity.Actor, publicID, name string) (variantStorageSource, bool, error) {
+	if strings.TrimSpace(name) != CompressionVariantDisplay {
+		return variantStorageSource{}, true, nil
+	}
+	attachment, err := s.attachments.authorizedAttachment(ctx, actor, publicID)
+	if err != nil {
+		return variantStorageSource{}, false, err
 	}
 	variant, err := s.store.GetAttachmentVariant(ctx, attachment.ID, CompressionVariantDisplay)
 	if err != nil || variant.SourceSHA256 != attachment.SHA256 {
-		return s.openOriginal(ctx, actor, publicID)
+		return variantStorageSource{}, true, nil
 	}
 	compressionSettings, err := s.runtimeSettings(ctx)
 	if err != nil || !compressionSettings.Enabled || variant.PolicyDigest != compressionSettings.PolicyDigest {
-		return s.openOriginal(ctx, actor, publicID)
+		return variantStorageSource{}, true, nil
 	}
 	settings, err := s.attachments.runtimeSettings(ctx)
 	if err != nil {
-		return VariantContent{}, nil, err
+		return variantStorageSource{}, false, err
 	}
 	adapter, err := s.attachments.adapterForSettings(ctx, settings, variant.Provider)
 	if err != nil {
-		return s.openOriginal(ctx, actor, publicID)
+		return variantStorageSource{}, true, nil
 	}
-	reader, err := adapter.Open(ctx, variant.ObjectKey)
-	if err != nil {
-		return s.openOriginal(ctx, actor, publicID)
+	exists, err := adapter.Exists(ctx, variant.ObjectKey)
+	if err != nil || !exists {
+		return variantStorageSource{}, true, nil
 	}
-	return VariantContent{ContentType: variant.ContentType, OriginalName: variantFilename(attachment.OriginalName, variant.ContentType)}, reader, nil
+	return variantStorageSource{
+		content:  VariantContent{ContentType: variant.ContentType, OriginalName: variantFilename(attachment.OriginalName, variant.ContentType)},
+		provider: variant.Provider, objectKey: variant.ObjectKey, adapter: adapter,
+	}, false, nil
 }
 
 func (s *CompressionService) openOriginal(ctx context.Context, actor identity.Actor, publicID string) (VariantContent, io.ReadCloser, error) {

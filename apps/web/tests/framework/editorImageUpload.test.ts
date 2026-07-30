@@ -12,6 +12,7 @@ import {
   collectEditorAttachmentIds,
   createSFEditorExtensions
 } from '../../app/utils/sfEditor'
+import { imageFilesFromList } from '../../app/composables/editor/useEditorImageUpload'
 
 let editor: Editor | undefined
 
@@ -85,6 +86,17 @@ describe('editor image upload position', () => {
     expect(content[1]?.attrs?.attachmentId).toBe(1)
     expect(content[2]?.attrs?.attachmentId).toBe(2)
     expect(content[3]?.content?.[0]?.text).toBe('after')
+  })
+})
+
+describe('editor image upload file selection', () => {
+  it('keeps clipboard raster images while rejecting SVG and non-image files', () => {
+    const png = { name: 'pasted.png', type: 'image/png' } as File
+    const svg = { name: 'unsafe.svg', type: 'image/svg+xml' } as File
+    const text = { name: 'notes.txt', type: 'text/plain' } as File
+    const files = { 0: png, 1: svg, 2: text, length: 3 } as unknown as FileList
+
+    expect(imageFilesFromList(files)).toEqual([png])
   })
 })
 

@@ -676,11 +676,13 @@ Architecture sources:
   while the historical `sforumEmoji` node remains admitted so old editor
   documents still load. Trusted digest-verified L2 extensions keep the existing
   fail-closed loading path.
-- The image command opens a multi-image file picker, and image drag-and-drop
-  uploads at the exact drop position. Both paths reuse the attachment upload
-  policy and place a mapped ProseMirror decoration before starting async work,
-  so later edits do not move the insertion point. Pending uploads block submit;
-  success and persistent failure feedback follow the shared Toast contract.
+- The image command opens an upload modal instead of the native picker. Its
+  drop zone accepts clicks and dragged files; pasted raster images upload at the
+  active selection. Toolbar, modal, paste, and exact-position drag paths reuse
+  the attachment upload policy and place a mapped ProseMirror decoration before
+  starting async work, so later edits do not move the insertion point. Pending
+  uploads block submit; success and persistent failure feedback follow the
+  shared Toast contract.
 - Uploaded native image nodes retain `attachmentId` and
   `attachmentPublicId` as non-rendered attributes. Editor payloads deduplicate
   those IDs into `content.attachmentIds`, while rendered `src` values use the
