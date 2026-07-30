@@ -107,15 +107,36 @@ func BuildCorePageViewModel(request CorePageViewModelRequest) (any, error) {
 		model.Base = base
 		model.Form = hostForm("profile.component.settings_form", "core.route.profile.update_my_profile")
 		return model, nil
+	case "forum.settings.login_methods":
+		model := valueOrZero(request.Data.LoginMethodsSettings)
+		model.Base = base
+		model.Form = hostForm(
+			"identity.component.login_methods_settings",
+			"core.route.identity.auth_provider_start",
+			"core.route.identity.external_identities",
+			"core.route.identity.external_identity_unlink",
+			"core.route.identity.list_auth_providers",
+		)
+		return model, nil
+	case "forum.settings.password":
+		model := valueOrZero(request.Data.LocalPasswordSettings)
+		model.Base = base
+		model.Form = hostForm("identity.component.local_password_settings", "core.route.identity.setup_password")
+		return model, nil
 	case "forum.settings.security":
 		model := valueOrZero(request.Data.SecuritySettings)
 		model.Base = base
+		model.Form = hostForm("identity.component.security_settings",
+			"core.route.identity.list_sessions", "core.route.identity.revoke_other_sessions",
+			"core.route.identity.revoke_session")
+		return model, nil
+	case "forum.settings.tokens":
+		model := valueOrZero(request.Data.PersonalAccessTokens)
+		model.Base = base
 		model.Form = hostForm(
-			"identity.component.security_settings",
+			"identity.component.personal_access_tokens",
 			"core.route.identity.create_apitoken", "core.route.identity.list_apitokens",
-			"core.route.identity.list_sessions", "core.route.identity.revoke_apitoken",
-			"core.route.identity.revoke_other_sessions", "core.route.identity.revoke_session",
-			"core.route.identity.rotate_apitoken",
+			"core.route.identity.revoke_apitoken", "core.route.identity.rotate_apitoken",
 		)
 		return model, nil
 	case "forum.settings.notifications":

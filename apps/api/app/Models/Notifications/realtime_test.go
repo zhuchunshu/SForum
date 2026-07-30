@@ -34,7 +34,9 @@ func TestRevisionHubMultiNodeWakeAndListenerReconnectPostgres(t *testing.T) {
 			t.Fatal(err)
 		}
 		t.Cleanup(pool.Close)
-		return pool, NewRevisionHub(ctx, pool)
+		hub := NewRevisionHub(ctx, pool)
+		t.Cleanup(hub.Close)
+		return pool, hub
 	}
 	_, first := newNode("first")
 	_, second := newNode("second")

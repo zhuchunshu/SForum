@@ -55,6 +55,7 @@ type apiCoreStack struct {
 	mailProvider                 *providers.MailProvider
 	moderationProvider           *providers.ModerationProvider
 	notificationsProvider        *providers.NotificationsProvider
+	closeNotificationStore       func()
 	optionsProvider              *providers.OptionsProvider
 	optionsService               *options.Service
 	pagesProvider                *providers.PagesProvider

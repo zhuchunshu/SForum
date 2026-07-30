@@ -29,15 +29,18 @@ const (
 // 其余可替换页的 body 岛由参考主题产品门禁（P13）校验，避免把编译器
 // 通用夹具绑死在完整公开页矩阵上。
 var requiredPageComponents = map[string][]string{
-	"forum.topic.create":      {"forum.component.topic_composer"},
-	"forum.topic.reply":       {"forum.component.topic_reply"},
-	"forum.topic.edit":        {"forum.component.topic_editor"},
-	"forum.settings.profile":  {"profile.component.settings_form"},
-	"forum.settings.security": {"identity.component.security_settings"},
-	"auth.login":              {"identity.component.login_form"},
-	"auth.register":           {"identity.component.register_form"},
-	"auth.forgot_password":    {"identity.component.recovery_request_form"},
-	"auth.reset_password":     {"identity.component.recovery_confirm_form"},
+	"forum.topic.create":           {"forum.component.topic_composer"},
+	"forum.topic.reply":            {"forum.component.topic_reply"},
+	"forum.topic.edit":             {"forum.component.topic_editor"},
+	"forum.settings.profile":       {"profile.component.settings_form"},
+	"forum.settings.login_methods": {"identity.component.login_methods_settings"},
+	"forum.settings.password":      {"identity.component.local_password_settings"},
+	"forum.settings.security":      {"identity.component.security_settings"},
+	"forum.settings.tokens":        {"identity.component.personal_access_tokens"},
+	"auth.login":                   {"identity.component.login_form"},
+	"auth.register":                {"identity.component.register_form"},
+	"auth.forgot_password":         {"identity.component.recovery_request_form"},
+	"auth.reset_password":          {"identity.component.recovery_confirm_form"},
 	// 系统错误页必须包含语义详情和动作入口；主题只能移动它们，不能省略 Host 行为。
 	"system.forbidden":    {"system.component.error_details", "system.component.error_actions"},
 	"system.not_found":    {"system.component.error_details", "system.component.error_actions"},

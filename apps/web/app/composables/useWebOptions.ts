@@ -196,6 +196,8 @@ export const recommendedFooterLinks: FooterLinkOption[] = [
 const fallbackOptions: Record<string, string> = {
   'site.name': 'SForum',
   'site.url': 'http://127.0.0.1:3000',
+  'site.about_url': '',
+  'site.about_open_in_new_tab': disabledOption,
   // 站点副标题（可空）；管理邮箱为 admin-only，不在 public fallback 中暴露。
   'site.tagline': '',
   // Wave 2 品牌资源：空值在展示层解析为 Core 默认品牌资源；附件 ID 与 URL 二选一或并存。
@@ -374,6 +376,8 @@ export const useWebOptions = () => {
   const siteName = computed(() => webOption('site.name', 'SForum'))
   const siteUrl = computed(() => webOption('site.url', 'http://127.0.0.1:3000'))
   const siteDomain = computed(() => normalizeSiteDomain(options.value['site.domain']) || siteDomainFromUrl(siteUrl.value))
+  const siteAboutUrl = computed(() => webOption('site.about_url', '').trim())
+  const siteAboutOpenInNewTab = computed(() => normalizeEnabledOption(webOption('site.about_open_in_new_tab'), false))
   const siteTagline = computed(() => webOption('site.tagline', '').trim())
   const siteLogoUrl = computed(() => resolveSiteBrandAssetUrl(webOption('site.logo_url', ''), defaultSiteLogoUrl))
   const siteLogoAttachmentId = computed(() => webOption('site.logo_attachment_id', '').trim())
@@ -448,6 +452,8 @@ export const useWebOptions = () => {
     siteName,
     siteUrl,
     siteDomain,
+    siteAboutUrl,
+    siteAboutOpenInNewTab,
     siteTagline,
     siteLogoUrl,
     siteLogoAttachmentId,

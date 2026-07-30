@@ -2,7 +2,7 @@
 import { useAuthProviders } from '~/composables/identity/useAuthProviders'
 import { useAccountSecurityApi } from '~/composables/identity/useAccountSecurityApi'
 /**
- * 账号安全：外部登录方式（redacted 列表 / link / unlink / inert）+ external-only 密码设置。
+ * 账号登录方式：外部身份（redacted 列表 / link / unlink / inert）。
  * 展示名/图标只消费 Host catalog；Core 不硬编码供应商品牌。
  * 敏感操作依赖 Host session-bound recent-auth；失败时引导重新登录（step-up）。
  */
@@ -11,14 +11,15 @@ import type { ExternalIdentityItem } from '~/composables/identity/useAccountSecu
 import type { PublicAuthProvider } from '~/composables/identity/useAuthProviders'
 import { authProviderDisplayMeta } from '~/composables/identity/useAuthProviders'
 import { apiErrorMessage, apiErrorReason } from '~/composables/useApiClient'
-import {
-  passwordPolicyProgress,
-  passwordPolicyProgressLevel,
-  passwordPolicyRequirements
-} from '~/composables/useWebOptions'
 import { buildAuthPageLink } from '~/utils/identity/authReturn'
 
-const SECURITY_RETURN_PATH = '/settings/security'
+const props = withDefaults(defineProps<{
+  returnPath?: string
+  showHeading?: boolean
+}>(), {
+  returnPath: '/settings/login-methods',
+  showHeading: true
+})
 
 const { t } = useI18n()
 const toast = useToast()
@@ -31,7 +32,6 @@ const {
   redirectToProvider,
   refresh: refreshCatalog
 } = useAuthProviders()
-const { passwordPolicy } = useWebOptions()
 const { format: formatSiteDateTime } = useSiteDateTime()
 
 const identities = ref<ExternalIdentityItem[]>([])
@@ -43,16 +43,6 @@ const unlinkingId = ref<number | null>(null)
 // session-bound recent-auth / step-up 门控：Host 拒绝后展示，引导重新登录。
 const recentAuthRequired = ref(false)
 const surfaceError = ref('')
-
-// 本地密码设置：对 external-only 用户创建 credential；有密码时等同更新。
-const passwordForm = reactive({
-  password: '',
-  confirm: ''
-})
-const passwordSubmitting = ref(false)
-const passwordFieldError = ref('')
-// 本页成功设置后视为已有密码，用于 last-method 提示（Host 仍为权威）。
-const passwordReadyLocally = ref(false)
 
 const activeIdentities = computed(() =>
   identities.value.filter(item => item.status === 'active' || item.status === 'inert')
@@ -77,50 +67,9 @@ const activeLinkCount = computed(() =>
   identities.value.filter(item => item.status === 'active').length
 )
 
-const passwordsMatch = computed(() => passwordForm.password === passwordForm.confirm)
-const passwordProgress = computed(() =>
-  passwordPolicyProgress(passwordForm.password, passwordPolicy.value)
-)
-const passwordProgressLevel = computed(() =>
-  passwordPolicyProgressLevel(passwordProgress.value)
-)
-const passwordRequirementRows = computed(() =>
-  passwordPolicyRequirements(passwordForm.password, passwordPolicy.value).map(item => ({
-    ...item,
-    label: passwordRequirementLabel(item.key)
-  }))
-)
-const newPasswordMeetsPolicy = computed(() =>
-  passwordRequirementRows.value.every(item => item.met)
-)
-const canSubmitPassword = computed(() =>
-  newPasswordMeetsPolicy.value
-  && passwordsMatch.value
-  && passwordForm.password.length > 0
-  && !passwordSubmitting.value
-)
-
 const reauthLoginLink = computed(() =>
-  buildAuthPageLink(localePath('/login'), SECURITY_RETURN_PATH)
+  buildAuthPageLink(localePath('/login'), props.returnPath)
 )
-
-function passwordRequirementLabel(key: string) {
-  switch (key) {
-    case 'lowercase':
-      return t('auth.passwordRequirementLowercase')
-    case 'uppercase':
-      return t('auth.passwordRequirementUppercase')
-    case 'number':
-      return t('auth.passwordRequirementNumber')
-    case 'symbol':
-      return t('auth.passwordRequirementSymbol')
-    default:
-      return t('auth.passwordRequirementLength', {
-        min: passwordPolicy.value.minLength,
-        max: passwordPolicy.value.maxLength
-      })
-  }
-}
 
 function catalogFor(providerId: string): PublicAuthProvider | undefined {
   return catalogProviders.value.find(item => item.id === providerId)
@@ -159,7 +108,7 @@ function formatLinkedAt(iso?: string | null) {
 
 /** 仅 1 条 active 时提示可能为最后登录方式（Host 仍校验是否有密码）。 */
 function mayBeLastLoginMethod(item: ExternalIdentityItem) {
-  return item.status === 'active' && activeLinkCount.value <= 1 && !passwordReadyLocally.value
+  return item.status === 'active' && activeLinkCount.value <= 1
 }
 
 async function loadIdentities() {
@@ -219,9 +168,9 @@ async function startLink(provider: PublicAuthProvider) {
   recentAuthRequired.value = false
   linkStartingId.value = provider.id
   try {
-    // 回跳账号安全页；成功 Toast 由根布局 ext_auth 消费。
+    // 回跳登录方式页；成功 Toast 由根布局 ext_auth 消费。
     await redirectToProvider(provider.id, 'link', {
-      redirectHint: SECURITY_RETURN_PATH
+      redirectHint: props.returnPath
     })
   } catch (error) {
     handleSensitiveError(error, t('accountSecurity.linkedAccounts.linkFailed'))
@@ -253,38 +202,6 @@ async function unlinkIdentity(item: ExternalIdentityItem) {
   }
 }
 
-async function submitPassword() {
-  if (!canSubmitPassword.value) {
-    return
-  }
-  passwordFieldError.value = ''
-  clearSurfaceError()
-  recentAuthRequired.value = false
-  passwordSubmitting.value = true
-  try {
-    await securityApi.setupPassword(passwordForm.password)
-    passwordReadyLocally.value = true
-    passwordForm.password = ''
-    passwordForm.confirm = ''
-    toast.add({
-      color: 'success',
-      icon: 'i-lucide-check',
-      title: t('accountSecurity.passwordSetup.success'),
-      duration: 10000
-    })
-  } catch (error) {
-    const reason = apiErrorReason(error)
-    if (reason === 'auth.recent_auth_required' || reason === 'auth.required') {
-      handleSensitiveError(error, t('accountSecurity.passwordSetup.failed'))
-      return
-    }
-    // 字段级密码策略错误优先贴在表单旁。
-    passwordFieldError.value = apiErrorMessage(error) || t('accountSecurity.passwordSetup.failed')
-  } finally {
-    passwordSubmitting.value = false
-  }
-}
-
 async function refreshAll() {
   await Promise.all([loadIdentities(), refreshCatalog()])
 }
@@ -309,12 +226,14 @@ defineExpose({ refreshAll, loadIdentities })
 
 <template>
   <section class="sf-linked-accounts" data-testid="linked-accounts-section">
-    <h2 class="text-lg font-semibold text-slate-900 dark:text-zinc-50">
-      {{ t('accountSecurity.linkedAccounts.title') }}
-    </h2>
-    <p class="mt-1 text-sm text-slate-500 dark:text-zinc-400">
-      {{ t('accountSecurity.linkedAccounts.intro') }}
-    </p>
+    <header v-if="props.showHeading">
+      <h2 class="text-lg font-semibold text-slate-900 dark:text-zinc-50">
+        {{ t('accountSecurity.linkedAccounts.title') }}
+      </h2>
+      <p class="mt-1 text-sm text-slate-500 dark:text-zinc-400">
+        {{ t('accountSecurity.linkedAccounts.intro') }}
+      </p>
+    </header>
 
     <SFAlert
       v-if="recentAuthRequired"
@@ -480,212 +399,10 @@ defineExpose({ refreshAll, loadIdentities })
       {{ t('accountSecurity.linkedAccounts.linkClosed') }}
     </p>
 
-    <!-- external-only / 通用本地密码设置 -->
-    <section class="mt-10" data-testid="password-setup-section">
-      <h2 class="text-lg font-semibold text-slate-900 dark:text-zinc-50">
-        {{ t('accountSecurity.passwordSetup.title') }}
-      </h2>
-      <p class="mt-1 text-sm text-slate-500 dark:text-zinc-400">
-        {{ t('accountSecurity.passwordSetup.intro') }}
-      </p>
-      <p
-        v-if="activeLinkCount > 0 && !passwordReadyLocally"
-        class="mt-2 text-xs text-slate-500 dark:text-zinc-400"
-      >
-        {{ t('accountSecurity.passwordSetup.externalOnlyHint') }}
-      </p>
-
-      <SFCard class="mt-4 p-4">
-        <div class="grid gap-4 sm:grid-cols-2">
-          <label class="block text-sm sm:col-span-2">
-            <span class="mb-1 block font-medium text-slate-600 dark:text-zinc-300">
-              {{ t('accountSecurity.passwordSetup.password') }}
-            </span>
-            <input
-              v-model="passwordForm.password"
-              type="password"
-              autocomplete="new-password"
-              class="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
-              data-testid="password-setup-input"
-            >
-            <p class="mt-1 text-xs text-slate-400 dark:text-zinc-500">
-              {{ t('auth.passwordPolicySummary', {
-                min: passwordPolicy.minLength,
-                max: passwordPolicy.maxLength
-              }) }}
-            </p>
-            <div class="sf-password-policy mt-2">
-              <div class="sf-password-policy__header">
-                <span>{{ t('auth.passwordStrength') }}</span>
-                <span :class="['sf-password-policy__value', `is-${passwordProgressLevel}`]">
-                  {{ passwordProgress }}%
-                </span>
-              </div>
-              <div
-                class="sf-password-policy__bar"
-                :class="[`is-${passwordProgressLevel}`]"
-                aria-hidden="true"
-              >
-                <span :style="{ width: `${passwordProgress}%` }" />
-              </div>
-              <ul class="sf-password-policy__list">
-                <li
-                  v-for="row in passwordRequirementRows"
-                  :key="row.key"
-                  :class="{ 'is-met': row.met }"
-                >
-                  <UIcon
-                    :name="row.met ? 'i-lucide-check' : 'i-lucide-circle'"
-                    class="sf-password-policy__icon"
-                    aria-hidden="true"
-                  />
-                  <span>{{ row.label }}</span>
-                </li>
-              </ul>
-            </div>
-          </label>
-
-          <label class="block text-sm sm:col-span-2">
-            <span class="mb-1 block font-medium text-slate-600 dark:text-zinc-300">
-              {{ t('accountSecurity.passwordSetup.confirm') }}
-            </span>
-            <input
-              v-model="passwordForm.confirm"
-              type="password"
-              autocomplete="new-password"
-              class="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
-              data-testid="password-setup-confirm"
-            >
-            <p
-              v-if="passwordForm.confirm && !passwordsMatch"
-              class="mt-1 text-sm text-red-600 dark:text-red-400"
-            >
-              {{ t('auth.passwordsDoNotMatch') }}
-            </p>
-          </label>
-        </div>
-
-        <p
-          v-if="passwordFieldError"
-          class="mt-3 text-sm text-red-600 dark:text-red-400"
-          data-testid="password-setup-error"
-        >
-          {{ passwordFieldError }}
-        </p>
-
-        <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-          <SFButton
-            variant="primary"
-            size="sm"
-            :disabled="!canSubmitPassword"
-            data-testid="password-setup-submit"
-            @click="submitPassword"
-          >
-            <UIcon name="i-lucide-key-round" class="mr-1" aria-hidden="true" />
-            {{ passwordSubmitting
-              ? t('accountSecurity.passwordSetup.submitting')
-              : t('accountSecurity.passwordSetup.submit') }}
-          </SFButton>
-          <p class="text-xs text-slate-500 dark:text-zinc-400">
-            {{ t('accountSecurity.passwordSetup.recentAuthHint') }}
-          </p>
-        </div>
-      </SFCard>
-    </section>
   </section>
 </template>
 
 <style scoped>
-.sf-password-policy {
-  margin-top: 0.5rem;
-}
-
-.sf-password-policy__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 12px;
-  color: var(--sf-fg-tertiary, #64748b);
-  margin-bottom: 0.35rem;
-}
-
-.sf-password-policy__bar {
-  height: 6px;
-  border-radius: 999px;
-  background: #e2e8f0;
-  overflow: hidden;
-}
-
-.sf-password-policy__bar span {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  transition: width 0.15s ease;
-  background: #94a3b8;
-}
-
-.sf-password-policy__bar.is-weak span {
-  background: #f59e0b;
-}
-
-.sf-password-policy__bar.is-medium span {
-  background: #0d9488;
-}
-
-.sf-password-policy__bar.is-strong span {
-  background: #0f766e;
-}
-
-.sf-password-policy__value.is-weak {
-  color: #d97706;
-}
-
-.sf-password-policy__value.is-medium {
-  color: #0d9488;
-}
-
-.sf-password-policy__value.is-strong {
-  color: #0f766e;
-}
-
-.sf-password-policy__list {
-  margin: 0.5rem 0 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
-  gap: 0.25rem;
-}
-
-.sf-password-policy__list li {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 12px;
-  color: #94a3b8;
-}
-
-.sf-password-policy__list li.is-met {
-  color: #0f766e;
-}
-
-.sf-password-policy__icon {
-  width: 14px;
-  height: 14px;
-  flex: 0 0 14px;
-}
-
-:global(.dark) .sf-password-policy__bar {
-  background: #3f3f46;
-}
-
-:global(.dark) .sf-password-policy__list li {
-  color: #71717a;
-}
-
-:global(.dark) .sf-password-policy__list li.is-met {
-  color: #2dd4bf;
-}
-
 @media (max-width: 640px) {
   .sf-linked-accounts :deep([data-testid='link-provider-button']) {
     width: 100%;

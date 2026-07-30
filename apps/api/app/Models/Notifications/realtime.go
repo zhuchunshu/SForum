@@ -24,21 +24,43 @@ const (
 // process. NOTIFY only wakes subscribers; every subscriber re-reads its durable
 // revision before sending an SSE signal.
 type RevisionHub struct {
-	ctx    context.Context
-	pool   *pgxpool.Pool
-	mu     sync.Mutex
-	nextID uint64
-	total  int
-	byUser map[int64]map[uint64]chan struct{}
+	ctx       context.Context
+	cancel    context.CancelFunc
+	pool      *pgxpool.Pool
+	mu        sync.Mutex
+	nextID    uint64
+	total     int
+	byUser    map[int64]map[uint64]chan struct{}
+	done      chan struct{}
+	closeOnce sync.Once
 }
 
 func NewRevisionHub(ctx context.Context, pool *pgxpool.Pool) *RevisionHub {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	hub := &RevisionHub{ctx: ctx, pool: pool, byUser: make(map[int64]map[uint64]chan struct{})}
+	listenCtx, cancel := context.WithCancel(ctx)
+	hub := &RevisionHub{
+		ctx: listenCtx, cancel: cancel, pool: pool,
+		byUser: make(map[int64]map[uint64]chan struct{}), done: make(chan struct{}),
+	}
 	go hub.listen()
 	return hub
+}
+
+// Close releases the dedicated LISTEN connection before its shared pool closes.
+func (h *RevisionHub) Close() {
+	if h == nil {
+		return
+	}
+	h.closeOnce.Do(func() {
+		if h.cancel != nil {
+			h.cancel()
+		}
+		if h.done != nil {
+			<-h.done
+		}
+	})
 }
 
 func (h *RevisionHub) Subscribe(userID int64) (<-chan struct{}, func(), error) {
@@ -90,6 +112,7 @@ func (h *RevisionHub) publish(userID int64) {
 }
 
 func (h *RevisionHub) listen() {
+	defer close(h.done)
 	backoff := 100 * time.Millisecond
 	for h.ctx.Err() == nil {
 		conn, err := h.pool.Acquire(h.ctx)

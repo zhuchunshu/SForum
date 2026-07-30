@@ -3,9 +3,15 @@ import { readFileSync } from 'node:fs'
 
 const source = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
 const page = () => source('../../app/components/settings/SFSecuritySettingsPage.vue')
+const loginMethodsPage = () => source('../../app/components/settings/SFLoginMethodsSettingsPage.vue')
+const tokensPage = () => source('../../app/components/settings/SFPersonalAccessTokensPage.vue')
 const shell = () => source('../../app/components/settings/SFSettingsShell.vue')
 const route = () => source('../../app/pages/settings/security.vue')
+const loginMethodsRoute = () => source('../../app/pages/settings/login-methods.vue')
+const tokensRoute = () => source('../../app/pages/settings/tokens.vue')
 const themeTemplate = () => source('../../../../extensions/builtin/themes/sforum-default/templates/settings-security.html')
+const loginMethodsThemeTemplate = () => source('../../../../extensions/builtin/themes/sforum-default/templates/settings-login-methods.html')
+const tokensThemeTemplate = () => source('../../../../extensions/builtin/themes/sforum-default/templates/settings-tokens.html')
 
 describe('security settings chrome', () => {
   test('keeps Page Registry ownership boundaries intact', () => {
@@ -17,6 +23,43 @@ describe('security settings chrome', () => {
     expect(themeTemplate()).toContain('<sf-security-settings')
   })
 
+  test('keeps login methods as a dedicated Page Registry surface', () => {
+    expect(loginMethodsRoute()).toContain('SFPageOutlet')
+    expect(loginMethodsRoute()).toContain('page="forum.settings.login_methods"')
+    expect(loginMethodsRoute()).toContain('<SFLoginMethodsSettingsPage')
+    expect(loginMethodsThemeTemplate()).toContain('data-theme-owned="presentation"')
+    expect(loginMethodsThemeTemplate()).toContain('data-page="forum.settings.login_methods"')
+    expect(loginMethodsThemeTemplate()).toContain('<sf-login-methods-settings')
+
+    const src = loginMethodsPage()
+    expect(src).toContain('<SFSettingsShell')
+    expect(src).toContain('active="loginMethods"')
+    expect(src).toContain('class="sforum-settings-login-methods"')
+    expect(src).toContain('identity.component.login_methods_settings')
+    expect(src).toContain('return-path="/settings/login-methods"')
+  })
+
+  test('keeps personal access tokens as a dedicated Page Registry surface with selected scopes', () => {
+    expect(tokensRoute()).toContain('SFPageOutlet')
+    expect(tokensRoute()).toContain('page="forum.settings.tokens"')
+    expect(tokensRoute()).toContain('<SFPersonalAccessTokensPage')
+    expect(tokensThemeTemplate()).toContain('data-theme-owned="presentation"')
+    expect(tokensThemeTemplate()).toContain('data-page="forum.settings.tokens"')
+    expect(tokensThemeTemplate()).toContain('<sf-personal-access-tokens')
+
+    const src = tokensPage()
+    expect(src).toContain('<SFSettingsShell')
+    expect(src).toContain('active="tokens"')
+    expect(src).toContain('identity.component.personal_access_tokens')
+    expect(src).toContain('TOKEN_SCOPE_PRESETS')
+    expect(src).toContain('<SFTabs')
+    expect(src).toContain("activeTokenTab === 'create'")
+    expect(src).toContain('personal-access-token-manage-tab')
+    expect(src).toContain('type="checkbox"')
+    expect(src).toContain('v-model="form.scopes"')
+    expect(src).not.toContain('scopesText')
+  })
+
   test('shares the public three-column settings chrome via SFSettingsShell', () => {
     const src = page()
     expect(src).toContain('<SFSettingsShell')
@@ -24,7 +67,9 @@ describe('security settings chrome', () => {
     expect(src).toContain('class="sforum-settings-security"')
     expect(src).toContain('accountSecurity.rail.devicesTitle')
     expect(src).toContain('listSessions()')
-    expect(src).toContain('listAPITokens()')
+    expect(src).not.toContain('listAPITokens()')
+    expect(src).not.toContain('scopesText')
+    expect(src).not.toContain('<SFLinkedAccountsSection')
     expect(src).not.toContain('sf-public-page__container--narrow')
 
     const shellSrc = shell()
@@ -36,5 +81,17 @@ describe('security settings chrome', () => {
     expect(shellSrc).toContain('<SFSettingsAccountNav')
     expect(shellSrc).toContain("useState<boolean>('forum-mobile-menu-open'")
     expect(shellSrc).toContain("useState<boolean>('forum-mobile-info-open'")
+  })
+
+  test('shows login history by default with server-side pagination', () => {
+    const src = page()
+
+    expect(src).toContain('const HISTORY_PAGE_SIZE = 10')
+    expect(src).toContain('includeHistory: true, page: historyPage.value, perPage: HISTORY_PAGE_SIZE')
+    expect(src).toContain('<SFPagination')
+    expect(src).toContain('accountSecurity.showHistory')
+    expect(src).not.toContain('showHistory = ref(false)')
+    expect(src).not.toContain('@click="loadHistory"')
+    expect(src).not.toContain('perPage: 50')
   })
 })

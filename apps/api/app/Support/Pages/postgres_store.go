@@ -66,7 +66,11 @@ func (s *PostgresStore) UpsertBinding(ctx context.Context, binding ProviderBindi
 			page_id, extension_id, contribution_id, version, package_digest,
 			approved_by, template_path, contract_version, updated_at
 		)
-		VALUES ($1, $2, $3, $4, $5, NULLIF($6, 0), $7, $8, NOW())
+			VALUES (
+				$1, $2, $3, $4, $5,
+				CASE WHEN EXISTS (SELECT 1 FROM users WHERE id = NULLIF($6, 0)) THEN NULLIF($6, 0) END,
+				$7, $8, NOW()
+			)
 		ON CONFLICT (page_id) DO UPDATE SET
 			extension_id = EXCLUDED.extension_id,
 			contribution_id = EXCLUDED.contribution_id,
@@ -102,7 +106,11 @@ func (s *PostgresStore) ReplaceExtensionBindings(ctx context.Context, extensionI
 			INSERT INTO page_provider_bindings (
 				page_id, extension_id, contribution_id, version, package_digest,
 				approved_by, template_path, contract_version, updated_at
-			) VALUES ($1, $2, $3, $4, $5, NULLIF($6, 0), $7, $8, NOW())
+				) VALUES (
+					$1, $2, $3, $4, $5,
+					CASE WHEN EXISTS (SELECT 1 FROM users WHERE id = NULLIF($6, 0)) THEN NULLIF($6, 0) END,
+					$7, $8, NOW()
+				)
 			ON CONFLICT (page_id) DO UPDATE SET
 				extension_id = EXCLUDED.extension_id,
 				contribution_id = EXCLUDED.contribution_id,

@@ -10,6 +10,9 @@ const (
 	NameSiteName   = "site.name"
 	NameSiteURL    = "site.url"
 	NameSiteDomain = "site.domain"
+	// 侧边栏底部“关于 {siteName}”链接；可空表示只显示不可点击说明。
+	NameSiteAboutURL          = "site.about_url"
+	NameSiteAboutOpenInNewTab = "site.about_open_in_new_tab"
 	// 站点副标题/标语（短文本，可空）。用于导航副标、登录页等，不等于 SEO 描述。
 	NameSiteTagline = "site.tagline"
 	// 站点管理员联系邮箱（可空）。系统通知/运营联系人；不是 SMTP From，也不当 secret。

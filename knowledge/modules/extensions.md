@@ -397,6 +397,10 @@ should use dedicated registries instead of raw database or whole-route power.
   catch-all. Access declarations fail closed.
 - Activation verifies exact artifacts, prewarms runtime state, replaces page
   contributions/skin atomically, and preserves rollback.
+- Theme runtime publications retain their immutable historical actor ID. When
+  another node replays Page Registry bindings after that user has been deleted,
+  the mutable `approved_by` foreign key resolves to `NULL`, matching its
+  existing `ON DELETE SET NULL` contract without changing publication history.
 - Theme packages declare a validated `navigationLocations` capability using
   only the four stable v1 location IDs. The runtime projects capability from
   the exact active immutable snapshot; unsupported locations retain operator

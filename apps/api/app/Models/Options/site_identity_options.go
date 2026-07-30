@@ -13,6 +13,7 @@ import (
 const (
 	siteTaglineMaxRunes    = 160
 	siteAdminEmailMaxRunes = 254
+	siteAboutURLMaxRunes   = 2048
 )
 
 func init() {
@@ -22,6 +23,8 @@ func init() {
 func siteIdentityOptionDefinitions() []optionDefinition {
 	return []optionDefinition{
 		{name: NameSiteDomain, public: true, managePermission: identity.PermissionSettingsSiteManage},
+		{name: NameSiteAboutURL, public: true, managePermission: identity.PermissionSettingsSiteManage},
+		{name: NameSiteAboutOpenInNewTab, public: true, managePermission: identity.PermissionSettingsSiteManage},
 		// 标语对前台可见，用于导航/登录页。
 		{name: NameSiteTagline, public: true, managePermission: identity.PermissionSettingsSiteManage},
 		// 管理邮箱仅后台可读，降低公开爬取风险。
@@ -31,9 +34,11 @@ func siteIdentityOptionDefinitions() []optionDefinition {
 
 func siteIdentityRecommendedDefaults() map[string]string {
 	return map[string]string{
-		NameSiteDomain:     "127.0.0.1:3000",
-		NameSiteTagline:    "",
-		NameSiteAdminEmail: "",
+		NameSiteDomain:            "127.0.0.1:3000",
+		NameSiteAboutURL:          "",
+		NameSiteAboutOpenInNewTab: enabledOptionValue(false),
+		NameSiteTagline:           "",
+		NameSiteAdminEmail:        "",
 	}
 }
 
@@ -78,6 +83,22 @@ func normalizeSiteTagline(value string) (string, bool) {
 	return value, true
 }
 
+func normalizeSiteAboutURL(value string) (string, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", true
+	}
+	if utf8.RuneCountInString(value) > siteAboutURLMaxRunes {
+		return "", false
+	}
+	if strings.HasPrefix(value, "/") && !strings.HasPrefix(value, "//") &&
+		!strings.HasPrefix(value, "/api") && !strings.HasPrefix(value, "/admin") &&
+		!strings.ContainsAny(value, " \t\r\n") {
+		return value, true
+	}
+	return value, isValidURL(value)
+}
+
 func normalizeSiteAdminEmail(value string) (string, bool) {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -105,6 +126,16 @@ func coerceSiteIdentityOptions(coerced map[string]string, defaults map[string]st
 	} else {
 		coerced[NameSiteTagline] = defaults[NameSiteTagline]
 	}
+	if value, ok := normalizeSiteAboutURL(coerced[NameSiteAboutURL]); ok {
+		coerced[NameSiteAboutURL] = value
+	} else {
+		coerced[NameSiteAboutURL] = defaults[NameSiteAboutURL]
+	}
+	if value, ok := normalizeEnabledOption(coerced[NameSiteAboutOpenInNewTab]); ok {
+		coerced[NameSiteAboutOpenInNewTab] = value
+	} else {
+		coerced[NameSiteAboutOpenInNewTab] = defaults[NameSiteAboutOpenInNewTab]
+	}
 	if value, ok := normalizeSiteAdminEmail(coerced[NameSiteAdminEmail]); ok {
 		coerced[NameSiteAdminEmail] = value
 	} else {
@@ -117,6 +148,12 @@ func isValidSiteIdentityOptions(values map[string]string) bool {
 		return false
 	}
 	if _, ok := normalizeSiteTagline(values[NameSiteTagline]); !ok {
+		return false
+	}
+	if _, ok := normalizeSiteAboutURL(values[NameSiteAboutURL]); !ok {
+		return false
+	}
+	if _, ok := normalizeEnabledOption(values[NameSiteAboutOpenInNewTab]); !ok {
 		return false
 	}
 	if _, ok := normalizeSiteAdminEmail(values[NameSiteAdminEmail]); !ok {

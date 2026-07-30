@@ -285,6 +285,27 @@ type SecuritySettingsPageViewModel struct {
 	Devices              []SecurityDeviceView `json:"devices,omitempty"`
 }
 
+// PersonalAccessTokensPageViewModel 只声明 Host 岛和 PAT 管理边界；
+// 明文密钥、scope 选择和令牌列表都由 Host 岛通过登录态 API 读取。
+type PersonalAccessTokensPageViewModel struct {
+	Base PageViewModelBase `json:"base"`
+	Form HostFormBoundary  `json:"form"`
+}
+
+// LoginMethodsSettingsPageViewModel 只声明 Host 岛和外部身份路由边界；
+// 绑定主体和 OAuth 状态都不会进入主题 ViewModel。
+type LoginMethodsSettingsPageViewModel struct {
+	Base PageViewModelBase `json:"base"`
+	Form HostFormBoundary  `json:"form"`
+}
+
+// LocalPasswordSettingsPageViewModel 只声明 Host 岛和本地密码保存边界；
+// 密码材料不会进入主题 ViewModel。
+type LocalPasswordSettingsPageViewModel struct {
+	Base PageViewModelBase `json:"base"`
+	Form HostFormBoundary  `json:"form"`
+}
+
 // NotificationSettingsPageViewModel 只声明 Host 岛与已审查路由边界；
 // 偏好、浏览器订阅和密钥材料不会进入主题 ViewModel。
 type NotificationSettingsPageViewModel struct {

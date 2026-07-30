@@ -76,6 +76,8 @@ AdminWebOption:
       - site.apple_touch_icon_attachment_id
       - site.url
       - site.domain
+      - site.about_url
+      - site.about_open_in_new_tab
       - site.default_locale
       - site.supported_locales
       - site.timezone
@@ -242,6 +244,8 @@ WebOptionInput:
       - site.apple_touch_icon_attachment_id
       - site.url
       - site.domain
+      - site.about_url
+      - site.about_open_in_new_tab
       - site.default_locale
       - site.supported_locales
       - site.timezone
@@ -387,6 +391,8 @@ AdminWebOptionInput:
       - site.apple_touch_icon_attachment_id
       - site.url
       - site.domain
+      - site.about_url
+      - site.about_open_in_new_tab
       - site.default_locale
       - site.supported_locales
       - site.timezone

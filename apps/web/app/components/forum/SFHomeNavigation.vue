@@ -48,7 +48,7 @@ const localePath = useLocalePath()
 const router = useRouter()
 const route = useRoute()
 const { navShowCompose, navShowCounts } = useActiveThemeSettings()
-const { siteName } = useWebOptions()
+const { siteName, siteAboutUrl, siteAboutOpenInNewTab } = useWebOptions()
 const { sidebarItems } = usePublicNavigation()
 
 const useRouteLinks = computed(() => props.navigationMode === 'route')
@@ -67,6 +67,12 @@ const dynamicCategoryItem = computed(() => sidebarItems.value.find(isCoreDynamic
 const hasDynamicCategories = computed(() => props.showCategories && Boolean(dynamicCategoryItem.value))
 const visibleCategories = computed(() => limitDynamicNavigationItems(props.categories, dynamicCategoryItem.value?.maxItems, props.selectedCategorySlug))
 const hasHiddenCategories = computed(() => visibleCategories.value.length < props.categories.length)
+const aboutSiteLabel = computed(() => t('home.sidebar.aboutSite', { siteName: siteName.value }))
+const aboutSiteURL = computed(() => siteAboutUrl.value.trim())
+const aboutSiteExternal = computed(() => /^https?:\/\//i.test(aboutSiteURL.value))
+const aboutSiteTo = computed(() => aboutSiteURL.value.startsWith('/') && !aboutSiteURL.value.startsWith('//') ? localePath(aboutSiteURL.value) : aboutSiteURL.value)
+const aboutSiteTarget = computed(() => siteAboutOpenInNewTab.value ? '_blank' : undefined)
+const aboutSiteRel = computed(() => siteAboutOpenInNewTab.value ? 'noopener noreferrer' : undefined)
 
 function allTopicsTo() {
   return localePath('/')
@@ -270,9 +276,29 @@ function categoryIconName(category: ForumCategory) {
       <slot name="after-navigation" />
 
       <div class="sf-home-navigation__foot">
-        <span class="sf-home-navigation__foot-item">
+        <a
+          v-if="aboutSiteURL && aboutSiteExternal"
+          :href="aboutSiteURL"
+          class="sf-home-navigation__foot-item"
+          :target="aboutSiteTarget"
+          :rel="aboutSiteRel"
+        >
           <UIcon name="i-lucide-info" class="size-4" aria-hidden="true" />
-          {{ t('home.sidebar.aboutSite', { siteName }) }}
+          {{ aboutSiteLabel }}
+        </a>
+        <NuxtLink
+          v-else-if="aboutSiteURL"
+          :to="aboutSiteTo"
+          class="sf-home-navigation__foot-item"
+          :target="aboutSiteTarget"
+          :rel="aboutSiteRel"
+        >
+          <UIcon name="i-lucide-info" class="size-4" aria-hidden="true" />
+          {{ aboutSiteLabel }}
+        </NuxtLink>
+        <span v-else class="sf-home-navigation__foot-item">
+          <UIcon name="i-lucide-info" class="size-4" aria-hidden="true" />
+          {{ aboutSiteLabel }}
         </span>
       </div>
     </div>

@@ -6,10 +6,23 @@ import { compileScript, compileTemplate, parse, rewriteDefault } from '@vue/comp
 
 import { asExternalIdentityList } from '../../app/composables/identity/useAccountSecurityApi'
 import { authProviderDisplayMeta, providerSupportsOperation, type PublicAuthProvider } from '../../app/composables/identity/useAuthProviders'
+import { FORUM_PERMISSIONS } from '../../app/composables/identity/usePermissions'
 import { resolveExternalAuthFeedback } from '../../app/utils/identity/externalAuthFeedback'
 
-const securityWindow = new Window({ url: 'http://localhost/settings/security' })
-Object.assign(globalThis, { window: securityWindow, document: securityWindow.document, navigator: securityWindow.navigator, Element: securityWindow.Element, HTMLElement: securityWindow.HTMLElement, SVGElement: securityWindow.SVGElement, Node: securityWindow.Node, Event: securityWindow.Event, MouseEvent: securityWindow.MouseEvent })
+const securityWindow = new Window({ url: 'http://localhost/settings/login-methods' })
+Object.assign(globalThis, {
+  window: securityWindow,
+  document: securityWindow.document,
+  navigator: securityWindow.navigator,
+  Document: securityWindow.Document,
+  ShadowRoot: securityWindow.ShadowRoot,
+  Element: securityWindow.Element,
+  HTMLElement: securityWindow.HTMLElement,
+  SVGElement: securityWindow.SVGElement,
+  Node: securityWindow.Node,
+  Event: securityWindow.Event,
+  MouseEvent: securityWindow.MouseEvent
+})
 const securityRoot = fileURLToPath(new URL('../..', import.meta.url))
 const securityVue = await import('vue')
 const { mount, flushPromises } = await import('@vue/test-utils')
@@ -34,10 +47,23 @@ async function compileSecurityComponent(
 }
 
 const SFLinkedAccountsSection = await compileSecurityComponent('app/components/identity/SFLinkedAccountsSection.vue')
-const SFSecuritySettingsPage = await compileSecurityComponent(
-  'app/components/settings/SFSecuritySettingsPage.vue',
+const SFLoginMethodsSettingsPage = await compileSecurityComponent(
+  'app/components/settings/SFLoginMethodsSettingsPage.vue',
   {
     SFLinkedAccountsSection,
+    SFSettingsShell: { template: '<section><slot /><slot name="rail" /><slot name="head-actions" /></section>' }
+  }
+)
+const SFLocalPasswordSettingsPage = await compileSecurityComponent(
+  'app/components/settings/SFLocalPasswordSettingsPage.vue',
+  {
+    SFSettingsShell: { template: '<section><slot /><slot name="rail" /><slot name="head-actions" /></section>' }
+  }
+)
+const SFPersonalAccessTokensPage = await compileSecurityComponent(
+  'app/components/settings/SFPersonalAccessTokensPage.vue',
+  {
+    FORUM_PERMISSIONS,
     SFSettingsShell: { template: '<section><slot /><slot name="rail" /><slot name="head-actions" /></section>' }
   }
 )
@@ -66,7 +92,7 @@ describe('linked account data contracts', () => {
       .toBe('auth.external.reasons.lastLoginMethodRequired')
   })
 
-  test('mounts production security and linked-account components with redacted data and real sensitive actions', async () => {
+  test('mounts production login-methods components with redacted data and real sensitive actions', async () => {
     const calls: string[] = []
     const identities = [{ linkId: 12, providerId: 'example.provider.auth', status: 'active', linkedAt: '2026-07-27T00:00:00Z', providerSubject: 'must-not-render', subjectDigest: 'must-not-render' }]
     const api = {
@@ -82,21 +108,120 @@ describe('linked account data contracts', () => {
       useSiteDateTime: () => ({ format: (value: string) => value }), useSForumSeo: () => {}, useRoute: () => ({ query: {} }),
       useAsyncData: async (_key: string, handler: () => Promise<unknown>, options?: { default?: () => unknown }) => ({ data: securityVue.ref(await handler().catch(() => options?.default?.())), pending: securityVue.ref(false), refresh: async () => {} }),
       apiErrorMessage: () => '', apiErrorReason: (error: { reason?: string }) => error?.reason || '', buildAuthPageLink: (path: string) => path,
-      authProviderDisplayMeta: (provider: { label?: string, icon?: string }, fallback: string) => ({ label: provider.label || fallback, icon: provider.icon || 'i-lucide-key-round' }),
-      passwordPolicyProgress: () => 100, passwordPolicyProgressLevel: () => 'strong', passwordPolicyRequirements: () => [{ key: 'length', met: true }]
+      authProviderDisplayMeta: (provider: { label?: string, icon?: string }, fallback: string) => ({ label: provider.label || fallback, icon: provider.icon || 'i-lucide-key-round' })
     })
-    const wrapper = mount({ components: { SFSecuritySettingsPage }, template: '<Suspense><SFSecuritySettingsPage /></Suspense>' }, {
+    const wrapper = mount({ components: { SFLoginMethodsSettingsPage }, template: '<Suspense><SFLoginMethodsSettingsPage /></Suspense>' }, {
       global: { stubs: { SFSettingsShell: { template: '<section><slot /><slot name="rail" /><slot name="head-actions" /></section>' }, SFCard: { template: '<div><slot /></div>' }, SFButton: { emits: ['click'], template: '<button @click="$emit(\'click\', $event)"><slot /></button>' }, SFAlert: { props: ['title', 'description'], template: '<div>{{ title }}{{ description }}<slot /></div>' }, SFSkeleton: true, SFEmptyState: true, UIcon: true, NuxtLink: { template: '<a><slot /></a>' }, SFLinkedAccountsSection } }
     })
     try {
       await flushPromises()
-      expect(wrapper.get('[data-sforum-island-body="forum.component.settings_security"]').exists()).toBe(true)
+      expect(wrapper.get('[data-sforum-island-body="identity.component.login_methods_settings"]').exists()).toBe(true)
       expect(wrapper.get('[data-testid="linked-accounts-section"]').text()).not.toContain('must-not-render')
       const unlink = wrapper.get('[data-testid="unlink-external-identity"]')
       await unlink.trigger('click')
       await flushPromises()
       expect(calls).toContain('unlink')
       expect(wrapper.text()).toContain('accountSecurity.linkedAccounts.lastMethodBlocked')
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  test('mounts local password page with policy validation and setupPassword submit', async () => {
+    const calls: string[] = []
+    const api = {
+      setupPassword: async (password: string) => { calls.push(password) }
+    }
+    Object.assign(globalThis, {
+      computed: securityVue.computed, ref: securityVue.ref, reactive: securityVue.reactive,
+      useI18n: () => ({ t: (key: string, values?: Record<string, unknown>) => values ? `${key}:${JSON.stringify(values)}` : key }),
+      useToast: () => ({ add: () => {} }), useLocalePath: () => (path: string) => path,
+      useWebOptions: () => ({ siteName: securityVue.ref('SForum'), passwordPolicy: securityVue.ref({ minLength: 1, maxLength: 64 }) }),
+      useAccountSecurityApi: () => api, useSForumSeo: () => {},
+      apiErrorMessage: () => '', apiErrorReason: (error: { reason?: string }) => error?.reason || '', buildAuthPageLink: (path: string) => path,
+      passwordPolicyProgress: () => 100,
+      passwordPolicyProgressLevel: () => 'strong',
+      passwordPolicyRequirements: () => [{ key: 'length', met: true }]
+    })
+    const wrapper = mount({ components: { SFLocalPasswordSettingsPage }, template: '<Suspense><SFLocalPasswordSettingsPage /></Suspense>' }, {
+      global: {
+        stubs: {
+          SFSettingsShell: { template: '<section><slot /><slot name="rail" /><slot name="head-actions" /></section>' },
+          SFCard: { template: '<div><slot /></div>' },
+          SFButton: { props: ['disabled', 'loading', 'type'], emits: ['click'], template: '<button :type="type || \'button\'" :disabled="disabled || loading" @click="$emit(\'click\', $event)"><slot /></button>' },
+          SFAlert: { props: ['title', 'description'], template: '<div>{{ title }}{{ description }}<slot /></div>' },
+          UIcon: true,
+          UBadge: { template: '<span><slot /></span>' },
+          NuxtLink: { template: '<a><slot /></a>' }
+        }
+      }
+    })
+    try {
+      await flushPromises()
+      expect(wrapper.get('[data-sforum-island-body="identity.component.local_password_settings"]').exists()).toBe(true)
+      await wrapper.get('[data-testid="password-setup-input"]').setValue('Secret123')
+      await wrapper.get('[data-testid="password-setup-confirm"]').setValue('Secret123')
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+      expect(calls).toEqual(['Secret123'])
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  test('mounts personal access token page with separate create and manage tabs', async () => {
+    const api = {
+      listAPITokens: async () => ({
+        items: [{
+          id: 7,
+          name: 'Deploy script',
+          prefix: 'sft_demo',
+          scopes: [FORUM_PERMISSIONS.topicCreate],
+          createdAt: '2026-07-30T00:00:00Z'
+        }]
+      }),
+      createAPIToken: async () => ({ token: 'sft_plaintext' }),
+      revokeAPIToken: async () => {},
+      rotateAPIToken: async () => ({ token: 'sft_rotated' })
+    }
+    Object.assign(globalThis, {
+      computed: securityVue.computed, ref: securityVue.ref, reactive: securityVue.reactive, onMounted: securityVue.onMounted,
+      useI18n: () => ({ t: (key: string) => key }),
+      useToast: () => ({ add: () => {} }),
+      useWebOptions: () => ({ siteName: securityVue.ref('SForum') }),
+      useAccountSecurityApi: () => api,
+      usePermissions: () => ({ can: () => true }),
+      useSiteDateTime: () => ({ format: (value: string) => value }),
+      useSForumSeo: () => {},
+      apiErrorMessage: () => ''
+    })
+    const wrapper = mount({ components: { SFPersonalAccessTokensPage }, template: '<Suspense><SFPersonalAccessTokensPage /></Suspense>' }, {
+      global: {
+        stubs: {
+          SFSettingsShell: { template: '<section><slot /><slot name="rail" /><slot name="head-actions" /></section>' },
+          SFTabs: {
+            props: ['items', 'modelValue', 'ariaLabel'],
+            emits: ['update:modelValue'],
+            template: '<nav role="tablist" :aria-label="ariaLabel"><button v-for="item in items" :key="item.value" role="tab" :aria-selected="modelValue === item.value" @click="$emit(\'update:modelValue\', item.value)">{{ item.label }}{{ item.badge }}</button></nav>'
+          },
+          SFCard: { template: '<div><slot /></div>' },
+          SFButton: { props: ['disabled', 'loading', 'type'], emits: ['click'], template: '<button :type="type || \'button\'" :disabled="disabled || loading" @click="$emit(\'click\', $event)"><slot /></button>' },
+          SFAlert: { props: ['title', 'description'], template: '<div>{{ title }}{{ description }}<slot /></div>' },
+          SFEmptyState: true,
+          UIcon: true
+        }
+      }
+    })
+    try {
+      await flushPromises()
+      expect(wrapper.get('[data-sforum-island-body="identity.component.personal_access_tokens"]').exists()).toBe(true)
+      expect(wrapper.get('[data-testid="personal-access-token-create-tab"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="personal-access-token-manage-tab"]').exists()).toBe(false)
+
+      await wrapper.get('button[role="tab"][aria-selected="false"]').trigger('click')
+      await flushPromises()
+      expect(wrapper.get('[data-testid="personal-access-token-manage-tab"]').text()).toContain('Deploy script')
+      expect(wrapper.find('[data-testid="personal-access-token-create-tab"]').exists()).toBe(false)
     } finally {
       wrapper.unmount()
     }

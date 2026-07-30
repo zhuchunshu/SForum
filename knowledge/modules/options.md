@@ -48,6 +48,10 @@ SSR/query/permission shells.
   paths, queries, fragments, credentials, and non-HTTP schemes. Its initial
   default is derived from the trusted `site.url` host rather than a product
   domain literal.
+- `site.about_url` and `site.about_open_in_new_tab` drive the public left
+  sidebar's bottom "About {siteName}" entry. Empty URL keeps the entry as
+  inert explanatory text; configured internal paths or HTTP(S) URLs make it a
+  link, with the new-tab flag applied at render time.
 - Admin page `apps/web/app/pages/admin/settings/index.vue` uses page-level tabs
   for basic site settings, account security (password + sessions + login
   lockout), registration/username policy, newcomer trust limits, maintenance

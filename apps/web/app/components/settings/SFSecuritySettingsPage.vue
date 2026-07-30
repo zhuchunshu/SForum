@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { useSForumSeo } from '~/composables/seo/useSForumSeo'
 import { useAccountSecurityApi } from '~/composables/identity/useAccountSecurityApi'
-import type { APIToken, LoginSession, LoginSessionList } from '~/composables/identity/useAccountSecurityApi'
+import type { LoginSession, LoginSessionList } from '~/composables/identity/useAccountSecurityApi'
 import SFSettingsShell from '~/components/settings/SFSettingsShell.vue'
-import SFLinkedAccountsSection from '~/components/identity/SFLinkedAccountsSection.vue'
 /**
  * 宿主 body 岛：forum.settings.security。主题 L1 挂载；路由页仅 outlet + fail-closed 回退。
- * 三栏 chrome 由 SFSettingsShell 提供；会话 / 令牌 / 外部登录方式 / 密码设置。
+ * 三栏 chrome 由 SFSettingsShell 提供；设备会话。登录方式、密码和令牌已拆到独立页面。
  */
 
 const { t } = useI18n()
@@ -26,6 +25,13 @@ const emptySessionList = (): LoginSessionList => ({
   page: 1,
   perPage: 20
 })
+const HISTORY_PAGE_SIZE = 10
+const emptyHistorySessionList = (): LoginSessionList => ({
+  items: [],
+  total: 0,
+  page: 1,
+  perPage: HISTORY_PAGE_SIZE
+})
 
 const { data: sessions, pending, refresh } = await useAsyncData(
   'account-security-sessions',
@@ -35,26 +41,23 @@ const { data: sessions, pending, refresh } = await useAsyncData(
 const activeSessions = computed(() => sessions.value?.items || [])
 const currentSession = computed(() => activeSessions.value.find(session => session.isCurrent) || null)
 
-// 历史记录折叠区。
-const showHistory = ref(false)
-const historySessions = ref<LoginSession[]>([])
-const historyLoading = ref(false)
+// 登录历史默认显示，并通过后端分页读取，避免一次性拉取较长历史。
+const historyPage = ref(1)
+const { data: historyList, pending: historyLoading, refresh: refreshHistory } = await useAsyncData(
+  'account-security-session-history',
+  () => sessionsApi.listSessions({ includeHistory: true, page: historyPage.value, perPage: HISTORY_PAGE_SIZE }),
+  { default: emptyHistorySessionList, watch: [historyPage] }
+)
+const historySessions = computed(() => historyList.value?.items || [])
+const historyTotalPages = computed(() => Math.max(1, Math.ceil((historyList.value?.total || 0) / Math.max(historyList.value?.perPage || HISTORY_PAGE_SIZE, 1))))
 
-async function loadHistory() {
-  if (showHistory.value) {
-    showHistory.value = false
-    return
-  }
-  historyLoading.value = true
-  try {
-    const result = await sessionsApi.listSessions({ includeHistory: true, perPage: 50 })
-    historySessions.value = result.items.filter(s => s.revokedAt)
-    showHistory.value = true
-  } catch (error) {
-    toast.add({ color: 'error', icon: 'i-lucide-alert-triangle', title: apiErrorMessage(error) || t('accountSecurity.loadFailed') })
-  } finally {
-    historyLoading.value = false
-  }
+function selectHistoryPage(page: number) {
+  historyPage.value = Math.min(historyTotalPages.value, Math.max(1, page))
+}
+
+async function refreshSessionLists() {
+  historyPage.value = 1
+  await Promise.all([refresh(), refreshHistory()])
 }
 
 async function revokeDevice(session: LoginSession) {
@@ -64,7 +67,7 @@ async function revokeDevice(session: LoginSession) {
   try {
     await sessionsApi.revokeSession(session.id)
     toast.add({ color: 'success', icon: 'i-lucide-check', title: t('accountSecurity.deviceRevoked') })
-    await refresh()
+    await refreshSessionLists()
   } catch (error) {
     toast.add({ color: 'error', icon: 'i-lucide-alert-triangle', title: apiErrorMessage(error) || t('accountSecurity.revokeFailed') })
   }
@@ -83,7 +86,7 @@ async function revokeOthers() {
       icon: 'i-lucide-check',
       title: t('accountSecurity.othersRevoked', { count: result.revoked })
     })
-    await refresh()
+    await refreshSessionLists()
   } catch (error) {
     toast.add({ color: 'error', icon: 'i-lucide-alert-triangle', title: apiErrorMessage(error) || t('accountSecurity.revokeFailed') })
   } finally {
@@ -96,87 +99,12 @@ const { format: formatSiteDateTime } = useSiteDateTime()
 function formatTime(iso: string): string {
   return formatSiteDateTime(iso)
 }
-
-// —— 个人访问令牌 ——
-const tokens = ref<APIToken[]>([])
-const tokensLoading = ref(false)
-const tokenForm = reactive({
-  name: '',
-  scopesText: 'topic.create,post.create'
-})
-const createdPlaintext = ref('')
-const tokenBusy = ref(false)
-
-async function loadTokens() {
-  tokensLoading.value = true
-  try {
-    const result = await sessionsApi.listAPITokens()
-    tokens.value = result.items || []
-  } catch (error) {
-    toast.add({ color: 'error', icon: 'i-lucide-alert-triangle', title: apiErrorMessage(error) || t('accountSecurity.tokensLoadFailed') })
-  } finally {
-    tokensLoading.value = false
-  }
-}
-
-async function createToken() {
-  if (tokenBusy.value) return
-  tokenBusy.value = true
-  createdPlaintext.value = ''
-  try {
-    const scopes = tokenForm.scopesText.split(/[,\s]+/).map(s => s.trim()).filter(Boolean)
-    const created = await sessionsApi.createAPIToken({ name: tokenForm.name, scopes })
-    createdPlaintext.value = created.token
-    tokenForm.name = ''
-    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('accountSecurity.tokenCreated') })
-    await loadTokens()
-  } catch (error) {
-    toast.add({ color: 'error', icon: 'i-lucide-alert-triangle', title: apiErrorMessage(error) || t('accountSecurity.tokenSaveFailed') })
-  } finally {
-    tokenBusy.value = false
-  }
-}
-
-async function revokeToken(token: APIToken) {
-  try {
-    await sessionsApi.revokeAPIToken(token.id)
-    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('accountSecurity.tokenRevoked') })
-    await loadTokens()
-  } catch (error) {
-    toast.add({ color: 'error', icon: 'i-lucide-alert-triangle', title: apiErrorMessage(error) || t('accountSecurity.tokenSaveFailed') })
-  }
-}
-
-async function rotateToken(token: APIToken) {
-  try {
-    const created = await sessionsApi.rotateAPIToken(token.id)
-    createdPlaintext.value = created.token
-    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('accountSecurity.tokenRotated') })
-    await loadTokens()
-  } catch (error) {
-    toast.add({ color: 'error', icon: 'i-lucide-alert-triangle', title: apiErrorMessage(error) || t('accountSecurity.tokenSaveFailed') })
-  }
-}
-
-async function copyPlaintext() {
-  if (!createdPlaintext.value) return
-  try {
-    await navigator.clipboard.writeText(createdPlaintext.value)
-    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('accountSecurity.tokenCopied') })
-  } catch {
-    toast.add({ color: 'error', icon: 'i-lucide-alert-triangle', title: t('accountSecurity.tokenCopyFailed') })
-  }
-}
-
-onMounted(() => {
-  loadTokens()
-})
 </script>
 
 <template>
   <SFSettingsShell
     class="sforum-settings-security"
-    data-sforum-island-body="forum.component.settings_security"
+    data-sforum-island-body="identity.component.security_settings"
     active="security"
     title-id="security-settings-title"
     :title="t('accountSecurity.title')"
@@ -196,10 +124,7 @@ onMounted(() => {
       </SFButton>
     </template>
 
-    <!-- M4B：登录方式（绑定列表 / link / unlink / 密码设置） -->
-    <SFLinkedAccountsSection class="mt-2" />
-
-    <h2 class="mt-10 text-lg font-semibold text-slate-900 dark:text-zinc-50">
+    <h2 class="mt-2 text-lg font-semibold text-slate-900 dark:text-zinc-50">
       {{ t('accountSecurity.devicesTitle') }}
     </h2>
     <p class="mt-1 text-sm text-slate-500 dark:text-zinc-400">
@@ -263,16 +188,13 @@ onMounted(() => {
       />
     </SFCard>
 
-    <div class="mt-6">
-      <button
-        class="flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200"
-        @click="loadHistory"
-      >
-        <UIcon :name="showHistory ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" />
+    <section class="mt-6">
+      <h2 class="flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-zinc-50">
+        <UIcon name="i-lucide-history" class="text-slate-400" />
         {{ t('accountSecurity.showHistory') }}
-      </button>
+      </h2>
 
-      <SFCard v-if="showHistory" class="p-0 mt-3 overflow-hidden">
+      <SFCard class="p-0 mt-3 overflow-hidden">
         <div v-if="historyLoading" class="p-4">
           <SFSkeleton class="h-4 w-1/2 mb-2" />
           <SFSkeleton class="h-3 w-1/3" />
@@ -284,115 +206,38 @@ onMounted(() => {
             class="p-4"
           >
             <div class="flex items-center gap-2">
-              <UIcon name="i-lucide-monitor-off" class="text-slate-400 shrink-0" />
+              <UIcon
+                :name="session.revokedAt ? 'i-lucide-monitor-off' : 'i-lucide-monitor'"
+                class="text-slate-400 shrink-0"
+              />
               <span class="font-medium text-slate-700 dark:text-zinc-300 truncate">
                 {{ session.deviceName || t('accountSecurity.unknownDevice') }}
               </span>
             </div>
             <p class="mt-1 text-xs text-slate-400 dark:text-zinc-500">
               {{ t('accountSecurity.loggedIn') }}: {{ formatTime(session.createdAt) }}
-              · {{ t('accountSecurity.revokedAt') }}: {{ formatTime(session.revokedAt || '') }}
+              <template v-if="session.revokedAt">
+                · {{ t('accountSecurity.revokedAt') }}: {{ formatTime(session.revokedAt) }}
+              </template>
+              <template v-else>
+                · {{ t('accountSecurity.lastActive') }}: {{ formatTime(session.lastSeenAt) }}
+              </template>
             </p>
           </li>
         </ul>
         <p v-else class="p-4 text-sm text-slate-400 dark:text-zinc-500">
           {{ t('accountSecurity.noHistory') }}
         </p>
-      </SFCard>
-    </div>
-
-    <section class="mt-10">
-      <h2 class="text-lg font-semibold text-slate-900 dark:text-zinc-50">
-        {{ t('accountSecurity.tokensTitle') }}
-      </h2>
-      <p class="mt-1 text-sm text-slate-500 dark:text-zinc-400">
-        {{ t('accountSecurity.tokensIntro') }}
-      </p>
-
-      <SFCard class="mt-4 p-4">
-        <div class="grid gap-3 sm:grid-cols-2">
-          <label class="block text-sm">
-            <span class="mb-1 block text-slate-600 dark:text-zinc-300">{{ t('accountSecurity.tokenName') }}</span>
-            <input
-              v-model="tokenForm.name"
-              class="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
-              type="text"
-            >
-          </label>
-          <label class="block text-sm">
-            <span class="mb-1 block text-slate-600 dark:text-zinc-300">{{ t('accountSecurity.tokenScopes') }}</span>
-            <input
-              v-model="tokenForm.scopesText"
-              class="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-mono dark:border-zinc-700 dark:bg-zinc-950"
-              type="text"
-            >
-          </label>
-        </div>
-        <p class="mt-2 text-xs text-slate-500">
-          {{ t('accountSecurity.tokenScopesHint') }}
-        </p>
-        <div class="mt-3">
-          <SFButton
-            variant="primary"
-            size="sm"
-            :disabled="tokenBusy || !tokenForm.name"
-            @click="createToken"
-          >
-            <UIcon name="i-lucide-key-round" class="mr-1" />
-            {{ t('accountSecurity.tokenCreate') }}
-          </SFButton>
-        </div>
-
         <div
-          v-if="createdPlaintext"
-          class="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/50 dark:bg-amber-950/30"
+          v-if="historyTotalPages > 1"
+          class="border-t border-slate-100 px-4 py-3 dark:border-zinc-800"
         >
-          <p class="text-xs font-medium text-amber-800 dark:text-amber-200">
-            {{ t('accountSecurity.tokenOnceHint') }}
-          </p>
-          <p class="mt-2 break-all font-mono text-sm text-slate-900 dark:text-zinc-100">
-            {{ createdPlaintext }}
-          </p>
-          <SFButton class="mt-2" variant="secondary" size="sm" @click="copyPlaintext">
-            <UIcon name="i-lucide-copy" class="mr-1" />
-            {{ t('accountSecurity.tokenCopy') }}
-          </SFButton>
+          <SFPagination
+            :page="historyList?.page || historyPage"
+            :total-pages="historyTotalPages"
+            @update:page="selectHistoryPage"
+          />
         </div>
-      </SFCard>
-
-      <SFCard class="mt-4 p-0 overflow-hidden">
-        <div v-if="tokensLoading" class="p-4 text-sm text-slate-500">
-          {{ t('accountSecurity.tokensLoading') }}
-        </div>
-        <ul v-else-if="tokens.length" class="divide-y divide-slate-100 dark:divide-zinc-800">
-          <li
-            v-for="token in tokens"
-            :key="token.id"
-            class="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div class="min-w-0">
-              <p class="font-medium text-slate-900 dark:text-zinc-100">
-                {{ token.name }}
-                <span class="ml-2 font-mono text-xs text-slate-400">{{ token.prefix }}…</span>
-              </p>
-              <p class="mt-1 text-xs text-slate-500">
-                {{ token.scopes.join(', ') }}
-                · {{ t('accountSecurity.loggedIn') }}: {{ formatTime(token.createdAt) }}
-              </p>
-            </div>
-            <div class="flex shrink-0 gap-2">
-              <SFButton variant="ghost" size="sm" @click="rotateToken(token)">
-                {{ t('accountSecurity.tokenRotate') }}
-              </SFButton>
-              <SFButton variant="ghost" size="sm" @click="revokeToken(token)">
-                {{ t('accountSecurity.tokenRevoke') }}
-              </SFButton>
-            </div>
-          </li>
-        </ul>
-        <p v-else class="p-4 text-sm text-slate-500">
-          {{ t('accountSecurity.tokensEmpty') }}
-        </p>
       </SFCard>
     </section>
 
@@ -418,14 +263,6 @@ onMounted(() => {
           <div>
             <dt>{{ t('accountSecurity.rail.currentDevice') }}</dt>
             <dd>{{ currentSession?.deviceName || t('accountSecurity.unknownDevice') }}</dd>
-          </div>
-          <div>
-            <dt>{{ t('accountSecurity.rail.loginMethods') }}</dt>
-            <dd>{{ t('accountSecurity.rail.loginMethodsHint') }}</dd>
-          </div>
-          <div>
-            <dt>{{ t('accountSecurity.rail.tokens') }}</dt>
-            <dd>{{ tokensLoading ? '…' : tokens.length }}</dd>
           </div>
         </dl>
       </section>

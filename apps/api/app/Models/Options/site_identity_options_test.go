@@ -16,6 +16,12 @@ func TestSiteIdentityOptionsDefaults(t *testing.T) {
 	if got := adminValueFromPublic(publicItems, NameSiteTagline); got != "" {
 		t.Fatalf("expected empty public tagline default, got %q", got)
 	}
+	if got := adminValueFromPublic(publicItems, NameSiteAboutURL); got != "" {
+		t.Fatalf("expected empty public about URL default, got %q", got)
+	}
+	if got := adminValueFromPublic(publicItems, NameSiteAboutOpenInNewTab); got != "disabled" {
+		t.Fatalf("expected about new-tab default disabled, got %q", got)
+	}
 	// admin_email 非 public，公开列表不应出现。
 	for _, item := range publicItems {
 		if item.Name == NameSiteAdminEmail {
@@ -142,6 +148,8 @@ func TestSiteIdentityOptionsAcceptValidValues(t *testing.T) {
 
 	_, err := service.UpdateMany(context.Background(), actor, []UpdateInput{
 		{Name: NameSiteTagline, Value: "  一个友好的社区  "},
+		{Name: NameSiteAboutURL, Value: "  /guidelines  "},
+		{Name: NameSiteAboutOpenInNewTab, Value: "true"},
 		{Name: NameSiteAdminEmail, Value: "ops@example.com"},
 	})
 	if err != nil {
@@ -149,6 +157,12 @@ func TestSiteIdentityOptionsAcceptValidValues(t *testing.T) {
 	}
 	if store.items[NameSiteTagline] != "一个友好的社区" {
 		t.Fatalf("tagline not trimmed/saved: %#v", store.items)
+	}
+	if store.items[NameSiteAboutURL] != "/guidelines" {
+		t.Fatalf("about URL not trimmed/saved: %#v", store.items)
+	}
+	if store.items[NameSiteAboutOpenInNewTab] != "enabled" {
+		t.Fatalf("about new-tab flag not normalized/saved: %#v", store.items)
 	}
 	if store.items[NameSiteAdminEmail] != "ops@example.com" {
 		t.Fatalf("admin email not saved: %#v", store.items)
@@ -172,6 +186,9 @@ func TestSiteIdentityOptionsRejectInvalidValues(t *testing.T) {
 	longTagline := stringsRepeat("标", siteTaglineMaxRunes+1)
 	cases := []UpdateInput{
 		{Name: NameSiteTagline, Value: longTagline},
+		{Name: NameSiteAboutURL, Value: "javascript:alert(1)"},
+		{Name: NameSiteAboutURL, Value: "/api/v1/users"},
+		{Name: NameSiteAboutOpenInNewTab, Value: "maybe"},
 		{Name: NameSiteAdminEmail, Value: "not-an-email"},
 		{Name: NameSiteAdminEmail, Value: "Name <ops@example.com>"},
 	}

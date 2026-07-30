@@ -95,6 +95,29 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- API startup deadlock and theme replay repair: notification LISTEN lifecycle
+  now closes before the shared PostgreSQL pool, so bootstrap errors remain
+  visible; theme binding replay tolerates a deleted historical approver, and
+  the live API is healthy and ready on port 8081:
+  `sessions/2026-07-30-api-startup-theme-replay-repair.md`
+- Login methods settings page: account login methods now live on independent
+  `/settings/login-methods` with a dedicated sidebar entry, Page Registry
+  surface, Host island, built-in theme templates, and activated default-theme
+  runtime evidence:
+  `sessions/2026-07-30-login-methods-settings-page.md`
+- Local password settings page: local password setup/change now lives on
+  independent `/settings/password` with a dedicated sidebar entry, Page Registry
+  surface, Host island, built-in theme templates, and recent-auth-aware UI:
+  `sessions/2026-07-30-local-password-settings-page.md`
+- Personal access tokens settings: PAT management now lives on independent
+  `/settings/tokens` with a dedicated sidebar entry, Page Registry surface,
+  Host island, built-in theme templates, Create/Manage tabs, and preset +
+  checkbox scope picker:
+  `sessions/2026-07-30-personal-access-tokens-settings.md`
+- Sidebar about link: the public left sidebar's bottom "About {siteName}"
+  entry now has runtime `site.about_url` plus `site.about_open_in_new_tab`
+  settings exposed from Site Settings; empty URL keeps the old inert text:
+  `sessions/2026-07-30-sidebar-about-link.md`
 - Forum cooldown recovery feedback: topic/comment cooldowns stay independently
   configured, while 429 responses now publish standard and structured recovery
   timing and all create surfaces show a server-authoritative countdown without

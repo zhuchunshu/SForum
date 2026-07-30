@@ -120,6 +120,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	stopPluginRuntimeCoordinator := extensionPlatform.stopPluginRuntimeCoordinator
 	closePluginRuntime := extensionPlatform.closePluginRuntime
 	notificationStore := notifications.NewPostgresStoreWithAvatar(pool, avatarOptionsAdapter{options: infrastructure.optionsService}).WithRevisionWakeups(ctx)
+	closeNotificationStore := notificationStore.Close
 	mailOutbox := notifications.NewOutbox(pool, notificationStore, jobDispatcher, options.NewMailSettings(optionsService)).
 		WithDeliveryPolicyResolver(notificationStore)
 	forumStore.WithCommentNotifications(forumNotificationAdapter{outbox: mailOutbox})
@@ -407,6 +408,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	))
 	if !recoveryOnly {
 		if err := extensionGuardPolicy.Refresh(ctx); err != nil {
+			closeNotificationStore()
 			stopPluginRuntimeCoordinator()
 			if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 				logger.Warn("job dispatcher stop failed", "error", stopErr)
@@ -427,6 +429,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		logger,
 	)
 	if err != nil {
+		closeNotificationStore()
 		stopPluginRuntimeCoordinator()
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 			logger.Warn("job dispatcher stop failed", "error", stopErr)
@@ -503,6 +506,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		mailProvider:              mailProvider,
 		moderationProvider:        moderationProvider,
 		notificationsProvider:     notificationsProvider,
+		closeNotificationStore:    closeNotificationStore,
 		optionsProvider:           optionsProvider,
 		optionsService:            optionsService,
 		pagesProvider:             pagesProvider,

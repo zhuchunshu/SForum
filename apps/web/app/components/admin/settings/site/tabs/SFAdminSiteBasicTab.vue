@@ -30,6 +30,8 @@ const form = reactive({
   siteName: 'SForum',
   siteUrl: '',
   siteDomain: '',
+  aboutUrl: '',
+  aboutOpenInNewTab: false,
   defaultLocale: 'zh-CN',
   supportedLocales: ['zh-CN', 'en-US'],
   tagline: '',
@@ -69,6 +71,8 @@ const initial = computed(() => ({
   siteName: map.value['site.name']?.value || 'SForum',
   siteUrl: map.value['site.url']?.overrideValue ?? '',
   siteDomain: normalizeSiteDomain(map.value['site.domain']?.value),
+  aboutUrl: (map.value['site.about_url']?.value || '').trim(),
+  aboutOpenInNewTab: (map.value['site.about_open_in_new_tab']?.value || '').trim() === 'enabled',
   defaultLocale: map.value['site.default_locale']?.value || 'zh-CN',
   supportedLocales: parseLocaleList(map.value['site.supported_locales']?.value || 'zh-CN,en-US'),
   tagline: (map.value['site.tagline']?.value || '').trim(),
@@ -105,6 +109,8 @@ async function save() {
       { name: 'site.name', value: form.siteName },
       { name: 'site.url', value: form.siteUrl.trim() },
       { name: 'site.domain', value: form.siteDomain },
+      { name: 'site.about_url', value: form.aboutUrl.trim() },
+      { name: 'site.about_open_in_new_tab', value: form.aboutOpenInNewTab ? 'enabled' : 'disabled' },
       { name: 'site.default_locale', value: form.defaultLocale },
       { name: 'site.supported_locales', value: form.supportedLocales.join(',') },
       { name: 'site.tagline', value: form.tagline.trim() },
@@ -201,6 +207,14 @@ function useSiteUrlDomain() {
           <UInput v-model="form.tagline" size="lg" icon="i-lucide-quote" :placeholder="t('admin.settings.siteTaglinePlaceholder')" maxlength="160" class="w-full" />
           <template #hint>{{ t('admin.settings.siteTaglineHint') }}</template>
         </UFormField>
+        <UFormField :label="t('admin.settings.siteAboutUrl')" name="site-about-url">
+          <UInput v-model="form.aboutUrl" size="lg" icon="i-lucide-info" type="text" inputmode="url" :placeholder="t('admin.settings.siteAboutUrlPlaceholder')" maxlength="2048" class="w-full" />
+          <template #hint>{{ t('admin.settings.siteAboutUrlHint') }}</template>
+        </UFormField>
+        <label class="flex w-fit items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950">
+          <input v-model="form.aboutOpenInNewTab" type="checkbox" class="size-4 rounded border-slate-300 text-[var(--sf-accent)] focus:ring-[var(--sf-accent)]">
+          <span>{{ t('admin.settings.siteAboutOpenInNewTab') }}</span>
+        </label>
         <UFormField :label="t('admin.settings.adminEmail')" name="site-admin-email">
           <UInput v-model="form.adminEmail" size="lg" icon="i-lucide-mail" type="email" :placeholder="t('admin.settings.adminEmailPlaceholder')" maxlength="254" class="w-full" />
           <template #hint>{{ t('admin.settings.adminEmailHint') }}</template>

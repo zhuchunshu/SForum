@@ -49,6 +49,13 @@ func (s *PostgresStore) WithRevisionWakeups(ctx context.Context) *PostgresStore 
 	return s
 }
 
+// Close stops process-owned background listeners. The caller still owns pool.
+func (s *PostgresStore) Close() {
+	if s != nil && s.wakes != nil {
+		s.wakes.Close()
+	}
+}
+
 func (s *PostgresStore) CreateBundleTx(ctx context.Context, tx queryRunner, input CreateBundleInput) (Bundle, error) {
 	notification, err := s.CreateNotificationTx(ctx, tx, input.Notification)
 	if err != nil {

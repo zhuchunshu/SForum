@@ -62,7 +62,10 @@ func newCorePageViewModelRegistry() (*PageViewModelRegistry, error) {
 		coreViewModel("forum.topic.edit", "sforum.page.topic_edit@1", ViewModelCreate, TopicEditPageViewModel{}),
 		coreViewModel("forum.profile.show", "sforum.page.profile_show@1", ViewModelProfile, ProfilePageViewModel{}),
 		coreViewModel("forum.settings.profile", "sforum.page.settings_profile@1", ViewModelSettings, ProfileSettingsPageViewModel{}),
+		coreViewModel("forum.settings.login_methods", "sforum.page.settings_login_methods@1", ViewModelSettings, LoginMethodsSettingsPageViewModel{}),
+		coreViewModel("forum.settings.password", "sforum.page.settings_password@1", ViewModelSettings, LocalPasswordSettingsPageViewModel{}),
 		coreViewModel("forum.settings.security", "sforum.page.settings_security@1", ViewModelSettings, SecuritySettingsPageViewModel{}),
+		coreViewModel("forum.settings.tokens", "sforum.page.settings_tokens@1", ViewModelSettings, PersonalAccessTokensPageViewModel{}),
 		coreViewModel("forum.settings.notifications", "sforum.page.settings_notifications@1", ViewModelSettings, NotificationSettingsPageViewModel{}),
 		coreViewModel("forum.notifications", "sforum.page.notifications@1", ViewModelNotifications, NotificationsPageViewModel{}),
 		coreViewModel("forum.notification.show", "sforum.page.notification_show@1", ViewModelNotifications, NotificationsPageViewModel{}),
@@ -202,7 +205,13 @@ func pageViewModelBase(value any) (PageViewModelBase, bool) {
 		return model.Base, true
 	case ProfileSettingsPageViewModel:
 		return model.Base, true
+	case LoginMethodsSettingsPageViewModel:
+		return model.Base, true
+	case LocalPasswordSettingsPageViewModel:
+		return model.Base, true
 	case SecuritySettingsPageViewModel:
+		return model.Base, true
+	case PersonalAccessTokensPageViewModel:
 		return model.Base, true
 	case NotificationSettingsPageViewModel:
 		return model.Base, true
@@ -250,15 +259,30 @@ func validatePageSpecificBoundaries(value any) error {
 	case ProfileSettingsPageViewModel:
 		form, expectedComponent = model.Form, "profile.component.settings_form"
 		expectedRoutes = []string{"core.route.profile.update_my_profile"}
+	case LoginMethodsSettingsPageViewModel:
+		form, expectedComponent = model.Form, "identity.component.login_methods_settings"
+		expectedRoutes = []string{
+			"core.route.identity.auth_provider_start",
+			"core.route.identity.external_identities",
+			"core.route.identity.external_identity_unlink",
+			"core.route.identity.list_auth_providers",
+		}
+	case LocalPasswordSettingsPageViewModel:
+		form, expectedComponent = model.Form, "identity.component.local_password_settings"
+		expectedRoutes = []string{"core.route.identity.setup_password"}
 	case SecuritySettingsPageViewModel:
 		form, expectedComponent = model.Form, "identity.component.security_settings"
 		expectedRoutes = []string{
-			"core.route.identity.create_apitoken",
-			"core.route.identity.list_apitokens",
 			"core.route.identity.list_sessions",
-			"core.route.identity.revoke_apitoken",
 			"core.route.identity.revoke_other_sessions",
 			"core.route.identity.revoke_session",
+		}
+	case PersonalAccessTokensPageViewModel:
+		form, expectedComponent = model.Form, "identity.component.personal_access_tokens"
+		expectedRoutes = []string{
+			"core.route.identity.create_apitoken",
+			"core.route.identity.list_apitokens",
+			"core.route.identity.revoke_apitoken",
 			"core.route.identity.rotate_apitoken",
 		}
 	case NotificationSettingsPageViewModel:

@@ -27,6 +27,12 @@ responsibilities.
 
 ## Active Work
 
+### Shared tab geometry
+
+- `SFTabs` tracks and items use non-shrinking flex geometry. This keeps the
+  42px track intact inside fixed-height, scrollable public content columns;
+  narrow layouts scroll the track horizontally instead of clipping tab labels.
+
 ### Shared public page headings
 
 - `SFPublicPageHeader` is the single typography owner for Core public list and
@@ -201,10 +207,13 @@ Plan: `../plans/2026-07-27-github-social-login-builtin-plugin.md`
   templates (`Continue with {name}`) and Host stable `ext_auth` reasons.
 - Callback feedback uses minimized `ext_auth` query reasons; opaque external
   registration continues at fixed `/register?ticket=…` without a password field.
-- Account security (`SFLinkedAccountsSection` on `SFSecuritySettingsPage`):
-  redacted `GET /auth/external-identities`, Host-gated link via
-  `linkProviders`, unlink + last-method/recent-auth UX, inert status, and
-  `POST /auth/password` local password setup. No Core GitHub brand strings.
+- Login methods (`/settings/login-methods`) owns external identities through
+  `SFLinkedAccountsSection`: redacted `GET /auth/external-identities`,
+  Host-gated link via `linkProviders`, unlink + last-method/recent-auth UX,
+  inert status, and no Core GitHub brand strings.
+- Local password (`/settings/password`) owns password setup/change through the
+  existing recent-auth-gated `POST /auth/password` Host API, with policy
+  feedback and confirmation validation on an independent settings page.
 - Operator docs: `docs/zh-CN/usage/github-login.md`,
   `docs/en-US/usage/github-login.md`.
 - Admin Login Methods still contains GitHub ID-based title/icon branches and
@@ -588,6 +597,12 @@ Architecture sources:
 - A Core-owned product surface may be `themeable` without being `replaceable`.
   In that case the theme controls only the reviewed L1 shell and must mount the
   required Host island.
+- Account settings now expose separate Page Registry-backed route shells for
+  login methods (`/settings/login-methods`), local password
+  (`/settings/password`), account security (`/settings/security`), personal
+  access tokens (`/settings/tokens`), and notification preferences. Keep the
+  shared `SFSettingsShell` three-column geometry and account sidebar contract
+  aligned across these pages.
 
 ## Request And SSR Regression Rules
 

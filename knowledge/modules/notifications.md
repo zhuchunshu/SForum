@@ -138,6 +138,10 @@ visible-page fallback interval. SSE contains revision signals only; durable
 PostgreSQL rows and recipient revision remain truth.
 
 Notification SSE connections use bounded leases and controlled reconnection.
+The process-wide PostgreSQL `LISTEN` revision hub owns a cancellable listener
+lifecycle. API bootstrap failure and normal shutdown stop and await that hub
+before closing the shared pgx pool, so an acquired listener connection cannot
+hide the original startup error by blocking `pgxpool.Close()`.
 The Nuxt API route owns a dedicated Node stream proxy that destroys both the
 upstream request and response when the downstream browser disconnects. The API
 also expires every stream after one minute so abandoned proxy connections

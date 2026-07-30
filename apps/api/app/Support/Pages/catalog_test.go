@@ -29,6 +29,36 @@ func TestNotificationSettingsPageContract(t *testing.T) {
 	}
 }
 
+func TestLoginMethodsSettingsPageContract(t *testing.T) {
+	page, ok := Find("forum.settings.login_methods")
+	if !ok || page.PathPattern != "/settings/login-methods" || page.Access != AccessLogin || !page.Replaceable || page.ContractVersion != "sforum.page.settings_login_methods@1" {
+		t.Fatalf("login methods settings contract missing or invalid: %#v ok=%v", page, ok)
+	}
+	if RequiredThemeBodyIslandTag(page.ID) != "sf-login-methods-settings" {
+		t.Fatalf("login methods body island mismatch: %q", RequiredThemeBodyIslandTag(page.ID))
+	}
+}
+
+func TestLocalPasswordSettingsPageContract(t *testing.T) {
+	page, ok := Find("forum.settings.password")
+	if !ok || page.PathPattern != "/settings/password" || page.Access != AccessLogin || !page.Replaceable || page.ContractVersion != "sforum.page.settings_password@1" {
+		t.Fatalf("local password settings contract missing or invalid: %#v ok=%v", page, ok)
+	}
+	if RequiredThemeBodyIslandTag(page.ID) != "sf-local-password-settings" {
+		t.Fatalf("local password body island mismatch: %q", RequiredThemeBodyIslandTag(page.ID))
+	}
+}
+
+func TestPersonalAccessTokensPageContract(t *testing.T) {
+	page, ok := Find("forum.settings.tokens")
+	if !ok || page.PathPattern != "/settings/tokens" || page.Access != AccessLogin || !page.Replaceable || page.ContractVersion != "sforum.page.settings_tokens@1" {
+		t.Fatalf("personal access tokens contract missing or invalid: %#v ok=%v", page, ok)
+	}
+	if RequiredThemeBodyIslandTag(page.ID) != "sf-personal-access-tokens" {
+		t.Fatalf("personal access tokens body island mismatch: %q", RequiredThemeBodyIslandTag(page.ID))
+	}
+}
+
 func TestSearchPageContract(t *testing.T) {
 	page, ok := Find("forum.search")
 	if !ok || page.PathPattern != "/search" || page.Access != AccessPublic || !page.Replaceable || page.ContractVersion != "sforum.page.search@1" {

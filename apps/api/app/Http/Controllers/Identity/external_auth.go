@@ -266,9 +266,9 @@ func (h *Controller) handleExternalLinkCallback(
 		return externalAuthRedirect(c, returnPath, "auth.provider_callback_invalid")
 	}
 	if _, err := h.externalAuthService.CompleteLink(c.Context(), assertion, sessionUserID, sessionFingerprint); err != nil {
-		return externalAuthRedirect(c, "/settings/security", mapExternalAuthReason(err))
+		return externalAuthRedirect(c, "/settings/login-methods", mapExternalAuthReason(err))
 	}
-	return externalAuthRedirect(c, "/settings/security", "auth.external_link_ok")
+	return externalAuthRedirect(c, "/settings/login-methods", "auth.external_link_ok")
 }
 
 // externalRegistration 用一次性票据原子创建用户 + 默认角色 + link。

@@ -2996,6 +2996,16 @@
       "source": "apps/web/app/pages/settings/security.vue"
     },
     {
+      "id": "core.component.page.forum.settings.tokens",
+      "contractVersion": "sforum.component.page.forum.settings.tokens@1",
+      "kind": "page",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/pages/settings/tokens.vue"
+    },
+    {
       "id": "core.component.page.forum.tag.index",
       "contractVersion": "sforum.component.page.forum.tag.index@1",
       "kind": "page",
@@ -3825,6 +3835,16 @@
       ],
       "state": "active",
       "source": "apps/web/app/components/settings/SFSecuritySettingsPage.vue"
+    },
+    {
+      "id": "core.component.shared.sfpersonal_access_tokens_page",
+      "contractVersion": "sforum.component.shared.sfpersonal_access_tokens_page@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/settings/SFPersonalAccessTokensPage.vue"
     },
     {
       "id": "core.component.shared.sfsettings_account_nav",

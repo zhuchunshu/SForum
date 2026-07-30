@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
+	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	"github.com/zhuchunshu/sforum/apps/api/database/migrations"
 )
 
@@ -175,6 +176,33 @@ func TestPostgresThemeCompensationRestoresPriorApprovalAndRejectsReplay(t *testi
 	}
 	if _, err := fixture.store.CompensateThemeActivation(fixture.ctx, failed.Publication, &previous); !errors.Is(err, ErrThemePublicationConflict) {
 		t.Fatalf("stale compensation error=%v", err)
+	}
+}
+
+func TestPostgresPageBindingReplayClearsDeletedHistoricalApprover(t *testing.T) {
+	fixture := newThemePublicationPGFixture(t, "deleted-approver-replay")
+	actorID := fixture.addUser("historical-approver")
+	pageStore := pages.NewPostgresStore(fixture.pool)
+	binding := pages.ProviderBinding{
+		PageID: fixture.prefix + ".page", ExtensionID: fixture.prefix + ".theme",
+		ContributionID: "replacement", Version: "1.0.0", PackageDigest: strings.Repeat("a", 64),
+		ApprovedBy: actorID, TemplatePath: "templates/page.html", ContractVersion: "sforum.page@1",
+	}
+	if err := pageStore.ReplaceExtensionBindings(fixture.ctx, []string{binding.ExtensionID}, []pages.ProviderBinding{binding}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fixture.pool.Exec(fixture.ctx, `DELETE FROM users WHERE id = $1`, actorID); err != nil {
+		t.Fatal(err)
+	}
+	if err := pageStore.ReplaceExtensionBindings(fixture.ctx, []string{binding.ExtensionID}, []pages.ProviderBinding{binding}); err != nil {
+		t.Fatalf("replay with deleted historical approver: %v", err)
+	}
+	replayed, ok, err := pageStore.GetBinding(fixture.ctx, binding.PageID)
+	if err != nil || !ok {
+		t.Fatalf("replayed binding missing: ok=%t err=%v", ok, err)
+	}
+	if replayed.ApprovedBy != 0 {
+		t.Fatalf("replayed approved_by=%d want NULL", replayed.ApprovedBy)
 	}
 }
 

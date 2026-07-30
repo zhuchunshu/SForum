@@ -69,3 +69,75 @@ func TestBuildNotificationSettingsViewModelFreezesHostBoundary(t *testing.T) {
 		t.Fatal("factory mutated source-owned notification payload")
 	}
 }
+
+func TestBuildLoginMethodsSettingsViewModelFreezesHostBoundary(t *testing.T) {
+	input := &themecompiler.LoginMethodsSettingsPageViewModel{Form: themecompiler.HostFormBoundary{
+		ComponentID: "plugin.capture.login_methods", ActionRouteIDs: []string{"plugin.capture.credentials"},
+	}}
+	model, err := BuildCorePageViewModel(CorePageViewModelRequest{
+		PageID: "forum.settings.login_methods", Locale: "en-US", Path: "/settings/login-methods",
+		Data: CorePageViewModelData{LoginMethodsSettings: input},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	settings := model.(themecompiler.LoginMethodsSettingsPageViewModel)
+	wantRoutes := []string{
+		"core.route.identity.auth_provider_start",
+		"core.route.identity.external_identities",
+		"core.route.identity.external_identity_unlink",
+		"core.route.identity.list_auth_providers",
+	}
+	if settings.Form.ComponentID != "identity.component.login_methods_settings" || !slices.Equal(settings.Form.ActionRouteIDs, wantRoutes) {
+		t.Fatalf("Host login methods boundary drifted: %#v", settings.Form)
+	}
+	if input.Form.ComponentID != "plugin.capture.login_methods" {
+		t.Fatal("factory mutated source-owned login methods payload")
+	}
+}
+
+func TestBuildLocalPasswordSettingsViewModelFreezesHostBoundary(t *testing.T) {
+	input := &themecompiler.LocalPasswordSettingsPageViewModel{Form: themecompiler.HostFormBoundary{
+		ComponentID: "plugin.capture.password", ActionRouteIDs: []string{"plugin.capture.password"},
+	}}
+	model, err := BuildCorePageViewModel(CorePageViewModelRequest{
+		PageID: "forum.settings.password", Locale: "en-US", Path: "/settings/password",
+		Data: CorePageViewModelData{LocalPasswordSettings: input},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	settings := model.(themecompiler.LocalPasswordSettingsPageViewModel)
+	if settings.Form.ComponentID != "identity.component.local_password_settings" || !slices.Equal(settings.Form.ActionRouteIDs, []string{"core.route.identity.setup_password"}) {
+		t.Fatalf("Host local password boundary drifted: %#v", settings.Form)
+	}
+	if input.Form.ComponentID != "plugin.capture.password" {
+		t.Fatal("factory mutated source-owned local password payload")
+	}
+}
+
+func TestBuildPersonalAccessTokensViewModelFreezesHostBoundary(t *testing.T) {
+	input := &themecompiler.PersonalAccessTokensPageViewModel{Form: themecompiler.HostFormBoundary{
+		ComponentID: "plugin.capture.tokens", ActionRouteIDs: []string{"plugin.capture.tokens"},
+	}}
+	model, err := BuildCorePageViewModel(CorePageViewModelRequest{
+		PageID: "forum.settings.tokens", Locale: "en-US", Path: "/settings/tokens",
+		Data: CorePageViewModelData{PersonalAccessTokens: input},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	settings := model.(themecompiler.PersonalAccessTokensPageViewModel)
+	wantRoutes := []string{
+		"core.route.identity.create_apitoken",
+		"core.route.identity.list_apitokens",
+		"core.route.identity.revoke_apitoken",
+		"core.route.identity.rotate_apitoken",
+	}
+	if settings.Form.ComponentID != "identity.component.personal_access_tokens" || !slices.Equal(settings.Form.ActionRouteIDs, wantRoutes) {
+		t.Fatalf("Host personal access tokens boundary drifted: %#v", settings.Form)
+	}
+	if input.Form.ComponentID != "plugin.capture.tokens" {
+		t.Fatal("factory mutated source-owned token payload")
+	}
+}

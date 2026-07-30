@@ -85,11 +85,32 @@
       "contract": "sforum.page.settings_profile@1"
     },
     {
+      "id": "sforum.nocturne-theme.settings_login_methods",
+      "action": "replace",
+      "target": "forum.settings.login_methods",
+      "template": "templates/settings-login-methods.html",
+      "contract": "sforum.page.settings_login_methods@1"
+    },
+    {
+      "id": "sforum.nocturne-theme.settings_password",
+      "action": "replace",
+      "target": "forum.settings.password",
+      "template": "templates/settings-password.html",
+      "contract": "sforum.page.settings_password@1"
+    },
+    {
       "id": "sforum.nocturne-theme.settings_security",
       "action": "replace",
       "target": "forum.settings.security",
       "template": "templates/settings-security.html",
       "contract": "sforum.page.settings_security@1"
+    },
+    {
+      "id": "sforum.nocturne-theme.settings_tokens",
+      "action": "replace",
+      "target": "forum.settings.tokens",
+      "template": "templates/settings-tokens.html",
+      "contract": "sforum.page.settings_tokens@1"
     },
     {
       "id": "sforum.nocturne-theme.settings_notifications",

@@ -94,10 +94,28 @@
       "path": "templates/settings-profile.html"
     },
     {
+      "digest": "dc1d27bbe964e7fa15f0544cdc3dc8f2bc434abd7ecd2f393dc9c0de80a7e88f",
+      "id": "sforum.default-theme.file.template.settings-login-methods",
+      "kind": "template",
+      "path": "templates/settings-login-methods.html"
+    },
+    {
+      "digest": "98fb7a7eeeaa368819d6b57409511c3f960402acfe521c67012b7ba48e0f5a9b",
+      "id": "sforum.default-theme.file.template.settings-password",
+      "kind": "template",
+      "path": "templates/settings-password.html"
+    },
+    {
       "digest": "d6406a10b9398d5c1d9e182dbf60e223a17f64d35ff9a59839dc069e31efed7c",
       "id": "sforum.default-theme.file.template.settings-security",
       "kind": "template",
       "path": "templates/settings-security.html"
+    },
+    {
+      "digest": "8c08d247e41422ecb26ce2400d70425f43d8e27d64427f977933490e1a69f89d",
+      "id": "sforum.default-theme.file.template.settings-tokens",
+      "kind": "template",
+      "path": "templates/settings-tokens.html"
     },
     {
       "digest": "144fb47979ea6dba4206be6da75b7bddcce9db65c560c70f2b8fcd1e4c22132a",
@@ -302,12 +320,39 @@
     },
     {
       "action": "add",
+      "contractVersion": "sforum.default-theme.template.settings-login-methods@1",
+      "digest": "dc1d27bbe964e7fa15f0544cdc3dc8f2bc434abd7ecd2f393dc9c0de80a7e88f",
+      "id": "sforum.default-theme.template.settings-login-methods",
+      "path": "templates/settings-login-methods.html",
+      "themeOverrideKey": "sforum.default-theme.settings_login_methods",
+      "viewModelSchema": "sforum.page.settings_login_methods@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.settings-password@1",
+      "digest": "98fb7a7eeeaa368819d6b57409511c3f960402acfe521c67012b7ba48e0f5a9b",
+      "id": "sforum.default-theme.template.settings-password",
+      "path": "templates/settings-password.html",
+      "themeOverrideKey": "sforum.default-theme.settings_password",
+      "viewModelSchema": "sforum.page.settings_password@1"
+    },
+    {
+      "action": "add",
       "contractVersion": "sforum.default-theme.template.settings-security@1",
       "digest": "d6406a10b9398d5c1d9e182dbf60e223a17f64d35ff9a59839dc069e31efed7c",
       "id": "sforum.default-theme.template.settings-security",
       "path": "templates/settings-security.html",
       "themeOverrideKey": "sforum.default-theme.settings_security",
       "viewModelSchema": "sforum.page.settings_security@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.settings-tokens@1",
+      "digest": "8c08d247e41422ecb26ce2400d70425f43d8e27d64427f977933490e1a69f89d",
+      "id": "sforum.default-theme.template.settings-tokens",
+      "path": "templates/settings-tokens.html",
+      "themeOverrideKey": "sforum.default-theme.settings_tokens",
+      "viewModelSchema": "sforum.page.settings_tokens@1"
     },
     {
       "action": "add",

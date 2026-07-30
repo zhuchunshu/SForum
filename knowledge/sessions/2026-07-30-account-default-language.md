@@ -21,6 +21,9 @@
 - Replaced the hard-coded `sforum.dev/u/` username prefix on
   `/settings/profile` with `{site.domain}/u/`; fresh defaults derive the domain
   from the trusted `site.url` host.
+- Updated `/settings/security` login history to render by default instead of
+  behind a collapsed toggle. It now requests the existing session API with
+  `includeHistory=true&page&perPage=10` and shows `SFPagination` when needed.
 
 ## Decisions
 
@@ -34,6 +37,8 @@
   configured site default.
 - Manually verify a protocol/trailing-slash domain entry is redisplayed in its
   normalized form and immediately updates the username prefix.
+- Manually verify login history pagination on `/settings/security` with more
+  than 10 session records.
 
 ## Open Questions
 

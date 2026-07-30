@@ -1025,6 +1025,7 @@
 
 .sf-tabs {
   display: inline-flex;
+  flex: 0 0 auto;
   gap: 0.25rem;
   min-width: 0;
   max-width: 100%;
@@ -1037,6 +1038,7 @@
 
 .sf-tabs__item {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 0.35rem;
   height: 2rem;

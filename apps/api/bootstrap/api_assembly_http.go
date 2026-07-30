@@ -73,6 +73,7 @@ func finishAPIHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 			if closeErr := core.redisStorage.Close(); closeErr != nil {
 				logger.Warn("redis session storage close failed", "error", closeErr)
 			}
+			core.closeNotificationStore()
 			core.pool.Close()
 			return nil, fmt.Errorf("start theme runtime watcher failed: %w", err)
 		}
@@ -109,6 +110,7 @@ func finishAPIHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 			if closeErr := core.redisStorage.Close(); closeErr != nil {
 				logger.Warn("redis session storage close failed", "error", closeErr)
 			}
+			core.closeNotificationStore()
 			core.pool.Close()
 			return nil, fmt.Errorf("embedded worker setup failed: %w", err)
 		}
@@ -126,6 +128,7 @@ func finishAPIHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 			if closeErr := core.redisStorage.Close(); closeErr != nil {
 				logger.Warn("redis session storage close failed", "error", closeErr)
 			}
+			core.closeNotificationStore()
 			core.pool.Close()
 			return nil, fmt.Errorf("embedded worker start failed: %w", err)
 		}
@@ -219,6 +222,7 @@ func finishAPIHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 			if err := core.sharedRedisClient.Close(); err != nil {
 				logger.Warn("shared redis client close failed", "error", err)
 			}
+			core.closeNotificationStore()
 			core.pool.Close()
 		},
 	}

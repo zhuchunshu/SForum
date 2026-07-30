@@ -4,7 +4,7 @@
  * 样式复用 sf-home-navigation 链接语言，与通知/审核 after-nav 一致。
  */
 defineProps<{
-  active: 'profile' | 'security' | 'notifications'
+  active: 'profile' | 'loginMethods' | 'password' | 'security' | 'tokens' | 'notifications'
   publicProfilePath?: string
 }>()
 
@@ -31,6 +31,28 @@ const localePath = useLocalePath()
       </span>
     </NuxtLink>
     <NuxtLink
+      :to="localePath('/settings/login-methods')"
+      class="sf-home-navigation__link"
+      :class="{ 'is-active': active === 'loginMethods' }"
+      @click="emit('navigate')"
+    >
+      <span class="sf-home-navigation__link-main">
+        <UIcon name="i-lucide-log-in" class="size-[18px]" aria-hidden="true" />
+        {{ t('loginMethodsSettings.title') }}
+      </span>
+    </NuxtLink>
+    <NuxtLink
+      :to="localePath('/settings/password')"
+      class="sf-home-navigation__link"
+      :class="{ 'is-active': active === 'password' }"
+      @click="emit('navigate')"
+    >
+      <span class="sf-home-navigation__link-main">
+        <UIcon name="i-lucide-lock-keyhole" class="size-[18px]" aria-hidden="true" />
+        {{ t('localPasswordSettings.title') }}
+      </span>
+    </NuxtLink>
+    <NuxtLink
       :to="localePath('/settings/security')"
       class="sf-home-navigation__link"
       :class="{ 'is-active': active === 'security' }"
@@ -39,6 +61,17 @@ const localePath = useLocalePath()
       <span class="sf-home-navigation__link-main">
         <UIcon name="i-lucide-shield-check" class="size-[18px]" aria-hidden="true" />
         {{ t('accountSecurity.title') }}
+      </span>
+    </NuxtLink>
+    <NuxtLink
+      :to="localePath('/settings/tokens')"
+      class="sf-home-navigation__link"
+      :class="{ 'is-active': active === 'tokens' }"
+      @click="emit('navigate')"
+    >
+      <span class="sf-home-navigation__link-main">
+        <UIcon name="i-lucide-key-round" class="size-[18px]" aria-hidden="true" />
+        {{ t('accessTokensSettings.title') }}
       </span>
     </NuxtLink>
     <NuxtLink

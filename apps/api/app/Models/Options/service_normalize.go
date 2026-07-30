@@ -38,6 +38,10 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return value, isValidURL(value)
 	case NameSiteDomain:
 		return normalizeSiteDomain(value)
+	case NameSiteAboutURL:
+		return normalizeSiteAboutURL(value)
+	case NameSiteAboutOpenInNewTab:
+		return normalizeEnabledOption(value)
 	case NameSiteDefaultLocale:
 		return normalizeLocaleChoice(value, builtInLocales)
 	case NameSiteSupportedLocales:

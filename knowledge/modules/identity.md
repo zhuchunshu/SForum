@@ -10,6 +10,14 @@ helpers.
 
 Initial identity foundation is implemented.
 
+- Account settings now split login methods, local password, device sessions,
+  and personal access tokens into independent `/settings/*` routes. Personal
+  access tokens live at `/settings/tokens`, use separate Create/Manage tabs,
+  preset scope sets plus checkbox selection (no free-text scope entry), and
+  still rely on the Host API to enforce
+  `current actor permissions ∩ token scopes`. The shared tab track is
+  non-shrinking, so the long Create panel cannot collapse or clip its labels in
+  the desktop scroll column; authenticated desktop and 390x844 Browser QA pass.
 - Password recovery now has a production dual-column Host flow shared by
   `/forgot-password` and `/reset-password`. Request initiation remains
   non-enumerating, requires the `password_reset` ALTCHA purpose by default
@@ -142,8 +150,11 @@ Initial identity foundation is implemented.
   redacted external identities via `GET /auth/external-identities`; link entry
   only when Host `activatedOperations` includes `link` and session is available;
   unlink + last-login-method + session-bound recent-auth UX; inert status when
-  provider disabled; external-only local password setup via
-  `POST /auth/password`; catalog label/icon only (no Core GitHub brand).
+  provider disabled; at that milestone, external-only local password setup used
+  `POST /auth/password` from the account-security surface. Current account
+  settings have since split local password onto `/settings/password` while
+  retaining the same Host API contract. Catalog label/icon only (no Core GitHub
+  brand).
   **M4B exit complete (full M4).** **T7 / M5 (2026-07-27):** lifecycle matrix
   (restart HMAC stability, disable/uninstall/Safe Mode/ForceDrain, staged
   upgrade + new-digest activation + rollback, trust revoke, mid-flow artifact
@@ -550,8 +561,9 @@ Initial identity foundation is implemented.
   `Support/AuthSession/manager.go`（`SessionStore` 接口 + `sid` payload + revoke
   校验 + `CurrentSID`）、`Support/UserAgent`（UA/IP 解析与脱敏）。前端
   `useAccountSecurityApi` composable + `settings/security.vue` 用户页 + admin
-  settings accountSecurity tab 的 `identity.sessions.max_devices`。决策见
-  `decisions/2026-07-10-account-security-sessions.md`。
+  settings accountSecurity tab 的 `identity.sessions.max_devices`。用户页登录历史默认
+  显示，并通过 `/auth/sessions?includeHistory=true&page&perPage=10` 分页读取。
+  决策见 `decisions/2026-07-10-account-security-sessions.md`。
 - `apps/api/bootstrap/app.go` wires a runtime human-verification service that
   reads provider, ALTCHA secret, TTL, and cost from Options on each
   challenge/verify request. Environment values remain first-run fallbacks for
@@ -569,6 +581,12 @@ Initial identity foundation is implemented.
 - Registration builds and loads the returned current-user access inside the
   bootstrap transaction so response construction failures roll back account
   creation instead of leaving a created user behind a 500 response.
+- Account login methods now live on `/settings/login-methods` with Page
+  Registry ID `forum.settings.login_methods`; `/settings/security` owns device
+  sessions and login history only. External identity linking uses
+  `SFLinkedAccountsSection` with return path `/settings/login-methods`, while
+  local password and personal access tokens live on `/settings/password` and
+  `/settings/tokens`.
 - `contracts/openapi.yaml` documents the current auth and role endpoints.
 
 ## Open Questions

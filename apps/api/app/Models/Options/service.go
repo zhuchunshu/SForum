@@ -1023,6 +1023,8 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameSiteName:                            "SForum",
 		NameSiteURL:                             "http://127.0.0.1:3000",
 		NameSiteDomain:                          "127.0.0.1:3000",
+		NameSiteAboutURL:                        "",
+		NameSiteAboutOpenInNewTab:               enabledOptionValue(false),
 		NameSiteTagline:                         "",
 		NameSiteAdminEmail:                      "",
 		NameSiteDefaultLocale:                   localization.DefaultLocale,
