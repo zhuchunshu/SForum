@@ -42,7 +42,7 @@ const {
 } = useColorModePreference()
 const { can } = usePermissions()
 const notifications = useNotifications()
-const { topbarItems, mobileItems } = usePublicNavigation(props.fetchRemoteChrome)
+const { topbarItems, sidebarItems } = usePublicNavigation(props.fetchRemoteChrome)
 
 // 标签公开列表受运行时选项控制；关闭时隐藏导航入口（详情页同样 404）。
 const publicTagPagesEnabled = computed(() => parseForumTagPublicPagesOption(
@@ -58,7 +58,7 @@ function filterTagNav(href: string) {
 
 const visibleTopbarItems = computed(() => topbarItems.value
   .filter(item => !item.href || filterTagNav(item.href)))
-const visibleMobileItems = computed(() => mobileItems.value
+const visibleSidebarItems = computed(() => sidebarItems.value
   .filter(item => !item.href || filterTagNav(item.href)))
 
 // 导航栏注册入口以 registration-status 为准（含 bootstrap 覆盖）。
@@ -459,7 +459,7 @@ async function logout() {
   </header>
   <SFPublicMobileNavigation
     :open="mobileMenuOpen"
-    :items="visibleMobileItems"
+    :items="visibleSidebarItems"
     @close="mobileMenuOpen = false"
   />
 </template>

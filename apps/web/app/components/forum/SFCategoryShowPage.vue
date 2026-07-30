@@ -145,18 +145,6 @@ function topicActivity(topic: ForumTopicSummary) {
       </div>
 
       <section class="sforum-home__main sforum-content-column" aria-labelledby="category-page-title">
-        <div class="sforum-home__mobile-nav">
-          <SFHomeNavigation
-            mobile-only
-            navigation-mode="route"
-            :categories="categories"
-            :selected-category-slug="categorySlug"
-            :total-topics="totalTopics"
-            :pending="categoriesPending"
-            :can-create-topic="canCreateTopic"
-          />
-        </div>
-
         <SFRegionOutlet page="forum.category.show" region="content_before" />
 
         <SFPublicPageHeader

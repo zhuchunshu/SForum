@@ -4,6 +4,10 @@
 
 Accepted
 
+The independent `public.mobile.primary` product behavior is superseded by
+`2026-07-31-responsive-public-sidebar.md`. The identifier remains a V1
+compatibility surface until its removal gates pass.
+
 ## Date
 
 2026-07-27

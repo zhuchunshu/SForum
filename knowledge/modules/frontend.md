@@ -27,6 +27,48 @@ responsibilities.
 
 ## Active Work
 
+### Responsive public sidebar source
+
+- Desktop and mobile public left navigation now consume
+  `public.sidebar.primary`; the web runtime no longer requests or exposes a
+  separate mobile item list.
+- `SFPublicSidebarContent` owns compose behavior, ordinary links, active state,
+  dynamic category placement, counts, contextual slots, and the About entry.
+  Desktop rails and the navbar mobile drawer only provide their respective
+  containers and data-loading boundary.
+- Personalization exposes topbar, sidebar, and footer as editable locations and
+  states that mobile follows sidebar. `public.mobile.primary` remains readable
+  in V1 documents, snapshots, and imports for compatibility but is not rendered
+  or independently edited by the current product.
+
+### Mobile comment actions
+
+- `SFComment` uses a compact mobile hierarchy: author identity and the
+  `#floor`/overflow cluster share the first row, publication metadata occupies
+  the second row, and the bottom action strip retains only reply and permalink.
+- The overflow menu reuses the existing permission-filtered action array, so
+  edit, delete, report, and extension actions keep their current handlers;
+  desktop continues to render the complete inline action strip.
+- Browser QA passed on the active default-theme template at `402x905` and
+  `1280x720`, including menu expansion, zero horizontal overflow, and clean
+  console output.
+
+### Default theme topic readability
+
+- Default-theme topic pages now use a semantic 12/14/14/16px typography scale
+  for captions, metadata, controls, and reading text. Topic and comment bodies
+  render at 16px; publication metrics, comment metadata, composer guidance,
+  and right-rail navigation no longer use 10-11px text or faint color for
+  meaningful information.
+- Source-theme digest, validation, contract tests, and the focused typography
+  regression test pass. The rebuilt immutable artifact is active; Chrome
+  desktop QA confirmed the selected theme template and the expected computed
+  sizes with no console errors or warnings.
+- The mobile discussion heading keeps the desktop left-title/right-latest row
+  instead of stacking both controls vertically. At `<=640px` the default theme
+  reduces the section lead-in from 48px to 24px and uses a stable 44px heading
+  row, while Core fallback preserves the same horizontal geometry.
+
 ### Shared tab geometry
 
 - `SFTabs` tracks and items use non-shrinking flex geometry. This keeps the

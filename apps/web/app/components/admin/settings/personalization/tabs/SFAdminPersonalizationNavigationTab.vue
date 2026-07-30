@@ -16,8 +16,8 @@ import {
   cloneNavigationDocument,
   moveNavigationItem,
   navigationDocumentsEqual,
+  navigationEditorLocations,
   navigationItemsAt,
-  navigationLocations,
   removeNavigationDefinition,
   reorderNavigationLocation,
   transferNavigationItem
@@ -44,7 +44,7 @@ const locationLabelKeys: Record<SiteNavigationLocation, string> = {
   'public.mobile.primary': 'mobile',
   'public.footer.primary': 'footer'
 }
-const locationOptions = computed(() => navigationLocations.map(location => ({ value: location, label: t(`admin.navigationEditor.locations.${locationLabelKeys[location]}`) })))
+const locationOptions = computed(() => navigationEditorLocations.map(location => ({ value: location, label: t(`admin.navigationEditor.locations.${locationLabelKeys[location]}`) })))
 const sectionOptions = computed(() => [
   { id: 'navigation', label: t('admin.navigationEditor.title'), icon: 'i-lucide-menu' },
   { id: 'recovery', label: t('admin.navigationEditor.recovery.title'), icon: 'i-lucide-history' }

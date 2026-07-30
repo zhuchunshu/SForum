@@ -76,5 +76,6 @@ func NavigationRecommendedPlacements() []NavigationRecommendedPlacement {
 		{SourceKey: "core.home", Location: NavigationLocationMobile, Order: 10},
 		{SourceKey: "core.categories", Location: NavigationLocationMobile, Order: 20},
 		{SourceKey: "core.tags", Location: NavigationLocationMobile, Order: 30},
+		{SourceKey: "core.dynamic.categories", Location: NavigationLocationMobile, Order: 40},
 	}
 }

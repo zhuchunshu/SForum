@@ -15,7 +15,6 @@ type PublicNavigationState = {
 const requestedLocations = [
   PUBLIC_NAVIGATION_LOCATIONS.topbar,
   PUBLIC_NAVIGATION_LOCATIONS.sidebar,
-  PUBLIC_NAVIGATION_LOCATIONS.mobile,
   PUBLIC_NAVIGATION_LOCATIONS.footer
 ].join(',')
 
@@ -54,7 +53,6 @@ export function usePublicNavigation(enabled = true) {
       document: computed(() => state.value.document),
       topbarItems: computed(() => []),
       sidebarItems: computed(() => []),
-      mobileItems: computed(() => []),
       footerItems: computed(() => []),
       pending: readonly(ref(false)),
       failed: computed(() => false),
@@ -85,14 +83,12 @@ export function usePublicNavigation(enabled = true) {
   const document = computed(() => data.value?.document || emptyPublicNavigation())
   const topbarItems = computed(() => publicNavigationItems(document.value, PUBLIC_NAVIGATION_LOCATIONS.topbar))
   const sidebarItems = computed(() => publicNavigationItems(document.value, PUBLIC_NAVIGATION_LOCATIONS.sidebar))
-  const mobileItems = computed(() => publicNavigationItems(document.value, PUBLIC_NAVIGATION_LOCATIONS.mobile))
   const footerItems = computed(() => publicNavigationItems(document.value, PUBLIC_NAVIGATION_LOCATIONS.footer))
 
   return {
     document,
     topbarItems,
     sidebarItems,
-    mobileItems,
     footerItems,
     pending,
     failed: computed(() => data.value?.failed === true),

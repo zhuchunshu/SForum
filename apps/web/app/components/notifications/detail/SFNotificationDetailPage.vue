@@ -162,17 +162,6 @@ useHead(() => ({ title: preview.value?.topicTitle || t('notifications.detailPage
       </div>
 
       <section class="sforum-notifications__main" aria-labelledby="notification-detail-title">
-        <div class="sforum-notifications__mobile-nav">
-          <SFHomeNavigation
-            mobile-only
-            navigation-mode="route"
-            :categories="categories"
-            :total-topics="categoryTopicTotal"
-            :pending="categoryAsync.pending.value"
-            :can-create-topic="canCreateTopic"
-          />
-        </div>
-
         <SFPublicPageHeader
           class="sforum-notifications__head sforum-notification-detail__head"
           title-id="notification-detail-title"

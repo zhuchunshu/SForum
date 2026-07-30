@@ -154,6 +154,11 @@ SSR/query/permission shells.
   those overrides back to the code-owned defaults from the same edit dialog. See
   `../decisions/2026-07-27-operator-owned-public-navigation.md` and
   `../plans/2026-07-27-configurable-public-navigation-platform.md`.
+  The 2026-07-31 responsive-sidebar amendment makes
+  `public.sidebar.primary` the shared desktop/mobile product source and removes
+  the independent mobile location from the operator editor and Web request.
+  Stored `public.mobile.primary` data remains accepted but inert for V1
+  compatibility; see `../decisions/2026-07-31-responsive-public-sidebar.md`.
 
 ## Feature flags (F4.5)
 

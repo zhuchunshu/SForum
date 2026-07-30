@@ -13,10 +13,6 @@
   background: var(--sf-public-surface);
 }
 
-.sforum-moderation__mobile-nav {
-  display: none;
-}
-
 .sforum-moderation__head {
   min-height: 72px;
   display: flex;
@@ -643,11 +639,6 @@
 
   .sforum-moderation .sforum-home__sidebar {
     display: none;
-  }
-
-  .sforum-moderation__mobile-nav {
-    display: block;
-    margin-bottom: 16px;
   }
 
   .sforum-moderation .sforum-home__main {

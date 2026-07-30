@@ -978,18 +978,6 @@ async function submitReport() {
       </div>
 
       <div class="sforum-topic-page__main sforum-content-column">
-        <div class="sforum-topic-page__mobile-nav">
-          <SFHomeNavigation
-            mobile-only
-            navigation-mode="route"
-            :categories="navCategories"
-            :selected-category-slug="topic?.categorySlug || ''"
-            :total-topics="navTotalTopics"
-            :pending="categoriesPending"
-            :can-create-topic="canCreateTopic"
-          />
-        </div>
-
         <div class="sforum-topic-page__inner">
           <SFRegionOutlet page="forum.topic.show" region="content_before" />
 

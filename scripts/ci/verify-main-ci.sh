@@ -30,7 +30,7 @@ for ((attempt = 1; attempt <= MAX_ATTEMPTS; attempt++)); do
     --commit "$RELEASE_COMMIT" \
     --limit 1 \
     --json databaseId,status,conclusion,url,headSha \
-    --jq 'if length == 0 then empty else .[0] | [.databaseId, .status, (.conclusion // "pending"), .url, .headSha] | @tsv end')"
+    --jq 'if length == 0 then empty else .[0] | [.databaseId, .status, (if (.conclusion // "") == "" then "pending" else .conclusion end), .url, .headSha] | map(tostring) | join("\u001f") end')"
 
   if [[ -z "$run_data" ]]; then
     if ((attempt >= MAX_MISSING_ATTEMPTS)); then
@@ -42,7 +42,7 @@ for ((attempt = 1; attempt <= MAX_ATTEMPTS; attempt++)); do
     continue
   fi
 
-  IFS=$'\t' read -r run_id run_status run_conclusion run_url run_sha <<< "$run_data"
+  IFS=$'\x1f' read -r run_id run_status run_conclusion run_url run_sha <<< "$run_data"
   if [[ "$run_sha" != "$RELEASE_COMMIT" ]]; then
     echo "Main CI lookup returned unexpected commit $run_sha" >&2
     exit 1

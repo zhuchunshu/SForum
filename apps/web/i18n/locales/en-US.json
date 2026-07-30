@@ -2867,7 +2867,7 @@
     },
     "navigationEditor": {
       "title": "Public navigation",
-      "description": "Arrange the four public locations in one draft, then save the complete revision.",
+      "description": "Arrange the top bar, sidebar, and footer. The mobile menu follows the sidebar automatically.",
       "sectionLabel": "Navigation settings workspace",
       "revision": "Revision",
       "loadFailed": "Navigation could not be loaded.",
@@ -4660,6 +4660,7 @@
     "reply": "Reply",
     "quote": "Quote",
     "commentLink": "Link",
+    "commentMoreActions": "More reply actions",
     "commentLinkCopied": "Comment link copied",
     "replyFailed": "Reply failed, please try again.",
     "commentCooldown": "You are posting comments too quickly. Try again in {seconds}s.",

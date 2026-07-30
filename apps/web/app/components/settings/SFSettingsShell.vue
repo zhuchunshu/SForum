@@ -75,17 +75,6 @@ function closeMobileDrawers() {
       </div>
 
       <section class="sforum-settings__main sforum-content-column" :aria-labelledby="props.titleId">
-        <div class="sforum-settings__mobile-nav">
-          <SFHomeNavigation
-            mobile-only
-            navigation-mode="route"
-            :categories="categories"
-            :total-topics="categoryTopicTotal"
-            :pending="categoriesPending"
-            :can-create-topic="canCreateTopic"
-          />
-        </div>
-
         <SFPublicPageHeader
           class="sforum-settings__head"
           :title-id="props.titleId"

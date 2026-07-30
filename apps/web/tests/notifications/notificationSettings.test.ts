@@ -92,7 +92,7 @@ describe('Notification Platform V2 settings', () => {
     expect(userSettings).toContain('applyCategory')
     expect(userSettings).toContain('canOverrideNotificationPreference')
     expect(userSettings).toContain('v-if="canOverrideNotificationPreference(item)"')
-    expect(settingsStyles).toContain('.sforum-settings__mobile-nav .sf-home-navigation__select-control')
+    expect(settingsStyles).not.toContain('.sforum-settings__mobile-nav')
     expect(accountNav).toContain("localePath('/settings/notifications')")
   })
 

@@ -370,17 +370,6 @@ function isItemActive(item: QueueRecord) {
         class="sforum-home__main sforum-moderation__main sforum-content-column"
         :aria-labelledby="'moderation-page-title'"
       >
-        <div class="sforum-moderation__mobile-nav">
-          <SFHomeNavigation
-            mobile-only
-            navigation-mode="route"
-            :categories="categories"
-            :total-topics="categoryTopicTotal"
-            :pending="categoriesPending"
-            :can-create-topic="canCreateTopic"
-          />
-        </div>
-
         <SFPublicPageHeader
           class="sforum-moderation__head"
           title-id="moderation-page-title"
@@ -499,17 +488,6 @@ function isItemActive(item: QueueRecord) {
         class="sforum-home__main sforum-moderation__main sforum-moderation__main--review"
         :aria-label="t('moderation.workbench.reviewBreadcrumb')"
       >
-        <div class="sforum-moderation__mobile-nav">
-          <SFHomeNavigation
-            mobile-only
-            navigation-mode="route"
-            :categories="categories"
-            :total-topics="categoryTopicTotal"
-            :pending="categoriesPending"
-            :can-create-topic="canCreateTopic"
-          />
-        </div>
-
         <header class="sforum-moderation__head sforum-moderation__head--review">
           <div class="sforum-moderation__head-copy">
             <button type="button" class="sforum-moderation__text-button" @click="returnToQueue">

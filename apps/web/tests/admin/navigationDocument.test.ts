@@ -2,7 +2,9 @@ import { describe, expect, test } from 'bun:test'
 import type { SiteNavigationDocument } from '../../app/composables/admin/useSiteChromeApi'
 import {
   moveNavigationItem,
+  navigationEditorLocations,
   navigationItemsAt,
+  navigationLocations,
   reorderNavigationLocation,
   transferNavigationItem
 } from '../../app/utils/admin/navigationDocument'
@@ -23,6 +25,15 @@ function document(): SiteNavigationDocument {
 }
 
 describe('navigation document editor helpers', () => {
+  test('keeps legacy mobile data compatible without exposing a second editor location', () => {
+    expect(navigationLocations).toContain('public.mobile.primary')
+    expect(navigationEditorLocations).toEqual([
+      'public.topbar.primary',
+      'public.sidebar.primary',
+      'public.footer.primary'
+    ])
+  })
+
   test('reorders a location using stable ten-step positions', () => {
     const draft = document()
     reorderNavigationLocation(draft, 'public.topbar.primary', ['operator.one', 'operator.two'])

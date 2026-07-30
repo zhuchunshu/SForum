@@ -525,18 +525,6 @@ onBeforeUnmount(() => {
       </div>
 
       <section class="sforum-home__main sforum-content-column" aria-labelledby="forum-feed-title">
-        <div class="sforum-home__mobile-nav">
-          <SFHomeNavigation
-            mobile-only
-            :categories="categories"
-            :selected-category-slug="selectedCategorySlug"
-            :total-topics="totalTopics"
-            :pending="categoriesPending"
-            :can-create-topic="canCreateTopic"
-            @select-category="selectCategory"
-          />
-        </div>
-
         <SFRegionOutlet :page="registryPage" region="content_before" />
 
         <div

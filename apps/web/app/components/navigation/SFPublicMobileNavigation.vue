@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import SFPublicNavigationLinks from './SFPublicNavigationLinks.vue'
+import SFMobileSidebarContent from '~/components/forum/navigation/SFMobileSidebarContent.vue'
 import type { PublicNavigationItem } from '~/utils/navigation/publicNavigation'
 
 defineProps<{
@@ -21,7 +21,8 @@ const { t } = useI18n()
     />
     <aside
       class="sforum-mobile-drawer sforum-mobile-drawer--left sf-public-mobile-navigation"
-      data-navigation-location="public.mobile.primary"
+      data-navigation-location="public.sidebar.primary"
+      data-navigation-viewport="mobile"
     >
       <header class="sforum-mobile-drawer__head">
         <strong>{{ t('home.sidebar.drawerTitle') }}</strong>
@@ -29,7 +30,7 @@ const { t } = useI18n()
           <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
         </button>
       </header>
-      <SFPublicNavigationLinks mode="mobile" :items="items" @navigate="emit('close')" />
+      <SFMobileSidebarContent :items="items" @navigate="emit('close')" />
     </aside>
   </template>
 </template>

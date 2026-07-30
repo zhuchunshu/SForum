@@ -24,6 +24,8 @@ function source(relative: string) {
 describe('P9 joined desktop/mobile visual matrix', () => {
   it('keeps high-traffic public chrome desktop and mobile contracts', () => {
     const navbar = source('../../app/components/SFNavbar.vue')
+    const mobileNavigation = source('../../app/components/navigation/SFPublicMobileNavigation.vue')
+    const sidebarContent = source('../../app/components/forum/navigation/SFPublicSidebarContent.vue')
     const home = source('../../app/pages/index.vue')
     const widget = source('../../app/components/SFExtensionWidget.vue')
     const theme = source('../../app/components/SFThemeTemplate.vue')
@@ -33,11 +35,13 @@ describe('P9 joined desktop/mobile visual matrix', () => {
     expect(navbar).toContain('SFPublicNavigationLinks')
     expect(navbar).toContain('visibleTopbarItems')
     expect(navbar).toContain('min-height: var(--sf-public-topbar-height, 52px)')
-    // mobile shell owns a dedicated canonical public.mobile.primary drawer.
+    // Mobile keeps its drawer geometry while sharing the desktop sidebar source and renderer.
     expect(navbar).toContain('navbar__mobile-shell-button')
     expect(navbar).toContain('navbar__mobile-new-topic')
     expect(navbar).toContain('SFPublicMobileNavigation')
-    expect(navbar).toContain('visibleMobileItems')
+    expect(navbar).toContain('visibleSidebarItems')
+    expect(mobileNavigation).toContain('data-navigation-location="public.sidebar.primary"')
+    expect(sidebarContent).toContain('SFCategoryNavigationBlock')
     expect(navbar).toContain('mobileMenuOpen')
     expect(navbar).toContain('i-lucide-menu')
     expect(navbar).toContain(':aria-label="t(\'nav.openMenu\')"')

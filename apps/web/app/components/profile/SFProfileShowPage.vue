@@ -402,17 +402,6 @@ async function shareProfile() {
         </aside>
 
         <section class="sforum-home__main sf-profile-main" aria-labelledby="profile-name">
-          <div class="sforum-home__mobile-nav">
-            <SFHomeNavigation
-              :categories="navCategories"
-              :total-topics="navTotalTopics"
-              :pending="categoriesPending"
-              :can-create-topic="canCreateTopic"
-              navigation-mode="route"
-              mobile-only
-            />
-          </div>
-
           <SFRegionOutlet page="forum.profile.show" region="content_before" />
 
           <header class="sf-profile-intro">

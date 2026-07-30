@@ -2907,7 +2907,7 @@
     },
     "navigationEditor": {
       "title": "公共导航",
-      "description": "在同一份草稿中编排四个前台位置，再一次性保存完整修订。",
+      "description": "编排顶部导航、侧边栏和页脚；移动端菜单自动跟随侧边栏。",
       "sectionLabel": "导航设置工作区",
       "revision": "修订",
       "loadFailed": "导航加载失败。",
@@ -4700,6 +4700,7 @@
     "reply": "回复",
     "quote": "引用",
     "commentLink": "链接",
+    "commentMoreActions": "更多回复操作",
     "commentLinkCopied": "评论链接已复制",
     "replyFailed": "回复失败，请稍后重试。",
     "commentCooldown": "评论发布太频繁，请在 {seconds} 秒后重试。",

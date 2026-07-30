@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import {
+  isCoreDynamicCategories,
   isExternalNavigationItem,
-  renderablePublicNavigationItems,
+  isInternalNavigationItem,
   type PublicNavigationItem
 } from '~/utils/navigation/publicNavigation'
 
@@ -18,8 +19,13 @@ const emit = defineEmits<{ navigate: [] }>()
 const { t } = useI18n()
 const route = useRoute()
 const localePath = useLocalePath()
+const slots = useSlots()
 
-const safeItems = computed(() => renderablePublicNavigationItems(props.items))
+const safeItems = computed(() => props.items.filter(item =>
+  isExternalNavigationItem(item)
+  || isInternalNavigationItem(item)
+  || (Boolean(slots.dynamic) && isCoreDynamicCategories(item))
+))
 const visibleItems = computed(() => props.mode === 'topbar'
   ? safeItems.value.slice(0, props.visibleLimit)
   : safeItems.value)
@@ -60,8 +66,9 @@ const overflowActive = computed(() => overflowItems.value.some(isActive))
     :aria-label="t('nav.mainNav')"
   >
     <template v-for="item in visibleItems" :key="item.sourceKey">
+      <slot v-if="isCoreDynamicCategories(item)" name="dynamic" :item="item" />
       <a
-        v-if="item.openInNewTab || isExternalNavigationItem(item)"
+        v-else-if="item.openInNewTab || isExternalNavigationItem(item)"
         :href="itemTo(item)"
         class="sf-public-navigation-links__link"
         :class="{ 'is-active': isActive(item) }"

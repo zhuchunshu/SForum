@@ -6,6 +6,12 @@ next
 Date: 2026-07-27
 Last updated: 2026-07-29 - M6 completed with exact-artifact runtime and Browser evidence
 
+2026-07-31 product amendment: desktop and mobile left navigation now share
+`public.sidebar.primary` and one renderer. `public.mobile.primary` remains only
+as a V1 compatibility location; it is no longer requested by the public web
+runtime or exposed in the operator editor. See
+`../decisions/2026-07-31-responsive-public-sidebar.md`.
+
 Goal: let operators manage topbar, sidebar, mobile, and footer navigation with
 recommended defaults, accessible ordering, versioned backup/history, bounded
 plugin contributions, and theme-independent persistence.

@@ -253,17 +253,6 @@ onBeforeUnmount(() => stopRealtime())
       </div>
 
       <section class="sforum-notifications__main" aria-labelledby="notification-page-title">
-        <div class="sforum-notifications__mobile-nav">
-          <SFHomeNavigation
-            mobile-only
-            navigation-mode="route"
-            :categories="categories"
-            :total-topics="categoryTopicTotal"
-            :pending="categoriesPending"
-            :can-create-topic="canCreateTopic"
-          />
-        </div>
-
         <SFRegionOutlet page="forum.notifications" region="content_before" />
 
         <SFPublicPageHeader

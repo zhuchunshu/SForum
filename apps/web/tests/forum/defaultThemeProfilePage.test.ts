@@ -22,7 +22,7 @@ describe('default theme profile page B1 contract', () => {
     expect(page).toContain('<SFHomeNavigation')
     expect(page).toContain('navigation-mode="route"')
     expect(page).toContain('desktop-only')
-    expect(page).toContain('mobile-only')
+    expect(page).not.toContain('mobile-only')
     expect(page).toContain("useState<boolean>('forum-mobile-menu-open'")
     expect(page).toContain("useState<boolean>('forum-mobile-info-open'")
     expect(page).toContain('sforum-mobile-drawer sforum-mobile-drawer--left')

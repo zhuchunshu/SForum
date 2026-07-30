@@ -82,7 +82,9 @@ authoritative. Optional one-line `--notes` or multi-line `--notes-file` highligh
 are stored in the annotated tag and prepended to GitHub's generated release notes.
 GitHub verifies that the tag commit is reachable from `main`, then
 waits for the exact commit's successful `main` push CI instead of rerunning the
-same repository gate. Release builds restore both CI and release cache scopes
+same repository gate. The waiter treats GitHub's empty in-progress conclusion
+as pending and uses a non-whitespace field separator so Bash cannot collapse
+empty API fields and misread the commit SHA. Release builds restore both CI and release cache scopes
 before scan, exact-image smoke, and promotion. GitHub Release then publishes
 six Linux/macOS/Windows amd64/arm64 CLI archives, two Linux backend bundles
 whose service binaries and protected built-ins come from the scanned candidate

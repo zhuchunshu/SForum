@@ -12,6 +12,14 @@ export const navigationLocations: SiteNavigationLocation[] = [
   'public.footer.primary'
 ]
 
+// `public.mobile.primary` remains readable for V1 backup/API compatibility.
+// New operator edits use the sidebar location, which is also rendered on mobile.
+export const navigationEditorLocations: SiteNavigationLocation[] = [
+  'public.topbar.primary',
+  'public.sidebar.primary',
+  'public.footer.primary'
+]
+
 export type NavigationEditorItem = { definition: SiteNavigationDefinition, placement: SiteNavigationPlacement }
 
 export function cloneNavigationDocument(document: SiteNavigationDocument): SiteNavigationDocument {

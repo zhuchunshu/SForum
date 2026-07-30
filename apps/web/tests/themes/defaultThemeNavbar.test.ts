@@ -91,7 +91,8 @@ describe('default theme shared navbar contract', () => {
     expect(source).not.toContain('isSafePublicNavHref')
     expect(navigationComposableSource).toContain('/site/navigation?locations=')
     expect(navigationComposableSource).toContain('PUBLIC_NAVIGATION_LOCATIONS.topbar')
-    expect(navigationComposableSource).toContain('PUBLIC_NAVIGATION_LOCATIONS.mobile')
+    expect(navigationComposableSource).toContain('PUBLIC_NAVIGATION_LOCATIONS.sidebar')
+    expect(navigationComposableSource).not.toContain('PUBLIC_NAVIGATION_LOCATIONS.mobile')
     expect(navMarkup).not.toContain('/topics/new')
     expect(navMarkup).not.toContain('canCreateTopic')
     expect(navMarkup).not.toContain('热门')
@@ -175,7 +176,7 @@ describe('default theme shared navbar contract', () => {
     expect(source).not.toContain('v-if="visibleTopbarItems.length"')
   })
 
-  test('keeps mobile compose visible and uses a dedicated canonical navigation drawer', () => {
+  test('keeps mobile compose visible and renders the desktop sidebar source in the drawer', () => {
     const linkIndex = source.indexOf('class="navbar__mobile-new-topic"')
     const linkMarkup = source.slice(
       source.lastIndexOf('<NuxtLink', linkIndex),
@@ -187,11 +188,14 @@ describe('default theme shared navbar contract', () => {
     expect(linkMarkup).toContain('i-lucide-square-pen')
     expect(linkMarkup).toContain(':aria-label="t(\'nav.newTopic\')"')
     expect(source).toContain('<SFPublicMobileNavigation')
-    expect(source).toContain(':items="visibleMobileItems"')
+    expect(source).toContain(':items="visibleSidebarItems"')
+    expect(source).toContain('const { topbarItems, sidebarItems } = usePublicNavigation')
+    expect(source).not.toContain('mobileItems')
     expect(source).toContain("'public-mobile-navigation-open'")
     expect(source).not.toContain("'forum-mobile-menu-open'")
-    expect(mobileNavigationSource).toContain('data-navigation-location="public.mobile.primary"')
-    expect(mobileNavigationSource).toContain('<SFPublicNavigationLinks mode="mobile"')
+    expect(mobileNavigationSource).toContain('data-navigation-location="public.sidebar.primary"')
+    expect(mobileNavigationSource).toContain('data-navigation-viewport="mobile"')
+    expect(mobileNavigationSource).toContain('<SFMobileSidebarContent')
   })
 
   test('bounds topbar items and keeps external destinations safe', () => {

@@ -107,11 +107,27 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- Release CI readiness: current architecture, localization, static fixtures,
-  generated V3 catalogs, protected plugin versioning, and Nuxt types are aligned
-  with the release gate; build and browser verification pass, and the next
-  manual release must be `v3.0.0-alpha.3`:
-  `sessions/2026-07-30-release-ci-readiness-fix.md`
+- Responsive public sidebar: desktop and mobile now share
+  `public.sidebar.primary` plus one renderer; Personalization no longer exposes
+  an independent mobile location, while V1 mobile data remains compatible:
+  `sessions/2026-07-31-responsive-public-sidebar.md`
+- Mobile comment actions now keep reply/permalink inline, move secondary
+  actions into a floor-adjacent menu at narrow widths, and preserve the full
+  desktop action strip; active-theme Browser QA passed at `402x905` and
+  `1280x720`:
+  `sessions/2026-07-31-mobile-comment-actions.md`
+- Default-theme topic readability now uses a semantic 12/14/14/16px scale;
+  body text, publication metadata, comments, composer guidance, and the right
+  rail are larger and clearer. The mobile discussion heading now preserves the
+  desktop horizontal geometry with a compact 44px row and 24px lead-in. Source
+  tests and theme validation pass; the new immutable candidate awaits confirmed
+  local reactivation and 402px Browser evidence:
+  `sessions/2026-07-31-default-topic-readability.md`
+- Release gate repair: `v3.0.0-alpha.3` stopped before publication because the
+  main CI lacked a direct Vue SFC compiler test dependency and the release
+  waiter misparsed GitHub's empty in-progress conclusion; both are repaired,
+  and the next immutable prerelease is `v3.0.0-alpha.4`:
+  `sessions/2026-07-31-release-gate-repair.md`
 - Release pipeline artifacts: the maintainer helper returns immediately by
   default; GitHub reuses the exact main CI, publishes four multi-platform
   images, six cross-platform CLI archives, two Linux backend bundles,

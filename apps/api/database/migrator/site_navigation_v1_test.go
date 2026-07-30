@@ -22,6 +22,7 @@ import (
 const siteNavigationV1MigrationVersion = int64(202607280072)
 const siteNavigationSnapshotActorMigrationVersion = int64(202607280073)
 const siteNavigationMaterializedDefaultsMigrationVersion = int64(202607290074)
+const siteNavigationMobileCategoriesMigrationVersion = int64(202607310001)
 
 func TestSiteNavigationV1MigrationPreservesLegacyTopbarRows(t *testing.T) {
 	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
@@ -150,6 +151,67 @@ func TestSiteNavigationMaterializedDefaultsPreserveExplicitPlacements(t *testing
 	var publicRevision string
 	if err := db.QueryRowContext(ctx, `SELECT value FROM web_options WHERE name = 'site.public_surface_revision'`).Scan(&publicRevision); err != nil || publicRevision != "2" {
 		t.Fatalf("public surface revision=%q err=%v, want 2", publicRevision, err)
+	}
+}
+
+func TestSiteNavigationMobileCategoriesMigrationPreservesExistingPlacement(t *testing.T) {
+	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	if databaseURL == "" {
+		t.Skip("DATABASE_URL is required for site navigation migration integration test")
+	}
+	ctx := context.Background()
+	db, provider := openIsolatedLifecycleLeaseMigrationDB(t, ctx, databaseURL)
+	if _, err := provider.UpTo(ctx, 202607290076); err != nil {
+		t.Fatalf("migrate dynamic navigation limit schema: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `
+		INSERT INTO site_navigation_placements
+		(source_key, location, position, enabled, visibility, max_items)
+		VALUES ('core.dynamic.categories', 'public.mobile.primary', 73, FALSE, 'public', 9)
+	`); err != nil {
+		t.Fatalf("seed explicit mobile category placement: %v", err)
+	}
+
+	if _, err := provider.ApplyVersion(ctx, siteNavigationMobileCategoriesMigrationVersion, true); err != nil {
+		t.Fatalf("apply mobile category navigation migration: %v", err)
+	}
+
+	var enabled bool
+	var position, maxItems int
+	if err := db.QueryRowContext(ctx, `
+		SELECT enabled, position, max_items
+		FROM site_navigation_placements
+		WHERE source_key = 'core.dynamic.categories'
+		  AND location = 'public.mobile.primary'
+	`).Scan(&enabled, &position, &maxItems); err != nil || enabled || position != 73 || maxItems != 9 {
+		t.Fatalf("mobile category placement enabled=%t position=%d maxItems=%d err=%v", enabled, position, maxItems, err)
+	}
+}
+
+func TestSiteNavigationMobileCategoriesMigrationMaterializesDefault(t *testing.T) {
+	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	if databaseURL == "" {
+		t.Skip("DATABASE_URL is required for site navigation migration integration test")
+	}
+	ctx := context.Background()
+	db, provider := openIsolatedLifecycleLeaseMigrationDB(t, ctx, databaseURL)
+	if _, err := provider.UpTo(ctx, 202607290076); err != nil {
+		t.Fatalf("migrate dynamic navigation limit schema: %v", err)
+	}
+
+	if _, err := provider.ApplyVersion(ctx, siteNavigationMobileCategoriesMigrationVersion, true); err != nil {
+		t.Fatalf("apply mobile category navigation migration: %v", err)
+	}
+
+	var enabled bool
+	var position, maxItems int
+	if err := db.QueryRowContext(ctx, `
+		SELECT enabled, position, max_items
+		FROM site_navigation_placements
+		WHERE source_key = 'core.dynamic.categories'
+		  AND location = 'public.mobile.primary'
+	`).Scan(&enabled, &position, &maxItems); err != nil || !enabled || position != 40 || maxItems != 0 {
+		t.Fatalf("mobile category default enabled=%t position=%d maxItems=%d err=%v", enabled, position, maxItems, err)
 	}
 }
 

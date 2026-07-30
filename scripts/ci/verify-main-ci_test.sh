@@ -33,13 +33,13 @@ set -euo pipefail
 printf '%s\n' "$*" >> "$MOCK_GH_ARGS"
 case "$MOCK_GH_MODE" in
   success)
-    printf '101\tcompleted\tsuccess\thttps://example.invalid/runs/101\t%s\n' "$MOCK_RELEASE_COMMIT"
+    printf '101\037completed\037success\037https://example.invalid/runs/101\037%s\n' "$MOCK_RELEASE_COMMIT"
     ;;
   failure)
-    printf '102\tcompleted\tfailure\thttps://example.invalid/runs/102\t%s\n' "$MOCK_RELEASE_COMMIT"
+    printf '102\037completed\037failure\037https://example.invalid/runs/102\037%s\n' "$MOCK_RELEASE_COMMIT"
     ;;
   wrong-sha)
-    printf '103\tcompleted\tsuccess\thttps://example.invalid/runs/103\tffffffffffffffffffffffffffffffffffffffff\n'
+    printf '103\037completed\037success\037https://example.invalid/runs/103\037ffffffffffffffffffffffffffffffffffffffff\n'
     ;;
   wait-success)
     count=0
@@ -47,9 +47,9 @@ case "$MOCK_GH_MODE" in
     count=$((count + 1))
     printf '%s\n' "$count" > "$MOCK_GH_COUNT"
     if ((count == 1)); then
-      printf '104\tin_progress\tpending\thttps://example.invalid/runs/104\t%s\n' "$MOCK_RELEASE_COMMIT"
+      printf '104\037in_progress\037\037https://example.invalid/runs/104\037%s\n' "$MOCK_RELEASE_COMMIT"
     else
-      printf '104\tcompleted\tsuccess\thttps://example.invalid/runs/104\t%s\n' "$MOCK_RELEASE_COMMIT"
+      printf '104\037completed\037success\037https://example.invalid/runs/104\037%s\n' "$MOCK_RELEASE_COMMIT"
     fi
     ;;
   missing)

@@ -24,6 +24,13 @@ type CommentAction = {
   icon?: string
 }
 
+type CommentMenuEntry = {
+  label: string
+  icon?: string
+  color?: 'error'
+  onSelect: (event: Event) => void
+}
+
 const props = withDefaults(defineProps<{
   // 当前评论节点同时承载内联编辑器匹配和 tree 模式的递归数据。
   comment?: ForumComment
@@ -84,6 +91,13 @@ const { t } = useI18n()
 // 后端已用 bluemonday sanitize，前端可直接 v-html 渲染。
 const showHtml = computed(() => Boolean(props.htmlContent))
 const displayFloorLabel = computed(() => props.floorLabel?.trim() || '')
+const secondaryActions = computed(() => props.actions.filter(actionItem => !isPrimaryAction(actionItem)))
+const mobileMenuItems = computed<CommentMenuEntry[][]>(() => [secondaryActions.value.map(actionItem => ({
+  label: actionItem.label,
+  icon: actionItem.icon,
+  color: actionItem.value === 'delete' ? 'error' : undefined,
+  onSelect: () => onAction(actionItem)
+}))])
 // 楼主徽标：仅详情页传入 opUserId 且评论节点作者匹配时显示。
 const isOpAuthor = computed(() =>
   props.opUserId != null && props.comment?.authorUserId === props.opUserId
@@ -169,6 +183,10 @@ function onAction(actionItem: CommentAction) {
   if (props.comment) {
     emit('actionComment', props.comment, actionItem.value)
   }
+}
+
+function isPrimaryAction(actionItem: CommentAction) {
+  return actionItem.value === 'reply' || actionItem.value === 'link'
 }
 
 function childAuthorName(comment: ForumComment) {
@@ -284,15 +302,31 @@ const InlineEditorHost = () => {
           <span v-else class="sf-comment__author">{{ author }}</span>
           <span v-if="isOpAuthor" class="sf-comment__op-badge">{{ t('topicDetail.opBadge') }}</span>
           <!-- 时间与楼层合并为头部右侧的 meta 组；楼层保留 .sf-comment__floor 类与 #N 文本供进度条读取 -->
-          <span v-if="meta || (comment && displayFloorLabel)" class="sf-comment__meta-group">
+          <span v-if="meta || (comment && displayFloorLabel) || secondaryActions.length" class="sf-comment__meta-group">
             <span v-if="meta" class="sf-comment__meta">{{ meta }}</span>
             <span v-if="meta && comment && displayFloorLabel" class="sf-comment__meta-dot" aria-hidden="true" />
-            <a
-              v-if="comment && displayFloorLabel"
-              class="sf-comment__floor"
-              :href="`#comment-${comment.id}`"
-              :aria-label="displayFloorLabel"
-            >{{ displayFloorLabel }}</a>
+            <span class="sf-comment__floor-actions">
+              <a
+                v-if="comment && displayFloorLabel"
+                class="sf-comment__floor"
+                :href="`#comment-${comment.id}`"
+                :aria-label="displayFloorLabel"
+              >{{ displayFloorLabel }}</a>
+              <UDropdownMenu
+                v-if="secondaryActions.length"
+                :items="mobileMenuItems"
+                :content="{ align: 'end' }"
+              >
+                <button
+                  type="button"
+                  class="sf-comment__mobile-actions"
+                  :aria-label="t('topicDetail.commentMoreActions')"
+                  :title="t('topicDetail.commentMoreActions')"
+                >
+                  <UIcon name="i-lucide-ellipsis" class="size-4" aria-hidden="true" />
+                </button>
+              </UDropdownMenu>
+            </span>
           </span>
         </header>
 
@@ -339,6 +373,7 @@ const InlineEditorHost = () => {
             :key="actionItem.value"
             type="button"
             class="sf-comment__action"
+            :class="{ 'sf-comment__action--secondary': !isPrimaryAction(actionItem) }"
             @click="onAction(actionItem)"
           >
             <UIcon v-if="actionItem.icon" :name="actionItem.icon" class="size-3.5" aria-hidden="true" />

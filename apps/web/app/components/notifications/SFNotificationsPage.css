@@ -38,10 +38,6 @@
   padding: 0;
 }
 
-.sforum-notifications__mobile-nav {
-  display: none;
-}
-
 .sforum-notifications__head {
   min-height: 72px;
   display: flex;
@@ -609,23 +605,6 @@
 
   .sforum-notifications__sidebar {
     display: none;
-  }
-
-  .sforum-notifications__mobile-nav {
-    display: block;
-    margin-bottom: 16px;
-  }
-
-  .sforum-notifications__mobile-nav :deep(.sf-home-navigation__select-wrap) {
-    width: 100%;
-    min-width: 0;
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .sforum-notifications__mobile-nav :deep(.sf-home-navigation__select-label),
-  .sforum-notifications__mobile-nav :deep(.sf-home-navigation__select-control) {
-    width: 100%;
-    min-width: 0;
   }
 
   .sforum-notifications__main {

@@ -17,9 +17,13 @@ import {
 
 const source = (relative: string) => readFileSync(new URL(relative, import.meta.url), 'utf8')
 const composableSource = source('../../app/composables/navigation/usePublicNavigation.ts')
+const navbarSource = source('../../app/components/SFNavbar.vue')
 const linksSource = source('../../app/components/navigation/SFPublicNavigationLinks.vue')
 const mobileSource = source('../../app/components/navigation/SFPublicMobileNavigation.vue')
 const sidebarSource = source('../../app/components/forum/SFHomeNavigation.vue')
+const sidebarContentSource = source('../../app/components/forum/navigation/SFPublicSidebarContent.vue')
+const categoryBlockSource = source('../../app/components/forum/navigation/SFCategoryNavigationBlock.vue')
+const mobileSidebarSource = source('../../app/components/forum/navigation/SFMobileSidebarContent.vue')
 const footerSource = source('../../app/components/SFFooter.vue')
 
 function item(overrides: Partial<PublicNavigationItem> = {}): PublicNavigationItem {
@@ -123,12 +127,12 @@ describe('public navigation document utilities', () => {
 })
 
 describe('public navigation fetch and renderer contracts', () => {
-  test('uses one canonical request for all four public locations', () => {
+  test('uses one canonical request for the three rendered public locations', () => {
     expect(composableSource.match(/request<PublicNavigationDocument>/g)?.length).toBe(1)
     expect(composableSource).toContain('`/site/navigation?locations=${encodeURIComponent(requestedLocations)}`')
     expect(composableSource).toContain('PUBLIC_NAVIGATION_LOCATIONS.topbar')
     expect(composableSource).toContain('PUBLIC_NAVIGATION_LOCATIONS.sidebar')
-    expect(composableSource).toContain('PUBLIC_NAVIGATION_LOCATIONS.mobile')
+    expect(composableSource).not.toContain('PUBLIC_NAVIGATION_LOCATIONS.mobile')
     expect(composableSource).toContain('PUBLIC_NAVIGATION_LOCATIONS.footer')
     expect(composableSource).toContain('const sidebarItems = computed')
     expect(composableSource).toContain('const footerItems = computed')
@@ -152,7 +156,6 @@ describe('public navigation fetch and renderer contracts', () => {
     expect(disabledBranch).toContain('return {')
     expect(disabledBranch).toContain('topbarItems: computed(() => [])')
     expect(disabledBranch).toContain('sidebarItems: computed(() => [])')
-    expect(disabledBranch).toContain('mobileItems: computed(() => [])')
     expect(disabledBranch).toContain('footerItems: computed(() => [])')
     expect(disabledBranch).not.toContain('request<PublicNavigationDocument>')
   })
@@ -173,46 +176,54 @@ describe('public navigation fetch and renderer contracts', () => {
     expect(linksSource).toContain('rel="noopener noreferrer"')
   })
 
-  test('renders mobile from its own location without the topbar limit', () => {
+  test('renders the sidebar links and dynamic categories in the mobile drawer', () => {
     expect(linksSource).toContain("props.mode === 'topbar'")
     expect(linksSource).toContain(':class="`sf-public-navigation-links--${mode}`"')
-    expect(mobileSource).toContain('data-navigation-location="public.mobile.primary"')
-    expect(mobileSource).toContain('<SFPublicNavigationLinks mode="mobile"')
+    expect(navbarSource).toContain('const { topbarItems, sidebarItems } = usePublicNavigation')
+    expect(navbarSource).toContain(':items="visibleSidebarItems"')
+    expect(navbarSource).not.toContain('mobileItems')
+    expect(mobileSource).toContain('data-navigation-location="public.sidebar.primary"')
+    expect(mobileSource).toContain('data-navigation-viewport="mobile"')
+    expect(mobileSource).toContain('<SFMobileSidebarContent')
     expect(mobileSource).toContain('@navigate="emit(\'close\')"')
+    expect(mobileSidebarSource).toContain("forumApi.listCategoryGroups({ serverInternal: false })")
+    expect(mobileSidebarSource).toContain('<SFPublicSidebarContent')
+    expect(sidebarSource).toContain('<SFPublicSidebarContent')
   })
 
   test('renders sidebar links and the bounded category block in resolver order', () => {
     expect(sidebarSource).toContain('const { sidebarItems } = usePublicNavigation()')
-    expect(sidebarSource).toContain('v-for="item in resolvedSidebarItems"')
-    expect(sidebarSource).toContain('v-if="isCoreDynamicCategories(item)"')
-    expect(sidebarSource.indexOf('v-for="item in resolvedSidebarItems"')).toBeLessThan(
-      sidebarSource.indexOf('v-if="isCoreDynamicCategories(item)"')
+    expect(sidebarContentSource).toContain('v-for="item in resolvedItems"')
+    expect(sidebarContentSource).toContain('v-if="isCoreDynamicCategories(item)"')
+    expect(sidebarContentSource.indexOf('v-for="item in resolvedItems"')).toBeLessThan(
+      sidebarContentSource.indexOf('v-if="isCoreDynamicCategories(item)"')
     )
-    expect(sidebarSource).toContain("navigationMode?: 'filter' | 'route'")
-    expect(sidebarSource).toContain("emit('select-category', slug)")
-    expect(sidebarSource).toContain('void router.push(slug ? categoryTo(slug) : allTopicsTo())')
-    expect(sidebarSource).toContain("return 'i-lucide-folder'")
-    expect(sidebarSource).toContain('category.topicCount')
-    expect(sidebarSource).toContain("selectedCategorySlug === category.slug")
-    expect(sidebarSource).toContain('const visibleCategories = computed')
-    expect(sidebarSource).toContain('dynamicCategoryItem.value?.maxItems')
-    expect(sidebarSource).toContain('limitDynamicNavigationItems(props.categories')
-    expect(sidebarSource).toContain('v-for="category in visibleCategories"')
-    expect(sidebarSource).toContain('const hasHiddenCategories = computed')
-    expect(sidebarSource).toContain("t('home.sidebar.viewAllCategories')")
-    expect(sidebarSource).toContain(':to="localePath(\'/categories\')"')
+    expect(sidebarContentSource).toContain("navigationMode?: 'filter' | 'route'")
+    expect(sidebarContentSource).toContain("emit('select-category', slug)")
+    expect(sidebarContentSource).toContain('void router.push(slug ? categoryTo(slug) : allTopicsTo())')
+    expect(sidebarContentSource).toContain('<SFCategoryNavigationBlock')
+    expect(sidebarContentSource).toContain(':max-items="item.maxItems"')
+    expect(categoryBlockSource).toContain("return icon.startsWith('i-') ? icon : 'i-lucide-folder'")
+    expect(categoryBlockSource).toContain('category.topicCount')
+    expect(categoryBlockSource).toContain("selectedCategorySlug === category.slug")
+    expect(categoryBlockSource).toContain('const visibleCategories = computed')
+    expect(categoryBlockSource).toContain('limitDynamicNavigationItems(')
+    expect(categoryBlockSource).toContain('v-for="category in visibleCategories"')
+    expect(categoryBlockSource).toContain('const hasHiddenCategories = computed')
+    expect(categoryBlockSource).toContain("t('home.sidebar.viewAllCategories')")
+    expect(categoryBlockSource).toContain(':to="localePath(\'/categories\')"')
   })
 
   test('fails the dynamic category block closed without hiding ordinary sidebar links', () => {
-    expect(sidebarSource).toContain('if (isCoreDynamicCategories(item)) return props.showCategories')
-    expect(sidebarSource).toContain('return Boolean(item.label.trim()) && (isExternalNavigationItem(item) || isInternalNavigationItem(item))')
-    expect(sidebarSource).toContain('props.showCategories && Boolean(dynamicCategoryItem.value)')
-    expect(sidebarSource).toContain('v-if="!desktopOnly && hasDynamicCategories"')
-    expect(sidebarSource).not.toContain("t('home.sidebar.guidelines')")
+    expect(sidebarContentSource).toContain('if (isCoreDynamicCategories(item)) return props.showCategories')
+    expect(sidebarContentSource).toContain('return Boolean(item.label.trim()) && (isExternalNavigationItem(item) || isInternalNavigationItem(item))')
+    expect(sidebarSource).toContain('v-if="!mobileOnly"')
+    expect(sidebarSource).not.toContain('sf-home-navigation__select')
+    expect(sidebarContentSource).not.toContain("t('home.sidebar.guidelines')")
   })
 
   test('isolates external sidebar and footer destinations from the opener', () => {
-    for (const renderer of [sidebarSource, linksSource, footerSource]) {
+    for (const renderer of [sidebarContentSource, linksSource, footerSource]) {
       expect(renderer).toContain('target="_blank"')
       expect(renderer).toContain('rel="noopener noreferrer"')
     }

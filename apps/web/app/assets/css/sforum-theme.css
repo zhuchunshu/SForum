@@ -606,10 +606,6 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
     background: transparent;
   }
 
-  .sforum-home__mobile-nav,
-  .sforum-topic-page__mobile-nav {
-    display: none;
-  }
 }
 
 /* 默认主题的 Navbar 与页面是兄弟节点，必须从模板根节点限定作用域。

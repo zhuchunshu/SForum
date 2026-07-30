@@ -18,6 +18,14 @@ const homeNavigation = () => readFileSync(
   new URL('../../app/components/forum/SFHomeNavigation.vue', import.meta.url),
   'utf8'
 )
+const publicSidebarContent = () => readFileSync(
+  new URL('../../app/components/forum/navigation/SFPublicSidebarContent.vue', import.meta.url),
+  'utf8'
+)
+const categoryNavigationBlock = () => readFileSync(
+  new URL('../../app/components/forum/navigation/SFCategoryNavigationBlock.vue', import.meta.url),
+  'utf8'
+)
 const categoriesRoute = () => readFileSync(
   new URL('../../app/pages/categories/index.vue', import.meta.url),
   'utf8'
@@ -151,11 +159,13 @@ describe('public taxonomy list pages (T02 + C04)', () => {
   })
 
   test('shared home navigation highlights taxonomy routes in route mode', () => {
-    const source = homeNavigation()
+    expect(homeNavigation()).toContain('<SFPublicSidebarContent')
+    const source = publicSidebarContent()
+    const categorySource = categoryNavigationBlock()
     expect(source).toContain("const target = String(navigationItemTo(item)).split('?')[0]")
     expect(source).toContain('routePath.value === target || routePath.value.startsWith(`${target}/`)')
     expect(source).toContain("if (item.sourceKey === 'core.home') return allTopicsActive.value")
-    expect(source).toContain("selectedCategorySlug === category.slug")
+    expect(categorySource).toContain("selectedCategorySlug === category.slug")
     expect(source).toContain("void router.push(slug ? categoryTo(slug) : allTopicsTo())")
     expect(homeCss()).toContain('.sf-home-navigation__foot')
     expect(homeCss()).toContain('.sf-home-navigation__foot a')

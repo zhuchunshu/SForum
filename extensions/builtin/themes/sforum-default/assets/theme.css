@@ -487,10 +487,6 @@
   color: var(--sf-public-text);
 }
 
-.sforum-home__mobile-nav {
-  display: none;
-}
-
 .sforum-home__page-header {
   margin-bottom: 14px;
 }
@@ -634,52 +630,6 @@
 .sf-home-navigation__cat-icon svg {
   width: 18px;
   height: 18px;
-}
-
-.sf-home-navigation__mobile {
-  display: none;
-  margin-bottom: 12px;
-}
-
-.sf-home-navigation__select-wrap {
-  display: grid;
-  gap: 6px;
-}
-
-.sf-home-navigation__select-label {
-  color: var(--sf-public-text-muted);
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
-.sf-home-navigation__select-control {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 40px;
-  border: 1px solid var(--sf-public-border);
-  border-radius: 8px;
-  padding: 0 10px;
-  background: var(--sf-public-surface);
-}
-
-.sf-home-navigation__select {
-  flex: 1;
-  min-width: 0;
-  appearance: none;
-  border: 0;
-  background: transparent;
-  color: var(--sf-public-text);
-  font-size: 0.875rem;
-  font-weight: 650;
-  outline: 0;
-}
-
-.sf-home-navigation__select-control > svg:last-child {
-  width: 16px;
-  color: var(--sf-public-text-muted);
-  pointer-events: none;
 }
 
 .sf-home-navigation__desktop {
@@ -1200,16 +1150,6 @@
     color: var(--sf-public-text-secondary);
   }
 
-  .sf-home-navigation__mobile {
-    display: block;
-  }
-
-  /* 小屏主列顶部仍需类别选择：由页面把 mobile nav 放进 main */
-  .sforum-home__mobile-nav {
-    display: block;
-    margin-bottom: 12px;
-  }
-
   .sforum-home__topic-head,
 
   .sforum-home__topic-head > :nth-child(2),
@@ -1300,11 +1240,6 @@
 .sforum-topic-page__main {
   min-width: 0;
   padding: 12px 16px 40px;
-}
-
-.sforum-topic-page__mobile-nav {
-  display: none;
-  margin-bottom: 12px;
 }
 
 .sforum-topic-page__inner {
@@ -1950,10 +1885,6 @@
     display: none;
   }
 
-  .sforum-topic-page__mobile-nav {
-    display: block;
-  }
-
   .sforum-topic-page__mobile-reply {
     display: inline-flex;
     min-height: 36px;
@@ -1990,8 +1921,8 @@
   }
 
   .sf-comment-stream-controls {
-    align-items: flex-start;
-    flex-direction: column;
+    align-items: center;
+    flex-direction: row;
   }
 
   .sforum-topic-comments__error {

@@ -32,13 +32,13 @@ func TestNavigationV1ContractIsFrozen(t *testing.T) {
 		t.Fatalf("unexpected navigation preview vocabulary: %q %q %q", NavigationPreviewChangeLocation, NavigationPreviewChangeDefinitions, NavigationPreviewWarningExtensionReferenceInert)
 	}
 	defaults := NavigationRecommendedPlacements()
-	if len(defaults) != 10 {
-		t.Fatalf("recommended placement count = %d, want 10", len(defaults))
+	if len(defaults) != 11 {
+		t.Fatalf("recommended placement count = %d, want 11", len(defaults))
 	}
 	wantByLocation := map[string]int{
 		NavigationLocationTopbar:  3,
 		NavigationLocationSidebar: 4,
-		NavigationLocationMobile:  3,
+		NavigationLocationMobile:  4,
 		NavigationLocationFooter:  0,
 	}
 	for _, location := range locations {
@@ -56,13 +56,13 @@ func TestNavigationV1ContractIsFrozen(t *testing.T) {
 
 func TestNavigationDynamicItemLimitIsBoundedAndSourceSpecific(t *testing.T) {
 	valid := NavigationDocument{Placements: []NavigationPlacement{{
-		SourceKey: "core.dynamic.categories", Location: NavigationLocationSidebar, Order: 40,
+		SourceKey: "core.dynamic.categories", Location: NavigationLocationMobile, Order: 40,
 		Enabled: true, Visibility: NavigationVisibilityPublic, MaxItems: 12,
 	}}}
 	if normalized, err := normalizeNavigationDocument(valid); err != nil || normalized.Placements[0].MaxItems != 12 {
 		t.Fatalf("valid dynamic item limit normalized=%#v err=%v", normalized, err)
 	}
-	restored := navigationDefaultsDocument(valid, []string{NavigationLocationSidebar})
+	restored := navigationDefaultsDocument(valid, []string{NavigationLocationMobile})
 	foundDynamic := false
 	for _, placement := range restored.Placements {
 		if placement.SourceKey == "core.dynamic.categories" {
@@ -73,7 +73,7 @@ func TestNavigationDynamicItemLimitIsBoundedAndSourceSpecific(t *testing.T) {
 		}
 	}
 	if !foundDynamic {
-		t.Fatal("recommended sidebar defaults omitted dynamic categories")
+		t.Fatal("recommended mobile defaults omitted dynamic categories")
 	}
 	for _, invalid := range []NavigationPlacement{
 		{SourceKey: "core.dynamic.categories", Location: NavigationLocationSidebar, Order: 40, Enabled: true, Visibility: NavigationVisibilityPublic, MaxItems: NavigationMaxDynamicItems + 1},

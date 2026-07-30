@@ -42,6 +42,11 @@ accepted revisions, lifecycle states, public read models, and forum policy.
   before navigation. The card reads the existing public profile contract,
   exposes only real topic/comment counts and profile data, and keeps the
   canonical `/u/:username` navigation inside the card.
+- Comment actions keep the full authorized set on desktop. At `640px` and
+  below, reply and permalink stay inline while edit, delete, report, and
+  extension actions move into an accessible menu beside the public floor
+  number. This is presentation-only; existing API authorization and action
+  dispatch remain authoritative.
 - Default-theme topic creation now has a production UI shell that reuses the
   existing create-topic API, category/tag policy, content limits, permission
   check (`topic.create`), `SFEditor`, field errors, Toast feedback, successful
