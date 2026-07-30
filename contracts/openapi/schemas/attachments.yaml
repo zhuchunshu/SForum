@@ -388,7 +388,7 @@ AttachmentLocalSettings:
       - storage/app/attachments
     publicPrefix:
       type: string
-      description: Optional public URL prefix for locally stored objects.
+      description: Advanced optional public URL prefix for permanently public local assets when an external web server or CDN maps the local object tree. Authorized post attachments do not use this prefix.
 AttachmentProbe:
   type: object
   required:

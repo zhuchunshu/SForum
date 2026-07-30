@@ -34,6 +34,7 @@ watch(() => props.comment, () => {
 })
 
 async function save(payload: SFEditorContentPayload) {
+  if (payload.pendingUploadCount > 0) return
   const reason = props.reason.trim()
   if (props.requireReason && !reason) {
     fieldErrors.value = { reason: [t('admin.forum.content.reasonRequired')] }

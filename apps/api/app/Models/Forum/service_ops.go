@@ -402,7 +402,7 @@ func (s *Service) UpdateComment(ctx context.Context, actor identity.Actor, input
 		RestoredFromRevisionNo:      input.RestoredFromRevisionNo,
 		HistoricalAttachmentOwnerID: input.HistoricalAttachmentOwnerID,
 	}
-	attachmentIDs, submitted, err := normalizeContentAttachmentIDs(input.Content.AttachmentIDs)
+	attachmentIDs, submitted, err := normalizeAndValidateContentAttachmentIDs(content, input.Content.AttachmentIDs)
 	if err != nil {
 		return Comment{}, err
 	}

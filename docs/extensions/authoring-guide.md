@@ -620,27 +620,20 @@ Rules demonstrated by this package:
 
 See package `README.md` for the full operator path.
 
-## Reference 4 — Host API fixture (`sforum.contract.hostapi`)
+## Reference 4 — Host API v2 fixtures
 
-Path: `extensions/fixtures/plugins/sforum-contract-hostapi/`
+Use the focused Protocol V2 reference that matches the Host-owned capability
+you need:
 
-Use this package when you need **Host API + events** without a product vertical:
-
-| Area | What the fixture does |
+| Package | What it proves |
 | --- | --- |
-| Capabilities | Explicit `host.api`, `settings.own`, `jobs.enqueue` |
-| Events | Declares `topic.created` (observe) and `topic.before_create` (filter) |
-| Jobs | Declares `sforum.contract.hostapi.demo` so `EnqueueOwnJob` can be authorized |
-| Backend | SDK `Serve` + `HostFromEnv` / `Ping` inside `Health` when env is present |
+| `extensions/fixtures/plugins/sforum-notification-reference/` | Typed `EmitNotification` through the runtime-scoped Host broker |
+| `extensions/fixtures/plugins/sforum-query-reference/` | Query Registry invocation and result filtering through Protocol V2 |
+| `extensions/fixtures/plugins/sforum-commerce-workflow/` | Joined hooks, jobs, services, database operations, and lifecycle behavior |
 
-```go
-// Health pings the host when SFORUM_HOST_API_* is injected.
-host, _ := pluginsdk.HostFromEnv()
-resp, _ := pluginsdk.Ping(ctx, host)
-```
-
-CI builds this binary and starts it through the real protocol starter so
-handshake + Host API + hooks stay green (`go test ./sdk/plugin`).
+CI builds these packages and starts them through the real Protocol V2 starter.
+The removed `sforum.contract.hostapi` package was a Protocol V1 ping fixture and
+must not be used as an authoring reference.
 
 Related fixtures:
 

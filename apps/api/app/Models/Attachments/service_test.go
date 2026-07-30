@@ -59,7 +59,7 @@ func TestServiceUploadStoresObjectAndMetadata(t *testing.T) {
 	if adapter.putKey != created.ObjectKey || adapter.putBody != "hello" {
 		t.Fatalf("object was not written through adapter: key=%q body=%q", adapter.putKey, adapter.putBody)
 	}
-	if item.URL != contentURLPath(item.PublicID) {
+	if item.URL != mediaAttachmentURLPath(item.PublicID) {
 		t.Fatalf("unreferenced upload must use authorized proxy URL, got %q", item.URL)
 	}
 }

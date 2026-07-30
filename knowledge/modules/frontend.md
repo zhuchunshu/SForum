@@ -676,6 +676,15 @@ Architecture sources:
   while the historical `sforumEmoji` node remains admitted so old editor
   documents still load. Trusted digest-verified L2 extensions keep the existing
   fail-closed loading path.
+- The image command opens a multi-image file picker, and image drag-and-drop
+  uploads at the exact drop position. Both paths reuse the attachment upload
+  policy and place a mapped ProseMirror decoration before starting async work,
+  so later edits do not move the insertion point. Pending uploads block submit;
+  success and persistent failure feedback follow the shared Toast contract.
+- Uploaded native image nodes retain `attachmentId` and
+  `attachmentPublicId` as non-rendered attributes. Editor payloads deduplicate
+  those IDs into `content.attachmentIds`, while rendered `src` values use the
+  stable `/media/attachments/{publicId}` route instead of exposing `/api/v1`.
 - The production toolbar deliberately has no sticker command yet. It must be
   added with the Host-owned catalog and immutable `sforumSticker` node rather
   than inserting a generic image or bundling a client-only pack.

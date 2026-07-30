@@ -31,8 +31,19 @@ export function useTopicCommentSubmission(options: TopicCommentSubmissionOptions
   } = useForumCooldownError('comment')
   const replyDisplayError = computed(() => commentCooldownMessage.value || replyError.value)
 
-  async function submitReply(payload?: { markdown?: string; native?: unknown; text?: string }) {
-    if (!options.topic.value || replySubmitting.value || commentCooldownActive.value) return
+  async function submitReply(payload?: {
+    markdown?: string
+    native?: unknown
+    text?: string
+    attachmentIds?: number[]
+    pendingUploadCount?: number
+  }) {
+    if (
+      !options.topic.value
+      || replySubmitting.value
+      || commentCooldownActive.value
+      || (payload?.pendingUploadCount || 0) > 0
+    ) return
     const markdown = payload?.markdown ?? replyMarkdown.value
     if (!(payload?.text || markdown).trim()) return
 
@@ -42,7 +53,12 @@ export function useTopicCommentSubmission(options: TopicCommentSubmissionOptions
     try {
       const created = await forumApi.createTopicComment(
         options.topic.value.id,
-        forumContentFromEditorPayload({ markdown, native: payload?.native, text: payload?.text }),
+        forumContentFromEditorPayload({
+          markdown,
+          native: payload?.native,
+          text: payload?.text,
+          attachmentIds: payload?.attachmentIds
+        }),
         options.replyParentId?.value ?? options.replyingTo.value?.id
       )
       replyMarkdown.value = ''

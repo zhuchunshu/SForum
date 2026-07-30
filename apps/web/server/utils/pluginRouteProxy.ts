@@ -29,6 +29,7 @@ export function isHostReservedPath(pathname: string) {
     || pathname === '/_sforum' || pathname.startsWith('/_sforum/')
     || pathname === '/_nuxt' || pathname.startsWith('/_nuxt/')
     || pathname === '/media/avatars' || pathname.startsWith('/media/avatars/')
+    || pathname === '/media/attachments' || pathname.startsWith('/media/attachments/')
 }
 
 export function buildPluginRouteTarget(apiBaseURL: string, requestURL: URL) {

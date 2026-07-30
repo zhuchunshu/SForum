@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "nuxt dev --host 0.0.0.0 --dotenv ../../.env",
     "build": "NUXT_BUILD_DIR=${NUXT_BUILD_DIR:-.nuxt-build} nuxt build",
+    "postinstall": "nuxt prepare",
     "preview": "HOST=0.0.0.0 bun --env-file=../../.env scripts/preview.mjs",
     "typecheck": "NUXT_BUILD_DIR=${NUXT_BUILD_DIR:-.nuxt-typecheck} nuxt prepare && vue-tsc --noEmit -p ${NUXT_BUILD_DIR:-.nuxt-typecheck}/tsconfig.json",
     "start": "node .output/server/index.mjs"
@@ -27,11 +28,14 @@
     "@sforum/admin-sdk": "workspace:*",
     "@tiptap/core": "^3.27.1",
     "@tiptap/extension-character-count": "^3.27.1",
+    "@tiptap/extension-file-handler": "3.27.1",
     "@tiptap/extension-image": "^3.27.1",
     "@tiptap/extension-link": "^3.27.1",
     "@tiptap/extension-placeholder": "^3.27.1",
+    "@tiptap/extension-text-style": "3.27.1",
     "@tiptap/extension-underline": "^3.27.1",
     "@tiptap/markdown": "^3.27.1",
+    "@tiptap/pm": "3.27.1",
     "@tiptap/starter-kit": "^3.27.1",
     "@tiptap/vue-3": "^3.27.1",
     "altcha": "^3.1.0",

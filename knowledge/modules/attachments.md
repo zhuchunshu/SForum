@@ -52,6 +52,11 @@ Attachment system foundation is implemented.
   URL. Missing, stale, disabled, unreadable, or unprofitable variants fall back
   to the immutable original; explicit site-public CDN assets keep their direct
   provider URL.
+- Forum editor image uploads return the stable browser-facing
+  `/media/attachments/{publicId}` URL. Nuxt proxies this alias, including the
+  current session, to the authorized `display` variant endpoint; the API keeps
+  variant-to-original fallback authoritative. Historical `/api/v1` attachment
+  content URLs remain accepted when existing editor documents are loaded.
 - The stable `core.component.page.admin.attachments` Admin Surface placement is
   mapped to Attachment Management so existing governance extensions continue
   to render after the route split.
@@ -184,6 +189,10 @@ local provider filesystem root.
 - Admins with `attachment.settings.manage` can configure the local root, object
   path templates, and public URL prefixes. The API rejects empty paths,
   traversal segments, control characters, and angle brackets.
+- `attachment.local.public_prefix` is an advanced static-direct-link option,
+  not a required local-storage setting. Its recommended default is empty. Set
+  it only when Caddy, Nginx, or a CDN already maps a public URL to the local
+  object tree; authorized forum media never uses this prefix.
 - Secret options are masked in admin responses. Blank secret updates keep the
   existing value.
 - Public web options expose only upload knobs needed by the frontend:
@@ -202,6 +211,7 @@ Important runtime options:
 - `attachment.default_visibility`
 - `attachment.cleanup_orphan_after_days`
 - `attachment.local.root`
+- `attachment.local.public_prefix`
 - `attachment.compression.enabled`
 - `attachment.compression.strength`
 - `attachment.compression.max_dimension`
@@ -276,10 +286,19 @@ upload and presigned upload credentials are intentionally deferred.
   `/media/avatars/{publicId}` route. Nuxt proxies it without request
   credentials to the authoritative attachment content endpoint; only a
   backend-authorized anonymous `200` receives immutable public caching.
-- Forum topic/comment content now submits explicit `content.attachmentIds`.
-  The forum write transaction validates active public attachments owned by the
-  editor, replaces references, and updates `reference_count`; topic/comment
-  deletion clears the corresponding references.
+- Forum editor images use the existing upload API and policy, including RBAC,
+  effective size caps, type allow-lists, selected storage provider, and image
+  compression. Topic/comment content submits explicit
+  `content.attachmentIds`; the native image node also stores the matching
+  attachment ID and public ID. The API validates that the node URL identity and
+  reference list agree before the forum transaction replaces references and
+  updates `reference_count`.
+- Cross-author edits may retain attachments already referenced by that same
+  topic/comment, but cannot bind another user's unrelated attachment. Deleting
+  a topic/comment clears its references. Active uploads that never become
+  referenced are eligible for the same retention-based orphan cleanup as
+  explicitly deleted attachments; migration
+  `202607310003_attachment_active_orphan_cleanup.sql` indexes this path.
 - Forum content revisions V1 can expose historical attachment ID summaries
   through authorized revision detail reads. Revision rows store IDs only, never
   bytes, URLs, credentials, object keys, checksums, or provider internals.

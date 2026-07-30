@@ -316,6 +316,7 @@ const canSubmit = computed(() => {
     !canEdit.value
     || !hasContentChanges.value
     || submitState.value === 'submitting'
+    || (editorPayload.value?.pendingUploadCount || 0) > 0
     || title.value.trim() === ''
   ) {
     return false
@@ -406,11 +407,12 @@ function focusComposerField(field: ComposerFocusField) {
   closeMobileDrawers()
 }
 
-async function submit(payload?: { markdown?: string; native?: unknown; text?: string }) {
+async function submit(payload?: Pick<SFEditorContentPayload, 'markdown' | 'native' | 'text' | 'attachmentIds' | 'pendingUploadCount'>) {
   if (
     !topic.value
     || !canEdit.value
     || submitState.value === 'submitting'
+    || (payload?.pendingUploadCount ?? editorPayload.value?.pendingUploadCount ?? 0) > 0
   ) {
     return
   }
@@ -428,7 +430,8 @@ async function submit(payload?: { markdown?: string; native?: unknown; text?: st
   const content = forumContentFromEditorPayload({
     markdown,
     native: payload?.native,
-    text: payload?.text
+    text: payload?.text,
+    attachmentIds: payload?.attachmentIds
   })
   const nextErrors: Record<string, string[]> = {}
   const titleError = validateTopicTitle(title.value)
@@ -501,7 +504,7 @@ async function submit(payload?: { markdown?: string; native?: unknown; text?: st
   }
 }
 
-function onEditorSubmit(payload: { markdown: string; native?: unknown; text?: string }) {
+function onEditorSubmit(payload: SFEditorContentPayload) {
   void submit(payload)
 }
 
@@ -794,7 +797,7 @@ onBeforeRouteLeave(() => {
             </SFButton>
             <SFButton
               type="button"
-              :disabled="submitState === 'submitting'"
+              :disabled="submitState === 'submitting' || (editorPayload?.pendingUploadCount || 0) > 0"
               :aria-disabled="!canSubmit ? 'true' : undefined"
               @click="submitCurrent"
             >

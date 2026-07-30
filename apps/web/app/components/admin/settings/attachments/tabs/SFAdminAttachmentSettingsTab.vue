@@ -362,13 +362,32 @@ function providerLabel(provider: string) {
             </UInput>
           </UFormField>
 
-          <div v-if="form.provider === 'local'" class="grid gap-4 md:grid-cols-2">
+          <div v-if="form.provider === 'local'" class="grid gap-4">
             <UFormField :label="t('admin.attachments.localRoot')" :help="t('admin.attachments.localRootDescription')" name="attachment-local-root">
               <UInput v-model="form.local.root" size="lg" icon="i-lucide-folder-tree" class="w-full font-mono" />
             </UFormField>
-            <UFormField :label="t('admin.attachments.localPublicPrefix')" :help="t('admin.attachments.fieldHelp.localPublicPrefix')" name="attachment-local-prefix">
-              <UInput v-model="form.local.publicPrefix" size="lg" type="url" icon="i-lucide-folder" class="w-full" />
-            </UFormField>
+            <details class="border-t border-slate-200 pt-3 dark:border-zinc-800">
+              <summary class="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-slate-700 dark:text-zinc-200">
+                <UIcon name="i-lucide-network" class="size-4" />
+                {{ t('admin.attachments.localPublicAccessAdvanced') }}
+                <UIcon name="i-lucide-chevron-down" class="ml-auto size-4" />
+              </summary>
+              <UFormField
+                :label="t('admin.attachments.localPublicPrefix')"
+                :help="t('admin.attachments.fieldHelp.localPublicPrefix')"
+                name="attachment-local-prefix"
+                class="mt-4"
+              >
+                <UInput
+                  v-model="form.local.publicPrefix"
+                  size="lg"
+                  type="url"
+                  icon="i-lucide-globe-2"
+                  placeholder="https://cdn.example.com/uploads"
+                  class="w-full"
+                />
+              </UFormField>
+            </details>
           </div>
 
           <!-- 插件提供方的凭证只在通用扩展设置页管理。 -->

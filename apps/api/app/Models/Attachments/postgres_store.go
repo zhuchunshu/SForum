@@ -347,11 +347,12 @@ func (s *PostgresStore) ListCleanupCandidates(ctx context.Context, cutoff time.T
 		limit = 100
 	}
 	rows, err := s.pool.Query(ctx, attachmentSelectSQL()+`
-		WHERE attachments.status = 'deleted'
-		  AND attachments.reference_count = 0
-		  AND attachments.deleted_at IS NOT NULL
-		  AND attachments.deleted_at <= $1
-		ORDER BY attachments.deleted_at ASC
+		WHERE attachments.reference_count = 0
+		  AND (
+		    (attachments.status = 'deleted' AND attachments.deleted_at IS NOT NULL AND attachments.deleted_at <= $1)
+		    OR (attachments.status = 'active' AND attachments.created_at <= $1)
+		  )
+		ORDER BY COALESCE(attachments.deleted_at, attachments.created_at) ASC
 		LIMIT $2
 	`, cutoff, limit)
 	if err != nil {

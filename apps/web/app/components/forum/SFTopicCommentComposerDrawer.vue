@@ -119,6 +119,7 @@ const canSubmit = computed(() => Boolean(
   && !currentPayload.value.isEmpty
   && !props.submitting
   && !props.submitDisabled
+  && currentPayload.value.pendingUploadCount === 0
   && (props.mode !== 'edit' || dirty.value)
   && !reasonMissing.value
 ))
@@ -177,7 +178,9 @@ function submit() {
   if (props.submitting || props.submitDisabled) return
   if (!canSubmit.value || !currentPayload.value) {
     let message = t('composer.editValidation.noChanges')
-    if (currentPayload.value?.isEmpty) {
+    if ((currentPayload.value?.pendingUploadCount || 0) > 0) {
+      message = t('composer.imageUpload.wait')
+    } else if (currentPayload.value?.isEmpty) {
       message = t('composer.checks.body.empty')
       localContentError.value = message
     } else if (props.mode === 'edit' && reasonMissing.value && dirty.value) {

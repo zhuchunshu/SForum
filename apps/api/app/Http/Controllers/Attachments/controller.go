@@ -2,6 +2,7 @@ package attachmentscontroller
 
 import (
 	"errors"
+	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -138,12 +139,7 @@ func (h *Controller) content(c fiber.Ctx) error {
 	if err != nil {
 		return mapAttachmentError(err)
 	}
-	c.Set(fiber.HeaderContentType, item.ContentType)
-	// 安全头：阻止 MIME 嗅探；主动内容类型（HTML/SVG/JS 等）强制下载而非内联渲染，
-	// 避免公开附件形成同源存储型 XSS（即便入库时 denylist 被绕过，此处兜底）。
-	c.Set("X-Content-Type-Options", "nosniff")
-	c.Set(fiber.HeaderContentDisposition, attachmentContentDisposition(item.ContentType, item.OriginalName))
-	return c.SendStream(reader)
+	return sendAttachmentContent(c, item.ContentType, item.OriginalName, reader)
 }
 
 func (h *Controller) variantContent(c fiber.Ctx) error {
@@ -158,10 +154,16 @@ func (h *Controller) variantContent(c fiber.Ctx) error {
 	if err != nil {
 		return mapAttachmentError(err)
 	}
-	defer reader.Close()
-	c.Set(fiber.HeaderContentType, item.ContentType)
+	return sendAttachmentContent(c, item.ContentType, item.OriginalName, reader)
+}
+
+func sendAttachmentContent(c fiber.Ctx, contentType, originalName string, reader io.ReadCloser) error {
+	c.Set(fiber.HeaderContentType, contentType)
+	// 安全头：阻止 MIME 嗅探；主动内容类型（HTML/SVG/JS 等）强制下载而非内联渲染，
+	// 避免公开附件形成同源存储型 XSS（即便入库时 denylist 被绕过，此处兜底）。
 	c.Set("X-Content-Type-Options", "nosniff")
-	c.Set(fiber.HeaderContentDisposition, attachmentContentDisposition(item.ContentType, item.OriginalName))
+	c.Set(fiber.HeaderContentDisposition, attachmentContentDisposition(contentType, originalName))
+	// SendStream 在处理器返回后读取并关闭 reader；这里提前 defer Close 会造成代理上游断流。
 	return c.SendStream(reader)
 }
 

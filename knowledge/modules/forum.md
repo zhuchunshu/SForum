@@ -10,6 +10,14 @@ accepted revisions, lifecycle states, public read models, and forum policy.
 - Core taxonomy, topic/comment creation and lifecycle, public/admin UI, runtime
   settings, moderation integration, search projection, and million-scale read
   path M0-M7 are implemented.
+- The shared full editor uploads images through the existing attachment API
+  from either the toolbar picker or drag-and-drop. A mapped ProseMirror
+  placeholder preserves the original selection/drop position while uploads run
+  asynchronously, even when the author continues editing elsewhere.
+- Uploaded image nodes carry Host-issued attachment identity and emit explicit
+  `content.attachmentIds`. Topic/comment create and update validate the node
+  URL, public ID, attachment ID, active/public state, and owner-or-existing-
+  resource authority before replacing references transactionally.
 - Logged-in users with reply permission can select text in topic or comment
   content and open the existing reply drawer through a compact `引用并回复`
   action. Topic selections create top-level drafts; comment selections retain
@@ -187,7 +195,9 @@ V1 boundaries:
   from `plain_text` using `forum.reading.excerpt_rune_limit`.
 - Topic/comment writes may provide `content.attachmentIds`. Explicit arrays
   replace references transactionally, omission preserves them on edit, and an
-  empty array clears them.
+  empty array clears them. Native editor image nodes must name an attachment in
+  that same array and use its matching `/media/attachments/{publicId}` or
+  compatible historical API URL; forged or partial identity fails closed.
 - Hidden/deleted/moderation-only content stays out of public SSR, sitemap, and
   search indexes.
 - Planned custom image stickers are distinct from Unicode `sforumEmoji` and

@@ -61,6 +61,7 @@ const selectedCategorySlug = ref('')
 const tagDraft = ref<string[]>([])
 // v-model 仅同步 Markdown；editor-document 经 initialContent 加载，禁止 rawContent 直灌。
 const bodyMarkdown = ref('')
+const editorPayload = shallowRef<SFEditorContentPayload | null>(null)
 const tagInput = ref('')
 const editorInitialContent = computed(() => forumEditorInitialContent(props.topic.content))
 const editorKey = computed(() => `${props.topic.id}-${props.topic.currentRevision}`)
@@ -102,7 +103,12 @@ const submitLabel = computed(() => {
 })
 
 const canSubmit = computed(() => {
-  if (!canEdit.value || submitState.value === 'submitting' || title.value.trim() === '') {
+  if (
+    !canEdit.value
+    || submitState.value === 'submitting'
+    || title.value.trim() === ''
+    || (editorPayload.value?.pendingUploadCount || 0) > 0
+  ) {
     return false
   }
   if (limits.value.topicContentMinRunes > 0 && bodyMarkdown.value.trim() === '') {
@@ -143,16 +149,23 @@ function onTagEnter(event: KeyboardEvent) {
   addTag()
 }
 
-async function save(payload?: Pick<SFEditorContentPayload, 'markdown' | 'native' | 'text'>) {
-  if (!canEdit.value || !props.topic || submitState.value === 'submitting') {
+async function save(payload?: Pick<SFEditorContentPayload, 'markdown' | 'native' | 'text' | 'attachmentIds' | 'pendingUploadCount'>) {
+  const currentPayload = payload || editorPayload.value || undefined
+  if (
+    !canEdit.value
+    || !props.topic
+    || submitState.value === 'submitting'
+    || (currentPayload?.pendingUploadCount || 0) > 0
+  ) {
     return
   }
-  const markdown = payload?.markdown ?? bodyMarkdown.value
-  const text = payload?.text ?? markdown
+  const markdown = currentPayload?.markdown ?? bodyMarkdown.value
+  const text = currentPayload?.text ?? markdown
   const content = forumContentFromEditorPayload({
     markdown,
-    native: payload?.native,
-    text
+    native: currentPayload?.native,
+    text,
+    attachmentIds: currentPayload?.attachmentIds
   })
   const nextErrors: Record<string, string[]> = {}
   const titleError = validateTopicTitle(title.value)
@@ -211,6 +224,10 @@ async function save(payload?: Pick<SFEditorContentPayload, 'markdown' | 'native'
 
 function onEditorSubmit(payload: SFEditorContentPayload) {
   void save(payload)
+}
+
+function onEditorContentChange(payload: SFEditorContentPayload) {
+  editorPayload.value = payload
 }
 
 defineExpose({ save })
@@ -316,6 +333,8 @@ defineExpose({ save })
             :placeholder="t('composer.bodyPlaceholder')"
             :submit-label="submitLabel"
             :disabled="submitState === 'submitting'"
+            :submit-disabled="(editorPayload?.pendingUploadCount || 0) > 0"
+            @content-change="onEditorContentChange"
             @submit="onEditorSubmit"
           />
         </div>

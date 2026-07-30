@@ -150,13 +150,10 @@ func AuthorizeReadGuardSubject(actor identity.Actor, subject ReadGuardSubject, g
 	return identity.ErrPermissionDenied
 }
 
-// contentURLPath API 内容代理路径（可执行会话策略）。
-func contentURLPath(publicID string) string {
-	return "/api/v1/attachments/" + publicID + "/content"
-}
-
-func displayVariantURLPath(publicID string) string {
-	return "/api/v1/attachments/" + publicID + "/variants/" + CompressionVariantDisplay + "/content"
+// mediaAttachmentURLPath 是正文和普通附件使用的稳定媒体地址；Nuxt 在内部代理到
+// 带会话授权的 display 变体路由，变体不可用时由附件服务回退原文件。
+func mediaAttachmentURLPath(publicID string) string {
+	return "/media/attachments/" + publicID
 }
 
 // shouldProxyAuthorizedURL 只有站点公开资产可返回永久 URL；论坛与未引用媒体始终走代理。
@@ -175,16 +172,12 @@ func (s *Service) shouldProxyAuthorizedURL(ctx context.Context, attachment Attac
 
 func (s *Service) decorateURL(ctx context.Context, attachment Attachment) Attachment {
 	if s.shouldProxyAuthorizedURL(ctx, attachment) {
-		if attachment.ContentType == "image/jpeg" || attachment.ContentType == "image/png" {
-			attachment.URL = displayVariantURLPath(attachment.PublicID)
-		} else {
-			attachment.URL = contentURLPath(attachment.PublicID)
-		}
+		attachment.URL = mediaAttachmentURLPath(attachment.PublicID)
 		return attachment
 	}
 	settings, err := s.runtimeSettings(ctx)
 	if err != nil {
-		attachment.URL = contentURLPath(attachment.PublicID)
+		attachment.URL = mediaAttachmentURLPath(attachment.PublicID)
 		return attachment
 	}
 	adapter, err := s.adapterForSettings(ctx, settings, attachment.Provider)
@@ -200,7 +193,7 @@ func (s *Service) decorateURL(ctx context.Context, attachment Attachment) Attach
 		}
 	}
 	if attachment.URL == "" {
-		attachment.URL = contentURLPath(attachment.PublicID)
+		attachment.URL = mediaAttachmentURLPath(attachment.PublicID)
 	}
 	return attachment
 }

@@ -1,7 +1,10 @@
 package attachmentscontroller
 
 import (
+	"bytes"
 	"errors"
+	"io"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/gofiber/fiber/v3"
@@ -9,6 +12,50 @@ import (
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
 	uploadpolicy "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments/UploadPolicy"
 )
+
+type attachmentStreamReader struct {
+	*bytes.Reader
+	closed bool
+}
+
+func (r *attachmentStreamReader) Read(buffer []byte) (int, error) {
+	if r.closed {
+		return 0, io.ErrClosedPipe
+	}
+	return r.Reader.Read(buffer)
+}
+
+func (r *attachmentStreamReader) Close() error {
+	r.closed = true
+	return nil
+}
+
+func TestSendAttachmentContentKeepsStreamOpenUntilResponseWrite(t *testing.T) {
+	app := fiber.New()
+	reader := &attachmentStreamReader{Reader: bytes.NewReader([]byte("image-body"))}
+	app.Get("/image", func(c fiber.Ctx) error {
+		return sendAttachmentContent(c, "image/png", "photo.png", reader)
+	})
+
+	response, err := app.Test(httptest.NewRequest("GET", "/image", nil))
+	if err != nil {
+		t.Fatalf("request attachment stream: %v", err)
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatalf("read attachment stream: %v", err)
+	}
+	if string(body) != "image-body" {
+		t.Fatalf("attachment body = %q, want %q", body, "image-body")
+	}
+	if got := response.Header.Get("Content-Disposition"); got != `inline; filename="photo.png"` {
+		t.Fatalf("content disposition = %q", got)
+	}
+	if got := response.Header.Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("nosniff header = %q", got)
+	}
+}
 
 // TestAttachmentContentDispositionForcesDownloadOnActiveContent 验证 content 响应对
 // 主动内容类型强制下载（attachment），对安全类型保持内联（inline）。

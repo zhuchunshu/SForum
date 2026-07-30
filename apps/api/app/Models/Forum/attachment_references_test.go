@@ -16,8 +16,12 @@ func TestReplaceForumAttachmentReferencesMaintainsCounts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(tx.queries) != 1 || !strings.Contains(tx.queries[0], "owner_user_id = $2") || !strings.Contains(tx.queries[0], "visibility = 'public'") {
-		t.Fatalf("missing ownership/public validation: %#v", tx.queries)
+	if len(tx.queries) != 1 ||
+		!strings.Contains(tx.queries[0], "a.owner_user_id = $2") ||
+		!strings.Contains(tx.queries[0], "FROM attachment_references ar") ||
+		!strings.Contains(tx.queries[0], "ar.resource_type = $3") ||
+		!strings.Contains(tx.queries[0], "a.visibility = 'public'") {
+		t.Fatalf("missing owner-or-existing-reference validation: %#v", tx.queries)
 	}
 	joined := strings.Join(tx.execs, "\n")
 	for _, fragment := range []string{"DELETE FROM attachment_references", "INSERT INTO attachment_references", "reference_count = reference_count + 1"} {

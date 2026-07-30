@@ -7,5 +7,51 @@
   "author": { "name": "SForum Team", "url": "https://sforum.local" },
   "version": "1.0.0",
   "type": "plugin",
-  "sforumVersion": "^1.0.0"
+  "sforumVersion": "^1.0.0",
+  "templates": [
+    {
+      "id": "sforum.page-registry-demo.template.docs",
+      "contractVersion": "sforum.page-registry-demo.template.docs@1",
+      "action": "add",
+      "path": "templates/docs.html",
+      "digest": "1135303b7765f45a3e4fdf623912146b47ef26351e358b8f90d2ca8d4895f011",
+      "viewModelSchema": "sforum.page.plugin_docs@1"
+    },
+    {
+      "id": "sforum.page-registry-demo.template.members",
+      "contractVersion": "sforum.page-registry-demo.template.members@1",
+      "action": "add",
+      "path": "templates/members.html",
+      "digest": "854ae3e0dd4416e56c13805ddce7013184894b955faa31dafb102cd8801b8f22",
+      "viewModelSchema": "sforum.page.plugin_members@1"
+    },
+    {
+      "id": "sforum.page-registry-demo.template.home",
+      "contractVersion": "sforum.page-registry-demo.template.home@1",
+      "action": "add",
+      "path": "templates/home.html",
+      "digest": "0a2cf4b17d41f61a07584b526c4c25488968fc539badf07d7c467983016ba90f",
+      "viewModelSchema": "sforum.page.home@1"
+    }
+  ],
+  "packageFiles": [
+    {
+      "id": "sforum.page-registry-demo.file.docs-template",
+      "kind": "template",
+      "path": "templates/docs.html",
+      "digest": "1135303b7765f45a3e4fdf623912146b47ef26351e358b8f90d2ca8d4895f011"
+    },
+    {
+      "id": "sforum.page-registry-demo.file.members-template",
+      "kind": "template",
+      "path": "templates/members.html",
+      "digest": "854ae3e0dd4416e56c13805ddce7013184894b955faa31dafb102cd8801b8f22"
+    },
+    {
+      "id": "sforum.page-registry-demo.file.home-template",
+      "kind": "template",
+      "path": "templates/home.html",
+      "digest": "0a2cf4b17d41f61a07584b526c4c25488968fc539badf07d7c467983016ba90f"
+    }
+  ]
 }

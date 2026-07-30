@@ -44,5 +44,19 @@
         "recommendedValue": "Hello from Schema UI"
       }
     ]
-  }
+  },
+  "packageFiles": [
+    {
+      "id": "sforum.fixture-prebuilt-settings.file.settings-entry",
+      "kind": "frontend",
+      "path": "frontend/admin/dist/settings.mjs",
+      "digest": "f748d01d7826b7795f86654aa51cb8dcf0c22932225976af47d512ed0b907df2"
+    },
+    {
+      "id": "sforum.fixture-prebuilt-settings.file.settings-style",
+      "kind": "asset",
+      "path": "frontend/admin/dist/settings.css",
+      "digest": "2036634a8adf3dc9be9e09d020a2fd121d4c57befcb45c82263ce3a5ab3230b1"
+    }
+  ]
 }

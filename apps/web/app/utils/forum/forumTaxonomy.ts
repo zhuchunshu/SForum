@@ -327,13 +327,15 @@ export function forumContentFromEditorPayload(payload: {
   markdown?: string
   native?: unknown
   text?: string
+  attachmentIds?: number[]
 }): ForumContentInput {
   if (payload.native && typeof payload.native === 'object') {
     return {
       rawContent: JSON.stringify(payload.native),
       sourceFormat: 'editor-document',
       editorType: 'tiptap',
-      editorVersion: 'sf-editor-v1'
+      editorVersion: 'sf-editor-v1',
+      attachmentIds: payload.attachmentIds || []
     }
   }
   return {

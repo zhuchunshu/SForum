@@ -22,14 +22,6 @@
       "themeOverrideKey": "sforum.plugin-page-business-e2e.article"
     }
   ],
-  "dataSchemas": [
-    {
-      "id": "sforum.plugin-page-business-e2e.article.data",
-      "version": "1",
-      "path": "schemas/article.json",
-      "digest": "c07d9f76041f62828da9f97efb092972962c6b638e9f4fa0a0a8eb76671ab4f0"
-    }
-  ],
   "packageFiles": [
     {
       "id": "sforum.plugin-page-business-e2e.file.article-template",
@@ -38,10 +30,11 @@
       "digest": "0dffe0f3481f195aaad046f5750ec301e131de24de0ae5c7f1d825648f0de138"
     },
     {
-      "id": "sforum.plugin-page-business-e2e.file.article-schema",
+      "id": "sforum.plugin-page-business-e2e.article.data",
       "kind": "schema",
       "path": "schemas/article.json",
-      "digest": "c07d9f76041f62828da9f97efb092972962c6b638e9f4fa0a0a8eb76671ab4f0"
+      "digest": "c07d9f76041f62828da9f97efb092972962c6b638e9f4fa0a0a8eb76671ab4f0",
+      "version": "1"
     }
   ]
 }

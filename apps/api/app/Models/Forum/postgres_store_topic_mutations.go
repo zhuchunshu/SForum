@@ -292,13 +292,23 @@ func replaceForumAttachmentReferences(ctx context.Context, tx pgx.Tx, resourceTy
 	if len(attachmentIDs) > 0 {
 		rows, err := tx.Query(ctx, `
 			SELECT id
-			FROM attachments
-			WHERE id = ANY($1::bigint[])
-			  AND owner_user_id = $2
-			  AND status = 'active'
-			  AND visibility = 'public'
+			FROM attachments a
+			WHERE a.id = ANY($1::bigint[])
+			  AND a.status = 'active'
+			  AND a.visibility = 'public'
+			  AND (
+			    a.owner_user_id = $2
+			    OR EXISTS (
+			      SELECT 1
+			      FROM attachment_references ar
+			      WHERE ar.attachment_id = a.id
+			        AND ar.resource_type = $3
+			        AND ar.resource_id = $4
+			        AND ar.context = $5
+			    )
+			  )
 			FOR UPDATE
-		`, attachmentIDs, actorUserID)
+		`, attachmentIDs, actorUserID, resourceType, resourceID, forumAttachmentContext)
 		if err != nil {
 			return fmt.Errorf("validate forum attachments: %w", err)
 		}

@@ -1,4 +1,5 @@
 import { CharacterCount } from '@tiptap/extension-character-count'
+import { FileHandler } from '@tiptap/extension-file-handler'
 import Image from '@tiptap/extension-image'
 import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -11,6 +12,8 @@ import {
   Node,
   type JSONContent
 } from '@tiptap/vue-3'
+import type { Editor } from '@tiptap/core'
+import { createEditorImageUploadPlaceholderExtension } from '~/utils/editor/editorImageUpload'
 
 export type SForumEmojiItem = {
   name: string
@@ -40,7 +43,25 @@ export type SFEditorContentPayload = {
   characterCount: number
   wordCount: number
   isEmpty: boolean
+  attachmentIds: number[]
+  pendingUploadCount: number
 }
+
+export const SForumImage = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      attachmentId: {
+        default: null,
+        rendered: false
+      },
+      attachmentPublicId: {
+        default: null,
+        rendered: false
+      }
+    }
+  }
+})
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -138,6 +159,7 @@ export function createSFEditorExtensions(options: {
   // Trusted L2 plugin extensions already digest-verified by Host loader.
   // Failures must be filtered before calling this helper so core stays usable.
   trustedExtensions?: unknown[]
+  onImageDrop?: (editor: Editor, files: File[], pos: number) => void
 }) {
   const full = options.preset !== 'basic-field'
   const trusted = Array.isArray(options.trustedExtensions)
@@ -170,7 +192,7 @@ export function createSFEditorExtensions(options: {
       isAllowedUri: allowedLinkUri
     }),
     ...(full ? [
-      Image.configure({
+      SForumImage.configure({
         allowBase64: false,
         HTMLAttributes: {
           loading: 'lazy',
@@ -178,6 +200,10 @@ export function createSFEditorExtensions(options: {
           referrerpolicy: 'no-referrer'
         }
       }),
+      FileHandler.configure({
+        onDrop: options.onImageDrop
+      }),
+      createEditorImageUploadPlaceholderExtension(),
       SForumEmoji
     ] : []),
     Placeholder.configure({
@@ -198,6 +224,27 @@ export function createSFEditorExtensions(options: {
     // name conflicts inside Tiptap's extension manager.
     ...(full ? trusted : [])
   ]
+}
+
+export function collectEditorAttachmentIds(document: JSONContent) {
+  const ids: number[] = []
+  const seen = new Set<number>()
+
+  function walk(node: JSONContent) {
+    if (node.type === 'image') {
+      const id = Number(node.attrs?.attachmentId)
+      if (Number.isSafeInteger(id) && id > 0 && !seen.has(id)) {
+        seen.add(id)
+        ids.push(id)
+      }
+    }
+    for (const child of node.content || []) {
+      walk(child)
+    }
+  }
+
+  walk(document)
+  return ids
 }
 
 // 客户端只做交互层的基础限制；服务端仍必须重新生成并净化 HTML 后才能入库。

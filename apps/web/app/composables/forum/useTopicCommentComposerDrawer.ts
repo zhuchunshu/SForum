@@ -219,6 +219,7 @@ export function useTopicCommentComposerDrawer(options: TopicCommentComposerDrawe
   }
 
   async function saveCommentEdit(comment: ForumComment, payload: SFEditorContentPayload) {
+    if (payload.pendingUploadCount > 0) return
     const reason = editingReason.value.trim()
     if (editingAnotherAuthor.value && !reason) {
       editingReasonError.value = t('topicDetail.composerDrawer.editReasonRequired')
@@ -234,7 +235,12 @@ export function useTopicCommentComposerDrawer(options: TopicCommentComposerDrawe
     try {
       await forumApi.updateComment(
         comment.id,
-        forumContentFromEditorPayload({ markdown, native: payload.native, text }),
+        forumContentFromEditorPayload({
+          markdown,
+          native: payload.native,
+          text,
+          attachmentIds: payload.attachmentIds
+        }),
         comment.currentRevision,
         reason || undefined
       )

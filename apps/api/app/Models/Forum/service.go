@@ -612,7 +612,7 @@ func (s *Service) CreateTopic(ctx context.Context, actor identity.Actor, input C
 			return TopicDetail{}, ErrMentionsLimit
 		}
 	}
-	attachmentIDs, _, err := normalizeContentAttachmentIDs(input.Content.AttachmentIDs)
+	attachmentIDs, _, err := normalizeAndValidateContentAttachmentIDs(content, input.Content.AttachmentIDs)
 	if err != nil {
 		return TopicDetail{}, err
 	}
@@ -772,7 +772,7 @@ func (s *Service) UpdateTopic(ctx context.Context, actor identity.Actor, input U
 		}
 		record.HasContent = true
 		record.Content = content
-		attachmentIDs, submitted, err := normalizeContentAttachmentIDs(input.Content.AttachmentIDs)
+		attachmentIDs, submitted, err := normalizeAndValidateContentAttachmentIDs(content, input.Content.AttachmentIDs)
 		if err != nil {
 			return TopicDetail{}, err
 		}
@@ -1033,7 +1033,7 @@ func (s *Service) CreateComment(ctx context.Context, actor identity.Actor, input
 	if err != nil {
 		return Comment{}, err
 	}
-	attachmentIDs, _, err := normalizeContentAttachmentIDs(input.Content.AttachmentIDs)
+	attachmentIDs, _, err := normalizeAndValidateContentAttachmentIDs(content, input.Content.AttachmentIDs)
 	if err != nil {
 		return Comment{}, err
 	}

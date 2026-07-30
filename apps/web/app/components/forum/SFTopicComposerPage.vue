@@ -154,7 +154,12 @@ const bodyHint = computed(() => t('composer.bodyHintWithLimit', {
 }))
 
 const canSubmit = computed(() => {
-  if (!canCreate.value || submitState.value === 'submitting' || topicCooldownActive.value) {
+  if (
+    !canCreate.value
+    || submitState.value === 'submitting'
+    || topicCooldownActive.value
+    || (editorPayload.value?.pendingUploadCount || 0) > 0
+  ) {
     return false
   }
   // 允许 contentMin=0 时正文可为空字符串以外的空白由后端 RenderContent 再判。
@@ -361,15 +366,21 @@ function onLeftRailSaveDraft() {
   closeMobileDrawers()
 }
 
-async function submit(payload?: { markdown?: string; native?: unknown; text?: string }) {
-  if (!canCreate.value || submitState.value === 'submitting' || topicCooldownActive.value) {
+async function submit(payload?: Pick<SFEditorContentPayload, 'markdown' | 'native' | 'text' | 'attachmentIds' | 'pendingUploadCount'>) {
+  if (
+    !canCreate.value
+    || submitState.value === 'submitting'
+    || topicCooldownActive.value
+    || (payload?.pendingUploadCount ?? editorPayload.value?.pendingUploadCount ?? 0) > 0
+  ) {
     return
   }
   const markdown = payload?.markdown ?? bodyMarkdown.value
   const content = forumContentFromEditorPayload({
     markdown,
     native: payload?.native,
-    text: payload?.text
+    text: payload?.text,
+    attachmentIds: payload?.attachmentIds
   })
   const nextErrors: Record<string, string[]> = {}
   const titleError = validateTopicTitle(title.value)
@@ -426,7 +437,7 @@ async function submit(payload?: { markdown?: string; native?: unknown; text?: st
   }
 }
 
-function onEditorSubmit(payload: { markdown: string; native?: unknown; text?: string }) {
+function onEditorSubmit(payload: SFEditorContentPayload) {
   submit(payload)
 }
 

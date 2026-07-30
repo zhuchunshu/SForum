@@ -30,6 +30,12 @@ does not rebuild Nuxt.
   only Protocol V2 with a valid Host API V2 declaration; V1 loaders, runtime
   adapters, SDK entry points, built-in artifacts, fixtures, and rollback paths
   have been removed before the first public release.
+- All 18 tracked extension fixtures were re-audited against that baseline.
+  Static packages now pass the same SDK `LoadAndTest` path used by the CLI as a
+  single inventory gate; Page Registry templates, plugin page schemas, and
+  prebuilt admin assets carry current exact `packageFiles` declarations. The
+  nine executable reference packages pass their real Protocol V2 integration
+  tests.
 - Executable process bootstrap is deliberately separate from application
   protocol negotiation: Host and SDK share the fixed HashiCorp go-plugin
   Bootstrap ABI v1 cookie, while only the post-launch gRPC application contract

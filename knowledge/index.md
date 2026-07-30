@@ -107,6 +107,18 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Editor image upload: the shared Tiptap editor now supports toolbar and exact-
+  position drag uploads through the existing attachment policy, persists
+  transactional attachment identity, and renders authorized display variants
+  through `/media/attachments/{publicId}`. Automated gates and user manual QA
+  pass; the advanced local static URL prefix remains optional and empty by
+  default:
+  `sessions/2026-07-31-editor-image-upload.md`
+- Extension fixture audit: all 18 tracked fixture packages now satisfy the
+  Manifest V3 / Protocol V2 baseline; three stale static manifests were fixed,
+  a full static inventory gate was added, and the deleted V1 Host API reference
+  was removed from current authoring guidance:
+  `sessions/2026-07-31-extension-fixture-audit.md`
 - Navbar notification preview: the public bell now opens all/reply/mention
   previews with at most the latest three rows per tab, a full-history hint,
   recipient-authorized excerpts, desktop popover and mobile bottom-sheet
@@ -174,8 +186,9 @@ load archived sessions or completed plans as current context.
   `sessions/2026-07-31-default-topic-readability.md`
 - Release gate repair: `v3.0.0-alpha.3` stopped before publication because the
   main CI lacked a direct Vue SFC compiler test dependency and the release
-  waiter misparsed GitHub's empty in-progress conclusion; both are repaired,
-  and the next immutable prerelease is `v3.0.0-alpha.4`:
+  waiter misparsed GitHub's empty in-progress conclusion. Fresh Web installs
+  now also run `nuxt prepare` before Bun resolves Nuxt aliases; the next
+  immutable prerelease is `v3.0.0-alpha.4`:
   `sessions/2026-07-31-release-gate-repair.md`
 - Release pipeline artifacts: the maintainer helper returns immediately by
   default; GitHub reuses the exact main CI, publishes four multi-platform

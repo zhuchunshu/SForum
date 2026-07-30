@@ -101,19 +101,19 @@ func TestDecorateURLAlwaysProxiesAuthorizedResources(t *testing.T) {
 	})
 	// 需要 import storage — 用 decorate 直接测
 	decorated := service.decorateURL(context.Background(), store.item)
-	if decorated.URL != displayVariantURLPath("pub1") {
+	if decorated.URL != mediaAttachmentURLPath("pub1") {
 		t.Fatalf("expected proxy URL, got %q", decorated.URL)
 	}
 	optStore.items[options.NameForumGuestRead] = "public"
 	service.options.Invalidate()
 	decorated = service.decorateURL(context.Background(), store.item)
-	if decorated.URL != displayVariantURLPath("pub1") {
+	if decorated.URL != mediaAttachmentURLPath("pub1") {
 		t.Fatalf("public forum mode must still use revocable proxy URL, got %q", decorated.URL)
 	}
 
 	store.item.ContentType = "application/pdf"
 	decorated = service.decorateURL(context.Background(), store.item)
-	if decorated.URL != contentURLPath("pub1") {
+	if decorated.URL != mediaAttachmentURLPath("pub1") {
 		t.Fatalf("non-image attachments must keep the original proxy URL, got %q", decorated.URL)
 	}
 

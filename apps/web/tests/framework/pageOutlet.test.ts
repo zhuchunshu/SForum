@@ -265,9 +265,9 @@ describe('SFPageOutlet catalog wiring', () => {
   it('keeps non-themeable failures outside the replaceable system-error surface', () => {
     const src = read('app/error.vue')
     expect(src).toContain('isThemeableSystemErrorStatus(nuxtError.value?.statusCode)')
-    expect(src).toContain('<UApp v-else>')
+    expect(src).toContain('<UApp v-else')
     expect(src).toContain('<SFErrorPageContent :error="nuxtError" />')
-    expect(src.indexOf('<SFSystemErrorPage')).toBeLessThan(src.indexOf('<UApp v-else>'))
+    expect(src.indexOf('<SFSystemErrorPage')).toBeLessThan(src.indexOf('<UApp v-else'))
   })
 
   it('lets the active theme present system error pages while Host keeps the error islands', () => {

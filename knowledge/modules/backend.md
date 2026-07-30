@@ -101,6 +101,10 @@ before the repository gate, and passes a separate
 `SFORUM_COMPAT_DATABASE_URL` only to the compatibility farm. It deliberately
 does not export the broad `DATABASE_URL` or `SFORUM_TEST_DATABASE_URL` during
 `go test ./...`, so opt-in destructive integration suites remain opt-in.
+The Web package runs Nuxt's standard `nuxt prepare` postinstall lifecycle so a
+fresh CI install creates `.nuxt/tsconfig.json` before Bun loads tests that use
+Nuxt's `~` and `@` aliases. Typechecking keeps its separate
+`.nuxt-typecheck` build directory.
 
 Performance hardening (2026-07-08) covers the network and connection layers
 beyond the earlier search/cache read-path work:

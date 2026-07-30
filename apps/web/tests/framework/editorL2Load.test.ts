@@ -235,6 +235,16 @@ describe('forumContentFromEditorPayload', () => {
     expect(content.sourceFormat).toBe('editor-document')
     expect(content.editorType).toBe('tiptap')
     expect(JSON.parse(content.rawContent).type).toBe('doc')
+    expect(content.attachmentIds).toEqual([])
+  })
+
+  it('passes native image attachment ids to the forum reference transaction', async () => {
+    const { forumContentFromEditorPayload } = await import('../../app/utils/forum/forumTaxonomy')
+    const content = forumContentFromEditorPayload({
+      native: { type: 'doc', content: [{ type: 'image', attrs: { attachmentId: 42 } }] },
+      attachmentIds: [42]
+    })
+    expect(content.attachmentIds).toEqual([42])
   })
 
   it('falls back to markdown without native payload', async () => {

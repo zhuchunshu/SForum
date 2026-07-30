@@ -70,6 +70,28 @@ func TestFixtureSchedulesContract(t *testing.T) {
 	}
 }
 
+func TestAllStaticExtensionFixturesPassCurrentContract(t *testing.T) {
+	patterns := []string{"plugins/*/sforum.extension.json", "themes/*/sforum.extension.json"}
+	for _, pattern := range patterns {
+		paths, err := filepath.Glob(fixtureRoot(t, pattern))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, manifestPath := range paths {
+			root := filepath.Dir(manifestPath)
+			t.Run(filepath.Base(root), func(t *testing.T) {
+				report, err := pluginsdk.LoadAndTest(root, pluginsdk.Options{})
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !report.OK {
+					t.Fatalf("fixture no longer satisfies the current extension contract: %#v", report.Checks)
+				}
+			})
+		}
+	}
+}
+
 func checkCodes(report pluginsdk.Report) map[string]bool {
 	out := map[string]bool{}
 	for _, c := range report.Checks {

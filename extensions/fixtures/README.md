@@ -10,10 +10,20 @@ Parent layout map (not product install): [../README.md](../README.md).
 | --- | --- |
 | `plugins/page-registry-demo` | Page Registry lifecycle, templates, outlets, and L1 fallback |
 | `plugins/sforum-admin-surface-reference` | Complete Protocol V2 Admin Surface reference plugin |
+| `plugins/sforum-commerce-workflow` | Joined routes, hooks, jobs, services, database, cache, OpenAPI, and L2 component workflow |
+| `plugins/sforum-commerce-workflow-ext` | Required dependency plus cross-plugin hook and service extension |
 | `plugins/sforum-contract-events` | Manifest-only events + `forum.topic.actions` contribution |
 | `plugins/sforum-contract-schedules` | Manifest-only reminder that schedules stay host-owned |
+| `plugins/sforum-custom-content` | Entity, Content, Editor, Query, Navigation, and Region registries |
+| `plugins/sforum-media-optimize` | Media Pipeline MIME policy, transforms, background jobs, and fallback |
+| `plugins/sforum-membership-reference` | Identity, permission, auth, profile, recovery, session, and risk surfaces |
+| `plugins/sforum-notification-reference` | Namespaced notification declaration and Host API v2 emission |
+| `plugins/sforum-plugin-page-business-e2e` | Plugin-owned page data contract and presentation-only theme override target |
 | `plugins/sforum-prebuilt-settings` | Digest-trusted, author-prebuilt admin settings ESM/CSS |
+| `plugins/sforum-query-reference` | Host-owned Query Registry execution and cross-plugin result filtering |
+| `plugins/sforum-region-demo` | Public page region placements, setting gates, and prebuilt L2 widget |
 | `plugins/sforum-seo-reference` | Protocol V2 SEO Registry transport, Host-policy fallback, and trace attribution |
+| `themes/sforum-plugin-override-e2e-theme` | Presentation-only override of a plugin-owned page template |
 | `themes/sforum-schema-theme` | Buildless schema settings and theme manifest validation |
 | `themes/sforum-public-l2-e2e-theme` | Production upload/trust/mount/restart/revoke test for author-prebuilt public ESM/CSS |
 

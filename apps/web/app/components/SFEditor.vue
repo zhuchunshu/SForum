@@ -8,13 +8,14 @@ import SFEditorToolbar, {
 import { Editor, EditorContent } from '@tiptap/vue-3'
 import type { AnyExtension } from '@tiptap/core'
 import {
+  collectEditorAttachmentIds,
   createSFEditorExtensions,
   escapeHtml,
-  normalizeImageUrl,
   normalizeUserUrl,
   type SFEditorContentPayload,
   type TiptapContentReader
 } from '~/utils/sfEditor'
+import { useEditorImageUpload } from '~/composables/editor/useEditorImageUpload'
 
 const props = withDefaults(defineProps<{
   modelValue?: string
@@ -73,6 +74,19 @@ const viewMode = ref<SFEditorViewMode>('write')
 // modelValue 只承载 Markdown；原生 JSON 必须走 initialContent，避免把 rawContent 当正文。
 const editorStateTick = ref(0)
 const lastEmittedMarkdown = ref('')
+const imageInput = ref<HTMLInputElement | null>(null)
+const imageInsertPosition = ref<number | null>(null)
+const { t } = useI18n()
+const { pendingUploadCount, uploadImages } = useEditorImageUpload({
+  uploading: t('composer.imageUpload.uploading'),
+  invalidType: t('composer.imageUpload.invalidType'),
+  notAllowed: t('composer.imageUpload.notAllowed'),
+  tooLarge: (fileName, maxSize) => t('composer.imageUpload.tooLarge', { fileName, maxSize }),
+  uploaded: count => t('composer.imageUpload.uploaded', { count }),
+  partiallyUploaded: (uploaded, failed) => t('composer.imageUpload.partiallyUploaded', { uploaded, failed }),
+  failed: t('composer.imageUpload.failed'),
+  positionLost: t('composer.imageUpload.positionLost')
+})
 
 const editorMinHeight = computed(() => `${Math.max(props.rows, 4) * 1.55 + 1.5}rem`)
 
@@ -118,7 +132,9 @@ const currentPayload = computed<SFEditorContentPayload>(() => {
     text: currentEditor.getText(),
     characterCount: currentEditor.storage.characterCount.characters(),
     wordCount: currentEditor.storage.characterCount.words(),
-    isEmpty: currentEditor.isEmpty
+    isEmpty: currentEditor.isEmpty,
+    attachmentIds: collectEditorAttachmentIds(currentEditor.getJSON()),
+    pendingUploadCount: pendingUploadCount.value
   }
 })
 
@@ -166,7 +182,10 @@ onMounted(async () => {
       placeholder: props.placeholder,
       maxCharacters: props.maxCharacters,
       preset: props.preset,
-      trustedExtensions: trusted
+      trustedExtensions: trusted,
+      onImageDrop: (dropEditor, files, pos) => {
+        void uploadImages(dropEditor, files, pos)
+      }
     }) as AnyExtension[],
     onCreate: ({ editor: createdEditor }) => {
       syncFromEditor(createdEditor)
@@ -203,6 +222,10 @@ watch(() => props.placeholder, placeholder => {
   }
 })
 
+watch(pendingUploadCount, () => {
+  if (editor.value) syncFromEditor(editor.value)
+})
+
 // 仅接受外部 Markdown 同步；跳过与自身 emit 相同的回写，以及与当前文档一致的值。
 watch(() => props.modelValue, value => {
   const nextMarkdown = value || ''
@@ -236,7 +259,9 @@ function emptyPayload(markdown: string): SFEditorContentPayload {
     text: markdown,
     characterCount: markdown.length,
     wordCount: markdown.trim() ? markdown.trim().split(/\s+/).length : 0,
-    isEmpty: markdown.trim().length === 0
+    isEmpty: markdown.trim().length === 0,
+    attachmentIds: [],
+    pendingUploadCount: pendingUploadCount.value
   }
 }
 
@@ -250,7 +275,9 @@ function syncFromEditor(sourceEditor: TiptapContentReader) {
     text: sourceEditor.getText(),
     characterCount: sourceEditor.storage.characterCount.characters(),
     wordCount: sourceEditor.storage.characterCount.words(),
-    isEmpty: sourceEditor.isEmpty
+    isEmpty: sourceEditor.isEmpty,
+    attachmentIds: collectEditorAttachmentIds(sourceEditor.getJSON()),
+    pendingUploadCount: pendingUploadCount.value
   }
 
   if (payload.markdown !== lastEmittedMarkdown.value) {
@@ -310,21 +337,27 @@ function setLink() {
   currentEditor.chain().focus().extendMarkRange('link').setLink({ href }).run()
 }
 
-function insertImage() {
+function openImagePicker() {
   const currentEditor = editor.value
 
   if (!currentEditor || props.disabled) {
     return
   }
+  imageInsertPosition.value = currentEditor.state.selection.from
+  if (imageInput.value) imageInput.value.value = ''
+  imageInput.value?.click()
+}
 
-  const rawUrl = window.prompt('输入图片地址。正式发布时应使用附件上传返回的地址。')
-  const src = normalizeImageUrl(rawUrl || '')
+function onImageFilesSelected(event: Event) {
+  const input = event.target as HTMLInputElement
+  const files = Array.from(input.files || [])
+  input.value = ''
+  const currentEditor = editor.value
+  const position = imageInsertPosition.value
+  imageInsertPosition.value = null
 
-  if (!src) {
-    return
-  }
-
-  currentEditor.chain().focus().setImage({ src, alt: '插入图片' }).run()
+  if (!currentEditor || position == null || files.length === 0) return
+  void uploadImages(currentEditor, files, position)
 }
 
 function runToolbarAction(action: SFEditorToolbarAction) {
@@ -333,7 +366,7 @@ function runToolbarAction(action: SFEditorToolbarAction) {
     return
   }
   if (action === 'image') {
-    insertImage()
+    openImagePicker()
     return
   }
 
@@ -361,7 +394,7 @@ function setBlockFormat(format: SFEditorBlockFormat) {
 }
 
 function submitContent() {
-  if (props.disabled || props.submitDisabled) {
+  if (props.disabled || props.submitDisabled || pendingUploadCount.value > 0) {
     return
   }
   emit('submit', currentPayload.value)
@@ -373,6 +406,16 @@ function submitContent() {
     :class="editorClass"
     :style="{ '--sf-editor-min-height': editorMinHeight }"
   >
+    <input
+      ref="imageInput"
+      class="sr-only"
+      type="file"
+      accept="image/*"
+      multiple
+      tabindex="-1"
+      aria-hidden="true"
+      @change="onImageFilesSelected"
+    >
     <SFEditorToolbar
       v-if="!compact"
       :preset="preset"
@@ -427,7 +470,7 @@ function submitContent() {
           </SFButton>
           <SFButton
             size="sm"
-            :disabled="disabled || submitDisabled || currentPayload.isEmpty"
+            :disabled="disabled || submitDisabled || currentPayload.isEmpty || currentPayload.pendingUploadCount > 0"
             @click="submitContent"
           >
             <template #leading>
@@ -459,7 +502,7 @@ function submitContent() {
         <SFButton
           v-if="submitVisible"
           size="sm"
-          :disabled="disabled || submitDisabled || currentPayload.isEmpty"
+          :disabled="disabled || submitDisabled || currentPayload.isEmpty || currentPayload.pendingUploadCount > 0"
           @click="submitContent"
         >
           {{ submitLabel }}

@@ -45,11 +45,14 @@ describe('attachment settings defaults', () => {
     expect(defaults.maxFileSizeMb).toBe(20)
     expect(defaults.pathTemplate).toBe('{yyyy}/{mm}/{dd}/{public_id}{ext}')
     expect(defaults.local.root).toBe('storage/app/attachments')
+    expect(defaults.local.publicPrefix).toBe('')
     expect(defaults.allowedExtensions).toContain('.jpg')
     expect(defaults.allowedExtensions).toContain('.pdf')
     expect(defaults.allowedMimeTypes).toContain('image/png')
     expect(defaults.allowedMimeTypes).toContain('application/zip')
     expect(isRecommendedAttachmentSettings(defaults)).toBe(true)
+    expect(zhCN.admin.attachments.fieldHelp.localPublicPrefix).toContain('通常留空')
+    expect(enUS.admin.attachments.fieldHelp.localPublicPrefix).toContain('Usually leave this blank')
   })
 
   test('resets custom attachment settings to the recommended defaults', () => {
