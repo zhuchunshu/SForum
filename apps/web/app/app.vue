@@ -143,7 +143,7 @@ useHead(() => {
 </script>
 
 <template>
-  <UApp>
+  <UApp :toaster="{ position: 'top-right' }">
     <NuxtLoadingIndicator
       color="var(--sf-accent)"
       :height="3"

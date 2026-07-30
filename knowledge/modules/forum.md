@@ -10,6 +10,18 @@ accepted revisions, lifecycle states, public read models, and forum policy.
 - Core taxonomy, topic/comment creation and lifecycle, public/admin UI, runtime
   settings, moderation integration, search projection, and million-scale read
   path M0-M7 are implemented.
+- Logged-in users with reply permission can select text in topic or comment
+  content and open the existing reply drawer through a compact `引用并回复`
+  action. Topic selections create top-level drafts; comment selections retain
+  the direct parent so Notification V2 reaches that comment author. The action
+  is anchored in topic-scroll document coordinates rather than fixed to the
+  viewport, and selected text enters the editor as an HTML-escaped Markdown
+  blockquote capped at 500 Unicode characters.
+- Topic and comment edit save actions keep validation-blocked states visually
+  disabled but clickable. A save attempt now reports semantic no-op content,
+  missing cross-author reasons, empty bodies, and other required-field errors;
+  only active submissions remain natively disabled. Edit reasons still count
+  toward the leave-page guard but cannot enable a no-op content revision.
 - A custom image sticker platform is in approved design, not implementation.
   Core will own pack/item state, immutable asset revisions, a dedicated
   `sforumSticker` editor-document node, rendering/retention, admin authority,

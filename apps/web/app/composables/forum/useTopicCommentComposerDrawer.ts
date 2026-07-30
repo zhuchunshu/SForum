@@ -164,11 +164,11 @@ export function useTopicCommentComposerDrawer(options: TopicCommentComposerDrawe
     editorVersion.value += 1
   }
 
-  function startReply(comment: ForumComment) {
+  function startReply(comment: ForumComment, initialDraft = '') {
     resetEditingState()
     replyingTo.value = comment
     replyParentId.value = comment.id
-    replyMarkdown.value = ''
+    replyMarkdown.value = initialDraft
     replyError.value = ''
     showReplyError.value = false
     mode.value = 'reply'

@@ -21,18 +21,26 @@ describe('standalone topic edit page behavior contract', () => {
     expect(editPage).toContain("conflictMessage.value = ''")
     expect(editPage).toContain('fieldErrors.value = {}')
     expect(editPage).toContain('awaitingEditorBaseline.value = true')
+    expect(editPage).toContain('baselineContentSignature.value = currentContentSignature.value')
     expect(editPage).toContain(
       "next.id !== prev?.id || next.currentRevision !== prev?.currentRevision"
     )
   })
 
-  test('treats the staff reason as an unsaved edit and blocks no-op revisions', () => {
+  test('treats the staff reason as unsaved while requiring a content change to save', () => {
     expect(editPage).toMatch(
       /const currentSignature = computed\(\(\) => JSON\.stringify\(\{[\s\S]*staffReason: staffReason\.value/
     )
-    expect(editPage).toContain('|| !hasUnsavedChanges.value')
+    expect(editPage).toContain('|| !hasContentChanges.value')
     expect(editPage).toContain("return window.confirm(t('composer.editLeaveConfirm'))")
-    expect(editPage).toContain('|| !hasUnsavedChanges.value')
+    expect(editPage).toContain("description: t('composer.editValidation.noChanges')")
+  })
+
+  test('keeps validation-blocked save clickable and surfaces the blocking requirement', () => {
+    expect(editPage).toContain(':disabled="submitState === \'submitting\'"')
+    expect(editPage).toContain(':aria-disabled="!canSubmit ? \'true\' : undefined"')
+    expect(editPage).toContain("title: t('composer.editValidation.blocked')")
+    expect(editPage).toContain('description: Object.values(nextErrors)[0]?.[0]')
   })
 
   test('keeps revision, author-reason, content, taxonomy and canonical-return contracts', () => {

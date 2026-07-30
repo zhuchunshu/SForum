@@ -103,6 +103,8 @@ describe('default theme topic composer native flow', () => {
     expect(styles).toContain('var(--sf-public-sidebar-width)')
     expect(styles).toContain('var(--sf-public-right-rail-width)')
     expect(styles).toContain('@media (max-width: 960px)')
+    expect(styles.match(/\.sforum-topic-composer \.sforum-topic-composer__main/g)).toHaveLength(3)
+    expect(styles.match(/padding-bottom: 118px;/g)).toHaveLength(2)
     // 左栏：进度 / 草稿 / 要点，无类别树
     expect(left).toContain("t('composer.leftRail.progressTitle')")
     expect(left).toContain("t('composer.leftRail.actionsTitle')")
@@ -138,6 +140,15 @@ describe('default theme topic composer native flow', () => {
     expect(page).toContain(':title-max="limits.topicTitleMaxRunes"')
     expect(page).not.toContain(':title-count=')
     expect(page).not.toContain(':tag-count=')
+  })
+
+  test('keeps the editor body aligned with the responsive canvas height', () => {
+    const styles = composerStyles()
+
+    expect(styles.match(/\.sforum-topic-composer :deep\(\.sf-editor__body\),/g)).toHaveLength(2)
+    expect(styles).toContain('min-height: 360px;')
+    expect(styles).toContain('@media (max-width: 640px)')
+    expect(styles).toContain('min-height: 330px;')
   })
 
   test('right rail summary and checks are derived from live form state', () => {

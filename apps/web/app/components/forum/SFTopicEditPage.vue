@@ -116,6 +116,21 @@ const editReasonMaxRunes = 500
 
 // 主题加载后填充一次；watch 覆盖路由复用（topicId 变化）场景。
 const baselineSignature = ref('')
+const currentSignature = computed(() => JSON.stringify({
+  title: title.value,
+  selectedCategorySlug: selectedCategorySlug.value,
+  tagDraft: tagDraft.value,
+  bodyMarkdown: bodyMarkdown.value,
+  staffReason: staffReason.value
+}))
+const currentContentSignature = computed(() => JSON.stringify({
+  title: title.value,
+  selectedCategorySlug: selectedCategorySlug.value,
+  tagDraft: tagDraft.value,
+  bodyMarkdown: bodyMarkdown.value
+}))
+const baselineContentSignature = ref('')
+
 function applyTopic(next: ForumTopicDetail | null) {
   if (!next) {
     return
@@ -135,14 +150,8 @@ function applyTopic(next: ForumTopicDetail | null) {
   awaitingEditorBaseline.value = true
   closeMobileDrawers()
   baselineSignature.value = currentSignature.value
+  baselineContentSignature.value = currentContentSignature.value
 }
-const currentSignature = computed(() => JSON.stringify({
-  title: title.value,
-  selectedCategorySlug: selectedCategorySlug.value,
-  tagDraft: tagDraft.value,
-  bodyMarkdown: bodyMarkdown.value,
-  staffReason: staffReason.value
-}))
 applyTopic(topic.value)
 watch(topic, (next, prev) => {
   if (next && (next.id !== prev?.id || next.currentRevision !== prev?.currentRevision)) {
@@ -152,6 +161,9 @@ watch(topic, (next, prev) => {
 
 const hasUnsavedChanges = computed(() => (
   submitState.value !== 'success' && currentSignature.value !== baselineSignature.value
+))
+const hasContentChanges = computed(() => (
+  submitState.value !== 'success' && currentContentSignature.value !== baselineContentSignature.value
 ))
 const editorInitialContent = computed(() => (
   topic.value ? forumEditorInitialContent(topic.value.content) : ''
@@ -302,7 +314,7 @@ const submitLabel = computed(() => (
 const canSubmit = computed(() => {
   if (
     !canEdit.value
-    || !hasUnsavedChanges.value
+    || !hasContentChanges.value
     || submitState.value === 'submitting'
     || title.value.trim() === ''
   ) {
@@ -359,6 +371,7 @@ function onEditorContentChange(payload: SFEditorContentPayload) {
   // SFEditor 会把原生 Tiptap JSON 规范化为 Markdown v-model；首次同步属于加载，不是用户修改。
   if (awaitingEditorBaseline.value) {
     baselineSignature.value = currentSignature.value
+    baselineContentSignature.value = currentContentSignature.value
     awaitingEditorBaseline.value = false
   }
 }
@@ -397,9 +410,18 @@ async function submit(payload?: { markdown?: string; native?: unknown; text?: st
   if (
     !topic.value
     || !canEdit.value
-    || !hasUnsavedChanges.value
     || submitState.value === 'submitting'
   ) {
+    return
+  }
+  if (!hasContentChanges.value) {
+    toast.add({
+      color: 'warning',
+      icon: 'i-lucide-info',
+      title: t('composer.editValidation.blocked'),
+      description: t('composer.editValidation.noChanges'),
+      duration: 10000
+    })
     return
   }
   const markdown = payload?.markdown ?? bodyMarkdown.value
@@ -436,6 +458,13 @@ async function submit(payload?: { markdown?: string; native?: unknown; text?: st
   if (Object.keys(nextErrors).length) {
     fieldErrors.value = nextErrors
     submitState.value = 'error'
+    toast.add({
+      color: 'warning',
+      icon: 'i-lucide-triangle-alert',
+      title: t('composer.editValidation.blocked'),
+      description: Object.values(nextErrors)[0]?.[0] || t('composer.editValidation.requiredFields'),
+      duration: 10000
+    })
     return
   }
 
@@ -458,6 +487,7 @@ async function submit(payload?: { markdown?: string; native?: unknown; text?: st
     })
     submitState.value = 'success'
     baselineSignature.value = currentSignature.value
+    baselineContentSignature.value = currentContentSignature.value
     toast.add({ color: 'success', icon: 'i-lucide-check', title: t('topicDetail.topicUpdated'), duration: 10000 })
     await navigateTo(localePath(forumTopicPath(updated, topicUrlMode.value)))
   } catch (error) {
@@ -764,7 +794,8 @@ onBeforeRouteLeave(() => {
             </SFButton>
             <SFButton
               type="button"
-              :disabled="!canSubmit"
+              :disabled="submitState === 'submitting'"
+              :aria-disabled="!canSubmit ? 'true' : undefined"
               @click="submitCurrent"
             >
               <UIcon name="i-lucide-check" class="size-4" aria-hidden="true" />

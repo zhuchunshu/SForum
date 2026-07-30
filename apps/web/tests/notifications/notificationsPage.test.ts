@@ -5,6 +5,12 @@ import { ref } from 'vue'
 import { useApiClient } from '../../app/composables/useApiClient'
 import { useNotifications, type NotificationItem } from '../../app/composables/notifications/useNotifications'
 import {
+  limitNotificationPreviewItems,
+  NOTIFICATION_PREVIEW_LIMIT,
+  notificationPreviewFilters,
+  notificationPreviewTabs
+} from '../../app/utils/notifications/notificationPreview'
+import {
   filterNotifications,
   groupNotificationsByDate,
   notificationFilterCounts,
@@ -23,6 +29,8 @@ const typeNavSource = () => source('../../app/components/notifications/SFNotific
 const detailRouteSource = () => source('../../app/pages/notifications/[notificationId].vue')
 const notificationComposableSource = () => source('../../app/composables/notifications/useNotifications.ts')
 const navbarSource = () => source('../../app/components/SFNavbar.vue')
+const notificationPreviewSource = () => source('../../app/components/notifications/SFNotificationPreview.vue')
+const notificationPreviewStyles = () => source('../../app/components/notifications/SFNotificationPreview.css')
 const zh = () => JSON.parse(source('../../i18n/locales/zh-CN.json'))
 const en = () => JSON.parse(source('../../i18n/locales/en-US.json'))
 
@@ -78,6 +86,17 @@ async function withApiGlobals(run: () => Promise<void>) {
 }
 
 describe('notification presentation helpers', () => {
+  test('limits every Navbar preview tab to the latest three API-ordered notifications', () => {
+    const rows = Array.from({ length: 8 }, (_, index) => item({ id: 8 - index }))
+
+    expect(NOTIFICATION_PREVIEW_LIMIT).toBe(3)
+    expect(notificationPreviewTabs).toEqual(['all', 'reply', 'mention'])
+    expect(notificationPreviewFilters('all')).toEqual({})
+    expect(notificationPreviewFilters('reply')).toEqual({ type: 'reply' })
+    expect(notificationPreviewFilters('mention')).toEqual({ type: 'mention' })
+    expect(limitNotificationPreviewItems(rows).map(row => row.id)).toEqual([8, 7, 6])
+  })
+
   test('maps only API-backed notification fields into visible presentation', () => {
     const view = notificationPresentation(item({
       id: 42,
@@ -329,11 +348,46 @@ describe('useNotifications', () => {
 })
 
 describe('SFNotificationsPage contract', () => {
-  test('starts navbar realtime from the current auth state without a mount race', () => {
+  test('delegates the Navbar bell, unread reconciliation, and realtime preview to the notification domain', () => {
     const navbar = navbarSource()
-    expect(navbar).toContain('const stopNotificationUserWatch = watch(user, current =>')
-    expect(navbar).toContain('{ immediate: true }')
-    expect(navbar).toContain('stopNotificationUserWatch()')
+    const preview = notificationPreviewSource()
+
+    expect(navbar).toContain('<SFNotificationPreview v-if="user" />')
+    expect(navbar).not.toContain("useNotifications()")
+    expect(preview).toContain('onMounted(() =>')
+    expect(preview).toContain('void notifications.refreshUnreadCount().catch(() => {})')
+    expect(preview).toContain('stopRealtime = notifications.startRealtime(async () =>')
+    expect(preview).toContain('stopRealtime()')
+  })
+
+  test('renders an accessible three-item desktop popover and mobile bottom sheet for each preview tab', () => {
+    const preview = notificationPreviewSource()
+    const styles = notificationPreviewStyles()
+
+    expect(preview).toContain('notificationPreviewTabs')
+    expect(preview).toContain('notifications.list(')
+    expect(preview).toContain('NOTIFICATION_PREVIEW_LIMIT')
+    expect(preview).toContain('notificationPreviewFilters(tab)')
+    expect(preview).toContain('limitNotificationPreviewItems(page.items)')
+    expect(preview).toContain('Promise.allSettled(nextItems.map(item => notifications.get(item.id)))')
+    expect(preview).toContain('role="tablist"')
+    expect(preview).toContain('role="dialog"')
+    expect(preview).toContain("event.key === 'Escape'")
+    expect(preview).toContain("t('notifications.preview.limitHint', { count: NOTIFICATION_PREVIEW_LIMIT })")
+    expect(styles).toContain('@media (max-width: 640px)')
+    expect(styles).toContain('bottom: 0;')
+    expect(styles).toContain('max-height: min(78vh, 660px);')
+  })
+
+  test('opens the authorized target before marking a preview notification read', () => {
+    const preview = notificationPreviewSource()
+    const navigateIndex = preview.indexOf('await router.push(localePath(destination))')
+    const markReadIndex = preview.indexOf('await notifications.markRead(item.id)')
+
+    expect(navigateIndex).toBeGreaterThan(-1)
+    expect(markReadIndex).toBeGreaterThan(navigateIndex)
+    expect(preview).toContain('item.target.unavailable')
+    expect(preview).toContain('`/notifications/${item.id}`')
   })
 
   test('compiles as a focused Page Registry island and keeps the route shell thin', () => {
@@ -461,6 +515,9 @@ describe('SFNotificationsPage contract', () => {
       expect(locale.notifications.detailPage.repliedComment).toBeTruthy()
       expect(locale.notifications.detailPage.originalTopic).toBeTruthy()
       expect(locale.notifications.targetUnavailableHelp).toBeTruthy()
+      expect(locale.notifications.preview.limitHint).toBeTruthy()
+      expect(locale.notifications.preview.viewAll).toBeTruthy()
+      expect(locale.notifications.preview.tabs.reply).toBeTruthy()
     }
   })
 })

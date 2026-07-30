@@ -663,6 +663,12 @@ Architecture sources:
   `SFEditorToolbar`, 48px white toolbar, 34px icon commands, quiet root focus,
   generous document padding, and horizontally scrollable mobile tools. The
   compact and `basic-field` presets keep their denser 14px content padding.
+- Topic create and edit share a page-local responsive canvas contract. Its
+  desktop `360px` and mobile `330px` minimums apply to both the editor body and
+  its content/preview/loading surfaces. Their page-specific main-column rule
+  also outranks the later shared home padding and preserves `112px` desktop /
+  `118px` mobile space below the form, so the editor status row can scroll
+  completely above the fixed publish dock.
 - The full toolbar exposes paragraph/H2/H3, marks, lists, quote, code, link,
   image, and write/preview modes. Markdown source editing and native JSON
   inspection are no longer exposed; the editor still emits both formats for

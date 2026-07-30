@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useNotifications } from '~/composables/notifications/useNotifications'
+import SFNotificationPreview from '~/components/notifications/SFNotificationPreview.vue'
 import SFPublicMobileNavigation from '~/components/navigation/SFPublicMobileNavigation.vue'
 import SFPublicNavigationLinks from '~/components/navigation/SFPublicNavigationLinks.vue'
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
@@ -42,7 +42,6 @@ const {
   cyclePreference: cycleColorModePreference
 } = useColorModePreference()
 const { can } = usePermissions()
-const notifications = useNotifications()
 const { topbarItems, sidebarItems } = usePublicNavigation(props.fetchRemoteChrome)
 
 // 标签公开列表受运行时选项控制；关闭时隐藏导航入口（详情页同样 404）。
@@ -179,23 +178,6 @@ watch(routeSearchQuery, (query) => {
   }
 })
 
-let stopNotificationRealtime = () => {}
-const stopNotificationUserWatch = watch(user, current => {
-  if (import.meta.server) return
-  stopNotificationRealtime()
-  stopNotificationRealtime = () => {}
-  if (current) {
-    void notifications.refreshUnreadCount().catch(() => {})
-    stopNotificationRealtime = notifications.startRealtime(async () => {
-      await notifications.refreshUnreadCount()
-    })
-  }
-}, { immediate: true })
-onBeforeUnmount(() => {
-  stopNotificationUserWatch()
-  stopNotificationRealtime()
-})
-
 function submitSearch(query: string) {
   const normalizedQuery = query.trim()
   return navigateTo({
@@ -293,10 +275,7 @@ async function logout() {
         >
           <UIcon name="i-lucide-panel-right" class="size-5" aria-hidden="true" />
         </button>
-        <NuxtLink v-if="user" :to="localePath('/notifications')" class="navbar__notification" :aria-label="t('nav.notifications')">
-          <UIcon name="i-lucide-bell" class="size-5" aria-hidden="true" />
-          <span v-if="notifications.unreadCount.value" class="navbar__notification-badge">{{ notifications.unreadCount.value > 99 ? '99+' : notifications.unreadCount.value }}</span>
-        </NuxtLink>
+        <SFNotificationPreview v-if="user" />
         <NuxtLink
           v-if="canCreateTopic"
           :to="localePath('/topics/new')"
@@ -501,9 +480,6 @@ async function logout() {
   display: flex;
   align-items: center;
 }
-
-.navbar__notification { position: relative; display: grid; width: 36px; height: 36px; place-items: center; color: #64748b; }
-.navbar__notification-badge { position: absolute; top: -2px; right: -4px; min-width: 18px; height: 18px; padding: 0 4px; border: 2px solid #fff; border-radius: 9px; background: var(--sf-accent); color: #fff; font-size: 10px; line-height: 14px; text-align: center; }
 
 .navbar__logo {
   min-width: 0;
@@ -986,10 +962,6 @@ async function logout() {
 
   .navbar__user-trigger {
     padding: 2px;
-  }
-
-  .navbar__notification {
-    display: none;
   }
 }
 </style>

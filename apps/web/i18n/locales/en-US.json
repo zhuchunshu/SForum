@@ -55,6 +55,18 @@
   "notifications": {
     "title": "Notifications",
     "description": "Replies, mentions, and content review results.",
+    "preview": {
+      "tabs": {
+        "all": "All",
+        "reply": "Replies",
+        "mention": "Mentions"
+      },
+      "limitHint": "Each category shows up to its {count} latest notifications. Open the notification center for the complete history.",
+      "viewAll": "View all notifications",
+      "empty": "No notifications in this category yet",
+      "loadFailed": "Failed to load the notification preview",
+      "openFailed": "This notification could not be opened. Try again later."
+    },
     "markAllRead": "Mark all read",
     "markingAllRead": "Marking...",
     "allRead": "All notifications marked as read",
@@ -4746,6 +4758,10 @@
     "topicDeleted": "Topic deleted.",
     "reply": "Reply",
     "quote": "Quote",
+    "selectionQuote": {
+      "toolbarLabel": "Quote selected text",
+      "quoteAndReply": "Quote and reply"
+    },
     "commentLink": "Link",
     "commentMoreActions": "More reply actions",
     "commentLinkCopied": "Comment link copied",
@@ -4900,6 +4916,11 @@
       "unsaved": "Unsaved changes",
       "saving": "Saving...",
       "success": "Saved"
+    },
+    "editValidation": {
+      "blocked": "Cannot save yet",
+      "noChanges": "The content has not changed.",
+      "requiredFields": "Complete the required fields first."
     },
     "categoryLabel": "Category",
     "categoryDefault": "Select a category (defaults to General)",

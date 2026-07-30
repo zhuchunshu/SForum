@@ -107,6 +107,29 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Navbar notification preview: the public bell now opens all/reply/mention
+  previews with at most the latest three rows per tab, a full-history hint,
+  recipient-authorized excerpts, desktop popover and mobile bottom-sheet
+  behavior. Typecheck, focused tests, architecture validation, and user
+  interaction verification pass:
+  `sessions/2026-07-31-navbar-notification-preview.md`
+- Selection quote reply: eligible topic/comment text selections now show an
+  absolute, content-anchored `引用并回复` action and feed a safe Markdown quote
+  into the existing topic/comment composer and Notification V2 path. Focused
+  tests, typecheck, and desktop Chrome interaction pass; the connected Chrome
+  viewport override did not apply for the requested mobile-size replay:
+  `sessions/2026-07-31-selection-quote-reply.md`
+- Edit save validation feedback: topic and comment edit buttons now explain
+  no-op saves and missing cross-author reasons while preserving native disable
+  only for in-flight submissions. Focused tests, typecheck, and architecture
+  validation pass; rendered topic-route Browser QA remains blocked by repeated
+  in-app navigation timeouts:
+  `sessions/2026-07-31-edit-save-validation-feedback.md`
+- Mobile topic editor visibility: topic create/edit now align the editor body
+  with their responsive canvas height and preserve page-specific bottom space
+  after shared home padding, so the complete status row scrolls above the fixed
+  action dock. Focused tests and Chrome QA at `402x905` plus `1280x720` pass:
+  `sessions/2026-07-31-mobile-topic-editor-visibility.md`
 - Admin user sorting: `/control-panel/users` now requests stable server-side
   ordering by joined/updated time, username, display name, email, or status,
   with selectable direction and page-1 reset. Automated gates pass; rendered

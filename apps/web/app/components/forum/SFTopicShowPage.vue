@@ -4,10 +4,8 @@ import { useModerationApi } from '~/composables/moderation/useModerationApi'
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
 import { useAuthSession } from '~/composables/identity/useAuthSession'
 import { useForumApi } from '~/composables/forum/useForumApi'
-import {
-  useLegacyTopicCommentComposerParent,
-  useTopicCommentComposerDrawer
-} from '~/composables/forum/useTopicCommentComposerDrawer'
+import { useLegacyTopicCommentComposerParent, useTopicCommentComposerDrawer } from '~/composables/forum/useTopicCommentComposerDrawer'
+import { useTopicSelectionQuoteReply } from '~/composables/forum/useTopicSelectionQuoteReply'
 import SFReportDialog from '~/components/moderation/SFReportDialog.vue'
 import SFTopicSideCard from '~/components/forum/SFTopicSideCard.vue'
 import SFTopicReplyComposer from '~/components/forum/SFTopicReplyComposer.vue'
@@ -18,6 +16,7 @@ import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
 import SFResponsivePublicSidebar from '~/components/forum/navigation/SFResponsivePublicSidebar.vue'
 import SFComment from '~/components/forum/SFComment.vue'
+import SFSelectionQuoteAction from '~/components/forum/SFSelectionQuoteAction.vue'
 import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSidebarDrawer'
 import { buildAuthPageLink } from '~/utils/identity/authReturn'
 /**
@@ -25,8 +24,7 @@ import { buildAuthPageLink } from '~/utils/identity/authReturn'
  */
 
 import {
-  commentFloorLabel, forumAuthorName,
-  forumCategoryPath,
+  commentFloorLabel, forumAuthorName, forumCategoryPath,
   forumTagPath, forumTopicEditPath,
   forumTopicExtensionActionLabel, forumTopicPath, forumUserProfilePath,
   parseTopicPath, topicPathLookupCandidates, FORUM_TOPIC_ACTIONS,
@@ -728,6 +726,7 @@ function handleCommentClick(comment: ForumComment, value: string) {
 
 // 回复：仅在主题未锁定且当前用户有 post.create 时允许。
 const canReplyToComments = computed(() => Boolean(topic.value && topic.value.status !== 'locked' && can(FORUM_PERMISSIONS.postCreate)))
+const handleSelectionQuote = useTopicSelectionQuoteReply({ comments, canReply: canReplyToComments, startReply, openTopicReply: openAdvancedReply })
 
 // 评论删除（软删）。
 async function deleteComment(comment: ForumComment) {
@@ -984,6 +983,7 @@ async function submitReport() {
       </SFResponsivePublicSidebar>
 
       <div class="sforum-topic-page__main sforum-content-column">
+        <SFSelectionQuoteAction :enabled="canReplyToComments" @quote="handleSelectionQuote" />
         <div class="sforum-topic-page__inner">
           <SFRegionOutlet page="forum.topic.show" region="content_before" />
 
@@ -1020,7 +1020,7 @@ async function submitReport() {
 
                   <div class="sforum-topic-page__post-card">
                     <!-- 正文（后端已 sanitize）；v-highlight 负责代码块语法高亮 -->
-                    <div class="sforum-topic-page__prose sf-prose" v-highlight v-html="sanitizeHtml(topic.content.htmlContent)" />
+                    <div class="sforum-topic-page__prose sf-prose" data-selection-quote-source="topic" v-highlight v-html="sanitizeHtml(topic.content.htmlContent)" />
 
                     <div class="sforum-topic-page__actions">
                       <button type="button" class="sforum-topic-page__action-btn" @click="shareTopic">

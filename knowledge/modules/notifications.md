@@ -137,6 +137,13 @@ and reconciles through REST on connect/error, tab visibility, and a 30-second
 visible-page fallback interval. SSE contains revision signals only; durable
 PostgreSQL rows and recipient revision remain truth.
 
+The public Navbar bell opens a notification-domain preview instead of routing
+directly to the inbox. Its fixed tabs cover all, reply, and mention notifications;
+each tab requests and defensively renders at most the latest three API-ordered
+rows, with a persistent hint that complete history remains in the notification
+center. The desktop surface is anchored below the bell, while narrow viewports
+use a body-teleported bottom sheet so Navbar positioning cannot clip it.
+
 Notification SSE connections use bounded leases and controlled reconnection.
 The process-wide PostgreSQL `LISTEN` revision hub owns a cancellable listener
 lifecycle. API bootstrap failure and normal shutdown stop and await that hub

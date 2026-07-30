@@ -27,6 +27,7 @@
 }
 
 .sforum-topic-page__main {
+  position: relative;
   min-width: 0;
   padding: 12px 16px 28px;
 }

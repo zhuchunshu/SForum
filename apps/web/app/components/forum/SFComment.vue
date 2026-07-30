@@ -358,8 +358,20 @@ const InlineEditorHost = () => {
           <span v-if="replyTo.excerpt" class="sf-comment__reply-to-excerpt">{{ replyTo.excerpt }}</span>
         </a>
 
-        <div v-if="showHtml" class="sf-comment__content sf-prose" v-highlight v-html="sanitizeHtml(htmlContent)" />
-        <p v-else class="sf-comment__content">
+        <div
+          v-if="showHtml"
+          class="sf-comment__content sf-prose"
+          data-selection-quote-source="comment"
+          :data-selection-quote-comment-id="comment?.id"
+          v-highlight
+          v-html="sanitizeHtml(htmlContent)"
+        />
+        <p
+          v-else
+          class="sf-comment__content"
+          data-selection-quote-source="comment"
+          :data-selection-quote-comment-id="comment?.id"
+        >
           {{ content }}
         </p>
 

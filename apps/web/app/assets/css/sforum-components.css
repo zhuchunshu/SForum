@@ -231,6 +231,7 @@
 }
 
 .sf-button:disabled,
+.sf-button[aria-disabled="true"],
 .sf-button[aria-busy="true"] {
   cursor: not-allowed;
   opacity: 0.58;

@@ -55,11 +55,14 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const toast = useToast()
 const discardPromptOpen = ref(false)
 const baselineMarkdown = ref('')
 const baselineCaptured = ref(false)
 const currentPayload = shallowRef<SFEditorContentPayload | null>(null)
 const drawerHeight = ref<number | null>(null)
+const localContentError = ref('')
+const localReasonError = ref('')
 let resizeSession: { pointerId: number, startY: number, startHeight: number, drawer: HTMLElement } | null = null
 
 const title = computed(() => {
@@ -116,8 +119,10 @@ const canSubmit = computed(() => Boolean(
   && !currentPayload.value.isEmpty
   && !props.submitting
   && !props.submitDisabled
+  && (props.mode !== 'edit' || dirty.value)
   && !reasonMissing.value
 ))
+const displayedReasonError = computed(() => props.reasonError || localReasonError.value)
 
 watch(
   () => [props.open, props.editorKey] as const,
@@ -127,6 +132,8 @@ watch(
     baselineMarkdown.value = ''
     baselineCaptured.value = false
     currentPayload.value = null
+    localContentError.value = ''
+    localReasonError.value = ''
   }
 )
 
@@ -140,11 +147,16 @@ function onOpenUpdate(value: boolean) {
 
 function onContentChange(payload: SFEditorContentPayload) {
   currentPayload.value = payload
+  localContentError.value = ''
   if (!baselineCaptured.value) {
     baselineMarkdown.value = payload.markdown
     baselineCaptured.value = true
   }
 }
+
+watch(() => props.reason, (reason) => {
+  if (reason.trim()) localReasonError.value = ''
+})
 
 function requestClose() {
   if (props.submitting) return
@@ -162,7 +174,27 @@ function close() {
 }
 
 function submit() {
-  if (!canSubmit.value || !currentPayload.value) return
+  if (props.submitting || props.submitDisabled) return
+  if (!canSubmit.value || !currentPayload.value) {
+    let message = t('composer.editValidation.noChanges')
+    if (currentPayload.value?.isEmpty) {
+      message = t('composer.checks.body.empty')
+      localContentError.value = message
+    } else if (props.mode === 'edit' && reasonMissing.value && dirty.value) {
+      message = t('topicDetail.composerDrawer.editReasonRequired')
+      localReasonError.value = message
+    }
+    toast.add({
+      color: 'warning',
+      icon: 'i-lucide-info',
+      title: t('composer.editValidation.blocked'),
+      description: message,
+      duration: 10000
+    })
+    return
+  }
+  localContentError.value = ''
+  localReasonError.value = ''
   emit('submit', currentPayload.value)
 }
 
@@ -328,7 +360,7 @@ onBeforeUnmount(() => {
         :submit-visible="false"
         :disabled="submitting"
         :submit-disabled="submitDisabled"
-        :error="error"
+        :error="error || localContentError"
         @update:model-value="emit('update:modelValue', $event)"
         @content-change="onContentChange"
       />
@@ -343,7 +375,7 @@ onBeforeUnmount(() => {
           rows="2"
           @input="emit('update:reason', ($event.target as HTMLTextAreaElement).value)"
         />
-        <small v-if="reasonError" role="alert">{{ reasonError }}</small>
+        <small v-if="displayedReasonError" role="alert">{{ displayedReasonError }}</small>
         <small v-else>{{ t('topicDetail.composerDrawer.editReasonHint') }}</small>
       </label>
 
@@ -372,7 +404,12 @@ onBeforeUnmount(() => {
         <SFButton variant="ghost" :disabled="submitting" @click="requestClose">
           {{ t('topicDetail.cancel') }}
         </SFButton>
-        <SFButton :loading="submitting" :disabled="!canSubmit" @click="submit">
+        <SFButton
+          :loading="submitting"
+          :disabled="submitting || (mode !== 'edit' && !canSubmit)"
+          :aria-disabled="mode === 'edit' && !canSubmit ? 'true' : undefined"
+          @click="submit"
+        >
           <template #leading>
             <UIcon :name="submitIcon" class="size-4" aria-hidden="true" />
           </template>

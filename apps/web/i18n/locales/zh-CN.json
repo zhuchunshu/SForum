@@ -95,6 +95,18 @@
   "notifications": {
     "title": "通知",
     "description": "回复、提及和内容审核结果。",
+    "preview": {
+      "tabs": {
+        "all": "全部",
+        "reply": "回复",
+        "mention": "提及"
+      },
+      "limitHint": "每个分类最多展示最新 {count} 条，完整记录请前往通知中心。",
+      "viewAll": "查看全部通知",
+      "empty": "这个分类暂时没有通知",
+      "loadFailed": "通知预览加载失败",
+      "openFailed": "未能打开这条通知，请稍后重试"
+    },
     "markAllRead": "全部已读",
     "markingAllRead": "正在标记",
     "allRead": "已将全部通知标为已读",
@@ -4786,6 +4798,10 @@
     "topicDeleted": "帖子已删除。",
     "reply": "回复",
     "quote": "引用",
+    "selectionQuote": {
+      "toolbarLabel": "引用所选文字",
+      "quoteAndReply": "引用并回复"
+    },
     "commentLink": "链接",
     "commentMoreActions": "更多回复操作",
     "commentLinkCopied": "评论链接已复制",
@@ -4940,6 +4956,11 @@
       "unsaved": "有未保存修改",
       "saving": "保存中...",
       "success": "已保存"
+    },
+    "editValidation": {
+      "blocked": "暂时无法保存",
+      "noChanges": "当前内容没有修改。",
+      "requiredFields": "请先完成必填项。"
     },
     "categoryLabel": "分类",
     "categoryDefault": "选择分类（默认综合讨论）",
