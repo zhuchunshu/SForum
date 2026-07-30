@@ -56,7 +56,8 @@ func TestSafeModeClosesExecutableAndContributionSurfaces(t *testing.T) {
 	if navigation, err := service.Navigation(context.Background(), extensionManager()); err != nil || len(navigation) != 0 {
 		t.Fatalf("safe navigation=%#v err=%v", navigation, err)
 	}
-	if providers, err := service.ListStorageProviderCandidates(context.Background()); err != nil || len(providers) != 0 {
+	storageCatalog := NewAttachmentStorageProviderCatalog(service)
+	if providers, err := storageCatalog.ListStorageProviderCandidates(context.Background()); err != nil || len(providers) != 0 {
 		t.Fatalf("safe providers=%#v err=%v", providers, err)
 	}
 	if _, err := service.CapabilitiesFor(context.Background(), plugin.ID); !errors.Is(err, ErrExtensionDisabled) {

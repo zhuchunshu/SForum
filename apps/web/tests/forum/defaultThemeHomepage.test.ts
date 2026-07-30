@@ -75,7 +75,7 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(page).toContain('sforum-home__layout--with-right')
     expect(page).toContain('rightRailEnabled')
     expect(page).toContain('class="sforum-home__sidebar"')
-    expect(page).toContain('class="sforum-home__main"')
+    expect(page).toContain('class="sforum-home__main sforum-content-column"')
     expect(page).toContain('data-sf-region="topic-list"')
     expect(page).toContain('useActiveThemeSettings')
     expect(page).toContain('v-if="homeNotice"')

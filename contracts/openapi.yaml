@@ -171,6 +171,10 @@ paths:
     "$ref": "./openapi/paths/identity.yaml#/authProviderComplete"
   "/auth/providers/{providerId}/callback":
     "$ref": "./openapi/paths/identity.yaml#/authProviderCallback"
+  "/auth/external-continuation/prepare":
+    "$ref": "./openapi/paths/identity.yaml#/authExternalContinuationPrepare"
+  "/auth/external-continuation/link":
+    "$ref": "./openapi/paths/identity.yaml#/authExternalContinuationLink"
   "/auth/external-registration":
     "$ref": "./openapi/paths/identity.yaml#/authExternalRegistration"
   "/auth/external-registration/prepare":

@@ -190,6 +190,9 @@ var messages = map[string]map[string]string{
 		"auth.session_policy_denied":                     "当前会话策略拒绝此操作。",
 		"auth.session_policy_step_up_invalid":            "会话提权校验失败，请重新完成二次验证。",
 		"identity.registry_unavailable":                  "身份注册表暂时不可用，请稍后重试。",
+		"identity.locale_unavailable":                    "暂时无法保存语言偏好，请稍后重试。",
+		"appearance.invalid":                             "外观偏好不正确，请检查后重试。",
+		"appearance.unavailable":                         "外观偏好服务暂时不可用，请稍后重试。",
 		// Entity Registry import/export dry-run 与 catalog 相关 HTTP 错误码。
 		"entity.registry_unavailable":                  "实体注册表暂时不可用，请稍后重试。",
 		"entity.not_found":                             "指定的实体类型不存在，请刷新实体目录后重试。",
@@ -483,6 +486,9 @@ var messages = map[string]map[string]string{
 		"auth.session_policy_denied":                     "The current session policy denies this operation.",
 		"auth.session_policy_step_up_invalid":            "Session step-up verification failed. Complete secondary verification again.",
 		"identity.registry_unavailable":                  "The identity registry is temporarily unavailable. Please try again later.",
+		"identity.locale_unavailable":                    "Language preferences are temporarily unavailable. Please try again later.",
+		"appearance.invalid":                             "The appearance preference is invalid. Check it and try again.",
+		"appearance.unavailable":                         "Appearance preferences are temporarily unavailable. Please try again later.",
 		// Entity Registry import/export dry-run and catalog HTTP error codes.
 		"entity.registry_unavailable":                  "The entity registry is temporarily unavailable. Please try again later.",
 		"entity.not_found":                             "The specified entity type does not exist. Refresh the entity catalog and try again.",

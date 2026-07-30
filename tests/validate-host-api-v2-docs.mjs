@@ -79,7 +79,7 @@ for (const phrase of [
   'PLUGIN_CLIENT_CERT',
   'SFORUM_PLUGIN=sforum-plugin-v1',
   'plugin.GRPCBroker/StartStream',
-  'previously trusted v1',
+  'v2 mismatch fails closed and never starts or reconnects through v1',
   'thin Go launcher built against',
   '"hostApiVersion": "sforum.host@2"',
   '`sforum.host@2`',

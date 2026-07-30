@@ -167,6 +167,12 @@ function routePolicy(route) {
   if (path === '/api/v1/auth/external-registration' || path === '/api/v1/auth/external-registration/prepare') {
     return ['public', 'identity bootstrap, risk, rate-limit, and human-verification policy']
   }
+  if (path === '/api/v1/auth/external-continuation/prepare') {
+    return ['public', 'identity bootstrap, risk, rate-limit, and human-verification policy']
+  }
+  if (path === '/api/v1/auth/external-continuation/link') {
+    return ['login', 'current active actor; token/session ownership']
+  }
   if (path.startsWith('/api/v1/auth/external-identities') || path === '/api/v1/auth/password') {
     return ['login', 'current active actor; token/session ownership']
   }

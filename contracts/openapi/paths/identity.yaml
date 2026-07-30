@@ -1152,6 +1152,85 @@ authExternalRegistration:
       '503':
         "$ref": "../components/responses.yaml#/ServiceUnavailable"
 
+authExternalContinuationPrepare:
+  post:
+    summary: Inspect an unlinked external-login continuation
+    description: |
+      Public, non-consuming inspection of a browser-bound opaque ticket. Rechecks
+      the exact provider artifact and independently reports whether the identity
+      may be linked to an existing account or used to register a new account.
+      Never returns provider subjects, digests, tokens, or artifact identity.
+    operationId: prepareExternalAuthContinuation
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/identity.yaml#/ExternalAuthContinuationRequest"
+    responses:
+      '200':
+        description: Redacted provider presentation and authorized choices.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseExternalAuthContinuationPreparation"
+      '404':
+        description: Ticket missing, invalid, already consumed, or presented from another browser.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '410':
+        description: Continuation ticket expired.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+
+authExternalContinuationLink:
+  post:
+    summary: Link an external-login continuation to the current account
+    description: |
+      Cookie session and recent authentication required. Atomically consumes the
+      browser-bound login continuation and persists the external identity through
+      the shared Host link store. The current actor is always the target account.
+    operationId: linkExternalAuthContinuation
+    security:
+    - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/identity.yaml#/ExternalAuthContinuationRequest"
+    responses:
+      '200':
+        description: External identity linked to the current account.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseCurrentUser"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '404':
+        description: Ticket missing, invalid, already consumed, or presented from another browser.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
+      '410':
+        description: Continuation ticket expired.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+
 authExternalRegistrationPrepare:
   post:
     summary: Prepare editable fields from an opaque external-registration ticket

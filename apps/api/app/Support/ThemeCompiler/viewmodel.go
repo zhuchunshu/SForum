@@ -361,6 +361,11 @@ type RegisterPageViewModel struct {
 	RegistrationEnabled bool              `json:"registrationEnabled"`
 }
 
+type ExternalAuthContinuationPageViewModel struct {
+	Base PageViewModelBase `json:"base"`
+	Form HostFormBoundary  `json:"form"`
+}
+
 type ForgotPasswordPageViewModel struct {
 	Base PageViewModelBase `json:"base"`
 	Form HostFormBoundary  `json:"form"`

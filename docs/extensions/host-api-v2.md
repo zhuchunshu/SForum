@@ -65,9 +65,11 @@ Executable packages must select the current contracts explicitly:
 | Identifier | Meaning |
 | --- | --- |
 | `sforum.host@2` | Manifest V3 `backend.hostApiVersion` |
+| `sforum.host-api@2` | Accepted Manifest alias for the same V2 contract; new packages should use `sforum.host@2` |
 | `sforum.host/v2` | Wire value in `HandshakeRequest.host_api_version` and generated SDK constants |
 
-The host maps the Manifest identifier to the canonical wire
+The `sforum.host-api@2` alias does not enable Protocol V1 or an older Host API.
+The host maps either Manifest identifier to the canonical wire
 `host_api_version`; a plugin handshake must select `sforum.host/v2`. Only gRPC
 Protocol V2 is accepted. Installation or startup fails on a missing or invalid
 Manifest V3 declaration, any `protocolVersion` other than `2`, an unsupported

@@ -69,6 +69,9 @@ func (h *Controller) externalAuthCallback(c fiber.Ctx) error {
 		return externalAuthRedirect(c, "/login", mapCallbackStateError(err))
 	}
 	returnPath := txRedirect(tx)
+	if tx.BrowserBindingDigest != "" && !h.matchesExternalAuthBrowserBinding(c, tx.BrowserBindingDigest) {
+		return externalAuthRedirect(c, returnPath, "auth.provider_callback_invalid")
+	}
 
 	// 2–3. live artifact + 有效激活（在任何插件调用 / 业务效应之前）。
 	live, err := h.externalAuthService.ValidateCallbackBeforeEffect(c.Context(), tx, providerID)
@@ -180,7 +183,7 @@ func (h *Controller) handleExternalLoginCallback(c fiber.Ctx, tx identity.Callba
 	if err != nil {
 		if errors.Is(err, identity.ErrExternalIdentityUnlinked) {
 			// 未绑定且 registration 仍有效开放时，复用同一个 Host 注册 continuation。
-			target, continuationErr := h.createExternalRegistrationContinuation(c.Context(), assertion, returnPath)
+			target, continuationErr := h.createExternalIdentityContinuation(c, assertion, returnPath, tx.BrowserBindingDigest)
 			if continuationErr == nil {
 				return c.Redirect().Status(fiber.StatusFound).To(target)
 			}
@@ -225,8 +228,8 @@ func (h *Controller) handleExternalLoginCallback(c fiber.Ctx, tx identity.Callba
 // handleExternalRegistrationCallback 生成不透明一次性注册票据，302 到固定 Host 注册路由。
 // 浏览器只看到 ticket 字符串；raw subject 只存在票据内部（Redis）。
 // safe redirect 作为独立 query，不得改写注册 continuation 路由本身。
-func (h *Controller) handleExternalRegistrationCallback(c fiber.Ctx, _ identity.CallbackTransaction, assertion identity.ExternalAuthAssertion, returnPath string) error {
-	target, err := h.createExternalRegistrationContinuation(c.Context(), assertion, returnPath)
+func (h *Controller) handleExternalRegistrationCallback(c fiber.Ctx, tx identity.CallbackTransaction, assertion identity.ExternalAuthAssertion, returnPath string) error {
+	target, err := h.createExternalIdentityContinuation(c, assertion, returnPath, tx.BrowserBindingDigest)
 	if err != nil {
 		return externalAuthRedirect(c, returnPath, mapRegistrationContinuationReason(err))
 	}
@@ -262,6 +265,13 @@ func (h *Controller) externalRegistration(c fiber.Ctx) error {
 	if err := c.Bind().Body(&req); err != nil {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
 	}
+	preview, err := h.registrationTicketStore.Inspect(c.Context(), strings.TrimSpace(req.Ticket))
+	if err != nil {
+		return mapRegistrationTicketError(err)
+	}
+	if !h.matchesExternalAuthTicketBrowserBinding(c, preview) {
+		return mapRegistrationTicketError(identity.ErrRegistrationTicketInvalid)
+	}
 	input := identity.ExternalRegistrationInput{
 		Username:    strings.TrimSpace(req.Username),
 		Email:       strings.TrimSpace(req.Email),
@@ -288,22 +298,11 @@ func (h *Controller) externalRegistration(c fiber.Ctx) error {
 	if err != nil {
 		return mapRegistrationTicketError(err)
 	}
-	assertion := identity.ExternalAuthAssertion{
-		ProviderID:              ticket.ProviderID,
-		ProviderContractVersion: ticket.ProviderContractVersion,
-		OwnerExtensionID:        ticket.OwnerExtensionID,
-		OwnerExtensionVersion:   ticket.OwnerExtensionVersion,
-		OwnerPackageDigest:      ticket.OwnerPackageDigest,
-		Operation:               identity.ExternalAuthOperationRegistration,
-		SourceOperation:         ticket.SourceOperation,
-		ProviderSubject:         ticket.ProviderSubject,
-		SubjectDigest:           ticket.SubjectDigest,
-		UsernameHint:            ticket.UsernameHint,
-		DisplayName:             ticket.DisplayName,
-		EmailHint:               ticket.EmailHint,
-		EmailVerified:           ticket.EmailVerified,
-		CorrelationID:           ticket.CorrelationID,
+	if !h.matchesExternalAuthTicketBrowserBinding(c, ticket) {
+		return mapRegistrationTicketError(identity.ErrRegistrationTicketInvalid)
 	}
+	assertion := externalAuthAssertionFromTicket(ticket)
+	assertion.Operation = identity.ExternalAuthOperationRegistration
 	result, err := h.externalAuthService.CompleteRegistration(c.Context(), assertion, input)
 	if err != nil {
 		return mapExternalAuthRegistrationError(err)

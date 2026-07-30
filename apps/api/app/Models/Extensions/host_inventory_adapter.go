@@ -11,7 +11,6 @@ import (
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	runtimerollout "github.com/zhuchunshu/sforum/apps/api/app/Support/RuntimeRollout"
 	settingslifecycle "github.com/zhuchunshu/sforum/apps/api/app/Support/SettingsLifecycle"
-	storage "github.com/zhuchunshu/sforum/apps/api/app/Support/Storage"
 )
 
 // ListRedactedInventory 实现 hostapi.ExtensionInventoryReader。
@@ -384,14 +383,6 @@ func (s *Service) ImportSettings(
 
 func (s *Service) ExportSettings(ctx context.Context, actor identity.Actor, extensionID string) (settingslifecycle.ExportBundle, error) {
 	return s.settings.ExportSettings(ctx, actor, extensionID)
-}
-
-func (s *Service) ListStorageProviderCandidates(ctx context.Context) ([]storage.Candidate, error) {
-	return s.catalog.ListStorageProviderCandidates(ctx)
-}
-
-func (s *Service) IsStorageProviderAvailable(ctx context.Context, extensionID string) (bool, error) {
-	return s.catalog.IsStorageProviderAvailable(ctx, extensionID)
 }
 
 func (s *Service) ApplyThemeRuntimePublication(ctx context.Context, publication ThemeRuntimePublication) error {

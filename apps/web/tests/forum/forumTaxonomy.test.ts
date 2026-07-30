@@ -42,6 +42,7 @@ describe('forum taxonomy helpers', () => {
     const editor = readFileSync(new URL('../../app/components/SFEditor.vue', import.meta.url), 'utf8')
     const editPage = readFileSync(new URL('../../app/components/forum/SFTopicEditPage.vue', import.meta.url), 'utf8')
     const showPage = readFileSync(new URL('../../app/components/forum/SFTopicShowPage.vue', import.meta.url), 'utf8')
+    const commentComposer = readFileSync(new URL('../../app/composables/forum/useTopicCommentComposerDrawer.ts', import.meta.url), 'utf8')
     const topicEditor = readFileSync(new URL('../../app/components/forum/SFTopicEditor.vue', import.meta.url), 'utf8')
     const adminComment = readFileSync(
       new URL('../../app/components/admin/forum/SFAdminForumCommentEditor.vue', import.meta.url),
@@ -52,8 +53,9 @@ describe('forum taxonomy helpers', () => {
     expect(editor).toContain("typeof initialContent === 'string' ? { contentType: 'markdown' as const }")
     expect(editPage).toContain('forumEditorInitialContent')
     expect(editPage).not.toContain('.content.rawContent')
-    expect(showPage).toContain('forumEditorInitialContent(comment.content)')
-    expect(showPage).not.toContain('comment.content.rawContent')
+    expect(commentComposer).toContain('forumEditorInitialContent(comment.content)')
+    expect(showPage).toContain(':initial-content="composerInitialContent"')
+    expect(commentComposer).not.toContain('comment.content.rawContent')
     expect(topicEditor).toContain('forumEditorInitialContent(props.topic.content)')
     expect(topicEditor).not.toContain('props.topic.content.rawContent')
     expect(adminComment).toContain('forumEditorInitialContent(props.comment.content)')

@@ -10,8 +10,8 @@ load archived sessions or completed plans as current context.
 
 - Status: **active design**; Core/plugin/storage/rendering architecture is
   approved, including the generated plugin catalog and immutable historical
-  assets. Forum Canvas (direction 01) is selected for editor refinement; no
-  sticker product implementation is complete.
+  assets. The Forum Canvas base editor is implemented and Browser-verified;
+  the sticker catalog, node, picker, and admin product are not implemented.
 - Plan: `plans/2026-07-30-image-sticker-platform.md`
 - Handoff: `sessions/2026-07-30-image-sticker-platform-design.md`
 - Decision: `decisions/2026-07-30-image-sticker-catalog.md`
@@ -107,6 +107,11 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Release CI readiness: current architecture, localization, static fixtures,
+  generated V3 catalogs, protected plugin versioning, and Nuxt types are aligned
+  with the release gate; build and browser verification pass, and the next
+  manual release must be `v3.0.0-alpha.3`:
+  `sessions/2026-07-30-release-ci-readiness-fix.md`
 - Release pipeline artifacts: the maintainer helper returns immediately by
   default; GitHub reuses the exact main CI, publishes four multi-platform
   images, six cross-platform CLI archives, two Linux backend bundles,
@@ -123,20 +128,23 @@ load archived sessions or completed plans as current context.
   normal and system-error documents share the same user-first appearance
   resolution, including authenticated hard-refresh errors:
   `sessions/2026-07-30-personal-appearance-settings.md`
-- Unlinked external login registration continuation: an authenticated but
-  unbound provider subject now enters the existing registration page with
-  verified provider hints, while exact-artifact revalidation, atomic binding,
-  and the prohibition on email-based account matching remain authoritative:
+- Unlinked external login choice continuation: an unbound provider subject now
+  enters `/auth/continue` and may either prove an existing local account then
+  auto-bind, or use the existing registration flow then auto-bind. Both paths
+  share the Host ticket/link authority, with browser binding, exact-artifact
+  revalidation, and no email-based account matching:
   `sessions/2026-07-30-external-login-registration-continuation.md`
 - Shared topic comment composer: quick reply remains inline; advanced reply,
   comment reply, and comment edit use one bottom drawer with pointer/keyboard
   height adjustment. The legacy advanced-reply page redirects into that drawer,
   and desktop/mobile Browser QA plus hydration checks pass:
   `sessions/2026-07-30-shared-comment-composer-drawer.md`
-- Custom image sticker platform design: Forum Canvas (direction 01) is selected
-  for refinement and now uses quiet input focus treatment; its supplied D01
-  stickers still exercise search, recent use, insertion, preview, and the
-  approved `128x128` desktop / `96x96` mobile caps:
+- Custom image sticker platform design: the Forum Canvas base is now live in
+  `SFEditor` with quiet focus, responsive toolbar scrolling, and preserved
+  write/preview/Markdown/JSON plus trusted L2 contracts. The Unicode emoji
+  picker is gone, while the real sticker command remains gated on the immutable
+  catalog and `sforumSticker` node; size caps remain `128x128` desktop and
+  `96x96` mobile:
   `sessions/2026-07-30-image-sticker-platform-design.md`
 - Uploaded avatar media route repair: AvatarView now exposes stable
   `/media/avatars/{publicId}` URLs, the Nuxt Host proxies them to the existing

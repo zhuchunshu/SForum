@@ -196,6 +196,9 @@ func (s *CorePageViewModelSource) Populate(ctx context.Context, input CorePageVi
 		err = s.populateLogin(ctx, &request)
 	case "auth.register":
 		err = s.populateRegister(ctx, &request)
+	case "auth.external_continuation":
+		request.SEO.Robots = "noindex,nofollow"
+		request.Data.ExternalContinuation = &themecompiler.ExternalAuthContinuationPageViewModel{}
 	case "auth.forgot_password":
 		request.Data.ForgotPassword = &themecompiler.ForgotPasswordPageViewModel{}
 	case "auth.reset_password":

@@ -201,7 +201,7 @@ func (h *Controller) updateCurrentUserLocale(c fiber.Ctx) error {
 	if !valid {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
 	}
-	current, err := h.service.UpdateCurrentUserLocale(c.Context(), userID, locale)
+	current, err := h.localePreferences.Update(c.Context(), userID, locale)
 	if err != nil {
 		return mapIdentityError(err)
 	}

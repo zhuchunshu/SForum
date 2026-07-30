@@ -1237,6 +1237,17 @@
     "targetRegistry": "P7 Admin Surface Registry"
   },
   {
+    "id": "core.component.page.auth.external_continuation",
+    "contractVersion": "sforum.component.page.auth.external_continuation@1",
+    "kind": "page",
+    "route": "/auth/continue",
+    "source": "apps/web/app/pages/auth/continue.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.page.auth.forgot_password",
     "contractVersion": "sforum.component.page.auth.forgot_password@1",
     "kind": "page",
@@ -1855,6 +1866,16 @@
     "targetRegistry": "P9 Component Registry"
   },
   {
+    "id": "core.component.shared.sfeditor_toolbar",
+    "contractVersion": "sforum.component.shared.sfeditor_toolbar@1",
+    "kind": "component",
+    "source": "apps/web/app/components/editor/SFEditorToolbar.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sfempty_state",
     "contractVersion": "sforum.component.shared.sfempty_state@1",
     "kind": "component",
@@ -1890,6 +1911,16 @@
     "contractVersion": "sforum.component.shared.sfextension_widget@1",
     "kind": "component",
     "source": "apps/web/app/components/SFExtensionWidget.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfexternal_auth_continuation_page",
+    "contractVersion": "sforum.component.shared.sfexternal_auth_continuation_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/identity/SFExternalAuthContinuationPage.vue",
     "owners": [
       "public"
     ],

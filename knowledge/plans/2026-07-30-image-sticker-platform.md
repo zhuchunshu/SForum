@@ -1,10 +1,10 @@
 # Custom Image Sticker Platform - Design And Task Book
 
-Status: **active** - platform architecture is approved; Forum Canvas
-(direction 01) is selected for refinement before implementation starts
+Status: **active** - platform architecture is approved; the Forum Canvas base
+editor is implemented, while the sticker contract and product remain unbuilt
 
 Date: 2026-07-30
-Last updated: 2026-07-30 - editor/sticker design directions prepared
+Last updated: 2026-07-30 - Forum Canvas production base verified
 
 Goal: let operators upload and manage custom image sticker packs, let plugins
 contribute packs without a large handwritten Manifest, and let forum content
@@ -50,9 +50,9 @@ Before implementation, read:
   surface. Desktop/tablet maximum is `128x128` CSS pixels; mobile maximum is
   `96x96` CSS pixels.
 - The sticker platform exposes an editor integration contract, but the new
-  editor's toolbar, picker, mobile interaction, search, recent-use behavior,
-  and composition geometry require operator selection from the current HTML
-  design directions before their contract is frozen.
+  editor's picker, mobile interaction, search, recent-use behavior, and
+  composition geometry must remain aligned with the selected Forum Canvas
+  direction when their production contract is frozen.
 
 ## Current Editor Design Gate
 
@@ -65,13 +65,17 @@ Interactive comparison demos live at
 
 The operator selected Forum Canvas as the base direction. Its input surfaces
 use quiet focus treatment without an accent outline or hover fill; command
-buttons retain visible keyboard focus and selected states.
+buttons retain visible keyboard focus and selected states. The production
+`SFEditor` now uses this base geometry and retains write, preview, Markdown,
+and native JSON modes. The Unicode emoji picker is removed from the toolbar,
+but historical `sforumEmoji` documents remain supported.
 
 All three use the supplied D01 image sticker pack, not Unicode emoji. They
 share search, recent-use tabs, insertion at the current selection, preview
 sync, 32px picker thumbnails, 128px content assets, a desktop/tablet `128x128`
 cap, and a mobile `96x96` cap. These are design artifacts, not production
-implementation or accepted final editor behavior.
+implementation of the sticker product. The editor base surface is accepted;
+the real picker remains gated on the Host catalog and `sforumSticker` node.
 
 ## Existing Baseline To Reuse
 
@@ -406,8 +410,7 @@ The following are intentionally **not decided** here:
 - whether the new editor keeps the current multi-mode inspection UI;
 - how plugin L2 editor commands coexist visually with Core commands.
 
-Resolve these questions in the next editor design discussion before M0 is
-declared implementation-ready.
+Resolve the remaining picker questions during M0 before M4 implementation.
 
 ## Milestones
 
@@ -421,13 +424,14 @@ Status: **complete**
 
 ### D1 - New Editor Product Design
 
-Status: **next**
+Status: **in progress** - production base complete; sticker picker details remain
 
-- Inspect all current topic/comment/admin editor contexts.
-- Design the complete new editor interaction, responsive geometry, states, and
-  extension toolbar integration.
+- [x] Inspect all current topic/comment/admin editor contexts.
+- [x] Implement and verify the Forum Canvas base editor geometry and states.
+- [x] Preserve editor-document, Markdown/native inspection, and trusted L2
+  extension loading contracts.
 - Freeze sticker picker behavior without changing the platform contracts above.
-- Add rendered desktop/mobile design evidence before implementation.
+- [x] Add rendered desktop/mobile evidence at `1920x960` and `390x844`.
 
 ### M0 - Contract And Threat Model
 

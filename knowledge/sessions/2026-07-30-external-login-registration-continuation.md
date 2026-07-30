@@ -1,43 +1,53 @@
-# 2026-07-30 External Login Registration Continuation
+# 2026-07-30 External Login Choice Continuation
 
 ## Changed
 
-- Unlinked external login now redirects into the existing registration page
-  with the same opaque external-registration ticket used by explicit provider
-  registration.
-- The existing form non-consumingly prepares the ticket and prefills editable
-  provider username, display name, and verified email hints; final submission
-  still uses the original external-registration endpoint.
-- Host registration rechecks source and registration activation, exact live
-  artifact, Safe Mode, site policy, and bootstrap restrictions. User, default
-  role, external link, and audit remain atomic; email never drives matching.
-- GitHub publishes its login hint and verified primary email signal. Its
-  Manifest V3 digests were refreshed and the package validates and tests.
-- External registration logic moved into a focused Identity model file and the
-  retired oversized-file baseline was removed.
+- Unlinked external login now redirects to `/auth/continue`, where the user can
+  choose local login plus automatic binding or existing registration plus
+  automatic binding.
+- Both paths share the existing opaque continuation ticket and
+  `ExternalIdentityLinkStore`; there is no second link persistence path or
+  repeated provider OAuth completion.
+- Existing-account binding requires the current active user, session-bound
+  recent auth, login/link activation, exact artifact, browser-bound ticket, and
+  subject uniqueness. The source provider is hidden on the intermediate login
+  page to prevent an OAuth loop.
+- Registration still uses the original prepare/submission endpoints and atomic
+  user/default-role/link/audit transaction. Site registration policy affects
+  only that choice, and provider email never drives account matching.
+- `/auth/continue` has a complete Page Registry/ViewModel/Host-island contract;
+  both built-in themes contain digest-declared templates. The staged default
+  theme was activated through the admin flow at package digest
+  `d5ee174ca53242085177d6f969b71f67fbee5f36fd717236c972b9e0da47847e`.
 
 ## Decisions
 
-- See
-  `../decisions/2026-07-30-unlinked-external-login-registration-continuation.md`.
+- See `../decisions/2026-07-30-unlinked-external-login-registration-continuation.md`.
 
 ## Verification
 
-- Focused Identity model/controller Go tests, GitHub plugin Go tests, the
-  Protocol V2 headless Host integration, rendered registration tests, OpenAPI
-  refs, V3 catalog generation/check, plugin digest, manifest validation, plugin
-  test, and `git diff --check` pass.
-- Repository-wide Go tests are blocked by concurrent appearance route/catalog,
-  localization, and attachment schedule expectations. Nuxt typecheck and the
-  architecture gate are also blocked by unrelated current-worktree errors and
-  growth; this work's focused tests and architecture baseline pass.
+- `cd apps/api && go test ./...` passes after the Core Route Catalog count was
+  updated for the two new endpoints.
+- Focused Identity model/controller security tests, Page Registry,
+  ThemeCompiler, PageViewModels, frontend auth rendering, OpenAPI refs, V3
+  catalog generation/check, architecture boundaries, both built-in theme
+  digest/validate/test checks, Nuxt production build, and `git diff --check`
+  pass.
+- Runtime `/site/active-theme/skin` and `/pages/resolve` report the activated
+  default-theme digest above and `provider=sforum.default-theme` for
+  `auth.external_continuation`.
+- Nuxt typecheck remains blocked by unrelated current-worktree errors in
+  attachment, appearance, locale, search, and admin-tool files; the new
+  continuation component did not produce a reported type error.
 
 ## Next
 
-- Exercise a real configured OAuth callback in a runtime where the GitHub
-  provider is enabled for both login and registration; confirm the form prefill
-  and resulting link through normal UI/API inspection.
+- Manually exercise a real unlinked GitHub account through both choices,
+  including registration-disabled and mobile-layout cases. Confirm the rendered
+  root has `data-provider="sforum.default-theme"` and `data-template="1"`, and
+  inspect browser console/layout while doing so.
 
 ## Open Questions
 
-- None for the Host contract.
+- None for the Host contract; real-account OAuth behavior awaits the manual QA
+  above.

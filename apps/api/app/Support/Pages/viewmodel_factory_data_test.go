@@ -44,6 +44,27 @@ func TestBuildCorePageViewModelOverridesHostFormBoundary(t *testing.T) {
 	}
 }
 
+func TestBuildExternalAuthContinuationViewModelFreezesHostBoundary(t *testing.T) {
+	input := &themecompiler.ExternalAuthContinuationPageViewModel{Form: themecompiler.HostFormBoundary{
+		ComponentID: "plugin.capture.continuation", ActionRouteIDs: []string{"plugin.capture.ticket"},
+	}}
+	model, err := BuildCorePageViewModel(CorePageViewModelRequest{
+		PageID: "auth.external_continuation", Locale: "en-US", Path: "/auth/continue",
+		Data: CorePageViewModelData{ExternalContinuation: input},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	continuation := model.(themecompiler.ExternalAuthContinuationPageViewModel)
+	wantRoutes := []string{
+		"core.route.identity.prepare_external_auth_continuation",
+		"core.route.identity.link_external_auth_continuation",
+	}
+	if continuation.Form.ComponentID != "identity.component.external_auth_continuation" || !slices.Equal(continuation.Form.ActionRouteIDs, wantRoutes) {
+		t.Fatalf("Host continuation boundary drifted: %#v", continuation.Form)
+	}
+}
+
 func TestBuildNotificationSettingsViewModelFreezesHostBoundary(t *testing.T) {
 	input := &themecompiler.NotificationSettingsPageViewModel{Form: themecompiler.HostFormBoundary{
 		ComponentID: "plugin.capture.settings", ActionRouteIDs: []string{"plugin.capture.secrets"},

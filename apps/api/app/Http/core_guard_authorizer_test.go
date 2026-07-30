@@ -379,6 +379,12 @@ func TestProductionIdentitySelfCredentialsGuardPartitionsCatalogByProvablePolicy
 		"core.route.identity.rotate_apitoken": {method: "POST"},
 		// 解绑依赖 link 所有权 / revision；无资源策略时 fail closed。
 		"core.route.identity.external_identity_unlink": {method: "DELETE"},
+		// 偏好更新依赖请求体校验；continuation link 还依赖 ticket、浏览器绑定和 recent-auth。
+		// 当前 guard 输入不能完整复现 handler/service 策略，因此显式 fail closed。
+		"core.route.identity.clear_current_user_appearance":   {method: "DELETE"},
+		"core.route.identity.update_current_user_appearance":  {method: "PUT"},
+		"core.route.identity.update_current_user_locale":      {method: "PUT"},
+		"core.route.identity.link_external_auth_continuation": {method: "POST"},
 	}
 	var catalog []routes.CoreRoute
 	for _, route := range routes.CoreRouteCatalog() {

@@ -261,7 +261,7 @@ function selectSection(section: string) {
 
 <template>
   <div class="min-w-0">
-    <SFAdminFixedTabNav :items="sectionOptions" :model-value="activeSection" :aria-label="t('admin.navigationEditor.sectionLabel')" @update:model-value="selectSection" />
+    <SFAdminFixedTabNav :items="sectionOptions" :model-value="activeSection" :ariaLabel="t('admin.navigationEditor.sectionLabel')" @update:model-value="selectSection" />
 
     <UCard v-if="activeSection === 'navigation'" class="border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
       <template #header>

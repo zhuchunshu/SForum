@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { parse, compileScript } from '@vue/compiler-sfc'
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 
 import {
   apiErrorFields,
@@ -444,6 +444,7 @@ async function loadRegisterPageForSubmitTest(options: { registerError?: unknown 
   const factory = new Function(
     '__vue',
     'SFAuthProviderButtons',
+    'SFAuthShell',
     'definePageMeta',
     'useI18n',
     'useToast',
@@ -463,6 +464,7 @@ async function loadRegisterPageForSubmitTest(options: { registerError?: unknown 
     'reactive',
     'ref',
     'computed',
+    'watch',
     'apiErrorFields',
     'apiErrorReason',
     'registerErrorMessage',
@@ -474,6 +476,7 @@ async function loadRegisterPageForSubmitTest(options: { registerError?: unknown 
       withAsyncContext: (fn: () => Promise<unknown>) => [fn(), () => {}],
       defineComponent: (options: unknown) => options
     },
+    {},
     {},
     () => {},
     () => ({ t: (key: string) => key, locale: ref('zh-CN') }),
@@ -515,6 +518,7 @@ async function loadRegisterPageForSubmitTest(options: { registerError?: unknown 
     reactive,
     ref,
     computed,
+    watch,
     () => ({}),
     apiErrorReason,
     () => 'register failed',
@@ -569,10 +573,12 @@ async function loadLoginPageForSubmitTest() {
   const factory = new Function(
     '__vue',
     'SFAuthProviderButtons',
+    'SFAuthShell',
     'definePageMeta',
     'useI18n',
     'useToast',
     'useLocalePath',
+    'useRoute',
     'useAdminRoutes',
     'useApiClient',
     'useAuthSession',
@@ -595,10 +601,12 @@ async function loadLoginPageForSubmitTest() {
       defineComponent: (options: unknown) => options
     },
     {},
+    {},
     () => {},
     () => ({ t: (key: string) => key, locale: ref('zh-CN') }),
     () => ({ add: (toast: unknown) => toasts.push(toast) }),
     () => (path: string) => path,
+    () => ({ query: {} }),
     () => ({ path: (path: string) => path === '/' ? '/control-panel' : `/control-panel${path}` }),
     () => ({ apiBaseUrl: '/api/v1', request }),
     () => ({

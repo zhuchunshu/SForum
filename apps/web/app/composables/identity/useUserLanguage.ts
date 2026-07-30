@@ -18,6 +18,7 @@ export type UserLanguageOption = {
 // uses its own locale keys (en). Keep that mapping at this boundary.
 export function useUserLanguage() {
   const { locales, setLocale } = useI18n()
+  type AppLocaleCode = Parameters<typeof setLocale>[0]
   const { request } = useApiClient()
   const { user, setUser } = useAuthSession()
   const { defaultLocale, supportedLocales } = useWebOptions()
@@ -48,7 +49,7 @@ export function useUserLanguage() {
   async function applyLanguage(language: string) {
     const configured = configuredLocales.value.find(entry => entry.language === normalizeLocale(language))
     if (configured) {
-      await setLocale(configured.code)
+      await setLocale(configured.code as AppLocaleCode)
     }
   }
 

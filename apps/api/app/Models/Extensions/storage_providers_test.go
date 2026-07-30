@@ -32,8 +32,9 @@ func TestListStorageProviderCandidatesOnlyEnabledSlot(t *testing.T) {
 		},
 	}
 	service := NewService(store, t.TempDir())
+	catalog := NewAttachmentStorageProviderCatalog(service)
 
-	got, err := service.ListStorageProviderCandidates(context.Background())
+	got, err := catalog.ListStorageProviderCandidates(context.Background())
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
@@ -47,15 +48,15 @@ func TestListStorageProviderCandidatesOnlyEnabledSlot(t *testing.T) {
 		t.Fatalf("expected multi-instance schema projection, got %#v", got[0])
 	}
 
-	ok, err := service.IsStorageProviderAvailable(context.Background(), "acme.store")
+	ok, err := catalog.IsStorageProviderAvailable(context.Background(), "acme.store")
 	if err != nil || !ok {
 		t.Fatalf("available acme: %v %v", ok, err)
 	}
-	ok, err = service.IsStorageProviderAvailable(context.Background(), "disabled.store")
+	ok, err = catalog.IsStorageProviderAvailable(context.Background(), "disabled.store")
 	if err != nil || ok {
 		t.Fatalf("disabled should be unavailable: %v %v", ok, err)
 	}
-	ok, err = service.IsStorageProviderAvailable(context.Background(), "sforum.smtp")
+	ok, err = catalog.IsStorageProviderAvailable(context.Background(), "sforum.smtp")
 	if err != nil || ok {
 		t.Fatalf("mail plugin is not storage: %v %v", ok, err)
 	}

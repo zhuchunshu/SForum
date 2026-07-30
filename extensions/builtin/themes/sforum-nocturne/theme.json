@@ -162,6 +162,13 @@
       "contract": "sforum.page.register@1"
     },
     {
+      "id": "sforum.nocturne-theme.external_auth_continuation",
+      "action": "replace",
+      "target": "auth.external_continuation",
+      "template": "templates/external-auth-continuation.html",
+      "contract": "sforum.page.external_auth_continuation@1"
+    },
+    {
       "id": "sforum.nocturne-theme.forgot_password",
       "action": "replace",
       "target": "auth.forgot_password",

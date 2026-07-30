@@ -24,6 +24,9 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	// 但对 Route Registry 替换关闭（Host 独占 state/PKCE/会话权威）。
 	// 见 plans/2026-07-27-github-social-login-builtin-plugin.md M1/T1E。
 	auth.Get("/providers/:providerId/callback", h.externalAuthCallback)
+	// 未绑定登录断言：公开 prepare 只返回可选终点；link 需要当前近期认证会话。
+	auth.Post("/external-continuation/prepare", h.externalAuthContinuationPreparation)
+	auth.Post("/external-continuation/link", h.externalAuthContinuationLink)
 	// 外部注册：用一次性票据原子创建用户 + 默认角色 + link。
 	auth.Post("/external-registration/prepare", h.externalRegistrationPreparation)
 	auth.Post("/external-registration", h.externalRegistration)

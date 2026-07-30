@@ -83,7 +83,7 @@ func TestExternalIdentityLinkInputRejectsUnsafeProviderAndSecrets(t *testing.T) 
 		{name: "catalog only", change: func(value *LinkExternalIdentityInput) { value.Provider.Operations = nil }},
 		{name: "missing runtime", change: func(value *LinkExternalIdentityInput) { value.Provider.Artifact.RuntimeInstanceID = "" }},
 		{name: "raw subject", change: func(value *LinkExternalIdentityInput) { value.ProviderSubjectDigest = "vendor-user-42" }},
-		{name: "unknown operation", change: func(value *LinkExternalIdentityInput) { value.ProviderOperation = "login.complete" }},
+		{name: "unknown operation", change: func(value *LinkExternalIdentityInput) { value.ProviderOperation = "recovery.complete" }},
 		{name: "whitespace idempotency", change: func(value *LinkExternalIdentityInput) { value.IdempotencyKey = " link:key" }},
 	}
 	for _, test := range tests {

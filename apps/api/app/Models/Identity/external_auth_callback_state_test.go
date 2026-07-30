@@ -319,7 +319,8 @@ func TestInMemoryRegistrationTicketStore_RequiresBindingAndTimestamps(t *testing
 	}
 	// 错误 operation。
 	badOp := validRegistrationTicket("t2", time.Now().Add(time.Minute))
-	badOp.Operation = ExternalAuthOperationLogin
+	badOp.Operation = ExternalAuthOperationLink
+	badOp.SourceOperation = ExternalAuthOperationLink
 	if err := store.Save(ctx, badOp); err != ErrRegistrationTicketInvalid {
 		t.Fatalf("wrong operation save err = %v, want invalid", err)
 	}
@@ -351,7 +352,9 @@ func TestInMemoryRegistrationTicketStore_RequiresBindingAndTimestamps(t *testing
 func TestInMemoryRegistrationTicketStore_InspectDoesNotConsume(t *testing.T) {
 	store := NewInMemoryRegistrationTicketStore()
 	ticket := validRegistrationTicket("inspect-ticket", time.Now().Add(time.Minute))
+	ticket.Operation = ExternalAuthOperationLogin
 	ticket.SourceOperation = ExternalAuthOperationLogin
+	ticket.BrowserBindingDigest = strings.Repeat("c", 64)
 	if err := store.Save(t.Context(), ticket); err != nil {
 		t.Fatal(err)
 	}

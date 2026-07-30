@@ -142,3 +142,19 @@ func normalizedMissingArtifactIDs(values []string) []string {
 	sort.Strings(ids)
 	return ids
 }
+
+func (s *CatalogService) pruneMissingBuiltins(ctx context.Context, activeIDs []string) error {
+	result, err := s.store.PruneMissingBuiltins(ctx, activeIDs)
+	if err != nil {
+		return err
+	}
+	for _, extensionID := range result.DisabledPluginIDs {
+		if err := s.clearPluginProviderSelections(ctx, extensionID); err != nil {
+			return fmt.Errorf("clear removed builtin provider selections for %s: %w", extensionID, err)
+		}
+		if s.pageRegistry != nil {
+			s.pageRegistry.ClearExtension(extensionID)
+		}
+	}
+	return nil
+}

@@ -19,7 +19,7 @@ import (
 	identityregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/IdentityRegistry"
 )
 
-// 外部认证回调状态与一次性注册票据。
+// 外部认证回调状态与一次性身份续接票据。
 //
 // 安全约束（见 plans/2026-07-27-github-social-login-builtin-plugin.md）：
 //   - OAuth 回调使用保留的 Core 路由，独立于 Route Registry；
@@ -35,7 +35,7 @@ import (
 const (
 	// CallbackStateDefaultTTL 回调事务默认 TTL（10 分钟）。
 	CallbackStateDefaultTTL = 10 * time.Minute
-	// RegistrationTicketDefaultTTL 注册票据默认 TTL（10 分钟）。
+	// RegistrationTicketDefaultTTL 身份续接票据默认 TTL（10 分钟）。
 	RegistrationTicketDefaultTTL = 10 * time.Minute
 
 	callbackStateKeyPrefix      = "sforum:auth:callback:"
@@ -82,7 +82,10 @@ type CallbackTransaction struct {
 	ActorUserID             int64                 `json:"actorUserId"`
 	ClientClass             string                `json:"clientClass"`
 	DeviceFingerprint       string                `json:"deviceFingerprint"`
-	RedirectPath            string                `json:"redirectPath"`
+	// BrowserBindingDigest 绑定 Host 设置的 HttpOnly 浏览器随机值，防止
+	// callback/continuation bearer token 被复制到另一浏览器后触发账号绑定 CSRF。
+	BrowserBindingDigest string `json:"browserBindingDigest"`
+	RedirectPath         string `json:"redirectPath"`
 	// AbsoluteCallbackURL 是 start 时由可信站点基址生成的绝对 callback URL；
 	// complete 必须传入同一值，不可从请求 Host 重建。
 	AbsoluteCallbackURL string    `json:"absoluteCallbackUrl"`
@@ -170,9 +173,9 @@ type CallbackStateStore interface {
 	Peek(ctx context.Context, state string) (CallbackTransaction, error)
 }
 
-// RegistrationTicket 是完成 external registration 断言后的不透明票据。
+// RegistrationTicket 是完成 external identity 断言后的不透明续接票据。
 // 浏览器只看到 ticket token；票据内才保存 providerSubject/displays 与 artifact 绑定。
-// Owner* / ProviderContractVersion 在 CompleteRegistration 时与 live Registry 精确比对。
+// Owner* / ProviderContractVersion 在最终注册或已有账号绑定时与 live Registry 精确比对。
 type RegistrationTicket struct {
 	Token                   string                `json:"token"`
 	ProviderID              string                `json:"providerId"`
@@ -182,6 +185,7 @@ type RegistrationTicket struct {
 	OwnerPackageDigest      string                `json:"ownerPackageDigest"`
 	Operation               ExternalAuthOperation `json:"operation"`
 	SourceOperation         ExternalAuthOperation `json:"sourceOperation"`
+	BrowserBindingDigest    string                `json:"browserBindingDigest"`
 	ProviderSubject         string                `json:"providerSubject"` // raw subject，Core 校验后立即消费
 	SubjectDigest           string                `json:"subjectDigest"`   // 兼容旧 fixture 路径；raw subject 为空时使用
 	UsernameHint            string                `json:"usernameHint"`
@@ -198,8 +202,7 @@ func (t RegistrationTicket) IsExpired(now time.Time) bool {
 	return t.ExpiresAt.IsZero() || now.After(t.ExpiresAt)
 }
 
-// ValidateBinding 强制 operation/provider/artifact 与时间戳绑定。
-// 缺失任一字段或 operation 非 registration 时返回 ErrRegistrationTicketInvalid。
+// ValidateBinding 强制 source operation/provider/artifact/browser 与时间戳绑定。
 func (t RegistrationTicket) ValidateBinding() error {
 	if strings.TrimSpace(t.Token) == "" ||
 		strings.TrimSpace(t.ProviderID) == "" ||
@@ -207,10 +210,19 @@ func (t RegistrationTicket) ValidateBinding() error {
 		strings.TrimSpace(t.OwnerPackageDigest) == "" {
 		return ErrRegistrationTicketInvalid
 	}
-	if t.Operation != ExternalAuthOperationRegistration {
+	if t.Operation != ExternalAuthOperationLogin && t.Operation != ExternalAuthOperationRegistration {
 		return ErrRegistrationTicketInvalid
 	}
-	if t.SourceOperation != ExternalAuthOperationRegistration && t.SourceOperation != ExternalAuthOperationLogin {
+	if t.SourceOperation != t.Operation {
+		return ErrRegistrationTicketInvalid
+	}
+	// Existing registration tickets from an in-flight rolling deploy remain
+	// consumable for account creation. Login continuations can bind an existing
+	// account and therefore always require the anti-login-CSRF browser binding.
+	if t.Operation == ExternalAuthOperationLogin && !validExternalIdentityDigest(t.BrowserBindingDigest) {
+		return ErrRegistrationTicketInvalid
+	}
+	if t.BrowserBindingDigest != "" && !validExternalIdentityDigest(t.BrowserBindingDigest) {
 		return ErrRegistrationTicketInvalid
 	}
 	if t.CreatedAt.IsZero() || t.ExpiresAt.IsZero() {
@@ -266,6 +278,14 @@ func GenerateCallbackState() (string, error) {
 // GenerateOpaqueToken 生成不透明 token（base64url，无 padding）。
 func GenerateOpaqueToken() (string, error) {
 	return randomURL(callbackTokenBytes)
+}
+
+// ExternalAuthBrowserBindingDigest derives the non-reversible value stored in
+// callback and continuation records. The raw browser cookie never enters Redis
+// payloads, audit events, URLs, or logs.
+func ExternalAuthBrowserBindingDigest(value string) string {
+	sum := sha256.Sum256([]byte(strings.TrimSpace(value)))
+	return hex.EncodeToString(sum[:])
 }
 
 // GeneratePKCE 生成 PKCE code_verifier 与 code_challenge(S256)。
@@ -364,6 +384,20 @@ func ValidateSafeRedirectPath(path string) bool {
 // 浏览器只携带 opaque ticket；safeRedirect 作为独立 query，不得改写注册路由本身。
 func ExternalRegistrationContinuationPath(ticket, safeRedirect string) string {
 	u := &url.URL{Path: "/register"}
+	q := url.Values{}
+	q.Set("ticket", ticket)
+	if ValidateSafeRedirectPath(safeRedirect) {
+		q.Set("redirect", safeRedirect)
+	}
+	u.RawQuery = q.Encode()
+	return u.String()
+}
+
+// ExternalAuthContinuationPath is the Host-owned choice page for an unlinked
+// login assertion. The opaque ticket remains one-use and the redirect stays a
+// separately validated local path.
+func ExternalAuthContinuationPath(ticket, safeRedirect string) string {
+	u := &url.URL{Path: "/auth/continue"}
 	q := url.Values{}
 	q.Set("ticket", ticket)
 	if ValidateSafeRedirectPath(safeRedirect) {

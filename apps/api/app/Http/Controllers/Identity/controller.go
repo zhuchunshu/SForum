@@ -30,6 +30,7 @@ var _ optionsResolver = (*options.Service)(nil)
 type Controller struct {
 	service            *identity.Service
 	appearance         *identity.AppearancePreferenceService
+	localePreferences  *identity.LocalePreferenceService
 	authSessions       *authsession.Manager
 	verifier           humanverify.Verifier
 	passwordReset      *identity.PasswordResetService
@@ -124,6 +125,13 @@ func (h *Controller) WithWelcomeMailOptions(settings WelcomeMailOptions) *Contro
 func (h *Controller) WithAppearancePreferences(service *identity.AppearancePreferenceService) *Controller {
 	if h != nil {
 		h.appearance = service
+	}
+	return h
+}
+
+func (h *Controller) WithLocalePreferences(service *identity.LocalePreferenceService) *Controller {
+	if h != nil {
+		h.localePreferences = service
 	}
 	return h
 }

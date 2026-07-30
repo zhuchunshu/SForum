@@ -154,6 +154,12 @@
       "path": "templates/register.html"
     },
     {
+      "digest": "22a6922703f186db2eaf574f952b6e8bf0b79faaa3f76202a20bfe62731f91f5",
+      "id": "sforum.default-theme.file.template.external-auth-continuation",
+      "kind": "template",
+      "path": "templates/external-auth-continuation.html"
+    },
+    {
       "digest": "a1e3d1bff8643583c4becdc6d7135c1cd86fd7d86c9892186cdcff23b08ce430",
       "id": "sforum.default-theme.file.template.forgot-password",
       "kind": "template",
@@ -413,6 +419,15 @@
       "path": "templates/register.html",
       "themeOverrideKey": "sforum.default-theme.register",
       "viewModelSchema": "sforum.page.register@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.external-auth-continuation@1",
+      "digest": "22a6922703f186db2eaf574f952b6e8bf0b79faaa3f76202a20bfe62731f91f5",
+      "id": "sforum.default-theme.template.external-auth-continuation",
+      "path": "templates/external-auth-continuation.html",
+      "themeOverrideKey": "sforum.default-theme.external_auth_continuation",
+      "viewModelSchema": "sforum.page.external_auth_continuation@1"
     },
     {
       "action": "add",

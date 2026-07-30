@@ -39,6 +39,10 @@ Initial identity foundation is implemented.
   Its header utilities now include the same language menu as the public
   navbar, so guests change locale locally while signed-in users persist their
   preference through the existing identity locale flow.
+- Current-user locale validation and persistence are owned by the focused
+  `LocalePreferenceService`; the aggregate Identity `Service` no longer owns
+  that mutation. The controller receives the capability explicitly and tests
+  invalid, unavailable, and successful persistence paths.
 - Extension permission role suggestions preserve immutable review history.
   Approval requires the exact active plugin artifact, live permission
   declaration/catalog, enabled target role, `role.manage`, CAS, grant evidence,
@@ -58,17 +62,21 @@ Initial identity foundation is implemented.
   modular OpenAPI, Core Route Catalog entries with callback/session closed to
   Route Registry replacement, start/callback IP rate limits, lifecycle/security
   matrix tests, and bilingual operator docs.
-  **Unlinked login registration continuation (2026-07-30):** a successful
-  provider `login.complete` with no local link now enters the existing
-  `/register?ticket=` page when both login and registration operations remain
-  effectively active. The opaque one-use ticket preserves the source operation
-  and exact artifact binding; a non-consuming prepare endpoint exposes only
-  editable username/display-name hints and explicitly verified email. It never
-  matches or links an existing account by email. Final submission still uses
-  `POST /auth/external-registration`, where registration policy, provider
-  activation, live artifact, field conflicts, user creation, default role,
-  external link, and audit retain their authoritative checks and atomic
-  transaction boundary.
+  **Unlinked login choice continuation (2026-07-30):** a successful provider
+  `login.complete` with no local link now enters the Page Registry surface
+  `/auth/continue`. One opaque, one-use ticket offers independently authorized
+  choices: local login followed by automatic binding, or the existing external
+  registration flow followed by automatic binding. Existing-account binding
+  reuses `ExternalIdentityLinkStore`, records the provider assertion truthfully
+  as `login.complete`, and rechecks current actor, session-bound recent auth,
+  provider login/link activation, exact live artifact, and subject uniqueness.
+  The login page excludes the source provider during continuation to prevent a
+  loop. Registration still uses `POST /auth/external-registration` and its
+  authoritative policy, field checks, user/default-role/link/audit transaction.
+  Closing site registration suppresses only registration, not existing-account
+  binding. The callback and ticket are bound to a Host HttpOnly, SameSite=Lax
+  browser secret so a copied ticket cannot cause account-binding CSRF. Provider
+  email is never used to match or bind an existing account.
   **T1A security fixes:** `AuthProviderFlow.Complete` is assertion-only (no
   link write); public `POST …/complete` for login/registration/link returns
   `410 auth.provider_callback_required`; Host callback re-resolves live

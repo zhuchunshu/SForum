@@ -9,13 +9,25 @@ import (
 	storage "github.com/zhuchunshu/sforum/apps/api/app/Support/Storage"
 )
 
+type AttachmentStorageProviderCatalog struct{ catalog *CatalogService }
+
+func NewAttachmentStorageProviderCatalog(service *Service) *AttachmentStorageProviderCatalog {
+	if service == nil {
+		return nil
+	}
+	return &AttachmentStorageProviderCatalog{catalog: service.catalog}
+}
+
 // ListStorageProviderCandidates 返回已启用且声明 attachment.storage.provider 的插件候选（E6.1）。
 // 不要求 actor：由附件设置 API 在已鉴权路径调用。
-func (s *CatalogService) ListStorageProviderCandidates(ctx context.Context) ([]storage.Candidate, error) {
-	if s.safeMode {
+func (a *AttachmentStorageProviderCatalog) ListStorageProviderCandidates(ctx context.Context) ([]storage.Candidate, error) {
+	if a == nil || a.catalog == nil {
+		return nil, ErrExtensionNotFound
+	}
+	if a.catalog.safeMode {
 		return []storage.Candidate{}, nil
 	}
-	items, err := s.store.List(ctx)
+	items, err := a.catalog.store.List(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -54,15 +66,18 @@ func (s *CatalogService) ListStorageProviderCandidates(ctx context.Context) ([]s
 }
 
 // IsStorageProviderAvailable 判断扩展是否可作为存储提供方被选中。
-func (s *CatalogService) IsStorageProviderAvailable(ctx context.Context, extensionID string) (bool, error) {
-	if s.safeMode {
+func (a *AttachmentStorageProviderCatalog) IsStorageProviderAvailable(ctx context.Context, extensionID string) (bool, error) {
+	if a == nil || a.catalog == nil {
+		return false, ErrExtensionNotFound
+	}
+	if a.catalog.safeMode {
 		return false, nil
 	}
 	extensionID = normalizeID(extensionID)
 	if extensionID == "" {
 		return false, nil
 	}
-	item, err := s.store.Get(ctx, extensionID)
+	item, err := a.catalog.store.Get(ctx, extensionID)
 	if err != nil {
 		if err == ErrExtensionNotFound {
 			return false, nil
@@ -74,23 +89,6 @@ func (s *CatalogService) IsStorageProviderAvailable(ctx context.Context, extensi
 	}
 	_, ok := storageProviderLabel(item)
 	return ok, nil
-}
-
-type AttachmentStorageProviderCatalog struct{ catalog *CatalogService }
-
-func NewAttachmentStorageProviderCatalog(service *Service) *AttachmentStorageProviderCatalog {
-	if service == nil {
-		return nil
-	}
-	return &AttachmentStorageProviderCatalog{catalog: service.catalog}
-}
-
-func (a *AttachmentStorageProviderCatalog) ListStorageProviderCandidates(ctx context.Context) ([]storage.Candidate, error) {
-	return a.catalog.ListStorageProviderCandidates(ctx)
-}
-
-func (a *AttachmentStorageProviderCatalog) IsStorageProviderAvailable(ctx context.Context, extensionID string) (bool, error) {
-	return a.catalog.IsStorageProviderAvailable(ctx, extensionID)
 }
 
 func (a *AttachmentStorageProviderCatalog) StorageProviderSchema(ctx context.Context, extensionID, locale string) (storage.ProviderSchema, error) {

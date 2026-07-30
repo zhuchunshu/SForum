@@ -41,7 +41,8 @@ func (s *PostgresExternalIdentityLinkStore) Link(
 		return ExternalIdentityLinkMutation{}, err
 	}
 	// 注册必须与用户创建共用 caller-owned 事务，不能从独立入口提交半套状态。
-	if prepared.providerOperation != "link.complete" {
+	// 已认证账号可由显式 link.complete 或未绑定 login.complete continuation 独立提交。
+	if prepared.providerOperation != "link.complete" && prepared.providerOperation != "login.complete" {
 		return ExternalIdentityLinkMutation{}, ErrExternalIdentityLinkInvalid
 	}
 	return s.mutate(

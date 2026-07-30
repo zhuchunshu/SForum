@@ -31,6 +31,7 @@ describe('SFPageOutlet catalog wiring', () => {
     ['app/pages/moderation/index.vue', 'moderation.review'],
     ['app/pages/login.vue', 'auth.login'],
     ['app/pages/register.vue', 'auth.register'],
+    ['app/pages/auth/continue.vue', 'auth.external_continuation'],
     ['app/pages/forgot-password.vue', 'auth.forgot_password'],
     ['app/pages/reset-password.vue', 'auth.reset_password'],
     ['app/pages/terms.vue', 'site.terms'],

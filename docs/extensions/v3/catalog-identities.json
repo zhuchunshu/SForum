@@ -230,6 +230,18 @@
       "path": "/api/v1/auth/external-registration/prepare"
     },
     {
+      "id": "core.route.identity.prepare_external_auth_continuation",
+      "contractVersion": "sforum.route.identity.prepare_external_auth_continuation@1",
+      "method": "POST",
+      "path": "/api/v1/auth/external-continuation/prepare"
+    },
+    {
+      "id": "core.route.identity.link_external_auth_continuation",
+      "contractVersion": "sforum.route.identity.link_external_auth_continuation@1",
+      "method": "POST",
+      "path": "/api/v1/auth/external-continuation/link"
+    },
+    {
       "id": "core.route.database.list_tables",
       "contractVersion": "sforum.route.database.list_tables@1",
       "method": "GET",
@@ -3026,6 +3038,16 @@
       "source": "apps/web/app/pages/login.vue"
     },
     {
+      "id": "core.component.page.auth.external_continuation",
+      "contractVersion": "sforum.component.page.auth.external_continuation@1",
+      "kind": "page",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/pages/auth/continue.vue"
+    },
+    {
       "id": "core.component.page.auth.register",
       "contractVersion": "sforum.component.page.auth.register@1",
       "kind": "page",
@@ -3581,6 +3603,16 @@
       "source": "apps/web/app/components/SFEditor.vue"
     },
     {
+      "id": "core.component.shared.sfeditor_toolbar",
+      "contractVersion": "sforum.component.shared.sfeditor_toolbar@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/editor/SFEditorToolbar.vue"
+    },
+    {
       "id": "core.component.shared.sfempty_state",
       "contractVersion": "sforum.component.shared.sfempty_state@1",
       "kind": "component",
@@ -3751,6 +3783,16 @@
       ],
       "state": "active",
       "source": "apps/web/app/components/identity/SFLoginFormPage.vue"
+    },
+    {
+      "id": "core.component.shared.sfexternal_auth_continuation_page",
+      "contractVersion": "sforum.component.shared.sfexternal_auth_continuation_page@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/identity/SFExternalAuthContinuationPage.vue"
     },
     {
       "id": "core.component.shared.sfmoderation_review_page",

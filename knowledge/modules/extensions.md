@@ -15,6 +15,11 @@ does not rebuild Nuxt.
 - Manifest V3, trust/recovery, lifecycle ledger, Host API v2, registry
   families, Page Registry themes, buildless settings UI, catalogs, and P0-P12
   phase gates are present.
+- `AttachmentStorageProviderCatalog` directly owns storage provider candidate
+  and availability reads; aggregate `Service` and `CatalogService` forwarding
+  methods were removed. Settings projection lives with settings lifecycle, and
+  Manifest setting declarations live with the settings document contract; the
+  corresponding architecture baselines were lowered.
 - Custom image sticker contributions are in approved design, not
   implementation. Plugin authors will maintain conventional sticker
   directories; the extension CLI will generate one exact catalog and Manifest

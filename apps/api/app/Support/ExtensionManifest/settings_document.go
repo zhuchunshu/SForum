@@ -18,6 +18,30 @@ const (
 	SettingsActionProviderProbe = "provider_probe"
 )
 
+type ManifestSetting struct {
+	Key              string        `json:"key"`
+	Label            LocalizedText `json:"label"`
+	Description      LocalizedText `json:"description,omitempty"`
+	Type             string        `json:"type"`
+	Default          string        `json:"default,omitempty"`
+	Placeholder      LocalizedText `json:"placeholder,omitempty"`
+	RecommendedValue string        `json:"recommendedValue,omitempty"`
+	Required         bool          `json:"required,omitempty"`
+	// Width 控制 Schema UI 控件横向占位：default（受限宽度）或 full（占满可用列宽）。
+	// 省略时等价于 default。
+	Width   string                  `json:"width,omitempty"`
+	Group   LocalizedText           `json:"group,omitempty"`
+	GroupID string                  `json:"groupId,omitempty"`
+	Column  int                     `json:"column,omitempty"`
+	Options []ManifestSettingOption `json:"options,omitempty"`
+}
+
+type ManifestSettingOption struct {
+	Value       string        `json:"value"`
+	Label       LocalizedText `json:"label"`
+	Description LocalizedText `json:"description,omitempty"`
+}
+
 // SettingsDocument 是插件与主题共用的版本化设置展示契约。Fields 仍是存储语义的唯一来源。
 type SettingsDocument struct {
 	SchemaVersion int               `json:"schemaVersion"`

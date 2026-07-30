@@ -698,22 +698,6 @@ func (s *CatalogService) SyncBuiltins(ctx context.Context) ([]Extension, error) 
 	return items, nil
 }
 
-func (s *CatalogService) pruneMissingBuiltins(ctx context.Context, activeIDs []string) error {
-	result, err := s.store.PruneMissingBuiltins(ctx, activeIDs)
-	if err != nil {
-		return err
-	}
-	for _, extensionID := range result.DisabledPluginIDs {
-		if err := s.clearPluginProviderSelections(ctx, extensionID); err != nil {
-			return fmt.Errorf("clear removed builtin provider selections for %s: %w", extensionID, err)
-		}
-		if s.pageRegistry != nil {
-			s.pageRegistry.ClearExtension(extensionID)
-		}
-	}
-	return nil
-}
-
 func (s *CatalogService) Events(ctx context.Context, actor identity.Actor, extensionID string, limit int) ([]ExtensionEvent, error) {
 	if !canViewExtensions(actor) {
 		return nil, identity.ErrPermissionDenied

@@ -11,7 +11,7 @@ const currentPage = computed(() => parsePublicPage(route.query.page))
 
 useSForumSeo(computed(() => ({
   title: t('search.metaTitle'),
-  type: 'website',
+  type: 'static',
   path: publicPagePath('/search', currentPage.value, buildForumHomeQuery(committedFilters.value)),
   description: t('search.metaDescription'),
   public: true,

@@ -570,6 +570,18 @@ Architecture sources:
 
 - `SFEditor` uses Tiptap while preserving Markdown `v-model` integration. It
   emits HTML, Markdown, native JSON, plain text, counts, and empty state.
+- The full editor now uses the selected Forum Canvas geometry: a focused
+  `SFEditorToolbar`, 48px white toolbar, 34px icon commands, quiet root focus,
+  generous document padding, and horizontally scrollable mobile tools. The
+  compact and `basic-field` presets keep their denser 14px content padding.
+- The full toolbar exposes paragraph/H2/H3, marks, lists, quote, code, link,
+  image, and write/preview/Markdown/JSON modes. The Unicode emoji picker was
+  removed, while the historical `sforumEmoji` node remains admitted so old
+  editor documents still load. Trusted digest-verified L2 extensions keep the
+  existing fail-closed loading path.
+- The production toolbar deliberately has no sticker command yet. It must be
+  added with the Host-owned catalog and immutable `sforumSticker` node rather
+  than inserting a generic image or bundling a client-only pack.
 - **Edit load path:** `sourceFormat=editor-document` stores Tiptap native JSON in
   `rawContent`. Callers must pass `forumEditorInitialContent(content)` as
   `initialContent` (object → JSON doc; string → Markdown). Never assign

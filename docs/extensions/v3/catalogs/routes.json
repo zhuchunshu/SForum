@@ -1874,7 +1874,7 @@
     "handler": "adminListIdentityProviders",
     "method": "GET",
     "path": "/api/v1/admin/identity/providers",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:38",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:41",
     "access": "permission",
     "policy": "identity.provider.manage",
     "guard": {
@@ -1892,7 +1892,7 @@
     "handler": "adminPatchIdentityProvider",
     "method": "PATCH",
     "path": "/api/v1/admin/identity/providers/:providerId",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:39",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:42",
     "access": "permission",
     "policy": "identity.provider.manage",
     "guard": {
@@ -1910,7 +1910,7 @@
     "handler": "adminProbeIdentityProvider",
     "method": "POST",
     "path": "/api/v1/admin/identity/providers/:providerId/probe",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:40",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:43",
     "access": "permission",
     "policy": "identity.provider.manage",
     "guard": {
@@ -1928,7 +1928,7 @@
     "handler": "adminResetIdentityProviders",
     "method": "POST",
     "path": "/api/v1/admin/identity/providers/reset",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:41",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:44",
     "access": "permission",
     "policy": "identity.provider.manage",
     "guard": {
@@ -2277,7 +2277,7 @@
     "handler": "adminMailTest",
     "method": "POST",
     "path": "/api/v1/admin/mail/test",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:62",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:65",
     "access": "permission",
     "policy": "settings.mail.manage or settings.manage compatibility policy",
     "guard": {
@@ -3359,13 +3359,45 @@
     }
   },
   {
+    "id": "core.route.identity.link_external_auth_continuation",
+    "contractVersion": "sforum.route.identity.link_external_auth_continuation@1",
+    "module": "identity",
+    "handler": "externalAuthContinuationLink",
+    "method": "POST",
+    "path": "/api/v1/auth/external-continuation/link",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:29",
+    "access": "login",
+    "policy": "current active actor; token/session ownership",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.self_credentials"
+    }
+  },
+  {
+    "id": "core.route.identity.prepare_external_auth_continuation",
+    "contractVersion": "sforum.route.identity.prepare_external_auth_continuation@1",
+    "module": "identity",
+    "handler": "externalAuthContinuationPreparation",
+    "method": "POST",
+    "path": "/api/v1/auth/external-continuation/prepare",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:28",
+    "access": "public",
+    "policy": "identity bootstrap, risk, rate-limit, and human-verification policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.bootstrap"
+    }
+  },
+  {
     "id": "core.route.identity.external_identities",
     "contractVersion": "sforum.route.identity.external_identities@1",
     "module": "identity",
     "handler": "externalIdentities",
     "method": "GET",
     "path": "/api/v1/auth/external-identities",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:31",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:34",
     "access": "login",
     "policy": "current active actor; token/session ownership",
     "guard": {
@@ -3381,7 +3413,7 @@
     "handler": "externalIdentityUnlink",
     "method": "DELETE",
     "path": "/api/v1/auth/external-identities/:linkId",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:32",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:35",
     "access": "login",
     "policy": "current active actor; token/session ownership",
     "guard": {
@@ -3397,7 +3429,7 @@
     "handler": "externalRegistration",
     "method": "POST",
     "path": "/api/v1/auth/external-registration",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:29",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:32",
     "access": "public",
     "policy": "identity bootstrap, risk, rate-limit, and human-verification policy",
     "guard": {
@@ -3413,7 +3445,7 @@
     "handler": "externalRegistrationPreparation",
     "method": "POST",
     "path": "/api/v1/auth/external-registration/prepare",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:28",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:31",
     "access": "public",
     "policy": "identity bootstrap, risk, rate-limit, and human-verification policy",
     "guard": {
@@ -3477,7 +3509,7 @@
     "handler": "setupPassword",
     "method": "POST",
     "path": "/api/v1/auth/password",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:34",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:37",
     "access": "login",
     "policy": "current active actor; token/session ownership",
     "guard": {
@@ -3637,7 +3669,7 @@
     "handler": "listSessions",
     "method": "GET",
     "path": "/api/v1/auth/sessions",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:50",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:53",
     "access": "login",
     "policy": "current active actor; token/session ownership",
     "guard": {
@@ -3653,7 +3685,7 @@
     "handler": "revokeSession",
     "method": "DELETE",
     "path": "/api/v1/auth/sessions/:sessionId",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:52",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:55",
     "access": "login",
     "policy": "current active actor; token/session ownership",
     "guard": {
@@ -3669,7 +3701,7 @@
     "handler": "revokeOtherSessions",
     "method": "POST",
     "path": "/api/v1/auth/sessions/revoke-others",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:51",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:54",
     "access": "login",
     "policy": "current active actor; token/session ownership",
     "guard": {
@@ -3685,7 +3717,7 @@
     "handler": "listAPITokens",
     "method": "GET",
     "path": "/api/v1/auth/tokens",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:56",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:59",
     "access": "login",
     "policy": "current active actor; token/session ownership",
     "guard": {
@@ -3701,7 +3733,7 @@
     "handler": "createAPIToken",
     "method": "POST",
     "path": "/api/v1/auth/tokens",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:57",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:60",
     "access": "login",
     "policy": "current active actor; token/session ownership",
     "guard": {
@@ -3717,7 +3749,7 @@
     "handler": "revokeAPIToken",
     "method": "DELETE",
     "path": "/api/v1/auth/tokens/:tokenID",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:58",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:61",
     "access": "login",
     "policy": "current active actor; token/session ownership",
     "guard": {
@@ -3733,7 +3765,7 @@
     "handler": "rotateAPIToken",
     "method": "POST",
     "path": "/api/v1/auth/tokens/:tokenID/rotate",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:59",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:62",
     "access": "login",
     "policy": "current active actor; token/session ownership",
     "guard": {
@@ -4482,7 +4514,7 @@
     "handler": "listPermissions",
     "method": "GET",
     "path": "/api/v1/permissions",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:64",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:67",
     "access": "permission",
     "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
     "guard": {
@@ -4498,7 +4530,7 @@
     "handler": "permissionMatrix",
     "method": "GET",
     "path": "/api/v1/permissions/matrix",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:65",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:68",
     "access": "permission",
     "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
     "guard": {
@@ -4578,7 +4610,7 @@
     "handler": "listProfileSections",
     "method": "GET",
     "path": "/api/v1/profile/sections",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:44",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:47",
     "access": "login",
     "policy": "current active actor; attachment.upload for avatar upload",
     "guard": {
@@ -4594,7 +4626,7 @@
     "handler": "updateProfileSection",
     "method": "PUT",
     "path": "/api/v1/profile/sections/:sectionId",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:45",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:48",
     "access": "login",
     "policy": "current active actor; attachment.upload for avatar upload",
     "guard": {
@@ -4658,7 +4690,7 @@
     "handler": "listRoles",
     "method": "GET",
     "path": "/api/v1/roles",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:67",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:70",
     "access": "permission",
     "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
     "guard": {
@@ -4674,7 +4706,7 @@
     "handler": "createRole",
     "method": "POST",
     "path": "/api/v1/roles",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:68",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:71",
     "access": "permission",
     "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
     "guard": {
@@ -4690,7 +4722,7 @@
     "handler": "deleteRole",
     "method": "DELETE",
     "path": "/api/v1/roles/:roleKey",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:70",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:73",
     "access": "permission",
     "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
     "guard": {
@@ -4706,7 +4738,7 @@
     "handler": "updateRole",
     "method": "PATCH",
     "path": "/api/v1/roles/:roleKey",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:69",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:72",
     "access": "permission",
     "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
     "guard": {
@@ -4722,7 +4754,7 @@
     "handler": "replaceRolePermissions",
     "method": "PUT",
     "path": "/api/v1/roles/:roleKey/permissions",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:71",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:74",
     "access": "permission",
     "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
     "guard": {
@@ -4738,7 +4770,7 @@
     "handler": "listRoleSuggestions",
     "method": "GET",
     "path": "/api/v1/roles/suggestions",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:87",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:90",
     "access": "permission",
     "policy": "active cookie session with role.manage; PAT denied; Host explicit decision",
     "guard": {
@@ -4754,7 +4786,7 @@
     "handler": "decideRoleSuggestion",
     "method": "POST",
     "path": "/api/v1/roles/suggestions/:suggestionID/decision",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:88",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:91",
     "access": "permission",
     "policy": "active cookie session with role.manage; PAT denied; Host explicit decision",
     "guard": {
@@ -5295,7 +5327,7 @@
     "handler": "listUsers",
     "method": "GET",
     "path": "/api/v1/users",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:73",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:76",
     "access": "permission",
     "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
     "guard": {
@@ -5311,7 +5343,7 @@
     "handler": "getUser",
     "method": "GET",
     "path": "/api/v1/users/:userID",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:74",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:77",
     "access": "permission",
     "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
     "guard": {
@@ -5327,7 +5359,7 @@
     "handler": "updateUser",
     "method": "PATCH",
     "path": "/api/v1/users/:userID",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:76",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:79",
     "access": "permission",
     "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
     "guard": {
@@ -5343,7 +5375,7 @@
     "handler": "adminClearUserClientIPs",
     "method": "POST",
     "path": "/api/v1/users/:userID/client-ips/clear",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:84",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:87",
     "access": "permission",
     "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
     "guard": {
@@ -5359,7 +5391,7 @@
     "handler": "adminSetUserPassword",
     "method": "POST",
     "path": "/api/v1/users/:userID/password",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:82",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:85",
     "access": "permission",
     "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
     "guard": {
@@ -5375,7 +5407,7 @@
     "handler": "replaceUserPermissionOverrides",
     "method": "PUT",
     "path": "/api/v1/users/:userID/permission-overrides",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:78",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:81",
     "access": "permission",
     "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
     "guard": {
@@ -5391,7 +5423,7 @@
     "handler": "replaceUserRoles",
     "method": "PUT",
     "path": "/api/v1/users/:userID/roles",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:77",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:80",
     "access": "permission",
     "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
     "guard": {
@@ -5407,7 +5439,7 @@
     "handler": "adminRevokeUserSessions",
     "method": "POST",
     "path": "/api/v1/users/:userID/sessions/revoke",
-    "source": "apps/api/app/Http/Controllers/Identity/routes.go:80",
+    "source": "apps/api/app/Http/Controllers/Identity/routes.go:83",
     "access": "permission",
     "policy": "identity service route-specific user.view/user.manage/role.manage/user.ban policy",
     "guard": {

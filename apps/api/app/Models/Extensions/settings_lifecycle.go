@@ -11,11 +11,97 @@ import (
 	"time"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	settingslifecycle "github.com/zhuchunshu/sforum/apps/api/app/Support/SettingsLifecycle"
 )
 
 // ErrSettingsRevisionConflict is returned when concurrent settings saves race on CAS.
 var ErrSettingsRevisionConflict = errors.New("extensions: settings revision conflict")
+
+func resolveExtensionSettings(extension Extension, values map[string]string, locale string) ExtensionSettings {
+	items := make([]ExtensionSettingValue, 0, len(extension.Manifest.Settings))
+	for _, setting := range extension.Manifest.Settings {
+		value := setting.Default
+		secretSet := false
+		if values != nil {
+			if stored, ok := values[setting.Key]; ok {
+				value = stored
+				secretSet = setting.Type == "secret" && stored != ""
+			}
+		}
+		if setting.Type == "secret" {
+			value = ""
+		}
+		// API 响应始终返回当前 locale 下的纯字符串，避免前端处理 locale map。
+		presentation := extensionmanifest.ResolveSettingPresentation(setting, locale)
+		options := make([]ExtensionSettingOption, 0, len(presentation.Options))
+		for _, option := range presentation.Options {
+			options = append(options, ExtensionSettingOption{
+				Value:       option.Value,
+				Label:       option.Label,
+				Description: option.Description,
+			})
+		}
+		items = append(items, ExtensionSettingValue{
+			Key:              setting.Key,
+			Label:            presentation.Label,
+			Description:      presentation.Description,
+			Type:             setting.Type,
+			Default:          setting.Default,
+			Value:            value,
+			Placeholder:      presentation.Placeholder,
+			RecommendedValue: setting.RecommendedValue,
+			Required:         setting.Required,
+			Width:            setting.Width,
+			Group:            presentation.Group,
+			GroupID:          setting.GroupID,
+			Column:           setting.Column,
+			Options:          options,
+			SecretSet:        secretSet,
+		})
+	}
+	document := extension.Manifest.SettingsDocument
+	renderer := ExtensionSettingsRenderer{Mode: document.UI.Mode, Layout: document.UI.Layout, Source: "document", Fallback: "schema"}
+	if !document.Explicit {
+		renderer.Source = "legacy_array"
+	}
+	if document.UI.Component != nil {
+		component := document.UI.Component
+		renderer.Component = &ExtensionSettingsComponent{ID: component.ID, Kind: "prebuilt", APIVersion: component.APIVersion, Entry: component.Entry, CSS: component.CSS}
+	}
+	tabs := make([]ExtensionSettingsTab, 0, len(document.UI.Tabs))
+	for _, tab := range document.UI.Tabs {
+		tabs = append(tabs, ExtensionSettingsTab{ID: tab.ID, Label: tab.Label.Resolve(locale), Description: tab.Description.Resolve(locale), Groups: append([]string(nil), tab.Groups...)})
+	}
+	groups := make([]ExtensionSettingsGroup, 0, len(document.UI.Groups))
+	for _, group := range document.UI.Groups {
+		groups = append(groups, ExtensionSettingsGroup{ID: group.ID, Label: group.Label.Resolve(locale), Description: group.Description.Resolve(locale), Columns: group.Columns})
+	}
+	callouts := make([]ExtensionSettingsCallout, 0, len(document.UI.Callouts))
+	for _, callout := range document.UI.Callouts {
+		callouts = append(callouts, ExtensionSettingsCallout{
+			ID: callout.ID, Tone: callout.Tone, Title: callout.Title.Resolve(locale), Body: callout.Body.Resolve(locale),
+			LinkLabel: callout.LinkLabel.Resolve(locale), LinkURL: callout.LinkURL, Tab: callout.Tab, Group: callout.Group,
+		})
+	}
+	actions := make([]ExtensionSettingsAction, 0, len(document.Actions))
+	for _, action := range document.Actions {
+		available := extension.Type == TypePlugin && extension.Manifest.Backend.Entry != "" && len(extension.Manifest.Providers) > 0
+		reason := ""
+		if !available {
+			reason = "extension.settings_action_unavailable"
+		}
+		actions = append(actions, ExtensionSettingsAction{
+			ID: action.ID, Kind: action.Kind, Label: action.Label.Resolve(locale), Description: action.Description.Resolve(locale),
+			Placement: action.Placement, UseDraftValues: action.UseDraftValues, Fields: append([]string(nil), action.Fields...),
+			Available: available, UnavailableReason: reason,
+		})
+	}
+	return ExtensionSettings{
+		ExtensionID: extension.ID, ExtensionType: extension.Type, ExtensionVersion: extension.Version, ExtensionStatus: extension.Status,
+		Renderer: renderer, Tabs: tabs, Groups: groups, Callouts: callouts, Items: items, Actions: actions,
+	}
+}
 
 // WithSettingsLifecycle 注入生产 SettingsLifecycle（后台保存/重置/导入/升级必经）。
 func WithSettingsLifecycle(svc *settingslifecycle.Service) ServiceOption {

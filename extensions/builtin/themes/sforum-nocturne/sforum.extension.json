@@ -154,6 +154,12 @@
       "path": "templates/register.html"
     },
     {
+      "digest": "86dbda838044c247b6bc4fe3b9869fc86ba5021b90b903b5bd540cb49820125e",
+      "id": "sforum.nocturne-theme.file.template.external-auth-continuation",
+      "kind": "template",
+      "path": "templates/external-auth-continuation.html"
+    },
+    {
       "digest": "dfe8835beb20c2bf27a6ca0f49d660bc64a9c7915e596ea700f38842730b5032",
       "id": "sforum.nocturne-theme.file.template.forgot-password",
       "kind": "template",
@@ -413,6 +419,15 @@
       "path": "templates/register.html",
       "themeOverrideKey": "sforum.nocturne-theme.register",
       "viewModelSchema": "sforum.page.register@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.nocturne-theme.template.external-auth-continuation@1",
+      "digest": "86dbda838044c247b6bc4fe3b9869fc86ba5021b90b903b5bd540cb49820125e",
+      "id": "sforum.nocturne-theme.template.external-auth-continuation",
+      "path": "templates/external-auth-continuation.html",
+      "themeOverrideKey": "sforum.nocturne-theme.external_auth_continuation",
+      "viewModelSchema": "sforum.page.external_auth_continuation@1"
     },
     {
       "action": "add",

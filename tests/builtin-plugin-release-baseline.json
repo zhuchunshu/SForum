@@ -2,8 +2,8 @@
   "sharedRuntimeDigest": "87aa10ead3034be718540db9cb9bf5b2c8e74470f16e1e5651dd6c6efd192909",
   "plugins": {
     "sforum.auth-github": {
-      "version": "1.0.1",
-      "sourceDigest": "14c1187573b70207581e03e2d7175e9bead0a2b2d3ca1585d46649159eb49d38"
+      "version": "1.0.2",
+      "sourceDigest": "c67df473914d24cbf5dd9114ee92a25e62b7c1f3f873d453298c69d4b9e3e69b"
     },
     "sforum.content-policy": {
       "version": "1.1.1",

@@ -574,28 +574,6 @@ func (s *Service) CurrentUser(ctx context.Context, userID int64) (CurrentUser, e
 	return s.store.GetCurrentUser(ctx, userID)
 }
 
-// UserLocale returns the persisted language preference for one user.
-func (s *Service) UserLocale(ctx context.Context, userID int64) (string, error) {
-	current, err := s.CurrentUser(ctx, userID)
-	if err != nil {
-		return "", err
-	}
-	return current.Locale, nil
-}
-
-// UpdateCurrentUserLocale changes only the authenticated user's language preference.
-// The HTTP boundary resolves an empty or alias locale against site settings first.
-func (s *Service) UpdateCurrentUserLocale(ctx context.Context, userID int64, locale string) (CurrentUser, error) {
-	if userID <= 0 || strings.TrimSpace(locale) == "" {
-		return CurrentUser{}, ErrInvalidUserUpdate
-	}
-	updater, ok := s.store.(CurrentUserLocaleStore)
-	if !ok {
-		return CurrentUser{}, ErrUserLocaleUpdateUnavailable
-	}
-	return updater.UpdateCurrentUserLocale(ctx, userID, strings.TrimSpace(locale))
-}
-
 func (s *Service) Actor(ctx context.Context, userID int64) (Actor, error) {
 	return s.store.LoadActor(ctx, userID)
 }

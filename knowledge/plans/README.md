@@ -20,7 +20,7 @@ directory. Completed, cancelled, and superseded plans live under
 
 | Plan | Status |
 | --- | --- |
-| `2026-07-30-image-sticker-platform.md` | **active** -- platform architecture approved; new editor product design is next before implementation |
+| `2026-07-30-image-sticker-platform.md` | **active** -- Forum Canvas base editor verified; sticker M0 contract and remaining picker decisions are next |
 | `2026-07-13-trusted-plugin-theme-platform-v3.md` | **active** -- Protocol migration complete; theme-loader LTS residual and production-rewire honesty remain |
 | `2026-07-13-trusted-plugin-theme-platform-v3-progress.md` | **active** -- durable residual ledger; do not claim 100% |
 | `2026-07-22-v3-production-rewire-honesty-remediation.md` | **ready** -- M0-M8 production-call-chain findings |

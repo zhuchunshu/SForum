@@ -1,5 +1,10 @@
 <script setup lang="ts">
 import { useTrustedEditorCatalog } from '~/composables/editor/useTrustedEditorCatalog'
+import SFEditorToolbar, {
+  type SFEditorBlockFormat,
+  type SFEditorToolbarAction,
+  type SFEditorViewMode
+} from '~/components/editor/SFEditorToolbar.vue'
 import { Editor, EditorContent } from '@tiptap/vue-3'
 import type { AnyExtension } from '@tiptap/core'
 import {
@@ -7,9 +12,7 @@ import {
   escapeHtml,
   normalizeImageUrl,
   normalizeUserUrl,
-  sforumEditorEmojiItems,
   type SFEditorContentPayload,
-  type SForumEmojiItem,
   type TiptapContentReader
 } from '~/utils/sfEditor'
 
@@ -66,10 +69,9 @@ const emit = defineEmits<{
 
 const editor = shallowRef<Editor | null>(null)
 const editorForContent = computed(() => editor.value || undefined)
-const viewMode = ref<'write' | 'preview' | 'markdown' | 'native'>('write')
+const viewMode = ref<SFEditorViewMode>('write')
 // modelValue 只承载 Markdown；原生 JSON 必须走 initialContent，避免把 rawContent 当正文。
 const markdownDraft = ref(typeof props.modelValue === 'string' ? props.modelValue : '')
-const showEmojiPanel = ref(false)
 const editorStateTick = ref(0)
 const lastEmittedMarkdown = ref('')
 
@@ -84,12 +86,23 @@ const editorClass = computed(() => [
   viewMode.value !== 'write' ? 'sf-editor--inspection' : ''
 ].filter(Boolean).join(' '))
 
-const modeItems = [
-  { value: 'write', label: '撰写' },
-  { value: 'preview', label: '预览' },
-  { value: 'markdown', label: 'Markdown' },
-  { value: 'native', label: 'JSON' }
-] as const
+const blockFormat = computed<SFEditorBlockFormat>(() => {
+  if (isActive('heading', { level: 2 })) return 'heading-2'
+  if (isActive('heading', { level: 3 })) return 'heading-3'
+  return 'paragraph'
+})
+
+const toolbarActive = computed<Partial<Record<SFEditorToolbarAction, boolean>>>(() => ({
+  bold: isActive('bold'),
+  italic: isActive('italic'),
+  strike: isActive('strike'),
+  code: isActive('code'),
+  bulletList: isActive('bulletList'),
+  orderedList: isActive('orderedList'),
+  blockquote: isActive('blockquote'),
+  codeBlock: isActive('codeBlock'),
+  link: isActive('link')
+}))
 
 const currentPayload = computed<SFEditorContentPayload>(() => {
   void editorStateTick.value
@@ -321,9 +334,37 @@ function insertImage() {
   currentEditor.chain().focus().setImage({ src, alt: '插入图片' }).run()
 }
 
-function insertEmoji(emoji: SForumEmojiItem) {
-  runEditorCommand(currentEditor => currentEditor.chain().focus().insertSForumEmoji(emoji).run())
-  showEmojiPanel.value = false
+function runToolbarAction(action: SFEditorToolbarAction) {
+  if (action === 'link') {
+    setLink()
+    return
+  }
+  if (action === 'image') {
+    insertImage()
+    return
+  }
+
+  const commands: Record<Exclude<SFEditorToolbarAction, 'link' | 'image'>, (currentEditor: Editor) => boolean> = {
+    undo: currentEditor => currentEditor.chain().focus().undo().run(),
+    redo: currentEditor => currentEditor.chain().focus().redo().run(),
+    bold: currentEditor => currentEditor.chain().focus().toggleBold().run(),
+    italic: currentEditor => currentEditor.chain().focus().toggleItalic().run(),
+    strike: currentEditor => currentEditor.chain().focus().toggleStrike().run(),
+    code: currentEditor => currentEditor.chain().focus().toggleCode().run(),
+    bulletList: currentEditor => currentEditor.chain().focus().toggleBulletList().run(),
+    orderedList: currentEditor => currentEditor.chain().focus().toggleOrderedList().run(),
+    blockquote: currentEditor => currentEditor.chain().focus().toggleBlockquote().run(),
+    codeBlock: currentEditor => currentEditor.chain().focus().toggleCodeBlock().run()
+  }
+  runEditorCommand(commands[action])
+}
+
+function setBlockFormat(format: SFEditorBlockFormat) {
+  runEditorCommand(currentEditor => {
+    if (format === 'heading-2') return currentEditor.chain().focus().setHeading({ level: 2 }).run()
+    if (format === 'heading-3') return currentEditor.chain().focus().setHeading({ level: 3 }).run()
+    return currentEditor.chain().focus().setParagraph().run()
+  })
 }
 
 function onMarkdownInput(event: Event) {
@@ -348,197 +389,19 @@ function submitContent() {
     :class="editorClass"
     :style="{ '--sf-editor-min-height': editorMinHeight }"
   >
-    <div v-if="!compact" class="sf-editor__topbar">
-      <div class="sf-editor__toolbar" aria-label="编辑工具栏">
-        <button
-          type="button"
-          class="sf-editor__tool"
-          title="撤销"
-          aria-label="撤销"
-          :disabled="disabled || !canUndo()"
-          @click="runEditorCommand(currentEditor => currentEditor.chain().focus().undo().run())"
-        >
-          <UIcon name="i-lucide-undo-2" class="sf-editor__tool-icon" />
-        </button>
-        <button
-          type="button"
-          class="sf-editor__tool"
-          title="重做"
-          aria-label="重做"
-          :disabled="disabled || !canRedo()"
-          @click="runEditorCommand(currentEditor => currentEditor.chain().focus().redo().run())"
-        >
-          <UIcon name="i-lucide-redo-2" class="sf-editor__tool-icon" />
-        </button>
-        <span class="sf-editor__separator" aria-hidden="true" />
-        <button
-          type="button"
-          class="sf-editor__tool"
-          :class="{ 'sf-editor__tool--active': isActive('bold') }"
-          title="加粗"
-          aria-label="加粗"
-          :disabled="disabled"
-          @click="runEditorCommand(currentEditor => currentEditor.chain().focus().toggleBold().run())"
-        >
-          <UIcon name="i-lucide-bold" class="sf-editor__tool-icon" />
-        </button>
-        <button
-          type="button"
-          class="sf-editor__tool"
-          :class="{ 'sf-editor__tool--active': isActive('italic') }"
-          title="斜体"
-          aria-label="斜体"
-          :disabled="disabled"
-          @click="runEditorCommand(currentEditor => currentEditor.chain().focus().toggleItalic().run())"
-        >
-          <UIcon name="i-lucide-italic" class="sf-editor__tool-icon" />
-        </button>
-        <button
-          v-if="preset === 'full'"
-          type="button"
-          class="sf-editor__tool"
-          :class="{ 'sf-editor__tool--active': isActive('underline') }"
-          title="下划线"
-          aria-label="下划线"
-          :disabled="disabled"
-          @click="runEditorCommand(currentEditor => currentEditor.chain().focus().toggleUnderline().run())"
-        >
-          <UIcon name="i-lucide-underline" class="sf-editor__tool-icon" />
-        </button>
-        <button
-          v-if="preset === 'full'"
-          type="button"
-          class="sf-editor__tool"
-          :class="{ 'sf-editor__tool--active': isActive('code') }"
-          title="行内代码"
-          aria-label="行内代码"
-          :disabled="disabled"
-          @click="runEditorCommand(currentEditor => currentEditor.chain().focus().toggleCode().run())"
-        >
-          <UIcon name="i-lucide-code" class="sf-editor__tool-icon" />
-        </button>
-        <span class="sf-editor__separator" aria-hidden="true" />
-        <button
-          v-if="preset === 'full'"
-          type="button"
-          class="sf-editor__tool"
-          :class="{ 'sf-editor__tool--active': isActive('heading', { level: 2 }) }"
-          title="二级标题"
-          aria-label="二级标题"
-          :disabled="disabled"
-          @click="runEditorCommand(currentEditor => currentEditor.chain().focus().toggleHeading({ level: 2 }).run())"
-        >
-          H2
-        </button>
-        <button
-          v-if="preset === 'full'"
-          type="button"
-          class="sf-editor__tool"
-          :class="{ 'sf-editor__tool--active': isActive('blockquote') }"
-          title="引用"
-          aria-label="引用"
-          :disabled="disabled"
-          @click="runEditorCommand(currentEditor => currentEditor.chain().focus().toggleBlockquote().run())"
-        >
-          <UIcon name="i-lucide-quote" class="sf-editor__tool-icon" />
-        </button>
-        <button
-          type="button"
-          class="sf-editor__tool"
-          :class="{ 'sf-editor__tool--active': isActive('bulletList') }"
-          title="无序列表"
-          aria-label="无序列表"
-          :disabled="disabled"
-          @click="runEditorCommand(currentEditor => currentEditor.chain().focus().toggleBulletList().run())"
-        >
-          <UIcon name="i-lucide-list" class="sf-editor__tool-icon" />
-        </button>
-        <button
-          type="button"
-          class="sf-editor__tool"
-          :class="{ 'sf-editor__tool--active': isActive('orderedList') }"
-          title="有序列表"
-          aria-label="有序列表"
-          :disabled="disabled"
-          @click="runEditorCommand(currentEditor => currentEditor.chain().focus().toggleOrderedList().run())"
-        >
-          <UIcon name="i-lucide-list-ordered" class="sf-editor__tool-icon" />
-        </button>
-        <button
-          v-if="preset === 'full'"
-          type="button"
-          class="sf-editor__tool"
-          :class="{ 'sf-editor__tool--active': isActive('codeBlock') }"
-          title="代码块"
-          aria-label="代码块"
-          :disabled="disabled"
-          @click="runEditorCommand(currentEditor => currentEditor.chain().focus().toggleCodeBlock().run())"
-        >
-          <UIcon name="i-lucide-square-code" class="sf-editor__tool-icon" />
-        </button>
-        <span class="sf-editor__separator" aria-hidden="true" />
-        <button
-          type="button"
-          class="sf-editor__tool"
-          :class="{ 'sf-editor__tool--active': isActive('link') }"
-          title="链接"
-          aria-label="链接"
-          :disabled="disabled"
-          @click="setLink"
-        >
-          <UIcon name="i-lucide-link" class="sf-editor__tool-icon" />
-        </button>
-        <button
-          v-if="preset === 'full'"
-          type="button"
-          class="sf-editor__tool"
-          title="插入图片"
-          aria-label="插入图片"
-          :disabled="disabled"
-          @click="insertImage"
-        >
-          <UIcon name="i-lucide-image" class="sf-editor__tool-icon" />
-        </button>
-        <button
-          v-if="preset === 'full'"
-          type="button"
-          class="sf-editor__tool"
-          title="自定义表情"
-          aria-label="自定义表情"
-          :disabled="disabled"
-          @click="showEmojiPanel = !showEmojiPanel"
-        >
-          <UIcon name="i-lucide-smile-plus" class="sf-editor__tool-icon" />
-        </button>
-      </div>
-
-      <div v-if="preset === 'full'" class="sf-editor__modes" aria-label="内容视图">
-        <button
-          v-for="mode in modeItems"
-          :key="mode.value"
-          type="button"
-          class="sf-editor__mode"
-          :class="{ 'sf-editor__mode--active': viewMode === mode.value }"
-          @click="viewMode = mode.value"
-        >
-          {{ mode.label }}
-        </button>
-      </div>
-    </div>
-
-    <div v-if="!compact && preset === 'full' && showEmojiPanel" class="sf-editor__emoji-panel">
-      <button
-        v-for="emoji in sforumEditorEmojiItems"
-        :key="emoji.name"
-        type="button"
-        class="sf-editor__emoji-option"
-        :title="emoji.label"
-        @click="insertEmoji(emoji)"
-      >
-        <span class="sf-editor__emoji-native">{{ emoji.native }}</span>
-        <span>{{ emoji.label }}</span>
-      </button>
-    </div>
+    <SFEditorToolbar
+      v-if="!compact"
+      :preset="preset"
+      :disabled="disabled"
+      :can-undo="canUndo()"
+      :can-redo="canRedo()"
+      :active="toolbarActive"
+      :block-format="blockFormat"
+      :view-mode="viewMode"
+      @action="runToolbarAction"
+      @block-format="setBlockFormat"
+      @view-mode="viewMode = $event"
+    />
 
     <div class="sf-editor__body">
       <ClientOnly>
@@ -622,7 +485,7 @@ function submitContent() {
         </span>
         <div class="sf-editor__meta">
           <span>{{ currentPayload.wordCount }} 词</span>
-          <span>HTML / Markdown / JSON</span>
+          <span>结构化文档</span>
         </div>
         <SFButton
           v-if="submitVisible"

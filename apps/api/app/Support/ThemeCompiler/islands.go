@@ -40,6 +40,7 @@ var requiredPageComponents = map[string][]string{
 	"forum.settings.tokens":        {"identity.component.personal_access_tokens"},
 	"auth.login":                   {"identity.component.login_form"},
 	"auth.register":                {"identity.component.register_form"},
+	"auth.external_continuation":   {"identity.component.external_auth_continuation"},
 	"auth.forgot_password":         {"identity.component.recovery_request_form"},
 	"auth.reset_password":          {"identity.component.recovery_confirm_form"},
 	// 系统错误页必须包含语义详情和动作入口；主题只能移动它们，不能省略 Host 行为。

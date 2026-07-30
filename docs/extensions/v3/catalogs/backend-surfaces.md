@@ -59,6 +59,7 @@
 
 - `identity.cleanup_sessions`
 - `attachments.cleanup_orphans`
+- `attachments.reconcile_compression`
 - `audit.cleanup_events`
 - `forum.auto_lock_idle`
 - `forum.flush_view_counts`

@@ -16,6 +16,7 @@ import type { PublicAuthProvider } from '~/composables/identity/useAuthProviders
 import { apiErrorMessage, apiErrorReason } from '~/composables/useApiClient'
 
 const { t, locale } = useI18n()
+const route = useRoute()
 const toast = useToast()
 const localePath = useLocalePath()
 const { apiBaseUrl, request } = useApiClient()
@@ -26,6 +27,14 @@ const {
   loginProviders,
   redirectToProvider
 } = useAuthProviders()
+const continuationProviderId = computed(() =>
+  typeof route.query.continuation_provider === 'string'
+    ? route.query.continuation_provider.trim()
+    : ''
+)
+const availableLoginProviders = computed(() =>
+  loginProviders.value.filter(provider => provider.id !== continuationProviderId.value)
+)
 const {
   alertMessage: externalAlertMessage,
   alertVariant: externalAlertVariant
@@ -266,7 +275,7 @@ async function startExternalLogin(provider: PublicAuthProvider) {
         </form>
 
         <SFAuthProviderButtons
-          :providers="loginProviders"
+          :providers="availableLoginProviders"
           operation="login"
           :starting-id="providerStartingId"
           :disabled="submitting"

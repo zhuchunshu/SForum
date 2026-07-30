@@ -142,7 +142,6 @@ describe('region outlet wiring contracts', () => {
 
   it('every region page ships its outlets', () => {
     const placements: Record<string, string[]> = {
-      'forum/SFHomePage.vue': ['forum.home'],
       'forum/SFTopicShowPage.vue': ['forum.topic.show'],
       'forum/SFCategoryShowPage.vue': ['forum.category.show'],
       'forum/SFCategoryIndexPage.vue': ['forum.category.index'],
@@ -150,7 +149,6 @@ describe('region outlet wiring contracts', () => {
       'forum/SFTagIndexPage.vue': ['forum.tag.index'],
       'profile/SFProfileShowPage.vue': ['forum.profile.show'],
       'forum/SFTopicComposerPage.vue': ['forum.topic.create'],
-      'forum/SFTopicReplyPage.vue': ['forum.topic.reply'],
       'forum/SFTopicEditPage.vue': ['forum.topic.edit'],
       'notifications/SFNotificationsPage.vue': ['forum.notifications']
     }
@@ -161,6 +159,10 @@ describe('region outlet wiring contracts', () => {
         expect(content).toContain(`<SFRegionOutlet page="${page}" region="content_after"`)
       }
     }
+    const home = source('../../app/components/forum/SFHomePage.vue')
+    expect(home).toContain("const registryPage = computed(() => isSearchPage.value ? 'forum.search' : 'forum.home')")
+    expect(home).toContain('<SFRegionOutlet :page="registryPage" region="content_before"')
+    expect(home).toContain('<SFRegionOutlet :page="registryPage" region="content_after"')
     // 有右栏的页面提供 sidebar 区域。
     for (const file of [
       'forum/SFHomePage.vue', 'forum/SFTopicShowPage.vue', 'forum/SFCategoryIndexPage.vue',

@@ -184,6 +184,15 @@ func BuildCorePageViewModel(request CorePageViewModelRequest) (any, error) {
 		model.Base = base
 		model.Form = hostForm("identity.component.register_form", "core.route.identity.register")
 		return model, nil
+	case "auth.external_continuation":
+		model := valueOrZero(request.Data.ExternalContinuation)
+		model.Base = base
+		model.Form = hostForm(
+			"identity.component.external_auth_continuation",
+			"core.route.identity.prepare_external_auth_continuation",
+			"core.route.identity.link_external_auth_continuation",
+		)
+		return model, nil
 	case "auth.forgot_password":
 		model := valueOrZero(request.Data.ForgotPassword)
 		model.Base = base

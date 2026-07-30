@@ -206,7 +206,7 @@ describe('public navigation fetch and renderer contracts', () => {
   test('fails the dynamic category block closed without hiding ordinary sidebar links', () => {
     expect(sidebarSource).toContain('if (isCoreDynamicCategories(item)) return props.showCategories')
     expect(sidebarSource).toContain('return Boolean(item.label.trim()) && (isExternalNavigationItem(item) || isInternalNavigationItem(item))')
-    expect(sidebarSource).toContain('props.showCategories && sidebarItems.value.some(isCoreDynamicCategories)')
+    expect(sidebarSource).toContain('props.showCategories && Boolean(dynamicCategoryItem.value)')
     expect(sidebarSource).toContain('v-if="!desktopOnly && hasDynamicCategories"')
     expect(sidebarSource).not.toContain("t('home.sidebar.guidelines')")
   })

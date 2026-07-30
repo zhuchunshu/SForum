@@ -208,6 +208,7 @@ func TestCorePageViewModelSourcePopulatesEveryCatalogContract(t *testing.T) {
 		"moderation.review":            {"/moderation", nil, nil, reflect.TypeOf(themecompiler.ModerationReviewPageViewModel{})},
 		"auth.login":                   {"/login", nil, nil, reflect.TypeOf(themecompiler.LoginPageViewModel{})},
 		"auth.register":                {"/register", nil, nil, reflect.TypeOf(themecompiler.RegisterPageViewModel{})},
+		"auth.external_continuation":   {"/auth/continue", nil, url.Values{"ticket": {"opaque"}}, reflect.TypeOf(themecompiler.ExternalAuthContinuationPageViewModel{})},
 		"auth.forgot_password":         {"/forgot-password", nil, nil, reflect.TypeOf(themecompiler.ForgotPasswordPageViewModel{})},
 		"auth.reset_password":          {"/reset-password", nil, url.Values{"token": {"exact-token"}}, reflect.TypeOf(themecompiler.ResetPasswordPageViewModel{})},
 		"site.terms":                   {"/terms", nil, nil, reflect.TypeOf(themecompiler.TermsPageViewModel{})},

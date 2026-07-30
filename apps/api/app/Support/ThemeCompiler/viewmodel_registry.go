@@ -73,6 +73,7 @@ func newCorePageViewModelRegistry() (*PageViewModelRegistry, error) {
 		coreViewModel("moderation.review", "sforum.page.moderation_review@1", ViewModelModeration, ModerationReviewPageViewModel{}),
 		coreViewModel("auth.login", "sforum.page.login@1", ViewModelAuth, LoginPageViewModel{}),
 		coreViewModel("auth.register", "sforum.page.register@1", ViewModelAuth, RegisterPageViewModel{}),
+		coreViewModel("auth.external_continuation", "sforum.page.external_auth_continuation@1", ViewModelAuth, ExternalAuthContinuationPageViewModel{}),
 		coreViewModel("auth.forgot_password", "sforum.page.forgot_password@1", ViewModelAuth, ForgotPasswordPageViewModel{}),
 		coreViewModel("auth.reset_password", "sforum.page.reset_password@1", ViewModelAuth, ResetPasswordPageViewModel{}),
 		coreViewModel("site.terms", "sforum.page.terms@1", ViewModelLegal, TermsPageViewModel{}),
@@ -226,6 +227,8 @@ func pageViewModelBase(value any) (PageViewModelBase, bool) {
 		return model.Base, true
 	case RegisterPageViewModel:
 		return model.Base, true
+	case ExternalAuthContinuationPageViewModel:
+		return model.Base, true
 	case ForgotPasswordPageViewModel:
 		return model.Base, true
 	case ResetPasswordPageViewModel:
@@ -311,6 +314,12 @@ func validatePageSpecificBoundaries(value any) error {
 	case RegisterPageViewModel:
 		form, expectedComponent = model.Form, "identity.component.register_form"
 		expectedRoutes = []string{"core.route.identity.register"}
+	case ExternalAuthContinuationPageViewModel:
+		form, expectedComponent = model.Form, "identity.component.external_auth_continuation"
+		expectedRoutes = []string{
+			"core.route.identity.prepare_external_auth_continuation",
+			"core.route.identity.link_external_auth_continuation",
+		}
 	case ForgotPasswordPageViewModel:
 		form, expectedComponent = model.Form, "identity.component.recovery_request_form"
 		expectedRoutes = []string{"core.route.identity.password_reset_request"}

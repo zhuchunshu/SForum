@@ -64,6 +64,10 @@ const SFRegisterFormPage = await compileMountedComponent(
   'app/components/identity/SFRegisterFormPage.vue',
   { SFAuthProviderButtons, SFAuthShell }
 )
+const SFExternalAuthContinuationPage = await compileMountedComponent(
+  'app/components/identity/SFExternalAuthContinuationPage.vue',
+  { SFAuthShell }
+)
 
 describe('auth route support contracts', () => {
   test('shares the persisted language menu through the authentication shell', () => {
@@ -108,11 +112,15 @@ describe('auth route support contracts', () => {
     const providers = mountVue.ref([{
       id: 'example.provider.auth', kind: 'auth', contractVersion: 'example.auth@1', priority: 1,
       operations: ['login.start'], activatedOperations: ['login'], label: 'Example Login', icon: 'i-lucide-key-round'
+    }, {
+      id: 'source.provider.auth', kind: 'auth', contractVersion: 'source.auth@1', priority: 2,
+      operations: ['login.start'], activatedOperations: ['login'], label: 'Unlinked Source', icon: 'i-lucide-key-round'
     }])
     Object.assign(globalThis, {
       computed: mountVue.computed, ref: mountVue.ref, reactive: mountVue.reactive, watch: mountVue.watch,
       useI18n: () => ({ locale, t: (key: string, values?: Record<string, string>) => key === 'auth.providers.continueWith' ? `Continue with ${values?.name}` : key }),
       useToast: () => ({ add: () => {} }), useLocalePath: () => (path: string) => path,
+      useRoute: () => ({ query: { continuation_provider: 'source.provider.auth' } }),
       useApiClient: () => ({ apiBaseUrl: 'http://api.test', request: async (path: string) => path === '/auth/registration-status' ? { nextUserIsInitialSuperAdmin: false, registrationEnabled: true } : { id: 1 } }),
       useAuthSession: () => ({ setUser: () => {} }),
       useAuthReturnNavigation: () => ({ returnFromAuth: async () => {}, authPageLink: (path: string) => path, destination: mountVue.ref('/') }),
@@ -134,12 +142,70 @@ describe('auth route support contracts', () => {
       expect(wrapper.get('#login-input').exists()).toBe(true)
       expect(wrapper.get('#password-input').exists()).toBe(true)
       const provider = wrapper.get('[data-provider-id="example.provider.auth"]')
+      expect(wrapper.find('[data-provider-id="source.provider.auth"]').exists()).toBe(false)
       await provider.trigger('click')
       expect(starts).toEqual([['example.provider.auth', 'login']])
       providers.value = []
       await mountVue.nextTick()
       expect(wrapper.find('[data-testid="auth-provider-buttons"]').exists()).toBe(false)
       expect(wrapper.get('#login-input').exists()).toBe(true)
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  test('offers existing-account and registration continuations without duplicating either form', async () => {
+    const navigations: unknown[] = []
+    const user = mountVue.ref(null)
+    Object.assign(globalThis, {
+      computed: mountVue.computed, ref: mountVue.ref, onMounted: mountVue.onMounted,
+      useRoute: () => ({ query: { ticket: 'opaque-ticket', redirect: '/topics' } }),
+      useRouter: () => ({ resolve: (target: { path: string, query: Record<string, string> }) => ({ fullPath: `${target.path}?ticket=${target.query.ticket}&bind=1` }) }),
+      useLocalePath: () => (path: string) => path,
+      useI18n: () => ({ t: (key: string, values?: Record<string, string>) => values?.name ? `${key}:${values.name}` : key }),
+      useToast: () => ({ add: () => {} }),
+      useApiClient: () => ({
+        request: async (path: string, options?: { body?: Record<string, unknown> }) => {
+          if (path !== '/auth/external-continuation/prepare') throw new Error(`unexpected request ${path}`)
+          expect(options?.body).toEqual({ ticket: 'opaque-ticket' })
+          return {
+            providerId: 'source.provider.auth', providerLabel: 'Source Login', providerIcon: 'i-lucide-key-round',
+            usernameHint: '', displayName: '', emailHint: '', emailVerified: false,
+            canLinkExisting: true, canRegister: true
+          }
+        }
+      }),
+      useAuthSession: () => ({ user, status: mountVue.ref('guest'), refresh: async () => null, setUser: () => {} }),
+      useAuthReturnNavigation: () => ({ destination: mountVue.ref('/topics'), returnFromAuth: async () => {} }),
+      useAsyncData: async (_key: string, handler: () => Promise<unknown>) => ({ data: mountVue.ref(await handler()), pending: mountVue.ref(false) }),
+      useSeoMeta: () => {},
+      navigateTo: async (target: unknown) => { navigations.push(target) },
+      apiErrorMessage: () => '', apiErrorReason: () => ''
+    })
+    const wrapper = mount({ components: { SFExternalAuthContinuationPage }, template: '<Suspense><SFExternalAuthContinuationPage /></Suspense>' }, {
+      global: {
+        stubs: {
+          UIcon: true, SFAlert: true,
+          UButton: { template: '<button><slot /></button>' }
+        }
+      }
+    })
+    try {
+      await flushPromises()
+      expect(wrapper.find('#login-input').exists()).toBe(false)
+      expect(wrapper.find('#username-input').exists()).toBe(false)
+      await wrapper.get('[data-testid="continue-with-existing"]').trigger('click')
+      await wrapper.get('[data-testid="continue-with-registration"]').trigger('click')
+      expect(navigations).toEqual([
+        {
+          path: '/login',
+          query: {
+            redirect: '/auth/continue?ticket=opaque-ticket&bind=1',
+            continuation_provider: 'source.provider.auth'
+          }
+        },
+        { path: '/register', query: { ticket: 'opaque-ticket', redirect: '/topics' } }
+      ])
     } finally {
       wrapper.unmount()
     }

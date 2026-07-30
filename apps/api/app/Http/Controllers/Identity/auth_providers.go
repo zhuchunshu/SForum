@@ -168,6 +168,10 @@ func (h *Controller) authProviderStart(c fiber.Ctx) error {
 	if err := h.externalAuthService.RequireActivated(c.Context(), providerID, extOp); err != nil {
 		return mapAuthProviderHTTPError(err)
 	}
+	browserBindingDigest, err := h.ensureExternalAuthBrowserBinding(c)
+	if err != nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, "auth.provider_unavailable")
+	}
 	actorUserID := int64(0)
 	if operation == identity.AuthOperationLinkStart {
 		actor, actorErr := h.actor(c)
@@ -226,6 +230,7 @@ func (h *Controller) authProviderStart(c fiber.Ctx) error {
 		ActorUserID:             actorUserID,
 		ClientClass:             req.ClientClass,
 		DeviceFingerprint:       req.DeviceFingerprint,
+		BrowserBindingDigest:    browserBindingDigest,
 		RedirectPath:            safeRedirect,
 		AbsoluteCallbackURL:     callbackURL,
 		CodeChallenge:           codeChallenge,

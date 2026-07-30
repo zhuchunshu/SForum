@@ -28,6 +28,7 @@ type CorePageViewModelData struct {
 	ModerationReview      *themecompiler.ModerationReviewPageViewModel
 	Login                 *themecompiler.LoginPageViewModel
 	Register              *themecompiler.RegisterPageViewModel
+	ExternalContinuation  *themecompiler.ExternalAuthContinuationPageViewModel
 	ForgotPassword        *themecompiler.ForgotPasswordPageViewModel
 	ResetPassword         *themecompiler.ResetPasswordPageViewModel
 	Terms                 *themecompiler.TermsPageViewModel

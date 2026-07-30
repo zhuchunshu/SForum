@@ -1209,7 +1209,7 @@ ExternalRegistrationRequest:
   properties:
     ticket:
       type: string
-      description: Host-generated opaque one-time registration ticket.
+      description: Host-generated opaque one-time account-continuation ticket.
     username: {type: string}
     email: {type: string, format: email}
     displayName: {type: string}
@@ -1227,7 +1227,61 @@ ExternalRegistrationPreparationRequest:
   properties:
     ticket:
       type: string
-      description: Host-generated opaque one-time registration ticket.
+      description: Host-generated opaque one-time account-continuation ticket.
+
+ExternalAuthContinuationRequest:
+  type: object
+  additionalProperties: false
+  required: [ticket]
+  properties:
+    ticket:
+      type: string
+      description: Browser-bound Host opaque ticket issued after an unlinked external login.
+
+ExternalAuthContinuationPreparation:
+  type: object
+  additionalProperties: false
+  required:
+  - providerId
+  - providerLabel
+  - providerIcon
+  - usernameHint
+  - displayName
+  - emailHint
+  - emailVerified
+  - canLinkExisting
+  - canRegister
+  properties:
+    providerId:
+      type: string
+      description: Stable Host provider id; not an ownership or artifact claim.
+    providerLabel:
+      type: string
+      description: Locale-resolved provider label supplied through the Host catalog.
+    providerIcon:
+      type: string
+      description: Provider Iconify name supplied through the Host catalog, or empty.
+    usernameHint: {type: string}
+    displayName: {type: string}
+    emailHint:
+      type: string
+      description: Empty unless the provider explicitly proved the email verified.
+    emailVerified: {type: boolean}
+    canLinkExisting:
+      type: boolean
+      description: True only when login and link operations remain effectively active.
+    canRegister:
+      type: boolean
+      description: True only when provider registration and site registration remain open.
+
+ApiResponseExternalAuthContinuationPreparation:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data:
+      "$ref": "#/ExternalAuthContinuationPreparation"
 
 ExternalRegistrationPreparation:
   type: object

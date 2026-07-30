@@ -88,7 +88,8 @@ type LinkExternalIdentityInput struct {
 	Provider              identityregistry.ProviderContribution
 	ProviderOperation     string
 	ProviderSubjectDigest string
-	// link.complete 必须等于已登录目标用户；registration.complete 必须为 0。
+	// 已认证用户绑定（link.complete 或 login.complete continuation）必须等于
+	// 目标用户；registration.complete 必须为 0。
 	ActorUserID    int64
 	IdempotencyKey string
 }
@@ -196,7 +197,7 @@ func prepareExternalIdentityLink(input LinkExternalIdentityInput) (preparedExter
 		!validExternalIdentityIdempotencyKey(result.idempotencyKey) {
 		return preparedExternalIdentityLink{}, ErrExternalIdentityLinkInvalid
 	}
-	if (result.providerOperation == "link.complete" &&
+	if ((result.providerOperation == "link.complete" || result.providerOperation == "login.complete") &&
 		(result.actorUserID <= 0 || result.actorUserID != result.userID)) ||
 		(result.providerOperation == "registration.complete" && result.actorUserID != 0) {
 		return preparedExternalIdentityLink{}, ErrExternalIdentityLinkInvalid
@@ -244,7 +245,7 @@ func prepareExternalIdentityTransition(
 }
 
 func externalIdentityLinkOperationAllowed(provider identityregistry.ProviderContribution, operation string) bool {
-	if operation != "registration.complete" && operation != "link.complete" {
+	if operation != "registration.complete" && operation != "link.complete" && operation != "login.complete" {
 		return false
 	}
 	for _, declared := range provider.Operations {

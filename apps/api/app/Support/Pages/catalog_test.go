@@ -49,6 +49,16 @@ func TestLoginMethodsSettingsPageContract(t *testing.T) {
 	}
 }
 
+func TestExternalAuthContinuationPageContract(t *testing.T) {
+	page, ok := Find("auth.external_continuation")
+	if !ok || page.PathPattern != "/auth/continue" || page.Access != AccessPublic || !page.Replaceable || page.ContractVersion != "sforum.page.external_auth_continuation@1" {
+		t.Fatalf("external auth continuation contract missing or invalid: %#v ok=%v", page, ok)
+	}
+	if RequiredThemeBodyIslandTag(page.ID) != "sf-external-auth-continuation" {
+		t.Fatalf("external auth continuation body island mismatch: %q", RequiredThemeBodyIslandTag(page.ID))
+	}
+}
+
 func TestLocalPasswordSettingsPageContract(t *testing.T) {
 	page, ok := Find("forum.settings.password")
 	if !ok || page.PathPattern != "/settings/password" || page.Access != AccessLogin || !page.Replaceable || page.ContractVersion != "sforum.page.settings_password@1" {
@@ -127,6 +137,7 @@ func TestMatchPath(t *testing.T) {
 		{"/en/categories", "forum.category.index", true},
 		{"/c/general", "forum.category.show", true},
 		{"/login", "auth.login", true},
+		{"/auth/continue", "auth.external_continuation", true},
 		{"/control-panel", "", false},
 		{"/api/v1/health", "", false},
 	}

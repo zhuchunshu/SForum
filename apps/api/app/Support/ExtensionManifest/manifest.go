@@ -141,30 +141,6 @@ type ManifestLocale struct {
 	Author      ManifestAuthor `json:"author,omitempty"`
 }
 
-type ManifestSetting struct {
-	Key              string        `json:"key"`
-	Label            LocalizedText `json:"label"`
-	Description      LocalizedText `json:"description,omitempty"`
-	Type             string        `json:"type"`
-	Default          string        `json:"default,omitempty"`
-	Placeholder      LocalizedText `json:"placeholder,omitempty"`
-	RecommendedValue string        `json:"recommendedValue,omitempty"`
-	Required         bool          `json:"required,omitempty"`
-	// Width 控制 Schema UI 控件横向占位：default（受限宽度）或 full（占满可用列宽）。
-	// 省略时等价于 default。
-	Width   string                  `json:"width,omitempty"`
-	Group   LocalizedText           `json:"group,omitempty"`
-	GroupID string                  `json:"groupId,omitempty"`
-	Column  int                     `json:"column,omitempty"`
-	Options []ManifestSettingOption `json:"options,omitempty"`
-}
-
-type ManifestSettingOption struct {
-	Value       string        `json:"value"`
-	Label       LocalizedText `json:"label"`
-	Description LocalizedText `json:"description,omitempty"`
-}
-
 type ManifestMigration struct {
 	ID              string `json:"id,omitempty"`
 	ContractVersion string `json:"contractVersion,omitempty"`

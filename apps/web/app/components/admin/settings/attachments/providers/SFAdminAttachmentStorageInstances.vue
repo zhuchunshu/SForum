@@ -249,7 +249,7 @@ function statusColor(status: StorageInstance['status']) {
       <div class="flex max-h-[90vh] flex-col">
         <header class="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4 dark:border-zinc-800">
           <div><h3 class="text-base font-bold">{{ editing ? t('admin.attachments.storageInstances.editTitle') : t('admin.attachments.storageInstances.createTitle') }}</h3></div>
-          <UButton type="button" icon="i-lucide-x" color="neutral" variant="ghost" :aria-label="t('admin.common.cancel')" @click="editorOpen = false" />
+          <UButton type="button" icon="i-lucide-x" color="neutral" variant="ghost" :aria-label="t('admin.common.cancel')" @click="() => { editorOpen = false }" />
         </header>
         <div class="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           <div class="grid gap-4 sm:grid-cols-2">
@@ -292,7 +292,7 @@ function statusColor(status: StorageInstance['status']) {
         <h3 class="text-base font-bold">{{ t('admin.attachments.storageInstances.deleteTitle') }}</h3>
         <p class="mt-2 text-sm text-slate-600 dark:text-zinc-300">{{ t('admin.attachments.storageInstances.deleteConfirm', { name: pendingDelete?.name }) }}</p>
         <div class="mt-5 flex justify-end gap-2">
-          <UButton type="button" color="neutral" variant="ghost" @click="deleteOpen = false">{{ t('admin.common.cancel') }}</UButton>
+          <UButton type="button" color="neutral" variant="ghost" @click="() => { deleteOpen = false }">{{ t('admin.common.cancel') }}</UButton>
           <UButton type="button" color="error" icon="i-lucide-trash-2" :loading="deleting" @click="removeInstance">{{ t('admin.attachments.storageInstances.delete') }}</UButton>
         </div>
       </div>

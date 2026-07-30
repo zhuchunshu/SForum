@@ -126,6 +126,7 @@ Manifest V3 component targets declare both `targetId` and `targetContractVersion
 | `core.component.page.admin.site.chrome` | `sforum.component.page.admin.site.chrome@1` | page | `admin` | `/admin/site-chrome` | `apps/web/app/pages/admin/site-chrome.vue` | P7 Admin Surface Registry |
 | `core.component.page.admin.users` | `sforum.component.page.admin.users@1` | page | `admin` | `/admin/users` | `apps/web/app/pages/admin/users.vue` | P7 Admin Surface Registry |
 | `core.component.page.admin.webhooks` | `sforum.component.page.admin.webhooks@1` | page | `admin` | `/admin/webhooks` | `apps/web/app/pages/admin/webhooks.vue` | P7 Admin Surface Registry |
+| `core.component.page.auth.external_continuation` | `sforum.component.page.auth.external_continuation@1` | page | `public` | `/auth/continue` | `apps/web/app/pages/auth/continue.vue` | P9 Component Registry |
 | `core.component.page.auth.forgot_password` | `sforum.component.page.auth.forgot_password@1` | page | `public` | `/forgot-password` | `apps/web/app/pages/forgot-password.vue` | P9 Component Registry |
 | `core.component.page.auth.login` | `sforum.component.page.auth.login@1` | page | `public` | `/login` | `apps/web/app/pages/login.vue` | P9 Component Registry |
 | `core.component.page.auth.register` | `sforum.component.page.auth.register@1` | page | `public` | `/register` | `apps/web/app/pages/register.vue` | P9 Component Registry |
@@ -184,10 +185,12 @@ Manifest V3 component targets declare both `targetId` and `targetContractVersion
 | `core.component.shared.sfcomment_user_preview` | `sforum.component.shared.sfcomment_user_preview@1` | component | `public` | — | `apps/web/app/components/forum/SFCommentUserPreview.vue` | P9 Component Registry |
 | `core.component.shared.sfcontent_column_footer` | `sforum.component.shared.sfcontent_column_footer@1` | component | `public` | — | `apps/web/app/components/forum/SFContentColumnFooter.vue` | P9 Component Registry |
 | `core.component.shared.sfeditor` | `sforum.component.shared.sfeditor@1` | component | `public` | — | `apps/web/app/components/SFEditor.vue` | P9 Component Registry |
+| `core.component.shared.sfeditor_toolbar` | `sforum.component.shared.sfeditor_toolbar@1` | component | `public` | — | `apps/web/app/components/editor/SFEditorToolbar.vue` | P9 Component Registry |
 | `core.component.shared.sfempty_state` | `sforum.component.shared.sfempty_state@1` | component | `public`, `admin` | — | `apps/web/app/components/SFEmptyState.vue` | P7/P9 Admin and Component Registries |
 | `core.component.shared.sferror_page_content` | `sforum.component.shared.sferror_page_content@1` | component | `public` | — | `apps/web/app/components/errors/SFErrorPageContent.vue` | P9 Component Registry |
 | `core.component.shared.sferror_page_panel` | `sforum.component.shared.sferror_page_panel@1` | component | `public` | — | `apps/web/app/components/errors/SFErrorPagePanel.vue` | P9 Component Registry |
 | `core.component.shared.sfextension_widget` | `sforum.component.shared.sfextension_widget@1` | component | `public` | — | `apps/web/app/components/SFExtensionWidget.vue` | P9 Component Registry |
+| `core.component.shared.sfexternal_auth_continuation_page` | `sforum.component.shared.sfexternal_auth_continuation_page@1` | component | `public` | — | `apps/web/app/components/identity/SFExternalAuthContinuationPage.vue` | P9 Component Registry |
 | `core.component.shared.sffeed_row` | `sforum.component.shared.sffeed_row@1` | component | `public` | — | `apps/web/app/components/forum/SFFeedRow.vue` | P9 Component Registry |
 | `core.component.shared.sffooter` | `sforum.component.shared.sffooter@1` | component | `public` | — | `apps/web/app/components/SFFooter.vue` | P9 Component Registry |
 | `core.component.shared.sfguidelines_page` | `sforum.component.shared.sfguidelines_page@1` | component | `public` | — | `apps/web/app/components/legal/SFGuidelinesPage.vue` | P9 Component Registry |

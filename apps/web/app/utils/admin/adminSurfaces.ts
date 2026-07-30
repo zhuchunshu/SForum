@@ -98,10 +98,10 @@ export function resolveAdminSurfacePlacement(pageId: string): AdminSurfacePlacem
   const placementRoutes = normalized === '/admin/attachments/manager'
     ? [normalized, '/admin/attachments']
     : [normalized]
-  const exact = placementRoutes
-    .map(route => adminSurfacePlacements.find(item => item.route === route))
-    .find((item): item is AdminSurfacePlacement => Boolean(item))
-  if (exact) return exact
+  for (const route of placementRoutes) {
+    const exact = adminSurfacePlacements.find(item => item.route === route)
+    if (exact) return exact
+  }
 
   return adminSurfacePlacements.find(item => routePatternMatches(item.route, normalized))
 }

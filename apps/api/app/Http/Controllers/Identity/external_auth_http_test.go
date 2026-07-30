@@ -199,6 +199,36 @@ func TestT1E_CallbackReplayRedirectsWithoutSecrets(t *testing.T) {
 	}
 }
 
+func TestExternalAuthCallbackRejectsWrongBrowserBeforeProviderEffect(t *testing.T) {
+	stateStore := identity.NewInMemoryCallbackStateStore()
+	browserCookie, browserDigest := externalAuthBrowserCookieForTest()
+	tx := identity.CallbackTransaction{
+		State: "browser-bound-state", ProviderID: "demo.auth", Operation: identity.ExternalAuthOperationLogin,
+		OwnerExtensionID: "ext.demo.auth", OwnerPackageDigest: strings.Repeat("a", 64),
+		BrowserBindingDigest: browserDigest, CodeVerifier: "host-verifier", CorrelationID: "browser-bound",
+		ExpiresAt: time.Now().Add(time.Minute),
+	}
+	if err := stateStore.Save(t.Context(), tx); err != nil {
+		t.Fatal(err)
+	}
+	controller := &Controller{
+		callbackStateStore: stateStore, externalAuthService: identity.NewExternalAuthService(identity.ExternalAuthDeps{}),
+		authFlow: &identity.AuthProviderFlow{},
+	}
+	app := fiber.New()
+	app.Get("/callback/:providerId", controller.externalAuthCallback)
+	request := httptest.NewRequest(http.MethodGet, "/callback/demo.auth?state=browser-bound-state&code=provider-code", nil)
+	request.AddCookie(&http.Cookie{Name: browserCookie.Name, Value: strings.Repeat("c", 43)})
+	response, err := app.Test(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusFound || !strings.Contains(response.Header.Get("Location"), "auth.provider_callback_invalid") {
+		t.Fatalf("status=%d location=%q", response.StatusCode, response.Header.Get("Location"))
+	}
+}
+
 func TestT1E_CallbackExactArtifactMismatchRedirect(t *testing.T) {
 	stateStore := identity.NewInMemoryCallbackStateStore()
 	ctx := context.Background()
