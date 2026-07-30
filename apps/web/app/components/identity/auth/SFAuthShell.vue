@@ -13,7 +13,7 @@ const { currentLocaleName, languageMenuItems } = useNavbarLanguageMenu()
 const {
   preference: colorModePreference,
   options: colorModeOptions,
-  cyclePreference: cycleColorModePreference
+  setPreference: setColorModePreference
 } = useColorModePreference()
 
 const isRecovery = computed(() => props.recoveryPhase !== undefined)
@@ -24,9 +24,25 @@ const brandDescription = computed(() => siteTagline.value || t(
 const currentColorModeOption = computed(() =>
   colorModeOptions.find(option => option.value === colorModePreference.value) || colorModeOptions[0]!
 )
+const colorModePreferenceLabel = computed(() => t(currentColorModeOption.value.labelKey))
 const colorModeTriggerLabel = computed(() => t('appearance.colorMode.currentPreference', {
-  preference: t(currentColorModeOption.value.labelKey)
+  preference: colorModePreferenceLabel.value
 }))
+const colorModeMenuItems = computed(() =>
+  colorModeOptions.map((option) => {
+    const isCurrent = option.value === colorModePreference.value
+    return {
+      label: t(option.labelKey),
+      description: option.descriptionKey ? t(option.descriptionKey) : undefined,
+      icon: option.icon,
+      type: 'checkbox' as const,
+      checked: isCurrent,
+      onUpdateChecked: (checked: boolean) => {
+        if (checked) setColorModePreference(option.value)
+      }
+    }
+  })
+)
 const recoverySteps = computed(() => [
   { phase: 1 as const, title: t('auth.recovery.stepEmailTitle'), description: t('auth.recovery.stepEmailDescription') },
   { phase: 2 as const, title: t('auth.recovery.stepPasswordTitle'), description: t('auth.recovery.stepPasswordDescription') },
@@ -98,22 +114,20 @@ const recoverySteps = computed(() => [
       <div class="sf-auth-shell__utilities">
         <ClientOnly>
           <UDropdownMenu :items="languageMenuItems" :content="{ align: 'end' }">
-            <UButton
-              color="neutral"
-              variant="ghost"
-              square
+            <button
+              type="button"
               class="sf-auth-shell__utility"
               :aria-label="t('nav.language')"
               :title="currentLocaleName"
             >
-              <UIcon name="i-tabler-language" aria-hidden="true" />
-            </UButton>
+              <UIcon name="i-tabler-language" class="sf-auth-shell__utility-icon" aria-hidden="true" />
+              <span class="sf-auth-shell__utility-label">{{ currentLocaleName }}</span>
+              <UIcon name="i-lucide-chevron-down" class="sf-auth-shell__utility-chevron" aria-hidden="true" />
+            </button>
           </UDropdownMenu>
           <template #fallback>
-            <UButton
-              color="neutral"
-              variant="ghost"
-              square
+            <button
+              type="button"
               class="sf-auth-shell__utility"
               :aria-label="t('nav.language')"
               :title="currentLocaleName"
@@ -121,37 +135,40 @@ const recoverySteps = computed(() => [
               tabindex="-1"
               data-ssr-fallback="auth-language"
             >
-              <UIcon name="i-tabler-language" aria-hidden="true" />
-            </UButton>
+              <UIcon name="i-tabler-language" class="sf-auth-shell__utility-icon" aria-hidden="true" />
+              <span class="sf-auth-shell__utility-label">{{ currentLocaleName }}</span>
+              <UIcon name="i-lucide-chevron-down" class="sf-auth-shell__utility-chevron" aria-hidden="true" />
+            </button>
           </template>
         </ClientOnly>
 
         <ClientOnly>
-          <UButton
-            color="neutral"
-            variant="ghost"
-            square
-            class="sf-auth-shell__utility"
-            :aria-label="colorModeTriggerLabel"
-            :title="colorModeTriggerLabel"
-            @click="cycleColorModePreference"
-          >
-            <UIcon :name="currentColorModeOption.icon" aria-hidden="true" />
-          </UButton>
+          <UDropdownMenu :items="colorModeMenuItems" :content="{ align: 'end' }">
+            <button
+              type="button"
+              class="sf-auth-shell__utility sf-auth-shell__utility--appearance"
+              :aria-label="colorModeTriggerLabel"
+              :title="colorModeTriggerLabel"
+            >
+              <UIcon :name="currentColorModeOption.icon" class="sf-auth-shell__utility-icon" aria-hidden="true" />
+              <span class="sf-auth-shell__utility-label">{{ colorModePreferenceLabel }}</span>
+              <UIcon name="i-lucide-chevron-down" class="sf-auth-shell__utility-chevron" aria-hidden="true" />
+            </button>
+          </UDropdownMenu>
           <template #fallback>
-            <UButton
-              color="neutral"
-              variant="ghost"
-              square
-              class="sf-auth-shell__utility"
+            <button
+              type="button"
+              class="sf-auth-shell__utility sf-auth-shell__utility--appearance"
               :aria-label="t('nav.appearance')"
               :title="t('nav.appearance')"
               aria-hidden="true"
               tabindex="-1"
               data-ssr-fallback="auth-appearance"
             >
-              <UIcon name="i-tabler-brightness-filled" aria-hidden="true" />
-            </UButton>
+              <UIcon name="i-tabler-brightness-filled" class="sf-auth-shell__utility-icon" aria-hidden="true" />
+              <span class="sf-auth-shell__utility-label">{{ t('appearance.colorMode.system') }}</span>
+              <UIcon name="i-lucide-chevron-down" class="sf-auth-shell__utility-chevron" aria-hidden="true" />
+            </button>
           </template>
         </ClientOnly>
       </div>
@@ -193,14 +210,20 @@ const recoverySteps = computed(() => [
 .sf-auth-shell__recovery-note svg { width: 15px; height: 15px; }
 .sf-auth-shell__panel { position: relative; display: flex; min-width: 0; align-items: center; justify-content: center; padding: 48px 40px; }
 .sf-auth-shell__content { width: min(100%, 410px); }
-.sf-auth-shell__utilities { position: absolute; top: 28px; right: 32px; display: flex; gap: 8px; }
-.sf-auth-shell__utility { width: 38px; height: 38px; border: 1px solid var(--sf-border); border-radius: 7px; background: var(--sf-card); color: var(--sf-fg-secondary); }
-.sf-auth-shell__utility:hover { background: var(--sf-muted); color: var(--sf-fg); }
-.sf-auth-shell__utility svg { width: 18px; height: 18px; }
+.sf-auth-shell__utilities { position: absolute; top: 30px; right: 34px; display: flex; align-items: center; gap: 14px; }
+.sf-auth-shell__utility { display: inline-flex; height: 32px; align-items: center; gap: 6px; padding: 0 2px; border: 0; border-radius: 0; background: transparent; color: var(--sf-fg-tertiary); font: inherit; font-size: 12.5px; font-weight: 620; line-height: 1; cursor: pointer; }
+.sf-auth-shell__utility:hover { color: var(--sf-fg); }
+.sf-auth-shell__utility:focus-visible { border-radius: 4px; outline: 2px solid var(--sf-accent); outline-offset: 3px; }
+.sf-auth-shell__utility--appearance { position: relative; padding-left: 16px; }
+.sf-auth-shell__utility--appearance::before { position: absolute; top: 8px; bottom: 8px; left: 0; width: 1px; background: var(--sf-border); content: ''; }
+.sf-auth-shell__utility-icon { width: 17px; height: 17px; flex: 0 0 17px; }
+.sf-auth-shell__utility-label { max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sf-auth-shell__utility-chevron { width: 12px; height: 12px; flex: 0 0 12px; color: var(--sf-fg-tertiary); }
 [data-ssr-fallback] { pointer-events: none; }
 .sf-auth-shell__mobile-brand { display: none; }
 .sf-auth-shell__back-link { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 34px; color: var(--sf-fg-secondary); font-size: 13px; font-weight: 620; text-decoration: none; }
 .sf-auth-shell__back-link:hover { color: var(--sf-accent); }
 .sf-auth-shell__back-link svg { width: 16px; height: 16px; }
-@media (max-width: 720px) { .sf-auth-shell { display: block; } .sf-auth-shell__brand { display: none; } .sf-auth-shell__panel { min-height: 100svh; align-items: flex-start; padding: 94px 20px 48px; } .sf-auth-shell__mobile-brand { position: absolute; top: 24px; left: 20px; display: inline-flex; font-size: 15px; } .sf-auth-shell__mobile-brand .sf-auth-shell__logo { width: 29px; height: 29px; flex-basis: 29px; } .sf-auth-shell__utilities { top: 20px; right: 20px; } .sf-auth-shell__content { max-width: 430px; margin: 0 auto; } .sf-auth-shell__back-link { margin-bottom: 28px; } }
+@media (max-width: 720px) { .sf-auth-shell { display: block; } .sf-auth-shell__brand { display: none; } .sf-auth-shell__panel { min-height: 100svh; align-items: flex-start; padding: 94px 20px 48px; } .sf-auth-shell__mobile-brand { position: absolute; top: 24px; left: 20px; display: inline-flex; font-size: 15px; } .sf-auth-shell__mobile-brand .sf-auth-shell__logo { width: 29px; height: 29px; flex-basis: 29px; } .sf-auth-shell__utilities { top: 22px; right: 20px; } .sf-auth-shell__content { max-width: 430px; margin: 0 auto; } .sf-auth-shell__back-link { margin-bottom: 28px; } }
+@media (max-width: 380px) { .sf-auth-shell__utilities { gap: 10px; } .sf-auth-shell__utility-label, .sf-auth-shell__utility-chevron { display: none; } .sf-auth-shell__utility--appearance { padding-left: 12px; } }
 </style>

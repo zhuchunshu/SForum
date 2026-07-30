@@ -56,6 +56,10 @@ responsibilities.
   control, brand region, and recovery progress rail. Login, registration,
   request, and confirmation content remain focused Identity components, not
   route-shell implementations.
+- Authentication utilities use two quiet inline dropdowns instead of framed
+  square controls: language and appearance both expose their current value,
+  appearance offers explicit automatic/light/dark choices, and very narrow
+  screens retain icon-only triggers without changing the persisted authorities.
 - Both protected built-in themes mount one `sf-footer` after each authentication
   body island, so copyright, navigation, and friend links remain operator-owned
   through the existing public footer contract.
