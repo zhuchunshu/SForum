@@ -1,7 +1,7 @@
 # Trusted Plugin And Theme Platform V3 Progress Ledger
 
 Status: **active**
-Last reviewed: 2026-07-22
+Last reviewed: 2026-07-31
 Displayed progress: **~99.7%**
 Active work: production-rewire honesty remediation M0-M8 plus P13 APILTS
 residual
@@ -32,12 +32,21 @@ this ledger remains open.
 
 ## Current Gate State
 
-Last recorded acceptance review:
+Last recorded remediation checkpoint:
 
-- Focused Support, race, and real-PostgreSQL suites were green.
-- Full `./scripts/test.sh` was red on catalog identity at that checkpoint.
-- Production call-chain review reopened eight findings that isolated Support
-  tests did not prove.
+- Legacy `enc::` settings now migrate through the production
+  SettingsLifecycle binding, including a real-PostgreSQL first-write test.
+- Production Compose and release smoke require the documented Marketplace
+  Ed25519 public key; an immutable release-candidate image smoke is still
+  pending because no candidate image exists yet.
+- SystemTier order now reaches the real plugin full-set starter. CompatFarm
+  fails RPC errors, but its matrix/single-execution cleanup remains open.
+- Full `./scripts/test.sh`, `bun test`, `go vet ./...`, focused race suites,
+  Nuxt production build, and admin overview desktop/mobile Browser QA are green
+  at this checkpoint.
+- RuntimeRollout no longer invents `api-local` health. It is deliberately
+  unbound from post-terminal lifecycle bookkeeping until M3 supplies a real
+  pre-publication node-health gate; Marketplace/Privacy consumers remain M5.
 - `sforum extension api-lts` reported `CanRemoveWithZeroShim=false` before the
   seeded RemoveAfter date of 2026-11-28.
 
@@ -61,8 +70,8 @@ LTS deletion gates pass. Small intermediate fixes do not raise it.
 | P8 Theme compiler/runtime | 8% | complete | Immutable theme runtime, publication, Page ViewModels, convergence |
 | P9 Components/assets/L2 | 8% | complete | Component/assets registries, trusted L2, CSP, fallback/quarantine |
 | P10 Content/media/data | 8% | complete | Content/editor/media/entity contracts and reference proofs |
-| P11 Platform services | 6% | phase gates complete; rewire findings open | Cache, secrets, settings, files, HTTP, localization, SEO/OpenAPI |
-| P12 Operations/ecosystem | 6% | phase gates complete; rewire findings open | Rollout, marketplace, privacy, observability, APILTS, compatibility farm |
+| P11 Platform services | 6% | phase gates complete; secret continuity repaired | Cache, secrets, settings, files, HTTP, localization, SEO/OpenAPI |
+| P12 Operations/ecosystem | 6% | phase gates complete; rollout/consumer residuals open | Rollout, marketplace, privacy, observability, APILTS, compatibility farm |
 | P13 References/removal/final gates | 5% | residual open | Reference packages/parity landed; removal and final honesty gates remain |
 
 “Complete” above means its accepted phase checklist and named phase tests
@@ -76,15 +85,15 @@ Task book:
 
 | Milestone | Finding | Status |
 | --- | --- | --- |
-| M0 | Freeze production call chains and acceptance matrix | ready |
-| M1 | Migrate legacy `enc::` settings to SecretStore without secret loss | open |
-| M2 | Require and deploy the real marketplace signing key | open |
-| M3 | Move runtime rollout before active publication and replace fictional `api-local` canary | open |
-| M4 | Apply SystemTier `LoadOrder` to actual startup order | open |
-| M5 | Wire Marketplace/Privacy production consumers and safe Activate/Rollback | open |
-| M6 | Make CompatFarm RPC failures fatal, broaden the matrix, and run once | open |
+| M0 | Freeze production call chains and acceptance matrix | complete |
+| M1 | Migrate legacy `enc::` settings to SecretStore without secret loss | complete |
+| M2 | Require and deploy the real marketplace signing key | implementation complete; candidate-image smoke pending |
+| M3 | Move runtime rollout before active publication and replace fictional `api-local` canary | partial: fictional Ack removed; real gate open |
+| M4 | Apply SystemTier `LoadOrder` to actual startup order | complete |
+| M5 | Wire Marketplace/Privacy production consumers and safe Activate/Rollback | partial: actor/rollback hardened; consumers open |
+| M6 | Make CompatFarm RPC failures fatal, broaden the matrix, and run once | partial: RPC failure fixed; matrix/run consolidation open |
 | M7 | Route the complete commerce workflow through Dispatcher | open |
-| M8 | Re-run full Go/Web/catalog/browser/package gates and update honesty claims | open |
+| M8 | Re-run full Go/Web/catalog/browser/package gates and update honesty claims | partial: local gates/overview QA green; release image and Page Registry smoke pending |
 
 Acceptance rules:
 

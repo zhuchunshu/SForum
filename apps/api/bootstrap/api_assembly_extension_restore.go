@@ -26,6 +26,7 @@ type apiExtensionRestoreInput struct {
 	extensionRuntime       extensionRuntime
 	lifecycleRuntime       *extensionsruntime.Manager
 	lifecycleStack         *productionLifecycleStack
+	systemTierOrder        []string
 }
 
 type apiExtensionRuntimeState struct {
@@ -133,6 +134,7 @@ func restoreAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger 
 			Manager:     lifecycleRuntime,
 			Logger:      logger,
 			StopTimeout: cfg.WorkerShutdownTimeout,
+			TierOrder:   input.systemTierOrder,
 		})
 		if err == nil {
 			reconciledExtensions, err = extensionStore.List(ctx)

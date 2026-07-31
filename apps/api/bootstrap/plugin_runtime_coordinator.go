@@ -53,6 +53,7 @@ type pluginRuntimeCoordinatorBootstrapConfig struct {
 	HeartbeatInterval time.Duration
 	PollInterval      time.Duration
 	StopTimeout       time.Duration
+	TierOrder         []string
 }
 
 type pluginRuntimeCoordinatorLaunchConfig struct {
@@ -134,6 +135,7 @@ func startPluginRuntimeCoordinator(
 			// API 与 standalone worker 共用同一个 Protocol V2 full-set 收敛路径。
 			applier, err := newProductionPluginRuntimeFullSetApplier(
 				config.Manager, config.Store,
+				config.TierOrder,
 			)
 			if err != nil {
 				return nil, fmt.Errorf("construct exact plugin runtime full-set applier: %w", err)
@@ -476,6 +478,7 @@ func validPluginRuntimeCoordinatorGenesis(publication extensions.PluginRuntimePu
 func newProductionPluginRuntimeFullSetApplier(
 	manager *extensionsruntime.Manager,
 	inventory extensionsruntime.PluginRuntimeFullSetInventory,
+	tierOrder ...[]string,
 ) (*extensionsruntime.ManagerPluginRuntimeFullSetApplier, error) {
-	return extensionsruntime.NewManagerPluginRuntimeFullSetApplier(manager, inventory)
+	return extensionsruntime.NewManagerPluginRuntimeFullSetApplier(manager, inventory, tierOrder...)
 }

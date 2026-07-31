@@ -10,11 +10,11 @@ const props = defineProps<{
 
 const { t } = useI18n()
 
-const radius = 32
+const radius = 30
 const circumference = 2 * Math.PI * radius
 const offset = computed(() => {
-  if (props.percent === 0) return circumference
-  return circumference * (1 - props.percent / 100)
+  const percent = Math.min(100, Math.max(0, props.percent))
+  return circumference * (1 - percent / 100)
 })
 
 const strokeColor = computed(() => props.color || 'var(--sf-accent)')
@@ -22,21 +22,21 @@ const strokeColor = computed(() => props.color || 'var(--sf-accent)')
 
 <template>
   <div class="relative w-20 h-20 flex-shrink-0">
-    <svg class="w-full h-full -rotate-90" viewBox="0 0 36 36">
+    <svg class="w-full h-full -rotate-90" viewBox="0 0 72 72">
       <!-- background track -->
       <circle
-        cx="18"
-        cy="18"
-        r="32"
+        cx="36"
+        cy="36"
+        r="30"
         fill="none"
         stroke="#e5e7eb"
         stroke-width="4"
       />
       <!-- progress ring -->
       <circle
-        cx="18"
-        cy="18"
-        r="32"
+        cx="36"
+        cy="36"
+        r="30"
         fill="none"
         stroke="currentColor"
         stroke-width="4"
@@ -44,7 +44,7 @@ const strokeColor = computed(() => props.color || 'var(--sf-accent)')
         :style="{
           stroke: strokeColor,
           'stroke-dasharray': `${circumference} ${circumference}`,
-          'stroke-dashoffset': circumference - offset
+          'stroke-dashoffset': offset
         }"
       />
     </svg>

@@ -23,6 +23,8 @@ services:
       target: api
     environment:
       APP_URL: ${APP_URL:-https://forum.example.com}
+      MARKETPLACE_ED25519_PUBLIC_KEY_HEX: ${MARKETPLACE_ED25519_PUBLIC_KEY_HEX:?MARKETPLACE_ED25519_PUBLIC_KEY_HEX is required in production}
+      MARKETPLACE_ED25519_KEY_ID: ${MARKETPLACE_ED25519_KEY_ID:-marketplace-primary}
       SFORUM_V3_TRUST_CHALLENGES: ${SFORUM_V3_TRUST_CHALLENGES:-true}
       SFORUM_V3_PUBLIC_L2: ${SFORUM_V3_PUBLIC_L2:-false}
     restart: unless-stopped
@@ -36,6 +38,8 @@ services:
       target: worker
     environment:
       SFORUM_V3_TRUST_CHALLENGES: ${SFORUM_V3_TRUST_CHALLENGES:-true}
+      MARKETPLACE_ED25519_PUBLIC_KEY_HEX: ${MARKETPLACE_ED25519_PUBLIC_KEY_HEX:?MARKETPLACE_ED25519_PUBLIC_KEY_HEX is required in production}
+      MARKETPLACE_ED25519_KEY_ID: ${MARKETPLACE_ED25519_KEY_ID:-marketplace-primary}
     restart: unless-stopped
 
   web:

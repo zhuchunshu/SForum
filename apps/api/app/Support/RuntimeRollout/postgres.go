@@ -199,7 +199,7 @@ func (s *PostgresStore) List(ctx context.Context, extensionID string) ([]Plan, e
 	return out, rows.Err()
 }
 
-// ActiveForExtension returns the non-terminal plan if any.
+// ActiveForExtension returns the latest promotable or active plan if any.
 func (s *PostgresStore) ActiveForExtension(ctx context.Context, extensionID string) (Plan, bool, error) {
 	if s == nil || s.pool == nil || ctx == nil {
 		return Plan{}, false, ErrInvalid
@@ -210,7 +210,7 @@ func (s *PostgresStore) ActiveForExtension(ctx context.Context, extensionID stri
 			actor, reason, last_error, retained_digests, node_acks, updated_at, revision
 		FROM runtime_rollout_plans
 		WHERE extension_id = $1
-		  AND phase NOT IN ('active', 'failed', 'rolled_back')
+		  AND phase NOT IN ('failed', 'rolled_back')
 		ORDER BY updated_at DESC
 		LIMIT 1
 	`, strings.ToLower(strings.TrimSpace(extensionID)))

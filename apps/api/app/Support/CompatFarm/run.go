@@ -163,7 +163,7 @@ func RunMatrix(ctx context.Context, matrixPath string, opts RunOptions) (RunResu
 		// 证据完整性：通过的 cell 必须具备 process + request + response。
 		if cr.Outcome == OutcomePass && !evidenceComplete(cr) {
 			cr.Outcome = OutcomeFail
-			cr.Message = "missing evidence (process/request/response/shim): " + cr.Message
+			cr.Message = "missing evidence (process/request/response): " + cr.Message
 		}
 		if cr.Outcome != OutcomePass {
 			result.OK = false
@@ -268,9 +268,10 @@ func runProtocolV2RealProcessRPC(
 
 	probe, err := starter.ProviderProbe(callCtx, extension.ID, extensionsruntime.ProviderProbeRequest{Slot: "mail.provider"})
 	if err != nil {
-		// SMTP 可能连不上真实端口；进程已启动且 RPC 往返即证明协议路径。
-		// 仍要求有响应错误串作为 response 证据。
 		base.Evidence.Response = "probe_err=" + err.Error()
+		base.Outcome = OutcomeFail
+		base.Message = "provider probe RPC failed: " + err.Error()
+		return base
 	} else {
 		base.Evidence.Response = fmt.Sprintf("probe ok=%v reason=%s instance=%s", probe.OK, probe.Reason, target.InstanceID)
 	}
@@ -283,6 +284,11 @@ func runProtocolV2RealProcessRPC(
 	if tel.StartCount < 1 {
 		base.Outcome = OutcomeFail
 		base.Message = "v2 process start not recorded in telemetry"
+		return base
+	}
+	if tel.CallCount < 1 {
+		base.Outcome = OutcomeFail
+		base.Message = "v2 RPC call not recorded in telemetry"
 		return base
 	}
 	base.Outcome = OutcomePass
@@ -333,7 +339,7 @@ func runManifestSDKWithProcess(
 	})
 	callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	base.Evidence.Request = "Start+Status"
+	base.Evidence.Request = "Start+ProviderProbe"
 	base.Evidence.PluginPath = pluginPath
 	target, err := starter.Start(callCtx, extension)
 	if err != nil {
@@ -343,12 +349,28 @@ func runManifestSDKWithProcess(
 	}
 	base.Evidence.ProcessStarted = true
 	defer func() { _ = starter.Stop(context.Background(), extension) }()
+	slot := "search.provider"
+	if extension.ID == "sforum.smtp" {
+		slot = "mail.provider"
+	}
+	probe, err := starter.ProviderProbe(callCtx, extension.ID, extensionsruntime.ProviderProbeRequest{Slot: slot})
+	if err != nil {
+		base.Evidence.Response = "probe_err=" + err.Error()
+		base.Outcome = OutcomeFail
+		base.Message = "SDK provider probe RPC failed: " + err.Error()
+		return base
+	}
 	tel := starter.ProtocolTelemetry(extension.ID)
-	base.Evidence.Response = fmt.Sprintf("started instance=%s protocol=%d starts=%d", target.InstanceID, tel.ProtocolVersion, tel.StartCount)
+	base.Evidence.Response = fmt.Sprintf("probe ok=%v reason=%s instance=%s", probe.OK, probe.Reason, target.InstanceID)
 	base.Evidence.Protocol = tel.ProtocolVersion
 	if tel.StartCount < 1 {
 		base.Outcome = OutcomeFail
 		base.Message = "process start not recorded"
+		return base
+	}
+	if tel.CallCount < 1 {
+		base.Outcome = OutcomeFail
+		base.Message = "SDK provider probe RPC not recorded in telemetry"
 		return base
 	}
 	base.Outcome = OutcomePass

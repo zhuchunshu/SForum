@@ -36,8 +36,10 @@ load archived sessions or completed plans as current context.
 
 ### V3 production rewire honesty remediation
 
-- Status: **ready**; eight production-call-chain findings remain. Support-only
-  evidence is not production closure.
+- Status: **active**; the two release-blocking P0s, SystemTier start order,
+  CompatFarm RPC failure handling, local full gate, and admin overview Browser
+  QA are repaired. Real pre-publication rollout, Marketplace/Privacy consumers,
+  remaining compatibility/commerce honesty work, and release-image smoke remain.
 - Plan: `plans/2026-07-22-v3-production-rewire-honesty-remediation.md`
 - Prior partial evidence: `sessions/2026-07-22-p11-p12-p13-production-rewire-handoff.md`
 - Module: `modules/extensions.md`
@@ -106,6 +108,14 @@ load archived sessions or completed plans as current context.
   dev server on port 3000; do not kill it.
 
 ## Latest Handoff
+
+- Release-blocker remediation: historical `enc::` secrets now migrate without
+  loss, production Marketplace key inputs are explicit, SystemTier affects real
+  start order, fake rollout acknowledgements and CompatFarm soft-passes are
+  removed, deploy backups fail closed, catalogs are current, and the local full
+  gate plus desktop/mobile admin QA pass. Real rollout/consumer work and an
+  immutable release-image smoke remain open:
+  `sessions/2026-07-31-release-blockers-fixed.md`
 
 - Runtime memory governance: API/Worker/plugin/total resource cards now use
   cached sampling and a 60-second median, embedded Worker accounting is

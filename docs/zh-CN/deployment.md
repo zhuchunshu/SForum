@@ -22,6 +22,7 @@
    - `REDIS_PASSWORD`  
    - `APP_URL` / `APP_DOMAIN`  
    - 会话与 CSRF 等相关密钥（以 example 注释为准）  
+   - `MARKETPLACE_ED25519_PUBLIC_KEY_HEX`（签名 Marketplace 索引的 32 字节公钥，64 个十六进制字符）及对应的 `MARKETPLACE_ED25519_KEY_ID`。生产/预发布 API 缺少公钥会在就绪前拒绝启动；私钥不得写入仓库或容器。
 
 3. 可选 Meilisearch：仅在使用 Meili 插件时启用对应服务与配置  
 

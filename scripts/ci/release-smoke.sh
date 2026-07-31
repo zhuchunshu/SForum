@@ -21,6 +21,8 @@ export REDIS_PASSWORD=sforum-release-smoke-redis
 export SESSION_HASH_SECRET=sforum-release-smoke-session-secret-32-bytes
 export IDENTITY_SUBJECT_HMAC_SECRET=sforum-release-smoke-identity-secret-32-bytes
 export APP_OPTION_ENC_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+export MARKETPLACE_ED25519_PUBLIC_KEY_HEX=000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+export MARKETPLACE_ED25519_KEY_ID=release-smoke-primary
 export ALTCHA_SECRET=sforum-release-smoke-altcha-secret-32-bytes
 export CSRF_TRUSTED_ORIGINS=http://127.0.0.1:3000
 

@@ -8,6 +8,7 @@ const loginRoutePath = 'apps/web/app/pages/login.vue';
 const registerFormPath = 'apps/web/app/components/identity/SFRegisterFormPage.vue';
 const loginFormPath = 'apps/web/app/components/identity/SFLoginFormPage.vue';
 const adminUsersToolbarPath = 'apps/web/app/components/admin/identity/users/SFAdminUserListToolbar.vue';
+const adminRoleGroupsTabPath = 'apps/web/app/components/admin/identity/roles/tabs/SFAdminRoleGroupsTab.vue';
 const requiredFiles = [
   'apps/web/app/composables/identity/useAuthSession.ts',
   'apps/web/app/middleware/admin.ts',
@@ -16,6 +17,7 @@ const requiredFiles = [
   registerFormPath,
   loginFormPath,
   adminUsersToolbarPath,
+  adminRoleGroupsTabPath,
   'apps/web/app/pages/admin/index.vue',
   'apps/web/app/pages/admin/roles.vue',
   'apps/web/app/pages/admin/users.vue',
@@ -77,10 +79,12 @@ const adminUsersPage = fs.readFileSync(path.resolve(root, 'apps/web/app/pages/ad
 const adminUsersToolbar = fs.readFileSync(path.resolve(root, adminUsersToolbarPath), 'utf8');
 const adminRolesPage = fs.readFileSync(path.resolve(root, 'apps/web/app/pages/admin/roles.vue'), 'utf8');
 const adminPermissionsPage = fs.readFileSync(path.resolve(root, 'apps/web/app/pages/admin/permissions.vue'), 'utf8');
+const adminRoleGroupsTab = fs.readFileSync(path.resolve(root, adminRoleGroupsTabPath), 'utf8');
+const adminRolesSurface = `${adminRolesPage}\n${adminRoleGroupsTab}`;
 
 for (const [name, content] of [
   ['admin/users.vue', adminUsersPage],
-  ['admin/roles.vue', adminRolesPage],
+  ['admin/roles.vue', `${adminRolesPage}\n${adminRoleGroupsTab}`],
   ['admin/permissions.vue', adminPermissionsPage]
 ]) {
   if (!content.includes("layout: 'admin'")) {
@@ -96,7 +100,7 @@ for (const [name, content] of [
 
 for (const [name, content] of [
   ['admin/users.vue', adminUsersPage],
-  ['admin/roles.vue', adminRolesPage],
+  ['admin/roles.vue', `${adminRolesPage}\n${adminRoleGroupsTab}`],
   ['admin/permissions.vue', adminPermissionsPage]
 ]) {
   if (!content.includes('usePermissionText')) {
@@ -125,22 +129,22 @@ if (!adminUsersPage.includes('saveAccount') || !adminUsersPage.includes('savePro
 if (!adminUsersPage.includes('client-ips/clear')) {
   throw new Error('Admin users page should support clearing stored client IPs');
 }
-if (!adminRolesPage.includes('/permissions')) {
+if (!adminRolesSurface.includes('/permissions')) {
   throw new Error('Admin roles page should manage role permissions');
 }
-if (!adminRolesPage.includes(':label="t(\'admin.roles.key\')"') || !adminRolesPage.includes('name="role-key"')) {
+if (!adminRolesSurface.includes(':label="t(\'admin.roles.key\')"') || !adminRolesSurface.includes('name="role-key"')) {
   throw new Error('Admin roles page should show a visible label for the role key field');
 }
-if (!adminRolesPage.includes(':label="t(\'admin.roles.alias\')"') || !adminRolesPage.includes('name="role-alias"')) {
+if (!adminRolesSurface.includes(':label="t(\'admin.roles.alias\')"') || !adminRolesSurface.includes('name="role-alias"')) {
   throw new Error('Admin roles page should show a visible label for the role alias field');
 }
-if (!adminRolesPage.includes('validateRoleForm')) {
+if (!adminRolesSurface.includes('validateRoleForm')) {
   throw new Error('Admin roles page should validate required role fields before saving');
 }
-if (!adminRolesPage.includes('ROLE_TEMPLATE_DEFINITIONS') || !adminRolesPage.includes('applyRoleTemplate')) {
+if (!adminRolesSurface.includes('ROLE_TEMPLATE_DEFINITIONS') || !adminRolesSurface.includes('applyRoleTemplate')) {
   throw new Error('Admin roles page should support applying built-in role permission templates');
 }
-if (!adminRolesPage.includes('admin.roles.applyTemplate')) {
+if (!adminRolesSurface.includes('admin.roles.applyTemplate')) {
   throw new Error('Admin roles page should expose apply-template UI copy');
 }
 if (!adminPermissionsPage.includes('/permissions/matrix')) {

@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	cryptox "github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
 	secretstore "github.com/zhuchunshu/sforum/apps/api/app/Support/SecretStore"
 )
 
@@ -14,12 +15,13 @@ import (
 // Document authority is DocumentStore (extension_settings in production).
 // Schema/migration registries remain process-local (declared at enable).
 type Service struct {
-	mu         sync.Mutex
-	schemas    map[string][]FieldSchema
-	migrations map[string][]Migration
-	targetVer  map[string]int
-	docs       DocumentStore
-	secrets    *secretstore.Service
+	mu           sync.Mutex
+	schemas      map[string][]FieldSchema
+	migrations   map[string][]Migration
+	targetVer    map[string]int
+	docs         DocumentStore
+	secrets      *secretstore.Service
+	legacyCipher *cryptox.OptionCipher
 }
 
 // New builds a settings lifecycle service with an in-memory document store
@@ -40,6 +42,15 @@ func NewWithStore(docs DocumentStore, secrets *secretstore.Service) *Service {
 		docs:       docs,
 		secrets:    secrets,
 	}
+}
+
+// WithLegacyCipher enables one-time migration of historical enc:: settings
+// into SecretStore. New secret writes always use SecretStore directly.
+func (s *Service) WithLegacyCipher(cipher *cryptox.OptionCipher) *Service {
+	if s != nil {
+		s.legacyCipher = cipher
+	}
+	return s
 }
 
 // RegisterSchema installs field schema and target data version for an extension.
@@ -101,7 +112,7 @@ func (s *Service) Put(ctx context.Context, extensionID, actor string, values map
 		values = map[string]string{}
 	}
 
-	current, rev, err := s.docs.Load(ctx, extensionID)
+	current, rev, err := s.loadDocument(ctx, extensionID, actor)
 	hasCurrent := err == nil
 	if err != nil && err != ErrNotFound {
 		return Document{}, err
@@ -182,7 +193,7 @@ func (s *Service) Get(ctx context.Context, extensionID string) (Document, error)
 		return Document{}, ErrInvalid
 	}
 	extensionID = normalizeID(extensionID)
-	doc, _, err := s.docs.Load(ctx, extensionID)
+	doc, _, err := s.loadDocument(ctx, extensionID, "actor:settings-migration")
 	if err != nil {
 		return Document{}, err
 	}
@@ -204,7 +215,7 @@ func (s *Service) RuntimeValues(ctx context.Context, extensionID string, purpose
 	if extensionID == "" || purpose == "" {
 		return nil, ErrInvalid
 	}
-	doc, _, err := s.docs.Load(ctx, extensionID)
+	doc, _, err := s.loadDocument(ctx, extensionID, "actor:runtime-migration")
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +271,7 @@ func (s *Service) ResetDefaults(ctx context.Context, extensionID, actor string, 
 		return Document{}, ErrNotFound
 	}
 
-	current, rev, err := s.docs.Load(ctx, extensionID)
+	current, rev, err := s.loadDocument(ctx, extensionID, actor)
 	hasCurrent := err == nil
 	if err != nil && err != ErrNotFound {
 		return Document{}, err
@@ -392,7 +403,7 @@ func (s *Service) Import(ctx context.Context, extensionID, actor string, bundle 
 		}
 		doc = migrated
 	}
-	current, rev, err := s.docs.Load(ctx, extensionID)
+	current, rev, err := s.loadDocument(ctx, extensionID, actor)
 	expected := int64(0)
 	if err == nil {
 		expected = rev
@@ -440,6 +451,87 @@ func (s *Service) migrate(extensionID string, doc Document) (Document, error) {
 		}
 	}
 	return working, nil
+}
+
+// loadDocument upgrades legacy encrypted values before a caller can read or
+// overwrite the document. Any failure leaves the old document untouched.
+func (s *Service) loadDocument(ctx context.Context, extensionID, actor string) (Document, int64, error) {
+	doc, revision, err := s.docs.Load(ctx, extensionID)
+	if err != nil {
+		return Document{}, 0, err
+	}
+	if !hasLegacyCiphertext(doc.Values) {
+		return doc, revision, nil
+	}
+	if s.legacyCipher == nil || !s.legacyCipher.Enabled() {
+		return Document{}, 0, fmt.Errorf("%w: legacy encrypted settings require APP_OPTION_ENC_KEY", ErrMigration)
+	}
+	if s.secrets == nil {
+		return Document{}, 0, fmt.Errorf("%w: SecretStore is unavailable for legacy settings", ErrMigration)
+	}
+	fields := s.secretFields(extensionID)
+	working := cloneDocument(doc)
+	for key, stored := range doc.Values {
+		if !cryptox.IsEncrypted(stored) {
+			continue
+		}
+		if !fields[key] {
+			return Document{}, 0, fmt.Errorf("%w: encrypted value %q is not declared as a secret field", ErrMigration, key)
+		}
+		plain, decryptErr := s.legacyCipher.Decrypt(stored)
+		if decryptErr != nil {
+			return Document{}, 0, fmt.Errorf("%w: decrypt legacy setting %q: %v", ErrMigration, key, decryptErr)
+		}
+		if strings.TrimSpace(plain) == "" {
+			delete(working.Values, key)
+			working.SecretSet[key] = false
+			continue
+		}
+		meta, putErr := s.secrets.Put(ctx, secretstore.Ref{Namespace: extensionID, SecretID: key}, []byte(plain), secretstore.PutOptions{
+			Actor: actorOrSystem(actor), Purposes: []string{"settings"},
+		})
+		if putErr != nil {
+			return Document{}, 0, fmt.Errorf("%w: migrate legacy setting %q: %v", ErrMigration, key, putErr)
+		}
+		working.SecretRefs[key] = meta.Reference
+		working.SecretSet[key] = true
+		delete(working.Values, key)
+	}
+	working.UpdatedAt = time.Now().UTC()
+	working.UpdatedBy = actorOrSystem(actor)
+	newRevision, saveErr := s.docs.Save(ctx, extensionID, working, revision)
+	if saveErr != nil {
+		return Document{}, 0, fmt.Errorf("%w: persist legacy settings migration: %v", ErrMigration, saveErr)
+	}
+	return working, newRevision, nil
+}
+
+func (s *Service) secretFields(extensionID string) map[string]bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	fields := make(map[string]bool)
+	for _, field := range s.schemas[extensionID] {
+		if field.Secret || field.Type == "secret" {
+			fields[field.Name] = true
+		}
+	}
+	return fields
+}
+
+func hasLegacyCiphertext(values map[string]string) bool {
+	for _, value := range values {
+		if cryptox.IsEncrypted(value) {
+			return true
+		}
+	}
+	return false
+}
+
+func actorOrSystem(actor string) string {
+	if actor = strings.TrimSpace(actor); actor != "" {
+		return actor
+	}
+	return "actor:settings-migration"
 }
 
 func fieldVisible(field FieldSchema, values map[string]string) bool {

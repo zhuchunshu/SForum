@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 
+	cryptox "github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
 	secretstore "github.com/zhuchunshu/sforum/apps/api/app/Support/SecretStore"
 )
 
@@ -147,6 +148,67 @@ func TestRuntimeValuesResolveSecretReferences(t *testing.T) {
 	}
 	if values["host"] != "smtp.example.com" || values["password"] != "app-secret" {
 		t.Fatalf("runtime values = %#v", values)
+	}
+}
+
+func TestLegacyEncryptedSettingsMigrateBeforeRuntimeRead(t *testing.T) {
+	ctx := context.Background()
+	cipher, err := cryptox.NewOptionCipher(strings.Repeat("a", 64))
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacy, err := cipher.Encrypt("legacy-secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	kv := NewMemorySettingsKV()
+	if err := kv.ReplaceSettings(ctx, "demo.legacy", map[string]string{
+		"token": legacy, "mode": "safe", metaRevisionKey: "4",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	secrets, err := secretstore.New(secretstore.NewMemoryStore(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	docs, err := NewSettingsKVStore(kv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := NewWithStore(docs, secrets).WithLegacyCipher(cipher)
+	if err := svc.RegisterSchema("demo.legacy", 1, []FieldSchema{
+		{Name: "mode", Type: "string"}, {Name: "token", Type: "secret", Secret: true},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	values, err := svc.RuntimeValues(ctx, "demo.legacy", "settings")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if values["token"] != "legacy-secret" || values["mode"] != "safe" {
+		t.Fatalf("runtime values = %#v", values)
+	}
+	raw, err := kv.ListSettings(ctx, "demo.legacy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cryptox.IsEncrypted(raw["token"]) || !strings.HasPrefix(raw["token"], secretstore.ReferenceScheme) {
+		t.Fatalf("legacy ciphertext was not replaced by SecretStore reference: %#v", raw)
+	}
+
+	badKV := NewMemorySettingsKV()
+	if err := badKV.ReplaceSettings(ctx, "demo.legacy", map[string]string{"token": "enc::not-valid"}); err != nil {
+		t.Fatal(err)
+	}
+	badDocs, _ := NewSettingsKVStore(badKV)
+	badSvc := NewWithStore(badDocs, secrets).WithLegacyCipher(cipher)
+	_ = badSvc.RegisterSchema("demo.legacy", 1, []FieldSchema{{Name: "token", Type: "secret", Secret: true}})
+	if _, err := badSvc.Put(ctx, "demo.legacy", "admin", map[string]string{"mode": "safe"}, true); !errors.Is(err, ErrMigration) {
+		t.Fatalf("invalid legacy ciphertext should fail closed, got %v", err)
+	}
+	badRaw, _ := badKV.ListSettings(ctx, "demo.legacy")
+	if badRaw["token"] != "enc::not-valid" {
+		t.Fatalf("failed migration changed legacy row: %#v", badRaw)
 	}
 }
 

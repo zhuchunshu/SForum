@@ -117,7 +117,8 @@ func (m *MemoryStore) List(_ context.Context, extensionID string) ([]Plan, error
 	return out, nil
 }
 
-// ActiveForExtension implements PlanStore.
+// ActiveForExtension implements PlanStore. Active plans remain addressable so
+// a rollback after promotion can use the same durable plan record.
 func (m *MemoryStore) ActiveForExtension(_ context.Context, extensionID string) (Plan, bool, error) {
 	if m == nil {
 		return Plan{}, false, nil
@@ -128,7 +129,7 @@ func (m *MemoryStore) ActiveForExtension(_ context.Context, extensionID string) 
 		return Plan{}, false, nil
 	}
 	for _, plan := range m.plans {
-		if plan.ExtensionID == extensionID && !isTerminalPhase(plan.Phase) {
+		if plan.ExtensionID == extensionID && plan.Phase != PhaseFailed && plan.Phase != PhaseRolledBack {
 			return clonePlan(plan), true, nil
 		}
 	}

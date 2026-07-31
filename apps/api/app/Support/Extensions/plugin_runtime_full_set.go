@@ -35,22 +35,10 @@ type ManagerPluginRuntimeFullSetApplier struct {
 	manager      *Manager
 	inventory    PluginRuntimeFullSetInventory
 	drainTimeout time.Duration
+	tierOrder    map[string]int
 }
 
 var _ extensions.PluginRuntimeFullSetApplier = (*ManagerPluginRuntimeFullSetApplier)(nil)
-
-// NewManagerPluginRuntimeFullSetApplier 构造 Protocol V2 full-set 适配器。
-func NewManagerPluginRuntimeFullSetApplier(
-	manager *Manager,
-	inventory PluginRuntimeFullSetInventory,
-) (*ManagerPluginRuntimeFullSetApplier, error) {
-	if manager == nil || inventory == nil {
-		return nil, ErrPluginRuntimeFullSetInvalid
-	}
-	return &ManagerPluginRuntimeFullSetApplier{
-		manager: manager, inventory: inventory, drainTimeout: RecommendedPluginRuntimeFullSetDrainTimeout,
-	}, nil
-}
 
 // ApplyPluginRuntimeFullSet 将 Manager 收敛到 publication 描述的完整 exact 集合。
 // 成功时返回完整 applied evidence（含 node-local runtime instance id）。
@@ -350,6 +338,7 @@ func (a *ManagerPluginRuntimeFullSetApplier) resolvePluginRuntimeFullSet(
 		}
 		desired = append(desired, pluginRuntimeFullSetDesired{member: member, extension: exact})
 	}
+	a.sortDesiredByTier(desired)
 	return desired, nil
 }
 

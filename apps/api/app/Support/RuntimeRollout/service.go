@@ -236,6 +236,10 @@ func (s *Service) PromoteAtomic(ctx context.Context, planID, actor string) (Plan
 		if plan.Phase != PhaseDraining && plan.Phase != PhaseCanary {
 			return ErrPhase
 		}
+		if len(plan.NodeAcks) == 0 {
+			plan.LastError = "no node health acknowledgements for promote"
+			return ErrHealthGate
+		}
 		for _, ack := range plan.NodeAcks {
 			if ack.Health != HealthHealthy {
 				plan.LastError = "node " + ack.NodeID + " not healthy for promote"

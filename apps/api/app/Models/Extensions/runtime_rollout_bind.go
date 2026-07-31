@@ -78,22 +78,7 @@ func (s *LifecycleService) DriveRuntimeRolloutForStagedUpgrade(
 	if _, err := s.runtimeRollout.MarkMigrationReady(ctx, plan.PlanID, actorID); err != nil {
 		return plan, err
 	}
-	nodeID := "api-local"
-	if _, err := s.runtimeRollout.AckNode(ctx, plan.PlanID, nodeID, runtimerollout.PhaseStaged, runtimerollout.HealthHealthy, true); err != nil {
-		return plan, err
-	}
-	if _, err := s.runtimeRollout.SelectCanary(ctx, plan.PlanID, actorID); err != nil {
-		return plan, err
-	}
-	if _, err := s.runtimeRollout.AckNode(ctx, plan.PlanID, nodeID, runtimerollout.PhaseCanary, runtimerollout.HealthHealthy, true); err != nil {
-		return plan, err
-	}
-	if _, err := s.runtimeRollout.BeginDrain(ctx, plan.PlanID, actorID); err != nil {
-		return plan, err
-	}
-	promoted, err := s.runtimeRollout.PromoteAtomic(ctx, plan.PlanID, actorID)
-	if err != nil {
-		return plan, fmt.Errorf("runtime rollout promote: %w", err)
-	}
-	return promoted, nil
+	// Node health is an external, node-bound proof. A process-local upgrade
+	// helper must never manufacture an AckNode or promote without one.
+	return plan, fmt.Errorf("runtime rollout staged; waiting for external node health acknowledgements")
 }

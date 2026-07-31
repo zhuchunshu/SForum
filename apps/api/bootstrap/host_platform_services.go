@@ -84,10 +84,10 @@ func bindProductionHostPlatform(
 		if storeErr != nil {
 			return nil, fmt.Errorf("create settings lifecycle store: %w", storeErr)
 		}
-		settingsSvc = settingslifecycle.NewWithStore(docStore, secretSvc)
+		settingsSvc = settingslifecycle.NewWithStore(docStore, secretSvc).WithLegacyCipher(optionCipher)
 	} else {
 		// 无 extension store 时仍装配内存权威（worker 轻路径）；API 必须注入 KV。
-		settingsSvc = settingslifecycle.NewWithStore(settingslifecycle.NewMemoryDocumentStore(), secretSvc)
+		settingsSvc = settingslifecycle.NewWithStore(settingslifecycle.NewMemoryDocumentStore(), secretSvc).WithLegacyCipher(optionCipher)
 	}
 
 	secretV2, err := hostapi.NewProtocolV2SecretServiceServer(secretSvc)

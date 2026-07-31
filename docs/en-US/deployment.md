@@ -20,6 +20,7 @@ Change at least:
 - `REDIS_PASSWORD`  
 - `APP_URL` / `APP_DOMAIN`  
 - session/CSRF-related secrets per example comments  
+- `MARKETPLACE_ED25519_PUBLIC_KEY_HEX` (the 32-byte, 64-hex-character public key for the signed Marketplace index) and its `MARKETPLACE_ED25519_KEY_ID`. Production/staging API startup fails before readiness when the key is missing; never store the private key in the repository or container.
 
 ## Maintainer releases
 

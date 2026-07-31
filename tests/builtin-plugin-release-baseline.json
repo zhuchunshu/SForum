@@ -18,8 +18,8 @@
       "sourceDigest": "00537c2bfb729533a2319e1a4a3459b4f323898174dd55bc856660e7c5115afc"
     },
     "sforum.storage-fs": {
-      "version": "1.1.1",
-      "sourceDigest": "5508a5cdb495e8ef8c3e541baca292f2ff794834f65c65cb4874dcd2fbc0f939"
+      "version": "1.1.2",
+      "sourceDigest": "ade2b4ade53cdae773671114daa1e1b6d87ed6c16b7c3b713fe2cb846add3947"
     },
     "sforum.storage-s3": {
       "version": "1.0.1",

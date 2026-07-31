@@ -43,6 +43,9 @@ responsibilities.
 - The narrow toolbar stacks its metadata and commands; the refresh command
   collapses to an icon with an accessible label/title so `/control-panel` has no
   horizontal overflow at 390px.
+- Resource gauges use a 72x72 coordinate system with a centered radius-30 ring;
+  percentage input is clamped to 0..100 and dash offset decreases from empty to
+  full, so CPU/memory status is neither clipped nor visually reversed.
 - Backend focused tests, frontend helper tests, locale parsing, OpenAPI
   reference validation, Nuxt typecheck, and Browser QA passed at 1440x900 and
   390x844. Fresh Chrome tabs had no console errors or warnings during the final

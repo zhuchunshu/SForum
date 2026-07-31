@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -66,7 +67,7 @@ func bindProductionP12Ops(
 	}
 
 	// HostInstaller：绑定真实 InstallArchive / lifecycle / RuntimeRollout。
-	installer := newHostMarketplaceInstaller(extensionService, rollout)
+	installer := newHostMarketplaceInstaller(extensionService, rollout, identityStore)
 	market.BindInstaller(installer)
 
 	// Privacy：真实 RBAC + PostgreSQL audit，禁止「actor 非空即允许」。
@@ -132,12 +133,22 @@ func newProductionMarketplace(cfg config.Config, logger *slog.Logger) (*marketpl
 func newHostMarketplaceInstaller(
 	extensionService *extensions.Service,
 	rollout *runtimerollout.Service,
+	identityStore *identity.PostgresStore,
 ) *marketplace.HostInstaller {
-	// Marketplace 安装由运营 API 鉴权后调用；此处使用系统 super_admin actor。
-	systemActor := identity.Actor{
-		ID:       1,
-		Status:   identity.UserStatusActive,
-		RoleKeys: []string{identity.RoleSuperAdmin},
+	loadActor := func(ctx context.Context, ref string) (identity.Actor, error) {
+		ref = strings.TrimSpace(ref)
+		if identityStore == nil || !strings.HasPrefix(ref, "user:") {
+			return identity.Actor{}, fmt.Errorf("%w: marketplace actor must be a bound user:<id>", marketplace.ErrInstall)
+		}
+		id, err := strconv.ParseInt(strings.TrimPrefix(ref, "user:"), 10, 64)
+		if err != nil || id <= 0 {
+			return identity.Actor{}, fmt.Errorf("%w: invalid marketplace actor", marketplace.ErrInstall)
+		}
+		actor, err := identityStore.LoadActor(ctx, id)
+		if err != nil || !actor.IsSuperAdmin() {
+			return identity.Actor{}, fmt.Errorf("%w: marketplace install requires an active super_admin actor", marketplace.ErrInstall)
+		}
+		return actor, nil
 	}
 	return &marketplace.HostInstaller{
 		PreflightFn: func(ctx context.Context, plan marketplace.InstallPlan) error {
@@ -147,13 +158,20 @@ func newHostMarketplaceInstaller(
 			if strings.TrimSpace(plan.ExtensionID) == "" || strings.TrimSpace(plan.PackageDigest) == "" {
 				return fmt.Errorf("%w: empty plan", marketplace.ErrInstall)
 			}
+			if _, err := loadActor(ctx, plan.Actor); err != nil {
+				return err
+			}
 			return nil
 		},
 		StageFn: func(ctx context.Context, plan marketplace.InstallPlan, packageBytes []byte) (marketplace.StageResult, error) {
 			if extensionService == nil {
 				return marketplace.StageResult{}, fmt.Errorf("%w: extension service unavailable", marketplace.ErrInstall)
 			}
-			result, err := extensionService.InstallOrUpgradeArchive(ctx, systemActor, extensions.ArchiveInput{
+			actor, err := loadActor(ctx, plan.Actor)
+			if err != nil {
+				return marketplace.StageResult{}, err
+			}
+			result, err := extensionService.InstallOrUpgradeArchive(ctx, actor, extensions.ArchiveInput{
 				FileName: plan.ExtensionID + ".sforum.zip",
 				Data:     packageBytes,
 			})
@@ -178,7 +196,7 @@ func newHostMarketplaceInstaller(
 					source = result.PreviousDigest
 				}
 				if source != "" && stagedDigest != "" && !strings.EqualFold(source, stagedDigest) {
-					rp, rpErr := rollout.CreatePlan(ctx, plan.ExtensionID, source, stagedDigest, "marketplace", 10, 3)
+					rp, rpErr := rollout.CreatePlan(ctx, plan.ExtensionID, source, stagedDigest, plan.Actor, 10, 3)
 					if rpErr != nil && rpErr != runtimerollout.ErrConflict {
 						return marketplace.StageResult{}, rpErr
 					}
@@ -198,31 +216,19 @@ func newHostMarketplaceInstaller(
 				// 无 rollout plan 时仍视为 stage 完成；晋升由运营 Upgrade 驱动。
 				return nil
 			}
-			// migration-once → canary → drain → promote（节点 Ack 由多节点心跳写入）。
-			if _, err := rollout.MarkMigrationReady(ctx, staged.RolloutPlanID, "marketplace"); err != nil {
+			// migration-once is safe to record here. Canary selection and promote
+			// require node-bound health acknowledgements from the runtime nodes.
+			if _, err := rollout.MarkMigrationReady(ctx, staged.RolloutPlanID, plan.Actor); err != nil {
 				return err
 			}
-			nodeID := "api-local"
-			if _, err := rollout.AckNode(ctx, staged.RolloutPlanID, nodeID, runtimerollout.PhaseStaged, runtimerollout.HealthHealthy, true); err != nil {
-				return err
-			}
-			if _, err := rollout.SelectCanary(ctx, staged.RolloutPlanID, "marketplace"); err != nil {
-				return err
-			}
-			if _, err := rollout.AckNode(ctx, staged.RolloutPlanID, nodeID, runtimerollout.PhaseCanary, runtimerollout.HealthHealthy, true); err != nil {
-				return err
-			}
-			if _, err := rollout.BeginDrain(ctx, staged.RolloutPlanID, "marketplace"); err != nil {
-				return err
-			}
-			if _, err := rollout.PromoteAtomic(ctx, staged.RolloutPlanID, "marketplace"); err != nil {
-				return err
-			}
-			return nil
+			return fmt.Errorf("marketplace install staged; waiting for external node health acknowledgements before promote")
 		},
 		RollbackFn: func(ctx context.Context, plan marketplace.InstallPlan, reason string) error {
 			if rollout == nil {
 				return fmt.Errorf("%w: rollout unavailable", marketplace.ErrInstall)
+			}
+			if _, err := loadActor(ctx, plan.Actor); err != nil {
+				return err
 			}
 			active, ok, err := rollout.ActivePlan(ctx, plan.ExtensionID)
 			if err != nil {
@@ -231,7 +237,7 @@ func newHostMarketplaceInstaller(
 			if !ok {
 				return fmt.Errorf("%w: no active rollout plan for %s", marketplace.ErrInstall, plan.ExtensionID)
 			}
-			_, err = rollout.Rollback(ctx, active.PlanID, "marketplace", reason)
+			_, err = rollout.Rollback(ctx, active.PlanID, plan.Actor, reason)
 			return err
 		},
 	}

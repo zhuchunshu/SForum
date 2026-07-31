@@ -383,6 +383,35 @@ func TestPluginRuntimeFullSetPublicationOrderDeterministic(t *testing.T) {
 	}
 }
 
+func TestPluginRuntimeFullSetUsesSystemTierOrderBeforeIDFallback(t *testing.T) {
+	starter := newPluginRuntimeFullSetStarter()
+	manager := NewManager(ManagerConfig{Starter: starter})
+	inventory := newPluginRuntimeFullSetTestInventory()
+	z := inventory.seed(t, "z.system", 3, "1.0.0", "z-v1")
+	m := inventory.seed(t, "m.plugin", 2, "1.0.0", "m-v1")
+	a := inventory.seed(t, "a.system", 1, "1.0.0", "a-v1")
+	applier, err := NewManagerPluginRuntimeFullSetApplier(manager, inventory, []string{"z.system", "a.system"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	applied, err := applier.ApplyPluginRuntimeFullSet(context.Background(), inventory.publication(
+		extensions.PluginRuntimePublicationEnable,
+		inventory.member(a.ID, 1, "1.0.0", "a-v1"),
+		inventory.member(m.ID, 2, "1.0.0", "m-v1"),
+		inventory.member(z.ID, 3, "1.0.0", "z-v1"),
+	))
+	if err != nil {
+		t.Fatal(err)
+	}
+	instances := map[string]string{}
+	for _, member := range applied {
+		instances[member.ExtensionID] = member.RuntimeInstanceID
+	}
+	if instances["z.system"] != "instance-1" || instances["a.system"] != "instance-2" || instances["m.plugin"] != "instance-3" {
+		t.Fatalf("tier order was not applied before id fallback: %#v", instances)
+	}
+}
+
 func TestPluginRuntimeFullSetCandidatePublishFailureRollsBack(t *testing.T) {
 	starter := newPluginRuntimeFullSetStarter()
 	manager := NewManager(ManagerConfig{Starter: starter})

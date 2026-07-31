@@ -2,10 +2,54 @@ package extensionsruntime
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 )
+
+// NewManagerPluginRuntimeFullSetApplier 构造 Protocol V2 full-set 适配器。
+func NewManagerPluginRuntimeFullSetApplier(
+	manager *Manager,
+	inventory PluginRuntimeFullSetInventory,
+	tierOrders ...[]string,
+) (*ManagerPluginRuntimeFullSetApplier, error) {
+	if manager == nil || inventory == nil {
+		return nil, ErrPluginRuntimeFullSetInvalid
+	}
+	order := map[string]int{}
+	if len(tierOrders) > 0 {
+		for index, id := range tierOrders[0] {
+			id = strings.ToLower(strings.TrimSpace(id))
+			if id != "" {
+				order[id] = index
+			}
+		}
+	}
+	return &ManagerPluginRuntimeFullSetApplier{
+		manager: manager, inventory: inventory,
+		drainTimeout: RecommendedPluginRuntimeFullSetDrainTimeout,
+		tierOrder:    order,
+	}, nil
+}
+
+func (a *ManagerPluginRuntimeFullSetApplier) sortDesiredByTier(desired []pluginRuntimeFullSetDesired) {
+	if a == nil || len(a.tierOrder) == 0 {
+		return
+	}
+	sort.SliceStable(desired, func(i, j int) bool {
+		iRank, iOK := a.tierOrder[strings.ToLower(desired[i].member.ExtensionID)]
+		jRank, jOK := a.tierOrder[strings.ToLower(desired[j].member.ExtensionID)]
+		if iOK != jOK {
+			return iOK
+		}
+		if iOK && iRank != jRank {
+			return iRank < jRank
+		}
+		return desired[i].member.ExtensionID < desired[j].member.ExtensionID
+	})
+}
 
 // pluginRuntimeHookSetMatchesPlan verifies every Manager-owned runtime
 // registry family against the same exact desired set. It is the read-only fast

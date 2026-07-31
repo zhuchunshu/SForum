@@ -110,7 +110,7 @@ for (const marker of ['data-theme-owned="presentation"', '<sf-navbar', '<sf-foot
   }
 }
 
-if (!navigation.includes('category.topicCount') || !navigation.includes("'select-category': [slug: string]")) {
+if (!navigation.includes('totalTopics') || !navigation.includes("'select-category': [slug: string]")) {
   throw new Error('SFHomeNavigation must expose typed, API-backed category navigation')
 }
 

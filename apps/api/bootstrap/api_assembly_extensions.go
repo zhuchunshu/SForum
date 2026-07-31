@@ -245,6 +245,7 @@ func wireAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger *sl
 		return nil, fmt.Errorf("P12 ops services setup failed: %w", err)
 	}
 	// SystemTier：在任何 system extension 代码启动前决定加载顺序；Safe Mode 直接绕过。
+	var systemTierOrder []string
 	if p12Ops != nil && p12Ops.SystemTier != nil {
 		if order, tierErr := p12Ops.SystemTier.LoadOrder(ctx, cfg.SafeMode); tierErr != nil {
 			if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
@@ -273,13 +274,15 @@ func wireAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger *sl
 		} else if !cfg.SafeMode && len(order) > 0 {
 			logger.Info("system tier load order resolved before system extension start",
 				"members", len(order))
-			// 顺序仅作为后续 runtime 启动输入；此处禁止执行 package 代码。
-			_ = order
+			systemTierOrder = make([]string, 0, len(order))
+			for _, member := range order {
+				systemTierOrder = append(systemTierOrder, member.ExtensionID)
+			}
 		}
-		// 绑定 RuntimeRollout 到扩展升级协调（staged → migrate → promote / rollback）。
-		if p12Ops.Rollout != nil {
-			extensionService.BindRuntimeRollout(p12Ops.Rollout)
-		}
+		// RuntimeRollout remains deliberately unbound from lifecycle completion.
+		// The current lifecycle coordinator reaches terminal success before this
+		// P12 service can collect node-bound health evidence; binding it here would
+		// falsely present a post-hoc status record as an atomic canary gate.
 	}
 	if err := bindProtocolV2ProviderBroker(hostAPIGateway, lifecycleRuntime); err != nil {
 		extensionRuntime.Close(ctx)
@@ -410,6 +413,7 @@ func wireAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger *sl
 		extensionRuntime:       extensionRuntime,
 		lifecycleRuntime:       lifecycleRuntime,
 		lifecycleStack:         lifecycleStack,
+		systemTierOrder:        systemTierOrder,
 	})
 	if err != nil {
 		return nil, err

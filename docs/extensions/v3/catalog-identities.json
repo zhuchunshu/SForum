@@ -32,6 +32,54 @@
       "path": "/api/v1/admin/attachment-settings/test"
     },
     {
+      "id": "core.route.attachments.list_role_upload_policies",
+      "contractVersion": "sforum.route.attachments.list_role_upload_policies@1",
+      "method": "GET",
+      "path": "/api/v1/admin/attachment-upload-policies/roles"
+    },
+    {
+      "id": "core.route.attachments.set_role_upload_policy",
+      "contractVersion": "sforum.route.attachments.set_role_upload_policy@1",
+      "method": "PUT",
+      "path": "/api/v1/admin/attachment-upload-policies/roles/:roleKey"
+    },
+    {
+      "id": "core.route.attachments.delete_role_upload_policy",
+      "contractVersion": "sforum.route.attachments.delete_role_upload_policy@1",
+      "method": "DELETE",
+      "path": "/api/v1/admin/attachment-upload-policies/roles/:roleKey"
+    },
+    {
+      "id": "core.route.attachments.get_user_upload_policy",
+      "contractVersion": "sforum.route.attachments.get_user_upload_policy@1",
+      "method": "GET",
+      "path": "/api/v1/admin/attachment-upload-policies/users/:userID"
+    },
+    {
+      "id": "core.route.attachments.set_user_upload_policy",
+      "contractVersion": "sforum.route.attachments.set_user_upload_policy@1",
+      "method": "PUT",
+      "path": "/api/v1/admin/attachment-upload-policies/users/:userID"
+    },
+    {
+      "id": "core.route.attachments.delete_user_upload_policy",
+      "contractVersion": "sforum.route.attachments.delete_user_upload_policy@1",
+      "method": "DELETE",
+      "path": "/api/v1/admin/attachment-upload-policies/users/:userID"
+    },
+    {
+      "id": "core.route.admin_overview.resources",
+      "contractVersion": "sforum.route.admin_overview.resources@1",
+      "method": "GET",
+      "path": "/api/v1/admin/overview/resources"
+    },
+    {
+      "id": "core.route.attachments.upload_policy",
+      "contractVersion": "sforum.route.attachments.upload_policy@1",
+      "method": "GET",
+      "path": "/api/v1/attachments/upload-policy"
+    },
+    {
       "id": "core.route.attachments.compression_settings",
       "contractVersion": "sforum.route.attachments.compression_settings@1",
       "method": "GET",
@@ -2254,6 +2302,14 @@
       "source": "apps/web/app/components/admin/settings/attachments/tabs/SFAdminAttachmentSettingsTab.vue"
     },
     {
+      "id": "core.component.admin.sfadmin_attachment_upload_policies_tab",
+      "contractVersion": "sforum.component.admin.sfadmin_attachment_upload_policies_tab@1",
+      "kind": "component",
+      "owners": ["admin"],
+      "state": "active",
+      "source": "apps/web/app/components/admin/settings/attachments/tabs/SFAdminAttachmentUploadPoliciesTab.vue"
+    },
+    {
       "id": "core.component.admin.sfadmin_forum_tab_frame",
       "contractVersion": "sforum.component.admin.sfadmin_forum_tab_frame@1",
       "kind": "component",
@@ -4423,6 +4479,110 @@
       "owners": ["admin"],
       "state": "active",
       "source": "apps/web/app/components/admin/SFAdminOverviewRuntimeCard.vue"
+    },
+    {
+      "id": "core.component.admin.sfresource_gauge",
+      "contractVersion": "sforum.component.admin.sfresource_gauge@1",
+      "kind": "component",
+      "owners": ["admin"],
+      "state": "active",
+      "source": "apps/web/app/components/admin/SFResourceGauge.vue"
+    },
+    {
+      "id": "core.component.admin.sfadmin_overview_resource_cards",
+      "contractVersion": "sforum.component.admin.sfadmin_overview_resource_cards@1",
+      "kind": "component",
+      "owners": ["admin"],
+      "state": "active",
+      "source": "apps/web/app/components/admin/SFAdminOverviewResourceCards.vue"
+    },
+    {
+      "id": "core.component.notifications.sf_notification_preview",
+      "contractVersion": "sforum.component.notifications.sf_notification_preview@1",
+      "kind": "component",
+      "owners": ["public"],
+      "state": "active",
+      "source": "apps/web/app/components/notifications/SFNotificationPreview.vue"
+    },
+    {
+      "id": "core.component.forum.sf_public_sidebar_content",
+      "contractVersion": "sforum.component.forum.sf_public_sidebar_content@1",
+      "kind": "component",
+      "owners": ["public"],
+      "state": "active",
+      "source": "apps/web/app/components/forum/navigation/SFPublicSidebarContent.vue"
+    },
+    {
+      "id": "core.component.forum.sf_responsive_public_sidebar",
+      "contractVersion": "sforum.component.forum.sf_responsive_public_sidebar@1",
+      "kind": "component",
+      "owners": ["public"],
+      "state": "active",
+      "source": "apps/web/app/components/forum/navigation/SFResponsivePublicSidebar.vue"
+    },
+    {
+      "id": "core.component.forum.sf_selection_quote_action",
+      "contractVersion": "sforum.component.forum.sf_selection_quote_action@1",
+      "kind": "component",
+      "owners": ["public"],
+      "state": "active",
+      "source": "apps/web/app/components/forum/SFSelectionQuoteAction.vue"
+    },
+    {
+      "id": "core.component.admin.sfadmin_role_approvals_tab",
+      "contractVersion": "sforum.component.admin.sfadmin_role_approvals_tab@1",
+      "kind": "component",
+      "owners": ["admin"],
+      "state": "active",
+      "source": "apps/web/app/components/admin/identity/roles/tabs/SFAdminRoleApprovalsTab.vue"
+    },
+    {
+      "id": "core.component.admin.sfadmin_role_groups_tab",
+      "contractVersion": "sforum.component.admin.sfadmin_role_groups_tab@1",
+      "kind": "component",
+      "owners": ["admin"],
+      "state": "active",
+      "source": "apps/web/app/components/admin/identity/roles/tabs/SFAdminRoleGroupsTab.vue"
+    },
+    {
+      "id": "core.component.admin.sfadmin_user_list_toolbar",
+      "contractVersion": "sforum.component.admin.sfadmin_user_list_toolbar@1",
+      "kind": "component",
+      "owners": ["admin"],
+      "state": "active",
+      "source": "apps/web/app/components/admin/identity/users/SFAdminUserListToolbar.vue"
+    },
+    {
+      "id": "core.component.shared.sfcategory_navigation_block",
+      "contractVersion": "sforum.component.shared.sfcategory_navigation_block@1",
+      "kind": "component",
+      "owners": ["public"],
+      "state": "active",
+      "source": "apps/web/app/components/forum/navigation/SFCategoryNavigationBlock.vue"
+    },
+    {
+      "id": "core.component.shared.sfeditor_image_menu",
+      "contractVersion": "sforum.component.shared.sfeditor_image_menu@1",
+      "kind": "component",
+      "owners": ["public"],
+      "state": "active",
+      "source": "apps/web/app/components/editor/SFEditorImageMenu.vue"
+    },
+    {
+      "id": "core.component.shared.sfeditor_image_upload_modal",
+      "contractVersion": "sforum.component.shared.sfeditor_image_upload_modal@1",
+      "kind": "component",
+      "owners": ["public"],
+      "state": "active",
+      "source": "apps/web/app/components/editor/SFEditorImageUploadModal.vue"
+    },
+    {
+      "id": "core.component.shared.sfmobile_sidebar_content",
+      "contractVersion": "sforum.component.shared.sfmobile_sidebar_content@1",
+      "kind": "component",
+      "owners": ["public"],
+      "state": "active",
+      "source": "apps/web/app/components/forum/navigation/SFMobileSidebarContent.vue"
     },
     {
       "id": "core.component.admin.sfadmin_brand_asset_field",

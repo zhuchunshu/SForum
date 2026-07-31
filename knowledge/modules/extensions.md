@@ -54,6 +54,17 @@ does not rebuild Nuxt.
   family and stay under their ratcheted file/receiver caps.
 - M6 full gate and browser QA passed. M7 focused tests, typecheck, build,
   architecture validation, and V3 catalog validation passed.
+- The 2026-07-31 release-blocker repair migrates historical `enc::` secret
+  settings into SecretStore before any SettingsLifecycle read/write, requires
+  the documented Marketplace Ed25519 public key in production Compose, passes
+  SystemTier priority into the real plugin full-set start plan, and rejects
+  CompatFarm RPC errors. The local full repository gate is green.
+- RuntimeRollout no longer fabricates a healthy `api-local` acknowledgement.
+  Until real node-bound health proof is wired before active publication, the
+  ordinary extension lifecycle deliberately does not bind this post-terminal
+  rollout hook. Marketplace install remains staged-only and has no supported
+  product consumer; Marketplace/Privacy and the real rollout gate remain open
+  work rather than advertised release features.
 - Compatibility facades remain only for exact allowlisted consumers and
   tighten as those consumers migrate.
 - Enabled Lifecycle V2 plugins now use Host-owned exact disable/enable
@@ -96,22 +107,22 @@ Authoritative sources:
 - Manifest/protocol decision:
   `../decisions/2026-07-29-manifest-v3-protocol-v2-only.md`
 
-## Open Production Findings
+## Production Remediation Status
 
-Do not close these from Support-only tests. Require the production bootstrap
-binding plus durable/restart/multi-node evidence defined by the remediation
-plan.
+Do not close residuals from Support-only tests. Require the production
+bootstrap binding plus durable/restart/multi-node evidence defined by the
+remediation plan.
 
-| Finding | Plan milestone |
-| --- | --- |
-| Legacy `enc::` values are not migrated to SecretStore | M1 |
-| Production marketplace signing key is not wired in deploy env | M2 |
-| Runtime rollout records after activation and uses fictional `api-local` canary | M3 |
-| SystemTier computes `LoadOrder` but startup discards it | M4 |
-| Marketplace/Privacy lack real production consumers and safe lifecycle calls | M5 |
-| CompatFarm can soft-pass RPC errors, has a narrow matrix, and runs twice | M6 |
-| Commerce uses Dispatcher only for `add` | M7 |
-| Full gates/catalog/web residual remain | M8 |
+| Finding | Status | Plan milestone |
+| --- | --- | --- |
+| Legacy `enc::` values can be dropped | **closed** by production binding + PostgreSQL first-write regression | M1 |
+| Production Marketplace key missing from deploy inputs | **implemented** with strict Compose/env/docs wiring; candidate-image smoke pending | M2 |
+| Runtime rollout used fictional `api-local` after activation | fictional Ack removed and unsafe post-terminal binding disabled; real gate still **open** | M3 |
+| SystemTier order discarded before startup | **closed**; real full-set starter consumes priority order | M4 |
+| Marketplace/Privacy lack real product consumers | actor and rollback lookup hardened; supported HTTP/CLI consumers still **open** | M5 |
+| CompatFarm could soft-pass RPC errors and runs a narrow/repeated matrix | RPC soft-pass **closed**; matrix and single-run residual **open** | M6 |
+| Commerce uses Dispatcher only for `add` | **open** | M7 |
+| Full gates/catalog/web residual | local gates and admin overview QA **closed**; release-image and Page Registry live smoke pending | M8 |
 
 Prior partial evidence, not closure:
 `../sessions/2026-07-22-p11-p12-p13-production-rewire-handoff.md`.

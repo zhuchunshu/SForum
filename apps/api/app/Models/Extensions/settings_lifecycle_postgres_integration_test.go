@@ -13,9 +13,88 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	cryptox "github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
 	secretstore "github.com/zhuchunshu/sforum/apps/api/app/Support/SecretStore"
 	settingslifecycle "github.com/zhuchunshu/sforum/apps/api/app/Support/SettingsLifecycle"
 )
+
+func TestLegacyCiphertextMigratesOnFirstPostgresSettingsWrite(t *testing.T) {
+	if testing.Short() {
+		t.Skip("postgres legacy settings migration requires real database")
+	}
+	databaseURL := settingsLifecycleTestDatabaseURL()
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close)
+	if err := pool.Ping(ctx); err != nil {
+		t.Skipf("postgres unavailable: %v", err)
+	}
+
+	extID := fmt.Sprintf("test.settings.legacy.%d", time.Now().UnixNano())
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO extensions (id, type, name, status)
+		VALUES ($1, 'plugin', 'legacy settings', 'installed')
+	`, extID); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), `DELETE FROM extension_settings WHERE extension_id = $1`, extID)
+		_, _ = pool.Exec(context.Background(), `DELETE FROM extensions WHERE id = $1`, extID)
+	})
+
+	cipher, err := cryptox.NewOptionCipher(strings.Repeat("b", 64))
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacy, err := cipher.Encrypt("postgres-legacy-secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := NewPostgresStore(pool)
+	if err := store.ReplaceSettings(ctx, extID, map[string]string{
+		"mode": "old", "token": legacy,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	docStore, err := settingslifecycle.NewSettingsKVStore(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secrets, err := secretstore.New(secretstore.NewMemoryStore(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := settingslifecycle.NewWithStore(docStore, secrets).WithLegacyCipher(cipher)
+	if err := svc.RegisterSchema(extID, 1, []settingslifecycle.FieldSchema{
+		{Name: "mode", Type: "string"},
+		{Name: "token", Type: "secret", Secret: true},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Put(ctx, extID, "user:1", map[string]string{"mode": "new"}, true); err != nil {
+		t.Fatal(err)
+	}
+
+	var persisted string
+	if err := pool.QueryRow(ctx, `
+		SELECT value FROM extension_settings WHERE extension_id = $1 AND name = 'token'
+	`, extID).Scan(&persisted); err != nil {
+		t.Fatal(err)
+	}
+	if strings.HasPrefix(persisted, "enc::") || !strings.HasPrefix(persisted, secretstore.ReferenceScheme) {
+		t.Fatalf("legacy ciphertext was not replaced atomically: %q", persisted)
+	}
+	values, err := svc.RuntimeValues(ctx, extID, "settings")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if values["mode"] != "new" || values["token"] != "postgres-legacy-secret" {
+		t.Fatalf("runtime values = %#v", values)
+	}
+}
 
 // TestTwoIndependentPostgresConnectionsConcurrentSaveNoFieldLoss 用两条独立
 // PostgreSQL 连接 + 两个独立 SettingsLifecycle Service，证明生产 CAS 路径：

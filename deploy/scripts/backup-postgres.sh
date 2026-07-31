@@ -22,4 +22,8 @@ COMPOSE=(docker compose --env-file .env.production -f compose.yaml -f compose.pr
 
 echo "Creating PostgreSQL backup: $FILE"
 "${COMPOSE[@]}" exec -T postgres pg_dump -U "${POSTGRES_USER:-sforum}" -d "${POSTGRES_DB:-sforum}" > "$FILE"
+if [ ! -s "$FILE" ] || [ ! -r "$FILE" ]; then
+  echo "PostgreSQL backup was not created or is unreadable: $FILE" >&2
+  exit 1
+fi
 echo "$FILE"

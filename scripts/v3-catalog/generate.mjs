@@ -125,6 +125,7 @@ function routePolicy(route) {
   if (path === '/api/v1/admin/extensions/:id/page-bootstrap') return ['permission', 'extension.view for metadata pages; matching plugin/theme settings manage permission for declared settings views']
   if (path.startsWith('/api/v1/admin/extensions')) return ['permission', method === 'GET' ? 'extension.view or matching manage permission' : 'extension.plugin.manage or extension.theme.manage; operation-specific service policy']
   if (path.startsWith('/api/v1/admin/pages')) return ['permission', 'extension.view for inspection; theme/plugin manage and super_admin approval where required']
+  if (path.startsWith('/api/v1/admin/attachment-upload-policies/')) return ['permission', 'attachment.upload_policy.manage']
   if (path.startsWith('/api/v1/admin/attachment-settings') || path.startsWith('/api/v1/admin/attachment-compression-settings') || path.startsWith('/api/v1/admin/attachment-storage-instances') || path === '/api/v1/admin/attachments/compression-stats') return ['permission', 'attachment.settings.manage']
   if (path.startsWith('/api/v1/admin/attachments')) return ['permission', 'attachment.manage']
   if (path.startsWith('/api/v1/admin/database')) return ['permission', 'database.manage']
@@ -145,7 +146,7 @@ function routePolicy(route) {
   if (path.startsWith('/api/v1/admin/webhooks')) return ['permission', 'settings.manage or settings.site.manage']
   if (path.startsWith('/api/v1/admin/features')) return ['permission', 'settings.site.manage']
   if (path.startsWith('/api/v1/admin/web-options')) return ['permission', 'option-owner permission dispatch']
-  if (path === '/api/v1/admin/overview') return ['permission', 'admin.access']
+  if (path.startsWith('/api/v1/admin/overview')) return ['permission', 'admin.access']
   if (path.startsWith('/api/v1/admin/admin-surfaces')) return ['permission', 'admin.access']
   if (path.startsWith('/api/v1/roles/suggestions')) return ['permission', 'active cookie session with role.manage; PAT denied; Host explicit decision']
   if (/^\/api\/v1\/(permissions|roles|users)(\/|$)/.test(path)) return ['permission', 'identity service route-specific user.view/user.manage/role.manage/user.ban policy']
@@ -218,6 +219,7 @@ function routePolicy(route) {
 const reviewedGuardPolicies = new Map([
   ['admin.access', { kind: 'permission_any', permissions: ['admin.access'] }],
   ['attachment.manage', { kind: 'permission_any', permissions: ['attachment.manage'] }],
+  ['attachment.upload_policy.manage', { kind: 'permission_any', permissions: ['attachment.upload_policy.manage'] }],
   ['attachment.settings.manage', { kind: 'permission_any', permissions: ['attachment.settings.manage'] }],
   ['category.manage', { kind: 'permission_any', permissions: ['category.manage'] }],
   ['database.manage', { kind: 'permission_any', permissions: ['database.manage'] }],

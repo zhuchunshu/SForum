@@ -40,6 +40,16 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
+    "id": "core.component.admin.sfadmin_attachment_upload_policies_tab",
+    "contractVersion": "sforum.component.admin.sfadmin_attachment_upload_policies_tab@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/settings/attachments/tabs/SFAdminAttachmentUploadPoliciesTab.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
     "id": "core.component.admin.sfadmin_brand_asset_field",
     "contractVersion": "sforum.component.admin.sfadmin_brand_asset_field@1",
     "kind": "component",
@@ -370,6 +380,16 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
+    "id": "core.component.admin.sfadmin_overview_resource_cards",
+    "contractVersion": "sforum.component.admin.sfadmin_overview_resource_cards@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/SFAdminOverviewResourceCards.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
     "id": "core.component.admin.sfadmin_overview_runtime_card",
     "contractVersion": "sforum.component.admin.sfadmin_overview_runtime_card@1",
     "kind": "component",
@@ -444,6 +464,26 @@
     "contractVersion": "sforum.component.admin.sfadmin_personalization_navigation_tab@1",
     "kind": "component",
     "source": "apps/web/app/components/admin/settings/personalization/tabs/SFAdminPersonalizationNavigationTab.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
+    "id": "core.component.admin.sfadmin_role_approvals_tab",
+    "contractVersion": "sforum.component.admin.sfadmin_role_approvals_tab@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/identity/roles/tabs/SFAdminRoleApprovalsTab.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
+    "id": "core.component.admin.sfadmin_role_groups_tab",
+    "contractVersion": "sforum.component.admin.sfadmin_role_groups_tab@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/identity/roles/tabs/SFAdminRoleGroupsTab.vue",
     "owners": [
       "admin"
     ],
@@ -630,6 +670,16 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
+    "id": "core.component.admin.sfadmin_user_list_toolbar",
+    "contractVersion": "sforum.component.admin.sfadmin_user_list_toolbar@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/identity/users/SFAdminUserListToolbar.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
     "id": "core.component.admin.sfextension_settings_actions",
     "contractVersion": "sforum.component.admin.sfextension_settings_actions@1",
     "kind": "component",
@@ -674,6 +724,16 @@
     "contractVersion": "sforum.component.admin.sfextension_settings_renderer@1",
     "kind": "component",
     "source": "apps/web/app/components/extensions/settings/SFExtensionSettingsRenderer.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
+    "id": "core.component.admin.sfresource_gauge",
+    "contractVersion": "sforum.component.admin.sfresource_gauge@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/SFResourceGauge.vue",
     "owners": [
       "admin"
     ],
@@ -1796,6 +1856,16 @@
     "targetRegistry": "P9 Component Registry"
   },
   {
+    "id": "core.component.shared.sfcategory_navigation_block",
+    "contractVersion": "sforum.component.shared.sfcategory_navigation_block@1",
+    "kind": "component",
+    "source": "apps/web/app/components/forum/navigation/SFCategoryNavigationBlock.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sfcategory_select",
     "contractVersion": "sforum.component.shared.sfcategory_select@1",
     "kind": "component",
@@ -1860,6 +1930,26 @@
     "contractVersion": "sforum.component.shared.sfeditor@1",
     "kind": "component",
     "source": "apps/web/app/components/SFEditor.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfeditor_image_menu",
+    "contractVersion": "sforum.component.shared.sfeditor_image_menu@1",
+    "kind": "component",
+    "source": "apps/web/app/components/editor/SFEditorImageMenu.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfeditor_image_upload_modal",
+    "contractVersion": "sforum.component.shared.sfeditor_image_upload_modal@1",
+    "kind": "component",
+    "source": "apps/web/app/components/editor/SFEditorImageUploadModal.vue",
     "owners": [
       "public"
     ],
@@ -2078,6 +2168,16 @@
     "targetRegistry": "P9 Component Registry"
   },
   {
+    "id": "core.component.shared.sfmobile_sidebar_content",
+    "contractVersion": "sforum.component.shared.sfmobile_sidebar_content@1",
+    "kind": "component",
+    "source": "apps/web/app/components/forum/navigation/SFMobileSidebarContent.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sfmoderation_review_page",
     "contractVersion": "sforum.component.shared.sfmoderation_review_page@1",
     "kind": "component",
@@ -2132,6 +2232,16 @@
     "contractVersion": "sforum.component.shared.sfnotification_detail_page@1",
     "kind": "component",
     "source": "apps/web/app/components/notifications/detail/SFNotificationDetailPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.notifications.sf_notification_preview",
+    "contractVersion": "sforum.component.notifications.sf_notification_preview@1",
+    "kind": "component",
+    "source": "apps/web/app/components/notifications/SFNotificationPreview.vue",
     "owners": [
       "public"
     ],
@@ -2310,6 +2420,16 @@
     "targetRegistry": "P9 Component Registry"
   },
   {
+    "id": "core.component.forum.sf_public_sidebar_content",
+    "contractVersion": "sforum.component.forum.sf_public_sidebar_content@1",
+    "kind": "component",
+    "source": "apps/web/app/components/forum/navigation/SFPublicSidebarContent.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sfrecovery_confirm_page",
     "contractVersion": "sforum.component.shared.sfrecovery_confirm_page@1",
     "kind": "component",
@@ -2370,6 +2490,16 @@
     "targetRegistry": "P9 Component Registry"
   },
   {
+    "id": "core.component.forum.sf_responsive_public_sidebar",
+    "contractVersion": "sforum.component.forum.sf_responsive_public_sidebar@1",
+    "kind": "component",
+    "source": "apps/web/app/components/forum/navigation/SFResponsivePublicSidebar.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sfsearch",
     "contractVersion": "sforum.component.shared.sfsearch@1",
     "kind": "component",
@@ -2384,6 +2514,16 @@
     "contractVersion": "sforum.component.shared.sfsecurity_settings_page@1",
     "kind": "component",
     "source": "apps/web/app/components/settings/SFSecuritySettingsPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.forum.sf_selection_quote_action",
+    "contractVersion": "sforum.component.forum.sf_selection_quote_action@1",
+    "kind": "component",
+    "source": "apps/web/app/components/forum/SFSelectionQuoteAction.vue",
     "owners": [
       "public"
     ],

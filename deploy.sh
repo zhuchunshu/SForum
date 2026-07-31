@@ -203,7 +203,7 @@ deploy_update() {
     "${COMPOSE[@]}" pull migrate api worker web
   fi
   echo "$(t backup_first)"
-  ./deploy/scripts/backup-postgres.sh || true
+  ./deploy/scripts/backup-postgres.sh
   run_migrations_command
   if [ "$RELEASE_MODE" = true ]; then
     "${COMPOSE[@]}" up -d --no-build

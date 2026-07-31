@@ -1,10 +1,25 @@
 # V3 Production Rewire Honesty Remediation — Task Book
 
-Status: **ready** — approved from 2026-07-22 code-review acceptance; not started  
+Status: **active** — P0 release blockers and local full gate repaired; M3/M5/M6/M7 residuals remain
 Date: 2026-07-22  
 Parent program: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`  
 Progress ledger: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`  
 Evidence source: 2026-07-22 acceptance review (production call-chain audit; do not trust Support-only green)
+
+## 2026-07-31 Checkpoint
+
+The release-blocker repair closed M1, implemented the strict-key portion of
+M2, and closed M4. It also made CompatFarm RPC errors fatal, removed fictional
+`api-local` health acknowledgements, hardened Marketplace actors to active
+database-backed `super_admin` users, made active rollout plans rollbackable,
+and restored the local full repository gate.
+
+This is not M8 closure. RuntimeRollout is deliberately no longer bound to the
+ordinary lifecycle after terminal success; real pre-publication node health
+proof is still M3. Marketplace/Privacy still lack supported HTTP/CLI product
+consumers, so M5 remains open. M6 still needs matrix/execution consolidation,
+M7 is unchanged, and the release-candidate image smoke cannot run until an
+immutable candidate image exists.
 
 ## Objective
 

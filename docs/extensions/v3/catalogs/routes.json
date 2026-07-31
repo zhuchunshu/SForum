@@ -42,7 +42,7 @@
     "handler": "compressionSettings",
     "method": "GET",
     "path": "/api/v1/admin/attachment-compression-settings",
-    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:14",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:21",
     "access": "permission",
     "policy": "attachment.settings.manage",
     "guard": {
@@ -60,7 +60,7 @@
     "handler": "updateCompressionSettings",
     "method": "PUT",
     "path": "/api/v1/admin/attachment-compression-settings",
-    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:15",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:22",
     "access": "permission",
     "policy": "attachment.settings.manage",
     "guard": {
@@ -78,7 +78,7 @@
     "handler": "settings",
     "method": "GET",
     "path": "/api/v1/admin/attachment-settings",
-    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:11",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:12",
     "access": "permission",
     "policy": "attachment.settings.manage",
     "guard": {
@@ -96,7 +96,7 @@
     "handler": "updateSettings",
     "method": "PUT",
     "path": "/api/v1/admin/attachment-settings",
-    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:12",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:13",
     "access": "permission",
     "policy": "attachment.settings.manage",
     "guard": {
@@ -114,7 +114,7 @@
     "handler": "testSettings",
     "method": "POST",
     "path": "/api/v1/admin/attachment-settings/test",
-    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:13",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:14",
     "access": "permission",
     "policy": "attachment.settings.manage",
     "guard": {
@@ -132,7 +132,7 @@
     "handler": "listStorageInstances",
     "method": "GET",
     "path": "/api/v1/admin/attachment-storage-instances",
-    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:16",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:23",
     "access": "permission",
     "policy": "attachment.settings.manage",
     "guard": {
@@ -150,7 +150,7 @@
     "handler": "createStorageInstance",
     "method": "POST",
     "path": "/api/v1/admin/attachment-storage-instances",
-    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:17",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:24",
     "access": "permission",
     "policy": "attachment.settings.manage",
     "guard": {
@@ -168,7 +168,7 @@
     "handler": "deleteStorageInstance",
     "method": "DELETE",
     "path": "/api/v1/admin/attachment-storage-instances/:id",
-    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:22",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:29",
     "access": "permission",
     "policy": "attachment.settings.manage",
     "guard": {
@@ -186,7 +186,7 @@
     "handler": "updateStorageInstance",
     "method": "PUT",
     "path": "/api/v1/admin/attachment-storage-instances/:id",
-    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:20",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:27",
     "access": "permission",
     "policy": "attachment.settings.manage",
     "guard": {
@@ -204,7 +204,7 @@
     "handler": "activateStorageInstance",
     "method": "POST",
     "path": "/api/v1/admin/attachment-storage-instances/:id/activate",
-    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:21",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:28",
     "access": "permission",
     "policy": "attachment.settings.manage",
     "guard": {
@@ -222,7 +222,7 @@
     "handler": "activateLocalStorage",
     "method": "POST",
     "path": "/api/v1/admin/attachment-storage-instances/local/activate",
-    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:19",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:26",
     "access": "permission",
     "policy": "attachment.settings.manage",
     "guard": {
@@ -240,7 +240,7 @@
     "handler": "probeStorageInstance",
     "method": "POST",
     "path": "/api/v1/admin/attachment-storage-instances/probe",
-    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:18",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:25",
     "access": "permission",
     "policy": "attachment.settings.manage",
     "guard": {
@@ -252,13 +252,121 @@
     }
   },
   {
+    "id": "core.route.attachments.list_role_upload_policies",
+    "contractVersion": "sforum.route.attachments.list_role_upload_policies@1",
+    "module": "attachments",
+    "handler": "listRoleUploadPolicies",
+    "method": "GET",
+    "path": "/api/v1/admin/attachment-upload-policies/roles",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:15",
+    "access": "permission",
+    "policy": "attachment.upload_policy.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "attachment.upload_policy.manage"
+      ],
+      "evaluatorId": ""
+    }
+  },
+  {
+    "id": "core.route.attachments.delete_role_upload_policy",
+    "contractVersion": "sforum.route.attachments.delete_role_upload_policy@1",
+    "module": "attachments",
+    "handler": "deleteRoleUploadPolicy",
+    "method": "DELETE",
+    "path": "/api/v1/admin/attachment-upload-policies/roles/:roleKey",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:17",
+    "access": "permission",
+    "policy": "attachment.upload_policy.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "attachment.upload_policy.manage"
+      ],
+      "evaluatorId": ""
+    }
+  },
+  {
+    "id": "core.route.attachments.set_role_upload_policy",
+    "contractVersion": "sforum.route.attachments.set_role_upload_policy@1",
+    "module": "attachments",
+    "handler": "setRoleUploadPolicy",
+    "method": "PUT",
+    "path": "/api/v1/admin/attachment-upload-policies/roles/:roleKey",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:16",
+    "access": "permission",
+    "policy": "attachment.upload_policy.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "attachment.upload_policy.manage"
+      ],
+      "evaluatorId": ""
+    }
+  },
+  {
+    "id": "core.route.attachments.delete_user_upload_policy",
+    "contractVersion": "sforum.route.attachments.delete_user_upload_policy@1",
+    "module": "attachments",
+    "handler": "deleteUserUploadPolicy",
+    "method": "DELETE",
+    "path": "/api/v1/admin/attachment-upload-policies/users/:userID",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:20",
+    "access": "permission",
+    "policy": "attachment.upload_policy.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "attachment.upload_policy.manage"
+      ],
+      "evaluatorId": ""
+    }
+  },
+  {
+    "id": "core.route.attachments.get_user_upload_policy",
+    "contractVersion": "sforum.route.attachments.get_user_upload_policy@1",
+    "module": "attachments",
+    "handler": "getUserUploadPolicy",
+    "method": "GET",
+    "path": "/api/v1/admin/attachment-upload-policies/users/:userID",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:18",
+    "access": "permission",
+    "policy": "attachment.upload_policy.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "attachment.upload_policy.manage"
+      ],
+      "evaluatorId": ""
+    }
+  },
+  {
+    "id": "core.route.attachments.set_user_upload_policy",
+    "contractVersion": "sforum.route.attachments.set_user_upload_policy@1",
+    "module": "attachments",
+    "handler": "setUserUploadPolicy",
+    "method": "PUT",
+    "path": "/api/v1/admin/attachment-upload-policies/users/:userID",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:19",
+    "access": "permission",
+    "policy": "attachment.upload_policy.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "attachment.upload_policy.manage"
+      ],
+      "evaluatorId": ""
+    }
+  },
+  {
     "id": "core.route.attachments.list_admin",
     "contractVersion": "sforum.route.attachments.list_admin@1",
     "module": "attachments",
     "handler": "listAdmin",
     "method": "GET",
     "path": "/api/v1/admin/attachments",
-    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:23",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:30",
     "access": "permission",
     "policy": "attachment.manage",
     "guard": {
@@ -276,7 +384,7 @@
     "handler": "deleteAdmin",
     "method": "DELETE",
     "path": "/api/v1/admin/attachments/:id",
-    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:28",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:35",
     "access": "permission",
     "policy": "attachment.manage",
     "guard": {
@@ -294,7 +402,7 @@
     "handler": "detailAdmin",
     "method": "GET",
     "path": "/api/v1/admin/attachments/:id",
-    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:26",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:33",
     "access": "permission",
     "policy": "attachment.manage",
     "guard": {
@@ -312,7 +420,7 @@
     "handler": "updateAdmin",
     "method": "PATCH",
     "path": "/api/v1/admin/attachments/:id",
-    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:27",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:34",
     "access": "permission",
     "policy": "attachment.manage",
     "guard": {
@@ -330,7 +438,7 @@
     "handler": "cleanupAdmin",
     "method": "POST",
     "path": "/api/v1/admin/attachments/cleanup",
-    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:29",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:36",
     "access": "permission",
     "policy": "attachment.manage",
     "guard": {
@@ -348,7 +456,7 @@
     "handler": "compressionStats",
     "method": "GET",
     "path": "/api/v1/admin/attachments/compression-stats",
-    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:24",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:31",
     "access": "permission",
     "policy": "attachment.settings.manage",
     "guard": {
@@ -366,7 +474,7 @@
     "handler": "backfillCompression",
     "method": "POST",
     "path": "/api/v1/admin/attachments/compression/backfill",
-    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:25",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:32",
     "access": "permission",
     "policy": "attachment.manage",
     "guard": {
@@ -2587,6 +2695,24 @@
     }
   },
   {
+    "id": "core.route.admin_overview.resources",
+    "contractVersion": "sforum.route.admin_overview.resources@1",
+    "module": "admin_overview",
+    "handler": "resources",
+    "method": "GET",
+    "path": "/api/v1/admin/overview/resources",
+    "source": "apps/api/app/Http/Controllers/AdminOverview/routes.go:7",
+    "access": "permission",
+    "policy": "admin.access",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "admin.access"
+      ],
+      "evaluatorId": ""
+    }
+  },
+  {
     "id": "core.route.pages.admin_list",
     "contractVersion": "sforum.route.pages.admin_list@1",
     "module": "pages",
@@ -3285,7 +3411,7 @@
     "handler": "get",
     "method": "GET",
     "path": "/api/v1/attachments/:publicId",
-    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:7",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:8",
     "access": "contextual",
     "policy": "attachment visibility and referenced resource read policy",
     "guard": {
@@ -3301,7 +3427,7 @@
     "handler": "content",
     "method": "GET",
     "path": "/api/v1/attachments/:publicId/content",
-    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:8",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:9",
     "access": "contextual",
     "policy": "attachment visibility and referenced resource read policy",
     "guard": {
@@ -3317,7 +3443,23 @@
     "handler": "variantContent",
     "method": "GET",
     "path": "/api/v1/attachments/:publicId/variants/:variant/content",
-    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:9",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:10",
+    "access": "contextual",
+    "policy": "attachment visibility and referenced resource read policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.attachments.read"
+    }
+  },
+  {
+    "id": "core.route.attachments.upload_policy",
+    "contractVersion": "sforum.route.attachments.upload_policy@1",
+    "module": "attachments",
+    "handler": "currentUploadPolicy",
+    "method": "GET",
+    "path": "/api/v1/attachments/upload-policy",
+    "source": "apps/api/app/Http/Controllers/Attachments/routes.go:7",
     "access": "contextual",
     "policy": "attachment visibility and referenced resource read policy",
     "guard": {
