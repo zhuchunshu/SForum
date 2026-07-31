@@ -165,6 +165,26 @@ func TestRuntimeCollectorExposesResourceAndDiskSnapshots(t *testing.T) {
 	}
 }
 
+func TestRuntimeCollectorMarksEmbeddedWorkerWithoutInventingMemory(t *testing.T) {
+	selfPID := os.Getpid()
+	collector := NewRuntimeCollector(time.Now(), nil).
+		WithProcessSampler(fixedSampler{samples: []ProcessSample{
+			{PID: selfPID, RSSBytes: 100, Command: "sforum-api"},
+		}}).
+		WithWorkerRuntime(true, 7)
+
+	resources, _, _ := collector.SampleResources()
+	if resources == nil {
+		t.Fatal("expected resource snapshot")
+	}
+	if !resources.WorkerEmbedded || resources.WorkerConcurrency != 7 {
+		t.Fatalf("unexpected embedded worker state: %#v", resources)
+	}
+	if resources.WorkerFound || resources.WorkerMemoryBytes != 0 {
+		t.Fatalf("embedded worker must not expose invented standalone memory: %#v", resources)
+	}
+}
+
 func TestRuntimeCollectorOmitsFamilyWhenSamplerFails(t *testing.T) {
 	collector := NewRuntimeCollector(time.Now(), nil).WithProcessSampler(fixedSampler{err: errors.New("boom")})
 	stats := collector.Snapshot()

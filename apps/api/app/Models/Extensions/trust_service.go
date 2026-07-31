@@ -829,12 +829,11 @@ func digestInstalledFile(extension Extension, relative string) (string, error) {
 	if _, ok := installedFilePath(extension, relative); !ok {
 		return "", fmt.Errorf("%w: unsafe executable path %s", ErrFrontendPackageChanged, relative)
 	}
-	body, err := readStableExtensionFile(extension, relative, 0, false)
+	digest, err := digestStableExtensionFile(extension, relative, 0, false)
 	if err != nil {
 		return "", fmt.Errorf("%w: executable path %s is unavailable: %v", ErrFrontendPackageChanged, relative, err)
 	}
-	digest := sha256.Sum256(body)
-	return hex.EncodeToString(digest[:]), nil
+	return digest, nil
 }
 
 func trustIdentity(impact TrustImpact) TrustIdentity {

@@ -602,6 +602,24 @@ func readOpenedStableRegularFile(file *os.File, target string, limit int64, requ
 }
 
 func readStableExtensionFile(extension Extension, manifestPath string, limit int64, requireNonEmpty bool) ([]byte, error) {
+	opened, err := openStableExtensionRegularFile(extension, manifestPath)
+	if err != nil {
+		return nil, err
+	}
+	defer opened.close()
+	return readOpenedStableRegularFileWithPath(
+		opened.file, opened.pathBefore, opened.lstat, limit, requireNonEmpty,
+	)
+}
+
+type openedStableExtensionFile struct {
+	root       *os.Root
+	file       *os.File
+	name       string
+	pathBefore os.FileInfo
+}
+
+func openStableExtensionRegularFile(extension Extension, manifestPath string) (*openedStableExtensionFile, error) {
 	name, ok := safeArchivePath(manifestPath)
 	rootPath := PackageContentRoot(extension)
 	if !ok || rootPath == "" {
@@ -615,23 +633,41 @@ func readStableExtensionFile(extension Extension, manifestPath string, limit int
 	if err != nil {
 		return nil, ErrPublicFrontendUnavailable
 	}
-	defer root.Close()
 	openedRoot, err := root.Stat(".")
 	if err != nil || !openedRoot.IsDir() || !os.SameFile(rootBefore, openedRoot) {
+		_ = root.Close()
 		return nil, ErrPublicFrontendUnavailable
 	}
 	pathBefore, err := root.Lstat(name)
 	if err != nil || !regularPath(pathBefore) {
+		_ = root.Close()
 		return nil, ErrPublicFrontendUnavailable
 	}
 	file, err := openStableRootReadFile(root, name)
 	if err != nil {
+		_ = root.Close()
 		return nil, ErrPublicFrontendUnavailable
 	}
-	defer file.Close()
-	return readOpenedStableRegularFileWithPath(
-		file, pathBefore, func() (os.FileInfo, error) { return root.Lstat(name) }, limit, requireNonEmpty,
-	)
+	return &openedStableExtensionFile{root: root, file: file, name: name, pathBefore: pathBefore}, nil
+}
+
+func (f *openedStableExtensionFile) close() {
+	if f == nil {
+		return
+	}
+	if f.file != nil {
+		_ = f.file.Close()
+	}
+	if f.root != nil {
+		_ = f.root.Close()
+	}
+}
+
+func (f *openedStableExtensionFile) lstat() (os.FileInfo, error) {
+	if f == nil || f.root == nil {
+		return nil, ErrPublicFrontendUnavailable
+	}
+	return f.root.Lstat(f.name)
 }
 
 func readOpenedStableRegularFileWithPath(
@@ -641,35 +677,86 @@ func readOpenedStableRegularFileWithPath(
 	limit int64,
 	requireNonEmpty bool,
 ) ([]byte, error) {
-	if file == nil || pathBefore == nil || lstat == nil {
+	fdBefore, readLimit, err := stableOpenedRegularFileBefore(file, pathBefore, lstat, limit, requireNonEmpty)
+	if err != nil {
 		return nil, ErrPublicFrontendUnavailable
+	}
+	body, err := io.ReadAll(io.LimitReader(file, readLimit+1))
+	if err != nil || int64(len(body)) > readLimit || int64(len(body)) != fdBefore.Size() {
+		return nil, ErrPublicFrontendUnavailable
+	}
+	if err := stableOpenedRegularFileAfter(file, pathBefore, fdBefore, lstat); err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+func digestStableExtensionFile(extension Extension, manifestPath string, limit int64, requireNonEmpty bool) (string, error) {
+	opened, err := openStableExtensionRegularFile(extension, manifestPath)
+	if err != nil {
+		return "", err
+	}
+	defer opened.close()
+	fdBefore, readLimit, err := stableOpenedRegularFileBefore(
+		opened.file, opened.pathBefore, opened.lstat, limit, requireNonEmpty,
+	)
+	if err != nil {
+		return "", err
+	}
+	hasher := sha256.New()
+	written, err := io.CopyBuffer(
+		hasher,
+		io.LimitReader(opened.file, readLimit+1),
+		make([]byte, 32*1024),
+	)
+	if err != nil || written > readLimit || written != fdBefore.Size() {
+		return "", ErrPublicFrontendUnavailable
+	}
+	if err := stableOpenedRegularFileAfter(opened.file, opened.pathBefore, fdBefore, opened.lstat); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(hasher.Sum(nil)), nil
+}
+
+func stableOpenedRegularFileBefore(
+	file *os.File,
+	pathBefore os.FileInfo,
+	lstat func() (os.FileInfo, error),
+	limit int64,
+	requireNonEmpty bool,
+) (os.FileInfo, int64, error) {
+	if file == nil || pathBefore == nil || lstat == nil {
+		return nil, 0, ErrPublicFrontendUnavailable
 	}
 	fdBefore, fdErr := file.Stat()
-	if fdErr != nil || !stableRegularFile(pathBefore, fdBefore) ||
-		!os.SameFile(pathBefore, fdBefore) {
-		return nil, ErrPublicFrontendUnavailable
+	if fdErr != nil || !stableRegularFile(pathBefore, fdBefore) || !os.SameFile(pathBefore, fdBefore) {
+		return nil, 0, ErrPublicFrontendUnavailable
 	}
 	if requireNonEmpty && fdBefore.Size() <= 0 {
-		return nil, ErrPublicFrontendUnavailable
+		return nil, 0, ErrPublicFrontendUnavailable
 	}
 	if limit <= 0 {
 		limit = fdBefore.Size()
 	}
 	if fdBefore.Size() > limit || limit == int64(^uint64(0)>>1) {
-		return nil, ErrPublicFrontendUnavailable
+		return nil, 0, ErrPublicFrontendUnavailable
 	}
-	body, err := io.ReadAll(io.LimitReader(file, limit+1))
-	if err != nil || int64(len(body)) > limit || int64(len(body)) != fdBefore.Size() {
-		return nil, ErrPublicFrontendUnavailable
-	}
+	return fdBefore, limit, nil
+}
+
+func stableOpenedRegularFileAfter(
+	file *os.File,
+	pathBefore, fdBefore os.FileInfo,
+	lstat func() (os.FileInfo, error),
+) error {
 	fdAfter, fdErr := file.Stat()
 	pathAfter, pathErr := lstat()
 	if fdErr != nil || pathErr != nil || !stableRegularFile(pathAfter, fdAfter) ||
 		!os.SameFile(fdBefore, fdAfter) || !os.SameFile(pathBefore, pathAfter) ||
 		!os.SameFile(fdAfter, pathAfter) || !sameStableFileMetadata(fdBefore, fdAfter) {
-		return nil, ErrPublicFrontendUnavailable
+		return ErrPublicFrontendUnavailable
 	}
-	return body, nil
+	return nil
 }
 
 func regularPath(info os.FileInfo) bool {

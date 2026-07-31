@@ -34,7 +34,7 @@ build_builtin_plugin() {
   local id="$1"
   local dir="$2"
   echo "Building protected built-in plugin: $id"
-  (cd "$dir" && go build -trimpath -buildvcs=false -o plugin .)
+  (cd "$dir" && go build -trimpath -buildvcs=false -ldflags="-s -w" -o plugin .)
 }
 
 refresh_v3_plugin_digest() {

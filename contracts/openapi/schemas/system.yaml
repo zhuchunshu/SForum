@@ -312,18 +312,31 @@ AdminOverviewRuntimeResources:
   - workerMemoryBytes
   - pluginMemoryBytes
   - totalMemoryBytes
+  - apiMemoryMedianBytes
+  - workerMemoryMedianBytes
+  - pluginMemoryMedianBytes
+  - totalMemoryMedianBytes
+  - memorySampleCount
+  - memoryWindowSeconds
   - apiCpuPercent
   - workerCpuPercent
   - pluginCpuPercent
   - totalCpuPercent
   - pluginChildCount
+  - pluginOverlapCount
   - workerFound
+  - workerEmbedded
+  - workerConcurrency
   properties:
+    sampledAt:
+      type: string
+      format: date-time
+      description: Capture time shared by the cached process-table frame.
     apiMemoryBytes:
       type: integer
       format: int64
       minimum: 0
-      description: Resident memory of the API process.
+      description: Instant resident memory of the API process; includes an embedded Worker.
     workerMemoryBytes:
       type: integer
       format: int64
@@ -339,6 +352,54 @@ AdminOverviewRuntimeResources:
       format: int64
       minimum: 0
       description: Sum of API, independent worker, and backend plugin resident memory.
+    apiPssBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Linux-only API proportional set size; omitted unless PSS is available for every counted process.
+    workerPssBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Linux-only proportional set size of independent Worker processes.
+    pluginPssBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Linux-only proportional set size of counted plugin processes.
+    totalPssBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Complete Linux PSS total; omitted when any counted process cannot be sampled.
+    apiMemoryMedianBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Rolling-window median of API RSS.
+    workerMemoryMedianBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Rolling-window median of independent Worker RSS.
+    pluginMemoryMedianBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Rolling-window median of plugin RSS.
+    totalMemoryMedianBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Rolling-window median of total backend RSS.
+    memorySampleCount:
+      type: integer
+      minimum: 0
+      description: Number of unique cached process frames currently in the rolling window.
+    memoryWindowSeconds:
+      type: integer
+      minimum: 0
+      description: Configured rolling median window duration in seconds.
     apiCpuPercent:
       type: number
       format: double
@@ -360,9 +421,60 @@ AdminOverviewRuntimeResources:
     pluginChildCount:
       type: integer
       minimum: 0
+      description: Number of counted backend plugin processes owned by the API or an independent Worker.
+    pluginOverlapCount:
+      type: integer
+      minimum: 0
+      description: Extra same-extension processes under one owner, normally seen briefly during runtime replacement.
+    plugins:
+      type: array
+      items:
+        "$ref": "#/AdminOverviewPluginRuntimeUsage"
     workerFound:
       type: boolean
       description: Whether an independent SForum worker process was found in the process table.
+    workerEmbedded:
+      type: boolean
+      description: Whether River runs inside the API process and therefore has no separable memory value.
+    workerConcurrency:
+      type: integer
+      minimum: 0
+      description: Total configured River execution slots for the Worker runtime.
+AdminOverviewPluginRuntimeUsage:
+  type: object
+  required:
+  - extensionId
+  - memoryBytes
+  - cpuPercent
+  - processCount
+  - apiOwnedProcessCount
+  - workerOwnedProcessCount
+  properties:
+    extensionId:
+      type: string
+    memoryBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Current summed RSS of this extension's counted backend processes.
+    pssBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Linux-only summed PSS; omitted when the complete process family cannot be sampled.
+    cpuPercent:
+      type: number
+      format: double
+      minimum: 0
+    processCount:
+      type: integer
+      minimum: 0
+    apiOwnedProcessCount:
+      type: integer
+      minimum: 0
+    workerOwnedProcessCount:
+      type: integer
+      minimum: 0
 AdminOverviewDiskRuntime:
   type: object
   required:

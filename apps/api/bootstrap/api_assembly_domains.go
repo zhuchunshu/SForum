@@ -248,7 +248,11 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		adminOverviewStore,
 		adminoverview.NewRuntimeCollector(time.Now().UTC(), pool).
 			WithHeartbeat(heartbeatStore).
-			WithQueueLag(pool),
+			WithQueueLag(pool).
+			WithWorkerRuntime(
+				shouldEmbedWorkerInAPI(cfg) && !pluginRuntimeRecovery.Active(),
+				config.JobQueueWorkerTotal(cfg),
+			),
 		identityStore,
 		authSessions,
 		providers.NewExtensionDashboardWidgetProvider(extensionService),

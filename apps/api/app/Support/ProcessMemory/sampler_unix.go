@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // osSampler 通过 ps 采集 PID/PPID/RSS/命令行（macOS 与 Linux 均可用，无 cgo）。
@@ -21,13 +22,27 @@ func (osSampler) List() ([]Sample, error) {
 	if err != nil {
 		return nil, fmt.Errorf("ps process list: %w", err)
 	}
-	return ParsePSList(out)
+	samples, err := ParsePSList(out)
+	if err != nil {
+		return nil, err
+	}
+	selfPID := os.Getpid()
+	runtimeSamples := make([]Sample, 0, 16)
+	for _, sample := range samples {
+		if sample.PID != selfPID && !IsSforumWorkerCommand(sample.Command) && !IsBackendPluginCommand(sample.Command) {
+			continue
+		}
+		sample.PSSBytes, _ = readProcessPSS(int32(sample.PID))
+		runtimeSamples = append(runtimeSamples, sample)
+	}
+	return runtimeSamples, nil
 }
 
 // ParsePSList 解析 ps -axo 输出；导出让 adminoverview 单测复用。
 func ParsePSList(out []byte) ([]Sample, error) {
 	lines := bytes.Split(out, []byte{'\n'})
 	samples := make([]Sample, 0, len(lines))
+	capturedAt := time.Now().UTC()
 	for _, line := range lines {
 		line = bytes.TrimSpace(line)
 		if len(line) == 0 {
@@ -65,6 +80,7 @@ func ParsePSList(out []byte) ([]Sample, error) {
 			RSSBytes:   rssKiB * 1024,
 			CPUPercent: cpuPercent,
 			Command:    command,
+			CapturedAt: capturedAt,
 		})
 	}
 	if len(samples) == 0 {

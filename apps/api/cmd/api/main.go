@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	runtimediagnostics "github.com/zhuchunshu/sforum/apps/api/app/Support/RuntimeDiagnostics"
 	"github.com/zhuchunshu/sforum/apps/api/bootstrap"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 	platformversion "github.com/zhuchunshu/sforum/apps/api/version"
@@ -77,6 +78,12 @@ func runAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("api bootstrap: %w", err)
 	}
+	profiler, err := runtimediagnostics.StartPprof(ctx, cfg.PprofEnabled, cfg.PprofAddr, logger)
+	if err != nil {
+		api.Close()
+		return fmt.Errorf("api runtime diagnostics: %w", err)
+	}
+	defer profiler.Close()
 	return runAPILifecycle(ctx, logger, &productionAPILifecycle{api: api, cfg: cfg, logger: logger})
 }
 

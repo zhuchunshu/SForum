@@ -5,6 +5,8 @@ import {
   formatOverviewBytes,
   formatOverviewLoad,
   formatOverviewPercent,
+  overviewMemoryDisplayBytes,
+  type AdminOverviewMemoryBucket,
   type AdminOverviewRuntime
 } from '~/utils/admin/adminOverview'
 
@@ -15,10 +17,62 @@ const props = defineProps<{
 const { t } = useI18n()
 
 const resources = computed(() => props.runtime.resources)
+const plugins = computed(() => resources.value?.plugins || [])
 
 function unavailable() {
   return t('admin.home.resources.unavailable')
 }
+
+function memoryValue(bucket: AdminOverviewMemoryBucket) {
+  return resources.value
+    ? formatOverviewBytes(overviewMemoryDisplayBytes(resources.value, bucket))
+    : unavailable()
+}
+
+const apiLabel = computed(() => resources.value?.workerEmbedded
+  ? t('admin.home.resources.apiWithWorker')
+  : t('admin.home.resources.api'))
+
+const workerValue = computed(() => {
+  const snapshot = resources.value
+  if (!snapshot) return unavailable()
+  if (snapshot.workerEmbedded) {
+    const slots = Math.max(0, snapshot.workerConcurrency || 0)
+    const running = props.runtime.queueLag?.running
+    if (slots > 0 && typeof running === 'number') {
+      return t('admin.home.resources.workerEmbeddedRunning', {
+        running: Math.max(0, running),
+        concurrency: slots
+      })
+    }
+    if (slots > 0) {
+      return t('admin.home.resources.workerEmbeddedSlots', { concurrency: slots })
+    }
+    return t('admin.home.resources.workerEmbedded')
+  }
+  if (!snapshot.workerFound) {
+    return t('admin.home.resources.workerNotFound')
+  }
+  return memoryValue('worker')
+})
+
+const pluginProcessMeta = computed(() => {
+  const snapshot = resources.value
+  if (!snapshot) return ''
+  return t('admin.home.resources.pluginProcesses', { count: snapshot.pluginChildCount })
+})
+
+const memoryBasis = computed(() => {
+  const seconds = Math.max(1, resources.value?.memoryWindowSeconds || 60)
+  return t('admin.home.resources.memoryBasis', { seconds })
+})
+
+const pssTotal = computed(() => {
+  const value = resources.value?.totalPssBytes
+  return value
+    ? t('admin.home.resources.pssTotal', { value: formatOverviewBytes(value) })
+    : ''
+})
 
 const cpuPercent = computed(() => resources.value ? resources.value.apiCpuPercent : 0)
 const cpuValue = computed(() => resources.value ? formatOverviewPercent(cpuPercent.value) : unavailable())
@@ -43,45 +97,10 @@ const loadRows = computed(() => {
     }
   ]
 })
-
-const memoryRows = computed(() => {
-  const snapshot = resources.value
-  return [
-    {
-      key: 'api',
-      label: t('admin.home.resources.api'),
-      value: snapshot ? formatOverviewBytes(snapshot.apiMemoryBytes) : unavailable(),
-      prominent: false
-    },
-    {
-      key: 'worker',
-      label: t('admin.home.resources.worker'),
-      value: snapshot
-        ? (!snapshot.workerFound && snapshot.workerMemoryBytes === 0
-            ? t('admin.home.resources.workerEmbedded')
-            : formatOverviewBytes(snapshot.workerMemoryBytes))
-        : unavailable(),
-      prominent: false
-    },
-    {
-      key: 'plugin',
-      label: t('admin.home.resources.plugin'),
-      value: snapshot ? formatOverviewBytes(snapshot.pluginMemoryBytes) : unavailable(),
-      prominent: false
-    },
-    {
-      key: 'total',
-      label: t('admin.home.resources.total'),
-      value: snapshot ? formatOverviewBytes(snapshot.totalMemoryBytes) : unavailable(),
-      prominent: true
-    }
-  ]
-})
 </script>
 
 <template>
   <div class="grid min-w-0 gap-5 xl:grid-cols-3">
-    <!-- Memory Breakdown -->
     <UCard class="elegant-card min-w-0 border-slate-200 bg-white text-slate-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100">
       <template #header>
         <div class="flex items-center justify-between gap-3">
@@ -93,26 +112,123 @@ const memoryRows = computed(() => {
           </span>
         </div>
       </template>
+
       <dl class="min-w-0 divide-y divide-slate-100 pt-1 dark:divide-zinc-800">
-        <div
-          v-for="row in memoryRows"
-          :key="row.key"
-          class="flex min-w-0 items-center justify-between gap-3 py-2"
-        >
-          <dt class="min-w-0 truncate text-xs font-semibold text-slate-500 dark:text-zinc-400">
-            {{ row.label }}
+        <div class="flex min-w-0 items-center justify-between gap-3 py-2">
+          <dt class="min-w-0 text-xs font-semibold text-slate-500 dark:text-zinc-400">
+            {{ apiLabel }}
           </dt>
-          <dd
-            class="shrink-0 font-mono text-sm font-bold text-slate-900 dark:text-zinc-100"
-            :class="row.prominent ? 'text-[var(--sf-accent)] dark:text-[var(--sf-accent-dark)]' : ''"
-          >
-            {{ row.value }}
+          <dd class="shrink-0 font-mono text-sm font-bold text-slate-900 dark:text-zinc-100">
+            {{ memoryValue('api') }}
+          </dd>
+        </div>
+
+        <div class="flex min-w-0 items-center justify-between gap-3 py-2">
+          <dt class="min-w-0 text-xs font-semibold text-slate-500 dark:text-zinc-400">
+            {{ t('admin.home.resources.worker') }}
+          </dt>
+          <dd class="max-w-[68%] text-right font-mono text-xs font-bold leading-5 text-slate-900 sm:text-sm dark:text-zinc-100">
+            {{ workerValue }}
+          </dd>
+        </div>
+
+        <div class="flex min-w-0 items-center justify-between gap-3 py-2">
+          <dt class="min-w-0">
+            <span class="block text-xs font-semibold text-slate-500 dark:text-zinc-400">
+              {{ t('admin.home.resources.plugin') }}
+            </span>
+            <span v-if="resources" class="mt-0.5 block text-[11px] leading-4 text-slate-400 dark:text-zinc-500">
+              {{ pluginProcessMeta }}
+              <span
+                v-if="resources.pluginOverlapCount > 0"
+                class="ml-1 text-amber-600 dark:text-amber-400"
+              >
+                {{ t('admin.home.resources.pluginOverlap', { count: resources.pluginOverlapCount }) }}
+              </span>
+            </span>
+          </dt>
+          <div class="flex shrink-0 items-center gap-1.5">
+            <dd class="font-mono text-sm font-bold text-slate-900 dark:text-zinc-100">
+              {{ memoryValue('plugin') }}
+            </dd>
+            <UPopover
+              v-if="plugins.length"
+              :content="{ align: 'end', side: 'bottom', collisionPadding: 12 }"
+            >
+              <UButton
+                icon="i-lucide-list-tree"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                square
+                :aria-label="t('admin.home.resources.pluginDetails')"
+                :title="t('admin.home.resources.pluginDetails')"
+              />
+
+              <template #content>
+                <div class="max-h-[min(26rem,70vh)] w-[min(22rem,calc(100vw-2rem))] overflow-y-auto p-3">
+                  <div class="flex items-center justify-between gap-3 pb-2">
+                    <p class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+                      {{ t('admin.home.resources.pluginDetails') }}
+                    </p>
+                    <span class="text-xs tabular-nums text-slate-500 dark:text-zinc-400">
+                      {{ t('admin.home.resources.pluginProcesses', { count: resources?.pluginChildCount || 0 }) }}
+                    </span>
+                  </div>
+                  <p
+                    v-if="resources && resources.pluginOverlapCount > 0"
+                    class="flex items-start gap-1.5 border-t border-amber-200 py-2 text-xs leading-5 text-amber-700 dark:border-amber-900/70 dark:text-amber-300"
+                  >
+                    <UIcon name="i-lucide-info" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+                    <span>{{ t('admin.home.resources.pluginOverlapDetail', { count: resources.pluginOverlapCount }) }}</span>
+                  </p>
+                  <ul class="divide-y divide-slate-100 border-t border-slate-100 dark:divide-zinc-800 dark:border-zinc-800">
+                    <li
+                      v-for="plugin in plugins"
+                      :key="plugin.extensionId"
+                      class="flex min-w-0 items-start justify-between gap-3 py-2.5"
+                    >
+                      <div class="min-w-0">
+                        <p class="truncate font-mono text-xs font-semibold text-slate-800 dark:text-zinc-200" :title="plugin.extensionId">
+                          {{ plugin.extensionId }}
+                        </p>
+                        <p class="mt-0.5 text-[11px] leading-4 text-slate-500 dark:text-zinc-400">
+                          {{ t('admin.home.resources.pluginProcesses', { count: plugin.processCount }) }}
+                          <span v-if="plugin.pssBytes">
+                            · PSS {{ formatOverviewBytes(plugin.pssBytes) }}
+                          </span>
+                        </p>
+                      </div>
+                      <span class="shrink-0 font-mono text-xs font-bold text-slate-900 dark:text-zinc-100">
+                        {{ formatOverviewBytes(plugin.memoryBytes) }}
+                      </span>
+                    </li>
+                  </ul>
+                  <p class="border-t border-slate-100 pt-2 text-[11px] text-slate-400 dark:border-zinc-800 dark:text-zinc-500">
+                    {{ t('admin.home.resources.pluginDetailsBasis') }}
+                  </p>
+                </div>
+              </template>
+            </UPopover>
+          </div>
+        </div>
+
+        <div class="flex min-w-0 items-center justify-between gap-3 py-2">
+          <dt class="min-w-0 text-xs font-semibold text-slate-500 dark:text-zinc-400">
+            {{ t('admin.home.resources.total') }}
+          </dt>
+          <dd class="shrink-0 font-mono text-sm font-bold text-[var(--sf-accent)] dark:text-[var(--sf-accent-dark)]">
+            {{ memoryValue('total') }}
           </dd>
         </div>
       </dl>
+
+      <div class="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-slate-100 pt-2 text-[11px] text-slate-400 dark:border-zinc-800 dark:text-zinc-500">
+        <span>{{ memoryBasis }}</span>
+        <span v-if="pssTotal">{{ pssTotal }}</span>
+      </div>
     </UCard>
 
-    <!-- CPU Gauge -->
     <UCard class="elegant-card min-w-0 border-slate-200 bg-white text-slate-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100">
       <template #header>
         <div class="flex items-center justify-between gap-3">
@@ -124,7 +240,7 @@ const memoryRows = computed(() => {
           </span>
         </div>
       </template>
-      <div class="flex flex-col items-center justify-center h-full pt-4">
+      <div class="flex h-full flex-col items-center justify-center pt-4">
         <SFResourceGauge
           :value="cpuValue"
           :percent="cpuPercent"
@@ -134,7 +250,6 @@ const memoryRows = computed(() => {
       </div>
     </UCard>
 
-    <!-- System Load Average -->
     <UCard class="elegant-card min-w-0 border-slate-200 bg-white text-slate-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100">
       <template #header>
         <div class="flex items-center justify-between gap-3">

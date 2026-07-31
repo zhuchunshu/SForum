@@ -132,6 +132,38 @@ See `deploy/caddy/Caddyfile`. For client IPs, set `TRUST_PROXY` and a precise `T
 
 Do not treat `EMBED_WORKER_IN_API` as a production default.
 
+## Runtime Memory And Diagnostics
+
+The `/control-panel` resource cards read
+`GET /api/v1/admin/overview/resources` and account for the API, an independent
+Worker, and backend plugin processes owned directly by those processes. Requests
+share one process-table sample for up to 5 seconds and display a rolling
+60-second median. Linux can also expose complete process-family PSS; systems such
+as macOS do not fabricate an "effective" PSS value. Plugin details are ordered
+from highest to lowest RSS and exclude unrelated services and orphaned processes.
+
+Development embeds the Worker in the API by default. The API row is labeled as
+including the Worker, while the Worker row reports embedded slots and running
+jobs instead of inventing a standalone Worker MiB value. With
+`EMBED_WORKER_IN_API=false`, a standalone Worker is measured separately.
+
+Go pprof is an explicit opt-in, loopback-only diagnostic surface and is disabled
+by default:
+
+```sh
+# Temporarily enable API diagnostics (an embedded Worker is included)
+PPROF_ENABLED=true PPROF_ADDR=127.0.0.1:6060
+
+# Enable a separate profile only for a standalone Worker
+WORKER_PPROF_ENABLED=true WORKER_PPROF_ADDR=127.0.0.1:6061
+```
+
+When enabled, use `http://127.0.0.1:6060/debug/pprof/` (or `6061` for the
+standalone Worker). Never publish these ports or proxy them publicly. Remove the
+flags and restart after profiling. `GOMEMLIMIT` can provide a Go runtime soft
+heap target, for example `GOMEMLIMIT=512MiB`; it is not a hard RSS limit for
+plugins or the container, which need their own resource limits.
+
 ## After go-live
 
 1. Create the first super admin on empty DBs  

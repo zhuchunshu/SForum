@@ -15,7 +15,7 @@
 - Added `/admin/overview/resources` lightweight endpoint (process + disk +
   system load only).
 - Dashboard now polls:
-  - Resource cards (memory/CPU/disk): every **2 seconds**
+- Resource cards (memory/CPU/disk): every **5 seconds**
   - Full overview / KPI cards: every **30 seconds**
 - Background polling respects page visibility and KeepAlive; manual refresh still works.
 - Omitted fields in resource patch preserve previous values (no flicker to "unavailable").
@@ -31,8 +31,9 @@
 
 ## Next
 
-- User will manually verify the dashboard in the running local app.
+- Final implementation and Browser evidence are superseded by
+  `2026-07-31-runtime-memory-governance.md`.
 
 ## Open Questions
 
-- None.
+- None; retain this file as the initial resource-card checkpoint.

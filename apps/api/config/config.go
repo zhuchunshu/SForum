@@ -26,6 +26,10 @@ type Config struct {
 	HTTPIdleTimeout               time.Duration
 	HTTPBodyLimit                 int
 	CompressLevel                 int
+	PprofEnabled                  bool
+	PprofAddr                     string
+	WorkerPprofEnabled            bool
+	WorkerPprofAddr               string
 	DatabaseURL                   string
 	MigrateOnStartup              bool
 	DatabaseMaxConns              int32
@@ -154,18 +158,22 @@ func Load() Config {
 	}
 
 	cfg := Config{
-		AppEnv:           appEnv,
-		AppName:          env("APP_NAME", "SForum"),
-		AppURL:           env("APP_URL", "http://127.0.0.1:3000"),
-		AppLocale:        defaultLocale,
-		SupportedLocales: supported,
-		HTTPHost:         env("HTTP_HOST", "0.0.0.0"),
-		HTTPPort:         env("HTTP_PORT", "8080"),
-		HTTPReadTimeout:  envDuration("HTTP_READ_TIMEOUT", 10*time.Second),
-		HTTPWriteTimeout: envDuration("HTTP_WRITE_TIMEOUT", 20*time.Second),
-		HTTPIdleTimeout:  envDuration("HTTP_IDLE_TIMEOUT", 120*time.Second),
-		HTTPBodyLimit:    envPositiveInt("HTTP_BODY_LIMIT", 64*1024*1024),
-		CompressLevel:    compressLevelFromEnv(env("COMPRESS_LEVEL", "default")),
+		AppEnv:             appEnv,
+		AppName:            env("APP_NAME", "SForum"),
+		AppURL:             env("APP_URL", "http://127.0.0.1:3000"),
+		AppLocale:          defaultLocale,
+		SupportedLocales:   supported,
+		HTTPHost:           env("HTTP_HOST", "0.0.0.0"),
+		HTTPPort:           env("HTTP_PORT", "8080"),
+		HTTPReadTimeout:    envDuration("HTTP_READ_TIMEOUT", 10*time.Second),
+		HTTPWriteTimeout:   envDuration("HTTP_WRITE_TIMEOUT", 20*time.Second),
+		HTTPIdleTimeout:    envDuration("HTTP_IDLE_TIMEOUT", 120*time.Second),
+		HTTPBodyLimit:      envPositiveInt("HTTP_BODY_LIMIT", 64*1024*1024),
+		CompressLevel:      compressLevelFromEnv(env("COMPRESS_LEVEL", "default")),
+		PprofEnabled:       envBool("PPROF_ENABLED", false),
+		PprofAddr:          env("PPROF_ADDR", "127.0.0.1:6060"),
+		WorkerPprofEnabled: envBool("WORKER_PPROF_ENABLED", false),
+		WorkerPprofAddr:    env("WORKER_PPROF_ADDR", "127.0.0.1:6061"),
 		// 默认启用 TLS（sslmode=require）；本地开发无 TLS 的 Postgres 需显式设置 sslmode=disable。
 		DatabaseURL:                   env("DATABASE_URL", "postgres://sforum:sforum@postgres:5432/sforum?sslmode=require"),
 		MigrateOnStartup:              envBool("MIGRATE_ON_STARTUP", true),

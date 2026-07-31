@@ -53,6 +53,23 @@ time, Go version, dirty state, and source URL. The same package is the single
 authority for `--version` output from the API, worker, migrator, and developer
 CLI processes.
 
+Runtime resource accounting lives in `app/Support/ProcessMemory` and is shared
+by the admin overview. A cached `ps` frame is sampled at most every 5 seconds;
+the collector keeps a 60-second rolling median for API, standalone Worker,
+直属 backend plugin, and total RSS. Linux reads PSS from `smaps_rollup` when all
+members are available; other platforms leave PSS absent rather than presenting
+an invented value. Plugin attribution is limited to direct children of the API
+or Worker and includes per-extension process counts. When the Worker is embedded
+in the API, `WithWorkerRuntime` exposes the mode and concurrency without adding
+a fictional Worker memory line.
+
+The optional `app/Support/RuntimeDiagnostics` server owns loopback-only pprof
+listeners. `PPROF_ENABLED` and `WORKER_PPROF_ENABLED` default to false; the API
+profile already covers an embedded Worker. The Go runtime's `GOMEMLIMIT` remains
+an operator-provided soft heap target, not a replacement for plugin/container
+limits. The primary recurring allocation source found during profiling was
+streamed away from `io.ReadAll` in extension artifact digest validation.
+
 Process probes (F1.2): `GET /api/v1/health` is cheap liveness; `GET
 /api/v1/ready` evaluates dependencies via `app/Support/Health` (PostgreSQL
 required; Redis and Meilisearch failures are degraded-ready).

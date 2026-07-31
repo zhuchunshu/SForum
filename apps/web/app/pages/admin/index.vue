@@ -43,7 +43,7 @@ const {
   { default: () => null }
 )
 
-// 资源 2s + KPI 30s；标签页隐藏 / KeepAlive 停用时自动停止。
+// 资源 5s + KPI 30s；标签页隐藏 / KeepAlive 停用时自动停止。
 useAdminOverviewLive({ overview, request })
 
 const kpiCards = computed(() => {
@@ -196,7 +196,7 @@ function extensionWidgetColor(widget: AdminOverviewExtensionWidget) {
     </p>
   </div>
 
-  <UDashboardToolbar class="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-lg px-4 py-2.5 mb-6 text-slate-500 dark:text-zinc-400">
+  <UDashboardToolbar class="max-sm:flex-col max-sm:items-stretch max-sm:justify-start max-sm:gap-2 border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-lg px-4 py-2.5 mb-6 text-slate-500 dark:text-zinc-400">
     <template #left>
       <div class="flex min-w-0 flex-col gap-0.5 text-sm sm:flex-row sm:items-center sm:gap-2">
         <div class="flex min-w-0 items-center gap-2">
@@ -211,18 +211,20 @@ function extensionWidgetColor(widget: AdminOverviewExtensionWidget) {
       </div>
     </template>
     <template #right>
-      <div class="flex items-center gap-3">
+      <div class="flex items-center justify-end gap-3 max-sm:w-full">
         <UButton
           icon="i-lucide-rotate-cw"
           color="neutral"
           variant="subtle"
           class="shrink-0 whitespace-nowrap"
+          :aria-label="t('admin.home.refresh')"
+          :title="t('admin.home.refresh')"
           :loading="pending"
           @click="refresh()"
         >
-          {{ t('admin.home.refresh') }}
+          <span class="hidden sm:inline">{{ t('admin.home.refresh') }}</span>
         </UButton>
-        <UBadge color="neutral" variant="soft" class="border border-slate-200 dark:border-zinc-800 font-mono">
+        <UBadge color="neutral" variant="soft" class="hidden border border-slate-200 font-mono dark:border-zinc-800 sm:inline-flex">
           {{ adminRoutes.prefix }}
         </UBadge>
       </div>

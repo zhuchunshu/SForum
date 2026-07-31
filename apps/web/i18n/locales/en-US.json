@@ -648,7 +648,7 @@
       "toolbar": {
         "loading": "Loading admin overview...",
         "generatedAt": "Last {days} days · Updated {time}",
-        "live": "Resources every 2s · KPIs every 30s"
+        "live": "Resources every 5s · KPIs every 30s"
       },
       "kpi": {
         "memory": {
@@ -677,10 +677,21 @@
         "loadFiveMinutes": "5 minutes",
         "loadFifteenMinutes": "15 minutes",
         "api": "API",
-        "worker": "Worker",
+        "apiWithWorker": "API process (includes Worker)",
+        "worker": "Worker status",
         "plugin": "Plugins",
         "total": "Total",
-        "workerEmbedded": "In API",
+        "workerEmbedded": "Embedded in API",
+        "workerEmbeddedRunning": "Embedded · {running}/{concurrency} running",
+        "workerEmbeddedSlots": "Embedded · {concurrency} slots",
+        "workerNotFound": "Process not detected",
+        "pluginProcesses": "{count} processes",
+        "pluginOverlap": "· switching overlap +{count}",
+        "pluginOverlapDetail": "Detected {count} extra same-plugin processes. This is normally a brief runtime replacement overlap; if it persists, inspect the plugin lifecycle logs.",
+        "pluginDetails": "Plugin process details",
+        "pluginDetailsBasis": "Per-plugin values are current process RSS, ordered from highest to lowest.",
+        "memoryBasis": "{seconds}s rolling median · RSS",
+        "pssTotal": "Effective {value} PSS",
         "diskUsed": "used",
         "unavailable": "Unavailable"
       },

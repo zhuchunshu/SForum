@@ -151,7 +151,7 @@ func TestDockerBuildsProtectedBuiltinBackendsAndValidatesV3Digest(t *testing.T) 
 		t.Fatal(err)
 	}
 	text := string(body)
-	const linuxBuild = "CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -o plugin ."
+	const linuxBuild = "CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -ldflags=\"-s -w\" -o plugin ."
 	if count := strings.Count(text, linuxBuild); count < 7 {
 		t.Errorf("Dockerfile builds only %d protected builtin Linux backends, want at least 7", count)
 	}
@@ -166,6 +166,7 @@ func TestDockerBuildsProtectedBuiltinBackendsAndValidatesV3Digest(t *testing.T) 
 		"cd /app/extensions/builtin/plugins/sforum-storage-s3/backend",
 		"cd /app/extensions/builtin/plugins/sforum-search-site/backend",
 		"cd /app/extensions/builtin/plugins/sforum-auth-github/backend",
+		"cd /app/extensions/builtin/plugins/sforum-web-push/backend",
 		// 受保护插件均需 digest --write + extension test，避免 Linux 镜像摘要漂移。
 		"extension digest --write /app/extensions/builtin/plugins/sforum-smtp",
 		"extension test /app/extensions/builtin/plugins/sforum-smtp",
@@ -180,6 +181,8 @@ func TestDockerBuildsProtectedBuiltinBackendsAndValidatesV3Digest(t *testing.T) 
 		"extension test /app/extensions/builtin/plugins/sforum-search-site",
 		"extension digest --write /app/extensions/builtin/plugins/sforum-auth-github",
 		"extension test /app/extensions/builtin/plugins/sforum-auth-github",
+		"extension digest --write /app/extensions/builtin/plugins/sforum-web-push",
+		"extension test /app/extensions/builtin/plugins/sforum-web-push",
 	} {
 		if !strings.Contains(text, required) {
 			t.Errorf("Dockerfile is missing protected builtin Linux package gate %q", required)

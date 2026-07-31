@@ -107,11 +107,12 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- Admin overview resource cards: the dashboard now has categorized API/
-  Worker/plugin/total memory, API CPU, and 1/5/15-minute system-load cards;
-  the system load is no longer a duplicate CPU percentage. Manual browser
-  verification remains for the user:
-  `sessions/2026-07-31-admin-overview-resource-cards.md`
+- Runtime memory governance: API/Worker/plugin/total resource cards now use
+  cached sampling and a 60-second median, embedded Worker accounting is
+  explicit, plugin artifact hashing is streaming, and pprof is loopback-only
+  opt-in. Desktop and 390px Browser QA passed, including the sorted plugin
+  details popover:
+  `sessions/2026-07-31-runtime-memory-governance.md`
 
 - PNG attachment compression: lossless display variants now use the strongest
   standard-library PNG encoder at the recommended strength and exact indexed

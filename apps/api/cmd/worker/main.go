@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	runtimediagnostics "github.com/zhuchunshu/sforum/apps/api/app/Support/RuntimeDiagnostics"
 	"github.com/zhuchunshu/sforum/apps/api/bootstrap"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 	platformversion "github.com/zhuchunshu/sforum/apps/api/version"
@@ -45,6 +46,12 @@ func runWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) erro
 	if err != nil {
 		return fmt.Errorf("worker bootstrap: %w", err)
 	}
+	profiler, err := runtimediagnostics.StartPprof(ctx, cfg.WorkerPprofEnabled, cfg.WorkerPprofAddr, logger)
+	if err != nil {
+		worker.Close()
+		return fmt.Errorf("worker runtime diagnostics: %w", err)
+	}
+	defer profiler.Close()
 	return runWorkerLifecycle(ctx, cfg, logger, worker)
 }
 

@@ -41,7 +41,7 @@ export function applyOverviewResources(
   }
 }
 
-export const ADMIN_OVERVIEW_RESOURCE_POLL_MS = 2000
+export const ADMIN_OVERVIEW_RESOURCE_POLL_MS = 5000
 export const ADMIN_OVERVIEW_KPI_POLL_MS = 30_000
 
 export type AdminOverviewExtensionWidget = {
@@ -97,16 +97,67 @@ export type AdminOverviewRuntime = {
 }
 
 export type AdminOverviewRuntimeResources = {
+  sampledAt?: string
   apiMemoryBytes: number
   workerMemoryBytes: number
   pluginMemoryBytes: number
   totalMemoryBytes: number
+  apiPssBytes?: number
+  workerPssBytes?: number
+  pluginPssBytes?: number
+  totalPssBytes?: number
+  apiMemoryMedianBytes: number
+  workerMemoryMedianBytes: number
+  pluginMemoryMedianBytes: number
+  totalMemoryMedianBytes: number
+  memorySampleCount: number
+  memoryWindowSeconds: number
   apiCpuPercent: number
   workerCpuPercent: number
   pluginCpuPercent: number
   totalCpuPercent: number
   pluginChildCount: number
+  pluginOverlapCount: number
+  plugins?: AdminOverviewPluginRuntimeUsage[]
   workerFound: boolean
+  workerEmbedded: boolean
+  workerConcurrency: number
+}
+
+export type AdminOverviewPluginRuntimeUsage = {
+  extensionId: string
+  memoryBytes: number
+  pssBytes?: number
+  cpuPercent: number
+  processCount: number
+  apiOwnedProcessCount: number
+  workerOwnedProcessCount: number
+}
+
+export type AdminOverviewMemoryBucket = 'api' | 'worker' | 'plugin' | 'total'
+
+/** 优先显示滚动中位数；兼容尚未返回窗口字段的旧 API 帧。 */
+export function overviewMemoryDisplayBytes(
+  resources: AdminOverviewRuntimeResources,
+  bucket: AdminOverviewMemoryBucket
+) {
+  const medianKeys: Record<AdminOverviewMemoryBucket, keyof AdminOverviewRuntimeResources> = {
+    api: 'apiMemoryMedianBytes',
+    worker: 'workerMemoryMedianBytes',
+    plugin: 'pluginMemoryMedianBytes',
+    total: 'totalMemoryMedianBytes'
+  }
+  const instantKeys: Record<AdminOverviewMemoryBucket, keyof AdminOverviewRuntimeResources> = {
+    api: 'apiMemoryBytes',
+    worker: 'workerMemoryBytes',
+    plugin: 'pluginMemoryBytes',
+    total: 'totalMemoryBytes'
+  }
+  const median = Number(resources[medianKeys[bucket]])
+  if (Number.isFinite(median) && median >= 0 && Number(resources.memorySampleCount) > 0) {
+    return median
+  }
+  return Math.max(0, Number(resources[instantKeys[bucket]]) || 0)
 }
 
 export type AdminOverviewDiskRuntime = {

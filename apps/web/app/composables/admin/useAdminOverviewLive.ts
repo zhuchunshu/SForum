@@ -10,7 +10,7 @@ import {
 type OverviewRequest = <T>(path: string) => Promise<T>
 
 /**
- * 仪表盘双频轮询：资源 2s（轻量 endpoint），KPI/全量 30s。
+ * 仪表盘双频轮询：资源 5s（轻量 endpoint），KPI/全量 30s。
  * 仅在客户端、页面激活且标签页可见时运行；后台失败静默忽略。
  */
 export function useAdminOverviewLive(options: {

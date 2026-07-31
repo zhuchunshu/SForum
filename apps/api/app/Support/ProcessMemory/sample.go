@@ -4,7 +4,9 @@ package processmemory
 
 import (
 	"os"
+	"sort"
 	"strings"
+	"time"
 )
 
 // Sample 描述一次可测试的进程采样结果。
@@ -15,7 +17,10 @@ type Sample struct {
 	RSSBytes uint64
 	// CPUPercent 是 ps 报告的进程 CPU 占用百分比。
 	CPUPercent float64
+	// PSSBytes 是 Linux 可用时的 proportional set size；其它系统或读取失败时为 0。
+	PSSBytes   uint64
 	Command    string
+	CapturedAt time.Time
 }
 
 // Sampler 读取本机进程列表。
@@ -23,8 +28,15 @@ type Sampler interface {
 	List() ([]Sample, error)
 }
 
-// DefaultSampler 使用 OS 相关实现（见 sampler_*.go）。
-var DefaultSampler Sampler = osSampler{}
+const (
+	// DefaultSampleInterval 限制进程表采样频率，所有管理端请求共享同一帧。
+	DefaultSampleInterval = 5 * time.Second
+	// DefaultUsageWindow 用 60 秒中位数平滑 GC、按需页载入与 runtime 切换抖动。
+	DefaultUsageWindow = time.Minute
+)
+
+// DefaultSampler 共享一次短 TTL 的系统进程表采样；不把宿主诊断依赖带进插件 SDK 构建图。
+var DefaultSampler Sampler = NewCachedSampler(osSampler{}, DefaultSampleInterval)
 
 // IsBackendPluginCommand 判断命令行是否为扩展 storage 下的 backend plugin 二进制。
 // 仅匹配 SForum 扩展制品路径，避免误伤其它同名程序。
@@ -99,16 +111,31 @@ func AggregateFamily(selfPID int, samples []Sample) (selfRSS uint64, familyRSS u
 // RuntimeUsage 汇总当前 API、独立 Worker 及其插件进程的资源占用。
 // Worker 可能由 API 嵌入，此时 WorkerFound=false，由调用方标记为 embedded。
 type RuntimeUsage struct {
-	APIMemoryBytes    uint64  `json:"apiMemoryBytes"`
-	WorkerMemoryBytes uint64  `json:"workerMemoryBytes"`
-	PluginMemoryBytes uint64  `json:"pluginMemoryBytes"`
-	TotalMemoryBytes  uint64  `json:"totalMemoryBytes"`
-	APICPUPercent     float64 `json:"apiCpuPercent"`
-	WorkerCPUPercent  float64 `json:"workerCpuPercent"`
-	PluginCPUPercent  float64 `json:"pluginCpuPercent"`
-	TotalCPUPercent   float64 `json:"totalCpuPercent"`
-	PluginChildCount  int     `json:"pluginChildCount"`
-	WorkerFound       bool    `json:"workerFound"`
+	APIMemoryBytes          uint64        `json:"apiMemoryBytes"`
+	WorkerMemoryBytes       uint64        `json:"workerMemoryBytes"`
+	PluginMemoryBytes       uint64        `json:"pluginMemoryBytes"`
+	TotalMemoryBytes        uint64        `json:"totalMemoryBytes"`
+	APIPSSBytes             uint64        `json:"apiPssBytes,omitempty"`
+	WorkerPSSBytes          uint64        `json:"workerPssBytes,omitempty"`
+	PluginPSSBytes          uint64        `json:"pluginPssBytes,omitempty"`
+	TotalPSSBytes           uint64        `json:"totalPssBytes,omitempty"`
+	APIMemoryMedianBytes    uint64        `json:"apiMemoryMedianBytes"`
+	WorkerMemoryMedianBytes uint64        `json:"workerMemoryMedianBytes"`
+	PluginMemoryMedianBytes uint64        `json:"pluginMemoryMedianBytes"`
+	TotalMemoryMedianBytes  uint64        `json:"totalMemoryMedianBytes"`
+	MemorySampleCount       int           `json:"memorySampleCount"`
+	MemoryWindowSeconds     int           `json:"memoryWindowSeconds"`
+	APICPUPercent           float64       `json:"apiCpuPercent"`
+	WorkerCPUPercent        float64       `json:"workerCpuPercent"`
+	PluginCPUPercent        float64       `json:"pluginCpuPercent"`
+	TotalCPUPercent         float64       `json:"totalCpuPercent"`
+	PluginChildCount        int           `json:"pluginChildCount"`
+	PluginOverlapCount      int           `json:"pluginOverlapCount"`
+	Plugins                 []PluginUsage `json:"plugins,omitempty"`
+	WorkerFound             bool          `json:"workerFound"`
+	WorkerEmbedded          bool          `json:"workerEmbedded"`
+	WorkerConcurrency       int           `json:"workerConcurrency"`
+	SampledAt               *time.Time    `json:"sampledAt,omitempty"`
 
 	// These fields preserve the legacy API family-memory semantics without
 	// exposing another line of detail in the dashboard resource strip.
@@ -116,22 +143,48 @@ type RuntimeUsage struct {
 	APIOwnedPluginCount       int    `json:"-"`
 }
 
+// PluginUsage 是按扩展 ID 汇总的当前进程资源，避免管理端只能看到一个不可解释总数。
+type PluginUsage struct {
+	ExtensionID             string  `json:"extensionId"`
+	MemoryBytes             uint64  `json:"memoryBytes"`
+	PSSBytes                uint64  `json:"pssBytes,omitempty"`
+	CPUPercent              float64 `json:"cpuPercent"`
+	ProcessCount            int     `json:"processCount"`
+	APIOwnedProcessCount    int     `json:"apiOwnedProcessCount"`
+	WorkerOwnedProcessCount int     `json:"workerOwnedProcessCount"`
+}
+
 // AggregateRuntimeUsage 只统计当前 API 进程、独立 sforum-worker 进程及其
 // 直接拥有的 backend plugin，避免把机器上的其它服务计入后台总计。
 func AggregateRuntimeUsage(selfPID int, samples []Sample) RuntimeUsage {
 	usage := RuntimeUsage{}
 	owners := map[int]struct{}{selfPID: {}}
+	workerOwners := map[int]struct{}{}
+	pluginByID := map[string]*PluginUsage{}
+	pssComplete := true
+	resourceCount := 0
 	for _, sample := range samples {
 		if sample.PID == selfPID {
 			usage.APIMemoryBytes = sample.RSSBytes
+			usage.APIPSSBytes = sample.PSSBytes
 			usage.APICPUPercent = sample.CPUPercent
+			if !sample.CapturedAt.IsZero() {
+				capturedAt := sample.CapturedAt.UTC()
+				usage.SampledAt = &capturedAt
+			}
+			resourceCount++
+			pssComplete = pssComplete && sample.PSSBytes > 0
 			continue
 		}
 		if IsSforumWorkerCommand(sample.Command) {
 			usage.WorkerFound = true
 			usage.WorkerMemoryBytes += sample.RSSBytes
+			usage.WorkerPSSBytes += sample.PSSBytes
 			usage.WorkerCPUPercent += sample.CPUPercent
 			owners[sample.PID] = struct{}{}
+			workerOwners[sample.PID] = struct{}{}
+			resourceCount++
+			pssComplete = pssComplete && sample.PSSBytes > 0
 		}
 	}
 	for _, sample := range samples {
@@ -142,15 +195,62 @@ func AggregateRuntimeUsage(selfPID int, samples []Sample) RuntimeUsage {
 			continue
 		}
 		usage.PluginMemoryBytes += sample.RSSBytes
+		usage.PluginPSSBytes += sample.PSSBytes
 		usage.PluginCPUPercent += sample.CPUPercent
 		usage.PluginChildCount++
+		resourceCount++
+		pssComplete = pssComplete && sample.PSSBytes > 0
+		extensionID, ok := ExtensionIDFromPluginCommand(sample.Command)
+		if !ok {
+			extensionID = "unknown"
+		}
+		pluginUsage := pluginByID[extensionID]
+		if pluginUsage == nil {
+			pluginUsage = &PluginUsage{ExtensionID: extensionID}
+			pluginByID[extensionID] = pluginUsage
+		}
+		pluginUsage.MemoryBytes += sample.RSSBytes
+		pluginUsage.PSSBytes += sample.PSSBytes
+		pluginUsage.CPUPercent += sample.CPUPercent
+		pluginUsage.ProcessCount++
 		if sample.PPID == selfPID {
 			usage.APIOwnedPluginMemoryBytes += sample.RSSBytes
 			usage.APIOwnedPluginCount++
+			pluginUsage.APIOwnedProcessCount++
+		} else if _, ok := workerOwners[sample.PPID]; ok {
+			pluginUsage.WorkerOwnedProcessCount++
 		}
 	}
+	usage.Plugins = make([]PluginUsage, 0, len(pluginByID))
+	for _, pluginUsage := range pluginByID {
+		usage.PluginOverlapCount += max(pluginUsage.APIOwnedProcessCount-1, 0)
+		usage.PluginOverlapCount += max(pluginUsage.WorkerOwnedProcessCount-1, 0)
+		usage.Plugins = append(usage.Plugins, *pluginUsage)
+	}
+	sort.Slice(usage.Plugins, func(i, j int) bool {
+		if usage.Plugins[i].MemoryBytes == usage.Plugins[j].MemoryBytes {
+			return usage.Plugins[i].ExtensionID < usage.Plugins[j].ExtensionID
+		}
+		return usage.Plugins[i].MemoryBytes > usage.Plugins[j].MemoryBytes
+	})
 	usage.TotalMemoryBytes = usage.APIMemoryBytes + usage.WorkerMemoryBytes + usage.PluginMemoryBytes
+	if resourceCount > 0 && pssComplete {
+		usage.TotalPSSBytes = usage.APIPSSBytes + usage.WorkerPSSBytes + usage.PluginPSSBytes
+	} else {
+		usage.APIPSSBytes = 0
+		usage.WorkerPSSBytes = 0
+		usage.PluginPSSBytes = 0
+		usage.TotalPSSBytes = 0
+		for index := range usage.Plugins {
+			usage.Plugins[index].PSSBytes = 0
+		}
+	}
 	usage.TotalCPUPercent = usage.APICPUPercent + usage.WorkerCPUPercent + usage.PluginCPUPercent
+	usage.APIMemoryMedianBytes = usage.APIMemoryBytes
+	usage.WorkerMemoryMedianBytes = usage.WorkerMemoryBytes
+	usage.PluginMemoryMedianBytes = usage.PluginMemoryBytes
+	usage.TotalMemoryMedianBytes = usage.TotalMemoryBytes
+	usage.MemorySampleCount = 1
 	return usage
 }
 

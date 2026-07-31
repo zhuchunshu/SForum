@@ -121,6 +121,33 @@ func TestLoadIncludesDefaultWorkerConfig(t *testing.T) {
 	}
 }
 
+func TestLoadPprofDefaultsAndOverrides(t *testing.T) {
+	t.Setenv("APP_ENV", "test")
+	for _, key := range []string{"PPROF_ENABLED", "PPROF_ADDR", "WORKER_PPROF_ENABLED", "WORKER_PPROF_ADDR"} {
+		t.Setenv(key, "")
+	}
+
+	defaults := Load()
+	if defaults.PprofEnabled || defaults.WorkerPprofEnabled {
+		t.Fatalf("pprof must be opt-in: api=%v worker=%v", defaults.PprofEnabled, defaults.WorkerPprofEnabled)
+	}
+	if defaults.PprofAddr != "127.0.0.1:6060" || defaults.WorkerPprofAddr != "127.0.0.1:6061" {
+		t.Fatalf("unexpected loopback defaults: api=%q worker=%q", defaults.PprofAddr, defaults.WorkerPprofAddr)
+	}
+
+	t.Setenv("PPROF_ENABLED", "true")
+	t.Setenv("PPROF_ADDR", "localhost:7060")
+	t.Setenv("WORKER_PPROF_ENABLED", "1")
+	t.Setenv("WORKER_PPROF_ADDR", "127.0.0.1:7061")
+	overrides := Load()
+	if !overrides.PprofEnabled || !overrides.WorkerPprofEnabled {
+		t.Fatalf("expected explicit pprof enablement: api=%v worker=%v", overrides.PprofEnabled, overrides.WorkerPprofEnabled)
+	}
+	if overrides.PprofAddr != "localhost:7060" || overrides.WorkerPprofAddr != "127.0.0.1:7061" {
+		t.Fatalf("unexpected pprof overrides: api=%q worker=%q", overrides.PprofAddr, overrides.WorkerPprofAddr)
+	}
+}
+
 func TestLoadDevelopmentLeanJobQueueAndPoolDefaults(t *testing.T) {
 	t.Setenv("APP_ENV", "development")
 	t.Setenv("DATABASE_URL", "postgres://example:example@localhost:5432/example?sslmode=disable")

@@ -11,19 +11,19 @@ COPY extensions/builtin /app/extensions/builtin
 # 内置插件后端二进制（与 scripts/build-builtin-plugins.sh 对齐）：
 # 受保护插件均构建后刷新 V3 packageFiles digest 并跑宿主契约门禁。
 RUN cd /app/extensions/builtin/plugins/sforum-smtp/backend && \
-	CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -o plugin . && \
+	CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -ldflags="-s -w" -o plugin . && \
 	cd /app/extensions/builtin/plugins/sforum-content-policy/backend && \
-	CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -o plugin . && \
+	CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -ldflags="-s -w" -o plugin . && \
 	cd /app/extensions/builtin/plugins/sforum-storage-fs/backend && \
-	CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -o plugin . && \
+	CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -ldflags="-s -w" -o plugin . && \
 	cd /app/extensions/builtin/plugins/sforum-storage-s3/backend && \
-	CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -o plugin . && \
+	CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -ldflags="-s -w" -o plugin . && \
 	cd /app/extensions/builtin/plugins/sforum-search-site/backend && \
-	CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -o plugin . && \
+	CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -ldflags="-s -w" -o plugin . && \
 	cd /app/extensions/builtin/plugins/sforum-auth-github/backend && \
-	CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -o plugin . && \
+	CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -ldflags="-s -w" -o plugin . && \
 	cd /app/extensions/builtin/plugins/sforum-web-push/backend && \
-	CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -o plugin . && \
+	CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -ldflags="-s -w" -o plugin . && \
 	cd /app/apps/api && \
 	CGO_ENABLED=0 go run ./cmd/sforum extension digest --write /app/extensions/builtin/plugins/sforum-smtp && \
 	CGO_ENABLED=0 go run ./cmd/sforum extension test /app/extensions/builtin/plugins/sforum-smtp && \

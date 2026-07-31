@@ -14,6 +14,7 @@ import {
   formatOverviewTrendDayCount,
   formatOverviewVersion,
   overviewActionTone,
+  overviewMemoryDisplayBytes,
   overviewPercent,
   overviewTrendBarHeightPx,
   overviewTrendDateLabel,
@@ -30,8 +31,8 @@ import {
 } from '../../app/utils/admin/adminOverview'
 
 describe('admin overview helpers', () => {
-  test('live poll intervals are 2s resources and 30s KPI', () => {
-    expect(ADMIN_OVERVIEW_RESOURCE_POLL_MS).toBe(2000)
+  test('live poll intervals are 5s resources and 30s KPI', () => {
+    expect(ADMIN_OVERVIEW_RESOURCE_POLL_MS).toBe(5000)
     expect(ADMIN_OVERVIEW_KPI_POLL_MS).toBe(30_000)
   })
 
@@ -59,12 +60,21 @@ describe('admin overview helpers', () => {
           workerMemoryBytes: 0,
           pluginMemoryBytes: 0,
           totalMemoryBytes: 10,
+          apiMemoryMedianBytes: 10,
+          workerMemoryMedianBytes: 0,
+          pluginMemoryMedianBytes: 0,
+          totalMemoryMedianBytes: 10,
+          memorySampleCount: 1,
+          memoryWindowSeconds: 60,
           apiCpuPercent: 1,
           workerCpuPercent: 0,
           pluginCpuPercent: 0,
           totalCpuPercent: 1,
           pluginChildCount: 0,
-          workerFound: false
+          pluginOverlapCount: 0,
+          workerFound: false,
+          workerEmbedded: true,
+          workerConcurrency: 7
         },
         disk: {
           totalBytes: 100,
@@ -155,6 +165,33 @@ describe('admin overview helpers', () => {
     expect(formatOverviewBytes(0)).toBe('0 MiB')
     expect(formatOverviewBytes(1024 * 1024)).toBe('1 MiB')
     expect(formatOverviewBytes(1536 * 1024 * 1024)).toBe('1,536 MiB')
+  })
+
+  test('prefers rolling memory medians and falls back to instant RSS for old frames', () => {
+    const resources = {
+      apiMemoryBytes: 210,
+      workerMemoryBytes: 0,
+      pluginMemoryBytes: 120,
+      totalMemoryBytes: 330,
+      apiMemoryMedianBytes: 200,
+      workerMemoryMedianBytes: 0,
+      pluginMemoryMedianBytes: 100,
+      totalMemoryMedianBytes: 300,
+      memorySampleCount: 12,
+      memoryWindowSeconds: 60,
+      apiCpuPercent: 1,
+      workerCpuPercent: 0,
+      pluginCpuPercent: 0.5,
+      totalCpuPercent: 1.5,
+      pluginChildCount: 7,
+      pluginOverlapCount: 0,
+      workerFound: false,
+      workerEmbedded: true,
+      workerConcurrency: 7
+    }
+    expect(overviewMemoryDisplayBytes(resources, 'api')).toBe(200)
+    expect(overviewMemoryDisplayBytes(resources, 'plugin')).toBe(100)
+    expect(overviewMemoryDisplayBytes({ ...resources, memorySampleCount: 0 }, 'total')).toBe(330)
   })
 
   test('formats resource percentages and disk sizes compactly', () => {

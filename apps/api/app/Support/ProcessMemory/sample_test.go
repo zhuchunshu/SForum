@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"testing"
+	"time"
 )
 
 func TestIsBackendPluginCommand(t *testing.T) {
@@ -81,6 +82,35 @@ func TestAggregateRuntimeUsageSplitsAPIWorkerAndPlugins(t *testing.T) {
 	}
 	if usage.APIOwnedPluginMemoryBytes != 10 || usage.APIOwnedPluginCount != 1 {
 		t.Fatalf("unexpected API-owned plugin metadata: %#v", usage)
+	}
+	if len(usage.Plugins) != 1 || usage.Plugins[0].ExtensionID != "demo" || usage.Plugins[0].ProcessCount != 2 {
+		t.Fatalf("unexpected plugin details: %#v", usage.Plugins)
+	}
+	if usage.Plugins[0].APIOwnedProcessCount != 1 || usage.Plugins[0].WorkerOwnedProcessCount != 1 || usage.PluginOverlapCount != 0 {
+		t.Fatalf("unexpected plugin ownership: %#v", usage.Plugins[0])
+	}
+}
+
+func TestAggregateRuntimeUsageExposesCompletePSSAndOverlap(t *testing.T) {
+	selfPID := 100
+	samples := []Sample{
+		{PID: selfPID, RSSBytes: 100, PSSBytes: 80, Command: "sforum-api"},
+		{PID: 201, PPID: selfPID, RSSBytes: 20, PSSBytes: 15, Command: "storage/extensions/demo.plugin/1.0.0/a/backend/plugin"},
+		{PID: 202, PPID: selfPID, RSSBytes: 22, PSSBytes: 16, Command: "storage/extensions/demo.plugin/1.0.0/b/backend/plugin"},
+	}
+
+	usage := AggregateRuntimeUsage(selfPID, samples)
+	if usage.TotalPSSBytes != 111 || usage.PluginPSSBytes != 31 {
+		t.Fatalf("unexpected PSS totals: %#v", usage)
+	}
+	if usage.PluginOverlapCount != 1 || len(usage.Plugins) != 1 || usage.Plugins[0].PSSBytes != 31 {
+		t.Fatalf("unexpected overlap details: %#v", usage)
+	}
+
+	samples[2].PSSBytes = 0
+	usage = AggregateRuntimeUsage(selfPID, samples)
+	if usage.TotalPSSBytes != 0 || usage.APIPSSBytes != 0 || usage.Plugins[0].PSSBytes != 0 {
+		t.Fatalf("partial PSS must be omitted: %#v", usage)
 	}
 }
 
@@ -167,5 +197,71 @@ func TestParsePSList(t *testing.T) {
 	}
 	if samples[2].Command != "node backend/plugin.js" {
 		t.Fatalf("legacy command parsing lost words: %q", samples[2].Command)
+	}
+}
+
+type countingSampler struct {
+	calls   int
+	samples []Sample
+}
+
+func (s *countingSampler) List() ([]Sample, error) {
+	s.calls++
+	return append([]Sample(nil), s.samples...), nil
+}
+
+func TestCachedSamplerSharesFramesAndReturnsCopies(t *testing.T) {
+	inner := &countingSampler{samples: []Sample{{PID: 1, RSSBytes: 10}}}
+	cached := NewCachedSampler(inner, 5*time.Second).(*cachedSampler)
+	now := time.Date(2026, 7, 31, 12, 0, 0, 0, time.UTC)
+	cached.now = func() time.Time { return now }
+
+	first, err := cached.List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	first[0].RSSBytes = 999
+	second, err := cached.List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if inner.calls != 1 || second[0].RSSBytes != 10 || second[0].CapturedAt != now {
+		t.Fatalf("cached frame calls=%d samples=%#v", inner.calls, second)
+	}
+
+	now = now.Add(5 * time.Second)
+	if _, err := cached.List(); err != nil {
+		t.Fatal(err)
+	}
+	if inner.calls != 2 {
+		t.Fatalf("expired cache calls=%d", inner.calls)
+	}
+}
+
+func TestUsageWindowUsesUniqueFramesAndRollingMedian(t *testing.T) {
+	window := NewUsageWindow(time.Minute)
+	base := time.Date(2026, 7, 31, 12, 0, 0, 0, time.UTC)
+	values := []uint64{100, 300, 200}
+	var observed RuntimeUsage
+	for index, value := range values {
+		at := base.Add(time.Duration(index) * 5 * time.Second)
+		observed = window.Observe(RuntimeUsage{
+			APIMemoryBytes: value, PluginMemoryBytes: value / 2,
+			TotalMemoryBytes: value + value/2, SampledAt: &at,
+		})
+	}
+	if observed.APIMemoryMedianBytes != 200 || observed.PluginMemoryMedianBytes != 100 || observed.MemorySampleCount != 3 || observed.MemoryWindowSeconds != 60 {
+		t.Fatalf("unexpected median window: %#v", observed)
+	}
+
+	duplicate := window.Observe(observed)
+	if duplicate.MemorySampleCount != 3 {
+		t.Fatalf("cached frame counted twice: %#v", duplicate)
+	}
+
+	later := base.Add(70 * time.Second)
+	pruned := window.Observe(RuntimeUsage{APIMemoryBytes: 50, TotalMemoryBytes: 50, SampledAt: &later})
+	if pruned.MemorySampleCount != 1 || pruned.APIMemoryMedianBytes != 50 {
+		t.Fatalf("old samples were not pruned: %#v", pruned)
 	}
 }

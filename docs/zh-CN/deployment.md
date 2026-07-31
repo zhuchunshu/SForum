@@ -135,6 +135,35 @@ docker compose --env-file .env.production -f compose.yaml -f compose.prod.yaml u
 
 开发里的 `EMBED_WORKER_IN_API` **不要**作为生产默认。
 
+## 运行时内存与诊断
+
+管理台 `/control-panel` 的资源卡通过
+`GET /api/v1/admin/overview/resources` 读取 API、独立 Worker 和直属插件
+进程的 RSS。资源请求最多每 5 秒共享一次采样，展示最近 60 秒中位数；Linux
+可同时显示完整进程族的 PSS，macOS 等不支持 PSS 的系统不会伪造“有效占用”。
+插件明细按占用从高到低列出，并只归因当前 API/Worker 直接拥有的插件进程。
+
+开发环境默认将 Worker 内嵌到 API。此时 API 行明确标记“含 Worker”，Worker
+行只显示内嵌并发槽位和运行任务数，不虚构一个独立 Worker 的 MiB。生产环境
+若设置 `EMBED_WORKER_IN_API=false`，独立 Worker 会单独计量。
+
+Go pprof 是显式 opt-in 的本机诊断面，默认关闭，且启动器拒绝非 loopback
+监听地址：
+
+```sh
+# 临时开启 API 诊断（内嵌 Worker 已包含在同一 profile）
+PPROF_ENABLED=true PPROF_ADDR=127.0.0.1:6060
+
+# 只有独立 Worker 才需要单独开启
+WORKER_PPROF_ENABLED=true WORKER_PPROF_ADDR=127.0.0.1:6061
+```
+
+启用后可用 `http://127.0.0.1:6060/debug/pprof/`（独立 Worker 为
+`6061`）采集 profile。不要把该端口发布到公网或交给反向代理；采集完成后
+删除开关并重启进程。`GOMEMLIMIT` 可作为 Go runtime 的软堆上限，例如
+`GOMEMLIMIT=512MiB`，但它不是插件进程或整个容器的硬 RSS 上限；插件和
+容器仍应配置各自的资源限制。
+
 ## 备份
 
 仓库提供 `deploy/scripts/` 下的 PostgreSQL 备份/恢复辅助脚本。请结合站点策略设定保留周期与异地备份（产品层仍开放「备份策略」问题）。

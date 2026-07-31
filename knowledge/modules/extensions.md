@@ -508,7 +508,17 @@ Relevant plans:
   provider inspection. The App Store remains a local framework shell until a
   real marketplace consumer is production-wired.
 - List/detail runtime RSS is best-effort and attributes only owned backend
-  plugin child processes of the current API process.
+  plugin child processes of the current API or standalone Worker process. The
+  admin overview orders per-plugin rows by RSS and explicitly reports transient
+  same-owner process overlap instead of silently inflating one plugin's value.
+- Protected built-in backend binaries use `-ldflags="-s -w"` in the development,
+  Docker, and release build paths. This removes linker/debug payloads from the
+  shipped executable without changing the plugin protocol; the current seven
+  built-ins save roughly 69 MiB in aggregate on the local build host.
+- Extension trust digest verification streams SHA-256 through a fixed-size
+  buffer. It preserves exact-root, stable-file, size, and regular-file checks
+  while avoiding an `io.ReadAll` allocation proportional to a 20-30 MiB plugin
+  artifact on every GuardPolicy refresh.
 
 ## Important Paths
 

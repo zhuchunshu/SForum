@@ -33,16 +33,24 @@ responsibilities.
   system load in one resource row, followed by a separate row for posts, users,
   and pending work. System load is the host run queue average, not a second CPU
   percentage.
-- Resource data comes from the admin overview runtime snapshot. Missing
-  process or filesystem samples render as localized unavailable states, and
-  an embedded worker is shown as included in API usage.
+- Resource data comes from the lightweight admin overview resource endpoint and
+  refreshes every 5 seconds. The cards prefer the backend's 60-second RSS
+  median, show PSS only when the platform reports a complete value, and expose
+  a per-plugin details popover ordered by current process RSS.
+- Missing process or filesystem samples render as localized unavailable states,
+  and an embedded Worker is shown as included in API usage with its slot/running
+  count instead of a fabricated standalone MiB value.
+- The narrow toolbar stacks its metadata and commands; the refresh command
+  collapses to an icon with an accessible label/title so `/control-panel` has no
+  horizontal overflow at 390px.
 - Backend focused tests, frontend helper tests, locale parsing, OpenAPI
-  reference validation, and Nuxt typecheck passed before the final CSS-only
-  scrollbar fix. Browser QA was intentionally left for manual verification.
+  reference validation, Nuxt typecheck, and Browser QA passed at 1440x900 and
+  390x844. Fresh Chrome tabs had no console errors or warnings during the final
+  checks.
 
 ### Admin overview real-time updates
 
-- Resources (processes, disk, and system load) now auto-refresh every **2 seconds** via dedicated lightweight endpoint.
+- Resources (processes, disk, and system load) now auto-refresh every **5 seconds** via dedicated lightweight endpoint.
 - Full overview / KPI cards refresh every **30 seconds**.
 - Polling respects page visibility and KeepAlive; manual refresh unchanged.
 - Omitted resource fields preserve previous values (no flash to "unavailable").

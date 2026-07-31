@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	health "github.com/zhuchunshu/sforum/apps/api/app/Support/Health"
+	processmemory "github.com/zhuchunshu/sforum/apps/api/app/Support/ProcessMemory"
 	platformversion "github.com/zhuchunshu/sforum/apps/api/version"
 )
 
@@ -20,14 +21,20 @@ type RuntimeCollector struct {
 	staleAfter   time.Duration
 	now          func() time.Time
 	// sampler 可注入；nil 时使用 defaultProcessSampler。
-	sampler     ProcessSampler
-	diskPath    string
-	diskSampler func(string) (DiskRuntimeStats, bool)
-	loadSampler func() (SystemLoadAverage, bool)
+	sampler           ProcessSampler
+	diskPath          string
+	diskSampler       func(string) (DiskRuntimeStats, bool)
+	loadSampler       func() (SystemLoadAverage, bool)
+	usageWindow       *processmemory.UsageWindow
+	workerEmbedded    bool
+	workerConcurrency int
 }
 
 func NewRuntimeCollector(startedAt time.Time, pool *pgxpool.Pool) RuntimeCollector {
-	return RuntimeCollector{startedAt: startedAt.UTC(), pool: pool, staleAfter: health.DefaultHeartbeatStaleAfter, now: time.Now}
+	return RuntimeCollector{
+		startedAt: startedAt.UTC(), pool: pool, staleAfter: health.DefaultHeartbeatStaleAfter,
+		now: time.Now, usageWindow: processmemory.NewUsageWindow(processmemory.DefaultUsageWindow),
+	}
 }
 
 // WithHeartbeat 注入 worker last_seen 读取（Redis）。
@@ -39,6 +46,14 @@ func (c RuntimeCollector) WithHeartbeat(store health.HeartbeatStore) RuntimeColl
 // WithQueueLag 启用廉价 River 队列积压统计（共用 PG pool）。
 func (c RuntimeCollector) WithQueueLag(pool *pgxpool.Pool) RuntimeCollector {
 	c.queueLagPool = pool
+	return c
+}
+
+// WithWorkerRuntime 记录 Worker 是否与 API 同进程，以及 River 配置的总并发槽。
+// 内嵌模式不伪造独立内存，只为管理端提供可解释的运行状态。
+func (c RuntimeCollector) WithWorkerRuntime(embedded bool, concurrency int) RuntimeCollector {
+	c.workerEmbedded = embedded
+	c.workerConcurrency = max(concurrency, 0)
 	return c
 }
 
@@ -125,6 +140,11 @@ func (c RuntimeCollector) sampleProcessDiskAndLoad(sysFallback uint64) (
 	}
 
 	if resources, ok := sampleRuntimeUsage(sampler); ok {
+		resources.WorkerEmbedded = c.workerEmbedded
+		resources.WorkerConcurrency = c.workerConcurrency
+		if c.usageWindow != nil {
+			resources = c.usageWindow.Observe(resources)
+		}
 		memoryBytes = resources.APIMemoryBytes
 		pluginChildren = resources.APIOwnedPluginCount
 		family := resources.APIMemoryBytes + resources.APIOwnedPluginMemoryBytes

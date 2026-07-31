@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -91,6 +92,35 @@ func TestExecutableTrustRuntimeIdentityUsesExactLiveGrant(t *testing.T) {
 	}
 	if builtinIdentity.TrustGrantID != "builtin" || builtinIdentity.ImpactDigest == "" {
 		t.Fatalf("unexpected builtin identity: %#v", builtinIdentity)
+	}
+}
+
+func TestDigestInstalledFileStreamsLargeArtifact(t *testing.T) {
+	extension := exactTrustExtension(t, "demo.streaming-digest")
+	const relative = "backend/large-plugin"
+	target := filepath.Join(extension.PackagePath, filepath.FromSlash(relative))
+	file, err := os.Create(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := file.Truncate(32 * 1024 * 1024); err != nil {
+		_ = file.Close()
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	runtime.GC()
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	digest, err := digestInstalledFile(extension, relative)
+	runtime.ReadMemStats(&after)
+	if err != nil || len(digest) != 64 {
+		t.Fatalf("digest=%q err=%v", digest, err)
+	}
+	if allocated := after.TotalAlloc - before.TotalAlloc; allocated > 4*1024*1024 {
+		t.Fatalf("streaming a 32 MiB artifact allocated %d bytes", allocated)
 	}
 }
 

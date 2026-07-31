@@ -688,7 +688,7 @@
       "toolbar": {
         "loading": "正在读取后台总览...",
         "generatedAt": "最近 {days} 天 · 更新于 {time}",
-        "live": "资源 2 秒 · 指标 30 秒自动刷新"
+        "live": "资源 5 秒 · 指标 30 秒自动刷新"
       },
       "kpi": {
         "memory": {
@@ -716,11 +716,22 @@
         "loadOneMinute": "1 分钟",
         "loadFiveMinutes": "5 分钟",
         "loadFifteenMinutes": "15 分钟",
-        "api": "API占用",
-        "worker": "Worker占用",
+        "api": "API 占用",
+        "apiWithWorker": "API 进程（含 Worker）",
+        "worker": "Worker 状态",
         "plugin": "插件占用",
         "total": "合计",
-        "workerEmbedded": "并入 API",
+        "workerEmbedded": "内嵌于 API",
+        "workerEmbeddedRunning": "内嵌 · 运行 {running}/{concurrency}",
+        "workerEmbeddedSlots": "内嵌 · {concurrency} 槽",
+        "workerNotFound": "未检测到进程",
+        "pluginProcesses": "{count} 个进程",
+        "pluginOverlap": "· 切换重叠 +{count}",
+        "pluginOverlapDetail": "检测到 {count} 个额外同插件进程，通常是运行时切换的短暂重叠；若持续存在，需要检查插件生命周期日志。",
+        "pluginDetails": "插件进程明细",
+        "pluginDetailsBasis": "逐插件数值为当前进程 RSS，按占用从高到低排列。",
+        "memoryBasis": "最近 {seconds} 秒中位数 · RSS",
+        "pssTotal": "有效占用 {value} PSS",
         "diskUsed": "已用",
         "unavailable": "暂无数据"
       },
