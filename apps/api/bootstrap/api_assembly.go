@@ -29,6 +29,7 @@ import (
 // 失败路径的资源关闭仍在 wireAPICoreStack 内联处理；成功后由 API.close 统一收尾。
 type apiCoreStack struct {
 	adminOverviewProvider        *providers.AdminOverviewProvider
+	systemUpdatesProvider        *providers.SystemUpdatesProvider
 	apiTokenService              *apitokens.Service
 	attachmentsProvider          *providers.AttachmentsProvider
 	auditWriter                  audit.Writer

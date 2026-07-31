@@ -2,6 +2,6 @@
 
 package processmemory
 
-func readProcessPSS(int32) (uint64, bool) {
+func readProcessPSS(int) (uint64, bool) {
 	return 0, false
 }

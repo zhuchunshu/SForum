@@ -32,7 +32,7 @@ func (osSampler) List() ([]Sample, error) {
 		if sample.PID != selfPID && !IsSforumWorkerCommand(sample.Command) && !IsBackendPluginCommand(sample.Command) {
 			continue
 		}
-		sample.PSSBytes, _ = readProcessPSS(int32(sample.PID))
+		sample.PSSBytes, _ = readProcessPSS(sample.PID)
 		runtimeSamples = append(runtimeSamples, sample)
 	}
 	return runtimeSamples, nil

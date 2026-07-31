@@ -2,6 +2,7 @@
 import { useAuthSession } from '~/composables/identity/useAuthSession'
 import { useAdminSurfaces } from '~/composables/admin/useAdminSurfaces'
 import { useAdminAdvancedSettings } from '~/composables/admin/useAdminAdvancedSettings'
+import { useAdminSystemUpdates } from '~/composables/admin/useAdminSystemUpdates'
 import { useColorModePreference } from '~/composables/appearance/useColorModePreference'
 import type { DropdownMenuItem } from '@nuxt/ui/components/DropdownMenu.vue'
 import SFAdminFooter from '~/components/admin/SFAdminFooter.vue'
@@ -46,7 +47,36 @@ const { user, can } = useAuthSession()
 const { request } = useApiClient()
 const { siteName } = useWebOptions()
 const sforumBuild = useRuntimeConfig().public.sforumBuild
-const sforumVersion = formatOverviewVersion('', sforumBuild.version, sforumBuild.commit)
+const fallbackSforumVersion = formatOverviewVersion('', sforumBuild.version, sforumBuild.commit)
+const systemUpdates = useAdminSystemUpdates()
+await useAsyncData(
+  'admin-system-update-status-fetch',
+  async () => {
+    if (!can('admin.access')) return null
+    try {
+      return await systemUpdates.refresh({ serverInternal: import.meta.server })
+    } catch {
+      return null
+    }
+  },
+  { default: () => null }
+)
+const sforumVersion = computed(() => {
+  const status = systemUpdates.status.value
+  return status
+    ? formatOverviewVersion('', status.currentVersion, status.currentCommit || '')
+    : fallbackSforumVersion
+})
+const systemUpdateAvailable = computed(() => Boolean(systemUpdates.status.value?.updateAvailable))
+const systemUpdateSettingsRoute = computed(() => ({
+  path: adminRoutes.path('/settings'),
+  query: { tab: 'updates' }
+}))
+const systemUpdateLabel = computed(() => t('admin.shell.updateAvailable', {
+  version: systemUpdates.status.value?.latestVersion
+    ? formatOverviewVersion('', systemUpdates.status.value.latestVersion)
+    : ''
+}))
 const { data: extensionNavigation } = await useAsyncData<AdminExtensionNavigationItem[]>(
   'admin-extension-navigation',
   () => (can('extension.view') || can('extension.plugin.manage') || can('extension.theme.manage') || can('extension.manage'))
@@ -379,28 +409,48 @@ async function signOut() {
       class="sforum-admin-sidebar min-w-0 overflow-x-hidden border-r border-[var(--border-admin)] bg-[var(--bg-admin-sidebar)] text-[var(--text-admin-sidebar)]"
     >
       <template #header="{ collapsed }">
-        <NuxtLink
-          :to="adminRoutes.path('/')"
-          class="flex h-[50px] min-w-0 max-w-full items-center gap-2.5 rounded-md px-2 text-[var(--text-admin-main)] hover:bg-[var(--bg-admin-sidebar-hover)]"
-          aria-label="SForum"
-        >
-          <img
-            src="/brand/sforum-logo.svg"
-            alt=""
-            class="size-[30px] shrink-0 object-contain"
+        <div class="flex h-[50px] min-w-0 max-w-full items-center gap-1 px-1">
+          <NuxtLink
+            :to="adminRoutes.path('/')"
+            class="flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-1 py-1 text-[var(--text-admin-main)] hover:bg-[var(--bg-admin-sidebar-hover)]"
+            aria-label="SForum"
           >
-          <span v-if="!collapsed" class="min-w-0 flex-1 overflow-hidden">
-            <span class="flex min-w-0 items-center gap-2 text-[14.5px] font-bold text-[var(--text-admin-main)]">
-              <span class="truncate">SForum</span>
-              <UBadge color="neutral" variant="soft" size="sm" class="ml-auto shrink-0 font-mono text-[10px] font-semibold">
-                {{ sforumVersion }}
-              </UBadge>
+            <img
+              src="/brand/sforum-logo.svg"
+              alt=""
+              class="size-[30px] shrink-0 object-contain"
+            >
+            <span v-if="!collapsed" class="min-w-0 flex-1 overflow-hidden">
+              <span class="block truncate text-[14.5px] font-bold text-[var(--text-admin-main)]">
+                SForum
+              </span>
+              <span class="block truncate text-xs font-medium text-slate-500 dark:text-zinc-400">
+                {{ t('admin.shell.section') }}
+              </span>
             </span>
-            <span class="block truncate text-xs font-medium text-slate-500 dark:text-zinc-400">
-              {{ t('admin.shell.section') }}
-            </span>
-          </span>
-        </NuxtLink>
+          </NuxtLink>
+          <NuxtLink
+            v-if="!collapsed && systemUpdateAvailable"
+            :to="systemUpdateSettingsRoute"
+            class="shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sf-accent)]"
+            :aria-label="systemUpdateLabel"
+            :title="systemUpdateLabel"
+          >
+            <UBadge color="warning" variant="soft" size="sm" class="gap-1 font-mono text-[10px] font-semibold">
+              <UIcon name="i-lucide-arrow-up-circle" class="size-3" />
+              {{ sforumVersion }}
+            </UBadge>
+          </NuxtLink>
+          <UBadge
+            v-else-if="!collapsed"
+            color="neutral"
+            variant="soft"
+            size="sm"
+            class="shrink-0 font-mono text-[10px] font-semibold"
+          >
+            {{ sforumVersion }}
+          </UBadge>
+        </div>
       </template>
 
       <template #default="{ collapsed }">

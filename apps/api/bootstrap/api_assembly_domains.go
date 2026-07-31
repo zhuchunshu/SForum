@@ -23,6 +23,7 @@ import (
 	pageviewmodels "github.com/zhuchunshu/sforum/apps/api/app/Models/PageViewModels"
 	profile "github.com/zhuchunshu/sforum/apps/api/app/Models/Profile"
 	sitechrome "github.com/zhuchunshu/sforum/apps/api/app/Models/SiteChrome"
+	systemupdates "github.com/zhuchunshu/sforum/apps/api/app/Models/SystemUpdates"
 	webhooks "github.com/zhuchunshu/sforum/apps/api/app/Models/Webhooks"
 	providers "github.com/zhuchunshu/sforum/apps/api/app/Providers"
 	authsupport "github.com/zhuchunshu/sforum/apps/api/app/Support/Auth"
@@ -308,6 +309,11 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	)
 	moderationProvider := providers.NewModerationWorkbenchProviderWithIndexer(moderationStore, forumStore, identityStore, authSessions, searchIndexer)
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
+	systemUpdatesProvider := providers.NewSystemUpdatesProvider(
+		systemupdates.NewService(optionsService, systemupdates.WithLogger(logger)),
+		identityStore,
+		authSessions,
+	)
 	siteChromeStore := sitechrome.NewPostgresStore(pool)
 	compressionService := attachments.NewCompressionService(attachmentStore, attachmentService, optionsService, func(ctx context.Context, taskID int64) error {
 		args := attachmentjobs.CompressImageArgs{TaskID: taskID}
@@ -493,6 +499,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 
 	return &apiCoreStack{
 		adminOverviewProvider:     adminOverviewProvider,
+		systemUpdatesProvider:     systemUpdatesProvider,
 		apiTokenService:           apiTokenService,
 		attachmentsProvider:       attachmentsProvider,
 		auditWriter:               auditWriter,

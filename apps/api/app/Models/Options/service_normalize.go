@@ -69,6 +69,8 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return normalizeSiteTimeFormat(value)
 	case NameSiteStartOfWeek:
 		return normalizeSiteStartOfWeek(value)
+	case NameSystemUpdatesGitHubMirrorURL:
+		return normalizeSystemUpdatesGitHubMirrorURL(value)
 	case NamePublicSurfaceRevision:
 		return normalizePublicSurfaceRevision(value)
 	case NameHumanVerificationProvider:

@@ -78,28 +78,41 @@ end
 end
 
 ci_jobs = ci.fetch("jobs")
-vulnerability_gate = ci_jobs.fetch("web-runtime-vulnerabilities")
-scan = vulnerability_gate.fetch("steps").find do |step|
-  step["uses"].to_s.include?("aquasecurity/trivy-action")
-end
-fail!("CI Web vulnerability scan is missing") unless scan
-scan_inputs = scan.fetch("with")
-unless scan_inputs["scan-type"] == "fs" &&
-       scan_inputs["scan-ref"] == "apps/web/node_modules" &&
-       scan_inputs["severity"] == "CRITICAL,HIGH" &&
-       scan_inputs["exit-code"] == "1"
-  fail!("CI Web vulnerability scan is not blocking the production dependency tree")
-end
+fail!("CI must not keep a duplicate Web dependency build") if ci_jobs.key?("web-runtime-vulnerabilities")
 
 containers = ci_jobs.fetch("containers")
 container_needs = needs(containers)
-fail!("container builds must wait for the fast vulnerability gate") unless container_needs.include?("web-runtime-vulnerabilities")
-fail!("container builds must run in parallel with the quality gate") if container_needs.include?("quality")
+fail!("container builds must start immediately") unless container_needs.empty?
 
-container_build = containers.fetch("steps").find do |step|
+container_steps = containers.fetch("steps")
+build_index = container_steps.index do |step|
   step["uses"].to_s.include?("docker/build-push-action")
 end
-cache_to = container_build&.dig("with", "cache-to").to_s
+scan_index = container_steps.index do |step|
+  step["uses"].to_s.include?("aquasecurity/trivy-action")
+end
+fail!("CI container build and Web image scan are required") unless build_index && scan_index
+fail!("Web image must be scanned after it is built") unless build_index < scan_index
+
+container_build = container_steps.fetch(build_index)
+build_inputs = container_build.fetch("with")
+unless build_inputs["load"] == "${{ matrix.image == 'web' }}" &&
+       build_inputs["tags"] == "${{ matrix.image == 'web' && 'sforum-web:ci' || '' }}"
+  fail!("CI must load only the Web image under a stable local tag")
+end
+
+scan = container_steps.fetch(scan_index)
+fail!("CI image scan must run only for Web") unless scan["if"] == "matrix.image == 'web'"
+scan_inputs = scan.fetch("with")
+unless scan_inputs["scan-type"] == "image" &&
+       scan_inputs["image-ref"] == "sforum-web:ci" &&
+       scan_inputs["vuln-type"] == "os,library" &&
+       scan_inputs["severity"] == "CRITICAL,HIGH" &&
+       scan_inputs["exit-code"] == "1"
+  fail!("CI Web scan must block on vulnerabilities in the final runtime image")
+end
+
+cache_to = build_inputs["cache-to"].to_s
 unless cache_to.include?("github.event_name != 'pull_request'")
   fail!("pull requests must not export max-mode container caches")
 end

@@ -104,6 +104,71 @@ ReadyComponent:
     latency:
       type: string
       description: Human-readable check duration, e.g. 2ms.
+ApiResponseSystemUpdateStatus:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/SystemUpdateStatus"
+SystemUpdateStatus:
+  type: object
+  required:
+  - state
+  - updateAvailable
+  - currentVersion
+  - checkedAt
+  - source
+  - mirrorConfigured
+  properties:
+    state:
+      type: string
+      enum:
+      - current
+      - update_available
+      - development
+      - unavailable
+    updateAvailable:
+      type: boolean
+    currentVersion:
+      type: string
+    currentCommit:
+      type: string
+    latestVersion:
+      type: string
+    latestTag:
+      type: string
+    releaseName:
+      type: string
+    releaseUrl:
+      type: string
+      format: uri
+    publishedAt:
+      type: string
+      format: date-time
+    checkedAt:
+      type: string
+      format: date-time
+    source:
+      type: string
+      enum:
+      - official
+      - mirror
+    mirrorConfigured:
+      type: boolean
+    errorCode:
+      type: string
+      enum:
+      - invalid_source
+      - request_failed
+      - invalid_response
+      - no_release
 ApiResponseAdminOverview:
   type: object
   required:

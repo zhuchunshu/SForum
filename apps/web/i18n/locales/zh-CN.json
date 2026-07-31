@@ -546,6 +546,7 @@
       "footerCopyright": "© {year} SForum",
       "footerProductSummary": "高性能模块化开源论坛框架",
       "openAdvancedSettings": "打开系统高级设置",
+      "updateAvailable": "发现新版本 {version}，打开更新设置",
       "advancedSettings": {
         "title": "系统高级设置",
         "description": "面向开发与运维的偏好设置，仅影响当前浏览器的后台界面。",
@@ -3347,7 +3348,8 @@
         "registration": "注册与用户名",
         "newcomers": "新人限制",
         "maintenance": "维护模式",
-        "verification": "验证码"
+        "verification": "验证码",
+        "updates": "版本更新"
       },
       "locale": {
         "zhCN": "简体中文",
@@ -3476,6 +3478,44 @@
         "messageHint": "展示给访客的说明，最多 500 字。留空则使用系统默认文案。",
         "messagePlaceholder": "例如：站点升级中，预计 30 分钟后恢复。",
         "resetChanges": "已重置维护模式更改"
+      },
+      "updates": {
+        "title": "版本更新",
+        "description": "查看 SForum 发布状态，并为无法直连 GitHub 的部署配置镜像源。",
+        "checkNow": "立即检查",
+        "checked": "版本检查已完成。",
+        "checkFailed": "版本检查失败，请检查网络或镜像源。",
+        "saved": "GitHub 镜像源已保存。",
+        "saveFailed": "GitHub 镜像源保存失败。",
+        "restored": "已恢复推荐的 GitHub 官方源，请保存设置。",
+        "restoreDefault": "恢复官方源",
+        "currentVersion": "当前版本",
+        "latestVersion": "最新版本",
+        "source": "检查来源",
+        "checkedAt": "检查时间",
+        "publishedAt": "发布时间",
+        "viewRelease": "查看发布说明",
+        "notAvailable": "暂无",
+        "mirrorUrl": "GitHub 镜像源",
+        "mirrorUrlPlaceholder": "例如：https://mirror.example.com/api",
+        "mirrorUrlHint": "留空使用 GitHub 官方 API。支持 GitHub API 兼容根地址，也支持包含 {url} 或 {url_encoded} 的 HTTPS 代理模板。",
+        "sources": {
+          "official": "GitHub 官方 API",
+          "mirror": "自定义镜像源"
+        },
+        "states": {
+          "current": "当前已是最新版本",
+          "update_available": "发现可用的新版本",
+          "development": "开发构建不参与版本比较",
+          "unavailable": "暂时无法获取最新版本",
+          "requestFailed": "版本状态接口暂时不可用"
+        },
+        "errors": {
+          "invalid_source": "镜像源地址无效或不符合安全要求。",
+          "request_failed": "无法连接发布源，请检查网络和镜像配置。",
+          "invalid_response": "发布源返回了无法识别的数据。",
+          "no_release": "发布源中没有可用于当前发布通道的版本。"
+        }
       },
       "verification": {
         "title": "人机验证",

@@ -42,6 +42,8 @@ const (
 	NameSiteTimeFormat = "site.time_format"
 	// 一周起始日：0=周日 … 6=周六。默认 1（周一）。
 	NameSiteStartOfWeek = "site.start_of_week"
+	// GitHub release API 镜像/代理地址。空值表示直接访问 api.github.com。
+	NameSystemUpdatesGitHubMirrorURL = "system.updates.github_mirror_url"
 	// 公开前端贡献面 revision（整数，从 1 起）。扩展设置变更且影响公开贡献时由宿主 bump；
 	// Nuxt 匿名 /t/** SWR 缓存键 varies 此值，避免运营改设置后仍命中旧 HTML。
 	// 仅宿主内部 bump；运营不可通过 admin web-options 手写覆盖。

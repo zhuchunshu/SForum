@@ -10,7 +10,10 @@ import (
 	"strings"
 )
 
-func readProcessPSS(pid int32) (uint64, bool) {
+func readProcessPSS(pid int) (uint64, bool) {
+	if pid <= 0 {
+		return 0, false
+	}
 	file, err := os.Open(fmt.Sprintf("/proc/%d/smaps_rollup", pid))
 	if err != nil {
 		return 0, false

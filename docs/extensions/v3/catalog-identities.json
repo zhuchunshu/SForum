@@ -74,6 +74,18 @@
       "path": "/api/v1/admin/overview/resources"
     },
     {
+      "id": "core.route.system_updates.status",
+      "contractVersion": "sforum.route.system_updates.status@1",
+      "method": "GET",
+      "path": "/api/v1/admin/system-updates"
+    },
+    {
+      "id": "core.route.system_updates.check",
+      "contractVersion": "sforum.route.system_updates.check@1",
+      "method": "POST",
+      "path": "/api/v1/admin/system-updates/check"
+    },
+    {
       "id": "core.route.attachments.upload_policy",
       "contractVersion": "sforum.route.attachments.upload_policy@1",
       "method": "GET",

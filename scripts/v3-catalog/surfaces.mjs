@@ -30,6 +30,19 @@ export const extensionSurfaceMatrix = {
     jobs: open('worker heartbeat and audit cleanup schedules', 'P7'),
     lifecycle: closed('Pre-plugin boot, safe mode, and CLI recovery cannot be replaced by extensions.')
   },
+  systemUpdates: {
+    routes: open('admin release status and forced-check routes', 'P6'),
+    hooks: closed('Release checks expose status only and do not publish product lifecycle events.'),
+    queries: closed('Release metadata is fetched from the configured GitHub-compatible source, not the Query Registry.'),
+    adminComponents: open('Core-owned update status and mirror-source settings tab', 'P7'),
+    publicComponents: closed('Release status and source configuration are operator-only.'),
+    identityPermissions: open('admin.access for status; settings.site.manage for outbound checks and source configuration', 'P7'),
+    media: closed('Release checks own no media lifecycle.'),
+    navigationRegions: closed('The update signal is fixed admin shell chrome, not an extension navigation region.'),
+    cacheInvalidation: open('bounded in-process cache keyed by current build and release source', 'P11'),
+    jobs: closed('Checks are request-driven and use no durable background job.'),
+    lifecycle: closed('Core update discovery does not install, execute, or replace artifacts.')
+  },
   adminOverview: {
     routes: open('admin overview aggregate route', 'P6'),
     hooks: planned('P7'),

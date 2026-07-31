@@ -70,3 +70,44 @@ adminOverviewResources:
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
         "$ref": "../components/responses.yaml#/Forbidden"
+adminSystemUpdates:
+  get:
+    summary: Get the cached SForum release status
+    description: |
+      Returns the current build and latest known GitHub release status. Successful
+      checks are cached for six hours and failed checks for ten minutes. Requires
+      `admin.access`.
+    operationId: getAdminSystemUpdates
+    security:
+    - cookieAuth: []
+    responses:
+      '200':
+        description: Current release status, including an unavailable or development state when no comparison can be made.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/system.yaml#/ApiResponseSystemUpdateStatus"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+adminSystemUpdatesCheck:
+  post:
+    summary: Check GitHub releases immediately
+    description: |
+      Bypasses the normal release-status cache and performs a new outbound check.
+      Requires `settings.site.manage`.
+    operationId: checkAdminSystemUpdates
+    security:
+    - cookieAuth: []
+    responses:
+      '200':
+        description: Fresh release status.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/system.yaml#/ApiResponseSystemUpdateStatus"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"

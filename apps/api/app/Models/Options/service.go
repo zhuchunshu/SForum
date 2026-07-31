@@ -1021,6 +1021,7 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameSiteDateFormat:                      recommendedSiteDateFormat,
 		NameSiteTimeFormat:                      recommendedSiteTimeFormat,
 		NameSiteStartOfWeek:                     strconv.Itoa(recommendedSiteStartOfWeek),
+		NameSystemUpdatesGitHubMirrorURL:         "",
 		NameHumanVerificationProvider:           humanverify.ProviderDisabled,
 		NameHumanVerificationRegister:           enabledOptionValue(true),
 		NameHumanVerificationPasswordReset:      enabledOptionValue(true),

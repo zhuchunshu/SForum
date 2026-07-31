@@ -506,6 +506,7 @@
       "footerCopyright": "© {year} SForum. All rights reserved.",
       "footerProductSummary": "Official open-source forum framework",
       "openAdvancedSettings": "Open advanced system settings",
+      "updateAvailable": "Version {version} is available. Open update settings",
       "advancedSettings": {
         "title": "Advanced system settings",
         "description": "Developer and operator preferences for this browser’s admin UI only.",
@@ -3307,7 +3308,8 @@
         "registration": "Registration",
         "newcomers": "Newcomers",
         "maintenance": "Maintenance",
-        "verification": "Verification"
+        "verification": "Verification",
+        "updates": "Updates"
       },
       "locale": {
         "zhCN": "简体中文",
@@ -3436,6 +3438,44 @@
         "messageHint": "Shown to visitors, up to 500 characters. Leave blank to use the system default message.",
         "messagePlaceholder": "Example: Upgrading the site. Back in about 30 minutes.",
         "resetChanges": "Maintenance mode changes were reset"
+      },
+      "updates": {
+        "title": "Version updates",
+        "description": "Review SForum release status and configure a mirror for deployments that cannot reach GitHub directly.",
+        "checkNow": "Check now",
+        "checked": "Version check completed.",
+        "checkFailed": "Version check failed. Check the network or mirror source.",
+        "saved": "GitHub mirror source saved.",
+        "saveFailed": "GitHub mirror source could not be saved.",
+        "restored": "The recommended official GitHub source has been restored. Save to apply it.",
+        "restoreDefault": "Restore official source",
+        "currentVersion": "Current version",
+        "latestVersion": "Latest version",
+        "source": "Check source",
+        "checkedAt": "Checked at",
+        "publishedAt": "Published at",
+        "viewRelease": "View release notes",
+        "notAvailable": "Not available",
+        "mirrorUrl": "GitHub mirror source",
+        "mirrorUrlPlaceholder": "Example: https://mirror.example.com/api",
+        "mirrorUrlHint": "Leave blank to use the official GitHub API. Supports a GitHub API-compatible base URL or an HTTPS proxy template containing {url} or {url_encoded}.",
+        "sources": {
+          "official": "Official GitHub API",
+          "mirror": "Custom mirror source"
+        },
+        "states": {
+          "current": "This installation is up to date",
+          "update_available": "A newer version is available",
+          "development": "Development builds are not compared",
+          "unavailable": "The latest version is temporarily unavailable",
+          "requestFailed": "The version status API is temporarily unavailable"
+        },
+        "errors": {
+          "invalid_source": "The mirror source is invalid or does not meet the security requirements.",
+          "request_failed": "The release source could not be reached. Check the network and mirror settings.",
+          "invalid_response": "The release source returned unrecognized data.",
+          "no_release": "The release source has no version for this release channel."
+        }
       },
       "verification": {
         "title": "Human verification",

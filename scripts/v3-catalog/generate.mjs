@@ -146,6 +146,8 @@ function routePolicy(route) {
   if (path.startsWith('/api/v1/admin/webhooks')) return ['permission', 'settings.manage or settings.site.manage']
   if (path.startsWith('/api/v1/admin/features')) return ['permission', 'settings.site.manage']
   if (path.startsWith('/api/v1/admin/web-options')) return ['permission', 'option-owner permission dispatch']
+  if (path === '/api/v1/admin/system-updates/check') return ['permission', 'settings.site.manage']
+  if (path === '/api/v1/admin/system-updates') return ['permission', 'admin.access']
   if (path.startsWith('/api/v1/admin/overview')) return ['permission', 'admin.access']
   if (path.startsWith('/api/v1/admin/admin-surfaces')) return ['permission', 'admin.access']
   if (path.startsWith('/api/v1/roles/suggestions')) return ['permission', 'active cookie session with role.manage; PAT denied; Host explicit decision']

@@ -49,6 +49,10 @@ paths:
     "$ref": "./openapi/paths/system.yaml#/adminOverview"
   "/admin/overview/resources":
     "$ref": "./openapi/paths/system.yaml#/adminOverviewResources"
+  "/admin/system-updates":
+    "$ref": "./openapi/paths/system.yaml#/adminSystemUpdates"
+  "/admin/system-updates/check":
+    "$ref": "./openapi/paths/system.yaml#/adminSystemUpdatesCheck"
   "/admin/jobs/overview":
     "$ref": "./openapi/paths/jobs.yaml#/adminJobsOverview"
   "/admin/jobs/schedules":
