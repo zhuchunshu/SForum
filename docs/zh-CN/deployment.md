@@ -7,15 +7,18 @@
 支持 Linux `amd64` 和 `arm64`，不支持 Windows。服务器需要：
 
 - Docker Engine 及 Docker Compose `2.24.4` 或更高版本；
+- `curl` 和 `tar`；
 - 能访问 GitHub 和 `ghcr.io`；
 - loopback 的 `3000`、`18080` 端口可用，或在向导中选择其他端口。
 
-获取当前部署脚本后，运行交互安装：
+不需要安装 Git 或克隆仓库。下面的命令下载正式版部署文件并启动交互安装：
 
 ```sh
-git clone --depth 1 https://github.com/zhuchunshu/SForum.git
-cd SForum
-./deploy.sh --version v3.0.0-alpha.13
+mkdir -p sforum
+curl -fsSL https://github.com/zhuchunshu/SForum/archive/refs/tags/v3.0.0.tar.gz \
+  | tar -xz --strip-components=1 -C sforum
+cd sforum
+./deploy.sh
 ```
 
 向导已提供推荐值。不了解某个选项时直接回车即可；脚本会使用 Docker Compose
@@ -23,8 +26,9 @@ cd SForum
 执行迁移并等待 API 和 Web 健康。安装完成后默认访问
 `http://127.0.0.1:3000`。公网使用前仍须按下文配置 HTTPS 反向代理。
 
-也可以直接运行 `./deploy.sh`，使用脚本当前固定的推荐版本。生产环境若需要
-可重复部署，建议像上例一样显式写出版本号。
+`./deploy.sh` 默认查询 GitHub 最新正式 Release，并在部署前解析为具体版本；
+它不会直接运行浮动的 `latest` 镜像。需要可重复部署时可显式执行
+`./deploy.sh --version v3.0.0`。
 
 ## 目标形态
 
@@ -89,8 +93,8 @@ Linux 后端包不包含 Nuxt Web、PostgreSQL 或 Redis，因此不是完整站
 - `ghcr.io/zhuchunshu/sforum-migrate`
 - `ghcr.io/zhuchunshu/sforum-web`
 
-每个发布版本同时提供 `linux/amd64` 和 `linux/arm64`。部署时固定完整版本，
-不要使用 `latest`。最简单的交互安装如下，全部直接回车即可完成配置并部署：
+每个发布版本同时提供 `linux/amd64` 和 `linux/arm64`。最简单的交互安装如下，
+全部直接回车即可完成配置并部署：
 
 ```sh
 ./deploy.sh
@@ -99,9 +103,9 @@ Linux 后端包不包含 Nuxt Web、PostgreSQL 或 Redis，因此不是完整站
 也可以显式固定版本，或完全非交互地接受推荐配置：
 
 ```sh
-./deploy.sh --version v3.0.0-alpha.13 --lang zh
-./deploy.sh --version v3.0.0-alpha.13 --lang en
-./deploy.sh --version v3.0.0-alpha.13 --lang zh --yes --action deploy
+./deploy.sh --version v3.0.0 --lang zh
+./deploy.sh --version v3.0.0 --lang en
+./deploy.sh --version v3.0.0 --lang zh --yes --action deploy
 ```
 
 该模式组合 `compose.yaml`、`compose.prod.yaml` 与
@@ -120,7 +124,7 @@ API `/api/v1/ready`、Web 首页和五个常驻服务全部通过后，脚本才
 等价的非交互命令：
 
 ```sh
-export SFORUM_VERSION=v3.0.0-alpha.13
+export SFORUM_VERSION=v3.0.0
 docker compose --env-file .env.production \
   -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull
 docker compose --env-file .env.production \
@@ -145,9 +149,19 @@ docker compose --env-file .env.production \
 
 ```sh
 ./upgrade.sh
-./upgrade.sh v3.0.0-alpha.13
-./upgrade.sh --version v3.0.0-alpha.13
+./upgrade.sh v3.0.0
+./upgrade.sh --version v3.0.0
 ./upgrade.sh --yes                       # 无人值守：选择最新发布并跳过确认
+```
+
+现有安装不需要重新克隆仓库。若要先刷新正式版更新脚本，再进入交互更新：
+
+```sh
+cd /path/to/sforum
+curl -fsSLo upgrade.sh \
+  https://raw.githubusercontent.com/zhuchunshu/SForum/v3.0.0/upgrade.sh
+chmod 0755 upgrade.sh
+./upgrade.sh
 ```
 
 请使用 `v3.0.0-alpha.13` 或更高版本附带的 `upgrade.sh`。`v3.0.0-alpha.12`

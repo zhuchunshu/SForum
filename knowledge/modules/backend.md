@@ -136,6 +136,10 @@ portable deployment lock prevents concurrent mutation; configuration, ports,
 and Go image identities fail before database work; migration and startup use
 `--pull never`; post-stop failures persist an explicit `recovery_required`
 record with the attempted/previous versions and backup path.
+For a fresh installation, the default `latest` choice is resolved through the
+latest stable GitHub Release API before configuration or image pulls. Only the
+resulting immutable tag is written to `.env.production` and `.deployrc`;
+operators can still pass an exact release tag for repeatable rollouts.
 The production migration service receives the same mandatory security secrets
 validated by the shared configuration loader; a real Compose render test keeps
 that release/runtime contract aligned.

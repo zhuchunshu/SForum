@@ -61,9 +61,13 @@ Full steps: [docs/zh-CN/getting-started.md](./docs/zh-CN/getting-started.md) or 
 ## Production
 
 ```sh
-./deploy.sh                              # interactive install; Enter accepts safe defaults
+mkdir -p sforum
+curl -fsSL https://github.com/zhuchunshu/SForum/archive/refs/tags/v3.0.0.tar.gz \
+  | tar -xz --strip-components=1 -C sforum
+cd sforum
+./deploy.sh                              # interactive install; Enter uses latest stable
 ./upgrade.sh                             # update; Enter selects the newest GitHub Release
-./upgrade.sh --version v3.0.0-alpha.13   # update to a specific release
+./upgrade.sh --version v3.0.0            # update to a specific release
 ```
 
 `upgrade.sh` accepts a positional version or `--version`; its default `latest`

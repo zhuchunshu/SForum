@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
 DEPLOY_RC=".deployrc"
-DEFAULT_RELEASE_VERSION="${SFORUM_DEFAULT_VERSION:-v3.0.0-alpha.10}"
+DEFAULT_RELEASE_VERSION="${SFORUM_DEFAULT_VERSION:-latest}"
 LANGUAGE=""
 ACTION=""
 ASSUME_DEFAULTS=false
@@ -18,7 +18,7 @@ Usage: ./deploy.sh [options]
 
 Options:
   --lang zh|en          Interface language
-  --version VERSION     Immutable GHCR release tag (for example v3.0.0-alpha.10)
+  --version VERSION     Release tag or latest stable release (default: latest)
   --action ACTION       deploy, backup, restore, status, logs, restart, stop
   --yes, --defaults     Accept recommended configuration defaults
   -h, --help            Show this help
@@ -182,6 +182,7 @@ t() {
 }
 
 resolve_release_version() {
+  local response resolved
   if [ -z "$RELEASE_VERSION" ]; then
     RELEASE_VERSION="$(rc_value version)"
   fi
@@ -189,8 +190,21 @@ resolve_release_version() {
     RELEASE_VERSION="$(env_file_value .env.production SFORUM_VERSION)"
   fi
   RELEASE_VERSION="${RELEASE_VERSION:-$DEFAULT_RELEASE_VERSION}"
+  if [ "$RELEASE_VERSION" = "latest" ]; then
+    response="$(curl -fsSL \
+      --connect-timeout 10 \
+      --max-time 30 \
+      -H 'Accept: application/vnd.github+json' \
+      -H 'X-GitHub-Api-Version: 2022-11-28' \
+      -H 'User-Agent: SForum-deploy' \
+      "${SFORUM_LATEST_RELEASE_API_URL:-https://api.github.com/repos/zhuchunshu/SForum/releases/latest}")" || \
+      die "Could not query the latest stable GitHub Release. Check the network and retry."
+    resolved="$(printf '%s\n' "$response" | sed -n 's/^.*"tag_name":[[:space:]]*"\([^"]*\)".*$/\1/p' | sed -n '1p')"
+    [ -n "$resolved" ] || die "GitHub returned no stable SForum Release."
+    RELEASE_VERSION="$resolved"
+  fi
   if [[ ! "$RELEASE_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
-    die "--version must look like v3.0.0 or v3.0.0-alpha.10"
+    die "--version must be latest or look like v3.0.0"
   fi
   export SFORUM_VERSION="$RELEASE_VERSION"
   COMPOSE=(docker compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml)
