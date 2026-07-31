@@ -141,4 +141,10 @@ unless cache_to.include?("github.event_name != 'pull_request'")
   fail!("pull requests must not export max-mode container caches")
 end
 
+smoke_script = File.read(File.join(root, "scripts/ci/release-smoke.sh"))
+unless smoke_script.include?('docker run --rm "$image" "$binary" --version') &&
+       smoke_script.include?('image="${SFORUM_REGISTRY}/sforum-${service}:${SFORUM_VERSION}"')
+  fail!("image identity checks must run without Compose service dependencies")
+end
+
 puts "release_workflow_test.rb: all checks passed"

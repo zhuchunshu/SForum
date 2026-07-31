@@ -51,7 +51,8 @@ trap cleanup EXIT
 expected_summary="SForum $EXPECTED_VERSION (${EXPECTED_COMMIT:0:12})"
 for service in api worker migrate; do
   binary="sforum-$service"
-  actual_summary="$("${compose[@]}" run --rm -T --no-deps "$service" "$binary" --version)"
+  image="${SFORUM_REGISTRY}/sforum-${service}:${SFORUM_VERSION}"
+  actual_summary="$(docker run --rm "$image" "$binary" --version)"
   if [[ "$actual_summary" != "$expected_summary" ]]; then
     echo "$service build identity mismatch: got '$actual_summary', want '$expected_summary'" >&2
     exit 1
