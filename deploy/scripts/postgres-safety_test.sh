@@ -31,7 +31,8 @@ cp "$ROOT_DIR/deploy/scripts/restore-postgres.sh" "$TEST_ROOT/deploy/scripts/"
 touch "$TEST_ROOT/compose.yaml" "$TEST_ROOT/compose.prod.yaml"
 printf '%s\n' \
   'POSTGRES_DB=sforum_test' \
-  'POSTGRES_USER=sforum_test' > "$TEST_ROOT/.env.production"
+  'POSTGRES_USER=sforum_test' \
+  "UNTRUSTED_VALUE=\$(touch '$TEMP_DIR/env-command-was-executed')" > "$TEST_ROOT/.env.production"
 chmod 644 "$TEST_ROOT/.env.production"
 
 cat > "$MOCK_BIN/docker" <<'EOF'
@@ -124,6 +125,7 @@ SUCCESS_BACKUP_DIR="$TEMP_DIR/backups-success"
 backup_output="$(cd "$TEST_ROOT" && SFORUM_BACKUP_DIR="$SUCCESS_BACKUP_DIR" ./deploy/scripts/backup-postgres.sh)"
 backup_file="$(tail -n 1 <<< "$backup_output")"
 [[ -s "$backup_file" ]] || fail "successful backup is missing"
+[[ ! -e "$TEMP_DIR/env-command-was-executed" ]] || fail "backup executed shell content from .env.production"
 [[ "$(file_mode "$backup_file")" == "600" ]] || fail "backup file mode is not 0600"
 [[ "$(file_mode "$TEST_ROOT/.env.production")" == "600" ]] || fail ".env.production mode is not 0600"
 if find "$SUCCESS_BACKUP_DIR" -maxdepth 1 -name '.*' -type f | grep -q .; then
@@ -142,6 +144,8 @@ printf '%s\n' 'CREATE TABLE restored_table (id bigint);' > "$TEMP_DIR/restore.sq
 : > "$MOCK_LOG"
 (cd "$TEST_ROOT" && SFORUM_CONFIRM_RESTORE=RESTORE ./deploy/scripts/restore-postgres.sh "$TEMP_DIR/restore.sql" >/dev/null)
 
+[[ ! -e "$TEMP_DIR/env-command-was-executed" ]] || fail "restore executed shell content from .env.production"
+
 grep -q '^compose stop api worker$' "$MOCK_LOG" || fail "restore did not stop API and worker"
 grep -q 'exec restore .*--set=ON_ERROR_STOP=1.*--single-transaction' "$MOCK_LOG" || fail "restore is missing fail-fast single-transaction flags"
 grep -q 'ALTER DATABASE :"target_db" WITH ALLOW_CONNECTIONS false;' "$MOCK_LOG" || fail "restore did not close target database admission"
@@ -159,6 +163,19 @@ if grep -q '^exec swap ' "$MOCK_LOG"; then
 fi
 grep -q 'exec dropdb .*sforum_restore_' "$MOCK_LOG" || fail "failed restore did not remove its temporary database"
 grep -q '^compose start api worker$' "$MOCK_LOG" || fail "failed restore did not restart previously running services"
+
+printf '%s\n' \
+  "POSTGRES_DB=\$(touch '$TEMP_DIR/database-value-was-executed')" \
+  'POSTGRES_USER=sforum_test' > "$TEST_ROOT/.env.production"
+if (cd "$TEST_ROOT" && SFORUM_BACKUP_DIR="$TEMP_DIR/backups-invalid-env" ./deploy/scripts/backup-postgres.sh >/dev/null 2>&1); then
+  fail "backup accepted an unsafe POSTGRES_DB value"
+fi
+[[ ! -e "$TEMP_DIR/database-value-was-executed" ]] || fail "backup executed an unsafe POSTGRES_DB value"
+
+if (cd "$TEST_ROOT" && SFORUM_CONFIRM_RESTORE=RESTORE ./deploy/scripts/restore-postgres.sh "$TEMP_DIR/restore.sql" >/dev/null 2>&1); then
+  fail "restore accepted an unsafe POSTGRES_DB value"
+fi
+[[ ! -e "$TEMP_DIR/database-value-was-executed" ]] || fail "restore executed an unsafe POSTGRES_DB value"
 
 grep -q 'wait-for-health.sh "http://127.0.0.1:${api_port}/api/v1/ready"' "$ROOT_DIR/deploy.sh" || fail "deploy does not wait for API readiness"
 grep -q 'wait-for-health.sh "http://127.0.0.1:${web_port}/"' "$ROOT_DIR/deploy.sh" || fail "deploy does not wait for Web readiness"

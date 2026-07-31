@@ -54,6 +54,8 @@ fail!("digest must be uploaded only after its platform scan passes") unless buil
 
 build_inputs = publish_steps.fetch(build_index).fetch("with")
 fail!("platform build must use the matrix platform") unless build_inputs["platforms"] == "${{ matrix.platform }}"
+scan_environment = publish_steps.fetch(scan_index).fetch("env", {})
+fail!("platform scan must use the matrix platform") unless scan_environment["TRIVY_PLATFORM"] == "${{ matrix.platform }}"
 outputs = build_inputs["outputs"].to_s
 unless outputs.include?("push-by-digest=true") && outputs.include?("name-canonical=true")
   fail!("platform build must push canonical digest-only candidates")

@@ -22,6 +22,9 @@ echo "Running anonymous release image pull validation..."
 echo "Running PostgreSQL backup and restore safety validation..."
 ./deploy/scripts/postgres-safety_test.sh
 
+echo "Running release deployment state-machine validation..."
+./deploy/scripts/deploy_test.sh
+
 echo "Running architecture boundary validation..."
 node tests/validate-architecture-boundaries.mjs
 

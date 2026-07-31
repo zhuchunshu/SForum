@@ -116,6 +116,18 @@ distribution check, so private or mislinked GHCR packages fail before public
 release metadata is created.
 See `decisions/2026-07-29-ghcr-multi-platform-release-pipeline.md`.
 
+The clean-host deployment entrypoint now defaults to immutable GHCR images and
+managed Compose PostgreSQL/Redis. Its bilingual wizard creates a mode-`0600`
+production environment with secure generated secrets and working local
+defaults; external database mode remains deliberately unavailable until its
+dependency, health, and backup semantics are honest. The deployment state
+machine pulls all four target images before database changes, starts and waits
+for infrastructure, backs up only an existing installation, stops the old app,
+runs the target migrator, starts with `--no-build`, verifies API/Web plus all
+five long-running services, and only then persists the successful version.
+Backup and restore helpers parse only the exact database keys from dotenv and
+never execute the configuration as shell input.
+
 The CI quality job provisions PostgreSQL 17 on the same host port `15432` used
 by the repository's required database-backed tests, runs the embedded migrator
 before the repository gate, and passes a separate

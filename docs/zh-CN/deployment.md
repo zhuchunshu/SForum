@@ -10,24 +10,20 @@
 
 ## 配置
 
-1. 复制生产环境文件：
+推荐直接运行 `./deploy.sh`。首次安装会用中文解释每个选项，并自动生成
+PostgreSQL、Redis、会话、验证码、身份 HMAC、敏感选项加密和 Marketplace
+验签密钥。所有问题直接回车即可得到一套能启动的本机配置；生成的
+`.env.production` 权限为 `0600`，秘密不会打印到终端。
 
-   ```sh
-cp .env.production.example .env.production
-```
+入门向导固定使用 Compose 内置 PostgreSQL 和 Redis，不需要另外准备数据库
+或填写连接字符串。外部数据库属于高级部署，这一版向导暂不开放，避免更新
+时错误备份内置空库。
 
-`deploy.sh` 及数据库辅助脚本会把 `.env.production` 权限收紧为 `0600`，
-避免同机其他用户读取生产密钥。
-
-2. **必须**修改：
-
-   - `POSTGRES_PASSWORD` / `DATABASE_URL`  
-   - `REDIS_PASSWORD`  
-   - `APP_URL` / `APP_DOMAIN`  
-   - 会话与 CSRF 等相关密钥（以 example 注释为准）  
-   - `MARKETPLACE_ED25519_PUBLIC_KEY_HEX`（签名 Marketplace 索引的 32 字节公钥，64 个十六进制字符）及对应的 `MARKETPLACE_ED25519_KEY_ID`。生产/预发布 API 缺少公钥会在就绪前拒绝启动；私钥不得写入仓库或容器。
-
-3. 可选 Meilisearch：仅在使用 Meili 插件时启用对应服务与配置  
+默认 `APP_URL` 是本机验证地址。公网部署应重新运行配置向导或编辑
+`.env.production`，配置真实 HTTPS 地址和宿主机 Caddy/Nginx。向导生成的
+`deployment-local-untrusted` Marketplace 公钥只用于让未知索引保持锁定；
+接入官方 Marketplace 时必须替换为官方公钥与 key ID，私钥不得进入仓库或
+容器。
 
 ## 维护者发布
 
@@ -69,25 +65,32 @@ Linux 后端包不包含 Nuxt Web、PostgreSQL 或 Redis，因此不是完整站
 - `ghcr.io/zhuchunshu/sforum-migrate`
 - `ghcr.io/zhuchunshu/sforum-web`
 
-每个正式版本同时提供 `linux/amd64` 和 `linux/arm64`。部署时固定完整版本，
-不要在生产环境固定使用 `latest`：
+每个发布版本同时提供 `linux/amd64` 和 `linux/arm64`。部署时固定完整版本，
+不要使用 `latest`。最简单的交互安装如下，全部直接回车即可完成配置并部署：
 
 ```sh
-./deploy.sh --version v2.8.0
-./deploy.sh --version v2.8.0 --lang zh
-./deploy.sh --version v2.8.0 --lang en
+./deploy.sh
+```
+
+也可以显式固定版本，或完全非交互地接受推荐配置：
+
+```sh
+./deploy.sh --version v3.0.0-alpha.9 --lang zh
+./deploy.sh --version v3.0.0-alpha.9 --lang en
+./deploy.sh --version v3.0.0-alpha.9 --lang zh --yes --action deploy
 ```
 
 该模式组合 `compose.yaml`、`compose.prod.yaml` 与
-`compose.release.yaml`，先拉取指定版本，再备份、迁移并启动相同版本的
-API、Worker 和 Web。需要 Docker Compose 2.24.4 或更高版本，以支持
-`!reset` 覆盖构建配置。启动后脚本会等待 API `/api/v1/ready` 与 Web 首页
-同时成功；任一服务超时都不会打印部署完成地址。
+`compose.release.yaml`。脚本先拉取同版本的四个 GHCR 镜像，成功后才启动
+内置 PostgreSQL/Redis；全新库跳过备份，已有安装先备份，再停止旧应用、
+迁移并以 `--no-build` 启动。需要 Docker Compose 2.24.4 或更高版本。
+API `/api/v1/ready`、Web 首页和五个常驻服务全部通过后，脚本才记录成功
+版本并打印访问地址。
 
 等价的非交互命令：
 
 ```sh
-export SFORUM_VERSION=v2.8.0
+export SFORUM_VERSION=v3.0.0-alpha.9
 docker compose --env-file .env.production \
   -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull
 docker compose --env-file .env.production \
@@ -102,23 +105,8 @@ docker compose --env-file .env.production \
 包改为 Public 后重跑失败作业即可。写入仍使用仓库 `GITHUB_TOKEN`，不需要
 长期 Registry 密钥。
 
-### 从源码构建
-
-开发版本或需要自定义源码时仍可使用原有入口：
-
-```sh
-./deploy.sh
-./deploy.sh --lang zh
-./deploy.sh --lang en
-```
-
-首次会选择语言并写入 `.deployrc`。菜单通常包括安装/更新、迁移、备份等（以脚本实际菜单为准）。
-
-等价 Compose 命令：
-
-```sh
-docker compose --env-file .env.production -f compose.yaml -f compose.prod.yaml up -d --build
-```
+`deploy.sh` 只走发布镜像，避免新手意外在服务器上源码构建。开发或定制源码
+请使用开发文档中的 `scripts/dev.sh` 和构建命令。
 
 ## 端口（生产示例）
 

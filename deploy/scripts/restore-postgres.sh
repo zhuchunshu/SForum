@@ -27,13 +27,47 @@ if [ ! -f "$BACKUP_FILE" ]; then
   exit 1
 fi
 
-set -a
-. ./.env.production
-set +a
+read_production_env_value() {
+  local key="$1"
+  local default_value="$2"
+  local line value=""
+
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%$'\r'}"
+    case "$line" in
+      "$key="*) value="${line#*=}" ;;
+    esac
+  done < .env.production
+
+  if [ -z "$value" ]; then
+    value="$default_value"
+  elif [ "${value:0:1}" = '"' ] || [ "${value:0:1}" = "'" ]; then
+    if [ "${value: -1}" != "${value:0:1}" ]; then
+      echo "Invalid quoted value for $key in .env.production." >&2
+      return 1
+    fi
+    value="${value:1:${#value}-2}"
+  fi
+
+  if [ -z "$value" ]; then
+    value="$default_value"
+  fi
+
+  case "$value" in
+    *[!A-Za-z0-9_.-]*)
+      echo "Invalid value for $key in .env.production." >&2
+      return 1
+      ;;
+  esac
+  printf '%s\n' "$value"
+}
+
+POSTGRES_DB="$(read_production_env_value POSTGRES_DB sforum)"
+POSTGRES_USER="$(read_production_env_value POSTGRES_USER sforum)"
 
 COMPOSE=(docker compose --env-file .env.production -f compose.yaml -f compose.prod.yaml)
-TARGET_DB="${POSTGRES_DB:-sforum}"
-POSTGRES_ACTOR="${POSTGRES_USER:-sforum}"
+TARGET_DB="$POSTGRES_DB"
+POSTGRES_ACTOR="$POSTGRES_USER"
 
 case "$TARGET_DB" in
   ""|postgres|template0|template1)

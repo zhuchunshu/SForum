@@ -10,20 +10,21 @@
 
 ## Configuration
 
-```sh
-cp .env.production.example .env.production
-```
+Run `./deploy.sh` for the recommended path. On first install it explains each
+choice and generates the PostgreSQL, Redis, session, verification, identity
+HMAC, option-encryption, and Marketplace verifier keys. Press Enter for every
+question to get a runnable local configuration. Secrets are never printed and
+`.env.production` is written with mode `0600`.
 
-`deploy.sh` and the database helpers tighten `.env.production` to mode `0600`
-so other users on the host cannot read production secrets.
+The beginner wizard deliberately uses PostgreSQL and Redis managed by Compose;
+no separate database or connection string is required. External services are
+an advanced deployment and are not exposed by this version of the wizard.
 
-Change at least:
-
-- `POSTGRES_PASSWORD` / `DATABASE_URL`  
-- `REDIS_PASSWORD`  
-- `APP_URL` / `APP_DOMAIN`  
-- session/CSRF-related secrets per example comments  
-- `MARKETPLACE_ED25519_PUBLIC_KEY_HEX` (the 32-byte, 64-hex-character public key for the signed Marketplace index) and its `MARKETPLACE_ED25519_KEY_ID`. Production/staging API startup fails before readiness when the key is missing; never store the private key in the repository or container.
+The default `APP_URL` is for local verification. Public deployments must set a
+real HTTPS URL and configure host-level Caddy or Nginx. The generated
+`deployment-local-untrusted` Marketplace key keeps unknown indexes locked; use
+the official public key and key ID before enabling the official Marketplace.
+Never put its private key in the repository or containers.
 
 ## Maintainer releases
 
@@ -68,26 +69,33 @@ Stable releases publish these images to GitHub Container Registry:
 - `ghcr.io/zhuchunshu/sforum-migrate`
 - `ghcr.io/zhuchunshu/sforum-web`
 
-Every release supports `linux/amd64` and `linux/arm64`. Pin a complete version
-in production instead of deploying `latest`:
+Every release supports `linux/amd64` and `linux/arm64`. Do not deploy `latest`.
+The simplest interactive installation accepts Enter for every prompt:
 
 ```sh
-./deploy.sh --version v2.8.0
-./deploy.sh --version v2.8.0 --lang en
-./deploy.sh --version v2.8.0 --lang zh
+./deploy.sh
+```
+
+Pin a version explicitly, or accept all recommended defaults non-interactively:
+
+```sh
+./deploy.sh --version v3.0.0-alpha.9 --lang en
+./deploy.sh --version v3.0.0-alpha.9 --lang zh
+./deploy.sh --version v3.0.0-alpha.9 --lang en --yes --action deploy
 ```
 
 This combines `compose.yaml`, `compose.prod.yaml`, and `compose.release.yaml`.
-It pulls the selected version before backup, migration, and startup, so the
-API, worker, migration command, and web app use one release. Docker Compose
-2.24.4 or newer is required for the `!reset` override. After startup,
-`deploy.sh` waits for both API `/api/v1/ready` and the Web root; a timeout fails
-the deployment instead of printing a completion URL.
+It pulls all four version-matched GHCR images before changing the database,
+then starts the managed PostgreSQL and Redis services. A fresh database skips
+backup; an existing install is backed up before the old app stops and the
+target migrator runs. Startup always uses `--no-build`. Docker Compose 2.24.4
+or newer is required. The script records success only after API readiness, the
+Web root, and all five long-running services pass verification.
 
 Equivalent non-interactive commands:
 
 ```sh
-export SFORUM_VERSION=v2.8.0
+export SFORUM_VERSION=v3.0.0-alpha.9
 docker compose --env-file .env.production \
   -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull
 docker compose --env-file .env.production \
@@ -103,22 +111,9 @@ release. On the first publication the workflow may stop at this gate: make all
 four packages Public, then rerun the failed jobs. Publication still uses the
 repository `GITHUB_TOKEN`; no long-lived registry credential is required.
 
-### Source builds
-
-Development versions and source customizations can keep using the original
-entrypoint:
-
-```sh
-./deploy.sh
-./deploy.sh --lang en
-./deploy.sh --lang zh
-```
-
-Language choice persists in `.deployrc`. Compose equivalent:
-
-```sh
-docker compose --env-file .env.production -f compose.yaml -f compose.prod.yaml up -d --build
-```
+`deploy.sh` intentionally uses published images only, so a beginner cannot
+accidentally start a source build on the server. Use the development guide and
+`scripts/dev.sh` for source development and custom builds.
 
 ## Ports (production examples)
 
