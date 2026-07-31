@@ -647,14 +647,13 @@
       "loadFailed": "Failed to load the admin overview",
       "toolbar": {
         "loading": "Loading admin overview...",
-        "generatedAt": "Last {days} days · Updated {time}"
+        "generatedAt": "Last {days} days · Updated {time}",
+        "live": "Resources every 2s · KPIs every 30s"
       },
       "kpi": {
         "memory": {
           "label": "Admin memory usage",
-          "meta": "API process usage; plugins are listed separately",
-          "pluginExtra": "Plugin extra usage ({count})",
-          "total": "Admin total (API + plugins)"
+          "meta": "API process resident memory"
         },
         "topics": {
           "label": "Posts",
@@ -668,6 +667,22 @@
           "label": "Needs attention",
           "meta": "{reports} moderation items"
         }
+      },
+      "resources": {
+        "memoryTitle": "Backend memory usage",
+        "cpuTitle": "CPU usage",
+        "diskTitle": "Disk usage",
+        "loadTitle": "System load",
+        "loadOneMinute": "1 minute",
+        "loadFiveMinutes": "5 minutes",
+        "loadFifteenMinutes": "15 minutes",
+        "api": "API",
+        "worker": "Worker",
+        "plugin": "Plugins",
+        "total": "Total",
+        "workerEmbedded": "In API",
+        "diskUsed": "used",
+        "unavailable": "Unavailable"
       },
       "trend": {
         "title": "7-day community trends",

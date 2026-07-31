@@ -687,14 +687,13 @@
       "loadFailed": "后台总览加载失败",
       "toolbar": {
         "loading": "正在读取后台总览...",
-        "generatedAt": "最近 {days} 天 · 更新于 {time}"
+        "generatedAt": "最近 {days} 天 · 更新于 {time}",
+        "live": "资源 2 秒 · 指标 30 秒自动刷新"
       },
       "kpi": {
         "memory": {
           "label": "后台内存占用",
-          "meta": "API 主程序实际占用，插件另计",
-          "pluginExtra": "插件额外占用（{count} 个）",
-          "total": "后台总计（API + 插件）"
+          "meta": "API 进程常驻内存"
         },
         "topics": {
           "label": "帖子",
@@ -708,6 +707,22 @@
           "label": "待处理",
           "meta": "审核队列 {reports}"
         }
+      },
+      "resources": {
+        "memoryTitle": "后台内存占用",
+        "cpuTitle": "CPU 占用",
+        "diskTitle": "硬盘占用",
+        "loadTitle": "系统负载",
+        "loadOneMinute": "1 分钟",
+        "loadFiveMinutes": "5 分钟",
+        "loadFifteenMinutes": "15 分钟",
+        "api": "API占用",
+        "worker": "Worker占用",
+        "plugin": "插件占用",
+        "total": "合计",
+        "workerEmbedded": "并入 API",
+        "diskUsed": "已用",
+        "unavailable": "暂无数据"
       },
       "trend": {
         "title": "最近 7 天社区趋势",

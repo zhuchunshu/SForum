@@ -117,6 +117,33 @@ ApiResponseAdminOverview:
       type: string
     data:
       "$ref": "#/AdminOverview"
+ApiResponseAdminOverviewResources:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/AdminOverviewResources"
+AdminOverviewResources:
+  type: object
+  required:
+  - generatedAt
+  properties:
+    generatedAt:
+      type: string
+      format: date-time
+    resources:
+      "$ref": "#/AdminOverviewRuntimeResources"
+    disk:
+      "$ref": "#/AdminOverviewDiskRuntime"
+    loadAverage:
+      "$ref": "#/AdminOverviewSystemLoadAverage"
 AdminOverview:
   type: object
   required:
@@ -256,6 +283,12 @@ AdminOverviewRuntime:
       type: integer
       minimum: 0
       description: Number of owned backend plugin children included in familyMemoryBytes.
+    resources:
+      "$ref": "#/AdminOverviewRuntimeResources"
+    disk:
+      "$ref": "#/AdminOverviewDiskRuntime"
+    loadAverage:
+      "$ref": "#/AdminOverviewSystemLoadAverage"
     goroutineCount:
       type: integer
       minimum: 0
@@ -272,6 +305,109 @@ AdminOverviewRuntime:
       "$ref": "#/AdminOverviewWorkerRuntime"
     queueLag:
       "$ref": "#/AdminOverviewQueueLag"
+AdminOverviewRuntimeResources:
+  type: object
+  required:
+  - apiMemoryBytes
+  - workerMemoryBytes
+  - pluginMemoryBytes
+  - totalMemoryBytes
+  - apiCpuPercent
+  - workerCpuPercent
+  - pluginCpuPercent
+  - totalCpuPercent
+  - pluginChildCount
+  - workerFound
+  properties:
+    apiMemoryBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Resident memory of the API process.
+    workerMemoryBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Resident memory of independent SForum worker processes; embedded workers are included in API memory.
+    pluginMemoryBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Resident memory of owned backend plugin processes.
+    totalMemoryBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Sum of API, independent worker, and backend plugin resident memory.
+    apiCpuPercent:
+      type: number
+      format: double
+      minimum: 0
+      description: Current process CPU percentage reported by the operating system.
+    workerCpuPercent:
+      type: number
+      format: double
+      minimum: 0
+    pluginCpuPercent:
+      type: number
+      format: double
+      minimum: 0
+    totalCpuPercent:
+      type: number
+      format: double
+      minimum: 0
+      description: Sum of API, independent worker, and backend plugin CPU percentages.
+    pluginChildCount:
+      type: integer
+      minimum: 0
+    workerFound:
+      type: boolean
+      description: Whether an independent SForum worker process was found in the process table.
+AdminOverviewDiskRuntime:
+  type: object
+  required:
+  - totalBytes
+  - usedBytes
+  - freeBytes
+  - usedPercent
+  properties:
+    totalBytes:
+      type: integer
+      format: int64
+      minimum: 0
+    usedBytes:
+      type: integer
+      format: int64
+      minimum: 0
+    freeBytes:
+      type: integer
+      format: int64
+      minimum: 0
+    usedPercent:
+      type: number
+      format: double
+      minimum: 0
+      maximum: 100
+AdminOverviewSystemLoadAverage:
+  type: object
+  required:
+  - oneMinute
+  - fiveMinutes
+  - fifteenMinutes
+  properties:
+    oneMinute:
+      type: number
+      format: double
+      minimum: 0
+      description: Host run-queue average over the last minute; this is not a CPU percentage.
+    fiveMinutes:
+      type: number
+      format: double
+      minimum: 0
+    fifteenMinutes:
+      type: number
+      format: double
+      minimum: 0
 AdminOverviewBuildInfo:
   type: object
   required:

@@ -18,6 +18,11 @@ func TestServiceRequiresAdminAccess(t *testing.T) {
 	if !errors.Is(err, identity.ErrPermissionDenied) {
 		t.Fatalf("expected permission denied, got %v", err)
 	}
+
+	_, err = service.Resources(context.Background(), actor)
+	if !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("expected resources permission denied, got %v", err)
+	}
 }
 
 func TestServiceBuildsOverviewFromStoreAndRuntime(t *testing.T) {
@@ -89,6 +94,49 @@ func TestServiceBuildsOverviewFromStoreAndRuntime(t *testing.T) {
 	}
 }
 
+func TestServiceResourcesReturnsLightweightRuntimeOnly(t *testing.T) {
+	now := time.Date(2026, 7, 31, 12, 0, 0, 0, time.UTC)
+	usage := RuntimeUsage{
+		APIMemoryBytes:   64 * 1024 * 1024,
+		TotalMemoryBytes: 64 * 1024 * 1024,
+		APICPUPercent:    3.5,
+		TotalCPUPercent:  3.5,
+	}
+	disk := DiskRuntimeStats{
+		TotalBytes:  1000,
+		UsedBytes:   400,
+		FreeBytes:   600,
+		UsedPercent: 40,
+	}
+	loadAverage := SystemLoadAverage{OneMinute: 0.25, FiveMinutes: 0.5, FifteenMinutes: 0.75}
+	store := &countingStore{}
+	service := NewService(store, StaticRuntimeProvider{Stats: RuntimeStats{
+		Resources:   &usage,
+		Disk:        &disk,
+		LoadAverage: &loadAverage,
+	}}, WithClock(func() time.Time { return now }))
+
+	payload, err := service.Resources(context.Background(), adminActor())
+	if err != nil {
+		t.Fatalf("Resources returned error: %v", err)
+	}
+	if store.calls != 0 {
+		t.Fatalf("expected zero store calls, got %d", store.calls)
+	}
+	if !payload.GeneratedAt.Equal(now) {
+		t.Fatalf("generatedAt=%s", payload.GeneratedAt)
+	}
+	if payload.Resources == nil || payload.Resources.APIMemoryBytes != usage.APIMemoryBytes {
+		t.Fatalf("resources=%#v", payload.Resources)
+	}
+	if payload.Disk == nil || payload.Disk.UsedPercent != 40 {
+		t.Fatalf("disk=%#v", payload.Disk)
+	}
+	if payload.LoadAverage == nil || payload.LoadAverage.FiveMinutes != 0.5 {
+		t.Fatalf("loadAverage=%#v", payload.LoadAverage)
+	}
+}
+
 func TestRuntimeCollectorReturnsProcessStats(t *testing.T) {
 	collector := NewRuntimeCollector(time.Now().Add(-time.Minute), nil)
 
@@ -112,6 +160,19 @@ func TestRuntimeCollectorReturnsProcessStats(t *testing.T) {
 	// 真实采样成功时 family >= parent；失败时 family 可省略。
 	if stats.FamilyMemoryBytes != nil && *stats.FamilyMemoryBytes < stats.MemoryBytes {
 		t.Fatalf("family RSS %d < parent RSS %d", *stats.FamilyMemoryBytes, stats.MemoryBytes)
+	}
+}
+
+func TestRuntimeCollectorSampleResourcesSkipsWorkerAndQueue(t *testing.T) {
+	collector := NewRuntimeCollector(time.Now().Add(-time.Minute), nil).WithHeartbeat(memoryHeartbeat{found: false})
+	resources, disk, loadAverage := collector.SampleResources()
+	// 不依赖真实 ps/磁盘是否成功，只保证方法可调用且不 panic。
+	_ = resources
+	_ = disk
+	_ = loadAverage
+	full := collector.Snapshot()
+	if full.Worker == nil {
+		t.Fatal("full snapshot should still include worker probe")
 	}
 }
 
@@ -165,4 +226,14 @@ type fakeStore struct {
 
 func (s *fakeStore) Snapshot(context.Context, time.Time) (StoreSnapshot, error) {
 	return s.snapshot, nil
+}
+
+// countingStore 用于确认 Resources 不触达社区 KPI 查询。
+type countingStore struct {
+	calls int
+}
+
+func (s *countingStore) Snapshot(context.Context, time.Time) (StoreSnapshot, error) {
+	s.calls++
+	return StoreSnapshot{}, errors.New("store should not be called for resources")
 }

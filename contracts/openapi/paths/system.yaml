@@ -50,3 +50,23 @@ adminOverview:
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
         "$ref": "../components/responses.yaml#/Forbidden"
+adminOverviewResources:
+  get:
+    summary: Get lightweight admin overview resource metrics
+    description: |
+      Process memory/CPU and filesystem disk usage only. Intended for high-frequency
+      dashboard polling; does not query community KPIs, trends, or extension widgets.
+    operationId: getAdminOverviewResources
+    security:
+    - cookieAuth: []
+    responses:
+      '200':
+        description: Lightweight runtime resource snapshot for admin resource cards.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/system.yaml#/ApiResponseAdminOverviewResources"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"

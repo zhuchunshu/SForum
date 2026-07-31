@@ -14,6 +14,36 @@ export type AdminOverview = {
   extensionWidgets?: AdminOverviewExtensionWidget[]
 }
 
+/** 轻量资源快照：内存/CPU/磁盘/系统负载，供高频轮询。 */
+export type AdminOverviewResources = {
+  generatedAt: string
+  resources?: AdminOverviewRuntimeResources
+  disk?: AdminOverviewDiskRuntime
+  loadAverage?: AdminOverviewSystemLoadAverage
+}
+
+/**
+ * 将资源快照合并进总览 runtime。
+ * 采样失败字段省略时保留上一帧，避免卡片闪成「暂无数据」。
+ */
+export function applyOverviewResources(
+  overview: AdminOverview,
+  patch: AdminOverviewResources
+): AdminOverview {
+  return {
+    ...overview,
+    runtime: {
+      ...overview.runtime,
+      ...(patch.resources !== undefined ? { resources: patch.resources } : {}),
+      ...(patch.disk !== undefined ? { disk: patch.disk } : {}),
+      ...(patch.loadAverage !== undefined ? { loadAverage: patch.loadAverage } : {})
+    }
+  }
+}
+
+export const ADMIN_OVERVIEW_RESOURCE_POLL_MS = 2000
+export const ADMIN_OVERVIEW_KPI_POLL_MS = 30_000
+
 export type AdminOverviewExtensionWidget = {
   extensionId: string
   id: string
@@ -50,6 +80,9 @@ export type AdminOverviewRuntime = {
   /** API RSS + owned backend plugin children; omitted when sampling fails. */
   familyMemoryBytes?: number
   pluginChildCount: number
+  resources?: AdminOverviewRuntimeResources
+  disk?: AdminOverviewDiskRuntime
+  loadAverage?: AdminOverviewSystemLoadAverage
   goroutineCount: number
   gcCount: number
   lastGcPauseNs: number
@@ -61,6 +94,32 @@ export type AdminOverviewRuntime = {
   }
   worker?: AdminOverviewWorkerRuntime
   queueLag?: AdminOverviewQueueLag
+}
+
+export type AdminOverviewRuntimeResources = {
+  apiMemoryBytes: number
+  workerMemoryBytes: number
+  pluginMemoryBytes: number
+  totalMemoryBytes: number
+  apiCpuPercent: number
+  workerCpuPercent: number
+  pluginCpuPercent: number
+  totalCpuPercent: number
+  pluginChildCount: number
+  workerFound: boolean
+}
+
+export type AdminOverviewDiskRuntime = {
+  totalBytes: number
+  usedBytes: number
+  freeBytes: number
+  usedPercent: number
+}
+
+export type AdminOverviewSystemLoadAverage = {
+  oneMinute: number
+  fiveMinutes: number
+  fifteenMinutes: number
 }
 
 export type AdminOverviewBuildInfo = {
@@ -153,6 +212,31 @@ export function formatOverviewBytes(bytes: number) {
   const value = Math.max(0, Number(bytes) || 0)
   const mib = Math.round(value / 1024 / 1024)
   return `${formatInteger(mib)} MiB`
+}
+
+export function formatOverviewStorage(bytes: number) {
+  const value = Math.max(0, Number(bytes) || 0)
+  if (value < 1024) {
+    return `${formatInteger(value)} B`
+  }
+  const units = ['KiB', 'MiB', 'GiB', 'TiB']
+  let scaled = value / 1024
+  let unitIndex = 0
+  while (scaled >= 1024 && unitIndex < units.length - 1) {
+    scaled /= 1024
+    unitIndex += 1
+  }
+  return `${trimOneDecimal(scaled)} ${units[unitIndex]}`
+}
+
+export function formatOverviewPercent(value: number) {
+  const normalized = Math.max(0, Number(value) || 0)
+  return `${normalized.toFixed(1).replace(/\.0$/, '')}%`
+}
+
+export function formatOverviewLoad(value: number) {
+  const normalized = Math.max(0, Number(value) || 0)
+  return normalized.toFixed(2)
 }
 
 export function formatOverviewCount(value: number) {

@@ -47,6 +47,8 @@ paths:
     "$ref": "./openapi/paths/system.yaml#/ready"
   "/admin/overview":
     "$ref": "./openapi/paths/system.yaml#/adminOverview"
+  "/admin/overview/resources":
+    "$ref": "./openapi/paths/system.yaml#/adminOverviewResources"
   "/admin/jobs/overview":
     "$ref": "./openapi/paths/jobs.yaml#/adminJobsOverview"
   "/admin/jobs/schedules":
@@ -691,6 +693,8 @@ components:
       "$ref": "./openapi/schemas/system.yaml#/ApiResponseHealth"
     ApiResponseAdminOverview:
       "$ref": "./openapi/schemas/system.yaml#/ApiResponseAdminOverview"
+    ApiResponseAdminOverviewResources:
+      "$ref": "./openapi/schemas/system.yaml#/ApiResponseAdminOverviewResources"
     ApiResponseWebOption:
       "$ref": "./openapi/schemas/options.yaml#/ApiResponseWebOption"
     ApiResponseWebOptionList:

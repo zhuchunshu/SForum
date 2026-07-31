@@ -2,6 +2,7 @@ package adminoverview
 
 import (
 	"context"
+	"os"
 	"runtime"
 	"time"
 
@@ -19,7 +20,10 @@ type RuntimeCollector struct {
 	staleAfter   time.Duration
 	now          func() time.Time
 	// sampler 可注入；nil 时使用 defaultProcessSampler。
-	sampler ProcessSampler
+	sampler     ProcessSampler
+	diskPath    string
+	diskSampler func(string) (DiskRuntimeStats, bool)
+	loadSampler func() (SystemLoadAverage, bool)
 }
 
 func NewRuntimeCollector(startedAt time.Time, pool *pgxpool.Pool) RuntimeCollector {
@@ -44,6 +48,24 @@ func (c RuntimeCollector) WithProcessSampler(sampler ProcessSampler) RuntimeColl
 	return c
 }
 
+// WithDiskPath 注入磁盘统计路径，生产环境默认使用 API 当前工作目录。
+func (c RuntimeCollector) WithDiskPath(path string) RuntimeCollector {
+	c.diskPath = path
+	return c
+}
+
+// WithDiskSampler 注入磁盘采样器，供不依赖真实文件系统的测试使用。
+func (c RuntimeCollector) WithDiskSampler(sampler func(string) (DiskRuntimeStats, bool)) RuntimeCollector {
+	c.diskSampler = sampler
+	return c
+}
+
+// WithLoadSampler 注入系统负载采样器，供不依赖宿主机状态的测试使用。
+func (c RuntimeCollector) WithLoadSampler(sampler func() (SystemLoadAverage, bool)) RuntimeCollector {
+	c.loadSampler = sampler
+	return c
+}
+
 func (c RuntimeCollector) Snapshot() RuntimeStats {
 	var stats runtime.MemStats
 	runtime.ReadMemStats(&stats)
@@ -58,26 +80,7 @@ func (c RuntimeCollector) Snapshot() RuntimeStats {
 		nowFn = time.Now
 	}
 
-	sampler := c.sampler
-	if sampler == nil {
-		sampler = defaultProcessSampler
-	}
-
-	memoryBytes := uint64(0)
-	var familyPtr *uint64
-	pluginChildren := 0
-	if selfRSS, familyRSS, children, ok := sampleSelfAndFamily(sampler); ok {
-		memoryBytes = selfRSS
-		pluginChildren = children
-		family := familyRSS
-		familyPtr = &family
-	} else if fallback, ok := readSelfRSSFallback(); ok {
-		// ps 失败时 Linux 仍可读 /proc/self/statm；全家内存省略。
-		memoryBytes = fallback
-	} else {
-		// 最后回退：避免主 KPI 为 0；语义上仍暴露 Sys 诊断字段。
-		memoryBytes = stats.Sys
-	}
+	resourcesPtr, diskPtr, loadPtr, memoryBytes, familyPtr, pluginChildren := c.sampleProcessDiskAndLoad(stats.Sys)
 
 	return RuntimeStats{
 		StartedAt:         c.startedAt,
@@ -89,6 +92,9 @@ func (c RuntimeCollector) Snapshot() RuntimeStats {
 		SysBytes:          stats.Sys,
 		FamilyMemoryBytes: familyPtr,
 		PluginChildCount:  pluginChildren,
+		Resources:         resourcesPtr,
+		Disk:              diskPtr,
+		LoadAverage:       loadPtr,
 		GoroutineCount:    runtime.NumGoroutine(),
 		GCCount:           stats.NumGC,
 		LastGCPauseNs:     lastPause,
@@ -96,6 +102,65 @@ func (c RuntimeCollector) Snapshot() RuntimeStats {
 		Worker:            c.workerStats(nowFn().UTC()),
 		QueueLag:          c.queueLagStats(),
 	}
+}
+
+// SampleResources 只采样进程内存/CPU、磁盘与系统负载，不访问 Redis / River / 社区 KPI。
+// 供仪表盘资源卡片高频轮询。
+func (c RuntimeCollector) SampleResources() (*RuntimeUsage, *DiskRuntimeStats, *SystemLoadAverage) {
+	resources, disk, load, _, _, _ := c.sampleProcessDiskAndLoad(0)
+	return resources, disk, load
+}
+
+func (c RuntimeCollector) sampleProcessDiskAndLoad(sysFallback uint64) (
+	resourcesPtr *RuntimeUsage,
+	diskPtr *DiskRuntimeStats,
+	loadPtr *SystemLoadAverage,
+	memoryBytes uint64,
+	familyPtr *uint64,
+	pluginChildren int,
+) {
+	sampler := c.sampler
+	if sampler == nil {
+		sampler = defaultProcessSampler
+	}
+
+	if resources, ok := sampleRuntimeUsage(sampler); ok {
+		memoryBytes = resources.APIMemoryBytes
+		pluginChildren = resources.APIOwnedPluginCount
+		family := resources.APIMemoryBytes + resources.APIOwnedPluginMemoryBytes
+		familyPtr = &family
+		resourcesCopy := resources
+		resourcesPtr = &resourcesCopy
+	} else if fallback, ok := readSelfRSSFallback(); ok {
+		// ps 失败时 Linux 仍可读 /proc/self/statm；全家内存省略。
+		memoryBytes = fallback
+	} else if sysFallback > 0 {
+		// 最后回退：避免主 KPI 为 0；语义上仍暴露 Sys 诊断字段。
+		memoryBytes = sysFallback
+	}
+
+	diskPath := c.diskPath
+	if diskPath == "" {
+		diskPath, _ = os.Getwd()
+	}
+	diskSampler := c.diskSampler
+	if diskSampler == nil {
+		diskSampler = sampleDiskUsage
+	}
+	if disk, ok := diskSampler(diskPath); ok {
+		diskCopy := disk
+		diskPtr = &diskCopy
+	}
+
+	loadSampler := c.loadSampler
+	if loadSampler == nil {
+		loadSampler = sampleSystemLoad
+	}
+	if average, ok := loadSampler(); ok {
+		averageCopy := average
+		loadPtr = &averageCopy
+	}
+	return resourcesPtr, diskPtr, loadPtr, memoryBytes, familyPtr, pluginChildren
 }
 
 func (c RuntimeCollector) databaseStats() DatabaseRuntimeStats {

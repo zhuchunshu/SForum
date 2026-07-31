@@ -16,6 +16,11 @@ type RuntimeProvider interface {
 	Snapshot() RuntimeStats
 }
 
+// ResourceSampler 是可选的轻量资源采样；存在时 Resources 不走完整 Snapshot。
+type ResourceSampler interface {
+	SampleResources() (resources *RuntimeUsage, disk *DiskRuntimeStats, loadAverage *SystemLoadAverage)
+}
+
 type Option func(*Service)
 
 type Service struct {
@@ -86,6 +91,33 @@ func (s *Service) Overview(ctx context.Context, actor identity.Actor) (AdminOver
 	}, nil
 }
 
+// Resources 返回进程内存/CPU、磁盘与系统负载快照，不查询社区 KPI 或扩展小部件。
+func (s *Service) Resources(_ context.Context, actor identity.Actor) (AdminOverviewResources, error) {
+	if !actor.Can(identity.PermissionAdminAccess) {
+		return AdminOverviewResources{}, identity.ErrPermissionDenied
+	}
+
+	now := s.clock().UTC()
+	resources, disk, loadAverage := s.sampleResources()
+	return AdminOverviewResources{
+		GeneratedAt: now,
+		Resources:   resources,
+		Disk:        disk,
+		LoadAverage: loadAverage,
+	}, nil
+}
+
+func (s *Service) sampleResources() (*RuntimeUsage, *DiskRuntimeStats, *SystemLoadAverage) {
+	if s == nil || s.runtime == nil {
+		return nil, nil, nil
+	}
+	if sampler, ok := s.runtime.(ResourceSampler); ok {
+		return sampler.SampleResources()
+	}
+	stats := s.runtime.Snapshot()
+	return stats.Resources, stats.Disk, stats.LoadAverage
+}
+
 func (s *Service) listWidgets(ctx context.Context) ([]ExtensionWidget, error) {
 	if s == nil || s.widgets == nil {
 		return nil, nil
@@ -146,4 +178,8 @@ type StaticRuntimeProvider struct {
 
 func (p StaticRuntimeProvider) Snapshot() RuntimeStats {
 	return p.Stats
+}
+
+func (p StaticRuntimeProvider) SampleResources() (*RuntimeUsage, *DiskRuntimeStats, *SystemLoadAverage) {
+	return p.Stats.Resources, p.Stats.Disk, p.Stats.LoadAverage
 }

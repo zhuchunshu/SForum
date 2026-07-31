@@ -130,6 +130,41 @@ func TestRuntimeCollectorPrimaryMemoryIsRSSNotSys(t *testing.T) {
 	}
 }
 
+func TestRuntimeCollectorExposesResourceAndDiskSnapshots(t *testing.T) {
+	selfPID := os.Getpid()
+	sampler := fixedSampler{samples: []ProcessSample{
+		{PID: selfPID, RSSBytes: 100, CPUPercent: 1.25, Command: "sforum-api"},
+		{PID: selfPID + 1, RSSBytes: 20, CPUPercent: 0.5, Command: "sforum-worker"},
+		{PID: selfPID + 2, PPID: selfPID, RSSBytes: 10, CPUPercent: 0.25, Command: "storage/extensions/demo/1.0.0/x/backend/plugin"},
+		{PID: selfPID + 3, PPID: selfPID + 1, RSSBytes: 5, CPUPercent: 0.75, Command: "storage/extensions/demo/1.0.0/x/backend/plugin"},
+	}}
+	collector := NewRuntimeCollector(time.Now(), nil).
+		WithProcessSampler(sampler).
+		WithDiskSampler(func(string) (DiskRuntimeStats, bool) {
+			return DiskRuntimeStats{TotalBytes: 1000, UsedBytes: 250, FreeBytes: 750, UsedPercent: 25}, true
+		}).
+		WithLoadSampler(func() (SystemLoadAverage, bool) {
+			return SystemLoadAverage{OneMinute: 0.25, FiveMinutes: 0.5, FifteenMinutes: 0.75}, true
+		})
+
+	stats := collector.Snapshot()
+	if stats.Resources == nil {
+		t.Fatal("expected resource snapshot")
+	}
+	if stats.Resources.TotalMemoryBytes != 135 || stats.Resources.TotalCPUPercent != 2.75 {
+		t.Fatalf("unexpected resources: %#v", stats.Resources)
+	}
+	if stats.Resources.PluginMemoryBytes != 15 || !stats.Resources.WorkerFound {
+		t.Fatalf("unexpected plugin/worker resources: %#v", stats.Resources)
+	}
+	if stats.Disk == nil || stats.Disk.UsedPercent != 25 {
+		t.Fatalf("unexpected disk stats: %#v", stats.Disk)
+	}
+	if stats.LoadAverage == nil || stats.LoadAverage.OneMinute != 0.25 || stats.LoadAverage.FifteenMinutes != 0.75 {
+		t.Fatalf("unexpected load average: %#v", stats.LoadAverage)
+	}
+}
+
 func TestRuntimeCollectorOmitsFamilyWhenSamplerFails(t *testing.T) {
 	collector := NewRuntimeCollector(time.Now(), nil).WithProcessSampler(fixedSampler{err: errors.New("boom")})
 	stats := collector.Snapshot()

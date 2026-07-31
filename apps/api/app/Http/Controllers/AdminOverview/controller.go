@@ -33,6 +33,18 @@ func (h *Controller) overview(c fiber.Ctx) error {
 	return apphttp.OK(c, overview)
 }
 
+func (h *Controller) resources(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	resources, err := h.service.Resources(c.Context(), actor)
+	if err != nil {
+		return mapOverviewError(err)
+	}
+	return apphttp.OK(c, resources)
+}
+
 func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
 	return apphttp.LoadActor(c, h.sessions, h.users)
 }

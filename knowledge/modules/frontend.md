@@ -27,6 +27,26 @@ responsibilities.
 
 ## Active Work
 
+### Admin overview runtime resource cards
+
+- `/control-panel` now groups backend memory, API CPU, and 1/5/15-minute
+  system load in one resource row, followed by a separate row for posts, users,
+  and pending work. System load is the host run queue average, not a second CPU
+  percentage.
+- Resource data comes from the admin overview runtime snapshot. Missing
+  process or filesystem samples render as localized unavailable states, and
+  an embedded worker is shown as included in API usage.
+- Backend focused tests, frontend helper tests, locale parsing, OpenAPI
+  reference validation, and Nuxt typecheck passed before the final CSS-only
+  scrollbar fix. Browser QA was intentionally left for manual verification.
+
+### Admin overview real-time updates
+
+- Resources (processes, disk, and system load) now auto-refresh every **2 seconds** via dedicated lightweight endpoint.
+- Full overview / KPI cards refresh every **30 seconds**.
+- Polling respects page visibility and KeepAlive; manual refresh unchanged.
+- Omitted resource fields preserve previous values (no flash to "unavailable").
+
 ### Admin user list sorting
 
 - `/control-panel/users` exposes compact field and direction selectors for

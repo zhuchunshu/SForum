@@ -1,10 +1,16 @@
 import { describe, expect, test } from 'bun:test'
 
 import {
+  ADMIN_OVERVIEW_KPI_POLL_MS,
+  ADMIN_OVERVIEW_RESOURCE_POLL_MS,
+  applyOverviewResources,
   formatOverviewBytes,
   formatOverviewCount,
   formatOverviewCommit,
   formatOverviewDate,
+  formatOverviewLoad,
+  formatOverviewPercent,
+  formatOverviewStorage,
   formatOverviewTrendDayCount,
   formatOverviewVersion,
   overviewActionTone,
@@ -18,15 +24,145 @@ import {
   overviewTrendPeakDate,
   overviewTrendSparkPath,
   overviewTrendSum,
+  type AdminOverview,
   type AdminOverviewRuntime,
   type AdminOverviewTrendDay
 } from '../../app/utils/admin/adminOverview'
 
 describe('admin overview helpers', () => {
+  test('live poll intervals are 2s resources and 30s KPI', () => {
+    expect(ADMIN_OVERVIEW_RESOURCE_POLL_MS).toBe(2000)
+    expect(ADMIN_OVERVIEW_KPI_POLL_MS).toBe(30_000)
+  })
+
+  test('applyOverviewResources merges resource fields without clearing omitted samples', () => {
+    const base: AdminOverview = {
+      generatedAt: '2026-07-31T00:00:00.000Z',
+      windowDays: 7,
+      runtime: {
+        startedAt: '2026-07-31T00:00:00.000Z',
+        uptimeSeconds: 10,
+        build: {
+          name: 'SForum',
+          version: 'dev',
+          goVersion: 'go1.25',
+          dirty: false,
+          sourceUrl: 'https://example.com'
+        },
+        memoryBytes: 1,
+        heapAllocBytes: 1,
+        heapSysBytes: 1,
+        sysBytes: 1,
+        pluginChildCount: 0,
+        resources: {
+          apiMemoryBytes: 10,
+          workerMemoryBytes: 0,
+          pluginMemoryBytes: 0,
+          totalMemoryBytes: 10,
+          apiCpuPercent: 1,
+          workerCpuPercent: 0,
+          pluginCpuPercent: 0,
+          totalCpuPercent: 1,
+          pluginChildCount: 0,
+          workerFound: false
+        },
+        disk: {
+          totalBytes: 100,
+          usedBytes: 40,
+          freeBytes: 60,
+          usedPercent: 40
+        },
+        loadAverage: {
+          oneMinute: 0.25,
+          fiveMinutes: 0.5,
+          fifteenMinutes: 0.75
+        },
+        goroutineCount: 1,
+        gcCount: 0,
+        lastGcPauseNs: 0,
+        database: {
+          maxConnections: 1,
+          totalConnections: 0,
+          acquiredConnections: 0,
+          idleConnections: 0
+        }
+      },
+      community: {
+        userCount: 0,
+        activeUserCount: 0,
+        disabledUserCount: 0,
+        bannedUserCount: 0,
+        topicCount: 0,
+        activeTopicCount: 0,
+        lockedTopicCount: 0,
+        hiddenTopicCount: 0,
+        deletedTopicCount: 0,
+        commentCount: 0,
+        postCount: 0,
+        categoryCount: 0,
+        tagCount: 0,
+        pendingTagCount: 0,
+        totalViews: 0
+      },
+      attachments: {
+        totalCount: 0,
+        activeCount: 0,
+        disabledCount: 0,
+        deletedCount: 0,
+        orphanCount: 0,
+        totalBytes: 0
+      },
+      moderation: {
+        openCount: 0,
+        reviewingCount: 0,
+        resolvedCount: 0,
+        rejectedCount: 0
+      },
+      extensions: {
+        totalCount: 0,
+        enabledCount: 0,
+        pluginCount: 0,
+        themeCount: 0,
+        installedPluginRuntimeCount: 0,
+        failedEventCount: 0
+      },
+      trends: { days: [] },
+      topCategories: [],
+      actions: []
+    }
+
+    const next = applyOverviewResources(base, {
+      generatedAt: '2026-07-31T00:00:02.000Z',
+      resources: {
+        ...base.runtime.resources!,
+        apiMemoryBytes: 20,
+        totalMemoryBytes: 20,
+        apiCpuPercent: 2,
+        totalCpuPercent: 2
+      }
+    })
+    expect(next.runtime.resources?.apiMemoryBytes).toBe(20)
+    expect(next.runtime.disk?.usedPercent).toBe(40)
+    expect(next.runtime.loadAverage?.oneMinute).toBe(0.25)
+
+    const kept = applyOverviewResources(base, { generatedAt: '2026-07-31T00:00:04.000Z' })
+    expect(kept.runtime.resources?.apiMemoryBytes).toBe(10)
+    expect(kept.runtime.disk?.usedPercent).toBe(40)
+    expect(kept.runtime.loadAverage?.fifteenMinutes).toBe(0.75)
+  })
+
   test('formats memory bytes as compact MiB labels', () => {
     expect(formatOverviewBytes(0)).toBe('0 MiB')
     expect(formatOverviewBytes(1024 * 1024)).toBe('1 MiB')
     expect(formatOverviewBytes(1536 * 1024 * 1024)).toBe('1,536 MiB')
+  })
+
+  test('formats resource percentages and disk sizes compactly', () => {
+    expect(formatOverviewPercent(0)).toBe('0%')
+    expect(formatOverviewPercent(12.5)).toBe('12.5%')
+    expect(formatOverviewLoad(0.125)).toBe('0.13')
+    expect(formatOverviewStorage(1024 * 1024 * 1024)).toBe('1 GiB')
+    expect(formatOverviewStorage(1536 * 1024 * 1024)).toBe('1.5 GiB')
   })
 
   test('runtime memory types expose RSS primary, Sys diagnostic, and family fields', () => {

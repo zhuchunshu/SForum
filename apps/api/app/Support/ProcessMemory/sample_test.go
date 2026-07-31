@@ -59,6 +59,31 @@ func TestAggregateFamilyIncludesOwnedPluginsOnly(t *testing.T) {
 	}
 }
 
+func TestAggregateRuntimeUsageSplitsAPIWorkerAndPlugins(t *testing.T) {
+	selfPID := 100
+	samples := []Sample{
+		{PID: selfPID, RSSBytes: 100, CPUPercent: 1.25, Command: "sforum-api"},
+		{PID: 200, RSSBytes: 50, CPUPercent: 2.5, Command: "sforum-worker"},
+		{PID: 201, PPID: selfPID, RSSBytes: 10, CPUPercent: 0.5, Command: "storage/extensions/demo/1.0.0/a/backend/plugin"},
+		{PID: 202, PPID: 200, RSSBytes: 20, CPUPercent: 1.5, Command: "storage/extensions/demo/1.0.0/a/backend/plugin"},
+		{PID: 203, PPID: 1, RSSBytes: 99, CPUPercent: 9, Command: "storage/extensions/demo/1.0.0/orphan/backend/plugin"},
+	}
+
+	usage := AggregateRuntimeUsage(selfPID, samples)
+	if usage.APIMemoryBytes != 100 || usage.WorkerMemoryBytes != 50 || usage.PluginMemoryBytes != 30 {
+		t.Fatalf("unexpected memory split: %#v", usage)
+	}
+	if usage.TotalMemoryBytes != 180 || usage.TotalCPUPercent != 5.75 {
+		t.Fatalf("unexpected totals: %#v", usage)
+	}
+	if usage.PluginChildCount != 2 || !usage.WorkerFound {
+		t.Fatalf("unexpected process metadata: %#v", usage)
+	}
+	if usage.APIOwnedPluginMemoryBytes != 10 || usage.APIOwnedPluginCount != 1 {
+		t.Fatalf("unexpected API-owned plugin metadata: %#v", usage)
+	}
+}
+
 func TestExtensionIDFromPluginCommand(t *testing.T) {
 	cases := []struct {
 		cmd  string
@@ -126,18 +151,21 @@ func TestSampleOwnedPluginRSSWith(t *testing.T) {
 }
 
 func TestParsePSList(t *testing.T) {
-	raw := []byte("  51406  42704 164360 /Users/x/tmp/sforum-api\n  51418  51406  18056 ../../storage/extensions/sforum.smtp/1.0.0/a/backend/plugin\n")
+	raw := []byte("  51406  42704 164360  1.25 /Users/x/tmp/sforum-api\n  51418  51406  18056  0.50 ../../storage/extensions/sforum.smtp/1.0.0/a/backend/plugin\n  51419  51406  12000 node backend/plugin.js\n")
 	samples, err := ParsePSList(raw)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(samples) != 2 {
+	if len(samples) != 3 {
 		t.Fatalf("len=%d", len(samples))
 	}
-	if samples[0].PID != 51406 || samples[0].PPID != 42704 || samples[0].RSSBytes != 164360*1024 {
+	if samples[0].PID != 51406 || samples[0].PPID != 42704 || samples[0].RSSBytes != 164360*1024 || samples[0].CPUPercent != 1.25 {
 		t.Fatalf("row0=%#v", samples[0])
 	}
 	if !IsBackendPluginCommand(samples[1].Command) {
 		t.Fatalf("plugin cmd=%q", samples[1].Command)
+	}
+	if samples[2].Command != "node backend/plugin.js" {
+		t.Fatalf("legacy command parsing lost words: %q", samples[2].Command)
 	}
 }

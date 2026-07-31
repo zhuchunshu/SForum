@@ -2,8 +2,10 @@
 import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/admin/useAdminPage'
+import SFAdminOverviewResourceCards from '~/components/admin/SFAdminOverviewResourceCards.vue'
 import SFAdminOverviewRuntimeCard from '~/components/admin/SFAdminOverviewRuntimeCard.vue'
 import SFAdminOverviewTrendTrio from '~/components/admin/SFAdminOverviewTrendTrio.vue'
+import { useAdminOverviewLive } from '~/composables/admin/useAdminOverviewLive'
 import {
   formatOverviewBytes,
   formatOverviewCount,
@@ -41,26 +43,14 @@ const {
   { default: () => null }
 )
 
+// 资源 2s + KPI 30s；标签页隐藏 / KeepAlive 停用时自动停止。
+useAdminOverviewLive({ overview, request })
+
 const kpiCards = computed(() => {
   const data = overview.value
   if (!data) return []
   const actionCount = data.actions.reduce((total, action) => total + action.count, 0)
   return [
-    {
-      key: 'memory',
-      label: t('admin.home.kpi.memory.label'),
-      value: formatOverviewBytes(data.runtime.memoryBytes),
-      meta: t('admin.home.kpi.memory.meta'),
-      pluginMemory: data.runtime.familyMemoryBytes != null
-        ? formatOverviewBytes(Math.max(0, data.runtime.familyMemoryBytes - data.runtime.memoryBytes))
-        : undefined,
-      familyMemory: data.runtime.familyMemoryBytes != null
-        ? formatOverviewBytes(data.runtime.familyMemoryBytes)
-        : undefined,
-      pluginCount: data.runtime.pluginChildCount ?? 0,
-      icon: 'i-lucide-memory-stick',
-      tone: 'text-[var(--sf-accent)] dark:text-[var(--sf-accent-dark)]'
-    },
     {
       key: 'topics',
       label: t('admin.home.kpi.topics.label'),
@@ -208,10 +198,15 @@ function extensionWidgetColor(widget: AdminOverviewExtensionWidget) {
 
   <UDashboardToolbar class="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-lg px-4 py-2.5 mb-6 text-slate-500 dark:text-zinc-400">
     <template #left>
-      <div class="flex min-w-0 items-center gap-2 text-sm">
-        <UIcon name="i-lucide-activity" class="size-4" />
-        <span class="truncate">
-          {{ overview ? t('admin.home.toolbar.generatedAt', { time: formatOverviewDate(overview.generatedAt), days: overview.windowDays }) : t('admin.home.toolbar.loading') }}
+      <div class="flex min-w-0 flex-col gap-0.5 text-sm sm:flex-row sm:items-center sm:gap-2">
+        <div class="flex min-w-0 items-center gap-2">
+          <UIcon name="i-lucide-activity" class="size-4 shrink-0" />
+          <span class="truncate">
+            {{ overview ? t('admin.home.toolbar.generatedAt', { time: formatOverviewDate(overview.generatedAt), days: overview.windowDays }) : t('admin.home.toolbar.loading') }}
+          </span>
+        </div>
+        <span class="hidden text-xs text-slate-400 dark:text-zinc-500 sm:inline">
+          {{ t('admin.home.toolbar.live') }}
         </span>
       </div>
     </template>
@@ -243,14 +238,16 @@ function extensionWidgetColor(widget: AdminOverviewExtensionWidget) {
     class="mb-6"
   />
 
-  <div v-if="pending && !overview" class="grid gap-5 lg:grid-cols-4">
-    <UCard v-for="index in 4" :key="index" class="elegant-card border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+  <div v-if="pending && !overview" class="grid gap-5 lg:grid-cols-3">
+    <UCard v-for="index in 3" :key="index" class="elegant-card border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
       <SFSkeleton :lines="3" />
     </UCard>
   </div>
 
   <div v-else-if="overview" class="flex flex-col gap-6">
-    <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+    <SFAdminOverviewResourceCards :runtime="overview.runtime" />
+
+    <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
       <UCard v-for="card in kpiCards" :key="card.label" class="elegant-card border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
         <div class="flex items-start justify-between gap-4">
           <div class="min-w-0">
@@ -263,18 +260,6 @@ function extensionWidgetColor(widget: AdminOverviewExtensionWidget) {
             <p class="mt-2 truncate text-xs text-slate-500 dark:text-zinc-400">
               {{ card.meta }}
             </p>
-            <div v-if="card.key === 'memory'" class="mt-2 space-y-1 border-t border-slate-100 pt-2 text-xs dark:border-zinc-800">
-              <div v-if="card.familyMemory" class="flex items-center justify-between gap-3">
-                <span class="text-slate-500 dark:text-zinc-400">
-                  {{ t('admin.home.kpi.memory.pluginExtra', { count: card.pluginCount }) }}
-                </span>
-                <strong class="font-semibold text-slate-700 dark:text-zinc-200">{{ card.pluginMemory }}</strong>
-              </div>
-              <div v-if="card.familyMemory" class="flex items-center justify-between gap-3 border-t border-slate-100 pt-1 dark:border-zinc-800">
-                <span class="font-medium text-slate-600 dark:text-zinc-300">{{ t('admin.home.kpi.memory.total') }}</span>
-                <strong class="font-semibold text-slate-900 dark:text-white">{{ card.familyMemory }}</strong>
-              </div>
-            </div>
           </div>
           <span class="icon-glass-box shrink-0" :class="card.tone">
             <UIcon :name="card.icon" class="size-5 z-10" />

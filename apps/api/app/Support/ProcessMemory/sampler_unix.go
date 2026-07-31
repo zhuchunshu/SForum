@@ -15,8 +15,8 @@ import (
 type osSampler struct{}
 
 func (osSampler) List() ([]Sample, error) {
-	// rss 单位为 KiB（POSIX ps 惯例）。
-	cmd := exec.Command("ps", "-axo", "pid=,ppid=,rss=,command=")
+	// rss 单位为 KiB，%cpu 为百分比（POSIX ps 惯例）。
+	cmd := exec.Command("ps", "-axo", "pid=,ppid=,rss=,%cpu=,command=")
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("ps process list: %w", err)
@@ -49,12 +49,22 @@ func ParsePSList(out []byte) ([]Sample, error) {
 		if err != nil {
 			continue
 		}
-		command := strings.Join(fields[3:], " ")
+		commandStart := 3
+		cpuPercent := float64(0)
+		if len(fields) >= 5 {
+			parsedCPU, cpuErr := strconv.ParseFloat(fields[3], 64)
+			if cpuErr == nil && parsedCPU >= 0 {
+				cpuPercent = parsedCPU
+				commandStart = 4
+			}
+		}
+		command := strings.Join(fields[commandStart:], " ")
 		samples = append(samples, Sample{
-			PID:      pid,
-			PPID:     ppid,
-			RSSBytes: rssKiB * 1024,
-			Command:  command,
+			PID:        pid,
+			PPID:       ppid,
+			RSSBytes:   rssKiB * 1024,
+			CPUPercent: cpuPercent,
+			Command:    command,
 		})
 	}
 	if len(samples) == 0 {
