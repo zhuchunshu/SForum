@@ -47,7 +47,8 @@ promotion begin only after that run succeeds, without repeating the repository
 gate for the tag. After image scan and Compose smoke pass, the GitHub Release
 also publishes:
 
-- the `sforum` management CLI for Linux, macOS, and Windows on amd64 and arm64;
+- the `sforum` management CLI for Linux and macOS on amd64 and arm64; Windows
+  is not a supported SForum platform;
 - Linux amd64 and arm64 backend bundles containing API, worker, migrator, CLI,
   and the exact protected built-ins extracted from the scanned candidate image;
 - `SHA256SUMS` for every archive plus GitHub build provenance attestations.
@@ -79,9 +80,9 @@ The simplest interactive installation accepts Enter for every prompt:
 Pin a version explicitly, or accept all recommended defaults non-interactively:
 
 ```sh
-./deploy.sh --version v3.0.0-alpha.9 --lang en
-./deploy.sh --version v3.0.0-alpha.9 --lang zh
-./deploy.sh --version v3.0.0-alpha.9 --lang en --yes --action deploy
+./deploy.sh --version v3.0.0-alpha.10 --lang en
+./deploy.sh --version v3.0.0-alpha.10 --lang zh
+./deploy.sh --version v3.0.0-alpha.10 --lang en --yes --action deploy
 ```
 
 This combines `compose.yaml`, `compose.prod.yaml`, and `compose.release.yaml`.
@@ -103,7 +104,7 @@ as a successful deployment.
 Equivalent non-interactive commands:
 
 ```sh
-export SFORUM_VERSION=v3.0.0-alpha.9
+export SFORUM_VERSION=v3.0.0-alpha.10
 docker compose --env-file .env.production \
   -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull
 docker compose --env-file .env.production \

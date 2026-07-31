@@ -103,7 +103,7 @@ same repository gate. The waiter treats GitHub's empty in-progress conclusion
 as pending and uses a non-whitespace field separator so Bash cannot collapse
 empty API fields and misread the commit SHA. Release builds restore both CI and release cache scopes
 before scan, exact-image smoke, and promotion. GitHub Release then publishes
-six Linux/macOS/Windows amd64/arm64 CLI archives, two Linux backend bundles
+four Linux/macOS amd64/arm64 CLI archives, two Linux backend bundles
 whose service binaries and protected built-ins come from the scanned candidate
 images, one checksum manifest, and provenance attestations. Backend bundles do
 not claim to include the Nuxt Web runtime, PostgreSQL, or Redis; version-matched
@@ -129,6 +129,9 @@ portable deployment lock prevents concurrent mutation; configuration, ports,
 and Go image identities fail before database work; migration and startup use
 `--pull never`; post-stop failures persist an explicit `recovery_required`
 record with the attempted/previous versions and backup path.
+The production migration service receives the same mandatory security secrets
+validated by the shared configuration loader; a real Compose render test keeps
+that release/runtime contract aligned.
 Backup and restore helpers parse only the exact database keys from dotenv and
 never execute the configuration as shell input.
 

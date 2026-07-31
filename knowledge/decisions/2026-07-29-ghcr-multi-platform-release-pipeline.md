@@ -32,8 +32,9 @@ would not improve deployment or establish a rollback artifact.
 6. Published images include OCI source/version/revision labels, BuildKit SBOM
    and provenance, plus a GitHub artifact attestation. Actions are commit-SHA
    pinned and use job-scoped least privilege.
-7. GitHub Release assets include six `sforum` CLI archives for Linux, macOS,
-   and Windows on amd64/arm64, plus Linux amd64/arm64 backend bundles. Backend
+7. GitHub Release assets include four `sforum` CLI archives for Linux and
+   macOS on amd64/arm64, plus Linux amd64/arm64 backend bundles. Windows is
+   explicitly outside the supported platform contract. Backend
    bundles reuse API/worker/migrate binaries and protected built-ins from the
    exact scanned candidate images; only the CLI is cross-compiled separately.
    Every archive is covered by `SHA256SUMS` and artifact provenance.
@@ -62,7 +63,7 @@ would not improve deployment or establish a rollback artifact.
 - Tag publication does not duplicate a gate already proven for the exact main
   commit, and release image builds can restore the corresponding CI image cache.
 - GitHub Release publication is atomic with respect to verified images and the
-  complete eight-archive asset matrix: checksums and provenance complete before
+  complete six-archive asset matrix: checksums and provenance complete before
   versioned image aliases move. Partial or byte-different existing asset sets
   fail closed instead of being overwritten.
 - Failed candidates remain addressable by commit for diagnosis but cannot move

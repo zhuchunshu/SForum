@@ -79,6 +79,17 @@ end
   fail!("#{job_name} must not consume unmerged platform candidates") if job_needs.include?("publish-candidate-platform")
 end
 
+asset_matrix = release_jobs.fetch("release-assets").dig("strategy", "matrix", "include")
+expected_asset_matrix = [
+  { "goos" => "linux", "goarch" => "amd64" },
+  { "goos" => "linux", "goarch" => "arm64" },
+  { "goos" => "darwin", "goarch" => "amd64" },
+  { "goos" => "darwin", "goarch" => "arm64" }
+]
+unless asset_matrix == expected_asset_matrix
+  fail!("release assets must target only Linux and macOS on amd64/arm64")
+end
+
 ci_jobs = ci.fetch("jobs")
 fail!("CI must not keep a duplicate Web dependency build") if ci_jobs.key?("web-runtime-vulnerabilities")
 

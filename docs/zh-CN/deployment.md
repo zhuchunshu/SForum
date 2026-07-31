@@ -43,8 +43,8 @@ Release 会在 GitHub 端等待并复用相同提交已经触发的 `main` CI，
 SHA 的 `push` CI 成功后才构建、扫描和提升发布镜像，不会再为标签重复运行
 整套仓库门禁。镜像通过扫描和 Compose 冒烟后，GitHub Release 同时发布：
 
-- `linux/amd64`、`linux/arm64`、`darwin/amd64`、`darwin/arm64`、
-  `windows/amd64`、`windows/arm64` 的 `sforum` 管理 CLI；
+- `linux/amd64`、`linux/arm64`、`darwin/amd64`、`darwin/arm64` 的
+  `sforum` 管理 CLI；Windows 不在 SForum 的支持平台范围内；
 - `linux/amd64` 和 `linux/arm64` 后端运行包，包含 API、Worker、迁移、CLI
   以及从同一已扫描候选镜像提取的精确内置扩展；
 - 覆盖全部压缩包的 `SHA256SUMS` 和 GitHub 构建来源证明。
@@ -75,9 +75,9 @@ Linux 后端包不包含 Nuxt Web、PostgreSQL 或 Redis，因此不是完整站
 也可以显式固定版本，或完全非交互地接受推荐配置：
 
 ```sh
-./deploy.sh --version v3.0.0-alpha.9 --lang zh
-./deploy.sh --version v3.0.0-alpha.9 --lang en
-./deploy.sh --version v3.0.0-alpha.9 --lang zh --yes --action deploy
+./deploy.sh --version v3.0.0-alpha.10 --lang zh
+./deploy.sh --version v3.0.0-alpha.10 --lang en
+./deploy.sh --version v3.0.0-alpha.10 --lang zh --yes --action deploy
 ```
 
 该模式组合 `compose.yaml`、`compose.prod.yaml` 与
@@ -96,7 +96,7 @@ API `/api/v1/ready`、Web 首页和五个常驻服务全部通过后，脚本才
 等价的非交互命令：
 
 ```sh
-export SFORUM_VERSION=v3.0.0-alpha.9
+export SFORUM_VERSION=v3.0.0-alpha.10
 docker compose --env-file .env.production \
   -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull
 docker compose --env-file .env.production \

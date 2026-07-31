@@ -118,9 +118,7 @@ for target in \
   "linux amd64" \
   "linux arm64" \
   "darwin amd64" \
-  "darwin arm64" \
-  "windows amd64" \
-  "windows arm64"; do
+  "darwin arm64"; do
   read -r target_os target_arch <<< "$target"
   "$ROOT_DIR/scripts/ci/build-release-assets.sh" \
     "$VERSION" "$COMMIT" "$BUILD_TIME" "$IMAGE_TAG" "$target_os" "$target_arch" "$OUTPUT_DIR" >/dev/null
@@ -128,10 +126,10 @@ done
 
 "$ROOT_DIR/scripts/ci/finalize-release-assets.sh" "$VERSION" "$OUTPUT_DIR" >/dev/null
 
-[[ "$(find "$OUTPUT_DIR" -maxdepth 1 -type f | wc -l | tr -d ' ')" -eq 9 ]] || fail "unexpected release asset count"
-[[ "$(wc -l < "$OUTPUT_DIR/SHA256SUMS" | tr -d ' ')" -eq 8 ]] || fail "unexpected checksum count"
+[[ "$(find "$OUTPUT_DIR" -maxdepth 1 -type f | wc -l | tr -d ' ')" -eq 7 ]] || fail "unexpected release asset count"
+[[ "$(wc -l < "$OUTPUT_DIR/SHA256SUMS" | tr -d ' ')" -eq 6 ]] || fail "unexpected checksum count"
 grep -q "sforum-server_${VERSION}_linux_amd64.tar.gz" "$OUTPUT_DIR/SHA256SUMS" || fail "server checksum is missing"
-grep -q "sforum-cli_${VERSION}_windows_arm64.zip" "$OUTPUT_DIR/SHA256SUMS" || fail "Windows CLI checksum is missing"
+grep -q "sforum-cli_${VERSION}_darwin_arm64.tar.gz" "$OUTPUT_DIR/SHA256SUMS" || fail "macOS CLI checksum is missing"
 
 expect_failure "Usage:" "$ROOT_DIR/scripts/ci/build-release-assets.sh" \
   invalid "$COMMIT" "$BUILD_TIME" "$IMAGE_TAG" linux amd64 "$OUTPUT_DIR"

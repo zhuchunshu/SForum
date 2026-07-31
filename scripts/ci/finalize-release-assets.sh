@@ -17,8 +17,6 @@ EXPECTED=(
   "sforum-cli_${VERSION}_darwin_arm64.tar.gz"
   "sforum-cli_${VERSION}_linux_amd64.tar.gz"
   "sforum-cli_${VERSION}_linux_arm64.tar.gz"
-  "sforum-cli_${VERSION}_windows_amd64.zip"
-  "sforum-cli_${VERSION}_windows_arm64.zip"
   "sforum-server_${VERSION}_linux_amd64.tar.gz"
   "sforum-server_${VERSION}_linux_arm64.tar.gz"
 )
@@ -50,13 +48,6 @@ for os in darwin linux; do
 done
 
 for arch in amd64 arm64; do
-  cli_root="sforum-cli_${VERSION}_windows_${arch}"
-  cli_listing="$(unzip -Z1 "$ASSET_DIR/$cli_root.zip")"
-  grep -qx "$cli_root/sforum.exe" <<< "$cli_listing" || {
-    echo "CLI archive is missing $cli_root/sforum.exe" >&2
-    exit 1
-  }
-
   server_root="sforum-server_${VERSION}_linux_${arch}"
   server_listing="$(tar -tzf "$ASSET_DIR/$server_root.tar.gz")"
   for binary in sforum-api sforum-worker sforum-migrate sforum; do

@@ -25,7 +25,7 @@ usage() {
 [[ -n "$BUILD_TIME" ]] || usage
 [[ "$IMAGE_TAG" == "sha-$COMMIT" ]] || usage
 case "$TARGET_OS" in
-  linux|darwin|windows) ;;
+  linux|darwin) ;;
   *) usage ;;
 esac
 case "$TARGET_ARCH" in
@@ -88,9 +88,6 @@ archive_directory() {
     find "$directory" -exec touch -d "$BUILD_TIME" {} +
   fi
   case "$archive" in
-    *.zip)
-      (cd "$parent" && find "$base" -print | sort | zip -X -q "$archive" -@)
-      ;;
     *.tar.gz)
       if tar --version 2>/dev/null | grep -q 'GNU tar'; then
         tar -C "$parent" --sort=name --mtime="$BUILD_TIME" \
@@ -120,10 +117,6 @@ CLI_ROOT_NAME="sforum-cli_${VERSION}_${TARGET_OS}_${TARGET_ARCH}"
 CLI_ROOT="$WORK_DIR/$CLI_ROOT_NAME"
 CLI_BINARY_NAME="sforum"
 CLI_ARCHIVE="$OUTPUT_DIR/$CLI_ROOT_NAME.tar.gz"
-if [[ "$TARGET_OS" == "windows" ]]; then
-  CLI_BINARY_NAME="sforum.exe"
-  CLI_ARCHIVE="$OUTPUT_DIR/$CLI_ROOT_NAME.zip"
-fi
 
 mkdir -p "$CLI_ROOT"
 LDFLAGS="-s -w -X github.com/zhuchunshu/sforum/apps/api/version.Current=$VERSION -X github.com/zhuchunshu/sforum/apps/api/version.Commit=$COMMIT -X github.com/zhuchunshu/sforum/apps/api/version.BuildTime=$BUILD_TIME"

@@ -113,9 +113,9 @@ load archived sessions or completed plans as current context.
 - Clean-host alpha deployment: the beginner path now generates secure defaults,
   deploys four immutable GHCR images with managed PostgreSQL/Redis, backs up
   only existing installations, and persists success only after full readiness.
-  Alpha.8 remains failed/immutable; alpha.9 publication and real image deploy
-  are the immediate next steps:
-  `sessions/2026-07-31-alpha9-clean-host-deploy.md`
+  Alpha.8 and alpha.9 remain failed/immutable; alpha.10 publication and real
+  image deploy are the immediate next steps:
+  `sessions/2026-07-31-alpha10-clean-host-deploy.md`
 
 - Release-blocker remediation: historical `enc::` secrets now migrate without
   loss, production Marketplace key inputs are explicit, SystemTier affects real

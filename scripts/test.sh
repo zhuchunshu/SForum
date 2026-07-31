@@ -25,6 +25,9 @@ echo "Running PostgreSQL backup and restore safety validation..."
 echo "Running release deployment state-machine validation..."
 ./deploy/scripts/deploy_test.sh
 
+echo "Running production Compose migration configuration validation..."
+./deploy/scripts/compose-production_test.sh
+
 echo "Running architecture boundary validation..."
 node tests/validate-architecture-boundaries.mjs
 

@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
 DEPLOY_RC=".deployrc"
-DEFAULT_RELEASE_VERSION="${SFORUM_DEFAULT_VERSION:-v3.0.0-alpha.9}"
+DEFAULT_RELEASE_VERSION="${SFORUM_DEFAULT_VERSION:-v3.0.0-alpha.10}"
 LANGUAGE=""
 ACTION=""
 ASSUME_DEFAULTS=false
@@ -18,7 +18,7 @@ Usage: ./deploy.sh [options]
 
 Options:
   --lang zh|en          Interface language
-  --version VERSION     Immutable GHCR release tag (for example v3.0.0-alpha.9)
+  --version VERSION     Immutable GHCR release tag (for example v3.0.0-alpha.10)
   --action ACTION       deploy, backup, restore, status, logs, restart, stop
   --yes, --defaults     Accept recommended configuration defaults
   -h, --help            Show this help
@@ -190,7 +190,7 @@ resolve_release_version() {
   fi
   RELEASE_VERSION="${RELEASE_VERSION:-$DEFAULT_RELEASE_VERSION}"
   if [[ ! "$RELEASE_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
-    die "--version must look like v3.0.0 or v3.0.0-alpha.9"
+    die "--version must look like v3.0.0 or v3.0.0-alpha.10"
   fi
   export SFORUM_VERSION="$RELEASE_VERSION"
   COMPOSE=(docker compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml)

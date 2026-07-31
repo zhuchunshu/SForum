@@ -13,6 +13,10 @@ services:
       SUPPORTED_LOCALES: ${SUPPORTED_LOCALES:-zh-CN,en-US}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       DATABASE_URL: ${DATABASE_URL:-postgres://sforum:change-me@postgres:5432/sforum?sslmode=disable}
+      SESSION_HASH_SECRET: ${SESSION_HASH_SECRET:?SESSION_HASH_SECRET is required in production}
+      IDENTITY_SUBJECT_HMAC_SECRET: ${IDENTITY_SUBJECT_HMAC_SECRET:?IDENTITY_SUBJECT_HMAC_SECRET is required in production}
+      APP_OPTION_ENC_KEY: ${APP_OPTION_ENC_KEY:?APP_OPTION_ENC_KEY is required in production}
+      ALTCHA_SECRET: ${ALTCHA_SECRET:?ALTCHA_SECRET is required in production}
     depends_on:
       postgres:
         condition: service_healthy
