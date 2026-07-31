@@ -132,9 +132,21 @@ Pressing Enter selects `latest`:
 
 ```sh
 ./upgrade.sh
-./upgrade.sh v3.0.0-alpha.11
-./upgrade.sh --version v3.0.0-alpha.11
+./upgrade.sh v3.0.0-alpha.13
+./upgrade.sh --version v3.0.0-alpha.13
 ./upgrade.sh --yes                       # unattended: newest release, no prompts
+```
+
+Use the `upgrade.sh` shipped with `v3.0.0-alpha.13` or newer. The copy bundled
+with `v3.0.0-alpha.12` cannot start the database compatibility check correctly.
+If the current installation directory came from that release, fetch the fixed,
+version-pinned script before updating:
+
+```sh
+curl -fsSLo upgrade.sh \
+  https://raw.githubusercontent.com/zhuchunshu/SForum/v3.0.0-alpha.13/upgrade.sh
+chmod 0755 upgrade.sh
+./upgrade.sh v3.0.0-alpha.13
 ```
 
 Here, `latest` is not a floating container image tag. The script queries the

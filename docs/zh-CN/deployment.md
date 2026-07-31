@@ -121,9 +121,20 @@ docker compose --env-file .env.production \
 
 ```sh
 ./upgrade.sh
-./upgrade.sh v3.0.0-alpha.11
-./upgrade.sh --version v3.0.0-alpha.11
+./upgrade.sh v3.0.0-alpha.13
+./upgrade.sh --version v3.0.0-alpha.13
 ./upgrade.sh --yes                       # 无人值守：选择最新发布并跳过确认
+```
+
+请使用 `v3.0.0-alpha.13` 或更高版本附带的 `upgrade.sh`。`v3.0.0-alpha.12`
+附带的脚本无法正确启动数据库兼容预检；若当前安装目录来自该版本，先固定下载
+修复后的脚本，再执行更新：
+
+```sh
+curl -fsSLo upgrade.sh \
+  https://raw.githubusercontent.com/zhuchunshu/SForum/v3.0.0-alpha.13/upgrade.sh
+chmod 0755 upgrade.sh
+./upgrade.sh v3.0.0-alpha.13
 ```
 
 这里的 `latest` 不是浮动的容器镜像标签。脚本查询 GitHub Release 列表，选择
