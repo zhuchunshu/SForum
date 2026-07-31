@@ -110,12 +110,12 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- Alpha.11 production fixes: Linux `/proc` resource metrics, complete
-  API/Worker/plugin attribution, truthful plugin sampling states, Night Harbor
-  removal, and migration-guarded blue/green Compose updates are implemented.
-  Full local gates pass; publishing and real alpha.10-to-next-alpha rollout are
-  the immediate next steps:
-  `sessions/2026-08-01-alpha11-production-fixes.md`
+- Alpha.13 production release: Linux `/proc` API/Worker/plugin metrics, Night
+  Harbor removal, migration-guarded blue/green updates, curated release notes,
+  and the Compose schema-command hotfix are published. Exact CI/Security and
+  release gates pass; the alpha.10 validation install now runs alpha.13 on the
+  green slot, with 2,400/0 continuous HTTP switch evidence:
+  `sessions/2026-08-01-alpha13-release-validation.md`
 
 - Release-blocker remediation: historical `enc::` secrets now migrate without
   loss, production Marketplace key inputs are explicit, SystemTier affects real
