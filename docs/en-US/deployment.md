@@ -124,6 +124,43 @@ repository `GITHUB_TOKEN`; no long-lived registry credential is required.
 accidentally start a source build on the server. Use the development guide and
 `scripts/dev.sh` for source development and custom builds.
 
+## Zero-downtime updates
+
+Use `upgrade.sh` to update an existing Compose installation. Enter a release at
+the interactive prompt, pass it as a positional argument, or use `--version`.
+Pressing Enter selects `latest`:
+
+```sh
+./upgrade.sh
+./upgrade.sh v3.0.0-alpha.11
+./upgrade.sh --version v3.0.0-alpha.11
+./upgrade.sh --yes                       # unattended: newest release, no prompts
+```
+
+Here, `latest` is not a floating container image tag. The script queries the
+GitHub Release list, selects the newest published Release (including
+prereleases), and resolves it to a concrete `vX.Y.Z` tag. Before changing the
+installation it prints the current resolved version and target resolved version
+and asks whether to use that target. Only an explicit `--yes` skips version
+input and confirmation. A successful update persists the resolved tag in
+`.deployrc`, never `latest`.
+
+The first run against the legacy direct-port topology asks for confirmation to
+perform a one-time blue/green ingress conversion. That conversion stops the old
+services before starting the stable Caddy ingress and therefore has a short
+maintenance window. After conversion, releases without database migrations are
+started and checked in the standby API/Web slot before Caddy switches traffic
+atomically and the old slot stops, keeping HTTP service continuous. Existing
+WebSocket connections may need to reconnect during the switch.
+
+Two Workers are never allowed to consume jobs concurrently. The updater
+gracefully stops the old Worker before starting the new one, so queue consumption
+pauses briefly, while durable River jobs are not lost. Before updating, the
+script checks both SForum Core and River migrations. If either has a pending
+migration, the zero-downtime update is refused; use
+`./deploy.sh --version <release>` and accept its backup, migration, and
+maintenance window instead.
+
 ## Ports (production examples)
 
 | Use | Default |
@@ -160,12 +197,16 @@ services that were running before the restore are started again.
 ## Runtime Memory And Diagnostics
 
 The `/control-panel` resource cards read
-`GET /api/v1/admin/overview/resources` and account for the API, an independent
-Worker, and backend plugin processes owned directly by those processes. Requests
-share one process-table sample for up to 5 seconds and display a rolling
-60-second median. Linux can also expose complete process-family PSS; systems such
-as macOS do not fabricate an "effective" PSS value. Plugin details are ordered
-from highest to lowest RSS and exclude unrelated services and orphaned processes.
+`GET /api/v1/admin/overview/resources` and account for CPU, RSS, and available
+PSS for the API, an independent Worker, and backend plugin processes owned
+directly by them. Production Linux images read `/proc` directly and do not
+depend on BusyBox `ps`. Production Compose shares each Worker's PID namespace
+with its API, allowing the API to discover and correctly attribute Worker and
+plugin processes without a host PID namespace or Docker socket. Requests share
+one process-table sample for up to 5 seconds and display a rolling 60-second
+median. Systems without PSS support do not fabricate an "effective" value.
+Plugin details are ordered from highest to lowest RSS and exclude unrelated
+services and orphaned processes.
 
 Development embeds the Worker in the API by default. The API row is labeled as
 including the Worker, while the Worker row reports embedded slots and running

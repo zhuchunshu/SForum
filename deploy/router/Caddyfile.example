@@ -1,0 +1,11 @@
+# Managed by upgrade.sh. The committed example documents the stable ingress;
+# deploy/runtime/Caddyfile is generated locally and intentionally gitignored.
+:3000 {
+	header X-SForum-Active-Slot blue
+	reverse_proxy web-blue:3000
+}
+
+:18080 {
+	header X-SForum-Active-Slot blue
+	reverse_proxy api-blue:8080
+}

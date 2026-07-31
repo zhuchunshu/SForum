@@ -535,8 +535,13 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
             >
               <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.runtime.memoryLabel') }}</dt>
               <dd class="text-slate-900 dark:text-zinc-100">
-                <template v-if="selected.runtime?.memoryBytes">
+                <template v-if="selected.runtime?.memoryBytes !== undefined && selected.runtime.memoryBytes > 0">
                   {{ formatPluginMemoryBytes(selected.runtime.memoryBytes) }}
+                </template>
+                <template
+                  v-else-if="selected.manifest.backend?.entry && ['starting', 'running', 'degraded'].includes(selected.runtime?.state || '')"
+                >
+                  {{ t('admin.extensions.runtime.memoryPending') }}
                 </template>
                 <template v-else>
                   {{ t('admin.extensions.runtime.memoryUnavailable') }}

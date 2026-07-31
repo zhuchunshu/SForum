@@ -9,7 +9,6 @@ const homepageRoute = () => source('../../app/pages/index.vue')
 const searchRoute = () => source('../../app/pages/search.vue')
 const defaultHomeTemplate = () => source('../../../../extensions/builtin/themes/sforum-default/templates/home.html')
 const defaultSearchTemplate = () => source('../../../../extensions/builtin/themes/sforum-default/templates/search.html')
-const nocturneHomeTemplate = () => source('../../../../extensions/builtin/themes/sforum-nocturne/templates/home.html')
 const themeTemplate = () => source('../../app/components/SFThemeTemplate.vue')
 const topicRow = () => source('../../app/components/forum/SFHomeTopicRow.vue')
 const homeNav = () => source('../../app/components/forum/SFHomeNavigation.vue')
@@ -46,11 +45,6 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(defaultTpl).toContain('sf-theme-home-shell')
     expect(defaultTpl).toContain('data-layout="fullwidth-3col"')
     expect(defaultTpl).toContain('sf-theme-shell--fullwidth-3col')
-
-    const nocturneTpl = nocturneHomeTemplate()
-    expect(nocturneTpl).toContain('data-theme-owned="presentation"')
-    expect(nocturneTpl).toContain('<sf-home-page>')
-    expect(nocturneTpl).toContain('nh-hero')
   })
 
   test('search owns a distinct Page Registry route while reusing the forum feed island', () => {
@@ -110,8 +104,6 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(layout).not.toContain('<SFNavbar')
     expect(defaultHomeTemplate()).toContain('<sf-navbar>')
     expect(defaultHomeTemplate()).toContain('<sf-footer>')
-    expect(nocturneHomeTemplate()).toContain('<sf-navbar>')
-    expect(nocturneHomeTemplate()).toContain('<sf-footer>')
     const hostChrome = source('../../app/components/SFHostPublicChrome.vue')
     expect(hostChrome).toContain('<SFNavbar layout="fullwidth-3col" />')
     expect(hostChrome).toContain('layoutShowFooter')

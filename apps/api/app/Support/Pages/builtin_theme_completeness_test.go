@@ -12,13 +12,12 @@ import (
 )
 
 // TestBuiltinThemesCoverAllThemeablePages is the P13 reference-theme gate:
-// default and nocturne must declare every themeable Page Registry id, ship
+// the protected default theme must declare every themeable Page Registry id, ship
 // the template file, embed the required host body island, and compile.
 func TestBuiltinThemesCoverAllThemeablePages(t *testing.T) {
 	repoRoot := themeCompletenessRepoRoot(t)
 	for _, themeRel := range []string{
 		"extensions/builtin/themes/sforum-default",
-		"extensions/builtin/themes/sforum-nocturne",
 	} {
 		themeRel := themeRel
 		t.Run(themeRel, func(t *testing.T) {
@@ -107,16 +106,6 @@ func TestBuiltinThemesCoverAllThemeablePages(t *testing.T) {
 					PageID: page.ID, SchemaVersion: page.ContractVersion,
 				}
 				selected[decl.Template] = struct{}{}
-			}
-			// Nocturne must ship at least one plugin template override.
-			if strings.Contains(themeRel, "nocturne") {
-				override := filepath.Join(root, "templates", "plugins", "sforum.seo-reference", "status-badge.html")
-				if _, err := os.Stat(override); err != nil {
-					t.Fatalf("nocturne missing plugin override template: %v", err)
-				}
-				if _, err := os.Stat(filepath.Join(root, "manifest", "settings.json")); err != nil {
-					t.Fatalf("nocturne missing settings document: %v", err)
-				}
 			}
 			// Chrome 复用由各模板内联的 <sf-navbar>/<sf-footer> 岛完成；
 			// 不再要求 dead layouts/base 与 chrome-start/end partials。

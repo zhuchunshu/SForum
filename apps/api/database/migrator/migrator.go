@@ -28,6 +28,64 @@ type Config struct {
 	TargetCoreVersion string
 }
 
+// IsUpToDate performs a read-only schema check for zero-downtime releases.
+// Both Core and River migrations must exactly match the target binary; callers
+// must fall back to the maintenance-window deploy path when this returns false.
+func IsUpToDate(ctx context.Context, cfg Config) (bool, error) {
+	db, err := openMigrationSQLDatabase(cfg.DatabaseURL, "")
+	if err != nil {
+		return false, fmt.Errorf("open database: %w", err)
+	}
+	defer db.Close()
+	if err := db.PingContext(ctx); err != nil {
+		return false, fmt.Errorf("ping database: %w", err)
+	}
+	provider, err := goose.NewProvider(
+		goose.DialectPostgres,
+		db,
+		migrations.Files(),
+		goose.WithDisableGlobalRegistry(true),
+	)
+	if err != nil {
+		return false, fmt.Errorf("create goose provider: %w", err)
+	}
+	current, target, err := provider.GetVersions(ctx)
+	if err != nil {
+		return false, fmt.Errorf("inspect Core migration versions: %w", err)
+	}
+	pending, err := provider.HasPending(ctx)
+	if err != nil {
+		return false, fmt.Errorf("inspect pending Core migrations: %w", err)
+	}
+	if pending || current != target {
+		return false, nil
+	}
+
+	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return false, fmt.Errorf("open river migration pool: %w", err)
+	}
+	defer pool.Close()
+	riverMigrator, err := rivermigrate.New(riverpgxv5.New(pool), &rivermigrate.Config{Logger: cfg.Logger})
+	if err != nil {
+		return false, fmt.Errorf("create river migrator: %w", err)
+	}
+	existing, err := riverMigrator.ExistingVersions(ctx)
+	if err != nil {
+		return false, fmt.Errorf("inspect River migration versions: %w", err)
+	}
+	all := riverMigrator.AllVersions()
+	if len(existing) != len(all) {
+		return false, nil
+	}
+	for index := range all {
+		if existing[index].Version != all[index].Version {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
 func Up(ctx context.Context, cfg Config) error {
 	logger := cfg.Logger
 	if logger == nil {

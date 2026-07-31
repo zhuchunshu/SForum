@@ -159,7 +159,8 @@ A theme can:
 - Automatic snapshots, snapshot restore, JSON export, import preview, merge,
   and replace.
 - Accessible admin editor and responsive preview.
-- Default and Nocturne built-in themes plus Core fallback.
+- Default built-in theme plus Core fallback. Nocturne was removed from the
+  built-in distribution on 2026-08-01.
 - Existing `forum.nav.items` and flat nav API compatibility.
 - Plugin lifecycle, Safe Mode, cache, SSR, audit, permission, and backup tests.
 
@@ -653,7 +654,7 @@ Tasks:
 - [x] Preserve filter versus route behavior, selected category, topic counts,
   compose permission, mobile category selector, moderation/settings shell
   consumers, and current responsive geometry.
-- [x] Bind all four required locations in the default and Nocturne built-in
+- [x] Bind all four required locations in the default built-in
   themes and their reviewed Host-island validator/production maps.
 - [x] Add completeness tests so paired pages and Core fallback cannot silently
   use a different sidebar/navigation authority.

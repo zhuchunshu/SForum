@@ -194,7 +194,7 @@ describe('public taxonomy list pages (T02 + C04)', () => {
 
   test('theme L1 taxonomy shells mark presentation ownership and chrome islands', () => {
     const root = new URL('../../../../extensions/builtin/themes/', import.meta.url)
-    for (const theme of ['sforum-default', 'sforum-nocturne']) {
+    for (const theme of ['sforum-default']) {
       for (const [file, pageId] of [
         ['tag-index.html', 'forum.tag.index'],
         ['category-index.html', 'forum.category.index'],

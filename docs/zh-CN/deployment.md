@@ -114,6 +114,36 @@ docker compose --env-file .env.production \
 `deploy.sh` 只走发布镜像，避免新手意外在服务器上源码构建。开发或定制源码
 请使用开发文档中的 `scripts/dev.sh` 和构建命令。
 
+## 零停机更新
+
+已有 Compose 安装推荐使用 `upgrade.sh` 更新。可以在交互提示中输入版本，
+也可以使用位置参数或 `--version`；直接回车时默认选择 `latest`：
+
+```sh
+./upgrade.sh
+./upgrade.sh v3.0.0-alpha.11
+./upgrade.sh --version v3.0.0-alpha.11
+./upgrade.sh --yes                       # 无人值守：选择最新发布并跳过确认
+```
+
+这里的 `latest` 不是浮动的容器镜像标签。脚本查询 GitHub Release 列表，选择
+最新的已发布 Release（包括预发布版），再解析为具体的 `vX.Y.Z` tag。执行前
+会输出当前实际版本和目标实际版本，并询问是否使用该版本；只有显式传入
+`--yes` 才跳过输入与确认。更新成功后 `.deployrc` 保存的也是解析后的具体
+版本，不会保存 `latest`。
+
+第一次从旧版直连端口拓扑运行时，脚本会要求确认一次性 blue/green 入口
+转换。该转换需要停止旧服务并启动稳定 Caddy 入口，因此会有一次短暂维护
+窗口。转换完成后，对于不包含数据库迁移的版本，脚本会先在备用槽启动并
+检查 API/Web，经 Caddy 原子切换流量后才停止旧槽，从而保持 HTTP 服务连续。
+WebSocket 长连接在切换时可能需要自动重连。
+
+后台任务不会同时由两个 Worker 消费：脚本先优雅停止旧 Worker，再启动新
+Worker，因此队列消费会短暂停顿，但 River 中的持久任务不会丢失。更新前
+脚本同时检查 SForum Core 与 River 的数据库迁移；只要目标版本存在待执行
+迁移，就会拒绝零停机更新。此时请改用 `./deploy.sh --version <版本>`，接受
+维护窗口完成备份、迁移和部署。
+
 ## 端口（生产示例）
 
 | 用途 | 默认（见 `.env.production.example`） |
@@ -140,9 +170,12 @@ docker compose --env-file .env.production \
 
 管理台 `/control-panel` 的资源卡通过
 `GET /api/v1/admin/overview/resources` 读取 API、独立 Worker 和直属插件
-进程的 RSS。资源请求最多每 5 秒共享一次采样，展示最近 60 秒中位数；Linux
-可同时显示完整进程族的 PSS，macOS 等不支持 PSS 的系统不会伪造“有效占用”。
-插件明细按占用从高到低列出，并只归因当前 API/Worker 直接拥有的插件进程。
+进程的 CPU、RSS 与可用的 PSS。Linux 正式镜像直接读取 `/proc`，不依赖
+BusyBox `ps`；生产 Compose 让 Worker 与对应 API 共享 PID namespace，使 API
+能够发现并正确归因 Worker 与插件进程，同时不需要宿主机 PID namespace 或
+Docker socket。资源请求最多每 5 秒共享一次采样，展示最近 60 秒中位数；
+不支持 PSS 的系统不会伪造“有效占用”。插件明细按占用从高到低列出，并只
+归因当前 API/Worker 直接拥有的插件进程。
 
 开发环境默认将 Worker 内嵌到 API。此时 API 行明确标记“含 Worker”，Worker
 行只显示内嵌并发槽位和运行任务数，不虚构一个独立 Worker 的 MiB。生产环境

@@ -292,7 +292,7 @@ func TestBundledThemeTemplatesCompileAndPreserveNestedHomeIsland(t *testing.T) {
 			},
 		},
 	}
-	for _, themeID := range []string{"sforum-default", "sforum-nocturne"} {
+	for _, themeID := range []string{"sforum-default"} {
 		t.Run(themeID, func(t *testing.T) {
 			// 仅选取 home 模板，避免完整页矩阵要求全部 PageViewModel 绑定。
 			themeRoot := filepath.Join(repositoryRoot, "extensions/builtin/themes", themeID)
@@ -345,9 +345,6 @@ func TestBundledThemeTemplatesCompileAndPreserveNestedHomeIsland(t *testing.T) {
 				if !strings.Contains(html, marker) {
 					t.Fatalf("bundled theme structure missing %q: %s", marker, html)
 				}
-			}
-			if themeID == "sforum-nocturne" && !strings.Contains(html, ">SForum</p>") {
-				t.Fatalf("siteName compatibility binding missing: %s", html)
 			}
 		})
 	}

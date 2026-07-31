@@ -1,0 +1,87 @@
+services:
+  edge:
+    image: caddy:2.10.2-alpine
+    profiles: ["zero-downtime"]
+    restart: unless-stopped
+    command: ["caddy", "run", "--config", "/etc/sforum-router/Caddyfile", "--adapter", "caddyfile"]
+    volumes:
+      - ./deploy/runtime:/etc/sforum-router:ro
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
+      - "127.0.0.1:${API_PORT:-18080}:18080"
+
+  api-blue:
+    extends:
+      file: compose.yaml
+      service: api
+    profiles: ["zero-downtime"]
+    image: ghcr.io/zhuchunshu/sforum-api:${SFORUM_BLUE_VERSION:?SFORUM_BLUE_VERSION is required}
+    restart: unless-stopped
+    environment:
+      APP_ENV: production
+      MIGRATE_ON_STARTUP: "false"
+
+  worker-blue:
+    extends:
+      file: compose.yaml
+      service: worker
+    profiles: ["zero-downtime"]
+    image: ghcr.io/zhuchunshu/sforum-worker:${SFORUM_BLUE_VERSION:?SFORUM_BLUE_VERSION is required}
+    restart: unless-stopped
+    stop_grace_period: 40s
+    pid: "service:api-blue"
+    depends_on:
+      api-blue:
+        condition: service_started
+
+  web-blue:
+    extends:
+      file: compose.yaml
+      service: web
+    profiles: ["zero-downtime"]
+    image: ghcr.io/zhuchunshu/sforum-web:${SFORUM_BLUE_VERSION:?SFORUM_BLUE_VERSION is required}
+    restart: unless-stopped
+    depends_on:
+      api-blue:
+        condition: service_started
+    environment:
+      APP_ENV: production
+      NUXT_API_INTERNAL_BASE_URL: http://api-blue:8080/api/v1
+
+  api-green:
+    extends:
+      file: compose.yaml
+      service: api
+    profiles: ["zero-downtime"]
+    image: ghcr.io/zhuchunshu/sforum-api:${SFORUM_GREEN_VERSION:?SFORUM_GREEN_VERSION is required}
+    restart: unless-stopped
+    environment:
+      APP_ENV: production
+      MIGRATE_ON_STARTUP: "false"
+
+  worker-green:
+    extends:
+      file: compose.yaml
+      service: worker
+    profiles: ["zero-downtime"]
+    image: ghcr.io/zhuchunshu/sforum-worker:${SFORUM_GREEN_VERSION:?SFORUM_GREEN_VERSION is required}
+    restart: unless-stopped
+    stop_grace_period: 40s
+    pid: "service:api-green"
+    depends_on:
+      api-green:
+        condition: service_started
+
+  web-green:
+    extends:
+      file: compose.yaml
+      service: web
+    profiles: ["zero-downtime"]
+    image: ghcr.io/zhuchunshu/sforum-web:${SFORUM_GREEN_VERSION:?SFORUM_GREEN_VERSION is required}
+    restart: unless-stopped
+    depends_on:
+      api-green:
+        condition: service_started
+    environment:
+      APP_ENV: production
+      NUXT_API_INTERNAL_BASE_URL: http://api-green:8080/api/v1

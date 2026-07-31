@@ -122,6 +122,7 @@ func TestExtensionIDFromPluginCommand(t *testing.T) {
 	}{
 		{"../../storage/extensions/sforum.smtp/1.1.0/abc/backend/plugin", "sforum.smtp", true},
 		{"/app/storage/extensions/sforum.storage-fs/1.0.0/dead/backend/plugin", "sforum.storage-fs", true},
+		{"/var/lib/sforum/extensions/sforum.auth-github/1.0.2/dead/backend/plugin", "sforum.auth-github", true},
 		{"/app/extensions/builtin/plugins/sforum-smtp/backend/plugin", "sforum-smtp", true},
 		{"/usr/bin/plugin", "", false},
 		{"", "", false},

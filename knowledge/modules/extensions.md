@@ -441,7 +441,8 @@ should use dedicated registries instead of raw database or whole-route power.
   only the four stable v1 location IDs. The runtime projects capability from
   the exact active immutable snapshot; unsupported locations retain operator
   configuration, while Core emergency fallback reports all v1 locations as
-  supported. Default and Nocturne declare all four locations.
+  supported. The built-in default theme declares all four locations. The
+  former Nocturne/Night Harbor theme is no longer shipped as a built-in.
 - Template validation and runtime island binding are separate gates. Every
   Host island used by a theme template must be present in both
   `allowedHostIslands` and `productionThemeIslandBindings`; paired public
@@ -522,9 +523,12 @@ Relevant plans:
   provider inspection. The App Store remains a local framework shell until a
   real marketplace consumer is production-wired.
 - List/detail runtime RSS is best-effort and attributes only owned backend
-  plugin child processes of the current API or standalone Worker process. The
-  admin overview orders per-plugin rows by RSS and explicitly reports transient
-  same-owner process overlap instead of silently inflating one plugin's value.
+  plugin children of the current API or its PID-namespace-sharing Worker.
+  Linux release images use procfs, including the production extension root
+  `/var/lib/sforum/extensions`; running backends without a current sample show
+  "not sampled yet" instead of the false "no independent process" state. The
+  admin overview orders per-plugin rows by RSS and reports transient same-owner
+  overlap instead of silently inflating one plugin's value.
 - Protected built-in backend binaries use `-ldflags="-s -w"` in the development,
   Docker, and release build paths. This removes linker/debug payloads from the
   shipped executable without changing the plugin protocol; the current seven

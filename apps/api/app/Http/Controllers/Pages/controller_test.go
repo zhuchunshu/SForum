@@ -561,7 +561,6 @@ func TestResolveTopicReplyUsesSelectedThemeAndRequiresLogin(t *testing.T) {
 		root string
 	}{
 		{name: "default", id: "sforum.default-theme", root: filepath.Join(repoRoot, "extensions/builtin/themes/sforum-default")},
-		{name: "nocturne", id: "sforum.nocturne-theme", root: filepath.Join(repoRoot, "extensions/builtin/themes/sforum-nocturne")},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			artifact := pages.RuntimeArtifact{ExtensionID: test.id, ExtensionVersion: "1.0.0", PackageDigest: strings.Repeat("a", 64)}

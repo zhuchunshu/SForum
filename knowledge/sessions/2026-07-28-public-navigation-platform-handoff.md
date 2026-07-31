@@ -18,7 +18,7 @@
   settings, and the public resolver no longer injects invisible read-time
   defaults. Missing placements now remain absent in both admin and public views.
 - Exact active-theme runtime state projects validated `navigationLocations`.
-  Default and Nocturne declare all four v1 locations; Core emergency fallback
+  The default theme declares all four v1 locations; Core emergency fallback
   supports all four without rewriting operator configuration.
 - Mobile homepage selector visibility and width were repaired without changing
   the canonical mobile drawer authority.

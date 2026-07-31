@@ -9,7 +9,7 @@ Compared to: `docs/extensions/v3/performance-baseline.md` (P0)
 | --- | --- | --- |
 | Theme resolve V1 baseline | ~1978 ns/op, 0 B/op | Single `-benchtime=1x` sample; still sub-microsecond class vs P0 ~328 ns median (noise at n=1) |
 | Dependency inspector snapshot | ~140 us/op | P12 inspector overhead gate remains order-of-magnitude acceptable for admin use |
-| Builtin theme completeness compile+render | Product test path | Full default/nocturne 21-page compile/render green under `TestBuiltinThemesCoverAllReplaceablePages` |
+| Builtin theme completeness compile+render | Product test path | Full protected default-theme compile/render green under `TestBuiltinThemesCoverAllReplaceablePages` |
 | SEO multi-kind subprocess | Product test path | Real Protocol V2 build+start within Extensions package suite (~10–25s wall including compile) |
 
 ## Interpretation

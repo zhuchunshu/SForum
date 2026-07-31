@@ -54,14 +54,16 @@ authority for `--version` output from the API, worker, migrator, and developer
 CLI processes.
 
 Runtime resource accounting lives in `app/Support/ProcessMemory` and is shared
-by the admin overview. A cached `ps` frame is sampled at most every 5 seconds;
-the collector keeps a 60-second rolling median for API, standalone Worker,
-直属 backend plugin, and total RSS. Linux reads PSS from `smaps_rollup` when all
-members are available; other platforms leave PSS absent rather than presenting
-an invented value. Plugin attribution is limited to direct children of the API
-or Worker and includes per-extension process counts. When the Worker is embedded
-in the API, `WithWorkerRuntime` exposes the mode and concurrency without adding
-a fictional Worker memory line.
+by the admin overview. Linux release containers sample procfs directly, because
+Alpine BusyBox `ps` does not implement the process-table flags used on macOS.
+The collector reads PID/PPID, command, RSS, optional `smaps_rollup` PSS, and
+adjacent-frame CPU ticks, then keeps a 60-second rolling median for API,
+standalone Worker, owned backend plugins, and totals. Production Compose places
+each trusted Worker in its API's PID namespace, exposing only those two service
+families without host PID access or a Docker socket. Other platforms leave PSS
+absent instead of inventing a value. When the Worker is embedded in the API,
+`WithWorkerRuntime` exposes mode and concurrency without a fictional Worker
+memory line.
 
 The optional `app/Support/RuntimeDiagnostics` server owns loopback-only pprof
 listeners. `PPROF_ENABLED` and `WORKER_PPROF_ENABLED` default to false; the API
@@ -110,6 +112,11 @@ not claim to include the Nuxt Web runtime, PostgreSQL, or Redis; version-matched
 Compose images remain the complete production distribution. `--local-checks`
 opts into the redundant local gate when the required local services are
 available, and `--dry-run` creates no tag.
+GitHub Release bodies come from a tested repository script: annotated-tag
+highlights (or automatic cleaned commit summaries) are followed by exact Docker
+image pulls, Compose install/update commands, asset guidance, versioned
+documentation, and a compare link. This avoids GitHub's occasionally empty
+generated-note body and gives operators one complete release page.
 After promotion, a separate job uses an empty Docker credential directory to
 pull all four version tags. GitHub Release creation depends on that anonymous
 distribution check, so private or mislinked GHCR packages fail before public
@@ -134,6 +141,18 @@ validated by the shared configuration loader; a real Compose render test keeps
 that release/runtime contract aligned.
 Backup and restore helpers parse only the exact database keys from dotenv and
 never execute the configuration as shell input.
+
+`upgrade.sh` owns migration-free blue/green updates after installation. A
+stable Caddy edge switches between API/Web slots only after internal readiness;
+the old Worker drains before the new Worker starts, so durable River work is not
+lost and two consumers do not overlap. The target migrator performs a read-only
+exact Core and River migration check before candidate startup. Pending or
+mismatched migrations fail closed to the `deploy.sh` backup/migration
+maintenance path. The first conversion from direct host ports has a short
+maintenance window; later compatible HTTP switches are continuous, while
+WebSockets may reconnect. `latest` is resolved from the public GitHub Release
+list, including prereleases, to an immutable tag before confirmation and state
+persistence. See `decisions/2026-08-01-compose-blue-green-updates.md`.
 
 The CI quality job provisions PostgreSQL 17 on the same host port `15432` used
 by the repository's required database-backed tests, runs the embedded migrator

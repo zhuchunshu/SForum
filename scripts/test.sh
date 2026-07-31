@@ -13,6 +13,9 @@ echo "Running exact main CI release gate validation..."
 echo "Running release workflow architecture validation..."
 ruby ./scripts/ci/release_workflow_test.rb
 
+echo "Running automatic release notes validation..."
+./scripts/ci/generate-release-notes_test.sh
+
 echo "Running release asset packaging validation..."
 ./scripts/ci/release_assets_test.sh
 
@@ -27,6 +30,15 @@ echo "Running release deployment state-machine validation..."
 
 echo "Running production Compose migration configuration validation..."
 ./deploy/scripts/compose-production_test.sh
+
+echo "Running zero-downtime Compose topology validation..."
+./deploy/scripts/zero-downtime-compose_test.sh
+
+echo "Running zero-downtime release selection validation..."
+./deploy/scripts/upgrade-version-selection_test.sh
+
+echo "Running zero-downtime state-machine validation..."
+./deploy/scripts/zero-downtime-state_test.sh
 
 echo "Running architecture boundary validation..."
 node tests/validate-architecture-boundaries.mjs

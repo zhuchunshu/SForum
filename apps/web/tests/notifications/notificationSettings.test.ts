@@ -19,7 +19,6 @@ import {
 const source = (path: string) => Bun.file(new URL(path, import.meta.url)).text()
 const userPage = await source('../../app/pages/settings/notifications.vue')
 const defaultThemeSettings = await source('../../../../extensions/builtin/themes/sforum-default/templates/settings-notifications.html')
-const nocturneThemeSettings = await source('../../../../extensions/builtin/themes/sforum-nocturne/templates/settings-notifications.html')
 const themeRenderer = await source('../../app/components/SFThemeTemplate.vue')
 const userSettings = await source('../../app/components/settings/SFNotificationSettingsPage.vue')
 const settingsStyles = await source('../../app/assets/css/sforum-settings.css')
@@ -97,7 +96,7 @@ describe('Notification Platform V2 settings', () => {
   })
 
   test('freezes the replaceable Page Registry theme and Host island contract', () => {
-    for (const template of [defaultThemeSettings, nocturneThemeSettings]) {
+    for (const template of [defaultThemeSettings]) {
       expect(template).toContain('data-theme-owned="presentation"')
       expect(template).toContain('data-page="forum.settings.notifications"')
       expect(template).toContain('data-layout="fullwidth-3col"')

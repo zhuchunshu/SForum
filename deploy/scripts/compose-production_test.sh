@@ -21,7 +21,8 @@ docker compose \
   -f "$ROOT_DIR/compose.yaml" \
   -f "$ROOT_DIR/compose.prod.yaml" \
   -f "$ROOT_DIR/compose.release.yaml" \
-  config --format json migrate > "$TEMP_DIR/compose.json"
+  --profile tools \
+  config --format json > "$TEMP_DIR/compose.json"
 
 ruby -rjson -e '
   env = File.readlines(ARGV.fetch(0), chomp: true).each_with_object({}) do |line, values|
@@ -30,7 +31,8 @@ ruby -rjson -e '
     values[key] = value
   end
   compose = JSON.parse(File.read(ARGV.fetch(1)))
-  migrate = compose.fetch("services").fetch("migrate").fetch("environment")
+  services = compose.fetch("services")
+  migrate = services.fetch("migrate").fetch("environment")
   required = %w[
     SESSION_HASH_SECRET
     IDENTITY_SUBJECT_HMAC_SECRET
@@ -44,6 +46,9 @@ ruby -rjson -e '
     abort "compose-production_test.sh: migrate #{key} is empty" if actual.empty?
   end
   abort "compose-production_test.sh: migrate APP_ENV is not production" unless migrate["APP_ENV"] == "production"
+  worker = services.fetch("worker")
+  abort "compose-production_test.sh: worker must share only the API PID namespace" unless worker["pid"] == "service:api"
+  abort "compose-production_test.sh: worker must depend on API startup" unless worker.dig("depends_on", "api", "condition") == "service_started"
 ' "$TEMP_DIR/.env.production" "$TEMP_DIR/compose.json"
 
 printf 'compose-production_test.sh: all checks passed\n'

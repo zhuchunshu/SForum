@@ -95,7 +95,7 @@ func TestThemeSwitchSurvivesProductionAPIAndNitroRestartAndConcurrentActivation(
 	store := extensions.NewPostgresStore(pool)
 	actorID := createThemeE2EActor(t, pool)
 	defaultTheme := getThemeE2EExtension(t, store, extensions.DefaultThemeID)
-	nocturne := getThemeE2EExtension(t, store, "sforum.nocturne-theme")
+	publicL2 := getThemeE2EExtension(t, store, "sforum.public-l2-e2e-theme")
 	signalGarden := getThemeE2EExtension(t, store, "sforum.signal-garden")
 	assertThemeE2EActive(t, store, defaultTheme)
 	waitForThemeE2ESkin(t, api, pool, apiBaseURL, defaultTheme, 20*time.Second)
@@ -128,7 +128,7 @@ func TestThemeSwitchSurvivesProductionAPIAndNitroRestartAndConcurrentActivation(
 	t.Logf("exact switch survived API and Nitro restart: %s@%s#%s",
 		signalGarden.ID, signalGarden.Version, signalGarden.PackageDigest)
 
-	winner := raceThemeE2EActivations(t, store, signalGarden, defaultTheme, nocturne, actorID)
+	winner := raceThemeE2EActivations(t, store, signalGarden, defaultTheme, publicL2, actorID)
 	waitForThemeE2ESkin(t, api, pool, apiBaseURL, winner, 20*time.Second)
 	assertThemeE2ERendered(t, nitroBaseURL, winner)
 	t.Logf("concurrent exact activation winner: %s@%s#%s", winner.ID, winner.Version, winner.PackageDigest)
@@ -359,8 +359,6 @@ func assertThemeE2ERendered(t *testing.T, nitroBaseURL string, want extensions.E
 	switch want.ID {
 	case "sforum.signal-garden":
 		markers = append(markers, "Signal Garden", `data-theme="signal-garden"`)
-	case "sforum.nocturne-theme":
-		markers = append(markers, "Nocturne Harbor", `data-theme="nocturne-harbor"`)
 	}
 	for _, marker := range markers {
 		if !strings.Contains(html, marker) {

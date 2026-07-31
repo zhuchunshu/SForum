@@ -248,7 +248,7 @@ export type AdminExtensionRuntime = {
   protocolStartCount?: number
   protocolCallCount?: number
   protocolLastCallAt?: string
-  /** 拥有 backend 子进程时的 OS RSS（字节）；无进程时省略 */
+  /** 拥有 backend 子进程时的 OS RSS（字节）；未采样或无进程时省略 */
   memoryBytes?: number
 }
 

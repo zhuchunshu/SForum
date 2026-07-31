@@ -1113,7 +1113,8 @@
         "protocolCalls": "{count} RPC calls",
         "memory": "Memory {size}",
         "memoryHint": "Backend plugin process RSS (OS resident set)",
-        "memoryUnavailable": "No process",
+        "memoryPending": "Not sampled yet",
+        "memoryUnavailable": "No backend process",
         "memoryLabel": "Memory"
       },
       "detailTitle": "Extension details",

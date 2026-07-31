@@ -24,7 +24,7 @@ describe('legal page presentation ownership', () => {
     })
 
     test(`${slug} theme shells mark presentation ownership`, () => {
-      for (const theme of ['sforum-default', 'sforum-nocturne']) {
+      for (const theme of ['sforum-default']) {
         const tpl = read(`../../extensions/builtin/themes/${theme}/templates/${slug}.html`)
         expect(tpl).toContain('data-theme-owned="presentation"')
         expect(tpl).toContain(`data-page="${pageId}"`)

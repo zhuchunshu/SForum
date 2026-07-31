@@ -40,6 +40,13 @@ services:
   worker:
     build:
       target: worker
+    # Resource telemetry reads procfs. Sharing the trusted API PID namespace
+    # exposes the standalone Worker and its plugin children without host PID
+    # access or a mounted Docker socket.
+    pid: "service:api"
+    depends_on:
+      api:
+        condition: service_started
     environment:
       SFORUM_V3_TRUST_CHALLENGES: ${SFORUM_V3_TRUST_CHALLENGES:-true}
       MARKETPLACE_ED25519_PUBLIC_KEY_HEX: ${MARKETPLACE_ED25519_PUBLIC_KEY_HEX:?MARKETPLACE_ED25519_PUBLIC_KEY_HEX is required in production}

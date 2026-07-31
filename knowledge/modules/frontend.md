@@ -466,7 +466,7 @@ Plan: `../plans/2026-07-22-theme-defined-system-error-pages.md`
 - Reviewed Host islands own safe semantics and recovery behavior: details,
   actions, recovery search, sidebar, and rail. Theme L1 owns layout/chrome;
   plugins and public L2 remain closed on `system.*`.
-- Default and Nocturne built-in themes now provide themed forbidden,
+- The default built-in theme provides themed forbidden,
   not-found, rate-limited, and server-error templates/styles. A final default
   theme mobile CSS fix collapses the hidden-sidebar system-error layout to one
   full-width column below 960 px.

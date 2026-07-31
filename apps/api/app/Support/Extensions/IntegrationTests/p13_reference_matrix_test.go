@@ -85,7 +85,6 @@ func TestP13ReferencePluginPackagesExist(t *testing.T) {
 	}
 	for _, theme := range []string{
 		"extensions/builtin/themes/sforum-default/theme.json",
-		"extensions/builtin/themes/sforum-nocturne/theme.json",
 	} {
 		raw, err := os.ReadFile(filepath.Join(root, theme))
 		if err != nil {

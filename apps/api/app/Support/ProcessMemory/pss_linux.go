@@ -11,10 +11,14 @@ import (
 )
 
 func readProcessPSS(pid int) (uint64, bool) {
+	return readProcessPSSAt("/proc", pid)
+}
+
+func readProcessPSSAt(procRoot string, pid int) (uint64, bool) {
 	if pid <= 0 {
 		return 0, false
 	}
-	file, err := os.Open(fmt.Sprintf("/proc/%d/smaps_rollup", pid))
+	file, err := os.Open(fmt.Sprintf("%s/%d/smaps_rollup", strings.TrimRight(procRoot, "/"), pid))
 	if err != nil {
 		return 0, false
 	}

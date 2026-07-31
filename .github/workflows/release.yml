@@ -625,11 +625,9 @@ jobs:
             echo "GitHub Release $RELEASE_TAG already contains the exact verified asset set"
             exit 0
           fi
-          release_notes="$(git for-each-ref --format='%(contents:body)' "refs/tags/$RELEASE_TAG")"
-          args=(--verify-tag --generate-notes --title "SForum $RELEASE_TAG")
-          if [[ -n "${release_notes//[[:space:]]/}" ]]; then
-            args+=(--notes "$release_notes")
-          fi
+          notes_file="$RUNNER_TEMP/release-notes.md"
+          ./scripts/ci/generate-release-notes.sh "$RELEASE_TAG" "$notes_file"
+          args=(--verify-tag --notes-file "$notes_file" --title "SForum $RELEASE_TAG")
           if [[ "$STABLE" != "true" ]]; then
             args+=(--prerelease)
           fi

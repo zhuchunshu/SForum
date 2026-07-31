@@ -35,7 +35,7 @@ It does **not** authorize legacy deletion (see `p13-migration-and-lts.md`).
 | Custom content | `sforum.custom-content` | custom content product gate |
 | Media | `sforum.media-optimize` | media optimize product gate |
 | Commerce | `sforum.commerce-workflow` (+ext) | commerce workflow product gate |
-| Themes | default + nocturne | `Pages/builtin_theme_completeness_test.go` |
+| Themes | protected default theme | `Pages/builtin_theme_completeness_test.go` |
 | ESM union | five fixtures | `p13_reference_matrix_test.go`, `p13_reference_surface_matrix_test.go` |
 
 ## Browser / live stack (honest residual)

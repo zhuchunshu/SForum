@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC2016,SC2129
+set -euo pipefail
+
+if [ "$#" -ne 2 ]; then
+  echo "Usage: $0 <release-tag> <output-file>" >&2
+  exit 2
+fi
+
+release_tag="$1"
+output_file="$2"
+if [[ ! "$release_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+  echo "Invalid release tag: $release_tag" >&2
+  exit 2
+fi
+git rev-parse --verify --quiet "refs/tags/$release_tag^{commit}" >/dev/null || {
+  echo "Release tag does not exist: $release_tag" >&2
+  exit 1
+}
+
+repository_url="${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-}"
+if [ -z "${GITHUB_REPOSITORY:-}" ]; then
+  remote_url="$(git remote get-url origin 2>/dev/null || true)"
+  case "$remote_url" in
+    https://github.com/*.git) repository_url="${remote_url%.git}" ;;
+    https://github.com/*) repository_url="$remote_url" ;;
+    git@github.com:*) repository_url="https://github.com/${remote_url#git@github.com:}"; repository_url="${repository_url%.git}" ;;
+    *) repository_url="https://github.com/zhuchunshu/SForum" ;;
+  esac
+fi
+
+release_commit="$(git rev-parse "refs/tags/$release_tag^{commit}")"
+previous_tag="$(git describe --tags --abbrev=0 "$release_commit^" 2>/dev/null || true)"
+tag_notes="$(git for-each-ref --format='%(contents:body)' "refs/tags/$release_tag")"
+temp_file="$(mktemp "${TMPDIR:-/tmp}/sforum-release-notes.XXXXXX")"
+trap 'rm -f "$temp_file"' EXIT
+
+printf '> Maintainable, plugin-first open-source forum framework.\n\n' >> "$temp_file"
+range="$release_tag"
+if [ -n "$previous_tag" ]; then
+  range="$previous_tag..$release_tag"
+fi
+if [ -n "${tag_notes//[[:space:]]/}" ]; then
+  printf '%s\n' "$tag_notes" >> "$temp_file"
+else
+  commit_count=0
+  while IFS= read -r subject; do
+    [ -n "$subject" ] || continue
+    subject="$(printf '%s' "$subject" | sed -E 's/^(feat|fix|docs|test|refactor|perf|build|ci|chore)(\([^)]*\))?!?:[[:space:]]*//')"
+    printf -- '- %s\n' "$subject" >> "$temp_file"
+    commit_count=$((commit_count + 1))
+  done < <(git log --format='%s' "$range")
+  if [ "$commit_count" -eq 0 ]; then
+    subject="$(git show -s --format=%s "$release_commit")"
+    printf -- '- %s\n' "$subject" >> "$temp_file"
+  fi
+fi
+
+printf '\n---\n\n## Installation\n\n**Docker images:**\n\n```bash\n' >> "$temp_file"
+for image in api worker migrate web; do
+  printf 'docker pull ghcr.io/zhuchunshu/sforum-%s:%s\n' "$image" "$release_tag" >> "$temp_file"
+done
+printf '```\n\n**Install with Docker Compose (Linux):**\n\n```bash\n' >> "$temp_file"
+printf 'git clone --branch %s --depth 1 %s.git SForum\n' "$release_tag" "$repository_url" >> "$temp_file"
+printf 'cd SForum\n./deploy.sh --yes --version %s\n' "$release_tag" >> "$temp_file"
+printf '```\n\n**Update an existing installation:**\n\n```bash\n./upgrade.sh %s\n```\n\n' "$release_tag" >> "$temp_file"
+printf '**Manual download:** Download the matching Linux or macOS archive from the assets below.\n\n' >> "$temp_file"
+
+printf '## Documentation\n\n' >> "$temp_file"
+printf -- '- [GitHub Repository](%s)\n' "$repository_url" >> "$temp_file"
+printf -- '- [中文部署文档](%s/blob/%s/docs/zh-CN/deployment.md)\n' "$repository_url" "$release_tag" >> "$temp_file"
+printf -- '- [English Deployment Guide](%s/blob/%s/docs/en-US/deployment.md)\n' "$repository_url" "$release_tag" >> "$temp_file"
+printf -- '- **完整变更记录 / Full Changelog**: ' >> "$temp_file"
+if [ -n "$previous_tag" ]; then
+  printf '[`%s...%s`](%s/compare/%s...%s)\n' \
+    "$previous_tag" "$release_tag" "$repository_url" "$previous_tag" "$release_tag" >> "$temp_file"
+else
+  printf '[`%s`](%s/commits/%s)\n' "$release_tag" "$repository_url" "$release_tag" >> "$temp_file"
+fi
+
+mkdir -p "$(dirname "$output_file")"
+mv "$temp_file" "$output_file"
+trap - EXIT

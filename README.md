@@ -61,10 +61,19 @@ Full steps: [docs/zh-CN/getting-started.md](./docs/zh-CN/getting-started.md) or 
 ## Production
 
 ```sh
-cp .env.production.example .env.production
-# edit secrets and APP_URL
-./deploy.sh
+./deploy.sh                              # interactive install; Enter accepts safe defaults
+./upgrade.sh                             # update; Enter selects the newest GitHub Release
+./upgrade.sh --version v3.0.0-alpha.11   # update to a specific release
 ```
+
+`upgrade.sh` accepts a positional version or `--version`; its default `latest`
+includes prereleases. It resolves that choice to a concrete tag, prints the
+current and target versions, and asks for confirmation (`--yes` skips prompts).
+The first blue/green ingress conversion has a short maintenance window. Later
+migration-free releases keep API/Web HTTP traffic available; WebSockets may
+reconnect and Worker consumption pauses briefly without losing durable jobs.
+Targets with pending SForum Core or River migrations must use `deploy.sh` and
+its maintenance-window migration path.
 
 Details: [docs/zh-CN/deployment.md](./docs/zh-CN/deployment.md) / [docs/en-US/deployment.md](./docs/en-US/deployment.md).
 

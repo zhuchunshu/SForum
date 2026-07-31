@@ -55,7 +55,7 @@ describe('remaining public presentation ownership', () => {
     })
 
     test(`${pageId} theme shells mark presentation ownership`, () => {
-      for (const theme of ['sforum-default', 'sforum-nocturne']) {
+      for (const theme of ['sforum-default']) {
         const tpl = read(`../../extensions/builtin/themes/${theme}/templates/${template}`)
         expect(tpl).toContain('data-theme-owned="presentation"')
         expect(tpl).toContain(`data-page="${pageId}"`)
@@ -85,7 +85,7 @@ describe('remaining public presentation ownership', () => {
       ['rate-limited.html', 'system.rate_limited'],
       ['server-error.html', 'system.server_error']
     ] as const
-    for (const theme of ['sforum-default', 'sforum-nocturne']) {
+    for (const theme of ['sforum-default']) {
       for (const [template, pageId] of pages) {
         const tpl = read(`../../extensions/builtin/themes/${theme}/templates/${template}`)
         expect(tpl).toContain('data-theme-owned="presentation"')
@@ -105,20 +105,16 @@ describe('remaining public presentation ownership', () => {
     expect(systemTemplate).toContain("'system.component.error_recovery': SFSystemErrorRecovery")
     expect(systemTemplate).toContain("'system.component.error_sidebar': SFSystemErrorSidebar")
     expect(systemTemplate).toContain("'system.component.error_rail': SFSystemErrorRail")
-    const nocturneCSS = read('../../extensions/builtin/themes/sforum-nocturne/assets/theme.css')
+    const defaultCSS = read('../../extensions/builtin/themes/sforum-default/assets/theme.css')
     const errorBody = read('app/components/errors/SFSystemErrorPage.vue')
     expect(errorBody).toContain(':data-page="page.pageId"')
-    expect(nocturneCSS).toContain('.nh-system-error-shell')
-    expect(nocturneCSS).toContain('.nh-system-error-shell .sforum-system-error__layout')
-    expect(nocturneCSS).toContain('.nh-system-error-shell .sforum-system-error__details')
-    expect(nocturneCSS).toContain('.nh-system-error-shell .sforum-system-error__search-box')
-    expect(nocturneCSS).toContain('@media (max-width: 960px)')
-    expect(nocturneCSS).not.toContain('.nh-not-found-shell .sforum-not-found-page__layout')
-    expect(nocturneCSS).not.toContain('.nh-not-found-shell .sforum-not-found-page__sidebar')
+    expect(defaultCSS).toContain('.sforum-system-error__layout')
+    expect(defaultCSS).toContain('.sforum-system-error__details')
+    expect(defaultCSS).toContain('@media (max-width: 960px)')
   })
 
   test('legacy system.not_found compatibility remains closed to L2', () => {
-    for (const theme of ['sforum-default', 'sforum-nocturne']) {
+    for (const theme of ['sforum-default']) {
       const tpl = read(`../../extensions/builtin/themes/${theme}/templates/not-found.html`)
       expect(tpl).toContain('data-theme-owned="presentation"')
       expect(tpl).toContain('data-page="system.not_found"')
@@ -138,7 +134,7 @@ describe('remaining public presentation ownership', () => {
     expect(route).toContain('<SFModerationReviewPage')
     const catalog = read('../../apps/api/app/Support/Pages/catalog.go')
     expect(catalog).toMatch(/ID: "moderation\.review"[^\n]+Replaceable: false, Themeable: true/)
-    for (const theme of ['sforum-default', 'sforum-nocturne']) {
+    for (const theme of ['sforum-default']) {
       const themeJson = read(`../../extensions/builtin/themes/${theme}/theme.json`)
       const template = read(`../../extensions/builtin/themes/${theme}/templates/moderation-review.html`)
       expect(themeJson).toContain('"target": "moderation.review"')

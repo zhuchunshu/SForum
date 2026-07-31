@@ -18,7 +18,7 @@ func TestExtensionValidateBuiltinThemes(t *testing.T) {
 	}
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", "..", "..", ".."))
 
-	for _, theme := range []string{"sforum-default", "sforum-nocturne"} {
+	for _, theme := range []string{"sforum-default"} {
 		t.Run(theme, func(t *testing.T) {
 			root := filepath.Join(repoRoot, "extensions", "builtin", "themes", theme)
 			cmd := newRootCommand()

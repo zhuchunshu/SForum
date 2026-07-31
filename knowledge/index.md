@@ -110,12 +110,12 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- Clean-host alpha deployment: the beginner path now generates secure defaults,
-  deploys four immutable GHCR images with managed PostgreSQL/Redis, backs up
-  only existing installations, and persists success only after full readiness.
-  Alpha.8 and alpha.9 remain failed/immutable; alpha.10 publication and real
-  image deploy are the immediate next steps:
-  `sessions/2026-07-31-alpha10-clean-host-deploy.md`
+- Alpha.11 production fixes: Linux `/proc` resource metrics, complete
+  API/Worker/plugin attribution, truthful plugin sampling states, Night Harbor
+  removal, and migration-guarded blue/green Compose updates are implemented.
+  Full local gates pass; publishing and real alpha.10-to-next-alpha rollout are
+  the immediate next steps:
+  `sessions/2026-08-01-alpha11-production-fixes.md`
 
 - Release-blocker remediation: historical `enc::` secrets now migrate without
   loss, production Marketplace key inputs are explicit, SystemTier affects real
@@ -318,10 +318,10 @@ load archived sessions or completed plans as current context.
   shell, Host fallback navbar geometry is scoped, and moderation/profile center
   columns use the correct foreground surface token:
   `sessions/2026-07-30-moderation-theme-presentation-repair.md`
-- Built-in theme activation repair: the default and Nocturne themes now bind all
-  27 Page Registry templates to exact Manifest V3 declarations; source and
-  staged-artifact validation pass, and the repaired default digest is staged for
-  operator activation:
+- Built-in theme activation repair: the default theme binds all 27 Page
+  Registry templates to exact Manifest V3 declarations; source and staged
+  artifact validation pass. The former Nocturne/Night Harbor theme is no longer
+  built in:
   `sessions/2026-07-30-builtin-theme-v3-template-declarations.md`
 - Localized transactional mail: Core now produces paired HTML/text password
   reset, registration welcome, reply, mention, and moderation templates; mail

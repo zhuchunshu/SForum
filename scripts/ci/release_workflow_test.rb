@@ -68,6 +68,17 @@ fail!("manifest merge matrix must cover all four images") unless merge.dig("stra
 merge_command = merge.fetch("steps").map { |step| step["run"] }.compact.find do |command|
   command.include?("docker buildx imagetools create")
 end
+
+github_release = release_jobs.fetch("github-release")
+release_command = github_release.fetch("steps").map { |step| step["run"] }.compact.find do |command|
+  command.include?("gh release create")
+end
+fail!("GitHub release creation command is missing") unless release_command
+unless release_command.include?("generate-release-notes.sh") &&
+       release_command.include?("--notes-file") &&
+       !release_command.include?("--generate-notes")
+  fail!("GitHub releases must use the tested commit-list notes generator")
+end
 fail!("manifest merge command is missing") unless merge_command
 unless merge_command.include?('sort == ["amd64", "arm64"]') && merge_command.include?("manifest_digest")
   fail!("manifest merge must verify both runtime architectures and export its digest")

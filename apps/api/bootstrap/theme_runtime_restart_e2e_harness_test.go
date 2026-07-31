@@ -292,6 +292,13 @@ func prepareThemeE2EBuiltins(t *testing.T, repositoryRoot, builtinRoot string) {
 	); err != nil {
 		t.Fatalf("copy Signal Garden fixture: %v", err)
 	}
+	publicL2 := filepath.Join(builtinRoot, "themes", "sforum-public-l2-e2e-theme")
+	if err := os.CopyFS(
+		publicL2,
+		os.DirFS(filepath.Join(repositoryRoot, "extensions/fixtures/themes/sforum-public-l2-e2e-theme")),
+	); err != nil {
+		t.Fatalf("copy public L2 theme fixture: %v", err)
+	}
 }
 
 func themeE2EEnvironment(overrides map[string]string) []string {

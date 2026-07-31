@@ -36,7 +36,7 @@ const (
 )
 
 // DefaultSampler 共享一次短 TTL 的系统进程表采样；不把宿主诊断依赖带进插件 SDK 构建图。
-var DefaultSampler Sampler = NewCachedSampler(osSampler{}, DefaultSampleInterval)
+var DefaultSampler Sampler = NewCachedSampler(newOSSampler(), DefaultSampleInterval)
 
 // IsBackendPluginCommand 判断命令行是否为扩展 storage 下的 backend plugin 二进制。
 // 仅匹配 SForum 扩展制品路径，避免误伤其它同名程序。
@@ -299,7 +299,11 @@ func ExtensionIDFromPluginCommand(command string) (string, bool) {
 	if fields := strings.Fields(normalized); len(fields) > 0 {
 		normalized = fields[0]
 	}
-	for _, marker := range []string{"storage/extensions/", "/extensions/builtin/plugins/"} {
+	for _, marker := range []string{
+		"storage/extensions/",
+		"/var/lib/sforum/extensions/",
+		"/extensions/builtin/plugins/",
+	} {
 		idx := strings.Index(normalized, marker)
 		if idx < 0 {
 			continue
