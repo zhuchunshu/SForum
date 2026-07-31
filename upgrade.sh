@@ -211,7 +211,7 @@ verify_target_images() {
 check_schema_is_online_safe() {
   local version="$1"
   say "正在确认目标版本不需要数据库迁移..." "Checking that the target requires no database migrations..."
-  SFORUM_VERSION="$version" "${COMPOSE[@]}" run --rm -T --no-deps --pull never migrate --check-no-pending >/dev/null || \
+  SFORUM_VERSION="$version" "${COMPOSE[@]}" run --rm -T --no-deps --pull never migrate sforum-migrate --check-no-pending >/dev/null || \
     die "Target schema differs from the live database. Use ./deploy.sh for a maintenance-window upgrade."
 }
 

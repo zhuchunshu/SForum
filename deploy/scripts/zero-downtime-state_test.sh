@@ -60,6 +60,11 @@ fake_compose() {
 pull_target_images() { printf 'pull %s\n' "$1" >> "$LOG_FILE"; }
 verify_target_images() { printf 'verify %s\n' "$1" >> "$LOG_FILE"; }
 backup_database() { printf 'backup\n' >> "$LOG_FILE"; }
+
+: > "$LOG_FILE"
+check_schema_is_online_safe v3.0.0-alpha.11
+assert_contains "$LOG_FILE" 'compose run --rm -T --no-deps --pull never migrate sforum-migrate --check-no-pending'
+
 check_schema_is_online_safe() {
   printf 'schema %s\n' "$1" >> "$LOG_FILE"
   [ "$SCHEMA_RESULT" = pass ] || die "pending migrations"
