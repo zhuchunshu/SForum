@@ -651,9 +651,10 @@
       },
       "kpi": {
         "memory": {
-          "label": "API memory",
-          "meta": "Heap {heap} (process RSS)",
-          "metaWithFamily": "Heap {heap} · Family {family} ({plugins} plugins)"
+          "label": "Admin memory usage",
+          "meta": "API process usage; plugins are listed separately",
+          "pluginExtra": "Plugin extra usage ({count})",
+          "total": "Admin total (API + plugins)"
         },
         "topics": {
           "label": "Posts",
@@ -2003,7 +2004,7 @@
         "automaticDescription": "A display variant is generated in the background after upload without blocking the upload or replacing the original.",
         "enabled": "Enable automatic image optimization",
         "strength": "Compression strength",
-        "strengthDescription": "Higher strength usually makes JPEG files smaller. PNG uses progressively stronger lossless compression.",
+        "strengthDescription": "Higher strength usually makes JPEG files smaller. PNG uses stronger lossless encoding and indexed color when suitable.",
         "lighter": "Clearer",
         "smaller": "Smaller",
         "jpegQuality": "JPEG quality {quality}",

@@ -691,9 +691,10 @@
       },
       "kpi": {
         "memory": {
-          "label": "API 内存",
-          "meta": "堆已用 {heap}（进程 RSS）",
-          "metaWithFamily": "堆 {heap} · 全家 {family}（{plugins} 插件）"
+          "label": "后台内存占用",
+          "meta": "API 主程序实际占用，插件另计",
+          "pluginExtra": "插件额外占用（{count} 个）",
+          "total": "后台总计（API + 插件）"
         },
         "topics": {
           "label": "帖子",
@@ -2043,7 +2044,7 @@
         "automaticDescription": "上传完成后在后台生成 display 版本，不阻塞上传，也不会覆盖原文件。",
         "enabled": "启用自动图片优化",
         "strength": "压缩强度",
-        "strengthDescription": "强度越高，JPEG 文件通常越小；PNG 使用逐级增强的无损压缩。",
+        "strengthDescription": "强度越高，JPEG 文件通常越小；PNG 使用更强的无损编码，并在适合时转为索引色。",
         "lighter": "更清晰",
         "smaller": "更小",
         "jpegQuality": "JPEG 质量 {quality}",

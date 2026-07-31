@@ -107,6 +107,11 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- PNG attachment compression: lossless display variants now use the strongest
+  standard-library PNG encoder at the recommended strength and exact indexed
+  color for images with at most 256 RGBA colors, including transparency. The
+  Attachments package and related controller/job tests pass:
+  `sessions/2026-07-31-png-compression-effectiveness.md`
 - Editor image upload: the shared Tiptap editor now opens a click-or-drop
   upload modal from its toolbar, supports clipboard image uploads and
   exact-position drag uploads through the existing attachment policy, persists

@@ -47,21 +47,22 @@ const kpiCards = computed(() => {
   const actionCount = data.actions.reduce((total, action) => total + action.count, 0)
   return [
     {
+      key: 'memory',
       label: t('admin.home.kpi.memory.label'),
       value: formatOverviewBytes(data.runtime.memoryBytes),
-      meta: data.runtime.familyMemoryBytes != null
-        ? t('admin.home.kpi.memory.metaWithFamily', {
-            heap: formatOverviewBytes(data.runtime.heapAllocBytes),
-            family: formatOverviewBytes(data.runtime.familyMemoryBytes),
-            plugins: formatOverviewCount(data.runtime.pluginChildCount ?? 0)
-          })
-        : t('admin.home.kpi.memory.meta', {
-            heap: formatOverviewBytes(data.runtime.heapAllocBytes)
-          }),
+      meta: t('admin.home.kpi.memory.meta'),
+      pluginMemory: data.runtime.familyMemoryBytes != null
+        ? formatOverviewBytes(Math.max(0, data.runtime.familyMemoryBytes - data.runtime.memoryBytes))
+        : undefined,
+      familyMemory: data.runtime.familyMemoryBytes != null
+        ? formatOverviewBytes(data.runtime.familyMemoryBytes)
+        : undefined,
+      pluginCount: data.runtime.pluginChildCount ?? 0,
       icon: 'i-lucide-memory-stick',
       tone: 'text-[var(--sf-accent)] dark:text-[var(--sf-accent-dark)]'
     },
     {
+      key: 'topics',
       label: t('admin.home.kpi.topics.label'),
       value: formatOverviewCount(data.community.postCount),
       meta: t('admin.home.kpi.topics.meta', {
@@ -72,6 +73,7 @@ const kpiCards = computed(() => {
       tone: 'text-blue-600 dark:text-blue-400'
     },
     {
+      key: 'users',
       label: t('admin.home.kpi.users.label'),
       value: formatOverviewCount(data.community.userCount),
       meta: t('admin.home.kpi.users.meta', { active: formatOverviewCount(data.community.activeUserCount) }),
@@ -79,6 +81,7 @@ const kpiCards = computed(() => {
       tone: 'text-green-600 dark:text-green-400'
     },
     {
+      key: 'actions',
       label: t('admin.home.kpi.actions.label'),
       value: formatOverviewCount(actionCount),
       meta: t('admin.home.kpi.actions.meta', { reports: formatOverviewCount(data.moderation.openCount + data.moderation.reviewingCount) }),
@@ -260,6 +263,18 @@ function extensionWidgetColor(widget: AdminOverviewExtensionWidget) {
             <p class="mt-2 truncate text-xs text-slate-500 dark:text-zinc-400">
               {{ card.meta }}
             </p>
+            <div v-if="card.key === 'memory'" class="mt-2 space-y-1 border-t border-slate-100 pt-2 text-xs dark:border-zinc-800">
+              <div v-if="card.familyMemory" class="flex items-center justify-between gap-3">
+                <span class="text-slate-500 dark:text-zinc-400">
+                  {{ t('admin.home.kpi.memory.pluginExtra', { count: card.pluginCount }) }}
+                </span>
+                <strong class="font-semibold text-slate-700 dark:text-zinc-200">{{ card.pluginMemory }}</strong>
+              </div>
+              <div v-if="card.familyMemory" class="flex items-center justify-between gap-3 border-t border-slate-100 pt-1 dark:border-zinc-800">
+                <span class="font-medium text-slate-600 dark:text-zinc-300">{{ t('admin.home.kpi.memory.total') }}</span>
+                <strong class="font-semibold text-slate-900 dark:text-white">{{ card.familyMemory }}</strong>
+              </div>
+            </div>
           </div>
           <span class="icon-glass-box shrink-0" :class="card.tone">
             <UIcon :name="card.icon" class="size-5 z-10" />

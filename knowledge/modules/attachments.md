@@ -48,6 +48,11 @@ Attachment system foundation is implemented.
 - Basic Configuration retains the storage/upload form. Image Optimization owns
   the Host JPEG/PNG display policy, recommended-default reset, adjacent size
   estimate, task and savings statistics, and explicit history backfill.
+- PNG display variants keep pixel values lossless. The processor uses the
+  highest standard-library Deflate level at the recommended strength and
+  converts images with at most 256 exact RGBA colors to indexed PNG, including
+  transparency; high-color PNGs retain true color and transparently fall back
+  to the original when the configured savings threshold is not met.
 - Ordinary proxied JPEG/PNG metadata returns an authorized `display` variant
   URL. Missing, stale, disabled, unreadable, or unprofitable variants fall back
   to the immutable original; explicit site-public CDN assets keep their direct
