@@ -342,12 +342,13 @@ verify_services_stable() {
 }
 
 verify_release_identities() {
-  local service binary actual expected_version
+  local service binary image actual expected_version
   expected_version="${RELEASE_VERSION#v}"
   t verifying_images
   for service in api worker migrate; do
     binary="sforum-$service"
-    if ! actual="$("${COMPOSE[@]}" run --rm -T --no-deps --pull never "$service" "$binary" --version)"; then
+    image="${SFORUM_REGISTRY:-ghcr.io/zhuchunshu}/sforum-${service}:${RELEASE_VERSION}"
+    if ! actual="$(docker run --rm "$image" "$binary" --version)"; then
       echo "Could not inspect the $service image identity." >&2
       return 1
     fi

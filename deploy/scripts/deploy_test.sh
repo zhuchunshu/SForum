@@ -84,6 +84,12 @@ printf 'docker version=%s %s\n' "${SFORUM_VERSION:-unset}" "$*" >> "$MOCK_DEPLOY
 if [ "${1:-}" = "info" ]; then
   exit 0
 fi
+if [ "${1:-}" = "run" ]; then
+  [ "${2:-}" = "--rm" ] || exit 89
+  [ "${MOCK_FAIL_STAGE:-}" != "identity" ] || exit 13
+  printf 'SForum %s (0123456789ab)\n' "${SFORUM_VERSION#v}"
+  exit 0
+fi
 [ "${1:-}" = "compose" ] || exit 90
 shift
 
@@ -126,12 +132,8 @@ case "$command" in
     printf '%s\n' "${MOCK_DB_STATE:-f}"
     ;;
   run)
-    if [[ " $* " == *" --version "* ]]; then
-      [ "${MOCK_FAIL_STAGE:-}" != "identity" ] || exit 13
-      printf 'SForum %s (0123456789ab)\n' "${SFORUM_VERSION#v}"
-    else
-      [ "${MOCK_FAIL_STAGE:-}" != "migrate" ] || exit 11
-    fi
+    [[ " $* " != *" --version "* ]] || exit 88
+    [ "${MOCK_FAIL_STAGE:-}" != "migrate" ] || exit 11
     ;;
   ps)
     if [ "${1:-}" = "--status" ]; then
@@ -196,6 +198,10 @@ if ! run_deploy clean f ""; then
   fail "clean deployment failed"
 fi
 assert_contains "$MOCK_LOG" "docker version=v3.0.0-alpha.9 compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull migrate api worker web"
+for service in api worker migrate; do
+  assert_contains "$MOCK_LOG" "docker version=v3.0.0-alpha.9 run --rm ghcr.io/zhuchunshu/sforum-${service}:v3.0.0-alpha.9 sforum-${service} --version"
+done
+assert_not_contains "$MOCK_LOG" "compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml run --rm -T --no-deps --pull never worker"
 assert_contains "$MOCK_LOG" "docker version=v3.0.0-alpha.9 compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml up -d --no-build --pull never postgres redis api worker web"
 assert_not_contains "$MOCK_LOG" "helper backup"
 assert_before "$MOCK_LOG" "pull migrate api worker web" "up -d --wait postgres redis"
