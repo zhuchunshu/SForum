@@ -2,6 +2,35 @@
 
 [← English docs home](./README.md)
 
+## Quick install
+
+SForum supports Linux `amd64` and `arm64`; Windows is not supported. The server
+needs:
+
+- Docker Engine and Docker Compose `2.24.4` or newer;
+- access to GitHub and `ghcr.io`;
+- free loopback ports `3000` and `18080`, or alternative ports selected in the
+  wizard.
+
+Fetch the current deployment scripts and start the interactive installer:
+
+```sh
+git clone --depth 1 https://github.com/zhuchunshu/SForum.git
+cd SForum
+./deploy.sh --version v3.0.0-alpha.13
+```
+
+Every prompt has a recommended value. Press Enter when unsure: the installer
+uses PostgreSQL and Redis managed by Docker Compose, generates the required
+secrets, pulls version-matched GitHub container images, runs migrations, and
+waits for the API and Web services to become healthy. The default local address
+is `http://127.0.0.1:3000`. Configure the HTTPS reverse proxy described below
+before exposing a public site.
+
+Running `./deploy.sh` without a version uses the script's currently pinned
+recommended release. For repeatable production deployments, specify the
+version explicitly as shown above.
+
 ## Target shape
 
 - Compose: `web`, `api`, `worker`, PostgreSQL, Redis  
@@ -80,9 +109,9 @@ The simplest interactive installation accepts Enter for every prompt:
 Pin a version explicitly, or accept all recommended defaults non-interactively:
 
 ```sh
-./deploy.sh --version v3.0.0-alpha.10 --lang en
-./deploy.sh --version v3.0.0-alpha.10 --lang zh
-./deploy.sh --version v3.0.0-alpha.10 --lang en --yes --action deploy
+./deploy.sh --version v3.0.0-alpha.13 --lang en
+./deploy.sh --version v3.0.0-alpha.13 --lang zh
+./deploy.sh --version v3.0.0-alpha.13 --lang en --yes --action deploy
 ```
 
 This combines `compose.yaml`, `compose.prod.yaml`, and `compose.release.yaml`.
@@ -104,7 +133,7 @@ as a successful deployment.
 Equivalent non-interactive commands:
 
 ```sh
-export SFORUM_VERSION=v3.0.0-alpha.10
+export SFORUM_VERSION=v3.0.0-alpha.13
 docker compose --env-file .env.production \
   -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull
 docker compose --env-file .env.production \

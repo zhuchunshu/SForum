@@ -507,6 +507,12 @@
       "footerProductSummary": "Official open-source forum framework",
       "openAdvancedSettings": "Open advanced system settings",
       "updateAvailable": "Version {version} is available. Open update settings",
+      "updatePrompt": {
+        "title": "A new SForum version is available",
+        "description": "Version {version} has been released. Review the release notes and plan your upgrade.",
+        "later": "Remind me later",
+        "openSettings": "Open update settings"
+      },
       "advancedSettings": {
         "title": "Advanced system settings",
         "description": "Developer and operator preferences for this browser’s admin UI only.",

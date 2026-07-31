@@ -2,6 +2,30 @@
 
 [← 中文文档首页](./README.md)
 
+## 快速安装
+
+支持 Linux `amd64` 和 `arm64`，不支持 Windows。服务器需要：
+
+- Docker Engine 及 Docker Compose `2.24.4` 或更高版本；
+- 能访问 GitHub 和 `ghcr.io`；
+- loopback 的 `3000`、`18080` 端口可用，或在向导中选择其他端口。
+
+获取当前部署脚本后，运行交互安装：
+
+```sh
+git clone --depth 1 https://github.com/zhuchunshu/SForum.git
+cd SForum
+./deploy.sh --version v3.0.0-alpha.13
+```
+
+向导已提供推荐值。不了解某个选项时直接回车即可；脚本会使用 Docker Compose
+内置的 PostgreSQL 和 Redis，生成所需密钥，拉取同版本的 GitHub 容器镜像，
+执行迁移并等待 API 和 Web 健康。安装完成后默认访问
+`http://127.0.0.1:3000`。公网使用前仍须按下文配置 HTTPS 反向代理。
+
+也可以直接运行 `./deploy.sh`，使用脚本当前固定的推荐版本。生产环境若需要
+可重复部署，建议像上例一样显式写出版本号。
+
 ## 目标形态
 
 - Docker Compose 编排：`web`、`api`、`worker`、PostgreSQL、Redis  
@@ -75,9 +99,9 @@ Linux 后端包不包含 Nuxt Web、PostgreSQL 或 Redis，因此不是完整站
 也可以显式固定版本，或完全非交互地接受推荐配置：
 
 ```sh
-./deploy.sh --version v3.0.0-alpha.10 --lang zh
-./deploy.sh --version v3.0.0-alpha.10 --lang en
-./deploy.sh --version v3.0.0-alpha.10 --lang zh --yes --action deploy
+./deploy.sh --version v3.0.0-alpha.13 --lang zh
+./deploy.sh --version v3.0.0-alpha.13 --lang en
+./deploy.sh --version v3.0.0-alpha.13 --lang zh --yes --action deploy
 ```
 
 该模式组合 `compose.yaml`、`compose.prod.yaml` 与
@@ -96,7 +120,7 @@ API `/api/v1/ready`、Web 首页和五个常驻服务全部通过后，脚本才
 等价的非交互命令：
 
 ```sh
-export SFORUM_VERSION=v3.0.0-alpha.10
+export SFORUM_VERSION=v3.0.0-alpha.13
 docker compose --env-file .env.production \
   -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull
 docker compose --env-file .env.production \

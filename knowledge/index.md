@@ -110,6 +110,10 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- System update discovery now refreshes at most every five minutes while the
+  admin shell is open and presents a six-hour-cooled update modal:
+  `sessions/2026-08-01-system-update-prompt.md`
+
 - Alpha.13 production release: Linux `/proc` API/Worker/plugin metrics, Night
   Harbor removal, migration-guarded blue/green updates, curated release notes,
   and the Compose schema-command hotfix are published. Exact CI/Security and

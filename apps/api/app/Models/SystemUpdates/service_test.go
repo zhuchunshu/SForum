@@ -44,6 +44,36 @@ func TestStatusSelectsHighestStableReleaseAndCachesIt(t *testing.T) {
 	}
 }
 
+func TestStatusRefreshesSuccessfulCacheAfterFiveMinutes(t *testing.T) {
+	now := time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)
+	client := &fakeHTTPClient{body: `[{"tag_name":"v1.1.0"}]`}
+	service := systemupdates.NewService(
+		fakeSource{},
+		systemupdates.WithHTTPClient(client),
+		systemupdates.WithBuildProvider(func() platformversion.BuildInfo { return platformversion.BuildInfo{Version: "1.0.0"} }),
+		systemupdates.WithClock(func() time.Time { return now }),
+	)
+
+	if _, err := service.Status(context.Background(), adminActor()); err != nil {
+		t.Fatalf("initial Status returned error: %v", err)
+	}
+	now = now.Add(5*time.Minute - time.Second)
+	if _, err := service.Status(context.Background(), adminActor()); err != nil {
+		t.Fatalf("cached Status returned error: %v", err)
+	}
+	if client.calls != 1 {
+		t.Fatalf("expected successful status to remain cached before five minutes, got %d calls", client.calls)
+	}
+
+	now = now.Add(time.Second)
+	if _, err := service.Status(context.Background(), adminActor()); err != nil {
+		t.Fatalf("expired Status returned error: %v", err)
+	}
+	if client.calls != 2 {
+		t.Fatalf("expected successful status to refresh at five minutes, got %d calls", client.calls)
+	}
+}
+
 func TestStatusIncludesPrereleasesForPrereleaseBuilds(t *testing.T) {
 	client := &fakeHTTPClient{body: `[
 		{"tag_name":"v2.0.0","name":"Stable"},

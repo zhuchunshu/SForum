@@ -547,6 +547,12 @@
       "footerProductSummary": "高性能模块化开源论坛框架",
       "openAdvancedSettings": "打开系统高级设置",
       "updateAvailable": "发现新版本 {version}，打开更新设置",
+      "updatePrompt": {
+        "title": "发现 SForum 新版本",
+        "description": "版本 {version} 已发布，可以查看发布说明并安排升级。",
+        "later": "稍后提醒",
+        "openSettings": "打开更新设置"
+      },
       "advancedSettings": {
         "title": "系统高级设置",
         "description": "面向开发与运维的偏好设置，仅影响当前浏览器的后台界面。",

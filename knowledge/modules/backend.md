@@ -154,6 +154,9 @@ WebSockets may reconnect. `latest` is resolved from the public GitHub Release
 list, including prereleases, to an immutable tag before confirmation and state
 persistence. See `decisions/2026-08-01-compose-blue-green-updates.md`.
 
+The admin release checker caches both successful and failed upstream results
+for five minutes per API process. Forced checks still bypass that cache.
+
 The CI quality job provisions PostgreSQL 17 on the same host port `15432` used
 by the repository's required database-backed tests, runs the embedded migrator
 before the repository gate, and passes a separate

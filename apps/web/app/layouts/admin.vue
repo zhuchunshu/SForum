@@ -7,6 +7,7 @@ import { useColorModePreference } from '~/composables/appearance/useColorModePre
 import type { DropdownMenuItem } from '@nuxt/ui/components/DropdownMenu.vue'
 import SFAdminFooter from '~/components/admin/SFAdminFooter.vue'
 import SFAdminSurfaceOutlet from '~/components/admin/SFAdminSurfaceOutlet.vue'
+import SFAdminSystemUpdatePrompt from '~/components/admin/system/SFAdminSystemUpdatePrompt.vue'
 import {
   ADMIN_DASHBOARD_PAGE_ID,
   adminSidebarNavigation,
@@ -49,6 +50,7 @@ const { siteName } = useWebOptions()
 const sforumBuild = useRuntimeConfig().public.sforumBuild
 const fallbackSforumVersion = formatOverviewVersion('', sforumBuild.version, sforumBuild.commit)
 const systemUpdates = useAdminSystemUpdates()
+const systemUpdateRefreshIntervalMs = 5 * 60 * 1000
 await useAsyncData(
   'admin-system-update-status-fetch',
   async () => {
@@ -61,6 +63,16 @@ await useAsyncData(
   },
   { default: () => null }
 )
+let systemUpdateRefreshTimer: ReturnType<typeof setInterval> | undefined
+onMounted(() => {
+  systemUpdateRefreshTimer = setInterval(() => {
+    if (!can('admin.access') || systemUpdates.pending.value) return
+    void systemUpdates.refresh().catch(() => null)
+  }, systemUpdateRefreshIntervalMs)
+})
+onBeforeUnmount(() => {
+  if (systemUpdateRefreshTimer) clearInterval(systemUpdateRefreshTimer)
+})
 const sforumVersion = computed(() => {
   const status = systemUpdates.status.value
   return status
@@ -605,6 +617,11 @@ async function signOut() {
         <SFAdminFooter />
       </div>
     </UDashboardPanel>
+
+    <SFAdminSystemUpdatePrompt
+      :status="systemUpdates.status.value"
+      :settings-route="systemUpdateSettingsRoute"
+    />
 
     <!-- 系统高级设置：专业模式 + 运维管理等侧栏偏好 -->
     <UModal v-model:open="advancedSettingsOpen" :ui="{ content: 'sm:max-w-md' }">

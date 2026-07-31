@@ -9,6 +9,18 @@ const composable = readFileSync(
   new URL('../../../app/composables/admin/useAdminSystemUpdates.ts', import.meta.url),
   'utf8'
 )
+const prompt = readFileSync(
+  new URL('../../../app/components/admin/system/SFAdminSystemUpdatePrompt.vue', import.meta.url),
+  'utf8'
+)
+const promptModel = readFileSync(
+  new URL('../../../app/utils/admin/systemUpdatePrompt.ts', import.meta.url),
+  'utf8'
+)
+const adminLayout = readFileSync(
+  new URL('../../../app/layouts/admin.vue', import.meta.url),
+  'utf8'
+)
 
 describe('admin system update surface', () => {
   test('keeps cached status and forced checks on their permission-specific endpoints', () => {
@@ -23,5 +35,19 @@ describe('admin system update surface', () => {
     expect(component).toContain('updates.refresh({ force: true })')
     expect(component).toContain("toast.add({ color: 'error'")
     expect(component).not.toContain("color: 'error', duration:")
+  })
+
+  test('shows update availability in a modal and suppresses repeat prompts for six hours', () => {
+    expect(prompt).toContain("status.state !== 'update_available'")
+    expect(prompt).toContain("localStorage.getItem(STORAGE_KEY)")
+    expect(prompt).toContain("localStorage.setItem(STORAGE_KEY, systemUpdatePromptRecord())")
+    expect(prompt).toContain('<UModal v-model:open="open"')
+    expect(promptModel).toContain('6 * 60 * 60 * 1000')
+  })
+
+  test('refreshes update status every five minutes while the admin shell stays open', () => {
+    expect(adminLayout).toContain('const systemUpdateRefreshIntervalMs = 5 * 60 * 1000')
+    expect(adminLayout).toContain('systemUpdates.refresh().catch(() => null)')
+    expect(adminLayout).toContain('clearInterval(systemUpdateRefreshTimer)')
   })
 })

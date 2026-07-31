@@ -22,8 +22,8 @@ import (
 )
 
 const (
-	defaultCacheTTL    = 6 * time.Hour
-	defaultFailureTTL  = 10 * time.Minute
+	defaultCacheTTL    = 5 * time.Minute
+	defaultFailureTTL  = 5 * time.Minute
 	requestTimeout     = 8 * time.Second
 	maxResponseBytes   = 2 << 20
 	maxRedirects       = 3

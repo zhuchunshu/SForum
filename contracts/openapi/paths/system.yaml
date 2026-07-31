@@ -75,7 +75,7 @@ adminSystemUpdates:
     summary: Get the cached SForum release status
     description: |
       Returns the current build and latest known GitHub release status. Successful
-      checks are cached for six hours and failed checks for ten minutes. Requires
+      successful and failed checks are cached for five minutes. Requires
       `admin.access`.
     operationId: getAdminSystemUpdates
     security:

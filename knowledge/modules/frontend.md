@@ -763,6 +763,9 @@ Architecture sources:
   admin sidebar header; local builds show `dev-<commit5>` when Git metadata is
   available (otherwise `dev`), and release images receive the tag version
   through the shared build argument.
+- The admin shell refreshes release status every five minutes while open. A new
+  release opens a localized modal once, then suppresses repeat prompts in that
+  browser for six hours while retaining the sidebar update badge.
 - Admin route middleware must stay narrow and avoid component-context-only
   composables such as direct `useI18n()` calls.
 

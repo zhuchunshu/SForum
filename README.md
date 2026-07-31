@@ -63,7 +63,7 @@ Full steps: [docs/zh-CN/getting-started.md](./docs/zh-CN/getting-started.md) or 
 ```sh
 ./deploy.sh                              # interactive install; Enter accepts safe defaults
 ./upgrade.sh                             # update; Enter selects the newest GitHub Release
-./upgrade.sh --version v3.0.0-alpha.11   # update to a specific release
+./upgrade.sh --version v3.0.0-alpha.13   # update to a specific release
 ```
 
 `upgrade.sh` accepts a positional version or `--version`; its default `latest`
