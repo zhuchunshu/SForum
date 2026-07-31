@@ -15,7 +15,7 @@
 
 ```sh
 mkdir -p sforum
-curl -fsSL https://github.com/zhuchunshu/SForum/archive/refs/tags/v3.0.0.tar.gz \
+curl -fsSL https://github.com/zhuchunshu/SForum/archive/refs/tags/v3.0.1.tar.gz \
   | tar -xz --strip-components=1 -C sforum
 cd sforum
 ./deploy.sh
@@ -28,7 +28,7 @@ cd sforum
 
 `./deploy.sh` 默认查询 GitHub 最新正式 Release，并在部署前解析为具体版本；
 它不会直接运行浮动的 `latest` 镜像。需要可重复部署时可显式执行
-`./deploy.sh --version v3.0.0`。
+`./deploy.sh --version v3.0.1`。
 
 ## 目标形态
 
@@ -103,9 +103,9 @@ Linux 后端包不包含 Nuxt Web、PostgreSQL 或 Redis，因此不是完整站
 也可以显式固定版本，或完全非交互地接受推荐配置：
 
 ```sh
-./deploy.sh --version v3.0.0 --lang zh
-./deploy.sh --version v3.0.0 --lang en
-./deploy.sh --version v3.0.0 --lang zh --yes --action deploy
+./deploy.sh --version v3.0.1 --lang zh
+./deploy.sh --version v3.0.1 --lang en
+./deploy.sh --version v3.0.1 --lang zh --yes --action deploy
 ```
 
 该模式组合 `compose.yaml`、`compose.prod.yaml` 与
@@ -124,7 +124,7 @@ API `/api/v1/ready`、Web 首页和五个常驻服务全部通过后，脚本才
 等价的非交互命令：
 
 ```sh
-export SFORUM_VERSION=v3.0.0
+export SFORUM_VERSION=v3.0.1
 docker compose --env-file .env.production \
   -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull
 docker compose --env-file .env.production \
@@ -149,8 +149,8 @@ docker compose --env-file .env.production \
 
 ```sh
 ./upgrade.sh
-./upgrade.sh v3.0.0
-./upgrade.sh --version v3.0.0
+./upgrade.sh v3.0.1
+./upgrade.sh --version v3.0.1
 ./upgrade.sh --yes                       # 无人值守：选择最新发布并跳过确认
 ```
 
@@ -159,7 +159,7 @@ docker compose --env-file .env.production \
 ```sh
 cd /path/to/sforum
 curl -fsSLo upgrade.sh \
-  https://raw.githubusercontent.com/zhuchunshu/SForum/v3.0.0/upgrade.sh
+  https://raw.githubusercontent.com/zhuchunshu/SForum/v3.0.1/upgrade.sh
 chmod 0755 upgrade.sh
 ./upgrade.sh
 ```

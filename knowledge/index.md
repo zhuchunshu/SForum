@@ -112,7 +112,7 @@ load archived sessions or completed plans as current context.
 
 - V3 stable release preparation: fresh deployments resolve the latest stable
   Release to an immutable tag, the bilingual operator guide includes clone-free
-  installation and update commands, and `v3.0.0` is ready for the release gate:
+  installation and update commands, and `v3.0.1` is ready for the release gate:
   `sessions/2026-08-01-v3-release.md`
 
 - System update discovery now refreshes at most every five minutes while the

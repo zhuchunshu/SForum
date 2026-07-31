@@ -18,7 +18,7 @@ interactive installer:
 
 ```sh
 mkdir -p sforum
-curl -fsSL https://github.com/zhuchunshu/SForum/archive/refs/tags/v3.0.0.tar.gz \
+curl -fsSL https://github.com/zhuchunshu/SForum/archive/refs/tags/v3.0.1.tar.gz \
   | tar -xz --strip-components=1 -C sforum
 cd sforum
 ./deploy.sh
@@ -33,7 +33,7 @@ before exposing a public site.
 
 Without a version, `deploy.sh` resolves GitHub's latest stable Release to a
 concrete tag before deployment; it never runs a floating `latest` image. For a
-repeatable deployment, use `./deploy.sh --version v3.0.0`.
+repeatable deployment, use `./deploy.sh --version v3.0.1`.
 
 ## Target shape
 
@@ -113,9 +113,9 @@ interactive installation accepts Enter for every prompt:
 Pin a version explicitly, or accept all recommended defaults non-interactively:
 
 ```sh
-./deploy.sh --version v3.0.0 --lang en
-./deploy.sh --version v3.0.0 --lang zh
-./deploy.sh --version v3.0.0 --lang en --yes --action deploy
+./deploy.sh --version v3.0.1 --lang en
+./deploy.sh --version v3.0.1 --lang zh
+./deploy.sh --version v3.0.1 --lang en --yes --action deploy
 ```
 
 This combines `compose.yaml`, `compose.prod.yaml`, and `compose.release.yaml`.
@@ -137,7 +137,7 @@ as a successful deployment.
 Equivalent non-interactive commands:
 
 ```sh
-export SFORUM_VERSION=v3.0.0
+export SFORUM_VERSION=v3.0.1
 docker compose --env-file .env.production \
   -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull
 docker compose --env-file .env.production \
@@ -165,8 +165,8 @@ Pressing Enter selects `latest`:
 
 ```sh
 ./upgrade.sh
-./upgrade.sh v3.0.0
-./upgrade.sh --version v3.0.0
+./upgrade.sh v3.0.1
+./upgrade.sh --version v3.0.1
 ./upgrade.sh --yes                       # unattended: newest release, no prompts
 ```
 
@@ -176,7 +176,7 @@ updater before entering the interactive update flow:
 ```sh
 cd /path/to/sforum
 curl -fsSLo upgrade.sh \
-  https://raw.githubusercontent.com/zhuchunshu/SForum/v3.0.0/upgrade.sh
+  https://raw.githubusercontent.com/zhuchunshu/SForum/v3.0.1/upgrade.sh
 chmod 0755 upgrade.sh
 ./upgrade.sh
 ```

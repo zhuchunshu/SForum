@@ -4653,6 +4653,14 @@
       "source": "apps/web/app/components/admin/settings/personalization/navigation/SFAdminNavigationRecoveryPanel.vue"
     },
     {
+      "id": "core.component.admin.sfadmin_system_update_prompt",
+      "contractVersion": "sforum.component.admin.sfadmin_system_update_prompt@1",
+      "kind": "component",
+      "owners": ["admin"],
+      "state": "active",
+      "source": "apps/web/app/components/admin/system/SFAdminSystemUpdatePrompt.vue"
+    },
+    {
       "id": "core.component.shared.sfcomment_user_preview",
       "contractVersion": "sforum.component.shared.sfcomment_user_preview@1",
       "kind": "component",
