@@ -18,23 +18,38 @@
 - PostgreSQL backup failure now stops deploy. CompatFarm RPC errors fail their
   cell. Built-in version/catalog validators and the admin resource gauge were
   corrected; generated V3 catalogs now cover 335 routes and 281 UI surfaces.
+- Release-review follow-up makes restore fail fast in one transaction inside a
+  temporary database, validates it, and atomically swaps database names while
+  API/Worker are stopped. Backups and `.env.production` are mode `0600`, and
+  deployment completion now waits for API readiness plus the Web root.
+- GitHub Release creation now depends on credential-free pulls of all four
+  promoted GHCR version tags. Public docs keep distributions prerelease while
+  production-rewire M3/M5/M6/M7 remain open.
+- Navbar Enter search, long homepage category labels, and registration legal
+  links were repaired and covered by focused frontend regressions.
 
 ## Verification
 
 - `./scripts/test.sh` passed with the real local PostgreSQL compatibility URL.
-- `go vet ./...`, `bun test` (836 pass), Nuxt typecheck through the full gate,
+- `go vet ./...`, `bun test` (837 pass), Nuxt typecheck through the full gate,
   and Nuxt production build passed.
 - Focused race-enabled SettingsLifecycle, RuntimeRollout, Extensions,
   CompatFarm, Models, and bootstrap Go tests passed.
 - `/control-panel` passed Browser QA at 1440x900 and 390x844: refresh worked,
   the corrected 72x72 gauge rendered without clipping, console/overlay were
   clean, and neither viewport overflowed horizontally.
+- Deployment safety and anonymous-image scripts passed their executable
+  regressions. Browser QA confirmed `/search?q=上线` from a real Enter key,
+  non-overlapping desktop topic columns, working `/terms` and `/privacy` links,
+  and no 390px registration overflow.
 
 ## Decisions
 
 - Strict signed-index key policy remains the production/staging default.
 - Do not present post-terminal bookkeeping as a multi-node rollout gate. The
   unfinished node-health/promotion integration stays open under M3/M5.
+- The clean-host backup-before-PostgreSQL behavior was deliberately not changed;
+  deployment entrypoint replacement is owned by the operator's planned rewrite.
 
 ## Next
 

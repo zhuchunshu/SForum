@@ -13,8 +13,11 @@
 1. 复制生产环境文件：
 
    ```sh
-   cp .env.production.example .env.production
-   ```
+cp .env.production.example .env.production
+```
+
+`deploy.sh` 及数据库辅助脚本会把 `.env.production` 权限收紧为 `0600`，
+避免同机其他用户读取生产密钥。
 
 2. **必须**修改：
 
@@ -78,7 +81,8 @@ Linux 后端包不包含 Nuxt Web、PostgreSQL 或 Redis，因此不是完整站
 该模式组合 `compose.yaml`、`compose.prod.yaml` 与
 `compose.release.yaml`，先拉取指定版本，再备份、迁移并启动相同版本的
 API、Worker 和 Web。需要 Docker Compose 2.24.4 或更高版本，以支持
-`!reset` 覆盖构建配置。
+`!reset` 覆盖构建配置。启动后脚本会等待 API `/api/v1/ready` 与 Web 首页
+同时成功；任一服务超时都不会打印部署完成地址。
 
 等价的非交互命令：
 
@@ -92,8 +96,10 @@ docker compose --env-file .env.production \
   -f compose.yaml -f compose.prod.yaml -f compose.release.yaml up -d --no-build
 ```
 
-GHCR 包首次创建后，仓库管理员需要在 GitHub Packages 中确认四个包均为
-公开可读并关联到本仓库。发布流水线使用仓库 `GITHUB_TOKEN` 写入，不需要
+四个 GHCR 包必须公开可读并关联到本仓库。发布流水线在创建 GitHub Release
+前，会使用空的 Docker 凭据目录匿名拉取该版本的四个镜像；任一包不可公开
+拉取都会阻断发布。首次创建包时，流水线可能先停在这个门禁：管理员将四个
+包改为 Public 后重跑失败作业即可。写入仍使用仓库 `GITHUB_TOKEN`，不需要
 长期 Registry 密钥。
 
 ### 从源码构建
@@ -167,7 +173,16 @@ WORKER_PPROF_ENABLED=true WORKER_PPROF_ADDR=127.0.0.1:6061
 
 ## 备份
 
-仓库提供 `deploy/scripts/` 下的 PostgreSQL 备份/恢复辅助脚本。请结合站点策略设定保留周期与异地备份（产品层仍开放「备份策略」问题）。
+仓库提供 `deploy/scripts/` 下的 PostgreSQL 备份/恢复辅助脚本。备份先写入
+临时文件，成功后才发布为 `0600` 的 `.sql` 文件；失败不会留下可被误用的
+半截备份。
+
+恢复需要显式设置 `SFORUM_CONFIRM_RESTORE=RESTORE`。脚本会停止原先运行的
+API/Worker，在独立临时数据库中使用 `ON_ERROR_STOP=1` 和单事务完整恢复，
+校验应用表后才原子切换数据库名；任一 SQL 错误都会返回失败，原目标库不会
+被半恢复内容替换。结束后只重启恢复前原本运行的 API/Worker。
+
+请结合站点策略设定保留周期与异地备份（产品层仍开放「备份策略」问题）。
 
 ## 上线后清单
 

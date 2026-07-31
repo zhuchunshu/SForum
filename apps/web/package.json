@@ -6,7 +6,8 @@
     "packages/*"
   ],
   "overrides": {
-    "esbuild": "^0.28.1"
+    "esbuild": "^0.28.1",
+    "svgo": "4.0.2"
   },
   "scripts": {
     "dev": "nuxt dev --host 0.0.0.0 --dotenv ../../.env",
@@ -21,10 +22,10 @@
     "@iconify-json/lucide": "^1.2.116",
     "@iconify-json/tabler": "^1.2.35",
     "@iconify/vue": "^5.0.1",
-    "@nuxt/image": "^2.0.0",
+    "@nuxt/image": "^2.1.0",
     "@nuxt/ui": "^4.9.0",
     "@nuxtjs/i18n": "^10.4.0",
-    "@nuxtjs/seo": "^5.3.2",
+    "@nuxtjs/seo": "^5.3.6",
     "@sforum/admin-sdk": "workspace:*",
     "@tiptap/core": "^3.27.1",
     "@tiptap/extension-character-count": "^3.27.1",

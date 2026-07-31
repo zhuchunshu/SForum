@@ -52,6 +52,9 @@ would not improve deployment or establish a rollback artifact.
     Generated notes remain authoritative for the complete change list; manual
     text is reserved for user-facing highlights, breaking changes, and upgrade
     guidance.
+13. A fresh credential-free Docker configuration must pull all four promoted
+    version tags before GitHub Release creation. Package visibility is a
+    release prerequisite, not a post-release checklist item.
 
 ## Consequences
 
@@ -64,8 +67,9 @@ would not improve deployment or establish a rollback artifact.
   fail closed instead of being overwritten.
 - Failed candidates remain addressable by commit for diagnosis but cannot move
   stable aliases.
-- GHCR packages require a one-time administrator check that visibility is
-  public and repository linkage is correct.
+- GHCR packages require one-time administrator configuration so visibility is
+  public and repository linkage is correct. The credential-free pull gate
+  enforces that configuration before each GitHub Release.
 - Application-image rollback is now possible by redeploying a prior version,
   but automatic rollback metadata and database down-migration remain separate
   future work.

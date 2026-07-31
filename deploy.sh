@@ -140,11 +140,17 @@ t() {
 
 ensure_env() {
   if [ ! -f .env.production ]; then
-    cp .env.production.example .env.production
+    (
+      umask 077
+      cp .env.production.example .env.production
+    )
+    chmod 600 .env.production
     echo "$(t env_missing)"
     echo "$(t edit_env)"
     exit 1
   fi
+
+  chmod 600 .env.production
 }
 
 env_file_value() {
@@ -174,6 +180,16 @@ print_web_url() {
   local web_port
   web_port="$(env_file_value .env.production WEB_PORT 3000)"
   echo "$(t web_url) http://127.0.0.1:${web_port}"
+}
+
+wait_for_deployment() {
+  local api_port web_port timeout_seconds
+  api_port="$(env_file_value .env.production API_PORT 18080)"
+  web_port="$(env_file_value .env.production WEB_PORT 3000)"
+  timeout_seconds="${SFORUM_DEPLOY_HEALTH_TIMEOUT_SECONDS:-120}"
+
+  ./deploy/scripts/wait-for-health.sh "http://127.0.0.1:${api_port}/api/v1/ready" "$timeout_seconds"
+  ./deploy/scripts/wait-for-health.sh "http://127.0.0.1:${web_port}/" "$timeout_seconds"
 }
 
 preflight() {
@@ -210,6 +226,7 @@ deploy_update() {
   else
     "${COMPOSE[@]}" up -d --build
   fi
+  wait_for_deployment
   "${COMPOSE[@]}" ps
   print_web_url
 }
@@ -263,6 +280,9 @@ show_logs() {
 restart_services() {
   preflight
   "${COMPOSE[@]}" restart
+  wait_for_deployment
+  "${COMPOSE[@]}" ps
+  print_web_url
 }
 
 stop_services() {

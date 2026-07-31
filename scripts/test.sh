@@ -10,8 +10,17 @@ echo "Running release script validation..."
 echo "Running exact main CI release gate validation..."
 ./scripts/ci/verify-main-ci_test.sh
 
+echo "Running release workflow architecture validation..."
+ruby ./scripts/ci/release_workflow_test.rb
+
 echo "Running release asset packaging validation..."
 ./scripts/ci/release_assets_test.sh
+
+echo "Running anonymous release image pull validation..."
+./scripts/ci/verify-public-images_test.sh
+
+echo "Running PostgreSQL backup and restore safety validation..."
+./deploy/scripts/postgres-safety_test.sh
 
 echo "Running architecture boundary validation..."
 node tests/validate-architecture-boundaries.mjs

@@ -94,13 +94,13 @@ jobs:
           RELEASE_COMMIT: ${{ needs.prepare.outputs.commit }}
         run: ./scripts/ci/verify-main-ci.sh "$RELEASE_COMMIT"
 
-  publish-candidate:
-    name: Publish candidate / ${{ matrix.image }}
+  publish-candidate-platform:
+    name: Publish candidate / ${{ matrix.image }} / ${{ matrix.arch }}
     needs:
       - prepare
       - verify-ci
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
     permissions:
       contents: read
       packages: write
@@ -113,27 +113,80 @@ jobs:
           - image: sforum-api
             dockerfile: apps/api/Dockerfile
             target: api
-            ci_cache: ci-api
+            platform: linux/amd64
+            arch: amd64
+            runner: ubuntu-latest
+            ci_cache: ci-backend
+            release_cache: release-backend-amd64
+            cache_writer: true
+          - image: sforum-api
+            dockerfile: apps/api/Dockerfile
+            target: api
+            platform: linux/arm64
+            arch: arm64
+            runner: ubuntu-24.04-arm
+            ci_cache: ci-backend
+            release_cache: release-backend-arm64
+            cache_writer: true
           - image: sforum-worker
             dockerfile: apps/api/Dockerfile
             target: worker
-            ci_cache: ci-worker
+            platform: linux/amd64
+            arch: amd64
+            runner: ubuntu-latest
+            ci_cache: ci-backend
+            release_cache: release-backend-amd64
+            cache_writer: false
+          - image: sforum-worker
+            dockerfile: apps/api/Dockerfile
+            target: worker
+            platform: linux/arm64
+            arch: arm64
+            runner: ubuntu-24.04-arm
+            ci_cache: ci-backend
+            release_cache: release-backend-arm64
+            cache_writer: false
           - image: sforum-migrate
             dockerfile: apps/api/Dockerfile
             target: migrate
-            ci_cache: ci-migrate
+            platform: linux/amd64
+            arch: amd64
+            runner: ubuntu-latest
+            ci_cache: ci-backend
+            release_cache: release-backend-amd64
+            cache_writer: false
+          - image: sforum-migrate
+            dockerfile: apps/api/Dockerfile
+            target: migrate
+            platform: linux/arm64
+            arch: arm64
+            runner: ubuntu-24.04-arm
+            ci_cache: ci-backend
+            release_cache: release-backend-arm64
+            cache_writer: false
           - image: sforum-web
             dockerfile: apps/web/Dockerfile
             target: prod
+            platform: linux/amd64
+            arch: amd64
+            runner: ubuntu-latest
             ci_cache: ci-web
+            release_cache: release-web-amd64
+            cache_writer: true
+          - image: sforum-web
+            dockerfile: apps/web/Dockerfile
+            target: prod
+            platform: linux/arm64
+            arch: arm64
+            runner: ubuntu-24.04-arm
+            ci_cache: ci-web
+            release_cache: release-web-arm64
+            cache_writer: true
     steps:
       - name: Check out release commit
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           ref: ${{ needs.prepare.outputs.tag }}
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
@@ -150,23 +203,20 @@ jobs:
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}
-          tags: type=raw,value=${{ needs.prepare.outputs.sha }}
           labels: |
             org.opencontainers.image.title=${{ matrix.image }}
             org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ needs.prepare.outputs.commit }}
 
-      - name: Build and push multi-platform candidate
+      - name: Build and push platform candidate by digest
         id: build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: ${{ matrix.dockerfile }}
           target: ${{ matrix.target }}
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             SFORUM_VERSION=${{ needs.prepare.outputs.version }}
@@ -174,19 +224,13 @@ jobs:
             SFORUM_BUILD_TIME=${{ needs.prepare.outputs.build_time }}
           cache-from: |
             type=gha,scope=${{ matrix.ci_cache }}
-            type=gha,scope=release-${{ matrix.image }}
-          cache-to: type=gha,mode=max,scope=release-${{ matrix.image }}
+            type=gha,scope=${{ matrix.release_cache }}
+          cache-to: ${{ matrix.cache_writer && format('type=gha,mode=max,scope={0}', matrix.release_cache) || '' }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }},push-by-digest=true,name-canonical=true,push=true
           provenance: mode=max
           sbom: true
 
-      - name: Attest image provenance
-        uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661 # v3
-        with:
-          subject-name: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}
-          subject-digest: ${{ steps.build.outputs.digest }}
-          push-to-registry: true
-
-      - name: Scan published image
+      - name: Scan published platform image
         uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}@${{ steps.build.outputs.digest }}
@@ -195,11 +239,131 @@ jobs:
           ignore-unfixed: true
           exit-code: "1"
 
+      - name: Attest platform image provenance
+        uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661 # v3
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      - name: Export verified platform digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          DIGEST_DIR: ${{ runner.temp }}/digests
+        run: |
+          if [[ ! "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Unexpected candidate digest: $DIGEST" >&2
+            exit 1
+          fi
+          mkdir -p "$DIGEST_DIR"
+          touch "$DIGEST_DIR/${DIGEST#sha256:}"
+
+      - name: Upload verified platform digest
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: candidate-digest-${{ matrix.image }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge-candidate:
+    name: Merge candidate / ${{ matrix.image }}
+    needs:
+      - prepare
+      - publish-candidate-platform
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - sforum-api
+          - sforum-worker
+          - sforum-migrate
+          - sforum-web
+    steps:
+      - name: Download verified platform digests
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          pattern: candidate-digest-${{ matrix.image }}-*
+          path: ${{ runner.temp }}/digests
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Merge verified platform images
+        id: manifest
+        env:
+          CANDIDATE_TAG: ${{ needs.prepare.outputs.sha }}
+          DIGEST_DIR: ${{ runner.temp }}/digests
+          IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}
+        run: |
+          shopt -s nullglob
+          digest_files=("$DIGEST_DIR"/*)
+          if (( ${#digest_files[@]} != 2 )); then
+            echo "Expected exactly two verified platform digests, found ${#digest_files[@]}" >&2
+            exit 1
+          fi
+
+          references=()
+          for digest_file in "${digest_files[@]}"; do
+            digest="${digest_file##*/}"
+            if [[ ! "$digest" =~ ^[0-9a-f]{64}$ ]]; then
+              echo "Unexpected digest artifact: $digest" >&2
+              exit 1
+            fi
+            references+=("$IMAGE@sha256:$digest")
+          done
+
+          docker buildx imagetools create \
+            --tag "$IMAGE:$CANDIDATE_TAG" \
+            "${references[@]}"
+
+          raw_manifest="$(docker buildx imagetools inspect "$IMAGE:$CANDIDATE_TAG" --raw)"
+          if ! jq -e '
+            [.manifests[]?.platform
+              | select(.os == "linux" and (.architecture == "amd64" or .architecture == "arm64"))
+              | .architecture]
+            | unique
+            | sort == ["amd64", "arm64"]
+          ' <<< "$raw_manifest" >/dev/null; then
+            echo "Merged candidate does not contain both linux/amd64 and linux/arm64" >&2
+            exit 1
+          fi
+
+          manifest_json="$(docker buildx imagetools inspect "$IMAGE:$CANDIDATE_TAG" --format '{{json .Manifest}}')"
+          manifest_digest="$(jq -r '.digest // empty' <<< "$manifest_json")"
+          if [[ ! "$manifest_digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Unexpected merged manifest digest: $manifest_digest" >&2
+            exit 1
+          fi
+          echo "digest=$manifest_digest" >> "$GITHUB_OUTPUT"
+
+      - name: Attest merged candidate provenance
+        uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661 # v3
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}
+          subject-digest: ${{ steps.manifest.outputs.digest }}
+          push-to-registry: true
+
   smoke:
     name: Published image smoke test
     needs:
       - prepare
-      - publish-candidate
+      - merge-candidate
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -231,7 +395,7 @@ jobs:
     name: Release asset / ${{ matrix.goos }} / ${{ matrix.goarch }}
     needs:
       - prepare
-      - publish-candidate
+      - merge-candidate
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -378,11 +542,35 @@ jobs:
           fi
           docker buildx imagetools create "${tags[@]}" "$IMAGE:$CANDIDATE_TAG"
 
+  verify-public-images:
+    name: Verify anonymous image pulls
+    needs:
+      - prepare
+      - promote
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - name: Pull versioned images without registry credentials
+        env:
+          SFORUM_REGISTRY: ${{ env.REGISTRY }}/${{ github.repository_owner }}
+        run: >-
+          ./scripts/ci/verify-public-images.sh
+          "$SFORUM_REGISTRY"
+          "${{ needs.prepare.outputs.tag }}"
+
   github-release:
     name: Create GitHub release
     needs:
       - prepare
       - promote
+      - verify-public-images
       - verify-release-assets
     runs-on: ubuntu-latest
     permissions:

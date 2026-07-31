@@ -69,8 +69,10 @@ record compatibility impact.
 
 ## Phase State
 
-- P0–P12: complete (task-book checkboxes closed; catalogs, registries, Protocol
-  V2 defaults, presentation ownership, and product-path adoption landed).
+- P0–P12 phase checklists are complete, but this is not a stable-production
+  completion claim. Cross-phase RuntimeRollout, Marketplace/Privacy consumer,
+  CompatFarm, and commerce Dispatcher residuals remain in the active
+  production-rewire remediation plan.
 - P13 protocol migration is complete: packages require Manifest V3 and
   executable backends require Protocol V2. The remaining LTS residual is the
   independent request-time theme loader. Fail-closed `SFPageOutlet` is never
@@ -79,6 +81,8 @@ record compatibility impact.
   traceability rows (`tests/validate-v3-p0-catalogs.mjs`).
 - Progress authority: `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3-progress.md`
   and `knowledge/plans/2026-07-13-trusted-plugin-theme-platform-v3.md`.
+- Release scope: keep distributions prerelease until production remediation
+  M3/M5/M6/M7 and the joined M8 gate close.
 - Large deferred (not LTS, not thin wiring): Protocol-leased content filter
   dispatch, Media Plan/Execute/Receipt product authority, EntityStore I/O.
 - Published compatibility surfaces other than the removed extension protocol

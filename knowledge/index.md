@@ -61,11 +61,12 @@ load archived sessions or completed plans as current context.
 - Decision: `decisions/2026-07-27-github-social-login-builtin-v1.md`
 - Module: `modules/identity.md`
 
-### V3 P13 residual
+### V3 production and P13 residuals
 
-- Status: P0-P12 complete; Manifest V3 + Protocol V2 are now the only accepted
-  extension contracts. Remaining P13 work is the honesty remediation above and
-  the independent request-time theme-loader APILTS residual.
+- Status: P0-P12 phase checklists are complete; Manifest V3 + Protocol V2 are
+  now the only accepted extension contracts. The production-rewire remediation
+  above remains open alongside the independent request-time theme-loader APILTS
+  residual, so current public distributions remain prerelease scope.
 - Do not remove `sforum.theme.l1.request-time-loader` before its RemoveAfter
   date plus zero-shim evidence.
 - Plan: `plans/2026-07-13-trusted-plugin-theme-platform-v3.md`
@@ -112,9 +113,11 @@ load archived sessions or completed plans as current context.
 - Release-blocker remediation: historical `enc::` secrets now migrate without
   loss, production Marketplace key inputs are explicit, SystemTier affects real
   start order, fake rollout acknowledgements and CompatFarm soft-passes are
-  removed, deploy backups fail closed, catalogs are current, and the local full
-  gate plus desktop/mobile admin QA pass. Real rollout/consumer work and an
-  immutable release-image smoke remain open:
+  removed, database restore is fail-fast and atomically published, release
+  creation requires anonymous image pulls, deploy waits for API/Web readiness,
+  and the reviewed public UI regressions are repaired. Real rollout/consumer
+  work and an immutable release-image smoke remain open; the clean-host deploy
+  entrypoint is intentionally left for the planned rewrite:
   `sessions/2026-07-31-release-blockers-fixed.md`
 
 - Runtime memory governance: API/Worker/plugin/total resource cards now use

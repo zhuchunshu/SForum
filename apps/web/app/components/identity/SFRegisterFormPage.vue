@@ -606,9 +606,9 @@ async function startExternalRegistration(provider: PublicAuthProvider) {
 
         <p class="auth-terms">
           {{ t('auth.agreeTo') }}
-          <a href="#">{{ t('auth.terms') }}</a>
+          <NuxtLink :to="localePath('/terms')">{{ t('auth.terms') }}</NuxtLink>
           {{ t('auth.and') }}
-          <a href="#">{{ t('auth.privacy') }}</a>
+          <NuxtLink :to="localePath('/privacy')">{{ t('auth.privacy') }}</NuxtLink>
         </p>
 
         <p class="auth-switch">

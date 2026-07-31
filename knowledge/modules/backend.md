@@ -110,6 +110,10 @@ not claim to include the Nuxt Web runtime, PostgreSQL, or Redis; version-matched
 Compose images remain the complete production distribution. `--local-checks`
 opts into the redundant local gate when the required local services are
 available, and `--dry-run` creates no tag.
+After promotion, a separate job uses an empty Docker credential directory to
+pull all four version tags. GitHub Release creation depends on that anonymous
+distribution check, so private or mislinked GHCR packages fail before public
+release metadata is created.
 See `decisions/2026-07-29-ghcr-multi-platform-release-pipeline.md`.
 
 The CI quality job provisions PostgreSQL 17 on the same host port `15432` used

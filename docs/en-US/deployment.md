@@ -14,6 +14,9 @@
 cp .env.production.example .env.production
 ```
 
+`deploy.sh` and the database helpers tighten `.env.production` to mode `0600`
+so other users on the host cannot read production secrets.
+
 Change at least:
 
 - `POSTGRES_PASSWORD` / `DATABASE_URL`  
@@ -77,7 +80,9 @@ in production instead of deploying `latest`:
 This combines `compose.yaml`, `compose.prod.yaml`, and `compose.release.yaml`.
 It pulls the selected version before backup, migration, and startup, so the
 API, worker, migration command, and web app use one release. Docker Compose
-2.24.4 or newer is required for the `!reset` override.
+2.24.4 or newer is required for the `!reset` override. After startup,
+`deploy.sh` waits for both API `/api/v1/ready` and the Web root; a timeout fails
+the deployment instead of printing a completion URL.
 
 Equivalent non-interactive commands:
 
@@ -91,10 +96,12 @@ docker compose --env-file .env.production \
   -f compose.yaml -f compose.prod.yaml -f compose.release.yaml up -d --no-build
 ```
 
-After GHCR creates the packages for the first time, a repository administrator
-must confirm that all four packages are public and linked to this repository.
-The release workflow publishes with `GITHUB_TOKEN`; no long-lived registry
-credential is required.
+All four GHCR packages must be public and linked to this repository. Before a
+GitHub Release is created, the workflow pulls every versioned image with an
+empty Docker credential directory; any anonymous pull failure blocks the
+release. On the first publication the workflow may stop at this gate: make all
+four packages Public, then rerun the failed jobs. Publication still uses the
+repository `GITHUB_TOKEN`; no long-lived registry credential is required.
 
 ### Source builds
 
@@ -132,6 +139,19 @@ See `deploy/caddy/Caddyfile`. For client IPs, set `TRUST_PROXY` and a precise `T
 | `postgres` / `redis` | Durable state / sessions & cache |
 
 Do not treat `EMBED_WORKER_IN_API` as a production default.
+
+## Backup and restore
+
+The PostgreSQL helpers under `deploy/scripts/` write backups to a temporary
+file and publish a mode-`0600` `.sql` file only after `pg_dump` succeeds. A
+failed dump leaves no partial backup that could be mistaken for a valid one.
+
+A restore requires `SFORUM_CONFIRM_RESTORE=RESTORE`. The helper stops the API
+and Worker services that were running, restores into a separate temporary
+database with `ON_ERROR_STOP=1` and one transaction, validates application
+tables, and only then atomically swaps database names. Any SQL error returns a
+failure without publishing partially restored data. Only the application
+services that were running before the restore are started again.
 
 ## Runtime Memory And Diagnostics
 

@@ -149,10 +149,11 @@ const pillBase =
 
     <NuxtLink
       :to="localePath(`/c/${topic.categorySlug}`)"
-      class="sf-home-topic-row__category inline-flex h-auto min-h-6 items-center justify-self-start rounded-[5px] px-2.5 py-1 text-[11px] font-semibold leading-4 no-underline max-[1120px]:hidden"
+      class="sf-home-topic-row__category inline-flex h-auto min-h-6 min-w-0 max-w-full items-center justify-self-start overflow-hidden rounded-[5px] px-2.5 py-1 text-[11px] font-semibold leading-4 no-underline max-[1120px]:hidden"
       :class="categoryChipClass"
+      :title="topic.categoryName"
     >
-      {{ topic.categoryName }}
+      <span class="block min-w-0 truncate">{{ topic.categoryName }}</span>
     </NuxtLink>
 
     <div class="sf-home-topic-row__replies flex flex-col items-center gap-[3px] text-[11px] leading-snug text-[var(--sf-public-text-muted)] max-[720px]:hidden">

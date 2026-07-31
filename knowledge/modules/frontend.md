@@ -228,6 +228,14 @@ responsibilities.
 - Navbar, system-error recovery, and Schema.org `SearchAction` target `/search`.
   Legacy `/?q=...` links redirect to the canonical route with filters and page
   preserved.
+- The shared navbar search handles both real Enter key submission and its
+  accessible search-icon command. It submits the current trimmed input rather
+  than depending on a delayed parent-model update.
+- Homepage category chips are bounded and ellipsized inside the fixed 96px
+  category track, so long operator-defined category names cannot cover reply
+  counts or recent activity at desktop widths.
+- Registration terms and privacy links resolve through locale-aware `/terms`
+  and `/privacy` routes instead of inert fragment targets.
 
 ### Announcement authoring
 

@@ -239,7 +239,7 @@ describe('auth route support contracts', () => {
       authProviderDisplayMeta: (provider: { label?: string, icon?: string }, fallback: string) => ({ label: provider.label || fallback, icon: provider.icon || 'i-lucide-key-round' })
     })
     const wrapper = mount({ components: { SFRegisterFormPage }, template: '<Suspense><SFRegisterFormPage /></Suspense>' }, {
-      global: { stubs: { NuxtLink: { template: '<a><slot /></a>' }, UIcon: true, SFAlert: { props: ['title'], template: '<div>{{ title }}<slot /></div>' }, ClientOnly: true, 'altcha-widget': true, SFAuthProviderButtons } }
+      global: { stubs: { NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' }, UIcon: true, SFAlert: { props: ['title'], template: '<div>{{ title }}<slot /></div>' }, ClientOnly: true, 'altcha-widget': true, SFAuthProviderButtons } }
     })
     try {
       await flushPromises()
@@ -252,6 +252,9 @@ describe('auth route support contracts', () => {
       await mountVue.nextTick()
       expect(wrapper.find('[data-testid="auth-provider-buttons"]').exists()).toBe(false)
       expect(wrapper.get('#reg-password-input').exists()).toBe(true)
+      const legalLinks = wrapper.findAll('.auth-terms a')
+      expect(legalLinks).toHaveLength(2)
+      expect(legalLinks.map(link => link.attributes('href'))).toEqual(['/terms', '/privacy'])
     } finally {
       wrapper.unmount()
     }
