@@ -10,7 +10,8 @@ import {
 } from '../../app/utils/editor/editorImageUpload'
 import {
   collectEditorAttachmentIds,
-  createSFEditorExtensions
+  createSFEditorExtensions,
+  editorDocumentSignature
 } from '../../app/utils/sfEditor'
 import { imageFilesFromList } from '../../app/composables/editor/useEditorImageUpload'
 
@@ -101,6 +102,13 @@ describe('editor image upload file selection', () => {
 })
 
 describe('editor image attachment identity', () => {
+  it('keeps presentation-only image changes visible to dirty-state signatures', () => {
+    const base = { type: 'doc', content: [{ type: 'image', attrs: { displaySize: 'standard' } }] }
+    const wide = { type: 'doc', content: [{ type: 'image', attrs: { displaySize: 'wide' } }] }
+
+    expect(editorDocumentSignature(base)).not.toBe(editorDocumentSignature(wide))
+  })
+
   it('collects unique attachment ids from nested native JSON', () => {
     expect(collectEditorAttachmentIds({
       type: 'doc',

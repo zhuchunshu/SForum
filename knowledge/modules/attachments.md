@@ -57,6 +57,10 @@ Attachment system foundation is implemented.
   current session, to the authorized `display` variant endpoint; the API keeps
   variant-to-original fallback authoritative. Historical `/api/v1` attachment
   content URLs remain accepted when existing editor documents are loaded.
+- Rich-content viewers use the same actor-authorized boundary through
+  `/media/attachments/{publicId}/original`. The alias is only opened by an
+  explicit viewer action and never exposes provider URLs or bypasses visibility
+  checks.
 - The stable `core.component.page.admin.attachments` Admin Surface placement is
   mapped to Attachment Management so existing governance extensions continue
   to render after the route split.

@@ -26,7 +26,7 @@ import {
   type ForumTag,
   type ForumTopicDetail
 } from '~/utils/forum/forumTaxonomy'
-import type { SFEditorContentPayload } from '~/utils/sfEditor'
+import { editorDocumentSignature, type SFEditorContentPayload } from '~/utils/sfEditor'
 import type { ComposerFocusField } from '~/components/forum/SFTopicComposerLeftRail.vue'
 import { onBeforeRouteLeave } from 'vue-router'
 
@@ -116,18 +116,21 @@ const editReasonMaxRunes = 500
 
 // 主题加载后填充一次；watch 覆盖路由复用（topicId 变化）场景。
 const baselineSignature = ref('')
+const currentNativeSignature = computed(() => editorDocumentSignature(editorPayload.value?.native))
 const currentSignature = computed(() => JSON.stringify({
   title: title.value,
   selectedCategorySlug: selectedCategorySlug.value,
   tagDraft: tagDraft.value,
   bodyMarkdown: bodyMarkdown.value,
-  staffReason: staffReason.value
+  staffReason: staffReason.value,
+  native: currentNativeSignature.value
 }))
 const currentContentSignature = computed(() => JSON.stringify({
   title: title.value,
   selectedCategorySlug: selectedCategorySlug.value,
   tagDraft: tagDraft.value,
-  bodyMarkdown: bodyMarkdown.value
+  bodyMarkdown: bodyMarkdown.value,
+  native: currentNativeSignature.value
 }))
 const baselineContentSignature = ref('')
 
@@ -371,6 +374,7 @@ function onEditorContentChange(payload: SFEditorContentPayload) {
   editorPayload.value = payload
   // SFEditor 会把原生 Tiptap JSON 规范化为 Markdown v-model；首次同步属于加载，不是用户修改。
   if (awaitingEditorBaseline.value) {
+    // Markdown 不包含图片展示档位，dirty 判定必须同时比较 native JSON。
     baselineSignature.value = currentSignature.value
     baselineContentSignature.value = currentContentSignature.value
     awaitingEditorBaseline.value = false

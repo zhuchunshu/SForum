@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { topicCommentEditorContentIsMeaningful } from '~/composables/forum/useTopicCommentSubmission'
-import type { SFEditorContentPayload } from '~/utils/sfEditor'
+import { editorDocumentSignature, type SFEditorContentPayload } from '~/utils/sfEditor'
 import type {
   TopicCommentComposerContext,
   TopicCommentComposerMode
@@ -59,6 +59,7 @@ const { t } = useI18n()
 const toast = useToast()
 const discardPromptOpen = ref(false)
 const baselineMarkdown = ref('')
+const baselineNativeSignature = ref('')
 const baselineCaptured = ref(false)
 const currentPayload = shallowRef<SFEditorContentPayload | null>(null)
 const drawerHeight = ref<number | null>(null)
@@ -113,7 +114,10 @@ const submitLabel = computed(() => {
 const submitIcon = computed(() => props.mode === 'edit' ? 'i-lucide-save' : 'i-lucide-send')
 const dirty = computed(() => baselineCaptured.value
   && currentPayload.value != null
-  && currentPayload.value.markdown !== baselineMarkdown.value)
+  && (
+    currentPayload.value.markdown !== baselineMarkdown.value
+    || editorDocumentSignature(currentPayload.value.native) !== baselineNativeSignature.value
+  ))
 const reasonMissing = computed(() => props.requireReason && !props.reason.trim())
 const canSubmit = computed(() => Boolean(
   currentPayload.value
@@ -132,6 +136,7 @@ watch(
     if (!open) return
     discardPromptOpen.value = false
     baselineMarkdown.value = ''
+    baselineNativeSignature.value = ''
     baselineCaptured.value = false
     currentPayload.value = null
     localContentError.value = ''
@@ -152,6 +157,7 @@ function onContentChange(payload: SFEditorContentPayload) {
   localContentError.value = ''
   if (!baselineCaptured.value) {
     baselineMarkdown.value = payload.markdown
+    baselineNativeSignature.value = editorDocumentSignature(payload.native)
     baselineCaptured.value = true
   }
 }

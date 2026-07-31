@@ -24,6 +24,11 @@ accepted revisions, lifecycle states, public read models, and forum policy.
   and decorative-only horizontal rules remain invalid. Comment quick reply,
   advanced reply, and edit use the same native-node-aware presence check, so
   empty text serializers cannot silently discard an image-only submission.
+- Native image nodes also carry bounded dimensions and a `compact`, `standard`,
+  or `wide` display mode. Topic and comment surfaces cap inline images at
+  separate reading widths, while each surface opens as its own PhotoSwipe
+  gallery; the inline URL stays optimized and the authorized original route is
+  requested only after an explicit viewer action.
 - Logged-in users with reply permission can select text in topic or comment
   content and open the existing reply drawer through a compact `引用并回复`
   action. Topic selections create top-level drafts; comment selections retain

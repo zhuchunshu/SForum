@@ -91,4 +91,21 @@ describe('standalone topic edit page behavior contract', () => {
     expect(editPage).toContain('forumContentFromEditorPayload')
     expect(editPage).toContain('`${topic?.id}-${topic?.currentRevision}`')
   })
+
+  test('treats image display-size changes as content edits even when Markdown is unchanged', () => {
+    const drawer = readFileSync(
+      new URL('../../app/components/forum/SFTopicCommentComposerDrawer.vue', import.meta.url),
+      'utf8'
+    )
+    const editor = readFileSync(
+      new URL('../../app/utils/sfEditor.ts', import.meta.url),
+      'utf8'
+    )
+
+    expect(editor).toContain('editorDocumentSignature')
+    expect(editPage).toContain('currentNativeSignature')
+    expect(editPage).toContain('native: currentNativeSignature.value')
+    expect(drawer).toContain('baselineNativeSignature')
+    expect(drawer).toContain('editorDocumentSignature(currentPayload.value.native)')
+  })
 })

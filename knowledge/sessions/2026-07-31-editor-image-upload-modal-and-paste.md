@@ -15,6 +15,12 @@
 - Aligned comment quick reply, advanced reply, and edit submission guards with
   the native editor document. A payload containing an image node no longer
   returns silently when its text and Markdown serializers are empty.
+- Added server-provided image dimensions and bounded `compact`, `standard`, and
+  `wide` display modes. Topic/comment content now caps inline images
+  independently, and image clicks open an isolated PhotoSwipe gallery with an
+  authorized original-media fallback.
+- Edit dirty-state signatures now include native editor JSON, so changing only
+  an image display mode enables the topic or comment save action.
 
 ## Decisions
 
@@ -34,13 +40,15 @@
 - `cd apps/web && bun test tests/framework/editorImageUpload.test.ts tests/framework/editorL2Load.test.ts tests/forum/defaultThemeTopicPage.test.ts`
 - `cd apps/web && bun run typecheck`
 - `node tests/validate-architecture-boundaries.mjs`
+- `ruby scripts/validate-openapi-refs.rb`
 - `git diff --check`
 
 ## Next
 
-- Manual verification: publish a topic and a comment containing only one
-  uploaded image, then confirm both render the image after reload. Repeat once
-  with paste or drag upload to cover the shared insertion paths.
+- Manual verification: edit an existing topic and comment, change only the
+  image display mode, and confirm save becomes available. Then publish a topic
+  and comment with large/tall images, check desktop/mobile inline caps, and
+  open both galleries to verify the original route loads only after opening.
 
 ## Open Questions
 

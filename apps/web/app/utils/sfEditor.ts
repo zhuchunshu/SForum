@@ -52,6 +52,12 @@ export type SFEditorContentPayload = {
   pendingUploadCount: number
 }
 
+// Markdown intentionally omits presentation-only image attributes. Use the
+// native document when deciding whether an edit is semantically dirty.
+export function editorDocumentSignature(native: unknown) {
+  return JSON.stringify(native ?? null)
+}
+
 export const SForumImage = Image.extend({
   addAttributes() {
     return {
