@@ -64,7 +64,7 @@ func RenderContentWithExcerptLimitAndSchema(input ContentInput, excerptLimit int
 		if err != nil {
 			return RenderedContent{}, ErrInvalidContent
 		}
-		if accepted.PlainText == "" {
+		if !hasMeaningfulEditorContent(accepted) {
 			return RenderedContent{}, ErrInvalidContent
 		}
 		// 持久化规范化后的 native JSON，保证再编辑与 content hash 稳定。
@@ -120,6 +120,24 @@ func RenderContentWithExcerptLimitAndSchema(input ContentInput, excerptLimit int
 		RenderVersion: RenderVersion,
 		ContentHash:   hex.EncodeToString(hash[:]),
 	}, nil
+}
+
+// hasMeaningfulEditorContent 保持空结构无效，同时允许已验收的图片节点独立成文。
+func hasMeaningfulEditorContent(accepted editordocument.Accepted) bool {
+	if strings.TrimSpace(accepted.PlainText) != "" {
+		return true
+	}
+
+	var containsImage func([]editordocument.Node) bool
+	containsImage = func(nodes []editordocument.Node) bool {
+		for _, node := range nodes {
+			if node.Type == "image" || containsImage(node.Content) {
+				return true
+			}
+		}
+		return false
+	}
+	return containsImage(accepted.Native.Content)
 }
 
 func jsonMarshalDocument(accepted editordocument.Accepted) (string, error) {

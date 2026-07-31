@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { topicCommentEditorContentIsMeaningful } from '~/composables/forum/useTopicCommentSubmission'
 import type { SFEditorContentPayload } from '~/utils/sfEditor'
 import type {
   TopicCommentComposerContext,
@@ -116,7 +117,7 @@ const dirty = computed(() => baselineCaptured.value
 const reasonMissing = computed(() => props.requireReason && !props.reason.trim())
 const canSubmit = computed(() => Boolean(
   currentPayload.value
-  && !currentPayload.value.isEmpty
+  && topicCommentEditorContentIsMeaningful(currentPayload.value)
   && !props.submitting
   && !props.submitDisabled
   && currentPayload.value.pendingUploadCount === 0
@@ -358,6 +359,7 @@ onBeforeUnmount(() => {
         :model-value="modelValue"
         :initial-content="initialContent"
         :rows="6"
+        image-surface="comment"
         :placeholder="mode === 'edit' ? t('topicDetail.editPlaceholder') : t('topicDetail.replyPlaceholder')"
         :submit-label="submitLabel"
         :submit-visible="false"

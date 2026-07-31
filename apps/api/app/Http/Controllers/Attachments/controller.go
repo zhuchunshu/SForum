@@ -55,6 +55,8 @@ type attachmentDTO struct {
 	Name           string                    `json:"name"`
 	ContentType    string                    `json:"contentType"`
 	Size           int64                     `json:"size"`
+	ImageWidth     *int                      `json:"imageWidth,omitempty"`
+	ImageHeight    *int                      `json:"imageHeight,omitempty"`
 	URL            string                    `json:"url"`
 	Status         string                    `json:"status"`
 	Provider       string                    `json:"provider"`
@@ -65,13 +67,11 @@ type attachmentDTO struct {
 
 type adminAttachmentDTO struct {
 	attachmentDTO
-	ObjectKey   string     `json:"objectKey"`
-	Extension   string     `json:"extension"`
-	SHA256      string     `json:"sha256"`
-	ImageWidth  *int       `json:"imageWidth,omitempty"`
-	ImageHeight *int       `json:"imageHeight,omitempty"`
-	Visibility  string     `json:"visibility"`
-	DeletedAt   *time.Time `json:"deletedAt,omitempty"`
+	ObjectKey  string     `json:"objectKey"`
+	Extension  string     `json:"extension"`
+	SHA256     string     `json:"sha256"`
+	Visibility string     `json:"visibility"`
+	DeletedAt  *time.Time `json:"deletedAt,omitempty"`
 }
 
 type attachmentListDTO struct {
@@ -541,6 +541,8 @@ func toAttachmentDTO(item attachments.Attachment) attachmentDTO {
 		Name:           item.OriginalName,
 		ContentType:    item.ContentType,
 		Size:           item.SizeBytes,
+		ImageWidth:     item.ImageWidth,
+		ImageHeight:    item.ImageHeight,
 		URL:            item.URL,
 		Status:         item.Status,
 		Provider:       item.Provider,
@@ -556,8 +558,6 @@ func toAdminAttachmentDTO(item attachments.Attachment) adminAttachmentDTO {
 		ObjectKey:     item.ObjectKey,
 		Extension:     item.Extension,
 		SHA256:        item.SHA256,
-		ImageWidth:    item.ImageWidth,
-		ImageHeight:   item.ImageHeight,
 		Visibility:    item.Visibility,
 		DeletedAt:     item.DeletedAt,
 	}

@@ -4763,6 +4763,13 @@
       "toolbarLabel": "Quote selected text",
       "quoteAndReply": "Quote and reply"
     },
+    "imageViewer": {
+      "close": "Close image",
+      "zoom": "Zoom image",
+      "previous": "Previous image",
+      "next": "Next image",
+      "loadFailed": "The image could not be loaded."
+    },
     "commentLink": "Link",
     "commentMoreActions": "More reply actions",
     "commentLinkCopied": "Comment link copied",
@@ -4954,6 +4961,10 @@
       "partiallyUploaded": "Inserted {uploaded} image(s); {failed} failed",
       "failed": "Image upload failed",
       "positionLost": "The original insertion point was removed, so the image was not inserted.",
+      "sizeLabel": "Image size",
+      "sizeCompact": "Compact",
+      "sizeStandard": "Standard",
+      "sizeWide": "Wide",
       "wait": "Wait for image uploads to finish before submitting."
     },
     "submit": "Publish",

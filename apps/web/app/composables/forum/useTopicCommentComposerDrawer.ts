@@ -1,7 +1,10 @@
 import type { ComputedRef, Ref } from 'vue'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useForumApi } from '~/composables/forum/useForumApi'
-import { useTopicCommentSubmission } from '~/composables/forum/useTopicCommentSubmission'
+import {
+  topicCommentEditorContentIsMeaningful,
+  useTopicCommentSubmission
+} from '~/composables/forum/useTopicCommentSubmission'
 import {
   advancedReplyDraftStorageKey,
   flattenCommentTree,
@@ -227,7 +230,7 @@ export function useTopicCommentComposerDrawer(options: TopicCommentComposerDrawe
     }
     const markdown = payload.markdown ?? editingMarkdown.value
     const text = payload.text ?? markdown
-    if (!text.trim() || editingSubmitting.value) return
+    if (!topicCommentEditorContentIsMeaningful(payload, markdown) || editingSubmitting.value) return
 
     editingSubmitting.value = true
     editingError.value = ''

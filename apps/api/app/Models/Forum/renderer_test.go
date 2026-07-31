@@ -219,12 +219,39 @@ func TestRenderEditorDocumentAcceptsNativeJSONAndStripsXSS(t *testing.T) {
 }
 
 func TestRenderEditorDocumentRejectsEmptyDoc(t *testing.T) {
-	_, err := RenderContent(ContentInput{
-		RawContent:   `{"type":"doc","content":[]}`,
+	for _, raw := range []string{
+		`{"type":"doc","content":[]}`,
+		`{"type":"doc","content":[{"type":"paragraph"}]}`,
+		`{"type":"doc","content":[{"type":"horizontalRule"}]}`,
+	} {
+		_, err := RenderContent(ContentInput{
+			RawContent:   raw,
+			SourceFormat: SourceFormatEditorDocument,
+		})
+		if err != ErrInvalidContent {
+			t.Fatalf("expected ErrInvalidContent for %s, got %v", raw, err)
+		}
+	}
+}
+
+func TestRenderEditorDocumentAcceptsImageOnlyDoc(t *testing.T) {
+	native := `{"type":"doc","content":[{"type":"image","attrs":{"src":"/media/attachments/0123456789abcdef0123456789abcdef","alt":"sample.png","attachmentId":42,"attachmentPublicId":"0123456789abcdef0123456789abcdef"}}]}`
+	rendered, err := RenderContent(ContentInput{
+		RawContent:   native,
 		SourceFormat: SourceFormatEditorDocument,
+		EditorType:   EditorTypeTiptap,
 	})
-	if err != ErrInvalidContent {
-		t.Fatalf("expected ErrInvalidContent, got %v", err)
+	if err != nil {
+		t.Fatalf("RenderContent: %v", err)
+	}
+	if rendered.PlainText != "" || rendered.Excerpt != "" {
+		t.Fatalf("image-only derived text = %q / %q", rendered.PlainText, rendered.Excerpt)
+	}
+	if !strings.Contains(rendered.HTMLContent, `<img src="/media/attachments/0123456789abcdef0123456789abcdef"`) {
+		t.Fatalf("html = %q", rendered.HTMLContent)
+	}
+	if !strings.Contains(rendered.RawContent, `"attachmentId":42`) {
+		t.Fatalf("raw = %q", rendered.RawContent)
 	}
 }
 

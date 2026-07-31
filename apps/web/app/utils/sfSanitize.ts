@@ -17,7 +17,8 @@ const PURIFY_CONFIG = {
   ALLOWED_ATTR: [
     'href', 'title', 'alt', 'src', 'width', 'height', 'class', 'id',
     'target', 'rel', 'colspan', 'rowspan', 'start', 'type', 'checked',
-    'disabled', 'open'
+    'disabled', 'open', 'data-sforum-image-viewer', 'data-sforum-image-size',
+    'data-sforum-image-long'
   ],
   // 禁止任何脚本/样式/表单提交相关内容。
   FORBID_TAGS: ['script', 'style', 'form', 'iframe', 'object', 'embed'],

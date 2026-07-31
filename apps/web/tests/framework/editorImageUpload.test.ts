@@ -130,7 +130,10 @@ describe('editor image attachment identity', () => {
             src: '/media/attachments/0123456789abcdef0123456789abcdef',
             alt: 'example',
             attachmentId: 42,
-            attachmentPublicId: '0123456789abcdef0123456789abcdef'
+            attachmentPublicId: '0123456789abcdef0123456789abcdef',
+            width: 1200,
+            height: 3200,
+            displaySize: 'compact'
           }
         }]
       }
@@ -139,5 +142,13 @@ describe('editor image attachment identity', () => {
     expect(editor.getJSON().content?.[0]?.attrs?.attachmentId).toBe(42)
     expect(editor.getHTML()).not.toContain('attachmentId')
     expect(editor.getHTML()).not.toContain('attachmentPublicId')
+    expect(editor.getHTML()).toContain('width="1200"')
+    expect(editor.getHTML()).toContain('height="3200"')
+    expect(editor.getHTML()).toContain('data-sforum-image-size="compact"')
+    expect(editor.getHTML()).toContain('data-sforum-image-long="1"')
+
+    editor.chain().setNodeSelection(0).updateAttributes('image', { displaySize: 'wide' }).run()
+    expect(editor.getJSON().content?.[0]?.attrs?.displaySize).toBe('wide')
+    expect(editor.getHTML()).toContain('data-sforum-image-size="wide"')
   })
 })

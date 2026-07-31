@@ -361,6 +361,7 @@ const InlineEditorHost = () => {
         <div
           v-if="showHtml"
           class="sf-comment__content sf-prose"
+          :data-sforum-image-gallery="`comment-${comment?.id || 'unknown'}`"
           data-selection-quote-source="comment"
           :data-selection-quote-comment-id="comment?.id"
           v-highlight

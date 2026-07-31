@@ -12,6 +12,8 @@ export type EditorImageAttachment = {
   name: string
   contentType: string
   size: number
+  imageWidth?: number | null
+  imageHeight?: number | null
   url: string
 }
 
@@ -144,7 +146,10 @@ export function useEditorImageUpload(labels: EditorImageUploadLabels) {
                 src: attachment.url,
                 alt: attachment.name,
                 attachmentId: attachment.id,
-                attachmentPublicId: attachment.publicId
+                attachmentPublicId: attachment.publicId,
+                width: attachment.imageWidth || null,
+                height: attachment.imageHeight || null,
+                displaySize: 'standard'
               }
             })),
             { updateSelection: false }

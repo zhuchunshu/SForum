@@ -83,7 +83,26 @@ func renderNode(builder *strings.Builder, node Node, schema Schema) {
 	case "image":
 		src, _ := node.Attrs["src"].(string)
 		alt, _ := node.Attrs["alt"].(string)
-		builder.WriteString(`<img src="` + html.EscapeString(src) + `" alt="` + html.EscapeString(alt) + `" loading="lazy" decoding="async" referrerpolicy="no-referrer">`)
+		displaySize, _ := node.Attrs["displaySize"].(string)
+		if _, ok := imageDisplaySizes[displaySize]; !ok {
+			displaySize = "standard"
+		}
+		width, widthOK := normalizedImageDimension(node.Attrs["width"])
+		height, heightOK := normalizedImageDimension(node.Attrs["height"])
+		viewerSrc := src
+		if publicID, ok := node.Attrs["attachmentPublicId"].(string); ok && safeMediaPublicID(publicID) {
+			viewerSrc = "/media/attachments/" + publicID + "/original"
+		}
+
+		builder.WriteString(`<a href="` + html.EscapeString(viewerSrc) + `" class="sf-content-image-link" data-sforum-image-viewer="1" data-sforum-image-size="` + displaySize + `" target="_blank" rel="noopener noreferrer">`)
+		builder.WriteString(`<img src="` + html.EscapeString(src) + `" alt="` + html.EscapeString(alt) + `" data-sforum-image-size="` + displaySize + `"`)
+		if widthOK && heightOK {
+			builder.WriteString(` width="` + strconv.Itoa(width) + `" height="` + strconv.Itoa(height) + `"`)
+			if height >= width*5/2 {
+				builder.WriteString(` data-sforum-image-long="1"`)
+			}
+		}
+		builder.WriteString(` loading="lazy" decoding="async" referrerpolicy="no-referrer"></a>`)
 	case "sforumEmoji":
 		name, _ := node.Attrs["name"].(string)
 		label, _ := node.Attrs["label"].(string)
@@ -103,6 +122,22 @@ func renderNode(builder *strings.Builder, node Node, schema Schema) {
 		renderInline(builder, node.Content, schema)
 		builder.WriteString("</p>")
 	}
+}
+
+func safeMediaPublicID(value string) bool {
+	if len(value) == 0 || len(value) > 128 {
+		return false
+	}
+	for _, character := range value {
+		if (character >= 'a' && character <= 'z') ||
+			(character >= 'A' && character <= 'Z') ||
+			(character >= '0' && character <= '9') ||
+			character == '_' || character == '-' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func renderInline(builder *strings.Builder, nodes []Node, schema Schema) {

@@ -190,6 +190,18 @@ Attachment:
     size:
       type: integer
       format: int64
+    imageWidth:
+      type:
+      - integer
+      - 'null'
+      minimum: 1
+      description: Intrinsic image width when the uploaded format exposes dimensions.
+    imageHeight:
+      type:
+      - integer
+      - 'null'
+      minimum: 1
+      description: Intrinsic image height when the uploaded format exposes dimensions.
     url:
       type: string
       description: >
@@ -223,14 +235,6 @@ AdminAttachment:
         type: string
       sha256:
         type: string
-      imageWidth:
-        type:
-        - integer
-        - 'null'
-      imageHeight:
-        type:
-        - integer
-        - 'null'
       visibility:
         "$ref": "#/AttachmentVisibility"
       deletedAt:

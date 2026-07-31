@@ -316,6 +316,33 @@
   height: auto;
 }
 
+.sforum-topic-page__prose .sf-content-image-link {
+  max-width: min(100%, 760px);
+  margin: 22px 0;
+}
+
+.sforum-topic-page__prose .sf-content-image-link[data-sforum-image-size="compact"] {
+  max-width: min(100%, 320px);
+}
+
+.sforum-topic-page__prose .sf-content-image-link[data-sforum-image-size="wide"] {
+  width: 100%;
+  max-width: 100%;
+}
+
+.sforum-topic-page__prose .sf-content-image-link img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: min(75vh, 900px);
+  height: auto;
+  object-fit: contain;
+}
+
+.sforum-topic-page__prose .sf-content-image-link[data-sforum-image-size="wide"] img {
+  width: 100%;
+}
+
 /* 代码块 SSR fallback；客户端增强后的工具条与行号由 highlight-theme.css 接管。 */
 .sforum-topic-page__prose pre,
 .sforum-topic-page__prose.sf-prose :where(pre),

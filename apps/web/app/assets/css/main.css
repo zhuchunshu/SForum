@@ -310,6 +310,25 @@ html.dark {
   margin: 2em 0;
 }
 
+.sf-prose .sf-content-image-link {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  color: inherit;
+  text-decoration: none;
+  cursor: zoom-in;
+}
+
+.sf-prose .sf-content-image-link:focus-visible {
+  border-radius: 8px;
+  outline: 2px solid var(--sf-accent);
+  outline-offset: 3px;
+}
+
+.sf-prose .sf-content-image-link img {
+  margin: 0;
+}
+
 
 body {
   margin: 0;

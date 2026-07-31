@@ -6,6 +6,7 @@ import { useAuthSession } from '~/composables/identity/useAuthSession'
 import { useForumApi } from '~/composables/forum/useForumApi'
 import { useLegacyTopicCommentComposerParent, useTopicCommentComposerDrawer } from '~/composables/forum/useTopicCommentComposerDrawer'
 import { useTopicSelectionQuoteReply } from '~/composables/forum/useTopicSelectionQuoteReply'
+import { useForumImageViewer } from '~/composables/forum/useForumImageViewer'
 import SFReportDialog from '~/components/moderation/SFReportDialog.vue'
 import SFTopicSideCard from '~/components/forum/SFTopicSideCard.vue'
 import SFTopicReplyComposer from '~/components/forum/SFTopicReplyComposer.vue'
@@ -22,7 +23,6 @@ import { buildAuthPageLink } from '~/utils/identity/authReturn'
 /**
  * 宿主 body 岛：forum.topic.show。主题 L1 挂载；路由页仅 outlet + fail-closed 回退。
  */
-
 import {
   commentFloorLabel, forumAuthorName, forumCategoryPath,
   forumTagPath, forumTopicEditPath,
@@ -35,10 +35,10 @@ import {
 } from '~/utils/forum/forumTaxonomy'
 import { buildCommentActionMenuItems, buildTopicActionMenuItems } from '~/utils/forum/forumTopicPresentation'
 import { useForumContentTime } from '~/composables/forum/useForumContentTime'
-
 const route = useRoute()
 const router = useRouter()
 const { t, locale } = useI18n()
+const { openForumImageViewer } = useForumImageViewer()
 const localePath = useLocalePath()
 const { seoSettings, webOption } = useWebOptions()
 // 当前帖子 URL 形态：决定 catch-all 解析方式与规范化目标。
@@ -961,7 +961,7 @@ async function submitReport() {
 </script>
 
 <template>
-  <main class="sforum-topic-page" data-layout="fullwidth-3col">
+  <main class="sforum-topic-page" data-layout="fullwidth-3col" @click="openForumImageViewer">
     <div
       class="sforum-topic-page__layout"
       :class="{ 'sforum-topic-page__layout--with-side': showTopicSide }"
@@ -1020,7 +1020,7 @@ async function submitReport() {
 
                   <div class="sforum-topic-page__post-card">
                     <!-- 正文（后端已 sanitize）；v-highlight 负责代码块语法高亮 -->
-                    <div class="sforum-topic-page__prose sf-prose" data-selection-quote-source="topic" v-highlight v-html="sanitizeHtml(topic.content.htmlContent)" />
+                    <div class="sforum-topic-page__prose sf-prose" data-sforum-image-gallery="topic" data-selection-quote-source="topic" v-highlight v-html="sanitizeHtml(topic.content.htmlContent)" />
 
                     <div class="sforum-topic-page__actions">
                       <button type="button" class="sforum-topic-page__action-btn" @click="shareTopic">

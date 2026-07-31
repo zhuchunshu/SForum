@@ -1543,6 +1543,57 @@ func TestServicePropagatesContentAttachmentReferences(t *testing.T) {
 	})
 }
 
+func TestServiceCreatesImageOnlyTopicAndComment(t *testing.T) {
+	ctx := context.Background()
+	attachmentIDs := []int64{42}
+	content := ContentInput{
+		RawContent:    `{"type":"doc","content":[{"type":"image","attrs":{"src":"/media/attachments/0123456789abcdef0123456789abcdef","alt":"sample.png","attachmentId":42,"attachmentPublicId":"0123456789abcdef0123456789abcdef"}}]}`,
+		SourceFormat:  SourceFormatEditorDocument,
+		EditorType:    EditorTypeTiptap,
+		AttachmentIDs: &attachmentIDs,
+	}
+
+	t.Run("topic", func(t *testing.T) {
+		store := &serviceFakeStore{nextID: 1}
+		service := NewService(ServiceConfig{Store: store})
+		created, err := service.CreateTopic(ctx, topicCreator(), CreateTopicInput{
+			CategorySlug: "general",
+			Title:        "纯图片主题",
+			Content:      content,
+		})
+		if err != nil {
+			t.Fatalf("CreateTopic: %v", err)
+		}
+		if created.Content.PlainText != "" || !strings.Contains(created.Content.HTMLContent, "<img") {
+			t.Fatalf("content = %#v", created.Content)
+		}
+		if !slices.Equal(store.createdTopic.AttachmentIDs, attachmentIDs) {
+			t.Fatalf("attachment ids = %v", store.createdTopic.AttachmentIDs)
+		}
+	})
+
+	t.Run("comment", func(t *testing.T) {
+		store := &serviceFakeStore{
+			nextID:          1,
+			topicForComment: TopicSummary{ID: 7, Status: TopicStatusActive},
+		}
+		service := NewService(ServiceConfig{Store: store})
+		created, err := service.CreateComment(ctx, commentCreator(), CreateCommentInput{
+			TopicID: 7,
+			Content: content,
+		})
+		if err != nil {
+			t.Fatalf("CreateComment: %v", err)
+		}
+		if created.Content.PlainText != "" || !strings.Contains(created.Content.HTMLContent, "<img") {
+			t.Fatalf("content = %#v", created.Content)
+		}
+		if !slices.Equal(store.createdComment.AttachmentIDs, attachmentIDs) {
+			t.Fatalf("attachment ids = %v", store.createdComment.AttachmentIDs)
+		}
+	})
+}
+
 func TestNormalizeContentAttachmentIDsRejectsInvalidValues(t *testing.T) {
 	invalid := []int64{1, 0}
 	if _, _, err := normalizeContentAttachmentIDs(&invalid); !errors.Is(err, ErrInvalidContent) {

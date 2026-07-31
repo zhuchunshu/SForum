@@ -24,6 +24,7 @@ func CoreSchema() Schema {
 				Atom: true,
 				AllowAttrs: map[string]bool{
 					"src": true, "alt": true, "title": true,
+					"width": true, "height": true, "displaySize": true,
 					"attachmentId": true, "attachmentPublicId": true,
 				},
 				FallbackHTML: `<span class="sf-editor-fallback" data-fallback="image">[image]</span>`,

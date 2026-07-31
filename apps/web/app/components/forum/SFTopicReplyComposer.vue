@@ -57,6 +57,7 @@ function cancelReply() {
     </header>
 
     <LazySFEditor
+      image-surface="comment"
       v-model="replyMarkdown"
       compact
       :rows="5"

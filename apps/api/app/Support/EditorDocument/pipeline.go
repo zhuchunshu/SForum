@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"regexp"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -19,7 +20,14 @@ const (
 	maxDepth            = 64
 	defaultExcerptRunes = 160
 	maxExcerptRunes     = 500
+	maxImageDimension   = 100000
 )
+
+var imageDisplaySizes = map[string]struct{}{
+	"compact":  {},
+	"standard": {},
+	"wide":     {},
+}
 
 // Accept runs the ordered parse→validate→normalize→render→sanitize pipeline
 // and returns the Host storage triple. Markdown is derived from accepted native
@@ -168,6 +176,7 @@ func normalizeNodes(nodes []Node, schema Schema, depth int, nodeCount *int, fall
 			} else {
 				normalized.Attrs["src"] = clean
 			}
+			normalized.Attrs = normalizeImageAttrs(normalized.Attrs)
 		}
 		if !spec.Atom {
 			children, err := normalizeNodes(node.Content, schema, depth+1, nodeCount, fallbacks)
@@ -184,6 +193,42 @@ func normalizeNodes(nodes []Node, schema Schema, depth int, nodeCount *int, fall
 		result = append(result, normalized)
 	}
 	return result, nil
+}
+
+func normalizeImageAttrs(attrs map[string]any) map[string]any {
+	if attrs == nil {
+		attrs = map[string]any{}
+	}
+
+	displaySize, _ := attrs["displaySize"].(string)
+	displaySize = strings.TrimSpace(displaySize)
+	if _, ok := imageDisplaySizes[displaySize]; !ok {
+		displaySize = "standard"
+	}
+	attrs["displaySize"] = displaySize
+
+	width, widthOK := normalizedImageDimension(attrs["width"])
+	height, heightOK := normalizedImageDimension(attrs["height"])
+	if widthOK && heightOK {
+		attrs["width"] = width
+		attrs["height"] = height
+	} else {
+		delete(attrs, "width")
+		delete(attrs, "height")
+	}
+	return attrs
+}
+
+func normalizedImageDimension(value any) (int, bool) {
+	switch typed := value.(type) {
+	case int:
+		return typed, typed > 0 && typed <= maxImageDimension
+	case float64:
+		integer := int(typed)
+		return integer, typed == float64(integer) && integer > 0 && integer <= maxImageDimension
+	default:
+		return 0, false
+	}
 }
 
 func normalizeMarks(marks []Mark, schema Schema) ([]Mark, error) {
@@ -349,7 +394,13 @@ func SanitizeHTML(value string) string {
 	policy.RequireNoFollowOnLinks(true)
 	policy.RequireNoReferrerOnLinks(true)
 	policy.AllowAttrs("class").OnElements("span", "code", "pre")
+	policy.AllowAttrs("class").Matching(regexp.MustCompile(`^sf-content-image-link$`)).OnElements("a")
+	policy.AllowAttrs("data-sforum-image-viewer").Matching(regexp.MustCompile(`^1$`)).OnElements("a")
+	policy.AllowAttrs("data-sforum-image-size").Matching(regexp.MustCompile(`^(compact|standard|wide)$`)).OnElements("a")
 	policy.AllowAttrs("data-sforum-emoji", "data-label", "data-fallback", "data-fallback-for", "title").OnElements("span")
 	policy.AllowAttrs("loading", "decoding", "referrerpolicy").OnElements("img")
+	policy.AllowAttrs("width", "height").Matching(regexp.MustCompile(`^[1-9][0-9]{0,5}$`)).OnElements("img")
+	policy.AllowAttrs("data-sforum-image-size").Matching(regexp.MustCompile(`^(compact|standard|wide)$`)).OnElements("img")
+	policy.AllowAttrs("data-sforum-image-long").Matching(regexp.MustCompile(`^1$`)).OnElements("img")
 	return policy.Sanitize(value)
 }

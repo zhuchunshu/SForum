@@ -129,6 +129,46 @@ func TestAcceptMarkdownCompatibilityPath(t *testing.T) {
 	}
 }
 
+func TestAcceptNormalizesImagePresentationAndRendersOriginalViewerLink(t *testing.T) {
+	t.Parallel()
+	native := []byte(`{"type":"doc","content":[{"type":"image","attrs":{"src":"/media/attachments/0123456789abcdef0123456789abcdef","alt":"long screenshot","attachmentId":42,"attachmentPublicId":"0123456789abcdef0123456789abcdef","width":1200,"height":3200,"displaySize":"wide"}}]}`)
+	accepted, err := Accept(Input{NativeJSON: native, Schema: CoreSchema()})
+	if err != nil {
+		t.Fatalf("Accept: %v", err)
+	}
+
+	for _, fragment := range []string{
+		`href="/media/attachments/0123456789abcdef0123456789abcdef/original"`,
+		`data-sforum-image-viewer="1"`,
+		`data-sforum-image-size="wide"`,
+		`width="1200" height="3200"`,
+		`data-sforum-image-long="1"`,
+	} {
+		if !strings.Contains(accepted.HTMLSanitized, fragment) {
+			t.Fatalf("html missing %q: %s", fragment, accepted.HTMLSanitized)
+		}
+	}
+}
+
+func TestAcceptFallsBackToStandardImagePresentationAndDropsPartialDimensions(t *testing.T) {
+	t.Parallel()
+	native := []byte(`{"type":"doc","content":[{"type":"image","attrs":{"src":"https://example.com/image.png","width":1200,"displaySize":"oversized"}}]}`)
+	accepted, err := Accept(Input{NativeJSON: native, Schema: CoreSchema()})
+	if err != nil {
+		t.Fatalf("Accept: %v", err)
+	}
+	image := accepted.Native.Content[0]
+	if image.Attrs["displaySize"] != "standard" {
+		t.Fatalf("displaySize = %#v", image.Attrs["displaySize"])
+	}
+	if _, ok := image.Attrs["width"]; ok {
+		t.Fatalf("partial width retained: %#v", image.Attrs)
+	}
+	if strings.Contains(accepted.HTMLSanitized, ` width=`) || strings.Contains(accepted.HTMLSanitized, ` height=`) {
+		t.Fatalf("partial dimensions rendered: %s", accepted.HTMLSanitized)
+	}
+}
+
 func TestMigrateStorageReacceptsUnderCurrentSchema(t *testing.T) {
 	t.Parallel()
 	body, _ := json.Marshal(map[string]any{

@@ -267,6 +267,33 @@
   height: auto;
 }
 
+.sf-comment__content .sf-content-image-link {
+  max-width: min(100%, 520px);
+  margin: 14px 0;
+}
+
+.sf-comment__content .sf-content-image-link[data-sforum-image-size="compact"] {
+  max-width: min(100%, 320px);
+}
+
+.sf-comment__content .sf-content-image-link[data-sforum-image-size="wide"] {
+  width: 100%;
+  max-width: 100%;
+}
+
+.sf-comment__content .sf-content-image-link img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: min(65vh, 640px);
+  height: auto;
+  object-fit: contain;
+}
+
+.sf-comment__content .sf-content-image-link[data-sforum-image-size="wide"] img {
+  width: 100%;
+}
+
 /* 被回复引用：中性底色单行引用卡（「回复 @人名」accent + 摘要单行省略）。
    中性 4% 底给出"这是引用"的边界感，但不用 accent 染色压过正文。 */
 .sf-comment__reply-to {

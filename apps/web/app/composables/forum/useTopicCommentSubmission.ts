@@ -16,6 +16,33 @@ type TopicCommentSubmissionOptions = {
   refreshComments: () => Promise<unknown>
 }
 
+export type TopicCommentEditorContent = {
+  markdown?: string
+  native?: unknown
+  text?: string
+  attachmentIds?: number[]
+  pendingUploadCount?: number
+}
+
+export function topicCommentEditorContentIsMeaningful(
+  payload?: TopicCommentEditorContent,
+  fallbackMarkdown = ''
+) {
+  if ([payload?.text, payload?.markdown, fallbackMarkdown]
+    .some(value => typeof value === 'string' && value.trim() !== '')) {
+    return true
+  }
+
+  function containsImage(node: unknown): boolean {
+    if (!node || typeof node !== 'object') return false
+    const candidate = node as { type?: unknown, content?: unknown }
+    if (candidate.type === 'image') return true
+    return Array.isArray(candidate.content) && candidate.content.some(containsImage)
+  }
+
+  return containsImage(payload?.native)
+}
+
 export function useTopicCommentSubmission(options: TopicCommentSubmissionOptions) {
   const { t } = useI18n()
   const forumApi = useForumApi()
@@ -31,13 +58,7 @@ export function useTopicCommentSubmission(options: TopicCommentSubmissionOptions
   } = useForumCooldownError('comment')
   const replyDisplayError = computed(() => commentCooldownMessage.value || replyError.value)
 
-  async function submitReply(payload?: {
-    markdown?: string
-    native?: unknown
-    text?: string
-    attachmentIds?: number[]
-    pendingUploadCount?: number
-  }) {
+  async function submitReply(payload?: TopicCommentEditorContent) {
     if (
       !options.topic.value
       || replySubmitting.value
@@ -45,7 +66,7 @@ export function useTopicCommentSubmission(options: TopicCommentSubmissionOptions
       || (payload?.pendingUploadCount || 0) > 0
     ) return
     const markdown = payload?.markdown ?? replyMarkdown.value
-    if (!(payload?.text || markdown).trim()) return
+    if (!topicCommentEditorContentIsMeaningful(payload, markdown)) return
 
     replySubmitting.value = true
     replyError.value = ''

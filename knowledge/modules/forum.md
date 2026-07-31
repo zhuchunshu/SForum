@@ -18,6 +18,12 @@ accepted revisions, lifecycle states, public read models, and forum policy.
   `content.attachmentIds`. Topic/comment create and update validate the node
   URL, public ID, attachment ID, active/public state, and owner-or-existing-
   resource authority before replacing references transactionally.
+- Image-only editor documents are valid topic/comment bodies after Host
+  normalization. Meaningful-content validation recognizes accepted image nodes
+  without inventing searchable plain text; empty documents, empty paragraphs,
+  and decorative-only horizontal rules remain invalid. Comment quick reply,
+  advanced reply, and edit use the same native-node-aware presence check, so
+  empty text serializers cannot silently discard an image-only submission.
 - Logged-in users with reply permission can select text in topic or comment
   content and open the existing reply drawer through a compact `引用并回复`
   action. Topic selections create top-level drafts; comment selections retain

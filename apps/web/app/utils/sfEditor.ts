@@ -14,6 +14,11 @@ import {
 } from '@tiptap/vue-3'
 import type { Editor } from '@tiptap/core'
 import { createEditorImageUploadPlaceholderExtension } from '~/utils/editor/editorImageUpload'
+import {
+  editorImageRenderAttributes,
+  normalizeEditorImageDimension,
+  normalizeEditorImageDisplaySize
+} from '~/utils/editor/editorImage'
 
 export type SForumEmojiItem = {
   name: string
@@ -58,8 +63,31 @@ export const SForumImage = Image.extend({
       attachmentPublicId: {
         default: null,
         rendered: false
+      },
+      width: {
+        default: null,
+        rendered: false,
+        parseHTML: element => normalizeEditorImageDimension(element.getAttribute('width'))
+      },
+      height: {
+        default: null,
+        rendered: false,
+        parseHTML: element => normalizeEditorImageDimension(element.getAttribute('height'))
+      },
+      displaySize: {
+        default: 'standard',
+        rendered: false,
+        parseHTML: element => normalizeEditorImageDisplaySize(element.getAttribute('data-sforum-image-size'))
       }
     }
+  },
+
+  renderHTML({ node, HTMLAttributes }) {
+    return ['img', mergeAttributes(
+      this.options.HTMLAttributes,
+      HTMLAttributes,
+      editorImageRenderAttributes(node.attrs)
+    )]
   }
 })
 

@@ -80,6 +80,7 @@ async function save(payload: SFEditorContentPayload) {
       />
     </UFormField>
     <LazySFEditor
+      image-surface="comment"
       :key="editorKey"
       v-model="body"
       :initial-content="editorInitialContent"

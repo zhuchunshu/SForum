@@ -6,6 +6,7 @@ import SFEditorToolbar, {
   type SFEditorViewMode
 } from '~/components/editor/SFEditorToolbar.vue'
 import SFEditorImageUploadModal from '~/components/editor/SFEditorImageUploadModal.vue'
+import SFEditorImageMenu from '~/components/editor/SFEditorImageMenu.vue'
 import { Editor, EditorContent } from '@tiptap/vue-3'
 import type { AnyExtension } from '@tiptap/core'
 import {
@@ -34,6 +35,7 @@ const props = withDefaults(defineProps<{
   submitVisible?: boolean
   compact?: boolean
   preset?: 'full' | 'basic-field'
+  imageSurface?: 'topic' | 'comment'
   ariaLabel?: string
   cancelLabel?: string
   supportLabel?: string
@@ -55,6 +57,7 @@ const props = withDefaults(defineProps<{
   submitVisible: true,
   compact: false,
   preset: 'full',
+  imageSurface: 'topic',
   ariaLabel: '正文编辑器',
   cancelLabel: '',
   supportLabel: '支持 Markdown',
@@ -96,7 +99,8 @@ const editorClass = computed(() => [
   props.disabled ? 'sf-editor--disabled' : '',
   props.error ? 'sf-editor--invalid' : '',
   props.compact ? 'sf-editor--compact' : '',
-  props.preset === 'basic-field' ? 'sf-editor--basic-field' : ''
+  props.preset === 'basic-field' ? 'sf-editor--basic-field' : '',
+  props.imageSurface === 'comment' ? 'sf-editor--image-comment' : ''
 ].filter(Boolean).join(' '))
 
 const blockFormat = computed<SFEditorBlockFormat>(() => {
@@ -437,6 +441,12 @@ function submitContent() {
       :disabled="disabled"
       @update:open="onImageDialogOpenChange"
       @select="onImageFilesSelected"
+    />
+
+    <SFEditorImageMenu
+      v-if="editor && preset === 'full'"
+      :editor="editor"
+      :disabled="disabled"
     />
 
     <div class="sf-editor__body">
