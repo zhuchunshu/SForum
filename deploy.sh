@@ -19,7 +19,7 @@ Usage: ./deploy.sh [options]
 Options:
   --lang zh|en          Interface language
   --version VERSION     Immutable GHCR release tag (for example v3.0.0-alpha.9)
-  --action ACTION       deploy, migrate, backup, restore, status, logs, restart, stop
+  --action ACTION       deploy, backup, restore, status, logs, restart, stop
   --yes, --defaults     Accept recommended configuration defaults
   -h, --help            Show this help
 EOF
@@ -115,7 +115,11 @@ t() {
       no_curl) echo "curl is required for the final health check." ;;
       env_missing) echo ".env.production is missing. Run the install/update action first." ;;
       invalid_public_api_base) echo "NUXT_PUBLIC_API_BASE_URL must be /api/v1." ;;
+      invalid_env) echo "The production configuration is incomplete or unsafe. Move it aside and rerun the installer, or fix the named value." ;;
+      port_busy) echo "A required loopback port is already used by another process:" ;;
+      deploy_locked) echo "Another deployment operation is running. Wait for it to finish and retry." ;;
       pulling_release) echo "Pulling the four SForum release images before changing the database:" ;;
+      verifying_images) echo "Verifying API, Worker, and migrator build identities..." ;;
       starting_infra) echo "Starting the managed PostgreSQL and Redis services..." ;;
       fresh_database) echo "Fresh database detected; no backup is needed." ;;
       backup_first) echo "Existing installation detected; creating a PostgreSQL backup..." ;;
@@ -123,6 +127,7 @@ t() {
       migrations_running) echo "Running database migrations with the target release image..." ;;
       starting_app) echo "Starting SForum from release images..." ;;
       verifying) echo "Checking API, Web, and all managed services..." ;;
+      recovery_required) echo "Deployment did not complete after the old app stopped. Services were not declared healthy; inspect .deployrc and Docker logs before retrying." ;;
       version) echo "Release version" ;;
       web_url) echo "SForum is running at:" ;;
       success) echo "Deployment completed successfully." ;;
@@ -151,7 +156,11 @@ t() {
       no_curl) echo "最终健康检查需要 curl。" ;;
       env_missing) echo "缺少 .env.production，请先选择 '安装或更新'。" ;;
       invalid_public_api_base) echo "NUXT_PUBLIC_API_BASE_URL 必须是 /api/v1。" ;;
+      invalid_env) echo "生产配置不完整或不安全。请移走旧文件后重新运行安装，或修复提示中的配置项。" ;;
+      port_busy) echo "以下本机端口已被其他程序占用：" ;;
+      deploy_locked) echo "另一个部署操作正在运行，请等待其结束后重试。" ;;
       pulling_release) echo "先拉取四个 SForum 发布镜像，成功后才会改动数据库：" ;;
+      verifying_images) echo "正在核对 API、Worker 和迁移器的构建身份..." ;;
       starting_infra) echo "正在启动内置 PostgreSQL 和 Redis..." ;;
       fresh_database) echo "检测到全新数据库，本次无需备份。" ;;
       backup_first) echo "检测到已有安装，正在创建 PostgreSQL 备份..." ;;
@@ -159,6 +168,7 @@ t() {
       migrations_running) echo "正在使用目标版本镜像运行数据库迁移..." ;;
       starting_app) echo "正在从发布镜像启动 SForum..." ;;
       verifying) echo "正在检查 API、Web 和全部内置服务..." ;;
+      recovery_required) echo "旧应用停止后部署未能完成。当前服务未被声明为健康；重试前请检查 .deployrc 和 Docker 日志。" ;;
       version) echo "发布版本" ;;
       web_url) echo "SForum 已运行：" ;;
       success) echo "部署成功完成。" ;;
@@ -209,12 +219,70 @@ compose_version_supported() {
 }
 
 validate_env_contract() {
-  local public_api_base
+  local public_api_base app_env app_url postgres_db postgres_user postgres_password database_url
+  local redis_addr redis_password session_secret identity_secret option_key altcha_secret marketplace_key
   public_api_base="$(env_file_value .env.production NUXT_PUBLIC_API_BASE_URL /api/v1)"
   [ "$public_api_base" = "/api/v1" ] || die "$(t invalid_public_api_base)"
+
+  app_env="$(env_file_value .env.production APP_ENV)"
+  app_url="$(env_file_value .env.production APP_URL)"
+  postgres_db="$(env_file_value .env.production POSTGRES_DB)"
+  postgres_user="$(env_file_value .env.production POSTGRES_USER)"
+  postgres_password="$(env_file_value .env.production POSTGRES_PASSWORD)"
+  database_url="$(env_file_value .env.production DATABASE_URL)"
+  redis_addr="$(env_file_value .env.production REDIS_ADDR)"
+  redis_password="$(env_file_value .env.production REDIS_PASSWORD)"
+  session_secret="$(env_file_value .env.production SESSION_HASH_SECRET)"
+  identity_secret="$(env_file_value .env.production IDENTITY_SUBJECT_HMAC_SECRET)"
+  option_key="$(env_file_value .env.production APP_OPTION_ENC_KEY)"
+  altcha_secret="$(env_file_value .env.production ALTCHA_SECRET)"
+  marketplace_key="$(env_file_value .env.production MARKETPLACE_ED25519_PUBLIC_KEY_HEX)"
+
+  [ "$app_env" = "production" ] || die "$(t invalid_env) APP_ENV"
+  [[ "$app_url" =~ ^https?://[^[:space:]]+$ ]] || die "$(t invalid_env) APP_URL"
+  [[ "$postgres_db" =~ ^[A-Za-z0-9_.-]+$ ]] || die "$(t invalid_env) POSTGRES_DB"
+  [[ "$postgres_user" =~ ^[A-Za-z0-9_.-]+$ ]] || die "$(t invalid_env) POSTGRES_USER"
+  [[ "$postgres_password" =~ ^[A-Za-z0-9._~-]{32,}$ ]] || die "$(t invalid_env) POSTGRES_PASSWORD"
+  [[ "$database_url" == postgres://*"@postgres:5432/${postgres_db}"* ]] || die "$(t invalid_env) DATABASE_URL"
+  [ "$redis_addr" = "redis:6379" ] || die "$(t invalid_env) REDIS_ADDR"
+  [[ "$redis_password" =~ ^[A-Za-z0-9._~-]{32,}$ ]] || die "$(t invalid_env) REDIS_PASSWORD"
+  [ "${#session_secret}" -ge 32 ] || die "$(t invalid_env) SESSION_HASH_SECRET"
+  [ "${#identity_secret}" -ge 32 ] || die "$(t invalid_env) IDENTITY_SUBJECT_HMAC_SECRET"
+  [[ "$option_key" =~ ^[0-9A-Fa-f]{64}$ ]] || die "$(t invalid_env) APP_OPTION_ENC_KEY"
+  [ "${#altcha_secret}" -ge 32 ] || die "$(t invalid_env) ALTCHA_SECRET"
+  [[ "$marketplace_key" =~ ^[0-9A-Fa-f]{64}$ ]] || die "$(t invalid_env) MARKETPLACE_ED25519_PUBLIC_KEY_HEX"
+}
+
+service_is_running() {
+  local service="$1"
+  "${COMPOSE[@]}" ps --status running --services | grep -Fqx "$service"
+}
+
+port_is_listening() {
+  local port="$1"
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1
+  elif command -v ss >/dev/null 2>&1; then
+    ss -ltn | awk -v suffix=":$port" 'NR > 1 && $4 ~ suffix "$" { found=1 } END { exit !found }'
+  else
+    return 1
+  fi
+}
+
+validate_ports_available() {
+  local web_port api_port
+  web_port="$(env_file_value .env.production WEB_PORT 3000)"
+  api_port="$(env_file_value .env.production API_PORT 18080)"
+  if ! service_is_running web && port_is_listening "$web_port"; then
+    die "$(t port_busy) 127.0.0.1:${web_port} (Web)"
+  fi
+  if ! service_is_running api && port_is_listening "$api_port"; then
+    die "$(t port_busy) 127.0.0.1:${api_port} (API)"
+  fi
 }
 
 preflight() {
+  local check_ports="${1:-false}"
   t preflight
   command -v docker >/dev/null 2>&1 || die "$(t no_docker)"
   docker info >/dev/null 2>&1 || die "$(t no_daemon)"
@@ -225,6 +293,9 @@ preflight() {
   chmod 600 .env.production
   validate_env_contract
   "${COMPOSE[@]}" config --quiet
+  if [ "$check_ports" = true ]; then
+    validate_ports_available
+  fi
 }
 
 database_has_installation() {
@@ -239,7 +310,7 @@ database_has_installation() {
 
 run_migrations_command() {
   t migrations_running
-  "${COMPOSE[@]}" run --rm -T migrate
+  "${COMPOSE[@]}" run --rm -T --pull never migrate
 }
 
 wait_for_deployment() {
@@ -247,15 +318,43 @@ wait_for_deployment() {
   api_port="$(env_file_value .env.production API_PORT 18080)"
   web_port="$(env_file_value .env.production WEB_PORT 3000)"
   timeout_seconds="${SFORUM_DEPLOY_HEALTH_TIMEOUT_SECONDS:-120}"
-  ./deploy/scripts/wait-for-health.sh "http://127.0.0.1:${api_port}/api/v1/ready" "$timeout_seconds"
-  ./deploy/scripts/wait-for-health.sh "http://127.0.0.1:${web_port}/" "$timeout_seconds"
+  ./deploy/scripts/wait-for-health.sh "http://127.0.0.1:${api_port}/api/v1/ready" "$timeout_seconds" || return 1
+  ./deploy/scripts/wait-for-health.sh "http://127.0.0.1:${web_port}/" "$timeout_seconds" || return 1
 }
 
 verify_services_running() {
   local running service
   running="$("${COMPOSE[@]}" ps --status running --services)"
   for service in postgres redis api worker web; do
-    grep -Fqx "$service" <<< "$running" || die "Service is not running after deployment: $service"
+    if ! grep -Fqx "$service" <<< "$running"; then
+      echo "Service is not running after deployment: $service" >&2
+      return 1
+    fi
+  done
+}
+
+verify_services_stable() {
+  local stability_seconds="${SFORUM_DEPLOY_STABILITY_SECONDS:-3}"
+  if [ "$stability_seconds" -gt 0 ]; then
+    sleep "$stability_seconds"
+  fi
+  verify_services_running
+}
+
+verify_release_identities() {
+  local service binary actual expected_version
+  expected_version="${RELEASE_VERSION#v}"
+  t verifying_images
+  for service in api worker migrate; do
+    binary="sforum-$service"
+    if ! actual="$("${COMPOSE[@]}" run --rm -T --no-deps --pull never "$service" "$binary" --version)"; then
+      echo "Could not inspect the $service image identity." >&2
+      return 1
+    fi
+    if [[ "$actual" != "SForum $expected_version ("* ]]; then
+      echo "$service image identity mismatch: $actual" >&2
+      return 1
+    fi
   done
 }
 
@@ -268,6 +367,32 @@ persist_successful_state() {
   mv -f "$temp_file" "$DEPLOY_RC"
 }
 
+persist_recovery_state() {
+  local reason="$1"
+  local backup_file="${2:-}"
+  local previous_version="$3"
+  local temp_file
+  umask 077
+  temp_file="$(mktemp "$ROOT_DIR/.deployrc.XXXXXX")"
+  printf 'lang=%s\nstatus=recovery_required\nattempted_version=%s\nprevious_version=%s\nreason=%s\nbackup=%s\n' \
+    "$LANGUAGE" "$RELEASE_VERSION" "$previous_version" "$reason" "$backup_file" > "$temp_file"
+  chmod 600 "$temp_file"
+  mv -f "$temp_file" "$DEPLOY_RC"
+}
+
+DEPLOY_LOCK_DIR="$ROOT_DIR/.deploy.lock"
+acquire_deploy_lock() {
+  if ! mkdir "$DEPLOY_LOCK_DIR" 2>/dev/null; then
+    die "$(t deploy_locked)"
+  fi
+  trap 'rmdir "$DEPLOY_LOCK_DIR" 2>/dev/null || true' EXIT HUP INT TERM
+}
+
+release_deploy_lock() {
+  rmdir "$DEPLOY_LOCK_DIR" 2>/dev/null || true
+  trap - EXIT HUP INT TERM
+}
+
 print_web_url() {
   local web_port
   web_port="$(env_file_value .env.production WEB_PORT 3000)"
@@ -275,53 +400,75 @@ print_web_url() {
 }
 
 deploy_update() {
+  local backup_output="" backup_file="" previous_version previous_running
+  acquire_deploy_lock
   configure_if_needed
-  preflight
+  preflight true
+  previous_version="$(rc_value version)"
+  previous_running="$("${COMPOSE[@]}" ps --status running --services | grep -E '^(api|worker|web)$' || true)"
   printf '%s %s\n' "$(t version):" "$RELEASE_VERSION"
 
   echo "$(t pulling_release) $RELEASE_VERSION"
   "${COMPOSE[@]}" pull migrate api worker web
+  verify_release_identities || die "Release image verification failed before any database change."
 
   t starting_infra
   "${COMPOSE[@]}" up -d --wait postgres redis
 
   if database_has_installation; then
     t backup_first
-    ./deploy/scripts/backup-postgres.sh
+    backup_output="$(./deploy/scripts/backup-postgres.sh)"
+    printf '%s\n' "$backup_output"
+    backup_file="$(tail -n 1 <<< "$backup_output")"
   else
     t fresh_database
   fi
 
   t stopping_app
-  "${COMPOSE[@]}" stop api worker web
-  run_migrations_command
+  if ! "${COMPOSE[@]}" stop api worker web; then
+    if [ -n "$previous_running" ]; then
+      # shellcheck disable=SC2086
+      "${COMPOSE[@]}" start $previous_running || true
+    fi
+    die "Could not stop the previous application services."
+  fi
+  if ! run_migrations_command; then
+    persist_recovery_state migration_failed "$backup_file" "$previous_version"
+    t recovery_required >&2
+    return 1
+  fi
 
   t starting_app
-  "${COMPOSE[@]}" up -d --no-build postgres redis api worker web
+  if ! "${COMPOSE[@]}" up -d --no-build --pull never postgres redis api worker web; then
+    persist_recovery_state startup_failed "$backup_file" "$previous_version"
+    t recovery_required >&2
+    return 1
+  fi
 
   t verifying
-  wait_for_deployment
-  verify_services_running
+  if ! wait_for_deployment || ! verify_services_running || ! verify_services_stable; then
+    persist_recovery_state health_failed "$backup_file" "$previous_version"
+    t recovery_required >&2
+    "${COMPOSE[@]}" ps >&2 || true
+    return 1
+  fi
+  "${COMPOSE[@]}" ps || true
   persist_successful_state
-  "${COMPOSE[@]}" ps
+  release_deploy_lock
   print_web_url
   t success
 }
 
-run_migrations() {
-  preflight
-  "${COMPOSE[@]}" pull migrate
-  "${COMPOSE[@]}" up -d --wait postgres redis
-  run_migrations_command
-}
-
 create_backup() {
+  acquire_deploy_lock
   preflight
   "${COMPOSE[@]}" up -d --wait postgres
   ./deploy/scripts/backup-postgres.sh
+  release_deploy_lock
 }
 
 restore_backup() {
+  acquire_deploy_lock
   preflight
   t backup_path
   read -r backup_file
@@ -329,27 +476,30 @@ restore_backup() {
   read -r confirmation
   if [ "$confirmation" != "RESTORE" ]; then
     t canceled
+    release_deploy_lock
     return
   fi
   SFORUM_CONFIRM_RESTORE=RESTORE ./deploy/scripts/restore-postgres.sh "$backup_file"
+  release_deploy_lock
 }
 
 show_status() { preflight; "${COMPOSE[@]}" ps; }
 show_logs() { preflight; "${COMPOSE[@]}" logs -f --tail=200; }
 restart_services() {
-  preflight
+  acquire_deploy_lock
+  preflight true
   "${COMPOSE[@]}" restart
   wait_for_deployment
   verify_services_running
   "${COMPOSE[@]}" ps
   print_web_url
+  release_deploy_lock
 }
-stop_services() { preflight; "${COMPOSE[@]}" stop; }
+stop_services() { acquire_deploy_lock; preflight; "${COMPOSE[@]}" stop; release_deploy_lock; }
 
 run_action() {
   case "$1" in
     deploy|install|update) deploy_update ;;
-    migrate) run_migrations ;;
     backup) create_backup ;;
     restore) restore_backup ;;
     status) show_status ;;
@@ -366,24 +516,22 @@ main_menu() {
     echo
     echo "== $(t title) =="
     echo "1) $(t install)"
-    echo "2) $(t migrate)"
-    echo "3) $(t backup)"
-    echo "4) $(t restore)"
-    echo "5) $(t status)"
-    echo "6) $(t logs)"
-    echo "7) $(t restart)"
-    echo "8) $(t stop)"
+    echo "2) $(t backup)"
+    echo "3) $(t restore)"
+    echo "4) $(t status)"
+    echo "5) $(t logs)"
+    echo "6) $(t restart)"
+    echo "7) $(t stop)"
     echo "0) $(t exit)"
     read -r -p "> [1] " menu_action
     case "$menu_action" in
       ""|1) deploy_update ;;
-      2) run_migrations ;;
-      3) create_backup ;;
-      4) restore_backup ;;
-      5) show_status ;;
-      6) show_logs ;;
-      7) restart_services ;;
-      8) stop_services ;;
+      2) create_backup ;;
+      3) restore_backup ;;
+      4) show_status ;;
+      5) show_logs ;;
+      6) restart_services ;;
+      7) stop_services ;;
       0) exit 0 ;;
       *) echo "?" ;;
     esac

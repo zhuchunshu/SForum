@@ -11,6 +11,9 @@
 - Added clean/existing database state handling, failure-safe successful-version
   persistence, strict dotenv reads for backup/restore, deployment regressions,
   and bilingual operator documentation.
+- Follow-up review added pre-database configuration/port/image identity checks,
+  `--pull never` after prefetch, a deployment lock, stable service sampling,
+  and explicit `recovery_required` evidence for every post-stop failure.
 
 ## Decisions
 

@@ -54,15 +54,9 @@ cp "$ROOT_DIR/deploy.sh" "$TEST_ROOT/"
 cp "$ROOT_DIR/compose.yaml" "$ROOT_DIR/compose.prod.yaml" "$ROOT_DIR/compose.release.yaml" "$TEST_ROOT/"
 cp "$ROOT_DIR/deploy/scripts/configure-production.sh" "$TEST_ROOT/deploy/scripts/"
 
-cat > "$TEST_ROOT/.env.production" <<'EOF'
-SFORUM_VERSION=v3.0.0-alpha.9
-NUXT_PUBLIC_API_BASE_URL=/api/v1
-POSTGRES_USER=sforum
-POSTGRES_DB=sforum
-API_PORT=18080
-WEB_PORT=3000
-EOF
-chmod 600 "$TEST_ROOT/.env.production"
+"$ROOT_DIR/deploy/scripts/configure-production.sh" \
+  --lang en --defaults --version v3.0.0-alpha.9 \
+  --root "$TEST_ROOT" --output "$TEST_ROOT/.env.production" >/dev/null
 
 cat > "$TEST_ROOT/deploy/scripts/backup-postgres.sh" <<'EOF'
 #!/usr/bin/env bash
@@ -132,12 +126,19 @@ case "$command" in
     printf '%s\n' "${MOCK_DB_STATE:-f}"
     ;;
   run)
-    [ "${MOCK_FAIL_STAGE:-}" != "migrate" ] || exit 11
+    if [[ " $* " == *" --version "* ]]; then
+      [ "${MOCK_FAIL_STAGE:-}" != "identity" ] || exit 13
+      printf 'SForum %s (0123456789ab)\n' "${SFORUM_VERSION#v}"
+    else
+      [ "${MOCK_FAIL_STAGE:-}" != "migrate" ] || exit 11
+    fi
     ;;
   ps)
     if [ "${1:-}" = "--status" ]; then
       [ ! -e .deployrc ] || exit 94
-      if [ "${MOCK_FAIL_STAGE:-}" = "services" ]; then
+      if [ "${MOCK_PORT_BUSY:-}" = "true" ]; then
+        :
+      elif [ "${MOCK_FAIL_STAGE:-}" = "services" ]; then
         printf '%s\n' postgres redis api worker
       else
         printf '%s\n' postgres redis api worker web
@@ -152,12 +153,19 @@ case "$command" in
 esac
 EOF
 
+cat > "$MOCK_BIN/lsof" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+[ "${MOCK_PORT_BUSY:-}" = "true" ]
+EOF
+
 chmod +x \
   "$TEST_ROOT/deploy.sh" \
   "$TEST_ROOT/deploy/scripts/configure-production.sh" \
   "$TEST_ROOT/deploy/scripts/backup-postgres.sh" \
   "$TEST_ROOT/deploy/scripts/wait-for-health.sh" \
-  "$MOCK_BIN/docker"
+  "$MOCK_BIN/docker" \
+  "$MOCK_BIN/lsof"
 
 run_deploy() {
   local name="$1"
@@ -172,6 +180,7 @@ run_deploy() {
       MOCK_DEPLOY_LOG="$MOCK_LOG" \
       MOCK_DB_STATE="$database_state" \
       MOCK_FAIL_STAGE="$fail_stage" \
+      SFORUM_DEPLOY_STABILITY_SECONDS=0 \
       ./deploy.sh --yes --lang en --action deploy --version v3.0.0-alpha.9
   ) > "$output_file" 2>&1; then
     return 0
@@ -187,13 +196,13 @@ if ! run_deploy clean f ""; then
   fail "clean deployment failed"
 fi
 assert_contains "$MOCK_LOG" "docker version=v3.0.0-alpha.9 compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull migrate api worker web"
-assert_contains "$MOCK_LOG" "docker version=v3.0.0-alpha.9 compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml up -d --no-build postgres redis api worker web"
+assert_contains "$MOCK_LOG" "docker version=v3.0.0-alpha.9 compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml up -d --no-build --pull never postgres redis api worker web"
 assert_not_contains "$MOCK_LOG" "helper backup"
 assert_before "$MOCK_LOG" "pull migrate api worker web" "up -d --wait postgres redis"
 assert_before "$MOCK_LOG" "up -d --wait postgres redis" "exec -T postgres psql"
-assert_before "$MOCK_LOG" "exec -T postgres psql" "run --rm -T migrate"
-assert_before "$MOCK_LOG" "run --rm -T migrate" "up -d --no-build postgres redis api worker web"
-assert_before "$MOCK_LOG" "helper health http://127.0.0.1:18080/api/v1/ready" "ps --status running --services"
+assert_before "$MOCK_LOG" "exec -T postgres psql" "run --rm -T --pull never migrate"
+assert_before "$MOCK_LOG" "run --rm -T --pull never migrate" "up -d --no-build --pull never postgres redis api worker web"
+assert_contains "$MOCK_LOG" "helper health http://127.0.0.1:18080/api/v1/ready"
 assert_contains "$TEST_ROOT/.deployrc" "version=v3.0.0-alpha.9"
 assert_contains "$TEMP_DIR/clean.out" "Deployment completed successfully."
 
@@ -203,17 +212,58 @@ fi
 assert_contains "$MOCK_LOG" "helper backup"
 assert_before "$MOCK_LOG" "up -d --wait postgres redis" "exec -T postgres psql"
 assert_before "$MOCK_LOG" "exec -T postgres psql" "helper backup"
-assert_before "$MOCK_LOG" "helper backup" "run --rm -T migrate"
+assert_before "$MOCK_LOG" "helper backup" "run --rm -T --pull never migrate"
 
-for stage in pull migrate health services; do
+for stage in pull identity migrate health services; do
   if run_deploy "failure-${stage}" f "$stage"; then
     fail "$stage failure unexpectedly succeeded"
   fi
-  [ ! -e "$TEST_ROOT/.deployrc" ] || fail "$stage failure persisted successful state"
   assert_not_contains "$TEMP_DIR/failure-${stage}.out" "Deployment completed successfully."
+  case "$stage" in
+    pull|identity)
+      [ ! -e "$TEST_ROOT/.deployrc" ] || fail "$stage failure wrote deployment state before database work"
+      ;;
+    *)
+      assert_contains "$TEST_ROOT/.deployrc" "status=recovery_required"
+      ;;
+  esac
 done
 
 assert_not_contains "$TEMP_DIR/failure-pull.out" "Starting the managed PostgreSQL and Redis services..."
+assert_not_contains "$TEMP_DIR/failure-identity.out" "Starting the managed PostgreSQL and Redis services..."
+
+mkdir "$TEST_ROOT/.deploy.lock"
+if run_deploy locked f ""; then
+  fail "a concurrent deployment lock was ignored"
+fi
+assert_not_contains "$MOCK_LOG" "pull migrate api worker web"
+rmdir "$TEST_ROOT/.deploy.lock"
+
+if (
+  cd "$TEST_ROOT"
+  PATH="$MOCK_BIN:$PATH" MOCK_DEPLOY_LOG="$MOCK_LOG" MOCK_PORT_BUSY=true \
+    SFORUM_DEPLOY_STABILITY_SECONDS=0 \
+    ./deploy.sh --yes --lang en --action deploy --version v3.0.0-alpha.9
+) > "$TEMP_DIR/port-busy.out" 2>&1; then
+  fail "a foreign port conflict was ignored"
+fi
+assert_contains "$TEMP_DIR/port-busy.out" "already used by another process"
+assert_not_contains "$MOCK_LOG" "pull migrate api worker web"
+
+cp "$TEST_ROOT/.env.production" "$TEMP_DIR/valid.env"
+sed 's/^SESSION_HASH_SECRET=.*/SESSION_HASH_SECRET=change-me/' "$TEMP_DIR/valid.env" > "$TEST_ROOT/.env.production"
+: > "$MOCK_LOG"
+if (
+  cd "$TEST_ROOT"
+  PATH="$MOCK_BIN:$PATH" MOCK_DEPLOY_LOG="$MOCK_LOG" \
+    SFORUM_DEPLOY_STABILITY_SECONDS=0 \
+    ./deploy.sh --yes --lang en --action deploy --version v3.0.0-alpha.9
+) > "$TEMP_DIR/invalid-env.out" 2>&1; then
+  fail "an unsafe placeholder production secret was accepted"
+fi
+assert_contains "$TEMP_DIR/invalid-env.out" "SESSION_HASH_SECRET"
+assert_not_contains "$MOCK_LOG" "pull migrate api worker web"
+cp "$TEMP_DIR/valid.env" "$TEST_ROOT/.env.production"
 
 rm -f "$TEST_ROOT/.env.production"
 if ! run_deploy defaults f ""; then

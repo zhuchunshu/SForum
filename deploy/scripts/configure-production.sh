@@ -19,7 +19,7 @@ Options:
   --yes, --defaults         Accept all recommended defaults without prompting
   --version VERSION         Pin the release version without prompting
   --default-version VERSION Set the suggested release version
-  --force                   Replace an existing environment file
+  --force                   Refuse unsafe replacement of an existing file
   --root DIRECTORY          Repository root (primarily for isolated tooling)
   --output PATH             Output path (default: ROOT/.env.production)
   -h, --help                Show this help
@@ -114,7 +114,8 @@ t() {
       web_port) printf '%s' "Web port, bound to 127.0.0.1" ;;
       api_port) printf '%s' "API/WebSocket port, bound to 127.0.0.1" ;;
       app_url) printf '%s' "Public site URL" ;;
-      exists) printf '%s' "The existing production configuration was preserved. Use --force to replace it." ;;
+      exists) printf '%s' "The existing production configuration was preserved. Secret rotation requires a dedicated migration and is not performed by this wizard." ;;
+      refuse_force) printf '%s' "Refusing to replace an existing production file because doing so would rotate database and encryption secrets." ;;
       written) printf '%s' "Production configuration created with mode 0600:" ;;
       marketplace) printf '%s' "WARNING: a deployment-local Marketplace verifier key was generated. The official Marketplace remains locked until its official public key and key ID are configured." ;;
       invalid_version) printf '%s' "Version must be empty or look like v3.0.0-alpha.8." ;;
@@ -129,7 +130,8 @@ t() {
       web_port) printf '%s' "Web 端口（只监听 127.0.0.1）" ;;
       api_port) printf '%s' "API/WebSocket 端口（只监听 127.0.0.1）" ;;
       app_url) printf '%s' "站点公开地址" ;;
-      exists) printf '%s' "已保留现有生产配置；如需重建，请使用 --force。" ;;
+      exists) printf '%s' "已保留现有生产配置；密钥轮换需要专用迁移流程，本向导不会执行。" ;;
+      refuse_force) printf '%s' "拒绝覆盖现有生产配置，否则会轮换数据库和加密密钥。" ;;
       written) printf '%s' "生产配置已创建，文件权限为 0600：" ;;
       marketplace) printf '%s' "警告：已生成仅限本次部署的 Marketplace 验签公钥；配置官方公钥和 key ID 前，官方 Marketplace 仍保持锁定。" ;;
       invalid_version) printf '%s' "版本必须留空，或使用 v3.0.0-alpha.8 这样的格式。" ;;
@@ -168,7 +170,10 @@ prompt_default() {
   printf '%s' "${answer:-$default}"
 }
 
-if [ -e "$OUTPUT_PATH" ] && [ "$FORCE" != true ]; then
+if [ -e "$OUTPUT_PATH" ]; then
+  if [ "$FORCE" = true ]; then
+    die "$(t refuse_force)"
+  fi
   printf '%s %s\n' "$(t exists)" "$OUTPUT_PATH"
   exit 0
 fi

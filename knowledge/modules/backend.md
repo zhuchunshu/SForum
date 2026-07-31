@@ -124,7 +124,11 @@ dependency, health, and backup semantics are honest. The deployment state
 machine pulls all four target images before database changes, starts and waits
 for infrastructure, backs up only an existing installation, stops the old app,
 runs the target migrator, starts with `--no-build`, verifies API/Web plus all
-five long-running services, and only then persists the successful version.
+five long-running services, and only then persists the successful version. A
+portable deployment lock prevents concurrent mutation; configuration, ports,
+and Go image identities fail before database work; migration and startup use
+`--pull never`; post-stop failures persist an explicit `recovery_required`
+record with the attempted/previous versions and backup path.
 Backup and restore helpers parse only the exact database keys from dotenv and
 never execute the configuration as shell input.
 

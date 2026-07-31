@@ -63,10 +63,15 @@ fi
 
 before_checksum="$(cksum "$OUTPUT")"
 printf 'KEEP_THIS=1\n' >> "$OUTPUT"
-"$WIZARD" --lang zh --defaults --force --root "$TEST_ROOT" --output "$TEST_ROOT/force.env" >/dev/null
+"$WIZARD" --lang zh --defaults --root "$TEST_ROOT" --output "$TEST_ROOT/force.env" >/dev/null
 "$WIZARD" --lang zh --defaults --root "$TEST_ROOT" --output "$OUTPUT" > "$TEST_ROOT/preserve.log"
 assert_line 'KEEP_THIS=1' "$OUTPUT"
 [ "$(cksum "$OUTPUT")" != "$before_checksum" ] || fail "preservation test setup did not change the file"
+
+if "$WIZARD" --lang zh --defaults --force --root "$TEST_ROOT" --output "$OUTPUT" >/dev/null 2>&1; then
+  fail "--force replaced an existing production configuration"
+fi
+assert_line 'KEEP_THIS=1' "$OUTPUT"
 
 if "$WIZARD" --defaults --version invalid --root "$TEST_ROOT" --output "$TEST_ROOT/invalid-version.env" >/dev/null 2>&1; then
   fail "invalid version was accepted"

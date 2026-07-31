@@ -92,6 +92,14 @@ target migrator runs. Startup always uses `--no-build`. Docker Compose 2.24.4
 or newer is required. The script records success only after API readiness, the
 Web root, and all five long-running services pass verification.
 
+Before touching the database, the script rejects placeholder secrets and port
+conflicts, verifies the three Go image build identities, and acquires a
+deployment lock. Migration and startup use `--pull never` after the explicit
+pull, so stopping the old app introduces no later registry dependency. A
+migration or health failure writes `status=recovery_required`, the attempted
+and previous versions, and the backup path to `.deployrc`; it is never reported
+as a successful deployment.
+
 Equivalent non-interactive commands:
 
 ```sh
