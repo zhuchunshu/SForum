@@ -310,7 +310,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	moderationProvider := providers.NewModerationWorkbenchProviderWithIndexer(moderationStore, forumStore, identityStore, authSessions, searchIndexer)
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
 	systemUpdatesProvider := providers.NewSystemUpdatesProvider(
-		systemupdates.NewService(optionsService, systemupdates.WithLogger(logger)),
+		systemupdates.NewService(options.NewSystemUpdatesSource(optionsService), systemupdates.WithLogger(logger)),
 		identityStore,
 		authSessions,
 	)

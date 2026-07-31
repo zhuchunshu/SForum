@@ -11,8 +11,9 @@ import (
 
 func TestSystemUpdatesMirrorDefaultsToOfficialSource(t *testing.T) {
 	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
+	source := NewSystemUpdatesSource(service)
 
-	value, err := service.GitHubMirrorURL(context.Background())
+	value, err := source.GitHubMirrorURL(context.Background())
 	if err != nil {
 		t.Fatalf("GitHubMirrorURL returned error: %v", err)
 	}

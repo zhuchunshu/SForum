@@ -240,6 +240,14 @@ type Option struct {
 	Value string `json:"value"`
 }
 
+type RuntimeSettings struct {
+	SiteName                  string
+	SiteURL                   string
+	DefaultLocale             string
+	SupportedLocales          []string
+	HumanVerificationProvider string
+}
+
 type AdminOption struct {
 	Name          string  `json:"name"`
 	Value         string  `json:"value"`

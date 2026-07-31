@@ -2610,6 +2610,14 @@
       "source": "apps/web/app/components/admin/settings/site/tabs/SFAdminSiteRegistrationTab.vue"
     },
     {
+      "id": "core.component.admin.sfadmin_site_updates_tab",
+      "contractVersion": "sforum.component.admin.sfadmin_site_updates_tab@1",
+      "kind": "component",
+      "owners": ["admin"],
+      "state": "active",
+      "source": "apps/web/app/components/admin/settings/site/tabs/SFAdminSiteUpdatesTab.vue"
+    },
+    {
       "id": "core.component.admin.sfadmin_site_verification_tab",
       "contractVersion": "sforum.component.admin.sfadmin_site_verification_tab@1",
       "kind": "component",

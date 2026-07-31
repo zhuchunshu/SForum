@@ -17,10 +17,13 @@ describe('admin sidebar overflow contract', () => {
     expect(layout).toContain("linkLabel: '!min-w-0 !truncate !leading-tight'")
     expect(layout).toContain("childLinkLabel: '!min-w-0 !truncate !leading-tight'")
 
-    // Web 与 Core 共用一个版本，展示在左上角 SForum 品牌名右侧。
+    // Web 与 Core 共用一个版本；有新版本时原位置变为可点击的 warning 徽章。
     expect(layout).toContain("formatOverviewVersion('', sforumBuild.version, sforumBuild.commit)")
     expect(layout).toContain('{{ sforumVersion }}')
-    expect(layout).toContain('class="ml-auto shrink-0 font-mono text-[10px] font-semibold"')
+    expect(layout).toContain('v-if="!collapsed && systemUpdateAvailable"')
+    expect(layout).toContain('color="warning"')
+    expect(layout).toContain('i-lucide-arrow-up-circle')
+    expect(layout).toContain("query: { tab: 'updates' }")
 
     expect(css).toContain('.sforum-admin-sidebar {\n  overflow-x: hidden;')
     expect(css).toContain('text-overflow: ellipsis !important;')

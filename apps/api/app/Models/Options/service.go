@@ -117,14 +117,6 @@ type Defaults struct {
 	AltchaCost                int
 }
 
-type RuntimeSettings struct {
-	SiteName                  string
-	SiteURL                   string
-	DefaultLocale             string
-	SupportedLocales          []string
-	HumanVerificationProvider string
-}
-
 type optionDefinition struct {
 	name             string
 	public           bool
@@ -1021,7 +1013,7 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameSiteDateFormat:                      recommendedSiteDateFormat,
 		NameSiteTimeFormat:                      recommendedSiteTimeFormat,
 		NameSiteStartOfWeek:                     strconv.Itoa(recommendedSiteStartOfWeek),
-		NameSystemUpdatesGitHubMirrorURL:         "",
+		NameSystemUpdatesGitHubMirrorURL:        "",
 		NameHumanVerificationProvider:           humanverify.ProviderDisabled,
 		NameHumanVerificationRegister:           enabledOptionValue(true),
 		NameHumanVerificationPasswordReset:      enabledOptionValue(true),

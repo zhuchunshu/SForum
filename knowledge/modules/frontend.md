@@ -46,10 +46,15 @@ responsibilities.
 - Resource gauges use a 72x72 coordinate system with a centered radius-30 ring;
   percentage input is clamped to 0..100 and dash offset decreases from empty to
   full, so CPU/memory status is neither clipped nor visually reversed.
+- The CPU card uses the gauge's backward-compatible large presentation: a
+  144px narrow-screen / 160px desktop ring, rounded progress cap, stronger
+  percentage typography, CPU-blue progress, and a flex-filled body that keeps
+  the gauge centered against the taller memory card.
 - Backend focused tests, frontend helper tests, locale parsing, OpenAPI
   reference validation, Nuxt typecheck, and Browser QA passed at 1440x900 and
-  390x844. Fresh Chrome tabs had no console errors or warnings during the final
-  checks.
+  390x844 before the large-gauge visual follow-up. The follow-up has focused
+  SFC compiler and diff checks; rendered desktop/mobile confirmation is left
+  for operator manual QA.
 
 ### Admin overview real-time updates
 

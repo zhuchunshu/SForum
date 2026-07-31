@@ -13,6 +13,10 @@
 - pprof is opt-in and loopback-only (`6060` API, `6061` standalone Worker).
 - `/control-panel` resource polling is 5 seconds. The mobile toolbar now stacks
   controls and has no horizontal overflow at `390x844`.
+- Follow-up CPU presentation now gives the gauge enough visual weight: the
+  shared component has an opt-in large size, a theme-aware track and rounded
+  progress cap, while the CPU card centers the 144/160px gauge and removes the
+  duplicate inner icon.
 
 ## Evidence
 
@@ -22,6 +26,9 @@
 - Browser QA passed at `1440x900` and `390x844`: API/Worker labels, 7-plugin
   descending details popover, no blank/overlay, no horizontal overflow, and no
   fresh-tab console errors or warnings.
+- The later CPU gauge follow-up passed focused Vue SFC parsing and
+  `git diff --check`; per operator request, it did not repeat Browser QA and
+  awaits manual visual confirmation.
 - Profile comparison showed the main allocation hotspot was repeated whole-file
   `io.ReadAll` in GuardPolicy digest refresh, not a growing live object set.
 

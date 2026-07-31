@@ -19,10 +19,25 @@ func init() {
 	})
 }
 
+type systemUpdatesOptionReader interface {
+	InternalValues(context.Context) (map[string]string, error)
+}
+
+type SystemUpdatesSource struct {
+	options systemUpdatesOptionReader
+}
+
+func NewSystemUpdatesSource(options systemUpdatesOptionReader) *SystemUpdatesSource {
+	return &SystemUpdatesSource{options: options}
+}
+
 // GitHubMirrorURL returns the normalized release source override. An empty
 // value deliberately means the official GitHub API endpoint.
-func (s *Service) GitHubMirrorURL(ctx context.Context) (string, error) {
-	values, err := s.loadMap(ctx)
+func (s *SystemUpdatesSource) GitHubMirrorURL(ctx context.Context) (string, error) {
+	if s == nil || s.options == nil {
+		return "", nil
+	}
+	values, err := s.options.InternalValues(ctx)
 	if err != nil {
 		return "", err
 	}

@@ -640,6 +640,16 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
+    "id": "core.component.admin.sfadmin_site_updates_tab",
+    "contractVersion": "sforum.component.admin.sfadmin_site_updates_tab@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/settings/site/tabs/SFAdminSiteUpdatesTab.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
     "id": "core.component.admin.sfadmin_site_verification_tab",
     "contractVersion": "sforum.component.admin.sfadmin_site_verification_tab@1",
     "kind": "component",

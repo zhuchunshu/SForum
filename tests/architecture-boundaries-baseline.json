@@ -7,7 +7,7 @@
     "apps/api/app/Models/Forum/service.go": 1087,
     "apps/api/app/Models/Forum/service_ops.go": 1257,
     "apps/api/app/Models/Identity/service.go": 1079,
-    "apps/api/app/Models/Options/service.go": 1163,
+		"apps/api/app/Models/Options/service.go": 1156,
     "apps/api/app/Support/ExtensionManifest/manifest.go": 963,
     "apps/api/app/Support/Extensions/lifecycle_registry_publication.go": 1124,
     "apps/api/app/Support/Extensions/plugin_runtime_full_set.go": 907,

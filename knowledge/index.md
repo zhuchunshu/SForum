@@ -123,8 +123,10 @@ load archived sessions or completed plans as current context.
 - Runtime memory governance: API/Worker/plugin/total resource cards now use
   cached sampling and a 60-second median, embedded Worker accounting is
   explicit, plugin artifact hashing is streaming, and pprof is loopback-only
-  opt-in. Desktop and 390px Browser QA passed, including the sorted plugin
-  details popover:
+  opt-in. The CPU gauge now has a larger centered presentation; its focused SFC
+  checks pass and manual rendered confirmation is pending. Earlier desktop and
+  390px Browser QA passed for the resource workflow and sorted plugin details
+  popover:
   `sessions/2026-07-31-runtime-memory-governance.md`
 
 - PNG attachment compression: lossless display variants now use the strongest

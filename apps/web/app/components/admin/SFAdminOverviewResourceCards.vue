@@ -75,7 +75,8 @@ const pssTotal = computed(() => {
 })
 
 const cpuPercent = computed(() => resources.value ? resources.value.apiCpuPercent : 0)
-const cpuValue = computed(() => resources.value ? formatOverviewPercent(cpuPercent.value) : unavailable())
+const cpuValue = computed(() => resources.value ? formatOverviewPercent(cpuPercent.value) : '\u2014')
+const cpuLabel = computed(() => resources.value ? 'CPU' : unavailable())
 
 const loadRows = computed(() => {
   const average = props.runtime.loadAverage
@@ -229,7 +230,10 @@ const loadRows = computed(() => {
       </div>
     </UCard>
 
-    <UCard class="elegant-card min-w-0 border-slate-200 bg-white text-slate-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100">
+    <UCard
+      class="elegant-card flex min-w-0 flex-col border-slate-200 bg-white text-slate-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
+      :ui="{ body: 'flex flex-1 items-center justify-center py-5 sm:py-6' }"
+    >
       <template #header>
         <div class="flex items-center justify-between gap-3">
           <h3 class="truncate text-base font-bold text-slate-900 dark:text-white">
@@ -240,14 +244,14 @@ const loadRows = computed(() => {
           </span>
         </div>
       </template>
-      <div class="flex h-full flex-col items-center justify-center pt-4">
-        <SFResourceGauge
-          :value="cpuValue"
-          :percent="cpuPercent"
-          label="CPU"
-          icon="i-lucide-gauge"
-        />
-      </div>
+      <SFResourceGauge
+        class="text-blue-600 dark:text-blue-400"
+        :value="cpuValue"
+        :percent="cpuPercent"
+        :label="cpuLabel"
+        color="currentColor"
+        size="lg"
+      />
     </UCard>
 
     <UCard class="elegant-card min-w-0 border-slate-200 bg-white text-slate-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100">

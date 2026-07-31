@@ -48,6 +48,56 @@
       "reason": "Pre-plugin boot, safe mode, and CLI recovery cannot be replaced by extensions."
     }
   },
+  "systemUpdates": {
+    "routes": {
+      "state": "open",
+      "contract": "admin release status and forced-check routes",
+      "phase": "P6"
+    },
+    "hooks": {
+      "state": "closed",
+      "reason": "Release checks expose status only and do not publish product lifecycle events."
+    },
+    "queries": {
+      "state": "closed",
+      "reason": "Release metadata is fetched from the configured GitHub-compatible source, not the Query Registry."
+    },
+    "adminComponents": {
+      "state": "open",
+      "contract": "Core-owned update status and mirror-source settings tab",
+      "phase": "P7"
+    },
+    "publicComponents": {
+      "state": "closed",
+      "reason": "Release status and source configuration are operator-only."
+    },
+    "identityPermissions": {
+      "state": "open",
+      "contract": "admin.access for status; settings.site.manage for outbound checks and source configuration",
+      "phase": "P7"
+    },
+    "media": {
+      "state": "closed",
+      "reason": "Release checks own no media lifecycle."
+    },
+    "navigationRegions": {
+      "state": "closed",
+      "reason": "The update signal is fixed admin shell chrome, not an extension navigation region."
+    },
+    "cacheInvalidation": {
+      "state": "open",
+      "contract": "bounded in-process cache keyed by current build and release source",
+      "phase": "P11"
+    },
+    "jobs": {
+      "state": "closed",
+      "reason": "Checks are request-driven and use no durable background job."
+    },
+    "lifecycle": {
+      "state": "closed",
+      "reason": "Core update discovery does not install, execute, or replace artifacts."
+    }
+  },
   "adminOverview": {
     "routes": {
       "state": "open",
