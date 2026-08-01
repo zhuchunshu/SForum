@@ -44,6 +44,10 @@ responsibilities.
 - Public page titles are resolved once by `useSForumSeo` and
   `utils/seo/seoResolver.ts`, including the configured SEO site name and
   content-type template.
+- Public route-shell source guards must track that same authority. When a
+  shared SEO migration touches public pages, run `cd apps/web && bun test` in
+  addition to focused SEO slices so stale cross-domain route tests cannot reach
+  CI first.
 - `app.vue` only supplies the site name when a page has no title. It must not
   apply `seo.meta_title_template` or append the site name to an already
   resolved title, otherwise SSR emits values such as `SForum - SForum`.

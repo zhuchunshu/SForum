@@ -110,6 +110,12 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- CI legal SEO test fix: the failed GitHub Actions Quality gate all-web unit
+  test was a stale legal route source guard expecting `useSeoMeta` after public
+  SEO ownership moved to `useSForumSeo`; the test and development rules now
+  enforce the centralized resolver, and full web unit tests pass:
+  `sessions/2026-08-01-ci-legal-seo-test-fix.md`
+
 - SEO title ownership is now centralized in `useSForumSeo`/`resolveSEO`; the
   root app only provides an empty-title fallback, preventing duplicate site
   names. Focused frontend tests, typecheck, and production build pass; the

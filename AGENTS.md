@@ -99,6 +99,11 @@ Build, typecheck, lint, test:
 - `cd apps/web && bun run build` — Nuxt build (uses `NUXT_BUILD_DIR=.nuxt-build`).
 - `cd apps/web && bun run typecheck` — Nuxt typecheck (uses
   `NUXT_BUILD_DIR=.nuxt-typecheck`).
+- `cd apps/web && bun test` — full web unit/regression suite. Run it before
+  merging shared frontend authority changes such as SEO title ownership, Page
+  Registry route shells, public chrome/navigation, theme island binding, or
+  admin settings shell contracts; focused slices alone can miss stale static
+  contract tests that CI will still execute.
 - `cd apps/api && go build ./...` / `go test ./...` — Go build and tests.
 - `node tests/validate-architecture-boundaries.mjs` — enforce file-size,
   flat-directory, fixed-tab, and legacy God-object non-growth guardrails.
@@ -148,6 +153,10 @@ Frontend rules:
   state, permission selection, SSR orchestration, and composition. Product
   forms, tables, inspectors, and other substantial surfaces belong in feature
   components.
+- Public page title, canonical, robots, and social metadata belong to
+  `useSForumSeo`/`resolveSEO`. Do not reintroduce per-route `useSeoMeta` for
+  public page title or robots ownership unless the route intentionally bypasses
+  the public SEO resolver and the reason is documented with matching tests.
 - When a route has both an index and nested detail pages, use
   `pages/<domain>/index.vue` plus `pages/<domain>/[id].vue`. Do not combine
   `pages/<domain>.vue` with `pages/<domain>/[id].vue` unless the parent route
