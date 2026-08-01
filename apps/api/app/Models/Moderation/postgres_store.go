@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -96,10 +95,15 @@ func scanSettings(row reportScanner) (Settings, error) {
 
 func (s *PostgresStore) CreateReport(ctx context.Context, input CreateReportInput) (Report, error) {
 	row := s.pool.QueryRow(ctx, `
-		INSERT INTO moderation_reports (reporter_user_id, target_type, target_id, reason_code, body)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, reporter_user_id, target_type, target_id, reason_code, body, status,
-		  reviewer_user_id, review_note, created_at, updated_at, resolved_at
+		WITH created_report AS (
+			INSERT INTO moderation_reports (reporter_user_id, target_type, target_id, reason_code, body)
+			VALUES ($1, $2, $3, $4, $5)
+			RETURNING *
+		)
+		SELECT `+reportProjection("created_report")+`
+		FROM created_report
+		LEFT JOIN users reporter ON reporter.id = created_report.reporter_user_id
+		LEFT JOIN users reviewer ON reviewer.id = created_report.reviewer_user_id
 	`, nullableReporter(input.ReporterUserID), input.TargetType, input.TargetID, input.ReasonCode, input.Body)
 	report, err := scanReport(row)
 	if err != nil {
@@ -189,15 +193,20 @@ func (s *PostgresStore) UpdateReport(ctx context.Context, input UpdateReportInpu
 		resolvedExpr = "NULL"
 	}
 	row := s.pool.QueryRow(ctx, `
-		UPDATE moderation_reports
-		SET status = $2,
-		    reviewer_user_id = $3,
-		    review_note = $4,
-		    resolved_at = `+resolvedExpr+`,
-		    updated_at = now()
-		WHERE id = $1
-		RETURNING id, reporter_user_id, target_type, target_id, reason_code, body, status,
-		  reviewer_user_id, review_note, created_at, updated_at, resolved_at
+		WITH updated_report AS (
+			UPDATE moderation_reports
+			SET status = $2,
+			    reviewer_user_id = $3,
+			    review_note = $4,
+			    resolved_at = `+resolvedExpr+`,
+			    updated_at = now()
+			WHERE id = $1
+			RETURNING *
+		)
+		SELECT `+reportProjection("updated_report")+`
+		FROM updated_report
+		LEFT JOIN users reporter ON reporter.id = updated_report.reporter_user_id
+		LEFT JOIN users reviewer ON reviewer.id = updated_report.reviewer_user_id
 	`, input.ReportID, input.Status, nullableReporter(input.ReviewerUserID), input.ReviewNote)
 	report, err := scanReport(row)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -211,18 +220,22 @@ func (s *PostgresStore) UpdateReport(ctx context.Context, input UpdateReportInpu
 
 func reportSelectSQL() string {
 	return `
-		SELECT moderation_reports.id, moderation_reports.reporter_user_id,
-		  reporter.username, reporter.display_name,
-		  moderation_reports.target_type, moderation_reports.target_id,
-		  moderation_reports.reason_code, moderation_reports.body, moderation_reports.status,
-		  moderation_reports.reviewer_user_id,
-		  reviewer.username, reviewer.display_name,
-		  moderation_reports.review_note,
-		  moderation_reports.created_at, moderation_reports.updated_at, moderation_reports.resolved_at
-		FROM moderation_reports
-		LEFT JOIN users reporter ON reporter.id = moderation_reports.reporter_user_id
-		LEFT JOIN users reviewer ON reviewer.id = moderation_reports.reviewer_user_id
-	`
+			SELECT ` + reportProjection("moderation_reports") + `
+			FROM moderation_reports
+			LEFT JOIN users reporter ON reporter.id = moderation_reports.reporter_user_id
+			LEFT JOIN users reviewer ON reviewer.id = moderation_reports.reviewer_user_id
+		`
+}
+
+func reportProjection(source string) string {
+	return fmt.Sprintf(`%[1]s.id, %[1]s.reporter_user_id,
+		reporter.username, reporter.display_name,
+		%[1]s.target_type, %[1]s.target_id,
+		%[1]s.reason_code, %[1]s.body, %[1]s.status,
+		%[1]s.reviewer_user_id,
+		reviewer.username, reviewer.display_name,
+		%[1]s.review_note,
+		%[1]s.created_at, %[1]s.updated_at, %[1]s.resolved_at`, source)
 }
 
 type reportScanner interface {
@@ -305,6 +318,3 @@ func itoa(value int) string {
 	}
 	return result
 }
-
-// 保留 strings 引用（body/note 已在 service 层 trim，store 层不再重复处理）。
-var _ = strings.TrimSpace

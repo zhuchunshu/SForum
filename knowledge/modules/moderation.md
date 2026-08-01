@@ -21,6 +21,9 @@ frontend moderator workbench.
 
 - `moderation_reports` stores individual user reports. The same reporter cannot
   create multiple open reports for one target.
+- Report create/update mutations return the same enriched row projection as
+  report reads. Their writable CTEs keep the committed database result and API
+  response aligned, including reporter and reviewer display names.
 - `moderation_settings` is a singleton policy record. Modes are `off`,
   `rules`, and `all`; `off` is the upgrade-safe stored default while the admin
   UI recommends `rules` for ordinary operation.

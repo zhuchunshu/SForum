@@ -3,6 +3,7 @@ import { useExternalAuthFeedback } from '~/composables/identity/useExternalAuthF
 import { useAuthSession } from '~/composables/identity/useAuthSession'
 import { useAuthReturnNavigation } from '~/composables/identity/useAuthReturnNavigation'
 import { useAuthProviders } from '~/composables/identity/useAuthProviders'
+import { useSForumSeo } from '~/composables/seo/useSForumSeo'
 import SFAuthProviderButtons from '~/components/identity/SFAuthProviderButtons.vue'
 import SFAuthShell from '~/components/identity/auth/SFAuthShell.vue'
 /**
@@ -146,10 +147,11 @@ const showExternalRegistrationProviders = computed(() =>
   && registrationProviders.value.length > 0
 )
 
-useSeoMeta({
+useSForumSeo({
   title: () => isExternalTicketMode.value
     ? t('auth.external.ticketModeTitle')
-    : t('auth.registerTitle')
+    : t('auth.registerTitle'),
+  noindex: true
 })
 
 function registerSuccessTitle() {

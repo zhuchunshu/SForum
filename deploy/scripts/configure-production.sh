@@ -114,6 +114,7 @@ t() {
       web_port) printf '%s' "Web port, bound to 127.0.0.1" ;;
       api_port) printf '%s' "API/WebSocket port, bound to 127.0.0.1" ;;
       app_url) printf '%s' "Public site URL" ;;
+      admin_prefix) printf '%s' "Admin route prefix (for example /control-panel)" ;;
       exists) printf '%s' "The existing production configuration was preserved. Secret rotation requires a dedicated migration and is not performed by this wizard." ;;
       refuse_force) printf '%s' "Refusing to replace an existing production file because doing so would rotate database and encryption secrets." ;;
       written) printf '%s' "Production configuration created with mode 0600:" ;;
@@ -121,6 +122,7 @@ t() {
       invalid_version) printf '%s' "Version must be empty or look like v3.0.0-alpha.8." ;;
       invalid_url) printf '%s' "Site URL must be an http:// or https:// URL without spaces, credentials, fragments, or newlines." ;;
       invalid_port) printf '%s' "Ports must be different integers from 1 to 65535." ;;
+      invalid_admin_prefix) printf '%s' "Admin route prefix must be a safe URL path such as /control-panel or /staff-admin." ;;
     esac
   else
     case "$key" in
@@ -130,6 +132,7 @@ t() {
       web_port) printf '%s' "Web 端口（只监听 127.0.0.1）" ;;
       api_port) printf '%s' "API/WebSocket 端口（只监听 127.0.0.1）" ;;
       app_url) printf '%s' "站点公开地址" ;;
+      admin_prefix) printf '%s' "管理后台路径前缀（例如 /control-panel）" ;;
       exists) printf '%s' "已保留现有生产配置；密钥轮换需要专用迁移流程，本向导不会执行。" ;;
       refuse_force) printf '%s' "拒绝覆盖现有生产配置，否则会轮换数据库和加密密钥。" ;;
       written) printf '%s' "生产配置已创建，文件权限为 0600：" ;;
@@ -137,6 +140,7 @@ t() {
       invalid_version) printf '%s' "版本必须留空，或使用 v3.0.0-alpha.8 这样的格式。" ;;
       invalid_url) printf '%s' "站点地址必须是 http:// 或 https:// URL，且不能包含空格、账号信息、片段或换行。" ;;
       invalid_port) printf '%s' "两个端口必须不同，且都是 1 到 65535 之间的整数。" ;;
+      invalid_admin_prefix) printf '%s' "管理后台路径前缀必须是安全的 URL 路径，例如 /control-panel 或 /staff-admin。" ;;
     esac
   fi
 }
@@ -162,6 +166,22 @@ valid_url() {
     [[ "$value" =~ ^https?://[^[:space:]@/#]+(:[0-9]+)?(/[^[:space:]#]*)?$ ]]
 }
 
+normalize_admin_prefix() {
+  local value="$1"
+  value="${value:-/control-panel}"
+  [[ "$value" == /* ]] || value="/$value"
+  value="${value%/}"
+  printf '%s' "${value:-/control-panel}"
+}
+
+valid_admin_prefix() {
+  local value="$1"
+  [[ "$value" =~ ^/[A-Za-z0-9][A-Za-z0-9._/-]*$ ]] || return 1
+  case "$value" in
+    *'//'|*/./*|*/../*|/.|/..|*/.|*/..) return 1 ;;
+  esac
+}
+
 prompt_default() {
   local label="$1"
   local default="$2"
@@ -182,6 +202,7 @@ release_version="${PINNED_VERSION:-$DEFAULT_VERSION}"
 web_port="3000"
 api_port="18080"
 app_url="http://127.0.0.1:3000"
+admin_prefix="/control-panel"
 
 if [ "$DEFAULTS" != true ]; then
   printf '%s\n%s\n\n' "$(t intro)" "$(t managed)"
@@ -194,6 +215,7 @@ if [ "$DEFAULTS" != true ]; then
     app_url="http://127.0.0.1:$web_port"
   fi
   app_url="$(prompt_default "$(t app_url)" "$app_url")"
+  admin_prefix="$(prompt_default "$(t admin_prefix)" "$admin_prefix")"
 fi
 
 contains_newline "$release_version" && die "$(t invalid_version)"
@@ -202,6 +224,8 @@ valid_port "$web_port" || die "$(t invalid_port)"
 valid_port "$api_port" || die "$(t invalid_port)"
 [ "$web_port" != "$api_port" ] || die "$(t invalid_port)"
 valid_url "$app_url" || die "$(t invalid_url)"
+admin_prefix="$(normalize_admin_prefix "$admin_prefix")"
+valid_admin_prefix "$admin_prefix" || die "$(t invalid_admin_prefix)"
 
 generate_secret() {
   local value
@@ -284,7 +308,7 @@ trap cleanup EXIT HUP INT TERM
     'SFORUM_V3_PUBLIC_L2=false' \
     'NUXT_PUBLIC_API_BASE_URL=/api/v1' \
     'NUXT_API_INTERNAL_BASE_URL=http://api:8080/api/v1' \
-    'NUXT_PUBLIC_ADMIN_ROUTE_PREFIX=/control-panel'
+    "NUXT_PUBLIC_ADMIN_ROUTE_PREFIX=$admin_prefix"
 } > "$temp_file"
 
 chmod 600 "$temp_file"

@@ -62,6 +62,15 @@ describe('app startup rendering', () => {
     expect(page.themeSkinRefreshStarted()).toBe(false)
     expect(page.themeSkinCleared()).toBe(true)
   })
+
+  test('preserves page-resolved titles and only supplies the empty-title fallback', async () => {
+    const page = loadAppComponentForStartupTest({ server: true })
+
+    await page.component.setup({}, { expose: () => {} })
+
+    expect(page.resolveDocumentTitle('Deploy | SForum')).toBe('Deploy | SForum')
+    expect(page.resolveDocumentTitle()).toBe('SForum')
+  })
 })
 
 function loadAppComponentForStartupTest(options: { server: boolean, routePath?: string, cookie?: string }) {
@@ -86,6 +95,7 @@ function loadAppComponentForStartupTest(options: { server: boolean, routePath?: 
   let guestInitialized = false
   let themeSkinRefreshStarted = false
   let themeSkinCleared = false
+  let appHeadFactory: (() => { titleTemplate?: (title?: string) => string }) | undefined
   const mountedCallbacks: Array<() => void | Promise<void>> = []
   const never = new Promise(() => {})
 
@@ -100,7 +110,6 @@ function loadAppComponentForStartupTest(options: { server: boolean, routePath?: 
     'useAdminTabs',
     'useAsyncData',
     'useHead',
-    'applySEOTitleTemplate',
     'onMounted',
     'watch',
     'useActiveThemeSkin',
@@ -123,7 +132,6 @@ function loadAppComponentForStartupTest(options: { server: boolean, routePath?: 
       siteName: ref('SForum'),
       resolvedAppearanceTheme: ref({ dataTheme: 'pine_teal', style: '' }),
       lightBackground: ref('pure_white'),
-      seoSettings: ref({ metaTitleTemplate: '' }),
       siteFaviconUrl: ref(''),
       siteAppleTouchIconUrl: ref(''),
       refresh: () => {
@@ -148,8 +156,9 @@ function loadAppComponentForStartupTest(options: { server: boolean, routePath?: 
       loaderStarted = true
       return loader()
     },
-    () => {},
-    () => '',
+    (factory: () => { titleTemplate?: (title?: string) => string }) => {
+      appHeadFactory = factory
+    },
     (callback: () => void | Promise<void>) => {
       mountedCallbacks.push(callback)
     },
@@ -187,6 +196,11 @@ function loadAppComponentForStartupTest(options: { server: boolean, routePath?: 
     guestInitialized: () => guestInitialized,
     themeSkinRefreshStarted: () => themeSkinRefreshStarted,
     themeSkinCleared: () => themeSkinCleared,
+    resolveDocumentTitle: (title?: string) => {
+      const template = appHeadFactory?.().titleTemplate
+      if (!template) throw new Error('app title template was not registered')
+      return template(title)
+    },
     runMounted: async () => {
       for (const callback of mountedCallbacks) {
         void callback()

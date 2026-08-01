@@ -29,7 +29,7 @@ import { onBeforeRouteLeave } from 'vue-router'
 
 const { t } = useI18n()
 const localePath = useLocalePath()
-const { siteName, seoSettings } = useWebOptions()
+const { seoSettings } = useWebOptions()
 const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
 const forumApi = useForumApi()
 const { can } = usePermissions()
@@ -84,9 +84,10 @@ async function runComposerToolbarAction(action: import('~/utils/forum/forumTaxon
 }
 
 useSForumSeo({
-  title: () => `${t('composer.metaTitle')} - ${siteName.value}`,
+  title: () => t('composer.metaTitle'),
   description: () => t('composer.metaDescription'),
-  type: 'website'
+  type: 'website',
+  noindex: true
 })
 
 // 没有发帖权限直接给出提示。

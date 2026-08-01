@@ -26,7 +26,7 @@ type SaveState = 'idle' | 'saving' | 'error' | 'success'
 const { t } = useI18n()
 const localePath = useLocalePath()
 const toast = useToast()
-const { siteName, siteDomain, avatarSettings } = useWebOptions()
+const { siteDomain, avatarSettings } = useWebOptions()
 const { user: authUser, setUser } = useAuthSession()
 const { currentLanguage, languageOptions, updateLanguage } = useUserLanguage()
 const { can } = usePermissions()
@@ -34,9 +34,10 @@ const { formatDateOnly } = useSiteDateTime()
 const profileApi = useProfileApi()
 
 useSForumSeo({
-  title: () => `${t('profileSettings.metaTitle')} - ${siteName.value}`,
+  title: () => t('profileSettings.metaTitle'),
   description: () => t('profileSettings.metaDescription'),
-  type: 'website'
+  type: 'website',
+  noindex: true
 })
 
 const { data: profile, pending } = await useAsyncData(

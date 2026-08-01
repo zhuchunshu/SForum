@@ -16,9 +16,10 @@ const { siteName, passwordPolicy } = useWebOptions()
 const { request } = useApiClient()
 
 useSForumSeo({
-  title: () => `${t('auth.resetPassword')} - ${siteName.value}`,
+  title: () => t('auth.resetPassword'),
   description: () => t('auth.resetPasswordDesc'),
-  type: 'website'
+  type: 'website',
+  noindex: true
 })
 
 const token = computed(() => {

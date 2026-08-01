@@ -33,7 +33,7 @@ import { onBeforeRouteLeave } from 'vue-router'
 const route = useRoute()
 const { t } = useI18n()
 const localePath = useLocalePath()
-const { siteName, seoSettings } = useWebOptions()
+const { seoSettings } = useWebOptions()
 const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
 const forumApi = useForumApi()
 const { canEditTopic } = usePermissions()
@@ -175,12 +175,13 @@ const editorInitialContent = computed(() => (
 useSForumSeo({
   title: () => {
     if (topic.value?.title) {
-      return `${t('composer.editTitle')}: ${topic.value.title} - ${siteName.value}`
+      return `${t('composer.editTitle')}: ${topic.value.title}`
     }
-    return `${t('composer.editTitle')} - ${siteName.value}`
+    return t('composer.editTitle')
   },
   description: () => t('composer.editMetaDescription'),
-  type: 'website'
+  type: 'website',
+  noindex: true
 })
 
 // —— 实时校验与检查清单（与发帖页同源）——

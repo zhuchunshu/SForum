@@ -22,13 +22,14 @@ type ThemePreview = { accent: string, soft: string }
 
 const { t } = useI18n()
 const toast = useToast()
-const { siteName, appearanceTheme: siteTheme, lightBackground: siteLightBackground } = useWebOptions()
+const { appearanceTheme: siteTheme, lightBackground: siteLightBackground } = useWebOptions()
 const appearance = useUserAppearancePreference()
 
 useSForumSeo({
-  title: () => `${t('userAppearanceSettings.metaTitle')} - ${siteName.value}`,
+  title: () => t('userAppearanceSettings.metaTitle'),
   description: () => t('userAppearanceSettings.metaDescription'),
-  type: 'website'
+  type: 'website',
+  noindex: true
 })
 
 const previews: Record<AppearanceThemePreset, ThemePreview> = {

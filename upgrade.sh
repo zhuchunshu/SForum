@@ -231,7 +231,7 @@ wait_inside_slot() {
   web="$(slot_web "$slot")"
   while [ "$SECONDS" -lt "$deadline" ]; do
     if "${COMPOSE[@]}" exec -T "$api" wget -q -O /dev/null http://127.0.0.1:8080/api/v1/ready \
-      && "${COMPOSE[@]}" exec -T "$web" wget -q -O /dev/null http://127.0.0.1:3000/ \
+      && "${COMPOSE[@]}" exec -T "$web" wget -q -O /dev/null http://127.0.0.1:3000/health \
       && "${COMPOSE[@]}" exec -T "$web" wget -q -O /dev/null http://127.0.0.1:3000/api/v1/ready; then
       return 0
     fi
@@ -264,7 +264,7 @@ wait_stable_ingress() {
   deadline=$((SECONDS + ${SFORUM_UPGRADE_HEALTH_TIMEOUT_SECONDS:-120}))
   header_file="$(mktemp "${TMPDIR:-/tmp}/sforum-upgrade-headers.XXXXXX")"
   while [ "$SECONDS" -lt "$deadline" ]; do
-    if curl -fsS -D "$header_file" -o /dev/null "http://127.0.0.1:${web_port}/" \
+    if curl -fsS -D "$header_file" -o /dev/null "http://127.0.0.1:${web_port}/health" \
       && grep -Eiq "^X-SForum-Active-Slot:[[:space:]]*${slot}[[:space:]]*$" "$header_file" \
       && curl -fsS -D "$header_file" -o /dev/null "http://127.0.0.1:${api_port}/api/v1/ready" \
       && grep -Eiq "^X-SForum-Active-Slot:[[:space:]]*${slot}[[:space:]]*$" "$header_file"; then

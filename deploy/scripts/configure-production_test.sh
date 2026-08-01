@@ -45,6 +45,7 @@ assert_line 'MIGRATE_ON_STARTUP=false' "$OUTPUT"
 assert_line 'DATABASE_URL=postgres://sforum:'"$(env_value POSTGRES_PASSWORD "$OUTPUT")"'@postgres:5432/sforum?sslmode=disable' "$OUTPUT"
 assert_line 'REDIS_ADDR=redis:6379' "$OUTPUT"
 assert_line 'NUXT_API_INTERNAL_BASE_URL=http://api:8080/api/v1' "$OUTPUT"
+assert_line 'NUXT_PUBLIC_ADMIN_ROUTE_PREFIX=/control-panel' "$OUTPUT"
 assert_line 'SFORUM_VERSION=v3.0.0-alpha.8' "$OUTPUT"
 assert_line 'MARKETPLACE_ED25519_KEY_ID=deployment-local-untrusted' "$OUTPUT"
 
@@ -77,12 +78,19 @@ if "$WIZARD" --defaults --version invalid --root "$TEST_ROOT" --output "$TEST_RO
   fail "invalid version was accepted"
 fi
 
-if printf '\n70000\n18080\n\n' | "$WIZARD" --lang en --root "$TEST_ROOT" --output "$TEST_ROOT/invalid-port.env" >/dev/null 2>&1; then
+if printf '\n70000\n18080\n/admin\n\n' | "$WIZARD" --lang en --root "$TEST_ROOT" --output "$TEST_ROOT/invalid-port.env" >/dev/null 2>&1; then
   fail "invalid port was accepted"
 fi
 
-if printf '\n3001\n18081\nnot-a-url\n' | "$WIZARD" --lang en --root "$TEST_ROOT" --output "$TEST_ROOT/invalid-url.env" >/dev/null 2>&1; then
+if printf '\n3001\n18081\n/admin\nnot-a-url\n' | "$WIZARD" --lang en --root "$TEST_ROOT" --output "$TEST_ROOT/invalid-url.env" >/dev/null 2>&1; then
   fail "invalid URL was accepted"
+fi
+
+printf '\n3001\n18081\nhttps://forum.example.com\nstaff-admin\n' | "$WIZARD" --lang en --root "$TEST_ROOT" --output "$TEST_ROOT/custom.env" >/dev/null
+assert_line 'NUXT_PUBLIC_ADMIN_ROUTE_PREFIX=/staff-admin' "$TEST_ROOT/custom.env"
+
+if printf '\n3001\n18081\nhttps://forum.example.com\n/admin?debug\n' | "$WIZARD" --lang en --root "$TEST_ROOT" --output "$TEST_ROOT/invalid-admin-prefix.env" >/dev/null 2>&1; then
+  fail "invalid admin route prefix was accepted"
 fi
 
 printf 'configure-production tests passed\n'

@@ -2,6 +2,7 @@
 import SFAuthShell from '~/components/identity/auth/SFAuthShell.vue'
 import { useAuthReturnNavigation } from '~/composables/identity/useAuthReturnNavigation'
 import { useAuthSession, type CurrentUser } from '~/composables/identity/useAuthSession'
+import { useSForumSeo } from '~/composables/seo/useSForumSeo'
 import { apiErrorMessage, apiErrorReason } from '~/composables/useApiClient'
 
 type ExternalAuthContinuationPreparation = {
@@ -54,9 +55,10 @@ const providerIcon = computed(() => preparation.value?.providerIcon.trim() || 'i
 const hasChoice = computed(() => Boolean(preparation.value?.canLinkExisting || preparation.value?.canRegister))
 const busy = computed(() => pending.value || binding.value)
 
-useSeoMeta({
+useSForumSeo({
   title: () => t('auth.external.continuation.title'),
-  robots: 'noindex,nofollow'
+  noindex: true,
+  nofollow: true
 })
 
 function continuationErrorMessage(error: unknown) {

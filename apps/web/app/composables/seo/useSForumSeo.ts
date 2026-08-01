@@ -19,6 +19,7 @@ export type SForumSEOInput = {
   image?: MaybeReactive<string | undefined>
   type?: MaybeReactive<'website' | 'article'>
   noindex?: MaybeReactive<boolean | undefined>
+  nofollow?: MaybeReactive<boolean | undefined>
   schema?: MaybeReactive<SForumSchemaInput | undefined>
 }
 
@@ -94,6 +95,7 @@ function normalizePageContext(input: SForumSEOInput | MaybeReactive<SEOPageConte
     description: resolveReactive(legacy?.description),
     image: resolveReactive(legacy?.image),
     noindex: resolveReactive(legacy?.noindex),
+    nofollow: resolveReactive(legacy?.nofollow),
     variables: {
       pageTitle: title,
       topicTitle: title,

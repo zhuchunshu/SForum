@@ -249,6 +249,11 @@ export default defineNuxtConfig({
     ]
   },
   runtimeConfig: {
+    // nuxt-site-config 只有在 runtimeConfig 中声明过键，才会在容器启动时
+    // 接受 NUXT_SITE_URL 覆盖。保留运行时槽位，避免反代内部 Host 成为 SEO URL。
+    site: {
+      url: appUrl
+    },
     public: {
       apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || '/api/v1',
       adminRoutePrefix,
@@ -274,8 +279,9 @@ export default defineNuxtConfig({
       ]
     }
   },
+  // baseUrl 只从 runtimeConfig.public.i18n 注入。写在这里会被
+  // nuxt-site-config 烘焙进镜像，并在启动时覆盖 NUXT_SITE_URL。
   i18n: {
-    baseUrl: appUrl,
     defaultLocale: 'zh-CN',
     // 无感切换：URL 不带语言前缀；locale 由 cookie / setLocale 决定。
     strategy: 'no_prefix',

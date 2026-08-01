@@ -743,21 +743,6 @@ export function isSEOIndexingAllowed(settings: SEOSettings, siteUrl: string) {
   return settings.allowIndexing && !isLocalSiteUrl(siteUrl)
 }
 
-export function applySEOTitleTemplate(title: string, template: string, siteName: string) {
-  const cleanTitle = title.trim()
-  const cleanSiteName = siteName.trim() || 'SForum'
-  const cleanTemplate = template.trim()
-  if (!cleanTitle) {
-    return cleanSiteName
-  }
-  if (!cleanTemplate) {
-    return `${cleanTitle} - ${cleanSiteName}`
-  }
-  return cleanTemplate
-    .replaceAll('{title}', cleanTitle)
-    .replaceAll('{siteName}', cleanSiteName)
-}
-
 // 管理后台文档标题：页面名 - 管理后台 - 网站名（不走前台 SEO 模板）。
 export function applyAdminSEOTitleTemplate(pageTitle: string, adminLabel: string, siteName: string) {
   const cleanTitle = pageTitle.trim()

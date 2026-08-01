@@ -27,8 +27,11 @@ cd sforum
 Every prompt has a recommended value. Press Enter when unsure: the installer
 uses PostgreSQL and Redis managed by Docker Compose, generates the required
 secrets, pulls version-matched GitHub container images, runs migrations, and
-waits for the API and Web services to become healthy. The default local address
-is `http://127.0.0.1:3000`. Configure the HTTPS reverse proxy described below
+waits for the API and Web services to become healthy. The wizard also asks for
+the admin route prefix (default `/control-panel`). After a successful deploy,
+the script prints the Web reverse-proxy target, API/WebSocket reverse-proxy
+target, site access URL, and admin URL. The default local address is
+`http://127.0.0.1:3000`. Configure the HTTPS reverse proxy described below
 before exposing a public site.
 
 Without a version, `deploy.sh` resolves GitHub's latest stable Release to a

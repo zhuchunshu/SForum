@@ -42,7 +42,7 @@ describe('profile settings canvas', () => {
 
   test('uses the runtime website domain for the public profile path', () => {
     const src = page()
-    expect(src).toContain('const { siteName, siteDomain, avatarSettings } = useWebOptions()')
+    expect(src).toContain('const { siteDomain, avatarSettings } = useWebOptions()')
     expect(src).toContain('`${siteDomain.value}/u/`')
     expect(src).toContain('{{ publicProfilePrefix }}')
     expect(src).not.toContain("t('profileSettings.profilePathPrefix')")

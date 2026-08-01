@@ -64,7 +64,7 @@ done
 "${compose[@]}" up -d api worker web
 
 "$ROOT_DIR/deploy/scripts/wait-for-health.sh" http://127.0.0.1:18080/api/v1/ready 120
-"$ROOT_DIR/deploy/scripts/wait-for-health.sh" http://127.0.0.1:3000/ 120
+"$ROOT_DIR/deploy/scripts/wait-for-health.sh" http://127.0.0.1:3000/health 120
 
 running_services="$("${compose[@]}" ps --status running --services)"
 for service in postgres redis api worker web; do

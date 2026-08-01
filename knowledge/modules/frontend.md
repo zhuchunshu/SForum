@@ -25,6 +25,35 @@ responsibilities.
 - Build/typecheck use `.nuxt-build` and `.nuxt-typecheck` so they do not disturb
   the user's port-3000 dev server.
 
+## Runtime Site URL
+
+- Production Site Config and i18n canonical URLs are runtime values. The Web
+  image declares `runtimeConfig.site.url` and
+  `runtimeConfig.public.i18n.baseUrl`, while the top-level i18n module config
+  deliberately omits `baseUrl` so `nuxt-site-config` cannot bake the image
+  build origin into its equal-priority stack.
+- `production-entrypoint.sh` resolves both slots from the deployment's
+  canonical `APP_URL`. A versioned Web image can therefore serve the correct
+  SEO URL behind loopback/Compose ingress without host-side Caddy edits or a
+  deployment-specific frontend rebuild.
+- Web readiness must probe `/health`, not `/`; probing the homepage performs
+  SSR work and can warm deployment caches with an internal request origin.
+
+## SEO Title Ownership
+
+- Public page titles are resolved once by `useSForumSeo` and
+  `utils/seo/seoResolver.ts`, including the configured SEO site name and
+  content-type template.
+- `app.vue` only supplies the site name when a page has no title. It must not
+  apply `seo.meta_title_template` or append the site name to an already
+  resolved title, otherwise SSR emits values such as `SForum - SForum`.
+- `seo.meta_title_template` remains readable as a legacy fallback for
+  `seo.page.title_template`; the admin field is compatibility-only and must
+  not become a second root-level title transform.
+- Authentication, account settings, workbench, and external-auth continuation
+  pages use the same resolver with `noindex` (and `nofollow` where required)
+  so they retain one title authority while remaining out of search results.
+
 ## Active Work
 
 ### Admin overview runtime resource cards

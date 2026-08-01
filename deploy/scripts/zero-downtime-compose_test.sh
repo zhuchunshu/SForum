@@ -65,4 +65,20 @@ ruby -rjson -e '
   exit 1
 }
 
+grep -Fq 'http://127.0.0.1:3000/health' "$ROOT_DIR/upgrade.sh" || {
+  printf 'zero-downtime-compose_test.sh: candidate Web probe must use /health\n' >&2
+  exit 1
+}
+
+grep -Fq 'http://127.0.0.1:${web_port}/health' "$ROOT_DIR/upgrade.sh" || {
+  printf 'zero-downtime-compose_test.sh: stable Web probe must use /health\n' >&2
+  exit 1
+}
+
+if grep -Fq 'http://127.0.0.1:3000/ \' "$ROOT_DIR/upgrade.sh" \
+  || grep -Fq 'http://127.0.0.1:${web_port}/"' "$ROOT_DIR/upgrade.sh"; then
+  printf 'zero-downtime-compose_test.sh: Web probes must not render the cached homepage\n' >&2
+  exit 1
+fi
+
 printf 'zero-downtime-compose_test.sh: all checks passed\n'

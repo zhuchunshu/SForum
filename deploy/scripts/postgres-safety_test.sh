@@ -178,7 +178,7 @@ fi
 [[ ! -e "$TEMP_DIR/database-value-was-executed" ]] || fail "restore executed an unsafe POSTGRES_DB value"
 
 grep -q 'wait-for-health.sh "http://127.0.0.1:${api_port}/api/v1/ready"' "$ROOT_DIR/deploy.sh" || fail "deploy does not wait for API readiness"
-grep -q 'wait-for-health.sh "http://127.0.0.1:${web_port}/"' "$ROOT_DIR/deploy.sh" || fail "deploy does not wait for Web readiness"
+grep -q 'wait-for-health.sh "http://127.0.0.1:${web_port}/health"' "$ROOT_DIR/deploy.sh" || fail "deploy does not wait for Web readiness"
 grep -q 'chmod 600 .env.production' "$ROOT_DIR/deploy.sh" || fail "deploy does not protect production configuration"
 
 printf 'postgres-safety_test.sh: all checks passed\n'

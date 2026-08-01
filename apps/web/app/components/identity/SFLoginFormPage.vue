@@ -3,6 +3,7 @@ import { useExternalAuthFeedback } from '~/composables/identity/useExternalAuthF
 import { useAuthSession } from '~/composables/identity/useAuthSession'
 import { useAuthReturnNavigation } from '~/composables/identity/useAuthReturnNavigation'
 import { useAuthProviders } from '~/composables/identity/useAuthProviders'
+import { useSForumSeo } from '~/composables/seo/useSForumSeo'
 import SFAuthProviderButtons from '~/components/identity/SFAuthProviderButtons.vue'
 import SFAuthShell from '~/components/identity/auth/SFAuthShell.vue'
 /**
@@ -75,8 +76,9 @@ const altchaConfiguration = computed(() => JSON.stringify({
   minDuration: altchaWidgetSettings.value.minDuration
 }))
 
-useSeoMeta({
-  title: t('auth.loginTitle')
+useSForumSeo({
+  title: () => t('auth.loginTitle'),
+  noindex: true
 })
 
 function loginSuccessTitle() {

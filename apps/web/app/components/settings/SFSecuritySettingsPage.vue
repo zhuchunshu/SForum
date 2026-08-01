@@ -10,13 +10,13 @@ import SFSettingsShell from '~/components/settings/SFSettingsShell.vue'
 
 const { t } = useI18n()
 const toast = useToast()
-const { siteName } = useWebOptions()
 const sessionsApi = useAccountSecurityApi()
 
 useSForumSeo({
-  title: () => `${t('accountSecurity.metaTitle')} - ${siteName.value}`,
+  title: () => t('accountSecurity.metaTitle'),
   description: () => t('accountSecurity.metaDescription'),
-  type: 'website'
+  type: 'website',
+  noindex: true
 })
 
 const emptySessionList = (): LoginSessionList => ({

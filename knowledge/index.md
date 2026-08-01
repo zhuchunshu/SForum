@@ -110,6 +110,27 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- SEO title ownership is now centralized in `useSForumSeo`/`resolveSEO`; the
+  root app only provides an empty-title fallback, preventing duplicate site
+  names. Focused frontend tests, typecheck, and production build pass; the
+  existing port-3000 runtime still needs a restart/redeploy:
+  `sessions/2026-08-01-seo-title-ownership-fix.md`
+
+- Moderation report creation and legacy status updates now return the committed
+  enriched row instead of failing during response scanning; focused unit,
+  architecture, and real PostgreSQL regression checks pass:
+  `sessions/2026-08-01-moderation-report-submit-fix.md`
+
+- Deployment console now asks for the admin route prefix and prints reverse
+  proxy targets plus site/admin URLs after deploy or restart:
+  `sessions/2026-08-01-deploy-addresses-and-admin-prefix.md`
+
+- Runtime Site Config URL fix: deployment URLs now remain runtime values,
+  homepage health probes use `/health`, and the next versioned Web image can be
+  applied through the existing zero-downtime updater without host-side Caddy
+  edits:
+  `sessions/2026-08-01-runtime-site-url-fix.md`
+
 - V3 stable release preparation: fresh deployments resolve the latest stable
   Release to an immutable tag, the bilingual operator guide includes clone-free
   installation and update commands, and `v3.0.1` is ready for the release gate:

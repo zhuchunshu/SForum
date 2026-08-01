@@ -42,15 +42,15 @@ const scopeGroups: Array<TokenScopeOption['group']> = ['content', 'moderation', 
 
 const { t } = useI18n()
 const toast = useToast()
-const { siteName } = useWebOptions()
 const tokensApi = useAccountSecurityApi()
 const { can } = usePermissions()
 const { format: formatSiteDateTime } = useSiteDateTime()
 
 useSForumSeo({
-  title: () => `${t('accessTokensSettings.metaTitle')} - ${siteName.value}`,
+  title: () => t('accessTokensSettings.metaTitle'),
   description: () => t('accessTokensSettings.metaDescription'),
-  type: 'website'
+  type: 'website',
+  noindex: true
 })
 
 const tokens = ref<APIToken[]>([])

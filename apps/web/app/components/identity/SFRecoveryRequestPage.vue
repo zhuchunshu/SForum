@@ -15,13 +15,14 @@ const resendCooldownSeconds = 30
 const { t, locale } = useI18n()
 const localePath = useLocalePath()
 const toast = useToast()
-const { siteName, humanVerificationEnabledFor, altchaWidgetSettings } = useWebOptions()
+const { humanVerificationEnabledFor, altchaWidgetSettings } = useWebOptions()
 const { apiBaseUrl, request } = useApiClient()
 
 useSForumSeo({
-  title: () => `${t('auth.forgotPassword')} - ${siteName.value}`,
+  title: () => t('auth.forgotPassword'),
   description: () => t('auth.forgotPasswordDesc'),
-  type: 'website'
+  type: 'website',
+  noindex: true
 })
 
 const email = ref('')

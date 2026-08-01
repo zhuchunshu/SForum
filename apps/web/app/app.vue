@@ -18,7 +18,6 @@ const localeHead = useLocaleHead({
 })
 const {
   siteName,
-  seoSettings,
   siteFaviconUrl,
   siteAppleTouchIconUrl,
   refresh: refreshWebOptions
@@ -135,9 +134,8 @@ useHead(() => {
     htmlAttrs,
     link: [...(localeHead.value.link || []), ...brandLinks, ...themeLinks],
     meta: localeHead.value.meta,
-    titleTemplate: (title) => title
-      ? applySEOTitleTemplate(title, seoSettings.value.metaTitleTemplate, siteName.value)
-      : siteName.value
+    // 公开页面的完整标题由 useSForumSeo/resolveSEO 负责；根组件只提供空标题回退。
+    titleTemplate: title => title || siteName.value
   }
 })
 </script>

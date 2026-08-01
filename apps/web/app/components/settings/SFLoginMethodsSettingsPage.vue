@@ -9,12 +9,12 @@ import SFSettingsShell from '~/components/settings/SFSettingsShell.vue'
  */
 const { t } = useI18n()
 const localePath = useLocalePath()
-const { siteName } = useWebOptions()
 
 useSForumSeo({
-  title: () => `${t('loginMethodsSettings.metaTitle')} - ${siteName.value}`,
+  title: () => t('loginMethodsSettings.metaTitle'),
   description: () => t('loginMethodsSettings.metaDescription'),
-  type: 'website'
+  type: 'website',
+  noindex: true
 })
 </script>
 

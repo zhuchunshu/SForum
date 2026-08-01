@@ -15,13 +15,13 @@ import SFWebPushSettingsSection from '~/components/settings/SFWebPushSettingsSec
 
 const { t, te } = useI18n()
 const toast = useToast()
-const { siteName } = useWebOptions()
 const preferencesApi = useNotificationPreferences()
 
 useSForumSeo({
-  title: () => `${t('notificationSettings.metaTitle')} - ${siteName.value}`,
+  title: () => t('notificationSettings.metaTitle'),
   description: () => t('notificationSettings.metaDescription'),
-  type: 'website'
+  type: 'website',
+  noindex: true
 })
 
 const emptyCatalog = (): NotificationPreferenceCatalog => ({ revision: 0, items: [] })

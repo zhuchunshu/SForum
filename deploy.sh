@@ -129,7 +129,10 @@ t() {
       verifying) echo "Checking API, Web, and all managed services..." ;;
       recovery_required) echo "Deployment did not complete after the old app stopped. Services were not declared healthy; inspect .deployrc and Docker logs before retrying." ;;
       version) echo "Release version" ;;
-      web_url) echo "SForum is running at:" ;;
+      web_proxy) echo "Reverse proxy Web target:" ;;
+      api_proxy) echo "Reverse proxy API/WebSocket target:" ;;
+      access_url) echo "Site access URL:" ;;
+      admin_url) echo "Admin URL:" ;;
       success) echo "Deployment completed successfully." ;;
       rollback_later) echo "To roll back, deploy an earlier immutable version only after checking migration compatibility." ;;
       confirm_restore) echo "Type RESTORE to confirm database restore:" ;;
@@ -170,7 +173,10 @@ t() {
       verifying) echo "正在检查 API、Web 和全部内置服务..." ;;
       recovery_required) echo "旧应用停止后部署未能完成。当前服务未被声明为健康；重试前请检查 .deployrc 和 Docker 日志。" ;;
       version) echo "发布版本" ;;
-      web_url) echo "SForum 已运行：" ;;
+      web_proxy) echo "反代 Web 目标地址：" ;;
+      api_proxy) echo "反代 API/WebSocket 目标地址：" ;;
+      access_url) echo "站点访问地址：" ;;
+      admin_url) echo "管理后台地址：" ;;
       success) echo "部署成功完成。" ;;
       rollback_later) echo "如需回滚，请先确认数据库迁移兼容，再部署较早的不可变版本。" ;;
       confirm_restore) echo "请输入 RESTORE 确认恢复数据库：" ;;
@@ -233,13 +239,14 @@ compose_version_supported() {
 }
 
 validate_env_contract() {
-  local public_api_base app_env app_url postgres_db postgres_user postgres_password database_url
+  local public_api_base app_env app_url admin_prefix postgres_db postgres_user postgres_password database_url
   local redis_addr redis_password session_secret identity_secret option_key altcha_secret marketplace_key
   public_api_base="$(env_file_value .env.production NUXT_PUBLIC_API_BASE_URL /api/v1)"
   [ "$public_api_base" = "/api/v1" ] || die "$(t invalid_public_api_base)"
 
   app_env="$(env_file_value .env.production APP_ENV)"
   app_url="$(env_file_value .env.production APP_URL)"
+  admin_prefix="$(env_file_value .env.production NUXT_PUBLIC_ADMIN_ROUTE_PREFIX /control-panel)"
   postgres_db="$(env_file_value .env.production POSTGRES_DB)"
   postgres_user="$(env_file_value .env.production POSTGRES_USER)"
   postgres_password="$(env_file_value .env.production POSTGRES_PASSWORD)"
@@ -254,6 +261,10 @@ validate_env_contract() {
 
   [ "$app_env" = "production" ] || die "$(t invalid_env) APP_ENV"
   [[ "$app_url" =~ ^https?://[^[:space:]]+$ ]] || die "$(t invalid_env) APP_URL"
+  [[ "$admin_prefix" =~ ^/[A-Za-z0-9][A-Za-z0-9._/-]*$ ]] || die "$(t invalid_env) NUXT_PUBLIC_ADMIN_ROUTE_PREFIX"
+  case "$admin_prefix" in
+    *'//'|*/./*|*/../*|/.|/..|*/.|*/..) die "$(t invalid_env) NUXT_PUBLIC_ADMIN_ROUTE_PREFIX" ;;
+  esac
   [[ "$postgres_db" =~ ^[A-Za-z0-9_.-]+$ ]] || die "$(t invalid_env) POSTGRES_DB"
   [[ "$postgres_user" =~ ^[A-Za-z0-9_.-]+$ ]] || die "$(t invalid_env) POSTGRES_USER"
   [[ "$postgres_password" =~ ^[A-Za-z0-9._~-]{32,}$ ]] || die "$(t invalid_env) POSTGRES_PASSWORD"
@@ -333,7 +344,7 @@ wait_for_deployment() {
   web_port="$(env_file_value .env.production WEB_PORT 3000)"
   timeout_seconds="${SFORUM_DEPLOY_HEALTH_TIMEOUT_SECONDS:-120}"
   ./deploy/scripts/wait-for-health.sh "http://127.0.0.1:${api_port}/api/v1/ready" "$timeout_seconds" || return 1
-  ./deploy/scripts/wait-for-health.sh "http://127.0.0.1:${web_port}/" "$timeout_seconds" || return 1
+  ./deploy/scripts/wait-for-health.sh "http://127.0.0.1:${web_port}/health" "$timeout_seconds" || return 1
 }
 
 verify_services_running() {
@@ -408,10 +419,18 @@ release_deploy_lock() {
   trap - EXIT HUP INT TERM
 }
 
-print_web_url() {
-  local web_port
+print_access_urls() {
+  local app_url admin_prefix admin_url web_port api_port
+  app_url="$(env_file_value .env.production APP_URL)"
+  app_url="${app_url%/}"
+  admin_prefix="$(env_file_value .env.production NUXT_PUBLIC_ADMIN_ROUTE_PREFIX /control-panel)"
+  admin_url="${app_url}${admin_prefix}"
   web_port="$(env_file_value .env.production WEB_PORT 3000)"
-  echo "$(t web_url) http://127.0.0.1:${web_port}"
+  api_port="$(env_file_value .env.production API_PORT 18080)"
+  printf '%s %s\n' "$(t web_proxy)" "http://127.0.0.1:${web_port}"
+  printf '%s %s\n' "$(t api_proxy)" "http://127.0.0.1:${api_port}"
+  printf '%s %s\n' "$(t access_url)" "$app_url"
+  printf '%s %s\n' "$(t admin_url)" "$admin_url"
 }
 
 deploy_update() {
@@ -470,7 +489,7 @@ deploy_update() {
   "${COMPOSE[@]}" ps || true
   persist_successful_state
   release_deploy_lock
-  print_web_url
+  print_access_urls
   t success
 }
 
@@ -507,7 +526,7 @@ restart_services() {
   wait_for_deployment
   verify_services_running
   "${COMPOSE[@]}" ps
-  print_web_url
+  print_access_urls
   release_deploy_lock
 }
 stop_services() { acquire_deploy_lock; preflight; "${COMPOSE[@]}" stop; release_deploy_lock; }

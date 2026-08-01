@@ -37,6 +37,22 @@ describe('resolveSEO', () => {
     expect(result.siteName).toBe('SForum Developers')
   })
 
+  test('content titles include the SEO site name exactly once', () => {
+    const result = resolveSEO(baseSettings({
+      siteName: 'SForum Product',
+      seoSiteName: 'SForum Developers'
+    }), {
+      type: 'topic',
+      path: '/t/1',
+      title: 'Deploy',
+      variables: { topicTitle: 'Deploy' }
+    })
+
+    expect(result.title).toBe('Deploy | SForum Developers')
+    expect(result.title.match(/SForum Developers/g)).toHaveLength(1)
+    expect(result.title).not.toContain('SForum Product')
+  })
+
   test('configured homepage description wins over page fallback copy', () => {
     const result = resolveSEO(baseSettings({ homeDescription: 'Configured homepage description.' }), {
       type: 'home', path: '/', description: 'Theme fallback description.'

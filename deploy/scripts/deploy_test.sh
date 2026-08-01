@@ -224,6 +224,10 @@ assert_before "$MOCK_LOG" "run --rm -T --pull never migrate" "up -d --no-build -
 assert_contains "$MOCK_LOG" "helper health http://127.0.0.1:18080/api/v1/ready"
 assert_contains "$TEST_ROOT/.deployrc" "version=v3.0.0-alpha.9"
 assert_contains "$TEMP_DIR/clean.out" "Deployment completed successfully."
+assert_contains "$TEMP_DIR/clean.out" "Reverse proxy Web target: http://127.0.0.1:3000"
+assert_contains "$TEMP_DIR/clean.out" "Reverse proxy API/WebSocket target: http://127.0.0.1:18080"
+assert_contains "$TEMP_DIR/clean.out" "Site access URL: http://127.0.0.1:3000"
+assert_contains "$TEMP_DIR/clean.out" "Admin URL: http://127.0.0.1:3000/control-panel"
 
 if ! run_deploy existing t ""; then
   fail "existing deployment failed"
@@ -294,6 +298,7 @@ assert_contains "$MOCK_LOG" "docker version=v3.0.0 compose --env-file .env.produ
 assert_contains "$TEST_ROOT/.env.production" "SFORUM_VERSION=v3.0.0"
 assert_contains "$TEST_ROOT/.env.production" "DATABASE_URL=postgres://sforum:"
 assert_contains "$TEST_ROOT/.env.production" "REDIS_ADDR=redis:6379"
+assert_contains "$TEST_ROOT/.env.production" "NUXT_PUBLIC_ADMIN_ROUTE_PREFIX=/control-panel"
 if grep -Fq 'change-me' "$TEST_ROOT/.env.production"; then
   fail "default deployment configuration contains placeholder secrets"
 fi

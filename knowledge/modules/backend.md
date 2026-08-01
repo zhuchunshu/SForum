@@ -140,6 +140,9 @@ For a fresh installation, the default `latest` choice is resolved through the
 latest stable GitHub Release API before configuration or image pulls. Only the
 resulting immutable tag is written to `.env.production` and `.deployrc`;
 operators can still pass an exact release tag for repeatable rollouts.
+The first-run production wizard asks for a safe admin route prefix and writes
+it to `NUXT_PUBLIC_ADMIN_ROUTE_PREFIX`; successful deploy and restart actions
+print both loopback reverse-proxy targets plus the public site and admin URLs.
 The production migration service receives the same mandatory security secrets
 validated by the shared configuration loader; a real Compose render test keeps
 that release/runtime contract aligned.
@@ -156,7 +159,9 @@ maintenance path. The first conversion from direct host ports has a short
 maintenance window; later compatible HTTP switches are continuous, while
 WebSockets may reconnect. `latest` is resolved from the public GitHub Release
 list, including prereleases, to an immutable tag before confirmation and state
-persistence. See `decisions/2026-08-01-compose-blue-green-updates.md`.
+persistence. Candidate and stable Web readiness checks use `/health`; they do
+not render or warm the cached homepage through the internal loopback origin.
+See `decisions/2026-08-01-compose-blue-green-updates.md`.
 
 The admin release checker caches both successful and failed upstream results
 for five minutes per API process. Forced checks still bypass that cache.

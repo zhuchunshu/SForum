@@ -18,12 +18,13 @@ const { t } = useI18n()
 const toast = useToast()
 const localePath = useLocalePath()
 const securityApi = useAccountSecurityApi()
-const { siteName, passwordPolicy } = useWebOptions()
+const { passwordPolicy } = useWebOptions()
 
 useSForumSeo({
-  title: () => `${t('localPasswordSettings.metaTitle')} - ${siteName.value}`,
+  title: () => t('localPasswordSettings.metaTitle'),
   description: () => t('localPasswordSettings.metaDescription'),
-  type: 'website'
+  type: 'website',
+  noindex: true
 })
 
 const form = reactive({
