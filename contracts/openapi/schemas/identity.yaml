@@ -593,6 +593,7 @@ AdminUserSummary:
   - id
   - username
   - email
+  - emailVerified
   - displayName
   - locale
   - status
@@ -609,6 +610,8 @@ AdminUserSummary:
     email:
       type: string
       format: email
+    emailVerified:
+      type: boolean
     displayName:
       type: string
     locale:
@@ -850,6 +853,14 @@ AdminUpdateUserInput:
     websiteUrl:
       type: string
       maxLength: 200
+AdminSetEmailVerificationInput:
+  type: object
+  required:
+  - verified
+  properties:
+    verified:
+      type: boolean
+      description: true marks the email verified; false resets it to unverified.
 UserRolesInput:
   type: object
   required:

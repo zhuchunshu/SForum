@@ -110,7 +110,6 @@ function formatTime(iso: string): string {
     :title="t('accountSecurity.title')"
     :description="t('accountSecurity.intro')"
     :rail-label="t('accountSecurity.rail.ariaLabel')"
-    :rail-open-label="t('accountSecurity.rail.open')"
   >
     <template #head-actions>
       <SFButton

@@ -105,11 +105,19 @@
   font-size: 11px;
 }
 
+.sf-notification-preview__header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+}
+
 .sf-notification-preview__icon-button {
   width: 32px;
   height: 32px;
   flex: 0 0 32px;
   border-radius: 6px;
+  text-decoration: none;
 }
 
 .sf-notification-preview__tabs {

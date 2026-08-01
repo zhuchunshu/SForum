@@ -383,6 +383,8 @@ describe('SFNotificationsPage contract', () => {
     expect(preview).toContain('role="dialog"')
     expect(preview).toContain("event.key === 'Escape'")
     expect(preview).toContain("t('notifications.preview.limitHint', { count: NOTIFICATION_PREVIEW_LIMIT })")
+    expect(preview).toContain(":to=\"localePath('/settings/notifications')\"")
+    expect(preview).toContain(":aria-label=\"t('notificationSettings.title')\"")
     expect(styles).toContain('@media (max-width: 640px)')
     expect(styles).toContain('bottom: 0;')
     expect(styles).toContain('max-height: min(78vh, 660px);')
@@ -438,6 +440,7 @@ describe('SFNotificationsPage contract', () => {
     expect(page).toContain('owner-id="forum.notifications"')
     expect(page).not.toContain("useState<boolean>('forum-mobile-menu-open'")
     expect(page).toContain("useState<boolean>('forum-mobile-info-open'")
+    expect(page).not.toContain('@click="mobileInfoOpen = true"')
     expect(page).not.toContain('sforum-mobile-drawer sforum-mobile-drawer--left')
     expect(page).toContain('sforum-mobile-drawer sforum-mobile-drawer--right')
     expect(page).not.toContain('<SFContentColumnFooter')
@@ -447,6 +450,14 @@ describe('SFNotificationsPage contract', () => {
     expect(styles).toContain('.sforum-notifications__sidebar,\n  .sforum-notifications__right {\n    position: static;')
     expect(styles).toContain('height: auto;\n    min-height: 0;\n    overflow: visible;')
     expect(page).not.toContain('ssr: false')
+  })
+
+  test('does not duplicate the global mobile right-rail trigger on notification detail', () => {
+    const detailPage = source('../../app/components/notifications/detail/SFNotificationDetailPage.vue')
+
+    expect(detailPage).toContain("useState<boolean>('forum-mobile-info-open'")
+    expect(detailPage).not.toContain('@click="mobileInfoOpen = true"')
+    expect(detailPage).toContain('sforum-mobile-drawer sforum-mobile-drawer--right')
   })
 
   test('uses server-authoritative type filters while preserving cursor pagination', () => {

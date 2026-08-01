@@ -21,7 +21,12 @@ Initial identity foundation is implemented.
   创建主题、评论和上传附件；注册成功后前端会将未验证用户送到认证布局下的邮箱
   验证等待页，保留安全的原始回跳目标，并支持检查状态与重新发送验证邮件。用户只
   能点击邮件中的一次性链接完成验证，不提供手动验证码输入；同一浏览器点击链接后
-  回到等待页成功状态，未登录浏览器则回到登录页。
+  回到等待页成功状态，未登录浏览器则回到登录页。后台用户管理可通过
+  `PUT /users/{userID}/email-verification` 手动标记已验证或重置为未验证；操作需要
+  `user.manage`，非超级管理员不能修改 `super_admin` 用户。两种操作都会作废该用户
+  所有未使用验证链接，并分别写入 `identity.email_verification.admin_verify` 或
+  `identity.email_verification.admin_reset` 审计事件。用户列表与详情均返回
+  `emailVerified`，后台面板展示当前状态并在确认后执行变更。
   迁移为 `202608010001_identity_email_verification.sql`，老用户按 `created_at` 一次性
   视为已验证以保持兼容。
 

@@ -6,6 +6,8 @@ import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFResponsivePublicSidebar from '~/components/forum/navigation/SFResponsivePublicSidebar.vue'
 import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
 import SFPublicPageHeader from '~/components/public/SFPublicPageHeader.vue'
+import SFPublicMobileUserMenu from '~/components/navigation/SFPublicMobileUserMenu.vue'
+import SFPublicMobileRightDrawerHeader from '~/components/navigation/SFPublicMobileRightDrawerHeader.vue'
 import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSidebarDrawer'
 import { useAccountSettingsNavigation, type AccountSettingsNavItem } from '~/composables/settings/useAccountSettingsNavigation'
 /**
@@ -22,8 +24,6 @@ const props = withDefaults(defineProps<{
   description: string
   /** 右栏 aria-label（同时用作移动端右抽屉标题） */
   railLabel: string
-  /** 打开右抽屉按钮的 aria-label */
-  railOpenLabel: string
   /** 传给账号导航的公开主页链接（可选） */
   publicProfilePath?: string
   /** 是否渲染右栏与右抽屉（如数据未就绪时可关闭） */
@@ -60,7 +60,7 @@ const categoryTopicTotal = computed(() => categories.value.reduce((sum, category
 const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
 
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
-const { openDrawer: openMobileMenu, closeDrawer: closeMobileMenu } = usePublicSidebarDrawer()
+const { closeDrawer: closeMobileMenu } = usePublicSidebarDrawer()
 
 function closeMobileDrawers() {
   closeMobileMenu()
@@ -106,22 +106,6 @@ function closeMobileDrawers() {
           <template #aside>
             <div class="sforum-settings__head-actions">
               <slot name="head-actions" />
-              <button
-                type="button"
-                class="sforum-settings__icon-button sforum-settings__desktop-hidden"
-                :aria-label="props.railOpenLabel"
-                @click="mobileInfoOpen = true"
-              >
-                <UIcon name="i-lucide-panel-right" class="size-[18px]" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                class="sforum-settings__icon-button sforum-settings__desktop-hidden"
-                :aria-label="t('home.sidebar.drawerTitle')"
-                @click="openMobileMenu"
-              >
-                <UIcon name="i-lucide-menu" class="size-[18px]" aria-hidden="true" />
-              </button>
             </div>
           </template>
         </SFPublicPageHeader>
@@ -149,12 +133,12 @@ function closeMobileDrawers() {
     />
 
     <aside v-if="props.showRail && mobileInfoOpen" class="sforum-mobile-drawer sforum-mobile-drawer--right">
-      <header class="sforum-mobile-drawer__head">
-        <strong>{{ props.railLabel }}</strong>
-        <button type="button" :aria-label="t('common.close')" @click="closeMobileDrawers">
-          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
-        </button>
-      </header>
+      <SFPublicMobileRightDrawerHeader
+        :title="props.railLabel"
+        :close-label="t('common.close')"
+        @close="closeMobileDrawers"
+      />
+      <SFPublicMobileUserMenu />
       <div class="sforum-settings__right sforum-settings__right--drawer" :aria-label="props.railLabel">
         <slot name="rail" />
       </div>

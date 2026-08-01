@@ -143,6 +143,19 @@ responsibilities.
   sidebars use this contract. They do not keep separate mobile left-sidebar
   markup or legacy page-specific menu state. Independent right information
   drawers remain page-owned.
+- Notification index/detail, account settings, and moderation no longer render
+  duplicate drawer triggers inside their mobile content headers. The shared
+  navbar remains the single mobile entry point while each page continues to
+  own the drawer content selected by the shared state.
+- For authenticated users, that navbar entry point renders the current
+  `SFAvatar` instead of a panel icon. `usePublicUserMenu` is the shared action
+  authority for the desktop avatar dropdown and the account section prepended
+  to page-owned mobile right drawers; public profile, profile settings,
+  permission-aware moderation, email-verification resend, and logout therefore
+  cannot drift between viewports. The authenticated drawer heading is
+  “个人中心” rather than repeating the page-owned rail heading, and its account
+  actions are collapsed by default behind the accessible identity-row toggle.
+  Guests retain the neutral right-rail icon and contextual drawer heading.
 - Personalization exposes topbar, sidebar, and footer as editable locations and
   states that mobile follows sidebar. `public.mobile.primary` remains readable
   in V1 documents, snapshots, and imports for compatibility but is not rendered

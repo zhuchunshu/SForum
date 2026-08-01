@@ -18,6 +18,8 @@ import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
 import SFResponsivePublicSidebar from '~/components/forum/navigation/SFResponsivePublicSidebar.vue'
 import SFComment from '~/components/forum/SFComment.vue'
 import SFSelectionQuoteAction from '~/components/forum/SFSelectionQuoteAction.vue'
+import SFPublicMobileRightDrawerHeader from '~/components/navigation/SFPublicMobileRightDrawerHeader.vue'
+import SFPublicMobileUserMenu from '~/components/navigation/SFPublicMobileUserMenu.vue'
 import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSidebarDrawer'
 import { buildAuthPageLink } from '~/utils/identity/authReturn'
 /**
@@ -53,11 +55,9 @@ const replyActorName = computed(() => reportUser.value?.displayName || reportUse
 function showSuccessToast(title: string) {
   toast.add({ color: 'success', icon: 'i-lucide-check', title, duration: 10000 })
 }
-
 // 未登录访客：评论区块照常展示，但用登录引导替代回复编辑器；登录后跳回当前帖子。
 const isGuest = computed(() => !reportUser.value)
 const guestLoginTo = computed(() => buildAuthPageLink(localePath('/login'), route.fullPath))
-
 const deletingCommentId = ref<number | null>(null)
 
 // catch-all 路由参数解析：按当前 mode 把 /t/<...> 段解析为定位键。
@@ -1187,12 +1187,12 @@ async function submitReport() {
     />
 
     <aside v-if="mobileInfoOpen && topic" class="sforum-mobile-drawer sforum-mobile-drawer--right">
-      <header class="sforum-mobile-drawer__head">
-        <strong>{{ t('topicDetail.side.title') }}</strong>
-        <button type="button" :aria-label="t('topicDetail.cancel')" @click="closeMobileDrawers">
-          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
-        </button>
-      </header>
+      <SFPublicMobileRightDrawerHeader
+        :title="t('topicDetail.side.title')"
+        :close-label="t('topicDetail.cancel')"
+        @close="closeMobileDrawers"
+      />
+      <SFPublicMobileUserMenu />
       <SFTopicSideCard
         :topic="topic"
         :author-name="authorName"

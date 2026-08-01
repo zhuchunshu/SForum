@@ -6,6 +6,8 @@ import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
 import SFResponsivePublicSidebar from '~/components/forum/navigation/SFResponsivePublicSidebar.vue'
 import SFPublicPageHeader from '~/components/public/SFPublicPageHeader.vue'
+import SFPublicMobileRightDrawerHeader from '~/components/navigation/SFPublicMobileRightDrawerHeader.vue'
+import SFPublicMobileUserMenu from '~/components/navigation/SFPublicMobileUserMenu.vue'
 import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSidebarDrawer'
 /**
  * 宿主 body 岛：forum.tag.index。
@@ -343,12 +345,12 @@ function retryTags() {
     />
 
     <aside v-if="mobileInfoOpen" class="sforum-mobile-drawer sforum-mobile-drawer--right">
-      <header class="sforum-mobile-drawer__head">
-        <strong>{{ t('home.rightRail.drawerTitle') }}</strong>
-        <button type="button" :aria-label="t('common.close')" @click="closeMobileDrawers">
-          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
-        </button>
-      </header>
+      <SFPublicMobileRightDrawerHeader
+        :title="t('home.rightRail.drawerTitle')"
+        :close-label="t('common.close')"
+        @close="closeMobileDrawers"
+      />
+      <SFPublicMobileUserMenu />
       <aside class="sforum-home__right" :aria-label="t('taxonomy.tags.railLabel')">
         <SFTagIndexRightRail
           :overview="overview"

@@ -162,7 +162,6 @@ onBeforeUnmount(() => {
     :title="t('userAppearanceSettings.title')"
     :description="t('userAppearanceSettings.intro')"
     :rail-label="t('userAppearanceSettings.rail.ariaLabel')"
-    :rail-open-label="t('userAppearanceSettings.rail.open')"
   >
     <template #head-actions>
       <SFButton

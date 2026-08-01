@@ -24,7 +24,7 @@ func (s *PostgresStore) ListUsers(ctx context.Context, input UserListInput) (Adm
 		  ))
 	`
 	const listSQLPrefix = `
-		SELECT id, username, email, display_name, locale, status, is_initial_super_admin, created_at, updated_at
+		SELECT id, username, email, email_verified_at IS NOT NULL, display_name, locale, status, is_initial_super_admin, created_at, updated_at
 		FROM users
 		WHERE ($1 = '' OR username_lower LIKE '%' || lower($1) || '%' ESCAPE '\' OR email_lower LIKE '%' || lower($1) || '%' ESCAPE '\' OR lower(display_name) LIKE '%' || lower($1) || '%' ESCAPE '\')
 		  AND ($2 = '' OR status = $2)
@@ -59,6 +59,7 @@ func (s *PostgresStore) ListUsers(ctx context.Context, input UserListInput) (Adm
 			&user.ID,
 			&user.Username,
 			&user.Email,
+			&user.EmailVerified,
 			&user.DisplayName,
 			&user.Locale,
 			&user.Status,
@@ -108,13 +109,14 @@ func adminUserOrderBy(sortBy, sortOrder string) string {
 func (s *PostgresStore) GetAdminUser(ctx context.Context, userID int64) (AdminUserDetail, error) {
 	var detail AdminUserDetail
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, username, email, display_name, locale, status, is_initial_super_admin, created_at, updated_at
+		SELECT id, username, email, email_verified_at IS NOT NULL, display_name, locale, status, is_initial_super_admin, created_at, updated_at
 		FROM users
 		WHERE id = $1
 	`, userID).Scan(
 		&detail.ID,
 		&detail.Username,
 		&detail.Email,
+		&detail.EmailVerified,
 		&detail.DisplayName,
 		&detail.Locale,
 		&detail.Status,
@@ -356,7 +358,7 @@ func (s *PostgresStore) updateAdminUser(ctx context.Context, actorUserID int64, 
 	// 读取当前行作为合并基准，并做唯一性冲突检查。
 	var current AdminUserDetail
 	err = tx.QueryRow(ctx, `
-		SELECT id, username, email, display_name, locale, status, is_initial_super_admin, created_at, updated_at
+		SELECT id, username, email, email_verified_at IS NOT NULL, display_name, locale, status, is_initial_super_admin, created_at, updated_at
 		FROM users
 		WHERE id = $1
 		FOR UPDATE
@@ -364,6 +366,7 @@ func (s *PostgresStore) updateAdminUser(ctx context.Context, actorUserID int64, 
 		&current.ID,
 		&current.Username,
 		&current.Email,
+		&current.EmailVerified,
 		&current.DisplayName,
 		&current.Locale,
 		&current.Status,

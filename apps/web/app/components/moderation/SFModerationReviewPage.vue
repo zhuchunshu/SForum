@@ -6,6 +6,8 @@ import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFResponsivePublicSidebar from '~/components/forum/navigation/SFResponsivePublicSidebar.vue'
 import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
 import SFPublicPageHeader from '~/components/public/SFPublicPageHeader.vue'
+import SFPublicMobileUserMenu from '~/components/navigation/SFPublicMobileUserMenu.vue'
+import SFPublicMobileRightDrawerHeader from '~/components/navigation/SFPublicMobileRightDrawerHeader.vue'
 import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSidebarDrawer'
 import ModerationDecisionRail from '~/components/moderation/ModerationDecisionRail.vue'
 import ModerationQueueItem from '~/components/moderation/ModerationQueueItem.vue'
@@ -69,7 +71,7 @@ const fieldError = ref('')
 const loadError = ref('')
 const submitting = ref<ModerationAction | null>(null)
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
-const { openDrawer: openMobileMenu, closeDrawer: closeMobileMenu } = usePublicSidebarDrawer()
+const { closeDrawer: closeMobileMenu } = usePublicSidebarDrawer()
 const openedReviewFromQueue = ref(false)
 
 const emptyCounts = (): ModerationQueueCounts => ({
@@ -392,22 +394,6 @@ function isItemActive(item: QueueRecord) {
               >
                 <UIcon name="i-lucide-refresh-cw" class="size-4" :class="{ 'animate-spin': listPending }" aria-hidden="true" />
               </button>
-              <button
-                type="button"
-                class="sforum-moderation-icon-button sforum-moderation__desktop-hidden"
-                :aria-label="t('moderation.workbench.openRightRail')"
-                @click="mobileInfoOpen = true"
-              >
-                <UIcon name="i-lucide-panel-right" class="size-[18px]" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                class="sforum-moderation-icon-button sforum-moderation__desktop-hidden sforum-moderation__menu-button"
-                :aria-label="t('moderation.workbench.openQueueDrawer')"
-                @click="openMobileMenu"
-              >
-                <UIcon name="i-lucide-menu" class="size-[18px]" aria-hidden="true" />
-              </button>
             </div>
           </template>
         </SFPublicPageHeader>
@@ -502,24 +488,6 @@ function isItemActive(item: QueueRecord) {
             </button>
             <p v-if="progressLabel">{{ progressLabel }} · {{ pageRangeLabel }}</p>
           </div>
-          <div class="sforum-moderation__head-actions">
-            <button
-              type="button"
-              class="sforum-moderation-icon-button sforum-moderation__desktop-hidden"
-              :aria-label="t('moderation.workbench.openDecisionDrawer')"
-              @click="mobileInfoOpen = true"
-            >
-              <UIcon name="i-lucide-panel-right" class="size-[18px]" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              class="sforum-moderation-icon-button sforum-moderation__desktop-hidden sforum-moderation__menu-button"
-              :aria-label="t('moderation.workbench.openQueueDrawer')"
-              @click="openMobileMenu"
-            >
-              <UIcon name="i-lucide-menu" class="size-[18px]" aria-hidden="true" />
-            </button>
-          </div>
         </header>
 
         <ModerationReviewReader
@@ -569,12 +537,12 @@ function isItemActive(item: QueueRecord) {
     />
 
     <aside v-if="mobileInfoOpen" class="sforum-mobile-drawer sforum-mobile-drawer--right">
-      <header class="sforum-mobile-drawer__head">
-        <strong>{{ rightDrawerTitle }}</strong>
-        <button type="button" :aria-label="t('common.close')" @click="closeMobileDrawers">
-          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
-        </button>
-      </header>
+      <SFPublicMobileRightDrawerHeader
+        :title="rightDrawerTitle"
+        :close-label="t('common.close')"
+        @close="closeMobileDrawers"
+      />
+      <SFPublicMobileUserMenu />
 
       <ModerationQueueRail
         v-if="!reviewMode"

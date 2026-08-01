@@ -5,18 +5,15 @@ import SFPublicMobileNavigation from '~/components/navigation/SFPublicMobileNavi
 import SFPublicMobileSearchBar from '~/components/navigation/SFPublicMobileSearchBar.vue'
 import SFPublicNavigationLinks from '~/components/navigation/SFPublicNavigationLinks.vue'
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
-import { useAuthSession } from '~/composables/identity/useAuthSession'
 import {
-  type NavbarMenuItem,
   useNavbarLanguageMenu
 } from '~/composables/navigation/useNavbarLanguageMenu'
+import { usePublicUserMenu } from '~/composables/navigation/usePublicUserMenu'
 import { usePublicNavigation } from '~/composables/navigation/usePublicNavigation'
 import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSidebarDrawer'
 import { useColorModePreference } from '~/composables/appearance/useColorModePreference'
 import { buildForumHomeQuery } from '~/utils/forum/forumHome'
 import { parseForumTagPublicPagesOption } from '~/utils/forum/forumTaxonomy'
-import { apiErrorMessage } from '~/composables/useApiClient'
-import { normalizeEnabledOption } from '~/composables/useWebOptions'
 
 const props = withDefaults(defineProps<{
   /** Core 404 应急页不得在 API 已失效时继续启动 chrome 请求。 */
@@ -30,7 +27,7 @@ const props = withDefaults(defineProps<{
 
 const { t } = useI18n()
 const localePath = useLocalePath()
-const { user, status, refresh } = useAuthSession()
+const { user, status, displayName, needsEmailVerification, userMenuItems } = usePublicUserMenu()
 const {
   siteName,
   siteTagline,
@@ -38,8 +35,6 @@ const {
   webOption
 } = useWebOptions()
 const { request } = useApiClient()
-const toast = useToast()
-const router = useRouter()
 const route = useRoute()
 const {
   preference: colorModePreference,
@@ -102,19 +97,7 @@ const {
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
 
 // 发帖入口只对拥有论坛发帖权限的用户显示，API 仍负责最终鉴权。
-const emailVerificationRequired = computed(() => normalizeEnabledOption(
-  webOption('identity.registration.require_email_verification', 'off'),
-  false
-))
-const needsEmailVerification = computed(() => Boolean(
-  user.value && emailVerificationRequired.value && !user.value.emailVerified
-))
-const resendingVerification = ref(false)
 const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate) && !needsEmailVerification.value)
-const canReviewContent = computed(() => can(FORUM_PERMISSIONS.moderationReview))
-const displayName = computed(() =>
-  user.value?.displayName || user.value?.username || ''
-)
 const { currentLocaleName, languageMenuItems } = useNavbarLanguageMenu()
 const currentColorModeOption = computed(() =>
   colorModeOptions.find(option => option.value === colorModePreference.value) || colorModeOptions[0]!
@@ -124,83 +107,6 @@ const colorModeTriggerLabel = computed(() => t('appearance.colorMode.currentPref
   preference: colorModePreferenceLabel.value
 }))
 const colorModeTriggerIcon = computed(() => currentColorModeOption.value.icon)
-
-const userMenuItems = computed<NavbarMenuItem[][]>(() => {
-  if (!user.value) {
-    return []
-  }
-
-  return [
-    [
-      {
-        label: displayName.value,
-        description: `@${user.value.username}`,
-        type: 'label'
-      }
-    ],
-    ...(needsEmailVerification.value
-      ? [[{
-          label: resendingVerification.value
-            ? t('auth.emailVerificationSending')
-            : t('auth.emailVerificationResend'),
-          description: t('auth.emailVerificationRequiredHint'),
-          icon: 'i-lucide-mail-warning',
-          onSelect: (event: Event) => {
-            event.preventDefault()
-            void resendEmailVerification()
-          }
-        }]]
-      : []),
-    [
-      {
-        label: t('nav.myProfile'),
-        icon: 'i-lucide-user',
-        to: localePath(`/u/${user.value.username}`)
-      },
-      {
-        label: t('nav.profileSettings'),
-        icon: 'i-lucide-settings',
-        to: localePath('/settings/profile')
-      },
-      ...(canReviewContent.value
-        ? [{ label: t('nav.moderationWorkbench'), icon: 'i-lucide-shield-check', to: localePath('/moderation') }]
-        : [])
-    ],
-    [
-      {
-        label: t('nav.logout'),
-        icon: 'i-lucide-log-out',
-        color: 'error',
-        onSelect: () => {
-          void logout()
-        }
-      }
-    ]
-  ]
-})
-
-async function resendEmailVerification() {
-  if (resendingVerification.value) return
-  resendingVerification.value = true
-  try {
-    await request<{ sent: boolean }>('/auth/email-verification/request', { method: 'POST' })
-    toast.add({
-      color: 'success',
-      icon: 'i-lucide-mail-check',
-      title: t('auth.emailVerificationSent'),
-      duration: 10000
-    })
-  } catch (error) {
-    toast.add({
-      color: 'error',
-      icon: 'i-lucide-circle-alert',
-      title: apiErrorMessage(error) || t('auth.emailVerificationSendFailed'),
-      duration: 0
-    })
-  } finally {
-    resendingVerification.value = false
-  }
-}
 
 function closeMobileDrawers() {
   closeMobileMenu()
@@ -238,16 +144,6 @@ function submitSearch(query: string) {
   })
 }
 
-async function logout() {
-  try {
-    await request('/auth/logout', { method: 'POST' })
-  } catch {
-    // 服务端退出失败时仍刷新会话，以服务端实际状态为准。
-  }
-
-  await refresh()
-  await router.push(localePath('/login'))
-}
 </script>
 
 <template>
@@ -312,11 +208,19 @@ async function logout() {
         <button
           type="button"
           class="navbar__mobile-info-button"
-          :aria-label="t('home.rightRail.ariaLabel')"
+          :aria-label="user ? t('nav.userMenu') : t('home.rightRail.ariaLabel')"
+          :title="user ? t('nav.personalCenter') : t('home.rightRail.drawerTitle')"
           :aria-expanded="mobileInfoOpen"
           @click="toggleMobileInfo"
         >
-          <UIcon name="i-lucide-panel-right" class="size-5" aria-hidden="true" />
+          <SFAvatar
+            v-if="user"
+            :name="displayName"
+            :avatar="user.avatar"
+            size="sm"
+            shape="circle"
+          />
+          <UIcon v-else name="i-lucide-panel-right" class="size-5" aria-hidden="true" />
         </button>
         <SFNotificationPreview v-if="user" />
         <NuxtLink
@@ -391,7 +295,7 @@ async function logout() {
         </ClientOnly>
       </div>
 
-      <div class="navbar__session">
+      <div class="navbar__session" :class="{ 'navbar__session--authenticated': Boolean(user) }">
         <template v-if="status === 'guest'">
           <NuxtLink
             :to="localePath('/login')"
@@ -903,6 +807,10 @@ async function logout() {
 
   .navbar__session {
     order: 3;
+  }
+
+  .navbar__session--authenticated {
+    display: none;
   }
 
   .navbar__utility :deep(.sf-notification-preview),

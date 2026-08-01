@@ -706,6 +706,38 @@ userRoles:
         "$ref": "../components/responses.yaml#/Conflict"
       '422':
         "$ref": "../components/responses.yaml#/UnprocessableEntity"
+adminUserEmailVerification:
+  put:
+    summary: Set a user's email verification state
+    description: |
+      Requires `user.manage`. Marks the target email as verified or resets it
+      to unverified. Both operations invalidate outstanding verification links
+      and write an actor/target audit event. Non-super-admin operators cannot
+      change a super_admin account.
+    operationId: setAdminUserEmailVerification
+    parameters:
+    - "$ref": "../components/parameters.yaml#/UserID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/identity.yaml#/AdminSetEmailVerificationInput"
+    responses:
+      '200':
+        description: Email verification state updated.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseAdminUserDetail"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
 userPermissionOverrides:
   put:
     summary: Replace direct permission overrides for a user

@@ -124,6 +124,29 @@ func (h *Controller) updateUser(c fiber.Ctx) error {
 	return apphttp.OK(c, user)
 }
 
+func (h *Controller) setUserEmailVerification(c fiber.Ctx) error {
+	if h.emailVerification == nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, "auth.email_verification_unavailable")
+	}
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	userID, err := paramInt64(c, "userID")
+	if err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+	var req setUserEmailVerificationRequest
+	if err := c.Bind().Body(&req); err != nil || req.Verified == nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+	user, err := h.emailVerification.SetByAdmin(c.Context(), actor, userID, *req.Verified)
+	if err != nil {
+		return mapIdentityError(err)
+	}
+	return apphttp.OK(c, user)
+}
+
 func (h *Controller) createRole(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {

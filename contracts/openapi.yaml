@@ -313,6 +313,8 @@ paths:
     "$ref": "./openapi/paths/identity.yaml#/users"
   "/users/{userID}":
     "$ref": "./openapi/paths/identity.yaml#/userByID"
+  "/users/{userID}/email-verification":
+    "$ref": "./openapi/paths/identity.yaml#/adminUserEmailVerification"
   "/users/{userID}/roles":
     "$ref": "./openapi/paths/identity.yaml#/userRoles"
   "/users/{userID}/permission-overrides":

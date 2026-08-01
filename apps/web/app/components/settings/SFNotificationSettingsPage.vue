@@ -136,7 +136,6 @@ async function restoreDefaults() {
     :title="t('notificationSettings.title')"
     :description="t('notificationSettings.intro')"
     :rail-label="t('notificationSettings.rail.ariaLabel')"
-    :rail-open-label="t('notificationSettings.rail.open')"
   >
     <template #head-actions>
       <SFButton variant="secondary" size="sm" :disabled="!hasChanges || saving" @click="resetDraft">
@@ -163,6 +162,8 @@ async function restoreDefaults() {
         </div>
       </div>
     </section>
+
+    <SFWebPushSettingsSection />
 
     <div v-if="pending && catalog.items.length === 0" class="mt-5 space-y-3" aria-busy="true">
       <SFSkeleton v-for="index in 3" :key="index" class="h-32 w-full" />
@@ -217,8 +218,6 @@ async function restoreDefaults() {
         </ul>
       </section>
     </div>
-
-    <SFWebPushSettingsSection />
 
     <div class="mt-5 flex flex-col gap-3 border-t border-slate-200 pt-5 dark:border-zinc-800 sm:flex-row sm:items-center sm:justify-between">
       <p class="text-xs text-muted">{{ t('notificationSettings.restoreHelp') }}</p>

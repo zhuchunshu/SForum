@@ -312,7 +312,6 @@ async function removeAvatar() {
     :title="t('profileSettings.canvasTitle')"
     :description="t('profileSettings.canvasDescription')"
     :rail-label="t('profileSettings.preview.ariaLabel')"
-    :rail-open-label="t('profileSettings.preview.open')"
     :public-profile-path="publicProfilePath"
     :show-rail="Boolean(profile)"
   >

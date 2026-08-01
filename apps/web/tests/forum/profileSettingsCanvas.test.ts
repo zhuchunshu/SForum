@@ -102,6 +102,8 @@ describe('profile settings canvas', () => {
     expect(shellSrc).toContain('owner-id="forum.settings"')
     expect(shellSrc).not.toContain("useState<boolean>('forum-mobile-menu-open'")
     expect(shellSrc).toContain("useState<boolean>('forum-mobile-info-open'")
+    expect(shellSrc).not.toContain('@click="mobileInfoOpen = true"')
+    expect(shellSrc).not.toContain('@click="openMobileMenu"')
     expect(shellSrc).toContain('sforum-mobile-drawer__backdrop')
     expect(shellSrc).not.toContain('sforum-mobile-drawer sforum-mobile-drawer--left')
     expect(shellSrc).toContain('sforum-mobile-drawer sforum-mobile-drawer--right')

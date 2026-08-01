@@ -7,6 +7,8 @@ import { useForumApi } from '~/composables/forum/useForumApi'
 import SFProfileRightRail from '~/components/profile/SFProfileRightRail.vue'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFResponsivePublicSidebar from '~/components/forum/navigation/SFResponsivePublicSidebar.vue'
+import SFPublicMobileUserMenu from '~/components/navigation/SFPublicMobileUserMenu.vue'
+import SFPublicMobileRightDrawerHeader from '~/components/navigation/SFPublicMobileRightDrawerHeader.vue'
 import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSidebarDrawer'
 /**
  * 宿主 body 岛：forum.profile.show。主题 L1 挂载；路由页仅 outlet + fail-closed 回退。
@@ -641,12 +643,12 @@ async function shareProfile() {
     />
 
     <aside v-if="profile && mobileInfoOpen" class="sforum-mobile-drawer sforum-mobile-drawer--right">
-      <header class="sforum-mobile-drawer__head">
-        <strong>{{ t('profile.publicDetails') }}</strong>
-        <button type="button" :aria-label="t('common.close')" @click="closeMobileDrawers">
-          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
-        </button>
-      </header>
+      <SFPublicMobileRightDrawerHeader
+        :title="t('profile.publicDetails')"
+        :close-label="t('common.close')"
+        @close="closeMobileDrawers"
+      />
+      <SFPublicMobileUserMenu />
       <SFProfileRightRail
         :profile="profile"
         :display-name="displayName"

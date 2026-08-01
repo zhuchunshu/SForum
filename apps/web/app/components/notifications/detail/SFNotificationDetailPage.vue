@@ -7,6 +7,8 @@ import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFResponsivePublicSidebar from '~/components/forum/navigation/SFResponsivePublicSidebar.vue'
 import SFNotificationTypeNav from '~/components/notifications/SFNotificationTypeNav.vue'
 import SFPublicPageHeader from '~/components/public/SFPublicPageHeader.vue'
+import SFPublicMobileUserMenu from '~/components/navigation/SFPublicMobileUserMenu.vue'
+import SFPublicMobileRightDrawerHeader from '~/components/navigation/SFPublicMobileRightDrawerHeader.vue'
 import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSidebarDrawer'
 import {
   notificationFilterCounts,
@@ -180,16 +182,6 @@ useHead(() => ({ title: preview.value?.topicTitle || t('notifications.detailPage
               {{ t('notifications.detailPage.back') }}
             </NuxtLink>
           </template>
-          <template #aside>
-            <button
-              type="button"
-              class="sforum-notifications__icon-button sforum-notifications__desktop-hidden"
-              :aria-label="t('notifications.detail.open')"
-              @click="mobileInfoOpen = true"
-            >
-              <UIcon name="i-lucide-panel-right" class="size-[18px]" aria-hidden="true" />
-            </button>
-          </template>
         </SFPublicPageHeader>
 
         <SFAlert
@@ -306,12 +298,12 @@ useHead(() => ({ title: preview.value?.topicTitle || t('notifications.detailPage
     />
 
     <aside v-if="mobileInfoOpen" class="sforum-mobile-drawer sforum-mobile-drawer--right">
-      <header class="sforum-mobile-drawer__head">
-        <strong>{{ t('notifications.detailPage.title') }}</strong>
-        <button type="button" :aria-label="t('common.close')" @click="closeMobileDrawers">
-          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
-        </button>
-      </header>
+      <SFPublicMobileRightDrawerHeader
+        :title="t('notifications.detailPage.title')"
+        :close-label="t('common.close')"
+        @close="closeMobileDrawers"
+      />
+      <SFPublicMobileUserMenu />
       <div class="sforum-notification-detail__drawer-summary">
         <strong>{{ unreadTotal }}</strong>
         <span>{{ t('notifications.unreadCountLabel') }}</span>

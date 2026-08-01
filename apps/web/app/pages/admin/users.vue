@@ -3,6 +3,7 @@ import { usePermissionText } from '~/composables/identity/usePermissionText'
 import { useAdminListSurfaces } from '~/composables/admin/useAdminListSurfaces'
 import SFAdminSurfaceOutlet from '~/components/admin/SFAdminSurfaceOutlet.vue'
 import SFAdminUserListToolbar from '~/components/admin/identity/users/SFAdminUserListToolbar.vue'
+import SFAdminUserEmailVerificationControl from '~/components/admin/identity/users/SFAdminUserEmailVerificationControl.vue'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/admin/useAdminPage'
 import { paginateItems } from '~/utils/admin/adminExtensions'
@@ -13,12 +14,10 @@ import type {
   Permission, Role,
   UserStatus
 } from '~/utils/admin/adminUsers'
-
 definePageMeta({
   middleware: 'admin',
   layout: 'admin'
 })
-
 defineOptions({
   name: 'AdminUsers'
 })
@@ -1330,6 +1329,7 @@ watch([status, roleKey, sortBy, sortOrder], () => {
               </span>
             </label>
           </div>
+          <SFAdminUserEmailVerificationControl :user="selectedUser" @updated="applyDetailToForm" />
         </section>
 
         <!-- 公开资料 -->

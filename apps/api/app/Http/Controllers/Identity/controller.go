@@ -395,6 +395,10 @@ type updateUserRequest struct {
 	WebsiteURL  *string `json:"websiteUrl"`
 }
 
+type setUserEmailVerificationRequest struct {
+	Verified *bool `json:"verified"`
+}
+
 func queryInt(c fiber.Ctx, name string) int {
 	value, err := strconv.Atoi(c.Query(name))
 	if err != nil {

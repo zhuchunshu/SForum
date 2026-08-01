@@ -5,6 +5,8 @@ import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFResponsivePublicSidebar from '~/components/forum/navigation/SFResponsivePublicSidebar.vue'
 import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
 import SFPublicPageHeader from '~/components/public/SFPublicPageHeader.vue'
+import SFPublicMobileRightDrawerHeader from '~/components/navigation/SFPublicMobileRightDrawerHeader.vue'
+import SFPublicMobileUserMenu from '~/components/navigation/SFPublicMobileUserMenu.vue'
 import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSidebarDrawer'
 /**
  * 宿主 body 岛：forum.category.index。主题 L1 挂载；路由页仅 SEO + fail-closed 回退。
@@ -478,12 +480,12 @@ async function retryLoad() {
     />
 
     <aside v-if="mobileInfoOpen" class="sforum-mobile-drawer sforum-mobile-drawer--right">
-      <header class="sforum-mobile-drawer__head">
-        <strong>{{ t('home.rightRail.drawerTitle') }}</strong>
-        <button type="button" :aria-label="t('topicDetail.cancel')" @click="closeMobileDrawers">
-          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
-        </button>
-      </header>
+      <SFPublicMobileRightDrawerHeader
+        :title="t('home.rightRail.drawerTitle')"
+        :close-label="t('topicDetail.cancel')"
+        @close="closeMobileDrawers"
+      />
+      <SFPublicMobileUserMenu />
       <aside class="sforum-home__right sforum-category-directory__right" :aria-label="t('taxonomy.categories.rightRailLabel')">
         <div class="sf-home-right-rail">
           <section class="sf-home-right-rail__card sforum-category-directory__rail-section">

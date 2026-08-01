@@ -17,6 +17,11 @@
   browser returns to `/email-verification?verified=1`; a browser without a
   session returns to login with the stable success reason.
 - Replaced the deferred admin setting description with the implemented behavior.
+- Added administrator email-verification management under the existing user
+  drawer: operators with `user.manage` can mark an email verified or reset it
+  to unverified, while non-super-admin operators cannot target a
+  `super_admin`. Both transitions invalidate outstanding links and write
+  actor/target audit events.
 - Updated OpenAPI, bilingual UI copy, and frontend/backend regression coverage.
 
 ## Decisions
@@ -30,15 +35,22 @@
 
 ## Verification
 
-- `cd apps/web && bun test`: 857 passed.
+- `cd apps/web && bun test`: 862 passed.
 - `cd apps/web && bun run typecheck`: passed.
 - `cd apps/api && go test ./...`: passed.
-- `ruby scripts/validate-openapi-refs.rb`: 2,637 references valid.
+- `ruby scripts/validate-openapi-refs.rb`: 2,645 references valid.
 - `node tests/validate-architecture-boundaries.mjs`: passed.
+- `git diff --check`: passed.
 - Local PostgreSQL has migration `202608010001` applied.
 - Browser QA on the running site confirmed the new registration-setting copy,
   checked switches, and the authenticated verification-success page at mobile
   width with no console errors or warnings.
+- Authenticated Chrome QA at `http://127.0.0.1:3000/control-panel/users`
+  exercised both administrator transitions on a synthetic test user: reset to
+  unverified, then mark verified to restore its original state. Status badges,
+  confirmation copy, success Toasts, and the final persisted state were
+  correct, with no console errors or warnings. The connected Chrome instance
+  did not expose viewport override support for a separate mobile replay.
 
 ## Next
 

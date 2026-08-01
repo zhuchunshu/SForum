@@ -248,15 +248,26 @@ onBeforeUnmount(() => {
           <h2 id="navbar-notification-preview-title">{{ t('notifications.title') }}</h2>
           <span>{{ t('notifications.unreadSummary', { count: notifications.unreadCount.value }) }}</span>
         </div>
-        <button
-          type="button"
-          class="sf-notification-preview__icon-button"
-          :aria-label="t('common.close')"
-          :title="t('common.close')"
-          @click="closePreview"
-        >
-          <UIcon name="i-lucide-x" class="size-4" aria-hidden="true" />
-        </button>
+        <div class="sf-notification-preview__header-actions">
+          <NuxtLink
+            :to="localePath('/settings/notifications')"
+            class="sf-notification-preview__icon-button"
+            :aria-label="t('notificationSettings.title')"
+            :title="t('notificationSettings.title')"
+            @click="closePreview"
+          >
+            <UIcon name="i-lucide-settings" class="size-4" aria-hidden="true" />
+          </NuxtLink>
+          <button
+            type="button"
+            class="sf-notification-preview__icon-button"
+            :aria-label="t('common.close')"
+            :title="t('common.close')"
+            @click="closePreview"
+          >
+            <UIcon name="i-lucide-x" class="size-4" aria-hidden="true" />
+          </button>
+        </div>
       </header>
 
       <div class="sf-notification-preview__tabs" role="tablist" :aria-label="t('notifications.filter.aria')">

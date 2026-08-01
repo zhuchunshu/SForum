@@ -110,11 +110,21 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Mobile right-rail entry is now the authenticated user's avatar; its drawer
+  combines the desktop user-menu actions with page-owned information. The
+  account actions default to collapsed, and the authenticated “个人中心” header
+  no longer repeats contextual titles such as “主题信息”. Full Web tests,
+  typecheck, and architecture validation pass; prior mobile/desktop Chrome QA
+  remains valid, while the final collapsed-section click loop is pending after
+  a DevTools pointer-control timeout:
+  `sessions/2026-08-02-mobile-page-header-drawer-triggers.md`
+
 - Email verification is implemented end to end: one-use hashed link tokens,
   localized outbox mail, registration-to-waiting-page navigation, confirm/resend
-  APIs, OAuth assertion handling, and authoritative gates for topics/comments/
-  attachments. The waiting flow has no manual-code path. Full web/API tests,
-  typecheck, OpenAPI validation, and local Browser verification pass:
+  APIs, OAuth assertion handling, authoritative gates for topics/comments/
+  attachments, and audited admin verify/reset controls that invalidate old
+  links. The waiting flow has no manual-code path. Full web/API tests,
+  typecheck, OpenAPI validation, and authenticated Browser verification pass:
   `sessions/2026-08-01-email-verification.md`
 
 - CI architecture gate repair: `SFNavbar.vue` dropped from 1132 to 948 lines by

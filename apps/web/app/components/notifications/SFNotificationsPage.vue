@@ -6,6 +6,8 @@ import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFResponsivePublicSidebar from '~/components/forum/navigation/SFResponsivePublicSidebar.vue'
 import SFNotificationTypeNav from '~/components/notifications/SFNotificationTypeNav.vue'
 import SFPublicPageHeader from '~/components/public/SFPublicPageHeader.vue'
+import SFPublicMobileUserMenu from '~/components/navigation/SFPublicMobileUserMenu.vue'
+import SFPublicMobileRightDrawerHeader from '~/components/navigation/SFPublicMobileRightDrawerHeader.vue'
 import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSidebarDrawer'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { isUnauthenticatedAuthError } from '~/composables/identity/useAuthSession'
@@ -278,14 +280,6 @@ onBeforeUnmount(() => stopRealtime())
                 <UIcon name="i-lucide-check-check" class="size-4" aria-hidden="true" />
                 <span>{{ markingAll ? t('notifications.markingAllRead') : t('notifications.markAllRead') }}</span>
               </button>
-              <button
-                type="button"
-                class="sforum-notifications__icon-button sforum-notifications__desktop-hidden"
-                :aria-label="t('notifications.detail.open')"
-                @click="mobileInfoOpen = true"
-              >
-                <UIcon name="i-lucide-panel-right" class="size-[18px]" aria-hidden="true" />
-              </button>
             </div>
           </template>
         </SFPublicPageHeader>
@@ -461,12 +455,12 @@ onBeforeUnmount(() => stopRealtime())
     />
 
     <aside v-if="mobileInfoOpen" class="sforum-mobile-drawer sforum-mobile-drawer--right">
-      <header class="sforum-mobile-drawer__head">
-        <strong>{{ t('notifications.detail.title') }}</strong>
-        <button type="button" :aria-label="t('common.close')" @click="closeMobileDrawers">
-          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
-        </button>
-      </header>
+      <SFPublicMobileRightDrawerHeader
+        :title="t('notifications.detail.title')"
+        :close-label="t('common.close')"
+        @close="closeMobileDrawers"
+      />
+      <SFPublicMobileUserMenu />
       <aside class="sforum-notifications__right sforum-notifications__right--drawer" :aria-label="t('notifications.detail.aria')">
         <section class="sforum-notifications__rail-section">
           <div class="sforum-notifications__rail-head">

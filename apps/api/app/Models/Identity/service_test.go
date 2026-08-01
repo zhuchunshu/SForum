@@ -1444,6 +1444,7 @@ func (s *fakeStore) adminSummary(user CurrentUser) AdminUserSummary {
 		ID:                  user.ID,
 		Username:            user.Username,
 		Email:               s.userEmails[user.ID],
+		EmailVerified:       user.EmailVerified,
 		DisplayName:         user.DisplayName,
 		Locale:              user.Locale,
 		Status:              user.Status,

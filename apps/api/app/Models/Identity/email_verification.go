@@ -2,6 +2,7 @@ package identity
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -40,10 +41,17 @@ type EmailVerificationTarget struct {
 
 type EmailVerificationStore interface {
 	GetEmailVerificationTarget(context.Context, int64) (EmailVerificationTarget, error)
+	GetAdminUser(context.Context, int64) (AdminUserDetail, error)
 	CreateEmailVerificationToken(context.Context, CreateEmailVerificationTokenInput) (EmailVerificationToken, error)
 	ConfirmEmailVerification(context.Context, string) (int64, error)
 	IsEmailVerified(context.Context, int64) (bool, error)
+	SetAdminUserEmailVerified(context.Context, int64, int64, bool) (AdminUserDetail, error)
 }
+
+const (
+	AuditActionAdminEmailVerify = "identity.email_verification.admin_verify"
+	AuditActionAdminEmailReset  = "identity.email_verification.admin_reset"
+)
 
 func (s *PostgresStore) GetEmailVerificationTarget(ctx context.Context, userID int64) (EmailVerificationTarget, error) {
 	var target EmailVerificationTarget
@@ -133,6 +141,79 @@ func (s *PostgresStore) IsEmailVerified(ctx context.Context, userID int64) (bool
 		return false, fmt.Errorf("read email verification state: %w", err)
 	}
 	return verified, nil
+}
+
+func (s *PostgresStore) SetAdminUserEmailVerified(ctx context.Context, actorUserID, targetUserID int64, verified bool) (AdminUserDetail, error) {
+	var result AdminUserDetail
+	err := s.runIdentityAuthorityMutation(ctx, func() error {
+		var mutationErr error
+		result, mutationErr = s.setAdminUserEmailVerified(ctx, actorUserID, targetUserID, verified)
+		return mutationErr
+	})
+	return result, err
+}
+
+func (s *PostgresStore) setAdminUserEmailVerified(ctx context.Context, actorUserID, targetUserID int64, verified bool) (AdminUserDetail, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return AdminUserDetail{}, fmt.Errorf("begin admin email verification update: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	var previous bool
+	if err := tx.QueryRow(ctx, `
+		SELECT email_verified_at IS NOT NULL
+		FROM users
+		WHERE id = $1
+		FOR UPDATE
+	`, targetUserID).Scan(&previous); errors.Is(err, pgx.ErrNoRows) {
+		return AdminUserDetail{}, ErrUserNotFound
+	} else if err != nil {
+		return AdminUserDetail{}, fmt.Errorf("lock admin email verification state: %w", err)
+	}
+	if previous == verified {
+		if err := tx.Commit(ctx); err != nil {
+			return AdminUserDetail{}, fmt.Errorf("commit unchanged admin email verification state: %w", err)
+		}
+		return s.GetAdminUser(ctx, targetUserID)
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE users
+		SET email_verified_at = CASE WHEN $2 THEN transaction_timestamp() ELSE NULL END,
+		    updated_at = transaction_timestamp()
+		WHERE id = $1
+	`, targetUserID, verified); err != nil {
+		return AdminUserDetail{}, fmt.Errorf("update admin email verification state: %w", err)
+	}
+	tokens, err := tx.Exec(ctx, `
+		UPDATE email_verification_tokens
+		SET consumed_at = transaction_timestamp()
+		WHERE user_id = $1 AND consumed_at IS NULL
+	`, targetUserID)
+	if err != nil {
+		return AdminUserDetail{}, fmt.Errorf("expire email verification tokens after admin update: %w", err)
+	}
+
+	action := AuditActionAdminEmailReset
+	if verified {
+		action = AuditActionAdminEmailVerify
+	}
+	metadata, _ := json.Marshal(map[string]any{
+		"previousVerified": previous,
+		"verified":         verified,
+		"expiredTokens":    tokens.RowsAffected(),
+	})
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO audit_events (actor_user_id, target_user_id, action, metadata)
+		VALUES ($1, $2, $3, $4::jsonb)
+	`, actorUserID, targetUserID, action, string(metadata)); err != nil {
+		return AdminUserDetail{}, fmt.Errorf("audit admin email verification update: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return AdminUserDetail{}, fmt.Errorf("commit admin email verification update: %w", err)
+	}
+	return s.GetAdminUser(ctx, targetUserID)
 }
 
 type emailVerificationScanner interface {

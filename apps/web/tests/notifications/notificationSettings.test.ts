@@ -91,6 +91,7 @@ describe('Notification Platform V2 settings', () => {
     expect(userSettings).toContain('applyCategory')
     expect(userSettings).toContain('canOverrideNotificationPreference')
     expect(userSettings).toContain('v-if="canOverrideNotificationPreference(item)"')
+    expect(userSettings.indexOf('<SFWebPushSettingsSection />')).toBeLessThan(userSettings.indexOf('v-if="pending && catalog.items.length === 0"'))
     expect(settingsStyles).not.toContain('.sforum-settings__mobile-nav')
     expect(accountNav).toContain("localePath('/settings/notifications')")
   })

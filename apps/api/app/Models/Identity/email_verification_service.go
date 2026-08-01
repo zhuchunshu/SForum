@@ -132,6 +132,23 @@ func (s *EmailVerificationService) Confirm(ctx context.Context, rawToken string)
 	return s.store.ConfirmEmailVerification(ctx, hashResetToken(strings.TrimSpace(rawToken)))
 }
 
+func (s *EmailVerificationService) SetByAdmin(ctx context.Context, actor Actor, targetUserID int64, verified bool) (AdminUserDetail, error) {
+	if s == nil || s.store == nil || targetUserID <= 0 {
+		return AdminUserDetail{}, ErrUserNotFound
+	}
+	if !actor.Can(PermissionUserManage) {
+		return AdminUserDetail{}, ErrPermissionDenied
+	}
+	target, err := s.store.GetAdminUser(ctx, targetUserID)
+	if err != nil {
+		return AdminUserDetail{}, err
+	}
+	if containsString(target.RoleKeys, RoleSuperAdmin) && !actor.IsSuperAdmin() {
+		return AdminUserDetail{}, ErrSuperAdminSessionLocked
+	}
+	return s.store.SetAdminUserEmailVerified(ctx, actor.ID, targetUserID, verified)
+}
+
 func (s *EmailVerificationService) RequireVerifiedForContent(ctx context.Context, userID int64) error {
 	if s == nil || s.store == nil {
 		return nil

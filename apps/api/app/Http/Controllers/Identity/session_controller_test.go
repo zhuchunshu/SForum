@@ -287,13 +287,50 @@ func (s *sessionTestStore) GetAdminUser(_ context.Context, userID int64) (identi
 	return identity.AdminUserDetail{
 		AdminUserSummary: identity.AdminUserSummary{
 			ID: u.ID, Username: u.Username, DisplayName: u.DisplayName,
-			Status: u.Status, RoleKeys: append([]string(nil), u.RoleKeys...),
+			Status: u.Status, EmailVerified: u.EmailVerified, RoleKeys: append([]string(nil), u.RoleKeys...),
 			IsInitialSuperAdmin: u.IsInitialSuperAdmin,
 		},
 		Permissions:      append([]string(nil), u.Permissions...),
 		Sessions:         []identity.AdminSessionInspect{},
 		RecentAuthEvents: []identity.AdminAuthEvent{},
 	}, nil
+}
+func (s *sessionTestStore) GetEmailVerificationTarget(_ context.Context, userID int64) (identity.EmailVerificationTarget, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	u, ok := s.users[userID]
+	if !ok {
+		return identity.EmailVerificationTarget{}, identity.ErrUserNotFound
+	}
+	return identity.EmailVerificationTarget{UserID: userID, Username: u.Username, Status: u.Status, EmailVerified: u.EmailVerified}, nil
+}
+func (s *sessionTestStore) CreateEmailVerificationToken(_ context.Context, input identity.CreateEmailVerificationTokenInput) (identity.EmailVerificationToken, error) {
+	return identity.EmailVerificationToken{UserID: input.UserID, Email: input.Email, TokenHash: input.TokenHash}, nil
+}
+func (s *sessionTestStore) ConfirmEmailVerification(context.Context, string) (int64, error) {
+	return 0, identity.ErrEmailVerificationTokenNotFound
+}
+func (s *sessionTestStore) IsEmailVerified(_ context.Context, userID int64) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	u, ok := s.users[userID]
+	if !ok {
+		return false, identity.ErrUserNotFound
+	}
+	return u.EmailVerified, nil
+}
+func (s *sessionTestStore) SetAdminUserEmailVerified(_ context.Context, _ int64, targetUserID int64, verified bool) (identity.AdminUserDetail, error) {
+	s.mu.Lock()
+	u, ok := s.users[targetUserID]
+	if ok {
+		u.EmailVerified = verified
+		s.users[targetUserID] = u
+	}
+	s.mu.Unlock()
+	if !ok {
+		return identity.AdminUserDetail{}, identity.ErrUserNotFound
+	}
+	return s.GetAdminUser(context.Background(), targetUserID)
 }
 func (s *sessionTestStore) UpdateAdminUser(context.Context, int64, int64, identity.AdminUpdateUserInput) (identity.AdminUserDetail, error) {
 	return identity.AdminUserDetail{}, nil
@@ -414,7 +451,8 @@ func newSessionTestApp(t *testing.T) (*fiber.App, *sessionTestStore) {
 		},
 	)
 	controller := NewControllerWithAuthSessions(service, manager, nil).
-		WithAppearancePreferences(identity.NewAppearancePreferenceService(store))
+		WithAppearancePreferences(identity.NewAppearancePreferenceService(store)).
+		WithEmailVerification(identity.NewEmailVerificationService(store, nil, nil, identity.EmailVerificationConfig{}))
 	app := apphttp.NewApp(config.Config{CSRFEnabled: false}, nil, apphttp.Dependencies{
 		RouteProviders: []apphttp.RouteProvider{controller},
 	})
@@ -892,6 +930,71 @@ func adminSetUserPasswordRequest(userID int64, password string) *nethttp.Request
 	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/users/"+strconv.FormatInt(userID, 10)+"/password", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	return req
+}
+
+func adminSetEmailVerificationRequest(userID int64, verified bool) *nethttp.Request {
+	body, _ := json.Marshal(map[string]bool{"verified": verified})
+	req := httptest.NewRequest(nethttp.MethodPut, "/api/v1/users/"+strconv.FormatInt(userID, 10)+"/email-verification", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	return req
+}
+
+func TestAdminSetEmailVerificationRequiresAuth(t *testing.T) {
+	app, _ := newSessionTestApp(t)
+	resp, err := app.Test(adminSetEmailVerificationRequest(2, true))
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != nethttp.StatusUnauthorized {
+		t.Fatalf("expected 401 without auth, got %d", resp.StatusCode)
+	}
+}
+
+func TestAdminSetEmailVerificationForbiddenWithoutPermission(t *testing.T) {
+	app, store := newSessionTestApp(t)
+	cookie := registerAndLogin(t, app)
+	seedSessionTestMember(t, store, 2, "member", false)
+	req := adminSetEmailVerificationRequest(2, true)
+	req.AddCookie(cookie)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != nethttp.StatusForbidden {
+		t.Fatalf("expected 403 without user.manage, got %d", resp.StatusCode)
+	}
+}
+
+func TestAdminSetEmailVerificationUpdatesBothStates(t *testing.T) {
+	app, store := newSessionTestApp(t)
+	cookie := registerAndLogin(t, app)
+	promoteToUserManager(t, app, store, 1)
+	seedSessionTestMember(t, store, 2, "member", false)
+	for _, verified := range []bool{true, false} {
+		req := adminSetEmailVerificationRequest(2, verified)
+		req.AddCookie(cookie)
+		resp, err := app.Test(req)
+		if err != nil {
+			t.Fatalf("request failed: %v", err)
+		}
+		if resp.StatusCode != nethttp.StatusOK {
+			resp.Body.Close()
+			t.Fatalf("verified=%v expected 200, got %d", verified, resp.StatusCode)
+		}
+		var envelope struct {
+			Data identity.AdminUserDetail `json:"data"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+			resp.Body.Close()
+			t.Fatalf("decode response: %v", err)
+		}
+		resp.Body.Close()
+		if envelope.Data.EmailVerified != verified {
+			t.Fatalf("response verified=%v want=%v", envelope.Data.EmailVerified, verified)
+		}
+	}
 }
 
 // TestAdminSetUserPasswordRequiresAuth 未登录必须 401。

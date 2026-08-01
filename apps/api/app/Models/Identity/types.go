@@ -240,6 +240,7 @@ type AdminUserSummary struct {
 	ID                  int64      `json:"id"`
 	Username            string     `json:"username"`
 	Email               string     `json:"email"`
+	EmailVerified       bool       `json:"emailVerified"`
 	DisplayName         string     `json:"displayName"`
 	Locale              string     `json:"locale"`
 	Status              UserStatus `json:"status"`

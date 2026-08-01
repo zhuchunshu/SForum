@@ -10,12 +10,16 @@ import (
 
 type emailVerificationTestStore struct {
 	target   EmailVerificationTarget
+	admin    AdminUserDetail
 	created  CreateEmailVerificationTokenInput
 	verified bool
 }
 
 func (s *emailVerificationTestStore) GetEmailVerificationTarget(context.Context, int64) (EmailVerificationTarget, error) {
 	return s.target, nil
+}
+func (s *emailVerificationTestStore) GetAdminUser(context.Context, int64) (AdminUserDetail, error) {
+	return s.admin, nil
 }
 func (s *emailVerificationTestStore) CreateEmailVerificationToken(_ context.Context, input CreateEmailVerificationTokenInput) (EmailVerificationToken, error) {
 	s.created = input
@@ -27,6 +31,11 @@ func (s *emailVerificationTestStore) ConfirmEmailVerification(context.Context, s
 }
 func (s *emailVerificationTestStore) IsEmailVerified(context.Context, int64) (bool, error) {
 	return s.verified, nil
+}
+func (s *emailVerificationTestStore) SetAdminUserEmailVerified(_ context.Context, _ int64, _ int64, verified bool) (AdminUserDetail, error) {
+	s.verified = verified
+	s.admin.EmailVerified = verified
+	return s.admin, nil
 }
 
 type emailVerificationTestPolicy struct{ policy EmailVerificationPolicy }
@@ -90,5 +99,41 @@ func TestEmailVerificationConfirmDelegatesOpaqueToken(t *testing.T) {
 	userID, err := service.Confirm(context.Background(), "raw-token")
 	if err != nil || userID != 9 || !store.verified {
 		t.Fatalf("confirm userID=%d verified=%v err=%v", userID, store.verified, err)
+	}
+}
+
+func TestAdminCanSetEmailVerificationState(t *testing.T) {
+	store := &emailVerificationTestStore{admin: AdminUserDetail{AdminUserSummary: AdminUserSummary{ID: 9}}}
+	service := NewEmailVerificationService(store, nil, nil, EmailVerificationConfig{})
+	actor := Actor{ID: 1, Status: UserStatusActive, Permissions: map[string]bool{PermissionUserManage: true}}
+
+	user, err := service.SetByAdmin(context.Background(), actor, 9, true)
+	if err != nil || !user.EmailVerified || !store.verified {
+		t.Fatalf("admin verify user=%#v verified=%v err=%v", user, store.verified, err)
+	}
+	user, err = service.SetByAdmin(context.Background(), actor, 9, false)
+	if err != nil || user.EmailVerified || store.verified {
+		t.Fatalf("admin reset user=%#v verified=%v err=%v", user, store.verified, err)
+	}
+}
+
+func TestAdminEmailVerificationRequiresPermission(t *testing.T) {
+	store := &emailVerificationTestStore{admin: AdminUserDetail{AdminUserSummary: AdminUserSummary{ID: 9}}}
+	service := NewEmailVerificationService(store, nil, nil, EmailVerificationConfig{})
+	_, err := service.SetByAdmin(context.Background(), Actor{ID: 1}, 9, true)
+	if !errors.Is(err, ErrPermissionDenied) || store.verified {
+		t.Fatalf("permission denial verified=%v err=%v", store.verified, err)
+	}
+}
+
+func TestAdminEmailVerificationProtectsSuperAdmin(t *testing.T) {
+	store := &emailVerificationTestStore{admin: AdminUserDetail{AdminUserSummary: AdminUserSummary{
+		ID: 9, RoleKeys: []string{RoleSuperAdmin},
+	}}}
+	service := NewEmailVerificationService(store, nil, nil, EmailVerificationConfig{})
+	actor := Actor{ID: 1, Status: UserStatusActive, Permissions: map[string]bool{PermissionUserManage: true}}
+	_, err := service.SetByAdmin(context.Background(), actor, 9, true)
+	if !errors.Is(err, ErrSuperAdminSessionLocked) || store.verified {
+		t.Fatalf("super-admin protection verified=%v err=%v", store.verified, err)
 	}
 }

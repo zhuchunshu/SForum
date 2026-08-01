@@ -211,7 +211,6 @@ onMounted(() => {
     :title="t('accessTokensSettings.title')"
     :description="t('accessTokensSettings.intro')"
     :rail-label="t('accessTokensSettings.rail.ariaLabel')"
-    :rail-open-label="t('accessTokensSettings.rail.open')"
   >
     <SFTabs
       v-model="activeTokenTab"

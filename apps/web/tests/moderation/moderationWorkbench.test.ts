@@ -193,6 +193,8 @@ describe('moderation workbench implementation constraints', () => {
     expect(page).toContain('<SFResponsivePublicSidebar')
     expect(page).toContain('owner-id="forum.moderation.review"')
     expect(page).not.toContain('forum-mobile-menu-open')
+    expect(page).not.toContain('@click="mobileInfoOpen = true"')
+    expect(page).not.toContain('@click="openMobileMenu"')
     expect(page).toContain('sforum-mobile-drawer__backdrop')
     // 历史 tab 徽章必须用 historyTotal
     expect(page).toContain('historyTotal')

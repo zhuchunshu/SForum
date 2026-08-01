@@ -129,7 +129,6 @@ async function submitPassword() {
     :title="t('localPasswordSettings.title')"
     :description="t('localPasswordSettings.intro')"
     :rail-label="t('localPasswordSettings.rail.ariaLabel')"
-    :rail-open-label="t('localPasswordSettings.rail.open')"
   >
     <section
       class="sf-local-password__notice"

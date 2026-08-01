@@ -32,6 +32,7 @@ export type AdminUserSummary = {
   id: number
   username: string
   email: string
+  emailVerified: boolean
   displayName: string
   locale: string
   status: UserStatus

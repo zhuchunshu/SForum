@@ -27,7 +27,6 @@ useSForumSeo({
     :title="t('loginMethodsSettings.title')"
     :description="t('loginMethodsSettings.intro')"
     :rail-label="t('loginMethodsSettings.rail.ariaLabel')"
-    :rail-open-label="t('loginMethodsSettings.rail.open')"
   >
     <section class="mt-2 rounded-md border border-teal-200 bg-teal-50/70 p-4 dark:border-teal-900/60 dark:bg-teal-950/25">
       <div class="flex gap-3">
