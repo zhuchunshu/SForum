@@ -37,4 +37,6 @@ ENV PORT=3000
 COPY --from=build --chown=sforum:sforum /app/apps/web/.output ./.output
 USER sforum
 EXPOSE 3000
-CMD ["node", ".output/server/index.mjs"]
+# 兼容旧版部署文件：APP_URL 已由 Compose 传入，但 Nuxt Site Config
+# 只识别自己的运行时变量。新镜像启动时自动补齐，无需同步 Compose 文件。
+CMD ["sh", "-c", "export NUXT_PUBLIC_SITE_URL=\"${NUXT_PUBLIC_SITE_URL:-${APP_URL:-http://127.0.0.1:3000}}\"; export NUXT_SITE_URL=\"${NUXT_SITE_URL:-$NUXT_PUBLIC_SITE_URL}\"; exec node .output/server/index.mjs"]
