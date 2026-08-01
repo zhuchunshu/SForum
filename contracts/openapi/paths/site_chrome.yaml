@@ -36,6 +36,21 @@ siteNavigation:
             schema:
               "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteResolvedNavigation"
 
+siteAccountNavigation:
+  get:
+    summary: Resolve authenticated personal settings navigation
+    operationId: resolveSiteAccountNavigation
+    tags: [Site chrome]
+    description: Returns Host-filtered personal settings links. The response is private and requires the current authenticated session.
+    responses:
+      '200':
+        description: Redacted account settings navigation contributions.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteAccountNavigation"
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+
 siteFriendLinks:
   get:
     summary: List public friend links

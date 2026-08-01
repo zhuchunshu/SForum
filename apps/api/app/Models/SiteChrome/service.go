@@ -37,6 +37,21 @@ type Service struct {
 	navigationAudit     audit.TxWriter
 	navigationRevision  NavigationPublicSurfaceRevisionBumper
 	navigationPreviews  *navigationPreviewStore
+	accountResources    AccountSettingsResourceOwner
+}
+
+// AccountSettingsResourceOwner supplies opaque Host-owned retained-resource
+// keys for the current actor. The keys are visibility inputs only; no user ID,
+// session material, or plugin database handle crosses the extension boundary.
+type AccountSettingsResourceOwner interface {
+	OwnedResourceKeys(context.Context, identity.Actor) ([]string, error)
+}
+
+func (s *Service) WithAccountSettingsResourceOwner(provider AccountSettingsResourceOwner) *Service {
+	if s != nil {
+		s.accountResources = provider
+	}
+	return s
 }
 
 func NewService(store Store) *Service {

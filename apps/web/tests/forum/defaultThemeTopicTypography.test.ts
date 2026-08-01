@@ -16,6 +16,8 @@ describe('default theme topic typography', () => {
     expect(themeCss).toContain('--sf-public-text-size-control: 14px')
     expect(themeCss).toContain('--sf-public-text-size-body: 16px')
     expect(hostTopicCss).toContain('font-size: var(--sf-public-text-size-body, 14px)')
+    expect(themeCss).toContain('.sforum-topic-page__reading {\n  width: 100%;\n  max-width: var(--sf-public-reading-max);\n  margin-inline: auto;')
+    expect(hostTopicCss).toContain('.sforum-topic-page__reading {\n  width: 100%;\n  max-width: var(--sf-public-reading-max, 48rem);\n  margin-inline: auto;')
 
     expect(themeCss).toMatch(/\.sf-theme--default \.sf-topic-heading__byline time,[\s\S]*?color: var\(--sf-public-text-secondary\);[\s\S]*?font-size: var\(--sf-public-text-size-meta\);/)
     expect(themeCss).toMatch(/\.sf-theme--default \.sforum-topic-page__prose,[\s\S]*?font-size: var\(--sf-public-text-size-body\);/)

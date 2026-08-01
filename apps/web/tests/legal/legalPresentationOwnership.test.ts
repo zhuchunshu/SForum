@@ -42,8 +42,20 @@ describe('legal page presentation ownership', () => {
 
   test('shared legal document island owns body markup', () => {
     const body = read('app/components/legal/SFLegalDocumentPage.vue')
-    expect(body).toContain('class="legal-page"')
-    expect(body).toContain('legalBody')
+    expect(body).toContain('class="sf-public-page legal-page"')
+    expect(body).toContain('sf-prose')
+    expect(body).toContain('renderLegalMarkdown')
     expect(body).toContain("kind: 'terms' | 'privacy' | 'guidelines'")
+    expect(body).not.toContain('white-space: pre-wrap')
+    expect(body).not.toContain('border-radius: 10px')
+  })
+
+  test('default theme legal shell fills the public canvas', () => {
+    const theme = read('app/assets/css/sforum-theme.css')
+    expect(theme).toContain('.sf-theme-template[data-extension-id="sforum.default-theme"] .sf-page.sf-theme--default')
+    expect(theme).toContain('min-height: 100vh')
+    expect(theme).toContain('flex-direction: column')
+    expect(theme).toContain('> .sf-theme-chrome-body')
+    expect(theme).toContain('background: var(--sf-public-bg)')
   })
 })

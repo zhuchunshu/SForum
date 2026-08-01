@@ -149,6 +149,43 @@ func TestSiteChromeNavigationRegistryPermissionLocaleRegionsAndCacheInvalidation
 	}
 }
 
+func TestAccountSettingsNavigationUsesPermissionOrOwnedResourceAndSafePaths(t *testing.T) {
+	service := NewService(newFakeStore())
+	registry := navigationregistry.New()
+	runtime := &siteChromeRuntime{}
+	service.WithNavigationRegistry(registry).WithNavigationRuntime(runtime, runtime)
+	plugin := siteChromePublication("plugin.oauth", 'a')
+	plugin.Navigation = []navigationregistry.NavigationDeclaration{
+		{ID: "plugin.oauth.settings.apps", ContractVersion: "plugin.oauth.settings.apps@1", Kind: navigationregistry.NavigationKindAccountSettings, Action: navigationregistry.ActionAdd, Label: "Apps", Href: "/extensions/plugin.oauth/settings/apps", Visibility: navigationregistry.VisibilityAuthenticated, Permission: "oauth.apps.apply", Order: 20},
+		{ID: "plugin.oauth.settings.owned", ContractVersion: "plugin.oauth.settings.owned@1", Kind: navigationregistry.NavigationKindAccountSettings, Action: navigationregistry.ActionAdd, Label: "Owned", Href: "/extensions/plugin.oauth/settings/owned", Visibility: navigationregistry.VisibilityAuthenticated, OwnerResource: "oauth.app.owner", Order: 30},
+		{ID: "plugin.oauth.settings.unsafe", ContractVersion: "plugin.oauth.settings.unsafe@1", Kind: navigationregistry.NavigationKindAccountSettings, Action: navigationregistry.ActionAdd, Label: "Unsafe", Href: "/private", Visibility: navigationregistry.VisibilityAuthenticated, Order: 40},
+	}
+	if _, err := registry.Publish(plugin); err != nil {
+		t.Fatal(err)
+	}
+	guest, err := service.ResolveAccountSettingsNavigation(t.Context(), identity.Actor{}, "en-US")
+	if err != nil || len(guest) != 0 {
+		t.Fatalf("guest account settings=%#v err=%v", guest, err)
+	}
+	permissionActor := identity.Actor{ID: 7, Status: identity.UserStatusActive, Permissions: map[string]bool{"oauth.apps.apply": true}}
+	permissionItems, err := service.ResolveAccountSettingsNavigation(t.Context(), permissionActor, "en-US")
+	if err != nil || len(permissionItems) != 1 || permissionItems[0].ID != "plugin.oauth.settings.apps" {
+		t.Fatalf("permission account settings=%#v err=%v", permissionItems, err)
+	}
+	ownedActor := identity.Actor{ID: 8, Status: identity.UserStatusActive}
+	service.WithAccountSettingsResourceOwner(accountSettingsResourceOwnerStub{keys: []string{"oauth.app.owner"}})
+	ownedItems, err := service.ResolveAccountSettingsNavigation(t.Context(), ownedActor, "en-US")
+	if err != nil || len(ownedItems) != 1 || ownedItems[0].ID != "plugin.oauth.settings.owned" {
+		t.Fatalf("owned account settings=%#v err=%v", ownedItems, err)
+	}
+}
+
+type accountSettingsResourceOwnerStub struct{ keys []string }
+
+func (s accountSettingsResourceOwnerStub) OwnedResourceKeys(context.Context, identity.Actor) ([]string, error) {
+	return s.keys, nil
+}
+
 func TestSiteChromeSelectedReplaceFailsClosedButOptionalRuntimeFallsBack(t *testing.T) {
 	service := NewService(newFakeStore())
 	registry := navigationregistry.New()

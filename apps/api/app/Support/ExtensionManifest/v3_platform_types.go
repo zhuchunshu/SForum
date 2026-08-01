@@ -247,6 +247,8 @@ type ManifestNavigation struct {
 	Label           string `json:"label"`
 	Href            string `json:"href,omitempty"`
 	Permission      string `json:"permission,omitempty"`
+	Visibility      string `json:"visibility,omitempty"`
+	OwnerResource   string `json:"ownerResource,omitempty"`
 	Order           int    `json:"order,omitempty"`
 }
 

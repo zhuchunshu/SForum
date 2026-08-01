@@ -41,7 +41,14 @@ func buildLifecycleNavigationPublication(
 			ID: declaration.ID, ContractVersion: declaration.ContractVersion,
 			Kind: declaration.Kind, Action: declaration.Action, TargetID: declaration.TargetID,
 			Label: declaration.Label, Href: declaration.Href, Permission: declaration.Permission,
-			Order: declaration.Order, Visibility: navigationregistry.VisibilityPublic,
+			OwnerResource: declaration.OwnerResource, Order: declaration.Order,
+			Visibility: declaration.Visibility,
+		}
+		if item.Visibility == "" {
+			item.Visibility = navigationregistry.VisibilityPublic
+		}
+		if item.Kind == navigationregistry.NavigationKindAccountSettings && item.Visibility == navigationregistry.VisibilityPublic {
+			item.Visibility = navigationregistry.VisibilityAuthenticated
 		}
 		if declaration.Label != "" {
 			item.Labels = map[string]string{"zh-CN": declaration.Label}

@@ -266,6 +266,12 @@
       "path": "/api/v1/site/navigation"
     },
     {
+      "id": "core.route.site_chrome.account_navigation",
+      "contractVersion": "sforum.route.site_chrome.account_navigation@1",
+      "method": "GET",
+      "path": "/api/v1/site/account-navigation"
+    },
+    {
       "id": "core.route.identity.update_current_user_locale",
       "contractVersion": "sforum.route.identity.update_current_user_locale@1",
       "method": "PUT",

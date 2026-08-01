@@ -3,10 +3,15 @@
  * 账号设置左栏 after-nav：资料 / 安全（及可选公开主页）。
  * 样式复用 sf-home-navigation 链接语言，与通知/审核 after-nav 一致。
  */
-defineProps<{
-  active: 'profile' | 'appearance' | 'loginMethods' | 'password' | 'security' | 'tokens' | 'notifications'
+import type { AccountSettingsNavItem } from '~/composables/settings/useAccountSettingsNavigation'
+
+const props = withDefaults(defineProps<{
+  active: string
   publicProfilePath?: string
-}>()
+  extensionItems?: AccountSettingsNavItem[]
+}>(), {
+  extensionItems: () => []
+})
 
 const emit = defineEmits<{
   navigate: []
@@ -14,6 +19,10 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const localePath = useLocalePath()
+
+function itemPath(item: AccountSettingsNavItem) {
+  return item.href.startsWith('/') ? item.href : '/'
+}
 </script>
 
 <template>
@@ -96,6 +105,23 @@ const localePath = useLocalePath()
         {{ t('notificationSettings.title') }}
       </span>
     </NuxtLink>
+
+    <template v-if="props.extensionItems.length">
+      <div class="sf-home-navigation__label">{{ t('profileSettings.nav.extensions') }}</div>
+      <NuxtLink
+        v-for="item in props.extensionItems"
+        :key="item.id"
+        :to="localePath(itemPath(item))"
+        class="sf-home-navigation__link"
+        :class="{ 'is-active': props.active === item.id }"
+        @click="emit('navigate')"
+      >
+        <span class="sf-home-navigation__link-main">
+          <UIcon :name="item.icon || 'i-lucide-puzzle'" class="size-[18px]" aria-hidden="true" />
+          {{ item.label }}
+        </span>
+      </NuxtLink>
+    </template>
 
     <template v-if="publicProfilePath">
       <div class="sf-home-navigation__label">{{ t('profileSettings.nav.space') }}</div>

@@ -6,6 +6,7 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	// 公开：前台 navbar / footer / banner。
 	api.Get("/site/nav-items", h.publicNavItems)
 	api.Get("/site/navigation", h.publicNavigation)
+	api.Get("/site/account-navigation", h.accountSettingsNavigation)
 	api.Get("/site/friend-links", h.publicFriendLinks)
 	api.Get("/site/announcements", h.publicAnnouncements)
 

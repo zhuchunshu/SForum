@@ -35,6 +35,8 @@ const (
 	NavigationKindHeader     = "header"
 	NavigationKindFooter     = "footer"
 	NavigationKindSidebar    = "sidebar"
+	// NavigationKindAccountSettings is a Host-owned personal settings slot.
+	NavigationKindAccountSettings = "account-settings"
 )
 
 const (
@@ -102,9 +104,12 @@ type NavigationDeclaration struct {
 	Labels          map[string]string `json:"labels,omitempty"`
 	Href            string            `json:"href,omitempty"`
 	Permission      string            `json:"permission,omitempty"`
-	Visibility      string            `json:"visibility,omitempty"`
-	Handler         string            `json:"handler,omitempty"`
-	Order           int               `json:"order,omitempty"`
+	// OwnerResource is a Host-defined retained-resource key. The contribution
+	// is visible when the actor owns this key even without the permission.
+	OwnerResource string `json:"ownerResource,omitempty"`
+	Visibility    string `json:"visibility,omitempty"`
+	Handler       string `json:"handler,omitempty"`
+	Order         int    `json:"order,omitempty"`
 	// Priority orders competing providers/modifiers. Manifest V3 currently
 	// defaults this field to zero; callers may supply Host policy priority.
 	Priority int `json:"priority,omitempty"`
@@ -191,6 +196,7 @@ type ProviderRef struct {
 type VisibilityInput struct {
 	Authenticated     bool          `json:"authenticated,omitempty"`
 	Permissions       []string      `json:"permissions,omitempty"`
+	OwnedResources    []string      `json:"ownedResources,omitempty"`
 	HiddenIDs         []string      `json:"hiddenIds,omitempty"`
 	DisabledProviders []ProviderRef `json:"disabledProviders,omitempty"`
 }

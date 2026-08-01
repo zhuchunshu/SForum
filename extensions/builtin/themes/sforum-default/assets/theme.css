@@ -1263,7 +1263,9 @@
 }
 
 .sforum-topic-page__reading {
+  width: 100%;
   max-width: var(--sf-public-reading-max, 48rem);
+  margin-inline: auto;
 }
 
 .sforum-topic-page__article {

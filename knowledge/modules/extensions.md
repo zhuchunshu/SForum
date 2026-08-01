@@ -65,6 +65,11 @@ does not rebuild Nuxt.
   rollout hook. Marketplace install remains staged-only and has no supported
   product consumer; Marketplace/Privacy and the real rollout gate remain open
   work rather than advertised release features.
+- The generic `account-settings` navigation contract now carries through
+  Manifest V3 lifecycle publication with exact runtime filtering. Core also
+  owns the `IdentityDelegation` and `ConsentBridge` capability boundaries for
+  optional identity providers; these packages expose no raw Core database or
+  session authority and are not OAuth-specific.
 - Public roadmaps now label M3/M5/M6/M7 as prerelease residuals. P0-P12 phase
   checklist completion is not presented as stable production completion until
   those rows and the joined M8 gate close.

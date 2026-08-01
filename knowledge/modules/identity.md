@@ -10,6 +10,20 @@ helpers.
 
 Initial identity foundation is implemented.
 
+- **OAuth Provider Core prerequisites (2026-08-01):** Core now exposes a
+  dedicated `account-settings` Navigation Registry kind and private
+  `GET /site/account-navigation` projection. Manifest V3 contributions can
+  declare authenticated visibility, permission keys, and Host-owned retained
+  resource keys; the browser receives only redacted labels and safe
+  `/settings/*` or `/extensions/*` paths. Disabled/inert exact runtimes are
+  omitted by the lifecycle-aware composer. The independent
+  `Support/IdentityDelegation` contract issues plugin-scoped opaque subjects
+  with allowlisted profile/email/auth_time claims, and
+  `Support/ConsentBridge` binds one-use consent transactions to actor, session
+  fingerprint, exact artifact, CSRF, TTL, and optional recent-auth. These are
+  generic Host contracts; no OAuth provider models, tokens, client records, or
+  plugin database access were added to Core.
+
 - Attachment upload eligibility continues to use the existing
   `attachment.upload` effective permission, including role grants and direct
   user allow/deny overrides. Attachment-domain size policies are deliberately

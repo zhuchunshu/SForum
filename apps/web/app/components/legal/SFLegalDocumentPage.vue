@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { renderLegalMarkdown } from '~/utils/legal/renderLegalMarkdown'
+
 /**
  * 法律文档 body 岛（terms / privacy / guidelines）。
  * 主题 L1 经 site.component.* 挂载；路由页仅 SEO + fail-closed 回退。
@@ -21,60 +23,77 @@ const titleKey = computed(() => {
   }
 })
 
-const body = computed(() => legalBody(props.kind, locale.value))
+const title = computed(() => t(titleKey.value))
+const body = computed(() => renderLegalMarkdown(
+  stripLeadingMarkdownHeading(legalBody(props.kind, locale.value), title.value)
+))
+
+function stripLeadingMarkdownHeading(markdown: string, headingTitle: string) {
+  const source = markdown.trimStart()
+  const match = source.match(/^(#{1,6})\s+(.+?)(?:\r?\n+|$)/)
+  if (!match) return markdown
+  if (normalizeHeadingText(match[2] || '') !== normalizeHeadingText(headingTitle)) {
+    return markdown
+  }
+  return source.slice(match[0].length).replace(/^\s+/, '')
+}
+
+function normalizeHeadingText(value: string) {
+  return value.replace(/\s+/g, ' ').trim()
+}
 </script>
 
 <template>
-  <main class="legal-page" :data-sforum-island-body="`site.component.${kind}`">
-    <article class="legal-page__card">
-      <h1 class="legal-page__title">
-        {{ t(titleKey) }}
-      </h1>
-      <div class="legal-page__body">
-        {{ body }}
-      </div>
-    </article>
+  <main class="sf-public-page legal-page" :data-sforum-island-body="`site.component.${kind}`">
+    <div class="sf-public-page__container sf-public-page__container--narrow legal-page__container">
+      <article class="sf-card legal-page__card">
+        <div class="sf-card__body legal-page__body">
+          <h1 class="legal-page__title">
+            {{ title }}
+          </h1>
+          <div class="sf-prose legal-page__content" v-html="body" />
+        </div>
+      </article>
+    </div>
   </main>
 </template>
 
 <style scoped>
 .legal-page {
-  max-width: var(--sf-public-container, 1100px);
-  margin: 0 auto;
   padding: 2rem 1rem 3rem;
 }
 
-.legal-page__card {
-  border: 1px solid var(--sf-public-border, #e4e8ef);
-  border-radius: 10px;
-  background: var(--sf-public-surface, #fff);
-  padding: 1.5rem 1.25rem;
+.legal-page__container {
+  min-width: 0;
+  margin: 0 auto;
 }
 
-.legal-page__title {
-  margin: 0 0 1rem;
-  font-size: 1.5rem;
-  font-weight: 750;
-  color: var(--sf-public-text, #0f172a);
+.legal-page__card {
+  overflow: hidden;
 }
 
 .legal-page__body {
-  white-space: pre-wrap;
-  font-size: 0.9375rem;
-  line-height: 1.7;
-  color: var(--sf-public-text-muted, #334155);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-.dark .legal-page__card {
-  border-color: #27272a;
-  background: #09090b;
+.legal-page__title {
+  margin: 0;
+  color: var(--sf-public-text, var(--sf-fg));
+  font-family: var(--sf-public-heading-font-family);
+  font-size: var(--sf-public-page-title-size);
+  font-weight: var(--sf-public-page-title-weight);
+  line-height: var(--sf-public-page-title-line-height);
 }
 
-.dark .legal-page__title {
-  color: #f4f4f5;
+.legal-page__content {
+  overflow-wrap: anywhere;
 }
 
-.dark .legal-page__body {
-  color: #a1a1aa;
+@media (max-width: 700px) {
+  .legal-page__title {
+    font-size: var(--sf-public-page-title-mobile-size);
+  }
 }
 </style>

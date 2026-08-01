@@ -808,6 +808,25 @@ Architecture sources:
   explicit `layout="fullwidth-3col"` variant; global theme CSS must not try to
   override the component's base `display` mode by stylesheet order. Theme L1
   paths continue to own their navbar geometry through exact theme assets.
+- Mobile public chrome follows the approved D soft-panel direction. At narrow
+  widths the topbar keeps only appearance, sidebar, and avatar controls in
+  that order; notification previews, language, and compose controls remain
+  desktop-only. A fixed three-item navigation exposes home, post, and
+  notifications, with the shared unread count on the notification item.
+- Mobile topic rows switch from the desktop table treatment to white, lightly
+  elevated panels. Titles wrap naturally without truncation and author/avatar,
+  time, category, and reply metadata move below the title. The mobile row also
+  exposes the topic's category and at most two API-backed tags as links in the
+  same horizontal metadata row as the author ID (wrapping only when needed).
+  Desktop titles also wrap naturally; desktop grid geometry, separators, and
+  square rows remain unchanged.
+- Public mobile drawers use a viewport-wide fixed backdrop (`inset: 0`) and a
+  drawer starting at the viewport top (`top: 0`), so opening the sidebar
+  covers the topbar and search region instead of appearing underneath it.
+- Mobile public layouts clear the desktop `min-height: calc(100vh - topbar)`
+  contract. Short topic, notification, settings, moderation, and profile
+  surfaces now flow directly into their footer instead of leaving a viewport-
+  sized blank block after the last content row.
 - A Core-owned product surface may be `themeable` without being `replaceable`.
   In that case the theme controls only the reviewed L1 shell and must mount the
   required Host island.

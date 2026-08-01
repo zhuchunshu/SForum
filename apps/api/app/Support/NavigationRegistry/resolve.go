@@ -10,6 +10,7 @@ import (
 
 type visibilityState struct {
 	permissions map[string]bool
+	owned       map[string]bool
 	hidden      map[string]bool
 	disabled    map[string]bool
 	canonical   VisibilityInput
@@ -277,8 +278,10 @@ func navigationContributionVisible(contribution NavigationContribution, visibili
 	if visibility.hidden[contribution.ID] || provider && visibility.disabled[providerRefKey(contribution.ID, contribution.Artifact)] {
 		return false
 	}
-	return actorVisibilityAllows(contribution.Visibility, visibility.canonical.Authenticated) &&
-		(contribution.Permission == "" || visibility.permissions[contribution.Permission])
+	credentialAllowed := contribution.Permission == "" && contribution.OwnerResource == ""
+	credentialAllowed = credentialAllowed || contribution.Permission != "" && visibility.permissions[contribution.Permission]
+	credentialAllowed = credentialAllowed || contribution.OwnerResource != "" && visibility.owned[contribution.OwnerResource]
+	return actorVisibilityAllows(contribution.Visibility, visibility.canonical.Authenticated) && credentialAllowed
 }
 
 func regionContributionVisible(contribution RegionContribution, visibility visibilityState, provider bool) bool {
@@ -293,6 +296,10 @@ func normalizeVisibility(input VisibilityInput) (visibilityState, error) {
 	if err != nil {
 		return visibilityState{}, err
 	}
+	owned, err := normalizeIDList(input.OwnedResources)
+	if err != nil {
+		return visibilityState{}, err
+	}
 	hidden, err := normalizeIDList(input.HiddenIDs)
 	if err != nil {
 		return visibilityState{}, err
@@ -302,8 +309,8 @@ func normalizeVisibility(input VisibilityInput) (visibilityState, error) {
 		return visibilityState{}, err
 	}
 	return visibilityState{
-		permissions: sliceSet(permissions), hidden: sliceSet(hidden), disabled: disabledSet,
-		canonical: VisibilityInput{Authenticated: input.Authenticated, Permissions: permissions, HiddenIDs: hidden, DisabledProviders: disabled},
+		permissions: sliceSet(permissions), owned: sliceSet(owned), hidden: sliceSet(hidden), disabled: disabledSet,
+		canonical: VisibilityInput{Authenticated: input.Authenticated, Permissions: permissions, OwnedResources: owned, HiddenIDs: hidden, DisabledProviders: disabled},
 	}, nil
 }
 

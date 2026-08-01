@@ -2833,7 +2833,7 @@
     "handler": "adminAnnouncements",
     "method": "GET",
     "path": "/api/v1/admin/site/announcements",
-    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:35",
+    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:36",
     "access": "permission",
     "policy": "settings.site.manage",
     "guard": {
@@ -2851,7 +2851,7 @@
     "handler": "adminCreateAnnouncement",
     "method": "POST",
     "path": "/api/v1/admin/site/announcements",
-    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:36",
+    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:37",
     "access": "permission",
     "policy": "settings.site.manage",
     "guard": {
@@ -2869,7 +2869,7 @@
     "handler": "adminDeleteAnnouncement",
     "method": "DELETE",
     "path": "/api/v1/admin/site/announcements/:announcementID",
-    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:38",
+    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:39",
     "access": "permission",
     "policy": "settings.site.manage",
     "guard": {
@@ -2887,7 +2887,7 @@
     "handler": "adminUpdateAnnouncement",
     "method": "PATCH",
     "path": "/api/v1/admin/site/announcements/:announcementID",
-    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:37",
+    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:38",
     "access": "permission",
     "policy": "settings.site.manage",
     "guard": {
@@ -2905,7 +2905,7 @@
     "handler": "adminUploadBrandAsset",
     "method": "POST",
     "path": "/api/v1/admin/site/brand-assets",
-    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:14",
+    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:15",
     "access": "permission",
     "policy": "settings.site.manage",
     "guard": {
@@ -2923,7 +2923,7 @@
     "handler": "adminFriendLinks",
     "method": "GET",
     "path": "/api/v1/admin/site/friend-links",
-    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:30",
+    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:31",
     "access": "permission",
     "policy": "settings.site.manage",
     "guard": {
@@ -2941,7 +2941,7 @@
     "handler": "adminCreateFriendLink",
     "method": "POST",
     "path": "/api/v1/admin/site/friend-links",
-    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:31",
+    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:32",
     "access": "permission",
     "policy": "settings.site.manage",
     "guard": {
@@ -2959,7 +2959,7 @@
     "handler": "adminDeleteFriendLink",
     "method": "DELETE",
     "path": "/api/v1/admin/site/friend-links/:linkID",
-    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:33",
+    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:34",
     "access": "permission",
     "policy": "settings.site.manage",
     "guard": {
@@ -2977,7 +2977,7 @@
     "handler": "adminUpdateFriendLink",
     "method": "PATCH",
     "path": "/api/v1/admin/site/friend-links/:linkID",
-    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:32",
+    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:33",
     "access": "permission",
     "policy": "settings.site.manage",
     "guard": {
@@ -2995,7 +2995,7 @@
     "handler": "adminNavItems",
     "method": "GET",
     "path": "/api/v1/admin/site/nav-items",
-    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:15",
+    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:16",
     "access": "permission",
     "policy": "settings.site.manage",
     "guard": {
@@ -3013,7 +3013,7 @@
     "handler": "adminCreateNavItem",
     "method": "POST",
     "path": "/api/v1/admin/site/nav-items",
-    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:16",
+    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:17",
     "access": "permission",
     "policy": "settings.site.manage",
     "guard": {
@@ -3031,7 +3031,7 @@
     "handler": "adminDeleteNavItem",
     "method": "DELETE",
     "path": "/api/v1/admin/site/nav-items/:itemID",
-    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:18",
+    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:19",
     "access": "permission",
     "policy": "settings.site.manage",
     "guard": {
@@ -3049,7 +3049,7 @@
     "handler": "adminUpdateNavItem",
     "method": "PATCH",
     "path": "/api/v1/admin/site/nav-items/:itemID",
-    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:17",
+    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:18",
     "access": "permission",
     "policy": "settings.site.manage",
     "guard": {
@@ -3067,7 +3067,7 @@
     "handler": "adminNavigationDocument",
     "method": "GET",
     "path": "/api/v1/admin/site/navigation",
-    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:19",
+    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:20",
     "access": "permission",
     "policy": "settings.site.manage",
     "guard": {
@@ -3085,7 +3085,7 @@
     "handler": "adminApplyNavigation",
     "method": "POST",
     "path": "/api/v1/admin/site/navigation/apply",
-    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:20",
+    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:21",
     "access": "permission",
     "policy": "settings.site.manage",
     "guard": {
@@ -3103,7 +3103,7 @@
     "handler": "adminApplyNavigationPreview",
     "method": "POST",
     "path": "/api/v1/admin/site/navigation/defaults/apply",
-    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:22",
+    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:23",
     "access": "permission",
     "policy": "settings.site.manage",
     "guard": {
@@ -3121,7 +3121,7 @@
     "handler": "adminPreviewNavigationDefaults",
     "method": "POST",
     "path": "/api/v1/admin/site/navigation/defaults/preview",
-    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:21",
+    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:22",
     "access": "permission",
     "policy": "settings.site.manage",
     "guard": {
@@ -3139,7 +3139,7 @@
     "handler": "adminExportNavigation",
     "method": "GET",
     "path": "/api/v1/admin/site/navigation/export",
-    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:26",
+    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:27",
     "access": "permission",
     "policy": "settings.site.manage",
     "guard": {
@@ -3157,7 +3157,7 @@
     "handler": "adminApplyNavigationPreview",
     "method": "POST",
     "path": "/api/v1/admin/site/navigation/import/apply",
-    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:28",
+    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:29",
     "access": "permission",
     "policy": "settings.site.manage",
     "guard": {
@@ -3175,7 +3175,7 @@
     "handler": "adminPreviewNavigationImport",
     "method": "POST",
     "path": "/api/v1/admin/site/navigation/import/preview",
-    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:27",
+    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:28",
     "access": "permission",
     "policy": "settings.site.manage",
     "guard": {
@@ -3193,7 +3193,7 @@
     "handler": "adminNavigationSnapshots",
     "method": "GET",
     "path": "/api/v1/admin/site/navigation/snapshots",
-    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:23",
+    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:24",
     "access": "permission",
     "policy": "settings.site.manage",
     "guard": {
@@ -3211,7 +3211,7 @@
     "handler": "adminNavigationSnapshot",
     "method": "GET",
     "path": "/api/v1/admin/site/navigation/snapshots/:snapshotID",
-    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:24",
+    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:25",
     "access": "permission",
     "policy": "settings.site.manage",
     "guard": {
@@ -3229,7 +3229,7 @@
     "handler": "adminRestoreNavigationSnapshot",
     "method": "POST",
     "path": "/api/v1/admin/site/navigation/snapshots/:snapshotID/restore",
-    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:25",
+    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:26",
     "access": "permission",
     "policy": "settings.site.manage",
     "guard": {
@@ -5006,6 +5006,22 @@
     }
   },
   {
+    "id": "core.route.site_chrome.account_navigation",
+    "contractVersion": "sforum.route.site_chrome.account_navigation@1",
+    "module": "site_chrome",
+    "handler": "accountSettingsNavigation",
+    "method": "GET",
+    "path": "/api/v1/site/account-navigation",
+    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:9",
+    "access": "login",
+    "policy": "current active actor; Host-filtered personal settings projection",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.identity.self_credentials"
+    }
+  },
+  {
     "id": "core.route.extensions.public_active_theme_settings",
     "contractVersion": "sforum.route.extensions.public_active_theme_settings@1",
     "module": "extensions",
@@ -5044,7 +5060,7 @@
     "handler": "publicAnnouncements",
     "method": "GET",
     "path": "/api/v1/site/announcements",
-    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:10",
+    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:11",
     "access": "public",
     "policy": "public read contract",
     "guard": {
@@ -5060,7 +5076,7 @@
     "handler": "publicFriendLinks",
     "method": "GET",
     "path": "/api/v1/site/friend-links",
-    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:9",
+    "source": "apps/api/app/Http/Controllers/SiteChrome/routes.go:10",
     "access": "public",
     "policy": "public read contract",
     "guard": {

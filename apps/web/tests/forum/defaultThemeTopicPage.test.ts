@@ -252,6 +252,7 @@ describe('default theme V32 topic page contract', () => {
     expect(css).toContain('@media (max-width: 960px)')
     expect(themePkgCss).toContain('.sforum-topic-page__layout--with-side')
     expect(themePkgCss).toContain('align-items: stretch')
+    expect(themePkgCss).toContain('.sforum-topic-page__reading {\n  width: 100%;\n  max-width: var(--sf-public-reading-max, 48rem);\n  margin-inline: auto;')
     expect(themePkgCss).toContain('.sforum-topic-page__sidebar::after')
     expect(themePkgCss).toContain('fullwidth-3col')
     expect(css).not.toContain('.sforum-topic-page__action-rail')

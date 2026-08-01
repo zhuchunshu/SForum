@@ -2,6 +2,7 @@
 import SFNotificationPreview from '~/components/notifications/SFNotificationPreview.vue'
 import SFPublicMobileNavigation from '~/components/navigation/SFPublicMobileNavigation.vue'
 import SFPublicNavigationLinks from '~/components/navigation/SFPublicNavigationLinks.vue'
+import { useNotifications } from '~/composables/notifications/useNotifications'
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
 import { useAuthSession } from '~/composables/identity/useAuthSession'
 import {
@@ -27,6 +28,7 @@ const props = withDefaults(defineProps<{
 const { t } = useI18n()
 const localePath = useLocalePath()
 const { user, status, refresh } = useAuthSession()
+const notifications = useNotifications()
 const {
   siteName,
   siteTagline,
@@ -294,7 +296,7 @@ async function logout() {
               color="neutral"
               variant="ghost"
               square
-              class="navbar__control"
+              class="navbar__control navbar__language-control"
               :aria-label="t('nav.language')"
               :title="currentLocaleName"
             >
@@ -323,7 +325,7 @@ async function logout() {
             color="neutral"
             variant="ghost"
             square
-            class="navbar__control"
+            class="navbar__control navbar__appearance-control"
             :aria-label="colorModeTriggerLabel"
             :title="colorModeTriggerLabel"
             @click="cycleColorModePreference"
@@ -335,7 +337,7 @@ async function logout() {
               color="neutral"
               variant="ghost"
               square
-              class="navbar__control"
+              class="navbar__control navbar__appearance-control"
               :aria-label="t('nav.appearance')"
               :title="t('nav.appearance')"
               aria-hidden="true"
@@ -420,6 +422,14 @@ async function logout() {
           <span class="navbar__session-loading-avatar" aria-hidden="true" />
           <span class="navbar__session-loading-name" aria-hidden="true" />
         </span>
+        <NuxtLink
+          v-if="status === 'guest'"
+          :to="localePath('/login')"
+          class="navbar__mobile-guest-avatar"
+          :aria-label="t('nav.login')"
+        >
+          <SFAvatar :name="siteName" size="sm" shape="circle" />
+        </NuxtLink>
       </div>
     </div>
 
@@ -442,6 +452,39 @@ async function logout() {
       </div>
     </div>
   </header>
+  <nav class="navbar__mobile-bottom-nav" :aria-label="t('nav.mainNav')">
+    <NuxtLink
+      :to="localePath('/')"
+      class="navbar__mobile-bottom-link"
+      :class="{ 'is-active': route.path === localePath('/') }"
+    >
+      <UIcon name="i-lucide-house" class="size-5" aria-hidden="true" />
+      <span>{{ t('nav.home') }}</span>
+    </NuxtLink>
+    <NuxtLink
+      :to="canCreateTopic ? localePath('/topics/new') : localePath('/login')"
+      class="navbar__mobile-bottom-link"
+      :class="{ 'is-active': route.path.startsWith(localePath('/topics/new')) }"
+      :aria-label="t('nav.newTopic')"
+    >
+      <UIcon name="i-lucide-square-pen" class="size-5" aria-hidden="true" />
+      <span>{{ t('nav.newTopic') }}</span>
+    </NuxtLink>
+    <NuxtLink
+      :to="user ? localePath('/notifications') : localePath('/login')"
+      class="navbar__mobile-bottom-link navbar__mobile-bottom-notifications"
+      :class="{ 'is-active': route.path.startsWith(localePath('/notifications')) }"
+      :aria-label="t('nav.notifications')"
+    >
+      <span class="navbar__mobile-bottom-icon-wrap">
+        <UIcon name="i-lucide-bell" class="size-5" aria-hidden="true" />
+        <span v-if="user && notifications.unreadCount.value" class="navbar__mobile-bottom-badge">
+          {{ notifications.unreadCount.value > 99 ? '99+' : notifications.unreadCount.value }}
+        </span>
+      </span>
+      <span>{{ t('nav.notifications') }}</span>
+    </NuxtLink>
+  </nav>
   <SFPublicMobileNavigation
     :open="mobileMenuOpen && !hasPageSidebarOwner"
     :items="visibleSidebarItems"
@@ -800,6 +843,11 @@ async function logout() {
   color: #374151;
 }
 
+.navbar__mobile-bottom-nav,
+.navbar__mobile-guest-avatar {
+  display: none;
+}
+
 .navbar__mobile-compose {
   min-height: 40px;
   display: inline-flex;
@@ -891,6 +939,26 @@ async function logout() {
 
   .navbar__utility {
     margin-left: auto;
+    order: 0;
+    gap: 3px;
+  }
+
+  .navbar__session {
+    order: 3;
+  }
+
+  .navbar__utility :deep(.sf-notification-preview),
+  .navbar__language-control,
+  .navbar__mobile-new-topic {
+    display: none !important;
+  }
+
+  .navbar__appearance-control {
+    order: 1;
+  }
+
+  .navbar__mobile-info-button {
+    order: 2;
   }
 
   .navbar__session-loading {
@@ -915,7 +983,8 @@ async function logout() {
   .navbar__mobile-search-panel {
     display: block;
     height: 54px;
-    border-top: 1px solid var(--sf-public-border);
+    border-top: 0;
+    background: transparent;
   }
 
   .navbar__logo,
@@ -935,7 +1004,91 @@ async function logout() {
   .navbar__mobile-search-inner {
     height: 54px;
     max-width: none;
-    padding: 7px 12px;
+    padding: 10px 12px 8px;
+  }
+
+  .navbar__mobile-search .sf-search__box {
+    min-height: 38px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--sf-public-surface);
+    box-shadow: 0 2px 12px rgb(51 56 80 / 0.055);
+  }
+
+  .navbar__mobile-compose {
+    min-height: 38px;
+    border-radius: 10px;
+  }
+
+  .navbar__user-trigger,
+  .navbar__mobile-guest-avatar {
+    display: inline-flex;
+    width: 32px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    border-radius: 50%;
+  }
+
+  .navbar__mobile-guest-avatar {
+    color: var(--sf-public-text-secondary);
+  }
+
+  .navbar__mobile-bottom-nav {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 40;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    height: 60px;
+    padding: 8px 28px 7px;
+    background: color-mix(in srgb, var(--sf-public-surface) 97%, transparent);
+    box-shadow: 0 -2px 14px rgb(51 56 80 / 0.08);
+    backdrop-filter: blur(12px);
+  }
+
+  .navbar__mobile-bottom-link {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    color: var(--sf-public-text-muted);
+    font-size: 10px;
+    font-weight: 650;
+    text-decoration: none;
+  }
+
+  .navbar__mobile-bottom-link.is-active {
+    color: var(--sf-accent);
+  }
+
+  .navbar__mobile-bottom-icon-wrap {
+    position: relative;
+    display: inline-flex;
+  }
+
+  .navbar__mobile-bottom-badge {
+    position: absolute;
+    top: -5px;
+    left: 13px;
+    min-width: 14px;
+    height: 14px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    padding: 0 3px;
+    background: #e05260;
+    color: #fff;
+    font-size: 9px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: 1;
   }
 
   .navbar__mobile-new-topic,
@@ -961,7 +1114,19 @@ async function logout() {
   }
 
   .navbar__user-trigger {
-    padding: 2px;
+    width: 30px;
+    height: 30px;
+    padding: 1px;
+  }
+
+  .navbar__mobile-guest-avatar {
+    width: 30px;
+    height: 30px;
+  }
+
+  .navbar__mobile-bottom-nav {
+    padding-right: 24px;
+    padding-left: 24px;
   }
 }
 </style>

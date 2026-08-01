@@ -531,7 +531,7 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
   .sforum-mobile-drawer__backdrop {
     position: fixed;
     z-index: 80;
-    inset: var(--sf-public-topbar-height) 0 0;
+    inset: 0;
     display: block;
     border: 0;
     background: rgb(20 27 38 / .38);
@@ -541,7 +541,7 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
   .sforum-mobile-drawer {
     position: fixed;
     z-index: 90;
-    top: var(--sf-public-topbar-height);
+    top: 0;
     bottom: 0;
     display: block;
     width: min(86vw, 320px);
@@ -630,12 +630,34 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
 }
 
 .sf-theme-template[data-extension-id="sforum.default-theme"] {
+  min-height: 100vh;
   background: var(--sf-public-bg);
   color: var(--sf-public-text);
   font-family: "DM Sans", "Noto Sans SC", system-ui, sans-serif !important;
   font-synthesis: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.sf-theme-template[data-extension-id="sforum.default-theme"] .sf-page.sf-theme--default {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+  background: var(--sf-public-bg);
+  color: var(--sf-public-text);
+}
+
+.sf-theme-template[data-extension-id="sforum.default-theme"]
+  .sf-page.sf-theme--default
+  > .sf-theme-chrome-body {
+  flex: 1 0 auto;
+  background: var(--sf-public-bg);
+}
+
+.sf-theme-template[data-extension-id="sforum.default-theme"]
+  .sf-page.sf-theme--default
+  > .sf-footer {
+  flex: 0 0 auto;
 }
 
 /* 覆盖 :root Inter / Nuxt UI 默认字体，整棵公开主题树继承 demo 字族 */
@@ -975,5 +997,53 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
   .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__user-trigger .sf-avatar {
     width: 30px;
     height: 30px;
+  }
+}
+
+/* 移动端软面板壳：内容滚动到末尾时不被固定底部导航遮住。 */
+@media (max-width: 980px) {
+  /* 移动端按内容决定页面高度，避免短列表被桌面视口最小高度撑出大片空白。 */
+  .sf-theme-template[data-extension-id="sforum.default-theme"] .sf-theme-chrome-body :is(
+    .sforum-home,
+    .sforum-topic-page,
+    .sforum-topic-composer,
+    .sforum-notifications,
+    .sforum-settings,
+    .sforum-moderation,
+    .sforum-home__layout,
+    .sforum-topic-page__layout,
+    .sforum-notifications__layout,
+    .sforum-settings__layout,
+    .sforum-moderation__layout
+  ),
+  .sf-host-public-chrome--fullwidth-3col .sf-host-public-chrome__body :is(
+    .sforum-home,
+    .sforum-topic-page,
+    .sforum-topic-composer,
+    .sforum-notifications,
+    .sforum-settings,
+    .sforum-moderation,
+    .sforum-home__layout,
+    .sforum-topic-page__layout,
+    .sforum-notifications__layout,
+    .sforum-settings__layout,
+    .sforum-moderation__layout
+  ) {
+    min-height: 0;
+  }
+
+  .sf-theme-template:has(.navbar__mobile-bottom-nav),
+  .sf-host-public-chrome:has(.navbar__mobile-bottom-nav) {
+    padding-bottom: 60px;
+  }
+
+  .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar {
+    border-bottom: 0;
+    background: var(--sf-public-surface);
+    box-shadow: 0 2px 12px rgb(51 56 80 / 0.055);
+  }
+
+  .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__mobile-search-panel {
+    background: transparent !important;
   }
 }

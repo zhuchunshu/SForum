@@ -212,6 +212,7 @@ function routePolicy(route) {
   if (path.startsWith('/api/v1/webhooks/inbound')) return ['public', 'source-specific signature/idempotency policy']
   if (path.startsWith('/api/v1/web-push')) return ['login', 'current recipient ownership']
   if (path.startsWith('/api/v1/pages/resolve')) return ['contextual', 'resolved Page Registry access enum; loader receives no raw session authority']
+  if (path === '/api/v1/site/account-navigation') return ['login', 'current active actor; Host-filtered personal settings projection']
   if (path.startsWith('/api/v1/site/theme-assets')) return ['public', 'active package containment, digest, MIME, and path policy']
   if (path.startsWith('/api/v1/site/') || path.startsWith('/api/v1/web-options') || path.startsWith('/api/v1/profiles/')) return ['public', 'public read contract']
   if (method === 'GET') return ['public', `${module} public read policy; visibility rechecked by service`]
@@ -252,6 +253,7 @@ const reviewedGuardPolicies = new Map([
   ['public read contract', { kind: 'public' }],
   ['exact public frontend artifact trust, digest, and live runtime policy', { kind: 'public' }],
   ['current browser session', { kind: 'login' }],
+  ['current active actor; Host-filtered personal settings projection', { kind: 'contextual', evaluatorId: 'core.guard.identity.self_credentials' }],
   ['identity.provider.manage', { kind: 'permission_any', permissions: ['identity.provider.manage'] }],
   ['Host-owned OAuth callback; reserved Core route closed to Route Registry replacement (state/PKCE/session integrity; plugins return assertions only)', { kind: 'contextual', evaluatorId: 'core.guard.identity.bootstrap' }],
 

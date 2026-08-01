@@ -6,6 +6,30 @@ ApiResponseSiteNavItemList:
     message: { type: string }
     data:
       "$ref": "#/SitePublicNav"
+ApiResponseSiteAccountNavigation:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/SiteAccountNavigationItem"
+SiteAccountNavigationItem:
+  type: object
+  required: [id, label, href, order]
+  properties:
+    id: { type: string }
+    extensionId: { type: string }
+    label: { type: string }
+    href: { type: string, description: Site-relative settings or extension route only. }
+    order: { type: integer }
+    icon: { type: string }
 SitePublicNav:
   type: object
   required: [items]

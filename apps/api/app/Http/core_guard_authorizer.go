@@ -889,7 +889,7 @@ func requireIdentitySelfCredentialsAuthority(ctx context.Context, evaluation rou
 	switch evaluation.Descriptor.RouteID {
 	case "core.route.identity.list_sessions", "core.route.identity.revoke_other_sessions",
 		// 外部身份列表只返回当前 Actor 的 redacted 绑定，不接收目标 user_id。
-		"core.route.identity.external_identities":
+		"core.route.identity.external_identities", "core.route.site_chrome.account_navigation":
 		// 路径始终以 Host 认证的 ActorID 查询/更新，不接收目标 user_id。
 		return requireAuthenticatedCoreGuardActor(ctx, evaluation)
 	case "core.route.identity.list_apitokens":

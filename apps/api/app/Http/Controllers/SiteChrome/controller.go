@@ -114,6 +114,20 @@ func (h *Controller) publicNavigation(c fiber.Ctx) error {
 	return apphttp.OK(c, resolved)
 }
 
+func (h *Controller) accountSettingsNavigation(c fiber.Ctx) error {
+	c.Set(fiber.HeaderCacheControl, "private, no-store")
+	c.Vary(fiber.HeaderCookie, fiber.HeaderAuthorization, fiber.HeaderAcceptLanguage)
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	items, err := h.service.ResolveAccountSettingsNavigation(c.Context(), actor, c.Get("Accept-Language"))
+	if err != nil {
+		return mapError(err)
+	}
+	return apphttp.OK(c, fiber.Map{"items": items})
+}
+
 func (h *Controller) adminNavItems(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {

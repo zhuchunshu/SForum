@@ -21,7 +21,8 @@
     "mailSettings": "邮箱与通知",
     "moderation": "审核",
     "moderationWorkbench": "审核工作台",
-    "notifications": "通知"
+    "notifications": "通知",
+    "personalCenter": "个人中心"
   },
   "common": {
     "close": "关闭"
@@ -5374,6 +5375,7 @@
     "nav": {
       "ariaLabel": "账号设置导航",
       "account": "账号设置",
+      "extensions": "扩展",
       "space": "我的空间",
       "open": "打开设置导航",
       "close": "关闭设置导航"

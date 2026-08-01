@@ -7,6 +7,7 @@ import SFResponsivePublicSidebar from '~/components/forum/navigation/SFResponsiv
 import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
 import SFPublicPageHeader from '~/components/public/SFPublicPageHeader.vue'
 import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSidebarDrawer'
+import { useAccountSettingsNavigation, type AccountSettingsNavItem } from '~/composables/settings/useAccountSettingsNavigation'
 /**
  * 账号设置页共享 chrome：三栏布局 + 左侧导航 + 页头 + 移动端抽屉。
  * 页面通过插槽提供主内容 (default)、右栏 (rail，桌面 aside 与移动抽屉复用同一份)、
@@ -14,7 +15,7 @@ import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSideba
  */
 const props = withDefaults(defineProps<{
   /** 左栏账号导航高亮项 */
-  active: 'profile' | 'appearance' | 'loginMethods' | 'password' | 'security' | 'tokens' | 'notifications'
+  active: string
   /** 页头 h1 的 id，供 aria-labelledby 使用 */
   titleId: string
   title: string
@@ -33,12 +34,25 @@ const props = withDefaults(defineProps<{
 
 const { t } = useI18n()
 const forumApi = useForumApi()
+const accountSettingsApi = useAccountSettingsNavigation()
 const { can } = usePermissions()
 
 const { data: categoryGroups, pending: categoriesPending } = await useAsyncData(
   'settings-categories',
   () => forumApi.listCategoryGroups(),
   { default: () => [] }
+)
+const { data: accountSettingsNavigation } = await useAsyncData(
+  'settings-account-navigation',
+  async () => {
+    try {
+      const response = await accountSettingsApi.list()
+      return Array.isArray(response?.items) ? response.items : []
+    } catch {
+      return [] as AccountSettingsNavItem[]
+    }
+  },
+  { default: () => [] as AccountSettingsNavItem[] }
 )
 
 const categories = computed(() => categoryGroups.value.flatMap(group => group.categories || []))
@@ -74,6 +88,7 @@ function closeMobileDrawers() {
           <template #after-navigation>
             <SFSettingsAccountNav
               :active="props.active"
+              :extension-items="accountSettingsNavigation"
               :public-profile-path="props.publicProfilePath"
               @navigate="closeMobileDrawers"
             />

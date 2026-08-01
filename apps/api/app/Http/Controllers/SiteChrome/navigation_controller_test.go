@@ -31,6 +31,29 @@ func TestPublicNavigationRejectsInvalidLocationAndUsesOptionalActor(t *testing.T
 	}
 }
 
+func TestAccountSettingsNavigationRequiresAuthentication(t *testing.T) {
+	app, _ := newNavigationControllerApp(identity.Actor{}, controllerNavigationStore{document: sitechrome.NavigationDocument{Revision: 1}})
+	response, err := app.Test(httptest.NewRequest(http.MethodGet, "/api/v1/site/account-navigation", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("anonymous account navigation status=%d", response.StatusCode)
+	}
+	actorApp, cookie := newNavigationControllerApp(identity.Actor{ID: 12, Status: identity.UserStatusActive}, controllerNavigationStore{document: sitechrome.NavigationDocument{Revision: 1}})
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/site/account-navigation", nil)
+	request.AddCookie(cookie)
+	response, err = actorApp.Test(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("authenticated account navigation status=%d", response.StatusCode)
+	}
+}
+
 func TestPublicNavigationIsPrivateAndVariesByActor(t *testing.T) {
 	document := sitechrome.NavigationDocument{
 		Revision: 4,

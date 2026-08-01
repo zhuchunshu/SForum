@@ -196,6 +196,7 @@ func normalizeNavigation(artifact Artifact, input NavigationDeclaration) (Naviga
 	input.Labels = labels
 	input.Href = strings.TrimSpace(input.Href)
 	input.Permission = strings.ToLower(strings.TrimSpace(input.Permission))
+	input.OwnerResource = strings.ToLower(strings.TrimSpace(input.OwnerResource))
 	input.Visibility = normalizeVisibilityPolicy(input.Visibility)
 	input.Handler = strings.ToLower(strings.TrimSpace(input.Handler))
 	if !validContributionIdentity(artifact, input.ID, input.ContractVersion) || !validAction(input.Action) ||
@@ -204,6 +205,7 @@ func normalizeNavigation(artifact Artifact, input NavigationDeclaration) (Naviga
 		(input.Action != ActionAdd && input.TargetID == "") ||
 		(input.TargetID != "" && !idPattern.MatchString(input.TargetID)) ||
 		(input.Permission != "" && !idPattern.MatchString(input.Permission)) ||
+		(input.OwnerResource != "" && !idPattern.MatchString(input.OwnerResource)) ||
 		!validVisibilityPolicy(input.Visibility) ||
 		(input.Handler != "" && (!idPattern.MatchString(input.Handler) || !strings.HasPrefix(input.Handler, artifact.ExtensionID+"."))) ||
 		(input.Href != "" && (utf8.RuneCountInString(input.Href) > maxNavigationHrefRunes || !safeHostLinkPath(input.Href))) {
@@ -357,6 +359,8 @@ func validAction(value string) bool {
 func validNavigationKind(value string) bool {
 	switch value {
 	case NavigationKindMenu, NavigationKindItem, NavigationKindBreadcrumb, NavigationKindHeader, NavigationKindFooter, NavigationKindSidebar:
+		return true
+	case NavigationKindAccountSettings:
 		return true
 	default:
 		return false

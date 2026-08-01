@@ -193,7 +193,8 @@
 
 .sforum-topic-page__reading {
   width: 100%;
-  max-width: none;
+  max-width: var(--sf-public-reading-max);
+  margin-inline: auto;
 }
 
 .sforum-topic-page__article {
@@ -1058,13 +1059,14 @@
 
 /* 列表标题：比 demo 14px 略放大，提升可读性 */
 .sf-theme--default .sf-home-topic-row__title {
-  overflow: hidden;
+  overflow: visible;
   font-family: "DM Sans", "Noto Sans SC", system-ui, sans-serif;
   font-size: 16px;
   font-weight: 600;
   line-height: 1.45;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .sf-theme--default .sf-home-topic-row__meta {

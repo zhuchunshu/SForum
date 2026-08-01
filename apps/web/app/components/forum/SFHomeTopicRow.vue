@@ -5,7 +5,7 @@
  * 呈现用 Tailwind + 公共 token；主题换肤走 L0 变量，深度定制走 Component Registry / L2。
  */
 import type { ForumTopicExtensionBadge, ForumTopicSummary } from '~/utils/forum/forumTaxonomy'
-import { forumAuthorName, forumTopicExtensionLabel } from '~/utils/forum/forumTaxonomy'
+import { forumAuthorName, forumTagPath, forumTopicExtensionLabel } from '~/utils/forum/forumTaxonomy'
 import {
   forumCategoryChipToneClass,
   forumListBadgeToneClass
@@ -32,6 +32,7 @@ const lastReplyName = computed(() =>
   forumAuthorName(lastReplyAuthor.value, lastReplyAuthor.value?.id || props.topic.authorUserId)
 )
 const listBadges = computed(() => props.extensionListBadges || [])
+const mobileTags = computed(() => (props.topic.tags || []).slice(0, 2))
 
 const categoryChipClass = computed(() => {
   const seed = props.topic.categorySlug || props.topic.categoryName || 'c'
@@ -60,7 +61,7 @@ const pillBase =
     :class="topic.isPinned ? 'bg-[#f3f4f6] hover:bg-[#eceef1] dark:bg-slate-400/10 dark:hover:bg-slate-400/15' : ''"
     data-sf-component="forum.topic_list_row"
   >
-    <div class="flex items-center justify-center">
+    <div class="sf-home-topic-row__desktop-avatar flex items-center justify-center">
       <NuxtLink
         v-if="topic.author?.username"
         :to="localePath(`/u/${topic.author.username}`)"
@@ -114,7 +115,7 @@ const pillBase =
             {{ listBadgeLabel(badge) }}
           </span>
         </template>
-        <h2 class="sf-home-topic-row__title m-0 min-w-0 flex-1 truncate text-base font-semibold leading-snug text-[var(--sf-public-text)]">
+        <h2 class="sf-home-topic-row__title m-0 min-w-0 flex-1 text-base font-semibold leading-snug text-[var(--sf-public-text)]">
           <NuxtLink
             :to="to"
             :prefetch="false"
@@ -127,6 +128,14 @@ const pillBase =
 
       <!-- 左侧 meta：作者 · 发帖时间；移动端附回复数 -->
       <div class="sf-home-topic-row__meta mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-[var(--sf-public-text-muted)]">
+        <span class="sf-home-topic-row__mobile-avatar" aria-hidden="true">
+          <SFAvatar
+            :name="authorName"
+            :avatar="topic.author?.avatar"
+            alt=""
+            size="list"
+          />
+        </span>
         <span class="inline-flex min-w-0 items-center gap-1">
           <NuxtLink
             v-if="topic.author"
@@ -140,6 +149,28 @@ const pillBase =
           <time :datetime="topic.createdAt">
             {{ createdLabel }}
           </time>
+        </span>
+        <span
+          v-if="topic.categoryName || mobileTags.length"
+          class="sf-home-topic-row__mobile-taxonomy hidden max-[720px]:flex"
+          :aria-label="`${t('composer.categoryLabel')} / ${t('composer.tagsLabel')}`"
+        >
+          <NuxtLink
+            v-if="topic.categoryName"
+            :to="localePath(`/c/${topic.categorySlug}`)"
+            class="sf-home-topic-row__mobile-category"
+            :class="categoryChipClass"
+          >
+            {{ topic.categoryName }}
+          </NuxtLink>
+          <NuxtLink
+            v-for="tag in mobileTags"
+            :key="tag.slug"
+            :to="localePath(forumTagPath(tag.slug))"
+            class="sf-home-topic-row__mobile-tag"
+          >
+            #{{ tag.name }}
+          </NuxtLink>
         </span>
         <span class="sf-home-topic-row__mobile-replies hidden max-[720px]:inline-flex">
           {{ t('home.feed.replyCount', { count: topic.commentCount }) }}

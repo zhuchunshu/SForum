@@ -110,6 +110,18 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- OAuth Provider Core Host contracts are now in place: account-settings
+  navigation, opaque identity delegation, and one-use consent bridge. The
+  provider remains an external optional plugin; next step is Protocol V2
+  exposure and independent plugin implementation:
+  `sessions/2026-08-01-oauth-core-host-contracts.md`
+
+- Mobile global style: the approved D soft-panel direction is implemented in
+  the shared public navbar, home topic rows, and global mobile drawer baseline;
+  focused frontend tests and Nuxt typecheck pass, with desktop and prior
+  402px mobile Browser evidence recorded:
+  `sessions/2026-08-01-mobile-global-style.md`
+
 - CI legal SEO test fix: the failed GitHub Actions Quality gate all-web unit
   test was a stale legal route source guard expecting `useSeoMeta` after public
   SEO ownership moved to `useSForumSeo`; the test and development rules now

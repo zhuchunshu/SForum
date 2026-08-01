@@ -385,6 +385,7 @@ func TestProductionIdentitySelfCredentialsGuardPartitionsCatalogByProvablePolicy
 		"core.route.identity.update_current_user_appearance":  {method: "PUT"},
 		"core.route.identity.update_current_user_locale":      {method: "PUT"},
 		"core.route.identity.link_external_auth_continuation": {method: "POST"},
+		"core.route.site_chrome.account_navigation":           {method: "GET", supported: true},
 	}
 	var catalog []routes.CoreRoute
 	for _, route := range routes.CoreRouteCatalog() {

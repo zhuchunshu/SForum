@@ -830,3 +830,128 @@
     display: none;
   }
 }
+
+/* 移动端软面板列表：桌面仍保留原有列式表格，窄屏改为标题优先的浮层行。 */
+@media (max-width: 720px) {
+  .sf-page.sf-theme--default .sforum-home__main {
+    padding: 17px 12px 84px;
+  }
+
+  .sf-page.sf-theme--default .sforum-home__feed-head {
+    min-height: 0;
+    margin-bottom: 13px;
+    padding: 0 2px;
+    border-bottom: 0;
+  }
+
+  .sf-page.sf-theme--default .sforum-home__feed-list {
+    display: grid;
+    gap: 9px;
+  }
+
+  .sf-page.sf-theme--default .sf-home-topic-row {
+    display: block;
+    min-height: 0;
+    padding: 14px 13px 13px;
+    border: 0;
+    border-radius: 14px;
+    background: var(--sf-public-surface);
+    box-shadow: 0 2px 12px rgb(51 56 80 / 0.055);
+  }
+
+  .sf-page.sf-theme--default .sf-home-topic-row:hover,
+  .sf-page.sf-theme--default .sf-home-topic-row:focus-visible {
+    background: var(--sf-public-surface);
+    box-shadow: 0 4px 16px rgb(51 56 80 / 0.09);
+  }
+
+  .sf-page.sf-theme--default .sf-home-topic-row__desktop-avatar {
+    display: none;
+  }
+
+  .sf-page.sf-theme--default .sf-home-topic-row__title {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .sf-page.sf-theme--default .sf-home-topic-row__meta {
+    align-items: center;
+    margin-top: 10px;
+    gap: 7px;
+  }
+
+  .sf-page.sf-theme--default .sf-home-topic-row__mobile-avatar {
+    display: inline-flex;
+    flex: 0 0 auto;
+  }
+
+  .sf-page.sf-theme--default .sf-home-topic-row__mobile-avatar .sf-avatar {
+    width: 30px;
+    height: 30px;
+    font-size: 11px;
+  }
+
+  .sf-page.sf-theme--default .sf-home-topic-row__meta > span:nth-child(2) {
+    min-width: 0;
+  }
+
+  .sf-page.sf-theme--default .sf-home-topic-row__mobile-replies {
+    margin-left: auto;
+  }
+
+  .sf-page.sf-theme--default .sf-home-topic-row__mobile-taxonomy {
+    min-width: 0;
+    flex: 0 1 auto;
+    align-items: center;
+    align-self: center;
+    gap: 6px;
+    overflow: hidden;
+  }
+
+  .sf-page.sf-theme--default .sf-home-topic-row__mobile-category,
+  .sf-page.sf-theme--default .sf-home-topic-row__mobile-tag {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-decoration: none;
+  }
+
+  .sf-page.sf-theme--default .sf-home-topic-row__mobile-category {
+    display: inline-flex;
+    min-height: 22px;
+    align-items: center;
+    border-radius: 5px;
+    padding: 0 7px;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .sf-page.sf-theme--default .sf-home-topic-row__mobile-tag {
+    color: var(--sf-public-text-muted);
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .sf-page.sf-theme--default .sf-home-topic-row__mobile-tag:hover,
+  .sf-page.sf-theme--default .sf-home-topic-row__mobile-category:hover {
+    color: var(--sf-accent-hover);
+  }
+}
+
+@media (min-width: 721px) {
+  .sf-home-topic-row__mobile-avatar {
+    display: none;
+  }
+
+  /* 旧 immutable 默认主题制品仍可能带 nowrap；宿主覆盖保证开发运行时同步。 */
+  .sf-page.sf-theme--default .sf-home-topic-row__title {
+    overflow: visible !important;
+    overflow-wrap: anywhere;
+    text-overflow: clip !important;
+    white-space: normal !important;
+  }
+}
