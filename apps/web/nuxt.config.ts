@@ -265,8 +265,7 @@ export default defineNuxtConfig({
     }
   },
   site: {
-    name: appName,
-    url: appUrl
+    name: appName
   },
   app: {
     head: {
