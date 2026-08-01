@@ -139,9 +139,9 @@ func (q *Queries) CreateRole(ctx context.Context, arg CreateRoleParams) (CreateR
 }
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (username, username_lower, email, email_lower, display_name, locale, is_initial_super_admin)
-VALUES ($1, lower($1), $2, lower($2), $3, $4, $5)
-RETURNING id, username, display_name, locale, status, is_initial_super_admin
+INSERT INTO users (username, username_lower, email, email_lower, display_name, locale, is_initial_super_admin, email_verified_at)
+VALUES ($1, lower($1), $2, lower($2), $3, $4, $5, CASE WHEN $6::boolean THEN now() ELSE NULL END)
+RETURNING id, username, display_name, locale, status, is_initial_super_admin, email_verified_at IS NOT NULL AS email_verified
 `
 
 type CreateUserParams struct {
@@ -150,6 +150,7 @@ type CreateUserParams struct {
 	DisplayName         string
 	Locale              string
 	IsInitialSuperAdmin bool
+	EmailVerified       bool
 }
 
 type CreateUserRow struct {
@@ -159,6 +160,7 @@ type CreateUserRow struct {
 	Locale              string
 	Status              string
 	IsInitialSuperAdmin bool
+	EmailVerified       bool
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error) {
@@ -168,6 +170,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 		arg.DisplayName,
 		arg.Locale,
 		arg.IsInitialSuperAdmin,
+		arg.EmailVerified,
 	)
 	var i CreateUserRow
 	err := row.Scan(
@@ -177,6 +180,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 		&i.Locale,
 		&i.Status,
 		&i.IsInitialSuperAdmin,
+		&i.EmailVerified,
 	)
 	return i, err
 }

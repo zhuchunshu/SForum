@@ -123,10 +123,11 @@ describe('auth route support contracts', () => {
       operations: ['login.start'], activatedOperations: ['login'], label: 'Unlinked Source', icon: 'i-lucide-key-round'
     }])
     Object.assign(globalThis, {
-      computed: mountVue.computed, ref: mountVue.ref, reactive: mountVue.reactive, watch: mountVue.watch,
+      computed: mountVue.computed, ref: mountVue.ref, reactive: mountVue.reactive, watch: mountVue.watch, onMounted: mountVue.onMounted,
       useI18n: () => ({ locale, t: (key: string, values?: Record<string, string>) => key === 'auth.providers.continueWith' ? `Continue with ${values?.name}` : key }),
       useToast: () => ({ add: () => {} }), useLocalePath: () => (path: string) => path,
       useRoute: () => ({ query: { continuation_provider: 'source.provider.auth' } }),
+      useRouter: () => ({ replace: async () => {} }),
       useApiClient: () => ({ apiBaseUrl: 'http://api.test', request: async (path: string) => path === '/auth/registration-status' ? { nextUserIsInitialSuperAdmin: false, registrationEnabled: true } : { id: 1 } }),
       useAuthSession: () => ({ setUser: () => {} }),
       useAuthReturnNavigation: () => ({ returnFromAuth: async () => {}, authPageLink: (path: string) => path, destination: mountVue.ref('/') }),
@@ -231,7 +232,7 @@ describe('auth route support contracts', () => {
       useApiClient: () => ({ apiBaseUrl: 'http://api.test', request: async (path: string) => path === '/auth/registration-status' ? { nextUserIsInitialSuperAdmin: false, registrationEnabled: true } : { id: 1 } }),
       useAuthSession: () => ({ setUser: () => {} }),
       useAuthReturnNavigation: () => ({ returnFromAuth: async () => {}, authPageLink: (path: string) => path, destination: mountVue.ref('/') }),
-      useWebOptions: () => ({ siteName: mountVue.ref('SForum'), siteTagline: mountVue.ref(''), humanVerificationEnabledFor: () => false, altchaWidgetSettings: mountVue.ref({ hideLogo: true, hideFooter: true, minDuration: 0, type: 'checkbox', auto: 'off', display: 'default', workers: 1 }), passwordPolicy: mountVue.ref({ minLength: 1, maxLength: 64 }) }),
+      useWebOptions: () => ({ siteName: mountVue.ref('SForum'), siteTagline: mountVue.ref(''), webOption: (_name: string, fallback = '') => fallback, humanVerificationEnabledFor: () => false, altchaWidgetSettings: mountVue.ref({ hideLogo: true, hideFooter: true, minDuration: 0, type: 'checkbox', auto: 'off', display: 'default', workers: 1 }), passwordPolicy: mountVue.ref({ minLength: 1, maxLength: 64 }) }),
       useAuthProviders: () => ({ registrationProviders: providers, redirectToProvider: async (id: string, operation: string) => { starts.push([id, operation]); throw new Error('provider start failed') } }),
       useExternalAuthFeedback: () => ({ alertMessage: mountVue.ref(''), alertVariant: mountVue.ref('danger') }),
       useAsyncData: async (_key: string, handler: () => Promise<unknown>) => ({ data: mountVue.ref(await handler()), pending: mountVue.ref(false) }),
@@ -256,6 +257,65 @@ describe('auth route support contracts', () => {
       const legalLinks = wrapper.findAll('.auth-terms a')
       expect(legalLinks).toHaveLength(2)
       expect(legalLinks.map(link => link.attributes('href'))).toEqual(['/terms', '/privacy'])
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  test('redirects an unverified registration to the email verification waiting page', async () => {
+    const navigations: unknown[] = []
+    let returnedFromAuth = false
+    let sessionUser: { emailVerified?: boolean } | null = null
+    Object.assign(globalThis, {
+      computed: mountVue.computed, ref: mountVue.ref, reactive: mountVue.reactive, watch: mountVue.watch,
+      useI18n: () => ({ locale: mountVue.ref('zh-CN'), t: (key: string) => key }),
+      useToast: () => ({ add: () => {} }), useLocalePath: () => (path: string) => path,
+      useRoute: () => ({ path: '/register', query: {} }),
+      useRouter: () => ({ replace: async (target: unknown) => { navigations.push(target) } }),
+      useApiClient: () => ({
+        apiBaseUrl: 'http://api.test',
+        request: async (path: string) => {
+          if (path === '/auth/registration-status') return { nextUserIsInitialSuperAdmin: false, registrationEnabled: true }
+          if (path === '/auth/register') return { id: 42, username: 'new-user', emailVerified: false }
+          throw new Error(`unexpected request ${path}`)
+        }
+      }),
+      useAuthSession: () => ({ setUser: (user: { emailVerified?: boolean }) => { sessionUser = user } }),
+      useAuthReturnNavigation: () => ({
+        returnFromAuth: async () => { returnedFromAuth = true },
+        authPageLink: (path: string) => path,
+        destination: mountVue.ref('/topics')
+      }),
+      useWebOptions: () => ({
+        siteName: mountVue.ref('SForum'), siteTagline: mountVue.ref(''),
+        webOption: (name: string, fallback = '') => name === 'identity.registration.require_email_verification' ? 'enabled' : fallback,
+        humanVerificationEnabledFor: () => false,
+        altchaWidgetSettings: mountVue.ref({ hideLogo: true, hideFooter: true, minDuration: 0, type: 'checkbox', auto: 'off', display: 'default', workers: 1 }),
+        passwordPolicy: mountVue.ref({ minLength: 1, maxLength: 64 })
+      }),
+      useAuthProviders: () => ({ registrationProviders: mountVue.ref([]), redirectToProvider: async () => {} }),
+      useExternalAuthFeedback: () => ({ alertMessage: mountVue.ref(''), alertVariant: mountVue.ref('danger') }),
+      useAsyncData: async (_key: string, handler: () => Promise<unknown>) => ({ data: mountVue.ref(await handler()), pending: mountVue.ref(false) }),
+      useSeoMeta: () => {}, apiErrorFields: () => ({}), apiErrorMessage: () => '', apiErrorReason: () => '',
+      registerErrorMessage: () => '', passwordPolicyProgress: () => 100, passwordPolicyProgressLevel: () => 'strong', passwordPolicyRequirements: () => []
+    })
+    const wrapper = mount({ components: { SFRegisterFormPage }, template: '<Suspense><SFRegisterFormPage /></Suspense>' }, {
+      global: { stubs: { NuxtLink: { template: '<a><slot /></a>' }, UIcon: true, SFAlert: true, ClientOnly: true, 'altcha-widget': true, SFAuthProviderButtons } }
+    })
+    try {
+      await flushPromises()
+      await wrapper.get('#username-input').setValue('new-user')
+      await wrapper.get('#email-input').setValue('new-user@example.com')
+      await wrapper.get('#displayname-input').setValue('New User')
+      await wrapper.get('#reg-password-input').setValue('password')
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+      expect(sessionUser?.emailVerified).toBe(false)
+      expect(returnedFromAuth).toBe(false)
+      expect(navigations).toEqual([{
+        path: '/email-verification',
+        query: { redirect: '/topics' }
+      }])
     } finally {
       wrapper.unmount()
     }
@@ -288,7 +348,7 @@ describe('auth route support contracts', () => {
       }),
       useAuthSession: () => ({ setUser: () => {} }),
       useAuthReturnNavigation: () => ({ returnFromAuth: async () => {}, authPageLink: (path: string) => path, destination: mountVue.ref('/topics') }),
-      useWebOptions: () => ({ humanVerificationEnabledFor: () => false, altchaWidgetSettings: mountVue.ref({ hideLogo: true, hideFooter: true, minDuration: 0, type: 'checkbox', auto: 'off', display: 'default', workers: 1 }), passwordPolicy: mountVue.ref({ minLength: 1, maxLength: 64 }) }),
+      useWebOptions: () => ({ webOption: (_name: string, fallback = '') => fallback, humanVerificationEnabledFor: () => false, altchaWidgetSettings: mountVue.ref({ hideLogo: true, hideFooter: true, minDuration: 0, type: 'checkbox', auto: 'off', display: 'default', workers: 1 }), passwordPolicy: mountVue.ref({ minLength: 1, maxLength: 64 }) }),
       useAuthProviders: () => ({ registrationProviders: mountVue.ref([]), redirectToProvider: async () => {} }),
       useExternalAuthFeedback: () => ({ alertMessage: mountVue.ref(''), alertVariant: mountVue.ref('danger') }),
       useAsyncData: async (_key: string, handler: () => Promise<unknown>) => ({ data: mountVue.ref(await handler()), pending: mountVue.ref(false) }),

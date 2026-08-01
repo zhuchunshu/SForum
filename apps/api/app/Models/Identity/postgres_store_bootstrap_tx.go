@@ -30,6 +30,7 @@ func (s *postgresTxStore) CreateUser(ctx context.Context, input CreateUserInput)
 		DisplayName:         input.DisplayName,
 		Locale:              input.Locale,
 		IsInitialSuperAdmin: input.IsInitialSuperAdmin,
+		EmailVerified:       input.EmailVerified,
 	})
 	if err != nil {
 		if fields := uniqueRegistrationFields(err); len(fields) > 0 {
@@ -44,6 +45,7 @@ func (s *postgresTxStore) CreateUser(ctx context.Context, input CreateUserInput)
 		Locale:              row.Locale,
 		Status:              UserStatus(row.Status),
 		IsInitialSuperAdmin: row.IsInitialSuperAdmin,
+		EmailVerified:       row.EmailVerified,
 	}
 	current.Avatar = currentUserAvatar(ctx, s.avatarBuilder, current, input.Email, sql.NullInt64{}, sql.NullInt64{}, sql.NullString{}, sql.NullInt64{}, sql.NullString{}, sql.NullString{})
 	return current, nil

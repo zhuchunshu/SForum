@@ -87,6 +87,7 @@ type CreateUserInput struct {
 	DisplayName         string
 	Locale              string
 	IsInitialSuperAdmin bool
+	EmailVerified       bool
 }
 
 type RegistrationConflicts struct {

@@ -125,10 +125,11 @@ func (s *ExternalAuthService) CompleteRegistration(ctx context.Context, assertio
 		return ExternalAuthRegistrationResult{}, err
 	}
 	current, err := createUserWithoutCredentialTx(ctx, tx, CreateUserInput{
-		Username:    input.Username,
-		Email:       input.Email,
-		DisplayName: input.DisplayName,
-		Locale:      input.Locale,
+		Username:      input.Username,
+		Email:         input.Email,
+		DisplayName:   input.DisplayName,
+		Locale:        input.Locale,
+		EmailVerified: assertion.EmailVerified,
 	})
 	if err != nil {
 		return ExternalAuthRegistrationResult{}, err

@@ -16,6 +16,9 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	auth.Delete("/appearance", h.clearCurrentUserAppearance)
 	auth.Post("/password-reset/request", h.passwordResetRequest)
 	auth.Post("/password-reset/confirm", h.passwordResetConfirm)
+	auth.Post("/email-verification/request", h.emailVerificationRequest)
+	auth.Get("/email-verification/confirm", h.emailVerificationConfirm)
+	auth.Post("/email-verification/confirm", h.emailVerificationConfirm)
 	// 外部 Identity 提供方：列表公开；start/complete 按操作决定是否要求登录。
 	auth.Get("/providers", h.listAuthProviders)
 	auth.Post("/providers/:providerId/:operation/start", h.authProviderStart)

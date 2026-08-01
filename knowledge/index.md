@@ -110,6 +110,13 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Email verification is implemented end to end: one-use hashed link tokens,
+  localized outbox mail, registration-to-waiting-page navigation, confirm/resend
+  APIs, OAuth assertion handling, and authoritative gates for topics/comments/
+  attachments. The waiting flow has no manual-code path. Full web/API tests,
+  typecheck, OpenAPI validation, and local Browser verification pass:
+  `sessions/2026-08-01-email-verification.md`
+
 - CI architecture gate repair: `SFNavbar.vue` dropped from 1132 to 948 lines by
   extracting focused mobile search and bottom-navigation components; the
   architecture gate, full 852-test Web suite, typecheck, V3 catalogs, complete

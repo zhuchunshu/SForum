@@ -96,6 +96,13 @@ func (p *ForumProvider) WithIdempotency(store *idempotency.Store) *ForumProvider
 	return p
 }
 
+func (p *ForumProvider) WithEmailVerificationGate(gate forumcontroller.EmailVerificationGate) *ForumProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithEmailVerificationGate(gate)
+	}
+	return p
+}
+
 // WithContentPostFilter injects the optional ContentRegistry post-render seam.
 // Nil filter keeps Host RenderContent identity behavior.
 func (p *ForumProvider) WithContentPostFilter(filter forum.ContentPostFilter) *ForumProvider {

@@ -34,6 +34,7 @@ type Controller struct {
 	authSessions       *authsession.Manager
 	verifier           humanverify.Verifier
 	passwordReset      *identity.PasswordResetService
+	emailVerification  *identity.EmailVerificationService
 	mailQueue          adminMailQueue
 	options            optionsResolver
 	welcomeMailOptions WelcomeMailOptions
@@ -118,6 +119,13 @@ func NewControllerWithPasswordReset(service *identity.Service, sessions *authses
 func (h *Controller) WithWelcomeMailOptions(settings WelcomeMailOptions) *Controller {
 	if h != nil {
 		h.welcomeMailOptions = settings
+	}
+	return h
+}
+
+func (h *Controller) WithEmailVerification(service *identity.EmailVerificationService) *Controller {
+	if h != nil {
+		h.emailVerification = service
 	}
 	return h
 }
@@ -410,6 +418,12 @@ func mapIdentityError(err error) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, rejected.Reason)
 	case errors.Is(err, identity.ErrInvalidCredentials):
 		return fiber.NewError(fiber.StatusUnauthorized, "auth.invalid_credentials")
+	case errors.Is(err, identity.ErrEmailVerificationTokenNotFound):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "auth.email_verification_invalid")
+	case errors.Is(err, identity.ErrEmailVerificationRateLimited):
+		return fiber.NewError(fiber.StatusTooManyRequests, "auth.email_verification_rate_limited")
+	case errors.Is(err, identity.ErrEmailVerificationRequired):
+		return fiber.NewError(fiber.StatusForbidden, "auth.email_verification_required")
 	case errors.Is(err, identity.ErrLoginLocked):
 		return fiber.NewError(fiber.StatusTooManyRequests, identity.CodeLoginLocked)
 	case errors.Is(err, identity.ErrLoginVerificationRequired):

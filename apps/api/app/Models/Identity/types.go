@@ -63,22 +63,25 @@ var (
 	// ErrLoginVerificationRequired 密码正确，但账号累计风险要求额外人机验证。
 	ErrLoginVerificationRequired = errors.New("identity: login verification required")
 	// ErrRegistrationDisabled 表示运营已关闭开放注册，且当前不在首用户 bootstrap 窗口。
-	ErrRegistrationDisabled       = errors.New("identity: registration disabled")
-	ErrCredentialNotFound         = errors.New("identity: credential not found")
-	ErrPermissionDenied           = errors.New("identity: permission denied")
-	ErrInvalidPermission          = errors.New("identity: invalid permission")
-	ErrInvalidRole                = errors.New("identity: invalid role")
-	ErrInvalidRoleInput           = errors.New("identity: invalid role input")
-	ErrPermissionOverrideConflict = errors.New("identity: permission override conflict")
-	ErrSystemRoleLocked           = errors.New("identity: system role is locked")
-	ErrDefaultRoleLocked          = errors.New("identity: default role is locked")
-	ErrInitialSuperAdminLocked    = errors.New("identity: initial super admin is locked")
-	ErrSuperAdminOverridesLocked  = errors.New("identity: super admin permission overrides are locked")
-	ErrSelfRoleChange             = errors.New("identity: actors cannot change their own roles or overrides")
-	ErrSuperAdminGrantRestricted  = errors.New("identity: only super admin can grant or manage super_admin role")
-	ErrUsernameOrEmailNotUnique   = errors.New("identity: username or email is not unique")
-	ErrPasswordDoesNotMeetPolicy  = errors.New("identity: password does not meet policy")
-	ErrPasswordResetTokenNotFound = errors.New("identity: password reset token not found or expired")
+	ErrRegistrationDisabled           = errors.New("identity: registration disabled")
+	ErrCredentialNotFound             = errors.New("identity: credential not found")
+	ErrPermissionDenied               = errors.New("identity: permission denied")
+	ErrInvalidPermission              = errors.New("identity: invalid permission")
+	ErrInvalidRole                    = errors.New("identity: invalid role")
+	ErrInvalidRoleInput               = errors.New("identity: invalid role input")
+	ErrPermissionOverrideConflict     = errors.New("identity: permission override conflict")
+	ErrSystemRoleLocked               = errors.New("identity: system role is locked")
+	ErrDefaultRoleLocked              = errors.New("identity: default role is locked")
+	ErrInitialSuperAdminLocked        = errors.New("identity: initial super admin is locked")
+	ErrSuperAdminOverridesLocked      = errors.New("identity: super admin permission overrides are locked")
+	ErrSelfRoleChange                 = errors.New("identity: actors cannot change their own roles or overrides")
+	ErrSuperAdminGrantRestricted      = errors.New("identity: only super admin can grant or manage super_admin role")
+	ErrUsernameOrEmailNotUnique       = errors.New("identity: username or email is not unique")
+	ErrPasswordDoesNotMeetPolicy      = errors.New("identity: password does not meet policy")
+	ErrPasswordResetTokenNotFound     = errors.New("identity: password reset token not found or expired")
+	ErrEmailVerificationTokenNotFound = errors.New("identity: email verification token not found or expired")
+	ErrEmailVerificationRequired      = errors.New("identity: email verification required")
+	ErrEmailVerificationRateLimited   = errors.New("identity: email verification rate limited")
 	// 密码重置请求过于频繁（按邮箱/IP 限流）。
 	ErrPasswordResetRateLimited = errors.New("identity: password reset rate limited")
 	// 会话目录：要操作的会话不存在或不属于当前用户（含越权访问别人的 sid）。
@@ -176,6 +179,7 @@ type CurrentUser struct {
 	Locale              string                `json:"locale"`
 	Appearance          *AppearancePreference `json:"appearance"`
 	Status              UserStatus            `json:"status"`
+	EmailVerified       bool                  `json:"emailVerified"`
 	IsInitialSuperAdmin bool                  `json:"isInitialSuperAdmin"`
 	RoleKeys            []string              `json:"roleKeys"`
 	Permissions         []string              `json:"permissions"`

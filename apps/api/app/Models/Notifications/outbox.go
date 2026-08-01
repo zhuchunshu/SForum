@@ -55,6 +55,14 @@ type QueuePasswordResetInput struct {
 	RequestIPHash string
 	Mail          QueueMailInput
 }
+type QueueEmailVerificationInput struct {
+	UserID        int64
+	Email         string
+	TokenHash     string
+	ExpiresAt     time.Time
+	RequestIPHash string
+	Mail          QueueMailInput
+}
 
 type deliverMailArgs struct {
 	DeliveryID int64 `json:"delivery_id" river:"unique"`
@@ -81,6 +89,22 @@ func (o *Outbox) QueueMail(ctx context.Context, input QueueMailInput) (MailDeliv
 func (o *Outbox) QueuePasswordReset(ctx context.Context, input QueuePasswordResetInput) (MailDelivery, error) {
 	return o.inTx(ctx, input.Mail, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at, request_ip_hash) VALUES ($1,$2,$3,$4)`, input.UserID, input.TokenHash, input.ExpiresAt, input.RequestIPHash)
+		return err
+	})
+}
+
+func (o *Outbox) QueueEmailVerification(ctx context.Context, input QueueEmailVerificationInput) (MailDelivery, error) {
+	return o.inTx(ctx, input.Mail, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `
+			UPDATE email_verification_tokens SET consumed_at = now()
+			WHERE user_id = $1 AND consumed_at IS NULL
+		`, input.UserID); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, `
+			INSERT INTO email_verification_tokens (user_id, email, token_hash, expires_at, request_ip_hash)
+			VALUES ($1, $2, $3, $4, $5)
+		`, input.UserID, input.Email, input.TokenHash, input.ExpiresAt, input.RequestIPHash)
 		return err
 	})
 }

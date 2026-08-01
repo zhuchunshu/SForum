@@ -15,6 +15,8 @@ import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSideba
 import { useColorModePreference } from '~/composables/appearance/useColorModePreference'
 import { buildForumHomeQuery } from '~/utils/forum/forumHome'
 import { parseForumTagPublicPagesOption } from '~/utils/forum/forumTaxonomy'
+import { apiErrorMessage } from '~/composables/useApiClient'
+import { normalizeEnabledOption } from '~/composables/useWebOptions'
 
 const props = withDefaults(defineProps<{
   /** Core 404 应急页不得在 API 已失效时继续启动 chrome 请求。 */
@@ -36,6 +38,7 @@ const {
   webOption
 } = useWebOptions()
 const { request } = useApiClient()
+const toast = useToast()
 const router = useRouter()
 const route = useRoute()
 const {
@@ -99,7 +102,15 @@ const {
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
 
 // 发帖入口只对拥有论坛发帖权限的用户显示，API 仍负责最终鉴权。
-const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
+const emailVerificationRequired = computed(() => normalizeEnabledOption(
+  webOption('identity.registration.require_email_verification', 'off'),
+  false
+))
+const needsEmailVerification = computed(() => Boolean(
+  user.value && emailVerificationRequired.value && !user.value.emailVerified
+))
+const resendingVerification = ref(false)
+const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate) && !needsEmailVerification.value)
 const canReviewContent = computed(() => can(FORUM_PERMISSIONS.moderationReview))
 const displayName = computed(() =>
   user.value?.displayName || user.value?.username || ''
@@ -127,6 +138,19 @@ const userMenuItems = computed<NavbarMenuItem[][]>(() => {
         type: 'label'
       }
     ],
+    ...(needsEmailVerification.value
+      ? [[{
+          label: resendingVerification.value
+            ? t('auth.emailVerificationSending')
+            : t('auth.emailVerificationResend'),
+          description: t('auth.emailVerificationRequiredHint'),
+          icon: 'i-lucide-mail-warning',
+          onSelect: (event: Event) => {
+            event.preventDefault()
+            void resendEmailVerification()
+          }
+        }]]
+      : []),
     [
       {
         label: t('nav.myProfile'),
@@ -154,6 +178,29 @@ const userMenuItems = computed<NavbarMenuItem[][]>(() => {
     ]
   ]
 })
+
+async function resendEmailVerification() {
+  if (resendingVerification.value) return
+  resendingVerification.value = true
+  try {
+    await request<{ sent: boolean }>('/auth/email-verification/request', { method: 'POST' })
+    toast.add({
+      color: 'success',
+      icon: 'i-lucide-mail-check',
+      title: t('auth.emailVerificationSent'),
+      duration: 10000
+    })
+  } catch (error) {
+    toast.add({
+      color: 'error',
+      icon: 'i-lucide-circle-alert',
+      title: apiErrorMessage(error) || t('auth.emailVerificationSendFailed'),
+      duration: 0
+    })
+  } finally {
+    resendingVerification.value = false
+  }
+}
 
 function closeMobileDrawers() {
   closeMobileMenu()

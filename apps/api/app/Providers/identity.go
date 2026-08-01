@@ -98,6 +98,13 @@ func (p *IdentityProvider) WithAPITokens(tokens *apitokens.Service) *IdentityPro
 	return p
 }
 
+func (p *IdentityProvider) WithEmailVerification(service *identity.EmailVerificationService) *IdentityProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithEmailVerification(service)
+	}
+	return p
+}
+
 // WithIdentityRegistryStore enables Host-owned permission recommendation
 // review without exposing repository mutation methods to extensions.
 func (p *IdentityProvider) WithIdentityRegistryStore(store identityregistry.Store) *IdentityProvider {

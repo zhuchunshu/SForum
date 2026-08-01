@@ -37,6 +37,23 @@ func renderMailTemplate(key string, data map[string]string) (subject, text, html
 	var eyebrow, title, intro, action, actionURL, note, detailTitle, detail string
 	var list []string
 	switch key {
+	case "identity.email_verification":
+		actionURL = data["verifyUrl"]
+		if english {
+			subject = fmt.Sprintf("Verify your %s email", siteName)
+			eyebrow, title = "Account security", "Verify your email"
+			intro = fmt.Sprintf("%s, confirm this email address to finish securing your account.", name)
+			action = "Verify email"
+			detailTitle, detail = "This link expires in 24 hours", "If you did not create this account, you can safely ignore this email."
+			note = "For your security, do not forward this verification link."
+		} else {
+			subject = fmt.Sprintf("验证你的 %s 邮箱", siteName)
+			eyebrow, title = "账号安全", "验证你的邮箱"
+			intro = fmt.Sprintf("%s，请确认这个邮箱地址以完成账号安全验证。", name)
+			action = "验证邮箱"
+			detailTitle, detail = "链接将在 24 小时后失效", "如果不是你创建了这个账号，可以忽略这封邮件。"
+			note = "出于安全考虑，请不要把验证链接转发给其他人。"
+		}
 	case "identity.password_reset":
 		actionURL = data["resetUrl"]
 		if english {

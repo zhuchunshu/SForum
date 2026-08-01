@@ -278,6 +278,7 @@ CurrentUser:
   - locale
   - appearance
   - status
+  - emailVerified
   - isInitialSuperAdmin
   - avatar
   - roleKeys
@@ -303,6 +304,9 @@ CurrentUser:
       - active
       - disabled
       - banned
+    emailVerified:
+      type: boolean
+      description: Whether the account email has been confirmed.
     isInitialSuperAdmin:
       type: boolean
     avatar:
@@ -914,6 +918,37 @@ ApiResponsePasswordResetConfirmed:
       properties:
         reset:
           type: boolean
+
+EmailVerificationConfirmRequest:
+  type: object
+  required:
+  - token
+  properties:
+    token:
+      type: string
+      minLength: 1
+ApiResponseEmailVerificationSent:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data:
+      type: object
+      required: [sent]
+      properties:
+        sent: {type: boolean}
+ApiResponseEmailVerificationConfirmed:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data:
+      type: object
+      required: [verified]
+      properties:
+        verified: {type: boolean}
 
 # 账号安全 / 登录设备管理。opaque 会话标识，非认证凭证，仅用于指定下线哪一条。
 LoginSession:

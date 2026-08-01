@@ -7,9 +7,9 @@ SELECT
   EXISTS (SELECT 1 FROM users WHERE email_lower = lower($2))::boolean AS email_taken;
 
 -- name: CreateUser :one
-INSERT INTO users (username, username_lower, email, email_lower, display_name, locale, is_initial_super_admin)
-VALUES ($1, lower($1), $2, lower($2), $3, $4, $5)
-RETURNING id, username, display_name, locale, status, is_initial_super_admin;
+INSERT INTO users (username, username_lower, email, email_lower, display_name, locale, is_initial_super_admin, email_verified_at)
+VALUES ($1, lower($1), $2, lower($2), $3, $4, $5, CASE WHEN $6::boolean THEN now() ELSE NULL END)
+RETURNING id, username, display_name, locale, status, is_initial_super_admin, email_verified_at IS NOT NULL AS email_verified;
 
 -- name: CreateUserCredential :exec
 INSERT INTO user_credentials (user_id, password_hash)

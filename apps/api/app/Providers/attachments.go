@@ -43,6 +43,13 @@ func (p *AttachmentsProvider) WithCompressionService(service *attachments.Compre
 	return p
 }
 
+func (p *AttachmentsProvider) WithEmailVerificationGate(gate attachmentscontroller.EmailVerificationGate) *AttachmentsProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithEmailVerificationGate(gate)
+	}
+	return p
+}
+
 func (p *AttachmentsProvider) RegisterRoutes(api fiber.Router) {
 	p.controller.RegisterRoutes(api)
 	if p.seoController != nil {

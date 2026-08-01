@@ -30,7 +30,12 @@ type Controller struct {
 	users           identity.ActorStore
 	sessions        *authsession.Manager
 	// idempotency 可选：注入后对发帖/评论写路径启用 Idempotency-Key（F3.2）。
-	idempotency *idempotency.Store
+	idempotency       *idempotency.Store
+	emailVerification EmailVerificationGate
+}
+
+type EmailVerificationGate interface {
+	RequireVerifiedForContent(context.Context, int64) error
 }
 
 // SearchService 抽象搜索查询，避免 controller 直接依赖 search 包。
@@ -151,6 +156,13 @@ func (h *Controller) WithEditorDocumentSchema(provider forum.EditorDocumentSchem
 func (h *Controller) WithIdempotency(store *idempotency.Store) *Controller {
 	if h != nil {
 		h.idempotency = store
+	}
+	return h
+}
+
+func (h *Controller) WithEmailVerificationGate(gate EmailVerificationGate) *Controller {
+	if h != nil {
+		h.emailVerification = gate
 	}
 	return h
 }
@@ -288,6 +300,11 @@ func (h *Controller) createTopic(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {
 		return err
+	}
+	if h.emailVerification != nil {
+		if err := h.emailVerification.RequireVerifiedForContent(c.Context(), actor.ID); err != nil {
+			return mapForumError(err)
+		}
 	}
 	var req createTopicRequest
 	if err := c.Bind().Body(&req); err != nil {
@@ -584,6 +601,11 @@ func (h *Controller) createComment(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+	if h.emailVerification != nil {
+		if err := h.emailVerification.RequireVerifiedForContent(c.Context(), actor.ID); err != nil {
+			return mapForumError(err)
+		}
+	}
 	var req createCommentRequest
 	if err := c.Bind().Body(&req); err != nil {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeInvalidContent)
@@ -736,6 +758,8 @@ func mapForumError(err error) error {
 	var rejected *appevents.RejectedError
 	var cooldown *forum.CooldownError
 	switch {
+	case errors.Is(err, identity.ErrEmailVerificationRequired):
+		return fiber.NewError(fiber.StatusForbidden, "auth.email_verification_required")
 	case errors.As(err, &rejected):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, rejected.Reason)
 	case errors.As(err, &cooldown) && errors.Is(cooldown, forum.ErrTopicCooldown):

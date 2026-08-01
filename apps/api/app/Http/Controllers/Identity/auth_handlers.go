@@ -51,6 +51,9 @@ func (h *Controller) register(c fiber.Ctx) error {
 		return mapIdentityError(err)
 	}
 	h.queueWelcomeMail(c.Context(), req.Email, h.browserMailLocale(c), current)
+	if h.emailVerification != nil {
+		_, _ = h.emailVerification.Request(c.Context(), current.ID, clientip.FromCtx(c), h.browserMailLocale(c))
+	}
 
 	var pendingSession *authsession.Pending
 	if err := h.runSessionIssue(c.Context(), current.ID, current.CurrentTokenVersion, req.StepUpEvidence, func(effectCtx context.Context) error {
@@ -287,6 +290,49 @@ func (h *Controller) passwordResetConfirm(c fiber.Ctx) error {
 		return mapIdentityError(err)
 	}
 	return apphttp.OK(c, map[string]any{"reset": true})
+}
+
+func (h *Controller) emailVerificationRequest(c fiber.Ctx) error {
+	if h.emailVerification == nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, "auth.email_verification_unavailable")
+	}
+	userID, ok, err := h.sessionUserID(c)
+	if err != nil {
+		return err
+	}
+	if !ok || userID <= 0 {
+		return fiber.NewError(fiber.StatusUnauthorized, "auth.required")
+	}
+	sent, err := h.emailVerification.Request(c.Context(), userID, clientip.FromCtx(c), h.browserMailLocale(c))
+	if err != nil {
+		return mapIdentityError(err)
+	}
+	return apphttp.OK(c, map[string]any{"sent": sent})
+}
+
+func (h *Controller) emailVerificationConfirm(c fiber.Ctx) error {
+	if h.emailVerification == nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, "auth.email_verification_unavailable")
+	}
+	token := strings.TrimSpace(c.Query("token"))
+	if token == "" {
+		var req struct {
+			Token string `json:"token"`
+		}
+		if err := c.Bind().Body(&req); err == nil {
+			token = strings.TrimSpace(req.Token)
+		}
+	}
+	if _, err := h.emailVerification.Confirm(c.Context(), token); err != nil {
+		return mapIdentityError(err)
+	}
+	if c.Method() == fiber.MethodGet {
+		if _, ok, _ := h.sessionUserIDWithoutRenewal(c); ok {
+			return c.Redirect().Status(fiber.StatusSeeOther).To("/email-verification?verified=1")
+		}
+		return c.Redirect().Status(fiber.StatusSeeOther).To("/login?reason=auth.email_verified")
+	}
+	return apphttp.OK(c, map[string]any{"verified": true})
 }
 
 // adminMailTest 向指定收件人或站点管理员邮箱发送测试邮件。

@@ -245,6 +245,56 @@ passwordResetConfirm:
         "$ref": "../components/responses.yaml#/NotFound"
       '422':
         "$ref": "../components/responses.yaml#/UnprocessableEntity"
+emailVerificationRequest:
+  post:
+    summary: Request a verification email for the current account
+    operationId: requestEmailVerification
+    security:
+    - cookieAuth: []
+    responses:
+      '200':
+        description: Request accepted; sent is false when verification is not required or already complete.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseEmailVerificationSent"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '429':
+        "$ref": "../components/responses.yaml#/TooManyRequests"
+emailVerificationConfirm:
+  get:
+    summary: Confirm an email address from a one-time verification link
+    operationId: confirmEmailVerificationLink
+    parameters:
+    - name: token
+      in: query
+      required: true
+      schema:
+        type: string
+    responses:
+      '303':
+        description: Redirects to the login page after successful confirmation.
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+  post:
+    summary: Confirm an email address with a one-time token
+    operationId: confirmEmailVerification
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/identity.yaml#/EmailVerificationConfirmRequest"
+    responses:
+      '200':
+        description: Email verified.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseEmailVerificationConfirmed"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
 permissions:
   get:
     summary: List global permissions

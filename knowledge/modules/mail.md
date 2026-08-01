@@ -12,6 +12,11 @@ SMTP, log delivery, no-op delivery, authentication, or TLS.
   moderation email as paired text/HTML transactional templates. The HTML
   structure follows the mail template studio's restrained branded card layout;
   untrusted names, review notes, and URLs are escaped before insertion.
+- Core also renders `identity.email_verification` as a branded, localized
+  text/HTML template. Registration and explicit resend requests enqueue it
+  best-effort through the existing outbox/River pipeline; delivery failure does
+  not roll back account creation. The verification token is never included in
+  persistence or logs except as a one-use URL value delivered to the recipient.
 - Core snapshots the active public brand with each delivery: configured
   `site.logo_url` is preferred, then `site.favicon_url`, then the first visible
   character of `site.name`; `appearance.theme` supplies the accent, soft, and

@@ -134,6 +134,14 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		SiteName: siteName,
 		SiteURL:  siteURL,
 	}, optionsService).WithLocaleResolver(options.NewMailSettings(optionsService)).WithBrandResolver(options.NewMailSettings(optionsService)).WithRateLimiter(authsupport.NewPasswordResetLimiter(sharedRedisClient))
+	mailSettings := options.NewMailSettings(optionsService)
+	emailVerificationService := identity.NewEmailVerificationService(
+		identityStore,
+		emailVerificationOutbox{outbox: mailOutbox},
+		options.NewEmailVerificationPolicyResolver(optionsService),
+		identity.EmailVerificationConfig{},
+	).WithMailResolvers(mailSettings, mailSettings).
+		WithRateLimiter(authsupport.NewPasswordResetLimiter(sharedRedisClient))
 	loginLockout := authsupport.NewLoginLockout(sharedRedisClient)
 	// F3.3：出站 webhook 扇出包装在事件发布路径上（observe 成功后异步入队）。
 	webhookStore := webhooks.NewPostgresStore(pool)
@@ -226,6 +234,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	// T8B：admin Login Methods discovery = 扩展包目录 + live Registry；trust/enable 权威不变。
 	authProviderPackageCatalog := extensions.NewAuthProviderPackageCatalog(extensionService, executableTrustService)
 	identityProvider := providers.NewIdentityProviderWithPasswordResetAndLockout(identityStore, authSessions, humanVerifier, eventPublisher, passwordResetService, mailOutbox, optionsService, loginLockout).
+		WithEmailVerification(emailVerificationService).
 		WithIdentityRegistryStore(identityReviewStore).
 		WithSessionPolicyEvaluator(sessionPolicyEvaluator).
 		WithRiskEvaluator(riskEvaluator).
@@ -296,6 +305,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	}).WithEditorDocumentSchema(forum.EditorRegistrySchemaBridge{
 		Registry: lifecycleStack.EditorRegistry,
 	}).WithSearchProviderAdmin(searchProviderAdminAdapter{registry: searchProviders}).
+		WithEmailVerificationGate(emailVerificationService).
 		WithViewRecorder(topicViewCounter)
 	// 头像与附件管理共用带存储候选目录的服务实例。
 	avatarAttachmentService := attachmentService
@@ -322,6 +332,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	})
 	attachmentService.WithCompressionScheduler(compressionService)
 	attachmentsProvider := providers.NewAttachmentsProviderWithService(attachmentService, attachmentStore, identityStore, authSessions).
+		WithEmailVerificationGate(emailVerificationService).
 		WithCompressionService(compressionService)
 	seoProvider := providers.NewSEOProvider(pool, optionsService)
 	databaseProvider := providers.NewDatabaseProvider(databaseStore, identityStore, authSessions)

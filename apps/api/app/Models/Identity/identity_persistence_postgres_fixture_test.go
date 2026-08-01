@@ -206,6 +206,7 @@ func seedIdentityPersistenceTestBaseTables(ctx context.Context, db *sql.DB) erro
 			email_lower TEXT NOT NULL UNIQUE,
 			display_name TEXT NOT NULL,
 			locale TEXT NOT NULL DEFAULT 'zh-CN',
+			email_verified_at TIMESTAMPTZ,
 			status TEXT NOT NULL DEFAULT 'active'
 			  CHECK (status IN ('active', 'disabled', 'banned')),
 			current_token_version BIGINT NOT NULL DEFAULT 0

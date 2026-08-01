@@ -33,7 +33,7 @@ const router = useRouter()
 const { apiBaseUrl, request } = useApiClient()
 const { setUser } = useAuthSession()
 const { returnFromAuth, authPageLink, destination } = useAuthReturnNavigation()
-const { humanVerificationEnabledFor, altchaWidgetSettings, passwordPolicy } = useWebOptions()
+const { humanVerificationEnabledFor, altchaWidgetSettings, passwordPolicy, webOption } = useWebOptions()
 const {
   registrationProviders,
   redirectToProvider
@@ -146,6 +146,9 @@ const showExternalRegistrationProviders = computed(() =>
   && !isBootstrapRegistration.value
   && registrationProviders.value.length > 0
 )
+const emailVerificationRequired = computed(() =>
+  webOption('identity.registration.require_email_verification', 'disabled') === 'enabled'
+)
 
 useSForumSeo({
   title: () => isExternalTicketMode.value
@@ -224,6 +227,25 @@ function passwordRequirementLabel(key: string) {
   }
 }
 
+async function finishRegistration(currentUser: CurrentUser) {
+  setUser(currentUser)
+  const needsEmailVerification = emailVerificationRequired.value && !currentUser.emailVerified
+  toast.add({
+    color: 'success',
+    icon: needsEmailVerification ? 'i-lucide-mail-check' : 'i-lucide-check',
+    title: needsEmailVerification ? t('auth.emailVerificationSent') : registerSuccessTitle(),
+    duration: 10000
+  })
+  if (needsEmailVerification) {
+    await router.replace({
+      path: localePath('/email-verification'),
+      query: destination.value === '/' ? undefined : { redirect: destination.value }
+    })
+    return
+  }
+  await returnFromAuth()
+}
+
 async function submitPasswordRegister() {
   if (submitting.value) {
     return
@@ -273,14 +295,7 @@ async function submitPasswordRegister() {
     return
   }
 
-  setUser(currentUser)
-  toast.add({
-    color: 'success',
-    icon: 'i-lucide-check',
-    title: registerSuccessTitle(),
-    duration: 10000
-  })
-  await returnFromAuth()
+  await finishRegistration(currentUser)
 }
 
 async function submitExternalRegister() {
@@ -351,14 +366,7 @@ async function submitExternalRegister() {
     return
   }
 
-  setUser(currentUser)
-  toast.add({
-    color: 'success',
-    icon: 'i-lucide-check',
-    title: registerSuccessTitle(),
-    duration: 10000
-  })
-  await returnFromAuth()
+  await finishRegistration(currentUser)
 }
 
 async function submitRegister() {

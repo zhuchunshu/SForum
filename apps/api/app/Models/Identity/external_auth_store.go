@@ -215,12 +215,12 @@ func validSessionFingerprint(value string) bool {
 // createUserWithoutCredentialTx 在传入的 pgx.Tx 上创建用户（无凭据），返回基础字段。
 func createUserWithoutCredentialTx(ctx context.Context, tx pgx.Tx, input CreateUserInput) (CurrentUser, error) {
 	row := tx.QueryRow(ctx, `
-		INSERT INTO users (username, username_lower, email, email_lower, display_name, locale, status, is_initial_super_admin, created_at, updated_at)
-		VALUES ($1, lower($1), $2, lower($2), $3, $4, 'active', $5, now(), now())
-		RETURNING id, username, display_name, locale, status, is_initial_super_admin
-	`, input.Username, input.Email, input.DisplayName, input.Locale, input.IsInitialSuperAdmin)
+		INSERT INTO users (username, username_lower, email, email_lower, display_name, locale, status, is_initial_super_admin, email_verified_at, created_at, updated_at)
+		VALUES ($1, lower($1), $2, lower($2), $3, $4, 'active', $5, CASE WHEN $6::boolean THEN now() ELSE NULL END, now(), now())
+		RETURNING id, username, display_name, locale, status, is_initial_super_admin, email_verified_at IS NOT NULL
+	`, input.Username, input.Email, input.DisplayName, input.Locale, input.IsInitialSuperAdmin, input.EmailVerified)
 	var current CurrentUser
-	if err := row.Scan(&current.ID, &current.Username, &current.DisplayName, &current.Locale, &current.Status, &current.IsInitialSuperAdmin); err != nil {
+	if err := row.Scan(&current.ID, &current.Username, &current.DisplayName, &current.Locale, &current.Status, &current.IsInitialSuperAdmin, &current.EmailVerified); err != nil {
 		return CurrentUser{}, fmt.Errorf("create external user in tx: %w", err)
 	}
 	return current, nil

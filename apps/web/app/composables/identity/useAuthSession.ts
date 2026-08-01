@@ -12,6 +12,7 @@ export type CurrentUser = {
     lightBackground: LightBackgroundPreset
   } | null
   status: 'active' | 'disabled' | 'banned'
+  emailVerified: boolean
   isInitialSuperAdmin: boolean
   avatar: AvatarView
   roleKeys: string[]

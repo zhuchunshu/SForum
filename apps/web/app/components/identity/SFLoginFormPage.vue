@@ -18,6 +18,7 @@ import { apiErrorMessage, apiErrorReason } from '~/composables/useApiClient'
 
 const { t, locale } = useI18n()
 const route = useRoute()
+const router = useRouter()
 const toast = useToast()
 const localePath = useLocalePath()
 const { apiBaseUrl, request } = useApiClient()
@@ -69,6 +70,14 @@ const surfaceError = computed(() => errorMessage.value || externalAlertMessage.v
 const surfaceErrorVariant = computed(() =>
   errorMessage.value ? 'danger' : (externalAlertVariant.value || 'danger')
 )
+const emailVerifiedFeedback = computed(() =>
+  route.query.reason === 'auth.email_verified' ? t('auth.emailVerificationConfirmed') : ''
+)
+const surfaceMessage = computed(() => surfaceError.value || emailVerifiedFeedback.value)
+const surfaceVariant = computed(() => emailVerifiedFeedback.value && !surfaceError.value
+  ? 'success'
+  : surfaceErrorVariant.value
+)
 const altchaChallengeUrl = computed(() => `${apiBaseUrl}/human-verification/challenge?purpose=login_risk`)
 const altchaConfiguration = computed(() => JSON.stringify({
   hideLogo: altchaWidgetSettings.value.hideLogo,
@@ -79,6 +88,19 @@ const altchaConfiguration = computed(() => JSON.stringify({
 useSForumSeo({
   title: () => t('auth.loginTitle'),
   noindex: true
+})
+
+onMounted(() => {
+  if (!emailVerifiedFeedback.value) return
+  toast.add({
+    color: 'success',
+    icon: 'i-lucide-mail-check',
+    title: emailVerifiedFeedback.value,
+    duration: 10000
+  })
+  const nextQuery = { ...route.query }
+  delete nextQuery.reason
+  void router.replace({ path: route.path, query: nextQuery })
 })
 
 function loginSuccessTitle() {
@@ -201,9 +223,9 @@ async function startExternalLogin(provider: PublicAuthProvider) {
 
         <form @submit.prevent="submitLogin">
           <SFAlert
-            v-if="surfaceError"
-            :title="surfaceError"
-            :variant="surfaceErrorVariant"
+          v-if="surfaceMessage"
+          :title="surfaceMessage"
+          :variant="surfaceVariant"
             compact
             class="auth-alert"
           />

@@ -395,6 +395,7 @@ func (s *PostgresStore) updateAdminUser(ctx context.Context, actorUserID int64, 
 		next.Status = *input.Status
 	}
 	statusChanged := next.Status != current.Status
+	emailChanged := next.Email != current.Email
 
 	// 用户名/邮箱变更时检查唯一性（排除自身）。
 	if next.Username != current.Username || next.Email != current.Email {
@@ -421,9 +422,10 @@ func (s *PostgresStore) updateAdminUser(ctx context.Context, actorUserID int64, 
 		    locale = $5,
 		    status = $6,
 		    current_token_version = current_token_version + CASE WHEN $7 THEN 1 ELSE 0 END,
+		    email_verified_at = CASE WHEN $8 THEN NULL ELSE email_verified_at END,
 		    updated_at = now()
 		WHERE id = $1
-	`, targetUserID, next.Username, next.Email, next.DisplayName, next.Locale, string(next.Status), statusChanged)
+	`, targetUserID, next.Username, next.Email, next.DisplayName, next.Locale, string(next.Status), statusChanged, emailChanged)
 	if err != nil {
 		return AdminUserDetail{}, fmt.Errorf("update admin user account: %w", err)
 	}

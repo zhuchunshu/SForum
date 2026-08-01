@@ -674,13 +674,14 @@ func (s *ExternalAuthService) loadCurrentUser(ctx context.Context, userID int64)
 		return CurrentUser{}, fmt.Errorf("identity pool unavailable")
 	}
 	row := s.deps.Pool.QueryRow(ctx, `
-		SELECT id, username, display_name, locale, status, is_initial_super_admin, current_token_version
+		SELECT id, username, display_name, locale, status, is_initial_super_admin, current_token_version,
+		       email_verified_at IS NOT NULL
 		FROM users WHERE id = $1
 	`, userID)
 	var current CurrentUser
 	if err := row.Scan(
 		&current.ID, &current.Username, &current.DisplayName, &current.Locale,
-		&current.Status, &current.IsInitialSuperAdmin, &current.CurrentTokenVersion,
+		&current.Status, &current.IsInitialSuperAdmin, &current.CurrentTokenVersion, &current.EmailVerified,
 	); err != nil {
 		return CurrentUser{}, fmt.Errorf("load external auth user: %w", err)
 	}

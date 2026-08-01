@@ -1,6 +1,7 @@
 package attachmentscontroller
 
 import (
+	"context"
 	"errors"
 	"io"
 	"strconv"
@@ -19,10 +20,15 @@ import (
 )
 
 type Controller struct {
-	service     *attachments.Service
-	compression *attachments.CompressionService
-	users       identity.ActorStore
-	sessions    *authsession.Manager
+	service           *attachments.Service
+	compression       *attachments.CompressionService
+	users             identity.ActorStore
+	sessions          *authsession.Manager
+	emailVerification EmailVerificationGate
+}
+
+type EmailVerificationGate interface {
+	RequireVerifiedForContent(context.Context, int64) error
 }
 
 const (
@@ -39,6 +45,13 @@ func (h *Controller) WithCompressionService(service *attachments.CompressionServ
 
 func NewController(service *attachments.Service, users identity.ActorStore, sessions *authsession.Manager) *Controller {
 	return &Controller{service: service, users: users, sessions: sessions}
+}
+
+func (h *Controller) WithEmailVerificationGate(gate EmailVerificationGate) *Controller {
+	if h != nil {
+		h.emailVerification = gate
+	}
+	return h
 }
 
 type updateAttachmentRequest struct {
@@ -90,6 +103,11 @@ func (h *Controller) upload(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {
 		return err
+	}
+	if h.emailVerification != nil {
+		if err := h.emailVerification.RequireVerifiedForContent(c.Context(), actor.ID); err != nil {
+			return mapAttachmentError(err)
+		}
 	}
 	policy, err := h.service.UploadPolicy(c.Context(), actor)
 	if err != nil {
@@ -502,6 +520,8 @@ func mapAttachmentError(err error) error {
 	var rejected *appevents.RejectedError
 	var tooLarge *attachments.FileTooLargeError
 	switch {
+	case errors.Is(err, identity.ErrEmailVerificationRequired):
+		return fiber.NewError(fiber.StatusForbidden, "auth.email_verification_required")
 	case errors.Is(err, identity.ErrPermissionDenied):
 		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
 	case errors.Is(err, attachments.ErrGuestLoginRequired):

@@ -10,6 +10,21 @@ helpers.
 
 Initial identity foundation is implemented.
 
+- **邮箱验证闭环（2026-08-01）：** 密码注册账号默认未验证，并在注册后通过
+  Mail Outbox/River 投递一次性验证邮件；令牌只保存哈希、24 小时过期、单次消费，
+  且绑定注册邮箱，修改邮箱会清空验证状态并使旧链接失效。OAuth 只有在提供方明确
+  返回 `emailVerified=true` 时才直接标记已验证。API 提供
+  `POST /auth/email-verification/request`、`GET/POST /auth/email-verification/confirm`，
+  当前用户响应包含 `emailVerified`。启用
+  `identity.registration.require_email_verification` 与
+  `identity.registration.block_posting_until_verified` 后，API 权威阻止未验证用户
+  创建主题、评论和上传附件；注册成功后前端会将未验证用户送到认证布局下的邮箱
+  验证等待页，保留安全的原始回跳目标，并支持检查状态与重新发送验证邮件。用户只
+  能点击邮件中的一次性链接完成验证，不提供手动验证码输入；同一浏览器点击链接后
+  回到等待页成功状态，未登录浏览器则回到登录页。
+  迁移为 `202608010001_identity_email_verification.sql`，老用户按 `created_at` 一次性
+  视为已验证以保持兼容。
+
 - **OAuth Provider Core prerequisites (2026-08-01):** Core now exposes a
   dedicated `account-settings` Navigation Registry kind and private
   `GET /site/account-navigation` projection. Manifest V3 contributions can
@@ -651,8 +666,6 @@ Initial identity foundation is implemented.
 ## Open Questions
 
 - Which exact username, email, and password rules should MVP registration use?
-- Should email verification be required before posting, or only before
-  sensitive account recovery flows?
 - What ALTCHA challenge expiration and work cost should be the production
   default?
 - Which role-management screens are required in the first admin milestone?

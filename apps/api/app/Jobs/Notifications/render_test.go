@@ -29,6 +29,13 @@ func TestRenderDeliveryRendersEnglishPasswordResetTemplate(t *testing.T) {
 	}
 }
 
+func TestRenderDeliveryRendersEmailVerificationTemplate(t *testing.T) {
+	request := renderDelivery(notifications.MailDelivery{ID: 8, Recipient: "u@example.com", TemplateKey: "identity.email_verification", TemplateData: json.RawMessage(`{"locale":"en-US","username":"Alex","verifyUrl":"https://forum.test/api/v1/auth/email-verification/confirm?token=opaque","siteName":"Forum"}`)})
+	if request.Subject != "Verify your Forum email" || !strings.Contains(request.TextBody, "Verify email: https://forum.test") || !strings.Contains(request.HTMLBody, "Verify email") {
+		t.Fatalf("unexpected email verification mail: %#v", request)
+	}
+}
+
 func TestRenderDeliveryRendersWelcomeTemplate(t *testing.T) {
 	request := renderDelivery(notifications.MailDelivery{ID: 4, Recipient: "u@example.com", TemplateKey: "identity.welcome", TemplateData: json.RawMessage(`{"locale":"zh-CN","username":"林墨","siteName":"SForum","siteUrl":"https://forum.test"}`)})
 	if !strings.Contains(request.Subject, "欢迎来到 SForum") || !strings.Contains(request.HTMLBody, "开始逛逛") || !strings.Contains(request.TextBody, "补充头像") {
