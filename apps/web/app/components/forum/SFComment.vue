@@ -90,6 +90,7 @@ const { t } = useI18n()
 
 // 后端已用 bluemonday sanitize，前端可直接 v-html 渲染。
 const showHtml = computed(() => Boolean(props.htmlContent))
+const isDeletedComment = computed(() => props.comment?.status === 'deleted')
 const displayFloorLabel = computed(() => props.floorLabel?.trim() || '')
 const secondaryActions = computed(() => props.actions.filter(actionItem => !isPrimaryAction(actionItem)))
 const mobileMenuItems = computed<CommentMenuEntry[][]>(() => [secondaryActions.value.map(actionItem => ({
@@ -359,7 +360,20 @@ const InlineEditorHost = () => {
         </a>
 
         <div
-          v-if="showHtml"
+          v-if="isDeletedComment"
+          class="sf-comment__deleted"
+          role="status"
+        >
+          <span class="sf-comment__deleted-icon">
+            <UIcon name="i-lucide-trash-2" class="size-4" aria-hidden="true" />
+          </span>
+          <span class="sf-comment__deleted-copy">
+            <strong>{{ t('topicDetail.commentDeletedNotice') }}</strong>
+            <span>{{ t('topicDetail.commentDeletedDescription') }}</span>
+          </span>
+        </div>
+        <div
+          v-else-if="showHtml"
           class="sf-comment__content sf-prose"
           :data-sforum-image-gallery="`comment-${comment?.id || 'unknown'}`"
           data-selection-quote-source="comment"

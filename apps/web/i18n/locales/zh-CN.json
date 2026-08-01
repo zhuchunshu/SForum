@@ -4896,6 +4896,8 @@
     "commentUpdated": "评论已更新。",
     "deleteFailed": "删除失败，请稍后重试。",
     "commentDeleted": "评论已删除。",
+    "commentDeletedNotice": "评论已删除",
+    "commentDeletedDescription": "这条评论的内容已不再显示。",
     "commentsLoadFailed": "评论加载失败，已显示的内容不会丢失。",
     "retryComments": "重新加载评论",
     "confirmCommentDelete": "确定要删除这条评论吗？",

@@ -254,6 +254,50 @@
   overflow-wrap: anywhere;
 }
 
+.sf-comment__deleted {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 3.25rem;
+  margin: 0.7rem 0 0;
+  padding: 0.75rem 0.85rem;
+  border: 1px dashed var(--sf-public-border, var(--sf-border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--sf-muted, var(--sf-surface)) 58%, var(--sf-card, #fff));
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+  color: var(--sf-fg-secondary);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.sf-comment__deleted-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--sf-fg) 7%, var(--sf-card, #fff));
+  color: var(--sf-fg-tertiary);
+}
+
+.sf-comment__deleted-copy {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.sf-comment__deleted-copy strong {
+  color: var(--sf-fg);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.sf-comment__deleted-copy > span {
+  color: var(--sf-fg-tertiary);
+}
+
 .sf-comment__content pre {
   max-width: 100%;
   overflow-x: auto;

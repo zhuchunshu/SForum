@@ -110,6 +110,11 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Deleted comments now render a localized bordered notice instead of a blank
+  body in the shared public comment component; focused presentation tests and
+  Nuxt typecheck pass:
+  `sessions/2026-08-01-deleted-comment-placeholder.md`
+
 - OAuth Provider Core Host contracts are now in place: account-settings
   navigation, opaque identity delegation, and one-use consent bridge. The
   provider remains an external optional plugin; next step is Protocol V2

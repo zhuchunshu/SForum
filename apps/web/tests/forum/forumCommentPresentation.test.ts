@@ -132,6 +132,20 @@ describe('SFComment presentation contract', () => {
     expect(source).toContain('branchPresentation.collapsible')
   })
 
+  test('renders a deletion notice instead of an empty comment body', () => {
+    const source = commentComponent()
+    const styles = commentCss()
+
+    expect(source).toContain("props.comment?.status === 'deleted'")
+    expect(source).toContain('v-if="isDeletedComment"')
+    expect(source).toContain("t('topicDetail.commentDeletedNotice')")
+    expect(source).toContain("t('topicDetail.commentDeletedDescription')")
+    expect(source).toContain('v-else-if="showHtml"')
+    expect(styles).toContain('.sf-comment__deleted')
+    expect(styles).toContain('border: 1px dashed var(--sf-public-border, var(--sf-border))')
+    expect(styles).toContain('.sf-comment__deleted-copy strong')
+  })
+
   test('opens an anchored public-profile preview before navigating', () => {
     const comment = commentComponent()
     const preview = userPreviewComponent()

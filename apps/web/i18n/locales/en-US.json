@@ -4856,6 +4856,8 @@
     "commentUpdated": "Comment updated.",
     "deleteFailed": "Delete failed, please try again.",
     "commentDeleted": "Comment deleted.",
+    "commentDeletedNotice": "Comment deleted",
+    "commentDeletedDescription": "The content of this comment is no longer available.",
     "commentsLoadFailed": "Comments could not be loaded. Existing comments remain available.",
     "retryComments": "Reload comments",
     "confirmCommentDelete": "Delete this comment?",
