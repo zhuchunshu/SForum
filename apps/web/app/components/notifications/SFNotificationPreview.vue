@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAuthSession } from '~/composables/identity/useAuthSession'
 import { useNotifications, type NotificationDetail, type NotificationItem } from '~/composables/notifications/useNotifications'
 import {
   limitNotificationPreviewItems,
@@ -18,6 +19,7 @@ const router = useRouter()
 const route = useRoute()
 const toast = useToast()
 const notifications = useNotifications()
+const { user: authUser } = useAuthSession()
 const { format: formatSiteDateTime } = useSiteDateTime()
 
 const root = useTemplateRef<HTMLElement>('root')
@@ -183,15 +185,21 @@ function handleDocumentKeydown(event: KeyboardEvent) {
 watch(() => route.fullPath, closePreview)
 
 let stopRealtime = () => {}
+watch(() => authUser.value?.id, (actorUserId) => {
+  stopRealtime()
+  stopRealtime = () => {}
+  if (!actorUserId) return
+  stopRealtime = notifications.startRealtime(actorUserId, async () => {
+    await notifications.refreshUnreadCount()
+    if (open.value) await loadPreview()
+  })
+}, { immediate: true })
+
 onMounted(() => {
   document.addEventListener('pointerdown', handleDocumentPointerDown)
   document.addEventListener('keydown', handleDocumentKeydown)
   window.addEventListener('resize', updatePanelPosition)
   void notifications.refreshUnreadCount().catch(() => {})
-  stopRealtime = notifications.startRealtime(async () => {
-    await notifications.refreshUnreadCount()
-    if (open.value) await loadPreview()
-  })
 })
 onBeforeUnmount(() => {
   requestRevision++

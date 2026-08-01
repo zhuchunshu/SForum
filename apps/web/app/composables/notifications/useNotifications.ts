@@ -1,3 +1,5 @@
+import { createNotificationRealtimeClient, type NotificationRevisionRefresh } from './notificationRealtime'
+
 export type NotificationActor = {
   id: number
   username: string
@@ -51,61 +53,7 @@ export type NotificationListFilters = {
   unread?: boolean
 }
 
-type RevisionPayload = { revision?: unknown }
-type RevisionRefresh = () => void | Promise<void>
-
-const REVISION_RECONNECT_INITIAL_DELAY_MS = 1000
-const REVISION_RECONNECT_MAX_DELAY_MS = 30_000
-const REVISION_FALLBACK_REFRESH_MS = 30_000
-
-let revisionSource: EventSource | null = null
-let revisionURL = ''
-let revisionRefreshTimer: ReturnType<typeof setTimeout> | null = null
-let revisionReconnectTimer: ReturnType<typeof setTimeout> | null = null
-let revisionFallbackTimer: ReturnType<typeof setInterval> | null = null
-let revisionReconnect: (() => void) | null = null
-let revisionReconnectDelayMs = REVISION_RECONNECT_INITIAL_DELAY_MS
-let visibilityListenerAttached = false
-const revisionRefreshers = new Set<RevisionRefresh>()
-
-function scheduleRevisionRefresh() {
-  if (revisionRefreshTimer) return
-  revisionRefreshTimer = setTimeout(() => {
-    revisionRefreshTimer = null
-    for (const refresh of revisionRefreshers) void Promise.resolve(refresh()).catch(() => {})
-  }, 100)
-}
-
-function refreshWhenVisible() {
-  if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
-  scheduleRevisionRefresh()
-  revisionReconnect?.()
-}
-
-function startRealtimeFallbacks() {
-  if (!revisionFallbackTimer) {
-    revisionFallbackTimer = setInterval(refreshWhenVisible, REVISION_FALLBACK_REFRESH_MS)
-  }
-  if (typeof document !== 'undefined' && !visibilityListenerAttached) {
-    document.addEventListener('visibilitychange', refreshWhenVisible)
-    visibilityListenerAttached = true
-  }
-}
-
-function stopRealtimeFallbacks() {
-  if (revisionRefreshTimer) clearTimeout(revisionRefreshTimer)
-  if (revisionReconnectTimer) clearTimeout(revisionReconnectTimer)
-  if (revisionFallbackTimer) clearInterval(revisionFallbackTimer)
-  revisionRefreshTimer = null
-  revisionReconnectTimer = null
-  revisionFallbackTimer = null
-  revisionReconnect = null
-  revisionReconnectDelayMs = REVISION_RECONNECT_INITIAL_DELAY_MS
-  if (typeof document !== 'undefined' && visibilityListenerAttached) {
-    document.removeEventListener('visibilitychange', refreshWhenVisible)
-    visibilityListenerAttached = false
-  }
-}
+const notificationRealtime = createNotificationRealtimeClient()
 
 export function useNotifications() {
   const { apiBaseUrl, request } = useApiClient()
@@ -128,93 +76,18 @@ export function useNotifications() {
   async function markRead(id: number) { await request(`/notifications/${id}/read`, { method: 'PATCH' }); if (unreadCount.value > 0) unreadCount.value-- }
   async function markAllRead() { const data = await request<{ updated: number }>('/notifications/read-all', { method: 'POST' }); unreadCount.value = 0; return data.updated }
 
-  function startRealtime(refresh: RevisionRefresh) {
+  function startRealtime(actorUserId: number, refresh: NotificationRevisionRefresh) {
     if (import.meta.server) return () => {}
-    revisionRefreshers.add(refresh)
-    const base = apiBaseUrl.replace(/\/+$/, '')
-    const scheduleReconnect = () => {
-      if (revisionReconnectTimer || revisionRefreshers.size === 0) return
-      const delay = revisionReconnectDelayMs
-      revisionReconnectDelayMs = Math.min(delay * 2, REVISION_RECONNECT_MAX_DELAY_MS)
-      revisionReconnectTimer = setTimeout(() => {
-        revisionReconnectTimer = null
-        connect()
-      }, delay)
-    }
-    const connect = () => {
-      if (revisionRefreshers.size === 0 || revisionReconnectTimer) return
-      const url = `${base}/notifications/stream?revision=${revision.value}`
-      if (revisionSource && revisionURL === url && revisionSource.readyState !== EventSource.CLOSED) return
-      revisionSource?.close()
-      revisionURL = url
-      let source: EventSource
-      try {
-        source = new EventSource(url, { withCredentials: true })
-        revisionSource = source
-      } catch {
-        revisionSource = null
-        revisionURL = ''
-        scheduleReconnect()
-        return
-      }
-      source.addEventListener('open', () => {
-        if (revisionSource !== source) return
-        revisionReconnectDelayMs = REVISION_RECONNECT_INITIAL_DELAY_MS
-        scheduleRevisionRefresh()
-      })
-      source.addEventListener('error', () => {
-        // 禁用 EventSource 的无界原生重连，由这里统一退避并保留 REST 降级刷新。
-        scheduleRevisionRefresh()
-        source.close()
-        if (revisionSource !== source) return
-        revisionSource = null
-        revisionURL = ''
-        scheduleReconnect()
-      })
-      source.addEventListener('revision', (event) => {
-        try {
-          const payload = JSON.parse((event as MessageEvent<string>).data) as RevisionPayload
-          const next = Number(payload.revision)
-          if (Number.isSafeInteger(next) && next >= 0 && next !== revision.value) {
-            revision.value = next
-            scheduleRevisionRefresh()
-          }
-        } catch {
-          // 畸形或旧服务端事件不影响手动 REST 刷新。
-        }
-      })
-    }
-    revisionReconnect = connect
-    startRealtimeFallbacks()
-    connect()
-    return () => {
-      revisionRefreshers.delete(refresh)
-      if (revisionRefreshers.size === 0) {
-        revisionSource?.close()
-        revisionSource = null
-        revisionURL = ''
-        stopRealtimeFallbacks()
-      }
-    }
+    return notificationRealtime.subscribe({ actorUserId, apiBaseUrl, revision, refresh })
   }
 
   function stopRealtime() {
-    revisionRefreshers.clear()
-    revisionSource?.close()
-    revisionSource = null
-    revisionURL = ''
-    stopRealtimeFallbacks()
+    notificationRealtime.stopAll()
   }
 
   return { unreadCount, revision, refreshUnreadCount, list, get, markRead, markAllRead, startRealtime, stopRealtime }
 }
 
 if (import.meta.hot) {
-  import.meta.hot.dispose(() => {
-    revisionRefreshers.clear()
-    revisionSource?.close()
-    revisionSource = null
-    revisionURL = ''
-    stopRealtimeFallbacks()
-  })
+  import.meta.hot.dispose(() => notificationRealtime.stopAll())
 }

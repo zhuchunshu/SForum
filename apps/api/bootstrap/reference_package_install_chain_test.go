@@ -17,6 +17,7 @@ import (
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	"github.com/zhuchunshu/sforum/apps/api/database/migrator"
 )
 
 // TestReferenceSEOFormalZipUploadTrustEnableRestartDisableUpgradeUninstall
@@ -38,7 +39,11 @@ func TestReferenceSEOFormalZipUploadTrustEnableRestartDisableUpgradeUninstall(t 
 		databaseURL = "postgres://sforum:sforum@127.0.0.1:15432/sforum?sslmode=disable"
 	}
 	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, databaseURL)
+	database := newThemeE2EDatabase(t, databaseURL)
+	if err := migrator.Up(ctx, migrator.Config{DatabaseURL: database.url}); err != nil {
+		t.Fatalf("migrate isolated formal ZIP database: %v", err)
+	}
+	pool, err := pgxpool.New(ctx, database.url)
 	if err != nil {
 		t.Fatalf("postgres required for formal ZIP chain: %v", err)
 	}

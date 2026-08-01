@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useNotifications } from '~/composables/notifications/useNotifications'
+import { useAuthSession } from '~/composables/identity/useAuthSession'
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
 import { useForumApi } from '~/composables/forum/useForumApi'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
@@ -33,6 +34,7 @@ const localePath = useLocalePath()
 const router = useRouter()
 const toast = useToast()
 const notifications = useNotifications()
+const { user: authUser } = useAuthSession()
 const forumApi = useForumApi()
 const { can } = usePermissions()
 const { format: formatSiteDateTime, timezone } = useSiteDateTime()
@@ -220,11 +222,14 @@ async function loadMore() {
 }
 
 let stopRealtime = () => {}
-onMounted(() => {
-  stopRealtime = notifications.startRealtime(async () => {
+watch(() => authUser.value?.id, (actorUserId) => {
+  stopRealtime()
+  stopRealtime = () => {}
+  if (!actorUserId) return
+  stopRealtime = notifications.startRealtime(actorUserId, async () => {
     await Promise.allSettled([notifications.refreshUnreadCount(), refreshInbox()])
   })
-})
+}, { immediate: true })
 onBeforeUnmount(() => stopRealtime())
 </script>
 

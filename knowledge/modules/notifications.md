@@ -39,6 +39,15 @@ Visible subscribed pages also reconcile every 30 seconds and whenever the tab
 becomes visible, so API restarts, proxy interruptions, and missed wake signals
 cannot leave the bell badge frozen until a full page reload.
 
+Cross-tab realtime fix (2026-08-02): tabs for the same authenticated user now
+elect one EventSource owner with Web Locks and distribute revision/refresh
+signals through a user-scoped BroadcastChannel. Closing the leader releases the
+lock to a waiting tab; user ids scope both primitives so actor changes cannot
+share realtime authority. Browsers without both APIs retain the prior per-tab
+EventSource behavior, and every visible tab still performs the 30-second REST
+reconciliation. This keeps the server's four-connections-per-user guard as a
+defense instead of making five open tabs predictably return 429.
+
 ### Plugin Extension Surface
 
 | Surface | V2 contract |

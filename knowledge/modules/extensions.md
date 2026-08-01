@@ -36,6 +36,10 @@ does not rebuild Nuxt.
   prebuilt admin assets carry current exact `packageFiles` declarations. The
   nine executable reference packages pass their real Protocol V2 integration
   tests.
+- The formal SEO ZIP lifecycle chain creates and migrates a disposable
+  PostgreSQL database before publishing runtime revisions. Executable fixture
+  package paths are temporary, so this test must never fall back to the shared
+  development database and leave a boot revision pointing at deleted files.
 - Executable process bootstrap is deliberately separate from application
   protocol negotiation: Host and SDK share the fixed HashiCorp go-plugin
   Bootstrap ABI v1 cookie, while only the post-launch gRPC application contract

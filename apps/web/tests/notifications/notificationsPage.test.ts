@@ -263,8 +263,8 @@ describe('useNotifications', () => {
       const second = useNotifications()
       let firstRefreshes = 0
       let secondRefreshes = 0
-      const stopFirst = first.startRealtime(() => { firstRefreshes++ })
-      const stopSecond = second.startRealtime(() => { secondRefreshes++ })
+      const stopFirst = first.startRealtime(1, () => { firstRefreshes++ })
+      const stopSecond = second.startRealtime(1, () => { secondRefreshes++ })
       expect(sources).toHaveLength(1)
       expect(sources[0]?.url).toBe('/api/v1/notifications/stream?revision=0')
 
@@ -317,7 +317,7 @@ describe('useNotifications', () => {
       globalThis.EventSource = RecoveringFakeEventSource as unknown as typeof EventSource
       const api = useNotifications()
       let refreshes = 0
-      const stop = api.startRealtime(() => { refreshes++ })
+      const stop = api.startRealtime(1, () => { refreshes++ })
 
       expect(sources).toHaveLength(1)
       sources[0]?.failWhileConnecting()
@@ -340,7 +340,7 @@ describe('useNotifications', () => {
       } as unknown as typeof EventSource
       globalThis.$fetch = async () => ({ code: 200, message: 'ok', data: { count: 4 } })
       const api = useNotifications()
-      const stop = api.startRealtime(() => {})
+      const stop = api.startRealtime(1, () => {})
       expect(await api.refreshUnreadCount()).toBe(4)
       stop()
     })
@@ -365,7 +365,7 @@ describe('SFNotificationsPage contract', () => {
     expect(bottomNav.indexOf("<span>{{ t('nav.newTopic') }}</span>")).toBeLessThan(bottomNav.indexOf("<span>{{ t('nav.notifications') }}</span>"))
     expect(preview).toContain('onMounted(() =>')
     expect(preview).toContain('void notifications.refreshUnreadCount().catch(() => {})')
-    expect(preview).toContain('stopRealtime = notifications.startRealtime(async () =>')
+    expect(preview).toContain('stopRealtime = notifications.startRealtime(actorUserId, async () =>')
     expect(preview).toContain('stopRealtime()')
   })
 

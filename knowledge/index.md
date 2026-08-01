@@ -103,10 +103,11 @@ load archived sessions or completed plans as current context.
   mode; production-rewire honesty findings remain open.
 - **Notifications:** V2 is complete: transactional reply/mention/moderation
   fanout, layered policy and own-user preferences, exact-artifact plugin
-  emission, durable-revision SSE with REST/reconnect fallback, generic channel
-  delivery, and the protected Web Push reference provider are shipped. The
-  Navbar preview links to personal notification preferences, where Browser
-  Notifications is a non-shrinking first-viewport device control.
+  emission, per-user cross-tab durable-revision SSE leadership with REST/
+  reconnect fallback, generic channel delivery, and the protected Web Push
+  reference provider are shipped. The Navbar preview links to personal
+  notification preferences, where Browser Notifications is a non-shrinking
+  first-viewport device control.
 - **Dev:** Compose owns PostgreSQL, Redis, and Mailpit. The user owns the web
   dev server on port 3000; do not kill it.
 
@@ -123,11 +124,12 @@ load archived sessions or completed plans as current context.
 - Browser notification subscriptions now hide revoked device history, require
   a matching live browser and Host subscription before showing enabled, and
   default untouched Core reply/mention/moderation Web Push policy to the
-  enabled recommendation without overwriting operator choices. Notification
-  API, Web, migration, and OpenAPI checks pass; the repository architecture
-  gate currently stops only on the concurrent Options service growth. Final
-  provider-alert recheck is blocked by the concurrent email-verification
-  redirect/runtime QA:
+  enabled recommendation without overwriting operator choices. Same-user tabs
+  now elect one SSE leader and broadcast revision signals, preventing the
+  four-connection guard from returning 429 under ordinary multi-tab use. Full
+  Web/API tests, typecheck, architecture validation, authenticated Chrome Web
+  Push state, and a seven-tab single-upstream runtime check pass. The formal
+  executable ZIP chain also runs in an isolated temporary database:
   `sessions/2026-08-02-browser-notification-subscription-fix.md`
 
 - Mobile right-rail entry is now the authenticated user's avatar; its drawer
