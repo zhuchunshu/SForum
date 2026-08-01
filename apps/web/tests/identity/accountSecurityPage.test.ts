@@ -34,21 +34,35 @@ describe('account security page contracts', () => {
       { name: 'identity.password.min_length', value: '16' },
       { name: 'identity.sessions.max_devices', value: '7' },
       { name: 'identity.sessions.keep_days', value: '90' },
+      { name: 'identity.mail_resend.cooldown_seconds', value: '45' },
+      { name: 'identity.mail_resend.window_minutes', value: '120' },
+      { name: 'identity.mail_resend.max_per_target', value: '5' },
+      { name: 'identity.mail_resend.max_per_ip', value: '20' },
       { name: 'unrelated.option', value: 'must-not-submit' }
     ])
     expect(normalized.passwordMinLength).toBe(16)
     expect(normalized.sessionsMaxDevices).toBe(7)
     expect(normalized.sessionsKeepDays).toBe(90)
+    expect(normalized.mailResendCooldownSeconds).toBe(45)
+    expect(normalized.mailResendWindowMinutes).toBe(120)
+    expect(normalized.mailResendMaxPerTarget).toBe(5)
+    expect(normalized.mailResendMaxPerIP).toBe(20)
 
     const restored = { ...recommendedAccountSecurityForm }
     expect(restored.sessionsMaxDevices).toBe(5)
     expect(restored.sessionsKeepDays).toBe(30)
+    expect(restored.mailResendCooldownSeconds).toBe(30)
+    expect(restored.mailResendWindowMinutes).toBe(60)
+    expect(restored.mailResendMaxPerTarget).toBe(3)
+    expect(restored.mailResendMaxPerIP).toBe(10)
 
     const prepared = normalizeAccountSecurityForSave({ ...normalized, passwordMinLength: 100, passwordMaxLength: 64 })
     expect(prepared.passwordMaxLength).toBe(100)
     const payload = accountSecurityPayload(prepared)
     expect(payload).toContainEqual({ name: 'identity.sessions.max_devices', value: '7' })
     expect(payload).toContainEqual({ name: 'identity.sessions.keep_days', value: '90' })
+    expect(payload).toContainEqual({ name: 'identity.mail_resend.cooldown_seconds', value: '45' })
+    expect(payload).toContainEqual({ name: 'identity.mail_resend.max_per_ip', value: '20' })
     expect(payload.some(item => item.name === 'unrelated.option')).toBe(false)
   })
 

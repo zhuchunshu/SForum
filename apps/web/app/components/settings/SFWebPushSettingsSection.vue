@@ -2,6 +2,7 @@
 import { apiErrorMessage } from '~/composables/useApiClient'
 import {
   decodeApplicationServerKey,
+  resolveCurrentWebPushSubscriptionId,
   serializePushSubscription,
   useWebPush,
   WEB_PUSH_SCOPE,
@@ -31,9 +32,9 @@ const permissionLabel = computed(() => t(`notificationSettings.webPush.permissio
 async function inspectBrowserSubscription() {
   if (!supported.value) return
   const registration = await navigator.serviceWorker.getRegistration(WEB_PUSH_SCOPE)
-  browserSubscribed.value = Boolean(await registration?.pushManager.getSubscription())
-  const stored = Number(localStorage.getItem(STORAGE_KEY))
-  currentSubscriptionId.value = Number.isSafeInteger(stored) && subscriptions.value.some(item => item.id === stored && item.status === 'active') ? stored : null
+  const browserSubscription = await registration?.pushManager.getSubscription()
+  currentSubscriptionId.value = resolveCurrentWebPushSubscriptionId(subscriptions.value, localStorage.getItem(STORAGE_KEY))
+  browserSubscribed.value = Boolean(browserSubscription && currentSubscriptionId.value)
 }
 
 async function load() {
@@ -135,7 +136,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="mt-5 overflow-hidden rounded-md border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900" data-testid="web-push-settings">
+  <section class="mt-5 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900" data-testid="web-push-settings">
     <header class="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 dark:border-zinc-800 sm:flex-row sm:items-start sm:justify-between">
       <div class="min-w-0">
         <div class="flex flex-wrap items-center gap-2">

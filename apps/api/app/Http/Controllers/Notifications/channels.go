@@ -186,7 +186,7 @@ func (h *Controller) listWebPushSubscriptions(c fiber.Ctx) error {
 	if h.subscriptions == nil {
 		return fiber.NewError(fiber.StatusServiceUnavailable, "notification.channel_unavailable")
 	}
-	items, err := h.subscriptions.ListWebPushSubscriptions(c.Context(), userID, false)
+	items, err := h.subscriptions.ListWebPushSubscriptions(c.Context(), userID, true)
 	if err != nil {
 		return err
 	}

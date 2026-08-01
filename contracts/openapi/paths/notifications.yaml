@@ -224,11 +224,11 @@ webPushConfig:
       '401': {$ref: "../components/responses.yaml#/Unauthorized"}
 webPushSubscriptions:
   get:
-    summary: List the current user's browser subscriptions
+    summary: List the current user's active browser subscriptions
     operationId: listWebPushSubscriptions
     security: [{cookieAuth: []}]
     responses:
-      '200': {description: Own redacted subscriptions, content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/ApiResponseWebPushSubscriptions"}}}}
+      '200': {description: Own active redacted subscriptions, content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/ApiResponseWebPushSubscriptions"}}}}
       '401': {$ref: "../components/responses.yaml#/Unauthorized"}
   post:
     summary: Associate an authenticated browser subscription with the current user

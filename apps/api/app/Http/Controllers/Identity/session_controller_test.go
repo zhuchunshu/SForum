@@ -27,13 +27,14 @@ import (
 // sessionTestStore 是会话管理 controller 测试用的轻量 store。
 // 只实现登录/会话目录相关路径需要的方法，其余返回零值以满足接口。
 type sessionTestStore struct {
-	mu          sync.Mutex
-	users       map[int64]identity.CurrentUser
-	creds       map[int64]string
-	loginIndex  map[string]int64
-	sessions    []sessionTestRow
-	loginAudits int
-	nextUserID  int64
+	mu                      sync.Mutex
+	users                   map[int64]identity.CurrentUser
+	creds                   map[int64]string
+	loginIndex              map[string]int64
+	sessions                []sessionTestRow
+	loginAudits             int
+	emailVerificationTokens int
+	nextUserID              int64
 }
 
 type sessionTestRow struct {
@@ -305,6 +306,9 @@ func (s *sessionTestStore) GetEmailVerificationTarget(_ context.Context, userID 
 	return identity.EmailVerificationTarget{UserID: userID, Username: u.Username, Status: u.Status, EmailVerified: u.EmailVerified}, nil
 }
 func (s *sessionTestStore) CreateEmailVerificationToken(_ context.Context, input identity.CreateEmailVerificationTokenInput) (identity.EmailVerificationToken, error) {
+	s.mu.Lock()
+	s.emailVerificationTokens++
+	s.mu.Unlock()
 	return identity.EmailVerificationToken{UserID: input.UserID, Email: input.Email, TokenHash: input.TokenHash}, nil
 }
 func (s *sessionTestStore) ConfirmEmailVerification(context.Context, string) (int64, error) {
@@ -438,6 +442,10 @@ func lower(s string) string {
 
 // newSessionTestApp 构建带真实 session manager + 真实 identity.Service 的 fiber app。
 func newSessionTestApp(t *testing.T) (*fiber.App, *sessionTestStore) {
+	return newSessionTestAppWithVerification(t, humanverify.NewDisabledService(), nil)
+}
+
+func newSessionTestAppWithVerification(t *testing.T, verifier humanverify.Verifier, policy identity.EmailVerificationPolicyResolver) (*fiber.App, *sessionTestStore) {
 	t.Helper()
 	store := newSessionTestStore()
 	service := identity.NewService(store)
@@ -450,13 +458,19 @@ func newSessionTestApp(t *testing.T) (*fiber.App, *sessionTestStore) {
 			TokenVersion: store.GetUserTokenVersion,
 		},
 	)
-	controller := NewControllerWithAuthSessions(service, manager, nil).
+	controller := NewControllerWithAuthSessions(service, manager, verifier).
 		WithAppearancePreferences(identity.NewAppearancePreferenceService(store)).
-		WithEmailVerification(identity.NewEmailVerificationService(store, nil, nil, identity.EmailVerificationConfig{}))
+		WithEmailVerification(identity.NewEmailVerificationService(store, nil, policy, identity.EmailVerificationConfig{}))
 	app := apphttp.NewApp(config.Config{CSRFEnabled: false}, nil, apphttp.Dependencies{
 		RouteProviders: []apphttp.RouteProvider{controller},
 	})
 	return app, store
+}
+
+type emailVerificationRequiredTestPolicy struct{}
+
+func (emailVerificationRequiredTestPolicy) EmailVerificationPolicy(context.Context) (identity.EmailVerificationPolicy, error) {
+	return identity.EmailVerificationPolicy{Required: true}, nil
 }
 
 func newDueRenewalSessionTestApp(t *testing.T) (*fiber.App, *sessionTestStore, *atomic.Int32) {
@@ -609,6 +623,73 @@ func registerAndLogin(t *testing.T, app *fiber.App) *nethttp.Cookie {
 		t.Fatal("expected session cookie after register")
 	}
 	return regResp.Cookies()[0]
+}
+
+func requestEmailVerification(t *testing.T, app *fiber.App, cookie *nethttp.Cookie, body map[string]any) *nethttp.Response {
+	t.Helper()
+	payload, err := json.Marshal(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/auth/email-verification/request", bytes.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(cookie)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("email verification request failed: %v", err)
+	}
+	return resp
+}
+
+func TestEmailVerificationMailRequiresExplicitRequest(t *testing.T) {
+	app, store := newSessionTestAppWithVerification(t, humanverify.NewDisabledService(), emailVerificationRequiredTestPolicy{})
+	cookie := registerAndLogin(t, app)
+	if store.emailVerificationTokens != 0 {
+		t.Fatalf("registration created %d verification tokens before user action", store.emailVerificationTokens)
+	}
+
+	resp := requestEmailVerification(t, app, cookie, map[string]any{})
+	defer resp.Body.Close()
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("explicit request status=%d want 200", resp.StatusCode)
+	}
+	if store.emailVerificationTokens != 1 {
+		t.Fatalf("explicit request created %d verification tokens want 1", store.emailVerificationTokens)
+	}
+}
+
+func TestEmailVerificationMailRequiresConfiguredHumanVerification(t *testing.T) {
+	verifier := humanverify.NewService(humanverify.ServiceConfig{
+		Enabled: true,
+		EnabledPurposes: map[humanverify.Purpose]bool{
+			humanverify.PurposeEmailVerification: true,
+		},
+	}, fakeAltchaProvider{}, nil)
+	app, store := newSessionTestAppWithVerification(t, verifier, emailVerificationRequiredTestPolicy{})
+	cookie := registerAndLogin(t, app)
+
+	missing := requestEmailVerification(t, app, cookie, map[string]any{})
+	missing.Body.Close()
+	if missing.StatusCode != nethttp.StatusUnprocessableEntity {
+		t.Fatalf("missing verification status=%d want 422", missing.StatusCode)
+	}
+	if store.emailVerificationTokens != 0 {
+		t.Fatalf("missing verification created %d tokens", store.emailVerificationTokens)
+	}
+
+	verified := requestEmailVerification(t, app, cookie, map[string]any{
+		"humanVerification": map[string]any{
+			"provider": humanverify.ProviderAltcha,
+			"token":    "verified-altcha-payload",
+		},
+	})
+	defer verified.Body.Close()
+	if verified.StatusCode != nethttp.StatusOK {
+		t.Fatalf("verified request status=%d want 200", verified.StatusCode)
+	}
+	if store.emailVerificationTokens != 1 {
+		t.Fatalf("verified request created %d tokens want 1", store.emailVerificationTokens)
+	}
 }
 
 // TestListSessionsRequiresAuth 验证未登录访问设备列表返回 401（denied 路径）。

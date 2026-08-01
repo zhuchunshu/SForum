@@ -76,6 +76,27 @@ func TestEmailVerificationRequestQueuesOnlyWhenRequired(t *testing.T) {
 	}
 }
 
+func TestEmailVerificationRequestUsesSharedResendPolicy(t *testing.T) {
+	store := &emailVerificationTestStore{target: EmailVerificationTarget{
+		UserID: 42, Email: "alice@example.com", Username: "alice", Status: UserStatusActive,
+	}}
+	service := NewEmailVerificationService(store, &emailVerificationTestQueue{}, emailVerificationTestPolicy{policy: EmailVerificationPolicy{Required: true}}, EmailVerificationConfig{}).
+		WithRateLimiter(&memoryRateLimiter{}).
+		WithMailResendPolicyResolver(staticMailResendPolicyResolver{policy: MailResendPolicy{
+			Cooldown: 20 * time.Second, Window: time.Hour, MaxPerTarget: 3, MaxPerIP: 10,
+		}})
+
+	result, err := service.RequestWithResult(context.Background(), 42, "127.0.0.1", "")
+	if err != nil || time.Until(result.RetryAt) < 19*time.Second {
+		t.Fatalf("first request result=%#v err=%v", result, err)
+	}
+	_, err = service.RequestWithResult(context.Background(), 42, "127.0.0.1", "")
+	var limited *MailResendRateLimitError
+	if !errors.Is(err, ErrEmailVerificationRateLimited) || !errors.As(err, &limited) || !limited.RetryAt.After(time.Now()) {
+		t.Fatalf("expected configured cooldown error, got %#v", err)
+	}
+}
+
 func TestEmailVerificationGateAllowsDisabledOrVerifiedAndDeniesUnverified(t *testing.T) {
 	store := &emailVerificationTestStore{target: EmailVerificationTarget{UserID: 7, Status: UserStatusActive}}
 	service := NewEmailVerificationService(store, nil, emailVerificationTestPolicy{policy: EmailVerificationPolicy{Required: true, BlockContent: true}}, EmailVerificationConfig{})

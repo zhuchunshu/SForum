@@ -93,6 +93,13 @@ function commonGlobals() {
     apiErrorFields: () => ({}),
     apiErrorMessage: () => '',
     apiErrorReason: () => '',
+    useMailResendCooldown: () => ({
+      active: Vue.ref(false),
+      remainingSeconds: Vue.ref(0),
+      start: () => {},
+      capture: () => false,
+      clear: () => {}
+    }),
     passwordPolicyProgress,
     passwordPolicyProgressLevel,
     passwordPolicyRequirements
@@ -205,6 +212,51 @@ describe('password recovery production forms', () => {
         }
       }
     }])
+  })
+
+  test('disables the initial request using the server retry time after a 429', async () => {
+    commonGlobals()
+    const active = Vue.ref(false)
+    const remainingSeconds = Vue.ref(0)
+    Object.assign(globalThis, {
+      useToast: () => ({ add: () => {} }),
+      useWebOptions: () => ({
+        siteName: Vue.ref('SForum'),
+        humanVerificationEnabledFor: () => false,
+        altchaWidgetSettings: Vue.ref({ hideLogo: true, hideFooter: true, minDuration: 0, type: 'checkbox', auto: 'off', display: 'standard', workers: 1 })
+      }),
+      useMailResendCooldown: () => ({
+        active,
+        remainingSeconds,
+        start: () => {},
+        capture: () => {
+          active.value = true
+          remainingSeconds.value = 42
+          return true
+        },
+        clear: () => {
+          active.value = false
+          remainingSeconds.value = 0
+        }
+      }),
+      useApiClient: () => ({
+        apiBaseUrl: 'http://api.test',
+        request: async () => { throw new Error('rate limited') }
+      })
+    })
+
+    const wrapper = mount(SFRecoveryRequestPage, { global: globalComponents })
+    activeWrappers.push(wrapper)
+    await wrapper.get('#recovery-email').setValue('name@example.com')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('button[type="submit"]').text()).toContain('42s')
+
+    await wrapper.get('#recovery-email').setValue('other@example.com')
+    await Vue.nextTick()
+    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeUndefined()
   })
 
   test('enforces runtime password policy, toggles visibility, and reaches completion', async () => {

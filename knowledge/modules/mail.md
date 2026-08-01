@@ -13,7 +13,7 @@ SMTP, log delivery, no-op delivery, authentication, or TLS.
   structure follows the mail template studio's restrained branded card layout;
   untrusted names, review notes, and URLs are escaped before insertion.
 - Core also renders `identity.email_verification` as a branded, localized
-  text/HTML template. Registration and explicit resend requests enqueue it
+  text/HTML template. Explicit requests from the verification waiting page enqueue it
   best-effort through the existing outbox/River pipeline; delivery failure does
   not roll back account creation. The verification token is never included in
   persistence or logs except as a one-use URL value delivered to the recipient.
@@ -42,6 +42,10 @@ SMTP, log delivery, no-op delivery, authentication, or TLS.
   notifications and forum writes remain successful.
 - Password-reset token, delivery, and River job are inserted in one PostgreSQL
   transaction. The public request remains enumeration-safe.
+- Explicit password-recovery and email-verification sends share the
+  server-authoritative `identity.mail_resend.*` policy configured under Site
+  Settings → Account security. SMTP test mail is an operator diagnostic and is
+  deliberately excluded from that end-user resend policy.
 - `settings.manage` protects provider selection, reset, recent deliveries, test
   mail, and mail-provider plugin settings. `extension.manage` still controls
   plugin enable/disable. Disabling the selected plugin clears the selection.

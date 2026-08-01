@@ -2,6 +2,7 @@
 import type { AltchaWidgetElement } from 'altcha'
 
 import SFRecoveryShell from '~/components/identity/recovery/SFRecoveryShell.vue'
+import { useMailResendCooldown } from '~/composables/identity/useMailResendCooldown'
 import { useSForumSeo } from '~/composables/seo/useSForumSeo'
 import { apiErrorFields, apiErrorMessage } from '~/composables/useApiClient'
 
@@ -10,13 +11,12 @@ import { apiErrorFields, apiErrorMessage } from '~/composables/useApiClient'
  * 路由页保留 layout/middleware meta + fail-closed 回退。
  */
 
-const resendCooldownSeconds = 30
-
 const { t, locale } = useI18n()
 const localePath = useLocalePath()
 const toast = useToast()
 const { humanVerificationEnabledFor, altchaWidgetSettings } = useWebOptions()
 const { apiBaseUrl, request } = useApiClient()
+const resendCooldown = useMailResendCooldown('auth.password_reset_rate_limited')
 
 useSForumSeo({
   title: () => t('auth.forgotPassword'),
@@ -31,11 +31,10 @@ const emailInput = ref<HTMLInputElement | null>(null)
 const submitting = ref(false)
 const submitted = ref(false)
 const resending = ref(false)
-const resendRemaining = ref(0)
 const emailInvalid = ref(false)
 const errorMessage = ref('')
 const fieldErrors = ref<Record<string, string[]>>({})
-let resendTimer: ReturnType<typeof setInterval> | null = null
+const cooldownEmail = ref('')
 
 // 人机验证：当运营者启用 password_reset 场景时接入 ALTCHA，与注册页保持一致。
 const humanVerificationToken = ref('')
@@ -61,10 +60,22 @@ const emailError = computed(() => {
 const maskedEmail = computed(() => maskEmail(submittedEmail.value))
 const resendLabel = computed(() => {
   if (resending.value) return t('auth.recovery.resending')
-  if (resendRemaining.value > 0) {
-    return t('auth.recovery.resendIn', { seconds: resendRemaining.value })
+  if (resendCooldown.active.value) {
+    return t('auth.recovery.resendIn', { seconds: resendCooldown.remainingSeconds.value })
   }
   return t('auth.recovery.resend')
+})
+const requestLabel = computed(() => {
+  if (submitting.value) return t('auth.recovery.sending')
+  if (resendCooldown.active.value) return t('auth.recovery.resendIn', { seconds: resendCooldown.remainingSeconds.value })
+  return t('auth.sendResetLink')
+})
+
+watch(email, (value) => {
+  if (cooldownEmail.value && value.trim().toLowerCase() !== cooldownEmail.value) {
+    resendCooldown.clear()
+    cooldownEmail.value = ''
+  }
 })
 
 function fieldError(name: string) {
@@ -103,20 +114,6 @@ function resetHumanVerification() {
   altchaWidget.value?.reset()
 }
 
-function clearResendTimer() {
-  if (resendTimer) clearInterval(resendTimer)
-  resendTimer = null
-}
-
-function startResendCountdown() {
-  clearResendTimer()
-  resendRemaining.value = resendCooldownSeconds
-  resendTimer = setInterval(() => {
-    resendRemaining.value = Math.max(0, resendRemaining.value - 1)
-    if (resendRemaining.value === 0) clearResendTimer()
-  }, 1000)
-}
-
 function clearEmailFeedback() {
   emailInvalid.value = false
   errorMessage.value = ''
@@ -130,7 +127,7 @@ function validateEmail() {
 }
 
 async function sendResetRequest(isResend = false) {
-  if (submitting.value || resending.value || (isResend && resendRemaining.value > 0)) return
+  if (submitting.value || resending.value || resendCooldown.active.value) return
   if (!validateEmail()) {
     emailInput.value?.focus()
     return
@@ -151,10 +148,11 @@ async function sendResetRequest(isResend = false) {
   }
 
   try {
-    await request('/auth/password-reset/request', { method: 'POST', body })
+    const result = await request<{ sent: boolean, retryAfterSeconds?: number, retryAt?: string }>('/auth/password-reset/request', { method: 'POST', body })
     submittedEmail.value = normalizedEmail
     submitted.value = true
-    startResendCountdown()
+    cooldownEmail.value = normalizedEmail.toLowerCase()
+    resendCooldown.start(result)
     toast.add({
       color: 'success',
       icon: 'i-lucide-mail-check',
@@ -166,6 +164,7 @@ async function sendResetRequest(isResend = false) {
     if (humanVerificationEnabled.value && (submittedHumanVerificationToken || fieldError('humanVerification'))) {
       resetHumanVerification()
     }
+    if (resendCooldown.capture(error)) cooldownEmail.value = normalizedEmail.toLowerCase()
     errorMessage.value = apiErrorMessage(error) || t('auth.forgotPasswordFailed')
   } finally {
     pending.value = false
@@ -173,15 +172,14 @@ async function sendResetRequest(isResend = false) {
 }
 
 async function changeEmail() {
-  clearResendTimer()
-  resendRemaining.value = 0
+  resendCooldown.clear()
+  cooldownEmail.value = ''
   submitted.value = false
   errorMessage.value = ''
   await nextTick()
   emailInput.value?.focus()
 }
 
-onBeforeUnmount(clearResendTimer)
 </script>
 
 <template>
@@ -266,11 +264,11 @@ onBeforeUnmount(clearResendTimer)
         <button
           class="sf-recovery-button"
           type="submit"
-          :disabled="submitting || !email.trim()"
+          :disabled="submitting || resendCooldown.active.value || !email.trim()"
         >
           <span v-if="submitting" class="sf-recovery-spinner" aria-hidden="true" />
           <UIcon v-else name="i-lucide-send" aria-hidden="true" />
-          <span>{{ submitting ? t('auth.recovery.sending') : t('auth.sendResetLink') }}</span>
+          <span>{{ requestLabel }}</span>
         </button>
       </form>
 
@@ -315,7 +313,7 @@ onBeforeUnmount(clearResendTimer)
         <button
           type="button"
           class="sf-recovery-button"
-          :disabled="resending || resendRemaining > 0"
+          :disabled="resending || resendCooldown.active.value"
           @click="sendResetRequest(true)"
         >
           <span v-if="resending" class="sf-recovery-spinner" aria-hidden="true" />

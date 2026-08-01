@@ -10,18 +10,24 @@ helpers.
 
 Initial identity foundation is implemented.
 
-- **邮箱验证闭环（2026-08-01）：** 密码注册账号默认未验证，并在注册后通过
-  Mail Outbox/River 投递一次性验证邮件；令牌只保存哈希、24 小时过期、单次消费，
+- **邮箱验证闭环（2026-08-01）：** 密码注册账号默认未验证，但注册成功不会自动
+  投递验证邮件；用户必须在邮箱验证等待页主动请求发送。启用 ALTCHA 与
+  `human_verification.scenarios.email_verification` 时，等待页必须先完成人机验证，
+  验证通过后发送按钮才可用，且 API 会对同一策略做权威校验。验证邮件通过 Mail
+  Outbox/River 投递；令牌只保存哈希、24 小时过期、单次消费，
   且绑定注册邮箱，修改邮箱会清空验证状态并使旧链接失效。OAuth 只有在提供方明确
   返回 `emailVerified=true` 时才直接标记已验证。API 提供
   `POST /auth/email-verification/request`、`GET/POST /auth/email-verification/confirm`，
   当前用户响应包含 `emailVerified`。启用
   `identity.registration.require_email_verification` 与
   `identity.registration.block_posting_until_verified` 后，API 权威阻止未验证用户
-  创建主题、评论和上传附件；注册成功后前端会将未验证用户送到认证布局下的邮箱
-  验证等待页，保留安全的原始回跳目标，并支持检查状态与重新发送验证邮件。用户只
-  能点击邮件中的一次性链接完成验证，不提供手动验证码输入；同一浏览器点击链接后
-  回到等待页成功状态，未登录浏览器则回到登录页。后台用户管理可通过
+  创建主题、评论和上传附件；同时前端全局路由守卫会将任何已登录但未验证的用户从
+  非后台页面送到认证布局下的邮箱验证等待页，验证页自身与自定义后台前缀下的页面
+  豁免。跳转保留安全的原始回跳目标，且公共页面导航会刷新当前会话，使管理员远程
+  重置验证状态后在用户下次切页时立即生效。等待页明确展示尚未发送/已发送状态，
+  支持检查状态与重新发送；每次重新发送在策略开启时都需要新的验证码。用户只能
+  点击邮件中的一次性链接完成验证，不提供手动验证码输入；
+  同一浏览器点击链接后回到等待页成功状态，未登录浏览器则回到登录页。后台用户管理可通过
   `PUT /users/{userID}/email-verification` 手动标记已验证或重置为未验证；操作需要
   `user.manage`，非超级管理员不能修改 `super_admin` 用户。两种操作都会作废该用户
   所有未使用验证链接，并分别写入 `identity.email_verification.admin_verify` 或
@@ -72,8 +78,14 @@ Initial identity foundation is implemented.
   `/forgot-password` and `/reset-password`. Request initiation remains
   non-enumerating, requires the `password_reset` ALTCHA purpose by default
   once ALTCHA is configured (the per-scenario admin toggle remains available),
-  masks the submitted email, and limits safe resend attempts with a 30-second
-  client cooldown. Confirmation uses the runtime password policy, rejects
+  and masks the submitted email. Password-recovery and email-verification
+  manual sends share a server-authoritative runtime resend policy managed from
+  Site Settings → Account security: minimum interval, rolling window, per-target
+  maximum, and per-IP maximum default to 30 seconds, 60 minutes, 3, and 10.
+  Success and `429` responses expose `retryAfterSeconds` plus `retryAt`; both
+  public flows render the server time rather than a fixed client cooldown.
+  Unknown and known recovery emails enter the same limiter before lookup and
+  keep identical responses. Confirmation uses the runtime password policy, rejects
   missing/invalid tokens explicitly, and exposes completed, mismatch, and
   password-visibility states without changing the existing API contract.
 - Login, registration, and both password-recovery routes share `SFAuthShell`.

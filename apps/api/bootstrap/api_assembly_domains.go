@@ -130,10 +130,12 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	moderationStore.WithDecisionNotifications(moderationNotificationAdapter{outbox: mailOutbox})
 	siteName, _ := optionsService.SiteName(ctx)
 	siteURL, _ := optionsService.WebOption(ctx, "site.url")
+	mailResendPolicyResolver := options.NewMailResendPolicyResolver(optionsService)
 	passwordResetService := identity.NewPasswordResetServiceWithPasswordPolicy(identityStore, passwordResetOutbox{outbox: mailOutbox}, identity.PasswordResetConfig{
 		SiteName: siteName,
 		SiteURL:  siteURL,
-	}, optionsService).WithLocaleResolver(options.NewMailSettings(optionsService)).WithBrandResolver(options.NewMailSettings(optionsService)).WithRateLimiter(authsupport.NewPasswordResetLimiter(sharedRedisClient))
+	}, optionsService).WithLocaleResolver(options.NewMailSettings(optionsService)).WithBrandResolver(options.NewMailSettings(optionsService)).
+		WithRateLimiter(authsupport.NewPasswordResetLimiter(sharedRedisClient)).WithMailResendPolicyResolver(mailResendPolicyResolver)
 	mailSettings := options.NewMailSettings(optionsService)
 	emailVerificationService := identity.NewEmailVerificationService(
 		identityStore,
@@ -141,7 +143,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		options.NewEmailVerificationPolicyResolver(optionsService),
 		identity.EmailVerificationConfig{},
 	).WithMailResolvers(mailSettings, mailSettings).
-		WithRateLimiter(authsupport.NewPasswordResetLimiter(sharedRedisClient))
+		WithRateLimiter(authsupport.NewPasswordResetLimiter(sharedRedisClient)).WithMailResendPolicyResolver(mailResendPolicyResolver)
 	loginLockout := authsupport.NewLoginLockout(sharedRedisClient)
 	// F3.3：出站 webhook 扇出包装在事件发布路径上（observe 成功后异步入队）。
 	webhookStore := webhooks.NewPostgresStore(pool)

@@ -197,12 +197,25 @@ func (m *memoryRateLimiter) Allow(_ context.Context, key string, max int, _ time
 	return m.counts[key] <= max, nil
 }
 
+type staticMailResendPolicyResolver struct {
+	policy MailResendPolicy
+}
+
+func (r staticMailResendPolicyResolver) MailResendPolicy(context.Context) (MailResendPolicy, error) {
+	return r.policy, nil
+}
+
 func TestPasswordResetRequestRateLimited(t *testing.T) {
 	store := newResetFakeStore()
 	service := NewPasswordResetService(store, &fakeResetQueue{store: store}, PasswordResetConfig{
 		RequestMaxPerEmail: 2,
 		RequestWindow:      time.Hour,
-	}).WithRateLimiter(&memoryRateLimiter{})
+	}).WithRateLimiter(&memoryRateLimiter{}).WithMailResendPolicyResolver(staticMailResendPolicyResolver{policy: MailResendPolicy{
+		Cooldown:     0,
+		Window:       time.Hour,
+		MaxPerTarget: 2,
+		MaxPerIP:     10,
+	}})
 
 	for i := 0; i < 2; i++ {
 		if err := service.RequestPasswordReset(context.Background(), RequestPasswordResetInput{Email: "alice@example.com", IP: "1.2.3.4"}); err != nil {
@@ -212,6 +225,25 @@ func TestPasswordResetRequestRateLimited(t *testing.T) {
 	err := service.RequestPasswordReset(context.Background(), RequestPasswordResetInput{Email: "alice@example.com", IP: "1.2.3.4"})
 	if !errors.Is(err, ErrPasswordResetRateLimited) {
 		t.Fatalf("expected rate limited, got %v", err)
+	}
+}
+
+func TestPasswordResetRequestEnforcesConfiguredCooldown(t *testing.T) {
+	store := newResetFakeStore()
+	service := NewPasswordResetService(store, &fakeResetQueue{store: store}, PasswordResetConfig{}).
+		WithRateLimiter(&memoryRateLimiter{}).
+		WithMailResendPolicyResolver(staticMailResendPolicyResolver{policy: MailResendPolicy{
+			Cooldown: 45 * time.Second, Window: time.Hour, MaxPerTarget: 3, MaxPerIP: 10,
+		}})
+
+	result, err := service.RequestPasswordResetWithResult(context.Background(), RequestPasswordResetInput{Email: "alice@example.com", IP: "1.2.3.4"})
+	if err != nil || time.Until(result.RetryAt) < 44*time.Second {
+		t.Fatalf("first request result=%#v err=%v", result, err)
+	}
+	err = service.RequestPasswordReset(context.Background(), RequestPasswordResetInput{Email: "alice@example.com", IP: "1.2.3.4"})
+	var limited *MailResendRateLimitError
+	if !errors.Is(err, ErrPasswordResetRateLimited) || !errors.As(err, &limited) || !limited.RetryAt.After(time.Now()) {
+		t.Fatalf("expected cooldown error with retry time, got %#v", err)
 	}
 }
 

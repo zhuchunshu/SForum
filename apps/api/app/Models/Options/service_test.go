@@ -85,6 +85,9 @@ func TestServiceListsOnlyPublicOptions(t *testing.T) {
 	if adminValueFromPublic(items, NameHumanVerificationPasswordReset) != "enabled" {
 		t.Fatalf("expected public password reset verification scenario, got %#v", items)
 	}
+	if adminValueFromPublic(items, NameHumanVerificationEmailVerification) != "enabled" {
+		t.Fatalf("expected public email verification delivery scenario, got %#v", items)
+	}
 	if adminValueFromPublic(items, NameHumanVerificationLoginRisk) != "disabled" {
 		t.Fatalf("expected public login risk verification scenario, got %#v", items)
 	}
@@ -156,6 +159,70 @@ func TestServicePasswordPolicyOptionsArePublicWithRecommendedDefaults(t *testing
 	}
 	if got := adminValueFromPublic(items, NameIdentityPasswordRequireUppercase); got != "disabled" {
 		t.Fatalf("expected uppercase disabled default, got %q", got)
+	}
+}
+
+func TestServiceMailResendPolicyDefaultsAreAdminOnly(t *testing.T) {
+	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
+
+	policy, err := NewMailResendPolicyResolver(service).MailResendPolicy(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if policy != identity.RecommendedMailResendPolicy() {
+		t.Fatalf("mail resend policy = %#v", policy)
+	}
+	adminItems, err := service.ListAdmin(context.Background(), settingsActor())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if adminValue(adminItems, NameIdentityMailResendCooldownSeconds) != "30" ||
+		adminValue(adminItems, NameIdentityMailResendWindowMinutes) != "60" ||
+		adminValue(adminItems, NameIdentityMailResendMaxPerTarget) != "3" ||
+		adminValue(adminItems, NameIdentityMailResendMaxPerIP) != "10" {
+		t.Fatalf("unexpected admin mail resend defaults: %#v", adminItems)
+	}
+	publicItems, err := service.List(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range publicItems {
+		if strings.HasPrefix(item.Name, "identity.mail_resend.") {
+			t.Fatalf("mail resend option leaked through public options: %#v", item)
+		}
+	}
+}
+
+func TestServiceMailResendPolicyValidatesAndResolvesUpdates(t *testing.T) {
+	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
+	actor := settingsActor()
+	updates := []UpdateInput{
+		{Name: NameIdentityMailResendCooldownSeconds, Value: "0"},
+		{Name: NameIdentityMailResendWindowMinutes, Value: "120"},
+		{Name: NameIdentityMailResendMaxPerTarget, Value: "5"},
+		{Name: NameIdentityMailResendMaxPerIP, Value: "25"},
+	}
+	if _, err := service.UpdateMany(context.Background(), actor, updates); err != nil {
+		t.Fatal(err)
+	}
+	policy, err := NewMailResendPolicyResolver(service).MailResendPolicy(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if policy.Cooldown != 0 || policy.Window != 2*time.Hour || policy.MaxPerTarget != 5 || policy.MaxPerIP != 25 {
+		t.Fatalf("updated mail resend policy = %#v", policy)
+	}
+
+	invalid := []UpdateInput{
+		{Name: NameIdentityMailResendCooldownSeconds, Value: "3601"},
+		{Name: NameIdentityMailResendWindowMinutes, Value: "0"},
+		{Name: NameIdentityMailResendMaxPerTarget, Value: "101"},
+		{Name: NameIdentityMailResendMaxPerIP, Value: "1001"},
+	}
+	for _, input := range invalid {
+		if _, err := service.Update(context.Background(), actor, input); !errors.Is(err, ErrInvalidOption) {
+			t.Fatalf("expected invalid mail resend option %#v, got %v", input, err)
+		}
 	}
 }
 
@@ -619,6 +686,7 @@ func TestServiceHumanVerificationScenarioOptions(t *testing.T) {
 	updated, err := service.UpdateMany(context.Background(), actor, []UpdateInput{
 		{Name: NameHumanVerificationProvider, Value: "altcha"},
 		{Name: NameHumanVerificationRegister, Value: "disabled"},
+		{Name: NameHumanVerificationEmailVerification, Value: "enabled"},
 		{Name: NameHumanVerificationLoginRisk, Value: "true"},
 	})
 	if err != nil {
@@ -640,6 +708,9 @@ func TestServiceHumanVerificationScenarioOptions(t *testing.T) {
 	}
 	if !cfg.PurposeEnabled[humanverify.PurposeLoginRisk] {
 		t.Fatal("expected login risk purpose to be enabled")
+	}
+	if !cfg.PurposeEnabled[humanverify.PurposeEmailVerification] {
+		t.Fatal("expected email verification delivery purpose to be enabled")
 	}
 	if _, err := service.Update(context.Background(), actor, UpdateInput{Name: NameHumanVerificationPostRisk, Value: "sometimes"}); !errors.Is(err, ErrInvalidOption) {
 		t.Fatalf("expected invalid scenario value, got %v", err)

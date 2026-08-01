@@ -490,7 +490,7 @@ func requireHumanVerificationChallengeAuthority(_ context.Context, evaluation ro
 	}
 	switch humanverify.Purpose(query.Get("purpose")) {
 	case humanverify.PurposeRegister, humanverify.PurposePasswordReset,
-		humanverify.PurposeLoginRisk, humanverify.PurposePostRisk:
+		humanverify.PurposeEmailVerification, humanverify.PurposeLoginRisk, humanverify.PurposePostRisk:
 		return nil
 	default:
 		return routes.ErrCoreGuardEvaluatorUnavailable

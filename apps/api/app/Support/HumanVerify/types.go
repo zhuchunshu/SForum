@@ -9,10 +9,11 @@ import (
 type Purpose string
 
 const (
-	PurposeRegister      Purpose = "register"
-	PurposePasswordReset Purpose = "password_reset"
-	PurposeLoginRisk     Purpose = "login_risk"
-	PurposePostRisk      Purpose = "post_risk"
+	PurposeRegister          Purpose = "register"
+	PurposePasswordReset     Purpose = "password_reset"
+	PurposeEmailVerification Purpose = "email_verification"
+	PurposeLoginRisk         Purpose = "login_risk"
+	PurposePostRisk          Purpose = "post_risk"
 )
 
 const (

@@ -29,9 +29,13 @@ scope `/_sforum/notifications/`. The worker only displays a bounded notification
 and opens the same-origin notifications page. It never imports plugin code or
 accepts arbitrary actions or external URLs.
 
-The API associates a subscription only with the signed-in user. Settings and
-delivery views redact the endpoint and browser key material. Revoking browser
-permission or a listed subscription does not disable the in-app inbox.
+The API associates a subscription only with the signed-in user. The settings
+page lists active devices only; revoked rows remain available to server-side
+audit and delivery relationships. Settings and delivery views redact the
+endpoint and browser key material. Core reply, mention, and moderation Web Push
+defaults to the enabled recommendation without overwriting operator-edited
+policy. Revoking browser permission or a listed subscription does not disable
+the in-app inbox.
 
 ## Operator settings
 
@@ -59,4 +63,3 @@ delivery.
   optimistic revision.
 - A hidden or deleted topic/comment intentionally appears as unavailable and
   exposes no actor, excerpt, review note, or route.
-

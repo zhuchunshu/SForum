@@ -143,6 +143,10 @@ each tab requests and defensively renders at most the latest three API-ordered
 rows, with a persistent hint that complete history remains in the notification
 center. The desktop surface is anchored below the bell, while narrow viewports
 use a body-teleported bottom sheet so Navbar positioning cannot clip it.
+The preview header also exposes the personal notification-preferences route.
+On that route, the device-level Browser Notifications section appears before
+the per-type preference catalog and cannot shrink inside the desktop settings
+scroll column, so its enable/disable state remains visible in the first viewport.
 
 Notification SSE connections use bounded leases and controlled reconnection.
 The process-wide PostgreSQL `LISTEN` revision hub owns a cancellable listener
@@ -184,11 +188,21 @@ actor, payload, target id/type/path and returning `targetAvailable=false`.
 Admin policy and external-channel management live as tabs under the unified
 `/control-panel/settings/mail` surface; the old
 `/control-panel/settings/notifications` URL redirects to the corresponding
-tab. Personal preferences and Web Push live at `/settings/notifications`. The selected Web
-Push provider is `sforum.web-push`; VAPID secrets remain in SecretStore and API
-responses expose only `secretSet` plus the public key. The Host worker is fixed
-at `/_sforum/notifications/sw.js` with scope `/_sforum/notifications/`, imports
-no plugin code, and accepts only bounded same-origin click paths.
+tab. Personal preferences and Web Push live at `/settings/notifications`. The
+selected Web Push provider is `sforum.web-push`; VAPID secrets remain in
+SecretStore and API responses expose only `secretSet` plus the public key. The
+Host worker is fixed at `/_sforum/notifications/sw.js` with scope
+`/_sforum/notifications/`, imports no plugin code, and accepts only bounded
+same-origin click paths.
+
+The personal subscription list exposes active devices only. Revoked rows stay
+in the server-side audit and delivery relationships but disappear from the
+settings UI. Browser-enabled state requires both a live browser
+`PushSubscription` and its matching active Host subscription id, so stale local
+storage cannot make a revoked device appear enabled. Untouched Core reply,
+mention, and moderation Web Push policies default to enabled/recommended;
+`admin_test` remains disabled, and migrations plus restore-default behavior
+preserve explicit operator choices.
 
 The unified admin route uses the shared settings geometry. Type Policy and
 External Channels remain independent fixed Core tabs and focused panels beside

@@ -1,6 +1,6 @@
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
 import { useAuthSession } from '~/composables/identity/useAuthSession'
-import { apiErrorMessage, useApiClient } from '~/composables/useApiClient'
+import { useApiClient } from '~/composables/useApiClient'
 import { normalizeEnabledOption, useWebOptions } from '~/composables/useWebOptions'
 
 export type PublicUserMenuEntry = {
@@ -34,8 +34,6 @@ export function usePublicUserMenu() {
   const { can } = usePermissions()
   const { request } = useApiClient()
   const { webOption } = useWebOptions()
-  const toast = useToast()
-  const resendingVerification = useState<boolean>('public-user-menu:resending-verification', () => false)
 
   const displayName = computed(() => user.value?.displayName || user.value?.username || '')
   const emailVerificationRequired = computed(() => normalizeEnabledOption(
@@ -54,16 +52,10 @@ export function usePublicUserMenu() {
       ...(needsEmailVerification.value
         ? [[{
             key: 'resend-email-verification',
-            label: resendingVerification.value
-              ? t('auth.emailVerificationSending')
-              : t('auth.emailVerificationResend'),
+            label: t('auth.emailVerificationTitle'),
             description: t('auth.emailVerificationRequiredHint'),
             icon: 'i-lucide-mail-warning',
-            disabled: resendingVerification.value,
-            keepOpen: true,
-            onSelect: () => {
-              void resendEmailVerification()
-            }
+            to: localePath('/email-verification')
           }]]
         : []),
       [
@@ -127,29 +119,6 @@ export function usePublicUserMenu() {
       })))
     ]
   })
-
-  async function resendEmailVerification() {
-    if (resendingVerification.value) return
-    resendingVerification.value = true
-    try {
-      await request<{ sent: boolean }>('/auth/email-verification/request', { method: 'POST' })
-      toast.add({
-        color: 'success',
-        icon: 'i-lucide-mail-check',
-        title: t('auth.emailVerificationSent'),
-        duration: 10000
-      })
-    } catch (error) {
-      toast.add({
-        color: 'error',
-        icon: 'i-lucide-circle-alert',
-        title: apiErrorMessage(error) || t('auth.emailVerificationSendFailed'),
-        duration: 0
-      })
-    } finally {
-      resendingVerification.value = false
-    }
-  }
 
   async function logout() {
     try {

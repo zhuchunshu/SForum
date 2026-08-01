@@ -59,7 +59,7 @@ SSR/query/permission shells.
   link, with the new-tab flag applied at render time.
 - Admin page `apps/web/app/pages/admin/settings/index.vue` uses page-level tabs
   for basic site settings, account security (password + sessions + login
-  lockout), registration/username policy, newcomer trust limits, maintenance
+  lockout + manual identity-mail resend limits), registration/username policy, newcomer trust limits, maintenance
   mode, and CAPTCHA/human-verification settings.
 - Admin page `apps/web/app/pages/admin/personalization.vue` is the unified
   personalization hub under the System folder: appearance preset + footer
@@ -210,6 +210,7 @@ skin behavior without admin session.
   `human_verification.provider`,
   `human_verification.scenarios.register`,
   `human_verification.scenarios.password_reset`,
+  `human_verification.scenarios.email_verification`,
   `human_verification.scenarios.login_risk`,
   `human_verification.scenarios.post_risk`,
   `human_verification.altcha.widget.type`,
@@ -233,10 +234,11 @@ skin behavior without admin session.
   `avatar.max_size_kb`, `avatar.allow_gif`, and
   `avatar.compress_enabled`.
 
-- `human_verification.scenarios.password_reset` defaults to enabled across the
-  API, public-client fallback, and admin form. The verification provider itself
-  remains disabled until an operator configures ALTCHA and its secret, so the
-  default does not block a fresh installation.
+- `human_verification.scenarios.password_reset` and
+  `human_verification.scenarios.email_verification` default to enabled across
+  the API, public-client fallback, and admin form. The verification provider
+  itself remains disabled until an operator configures ALTCHA and its secret,
+  so these defaults do not block a fresh installation.
 - Current admin-only options are `site.admin_email` (operator contact, not
   SMTP From and not public), `human_verification.altcha.secret`,
   `human_verification.altcha.challenge_ttl`,
@@ -245,6 +247,12 @@ skin behavior without admin session.
   provider-specific credential/connection options, and avatar-only processing
   knobs `avatar.default_static_url`, `avatar.max_dimension`,
   `avatar.target_dimension`, and `avatar.compress_quality`.
+- Manual identity-mail limits are admin-only options under
+  `identity.mail_resend.*`: `cooldown_seconds=30`, `window_minutes=60`,
+  `max_per_target=3`, and `max_per_ip=10`. They are resolved at request time by
+  a focused Options adapter, apply to explicit password-recovery and
+  email-verification sends, and are intentionally absent from public
+  `web-options`.
 - Startup environment values are treated as first-run defaults/fallbacks.
   `bootstrap.NewAPI` calls `EnsureDefaults` so missing option rows are inserted
   without overwriting existing admin-managed values.

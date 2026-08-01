@@ -50,7 +50,7 @@ export type AdminWebOption = WebOption & {
 
 export type FooterLocale = 'zh-CN' | 'en-US'
 export type FooterLinkKey = 'terms' | 'privacy' | 'guidelines'
-export type HumanVerificationScenario = 'register' | 'password_reset' | 'login_risk' | 'post_risk'
+export type HumanVerificationScenario = 'register' | 'password_reset' | 'email_verification' | 'login_risk' | 'post_risk'
 export type AltchaWidgetType = 'native' | 'checkbox' | 'switch'
 export type AltchaWidgetAuto = 'off' | 'onfocus' | 'onload' | 'onsubmit'
 export type AltchaWidgetDisplay = 'standard' | 'bar' | 'floating' | 'overlay' | 'invisible'
@@ -148,7 +148,7 @@ type RefreshOptions = {
   serverInternal?: boolean
 }
 
-export const humanVerificationScenarios: HumanVerificationScenario[] = ['register', 'password_reset', 'login_risk', 'post_risk']
+export const humanVerificationScenarios: HumanVerificationScenario[] = ['register', 'password_reset', 'email_verification', 'login_risk', 'post_risk']
 export const altchaWidgetTypes: AltchaWidgetType[] = ['native', 'checkbox', 'switch']
 export const altchaWidgetAutoModes: AltchaWidgetAuto[] = ['off', 'onfocus', 'onload', 'onsubmit']
 export const altchaWidgetDisplays: AltchaWidgetDisplay[] = ['standard', 'bar', 'floating', 'overlay', 'invisible']
@@ -166,6 +166,7 @@ const disabledOption = 'disabled'
 const humanVerificationScenarioDefaults: Record<HumanVerificationScenario, boolean> = {
   register: true,
   password_reset: true,
+  email_verification: true,
   login_risk: false,
   post_risk: false
 }
@@ -224,6 +225,7 @@ const fallbackOptions: Record<string, string> = {
   'human_verification.provider': 'disabled',
   'human_verification.scenarios.register': enabledOption,
   'human_verification.scenarios.password_reset': enabledOption,
+  'human_verification.scenarios.email_verification': enabledOption,
   'human_verification.scenarios.login_risk': disabledOption,
   'human_verification.scenarios.post_risk': disabledOption,
   'human_verification.altcha.widget.type': 'checkbox',
@@ -245,6 +247,7 @@ const fallbackOptions: Record<string, string> = {
   'identity.password.require_number': disabledOption,
   'identity.password.require_symbol': disabledOption,
   'identity.registration.enabled': enabledOption,
+  'identity.registration.require_email_verification': disabledOption,
   'forum.default_category_slug': 'general',
   'forum.tags.creation_mode': 'controlled',
   'forum.tags.public_pages': enabledOption,
@@ -316,6 +319,7 @@ const fallbackOptions: Record<string, string> = {
 export const useWebOptions = () => {
   const { apiBaseUrl, apiHeaders, request } = useApiClient()
   const options = useState<Record<string, string>>('web-options', () => ({ ...fallbackOptions }))
+  const loaded = useState<boolean>('web-options:loaded', () => false)
 
   async function refresh(requestOptions: RefreshOptions = {}) {
     const items = await request<WebOption[]>('/web-options', {
@@ -326,6 +330,7 @@ export const useWebOptions = () => {
       ...fallbackOptions,
       ...Object.fromEntries(items.map((item) => [item.name, item.value]))
     }
+    loaded.value = true
     return options.value
   }
 
@@ -449,6 +454,7 @@ export const useWebOptions = () => {
 
   return {
     options,
+    loaded,
     siteName,
     siteUrl,
     siteDomain,

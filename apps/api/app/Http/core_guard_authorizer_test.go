@@ -1099,6 +1099,7 @@ func TestProductionPublicContextualGuardsCloseExactRoutes(t *testing.T) {
 	}{
 		{routeID: "core.route.identity.registration_status"},
 		{routeID: "core.route.identity.human_verification_challenge", query: "purpose=register"},
+		{routeID: "core.route.identity.human_verification_challenge", query: "purpose=email_verification"},
 		{routeID: "core.route.pages.public_catalog"},
 		{routeID: "core.route.seo.list"},
 	}

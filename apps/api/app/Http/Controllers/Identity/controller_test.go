@@ -8,6 +8,7 @@ import (
 	nethttp "net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 
@@ -269,6 +270,47 @@ func TestPasswordResetSkipsHumanVerificationWhenDisabled(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != nethttp.StatusOK {
 		t.Fatalf("expected 200 when HV disabled, got %d", resp.StatusCode)
+	}
+}
+
+type denyMailResendLimiter struct{}
+
+func (denyMailResendLimiter) Allow(context.Context, string, int, time.Duration) (bool, error) {
+	return false, nil
+}
+
+func (denyMailResendLimiter) RetryAfter(context.Context, string) (time.Duration, error) {
+	return 20 * time.Second, nil
+}
+
+func TestPasswordResetRateLimitReturnsStructuredRetryTime(t *testing.T) {
+	passwordReset := identity.NewPasswordResetService(
+		passwordResetFakeStore{}, nil, identity.PasswordResetConfig{},
+	).WithRateLimiter(denyMailResendLimiter{})
+	controller := NewControllerWithPasswordReset(
+		nil, &authsession.Manager{}, humanverify.NewDisabledService(), passwordReset, nil, nil,
+	)
+	app := apphttp.NewApp(config.Config{CSRFEnabled: false}, slog.Default(), apphttp.Dependencies{
+		RouteProviders: []apphttp.RouteProvider{controller},
+	})
+
+	resp := performPasswordResetRequest(t, app, map[string]any{"email": "nobody@example.com"})
+	defer resp.Body.Close()
+	if resp.StatusCode != nethttp.StatusTooManyRequests || resp.Header.Get("Retry-After") == "" {
+		t.Fatalf("status=%d retry-after=%q", resp.StatusCode, resp.Header.Get("Retry-After"))
+	}
+	var body struct {
+		Data struct {
+			Reason            string    `json:"reason"`
+			RetryAfterSeconds int       `json:"retryAfterSeconds"`
+			RetryAt           time.Time `json:"retryAt"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Data.Reason != "auth.password_reset_rate_limited" || body.Data.RetryAfterSeconds < 19 || !body.Data.RetryAt.After(time.Now()) {
+		t.Fatalf("unexpected rate-limit response: %#v", body.Data)
 	}
 }
 

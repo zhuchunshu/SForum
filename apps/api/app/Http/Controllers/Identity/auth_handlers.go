@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/mail"
 	"strings"
 	"time"
@@ -51,9 +52,6 @@ func (h *Controller) register(c fiber.Ctx) error {
 		return mapIdentityError(err)
 	}
 	h.queueWelcomeMail(c.Context(), req.Email, h.browserMailLocale(c), current)
-	if h.emailVerification != nil {
-		_, _ = h.emailVerification.Request(c.Context(), current.ID, clientip.FromCtx(c), h.browserMailLocale(c))
-	}
 
 	var pendingSession *authsession.Pending
 	if err := h.runSessionIssue(c.Context(), current.ID, current.CurrentTokenVersion, req.StepUpEvidence, func(effectCtx context.Context) error {
@@ -254,13 +252,16 @@ func (h *Controller) passwordResetRequest(c fiber.Ctx) error {
 		return mapHumanVerificationError(err)
 	}
 	ip := clientip.FromCtx(c)
-	_ = h.passwordReset.RequestPasswordReset(c.Context(), identity.RequestPasswordResetInput{
+	result, requestErr := h.passwordReset.RequestPasswordResetWithResult(c.Context(), identity.RequestPasswordResetInput{
 		// 规范化邮箱：trim 后传给 service，与 register/login 路径的输入处理保持一致。
 		Email:  strings.TrimSpace(req.Email),
 		IP:     ip,
 		Locale: h.browserMailLocale(c),
 	})
-	return apphttp.OK(c, map[string]any{"sent": true})
+	if errors.Is(requestErr, identity.ErrPasswordResetRateLimited) {
+		return mapIdentityError(requestErr)
+	}
+	return apphttp.OK(c, mailRequestResponse(true, result.RetryAt))
 }
 
 func (h *Controller) browserMailLocale(c fiber.Ctx) string {
@@ -303,11 +304,37 @@ func (h *Controller) emailVerificationRequest(c fiber.Ctx) error {
 	if !ok || userID <= 0 {
 		return fiber.NewError(fiber.StatusUnauthorized, "auth.required")
 	}
-	sent, err := h.emailVerification.Request(c.Context(), userID, clientip.FromCtx(c), h.browserMailLocale(c))
+	var req emailVerificationRequest
+	if len(c.Body()) > 0 {
+		if err := c.Bind().Body(&req); err != nil {
+			return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+		}
+	}
+	if err := h.verifier.Verify(c.Context(), humanverify.VerifyRequest{
+		Provider: req.HumanVerification.Provider,
+		Purpose:  humanverify.PurposeEmailVerification,
+		Token:    req.HumanVerification.Token,
+		IP:       clientip.FromCtx(c),
+		UserID:   &userID,
+	}); err != nil {
+		return mapHumanVerificationError(err)
+	}
+	result, err := h.emailVerification.RequestWithResult(c.Context(), userID, clientip.FromCtx(c), h.browserMailLocale(c))
 	if err != nil {
 		return mapIdentityError(err)
 	}
-	return apphttp.OK(c, map[string]any{"sent": sent})
+	return apphttp.OK(c, mailRequestResponse(result.Sent, result.RetryAt))
+}
+
+func mailRequestResponse(sent bool, retryAt time.Time) map[string]any {
+	data := map[string]any{"sent": sent}
+	if retryAt.IsZero() {
+		return data
+	}
+	retryAt = retryAt.UTC()
+	data["retryAfterSeconds"] = max(1, int(math.Ceil(time.Until(retryAt).Seconds())))
+	data["retryAt"] = retryAt
+	return data
 }
 
 func (h *Controller) emailVerificationConfirm(c fiber.Ctx) error {

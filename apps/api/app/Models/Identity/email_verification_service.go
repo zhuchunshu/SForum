@@ -23,6 +23,7 @@ type EmailVerificationConfig struct {
 	VerifyPathBase    string
 	RequestMaxPerUser int
 	RequestMaxPerIP   int
+	RequestCooldown   time.Duration
 	RequestWindow     time.Duration
 }
 
@@ -37,9 +38,7 @@ type EmailVerificationQueue interface {
 	QueueEmailVerification(context.Context, CreateEmailVerificationTokenInput, EmailVerificationMail) error
 }
 
-type EmailVerificationRateLimiter interface {
-	Allow(ctx context.Context, key string, max int, window time.Duration) (bool, error)
-}
+type EmailVerificationRateLimiter = MailResendRateLimiter
 
 type EmailVerificationService struct {
 	store          EmailVerificationStore
@@ -47,6 +46,7 @@ type EmailVerificationService struct {
 	policy         EmailVerificationPolicyResolver
 	config         EmailVerificationConfig
 	rateLimiter    EmailVerificationRateLimiter
+	resendPolicies MailResendPolicyResolver
 	localeResolver PasswordResetLocaleResolver
 	brandResolver  PasswordResetBrandResolver
 }
@@ -64,6 +64,9 @@ func NewEmailVerificationService(store EmailVerificationStore, queue EmailVerifi
 	if config.RequestMaxPerIP <= 0 {
 		config.RequestMaxPerIP = 10
 	}
+	if config.RequestCooldown <= 0 {
+		config.RequestCooldown = RecommendedMailResendCooldown
+	}
 	if config.RequestWindow <= 0 {
 		config.RequestWindow = time.Hour
 	}
@@ -75,6 +78,11 @@ func (s *EmailVerificationService) WithRateLimiter(limiter EmailVerificationRate
 	return s
 }
 
+func (s *EmailVerificationService) WithMailResendPolicyResolver(resolver MailResendPolicyResolver) *EmailVerificationService {
+	s.resendPolicies = resolver
+	return s
+}
+
 func (s *EmailVerificationService) WithMailResolvers(locale PasswordResetLocaleResolver, brand PasswordResetBrandResolver) *EmailVerificationService {
 	s.localeResolver = locale
 	s.brandResolver = brand
@@ -82,26 +90,33 @@ func (s *EmailVerificationService) WithMailResolvers(locale PasswordResetLocaleR
 }
 
 func (s *EmailVerificationService) Request(ctx context.Context, userID int64, ip, browserLocale string) (bool, error) {
+	result, err := s.RequestWithResult(ctx, userID, ip, browserLocale)
+	return result.Sent, err
+}
+
+func (s *EmailVerificationService) RequestWithResult(ctx context.Context, userID int64, ip, browserLocale string) (MailResendResult, error) {
 	if s == nil || s.store == nil || userID <= 0 {
-		return false, ErrUserNotFound
+		return MailResendResult{}, ErrUserNotFound
 	}
 	policy, err := s.resolvePolicy(ctx)
 	if err != nil || !policy.Required {
-		return false, err
+		return MailResendResult{}, err
 	}
 	target, err := s.store.GetEmailVerificationTarget(ctx, userID)
 	if err != nil {
-		return false, err
+		return MailResendResult{}, err
 	}
 	if target.Status != UserStatusActive || target.EmailVerified {
-		return false, nil
+		return MailResendResult{}, nil
 	}
-	if err := s.enforceRateLimit(ctx, userID, ip); err != nil {
-		return false, err
+	retryAt, err := s.enforceRateLimit(ctx, userID, ip)
+	if err != nil {
+		return MailResendResult{}, err
 	}
+	result := MailResendResult{Sent: true, RetryAt: retryAt}
 	rawToken, err := generateResetToken()
 	if err != nil {
-		return false, err
+		return result, err
 	}
 	tokenHash := hashResetToken(rawToken)
 	expiresAt := time.Now().UTC().Add(s.config.TokenTTL)
@@ -111,7 +126,7 @@ func (s *EmailVerificationService) Request(ctx context.Context, userID int64, ip
 	}
 	if s.queue == nil {
 		_, err = s.store.CreateEmailVerificationToken(ctx, input)
-		return err == nil, err
+		return result, err
 	}
 	brand := mail.ResolveBrand(ctx, s.brandResolver)
 	message := EmailVerificationMail{
@@ -120,9 +135,9 @@ func (s *EmailVerificationService) Request(ctx context.Context, userID int64, ip
 		VerifyURL: s.buildVerifyURL(brand.SiteURL, rawToken), ExpiresAt: expiresAt, Brand: brand,
 	}
 	if err := s.queue.QueueEmailVerification(ctx, input, message); err != nil {
-		return false, err
+		return result, err
 	}
-	return true, nil
+	return result, nil
 }
 
 func (s *EmailVerificationService) Confirm(ctx context.Context, rawToken string) (int64, error) {
@@ -177,28 +192,22 @@ func (s *EmailVerificationService) resolvePolicy(ctx context.Context) (EmailVeri
 	return s.policy.EmailVerificationPolicy(ctx)
 }
 
-func (s *EmailVerificationService) enforceRateLimit(ctx context.Context, userID int64, ip string) error {
-	if s.rateLimiter == nil {
-		return nil
-	}
-	ok, err := s.rateLimiter.Allow(ctx, fmt.Sprintf("email_verification:user:%d", userID), s.config.RequestMaxPerUser, s.config.RequestWindow)
+func (s *EmailVerificationService) enforceRateLimit(ctx context.Context, userID int64, ip string) (time.Time, error) {
+	policy, err := s.mailResendPolicy(ctx)
 	if err != nil {
-		return err
+		return time.Time{}, err
 	}
-	if !ok {
-		return ErrEmailVerificationRateLimited
+	return enforceMailResendPolicy(ctx, s.rateLimiter, "email_verification", fmt.Sprintf("user:%d", userID), ip, policy, ErrEmailVerificationRateLimited)
+}
+
+func (s *EmailVerificationService) mailResendPolicy(ctx context.Context) (MailResendPolicy, error) {
+	if s.resendPolicies != nil {
+		return s.resendPolicies.MailResendPolicy(ctx)
 	}
-	if strings.TrimSpace(ip) == "" {
-		return nil
-	}
-	ok, err = s.rateLimiter.Allow(ctx, "email_verification:ip:"+hashIP(ip), s.config.RequestMaxPerIP, s.config.RequestWindow)
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return ErrEmailVerificationRateLimited
-	}
-	return nil
+	return MailResendPolicy{
+		Cooldown: s.config.RequestCooldown, Window: s.config.RequestWindow,
+		MaxPerTarget: s.config.RequestMaxPerUser, MaxPerIP: s.config.RequestMaxPerIP,
+	}, nil
 }
 
 func (s *EmailVerificationService) resolveLocale(ctx context.Context, browserLocale, userLocale string) string {

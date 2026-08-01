@@ -104,11 +104,31 @@ load archived sessions or completed plans as current context.
 - **Notifications:** V2 is complete: transactional reply/mention/moderation
   fanout, layered policy and own-user preferences, exact-artifact plugin
   emission, durable-revision SSE with REST/reconnect fallback, generic channel
-  delivery, and the protected Web Push reference provider are shipped.
+  delivery, and the protected Web Push reference provider are shipped. The
+  Navbar preview links to personal notification preferences, where Browser
+  Notifications is a non-shrinking first-viewport device control.
 - **Dev:** Compose owns PostgreSQL, Redis, and Mailpit. The user owns the web
   dev server on port 3000; do not kill it.
 
 ## Latest Handoff
+
+- Manual password-recovery and email-verification sends now share configurable,
+  server-authoritative cooldown/window/per-target/per-IP limits under Site
+  Settings → Account security. Public countdowns consume success/429 retry
+  metadata, password recovery remains non-enumerating, and SMTP test mail is
+  excluded. Focused API/Web, OpenAPI, typecheck, and architecture checks pass;
+  desktop/mobile Browser QA awaits an authenticated local admin session:
+  `sessions/2026-08-02-configurable-mail-resend-limits.md`
+
+- Browser notification subscriptions now hide revoked device history, require
+  a matching live browser and Host subscription before showing enabled, and
+  default untouched Core reply/mention/moderation Web Push policy to the
+  enabled recommendation without overwriting operator choices. Notification
+  API, Web, migration, and OpenAPI checks pass; the repository architecture
+  gate currently stops only on the concurrent Options service growth. Final
+  provider-alert recheck is blocked by the concurrent email-verification
+  redirect/runtime QA:
+  `sessions/2026-08-02-browser-notification-subscription-fix.md`
 
 - Mobile right-rail entry is now the authenticated user's avatar; its drawer
   combines the desktop user-menu actions with page-owned information. The
@@ -123,8 +143,13 @@ load archived sessions or completed plans as current context.
   localized outbox mail, registration-to-waiting-page navigation, confirm/resend
   APIs, OAuth assertion handling, authoritative gates for topics/comments/
   attachments, and audited admin verify/reset controls that invalidate old
-  links. The waiting flow has no manual-code path. Full web/API tests,
-  typecheck, OpenAPI validation, and authenticated Browser verification pass:
+  links. When enforcement is enabled, all authenticated unverified users are
+  redirected from non-admin routes to the waiting page; admin routes remain
+  accessible and remote resets take effect on the next public navigation. The
+  waiting page never sends on entry: users explicitly send after completing
+  the operator-configured ALTCHA challenge, and the API enforces that evidence.
+  The waiting flow has no manual-code path. Full web/API tests, typecheck,
+  OpenAPI validation, and authenticated Browser verification pass:
   `sessions/2026-08-01-email-verification.md`
 
 - CI architecture gate repair: `SFNavbar.vue` dropped from 1132 to 948 lines by

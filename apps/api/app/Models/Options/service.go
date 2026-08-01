@@ -82,19 +82,6 @@ var altchaWidgetDisplays = []string{"standard", "bar", "floating", "overlay", "i
 var forumTagCreationModes = []string{"controlled", "review", "open"}
 var forumSlugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 
-type humanVerificationScenario struct {
-	name           string
-	purpose        humanverify.Purpose
-	defaultEnabled bool
-}
-
-var humanVerificationScenarios = []humanVerificationScenario{
-	{name: NameHumanVerificationRegister, purpose: humanverify.PurposeRegister, defaultEnabled: true},
-	{name: NameHumanVerificationPasswordReset, purpose: humanverify.PurposePasswordReset, defaultEnabled: true},
-	{name: NameHumanVerificationLoginRisk, purpose: humanverify.PurposeLoginRisk},
-	{name: NameHumanVerificationPostRisk, purpose: humanverify.PurposePostRisk},
-}
-
 type footerLinkLabels struct {
 	ZHCN string `json:"zh-CN"`
 	ENUS string `json:"en-US"`
@@ -130,10 +117,6 @@ var optionDefinitions = append([]optionDefinition{
 	{name: NameSiteDefaultLocale, public: true, managePermission: identity.PermissionSettingsSiteManage},
 	{name: NameSiteSupportedLocales, public: true, managePermission: identity.PermissionSettingsSiteManage},
 	{name: NameHumanVerificationProvider, public: true, managePermission: identity.PermissionSettingsSiteManage},
-	{name: NameHumanVerificationRegister, public: true, managePermission: identity.PermissionSettingsSiteManage},
-	{name: NameHumanVerificationPasswordReset, public: true, managePermission: identity.PermissionSettingsSiteManage},
-	{name: NameHumanVerificationLoginRisk, public: true, managePermission: identity.PermissionSettingsSiteManage},
-	{name: NameHumanVerificationPostRisk, public: true, managePermission: identity.PermissionSettingsSiteManage},
 	{name: NameAltchaSecret, secret: true, managePermission: identity.PermissionSettingsSiteManage},
 	{name: NameAltchaChallengeTTL, managePermission: identity.PermissionSettingsSiteManage},
 	{name: NameAltchaCost, managePermission: identity.PermissionSettingsSiteManage},
@@ -476,29 +459,6 @@ func (s *Service) InternalValues(ctx context.Context) (map[string]string, error)
 	return s.loadMap(ctx)
 }
 
-func (s *Service) HumanVerificationConfig(ctx context.Context) (humanverify.RuntimeConfig, error) {
-	values, err := s.loadMap(ctx)
-	if err != nil {
-		return humanverify.RuntimeConfig{}, err
-	}
-
-	ttl, _ := parsePositiveDuration(values[NameAltchaChallengeTTL])
-	cost, _ := parsePositiveInt(values[NameAltchaCost])
-	purposeEnabled := map[humanverify.Purpose]bool{}
-	for _, scenario := range humanVerificationScenarios {
-		purposeEnabled[scenario.purpose] = isEnabledOption(values[scenario.name])
-	}
-	return humanverify.RuntimeConfig{
-		Provider:        values[NameHumanVerificationProvider],
-		AltchaSecret:    values[NameAltchaSecret],
-		AltchaTTL:       ttl,
-		AltchaCost:      cost,
-		PurposeEnabled:  purposeEnabled,
-		RateLimit:       60,
-		RateLimitWindow: time.Minute,
-	}, nil
-}
-
 func (s *Service) Update(ctx context.Context, actor identity.Actor, input UpdateInput) (Option, error) {
 	updated, err := s.UpdateMany(ctx, actor, []UpdateInput{input})
 	if err != nil {
@@ -823,6 +783,7 @@ func (s *Service) coerceValueSet(values map[string]string) map[string]string {
 	coerceSiteBrandOptions(coerced, defaults)
 	// Wave 1 社区策略：注册/新人/维护/论坛阅读与行为。
 	coerceCommunityPolicyOptions(coerced, defaults)
+	coerceMailResendOptions(coerced, defaults)
 
 	if provider, ok := normalizeHumanVerificationProvider(coerced[NameHumanVerificationProvider]); ok {
 		coerced[NameHumanVerificationProvider] = provider
@@ -1017,6 +978,7 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameHumanVerificationProvider:           humanverify.ProviderDisabled,
 		NameHumanVerificationRegister:           enabledOptionValue(true),
 		NameHumanVerificationPasswordReset:      enabledOptionValue(true),
+		NameHumanVerificationEmailVerification:  enabledOptionValue(true),
 		NameHumanVerificationLoginRisk:          enabledOptionValue(false),
 		NameHumanVerificationPostRisk:           enabledOptionValue(false),
 		NameAltchaSecret:                        "",
@@ -1110,6 +1072,7 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 	}
 	mergeAttachmentDefaults(values)
 	mergeCommunityPolicyDefaults(values)
+	mergeMailResendDefaults(values)
 	mergeSiteBrandDefaults(values)
 	mergeFeatureFlagDefaults(values)
 	mergePagesRegistryDefaults(values)

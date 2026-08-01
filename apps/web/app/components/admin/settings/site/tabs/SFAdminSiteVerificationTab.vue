@@ -31,12 +31,14 @@ const showSecret = ref(false)
 const scenarioFallbacks: Record<HumanVerificationScenario, boolean> = {
   register: true,
   password_reset: true,
+  email_verification: true,
   login_risk: false,
   post_risk: false
 }
 const scenarios = computed(() => [
   { key: 'register' as const, label: t('admin.settings.verification.scenarios.register.label'), description: t('admin.settings.verification.scenarios.register.description'), icon: 'i-lucide-user-plus' },
   { key: 'password_reset' as const, label: t('admin.settings.verification.scenarios.passwordReset.label'), description: t('admin.settings.verification.scenarios.passwordReset.description'), icon: 'i-lucide-key-round' },
+  { key: 'email_verification' as const, label: t('admin.settings.verification.scenarios.emailVerification.label'), description: t('admin.settings.verification.scenarios.emailVerification.description'), icon: 'i-lucide-mail-check' },
   { key: 'login_risk' as const, label: t('admin.settings.verification.scenarios.loginRisk.label'), description: t('admin.settings.verification.scenarios.loginRisk.description'), icon: 'i-lucide-radar' },
   { key: 'post_risk' as const, label: t('admin.settings.verification.scenarios.postRisk.label'), description: t('admin.settings.verification.scenarios.postRisk.description'), icon: 'i-lucide-message-square-warning' }
 ])

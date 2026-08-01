@@ -11,6 +11,7 @@ import {
 } from '../../app/components/admin/settings/notifications/model'
 import {
   decodeApplicationServerKey,
+  resolveCurrentWebPushSubscriptionId,
   serializePushSubscription,
   WEB_PUSH_SCOPE,
   WEB_PUSH_WORKER_PATH
@@ -135,10 +136,23 @@ describe('Notification Platform V2 settings', () => {
       endpoint: 'https://push.example/subscription-secret',
       keys: { p256dh: 'public-client-key', auth: 'auth-secret' }
     })
+    const subscriptions = [{
+      id: 17,
+      endpointOrigin: 'https://push.example',
+      contentEncoding: 'aes128gcm' as const,
+      status: 'active' as const,
+      createdAt: '2026-08-02T00:00:00Z',
+      updatedAt: '2026-08-02T00:00:00Z'
+    }]
+    expect(resolveCurrentWebPushSubscriptionId(subscriptions, '17')).toBe(17)
+    expect(resolveCurrentWebPushSubscriptionId([{ ...subscriptions[0], status: 'revoked' }], '17')).toBeNull()
+    expect(resolveCurrentWebPushSubscriptionId(subscriptions, null)).toBeNull()
     expect(webPushApi).toContain("'/web-push/config'")
     expect(webPushApi).toContain("'/web-push/subscriptions'")
     expect(webPushSettings).toContain('Notification.requestPermission()')
     expect(webPushSettings).toContain('navigator.serviceWorker.register(WEB_PUSH_WORKER_PATH, { scope: WEB_PUSH_SCOPE })')
+    expect(webPushSettings).toContain('browserSubscribed.value = Boolean(browserSubscription && currentSubscriptionId.value)')
+    expect(webPushSettings).toContain('class="mt-5 shrink-0 overflow-hidden')
     expect(webPushSettings).toContain('item.endpointOrigin')
     expect(webPushSettings).not.toContain('item.endpoint }}')
     expect(webPushSettings).not.toContain('item.p256dh')

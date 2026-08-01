@@ -75,7 +75,7 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return normalizePublicSurfaceRevision(value)
 	case NameHumanVerificationProvider:
 		return normalizeHumanVerificationProvider(value)
-	case NameHumanVerificationRegister, NameHumanVerificationPasswordReset, NameHumanVerificationLoginRisk, NameHumanVerificationPostRisk:
+	case NameHumanVerificationRegister, NameHumanVerificationPasswordReset, NameHumanVerificationEmailVerification, NameHumanVerificationLoginRisk, NameHumanVerificationPostRisk:
 		return normalizeEnabledOption(value)
 	case NameAltchaSecret:
 		return value, true
@@ -161,6 +161,11 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return normalizeBoundedInt(value, sessionsMaxDevicesMin, sessionsMaxDevicesMax)
 	case NameIdentitySessionsKeepDays:
 		return normalizeBoundedInt(value, sessionsKeepDaysMin, sessionsKeepDaysMax)
+	case NameIdentityMailResendCooldownSeconds,
+		NameIdentityMailResendWindowMinutes,
+		NameIdentityMailResendMaxPerTarget,
+		NameIdentityMailResendMaxPerIP:
+		return normalizeMailResendOption(name, value)
 	case NameForumDefaultCategorySlug:
 		return normalizeForumSlug(value)
 	case NameForumTagCreationMode:

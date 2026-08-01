@@ -233,7 +233,7 @@ async function finishRegistration(currentUser: CurrentUser) {
   toast.add({
     color: 'success',
     icon: needsEmailVerification ? 'i-lucide-mail-check' : 'i-lucide-check',
-    title: needsEmailVerification ? t('auth.emailVerificationSent') : registerSuccessTitle(),
+    title: needsEmailVerification ? t('auth.emailVerificationActionRequired') : registerSuccessTitle(),
     duration: 10000
   })
   if (needsEmailVerification) {

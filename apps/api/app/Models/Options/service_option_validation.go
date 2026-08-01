@@ -99,6 +99,9 @@ func isValidValueSet(values map[string]string) bool {
 	if _, ok := normalizeEnabledOption(values[NameIdentityRegistrationEnabled]); !ok {
 		return false
 	}
+	if !isValidMailResendOptions(values) {
+		return false
+	}
 	if _, ok := normalizeForumSlug(values[NameForumDefaultCategorySlug]); !ok {
 		return false
 	}

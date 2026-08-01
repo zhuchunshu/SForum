@@ -25,14 +25,14 @@ type PasswordResetConfig struct {
 	// RequestMaxPerEmail / RequestMaxPerIP 请求限流（窗口内最大次数），默认 3 / 10。
 	RequestMaxPerEmail int
 	RequestMaxPerIP    int
+	// RequestCooldown 是同一邮箱两次成功请求之间的最短间隔，默认 30 秒。
+	RequestCooldown time.Duration
 	// RequestWindow 限流窗口，默认 1 小时。
 	RequestWindow time.Duration
 }
 
 // PasswordResetRateLimiter 密码重置请求限流（通常 Redis）。
-type PasswordResetRateLimiter interface {
-	Allow(ctx context.Context, key string, max int, window time.Duration) (bool, error)
-}
+type PasswordResetRateLimiter = MailResendRateLimiter
 
 // PasswordResetService 协调密码重置：生成令牌、投递邮件、校验与消费令牌、更新密码。
 type PasswordResetService struct {
@@ -41,6 +41,7 @@ type PasswordResetService struct {
 	config           PasswordResetConfig
 	passwordPolicies PasswordPolicyResolver
 	rateLimiter      PasswordResetRateLimiter
+	resendPolicies   MailResendPolicyResolver
 	localeResolver   PasswordResetLocaleResolver
 	brandResolver    PasswordResetBrandResolver
 }
@@ -83,6 +84,9 @@ func NewPasswordResetServiceWithPasswordPolicy(store Store, mailer PasswordReset
 	if config.RequestMaxPerIP <= 0 {
 		config.RequestMaxPerIP = 10
 	}
+	if config.RequestCooldown <= 0 {
+		config.RequestCooldown = RecommendedMailResendCooldown
+	}
 	if config.RequestWindow <= 0 {
 		config.RequestWindow = time.Hour
 	}
@@ -96,6 +100,13 @@ func NewPasswordResetServiceWithPasswordPolicy(store Store, mailer PasswordReset
 func (s *PasswordResetService) WithRateLimiter(limiter PasswordResetRateLimiter) *PasswordResetService {
 	if s != nil {
 		s.rateLimiter = limiter
+	}
+	return s
+}
+
+func (s *PasswordResetService) WithMailResendPolicyResolver(resolver MailResendPolicyResolver) *PasswordResetService {
+	if s != nil {
+		s.resendPolicies = resolver
 	}
 	return s
 }
@@ -123,27 +134,34 @@ type RequestPasswordResetInput struct {
 // 出于隐私，无论邮箱是否存在都返回 nil；仅当邮件投递失败时返回错误（此时不暴露用户是否存在）。
 // 调用方应始终返回相同的成功响应。
 func (s *PasswordResetService) RequestPasswordReset(ctx context.Context, input RequestPasswordResetInput) error {
+	_, err := s.RequestPasswordResetWithResult(ctx, input)
+	return err
+}
+
+func (s *PasswordResetService) RequestPasswordResetWithResult(ctx context.Context, input RequestPasswordResetInput) (MailResendResult, error) {
 	email := strings.TrimSpace(strings.ToLower(input.Email))
 	if email == "" {
-		return nil
+		return MailResendResult{}, nil
 	}
 	// 先限流再查库：对已知/未知邮箱统一按 email+IP 计数，避免枚举与邮件轰炸。
-	if err := s.enforceRequestRateLimit(ctx, email, input.IP); err != nil {
-		return err
+	retryAt, err := s.enforceRequestRateLimit(ctx, email, input.IP)
+	if err != nil {
+		return MailResendResult{}, err
 	}
+	result := MailResendResult{Sent: true, RetryAt: retryAt}
 	// 先按登录名查凭据；external-only 用户无 credential 行时回退到用户查询。
 	// 两种路径对外均非枚举：不存在/非活跃一律静默成功。
 	userID, username, userLocale, status, found, err := s.lookupPasswordResetTarget(ctx, email)
 	if err != nil {
-		return err
+		return result, err
 	}
 	if !found || status != UserStatusActive {
-		return nil
+		return result, nil
 	}
 
 	rawToken, err := generateResetToken()
 	if err != nil {
-		return err
+		return result, err
 	}
 	tokenHash := hashResetToken(rawToken)
 	expiresAt := time.Now().Add(s.config.TokenTTL).UTC()
@@ -157,7 +175,7 @@ func (s *PasswordResetService) RequestPasswordReset(ctx context.Context, input R
 	}
 	if s.mailer == nil {
 		_, err := s.store.CreatePasswordResetToken(ctx, tokenInput)
-		return err
+		return result, err
 	}
 	resetURL := s.buildResetURL(rawToken)
 	brand := s.resolveMailBrand(ctx)
@@ -175,9 +193,9 @@ func (s *PasswordResetService) RequestPasswordReset(ctx context.Context, input R
 		// 投递失败：记录但不向调用方暴露用户信息。
 		// 注意：这里不返回错误，以免泄露"邮箱存在但投递失败"。
 		// 调用方仍返回通用成功响应。
-		return nil
+		return result, nil
 	}
-	return nil
+	return result, nil
 }
 
 func (s *PasswordResetService) resolveMailBrand(ctx context.Context) mail.Brand {
@@ -189,30 +207,22 @@ func (s *PasswordResetService) resolveMailBrand(ctx context.Context) mail.Brand 
 	return mail.DefaultBrand(s.siteName(), s.config.SiteURL)
 }
 
-func (s *PasswordResetService) enforceRequestRateLimit(ctx context.Context, email, ip string) error {
-	if s.rateLimiter == nil {
-		return nil
-	}
-	window := s.config.RequestWindow
-	emailKey := "email:" + hashResetToken(email)
-	ok, err := s.rateLimiter.Allow(ctx, emailKey, s.config.RequestMaxPerEmail, window)
+func (s *PasswordResetService) enforceRequestRateLimit(ctx context.Context, email, ip string) (time.Time, error) {
+	policy, err := s.mailResendPolicy(ctx)
 	if err != nil {
-		return err
+		return time.Time{}, err
 	}
-	if !ok {
-		return ErrPasswordResetRateLimited
+	return enforceMailResendPolicy(ctx, s.rateLimiter, "password_reset", hashResetToken(email), ip, policy, ErrPasswordResetRateLimited)
+}
+
+func (s *PasswordResetService) mailResendPolicy(ctx context.Context) (MailResendPolicy, error) {
+	if s.resendPolicies != nil {
+		return s.resendPolicies.MailResendPolicy(ctx)
 	}
-	if ip = strings.TrimSpace(ip); ip != "" {
-		ipKey := "ip:" + hashIP(ip)
-		ok, err = s.rateLimiter.Allow(ctx, ipKey, s.config.RequestMaxPerIP, window)
-		if err != nil {
-			return err
-		}
-		if !ok {
-			return ErrPasswordResetRateLimited
-		}
-	}
-	return nil
+	return MailResendPolicy{
+		Cooldown: s.config.RequestCooldown, Window: s.config.RequestWindow,
+		MaxPerTarget: s.config.RequestMaxPerEmail, MaxPerIP: s.config.RequestMaxPerIP,
+	}, nil
 }
 
 // ConfirmPasswordResetInput 是确认密码重置的入参。

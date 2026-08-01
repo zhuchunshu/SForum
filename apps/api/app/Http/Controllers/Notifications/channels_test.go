@@ -21,6 +21,7 @@ type webPushControllerStore struct {
 	notificationTestStore
 	createInput notifications.CreateWebPushSubscriptionInput
 	items       []notifications.WebPushSubscription
+	activeOnly  bool
 	revokeUser  int64
 	revokeID    int64
 	revokeErr   error
@@ -34,10 +35,11 @@ func (s *webPushControllerStore) CreateWebPushSubscription(_ context.Context, in
 	}, nil
 }
 
-func (s *webPushControllerStore) ListWebPushSubscriptions(_ context.Context, userID int64, _ bool) ([]notifications.WebPushSubscription, error) {
+func (s *webPushControllerStore) ListWebPushSubscriptions(_ context.Context, userID int64, activeOnly bool) ([]notifications.WebPushSubscription, error) {
 	if userID != 42 {
 		return nil, notifications.ErrSubscriptionNotFound
 	}
+	s.activeOnly = activeOnly
 	return s.items, nil
 }
 
@@ -93,6 +95,9 @@ func TestWebPushSubscriptionRoutesRequireLoginUseCurrentUserAndRedactSecrets(t *
 	listBody := readResponseBody(t, resp)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("list status=%d body=%s", resp.StatusCode, listBody)
+	}
+	if !store.activeOnly {
+		t.Fatal("member subscription list included inactive history")
 	}
 	assertWebPushResponseRedacted(t, listBody, secretEndpoint, store.items[0].P256DHKey, store.items[0].AuthKey)
 

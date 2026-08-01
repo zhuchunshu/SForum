@@ -66,7 +66,7 @@ function blockNonIntegerKey(event: KeyboardEvent) {
             <h2 class="text-base font-bold">{{ t('admin.settings.basic.accountSecurityTitle') }}</h2>
             <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.settings.basic.accountSecurityDescription') }}</p>
           </div>
-          <UBadge color="neutral" variant="soft" class="border border-slate-200 font-mono dark:border-zinc-800">identity.password.*</UBadge>
+          <UBadge color="neutral" variant="soft" class="border border-slate-200 font-mono dark:border-zinc-800">identity.*</UBadge>
         </div>
       </template>
 
@@ -115,6 +115,27 @@ function blockNonIntegerKey(event: KeyboardEvent) {
             <UInput v-model.number="form.loginLockoutMinutes" size="lg" icon="i-lucide-timer-off" type="number" inputmode="numeric" min="0" max="1440" step="1" required class="w-full" @keydown="blockNonIntegerKey" />
           </UFormField>
         </div>
+        <section class="space-y-4 border-t border-slate-200 pt-4 dark:border-zinc-800">
+          <div>
+            <h3 class="text-sm font-bold">{{ t('admin.settings.basic.mailResendTitle') }}</h3>
+            <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-zinc-400">{{ t('admin.settings.basic.mailResendDescription') }}</p>
+          </div>
+          <UAlert color="neutral" variant="soft" icon="i-lucide-timer-reset" :title="t('admin.settings.basic.mailResendRecommended')" />
+          <div class="grid gap-4 md:grid-cols-2">
+            <UFormField :label="t('admin.settings.basic.mailResendCooldownSeconds')" :description="t('admin.settings.basic.mailResendCooldownSecondsHint')" name="mail-resend-cooldown-seconds">
+              <UInput v-model.number="form.mailResendCooldownSeconds" size="lg" icon="i-lucide-timer" type="number" inputmode="numeric" min="0" max="3600" step="1" required class="w-full" @keydown="blockNonIntegerKey" />
+            </UFormField>
+            <UFormField :label="t('admin.settings.basic.mailResendWindowMinutes')" :description="t('admin.settings.basic.mailResendWindowMinutesHint')" name="mail-resend-window-minutes">
+              <UInput v-model.number="form.mailResendWindowMinutes" size="lg" icon="i-lucide-clock-3" type="number" inputmode="numeric" min="1" max="1440" step="1" required class="w-full" @keydown="blockNonIntegerKey" />
+            </UFormField>
+            <UFormField :label="t('admin.settings.basic.mailResendMaxPerTarget')" :description="t('admin.settings.basic.mailResendMaxPerTargetHint')" name="mail-resend-max-per-target">
+              <UInput v-model.number="form.mailResendMaxPerTarget" size="lg" icon="i-lucide-mail" type="number" inputmode="numeric" min="1" max="100" step="1" required class="w-full" @keydown="blockNonIntegerKey" />
+            </UFormField>
+            <UFormField :label="t('admin.settings.basic.mailResendMaxPerIP')" :description="t('admin.settings.basic.mailResendMaxPerIPHint')" name="mail-resend-max-per-ip">
+              <UInput v-model.number="form.mailResendMaxPerIP" size="lg" icon="i-lucide-network" type="number" inputmode="numeric" min="1" max="1000" step="1" required class="w-full" @keydown="blockNonIntegerKey" />
+            </UFormField>
+          </div>
+        </section>
       </div>
 
       <template #footer>

@@ -363,6 +363,10 @@ type humanVerificationRequest struct {
 	Token    string `json:"token"`
 }
 
+type emailVerificationRequest struct {
+	HumanVerification humanVerificationRequest `json:"humanVerification"`
+}
+
 type roleRequest struct {
 	Key         string `json:"key"`
 	Alias       string `json:"alias"`
@@ -414,12 +418,19 @@ func paramInt64(c fiber.Ctx, name string) (int64, error) {
 func mapIdentityError(err error) error {
 	var registerErr *identity.RegisterInvalidError
 	var rejected *appevents.RejectedError
+	var resendLimited *identity.MailResendRateLimitError
 	switch {
 	case errors.As(err, &registerErr):
 		return apphttp.NewErrorWithFields(fiber.StatusUnprocessableEntity, identity.CodeRegisterInvalid, registerErr.Fields)
 	// 插件 user.before_register 等同步拒绝：422 + 稳定 reason，不暴露堆栈。
 	case errors.As(err, &rejected):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, rejected.Reason)
+	case errors.As(err, &resendLimited):
+		reason := "auth.password_reset_rate_limited"
+		if errors.Is(err, identity.ErrEmailVerificationRateLimited) {
+			reason = "auth.email_verification_rate_limited"
+		}
+		return apphttp.NewErrorWithRetryAt(fiber.StatusTooManyRequests, reason, resendLimited.RetryAt)
 	case errors.Is(err, identity.ErrInvalidCredentials):
 		return fiber.NewError(fiber.StatusUnauthorized, "auth.invalid_credentials")
 	case errors.Is(err, identity.ErrEmailVerificationTokenNotFound):
@@ -545,7 +556,7 @@ func mapHumanVerificationField(message string) map[string][]string {
 
 func parseHumanVerificationPurpose(value string) (humanverify.Purpose, bool) {
 	switch humanverify.Purpose(value) {
-	case humanverify.PurposeRegister, humanverify.PurposePasswordReset, humanverify.PurposeLoginRisk, humanverify.PurposePostRisk:
+	case humanverify.PurposeRegister, humanverify.PurposePasswordReset, humanverify.PurposeEmailVerification, humanverify.PurposeLoginRisk, humanverify.PurposePostRisk:
 		return humanverify.Purpose(value), true
 	default:
 		return "", false

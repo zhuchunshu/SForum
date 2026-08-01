@@ -911,6 +911,14 @@ ApiResponsePasswordResetSent:
       properties:
         sent:
           type: boolean
+        retryAfterSeconds:
+          type: integer
+          minimum: 1
+          description: Whole seconds until another manual password-reset email request is allowed.
+        retryAt:
+          type: string
+          format: date-time
+          description: Server-authoritative UTC time when another manual password-reset email request is allowed.
 ApiResponsePasswordResetConfirmed:
   type: object
   required:
@@ -930,6 +938,12 @@ ApiResponsePasswordResetConfirmed:
         reset:
           type: boolean
 
+EmailVerificationRequest:
+  type: object
+  properties:
+    humanVerification:
+      "$ref": "#/HumanVerification"
+      description: Required when the deployment enables human verification for email-verification delivery.
 EmailVerificationConfirmRequest:
   type: object
   required:
@@ -949,6 +963,14 @@ ApiResponseEmailVerificationSent:
       required: [sent]
       properties:
         sent: {type: boolean}
+        retryAfterSeconds:
+          type: integer
+          minimum: 1
+          description: Whole seconds until another manual verification email request is allowed.
+        retryAt:
+          type: string
+          format: date-time
+          description: Server-authoritative UTC time when another manual verification email request is allowed.
 ApiResponseEmailVerificationConfirmed:
   type: object
   required: [code, message, data]

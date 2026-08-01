@@ -21,6 +21,13 @@ export type WebPushSubscriptionItem = {
   revokedAt?: string
 }
 
+export function resolveCurrentWebPushSubscriptionId(items: WebPushSubscriptionItem[], storedValue: string | null) {
+  const stored = Number(storedValue)
+  return Number.isSafeInteger(stored) && stored > 0 && items.some(item => item.id === stored && item.status === 'active')
+    ? stored
+    : null
+}
+
 export function decodeApplicationServerKey(value: string) {
   const padded = `${value}${'='.repeat((4 - value.length % 4) % 4)}`
   const binary = atob(padded.replace(/-/g, '+').replace(/_/g, '/'))

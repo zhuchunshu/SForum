@@ -94,6 +94,7 @@ AdminWebOption:
       - human_verification.provider
       - human_verification.scenarios.register
       - human_verification.scenarios.password_reset
+      - human_verification.scenarios.email_verification
       - human_verification.scenarios.login_risk
       - human_verification.scenarios.post_risk
       - human_verification.altcha.secret
@@ -262,6 +263,7 @@ WebOptionInput:
       - human_verification.provider
       - human_verification.scenarios.register
       - human_verification.scenarios.password_reset
+      - human_verification.scenarios.email_verification
       - human_verification.scenarios.login_risk
       - human_verification.scenarios.post_risk
       - human_verification.altcha.widget.type
@@ -409,6 +411,7 @@ AdminWebOptionInput:
       - human_verification.provider
       - human_verification.scenarios.register
       - human_verification.scenarios.password_reset
+      - human_verification.scenarios.email_verification
       - human_verification.scenarios.login_risk
       - human_verification.scenarios.post_risk
       - human_verification.altcha.secret

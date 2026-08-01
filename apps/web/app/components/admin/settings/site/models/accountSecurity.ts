@@ -14,6 +14,10 @@ export type AccountSecurityForm = {
   sessionsKeepDays: number
   loginMaxFailures: number
   loginLockoutMinutes: number
+  mailResendCooldownSeconds: number
+  mailResendWindowMinutes: number
+  mailResendMaxPerTarget: number
+  mailResendMaxPerIP: number
 }
 
 export const recommendedAccountSecurityForm: AccountSecurityForm = {
@@ -26,7 +30,11 @@ export const recommendedAccountSecurityForm: AccountSecurityForm = {
   sessionsMaxDevices: 5,
   sessionsKeepDays: 30,
   loginMaxFailures: 10,
-  loginLockoutMinutes: 15
+  loginLockoutMinutes: 15,
+  mailResendCooldownSeconds: 30,
+  mailResendWindowMinutes: 60,
+  mailResendMaxPerTarget: 3,
+  mailResendMaxPerIP: 10
 }
 
 export function normalizeAccountSecurityForm(items: AccountSecurityOption[]): AccountSecurityForm {
@@ -41,7 +49,11 @@ export function normalizeAccountSecurityForm(items: AccountSecurityOption[]): Ac
     sessionsMaxDevices: boundedInteger(options['identity.sessions.max_devices'], 5, 1, 20),
     sessionsKeepDays: boundedInteger(options['identity.sessions.keep_days'], 30, 1, 365),
     loginMaxFailures: boundedInteger(options['identity.login.max_failures'], 10, 0, 50),
-    loginLockoutMinutes: boundedInteger(options['identity.login.lockout_minutes'], 15, 0, 1440)
+    loginLockoutMinutes: boundedInteger(options['identity.login.lockout_minutes'], 15, 0, 1440),
+    mailResendCooldownSeconds: boundedInteger(options['identity.mail_resend.cooldown_seconds'], 30, 0, 3600),
+    mailResendWindowMinutes: boundedInteger(options['identity.mail_resend.window_minutes'], 60, 1, 1440),
+    mailResendMaxPerTarget: boundedInteger(options['identity.mail_resend.max_per_target'], 3, 1, 100),
+    mailResendMaxPerIP: boundedInteger(options['identity.mail_resend.max_per_ip'], 10, 1, 1000)
   }
 }
 
@@ -56,7 +68,11 @@ export function normalizeAccountSecurityForSave(form: AccountSecurityForm): Acco
     sessionsMaxDevices: boundedInteger(form.sessionsMaxDevices, 5, 1, 20),
     sessionsKeepDays: boundedInteger(form.sessionsKeepDays, 30, 1, 365),
     loginMaxFailures: boundedInteger(form.loginMaxFailures, 10, 0, 50),
-    loginLockoutMinutes: boundedInteger(form.loginLockoutMinutes, 15, 0, 1440)
+    loginLockoutMinutes: boundedInteger(form.loginLockoutMinutes, 15, 0, 1440),
+    mailResendCooldownSeconds: boundedInteger(form.mailResendCooldownSeconds, 30, 0, 3600),
+    mailResendWindowMinutes: boundedInteger(form.mailResendWindowMinutes, 60, 1, 1440),
+    mailResendMaxPerTarget: boundedInteger(form.mailResendMaxPerTarget, 3, 1, 100),
+    mailResendMaxPerIP: boundedInteger(form.mailResendMaxPerIP, 10, 1, 1000)
   }
   if (normalized.passwordMaxLength < normalized.passwordMinLength) {
     normalized.passwordMaxLength = normalized.passwordMinLength
@@ -75,7 +91,11 @@ export function accountSecurityPayload(form: AccountSecurityForm): AccountSecuri
     { name: 'identity.sessions.max_devices', value: String(form.sessionsMaxDevices) },
     { name: 'identity.sessions.keep_days', value: String(form.sessionsKeepDays) },
     { name: 'identity.login.max_failures', value: String(form.loginMaxFailures) },
-    { name: 'identity.login.lockout_minutes', value: String(form.loginLockoutMinutes) }
+    { name: 'identity.login.lockout_minutes', value: String(form.loginLockoutMinutes) },
+    { name: 'identity.mail_resend.cooldown_seconds', value: String(form.mailResendCooldownSeconds) },
+    { name: 'identity.mail_resend.window_minutes', value: String(form.mailResendWindowMinutes) },
+    { name: 'identity.mail_resend.max_per_target', value: String(form.mailResendMaxPerTarget) },
+    { name: 'identity.mail_resend.max_per_ip', value: String(form.mailResendMaxPerIP) }
   ]
 }
 

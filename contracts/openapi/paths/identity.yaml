@@ -87,6 +87,10 @@ humanVerificationChallenge:
         type: string
         enum:
         - register
+        - password_reset
+        - email_verification
+        - login_risk
+        - post_risk
       description: Verification purpose for rate limits and replay scope.
     responses:
       '200':
@@ -251,6 +255,12 @@ emailVerificationRequest:
     operationId: requestEmailVerification
     security:
     - cookieAuth: []
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/identity.yaml#/EmailVerificationRequest"
     responses:
       '200':
         description: Request accepted; sent is false when verification is not required or already complete.
@@ -260,6 +270,8 @@ emailVerificationRequest:
               "$ref": "../schemas/identity.yaml#/ApiResponseEmailVerificationSent"
       '401':
         "$ref": "../components/responses.yaml#/Unauthorized"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
       '429':
         "$ref": "../components/responses.yaml#/TooManyRequests"
 emailVerificationConfirm:
