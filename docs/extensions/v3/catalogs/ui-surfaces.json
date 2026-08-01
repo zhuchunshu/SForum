@@ -2410,10 +2410,30 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
+    "id": "core.component.shared.sfpublic_mobile_bottom_navigation",
+    "contractVersion": "sforum.component.shared.sfpublic_mobile_bottom_navigation@1",
+    "kind": "component",
+    "source": "apps/web/app/components/navigation/SFPublicMobileBottomNavigation.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sfpublic_mobile_navigation",
     "contractVersion": "sforum.component.shared.sfpublic_mobile_navigation@1",
     "kind": "component",
     "source": "apps/web/app/components/navigation/SFPublicMobileNavigation.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfpublic_mobile_search_bar",
+    "contractVersion": "sforum.component.shared.sfpublic_mobile_search_bar@1",
+    "kind": "component",
+    "source": "apps/web/app/components/navigation/SFPublicMobileSearchBar.vue",
     "owners": [
       "public"
     ],

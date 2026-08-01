@@ -808,6 +808,12 @@ Architecture sources:
   explicit `layout="fullwidth-3col"` variant; global theme CSS must not try to
   override the component's base `display` mode by stylesheet order. Theme L1
   paths continue to own their navbar geometry through exact theme assets.
+- `SFNavbar` is the public topbar orchestrator rather than the owner of every
+  narrow-screen surface. `SFPublicMobileSearchBar` owns the mobile search and
+  permission-aware compose row; `SFPublicMobileBottomNavigation` owns the fixed
+  home/post/notification dock and unread badge. This split keeps the shared
+  navbar below the 1000-line architecture gate without weakening its existing
+  desktop/mobile contract.
 - Mobile public chrome follows the approved D soft-panel direction. At narrow
   widths the topbar keeps only appearance, sidebar, and avatar controls in
   that order; notification previews, language, and compose controls remain
@@ -818,6 +824,8 @@ Architecture sources:
   time, category, and reply metadata move below the title. The mobile row also
   exposes the topic's category and at most two API-backed tags as links in the
   same horizontal metadata row as the author ID (wrapping only when needed).
+  The inline mobile author avatar is 24px; the shared list avatar and desktop
+  topic-table size remain unchanged.
   Desktop titles also wrap naturally; desktop grid geometry, separators, and
   square rows remain unchanged.
 - Public mobile drawers use a viewport-wide fixed backdrop (`inset: 0`) and a
@@ -887,6 +895,10 @@ real code-block client plugin and no-op `highlight.server.ts` with
 - Unit tests: `cd apps/web && bun test`
 - Typecheck: `cd apps/web && bun run typecheck`
 - Build: `cd apps/web && bun run build`
+- Architecture preflight: `node tests/validate-architecture-boundaries.mjs`.
+  Run it before committing or pushing after adding, moving, or materially
+  growing production files; an unbaselined handwritten file must not exceed
+  1000 lines.
 - Use the in-app browser for SSR/interaction/responsive checks. Do not kill the
   user's port-3000 dev server.
 - For auth/cache/Page Registry changes, verify hard refresh, client navigation,

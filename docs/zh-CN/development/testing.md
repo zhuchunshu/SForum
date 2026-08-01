@@ -12,6 +12,9 @@ cd apps/api && go test ./app/Models/Forum/...   # 示例：缩小范围
 # 前端类型
 cd apps/web && bun run typecheck
 
+# 架构边界（新增/移动/显著扩展生产文件后优先运行）
+node tests/validate-architecture-boundaries.mjs
+
 # OpenAPI 引用
 ruby scripts/validate-openapi-refs.rb
 
@@ -20,6 +23,16 @@ ruby scripts/validate-openapi-refs.rb
 ```
 
 `./scripts/test.sh` 通常包含：Go 测试、OpenAPI 校验、Nuxt typecheck、以及 `tests/validate-*` 产品脚本。耗时较长，适合 PR 前或大改后。
+
+## 文件规模与架构预检
+
+- 修改超过 500 行的手写生产文件前，先确认当前行数并判断是否应按职责拆分。
+- 未列入 legacy 基线的文件不得超过 1000 行；已有 legacy 文件不得突破其
+  记录上限。不要为了通过 CI 而扩大基线，确需例外时按 `AGENTS.md` 写决策记录。
+- 新增、移动或显著扩展生产文件后，提交或推送前先运行
+  `node tests/validate-architecture-boundaries.mjs`，再运行耗时更长的完整门禁。
+- 聚焦测试只能证明局部行为，不能替代架构预检或共享前端契约所要求的完整
+  `cd apps/web && bun test`。
 
 ## 契约与扩展相关校验
 

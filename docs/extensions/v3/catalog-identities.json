@@ -4699,12 +4699,28 @@
       "source": "apps/web/app/components/identity/recovery/SFRecoveryShell.vue"
     },
     {
+      "id": "core.component.shared.sfpublic_mobile_bottom_navigation",
+      "contractVersion": "sforum.component.shared.sfpublic_mobile_bottom_navigation@1",
+      "kind": "component",
+      "owners": ["public"],
+      "state": "active",
+      "source": "apps/web/app/components/navigation/SFPublicMobileBottomNavigation.vue"
+    },
+    {
       "id": "core.component.shared.sfpublic_mobile_navigation",
       "contractVersion": "sforum.component.shared.sfpublic_mobile_navigation@1",
       "kind": "component",
       "owners": ["public"],
       "state": "active",
       "source": "apps/web/app/components/navigation/SFPublicMobileNavigation.vue"
+    },
+    {
+      "id": "core.component.shared.sfpublic_mobile_search_bar",
+      "contractVersion": "sforum.component.shared.sfpublic_mobile_search_bar@1",
+      "kind": "component",
+      "owners": ["public"],
+      "state": "active",
+      "source": "apps/web/app/components/navigation/SFPublicMobileSearchBar.vue"
     },
     {
       "id": "core.component.shared.sfpublic_navigation_links",

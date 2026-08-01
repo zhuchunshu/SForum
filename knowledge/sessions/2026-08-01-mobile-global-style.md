@@ -14,6 +14,8 @@
   two tag links sit in the same horizontal metadata row as the author ID and
   wrap only when space is insufficient. Desktop topic rows retain their
   existing table geometry, with titles no longer forced into one-line ellipsis.
+- Reduced only the inline mobile topic-row author avatar from 30px to 24px;
+  shared list and desktop avatar sizing is unchanged.
 - Mobile drawer backdrops now cover the full viewport and drawers start at the
   viewport top, above the topbar and search region.
 - Mobile public layout shells no longer inherit the desktop viewport minimum
@@ -39,6 +41,8 @@
 - Prior 402x905 mobile Browser evidence confirmed no horizontal overflow,
   wrapped topic titles and visible metadata, the three-item bottom nav, and a
   full-viewport drawer backdrop above the topbar.
+- The 24px avatar follow-up received source/diff verification only; final
+  rendered confirmation is intentionally left for operator manual QA.
 
 ## Next
 

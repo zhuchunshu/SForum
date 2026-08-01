@@ -888,9 +888,9 @@
   }
 
   .sf-page.sf-theme--default .sf-home-topic-row__mobile-avatar .sf-avatar {
-    width: 30px;
-    height: 30px;
-    font-size: 11px;
+    width: 24px;
+    height: 24px;
+    font-size: 10px;
   }
 
   .sf-page.sf-theme--default .sf-home-topic-row__meta > span:nth-child(2) {

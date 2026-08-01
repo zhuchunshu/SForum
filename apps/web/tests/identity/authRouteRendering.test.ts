@@ -20,7 +20,8 @@ const mountWindow = new Window({ url: 'http://localhost/login' })
 Object.assign(globalThis, {
   window: mountWindow, document: mountWindow.document, navigator: mountWindow.navigator,
   Element: mountWindow.Element, HTMLElement: mountWindow.HTMLElement, SVGElement: mountWindow.SVGElement,
-  Node: mountWindow.Node, Event: mountWindow.Event, MouseEvent: mountWindow.MouseEvent
+  Node: mountWindow.Node, Event: mountWindow.Event, MouseEvent: mountWindow.MouseEvent,
+  useSForumSeo: () => {}
 })
 const mountRoot = fileURLToPath(new URL('../..', import.meta.url))
 const mountVue = await import('vue')

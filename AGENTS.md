@@ -453,6 +453,16 @@ While implementing:
 - Treat 500 lines as a prompt to review cohesion and 1000 lines as a hard
   warning. Split by responsibility, not arbitrary size. Keep unavoidable
   generated files clearly identified and handwritten logic elsewhere.
+- Before adding behavior to a handwritten production file already above 500
+  lines, check its current line count and identify a focused extraction
+  boundary. An unbaselined file must not cross 1000 lines, and a legacy file
+  must not grow past its recorded cap. Do not raise a baseline merely to make a
+  feature pass; follow the decision-record requirement above when an exception
+  is genuinely unavoidable.
+- Run `node tests/validate-architecture-boundaries.mjs` after adding, moving, or
+  materially growing production files and before committing or pushing. Run
+  this fast gate before slower broad suites; focused feature tests do not
+  replace it.
 
 ## Network And Dependency Commands
 

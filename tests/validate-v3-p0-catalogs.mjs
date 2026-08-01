@@ -196,7 +196,7 @@ assertIdentityMutationRejected('UI source drift', changed => {
   changed.ui[0].source = 'apps/web/app/components/Moved.vue'
 }, 'new or moved UI surface')
 
-assert(routes.length === 337, `route inventory must contain exactly 337 reviewed routes: ${routes.length}`)
+assert(routes.length === 338, `route inventory must contain exactly 338 reviewed routes: ${routes.length}`)
 assert(identities.routes.length === routes.length, 'reviewed route identity map must cover every current route')
 unique(routes, item => item.id, 'route inventory ids')
 unique(routes, item => `${item.method} ${item.path}`, 'route inventory method/path pairs')
@@ -229,7 +229,7 @@ const ui = load('docs/extensions/v3/catalogs/ui-surfaces.json')
 const retiredUI = load('docs/extensions/v3/catalogs/ui-retired-identities.json')
 // M1-M6 fixed-tab extraction and the reviewed admin component moves expand the
 // stable surface catalog without changing public/admin ownership semantics.
-assert(ui.length === 283, `UI inventory must contain exactly 283 reviewed surfaces: ${ui.length}`)
+assert(ui.length === 285, `UI inventory must contain exactly 285 reviewed surfaces: ${ui.length}`)
 assert(JSON.stringify(retiredUI) === JSON.stringify(retiredIdentities), 'generated retired UI reservation catalog drifted from its reviewed ledger')
 const activeUIIdentities = identities.ui.filter(item => item.state === 'active')
 assert(activeUIIdentities.length === ui.length, 'active reviewed UI identity map must cover every current UI surface')

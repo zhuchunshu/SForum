@@ -110,6 +110,14 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- CI architecture gate repair: `SFNavbar.vue` dropped from 1132 to 948 lines by
+  extracting focused mobile search and bottom-navigation components; the
+  architecture gate, full 852-test Web suite, typecheck, V3 catalogs, complete
+  repository gate, and desktop/mobile Browser regression all pass. Development
+  rules now require an early architecture preflight for large production-file
+  changes:
+  `sessions/2026-08-01-ci-quality-gate-repair.md`
+
 - Deleted comments now render a localized bordered notice instead of a blank
   body in the shared public comment component; focused presentation tests and
   Nuxt typecheck pass:
@@ -122,9 +130,9 @@ load archived sessions or completed plans as current context.
   `sessions/2026-08-01-oauth-core-host-contracts.md`
 
 - Mobile global style: the approved D soft-panel direction is implemented in
-  the shared public navbar, home topic rows, and global mobile drawer baseline;
-  focused frontend tests and Nuxt typecheck pass, with desktop and prior
-  402px mobile Browser evidence recorded:
+  the shared public navbar, home topic rows, and global mobile drawer baseline.
+  The inline mobile topic author avatar is now 24px; its rendered follow-up is
+  intentionally left for operator manual QA:
   `sessions/2026-08-01-mobile-global-style.md`
 
 - CI legal SEO test fix: the failed GitHub Actions Quality gate all-web unit
