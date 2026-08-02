@@ -13,6 +13,12 @@
 - Kept admin email-verification mutation authority in the Host Guard:
   `user.manage`, `super_admin` target protection, and strict boolean payload
   validation.
+- Follow-up run `30737742931` cleared the original Page Registry failure and
+  exposed two stale static gates: the moderation validator still scanned
+  `SFNavbar.vue` after user-menu ownership moved to `usePublicUserMenu`, and
+  the V3 validator still expected 338 routes / 285 UI surfaces. The validators
+  now follow the real menu owner and ratchet the reviewed catalogs to 342
+  routes / 290 UI surfaces.
 
 ## Decisions
 
@@ -25,16 +31,16 @@
 - Passed focused Go tests for Pages, PageViewModels, ThemeCompiler, HTTP
   Guards, Routes, and ComponentCatalog.
 - Passed full Web unit suite: 878 tests; Page Registry runtime validation;
-  architecture validation; V3 catalog generation check; default-theme
-  `extension validate` and `extension test`; and `git diff --check`.
+  production Web build; architecture validation; V3 catalog generation and
+  full catalog validation; default-theme `extension validate` and
+  `extension test`; and `git diff --check`.
 - `./scripts/test.sh` cannot provide a clean local full-gate result against the
   shared development database because it has unrelated stale schema and
   publication state. GitHub Actions uses a fresh migrated PostgreSQL service.
 
 ## Next
 
-- Re-run the Quality workflow on a fresh CI database after these changes are
-  pushed.
+- Push the follow-up validator changes and re-run the Quality workflow.
 
 ## Open Questions
 

@@ -116,9 +116,10 @@ load archived sessions or completed plans as current context.
 - CI email-verification Page Registry fix: `/email-verification` now has a
   complete catalog, ViewModel, Host-island, default-theme template, and V3
   route/UI identity chain. The admin mutation guard remains Host-authoritative.
-  The original catalog-completeness failure, full Web suite, focused Go tests,
-  theme validation/tests, catalogs, and architecture checks pass; the local
-  full repository gate is limited by unrelated stale shared-database state:
+  A follow-up CI run exposed and repaired stale moderation ownership and V3
+  route/UI count gates. The full Web suite/build, focused Go tests, theme
+  validation/tests, catalogs, and architecture checks pass; the local full
+  repository gate remains limited by unrelated stale shared-database state:
   `sessions/2026-08-02-ci-email-verification-page-registry.md`
 
 - Manual password-recovery and email-verification sends now share configurable,

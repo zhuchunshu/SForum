@@ -20,8 +20,10 @@ for (const locale of ['zh-CN', 'en-US']) {
 }
 
 const navbar = read('apps/web/app/components/SFNavbar.vue')
-assert(navbar.includes('FORUM_PERMISSIONS.moderationReview'), 'Public moderator entry must require moderation.review')
-assert(navbar.includes("localePath('/moderation')"), 'Public moderator entry must link to /moderation')
+assert(navbar.includes('usePublicUserMenu'), 'Public navbar must consume the shared user menu')
+const publicUserMenu = read('apps/web/app/composables/navigation/usePublicUserMenu.ts')
+assert(publicUserMenu.includes('FORUM_PERMISSIONS.moderationReview'), 'Public moderator entry must require moderation.review')
+assert(publicUserMenu.includes("localePath('/moderation')"), 'Public moderator entry must link to /moderation')
 
 const adminPage = read('apps/web/app/pages/admin/moderation.vue')
 assert(adminPage.includes('ModerationSettingsForm'), 'Admin moderation page must render the settings form')
