@@ -46,6 +46,7 @@ func productionThemeIslandBindings() map[string]themecompiler.IslandBinding {
 		"sf-login-form":                 {ComponentID: "identity.component.login_form"},
 		"sf-register-form":              {ComponentID: "identity.component.register_form"},
 		"sf-external-auth-continuation": {ComponentID: "identity.component.external_auth_continuation"},
+		"sf-email-verification":         {ComponentID: "identity.component.email_verification"},
 		"sf-recovery-request":           {ComponentID: "identity.component.recovery_request_form"},
 		"sf-recovery-confirm":           {ComponentID: "identity.component.recovery_confirm_form"},
 		"sf-extension-widget": {
@@ -111,6 +112,8 @@ func RequiredThemeBodyIslandTag(pageID string) string {
 		return "sf-register-form"
 	case "auth.external_continuation":
 		return "sf-external-auth-continuation"
+	case "auth.email_verification":
+		return "sf-email-verification"
 	case "auth.forgot_password":
 		return "sf-recovery-request"
 	case "auth.reset_password":

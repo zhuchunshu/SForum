@@ -179,6 +179,12 @@ function routePolicy(route) {
   if (path.startsWith('/api/v1/auth/external-identities') || path === '/api/v1/auth/password') {
     return ['login', 'current active actor; token/session ownership']
   }
+  if (path === '/api/v1/auth/email-verification/request') {
+    return ['login', 'identity bootstrap, risk, rate-limit, and human-verification policy']
+  }
+  if (path === '/api/v1/auth/email-verification/confirm') {
+    return ['public', 'identity bootstrap, risk, rate-limit, and human-verification policy']
+  }
   if (/^\/api\/v1\/auth\/(registration-status|register|login|password-reset)/.test(path)) return ['public', 'identity bootstrap, risk, rate-limit, and human-verification policy']
   if (path === '/api/v1/human-verification/challenge') return ['public', 'purpose allowlist and Redis rate/replay policy']
   if (path.startsWith('/api/v1/profile') && !path.startsWith('/api/v1/profiles')) return ['login', 'current active actor; attachment.upload for avatar upload']

@@ -105,6 +105,7 @@ var coreCatalog = []PageDefinition{
 	{ID: "auth.login", PathPattern: "/login", Access: AccessGuest, ContractVersion: "sforum.page.login@1", CoreComponent: "pages/login", Replaceable: true, Notes: "replace must embed host login form island"},
 	{ID: "auth.register", PathPattern: "/register", Access: AccessGuest, ContractVersion: "sforum.page.register@1", CoreComponent: "pages/register", Replaceable: true, RequiresFeatures: []string{"features.registration"}},
 	{ID: "auth.external_continuation", PathPattern: "/auth/continue", Access: AccessPublic, ContractVersion: "sforum.page.external_auth_continuation@1", CoreComponent: "pages/auth/continue", Replaceable: true, Notes: "replace must embed host external-auth continuation island"},
+	{ID: "auth.email_verification", PathPattern: "/email-verification", Access: AccessLogin, ContractVersion: "sforum.page.email_verification@1", CoreComponent: "pages/email-verification", Replaceable: true, Notes: "replace must embed host email-verification island"},
 	{ID: "auth.forgot_password", PathPattern: "/forgot-password", Access: AccessPublic, ContractVersion: "sforum.page.forgot_password@1", CoreComponent: "pages/forgot-password", Replaceable: true},
 	{ID: "auth.reset_password", PathPattern: "/reset-password", Access: AccessPublic, ContractVersion: "sforum.page.reset_password@1", CoreComponent: "pages/reset-password", Replaceable: true},
 	{ID: "site.terms", PathPattern: "/terms", Access: AccessPublic, ContractVersion: "sforum.page.terms@1", CoreComponent: "pages/terms", Replaceable: true},

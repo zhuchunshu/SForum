@@ -366,6 +366,11 @@ type ExternalAuthContinuationPageViewModel struct {
 	Form HostFormBoundary  `json:"form"`
 }
 
+type EmailVerificationPageViewModel struct {
+	Base PageViewModelBase `json:"base"`
+	Form HostFormBoundary  `json:"form"`
+}
+
 type ForgotPasswordPageViewModel struct {
 	Base PageViewModelBase `json:"base"`
 	Form HostFormBoundary  `json:"form"`

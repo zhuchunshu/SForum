@@ -1250,6 +1250,24 @@
       "path": "/api/v1/attachments/:publicId/content"
     },
     {
+      "id": "core.route.identity.email_verification_confirm.get",
+      "contractVersion": "sforum.route.identity.email_verification_confirm.get@1",
+      "method": "GET",
+      "path": "/api/v1/auth/email-verification/confirm"
+    },
+    {
+      "id": "core.route.identity.email_verification_confirm.post",
+      "contractVersion": "sforum.route.identity.email_verification_confirm.post@1",
+      "method": "POST",
+      "path": "/api/v1/auth/email-verification/confirm"
+    },
+    {
+      "id": "core.route.identity.email_verification_request",
+      "contractVersion": "sforum.route.identity.email_verification_request@1",
+      "method": "POST",
+      "path": "/api/v1/auth/email-verification/request"
+    },
+    {
       "id": "core.route.identity.external_identities",
       "contractVersion": "sforum.route.identity.external_identities@1",
       "method": "GET",
@@ -1980,6 +1998,12 @@
       "contractVersion": "sforum.route.identity.admin_clear_user_client_ips@1",
       "method": "POST",
       "path": "/api/v1/users/:userID/client-ips/clear"
+    },
+    {
+      "id": "core.route.identity.set_user_email_verification",
+      "contractVersion": "sforum.route.identity.set_user_email_verification@1",
+      "method": "PUT",
+      "path": "/api/v1/users/:userID/email-verification"
     },
     {
       "id": "core.route.identity.admin_set_user_password",
@@ -4793,6 +4817,46 @@
       "owners": ["public"],
       "state": "active",
       "source": "apps/web/app/pages/settings/password.vue"
+    },
+    {
+      "id": "core.component.page.auth.email_verification",
+      "contractVersion": "sforum.component.page.auth.email_verification@1",
+      "kind": "page",
+      "owners": ["public"],
+      "state": "active",
+      "source": "apps/web/app/pages/email-verification.vue"
+    },
+    {
+      "id": "core.component.shared.sfemail_verification_page",
+      "contractVersion": "sforum.component.shared.sfemail_verification_page@1",
+      "kind": "component",
+      "owners": ["public"],
+      "state": "active",
+      "source": "apps/web/app/components/identity/SFEmailVerificationPage.vue"
+    },
+    {
+      "id": "core.component.admin.sfadmin_user_email_verification_control",
+      "contractVersion": "sforum.component.admin.sfadmin_user_email_verification_control@1",
+      "kind": "component",
+      "owners": ["admin"],
+      "state": "active",
+      "source": "apps/web/app/components/admin/identity/users/SFAdminUserEmailVerificationControl.vue"
+    },
+    {
+      "id": "core.component.shared.sfpublic_mobile_right_drawer_header",
+      "contractVersion": "sforum.component.shared.sfpublic_mobile_right_drawer_header@1",
+      "kind": "component",
+      "owners": ["public"],
+      "state": "active",
+      "source": "apps/web/app/components/navigation/SFPublicMobileRightDrawerHeader.vue"
+    },
+    {
+      "id": "core.component.shared.sfpublic_mobile_user_menu",
+      "contractVersion": "sforum.component.shared.sfpublic_mobile_user_menu@1",
+      "kind": "component",
+      "owners": ["public"],
+      "state": "active",
+      "source": "apps/web/app/components/navigation/SFPublicMobileUserMenu.vue"
     }
   ]
 }

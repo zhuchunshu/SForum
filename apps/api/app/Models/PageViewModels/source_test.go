@@ -209,6 +209,7 @@ func TestCorePageViewModelSourcePopulatesEveryCatalogContract(t *testing.T) {
 		"auth.login":                   {"/login", nil, nil, reflect.TypeOf(themecompiler.LoginPageViewModel{})},
 		"auth.register":                {"/register", nil, nil, reflect.TypeOf(themecompiler.RegisterPageViewModel{})},
 		"auth.external_continuation":   {"/auth/continue", nil, url.Values{"ticket": {"opaque"}}, reflect.TypeOf(themecompiler.ExternalAuthContinuationPageViewModel{})},
+		"auth.email_verification":      {"/email-verification", nil, nil, reflect.TypeOf(themecompiler.EmailVerificationPageViewModel{})},
 		"auth.forgot_password":         {"/forgot-password", nil, nil, reflect.TypeOf(themecompiler.ForgotPasswordPageViewModel{})},
 		"auth.reset_password":          {"/reset-password", nil, url.Values{"token": {"exact-token"}}, reflect.TypeOf(themecompiler.ResetPasswordPageViewModel{})},
 		"site.terms":                   {"/terms", nil, nil, reflect.TypeOf(themecompiler.TermsPageViewModel{})},

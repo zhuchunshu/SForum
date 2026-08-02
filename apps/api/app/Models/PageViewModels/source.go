@@ -199,6 +199,12 @@ func (s *CorePageViewModelSource) Populate(ctx context.Context, input CorePageVi
 	case "auth.external_continuation":
 		request.SEO.Robots = "noindex,nofollow"
 		request.Data.ExternalContinuation = &themecompiler.ExternalAuthContinuationPageViewModel{}
+	case "auth.email_verification":
+		if input.Actor.ID <= 0 {
+			return pages.CorePageViewModelRequest{}, ErrCorePageDataUnauthorized
+		}
+		request.SEO.Robots = "noindex,nofollow"
+		request.Data.EmailVerification = &themecompiler.EmailVerificationPageViewModel{}
 	case "auth.forgot_password":
 		request.Data.ForgotPassword = &themecompiler.ForgotPasswordPageViewModel{}
 	case "auth.reset_password":

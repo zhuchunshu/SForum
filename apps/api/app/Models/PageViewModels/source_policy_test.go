@@ -108,6 +108,37 @@ func TestRegisterViewModelHonorsCatalogFeatureRequirement(t *testing.T) {
 	}
 }
 
+func TestEmailVerificationViewModelRequiresLoginAndKeepsHostFormBoundary(t *testing.T) {
+	source := NewCorePageViewModelSource(CorePageViewModelDependencies{
+		Options: policyOptions{guestRead: "public"}, SiteChrome: sourceChrome{},
+	})
+	request := pages.CorePageViewModelRequest{
+		PageID: "auth.email_verification", Locale: "en-US", Path: "/email-verification",
+		SEO: themecompiler.PageSEOView{Title: "auth.email_verification"},
+	}
+	if _, err := source.Populate(t.Context(), CorePageViewModelInput{Request: request}); !errors.Is(err, ErrCorePageDataUnauthorized) {
+		t.Fatalf("anonymous email verification error = %v", err)
+	}
+
+	populated, err := source.Populate(t.Context(), CorePageViewModelInput{
+		Request: request, Actor: identity.Actor{ID: 8, Status: identity.UserStatusActive},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if populated.SEO.Robots != "noindex,nofollow" {
+		t.Fatalf("email verification robots = %q", populated.SEO.Robots)
+	}
+	model, err := pages.BuildCorePageViewModel(populated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	verification, ok := model.(themecompiler.EmailVerificationPageViewModel)
+	if !ok || verification.Form.ComponentID != "identity.component.email_verification" || len(verification.Form.ActionRouteIDs) != 1 || verification.Form.ActionRouteIDs[0] != "core.route.identity.email_verification_request" {
+		t.Fatalf("email verification form boundary = %#v", model)
+	}
+}
+
 func TestNotFoundViewModelIsNeverIndexable(t *testing.T) {
 	source := NewCorePageViewModelSource(CorePageViewModelDependencies{Options: policyOptions{guestRead: "public"}, SiteChrome: sourceChrome{}})
 	populated, err := source.Populate(t.Context(), CorePageViewModelInput{Request: pages.CorePageViewModelRequest{

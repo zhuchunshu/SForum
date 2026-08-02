@@ -59,6 +59,16 @@ func TestExternalAuthContinuationPageContract(t *testing.T) {
 	}
 }
 
+func TestEmailVerificationPageContract(t *testing.T) {
+	page, ok := Find("auth.email_verification")
+	if !ok || page.PathPattern != "/email-verification" || page.Access != AccessLogin || !page.Replaceable || page.ContractVersion != "sforum.page.email_verification@1" {
+		t.Fatalf("email verification contract missing or invalid: %#v ok=%v", page, ok)
+	}
+	if RequiredThemeBodyIslandTag(page.ID) != "sf-email-verification" {
+		t.Fatalf("email verification body island mismatch: %q", RequiredThemeBodyIslandTag(page.ID))
+	}
+}
+
 func TestLocalPasswordSettingsPageContract(t *testing.T) {
 	page, ok := Find("forum.settings.password")
 	if !ok || page.PathPattern != "/settings/password" || page.Access != AccessLogin || !page.Replaceable || page.ContractVersion != "sforum.page.settings_password@1" {

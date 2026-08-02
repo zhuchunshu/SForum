@@ -193,6 +193,11 @@ func BuildCorePageViewModel(request CorePageViewModelRequest) (any, error) {
 			"core.route.identity.link_external_auth_continuation",
 		)
 		return model, nil
+	case "auth.email_verification":
+		model := valueOrZero(request.Data.EmailVerification)
+		model.Base = base
+		model.Form = hostForm("identity.component.email_verification", "core.route.identity.email_verification_request")
+		return model, nil
 	case "auth.forgot_password":
 		model := valueOrZero(request.Data.ForgotPassword)
 		model.Base = base

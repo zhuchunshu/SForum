@@ -25,7 +25,7 @@ func identityAdminGuardEvaluator(policy IdentityAdminGuardPolicy) routes.CoreGua
 		if err != nil || userID <= 0 {
 			return routes.ErrCoreGuardEvaluatorUnavailable
 		}
-		// 这五条后台写路由是 deliberate Store-I/O exception。目标保护等级必须
+		// 这些后台写路由是 deliberate Store-I/O exception。目标保护等级必须
 		// 来自当前 PostgreSQL 状态，不能使用无法跨 API 节点失效的本地缓存。
 		subject, err := policy.LoadAdminGuardSubject(ctx, userID)
 		if err != nil || subject.UserID != userID || !subject.Exists {
@@ -46,6 +46,7 @@ func identityAdminSubjectRoute(routeID string) bool {
 	switch routeID {
 	case "core.route.identity.update_user",
 		"core.route.identity.admin_clear_user_client_ips",
+		"core.route.identity.set_user_email_verification",
 		"core.route.identity.admin_set_user_password",
 		"core.route.identity.replace_user_permission_overrides",
 		"core.route.identity.replace_user_roles",
@@ -88,6 +89,15 @@ func authorizeIdentityAdminSubject(evaluation routes.CoreGuardEvaluation, subjec
 	case "core.route.identity.admin_clear_user_client_ips":
 		if subject.IsSuperAdmin && !actorIsSuperAdmin {
 			return routes.ErrCoreGuardPermissionDenied
+		}
+		return requireCoreGuardPermission(evaluation, identity.PermissionUserManage)
+	case "core.route.identity.set_user_email_verification":
+		if subject.IsSuperAdmin && !actorIsSuperAdmin {
+			return routes.ErrCoreGuardPermissionDenied
+		}
+		var input identityAdminEmailVerificationGuardInput
+		if err := decodeGuardJSON(evaluation.Request.Body, &input); err != nil || input.Verified == nil {
+			return routes.ErrCoreGuardEvaluatorUnavailable
 		}
 		return requireCoreGuardPermission(evaluation, identity.PermissionUserManage)
 	case "core.route.identity.admin_set_user_password":
@@ -153,6 +163,10 @@ type identityAdminUpdateGuardInput struct {
 
 type identityAdminRolesGuardInput struct {
 	RoleKeys []string `json:"roleKeys"`
+}
+
+type identityAdminEmailVerificationGuardInput struct {
+	Verified *bool `json:"verified"`
 }
 
 type identityAdminSetPasswordGuardInput struct {

@@ -1149,10 +1149,13 @@ func TestProductionHumanVerificationGuardRejectsPurposeDrift(t *testing.T) {
 func TestProductionIdentityBootstrapGuardKeepsExecutableAuthFlowsHostOwned(t *testing.T) {
 	authorizer := NewProductionRouteGuardAuthorizer()
 	executable := map[string]bool{
-		"core.route.identity.login":                  true,
-		"core.route.identity.register":               true,
-		"core.route.identity.password_reset_request": true,
-		"core.route.identity.password_reset_confirm": true,
+		"core.route.identity.login":                           true,
+		"core.route.identity.register":                        true,
+		"core.route.identity.email_verification_request":      true,
+		"core.route.identity.email_verification_confirm.get":  true,
+		"core.route.identity.email_verification_confirm.post": true,
+		"core.route.identity.password_reset_request":          true,
+		"core.route.identity.password_reset_confirm":          true,
 	}
 	for _, route := range routes.CoreRouteCatalog() {
 		if !executable[route.ID] {
@@ -1630,6 +1633,7 @@ func TestProductionIdentityAdminGuardPartitionsCatalogByProvablePolicy(t *testin
 		"core.route.identity.replace_role_permissions":          {method: "PUT", supported: true, permissions: []string{identity.PermissionRoleManage}, body: `{"permissions":["post.create"]}`},
 		"core.route.identity.update_user":                       {method: "PATCH"},
 		"core.route.identity.admin_clear_user_client_ips":       {method: "POST"},
+		"core.route.identity.set_user_email_verification":       {method: "PUT"},
 		"core.route.identity.admin_set_user_password":           {method: "POST"},
 		"core.route.identity.replace_user_permission_overrides": {method: "PUT"},
 		"core.route.identity.replace_user_roles":                {method: "PUT"},

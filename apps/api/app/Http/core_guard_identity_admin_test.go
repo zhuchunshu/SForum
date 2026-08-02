@@ -9,7 +9,7 @@ import (
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
 
-func TestProductionIdentityAdminSubjectGuardAllowsFiveResourceRoutes(t *testing.T) {
+func TestProductionIdentityAdminSubjectGuardAllowsResourceRoutes(t *testing.T) {
 	policy := &testIdentityAdminGuardPolicy{subject: identity.AdminGuardSubject{
 		UserID: 7, Exists: true,
 	}}
@@ -21,6 +21,7 @@ func TestProductionIdentityAdminSubjectGuardAllowsFiveResourceRoutes(t *testing.
 	}{
 		{"core.route.identity.update_user", identity.PermissionUserManage, `{"displayName":"Managed"}`},
 		{"core.route.identity.admin_clear_user_client_ips", identity.PermissionUserManage, ""},
+		{"core.route.identity.set_user_email_verification", identity.PermissionUserManage, `{"verified":true}`},
 		{"core.route.identity.admin_set_user_password", identity.PermissionUserManage, `{"password":"a-very-strong-password"}`},
 		{"core.route.identity.replace_user_permission_overrides", identity.PermissionUserPermissionOverride, `{"allow":[],"deny":[]}`},
 		{"core.route.identity.replace_user_roles", identity.PermissionUserManage, `{"roleKeys":["member"]}`},
@@ -52,6 +53,7 @@ func TestProductionIdentityAdminSubjectGuardEnforcesTargetBoundaries(t *testing.
 		{name: "initial disabled", routeID: "core.route.identity.update_user", permissions: []string{"*"}, body: `{"status":"disabled"}`, subject: identity.AdminGuardSubject{IsInitialSuperAdmin: true, IsSuperAdmin: true}},
 		{name: "super user update", routeID: "core.route.identity.update_user", permissions: []string{identity.PermissionUserManage}, body: `{"displayName":"No"}`, subject: identity.AdminGuardSubject{IsSuperAdmin: true}},
 		{name: "super ip clear", routeID: "core.route.identity.admin_clear_user_client_ips", permissions: []string{identity.PermissionUserManage}, subject: identity.AdminGuardSubject{IsSuperAdmin: true}},
+		{name: "super email verification", routeID: "core.route.identity.set_user_email_verification", permissions: []string{identity.PermissionUserManage}, body: `{"verified":true}`, subject: identity.AdminGuardSubject{IsSuperAdmin: true}},
 		{name: "super password", routeID: "core.route.identity.admin_set_user_password", permissions: []string{identity.PermissionUserManage}, body: `{"password":"a-very-strong-password"}`, subject: identity.AdminGuardSubject{IsSuperAdmin: true}},
 		{name: "self override", routeID: "core.route.identity.replace_user_permission_overrides", actorID: 7, permissions: []string{identity.PermissionUserPermissionOverride}},
 		{name: "super override", routeID: "core.route.identity.replace_user_permission_overrides", permissions: []string{identity.PermissionUserPermissionOverride}, subject: identity.AdminGuardSubject{IsSuperAdmin: true}},
@@ -88,6 +90,7 @@ func TestProductionIdentityAdminSubjectGuardAllowsProtectedChangesForSuperAdmin(
 	}{
 		{name: "ban", routeID: "core.route.identity.update_user", body: `{"status":"banned"}`},
 		{name: "update super", routeID: "core.route.identity.update_user", body: `{"displayName":"Managed"}`, subject: identity.AdminGuardSubject{IsSuperAdmin: true}},
+		{name: "verify super email", routeID: "core.route.identity.set_user_email_verification", body: `{"verified":true}`, subject: identity.AdminGuardSubject{IsSuperAdmin: true}},
 		{name: "password super", routeID: "core.route.identity.admin_set_user_password", body: `{"password":"a-very-strong-password"}`, subject: identity.AdminGuardSubject{IsSuperAdmin: true}},
 		{name: "retain initial role", routeID: "core.route.identity.replace_user_roles", body: `{"roleKeys":["member","super_admin"]}`, subject: identity.AdminGuardSubject{IsInitialSuperAdmin: true, IsSuperAdmin: true}},
 	}

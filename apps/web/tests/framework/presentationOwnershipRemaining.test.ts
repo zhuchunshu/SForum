@@ -23,6 +23,7 @@ describe('remaining public presentation ownership', () => {
     ['app/pages/login.vue', 'auth.login', 'SFLoginFormPage', 'identity.component.login_form', 'login.html'],
     ['app/pages/register.vue', 'auth.register', 'SFRegisterFormPage', 'identity.component.register_form', 'register.html'],
     ['app/pages/auth/continue.vue', 'auth.external_continuation', 'SFExternalAuthContinuationPage', 'identity.component.external_auth_continuation', 'external-auth-continuation.html'],
+    ['app/pages/email-verification.vue', 'auth.email_verification', 'SFEmailVerificationPage', 'identity.component.email_verification', 'email-verification.html'],
     ['app/pages/forgot-password.vue', 'auth.forgot_password', 'SFRecoveryRequestPage', 'identity.component.recovery_request_form', 'forgot-password.html'],
     ['app/pages/reset-password.vue', 'auth.reset_password', 'SFRecoveryConfirmPage', 'identity.component.recovery_confirm_form', 'reset-password.html'],
   ] as const
@@ -73,6 +74,7 @@ describe('remaining public presentation ownership', () => {
     expect(template).toContain("'identity.component.login_form': defineAsyncComponent(() => import('./identity/SFLoginFormPage.vue'))")
     expect(template).toContain("'identity.component.register_form': defineAsyncComponent(() => import('./identity/SFRegisterFormPage.vue'))")
     expect(template).toContain("'identity.component.external_auth_continuation': defineAsyncComponent(() => import('./identity/SFExternalAuthContinuationPage.vue'))")
+    expect(template).toContain("'identity.component.email_verification': defineAsyncComponent(() => import('./identity/SFEmailVerificationPage.vue'))")
     expect(template).toContain("'identity.component.recovery_request_form': defineAsyncComponent(() => import('./identity/SFRecoveryRequestPage.vue'))")
     expect(template).toContain("'identity.component.recovery_confirm_form': defineAsyncComponent(() => import('./identity/SFRecoveryConfirmPage.vue'))")
     expect(template).toContain("'system.component.not_found': SFNotFoundPageContent")

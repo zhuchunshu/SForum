@@ -690,6 +690,16 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
+    "id": "core.component.admin.sfadmin_user_email_verification_control",
+    "contractVersion": "sforum.component.admin.sfadmin_user_email_verification_control@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/identity/users/SFAdminUserEmailVerificationControl.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
     "id": "core.component.admin.sfadmin_user_list_toolbar",
     "contractVersion": "sforum.component.admin.sfadmin_user_list_toolbar@1",
     "kind": "component",
@@ -1315,6 +1325,17 @@
       "admin"
     ],
     "targetRegistry": "P7 Admin Surface Registry"
+  },
+  {
+    "id": "core.component.page.auth.email_verification",
+    "contractVersion": "sforum.component.page.auth.email_verification@1",
+    "kind": "page",
+    "route": "/email-verification",
+    "source": "apps/web/app/pages/email-verification.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.page.auth.external_continuation",
@@ -1986,6 +2007,16 @@
     "targetRegistry": "P9 Component Registry"
   },
   {
+    "id": "core.component.shared.sfemail_verification_page",
+    "contractVersion": "sforum.component.shared.sfemail_verification_page@1",
+    "kind": "component",
+    "source": "apps/web/app/components/identity/SFEmailVerificationPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sfempty_state",
     "contractVersion": "sforum.component.shared.sfempty_state@1",
     "kind": "component",
@@ -2430,10 +2461,30 @@
     "targetRegistry": "P9 Component Registry"
   },
   {
+    "id": "core.component.shared.sfpublic_mobile_right_drawer_header",
+    "contractVersion": "sforum.component.shared.sfpublic_mobile_right_drawer_header@1",
+    "kind": "component",
+    "source": "apps/web/app/components/navigation/SFPublicMobileRightDrawerHeader.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sfpublic_mobile_search_bar",
     "contractVersion": "sforum.component.shared.sfpublic_mobile_search_bar@1",
     "kind": "component",
     "source": "apps/web/app/components/navigation/SFPublicMobileSearchBar.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfpublic_mobile_user_menu",
+    "contractVersion": "sforum.component.shared.sfpublic_mobile_user_menu@1",
+    "kind": "component",
+    "source": "apps/web/app/components/navigation/SFPublicMobileUserMenu.vue",
     "owners": [
       "public"
     ],

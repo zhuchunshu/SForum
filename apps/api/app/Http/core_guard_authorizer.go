@@ -472,6 +472,9 @@ func identityBootstrapGuardEvaluator(_ context.Context, evaluation routes.CoreGu
 		return nil
 	case "core.route.identity.login",
 		"core.route.identity.register",
+		"core.route.identity.email_verification_request",
+		"core.route.identity.email_verification_confirm.get",
+		"core.route.identity.email_verification_confirm.post",
 		"core.route.identity.password_reset_request",
 		"core.route.identity.password_reset_confirm":
 		return routes.ErrCoreGuardEvaluatorUnavailable

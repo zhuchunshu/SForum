@@ -10,6 +10,15 @@ helpers.
 
 Initial identity foundation is implemented.
 
+- **邮箱验证 Page Registry 合同（2026-08-02）：** `/email-verification` 现在以
+  `auth.email_verification` 纳入公共 Page Registry，并使用
+  `sforum.page.email_verification@1` ViewModel 与
+  `identity.component.email_verification` Host 岛。Core 路由壳只负责登录态与
+  `SFPageOutlet`，默认主题提供对应的精确制品模板；发送、确认以及后台验证状态变更
+  也已进入 V3 Route Catalog。后台状态变更继续由 Host Guard 权威要求
+  `user.manage`、保护 `super_admin` 目标并严格校验请求体。该合同修复了公共 Nuxt
+  页面目录完整性 CI，避免邮箱验证页绕过主题替换和稳定身份目录。
+
 - **邮箱验证闭环（2026-08-01）：** 密码注册账号默认未验证，但注册成功不会自动
   投递验证邮件；用户必须在邮箱验证等待页主动请求发送。启用 ALTCHA 与
   `human_verification.scenarios.email_verification` 时，等待页必须先完成人机验证，

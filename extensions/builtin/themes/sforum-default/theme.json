@@ -169,6 +169,13 @@
       "contract": "sforum.page.external_auth_continuation@1"
     },
     {
+      "id": "sforum.default-theme.email_verification",
+      "action": "replace",
+      "target": "auth.email_verification",
+      "template": "templates/email-verification.html",
+      "contract": "sforum.page.email_verification@1"
+    },
+    {
       "id": "sforum.default-theme.forgot_password",
       "action": "replace",
       "target": "auth.forgot_password",

@@ -79,6 +79,7 @@ const islandComponents: Record<string, Component> = {
   'identity.component.login_form': defineAsyncComponent(() => import('./identity/SFLoginFormPage.vue')),
   'identity.component.register_form': defineAsyncComponent(() => import('./identity/SFRegisterFormPage.vue')),
   'identity.component.external_auth_continuation': defineAsyncComponent(() => import('./identity/SFExternalAuthContinuationPage.vue')),
+  'identity.component.email_verification': defineAsyncComponent(() => import('./identity/SFEmailVerificationPage.vue')),
   'identity.component.recovery_request_form': defineAsyncComponent(() => import('./identity/SFRecoveryRequestPage.vue')),
   'identity.component.recovery_confirm_form': defineAsyncComponent(() => import('./identity/SFRecoveryConfirmPage.vue')),
   'core.component.shared.sfextension_widget': defineAsyncComponent(() => import('./SFExtensionWidget.vue'))
@@ -115,6 +116,7 @@ const legacyIslandBindings = {
   'sf-login-form': { componentId: 'identity.component.login_form' },
   'sf-register-form': { componentId: 'identity.component.register_form' },
   'sf-external-auth-continuation': { componentId: 'identity.component.external_auth_continuation' },
+  'sf-email-verification': { componentId: 'identity.component.email_verification' },
   'sf-recovery-request': { componentId: 'identity.component.recovery_request_form' },
   'sf-recovery-confirm': { componentId: 'identity.component.recovery_confirm_form' },
   'sf-extension-widget': { componentId: 'core.component.shared.sfextension_widget' }

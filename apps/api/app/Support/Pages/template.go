@@ -64,6 +64,7 @@ var allowedHostIslands = map[string]struct{}{
 	"sf-login-form":                 {},
 	"sf-register-form":              {},
 	"sf-external-auth-continuation": {},
+	"sf-email-verification":         {},
 	"sf-recovery-request":           {},
 	"sf-recovery-confirm":           {},
 	"sf-extension-widget":           {},

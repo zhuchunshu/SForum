@@ -86,6 +86,7 @@ function validateOfflineContracts() {
   // V3 presentation ownership：公开 body 岛为自包含 Host 组件，不再经 HostPageIsland 嵌回 route slot。
   // 登录/发帖等凭证或写路径岛仍必须是 Host 组件（不可被主题 L2 替换为可执行包代码）。
   assertIncludes(template, "'identity.component.login_form': defineAsyncComponent(() => import('./identity/SFLoginFormPage.vue'))", 'login form must stay a Host body island')
+  assertIncludes(template, "'identity.component.email_verification': defineAsyncComponent(() => import('./identity/SFEmailVerificationPage.vue'))", 'email verification must stay a Host body island')
   assertIncludes(template, "'forum.component.topic_composer': defineAsyncComponent(() => import('./forum/SFTopicComposerPage.vue'))", 'topic composer must stay a Host body island')
   assertIncludes(template, "'forum.component.home_page': defineAsyncComponent(() => import('./forum/SFHomePage.vue'))", 'home body must stay a Host body island')
   assertIncludes(template, "'system.component.not_found': SFNotFoundPageContent", 'not_found must use the dedicated Host body island')

@@ -11,6 +11,7 @@ const enUS = JSON.parse(await Bun.file(new URL('../../i18n/locales/en-US.json', 
 describe('email verification waiting flow', () => {
   test('uses an authenticated auth-layout route', () => {
     expect(route).toContain("definePageMeta({ layout: 'auth', requiresAuth: true })")
+    expect(route).toContain('<SFPageOutlet page="auth.email_verification">')
     expect(route).toContain('<SFEmailVerificationPage />')
   })
 

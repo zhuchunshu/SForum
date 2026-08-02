@@ -29,6 +29,7 @@ type CorePageViewModelData struct {
 	Login                 *themecompiler.LoginPageViewModel
 	Register              *themecompiler.RegisterPageViewModel
 	ExternalContinuation  *themecompiler.ExternalAuthContinuationPageViewModel
+	EmailVerification     *themecompiler.EmailVerificationPageViewModel
 	ForgotPassword        *themecompiler.ForgotPasswordPageViewModel
 	ResetPassword         *themecompiler.ResetPasswordPageViewModel
 	Terms                 *themecompiler.TermsPageViewModel
