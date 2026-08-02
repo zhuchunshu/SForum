@@ -51,7 +51,8 @@ assert_before() {
 
 mkdir -p "$TEST_ROOT/deploy/scripts" "$MOCK_BIN"
 cp "$ROOT_DIR/deploy.sh" "$TEST_ROOT/"
-cp "$ROOT_DIR/compose.yaml" "$ROOT_DIR/compose.prod.yaml" "$ROOT_DIR/compose.release.yaml" "$TEST_ROOT/"
+cp "$ROOT_DIR/compose.yaml" "$ROOT_DIR/compose.prod.yaml" "$ROOT_DIR/compose.release.yaml" \
+  "$ROOT_DIR/compose.zero-downtime.yaml" "$TEST_ROOT/"
 cp "$ROOT_DIR/deploy/scripts/configure-production.sh" "$TEST_ROOT/deploy/scripts/"
 
 "$ROOT_DIR/deploy/scripts/configure-production.sh" \
@@ -61,14 +62,14 @@ cp "$ROOT_DIR/deploy/scripts/configure-production.sh" "$TEST_ROOT/deploy/scripts
 cat > "$TEST_ROOT/deploy/scripts/backup-postgres.sh" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-[ ! -e .deployrc ] || exit 96
+[ ! -e .deployrc ] || [ "${MOCK_ALLOW_EXISTING_RC:-}" = true ] || exit 96
 printf 'helper backup\n' >> "$MOCK_DEPLOY_LOG"
 EOF
 
 cat > "$TEST_ROOT/deploy/scripts/wait-for-health.sh" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-[ ! -e .deployrc ] || exit 95
+[ ! -e .deployrc ] || [ "${MOCK_ALLOW_EXISTING_RC:-}" = true ] || exit 95
 printf 'helper health %s\n' "$1" >> "$MOCK_DEPLOY_LOG"
 if [ "${MOCK_FAIL_STAGE:-}" = "health" ]; then
   exit 12
@@ -102,9 +103,14 @@ if [ "${1:-}" = "version" ]; then
   exit 0
 fi
 
+blue_green_compose=false
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --env-file|-f|--project-name)
+    -f)
+      [ "${2:-}" != compose.zero-downtime.yaml ] || blue_green_compose=true
+      shift 2
+      ;;
+    --env-file|--project-name|--profile)
       shift 2
       ;;
     *)
@@ -122,7 +128,14 @@ case "$command" in
   pull)
     [ "${MOCK_FAIL_STAGE:-}" != "pull" ] || exit 10
     ;;
-  up|stop)
+  up)
+    case " $* " in
+      *' api '*' web '*)
+        [ "$blue_green_compose" = true ] || : > "$MOCK_DEPLOY_STARTED_FILE"
+        ;;
+    esac
+    ;;
+  stop)
     ;;
   exec)
     [ "${1:-}" = "-T" ] && shift
@@ -137,8 +150,16 @@ case "$command" in
     ;;
   ps)
     if [ "${1:-}" = "--status" ]; then
-      [ ! -e .deployrc ] || exit 94
-      if [ "${MOCK_PORT_BUSY:-}" = "true" ]; then
+      [ ! -e .deployrc ] || [ "${MOCK_ALLOW_EXISTING_RC:-}" = true ] || exit 94
+      if [ "${MOCK_BLUE_GREEN:-}" = true ] && [ "$blue_green_compose" = true ]; then
+        printf '%s\n' postgres redis edge api-blue worker-blue web-blue
+      elif [ "${MOCK_BLUE_GREEN:-}" = true ]; then
+        if [ -e "$MOCK_DEPLOY_STARTED_FILE" ]; then
+          printf '%s\n' postgres redis api worker web
+        else
+          printf '%s\n' postgres redis
+        fi
+      elif [ "${MOCK_PORT_BUSY:-}" = "true" ]; then
         :
       elif [ "${MOCK_FAIL_STAGE:-}" = "services" ]; then
         printf '%s\n' postgres redis api worker
@@ -187,14 +208,16 @@ run_deploy() {
   if [ -n "$version" ]; then
     args+=(--version "$version")
   fi
-  : > "$MOCK_LOG"
-  rm -f "$TEST_ROOT/.deployrc"
+	: > "$MOCK_LOG"
+	rm -f "$TEMP_DIR/deploy-started"
+	rm -f "$TEST_ROOT/.deployrc"
   if (
     cd "$TEST_ROOT"
     PATH="$MOCK_BIN:$PATH" \
       MOCK_DEPLOY_LOG="$MOCK_LOG" \
-      MOCK_DB_STATE="$database_state" \
-      MOCK_FAIL_STAGE="$fail_stage" \
+		MOCK_DB_STATE="$database_state" \
+		MOCK_FAIL_STAGE="$fail_stage" \
+		MOCK_DEPLOY_STARTED_FILE="$TEMP_DIR/deploy-started" \
       SFORUM_DEPLOY_STABILITY_SECONDS=0 \
       ./deploy.sh "${args[@]}"
   ) > "$output_file" 2>&1; then
@@ -236,6 +259,38 @@ assert_contains "$MOCK_LOG" "helper backup"
 assert_before "$MOCK_LOG" "up -d --wait postgres redis" "exec -T postgres psql"
 assert_before "$MOCK_LOG" "exec -T postgres psql" "helper backup"
 assert_before "$MOCK_LOG" "helper backup" "run --rm -T --pull never migrate"
+
+printf '%s\n' \
+  'lang=en' \
+  'version=v3.0.0-alpha.8' \
+  'mode=release' \
+  'topology=blue-green' \
+  'active_slot=blue' \
+  'blue_version=v3.0.0-alpha.8' \
+  'green_version=v3.0.0-alpha.7' > "$TEST_ROOT/.deployrc"
+: > "$MOCK_LOG"
+rm -f "$TEMP_DIR/deploy-started"
+if ! (
+  cd "$TEST_ROOT"
+  PATH="$MOCK_BIN:$PATH" \
+    MOCK_DEPLOY_LOG="$MOCK_LOG" \
+    MOCK_DB_STATE=t \
+    MOCK_PORT_BUSY=true \
+    MOCK_BLUE_GREEN=true \
+    MOCK_ALLOW_EXISTING_RC=true \
+    MOCK_DEPLOY_STARTED_FILE="$TEMP_DIR/deploy-started" \
+    SFORUM_DEPLOY_STABILITY_SECONDS=0 \
+    ./deploy.sh --yes --lang en --action deploy --version v3.0.0-alpha.9
+) > "$TEMP_DIR/blue-green.out" 2>&1; then
+  cat "$TEMP_DIR/blue-green.out" >&2
+  cat "$MOCK_LOG" >&2
+  fail "blue/green maintenance deployment failed"
+fi
+assert_contains "$MOCK_LOG" "-f compose.zero-downtime.yaml --profile zero-downtime stop worker-blue worker-green web-blue web-green api-blue api-green edge"
+assert_before "$MOCK_LOG" "helper backup" "stop worker-blue worker-green web-blue web-green api-blue api-green edge"
+assert_before "$MOCK_LOG" "stop worker-blue worker-green web-blue web-green api-blue api-green edge" "run --rm -T --pull never migrate"
+assert_contains "$TEST_ROOT/.deployrc" "version=v3.0.0-alpha.9"
+assert_not_contains "$TEST_ROOT/.deployrc" "topology=blue-green"
 
 for stage in pull identity migrate health services; do
   if run_deploy "failure-${stage}" f "$stage"; then

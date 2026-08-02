@@ -26,12 +26,22 @@ assert_not_contains() {
   fi
 }
 
+assert_before() {
+  local file="$1" first="$2" second="$3" first_line second_line
+  first_line="$(grep -nF -- "$first" "$file" | head -n 1 | cut -d: -f1)"
+  second_line="$(grep -nF -- "$second" "$file" | head -n 1 | cut -d: -f1)"
+  [ -n "$first_line" ] && [ -n "$second_line" ] && [ "$first_line" -lt "$second_line" ] || \
+    fail "expected '$first' before '$second'"
+}
+
 source "$ROOT_DIR/upgrade.sh"
 
 DEPLOY_RC="$TEMP_DIR/.deployrc"
 RUNTIME_DIR="$TEMP_DIR/runtime"
 COMPOSE=(fake_compose)
-SCHEMA_RESULT=pass
+SCHEMA_STATE=no_pending
+ONLINE_CHECK_CAPABILITY=present
+MIGRATION_APPLIED=false
 WAIT_RESULT=pass
 SWITCH_RESULT=pass
 
@@ -45,30 +55,51 @@ reset_state() {
     'active_slot=blue' \
     'blue_version=v3.0.0-alpha.10' \
     'green_version=v3.0.0-alpha.9' > "$DEPLOY_RC"
-  SCHEMA_RESULT=pass
-  WAIT_RESULT=pass
+	SCHEMA_STATE=no_pending
+	ONLINE_CHECK_CAPABILITY=present
+	MIGRATION_APPLIED=false
+	WAIT_RESULT=pass
   SWITCH_RESULT=pass
 }
 
 fake_compose() {
-  printf 'compose %s\n' "$*" >> "$LOG_FILE"
-  case " $* " in
-    *' ps --status running --services '*) printf '%s\n' worker-green ;;
-  esac
+	printf 'compose %s\n' "$*" >> "$LOG_FILE"
+	case " $* " in
+		*' sforum-migrate --check-no-pending '*) [ "$SCHEMA_STATE" = no_pending ] || [ "$MIGRATION_APPLIED" = true ] ;;
+		*' sforum-migrate --check-online-safe '*) [ "$SCHEMA_STATE" = safe_pending ] ;;
+		*' run --rm -T --pull never migrate '*) MIGRATION_APPLIED=true ;;
+		*' ps --status running --services '*) printf '%s\n' worker-green ;;
+	esac
 }
 
 pull_target_images() { printf 'pull %s\n' "$1" >> "$LOG_FILE"; }
 verify_target_images() { printf 'verify %s\n' "$1" >> "$LOG_FILE"; }
 backup_database() { printf 'backup\n' >> "$LOG_FILE"; }
+target_migrator_supports_online_safe_check() { [ "$ONLINE_CHECK_CAPABILITY" = present ]; }
 
 : > "$LOG_FILE"
-check_schema_is_online_safe v3.0.0-alpha.11
+plan_schema_for_online_update v3.0.0-alpha.11
 assert_contains "$LOG_FILE" 'compose run --rm -T --no-deps --pull never migrate sforum-migrate --check-no-pending'
+[ "$ONLINE_MIGRATION_REQUIRED" = false ] || fail "up-to-date schema requested a migration"
 
-check_schema_is_online_safe() {
-  printf 'schema %s\n' "$1" >> "$LOG_FILE"
-  [ "$SCHEMA_RESULT" = pass ] || die "pending migrations"
-}
+reset_state
+SCHEMA_STATE=safe_pending
+ONLINE_CHECK_CAPABILITY=absent
+if (plan_schema_for_online_update v3.0.0-alpha.11) > "$TEMP_DIR/no-capability.out" 2>&1; then
+	fail "migrator without the capability label was accepted"
+fi
+assert_not_contains "$LOG_FILE" 'sforum-migrate --check-online-safe'
+
+reset_state
+SCHEMA_STATE=safe_pending
+plan_schema_for_online_update v3.0.0-alpha.11
+[ "$ONLINE_MIGRATION_REQUIRED" = true ] || fail "declared online migration was not planned"
+backup_database
+apply_planned_online_migrations v3.0.0-alpha.11
+assert_contains "$LOG_FILE" 'compose run --rm -T --no-deps --pull never migrate sforum-migrate --check-online-safe'
+assert_contains "$LOG_FILE" 'compose run --rm -T --pull never migrate'
+assert_before "$LOG_FILE" 'backup' 'compose run --rm -T --pull never migrate'
+
 wait_inside_slot() {
   printf 'wait %s\n' "$1" >> "$LOG_FILE"
   [ "$WAIT_RESULT" = pass ]
@@ -97,12 +128,19 @@ assert_not_contains "$LOG_FILE" 'stop worker-blue'
 assert_contains "$LOG_FILE" 'stop web-green api-green'
 
 reset_state
-SCHEMA_RESULT=fail
+SCHEMA_STATE=unsafe_pending
 if (online_update blue v3.0.0-alpha.10 v3.0.0-alpha.11) > "$TEMP_DIR/schema.out" 2>&1; then
-  fail "pending migrations were accepted"
+	fail "unsafe pending migrations were accepted"
 fi
 assert_not_contains "$LOG_FILE" 'up -d --no-build --pull never api-green web-green'
 assert_not_contains "$LOG_FILE" 'switch green blue'
+
+reset_state
+SCHEMA_STATE=safe_pending
+online_update blue v3.0.0-alpha.10 v3.0.0-alpha.11 > "$TEMP_DIR/online-migration.out"
+assert_before "$LOG_FILE" 'backup' 'compose run --rm -T --pull never migrate'
+assert_before "$LOG_FILE" 'compose run --rm -T --pull never migrate' 'up -d --no-build --pull never api-green web-green'
+assert_contains "$DEPLOY_RC" 'active_slot=green'
 
 reset_state
 online_update blue v3.0.0-alpha.10 v3.0.0-alpha.11 > "$TEMP_DIR/success.out"

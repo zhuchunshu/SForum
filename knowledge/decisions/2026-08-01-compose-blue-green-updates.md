@@ -23,6 +23,11 @@ migration set exactly match the live database. Any pending or mismatched
 migration refuses the zero-downtime path and directs the operator to
 `deploy.sh`, which owns backup, migration, and the maintenance window.
 
+The blanket pending-migration rule was refined by
+`2026-08-02-declared-online-core-migrations.md`: audited, explicitly declared
+backward-compatible Core migrations may run online; River and undeclared Core
+migrations retain this maintenance-window behavior.
+
 Version input defaults to the newest public GitHub Release, including
 prereleases, but `upgrade.sh` resolves it to an immutable `vX.Y.Z` tag, prints
 the current and target tags, and asks for confirmation before pulling images.
@@ -31,8 +36,9 @@ Only `--yes` skips prompts; deployment state never stores `latest`.
 ## Consequences
 
 - The first conversion from the legacy direct-port topology has a short outage.
-- Later migration-free API/Web HTTP updates keep serving through the old slot
-  until the candidate is healthy.
+- Later compatible API/Web HTTP updates keep serving through the old slot until
+  the candidate is healthy, including declared online Core migrations under
+  the follow-up decision.
 - Existing WebSocket connections may reconnect at the Caddy reload boundary.
 - Queue consumption pauses during Worker drain/start, but durable jobs remain
   in River and two Worker versions never consume concurrently.

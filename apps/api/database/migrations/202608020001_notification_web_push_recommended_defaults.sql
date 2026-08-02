@@ -1,4 +1,8 @@
 -- +goose Up
+-- +sforum OnlineSafe
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '1min';
+
 -- A browser subscription is an explicit device opt-in. Make untouched Core
 -- Web Push rows useful by default while preserving every operator-edited row.
 WITH changed AS (

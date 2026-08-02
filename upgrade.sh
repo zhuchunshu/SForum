@@ -26,8 +26,9 @@ Options:
   --yes               Skip version and one-time topology confirmations
   -h, --help          Show this help
 
-The updater refuses targets with pending Core or River database migrations.
-Use ./deploy.sh for those maintenance-window upgrades.
+The updater can apply explicitly declared backward-compatible Core migrations
+while the old slot stays online. Undeclared Core or any River migrations still
+require ./deploy.sh and a maintenance window.
 
 Examples: latest, v3.0.0-alpha.11, or 3.0.0-alpha.11. The latest option uses
 the newest published GitHub Release, including prereleases.
@@ -208,11 +209,44 @@ verify_target_images() {
   done
 }
 
-check_schema_is_online_safe() {
+target_migrator_supports_online_safe_check() {
   local version="$1"
-  say "正在确认目标版本不需要数据库迁移..." "Checking that the target requires no database migrations..."
-  SFORUM_VERSION="$version" "${COMPOSE[@]}" run --rm -T --no-deps --pull never migrate sforum-migrate --check-no-pending >/dev/null || \
-    die "Target schema differs from the live database. Use ./deploy.sh for a maintenance-window upgrade."
+  local capability
+  capability="$(docker image inspect "ghcr.io/zhuchunshu/sforum-migrate:${version}" \
+    --format '{{index .Config.Labels "io.sforum.migrations.online-safe-check"}}' 2>/dev/null || true)"
+  [ "$capability" = v1 ]
+}
+
+ONLINE_MIGRATION_REQUIRED=false
+
+plan_schema_for_online_update() {
+  local version="$1"
+  ONLINE_MIGRATION_REQUIRED=false
+  say "正在检查目标版本的数据库兼容性..." "Checking the target database compatibility..."
+  if SFORUM_VERSION="$version" "${COMPOSE[@]}" run --rm -T --no-deps --pull never \
+    migrate sforum-migrate --check-no-pending >/dev/null 2>&1; then
+    return 0
+  fi
+  if ! target_migrator_supports_online_safe_check "$version"; then
+    die "Target has pending migrations but its migrator cannot prove they are online-safe. Use ./deploy.sh for a maintenance-window upgrade."
+  fi
+  if ! SFORUM_VERSION="$version" "${COMPOSE[@]}" run --rm -T --no-deps --pull never \
+    migrate sforum-migrate --check-online-safe; then
+    die "Target has migrations that are not safe while the old release is serving traffic. Use ./deploy.sh for a maintenance-window upgrade."
+  fi
+  ONLINE_MIGRATION_REQUIRED=true
+}
+
+apply_planned_online_migrations() {
+  local version="$1"
+  [ "$ONLINE_MIGRATION_REQUIRED" = true ] || return 0
+  say \
+    "正在保持当前槽在线并执行已声明兼容的数据库迁移..." \
+    "Applying declared backward-compatible migrations while the active slot stays online..."
+  SFORUM_VERSION="$version" "${COMPOSE[@]}" run --rm -T --pull never migrate
+  SFORUM_VERSION="$version" "${COMPOSE[@]}" run --rm -T --no-deps --pull never \
+    migrate sforum-migrate --check-no-pending >/dev/null || \
+    die "Online migrations ran but the target schema is still not exact. Keep the current slot online and inspect the migrator logs."
 }
 
 backup_database() {
@@ -316,8 +350,8 @@ bootstrap_topology() {
   local current_version="$1" target_version="$2" slot=blue
   if [ "$FORCE_BOOTSTRAP" != true ] && [ "$ASSUME_YES" != true ]; then
     say \
-      "这是旧版直连端口拓扑。首次转换路由器会有一次短暂维护窗口；后续无迁移更新才是零停机。输入 BOOTSTRAP 继续：" \
-      "This is the legacy direct-port topology. The one-time router conversion has a short maintenance window; later migration-free updates are zero-downtime. Type BOOTSTRAP to continue:"
+      "这是旧版直连端口拓扑。首次转换路由器会有一次短暂维护窗口；后续兼容更新可保持 HTTP 在线。输入 BOOTSTRAP 继续：" \
+      "This is the legacy direct-port topology. The one-time router conversion has a short maintenance window; later compatible updates keep HTTP online. Type BOOTSTRAP to continue:"
     local confirmation
     read -r confirmation
     [ "$confirmation" = BOOTSTRAP ] || die "Canceled."
@@ -328,8 +362,9 @@ bootstrap_topology() {
   docker pull caddy:2.10.2-alpine
   verify_target_images "$target_version"
   "${COMPOSE[@]}" up -d --wait postgres redis
-  check_schema_is_online_safe "$target_version"
+  plan_schema_for_online_update "$target_version"
   backup_database
+  apply_planned_online_migrations "$target_version"
   "${COMPOSE[@]}" up -d --no-build --pull never api-blue web-blue
   wait_inside_slot blue || die "Blue candidate failed its internal API/Web checks."
 
@@ -348,7 +383,7 @@ bootstrap_topology() {
   "${COMPOSE[@]}" up -d --no-build --pull never worker-blue
   "${COMPOSE[@]}" ps --status running --services | grep -Fqx worker-blue || die "Blue worker did not start."
   persist_state blue "$target_version" "$target_version" "$target_version"
-  say "双槽入口已启用。后续无迁移版本可零停机切换。" "Blue/green ingress is enabled. Later migration-free releases can switch without HTTP downtime."
+  say "双槽入口已启用。后续兼容版本可保持 HTTP 在线切换。" "Blue/green ingress is enabled. Later compatible releases can switch without HTTP downtime."
 }
 
 online_update() {
@@ -367,8 +402,9 @@ online_update() {
 
   pull_target_images "$target_version"
   verify_target_images "$target_version"
-  check_schema_is_online_safe "$target_version"
+  plan_schema_for_online_update "$target_version"
   backup_database
+  apply_planned_online_migrations "$target_version"
 
   say "正在启动并检查备用槽 ${inactive_slot}..." "Starting and checking standby slot ${inactive_slot}..."
   "${COMPOSE[@]}" up -d --no-build --pull never "$new_api" "$new_web"

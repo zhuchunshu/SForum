@@ -113,6 +113,14 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Guarded online Core migrations now use target-image capability negotiation,
+  explicit transactional compatibility declarations, bounded PostgreSQL lock
+  and statement timeouts, backup-before-migrate ordering, and an exact
+  post-check before blue/green traffic switches. River and undeclared changes
+  remain maintenance-only; that fallback now recognizes and stops an existing
+  blue/green topology instead of rejecting its managed ports:
+  `sessions/2026-08-02-online-core-migrations.md`
+
 - CI email-verification Page Registry fix: `/email-verification` now has a
   complete catalog, ViewModel, Host-island, default-theme template, and V3
   route/UI identity chain. The admin mutation guard remains Host-authoritative.

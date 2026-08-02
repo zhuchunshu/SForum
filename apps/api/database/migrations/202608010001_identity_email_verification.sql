@@ -1,4 +1,8 @@
 -- +goose Up
+-- +sforum OnlineSafe
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '5min';
+
 ALTER TABLE users ADD COLUMN email_verified_at TIMESTAMPTZ;
 
 -- Existing accounts predate verification state and must not be locked out when

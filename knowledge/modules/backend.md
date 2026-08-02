@@ -149,19 +149,28 @@ that release/runtime contract aligned.
 Backup and restore helpers parse only the exact database keys from dotenv and
 never execute the configuration as shell input.
 
-`upgrade.sh` owns migration-free blue/green updates after installation. A
+`upgrade.sh` owns guarded blue/green updates after installation. A
 stable Caddy edge switches between API/Web slots only after internal readiness;
 the old Worker drains before the new Worker starts, so durable River work is not
-lost and two consumers do not overlap. The target migrator performs a read-only
-exact Core and River migration check before candidate startup. Pending or
-mismatched migrations fail closed to the `deploy.sh` backup/migration
-maintenance path. The first conversion from direct host ports has a short
+lost and two consumers do not overlap. The target migrator first performs a
+read-only exact Core and River migration check. Pending Core SQL may run while
+the active slot serves only when every migration declares
+`-- +sforum OnlineSafe`, stays transactional, and defines bounded lock and
+statement timeouts; River must already be exact. The migrator image advertises
+that check through `io.sforum.migrations.online-safe-check=v1`, so older images
+never receive an unknown check argument. The updater backs up, migrates, proves
+the exact target schema, and only then starts the candidate. Undeclared,
+unbounded, non-transactional, or River changes fail closed to `deploy.sh`.
+That maintenance path recognizes the blue/green edge as the managed port owner,
+backs up before stopping all slots and the edge, then migrates and starts direct
+target services. The first conversion from direct host ports has a short
 maintenance window; later compatible HTTP switches are continuous, while
 WebSockets may reconnect. `latest` is resolved from the public GitHub Release
 list, including prereleases, to an immutable tag before confirmation and state
 persistence. Candidate and stable Web readiness checks use `/health`; they do
 not render or warm the cached homepage through the internal loopback origin.
-See `decisions/2026-08-01-compose-blue-green-updates.md`.
+See `decisions/2026-08-01-compose-blue-green-updates.md` and
+`decisions/2026-08-02-declared-online-core-migrations.md`.
 
 The admin release checker caches both successful and failed upstream results
 for five minutes per API process. Forced checks still bypass that cache.

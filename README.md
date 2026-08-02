@@ -74,10 +74,11 @@ cd sforum
 includes prereleases. It resolves that choice to a concrete tag, prints the
 current and target versions, and asks for confirmation (`--yes` skips prompts).
 The first blue/green ingress conversion has a short maintenance window. Later
-migration-free releases keep API/Web HTTP traffic available; WebSockets may
-reconnect and Worker consumption pauses briefly without losing durable jobs.
-Targets with pending SForum Core or River migrations must use `deploy.sh` and
-its maintenance-window migration path.
+releases keep API/Web HTTP traffic available when the database is unchanged or
+every pending Core migration explicitly declares backward-compatible online
+execution; WebSockets may reconnect and Worker consumption pauses briefly
+without losing durable jobs. Undeclared Core and all River migrations use the
+blue/green-aware `deploy.sh` maintenance path.
 
 Details: [docs/zh-CN/deployment.md](./docs/zh-CN/deployment.md) / [docs/en-US/deployment.md](./docs/en-US/deployment.md).
 

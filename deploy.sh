@@ -11,6 +11,7 @@ ACTION=""
 ASSUME_DEFAULTS=false
 RELEASE_VERSION="${SFORUM_VERSION:-}"
 COMPOSE=()
+BLUE_GREEN_COMPOSE=()
 
 usage() {
   cat <<'EOF'
@@ -214,6 +215,30 @@ resolve_release_version() {
   fi
   export SFORUM_VERSION="$RELEASE_VERSION"
   COMPOSE=(docker compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml)
+  configure_blue_green_compose
+}
+
+deployment_uses_blue_green() {
+  [ "$(rc_value topology)" = blue-green ]
+}
+
+configure_blue_green_compose() {
+  local blue_version green_version
+  BLUE_GREEN_COMPOSE=()
+  deployment_uses_blue_green || return 0
+  blue_version="$(rc_value blue_version)"
+  green_version="$(rc_value green_version)"
+  [[ "$blue_version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]] || \
+    die "Invalid blue_version in .deployrc"
+  [[ "$green_version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]] || \
+    die "Invalid green_version in .deployrc"
+  export SFORUM_BLUE_VERSION="$blue_version"
+  export SFORUM_GREEN_VERSION="$green_version"
+  BLUE_GREEN_COMPOSE=(
+    docker compose --env-file .env.production
+    -f compose.yaml -f compose.prod.yaml -f compose.release.yaml
+    -f compose.zero-downtime.yaml --profile zero-downtime
+  )
 }
 
 configure_if_needed() {
@@ -283,6 +308,11 @@ service_is_running() {
   "${COMPOSE[@]}" ps --status running --services | grep -Fqx "$service"
 }
 
+blue_green_ingress_is_running() {
+  [ "${#BLUE_GREEN_COMPOSE[@]}" -gt 0 ] || return 1
+  "${BLUE_GREEN_COMPOSE[@]}" ps --status running --services | grep -Fqx edge
+}
+
 port_is_listening() {
   local port="$1"
   if command -v lsof >/dev/null 2>&1; then
@@ -295,13 +325,16 @@ port_is_listening() {
 }
 
 validate_ports_available() {
-  local web_port api_port
+  local web_port api_port managed_ingress=false
   web_port="$(env_file_value .env.production WEB_PORT 3000)"
   api_port="$(env_file_value .env.production API_PORT 18080)"
-  if ! service_is_running web && port_is_listening "$web_port"; then
+  if blue_green_ingress_is_running; then
+    managed_ingress=true
+  fi
+  if ! service_is_running web && [ "$managed_ingress" != true ] && port_is_listening "$web_port"; then
     die "$(t port_busy) 127.0.0.1:${web_port} (Web)"
   fi
-  if ! service_is_running api && port_is_listening "$api_port"; then
+  if ! service_is_running api && [ "$managed_ingress" != true ] && port_is_listening "$api_port"; then
     die "$(t port_busy) 127.0.0.1:${api_port} (API)"
   fi
 }
@@ -318,6 +351,9 @@ preflight() {
   chmod 600 .env.production
   validate_env_contract
   "${COMPOSE[@]}" config --quiet
+  if [ "${#BLUE_GREEN_COMPOSE[@]}" -gt 0 ]; then
+    "${BLUE_GREEN_COMPOSE[@]}" config --quiet
+  fi
   if [ "$check_ports" = true ]; then
     validate_ports_available
   fi
@@ -439,7 +475,12 @@ deploy_update() {
   configure_if_needed
   preflight true
   previous_version="$(rc_value version)"
-  previous_running="$("${COMPOSE[@]}" ps --status running --services | grep -E '^(api|worker|web)$' || true)"
+  if [ "${#BLUE_GREEN_COMPOSE[@]}" -gt 0 ]; then
+    previous_running="$("${BLUE_GREEN_COMPOSE[@]}" ps --status running --services | \
+      grep -E '^(edge|api-(blue|green)|worker-(blue|green)|web-(blue|green))$' || true)"
+  else
+    previous_running="$("${COMPOSE[@]}" ps --status running --services | grep -E '^(api|worker|web)$' || true)"
+  fi
   printf '%s %s\n' "$(t version):" "$RELEASE_VERSION"
 
   echo "$(t pulling_release) $RELEASE_VERSION"
@@ -459,7 +500,16 @@ deploy_update() {
   fi
 
   t stopping_app
-  if ! "${COMPOSE[@]}" stop api worker web; then
+  if [ "${#BLUE_GREEN_COMPOSE[@]}" -gt 0 ]; then
+    if ! "${BLUE_GREEN_COMPOSE[@]}" stop \
+      worker-blue worker-green web-blue web-green api-blue api-green edge; then
+      if [ -n "$previous_running" ]; then
+        # shellcheck disable=SC2086
+        "${BLUE_GREEN_COMPOSE[@]}" start $previous_running || true
+      fi
+      die "Could not stop the previous blue/green application services."
+    fi
+  elif ! "${COMPOSE[@]}" stop api worker web; then
     if [ -n "$previous_running" ]; then
       # shellcheck disable=SC2086
       "${COMPOSE[@]}" start $previous_running || true

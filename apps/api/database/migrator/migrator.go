@@ -61,29 +61,7 @@ func IsUpToDate(ctx context.Context, cfg Config) (bool, error) {
 		return false, nil
 	}
 
-	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
-	if err != nil {
-		return false, fmt.Errorf("open river migration pool: %w", err)
-	}
-	defer pool.Close()
-	riverMigrator, err := rivermigrate.New(riverpgxv5.New(pool), &rivermigrate.Config{Logger: cfg.Logger})
-	if err != nil {
-		return false, fmt.Errorf("create river migrator: %w", err)
-	}
-	existing, err := riverMigrator.ExistingVersions(ctx)
-	if err != nil {
-		return false, fmt.Errorf("inspect River migration versions: %w", err)
-	}
-	all := riverMigrator.AllVersions()
-	if len(existing) != len(all) {
-		return false, nil
-	}
-	for index := range all {
-		if existing[index].Version != all[index].Version {
-			return false, nil
-		}
-	}
-	return true, nil
+	return riverMigrationsExact(ctx, cfg)
 }
 
 func Up(ctx context.Context, cfg Config) error {

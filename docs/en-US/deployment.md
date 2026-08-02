@@ -207,18 +207,26 @@ input and confirmation. A successful update persists the resolved tag in
 The first run against the legacy direct-port topology asks for confirmation to
 perform a one-time blue/green ingress conversion. That conversion stops the old
 services before starting the stable Caddy ingress and therefore has a short
-maintenance window. After conversion, releases without database migrations are
-started and checked in the standby API/Web slot before Caddy switches traffic
-atomically and the old slot stops, keeping HTTP service continuous. Existing
-WebSocket connections may need to reconnect during the switch.
+maintenance window. After conversion, releases with an unchanged database or
+only explicitly declared backward-compatible Core migrations keep the active
+slot serving. The updater backs up and applies bounded online migrations before
+starting and checking the standby API/Web slot. Caddy then switches traffic
+atomically before the old slot stops. Existing WebSocket connections may need
+to reconnect during the switch.
 
 Two Workers are never allowed to consume jobs concurrently. The updater
 gracefully stops the old Worker before starting the new one, so queue consumption
 pauses briefly, while durable River jobs are not lost. Before updating, the
-script checks both SForum Core and River migrations. If either has a pending
-migration, the zero-downtime update is refused; use
+script checks both SForum Core and River migrations. Online execution requires
+a target migrator with the capability label, an audited `-- +sforum OnlineSafe`
+declaration on every pending Core SQL migration, transactional lock and
+statement timeouts, and an exact River migration set. A failed online migration
+leaves the old slot serving and never switches traffic. Undeclared Core, any
+River, and older migrator images are refused; use
 `./deploy.sh --version <release>` and accept its backup, migration, and
-maintenance window instead.
+maintenance window instead. That path recognizes an existing blue/green edge,
+backs up first, then stops all old slots before migrating and starting the
+direct target services.
 
 ## Ports (production examples)
 

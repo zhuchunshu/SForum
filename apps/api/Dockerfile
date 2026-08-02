@@ -91,6 +91,7 @@ FROM alpine:3.22 AS migrate
 
 RUN apk add --no-cache ca-certificates && \
 	addgroup -S sforum && adduser -S -G sforum sforum
+LABEL io.sforum.migrations.online-safe-check="v1"
 WORKDIR /app
 COPY --from=build /out/sforum-migrate /usr/local/bin/sforum-migrate
 USER sforum

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC1003,SC2016
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -55,8 +56,18 @@ ruby -rjson -e '
   abort "green API tag mismatch" unless services.dig("api-green", "image").end_with?(":v3.0.0-alpha.11")
 ' "$TEMP_DIR/compose.json"
 
-"$ROOT_DIR/upgrade.sh" --help | grep -Fq -- "refuses targets with pending" || {
-  printf 'zero-downtime-compose_test.sh: help must document the migration guard\n' >&2
+"$ROOT_DIR/upgrade.sh" --help | grep -Fq -- "explicitly declared backward-compatible Core migrations" || {
+  printf 'zero-downtime-compose_test.sh: help must document guarded online migrations\n' >&2
+  exit 1
+}
+
+grep -Fq 'io.sforum.migrations.online-safe-check="v1"' "$ROOT_DIR/apps/api/Dockerfile" || {
+  printf 'zero-downtime-compose_test.sh: migrator capability label is missing\n' >&2
+  exit 1
+}
+
+grep -Fq 'sforum-migrate --check-online-safe' "$ROOT_DIR/upgrade.sh" || {
+  printf 'zero-downtime-compose_test.sh: updater does not use the online migration guard\n' >&2
   exit 1
 }
 
