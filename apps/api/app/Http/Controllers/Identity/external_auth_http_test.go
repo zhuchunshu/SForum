@@ -229,6 +229,66 @@ func TestExternalAuthCallbackRejectsWrongBrowserBeforeProviderEffect(t *testing.
 	}
 }
 
+func TestExternalAuthBrowserCookieUsesCrossSiteModeOnlyWhenSecure(t *testing.T) {
+	tests := []struct {
+		name         string
+		appEnv       string
+		appURL       string
+		wantSecure   bool
+		wantSameSite http.SameSite
+	}{
+		{
+			name:         "production callback round trip",
+			appEnv:       "production",
+			appURL:       "https://forum.example.com",
+			wantSecure:   true,
+			wantSameSite: http.SameSiteNoneMode,
+		},
+		{
+			name:         "https staging callback round trip",
+			appEnv:       "staging",
+			appURL:       "https://forum.example.com",
+			wantSecure:   true,
+			wantSameSite: http.SameSiteNoneMode,
+		},
+		{
+			name:         "local http development",
+			appEnv:       "development",
+			appURL:       "http://127.0.0.1:3000",
+			wantSecure:   false,
+			wantSameSite: http.SameSiteLaxMode,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			controller := &Controller{appEnv: test.appEnv, appURL: test.appURL}
+			app := fiber.New()
+			app.Get("/binding", func(c fiber.Ctx) error {
+				_, err := controller.ensureExternalAuthBrowserBinding(c)
+				return err
+			})
+
+			response, err := app.Test(httptest.NewRequest(http.MethodGet, "/binding", nil))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer response.Body.Close()
+			cookies := response.Cookies()
+			if len(cookies) != 1 {
+				t.Fatalf("cookies=%#v", cookies)
+			}
+			cookie := cookies[0]
+			if cookie.Name != externalAuthBrowserCookieName || !cookie.HttpOnly || cookie.Path != "/" {
+				t.Fatalf("cookie attributes=%#v", cookie)
+			}
+			if cookie.Secure != test.wantSecure || cookie.SameSite != test.wantSameSite {
+				t.Fatalf("secure=%t sameSite=%v", cookie.Secure, cookie.SameSite)
+			}
+		})
+	}
+}
+
 func TestT1E_CallbackExactArtifactMismatchRedirect(t *testing.T) {
 	stateStore := identity.NewInMemoryCallbackStateStore()
 	ctx := context.Background()

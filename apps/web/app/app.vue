@@ -25,7 +25,11 @@ const {
 const { refresh: refreshAuthSession, setUser: setAuthUser } = useAuthSession()
 const { applyStoredLanguage } = useUserLanguage()
 // 消费 OAuth 回调 `ext_auth`：成功 Toast 在任意回跳页生效；登录/注册壳另读 alert。
-const { consumeFromRoute: consumeExternalAuthFeedback } = useExternalAuthFeedback()
+const {
+  displayAlertMessage: globalExternalAuthAlert,
+  displayAlertVariant: globalExternalAuthAlertVariant,
+  consumeFromRoute: consumeExternalAuthFeedback
+} = useExternalAuthFeedback({ surface: 'global' })
 const route = useRoute()
 const adminRoutes = useAdminRoutes()
 const { preview: adminAppearancePreview } = useAdminAppearancePreview()
@@ -88,7 +92,9 @@ if (import.meta.server) {
   })
 } else {
 
-  watch(() => route.path, () => { void syncThemeSkin() }, { flush: 'post' })
+  watch(() => route.path, () => {
+    void syncThemeSkin()
+  }, { flush: 'post' })
   // 浏览器挂载后再恢复会话，避免复用 SSR 的 app-startup payload 时跳过 auth 刷新。
   onMounted(() => {
     void refreshStartupState({ restoreAuth: true })
@@ -150,6 +156,16 @@ useHead(() => {
     <NuxtLayout>
       <NuxtPage :keepalive="{ include: cachedTabNames }" />
     </NuxtLayout>
+    <div
+      v-if="globalExternalAuthAlert"
+      class="pointer-events-auto fixed inset-x-4 top-4 z-[100] mx-auto max-w-xl"
+    >
+      <SFAlert
+        :title="globalExternalAuthAlert"
+        :variant="globalExternalAuthAlertVariant"
+        compact
+      />
+    </div>
     <SFApiConnectionModal />
   </UApp>
 </template>

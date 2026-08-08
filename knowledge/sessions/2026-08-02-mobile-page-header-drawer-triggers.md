@@ -20,12 +20,15 @@
 - Made the mobile account actions an accessible collapsible section controlled
   by the avatar/name identity row. It starts collapsed each time the drawer is
   mounted and exposes its state through `aria-expanded`.
+- Removed the guest synthetic avatar and guest right-rail trigger from the
+  mobile navbar. Guests now receive one login/registration action; sites with
+  closed registration show login only.
 - Added focused source-contract regressions for notification, account settings,
   moderation, and the shared mobile avatar/menu composition.
 
 ## Verification
 
-- Latest focused mobile navigation test: 7 passed, 0 failed (43 assertions).
+- Focused mobile navigation test after the guest follow-up: 8 passed, 0 failed.
 - Full Web suite after the heading and collapse follow-ups: 864 passed, 0
   failed.
 - Nuxt typecheck: passed.
@@ -41,6 +44,13 @@
   trigger is hidden and the desktop avatar dropdown remains visible.
 - Notification filter interaction changed the active filter to unread and kept
   the duplicate-trigger count at zero.
+- Guest Browser QA at `390x844` passed on `/`: the active default-theme template
+  rendered no synthetic avatar or right-rail trigger, the single login action
+  navigated to `/login`, and neither page had horizontal overflow or relevant
+  console output. The local site has registration closed, so the combined open-
+  registration label is covered by the focused source contract.
+- Full Web suite after the guest follow-up: 879 passed, 0 failed. Nuxt
+  typecheck and architecture boundary validation passed.
 - The post-collapse authenticated Chrome page and session remained readable,
   but automated pointer dispatch timed out while the user's DevTools debugging
   session owned the page. The new collapsed/expanded interaction therefore has

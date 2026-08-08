@@ -311,6 +311,15 @@ Initial identity foundation is implemented.
   public catalog contains the exact restored provider; the request is now
   **整改完成，等待独立复审**, not program closure. See
   `reports/2026-07-27-external-auth-r1-r7-requirements-evidence-matrix.md`.
+  **Mobile callback repair (2026-08-09):** browser binding cookies use
+  `SameSite=None; Secure` for HTTPS production/staging OAuth redirect chains,
+  while HTTP development remains `SameSite=Lax`; the binding remains
+  HttpOnly, short-lived, random, and server-digest validated. Callback reasons
+  now render persistent errors on arbitrary return pages through the root
+  surface, keep `/login` and `/register` errors inline, and auto-dismiss only
+  non-error feedback. This fixes the silent homepage failure caused by SSR
+  consuming the reason before the root page rendered an alert. Real provider
+  mobile/browser-account-switch E2E still requires operator credentials.
   **Restart repair (2026-07-28):** the admin restart action now uses the
   Host-owned restart endpoint instead of reusing enable. The old GitHub
   Identity Registry publication is tombstoned before the runtime is stopped,

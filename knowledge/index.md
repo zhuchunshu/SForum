@@ -113,6 +113,14 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Mobile third-party OAuth callbacks now keep the secure browser binding cookie
+  available across HTTPS redirect chains and always expose callback failures:
+  auth routes use inline feedback, while arbitrary return pages use a root
+  persistent alert. Focused API/Web tests, Web typecheck, Identity tests,
+  architecture validation, and local Browser checks pass; real provider/mobile
+  account-switch E2E still needs operator credentials:
+  `sessions/2026-08-09-mobile-external-auth-callback-fix.md`
+
 - Guarded online Core migrations now use target-image capability negotiation,
   explicit transactional compatibility declarations, bounded PostgreSQL lock
   and statement timeouts, backup-before-migrate ordering, and an exact
@@ -149,13 +157,13 @@ load archived sessions or completed plans as current context.
   executable ZIP chain also runs in an isolated temporary database:
   `sessions/2026-08-02-browser-notification-subscription-fix.md`
 
-- Mobile right-rail entry is now the authenticated user's avatar; its drawer
-  combines the desktop user-menu actions with page-owned information. The
-  account actions default to collapsed, and the authenticated “个人中心” header
-  no longer repeats contextual titles such as “主题信息”. Full Web tests,
-  typecheck, and architecture validation pass; prior mobile/desktop Chrome QA
-  remains valid, while the final collapsed-section click loop is pending after
-  a DevTools pointer-control timeout:
+- Mobile right-rail entry is reserved for authenticated users and uses their
+  avatar; its drawer combines desktop user-menu actions with page-owned
+  information. Guests render no synthetic avatar or right-rail trigger and get
+  one login/registration action instead (login only when registration is
+  closed). Full Web tests, typecheck, architecture validation, and guest mobile
+  Browser navigation QA pass; the authenticated collapsed-section click loop
+  remains pending after a prior DevTools pointer-control timeout:
   `sessions/2026-08-02-mobile-page-header-drawer-triggers.md`
 
 - Email verification is implemented end to end: one-use hashed link tokens,

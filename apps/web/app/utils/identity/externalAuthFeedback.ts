@@ -14,6 +14,8 @@ export type ExternalAuthFeedback = {
   preferToast: boolean
 }
 
+export type ExternalAuthFeedbackSurface = 'auth' | 'global'
+
 const SUCCESS_REASONS = new Set([
   'auth.external_login_ok',
   'auth.external_link_ok'
@@ -79,6 +81,22 @@ export function resolveExternalAuthFeedback(raw: unknown): ExternalAuthFeedback 
     messageKey: REASON_MESSAGE_KEYS[reason] || 'auth.external.reasons.generic',
     preferToast: kind === 'success'
   }
+}
+
+export function externalAuthFeedbackDelivery(
+  item: ExternalAuthFeedback,
+  surface: ExternalAuthFeedbackSurface
+): 'alert' | 'toast' {
+  return item.kind === 'success' || (surface === 'auth' && item.preferToast) ? 'toast' : 'alert'
+}
+
+export function externalAuthFeedbackToastDuration(item: ExternalAuthFeedback): number {
+  return item.kind === 'error' ? 0 : 10000
+}
+
+export function externalAuthFeedbackUsesInlineSurface(path: string): boolean {
+  const normalized = path.length > 1 ? path.replace(/\/+$/, '') : path
+  return normalized === '/login' || normalized === '/register'
 }
 
 /** 从 query 中去掉 ext_auth，保留其余参数（ticket/redirect 等）。 */

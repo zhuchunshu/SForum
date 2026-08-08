@@ -155,7 +155,9 @@ responsibilities.
   cannot drift between viewports. The authenticated drawer heading is
   “个人中心” rather than repeating the page-owned rail heading, and its account
   actions are collapsed by default behind the accessible identity-row toggle.
-  Guests retain the neutral right-rail icon and contextual drawer heading.
+  Guests do not receive the page-owned right-rail entry or a synthetic avatar;
+  mobile renders one login/registration action instead, reduced to login when
+  registration is closed.
 - Personalization exposes topbar, sidebar, and footer as editable locations and
   states that mobile follows sidebar. `public.mobile.primary` remains readable
   in V1 documents, snapshots, and imports for compatibility but is not rendered

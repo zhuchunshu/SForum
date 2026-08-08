@@ -39,14 +39,21 @@ describe('public mobile navbar composition', () => {
     expect(bottomNavigation).toContain("notifications.unreadCount.value > 99 ? '99+' : notifications.unreadCount.value")
   })
 
-  test('opens the mobile right drawer from the authenticated user avatar', () => {
+  test('reserves the mobile right drawer for authenticated users', () => {
     expect(navbar).toContain('class="navbar__mobile-info-button"')
     expect(navbar).toContain('v-if="user"')
     expect(navbar).toContain(':avatar="user.avatar"')
-    expect(navbar).toContain("v-else name=\"i-lucide-panel-right\"")
+    expect(navbar).not.toContain('i-lucide-panel-right')
     expect(navbar).toContain("'navbar__session--authenticated': Boolean(user)")
     expect(navbar).toContain('.navbar__session--authenticated')
     expect(navbar).toContain('display: none')
+  })
+
+  test('shows one mobile login and registration action for guests', () => {
+    expect(navbar).toContain('class="navbar__mobile-auth-link"')
+    expect(navbar).toContain("showRegisterLinks ? t('nav.loginOrRegister') : t('nav.login')")
+    expect(navbar).not.toContain('navbar__mobile-guest-avatar')
+    expect(navbar).not.toContain('<SFAvatar :name="siteName"')
   })
 
   test('renders the desktop avatar dropdown actions inside the mobile right drawer', () => {

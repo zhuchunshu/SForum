@@ -26,15 +26,23 @@ func (h *Controller) ensureExternalAuthBrowserBinding(c fiber.Ctx) (string, erro
 			return "", err
 		}
 	}
+	secure := h.externalAuthCookieSecure()
+	sameSite := fiber.CookieSameSiteLaxMode
+	if secure {
+		// OAuth may return through mobile browser redirect chains that classify the
+		// callback as cross-site. None keeps the correlation cookie available while
+		// Secure, HttpOnly, short TTL, and the stored digest retain its narrow scope.
+		sameSite = fiber.CookieSameSiteNoneMode
+	}
 	c.Cookie(&fiber.Cookie{
 		Name:     externalAuthBrowserCookieName,
 		Value:    raw,
 		Path:     "/",
 		MaxAge:   int(externalAuthBrowserCookieTTL.Seconds()),
 		Expires:  time.Now().Add(externalAuthBrowserCookieTTL),
-		Secure:   h.externalAuthCookieSecure(),
+		Secure:   secure,
 		HTTPOnly: true,
-		SameSite: fiber.CookieSameSiteLaxMode,
+		SameSite: sameSite,
 	})
 	return identity.ExternalAuthBrowserBindingDigest(raw), nil
 }

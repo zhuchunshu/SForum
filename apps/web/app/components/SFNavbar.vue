@@ -206,21 +206,20 @@ function submitSearch(query: string) {
       <!-- 工具区：通知 / 语言 / 日夜模式；会话区单独一列与右侧栏对齐 -->
       <div class="navbar__utility">
         <button
+          v-if="user"
           type="button"
           class="navbar__mobile-info-button"
-          :aria-label="user ? t('nav.userMenu') : t('home.rightRail.ariaLabel')"
-          :title="user ? t('nav.personalCenter') : t('home.rightRail.drawerTitle')"
+          :aria-label="t('nav.userMenu')"
+          :title="t('nav.personalCenter')"
           :aria-expanded="mobileInfoOpen"
           @click="toggleMobileInfo"
         >
           <SFAvatar
-            v-if="user"
             :name="displayName"
             :avatar="user.avatar"
             size="sm"
             shape="circle"
           />
-          <UIcon v-else name="i-lucide-panel-right" class="size-5" aria-hidden="true" />
         </button>
         <SFNotificationPreview v-if="user" />
         <NuxtLink
@@ -370,10 +369,9 @@ function submitSearch(query: string) {
         <NuxtLink
           v-if="status === 'guest'"
           :to="localePath('/login')"
-          class="navbar__mobile-guest-avatar"
-          :aria-label="t('nav.login')"
+          class="navbar__mobile-auth-link"
         >
-          <SFAvatar :name="siteName" size="sm" shape="circle" />
+          {{ showRegisterLinks ? t('nav.loginOrRegister') : t('nav.login') }}
         </NuxtLink>
       </div>
     </div>
@@ -727,7 +725,7 @@ function submitSearch(query: string) {
   color: #374151;
 }
 
-.navbar__mobile-guest-avatar {
+.navbar__mobile-auth-link {
   display: none;
 }
 
@@ -856,18 +854,27 @@ function submitSearch(query: string) {
   }
 
   .navbar__user-trigger,
-  .navbar__mobile-guest-avatar {
+  .navbar__mobile-auth-link {
     display: inline-flex;
-    width: 32px;
-    height: 32px;
     align-items: center;
     justify-content: center;
-    padding: 2px;
-    border-radius: 50%;
   }
 
-  .navbar__mobile-guest-avatar {
-    color: var(--sf-public-text-secondary);
+  .navbar__mobile-auth-link {
+    min-height: 34px;
+    padding: 0 11px;
+    border-radius: 7px;
+    color: #fff;
+    background: var(--sf-accent);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .navbar__mobile-auth-link:hover {
+    background: var(--sf-accent-hover);
   }
 
   .navbar__mobile-new-topic,
@@ -892,11 +899,6 @@ function submitSearch(query: string) {
     width: 30px;
     height: 30px;
     padding: 1px;
-  }
-
-  .navbar__mobile-guest-avatar {
-    width: 30px;
-    height: 30px;
   }
 
 }
