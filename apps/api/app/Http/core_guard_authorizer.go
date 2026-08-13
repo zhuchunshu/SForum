@@ -194,7 +194,8 @@ func productionCoreGuardEvaluatorRegistrationsWithPolicies(policies ProductionRo
 func attachmentReadGuardEvaluator(policy AttachmentReadGuardPolicy, forumRead ForumReadPolicy) routes.CoreGuardEvaluatorFunc {
 	return func(ctx context.Context, evaluation routes.CoreGuardEvaluation) error {
 		if policy == nil || (evaluation.Descriptor.RouteID != "core.route.attachments.get" &&
-			evaluation.Descriptor.RouteID != "core.route.attachments.content") ||
+			evaluation.Descriptor.RouteID != "core.route.attachments.content" &&
+			evaluation.Descriptor.RouteID != "core.route.attachments.variant_content") ||
 			len(evaluation.Request.Body) != 0 || evaluation.Request.Query != "" {
 			return routes.ErrCoreGuardEvaluatorUnavailable
 		}

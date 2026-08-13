@@ -113,6 +113,12 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Public forum images at `/media/attachments/{publicId}` are anonymously
+  readable again: the production attachment read guard now recognizes the
+  display-variant route used by the Nuxt media alias while retaining the same
+  resource visibility and `forum.guest.read` policy:
+  `sessions/2026-08-14-public-attachment-variant-guard-fix.md`
+
 - Mobile third-party OAuth callbacks now keep the secure browser binding cookie
   available across HTTPS redirect chains and always expose callback failures:
   auth routes use inline feedback, while arbitrary return pages use a root

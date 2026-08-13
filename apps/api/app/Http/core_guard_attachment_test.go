@@ -25,6 +25,7 @@ func TestProductionAttachmentReadGuardAllowsCurrentResourceAuthority(t *testing.
 			subject: attachmentReadSubject(42, attachments.StatusActive, attachments.VisibilityPublic,
 				attachmentGuardReference(attachments.ResourceTypeSite, "", "", "", 0, true))},
 		{name: "public forum anonymous", routeID: "core.route.attachments.content", guestRead: "public", subject: publicForum},
+		{name: "public forum display variant anonymous", routeID: "core.route.attachments.variant_content", guestRead: "public", subject: publicForum},
 		{name: "protected forum member", routeID: "core.route.attachments.get", guestRead: "login_required", actorID: 7, subject: publicForum},
 		{name: "pending forum author", routeID: "core.route.attachments.get", guestRead: "login_required", actorID: 42,
 			subject: attachmentReadSubject(42, attachments.StatusActive, attachments.VisibilityPublic,
@@ -63,35 +64,39 @@ func TestProductionAttachmentReadGuardAllowsCurrentResourceAuthority(t *testing.
 func TestProductionAttachmentReadGuardRejectsUnauthorizedResourceState(t *testing.T) {
 	tests := []struct {
 		name        string
+		routeID     string
 		subject     attachments.ReadGuardSubject
 		guestRead   string
 		actorID     int64
 		permissions []string
 		want        error
 	}{
-		{name: "protected forum guest", guestRead: "login_required", want: ErrRouteLoginRequired,
+		{name: "protected forum guest", routeID: "core.route.attachments.get", guestRead: "login_required", want: ErrRouteLoginRequired,
 			subject: attachmentReadSubject(42, attachments.StatusActive, attachments.VisibilityPublic,
 				attachmentGuardReference("topic", "active", "active", "public", 42, true))},
-		{name: "private foreign", actorID: 7, want: ErrRoutePermissionDenied,
+		{name: "protected forum display variant guest", routeID: "core.route.attachments.variant_content", guestRead: "login_required", want: ErrRouteLoginRequired,
+			subject: attachmentReadSubject(42, attachments.StatusActive, attachments.VisibilityPublic,
+				attachmentGuardReference("topic", "active", "active", "public", 42, true))},
+		{name: "private foreign", routeID: "core.route.attachments.get", actorID: 7, want: ErrRoutePermissionDenied,
 			subject: attachmentReadSubject(42, attachments.StatusActive, attachments.VisibilityPrivate)},
-		{name: "disabled owner", actorID: 42, want: ErrRoutePermissionDenied,
+		{name: "disabled owner", routeID: "core.route.attachments.get", actorID: 42, want: ErrRoutePermissionDenied,
 			subject: attachmentReadSubject(42, attachments.StatusDisabled, attachments.VisibilityPrivate)},
-		{name: "pending foreign", actorID: 7, want: ErrRoutePermissionDenied,
+		{name: "pending foreign", routeID: "core.route.attachments.get", actorID: 7, want: ErrRoutePermissionDenied,
 			subject: attachmentReadSubject(42, attachments.StatusActive, attachments.VisibilityPublic,
 				attachmentGuardReference("topic", "pending", "pending", "public", 42, true))},
-		{name: "hidden category member", actorID: 7, want: ErrRoutePermissionDenied,
+		{name: "hidden category member", routeID: "core.route.attachments.get", actorID: 7, want: ErrRoutePermissionDenied,
 			subject: attachmentReadSubject(42, attachments.StatusActive, attachments.VisibilityPublic,
 				attachmentGuardReference("topic", "active", "active", "private", 42, true))},
-		{name: "missing forum resource", actorID: 7, want: ErrRoutePermissionDenied,
+		{name: "missing forum resource", routeID: "core.route.attachments.get", actorID: 7, want: ErrRoutePermissionDenied,
 			subject: attachmentReadSubject(42, attachments.StatusActive, attachments.VisibilityPublic,
 				attachmentGuardReference("topic", "active", "active", "public", 42, false))},
-		{name: "unreferenced public foreign", actorID: 7, want: ErrRoutePermissionDenied,
+		{name: "unreferenced public foreign", routeID: "core.route.attachments.get", actorID: 7, want: ErrRoutePermissionDenied,
 			subject: attachmentReadSubject(42, attachments.StatusActive, attachments.VisibilityPublic)},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			authorizer := attachmentReadAuthorizer(&testAttachmentReadGuardPolicy{subject: test.subject}, test.guestRead)
-			plan, step := productionAttachmentReadPlan(t, "core.route.attachments.get", test.subject.PublicID)
+			plan, step := productionAttachmentReadPlan(t, test.routeID, test.subject.PublicID)
 			request := routes.DispatchRequest{Method: plan.Method(), Path: plan.Path(), Params: plan.Params()}
 			if test.actorID > 0 {
 				request = productionGuardRequest(test.permissions...)
@@ -174,6 +179,14 @@ func productionAttachmentReadPlan(t *testing.T, routeID, publicID string) (route
 	}
 	if target.ID == "" {
 		t.Fatalf("attachment route %q is missing", routeID)
+	}
+	if routeID == "core.route.attachments.variant_content" {
+		return productionParameterizedInheritedGuardPlan(
+			t,
+			target,
+			"/guard/production/attachments/:publicId/variants/:variant/content",
+			"/guard/production/attachments/"+publicID+"/variants/"+attachments.CompressionVariantDisplay+"/content",
+		)
 	}
 	return productionParameterizedInheritedGuardPlan(
 		t, target, "/guard/production/attachments/:publicId", "/guard/production/attachments/"+publicID,

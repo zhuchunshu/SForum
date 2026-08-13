@@ -66,6 +66,10 @@ Attachment system foundation is implemented.
   `/media/attachments/{publicId}/original`. The alias is only opened by an
   explicit viewer action and never exposes provider URLs or bypasses visibility
   checks.
+- The production Route Guard applies the same attachment/reference authority to
+  metadata, original-content, and display-variant routes. Public forum media is
+  anonymously readable only when `forum.guest.read=public`; private, pending,
+  hidden-category, disabled, and login-required resources remain protected.
 - The stable `core.component.page.admin.attachments` Admin Surface placement is
   mapped to Attachment Management so existing governance extensions continue
   to render after the route split.
