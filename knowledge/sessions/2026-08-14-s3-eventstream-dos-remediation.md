@@ -11,6 +11,11 @@
 - Patch-bumped `sforum.storage-s3` to **1.0.3** and refreshed
   `tests/builtin-plugin-release-baseline.json` because `backend/go.mod` +
   `go.sum` are part of the plugin source contract digest.
+  **Correction (2026-08-14):** the committed `sourceDigest` for 1.0.3 was
+  wrong (`2ec05393…`); it did not match the actual committed storage-s3 source
+  (`6a035d46…`), which broke the next CI Quality gate. The release baseline
+  was regenerated correctly at **1.0.4** — see
+  `sessions/2026-08-14-builtin-s3-baseline-drift-fix.md`.
 - No business code changes: the backend's Put/Get/Head/Delete/Presign usage
   compiles and vets unchanged against the new SDK.
 

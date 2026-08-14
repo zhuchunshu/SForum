@@ -113,6 +113,14 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Built-in `sforum.storage-s3` release baseline drift fixed: the prior S3
+  EventStream DoS commit wrote a wrong `sourceDigest` for 1.0.3; the Bun
+  migration did not change plugin source. Patch-bumped storage-s3 to **1.0.4**
+  and regenerated `tests/builtin-plugin-release-baseline.json` with the repo
+  validator (digest `b843c0ea…`). Full repo gate passes; supersedes the earlier
+  "1.0.3 baseline correctly refreshed" claim:
+  `sessions/2026-08-14-builtin-s3-baseline-drift-fix.md`
+
 - Web production runtime moved from Node to Bun: the `prod` Docker stage now
   uses `oven/bun:1.3.14-alpine` (no `apk add nodejs`), starts with
   `CMD ["bun", ".output/server/index.mjs"]`, and `nuxt.config.ts` sets
