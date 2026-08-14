@@ -113,6 +113,13 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- S3 EventStream DoS (GO-2026-5764) remediation: the protected
+  `sforum.storage-s3` backend upgraded its AWS SDK v2 graph so
+  `service/s3` is v1.97.3 and `eventstream` v1.7.8; plugin patch-bumped to
+  1.0.3 with the release baseline refreshed. Local build/govulncheck/test
+  gates pass; Security workflow confirmation pending push:
+  `sessions/2026-08-14-s3-eventstream-dos-remediation.md`
+
 - Mobile topic list G1 (white flat list) + mobile topbar search icon landed:
   rows show `author ← lastReply · lastActivity`, category pill, neutral reply
   badge, no mobile tags; search moved from an always-visible bar to a topbar

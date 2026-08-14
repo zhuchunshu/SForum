@@ -22,8 +22,8 @@
       "sourceDigest": "b5c96182a50b27d32afe76a45d46715a84273c27287b54daf26429bba968a6cd"
     },
     "sforum.storage-s3": {
-      "version": "1.0.2",
-      "sourceDigest": "e7c421a932fa7cb56907a6c8a423253c61b6d46dcdba39602b903c6c7331c455"
+      "version": "1.0.3",
+      "sourceDigest": "2ec0539324e8550694790f5072c0b2c4fe9f150f926fc5a77aca6d92311c5610"
     },
     "sforum.web-push": {
       "version": "1.0.2",
