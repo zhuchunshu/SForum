@@ -97,6 +97,9 @@ export default defineNuxtConfig({
     payloadExtraction: payloadExtractionEnabled
   },
   nitro: {
+    // 生产运行时为 Bun（见 Dockerfile prod 阶段）；node-server 产物的 srvx
+    // exports 会把 Bun 解析到被 tree-shake 掉的 bun adapter，故显式使用 bun preset。
+    preset: 'bun',
     // 静态资源（带 hash 的 _nuxt 文件）压缩为 brotli + gzip。
     compressPublicAssets: { brotli: true, gzip: true },
     // 路由级渲染模式与缓存：全部页面保持 SSR，只有不依赖会话的公开页面才允许共享 SWR。

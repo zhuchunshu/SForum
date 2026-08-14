@@ -39,6 +39,25 @@ responsibilities.
 - Web readiness must probe `/health`, not `/`; probing the homepage performs
   SSR work and can warm deployment caches with an internal request origin.
 
+## Production Runtime (Bun)
+
+- The web image runs the Nitro output under Bun, not Node. The `prod` Docker
+  stage uses `oven/bun:1.3.14-alpine` (same fixed version as deps/build),
+  installs no Alpine Node.js package, and starts with
+  `CMD ["bun", ".output/server/index.mjs"]`.
+- `nuxt.config.ts` sets `nitro.preset: 'bun'`. This is required: the default
+  `node-server` output externalizes `srvx` (via `ipx`/`h3`) with only the
+  `node` adapter, but `srvx`'s `exports` map matches Bun's `bun` condition
+  first and points at a tree-shaken `dist/adapters/bun.mjs`, so Bun fails with
+  `Cannot find package 'srvx'`. The `bun` preset bundles the bun adapter and
+  serves via `Bun.serve()` honoring the existing `HOST`/`PORT` contract.
+- The Bun image's `node` is a symlink to `bun` (CLI compatibility wrapper), not
+  a real Node.js install; do not treat that link as Node.
+- `@nuxt/image` keeps `ipx` + sharp; sharp `linux-x64` binaries are included in
+  the build. Image-optimization requests are the residual runtime-verification
+  surface not exercised end-to-end by this migration.
+- See `decisions/2026-08-14-web-production-bun-runtime.md`.
+
 ## SEO Title Ownership
 
 - Public page titles are resolved once by `useSForumSeo` and

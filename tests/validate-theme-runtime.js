@@ -30,7 +30,7 @@ assertIncludes(nuxtConfig, 'sforum-theme.css', 'host must register migrated publ
 
 // Production and development both run Nuxt directly; no release supervisor remains.
 assertIncludes(webPackage.scripts.start, '.output/server/index.mjs', 'web start must run the Nuxt output directly')
-assertIncludes(webDockerfile, 'CMD ["node", ".output/server/index.mjs"]', 'web image must run the Nuxt output directly')
+assertIncludes(webDockerfile, 'CMD ["bun", ".output/server/index.mjs"]', 'web image must run the Nuxt output directly')
 assertNotIncludes(webDockerfile, 'theme-releases', 'web image must not contain a theme release volume')
 assertIncludes(webPackage.scripts.dev, 'nuxt dev', 'web dev must run Nuxt directly without theme layer supervisor')
 assertIncludes(webPackage.scripts.build, 'nuxt build', 'web build script must run Nuxt build')

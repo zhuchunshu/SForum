@@ -113,6 +113,16 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Web production runtime moved from Node to Bun: the `prod` Docker stage now
+  uses `oven/bun:1.3.14-alpine` (no `apk add nodejs`), starts with
+  `CMD ["bun", ".output/server/index.mjs"]`, and `nuxt.config.ts` sets
+  `nitro.preset: 'bun'` because the `node-server` output cannot start under Bun
+  (`srvx` exports `bun` condition resolves a tree-shaken adapter). Image build,
+  non-root `sforum` runtime, HTTP 3000, entrypoint URL injection, and the full
+  web test/typecheck gate all pass:
+  `sessions/2026-08-14-web-production-bun-runtime.md`,
+  `decisions/2026-08-14-web-production-bun-runtime.md`
+
 - S3 EventStream DoS (GO-2026-5764) remediation: the protected
   `sforum.storage-s3` backend upgraded its AWS SDK v2 graph so
   `service/s3` is v1.97.3 and `eventstream` v1.7.8; plugin patch-bumped to

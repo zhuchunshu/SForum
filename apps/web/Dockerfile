@@ -24,11 +24,10 @@ COPY apps/web/ ./
 COPY extensions/builtin /app/extensions/builtin
 RUN ln -sfn .nuxt-build .nuxt && bun run build
 
-FROM alpine:3.22 AS prod
+FROM oven/bun:1.3.14-alpine AS prod
 
 # H6：容器以非 root 用户运行。
-RUN apk add --no-cache nodejs && \
-	addgroup -S sforum && adduser -S -G sforum sforum && \
+RUN addgroup -S sforum && adduser -S -G sforum sforum && \
 	mkdir -p /app/apps/web && \
 	chown -R sforum:sforum /app
 WORKDIR /app/apps/web
@@ -40,4 +39,4 @@ RUN chmod 0755 /usr/local/bin/sforum-web-entrypoint
 USER sforum
 EXPOSE 3000
 ENTRYPOINT ["/usr/local/bin/sforum-web-entrypoint"]
-CMD ["node", ".output/server/index.mjs"]
+CMD ["bun", ".output/server/index.mjs"]
