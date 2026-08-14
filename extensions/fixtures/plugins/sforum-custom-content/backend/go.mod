@@ -1,6 +1,6 @@
 module github.com/zhuchunshu/sforum/extensions/fixtures/plugins/sforum-custom-content/backend
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/jackc/pgx/v5 v5.10.0

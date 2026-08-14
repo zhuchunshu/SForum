@@ -1,6 +1,6 @@
 module github.com/zhuchunshu/sforum/extensions/fixtures/plugins/sforum-query-reference/backend
 
-go 1.26.5
+go 1.26.6
 
 require github.com/zhuchunshu/sforum/apps/api v0.0.0
 

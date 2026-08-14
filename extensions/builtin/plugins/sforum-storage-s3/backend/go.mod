@@ -1,6 +1,6 @@
 module github.com/zhuchunshu/sforum/extensions/builtin/plugins/sforum-storage-s3/backend
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.39.6

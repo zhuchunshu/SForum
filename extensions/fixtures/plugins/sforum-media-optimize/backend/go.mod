@@ -1,6 +1,6 @@
 module github.com/zhuchunshu/sforum/extensions/fixtures/plugins/sforum-media-optimize/backend
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd

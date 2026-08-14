@@ -1,6 +1,6 @@
 module github.com/zhuchunshu/sforum/extensions/builtin/plugins/sforum-web-push/backend
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/SherClockHolmes/webpush-go v1.4.0
