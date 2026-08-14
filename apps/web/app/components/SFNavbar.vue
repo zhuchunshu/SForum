@@ -113,6 +113,17 @@ function closeMobileDrawers() {
   mobileInfoOpen.value = false
 }
 
+const mobileSearchOpen = ref(false)
+
+function toggleMobileSearch() {
+  closeMobileDrawers()
+  mobileSearchOpen.value = !mobileSearchOpen.value
+}
+
+function closeMobileSearch() {
+  mobileSearchOpen.value = false
+}
+
 function toggleMobileMenu() {
   const opening = !mobileMenuOpen.value
   closeMobileDrawers()
@@ -125,7 +136,10 @@ function toggleMobileInfo() {
   mobileInfoOpen.value = opening
 }
 
-watch(() => route.fullPath, closeMobileDrawers)
+watch(() => route.fullPath, () => {
+  closeMobileDrawers()
+  closeMobileSearch()
+})
 watch(routeSearchQuery, (query) => {
   if (searchQuery.value !== query) {
     searchQuery.value = query
@@ -220,6 +234,16 @@ function submitSearch(query: string) {
             size="sm"
             shape="circle"
           />
+        </button>
+        <button
+          type="button"
+          class="navbar__control navbar__mobile-search-trigger"
+          :aria-label="t('nav.search')"
+          :aria-expanded="mobileSearchOpen"
+          :title="t('nav.search')"
+          @click="toggleMobileSearch"
+        >
+          <UIcon name="i-lucide-search" class="size-5" aria-hidden="true" />
         </button>
         <SFNotificationPreview v-if="user" />
         <NuxtLink
@@ -379,7 +403,9 @@ function submitSearch(query: string) {
     <SFPublicMobileSearchBar
       v-model="searchQuery"
       :can-create-topic="canCreateTopic"
+      :open="mobileSearchOpen"
       @submit="submitSearch"
+      @close="closeMobileSearch"
     />
   </header>
   <SFPublicMobileBottomNavigation
@@ -654,6 +680,10 @@ function submitSearch(query: string) {
   color: #4b5563;
 }
 
+/* 移动端搜索触发只出现在窄屏；桌面用常规搜索输入 */
+.navbar__mobile-search-trigger {
+  display: none;
+}
 .navbar__auth-link {
   min-height: 34px;
   padding: 0 12px;
@@ -776,7 +806,7 @@ function submitSearch(query: string) {
 
 @media (max-width: 980px) {
   .navbar {
-    min-height: 108px;
+    min-height: 54px;
   }
 
   .navbar__inner {
@@ -819,6 +849,13 @@ function submitSearch(query: string) {
 
   .navbar__appearance-control {
     order: 1;
+  }
+
+  .navbar__mobile-search-trigger {
+    order: 0;
+    display: grid;
+    place-items: center;
+    height: 36px;
   }
 
   .navbar__mobile-info-button {

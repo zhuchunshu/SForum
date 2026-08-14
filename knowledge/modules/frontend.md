@@ -829,20 +829,30 @@ Architecture sources:
   home/post/notification dock and unread badge. This split keeps the shared
   navbar below the 1000-line architecture gate without weakening its existing
   desktop/mobile contract.
-- Mobile public chrome follows the approved D soft-panel direction. At narrow
-  widths the topbar keeps only appearance, sidebar, and avatar controls in
-  that order; notification previews, language, and compose controls remain
-  desktop-only. A fixed three-item navigation exposes home, post, and
-  notifications, with the shared unread count on the notification item.
-- Mobile topic rows switch from the desktop table treatment to white, lightly
-  elevated panels. Titles wrap naturally without truncation and author/avatar,
-  time, category, and reply metadata move below the title. The mobile row also
-  exposes the topic's category and at most two API-backed tags as links in the
-  same horizontal metadata row as the author ID (wrapping only when needed).
-  The inline mobile author avatar is 24px; the shared list avatar and desktop
-  topic-table size remain unchanged.
-  Desktop titles also wrap naturally; desktop grid geometry, separators, and
-  square rows remain unchanged.
+- Mobile public chrome follows the approved G1 white-flat direction. At narrow
+  widths the topbar keeps only search, appearance, sidebar, and avatar controls;
+  notification previews, language, and compose controls remain desktop-only.
+  The mobile search input moved to a topbar search icon that opens a fixed
+  slide-down search panel (search field + compose + close), so the mobile
+  navbar is a single 54px row instead of a 108px topbar+search stack. A fixed
+  three-item navigation exposes home, post, and notifications, with the shared
+  unread count on the notification item.
+- Mobile topic rows are a flat white list (hairline separators, no rounded
+  cards, no shadows). Titles wrap naturally with badges before the title. The
+  meta row shows `[avatar] author ← lastReply · lastActivity` when the topic has
+  replies, otherwise `[avatar] author · created`; the category pill follows, and
+  the reply count sits on the right as a neutral count badge. Tags are no longer
+  shown in mobile rows.
+  The inline mobile author avatar is 24px; the shared list avatar size remains
+  unchanged.
+- Desktop topic rows use the approved C1 flat list: a single white row with
+  hairline separators (no five-column table grid). Pinned/hot badges sit on
+  their own line above the title; the title line is `[category pill] title`;
+  the meta row shows `[avatar] author ← lastReply · lastActivity` on the left
+  and up to three tags plus the neutral reply badge on the right. When a topic
+  has no replies the meta shows `author · created`. Mobile rows keep the G1
+  layout (badges inline before the title, category pill in the meta row, no
+  tags). The desktop inline meta avatar is 28px.
 - Public mobile drawers use a viewport-wide fixed backdrop (`inset: 0`) and a
   drawer starting at the viewport top (`top: 0`), so opening the sidebar
   covers the topbar and search region instead of appearing underneath it.

@@ -113,6 +113,12 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Mobile topic list G1 (white flat list) + mobile topbar search icon landed:
+  rows show `author ← lastReply · lastActivity`, category pill, neutral reply
+  badge, no mobile tags; search moved from an always-visible bar to a topbar
+  icon with a slide-down panel, and the mobile navbar is a single 54px row:
+  `sessions/2026-08-14-mobile-topic-list-g1.md`
+
 - Public forum images at `/media/attachments/{publicId}` are anonymously
   readable again: the production attachment read guard now recognizes the
   display-variant route used by the Nuxt media alias while retaining the same

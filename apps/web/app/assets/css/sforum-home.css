@@ -768,13 +768,17 @@
 
 }
 
-/* hybrid demo fidelity: 显式 CSS 兜底，避免任意断点类未生成时退回桌面五列。 */
+/* C1 桌面扁平行：白底细分隔线，徽标在标题上方，meta 左右分流（作者+最近回复 | 标签+回复徽章）。 */
 .sf-page.sf-theme--default .sf-home-topic-row {
-  grid-template-columns: 42px minmax(0, 1fr) 96px 54px 104px;
-  gap: 12px;
-  min-height: 88px;
-  padding: 14px 8px;
+  display: block;
+  padding: 14px 18px;
   border-bottom: 1px solid var(--sf-public-border);
+  background: transparent;
+  box-shadow: none;
+}
+
+.sf-page.sf-theme--default .sf-home-topic-row:last-child {
+  border-bottom: 0;
 }
 
 .sf-page.sf-theme--default .sf-home-navigation__link.is-active {
@@ -808,30 +812,17 @@
   }
 
   .sf-page.sf-theme--default .sf-home-topic-row {
-    grid-template-columns: 38px minmax(0, 1fr) auto;
-    padding: 11px 12px;
-  }
-
-  .sf-page.sf-theme--default .sf-home-topic-row__replies,
-  .sf-page.sf-theme--default .sf-home-topic-row__activity {
-    display: none;
+    padding: 12px 14px;
   }
 }
 
 @media (max-width: 560px) {
   .sf-page.sf-theme--default .sf-home-topic-row {
-    grid-template-columns: 36px minmax(0, 1fr);
-    min-height: 82px;
-  }
-
-  .sf-page.sf-theme--default .sf-home-topic-row__category,
-  .sf-page.sf-theme--default .sf-home-topic-row__replies,
-  .sf-page.sf-theme--default .sf-home-topic-row__activity {
-    display: none;
+    padding: 12px 12px;
   }
 }
 
-/* 移动端软面板列表：桌面仍保留原有列式表格，窄屏改为标题优先的浮层行。 */
+/* 移动端白色扁平列表（G1）：白底 + 细分隔线，无圆角卡片无阴影，标题优先。 */
 @media (max-width: 720px) {
   .sf-page.sf-theme--default .sforum-home__main {
     padding: 17px 12px 84px;
@@ -845,28 +836,27 @@
   }
 
   .sf-page.sf-theme--default .sforum-home__feed-list {
-    display: grid;
-    gap: 9px;
+    display: block;
   }
 
   .sf-page.sf-theme--default .sf-home-topic-row {
     display: block;
     min-height: 0;
-    padding: 14px 13px 13px;
+    padding: 13px 14px;
     border: 0;
-    border-radius: 14px;
-    background: var(--sf-public-surface);
-    box-shadow: 0 2px 12px rgb(51 56 80 / 0.055);
+    border-bottom: 1px solid var(--sf-public-border);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .sf-page.sf-theme--default .sf-home-topic-row:last-child {
+    border-bottom: 0;
   }
 
   .sf-page.sf-theme--default .sf-home-topic-row:hover,
   .sf-page.sf-theme--default .sf-home-topic-row:focus-visible {
-    background: var(--sf-public-surface);
-    box-shadow: 0 4px 16px rgb(51 56 80 / 0.09);
-  }
-
-  .sf-page.sf-theme--default .sf-home-topic-row__desktop-avatar {
-    display: none;
+    background: var(--sf-public-row-hover);
   }
 
   .sf-page.sf-theme--default .sf-home-topic-row__title {
@@ -878,16 +868,16 @@
 
   .sf-page.sf-theme--default .sf-home-topic-row__meta {
     align-items: center;
-    margin-top: 10px;
+    margin-top: 8px;
     gap: 7px;
   }
 
-  .sf-page.sf-theme--default .sf-home-topic-row__mobile-avatar {
+  .sf-page.sf-theme--default .sf-home-topic-row__meta-avatar {
     display: inline-flex;
     flex: 0 0 auto;
   }
 
-  .sf-page.sf-theme--default .sf-home-topic-row__mobile-avatar .sf-avatar {
+  .sf-page.sf-theme--default .sf-home-topic-row__meta-avatar .sf-avatar {
     width: 24px;
     height: 24px;
     font-size: 10px;
@@ -897,8 +887,29 @@
     min-width: 0;
   }
 
-  .sf-page.sf-theme--default .sf-home-topic-row__mobile-replies {
+  .sf-page.sf-theme--default .sf-home-topic-row__meta-arrow {
+    flex: 0 0 auto;
+    color: var(--sf-public-text-muted);
+  }
+
+  .sf-page.sf-theme--default .sf-home-topic-row__meta-replier {
+    min-width: 0;
+  }
+
+  .sf-page.sf-theme--default .sf-home-topic-row__reply-badge {
     margin-left: auto;
+    align-items: center;
+    justify-content: center;
+    min-width: 26px;
+    height: 22px;
+    border: 1px solid var(--sf-public-border-strong);
+    border-radius: 999px;
+    padding: 0 8px;
+    background: var(--sf-public-surface-muted);
+    color: var(--sf-public-text-secondary);
+    font-size: 11px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
   }
 
   .sf-page.sf-theme--default .sf-home-topic-row__mobile-taxonomy {
@@ -910,19 +921,15 @@
     overflow: hidden;
   }
 
-  .sf-page.sf-theme--default .sf-home-topic-row__mobile-category,
-  .sf-page.sf-theme--default .sf-home-topic-row__mobile-tag {
+  .sf-page.sf-theme--default .sf-home-topic-row__mobile-category {
+    display: inline-flex;
+    min-height: 22px;
+    align-items: center;
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     text-decoration: none;
-  }
-
-  .sf-page.sf-theme--default .sf-home-topic-row__mobile-category {
-    display: inline-flex;
-    min-height: 22px;
-    align-items: center;
     border-radius: 5px;
     padding: 0 7px;
     font-size: 10px;
@@ -930,21 +937,22 @@
     line-height: 1;
   }
 
-  .sf-page.sf-theme--default .sf-home-topic-row__mobile-tag {
-    color: var(--sf-public-text-muted);
-    font-size: 10px;
-    font-weight: 600;
-  }
-
-  .sf-page.sf-theme--default .sf-home-topic-row__mobile-tag:hover,
   .sf-page.sf-theme--default .sf-home-topic-row__mobile-category:hover {
     color: var(--sf-accent-hover);
   }
 }
 
 @media (min-width: 721px) {
-  .sf-home-topic-row__mobile-avatar {
-    display: none;
+  /* 桌面 C1：meta 头像与移动端 G1 一致（共享组件内联头像），不再隐藏 */
+  .sf-page.sf-theme--default .sf-home-topic-row__meta-avatar {
+    display: inline-flex;
+    flex: 0 0 auto;
+  }
+
+  .sf-page.sf-theme--default .sf-home-topic-row__meta-avatar .sf-avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 11px;
   }
 
   /* 旧 immutable 默认主题制品仍可能带 nowrap；宿主覆盖保证开发运行时同步。 */

@@ -525,7 +525,7 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
 
 @media (max-width: 980px) {
   :root {
-    --sf-public-topbar-height: 108px;
+    --sf-public-topbar-height: 54px;
   }
 
   .sforum-mobile-drawer__backdrop {
@@ -944,12 +944,12 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
 
 @media (max-width: 980px) {
   .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar {
-    height: 108px;
-    min-height: 108px;
+    height: 54px;
+    min-height: 54px;
   }
 
   .sf-theme-template[data-extension-id="sforum.default-theme"] .navbar__inner {
-    min-height: 56px;
+    min-height: 54px;
     padding: 0 12px;
   }
 

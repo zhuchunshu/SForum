@@ -410,7 +410,7 @@
 
 @media (max-width: 980px) {
   :root {
-    --sf-public-topbar-height: 108px;
+    --sf-public-topbar-height: 54px;
   }
 
   .sforum-home__main,
@@ -1041,20 +1041,14 @@
 }
 
 .sf-theme--default .sforum-home__feed-list > article {
-  min-height: 88px;
-  grid-template-columns: 42px minmax(0, 1fr) 96px 54px 104px;
-  gap: 12px;
+  display: block;
+  min-height: 0;
   border-color: var(--sf-public-border);
-  padding: 14px 8px;
+  padding: 14px 18px;
 }
 
 .sf-theme--default .sforum-home__feed-list > article:hover {
   background: var(--sf-public-row-hover);
-}
-
-.sf-theme--default .sforum-home__feed-list .sf-avatar {
-  width: 40px;
-  height: 40px;
 }
 
 /* 列表标题：比 demo 14px 略放大，提升可读性 */
@@ -1076,52 +1070,12 @@
   font-weight: 500;
 }
 
-.sf-theme--default .sf-home-topic-row__category {
-  height: auto;
-  min-height: 24px;
-  justify-self: start;
+.sf-theme--default .sf-home-topic-row__desktop-category {
   border: 0;
   border-radius: 5px;
-  padding: 4px 9px;
+  padding: 2px 8px;
   font-size: 11px;
   font-weight: 600;
-  line-height: 16px;
-  white-space: nowrap;
-}
-
-.sf-theme--default .sf-home-topic-row__replies {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  color: var(--sf-public-text-muted);
-  font-size: 11px;
-}
-
-.sf-theme--default .sf-home-topic-row__replies strong {
-  color: var(--sf-public-text);
-  font-size: 15px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-.sf-theme--default .sf-home-topic-row__activity {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-  color: var(--sf-public-text-muted);
-  font-size: 11px;
-}
-
-.sf-theme--default .sf-home-topic-row__activity strong,
-.sf-theme--default .sf-home-topic-row__activity a {
-  overflow: hidden;
-  max-width: 100px;
-  color: var(--sf-public-text);
-  font-size: 12px;
-  font-weight: 600;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -1747,13 +1701,7 @@
   }
 
   .sf-theme--default .sforum-home__feed-list > article {
-    grid-template-columns: 38px minmax(0, 1fr) auto;
-    padding: 11px 12px;
-  }
-
-  .sf-theme--default .sf-home-topic-row__replies,
-  .sf-theme--default .sf-home-topic-row__activity {
-    display: none;
+    padding: 12px 14px;
   }
 }
 
@@ -1782,13 +1730,7 @@
 
 @media (max-width: 560px) {
   .sf-theme--default .sforum-home__feed-list > article {
-    grid-template-columns: 36px minmax(0, 1fr);
-  }
-
-  .sf-theme--default .sf-home-topic-row__category,
-  .sf-theme--default .sf-home-topic-row__replies,
-  .sf-theme--default .sf-home-topic-row__activity {
-    display: none;
+    padding: 12px 12px;
   }
 
   .sf-comment-list > .sf-comment {
