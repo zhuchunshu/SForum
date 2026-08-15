@@ -1,0 +1,6 @@
+[test]
+# Install a happy-dom environment before any test file is imported so Vue's
+# @vue/runtime-dom never freezes its `document` binding to `null` (see
+# tests/helpers/dom.ts). This is deterministic regardless of test file load
+# order and does not affect `vue/server-renderer` based SSR tests.
+preload = ["./tests/helpers/setup-dom.ts"]

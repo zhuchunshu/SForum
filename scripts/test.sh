@@ -84,6 +84,7 @@ if [ -d apps/web/node_modules ]; then
   echo "Running web unit tests for trusted editor L2 and registry catalogs..."
   (cd apps/web && bun test \
     tests/framework/editorL2Load.test.ts \
+    tests/framework/editorDomLoadOrder.test.ts \
     tests/admin/adminRegistryCatalogs.test.ts \
     tests/identity/authProvidersPublicUi.test.ts \
     tests/identity/authRouteRendering.test.ts \

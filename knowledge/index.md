@@ -113,6 +113,15 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- CI Quality gate Web 测试 DOM 竞态 + Web 运行镜像 OpenSSL 漏洞修复：新增 Bun
+  `[test].preload`（`tests/helpers/setup-dom.ts` + `tests/helpers/dom.ts` +
+  `apps/web/bunfig.toml`）在任一 vue/@tiptap/vue-3 导入前安装 happy-dom，消除
+  `@vue/runtime-dom` 模块级 `doc` 被冻结为 null 的加载顺序竞态；批次挂载测试
+  复用集中 helper，并新增 `editorDomLoadOrder.test.ts` 回归。prod Docker stage
+  新增 `apk add --upgrade 'libcrypto3>=3.5.7-r0' 'libssl3>=3.5.7-r0'` 修复
+  CVE-2026-45447（Trivy 0 漏洞、保持非 root 与 Bun 启动方式）：
+  `sessions/2026-08-15-web-test-dom-race-openssl-fix.md`
+
 - Built-in `sforum.storage-s3` release baseline drift fixed: the prior S3
   EventStream DoS commit wrote a wrong `sourceDigest` for 1.0.3; the Bun
   migration did not change plugin source. Patch-bumped storage-s3 to **1.0.4**

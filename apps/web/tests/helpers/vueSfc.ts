@@ -1,19 +1,7 @@
-import { Window } from 'happy-dom'
 import { compileScript, compileTemplate, parse, rewriteDefault } from '@vue/compiler-sfc'
+import { installTestDom } from './dom'
 
-const testWindow = new Window({ url: 'http://localhost/' })
-Object.assign(globalThis, {
-  window: testWindow,
-  document: testWindow.document,
-  navigator: testWindow.navigator,
-  Element: testWindow.Element,
-  HTMLElement: testWindow.HTMLElement,
-  SVGElement: testWindow.SVGElement,
-  Node: testWindow.Node,
-  Event: testWindow.Event,
-  MouseEvent: testWindow.MouseEvent,
-  KeyboardEvent: testWindow.KeyboardEvent
-})
+installTestDom()
 
 export const testVue = await import('vue')
 export const { mount, flushPromises } = await import('@vue/test-utils')

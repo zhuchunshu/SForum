@@ -1,28 +1,15 @@
 import { describe, expect, test } from 'bun:test'
-import { Window } from 'happy-dom'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { compileScript, compileTemplate, parse, rewriteDefault } from '@vue/compiler-sfc'
+import { installTestDom } from '../helpers/dom'
 
 import { asExternalIdentityList } from '../../app/composables/identity/useAccountSecurityApi'
 import { authProviderDisplayMeta, providerSupportsOperation, type PublicAuthProvider } from '../../app/composables/identity/useAuthProviders'
 import { FORUM_PERMISSIONS } from '../../app/composables/identity/usePermissions'
 import { resolveExternalAuthFeedback } from '../../app/utils/identity/externalAuthFeedback'
 
-const securityWindow = new Window({ url: 'http://localhost/settings/login-methods' })
-Object.assign(globalThis, {
-  window: securityWindow,
-  document: securityWindow.document,
-  navigator: securityWindow.navigator,
-  Document: securityWindow.Document,
-  ShadowRoot: securityWindow.ShadowRoot,
-  Element: securityWindow.Element,
-  HTMLElement: securityWindow.HTMLElement,
-  SVGElement: securityWindow.SVGElement,
-  Node: securityWindow.Node,
-  Event: securityWindow.Event,
-  MouseEvent: securityWindow.MouseEvent
-})
+installTestDom({ url: 'http://localhost/settings/login-methods' })
 const securityRoot = fileURLToPath(new URL('../..', import.meta.url))
 const securityVue = await import('vue')
 const { mount, flushPromises } = await import('@vue/test-utils')

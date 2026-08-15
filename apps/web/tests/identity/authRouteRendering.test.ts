@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test'
-import { Window } from 'happy-dom'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { compileScript, compileTemplate, parse, rewriteDefault } from '@vue/compiler-sfc'
+import { installTestDom } from '../helpers/dom'
 
 import { buildAuthPageLink, resolveAuthReturnPath } from '../../app/utils/identity/authReturn'
 import {
@@ -16,11 +16,8 @@ const zhCN = JSON.parse(await Bun.file(new URL('../../i18n/locales/zh-CN.json', 
 const enUS = JSON.parse(await Bun.file(new URL('../../i18n/locales/en-US.json', import.meta.url)).text())
 const authShellSource = await Bun.file(new URL('../../app/components/identity/auth/SFAuthShell.vue', import.meta.url)).text()
 
-const mountWindow = new Window({ url: 'http://localhost/login' })
+installTestDom({ url: 'http://localhost/login' })
 Object.assign(globalThis, {
-  window: mountWindow, document: mountWindow.document, navigator: mountWindow.navigator,
-  Element: mountWindow.Element, HTMLElement: mountWindow.HTMLElement, SVGElement: mountWindow.SVGElement,
-  Node: mountWindow.Node, Event: mountWindow.Event, MouseEvent: mountWindow.MouseEvent,
   useSForumSeo: () => {}
 })
 const mountRoot = fileURLToPath(new URL('../..', import.meta.url))

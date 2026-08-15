@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test'
-import { Window } from 'happy-dom'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { compileScript, compileTemplate, parse, rewriteDefault } from '@vue/compiler-sfc'
+import { installTestDom } from '../helpers/dom'
 
 import { adminPageDefinitions } from '../../app/config/adminModules'
 import { ROLE_TEMPLATE_DEFINITIONS } from '../../app/config/roleTemplates'
@@ -16,12 +16,7 @@ import {
   type AdminIdentityProvider
 } from '../../app/utils/admin/adminLoginMethods'
 
-const adminWindow = new Window({ url: 'http://localhost/admin/settings/login-methods' })
-Object.assign(globalThis, {
-  window: adminWindow, document: adminWindow.document, navigator: adminWindow.navigator,
-  Element: adminWindow.Element, HTMLElement: adminWindow.HTMLElement, SVGElement: adminWindow.SVGElement,
-  Node: adminWindow.Node, Event: adminWindow.Event, MouseEvent: adminWindow.MouseEvent
-})
+installTestDom({ url: 'http://localhost/admin/settings/login-methods' })
 const adminRoot = fileURLToPath(new URL('../..', import.meta.url))
 const adminVue = await import('vue')
 const { mount, flushPromises } = await import('@vue/test-utils')

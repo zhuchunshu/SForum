@@ -26,6 +26,10 @@ RUN ln -sfn .nuxt-build .nuxt && bun run build
 
 FROM oven/bun:1.3.14-alpine AS prod
 
+# 升级 OpenSSL 运行时库以修复 CVE-2026-45447（libcrypto3/libssl3 3.5.6-r0 存在 HIGH
+# 漏洞，Alpine 3.22 仓库已提供 3.5.7-r0 修复版本）。仅影响最终运行镜像，不引入 Node。
+RUN apk add --no-cache --upgrade 'libcrypto3>=3.5.7-r0' 'libssl3>=3.5.7-r0'
+
 # H6：容器以非 root 用户运行。
 RUN addgroup -S sforum && adduser -S -G sforum sforum && \
 	mkdir -p /app/apps/web && \

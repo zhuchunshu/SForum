@@ -1,21 +1,10 @@
 import { describe, expect, test } from 'bun:test'
-import { Window } from 'happy-dom'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { compileScript, compileTemplate, parse, rewriteDefault } from '@vue/compiler-sfc'
+import { installTestDom } from '../helpers/dom'
 
-const window = new Window({ url: 'http://localhost/' })
-Object.assign(globalThis, {
-  window,
-  document: window.document,
-  navigator: window.navigator,
-  Element: window.Element,
-  HTMLElement: window.HTMLElement,
-  SVGElement: window.SVGElement,
-  Node: window.Node,
-  Event: window.Event,
-  MouseEvent: window.MouseEvent
-})
+installTestDom()
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
 const Vue = await import('vue')
