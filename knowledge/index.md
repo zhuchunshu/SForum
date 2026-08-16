@@ -113,6 +113,25 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- 文档与版本治理修复（2026-08-16，三轮整改）：deploy.sh/upgrade.sh 默认
+  **stable** 通道；deploy.sh 区分**当前版本 vs 目标版本**（install/update 按
+  channel 解析 latest，维护动作用已部署版本且不访问 GitHub，交互多动作不再
+  污染后续目标版本）；下载/校验流程统一为 `set -eu` 子 shell 先存文件→按
+  文件名字段唯一选择 SHA256SUMS 条目→checksum→可选 provenance→校验后解压；
+  Release 固定名称部署资产 `sforum-deploy.tar.gz` + `upgrade.sh`（纳入
+  SHA256SUMS/attestation）；upgrade.sh 刷新入口改为
+  `releases/latest/download/upgrade.sh`（不再用 main raw）；文档修正
+  POST /auth/password、外部登录全路径、CSRF 豁免、Webhook gateway skeleton
+  等事实；`tests/validate-docs.mjs` 加强（未知或未解析 CLI 注册均失败、
+  extensions README 链接、完整 prerelease token 不再豁免同前缀稳定版本、
+  Dockerfile/Go 一致性、文档 HTTP method/path 同时对照 OpenAPI 与 Go Route
+  Catalog、安装命令 fail-closed）并新增失败路径测试；Dependabot
+  以 `docker-compose` 覆盖根 Compose，并覆盖 tools/proto、tests/compat，Compose
+  基础镜像均固定明确版本。
+  **阻塞性冲突未变**：路线图要求发行保持
+  prerelease，而 2026-08-01 记录 "v3.0.1 准备进入 release gate"，需产品决定：
+  `sessions/2026-08-16-docs-version-governance-remediation.md`
+
 - CI Quality gate Web 测试 DOM 竞态 + Web 运行镜像 OpenSSL 漏洞修复：新增 Bun
   `[test].preload`（`tests/helpers/setup-dom.ts` + `tests/helpers/dom.ts` +
   `apps/web/bunfig.toml`）在任一 vue/@tiptap/vue-3 导入前安装 happy-dom，消除
@@ -812,6 +831,11 @@ Historical references that require verification before use:
 
 ## Open Questions
 
+- **版本发布状态冲突（阻塞）**：路线图要求在生产重接线 M3/M5/M6/M7 关闭前
+  发行保持 prerelease；2026-08-01 会话记录 "v3.0.1 已准备进入 release
+  gate"。当前实际 GitHub Release 状态需人工核实；若已发布 stable，则与
+  路线图诚实性承诺矛盾，需产品决定（见
+  `sessions/2026-08-16-docs-version-governance-remediation.md`）。
 - Production backup destination and retention policy for operator deployments.
 - Whether `en-US` copy must be complete for the first public release.
 - Category-scoped ACL timing relative to global RBAC.

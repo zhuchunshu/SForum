@@ -1,41 +1,65 @@
 # Developer CLI (`sforum`)
 
-[← Development](./README.md)
+[← Development guide](./README.md)
 
-`sforum` is SForum’s developer console (Artisan-style tooling) at
-`apps/api/cmd/sforum`. Use it to scaffold packages, validate manifests, refresh
-exact digests, build release zips, run host contract checks, recover extensions
-out of band, and seed forum data.
+`sforum` is SForum's developer console (in the spirit of Laravel Artisan),
+implemented in `apps/api/cmd/sforum`. It covers scaffolding, extension
+validation, exact digests, packaging, contract tests, out-of-band recovery,
+account/data maintenance, and fake-data seeding.
 
-Run commands from `apps/api` by default:
+Run commands from `apps/api`:
 
 ```sh
 cd apps/api
 go run ./cmd/sforum --help
+go run ./cmd/sforum --version
 ```
 
 ## Command map
 
 | Command | Purpose |
 | --- | --- |
-| `make:plugin` | Scaffold a plugin package |
-| `make:theme` | Scaffold a theme package |
-| `seed:forum` | Append fake forum data |
-| `extension validate` | Validate a package (includes + template preflight) |
+| `version` | Print build information (version, commit, build time) |
+| `make:plugin` | Scaffold a plugin |
+| `make:theme` | Scaffold a theme |
+| `seed:forum` | Bulk-write fake forum data (small profile) |
+| `seed:perf` | Million-scale read-path seed (alias of `seed:forum --profile=perf-1m`) |
+| `users:reset-password` | Interactively reset a user's password (alias `user:reset-password`) |
+| `revisions backfill` | Backfill the forum content revision ledger in batches |
+| `extension validate` | Validate an extension package (includes/template preflight) |
 | `extension digest` | Inspect or refresh Manifest V3 `packageFiles` digests |
-| `extension test` | Host contract checks (capabilities, events, entry, …) |
-| `extension package` | Build zip + SBOM stub |
-| `extension docs generate` | Generate host catalog docs from Go catalogs |
+| `extension test` | Host contract checks (capabilities, events, entrypoints) |
+| `extension package` | Build a zip + SBOM stub |
+| `extension docs generate` | Generate host docs from the Go catalogs |
+| `extension list` | Out-of-band extension recovery state (no plugin code) |
+| `extension disable` / `disable-all` | Out-of-band disable of third-party extensions |
+| `extension quarantine` | Out-of-band quarantine of an exact built-in/system artifact |
 | `extension command list/run` | List / run trusted plugin commands |
-| `extension list` | Recovery inventory without starting plugin code |
-| `extension disable` / `disable-all` | Out-of-band disable third-party extensions |
 | `extension api-lts` | Print Host/Frontend API LTS and shim telemetry |
+| `extension system-tier list/upsert/disable` | Out-of-band system tier management (no package code) |
+| `dev:cleanup-orphan-plugins` | Stop reparented extension backend plugin processes (safe for live `sforum-api` children) |
+
+> This table is the authoritative command list; adding or removing commands must
+> update this table and `docs/zh-CN/development/cli.md`
+> (`tests/validate-docs.mjs` verifies coverage).
+
+---
+
+## Build identity: `version`
+
+```sh
+go run ./cmd/sforum version
+go run ./cmd/sforum --version
+```
+
+Prints the unified build identity: SForum version, Git commit, and build time
+(the same build arguments injected into the release images).
 
 ---
 
 ## Scaffolding: `make:plugin` / `make:theme`
 
-Interactive prompts:
+Interactive (asks for ID, name, backend stub, etc.):
 
 ```sh
 go run ./cmd/sforum make:plugin
@@ -45,15 +69,15 @@ go run ./cmd/sforum make:theme
 Non-interactive examples:
 
 ```sh
-# Local experiment (default → extensions/dev/, gitignored, not admin-listed)
+# Local experiment (default → extensions/dev/, gitignored, not in admin list)
 go run ./cmd/sforum make:plugin \
   --id acme.demo \
   --name "Acme Demo" \
-  --description "Example plugin" \
+  --description "…" \
   --backend \
   --no-interaction
 
-# Protected built-in (→ extensions/builtin/, SyncBuiltins picks it up)
+# Protected built-in package (→ extensions/builtin/, scanned by SyncBuiltins)
 go run ./cmd/sforum make:plugin \
   --id sforum.foo \
   --name "Foo" \
@@ -62,7 +86,7 @@ go run ./cmd/sforum make:plugin \
   --builtin \
   --no-interaction
 
-# Explicit output path
+# Custom output directory
 go run ./cmd/sforum make:plugin \
   --id acme.demo --name "Acme Demo" --description "…" \
   --backend --no-interaction --out /tmp/acme.demo
@@ -70,27 +94,30 @@ go run ./cmd/sforum make:plugin \
 
 ### Common flags
 
-| Flag | Applies to | Meaning |
+| Flag | Applies to | Notes |
 | --- | --- | --- |
-| `--id` | both | Stable extension id, e.g. `acme.demo` |
-| `--name` / `--description` | both | Display name and short blurb |
-| `--url` / `--author-*` | both | Site and author metadata |
-| `--out` | both | Output directory; omit to use dev/builtin rules |
+| `--id` | both | Stable extension ID, e.g. `acme.demo` |
+| `--name` / `--description` | both | Display name and summary |
+| `--url` / `--author-*` | both | Website and author info |
+| `--out` | both | Output directory; omitted follows dev/builtin rules |
 | `--builtin` | both | Write under `extensions/builtin/` instead of `dev/` |
 | `--no-interaction` | both | Disable interactive prompts |
-| `--backend` | plugin | Stub `backend/plugin` + README |
+| `--backend` | plugin | Generate a `backend/plugin` stub and README |
 | `--complex` | plugin | Multi-file manifest (includes + langs + settings shards) |
-| `--prebuilt-settings` | both | Author-prebuilt admin settings component + Schema fallback |
-| `--provider-slot` | plugin | Declare provider slot + `provider_probe` (requires `--backend`) |
+| `--prebuilt-settings` | both | Author-prebuilt Admin settings component + Schema fallback |
+| `--provider-slot` | plugin | Declare a provider slot + `provider_probe` (requires `--backend`) |
 
 ### After scaffolding
 
-1. Implement the backend and build the executable to the Manifest `backend.entry` path (usually `backend/plugin`).  
-2. Refresh exact digests with `extension digest --write`.  
-3. Run `extension validate` / `extension test`.  
-4. Ship with `extension package` when you need a zip.
+1. Implement the backend and compile the executable to the Manifest's
+   `backend.entry` (usually `backend/plugin`).
+2. Refresh exact digests with `extension digest --write`.
+3. Run `extension validate` / `extension test`.
+4. Run `extension package` when distributing.
 
-Third-party plugins should use the public SDK (`apps/api/sdk/plugin`) and **must not** import host business packages such as `app/Models/*`. Full authoring rules: [Plugin authoring guide](../../extensions/authoring-guide.md).
+Third-party plugins use the public SDK (`apps/api/sdk/plugin`) and must **not**
+import host business packages such as `app/Models/*`. Full authoring rules:
+[plugin authoring guide](../../extensions/authoring-guide.md).
 
 ---
 
@@ -100,47 +127,48 @@ Third-party plugins should use the public SDK (`apps/api/sdk/plugin`) and **must
 
 ```sh
 go run ./cmd/sforum extension validate <package-root>
-go run ./cmd/sforum extension validate <package-root> --json   # merged Manifest JSON
+go run ./cmd/sforum extension validate <package-root> --json   # merged Manifest
 ```
 
-Loads the package, resolves `includes`, validates Manifest V3, and preflights page templates for explicit V3 packages.
+Loads the package, resolves `includes`, validates Manifest V3, and preflights
+page templates for explicit V3 packages.
 
-Page Registry themes use a fail-closed three-way identity rule: every
-`theme.json.pages[].template` path must have exactly one matching Manifest V3
-`templates[]` declaration and one `packageFiles[]` entry with
-`kind: "template"`. Paths and SHA-256 digests must agree. `theme.json` defines
-page mappings only and cannot replace the exact-artifact declarations. Missing
-or stale declarations fail validation and surface as `extension.build_failed`
-during activation.
+Page Registry themes follow the fail-closed three-way identity rule: every
+`theme.json.pages[].template` path must match exactly one Manifest V3
+`templates[]` declaration and one `kind: "template"` `packageFiles[]` entry;
+paths and SHA-256 digests must agree. `theme.json` only maps pages and cannot
+replace exact-artifact declarations. Missing or stale digests fail validation
+and activation with `extension.build_failed`.
 
 ### Exact digests — `digest`
 
-Manifest V3 binds executables, frontends, migrations, and more via SHA-256 in `packageFiles`. **Refresh after any packaged file change:**
+Manifest V3 binds executables, frontends, and migrations with `packageFiles`
+SHA-256 digests. **Refresh after touching package files**:
 
 ```sh
-go run ./cmd/sforum extension digest <package-root>           # inspect
-go run ./cmd/sforum extension digest --write <package-root>   # rewrite root manifest + revalidate
+go run ./cmd/sforum extension digest <package-root>           # check only
+go run ./cmd/sforum extension digest --write <package-root>   # write back + validate
 ```
 
-When adding a theme template, first add its identity, contract, and ViewModel
-declaration to `templates[]` plus its corresponding `packageFiles[]` entry,
-then run `digest --write`. The command refreshes `packageFiles[]` and linked
-inline template digests, but cannot infer template identity or file membership
-from `theme.json`.
+When adding theme templates, declare their identity, contract, ViewModel, and
+`packageFiles[]` entries first, then run `digest --write`. The command refreshes
+`packageFiles[]` and declared inline template digests but never infers template
+identity or file membership from `theme.json`.
 
 ### Contract tests — `test`
 
 ```sh
 go run ./cmd/sforum extension test <package-root>
-go run ./cmd/sforum extension test --allow-scaffold <package-root>  # scaffold: backend binary optional
+go run ./cmd/sforum extension test --allow-scaffold <package-root>  # scaffold stage may lack the backend binary
 go run ./cmd/sforum extension test --skip-backend-binary <package-root>
 go run ./cmd/sforum extension test --json <package-root>
 ```
 
-Checks capabilities, events, contribution points, providers, jobs, backend entry, and related host catalogs.  
+Checks capabilities, events, contribution points, providers, jobs, and backend
+entrypoints against the host catalog.
 `--allow-scaffold` is an alias of `--skip-backend-binary`.
 
-After modifying a built-in theme, run this sequence from `apps/api`:
+After modifying a built-in theme, run from `apps/api`:
 
 ```sh
 go run ./cmd/sforum extension digest --write ../../extensions/builtin/themes/<dir>
@@ -148,94 +176,110 @@ go run ./cmd/sforum extension validate ../../extensions/builtin/themes/<dir>
 go run ./cmd/sforum extension test ../../extensions/builtin/themes/<dir>
 ```
 
-Then run `./scripts/build-builtin-plugins.sh` from the repository root, restart
-the API so `SyncBuiltins` stages the new digest, and activate that version in
-the admin UI. Never edit `storage/builtin-dev/` or `storage/extensions/**`
-directly.
+Then run `./scripts/build-builtin-plugins.sh` at the repo root, restart the API
+so `SyncBuiltins` stages the new digests, and activate through the admin UI.
+Never edit `storage/builtin-dev/` or `storage/extensions/**` directly.
 
 ### Package — `package`
 
-Build a zip of the extension root plus an SBOM stub.
+Builds a zip of the extension root plus an SBOM stub.
 
 ```sh
-# Default: almost every file under the root
+# Default: nearly all root files go into the zip
 go run ./cmd/sforum extension package <package-root>
 
-# Release: omit common source / dev files
+# Release package: skip common source/dev files
 go run ./cmd/sforum extension package <package-root> --exclude-source
 
-# Explicit output path
+# Custom output path
 go run ./cmd/sforum extension package <package-root> \
   --exclude-source \
   -o /tmp/acme.demo.sforum.zip
 ```
 
-| Behavior | Detail |
+| Behavior | Notes |
 | --- | --- |
-| Default include | Nearly all files under the package root |
+| Included by default | Nearly all files under the package root |
 | Always skipped | `.git/`, `node_modules/`, `vendor/`, existing `*.sforum.zip` |
-| Extra with `--exclude-source` | `*.go`, `go.mod`/`go.sum`, `*.vue`/`*.ts`/`*.tsx`, Sass, source maps, `package.json`/`tsconfig` and similar, `testdata/` / `__tests__/` … |
-| Typically kept for release | `sforum.extension.json`, manifest shards, `backend/plugin`, prebuilt `.mjs`/`.css`, `README.md` |
-| Default output | `<package-root>/<dirname>.sforum.zip` + sidecar `.sbom.json` |
+| `--exclude-source` additionally skips | `*.go`, `go.mod`/`go.sum`, `*.vue`/`*.ts`/`*.tsx`, Sass, source maps, `package.json`/`tsconfig` configs, `testdata/` / `__tests__/`, etc. |
+| Usually kept for release | `sforum.extension.json`, manifest shards, `backend/plugin`, prebuilt `.mjs`/`.css`, `README.md` |
+| Default output | `<package-root>/<dirname>.sforum.zip` + adjacent `.sbom.json` |
 
-Validation runs before packing. Example output:
+Package validation runs first. Example output:
 
 ```text
 package	…/acme.demo.sforum.zip
 digest	…
 sbom	…/acme.demo.sforum.zip.sbom.json
 files	12
-skipped	8	(source/dev files)   # only with --exclude-source when files were skipped
+skipped	8	(source/dev files)   # only with --exclude-source and skips
 ```
 
 **Important:**
 
-- Operators do **not** need source code at install time, but default `package` **does not strip sources**. Use `--exclude-source` for distribution, or stage a clean release directory first.  
-- `--exclude-source` is heuristic filtering, not “only files listed in `packageFiles`”.  
-- Upload is inert (validate + store only). First executable enable requires exact-artifact trust confirmation. Operator view: [Extensions & themes](../usage/extensions.md).
+- Runtime installation does **not** need sources, but the default `package`
+  does **not** strip them; add `--exclude-source` for distribution, or pack from
+  a clean release directory.
+- `--exclude-source` is a heuristic filter, not "only the `packageFiles` list".
+- Uploaded zips are lazily validated and stored; first enable of executable
+  logic requires an exact-artifact trust confirmation. Operator guidance:
+  [extensions & themes](../usage/extensions.md).
 
 Recommended release loop:
 
 ```sh
-# 1. Build backend into backend/plugin
+# 1. Compile the backend to backend/plugin
 # 2. Refresh digests
 go run ./cmd/sforum extension digest --write <package-root>
-# 3. Validate + contract checks
+# 3. Validate + contract test
 go run ./cmd/sforum extension validate <package-root>
 go run ./cmd/sforum extension test <package-root>
-# 4. Release zip
+# 4. Build the release zip
 go run ./cmd/sforum extension package <package-root> --exclude-source -o /tmp/my-plugin.sforum.zip
 ```
 
 ### Host docs — `docs generate`
 
-After host surface changes (events, capabilities, contribution points, provider slots, schedules, …):
+After changing host surfaces (events, capabilities, contribution points,
+provider slots, schedules, etc.):
 
 ```sh
 go run ./cmd/sforum extension docs generate
-go run ./cmd/sforum extension docs generate --check   # CI: fail on drift vs committed docs
+go run ./cmd/sforum extension docs generate --check   # CI: fail on drift
 ```
 
-Default output: `docs/extensions/catalogs/` (override with `--out`).
+Writes to `docs/extensions/catalogs/` by default (`--out` overrides).
 
 ### Plugin commands — `command`
 
 ```sh
 go run ./cmd/sforum extension command list
 go run ./cmd/sforum extension command run <command-id>
+go run ./cmd/sforum extension command run <command-id> --input '{"key":"value"}'
+go run ./cmd/sforum extension command run <command-id> --input-file /tmp/input.json
 ```
 
-Requires a usable `DATABASE_URL` (or `--database-url`). Optional `--safe-mode`.
+Requires a usable `DATABASE_URL` (or `--database-url`). Add `--safe-mode` to
+enforce Safe Mode on top of `SFORUM_SAFE_MODE`. `list --json` emits
+machine-readable output.
 
 ### Out-of-band recovery
 
-Without starting the main SForum process or plugin code:
+Without starting the SForum main process or executing plugin code:
 
 ```sh
 go run ./cmd/sforum extension list
+go run ./cmd/sforum extension list --json
 go run ./cmd/sforum extension disable <extension-id>
 go run ./cmd/sforum extension disable-all
+go run ./cmd/sforum extension quarantine <extension-id> \
+  --expect-version <exact-version> \
+  --expect-digest <64-hex-digest>
 ```
+
+`quarantine` only isolates an **exact** built-in/system artifact:
+`--expect-version` and `--expect-digest` must match the active version to avoid
+mis-quarantines.
 
 ### API LTS status
 
@@ -244,49 +288,128 @@ go run ./cmd/sforum extension api-lts
 go run ./cmd/sforum extension api-lts --json
 ```
 
----
+### System tier — `system-tier`
 
-## Seed data: `seed:forum`
+Manage SystemTier membership (load order and recovery semantics) without
+loading package code:
 
 ```sh
-# config.Load does not read .env — export vars first
-set -a; . ../../.env; set +a   # adjust path if needed when cwd is apps/api
+go run ./cmd/sforum extension system-tier list
+go run ./cmd/sforum extension system-tier upsert <extension-id> \
+  --role infra --priority 100 --enabled true
+go run ./cmd/sforum extension system-tier disable <extension-id>
+```
+
+`upsert --role` accepts `auth|cache|storage|infra`; lower `--priority` loads
+first. All subcommands accept `--database-url` and `--json`.
+
+---
+
+## Seed data: `seed:forum` and `seed:perf`
+
+```sh
+# config.Load does not read .env; export the variables first
+set -a; . ../../.env; set +a   # adjust the path from apps/api as needed
 
 go run ./cmd/sforum seed:forum
 go run ./cmd/sforum seed:forum --count=100 --users=20 --comments-max=3
-go run ./cmd/sforum seed:forum --dry-run
+go run ./cmd/sforum seed:forum --profile=perf-1m --dry-run
 go run ./cmd/sforum seed:forum --database-url 'postgres://…'
 ```
 
-| Trait | Detail |
+| Feature | Notes |
 | --- | --- |
-| Writes | Append-only; safe to re-run |
-| Events | Does not fire domain events |
-| Environment | **Dev/test only** — never against production |
+| Writes | Append-only; repeatable |
+| Events | Does not trigger domain events |
+| Environment | **development/test only**, never against production |
 | Dependency | `DATABASE_URL` or `--database-url` |
+
+Key `seed:forum` flags (see `--help` for the full list):
+
+| Flag | Default | Notes |
+| --- | --- | --- |
+| `--profile` | `small` | `small` or `perf-1m` |
+| `--count` | 1000 | Topic count (perf-1m default 1,000,000) |
+| `--users` | 50 | Fake users (perf-1m default 200) |
+| `--comments-max` | 5 | Max comments per regular topic (perf-1m default 0) |
+| `--categories` | 0 | perf-1m category count (default 20) |
+| `--hot-comments` | 0 | perf-1m hot-thread comments (default 50000) |
+| `--hot-slug` | empty | perf-1m hot-thread slug (default `perf-hot-thread`) |
+| `--category-slug` | empty | small-mode category slug (default `general`) |
+| `--batch` | 20 | Log/batch size (perf-1m default 5000) |
+| `--dry-run` | false | Print the plan only |
+| `--confirm-perf-db` | false | Required for non-dry-run perf-1m writes |
+| `--database-url` | env | Override `DATABASE_URL` |
+
+`seed:perf` is an alias of `seed:forum --profile=perf-1m` with the same perf
+parameters (`--count` 1,000,000, `--users` 200, `--categories` 20,
+`--hot-comments` 50000, `--batch` 5000, …) and also requires
+`--confirm-perf-db` to write.
+
+---
+
+## Account maintenance: `users:reset-password`
+
+Interactively resets any user's password (reads only
+`DATABASE_URL`/`--database-url`; no other app config is loaded):
+
+```sh
+go run ./cmd/sforum users:reset-password
+go run ./cmd/sforum users:reset-password --database-url 'postgres://…'
+# Alias:
+go run ./cmd/sforum user:reset-password
+```
+
+---
+
+## Content revisions: `revisions backfill`
+
+Backfills the forum content revision ledger in bounded batches:
+
+```sh
+go run ./cmd/sforum revisions backfill
+go run ./cmd/sforum revisions backfill --batch 1000 --loop   # until pending=0
+go run ./cmd/sforum revisions backfill --database-url 'postgres://…'
+```
+
+`--batch` is the posts processed per batch (default 100); `--loop` keeps going
+until nothing is pending.
+
+---
+
+## Dev process cleanup: `dev:cleanup-orphan-plugins`
+
+Stops reparented/orphaned SForum extension backend plugin processes (safe for
+live `sforum-api` children; PID-allowlist filtered):
+
+```sh
+go run ./cmd/sforum dev:cleanup-orphan-plugins
+go run ./cmd/sforum dev:cleanup-orphan-plugins --dry-run   # list PIDs, no signals
+```
 
 ---
 
 ## Package layout (quick map)
 
-| Directory | Role | Boot-scanned into admin |
+| Directory | Use | Boot-scanned into admin |
 | --- | --- | --- |
 | `extensions/dev/` | Local experiments (scaffold default) | No |
-| `extensions/builtin/` | Protected product built-ins | Yes (`SyncBuiltins`) |
-| `extensions/optional/` | In-repo optional packages (install required) | No |
+| `extensions/builtin/` | Shipped, protected built-ins | Yes (`SyncBuiltins`) |
+| `extensions/optional/` | In-repo optional, operator-installed | No |
 | `extensions/fixtures/` | CI / contract fixtures | No |
-| Runtime `EXTENSION_ROOT` | Operator upload storage | No |
-| `EXTERNAL_EXTENSION_ROOTS` | Independent plugin/theme source collections | Yes (inert snapshot; no auto-enable) |
+| Runtime `EXTENSION_ROOT` | Operator-uploaded installs | No |
+| `EXTERNAL_EXTENSION_ROOTS` | Independent source trees | Yes (lazy snapshot, never auto-enabled) |
 
-Full map: [extensions/README.md](../../../extensions/README.md).  
-Mechanism and trust: [Authoring guide](../../extensions/authoring-guide.md), [operator extensions](../usage/extensions.md).
+Full map: [extensions/README.md](../../../extensions/README.md).
+Mechanics and trust model: [plugin authoring guide](../../extensions/authoring-guide.md), [operator extensions guide](../usage/extensions.md).
 
 ---
 
 ## Related docs
 
-- [Daily workflow](./workflow.md)  
-- [Environment setup](./setup.md)  
-- [Testing & gates](./testing.md)  
-- [Plugin authoring guide](../../extensions/authoring-guide.md)  
-- [Host API v2](../../extensions/host-api-v2.md)  
+- [API usage](./api.md)
+- [Daily workflow](./workflow.md)
+- [Environment setup](./setup.md)
+- [Testing & gates](./testing.md)
+- [Plugin authoring guide](../../extensions/authoring-guide.md)
+- [Host API v2](../../extensions/host-api-v2.md)

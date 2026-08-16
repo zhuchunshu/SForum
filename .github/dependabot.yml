@@ -1,0 +1,184 @@
+# Dependabot: minimal automated dependency PRs.
+#
+# Every update arrives as a manual review PR — no auto-merge is configured.
+# Weekly schedules and groups keep PR noise bounded. Do not switch tracked
+# dependencies to floating "latest" tags: the production Compose images and
+# Docker base images stay pinned to fixed versions and are updated through
+# these PRs.
+#
+# Module coverage:
+# - apps/api (the core Go module), the seven protected built-in extension
+#   backend modules, plus the tooling/test modules /tools/proto and
+#   /tests/compat are tracked.
+# - extensions/fixtures/** backend modules are deliberately NOT tracked: they
+#   are CI-only contract fixtures, never shipped or run in production, and
+#   their dependencies must stay exactly aligned with the manifest contract
+#   fixtures under test.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+
+  # Root Compose files: tracks the PostgreSQL, Redis, Meilisearch, Caddy, and
+  # Mailpit images referenced by compose*.yaml (all pinned to explicit release
+  # versions; the PRs propose version bumps, nothing is auto-applied).
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      compose-images:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "docker"
+    directory: "/apps/api"
+    schedule:
+      interval: "weekly"
+    groups:
+      api-images:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "docker"
+    directory: "/apps/web"
+    schedule:
+      interval: "weekly"
+    groups:
+      web-images:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "gomod"
+    directory: "/apps/api"
+    schedule:
+      interval: "weekly"
+    groups:
+      core-go:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "gomod"
+    directory: "/extensions/builtin/plugins/sforum-auth-github/backend"
+    schedule:
+      interval: "weekly"
+    groups:
+      builtin-go:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "gomod"
+    directory: "/extensions/builtin/plugins/sforum-content-policy/backend"
+    schedule:
+      interval: "weekly"
+    groups:
+      builtin-go:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "gomod"
+    directory: "/extensions/builtin/plugins/sforum-search-site/backend"
+    schedule:
+      interval: "weekly"
+    groups:
+      builtin-go:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "gomod"
+    directory: "/extensions/builtin/plugins/sforum-smtp/backend"
+    schedule:
+      interval: "weekly"
+    groups:
+      builtin-go:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "gomod"
+    directory: "/extensions/builtin/plugins/sforum-storage-fs/backend"
+    schedule:
+      interval: "weekly"
+    groups:
+      builtin-go:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "gomod"
+    directory: "/extensions/builtin/plugins/sforum-storage-s3/backend"
+    schedule:
+      interval: "weekly"
+    groups:
+      builtin-go:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "gomod"
+    directory: "/extensions/builtin/plugins/sforum-web-push/backend"
+    schedule:
+      interval: "weekly"
+    groups:
+      builtin-go:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "gomod"
+    directory: "/tools/proto"
+    schedule:
+      interval: "weekly"
+    groups:
+      tooling-go:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "gomod"
+    directory: "/tests/compat"
+    schedule:
+      interval: "weekly"
+    groups:
+      tooling-go:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+
+  # Nuxt web app. The repo uses Bun (bun.lock); Dependabot tracks
+  # package.json for its npm ecosystem and opens PRs for manual review.
+  - package-ecosystem: "npm"
+    directory: "/apps/web"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore(deps)"

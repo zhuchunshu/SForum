@@ -41,6 +41,28 @@ grep -Fq './upgrade.sh v3.0.0-alpha.11' "$TEMP_DIR/notes.md" || fail "update ins
 grep -Fq 'docs/zh-CN/deployment.md' "$TEMP_DIR/notes.md" || fail "deployment documentation is missing"
 grep -Fq 'v3.0.0-alpha.10...v3.0.0-alpha.11' "$TEMP_DIR/notes.md" || fail "full changelog comparison is missing"
 
+# Download/verify/extract order: the archive must be saved before it can be
+# verified, and extraction must come after the checksum verification. A
+# regression that pipes the archive straight into tar must fail here.
+if grep -Fq '| tar -xz' "$TEMP_DIR/notes.md"; then
+  fail "deploy bundle is piped into tar instead of being saved for verification"
+fi
+if grep -Fq -- '--ignore-missing' "$TEMP_DIR/notes.md"; then
+  fail "release notes rely on --ignore-missing instead of an exact checksum entry"
+fi
+grep -Fq 'curl -fsSLo sforum-deploy.tar.gz' "$TEMP_DIR/notes.md" || fail "deploy bundle is not saved to disk first"
+grep -Fq 'curl -fsSLo SHA256SUMS' "$TEMP_DIR/notes.md" || fail "SHA256SUMS is not downloaded"
+grep -Fq 'awk '\''$2 == "sforum-deploy.tar.gz" { print }'\'' SHA256SUMS > sforum-deploy.sha256' "$TEMP_DIR/notes.md" || fail "exact checksum filename-field filter is missing"
+grep -Fq 'test "$(wc -l < sforum-deploy.sha256 | tr -d '\''[:space:]'\'')" = 1' "$TEMP_DIR/notes.md" || fail "checksum entry uniqueness check is missing"
+grep -Fq '  set -eu' "$TEMP_DIR/notes.md" || fail "deploy bundle commands are not fail-closed"
+grep -Fq 'sha256sum -c sforum-deploy.sha256' "$TEMP_DIR/notes.md" || fail "exact checksum verification is missing"
+grep -Fq 'if command -v gh >/dev/null 2>&1; then' "$TEMP_DIR/notes.md" || fail "optional provenance check is not guarded by command availability"
+grep -Fq 'gh attestation verify sforum-deploy.tar.gz' "$TEMP_DIR/notes.md" || fail "provenance verification is missing"
+notes_download_line="$(grep -nF 'curl -fsSLo sforum-deploy.tar.gz' "$TEMP_DIR/notes.md" | head -n 1 | cut -d: -f1)"
+notes_extract_line="$(grep -nF 'tar -xzf sforum-deploy.tar.gz' "$TEMP_DIR/notes.md" | head -n 1 | cut -d: -f1)"
+[ -n "$notes_download_line" ] && [ -n "$notes_extract_line" ] || fail "cannot locate the download/extract lines in release notes"
+[ "$notes_download_line" -lt "$notes_extract_line" ] || fail "release notes extract the bundle before downloading it"
+
 git -C "$TEMP_DIR" tag -a v3.0.0-alpha.12 -m 'SForum 3.0.0-alpha.12'
 (
   cd "$TEMP_DIR"

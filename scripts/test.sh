@@ -43,6 +43,12 @@ echo "Running zero-downtime state-machine validation..."
 echo "Running architecture boundary validation..."
 node tests/validate-architecture-boundaries.mjs
 
+echo "Running documentation and version-governance validation..."
+node tests/validate-docs.mjs
+
+echo "Running documentation validation failure-path tests..."
+./tests/validate-docs_test.sh
+
 echo "Running built-in plugin release version validation..."
 node tests/validate-builtin-plugin-versions.mjs
 

@@ -124,14 +124,42 @@ for target in \
     "$VERSION" "$COMMIT" "$BUILD_TIME" "$IMAGE_TAG" "$target_os" "$target_arch" "$OUTPUT_DIR" >/dev/null
 done
 
+"$ROOT_DIR/scripts/ci/build-deploy-asset.sh" "$VERSION" "$OUTPUT_DIR" >/dev/null
+
 "$ROOT_DIR/scripts/ci/finalize-release-assets.sh" "$VERSION" "$OUTPUT_DIR" >/dev/null
 
-[[ "$(find "$OUTPUT_DIR" -maxdepth 1 -type f | wc -l | tr -d ' ')" -eq 7 ]] || fail "unexpected release asset count"
-[[ "$(wc -l < "$OUTPUT_DIR/SHA256SUMS" | tr -d ' ')" -eq 6 ]] || fail "unexpected checksum count"
+[[ "$(find "$OUTPUT_DIR" -maxdepth 1 -type f | wc -l | tr -d ' ')" -eq 9 ]] || fail "unexpected release asset count"
+[[ "$(wc -l < "$OUTPUT_DIR/SHA256SUMS" | tr -d ' ')" -eq 8 ]] || fail "unexpected checksum count"
 grep -q "sforum-server_${VERSION}_linux_amd64.tar.gz" "$OUTPUT_DIR/SHA256SUMS" || fail "server checksum is missing"
 grep -q "sforum-cli_${VERSION}_darwin_arm64.tar.gz" "$OUTPUT_DIR/SHA256SUMS" || fail "macOS CLI checksum is missing"
+grep -q "sforum-deploy.tar.gz" "$OUTPUT_DIR/SHA256SUMS" || fail "deploy bundle checksum is missing"
+grep -q "^[0-9a-f]\{64\}  upgrade.sh$" "$OUTPUT_DIR/SHA256SUMS" || fail "updater checksum is missing"
+
+deploy_listing="$(tar -tzf "$OUTPUT_DIR/sforum-deploy.tar.gz")"
+for entry in \
+  "sforum-deploy/deploy.sh" \
+  "sforum-deploy/upgrade.sh" \
+  "sforum-deploy/compose.yaml" \
+  "sforum-deploy/compose.prod.yaml" \
+  "sforum-deploy/compose.release.yaml" \
+  "sforum-deploy/compose.zero-downtime.yaml" \
+  "sforum-deploy/.env.production.example" \
+  "sforum-deploy/VERSION" \
+  "sforum-deploy/deploy/scripts/configure-production.sh" \
+  "sforum-deploy/deploy/scripts/backup-postgres.sh" \
+  "sforum-deploy/deploy/scripts/restore-postgres.sh" \
+  "sforum-deploy/deploy/scripts/wait-for-health.sh" \
+  "sforum-deploy/deploy/caddy/Caddyfile" \
+  "sforum-deploy/deploy/router/Caddyfile.example"; do
+  grep -qx "$entry" <<< "$deploy_listing" || fail "deploy archive is missing $entry"
+done
+grep -qx "sforum-deploy/VERSION" <<< "$deploy_listing" || fail "deploy archive is missing VERSION"
+deploy_version="$(tar -xOzf "$OUTPUT_DIR/sforum-deploy.tar.gz" sforum-deploy/VERSION)"
+[[ "$deploy_version" == "version=$VERSION" ]] || fail "deploy archive carries the wrong VERSION"
 
 expect_failure "Usage:" "$ROOT_DIR/scripts/ci/build-release-assets.sh" \
   invalid "$COMMIT" "$BUILD_TIME" "$IMAGE_TAG" linux amd64 "$OUTPUT_DIR"
+
+expect_failure "Usage:" "$ROOT_DIR/scripts/ci/build-deploy-asset.sh" invalid
 
 printf 'release_assets_test.sh: all checks passed\n'

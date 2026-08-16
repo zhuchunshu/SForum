@@ -8,6 +8,7 @@ REQUESTED_VERSION=""
 TARGET_VERSION=""
 ASSUME_YES=false
 FORCE_BOOTSTRAP=false
+CHANNEL="stable"
 DEPLOY_RC=".deployrc"
 RUNTIME_DIR="$ROOT_DIR/deploy/runtime"
 LOCK_DIR="$ROOT_DIR/.deploy.lock"
@@ -22,16 +23,25 @@ Zero-downtime HTTP update for an existing SForum Compose installation.
 Options:
   VERSION             Target release number/tag, or latest (default: latest)
   --version VERSION   Same as the positional VERSION argument
+  --channel CHANNEL   Update channel: stable (default) or prerelease
   --bootstrap         Convert the legacy direct-port topology once
   --yes               Skip version and one-time topology confirmations
   -h, --help          Show this help
+
+Channels:
+  stable             Resolve the newest stable GitHub Release only.
+  prerelease         Allow prereleases when resolving "latest".
+
+Prereleases are never selected implicitly: use --channel prerelease or pass an
+explicit immutable tag such as v3.0.0-alpha.11. Every choice resolves to a
+concrete vX.Y.Z tag before images are pulled; floating "latest" images are
+never run.
 
 The updater can apply explicitly declared backward-compatible Core migrations
 while the old slot stays online. Undeclared Core or any River migrations still
 require ./deploy.sh and a maintenance window.
 
-Examples: latest, v3.0.0-alpha.11, or 3.0.0-alpha.11. The latest option uses
-the newest published GitHub Release, including prereleases.
+Examples: latest, v3.0.0-alpha.11, or 3.0.0-alpha.11.
 EOF
 }
 
@@ -53,6 +63,12 @@ while [ "$#" -gt 0 ]; do
       REQUESTED_VERSION="${1#*=}"
       shift
       ;;
+    --channel)
+      [ "$#" -ge 2 ] || die "--channel requires a value"
+      CHANNEL="$2"
+      shift 2
+      ;;
+    --channel=*) CHANNEL="${1#*=}"; shift ;;
     --bootstrap) FORCE_BOOTSTRAP=true; shift ;;
     --yes|--defaults) ASSUME_YES=true; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -66,6 +82,8 @@ while [ "$#" -gt 0 ]; do
 done
 
 REQUESTED_VERSION="${REQUESTED_VERSION:-${SFORUM_VERSION:-}}"
+[ "$CHANNEL" = "stable" ] || [ "$CHANNEL" = "prerelease" ] || \
+  die "--channel must be stable or prerelease"
 
 rc_value() {
   local key="$1"
@@ -99,20 +117,35 @@ validate_version() {
 
 resolve_latest_version() {
   local api_url response resolved
-  say "正在查询 GitHub Releases 的最新发布版本..." "Resolving the latest published GitHub Release..." >&2
-  api_url="${SFORUM_RELEASES_API_URL:-https://api.github.com/repos/zhuchunshu/SForum/releases?per_page=1}"
-  response="$(curl -fsSL \
-    --connect-timeout 10 \
-    --max-time 30 \
-    -H 'Accept: application/vnd.github+json' \
-    -H 'X-GitHub-Api-Version: 2022-11-28' \
-    -H 'User-Agent: SForum-upgrade' \
-    "$api_url")" || \
-    die "Could not query the latest GitHub Release. Check the network and retry."
-  # Public unauthenticated listings exclude drafts. Asking for one result keeps
-  # the parser dependency-free while still including prereleases.
-  resolved="$(printf '%s\n' "$response" | sed -n 's/^.*"tag_name":[[:space:]]*"\([^"]*\)".*$/\1/p' | sed -n '1p')"
-  [ -n "$resolved" ] || die "GitHub returned no published SForum Release."
+  if [ "$CHANNEL" = "stable" ]; then
+    say "正在查询最新稳定版..." "Resolving the newest stable GitHub Release..." >&2
+    api_url="${SFORUM_LATEST_RELEASE_API_URL:-https://api.github.com/repos/zhuchunshu/SForum/releases/latest}"
+    response="$(curl -fsSL \
+      --connect-timeout 10 \
+      --max-time 30 \
+      -H 'Accept: application/vnd.github+json' \
+      -H 'X-GitHub-Api-Version: 2022-11-28' \
+      -H 'User-Agent: SForum-upgrade' \
+      "$api_url")" || \
+      die "Could not query the latest stable GitHub Release. Check the network, or use --channel prerelease to allow prereleases."
+    resolved="$(printf '%s\n' "$response" | sed -n 's/^.*"tag_name":[[:space:]]*"\([^"]*\)".*$/\1/p' | sed -n '1p')"
+    [ -n "$resolved" ] || die "GitHub returned no stable SForum Release. Use --channel prerelease to allow prereleases."
+  else
+    say "正在查询最新发布版本（含预发布）..." "Resolving the newest published GitHub Release (including prereleases)..." >&2
+    # Public unauthenticated listings exclude drafts. Asking for one result keeps
+    # the parser dependency-free while still including prereleases.
+    api_url="${SFORUM_RELEASES_API_URL:-https://api.github.com/repos/zhuchunshu/SForum/releases?per_page=1}"
+    response="$(curl -fsSL \
+      --connect-timeout 10 \
+      --max-time 30 \
+      -H 'Accept: application/vnd.github+json' \
+      -H 'X-GitHub-Api-Version: 2022-11-28' \
+      -H 'User-Agent: SForum-upgrade' \
+      "$api_url")" || \
+      die "Could not query the latest GitHub Release. Check the network and retry."
+    resolved="$(printf '%s\n' "$response" | sed -n 's/^.*"tag_name":[[:space:]]*"\([^"]*\)".*$/\1/p' | sed -n '1p')"
+    [ -n "$resolved" ] || die "GitHub returned no published SForum Release."
+  fi
   validate_version "$resolved"
   printf '%s' "$resolved"
 }

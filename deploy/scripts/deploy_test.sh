@@ -186,7 +186,18 @@ cat > "$MOCK_BIN/curl" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 printf 'curl %s\n' "$*" >> "$MOCK_DEPLOY_LOG"
-printf '%s\n' '{"tag_name":"v3.0.0","prerelease":false,"draft":false}'
+if [ "${MOCK_NO_RELEASE:-}" = "1" ]; then
+  printf 'GitHub not found\n' >&2
+  exit 22
+fi
+case " $* " in
+  *"/releases/latest"*)
+    printf '%s\n' '{"tag_name":"v3.0.0","prerelease":false,"draft":false}'
+    ;;
+  *)
+    printf '%s\n' '[{"tag_name":"v3.0.0-beta.1","draft":false,"prerelease":true}]'
+    ;;
+esac
 EOF
 
 chmod +x \
@@ -203,10 +214,14 @@ run_deploy() {
   local database_state="$2"
   local fail_stage="$3"
   local version="${4-v3.0.0-alpha.9}"
+  local channel="${5-}"
   local output_file="$TEMP_DIR/${name}.out"
   local args=(--yes --lang en --action deploy)
   if [ -n "$version" ]; then
     args+=(--version "$version")
+  fi
+  if [ -n "$channel" ]; then
+    args+=(--channel "$channel")
   fi
 	: > "$MOCK_LOG"
 	rm -f "$TEMP_DIR/deploy-started"
@@ -357,5 +372,152 @@ assert_contains "$TEST_ROOT/.env.production" "NUXT_PUBLIC_ADMIN_ROUTE_PREFIX=/co
 if grep -Fq 'change-me' "$TEST_ROOT/.env.production"; then
   fail "default deployment configuration contains placeholder secrets"
 fi
+
+# --channel prerelease resolves "latest" through the Release list (incl. prereleases).
+rm -f "$TEST_ROOT/.deployrc" "$TEST_ROOT/.env.production"
+if ! run_deploy prerelease-channel f "" "" prerelease; then
+  fail "prerelease-channel deployment failed"
+fi
+assert_contains "$MOCK_LOG" "per_page=1"
+assert_not_contains "$MOCK_LOG" "/releases/latest"
+
+# An invalid channel is rejected before any network or deployment work.
+rm -f "$TEST_ROOT/.deployrc" "$TEST_ROOT/.env.production"
+: > "$MOCK_LOG"
+if (
+  cd "$TEST_ROOT"
+  PATH="$MOCK_BIN:$PATH" MOCK_DEPLOY_LOG="$MOCK_LOG" \
+    ./deploy.sh --yes --lang en --channel beta --action deploy
+) > "$TEMP_DIR/invalid-channel.out" 2>&1; then
+  fail "an invalid deploy channel was accepted"
+fi
+assert_contains "$TEMP_DIR/invalid-channel.out" "--channel must be stable or prerelease"
+assert_not_contains "$MOCK_LOG" "curl "
+
+# No stable Release available: the stable default fails with a channel hint.
+rm -f "$TEST_ROOT/.deployrc" "$TEST_ROOT/.env.production"
+: > "$MOCK_LOG"
+if (
+  cd "$TEST_ROOT"
+  PATH="$MOCK_BIN:$PATH" MOCK_DEPLOY_LOG="$MOCK_LOG" MOCK_NO_RELEASE=1 \
+    ./deploy.sh --yes --lang en --action deploy
+) > "$TEMP_DIR/no-release.out" 2>&1; then
+  fail "a missing stable Release was not detected"
+fi
+assert_contains "$TEMP_DIR/no-release.out" "--channel prerelease"
+assert_not_contains "$MOCK_LOG" "compose --env-file"
+
+# --- Current vs target version semantics on an existing installation ---
+
+prepare_existing_install() {
+  printf '%s\n' \
+    'lang=en' \
+    'version=v3.0.0-alpha.8' \
+    'mode=release' > "$TEST_ROOT/.deployrc"
+  cp "$TEMP_DIR/valid.env" "$TEST_ROOT/.env.production"
+}
+
+# Existing .deployrc + deploy + stable: the stored version is NOT the target;
+# the latest stable Release is resolved and pulled.
+prepare_existing_install
+: > "$MOCK_LOG"
+rm -f "$TEMP_DIR/deploy-started-existing"
+if ! (
+  cd "$TEST_ROOT"
+  PATH="$MOCK_BIN:$PATH" \
+    MOCK_DEPLOY_LOG="$MOCK_LOG" \
+    MOCK_DB_STATE=t \
+    MOCK_ALLOW_EXISTING_RC=true \
+    MOCK_DEPLOY_STARTED_FILE="$TEMP_DIR/deploy-started-existing" \
+    SFORUM_DEPLOY_STABILITY_SECONDS=0 \
+    ./deploy.sh --yes --lang en --action deploy
+) > "$TEMP_DIR/existing-stable.out" 2>&1; then
+  cat "$TEMP_DIR/existing-stable.out" >&2
+  fail "existing installation stable-channel deploy failed"
+fi
+assert_contains "$MOCK_LOG" "releases/latest"
+assert_contains "$MOCK_LOG" "docker version=v3.0.0 compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull migrate api worker web"
+assert_contains "$TEST_ROOT/.deployrc" "version=v3.0.0"
+assert_not_contains "$TEST_ROOT/.deployrc" "version=v3.0.0-alpha.8"
+
+# Existing .deployrc + deploy + prerelease channel: resolves the newest
+# published Release (incl. prereleases) through the list API.
+prepare_existing_install
+: > "$MOCK_LOG"
+rm -f "$TEMP_DIR/deploy-started-existing"
+if ! (
+  cd "$TEST_ROOT"
+  PATH="$MOCK_BIN:$PATH" \
+    MOCK_DEPLOY_LOG="$MOCK_LOG" \
+    MOCK_DB_STATE=t \
+    MOCK_ALLOW_EXISTING_RC=true \
+    MOCK_DEPLOY_STARTED_FILE="$TEMP_DIR/deploy-started-existing" \
+    SFORUM_DEPLOY_STABILITY_SECONDS=0 \
+    ./deploy.sh --yes --lang en --action deploy --channel prerelease
+) > "$TEMP_DIR/existing-prerelease.out" 2>&1; then
+  cat "$TEMP_DIR/existing-prerelease.out" >&2
+  fail "existing installation prerelease-channel deploy failed"
+fi
+assert_contains "$MOCK_LOG" "per_page=1"
+assert_contains "$MOCK_LOG" "docker version=v3.0.0-beta.1 compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull migrate api worker web"
+assert_contains "$TEST_ROOT/.deployrc" "version=v3.0.0-beta.1"
+
+# Existing .deployrc + explicit --version: no GitHub access at all.
+prepare_existing_install
+: > "$MOCK_LOG"
+rm -f "$TEMP_DIR/deploy-started-existing"
+if ! (
+  cd "$TEST_ROOT"
+  PATH="$MOCK_BIN:$PATH" \
+    MOCK_DEPLOY_LOG="$MOCK_LOG" \
+    MOCK_DB_STATE=t \
+    MOCK_ALLOW_EXISTING_RC=true \
+    MOCK_DEPLOY_STARTED_FILE="$TEMP_DIR/deploy-started-existing" \
+    SFORUM_DEPLOY_STABILITY_SECONDS=0 \
+    ./deploy.sh --yes --lang en --action deploy --version v3.0.0-alpha.9
+) > "$TEMP_DIR/existing-explicit.out" 2>&1; then
+  cat "$TEMP_DIR/existing-explicit.out" >&2
+  fail "existing installation explicit-version deploy failed"
+fi
+assert_not_contains "$MOCK_LOG" "curl "
+assert_contains "$MOCK_LOG" "docker version=v3.0.0-alpha.9 compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull migrate api worker web"
+assert_contains "$TEST_ROOT/.deployrc" "version=v3.0.0-alpha.9"
+
+# Existing .deployrc + status: uses the current stored version, no GitHub access.
+prepare_existing_install
+: > "$MOCK_LOG"
+if ! (
+  cd "$TEST_ROOT"
+  PATH="$MOCK_BIN:$PATH" MOCK_DEPLOY_LOG="$MOCK_LOG" \
+    ./deploy.sh --lang en --action status
+) > "$TEMP_DIR/existing-status.out" 2>&1; then
+  cat "$TEMP_DIR/existing-status.out" >&2
+  fail "existing installation status action failed"
+fi
+assert_not_contains "$MOCK_LOG" "curl "
+assert_contains "$MOCK_LOG" "docker version=v3.0.0-alpha.8 compose --env-file .env.production"
+assert_contains "$TEMP_DIR/existing-status.out" "all services running"
+
+# The interactive process may perform several actions. Resolving status must
+# not leave its current version behind as the target of a later deploy choice.
+prepare_existing_install
+: > "$MOCK_LOG"
+rm -f "$TEMP_DIR/deploy-started-interactive"
+if ! (
+  cd "$TEST_ROOT"
+  printf '4\n1\n0\n' | PATH="$MOCK_BIN:$PATH" \
+    MOCK_DEPLOY_LOG="$MOCK_LOG" \
+    MOCK_DB_STATE=t \
+    MOCK_ALLOW_EXISTING_RC=true \
+    MOCK_DEPLOY_STARTED_FILE="$TEMP_DIR/deploy-started-interactive" \
+    SFORUM_DEPLOY_STABILITY_SECONDS=0 \
+    ./deploy.sh --yes --lang en
+) > "$TEMP_DIR/interactive-status-deploy.out" 2>&1; then
+  cat "$TEMP_DIR/interactive-status-deploy.out" >&2
+  fail "interactive status followed by deploy failed"
+fi
+assert_contains "$MOCK_LOG" "releases/latest"
+assert_contains "$MOCK_LOG" "docker version=v3.0.0 compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull migrate api worker web"
+assert_contains "$TEST_ROOT/.deployrc" "version=v3.0.0"
 
 printf 'deploy_test.sh: all checks passed\n'

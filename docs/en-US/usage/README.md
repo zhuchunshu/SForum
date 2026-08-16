@@ -10,7 +10,8 @@ For contributors, see [Development](../development/README.md).
 | Doc | Topic |
 | --- | --- |
 | [First registration & super admin](./first-login.md) | First user, `super_admin`, sessions |
-| [Admin control panel](./admin.md) | Entry, settings UX, permissions |
+| [Account & security](./account-security.md) | Email verification, passwords, sessions, PATs, external logins, appearance and notification settings |
+| [Admin control panel](./admin.md) | Users/roles/permissions, forum & taxonomy, moderation, attachments, mail, SEO, webhooks, updates & jobs |
 | [Forum day-to-day](./forum.md) | Taxonomy, posting, moderation |
 | [Notifications](./notifications.md) | Inbox, preferences, Web Push, operator policy |
 | [Search](./search.md) | Site search vs optional Meilisearch |

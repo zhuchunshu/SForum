@@ -13,36 +13,82 @@ needs:
 - free loopback ports `3000` and `18080`, or alternative ports selected in the
   wizard.
 
-Git is not required. Download the stable deployment bundle and start the
-interactive installer:
+Git is not required. The commands below download the fixed-name deploy bundle
+(`sforum-deploy.tar.gz`) for the **latest stable release**:
 
 ```sh
-mkdir -p sforum
-curl -fsSL https://github.com/zhuchunshu/SForum/archive/refs/tags/v3.0.1.tar.gz \
-  | tar -xz --strip-components=1 -C sforum
-cd sforum
-./deploy.sh
+(
+  set -eu
+  mkdir -p sforum
+  cd sforum
+  curl -fsSLo sforum-deploy.tar.gz \
+    https://github.com/zhuchunshu/SForum/releases/latest/download/sforum-deploy.tar.gz
+  curl -fsSLo SHA256SUMS \
+    https://github.com/zhuchunshu/SForum/releases/latest/download/SHA256SUMS
+  awk '$2 == "sforum-deploy.tar.gz" { print }' SHA256SUMS > sforum-deploy.sha256
+  test "$(wc -l < sforum-deploy.sha256 | tr -d '[:space:]')" = 1
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum -c sforum-deploy.sha256
+  else
+    shasum -a 256 -c sforum-deploy.sha256
+  fi
+  if command -v gh >/dev/null 2>&1; then
+    gh attestation verify sforum-deploy.tar.gz --repo zhuchunshu/SForum
+  fi
+  tar -xzf sforum-deploy.tar.gz --strip-components=1
+  ./deploy.sh
+)
 ```
 
-Every prompt has a recommended value. Press Enter when unsure: the installer
-uses PostgreSQL and Redis managed by Docker Compose, generates the required
-secrets, pulls version-matched GitHub container images, runs migrations, and
-waits for the API and Web services to become healthy. The wizard also asks for
-the admin route prefix (default `/control-panel`). After a successful deploy,
-the script prints the Web reverse-proxy target, API/WebSocket reverse-proxy
-target, site access URL, and admin URL. The default local address is
-`http://127.0.0.1:3000`. Configure the HTTPS reverse proxy described below
-before exposing a public site.
+That URL always points at the latest stable Release's deployment asset; no
+version number needs to be maintained. The bundle contains only what
+installation needs: the Compose files, `deploy.sh`, `upgrade.sh`, the
+production environment example, and the required `deploy/` helpers — no source
+tree or repository history.
 
-Without a version, `deploy.sh` resolves GitHub's latest stable Release to a
-concrete tag before deployment; it never runs a floating `latest` image. For a
-repeatable deployment, use `./deploy.sh --version v3.0.1`.
+### Verify the download (recommended)
+
+Every Release publishes `SHA256SUMS` (covering every asset) and GitHub build
+provenance attestations.
+
+- **Download the archive first, then the checksum file**: never pipe the
+  archive straight into `tar`, or there is nothing left to verify.
+- **Verify only the exact `sforum-deploy.tar.gz` entry**:
+  `awk '$2 == "sforum-deploy.tar.gz" { print }' SHA256SUMS` matches the filename
+  field rather than a suffix; the command block also requires exactly one
+  matching entry before checking it.
+- The commands run in a `set -eu` subshell, so a failed download, missing or
+  duplicate checksum entry, checksum failure, or provenance failure aborts
+  before extraction.
+- `gh attestation verify` is optional and checks build provenance (requires the
+  GitHub CLI, authenticated).
+
+### Channel semantics (stable / prerelease)
+
+- **The default channel is `stable`**: `./deploy.sh` without a version and
+  `latest` in `./upgrade.sh` resolve only the newest **stable** Release.
+- **Prereleases are never selected implicitly**: pass `--channel prerelease`,
+  or pin an immutable version such as `--version v3.0.0-alpha.N`.
+- Whatever the choice, the scripts resolve to a concrete `vX.Y.Z` tag before
+  pulling images and run the matching GHCR images; production Compose never
+  runs a floating `latest` image tag.
+- If no stable Release exists yet, `latest` fails closed with a hint to use
+  `--channel prerelease` or an explicit version.
+
+For repeatable deployments, pin an explicit immutable version (replace
+`$SFORUM_VERSION` with a real tag, for example the prerelease
+`v3.0.0-alpha.13`):
+
+```sh
+./deploy.sh --version $SFORUM_VERSION
+./upgrade.sh --version $SFORUM_VERSION
+```
 
 ## Target shape
 
-- Compose: `web`, `api`, `worker`, PostgreSQL, Redis  
-- Public exposure: **loopback-only** web (and optional API WebSocket ingress); TLS on the host reverse proxy  
-- Same-origin: browsers hit one domain; Nuxt proxies ordinary `/api/v1/*` HTTP; WebSocket Upgrade may go to the API loopback port  
+- Compose: `web`, `api`, `worker`, PostgreSQL, Redis
+- Public exposure: **loopback-only** web (and optional API WebSocket ingress); TLS on the host reverse proxy
+- Same-origin: browsers hit one domain; Nuxt proxies ordinary `/api/v1/*` HTTP; WebSocket Upgrade may go to the API loopback port
 
 ## Configuration
 
@@ -61,6 +107,18 @@ real HTTPS URL and configure host-level Caddy or Nginx. The generated
 `deployment-local-untrusted` Marketplace key keeps unknown indexes locked; use
 the official public key and key ID before enabling the official Marketplace.
 Never put its private key in the repository or containers.
+
+## HTTPS reverse proxy
+
+SForum listens on loopback ports only; TLS is terminated by a host reverse
+proxy. See `deploy/caddy/Caddyfile` in the deploy bundle:
+
+- Proxy the Web target `http://127.0.0.1:${WEB_PORT:-3000}` (same-origin HTTP
+  API is forwarded by Nuxt);
+- optionally route `/api/v1/` WebSocket upgrades directly to the API target
+  `http://127.0.0.1:${API_PORT:-18080}`;
+- set `TRUST_PROXY` and a precise `TRUSTED_PROXIES` list to trust forwarded
+  client IPs — never blanket-trust the internet.
 
 ## Maintainer releases
 
@@ -87,6 +145,9 @@ also publishes:
   is not a supported SForum platform;
 - Linux amd64 and arm64 backend bundles containing API, worker, migrator, CLI,
   and the exact protected built-ins extracted from the scanned candidate image;
+- the **fixed-name deploy bundle `sforum-deploy.tar.gz`** and a standalone
+  **`upgrade.sh`**: `releases/latest/download/` always points at the latest
+  stable version of both assets;
 - `SHA256SUMS` for every archive plus GitHub build provenance attestations.
 
 The Linux backend bundle does not contain the Nuxt web runtime, PostgreSQL, or
@@ -113,12 +174,20 @@ interactive installation accepts Enter for every prompt:
 ./deploy.sh
 ```
 
-Pin a version explicitly, or accept all recommended defaults non-interactively:
+Pin a version explicitly, or accept all recommended defaults non-interactively
+(replace `$SFORUM_VERSION` with the real tag):
 
 ```sh
-./deploy.sh --version v3.0.1 --lang en
-./deploy.sh --version v3.0.1 --lang zh
-./deploy.sh --version v3.0.1 --lang en --yes --action deploy
+./deploy.sh --version $SFORUM_VERSION --lang en
+./deploy.sh --version $SFORUM_VERSION --lang zh
+./deploy.sh --version $SFORUM_VERSION --lang en --yes --action deploy
+```
+
+Non-interactive prerelease channel (resolves the newest published Release,
+including prereleases):
+
+```sh
+./deploy.sh --channel prerelease --lang en --yes --action deploy
 ```
 
 This combines `compose.yaml`, `compose.prod.yaml`, and `compose.release.yaml`.
@@ -137,10 +206,12 @@ migration or health failure writes `status=recovery_required`, the attempted
 and previous versions, and the backup path to `.deployrc`; it is never reported
 as a successful deployment.
 
-Equivalent non-interactive commands:
+Equivalent non-interactive commands (`<VERSION>` must be the resolved concrete
+tag, for example `v3.0.0-alpha.13`):
 
 ```sh
-export SFORUM_VERSION=v3.0.1
+SFORUM_VERSION=<VERSION>
+export SFORUM_VERSION
 docker compose --env-file .env.production \
   -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull
 docker compose --env-file .env.production \
@@ -164,45 +235,89 @@ accidentally start a source build on the server. Use the development guide and
 
 Use `upgrade.sh` to update an existing Compose installation. Enter a release at
 the interactive prompt, pass it as a positional argument, or use `--version`.
-Pressing Enter selects `latest`:
+Pressing Enter selects the **latest stable release**:
 
 ```sh
 ./upgrade.sh
-./upgrade.sh v3.0.1
-./upgrade.sh --version v3.0.1
-./upgrade.sh --yes                       # unattended: newest release, no prompts
+./upgrade.sh $SFORUM_VERSION
+./upgrade.sh --version $SFORUM_VERSION
+./upgrade.sh --yes                       # unattended: latest stable, no prompts
+./upgrade.sh --channel prerelease        # explicitly allow prereleases
+./upgrade.sh --channel prerelease --yes  # unattended prerelease channel
 ```
 
-An existing installation does not need a fresh clone. To refresh the stable
-updater before entering the interactive update flow:
+Prereleases are never selected implicitly: pass `--channel prerelease` or an
+explicit immutable tag such as `v3.0.0-alpha.N`. Either way the script resolves
+to a concrete tag and runs the matching images; `.deployrc` persists the
+resolved tag, never `latest`.
+
+An existing installation does not need a fresh clone. To refresh the updater
+before entering the interactive update flow, download it from the **latest
+stable Release asset** (never floating `main` content) and verify it:
 
 ```sh
-cd /path/to/sforum
-curl -fsSLo upgrade.sh \
-  https://raw.githubusercontent.com/zhuchunshu/SForum/v3.0.1/upgrade.sh
-chmod 0755 upgrade.sh
-./upgrade.sh
+(
+  set -eu
+  cd /path/to/sforum
+  curl -fsSLo upgrade.sh \
+    https://github.com/zhuchunshu/SForum/releases/latest/download/upgrade.sh
+  curl -fsSLo SHA256SUMS \
+    https://github.com/zhuchunshu/SForum/releases/latest/download/SHA256SUMS
+  awk '$2 == "upgrade.sh" { print }' SHA256SUMS > upgrade.sh.sha256
+  test "$(wc -l < upgrade.sh.sha256 | tr -d '[:space:]')" = 1
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum -c upgrade.sh.sha256
+  else
+    shasum -a 256 -c upgrade.sh.sha256
+  fi
+  if command -v gh >/dev/null 2>&1; then
+    gh attestation verify upgrade.sh --repo zhuchunshu/SForum
+  fi
+  chmod 0755 upgrade.sh
+  ./upgrade.sh
+)
 ```
 
-Use the `upgrade.sh` shipped with `v3.0.0-alpha.13` or newer. The copy bundled
-with `v3.0.0-alpha.12` cannot start the database compatibility check correctly.
-If the current installation directory came from that release, fetch the fixed,
-version-pinned script before updating:
+The updater must be verified against the exact `upgrade.sh` entry in
+`SHA256SUMS`; do not run it when the checksum fails. To pin a specific version
+(including prereleases), use that tag's asset URL:
 
 ```sh
 curl -fsSLo upgrade.sh \
-  https://raw.githubusercontent.com/zhuchunshu/SForum/v3.0.0-alpha.13/upgrade.sh
-chmod 0755 upgrade.sh
-./upgrade.sh v3.0.0-alpha.13
+  https://github.com/zhuchunshu/SForum/releases/download/<TAG>/upgrade.sh
+# then download that tag's SHA256SUMS and verify the exact entry as above
 ```
 
-Here, `latest` is not a floating container image tag. The script queries the
-GitHub Release list, selects the newest published Release (including
-prereleases), and resolves it to a concrete `vX.Y.Z` tag. Before changing the
-installation it prints the current resolved version and target resolved version
-and asks whether to use that target. Only an explicit `--yes` skips version
-input and confirmation. A successful update persists the resolved tag in
-`.deployrc`, never `latest`.
+> Historical compatibility note: the `upgrade.sh` shipped with
+> `v3.0.0-alpha.12` and earlier cannot start the database compatibility check
+> correctly, and its `latest` semantics included prereleases. Use the script
+> shipped with `v3.0.0-alpha.13` or newer; installation directories from that
+> era must fetch the fixed, version-pinned script first. That immutable tag is
+> historical fact and will not be rewritten to main/latest.
+
+```sh
+(
+  set -eu
+  curl -fsSLo upgrade.sh \
+    https://raw.githubusercontent.com/zhuchunshu/SForum/v3.0.0-alpha.13/upgrade.sh
+  printf '%s  %s\n' ae186e13ca9551014e21ce7f77a7335413791268d97fb0b72f6be9820dedfe13 upgrade.sh > upgrade.sh.sha256
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum -c upgrade.sh.sha256
+  else
+    shasum -a 256 -c upgrade.sh.sha256
+  fi
+  chmod 0755 upgrade.sh
+  ./upgrade.sh v3.0.0-alpha.13
+)
+```
+
+Here, `latest` is not a floating container image tag. On the stable channel the
+script queries GitHub `/releases/latest` (stable releases only); on the
+prerelease channel it queries the Release list and takes the newest published
+Release, including prereleases. It resolves the choice to a concrete `vX.Y.Z`
+tag. Before changing the installation it prints the current resolved version
+and target resolved version and asks whether to use that target. Only an
+explicit `--yes` skips version input and confirmation.
 
 The first run against the legacy direct-port topology asks for confirmation to
 perform a one-time blue/green ingress conversion. That conversion stops the old
@@ -227,6 +342,42 @@ River, and older migrator images are refused; use
 maintenance window instead. That path recognizes an existing blue/green edge,
 backs up first, then stops all old slots before migrating and starting the
 direct target services.
+
+## Health checks, logs, and failure recovery
+
+### Health checks
+
+| Check | Address | Use |
+| --- | --- | --- |
+| Web health | `http://127.0.0.1:${WEB_PORT:-3000}/health` | Container liveness and startup |
+| API liveness | `http://127.0.0.1:${API_PORT:-18080}/api/v1/health` | Process liveness |
+| API ready | `http://127.0.0.1:${API_PORT:-18080}/api/v1/ready` | PostgreSQL dependency ready (Redis/Meili degrade-ready) |
+
+`deploy.sh` and `upgrade.sh` run these checks before recording success;
+`SFORUM_DEPLOY_HEALTH_TIMEOUT_SECONDS` / `SFORUM_UPGRADE_HEALTH_TIMEOUT_SECONDS`
+tune the wait.
+
+### Logs
+
+```sh
+./deploy.sh --action logs          # follow all service logs
+./deploy.sh --action status        # service status
+docker compose --env-file .env.production logs -f api worker web
+```
+
+### Failure recovery
+
+- **Failed deployment**: `.deployrc` records `status=recovery_required`, the
+  attempted and previous versions, and the backup path. Inspect
+  `./deploy.sh --action logs`, fix the cause, and retry.
+- **Database rollback**: restores require an explicit
+  `SFORUM_CONFIRM_RESTORE=RESTORE` confirmation (see below).
+- **Version rollback**: after confirming migration compatibility, redeploy an
+  earlier immutable version with `./deploy.sh --version <older-tag>`.
+- **Safe Mode / out-of-band recovery**: if an extension blocks startup, use
+  `sforum extension disable` / `disable-all` / `quarantine` out of band; see
+  the [developer CLI](./development/cli.md) and
+  [extensions & themes](./usage/extensions.md).
 
 ## Ports (production examples)
 
@@ -254,12 +405,23 @@ The PostgreSQL helpers under `deploy/scripts/` write backups to a temporary
 file and publish a mode-`0600` `.sql` file only after `pg_dump` succeeds. A
 failed dump leaves no partial backup that could be mistaken for a valid one.
 
+```sh
+./deploy.sh --action backup
+```
+
 A restore requires `SFORUM_CONFIRM_RESTORE=RESTORE`. The helper stops the API
 and Worker services that were running, restores into a separate temporary
 database with `ON_ERROR_STOP=1` and one transaction, validates application
 tables, and only then atomically swaps database names. Any SQL error returns a
 failure without publishing partially restored data. Only the application
 services that were running before the restore are started again.
+
+```sh
+SFORUM_CONFIRM_RESTORE=RESTORE ./deploy.sh --action restore
+```
+
+Set retention and off-site backup per site policy (a product-level "backup
+strategy" question remains open).
 
 ## Runtime Memory And Diagnostics
 
@@ -299,14 +461,15 @@ plugins or the container, which need their own resource limits.
 
 ## After go-live
 
-1. Create the first super admin on empty DBs  
-2. Site name, HTTPS URL, SMTP  
-3. Attachment storage  
-4. Search: site search is enough; Meili only if needed  
-5. Extension trust policy and Safe Mode drill  
-6. Health: `/health`, `/api/v1/health`, `/api/v1/ready`  
+1. Create the first super admin on empty DBs
+2. Site name, HTTPS URL, SMTP
+3. Attachment storage
+4. Search: site search is enough; Meili only if needed
+5. Extension trust policy and Safe Mode drill
+6. Health: `/health`, `/api/v1/health`, `/api/v1/ready`
 
 ## Related
 
-- [Getting started](./getting-started.md)  
-- Archived long draft: `docs/archive/legacy-root/development-and-deployment.md`  
+- [Getting started](./getting-started.md)
+- [Operator usage](./usage/README.md)
+- Archived long draft: `docs/archive/legacy-root/development-and-deployment.md`

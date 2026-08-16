@@ -54,7 +54,7 @@
 cd apps/api && go run ./cmd/sforum seed:forum
 ```
 
-Append-only; no domain events; needs `DATABASE_URL`. Full flags: [Developer CLI · seed:forum](./cli.md#seed-data-seedforum).
+Append-only; no domain events; needs `DATABASE_URL`. Full flags: [Developer CLI · seed:forum](./cli.md#seed-data-seedforum-and-seedperf).
 
 ## Next
 

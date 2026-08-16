@@ -11,6 +11,7 @@
 | [环境搭建](./setup.md) | 工具链、依赖、首次运行 |
 | [日常工作流](./workflow.md) | 热重载、脚本、OpenAPI、扩展开发注意 |
 | [开发者 CLI](./cli.md) | `sforum`：脚手架、校验、digest、打包、seed、恢复 |
+| [API 使用](./api.md) | 认证、CSRF、PAT、响应信封 |
 | [测试与质量门禁](./testing.md) | 单元测试、仓库门禁、契约校验 |
 | [仓库地图](./repository.md) | 目录职责与关键路径 |
 

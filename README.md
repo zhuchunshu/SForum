@@ -60,19 +60,45 @@ Full steps: [docs/zh-CN/getting-started.md](./docs/zh-CN/getting-started.md) or 
 
 ## Production
 
+The rolling install entry always resolves to the latest stable Release and
+downloads a fixed-name deploy bundle:
+
 ```sh
-mkdir -p sforum
-curl -fsSL https://github.com/zhuchunshu/SForum/archive/refs/tags/v3.0.1.tar.gz \
-  | tar -xz --strip-components=1 -C sforum
-cd sforum
-./deploy.sh                              # interactive install; Enter uses latest stable
-./upgrade.sh                             # update; Enter selects the newest GitHub Release
-./upgrade.sh --version v3.0.1            # update to a specific release
+(
+  set -eu
+  mkdir -p sforum
+  cd sforum
+  curl -fsSLo sforum-deploy.tar.gz \
+    https://github.com/zhuchunshu/SForum/releases/latest/download/sforum-deploy.tar.gz
+  curl -fsSLo SHA256SUMS \
+    https://github.com/zhuchunshu/SForum/releases/latest/download/SHA256SUMS
+  awk '$2 == "sforum-deploy.tar.gz" { print }' SHA256SUMS > sforum-deploy.sha256
+  test "$(wc -l < sforum-deploy.sha256 | tr -d '[:space:]')" = 1
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum -c sforum-deploy.sha256
+  else
+    shasum -a 256 -c sforum-deploy.sha256
+  fi
+  if command -v gh >/dev/null 2>&1; then
+    gh attestation verify sforum-deploy.tar.gz --repo zhuchunshu/SForum
+  fi
+  tar -xzf sforum-deploy.tar.gz --strip-components=1
+  ./deploy.sh                    # Enter uses the latest stable release
+)
 ```
 
+Always download the archive and its `SHA256SUMS` first, verify the exact
+`sforum-deploy.tar.gz` entry (never `--ignore-missing`), then extract — see
+[docs/zh-CN/deployment.md](./docs/zh-CN/deployment.md) for the full
+instructions.
+
 `upgrade.sh` accepts a positional version or `--version`; its default `latest`
-includes prereleases. It resolves that choice to a concrete tag, prints the
-current and target versions, and asks for confirmation (`--yes` skips prompts).
+resolves to the newest **stable** Release and is confirmed before any change
+(`--yes` skips prompts). Prereleases are never selected implicitly: pass
+`--channel prerelease` or an explicit tag such as `v3.0.0-alpha.N`. Every choice
+resolves to a concrete `vX.Y.Z` tag and runs the matching GHCR images — floating
+`latest` images are never used in production Compose.
+
 The first blue/green ingress conversion has a short maintenance window. Later
 releases keep API/Web HTTP traffic available when the database is unchanged or
 every pending Core migration explicitly declares backward-compatible online

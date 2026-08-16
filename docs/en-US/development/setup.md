@@ -9,7 +9,9 @@ git clone <your-fork-or-upstream> SForum
 cd SForum
 ```
 
-Install Docker, Go 1.25+, Air, Bun, and optionally Ruby for OpenAPI ref validation.
+Install Docker, Go 1.26.6+ (the toolchain is anchored by `apps/api/go.mod` and
+that file is authoritative), Air, Bun, and optionally Ruby for OpenAPI ref
+validation.
 
 ### Network proxy
 

@@ -457,11 +457,41 @@ jobs:
           compression-level: 0
           retention-days: 7
 
+  deploy-asset:
+    name: Build fixed-name deploy asset
+    needs:
+      - prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Check out release commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - name: Build deploy asset and standalone updater
+        run: >-
+          ./scripts/ci/build-deploy-asset.sh
+          "${{ needs.prepare.outputs.version }}"
+          "$GITHUB_WORKSPACE/dist"
+
+      - name: Upload deploy asset
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-asset-deploy
+          path: dist/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
   verify-release-assets:
     name: Verify release assets
     needs:
       - prepare
       - release-assets
+      - deploy-asset
     runs-on: ubuntu-latest
     permissions:
       attestations: write

@@ -165,12 +165,65 @@ That maintenance path recognizes the blue/green edge as the managed port owner,
 backs up before stopping all slots and the edge, then migrates and starts direct
 target services. The first conversion from direct host ports has a short
 maintenance window; later compatible HTTP switches are continuous, while
-WebSockets may reconnect. `latest` is resolved from the public GitHub Release
-list, including prereleases, to an immutable tag before confirmation and state
-persistence. Candidate and stable Web readiness checks use `/health`; they do
-not render or warm the cached homepage through the internal loopback origin.
+WebSockets may reconnect. `latest` resolves to an immutable tag before
+confirmation and state persistence. Candidate and stable Web readiness checks
+use `/health`; they do not render or warm the cached homepage through the
+internal loopback origin.
 See `decisions/2026-08-01-compose-blue-green-updates.md` and
 `decisions/2026-08-02-declared-online-core-migrations.md`.
+
+Update channel semantics (2026-08-16): `deploy.sh` and `upgrade.sh` default to
+the **stable** channel; `latest` resolves through the GitHub `/releases/latest`
+API (stable releases only). Prereleases are never selected implicitly: pass
+`--channel prerelease` (resolves the newest published Release, including
+prereleases, via `releases?per_page=1`) or an explicit immutable tag such as
+`v3.0.0-alpha.13`. Every choice resolves to a concrete `vX.Y.Z` tag before
+image pulls; production Compose never runs a floating `latest` image tag. When
+no stable Release exists, `latest` fails closed with a channel hint.
+`deploy.sh` distinguishes **current** from **target** versions: deploy/install/
+update resolve the target (explicit `--version` or channel-resolved `latest`,
+never the stored `.deployrc`/`.env.production` version), while maintenance
+actions (status/logs/restart/stop/backup/restore/rollback) default to the
+current deployed version and never contact GitHub just to show status; the
+interactive menu resolves per menu item. The requested CLI/environment version
+is stored separately from the resolved working version, so a maintenance action
+cannot leak its current version into a later interactive deploy selection
+(review fix 2026-08-16, third pass).
+
+Release deploy assets (2026-08-16): each GitHub Release also publishes a
+fixed-name `sforum-deploy.tar.gz` (Compose files, `deploy.sh`, `upgrade.sh`,
+`.env.production.example`, `deploy/scripts/*`, Caddy examples, VERSION) plus a
+standalone `upgrade.sh`, built by `scripts/ci/build-deploy-asset.sh` and
+verified by `scripts/ci/finalize-release-assets.sh` into `SHA256SUMS` before
+attestation. `https://github.com/zhuchunshu/SForum/releases/latest/download/
+sforum-deploy.tar.gz` always points at the latest stable bundle; docs and the
+root README use that rolling entry instead of hard-coded version numbers.
+Documented download flow (review fix 2026-08-16): download the archive first,
+download `SHA256SUMS`, select exactly one filename field for
+`sforum-deploy.tar.gz`, verify it, optionally run `gh attestation verify`, and
+extract only after verification passes. Runnable examples use a `set -eu`
+subshell, so any required download/checksum/provenance failure prevents
+extraction or execution; they never rely on suffix-only `grep` or
+`--ignore-missing`. The
+updater refresh entry uses `releases/latest/download/upgrade.sh` (never
+floating `main` raw content) with the same exact-entry verification; explicit
+versions use `releases/download/<TAG>/upgrade.sh`, and the historical
+`v3.0.0-alpha.13` compatibility download has an immutable SHA-256 pin.
+
+Compose dependency governance (2026-08-16): root Compose tracks explicit
+PostgreSQL, Redis, Meilisearch, Caddy, and Mailpit release tags; no Compose
+dependency uses a floating `latest` tag. Dependabot's root `docker-compose`
+entry (rather than the Kubernetes-oriented `docker` YAML fetcher) and the
+go.mod entries for Core, protected built-ins, `tools/proto`, and `tests/compat`
+provide reviewed update PRs; contract-only fixture modules remain explicitly
+excluded. API/Web Dockerfiles remain under their own `docker` ecosystem entries.
+
+Documentation contract governance (2026-08-16): `tests/validate-docs.mjs`
+extracts every explicit HTTP method/path pair from the rolling bilingual docs,
+root README, and extension READMEs. Each pair must exist both in the modular
+OpenAPI entrypoint/path item and in the generated Go Core Route Catalog; the
+failure-path suite independently proves OpenAPI drift and Go registration
+drift are rejected.
 
 The admin release checker caches both successful and failed upstream results
 for five minutes per API process. Forced checks still bypass that cache.
@@ -209,7 +262,8 @@ beyond the earlier search/cache read-path work:
 
 ## Planned Stack
 
-- Go 1.25+.
+- Go 1.26.6+ (the toolchain anchor is `apps/api/go.mod`; docs and CI must
+  follow it).
 - Go Fiber v3.
 - PostgreSQL with `pgx/v5`.
 - `sqlc` for query generation.

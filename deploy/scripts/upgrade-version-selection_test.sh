@@ -50,15 +50,18 @@ cat > "$MOCK_BIN/curl" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 printf 'curl %s\n' "$*" >> "$MOCK_UPGRADE_LOG"
-cat <<'JSON'
-[
-  {
-    "tag_name": "v3.0.0-alpha.11",
-    "draft": false,
-    "prerelease": true
-  }
-]
-JSON
+if [ "${MOCK_NO_RELEASE:-}" = "1" ]; then
+  printf 'GitHub not found\n' >&2
+  exit 22
+fi
+case " $* " in
+  *"/releases/latest"*)
+    printf '%s\n' '{"tag_name":"v3.0.0","prerelease":false,"draft":false}'
+    ;;
+  *)
+    printf '%s\n' '[{"tag_name":"v3.0.0-beta.1","draft":false,"prerelease":true}]'
+    ;;
+esac
 EOF
 
 cat > "$MOCK_BIN/docker" <<'EOF'
@@ -91,8 +94,8 @@ run_canceled() {
   assert_not_contains "$MOCK_LOG" 'docker pull '
 }
 
-run_canceled positional 'n\n' v3.0.0-alpha.11
-assert_contains "$TEMP_DIR/positional.out" 'Target resolved version: v3.0.0-alpha.11'
+run_canceled positional 'n\n' v3.0.0-beta.1
+assert_contains "$TEMP_DIR/positional.out" 'Target resolved version: v3.0.0-beta.1'
 assert_not_contains "$MOCK_LOG" 'curl '
 
 run_canceled flag 'n\n' --version v3.0.0-alpha.12
@@ -103,16 +106,59 @@ run_canceled no-prefix 'n\n' 3.0.0-alpha.13
 assert_contains "$TEMP_DIR/no-prefix.out" 'Target resolved version: v3.0.0-alpha.13'
 assert_not_contains "$MOCK_LOG" 'curl '
 
+run_canceled explicit-prerelease-channel 'n\n' --channel prerelease v3.0.0-alpha.12
+assert_contains "$TEMP_DIR/explicit-prerelease-channel.out" 'Target resolved version: v3.0.0-alpha.12'
+assert_not_contains "$MOCK_LOG" 'curl '
+
+# Default channel is stable: "latest" must resolve only the stable Release.
 run_canceled explicit-latest 'n\n' latest
-assert_contains "$TEMP_DIR/explicit-latest.out" 'Target resolved version: v3.0.0-alpha.11'
-assert_contains "$MOCK_LOG" 'curl '
-assert_not_contains "$MOCK_LOG" '/releases/latest'
+assert_contains "$TEMP_DIR/explicit-latest.out" 'Target resolved version: v3.0.0'
+assert_contains "$MOCK_LOG" '/releases/latest'
+assert_not_contains "$MOCK_LOG" 'per_page=1'
+
+# --channel prerelease allows the newest published Release, including prereleases.
+run_canceled prerelease-channel 'n\n' --channel prerelease latest
+assert_contains "$TEMP_DIR/prerelease-channel.out" 'Target resolved version: v3.0.0-beta.1'
 assert_contains "$MOCK_LOG" 'per_page=1'
+assert_not_contains "$MOCK_LOG" '/releases/latest'
 
 run_canceled default-latest '\nn\n'
-assert_contains "$TEMP_DIR/default-latest.out" 'Target resolved version: v3.0.0-alpha.11'
-assert_contains "$MOCK_LOG" 'curl '
+assert_contains "$TEMP_DIR/default-latest.out" 'Target resolved version: v3.0.0'
+assert_contains "$MOCK_LOG" '/releases/latest'
 
+# Invalid channel is rejected before any network access.
+: > "$MOCK_LOG"
+if (
+  cd "$TEST_ROOT"
+  PATH="$MOCK_BIN:$PATH" MOCK_UPGRADE_LOG="$MOCK_LOG" ./upgrade.sh --channel beta </dev/null
+) > "$TEMP_DIR/invalid-channel.out" 2>&1; then
+  fail "an invalid channel was accepted"
+fi
+assert_contains "$TEMP_DIR/invalid-channel.out" '--channel must be stable or prerelease'
+assert_not_contains "$MOCK_LOG" 'curl '
+
+# No stable Release available: default resolution fails with a channel hint.
+: > "$MOCK_LOG"
+if (
+  cd "$TEST_ROOT"
+  PATH="$MOCK_BIN:$PATH" MOCK_UPGRADE_LOG="$MOCK_LOG" MOCK_NO_RELEASE=1 ./upgrade.sh --yes </dev/null
+) > "$TEMP_DIR/no-release.out" 2>&1; then
+  fail "a missing stable Release was not detected"
+fi
+assert_contains "$TEMP_DIR/no-release.out" '--channel prerelease'
+
+# Invalid explicit version is rejected without network access.
+: > "$MOCK_LOG"
+if (
+  cd "$TEST_ROOT"
+  PATH="$MOCK_BIN:$PATH" MOCK_UPGRADE_LOG="$MOCK_LOG" ./upgrade.sh not-a-version </dev/null
+) > "$TEMP_DIR/invalid-version.out" 2>&1; then
+  fail "an invalid explicit version was accepted"
+fi
+assert_contains "$TEMP_DIR/invalid-version.out" 'Version must look like'
+assert_not_contains "$MOCK_LOG" 'curl '
+
+# Unattended mode resolves the stable channel and proceeds to the image pull.
 : > "$MOCK_LOG"
 if (
   cd "$TEST_ROOT"
@@ -121,8 +167,20 @@ if (
   fail "the fake image pull should stop the --yes update"
 fi
 assert_contains "$TEMP_DIR/yes.out" 'Current resolved version: v3.0.0-alpha.10'
-assert_contains "$TEMP_DIR/yes.out" 'Target resolved version: v3.0.0-alpha.11'
-assert_contains "$MOCK_LOG" 'docker pull ghcr.io/zhuchunshu/sforum-api:v3.0.0-alpha.11'
-assert_not_contains "$MOCK_LOG" '/releases/latest'
+assert_contains "$TEMP_DIR/yes.out" 'Target resolved version: v3.0.0'
+assert_contains "$MOCK_LOG" 'docker pull ghcr.io/zhuchunshu/sforum-api:v3.0.0'
+assert_contains "$MOCK_LOG" '/releases/latest'
+
+# Unattended prerelease channel resolves the newest release including prereleases.
+: > "$MOCK_LOG"
+if (
+  cd "$TEST_ROOT"
+  PATH="$MOCK_BIN:$PATH" MOCK_UPGRADE_LOG="$MOCK_LOG" ./upgrade.sh --yes --channel prerelease </dev/null
+) > "$TEMP_DIR/yes-prerelease.out" 2>&1; then
+  fail "the fake image pull should stop the --yes prerelease update"
+fi
+assert_contains "$TEMP_DIR/yes-prerelease.out" 'Target resolved version: v3.0.0-beta.1'
+assert_contains "$MOCK_LOG" 'docker pull ghcr.io/zhuchunshu/sforum-api:v3.0.0-beta.1'
+assert_contains "$MOCK_LOG" 'per_page=1'
 
 printf 'upgrade-version-selection_test.sh: all checks passed\n'

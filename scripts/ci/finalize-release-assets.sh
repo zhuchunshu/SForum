@@ -19,6 +19,8 @@ EXPECTED=(
   "sforum-cli_${VERSION}_linux_arm64.tar.gz"
   "sforum-server_${VERSION}_linux_amd64.tar.gz"
   "sforum-server_${VERSION}_linux_arm64.tar.gz"
+  "sforum-deploy.tar.gz"
+  "upgrade.sh"
 )
 
 for asset in "${EXPECTED[@]}"; do
@@ -61,6 +63,36 @@ for arch in amd64 arm64; do
     exit 1
   }
 done
+
+deploy_listing="$(tar -tzf "$ASSET_DIR/sforum-deploy.tar.gz")"
+for entry in \
+  "sforum-deploy/deploy.sh" \
+  "sforum-deploy/upgrade.sh" \
+  "sforum-deploy/compose.yaml" \
+  "sforum-deploy/compose.prod.yaml" \
+  "sforum-deploy/compose.release.yaml" \
+  "sforum-deploy/compose.zero-downtime.yaml" \
+  "sforum-deploy/.env.production.example" \
+  "sforum-deploy/VERSION" \
+  "sforum-deploy/deploy/scripts/configure-production.sh" \
+  "sforum-deploy/deploy/scripts/backup-postgres.sh" \
+  "sforum-deploy/deploy/scripts/restore-postgres.sh" \
+  "sforum-deploy/deploy/scripts/wait-for-health.sh" \
+  "sforum-deploy/deploy/caddy/Caddyfile" \
+  "sforum-deploy/deploy/router/Caddyfile.example"; do
+  grep -qx "$entry" <<< "$deploy_listing" || {
+    echo "Deploy archive is missing $entry" >&2
+    exit 1
+  }
+done
+[[ "$(head -n 1 "$ASSET_DIR/upgrade.sh")" == "#!/usr/bin/env bash" ]] || {
+  echo "Standalone upgrade.sh asset is not a shell script" >&2
+  exit 1
+}
+[[ -x "$ASSET_DIR/upgrade.sh" ]] || {
+  echo "Standalone upgrade.sh asset is not executable" >&2
+  exit 1
+}
 
 if command -v sha256sum >/dev/null 2>&1; then
   (cd "$ASSET_DIR" && sha256sum "${EXPECTED[@]}" > SHA256SUMS && sha256sum -c SHA256SUMS)

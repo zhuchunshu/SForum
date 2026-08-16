@@ -1,11 +1,32 @@
-# Site Search（受保护内置）
+# sforum.search-site
 
-默认 `search.provider`。Host 使用 PostgreSQL `search_documents` + tsvector 实现全文检索；
-热路径在 Host 进程内短路，不依赖本插件 RPC。
+Protected built-in **PostgreSQL full-text site search** engine.
 
-- **不可卸载**（protected builtin）
-- 零外部进程：不需要 Meilisearch
-- 切换到可选 Meili 后可 Restore Default 回到本引擎
-- **无配置项**：管理入口为 About 页，展示插件说明与包信息
+Default `search.provider`. The Host owns the provider-neutral search ledger,
+indexing jobs, and reconciliation; this plugin declares the protected
+PostgreSQL FTS engine as the runtime provider.
 
-大站需要更强分词/相关性时，安装可选插件 `sforum-search-meilisearch`。
+## Ownership boundary
+
+| Concern | Owner |
+| --- | --- |
+| Provider-neutral search ledger, indexing jobs, 15-minute reconciliation | **Host** |
+| PostgreSQL `search_documents` + tsvector queries (protected engine) | **This plugin** |
+
+## Features
+
+- **Not uninstallable** (protected builtin);
+- zero external processes: no Meilisearch required;
+- hot paths short-circuit inside the Host process (no plugin RPC for read
+  queries);
+- switching to an optional Meili engine later, and "Restore Default" to return
+  to this engine, are supported by the Host provider selection;
+- **no configuration fields**: the admin entry is an About page showing the
+  plugin description and package identity.
+
+## When to use something else
+
+Very large sites needing stronger tokenization/relevance can install the
+optional `sforum-search-meilisearch` plugin and select it as
+`search.provider`, then rebuild the index. See
+[搜索 / Search](../../../../docs/zh-CN/usage/search.md) for operator guidance.

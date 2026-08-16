@@ -21,6 +21,7 @@ SForum 是可维护、插件优先的开源论坛框架：核心做宿主与契�
 
 - [使用说明总览](./usage/README.md)
 - [首次注册与超级管理员](./usage/first-login.md)
+- [账户与安全](./usage/account-security.md)
 - [管理后台](./usage/admin.md)
 - [论坛日常](./usage/forum.md)
 - [通知](./usage/notifications.md)
@@ -33,6 +34,7 @@ SForum 是可维护、插件优先的开源论坛框架：核心做宿主与契�
 - [环境搭建](./development/setup.md)
 - [日常工作流](./development/workflow.md)
 - [开发者 CLI](./development/cli.md)
+- [API 使用](./development/api.md)
 - [测试与质量门禁](./development/testing.md)
 - [仓库地图](./development/repository.md)
 

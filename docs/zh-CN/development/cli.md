@@ -4,31 +4,54 @@
 
 `sforum` 是 SForum 的开发者控制台（类似 Laravel Artisan 的定位），源码在
 `apps/api/cmd/sforum`。用于脚手架、扩展校验、精确摘要、打包、契约测试、
-带外恢复与假数据种子。
+带外恢复、账号/数据维护与假数据种子。
 
 所有命令默认从 `apps/api` 目录运行：
 
 ```sh
 cd apps/api
 go run ./cmd/sforum --help
+go run ./cmd/sforum --version
 ```
 
 ## 命令总览
 
 | 命令 | 作用 |
 | --- | --- |
+| `version` | 打印构建信息（版本、提交、构建时间） |
 | `make:plugin` | 生成插件脚手架 |
 | `make:theme` | 生成主题脚手架 |
-| `seed:forum` | 批量写入论坛假数据 |
+| `seed:forum` | 批量写入论坛假数据（small 模式） |
+| `seed:perf` | 百万级读路径种子（`seed:forum --profile=perf-1m` 的别名） |
+| `users:reset-password` | 交互式重置用户密码（别名 `user:reset-password`） |
+| `revisions backfill` | 分批回填论坛内容修订台账 |
 | `extension validate` | 校验扩展包（含 includes / 模板预检） |
 | `extension digest` | 查看或刷新 Manifest V3 `packageFiles` 摘要 |
 | `extension test` | Host 契约检查（能力、事件、入口等） |
 | `extension package` | 打 zip + SBOM stub |
 | `extension docs generate` | 从 Go catalog 生成 host 文档 |
-| `extension command list/run` | 列出 / 运行已信任插件命令 |
 | `extension list` | 带外查看扩展恢复状态（不启插件代码） |
 | `extension disable` / `disable-all` | 带外禁用第三方扩展 |
+| `extension quarantine` | 带外隔离精确的内置/系统制品 |
+| `extension command list/run` | 列出 / 运行已信任插件命令 |
 | `extension api-lts` | 打印 Host/Frontend API LTS 与 shim 遥测 |
+| `extension system-tier list/upsert/disable` | 带外管理系统扩展层（不加载包代码） |
+| `dev:cleanup-orphan-plugins` | 停止已改属的扩展后端进程（安全用于运行中的 sforum-api） |
+
+> 本表是命令的**权威清单**；新增或删除命令时必须同步更新本表与
+> `docs/en-US/development/cli.md`（`tests/validate-docs.mjs` 会校验覆盖）。
+
+---
+
+## 构建信息：`version`
+
+```sh
+go run ./cmd/sforum version
+go run ./cmd/sforum --version
+```
+
+输出统一构建身份：SForum 版本、Git 提交、构建时间（发布镜像与 CLI 使用同一
+构建参数注入）。
 
 ---
 
@@ -84,9 +107,9 @@ go run ./cmd/sforum make:plugin \
 
 ### 脚手架之后
 
-1. 实现后端逻辑，并把可执行文件编译到 Manifest 声明的 `backend.entry`（通常是 `backend/plugin`）。  
-2. `extension digest --write` 刷新精确摘要。  
-3. `extension validate` / `extension test` 做契约检查。  
+1. 实现后端逻辑，并把可执行文件编译到 Manifest 声明的 `backend.entry`（通常是 `backend/plugin`）。
+2. `extension digest --write` 刷新精确摘要。
+3. `extension validate` / `extension test` 做契约检查。
 4. 需要分发时再 `extension package`。
 
 第三方插件请走公开 SDK（`apps/api/sdk/plugin`），**不要** import `app/Models/*` 等宿主业务包。完整编写约定见 [插件编写指南](../../extensions/authoring-guide.md)。
@@ -134,7 +157,7 @@ go run ./cmd/sforum extension test --skip-backend-binary <package-root>
 go run ./cmd/sforum extension test --json <package-root>
 ```
 
-对照 host catalog 检查能力、事件、贡献点、provider、job、后端入口等。  
+对照 host catalog 检查能力、事件、贡献点、provider、job、后端入口等。
 `--allow-scaffold` 是 `--skip-backend-binary` 的别名。
 
 内置主题修改后，从 `apps/api` 依次运行：
@@ -186,8 +209,8 @@ skipped	8	(source/dev files)   # 仅 --exclude-source 且有跳过时
 
 **重要：**
 
-- 运行时安装**不需要**源码，但默认 `package` **不会自动剥源码**；分发请加 `--exclude-source`，或先拷到干净的 release 目录再打包。  
-- `--exclude-source` 是启发式过滤，不是「只打 `packageFiles` 清单」。  
+- 运行时安装**不需要**源码，但默认 `package` **不会自动剥源码**；分发请加 `--exclude-source`，或先拷到干净的 release 目录再打包。
+- `--exclude-source` 是启发式过滤，不是「只打 `packageFiles` 清单」。
 - 上传 zip 只做惰性校验与存储；首次启用可执行逻辑需要基于精确摘要的信任确认。运营侧说明见 [扩展与主题](../usage/extensions.md)。
 
 推荐发布循环：
@@ -219,9 +242,12 @@ go run ./cmd/sforum extension docs generate --check   # CI：与已提交文档�
 ```sh
 go run ./cmd/sforum extension command list
 go run ./cmd/sforum extension command run <command-id>
+go run ./cmd/sforum extension command run <command-id> --input '{"key":"value"}'
+go run ./cmd/sforum extension command run <command-id> --input-file /tmp/input.json
 ```
 
-需要可用的 `DATABASE_URL`（或 `--database-url`）。可加 `--safe-mode`。
+需要可用的 `DATABASE_URL`（或 `--database-url`）。可加 `--safe-mode`
+（在 `SFORUM_SAFE_MODE` 之外强制 Safe Mode）。`list --json` 输出机器可读结果。
 
 ### 带外恢复
 
@@ -229,9 +255,16 @@ go run ./cmd/sforum extension command run <command-id>
 
 ```sh
 go run ./cmd/sforum extension list
+go run ./cmd/sforum extension list --json
 go run ./cmd/sforum extension disable <extension-id>
 go run ./cmd/sforum extension disable-all
+go run ./cmd/sforum extension quarantine <extension-id> \
+  --expect-version <精确版本> \
+  --expect-digest <64位hex摘要>
 ```
+
+`quarantine` 只隔离**精确匹配**的内置/系统制品：`--expect-version` 与
+`--expect-digest` 都必须与实际活动版本一致，避免误隔离。
 
 ### API LTS 状态
 
@@ -240,9 +273,23 @@ go run ./cmd/sforum extension api-lts
 go run ./cmd/sforum extension api-lts --json
 ```
 
+### 系统扩展层 — `system-tier`
+
+不加载包代码，管理 SystemTier 成员（影响启动顺序与恢复语义）：
+
+```sh
+go run ./cmd/sforum extension system-tier list
+go run ./cmd/sforum extension system-tier upsert <extension-id> \
+  --role infra --priority 100 --enabled true
+go run ./cmd/sforum extension system-tier disable <extension-id>
+```
+
+`upsert` 的 `--role` 取值为 `auth|cache|storage|infra`，`--priority` 越低越先
+加载。所有子命令支持 `--database-url` 与 `--json`。
+
 ---
 
-## 假数据：`seed:forum`
+## 假数据：`seed:forum` 与 `seed:perf`
 
 ```sh
 # config.Load 不读 .env，需先导出环境变量
@@ -250,7 +297,7 @@ set -a; . ../../.env; set +a   # 若在 apps/api 下，按你的 .env 实际路�
 
 go run ./cmd/sforum seed:forum
 go run ./cmd/sforum seed:forum --count=100 --users=20 --comments-max=3
-go run ./cmd/sforum seed:forum --dry-run
+go run ./cmd/sforum seed:forum --profile=perf-1m --dry-run
 go run ./cmd/sforum seed:forum --database-url 'postgres://…'
 ```
 
@@ -260,6 +307,69 @@ go run ./cmd/sforum seed:forum --database-url 'postgres://…'
 | 事件 | 不触发领域事件 |
 | 环境 | **仅开发/测试**，勿对生产库使用 |
 | 依赖 | `DATABASE_URL` 或 `--database-url` |
+
+`seed:forum` 主要 flags（完整列表以 `--help` 为准）：
+
+| Flag | 默认 | 说明 |
+| --- | --- | --- |
+| `--profile` | `small` | `small` 或 `perf-1m` |
+| `--count` | 1000 | 主题数（perf-1m 默认 1,000,000） |
+| `--users` | 50 | 假用户数（perf-1m 默认 200） |
+| `--comments-max` | 5 | 普通主题最多评论数（perf-1m 默认 0） |
+| `--categories` | 0 | perf-1m 分类数（默认 20） |
+| `--hot-comments` | 0 | perf-1m 热帖评论数（默认 50000） |
+| `--hot-slug` | 空 | perf-1m 热帖 slug（默认 `perf-hot-thread`） |
+| `--category-slug` | 空 | small 模式发布分类 slug（默认 `general`） |
+| `--batch` | 20 | 日志/批大小（perf-1m 默认 5000） |
+| `--dry-run` | false | 只打印计划 |
+| `--confirm-perf-db` | false | perf-1m 非 dry-run 必填 |
+| `--database-url` | 环境变量 | 覆盖 `DATABASE_URL` |
+
+`seed:perf` 是 `seed:forum --profile=perf-1m` 的别名，拥有相同的 perf 参数
+（`--count` 默认 1,000,000、`--users` 200、`--categories` 20、
+`--hot-comments` 50000、`--batch` 5000 等），并同样要求
+`--confirm-perf-db` 才能写入。
+
+---
+
+## 账号维护：`users:reset-password`
+
+交互式重置任意用户密码（只读 `DATABASE_URL`/`--database-url`，不加载其他
+应用配置）：
+
+```sh
+go run ./cmd/sforum users:reset-password
+go run ./cmd/sforum users:reset-password --database-url 'postgres://…'
+# 别名：
+go run ./cmd/sforum user:reset-password
+```
+
+---
+
+## 内容修订台账：`revisions backfill`
+
+分批回填论坛内容修订台账：
+
+```sh
+go run ./cmd/sforum revisions backfill
+go run ./cmd/sforum revisions backfill --batch 1000 --loop   # 持续执行到 pending=0
+go run ./cmd/sforum revisions backfill --database-url 'postgres://…'
+```
+
+`--batch` 每批处理的 posts 数（默认 100）；`--loop` 持续执行直到无待回填
+记录。
+
+---
+
+## 开发进程清理：`dev:cleanup-orphan-plugins`
+
+停止已被改属/孤儿化的 SForum 扩展后端插件进程（对运行中的 `sforum-api`
+子进程安全，按 PID 白名单筛选）：
+
+```sh
+go run ./cmd/sforum dev:cleanup-orphan-plugins
+go run ./cmd/sforum dev:cleanup-orphan-plugins --dry-run   # 只列出 PID，不发信号
+```
 
 ---
 
@@ -274,15 +384,16 @@ go run ./cmd/sforum seed:forum --database-url 'postgres://…'
 | 运行时 `EXTENSION_ROOT` | 运营上传安装后的存储 | 否 |
 | `EXTERNAL_EXTENSION_ROOTS` | 独立插件/主题源码集合 | 是（惰性快照，不自动启用） |
 
-完整地图：[extensions/README.md](../../../extensions/README.md)。  
+完整地图：[extensions/README.md](../../../extensions/README.md)。
 机制与信任模型：[插件编写指南](../../extensions/authoring-guide.md)、[运营侧扩展说明](../usage/extensions.md)。
 
 ---
 
 ## 相关文档
 
-- [日常工作流](./workflow.md)  
-- [环境搭建](./setup.md)  
-- [测试与质量门禁](./testing.md)  
-- [插件编写指南](../../extensions/authoring-guide.md)  
-- [Host API v2](../../extensions/host-api-v2.md)  
+- [API 使用](./api.md)
+- [日常工作流](./workflow.md)
+- [环境搭建](./setup.md)
+- [测试与质量门禁](./testing.md)
+- [插件编写指南](../../extensions/authoring-guide.md)
+- [Host API v2](../../extensions/host-api-v2.md)

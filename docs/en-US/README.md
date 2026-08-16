@@ -21,6 +21,7 @@ SForum is a maintainable, plugin-first open-source forum framework: core is the 
 
 - [Usage overview](./usage/README.md)
 - [First registration & super admin](./usage/first-login.md)
+- [Account & security](./usage/account-security.md)
 - [Admin control panel](./usage/admin.md)
 - [Forum day-to-day](./usage/forum.md)
 - [Notifications](./usage/notifications.md)
@@ -33,6 +34,7 @@ SForum is a maintainable, plugin-first open-source forum framework: core is the 
 - [Environment setup](./development/setup.md)
 - [Daily workflow](./development/workflow.md)
 - [Developer CLI](./development/cli.md)
+- [API usage](./development/api.md)
 - [Testing & gates](./development/testing.md)
 - [Repository map](./development/repository.md)
 

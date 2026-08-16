@@ -9,7 +9,9 @@ DEFAULT_RELEASE_VERSION="${SFORUM_DEFAULT_VERSION:-latest}"
 LANGUAGE=""
 ACTION=""
 ASSUME_DEFAULTS=false
-RELEASE_VERSION="${SFORUM_VERSION:-}"
+REQUESTED_RELEASE_VERSION="${SFORUM_VERSION:-}"
+RELEASE_VERSION=""
+CHANNEL="${SFORUM_DEPLOY_CHANNEL:-stable}"
 COMPOSE=()
 BLUE_GREEN_COMPOSE=()
 
@@ -19,10 +21,20 @@ Usage: ./deploy.sh [options]
 
 Options:
   --lang zh|en          Interface language
-  --version VERSION     Release tag or latest stable release (default: latest)
+  --version VERSION     Release tag, or latest stable release (default: latest)
+  --channel CHANNEL     Update channel: stable (default) or prerelease
   --action ACTION       deploy, backup, restore, status, logs, restart, stop
   --yes, --defaults     Accept recommended configuration defaults
   -h, --help            Show this help
+
+Channels:
+  stable                Resolve the newest stable GitHub Release only.
+  prerelease            Allow prereleases when resolving "latest".
+
+Prereleases are never selected implicitly: use --channel prerelease or pass an
+explicit immutable tag such as v3.0.0-alpha.13. Every choice resolves to a
+concrete vX.Y.Z tag before images are pulled; floating "latest" images are
+never run.
 EOF
 }
 
@@ -41,10 +53,16 @@ while [ "$#" -gt 0 ]; do
     --lang=*) LANGUAGE="${1#*=}"; shift ;;
     --version)
       [ "$#" -ge 2 ] || die "--version requires a value"
-      RELEASE_VERSION="$2"
+      REQUESTED_RELEASE_VERSION="$2"
       shift 2
       ;;
-    --version=*) RELEASE_VERSION="${1#*=}"; shift ;;
+    --version=*) REQUESTED_RELEASE_VERSION="${1#*=}"; shift ;;
+    --channel)
+      [ "$#" -ge 2 ] || die "--channel requires a value"
+      CHANNEL="$2"
+      shift 2
+      ;;
+    --channel=*) CHANNEL="${1#*=}"; shift ;;
     --action)
       [ "$#" -ge 2 ] || die "--action requires a value"
       ACTION="$2"
@@ -188,31 +206,69 @@ t() {
   fi
 }
 
-resolve_release_version() {
+# 目标版本解析：仅用于 deploy/install/update。显式 --version 优先；否则按
+# --channel 解析 latest。绝不把 .deployrc/.env.production 中的旧版本当作目标。
+resolve_target_version() {
   local response resolved
-  if [ -z "$RELEASE_VERSION" ]; then
-    RELEASE_VERSION="$(rc_value version)"
-  fi
-  if [ -z "$RELEASE_VERSION" ]; then
-    RELEASE_VERSION="$(env_file_value .env.production SFORUM_VERSION)"
-  fi
-  RELEASE_VERSION="${RELEASE_VERSION:-$DEFAULT_RELEASE_VERSION}"
+  [ "$CHANNEL" = "stable" ] || [ "$CHANNEL" = "prerelease" ] || \
+    die "--channel must be stable or prerelease"
+  RELEASE_VERSION="${REQUESTED_RELEASE_VERSION:-$DEFAULT_RELEASE_VERSION}"
   if [ "$RELEASE_VERSION" = "latest" ]; then
-    response="$(curl -fsSL \
-      --connect-timeout 10 \
-      --max-time 30 \
-      -H 'Accept: application/vnd.github+json' \
-      -H 'X-GitHub-Api-Version: 2022-11-28' \
-      -H 'User-Agent: SForum-deploy' \
-      "${SFORUM_LATEST_RELEASE_API_URL:-https://api.github.com/repos/zhuchunshu/SForum/releases/latest}")" || \
-      die "Could not query the latest stable GitHub Release. Check the network and retry."
-    resolved="$(printf '%s\n' "$response" | sed -n 's/^.*"tag_name":[[:space:]]*"\([^"]*\)".*$/\1/p' | sed -n '1p')"
-    [ -n "$resolved" ] || die "GitHub returned no stable SForum Release."
+    if [ "$CHANNEL" = "stable" ]; then
+      response="$(curl -fsSL \
+        --connect-timeout 10 \
+        --max-time 30 \
+        -H 'Accept: application/vnd.github+json' \
+        -H 'X-GitHub-Api-Version: 2022-11-28' \
+        -H 'User-Agent: SForum-deploy' \
+        "${SFORUM_LATEST_RELEASE_API_URL:-https://api.github.com/repos/zhuchunshu/SForum/releases/latest}")" || \
+        die "Could not query the latest stable GitHub Release. Check the network, or use --channel prerelease to allow prereleases."
+      resolved="$(printf '%s\n' "$response" | sed -n 's/^.*"tag_name":[[:space:]]*"\([^"]*\)".*$/\1/p' | sed -n '1p')"
+      [ -n "$resolved" ] || die "GitHub returned no stable SForum Release. Use --channel prerelease to allow prereleases."
+    else
+      response="$(curl -fsSL \
+        --connect-timeout 10 \
+        --max-time 30 \
+        -H 'Accept: application/vnd.github+json' \
+        -H 'X-GitHub-Api-Version: 2022-11-28' \
+        -H 'User-Agent: SForum-deploy' \
+        "${SFORUM_RELEASES_API_URL:-https://api.github.com/repos/zhuchunshu/SForum/releases?per_page=1}")" || \
+        die "Could not query the latest GitHub Release. Check the network and retry."
+      resolved="$(printf '%s\n' "$response" | sed -n 's/^.*"tag_name":[[:space:]]*"\([^"]*\)".*$/\1/p' | sed -n '1p')"
+      [ -n "$resolved" ] || die "GitHub returned no published SForum Release."
+    fi
     RELEASE_VERSION="$resolved"
   fi
+  validate_release_version
+  configure_compose
+}
+
+# 当前版本解析：仅用于 status/logs/restart/stop/backup/restore/rollback 等
+# 维护动作。默认使用 .deployrc/.env.production 中已部署的版本，不访问 GitHub；
+# 显式 --version 优先（同样不访问 GitHub）。
+resolve_current_version() {
+  local current
+  [ "$CHANNEL" = "stable" ] || [ "$CHANNEL" = "prerelease" ] || \
+    die "--channel must be stable or prerelease"
+  if [ -n "$REQUESTED_RELEASE_VERSION" ]; then
+    RELEASE_VERSION="$REQUESTED_RELEASE_VERSION"
+  else
+    current="$(rc_value version)"
+    [ -n "$current" ] || current="$(env_file_value .env.production SFORUM_VERSION)"
+    [ -n "$current" ] || die "Cannot determine the currently deployed version; run the install/update action first."
+    RELEASE_VERSION="$current"
+  fi
+  validate_release_version
+  configure_compose
+}
+
+validate_release_version() {
   if [[ ! "$RELEASE_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
     die "--version must be latest or look like v3.0.0"
   fi
+}
+
+configure_compose() {
   export SFORUM_VERSION="$RELEASE_VERSION"
   COMPOSE=(docker compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml)
   configure_blue_green_compose
@@ -609,13 +665,13 @@ main_menu() {
     echo "0) $(t exit)"
     read -r -p "> [1] " menu_action
     case "$menu_action" in
-      ""|1) deploy_update ;;
-      2) create_backup ;;
-      3) restore_backup ;;
-      4) show_status ;;
-      5) show_logs ;;
-      6) restart_services ;;
-      7) stop_services ;;
+      ""|1) resolve_target_version; deploy_update ;;
+      2) resolve_current_version; create_backup ;;
+      3) resolve_current_version; restore_backup ;;
+      4) resolve_current_version; show_status ;;
+      5) resolve_current_version; show_logs ;;
+      6) resolve_current_version; restart_services ;;
+      7) resolve_current_version; stop_services ;;
       0) exit 0 ;;
       *) echo "?" ;;
     esac
@@ -623,8 +679,11 @@ main_menu() {
 }
 
 load_language
-resolve_release_version
 if [ -n "$ACTION" ]; then
+  case "$ACTION" in
+    deploy|install|update) resolve_target_version ;;
+    *) resolve_current_version ;;
+  esac
   run_action "$ACTION"
 else
   main_menu

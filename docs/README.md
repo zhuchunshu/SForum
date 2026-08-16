@@ -13,7 +13,9 @@ Official project documentation. Choose a language:
 | --- | --- | --- |
 | Getting started | [快速开始](./zh-CN/getting-started.md) | [Getting started](./en-US/getting-started.md) |
 | Operator usage | [使用说明](./zh-CN/usage/README.md) | [Usage](./en-US/usage/README.md) |
+| Account & security | [账户与安全](./zh-CN/usage/account-security.md) | [Account & security](./en-US/usage/account-security.md) |
 | Development | [开发指南](./zh-CN/development/README.md) | [Development](./en-US/development/README.md) |
+| API usage | [API 使用](./zh-CN/development/api.md) | [API usage](./en-US/development/api.md) |
 | Deployment | [生产部署](./zh-CN/deployment.md) | [Deployment](./en-US/deployment.md) |
 | Architecture | [架构](./zh-CN/architecture.md) | [Architecture](./en-US/architecture.md) |
 | Product | [产品说明](./zh-CN/product.md) | [Product](./en-US/product.md) |
