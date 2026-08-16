@@ -31,13 +31,19 @@ import {
   readdirSync,
   statSync
 } from 'node:fs'
-import { dirname, join, normalize, resolve } from 'node:path'
+import { spawnSync } from 'node:child_process'
+import { dirname, join, normalize, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const defaultRoot = resolve(fileURLToPath(new URL('..', import.meta.url)))
 // Overridable for the failure-path tests in tests/validate-docs_test.sh.
 const root = resolve(process.env.SFORUM_VALIDATE_ROOT || defaultRoot)
 const failures = []
+const gitWorktree = existsSync(repoPath('.git')) && spawnSync(
+  'git',
+  ['rev-parse', '--is-inside-work-tree'],
+  { cwd: root, encoding: 'utf8' }
+).status === 0
 
 function repoPath(path) {
   return resolve(root, path)
@@ -154,6 +160,10 @@ function validateLocalLinks(fileRelative) {
         continue
       }
     }
+    if (isGitIgnored(targetAbsolute)) {
+      fail(`${fileRelative}: local link points to a gitignored target unavailable in a clean checkout -> ${target}`)
+      continue
+    }
     if (!anchorPart) continue
     const headings = collectHeadings(readFileSync(targetAbsolute, 'utf8'))
     const slugs = new Set(headings.map(slugifyHeading))
@@ -162,6 +172,16 @@ function validateLocalLinks(fileRelative) {
       fail(`${fileRelative}: broken heading anchor '${anchorPart}' in ${normalizedTarget}`)
     }
   }
+}
+
+function isGitIgnored(absolutePath) {
+  if (!gitWorktree) return false
+  const target = relative(root, absolutePath)
+  if (target.startsWith('..')) return false
+  return spawnSync('git', ['check-ignore', '--quiet', '--', target], {
+    cwd: root,
+    encoding: 'utf8'
+  }).status === 0
 }
 
 function statSafe(path) {

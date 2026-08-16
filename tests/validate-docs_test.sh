@@ -298,6 +298,24 @@ See [missing](./does-not-exist.md).
 EOF
 assert_validator_fails_with "$CASE_LINK" "broken local link" "extensions README link check"
 
+# A link that only works because the developer has a gitignored local file is
+# still broken in the clean checkout used by CI.
+CASE_IGNORED_LINK="$TEMP_DIR/ignored-link"
+write_base_fixture "$CASE_IGNORED_LINK"
+mkdir -p "$CASE_IGNORED_LINK/local-only"
+cat > "$CASE_IGNORED_LINK/local-only/README.md" <<'EOF'
+# Local only
+EOF
+cat > "$CASE_IGNORED_LINK/.gitignore" <<'EOF'
+local-only/
+EOF
+cat >> "$CASE_IGNORED_LINK/docs/README.md" <<'EOF'
+
+[Local-only documentation](../local-only/README.md)
+EOF
+git -C "$CASE_IGNORED_LINK" init -q
+assert_validator_fails_with "$CASE_IGNORED_LINK" "local link points to a gitignored target" "gitignored local link check"
+
 # Stable install snippets must stop on failure and select the checksum entry by
 # its exact filename field.
 CASE_INSTALL_SAFETY="$TEMP_DIR/install-safety"

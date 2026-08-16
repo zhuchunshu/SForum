@@ -101,11 +101,10 @@ deploy/runtime/
 # 本地脚手架默认输出；仅保留 README 说明目录职责
 extensions/dev/*
 !extensions/dev/README.md
-# 可选扩展：仓库不提交；本地打包上传即可（如 Meilisearch search.provider）
-extensions/optional/
 extensions/builtin/plugins/*/backend/plugin
 # 扩展安装包产物（勿入库）
 *.sforum.zip
 *.sforum.zip.sbom.json
 storage/
+# 可选扩展随仓库发布；仅忽略本地构建出的后端二进制
 extensions/optional/plugins/*/backend/plugin

@@ -162,6 +162,17 @@
   ecosystem 与 governed go.mod 覆盖也纳入门禁；当前夹具套件共 13 个用例
   （1 正 + 12 失败）。
 
+## CI Fix (2026-08-17)
+
+- 修复 Quality gate 的干净检出断链：`extensions/optional/README.md` 过去在
+  本地存在但整个 `extensions/optional/` 被 `.gitignore` 排除，导致
+  `extensions/README.md` 的 `./optional/` 链接只在开发机通过。现在可选扩展
+  目录随仓库跟踪，仅忽略生成的后端二进制与打包产物。
+- `validate-docs.mjs` 在 Git worktree 中拒绝指向 gitignored 本地目标的
+  Markdown 链接，防止本地文件掩盖 CI 断链；夹具套件新增对应失败路径，
+  当前共 14 个用例（1 正 + 13 失败）。完整仓库门禁、Go 构建、884 个 Web
+  单测和 Nuxt 生产构建通过。
+
 ## Next
 
 - 真实发布时验证 `/releases/latest/download/sforum-deploy.tar.gz` 与

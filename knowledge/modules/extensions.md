@@ -143,6 +143,9 @@ Prior partial evidence, not closure:
 
 - Protected built-ins are discovered only under `extensions/builtin/` and are
   boot-synchronized through `SyncBuiltins`.
+- Optional ship-with-repository packages live under the tracked
+  `extensions/optional/` tree. The directory README is part of the repository;
+  only generated plugin backend binaries and package archives are ignored.
 - A protected built-in removed from the release tree is atomically removed
   from the latest plugin runtime desired set, disabled, and hidden behind a
   Host catalog tombstone. Immutable extension/version rows referenced by

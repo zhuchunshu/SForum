@@ -138,7 +138,9 @@ load archived sessions or completed plans as current context.
   Dockerfile/Go 一致性、文档 HTTP method/path 同时对照 OpenAPI 与 Go Route
   Catalog、安装命令 fail-closed）并新增失败路径测试；Dependabot
   以 `docker-compose` 覆盖根 Compose，并覆盖 tools/proto、tests/compat，Compose
-  基础镜像均固定明确版本。
+  基础镜像均固定明确版本。2026-08-17 又修复了可选扩展 README 被整目录忽略
+  而仅在本地可见的 CI 断链，并让文档门禁拒绝指向 gitignored 目标的链接；
+  失败路径夹具增至 14 个用例。
   **阻塞性冲突未变**：路线图要求发行保持
   prerelease，而 2026-08-01 记录 "v3.0.1 准备进入 release gate"，需产品决定：
   `sessions/2026-08-16-docs-version-governance-remediation.md`
