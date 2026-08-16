@@ -55,6 +55,13 @@ SForum 是可维护、插件优先的开源论坛框架：核心做宿主与契�
 - [生成目录 catalogs](../extensions/catalogs/)
 - [V3 平台文档](../extensions/v3/)
 
+### 扩展开发（中文翻译）
+
+- [插件路由定义（routes）](./extensions/routes.md)
+- [构建与加载循环（build-and-load）](./extensions/build-and-load.md)
+
+> 英文原文（路径稳定）位于 `docs/extensions/`；字段名与命令以原文和代码为准。
+
 ## 与 knowledge 的分工
 
 | 位置 | 用途 |

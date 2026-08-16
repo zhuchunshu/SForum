@@ -24,6 +24,10 @@
 | 契约 | 模块化 OpenAPI · Protobuf Host API v2 |
 | 扩展 | Manifest V3 · 精确制品信任 · Page Registry 主题 |
 
+## 扩展开发入口
+
+- [插件路由定义（routes）](../extensions/routes.md) · [构建与加载循环](../extensions/build-and-load.md) · [插件编写指南（英文）](../../extensions/authoring-guide.md)
+
 ## 协作约定（摘要）
 
 完整规则见仓库根目录 `AGENTS.md`。要点：

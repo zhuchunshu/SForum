@@ -113,6 +113,17 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- 扩展作者文档补齐（2026-08-16）：新增 `docs/extensions/routes.md`（插件声明式
+  路由：manifest `routes[]` 语义、core guard、Protocol V2 InvokeRoute/流、
+  入口 probe + Nuxt 代理、CSRF/PAT、限制与测试，锚定 sforum-custom-content）
+  与 `docs/extensions/build-and-load.md`（backend go.mod replace 接线、前端
+  prebuild、digest/validate/package、dev 加载与信任迭代循环）；**中英双语**：
+  完整中文版在 `docs/zh-CN/extensions/`，`docs/en-US/extensions/` 为英文入口
+  页（满足 zh/en 平行校验），zh/en README 与 authoring-guide 交叉链接；
+  authoring-guide 新增 Reference 4 路由参考。
+  **待办**：guard 执行运行时落地后同步 routes.md Guards 表。
+  `sessions/2026-08-16-extension-authoring-docs-handoff.md`
+
 - 文档与版本治理修复（2026-08-16，三轮整改）：deploy.sh/upgrade.sh 默认
   **stable** 通道；deploy.sh 区分**当前版本 vs 目标版本**（install/update 按
   channel 解析 latest，维护动作用已部署版本且不访问 GitHub，交互多动作不再

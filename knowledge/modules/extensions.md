@@ -324,6 +324,17 @@ catalog IDs do not rely on string replacement as sanitization.
   actor identity is rejected unless Host-attested delegation exists.
 - The supported Go authoring surface is `apps/api/sdk/plugin`; CLI validation is
   `sforum extension test [path]`.
+- Author-facing docs added 2026-08-16: `docs/extensions/routes.md` (declared
+  HTTP routes: manifest `routes[]` semantics, core guards, Protocol V2
+  `InvokeRoute`/`RouteStream`, ingress probe + Nuxt proxy, limits, testing) and
+  `docs/extensions/build-and-load.md` (backend go.mod `replace` wiring, frontend
+  prebuild, digest/validate/test/package, dev load via `EXTERNAL_EXTENSION_ROOTS`
+  or upload, trust + iteration loop). `sforum-custom-content` is the canonical
+  route fixture; authoring-guide gained a Reference 4 pointing at it and
+  cross-links from both new pages. Both pages have full Chinese translations
+  under `docs/zh-CN/extensions/` (routes.md, build-and-load.md); `docs/en-US/extensions/`
+  holds short pointer pages so the zh/en handbook trees stay structurally
+  parallel (`validate-docs.mjs` enforces the file-list parity).
 - Runtime resilience includes per-extension concurrency, deadlines, circuit
   state, crash/restart reaping, admission fencing, and inspectable degraded
   state.

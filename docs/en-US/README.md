@@ -55,6 +55,11 @@ These paths are referenced by CI and generators—do not move casually:
 - [Generated catalogs](../extensions/catalogs/)
 - [V3 platform docs](../extensions/v3/)
 
+### Extension authoring (translations)
+
+- [Plugin routes (中文)](../zh-CN/extensions/routes.md) · [English (canonical)](../extensions/routes.md)
+- [Build, digest, and load (中文)](../zh-CN/extensions/build-and-load.md) · [English (canonical)](../extensions/build-and-load.md)
+
 ## Docs vs knowledge
 
 | Location | Purpose |

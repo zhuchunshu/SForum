@@ -13,6 +13,9 @@ plugins (Wave F4.2). Generated host catalogs live under
 changing events, capabilities, contribution points, provider slots, or core
 schedules.
 
+**Focused guides:** [declared HTTP routes](./routes.md) · [build, digest, and load](./build-and-load.md)
+(中文： [插件路由](../zh-CN/extensions/routes.md) · [构建与加载](../zh-CN/extensions/build-and-load.md))
+
 ## What you should depend on
 
 | Surface | Use for |
@@ -620,7 +623,36 @@ Rules demonstrated by this package:
 
 See package `README.md` for the full operator path.
 
-## Reference 4 — Host API v2 fixtures
+## Reference 4 — declared HTTP routes (`sforum-custom-content`)
+
+Path: `extensions/fixtures/plugins/sforum-custom-content/`
+
+Use this package when your plugin **owns HTTP routes** under the host proxy
+(`routes[]` + Protocol V2 `InvokeRoute`). It is the executable reference for
+the full route lifecycle: manifest declarations, handler dispatch, request
+schema validation, and package-file schema binding. The author-facing
+contracts are documented in [routes.md](./routes.md); the walkthrough for
+building and loading the package is in [build-and-load.md](./build-and-load.md).
+
+| Area | What custom-content does |
+| --- | --- |
+| Manifest | Nine `routes[]` declarations: public `GET` reads, `POST` writes behind `core.guard.login`, `requestSchema`/`responseSchema` references |
+| Backend | `contentServer.InvokeRoute` switch on `RouteId`; `TypedDocument` bodies; structured `ErrorDetail` |
+| Guards | `core.guard.public` / `core.guard.login` only (custom/raw guard runtime is a later wave) |
+| Schemas | `packageFiles` entries of kind `schema` referenced by route schemas |
+| Extra registries | entities/taxonomy/fields, editor L2, navigation/regions, and Query Registry (beyond the route story) |
+
+```bash
+cd apps/api
+go run ./cmd/sforum extension test --skip-backend-binary \
+  ../../extensions/fixtures/plugins/sforum-custom-content
+
+# Real subprocess integration test (Go; needs the dev PostgreSQL,
+# defaults to postgres://sforum:sforum@127.0.0.1:15432/sforum):
+cd apps/api && go test ./app/Support/Extensions/IntegrationTests/ -run TestReferenceCustomContentPlugin
+```
+
+## Reference 5 — Host API v2 fixtures
 
 Use the focused Protocol V2 reference that matches the Host-owned capability
 you need:
@@ -657,7 +689,8 @@ Related fixtures:
 | Swap attachment storage | provider `attachment.storage.provider` (see `sforum.storage-fs`) |
 | Swap full-text search | provider `search.provider` (Wave E7) |
 | Store per-topic/plugin structured data | entity meta (F4.4 / E3) |
-| Own HTTP API under the host proxy | manifest `routes` + backend `RouteTarget` |
+| Own HTTP API under the host proxy | manifest `routes` + backend `InvokeRoute`/`RouteTarget` — see [routes.md](./routes.md) |
+| Build a backend binary / frontend assets and load them | [build-and-load.md](./build-and-load.md) |
 | Call host from the plugin process | Host API + declared `capabilities` |
 | End-to-end **workflow** sample | enable `sforum.content-policy` (this section) |
 | End-to-end **mail provider** sample | enable `sforum.smtp` + select in Mail settings |
@@ -767,7 +800,9 @@ go run ./cmd/sforum extension docs generate --check
 
 Full flag tables and release loop:  
 [中文 · 开发者 CLI](../zh-CN/development/cli.md) ·
-[English · Developer CLI](../en-US/development/cli.md).
+[English · Developer CLI](../en-US/development/cli.md).  
+End-to-end build, digest, load, and iteration walkthrough:
+[build-and-load.md](./build-and-load.md).
 
 ## Contribution points (F4.3 / E2)
 

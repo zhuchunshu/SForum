@@ -24,6 +24,10 @@ For contributors and integrators.
 | Contracts | Modular OpenAPI · Protobuf Host API v2 |
 | Extensions | Manifest V3 · exact-artifact trust · Page Registry themes |
 
+## Extension authoring entries
+
+- [Plugin routes (declared HTTP routes)](../../extensions/routes.md) · [Build, digest, and load](../../extensions/build-and-load.md) · [Plugin authoring guide](../../extensions/authoring-guide.md)
+
 ## Collaboration (summary)
 
 Full rules: root `AGENTS.md`.
