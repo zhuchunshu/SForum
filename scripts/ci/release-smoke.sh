@@ -14,6 +14,7 @@ fi
 export SFORUM_VERSION
 export SFORUM_REGISTRY="${SFORUM_REGISTRY:-ghcr.io/zhuchunshu}"
 export APP_ENV=production
+export EMBED_WORKER_IN_API=true
 export APP_URL=http://127.0.0.1:3000
 export POSTGRES_PASSWORD=sforum-release-smoke-postgres
 export DATABASE_URL='postgres://sforum:sforum-release-smoke-postgres@postgres:5432/sforum?sslmode=disable'
@@ -61,17 +62,33 @@ done
 
 "${compose[@]}" up -d postgres redis
 "${compose[@]}" run --rm -T migrate
-"${compose[@]}" up -d api worker web
+"${compose[@]}" up -d api web
 
 "$ROOT_DIR/deploy/scripts/wait-for-health.sh" http://127.0.0.1:18080/api/v1/ready 120
 "$ROOT_DIR/deploy/scripts/wait-for-health.sh" http://127.0.0.1:3000/health 120
 
 running_services="$("${compose[@]}" ps --status running --services)"
-for service in postgres redis api worker web; do
+for service in postgres redis api web; do
   if ! grep -qx "$service" <<<"$running_services"; then
     echo "Release smoke service is not running: $service" >&2
     exit 1
   fi
 done
+if grep -qx worker <<<"$running_services"; then
+  echo "Release smoke unexpectedly started the split Worker service." >&2
+  exit 1
+fi
+
+deadline=$((SECONDS + 30))
+while [ "$SECONDS" -lt "$deadline" ]; do
+  if "${compose[@]}" exec -T redis redis-cli -a "$REDIS_PASSWORD" EXISTS sforum:worker:heartbeat 2>/dev/null | grep -qx 1; then
+    break
+  fi
+  sleep 1
+done
+if ! "${compose[@]}" exec -T redis redis-cli -a "$REDIS_PASSWORD" EXISTS sforum:worker:heartbeat 2>/dev/null | grep -qx 1; then
+  echo "Release smoke did not observe the embedded Worker heartbeat." >&2
+  exit 1
+fi
 
 echo "Published SForum images passed release smoke: $SFORUM_VERSION"

@@ -7,59 +7,65 @@
 支持 Linux `amd64` 和 `arm64`，不支持 Windows。服务器需要：
 
 - Docker Engine 及 Docker Compose `2.24.4` 或更高版本；
-- `curl` 和 `tar`；
+- `curl`、`tar` 和标准 `install` 命令；
 - 能访问 GitHub 和 `ghcr.io`；
 - loopback 的 `3000`、`18080` 端口可用，或在向导中选择其他端口。
 
-不需要安装 Git 或克隆仓库。下面的命令下载**最新稳定版**的固定名称部署包
-（`sforum-deploy.tar.gz`）：
+不需要安装 Git 或克隆仓库。下面的命令下载并校验**最新稳定版**的
+`sforum-bootstrap.sh`；bootstrap 随后会刷新同一目标版本的完整部署工具包：
 
 ```sh
 (
   set -eu
   mkdir -p sforum
   cd sforum
-  curl -fsSLo sforum-deploy.tar.gz \
-    https://github.com/zhuchunshu/SForum/releases/latest/download/sforum-deploy.tar.gz
-  curl -fsSLo SHA256SUMS \
+  bootstrap_dir="$(mktemp -d .sforum-bootstrap.XXXXXX)"
+  trap 'rm -rf "$bootstrap_dir"' EXIT HUP INT TERM
+  curl -fsSLo "$bootstrap_dir/sforum-bootstrap.sh" \
+    https://github.com/zhuchunshu/SForum/releases/latest/download/sforum-bootstrap.sh
+  curl -fsSLo "$bootstrap_dir/SHA256SUMS" \
     https://github.com/zhuchunshu/SForum/releases/latest/download/SHA256SUMS
-  awk '$2 == "sforum-deploy.tar.gz" { print }' SHA256SUMS > sforum-deploy.sha256
-  test "$(wc -l < sforum-deploy.sha256 | tr -d '[:space:]')" = 1
-  if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum -c sforum-deploy.sha256
-  else
-    shasum -a 256 -c sforum-deploy.sha256
-  fi
-  if command -v gh >/dev/null 2>&1; then
-    gh attestation verify sforum-deploy.tar.gz --repo zhuchunshu/SForum
-  fi
-  tar -xzf sforum-deploy.tar.gz --strip-components=1
-  ./deploy.sh
+  (
+    cd "$bootstrap_dir"
+    awk '$2 == "sforum-bootstrap.sh" { print }' SHA256SUMS > sforum-bootstrap.sha256
+    test "$(wc -l < sforum-bootstrap.sha256 | tr -d '[:space:]')" = 1
+    if command -v sha256sum >/dev/null 2>&1; then
+      sha256sum -c sforum-bootstrap.sha256
+    else
+      shasum -a 256 -c sforum-bootstrap.sha256
+    fi
+    if command -v gh >/dev/null 2>&1; then
+      gh attestation verify sforum-bootstrap.sh --repo zhuchunshu/SForum
+    fi
+  )
+  install -m 0755 "$bootstrap_dir/sforum-bootstrap.sh" ./sforum-bootstrap.sh
+  rm -rf "$bootstrap_dir"
+  trap - EXIT HUP INT TERM
+  ./sforum-bootstrap.sh install
 )
 ```
 
-这个 URL 始终指向最新稳定 Release 的部署资产，不需要维护版本号。部署包只包含
-安装所需的 Compose 文件、`deploy.sh`、`upgrade.sh`、生产环境示例和
-`deploy/` 下的必要脚本，不含源码与仓库历史。
+这个 URL 始终指向最新稳定 Release 的 bootstrap，不需要维护版本号。它会先
+解析不可变目标标签，再校验该标签的 `sforum-deploy.tar.gz`，最后只安装匹配的
+Compose 文件、入口脚本、生产环境示例和 `deploy/` 辅助脚本。
 
-### 校验下载（推荐）
+### 校验下载（必需）
 
 每个 Release 都发布 `SHA256SUMS`（覆盖全部资产）和 GitHub 构建来源证明。
 
-- **先下载压缩包，再下载校验文件**：不要用管道直接解压，否则后续校验
-  找不到文件。
-- **只校验 `SHA256SUMS` 中 `sforum-deploy.tar.gz` 的精确条目**：
-  `awk '$2 == "sforum-deploy.tar.gz" { print }' SHA256SUMS` 按文件名字段匹配，
-  而不是只匹配行尾；命令块还会要求结果恰好只有一条。
+- **禁止把远程响应通过管道直接交给 shell**：必须先保存 bootstrap，再下载
+  校验文件。
+- **只校验 `SHA256SUMS` 中 `sforum-bootstrap.sh` 的精确条目**，并要求结果
+  恰好只有一条。bootstrap 内部会用同样规则校验完整部署包。
 - 整段命令在 `set -eu` 子 shell 中运行；下载失败、条目缺失/重复、checksum
-  或来源证明失败都会在解压前终止。
+  或来源证明失败都会在任何远程脚本执行前终止。
 - `gh attestation verify` 为可选步骤，用于核对构建来源（需要 GitHub CLI 且
   已认证）。
 
 ### 通道语义（stable / prerelease）
 
-- **默认通道是 `stable`**：`./deploy.sh` 不带版本、`./upgrade.sh` 的
-  `latest` 都只解析最新**稳定** Release。
+- **默认通道是 `stable`**：bootstrap 的 install/upgrade 都只解析最新
+  **稳定** Release。
 - **预发布版必须显式选择**：使用 `--channel prerelease`，或直接指定
   不可变版本 `--version v3.0.0-alpha.N`。
 - 无论哪种选择，脚本都会在拉取镜像前解析为具体的 `vX.Y.Z` 标签，并运行
@@ -70,19 +76,21 @@
 需要可重复部署时显式固定版本（用你要部署的版本替换 `$SFORUM_VERSION`）：
 
 ```sh
-./deploy.sh --version $SFORUM_VERSION
-./upgrade.sh --version $SFORUM_VERSION
+./sforum-bootstrap.sh install --version $SFORUM_VERSION
+./sforum-bootstrap.sh upgrade --version $SFORUM_VERSION
 ```
 
 ## 目标形态
 
-- Docker Compose 编排：`web`、`api`、`worker`、PostgreSQL、Redis
+- Docker Compose 编排：`web`、内嵌 Worker 的 `api`、PostgreSQL、Redis；
+  独立 `worker` 是可选的 `split-worker` profile
 - 对外：仅 **loopback** 发布 Web（及可选 API WebSocket 入口），TLS 由**宿主机反代**负责
 - 同域：浏览器只打到站点域名；普通 `/api/v1/*` 由 Nuxt 反代到 API；WebSocket Upgrade 可直打 API 端口
 
 ## 配置
 
-推荐直接运行 `./deploy.sh`。首次安装会用中文解释每个选项，并自动生成
+推荐运行 `./sforum-bootstrap.sh install`。刷新完整工具包后，安装向导会用
+中文解释每个选项，并自动生成
 PostgreSQL、Redis、会话、验证码、身份 HMAC、敏感选项加密和 Marketplace
 验签密钥。所有问题直接回车即可得到一套能启动的本机配置；生成的
 `.env.production` 权限为 `0600`，秘密不会打印到终端。
@@ -130,8 +138,8 @@ SHA 的 `push` CI 成功后才构建、扫描和提升发布镜像，不会再�
   `sforum` 管理 CLI；Windows 不在 SForum 的支持平台范围内；
 - `linux/amd64` 和 `linux/arm64` 后端运行包，包含 API、Worker、迁移、CLI
   以及从同一已扫描候选镜像提取的精确内置扩展；
-- **固定名称部署包 `sforum-deploy.tar.gz`** 与独立 **`upgrade.sh`**：
-  `releases/latest/download/` 始终指向最新稳定版的这两份资产；
+- 固定名称 **`sforum-bootstrap.sh`**、部署包 **`sforum-deploy.tar.gz`** 与
+  旧安装兼容用 **`upgrade.sh`**；
 - 覆盖全部压缩包的 `SHA256SUMS` 和 GitHub 构建来源证明。
 
 Linux 后端包不包含 Nuxt Web、PostgreSQL 或 Redis，因此不是完整站点安装包；
@@ -154,22 +162,22 @@ Linux 后端包不包含 Nuxt Web、PostgreSQL 或 Redis，因此不是完整站
 全部直接回车即可完成配置并部署：
 
 ```sh
-./deploy.sh
+./sforum-bootstrap.sh install
 ```
 
 也可以显式固定版本，或完全非交互地接受推荐配置（`$SFORUM_VERSION` 替换为
 实际标签，例如 `v3.0.0-alpha.13` 这样的预发布版本）：
 
 ```sh
-./deploy.sh --version $SFORUM_VERSION --lang zh
-./deploy.sh --version $SFORUM_VERSION --lang en
-./deploy.sh --version $SFORUM_VERSION --lang zh --yes --action deploy
+./sforum-bootstrap.sh install --version $SFORUM_VERSION --lang zh
+./sforum-bootstrap.sh install --version $SFORUM_VERSION --lang en
+./sforum-bootstrap.sh install --version $SFORUM_VERSION --lang zh --yes
 ```
 
 预发布通道的非交互示例（解析最新发布，含预发布）：
 
 ```sh
-./deploy.sh --channel prerelease --lang zh --yes --action deploy
+./sforum-bootstrap.sh install --channel prerelease --lang zh --yes
 ```
 
 该模式组合 `compose.yaml`、`compose.prod.yaml` 与
@@ -211,16 +219,16 @@ docker compose --env-file .env.production \
 
 ## 零停机更新
 
-已有 Compose 安装推荐使用 `upgrade.sh` 更新。可以在交互提示中输入版本，
-也可以使用位置参数或 `--version`；直接回车时默认选择 **最新稳定版**：
+已有 Compose 安装推荐使用 bootstrap 更新。它每次都会先把自身刷新到目标
+Release，再校验并刷新该 Release 的完整部署工具包，最后才交给
+`upgrade.sh`。默认选择 **最新稳定版**：
 
 ```sh
-./upgrade.sh
-./upgrade.sh $SFORUM_VERSION
-./upgrade.sh --version $SFORUM_VERSION
-./upgrade.sh --yes                       # 无人值守：选择最新稳定版并跳过确认
-./upgrade.sh --channel prerelease        # 明确允许预发布（解析最新发布，含预发布）
-./upgrade.sh --channel prerelease --yes  # 无人值守的预发布通道
+./sforum-bootstrap.sh upgrade
+./sforum-bootstrap.sh upgrade --version $SFORUM_VERSION
+./sforum-bootstrap.sh upgrade --yes
+./sforum-bootstrap.sh upgrade --channel prerelease
+./sforum-bootstrap.sh upgrade --channel prerelease --yes
 ```
 
 预发布版永远不会被隐式选中：要么显式传 `--channel prerelease`，要么直接
@@ -228,39 +236,46 @@ docker compose --env-file .env.production \
 标签并运行对应镜像；`.deployrc` 保存的也是解析后的具体版本，不会保存
 `latest`。
 
-现有安装不需要重新克隆仓库。若要先刷新正式版更新脚本，再从**最新稳定
-Release 资产**下载并校验（不要使用 `main` 分支的浮动内容）：
+现有安装不需要重新克隆仓库。第一次接入 bootstrap 时，在现有安装目录从
+**最新稳定 Release 资产**下载并校验（不要使用 `main` 分支的浮动内容）：
 
 ```sh
 (
   set -eu
   cd /path/to/sforum
-  curl -fsSLo upgrade.sh \
-    https://github.com/zhuchunshu/SForum/releases/latest/download/upgrade.sh
-  curl -fsSLo SHA256SUMS \
+  bootstrap_dir="$(mktemp -d .sforum-bootstrap.XXXXXX)"
+  trap 'rm -rf "$bootstrap_dir"' EXIT HUP INT TERM
+  curl -fsSLo "$bootstrap_dir/sforum-bootstrap.sh" \
+    https://github.com/zhuchunshu/SForum/releases/latest/download/sforum-bootstrap.sh
+  curl -fsSLo "$bootstrap_dir/SHA256SUMS" \
     https://github.com/zhuchunshu/SForum/releases/latest/download/SHA256SUMS
-  awk '$2 == "upgrade.sh" { print }' SHA256SUMS > upgrade.sh.sha256
-  test "$(wc -l < upgrade.sh.sha256 | tr -d '[:space:]')" = 1
-  if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum -c upgrade.sh.sha256
-  else
-    shasum -a 256 -c upgrade.sh.sha256
-  fi
-  if command -v gh >/dev/null 2>&1; then
-    gh attestation verify upgrade.sh --repo zhuchunshu/SForum
-  fi
-  chmod 0755 upgrade.sh
-  ./upgrade.sh
+  (
+    cd "$bootstrap_dir"
+    awk '$2 == "sforum-bootstrap.sh" { print }' SHA256SUMS > sforum-bootstrap.sha256
+    test "$(wc -l < sforum-bootstrap.sha256 | tr -d '[:space:]')" = 1
+    if command -v sha256sum >/dev/null 2>&1; then
+      sha256sum -c sforum-bootstrap.sha256
+    else
+      shasum -a 256 -c sforum-bootstrap.sha256
+    fi
+    if command -v gh >/dev/null 2>&1; then
+      gh attestation verify sforum-bootstrap.sh --repo zhuchunshu/SForum
+    fi
+  )
+  install -m 0755 "$bootstrap_dir/sforum-bootstrap.sh" ./sforum-bootstrap.sh
+  rm -rf "$bootstrap_dir"
+  trap - EXIT HUP INT TERM
+  ./sforum-bootstrap.sh upgrade
 )
 ```
 
-下载后必须用 `SHA256SUMS` 中 `upgrade.sh` 的精确条目校验；校验失败不得
-运行。需要固定到具体版本（含预发布）时，用对应标签的资产地址：
+这个过程不会修改 `.env.production`、`.deployrc`、`deploy/runtime/` 或数据卷；
+刷新前的受管工具文件会备份到 `.sforum/tooling-backups/`。固定具体版本（含
+预发布）时，将上面的两个滚动地址改为对应标签：
 
 ```sh
-curl -fsSLo upgrade.sh \
-  https://github.com/zhuchunshu/SForum/releases/download/<TAG>/upgrade.sh
-# 再按上面的流程下载对应标签的 SHA256SUMS 并精确校验
+https://github.com/zhuchunshu/SForum/releases/download/<TAG>/sforum-bootstrap.sh
+https://github.com/zhuchunshu/SForum/releases/download/<TAG>/SHA256SUMS
 ```
 
 > 历史兼容说明：`v3.0.0-alpha.12` 及更早版本附带的 `upgrade.sh` 无法正确
@@ -296,8 +311,9 @@ curl -fsSLo upgrade.sh \
 API/Web，经 Caddy 原子切换流量后才停止旧槽，从而保持 HTTP 服务连续。
 WebSocket 长连接在切换时可能需要自动重连。
 
-后台任务不会同时由两个 Worker 消费：脚本先优雅停止旧 Worker，再启动新
-Worker，因此队列消费会短暂停顿，但 River 中的持久任务不会丢失。更新前
+蓝绿升级会显式使用分离 Worker，而不沿用普通生产的内嵌默认。脚本先优雅
+停止旧 Worker，再启动新 Worker，因此队列消费会短暂停顿，但 River 中的
+持久任务不会丢失。更新前
 脚本同时检查 SForum Core 与 River 的数据库迁移。只有目标迁移器声明支持
 在线检查、所有待执行 Core SQL 都带有 Host 审核的 `-- +sforum OnlineSafe`
 声明，并且 River 迁移完全一致时，才会在旧槽继续服务期间迁移。在线 SQL
@@ -326,7 +342,8 @@ Worker，因此队列消费会短暂停顿，但 River 中的持久任务不会�
 ```sh
 ./deploy.sh --action logs          # 跟踪全部服务日志
 ./deploy.sh --action status        # 查看服务状态
-docker compose --env-file .env.production logs -f api worker web
+docker compose --env-file .env.production logs -f api web
+# 仅 EMBED_WORKER_IN_API=false 时：追加 --profile split-worker 并查看 worker
 ```
 
 ### 故障恢复
@@ -356,11 +373,22 @@ docker compose --env-file .env.production logs -f api worker web
 | 服务 | 职责 |
 | --- | --- |
 | `web` | Nuxt 生产输出；同域代理 HTTP API |
-| `api` | Fiber API；扩展运行时；可选 WS 入口 |
-| `worker` | River 队列（生产默认与 API 分离） |
+| `api` | Fiber API；扩展运行时；默认内嵌 River Worker；可选 WS 入口 |
+| `worker` | 可选独立 River 消费者（`EMBED_WORKER_IN_API=false`） |
 | `postgres` / `redis` | 状态与会话/缓存 |
 
-开发里的 `EMBED_WORKER_IN_API` **不要**作为生产默认。
+生产默认 `EMBED_WORKER_IN_API=true`，因此普通部署不会启动独立 `worker`
+容器，并会复用 API 的 PostgreSQL 连接池、Redis 与扩展 runtime。需要独立
+扩缩容、故障隔离或生产式进程调试时，将其设为 `false`；`deploy.sh` 会自动
+启用 `split-worker` profile、拉取 Worker 镜像并验证独立进程。不要在内嵌
+模式下手动启动独立 Worker，否则会形成两套消费者与插件 runtime。
+
+`upgrade.sh` 的蓝绿拓扑是有意的例外：槽位 API 强制关闭内嵌 Worker，使用
+可排空的独立 Worker 完成安全交接。
+
+内嵌模式下 HTTP 与后台任务共用 `DATABASE_MAX_CONNS`。队列持续繁忙、需要
+单独连接池或任务延迟开始影响请求延迟时，应提高该值并观察 PostgreSQL，或
+切换到分离模式，而不是无边界提高 River 并发。
 
 ## 运行时内存与诊断
 
@@ -373,7 +401,7 @@ Docker socket。资源请求最多每 5 秒共享一次采样，展示最近 60 
 不支持 PSS 的系统不会伪造"有效占用"。插件明细按占用从高到低列出，并只
 归因当前 API/Worker 直接拥有的插件进程。
 
-开发环境默认将 Worker 内嵌到 API。此时 API 行明确标记"含 Worker"，Worker
+开发与普通生产环境默认将 Worker 内嵌到 API。此时 API 行明确标记"含 Worker"，Worker
 行只显示内嵌并发槽位和运行任务数，不虚构一个独立 Worker 的 MiB。生产环境
 若设置 `EMBED_WORKER_IN_API=false`，独立 Worker 会单独计量。
 

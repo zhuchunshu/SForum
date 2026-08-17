@@ -34,10 +34,11 @@ write_base_fixture() {
   cat > "$dir/README.md" <<'EOF'
 # Fixture README
 
-Install: curl -fsSLo sforum-deploy.tar.gz https://github.com/zhuchunshu/SForum/releases/latest/download/sforum-deploy.tar.gz
+Install: curl -fsSLo sforum-bootstrap.sh https://github.com/zhuchunshu/SForum/releases/latest/download/sforum-bootstrap.sh
   set -eu
-  awk '$2 == "sforum-deploy.tar.gz" { print }' SHA256SUMS
-  test "$(wc -l < sforum-deploy.sha256 | tr -d '[:space:]')" = 1
+  awk '$2 == "sforum-bootstrap.sh" { print }' SHA256SUMS
+  test "$(wc -l < sforum-bootstrap.sha256 | tr -d '[:space:]')" = 1
+./sforum-bootstrap.sh install
 Prereleases require --channel prerelease.
 EOF
 
@@ -54,11 +55,13 @@ EOF
     cat > "$dir/docs/$locale/deployment.md" <<'EOF'
 # Deployment
 
-curl -fsSLo sforum-deploy.tar.gz https://github.com/zhuchunshu/SForum/releases/latest/download/sforum-deploy.tar.gz
+curl -fsSLo sforum-bootstrap.sh https://github.com/zhuchunshu/SForum/releases/latest/download/sforum-bootstrap.sh
   set -eu
-  awk '$2 == "sforum-deploy.tar.gz" { print }' SHA256SUMS
-  test "$(wc -l < sforum-deploy.sha256 | tr -d '[:space:]')" = 1
-  awk '$2 == "upgrade.sh" { print }' SHA256SUMS
+  awk '$2 == "sforum-bootstrap.sh" { print }' SHA256SUMS
+  test "$(wc -l < sforum-bootstrap.sha256 | tr -d '[:space:]')" = 1
+  install -m 0755 "$bootstrap_dir/sforum-bootstrap.sh" ./sforum-bootstrap.sh
+./sforum-bootstrap.sh install
+./sforum-bootstrap.sh upgrade
 Use --channel prerelease for prereleases.
 Historical compatibility: the v3.0.0-alpha.13 bundled updater stays pinned.
 EOF
@@ -247,6 +250,7 @@ EOF
   cat > "$dir/scripts/ci/finalize-release-assets.sh" <<'EOF'
 EXPECTED=(
   "sforum-deploy.tar.gz"
+  "sforum-bootstrap.sh"
   "upgrade.sh"
 )
 EOF
@@ -323,10 +327,19 @@ write_base_fixture "$CASE_INSTALL_SAFETY"
 cat > "$CASE_INSTALL_SAFETY/README.md" <<'EOF'
 # Unsafe install
 
-curl -fsSLo sforum-deploy.tar.gz https://github.com/zhuchunshu/SForum/releases/latest/download/sforum-deploy.tar.gz
+curl -fsSLo sforum-bootstrap.sh https://github.com/zhuchunshu/SForum/releases/latest/download/sforum-bootstrap.sh
 Use --channel prerelease for prereleases.
 EOF
-assert_validator_fails_with "$CASE_INSTALL_SAFETY" "stable install commands must be fail-closed" "install verification safety check"
+assert_validator_fails_with "$CASE_INSTALL_SAFETY" "bootstrap commands must be fail-closed" "install verification safety check"
+
+# Remote shell content must be saved and verified before execution.
+CASE_PIPE_TO_SHELL="$TEMP_DIR/pipe-to-shell"
+write_base_fixture "$CASE_PIPE_TO_SHELL"
+cat >> "$CASE_PIPE_TO_SHELL/README.md" <<'EOF'
+
+curl -fsSL https://example.invalid/install.sh | bash
+EOF
+assert_validator_fails_with "$CASE_PIPE_TO_SHELL" "must not pipe remote shell content directly into a shell" "remote shell pipe check"
 
 # Unknown CLI constructor registered at the root.
 CASE_CLI="$TEMP_DIR/cli"

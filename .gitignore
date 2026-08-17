@@ -22,6 +22,8 @@ Desktop.ini
 .envrc
 .deployrc
 .deployrc.*
+.sforum/
+.sforum-bootstrap.lock/
 apps/api/api
 # Logs
 *.log

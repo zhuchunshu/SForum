@@ -20,6 +20,7 @@ EXPECTED=(
   "sforum-server_${VERSION}_linux_amd64.tar.gz"
   "sforum-server_${VERSION}_linux_arm64.tar.gz"
   "sforum-deploy.tar.gz"
+  "sforum-bootstrap.sh"
   "upgrade.sh"
 )
 
@@ -66,6 +67,7 @@ done
 
 deploy_listing="$(tar -tzf "$ASSET_DIR/sforum-deploy.tar.gz")"
 for entry in \
+  "sforum-deploy/sforum-bootstrap.sh" \
   "sforum-deploy/deploy.sh" \
   "sforum-deploy/upgrade.sh" \
   "sforum-deploy/compose.yaml" \
@@ -91,19 +93,21 @@ done
 # own (release.yml must not need a chmod workaround), so content checks run
 # first, then the execute bit is restored before the -x post-check and
 # checksum generation.
-[[ "$(head -n 1 "$ASSET_DIR/upgrade.sh")" == "#!/usr/bin/env bash" ]] || {
-  echo "Standalone upgrade.sh asset is not a shell script" >&2
-  exit 1
-}
-bash -n "$ASSET_DIR/upgrade.sh" || {
-  echo "Standalone upgrade.sh asset has invalid shell syntax" >&2
-  exit 1
-}
-chmod 0755 "$ASSET_DIR/upgrade.sh"
-[[ -x "$ASSET_DIR/upgrade.sh" ]] || {
-  echo "Standalone upgrade.sh asset is not executable" >&2
-  exit 1
-}
+for script in sforum-bootstrap.sh upgrade.sh; do
+  [[ "$(head -n 1 "$ASSET_DIR/$script")" == "#!/usr/bin/env bash" ]] || {
+    echo "Standalone $script asset is not a shell script" >&2
+    exit 1
+  }
+  bash -n "$ASSET_DIR/$script" || {
+    echo "Standalone $script asset has invalid shell syntax" >&2
+    exit 1
+  }
+  chmod 0755 "$ASSET_DIR/$script"
+  [[ -x "$ASSET_DIR/$script" ]] || {
+    echo "Standalone $script asset is not executable" >&2
+    exit 1
+  }
+done
 
 if command -v sha256sum >/dev/null 2>&1; then
   (cd "$ASSET_DIR" && sha256sum "${EXPECTED[@]}" > SHA256SUMS && sha256sum -c SHA256SUMS)

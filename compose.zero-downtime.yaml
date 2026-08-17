@@ -19,6 +19,7 @@ services:
     restart: unless-stopped
     environment:
       APP_ENV: production
+      EMBED_WORKER_IN_API: "false"
       MIGRATE_ON_STARTUP: "false"
 
   worker-blue:
@@ -57,6 +58,7 @@ services:
     restart: unless-stopped
     environment:
       APP_ENV: production
+      EMBED_WORKER_IN_API: "false"
       MIGRATE_ON_STARTUP: "false"
 
   worker-green:

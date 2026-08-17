@@ -23,7 +23,7 @@
       → PostgreSQL
       → Redis（会话、缓存、队列协调等）
       → 插件子进程（go-plugin / Host API v2）
-  Worker（生产独立）
+  Worker（默认内嵌 API；可选独立进程）
       → 同一 PostgreSQL / Redis / 扩展运行时
 ```
 

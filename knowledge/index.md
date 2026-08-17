@@ -113,6 +113,23 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- 已验证 Release bootstrap（2026-08-18）：新增 `sforum-bootstrap.sh` 作为安装/
+  更新唯一推荐联网入口；每次先解析不可变目标标签、校验并自刷新 bootstrap，
+  再校验同标签完整部署包后交给 deploy/upgrade 状态机。老实例一次接管即可，
+  `.env.production`、`.deployrc`、路由 runtime、数据与卷不变，受管工具先备份到
+  `.sforum/tooling-backups/`；Release 资产、SHA256SUMS/attestation、README、
+  中英文部署文档、Release Notes 和 CI 门禁已同步：
+  `sessions/2026-08-18-verified-release-bootstrap.md`，
+  `decisions/2026-08-18-verified-release-bootstrap.md`
+
+- 生产 Worker 默认内嵌（2026-08-18）：普通单机生产现在默认
+  `EMBED_WORKER_IN_API=true`，独立 Worker 进入可选 `split-worker` profile；
+  deploy 按模式选择镜像、身份验证、启动服务和健康预期，Compose 正式透传连接池、
+  队列并发与关停配置。蓝绿槽位仍显式使用可排空的独立 Worker；release smoke
+  验证默认不启动 worker 容器且 Redis 收到内嵌心跳：
+  `sessions/2026-08-18-production-embedded-worker-default.md`，
+  `decisions/2026-08-18-production-embedded-worker-default.md`
+
 - 编辑器正文渲染一致性修复（2026-08-17）：撰写、客户端预览与正式
   `.sf-prose` 现共享正文语义 CSS，显式恢复被 Tailwind Preflight 清除的
   `ul/ol` marker，并统一段落、H2/H3、列表/嵌套、引用、代码、链接和分隔线；

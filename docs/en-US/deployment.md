@@ -8,55 +8,59 @@ SForum supports Linux `amd64` and `arm64`; Windows is not supported. The server
 needs:
 
 - Docker Engine and Docker Compose `2.24.4` or newer;
-- `curl` and `tar`;
+- `curl`, `tar`, and the standard `install` command;
 - access to GitHub and `ghcr.io`;
 - free loopback ports `3000` and `18080`, or alternative ports selected in the
   wizard.
 
-Git is not required. The commands below download the fixed-name deploy bundle
-(`sforum-deploy.tar.gz`) for the **latest stable release**:
+Git is not required. The commands below download and verify the **latest stable
+release** bootstrap. It then refreshes the complete matching deploy toolkit:
 
 ```sh
 (
   set -eu
   mkdir -p sforum
   cd sforum
-  curl -fsSLo sforum-deploy.tar.gz \
-    https://github.com/zhuchunshu/SForum/releases/latest/download/sforum-deploy.tar.gz
-  curl -fsSLo SHA256SUMS \
+  bootstrap_dir="$(mktemp -d .sforum-bootstrap.XXXXXX)"
+  trap 'rm -rf "$bootstrap_dir"' EXIT HUP INT TERM
+  curl -fsSLo "$bootstrap_dir/sforum-bootstrap.sh" \
+    https://github.com/zhuchunshu/SForum/releases/latest/download/sforum-bootstrap.sh
+  curl -fsSLo "$bootstrap_dir/SHA256SUMS" \
     https://github.com/zhuchunshu/SForum/releases/latest/download/SHA256SUMS
-  awk '$2 == "sforum-deploy.tar.gz" { print }' SHA256SUMS > sforum-deploy.sha256
-  test "$(wc -l < sforum-deploy.sha256 | tr -d '[:space:]')" = 1
-  if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum -c sforum-deploy.sha256
-  else
-    shasum -a 256 -c sforum-deploy.sha256
-  fi
-  if command -v gh >/dev/null 2>&1; then
-    gh attestation verify sforum-deploy.tar.gz --repo zhuchunshu/SForum
-  fi
-  tar -xzf sforum-deploy.tar.gz --strip-components=1
-  ./deploy.sh
+  (
+    cd "$bootstrap_dir"
+    awk '$2 == "sforum-bootstrap.sh" { print }' SHA256SUMS > sforum-bootstrap.sha256
+    test "$(wc -l < sforum-bootstrap.sha256 | tr -d '[:space:]')" = 1
+    if command -v sha256sum >/dev/null 2>&1; then
+      sha256sum -c sforum-bootstrap.sha256
+    else
+      shasum -a 256 -c sforum-bootstrap.sha256
+    fi
+    if command -v gh >/dev/null 2>&1; then
+      gh attestation verify sforum-bootstrap.sh --repo zhuchunshu/SForum
+    fi
+  )
+  install -m 0755 "$bootstrap_dir/sforum-bootstrap.sh" ./sforum-bootstrap.sh
+  rm -rf "$bootstrap_dir"
+  trap - EXIT HUP INT TERM
+  ./sforum-bootstrap.sh install
 )
 ```
 
-That URL always points at the latest stable Release's deployment asset; no
-version number needs to be maintained. The bundle contains only what
-installation needs: the Compose files, `deploy.sh`, `upgrade.sh`, the
-production environment example, and the required `deploy/` helpers — no source
-tree or repository history.
+That URL always points at the latest stable Release bootstrap. It resolves an
+immutable target tag, verifies that tag's `sforum-deploy.tar.gz`, and installs
+only the matching Compose files, entrypoints, production example, and required
+`deploy/` helpers.
 
-### Verify the download (recommended)
+### Verify the download (required)
 
 Every Release publishes `SHA256SUMS` (covering every asset) and GitHub build
 provenance attestations.
 
-- **Download the archive first, then the checksum file**: never pipe the
-  archive straight into `tar`, or there is nothing left to verify.
-- **Verify only the exact `sforum-deploy.tar.gz` entry**:
-  `awk '$2 == "sforum-deploy.tar.gz" { print }' SHA256SUMS` matches the filename
-  field rather than a suffix; the command block also requires exactly one
-  matching entry before checking it.
+- **Never pipe a remote response directly into a shell**: save the bootstrap
+  before downloading its checksum file.
+- Verify exactly one `sforum-bootstrap.sh` entry. The bootstrap applies the same
+  exact-entry rule to the full deploy bundle.
 - The commands run in a `set -eu` subshell, so a failed download, missing or
   duplicate checksum entry, checksum failure, or provenance failure aborts
   before extraction.
@@ -65,8 +69,8 @@ provenance attestations.
 
 ### Channel semantics (stable / prerelease)
 
-- **The default channel is `stable`**: `./deploy.sh` without a version and
-  `latest` in `./upgrade.sh` resolve only the newest **stable** Release.
+- **The default channel is `stable`**: bootstrap install and upgrade resolve
+  only the newest **stable** Release.
 - **Prereleases are never selected implicitly**: pass `--channel prerelease`,
   or pin an immutable version such as `--version v3.0.0-alpha.N`.
 - Whatever the choice, the scripts resolve to a concrete `vX.Y.Z` tag before
@@ -80,20 +84,22 @@ For repeatable deployments, pin an explicit immutable version (replace
 `v3.0.0-alpha.13`):
 
 ```sh
-./deploy.sh --version $SFORUM_VERSION
-./upgrade.sh --version $SFORUM_VERSION
+./sforum-bootstrap.sh install --version $SFORUM_VERSION
+./sforum-bootstrap.sh upgrade --version $SFORUM_VERSION
 ```
 
 ## Target shape
 
-- Compose: `web`, `api`, `worker`, PostgreSQL, Redis
+- Compose: `web`, `api` with an embedded Worker, PostgreSQL, Redis; standalone
+  `worker` is the optional `split-worker` profile
 - Public exposure: **loopback-only** web (and optional API WebSocket ingress); TLS on the host reverse proxy
 - Same-origin: browsers hit one domain; Nuxt proxies ordinary `/api/v1/*` HTTP; WebSocket Upgrade may go to the API loopback port
 
 ## Configuration
 
-Run `./deploy.sh` for the recommended path. On first install it explains each
-choice and generates the PostgreSQL, Redis, session, verification, identity
+Run `./sforum-bootstrap.sh install` for the recommended path. After refreshing
+the verified toolkit, it explains each choice and generates the PostgreSQL,
+Redis, session, verification, identity
 HMAC, option-encryption, and Marketplace verifier keys. Press Enter for every
 question to get a runnable local configuration. Secrets are never printed and
 `.env.production` is written with mode `0600`.
@@ -145,9 +151,8 @@ also publishes:
   is not a supported SForum platform;
 - Linux amd64 and arm64 backend bundles containing API, worker, migrator, CLI,
   and the exact protected built-ins extracted from the scanned candidate image;
-- the **fixed-name deploy bundle `sforum-deploy.tar.gz`** and a standalone
-  **`upgrade.sh`**: `releases/latest/download/` always points at the latest
-  stable version of both assets;
+- fixed-name **`sforum-bootstrap.sh`**, **`sforum-deploy.tar.gz`**, and legacy
+  compatibility **`upgrade.sh`** assets;
 - `SHA256SUMS` for every archive plus GitHub build provenance attestations.
 
 The Linux backend bundle does not contain the Nuxt web runtime, PostgreSQL, or
@@ -171,23 +176,23 @@ Every release supports `linux/amd64` and `linux/arm64`. The simplest
 interactive installation accepts Enter for every prompt:
 
 ```sh
-./deploy.sh
+./sforum-bootstrap.sh install
 ```
 
 Pin a version explicitly, or accept all recommended defaults non-interactively
 (replace `$SFORUM_VERSION` with the real tag):
 
 ```sh
-./deploy.sh --version $SFORUM_VERSION --lang en
-./deploy.sh --version $SFORUM_VERSION --lang zh
-./deploy.sh --version $SFORUM_VERSION --lang en --yes --action deploy
+./sforum-bootstrap.sh install --version $SFORUM_VERSION --lang en
+./sforum-bootstrap.sh install --version $SFORUM_VERSION --lang zh
+./sforum-bootstrap.sh install --version $SFORUM_VERSION --lang en --yes
 ```
 
 Non-interactive prerelease channel (resolves the newest published Release,
 including prereleases):
 
 ```sh
-./deploy.sh --channel prerelease --lang en --yes --action deploy
+./sforum-bootstrap.sh install --channel prerelease --lang en --yes
 ```
 
 This combines `compose.yaml`, `compose.prod.yaml`, and `compose.release.yaml`.
@@ -233,17 +238,16 @@ accidentally start a source build on the server. Use the development guide and
 
 ## Zero-downtime updates
 
-Use `upgrade.sh` to update an existing Compose installation. Enter a release at
-the interactive prompt, pass it as a positional argument, or use `--version`.
-Pressing Enter selects the **latest stable release**:
+Use the bootstrap to update an existing Compose installation. Every run first
+refreshes itself and the target Release's complete toolkit, then hands off to
+`upgrade.sh`. The default selects the **latest stable release**:
 
 ```sh
-./upgrade.sh
-./upgrade.sh $SFORUM_VERSION
-./upgrade.sh --version $SFORUM_VERSION
-./upgrade.sh --yes                       # unattended: latest stable, no prompts
-./upgrade.sh --channel prerelease        # explicitly allow prereleases
-./upgrade.sh --channel prerelease --yes  # unattended prerelease channel
+./sforum-bootstrap.sh upgrade
+./sforum-bootstrap.sh upgrade --version $SFORUM_VERSION
+./sforum-bootstrap.sh upgrade --yes
+./sforum-bootstrap.sh upgrade --channel prerelease
+./sforum-bootstrap.sh upgrade --channel prerelease --yes
 ```
 
 Prereleases are never selected implicitly: pass `--channel prerelease` or an
@@ -251,41 +255,47 @@ explicit immutable tag such as `v3.0.0-alpha.N`. Either way the script resolves
 to a concrete tag and runs the matching images; `.deployrc` persists the
 resolved tag, never `latest`.
 
-An existing installation does not need a fresh clone. To refresh the updater
-before entering the interactive update flow, download it from the **latest
-stable Release asset** (never floating `main` content) and verify it:
+An existing installation does not need a fresh clone. To adopt the bootstrap
+once, download it into the existing installation from the **latest stable
+Release asset** (never floating `main` content), verify it, then promote it:
 
 ```sh
 (
   set -eu
   cd /path/to/sforum
-  curl -fsSLo upgrade.sh \
-    https://github.com/zhuchunshu/SForum/releases/latest/download/upgrade.sh
-  curl -fsSLo SHA256SUMS \
+  bootstrap_dir="$(mktemp -d .sforum-bootstrap.XXXXXX)"
+  trap 'rm -rf "$bootstrap_dir"' EXIT HUP INT TERM
+  curl -fsSLo "$bootstrap_dir/sforum-bootstrap.sh" \
+    https://github.com/zhuchunshu/SForum/releases/latest/download/sforum-bootstrap.sh
+  curl -fsSLo "$bootstrap_dir/SHA256SUMS" \
     https://github.com/zhuchunshu/SForum/releases/latest/download/SHA256SUMS
-  awk '$2 == "upgrade.sh" { print }' SHA256SUMS > upgrade.sh.sha256
-  test "$(wc -l < upgrade.sh.sha256 | tr -d '[:space:]')" = 1
-  if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum -c upgrade.sh.sha256
-  else
-    shasum -a 256 -c upgrade.sh.sha256
-  fi
-  if command -v gh >/dev/null 2>&1; then
-    gh attestation verify upgrade.sh --repo zhuchunshu/SForum
-  fi
-  chmod 0755 upgrade.sh
-  ./upgrade.sh
+  (
+    cd "$bootstrap_dir"
+    awk '$2 == "sforum-bootstrap.sh" { print }' SHA256SUMS > sforum-bootstrap.sha256
+    test "$(wc -l < sforum-bootstrap.sha256 | tr -d '[:space:]')" = 1
+    if command -v sha256sum >/dev/null 2>&1; then
+      sha256sum -c sforum-bootstrap.sha256
+    else
+      shasum -a 256 -c sforum-bootstrap.sha256
+    fi
+    if command -v gh >/dev/null 2>&1; then
+      gh attestation verify sforum-bootstrap.sh --repo zhuchunshu/SForum
+    fi
+  )
+  install -m 0755 "$bootstrap_dir/sforum-bootstrap.sh" ./sforum-bootstrap.sh
+  rm -rf "$bootstrap_dir"
+  trap - EXIT HUP INT TERM
+  ./sforum-bootstrap.sh upgrade
 )
 ```
 
-The updater must be verified against the exact `upgrade.sh` entry in
-`SHA256SUMS`; do not run it when the checksum fails. To pin a specific version
-(including prereleases), use that tag's asset URL:
+The bootstrap preserves `.env.production`, `.deployrc`, `deploy/runtime/`, and
+all data volumes. It backs up managed tooling under `.sforum/tooling-backups/`.
+For a pinned version, including a prerelease, replace both rolling URLs with:
 
 ```sh
-curl -fsSLo upgrade.sh \
-  https://github.com/zhuchunshu/SForum/releases/download/<TAG>/upgrade.sh
-# then download that tag's SHA256SUMS and verify the exact entry as above
+https://github.com/zhuchunshu/SForum/releases/download/<TAG>/sforum-bootstrap.sh
+https://github.com/zhuchunshu/SForum/releases/download/<TAG>/SHA256SUMS
 ```
 
 > Historical compatibility note: the `upgrade.sh` shipped with
@@ -329,8 +339,9 @@ starting and checking the standby API/Web slot. Caddy then switches traffic
 atomically before the old slot stops. Existing WebSocket connections may need
 to reconnect during the switch.
 
-Two Workers are never allowed to consume jobs concurrently. The updater
-gracefully stops the old Worker before starting the new one, so queue consumption
+Blue/green updates deliberately use split Workers instead of the normal
+embedded production default. The updater gracefully stops the old Worker
+before starting the new one, so queue consumption
 pauses briefly, while durable River jobs are not lost. Before updating, the
 script checks both SForum Core and River migrations. Online execution requires
 a target migrator with the capability label, an audited `-- +sforum OnlineSafe`
@@ -362,7 +373,8 @@ tune the wait.
 ```sh
 ./deploy.sh --action logs          # follow all service logs
 ./deploy.sh --action status        # service status
-docker compose --env-file .env.production logs -f api worker web
+docker compose --env-file .env.production logs -f api web
+# With EMBED_WORKER_IN_API=false, add --profile split-worker and include worker.
 ```
 
 ### Failure recovery
@@ -393,11 +405,25 @@ See `deploy/caddy/Caddyfile`. For client IPs, set `TRUST_PROXY` and a precise `T
 | Service | Role |
 | --- | --- |
 | `web` | Nuxt production output; same-origin HTTP API proxy |
-| `api` | Fiber API + extension runtime; optional WS ingress |
-| `worker` | River consumer (split in production) |
+| `api` | Fiber API + extension runtime + embedded River Worker by default; optional WS ingress |
+| `worker` | Optional standalone River consumer (`EMBED_WORKER_IN_API=false`) |
 | `postgres` / `redis` | Durable state / sessions & cache |
 
-Do not treat `EMBED_WORKER_IN_API` as a production default.
+Production defaults to `EMBED_WORKER_IN_API=true`. Normal deployments therefore
+do not start the standalone `worker` container and reuse the API PostgreSQL
+pool, Redis clients, and extension runtime. Set the value to `false` for
+independent scaling, failure isolation, or production-like process debugging;
+`deploy.sh` then activates the `split-worker` profile, pulls the Worker image,
+and verifies the separate process. Do not manually start the standalone Worker
+while embedding is enabled.
+
+`upgrade.sh` is the deliberate exception: blue/green slot APIs disable the
+embedded Worker and use drainable standalone Workers for handoff.
+
+Embedded HTTP and background work share `DATABASE_MAX_CONNS`. If a sustained
+queue needs its own pool or begins affecting request latency, tune that limit
+with PostgreSQL observation or switch to split mode instead of raising River
+concurrency without a bound.
 
 ## Backup and restore
 
@@ -437,7 +463,7 @@ median. Systems without PSS support do not fabricate an "effective" value.
 Plugin details are ordered from highest to lowest RSS and exclude unrelated
 services and orphaned processes.
 
-Development embeds the Worker in the API by default. The API row is labeled as
+Development and normal production deployments embed the Worker in the API by default. The API row is labeled as
 including the Worker, while the Worker row reports embedded slots and running
 jobs instead of inventing a standalone Worker MiB value. With
 `EMBED_WORKER_IN_API=false`, a standalone Worker is measured separately.

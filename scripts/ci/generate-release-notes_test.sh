@@ -36,8 +36,8 @@ git -C "$TEMP_DIR" tag -a v3.0.0-alpha.11 -m $'SForum 3.0.0-alpha.11\n\n- Produc
 grep -Fq -- '- Production fixes' "$TEMP_DIR/notes.md" || fail "annotated tag notes are missing"
 grep -Fq '> Maintainable, plugin-first open-source forum framework.' "$TEMP_DIR/notes.md" || fail "product summary is missing"
 grep -Fq 'docker pull ghcr.io/zhuchunshu/sforum-api:v3.0.0-alpha.11' "$TEMP_DIR/notes.md" || fail "Docker pull instructions are missing"
-grep -Fq './deploy.sh --yes --version v3.0.0-alpha.11' "$TEMP_DIR/notes.md" || fail "Compose installation instructions are missing"
-grep -Fq './upgrade.sh v3.0.0-alpha.11' "$TEMP_DIR/notes.md" || fail "update instructions are missing"
+grep -Fq './sforum-bootstrap.sh install --yes --version v3.0.0-alpha.11' "$TEMP_DIR/notes.md" || fail "Compose installation instructions are missing"
+grep -Fq './sforum-bootstrap.sh upgrade --version v3.0.0-alpha.11' "$TEMP_DIR/notes.md" || fail "update instructions are missing"
 grep -Fq 'docs/zh-CN/deployment.md' "$TEMP_DIR/notes.md" || fail "deployment documentation is missing"
 grep -Fq 'v3.0.0-alpha.10...v3.0.0-alpha.11' "$TEMP_DIR/notes.md" || fail "full changelog comparison is missing"
 
@@ -58,6 +58,11 @@ grep -Fq '  set -eu' "$TEMP_DIR/notes.md" || fail "deploy bundle commands are no
 grep -Fq 'sha256sum -c sforum-deploy.sha256' "$TEMP_DIR/notes.md" || fail "exact checksum verification is missing"
 grep -Fq 'if command -v gh >/dev/null 2>&1; then' "$TEMP_DIR/notes.md" || fail "optional provenance check is not guarded by command availability"
 grep -Fq 'gh attestation verify sforum-deploy.tar.gz' "$TEMP_DIR/notes.md" || fail "provenance verification is missing"
+grep -Fq 'awk '\''$2 == "sforum-bootstrap.sh" { print }'\'' SHA256SUMS > sforum-bootstrap.sha256' "$TEMP_DIR/notes.md" || fail "bootstrap checksum selection is missing"
+grep -Fq 'install -m 0755 "$bootstrap_dir/sforum-bootstrap.sh" ./sforum-bootstrap.sh' "$TEMP_DIR/notes.md" || fail "verified bootstrap is not promoted"
+if grep -Eq '^\./upgrade\.sh' "$TEMP_DIR/notes.md"; then
+  fail "release notes recommend a potentially stale local updater"
+fi
 notes_download_line="$(grep -nF 'curl -fsSLo sforum-deploy.tar.gz' "$TEMP_DIR/notes.md" | head -n 1 | cut -d: -f1)"
 notes_extract_line="$(grep -nF 'tar -xzf sforum-deploy.tar.gz' "$TEMP_DIR/notes.md" | head -n 1 | cut -d: -f1)"
 [ -n "$notes_download_line" ] && [ -n "$notes_extract_line" ] || fail "cannot locate the download/extract lines in release notes"

@@ -21,6 +21,6 @@ assert(workerScript.includes('THEME_WEB_ROOT'), 'worker-dev.sh must set or prese
 const readme = fs.readFileSync(readmePath, 'utf8')
 assert(readme.includes('EMBED_WORKER_IN_API'), 'README must document the embedded worker switch')
 assert(readme.includes('./scripts/worker-dev.sh'), 'README must document the optional local worker command')
-assert(readme.includes('production split') || readme.includes('生产拆分'), 'README should explain that worker-dev is for split-process development')
+assert(readme.includes('split-process development') || readme.includes('拆分进程开发'), 'README should explain that worker-dev is for split-process development')
 
 console.log('Development worker script validation passed.')

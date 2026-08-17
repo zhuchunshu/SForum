@@ -149,6 +149,26 @@ that release/runtime contract aligned.
 Backup and restore helpers parse only the exact database keys from dotenv and
 never execute the configuration as shell input.
 
+Production installation and updates now enter through the Release-owned
+`sforum-bootstrap.sh`. It resolves an immutable stable tag by default, refreshes
+and re-executes the verified bootstrap from that tag, verifies the matching
+complete deploy bundle, then hands the concrete version to `deploy.sh` or
+`upgrade.sh`. Existing instances retain `.env.production`, `.deployrc`, router
+runtime state, data, and volumes; only the explicit Release-managed toolkit is
+promoted, with the prior files backed up under `.sforum/tooling-backups/`.
+Status, logs, backup, restore, restart, and stop remain local `deploy.sh`
+operations so recovery does not depend on GitHub availability. See
+`knowledge/decisions/2026-08-18-verified-release-bootstrap.md`.
+
+Normal production deployment now defaults to one API process with an embedded
+River worker. Compose passes `EMBED_WORKER_IN_API=true`, keeps the standalone
+worker behind the `split-worker` profile, and forwards queue concurrency plus
+database pool controls to the owning process. `deploy.sh` selects its image,
+identity, startup, and health expectations from the flag and rejects a stray
+standalone Worker in embedded mode. This reduces duplicate Go processes,
+database pools, and extension plugin runtimes. Operators retain the split mode
+with `EMBED_WORKER_IN_API=false`.
+
 `upgrade.sh` owns guarded blue/green updates after installation. A
 stable Caddy edge switches between API/Web slots only after internal readiness;
 the old Worker drains before the new Worker starts, so durable River work is not

@@ -37,6 +37,9 @@ echo "Running zero-downtime Compose topology validation..."
 echo "Running zero-downtime release selection validation..."
 ./deploy/scripts/upgrade-version-selection_test.sh
 
+echo "Running verified release bootstrap validation..."
+./deploy/scripts/bootstrap_test.sh
+
 echo "Running zero-downtime state-machine validation..."
 ./deploy/scripts/zero-downtime-state_test.sh
 

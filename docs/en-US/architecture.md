@@ -20,7 +20,7 @@ Browser
            → /api/v1/* proxy → Fiber API
       → WebSocket Upgrade → Fiber API (prod loopback API port)
   Fiber API → PostgreSQL, Redis, plugin subprocesses (Host API v2)
-  Worker (prod separate) → same data plane / extension runtime
+  Worker (embedded by default; optional split process) → same data plane / extension runtime
 ```
 
 ## Core subsystems

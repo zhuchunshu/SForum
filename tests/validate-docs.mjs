@@ -15,8 +15,8 @@
  *     AddCommand constructor is a failure, never silently skipped.
  *  6. Every explicit HTTP method/path pair in rolling docs exists in both
  *     OpenAPI and the generated Go Core Route Catalog.
- *  7. README and both deployment guides use a fail-closed stable rolling
- *     install entry with exact checksum filename selection.
+ *  7. README and both deployment guides use the verified bootstrap as the
+ *     stable rolling install/update entry.
  *  8. The Release workflow produces the fixed-name deploy assets and includes
  *     them in SHA256SUMS.
  *  9. Dependabot uses the Compose-aware ecosystem at the repository root and
@@ -465,27 +465,34 @@ function validateStableInstallEntry() {
   ]
   for (const file of files) {
     const content = read(file)
-    if (!content.includes('releases/latest/download/sforum-deploy.tar.gz')) {
-      fail(`${file}: must use the stable rolling install entry releases/latest/download/sforum-deploy.tar.gz`)
+    if (!content.includes('releases/latest/download/sforum-bootstrap.sh')) {
+      fail(`${file}: must use the stable rolling entry releases/latest/download/sforum-bootstrap.sh`)
     }
     if (!content.includes('--channel prerelease')) {
       fail(`${file}: must document the explicit prerelease channel (--channel prerelease)`)
     }
     const requiredSafetyMarkers = [
       'set -eu',
-      `awk '$2 == "sforum-deploy.tar.gz" { print }' SHA256SUMS`,
-      `test "$(wc -l < sforum-deploy.sha256 | tr -d '[:space:]')" = 1`,
+      `awk '$2 == "sforum-bootstrap.sh" { print }' SHA256SUMS`,
+      `test "$(wc -l < sforum-bootstrap.sha256 | tr -d '[:space:]')" = 1`,
+      './sforum-bootstrap.sh install',
     ]
     for (const marker of requiredSafetyMarkers) {
       if (!content.includes(marker)) {
-        fail(`${file}: stable install commands must be fail-closed and select exactly one checksum filename entry (missing: ${marker})`)
+        fail(`${file}: bootstrap commands must be fail-closed and select exactly one checksum filename entry (missing: ${marker})`)
       }
+    }
+    if (/curl[^\n]*\|\s*(?:ba)?sh\b/.test(content)) {
+      fail(`${file}: must not pipe remote shell content directly into a shell`)
     }
   }
   for (const file of files.slice(1)) {
     const content = read(file)
-    if (!content.includes(`awk '$2 == "upgrade.sh" { print }' SHA256SUMS`)) {
-      fail(`${file}: updater refresh commands must select the exact upgrade.sh checksum filename entry`)
+    if (!content.includes('./sforum-bootstrap.sh upgrade')) {
+      fail(`${file}: existing-install updates must use the verified bootstrap`)
+    }
+    if (!content.includes('install -m 0755 "$bootstrap_dir/sforum-bootstrap.sh" ./sforum-bootstrap.sh')) {
+      fail(`${file}: existing-install adoption must promote the bootstrap only after verification`)
     }
   }
 }
@@ -502,7 +509,7 @@ function validateReleaseAssets() {
     fail('.github/workflows/release.yml must upload the deploy asset artifact')
   }
   const finalize = read('scripts/ci/finalize-release-assets.sh')
-  for (const asset of ['sforum-deploy.tar.gz', 'upgrade.sh']) {
+  for (const asset of ['sforum-deploy.tar.gz', 'sforum-bootstrap.sh', 'upgrade.sh']) {
     if (!finalize.includes(asset)) {
       fail(`scripts/ci/finalize-release-assets.sh must include ${asset} in the expected asset set`)
     }

@@ -104,13 +104,18 @@ if [ "${1:-}" = "version" ]; then
 fi
 
 blue_green_compose=false
+split_worker_profile=false
 while [ "$#" -gt 0 ]; do
   case "$1" in
     -f)
       [ "${2:-}" != compose.zero-downtime.yaml ] || blue_green_compose=true
       shift 2
       ;;
-    --env-file|--project-name|--profile)
+    --env-file|--project-name)
+      shift 2
+      ;;
+    --profile)
+      [ "${2:-}" != split-worker ] || split_worker_profile=true
       shift 2
       ;;
     *)
@@ -129,11 +134,9 @@ case "$command" in
     [ "${MOCK_FAIL_STAGE:-}" != "pull" ] || exit 10
     ;;
   up)
-    case " $* " in
-      *' api '*' web '*)
-        [ "$blue_green_compose" = true ] || : > "$MOCK_DEPLOY_STARTED_FILE"
-        ;;
-    esac
+    if [ "$blue_green_compose" != true ] && [[ " $* " == *" api "* ]]; then
+      : > "$MOCK_DEPLOY_STARTED_FILE"
+    fi
     ;;
   stop)
     ;;
@@ -155,16 +158,18 @@ case "$command" in
         printf '%s\n' postgres redis edge api-blue worker-blue web-blue
       elif [ "${MOCK_BLUE_GREEN:-}" = true ]; then
         if [ -e "$MOCK_DEPLOY_STARTED_FILE" ]; then
-          printf '%s\n' postgres redis api worker web
+          printf '%s\n' postgres redis api web
         else
           printf '%s\n' postgres redis
         fi
       elif [ "${MOCK_PORT_BUSY:-}" = "true" ]; then
         :
       elif [ "${MOCK_FAIL_STAGE:-}" = "services" ]; then
-        printf '%s\n' postgres redis api worker
-      else
+        printf '%s\n' postgres redis api
+      elif [ "$split_worker_profile" = true ]; then
         printf '%s\n' postgres redis api worker web
+      else
+        printf '%s\n' postgres redis api web
       fi
     else
       printf 'all services running\n'
@@ -248,17 +253,17 @@ done
 if ! run_deploy clean f ""; then
   fail "clean deployment failed"
 fi
-assert_contains "$MOCK_LOG" "docker version=v3.0.0-alpha.9 compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull migrate api worker web"
-for service in api worker migrate; do
+assert_contains "$MOCK_LOG" "docker version=v3.0.0-alpha.9 compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull migrate api web"
+for service in api migrate; do
   assert_contains "$MOCK_LOG" "docker version=v3.0.0-alpha.9 run --rm ghcr.io/zhuchunshu/sforum-${service}:v3.0.0-alpha.9 sforum-${service} --version"
 done
 assert_not_contains "$MOCK_LOG" "compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml run --rm -T --no-deps --pull never worker"
-assert_contains "$MOCK_LOG" "docker version=v3.0.0-alpha.9 compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml up -d --no-build --pull never postgres redis api worker web"
+assert_contains "$MOCK_LOG" "docker version=v3.0.0-alpha.9 compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml up -d --no-build --pull never postgres redis api web"
 assert_not_contains "$MOCK_LOG" "helper backup"
-assert_before "$MOCK_LOG" "pull migrate api worker web" "up -d --wait postgres redis"
+assert_before "$MOCK_LOG" "pull migrate api web" "up -d --wait postgres redis"
 assert_before "$MOCK_LOG" "up -d --wait postgres redis" "exec -T postgres psql"
 assert_before "$MOCK_LOG" "exec -T postgres psql" "run --rm -T --pull never migrate"
-assert_before "$MOCK_LOG" "run --rm -T --pull never migrate" "up -d --no-build --pull never postgres redis api worker web"
+assert_before "$MOCK_LOG" "run --rm -T --pull never migrate" "up -d --no-build --pull never postgres redis api web"
 assert_contains "$MOCK_LOG" "helper health http://127.0.0.1:18080/api/v1/ready"
 assert_contains "$TEST_ROOT/.deployrc" "version=v3.0.0-alpha.9"
 assert_contains "$TEMP_DIR/clean.out" "Deployment completed successfully."
@@ -266,6 +271,19 @@ assert_contains "$TEMP_DIR/clean.out" "Reverse proxy Web target: http://127.0.0.
 assert_contains "$TEMP_DIR/clean.out" "Reverse proxy API/WebSocket target: http://127.0.0.1:18080"
 assert_contains "$TEMP_DIR/clean.out" "Site access URL: http://127.0.0.1:3000"
 assert_contains "$TEMP_DIR/clean.out" "Admin URL: http://127.0.0.1:3000/control-panel"
+
+# Split Worker remains an explicit production option. The deployer activates
+# the matching Compose profile and restores the standalone image/process set.
+cp "$TEST_ROOT/.env.production" "$TEMP_DIR/embedded-default.env"
+sed 's/^EMBED_WORKER_IN_API=true$/EMBED_WORKER_IN_API=false/' \
+  "$TEMP_DIR/embedded-default.env" > "$TEST_ROOT/.env.production"
+if ! run_deploy split-worker f ""; then
+  fail "split Worker deployment failed"
+fi
+assert_contains "$MOCK_LOG" "--profile split-worker pull migrate api worker web"
+assert_contains "$MOCK_LOG" "--profile split-worker up -d --no-build --pull never postgres redis api worker web"
+assert_contains "$MOCK_LOG" "run --rm ghcr.io/zhuchunshu/sforum-worker:v3.0.0-alpha.9 sforum-worker --version"
+cp "$TEMP_DIR/embedded-default.env" "$TEST_ROOT/.env.production"
 
 if ! run_deploy existing t ""; then
   fail "existing deployment failed"
@@ -329,7 +347,7 @@ mkdir "$TEST_ROOT/.deploy.lock"
 if run_deploy locked f ""; then
   fail "a concurrent deployment lock was ignored"
 fi
-assert_not_contains "$MOCK_LOG" "pull migrate api worker web"
+assert_not_contains "$MOCK_LOG" "pull migrate api web"
 rmdir "$TEST_ROOT/.deploy.lock"
 
 if (
@@ -341,7 +359,7 @@ if (
   fail "a foreign port conflict was ignored"
 fi
 assert_contains "$TEMP_DIR/port-busy.out" "already used by another process"
-assert_not_contains "$MOCK_LOG" "pull migrate api worker web"
+assert_not_contains "$MOCK_LOG" "pull migrate api web"
 
 cp "$TEST_ROOT/.env.production" "$TEMP_DIR/valid.env"
 sed 's/^SESSION_HASH_SECRET=.*/SESSION_HASH_SECRET=change-me/' "$TEMP_DIR/valid.env" > "$TEST_ROOT/.env.production"
@@ -355,7 +373,7 @@ if (
   fail "an unsafe placeholder production secret was accepted"
 fi
 assert_contains "$TEMP_DIR/invalid-env.out" "SESSION_HASH_SECRET"
-assert_not_contains "$MOCK_LOG" "pull migrate api worker web"
+assert_not_contains "$MOCK_LOG" "pull migrate api web"
 cp "$TEMP_DIR/valid.env" "$TEST_ROOT/.env.production"
 
 rm -f "$TEST_ROOT/.env.production"
@@ -436,7 +454,7 @@ if ! (
   fail "existing installation stable-channel deploy failed"
 fi
 assert_contains "$MOCK_LOG" "releases/latest"
-assert_contains "$MOCK_LOG" "docker version=v3.0.0 compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull migrate api worker web"
+assert_contains "$MOCK_LOG" "docker version=v3.0.0 compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull migrate api web"
 assert_contains "$TEST_ROOT/.deployrc" "version=v3.0.0"
 assert_not_contains "$TEST_ROOT/.deployrc" "version=v3.0.0-alpha.8"
 
@@ -459,7 +477,7 @@ if ! (
   fail "existing installation prerelease-channel deploy failed"
 fi
 assert_contains "$MOCK_LOG" "per_page=1"
-assert_contains "$MOCK_LOG" "docker version=v3.0.0-beta.1 compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull migrate api worker web"
+assert_contains "$MOCK_LOG" "docker version=v3.0.0-beta.1 compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull migrate api web"
 assert_contains "$TEST_ROOT/.deployrc" "version=v3.0.0-beta.1"
 
 # Existing .deployrc + explicit --version: no GitHub access at all.
@@ -480,7 +498,7 @@ if ! (
   fail "existing installation explicit-version deploy failed"
 fi
 assert_not_contains "$MOCK_LOG" "curl "
-assert_contains "$MOCK_LOG" "docker version=v3.0.0-alpha.9 compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull migrate api worker web"
+assert_contains "$MOCK_LOG" "docker version=v3.0.0-alpha.9 compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull migrate api web"
 assert_contains "$TEST_ROOT/.deployrc" "version=v3.0.0-alpha.9"
 
 # Existing .deployrc + status: uses the current stored version, no GitHub access.
@@ -517,7 +535,7 @@ if ! (
   fail "interactive status followed by deploy failed"
 fi
 assert_contains "$MOCK_LOG" "releases/latest"
-assert_contains "$MOCK_LOG" "docker version=v3.0.0 compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull migrate api worker web"
+assert_contains "$MOCK_LOG" "docker version=v3.0.0 compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml pull migrate api web"
 assert_contains "$TEST_ROOT/.deployrc" "version=v3.0.0"
 
 printf 'deploy_test.sh: all checks passed\n'

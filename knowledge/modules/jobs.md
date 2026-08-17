@@ -22,9 +22,11 @@ Implemented platform foundation:
   registration, and runtime startup.
 - SForum's database migrator runs River's official migrator after Goose, so a
   fresh database receives River tables before API or worker enqueueing.
-- API processes create an insert-only River client. Development embeds workers
-  by default through `EMBED_WORKER_IN_API=true`; production uses the standalone
-  worker process by default.
+- API processes create an insert-only River client. Development and normal
+  production deployments embed workers by default through
+  `EMBED_WORKER_IN_API=true`; `EMBED_WORKER_IN_API=false` activates the optional
+  `split-worker` production profile. Blue/green slots deliberately use the
+  split topology so the old worker can drain before handoff.
 - Embed mode injects the API’s extension runtime into `newWorkerWithPool`
   (`OwnsRuntime=false`), so backend plugins are not started twice. Standalone
   `NewWorker` still builds and reconciles its own runtime.

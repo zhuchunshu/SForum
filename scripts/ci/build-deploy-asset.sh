@@ -24,6 +24,7 @@ OUTPUT_DIR="$(cd "$OUTPUT_DIR" && pwd)"
 # production examples they reference. Adding a new dependency here is
 # intentional; see finalize-release-assets.sh for the archive-level checks.
 SOURCE_FILES=(
+  "sforum-bootstrap.sh"
   "deploy.sh"
   "upgrade.sh"
   "compose.yaml"
@@ -60,7 +61,7 @@ mkdir -p "$ASSET_ROOT/deploy/scripts" "$ASSET_ROOT/deploy/caddy" \
 for relative in "${SOURCE_FILES[@]}"; do
   cp "$ROOT_DIR/$relative" "$ASSET_ROOT/$relative"
 done
-chmod 0755 "$ASSET_ROOT/deploy.sh" "$ASSET_ROOT/upgrade.sh"
+chmod 0755 "$ASSET_ROOT/sforum-bootstrap.sh" "$ASSET_ROOT/deploy.sh" "$ASSET_ROOT/upgrade.sh"
 chmod 0755 "$ASSET_ROOT"/deploy/scripts/*.sh
 
 printf 'version=%s\n' "$VERSION" > "$ASSET_ROOT/VERSION"
@@ -73,6 +74,8 @@ SForum production installation without cloning the repository:
 - deploy.sh — interactive/scripted install, update, backup, restore, status,
   logs, restart, and stop actions;
 - upgrade.sh — zero-downtime blue/green updates for existing installations;
+- sforum-bootstrap.sh — verified online entry that refreshes the complete
+  target Release toolkit before install or update;
 - compose.yaml, compose.prod.yaml, compose.release.yaml,
   compose.zero-downtime.yaml — production Compose topology;
 - .env.production.example — production environment template;
@@ -88,10 +91,11 @@ Quick start (resolves the latest stable release to an immutable tag):
     mkdir -p sforum
     tar -xzf sforum-deploy.tar.gz --strip-components=1 -C sforum
     cd sforum
-    ./deploy.sh
+    ./sforum-bootstrap.sh install
 
-Update an existing installation with ./upgrade.sh. Verify the archive against
-SHA256SUMS and `gh attestation verify` before use. Full instructions:
+Update an existing installation with ./sforum-bootstrap.sh upgrade. The local
+bootstrap refreshes itself and the complete target toolkit before handoff. Full
+instructions:
 EOF
   printf 'https://github.com/zhuchunshu/SForum/blob/%s/docs/zh-CN/deployment.md\n' "$VERSION_INPUT"
 } > "$ASSET_ROOT/README.md"
@@ -102,11 +106,14 @@ ARCHIVE="$OUTPUT_DIR/sforum-deploy.tar.gz"
   tar -czf "$ARCHIVE" sforum-deploy
 )
 
-# Standalone fixed-name updater asset: the release notes and operator guides
-# reference releases/latest/download/upgrade.sh directly.
+# Standalone fixed-name compatibility assets. New operator flows use the
+# bootstrap; upgrade.sh remains available for installations from older releases.
+cp "$ROOT_DIR/sforum-bootstrap.sh" "$OUTPUT_DIR/sforum-bootstrap.sh"
+chmod 0755 "$OUTPUT_DIR/sforum-bootstrap.sh"
 cp "$ROOT_DIR/upgrade.sh" "$OUTPUT_DIR/upgrade.sh"
 chmod 0755 "$OUTPUT_DIR/upgrade.sh"
 
 echo "Created deploy assets:"
 echo "  $ARCHIVE"
+echo "  $OUTPUT_DIR/sforum-bootstrap.sh"
 echo "  $OUTPUT_DIR/upgrade.sh"

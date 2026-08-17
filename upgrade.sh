@@ -381,6 +381,10 @@ persist_state() {
 
 bootstrap_topology() {
   local current_version="$1" target_version="$2" slot=blue
+  local legacy_services=(api web)
+  if [ "$(env_value EMBED_WORKER_IN_API true)" = false ]; then
+    legacy_services=(api worker web)
+  fi
   if [ "$FORCE_BOOTSTRAP" != true ] && [ "$ASSUME_YES" != true ]; then
     say \
       "这是旧版直连端口拓扑。首次转换路由器会有一次短暂维护窗口；后续兼容更新可保持 HTTP 在线。输入 BOOTSTRAP 继续：" \
@@ -403,14 +407,14 @@ bootstrap_topology() {
 
   write_router_config blue "$RUNTIME_DIR/Caddyfile"
   say "正在执行一次性入口转换..." "Performing the one-time ingress conversion..."
-  "${COMPOSE[@]}" stop worker web api
+  "${COMPOSE[@]}" stop "${legacy_services[@]}"
   if ! "${COMPOSE[@]}" up -d --no-build --pull never edge; then
-    "${COMPOSE[@]}" start api worker web || true
+    "${COMPOSE[@]}" start "${legacy_services[@]}" || true
     die "Could not start the stable router; legacy services were restarted."
   fi
   if ! wait_stable_ingress blue; then
     "${COMPOSE[@]}" stop edge || true
-    "${COMPOSE[@]}" start api worker web || true
+    "${COMPOSE[@]}" start "${legacy_services[@]}" || true
     die "Router health check failed; legacy services were restarted."
   fi
   "${COMPOSE[@]}" up -d --no-build --pull never worker-blue

@@ -14,6 +14,9 @@ RELEASE_VERSION=""
 CHANNEL="${SFORUM_DEPLOY_CHANNEL:-stable}"
 COMPOSE=()
 BLUE_GREEN_COMPOSE=()
+SPLIT_WORKER=false
+RELEASE_IMAGE_SERVICES=()
+APP_SERVICES=()
 
 usage() {
   cat <<'EOF'
@@ -137,8 +140,8 @@ t() {
       invalid_env) echo "The production configuration is incomplete or unsafe. Move it aside and rerun the installer, or fix the named value." ;;
       port_busy) echo "A required loopback port is already used by another process:" ;;
       deploy_locked) echo "Another deployment operation is running. Wait for it to finish and retry." ;;
-      pulling_release) echo "Pulling the four SForum release images before changing the database:" ;;
-      verifying_images) echo "Verifying API, Worker, and migrator build identities..." ;;
+      pulling_release) echo "Pulling the required SForum release images before changing the database:" ;;
+      verifying_images) echo "Verifying required backend image identities..." ;;
       starting_infra) echo "Starting the managed PostgreSQL and Redis services..." ;;
       fresh_database) echo "Fresh database detected; no backup is needed." ;;
       backup_first) echo "Existing installation detected; creating a PostgreSQL backup..." ;;
@@ -181,8 +184,8 @@ t() {
       invalid_env) echo "生产配置不完整或不安全。请移走旧文件后重新运行安装，或修复提示中的配置项。" ;;
       port_busy) echo "以下本机端口已被其他程序占用：" ;;
       deploy_locked) echo "另一个部署操作正在运行，请等待其结束后重试。" ;;
-      pulling_release) echo "先拉取四个 SForum 发布镜像，成功后才会改动数据库：" ;;
-      verifying_images) echo "正在核对 API、Worker 和迁移器的构建身份..." ;;
+      pulling_release) echo "先拉取所需的 SForum 发布镜像，成功后才会改动数据库：" ;;
+      verifying_images) echo "正在核对所需后端镜像的构建身份..." ;;
       starting_infra) echo "正在启动内置 PostgreSQL 和 Redis..." ;;
       fresh_database) echo "检测到全新数据库，本次无需备份。" ;;
       backup_first) echo "检测到已有安装，正在创建 PostgreSQL 备份..." ;;
@@ -271,6 +274,15 @@ validate_release_version() {
 configure_compose() {
   export SFORUM_VERSION="$RELEASE_VERSION"
   COMPOSE=(docker compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml)
+  SPLIT_WORKER=false
+  RELEASE_IMAGE_SERVICES=(migrate api web)
+  APP_SERVICES=(postgres redis api web)
+  if [ "$(env_file_value .env.production EMBED_WORKER_IN_API true)" = false ]; then
+    SPLIT_WORKER=true
+    COMPOSE+=(--profile split-worker)
+    RELEASE_IMAGE_SERVICES=(migrate api worker web)
+    APP_SERVICES=(postgres redis api worker web)
+  fi
   configure_blue_green_compose
 }
 
@@ -320,7 +332,7 @@ compose_version_supported() {
 }
 
 validate_env_contract() {
-  local public_api_base app_env app_url admin_prefix postgres_db postgres_user postgres_password database_url
+  local public_api_base app_env app_url admin_prefix postgres_db postgres_user postgres_password database_url embed_worker
   local redis_addr redis_password session_secret identity_secret option_key altcha_secret marketplace_key
   public_api_base="$(env_file_value .env.production NUXT_PUBLIC_API_BASE_URL /api/v1)"
   [ "$public_api_base" = "/api/v1" ] || die "$(t invalid_public_api_base)"
@@ -339,6 +351,7 @@ validate_env_contract() {
   option_key="$(env_file_value .env.production APP_OPTION_ENC_KEY)"
   altcha_secret="$(env_file_value .env.production ALTCHA_SECRET)"
   marketplace_key="$(env_file_value .env.production MARKETPLACE_ED25519_PUBLIC_KEY_HEX)"
+  embed_worker="$(env_file_value .env.production EMBED_WORKER_IN_API true)"
 
   [ "$app_env" = "production" ] || die "$(t invalid_env) APP_ENV"
   [[ "$app_url" =~ ^https?://[^[:space:]]+$ ]] || die "$(t invalid_env) APP_URL"
@@ -357,6 +370,7 @@ validate_env_contract() {
   [[ "$option_key" =~ ^[0-9A-Fa-f]{64}$ ]] || die "$(t invalid_env) APP_OPTION_ENC_KEY"
   [ "${#altcha_secret}" -ge 32 ] || die "$(t invalid_env) ALTCHA_SECRET"
   [[ "$marketplace_key" =~ ^[0-9A-Fa-f]{64}$ ]] || die "$(t invalid_env) MARKETPLACE_ED25519_PUBLIC_KEY_HEX"
+  [ "$embed_worker" = true ] || [ "$embed_worker" = false ] || die "$(t invalid_env) EMBED_WORKER_IN_API"
 }
 
 service_is_running() {
@@ -441,8 +455,15 @@ wait_for_deployment() {
 
 verify_services_running() {
   local running service
+  local expected=(postgres redis api web)
   running="$("${COMPOSE[@]}" ps --status running --services)"
-  for service in postgres redis api worker web; do
+  if [ "$SPLIT_WORKER" = true ]; then
+    expected+=(worker)
+  elif grep -Fqx worker <<< "$running"; then
+    echo "Standalone Worker must not run while EMBED_WORKER_IN_API=true." >&2
+    return 1
+  fi
+  for service in "${expected[@]}"; do
     if ! grep -Fqx "$service" <<< "$running"; then
       echo "Service is not running after deployment: $service" >&2
       return 1
@@ -460,9 +481,13 @@ verify_services_stable() {
 
 verify_release_identities() {
   local service binary image actual expected_version
+  local backend_services=(api migrate)
+  if [ "$SPLIT_WORKER" = true ]; then
+    backend_services=(api worker migrate)
+  fi
   expected_version="${RELEASE_VERSION#v}"
   t verifying_images
-  for service in api worker migrate; do
+  for service in "${backend_services[@]}"; do
     binary="sforum-$service"
     image="${SFORUM_REGISTRY:-ghcr.io/zhuchunshu}/sforum-${service}:${RELEASE_VERSION}"
     if ! actual="$(docker run --rm "$image" "$binary" --version)"; then
@@ -529,6 +554,9 @@ deploy_update() {
   local backup_output="" backup_file="" previous_version previous_running
   acquire_deploy_lock
   configure_if_needed
+  # configure_if_needed may have created the production file after initial
+  # version resolution; rebuild the mode-aware Compose command from it.
+  configure_compose
   preflight true
   previous_version="$(rc_value version)"
   if [ "${#BLUE_GREEN_COMPOSE[@]}" -gt 0 ]; then
@@ -540,7 +568,7 @@ deploy_update() {
   printf '%s %s\n' "$(t version):" "$RELEASE_VERSION"
 
   echo "$(t pulling_release) $RELEASE_VERSION"
-  "${COMPOSE[@]}" pull migrate api worker web
+  "${COMPOSE[@]}" pull "${RELEASE_IMAGE_SERVICES[@]}"
   verify_release_identities || die "Release image verification failed before any database change."
 
   t starting_infra
@@ -579,7 +607,7 @@ deploy_update() {
   fi
 
   t starting_app
-  if ! "${COMPOSE[@]}" up -d --no-build --pull never postgres redis api worker web; then
+  if ! "${COMPOSE[@]}" up -d --no-build --pull never "${APP_SERVICES[@]}"; then
     persist_recovery_state startup_failed "$backup_file" "$previous_version"
     t recovery_required >&2
     return 1

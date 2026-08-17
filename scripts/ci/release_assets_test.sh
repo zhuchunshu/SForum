@@ -128,26 +128,31 @@ done
 
 # Regression: GitHub Actions artifacts do not preserve Unix file modes; the
 # upload-artifact -> download-artifact cross-job transfer delivers the
-# standalone updater with 0644, which used to break the finalizer's -x check.
+# standalone shell assets with 0644, which used to break the finalizer's -x check.
+[[ -x "$OUTPUT_DIR/sforum-bootstrap.sh" ]] || fail "built bootstrap is not executable"
 [[ -x "$OUTPUT_DIR/upgrade.sh" ]] || fail "built upgrade.sh is not executable"
-chmod 0644 "$OUTPUT_DIR/upgrade.sh"
+chmod 0644 "$OUTPUT_DIR/sforum-bootstrap.sh" "$OUTPUT_DIR/upgrade.sh"
+[[ ! -x "$OUTPUT_DIR/sforum-bootstrap.sh" ]] || fail "failed to strip the bootstrap execute bit"
 [[ ! -x "$OUTPUT_DIR/upgrade.sh" ]] || fail "failed to strip the execute bit"
 
 "$ROOT_DIR/scripts/ci/finalize-release-assets.sh" "$VERSION" "$OUTPUT_DIR" >/dev/null
 
+[[ -x "$OUTPUT_DIR/sforum-bootstrap.sh" ]] || fail "finalizer did not restore the bootstrap execute bit"
 [[ -x "$OUTPUT_DIR/upgrade.sh" ]] || fail "finalizer did not restore the upgrade.sh execute bit"
 
-[[ "$(find "$OUTPUT_DIR" -maxdepth 1 -type f | wc -l | tr -d ' ')" -eq 9 ]] || fail "unexpected release asset count"
-[[ "$(wc -l < "$OUTPUT_DIR/SHA256SUMS" | tr -d ' ')" -eq 8 ]] || fail "unexpected checksum count"
+[[ "$(find "$OUTPUT_DIR" -maxdepth 1 -type f | wc -l | tr -d ' ')" -eq 10 ]] || fail "unexpected release asset count"
+[[ "$(wc -l < "$OUTPUT_DIR/SHA256SUMS" | tr -d ' ')" -eq 9 ]] || fail "unexpected checksum count"
 grep -q "sforum-server_${VERSION}_linux_amd64.tar.gz" "$OUTPUT_DIR/SHA256SUMS" || fail "server checksum is missing"
 grep -q "sforum-cli_${VERSION}_darwin_arm64.tar.gz" "$OUTPUT_DIR/SHA256SUMS" || fail "macOS CLI checksum is missing"
 grep -q "sforum-deploy.tar.gz" "$OUTPUT_DIR/SHA256SUMS" || fail "deploy bundle checksum is missing"
+grep -q "^[0-9a-f]\{64\}  sforum-bootstrap.sh$" "$OUTPUT_DIR/SHA256SUMS" || fail "bootstrap checksum is missing"
 grep -q "^[0-9a-f]\{64\}  upgrade.sh$" "$OUTPUT_DIR/SHA256SUMS" || fail "updater checksum is missing"
 upgrade_checksum_lines="$(grep -c 'upgrade.sh' "$OUTPUT_DIR/SHA256SUMS" || true)"
 [[ "$upgrade_checksum_lines" -eq 1 ]] || fail "SHA256SUMS must contain exactly one upgrade.sh entry"
 
 deploy_listing="$(tar -tzf "$OUTPUT_DIR/sforum-deploy.tar.gz")"
 for entry in \
+  "sforum-deploy/sforum-bootstrap.sh" \
   "sforum-deploy/deploy.sh" \
   "sforum-deploy/upgrade.sh" \
   "sforum-deploy/compose.yaml" \
@@ -170,6 +175,7 @@ deploy_version="$(tar -xOzf "$OUTPUT_DIR/sforum-deploy.tar.gz" sforum-deploy/VER
 
 deploy_verbose="$(tar -tvzf "$OUTPUT_DIR/sforum-deploy.tar.gz")"
 for entry in \
+  "sforum-deploy/sforum-bootstrap.sh" \
   "sforum-deploy/deploy.sh" \
   "sforum-deploy/upgrade.sh" \
   "sforum-deploy/deploy/scripts/configure-production.sh" \

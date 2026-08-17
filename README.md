@@ -41,7 +41,7 @@ Quick paths:
 cd apps/web && bun run dev       # Nuxt on :3000
 ```
 
-Background jobs: development defaults to `EMBED_WORKER_IN_API=true`, so the API process consumes the River queue. For **production split** process development (`EMBED_WORKER_IN_API=false`), run a standalone worker:
+Background jobs: API processes embed the River worker by default in development and production. For split-process development (`EMBED_WORKER_IN_API=false`), run a standalone worker:
 
 ```sh
 ./scripts/worker-dev.sh          # optional; only when the API does not embed the worker
@@ -60,44 +60,58 @@ Full steps: [docs/zh-CN/getting-started.md](./docs/zh-CN/getting-started.md) or 
 
 ## Production
 
-The rolling install entry always resolves to the latest stable Release and
-downloads a fixed-name deploy bundle:
+The rolling install entry downloads and verifies the latest stable Release
+bootstrap. It then refreshes the complete matching deploy toolkit:
 
 ```sh
 (
   set -eu
   mkdir -p sforum
   cd sforum
-  curl -fsSLo sforum-deploy.tar.gz \
-    https://github.com/zhuchunshu/SForum/releases/latest/download/sforum-deploy.tar.gz
-  curl -fsSLo SHA256SUMS \
+  bootstrap_dir="$(mktemp -d .sforum-bootstrap.XXXXXX)"
+  trap 'rm -rf "$bootstrap_dir"' EXIT HUP INT TERM
+  curl -fsSLo "$bootstrap_dir/sforum-bootstrap.sh" \
+    https://github.com/zhuchunshu/SForum/releases/latest/download/sforum-bootstrap.sh
+  curl -fsSLo "$bootstrap_dir/SHA256SUMS" \
     https://github.com/zhuchunshu/SForum/releases/latest/download/SHA256SUMS
-  awk '$2 == "sforum-deploy.tar.gz" { print }' SHA256SUMS > sforum-deploy.sha256
-  test "$(wc -l < sforum-deploy.sha256 | tr -d '[:space:]')" = 1
-  if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum -c sforum-deploy.sha256
-  else
-    shasum -a 256 -c sforum-deploy.sha256
-  fi
-  if command -v gh >/dev/null 2>&1; then
-    gh attestation verify sforum-deploy.tar.gz --repo zhuchunshu/SForum
-  fi
-  tar -xzf sforum-deploy.tar.gz --strip-components=1
-  ./deploy.sh                    # Enter uses the latest stable release
+  (
+    cd "$bootstrap_dir"
+    awk '$2 == "sforum-bootstrap.sh" { print }' SHA256SUMS > sforum-bootstrap.sha256
+    test "$(wc -l < sforum-bootstrap.sha256 | tr -d '[:space:]')" = 1
+    if command -v sha256sum >/dev/null 2>&1; then
+      sha256sum -c sforum-bootstrap.sha256
+    else
+      shasum -a 256 -c sforum-bootstrap.sha256
+    fi
+    if command -v gh >/dev/null 2>&1; then
+      gh attestation verify sforum-bootstrap.sh --repo zhuchunshu/SForum
+    fi
+  )
+  install -m 0755 "$bootstrap_dir/sforum-bootstrap.sh" ./sforum-bootstrap.sh
+  rm -rf "$bootstrap_dir"
+  trap - EXIT HUP INT TERM
+  ./sforum-bootstrap.sh install  # Enter uses the latest stable release
 )
 ```
 
-Always download the archive and its `SHA256SUMS` first, verify the exact
-`sforum-deploy.tar.gz` entry (never `--ignore-missing`), then extract — see
+Never pipe remote shell content into `bash`. Download the bootstrap and its
+`SHA256SUMS`, verify the exact filename entry, and only then execute it — see
 [docs/zh-CN/deployment.md](./docs/zh-CN/deployment.md) for the full
 instructions.
 
-`upgrade.sh` accepts a positional version or `--version`; its default `latest`
-resolves to the newest **stable** Release and is confirmed before any change
-(`--yes` skips prompts). Prereleases are never selected implicitly: pass
+Existing installations update through `./sforum-bootstrap.sh upgrade`. Every
+run refreshes the bootstrap and the target Release's complete deploy toolkit
+before handing off to `upgrade.sh`. The default resolves to the newest
+**stable** Release and is confirmed before any change (`--yes` skips prompts).
+Prereleases are never selected implicitly: pass
 `--channel prerelease` or an explicit tag such as `v3.0.0-alpha.N`. Every choice
 resolves to a concrete `vX.Y.Z` tag and runs the matching GHCR images — floating
 `latest` images are never used in production Compose.
+
+Production defaults to one API process with an embedded River worker, sharing
+the database pool and extension runtime. Set `EMBED_WORKER_IN_API=false` to opt
+into the standalone `split-worker` Compose profile. Blue/green upgrades use
+that split topology automatically so the old worker can drain before handoff.
 
 The first blue/green ingress conversion has a short maintenance window. Later
 releases keep API/Web HTTP traffic available when the database is unchanged or

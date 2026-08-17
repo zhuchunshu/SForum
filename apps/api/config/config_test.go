@@ -282,7 +282,7 @@ func setValidProductionSecrets(t *testing.T) {
 	}
 }
 
-func TestLoadEnablesEmbeddedWorkerForDevelopmentOnlyByDefault(t *testing.T) {
+func TestLoadEnablesEmbeddedWorkerByDefault(t *testing.T) {
 	t.Setenv("APP_ENV", "development")
 	development := Load()
 	if !development.EmbedWorkerInAPI {
@@ -292,8 +292,8 @@ func TestLoadEnablesEmbeddedWorkerForDevelopmentOnlyByDefault(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
 	setValidProductionSecrets(t)
 	production := Load()
-	if production.EmbedWorkerInAPI {
-		t.Fatal("expected production api to keep worker as a separate process by default")
+	if !production.EmbedWorkerInAPI {
+		t.Fatal("expected production api to embed the worker by default")
 	}
 }
 
