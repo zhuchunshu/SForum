@@ -770,6 +770,15 @@ Architecture sources:
 
 - `SFEditor` uses Tiptap while preserving Markdown `v-model` integration. It
   emits HTML, Markdown, native JSON, plain text, counts, and empty state.
+- Editor write, client preview, and formal `.sf-prose` output share
+  `sforum-content-semantics.css` for paragraph, heading, list, quote, code,
+  link, and horizontal-rule presentation. This file explicitly restores list
+  markers removed by Tailwind Preflight; editor container geometry and
+  topic/theme-specific presentation remain in their owning stylesheets.
+- Client list regression tests exercise Tiptap's rendered write DOM and preview
+  HTML separately from the DOMPurify allowlist. Do not use happy-dom's
+  DOMPurify serialization as browser-parity evidence: it can remove an
+  outermost list wrapper that real browsers preserve.
 - The full editor now uses the selected Forum Canvas geometry: a focused
   `SFEditorToolbar`, 48px white toolbar, 34px icon commands, quiet root focus,
   generous document padding, and horizontally scrollable mobile tools. The

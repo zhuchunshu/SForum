@@ -85,10 +85,21 @@ for entry in \
     exit 1
   }
 done
+# GitHub Actions artifacts do not preserve Unix file modes: the
+# upload-artifact -> download-artifact cross-job transfer lands executable
+# files with 0644. The finalizer must normalize real artifact input on its
+# own (release.yml must not need a chmod workaround), so content checks run
+# first, then the execute bit is restored before the -x post-check and
+# checksum generation.
 [[ "$(head -n 1 "$ASSET_DIR/upgrade.sh")" == "#!/usr/bin/env bash" ]] || {
   echo "Standalone upgrade.sh asset is not a shell script" >&2
   exit 1
 }
+bash -n "$ASSET_DIR/upgrade.sh" || {
+  echo "Standalone upgrade.sh asset has invalid shell syntax" >&2
+  exit 1
+}
+chmod 0755 "$ASSET_DIR/upgrade.sh"
 [[ -x "$ASSET_DIR/upgrade.sh" ]] || {
   echo "Standalone upgrade.sh asset is not executable" >&2
   exit 1

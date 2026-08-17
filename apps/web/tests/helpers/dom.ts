@@ -36,7 +36,11 @@ export function installTestDom(options: TestDomOptions = {}) {
     Node: testWindow.Node,
     Event: testWindow.Event,
     MouseEvent: testWindow.MouseEvent,
-    KeyboardEvent: testWindow.KeyboardEvent
+    KeyboardEvent: testWindow.KeyboardEvent,
+    MutationObserver: testWindow.MutationObserver,
+    requestAnimationFrame: testWindow.requestAnimationFrame.bind(testWindow),
+    cancelAnimationFrame: testWindow.cancelAnimationFrame.bind(testWindow),
+    getComputedStyle: testWindow.getComputedStyle.bind(testWindow)
   })
   return testWindow
 }

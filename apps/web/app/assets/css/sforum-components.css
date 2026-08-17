@@ -1605,11 +1605,6 @@
   overflow-wrap: anywhere;
 }
 
-.sf-editor__content p,
-.sf-editor__preview p {
-  margin: 0 0 17px;
-}
-
 .sf-editor__content > :first-child,
 .sf-editor__preview > :first-child {
   margin-top: 0;
@@ -1618,86 +1613,6 @@
 .sf-editor__content > :last-child,
 .sf-editor__preview > :last-child {
   margin-bottom: 0;
-}
-
-.sf-editor__content h2,
-.sf-editor__preview h2 {
-  margin: 0 0 17px;
-  color: var(--sf-fg);
-  font-size: 1.5rem;
-  font-weight: 800;
-  line-height: 1.35;
-}
-
-.sf-editor__content h3,
-.sf-editor__preview h3 {
-  margin: 30px 0 12px;
-  color: var(--sf-fg);
-  font-size: 1.125rem;
-  font-weight: 800;
-  line-height: 1.4;
-}
-
-.sf-editor__content blockquote,
-.sf-editor__preview blockquote {
-  margin: 25px 0;
-  padding: 2px 0 2px 18px;
-  border-left: 3px solid var(--sf-accent);
-  background: transparent;
-  color: var(--sf-fg-secondary);
-}
-
-.sf-editor__content ul,
-.sf-editor__content ol,
-.sf-editor__preview ul,
-.sf-editor__preview ol {
-  margin: 0.55rem 0;
-  padding-left: 1.25rem;
-}
-
-.sf-editor__content code,
-.sf-editor__preview code {
-  padding: 0.1rem 0.28rem;
-  border-radius: 5px;
-  background: var(--sf-muted);
-  color: #334155;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 0.86em;
-}
-
-.sf-editor__content pre,
-.sf-editor__preview pre {
-  overflow-x: auto;
-  margin: 0.65rem 0;
-  padding: 16px 18px;
-  border: 1px solid var(--sf-code-border, #dfe2e8);
-  border-radius: 6px;
-  background: var(--sf-code-bg, #f8f9fb);
-  color: var(--sf-code-text, #354052);
-  font-size: 13px;
-  line-height: 1.72;
-}
-
-.dark .sf-editor__content pre,
-.dark .sf-editor__preview pre {
-  border-color: var(--sf-code-border, #2f3a37);
-  background: var(--sf-code-bg, #111615);
-  color: var(--sf-code-text, #dce6e3);
-}
-
-.sf-editor__content pre code,
-.sf-editor__preview pre code {
-  padding: 0;
-  background: transparent;
-  color: inherit;
-}
-
-.sf-editor__content a,
-.sf-editor__preview a {
-  color: var(--sf-accent);
-  font-weight: 700;
-  text-decoration: underline;
-  text-underline-offset: 0.16em;
 }
 
 .sf-editor__content img,
@@ -2427,15 +2342,6 @@
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.28);
 }
 
-.dark .sf-editor__content blockquote,
-.dark .sf-editor__preview blockquote {
-  border-left-color: rgb(var(--sf-accent-rgb) / 0.48);
-  background: transparent;
-  color: var(--sf-fg-secondary);
-}
-
-.dark .sf-editor__content code,
-.dark .sf-editor__preview code,
 .dark .sf-editor-contract__code {
   background: #09090b;
   color: var(--sf-fg);

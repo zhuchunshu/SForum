@@ -104,6 +104,94 @@ func TestAcceptNativeJSONRoundTripAndSanitizerCorpus(t *testing.T) {
 	}
 }
 
+func TestAcceptOrderedListStartPreservedInSanitizedHTML(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		name               string
+		start              any
+		expectedStart      string
+		expectedNormalized int
+		hasStart           bool
+	}{
+		{name: "positive", start: 3, expectedStart: ` start="3"`, expectedNormalized: 3, hasStart: true},
+		{name: "default", start: 1},
+		{name: "zero", start: 0, expectedStart: ` start="0"`, hasStart: true},
+		{name: "negative", start: -4, expectedStart: ` start="-4"`, expectedNormalized: -4, hasStart: true},
+		{name: "fractional", start: 3.5},
+		{name: "string", start: "7"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			body, _ := json.Marshal(map[string]any{
+				"type": "doc",
+				"content": []any{
+					map[string]any{
+						"type":  "orderedList",
+						"attrs": map[string]any{"start": test.start},
+						"content": []any{
+							map[string]any{
+								"type": "listItem",
+								"content": []any{
+									map[string]any{"type": "paragraph", "content": []any{map[string]any{"type": "text", "text": "item"}}},
+								},
+							},
+						},
+					},
+				},
+			})
+			accepted, err := Accept(Input{NativeJSON: body, Schema: CoreSchema()})
+			if err != nil {
+				t.Fatalf("Accept(start=%v): %v", test.start, err)
+			}
+			if !strings.Contains(accepted.HTMLSanitized, `<li><p>item</p></li>`) {
+				t.Fatalf("html lost list item: %s", accepted.HTMLSanitized)
+			}
+			if test.expectedStart == "" {
+				if strings.Contains(accepted.HTMLSanitized, "start=") {
+					t.Fatalf("start=%v must normalize to the default: %s", test.start, accepted.HTMLSanitized)
+				}
+			} else if !strings.Contains(accepted.HTMLSanitized, `<ol`+test.expectedStart+`>`) {
+				t.Fatalf("start=%v was not preserved: %s", test.start, accepted.HTMLSanitized)
+			}
+			actualStart, exists := accepted.Native.Content[0].Attrs["start"]
+			if !test.hasStart && exists {
+				t.Fatalf("start=%v must be omitted from normalized native JSON: %#v", test.start, actualStart)
+			}
+			if test.hasStart && actualStart != test.expectedNormalized {
+				t.Fatalf("normalized start = %#v, want %d", actualStart, test.expectedNormalized)
+			}
+		})
+	}
+}
+
+func TestAcceptNestedListsKeepStructure(t *testing.T) {
+	t.Parallel()
+	native := []byte(`{"type":"doc","content":[
+		{"type":"bulletList","content":[
+			{"type":"listItem","content":[
+				{"type":"paragraph","content":[{"type":"text","text":"alpha"}]},
+				{"type":"orderedList","attrs":{"start":2},"content":[
+					{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"beta"}]}]}
+				]}
+			]}
+		]},
+		{"type":"orderedList","content":[
+			{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"gamma"}]}]}
+		]}
+	]}`)
+	accepted, err := Accept(Input{NativeJSON: native, Schema: CoreSchema()})
+	if err != nil {
+		t.Fatalf("Accept: %v", err)
+	}
+	for _, fragment := range []string{
+		"<ul>", "<ol start=\"2\">", "<li><p>alpha</p><ol start=\"2\">", "<li><p>beta</p></li>", "<li><p>gamma</p></li>", "</ol>", "</ul>",
+	} {
+		if !strings.Contains(accepted.HTMLSanitized, fragment) {
+			t.Fatalf("html missing %q: %s", fragment, accepted.HTMLSanitized)
+		}
+	}
+}
+
 func TestAcceptRejectsEmptyAndOversized(t *testing.T) {
 	t.Parallel()
 	if _, err := Accept(Input{}); err == nil {

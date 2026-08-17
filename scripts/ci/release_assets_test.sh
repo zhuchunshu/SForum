@@ -126,7 +126,16 @@ done
 
 "$ROOT_DIR/scripts/ci/build-deploy-asset.sh" "$VERSION" "$OUTPUT_DIR" >/dev/null
 
+# Regression: GitHub Actions artifacts do not preserve Unix file modes; the
+# upload-artifact -> download-artifact cross-job transfer delivers the
+# standalone updater with 0644, which used to break the finalizer's -x check.
+[[ -x "$OUTPUT_DIR/upgrade.sh" ]] || fail "built upgrade.sh is not executable"
+chmod 0644 "$OUTPUT_DIR/upgrade.sh"
+[[ ! -x "$OUTPUT_DIR/upgrade.sh" ]] || fail "failed to strip the execute bit"
+
 "$ROOT_DIR/scripts/ci/finalize-release-assets.sh" "$VERSION" "$OUTPUT_DIR" >/dev/null
+
+[[ -x "$OUTPUT_DIR/upgrade.sh" ]] || fail "finalizer did not restore the upgrade.sh execute bit"
 
 [[ "$(find "$OUTPUT_DIR" -maxdepth 1 -type f | wc -l | tr -d ' ')" -eq 9 ]] || fail "unexpected release asset count"
 [[ "$(wc -l < "$OUTPUT_DIR/SHA256SUMS" | tr -d ' ')" -eq 8 ]] || fail "unexpected checksum count"
@@ -134,6 +143,8 @@ grep -q "sforum-server_${VERSION}_linux_amd64.tar.gz" "$OUTPUT_DIR/SHA256SUMS" |
 grep -q "sforum-cli_${VERSION}_darwin_arm64.tar.gz" "$OUTPUT_DIR/SHA256SUMS" || fail "macOS CLI checksum is missing"
 grep -q "sforum-deploy.tar.gz" "$OUTPUT_DIR/SHA256SUMS" || fail "deploy bundle checksum is missing"
 grep -q "^[0-9a-f]\{64\}  upgrade.sh$" "$OUTPUT_DIR/SHA256SUMS" || fail "updater checksum is missing"
+upgrade_checksum_lines="$(grep -c 'upgrade.sh' "$OUTPUT_DIR/SHA256SUMS" || true)"
+[[ "$upgrade_checksum_lines" -eq 1 ]] || fail "SHA256SUMS must contain exactly one upgrade.sh entry"
 
 deploy_listing="$(tar -tzf "$OUTPUT_DIR/sforum-deploy.tar.gz")"
 for entry in \
@@ -156,6 +167,18 @@ done
 grep -qx "sforum-deploy/VERSION" <<< "$deploy_listing" || fail "deploy archive is missing VERSION"
 deploy_version="$(tar -xOzf "$OUTPUT_DIR/sforum-deploy.tar.gz" sforum-deploy/VERSION)"
 [[ "$deploy_version" == "version=$VERSION" ]] || fail "deploy archive carries the wrong VERSION"
+
+deploy_verbose="$(tar -tvzf "$OUTPUT_DIR/sforum-deploy.tar.gz")"
+for entry in \
+  "sforum-deploy/deploy.sh" \
+  "sforum-deploy/upgrade.sh" \
+  "sforum-deploy/deploy/scripts/configure-production.sh" \
+  "sforum-deploy/deploy/scripts/backup-postgres.sh" \
+  "sforum-deploy/deploy/scripts/restore-postgres.sh" \
+  "sforum-deploy/deploy/scripts/wait-for-health.sh"; do
+  mode="$(awk -v name="$entry" '$NF == name { print $1; exit }' <<< "$deploy_verbose")"
+  [[ "$mode" == "-rwxr-xr-x" ]] || fail "deploy archive entry does not have mode 0755: $entry ($mode)"
+done
 
 expect_failure "Usage:" "$ROOT_DIR/scripts/ci/build-release-assets.sh" \
   invalid "$COMMIT" "$BUILD_TIME" "$IMAGE_TAG" linux amd64 "$OUTPUT_DIR"

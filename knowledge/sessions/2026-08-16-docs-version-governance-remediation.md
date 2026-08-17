@@ -173,11 +173,41 @@
   当前共 14 个用例（1 正 + 13 失败）。完整仓库门禁、Go 构建、884 个 Web
   单测和 Nuxt 生产构建通过。
 
+## CI Fix (2026-08-17): release artifact execute-bit normalization
+
+- **根因**：v3.0.9-alpha.2 的 verify-release-assets job 失败于
+  "Standalone upgrade.sh asset is not executable"。`build-deploy-asset.sh`
+  正确地把 dist/upgrade.sh 置为 0755，但
+  `upload-artifact` → `download-artifact` 跨 job 传输不保留 Unix 文件权限，
+  普通文件以 0644 落地，随后 finalizer 的 `[[ -x ]]` 检查失败。本地
+  `release_assets_test.sh` 未模拟这条 artifact 边界，因此未被发现。
+- **修复**（`scripts/ci/finalize-release-assets.sh`）：保留文件存在/非空/
+  首行 shebang 检查；新增 `bash -n` 校验 standalone upgrade.sh 语法；内容
+  校验通过后 `chmod 0755`，再做 `-x` 后置检查；最后才生成 SHA256SUMS。
+  注释说明 GitHub Artifact 不保留执行位。chmod 只放进 finalizer（不放
+  release.yml），finalizer 可独立处理真实 artifact 输入。
+- **回归**（`scripts/ci/release_assets_test.sh`）：build-deploy-asset.sh
+  后先断言 upgrade.sh 原本可执行 → `chmod 0644` 模拟 Artifact 下载结果 →
+  运行 finalize 必须成功 → 断言执行位已恢复 → 断言 SHA256SUMS 有且仅有一
+  条 upgrade.sh 条目 → 新增 tar 内权限断言（deploy.sh、upgrade.sh、
+  deploy/scripts/*.sh 在压缩包内保持 `-rwxr-xr-x`）。变异验证：临时移除
+  finalizer 的 chmod 后测试按预期失败（"not executable"），证明回归确实
+  能捕获原始缺陷。
+- **验证**：`bash -n` 三个脚本、`release_assets_test.sh`、
+  `generate-release-notes_test.sh`、`git diff --check`、
+  `release_workflow_test.rb` 全部通过；完整 `./scripts/test.sh` 跑到
+  compatibility farm 为止（`DATABASE_URL`/`SFORUM_TEST_DATABASE_URL` 未配
+  置，postgres cells 必败，既有文档化限制），此前所有门禁含 `go test
+  ./...` 全部通过。actionlint 未安装，release.yml 未改动。
+- **剩余风险**：最终确认仍依赖下一次真实 release tag 运行（不得移动
+  v3.0.9-alpha.2 标签，需新建 prerelease tag）。
+
 ## Next
 
-- 真实发布时验证 `/releases/latest/download/sforum-deploy.tar.gz` 与
-  `upgrade.sh` 资产在 GitHub 端可用（流水线已在 release.yml 就绪，未实际
-  发布测试）。
+- 修复合并后新建 prerelease tag 验证 `/releases/latest/download/
+  sforum-deploy.tar.gz` 与 `upgrade.sh` 资产可下载、checksum/attestation
+  正确，并验证独立 updater 按文档 `chmod 0755` 后可执行（流水线已在
+  release.yml 就绪，未实际发布测试）。
 - 解决下方阻塞性冲突后再决定是否发布第一个稳定 Release。
 
 ## Open Questions

@@ -1,0 +1,190 @@
+/*
+ * 正文元素语义排版共享合同（Shared Content Semantics Contract）
+ *
+ * 撰写区（.sf-editor__content，contenteditable ProseMirror）与预览区
+ * （.sf-editor__preview，客户端 getHTML + sanitizeHtml）必须对同一批 Core
+ * 正文节点呈现与正式正文一致的语义样式。正式正文由 Go 端 EditorDocument
+ * Accept/Render/Sanitize 生成，并使用 .sf-prose 排版（@tailwindcss/typography
+ * 的 prose 基线 + apps/web/app/assets/css/main.css 覆盖）。
+ *
+ * Tailwind Preflight 会把所有 ol/ul 的 list-style 重置为 none，因此这里显式
+ * 恢复列表标记，避免 Preflight 再次隐藏 marker。规则刻意放在 layer 之外
+ * （unlayered > @layer base），且 .sf-prose 一侧使用 :where() 保持零特异性，
+ * 让正式主题覆盖与编辑器容器几何各自保留最终决定权。
+ *
+ * 对齐基准（正式正文）：
+ * - list-style-type：prose 基线（ol=decimal / ul=disc，见 typography 插件）
+ * - marker 颜色：main.css .sf-prose 的 prose-li:marker:text-[color:var(--sf-accent)]
+ * - hr：main.css .sf-prose :where(hr)（border-top 1px + 上下 2em）
+ *
+ * 仅修改“正文元素语义排版”，不要在这里添加编辑器容器几何、可编辑状态
+ * （选区/placeholder/焦点）或主题覆盖规则。
+ */
+
+.sf-editor__content p,
+.sf-editor__preview p,
+.sf-prose :where(p) {
+  margin: 0 0 18px;
+}
+
+.sf-editor__content h2,
+.sf-editor__preview h2,
+.sf-prose :where(h2) {
+  margin: 30px 0 12px;
+  color: var(--sf-fg, currentColor);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.sf-editor__content h3,
+.sf-editor__preview h3,
+.sf-prose :where(h3) {
+  margin: 30px 0 12px;
+  color: var(--sf-fg, currentColor);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.sf-editor__content ul,
+.sf-editor__preview ul,
+.sf-prose :where(ul) {
+  margin: 1rem 0;
+  padding-left: 1.625em;
+  list-style-type: disc;
+}
+
+.sf-editor__content ol,
+.sf-editor__preview ol,
+.sf-prose :where(ol) {
+  margin: 1rem 0;
+  padding-left: 1.625em;
+  list-style-type: decimal;
+}
+
+.sf-editor__content li,
+.sf-editor__preview li,
+.sf-prose :where(li) {
+  margin: 0.5rem 0;
+  padding-left: 0.375em;
+}
+
+.sf-editor__content li::marker,
+.sf-editor__preview li::marker,
+.sf-prose :where(li)::marker {
+  color: var(--sf-accent);
+}
+
+.sf-editor__content li > ul,
+.sf-editor__content li > ol,
+.sf-editor__preview li > ul,
+.sf-editor__preview li > ol,
+.sf-prose :where(li > ul),
+.sf-prose :where(li > ol) {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Markdown GFM 任务列表保留 checkbox，但不能同时显示普通 ul marker。 */
+.sf-prose :where(ul:has(input[type="checkbox"])) {
+  padding-left: 0.5em;
+  list-style: none;
+}
+
+.sf-prose :where(li:has(input[type="checkbox"])) {
+  list-style: none;
+}
+
+.sf-prose :where(input[type="checkbox"]) {
+  margin-right: 0.5em;
+  vertical-align: middle;
+  accent-color: var(--sf-accent);
+}
+
+.sf-editor__content blockquote,
+.sf-editor__preview blockquote,
+.sf-prose :where(blockquote) {
+  margin: 0 0 1em;
+  padding: 10px 14px;
+  border-left: 3px solid var(--sf-accent);
+  border-radius: 0 8px 8px 0;
+  background: var(--sf-accent-soft);
+  color: var(--sf-fg-secondary, currentColor);
+  font-style: normal;
+  font-weight: inherit;
+}
+
+.sf-editor__content code,
+.sf-editor__preview code,
+.sf-prose :where(code) {
+  padding: 0.18em 0.42em;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--sf-accent) 8%, transparent);
+  color: var(--sf-accent);
+  font-family: var(--font-mono, ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace);
+  font-size: 0.86em;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.dark .sf-editor__content code,
+.dark .sf-editor__preview code,
+.dark .sf-prose :where(code) {
+  background: color-mix(in srgb, var(--sf-accent) 18%, transparent);
+}
+
+.sf-editor__content pre,
+.sf-editor__preview pre,
+.sf-prose :where(pre) {
+  overflow-x: auto;
+  margin: 22px 0;
+  padding: 16px 18px;
+  border: 1px solid var(--sf-code-border, #dfe2e8);
+  border-radius: 6px;
+  background: var(--sf-code-bg, #f8f9fb);
+  color: var(--sf-code-text, #354052);
+  font-size: 13px;
+  line-height: 1.72;
+}
+
+.dark .sf-editor__content pre,
+.dark .sf-editor__preview pre,
+.dark .sf-prose :where(pre) {
+  border-color: var(--sf-code-border, #2f3a37);
+  background: var(--sf-code-bg, #111615);
+  color: var(--sf-code-text, #dce6e3);
+}
+
+.sf-editor__content pre code,
+.sf-editor__preview pre code,
+.sf-prose :where(pre code) {
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 1em;
+  font-weight: 400;
+}
+
+.sf-editor__content a,
+.sf-editor__preview a,
+.sf-prose :where(a) {
+  color: var(--sf-accent);
+  font-weight: inherit;
+  text-decoration: none;
+}
+
+.sf-editor__content a:hover,
+.sf-editor__preview a:hover,
+.sf-prose :where(a:hover) {
+  text-decoration: underline;
+  text-underline-offset: 0.16em;
+}
+
+.sf-editor__content hr,
+.sf-editor__preview hr,
+.sf-prose :where(hr) {
+  margin: 2em 0;
+  border: 0;
+  border-top: 1px solid var(--border-default);
+}

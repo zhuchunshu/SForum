@@ -210,61 +210,6 @@ html.dark {
   line-height: 1.75;
 }
 
-/* 行内代码：主色软底（代码块内的 code 由下方 pre 规则重置为透明） */
-.sf-prose :where(code) {
-  font-family: var(--font-mono, ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace);
-  font-size: 0.86em;
-  background: color-mix(in srgb, var(--sf-accent) 8%, transparent);
-  color: var(--sf-accent);
-  padding: 0.18em 0.42em;
-  border-radius: 5px;
-  font-weight: 500;
-  word-break: break-word;
-}
-.dark .sf-prose :where(code) {
-  background: color-mix(in srgb, var(--sf-accent) 18%, transparent);
-}
-
-/* 代码块 SSR fallback；客户端增强后的完整结构由 highlight-theme.css 接管。 */
-.sf-prose :where(pre) {
-  background: var(--sf-code-bg, #f8f9fb);
-  color: var(--sf-code-text, #354052);
-  padding: 16px 18px;
-  border-radius: 6px;
-  border: 1px solid var(--sf-code-border, #dfe2e8);
-  overflow-x: auto;
-  font-size: 13px;
-  line-height: 1.72;
-  margin: 1.4em 0;
-}
-.dark .sf-prose :where(pre) {
-  background: var(--sf-code-bg, #111615);
-  border-color: var(--sf-code-border, #2f3a37);
-  color: var(--sf-code-text, #dce6e3);
-}
-/* pre 内的 code 恢复为透明，让 hljs token 配色生效 */
-.sf-prose :where(pre) :where(code),
-.sf-prose :where(pre) code.hljs {
-  background: transparent;
-  color: inherit;
-  padding: 0;
-  font-size: 1em;
-  font-weight: 400;
-}
-
-/* 引用块：主色竖线，退后一步不抢戏 */
-.sf-prose :where(blockquote) {
-  border-left: 3px solid var(--sf-accent);
-  color: #475569;
-  font-style: normal;
-  font-weight: inherit;
-  padding-left: 1.1em;
-  margin: 1.4em 0;
-}
-.dark .sf-prose :where(blockquote) {
-  color: #a1a1aa;
-}
-
 /* GFM 表格：细线 + 斑马纹，窄屏横向滚动避免撑破版心 */
 .sf-prose :where(table) {
   width: 100%;
@@ -289,27 +234,7 @@ html.dark {
   background: color-mix(in srgb, var(--text-main) 2%, transparent);
 }
 
-/* GFM 任务列表 checkbox：禁用原生列表标记，让 checkbox 对齐 */
-.sf-prose :where(ul:has(input[type="checkbox"])) {
-  list-style: none;
-  padding-left: 0.5em;
-}
-.sf-prose :where(li:has(input[type="checkbox"])) {
-  list-style: none;
-}
-.sf-prose :where(input[type="checkbox"]) {
-  margin-right: 0.5em;
-  vertical-align: middle;
-  accent-color: var(--sf-accent);
-}
-
-/* 分隔线与图片 */
-.sf-prose :where(hr) {
-  border: 0;
-  border-top: 1px solid var(--border-default);
-  margin: 2em 0;
-}
-
+/* 正文图片；文本、列表、引用、代码和分隔线由 sforum-content-semantics.css 统一。 */
 .sf-prose .sf-content-image-link {
   display: block;
   width: fit-content;

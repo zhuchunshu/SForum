@@ -195,6 +195,11 @@ V1 boundaries:
 - Backend accepts Markdown, HTML, and `editor-document` source formats. The
   structured format stores Host-accepted native Tiptap JSON in `raw_content`;
   the ambiguous legacy `json` format is rejected by both runtime and schema.
+- Native `orderedList.start` values are normalized as integers before storage
+  and rendering. Default `1` is omitted; zero and negative integers are
+  preserved in both normalized JSON and sanitized `<ol start>` HTML, while
+  fractional and string values fall back to the default. The sanitizer allows
+  only a signed decimal integer on `ol[start]`.
 - Markdown renders with `goldmark` plus GFM extensions; display HTML is
   sanitized with `bluemonday`.
 - Sanitized `<pre><code>` content is progressively enhanced in the browser with

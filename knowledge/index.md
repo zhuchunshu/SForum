@@ -113,6 +113,33 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- 编辑器正文渲染一致性修复（2026-08-17）：撰写、客户端预览与正式
+  `.sf-prose` 现共享正文语义 CSS，显式恢复被 Tailwind Preflight 清除的
+  `ul/ol` marker，并统一段落、H2/H3、列表/嵌套、引用、代码、链接和分隔线；
+  DOMPurify 白名单测试与 Tiptap 浏览器结构测试解耦。后端
+  `orderedList.start` 统一为整数规范，保留零/负数，省略默认 1，拒绝小数和
+  字符串，并只在 `ol[start]` 放行带符号十进制整数。Web 全套测试、类型检查、
+  Go 全套测试、架构门禁通过；Browser 在桌面及 390x844 下确认编辑/预览/正式
+  列表 marker、26px 列表缩进、6px 列表项内缩与 H2/H3 层级一致，无横向溢出、
+  无控制台错误：
+  `sessions/2026-08-17-editor-content-parity.md`
+
+- Release artifact 执行位修复（2026-08-17）：v3.0.9-alpha.2 的
+  verify-release-assets job 失败，根因是 `upload-artifact` →
+  `download-artifact` 跨 job 传输不保留 Unix 执行位（upgrade.sh 以 0644
+  落地），finalizer 的 `[[ -x ]]` 检查失败。finalize-release-assets.sh 现
+  在保留存在/非空/shebang 检查并新增 `bash -n`，内容校验通过后集中
+  `chmod 0755` 再做 `-x` 后置检查，最后生成 SHA256SUMS（chmod 不进
+  release.yml，finalizer 独立处理真实 artifact 输入）。release_assets_test.sh
+  新增回归：构建后断言可执行 → `chmod 0644` 模拟 Artifact → finalize 必须
+  成功 → 断言执行位恢复与 SHA256SUMS 唯一条目 → 断言压缩包内 deploy.sh/
+  upgrade.sh/deploy/scripts/*.sh 权限仍由 tar 保存（变异验证确认测试能
+  捕获原始缺陷）。bash -n、release/assets 测试、release workflow 校验、
+  go test 全部通过；完整 test.sh 停在 compatibility farm（未配置
+  DATABASE_URL，既有限制）。修复合并后需新建 prerelease tag 验证，不得
+  移动旧标签：
+  `sessions/2026-08-16-docs-version-governance-remediation.md`
+
 - 扩展作者文档补齐（2026-08-16）：新增 `docs/extensions/routes.md`（插件声明式
   路由：manifest `routes[]` 语义、core guard、Protocol V2 InvokeRoute/流、
   入口 probe + Nuxt 代理、CSRF/PAT、限制与测试，锚定 sforum-custom-content）

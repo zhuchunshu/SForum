@@ -65,7 +65,15 @@ func renderNode(builder *strings.Builder, node Node, schema Schema) {
 		}
 		builder.WriteString("</ul>")
 	case "orderedList":
-		builder.WriteString("<ol>")
+		start := 1
+		if normalized, ok := normalizedOrderedListStart(node.Attrs["start"]); ok {
+			start = normalized
+		}
+		if start != 1 {
+			builder.WriteString(`<ol start="` + strconv.Itoa(start) + `">`)
+		} else {
+			builder.WriteString("<ol>")
+		}
 		for _, child := range node.Content {
 			renderNode(builder, child, schema)
 		}

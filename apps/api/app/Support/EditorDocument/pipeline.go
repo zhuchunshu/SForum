@@ -178,6 +178,9 @@ func normalizeNodes(nodes []Node, schema Schema, depth int, nodeCount *int, fall
 			}
 			normalized.Attrs = normalizeImageAttrs(normalized.Attrs)
 		}
+		if node.Type == "orderedList" {
+			normalized.Attrs = normalizeOrderedListAttrs(normalized.Attrs)
+		}
 		if !spec.Atom {
 			children, err := normalizeNodes(node.Content, schema, depth+1, nodeCount, fallbacks)
 			if err != nil {
@@ -226,6 +229,31 @@ func normalizedImageDimension(value any) (int, bool) {
 	case float64:
 		integer := int(typed)
 		return integer, typed == float64(integer) && integer > 0 && integer <= maxImageDimension
+	default:
+		return 0, false
+	}
+}
+
+func normalizeOrderedListAttrs(attrs map[string]any) map[string]any {
+	start, ok := normalizedOrderedListStart(attrs["start"])
+	if !ok || start == 1 {
+		delete(attrs, "start")
+		if len(attrs) == 0 {
+			return nil
+		}
+		return attrs
+	}
+	attrs["start"] = start
+	return attrs
+}
+
+func normalizedOrderedListStart(value any) (int, bool) {
+	switch typed := value.(type) {
+	case int:
+		return typed, true
+	case float64:
+		integer := int(typed)
+		return integer, typed == float64(integer)
 	default:
 		return 0, false
 	}
@@ -402,5 +430,7 @@ func SanitizeHTML(value string) string {
 	policy.AllowAttrs("width", "height").Matching(regexp.MustCompile(`^[1-9][0-9]{0,5}$`)).OnElements("img")
 	policy.AllowAttrs("data-sforum-image-size").Matching(regexp.MustCompile(`^(compact|standard|wide)$`)).OnElements("img")
 	policy.AllowAttrs("data-sforum-image-long").Matching(regexp.MustCompile(`^1$`)).OnElements("img")
+	// 有序列表 start 是无副作用的纯整数标记属性，用于保留从非 1 开始的编号。
+	policy.AllowAttrs("start").Matching(regexp.MustCompile(`^-?(0|[1-9][0-9]*)$`)).OnElements("ol")
 	return policy.Sanitize(value)
 }

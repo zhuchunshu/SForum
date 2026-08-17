@@ -5,7 +5,7 @@ import DOMPurify from 'dompurify'
 
 // 与服务端 bluemonday UGCPolicy 大致对齐的白名单：
 // 允许常见富文本标签，禁用脚本/事件处理器/危险属性。
-const PURIFY_CONFIG = {
+export const SF_PURIFY_CONFIG = {
   ALLOWED_TAGS: [
     'a', 'abbr', 'b', 'blockquote', 'br', 'caption', 'cite', 'code', 'col',
     'colgroup', 'dd', 'del', 'details', 'div', 'dl', 'dt', 'em', 'figcaption',
@@ -38,5 +38,5 @@ export function sanitizeHtml(html: string | undefined | null): string {
     // SSR 阶段无 DOM，信任服务端 bluemonday 已净化。
     return html
   }
-  return String(DOMPurify.sanitize(html, PURIFY_CONFIG))
+  return String(DOMPurify.sanitize(html, SF_PURIFY_CONFIG))
 }
