@@ -421,7 +421,7 @@
   .sforum-mobile-drawer__backdrop {
     position: fixed;
     z-index: 80;
-    inset: var(--sf-public-topbar-height) 0 0;
+    inset: 0;
     display: block;
     border: 0;
     background: rgb(20 27 38 / .38);
@@ -431,7 +431,7 @@
   .sforum-mobile-drawer {
     position: fixed;
     z-index: 90;
-    top: var(--sf-public-topbar-height);
+    top: 0;
     bottom: 0;
     display: block;
     width: min(86vw, 320px);

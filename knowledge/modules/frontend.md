@@ -884,6 +884,9 @@ Architecture sources:
 - Public mobile drawers use a viewport-wide fixed backdrop (`inset: 0`) and a
   drawer starting at the viewport top (`top: 0`), so opening the sidebar
   covers the topbar and search region instead of appearing underneath it.
+  Core fallback and the selected default runtime theme must keep these two
+  declarations aligned; `publicMobileDrawerGeometry.test.ts` guards both CSS
+  owners so an older theme rule cannot reintroduce a topbar offset.
 - Mobile public layouts clear the desktop `min-height: calc(100vh - topbar)`
   contract. Short topic, notification, settings, moderation, and profile
   surfaces now flow directly into their footer instead of leaving a viewport-

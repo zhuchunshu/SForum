@@ -113,6 +113,14 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- 移动端左右抽屉全视口修复（2026-08-19）：根因是 2026-08-01 仅把 Core
+  回退样式改为 `inset/top: 0`，默认运行时主题仍用旧的 topbar 偏移并在不可变
+  skin 加载后覆盖 Core。现已同步默认主题、增加 Core/主题成对回归，完成
+  digest/validate/test、SyncBuiltins 与 super_admin 正常重新激活；活动摘要
+  `0020c49a…`。Chrome `402x849` 实测左右抽屉与遮罩均从视口顶部开始、覆盖完整
+  高度，无横向溢出或控制台错误：
+  `sessions/2026-08-19-mobile-drawer-viewport-fix.md`
+
 - 已验证 Release bootstrap（2026-08-18）：新增 `sforum-bootstrap.sh` 作为安装/
   更新唯一推荐联网入口；每次先解析不可变目标标签、校验并自刷新 bootstrap，
   再校验同标签完整部署包后交给 deploy/upgrade 状态机。老实例一次接管即可，
