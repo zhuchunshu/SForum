@@ -56,10 +56,11 @@ CLI processes.
 Runtime resource accounting lives in `app/Support/ProcessMemory` and is shared
 by the admin overview. Linux release containers sample procfs directly, because
 Alpine BusyBox `ps` does not implement the process-table flags used on macOS.
-The collector reads PID/PPID, command, RSS, optional `smaps_rollup` PSS, and
-adjacent-frame CPU ticks, then keeps a 60-second rolling median for the API,
-owned backend plugins, and totals without host PID access or a Docker socket.
-Other platforms leave PSS absent instead of inventing a value. The API-owned
+The collector reads PID/PPID, command, RSS, optional `smaps_rollup` PSS and
+`AnonHugePages`, plus adjacent-frame CPU ticks. It keeps 60-second rolling RSS
+and complete-PSS medians for the API, owned backend plugins, each extension,
+and totals without host PID access or a Docker socket. Other platforms leave
+PSS absent instead of inventing a value. The API-owned
 Worker is represented through `WithWorkerRuntime` mode and concurrency rather
 than a fictional separate memory line.
 

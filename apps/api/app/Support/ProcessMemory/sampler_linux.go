@@ -65,7 +65,7 @@ func (s *procSampler) List() ([]Sample, error) {
 			continue
 		}
 		processTicks[pid] = ticks
-		sample.PSSBytes, _ = readProcessPSSAt(root, pid)
+		sample.PSSBytes, sample.AnonHugePagesBytes, _ = readProcessMemoryDetailsAt(root, pid)
 		samples = append(samples, sample)
 	}
 	if len(samples) == 0 {

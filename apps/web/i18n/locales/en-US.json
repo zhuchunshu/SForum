@@ -726,9 +726,10 @@
         "pluginOverlap": "· switching overlap +{count}",
         "pluginOverlapDetail": "Detected {count} extra same-plugin processes. This is normally a brief runtime replacement overlap; if it persists, inspect the plugin lifecycle logs.",
         "pluginDetails": "Plugin process details",
-        "pluginDetailsBasis": "Per-plugin values are current process RSS, ordered from highest to lowest.",
+        "pluginDetailsBasis": "Primary values are current RSS; PSS is the rolling median. Ordered by RSS.",
         "memoryBasis": "{seconds}s rolling median · RSS",
-        "pssTotal": "Effective {value} PSS",
+        "pssTotal": "{seconds}s rolling median · PSS {value}",
+        "anonHugePages": "Anonymous huge pages {value}",
         "diskUsed": "used",
         "unavailable": "Unavailable"
       },

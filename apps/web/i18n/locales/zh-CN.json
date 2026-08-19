@@ -766,9 +766,10 @@
         "pluginOverlap": "· 切换重叠 +{count}",
         "pluginOverlapDetail": "检测到 {count} 个额外同插件进程，通常是运行时切换的短暂重叠；若持续存在，需要检查插件生命周期日志。",
         "pluginDetails": "插件进程明细",
-        "pluginDetailsBasis": "逐插件数值为当前进程 RSS，按占用从高到低排列。",
+        "pluginDetailsBasis": "主数值为当前 RSS；PSS 为最近窗口中位数，按 RSS 从高到低排列。",
         "memoryBasis": "最近 {seconds} 秒中位数 · RSS",
-        "pssTotal": "有效占用 {value} PSS",
+        "pssTotal": "最近 {seconds} 秒中位数 · PSS {value}",
+        "anonHugePages": "匿名透明大页 {value}",
         "diskUsed": "已用",
         "unavailable": "暂无数据"
       },

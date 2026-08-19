@@ -106,11 +106,20 @@ export type AdminOverviewRuntimeResources = {
   workerPssBytes?: number
   pluginPssBytes?: number
   totalPssBytes?: number
+  apiAnonHugePagesBytes?: number
+  workerAnonHugePagesBytes?: number
+  pluginAnonHugePagesBytes?: number
+  totalAnonHugePagesBytes?: number
   apiMemoryMedianBytes: number
   workerMemoryMedianBytes: number
   pluginMemoryMedianBytes: number
   totalMemoryMedianBytes: number
+  apiPssMedianBytes?: number
+  workerPssMedianBytes?: number
+  pluginPssMedianBytes?: number
+  totalPssMedianBytes?: number
   memorySampleCount: number
+  pssSampleCount?: number
   memoryWindowSeconds: number
   apiCpuPercent: number
   workerCpuPercent: number
@@ -128,6 +137,9 @@ export type AdminOverviewPluginRuntimeUsage = {
   extensionId: string
   memoryBytes: number
   pssBytes?: number
+  pssMedianBytes?: number
+  pssSampleCount?: number
+  anonHugePagesBytes?: number
   cpuPercent: number
   processCount: number
   apiOwnedProcessCount: number
@@ -155,6 +167,29 @@ export function overviewMemoryDisplayBytes(
   }
   const median = Number(resources[medianKeys[bucket]])
   if (Number.isFinite(median) && median >= 0 && Number(resources.memorySampleCount) > 0) {
+    return median
+  }
+  return Math.max(0, Number(resources[instantKeys[bucket]]) || 0)
+}
+
+export function overviewPSSDisplayBytes(
+  resources: AdminOverviewRuntimeResources,
+  bucket: AdminOverviewMemoryBucket
+) {
+  const medianKeys: Record<AdminOverviewMemoryBucket, keyof AdminOverviewRuntimeResources> = {
+    api: 'apiPssMedianBytes',
+    worker: 'workerPssMedianBytes',
+    plugin: 'pluginPssMedianBytes',
+    total: 'totalPssMedianBytes'
+  }
+  const instantKeys: Record<AdminOverviewMemoryBucket, keyof AdminOverviewRuntimeResources> = {
+    api: 'apiPssBytes',
+    worker: 'workerPssBytes',
+    plugin: 'pluginPssBytes',
+    total: 'totalPssBytes'
+  }
+  const median = Number(resources[medianKeys[bucket]])
+  if (Number.isFinite(median) && median > 0 && Number(resources.pssSampleCount) > 0) {
     return median
   }
   return Math.max(0, Number(resources[instantKeys[bucket]]) || 0)

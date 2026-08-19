@@ -76,6 +76,22 @@ func TestReadProcProcessHandlesSpacesAndParenthesesInComm(t *testing.T) {
 	}
 }
 
+func TestReadProcessMemoryDetailsReadsPSSAndAnonHugePages(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "42")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := "Rss: 4096 kB\nPss: 3072 kB\nAnonHugePages: 2048 kB\n"
+	if err := os.WriteFile(filepath.Join(dir, "smaps_rollup"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pss, anonHugePages, ok := readProcessMemoryDetailsAt(root, 42)
+	if !ok || pss != 3072*1024 || anonHugePages != 2048*1024 {
+		t.Fatalf("pss=%d anonHugePages=%d ok=%t", pss, anonHugePages, ok)
+	}
+}
+
 func writeProcCPUStat(t *testing.T, root string, total uint64) {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(root, "stat"), []byte(fmt.Sprintf("cpu %d 0 0 0 0 0 0 0 0 0\n", total)), 0o644); err != nil {

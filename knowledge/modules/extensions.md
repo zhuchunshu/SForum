@@ -585,7 +585,10 @@ Relevant plans:
 - Plugin child processes receive `GODEBUG=disablethp=1` to prevent per-process
   Linux heap THP over-allocation. Isolated SMTP evidence fell from 27,360 KiB to
   19,284 KiB PSS after dependency slimming with the same THP setting; production
-  acceptance remains a post-release 60-second median PSS measurement. See
+  acceptance remains a post-release 60-second median PSS measurement. The admin
+  resource endpoint now exposes that median per plugin and reports current
+  `AnonHugePages`, so production acceptance no longer depends on instantaneous
+  RSS screenshots. See
   `../decisions/2026-08-20-plugin-runtime-memory.md`.
 - Extension trust digest verification streams SHA-256 through a fixed-size
   buffer. It preserves exact-root, stable-file, size, and regular-file checks

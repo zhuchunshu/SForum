@@ -18,9 +18,11 @@ type Sample struct {
 	// CPUPercent 是 ps 报告的进程 CPU 占用百分比。
 	CPUPercent float64
 	// PSSBytes 是 Linux 可用时的 proportional set size；其它系统或读取失败时为 0。
-	PSSBytes   uint64
-	Command    string
-	CapturedAt time.Time
+	PSSBytes uint64
+	// AnonHugePagesBytes 是 Linux smaps_rollup 报告的匿名透明大页占用。
+	AnonHugePagesBytes uint64
+	Command            string
+	CapturedAt         time.Time
 }
 
 // Sampler 读取本机进程列表。
@@ -111,31 +113,40 @@ func AggregateFamily(selfPID int, samples []Sample) (selfRSS uint64, familyRSS u
 // RuntimeUsage 汇总当前 API、独立 Worker 及其插件进程的资源占用。
 // Worker 可能由 API 嵌入，此时 WorkerFound=false，由调用方标记为 embedded。
 type RuntimeUsage struct {
-	APIMemoryBytes          uint64        `json:"apiMemoryBytes"`
-	WorkerMemoryBytes       uint64        `json:"workerMemoryBytes"`
-	PluginMemoryBytes       uint64        `json:"pluginMemoryBytes"`
-	TotalMemoryBytes        uint64        `json:"totalMemoryBytes"`
-	APIPSSBytes             uint64        `json:"apiPssBytes,omitempty"`
-	WorkerPSSBytes          uint64        `json:"workerPssBytes,omitempty"`
-	PluginPSSBytes          uint64        `json:"pluginPssBytes,omitempty"`
-	TotalPSSBytes           uint64        `json:"totalPssBytes,omitempty"`
-	APIMemoryMedianBytes    uint64        `json:"apiMemoryMedianBytes"`
-	WorkerMemoryMedianBytes uint64        `json:"workerMemoryMedianBytes"`
-	PluginMemoryMedianBytes uint64        `json:"pluginMemoryMedianBytes"`
-	TotalMemoryMedianBytes  uint64        `json:"totalMemoryMedianBytes"`
-	MemorySampleCount       int           `json:"memorySampleCount"`
-	MemoryWindowSeconds     int           `json:"memoryWindowSeconds"`
-	APICPUPercent           float64       `json:"apiCpuPercent"`
-	WorkerCPUPercent        float64       `json:"workerCpuPercent"`
-	PluginCPUPercent        float64       `json:"pluginCpuPercent"`
-	TotalCPUPercent         float64       `json:"totalCpuPercent"`
-	PluginChildCount        int           `json:"pluginChildCount"`
-	PluginOverlapCount      int           `json:"pluginOverlapCount"`
-	Plugins                 []PluginUsage `json:"plugins,omitempty"`
-	WorkerFound             bool          `json:"workerFound"`
-	WorkerEmbedded          bool          `json:"workerEmbedded"`
-	WorkerConcurrency       int           `json:"workerConcurrency"`
-	SampledAt               *time.Time    `json:"sampledAt,omitempty"`
+	APIMemoryBytes           uint64        `json:"apiMemoryBytes"`
+	WorkerMemoryBytes        uint64        `json:"workerMemoryBytes"`
+	PluginMemoryBytes        uint64        `json:"pluginMemoryBytes"`
+	TotalMemoryBytes         uint64        `json:"totalMemoryBytes"`
+	APIPSSBytes              uint64        `json:"apiPssBytes,omitempty"`
+	WorkerPSSBytes           uint64        `json:"workerPssBytes,omitempty"`
+	PluginPSSBytes           uint64        `json:"pluginPssBytes,omitempty"`
+	TotalPSSBytes            uint64        `json:"totalPssBytes,omitempty"`
+	APIAnonHugePagesBytes    uint64        `json:"apiAnonHugePagesBytes,omitempty"`
+	WorkerAnonHugePagesBytes uint64        `json:"workerAnonHugePagesBytes,omitempty"`
+	PluginAnonHugePagesBytes uint64        `json:"pluginAnonHugePagesBytes,omitempty"`
+	TotalAnonHugePagesBytes  uint64        `json:"totalAnonHugePagesBytes,omitempty"`
+	APIMemoryMedianBytes     uint64        `json:"apiMemoryMedianBytes"`
+	WorkerMemoryMedianBytes  uint64        `json:"workerMemoryMedianBytes"`
+	PluginMemoryMedianBytes  uint64        `json:"pluginMemoryMedianBytes"`
+	TotalMemoryMedianBytes   uint64        `json:"totalMemoryMedianBytes"`
+	APIPSSMedianBytes        uint64        `json:"apiPssMedianBytes,omitempty"`
+	WorkerPSSMedianBytes     uint64        `json:"workerPssMedianBytes,omitempty"`
+	PluginPSSMedianBytes     uint64        `json:"pluginPssMedianBytes,omitempty"`
+	TotalPSSMedianBytes      uint64        `json:"totalPssMedianBytes,omitempty"`
+	MemorySampleCount        int           `json:"memorySampleCount"`
+	PSSSampleCount           int           `json:"pssSampleCount"`
+	MemoryWindowSeconds      int           `json:"memoryWindowSeconds"`
+	APICPUPercent            float64       `json:"apiCpuPercent"`
+	WorkerCPUPercent         float64       `json:"workerCpuPercent"`
+	PluginCPUPercent         float64       `json:"pluginCpuPercent"`
+	TotalCPUPercent          float64       `json:"totalCpuPercent"`
+	PluginChildCount         int           `json:"pluginChildCount"`
+	PluginOverlapCount       int           `json:"pluginOverlapCount"`
+	Plugins                  []PluginUsage `json:"plugins,omitempty"`
+	WorkerFound              bool          `json:"workerFound"`
+	WorkerEmbedded           bool          `json:"workerEmbedded"`
+	WorkerConcurrency        int           `json:"workerConcurrency"`
+	SampledAt                *time.Time    `json:"sampledAt,omitempty"`
 
 	// These fields preserve the legacy API family-memory semantics without
 	// exposing another line of detail in the dashboard resource strip.
@@ -148,6 +159,9 @@ type PluginUsage struct {
 	ExtensionID             string  `json:"extensionId"`
 	MemoryBytes             uint64  `json:"memoryBytes"`
 	PSSBytes                uint64  `json:"pssBytes,omitempty"`
+	PSSMedianBytes          uint64  `json:"pssMedianBytes,omitempty"`
+	PSSSampleCount          int     `json:"pssSampleCount"`
+	AnonHugePagesBytes      uint64  `json:"anonHugePagesBytes,omitempty"`
 	CPUPercent              float64 `json:"cpuPercent"`
 	ProcessCount            int     `json:"processCount"`
 	APIOwnedProcessCount    int     `json:"apiOwnedProcessCount"`
@@ -167,6 +181,7 @@ func AggregateRuntimeUsage(selfPID int, samples []Sample) RuntimeUsage {
 		if sample.PID == selfPID {
 			usage.APIMemoryBytes = sample.RSSBytes
 			usage.APIPSSBytes = sample.PSSBytes
+			usage.APIAnonHugePagesBytes = sample.AnonHugePagesBytes
 			usage.APICPUPercent = sample.CPUPercent
 			if !sample.CapturedAt.IsZero() {
 				capturedAt := sample.CapturedAt.UTC()
@@ -180,6 +195,7 @@ func AggregateRuntimeUsage(selfPID int, samples []Sample) RuntimeUsage {
 			usage.WorkerFound = true
 			usage.WorkerMemoryBytes += sample.RSSBytes
 			usage.WorkerPSSBytes += sample.PSSBytes
+			usage.WorkerAnonHugePagesBytes += sample.AnonHugePagesBytes
 			usage.WorkerCPUPercent += sample.CPUPercent
 			owners[sample.PID] = struct{}{}
 			workerOwners[sample.PID] = struct{}{}
@@ -196,6 +212,7 @@ func AggregateRuntimeUsage(selfPID int, samples []Sample) RuntimeUsage {
 		}
 		usage.PluginMemoryBytes += sample.RSSBytes
 		usage.PluginPSSBytes += sample.PSSBytes
+		usage.PluginAnonHugePagesBytes += sample.AnonHugePagesBytes
 		usage.PluginCPUPercent += sample.CPUPercent
 		usage.PluginChildCount++
 		resourceCount++
@@ -211,6 +228,7 @@ func AggregateRuntimeUsage(selfPID int, samples []Sample) RuntimeUsage {
 		}
 		pluginUsage.MemoryBytes += sample.RSSBytes
 		pluginUsage.PSSBytes += sample.PSSBytes
+		pluginUsage.AnonHugePagesBytes += sample.AnonHugePagesBytes
 		pluginUsage.CPUPercent += sample.CPUPercent
 		pluginUsage.ProcessCount++
 		if sample.PPID == selfPID {
@@ -234,8 +252,18 @@ func AggregateRuntimeUsage(selfPID int, samples []Sample) RuntimeUsage {
 		return usage.Plugins[i].MemoryBytes > usage.Plugins[j].MemoryBytes
 	})
 	usage.TotalMemoryBytes = usage.APIMemoryBytes + usage.WorkerMemoryBytes + usage.PluginMemoryBytes
+	usage.TotalAnonHugePagesBytes = usage.APIAnonHugePagesBytes + usage.WorkerAnonHugePagesBytes + usage.PluginAnonHugePagesBytes
 	if resourceCount > 0 && pssComplete {
 		usage.TotalPSSBytes = usage.APIPSSBytes + usage.WorkerPSSBytes + usage.PluginPSSBytes
+		usage.APIPSSMedianBytes = usage.APIPSSBytes
+		usage.WorkerPSSMedianBytes = usage.WorkerPSSBytes
+		usage.PluginPSSMedianBytes = usage.PluginPSSBytes
+		usage.TotalPSSMedianBytes = usage.TotalPSSBytes
+		usage.PSSSampleCount = 1
+		for index := range usage.Plugins {
+			usage.Plugins[index].PSSMedianBytes = usage.Plugins[index].PSSBytes
+			usage.Plugins[index].PSSSampleCount = 1
+		}
 	} else {
 		usage.APIPSSBytes = 0
 		usage.WorkerPSSBytes = 0

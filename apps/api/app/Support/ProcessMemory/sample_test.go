@@ -94,9 +94,9 @@ func TestAggregateRuntimeUsageSplitsAPIWorkerAndPlugins(t *testing.T) {
 func TestAggregateRuntimeUsageExposesCompletePSSAndOverlap(t *testing.T) {
 	selfPID := 100
 	samples := []Sample{
-		{PID: selfPID, RSSBytes: 100, PSSBytes: 80, Command: "sforum-api"},
-		{PID: 201, PPID: selfPID, RSSBytes: 20, PSSBytes: 15, Command: "storage/extensions/demo.plugin/1.0.0/a/backend/plugin"},
-		{PID: 202, PPID: selfPID, RSSBytes: 22, PSSBytes: 16, Command: "storage/extensions/demo.plugin/1.0.0/b/backend/plugin"},
+		{PID: selfPID, RSSBytes: 100, PSSBytes: 80, AnonHugePagesBytes: 2, Command: "sforum-api"},
+		{PID: 201, PPID: selfPID, RSSBytes: 20, PSSBytes: 15, AnonHugePagesBytes: 3, Command: "storage/extensions/demo.plugin/1.0.0/a/backend/plugin"},
+		{PID: 202, PPID: selfPID, RSSBytes: 22, PSSBytes: 16, AnonHugePagesBytes: 5, Command: "storage/extensions/demo.plugin/1.0.0/b/backend/plugin"},
 	}
 
 	usage := AggregateRuntimeUsage(selfPID, samples)
@@ -105,6 +105,9 @@ func TestAggregateRuntimeUsageExposesCompletePSSAndOverlap(t *testing.T) {
 	}
 	if usage.PluginOverlapCount != 1 || len(usage.Plugins) != 1 || usage.Plugins[0].PSSBytes != 31 {
 		t.Fatalf("unexpected overlap details: %#v", usage)
+	}
+	if usage.TotalAnonHugePagesBytes != 10 || usage.PluginAnonHugePagesBytes != 8 || usage.Plugins[0].AnonHugePagesBytes != 8 {
+		t.Fatalf("unexpected huge page totals: %#v", usage)
 	}
 
 	samples[2].PSSBytes = 0
@@ -248,11 +251,21 @@ func TestUsageWindowUsesUniqueFramesAndRollingMedian(t *testing.T) {
 		at := base.Add(time.Duration(index) * 5 * time.Second)
 		observed = window.Observe(RuntimeUsage{
 			APIMemoryBytes: value, PluginMemoryBytes: value / 2,
-			TotalMemoryBytes: value + value/2, SampledAt: &at,
+			TotalMemoryBytes: value + value/2,
+			APIPSSBytes:      value * 4 / 5, PluginPSSBytes: value * 2 / 5,
+			TotalPSSBytes: value * 6 / 5,
+			Plugins:       []PluginUsage{{ExtensionID: "demo", PSSBytes: value * 2 / 5}},
+			SampledAt:     &at,
 		})
 	}
 	if observed.APIMemoryMedianBytes != 200 || observed.PluginMemoryMedianBytes != 100 || observed.MemorySampleCount != 3 || observed.MemoryWindowSeconds != 60 {
 		t.Fatalf("unexpected median window: %#v", observed)
+	}
+	if observed.APIPSSMedianBytes != 160 || observed.PluginPSSMedianBytes != 80 || observed.TotalPSSMedianBytes != 240 || observed.PSSSampleCount != 3 {
+		t.Fatalf("unexpected PSS median window: %#v", observed)
+	}
+	if len(observed.Plugins) != 1 || observed.Plugins[0].PSSMedianBytes != 80 || observed.Plugins[0].PSSSampleCount != 3 {
+		t.Fatalf("unexpected plugin PSS median: %#v", observed.Plugins)
 	}
 
 	duplicate := window.Observe(observed)
@@ -262,7 +275,7 @@ func TestUsageWindowUsesUniqueFramesAndRollingMedian(t *testing.T) {
 
 	later := base.Add(70 * time.Second)
 	pruned := window.Observe(RuntimeUsage{APIMemoryBytes: 50, TotalMemoryBytes: 50, SampledAt: &later})
-	if pruned.MemorySampleCount != 1 || pruned.APIMemoryMedianBytes != 50 {
+	if pruned.MemorySampleCount != 1 || pruned.APIMemoryMedianBytes != 50 || pruned.PSSSampleCount != 0 || pruned.TotalPSSMedianBytes != 0 {
 		t.Fatalf("old samples were not pruned: %#v", pruned)
 	}
 }

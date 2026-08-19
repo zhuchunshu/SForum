@@ -61,6 +61,10 @@ small Go plugin process.
 - The expected seven-plugin production total is approximately 138-148 MiB,
   but acceptance requires a Linux release measurement after deployment and a
   representative warm workload.
+- Admin runtime diagnostics retain separate 60-second RSS and complete-PSS
+  medians, including per-extension PSS, and expose current Linux
+  `AnonHugePages`. Missing PSS frames remain absent rather than being treated as
+  zero.
 - Go documents `disablethp` as temporary compatibility behavior. Before the
   runtime removes it, production Linux should use an explicit THP policy such
   as `madvise` and repeat the same PSS measurement.

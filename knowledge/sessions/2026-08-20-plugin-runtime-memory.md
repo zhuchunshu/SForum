@@ -15,6 +15,8 @@
   the built-in release baseline, and rebuilt staging exact digests.
 - Extracted storage provider behavior into `sdk/plugin/storageprovider`, kept a
   root SDK compatibility facade, and migrated FS/S3 off the legacy root SDK.
+- Extended admin runtime diagnostics with complete-frame 60-second PSS medians,
+  per-extension PSS medians, and Linux `AnonHugePages` attribution.
 
 ## Evidence
 
@@ -30,6 +32,8 @@
   packages passed digest refresh and `extension test`.
 - Focused SDK/Host tests, Host API docs validation, built-in release validation,
   and architecture validation passed.
+- Process-memory aggregation/window tests, OpenAPI references, admin overview
+  frontend tests, and Nuxt typecheck cover the production acceptance fields.
 
 ## Decisions
 

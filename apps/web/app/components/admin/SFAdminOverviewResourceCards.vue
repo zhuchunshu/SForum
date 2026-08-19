@@ -6,7 +6,9 @@ import {
   formatOverviewLoad,
   formatOverviewPercent,
   overviewMemoryDisplayBytes,
+  overviewPSSDisplayBytes,
   type AdminOverviewMemoryBucket,
+  type AdminOverviewPluginRuntimeUsage,
   type AdminOverviewRuntime
 } from '~/utils/admin/adminOverview'
 
@@ -68,11 +70,27 @@ const memoryBasis = computed(() => {
 })
 
 const pssTotal = computed(() => {
-  const value = resources.value?.totalPssBytes
+  const snapshot = resources.value
+  const value = snapshot ? overviewPSSDisplayBytes(snapshot, 'total') : 0
   return value
-    ? t('admin.home.resources.pssTotal', { value: formatOverviewBytes(value) })
+    ? t('admin.home.resources.pssTotal', {
+        value: formatOverviewBytes(value),
+        seconds: Math.max(1, snapshot?.memoryWindowSeconds || 60)
+      })
     : ''
 })
+
+const anonHugePagesTotal = computed(() => {
+  const value = resources.value?.totalAnonHugePagesBytes
+  return value
+    ? t('admin.home.resources.anonHugePages', { value: formatOverviewBytes(value) })
+    : ''
+})
+
+function pluginPSSValue(plugin: AdminOverviewPluginRuntimeUsage) {
+  const value = plugin.pssMedianBytes || plugin.pssBytes
+  return value ? formatOverviewBytes(value) : ''
+}
 
 const cpuPercent = computed(() => resources.value ? resources.value.apiCpuPercent : 0)
 const cpuValue = computed(() => resources.value ? formatOverviewPercent(cpuPercent.value) : '\u2014')
@@ -195,8 +213,11 @@ const loadRows = computed(() => {
                         </p>
                         <p class="mt-0.5 text-[11px] leading-4 text-slate-500 dark:text-zinc-400">
                           {{ t('admin.home.resources.pluginProcesses', { count: plugin.processCount }) }}
-                          <span v-if="plugin.pssBytes">
-                            · PSS {{ formatOverviewBytes(plugin.pssBytes) }}
+                          <span v-if="pluginPSSValue(plugin)">
+                            · PSS {{ pluginPSSValue(plugin) }}
+                          </span>
+                          <span v-if="plugin.anonHugePagesBytes">
+                            · THP {{ formatOverviewBytes(plugin.anonHugePagesBytes) }}
                           </span>
                         </p>
                       </div>
@@ -226,7 +247,10 @@ const loadRows = computed(() => {
 
       <div class="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-slate-100 pt-2 text-[11px] text-slate-400 dark:border-zinc-800 dark:text-zinc-500">
         <span>{{ memoryBasis }}</span>
-        <span v-if="pssTotal">{{ pssTotal }}</span>
+        <div class="flex flex-wrap justify-end gap-x-3 gap-y-1">
+          <span v-if="pssTotal">{{ pssTotal }}</span>
+          <span v-if="anonHugePagesTotal">{{ anonHugePagesTotal }}</span>
+        </div>
       </div>
     </UCard>
 

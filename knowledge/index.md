@@ -120,7 +120,8 @@ load archived sessions or completed plans as current context.
   19,284 KiB。7 个模块测试、Linux release 构建、staging digest/extension test、
   架构与发布基线校验通过。第二阶段已将 FS/S3 解耦到轻量存储 SDK，同条件
   Linux PSS 再减少约 12.1 MiB；预计生产插件总 PSS 从约 205 MiB 降至
-  138-148 MiB，待下个 release 部署后复测：
+  138-148 MiB。后台资源接口现已提供 60 秒 PSS 中位数和 `AnonHugePages`，
+  待下个 release 部署后复测：
   `sessions/2026-08-20-plugin-runtime-memory.md`，
   `decisions/2026-08-20-plugin-runtime-memory.md`
 

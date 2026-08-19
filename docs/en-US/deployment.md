@@ -451,10 +451,12 @@ The `/control-panel` resource cards read
 PSS for the API and its directly owned backend plugin processes. Production
 Linux images read `/proc` directly and do not depend on BusyBox `ps` or a host
 PID namespace or Docker socket. Requests share
-one process-table sample for up to 5 seconds and display a rolling 60-second
-median. Systems without PSS support do not fabricate an "effective" value.
-Plugin details are ordered from highest to lowest RSS and exclude unrelated
-services and orphaned processes.
+one process-table sample for up to 5 seconds and display rolling 60-second
+medians for RSS and complete PSS frames. Systems without PSS support do not
+fabricate an "effective" value. Linux also reports current `AnonHugePages` so
+operators can detect transparent huge-page amplification. Plugin details are
+ordered from highest to lowest RSS and exclude unrelated services and orphaned
+processes.
 
 The API row is labeled as including the Worker, while the Worker row reports
 embedded slots and running jobs instead of inventing a standalone Worker MiB

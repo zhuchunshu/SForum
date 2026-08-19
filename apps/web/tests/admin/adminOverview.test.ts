@@ -15,6 +15,7 @@ import {
   formatOverviewVersion,
   overviewActionTone,
   overviewMemoryDisplayBytes,
+  overviewPSSDisplayBytes,
   overviewPercent,
   overviewTrendBarHeightPx,
   overviewTrendDateLabel,
@@ -177,7 +178,10 @@ describe('admin overview helpers', () => {
       workerMemoryMedianBytes: 0,
       pluginMemoryMedianBytes: 100,
       totalMemoryMedianBytes: 300,
+      totalPssBytes: 270,
+      totalPssMedianBytes: 240,
       memorySampleCount: 12,
+      pssSampleCount: 10,
       memoryWindowSeconds: 60,
       apiCpuPercent: 1,
       workerCpuPercent: 0,
@@ -192,6 +196,8 @@ describe('admin overview helpers', () => {
     expect(overviewMemoryDisplayBytes(resources, 'api')).toBe(200)
     expect(overviewMemoryDisplayBytes(resources, 'plugin')).toBe(100)
     expect(overviewMemoryDisplayBytes({ ...resources, memorySampleCount: 0 }, 'total')).toBe(330)
+    expect(overviewPSSDisplayBytes(resources, 'total')).toBe(240)
+    expect(overviewPSSDisplayBytes({ ...resources, pssSampleCount: 0 }, 'total')).toBe(270)
   })
 
   test('formats resource percentages and disk sizes compactly', () => {

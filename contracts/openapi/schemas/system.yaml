@@ -382,6 +382,7 @@ AdminOverviewRuntimeResources:
   - pluginMemoryMedianBytes
   - totalMemoryMedianBytes
   - memorySampleCount
+  - pssSampleCount
   - memoryWindowSeconds
   - apiCpuPercent
   - workerCpuPercent
@@ -437,6 +438,26 @@ AdminOverviewRuntimeResources:
       format: int64
       minimum: 0
       description: Complete Linux PSS total; omitted when any counted process cannot be sampled.
+    apiAnonHugePagesBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Current Linux AnonHugePages attributed to the API process.
+    workerAnonHugePagesBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Current Linux AnonHugePages attributed to independent Worker processes.
+    pluginAnonHugePagesBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Current Linux AnonHugePages attributed to backend plugin processes.
+    totalAnonHugePagesBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Current Linux AnonHugePages across the counted process family.
     apiMemoryMedianBytes:
       type: integer
       format: int64
@@ -457,10 +478,34 @@ AdminOverviewRuntimeResources:
       format: int64
       minimum: 0
       description: Rolling-window median of total backend RSS.
+    apiPssMedianBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Rolling-window median of complete Linux API PSS samples.
+    workerPssMedianBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Rolling-window median of complete Linux Worker PSS samples.
+    pluginPssMedianBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Rolling-window median of complete Linux plugin PSS samples.
+    totalPssMedianBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Rolling-window median of complete Linux process-family PSS samples.
     memorySampleCount:
       type: integer
       minimum: 0
       description: Number of unique cached process frames currently in the rolling window.
+    pssSampleCount:
+      type: integer
+      minimum: 0
+      description: Number of complete Linux PSS frames currently in the rolling window.
     memoryWindowSeconds:
       type: integer
       minimum: 0
@@ -527,6 +572,20 @@ AdminOverviewPluginRuntimeUsage:
       format: int64
       minimum: 0
       description: Linux-only summed PSS; omitted when the complete process family cannot be sampled.
+    pssMedianBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Rolling-window median of complete Linux PSS samples for this extension.
+    pssSampleCount:
+      type: integer
+      minimum: 0
+      description: Number of this extension's PSS samples in the rolling window.
+    anonHugePagesBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Current Linux AnonHugePages attributed to this extension's processes.
     cpuPercent:
       type: number
       format: double

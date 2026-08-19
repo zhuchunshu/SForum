@@ -390,9 +390,10 @@ runtime，避免两套进程读取不同配置。更新旧版本时，部署脚�
 管理台 `/control-panel` 的资源卡通过
 `GET /api/v1/admin/overview/resources` 读取 API 与直属插件进程的 CPU、RSS
 和可用的 PSS。Linux 正式镜像直接读取 `/proc`，不依赖 BusyBox `ps`，也不
-需要宿主机 PID namespace 或 Docker socket。资源请求最多每 5 秒共享一次采样，展示最近 60 秒中位数；
-不支持 PSS 的系统不会伪造"有效占用"。插件明细按占用从高到低列出，并只
-归因当前 API/Worker 直接拥有的插件进程。
+需要宿主机 PID namespace 或 Docker socket。资源请求最多每 5 秒共享一次采样，
+RSS 与完整 PSS 都展示最近 60 秒中位数；不支持 PSS 的系统不会伪造"有效占用"。
+Linux 同时报告当前 `AnonHugePages`，便于确认插件是否仍有透明大页放大。插件
+明细按 RSS 从高到低列出，并只归因当前 API/Worker 直接拥有的插件进程。
 
 API 行明确标记"含 Worker"；Worker 行只显示内嵌并发槽位和运行任务数，不
 虚构一个独立 Worker 的 MiB。

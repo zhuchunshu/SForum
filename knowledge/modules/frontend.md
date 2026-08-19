@@ -95,8 +95,9 @@ responsibilities.
   percentage.
 - Resource data comes from the lightweight admin overview resource endpoint and
   refreshes every 5 seconds. The cards prefer the backend's 60-second RSS
-  median, show PSS only when the platform reports a complete value, and expose
-  a per-plugin details popover ordered by current process RSS.
+  median, show a separate 60-second PSS median only when complete Linux samples
+  exist, and expose per-plugin PSS medians plus current `AnonHugePages` in the
+  details popover ordered by current process RSS.
 - Missing process or filesystem samples render as localized unavailable states,
   and an embedded Worker is shown as included in API usage with its slot/running
   count instead of a fabricated standalone MiB value.
