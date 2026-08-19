@@ -571,6 +571,31 @@
         }
       }
     },
+    "adminComponent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "apiVersion",
+        "entry"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "apiVersion": {
+          "const": 1
+        },
+        "entry": {
+          "type": "string",
+          "pattern": "^frontend/admin/dist/.+\\.mjs$"
+        },
+        "css": {
+          "type": "string",
+          "pattern": "^frontend/admin/dist/.+\\.css$"
+        }
+      }
+    },
     "adminPages": {
       "type": [
         "array",
@@ -597,7 +622,11 @@
             "type": "string"
           },
           "view": {
-            "type": "string"
+            "enum": [
+              "about",
+              "settings",
+              "component"
+            ]
           },
           "menu": {
             "type": "boolean"
@@ -607,6 +636,9 @@
           },
           "permission": {
             "type": "string"
+          },
+          "component": {
+            "$ref": "#/$defs/adminComponent"
           }
         }
       }

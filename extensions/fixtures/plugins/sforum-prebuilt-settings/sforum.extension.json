@@ -2,7 +2,7 @@
   "manifestVersion": 3,
   "id": "sforum.fixture-prebuilt-settings",
   "name": "Prebuilt Settings Fixture",
-  "description": "Framework-neutral Admin Micro-frontend API v1 fixture with Schema fallback.",
+  "description": "Framework-neutral Admin Micro-frontend API v1 fixture with Schema fallback and a first-class admin page.",
   "url": "https://github.com/zhuchunshu/sforum",
   "author": { "name": "SForum" },
   "version": "1.0.0",
@@ -11,7 +11,22 @@
   "admin": {
     "entry": "/settings",
     "pages": [
-      { "path": "/settings", "label": "Prebuilt settings", "view": "settings" }
+      { "path": "/settings", "label": "Prebuilt settings", "view": "settings" },
+      {
+        "path": "/dashboard",
+        "label": "Plugin dashboard",
+        "description": "A prebuilt plugin-owned page mounted inside the Host admin shell.",
+        "icon": "i-lucide-layout-dashboard",
+        "view": "component",
+        "menu": true,
+        "order": 20,
+        "component": {
+          "id": "dashboard",
+          "apiVersion": 1,
+          "entry": "frontend/admin/dist/dashboard.mjs",
+          "css": "frontend/admin/dist/dashboard.css"
+        }
+      }
     ]
   },
   "settings": {
@@ -57,6 +72,18 @@
       "kind": "asset",
       "path": "frontend/admin/dist/settings.css",
       "digest": "2036634a8adf3dc9be9e09d020a2fd121d4c57befcb45c82263ce3a5ab3230b1"
+    },
+    {
+      "id": "sforum.fixture-prebuilt-settings.file.dashboard-entry",
+      "kind": "frontend",
+      "path": "frontend/admin/dist/dashboard.mjs",
+      "digest": "16e3c91d57bd77a4c85e09cb48b5e3846bf36e3ad77d75275e75667771540cbf"
+    },
+    {
+      "id": "sforum.fixture-prebuilt-settings.file.dashboard-style",
+      "kind": "asset",
+      "path": "frontend/admin/dist/dashboard.css",
+      "digest": "5e63499ec216de8cdc1edcba23344f46b08cbcdf5818794f1bfaf5f83778370a"
     }
   ]
 }

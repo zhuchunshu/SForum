@@ -113,6 +113,14 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- 可信预构建插件后台页面（2026-08-20）：Manifest V3 `admin.pages[]` 现支持
+  `view: component`，插件预编译 ESM/CSS 只挂载后台 page body，继续继承 Host
+  sidebar、topbar、tabs、标题与路由。聚合摘要、精确制品信任、Safe Mode、启用
+  状态和页面权限共同约束组件资源；设置旧 URL 保持兼容。Go 全仓、Web 897 项、
+  Nuxt typecheck、OpenAPI、架构门禁和 fixture validate/test 全部通过。下一步是
+  版本化 Plugin UI SDK 与公开页面活动主题壳层：
+  `sessions/2026-08-20-prebuilt-admin-plugin-pages.md`
+
 - 审核通知与发布可见性修复（2026-08-20）：新建或重新入队的待审核主题/评论
   现在会在原写事务内通知所有当前有效 `moderation.review` 用户（含
   `super_admin`、遵循用户 allow/deny、排除提交者），通知目标在读取时重新鉴权并

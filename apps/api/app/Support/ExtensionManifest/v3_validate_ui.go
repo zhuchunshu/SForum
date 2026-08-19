@@ -468,7 +468,8 @@ func (v *v3Validator) validateUIAndPackage() error {
 		}
 	}
 
-	if component := v.manifest.SettingsDocument.UI.Component; component != nil && component.Entry != "" {
+	for _, binding := range DeclaredAdminComponents(v.manifest) {
+		component := binding.Component
 		entry, declared := packagePaths[component.Entry]
 		if !declared || entry.Kind != "frontend" {
 			return ErrInvalidManifest

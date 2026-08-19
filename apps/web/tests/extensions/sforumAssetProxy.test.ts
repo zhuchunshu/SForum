@@ -32,6 +32,10 @@ describe('SForum immutable asset proxy', () => {
       'http://api:8080/api/v1',
       `/_sforum/private-assets/extensions/demo.plugin/${digest}/entry`
     ).pathname).toBe(`/api/v1/admin/extensions/demo.plugin/frontend/assets/${digest}/entry`)
+    expect(buildPrivateAssetTarget(
+      'http://api:8080/api/v1',
+      `/_sforum/private-assets/extensions/demo.plugin/${digest}/dashboard/entry`
+    ).pathname).toBe(`/api/v1/admin/extensions/demo.plugin/frontend/assets/${digest}/dashboard/entry`)
 
     expect(() => buildPublicAssetTarget(
       'http://api:8080/api/v1',

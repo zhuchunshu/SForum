@@ -3,6 +3,7 @@ import { useAdminTabs } from '~/composables/admin/useAdminTabs'
 import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
 import SFExtensionSettingsRenderer from '~/components/extensions/settings/SFExtensionSettingsRenderer.vue'
 import SFTrustedSettingsComponent from '~/components/extensions/settings/SFTrustedSettingsComponent.vue'
+import SFTrustedAdminPageComponent from '~/components/extensions/admin/SFTrustedAdminPageComponent.vue'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import {
   extensionAdminPageRoute,
@@ -104,6 +105,7 @@ const actionResults = reactive<Record<string, AdminExtensionSettingsActionResult
 const pageTitle = computed(() => adminPage.value?.label || extensionDisplay.value?.name || t('admin.extensions.dynamic.notFoundTitle'))
 const pageDescription = computed(() => adminPage.value?.description || extensionDisplay.value?.description || '')
 const isSettingsView = computed(() => adminPage.value?.view === 'settings')
+const isComponentView = computed(() => adminPage.value?.view === 'component')
 // 插件/主题未启用时：允许查看 about，但功能性设置页与贡献组件不可用。
 const isExtensionActive = computed(() => extension.value?.status === 'enabled')
 const dynamicTabHydrated = ref(false)
@@ -410,6 +412,22 @@ async function executeSettingsAction(action: AdminExtensionSettingsAction) {
       @save="saveSettings"
       @reset="resetSettings"
       @action="executeSettingsAction"
+    />
+  </div>
+
+  <div v-else-if="isComponentView && extension && adminPage" class="min-w-0">
+    <UAlert
+      v-if="!isExtensionActive"
+      color="warning"
+      variant="subtle"
+      icon="i-lucide-power"
+      :title="t('admin.extensions.dynamic.configureBeforeEnableTitle')"
+      :description="t('admin.extensions.dynamic.configureBeforeEnableDescription')"
+    />
+    <SFTrustedAdminPageComponent
+      v-else
+      :extension="extension"
+      :page="adminPage"
     />
   </div>
 

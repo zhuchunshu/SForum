@@ -104,6 +104,15 @@ func TestManifest(root string, manifest extensionmanifest.Manifest, opts Options
 			fmt.Sprintf("settings component: %s (apiVersion=%d, entry=%s)", component.ID, component.APIVersion, component.Entry),
 			"settings.ui.component")
 	}
+	for _, binding := range extensionmanifest.DeclaredAdminComponents(manifest) {
+		if binding.Surface == "settings" {
+			continue
+		}
+		component := binding.Component
+		add("ok", "admin.page.component",
+			fmt.Sprintf("admin page component: %s (apiVersion=%d, entry=%s)", component.ID, component.APIVersion, component.Entry),
+			"admin.pages"+binding.PagePath)
+	}
 
 	// 能力：Validate 已校验 key；此处报告解析后的有效集（含推断）。
 	keys, implied := extensionmanifest.ResolvedCapabilities(manifest)

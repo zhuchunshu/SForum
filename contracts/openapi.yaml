@@ -589,6 +589,8 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionFrontend"
   "/admin/extensions/{extensionID}/frontend/assets/{digest}/{asset}":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionFrontendAsset"
+  "/admin/extensions/{extensionID}/frontend/assets/{digest}/{component}/{asset}":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionFrontendComponentAsset"
   "/admin/extensions/{extensionID}/frontend/confirmation":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionFrontendConfirmation"
   "/admin/extensions/{extensionID}/frontend/trust":

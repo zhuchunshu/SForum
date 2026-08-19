@@ -1,0 +1,13 @@
+.fixture-admin-dashboard {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.fixture-admin-dashboard__action {
+  width: fit-content;
+  border: 1px solid color-mix(in srgb, var(--sf-accent) 45%, transparent);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  color: var(--sf-accent);
+}

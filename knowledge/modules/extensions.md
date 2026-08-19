@@ -15,6 +15,13 @@ does not rebuild Nuxt.
 - Manifest V3, trust/recovery, lifecycle ledger, Host API v2, registry
   families, Page Registry themes, buildless settings UI, catalogs, and P0-P12
   phase gates are present.
+- Manifest V3 admin pages may use `view: component` with a package-prebuilt
+  `.mjs` entry and optional CSS. The Host retains the admin route, chrome,
+  heading, authorization, exact-artifact trust, and failure quarantine while
+  the plugin mounts only the page body. Settings and page components share one
+  aggregate `adminFrontendDigest`; component IDs are package-unique and assets
+  use component-specific immutable private URLs. Production still does not
+  compile Vue SFCs or load Nuxt Layers.
 - `AttachmentStorageProviderCatalog` directly owns storage provider candidate
   and availability reads; aggregate `Service` and `CatalogService` forwarding
   methods were removed. Settings projection lives with settings lifecycle, and
@@ -529,6 +536,12 @@ Relevant plans:
 - Complex settings may use an author-prebuilt immutable admin micro-frontend
   only after exact-artifact trust. Import, API, mount, CSS, cleanup, or
   quarantine failure falls back to Schema UI.
+- Ordinary plugin admin pages may use the same trusted prebuilt component
+  contract. They are served only for enabled plugins, outside Safe Mode, to an
+  actor with `extension.view` and the page's optional declared permission;
+  failures preserve the Host admin shell and render a page-local retry state.
+- Public plugin pages inheriting the active theme shell remain a separate
+  follow-up and are not part of the admin page-body implementation.
 - Provider probes run in restricted short-lived processes without a Host API
   token or runtime registrations.
 - Public contributions gated by settings bump

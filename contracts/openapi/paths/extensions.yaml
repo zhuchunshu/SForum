@@ -1797,8 +1797,8 @@ adminExtensionEventDeliveries:
         "$ref": "../components/responses.yaml#/Forbidden"
 adminExtensionFrontend:
   get:
-    summary: Inspect an extension prebuilt settings component
-    description: Requires extension management permission. Returns the exact admin frontend digest, component declaration, and trust state without executing extension code.
+    summary: Inspect an extension's prebuilt admin components
+    description: Requires extension management permission. Returns the exact admin frontend digest, all settings/page component declarations, and trust state without executing extension code.
     operationId: getAdminExtensionFrontend
     parameters:
     - "$ref": "../components/parameters.yaml#/ExtensionID"
@@ -1865,6 +1865,44 @@ adminExtensionFrontendAsset:
         "$ref": "../components/responses.yaml#/NotFound"
       '409':
         "$ref": "../components/responses.yaml#/Conflict"
+adminExtensionFrontendComponentAsset:
+  get:
+    summary: Load one trusted immutable prebuilt admin component asset
+    description: >-
+      Authenticated same-origin endpoint for a manifest-declared settings or
+      admin page component. The Host verifies page access, enabled state where
+      applicable, exact package trust, adminFrontendDigest, component identity,
+      and immutable bytes before serving entry or CSS.
+    operationId: getAdminExtensionFrontendComponentAsset
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    - name: digest
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[0-9a-f]{64}$' }
+    - name: component
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[a-z0-9][a-z0-9._-]{0,80}$' }
+    - name: asset
+      in: path
+      required: true
+      schema: { type: string, enum: [entry, style] }
+    responses:
+      '200':
+        description: Immutable JavaScript module or CSS bytes from the exact component.
+        headers:
+          Cache-Control: { schema: { type: string } }
+          ETag: { schema: { type: string } }
+          X-Content-Type-Options: { schema: { type: string, enum: [nosniff] } }
+          Cross-Origin-Resource-Policy: { schema: { type: string, enum: [same-origin] } }
+        content:
+          application/javascript: { schema: { type: string, format: binary } }
+          text/css: { schema: { type: string, format: binary } }
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '404': { "$ref": "../components/responses.yaml#/NotFound" }
+      '409': { "$ref": "../components/responses.yaml#/Conflict" }
 adminExtensionFrontendConfirmation:
   post:
     summary: Create a one-use prebuilt component trust confirmation

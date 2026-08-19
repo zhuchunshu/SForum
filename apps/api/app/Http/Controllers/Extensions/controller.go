@@ -84,6 +84,10 @@ type TrustedFrontendAssetService interface {
 	Asset(context.Context, identity.Actor, string, string, string) (extensions.FrontendAsset, error)
 }
 
+type TrustedFrontendComponentAssetService interface {
+	ComponentAsset(context.Context, identity.Actor, string, string, string, string) (extensions.FrontendAsset, error)
+}
+
 type TrustedFrontendChallengeService interface {
 	Challenge(context.Context, identity.Actor, string) (extensions.FrontendTrustChallenge, error)
 }

@@ -1,4 +1,4 @@
-# Trusted Admin Settings Components
+# Trusted Admin Components
 
 SForum settings have three presentation levels:
 
@@ -11,6 +11,10 @@ SForum settings have three presentation levels:
 Use Schema UI unless a workflow genuinely needs custom client behavior. There
 is no runtime Vue SFC compilation, static admin registry, remote script URL, or
 extension-triggered Nuxt build.
+
+Ordinary plugin-owned admin pages use the same prebuilt artifact boundary. The
+Host owns the admin layout, sidebar, topbar, tabs, route middleware, and page
+heading; the component mounts only inside the page body.
 
 ## Package contract
 
@@ -40,6 +44,41 @@ The files must already be built when the package is created. Bundle framework
 dependencies into the module; operators never install extension frontend
 dependencies. Entry/CSS paths are package-relative, path-contained, size
 bounded, and restricted to `frontend/admin/dist/*.mjs|*.css`.
+
+### Plugin-owned admin page
+
+Declare `view: component` on an `admin.pages[]` item. A plugin may declare
+multiple pages, but every component id must be unique inside the package:
+
+```json
+{
+  "admin": {
+    "entry": "/dashboard",
+    "pages": [
+      {
+        "path": "/dashboard",
+        "label": "Plugin dashboard",
+        "icon": "i-lucide-layout-dashboard",
+        "view": "component",
+        "menu": true,
+        "permission": "acme.dashboard.view",
+        "component": {
+          "id": "dashboard",
+          "apiVersion": 1,
+          "entry": "frontend/admin/dist/dashboard.mjs",
+          "css": "frontend/admin/dist/dashboard.css"
+        }
+      }
+    ]
+  }
+}
+```
+
+The entry exports the same `apiVersion` and `mount(target, bridge)` shape. Its
+page bridge supplies `page`, namespaced `request`, `toast`, `t`, `navigate`,
+locale, and appearance. It deliberately does not expose settings draft methods.
+Plugin authors may compile Vue SFC source to this module; production SForum
+loads only the prebuilt output.
 
 ## Module API
 
@@ -80,6 +119,8 @@ old trust. Assets are served only from the installed package through:
 ```text
 GET /_sforum/private-assets/extensions/{id}/{digest}/entry
 GET /_sforum/private-assets/extensions/{id}/{digest}/style
+GET /_sforum/private-assets/extensions/{id}/{digest}/{componentId}/entry
+GET /_sforum/private-assets/extensions/{id}/{digest}/{componentId}/style
 ```
 
 The Host resource namespace streams to the authenticated Go asset handler; the
@@ -101,3 +142,7 @@ Component code is fully trusted after approval and is not sandboxed. Package
 provenance, explicit approval, immutable digest identity, backend permissions,
 namespaced APIs, error isolation, quarantine, and Schema fallback are the
 controls.
+
+For ordinary admin pages, the same failures preserve the Host admin shell and
+show a retryable page-local error. A page component is not served while its
+extension is disabled or when the actor lacks its declared permission.

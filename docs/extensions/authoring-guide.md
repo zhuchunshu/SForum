@@ -778,6 +778,12 @@ after exact digest approval. Runtime Vue SFC compilation, executable admin
 slots, remote scripts, and extension-triggered host builds are unsupported. Read
 [trusted-admin-components.md](./trusted-admin-components.md).
 
+Plugins may also declare full page-body components with
+`admin.pages[].view: component`. These pages inherit the Host admin layout and
+may be authored as Vue SFCs compiled to package-local `.mjs`/`.css`; the
+production Host never rebuilds Nuxt. Use a page-specific permission when the
+surface represents a distinct grantable capability.
+
 ## Validation and packaging commands
 
 ```bash

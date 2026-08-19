@@ -127,7 +127,7 @@ func (s *FrontendService) Challenge(ctx context.Context, actor identity.Actor, e
 	if err != nil {
 		return FrontendTrustChallenge{}, err
 	}
-	component := prebuiltSettingsComponent(extension)
+	component := primaryAdminComponent(extension)
 	if component == nil || extension.Source != SourceUploaded {
 		return FrontendTrustChallenge{}, ErrFrontendTrustUnavailable
 	}
@@ -167,7 +167,7 @@ func (s *FrontendService) Grant(ctx context.Context, actor identity.Actor, exten
 	if err != nil {
 		return FrontendStatus{}, err
 	}
-	component := prebuiltSettingsComponent(extension)
+	component := primaryAdminComponent(extension)
 	if component == nil || extension.Source != SourceUploaded {
 		return FrontendStatus{}, ErrFrontendTrustUnavailable
 	}
@@ -183,7 +183,7 @@ func (s *FrontendService) Grant(ctx context.Context, actor identity.Actor, exten
 	if _, err := s.trust.CreateFrontendGrant(ctx, FrontendTrustGrantInput{
 		ExtensionID: extension.ID, ExtensionVersion: extension.Version,
 		PackageDigest: extension.PackageDigest, AdminFrontendDigest: extension.AdminFrontendDigest,
-		APIVersion: component.APIVersion, ComponentIDs: []string{component.ID}, GrantedByUserID: actor.ID,
+		APIVersion: component.APIVersion, ComponentIDs: adminComponentIDs(extension), GrantedByUserID: actor.ID,
 	}); err != nil {
 		return FrontendStatus{}, err
 	}
@@ -199,7 +199,7 @@ func (s *FrontendService) Revoke(ctx context.Context, actor identity.Actor, exte
 	if err != nil {
 		return FrontendStatus{}, err
 	}
-	component := prebuiltSettingsComponent(extension)
+	component := primaryAdminComponent(extension)
 	if component == nil || extension.Source != SourceUploaded {
 		return FrontendStatus{}, ErrFrontendTrustUnavailable
 	}
@@ -225,16 +225,33 @@ func (s *FrontendService) Asset(ctx context.Context, actor identity.Actor, exten
 	if err != nil {
 		return FrontendAsset{}, err
 	}
-	if !canManageExtensionSettings(actor, extension) {
+	component := prebuiltSettingsComponent(extension)
+	if component == nil {
+		return FrontendAsset{}, ErrFrontendTrustUnavailable
+	}
+	return s.componentAsset(ctx, actor, extension, digest, component.ID, assetName)
+}
+
+func (s *FrontendService) ComponentAsset(ctx context.Context, actor identity.Actor, extensionID, digest, componentID, assetName string) (FrontendAsset, error) {
+	extension, err := s.extension(ctx, extensionID)
+	if err != nil {
+		return FrontendAsset{}, err
+	}
+	return s.componentAsset(ctx, actor, extension, digest, componentID, assetName)
+}
+
+func (s *FrontendService) componentAsset(ctx context.Context, actor identity.Actor, extension Extension, digest, componentID, assetName string) (FrontendAsset, error) {
+	if s.safeMode || digest == "" || digest != extension.AdminFrontendDigest {
+		return FrontendAsset{}, ErrFrontendTrustUnavailable
+	}
+	surface, ok := findAdminComponentSurface(extension, componentID)
+	if !ok {
+		return FrontendAsset{}, ErrFrontendTrustUnavailable
+	}
+	if !canAccessAdminComponent(actor, extension, surface) {
 		return FrontendAsset{}, identity.ErrPermissionDenied
 	}
-	if s.safeMode {
-		return FrontendAsset{}, ErrFrontendTrustUnavailable
-	}
-	component := prebuiltSettingsComponent(extension)
-	if component == nil || digest == "" || digest != extension.AdminFrontendDigest {
-		return FrontendAsset{}, ErrFrontendTrustUnavailable
-	}
+	component := surface.component
 	if s.v3TrustChallenges {
 		trusted, err := s.exactArtifactTrusted(ctx, extension)
 		if err != nil || !trusted {
@@ -250,13 +267,17 @@ func (s *FrontendService) Asset(ctx context.Context, actor identity.Actor, exten
 	if err != nil || material.Digest != extension.AdminFrontendDigest {
 		return FrontendAsset{}, fmt.Errorf("%w: component bytes changed", ErrFrontendPackageChanged)
 	}
-	body := material.Entry
+	current, ok := material.Components[component.ID]
+	if !ok {
+		return FrontendAsset{}, ErrFrontendTrustUnavailable
+	}
+	body := current.Entry
 	contentType := "application/javascript; charset=utf-8"
 	if assetName == "style" {
 		if component.CSS == "" {
 			return FrontendAsset{}, ErrFrontendTrustUnavailable
 		}
-		body = material.CSS
+		body = current.CSS
 		contentType = "text/css; charset=utf-8"
 	} else if assetName != "entry" {
 		return FrontendAsset{}, ErrFrontendTrustUnavailable
@@ -273,7 +294,7 @@ func (s *FrontendService) extension(ctx context.Context, extensionID string) (Ex
 }
 
 func (s *FrontendService) frontendStatus(ctx context.Context, extension Extension) (FrontendStatus, error) {
-	component := prebuiltSettingsComponent(extension)
+	component := primaryAdminComponent(extension)
 	if component == nil {
 		return FrontendStatus{ExtensionID: extension.ID, Kind: AdminFrontendKindNone, TrustState: FrontendTrustNone}, nil
 	}
@@ -299,7 +320,7 @@ func (s *FrontendService) frontendStatus(ctx context.Context, extension Extensio
 	}
 	for _, grant := range grants {
 		if grant.ExtensionVersion == extension.Version && grant.AdminFrontendDigest == extension.AdminFrontendDigest &&
-			grant.APIVersion == component.APIVersion && slices.Contains(grant.ComponentIDs, component.ID) {
+			grant.APIVersion == component.APIVersion && containsAllAdminComponents(grant.ComponentIDs, extension) {
 			return prebuiltFrontendStatus(extension, *component, FrontendTrustTrusted), nil
 		}
 	}
@@ -317,7 +338,7 @@ func (s *FrontendService) exactArtifactTrusted(ctx context.Context, extension Ex
 	return s.executableTrust.TrustedArtifact(ctx, extension)
 }
 
-func (s *FrontendService) consumePrebuiltConfirmation(actor identity.Actor, extension Extension, component SettingsComponent, confirmation *FrontendTrustConfirmation) error {
+func (s *FrontendService) consumePrebuiltConfirmation(actor identity.Actor, extension Extension, component AdminComponent, confirmation *FrontendTrustConfirmation) error {
 	if confirmation == nil || !confirmation.Acknowledged ||
 		confirmation.ExtensionID != extension.ID || confirmation.Version != extension.Version ||
 		confirmation.Digest != extension.AdminFrontendDigest || confirmation.APIVersion != component.APIVersion ||
@@ -352,15 +373,29 @@ func prebuiltSettingsComponent(extension Extension) *SettingsComponent {
 	return component
 }
 
-func prebuiltFrontendStatus(extension Extension, component SettingsComponent, state string) FrontendStatus {
+func prebuiltFrontendStatus(extension Extension, component AdminComponent, state string) FrontendStatus {
 	copy := component
+	components := make([]AdminComponent, 0)
+	for _, surface := range declaredAdminComponentSurfaces(extension.Manifest) {
+		components = append(components, surface.component)
+	}
 	return FrontendStatus{
 		ExtensionID: extension.ID,
 		Kind:        AdminFrontendKindPrebuiltComponent,
 		Component:   &copy,
+		Components:  components,
 		TrustState:  state,
 		Digest:      extension.AdminFrontendDigest,
 	}
+}
+
+func containsAllAdminComponents(granted []string, extension Extension) bool {
+	for _, componentID := range adminComponentIDs(extension) {
+		if !slices.Contains(granted, componentID) {
+			return false
+		}
+	}
+	return true
 }
 
 func verifyInstalledPackageIdentity(extension Extension) error {

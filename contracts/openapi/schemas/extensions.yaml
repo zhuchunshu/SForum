@@ -2547,6 +2547,10 @@ FrontendStatus:
       enum: [none, prebuilt_component]
     component:
       "$ref": "#/PrebuiltSettingsComponent"
+    components:
+      type: array
+      items:
+        "$ref": "#/PrebuiltSettingsComponent"
     trustState:
       "$ref": "#/FrontendTrustState"
     digest:

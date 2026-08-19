@@ -3,7 +3,6 @@ package extensionmanifest
 import (
 	"encoding/json"
 	"fmt"
-	"path"
 	"sort"
 	"strings"
 )
@@ -85,12 +84,9 @@ type SettingsCallout struct {
 	Group     string        `json:"group,omitempty"`
 }
 
-type SettingsComponent struct {
-	ID         string `json:"id"`
-	APIVersion int    `json:"apiVersion"`
-	Entry      string `json:"entry,omitempty"`
-	CSS        string `json:"css,omitempty"`
-}
+// SettingsComponent remains as a source-compatible name for the original
+// settings-only contract. The artifact shape is now shared with admin pages.
+type SettingsComponent = AdminComponent
 
 type SettingsAction struct {
 	ID             string        `json:"id"`
@@ -185,10 +181,7 @@ func normalizeSettingsDocument(manifest *Manifest) {
 		callout.Group = NormalizeID(callout.Group)
 	}
 	if document.UI.Component != nil {
-		component := document.UI.Component
-		component.ID = NormalizeID(component.ID)
-		component.Entry = normalizeAdminRelativePath(component.Entry)
-		component.CSS = normalizeAdminRelativePath(component.CSS)
+		normalizeAdminComponent(document.UI.Component)
 	}
 	for index := range document.Actions {
 		action := &document.Actions[index]
@@ -314,16 +307,8 @@ func validateSettingsDocument(manifest Manifest) error {
 	}
 	if document.UI.Mode == SettingsUIModeComponent {
 		component := document.UI.Component
-		if component == nil || !adminComponentIDPattern.MatchString(component.ID) || component.APIVersion != AdminMicroFrontendAPIVersion || len(document.Fields) == 0 {
+		if !validAdminComponent(component) || len(document.Fields) == 0 {
 			return ErrInvalidManifest
-		}
-		if component.Entry != "" {
-			if !safeAdminRelativePath(component.Entry) || path.Ext(component.Entry) != ".mjs" || !strings.HasPrefix(component.Entry, "frontend/admin/dist/") {
-				return ErrInvalidManifest
-			}
-			if component.CSS != "" && (!safeAdminRelativePath(component.CSS) || path.Ext(component.CSS) != ".css" || !strings.HasPrefix(component.CSS, "frontend/admin/dist/")) {
-				return ErrInvalidManifest
-			}
 		}
 	} else if document.UI.Component != nil {
 		return ErrInvalidManifest

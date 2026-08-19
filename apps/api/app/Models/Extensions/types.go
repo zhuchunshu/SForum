@@ -152,6 +152,7 @@ type SettingsUI = extensionmanifest.SettingsUI
 type SettingsTab = extensionmanifest.SettingsTab
 type SettingsGroup = extensionmanifest.SettingsGroup
 type SettingsCallout = extensionmanifest.SettingsCallout
+type AdminComponent = extensionmanifest.AdminComponent
 type SettingsComponent = extensionmanifest.SettingsComponent
 type SettingsAction = extensionmanifest.SettingsAction
 type LocalizedText = extensionmanifest.LocalizedText

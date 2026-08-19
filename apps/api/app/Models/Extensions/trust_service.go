@@ -696,13 +696,16 @@ func buildTrustImpact(extension Extension, action string) (TrustImpact, error) {
 	}
 	components := []SettingsComponent{}
 	frontendAPI := ""
-	if component := manifest.SettingsDocument.UI.Component; component != nil && component.Entry != "" {
-		components = append(components, *component)
+	for _, binding := range extensionmanifest.DeclaredAdminComponents(manifest) {
+		component := binding.Component
+		components = append(components, component)
 		addPackageFile(component.Entry)
 		if component.CSS != "" {
 			addPackageFile(component.CSS)
 		}
-		frontendAPI = fmt.Sprintf("sforum.admin-component@%d", component.APIVersion)
+		if frontendAPI == "" {
+			frontendAPI = fmt.Sprintf("sforum.admin-component@%d", component.APIVersion)
+		}
 	}
 	capKeys, implied := extensionmanifest.ResolvedCapabilities(manifest)
 	permissions := append([]string{}, manifest.Permissions...)

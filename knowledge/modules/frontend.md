@@ -19,6 +19,8 @@ responsibilities.
 - Host resource delivery keeps public immutable theme bytes under
   `/_sforum/assets`; trusted admin component bytes load through the
   digest-bound `/api/v1/admin/extensions/{id}/frontend/assets/{digest}/{asset}`
+  compatibility endpoint or the component-specific
+  `/api/v1/admin/extensions/{id}/frontend/assets/{digest}/{component}/{asset}`
   endpoint.
 - User-visible copy uses i18n keys. Public web options contain only frontend-
   safe state; secret metadata and writes use admin-only endpoints.
@@ -830,6 +832,12 @@ Architecture sources:
 - Complex settings may load an authenticated immutable `.mjs`/`.css`
   micro-frontend only after whole-artifact trust. It is client-only and falls
   back to Schema UI on import/API/mount/CSS/cleanup/quarantine failure.
+- `SFTrustedAdminPageComponent` applies the same boundary to ordinary plugin
+  admin pages. The existing `layout: admin` route owns sidebar, topbar, tabs,
+  heading, permissions, and inactive states; the plugin receives a page bridge
+  and mounts only into the body target. Its bridge includes locale,
+  appearance, page identity, namespaced requests, Toasts, translation, and
+  admin navigation, but no settings draft authority.
 - There is no runtime SFC compiler, extension dependency installer, Nuxt build
   supervisor, host-peer resolver, or frontend release supervisor.
 - The admin home renders protected SForum build identity in

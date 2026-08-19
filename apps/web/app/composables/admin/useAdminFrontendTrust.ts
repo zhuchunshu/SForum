@@ -5,9 +5,10 @@ import { apiErrorReason } from '~/composables/useApiClient'
 export type AdminFrontendStatus = {
   extensionId: string
   kind: 'none' | 'prebuilt_component'
-	trustState: string
-	digest?: string
-	component?: { id: string, apiVersion: number, entry: string, css?: string }
+  trustState: string
+  digest?: string
+  component?: { id: string, apiVersion: number, entry: string, css?: string }
+  components?: Array<{ id: string, apiVersion: number, entry: string, css?: string }>
 }
 
 export type AdminFrontendTrustConfirmation = {

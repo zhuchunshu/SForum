@@ -45,6 +45,26 @@ export type AdminMicroFrontendBridgeV1 = Readonly<{
   navigate: (adminPath: string) => Promise<void>
 }>
 
+export type AdminPageDescriptor = Readonly<{
+  path: string
+  label: string
+  description?: string
+  icon?: string
+}>
+
+export type AdminPageBridgeV1 = Readonly<{
+  apiVersion: typeof ADMIN_MICRO_FRONTEND_API_VERSION
+  extensionId: string
+  extensionVersion: string
+  locale: string
+  appearance: AdminMicroFrontendAppearance
+  page: AdminPageDescriptor
+  request: <T>(path: string, options?: Record<string, unknown>) => Promise<T>
+  toast: (input: SForumAdminToastInput) => void
+  t: (key: string, params?: Record<string, unknown>) => string
+  navigate: (adminPath: string) => Promise<void>
+}>
+
 export type AdminMicroFrontendCleanup = () => void | Promise<void>
 
 export type AdminMicroFrontendModuleV1 = Readonly<{
@@ -52,5 +72,13 @@ export type AdminMicroFrontendModuleV1 = Readonly<{
   mount: (
     target: HTMLElement,
     bridge: AdminMicroFrontendBridgeV1
+  ) => void | AdminMicroFrontendCleanup | Promise<void | AdminMicroFrontendCleanup>
+}>
+
+export type AdminPageModuleV1 = Readonly<{
+  apiVersion: typeof ADMIN_MICRO_FRONTEND_API_VERSION
+  mount: (
+    target: HTMLElement,
+    bridge: AdminPageBridgeV1
   ) => void | AdminMicroFrontendCleanup | Promise<void | AdminMicroFrontendCleanup>
 }>

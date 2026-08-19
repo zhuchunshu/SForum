@@ -45,10 +45,16 @@ export type AdminExtensionAdminPage = {
   label: string
   description?: string
   icon?: string
-  view?: 'about' | 'settings'
+  view?: 'about' | 'settings' | 'component'
   menu?: boolean
   order?: number
   permission?: string
+  component?: {
+    id: string
+    apiVersion: number
+    entry: string
+    css?: string
+  }
 }
 
 export type AdminExtensionAdmin = {

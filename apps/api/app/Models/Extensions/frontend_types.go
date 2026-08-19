@@ -15,11 +15,12 @@ const (
 )
 
 type FrontendStatus struct {
-	ExtensionID string             `json:"extensionId"`
-	Kind        string             `json:"kind"`
-	Component   *SettingsComponent `json:"component,omitempty"`
-	TrustState  string             `json:"trustState"`
-	Digest      string             `json:"digest,omitempty"`
+	ExtensionID string           `json:"extensionId"`
+	Kind        string           `json:"kind"`
+	Component   *AdminComponent  `json:"component,omitempty"`
+	Components  []AdminComponent `json:"components,omitempty"`
+	TrustState  string           `json:"trustState"`
+	Digest      string           `json:"digest,omitempty"`
 }
 
 type GrantFrontendInput struct {

@@ -67,9 +67,14 @@ func TestTrustedRuntimeControllerUsesImmediateStatusResponses(t *testing.T) {
 }
 
 func TestTrustedRuntimeControllerServesOnlyImmutableAdminAssets(t *testing.T) {
-	frontend := &fakeTrustedFrontendHTTPService{asset: extensions.FrontendAsset{
-		Body: []byte("export const apiVersion = 1\n"), ContentType: "application/javascript; charset=utf-8", ETag: `"abc"`,
-	}}
+	frontend := &fakeTrustedFrontendHTTPService{
+		asset: extensions.FrontendAsset{
+			Body: []byte("export const apiVersion = 1\n"), ContentType: "application/javascript; charset=utf-8", ETag: `"abc"`,
+		},
+		componentAsset: extensions.FrontendAsset{
+			Body: []byte("export const componentId = 'dashboard'\n"), ContentType: "application/javascript; charset=utf-8", ETag: `"dashboard"`,
+		},
+	}
 	app, manager := newTrustedRuntimeTestApp(t, frontend)
 	cookie := loginExtensionUser(t, app, manager, 2)
 	digest := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -82,6 +87,20 @@ func TestTrustedRuntimeControllerServesOnlyImmutableAdminAssets(t *testing.T) {
 	_, _ = body.ReadFrom(resp.Body)
 	if body.String() != "export const apiVersion = 1\n" || resp.Header.Get("Cache-Control") != "private, max-age=31536000, immutable" || resp.Header.Get("X-Content-Type-Options") != "nosniff" {
 		t.Fatalf("unexpected immutable response: headers=%v body=%q", resp.Header, body.String())
+	}
+
+	resp = performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/extensions/demo.plugin/frontend/assets/"+digest+"/dashboard/entry", cookie)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected component asset 200, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	body.Reset()
+	_, _ = body.ReadFrom(resp.Body)
+	if body.String() != "export const componentId = 'dashboard'\n" ||
+		frontend.requestedComponent != "dashboard" || frontend.requestedAsset != "entry" ||
+		resp.Header.Get("Cache-Control") != "private, max-age=31536000, immutable" ||
+		resp.Header.Get("Cross-Origin-Resource-Policy") != "same-origin" {
+		t.Fatalf("unexpected component asset response: component=%q asset=%q headers=%v body=%q", frontend.requestedComponent, frontend.requestedAsset, resp.Header, body.String())
 	}
 }
 
@@ -246,19 +265,28 @@ func newTrustedRuntimeTestApp(t *testing.T, frontend TrustedFrontendService) (*f
 }
 
 type fakeTrustedFrontendHTTPService struct {
-	status          extensions.FrontendStatus
-	grant           extensions.FrontendStatus
-	revoke          extensions.FrontendStatus
-	asset           extensions.FrontendAsset
-	challenge       extensions.FrontendTrustChallenge
-	publicComponent extensions.PublicFrontendComponent
-	publicAsset     extensions.FrontendAsset
-	publicPolicy    extensions.PublicFrontendPolicy
-	publicErr       error
+	status             extensions.FrontendStatus
+	grant              extensions.FrontendStatus
+	revoke             extensions.FrontendStatus
+	asset              extensions.FrontendAsset
+	componentAsset     extensions.FrontendAsset
+	requestedComponent string
+	requestedAsset     string
+	challenge          extensions.FrontendTrustChallenge
+	publicComponent    extensions.PublicFrontendComponent
+	publicAsset        extensions.FrontendAsset
+	publicPolicy       extensions.PublicFrontendPolicy
+	publicErr          error
 }
 
 func (s *fakeTrustedFrontendHTTPService) Asset(context.Context, identity.Actor, string, string, string) (extensions.FrontendAsset, error) {
 	return s.asset, nil
+}
+
+func (s *fakeTrustedFrontendHTTPService) ComponentAsset(_ context.Context, _ identity.Actor, _, _, componentID, assetName string) (extensions.FrontendAsset, error) {
+	s.requestedComponent = componentID
+	s.requestedAsset = assetName
+	return s.componentAsset, nil
 }
 
 func (s *fakeTrustedFrontendHTTPService) Challenge(_ context.Context, actor identity.Actor, _ string) (extensions.FrontendTrustChallenge, error) {

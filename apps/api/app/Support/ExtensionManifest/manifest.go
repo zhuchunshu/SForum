@@ -163,14 +163,15 @@ type ManifestAdmin struct {
 }
 
 type ManifestAdminPage struct {
-	Path        string `json:"path"`
-	Label       string `json:"label"`
-	Description string `json:"description,omitempty"`
-	Icon        string `json:"icon,omitempty"`
-	View        string `json:"view,omitempty"`
-	Menu        bool   `json:"menu,omitempty"`
-	Order       int    `json:"order,omitempty"`
-	Permission  string `json:"permission,omitempty"`
+	Path        string          `json:"path"`
+	Label       string          `json:"label"`
+	Description string          `json:"description,omitempty"`
+	Icon        string          `json:"icon,omitempty"`
+	View        string          `json:"view,omitempty"`
+	Menu        bool            `json:"menu,omitempty"`
+	Order       int             `json:"order,omitempty"`
+	Permission  string          `json:"permission,omitempty"`
+	Component   *AdminComponent `json:"component,omitempty"`
 }
 
 type ManifestRoute struct {
@@ -619,50 +620,6 @@ func supportedSettingWidth(value string) bool {
 	default:
 		return false
 	}
-}
-
-func normalizeAdminPageSlice(pages []ManifestAdminPage) {
-	for index := range pages {
-		pages[index].Path = NormalizeRoutePath(pages[index].Path)
-		pages[index].Label = strings.TrimSpace(pages[index].Label)
-		pages[index].Description = strings.TrimSpace(pages[index].Description)
-		pages[index].Icon = strings.TrimSpace(pages[index].Icon)
-		pages[index].View = strings.ToLower(strings.TrimSpace(pages[index].View))
-		if pages[index].View == "" {
-			pages[index].View = "about"
-		}
-		pages[index].Permission = strings.TrimSpace(pages[index].Permission)
-	}
-}
-
-func validateAdminDeclaration(manifest Manifest) error {
-	pages := EffectiveAdminPages(manifest)
-	for _, page := range pages {
-		if page.Path == "" || !strings.HasPrefix(page.Path, "/") || strings.Contains(page.Path, "..") || page.Label == "" {
-			return ErrInvalidManifest
-		}
-		if page.View != "" && page.View != "about" && page.View != "settings" {
-			return ErrInvalidManifest
-		}
-		if page.Order < 0 {
-			return ErrInvalidManifest
-		}
-	}
-	if manifest.Admin.Entry == "" {
-		return nil
-	}
-	if strings.Contains(manifest.Admin.Entry, "://") || !strings.HasPrefix(manifest.Admin.Entry, "/") || strings.Contains(manifest.Admin.Entry, "..") {
-		return ErrInvalidManifest
-	}
-	if manifest.Admin.Entry == "/about" {
-		return nil
-	}
-	for _, page := range pages {
-		if page.Path == manifest.Admin.Entry {
-			return nil
-		}
-	}
-	return ErrInvalidManifest
 }
 
 func EffectiveAdminPages(manifest Manifest) []ManifestAdminPage {

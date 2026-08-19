@@ -27,6 +27,28 @@ func TestAdminFrontendDigestTracksPrebuiltEntryAndCSS(t *testing.T) {
 	}
 }
 
+func TestAdminFrontendDigestTracksEveryAdminPageComponent(t *testing.T) {
+	root := t.TempDir()
+	writeDigestFixture(t, root, "frontend/admin/dist/dashboard.mjs", "export const apiVersion = 1")
+	writeDigestFixture(t, root, "frontend/admin/dist/reports.mjs", "export const apiVersion = 1")
+	manifest := Manifest{Admin: ManifestAdmin{Pages: []ManifestAdminPage{
+		{Path: "/dashboard", Label: "Dashboard", View: "component", Component: &AdminComponent{ID: "dashboard", APIVersion: 1, Entry: "frontend/admin/dist/dashboard.mjs"}},
+		{Path: "/reports", Label: "Reports", View: "component", Component: &AdminComponent{ID: "reports", APIVersion: 1, Entry: "frontend/admin/dist/reports.mjs"}},
+	}}}
+	first, err := ComputeAdminFrontendDigest(manifest, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeDigestFixture(t, root, "frontend/admin/dist/reports.mjs", "export const apiVersion = 1\nexport const changed = true")
+	second, err := ComputeAdminFrontendDigest(manifest, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first == second {
+		t.Fatal("changing any page component must change the aggregate admin frontend digest")
+	}
+}
+
 func TestAdminFrontendDigestRejectsSymlinkedPrebuiltAsset(t *testing.T) {
 	root := t.TempDir()
 	outside := filepath.Join(t.TempDir(), "settings.mjs")

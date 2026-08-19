@@ -66,6 +66,7 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Post("/admin/extensions/:id/settings/reset", h.resetSettings)
 	api.Post("/admin/extensions/:id/settings/actions/:actionId", h.executeSettingsAction)
 	api.Get("/admin/extensions/:id/frontend", h.frontendStatus)
+	api.Get("/admin/extensions/:id/frontend/assets/:digest/:component/:asset", h.frontendComponentAsset)
 	api.Get("/admin/extensions/:id/frontend/assets/:digest/:asset", h.frontendAsset)
 	api.Post("/admin/extensions/:id/frontend/confirmation", h.frontendConfirmation)
 	api.Post("/admin/extensions/:id/frontend/trust", h.grantFrontendTrust)

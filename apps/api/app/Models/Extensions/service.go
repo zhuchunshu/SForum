@@ -807,6 +807,9 @@ func (s *CatalogService) Navigation(ctx context.Context, actor identity.Actor) (
 			continue
 		}
 		for _, page := range normalizedMenuAdminPages(item.Manifest) {
+			if page.Permission != "" && !actor.Can(page.Permission) {
+				continue
+			}
 			navigation = append(navigation, ExtensionAdminNavigationItem{
 				ExtensionID:     item.ID,
 				ExtensionName:   item.Name,
@@ -878,9 +881,17 @@ func (s *CatalogService) AdminPageBootstrap(ctx context.Context, actor identity.
 		result.Page = &matched
 		break
 	}
+	if result.Page != nil && result.Page.Permission != "" && !actor.Can(result.Page.Permission) {
+		return AdminPageBootstrap{}, identity.ErrPermissionDenied
+	}
 	if result.Page == nil || result.Page.View != "settings" {
 		if !canViewExtensions(actor) {
 			return AdminPageBootstrap{}, identity.ErrPermissionDenied
+		}
+		if result.Page != nil && result.Page.View == "component" {
+			if err := requireArtifactAvailable(extension); err != nil {
+				return AdminPageBootstrap{}, err
+			}
 		}
 		return result, nil
 	}

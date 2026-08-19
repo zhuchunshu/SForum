@@ -43,6 +43,30 @@ func (h *Controller) frontendAsset(c fiber.Ctx) error {
 	if err != nil {
 		return mapExtensionError(err)
 	}
+	return sendFrontendAsset(c, asset)
+}
+
+func (h *Controller) frontendComponentAsset(c fiber.Ctx) error {
+	assets, ok := h.frontend.(TrustedFrontendComponentAssetService)
+	if h.frontend == nil || !ok {
+		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodeFrontendRuntimeUnavailable)
+	}
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	digest := c.Params("digest")
+	if !frontendDigestPattern.MatchString(digest) {
+		return fiber.NewError(fiber.StatusNotFound, extensions.CodeFrontendTrustNotFound)
+	}
+	asset, err := assets.ComponentAsset(c.Context(), actor, c.Params("id"), digest, c.Params("component"), c.Params("asset"))
+	if err != nil {
+		return mapExtensionError(err)
+	}
+	return sendFrontendAsset(c, asset)
+}
+
+func sendFrontendAsset(c fiber.Ctx, asset extensions.FrontendAsset) error {
 	c.Set(fiber.HeaderContentType, asset.ContentType)
 	c.Set(fiber.HeaderCacheControl, "private, max-age=31536000, immutable")
 	c.Set(fiber.HeaderETag, asset.ETag)

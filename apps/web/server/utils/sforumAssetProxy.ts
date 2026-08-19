@@ -22,12 +22,17 @@ export function buildPublicAssetTarget(apiBaseURL: string, pathname: string) {
 
 export function buildPrivateAssetTarget(apiBaseURL: string, pathname: string) {
   const segments = assetSegments(pathname, PRIVATE_ASSET_PREFIX)
-  const [owner, extensionId, packageDigest, asset, ...extra] = segments
-  if (owner !== 'extensions' || !extensionId || !DIGEST_PATTERN.test(packageDigest || '')
-    || (asset !== 'entry' && asset !== 'style') || extra.length !== 0) {
+  const [owner, extensionId, packageDigest, ...relative] = segments
+  if (owner !== 'extensions' || !extensionId || !DIGEST_PATTERN.test(packageDigest || '')) {
     throw new Error('invalid private asset path')
   }
-  return apiTarget(apiBaseURL, ['admin', 'extensions', extensionId, 'frontend', 'assets', packageDigest!, asset])
+  if (relative.length === 1 && (relative[0] === 'entry' || relative[0] === 'style')) {
+    return apiTarget(apiBaseURL, ['admin', 'extensions', extensionId, 'frontend', 'assets', packageDigest!, relative[0]!])
+  }
+  if (relative.length === 2 && relative[0] && (relative[1] === 'entry' || relative[1] === 'style')) {
+    return apiTarget(apiBaseURL, ['admin', 'extensions', extensionId, 'frontend', 'assets', packageDigest!, relative[0], relative[1]!])
+  }
+  throw new Error('invalid private asset path')
 }
 
 function assetSegments(pathname: string, prefix: string) {
