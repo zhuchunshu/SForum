@@ -701,10 +701,11 @@ func TestProductionExtensionsReadGuardPartitionsCatalogByProvablePolicy(t *testi
 		"core.route.extensions.route_provider_selection":     {method: "GET", supported: true, permissions: viewer},
 		"core.route.extensions.entity_import_export_dry_run": {method: "GET", supported: true, permissions: viewer},
 
-		"core.route.extensions.frontend_status": {method: "GET"},
-		"core.route.extensions.frontend_asset":  {method: "GET"},
-		"core.route.extensions.page_bootstrap":  {method: "GET"},
-		"core.route.extensions.settings":        {method: "GET"},
+		"core.route.extensions.frontend_status":          {method: "GET"},
+		"core.route.extensions.frontend_asset":           {method: "GET"},
+		"core.route.extensions.frontend_component_asset": {method: "GET"},
+		"core.route.extensions.page_bootstrap":           {method: "GET"},
+		"core.route.extensions.settings":                 {method: "GET"},
 	}
 	var catalog []routes.CoreRoute
 	for _, route := range routes.CoreRouteCatalog() {

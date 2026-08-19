@@ -113,6 +113,15 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Code scanning 与 CI 整改（2026-08-20）：修复 CodeQL #24 的切片容量加法
+  溢出与 #25 的 `int64` 到 `int` 未界定转换；Web Docker 构建补齐
+  `plugin-ui` workspace，SDK 离线消费者所需 Vite 工具改为直接依赖，并补齐
+  component asset contextual-guard 目录契约。7 个内置插件按共享 SDK 规则递增
+  补丁版本并刷新发布基线；Go 全套、Web prod 容器、staging extension test、
+  兼容性、类型检查和其余门禁通过。单次 `test.sh` 仅受本地沙箱禁止 `/bin/ps`
+  限制，失败前后步骤已分别验证：
+  `sessions/2026-08-20-code-scanning-ci-remediation.md`
+
 - 插件运行时内存优化（2026-08-20）：Protocol V2 插件侧传输已从旧 Host runtime
   解耦，SDK 非标准依赖从 396 降至 164；SMTP 从 397 降至 165，Linux stripped
   二进制从 23,011,490 降至 15,618,210 bytes。插件子进程固定注入

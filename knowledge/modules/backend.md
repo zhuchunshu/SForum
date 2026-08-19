@@ -256,6 +256,12 @@ fresh CI install creates `.nuxt/tsconfig.json` before Bun loads tests that use
 Nuxt's `~` and `@` aliases. Typechecking keeps its separate
 `.nuxt-typecheck` build directory.
 
+Code scanning remediation (2026-08-20) bounds Protocol V2 storage chunk input
+to the existing 1 MiB limit before narrowing it to `int`, and removes an
+overflow-prone `len + 1` admin-component allocation hint. The contextual route
+catalog test also tracks the component-specific admin asset route while keeping
+its inherited guard fail-closed because component permissions are target-owned.
+
 Performance hardening (2026-07-08) covers the network and connection layers
 beyond the earlier search/cache read-path work:
 

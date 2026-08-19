@@ -1,33 +1,33 @@
 {
-  "sharedRuntimeDigest": "2ea11de5e7f38631b8c7477ae4c5839dbf7d3340f9f1f32fd3507a1fbfd97751",
+  "sharedRuntimeDigest": "e46f63da37840c9838b8b3811956dcf90ddc9ed82880e63f36c502459abafe01",
   "plugins": {
     "sforum.auth-github": {
-      "version": "1.0.5",
-      "sourceDigest": "4ed57832c0a0a5d58a770235d0f095bac09b3bdbcf65276cedad1838a7fb2a2c"
+      "version": "1.0.6",
+      "sourceDigest": "fbc20010bb9ca370c5a318874988ca8256dc57c1b6472ef517f7ef6c8614660b"
     },
     "sforum.content-policy": {
-      "version": "1.1.4",
-      "sourceDigest": "b8323231c161f4d898e8848ec07c0d65b1a9d2b1babaf656e064ae0026aded2c"
+      "version": "1.1.5",
+      "sourceDigest": "645ec5bc7f025ce85dfecf2995055697496e816429f28e0e4889b5f8dec191ca"
     },
     "sforum.search-site": {
-      "version": "1.0.4",
-      "sourceDigest": "043bcdb49b133e802f83291cb05ebaeaf34c2a8d7aea163d90c63dd3fea548d9"
+      "version": "1.0.5",
+      "sourceDigest": "1d00e50619ffa22277e5a41afbbd12b408c6251e06a2bdfc5a505259773947aa"
     },
     "sforum.smtp": {
-      "version": "1.1.4",
-      "sourceDigest": "ad15355c4ded3887d43225201f2312b7f82afae8c80c552b1cd037caf59fee2e"
+      "version": "1.1.5",
+      "sourceDigest": "92673b70cbc8e7d4bd644c1b56f13ce014cf40225279ca0a98adbbac01af0afd"
     },
     "sforum.storage-fs": {
-      "version": "1.1.5",
-      "sourceDigest": "5662db127c28028cebc605587cece2765be6f71d459a4cb13bf670cc9d4e431b"
+      "version": "1.1.6",
+      "sourceDigest": "8ab22518e57fbe49efd1836d0ec80a7c1399bec2d4e7e3482f7bcf1100db5927"
     },
     "sforum.storage-s3": {
-      "version": "1.0.6",
-      "sourceDigest": "e2ceb27bb525c10eb55357bdfa16a922287c662251ca8c319501880689e89d39"
+      "version": "1.0.7",
+      "sourceDigest": "e1145d28d6fcd35ea9a3372a214b3d804eedf183bee681480fbc9125b7a54604"
     },
     "sforum.web-push": {
-      "version": "1.0.4",
-      "sourceDigest": "58e84ee4f05a6a6800388c05abd3eee953c15d5e1b148f2f83a9900d552484b0"
+      "version": "1.0.5",
+      "sourceDigest": "f41b792612b00310616027fd4d63cc1d2a854d4b09349c0f5426eb265d1625db"
     }
   }
 }

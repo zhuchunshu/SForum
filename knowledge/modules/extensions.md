@@ -37,6 +37,11 @@ does not rebuild Nuxt.
   OIDC `npm publish`. Interactive publication requires 2FA and bypass-2FA
   tokens are disallowed. The first interactive bootstrap versions have no
   provenance; the next SDK version published by Release must provide it.
+- The shared storage provider SDK now bounds untrusted Protocol V2 chunk-size
+  input before integer narrowing. Because shared runtime source is part of every
+  protected built-in release identity, all seven plugin patch versions and the
+  release baseline were advanced together; rebuilt staging artifacts pass
+  exact digest refresh and `extension test`.
 - `AttachmentStorageProviderCatalog` directly owns storage provider candidate
   and availability reads; aggregate `Service` and `CatalogService` forwarding
   methods were removed. Settings projection lives with settings lifecycle, and

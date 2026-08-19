@@ -3,6 +3,7 @@ package storageprovider
 import (
 	"bytes"
 	"io"
+	"math"
 	"testing"
 	"time"
 )
@@ -136,5 +137,27 @@ func TestMultiStorageProviderKeepsInstancesIsolated(t *testing.T) {
 	missing, err := provider.StorageOpen(StorageOpenRequest{InstanceID: "primary", Key: "marker"})
 	if err != nil || missing.OK || missing.Reason != "storage.test.config" {
 		t.Fatalf("removed instance open = %#v err=%v", missing, err)
+	}
+}
+
+func TestNormalizeStorageChunkSizeBoundsBeforeIntegerConversion(t *testing.T) {
+	tests := []struct {
+		name      string
+		requested int64
+		want      int
+	}{
+		{name: "negative", requested: -1, want: storageProviderChunkLimit},
+		{name: "zero", requested: 0, want: storageProviderChunkLimit},
+		{name: "requested", requested: 4096, want: 4096},
+		{name: "over limit", requested: storageProviderChunkLimit + 1, want: storageProviderChunkLimit},
+		{name: "maximum int64", requested: math.MaxInt64, want: storageProviderChunkLimit},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := normalizeStorageChunkSize(test.requested); got != test.want {
+				t.Fatalf("normalizeStorageChunkSize(%d) = %d, want %d", test.requested, got, test.want)
+			}
+		})
 	}
 }

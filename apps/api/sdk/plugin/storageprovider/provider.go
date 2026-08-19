@@ -652,7 +652,10 @@ func (p *StorageProviderV2) call(response *pluginwire.ProviderCallResponse, oper
 		err = callErr
 		output = storageSessionOutput(result)
 	case "get_chunk":
-		result, callErr := p.impl.StorageGetChunk(StorageGetChunkRequest{SessionID: storageString(values, "sessionId"), MaxBytes: int(storageInt64(values, "maxBytes"))})
+		result, callErr := p.impl.StorageGetChunk(StorageGetChunkRequest{
+			SessionID: storageString(values, "sessionId"),
+			MaxBytes:  normalizeStorageChunkSize(storageInt64(values, "maxBytes")),
+		})
 		err = callErr
 		output = map[string]any{"ok": result.OK, "data": base64.StdEncoding.EncodeToString(result.Data), "eof": result.EOF, "reason": result.Reason, "message": result.Message}
 	case "close":
@@ -772,4 +775,11 @@ func storageInt64(values map[string]any, key string) int64 {
 	default:
 		return 0
 	}
+}
+
+func normalizeStorageChunkSize(requested int64) int {
+	if requested <= 0 || requested > int64(storageProviderChunkLimit) {
+		return storageProviderChunkLimit
+	}
+	return int(requested)
 }

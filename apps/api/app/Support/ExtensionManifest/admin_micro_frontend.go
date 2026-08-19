@@ -34,7 +34,7 @@ type AdminComponentBinding struct {
 // DeclaredAdminComponents returns every executable admin browser surface in a
 // deterministic order for trust impact, digest, and package validation.
 func DeclaredAdminComponents(manifest Manifest) []AdminComponentBinding {
-	bindings := make([]AdminComponentBinding, 0, len(manifest.Admin.Pages)+1)
+	bindings := make([]AdminComponentBinding, 0, len(manifest.Admin.Pages))
 	if component := manifest.SettingsDocument.UI.Component; component != nil && component.Entry != "" {
 		bindings = append(bindings, AdminComponentBinding{Surface: "settings", Component: *component})
 	}
