@@ -228,14 +228,14 @@ init_compose() {
 pull_target_images() {
   local version="$1" image
   say "正在拉取目标版本镜像：$version" "Pulling target release images: $version"
-  for image in api worker migrate web; do
+  for image in api migrate web; do
     docker pull "ghcr.io/zhuchunshu/sforum-${image}:${version}"
   done
 }
 
 verify_target_images() {
   local version="$1" expected="${1#v}" image actual
-  for image in api worker migrate web; do
+  for image in api migrate web; do
     actual="$(docker image inspect "ghcr.io/zhuchunshu/sforum-${image}:${version}" \
       --format '{{index .Config.Labels "org.opencontainers.image.version"}}')"
     [ "$actual" = "$expected" ] || die "$image image version is '$actual', expected '$expected'"
@@ -289,7 +289,23 @@ backup_database() {
 
 slot_api() { printf 'api-%s' "$1"; }
 slot_web() { printf 'web-%s' "$1"; }
-slot_worker() { printf 'worker-%s' "$1"; }
+legacy_worker_container_ids() {
+  local project service
+  project="${COMPOSE_PROJECT_NAME:-$(env_value COMPOSE_PROJECT_NAME sforum)}"
+  for service in worker worker-blue worker-green; do
+    docker ps -aq \
+      --filter "label=com.docker.compose.project=${project}" \
+      --filter "label=com.docker.compose.service=${service}"
+  done
+}
+
+remove_legacy_worker_containers() {
+  local id failed=false
+  while IFS= read -r id; do
+    [ -z "$id" ] || docker rm -f "$id" || failed=true
+  done < <(legacy_worker_container_ids | sort -u)
+  [ "$failed" = false ]
+}
 
 wait_inside_slot() {
   local slot="$1" deadline=$((SECONDS + ${SFORUM_UPGRADE_HEALTH_TIMEOUT_SECONDS:-120}))
@@ -382,9 +398,6 @@ persist_state() {
 bootstrap_topology() {
   local current_version="$1" target_version="$2" slot=blue
   local legacy_services=(api web)
-  if [ "$(env_value EMBED_WORKER_IN_API true)" = false ]; then
-    legacy_services=(api worker web)
-  fi
   if [ "$FORCE_BOOTSTRAP" != true ] && [ "$ASSUME_YES" != true ]; then
     say \
       "这是旧版直连端口拓扑。首次转换路由器会有一次短暂维护窗口；后续兼容更新可保持 HTTP 在线。输入 BOOTSTRAP 继续：" \
@@ -408,6 +421,7 @@ bootstrap_topology() {
   write_router_config blue "$RUNTIME_DIR/Caddyfile"
   say "正在执行一次性入口转换..." "Performing the one-time ingress conversion..."
   "${COMPOSE[@]}" stop "${legacy_services[@]}"
+  remove_legacy_worker_containers || die "Could not remove legacy standalone Worker containers."
   if ! "${COMPOSE[@]}" up -d --no-build --pull never edge; then
     "${COMPOSE[@]}" start "${legacy_services[@]}" || true
     die "Could not start the stable router; legacy services were restarted."
@@ -417,21 +431,17 @@ bootstrap_topology() {
     "${COMPOSE[@]}" start "${legacy_services[@]}" || true
     die "Router health check failed; legacy services were restarted."
   fi
-  "${COMPOSE[@]}" up -d --no-build --pull never worker-blue
-  "${COMPOSE[@]}" ps --status running --services | grep -Fqx worker-blue || die "Blue worker did not start."
   persist_state blue "$target_version" "$target_version" "$target_version"
   say "双槽入口已启用。后续兼容版本可保持 HTTP 在线切换。" "Blue/green ingress is enabled. Later compatible releases can switch without HTTP downtime."
 }
 
 online_update() {
   local active_slot="$1" current_version="$2" target_version="$3"
-  local inactive_slot old_worker new_worker old_api old_web new_api new_web blue_version green_version
+  local inactive_slot old_api old_web new_api new_web blue_version green_version
   if [ "$active_slot" = blue ]; then inactive_slot=green; else inactive_slot=blue; fi
   configure_versions "$active_slot" "$current_version" "$inactive_slot" "$target_version"
   blue_version="$SFORUM_BLUE_VERSION"
   green_version="$SFORUM_GREEN_VERSION"
-  old_worker="$(slot_worker "$active_slot")"
-  new_worker="$(slot_worker "$inactive_slot")"
   old_api="$(slot_api "$active_slot")"
   old_web="$(slot_web "$active_slot")"
   new_api="$(slot_api "$inactive_slot")"
@@ -456,14 +466,7 @@ online_update() {
     die "Ingress switch failed and was rolled back to the active slot."
   fi
 
-  say "正在优雅切换后台任务 Worker..." "Gracefully switching the background Worker..."
-  "${COMPOSE[@]}" stop "$old_worker"
-  if ! "${COMPOSE[@]}" up -d --no-build --pull never "$new_worker"; then
-    switch_router "$active_slot" "$inactive_slot" || true
-    "${COMPOSE[@]}" start "$old_worker" || true
-    die "New Worker failed; HTTP traffic and the old Worker were restored."
-  fi
-  "${COMPOSE[@]}" ps --status running --services | grep -Fqx "$new_worker" || die "New Worker is not running."
+  remove_legacy_worker_containers || die "Could not remove legacy standalone Worker containers."
   "${COMPOSE[@]}" stop "$old_web" "$old_api"
   persist_state "$inactive_slot" "$target_version" "$blue_version" "$green_version"
   say "零停机更新完成：$current_version -> $target_version" "Zero-downtime update completed: $current_version -> $target_version"

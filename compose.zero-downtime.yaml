@@ -19,21 +19,7 @@ services:
     restart: unless-stopped
     environment:
       APP_ENV: production
-      EMBED_WORKER_IN_API: "false"
       MIGRATE_ON_STARTUP: "false"
-
-  worker-blue:
-    extends:
-      file: compose.yaml
-      service: worker
-    profiles: ["zero-downtime"]
-    image: ghcr.io/zhuchunshu/sforum-worker:${SFORUM_BLUE_VERSION:?SFORUM_BLUE_VERSION is required}
-    restart: unless-stopped
-    stop_grace_period: 40s
-    pid: "service:api-blue"
-    depends_on:
-      api-blue:
-        condition: service_started
 
   web-blue:
     extends:
@@ -58,21 +44,7 @@ services:
     restart: unless-stopped
     environment:
       APP_ENV: production
-      EMBED_WORKER_IN_API: "false"
       MIGRATE_ON_STARTUP: "false"
-
-  worker-green:
-    extends:
-      file: compose.yaml
-      service: worker
-    profiles: ["zero-downtime"]
-    image: ghcr.io/zhuchunshu/sforum-worker:${SFORUM_GREEN_VERSION:?SFORUM_GREEN_VERSION is required}
-    restart: unless-stopped
-    stop_grace_period: 40s
-    pid: "service:api-green"
-    depends_on:
-      api-green:
-        condition: service_started
 
   web-green:
     extends:

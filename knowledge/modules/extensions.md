@@ -165,8 +165,8 @@ Prior partial evidence, not closure:
 - Uploaded packages are immutable snapshots under `EXTENSION_ROOT`; they are
   separate from public attachments.
 - `EXTERNAL_EXTENSION_ROOTS` accepts comma-separated collection roots whose
-  children are `plugins/*` and `themes/*`. API and standalone worker scan them
-  after protected built-ins.
+  children are `plugins/*` and `themes/*`. The API scans them after protected
+  built-ins.
 - External discovery reuses the manifest loader and canonical snapshotter. New
   packages are inert `source=uploaded` installs. Changed packages become staged
   versions; discovery never promotes, trusts, enables, or selects them.
@@ -191,8 +191,7 @@ Prior partial evidence, not closure:
   with only the selected extension ID. Ordinary lifecycle uninstall rejects a
   missing package before runtime dispatch, so immutable runtime-publication
   history cannot produce a misleading success followed by catalog reappearance.
-- Containers must mount every external collection read-only into API and
-  standalone worker processes.
+- Containers must mount every external collection read-only into the API.
 
 Decision: `../decisions/2026-07-22-external-extension-source-roots.md`.
 

@@ -1,5 +1,7 @@
 # 2026-08-18 Production Embedded Worker Default
 
+Superseded by `2026-08-19-api-owned-worker-only.md`.
+
 ## Changed
 
 - Production now defaults to `EMBED_WORKER_IN_API=true`; the generated and

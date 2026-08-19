@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by `2026-08-19-api-owned-worker-only.md`.
 
 ## Context
 

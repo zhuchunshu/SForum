@@ -57,7 +57,7 @@
 
 - 读取根目录 `.env`
 - 编译/同步内置插件到开发 staging 树
-- 用 Air 启动 API；开发默认 `EMBED_WORKER_IN_API=true`，队列任务由 API 进程消费
+- 用 Air 启动 API；队列任务始终由同一 API 进程消费
 
 ### 3. 前端
 

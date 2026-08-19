@@ -110,7 +110,6 @@ func TestPublicL2UploadTrustActivateMountRestartAndRevokeFallback(t *testing.T) 
 		"HTTP_PORT":                   fmt.Sprint(apiPort),
 		"DATABASE_URL":                database.url,
 		"MIGRATE_ON_STARTUP":          "true",
-		"EMBED_WORKER_IN_API":         "false",
 		"EXTENSION_ROOT":              extensionRoot,
 		"BUILTIN_EXTENSION_ROOT":      builtinRoot,
 		"SFORUM_SAFE_MODE":            "false",

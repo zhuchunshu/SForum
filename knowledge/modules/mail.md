@@ -86,6 +86,12 @@ runtime settings and provider probes; API responses keep `value` empty while
 preserving `secretSet=true` so operators can tell that a password/app password
 is saved.
 
+The API always owns `mail.deliver` and reuses the same reconciled extension
+runtime as provider probes. The retired standalone Worker topology could read
+legacy `extension_settings` while probes read SettingsLifecycle, causing a
+successful SMTP probe followed by stale-credential AUTH failures. Deployment
+updates remove those legacy Worker containers.
+
 `scripts/build-builtin-plugins.sh` builds the local subprocess before API or
 worker dev startup. The API Dockerfile builds the Linux executable into the
 built-in package.

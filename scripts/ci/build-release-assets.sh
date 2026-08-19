@@ -154,17 +154,14 @@ create_image_container api
 docker cp "$LAST_CONTAINER:/usr/local/bin/sforum-api" "$SERVER_ROOT/bin/sforum-api"
 docker cp "$LAST_CONTAINER:/app/extensions/builtin" "$SERVER_ROOT/extensions/"
 
-create_image_container worker
-docker cp "$LAST_CONTAINER:/usr/local/bin/sforum-worker" "$SERVER_ROOT/bin/sforum-worker"
-
 create_image_container migrate
 docker cp "$LAST_CONTAINER:/usr/local/bin/sforum-migrate" "$SERVER_ROOT/bin/sforum-migrate"
 
 cp "$CLI_ROOT/$CLI_BINARY_NAME" "$SERVER_ROOT/bin/sforum"
-chmod +x "$SERVER_ROOT/bin/sforum-api" "$SERVER_ROOT/bin/sforum-worker" \
-  "$SERVER_ROOT/bin/sforum-migrate" "$SERVER_ROOT/bin/sforum"
+chmod +x "$SERVER_ROOT/bin/sforum-api" "$SERVER_ROOT/bin/sforum-migrate" \
+  "$SERVER_ROOT/bin/sforum"
 
-for binary in sforum-api sforum-worker sforum-migrate sforum; do
+for binary in sforum-api sforum-migrate sforum; do
   verify_binary_target "$SERVER_ROOT/bin/$binary" linux "$TARGET_ARCH"
 done
 
@@ -183,10 +180,11 @@ EOF
 cat > "$SERVER_ROOT/README.txt" <<EOF
 SForum backend runtime bundle $VERSION for linux/$TARGET_ARCH
 
-This archive contains sforum-api, sforum-worker, sforum-migrate, the sforum
-management CLI, and the exact protected built-ins extracted from the scanned
-release candidate images. Run the processes from this archive's root and set
-BUILTIN_EXTENSION_ROOT and EXTENSION_ROOT as shown in server.env.example.
+This archive contains sforum-api, sforum-migrate, the sforum management CLI,
+and the exact protected built-ins extracted from the scanned release candidate
+images. The API owns background job processing. Run the processes from this
+archive's root and set BUILTIN_EXTENSION_ROOT and EXTENSION_ROOT as shown in
+server.env.example.
 
 The Nuxt web runtime, PostgreSQL, and Redis are not included. Docker Compose
 with the published SForum images remains the recommended production deployment.

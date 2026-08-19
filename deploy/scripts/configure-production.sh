@@ -286,8 +286,6 @@ trap cleanup EXIT HUP INT TERM
     "DATABASE_URL=postgres://sforum:$postgres_password@postgres:5432/sforum?sslmode=disable" \
     'MIGRATE_ON_STARTUP=false' \
     'DATABASE_MAX_CONNS=10' \
-    'EMBED_WORKER_IN_API=true' \
-    'WORKER_DATABASE_MAX_CONNS=10' \
     'WORKER_SHUTDOWN_TIMEOUT=30s' \
     'REDIS_ADDR=redis:6379' \
     "REDIS_PASSWORD=$redis_password" \

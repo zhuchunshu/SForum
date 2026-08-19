@@ -90,10 +90,6 @@ func bindAPIExtensionRuntime(
 	return runtime
 }
 
-func shouldEmbedWorkerInAPI(cfg config.Config) bool {
-	return cfg.EmbedWorkerInAPI
-}
-
 func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, error) {
 	// 分阶段装配：foundation → extension platform → domain/HTTP/worker。
 	// 各阶段在失败时自行关闭已获得的资源；成功后由 API.close 统一收尾。

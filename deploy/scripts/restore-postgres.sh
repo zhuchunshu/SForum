@@ -105,7 +105,7 @@ cleanup() {
 trap cleanup EXIT
 
 running_services="$("${COMPOSE[@]}" ps --status running --services)"
-for service in api worker; do
+for service in api; do
   if grep -qx "$service" <<< "$running_services"; then
     APP_SERVICES_TO_RESTART+=("$service")
   fi

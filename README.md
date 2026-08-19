@@ -25,7 +25,7 @@ Quick paths:
 | Path | Role |
 | --- | --- |
 | `apps/web` | Nuxt 4 frontend |
-| `apps/api` | Go Fiber API, worker, CLI |
+| `apps/api` | Go Fiber API with embedded River worker, CLI |
 | `contracts/` | OpenAPI + Protobuf |
 | `extensions/` | Built-in / optional / dev packages |
 | `docs/` | Bilingual handbooks + extension reference |
@@ -41,11 +41,9 @@ Quick paths:
 cd apps/web && bun run dev       # Nuxt on :3000
 ```
 
-Background jobs: API processes embed the River worker by default in development and production. For split-process development (`EMBED_WORKER_IN_API=false`), run a standalone worker:
-
-```sh
-./scripts/worker-dev.sh          # optional; only when the API does not embed the worker
-```
+Background jobs: the API process always embeds the River worker in development
+and production. Worker ownership is not configurable, so saved settings,
+SecretStore access, extension runtimes, and queue consumers share one process.
 
 Useful URLs:
 
@@ -108,16 +106,16 @@ Prereleases are never selected implicitly: pass
 resolves to a concrete `vX.Y.Z` tag and runs the matching GHCR images — floating
 `latest` images are never used in production Compose.
 
-Production defaults to one API process with an embedded River worker, sharing
-the database pool and extension runtime. Set `EMBED_WORKER_IN_API=false` to opt
-into the standalone `split-worker` Compose profile. Blue/green upgrades use
-that split topology automatically so the old worker can drain before handoff.
+Production uses one API process with an embedded River worker, sharing the
+database pool, SecretStore-backed settings, and extension runtime. Existing
+standalone Worker containers from older releases are removed during an update;
+legacy environment settings cannot disable the API-owned worker.
 
 The first blue/green ingress conversion has a short maintenance window. Later
 releases keep API/Web HTTP traffic available when the database is unchanged or
 every pending Core migration explicitly declares backward-compatible online
-execution; WebSockets may reconnect and Worker consumption pauses briefly
-without losing durable jobs. Undeclared Core and all River migrations use the
+execution; WebSockets may reconnect while durable River jobs remain protected
+by the queue during the API slot handoff. Undeclared Core and all River migrations use the
 blue/green-aware `deploy.sh` maintenance path.
 
 Details: [docs/zh-CN/deployment.md](./docs/zh-CN/deployment.md) / [docs/en-US/deployment.md](./docs/en-US/deployment.md).

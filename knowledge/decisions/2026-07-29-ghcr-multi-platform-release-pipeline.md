@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted and implemented.
+Accepted and implemented. The public Worker image and backend-bundle binary
+were retired by `2026-08-19-api-owned-worker-only.md`.
 
 ## Context
 
@@ -22,11 +23,11 @@ would not improve deployment or establish a rollback artifact.
    Release waits for that run on GitHub instead of executing the same gate a
    second time.
 3. GitHub Container Registry is the canonical image registry. Releases publish
-   `sforum-api`, `sforum-worker`, `sforum-migrate`, and `sforum-web` for
+   `sforum-api`, `sforum-migrate`, and `sforum-web` for
    `linux/amd64` and `linux/arm64`.
 4. A release first publishes only a commit-addressed `sha-<commit>` candidate.
-   Trivy scans the exact manifest and Compose starts those exact API, worker,
-   migration, and Web images against fresh PostgreSQL and Redis services.
+   Trivy scans the exact manifest and Compose starts those exact API, migration,
+   and Web images against fresh PostgreSQL and Redis services.
 5. Only a verified candidate is promoted to the `vX.Y.Z` and `X.Y.Z` tags.
    Stable releases additionally update `X.Y` and `latest`; prereleases do not.
 6. Published images include OCI source/version/revision labels, BuildKit SBOM
@@ -35,8 +36,8 @@ would not improve deployment or establish a rollback artifact.
 7. GitHub Release assets include four `sforum` CLI archives for Linux and
    macOS on amd64/arm64, plus Linux amd64/arm64 backend bundles. Windows is
    explicitly outside the supported platform contract. Backend
-   bundles reuse API/worker/migrate binaries and protected built-ins from the
-   exact scanned candidate images; only the CLI is cross-compiled separately.
+   bundles reuse API/migrate binaries and protected built-ins from the exact
+   scanned candidate images; only the CLI is cross-compiled separately.
    Every archive is covered by `SHA256SUMS` and artifact provenance.
 8. The Linux backend archive deliberately excludes the Nuxt Web runtime,
    PostgreSQL, and Redis. Docker Compose remains the complete production

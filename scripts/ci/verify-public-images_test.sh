@@ -40,13 +40,12 @@ export DOCKER_AUTH_CONFIG='{"auths":{"ghcr.io":{"auth":"must-not-be-used"}}}'
 "$ROOT_DIR/scripts/ci/verify-public-images.sh" ghcr.io/zhuchunshu v3.0.0-beta.1 >/dev/null
 expected="$(printf '%s\n' \
   'ghcr.io/zhuchunshu/sforum-api:v3.0.0-beta.1' \
-  'ghcr.io/zhuchunshu/sforum-worker:v3.0.0-beta.1' \
   'ghcr.io/zhuchunshu/sforum-migrate:v3.0.0-beta.1' \
   'ghcr.io/zhuchunshu/sforum-web:v3.0.0-beta.1')"
 [[ "$(cat "$MOCK_LOG")" == "$expected" ]] || fail "unexpected anonymous pull set"
 
 : > "$MOCK_LOG"
-if MOCK_FAIL_IMAGE=sforum-worker "$ROOT_DIR/scripts/ci/verify-public-images.sh" ghcr.io/zhuchunshu v3.0.0 >/dev/null 2>&1; then
+if MOCK_FAIL_IMAGE=sforum-migrate "$ROOT_DIR/scripts/ci/verify-public-images.sh" ghcr.io/zhuchunshu v3.0.0 >/dev/null 2>&1; then
   fail "one failed image pull did not fail the gate"
 fi
 [[ "$(wc -l < "$MOCK_LOG" | tr -d ' ')" -eq 2 ]] || fail "gate continued after a failed pull"

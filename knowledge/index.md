@@ -130,13 +130,14 @@ load archived sessions or completed plans as current context.
   `sessions/2026-08-18-verified-release-bootstrap.md`，
   `decisions/2026-08-18-verified-release-bootstrap.md`
 
-- 生产 Worker 默认内嵌（2026-08-18）：普通单机生产现在默认
-  `EMBED_WORKER_IN_API=true`，独立 Worker 进入可选 `split-worker` profile；
-  deploy 按模式选择镜像、身份验证、启动服务和健康预期，Compose 正式透传连接池、
-  队列并发与关停配置。蓝绿槽位仍显式使用可排空的独立 Worker；release smoke
-  验证默认不启动 worker 容器且 Redis 收到内嵌心跳：
-  `sessions/2026-08-18-production-embedded-worker-default.md`，
-  `decisions/2026-08-18-production-embedded-worker-default.md`
+- API 独占 Worker（2026-08-19）：生产 SMTP 连接测试成功但真实投递仍报 535，
+  根因是 API 读取 SettingsLifecycle/SecretStore，而可选独立 Worker 可退回旧
+  `extension_settings`。现已删除 Worker 所有权开关以及开发、普通生产、蓝绿
+  Compose 的独立 Worker 服务；API 始终承载 River 和同一扩展 runtime。
+  deploy/upgrade 会按精确 Compose 标签清理旧 `worker*` 容器，遗留
+  `EMBED_WORKER_IN_API=false` 不再生效：
+  `sessions/2026-08-19-api-owned-worker-only.md`，
+  `decisions/2026-08-19-api-owned-worker-only.md`
 
 - 编辑器正文渲染一致性修复（2026-08-17）：撰写、客户端预览与正式
   `.sf-prose` 现共享正文语义 CSS，显式恢复被 Tailwind Preflight 清除的

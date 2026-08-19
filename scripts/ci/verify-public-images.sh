@@ -24,7 +24,6 @@ trap cleanup EXIT
 
 images=(
   sforum-api
-  sforum-worker
   sforum-migrate
   sforum-web
 )

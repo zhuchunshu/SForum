@@ -90,8 +90,7 @@ For repeatable deployments, pin an explicit immutable version (replace
 
 ## Target shape
 
-- Compose: `web`, `api` with an embedded Worker, PostgreSQL, Redis; standalone
-  `worker` is the optional `split-worker` profile
+- Compose: `web`, `api` with its always-embedded Worker, PostgreSQL, Redis
 - Public exposure: **loopback-only** web (and optional API WebSocket ingress); TLS on the host reverse proxy
 - Same-origin: browsers hit one domain; Nuxt proxies ordinary `/api/v1/*` HTTP; WebSocket Upgrade may go to the API loopback port
 
@@ -149,7 +148,7 @@ also publishes:
 
 - the `sforum` management CLI for Linux and macOS on amd64 and arm64; Windows
   is not a supported SForum platform;
-- Linux amd64 and arm64 backend bundles containing API, worker, migrator, CLI,
+- Linux amd64 and arm64 backend bundles containing API, migrator, CLI,
   and the exact protected built-ins extracted from the scanned candidate image;
 - fixed-name **`sforum-bootstrap.sh`**, **`sforum-deploy.tar.gz`**, and legacy
   compatibility **`upgrade.sh`** assets;
@@ -168,7 +167,6 @@ with `gh attestation verify <file> --repo zhuchunshu/SForum` and its entry in
 Stable releases publish these images to GitHub Container Registry:
 
 - `ghcr.io/zhuchunshu/sforum-api`
-- `ghcr.io/zhuchunshu/sforum-worker`
 - `ghcr.io/zhuchunshu/sforum-migrate`
 - `ghcr.io/zhuchunshu/sforum-web`
 
@@ -374,7 +372,6 @@ tune the wait.
 ./deploy.sh --action logs          # follow all service logs
 ./deploy.sh --action status        # service status
 docker compose --env-file .env.production logs -f api web
-# With EMBED_WORKER_IN_API=false, add --profile split-worker and include worker.
 ```
 
 ### Failure recovery
@@ -405,25 +402,23 @@ See `deploy/caddy/Caddyfile`. For client IPs, set `TRUST_PROXY` and a precise `T
 | Service | Role |
 | --- | --- |
 | `web` | Nuxt production output; same-origin HTTP API proxy |
-| `api` | Fiber API + extension runtime + embedded River Worker by default; optional WS ingress |
-| `worker` | Optional standalone River consumer (`EMBED_WORKER_IN_API=false`) |
+| `api` | Fiber API + extension runtime + embedded River Worker; optional WS ingress |
 | `postgres` / `redis` | Durable state / sessions & cache |
 
-Production defaults to `EMBED_WORKER_IN_API=true`. Normal deployments therefore
-do not start the standalone `worker` container and reuse the API PostgreSQL
-pool, Redis clients, and extension runtime. Set the value to `false` for
-independent scaling, failure isolation, or production-like process debugging;
-`deploy.sh` then activates the `split-worker` profile, pulls the Worker image,
-and verifies the separate process. Do not manually start the standalone Worker
-while embedding is enabled.
+The API always owns the Worker in development and production; there is no
+environment switch for Worker ownership. HTTP and background work share the
+PostgreSQL pool, Redis clients, SettingsLifecycle, SecretStore, and extension
+runtime. Updates remove legacy `worker`, `worker-blue`, and `worker-green`
+containers by their Compose labels.
 
-`upgrade.sh` is the deliberate exception: blue/green slot APIs disable the
-embedded Worker and use drainable standalone Workers for handoff.
+Blue/green slot APIs also embed their Workers. River safely coordinates the
+brief period with two candidate consumers, and stopping the old API after the
+traffic switch also stops its Worker.
 
 Embedded HTTP and background work share `DATABASE_MAX_CONNS`. If a sustained
 queue needs its own pool or begins affecting request latency, tune that limit
-with PostgreSQL observation or switch to split mode instead of raising River
-concurrency without a bound.
+with PostgreSQL observation or lower the affected queue concurrency instead of
+raising River concurrency without a bound.
 
 ## Backup and restore
 
@@ -453,34 +448,28 @@ strategy" question remains open).
 
 The `/control-panel` resource cards read
 `GET /api/v1/admin/overview/resources` and account for CPU, RSS, and available
-PSS for the API, an independent Worker, and backend plugin processes owned
-directly by them. Production Linux images read `/proc` directly and do not
-depend on BusyBox `ps`. Production Compose shares each Worker's PID namespace
-with its API, allowing the API to discover and correctly attribute Worker and
-plugin processes without a host PID namespace or Docker socket. Requests share
+PSS for the API and its directly owned backend plugin processes. Production
+Linux images read `/proc` directly and do not depend on BusyBox `ps` or a host
+PID namespace or Docker socket. Requests share
 one process-table sample for up to 5 seconds and display a rolling 60-second
 median. Systems without PSS support do not fabricate an "effective" value.
 Plugin details are ordered from highest to lowest RSS and exclude unrelated
 services and orphaned processes.
 
-Development and normal production deployments embed the Worker in the API by default. The API row is labeled as
-including the Worker, while the Worker row reports embedded slots and running
-jobs instead of inventing a standalone Worker MiB value. With
-`EMBED_WORKER_IN_API=false`, a standalone Worker is measured separately.
+The API row is labeled as including the Worker, while the Worker row reports
+embedded slots and running jobs instead of inventing a standalone Worker MiB
+value.
 
 Go pprof is an explicit opt-in, loopback-only diagnostic surface and is disabled
 by default:
 
 ```sh
-# Temporarily enable API diagnostics (an embedded Worker is included)
+# Temporarily enable API diagnostics (the Worker is included)
 PPROF_ENABLED=true PPROF_ADDR=127.0.0.1:6060
-
-# Enable a separate profile only for a standalone Worker
-WORKER_PPROF_ENABLED=true WORKER_PPROF_ADDR=127.0.0.1:6061
 ```
 
-When enabled, use `http://127.0.0.1:6060/debug/pprof/` (or `6061` for the
-standalone Worker). Never publish these ports or proxy them publicly. Remove the
+When enabled, use `http://127.0.0.1:6060/debug/pprof/` for API and Worker
+profiles. Never publish these ports or proxy them publicly. Remove the
 flags and restart after profiling. `GOMEMLIMIT` can provide a Go runtime soft
 heap target, for example `GOMEMLIMIT=512MiB`; it is not a hard RSS limit for
 plugins or the container, which need their own resource limits.

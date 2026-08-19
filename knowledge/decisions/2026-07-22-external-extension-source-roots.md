@@ -28,7 +28,7 @@ upgrade lifecycle.
 6. Source removal never implies uninstall. Runtime snapshots remain Host-owned
    until the normal lifecycle explicitly removes them.
 7. Docker deployments configure container paths and mount source collections
-   read-only into API and standalone worker containers.
+   read-only into the API container. The API-owned Worker shares that runtime.
 
 ## Consequences
 

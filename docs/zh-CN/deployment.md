@@ -82,8 +82,7 @@ Compose 文件、入口脚本、生产环境示例和 `deploy/` 辅助脚本。
 
 ## 目标形态
 
-- Docker Compose 编排：`web`、内嵌 Worker 的 `api`、PostgreSQL、Redis；
-  独立 `worker` 是可选的 `split-worker` profile
+- Docker Compose 编排：`web`、始终内嵌 Worker 的 `api`、PostgreSQL、Redis
 - 对外：仅 **loopback** 发布 Web（及可选 API WebSocket 入口），TLS 由**宿主机反代**负责
 - 同域：浏览器只打到站点域名；普通 `/api/v1/*` 由 Nuxt 反代到 API；WebSocket Upgrade 可直打 API 端口
 
@@ -136,14 +135,14 @@ SHA 的 `push` CI 成功后才构建、扫描和提升发布镜像，不会再�
 
 - `linux/amd64`、`linux/arm64`、`darwin/amd64`、`darwin/arm64` 的
   `sforum` 管理 CLI；Windows 不在 SForum 的支持平台范围内；
-- `linux/amd64` 和 `linux/arm64` 后端运行包，包含 API、Worker、迁移、CLI
+- `linux/amd64` 和 `linux/arm64` 后端运行包，包含 API、迁移、CLI
   以及从同一已扫描候选镜像提取的精确内置扩展；
 - 固定名称 **`sforum-bootstrap.sh`**、部署包 **`sforum-deploy.tar.gz`** 与
   旧安装兼容用 **`upgrade.sh`**；
 - 覆盖全部压缩包的 `SHA256SUMS` 和 GitHub 构建来源证明。
 
 Linux 后端包不包含 Nuxt Web、PostgreSQL 或 Redis，因此不是完整站点安装包；
-生产部署仍推荐使用下方四个版本一致的 Docker 镜像。下载后可使用
+生产部署仍推荐使用下方三个版本一致的 Docker 镜像。下载后可使用
 `gh attestation verify <文件> --repo zhuchunshu/SForum` 验证构建来源，并按
 `SHA256SUMS` 验证文件摘要。
 
@@ -154,7 +153,6 @@ Linux 后端包不包含 Nuxt Web、PostgreSQL 或 Redis，因此不是完整站
 正式版本发布到 GitHub Container Registry，包含以下镜像：
 
 - `ghcr.io/zhuchunshu/sforum-api`
-- `ghcr.io/zhuchunshu/sforum-worker`
 - `ghcr.io/zhuchunshu/sforum-migrate`
 - `ghcr.io/zhuchunshu/sforum-web`
 
@@ -343,7 +341,6 @@ WebSocket 长连接在切换时可能需要自动重连。
 ./deploy.sh --action logs          # 跟踪全部服务日志
 ./deploy.sh --action status        # 查看服务状态
 docker compose --env-file .env.production logs -f api web
-# 仅 EMBED_WORKER_IN_API=false 时：追加 --profile split-worker 并查看 worker
 ```
 
 ### 故障恢复
@@ -373,51 +370,43 @@ docker compose --env-file .env.production logs -f api web
 | 服务 | 职责 |
 | --- | --- |
 | `web` | Nuxt 生产输出；同域代理 HTTP API |
-| `api` | Fiber API；扩展运行时；默认内嵌 River Worker；可选 WS 入口 |
-| `worker` | 可选独立 River 消费者（`EMBED_WORKER_IN_API=false`） |
+| `api` | Fiber API；扩展运行时；内嵌 River Worker；可选 WS 入口 |
 | `postgres` / `redis` | 状态与会话/缓存 |
 
-生产默认 `EMBED_WORKER_IN_API=true`，因此普通部署不会启动独立 `worker`
-容器，并会复用 API 的 PostgreSQL 连接池、Redis 与扩展 runtime。需要独立
-扩缩容、故障隔离或生产式进程调试时，将其设为 `false`；`deploy.sh` 会自动
-启用 `split-worker` profile、拉取 Worker 镜像并验证独立进程。不要在内嵌
-模式下手动启动独立 Worker，否则会形成两套消费者与插件 runtime。
+生产和开发均由 API 始终承载 Worker，Worker 所有权没有环境变量开关。API 与
+后台任务复用 PostgreSQL 连接池、Redis、SettingsLifecycle、SecretStore 和扩展
+runtime，避免两套进程读取不同配置。更新旧版本时，部署脚本会按 Compose 标签
+删除遗留的 `worker`、`worker-blue` 与 `worker-green` 容器。
 
-`upgrade.sh` 的蓝绿拓扑是有意的例外：槽位 API 强制关闭内嵌 Worker，使用
-可排空的独立 Worker 完成安全交接。
+蓝绿槽位同样由各自 API 内嵌 Worker。候选槽启动后 River 允许短暂存在两个
+消费者；流量切换完成后停止旧 API，也会同时停止旧槽的 Worker。
 
 内嵌模式下 HTTP 与后台任务共用 `DATABASE_MAX_CONNS`。队列持续繁忙、需要
-单独连接池或任务延迟开始影响请求延迟时，应提高该值并观察 PostgreSQL，或
-切换到分离模式，而不是无边界提高 River 并发。
+任务延迟开始影响请求延迟时，应提高该值并观察 PostgreSQL，或降低对应队列
+并发，而不是无边界提高 River 并发。
 
 ## 运行时内存与诊断
 
 管理台 `/control-panel` 的资源卡通过
-`GET /api/v1/admin/overview/resources` 读取 API、独立 Worker 和直属插件
-进程的 CPU、RSS 与可用的 PSS。Linux 正式镜像直接读取 `/proc`，不依赖
-BusyBox `ps`；生产 Compose 让 Worker 与对应 API 共享 PID namespace，使 API
-能够发现并正确归因 Worker 与插件进程，同时不需要宿主机 PID namespace 或
-Docker socket。资源请求最多每 5 秒共享一次采样，展示最近 60 秒中位数；
+`GET /api/v1/admin/overview/resources` 读取 API 与直属插件进程的 CPU、RSS
+和可用的 PSS。Linux 正式镜像直接读取 `/proc`，不依赖 BusyBox `ps`，也不
+需要宿主机 PID namespace 或 Docker socket。资源请求最多每 5 秒共享一次采样，展示最近 60 秒中位数；
 不支持 PSS 的系统不会伪造"有效占用"。插件明细按占用从高到低列出，并只
 归因当前 API/Worker 直接拥有的插件进程。
 
-开发与普通生产环境默认将 Worker 内嵌到 API。此时 API 行明确标记"含 Worker"，Worker
-行只显示内嵌并发槽位和运行任务数，不虚构一个独立 Worker 的 MiB。生产环境
-若设置 `EMBED_WORKER_IN_API=false`，独立 Worker 会单独计量。
+API 行明确标记"含 Worker"；Worker 行只显示内嵌并发槽位和运行任务数，不
+虚构一个独立 Worker 的 MiB。
 
 Go pprof 是显式 opt-in 的本机诊断面，默认关闭，且启动器拒绝非 loopback
 监听地址：
 
 ```sh
-# 临时开启 API 诊断（内嵌 Worker 已包含在同一 profile）
+# 临时开启 API 诊断（Worker 已包含在同一 profile）
 PPROF_ENABLED=true PPROF_ADDR=127.0.0.1:6060
-
-# 只有独立 Worker 才需要单独开启
-WORKER_PPROF_ENABLED=true WORKER_PPROF_ADDR=127.0.0.1:6061
 ```
 
-启用后可用 `http://127.0.0.1:6060/debug/pprof/`（独立 Worker 为
-`6061`）采集 profile。不要把该端口发布到公网或交给反向代理；采集完成后
+启用后可用 `http://127.0.0.1:6060/debug/pprof/` 采集 API 与 Worker profile。
+不要把该端口发布到公网或交给反向代理；采集完成后
 删除开关并重启进程。`GOMEMLIMIT` 可作为 Go runtime 的软堆上限，例如
 `GOMEMLIMIT=512MiB`，但它不是插件进程或整个容器的硬 RSS 上限；插件和
 容器仍应配置各自的资源限制。

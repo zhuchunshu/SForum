@@ -91,9 +91,9 @@ not kill it):
   `scripts/free-api-dev-port.sh`; if the port is held by docker or another
   non-sforum process it refuses and does not kill it. Air's `pre_cmd` only
   clears orphan `sforum-api` (not the currently managed instance). In dev the
-  API embeds the worker (`EMBED_WORKER_IN_API=true`).
-- `./scripts/worker-dev.sh` — standalone worker via `.air.worker.toml`; only
-  needed when `EMBED_WORKER_IN_API=false`.
+  API always embeds and owns the worker.
+- `./scripts/worker-dev.sh` — retained only as a compatibility error; standalone
+  Worker startup is unsupported.
 
 Build, typecheck, lint, test:
 

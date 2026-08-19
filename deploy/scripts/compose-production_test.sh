@@ -24,16 +24,15 @@ docker compose \
   --profile tools \
   config --format json > "$TEMP_DIR/compose.json"
 
-sed 's/^EMBED_WORKER_IN_API=true$/EMBED_WORKER_IN_API=false/' \
-  "$TEMP_DIR/.env.production" > "$TEMP_DIR/.env.production.split"
+cp "$TEMP_DIR/.env.production" "$TEMP_DIR/.env.production.legacy"
+printf 'EMBED_WORKER_IN_API=false\n' >> "$TEMP_DIR/.env.production.legacy"
 docker compose \
-  --env-file "$TEMP_DIR/.env.production.split" \
+  --env-file "$TEMP_DIR/.env.production.legacy" \
   -f "$ROOT_DIR/compose.yaml" \
   -f "$ROOT_DIR/compose.prod.yaml" \
   -f "$ROOT_DIR/compose.release.yaml" \
   --profile tools \
-  --profile split-worker \
-  config --format json > "$TEMP_DIR/compose.split.json"
+  config --format json > "$TEMP_DIR/compose.legacy.json"
 
 ruby -rjson -e '
   env = File.readlines(ARGV.fetch(0), chomp: true).each_with_object({}) do |line, values|
@@ -58,15 +57,12 @@ ruby -rjson -e '
   end
   abort "compose-production_test.sh: migrate APP_ENV is not production" unless migrate["APP_ENV"] == "production"
   api = services.fetch("api")
-  abort "compose-production_test.sh: API does not embed Worker by default" unless api.dig("environment", "EMBED_WORKER_IN_API") == "true"
+  abort "compose-production_test.sh: API still exposes Worker ownership configuration" if api.fetch("environment").key?("EMBED_WORKER_IN_API")
   abort "compose-production_test.sh: default topology includes standalone Worker" if services.key?("worker")
 
-  split_services = JSON.parse(File.read(ARGV.fetch(2))).fetch("services")
-  split_api = split_services.fetch("api")
-  abort "compose-production_test.sh: split API still embeds Worker" unless split_api.dig("environment", "EMBED_WORKER_IN_API") == "false"
-  worker = split_services.fetch("worker")
-  abort "compose-production_test.sh: worker must share only the API PID namespace" unless worker["pid"] == "service:api"
-  abort "compose-production_test.sh: worker must depend on API startup" unless worker.dig("depends_on", "api", "condition") == "service_started"
-' "$TEMP_DIR/.env.production" "$TEMP_DIR/compose.json" "$TEMP_DIR/compose.split.json"
+  legacy_services = JSON.parse(File.read(ARGV.fetch(2))).fetch("services")
+  abort "compose-production_test.sh: legacy env revived standalone Worker" if legacy_services.key?("worker")
+  abort "compose-production_test.sh: legacy env changed API ownership" if legacy_services.fetch("api").fetch("environment").key?("EMBED_WORKER_IN_API")
+' "$TEMP_DIR/.env.production" "$TEMP_DIR/compose.json" "$TEMP_DIR/compose.legacy.json"
 
 printf 'compose-production_test.sh: all checks passed\n'

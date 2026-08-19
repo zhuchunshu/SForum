@@ -19,7 +19,7 @@
 | `./scripts/dev.sh` | 依赖 + 迁移 |
 | `./scripts/dev-down.sh` | 停依赖 |
 | `./scripts/api-dev.sh` | API Air + 内置插件 staging |
-| `./scripts/worker-dev.sh` | 独立 worker Air |
+| `./scripts/worker-dev.sh` | 旧独立 Worker 命令的明确报错 |
 | `./scripts/test.sh` | 仓库级门禁 |
 | `./scripts/build-builtin-plugins.sh` | 编译内置插件 |
 | `ruby scripts/validate-openapi-refs.rb` | OpenAPI `$ref` |

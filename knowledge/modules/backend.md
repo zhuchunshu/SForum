@@ -57,13 +57,11 @@ Runtime resource accounting lives in `app/Support/ProcessMemory` and is shared
 by the admin overview. Linux release containers sample procfs directly, because
 Alpine BusyBox `ps` does not implement the process-table flags used on macOS.
 The collector reads PID/PPID, command, RSS, optional `smaps_rollup` PSS, and
-adjacent-frame CPU ticks, then keeps a 60-second rolling median for API,
-standalone Worker, owned backend plugins, and totals. Production Compose places
-each trusted Worker in its API's PID namespace, exposing only those two service
-families without host PID access or a Docker socket. Other platforms leave PSS
-absent instead of inventing a value. When the Worker is embedded in the API,
-`WithWorkerRuntime` exposes mode and concurrency without a fictional Worker
-memory line.
+adjacent-frame CPU ticks, then keeps a 60-second rolling median for the API,
+owned backend plugins, and totals without host PID access or a Docker socket.
+Other platforms leave PSS absent instead of inventing a value. The API-owned
+Worker is represented through `WithWorkerRuntime` mode and concurrency rather
+than a fictional separate memory line.
 
 The optional `app/Support/RuntimeDiagnostics` server owns loopback-only pprof
 listeners. `PPROF_ENABLED` and `WORKER_PPROF_ENABLED` default to false; the API
@@ -77,8 +75,8 @@ Process probes (F1.2): `GET /api/v1/health` is cheap liveness; `GET
 required; Redis and Meilisearch failures are degraded-ready).
 
 Release automation (2026-07-29) uses reusable GitHub Actions CI plus a
-tag-driven GHCR pipeline. `sforum-api`, `sforum-worker`, `sforum-migrate`, and
-`sforum-web` are built for `linux/amd64` and `linux/arm64`; commit-addressed
+tag-driven GHCR pipeline. `sforum-api`, `sforum-migrate`, and `sforum-web` are
+built for `linux/amd64` and `linux/arm64`; commit-addressed
 candidates must pass Trivy and an exact-image PostgreSQL/Redis Compose smoke
 before version and stable aliases move. `compose.release.yaml` and
 `deploy.sh --version vX.Y.Z` consume one immutable application version without
@@ -160,19 +158,17 @@ Status, logs, backup, restore, restart, and stop remain local `deploy.sh`
 operations so recovery does not depend on GitHub availability. See
 `knowledge/decisions/2026-08-18-verified-release-bootstrap.md`.
 
-Normal production deployment now defaults to one API process with an embedded
-River worker. Compose passes `EMBED_WORKER_IN_API=true`, keeps the standalone
-worker behind the `split-worker` profile, and forwards queue concurrency plus
-database pool controls to the owning process. `deploy.sh` selects its image,
-identity, startup, and health expectations from the flag and rejects a stray
-standalone Worker in embedded mode. This reduces duplicate Go processes,
-database pools, and extension plugin runtimes. Operators retain the split mode
-with `EMBED_WORKER_IN_API=false`.
+Normal production deployment uses one API process with an embedded River
+worker. Worker ownership is not configurable; Compose exposes no standalone
+Worker service. Queue concurrency and shutdown controls go to the API-owned
+consumer, which shares the API database pool, SettingsLifecycle, SecretStore,
+and extension runtime. `deploy.sh` and `upgrade.sh` remove legacy standalone
+Worker containers by exact Compose labels.
 
 `upgrade.sh` owns guarded blue/green updates after installation. A
 stable Caddy edge switches between API/Web slots only after internal readiness;
-the old Worker drains before the new Worker starts, so durable River work is not
-lost and two consumers do not overlap. The target migrator first performs a
+each slot API owns its Worker, and River coordinates the brief consumer overlap
+until the old API stops. The target migrator first performs a
 read-only exact Core and River migration check. Pending Core SQL may run while
 the active slot serves only when every migration declares
 `-- +sforum OnlineSafe`, stays transactional, and defines bounded lock and

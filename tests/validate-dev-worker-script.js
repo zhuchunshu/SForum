@@ -11,16 +11,16 @@ function assert(condition, message) {
   }
 }
 
-assert(fs.existsSync(workerScriptPath), 'scripts/worker-dev.sh must exist for local background jobs')
+assert(fs.existsSync(workerScriptPath), 'scripts/worker-dev.sh must preserve a clear compatibility error')
 
 const workerScript = fs.readFileSync(workerScriptPath, 'utf8')
-assert(workerScript.includes('.air.worker.toml'), 'worker-dev.sh must run the worker Air config')
-assert(workerScript.includes('cmd/worker') || workerScript.includes('sforum-worker'), 'worker-dev.sh should clearly target the worker process')
-assert(workerScript.includes('THEME_WEB_ROOT'), 'worker-dev.sh must set or preserve THEME_WEB_ROOT for local theme builds')
+assert(workerScript.includes('Standalone Worker is no longer supported'), 'worker-dev.sh must reject the retired standalone topology')
+assert(workerScript.includes('./scripts/api-dev.sh'), 'worker-dev.sh must direct operators to the API-owned worker')
+assert(workerScript.includes('exit 1'), 'worker-dev.sh must fail instead of starting a duplicate consumer')
 
 const readme = fs.readFileSync(readmePath, 'utf8')
-assert(readme.includes('EMBED_WORKER_IN_API'), 'README must document the embedded worker switch')
-assert(readme.includes('./scripts/worker-dev.sh'), 'README must document the optional local worker command')
-assert(readme.includes('split-process development') || readme.includes('拆分进程开发'), 'README should explain that worker-dev is for split-process development')
+assert(!readme.includes('EMBED_WORKER_IN_API'), 'README must not document a retired worker ownership switch')
+assert(!readme.includes('split-worker'), 'README must not document a retired standalone Worker profile')
+assert(readme.includes('API process always embeds'), 'README must document API ownership of background jobs')
 
 console.log('Development worker script validation passed.')

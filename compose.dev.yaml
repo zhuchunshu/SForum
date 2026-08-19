@@ -75,45 +75,6 @@ services:
         - action: rebuild
           path: ./apps/api/go.sum
 
-  worker:
-    profiles:
-      - worker
-    build:
-      target: dev
-    command: ["air", "-c", ".air.worker.toml"]
-    environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-sforum}:${POSTGRES_PASSWORD:-sforum}@postgres:5432/${POSTGRES_DB:-sforum}?sslmode=disable
-      REDIS_ADDR: redis:6379
-      EXTENSION_ROOT: /var/lib/sforum/extensions
-      BUILTIN_EXTENSION_ROOT: /app/extensions/builtin
-      GOMODCACHE: /go/pkg/mod
-    volumes:
-      - ./apps/api:/app/apps/api
-      - ./extensions/builtin:/app/extensions/builtin:ro
-      - go_build_cache:/root/.cache/go-build
-      - go_module_cache:/go/pkg/mod
-      - worker_air_tmp:/app/apps/api/tmp
-      - attachment_uploads:/app/apps/api/storage/app/attachments
-      - extension_packages:/var/lib/sforum/extensions
-    develop:
-      watch:
-        - action: sync
-          path: ./apps/api
-          target: /app/apps/api
-          ignore:
-            - tmp/
-            - bin/
-            - coverage/
-            - coverage.out
-            - "*.test"
-            - "*.out"
-            - "*.prof"
-            - "*.coverprofile"
-        - action: rebuild
-          path: ./apps/api/go.mod
-        - action: rebuild
-          path: ./apps/api/go.sum
-
   web:
     build:
       target: dev
@@ -159,7 +120,6 @@ volumes:
   go_build_cache:
   go_module_cache:
   api_air_tmp:
-  worker_air_tmp:
   web_node_modules:
   attachment_uploads:
   extension_packages:

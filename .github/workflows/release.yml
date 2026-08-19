@@ -128,24 +128,6 @@ jobs:
             ci_cache: ci-backend
             release_cache: release-backend-arm64
             cache_writer: true
-          - image: sforum-worker
-            dockerfile: apps/api/Dockerfile
-            target: worker
-            platform: linux/amd64
-            arch: amd64
-            runner: ubuntu-latest
-            ci_cache: ci-backend
-            release_cache: release-backend-amd64
-            cache_writer: false
-          - image: sforum-worker
-            dockerfile: apps/api/Dockerfile
-            target: worker
-            platform: linux/arm64
-            arch: arm64
-            runner: ubuntu-24.04-arm
-            ci_cache: ci-backend
-            release_cache: release-backend-arm64
-            cache_writer: false
           - image: sforum-migrate
             dockerfile: apps/api/Dockerfile
             target: migrate
@@ -285,7 +267,6 @@ jobs:
       matrix:
         image:
           - sforum-api
-          - sforum-worker
           - sforum-migrate
           - sforum-web
     steps:
@@ -541,7 +522,6 @@ jobs:
       matrix:
         image:
           - sforum-api
-          - sforum-worker
           - sforum-migrate
           - sforum-web
     steps:

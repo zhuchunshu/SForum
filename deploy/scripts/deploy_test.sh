@@ -6,6 +6,7 @@ TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sforum-deploy-test.XXXXXX")"
 TEST_ROOT="$TEMP_DIR/repo"
 MOCK_BIN="$TEMP_DIR/bin"
 MOCK_LOG="$TEMP_DIR/deploy.log"
+MOCK_LEGACY_REMOVED_FILE="$TEMP_DIR/legacy-worker-removed"
 
 cleanup() {
   rm -rf "$TEMP_DIR"
@@ -91,6 +92,14 @@ if [ "${1:-}" = "run" ]; then
   printf 'SForum %s (0123456789ab)\n' "${SFORUM_VERSION#v}"
   exit 0
 fi
+if [ "${1:-}" = "ps" ]; then
+  [ "${MOCK_LEGACY_WORKER:-}" != true ] || [ -e "$MOCK_LEGACY_REMOVED_FILE" ] || printf 'legacy-worker-id\n'
+  exit 0
+fi
+if [ "${1:-}" = "rm" ]; then
+  : > "$MOCK_LEGACY_REMOVED_FILE"
+  exit 0
+fi
 [ "${1:-}" = "compose" ] || exit 90
 shift
 
@@ -104,7 +113,6 @@ if [ "${1:-}" = "version" ]; then
 fi
 
 blue_green_compose=false
-split_worker_profile=false
 while [ "$#" -gt 0 ]; do
   case "$1" in
     -f)
@@ -114,10 +122,7 @@ while [ "$#" -gt 0 ]; do
     --env-file|--project-name)
       shift 2
       ;;
-    --profile)
-      [ "${2:-}" != split-worker ] || split_worker_profile=true
-      shift 2
-      ;;
+    --profile) shift 2 ;;
     *)
       break
       ;;
@@ -155,7 +160,7 @@ case "$command" in
     if [ "${1:-}" = "--status" ]; then
       [ ! -e .deployrc ] || [ "${MOCK_ALLOW_EXISTING_RC:-}" = true ] || exit 94
       if [ "${MOCK_BLUE_GREEN:-}" = true ] && [ "$blue_green_compose" = true ]; then
-        printf '%s\n' postgres redis edge api-blue worker-blue web-blue
+        printf '%s\n' postgres redis edge api-blue web-blue
       elif [ "${MOCK_BLUE_GREEN:-}" = true ]; then
         if [ -e "$MOCK_DEPLOY_STARTED_FILE" ]; then
           printf '%s\n' postgres redis api web
@@ -166,8 +171,6 @@ case "$command" in
         :
       elif [ "${MOCK_FAIL_STAGE:-}" = "services" ]; then
         printf '%s\n' postgres redis api
-      elif [ "$split_worker_profile" = true ]; then
-        printf '%s\n' postgres redis api worker web
       else
         printf '%s\n' postgres redis api web
       fi
@@ -230,6 +233,7 @@ run_deploy() {
   fi
 	: > "$MOCK_LOG"
 	rm -f "$TEMP_DIR/deploy-started"
+	rm -f "$MOCK_LEGACY_REMOVED_FILE"
 	rm -f "$TEST_ROOT/.deployrc"
   if (
     cd "$TEST_ROOT"
@@ -238,6 +242,7 @@ run_deploy() {
 		MOCK_DB_STATE="$database_state" \
 		MOCK_FAIL_STAGE="$fail_stage" \
 		MOCK_DEPLOY_STARTED_FILE="$TEMP_DIR/deploy-started" \
+		MOCK_LEGACY_REMOVED_FILE="$MOCK_LEGACY_REMOVED_FILE" \
       SFORUM_DEPLOY_STABILITY_SECONDS=0 \
       ./deploy.sh "${args[@]}"
   ) > "$output_file" 2>&1; then
@@ -246,7 +251,7 @@ run_deploy() {
   return 1
 }
 
-for image in migrate api worker web; do
+for image in migrate api web; do
   assert_contains "$ROOT_DIR/compose.release.yaml" "image: \${SFORUM_REGISTRY:-ghcr.io/zhuchunshu}/sforum-${image}:\${SFORUM_VERSION:?Set SFORUM_VERSION to an immutable release tag}"
 done
 
@@ -272,17 +277,33 @@ assert_contains "$TEMP_DIR/clean.out" "Reverse proxy API/WebSocket target: http:
 assert_contains "$TEMP_DIR/clean.out" "Site access URL: http://127.0.0.1:3000"
 assert_contains "$TEMP_DIR/clean.out" "Admin URL: http://127.0.0.1:3000/control-panel"
 
-# Split Worker remains an explicit production option. The deployer activates
-# the matching Compose profile and restores the standalone image/process set.
+# A retained legacy setting cannot disable the API-owned Worker or revive the
+# removed standalone service.
 cp "$TEST_ROOT/.env.production" "$TEMP_DIR/embedded-default.env"
-sed 's/^EMBED_WORKER_IN_API=true$/EMBED_WORKER_IN_API=false/' \
-  "$TEMP_DIR/embedded-default.env" > "$TEST_ROOT/.env.production"
-if ! run_deploy split-worker f ""; then
-  fail "split Worker deployment failed"
+cp "$TEMP_DIR/embedded-default.env" "$TEST_ROOT/.env.production"
+printf 'EMBED_WORKER_IN_API=false\n' >> "$TEST_ROOT/.env.production"
+if ! run_deploy legacy-worker-setting f ""; then
+  fail "legacy Worker setting deployment failed"
 fi
-assert_contains "$MOCK_LOG" "--profile split-worker pull migrate api worker web"
-assert_contains "$MOCK_LOG" "--profile split-worker up -d --no-build --pull never postgres redis api worker web"
-assert_contains "$MOCK_LOG" "run --rm ghcr.io/zhuchunshu/sforum-worker:v3.0.0-alpha.9 sforum-worker --version"
+assert_contains "$MOCK_LOG" "pull migrate api web"
+assert_contains "$MOCK_LOG" "up -d --no-build --pull never postgres redis api web"
+assert_not_contains "$MOCK_LOG" "pull migrate api worker web"
+assert_not_contains "$MOCK_LOG" "sforum-worker --version"
+cp "$TEMP_DIR/embedded-default.env" "$TEST_ROOT/.env.production"
+
+if ! MOCK_LEGACY_WORKER=true run_deploy legacy-container f ""; then
+  fail "legacy Worker container cleanup deployment failed"
+fi
+assert_contains "$MOCK_LOG" "docker version=v3.0.0-alpha.9 rm -f legacy-worker-id"
+assert_contains "$MOCK_LOG" "label=com.docker.compose.project=sforum"
+assert_before "$MOCK_LOG" "stop api web" "rm -f legacy-worker-id"
+assert_before "$MOCK_LOG" "rm -f legacy-worker-id" "run --rm -T --pull never migrate"
+
+printf 'COMPOSE_PROJECT_NAME=custom-sforum\n' >> "$TEST_ROOT/.env.production"
+if ! MOCK_LEGACY_WORKER=true run_deploy custom-project-legacy-container f ""; then
+  fail "custom Compose project legacy Worker cleanup deployment failed"
+fi
+assert_contains "$MOCK_LOG" "label=com.docker.compose.project=custom-sforum"
 cp "$TEMP_DIR/embedded-default.env" "$TEST_ROOT/.env.production"
 
 if ! run_deploy existing t ""; then
@@ -319,9 +340,9 @@ if ! (
   cat "$MOCK_LOG" >&2
   fail "blue/green maintenance deployment failed"
 fi
-assert_contains "$MOCK_LOG" "-f compose.zero-downtime.yaml --profile zero-downtime stop worker-blue worker-green web-blue web-green api-blue api-green edge"
-assert_before "$MOCK_LOG" "helper backup" "stop worker-blue worker-green web-blue web-green api-blue api-green edge"
-assert_before "$MOCK_LOG" "stop worker-blue worker-green web-blue web-green api-blue api-green edge" "run --rm -T --pull never migrate"
+assert_contains "$MOCK_LOG" "-f compose.zero-downtime.yaml --profile zero-downtime stop web-blue web-green api-blue api-green edge"
+assert_before "$MOCK_LOG" "helper backup" "stop web-blue web-green api-blue api-green edge"
+assert_before "$MOCK_LOG" "stop web-blue web-green api-blue api-green edge" "run --rm -T --pull never migrate"
 assert_contains "$TEST_ROOT/.deployrc" "version=v3.0.0-alpha.9"
 assert_not_contains "$TEST_ROOT/.deployrc" "topology=blue-green"
 

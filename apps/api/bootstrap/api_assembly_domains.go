@@ -262,7 +262,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 			WithHeartbeat(heartbeatStore).
 			WithQueueLag(pool).
 			WithWorkerRuntime(
-				shouldEmbedWorkerInAPI(cfg) && !pluginRuntimeRecovery.Active(),
+				!pluginRuntimeRecovery.Active(),
 				config.JobQueueWorkerTotal(cfg),
 			),
 		identityStore,

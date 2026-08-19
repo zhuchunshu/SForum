@@ -146,12 +146,18 @@ printf '%s\n' 'CREATE TABLE restored_table (id bigint);' > "$TEMP_DIR/restore.sq
 
 [[ ! -e "$TEMP_DIR/env-command-was-executed" ]] || fail "restore executed shell content from .env.production"
 
-grep -q '^compose stop api worker$' "$MOCK_LOG" || fail "restore did not stop API and worker"
+grep -q '^compose stop api$' "$MOCK_LOG" || fail "restore did not stop API"
+if grep -q '^compose stop .*worker' "$MOCK_LOG"; then
+  fail "restore attempted to stop a legacy standalone Worker"
+fi
 grep -q 'exec restore .*--set=ON_ERROR_STOP=1.*--single-transaction' "$MOCK_LOG" || fail "restore is missing fail-fast single-transaction flags"
 grep -q 'ALTER DATABASE :"target_db" WITH ALLOW_CONNECTIONS false;' "$MOCK_LOG" || fail "restore did not close target database admission"
 grep -q 'ALTER DATABASE :"target_db" RENAME TO :"previous_db";' "$MOCK_LOG" || fail "restore did not retain the old target until swap"
 grep -q 'ALTER DATABASE :"restore_db" RENAME TO :"target_db";' "$MOCK_LOG" || fail "restore did not publish the validated database"
-grep -q '^compose start api worker$' "$MOCK_LOG" || fail "restore did not restart previously running services"
+grep -q '^compose start api$' "$MOCK_LOG" || fail "restore did not restart the previously running API"
+if grep -q '^compose start .*worker' "$MOCK_LOG"; then
+  fail "restore attempted to restart a legacy standalone Worker"
+fi
 
 : > "$MOCK_LOG"
 if (cd "$TEST_ROOT" && MOCK_PSQL_FAIL=true SFORUM_CONFIRM_RESTORE=RESTORE ./deploy/scripts/restore-postgres.sh "$TEMP_DIR/restore.sql" >/dev/null 2>&1); then
@@ -162,7 +168,10 @@ if grep -q '^exec swap ' "$MOCK_LOG"; then
   fail "failed restore attempted to publish the temporary database"
 fi
 grep -q 'exec dropdb .*sforum_restore_' "$MOCK_LOG" || fail "failed restore did not remove its temporary database"
-grep -q '^compose start api worker$' "$MOCK_LOG" || fail "failed restore did not restart previously running services"
+grep -q '^compose start api$' "$MOCK_LOG" || fail "failed restore did not restart the previously running API"
+if grep -q '^compose start .*worker' "$MOCK_LOG"; then
+  fail "failed restore attempted to restart a legacy standalone Worker"
+fi
 
 printf '%s\n' \
   "POSTGRES_DB=\$(touch '$TEMP_DIR/database-value-was-executed')" \

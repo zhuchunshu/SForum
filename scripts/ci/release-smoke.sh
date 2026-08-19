@@ -14,7 +14,6 @@ fi
 export SFORUM_VERSION
 export SFORUM_REGISTRY="${SFORUM_REGISTRY:-ghcr.io/zhuchunshu}"
 export APP_ENV=production
-export EMBED_WORKER_IN_API=true
 export APP_URL=http://127.0.0.1:3000
 export POSTGRES_PASSWORD=sforum-release-smoke-postgres
 export DATABASE_URL='postgres://sforum:sforum-release-smoke-postgres@postgres:5432/sforum?sslmode=disable'
@@ -47,10 +46,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
-"${compose[@]}" pull migrate api worker web
+"${compose[@]}" pull migrate api web
 
 expected_summary="SForum $EXPECTED_VERSION (${EXPECTED_COMMIT:0:12})"
-for service in api worker migrate; do
+for service in api migrate; do
   binary="sforum-$service"
   image="${SFORUM_REGISTRY}/sforum-${service}:${SFORUM_VERSION}"
   actual_summary="$(docker run --rm "$image" "$binary" --version)"
@@ -74,10 +73,6 @@ for service in postgres redis api web; do
     exit 1
   fi
 done
-if grep -qx worker <<<"$running_services"; then
-  echo "Release smoke unexpectedly started the split Worker service." >&2
-  exit 1
-fi
 
 deadline=$((SECONDS + 30))
 while [ "$SECONDS" -lt "$deadline" ]; do

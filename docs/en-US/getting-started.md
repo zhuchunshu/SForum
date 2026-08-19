@@ -57,7 +57,7 @@ In another terminal:
 
 - Loads root `.env`
 - Builds/stages built-in plugins for dev
-- Starts the API with Air; development defaults to `EMBED_WORKER_IN_API=true`
+- Starts the API with Air; the same API process always consumes background jobs
 
 ### 3. Frontend
 

@@ -9,13 +9,7 @@ services:
     image: ${SFORUM_REGISTRY:-ghcr.io/zhuchunshu}/sforum-api:${SFORUM_VERSION:?Set SFORUM_VERSION to an immutable release tag}
     pull_policy: always
 
-  worker:
-    build: !reset null
-    image: ${SFORUM_REGISTRY:-ghcr.io/zhuchunshu}/sforum-worker:${SFORUM_VERSION:?Set SFORUM_VERSION to an immutable release tag}
-    pull_policy: always
-
   web:
     build: !reset null
     image: ${SFORUM_REGISTRY:-ghcr.io/zhuchunshu}/sforum-web:${SFORUM_VERSION:?Set SFORUM_VERSION to an immutable release tag}
     pull_policy: always
-

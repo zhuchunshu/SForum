@@ -12,7 +12,7 @@ const occurrences = (source, value) => source.split(value).length - 1
 const config = read('apps/api/config/config.go')
 assert(
   config.includes('envBool("SFORUM_V3_TRUST_CHALLENGES", isProd)'),
-  'bare production API/worker processes must default exact-artifact trust on'
+  'bare production API processes must default exact-artifact trust on'
 )
 assert(
   config.includes('envBool("SFORUM_V3_PUBLIC_L2", false)'),
@@ -21,12 +21,12 @@ assert(
 
 const compose = read('compose.yaml')
 assert(
-  occurrences(compose, 'SFORUM_V3_TRUST_CHALLENGES: ${SFORUM_V3_TRUST_CHALLENGES:-false}') === 2,
-  'base Compose must pass the compatibility-default trust gate to API and worker'
+  occurrences(compose, 'SFORUM_V3_TRUST_CHALLENGES: ${SFORUM_V3_TRUST_CHALLENGES:-false}') === 1,
+  'base Compose must pass the compatibility-default trust gate to the API'
 )
 assert(
-  occurrences(compose, 'SFORUM_V3_TRUST_CHALLENGE_TTL: ${SFORUM_V3_TRUST_CHALLENGE_TTL:-5m}') === 2,
-  'base Compose must pass the challenge TTL to API and worker'
+  occurrences(compose, 'SFORUM_V3_TRUST_CHALLENGE_TTL: ${SFORUM_V3_TRUST_CHALLENGE_TTL:-5m}') === 1,
+  'base Compose must pass the challenge TTL to the API'
 )
 assert(
   occurrences(compose, 'SFORUM_V3_PUBLIC_L2: ${SFORUM_V3_PUBLIC_L2:-false}') === 1,
@@ -35,8 +35,8 @@ assert(
 
 const productionCompose = read('compose.prod.yaml')
 assert(
-  occurrences(productionCompose, 'SFORUM_V3_TRUST_CHALLENGES: ${SFORUM_V3_TRUST_CHALLENGES:-true}') === 2,
-  'production Compose must enable exact-artifact trust for API and worker'
+  occurrences(productionCompose, 'SFORUM_V3_TRUST_CHALLENGES: ${SFORUM_V3_TRUST_CHALLENGES:-true}') === 1,
+  'production Compose must enable exact-artifact trust for the API'
 )
 assert(
   occurrences(productionCompose, 'SFORUM_V3_PUBLIC_L2: ${SFORUM_V3_PUBLIC_L2:-false}') === 1,

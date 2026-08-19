@@ -45,7 +45,7 @@ marketing names in code and contracts.
 
 | Term | Meaning |
 | --- | --- |
-| **Embedded worker** | Dev default: API process also runs River consumer (`EMBED_WORKER_IN_API`). |
+| **Embedded worker** | The API-owned River consumer; Worker ownership is not configurable. |
 | **Hot handoff** | Actionable session note under `knowledge/sessions/`. |
 | **Session archive** | Cold historical handoffs under `knowledge/sessions/archive/`. |
 | **ADR** | Architecture decision record under `knowledge/decisions/`. |

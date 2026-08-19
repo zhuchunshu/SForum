@@ -68,7 +68,7 @@ fake_compose() {
 		*' sforum-migrate --check-no-pending '*) [ "$SCHEMA_STATE" = no_pending ] || [ "$MIGRATION_APPLIED" = true ] ;;
 		*' sforum-migrate --check-online-safe '*) [ "$SCHEMA_STATE" = safe_pending ] ;;
 		*' run --rm -T --pull never migrate '*) MIGRATION_APPLIED=true ;;
-		*' ps --status running --services '*) printf '%s\n' worker-green ;;
+		*' ps --status running --services '*) printf '%s\n' api-green ;;
 	esac
 }
 
@@ -108,6 +108,9 @@ switch_router() {
   printf 'switch %s %s\n' "$1" "$2" >> "$LOG_FILE"
   [ "$SWITCH_RESULT" = pass ]
 }
+remove_legacy_worker_containers() {
+  printf 'remove legacy workers\n' >> "$LOG_FILE"
+}
 
 reset_state
 WAIT_RESULT=fail
@@ -115,7 +118,7 @@ if (online_update blue v3.0.0-alpha.10 v3.0.0-alpha.11) > "$TEMP_DIR/health.out"
   fail "candidate health failure was accepted"
 fi
 assert_not_contains "$LOG_FILE" 'switch green blue'
-assert_not_contains "$LOG_FILE" 'stop worker-blue'
+assert_not_contains "$LOG_FILE" 'remove legacy workers'
 assert_contains "$LOG_FILE" 'stop web-green api-green'
 
 reset_state
@@ -124,7 +127,7 @@ if (online_update blue v3.0.0-alpha.10 v3.0.0-alpha.11) > "$TEMP_DIR/switch.out"
   fail "router switch failure was accepted"
 fi
 assert_contains "$LOG_FILE" 'switch green blue'
-assert_not_contains "$LOG_FILE" 'stop worker-blue'
+assert_not_contains "$LOG_FILE" 'remove legacy workers'
 assert_contains "$LOG_FILE" 'stop web-green api-green'
 
 reset_state
@@ -148,7 +151,7 @@ assert_contains "$DEPLOY_RC" 'active_slot=green'
 assert_contains "$DEPLOY_RC" 'version=v3.0.0-alpha.11'
 assert_contains "$DEPLOY_RC" 'green_version=v3.0.0-alpha.11'
 assert_not_contains "$DEPLOY_RC" 'version=latest'
-assert_contains "$LOG_FILE" 'stop worker-blue'
+assert_contains "$LOG_FILE" 'remove legacy workers'
 assert_contains "$LOG_FILE" 'stop web-blue api-blue'
 
 # Exercise the real router rollback path: the failed reload must restore the

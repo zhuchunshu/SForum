@@ -37,7 +37,6 @@ type Config struct {
 	DatabaseMaxConnIdleTime       time.Duration
 	DatabaseMaxConnLifetime       time.Duration
 	DatabaseConnectTimeout        time.Duration
-	EmbedWorkerInAPI              bool
 	WorkerDatabaseMaxConns        int32
 	WorkerDatabaseMinConns        int32
 	WorkerDatabaseMaxConnIdleTime time.Duration
@@ -182,7 +181,6 @@ func Load() Config {
 		DatabaseMaxConnIdleTime:       envDuration("DATABASE_MAX_CONN_IDLE_TIME", 30*time.Minute),
 		DatabaseMaxConnLifetime:       envDuration("DATABASE_MAX_CONN_LIFETIME", time.Hour),
 		DatabaseConnectTimeout:        envDuration("DATABASE_CONNECT_TIMEOUT", 10*time.Second),
-		EmbedWorkerInAPI:              envBool("EMBED_WORKER_IN_API", true),
 		WorkerDatabaseMaxConns:        envPositiveInt32("WORKER_DATABASE_MAX_CONNS", dbMaxConnsDefault),
 		WorkerDatabaseMinConns:        envPositiveInt32("WORKER_DATABASE_MIN_CONNS", dbMinConnsDefault),
 		WorkerDatabaseMaxConnIdleTime: envDuration("WORKER_DATABASE_MAX_CONN_IDLE_TIME", 30*time.Minute),

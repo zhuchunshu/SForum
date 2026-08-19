@@ -20,9 +20,8 @@ Meilisearch, and Mailpit. Run the frontend and API locally with:
   cd apps/web && bun run dev
   ./scripts/api-dev.sh
 
-In development, the API embeds the background worker by default. Use
-./scripts/worker-dev.sh only when you intentionally disable EMBED_WORKER_IN_API
-and want a separate worker process.
+In development, the API always owns the background worker. A separate Worker
+process is not supported.
 USAGE
 }
 
@@ -123,10 +122,9 @@ else
   echo "One-shot database migrations skipped by --no-migrate."
 fi
 echo "API startup still follows MIGRATE_ON_STARTUP=${MIGRATE_ON_STARTUP:-true}."
-echo "Embedded API worker: ${EMBED_WORKER_IN_API:-development default}"
+echo "Background jobs always run inside the API process."
 echo "Then run: cd apps/web && bun run dev"
 echo "Then run: ./scripts/api-dev.sh"
-echo "Background jobs run inside the development API unless EMBED_WORKER_IN_API=false."
 echo "Use './scripts/dev.sh --build' after Dockerfile or dependency changes."
 
 if [ "$PRINT_COMMAND" -eq 1 ]; then
@@ -142,7 +140,7 @@ if [ "$PRINT_COMMAND" -eq 1 ]; then
 fi
 
 # 旧开发流会留下 Compose 管理的前后端容器；先停掉，避免占用本机端口。
-docker compose "${COMPOSE_FILES[@]}" --profile worker stop web api worker >/dev/null 2>&1 || true
+docker compose "${COMPOSE_FILES[@]}" stop web api >/dev/null 2>&1 || true
 
 docker compose "${UP_ARGS[@]}"
 

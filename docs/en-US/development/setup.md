@@ -40,11 +40,8 @@ See [Getting started](../getting-started.md). Recommended terminals:
 | 2 | `./scripts/api-dev.sh` |
 | 3 | `cd apps/web && bun run dev` |
 
-Standalone worker only when `EMBED_WORKER_IN_API=false`:
-
-```sh
-./scripts/worker-dev.sh
-```
+The API always embeds and owns the Worker. `scripts/worker-dev.sh` remains only
+as an explicit compatibility error so it cannot start duplicate consumers.
 
 ## 4. Troubleshooting
 

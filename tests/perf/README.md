@@ -39,7 +39,6 @@ k6 scenarios for the million-scale public read path. Pair with:
    set -a; . ./.env; set +a
    export DATABASE_URL='postgres://sforum:sforum@127.0.0.1:15432/sforum_perf?sslmode=disable'
    export HTTP_PORT=8082
-   export EMBED_WORKER_IN_API=true
    cd apps/api && go run ./cmd/api
    ```
 

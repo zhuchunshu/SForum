@@ -282,35 +282,9 @@ func setValidProductionSecrets(t *testing.T) {
 	}
 }
 
-func TestLoadEnablesEmbeddedWorkerByDefault(t *testing.T) {
-	t.Setenv("APP_ENV", "development")
-	development := Load()
-	if !development.EmbedWorkerInAPI {
-		t.Fatal("expected development api to embed the worker by default")
-	}
-
-	t.Setenv("APP_ENV", "production")
-	setValidProductionSecrets(t)
-	production := Load()
-	if !production.EmbedWorkerInAPI {
-		t.Fatal("expected production api to embed the worker by default")
-	}
-}
-
-func TestLoadAllowsEmbeddedWorkerOverride(t *testing.T) {
-	t.Setenv("APP_ENV", "development")
-	t.Setenv("EMBED_WORKER_IN_API", "false")
-	disabled := Load()
-	if disabled.EmbedWorkerInAPI {
-		t.Fatal("expected env override to disable embedded api worker")
-	}
-
-	t.Setenv("APP_ENV", "production")
-	setValidProductionSecrets(t)
-	t.Setenv("EMBED_WORKER_IN_API", "true")
-	enabled := Load()
-	if !enabled.EmbedWorkerInAPI {
-		t.Fatal("expected env override to enable embedded api worker")
+func TestConfigDoesNotExposeEmbeddedWorkerOverride(t *testing.T) {
+	if _, ok := reflect.TypeOf(Config{}).FieldByName("EmbedWorkerInAPI"); ok {
+		t.Fatal("api worker ownership must not be configurable")
 	}
 }
 

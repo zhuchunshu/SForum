@@ -61,7 +61,6 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgres://sforum:sforum@postgres:5432/sforum?sslmode=disable}
       MIGRATE_ON_STARTUP: ${MIGRATE_ON_STARTUP:-true}
       DATABASE_MAX_CONNS: ${DATABASE_MAX_CONNS:-}
-      EMBED_WORKER_IN_API: ${EMBED_WORKER_IN_API:-true}
       WORKER_SHUTDOWN_TIMEOUT: ${WORKER_SHUTDOWN_TIMEOUT:-}
       JOB_QUEUE_CRITICAL_WORKERS: ${JOB_QUEUE_CRITICAL_WORKERS:-}
       JOB_QUEUE_DEFAULT_WORKERS: ${JOB_QUEUE_DEFAULT_WORKERS:-}
@@ -88,54 +87,6 @@ services:
       SFORUM_V3_TRUST_CHALLENGES: ${SFORUM_V3_TRUST_CHALLENGES:-false}
       SFORUM_V3_TRUST_CHALLENGE_TTL: ${SFORUM_V3_TRUST_CHALLENGE_TTL:-5m}
       SFORUM_V3_PUBLIC_L2: ${SFORUM_V3_PUBLIC_L2:-false}
-    volumes:
-      - attachment_uploads:/app/storage/app/attachments
-      - extension_packages:/var/lib/sforum/extensions
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-  worker:
-    profiles: ["split-worker"]
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
-      target: worker
-    environment:
-      APP_NAME: ${APP_NAME:-SForum}
-      APP_ENV: ${APP_ENV:-development}
-      APP_LOCALE: ${APP_LOCALE:-zh-CN}
-      SUPPORTED_LOCALES: ${SUPPORTED_LOCALES:-zh-CN,en-US}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      DATABASE_URL: ${DATABASE_URL:-postgres://sforum:sforum@postgres:5432/sforum?sslmode=disable}
-      MIGRATE_ON_STARTUP: ${MIGRATE_ON_STARTUP:-true}
-      WORKER_DATABASE_MAX_CONNS: ${WORKER_DATABASE_MAX_CONNS:-}
-      WORKER_SHUTDOWN_TIMEOUT: ${WORKER_SHUTDOWN_TIMEOUT:-}
-      JOB_QUEUE_CRITICAL_WORKERS: ${JOB_QUEUE_CRITICAL_WORKERS:-}
-      JOB_QUEUE_DEFAULT_WORKERS: ${JOB_QUEUE_DEFAULT_WORKERS:-}
-      JOB_QUEUE_SEARCH_WORKERS: ${JOB_QUEUE_SEARCH_WORKERS:-}
-      JOB_QUEUE_MAIL_WORKERS: ${JOB_QUEUE_MAIL_WORKERS:-}
-      JOB_QUEUE_NOTIFICATIONS_WORKERS: ${JOB_QUEUE_NOTIFICATIONS_WORKERS:-}
-      JOB_QUEUE_MAINTENANCE_WORKERS: ${JOB_QUEUE_MAINTENANCE_WORKERS:-}
-      REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-sforum-dev-redis}
-      SESSION_HASH_SECRET: ${SESSION_HASH_SECRET:-sforum-dev-session-hash-secret}
-      IDENTITY_SUBJECT_HMAC_SECRET: ${IDENTITY_SUBJECT_HMAC_SECRET:-sforum-dev-identity-subject-hmac-secret}
-      APP_OPTION_ENC_KEY: ${APP_OPTION_ENC_KEY:-}
-      MARKETPLACE_ED25519_PUBLIC_KEY_HEX: ${MARKETPLACE_ED25519_PUBLIC_KEY_HEX:-}
-      MARKETPLACE_ED25519_KEY_ID: ${MARKETPLACE_ED25519_KEY_ID:-marketplace-primary}
-      HUMAN_VERIFICATION_PROVIDER: ${HUMAN_VERIFICATION_PROVIDER:-disabled}
-      ALTCHA_SECRET: ${ALTCHA_SECRET:-sforum-dev-altcha-secret}
-      ALTCHA_CHALLENGE_TTL: ${ALTCHA_CHALLENGE_TTL:-10m}
-      ALTCHA_COST: ${ALTCHA_COST:-1000}
-      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-}
-      EXTENSION_ROOT: ${EXTENSION_ROOT:-/var/lib/sforum/extensions}
-      BUILTIN_EXTENSION_ROOT: /app/extensions/builtin
-      EXTERNAL_EXTENSION_ROOTS: ${EXTERNAL_EXTENSION_ROOTS:-}
-      SFORUM_V3_TRUST_CHALLENGES: ${SFORUM_V3_TRUST_CHALLENGES:-false}
-      SFORUM_V3_TRUST_CHALLENGE_TTL: ${SFORUM_V3_TRUST_CHALLENGE_TTL:-5m}
     volumes:
       - attachment_uploads:/app/storage/app/attachments
       - extension_packages:/var/lib/sforum/extensions

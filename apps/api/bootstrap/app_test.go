@@ -55,15 +55,6 @@ func TestAPIFailuresExposeOnlyConfiguredCoordinatorChannel(t *testing.T) {
 	}
 }
 
-func TestShouldEmbedWorkerInAPIRequiresConfigFlag(t *testing.T) {
-	if !shouldEmbedWorkerInAPI(config.Config{EmbedWorkerInAPI: true}) {
-		t.Fatal("expected embedded worker to start when config flag is enabled")
-	}
-	if shouldEmbedWorkerInAPI(config.Config{EmbedWorkerInAPI: false}) {
-		t.Fatal("expected embedded worker to stay disabled when config flag is disabled")
-	}
-}
-
 func TestExtensionRuntimeFactoryCanBeReplacedForBootstrapTests(t *testing.T) {
 	original := newExtensionRuntimeManager
 	defer func() { newExtensionRuntimeManager = original }()

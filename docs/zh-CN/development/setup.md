@@ -63,13 +63,8 @@ bun install
 bun run dev
 ```
 
-### 独立 worker（可选）
-
-默认 API 内嵌 worker。若设置 `EMBED_WORKER_IN_API=false`：
-
-```sh
-./scripts/worker-dev.sh
-```
+API 始终内嵌并拥有 Worker。`scripts/worker-dev.sh` 仅保留为旧命令的明确报错，
+避免误启动第二套消费者与插件进程。
 
 ## 4. 编辑器建议
 

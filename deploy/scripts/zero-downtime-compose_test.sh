@@ -39,19 +39,14 @@ ruby -rjson -e '
   slots.each do |slot|
     api = services.fetch("api-#{slot}")
     web = services.fetch("web-#{slot}")
-    worker = services.fetch("worker-#{slot}")
     abort "api-#{slot} published a host port" if api.key?("ports")
     abort "web-#{slot} published a host port" if web.key?("ports")
     abort "web-#{slot} points at the wrong API" unless web.dig("environment", "NUXT_API_INTERNAL_BASE_URL") == "http://api-#{slot}:8080/api/v1"
-    abort "api-#{slot} must use a split Worker for drainable blue/green handoff" unless api.dig("environment", "EMBED_WORKER_IN_API") == "false"
-    abort "worker-#{slot} does not share its API PID namespace" unless worker["pid"] == "service:api-#{slot}"
-    abort "worker-#{slot} lacks graceful drain time" unless worker["stop_grace_period"] == "40s"
-    abort "worker-#{slot} does not wait for its API" unless worker.dig("depends_on", "api-#{slot}", "condition") == "service_started"
-    %w[api worker].each do |kind|
-      mounts = services.fetch("#{kind}-#{slot}").fetch("volumes").map { |volume| [volume["source"], volume["target"]] }
-      abort "#{kind}-#{slot} lost attachment volume" unless mounts.include?(["attachment_uploads", "/app/storage/app/attachments"])
-      abort "#{kind}-#{slot} lost extension volume" unless mounts.include?(["extension_packages", "/var/lib/sforum/extensions"])
-    end
+    abort "api-#{slot} still exposes Worker ownership configuration" if api.fetch("environment").key?("EMBED_WORKER_IN_API")
+    abort "worker-#{slot} must not exist" if services.key?("worker-#{slot}")
+    mounts = api.fetch("volumes").map { |volume| [volume["source"], volume["target"]] }
+    abort "api-#{slot} lost attachment volume" unless mounts.include?(["attachment_uploads", "/app/storage/app/attachments"])
+    abort "api-#{slot} lost extension volume" unless mounts.include?(["extension_packages", "/var/lib/sforum/extensions"])
   end
   abort "blue API tag mismatch" unless services.dig("api-blue", "image").end_with?(":v3.0.0-alpha.10")
   abort "green API tag mismatch" unless services.dig("api-green", "image").end_with?(":v3.0.0-alpha.11")

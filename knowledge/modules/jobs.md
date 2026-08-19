@@ -22,21 +22,21 @@ Implemented platform foundation:
   registration, and runtime startup.
 - SForum's database migrator runs River's official migrator after Goose, so a
   fresh database receives River tables before API or worker enqueueing.
-- API processes create an insert-only River client. Development and normal
-  production deployments embed workers by default through
-  `EMBED_WORKER_IN_API=true`; `EMBED_WORKER_IN_API=false` activates the optional
-  `split-worker` production profile. Blue/green slots deliberately use the
-  split topology so the old worker can drain before handoff.
+- API processes create an insert-only River client and always own the River
+  consumer outside Safe Mode or host recovery. Worker ownership has no
+  environment switch; development, production, and blue/green Compose expose
+  no standalone Worker service.
 - Embed mode injects the API’s extension runtime into `newWorkerWithPool`
   (`OwnsRuntime=false`), so backend plugins are not started twice. Standalone
   `NewWorker` still builds and reconciles its own runtime.
 - `apps/api/bootstrap.NewWorker` opens the worker PostgreSQL pool, builds the
   worker registry, and creates the River client when handlers are registered.
-- `apps/api/cmd/worker` starts and gracefully stops the River runtime. An empty
-  registry intentionally stays idle because River rejects an empty bundle.
+- `apps/api/cmd/worker` remains internal compatibility/test scaffolding and is
+  not a supported deployment entrypoint.
 - `apps/api/app/Jobs/Search` owns `search.index_topic`; other domain modules own
   their typed job contracts and handlers.
-- `scripts/worker-dev.sh` supports an intentional local API/worker split.
+- `scripts/worker-dev.sh` exits with a compatibility error to prevent duplicate
+  local consumers.
 
 ## Operator Workbench
 
@@ -125,8 +125,8 @@ Plugins may render digest-approved client components there, but cannot bypass
 
 ## Worker Heartbeat And Queue Lag (F1.2)
 
-- Worker (standalone `cmd/worker`, or API when `EMBED_WORKER_IN_API=true`)
-  publishes Redis key `sforum:worker:heartbeat` every 10s with TTL 45s.
+- The API-owned Worker publishes Redis key `sforum:worker:heartbeat` every 10s
+  with TTL 45s.
 - Admin overview `runtime.worker` exposes `status` (`ok`|`stale`|`unknown`),
   `stale`, `lastSeenAt`, `ageSeconds`.
 - Admin overview `runtime.queueLag` cheaply counts River jobs:

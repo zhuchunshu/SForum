@@ -79,12 +79,11 @@ func finishAPIHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 		}
 	}
 
-	// Worker 心跳：嵌入 worker 时由 API 进程发布；独立 worker 在 NewWorker 内发布。
-	// 未嵌入时 overview 仍可读独立 worker 写入的同一 Redis key。
+	// Worker 心跳由 API 内嵌实例发布；NewWorker 仅保留给内部兼容测试。
 	heartbeatCtx, heartbeatCancel := context.WithCancel(context.Background())
 
 	var embeddedWorker *Worker
-	if shouldEmbedWorkerInAPI(cfg) && !core.pluginRuntimeRecovery.Active() {
+	if !core.pluginRuntimeRecovery.Active() {
 		workerQueryInvalidation := newEmbeddedWorkerQueryInvalidationRuntime(cfg, core.hostInstallationID, logger)
 		// Embed 时复用 API 已 Reconcile 的 core.extensionRuntime，避免每个后端插件双起子进程。
 		// 插件 runtime 复用，但 Query invalidator 独占 Redis client，避免 worker

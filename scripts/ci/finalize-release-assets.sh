@@ -53,12 +53,16 @@ done
 for arch in amd64 arm64; do
   server_root="sforum-server_${VERSION}_linux_${arch}"
   server_listing="$(tar -tzf "$ASSET_DIR/$server_root.tar.gz")"
-  for binary in sforum-api sforum-worker sforum-migrate sforum; do
+  for binary in sforum-api sforum-migrate sforum; do
     grep -qx "$server_root/bin/$binary" <<< "$server_listing" || {
       echo "Server archive is missing $server_root/bin/$binary" >&2
       exit 1
     }
   done
+  if grep -qx "$server_root/bin/sforum-worker" <<< "$server_listing"; then
+    echo "Server archive must not expose a standalone Worker binary" >&2
+    exit 1
+  fi
   grep -q "^$server_root/extensions/builtin/" <<< "$server_listing" || {
     echo "Server archive is missing protected built-ins" >&2
     exit 1

@@ -14,7 +14,6 @@ RELEASE_VERSION=""
 CHANNEL="${SFORUM_DEPLOY_CHANNEL:-stable}"
 COMPOSE=()
 BLUE_GREEN_COMPOSE=()
-SPLIT_WORKER=false
 RELEASE_IMAGE_SERVICES=()
 APP_SERVICES=()
 
@@ -145,7 +144,7 @@ t() {
       starting_infra) echo "Starting the managed PostgreSQL and Redis services..." ;;
       fresh_database) echo "Fresh database detected; no backup is needed." ;;
       backup_first) echo "Existing installation detected; creating a PostgreSQL backup..." ;;
-      stopping_app) echo "Stopping the previous API, worker, and Web containers..." ;;
+      stopping_app) echo "Stopping the previous API and Web containers..." ;;
       migrations_running) echo "Running database migrations with the target release image..." ;;
       starting_app) echo "Starting SForum from release images..." ;;
       verifying) echo "Checking API, Web, and all managed services..." ;;
@@ -189,7 +188,7 @@ t() {
       starting_infra) echo "正在启动内置 PostgreSQL 和 Redis..." ;;
       fresh_database) echo "检测到全新数据库，本次无需备份。" ;;
       backup_first) echo "检测到已有安装，正在创建 PostgreSQL 备份..." ;;
-      stopping_app) echo "正在停止旧版 API、Worker 和 Web 容器..." ;;
+      stopping_app) echo "正在停止旧版 API 和 Web 容器..." ;;
       migrations_running) echo "正在使用目标版本镜像运行数据库迁移..." ;;
       starting_app) echo "正在从发布镜像启动 SForum..." ;;
       verifying) echo "正在检查 API、Web 和全部内置服务..." ;;
@@ -274,15 +273,8 @@ validate_release_version() {
 configure_compose() {
   export SFORUM_VERSION="$RELEASE_VERSION"
   COMPOSE=(docker compose --env-file .env.production -f compose.yaml -f compose.prod.yaml -f compose.release.yaml)
-  SPLIT_WORKER=false
   RELEASE_IMAGE_SERVICES=(migrate api web)
   APP_SERVICES=(postgres redis api web)
-  if [ "$(env_file_value .env.production EMBED_WORKER_IN_API true)" = false ]; then
-    SPLIT_WORKER=true
-    COMPOSE+=(--profile split-worker)
-    RELEASE_IMAGE_SERVICES=(migrate api worker web)
-    APP_SERVICES=(postgres redis api worker web)
-  fi
   configure_blue_green_compose
 }
 
@@ -332,7 +324,7 @@ compose_version_supported() {
 }
 
 validate_env_contract() {
-  local public_api_base app_env app_url admin_prefix postgres_db postgres_user postgres_password database_url embed_worker
+  local public_api_base app_env app_url admin_prefix postgres_db postgres_user postgres_password database_url
   local redis_addr redis_password session_secret identity_secret option_key altcha_secret marketplace_key
   public_api_base="$(env_file_value .env.production NUXT_PUBLIC_API_BASE_URL /api/v1)"
   [ "$public_api_base" = "/api/v1" ] || die "$(t invalid_public_api_base)"
@@ -351,7 +343,6 @@ validate_env_contract() {
   option_key="$(env_file_value .env.production APP_OPTION_ENC_KEY)"
   altcha_secret="$(env_file_value .env.production ALTCHA_SECRET)"
   marketplace_key="$(env_file_value .env.production MARKETPLACE_ED25519_PUBLIC_KEY_HEX)"
-  embed_worker="$(env_file_value .env.production EMBED_WORKER_IN_API true)"
 
   [ "$app_env" = "production" ] || die "$(t invalid_env) APP_ENV"
   [[ "$app_url" =~ ^https?://[^[:space:]]+$ ]] || die "$(t invalid_env) APP_URL"
@@ -370,7 +361,24 @@ validate_env_contract() {
   [[ "$option_key" =~ ^[0-9A-Fa-f]{64}$ ]] || die "$(t invalid_env) APP_OPTION_ENC_KEY"
   [ "${#altcha_secret}" -ge 32 ] || die "$(t invalid_env) ALTCHA_SECRET"
   [[ "$marketplace_key" =~ ^[0-9A-Fa-f]{64}$ ]] || die "$(t invalid_env) MARKETPLACE_ED25519_PUBLIC_KEY_HEX"
-  [ "$embed_worker" = true ] || [ "$embed_worker" = false ] || die "$(t invalid_env) EMBED_WORKER_IN_API"
+}
+
+legacy_worker_container_ids() {
+  local project service
+  project="${COMPOSE_PROJECT_NAME:-$(env_file_value .env.production COMPOSE_PROJECT_NAME sforum)}"
+  for service in worker worker-blue worker-green; do
+    docker ps -aq \
+      --filter "label=com.docker.compose.project=${project}" \
+      --filter "label=com.docker.compose.service=${service}"
+  done
+}
+
+remove_legacy_worker_containers() {
+  local id failed=false
+  while IFS= read -r id; do
+    [ -z "$id" ] || docker rm -f "$id" || failed=true
+  done < <(legacy_worker_container_ids | sort -u)
+  [ "$failed" = false ]
 }
 
 service_is_running() {
@@ -457,10 +465,8 @@ verify_services_running() {
   local running service
   local expected=(postgres redis api web)
   running="$("${COMPOSE[@]}" ps --status running --services)"
-  if [ "$SPLIT_WORKER" = true ]; then
-    expected+=(worker)
-  elif grep -Fqx worker <<< "$running"; then
-    echo "Standalone Worker must not run while EMBED_WORKER_IN_API=true." >&2
+  if [ -n "$(legacy_worker_container_ids)" ]; then
+    echo "Legacy standalone Worker containers are still present." >&2
     return 1
   fi
   for service in "${expected[@]}"; do
@@ -482,9 +488,6 @@ verify_services_stable() {
 verify_release_identities() {
   local service binary image actual expected_version
   local backend_services=(api migrate)
-  if [ "$SPLIT_WORKER" = true ]; then
-    backend_services=(api worker migrate)
-  fi
   expected_version="${RELEASE_VERSION#v}"
   t verifying_images
   for service in "${backend_services[@]}"; do
@@ -561,9 +564,9 @@ deploy_update() {
   previous_version="$(rc_value version)"
   if [ "${#BLUE_GREEN_COMPOSE[@]}" -gt 0 ]; then
     previous_running="$("${BLUE_GREEN_COMPOSE[@]}" ps --status running --services | \
-      grep -E '^(edge|api-(blue|green)|worker-(blue|green)|web-(blue|green))$' || true)"
+      grep -E '^(edge|api-(blue|green)|web-(blue|green))$' || true)"
   else
-    previous_running="$("${COMPOSE[@]}" ps --status running --services | grep -E '^(api|worker|web)$' || true)"
+    previous_running="$("${COMPOSE[@]}" ps --status running --services | grep -E '^(api|web)$' || true)"
   fi
   printf '%s %s\n' "$(t version):" "$RELEASE_VERSION"
 
@@ -586,20 +589,21 @@ deploy_update() {
   t stopping_app
   if [ "${#BLUE_GREEN_COMPOSE[@]}" -gt 0 ]; then
     if ! "${BLUE_GREEN_COMPOSE[@]}" stop \
-      worker-blue worker-green web-blue web-green api-blue api-green edge; then
+      web-blue web-green api-blue api-green edge; then
       if [ -n "$previous_running" ]; then
         # shellcheck disable=SC2086
         "${BLUE_GREEN_COMPOSE[@]}" start $previous_running || true
       fi
       die "Could not stop the previous blue/green application services."
     fi
-  elif ! "${COMPOSE[@]}" stop api worker web; then
+  elif ! "${COMPOSE[@]}" stop api web; then
     if [ -n "$previous_running" ]; then
       # shellcheck disable=SC2086
       "${COMPOSE[@]}" start $previous_running || true
     fi
-    die "Could not stop the previous application services."
+      die "Could not stop the previous application services."
   fi
+  remove_legacy_worker_containers || die "Could not remove legacy standalone Worker containers."
   if ! run_migrations_command; then
     persist_recovery_state migration_failed "$backup_file" "$previous_version"
     t recovery_required >&2

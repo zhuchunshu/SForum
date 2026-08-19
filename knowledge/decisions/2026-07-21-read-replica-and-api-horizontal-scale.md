@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted (2026-07-21) — **documentation only** (million-scale plan M7).  
+Accepted (2026-07-21) - **documentation only** (million-scale plan M7).
+Amended by `2026-08-19-api-owned-worker-only.md`: optional standalone Worker
+deployment is retired and each API instance owns its River Worker.
 No read-replica routing, no dual `DATABASE_URL` reader pool, and no multi-primary
 code ships under this decision until the thresholds below are met **and** a
 follow-up implementation plan is opened.

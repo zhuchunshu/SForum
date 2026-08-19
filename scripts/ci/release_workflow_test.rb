@@ -18,9 +18,9 @@ end
 release_jobs = release.fetch("jobs")
 publish = release_jobs.fetch("publish-candidate-platform")
 matrix = publish.dig("strategy", "matrix", "include")
-fail!("platform publish matrix must contain eight entries") unless matrix.is_a?(Array) && matrix.length == 8
+fail!("platform publish matrix must contain six entries") unless matrix.is_a?(Array) && matrix.length == 6
 
-images = %w[sforum-api sforum-worker sforum-migrate sforum-web]
+images = %w[sforum-api sforum-migrate sforum-web]
 architectures = {
   "amd64" => ["linux/amd64", "ubuntu-latest"],
   "arm64" => ["linux/arm64", "ubuntu-24.04-arm"]
@@ -63,7 +63,9 @@ end
 
 merge = release_jobs.fetch("merge-candidate")
 fail!("manifest merge must wait for all platform candidates") unless needs(merge).include?("publish-candidate-platform")
-fail!("manifest merge matrix must cover all four images") unless merge.dig("strategy", "matrix", "image") == images
+fail!("manifest merge matrix must cover all three images") unless merge.dig("strategy", "matrix", "image") == images
+promote = release_jobs.fetch("promote")
+fail!("promotion matrix must cover only the three supported images") unless promote.dig("strategy", "matrix", "image") == images
 
 merge_command = merge.fetch("steps").map { |step| step["run"] }.compact.find do |command|
   command.include?("docker buildx imagetools create")
