@@ -24,14 +24,18 @@ my-plugin/
 │   ├── *.go                   # Protocol V2 server (pluginv2.Serve)
 │   └── plugin                 # the built executable (backend.entry)
 ├── frontend/
-│   └── admin/dist/            # author-prebuilt ESM/CSS (only when needed)
+│   └── admin/
+│       ├── src/               # optional Vue authoring source
+│       └── dist/              # immutable ESM/CSS loaded in production
 └── schemas/
     └── *.json                 # packageFiles kind "schema" (route docs, etc.)
 ```
 
 `make:plugin` scaffolds the manifest, README, a placeholder `backend/plugin`
 stub, and (with `--backend`) a `backend/README.md` with the minimal SDK program.
-The scaffold does **not** generate a Go module — you create `go.mod` yourself.
+Add `--vue-admin-page` for a real Vue page workspace plus immediately valid
+placeholder output. The scaffold does **not** generate a Go module — you create
+`go.mod` yourself.
 
 ```bash
 cd apps/api
@@ -39,6 +43,12 @@ go run ./cmd/sforum make:plugin \
   --id acme.notes --name "Acme Notes" --description "…" \
   --url https://example.com/acme-notes --author-name Acme \
   --backend --no-interaction --out /tmp/acme.notes
+
+# Beginner-friendly Vue dashboard inside the Host admin shell
+go run ./cmd/sforum make:plugin \
+  --id acme.dashboard --name "Acme Dashboard" --description "…" \
+  --url https://example.com/acme-dashboard --author-name Acme \
+  --vue-admin-page --no-interaction --out /tmp/acme.dashboard
 ```
 
 For local experiments the scaffold default lands under `extensions/dev/`
@@ -108,13 +118,34 @@ self-contained ESM/CSS bytes** committed into the package at the declared
 paths:
 
 - `--prebuilt-settings` scaffolds a working `frontend/admin/dist/settings.mjs`
-  + `.css` pair (see `extensions/fixtures/plugins/sforum-prebuilt-settings/`).
+  + `.css` pair with a required Schema fallback.
+- `--vue-admin-page` scaffolds `AdminDashboard.vue`, Vite configuration,
+  `@sforum/admin-sdk`, and `@sforum/plugin-ui`. Its page inherits the Host
+  sidebar, topbar, tabs, heading, route guard, and permission enforcement.
 - Fixture L2 modules (e.g. `sforum-custom-content/frontend/editor/vote.mjs`)
   are hand-written single-file ES modules.
 - You may use any bundler (esbuild, rolldown, vite, …) to produce the final
-  single-file `.mjs`; the package just ships the output. There is no
-  package-local build step and no `package.json` requirement — the fixture
-  README documents this deliberately.
+  single-file `.mjs`; the package ships the output, not an executable build
+  environment. A hand-written module needs no `package.json`; the Vue scaffold
+  includes one only for the author's local build.
+
+Vue scaffold build loop:
+
+```bash
+cd <package-root>/frontend/admin
+bun install
+bun run build
+cd ../../..
+sforum extension digest --write .
+sforum extension validate .
+sforum extension test --allow-scaffold .
+```
+
+The initial placeholder `dist` files make the new package valid before Bun is
+installed. `bun run build` replaces the dashboard output and preserves a
+sibling prebuilt settings component. `extension package --exclude-source`
+removes `.vue`, `.ts`, Vite config, package metadata, and locks while retaining
+the final `.mjs`/`.css` files. Production never runs these build scripts.
 
 Declare each artifact in `packageFiles` with `kind: "frontend"` (or `asset` /
 `schema` / `template` as appropriate) plus the exact path. All digests are

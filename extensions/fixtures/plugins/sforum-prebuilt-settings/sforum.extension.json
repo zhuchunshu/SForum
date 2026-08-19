@@ -1,89 +1,95 @@
 {
-  "manifestVersion": 3,
-  "id": "sforum.fixture-prebuilt-settings",
-  "name": "Prebuilt Settings Fixture",
-  "description": "Framework-neutral Admin Micro-frontend API v1 fixture with Schema fallback and a first-class admin page.",
-  "url": "https://github.com/zhuchunshu/sforum",
-  "author": { "name": "SForum" },
-  "version": "1.0.0",
-  "type": "plugin",
-  "sforumVersion": ">=0.1.0",
   "admin": {
     "entry": "/settings",
     "pages": [
-      { "path": "/settings", "label": "Prebuilt settings", "view": "settings" },
       {
-        "path": "/dashboard",
-        "label": "Plugin dashboard",
+        "label": "Prebuilt settings",
+        "path": "/settings",
+        "view": "settings"
+      },
+      {
+        "component": {
+          "apiVersion": 1,
+          "css": "frontend/admin/dist/dashboard.css",
+          "entry": "frontend/admin/dist/dashboard.mjs",
+          "id": "dashboard"
+        },
         "description": "A prebuilt plugin-owned page mounted inside the Host admin shell.",
         "icon": "i-lucide-layout-dashboard",
-        "view": "component",
+        "label": "Plugin dashboard",
         "menu": true,
         "order": 20,
-        "component": {
-          "id": "dashboard",
-          "apiVersion": 1,
-          "entry": "frontend/admin/dist/dashboard.mjs",
-          "css": "frontend/admin/dist/dashboard.css"
-        }
+        "path": "/dashboard",
+        "view": "component"
       }
     ]
   },
-  "settings": {
-    "schemaVersion": 1,
-    "ui": {
-      "mode": "component",
-      "layout": "form",
-      "component": {
-        "id": "settings",
-        "apiVersion": 1,
-        "entry": "frontend/admin/dist/settings.mjs",
-        "css": "frontend/admin/dist/settings.css"
-      },
-      "callouts": [
-        {
-          "id": "fallback",
-          "tone": "info",
-          "title": "Schema fallback remains available",
-          "body": "Declining trust or any load failure keeps this host-rendered form usable."
-        }
-      ]
-    },
-    "fields": [
-      {
-        "key": "message",
-        "label": "Message",
-        "description": "Edited by either the prebuilt component or Schema fallback.",
-        "type": "text",
-        "default": "Hello from Schema UI",
-        "recommendedValue": "Hello from Schema UI"
-      }
-    ]
+  "author": {
+    "name": "SForum"
   },
+  "description": "Framework-neutral Admin Micro-frontend API v1 fixture with Schema fallback and a first-class admin page.",
+  "id": "sforum.fixture-prebuilt-settings",
+  "manifestVersion": 3,
+  "name": "Prebuilt Settings Fixture",
   "packageFiles": [
     {
+      "digest": "f748d01d7826b7795f86654aa51cb8dcf0c22932225976af47d512ed0b907df2",
       "id": "sforum.fixture-prebuilt-settings.file.settings-entry",
       "kind": "frontend",
-      "path": "frontend/admin/dist/settings.mjs",
-      "digest": "f748d01d7826b7795f86654aa51cb8dcf0c22932225976af47d512ed0b907df2"
+      "path": "frontend/admin/dist/settings.mjs"
     },
     {
+      "digest": "2036634a8adf3dc9be9e09d020a2fd121d4c57befcb45c82263ce3a5ab3230b1",
       "id": "sforum.fixture-prebuilt-settings.file.settings-style",
       "kind": "asset",
-      "path": "frontend/admin/dist/settings.css",
-      "digest": "2036634a8adf3dc9be9e09d020a2fd121d4c57befcb45c82263ce3a5ab3230b1"
+      "path": "frontend/admin/dist/settings.css"
     },
     {
+      "digest": "72db3b162731e1f1bfd64a355b5592691af0930e377d36c945e9c7fa92e9f951",
       "id": "sforum.fixture-prebuilt-settings.file.dashboard-entry",
       "kind": "frontend",
-      "path": "frontend/admin/dist/dashboard.mjs",
-      "digest": "16e3c91d57bd77a4c85e09cb48b5e3846bf36e3ad77d75275e75667771540cbf"
+      "path": "frontend/admin/dist/dashboard.mjs"
     },
     {
+      "digest": "f2ea269d70ab75667240fdfc611ca83793093226ff7b8c3931e93b143a40277e",
       "id": "sforum.fixture-prebuilt-settings.file.dashboard-style",
       "kind": "asset",
-      "path": "frontend/admin/dist/dashboard.css",
-      "digest": "5e63499ec216de8cdc1edcba23344f46b08cbcdf5818794f1bfaf5f83778370a"
+      "path": "frontend/admin/dist/dashboard.css"
     }
-  ]
+  ],
+  "settings": {
+    "fields": [
+      {
+        "default": "Hello from Schema UI",
+        "description": "Edited by either the prebuilt component or Schema fallback.",
+        "key": "message",
+        "label": "Message",
+        "recommendedValue": "Hello from Schema UI",
+        "type": "text"
+      }
+    ],
+    "schemaVersion": 1,
+    "ui": {
+      "callouts": [
+        {
+          "body": "Declining trust or any load failure keeps this host-rendered form usable.",
+          "id": "fallback",
+          "title": "Schema fallback remains available",
+          "tone": "info"
+        }
+      ],
+      "component": {
+        "apiVersion": 1,
+        "css": "frontend/admin/dist/settings.css",
+        "entry": "frontend/admin/dist/settings.mjs",
+        "id": "settings"
+      },
+      "layout": "form",
+      "mode": "component"
+    }
+  },
+  "sforumVersion": "\u003e=0.1.0",
+  "type": "plugin",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "version": "1.0.0"
 }

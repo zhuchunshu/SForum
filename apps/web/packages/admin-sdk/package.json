@@ -1,8 +1,15 @@
 {
   "name": "@sforum/admin-sdk",
   "version": "1.0.0",
-  "private": true,
+  "description": "Versioned bridge contracts for SForum admin plugin pages",
+  "license": "MIT",
   "type": "module",
+  "files": [
+    "src"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     ".": "./src/index.ts"
   }

@@ -1,0 +1,23 @@
+{
+  "name": "@sforum/plugin-ui",
+  "version": "1.0.0",
+  "description": "Stable Vue components for SForum plugin-owned pages",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "src"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": [
+    "./src/style.css"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./style.css": "./src/style.css"
+  },
+  "peerDependencies": {
+    "vue": "^3.5.0"
+  }
+}

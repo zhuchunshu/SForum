@@ -21,14 +21,17 @@ my-plugin/
 │   ├── *.go                   # Protocol V2 server（pluginv2.Serve）
 │   └── plugin                 # 构建出的可执行文件（backend.entry）
 ├── frontend/
-│   └── admin/dist/            # 作者预构建的 ESM/CSS（仅在需要时）
+│   └── admin/
+│       ├── src/               # 可选 Vue 作者源码
+│       └── dist/              # 生产环境加载的不可变 ESM/CSS
 └── schemas/
     └── *.json                 # packageFiles kind "schema"（路由文档等）
 ```
 
 `make:plugin` 会生成 manifest、README、占位的 `backend/plugin` stub，以及
-（带 `--backend` 时）说明最小 SDK 程序的 `backend/README.md`。脚手架**不会**
-生成 Go 模块——`go.mod` 需要你自己创建。
+（带 `--backend` 时）说明最小 SDK 程序的 `backend/README.md`。加上
+`--vue-admin-page` 会得到真实 Vue 页面工作区与立即可校验的占位产物。
+脚手架**不会**生成 Go 模块——`go.mod` 需要你自己创建。
 
 ```bash
 cd apps/api
@@ -36,6 +39,12 @@ go run ./cmd/sforum make:plugin \
   --id acme.notes --name "Acme Notes" --description "…" \
   --url https://example.com/acme-notes --author-name Acme \
   --backend --no-interaction --out /tmp/acme.notes
+
+# 继承 Host 后台壳层、适合新手的 Vue dashboard
+go run ./cmd/sforum make:plugin \
+  --id acme.dashboard --name "Acme Dashboard" --description "…" \
+  --url https://example.com/acme-dashboard --author-name Acme \
+  --vue-admin-page --no-interaction --out /tmp/acme.dashboard
 ```
 
 本地实验时脚手架默认落到 `extensions/dev/`（gitignored，永不被自动注册）。
@@ -105,12 +114,32 @@ go build -trimpath -buildvcs=false -ldflags="-s -w" -o plugin .
 提交进包：
 
 - `--prebuilt-settings` 会生成可用的 `frontend/admin/dist/settings.mjs` +
-  `.css`（参考 `extensions/fixtures/plugins/sforum-prebuilt-settings/`）。
+  `.css`，并保留必需的 Schema 回退。
+- `--vue-admin-page` 会生成 `AdminDashboard.vue`、Vite 配置、
+  `@sforum/admin-sdk` 与 `@sforum/plugin-ui` 依赖。页面自动继承 Host 的
+  sidebar、topbar、tabs、标题、路由守卫和权限检查，作者通常不必写 CSS。
 - fixture 的 L2 模块（如 `sforum-custom-content/frontend/editor/vote.mjs`）
   是手写的单文件 ES module。
 - 你可以用任意打包器（esbuild、rolldown、vite 等）产出最终单文件 `.mjs`；
-  包只携带输出。没有 package-local 构建步骤，也不要求 `package.json`——
-  fixture README 有意记录了这一点。
+  包只携带输出。手写模块不要求 `package.json`；Vue 脚手架中的 package
+  文件只服务作者本地构建。
+
+Vue 页面脚手架的完整循环：
+
+```bash
+cd <package-root>/frontend/admin
+bun install
+bun run build
+cd ../../..
+sforum extension digest --write .
+sforum extension validate .
+sforum extension test --allow-scaffold .
+```
+
+脚手架自带可用的占位 `dist`，因此没安装 Bun 时插件包也能先通过校验。
+`bun run build` 会替换 dashboard 产物，并保留同目录的预构建设置组件。
+`extension package --exclude-source` 会去掉 `.vue`、`.ts`、Vite 配置、
+package 元数据与锁文件，只留下最终 `.mjs`/`.css`；生产环境不会执行构建脚本。
 
 每个产物都要在 `packageFiles` 中声明：`kind: "frontend"`（或按需 `asset` /
 `schema` / `template`）+ 精确路径。所有摘要由 `extension digest --write`

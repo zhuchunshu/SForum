@@ -153,6 +153,89 @@ func TestGeneratePrebuiltProviderSettingsScaffold(t *testing.T) {
 	}
 }
 
+func TestGenerateVueAdminPageScaffold(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "vue-admin-plugin")
+	_, err := GenerateExtensionScaffold(makeOptions{
+		Kind: "plugin", ID: "acme.dashboard", Name: "Acme Dashboard", Description: "Vue admin page.",
+		URL: "https://example.com/dashboard", AuthorName: "Acme", Out: target, NoInteraction: true,
+		VueAdminPage: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest := readGeneratedManifest(t, target)
+	if manifest.Admin.Entry != "/dashboard" || len(manifest.Admin.Pages) != 2 {
+		t.Fatalf("unexpected Vue admin declaration: %#v", manifest.Admin)
+	}
+	page := manifest.Admin.Pages[0]
+	if page.View != "component" || !page.Menu || page.Permission != "acme.dashboard.manage" || page.Component == nil {
+		t.Fatalf("dashboard page is incomplete: %#v", page)
+	}
+	if page.Component.Entry != "frontend/admin/dist/dashboard.mjs" || page.Component.CSS != "frontend/admin/dist/dashboard.css" {
+		t.Fatalf("dashboard artifacts are incomplete: %#v", page.Component)
+	}
+	if len(manifest.PackageFiles) != 2 {
+		t.Fatalf("expected exact dashboard artifacts, got %#v", manifest.PackageFiles)
+	}
+	for _, relative := range []string{
+		"frontend/admin/package.json",
+		"frontend/admin/tsconfig.json",
+		"frontend/admin/vite.config.ts",
+		"frontend/admin/src/admin.ts",
+		"frontend/admin/src/AdminDashboard.vue",
+		"frontend/admin/dist/dashboard.mjs",
+		"frontend/admin/dist/dashboard.css",
+	} {
+		if _, err := os.Stat(filepath.Join(target, relative)); err != nil {
+			t.Fatalf("missing Vue authoring file %s: %v", relative, err)
+		}
+	}
+	viteConfig, err := os.ReadFile(filepath.Join(target, "frontend", "admin", "vite.config.ts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(viteConfig), "emptyOutDir: false") || !strings.Contains(string(viteConfig), "dashboard.mjs") {
+		t.Fatalf("Vite output must preserve sibling admin components: %s", viteConfig)
+	}
+	readme, err := os.ReadFile(filepath.Join(target, "README.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(readme), "bun run build") || !strings.Contains(string(readme), "extension digest --write") {
+		t.Fatalf("missing Vue build loop: %s", readme)
+	}
+}
+
+func TestGenerateComplexVueAdminAndPrebuiltSettingsScaffold(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "complex-vue-admin-plugin")
+	_, err := GenerateExtensionScaffold(makeOptions{
+		Kind: "plugin", ID: "acme.combined", Name: "Acme Combined", Description: "Combined admin surfaces.",
+		URL: "https://example.com/combined", AuthorName: "Acme", Out: target, NoInteraction: true,
+		Complex: true, PrebuiltSettings: true, VueAdminPage: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest := readGeneratedManifest(t, target)
+	if manifest.Admin.Entry != "/dashboard" || len(manifest.Admin.Pages) != 2 {
+		t.Fatalf("complex admin include lost Vue page: %#v", manifest.Admin)
+	}
+	if manifest.SettingsDocument.UI.Component == nil || len(manifest.PackageFiles) != 4 {
+		t.Fatalf("combined scaffold lost exact artifacts: settings=%#v files=%#v", manifest.SettingsDocument, manifest.PackageFiles)
+	}
+}
+
+func TestGenerateVueAdminPageRejectsTheme(t *testing.T) {
+	_, err := GenerateExtensionScaffold(makeOptions{
+		Kind: "theme", ID: "acme.invalid", Name: "Invalid", Description: "Invalid Vue page.",
+		URL: "https://example.com/invalid", AuthorName: "Acme", Out: filepath.Join(t.TempDir(), "theme"),
+		NoInteraction: true, VueAdminPage: true,
+	})
+	if err == nil || !strings.Contains(err.Error(), "requires a plugin") {
+		t.Fatalf("expected plugin-only validation, got %v", err)
+	}
+}
+
 func TestGenerateThemeScaffoldNonInteractive(t *testing.T) {
 	target := filepath.Join(t.TempDir(), "theme")
 	_, err := GenerateExtensionScaffold(makeOptions{

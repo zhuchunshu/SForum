@@ -65,6 +65,11 @@ func GenerateExtensionScaffold(opts makeOptions) (string, error) {
 			return "", err
 		}
 	}
+	if opts.VueAdminPage {
+		if err := writeVueAdminPageFiles(target, opts); err != nil {
+			return "", err
+		}
+	}
 	if opts.Kind == extensionmanifest.TypePlugin {
 		if err := writePluginFiles(target, opts); err != nil {
 			return "", err
@@ -102,6 +107,9 @@ func validateMakeOptions(opts makeOptions) error {
 	if opts.ProviderSlot != "" && (opts.Kind != extensionmanifest.TypePlugin || !opts.Backend) {
 		return errors.New("provider-slot requires a plugin scaffold with --backend")
 	}
+	if opts.VueAdminPage && opts.Kind != extensionmanifest.TypePlugin {
+		return errors.New("vue-admin-page requires a plugin scaffold")
+	}
 	return nil
 }
 
@@ -124,17 +132,7 @@ func buildManifest(opts makeOptions) scaffoldManifest {
 			Default:     "true",
 			GroupID:     "general",
 		}}),
-		Admin: extensionmanifest.ManifestAdmin{
-			Entry: "/settings",
-			Pages: []extensionmanifest.ManifestAdminPage{{
-				Path:        "/settings",
-				Label:       "Settings",
-				Description: "Configure this extension.",
-				Icon:        "i-lucide-settings",
-				View:        "settings",
-				Order:       100,
-			}},
-		},
+		Admin: scaffoldAdmin(opts),
 	}
 	if opts.Kind == extensionmanifest.TypePlugin {
 		manifest.Permissions = []string{opts.ID + ".manage"}
@@ -255,22 +253,15 @@ func writeComplexPluginScaffold(target string, opts makeOptions) error {
 	if err := writeJSON(filepath.Join(target, "manifest", "settings.json"), scaffoldSettingsDocument(opts, settings)); err != nil {
 		return err
 	}
-	if err := writeJSON(filepath.Join(target, "manifest", "admin.json"), extensionmanifest.ManifestAdmin{
-		Entry: "/settings",
-		Pages: []extensionmanifest.ManifestAdminPage{{
-			Path:        "/settings",
-			Label:       "Settings",
-			Description: "Configure this extension.",
-			Icon:        "i-lucide-settings",
-			View:        "settings",
-			Order:       100,
-		}},
-	}); err != nil {
+	if err := writeJSON(filepath.Join(target, "manifest", "admin.json"), scaffoldAdmin(opts)); err != nil {
 		return err
 	}
-	// 用 LoadPackage 验证 includes 合并结果。
-	if _, err := extensionmanifest.LoadPackage(target); err != nil {
-		return fmt.Errorf("generated complex package failed validation: %w", err)
+	// Prebuilt assets are written after the manifest shards. The finalizer
+	// validates every scaffold once all exact-artifact files are present.
+	if !opts.PrebuiltSettings && !opts.VueAdminPage {
+		if _, err := extensionmanifest.LoadPackage(target); err != nil {
+			return fmt.Errorf("generated complex package failed validation: %w", err)
+		}
 	}
 	return nil
 }
@@ -489,6 +480,14 @@ func finalizeGeneratedManifest(target string, opts makeOptions) error {
 			return err
 		}
 	}
+	if opts.VueAdminPage {
+		if _, err := addPackageFile("admin-dashboard-entry", "frontend", "frontend/admin/dist/dashboard.mjs"); err != nil {
+			return err
+		}
+		if _, err := addPackageFile("admin-dashboard-style", "asset", "frontend/admin/dist/dashboard.css"); err != nil {
+			return err
+		}
+	}
 	if opts.Kind == extensionmanifest.TypeTheme {
 		templateDigest, err := addPackageFile("template-home", "template", "templates/home.html")
 		if err != nil {
@@ -551,6 +550,12 @@ func readmeBody(opts makeOptions) string {
 	if opts.PrebuiltSettings {
 		body += "\n## Prebuilt settings component\n\n"
 		body += "`frontend/admin/dist/settings.mjs` implements Admin Micro-frontend API v1 and is loaded only after exact digest trust. SForum never compiles source SFCs. Keep the Schema fields as the required fallback and build all component bytes before packaging.\n"
+	}
+	if opts.VueAdminPage {
+		body += "\n## Vue admin page\n\n"
+		body += "`frontend/admin/src/AdminDashboard.vue` uses `@sforum/plugin-ui` and compiles to the trusted page-body contract. The Host still owns the admin sidebar, topbar, tabs, heading, route guard, and permissions.\n\n"
+		body += "```bash\ncd frontend/admin\nbun install\nbun run build\ncd ../../..\nsforum extension digest --write .\nsforum extension validate .\nsforum extension test --allow-scaffold .\n```\n\n"
+		body += "Production packages load only `dist/dashboard.mjs` and `dist/dashboard.css`; SForum does not compile the Vue source or load this workspace as a Nuxt Layer.\n"
 	}
 	if opts.ProviderSlot != "" {
 		body += "\n## Settings action\n\nThe manifest declares a host-rendered `provider_probe` for `" + opts.ProviderSlot + "`. Implement the SDK `ProviderProbe` method in the backend; the host enforces field/secret allowlists, timeout, audit, and disabled-plugin restricted execution.\n"

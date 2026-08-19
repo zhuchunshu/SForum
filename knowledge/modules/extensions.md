@@ -22,6 +22,11 @@ does not rebuild Nuxt.
   aggregate `adminFrontendDigest`; component IDs are package-unique and assets
   use component-specific immutable private URLs. Production still does not
   compile Vue SFCs or load Nuxt Layers.
+- `make:plugin --vue-admin-page` now turns that runtime contract into a complete
+  Vue authoring loop: typed bridge adapter, Vite workspace, immediately valid
+  placeholder dist, exact-artifact manifest entries, and build/digest/validate/
+  test instructions. It works with simple or included manifests and can coexist
+  with `--prebuilt-settings` without erasing its output.
 - `AttachmentStorageProviderCatalog` directly owns storage provider candidate
   and availability reads; aggregate `Service` and `CatalogService` forwarding
   methods were removed. Settings projection lives with settings lifecycle, and

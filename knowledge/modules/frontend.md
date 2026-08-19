@@ -26,6 +26,12 @@ responsibilities.
   safe state; secret metadata and writes use admin-only endpoints.
 - Build/typecheck use `.nuxt-build` and `.nuxt-typecheck` so they do not disturb
   the user's port-3000 dev server.
+- `@sforum/admin-sdk@1` is the public typed bridge contract and
+  `@sforum/plugin-ui@1` is the public Vue presentation layer for trusted plugin
+  page bodies. Plugin UI v1 supplies compact layout, form, feedback, empty, and
+  table primitives using semantic Host variables plus standalone fallbacks. It
+  has no Nuxt UI, router, composable, or private `SF*` dependency; Vite bundles
+  Vue and the SDK into each plugin's immutable ESM/CSS artifact.
 
 ## Runtime Site URL
 

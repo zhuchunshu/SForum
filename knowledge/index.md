@@ -123,13 +123,13 @@ load archived sessions or completed plans as current context.
   `sessions/2026-08-20-plugin-runtime-memory.md`，
   `decisions/2026-08-20-plugin-runtime-memory.md`
 
-- 可信预构建插件后台页面（2026-08-20）：Manifest V3 `admin.pages[]` 现支持
-  `view: component`，插件预编译 ESM/CSS 只挂载后台 page body，继续继承 Host
-  sidebar、topbar、tabs、标题与路由。聚合摘要、精确制品信任、Safe Mode、启用
-  状态和页面权限共同约束组件资源；设置旧 URL 保持兼容。Go 全仓、Web 897 项、
-  Nuxt typecheck、OpenAPI、架构门禁和 fixture validate/test 全部通过。下一步是
-  版本化 Plugin UI SDK 与公开页面活动主题壳层：
-  `sessions/2026-08-20-prebuilt-admin-plugin-pages.md`
+- Plugin UI SDK v1（2026-08-20）：新增可发布的 `@sforum/plugin-ui@1` 页面、
+  表单、反馈与表格组件，以及 `make:plugin --vue-admin-page`。插件作者获得真实
+  Vue SFC/Vite 工作区和基本免 CSS 体验；生成包同时带可校验占位 dist，支持
+  simple/complex manifest 并可与 `--prebuilt-settings` 组合。真实 fixture 已将
+  Vue 与 SDK 构建为不可变 ESM/CSS，并通过 digest/validate/test；生产仍不编译
+  SFC、不加载 Nuxt Layer、不依赖 Host 私有组件：
+  `sessions/2026-08-20-plugin-ui-sdk-v1.md`
 
 - 审核通知与发布可见性修复（2026-08-20）：新建或重新入队的待审核主题/评论
   现在会在原写事务内通知所有当前有效 `moderation.review` 用户（含

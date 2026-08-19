@@ -151,6 +151,9 @@ go run ./cmd/sforum make:plugin ... --backend --provider-slot mail.provider
 # Framework-neutral author-prebuilt component with Schema fallback
 go run ./cmd/sforum make:plugin ... --prebuilt-settings
 go run ./cmd/sforum make:theme ... --prebuilt-settings
+
+# First-class Vue admin page using the stable Plugin UI SDK
+go run ./cmd/sforum make:plugin ... --vue-admin-page
 ```
 
 Minimal backend using the public SDK:
@@ -783,6 +786,11 @@ Plugins may also declare full page-body components with
 may be authored as Vue SFCs compiled to package-local `.mjs`/`.css`; the
 production Host never rebuilds Nuxt. Use a page-specific permission when the
 surface represents a distinct grantable capability.
+
+`make:plugin --vue-admin-page` supplies the typed mount adapter, Vite build,
+and `@sforum/plugin-ui@1` page/section/form/table/feedback components. The SDK
+is bundled into the plugin output and deliberately does not expose Host-private
+Nuxt UI or `SF*` imports as a compatibility contract.
 
 ## Validation and packaging commands
 

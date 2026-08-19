@@ -27,6 +27,7 @@
     "@nuxtjs/i18n": "^10.4.0",
     "@nuxtjs/seo": "^5.3.6",
     "@sforum/admin-sdk": "workspace:*",
+    "@sforum/plugin-ui": "workspace:*",
     "@tiptap/core": "^3.27.1",
     "@tiptap/extension-character-count": "^3.27.1",
     "@tiptap/extension-file-handler": "3.27.1",

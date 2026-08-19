@@ -14,6 +14,7 @@
         "@nuxtjs/i18n": "^10.4.0",
         "@nuxtjs/seo": "^5.3.6",
         "@sforum/admin-sdk": "workspace:*",
+        "@sforum/plugin-ui": "workspace:*",
         "@tiptap/core": "^3.27.1",
         "@tiptap/extension-character-count": "^3.27.1",
         "@tiptap/extension-file-handler": "3.27.1",
@@ -51,6 +52,13 @@
     "packages/admin-sdk": {
       "name": "@sforum/admin-sdk",
       "version": "1.0.0",
+    },
+    "packages/plugin-ui": {
+      "name": "@sforum/plugin-ui",
+      "version": "1.0.0",
+      "peerDependencies": {
+        "vue": "^3.5.0",
+      },
     },
   },
   "overrides": {
@@ -657,6 +665,8 @@
     "@rollup/rollup-win32-x64-msvc": ["@rollup/rollup-win32-x64-msvc@4.62.2", "", { "os": "win32", "cpu": "x64" }, "sha512-BfzEnDJOt9T8M989/lA37EcJgat01wLRnoi5dQf3QzOH7jzpqTAzdDbVfRljVr5r+jzKqpbHeyOfAaXxAd0PAA=="],
 
     "@sforum/admin-sdk": ["@sforum/admin-sdk@workspace:packages/admin-sdk"],
+
+    "@sforum/plugin-ui": ["@sforum/plugin-ui@workspace:packages/plugin-ui"],
 
     "@simple-git/args-pathspec": ["@simple-git/args-pathspec@1.0.3", "", {}, "sha512-ngJMaHlsWDTfjyq9F3VIQ8b7NXbBLq5j9i5bJ6XLYtD6qlDXT7fdKY2KscWWUF8t18xx052Y/PUO1K1TRc9yKA=="],
 

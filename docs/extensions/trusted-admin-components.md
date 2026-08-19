@@ -80,6 +80,33 @@ locale, and appearance. It deliberately does not expose settings draft methods.
 Plugin authors may compile Vue SFC source to this module; production SForum
 loads only the prebuilt output.
 
+## Vue authoring with Plugin UI SDK v1
+
+For a first-class page, start with the supported scaffold instead of writing
+the mount adapter or CSS by hand:
+
+```bash
+go run ./cmd/sforum make:plugin ... --vue-admin-page
+```
+
+`@sforum/plugin-ui@1` currently provides:
+
+- layout: `SPluginPage`, `SPluginSection`;
+- forms: `SPluginButton`, `SPluginField`, `SPluginInput`, `SPluginSelect`;
+- feedback: `SPluginAlert`, `SPluginEmptyState`;
+- data: `SPluginTable`.
+
+The generated Vite build bundles Vue and these components into the plugin's
+own ESM/CSS. The SDK reads stable SForum appearance variables with standalone
+fallbacks, so authors normally write no CSS. It does not import Nuxt UI, Nuxt
+composables, Host route modules, or private `SF*` components. Those remain
+implementation details rather than a plugin ABI.
+
+The generated `admin.ts` exports the required API version and mount/cleanup
+adapter. `AdminDashboard.vue` receives the typed `AdminPageBridgeV1`, uses SDK
+components like ordinary Vue components, and can call namespaced APIs, Host
+Toasts, translation, and navigation through that bridge.
+
 ## Module API
 
 ```js
@@ -142,6 +169,10 @@ Component code is fully trusted after approval and is not sandboxed. Package
 provenance, explicit approval, immutable digest identity, backend permissions,
 namespaced APIs, error isolation, quarantine, and Schema fallback are the
 controls.
+
+Source convenience does not change the production trust boundary: uploaded
+`.vue` files are never compiled, and package-local Vite/Nuxt configuration is
+never executed by SForum. Release zips should be made with `--exclude-source`.
 
 For ordinary admin pages, the same failures preserve the Host admin shell and
 show a retryable page-local error. A page component is not served while its

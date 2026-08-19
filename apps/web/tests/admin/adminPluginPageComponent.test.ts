@@ -51,9 +51,14 @@ describe('trusted admin plugin pages', () => {
       page: declaration,
       toast: (input: unknown) => toasts.push(input)
     })
-    expect(target.textContent).toContain(`${manifest.id} / /dashboard`)
+    expect(target.textContent).toContain('Host shell inherited')
+    expect(target.textContent).toContain('SForum Host')
     target.querySelector('button')?.click()
-    expect(toasts).toEqual([{ title: 'Plugin action completed', kind: 'success' }])
+    expect(toasts).toEqual([{
+      title: 'Plugin action completed',
+      description: 'Ready from the Vue reference plugin',
+      kind: 'success'
+    }])
     await cleanup()
     expect(target.childElementCount).toBe(0)
   })
