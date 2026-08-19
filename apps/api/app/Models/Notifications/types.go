@@ -12,6 +12,7 @@ import (
 const (
 	TypeReply              = "reply"
 	TypeMention            = "mention"
+	TypeModerationPending  = "moderation_pending"
 	TypeModerationApproved = "moderation_approved"
 	TypeModerationRejected = "moderation_rejected"
 	TypeAdminTest          = "admin_test"
@@ -109,7 +110,7 @@ func categoryForType(typ string) string {
 		return "conversation"
 	case TypeMention:
 		return "mention"
-	case TypeModerationApproved, TypeModerationRejected:
+	case TypeModerationPending, TypeModerationApproved, TypeModerationRejected:
 		return "moderation"
 	case TypeAdminTest:
 		return "system"

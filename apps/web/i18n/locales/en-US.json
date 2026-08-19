@@ -106,6 +106,7 @@
       "unread": "Unread",
       "reply": "Replies",
       "mention": "Mentions",
+      "moderation_pending": "Pending review",
       "moderation_approved": "Approved",
       "moderation_rejected": "Rejected",
       "admin_test": "Tests",
@@ -116,6 +117,7 @@
     "body": {
       "reply": "Related topic: {target}",
       "mention": "Related topic: {target}",
+      "moderation_pending": "Content awaiting review: {target}",
       "moderation_approved": "Related content: {target}",
       "moderation_rejected": "Related content: {target}",
       "moderation_rejected_note": "Review note: {reviewNote}",
@@ -154,6 +156,7 @@
     "types": {
       "reply": "Someone replied to your content",
       "mention": "Someone mentioned you",
+      "moderation_pending": "New content is awaiting review",
       "moderation_approved": "Your content was approved",
       "moderation_rejected": "Your content was rejected",
       "admin_test": "In-app notification test delivered"
@@ -4407,6 +4410,7 @@
       "types": {
         "reply": "Replies",
         "mention": "Mentions",
+        "moderation_pending": "Pending review",
         "moderation_approved": "Approved content",
         "moderation_rejected": "Rejected content",
         "admin_test": "Administrator test"
@@ -5359,6 +5363,7 @@
     "types": {
       "reply": "Replies",
       "mention": "Mentions",
+      "moderation_pending": "Pending review",
       "moderation_approved": "Approved content",
       "moderation_rejected": "Rejected content",
       "admin_test": "Administrator test"

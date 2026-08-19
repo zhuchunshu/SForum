@@ -31,9 +31,12 @@ func NewModerationWorkbenchProvider(store ModerationWorkbenchStore, forumStore f
 	return NewModerationWorkbenchProviderWithIndexer(store, forumStore, users, sessions, nil)
 }
 
-func NewModerationWorkbenchProviderWithIndexer(store ModerationWorkbenchStore, forumStore forum.Store, users identity.ActorStore, sessions *authsession.Manager, indexer moderation.DecisionIndexer) *ModerationProvider {
+func NewModerationWorkbenchProviderWithIndexer(store ModerationWorkbenchStore, forumStore forum.Store, users identity.ActorStore, sessions *authsession.Manager, indexer moderation.DecisionIndexer, readModels ...moderation.DecisionReadModelInvalidator) *ModerationProvider {
 	validator := moderation.NewForumTargetValidator(forumStore)
 	service := moderation.NewServiceWithWorkbenchIndexer(store, validator, store, store, indexer)
+	if len(readModels) > 0 {
+		service.WithDecisionReadModelInvalidator(readModels[0])
+	}
 	return &ModerationProvider{controller: moderationcontroller.NewController(service, users, sessions)}
 }
 

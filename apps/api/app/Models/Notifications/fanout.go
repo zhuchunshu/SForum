@@ -6,10 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 
 	"github.com/jackc/pgx/v5"
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
 )
+
+const moderationReviewPermission = "moderation.review"
 
 func coreDeliveryChannels() []string {
 	return []string{"in_app", "email", "web_push"}
@@ -32,6 +35,63 @@ type ModerationEvent struct {
 	TargetID, ReviewerUserID int64
 	Approved                 bool
 	ReviewNote               string
+}
+
+type PendingReviewEvent struct {
+	TargetType, Title               string
+	TargetID, TopicID, AuthorUserID int64
+	Revision                        int64
+}
+
+func (o *Outbox) NotifyPendingReviewTx(ctx context.Context, tx pgx.Tx, event PendingReviewEvent) error {
+	if o.recipients == nil {
+		return nil
+	}
+	if event.TargetID <= 0 || event.TopicID <= 0 || event.AuthorUserID <= 0 || event.Revision <= 0 ||
+		(event.TargetType != "topic" && event.TargetType != "comment") {
+		return fmt.Errorf("invalid pending moderation notification event")
+	}
+	reviewerIDs, err := o.recipients.ListActiveUserIDsWithPermissionTx(ctx, tx, moderationReviewPermission)
+	if err != nil {
+		return fmt.Errorf("resolve moderation notification recipients: %w", err)
+	}
+	if event.Title == "" {
+		if err := tx.QueryRow(ctx, `SELECT title FROM topics WHERE id=$1`, event.TopicID).Scan(&event.Title); err != nil {
+			return fmt.Errorf("load pending moderation topic title: %w", err)
+		}
+	}
+	brand := resolveMailBrand(ctx, o.brandResolver)
+	reviewPath := "/moderation?" + url.Values{
+		"reviewId":   {fmt.Sprintf("%d", event.TargetID)},
+		"reviewType": {event.TargetType},
+		"source":     {"pre_publish"},
+	}.Encode()
+	for _, reviewerID := range reviewerIDs {
+		if reviewerID == event.AuthorUserID {
+			continue
+		}
+		var email, locale, displayName string
+		if err := tx.QueryRow(ctx, `SELECT email, locale, display_name FROM users WHERE id=$1 AND status='active'`, reviewerID).Scan(&email, &locale, &displayName); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				continue
+			}
+			return fmt.Errorf("load moderation reviewer recipient: %w", err)
+		}
+		payload, _ := json.Marshal(mailTemplateData(map[string]any{
+			"targetType": event.TargetType, "targetId": event.TargetID, "topicId": event.TopicID,
+			"revision": event.Revision, "title": event.Title, "reviewPath": reviewPath,
+			"locale": resolveMailLocale(ctx, locale, o.localeResolver), "recipientName": displayName,
+		}, brand))
+		key := fmt.Sprintf("moderation-pending:%s:%d:%d:%d", event.TargetType, event.TargetID, event.Revision, reviewerID)
+		if err := o.CreateProjectionsTx(ctx, tx, CreateBundleInput{
+			Notification: CreateInput{RecipientUserID: reviewerID, Type: TypeModerationPending, TargetType: "moderation_" + event.TargetType, TargetID: event.TargetID, Payload: payload, DedupeKey: key},
+			Delivery:     CreateDeliveryInput{Recipient: email, TemplateKey: "forum." + TypeModerationPending, TemplateData: payload, IdempotencyKey: key},
+			Channels:     coreDeliveryChannels(),
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (o *Outbox) NotifyModerationTx(ctx context.Context, tx pgx.Tx, event ModerationEvent) error {

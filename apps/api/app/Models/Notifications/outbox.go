@@ -16,6 +16,10 @@ type TxEnqueuer interface {
 	EnqueueTx(context.Context, pgx.Tx, river.JobArgs, supportjobs.EnqueueOptions) (*rivertype.JobInsertResult, error)
 }
 
+type PermissionRecipientResolver interface {
+	ListActiveUserIDsWithPermissionTx(context.Context, pgx.Tx, string) ([]int64, error)
+}
+
 type Outbox struct {
 	pool interface {
 		Begin(context.Context) (pgx.Tx, error)
@@ -24,6 +28,12 @@ type Outbox struct {
 	jobs           TxEnqueuer
 	localeResolver MailLocaleResolver
 	brandResolver  MailBrandResolver
+	recipients     PermissionRecipientResolver
+}
+
+func (o *Outbox) WithPermissionRecipients(resolver PermissionRecipientResolver) *Outbox {
+	o.recipients = resolver
+	return o
 }
 
 func NewOutbox(pool interface {

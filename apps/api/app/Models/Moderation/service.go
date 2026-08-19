@@ -14,6 +14,7 @@ type Service struct {
 	settingsStore   SettingsStore
 	workbenchStore  WorkbenchStore
 	indexer         DecisionIndexer
+	readModels      DecisionReadModelInvalidator
 }
 
 func NewServiceWithWorkbench(store Store, validator TargetValidator, settingsStore SettingsStore, workbenchStore WorkbenchStore) *Service {
@@ -23,6 +24,15 @@ func NewServiceWithWorkbench(store Store, validator TargetValidator, settingsSto
 type DecisionIndexer interface {
 	EnqueueIndex(ctx context.Context, topicID int64) error
 	EnqueueDelete(ctx context.Context, topicID int64) error
+}
+
+type DecisionReadModelInvalidator interface {
+	InvalidateModerationPublication(ctx context.Context, topicID int64, targetType string)
+}
+
+func (s *Service) WithDecisionReadModelInvalidator(invalidator DecisionReadModelInvalidator) *Service {
+	s.readModels = invalidator
+	return s
 }
 
 func NewServiceWithWorkbenchIndexer(store Store, validator TargetValidator, settingsStore SettingsStore, workbenchStore WorkbenchStore, indexer DecisionIndexer) *Service {
@@ -143,6 +153,9 @@ func (s *Service) SubmitDecision(ctx context.Context, actor identity.Actor, inpu
 	decision, err := s.workbenchStore.SubmitDecision(ctx, input)
 	if err != nil {
 		return Decision{}, err
+	}
+	if input.Source == SourcePrePublish && input.Action == ActionApprove && s.readModels != nil {
+		s.readModels.InvalidateModerationPublication(ctx, contextItem.TopicID, input.TargetType)
 	}
 	s.refreshSearchAfterDecision(ctx, input, contextItem)
 	return decision, nil

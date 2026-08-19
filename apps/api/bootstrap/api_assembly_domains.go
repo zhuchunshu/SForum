@@ -125,7 +125,8 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	notificationStore := notifications.NewPostgresStoreWithAvatar(pool, avatarOptionsAdapter{options: infrastructure.optionsService}).WithRevisionWakeups(ctx)
 	closeNotificationStore := notificationStore.Close
 	mailOutbox := notifications.NewOutbox(pool, notificationStore, jobDispatcher, options.NewMailSettings(optionsService)).
-		WithDeliveryPolicyResolver(notificationStore)
+		WithDeliveryPolicyResolver(notificationStore).
+		WithPermissionRecipients(identityStore)
 	forumStore.WithCommentNotifications(forumNotificationAdapter{outbox: mailOutbox})
 	moderationStore.WithDecisionNotifications(moderationNotificationAdapter{outbox: mailOutbox})
 	siteName, _ := optionsService.SiteName(ctx)
@@ -249,8 +250,9 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		WithExternalAuthRateLimiter(externalAuthRateLimiter).
 		WithPublicAppURL(cfg.AppURL, cfg.AppEnv).
 		WithAPITokens(apiTokenService)
+	notificationTargets := notificationTargetVisibilityAdapter{forum: forumStore, identities: identityStore}
 	notificationsProvider := providers.NewNotificationsProvider(notificationStore, identityStore, authSessions, auditWriter).
-		WithTargetVisibility(forumStore).
+		WithTargetVisibility(notificationTargets).
 		WithTargetPreview(notificationTargetPreviewAdapter{store: forumStore}).
 		WithChannels(apiNotificationChannelRuntimeAdapter{runtime: lifecycleStack.RuntimeManager}, auditWriter, mailOutbox)
 	mailProvider := providers.NewMailProvider(extensionStore, notificationStore, extensionsruntime.NewMailProviderRegistry(extensionStore), identityStore, authSessions, optionsService, notificationStore)
@@ -319,7 +321,8 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		optionsService,
 		providers.NewExtensionProfileTabProvider(extensionService),
 	)
-	moderationProvider := providers.NewModerationWorkbenchProviderWithIndexer(moderationStore, forumStore, identityStore, authSessions, searchIndexer)
+	moderationReadModels, _ := forumCachedStore.(moderation.DecisionReadModelInvalidator)
+	moderationProvider := providers.NewModerationWorkbenchProviderWithIndexer(moderationStore, forumStore, identityStore, authSessions, searchIndexer, moderationReadModels)
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
 	systemUpdatesProvider := providers.NewSystemUpdatesProvider(
 		systemupdates.NewService(options.NewSystemUpdatesSource(optionsService), systemupdates.WithLogger(logger)),
@@ -396,7 +399,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	// 导航检查器复用 SiteChrome 内部 trace ring，保证合成与审计同源。
 	extensionsProvider.WithNavigationInspector(pageSiteChromeService.NavigationInspector())
 	corePageViews := pageviewmodels.NewCorePageViewModelSource(pageviewmodels.CorePageViewModelDependencies{
-		Forum: pageForumService, Profiles: pageProfileService, Notifications: notificationStore, NotificationTargets: forumStore,
+		Forum: pageForumService, Profiles: pageProfileService, Notifications: notificationStore, NotificationTargets: notificationTargets,
 		Moderation: pageModerationService, Options: optionsService, Registration: pageIdentityService,
 		Sessions: identityStore, SiteChrome: pageSiteChromeService, Search: searchService,
 	})

@@ -22,6 +22,14 @@ func TestRenderDeliveryCreatesLocalizedForumMail(t *testing.T) {
 	}
 }
 
+func TestRenderDeliveryCreatesPendingModerationMailWithReviewTarget(t *testing.T) {
+	request := renderDelivery(notifications.MailDelivery{ID: 9, Recipient: "reviewer@example.com", TemplateKey: "forum.moderation_pending", TemplateData: json.RawMessage(`{"locale":"zh-CN","recipientName":"审核员","siteName":"SForum","siteUrl":"https://forum.test/","reviewPath":"/moderation?source=pre_publish&reviewType=topic&reviewId=42"}`)})
+	wantURL := "https://forum.test/moderation?source=pre_publish&amp;reviewType=topic&amp;reviewId=42"
+	if !strings.Contains(request.Subject, "有新内容等待审核") || !strings.Contains(request.TextBody, "打开审核队列: https://forum.test/moderation?source=pre_publish&reviewType=topic&reviewId=42") || !strings.Contains(request.HTMLBody, wantURL) {
+		t.Fatalf("unexpected pending moderation mail: %#v", request)
+	}
+}
+
 func TestRenderDeliveryRendersEnglishPasswordResetTemplate(t *testing.T) {
 	request := renderDelivery(notifications.MailDelivery{ID: 3, Recipient: "u@example.com", TemplateKey: "identity.password_reset", TemplateData: json.RawMessage(`{"locale":"en-US","username":"<Alex>","resetUrl":"https://forum.test/reset?token=secret","siteName":"Forum"}`)})
 	if !strings.Contains(request.Subject, "Reset your Forum password") || strings.Contains(request.TextBody, "重置") || !strings.Contains(request.HTMLBody, "&lt;Alex&gt;") || !strings.Contains(request.HTMLBody, "Reset password") {

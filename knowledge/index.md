@@ -113,6 +113,15 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- 审核通知与发布可见性修复（2026-08-20）：新建或重新入队的待审核主题/评论
+  现在会在原写事务内通知所有当前有效 `moderation.review` 用户（含
+  `super_admin`、遵循用户 allow/deny、排除提交者），通知目标在读取时重新鉴权并
+  直达审核工作台。预发布审核通过提交后会同步失效 Forum Redis 公开读模型；
+  两个审核前端同时清除 Nuxt 首页 async-data/useState，首页整页改为
+  `no-store`，同一浏览器返回首页即可读取新发布内容。Go/Web 全套、类型检查、
+  OpenAPI 引用和架构门禁通过：
+  `sessions/2026-08-20-moderation-notification-publication-visibility.md`
+
 - Topic Webhook 业务快照（2026-08-19）：全部 `topic.*` observe 事件保留旧
   ID/slug 字段并新增 `path/url/topic/author/category/tags`；URL 跟随实时
   `site.url` 与 `seo.topic_url_mode`，作者/分类/标签发送公开名称，不发送邮箱、

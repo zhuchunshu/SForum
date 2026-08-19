@@ -18,6 +18,7 @@ const filterIcons: Record<string, string> = {
   unread: 'i-tabler-point-filled',
   reply: 'i-tabler-message-reply',
   mention: 'i-tabler-at',
+  moderation_pending: 'i-tabler-shield-exclamation',
   moderation_approved: 'i-tabler-shield-check',
   moderation_rejected: 'i-tabler-shield-x',
   admin_test: 'i-tabler-bell-ringing'

@@ -26,7 +26,7 @@ const payloadExtractionEnabled = false
 const publicHomepageRouteRule = {
   cache: false,
   headers: {
-    'cache-control': 's-maxage=600, stale-while-revalidate'
+    'cache-control': 'no-store'
   }
 } as const
 const nuxtGeneratedIgnores = [
@@ -106,8 +106,7 @@ export default defineNuxtConfig({
     // i18n strategy=no_prefix：URL 不含语言前缀，无需 /en/** 镜像规则。
     // 非默认语 cookie 由 server/middleware/locale-cache.ts 绕过共享 SWR，避免串语言。
     routeRules: {
-      // 公开内容页：短到中等 swr，命中缓存的同时保持最终一致。
-      // 根路由的 query 变体由 middleware 设为 no-store；基础页仍交给 CDN 做 SWR。
+      // 首页发布状态必须在审核通过后立即可见；API 的 Redis generation 缓存承担读压。
       '/': publicHomepageRouteRule,
       // 分类、标签、个人主页与主题的 SSR 内容依赖会话、权限或实时数据，不能共享整页缓存。
       // 分类/标签详情还包含分页 query；Nuxt payload 路径不携带该 query，同样不能共享 SWR。

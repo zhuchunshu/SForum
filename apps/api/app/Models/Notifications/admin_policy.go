@@ -94,13 +94,13 @@ func (s *PostgresStore) mutateAdminPolicy(ctx context.Context, expectedRevision 
 			SET enabled = CASE
 			      WHEN descriptor.owner_extension_id='' AND policy.channel='in_app' THEN TRUE
 			      WHEN descriptor.owner_extension_id='' AND policy.channel='web_push'
-			        AND descriptor.type IN ('reply', 'mention', 'moderation_approved', 'moderation_rejected') THEN TRUE
+			        AND descriptor.type IN ('reply', 'mention', 'moderation_pending', 'moderation_approved', 'moderation_rejected') THEN TRUE
 			      ELSE FALSE
 			    END,
 			    recommended_enabled = CASE
 			      WHEN descriptor.owner_extension_id='' AND policy.channel='in_app' THEN TRUE
 			      WHEN descriptor.owner_extension_id='' AND policy.channel='web_push'
-			        AND descriptor.type IN ('reply', 'mention', 'moderation_approved', 'moderation_rejected') THEN TRUE
+			        AND descriptor.type IN ('reply', 'mention', 'moderation_pending', 'moderation_approved', 'moderation_rejected') THEN TRUE
 			      ELSE FALSE
 			    END,
 			    user_configurable = NOT policy.required,

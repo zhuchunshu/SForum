@@ -33,6 +33,10 @@ frontend moderator workbench.
 - Topics and comments support `pending` and `rejected`. Neither status is
   returned by public reads, counted in public statistics, or indexed. Approval
   updates counters and search derivatives after the decision transaction.
+- A successful pre-publication approval invalidates Forum topic detail,
+  global/category/tag lists, taxonomy, and comment-list derivatives only after
+  the decision transaction commits. Rejection does not advertise a public
+  cache generation.
 - Forum content revisions V1 is complete: topic/comment creation writes version
   1; authorized history remains limited to `topic.revision.view_any` /
   `post.revision.view_any`; edits use CAS and accepted snapshots; restore is
@@ -91,6 +95,11 @@ frontend moderator workbench.
   available for API/clients (no first-party `/my` page). Pending comments show
   review-submitted feedback and are not inserted into the public comment list
   before approval.
+- After an approval action, both workbench decision surfaces clear Nuxt's
+  homepage async-data entries and persisted `useState` feed authority. The next
+  homepage navigation therefore reads the newly published API generation in
+  the same browser. `/` uses `Cache-Control: no-store`; Redis generation caches
+  remain the server-side scale boundary.
 - The public report dialog remains available on topics and comments.
 
 ## Non-Goals

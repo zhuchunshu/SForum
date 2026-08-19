@@ -169,6 +169,11 @@ func (s *PostgresStore) UpdateTopic(ctx context.Context, input UpdateTopicRecord
 	if err := s.appendForumEditAudit(ctx, tx, "topic", input, revisionID, revisionNo, changed); err != nil {
 		return TopicDetail{}, err
 	}
+	if input.RequeuePending && s.notifications != nil {
+		if err := s.notifications.NotifyPendingReviewTx(ctx, tx, PendingReviewNotificationInput{TargetType: "topic", TargetID: input.TopicID, TopicID: input.TopicID, AuthorUserID: input.EditorUserID, Revision: revisionNo, Title: final.title}); err != nil {
+			return TopicDetail{}, fmt.Errorf("create requeued topic notifications: %w", err)
+		}
+	}
 	topic, err := readTopicForWriteTx(ctx, tx, s, input.TopicID)
 	if err != nil {
 		return TopicDetail{}, err
@@ -283,6 +288,11 @@ func (s *PostgresStore) UpdateComment(ctx context.Context, input UpdateCommentRe
 	}
 	if err := s.appendForumCommentEditAudit(ctx, tx, input, revisionID, revisionNo, changed); err != nil {
 		return Comment{}, err
+	}
+	if input.RequeuePending && s.notifications != nil {
+		if err := s.notifications.NotifyPendingReviewTx(ctx, tx, PendingReviewNotificationInput{TargetType: "comment", TargetID: input.CommentID, TopicID: state.topicID, AuthorUserID: input.EditorUserID, Revision: revisionNo}); err != nil {
+			return Comment{}, fmt.Errorf("create requeued comment notifications: %w", err)
+		}
 	}
 	comment, err := getCommentByID(ctx, tx, input.CommentID, s.avatarBuilder)
 	if err != nil {

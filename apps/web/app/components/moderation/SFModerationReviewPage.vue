@@ -2,6 +2,7 @@
 import { useModerationApi } from '~/composables/moderation/useModerationApi'
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
 import { useForumApi } from '~/composables/forum/useForumApi'
+import { invalidateForumPublicData } from '~/composables/forum/useForumPublicDataInvalidation'
 import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFResponsivePublicSidebar from '~/components/forum/navigation/SFResponsivePublicSidebar.vue'
 import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
@@ -305,6 +306,9 @@ async function submitDecision(action: ModerationAction) {
       action,
       reviewNote: activeNote.value
     })
+    if (action === 'approve') {
+      invalidateForumPublicData()
+    }
     const drafts = { ...noteDrafts.value }
     delete drafts[reviewKey.value]
     noteDrafts.value = drafts

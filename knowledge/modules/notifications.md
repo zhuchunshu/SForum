@@ -3,8 +3,8 @@
 ## Scope
 
 The first release provides durable in-app notifications plus optional email
-projection for replies, mentions, and pre-publication moderation approval or
-rejection.
+projection for replies, mentions, and pre-publication moderation queue entry,
+approval, or rejection.
 
 ## Notification Platform V2
 
@@ -81,6 +81,11 @@ rows retain versioned structured payload and use Host fallback presentation.
 - Comment writes create reply/mention inbox rows, deliveries, and jobs inside
   the existing comment transaction. Moderation decisions do the same before
   decision commit.
+- New and requeued pending topics/comments create `moderation_pending`
+  projections inside the owning Forum transaction. Recipients are active users
+  whose current effective RBAC grants `moderation.review`, including
+  `super_admin`; a direct deny excludes ordinary users and the submitting actor
+  is skipped. Target/revision/recipient dedupe keeps retries idempotent.
 - Markdown mentions are discovered from goldmark AST text nodes; fenced and
   inline code are ignored. Duplicate usernames and self-notifications are
   filtered.
@@ -193,6 +198,10 @@ when target re-authorization fails.
 Forum targets are re-authorized at read time. Hidden/deleted/non-public topics,
 inactive comments, unknown targets, and resolver errors fail closed by clearing
 actor, payload, target id/type/path and returning `targetAvailable=false`.
+`moderation_pending` targets are separately re-authorized against the current
+actor's `moderation.review` permission and open the stable pre-publication
+workbench query. Losing review authority makes the target unavailable even when
+the recipient still owns the historical notification row.
 
 Admin policy and external-channel management live as tabs under the unified
 `/control-panel/settings/mail` surface; the old

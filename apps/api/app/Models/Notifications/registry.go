@@ -435,6 +435,7 @@ func coreTypeDescriptors() map[string]TypeDescriptor {
 	values := []struct{ id, category, icon string }{
 		{TypeReply, "conversation", "i-lucide-message-circle"},
 		{TypeMention, "mention", "i-lucide-at-sign"},
+		{TypeModerationPending, "moderation", "i-lucide-shield-alert"},
 		{TypeModerationApproved, "moderation", "i-lucide-circle-check"},
 		{TypeModerationRejected, "moderation", "i-lucide-circle-x"},
 		{TypeAdminTest, "system", "i-lucide-bell"},

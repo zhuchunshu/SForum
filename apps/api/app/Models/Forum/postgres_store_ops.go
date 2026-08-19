@@ -194,14 +194,8 @@ func (s *PostgresStore) CreateComment(ctx context.Context, input CreateCommentRe
 	if err != nil {
 		return Comment{}, err
 	}
-	if input.Status == CommentStatusActive && s.notifications != nil {
-		parentAuthorID := int64(0)
-		if input.Parent != nil {
-			parentAuthorID = input.Parent.AuthorUserID
-		}
-		if err := s.notifications.NotifyCommentTx(ctx, tx, CommentNotificationInput{CommentID: commentID, TopicID: input.TopicID, ActorUserID: input.AuthorUserID, TopicAuthorUserID: input.TopicAuthorUserID, ParentAuthorUserID: parentAuthorID, MentionedUsernames: input.MentionedUsernames}); err != nil {
-			return Comment{}, fmt.Errorf("create comment notifications: %w", err)
-		}
+	if err := s.notifyCreatedCommentTx(ctx, tx, input, commentID); err != nil {
+		return Comment{}, err
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return Comment{}, fmt.Errorf("commit create comment: %w", err)

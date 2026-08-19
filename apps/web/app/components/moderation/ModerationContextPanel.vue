@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useModerationApi } from '~/composables/moderation/useModerationApi'
+import { invalidateForumPublicData } from '~/composables/forum/useForumPublicDataInvalidation'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import type { ModerationAction, ModerationReviewContext } from '~/composables/moderation/useModerationApi'
 import { sanitizeHtml } from '~/utils/sfSanitize'
@@ -34,6 +35,9 @@ async function decide(action: ModerationAction) {
       action,
       reviewNote: reviewNote.value
     })
+    if (action === 'approve') {
+      invalidateForumPublicData()
+    }
     toast.add({ color: 'primary', icon: 'i-lucide-check', title: t('moderation.workbench.decisionSaved'), duration: 10000 })
     emit('decided')
   } catch (error) {

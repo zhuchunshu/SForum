@@ -41,6 +41,8 @@ function item(input: Partial<NotificationItem>): NotificationItem {
     type: input.type || 'reply',
     targetType: input.targetType || 'comment',
     targetId: input.targetId || 11,
+    targetAvailable: input.targetAvailable,
+    targetPath: input.targetPath,
     payload: input.payload || {},
     createdAt: input.createdAt || '2026-07-23T08:00:00.000Z',
     readAt: input.readAt,
@@ -132,6 +134,23 @@ describe('notification presentation helpers', () => {
     const system = notificationPresentation(item({ type: 'moderation_approved', actor }))
     expect(system.actor).toBeUndefined()
     expect(system.icon).toBe('i-tabler-shield-check')
+  })
+
+  test('opens pending moderation notifications through the authorized workbench target', () => {
+    const view = notificationPresentation(item({
+      type: 'moderation_pending',
+      targetType: 'moderation_topic',
+      targetId: 42,
+      targetAvailable: true,
+      targetPath: '/moderation?reviewType=topic&reviewId=42&source=pre_publish',
+      payload: { title: 'Needs review', topicId: 42 }
+    }))
+
+    expect(view.icon).toBe('i-tabler-shield-exclamation')
+    expect(view.titleKey).toBe('notifications.types.moderation_pending')
+    expect(view.bodyKey).toBe('notifications.body.moderation_pending')
+    expect(view.target).toEqual({ path: '/moderation?reviewType=topic&reviewId=42&source=pre_publish', unavailable: false })
+    expect(view.actor).toBeUndefined()
   })
 
   test('counts the loaded notification scope for the shared type menu', () => {
@@ -526,6 +545,7 @@ describe('SFNotificationsPage contract', () => {
   test('ships bilingual copy for every notification type and state added by the page', () => {
     for (const locale of [zh(), en()]) {
       expect(locale.notifications.types.admin_test).toBeTruthy()
+      expect(locale.notifications.types.moderation_pending).toBeTruthy()
       expect(locale.notifications.filter.loadedScope).toBeTruthy()
       expect(locale.notifications.groups.today).toBeTruthy()
       expect(locale.notifications.groups.earlier).toBeTruthy()

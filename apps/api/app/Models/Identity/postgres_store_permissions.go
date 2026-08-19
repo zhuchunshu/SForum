@@ -4,7 +4,71 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
+	"github.com/jackc/pgx/v5"
 )
+
+// ListActiveUserIDsWithPermissionTx resolves exact Host RBAC recipients inside
+// the caller's transaction. super_admin remains authoritative even when an
+// ordinary deny override exists, matching Actor.Can.
+func (s *PostgresStore) ListActiveUserIDsWithPermissionTx(ctx context.Context, tx pgx.Tx, permission string) ([]int64, error) {
+	if tx == nil || permission == "" {
+		return nil, fmt.Errorf("identity permission recipient transaction is required")
+	}
+	rows, err := tx.Query(ctx, `
+		SELECT users.id
+		FROM users
+		WHERE users.status = 'active'
+		  AND (
+		    EXISTS (
+		      SELECT 1
+		      FROM user_roles
+		      JOIN roles ON roles.id = user_roles.role_id
+		      WHERE user_roles.user_id = users.id
+		        AND roles.is_enabled = TRUE
+		        AND roles.key = 'super_admin'
+		    )
+		    OR (
+		      (
+		        EXISTS (
+		          SELECT 1
+		          FROM user_roles
+		          JOIN roles ON roles.id = user_roles.role_id
+		          JOIN role_permissions ON role_permissions.role_id = roles.id
+		          WHERE user_roles.user_id = users.id
+		            AND roles.is_enabled = TRUE
+		            AND role_permissions.permission_key = $1
+		        )
+		        OR EXISTS (
+		          SELECT 1 FROM user_permission_overrides
+		          WHERE user_id = users.id AND permission_key = $1 AND effect = 'allow'
+		        )
+		      )
+		      AND NOT EXISTS (
+		        SELECT 1 FROM user_permission_overrides
+		        WHERE user_id = users.id AND permission_key = $1 AND effect = 'deny'
+		      )
+		    )
+		  )
+		ORDER BY users.id
+	`, permission)
+	if err != nil {
+		return nil, fmt.Errorf("list active users with permission %s: %w", permission, err)
+	}
+	defer rows.Close()
+	result := []int64{}
+	for rows.Next() {
+		var userID int64
+		if err := rows.Scan(&userID); err != nil {
+			return nil, fmt.Errorf("scan permission recipient: %w", err)
+		}
+		result = append(result, userID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate permission recipients: %w", err)
+	}
+	return result, nil
+}
 
 func (s *PostgresStore) ListPermissions(ctx context.Context) ([]Permission, error) {
 	rows, err := s.pool.Query(ctx, `

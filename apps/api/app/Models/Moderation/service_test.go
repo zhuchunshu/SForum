@@ -184,6 +184,26 @@ func TestSubmitDecisionRefreshesSearchDerivatives(t *testing.T) {
 	}
 }
 
+func TestSubmitDecisionInvalidatesPublishedForumReadModels(t *testing.T) {
+	store := &fakeWorkbenchStore{reviewContext: ReviewContext{TargetType: TargetTypeComment, TargetID: 10, TopicID: 77}}
+	invalidator := &fakeDecisionReadModelInvalidator{}
+	service := NewServiceWithWorkbench(&fakeStore{}, nil, store, store).WithDecisionReadModelInvalidator(invalidator)
+	reviewer := identity.Actor{ID: 8, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionModerationReview: true}}
+
+	if _, err := service.SubmitDecision(context.Background(), reviewer, DecisionInput{Source: SourcePrePublish, TargetType: TargetTypeComment, TargetID: 10, Action: ActionApprove}); err != nil {
+		t.Fatalf("approve comment: %v", err)
+	}
+	if invalidator.topicID != 77 || invalidator.targetType != TargetTypeComment || invalidator.calls != 1 {
+		t.Fatalf("approval invalidation = %+v", invalidator)
+	}
+	if _, err := service.SubmitDecision(context.Background(), reviewer, DecisionInput{Source: SourcePrePublish, TargetType: TargetTypeComment, TargetID: 10, Action: ActionReject, ReviewNote: "no"}); err != nil {
+		t.Fatalf("reject comment: %v", err)
+	}
+	if invalidator.calls != 1 {
+		t.Fatalf("rejection unexpectedly invalidated public reads: %+v", invalidator)
+	}
+}
+
 func TestGetReviewContextStripsIPWithoutViewIPPermission(t *testing.T) {
 	store := &fakeWorkbenchStore{reviewContext: ReviewContext{
 		TargetType: TargetTypeTopic, TargetID: 3, TopicID: 3,
@@ -314,6 +334,18 @@ func (s *fakeWorkbenchStore) GetReviewContext(context.Context, ReviewContextInpu
 type fakeDecisionIndexer struct {
 	indexed []int64
 	deleted []int64
+}
+
+type fakeDecisionReadModelInvalidator struct {
+	calls      int
+	topicID    int64
+	targetType string
+}
+
+func (i *fakeDecisionReadModelInvalidator) InvalidateModerationPublication(_ context.Context, topicID int64, targetType string) {
+	i.calls++
+	i.topicID = topicID
+	i.targetType = targetType
 }
 
 func (i *fakeDecisionIndexer) EnqueueIndex(_ context.Context, topicID int64) error {

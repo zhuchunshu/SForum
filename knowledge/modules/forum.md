@@ -296,6 +296,11 @@ live in `../reports/` and
   `hasMoreChildren` and load more through the replies endpoint.
 - `CachedStore` caches taxonomy, topic detail, topic lists, and eligible public
   comment lists through Redis-backed generation keys.
+- Moderation approval has an explicit post-commit invalidation boundary:
+  topic approval clears detail, global/category/tag list, and taxonomy
+  derivatives; comment approval also clears that topic's comment-list
+  generation. The Nuxt homepage itself is `no-store` so browser/CDN HTML cannot
+  outlive the API generation authority.
 - Topic-list invalidation uses global/category/tag scoped generations; writes
   bump only affected scopes plus global.
 - Topic detail caches support ID and slug lookup with reverse-map invalidation.
@@ -345,6 +350,10 @@ visibility, and mention limits.
 - Pending topic/comment approval loads stored source and target context inside
   the decision transaction, then writes moderation plus eligible reply/mention
   projections exactly once. Rejection writes only the author's moderation result.
+- New pending topics/comments and edits requeued by moderation transactionally
+  notify every active effective `moderation.review` holder except the
+  submitter/editor. Each row links to the protected pre-publication workbench;
+  read-time permission checks prevent a former reviewer from opening it.
 - Notification/outbox failure rolls back the owning content or moderation
   transaction. Topic/comment edits do not emit new mention notices in V2.
 - Notification target resolution reuses public Forum visibility: topic must be

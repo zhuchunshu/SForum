@@ -86,7 +86,7 @@ func renderMailTemplate(key string, data map[string]string) (subject, text, html
 			action, note = "开始逛逛", fmt.Sprintf("收到这封邮件是因为你刚刚注册了 %s。", siteName)
 			list = []string{"补充头像和个人简介", "从感兴趣的分类开始浏览", "阅读社区规范，了解讨论边界"}
 		}
-	case "forum.reply", "forum.mention", "forum.moderation_approved", "forum.moderation_rejected":
+	case "forum.reply", "forum.mention", "forum.moderation_pending", "forum.moderation_approved", "forum.moderation_rejected":
 		return renderForumTemplate(key, data, english, siteName, name, brand)
 	default:
 		if english {
@@ -101,13 +101,16 @@ func renderMailTemplate(key string, data map[string]string) (subject, text, html
 }
 
 func renderForumTemplate(key string, data map[string]string, english bool, siteName, name string, brand renderedMailBrand) (subject, text, htmlBody string) {
-	var eyebrow, title, intro, note string
+	var eyebrow, title, intro, note, action, actionURL string
 	if english {
 		switch key {
 		case "forum.reply":
 			subject, eyebrow, title, intro = fmt.Sprintf("[%s] New reply", siteName), "New reply", "Someone continued the discussion", fmt.Sprintf("%s, someone replied to your content.", name)
 		case "forum.mention":
 			subject, eyebrow, title, intro = fmt.Sprintf("[%s] You were mentioned", siteName), "Mention", "You were mentioned in a discussion", fmt.Sprintf("%s, someone mentioned you in a post.", name)
+		case "forum.moderation_pending":
+			subject, eyebrow, title, intro = fmt.Sprintf("[%s] Content awaiting review", siteName), "Moderation queue", "New content needs review", fmt.Sprintf("%s, new content has entered the moderation queue.", name)
+			action = "Open moderation queue"
 		case "forum.moderation_approved":
 			subject, eyebrow, title, intro = fmt.Sprintf("[%s] Content approved", siteName), "Moderation result", "Your content is now public", fmt.Sprintf("%s, your content passed moderation and is visible to members.", name)
 		default:
@@ -120,6 +123,9 @@ func renderForumTemplate(key string, data map[string]string, english bool, siteN
 			subject, eyebrow, title, intro = fmt.Sprintf("[%s] 你收到了新回复", siteName), "新回复", "有人继续了这场讨论", fmt.Sprintf("%s，有人回复了你的内容。", name)
 		case "forum.mention":
 			subject, eyebrow, title, intro = fmt.Sprintf("[%s] 你被提及了", siteName), "提及", "有人在讨论中提到了你", fmt.Sprintf("%s，有人在内容中提到了你。", name)
+		case "forum.moderation_pending":
+			subject, eyebrow, title, intro = fmt.Sprintf("[%s] 有新内容等待审核", siteName), "审核队列", "有新内容需要处理", fmt.Sprintf("%s，审核队列中出现了新的待处理内容。", name)
+			action = "打开审核队列"
 		case "forum.moderation_approved":
 			subject, eyebrow, title, intro = fmt.Sprintf("[%s] 内容已通过审核", siteName), "审核结果", "你的内容已经公开", fmt.Sprintf("%s，你提交的内容已通过审核，现在其他成员可以看到了。", name)
 		default:
@@ -127,8 +133,11 @@ func renderForumTemplate(key string, data map[string]string, english bool, siteN
 		}
 		note = "这封邮件由你的通知偏好触发。"
 	}
-	text = plainMail(title, intro, nil, "", "", "", data["reviewNote"], note, siteName)
-	htmlBody = transactionalHTML(data["locale"], brand, eyebrow, title, intro, nil, "", "", "", data["reviewNote"], note)
+	if action != "" && strings.HasPrefix(data["reviewPath"], "/") {
+		actionURL = strings.TrimRight(data["siteUrl"], "/") + data["reviewPath"]
+	}
+	text = plainMail(title, intro, nil, action, actionURL, "", data["reviewNote"], note, siteName)
+	htmlBody = transactionalHTML(data["locale"], brand, eyebrow, title, intro, nil, action, actionURL, "", data["reviewNote"], note)
 	return subject, text, htmlBody
 }
 

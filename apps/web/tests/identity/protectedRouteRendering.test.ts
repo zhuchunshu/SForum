@@ -64,6 +64,19 @@ describe('protected route rendering', () => {
     expect(config).not.toMatch(/varies\s*:\s*\[['"]cookie['"]\]/)
   })
 
+  test('homepage publication state is never retained by shared HTML caches', () => {
+    const config = readFileSync(new URL('../../nuxt.config.ts', import.meta.url), 'utf8')
+    const start = config.indexOf('const publicHomepageRouteRule =')
+    const end = config.indexOf('} as const', start)
+    const homepagePolicy = config.slice(start, end)
+
+    expect(start).toBeGreaterThanOrEqual(0)
+    expect(end).toBeGreaterThan(start)
+    expect(homepagePolicy).toContain('cache: false')
+    expect(homepagePolicy).toContain("'cache-control': 'no-store'")
+    expect(homepagePolicy).not.toContain('s-maxage')
+  })
+
   test('bypasses shared SWR when non-default locale cookie is present', () => {
     const middlewarePath = new URL('../../server/middleware/locale-cache.ts', import.meta.url)
     expect(existsSync(middlewarePath)).toBe(true)

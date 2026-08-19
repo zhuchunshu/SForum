@@ -25,10 +25,16 @@ type TopicNotificationInput struct {
 	TopicID, ActorUserID int64
 	MentionedUsernames   []string
 }
+type PendingReviewNotificationInput struct {
+	TargetType, Title               string
+	TargetID, TopicID, AuthorUserID int64
+	Revision                        int64
+}
 
 type NotificationWriter interface {
 	NotifyCommentTx(context.Context, pgx.Tx, CommentNotificationInput) error
 	NotifyTopicTx(context.Context, pgx.Tx, TopicNotificationInput) error
+	NotifyPendingReviewTx(context.Context, pgx.Tx, PendingReviewNotificationInput) error
 }
 
 func NewPostgresStore(pool *pgxpool.Pool) *PostgresStore {

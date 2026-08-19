@@ -100,9 +100,15 @@ func (s *PostgresStore) CreateTopic(ctx context.Context, input CreateTopicRecord
 		return TopicDetail{}, fmt.Errorf("read created topic: %w", err)
 	}
 	topic.Tags = tags
-	if input.Status == TopicStatusActive && s.notifications != nil {
-		if err := s.notifications.NotifyTopicTx(ctx, tx, TopicNotificationInput{TopicID: topicID, ActorUserID: input.AuthorUserID, MentionedUsernames: input.MentionedUsernames}); err != nil {
-			return TopicDetail{}, fmt.Errorf("create topic notifications: %w", err)
+	if s.notifications != nil {
+		if input.Status == TopicStatusActive {
+			if err := s.notifications.NotifyTopicTx(ctx, tx, TopicNotificationInput{TopicID: topicID, ActorUserID: input.AuthorUserID, MentionedUsernames: input.MentionedUsernames}); err != nil {
+				return TopicDetail{}, fmt.Errorf("create topic notifications: %w", err)
+			}
+		} else if input.Status == TopicStatusPending {
+			if err := s.notifications.NotifyPendingReviewTx(ctx, tx, PendingReviewNotificationInput{TargetType: "topic", TargetID: topicID, TopicID: topicID, AuthorUserID: input.AuthorUserID, Revision: 1, Title: input.Title}); err != nil {
+				return TopicDetail{}, fmt.Errorf("create pending topic notifications: %w", err)
+			}
 		}
 	}
 	if err := tx.Commit(ctx); err != nil {

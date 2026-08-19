@@ -432,6 +432,44 @@ func TestCachedStoreListCommentsHitAndInvalidate(t *testing.T) {
 	}
 }
 
+func TestCachedStoreModerationPublicationInvalidatesPublicDerivatives(t *testing.T) {
+	ctx := context.Background()
+	inner := newCacheTestStore()
+	cached := NewCachedStore(inner, cache.NewMemoryCache()).(*CachedStore)
+	topics := TopicListInput{Page: 1, PerPage: 20}
+	comments := CommentListInput{TopicID: 42, View: "tree", Page: 1, PerPage: 20, TreeDescendantsPerRoot: 50}
+
+	if _, err := cached.GetTopic(ctx, 42); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cached.ListTopics(ctx, topics); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cached.ListCategories(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cached.ListComments(ctx, comments); err != nil {
+		t.Fatal(err)
+	}
+	cached.InvalidateModerationPublication(ctx, 42, "comment")
+
+	if _, err := cached.GetTopic(ctx, 42); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cached.ListTopics(ctx, topics); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cached.ListCategories(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cached.ListComments(ctx, comments); err != nil {
+		t.Fatal(err)
+	}
+	if inner.topicCalls != 2 || inner.topicsCalls != 2 || inner.categoriesCalls != 2 || inner.commentsCalls != 2 {
+		t.Fatalf("moderation invalidation calls topic=%d topics=%d categories=%d comments=%d", inner.topicCalls, inner.topicsCalls, inner.categoriesCalls, inner.commentsCalls)
+	}
+}
+
 func TestCachedStoreListCommentsSkipsViewerScoped(t *testing.T) {
 	ctx := context.Background()
 	inner := newCacheTestStore()

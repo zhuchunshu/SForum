@@ -284,6 +284,22 @@ func (s *CachedStore) ListComments(ctx context.Context, input CommentListInput) 
 	return out, nil
 }
 
+// InvalidateModerationPublication closes the cache boundary for moderation,
+// whose approval transaction writes the forum tables directly. It runs only
+// after commit, so cache generations never advertise a rolled-back decision.
+func (s *CachedStore) InvalidateModerationPublication(ctx context.Context, topicID int64, targetType string) {
+	if topicID <= 0 {
+		return
+	}
+	scopes := s.topicListScopes(ctx, topicID)
+	s.invalidateTopicDetail(ctx, topicID)
+	s.invalidateTopicsScoped(ctx, scopes)
+	s.invalidateTaxonomy(ctx)
+	if targetType == "comment" {
+		s.invalidateComments(ctx, topicID)
+	}
+}
+
 func commentsGenKey(topicID int64) string {
 	return fmt.Sprintf("%s%d", genCommentsPrefix, topicID)
 }

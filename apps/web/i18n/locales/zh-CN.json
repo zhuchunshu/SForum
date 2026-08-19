@@ -146,6 +146,7 @@
       "unread": "未读",
       "reply": "回复",
       "mention": "提及",
+      "moderation_pending": "等待审核",
       "moderation_approved": "审核通过",
       "moderation_rejected": "审核未通过",
       "admin_test": "测试",
@@ -156,6 +157,7 @@
     "body": {
       "reply": "关联主题：{target}",
       "mention": "关联主题：{target}",
+      "moderation_pending": "待审核内容：{target}",
       "moderation_approved": "关联内容：{target}",
       "moderation_rejected": "关联内容：{target}",
       "moderation_rejected_note": "处理说明：{reviewNote}",
@@ -194,6 +196,7 @@
     "types": {
       "reply": "有人回复了你的内容",
       "mention": "有人在内容中提到了你",
+      "moderation_pending": "有新内容等待审核",
       "moderation_approved": "你的内容已通过审核",
       "moderation_rejected": "你的内容未通过审核",
       "admin_test": "站内通知投递测试成功"
@@ -4447,6 +4450,7 @@
       "types": {
         "reply": "回复",
         "mention": "提及",
+        "moderation_pending": "等待审核",
         "moderation_approved": "内容已通过",
         "moderation_rejected": "内容未通过",
         "admin_test": "管理员测试"
@@ -5399,6 +5403,7 @@
     "types": {
       "reply": "回复",
       "mention": "提及",
+      "moderation_pending": "等待审核",
       "moderation_approved": "内容已通过",
       "moderation_rejected": "内容未通过",
       "admin_test": "管理员测试"
