@@ -2,8 +2,8 @@
 
 ## Status
 
-Accepted. Repository implementation is complete; the npm namespace bootstrap
-and Trusted Publisher settings are an external maintainer action.
+Accepted and operational. Repository implementation, the npm namespace
+bootstrap, and both Trusted Publisher settings are complete.
 
 ## Context
 
@@ -39,9 +39,14 @@ and contract-test commands separately.
 
 - Plugin authors get one supported command after editing Vue source, while each
   underlying safety gate remains independently available and testable.
-- The first registry publication cannot use package-level Trusted Publishing
-  because the packages do not exist yet. An `@sforum` owner must publish the
-  reviewed tarballs once with interactive 2FA, then bind both package settings
-  to `zhuchunshu/SForum`, workflow `release.yml`, action `npm publish`.
+- The first registry publication could not use package-level Trusted Publishing
+  because the packages did not exist yet. On 2026-08-20 the `sforum` owner
+  published both reviewed `1.0.0` tarballs with interactive 2FA, then bound both
+  package settings to `zhuchunshu/SForum`, workflow `release.yml`, action
+  `npm publish`, with no GitHub environment.
+- The interactive bootstrap versions do not carry npm provenance. Provenance
+  verification begins with the next SDK version that is actually published by
+  the tag-driven OIDC Release job; an application tag that reuses exact
+  `1.0.0` artifacts correctly exercises the idempotent skip path instead.
 - Package versions change only when SDK content changes; an SForum application
   release may legitimately find and reuse the exact existing SDK versions.

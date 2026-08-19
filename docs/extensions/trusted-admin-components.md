@@ -101,9 +101,9 @@ Publishing with provenance. It is idempotent only when an existing version has
 the exact same tarball integrity; changed content under an existing version
 fails the release before image promotion.
 
-An npm package must exist before its Trusted Publisher can be configured. For
-the one-time namespace bootstrap, an `@sforum` owner with 2FA should build the
-reviewed tarballs and publish them interactively:
+An npm package must exist before its Trusted Publisher can be configured. The
+one-time namespace bootstrap was completed on 2026-08-20: the `sforum` owner
+used interactive 2FA to publish the reviewed tarballs:
 
 ```bash
 node scripts/ci/pack-web-sdks.mjs /tmp/sforum-web-sdks
@@ -111,10 +111,13 @@ npm publish /tmp/sforum-web-sdks/sforum-admin-sdk-1.0.0.tgz --access public
 npm publish /tmp/sforum-web-sdks/sforum-plugin-ui-1.0.0.tgz --access public
 ```
 
-Then configure each package's GitHub Actions Trusted Publisher as organization
-`zhuchunshu`, repository `SForum`, workflow filename `release.yml`, no
-environment, allowed action `npm publish`. Do not add a long-lived npm token to
-the repository. Later releases use `.github/workflows/release.yml` exclusively.
+Both package settings are now bound to the GitHub Actions Trusted Publisher
+organization `zhuchunshu`, repository `SForum`, workflow filename
+`release.yml`, no environment, allowed action `npm publish`. Do not repeat the
+bootstrap or add a long-lived npm token to the repository. Later releases use
+`.github/workflows/release.yml` exclusively. The interactive `1.0.0` bootstrap
+versions have no provenance; verify provenance on the next SDK version that the
+OIDC Release job actually publishes.
 
 `@sforum/plugin-ui@1` currently provides:
 

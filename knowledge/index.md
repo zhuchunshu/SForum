@@ -128,9 +128,11 @@ load archived sessions or completed plans as current context.
 - Plugin UI SDK 分发与一键构建（2026-08-20）：`@sforum/admin-sdk@1` 和
   `@sforum/plugin-ui@1` 已具备 npm 精确打包、版本/API 一致性、离线消费构建及
   Release OIDC 发布门禁；`extension build` 会在作者侧完成 Bun 构建、摘要刷新、
-  完整校验和契约测试，生产仍不执行源码或 package scripts。npm 命名空间目前
-  尚未创建，需 `@sforum` 所有者完成一次 2FA 初始发布并绑定 `release.yml`
-  Trusted Publisher：
+  完整校验和契约测试，生产仍不执行源码或 package scripts。两个 npm 包的
+  `1.0.0` 已通过 `sforum` 账号 2FA 首次发布，registry 下载与审核 tarball
+  SHA-256 完全一致；两者均已绑定 `zhuchunshu/SForum` 的 `release.yml`
+  Trusted Publisher，仅允许 `npm publish`。下一次 SDK 版本变化时再验证 OIDC
+  provenance；已有 `1.0.0` 不会被重复发布：
   `sessions/2026-08-20-plugin-sdk-distribution.md`，
   `decisions/2026-08-20-plugin-sdk-distribution.md`
 
