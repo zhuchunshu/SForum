@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-plugin"
-	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	pluginwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
 	protocolwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 	"google.golang.org/grpc"
@@ -17,9 +16,6 @@ import (
 )
 
 const protocolName = "sforum.plugin"
-
-// ServeOptions controls transport limits for a plugin subprocess.
-type ServeOptions = extensionsruntime.ProtocolV2ServerConfig
 
 // Server provides strict handshake, health, and readiness defaults. Plugin
 // implementations embed it and override only the generated RPCs they own.
@@ -189,15 +185,6 @@ func (s *Server) WithRuntimeStreams(streams RuntimeStreams) *Server {
 	return s
 }
 
-// Serve runs one protocol-v2-only HashiCorp go-plugin subprocess.
-func Serve(server pluginwire.PluginRuntimeServiceServer, options ...ServeOptions) {
-	config := ServeOptions{}
-	if len(options) > 0 {
-		config = options[0]
-	}
-	extensionsruntime.ServeProtocolV2Plugin(server, config)
-}
-
 // Handshake binds this process to one exact runtime token and artifact.
 func (s *Server) Handshake(_ context.Context, request *protocolwire.HandshakeRequest) (*protocolwire.HandshakeResponse, error) {
 	now := s.nowTime()
@@ -330,7 +317,7 @@ func (s *Server) ProviderCall(ctx context.Context, request *pluginwire.ProviderC
 			Context: responseContext(request.GetContext(), s.nowTime()), Error: detail,
 		}, nil
 	}
-	if request.GetSlotId() == extensionsruntime.ProtocolV2SEOProviderSlot {
+	if request.GetSlotId() == seoProviderSlot {
 		if seoRegistry == nil {
 			return s.UnimplementedPluginRuntimeServiceServer.ProviderCall(ctx, request)
 		}

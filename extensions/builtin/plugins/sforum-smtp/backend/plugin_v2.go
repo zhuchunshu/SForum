@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	pluginv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2"
 	pluginwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
 	protocolwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
@@ -110,7 +109,7 @@ func (p *smtpPluginV2) send(
 	request *pluginwire.ProviderCallRequest,
 ) (*pluginwire.ProviderCallResponse, error) {
 	values := pluginv2.TypedDocumentValues(request.GetInput())
-	mailRequest := extensionsruntime.MailProviderRequest{
+	mailRequest := mailRequest{
 		DeliveryID: stringValue(values, "deliveryId"), CorrelationID: stringValue(values, "correlationId"),
 		FromAddress: stringValue(values, "fromAddress"), FromName: stringValue(values, "fromName"),
 		To: stringSliceValue(values, "to"), Subject: stringValue(values, "subject"),

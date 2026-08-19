@@ -15,7 +15,6 @@ const sharedRuntimeRoots = [
 ]
 const sharedRuntimeFiles = [
   join(repoRoot, 'apps/api/app/Support/PluginBootstrap/contract.go'),
-  join(repoRoot, 'apps/api/app/Support/Extensions/protocol_v2_server.go'),
 ]
 
 const semverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/

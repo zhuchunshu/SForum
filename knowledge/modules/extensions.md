@@ -568,6 +568,17 @@ Relevant plans:
   Docker, and release build paths. This removes linker/debug payloads from the
   shipped executable without changing the plugin protocol; the current seven
   built-ins save roughly 69 MiB in aggregate on the local build host.
+- Plugin-side Protocol V2 serving is owned by `sdk/plugin/v2`; dependency
+  direction is Host to SDK, and an architecture ratchet rejects any renewed SDK
+  import of the legacy runtime. The SDK dependency graph fell from 396 to 164
+  non-standard packages. Five pure V2 built-ins now produce 15-16 MiB stripped
+  Linux binaries; storage-fs and storage-s3 still await extraction from the
+  legacy general storage SDK.
+- Plugin child processes receive `GODEBUG=disablethp=1` to prevent per-process
+  Linux heap THP over-allocation. Isolated SMTP evidence fell from 27,360 KiB to
+  19,284 KiB PSS after dependency slimming with the same THP setting; production
+  acceptance remains a post-release 60-second median PSS measurement. See
+  `../decisions/2026-08-20-plugin-runtime-memory.md`.
 - Extension trust digest verification streams SHA-256 through a fixed-size
   buffer. It preserves exact-root, stable-file, size, and regular-file checks
   while avoiding an `io.ReadAll` allocation proportional to a 20-30 MiB plugin

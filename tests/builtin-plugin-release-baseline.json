@@ -1,33 +1,33 @@
 {
-  "sharedRuntimeDigest": "87aa10ead3034be718540db9cb9bf5b2c8e74470f16e1e5651dd6c6efd192909",
+  "sharedRuntimeDigest": "9578fa5032df1e79265bdc60d26662cf2de3b88b28e8e4ed9fb3457225f8b628",
   "plugins": {
     "sforum.auth-github": {
-      "version": "1.0.3",
-      "sourceDigest": "c253d4fd3309a871c012c761011784ad883e9e92127af5272a4ee8f5bfd1b06f"
+      "version": "1.0.4",
+      "sourceDigest": "d25bc4f9ea1cd1844760a27dffa0bc3743a53e9a23236a00ed36332ab9fa106c"
     },
     "sforum.content-policy": {
-      "version": "1.1.2",
-      "sourceDigest": "127bdc134143e8782d772494aefa722a7a5368fb0505c2e7f34618a6ae17fbe2"
+      "version": "1.1.3",
+      "sourceDigest": "bc614010ba4d1bfe09a3696cd93868028e5d7bc76756357bd1bc79229011ed08"
     },
     "sforum.search-site": {
-      "version": "1.0.2",
-      "sourceDigest": "53aa54a4794ffff6248d75784479d9b7ef3bd381b6b80e6131889eec5c1b1883"
+      "version": "1.0.3",
+      "sourceDigest": "81b8459f4df95f738553ac25b287f8654298126f42aa89b43a366494581529e1"
     },
     "sforum.smtp": {
-      "version": "1.1.2",
-      "sourceDigest": "1c259779ec9f6236ce8526bcf88bfefeae3d179eb05999c69f9f8a35858d7605"
+      "version": "1.1.3",
+      "sourceDigest": "630cc23e6061698239418a05c325cc6ce370c31083bb7ad6098d3a4d5e49a413"
     },
     "sforum.storage-fs": {
-      "version": "1.1.3",
-      "sourceDigest": "b5c96182a50b27d32afe76a45d46715a84273c27287b54daf26429bba968a6cd"
+      "version": "1.1.4",
+      "sourceDigest": "d2b67d5fea33e73a16cd875ac9c986428f4459a2a9470666952f8549d3cfc706"
     },
     "sforum.storage-s3": {
-      "version": "1.0.4",
-      "sourceDigest": "b843c0ea55c8d2c8d4a6a870d2996f04f412c7cc749c4d96c10622b17c906b5c"
+      "version": "1.0.5",
+      "sourceDigest": "6fd7e09bc601fa0b038b16e9022f519bcf1c2954702f64b76bea4663a256ef7b"
     },
     "sforum.web-push": {
-      "version": "1.0.2",
-      "sourceDigest": "9cdfbafdf7e7e110a7cdaed716da77d8ede0747e21a57564fb4e408e8d7c7aa4"
+      "version": "1.0.3",
+      "sourceDigest": "ede880444c24204335d23df01d060ce822179ca36fe8a5b878b54e092414897c"
     }
   }
 }

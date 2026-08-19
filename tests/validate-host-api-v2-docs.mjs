@@ -19,7 +19,7 @@ const hostProtoPaths = [
   'contracts/proto/sforum/host/v2/resources.proto'
 ]
 const hostProto = hostProtoPaths.map(read).join('\n')
-const server = read('apps/api/app/Support/Extensions/protocol_v2_server.go')
+const server = read('apps/api/sdk/plugin/v2/transport.go')
 const hostRuntime = read('apps/api/app/Support/Extensions/protocol_v2_host.go')
 const clientRuntime = read('apps/api/app/Support/Extensions/protocol_v2_client.go')
 const testScript = read('scripts/test.sh')
@@ -41,15 +41,15 @@ for (const field of [
   assert(doc.includes(field), `Host API v2 docs omit wire field ${field}`)
 }
 
-const metadata = hostRuntime.match(/ProtocolV2RuntimeTokenMetadataKey\s*=\s*"([^"]+)"/)?.[1]
+const metadata = server.match(/RuntimeTokenMetadataKey\s*=\s*"([^"]+)"/)?.[1]
 assert(metadata === 'x-sforum-runtime-token-bin', `unexpected runtime token metadata key ${metadata}`)
 assert(doc.includes(`\`${metadata}\``), 'Host API v2 docs omit the runtime token metadata key')
 
-const maxMessageParts = server.match(/DefaultProtocolV2MaxMessageBytes\s*=\s*(\d+)\s*<<\s*(\d+)/)
+const maxMessageParts = server.match(/DefaultMaxMessageBytes\s*=\s*(\d+)\s*<<\s*(\d+)/)
 assert(maxMessageParts, 'cannot resolve protocol v2 message limit')
 const maxMessage = Number(maxMessageParts[1]) * (2 ** Number(maxMessageParts[2]))
-const concurrency = Number(server.match(/DefaultProtocolV2ConcurrentCalls\s*=\s*(\d+)/)?.[1])
-const timeout = Number(server.match(/DefaultProtocolV2RequestTimeout\s*=\s*(\d+)\s*\*\s*time\.Second/)?.[1])
+const concurrency = Number(server.match(/DefaultConcurrentCalls\s*=\s*(\d+)/)?.[1])
+const timeout = Number(server.match(/DefaultRequestTimeout\s*=\s*(\d+)\s*\*\s*time\.Second/)?.[1])
 
 assert(maxMessage === 4194304, `unexpected protocol v2 message limit ${maxMessage}`)
 assert(concurrency === 16, `unexpected protocol v2 concurrency limit ${concurrency}`)

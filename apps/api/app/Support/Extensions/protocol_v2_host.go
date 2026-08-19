@@ -8,6 +8,7 @@ import (
 	"time"
 
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
+	pluginv2sdk "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2"
 	hostv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2"
 	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 	"google.golang.org/grpc"
@@ -16,8 +17,6 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
-
-const ProtocolV2RuntimeTokenMetadataKey = "x-sforum-runtime-token-bin"
 
 // ProtocolV2HostRegistrar registers host-owned generated services on one
 // runtime-scoped broker server. Authentication remains owned by the runtime.
@@ -44,20 +43,12 @@ func protocolV2HostGRPCServer(
 	registrar ProtocolV2HostRegistrar,
 	binding protocolV2HostBinding,
 ) *grpc.Server {
-	semaphore := make(chan struct{}, DefaultProtocolV2ConcurrentCalls)
-	options = append(options,
-		grpc.MaxRecvMsgSize(DefaultProtocolV2MaxMessageBytes),
-		grpc.MaxSendMsgSize(DefaultProtocolV2MaxMessageBytes),
-		grpc.ChainUnaryInterceptor(
-			protocolV2HostUnaryAuthInterceptor(binding),
-			protocolV2UnaryInterceptor(DefaultProtocolV2RequestTimeout, semaphore),
-		),
-		grpc.ChainStreamInterceptor(
-			protocolV2HostStreamAuthInterceptor(binding),
-			protocolV2StreamInterceptor(DefaultProtocolV2RequestTimeout, semaphore),
-		),
+	server := pluginv2sdk.NewGRPCServer(
+		options,
+		ProtocolV2ServerConfig{},
+		[]grpc.UnaryServerInterceptor{protocolV2HostUnaryAuthInterceptor(binding)},
+		[]grpc.StreamServerInterceptor{protocolV2HostStreamAuthInterceptor(binding)},
 	)
-	server := grpc.NewServer(options...)
 	registrar.RegisterProtocolV2(server)
 	return server
 }

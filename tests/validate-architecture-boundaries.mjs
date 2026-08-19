@@ -98,6 +98,15 @@ if (staleLegacyImporters.length > 0) {
   )
 }
 
+const pluginV2LegacyImports = goProductionFiles
+  .filter(path => path.startsWith('apps/api/sdk/plugin/v2/'))
+  .filter(path => read(path).includes(`"${legacyExtensionsImport}"`))
+if (pluginV2LegacyImports.length > 0) {
+  failures.push(
+    `plugin Protocol V2 SDK imports the legacy Host runtime: ${pluginV2LegacyImports.join(', ')}; keep dependency direction Host -> SDK`
+  )
+}
+
 for (const path of goProductionFiles.filter(path => path.startsWith('apps/api/app/Models/'))) {
   if (read(path).includes(`"${legacyExtensionsImport}"`)) {
     failures.push(`${path} imports concrete legacy Support/Extensions; Models must depend on stable or consumer-owned interfaces`)

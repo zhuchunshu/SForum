@@ -3,8 +3,6 @@ package main
 import (
 	"strings"
 	"testing"
-
-	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 )
 
 func TestSMTPConfigRejectsMissingHostAsPermanent(t *testing.T) {
@@ -15,7 +13,7 @@ func TestSMTPConfigRejectsMissingHostAsPermanent(t *testing.T) {
 }
 
 func TestBuildMessageCreatesMultipartAlternative(t *testing.T) {
-	raw, err := buildMessage(smtpConfig{FromAddress: "noreply@example.com", FromName: "SForum"}, extensionsruntime.MailProviderRequest{
+	raw, err := buildMessage(smtpConfig{FromAddress: "noreply@example.com", FromName: "SForum"}, mailRequest{
 		To: []string{"member@example.com"}, Subject: "提及通知", TextBody: "plain", HTMLBody: "<p>html</p>",
 	})
 	if err != nil {

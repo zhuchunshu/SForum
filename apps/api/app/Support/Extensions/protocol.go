@@ -520,14 +520,11 @@ func validatePluginRouteTarget(raw string) error {
 	return nil
 }
 
-// buildPluginProcessEnv 从宿主环境中挑选最小白名单，并保留已有 SFORUM_SETTING_*。
-// 不把 DATABASE_URL、SESSION_HASH_SECRET 等密钥传给插件子进程。
-//
-// T8C：fake-GitHub 端点覆盖（SFORUM_AUTH_GITHUB_*_URL）仅在宿主非 production
-// 时注入；production 一律忽略，保证 OAuth 材料只到达固定 GitHub.com 端点。
+// buildPluginProcessEnv 只保留插件白名单环境；production 不透传 fake-GitHub
+// 端点覆盖。disablethp 避免 Linux 为每个小型 Go 插件堆分配多余透明大页。
 func buildPluginProcessEnv(hostEnv []string) []string {
 	production := hostEnvIsProduction(hostEnv)
-	out := make([]string, 0, 16)
+	out := []string{"GODEBUG=disablethp=1"}
 	for _, entry := range hostEnv {
 		key, _, ok := strings.Cut(entry, "=")
 		if !ok {

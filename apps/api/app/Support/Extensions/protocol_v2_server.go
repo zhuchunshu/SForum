@@ -3,50 +3,37 @@ package extensionsruntime
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/hashicorp/go-plugin"
-	pluginbootstrap "github.com/zhuchunshu/sforum/apps/api/app/Support/PluginBootstrap"
-	pluginv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
+	pluginv2sdk "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2"
+	pluginwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 const (
-	DefaultProtocolV2MaxMessageBytes  = 4 << 20
-	DefaultProtocolV2ConcurrentCalls  = 16
-	DefaultProtocolV2RequestTimeout   = 5 * time.Second
-	DefaultProtocolV2HandshakeTimeout = 5 * time.Second
+	DefaultProtocolV2MaxMessageBytes  = pluginv2sdk.DefaultMaxMessageBytes
+	DefaultProtocolV2ConcurrentCalls  = pluginv2sdk.DefaultConcurrentCalls
+	DefaultProtocolV2RequestTimeout   = pluginv2sdk.DefaultRequestTimeout
+	DefaultProtocolV2HandshakeTimeout = pluginv2sdk.DefaultHandshakeTimeout
+
+	ProtocolV2RuntimeTokenMetadataKey = pluginv2sdk.RuntimeTokenMetadataKey
 )
 
-// ProtocolV2ServerConfig controls process-local transport safety limits.
-type ProtocolV2ServerConfig struct {
-	MaxMessageBytes int
-	MaxConcurrent   int
-	DefaultTimeout  time.Duration
+// ProtocolV2ServerConfig is retained for Host-side compatibility. Plugin
+// subprocesses own this transport contract through the public SDK.
+type ProtocolV2ServerConfig = pluginv2sdk.ServeOptions
+
+// ServeProtocolV2Plugin is retained for Host integration fixtures. Plugin
+// authors should call pluginv2.Serve directly.
+func ServeProtocolV2Plugin(server pluginwire.PluginRuntimeServiceServer, config ProtocolV2ServerConfig) {
+	pluginv2sdk.Serve(server, config)
 }
 
-// ServeProtocolV2Plugin serves HashiCorp go-plugin Protocol V2 over gRPC.
-func ServeProtocolV2Plugin(server pluginv2.PluginRuntimeServiceServer, config ProtocolV2ServerConfig) {
-	if server == nil {
-		panic("protocol v2 plugin server is required")
-	}
-	config = normalizeProtocolV2ServerConfig(config)
-	plugin.Serve(&plugin.ServeConfig{
-		HandshakeConfig: pluginbootstrap.HandshakeV1(),
-		VersionedPlugins: map[int]plugin.PluginSet{
-			pluginbootstrap.ApplicationProtocolV2: {
-				pluginbootstrap.ApplicationProtocolV2Name: &protocolV2Plugin{server: server},
-			},
-		},
-		GRPCServer: protocolV2GRPCServerFactory(config),
-	})
-}
-
+// protocolV2Plugin is the Host-side go-plugin adapter. Plugin subprocesses use
+// the lightweight SDK adapter and therefore never import this Host package.
 type protocolV2Plugin struct {
 	plugin.NetRPCUnsupportedPlugin
-	server       pluginv2.PluginRuntimeServiceServer
+	server       pluginwire.PluginRuntimeServiceServer
 	clientConfig *protocolV2ClientConfig
 }
 
@@ -57,12 +44,12 @@ func (p *protocolV2Plugin) GRPCServer(broker *plugin.GRPCBroker, server *grpc.Se
 	if binder, ok := p.server.(interface{ BindProtocolV2Broker(*plugin.GRPCBroker) }); ok {
 		binder.BindProtocolV2Broker(broker)
 	}
-	pluginv2.RegisterPluginRuntimeServiceServer(server, p.server)
+	pluginwire.RegisterPluginRuntimeServiceServer(server, p.server)
 	return nil
 }
 
 func (p *protocolV2Plugin) GRPCClient(_ context.Context, broker *plugin.GRPCBroker, conn *grpc.ClientConn) (any, error) {
-	client := pluginv2.NewPluginRuntimeServiceClient(conn)
+	client := pluginwire.NewPluginRuntimeServiceClient(conn)
 	if p.clientConfig == nil {
 		return client, nil
 	}
@@ -95,60 +82,6 @@ func normalizeProtocolV2ServerConfig(config ProtocolV2ServerConfig) ProtocolV2Se
 
 func protocolV2GRPCServerFactory(config ProtocolV2ServerConfig) func([]grpc.ServerOption) *grpc.Server {
 	return func(options []grpc.ServerOption) *grpc.Server {
-		semaphore := make(chan struct{}, config.MaxConcurrent)
-		options = append(options,
-			grpc.MaxRecvMsgSize(config.MaxMessageBytes),
-			grpc.MaxSendMsgSize(config.MaxMessageBytes),
-			grpc.ChainUnaryInterceptor(protocolV2UnaryInterceptor(config.DefaultTimeout, semaphore)),
-			grpc.ChainStreamInterceptor(protocolV2StreamInterceptor(config.DefaultTimeout, semaphore)),
-		)
-		return grpc.NewServer(options...)
-	}
-}
-
-func protocolV2UnaryInterceptor(timeout time.Duration, semaphore chan struct{}) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, request any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-		callCtx, cancel := withDefaultDeadline(ctx, timeout)
-		defer cancel()
-		if err := acquireProtocolV2(callCtx, semaphore); err != nil {
-			return nil, err
-		}
-		defer func() { <-semaphore }()
-		return handler(callCtx, request)
-	}
-}
-
-func protocolV2StreamInterceptor(timeout time.Duration, semaphore chan struct{}) grpc.StreamServerInterceptor {
-	return func(server any, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		ctx, cancel := withDefaultDeadline(stream.Context(), timeout)
-		defer cancel()
-		if err := acquireProtocolV2(ctx, semaphore); err != nil {
-			return err
-		}
-		defer func() { <-semaphore }()
-		return handler(server, &protocolV2ServerStream{ServerStream: stream, ctx: ctx})
-	}
-}
-
-type protocolV2ServerStream struct {
-	grpc.ServerStream
-	ctx context.Context
-}
-
-func (s *protocolV2ServerStream) Context() context.Context { return s.ctx }
-
-func withDefaultDeadline(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
-	if _, ok := ctx.Deadline(); ok || timeout <= 0 {
-		return context.WithCancel(ctx)
-	}
-	return context.WithTimeout(ctx, timeout)
-}
-
-func acquireProtocolV2(ctx context.Context, semaphore chan struct{}) error {
-	select {
-	case semaphore <- struct{}{}:
-		return nil
-	case <-ctx.Done():
-		return status.Error(codes.ResourceExhausted, "protocol v2 concurrency limit reached before deadline")
+		return pluginv2sdk.NewGRPCServer(options, config, nil, nil)
 	}
 }

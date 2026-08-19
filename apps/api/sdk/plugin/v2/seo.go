@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	seoregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/SEORegistry"
 	pluginwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
 	protocolwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
@@ -21,6 +20,13 @@ import (
 var (
 	ErrInvalidSEODefinition = errors.New("invalid plugin SEO definition")
 	seoIDPattern            = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{1,120}$`)
+)
+
+const (
+	seoProviderSlot      = "sforum.seo"
+	seoProviderOperation = "apply"
+	seoRequestSchema     = "sforum.seo.apply.request@1"
+	seoResponseSchema    = "sforum.seo.apply.response@1"
 )
 
 // SEODocument is the closed, typed Host SEO payload available to plugin
@@ -42,10 +48,34 @@ type SEODefinition struct {
 	Execute         SEOHandler
 }
 
+// SEOContribution is the wire projection of one frozen SEO declaration.
+// Exact artifact and trust identity remain bound by RequestContext.
+type SEOContribution struct {
+	ID              string `json:"id"`
+	ContractVersion string `json:"contractVersion"`
+	Scope           string `json:"scope"`
+	Kind            string `json:"kind"`
+	Action          string `json:"action"`
+	Handler         string `json:"handler"`
+	Priority        int    `json:"priority,omitempty"`
+	FailurePolicy   string `json:"failurePolicy"`
+	TimeoutMS       int    `json:"timeoutMs"`
+}
+
+type seoApplyRequest struct {
+	Scope        string          `json:"scope"`
+	Contribution SEOContribution `json:"contribution"`
+	Current      SEODocument     `json:"current"`
+}
+
+type seoApplyResponse struct {
+	Document SEODocument `json:"document"`
+}
+
 type SEOCall struct {
 	Context      *protocolwire.RequestContext
 	Scope        string
-	Contribution extensionsruntime.ProtocolV2SEOContribution
+	Contribution SEOContribution
 	Current      seoregistry.Document
 }
 
@@ -109,12 +139,12 @@ func (r *SEORegistry) ProviderCall(ctx context.Context, request *pluginwire.Prov
 		response.Error = familyErrorDetail(err, "seo.handler_failed", "Plugin SEO handler failed.")
 		return response, nil
 	}
-	values, err := strictSEOMap(extensionsruntime.ProtocolV2SEOApplyResponse{Document: document})
+	values, err := strictSEOMap(seoApplyResponse{Document: document})
 	if err != nil {
 		response.Error = familyErrorDetail(err, "seo.output_invalid", "Plugin SEO output is invalid.")
 		return response, nil
 	}
-	output, err := NewTypedDocument(extensionsruntime.ProtocolV2SEOResponseSchema, values)
+	output, err := NewTypedDocument(seoResponseSchema, values)
 	if err != nil {
 		response.Error = familyErrorDetail(err, "seo.output_invalid", "Plugin SEO output is invalid.")
 		return response, nil
@@ -123,9 +153,9 @@ func (r *SEORegistry) ProviderCall(ctx context.Context, request *pluginwire.Prov
 	return response, nil
 }
 
-func (r *SEORegistry) resolve(request *pluginwire.ProviderCallRequest) (SEODefinition, extensionsruntime.ProtocolV2SEOApplyRequest, *protocolwire.ErrorDetail) {
-	invalid := func(reason, message string) (SEODefinition, extensionsruntime.ProtocolV2SEOApplyRequest, *protocolwire.ErrorDetail) {
-		return SEODefinition{}, extensionsruntime.ProtocolV2SEOApplyRequest{}, &protocolwire.ErrorDetail{
+func (r *SEORegistry) resolve(request *pluginwire.ProviderCallRequest) (SEODefinition, seoApplyRequest, *protocolwire.ErrorDetail) {
+	invalid := func(reason, message string) (SEODefinition, seoApplyRequest, *protocolwire.ErrorDetail) {
+		return SEODefinition{}, seoApplyRequest{}, &protocolwire.ErrorDetail{
 			Code: protocolwire.ErrorCode_ERROR_CODE_INVALID_ARGUMENT, Reason: reason, Message: message,
 		}
 	}
@@ -133,20 +163,19 @@ func (r *SEORegistry) resolve(request *pluginwire.ProviderCallRequest) (SEODefin
 		return invalid("seo.request_required", "A plugin SEO request is required.")
 	}
 	if detail := validateFamilyRequestContext(request.GetContext(), "seo"); detail != nil {
-		return SEODefinition{}, extensionsruntime.ProtocolV2SEOApplyRequest{}, detail
+		return SEODefinition{}, seoApplyRequest{}, detail
 	}
 	// Public SEO resolution is actor-independent. Any actor projection here is
 	// a Host transport bug and must fail closed rather than leak personalization.
 	if request.GetContext().GetActor() != nil {
 		return invalid("seo.actor_forbidden", "SEO provider calls cannot carry actor or session authority.")
 	}
-	if request.GetSlotId() != extensionsruntime.ProtocolV2SEOProviderSlot ||
-		request.GetOperation() != extensionsruntime.ProtocolV2SEOProviderOperation {
+	if request.GetSlotId() != seoProviderSlot || request.GetOperation() != seoProviderOperation {
 		return invalid("seo.transport_mismatch", "SEO providers require the declared sforum.seo apply transport.")
 	}
 	definition, found := r.byID[strings.TrimSpace(request.GetDeclarationId())]
 	if !found {
-		return SEODefinition{}, extensionsruntime.ProtocolV2SEOApplyRequest{}, &protocolwire.ErrorDetail{
+		return SEODefinition{}, seoApplyRequest{}, &protocolwire.ErrorDetail{
 			Code: protocolwire.ErrorCode_ERROR_CODE_NOT_FOUND, Reason: "seo.declaration_not_found",
 			Message: "The requested SEO declaration is not registered.",
 		}
@@ -154,10 +183,10 @@ func (r *SEORegistry) resolve(request *pluginwire.ProviderCallRequest) (SEODefin
 	if request.GetContractVersion() != definition.ContractVersion {
 		return invalid("seo.contract_mismatch", "SEO declaration contract version mismatch.")
 	}
-	if err := validateBoundDocument(request.GetInput(), extensionsruntime.ProtocolV2SEORequestSchema, "seo", "input"); err != nil {
-		return SEODefinition{}, extensionsruntime.ProtocolV2SEOApplyRequest{}, familyErrorDetail(err, "seo.schema_mismatch", "SEO input schema mismatch.")
+	if err := validateBoundDocument(request.GetInput(), seoRequestSchema, "seo", "input"); err != nil {
+		return SEODefinition{}, seoApplyRequest{}, familyErrorDetail(err, "seo.schema_mismatch", "SEO input schema mismatch.")
 	}
-	input := extensionsruntime.ProtocolV2SEOApplyRequest{}
+	input := seoApplyRequest{}
 	if err := strictSEODecode(TypedDocumentValues(request.GetInput()), &input); err != nil {
 		return invalid("seo.input_invalid", "SEO input has unknown or invalid fields.")
 	}

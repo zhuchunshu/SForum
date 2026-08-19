@@ -151,21 +151,6 @@ func TestProtocolV2HostBindingOwnsClonedIdentity(t *testing.T) {
 	}
 }
 
-func TestProtocolV2ConcurrencyGateRejectsBeforeDeadline(t *testing.T) {
-	semaphore := make(chan struct{}, 1)
-	semaphore <- struct{}{}
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
-	defer cancel()
-	called := false
-	_, err := protocolV2UnaryInterceptor(time.Second, semaphore)(ctx, &protocolv2.HealthRequest{}, &grpc.UnaryServerInfo{}, func(context.Context, any) (any, error) {
-		called = true
-		return nil, nil
-	})
-	if called || status.Code(err) != codes.ResourceExhausted {
-		t.Fatalf("called = %t, error = %v", called, err)
-	}
-}
-
 func TestProtocolV2HostAPIContractCompatibility(t *testing.T) {
 	for _, value := range []string{hostAPIV2Contract, hostAPIV2Legacy, hostAPIV2Version} {
 		if !supportsProtocolV2HostAPI(value) {

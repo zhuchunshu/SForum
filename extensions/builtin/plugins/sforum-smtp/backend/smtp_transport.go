@@ -13,8 +13,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 )
 
 const (
@@ -29,6 +27,17 @@ func (e *providerError) Error() string { return e.message }
 type smtpConfig struct {
 	Host, Username, Password, Encryption, FromAddress, FromName string
 	Port                                                        int
+}
+
+type mailRequest struct {
+	DeliveryID    string
+	CorrelationID string
+	FromAddress   string
+	FromName      string
+	To            []string
+	Subject       string
+	TextBody      string
+	HTMLBody      string
 }
 
 func (c smtpConfig) validate() *providerError {
@@ -53,7 +62,7 @@ func classifySendError(err error) *providerError {
 	return &providerError{classificationTemporary, "smtp.transport_failed", err.Error()}
 }
 
-func buildMessage(config smtpConfig, request extensionsruntime.MailProviderRequest) ([]byte, error) {
+func buildMessage(config smtpConfig, request mailRequest) ([]byte, error) {
 	var body bytes.Buffer
 	boundary := multipart.NewWriter(&body)
 	from := (&mail.Address{Name: config.FromName, Address: config.FromAddress}).String()
@@ -86,7 +95,7 @@ func buildMessage(config smtpConfig, request extensionsruntime.MailProviderReque
 	return body.Bytes(), nil
 }
 
-func sendSMTP(config smtpConfig, request extensionsruntime.MailProviderRequest) *providerError {
+func sendSMTP(config smtpConfig, request mailRequest) *providerError {
 	if err := config.validate(); err != nil {
 		return err
 	}

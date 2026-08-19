@@ -54,6 +54,7 @@ func TestBuildPluginProcessEnvOmitsHostSecrets(t *testing.T) {
 	env := buildPluginProcessEnv([]string{
 		"PATH=/usr/bin",
 		"HOME=/home/sforum",
+		"GODEBUG=http2debug=2",
 		"DATABASE_URL=postgres://secret",
 		"SESSION_HASH_SECRET=super-secret",
 		"SFORUM_SETTING_HOST=smtp.example.com",
@@ -61,12 +62,12 @@ func TestBuildPluginProcessEnvOmitsHostSecrets(t *testing.T) {
 		"RANDOM_JUNK=1",
 	})
 	joined := strings.Join(env, "\n")
-	for _, want := range []string{"PATH=/usr/bin", "HOME=/home/sforum", "SFORUM_SETTING_HOST=smtp.example.com", "LANG=C.UTF-8"} {
+	for _, want := range []string{"PATH=/usr/bin", "HOME=/home/sforum", "GODEBUG=disablethp=1", "SFORUM_SETTING_HOST=smtp.example.com", "LANG=C.UTF-8"} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("expected env to contain %q, got %v", want, env)
 		}
 	}
-	for _, deny := range []string{"DATABASE_URL=", "SESSION_HASH_SECRET=", "RANDOM_JUNK="} {
+	for _, deny := range []string{"GODEBUG=http2debug=2", "DATABASE_URL=", "SESSION_HASH_SECRET=", "RANDOM_JUNK="} {
 		if strings.Contains(joined, deny) {
 			t.Fatalf("env must not contain host secret/junk %q, got %v", deny, env)
 		}

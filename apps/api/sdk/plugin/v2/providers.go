@@ -10,7 +10,6 @@ import (
 	"time"
 
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
-	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	pluginwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
 	protocolwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 )
@@ -29,7 +28,7 @@ var (
 // 与 Host InvokeVersionedProvider / provider_slot_execution 一致。
 // 遗留 known-slot probe/send 必须覆盖生成的 ProviderCall RPC 或使用兼容 API，
 // 不得经本 typed ProviderRegistry 伪装。
-const VersionedProviderOperationInvoke = extensionsruntime.VersionedProviderOperationInvoke
+const VersionedProviderOperationInvoke = "invoke"
 
 // ProviderDefinition 对齐可执行 versioned ManifestProvider。
 // 被动/目录-only provider 不得注册到本 runtime registry。

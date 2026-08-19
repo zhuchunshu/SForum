@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-plugin"
-	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2"
 	protocolwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 	"google.golang.org/grpc"
@@ -76,8 +75,8 @@ func newHost(
 	}
 	conn, err := broker.DialWithOptions(brokerID,
 		grpc.WithDefaultCallOptions(
-			grpc.MaxCallRecvMsgSize(extensionsruntime.DefaultProtocolV2MaxMessageBytes),
-			grpc.MaxCallSendMsgSize(extensionsruntime.DefaultProtocolV2MaxMessageBytes),
+			grpc.MaxCallRecvMsgSize(DefaultMaxMessageBytes),
+			grpc.MaxCallSendMsgSize(DefaultMaxMessageBytes),
 		),
 		grpc.WithChainUnaryInterceptor(hostUnaryClientInterceptor(token)),
 		grpc.WithChainStreamInterceptor(hostStreamClientInterceptor(token)),
@@ -128,7 +127,7 @@ func (h *Host) RequestContext(parent *protocolwire.RequestContext) *protocolwire
 	if result.Locale == "" {
 		result.Locale = "und"
 	}
-	maximum := time.Now().UTC().Add(extensionsruntime.DefaultProtocolV2RequestTimeout)
+	maximum := time.Now().UTC().Add(DefaultRequestTimeout)
 	if result.Deadline == nil || !result.Deadline.IsValid() || result.Deadline.AsTime().After(maximum) {
 		result.Deadline = timestamppb.New(maximum)
 	}
@@ -289,10 +288,10 @@ func (s *hostClientStream) RecvMsg(message any) error {
 func hostCallContext(ctx context.Context, token []byte) (context.Context, context.CancelFunc) {
 	if _, ok := ctx.Deadline(); ok {
 		ctx, cancel := context.WithCancel(ctx)
-		return metadata.AppendToOutgoingContext(ctx, extensionsruntime.ProtocolV2RuntimeTokenMetadataKey, string(token)), cancel
+		return metadata.AppendToOutgoingContext(ctx, RuntimeTokenMetadataKey, string(token)), cancel
 	}
-	ctx, cancel := context.WithTimeout(ctx, extensionsruntime.DefaultProtocolV2RequestTimeout)
-	return metadata.AppendToOutgoingContext(ctx, extensionsruntime.ProtocolV2RuntimeTokenMetadataKey, string(token)), cancel
+	ctx, cancel := context.WithTimeout(ctx, DefaultRequestTimeout)
+	return metadata.AppendToOutgoingContext(ctx, RuntimeTokenMetadataKey, string(token)), cancel
 }
 
 func cloneIdentity(value *protocolwire.ExtensionIdentity) *protocolwire.ExtensionIdentity {

@@ -113,6 +113,16 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- 插件运行时内存优化（2026-08-20）：Protocol V2 插件侧传输已从旧 Host runtime
+  解耦，SDK 非标准依赖从 396 降至 164；SMTP 从 397 降至 165，Linux stripped
+  二进制从 23,011,490 降至 15,618,210 bytes。插件子进程固定注入
+  `GODEBUG=disablethp=1`，隔离 Linux 对照中 SMTP PSS 从 27,360 降至
+  19,284 KiB。7 个模块测试、Linux release 构建、staging digest/extension test、
+  架构与发布基线校验通过；预计生产插件总 PSS 从约 205 MiB 降至 150-160 MiB，
+  待下个 release 部署后复测。FS/S3 的通用存储 SDK 解耦是下一阶段：
+  `sessions/2026-08-20-plugin-runtime-memory.md`，
+  `decisions/2026-08-20-plugin-runtime-memory.md`
+
 - 可信预构建插件后台页面（2026-08-20）：Manifest V3 `admin.pages[]` 现支持
   `view: component`，插件预编译 ESM/CSS 只挂载后台 page body，继续继承 Host
   sidebar、topbar、tabs、标题与路由。聚合摘要、精确制品信任、Safe Mode、启用

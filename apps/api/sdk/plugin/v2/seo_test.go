@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	seoregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/SEORegistry"
 	pluginwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
 	protocolwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
@@ -43,9 +42,9 @@ func TestSEORegistryDispatchesExactActorlessTypedContribution(t *testing.T) {
 			VersionID: 9, RuntimeInstanceID: "seo-reference-runtime",
 		},
 	}
-	values, err := strictSEOMap(extensionsruntime.ProtocolV2SEOApplyRequest{
+	values, err := strictSEOMap(seoApplyRequest{
 		Scope: contribution.Scope,
-		Contribution: extensionsruntime.ProtocolV2SEOContribution{
+		Contribution: SEOContribution{
 			ID: definition.ID, ContractVersion: definition.ContractVersion, Scope: definition.Scope,
 			Kind: definition.Kind, Action: definition.Action, Handler: definition.Handler,
 			FailurePolicy: definition.FailurePolicy, TimeoutMS: definition.TimeoutMS,
@@ -55,7 +54,7 @@ func TestSEORegistryDispatchesExactActorlessTypedContribution(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	document, err := NewTypedDocument(extensionsruntime.ProtocolV2SEORequestSchema, values)
+	document, err := NewTypedDocument(seoRequestSchema, values)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,22 +69,22 @@ func TestSEORegistryDispatchesExactActorlessTypedContribution(t *testing.T) {
 	server.started = true
 	server.identity = cloneV2IdentityForSEOTest(requestContext.GetExtension())
 	response, err := server.ProviderCall(context.Background(), &pluginwire.ProviderCallRequest{
-		Context: requestContext, SlotId: extensionsruntime.ProtocolV2SEOProviderSlot,
-		Operation: extensionsruntime.ProtocolV2SEOProviderOperation, DeclarationId: definition.ID,
+		Context: requestContext, SlotId: seoProviderSlot,
+		Operation: seoProviderOperation, DeclarationId: definition.ID,
 		ContractVersion: definition.ContractVersion, Input: document,
 	})
-	if err != nil || response.GetError() != nil || !DocumentMatchesSchema(response.GetOutput(), extensionsruntime.ProtocolV2SEOResponseSchema) {
+	if err != nil || response.GetError() != nil || !DocumentMatchesSchema(response.GetOutput(), seoResponseSchema) {
 		t.Fatalf("SEO response=%#v err=%v", response, err)
 	}
-	result := extensionsruntime.ProtocolV2SEOApplyResponse{}
+	result := seoApplyResponse{}
 	if err := strictSEODecode(TypedDocumentValues(response.GetOutput()), &result); err != nil || result.Document.Title != "Reference SEO title" {
 		t.Fatalf("SEO result=%#v err=%v", result, err)
 	}
 
 	requestContext.Actor = &protocolwire.Actor{UserId: 42}
 	denied, err := server.ProviderCall(context.Background(), &pluginwire.ProviderCallRequest{
-		Context: requestContext, SlotId: extensionsruntime.ProtocolV2SEOProviderSlot,
-		Operation: extensionsruntime.ProtocolV2SEOProviderOperation, DeclarationId: definition.ID,
+		Context: requestContext, SlotId: seoProviderSlot,
+		Operation: seoProviderOperation, DeclarationId: definition.ID,
 		ContractVersion: definition.ContractVersion, Input: document,
 	})
 	if err != nil || denied.GetError().GetReason() != "seo.actor_forbidden" {

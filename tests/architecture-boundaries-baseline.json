@@ -11,7 +11,7 @@
     "apps/api/app/Support/ExtensionManifest/manifest.go": 920,
     "apps/api/app/Support/Extensions/lifecycle_registry_publication.go": 1124,
     "apps/api/app/Support/Extensions/plugin_runtime_full_set.go": 907,
-    "apps/api/app/Support/Extensions/protocol.go": 1014,
+    "apps/api/app/Support/Extensions/protocol.go": 1011,
     "apps/api/app/Support/Extensions/protocol_instances.go": 1052,
     "apps/api/app/Support/Extensions/protocol_v2_client.go": 1131,
     "apps/api/app/Support/Pages/registry.go": 1055,
@@ -128,11 +128,7 @@
     "apps/api/cmd/sforum/plugin_command_runtime.go",
     "apps/api/sdk/plugin/catalogs.go",
     "apps/api/sdk/plugin/contract.go",
-    "apps/api/sdk/plugin/protocol.go",
-    "apps/api/sdk/plugin/v2/host.go",
-    "apps/api/sdk/plugin/v2/providers.go",
-    "apps/api/sdk/plugin/v2/runtime.go",
-    "apps/api/sdk/plugin/v2/seo.go"
+    "apps/api/sdk/plugin/protocol.go"
   ],
   "flatDirectoryCaps": [
     {
