@@ -58,7 +58,7 @@
     "@vue/test-utils": "^2.4.11",
     "esbuild": "^0.28.1",
     "happy-dom": "^20.10.6",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "vite": "8.1.5",
     "vue-router": "^5.1.0",
     "vue-tsc": "^3.3.6"
