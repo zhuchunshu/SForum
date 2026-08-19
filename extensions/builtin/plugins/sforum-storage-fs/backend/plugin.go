@@ -10,14 +10,12 @@ import (
 	"sync"
 	"time"
 
-	pluginsdk "github.com/zhuchunshu/sforum/apps/api/sdk/plugin"
+	pluginsdk "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/storageprovider"
 )
 
 // fsStoragePlugin 是 attachment.storage.provider 的参考实现（E6.4）。
 // 对象写入可配置根目录；分块会话在进程内维护。
 type fsStoragePlugin struct {
-	pluginsdk.Noop
-
 	mu      sync.Mutex
 	puts    map[string]*putSession
 	reads   map[string]*readSession
@@ -60,15 +58,6 @@ func (p *fsStoragePlugin) reloadConfig() {
 		p.rootErr = "root_path must be an absolute path"
 		return
 	}
-}
-
-func (p *fsStoragePlugin) Health() (pluginsdk.Health, error) {
-	return pluginsdk.Health{OK: true}, nil
-}
-
-func (p *fsStoragePlugin) RouteTarget() (pluginsdk.RouteTarget, error) {
-	// 纯存储 provider，不暴露 HTTP 路由。
-	return pluginsdk.RouteTarget{}, nil
 }
 
 func (p *fsStoragePlugin) StorageProbe(pluginsdk.StorageProbeRequest) (pluginsdk.StorageProbeResponse, error) {

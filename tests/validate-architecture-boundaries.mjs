@@ -107,6 +107,20 @@ if (pluginV2LegacyImports.length > 0) {
   )
 }
 
+const lightweightStorageSDKFiles = goProductionFiles
+  .filter(path => path.startsWith('apps/api/sdk/plugin/storageprovider/'))
+const lightweightStorageSDKInvalidImports = lightweightStorageSDKFiles
+  .filter(path => {
+    const source = read(path)
+    return source.includes(`"${legacyExtensionsImport}"`) ||
+      source.includes('"github.com/zhuchunshu/sforum/apps/api/sdk/plugin"')
+  })
+if (lightweightStorageSDKInvalidImports.length > 0) {
+  failures.push(
+    `lightweight storage SDK imports the legacy Host or root plugin SDK: ${lightweightStorageSDKInvalidImports.join(', ')}`
+  )
+}
+
 for (const path of goProductionFiles.filter(path => path.startsWith('apps/api/app/Models/'))) {
   if (read(path).includes(`"${legacyExtensionsImport}"`)) {
     failures.push(`${path} imports concrete legacy Support/Extensions; Models must depend on stable or consumer-owned interfaces`)

@@ -13,6 +13,8 @@
   inherited Host `GODEBUG` value.
 - Tidied all seven built-in modules, patch-bumped all seven versions, refreshed
   the built-in release baseline, and rebuilt staging exact digests.
+- Extracted storage provider behavior into `sdk/plugin/storageprovider`, kept a
+  root SDK compatibility facade, and migrated FS/S3 off the legacy root SDK.
 
 ## Evidence
 
@@ -20,6 +22,10 @@
 - SMTP Linux/amd64 stripped binary: 23,011,490 -> 15,618,210 bytes.
 - Isolated Linux SMTP PSS with THP disabled: 27,360 -> 19,284 KiB. The original
   no-THP-control process measured about 30 MiB.
+- Storage FS dependencies: 396-class legacy graph -> 166; Linux binary
+  22,589,602 -> 15,564,962 bytes; isolated PSS 26,112 -> 19,072 KiB.
+- Storage S3 dependencies: 256 after retaining AWS SDK v2; Linux binary
+  31,088,802 -> 24,948,898 bytes; isolated PSS 29,172 -> 23,868 KiB.
 - All seven module tests and Linux release builds passed. All seven staged
   packages passed digest refresh and `extension test`.
 - Focused SDK/Host tests, Host API docs validation, built-in release validation,
@@ -29,15 +35,13 @@
 
 - Protocol, trust, authorization, process isolation, and lifecycle semantics
   are unchanged; this is a dependency and Go heap mapping optimization.
-- Expected production total is about 150-160 MiB rather than 205 MiB, pending
+- Expected production total is about 138-148 MiB rather than 205 MiB, pending
   post-release Linux measurement.
 
 ## Next
 
 - Deploy the next release, wait for representative plugin traffic, then compare
   per-plugin 60-second median PSS and `AnonHugePages` with the current baseline.
-- Extract the general storage provider helpers into a lightweight SDK package
-  so `sforum.storage-fs` and `sforum.storage-s3` stop importing the legacy SDK.
 - Replace the temporary Go `disablethp` compatibility switch with an explicit
   Linux THP policy before the Go runtime removes that switch.
 

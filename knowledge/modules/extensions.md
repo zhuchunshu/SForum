@@ -576,9 +576,12 @@ Relevant plans:
 - Plugin-side Protocol V2 serving is owned by `sdk/plugin/v2`; dependency
   direction is Host to SDK, and an architecture ratchet rejects any renewed SDK
   import of the legacy runtime. The SDK dependency graph fell from 396 to 164
-  non-standard packages. Five pure V2 built-ins now produce 15-16 MiB stripped
-  Linux binaries; storage-fs and storage-s3 still await extraction from the
-  legacy general storage SDK.
+  non-standard packages. Storage helpers now live in the lightweight
+  `sdk/plugin/storageprovider` package: FS builds with 166 non-standard
+  dependencies and S3 with 256 including AWS SDK v2.
+- The storage extraction reduces stripped Linux binaries from 22,589,602 to
+  15,564,962 bytes for FS and from 31,088,802 to 24,948,898 bytes for S3.
+  Matched idle Linux PSS falls by 7,040 and 5,304 KiB respectively.
 - Plugin child processes receive `GODEBUG=disablethp=1` to prevent per-process
   Linux heap THP over-allocation. Isolated SMTP evidence fell from 27,360 KiB to
   19,284 KiB PSS after dependency slimming with the same THP setting; production

@@ -118,8 +118,9 @@ load archived sessions or completed plans as current context.
   二进制从 23,011,490 降至 15,618,210 bytes。插件子进程固定注入
   `GODEBUG=disablethp=1`，隔离 Linux 对照中 SMTP PSS 从 27,360 降至
   19,284 KiB。7 个模块测试、Linux release 构建、staging digest/extension test、
-  架构与发布基线校验通过；预计生产插件总 PSS 从约 205 MiB 降至 150-160 MiB，
-  待下个 release 部署后复测。FS/S3 的通用存储 SDK 解耦是下一阶段：
+  架构与发布基线校验通过。第二阶段已将 FS/S3 解耦到轻量存储 SDK，同条件
+  Linux PSS 再减少约 12.1 MiB；预计生产插件总 PSS 从约 205 MiB 降至
+  138-148 MiB，待下个 release 部署后复测：
   `sessions/2026-08-20-plugin-runtime-memory.md`，
   `decisions/2026-08-20-plugin-runtime-memory.md`
 

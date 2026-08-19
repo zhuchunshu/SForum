@@ -39,6 +39,10 @@ small Go plugin process.
 - Architecture validation rejects any future Protocol V2 SDK import of the
   legacy Host runtime. Built-in source-contract versions and exact package
   digests change with this runtime boundary.
+- Storage provider sessions, payload DTOs, key validation, and the Protocol V2
+  known-slot adapter live in the lightweight `sdk/plugin/storageprovider`
+  package. The root SDK keeps a compatibility facade for existing authors;
+  FS/S3 import only the lightweight package.
 
 ## Consequences
 
@@ -49,10 +53,12 @@ small Go plugin process.
   In isolated Linux containers with `disablethp=1`, idle SMTP PSS falls from
   27,360 KiB to 19,284 KiB. Compared with the original approximately 30 MiB
   process, the combined measured reduction is about 10 MiB.
-- The two storage built-ins still import the legacy general storage SDK. They
-  receive the THP reduction but need a separate lightweight storage SDK
-  extraction to obtain the dependency reduction.
-- The expected seven-plugin production total is approximately 150-160 MiB,
+- The storage extraction reduces FS dependencies to 166 and S3 dependencies to
+  256 including AWS SDK v2. Linux/amd64 stripped binaries fall from 22,589,602
+  to 15,564,962 bytes for FS and from 31,088,802 to 24,948,898 bytes for S3.
+- In matched isolated Linux samples, FS PSS falls from 26,112 to 19,072 KiB and
+  S3 from 29,172 to 23,868 KiB, saving 12,344 KiB across the two processes.
+- The expected seven-plugin production total is approximately 138-148 MiB,
   but acceptance requires a Linux release measurement after deployment and a
   representative warm workload.
 - Go documents `disablethp` as temporary compatibility behavior. Before the

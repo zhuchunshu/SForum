@@ -1,7 +1,7 @@
 package main
 
 import (
-	pluginsdk "github.com/zhuchunshu/sforum/apps/api/sdk/plugin"
+	pluginsdk "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/storageprovider"
 	pluginv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2"
 )
 

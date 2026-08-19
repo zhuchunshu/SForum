@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	pluginsdk "github.com/zhuchunshu/sforum/apps/api/sdk/plugin"
+	pluginsdk "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/storageprovider"
 	pluginv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2"
 	pluginwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
 	protocolwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"

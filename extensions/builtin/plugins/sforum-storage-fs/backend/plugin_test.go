@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	pluginsdk "github.com/zhuchunshu/sforum/apps/api/sdk/plugin"
+	pluginsdk "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/storageprovider"
 )
 
 func TestFSStorageRoundTrip(t *testing.T) {
