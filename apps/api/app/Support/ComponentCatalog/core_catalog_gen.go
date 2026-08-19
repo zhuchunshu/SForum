@@ -292,5 +292,6 @@ var generatedCoreComponentCatalog = [...]CoreComponent{
 	{ID: "core.component.shared.sf_topic_reply_page", ContractVersion: "sforum.component.shared.sf_topic_reply_page@1", Kind: KindComponent, Owners: []Owner{OwnerPublic}, Route: "", Source: "apps/web/app/components/forum/SFTopicReplyPage.vue"},
 	{ID: "core.component.shared.sftopic_show_page", ContractVersion: "sforum.component.shared.sftopic_show_page@1", Kind: KindComponent, Owners: []Owner{OwnerPublic}, Route: "", Source: "apps/web/app/components/forum/SFTopicShowPage.vue"},
 	{ID: "core.component.shared.sftopic_side_card", ContractVersion: "sforum.component.shared.sftopic_side_card@1", Kind: KindComponent, Owners: []Owner{OwnerPublic}, Route: "", Source: "apps/web/app/components/forum/SFTopicSideCard.vue"},
+	{ID: "core.component.admin.sftrusted_admin_page_component", ContractVersion: "sforum.component.admin.sftrusted_admin_page_component@1", Kind: KindComponent, Owners: []Owner{OwnerAdmin}, Route: "", Source: "apps/web/app/components/extensions/admin/SFTrustedAdminPageComponent.vue"},
 	{ID: "core.component.shared.sfweb_push_settings_section", ContractVersion: "sforum.component.shared.sfweb_push_settings_section@1", Kind: KindComponent, Owners: []Owner{OwnerPublic}, Route: "", Source: "apps/web/app/components/settings/SFWebPushSettingsSection.vue"},
 }

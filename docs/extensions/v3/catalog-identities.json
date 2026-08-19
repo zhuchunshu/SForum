@@ -422,6 +422,12 @@
       "path": "/api/v1/admin/extensions/:id/frontend/assets/:digest/:asset"
     },
     {
+      "id": "core.route.extensions.frontend_component_asset",
+      "contractVersion": "sforum.route.extensions.frontend_component_asset@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/:id/frontend/assets/:digest/:component/:asset"
+    },
+    {
       "id": "core.route.extensions.frontend_confirmation",
       "contractVersion": "sforum.route.extensions.frontend_confirmation@1",
       "method": "POST",
@@ -2294,6 +2300,16 @@
       ],
       "state": "active",
       "source": "apps/web/app/components/extensions/settings/SFTrustedSettingsComponent.vue"
+    },
+    {
+      "id": "core.component.admin.sftrusted_admin_page_component",
+      "contractVersion": "sforum.component.admin.sftrusted_admin_page_component@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/extensions/admin/SFTrustedAdminPageComponent.vue"
     },
     {
       "id": "core.component.admin.sfadmin_missing_artifacts_cleanup_dialog",

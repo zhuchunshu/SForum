@@ -3,8 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -32,18 +30,6 @@ provider slots) do not fail by default.`,
 			if len(args) == 1 {
 				root = args[0]
 			}
-			abs, err := filepath.Abs(root)
-			if err != nil {
-				return err
-			}
-			info, err := os.Stat(abs)
-			if err != nil {
-				return err
-			}
-			if !info.IsDir() {
-				return fmt.Errorf("%s is not a directory", abs)
-			}
-
 			opts := pluginsdk.Options{
 				SkipBackendBinary: skipBackendBinary,
 			}
@@ -51,42 +37,49 @@ provider slots) do not fail by default.`,
 			if allowScaffoldStub {
 				opts.SkipBackendBinary = true
 			}
-
-			report, err := pluginsdk.LoadAndTest(abs, opts)
-			if err != nil {
-				return err
-			}
-			if asJSON {
-				enc := json.NewEncoder(cmd.OutOrStdout())
-				enc.SetIndent("", "  ")
-				// 不序列化完整 Manifest 以免过大；只输出摘要字段。
-				out := map[string]any{
-					"root":             report.Root,
-					"ok":               report.OK,
-					"errors":           report.Errors,
-					"warnings":         report.Warnings,
-					"id":               report.Manifest.ID,
-					"type":             report.Manifest.Type,
-					"version":          report.Manifest.Version,
-					"manifestContract": extensionmanifest.ManifestContract(report.Manifest),
-					"checks":           report.Checks,
-				}
-				if err := enc.Encode(out); err != nil {
-					return err
-				}
-			} else {
-				printTestReport(cmd, report)
-			}
-			if !report.OK {
-				return fmt.Errorf("extension test failed: %d error(s), %d warning(s)", report.Errors, report.Warnings)
-			}
-			return nil
+			return runExtensionTest(cmd, root, opts, asJSON)
 		},
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "Print machine-readable report JSON")
 	cmd.Flags().BoolVar(&skipBackendBinary, "skip-backend-binary", false, "Do not require backend entry file on disk")
 	cmd.Flags().BoolVar(&allowScaffoldStub, "allow-scaffold", false, "Alias of --skip-backend-binary for scaffold packages")
 	return cmd
+}
+
+func runExtensionTest(cmd *cobra.Command, root string, opts pluginsdk.Options, asJSON bool) error {
+	abs, err := resolveExtensionPackageRoot(root)
+	if err != nil {
+		return err
+	}
+	report, err := pluginsdk.LoadAndTest(abs, opts)
+	if err != nil {
+		return err
+	}
+	if asJSON {
+		enc := json.NewEncoder(cmd.OutOrStdout())
+		enc.SetIndent("", "  ")
+		// 不序列化完整 Manifest 以免过大；只输出摘要字段。
+		out := map[string]any{
+			"root":             report.Root,
+			"ok":               report.OK,
+			"errors":           report.Errors,
+			"warnings":         report.Warnings,
+			"id":               report.Manifest.ID,
+			"type":             report.Manifest.Type,
+			"version":          report.Manifest.Version,
+			"manifestContract": extensionmanifest.ManifestContract(report.Manifest),
+			"checks":           report.Checks,
+		}
+		if err := enc.Encode(out); err != nil {
+			return err
+		}
+	} else {
+		printTestReport(cmd, report)
+	}
+	if !report.OK {
+		return fmt.Errorf("extension test failed: %d error(s), %d warning(s)", report.Errors, report.Warnings)
+	}
+	return nil
 }
 
 func printTestReport(cmd *cobra.Command, report pluginsdk.Report) {

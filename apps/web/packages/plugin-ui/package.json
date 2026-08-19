@@ -3,12 +3,26 @@
   "version": "1.0.0",
   "description": "Stable Vue components for SForum plugin-owned pages",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhuchunshu/SForum.git",
+    "directory": "apps/web/packages/plugin-ui"
+  },
+  "homepage": "https://github.com/zhuchunshu/SForum#readme",
+  "bugs": "https://github.com/zhuchunshu/SForum/issues",
+  "keywords": [
+    "sforum",
+    "plugin",
+    "vue",
+    "components"
+  ],
   "type": "module",
   "files": [
     "src"
   ],
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "sideEffects": [
     "./src/style.css"

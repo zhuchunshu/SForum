@@ -20,6 +20,7 @@ func newExtensionCommand() *cobra.Command {
 		Short: "Extension package helpers",
 	}
 	cmd.AddCommand(newExtensionValidateCommand())
+	cmd.AddCommand(newExtensionBuildCommand())
 	cmd.AddCommand(newExtensionDigestCommand())
 	cmd.AddCommand(newExtensionTestCommand())
 	cmd.AddCommand(newExtensionPackageCommand())
@@ -45,37 +46,57 @@ func newExtensionValidateCommand() *cobra.Command {
 			if len(args) == 1 {
 				root = args[0]
 			}
-			abs, err := filepath.Abs(root)
-			if err != nil {
-				return err
-			}
-			info, err := os.Stat(abs)
-			if err != nil {
-				return err
-			}
-			if !info.IsDir() {
-				return fmt.Errorf("%s is not a directory", abs)
-			}
-			manifest, err := extensionmanifest.LoadPackage(abs)
-			if err != nil {
-				return fmt.Errorf("invalid package at %s: %w", abs, err)
-			}
-			// 显式 V3 包：复用生产 BuildThemeRuntimeSnapshot，拒绝激活时会失败的 page template。
-			if err := pluginsdk.PreflightExactTemplateRuntime(abs, manifest); err != nil {
-				return fmt.Errorf("invalid package at %s: %w", abs, err)
-			}
-			if asJSON {
-				// 打印合并后的完整 Manifest，便于审查与调试 includes。
-				enc := json.NewEncoder(cmd.OutOrStdout())
-				enc.SetIndent("", "  ")
-				return enc.Encode(manifest)
-			}
-			printValidateSummary(cmd, abs, manifest)
-			return nil
+			return runExtensionValidate(cmd, root, asJSON)
 		},
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "Print merged manifest JSON")
 	return cmd
+}
+
+func resolveExtensionPackageRoot(root string) (string, error) {
+	abs, err := filepath.Abs(root)
+	if err != nil {
+		return "", err
+	}
+	info, err := os.Stat(abs)
+	if err != nil {
+		return "", err
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("%s is not a directory", abs)
+	}
+	return abs, nil
+}
+
+func loadValidatedExtensionPackage(root string) (string, extensionmanifest.Manifest, error) {
+	abs, err := resolveExtensionPackageRoot(root)
+	if err != nil {
+		return "", extensionmanifest.Manifest{}, err
+	}
+	manifest, err := extensionmanifest.LoadPackage(abs)
+	if err != nil {
+		return "", extensionmanifest.Manifest{}, fmt.Errorf("invalid package at %s: %w", abs, err)
+	}
+	// 显式 V3 包复用生产预检，拒绝激活时会失败的 page template。
+	if err := pluginsdk.PreflightExactTemplateRuntime(abs, manifest); err != nil {
+		return "", extensionmanifest.Manifest{}, fmt.Errorf("invalid package at %s: %w", abs, err)
+	}
+	return abs, manifest, nil
+}
+
+func runExtensionValidate(cmd *cobra.Command, root string, asJSON bool) error {
+	abs, manifest, err := loadValidatedExtensionPackage(root)
+	if err != nil {
+		return err
+	}
+	if asJSON {
+		// 打印合并后的完整 Manifest，便于审查与调试 includes。
+		enc := json.NewEncoder(cmd.OutOrStdout())
+		enc.SetIndent("", "  ")
+		return enc.Encode(manifest)
+	}
+	printValidateSummary(cmd, abs, manifest)
+	return nil
 }
 
 func printValidateSummary(cmd *cobra.Command, root string, manifest extensionmanifest.Manifest) {

@@ -32,6 +32,11 @@ responsibilities.
   table primitives using semantic Host variables plus standalone fallbacks. It
   has no Nuxt UI, router, composable, or private `SF*` dependency; Vite bundles
   Vue and the SDK into each plugin's immutable ESM/CSS artifact.
+- Both SDKs are npm-pack verified with their license and public metadata. The
+  package major must match the admin bridge API, scaffold dependency versions
+  must match the package versions, and an offline tarball consumer build must
+  emit usable ESM/CSS. Tag releases publish through npm OIDC only after image
+  smoke and asset verification; image promotion waits for SDK publication.
 
 ## Runtime Site URL
 

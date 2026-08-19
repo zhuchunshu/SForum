@@ -786,6 +786,22 @@
     "handler": "frontendAsset",
     "method": "GET",
     "path": "/api/v1/admin/extensions/:id/frontend/assets/:digest/:asset",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:70",
+    "access": "permission",
+    "policy": "extension.view or matching manage permission",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.read"
+    }
+  },
+  {
+    "id": "core.route.extensions.frontend_component_asset",
+    "contractVersion": "sforum.route.extensions.frontend_component_asset@1",
+    "module": "extensions",
+    "handler": "frontendComponentAsset",
+    "method": "GET",
+    "path": "/api/v1/admin/extensions/:id/frontend/assets/:digest/:component/:asset",
     "source": "apps/api/app/Http/Controllers/Extensions/routes.go:69",
     "access": "permission",
     "policy": "extension.view or matching manage permission",
@@ -802,7 +818,7 @@
     "handler": "frontendConfirmation",
     "method": "POST",
     "path": "/api/v1/admin/extensions/:id/frontend/confirmation",
-    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:70",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:71",
     "access": "super_admin",
     "policy": "active super_admin challenge issuance",
     "guard": {
@@ -818,7 +834,7 @@
     "handler": "revokeFrontendTrust",
     "method": "DELETE",
     "path": "/api/v1/admin/extensions/:id/frontend/trust",
-    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:72",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:73",
     "access": "super_admin",
     "policy": "active super_admin trust revocation",
     "guard": {
@@ -834,7 +850,7 @@
     "handler": "grantFrontendTrust",
     "method": "POST",
     "path": "/api/v1/admin/extensions/:id/frontend/trust",
-    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:71",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:72",
     "access": "super_admin",
     "policy": "active super_admin plus actor-bound exact frontend artifact confirmation",
     "guard": {
@@ -1218,7 +1234,7 @@
     "handler": "eventDefinitions",
     "method": "GET",
     "path": "/api/v1/admin/extensions/event-definitions",
-    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:73",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:74",
     "access": "permission",
     "policy": "extension.view or matching manage permission",
     "guard": {
@@ -1234,7 +1250,7 @@
     "handler": "eventDeliveries",
     "method": "GET",
     "path": "/api/v1/admin/extensions/event-deliveries",
-    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:74",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:75",
     "access": "permission",
     "policy": "extension.view or matching manage permission",
     "guard": {
@@ -4232,7 +4248,7 @@
     "handler": "proxyExtensionRoute",
     "method": "*",
     "path": "/api/v1/extensions/:extensionId/*",
-    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:76",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:77",
     "access": "declared",
     "policy": "enabled plugin route declaration and manifest access policy",
     "guard": {

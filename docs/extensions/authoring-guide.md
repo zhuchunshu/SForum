@@ -798,6 +798,9 @@ Nuxt UI or `SF*` imports as a compatibility contract.
 # Parse + merge includes, print summary
 go run ./cmd/sforum extension validate <package-root>
 
+# Build author frontend assets, refresh digests, validate, and contract-test
+go run ./cmd/sforum extension build <package-root>
+
 # Refresh inline Manifest V3 packageFiles digests and revalidate
 go run ./cmd/sforum extension digest --write <package-root>
 

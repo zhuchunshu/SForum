@@ -26,6 +26,7 @@ go run ./cmd/sforum --version
 | `seed:perf` | Million-scale read-path seed (alias of `seed:forum --profile=perf-1m`) |
 | `users:reset-password` | Interactively reset a user's password (alias `user:reset-password`) |
 | `revisions backfill` | Backfill the forum content revision ledger in batches |
+| `extension build` | Build author frontend assets, refresh digests, and run all package gates |
 | `extension validate` | Validate an extension package (includes/template preflight) |
 | `extension digest` | Inspect or refresh Manifest V3 `packageFiles` digests |
 | `extension test` | Host contract checks (capabilities, events, entrypoints) |
@@ -105,14 +106,15 @@ go run ./cmd/sforum make:plugin \
 | `--backend` | plugin | Generate a `backend/plugin` stub and README |
 | `--complex` | plugin | Multi-file manifest (includes + langs + settings shards) |
 | `--prebuilt-settings` | both | Author-prebuilt Admin settings component + Schema fallback |
+| `--vue-admin-page` | plugin | Vue/Vite admin page workspace using the Plugin UI SDK |
 | `--provider-slot` | plugin | Declare a provider slot + `provider_probe` (requires `--backend`) |
 
 ### After scaffolding
 
 1. Implement the backend and compile the executable to the Manifest's
    `backend.entry` (usually `backend/plugin`).
-2. Refresh exact digests with `extension digest --write`.
-3. Run `extension validate` / `extension test`.
+2. When `frontend/admin/package.json` exists, run `extension build`; it builds the frontend, refreshes digests, and runs every package gate.
+3. Without an author frontend, run `extension digest --write`, `extension validate`, and `extension test` directly.
 4. Run `extension package` when distributing.
 
 Third-party plugins use the public SDK (`apps/api/sdk/plugin`) and must **not**
@@ -122,6 +124,28 @@ import host business packages such as `app/Models/*`. Full authoring rules:
 ---
 
 ## Package helpers: `extension …`
+
+### One-command author build — `build`
+
+```sh
+go run ./cmd/sforum extension build <package-root>
+go run ./cmd/sforum extension build --allow-scaffold <package-root>
+go run ./cmd/sforum extension build --skip-install <package-root>
+```
+
+When `frontend/admin/package.json` exists, the command runs `bun install` and
+`bun run build`. A `bun.lock` or `bun.lockb` automatically enables
+`--frozen-lockfile`. It then refreshes exact digests, performs full Manifest
+and template validation, and runs Host contract tests. Packages without an
+author frontend skip Bun but still run all three package gates.
+
+- `--skip-install` skips `bun install` when dependencies already exist; it does not skip the build.
+- `--allow-scaffold` permits only a missing backend binary during contract tests; other errors still fail.
+
+This is an author-invoked local command and executes the plugin's own
+`package.json` scripts. Upload, install, enable, and production runtime never
+call it. Production continues to load only exact-manifest `.mjs` / `.css`
+artifacts.
 
 ### Validate — `validate`
 
@@ -229,12 +253,9 @@ Recommended release loop:
 
 ```sh
 # 1. Compile the backend to backend/plugin
-# 2. Refresh digests
-go run ./cmd/sforum extension digest --write <package-root>
-# 3. Validate + contract test
-go run ./cmd/sforum extension validate <package-root>
-go run ./cmd/sforum extension test <package-root>
-# 4. Build the release zip
+# 2. Build frontend assets (if present) + refresh digests + run package gates
+go run ./cmd/sforum extension build <package-root>
+# 3. Build the release zip
 go run ./cmd/sforum extension package <package-root> --exclude-source -o /tmp/my-plugin.sforum.zip
 ```
 

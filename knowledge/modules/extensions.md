@@ -27,6 +27,10 @@ does not rebuild Nuxt.
   placeholder dist, exact-artifact manifest entries, and build/digest/validate/
   test instructions. It works with simple or included manifests and can coexist
   with `--prebuilt-settings` without erasing its output.
+- `extension build` is the beginner-facing author command for that loop. It
+  optionally runs Bun in `frontend/admin`, then directly reuses the digest,
+  runtime-template validation, and Host contract-test implementations. Upload,
+  install, enable, and production runtime never execute package scripts.
 - `AttachmentStorageProviderCatalog` directly owns storage provider candidate
   and availability reads; aggregate `Service` and `CatalogService` forwarding
   methods were removed. Settings projection lives with settings lifecycle, and

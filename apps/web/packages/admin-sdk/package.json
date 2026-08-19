@@ -3,12 +3,25 @@
   "version": "1.0.0",
   "description": "Versioned bridge contracts for SForum admin plugin pages",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhuchunshu/SForum.git",
+    "directory": "apps/web/packages/admin-sdk"
+  },
+  "homepage": "https://github.com/zhuchunshu/SForum#readme",
+  "bugs": "https://github.com/zhuchunshu/SForum/issues",
+  "keywords": [
+    "sforum",
+    "plugin",
+    "admin"
+  ],
   "type": "module",
   "files": [
     "src"
   ],
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "exports": {
     ".": "./src/index.ts"

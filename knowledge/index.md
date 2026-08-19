@@ -125,13 +125,14 @@ load archived sessions or completed plans as current context.
   `sessions/2026-08-20-plugin-runtime-memory.md`，
   `decisions/2026-08-20-plugin-runtime-memory.md`
 
-- Plugin UI SDK v1（2026-08-20）：新增可发布的 `@sforum/plugin-ui@1` 页面、
-  表单、反馈与表格组件，以及 `make:plugin --vue-admin-page`。插件作者获得真实
-  Vue SFC/Vite 工作区和基本免 CSS 体验；生成包同时带可校验占位 dist，支持
-  simple/complex manifest 并可与 `--prebuilt-settings` 组合。真实 fixture 已将
-  Vue 与 SDK 构建为不可变 ESM/CSS，并通过 digest/validate/test；生产仍不编译
-  SFC、不加载 Nuxt Layer、不依赖 Host 私有组件：
-  `sessions/2026-08-20-plugin-ui-sdk-v1.md`
+- Plugin UI SDK 分发与一键构建（2026-08-20）：`@sforum/admin-sdk@1` 和
+  `@sforum/plugin-ui@1` 已具备 npm 精确打包、版本/API 一致性、离线消费构建及
+  Release OIDC 发布门禁；`extension build` 会在作者侧完成 Bun 构建、摘要刷新、
+  完整校验和契约测试，生产仍不执行源码或 package scripts。npm 命名空间目前
+  尚未创建，需 `@sforum` 所有者完成一次 2FA 初始发布并绑定 `release.yml`
+  Trusted Publisher：
+  `sessions/2026-08-20-plugin-sdk-distribution.md`，
+  `decisions/2026-08-20-plugin-sdk-distribution.md`
 
 - 审核通知与发布可见性修复（2026-08-20）：新建或重新入队的待审核主题/评论
   现在会在原写事务内通知所有当前有效 `moderation.review` 用户（含

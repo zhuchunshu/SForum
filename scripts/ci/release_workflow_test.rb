@@ -67,6 +67,33 @@ fail!("manifest merge matrix must cover all three images") unless merge.dig("str
 promote = release_jobs.fetch("promote")
 fail!("promotion matrix must cover only the three supported images") unless promote.dig("strategy", "matrix", "image") == images
 
+sdk_publish = release_jobs.fetch("publish-web-sdks")
+sdk_needs = needs(sdk_publish)
+%w[prepare smoke verify-release-assets].each do |dependency|
+  fail!("Web SDK publication must wait for #{dependency}") unless sdk_needs.include?(dependency)
+end
+sdk_permissions = sdk_publish.fetch("permissions", {})
+unless sdk_permissions["contents"] == "read" && sdk_permissions["id-token"] == "write"
+  fail!("Web SDK publication must use read-only contents plus npm Trusted Publishing OIDC")
+end
+sdk_steps = sdk_publish.fetch("steps")
+setup_node = sdk_steps.find { |step| step["uses"].to_s.include?("actions/setup-node@") }
+unless setup_node && setup_node["uses"] == "actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38" &&
+       setup_node.dig("with", "node-version") == "24.19.0" &&
+       setup_node.dig("with", "registry-url") == "https://registry.npmjs.org" &&
+       setup_node.dig("with", "package-manager-cache") == false
+  fail!("Web SDK publication must pin the reviewed Node 24/npm Trusted Publishing toolchain")
+end
+publish_command = sdk_steps.map { |step| step["run"] }.compact.find { |command| command.include?("publish-web-sdks.mjs") }
+fail!("Web SDK publication command is missing") unless publish_command
+fail!("promotion must wait for Web SDK publication") unless needs(promote).include?("publish-web-sdks")
+fail!("Web SDK publication must not use a long-lived npm token") if sdk_publish.to_s.include?("NODE_AUTH_TOKEN")
+sdk_publisher = File.read(File.join(root, "scripts/ci/publish-web-sdks.mjs"))
+unless sdk_publisher.include?("--provenance") && sdk_publisher.include?("--access', 'public") &&
+       sdk_publisher.include?("already exists with different content")
+  fail!("Web SDK publisher must preserve provenance, public access, and immutable-version checks")
+end
+
 merge_command = merge.fetch("steps").map { |step| step["run"] }.compact.find do |command|
   command.include?("docker buildx imagetools create")
 end

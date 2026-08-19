@@ -25,6 +25,7 @@ go run ./cmd/sforum --version
 | `seed:perf` | 百万级读路径种子（`seed:forum --profile=perf-1m` 的别名） |
 | `users:reset-password` | 交互式重置用户密码（别名 `user:reset-password`） |
 | `revisions backfill` | 分批回填论坛内容修订台账 |
+| `extension build` | 一键构建作者前端、刷新摘要并执行全部包门禁 |
 | `extension validate` | 校验扩展包（含 includes / 模板预检） |
 | `extension digest` | 查看或刷新 Manifest V3 `packageFiles` 摘要 |
 | `extension test` | Host 契约检查（能力、事件、入口等） |
@@ -103,13 +104,14 @@ go run ./cmd/sforum make:plugin \
 | `--backend` | plugin | 生成 `backend/plugin` stub 与 README |
 | `--complex` | plugin | 多文件 manifest（includes + langs + settings 分片） |
 | `--prebuilt-settings` | 两者 | 预构建 Admin 设置组件 + Schema 回退 |
+| `--vue-admin-page` | plugin | Vue/Vite 后台页面 + Plugin UI SDK 工作区 |
 | `--provider-slot` | plugin | 声明 provider slot + `provider_probe`（需 `--backend`） |
 
 ### 脚手架之后
 
 1. 实现后端逻辑，并把可执行文件编译到 Manifest 声明的 `backend.entry`（通常是 `backend/plugin`）。
-2. `extension digest --write` 刷新精确摘要。
-3. `extension validate` / `extension test` 做契约检查。
+2. 有 `frontend/admin/package.json` 时运行 `extension build`；它会构建前端、刷新摘要并执行全部包门禁。
+3. 没有作者前端时，直接运行 `extension digest --write`、`extension validate` 与 `extension test`。
 4. 需要分发时再 `extension package`。
 
 第三方插件请走公开 SDK（`apps/api/sdk/plugin`），**不要** import `app/Models/*` 等宿主业务包。完整编写约定见 [插件编写指南](../../extensions/authoring-guide.md)。
@@ -117,6 +119,26 @@ go run ./cmd/sforum make:plugin \
 ---
 
 ## 扩展包工具：`extension …`
+
+### 一键作者构建 — `build`
+
+```sh
+go run ./cmd/sforum extension build <package-root>
+go run ./cmd/sforum extension build --allow-scaffold <package-root>
+go run ./cmd/sforum extension build --skip-install <package-root>
+```
+
+当包内存在 `frontend/admin/package.json` 时，命令会先运行 `bun install` 和
+`bun run build`；存在 `bun.lock` 或 `bun.lockb` 时安装会自动加
+`--frozen-lockfile`。之后依次刷新精确摘要、完整校验 Manifest 与模板，并执行
+Host 契约测试。没有作者前端时会跳过 Bun，仍执行后三项门禁。
+
+- `--skip-install`：依赖已经安装时跳过 `bun install`，但仍执行构建。
+- `--allow-scaffold`：只允许契约测试暂时缺少后端二进制，其他错误仍会失败。
+
+这是插件作者主动运行的本地命令，会执行插件自己的 `package.json` scripts。
+上传、安装、启用和生产运行时都不会调用它；生产仍只加载 Manifest 精确绑定的
+`.mjs` / `.css` 成品。
 
 ### 校验 — `validate`
 
@@ -217,12 +239,9 @@ skipped	8	(source/dev files)   # 仅 --exclude-source 且有跳过时
 
 ```sh
 # 1. 编译后端到 backend/plugin
-# 2. 刷新摘要
-go run ./cmd/sforum extension digest --write <package-root>
-# 3. 校验 + 契约
-go run ./cmd/sforum extension validate <package-root>
-go run ./cmd/sforum extension test <package-root>
-# 4. 打发布 zip
+# 2. 构建前端（如有）+ 刷新摘要 + 校验 + 契约测试
+go run ./cmd/sforum extension build <package-root>
+# 3. 打发布 zip
 go run ./cmd/sforum extension package <package-root> --exclude-source -o /tmp/my-plugin.sforum.zip
 ```
 

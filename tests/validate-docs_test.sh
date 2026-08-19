@@ -68,7 +68,7 @@ EOF
     cat > "$dir/docs/$locale/development/cli.md" <<'EOF'
 # CLI
 
-version make:plugin make:theme seed:forum seed:perf users:reset-password revisions backfill extension validate extension digest extension test extension package extension docs generate extension list extension disable extension disable-all extension quarantine extension command extension command list extension command run extension api-lts extension system-tier extension system-tier list extension system-tier upsert extension system-tier disable dev:cleanup-orphan-plugins
+version make:plugin make:theme seed:forum seed:perf users:reset-password revisions backfill extension build extension validate extension digest extension test extension package extension docs generate extension list extension disable extension disable-all extension quarantine extension command extension command list extension command run extension api-lts extension system-tier extension system-tier list extension system-tier upsert extension system-tier disable dev:cleanup-orphan-plugins
 EOF
     cat > "$dir/docs/$locale/getting-started.md" <<'EOF'
 # Getting started
@@ -154,6 +154,12 @@ const _ = `
 	Use: "extension"
 	Use: "validate [path]"
 `
+EOF
+
+  cat > "$dir/apps/api/cmd/sforum/build_extension.go" <<'EOF'
+package main
+
+const _ = `Use: "build [path]"`
 EOF
 
   cat > "$dir/apps/api/cmd/sforum/manifest_digest.go" <<'EOF'

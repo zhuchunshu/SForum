@@ -2985,6 +2985,16 @@
     "targetRegistry": "P9 Component Registry"
   },
   {
+    "id": "core.component.admin.sftrusted_admin_page_component",
+    "contractVersion": "sforum.component.admin.sftrusted_admin_page_component@1",
+    "kind": "component",
+    "source": "apps/web/app/components/extensions/admin/SFTrustedAdminPageComponent.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
     "id": "core.component.shared.sfweb_push_settings_section",
     "contractVersion": "sforum.component.shared.sfweb_push_settings_section@1",
     "kind": "component",

@@ -132,17 +132,16 @@ paths:
 Vue scaffold build loop:
 
 ```bash
-cd <package-root>/frontend/admin
-bun install
-bun run build
-cd ../../..
-sforum extension digest --write .
-sforum extension validate .
-sforum extension test --allow-scaffold .
+sforum extension build --allow-scaffold <package-root>
 ```
 
+This author-side command installs and builds `frontend/admin`, refreshes exact
+digests, validates the package, and runs contract tests. Use `--skip-install`
+when dependencies are already installed. It executes the plugin's local
+package scripts, so upload/install/enable and production runtime never call it.
+
 The initial placeholder `dist` files make the new package valid before Bun is
-installed. `bun run build` replaces the dashboard output and preserves a
+installed. The Vite build replaces the dashboard output and preserves a
 sibling prebuilt settings component. `extension package --exclude-source`
 removes `.vue`, `.ts`, Vite config, package metadata, and locks while retaining
 the final `.mjs`/`.css` files. Production never runs these build scripts.
@@ -161,6 +160,9 @@ file change:
 cd apps/api
 go run ./cmd/sforum extension digest --write <package-root>
 ```
+
+For packages with an author frontend, prefer `extension build`; it includes
+this digest refresh plus validation and contract tests.
 
 This rewrites inline digests (including inline template digests) and
 revalidates the whole package. For Page Registry themes, add the matching

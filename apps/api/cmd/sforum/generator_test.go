@@ -201,7 +201,7 @@ func TestGenerateVueAdminPageScaffold(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(readme), "bun run build") || !strings.Contains(string(readme), "extension digest --write") {
+	if !strings.Contains(string(readme), "extension build --allow-scaffold") || !strings.Contains(string(readme), "--skip-install") {
 		t.Fatalf("missing Vue build loop: %s", readme)
 	}
 }

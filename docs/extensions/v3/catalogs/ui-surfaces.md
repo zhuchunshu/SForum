@@ -296,4 +296,5 @@ Manifest V3 component targets declare both `targetId` and `targetContractVersion
 | `core.component.shared.sf_topic_reply_page` | `sforum.component.shared.sf_topic_reply_page@1` | component | `public` | — | `apps/web/app/components/forum/SFTopicReplyPage.vue` | P9 Component Registry |
 | `core.component.shared.sftopic_show_page` | `sforum.component.shared.sftopic_show_page@1` | component | `public` | — | `apps/web/app/components/forum/SFTopicShowPage.vue` | P9 Component Registry |
 | `core.component.shared.sftopic_side_card` | `sforum.component.shared.sftopic_side_card@1` | component | `public` | — | `apps/web/app/components/forum/SFTopicSideCard.vue` | P9 Component Registry |
+| `core.component.admin.sftrusted_admin_page_component` | `sforum.component.admin.sftrusted_admin_page_component@1` | component | `admin` | — | `apps/web/app/components/extensions/admin/SFTrustedAdminPageComponent.vue` | P7/P9 Admin and Component Registries |
 | `core.component.shared.sfweb_push_settings_section` | `sforum.component.shared.sfweb_push_settings_section@1` | component | `public` | — | `apps/web/app/components/settings/SFWebPushSettingsSection.vue` | P9 Component Registry |

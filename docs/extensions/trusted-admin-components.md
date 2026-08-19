@@ -87,7 +87,34 @@ the mount adapter or CSS by hand:
 
 ```bash
 go run ./cmd/sforum make:plugin ... --vue-admin-page
+sforum extension build --allow-scaffold <package-root>
 ```
+
+The scaffold consumes the public `@sforum/admin-sdk@1` and
+`@sforum/plugin-ui@1` npm packages. Existing Vue workspaces can install the
+same contracts with `bun add @sforum/admin-sdk@^1 @sforum/plugin-ui@^1`.
+
+### Registry release ownership (maintainers)
+
+The tag-driven Release workflow publishes both packages through npm Trusted
+Publishing with provenance. It is idempotent only when an existing version has
+the exact same tarball integrity; changed content under an existing version
+fails the release before image promotion.
+
+An npm package must exist before its Trusted Publisher can be configured. For
+the one-time namespace bootstrap, an `@sforum` owner with 2FA should build the
+reviewed tarballs and publish them interactively:
+
+```bash
+node scripts/ci/pack-web-sdks.mjs /tmp/sforum-web-sdks
+npm publish /tmp/sforum-web-sdks/sforum-admin-sdk-1.0.0.tgz --access public
+npm publish /tmp/sforum-web-sdks/sforum-plugin-ui-1.0.0.tgz --access public
+```
+
+Then configure each package's GitHub Actions Trusted Publisher as organization
+`zhuchunshu`, repository `SForum`, workflow filename `release.yml`, no
+environment, allowed action `npm publish`. Do not add a long-lived npm token to
+the repository. Later releases use `.github/workflows/release.yml` exclusively.
 
 `@sforum/plugin-ui@1` currently provides:
 

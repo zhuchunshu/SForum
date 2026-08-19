@@ -554,7 +554,8 @@ func readmeBody(opts makeOptions) string {
 	if opts.VueAdminPage {
 		body += "\n## Vue admin page\n\n"
 		body += "`frontend/admin/src/AdminDashboard.vue` uses `@sforum/plugin-ui` and compiles to the trusted page-body contract. The Host still owns the admin sidebar, topbar, tabs, heading, route guard, and permissions.\n\n"
-		body += "```bash\ncd frontend/admin\nbun install\nbun run build\ncd ../../..\nsforum extension digest --write .\nsforum extension validate .\nsforum extension test --allow-scaffold .\n```\n\n"
+		body += "```bash\nsforum extension build --allow-scaffold .\n```\n\n"
+		body += "The author-side build command installs and builds `frontend/admin`, refreshes exact digests, validates the package, and runs contract tests. Use `--skip-install` after dependencies are already installed.\n\n"
 		body += "Production packages load only `dist/dashboard.mjs` and `dist/dashboard.css`; SForum does not compile the Vue source or load this workspace as a Nuxt Layer.\n"
 	}
 	if opts.ProviderSlot != "" {

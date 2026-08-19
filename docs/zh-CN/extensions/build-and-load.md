@@ -127,17 +127,15 @@ go build -trimpath -buildvcs=false -ldflags="-s -w" -o plugin .
 Vue 页面脚手架的完整循环：
 
 ```bash
-cd <package-root>/frontend/admin
-bun install
-bun run build
-cd ../../..
-sforum extension digest --write .
-sforum extension validate .
-sforum extension test --allow-scaffold .
+sforum extension build --allow-scaffold <package-root>
 ```
 
+这个作者侧命令会安装并构建 `frontend/admin`、刷新精确摘要、校验包并执行契约
+测试。依赖已经安装时可加 `--skip-install`。它会执行插件本地 package scripts，
+因此上传、安装、启用和生产运行时绝不会调用该命令。
+
 脚手架自带可用的占位 `dist`，因此没安装 Bun 时插件包也能先通过校验。
-`bun run build` 会替换 dashboard 产物，并保留同目录的预构建设置组件。
+Vite 构建会替换 dashboard 产物，并保留同目录的预构建设置组件。
 `extension package --exclude-source` 会去掉 `.vue`、`.ts`、Vite 配置、
 package 元数据与锁文件，只留下最终 `.mjs`/`.css`；生产环境不会执行构建脚本。
 
@@ -154,6 +152,9 @@ manifest 引用的每个打包文件——后端可执行文件、前端资产�
 cd apps/api
 go run ./cmd/sforum extension digest --write <package-root>
 ```
+
+带作者前端的包应优先使用 `extension build`；它已包含这一步以及后续校验和
+契约测试。
 
 这会重写内联摘要（包括内联模板摘要）并重新校验整个包。Page Registry 主题
 需要**先**补好对应的 `templates[]` 声明与 `packageFiles[]` 条目再运行它；

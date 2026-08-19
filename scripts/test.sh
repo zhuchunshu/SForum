@@ -52,6 +52,10 @@ node tests/validate-docs.mjs
 echo "Running documentation validation failure-path tests..."
 ./tests/validate-docs_test.sh
 
+echo "Running publishable Web SDK package validation..."
+node ./scripts/ci/publish-web-sdks_test.mjs
+node ./scripts/ci/verify-web-sdks.mjs
+
 echo "Running built-in plugin release version validation..."
 node tests/validate-builtin-plugin-versions.mjs
 

@@ -280,6 +280,7 @@ const TOP_LEVEL_COMMANDS = {
 // File -> command path prefix for commands that belong to `extension`.
 const EXTENSION_COMMAND_FILES = {
   'validate.go': ['extension'],
+  'build_extension.go': ['extension'],
   'manifest_digest.go': ['extension'],
   'test_extension.go': ['extension'],
   'package_extension.go': ['extension'],

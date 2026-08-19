@@ -30,82 +30,86 @@ func newExtensionDigestCommand() *cobra.Command {
 			if len(args) == 1 {
 				root = args[0]
 			}
-			abs, err := filepath.Abs(root)
-			if err != nil {
-				return err
-			}
-			manifestPath := filepath.Join(abs, extensionmanifest.ManifestFileName)
-			body, err := os.ReadFile(manifestPath)
-			if err != nil {
-				// 正式打包路径：仅有 .tmpl 时先 materialize 占位 digest，再由 --write 刷新真实摘要。
-				// 测试与作者不得再手算 SHA 替换 token。
-				if !os.IsNotExist(err) {
-					return err
-				}
-				tmplPath := filepath.Join(abs, extensionmanifest.ManifestFileName+".tmpl")
-				tmplBody, tmplErr := os.ReadFile(tmplPath)
-				if tmplErr != nil {
-					return fmt.Errorf("read manifest: %w (also no %s: %v)", err, filepath.Base(tmplPath), tmplErr)
-				}
-				body = []byte(materializeManifestTemplate(string(tmplBody)))
-				if writeErr := os.WriteFile(manifestPath, body, 0o600); writeErr != nil {
-					return writeErr
-				}
-				cmd.Printf("materialized %s from template\n", manifestPath)
-			}
-			var manifest map[string]any
-			if err := json.Unmarshal(body, &manifest); err != nil {
-				return err
-			}
-			version, _ := manifest["manifestVersion"].(float64)
-			if int(version) != extensionmanifest.ManifestVersionV3 {
-				return fmt.Errorf("%s is not an explicit Manifest V3 package", manifestPath)
-			}
-			files, ok := manifest["packageFiles"].([]any)
-			if !ok {
-				return fmt.Errorf("Manifest V3 packageFiles must be inline for digest refresh")
-			}
-			digests := make(map[string]string, len(files))
-			for _, raw := range files {
-				file, ok := raw.(map[string]any)
-				if !ok {
-					return fmt.Errorf("invalid packageFiles entry")
-				}
-				relative, _ := file["path"].(string)
-				digest, err := digestPackageRelativeFile(abs, relative)
-				if err != nil {
-					return err
-				}
-				digests[relative] = digest
-				file["digest"] = digest
-			}
-			syncInlineDeclarationDigests(manifest, digests)
-			paths := make([]string, 0, len(digests))
-			for relative := range digests {
-				paths = append(paths, relative)
-			}
-			sort.Strings(paths)
-			for _, relative := range paths {
-				cmd.Printf("%s\t%s\n", relative, digests[relative])
-			}
-			if !write {
-				return nil
-			}
-			if err := writeJSON(manifestPath, manifest); err != nil {
-				return err
-			}
-			if _, err := extensionmanifest.LoadPackage(abs); err != nil {
-				if restoreErr := os.WriteFile(manifestPath, body, 0o644); restoreErr != nil {
-					return fmt.Errorf("refreshed manifest is invalid: %v; restore failed: %w", err, restoreErr)
-				}
-				return fmt.Errorf("refreshed manifest is invalid: %w", err)
-			}
-			cmd.Printf("updated %s\n", manifestPath)
-			return nil
+			return runExtensionDigest(cmd, root, write)
 		},
 	}
 	cmd.Flags().BoolVar(&write, "write", false, "Write refreshed digests to the root manifest and validate the package")
 	return cmd
+}
+
+func runExtensionDigest(cmd *cobra.Command, root string, write bool) error {
+	abs, err := resolveExtensionPackageRoot(root)
+	if err != nil {
+		return err
+	}
+	manifestPath := filepath.Join(abs, extensionmanifest.ManifestFileName)
+	body, err := os.ReadFile(manifestPath)
+	if err != nil {
+		// 正式打包路径：仅有 .tmpl 时先 materialize 占位 digest，再由 --write 刷新真实摘要。
+		// 测试与作者不得再手算 SHA 替换 token。
+		if !os.IsNotExist(err) {
+			return err
+		}
+		tmplPath := filepath.Join(abs, extensionmanifest.ManifestFileName+".tmpl")
+		tmplBody, tmplErr := os.ReadFile(tmplPath)
+		if tmplErr != nil {
+			return fmt.Errorf("read manifest: %w (also no %s: %v)", err, filepath.Base(tmplPath), tmplErr)
+		}
+		body = []byte(materializeManifestTemplate(string(tmplBody)))
+		if writeErr := os.WriteFile(manifestPath, body, 0o600); writeErr != nil {
+			return writeErr
+		}
+		cmd.Printf("materialized %s from template\n", manifestPath)
+	}
+	var manifest map[string]any
+	if err := json.Unmarshal(body, &manifest); err != nil {
+		return err
+	}
+	version, _ := manifest["manifestVersion"].(float64)
+	if int(version) != extensionmanifest.ManifestVersionV3 {
+		return fmt.Errorf("%s is not an explicit Manifest V3 package", manifestPath)
+	}
+	files, ok := manifest["packageFiles"].([]any)
+	if !ok {
+		return fmt.Errorf("Manifest V3 packageFiles must be inline for digest refresh")
+	}
+	digests := make(map[string]string, len(files))
+	for _, raw := range files {
+		file, ok := raw.(map[string]any)
+		if !ok {
+			return fmt.Errorf("invalid packageFiles entry")
+		}
+		relative, _ := file["path"].(string)
+		digest, err := digestPackageRelativeFile(abs, relative)
+		if err != nil {
+			return err
+		}
+		digests[relative] = digest
+		file["digest"] = digest
+	}
+	syncInlineDeclarationDigests(manifest, digests)
+	paths := make([]string, 0, len(digests))
+	for relative := range digests {
+		paths = append(paths, relative)
+	}
+	sort.Strings(paths)
+	for _, relative := range paths {
+		cmd.Printf("%s\t%s\n", relative, digests[relative])
+	}
+	if !write {
+		return nil
+	}
+	if err := writeJSON(manifestPath, manifest); err != nil {
+		return err
+	}
+	if _, err := extensionmanifest.LoadPackage(abs); err != nil {
+		if restoreErr := os.WriteFile(manifestPath, body, 0o644); restoreErr != nil {
+			return fmt.Errorf("refreshed manifest is invalid: %v; restore failed: %w", err, restoreErr)
+		}
+		return fmt.Errorf("refreshed manifest is invalid: %w", err)
+	}
+	cmd.Printf("updated %s\n", manifestPath)
+	return nil
 }
 
 // materializeManifestTemplate 将脚手架占位符（如 __BACKEND_DIGEST__）替换为 64 个 0，
