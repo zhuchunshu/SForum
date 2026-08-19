@@ -337,11 +337,11 @@ starting and checking the standby API/Web slot. Caddy then switches traffic
 atomically before the old slot stops. Existing WebSocket connections may need
 to reconnect during the switch.
 
-Blue/green updates deliberately use split Workers instead of the normal
-embedded production default. The updater gracefully stops the old Worker
-before starting the new one, so queue consumption
-pauses briefly, while durable River jobs are not lost. Before updating, the
-script checks both SForum Core and River migrations. Online execution requires
+Every blue/green API slot embeds its Worker. During standby health checks, the
+candidate and active APIs may briefly consume from the same queue; River's
+database locking owns job claims and retries. After the switch, the updater
+stops the old API and never starts or retains a standalone Worker. Before
+updating, the script checks both SForum Core and River migrations. Online execution requires
 a target migrator with the capability label, an audited `-- +sforum OnlineSafe`
 declaration on every pending Core SQL migration, transactional lock and
 statement timeouts, and an exact River migration set. A failed online migration

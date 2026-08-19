@@ -207,8 +207,8 @@ docker compose --env-file .env.production \
 ```
 
 四个 GHCR 包必须公开可读并关联到本仓库。发布流水线在创建 GitHub Release
-前，会使用空的 Docker 凭据目录匿名拉取该版本的四个镜像；任一包不可公开
-拉取都会阻断发布。首次创建包时，流水线可能先停在这个门禁：管理员将四个
+前，会使用空的 Docker 凭据目录匿名拉取该版本的三个镜像；任一包不可公开
+拉取都会阻断发布。首次创建包时，流水线可能先停在这个门禁：管理员将三个
 包改为 Public 后重跑失败作业即可。写入仍使用仓库 `GITHUB_TOKEN`，不需要
 长期 Registry 密钥。
 
@@ -309,10 +309,10 @@ https://github.com/zhuchunshu/SForum/releases/download/<TAG>/SHA256SUMS
 API/Web，经 Caddy 原子切换流量后才停止旧槽，从而保持 HTTP 服务连续。
 WebSocket 长连接在切换时可能需要自动重连。
 
-蓝绿升级会显式使用分离 Worker，而不沿用普通生产的内嵌默认。脚本先优雅
-停止旧 Worker，再启动新 Worker，因此队列消费会短暂停顿，但 River 中的
-持久任务不会丢失。更新前
-脚本同时检查 SForum Core 与 River 的数据库迁移。只有目标迁移器声明支持
+蓝绿升级的每个 API 槽都内嵌 Worker。备用 API 健康检查期间可能与当前槽短暂
+同时消费队列，任务领取和重试由 River 的数据库锁保证；切换后脚本停止旧 API，
+不会启动或保留独立 Worker。更新前脚本同时检查 SForum Core 与 River 的数据库
+迁移。只有目标迁移器声明支持
 在线检查、所有待执行 Core SQL 都带有 Host 审核的 `-- +sforum OnlineSafe`
 声明，并且 River 迁移完全一致时，才会在旧槽继续服务期间迁移。在线 SQL
 必须在事务中设置有限的 `lock_timeout` 与 `statement_timeout`；执行失败时旧槽
