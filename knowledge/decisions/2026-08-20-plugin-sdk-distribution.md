@@ -43,7 +43,9 @@ and contract-test commands separately.
   because the packages did not exist yet. On 2026-08-20 the `sforum` owner
   published both reviewed `1.0.0` tarballs with interactive 2FA, then bound both
   package settings to `zhuchunshu/SForum`, workflow `release.yml`, action
-  `npm publish`, with no GitHub environment.
+  `npm publish`, with no GitHub environment. Both packages require 2FA for
+  interactive publication and disallow bypass-2FA tokens; OIDC Trusted
+  Publishing remains compatible with that strict setting.
 - The interactive bootstrap versions do not carry npm provenance. Provenance
   verification begins with the next SDK version that is actually published by
   the tag-driven OIDC Release job; an application tag that reuses exact

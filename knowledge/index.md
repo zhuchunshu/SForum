@@ -131,8 +131,9 @@ load archived sessions or completed plans as current context.
   完整校验和契约测试，生产仍不执行源码或 package scripts。两个 npm 包的
   `1.0.0` 已通过 `sforum` 账号 2FA 首次发布，registry 下载与审核 tarball
   SHA-256 完全一致；两者均已绑定 `zhuchunshu/SForum` 的 `release.yml`
-  Trusted Publisher，仅允许 `npm publish`。下一次 SDK 版本变化时再验证 OIDC
-  provenance；已有 `1.0.0` 不会被重复发布：
+  Trusted Publisher，仅允许 `npm publish`，并已切换为必须 2FA、禁止 bypass
+  token 的严格发布策略。下一次 SDK 版本变化时再验证 OIDC provenance；已有
+  `1.0.0` 不会被重复发布：
   `sessions/2026-08-20-plugin-sdk-distribution.md`，
   `decisions/2026-08-20-plugin-sdk-distribution.md`
 

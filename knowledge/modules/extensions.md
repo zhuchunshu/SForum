@@ -34,7 +34,8 @@ does not rebuild Nuxt.
 - `@sforum/admin-sdk@1.0.0` and `@sforum/plugin-ui@1.0.0` are public npm
   packages. Their reviewed registry tarballs match the local release artifacts,
   and both packages trust only `zhuchunshu/SForum` workflow `release.yml` for
-  OIDC `npm publish`. The first interactive bootstrap versions have no
+  OIDC `npm publish`. Interactive publication requires 2FA and bypass-2FA
+  tokens are disallowed. The first interactive bootstrap versions have no
   provenance; the next SDK version published by Release must provide it.
 - `AttachmentStorageProviderCatalog` directly owns storage provider candidate
   and availability reads; aggregate `Service` and `CatalogService` forwarding

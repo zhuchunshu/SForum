@@ -115,9 +115,11 @@ Both package settings are now bound to the GitHub Actions Trusted Publisher
 organization `zhuchunshu`, repository `SForum`, workflow filename
 `release.yml`, no environment, allowed action `npm publish`. Do not repeat the
 bootstrap or add a long-lived npm token to the repository. Later releases use
-`.github/workflows/release.yml` exclusively. The interactive `1.0.0` bootstrap
-versions have no provenance; verify provenance on the next SDK version that the
-OIDC Release job actually publishes.
+`.github/workflows/release.yml` exclusively. Both packages use npm's strict
+publishing-access option: interactive publication requires 2FA and bypass-2FA
+tokens are disallowed; Trusted Publishing remains available. The interactive
+`1.0.0` bootstrap versions have no provenance; verify provenance on the next
+SDK version that the OIDC Release job actually publishes.
 
 `@sforum/plugin-ui@1` currently provides:
 

@@ -21,6 +21,9 @@
 - Bound both npm packages to the GitHub Actions Trusted Publisher
   `zhuchunshu/SForum`, workflow `release.yml`, no environment, with only
   `npm publish` allowed.
+- Switched both packages to npm's recommended publishing access: require 2FA
+  and disallow bypass-2FA tokens. The Trusted Publisher connections remained
+  unchanged after both security-key confirmations.
 
 ## Decisions
 
@@ -60,6 +63,4 @@
 
 ## Open Questions
 
-- Whether to switch both npm package publishing-access settings from the
-  bypass-token-compatible option to npm's recommended 2FA-only option. Trusted
-  Publishing works with either setting; the repository stores no npm token.
+- None for the namespace bootstrap or package security settings.
