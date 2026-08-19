@@ -1378,7 +1378,12 @@ func TestServiceApplyTopicActionAllowsRestoreOnHiddenTopic(t *testing.T) {
 
 func TestServiceTopicActionEmitsEvents(t *testing.T) {
 	store := newServiceFakeStore()
-	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
+	store.actionTopic = TopicSummary{
+		ID: 7, AuthorUserID: 12, Author: &UserSummary{ID: 12, Username: "alice", DisplayName: "Alice"},
+		CategoryID: 3, CategorySlug: "general", CategoryName: "综合讨论",
+		Title: "事件主题", Slug: "event-topic", Status: TopicStatusActive,
+		Tags: []TopicTagSummary{{ID: 9, Slug: "code", Name: "代码", Status: TagStatusActive}},
+	}
 	publisher := &fakeEventPublisher{}
 	service := NewService(ServiceConfig{Store: store, Publisher: publisher})
 	actor := identity.Actor{ID: 30, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicLock: true}}
@@ -1386,8 +1391,20 @@ func TestServiceTopicActionEmitsEvents(t *testing.T) {
 	if _, err := service.ApplyTopicAction(context.Background(), actor, TopicLifecycleInput{TopicID: 7, Action: TopicActionLock}); err != nil {
 		t.Fatalf("lock failed: %v", err)
 	}
-	if !publisher.seen(appevents.TopicLocked) {
+	envelope, ok := publisher.envelope(appevents.TopicLocked)
+	if !ok {
 		t.Fatalf("expected topic.locked event, got %#v", publisher.names)
+	}
+	if envelope.Payload["url"] != "/t/7/event-topic" {
+		t.Fatalf("unexpected topic.locked URL: %#v", envelope.Payload["url"])
+	}
+	author, ok := envelope.Payload["author"].(map[string]any)
+	if !ok || author["username"] != "alice" {
+		t.Fatalf("unexpected topic.locked author: %#v", envelope.Payload["author"])
+	}
+	category, ok := envelope.Payload["category"].(map[string]any)
+	if !ok || category["name"] != "综合讨论" {
+		t.Fatalf("unexpected topic.locked category: %#v", envelope.Payload["category"])
 	}
 }
 

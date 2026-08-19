@@ -166,6 +166,13 @@ func (s *CachedStore) GetTopic(ctx context.Context, topicID int64) (TopicDetail,
 	return out, nil
 }
 
+func (s *CachedStore) GetTopicEventSnapshot(ctx context.Context, topicID int64) (TopicSummary, error) {
+	if store, ok := s.Store.(TopicEventSnapshotStore); ok {
+		return store.GetTopicEventSnapshot(ctx, topicID)
+	}
+	return s.Store.GetTopicForAction(ctx, topicID)
+}
+
 func (s *CachedStore) ListAuthorReviewItems(ctx context.Context, authorUserID int64) (AuthorReviewList, error) {
 	store, ok := s.Store.(AuthorReviewStore)
 	if !ok {

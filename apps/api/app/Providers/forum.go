@@ -33,9 +33,10 @@ func NewForumProviderWithEvents(store forum.Store, users identity.ActorStore, se
 func NewForumProviderWithOptionsAndEvents(store forum.Store, optionsService *options.Service, users identity.ActorStore, sessions *authsession.Manager, publisher appevents.Publisher) *ForumProvider {
 	return &ForumProvider{
 		controller: forumcontroller.NewController(forum.NewService(forum.ServiceConfig{
-			Store:     store,
-			Settings:  ForumSettingsResolver{options: optionsService},
-			Publisher: publisher,
+			Store:           store,
+			Settings:        ForumSettingsResolver{options: optionsService},
+			Publisher:       publisher,
+			TopicEventLinks: NewForumTopicEventLinkResolver(optionsService),
 		}), users, sessions),
 	}
 }
@@ -82,6 +83,7 @@ func NewForumProviderWithPublicContributions(store forum.Store, optionsService *
 		ComposerToolbar:   composerToolbar,
 		PublicationPolicy: publicationPolicy,
 		TrustPolicy:       trustPolicy,
+		TopicEventLinks:   NewForumTopicEventLinkResolver(optionsService),
 	})
 	return &ForumProvider{
 		controller: forumcontroller.NewControllerWithSearch(service, searchService, reindexer, users, sessions),

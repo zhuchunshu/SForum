@@ -10,6 +10,14 @@ accepted revisions, lifecycle states, public read models, and forum policy.
 - Core taxonomy, topic/comment creation and lifecycle, public/admin UI, runtime
   settings, moderation integration, search projection, and million-scale read
   path M0-M7 are implemented.
+- All `topic.*` observe events retain their legacy flat identifiers and now
+  include a public-safe topic snapshot: operator-configured `url`, stable
+  `path`, topic state, author username/display name, category name, and resolved
+  tag names. Outbound webhooks inherit the same payload through the existing
+  event bridge. Snapshot/tag lookup and live URL-option resolution are
+  fail-open after the owning mutation, so enrichment cannot make a successful
+  topic write fail; no email, raw content, edit reason, or private avatar data
+  enters the payload.
 - The shared full editor uploads images through the existing attachment API
   from either the toolbar picker or drag-and-drop. A mapped ProseMirror
   placeholder preserves the original selection/drop position while uploads run

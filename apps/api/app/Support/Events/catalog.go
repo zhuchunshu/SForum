@@ -56,15 +56,15 @@ var definitions = []Definition{
 		[]string{"actorUserId", "topicId", "categorySlug", "tagSlugs", "title", "content"},
 		[]string{"categorySlug", "tagSlugs", "title", "content"},
 	),
-	observe(TopicCreated, "Emitted after a topic is committed.", []string{"topicId", "authorUserId", "categorySlug", "tagSlugs", "title"}),
-	observe(TopicUpdated, "Emitted after a topic's content or taxonomy is updated. Revision metadata never includes raw content or reason.", []string{"topicId", "actorUserId", "title", "categorySlug", "tagSlugs", "revisionNo", "operation", "changedFields", "restoredFromRevisionNo"}),
-	observe(TopicDeleted, "Emitted after a topic is soft-deleted.", []string{"topicId", "actorUserId"}),
-	observe(TopicHidden, "Emitted after a topic is hidden by a moderator.", []string{"topicId", "actorUserId"}),
-	observe(TopicRestored, "Emitted after a hidden or deleted topic is restored to active.", []string{"topicId", "actorUserId"}),
-	observe(TopicLocked, "Emitted after a topic is locked.", []string{"topicId", "actorUserId"}),
-	observe(TopicUnlocked, "Emitted after a topic is unlocked.", []string{"topicId", "actorUserId"}),
-	observe(TopicPinned, "Emitted after a topic is pinned.", []string{"topicId", "actorUserId"}),
-	observe(TopicUnpinned, "Emitted after a topic is unpinned.", []string{"topicId", "actorUserId"}),
+	observe(TopicCreated, "Emitted after a topic is committed with a public-safe topic, author, taxonomy, and URL snapshot.", topicObservePayload()),
+	observe(TopicUpdated, "Emitted after a topic's content or taxonomy is updated. Includes the current public-safe snapshot; revision metadata never includes raw content or reason.", topicObservePayload("actorUserId", "revisionNo", "operation", "changedFields", "restoredFromRevisionNo")),
+	observe(TopicDeleted, "Emitted after a topic is soft-deleted with its last public-safe snapshot.", topicObservePayload("actorUserId")),
+	observe(TopicHidden, "Emitted after a topic is hidden by a moderator with its current public-safe snapshot.", topicObservePayload("actorUserId")),
+	observe(TopicRestored, "Emitted after a hidden or deleted topic is restored to active with its current public-safe snapshot.", topicObservePayload("actorUserId")),
+	observe(TopicLocked, "Emitted after a topic is locked with its current public-safe snapshot.", topicObservePayload("actorUserId")),
+	observe(TopicUnlocked, "Emitted after a topic is unlocked with its current public-safe snapshot.", topicObservePayload("actorUserId")),
+	observe(TopicPinned, "Emitted after a topic is pinned with its current public-safe snapshot.", topicObservePayload("actorUserId")),
+	observe(TopicUnpinned, "Emitted after a topic is unpinned with its current public-safe snapshot.", topicObservePayload("actorUserId")),
 	observe(CategoryCreated, "Emitted after a category is created.", []string{"categoryId", "categorySlug", "groupId"}),
 	observe(CategoryUpdated, "Emitted after a category is updated.", []string{"categoryId", "categorySlug", "groupId"}),
 	observe(TagCreated, "Emitted after a tag is created.", []string{"tagId", "tagSlug", "status"}),
@@ -88,6 +88,11 @@ var definitions = []Definition{
 	),
 	observe(AttachmentUploaded, "Emitted after attachment metadata is committed.", []string{"attachmentId", "publicId", "ownerUserId", "provider", "contentType", "sizeBytes"}),
 	observe(EntityMetaUpdated, "Emitted after entity custom field values are written or cleared.", []string{"entityType", "entityId", "fieldKeys", "actorUserId"}),
+}
+
+func topicObservePayload(extra ...string) []string {
+	payload := []string{"topicId", "authorUserId", "categorySlug", "tagSlugs", "title", "path", "url", "topic", "author", "category", "tags"}
+	return append(payload, extra...)
 }
 
 func observe(name, description string, payload []string) Definition {

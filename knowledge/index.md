@@ -113,6 +113,13 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Topic Webhook 业务快照（2026-08-19）：全部 `topic.*` observe 事件保留旧
+  ID/slug 字段并新增 `path/url/topic/author/category/tags`；URL 跟随实时
+  `site.url` 与 `seo.topic_url_mode`，作者/分类/标签发送公开名称，不发送邮箱、
+  正文或编辑理由。出站 Webhook 通过既有事件桥直接获得同一 payload，补充读取
+  fail-open，不改变主题写入成功条件。Go 全套、事件文档同步与架构门禁通过：
+  `sessions/2026-08-19-topic-webhook-payloads.md`
+
 - 移动端左右抽屉全视口修复（2026-08-19）：根因是 2026-08-01 仅把 Core
   回退样式改为 `inset/top: 0`，默认运行时主题仍用旧的 topbar 偏移并在不可变
   skin 加载后覆盖 Core。现已同步默认主题、增加 Core/主题成对回归，完成

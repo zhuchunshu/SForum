@@ -40,15 +40,15 @@ Rules: async + filter is rejected; async requires fail_open; mutableFields only 
 | `user.registered` | observe | 5000 | fail_open | `userId`, `username`, `email`, `locale` | — |
 | `topic.before_create` | filter | 2000 | fail_closed | `actorUserId`, `categorySlug`, `tagSlugs`, `title`, `content` | `categorySlug`, `tagSlugs`, `title`, `content` |
 | `topic.before_update` | filter | 2000 | fail_closed | `actorUserId`, `topicId`, `categorySlug`, `tagSlugs`, `title`, `content` | `categorySlug`, `tagSlugs`, `title`, `content` |
-| `topic.created` | observe | 5000 | fail_open | `topicId`, `authorUserId`, `categorySlug`, `tagSlugs`, `title` | — |
-| `topic.updated` | observe | 5000 | fail_open | `topicId`, `actorUserId`, `title`, `categorySlug`, `tagSlugs`, `revisionNo`, `operation`, `changedFields`, `restoredFromRevisionNo` | — |
-| `topic.deleted` | observe | 5000 | fail_open | `topicId`, `actorUserId` | — |
-| `topic.hidden` | observe | 5000 | fail_open | `topicId`, `actorUserId` | — |
-| `topic.restored` | observe | 5000 | fail_open | `topicId`, `actorUserId` | — |
-| `topic.locked` | observe | 5000 | fail_open | `topicId`, `actorUserId` | — |
-| `topic.unlocked` | observe | 5000 | fail_open | `topicId`, `actorUserId` | — |
-| `topic.pinned` | observe | 5000 | fail_open | `topicId`, `actorUserId` | — |
-| `topic.unpinned` | observe | 5000 | fail_open | `topicId`, `actorUserId` | — |
+| `topic.created` | observe | 5000 | fail_open | `topicId`, `authorUserId`, `categorySlug`, `tagSlugs`, `title`, `path`, `url`, `topic`, `author`, `category`, `tags` | — |
+| `topic.updated` | observe | 5000 | fail_open | `topicId`, `authorUserId`, `categorySlug`, `tagSlugs`, `title`, `path`, `url`, `topic`, `author`, `category`, `tags`, `actorUserId`, `revisionNo`, `operation`, `changedFields`, `restoredFromRevisionNo` | — |
+| `topic.deleted` | observe | 5000 | fail_open | `topicId`, `authorUserId`, `categorySlug`, `tagSlugs`, `title`, `path`, `url`, `topic`, `author`, `category`, `tags`, `actorUserId` | — |
+| `topic.hidden` | observe | 5000 | fail_open | `topicId`, `authorUserId`, `categorySlug`, `tagSlugs`, `title`, `path`, `url`, `topic`, `author`, `category`, `tags`, `actorUserId` | — |
+| `topic.restored` | observe | 5000 | fail_open | `topicId`, `authorUserId`, `categorySlug`, `tagSlugs`, `title`, `path`, `url`, `topic`, `author`, `category`, `tags`, `actorUserId` | — |
+| `topic.locked` | observe | 5000 | fail_open | `topicId`, `authorUserId`, `categorySlug`, `tagSlugs`, `title`, `path`, `url`, `topic`, `author`, `category`, `tags`, `actorUserId` | — |
+| `topic.unlocked` | observe | 5000 | fail_open | `topicId`, `authorUserId`, `categorySlug`, `tagSlugs`, `title`, `path`, `url`, `topic`, `author`, `category`, `tags`, `actorUserId` | — |
+| `topic.pinned` | observe | 5000 | fail_open | `topicId`, `authorUserId`, `categorySlug`, `tagSlugs`, `title`, `path`, `url`, `topic`, `author`, `category`, `tags`, `actorUserId` | — |
+| `topic.unpinned` | observe | 5000 | fail_open | `topicId`, `authorUserId`, `categorySlug`, `tagSlugs`, `title`, `path`, `url`, `topic`, `author`, `category`, `tags`, `actorUserId` | — |
 | `category.created` | observe | 5000 | fail_open | `categoryId`, `categorySlug`, `groupId` | — |
 | `category.updated` | observe | 5000 | fail_open | `categoryId`, `categorySlug`, `groupId` | — |
 | `tag.created` | observe | 5000 | fail_open | `tagId`, `tagSlug`, `status` | — |

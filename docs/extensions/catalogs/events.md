@@ -23,15 +23,15 @@ cd apps/api && go run ./cmd/sforum extension docs generate --check
 | `user.registered` | observe | 5000 | fail_open | `userId`, `username`, `email`, `locale` | — |
 | `topic.before_create` | filter | 2000 | fail_closed | `actorUserId`, `categorySlug`, `tagSlugs`, `title`, `content` | `categorySlug`, `tagSlugs`, `title`, `content` |
 | `topic.before_update` | filter | 2000 | fail_closed | `actorUserId`, `topicId`, `categorySlug`, `tagSlugs`, `title`, `content` | `categorySlug`, `tagSlugs`, `title`, `content` |
-| `topic.created` | observe | 5000 | fail_open | `topicId`, `authorUserId`, `categorySlug`, `tagSlugs`, `title` | — |
-| `topic.updated` | observe | 5000 | fail_open | `topicId`, `actorUserId`, `title`, `categorySlug`, `tagSlugs`, `revisionNo`, `operation`, `changedFields`, `restoredFromRevisionNo` | — |
-| `topic.deleted` | observe | 5000 | fail_open | `topicId`, `actorUserId` | — |
-| `topic.hidden` | observe | 5000 | fail_open | `topicId`, `actorUserId` | — |
-| `topic.restored` | observe | 5000 | fail_open | `topicId`, `actorUserId` | — |
-| `topic.locked` | observe | 5000 | fail_open | `topicId`, `actorUserId` | — |
-| `topic.unlocked` | observe | 5000 | fail_open | `topicId`, `actorUserId` | — |
-| `topic.pinned` | observe | 5000 | fail_open | `topicId`, `actorUserId` | — |
-| `topic.unpinned` | observe | 5000 | fail_open | `topicId`, `actorUserId` | — |
+| `topic.created` | observe | 5000 | fail_open | `topicId`, `authorUserId`, `categorySlug`, `tagSlugs`, `title`, `path`, `url`, `topic`, `author`, `category`, `tags` | — |
+| `topic.updated` | observe | 5000 | fail_open | `topicId`, `authorUserId`, `categorySlug`, `tagSlugs`, `title`, `path`, `url`, `topic`, `author`, `category`, `tags`, `actorUserId`, `revisionNo`, `operation`, `changedFields`, `restoredFromRevisionNo` | — |
+| `topic.deleted` | observe | 5000 | fail_open | `topicId`, `authorUserId`, `categorySlug`, `tagSlugs`, `title`, `path`, `url`, `topic`, `author`, `category`, `tags`, `actorUserId` | — |
+| `topic.hidden` | observe | 5000 | fail_open | `topicId`, `authorUserId`, `categorySlug`, `tagSlugs`, `title`, `path`, `url`, `topic`, `author`, `category`, `tags`, `actorUserId` | — |
+| `topic.restored` | observe | 5000 | fail_open | `topicId`, `authorUserId`, `categorySlug`, `tagSlugs`, `title`, `path`, `url`, `topic`, `author`, `category`, `tags`, `actorUserId` | — |
+| `topic.locked` | observe | 5000 | fail_open | `topicId`, `authorUserId`, `categorySlug`, `tagSlugs`, `title`, `path`, `url`, `topic`, `author`, `category`, `tags`, `actorUserId` | — |
+| `topic.unlocked` | observe | 5000 | fail_open | `topicId`, `authorUserId`, `categorySlug`, `tagSlugs`, `title`, `path`, `url`, `topic`, `author`, `category`, `tags`, `actorUserId` | — |
+| `topic.pinned` | observe | 5000 | fail_open | `topicId`, `authorUserId`, `categorySlug`, `tagSlugs`, `title`, `path`, `url`, `topic`, `author`, `category`, `tags`, `actorUserId` | — |
+| `topic.unpinned` | observe | 5000 | fail_open | `topicId`, `authorUserId`, `categorySlug`, `tagSlugs`, `title`, `path`, `url`, `topic`, `author`, `category`, `tags`, `actorUserId` | — |
 | `category.created` | observe | 5000 | fail_open | `categoryId`, `categorySlug`, `groupId` | — |
 | `category.updated` | observe | 5000 | fail_open | `categoryId`, `categorySlug`, `groupId` | — |
 | `tag.created` | observe | 5000 | fail_open | `tagId`, `tagSlug`, `status` | — |
@@ -72,39 +72,39 @@ Runs before a topic update is committed and may reject or patch allowlisted inpu
 
 #### `topic.created`
 
-Emitted after a topic is committed.
+Emitted after a topic is committed with a public-safe topic, author, taxonomy, and URL snapshot.
 
 #### `topic.updated`
 
-Emitted after a topic's content or taxonomy is updated. Revision metadata never includes raw content or reason.
+Emitted after a topic's content or taxonomy is updated. Includes the current public-safe snapshot; revision metadata never includes raw content or reason.
 
 #### `topic.deleted`
 
-Emitted after a topic is soft-deleted.
+Emitted after a topic is soft-deleted with its last public-safe snapshot.
 
 #### `topic.hidden`
 
-Emitted after a topic is hidden by a moderator.
+Emitted after a topic is hidden by a moderator with its current public-safe snapshot.
 
 #### `topic.restored`
 
-Emitted after a hidden or deleted topic is restored to active.
+Emitted after a hidden or deleted topic is restored to active with its current public-safe snapshot.
 
 #### `topic.locked`
 
-Emitted after a topic is locked.
+Emitted after a topic is locked with its current public-safe snapshot.
 
 #### `topic.unlocked`
 
-Emitted after a topic is unlocked.
+Emitted after a topic is unlocked with its current public-safe snapshot.
 
 #### `topic.pinned`
 
-Emitted after a topic is pinned.
+Emitted after a topic is pinned with its current public-safe snapshot.
 
 #### `topic.unpinned`
 
-Emitted after a topic is unpinned.
+Emitted after a topic is unpinned with its current public-safe snapshot.
 
 #### `category.created`
 

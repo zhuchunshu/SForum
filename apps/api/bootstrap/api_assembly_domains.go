@@ -362,7 +362,12 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	).WithPackages(pagePackageRootAdapter{store: extensionStore})
 	// Core Page ViewModels reuse the same domain services and policy sources as
 	// their JSON endpoints. Only reviewed presentation DTOs cross into themes.
-	pageForumService := forum.NewService(forum.ServiceConfig{Store: forumCachedStore, Settings: forumSettingsResolver, Publisher: eventPublisher})
+	pageForumService := forum.NewService(forum.ServiceConfig{
+		Store:           forumCachedStore,
+		Settings:        forumSettingsResolver,
+		Publisher:       eventPublisher,
+		TopicEventLinks: providers.NewForumTopicEventLinkResolver(optionsService),
+	})
 	pageProfileService := profile.NewServiceWithAvatar(profileStore, avatarAttachmentService, optionsService).
 		WithProfileTabs(providers.NewExtensionProfileTabProvider(extensionService))
 	pageModerationService := moderation.NewServiceWithWorkbench(

@@ -31,6 +31,8 @@ type Service struct {
 	editorSchema EditorDocumentSchemaProvider
 	// views 可选：公开详情浏览计数（Redis INCR + 去重）；nil 时不计。
 	views TopicViewRecorder
+	// topicEventLinks resolves live operator URL settings for topic observe payloads.
+	topicEventLinks TopicEventLinkResolver
 }
 
 // ServiceConfig 集中声明 Forum 服务依赖，避免随能力增加派生新的构造器排列组合。
@@ -49,6 +51,7 @@ type ServiceConfig struct {
 	ContentPostFilter ContentPostFilter
 	EditorSchema      EditorDocumentSchemaProvider
 	ViewRecorder      TopicViewRecorder
+	TopicEventLinks   TopicEventLinkResolver
 }
 
 // WithComposerToolbar 注入 composer 工具栏贡献解析（F4.3）。
@@ -125,6 +128,7 @@ func NewService(config ServiceConfig) *Service {
 		contentFilter:     config.ContentPostFilter,
 		editorSchema:      config.EditorSchema,
 		views:             config.ViewRecorder,
+		topicEventLinks:   config.TopicEventLinks,
 	}
 }
 
@@ -646,6 +650,7 @@ func (s *Service) CreateTopic(ctx context.Context, actor identity.Actor, input C
 	if err != nil {
 		return TopicDetail{}, err
 	}
+	createdPayload := buildTopicEventPayload(ctx, s.topicEventLinks, created.TopicSummary)
 	s.events.Emit(ctx, appevents.Envelope{
 		Name:          appevents.TopicCreated,
 		Kind:          appevents.KindObserve,
@@ -653,14 +658,8 @@ func (s *Service) CreateTopic(ctx context.Context, actor identity.Actor, input C
 		ResourceType:  "topic",
 		ResourceID:    strconv.FormatInt(created.ID, 10),
 		CorrelationID: appevents.NewID(),
-		Payload: map[string]any{
-			"topicId":      created.ID,
-			"authorUserId": actor.ID,
-			"categorySlug": created.CategorySlug,
-			"tagSlugs":     tagSlugs,
-			"title":        created.Title,
-		},
-		OccurredAt: time.Now().UTC(),
+		Payload:       createdPayload,
+		OccurredAt:    time.Now().UTC(),
 	})
 	if created.Status == TopicStatusActive {
 		s.indexTopic(ctx, created.ID)
@@ -797,18 +796,11 @@ func (s *Service) UpdateTopic(ctx context.Context, actor identity.Actor, input U
 	if !updated.UpdateApplied {
 		return applyTopicEditMark(updated, settings.ShowTopicEditMark), nil
 	}
-	payload := map[string]any{
-		"topicId":       updated.ID,
-		"actorUserId":   actor.ID,
-		"title":         updated.Title,
-		"categorySlug":  updated.CategorySlug,
-		"revisionNo":    updated.CurrentRevision,
-		"operation":     revisionOperation(record.Operation),
-		"changedFields": updated.UpdateChangedFields,
-	}
-	if len(record.TagSlugs) > 0 {
-		payload["tagSlugs"] = record.TagSlugs
-	}
+	payload := buildTopicEventPayload(ctx, s.topicEventLinks, resolveTopicEventSnapshot(ctx, s.store, updated.TopicSummary))
+	payload["actorUserId"] = actor.ID
+	payload["revisionNo"] = updated.CurrentRevision
+	payload["operation"] = revisionOperation(record.Operation)
+	payload["changedFields"] = updated.UpdateChangedFields
 	if record.RestoredFromRevisionID > 0 {
 		payload["restoredFromRevisionNo"] = input.RestoredFromRevisionNo
 	}
@@ -867,10 +859,11 @@ func (s *Service) DeleteTopic(ctx context.Context, actor identity.Actor, topicID
 	if err != nil {
 		return TopicDetail{}, err
 	}
-	s.emitTopicEvent(ctx, appevents.TopicDeleted, actor.ID, topicID, map[string]any{
-		"topicId":     topicID,
-		"actorUserId": actor.ID,
-	})
+	topic = resolveTopicEventSnapshot(ctx, s.store, topic)
+	topic.Status = TopicStatusDeleted
+	deletedPayload := buildTopicEventPayload(ctx, s.topicEventLinks, topic)
+	deletedPayload["actorUserId"] = actor.ID
+	s.emitTopicEvent(ctx, appevents.TopicDeleted, actor.ID, topicID, deletedPayload)
 	// 软删后从搜索索引移除，避免命中已删除主题。
 	s.deleteTopicIndex(ctx, topicID)
 	deleted.Content = RenderedContent{SourceFormat: deleted.Content.SourceFormat}
@@ -919,7 +912,11 @@ func (s *Service) ApplyTopicAction(ctx context.Context, actor identity.Actor, in
 		return TopicLifecycleRecord{}, err
 	}
 
-	actionEvent := map[string]any{"topicId": input.TopicID, "actorUserId": actor.ID}
+	topic = resolveTopicEventSnapshot(ctx, s.store, topic)
+	topic.Status = result.Status
+	topic.IsPinned = result.IsPinned
+	actionEvent := buildTopicEventPayload(ctx, s.topicEventLinks, topic)
+	actionEvent["actorUserId"] = actor.ID
 	switch input.Action {
 	case TopicActionHide:
 		s.emitTopicEvent(ctx, appevents.TopicHidden, actor.ID, input.TopicID, actionEvent)
