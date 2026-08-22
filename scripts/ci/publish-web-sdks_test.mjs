@@ -7,16 +7,19 @@ function fail(message) {
 }
 
 const packages = [
-  { name: '@sforum/admin-sdk', version: '1.0.0', filename: 'admin.tgz', integrity: 'sha512-admin' },
-  { name: '@sforum/plugin-ui', version: '1.0.0', filename: 'ui.tgz', integrity: 'sha512-ui' }
+  { name: '@sforum/admin-sdk', version: '1.0.0', filename: 'admin.tgz', integrity: 'sha512-admin', contentIntegrity: 'sha512-admin-content' },
+  { name: '@sforum/plugin-ui', version: '1.0.0', filename: 'ui.tgz', integrity: 'sha512-ui', contentIntegrity: 'sha512-ui-content' }
 ]
 
-function runCase(remote) {
+function runCase(remote, remoteContent = {}) {
   const published = []
   const logs = []
   const npmClient = {
     readRemoteIntegrity(name) {
       return remote[name]
+    },
+    readRemoteContentIntegrity(name) {
+      return remoteContent[name]
     },
     publishArchive(archive) {
       published.push(archive)
@@ -36,12 +39,23 @@ if (same.error || same.published.length !== 0 || same.logs.length !== 2) {
   fail('same-content retry was not idempotent')
 }
 
+const repacked = runCase(
+  { '@sforum/admin-sdk': 'sha512-repacked-admin', '@sforum/plugin-ui': 'sha512-repacked-ui' },
+  { '@sforum/admin-sdk': 'sha512-admin-content', '@sforum/plugin-ui': 'sha512-ui-content' }
+)
+if (repacked.error || repacked.published.length !== 0 || repacked.logs.length !== 2) {
+  fail('same-content archives with different compression were not idempotent')
+}
+
 const missing = runCase({ '@sforum/admin-sdk': null, '@sforum/plugin-ui': null })
 if (missing.error || missing.published.length !== 2 || !missing.published.every((file) => file.endsWith('.tgz'))) {
   fail('missing versions were not both published')
 }
 
-const mismatch = runCase({ '@sforum/admin-sdk': 'sha512-different', '@sforum/plugin-ui': null })
+const mismatch = runCase(
+  { '@sforum/admin-sdk': 'sha512-different', '@sforum/plugin-ui': null },
+  { '@sforum/admin-sdk': 'sha512-different-content' }
+)
 if (!mismatch.error?.message.includes('bump the SDK version') || mismatch.published.length !== 0) {
   fail('different-content retry did not fail closed before publication')
 }

@@ -23,9 +23,11 @@ and contract-test commands separately.
   network-free Vite consumer build from extracted tarballs.
 - Publish from the tag Release workflow with GitHub-hosted OIDC, npm Trusted
   Publishing, and provenance. Do not store a long-lived npm write token.
-- Make release retries idempotent: skip an existing version only when registry
-  and local tarball integrity match; fail on different content under the same
-  version. Image promotion waits for SDK publication.
+- Make release retries idempotent: first compare registry and local tarball
+  integrity. When archive bytes differ, compare a canonical digest over each
+  package file's path, mode, size, and bytes so runtime-dependent gzip/tar
+  encoding cannot create a false conflict. Fail on different canonical content
+  under the same version. Image promotion waits for SDK publication.
 - Add `sforum extension build [package-root]` as an author-only command. When
   `frontend/admin/package.json` exists it runs Bun install/build, then directly
   reuses digest refresh, full package/template validation, and contract tests.
@@ -50,5 +52,9 @@ and contract-test commands separately.
   verification begins with the next SDK version that is actually published by
   the tag-driven OIDC Release job; an application tag that reuses exact
   `1.0.0` artifacts correctly exercises the idempotent skip path instead.
+- Node 24 and earlier runtimes can produce different `npm pack` archive bytes
+  for the same file set. Registry tarball SHA-512 remains the fast-path
+  identity, while canonical file content is the fallback identity for release
+  retries.
 - Package versions change only when SDK content changes; an SForum application
   release may legitimately find and reuse the exact existing SDK versions.

@@ -90,8 +90,9 @@ fail!("promotion must wait for Web SDK publication") unless needs(promote).inclu
 fail!("Web SDK publication must not use a long-lived npm token") if sdk_publish.to_s.include?("NODE_AUTH_TOKEN")
 sdk_publisher = File.read(File.join(root, "scripts/ci/publish-web-sdks.mjs"))
 unless sdk_publisher.include?("--provenance") && sdk_publisher.include?("--access', 'public") &&
-       sdk_publisher.include?("already exists with different content")
-  fail!("Web SDK publisher must preserve provenance, public access, and immutable-version checks")
+       sdk_publisher.include?("already exists with different content") &&
+       sdk_publisher.include?("readRemoteContentIntegrity")
+  fail!("Web SDK publisher must preserve provenance, public access, canonical retries, and immutable-version checks")
 end
 
 merge_command = merge.fetch("steps").map { |step| step["run"] }.compact.find do |command|

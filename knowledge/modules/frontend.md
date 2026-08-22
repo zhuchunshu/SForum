@@ -37,6 +37,9 @@ responsibilities.
   must match the package versions, and an offline tarball consumer build must
   emit usable ESM/CSS. Tag releases publish through npm OIDC only after image
   smoke and asset verification; image promotion waits for SDK publication.
+  Existing-version retries compare tarball SHA-512 first, then a canonical
+  path/mode/size/content digest when Node runtime differences alter archive
+  encoding. Canonically different content under one version remains fatal.
 - The offline SDK consumer's Vite toolchain is a direct Web dev dependency, and
   the Web Docker dependency stage copies both `admin-sdk` and `plugin-ui`
   workspace manifests before its frozen install. This keeps local, CI, and

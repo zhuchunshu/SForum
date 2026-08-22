@@ -113,6 +113,15 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Web SDK Release 重试修复（2026-08-22）：Node 24.19.0/npm 11.17.0 会把与
+  Node 23 首发包完全相同的文件集编码为不同 `.tgz` 字节，导致
+  `v3.0.11-alpha.2` 的 SDK 发布门禁误报同版本内容冲突。发布器现先比较
+  tarball SHA-512，字节不同时再下载 registry artifact，按路径、权限、大小与
+  文件内容计算规范化 SHA-512；规范内容相同安全跳过，真实内容差异仍硬失败。
+  精确 CI 工具链端到端复现及相关门禁通过；旧标签不可移动，需由新提交和新
+  prerelease tag 验证完整 Release：
+  `sessions/2026-08-22-web-sdk-release-retry-fix.md`
+
 - Code scanning 与 CI 整改（2026-08-20）：修复 CodeQL #24 的切片容量加法
   溢出与 #25 的 `int64` 到 `int` 未界定转换；Web Docker 构建补齐
   `plugin-ui` workspace，SDK 离线消费者所需 Vite 工具改为直接依赖，并补齐

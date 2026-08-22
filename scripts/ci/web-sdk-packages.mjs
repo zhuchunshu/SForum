@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -89,6 +89,44 @@ function listFiles(root, prefix = '') {
   return files
 }
 
+function validatePackageFiles(files, packageName) {
+  if (!Array.isArray(files) || files.length === 0) fail(`${packageName} tarball has no files`)
+  const seen = new Set()
+  return files.map((file) => {
+    const path = file?.path
+    const segments = typeof path === 'string' ? path.split('/') : []
+    if (!path || path.startsWith('/') || path.includes('\\') || segments.some((segment) => !segment || segment === '.' || segment === '..')) {
+      fail(`${packageName} tarball has an unsafe file path: ${String(path)}`)
+    }
+    if (seen.has(path)) fail(`${packageName} tarball repeats file path: ${path}`)
+    if (!Number.isInteger(file.mode) || file.mode < 0 || file.mode > 0o7777) {
+      fail(`${packageName} tarball has an invalid mode for ${path}`)
+    }
+    if (!Number.isInteger(file.size) || file.size < 0) fail(`${packageName} tarball has an invalid size for ${path}`)
+    seen.add(path)
+    return { path, mode: file.mode, size: file.size }
+  }).sort((left, right) => left.path < right.path ? -1 : left.path > right.path ? 1 : 0)
+}
+
+export function packageContentIntegrity(archive, files, packageName = 'package') {
+  const entries = validatePackageFiles(files, packageName)
+  const hash = createHash('sha512')
+  for (const entry of entries) {
+    const result = spawnSync('tar', ['-xOf', archive, `package/${entry.path}`], {
+      encoding: null,
+      maxBuffer: Math.max(entry.size + 1024, 1024 * 1024)
+    })
+    if (result.status !== 0) {
+      fail(`${packageName} tarball cannot read ${entry.path}: ${result.stderr?.toString().trim() || 'tar failed'}`)
+    }
+    if (result.stdout.length !== entry.size) fail(`${packageName} tarball size mismatch for ${entry.path}`)
+    hash.update(`${entry.path}\0${entry.mode}\0${entry.size}\0`)
+    hash.update(result.stdout)
+    hash.update('\0')
+  }
+  return `sha512-${hash.digest('base64')}`
+}
+
 export function packSDKPackages(outputDirectory) {
   const packages = readAndValidateSDKPackages()
   mkdirSync(outputDirectory, { recursive: true })
@@ -110,14 +148,16 @@ export function packSDKPackages(outputDirectory) {
     if (!existsSync(archive)) fail(`npm pack did not create ${metadata.filename}`)
     const integrity = `sha512-${createHash('sha512').update(readFileSync(archive)).digest('base64')}`
     if (metadata.integrity !== integrity) fail(`npm pack integrity mismatch for ${entry.name}`)
-    const filePaths = new Set(metadata.files.map((file) => `package/${file.path}`))
+    const files = validatePackageFiles(metadata.files, entry.name)
+    const filePaths = new Set(files.map((file) => `package/${file.path}`))
     for (const required of entry.requiredFiles) {
       if (!filePaths.has(required)) fail(`${entry.name} tarball is missing ${required}`)
     }
     for (const path of filePaths) {
       if (path.includes('/node_modules/')) fail(`${entry.name} tarball contains node_modules content`)
     }
-    return { name: entry.name, version: entry.manifest.version, filename: metadata.filename, integrity }
+    const contentIntegrity = packageContentIntegrity(archive, files, entry.name)
+    return { name: entry.name, version: entry.manifest.version, filename: metadata.filename, integrity, contentIntegrity, files }
   })
   const manifestPath = join(outputDirectory, 'web-sdks.json')
   writeFileSync(manifestPath, `${JSON.stringify({ registry: npmRegistry, packages: packed }, null, 2)}\n`)
@@ -210,13 +250,17 @@ export function readPackedManifest(manifestPath) {
     if (seen.has(sdk.name)) fail(`packed SDK manifest repeats ${sdk.name}`)
     seen.add(sdk.name)
     const local = expected.find((entry) => entry.name === sdk.name)
-    if (!local || sdk.version !== local.manifest.version || !/^sha512-[A-Za-z0-9+/]+=*$/.test(sdk.integrity)) {
+    if (!local || sdk.version !== local.manifest.version ||
+        !/^sha512-[A-Za-z0-9+/]+=*$/.test(sdk.integrity) ||
+        !/^sha512-[A-Za-z0-9+/]+=*$/.test(sdk.contentIntegrity)) {
       fail(`packed SDK manifest has an invalid package entry for ${sdk.name}`)
     }
     const archive = resolve(root, sdk.filename)
     if (dirname(archive) !== root || !existsSync(archive)) fail(`packed SDK archive path is invalid: ${sdk.filename}`)
     const integrity = `sha512-${createHash('sha512').update(readFileSync(archive)).digest('base64')}`
     if (integrity !== sdk.integrity) fail(`packed SDK archive changed after packing: ${sdk.filename}`)
+    const contentIntegrity = packageContentIntegrity(archive, sdk.files, sdk.name)
+    if (contentIntegrity !== sdk.contentIntegrity) fail(`packed SDK content changed after packing: ${sdk.filename}`)
   }
   for (const sdk of expected) {
     if (!seen.has(sdk.name)) fail(`packed SDK manifest is missing ${sdk.name}`)
