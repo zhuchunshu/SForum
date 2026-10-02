@@ -8,6 +8,7 @@
     "register": "注册",
     "userMenu": "用户菜单",
     "admin": "管理后台",
+    "adminEntryHint": "站点配置、用户与扩展管理",
     "logout": "退出登录",
     "language": "语言",
     "lightMode": "切换到浅色模式",

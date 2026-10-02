@@ -188,10 +188,16 @@ responsibilities.
   `SFAvatar` instead of a panel icon. `usePublicUserMenu` is the shared action
   authority for the desktop avatar dropdown and the account section prepended
   to page-owned mobile right drawers; public profile, profile settings,
-  permission-aware moderation, email-verification resend, and logout therefore
-  cannot drift between viewports. The authenticated drawer heading is
-  “个人中心” rather than repeating the page-owned rail heading, and its account
-  actions are collapsed by default behind the accessible identity-row toggle.
+  permission-aware admin and moderation entries, email-verification resend, and
+  logout therefore cannot drift between viewports. The admin entry is gated on
+  `admin.access` — the same permission the API guards every `/admin/*` endpoint
+  with, so `super_admin` (via `can()`'s role bypass) plus the `moderator`,
+  `operator`, and `tech_admin` templates qualify while `member` does not — and
+  resolves its href through `useAdminRoutes` so it follows the operator's
+  `adminRoutePrefix` instead of a hardcoded `/control-panel`. The authenticated
+  drawer heading is "个人中心" rather than repeating the page-owned rail heading,
+  and its account actions are collapsed by default behind the accessible
+  identity-row toggle.
   Guests do not receive the page-owned right-rail entry or a synthetic avatar;
   mobile renders one login/registration action instead, reduced to login when
   registration is closed.

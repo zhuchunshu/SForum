@@ -84,4 +84,26 @@ describe('public mobile navbar composition', () => {
     expect(mobileRightDrawerHeader).toContain(':aria-label="closeLabel"')
     expect(mobileRightDrawerHeader).toContain("@click=\"$emit('close')\"")
   })
+
+  test('gates the admin entry on the same permission authority the API enforces', () => {
+    // 入口复用 admin.access，而不是只看 moderation.review 或硬编码角色判断。
+    expect(userMenuComposable).toContain('can(FORUM_PERMISSIONS.adminAccess)')
+    expect(userMenuComposable).toContain("key: 'admin'")
+    expect(userMenuComposable).toContain("to: adminRoutes.path('/')")
+    // 后台路径必须经 useAdminRoutes，才能跟随运营者自定义的 adminRoutePrefix。
+    expect(userMenuComposable).toContain("import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'")
+    expect(userMenuComposable).not.toContain("'/control-panel'")
+    // 桌面下拉与移动抽屉共用同一 menuGroups，改一处即覆盖两个面。
+    expect(navbar).toContain(':items="userMenuItems"')
+    expect(mobileUserMenu).toContain('v-for="(group, groupIndex) in menuGroups"')
+  })
+
+  test('ships bilingual copy for the admin entry', () => {
+    const zh = JSON.parse(source('../../i18n/locales/zh-CN.json'))
+    const en = JSON.parse(source('../../i18n/locales/en-US.json'))
+    for (const locale of [zh, en]) {
+      expect(locale.nav.admin).toBeTruthy()
+      expect(locale.nav.adminEntryHint).toBeTruthy()
+    }
+  })
 })

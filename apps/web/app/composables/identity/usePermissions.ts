@@ -18,6 +18,9 @@ export const FORUM_PERMISSIONS = {
   postDeleteOwn: 'post.delete_own',
   postDeleteAny: 'post.delete_any',
   settingsManage: 'settings.manage',
+  // 后台区域准入：与 API 侧 identity.PermissionAdminAccess 同一权威键，
+  // 所有 /admin/* 端点均以它为准（super_admin 经 can() 绕过）。
+  adminAccess: 'admin.access',
   settingsSiteManage: 'settings.site.manage',
   settingsMailManage: 'settings.mail.manage',
   settingsNotificationsManage: 'settings.notifications.manage',

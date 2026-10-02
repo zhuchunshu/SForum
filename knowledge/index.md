@@ -130,6 +130,13 @@ load archived sessions or completed plans as current context.
   `pluginRouteProxy` retry-read 在升级前依赖上同样失败，属既有环境问题），
   CI 五作业全绿：`sessions/2026-10-02-dependabot-alert-triage-handoff.md`
 
+- Topbar 头像菜单后台入口（2026-10-02）：`usePublicUserMenu` 新增 `admin`
+  条目，桌面下拉与移动右抽屉同源；准入复用 API 权威键 `admin.access`
+  （`super_admin` 角色绕过 + moderator/operator/tech_admin 模板，member 不含），
+  路径经 `useAdminRoutes` 跟随 `adminRoutePrefix`。新增身份矩阵回归与门控测试，
+  Web 全量 915 测试、类型检查、架构与身份/管理框架门禁通过：
+  `sessions/2026-10-02-topbar-admin-entry.md`
+
 - 首注册超管提示改到注册成功后（2026-10-02）：注册页删除公开 bootstrap
   预告分支与 `auth.firstUserAdminNotice`，改为在 `POST /auth/register` 响应
   报告 `isInitialSuperAdmin` 时提示 `auth.initialSuperAdminGranted`；公开

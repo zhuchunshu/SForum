@@ -8,6 +8,7 @@
     "register": "Register",
     "userMenu": "User menu",
     "admin": "Admin",
+    "adminEntryHint": "Site configuration, users, and extensions",
     "logout": "Log out",
     "language": "Language",
     "lightMode": "Switch to light mode",
