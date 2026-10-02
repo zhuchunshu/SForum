@@ -14,6 +14,12 @@
   HEAD 已用 annotated tag 归档为 `archive/php-v2-final`、
   `archive/php-dev-final`、`archive/php82-final`、`archive/php-patch-1-final`。
 - 关闭 14 个已被取代的 grpc Dependabot PR（#127-#144）。
+- grpc bump 改动 `apps/api/go.mod` 的 plugin-transport 依赖，改变了共享插件
+  运行时摘要，触发 `tests/validate-builtin-plugin-versions.mjs` 的版本漂移
+  闸门：7 个 builtin 插件 patch 升位（auth-github 1.0.7、content-policy
+  1.1.6、search-site 1.0.6、smtp 1.1.6、storage-fs 1.1.7、storage-s3
+  1.0.8、web-push 1.0.6），`tests/builtin-plugin-release-baseline.json` 用
+  `node tests/validate-builtin-plugin-versions.mjs --write` 重写。
 
 ## Decisions
 
@@ -34,6 +40,10 @@
   告警是否自动关闭；若 composer 40 条未关闭，再批量 dismiss。
 - `apps/web` 仍有 7 个 npm、2 个 docker、1 个 compose、1 个 actions 的常规
   更新 PR 待审。
+- `dependabot/go_modules/apps/api/core-go-7814c4887b`（PR #152）把 grpc 提到
+  `v1.84.0`，该版本仍在 GO-2026-6443 影响范围内（1.84 线要到
+  `v1.85.0-dev.0.20260825072537` 才修），合并会重新弄红 govulncheck。要么把
+  该 PR 钉回 `v1.83.2`，要么等 `v1.85.0` 正式版。
 
 ## Open Questions
 
