@@ -113,6 +113,14 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Dependabot 告警收敛（2026-10-02）：94 条 open 告警拆解为 3 个 grpc advisory
+  × 18 个 Go module（54 条）与 4 个废弃 PHP 分支遗留 `composer.lock`（40 条）。
+  18 个 module 的 grpc 统一升至 `v1.83.2`，删除 `v2`/`dev`/`php82`/
+  `zhuchunshu-patch-1` 并以 `archive/php-*-final` tag 归档，关闭 14 个被取代的
+  依赖 PR；Go 全量构建、`apps/api` 全量测试（ok=119, fail=0）与架构边界门禁
+  通过，vendor 侧告警收敛以依赖图刷新结果为准：
+  `sessions/2026-10-02-dependabot-alert-triage-handoff.md`
+
 - 首注册超管提示改到注册成功后（2026-10-02）：注册页删除公开 bootstrap
   预告分支与 `auth.firstUserAdminNotice`，改为在 `POST /auth/register` 响应
   报告 `isInitialSuperAdmin` 时提示 `auth.initialSuperAdminGranted`；公开
