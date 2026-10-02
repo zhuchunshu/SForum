@@ -118,8 +118,17 @@ load archived sessions or completed plans as current context.
   18 个 module 的 grpc 统一升至 `v1.83.2`，删除 `v2`/`dev`/`php82`/
   `zhuchunshu-patch-1` 并以 `archive/php-*-final` tag 归档，关闭 14 个被取代的
   依赖 PR；Go 全量构建、`apps/api` 全量测试（ok=119, fail=0）与架构边界门禁
-  通过，vendor 侧告警收敛以依赖图刷新结果为准：
+  通过，Dependabot open 告警已归零（94 → 0，其中 40 条 composer 由分支清理
+  触发自动修复），7 个 builtin 插件按共享 SDK 规则递增补丁版本：
   `sessions/2026-10-02-dependabot-alert-triage-handoff.md`
+
+- 容器镜像扫描修复（2026-10-02）：`sforum-web:ci` 镜像 Trivy 报出 6 个 HIGH。
+  `@tiptap/*` 12 个包 3.27.1 → 3.31.3，`devalue` 5.8.1 → 5.9.4、`sharp`
+  0.35.3 → 0.35.5 经 `overrides` 强制；同时收敛 `prosemirror-model`
+  1.25.12 与 `prosemirror-view` 1.42.6，消除 Tiptap 升级引起的双版本类型
+  不兼容。`bun run typecheck` 通过，`bun test` 904 pass / 1 fail（失败项
+  `pluginRouteProxy` retry-read 在升级前依赖上同样失败，属既有环境问题），
+  CI 五作业全绿：`sessions/2026-10-02-dependabot-alert-triage-handoff.md`
 
 - 首注册超管提示改到注册成功后（2026-10-02）：注册页删除公开 bootstrap
   预告分支与 `auth.firstUserAdminNotice`，改为在 `POST /auth/register` 响应

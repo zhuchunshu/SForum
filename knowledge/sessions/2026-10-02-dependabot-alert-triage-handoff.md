@@ -36,8 +36,7 @@
 
 ## Next
 
-- 等 GitHub 依赖图重新解析（push 已触发 Configured Graph Update），确认 94 条
-  告警是否自动关闭；若 composer 40 条未关闭，再批量 dismiss。
+- 容器镜像扫描的 6 个 HIGH 已在 `dec318ed4` 修复（见下节），CI 五作业全绿。
 - `apps/web` 仍有 7 个 npm、2 个 docker、1 个 compose、1 个 actions 的常规
   更新 PR 待审。
 - `dependabot/go_modules/apps/api/core-go-7814c4887b`（PR #152）把 grpc 提到
@@ -45,10 +44,33 @@
   `v1.85.0-dev.0.20260825072537` 才修），合并会重新弄红 govulncheck。要么把
   该 PR 钉回 `v1.83.2`，要么等 `v1.85.0` 正式版。
 
+## Container image scan follow-up
+
+`Container / web` 作业的 Trivy 步骤在 grpc 收敛后成为唯一失败项，报出 6 个
+HIGH（CRITICAL 0），全部可修复：
+
+| 依赖 | 原版本 | 修复版本 | 漏洞 |
+| --- | --- | --- | --- |
+| `@tiptap/core` | 3.27.1 | 3.31.3 | GHSA-j95f-988m-3j2f（Markdown 属性解析二次方 ReDoS） |
+| `devalue` | 5.8.1 | 5.9.4 | CVE-2026-92708、GHSA-mcm9-63f2-9j32、GHSA-r9w8-h9r3-54w4、GHSA-x5rw-q4pp-hg5g |
+| `sharp` | 0.35.3 | 0.35.5 | GHSA-rgj7-g3m4-5g8c（libheif） |
+
+处理方式：12 个 `@tiptap/*` 包统一升到 3.31.3；`devalue`、`sharp` 通过
+`package.json` 的 `overrides` 强制（二者是 Nuxt / ipx / nuxt-seo-utils 的间接
+依赖）。Tiptap 升级后出现 `prosemirror-model` 1.25.9 与 1.25.12、
+`prosemirror-view` 1.42.0 与 1.42.6 双版本，导致
+`app/utils/editor/editorImageUpload.ts` 类型不兼容，用同名 `overrides`
+收敛，未改业务代码。
+
+验证：`bun run typecheck` 通过；`bun test` 904 pass / 1 fail——
+`tests/extensions/pluginRouteProxy.test.ts` 的 `retry-read` 期望 200 实得
+502，已用 `git stash` 回退依赖到 HEAD 版本复现同样失败，属既有环境依赖问题。
+
 ## Open Questions
 
-- GitHub 对「依赖只存在于非默认分支」的告警，是否会在分支删除并刷新依赖图后
-  自动关闭，需以实际刷新结果确认。
 - `dependabot.yml` 只跟踪 10 个 Go module，但告警会覆盖全部 18 个（含
   `extensions/fixtures/**` 与 `tests/compat`），是否要将 fixtures 纳入
   updates 配置或接受这部分噪音，尚未定论。
+- `TestRevisionStreamReconcilesMissedWakeAndHeartbeats` 在 CI 上偶发失败
+  （本地 100+ 次串行与 GOMAXPROCS=1 压力复现均未出现），疑似 runner 负载下的
+  时间敏感断言，需要一轮针对性的去抖改造。
