@@ -113,6 +113,13 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- 首注册超管提示改到注册成功后（2026-10-02）：注册页删除公开 bootstrap
+  预告分支与 `auth.firstUserAdminNotice`，改为在 `POST /auth/register` 响应
+  报告 `isInitialSuperAdmin` 时提示 `auth.initialSuperAdminGranted`；公开
+  `registration-status` 仍恒定 `false`。聚焦回归、Web 全量 905 测试、类型
+  检查与架构门禁通过，渲染态 Browser QA 未做：
+  `sessions/2026-10-02-first-registration-super-admin-notice.md`
+
 - Code scanning 与 CI 整改（2026-08-20）：修复 CodeQL #24 的切片容量加法
   溢出与 #25 的 `int64` 到 `int` 未界定转换；Web Docker 构建补齐
   `plugin-ui` workspace，SDK 离线消费者所需 Vite 工具改为直接依赖，并补齐

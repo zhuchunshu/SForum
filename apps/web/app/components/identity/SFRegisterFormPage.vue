@@ -16,6 +16,9 @@ import type { PublicAuthProvider } from '~/composables/identity/useAuthProviders
 import { apiErrorFields, apiErrorMessage, apiErrorReason } from '~/composables/useApiClient'
 import { registerErrorMessage } from '~/utils/identity/registerErrors'
 type RegistrationStatus = {
+  // 公开端点恒定返回 false，避免向未认证访客暴露"下个注册者即 super_admin"
+  // 的 bootstrap 窗口（knowledge/decisions/2026-07-09-security-audit.md M4）。
+  // 首注册者改由注册响应内的 isInitialSuperAdmin 判定，该字段不再驱动 UI。
   nextUserIsInitialSuperAdmin: boolean
   registrationEnabled?: boolean
 }
@@ -136,14 +139,14 @@ const { data: registrationStatus } = await useAsyncData('auth-registration-statu
     return { nextUserIsInitialSuperAdmin: false, registrationEnabled: true }
   }
 })
-const isBootstrapRegistration = computed(() => registrationStatus.value?.nextUserIsInitialSuperAdmin === true)
 // registrationEnabled 含 bootstrap 覆盖；缺字段时回退 true（兼容旧 API）。
 const isRegistrationOpen = computed(() => registrationStatus.value?.registrationEnabled !== false)
 // 显式第三方注册入口：Host 激活 registration 且站点开放注册、且非 ticket 续接页。
+// 零用户站点仍可能展示入口：后端在事务内拒绝 bootstrap 外部注册并返回
+// auth.external_bootstrap_required，由 registerErrorMessage 映射为说明文案。
 const showExternalRegistrationProviders = computed(() =>
   isRegistrationOpen.value
   && !isExternalTicketMode.value
-  && !isBootstrapRegistration.value
   && registrationProviders.value.length > 0
 )
 const emailVerificationRequired = computed(() =>
@@ -236,6 +239,16 @@ async function finishRegistration(currentUser: CurrentUser) {
     title: needsEmailVerification ? t('auth.emailVerificationActionRequired') : registerSuccessTitle(),
     duration: 10000
   })
+  // 首注册者即初始 super_admin（服务端在注册事务内判定）。提示只发给真正拿到
+  // 权限的注册者，注册前不预告，因此不会向未认证访客暴露 bootstrap 窗口。
+  if (currentUser.isInitialSuperAdmin) {
+    toast.add({
+      color: 'success',
+      icon: 'i-lucide-shield-check',
+      title: t('auth.initialSuperAdminGranted'),
+      duration: 10000
+    })
+  }
   if (needsEmailVerification) {
     await router.replace({
       path: localePath('/email-verification'),
@@ -304,10 +317,6 @@ async function submitExternalRegister() {
   }
   if (!registrationTicket.value) {
     errorMessage.value = t('auth.external.reasons.ticketInvalid')
-    return
-  }
-  if (isBootstrapRegistration.value) {
-    errorMessage.value = t('auth.external.reasons.bootstrapRequired')
     return
   }
   if (!isRegistrationOpen.value) {
@@ -431,14 +440,6 @@ async function startExternalRegistration(provider: PublicAuthProvider) {
         </div>
 
         <form v-else @submit.prevent="submitRegister">
-          <SFAlert
-            v-if="isBootstrapRegistration && !isExternalTicketMode"
-            :title="t('auth.firstUserAdminNotice')"
-            variant="warning"
-            compact
-            class="auth-alert"
-          />
-
           <SFAlert
             v-if="isExternalTicketMode"
             :title="t('auth.external.ticketModeNotice')"

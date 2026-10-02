@@ -97,8 +97,10 @@ same contracts with `bun add @sforum/admin-sdk@^1 @sforum/plugin-ui@^1`.
 ### Registry release ownership (maintainers)
 
 The tag-driven Release workflow publishes both packages through npm Trusted
-Publishing with provenance. It is idempotent only when an existing version has
-the exact same tarball integrity; changed content under an existing version
+Publishing with provenance. It is idempotent when an existing version holds the
+same content: the published tarball and the freshly packed tarball are compared
+by unpacked member digests, not by tarball bytes, because gzip output differs
+between Node/npm toolchains. Genuinely changed content under an existing version
 fails the release before image promotion.
 
 An npm package must exist before its Trusted Publisher can be configured. The

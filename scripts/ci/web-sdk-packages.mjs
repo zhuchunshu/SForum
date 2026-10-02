@@ -89,6 +89,24 @@ function listFiles(root, prefix = '') {
   return files
 }
 
+// tarball 字节无法跨工具链复现：同一份 tar 载荷在不同 Node/npm 自带的 zlib
+// 实现下会压缩出不同的 gzip 流。判断「内容是否同一份」时比较解包后各成员的
+// sha256，而不是比较 tarball 完整性。
+export function readTarballMemberDigests(archivePath) {
+  const directory = mkdtempSync(join(tmpdir(), 'sforum-tarball-members-'))
+  try {
+    execFileSync('tar', ['-xzf', archivePath, '-C', directory], { stdio: 'pipe' })
+    const digests = listFiles(directory).map((path) => {
+      const digest = createHash('sha256').update(readFileSync(join(directory, path))).digest('hex')
+      return `${path}:${digest}`
+    })
+    if (digests.length === 0) fail(`tarball has no members: ${archivePath}`)
+    return digests
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+}
+
 export function packSDKPackages(outputDirectory) {
   const packages = readAndValidateSDKPackages()
   mkdirSync(outputDirectory, { recursive: true })

@@ -23,9 +23,13 @@ and contract-test commands separately.
   network-free Vite consumer build from extracted tarballs.
 - Publish from the tag Release workflow with GitHub-hosted OIDC, npm Trusted
   Publishing, and provenance. Do not store a long-lived npm write token.
-- Make release retries idempotent: skip an existing version only when registry
-  and local tarball integrity match; fail on different content under the same
-  version. Image promotion waits for SDK publication.
+- Make release retries idempotent: compare the published artifact with the
+  local tarball by unpacked member digests (path + SHA-256 of every file), skip
+  when the content is identical, and fail on genuinely changed content under the
+  same version. Tarball bytes are not a valid identity: the same tar payload
+  compresses to different gzip bytes under different Node/npm zlib builds, and
+  the interactive `1.0.0` bootstrap was packed with a different toolchain than
+  CI. Image promotion waits for SDK publication.
 - Add `sforum extension build [package-root]` as an author-only command. When
   `frontend/admin/package.json` exists it runs Bun install/build, then directly
   reuses digest refresh, full package/template validation, and contract tests.
@@ -50,5 +54,11 @@ and contract-test commands separately.
   verification begins with the next SDK version that is actually published by
   the tag-driven OIDC Release job; an application tag that reuses exact
   `1.0.0` artifacts correctly exercises the idempotent skip path instead.
+- Member-digest comparison, not byte comparison, is what makes that skip path
+  reachable. On 2026-08-22 the `v3.0.11-alpha.2` Release run failed because the
+  `1.0.0` tarballs were byte-different but content-identical: CI packed with npm
+  11.17.0/Node 24.19.0, the registry copy came from npm 10.9.2/Node 23.11.0
+  (registry `_npmVersion`/`_nodeVersion`), and no gzip level reproduces the
+  other toolchain's stream from the same tar payload.
 - Package versions change only when SDK content changes; an SForum application
   release may legitimately find and reuse the exact existing SDK versions.

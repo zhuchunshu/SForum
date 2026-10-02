@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { npmRegistry, packSDKPackages, readPackedManifest } from './web-sdk-packages.mjs'
+import { npmRegistry, packSDKPackages, readPackedManifest, readTarballMemberDigests } from './web-sdk-packages.mjs'
 
 function npmVersionSupportsTrustedPublishing() {
   const version = execFileSync('npm', ['--version'], { encoding: 'utf8' }).trim()
@@ -39,18 +39,55 @@ function publishArchive(archive) {
   })
 }
 
-export function publishSDKPackages(root, packages, npmClient = { readRemoteIntegrity, publishArchive }, log = console.log) {
+// 已发布版本的内容指纹。必须比较解包后的成员摘要，而不是 tarball 完整性：
+// 同一份 tar 载荷在不同 Node/npm 的 zlib 实现下会压出不同的字节，交互式首次
+// 发布与 CI 打包的工具链并不一致，字节级比较会把「内容完全相同」误判成变更。
+function readPublishedMembers(name, version) {
+  const directory = mkdtempSync(join(tmpdir(), 'sforum-published-sdk-'))
+  try {
+    execFileSync(
+      'npm',
+      ['pack', `${name}@${version}`, '--ignore-scripts', '--pack-destination', directory, `--registry=${npmRegistry}`],
+      { stdio: 'pipe' }
+    )
+    const archives = readdirSync(directory).filter((entry) => entry.endsWith('.tgz'))
+    if (archives.length !== 1) {
+      throw new Error(`npm pack fetched ${archives.length} archives for published ${name}@${version}`)
+    }
+    return readTarballMemberDigests(join(directory, archives[0]))
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+}
+
+export const defaultNpmClient = {
+  readRemoteIntegrity,
+  readPublishedMembers,
+  readLocalMembers: readTarballMemberDigests,
+  publishArchive
+}
+
+function sameMembers(left, right) {
+  return left.length === right.length && left.every((member, index) => member === right[index])
+}
+
+export function publishSDKPackages(root, packages, npmClient = defaultNpmClient, log = console.log) {
   for (const sdk of packages) {
     const remoteIntegrity = npmClient.readRemoteIntegrity(sdk.name, sdk.version)
-    if (remoteIntegrity === sdk.integrity) {
-      log(`${sdk.name}@${sdk.version} already contains the exact SDK artifact`)
+    if (remoteIntegrity === null) {
+      npmClient.publishArchive(join(root, sdk.filename))
+      log(`published ${sdk.name}@${sdk.version}`)
       continue
     }
-    if (remoteIntegrity !== null) {
-      throw new Error(`${sdk.name}@${sdk.version} already exists with different content; bump the SDK version before releasing`)
+    const publishedMembers = npmClient.readPublishedMembers(sdk.name, sdk.version)
+    if (sameMembers(publishedMembers, npmClient.readLocalMembers(join(root, sdk.filename)))) {
+      log(`${sdk.name}@${sdk.version} already published with identical content (registry integrity ${remoteIntegrity}); skipping`)
+      continue
     }
-    npmClient.publishArchive(join(root, sdk.filename))
-    log(`published ${sdk.name}@${sdk.version}`)
+    throw new Error(
+      `${sdk.name}@${sdk.version} already exists with different content; bump the SDK version before releasing ` +
+        `(local ${sdk.integrity}, registry ${remoteIntegrity})`
+    )
   }
 }
 

@@ -291,7 +291,7 @@
     "registerTitle": "Register",
     "registerEyebrow": "Open registration",
     "registerIntro": "Fill in the details below — takes just a few seconds",
-    "firstUserAdminNotice": "The first registered user will become the super administrator.",
+    "initialSuperAdminGranted": "You are this site's first registered user and now hold super administrator access.",
     "registerHeading": "Create an account",
     "loginTitle": "Log In",
     "loginEyebrow": "Forum account",
