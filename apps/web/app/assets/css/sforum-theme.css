@@ -468,6 +468,23 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
     overflow: visible;
   }
 
+  /*
+   * 三栏与顶栏同轨：Core/Host chrome 回退路径同样落在 --sf-public-edge-inset 轨道上，
+   * 与主题壳同一数值。页面级 CSS 不得再各自硬编码左右内缩。
+   */
+  .sf-host-public-chrome--fullwidth-3col :is(
+    .sforum-home__layout,
+    .sforum-topic-page__layout,
+    .sforum-notifications__layout,
+    .sforum-settings__layout,
+    .sforum-moderation__layout
+  ) {
+    box-sizing: border-box;
+    padding-left: var(--sf-public-edge-inset, 24px);
+    padding-right: var(--sf-public-edge-inset, 24px);
+  }
+
+  /* 中列滚动所有权：三栏壳一律由中列独立滚动并吸在顶栏下方。 */
   .sf-host-public-chrome--fullwidth-3col :is(
     .sforum-home__main,
     .sforum-topic-page__main,
@@ -475,6 +492,8 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
     .sforum-settings__main,
     .sforum-moderation__main
   ) {
+    position: sticky;
+    top: var(--sf-public-topbar-height);
     height: calc(100vh - var(--sf-public-topbar-height));
     min-height: 0;
     overflow-y: auto;
@@ -821,6 +840,8 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
       .sforum-settings__main,
       .sforum-moderation__main
     ) {
+    position: sticky;
+    top: var(--sf-public-topbar-height);
     height: calc(100vh - var(--sf-public-topbar-height));
     min-height: 0;
     padding-bottom: 28px;

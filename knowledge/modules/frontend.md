@@ -593,6 +593,12 @@ Plan: `../plans/2026-07-22-theme-defined-system-error-pages.md`
   column padding, sticky center-column scroll ownership, and document-scrolling
   side rails as the default theme.
   Runtime fallback may change ownership/content, not page geometry.
+- Page-level 3col CSS must not hard-code horizontal insets. `sforum-theme.css`
+  owns `--sf-public-edge-inset` for home/topic/notifications/settings/moderation
+  in the Core fallback path, so a fallback page cannot drift off the topbar
+  tracks. Left/right column dividers are the rails' own 1 px border; the legacy
+  ±12 px pseudo-element line shipped by an installed theme artifact is disabled
+  in `sforum-topic.css` until that theme package is rebuilt.
 - Public chrome islands such as `SFNavbar` and `SFFooter` must stay statically
   reachable from runtime theme templates so critical scoped CSS is present
   before browser back/forward restores the page.

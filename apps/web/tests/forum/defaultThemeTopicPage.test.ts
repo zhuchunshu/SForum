@@ -237,7 +237,11 @@ describe('default theme V32 topic page contract', () => {
     expect(css).toContain('align-items: stretch')
     expect(css).toContain('.sforum-topic-page__sidebar')
     expect(css).toContain('.sforum-topic-page__post-card')
-    expect(css).toContain('padding: 0 18px;')
+    // 三栏左右内缩只由宿主壳 / 主题壳的 --sf-public-edge-inset 单一来源决定，
+    // 页面级 CSS 不得再硬编码 18px，否则 Core/Host chrome 回退路径会与顶栏轨道错位。
+    expect(css).not.toContain('padding: 0 18px;')
+    expect(css).toContain('border-right: 1px solid var(--sf-public-border)')
+    expect(css).toContain('border-left: 1px solid var(--sf-public-border)')
     expect(css).toContain('.sforum-topic-page .sf-topic-heading__title')
     expect(css).toContain('.sf-topic-side-card')
     expect(css).toContain('background: var(--sf-public-surface)')
@@ -245,9 +249,11 @@ describe('default theme V32 topic page contract', () => {
     expect(css).toContain('.sforum-topic-page__main {\n    position: sticky;\n    top: var(--sf-public-topbar-height);\n    height: calc(100vh - var(--sf-public-topbar-height));\n    min-height: 0;\n    overflow-y: auto;')
     expect(css).toContain('.sforum-topic-page__sidebar,\n  .sforum-topic-page__side {\n    position: relative;')
     expect(css).toContain('height: auto;\n    min-height: 0;\n    overflow: visible;')
+    // 列线由栏自身 1px 边框承担；旧的 ±12px 伪元素线在宿主壳路径被关闭。
     expect(css).toContain('.sforum-topic-page__sidebar::after')
-    expect(css).toContain('right: -12px')
-    expect(css).toContain('left: -12px')
+    expect(css).toContain('content: none')
+    expect(css).not.toContain('right: -12px')
+    expect(css).not.toContain('left: -12px')
     expect(css).toContain('@media (max-width: 1180px)')
     expect(css).toContain('@media (max-width: 960px)')
     expect(themePkgCss).toContain('.sforum-topic-page__layout--with-side')

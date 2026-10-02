@@ -20,8 +20,9 @@
   grid-template-columns: var(--sf-public-sidebar-width) minmax(0, 1fr) var(--sf-public-right-rail-width);
 }
 
+/* 列线 = 栏自身 1px 边框，与顶栏 logo/session 列轨道线同一条（首页同策略）。 */
 .sforum-topic-page__sidebar {
-  border-right: 0;
+  border-right: 1px solid var(--sf-public-border);
   padding: 12px 0 24px;
   background: var(--sf-public-surface-muted);
 }
@@ -423,11 +424,11 @@
   display: none;
 }
 
-/* 右侧信息卡：三栏第三列 */
+/* 右侧信息卡：三栏第三列；列线同样走栏自身边框。 */
 .sforum-topic-page__side {
   min-width: 0;
   padding: 12px 12px 24px;
-  border-left: 0;
+  border-left: 1px solid var(--sf-public-border);
   background: var(--sf-public-surface-muted);
 }
 
@@ -834,7 +835,6 @@
 @media (min-width: 981px) {
   .sforum-topic-page__layout {
     gap: 12px;
-    padding: 0 18px;
     background: var(--sf-public-surface);
   }
 
@@ -857,23 +857,11 @@
     overflow: visible;
   }
 
+  /* 兼容已安装的旧默认主题 artifact：列线曾用 ±12px 伪元素画在中列边缘，
+   * 现统一改由栏自身 1px 边框承担，旧伪元素线在此关闭。 */
   .sforum-topic-page__sidebar::after,
   .sforum-topic-page__side::before {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    background: var(--sf-public-border);
-    content: '';
-    pointer-events: none;
-  }
-
-  .sforum-topic-page__sidebar::after {
-    right: -12px;
-  }
-
-  .sforum-topic-page__side::before {
-    left: -12px;
+    content: none;
   }
 }
 

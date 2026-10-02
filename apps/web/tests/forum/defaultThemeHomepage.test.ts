@@ -122,7 +122,10 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(navbar).toContain('var(--sf-public-right-rail-width, 270px)')
     expect(navbar).toContain("layout?: 'default' | 'fullwidth-3col'")
     expect(css).toContain('.sf-host-public-chrome--fullwidth-3col .sforum-home__main')
-    expect(home).toContain('.sf-host-public-chrome--fullwidth-3col .sforum-home__layout')
+    // 三栏 edge-inset 轨道由宿主壳 sforum-theme.css 统一拥有，页面级 CSS 不再各写一份。
+    expect(css).toContain('padding-left: var(--sf-public-edge-inset, 24px);')
+    expect(css).toContain('padding-right: var(--sf-public-edge-inset, 24px);')
+    expect(home).not.toContain('.sf-host-public-chrome--fullwidth-3col .sforum-home__layout')
     expect(home).toContain('padding: 30px 24px 28px;')
     expect(home).toContain('padding: 24px 24px 20px 28px;')
     expect(home).toContain('padding: 34px 28px;')
