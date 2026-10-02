@@ -4,6 +4,7 @@
 
 | Stable ID | Source | navigation | dashboard | list | columns | filters | rowActions | bulkActions | forms | notices | editorPanels | detailRegions | importer | exporter |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `core.admin.page.ai` | `apps/web/app/pages/admin/ai.vue` | yes | no | yes | no | no | no | no | no | yes | no | no | yes | no |
 | `core.admin.page.attachments` | `apps/web/app/pages/admin/attachments/index.vue` | yes | no | no | no | no | no | no | no | no | no | no | yes | no |
 | `core.admin.page.attachments_manager` | `apps/web/app/pages/admin/attachments/manager.vue` | yes | no | yes | no | yes | no | no | no | no | no | no | yes | no |
 | `core.admin.page.attachments_settings` | `apps/web/app/pages/admin/attachments/settings.vue` | yes | no | yes | no | no | no | no | no | no | no | no | yes | no |

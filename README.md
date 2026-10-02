@@ -4,6 +4,45 @@ Maintainable, plugin-first open-source forum framework.
 
 Core is the host (identity, forum primitives, permissions, extension runtime, contracts). Deployment-specific behavior—mail transport, optional search engines, storage vendors, and similar—lives in extensions.
 
+## Screenshots
+
+### Forum home
+Topic feed, category navigation, and live site statistics.
+
+![SForum forum home with topic feed, category rail, and site statistics](./docs/assets/screenshots/home.png)
+
+### Categories
+Every board grouped by section, with topic and reply counts.
+
+![Category browser grouped by board with topic and reply counts](./docs/assets/screenshots/categories.png)
+
+### Topic and discussion
+Article body, tags, and threaded replies, with theme-injected extensions in the right rail.
+
+![Topic page with article body, tags, and threaded replies](./docs/assets/screenshots/topic-detail.png)
+
+### Composer
+Rich-text toolbar, draft controls, pre-publish checks, and publishing settings on one screen.
+
+![Topic composer with rich-text toolbar and pre-publish checklist](./docs/assets/screenshots/composer.png)
+
+### Sign in and sign up
+Account entry with password strength checks, locale, and appearance controls.
+
+![Sign-in page with brand panel and account form](./docs/assets/screenshots/login.png)
+
+![Sign-up page with account fields and password strength meter](./docs/assets/screenshots/register.png)
+
+### Account security
+Login devices, active sessions, and sign-in history for the current member.
+
+![Account security page listing login devices and sign-in history](./docs/assets/screenshots/account-security.png)
+
+### Admin · Extension overview
+Plugin and theme status, host capability declarations, and ZIP upload from the control panel.
+
+![Admin control panel extension overview with plugin and theme status](./docs/assets/screenshots/admin-extensions.png)
+
 ## Documentation
 
 | Language | Start here |

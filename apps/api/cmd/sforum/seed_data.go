@@ -14,21 +14,30 @@ type seedOptions struct {
 	Count         int    // 要生成的主题数量
 	Users         int    // 预先创建的假用户数量
 	CommentsMax   int    // 每个普通主题最多生成的评论数（0 表示不生成评论）
-	CategorySlug  string // small：主题发布到的分类 slug，空则用默认分类
+	CategorySlug  string // small：主题固定发布到的分类 slug，空则按目录分布
 	DatabaseURL   string // 覆盖 DATABASE_URL，空则用 config.Load() 读环境变量
 	Batch         int    // 进度日志频率 / perf 批大小
 	DryRun        bool   // 只打印计划不写库
 	ConfirmPerfDB bool   // perf-1m 写库确认（专用库）
 
+	// 分类/标签/展示
+	CategoryCount int // small：创建的内置分类数；perf-1m：分类数（含 general）
+	TagCount      int // small：创建的内置标签数
+	Pinned        int // small：置顶主题数
+	ViewsMax      int // small：随机浏览数上限
+
 	// perf-1m 专用
-	CategoryCount int    // 分类数（含 general）
-	HotComments   int    // 热帖评论数
-	HotSlug       string // 热帖固定 slug
+	HotComments int    // 热帖评论数
+	HotSlug     string // 热帖固定 slug
 
 	// 内部：记录 flag 是否被显式设置（cobra Changed），不由用户直接赋值。
 	countExplicit       bool
 	usersExplicit       bool
 	commentsMaxExplicit bool
+	categoriesExplicit  bool
+	tagsExplicit        bool
+	pinnedExplicit      bool
+	viewsExplicit       bool
 }
 
 // seedUser 描述一个待注册的假用户。
@@ -41,9 +50,13 @@ type seedUser struct {
 
 // seedTopic 描述一个待创建的假主题（不含评论）。
 type seedTopic struct {
-	AuthorIndex int // 作者在 userIDs 中的下标
-	Title       string
-	Body        string // Markdown 正文
+	AuthorIndex  int // 作者在 userIDs 中的下标
+	CategorySlug string
+	Title        string
+	Body         string   // Markdown 正文
+	TagSlugs     []string // 要附加的标签 slug（可为空）
+	Pinned       bool
+	ViewCount    int64
 }
 
 // seedComment 描述一条待创建的假评论。
@@ -134,6 +147,24 @@ var (
 		"这个踩坑经验很实用，感谢记录。",
 		"学习了，回头我也试试这个方法。",
 	}
+
+	// seedAnnouncementTitles / seedAnnouncementBodies 用于置顶主题：让首页有一眼可辨的公告。
+	seedAnnouncementTitles = []string{
+		"欢迎来到本社区：新手指南与发帖规范",
+		"关于分类结构调整的公告",
+		"站点例行维护通知（已完成）",
+		"新功能上线：标签筛选与个人资料页",
+		"关于广告与推广内容的处理说明",
+		"版主招募：申请通道已开放",
+	}
+
+	seedAnnouncementBodies = []string{
+		"为了保证讨论质量，请尽量把主题发到对口的分类，并在标题里写清楚问题本身。",
+		"发帖前建议先搜索一下历史主题，重复的问题会被合并或关闭。",
+		"本次调整不涉及历史数据，已有主题与评论都会保留。",
+		"如果你发现任何异常，欢迎在反馈与建议分类里留言。",
+		"感谢大家一直以来的支持，也欢迎新朋友先看看这里的规则再发言。",
+	}
 )
 
 // randomHex 返回 n 字节的 crypto/rand 十六进制字符串。
@@ -185,7 +216,17 @@ func generateTopicBody(rng *rand.Rand) string {
 
 // generateSeedDataset 生成一次 seed 运行的完整内存计划，不触碰数据库。
 // 调用方在 dry-run 模式下可以直接打印它，在真实模式下按计划逐条写入。
-func generateSeedDataset(opts seedOptions, rng *rand.Rand) (seedDataset, error) {
+//
+// taxonomy 由 resolveSeedTaxonomy 推导：它必须与 buildSeedTaxonomyPlan 选中同一批
+// 目录项，否则写入阶段会因为分类/标签不存在而失败（creation_mode=controlled）。
+func generateSeedDataset(opts seedOptions, rng *rand.Rand, taxonomy seedTaxonomy) (seedDataset, error) {
+	categories := taxonomy.Categories
+	if len(categories) == 0 {
+		categories = []string{defaultSeedCategorySlug}
+	}
+	tags := taxonomy.Tags
+	weights := seedCategoryWeights(categories)
+
 	users := make([]seedUser, 0, opts.Users)
 	for i := 0; i < opts.Users; i++ {
 		u, err := generateSeedUser(i)
@@ -195,11 +236,30 @@ func generateSeedDataset(opts seedOptions, rng *rand.Rand) (seedDataset, error) 
 		users = append(users, u)
 	}
 
+	pinnedCount := opts.Pinned
+	if pinnedCount > opts.Count {
+		pinnedCount = opts.Count
+	}
+
 	topics := make([]seedTopicPlan, 0, opts.Count)
 	for i := 0; i < opts.Count; i++ {
 		authorIndex := rng.IntN(opts.Users)
+		pinned := i < pinnedCount
+		categorySlug := pickWeightedCategory(rng, categories, weights)
 		title := pickString(rng, seedTopicTitles)
 		body := generateTopicBody(rng)
+		var topicTags []string
+		if pinned {
+			// 置顶主题优先落在公告分类，并使用公告文案。
+			categorySlug = pinnedCategorySlug(categories, categorySlug)
+			title = seedAnnouncementTitles[i%len(seedAnnouncementTitles)]
+			body = strings.Join([]string{
+				pickString(rng, seedAnnouncementBodies),
+				pickString(rng, seedTopicBodies),
+			}, "\n\n")
+		} else {
+			topicTags = pickTopicTags(rng, tags)
+		}
 
 		var comments []seedComment
 		if opts.CommentsMax > 0 {
@@ -225,13 +285,93 @@ func generateSeedDataset(opts seedOptions, rng *rand.Rand) (seedDataset, error) 
 
 		topics = append(topics, seedTopicPlan{
 			Topic: seedTopic{
-				AuthorIndex: authorIndex,
-				Title:       title,
-				Body:        body,
+				AuthorIndex:  authorIndex,
+				CategorySlug: categorySlug,
+				Title:        title,
+				Body:         body,
+				TagSlugs:     topicTags,
+				Pinned:       pinned,
+				ViewCount:    seedTopicViews(rng, opts.ViewsMax, pinned),
 			},
 			Comments: comments,
 		})
 	}
 
 	return seedDataset{Users: users, Topics: topics}, nil
+}
+
+// seedCategoryWeights 让 general 与闲聊类分类获得更高权重，贴近真实论坛的发言分布。
+func seedCategoryWeights(categories []string) []int {
+	weights := make([]int, len(categories))
+	for i, slug := range categories {
+		switch slug {
+		case defaultSeedCategorySlug, seedChatCategorySlug:
+			weights[i] = 3
+		default:
+			weights[i] = 1
+		}
+	}
+	return weights
+}
+
+// pickWeightedCategory 按权重抽取分类；权重全为 0 时退化为均匀分布。
+func pickWeightedCategory(rng *rand.Rand, categories []string, weights []int) string {
+	total := 0
+	for _, weight := range weights {
+		if weight > 0 {
+			total += weight
+		}
+	}
+	if total <= 0 {
+		return categories[rng.IntN(len(categories))]
+	}
+	hit := rng.IntN(total)
+	for i, weight := range weights {
+		if weight <= 0 {
+			continue
+		}
+		if hit < weight {
+			return categories[i]
+		}
+		hit -= weight
+	}
+	return categories[len(categories)-1]
+}
+
+// pinnedCategorySlug 在目录含公告分类时把置顶主题放进去，否则沿用抽取结果。
+func pinnedCategorySlug(categories []string, fallback string) string {
+	for _, slug := range categories {
+		if slug == seedAnnouncementCategorySlug {
+			return slug
+		}
+	}
+	return fallback
+}
+
+// pickTopicTags 为普通主题抽取 1~3 个互不相同的标签。
+func pickTopicTags(rng *rand.Rand, tags []string) []string {
+	if len(tags) == 0 {
+		return nil
+	}
+	want := 1 + rng.IntN(seedTagsPerTopicMax)
+	if want > len(tags) {
+		want = len(tags)
+	}
+	indexes := rng.Perm(len(tags))[:want]
+	out := make([]string, 0, want)
+	for _, index := range indexes {
+		out = append(out, tags[index])
+	}
+	return out
+}
+
+// seedTopicViews 生成浏览数：置顶主题更受关注，取 [max, 2*max) 区间。
+func seedTopicViews(rng *rand.Rand, viewsMax int, pinned bool) int64 {
+	if viewsMax <= 0 {
+		return 0
+	}
+	if pinned {
+		return int64(viewsMax + rng.IntN(viewsMax+1))
+	}
+	return int64(rng.IntN(viewsMax + 1))
 }

@@ -260,3 +260,63 @@ ApiResponseWebPushSubscriptions:
       type: object
       required: [items]
       properties: {items: {type: array, items: {$ref: "#/WebPushSubscription"}}}
+
+PushDevice:
+  type: object
+  required: [id, deviceId, platform, status, createdAt, updatedAt, lastSeenAt]
+  properties:
+    id: {type: integer, format: int64}
+    deviceId: {type: string, description: Client-generated stable install id.}
+    platform: {type: string, enum: [ios, android, desktop]}
+    appVersion: {type: string}
+    locale: {type: string}
+    deviceName: {type: string}
+    status: {type: string, enum: [active, revoked]}
+    createdAt: {type: string, format: date-time}
+    updatedAt: {type: string, format: date-time}
+    lastSeenAt: {type: string, format: date-time}
+    revokedAt: {type: string, format: date-time}
+  description: Redacted device view. The push token and its digest are never returned.
+PushDeviceRegisterRequest:
+  type: object
+  required: [deviceId, platform, token]
+  properties:
+    deviceId:
+      type: string
+      description: Client-generated stable install id (8-128 chars, [A-Za-z0-9._:-]).
+    platform: {type: string, enum: [ios, android, desktop]}
+    token:
+      type: string
+      description: FCM registration token or APNs device token (16-4096 printable ASCII chars). Stored as a SHA-256 digest plus Core-key ciphertext; never echoed back.
+    appVersion: {type: string, maxLength: 32}
+    locale: {type: string, maxLength: 16}
+    deviceName: {type: string, maxLength: 64}
+ApiResponsePushDevice:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data: {$ref: "#/PushDevice"}
+ApiResponsePushDevices:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data:
+      type: object
+      required: [items]
+      properties:
+        items: {type: array, items: {$ref: "#/PushDevice"}}
+ApiResponsePushDeviceRevoked:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data:
+      type: object
+      required: [revoked]
+      properties:
+        revoked: {type: boolean}

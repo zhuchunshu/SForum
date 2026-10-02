@@ -8,6 +8,7 @@ export type AdminSurfacePlacement = {
 
 export const adminSurfacePlacements = [
   { id: "core.component.page.admin", contractVersion: "sforum.component.page.admin@1", route: "/admin" },
+  { id: "core.component.page.admin.ai", contractVersion: "sforum.component.page.admin.ai@1", route: "/admin/ai" },
   { id: "core.component.page.admin.attachments.redirect", contractVersion: "sforum.component.page.admin.attachments.redirect@1", route: "/admin/attachments" },
   { id: "core.component.page.admin.attachments", contractVersion: "sforum.component.page.admin.attachments@1", route: "/admin/attachments/manager" },
   { id: "core.component.page.admin.attachments.settings", contractVersion: "sforum.component.page.admin.attachments.settings@1", route: "/admin/attachments/settings" },

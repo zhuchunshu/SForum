@@ -157,6 +157,24 @@ func NewRegisterInvalid(fields FieldMessages) *RegisterInvalidError {
 	return &RegisterInvalidError{Fields: fields}
 }
 
+// UserKind 区分人类账号与机器人账号。机器人占用真实用户名额并计入在线人数，
+// 但它们不参与新人信任阶梯，也不应被授予管理权限。
+type UserKind string
+
+const (
+	UserKindHuman UserKind = "human"
+	UserKindBot   UserKind = "bot"
+)
+
+// ValidUserKind 报告账号类型是否为已知值。未知值按人类处理，避免一次读取失败
+// 就把某个账号当成机器人。
+func ValidUserKind(kind UserKind) bool {
+	return kind == UserKindHuman || kind == UserKindBot
+}
+
+// IsBot 是机器人语义判断的唯一入口，避免各处直接比较字符串。
+func (k UserKind) IsBot() bool { return k == UserKindBot }
+
 type Actor struct {
 	ID          int64
 	Status      UserStatus
@@ -164,6 +182,8 @@ type Actor struct {
 	Permissions map[string]bool
 	// CreatedAt 用于新人信任阶梯；零值表示未知（跳过新人限制）。
 	CreatedAt time.Time
+	// Kind 区分人类与机器人账号。零值按人类处理。
+	Kind UserKind
 }
 
 type PostSummary struct {

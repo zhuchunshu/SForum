@@ -363,16 +363,41 @@ func (s *PostgresStore) LoadActor(ctx context.Context, userID int64) (Actor, err
 	for _, key := range current.Permissions {
 		permissions[key] = true
 	}
-	// 注册时间单独读取，供新人信任阶梯；失败时保留零值（跳过新人限制）。
+	// 注册时间供新人信任阶梯，kind 供机器人语义判断；两者一起读。
+	// 失败时保留零值：CreatedAt 零值跳过新人限制，Kind 零值按人类处理，
+	// 都不会因为一次读取失败而改变既有语义。
 	var createdAt time.Time
-	_ = s.pool.QueryRow(ctx, `SELECT created_at FROM users WHERE id = $1`, userID).Scan(&createdAt)
+	var kindRaw string
+	_ = s.pool.QueryRow(ctx, `SELECT created_at, kind FROM users WHERE id = $1`, userID).Scan(&createdAt, &kindRaw)
+	kind := UserKindHuman
+	if ValidUserKind(UserKind(kindRaw)) {
+		kind = UserKind(kindRaw)
+	}
 	return Actor{
 		ID:          userID,
 		Status:      current.Status,
 		RoleKeys:    current.RoleKeys,
 		Permissions: permissions,
 		CreatedAt:   createdAt,
+		Kind:        kind,
 	}, nil
+}
+
+// UserKindOf 返回指定用户的账号类型。它供「这条内容的作者是不是机器人」这类
+// 服务端判断使用——防循环、头像标识、通知策略都要问同一个问题。
+func (s *PostgresStore) UserKindOf(ctx context.Context, userID int64) (UserKind, error) {
+	var raw string
+	err := s.pool.QueryRow(ctx, `SELECT kind FROM users WHERE id = $1`, userID).Scan(&raw)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrUserNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("load user kind: %w", err)
+	}
+	if !ValidUserKind(UserKind(raw)) {
+		return UserKindHuman, nil
+	}
+	return UserKind(raw), nil
 }
 
 func auditMetadata(value any) []byte {

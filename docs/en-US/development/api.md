@@ -48,6 +48,82 @@ For scripts and external services:
    `api_token.cookie_required`. Unsafe requests with a cookie session still
    need CSRF (below); unsafe requests with a valid PAT skip it.
 
+### 3. Native app / machine clients: log in and receive a token
+
+Apps do not need the two-step "log in for a cookie, then exchange the cookie for
+a token" dance. The login request can mint a PAT in the same round trip:
+
+```http
+POST /api/v1/auth/login
+Content-Type: application/json
+
+{
+  "login": "alice",
+  "password": "…",
+  "issueApiToken": { "name": "SForum iOS", "scopes": ["topic.create", "post.create"] }
+}
+```
+
+- `issueApiToken` is optional. When omitted, `data` stays `CurrentUser` (the
+  browser path is unchanged).
+- When present, `data` becomes `{ user, apiToken }`; `apiToken.token` is the
+  plaintext `sft_…`, **returned only in this response**. Store it in the
+  Keychain / Keystore immediately.
+- Rules match `POST /auth/tokens` exactly: `name` is required, `scopes` must be
+  declared explicitly and be a subset of the account's current permissions, and
+  `expiresAt` is an optional RFC 3339 timestamp. Scope escalation returns
+  `422 api_token.invalid`.
+- Malformed token requests fail before any session is issued (`422` with
+  `api_token.name_required` or `api_token.scopes_required`), so there is no
+  half-successful state.
+- Afterwards a single `Authorization: Bearer sft_…` header is enough, including
+  for `GET /auth/session` and the notification stream. No cookie, no CSRF header.
+- Login risk control (`humanVerification`) and account lockout apply to this path
+  too: solve the challenge and retry the same request.
+- On sign-out, drop the local token; server-side revocation still goes through
+  `DELETE /auth/tokens/{tokenID}` (browser session required, or the user acts on
+  `/settings/tokens`).
+
+- Client version policy (`client.*`, Site settings → Client apps):
+  `client.minimum_version` drives a forced-update screen,
+  `client.recommended_version` drives a dismissible prompt, and
+  `client.update_notice` carries the copy. All empty means no restriction; the client
+  compares versions itself. Maintenance state is public here too:
+  `site.maintenance.enabled` / `site.maintenance.message`.
+
+### 4. Native push device registration
+
+After obtaining an FCM / APNs token, the app registers the device with its session
+(or an `sft_` token):
+
+```http
+POST /api/v1/push/devices
+Content-Type: application/json
+
+{
+  "deviceId": "0f0a1b2c-3d4e-5f60-7a8b-9c0d1e2f3a4b",
+  "platform": "ios",
+  "token": "<FCM registration token or APNs device token>",
+  "appVersion": "1.4.0",
+  "locale": "zh-CN",
+  "deviceName": "iPhone"
+}
+```
+
+- Core owns ownership and lifecycle only: the token is stored as a SHA-256 digest
+  (for dedupe) plus Core-key ciphertext, and **no response ever echoes it**.
+- Idempotent: one row per `(platform, token)`; re-registration refreshes
+  `lastSeenAt` and rebinds ownership to the current account (account switch,
+  token rotation, reinstall).
+- Token rotation: older tokens on the same `deviceId` are revoked automatically so
+  deliveries never target a stale token.
+- List: `GET /api/v1/push/devices` (`includeRevoked=true` includes revoked devices).
+- Sign-out: `DELETE /api/v1/push/devices/{deviceId}`; a `404
+  notification.push_device_not_found` means the device does not exist or belongs to
+  another account — both cases are indistinguishable on purpose.
+- Actual delivery (FCM/APNs sends) belongs to a notification channel provider
+  plugin; Core ships no vendor SDK.
+
 ## CSRF
 
 All unsafe methods (POST/PUT/PATCH/DELETE) under `/api/v1` are protected by

@@ -83,6 +83,20 @@ load archived sessions or completed plans as current context.
 - Residual: remove legacy `/api/v1/...assets...` compatibility paths only with
   APILTS/deprecation evidence.
 
+### AI Assist Platform
+
+- Status: **ready**; the extension contracts for AI are approved and M0 may
+  start. Core owns the gateway (`ai.provider` slot, neutral
+  `ai.completion@1`, provider profiles, Secret Store credential references,
+  three cost gates, execution trace); vendor calls, purposes, and middleware
+  live in plugins. No production code has landed yet.
+- Plan: `plans/2026-10-02-ai-assist-platform.md`
+- Decision: `decisions/2026-10-02-ai-provider-gateway.md`
+- Modules: `modules/extensions.md`, `modules/moderation.md`,
+  `modules/notifications.md`
+- Excluded by operator decision: embeddings/vector retrieval and multimodal
+  input.
+
 ## Current Project State
 
 - **Web:** Nuxt 4, Vue 3, Nuxt UI 4, Bun, SSR-first, `zh-CN` default and
@@ -112,6 +126,62 @@ load archived sessions or completed plans as current context.
   dev server on port 3000; do not kill it.
 
 ## Latest Handoff
+
+- 原生推送设备注册（2026-10-02）：Core 新增 `push_devices` 与自服务端点
+  `GET/POST /api/v1/push/devices`、`DELETE /api/v1/push/devices/{deviceId}`；令牌按
+  `(platform, token)` 唯一、重复注册改绑并撤销同 deviceId 旧令牌，落库只存 SHA-256
+  指纹 + Core 密钥密文，响应永不回显。FCM/APNs 传输仍属 provider 插件，本轮未声明
+  `native_push` 通道键（通道 + provider 槽 + 参考插件一起落地）。迁移
+  `202610020004` 已在本机开发库应用（原 `202610020001` 与并发工作流重号）。
+  为让生成器可运行，代并发 AI 工作流按约定补了三条 UI 身份目录。
+  Go 全量、真库集成测试、目录 `--check`、架构/文档/OpenAPI 门禁通过：
+  `sessions/2026-10-02-native-push-device-registry.md`，
+  `decisions/2026-10-02-native-push-device-registry.md`
+
+- 客户端版本门禁（2026-10-02）：新增三个 public 选项 `client.minimum_version` /
+  `client.recommended_version` / `client.update_notice`（默认全空 = 不限制，
+  `settings.site.manage` 管理），App 冷启动读 `GET /web-options` 自行判定是否强制
+  升级；后台新增「站点设置 → 客户端」固定标签页并提供一键恢复推荐默认。服务端不代
+  判定升级、不记录客户端版本，也未引入 Deprecation/Sunset 头（无真实消费者）。
+  Go 选项测试、Web 920 测试、typecheck、生产构建、架构与文档门禁通过；为守住
+  `Models/Options/service.go` 的遗留大文件基线，把 Defaults 覆盖块抽到
+  `defaults_overrides.go` 并把该 cap 从 1119 下调到 1090。
+  **后台标签的渲染态 Browser QA 未做**（本会话无 BrowserSkill CLI，桌面工具不可用）：
+  `sessions/2026-10-02-client-version-policy.md`，
+  `decisions/2026-10-02-client-version-policy-via-public-options.md`
+
+- App / 机器客户端登录换令牌（2026-10-02）：`POST /auth/login` 新增可选
+  `issueApiToken`，一次密码登录同时签发 PAT（规则与 `POST /auth/tokens` 一致：
+  scopes 显式子集、明文只返回一次；未携带时响应仍是 `CurrentUser`），原生 App
+  从此不需要 cookie jar、CSRF double-submit 与两步换取；令牌管理端点继续只
+  接受 cookie 会话，App 登出仍只能清除本地令牌。契约新增
+  `ApiResponseLogin` / `LoginIssuedToken`，双语 API 文档补「登录即换令牌」章节，
+  Go 全量测试、OpenAPI 引用、文档与架构边界门禁通过：
+  `sessions/2026-10-02-app-client-login-token.md`，
+  `decisions/2026-10-02-app-client-login-token.md`
+
+- seed:forum 全量假数据（2026-10-02）：small profile 现生成用户公开资料、分类
+  分组/分类（站务 → 技术 → 生活目录）、标签、带标签/置顶/浏览数的主题与嵌套
+  评论；新增 `--tags/--pinned/--views-max`，`--categories` 在 small 生效，
+  显式 0 关闭单项。分类/标签走 `forum.Service`（super_admin），收尾批量回填
+  计数。开发库实跑 400 主题/1552 评论/16 标签，二次运行 taxonomy `+0/+0/+0`；
+  `go test ./...`、架构边界与文档门禁通过：
+  `sessions/2026-10-02-seed-forum-taxonomy-profiles-handoff.md`
+
+- AI 辅助平台 M0 内核（2026-10-02）：`app/Support/AI` 基础设施（中立补全契约、
+  provider profile、三层配置、三道闸门、双协议适配器、受控出站、Secret Store
+  凭证解析、Postgres 存储、网关编排）、`app/Models/AI` 权限感知服务层、
+  `Http/Controllers/AI` 五个管理端点、Provider 与 bootstrap 装配、OpenAPI 契约、
+  `ai.manage` 权限与本地化，以及两个已应用的迁移。`go test ./...` 121 包全绿、
+  Web 915 pass、目录与文档门禁通过，运行时探测确认新端点返回 401 而非 404，
+  并已用真实 DeepSeek key 打通端到端调用（含生产 SSRF 守卫）。执行路径为 Core
+  协议翻译 + Host 受控出站，`ai.provider` 槽位保留给非标准协议。
+  Admin 控制台（供应商与闸门、用量与执行记录，含密钥录入端点）亦已落地并通过
+  类型检查与生产构建。**剩余：渲染态浏览器 QA；M2 审核助手（purpose/middleware
+  扩展点据其提炼）**：
+  `sessions/2026-10-02-ai-assist-platform-design.md`，
+  `plans/2026-10-02-ai-assist-platform.md`，
+  `decisions/2026-10-02-ai-provider-gateway.md`
 
 - Dependabot 告警收敛（2026-10-02）：94 条 open 告警拆解为 3 个 grpc advisory
   × 18 个 Go module（54 条）与 4 个废弃 PHP 分支遗留 `composer.lock`（40 条）。

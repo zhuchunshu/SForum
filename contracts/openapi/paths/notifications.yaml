@@ -252,3 +252,55 @@ webPushSubscriptionByID:
       '200': {description: Subscription revoked}
       '401': {$ref: "../components/responses.yaml#/Unauthorized"}
       '404': {$ref: "../components/responses.yaml#/NotFound"}
+
+pushDevices:
+  get:
+    summary: List the current user's registered native push devices
+    operationId: listPushDevices
+    description: |
+      原生推送设备注册（App / 桌面端）。Core 只拥有「设备令牌 ↔ 用户 ↔ App 实例」的
+      归属与生命周期，实际投递（FCM/APNs）由通知通道 provider 插件完成。
+      令牌永不进入响应；`includeRevoked=true` 时包含已撤销设备。
+    security: [{cookieAuth: []}, {bearerAuth: []}]
+    parameters:
+    - name: includeRevoked
+      in: query
+      required: false
+      schema: {type: boolean}
+      description: Include revoked devices for the current account.
+    responses:
+      '200': {description: Own redacted devices, content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/ApiResponsePushDevices"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+  post:
+    summary: Register or refresh a native push device token
+    operationId: registerPushDevice
+    description: |
+      幂等注册：同一 (platform, token) 只保留一条记录，重复注册会刷新 last_seen 并把归属
+      改绑到当前账号（换账号登录、令牌轮换、卸载重装都走这条路径）；同一 deviceId 的旧
+      令牌行会被自动撤销。409 不存在：并发注册以最后一次为准。
+    security: [{cookieAuth: []}, {bearerAuth: []}]
+    requestBody:
+      required: true
+      content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/PushDeviceRegisterRequest"}}}
+    responses:
+      '200': {description: Registered device (redacted), content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/ApiResponsePushDevice"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '422': {description: "Invalid payload or unsupported platform (notification.push_device_invalid / notification.push_device_platform_unsupported / notification.push_device_token_too_long)"}
+pushDeviceByDeviceID:
+  delete:
+    summary: Revoke one native push device of the current user
+    operationId: revokePushDevice
+    description: |
+      按客户端已知的稳定 `deviceId` 撤销。不存在或不属于当前账号统一返回 404，
+      避免暴露设备归属。
+    security: [{cookieAuth: []}, {bearerAuth: []}]
+    parameters:
+    - name: deviceId
+      in: path
+      required: true
+      schema: {type: string}
+      description: Client-generated stable install id used at registration.
+    responses:
+      '200': {description: Device revoked, content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/ApiResponsePushDeviceRevoked"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '404': {description: "Unknown device or another account's device (notification.push_device_not_found)"}

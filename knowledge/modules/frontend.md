@@ -795,6 +795,17 @@ Architecture sources:
   values, so later operator changes continue to flow through. `app.vue` and
   theme-defined `error.vue` documents share this same resolver rather than
   maintaining separate precedence branches.
+- Pinned rows in the homepage/category/tag topic list are presentation-only
+  state: `SFHomeTopicRow` adds `sf-home-topic-row--pinned` (plus
+  `sf-home-topic-row__pin-badge` on the badge) and
+  `assets/css/sforum-home-pinned.css` owns the tint, left accent bar, and hover
+  values. That stylesheet must load after `sforum-home.css` because the default
+  theme skin forces `.sf-home-topic-row` backgrounds to `transparent`; the
+  pinned rules use the same specificity but later order so Core fallback and
+  theme-skin rendering agree. Colors come from `--sf-accent` /
+  `--sf-accent-dark` with `--sf-public-row-pinned-*` override hooks instead of
+  hard-coded grays, and the 1000-line budget keeps `sforum-home.css` free of
+  new pinned-only rules.
 
 ## Editor And Content UI
 

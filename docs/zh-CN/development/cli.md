@@ -316,16 +316,22 @@ set -a; . ../../.env; set +a   # 若在 apps/api 下，按你的 .env 实际路�
 
 go run ./cmd/sforum seed:forum
 go run ./cmd/sforum seed:forum --count=100 --users=20 --comments-max=3
+go run ./cmd/sforum seed:forum --count=400 --users=60 --comments-max=8 --tags=16 --pinned=4
+go run ./cmd/sforum seed:forum --categories=0 --tags=0 --pinned=0   # 只造用户/主题/评论
 go run ./cmd/sforum seed:forum --profile=perf-1m --dry-run
 go run ./cmd/sforum seed:forum --database-url 'postgres://…'
 ```
 
 | 特性 | 说明 |
 | --- | --- |
-| 写入方式 | 追加；可重复跑 |
+| 生成内容 | 用户与公开资料、分类分组/分类、标签、主题（标签/置顶/浏览数）、嵌套评论 |
+| 写入方式 | 追加；可重复跑（已存在的分类/标签会跳过） |
 | 事件 | 不触发领域事件 |
 | 环境 | **仅开发/测试**，勿对生产库使用 |
 | 依赖 | `DATABASE_URL` 或 `--database-url` |
+| 权限 | 分类/标签需要 `super_admin`；空库首次运行第一个种子用户即超管 |
+
+分类与标签来自内置目录（站务 → 技术 → 生活），只用于假数据，运营可在后台改名或删除。
 
 `seed:forum` 主要 flags（完整列表以 `--help` 为准）：
 
@@ -335,14 +341,19 @@ go run ./cmd/sforum seed:forum --database-url 'postgres://…'
 | `--count` | 1000 | 主题数（perf-1m 默认 1,000,000） |
 | `--users` | 50 | 假用户数（perf-1m 默认 200） |
 | `--comments-max` | 5 | 普通主题最多评论数（perf-1m 默认 0） |
-| `--categories` | 0 | perf-1m 分类数（默认 20） |
+| `--categories` | 0 | small：内置分类目录前 N 个（默认 6，含分组）；perf-1m：分类数（默认 20） |
+| `--tags` | 0 | small：内置标签数（默认 12） |
+| `--pinned` | 0 | small：置顶主题数（默认 3，落在公告分类） |
+| `--views-max` | 0 | small：普通主题浏览数上限（默认 500；置顶取 `[max, 2*max)`） |
 | `--hot-comments` | 0 | perf-1m 热帖评论数（默认 50000） |
 | `--hot-slug` | 空 | perf-1m 热帖 slug（默认 `perf-hot-thread`） |
-| `--category-slug` | 空 | small 模式发布分类 slug（默认 `general`） |
+| `--category-slug` | 空 | small：主题全部发到该分类（默认按目录分布） |
 | `--batch` | 20 | 日志/批大小（perf-1m 默认 5000） |
 | `--dry-run` | false | 只打印计划 |
 | `--confirm-perf-db` | false | perf-1m 非 dry-run 必填 |
 | `--database-url` | 环境变量 | 覆盖 `DATABASE_URL` |
+
+small 模式下 `--categories/--tags/--pinned/--views-max` 显式传 `0` 表示关闭该项。
 
 `seed:perf` 是 `seed:forum --profile=perf-1m` 的别名，拥有相同的 perf 参数
 （`--count` 默认 1,000,000、`--users` 200、`--categories` 20、

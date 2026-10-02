@@ -13,11 +13,15 @@ import (
 )
 
 // seedDeps 把 runSeed 依赖的 service/store 收拢在一起，方便命令装配。
-// forumStore 用于 ListCategories（service.ListCategories 直接透传 store），
-// 其余写操作都走 service，保证权限、渲染、计数器与真实路径一致。
+// 分类/标签创建需要 super_admin（staffActors），资料与收尾阶段可缺省（nil 即跳过）。
 type seedDeps struct {
 	identityService identityService
 	forumService    forumService
+	actors          actorLoader
+	taxonomy        seedTaxonomyService
+	profiles        seedProfileService
+	staffActors     staffActorLoader
+	postPass        seedPostPass
 }
 
 // identityService 是 identity.Service 在 seed 场景下用到的方法子集。
@@ -40,16 +44,22 @@ type actorLoader interface {
 
 // seedResult 记录一次 seed 运行的产物统计。
 type seedResult struct {
-	UsersCreated    int
-	TopicsCreated   int
-	CommentsCreated int
-	Elapsed         time.Duration
+	UsersCreated      int
+	ProfilesSeeded    int
+	GroupsCreated     int
+	CategoriesCreated int
+	TagsCreated       int
+	TopicsCreated     int
+	CommentsCreated   int
+	PinnedTopics      int
+	Elapsed           time.Duration
 }
 
 func (r seedResult) String() string {
 	return fmt.Sprintf(
-		"%d users, %d topics, %d comments in %s",
-		r.UsersCreated, r.TopicsCreated, r.CommentsCreated, r.Elapsed.Round(time.Millisecond),
+		"%d users, %d profiles, %d groups, %d categories, %d tags, %d topics, %d comments, %d pinned in %s",
+		r.UsersCreated, r.ProfilesSeeded, r.GroupsCreated, r.CategoriesCreated, r.TagsCreated,
+		r.TopicsCreated, r.CommentsCreated, r.PinnedTopics, r.Elapsed.Round(time.Millisecond),
 	)
 }
 
@@ -57,34 +67,38 @@ func (r seedResult) String() string {
 //
 // 写入路径完全复用领域 Service：
 //   - 用户走 identity.Register（自动分配 member 角色、走 argon2 密码哈希）
+//   - 分类/标签走 forum.CreateCategoryGroup / CreateCategory / CreateTag（需要 super_admin）
+//   - 资料走 profile.UpdateMyProfile
 //   - 主题/评论走 forum.CreateTopic / CreateComment（自动渲染 Markdown、生成 slug、
 //     维护 path_key/depth、更新各类计数器、做权限检查）
 //
 // 因此种子数据与真实用户产生的数据在完整性上没有差别。代价是速度：每条记录一个事务，
 // 串行执行。这是开发/测试种子数据，简单可靠优先于吞吐。
+//
+// 顺序有硬约束：先注册用户（空库上第一个用户会成为 super_admin），再创建分类/标签，
+// 最后才能写主题——forum.tags.creation_mode 默认 controlled，未登记标签会让话题写入失败。
 func runSeed(
 	ctx context.Context,
 	opts seedOptions,
 	dataset seedDataset,
+	taxonomyPlan seedTaxonomyPlan,
 	deps seedDeps,
-	actors actorLoader,
 	logf func(format string, args ...any),
 ) (seedResult, error) {
 	start := time.Now()
 	result := seedResult{}
+	// 收尾阶段（资料语料抽取）使用的随机源；主题/评论计划已在 dataset 中固化。
+	rng := newSeededRand()
 
-	// 1. 校验目标分类存在。空则用 forum 默认 general。
-	categorySlug := strings.TrimSpace(opts.CategorySlug)
-	categories, err := deps.forumService.ListCategories(ctx)
-	if err != nil {
-		return result, fmt.Errorf("list categories: %w", err)
-	}
-	if categorySlug == "" {
-		categorySlug = "general"
-	}
-	if !categoryExists(categories, categorySlug) {
-		available := categorySlugs(categories)
-		return result, fmt.Errorf("category %q not found; available: %v", categorySlug, available)
+	// 1. 显式 --category-slug 时先做存在性校验，避免写了一半才失败。
+	if explicitSlug := strings.TrimSpace(opts.CategorySlug); explicitSlug != "" {
+		categories, err := deps.forumService.ListCategories(ctx)
+		if err != nil {
+			return result, fmt.Errorf("list categories: %w", err)
+		}
+		if !categoryExists(categories, explicitSlug) {
+			return result, fmt.Errorf("category %q not found; available: %v", explicitSlug, categorySlugs(categories))
+		}
 	}
 
 	// 2. 批量注册假用户。冲突时重生成后缀重试。
@@ -97,25 +111,68 @@ func runSeed(
 		userIDs = append(userIDs, current.ID)
 		result.UsersCreated++
 		if result.UsersCreated%10 == 0 {
-			logf("  registered %d/%d users", result.UsersCreated, len(dataset.Users))
+			logf("  registered %d/%d users\n", result.UsersCreated, len(dataset.Users))
 		}
 	}
-	logf("registered %d seed users", result.UsersCreated)
+	logf("registered %d seed users\n", result.UsersCreated)
 
-	// 3. 逐个主题写入，并在主题下生成评论。
+	// 3. 创建缺失的分类分组/分类/标签（追加语义，可重复执行）。
+	if !taxonomyPlan.empty() {
+		staff, err := deps.staffActors.LoadStaffActor(ctx)
+		if err != nil {
+			return result, err
+		}
+		taxonomy, err := ensureSeedTaxonomy(ctx, deps.taxonomy, staff, taxonomyPlan, logf)
+		if err != nil {
+			return result, err
+		}
+		result.GroupsCreated = taxonomy.GroupsCreated
+		result.CategoriesCreated = taxonomy.CategoriesCreated
+		result.TagsCreated = taxonomy.TagsCreated
+	}
+
+	// 4. 校验目标分类存在（可能刚由第 3 步创建）。空则用 forum 默认 general。
+	categorySlug := strings.TrimSpace(opts.CategorySlug)
+	if categorySlug == "" {
+		categorySlug = defaultSeedCategorySlug
+	}
+	categories, err := deps.forumService.ListCategories(ctx)
+	if err != nil {
+		return result, fmt.Errorf("list categories: %w", err)
+	}
+	if !categoryExists(categories, categorySlug) {
+		available := categorySlugs(categories)
+		return result, fmt.Errorf("category %q not found; available: %v", categorySlug, available)
+	}
+
+	// 5. 用户公开资料（简介/签名/所在地/个人站点）。
+	profiles, err := applySeedProfiles(ctx, deps.profiles, deps.actors, userIDs, rng, logf)
+	if err != nil {
+		return result, err
+	}
+	result.ProfilesSeeded = profiles
+
+	// 6. 逐个主题写入，并在主题下生成评论。
+	presentations := make([]seedTopicPresentation, 0, len(dataset.Topics))
 	for i, plan := range dataset.Topics {
 		if err := ctx.Err(); err != nil {
 			return result, err
 		}
 
-		authorActor, err := actors.LoadActor(ctx, userIDs[plan.Topic.AuthorIndex])
+		authorActor, err := deps.actors.LoadActor(ctx, userIDs[plan.Topic.AuthorIndex])
 		if err != nil {
 			return result, fmt.Errorf("load actor for topic %d: %w", i+1, err)
 		}
 
+		topicCategory := strings.TrimSpace(plan.Topic.CategorySlug)
+		if topicCategory == "" {
+			topicCategory = categorySlug
+		}
+
 		topic, err := deps.forumService.CreateTopic(ctx, authorActor, forum.CreateTopicInput{
-			CategorySlug: categorySlug,
+			CategorySlug: topicCategory,
 			Title:        plan.Topic.Title,
+			TagSlugs:     plan.Topic.TagSlugs,
 			Content: forum.ContentInput{
 				RawContent:   plan.Topic.Body,
 				SourceFormat: forum.SourceFormatMarkdown,
@@ -126,12 +183,20 @@ func runSeed(
 			return result, fmt.Errorf("create topic %d %q: %w", i+1, plan.Topic.Title, err)
 		}
 		result.TopicsCreated++
+		if plan.Topic.Pinned {
+			result.PinnedTopics++
+		}
+		presentations = append(presentations, seedTopicPresentation{
+			TopicID: topic.ID,
+			Views:   plan.Topic.ViewCount,
+			Pinned:  plan.Topic.Pinned,
+		})
 
 		// 在当前主题下生成评论。topicCommentIDs 按创建顺序保存已建评论 ID，
 		// 用于把 seedComment.ParentOffset 映射成真实评论 ID。
 		topicCommentIDs := make([]int64, 0, len(plan.Comments))
 		for _, c := range plan.Comments {
-			commenterActor, err := actors.LoadActor(ctx, userIDs[c.AuthorIndex])
+			commenterActor, err := deps.actors.LoadActor(ctx, userIDs[c.AuthorIndex])
 			if err != nil {
 				return result, fmt.Errorf("load actor for comment: %w", err)
 			}
@@ -159,7 +224,17 @@ func runSeed(
 		}
 
 		if opts.Batch > 0 && result.TopicsCreated%opts.Batch == 0 {
-			logf("  seeded %d/%d topics (%d comments so far)", result.TopicsCreated, len(dataset.Topics), result.CommentsCreated)
+			logf("  seeded %d/%d topics (%d comments so far)\n", result.TopicsCreated, len(dataset.Topics), result.CommentsCreated)
+		}
+	}
+
+	// 7. 收尾：回填浏览数/置顶，并按真实行数刷新分类计数。
+	if deps.postPass != nil {
+		if err := deps.postPass.ApplyTopicPresentation(ctx, presentations); err != nil {
+			return result, err
+		}
+		if err := deps.postPass.RefreshCounters(ctx); err != nil {
+			return result, err
 		}
 	}
 

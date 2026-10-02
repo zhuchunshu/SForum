@@ -20,6 +20,7 @@ directory. Completed, cancelled, and superseded plans live under
 
 | Plan | Status |
 | --- | --- |
+| `2026-10-02-ai-assist-platform.md` | **ready** -- Host AI gateway contracts and the plugin/provider split are approved; M0 kernel work may start |
 | `2026-07-30-image-sticker-platform.md` | **active** -- Forum Canvas base editor verified; sticker M0 contract and remaining picker decisions are next |
 | `2026-07-13-trusted-plugin-theme-platform-v3.md` | **active** -- Protocol migration complete; theme-loader LTS residual and production-rewire honesty remain |
 | `2026-07-13-trusted-plugin-theme-platform-v3-progress.md` | **active** -- durable residual ledger; do not claim 100% |

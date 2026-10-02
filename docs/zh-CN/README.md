@@ -4,6 +4,45 @@
 
 SForum 是可维护、插件优先的开源论坛框架：核心做宿主与契约，垂直能力与厂商逻辑走扩展。
 
+## 界面预览
+
+### 论坛首页
+主题流、分类导航与站点实时统计一目了然。
+
+![SForum 论坛首页：主题流、分类导航与站点统计](../assets/screenshots/home.png)
+
+### 分类浏览
+按版块分组查看全部分类，以及每个分类的主题与回复数。
+
+![分类浏览：按版块分组，显示主题与回复数](../assets/screenshots/categories.png)
+
+### 话题与讨论
+正文、标签与楼中楼回复；右栏的扩展位由运行时主题注入。
+
+![话题详情：正文、标签与讨论回复](../assets/screenshots/topic-detail.png)
+
+### 发帖编辑器
+富文本工具栏、草稿控制、发布前检查与发布设置同屏完成。
+
+![发帖编辑器：富文本工具栏与发布前检查](../assets/screenshots/composer.png)
+
+### 注册与登录
+账号登录与注册、密码强度校验，支持中英文界面与外观切换。
+
+![登录页：品牌区与账号登录表单](../assets/screenshots/login.png)
+
+![注册页：账号信息与密码强度校验](../assets/screenshots/register.png)
+
+### 账户安全
+登录设备、活跃会话与登录历史，发现异常可立即下线。
+
+![账户安全：登录设备与登录历史](../assets/screenshots/account-security.png)
+
+### 管理后台 · 扩展总览
+插件与主题状态、宿主能力声明、ZIP 上传一站式查看。
+
+![管理后台扩展总览：插件与主题状态](../assets/screenshots/admin-extensions.png)
+
 ## 按角色阅读
 
 | 你是… | 从这里开始 |

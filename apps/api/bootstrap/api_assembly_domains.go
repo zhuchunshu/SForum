@@ -35,6 +35,7 @@ import (
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 	search "github.com/zhuchunshu/sforum/apps/api/app/Support/Search"
+	secretstore "github.com/zhuchunshu/sforum/apps/api/app/Support/SecretStore"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
@@ -122,7 +123,9 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	pluginRuntimeStopTimeout := extensionPlatform.pluginRuntimeStopTimeout
 	stopPluginRuntimeCoordinator := extensionPlatform.stopPluginRuntimeCoordinator
 	closePluginRuntime := extensionPlatform.closePluginRuntime
-	notificationStore := notifications.NewPostgresStoreWithAvatar(pool, avatarOptionsAdapter{options: infrastructure.optionsService}).WithRevisionWakeups(ctx)
+	notificationStore := notifications.NewPostgresStoreWithAvatar(pool, avatarOptionsAdapter{options: infrastructure.optionsService}).
+		WithPushDeviceCipher(infrastructure.optionCipher).
+		WithRevisionWakeups(ctx)
 	closeNotificationStore := notificationStore.Close
 	mailOutbox := notifications.NewOutbox(pool, notificationStore, jobDispatcher, options.NewMailSettings(optionsService)).
 		WithDeliveryPolicyResolver(notificationStore).
@@ -323,6 +326,13 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	)
 	moderationReadModels, _ := forumCachedStore.(moderation.DecisionReadModelInvalidator)
 	moderationProvider := providers.NewModerationWorkbenchProviderWithIndexer(moderationStore, forumStore, identityStore, authSessions, searchIndexer, moderationReadModels)
+	// AI 网关：默认关闭，未启用前不产生任何出站调用。密钥只以 Secret Store
+	// 引用形式进入配置，因此这里传入的是 Host 的 Secret Store 服务。
+	var aiSecrets *secretstore.Service
+	if extensionPlatform.hostPlatform != nil {
+		aiSecrets = extensionPlatform.hostPlatform.Secrets
+	}
+	aiProvider := providers.NewAIProvider(pool, aiSecrets, identityStore, authSessions)
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
 	systemUpdatesProvider := providers.NewSystemUpdatesProvider(
 		systemupdates.NewService(options.NewSystemUpdatesSource(optionsService), systemupdates.WithLogger(logger)),
@@ -520,6 +530,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 
 	return &apiCoreStack{
 		adminOverviewProvider:     adminOverviewProvider,
+		aiProvider:                aiProvider,
 		systemUpdatesProvider:     systemUpdatesProvider,
 		apiTokenService:           apiTokenService,
 		attachmentsProvider:       attachmentsProvider,

@@ -139,6 +139,7 @@ export default defineNuxtConfig({
     '~/assets/css/sforum-altcha.css',
     '~/assets/css/sforum-theme.css',
     '~/assets/css/sforum-home.css',
+    '~/assets/css/sforum-home-pinned.css',
     '~/assets/css/sforum-moderation.css',
     '~/assets/css/sforum-topic.css',
     '~/assets/css/sforum-taxonomy.css',

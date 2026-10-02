@@ -8,6 +8,15 @@ approval, or rejection.
 
 ## Notification Platform V2
 
+**原生推送设备注册（2026-10-02）**：Core 新增 `push_devices` 注册表与自服务端点
+`GET/POST /api/v1/push/devices`、`DELETE /api/v1/push/devices/{deviceId}`：令牌按
+`(platform, token_hash)` 唯一，重复注册刷新并改绑到当前账号，同 `deviceId` 的旧令牌
+自动撤销（覆盖换账号、FCM/APNs 令牌轮换、重装），令牌以 SHA-256 指纹 + Core 密钥
+密文落库且任何响应都不回显。传输（FCM/APNs 发送）仍属 provider 插件；本轮未声明
+`native_push` 通道键——通道键 + provider 槽 + 参考插件应一起落地。
+决策：`../decisions/2026-10-02-native-push-device-registry.md`。
+
+
 Notification Platform V2 is **completed**:
 
 - Task book:

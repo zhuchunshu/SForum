@@ -120,6 +120,12 @@ const (
 	NameSiteMaintenanceEnabled = "site.maintenance.enabled"
 	NameSiteMaintenanceMessage = "site.maintenance.message"
 
+	// 客户端版本策略：原生 App / 桌面端在冷启动读取公共选项自行判定是否强制升级。
+	// 空值表示不限制（默认不阻塞任何客户端）。
+	NameClientMinimumVersion     = "client.minimum_version"
+	NameClientRecommendedVersion = "client.recommended_version"
+	NameClientUpdateNotice       = "client.update_notice"
+
 	NameForumDefaultCategorySlug    = "forum.default_category_slug"
 	NameForumTagCreationMode        = "forum.tags.creation_mode"
 	NameForumTagPublicPages         = "forum.tags.public_pages"
