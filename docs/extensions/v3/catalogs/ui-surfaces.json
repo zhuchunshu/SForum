@@ -2641,6 +2641,36 @@
     "targetRegistry": "P9 Component Registry"
   },
   {
+    "id": "core.component.shared.sfshortcode_protected_node_view",
+    "contractVersion": "sforum.component.shared.sfshortcode_protected_node_view@1",
+    "kind": "component",
+    "source": "apps/web/app/components/editor/shortcodes/SFShortcodeProtectedNodeView.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfshortcode_reference_dialog",
+    "contractVersion": "sforum.component.shared.sfshortcode_reference_dialog@1",
+    "kind": "component",
+    "source": "apps/web/app/components/editor/shortcodes/SFShortcodeReferenceDialog.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfshortcode_reference_node_view",
+    "contractVersion": "sforum.component.shared.sfshortcode_reference_node_view@1",
+    "kind": "component",
+    "source": "apps/web/app/components/editor/shortcodes/SFShortcodeReferenceNodeView.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sfskeleton",
     "contractVersion": "sforum.component.shared.sfskeleton@1",
     "kind": "component",

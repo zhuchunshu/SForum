@@ -57,11 +57,16 @@ assert(types.includes('export type AdminExtensionVersion = {'), 'web types must 
 assert(types.includes('stagedVersion?: AdminExtensionVersion'), 'AdminExtension must expose stagedVersion')
 
 const manager = read('apps/web/app/composables/admin/useAdminExtensionsManager.ts')
+const upgradeFlow = read('apps/web/app/composables/admin/useAdminExtensionUpgradeFlow.ts')
 const lifecyclePresentation = read('apps/web/app/utils/admin/extensions/lifecyclePresentation.ts')
 assert(manager.includes('activationPending?: boolean'), 'upload result type must expose activationPending')
 assert(manager.includes("t('admin.extensions.upgradeStagedHint')"), 'staged upload toast must explain pending activation')
 assert(manager.includes("headers: { 'Idempotency-Key': idempotencyKey }"), 'lifecycle requests must send Idempotency-Key')
 assert(manager.includes('globalThis.crypto.randomUUID()'), 'each lifecycle operation must use a UUID idempotency key')
+assert(upgradeFlow.includes('/admin/extensions/${item.id}/${action}'), 'staged candidates must choose the native upgrade or restart bridge lifecycle operation')
+assert(upgradeFlow.includes('extensionUpgradeLifecycleAction(item)'), 'upgrade flow must preserve the Host legacy-to-V2 restart bridge')
+assert(upgradeFlow.includes('globalThis.crypto.randomUUID()'), 'single and bulk upgrades must use per-operation UUID idempotency keys')
+assert(upgradeFlow.includes("executableTrustPath(item, 'upgrade')"), 'upgrade must review the exact staged artifact before activation')
 for (const action of ["'enable'", "'disable'", "'upgrade'", "'rollback'"]) {
   assert(lifecyclePresentation.includes(action), `frontend lifecycle helper must cover V2 operation ${action}`)
 }
@@ -69,12 +74,15 @@ for (const action of ["'enable'", "'disable'", "'upgrade'", "'rollback'"]) {
 const overview = read('apps/web/app/pages/admin/extensions/index.vue')
 assert(overview.includes("t('admin.extensions.stagedVersionBadge'"), 'extension list must identify a staged candidate')
 assert(overview.includes("t('admin.extensions.stagedVersion')"), 'extension details must identify the staged version')
+assert(overview.includes("t('admin.extensions.upgradeAll'"), 'extension overview must expose bulk plugin upgrade')
+assert(overview.includes('purpose="upgrade"'), 'extension overview must reuse exact-artifact trust review for upgrade')
 
 for (const localeName of ['zh-CN', 'en-US']) {
   const locale = JSON.parse(read(`apps/web/i18n/locales/${localeName}.json`))
   const messages = locale.admin?.extensions
   assert(messages?.upgradeStaged && messages?.upgradeStagedHint, `${localeName} must describe the staged upload result`)
-  assert(messages?.stagedVersion && messages?.stagedVersionBadge, `${localeName} must label the staged version`)
+  assert(messages?.stagedVersion && messages?.stagedVersionBadge && messages?.stagedVersionHint, `${localeName} must explain the staged version`)
+  assert(messages?.upgrade && messages?.upgradeAll && messages?.upgradeAllSuccess, `${localeName} must label single and bulk upgrade actions`)
 }
 
 console.log('Staged extension management contract validation passed.')

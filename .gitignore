@@ -110,3 +110,6 @@ extensions/builtin/plugins/*/backend/plugin
 storage/
 # 可选扩展随仓库发布；仅忽略本地构建出的后端二进制
 extensions/optional/plugins/*/backend/plugin
+
+# OpenCode 内部工作目录
+.omo/

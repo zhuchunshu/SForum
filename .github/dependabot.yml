@@ -7,7 +7,7 @@
 # these PRs.
 #
 # Module coverage:
-# - apps/api (the core Go module), the seven protected built-in extension
+# - apps/api (the core Go module), the eight protected built-in extension
 #   backend modules, plus the tooling/test modules /tools/proto and
 #   /tests/compat are tracked.
 # - extensions/fixtures/** backend modules are deliberately NOT tracked: they
@@ -98,6 +98,17 @@ updates:
 
   - package-ecosystem: "gomod"
     directory: "/extensions/builtin/plugins/sforum-search-site/backend"
+    schedule:
+      interval: "weekly"
+    groups:
+      builtin-go:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "gomod"
+    directory: "/extensions/builtin/plugins/sforum-shortcodes/backend"
     schedule:
       interval: "weekly"
     groups:

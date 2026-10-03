@@ -192,6 +192,7 @@ function routePolicy(route) {
   if (path.startsWith('/api/v1/notification-preferences')) return ['login', 'current recipient ownership']
   if (path === '/api/v1/moderation/reports') return ['login', 'active actor and report deduplication policy']
   if (path === '/api/v1/me/content-review') return ['login', 'current active author ownership']
+  if (path === '/api/v1/composer/references') return ['login', 'current active actor; visibility-filtered composer references']
   if (path.startsWith('/api/v1/entity-meta/') && method !== 'GET') return ['permission', 'entity ownership plus field definition write policy']
   if (path.startsWith('/api/v1/entity-meta/')) return ['contextual', 'public definition visibility or actor/resource read policy']
   if (path === '/api/v1/attachments' && method === 'POST') return ['permission', 'attachment.upload plus upload/media policy']
@@ -200,6 +201,7 @@ function routePolicy(route) {
   if (/\/topics\/:topicID\/(hide|restore)$/.test(path)) return ['permission', 'topic.delete_any plus state policy']
   if (/\/topics\/:topicID\/(lock|unlock)$/.test(path)) return ['permission', 'topic.lock or allowed author close policy']
   if (/\/topics\/:topicID\/(pin|unpin)$/.test(path)) return ['permission', 'topic.pin']
+  if (path === '/api/v1/topics/:topicID/edit-source') return ['permission', 'topic.edit_own or topic.edit_any']
   if (path === '/api/v1/topics/:topicID' && method === 'PATCH') return ['permission', 'topic.edit_own or topic.edit_any']
   if (path === '/api/v1/topics/:topicID' && method === 'DELETE') return ['permission', 'topic.delete_own or topic.delete_any']
   if (/^\/api\/v1\/topics\/:topicID\/revisions/.test(path)) {
@@ -213,6 +215,7 @@ function routePolicy(route) {
     if (path.endsWith('/restore')) return ['permission', 'post.revision.view_any plus post.edit_any']
     return ['permission', 'post.revision.view_any']
   }
+  if (path === '/api/v1/comments/:commentID/edit-source') return ['permission', 'post.edit_own or post.edit_any']
   if (path.startsWith('/api/v1/comments/') && method !== 'GET') return ['permission', 'post edit/delete own or any policy']
   if (path === '/api/v1/web-options' && method === 'PUT') return ['permission', 'option-owner permission dispatch']
   if (path.startsWith('/api/v1/webhooks/inbound')) return ['public', 'source-specific signature/idempotency policy']
@@ -259,6 +262,7 @@ const reviewedGuardPolicies = new Map([
   ['public read contract', { kind: 'public' }],
   ['exact public frontend artifact trust, digest, and live runtime policy', { kind: 'public' }],
   ['current browser session', { kind: 'login' }],
+  ['current active actor; visibility-filtered composer references', { kind: 'login' }],
   ['current active actor; Host-filtered personal settings projection', { kind: 'contextual', evaluatorId: 'core.guard.identity.self_credentials' }],
   ['identity.provider.manage', { kind: 'permission_any', permissions: ['identity.provider.manage'] }],
   ['Host-owned OAuth callback; reserved Core route closed to Route Registry replacement (state/PKCE/session integrity; plugins return assertions only)', { kind: 'contextual', evaluatorId: 'core.guard.identity.bootstrap' }],
@@ -277,6 +281,7 @@ const reviewedGuardPolicies = new Map([
   ['moderation.review; moderation.view_ip controls sensitive fields', { kind: 'contextual', permissions: ['moderation.review'], evaluatorId: 'core.guard.moderation.review' }],
   ['option-owner permission dispatch', { kind: 'contextual', evaluatorId: 'core.guard.options.owner' }],
   ['post edit/delete own or any policy', { kind: 'contextual', permissions: ['post.edit_own', 'post.edit_any', 'post.delete_own', 'post.delete_any'], evaluatorId: 'core.guard.forum.comment_write' }],
+  ['post.edit_own or post.edit_any', { kind: 'contextual', permissions: ['post.edit_own', 'post.edit_any'], evaluatorId: 'core.guard.forum.comment_edit' }],
   ['post.create plus topic/publication policy', { kind: 'contextual', permissions: ['post.create'], evaluatorId: 'core.guard.forum.comment_create' }],
   ['topic.create plus forum publication policy', { kind: 'contextual', permissions: ['topic.create'], evaluatorId: 'core.guard.forum.topic_create' }],
   ['topic.delete_any plus state policy', { kind: 'contextual', permissions: ['topic.delete_any'], evaluatorId: 'core.guard.forum.topic_state' }],

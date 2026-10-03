@@ -245,7 +245,7 @@
     "list": true,
     "columns": false,
     "filters": true,
-    "rowActions": false,
+    "rowActions": true,
     "bulkActions": false,
     "forms": true,
     "notices": true,

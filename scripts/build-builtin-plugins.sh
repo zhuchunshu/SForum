@@ -88,6 +88,11 @@ main() {
   refresh_v3_plugin_digest \
     "$STAGING_ROOT/plugins/sforum-web-push"
 
+  build_builtin_plugin "sforum-shortcodes" \
+    "$STAGING_ROOT/plugins/sforum-shortcodes/backend"
+  refresh_v3_plugin_digest \
+    "$STAGING_ROOT/plugins/sforum-shortcodes"
+
   write_air_env
 
   echo "Built-in plugins staged at: $STAGING_ROOT"

@@ -1430,6 +1430,12 @@
       "path": "/api/v1/comments/:commentID"
     },
     {
+      "id": "core.route.forum.comment_edit_source",
+      "contractVersion": "sforum.route.forum.comment_edit_source@1",
+      "method": "GET",
+      "path": "/api/v1/comments/:commentID/edit-source"
+    },
+    {
       "id": "core.route.forum.replies",
       "contractVersion": "sforum.route.forum.replies@1",
       "method": "GET",
@@ -1464,6 +1470,12 @@
       "contractVersion": "sforum.route.forum.composer_toolbar@1",
       "method": "GET",
       "path": "/api/v1/composer/toolbar"
+    },
+    {
+      "id": "core.route.forum.composer_references",
+      "contractVersion": "sforum.route.forum.composer_references@1",
+      "method": "GET",
+      "path": "/api/v1/composer/references"
     },
     {
       "id": "core.route.entity_meta.list_values",
@@ -1512,6 +1524,12 @@
       "contractVersion": "sforum.route.extensions.public_content_catalog@1",
       "method": "GET",
       "path": "/api/v1/extensions/runtime/content-catalog"
+    },
+    {
+      "id": "core.route.extensions.public_content_styles",
+      "contractVersion": "sforum.route.extensions.public_content_styles@1",
+      "method": "GET",
+      "path": "/api/v1/extensions/runtime/content-styles"
     },
     {
       "id": "core.route.extensions.public_editor_catalog",
@@ -1890,6 +1908,12 @@
       "contractVersion": "sforum.route.forum.update_topic@1",
       "method": "PATCH",
       "path": "/api/v1/topics/:topicID"
+    },
+    {
+      "id": "core.route.forum.topic_edit_source",
+      "contractVersion": "sforum.route.forum.topic_edit_source@1",
+      "method": "GET",
+      "path": "/api/v1/topics/:topicID/edit-source"
     },
     {
       "id": "core.route.forum.comments",
@@ -4641,6 +4665,30 @@
       "owners": ["public"],
       "state": "active",
       "source": "apps/web/app/components/editor/SFEditorImageUploadModal.vue"
+    },
+    {
+      "id": "core.component.shared.sfshortcode_reference_dialog",
+      "contractVersion": "sforum.component.shared.sfshortcode_reference_dialog@1",
+      "kind": "component",
+      "owners": ["public"],
+      "state": "active",
+      "source": "apps/web/app/components/editor/shortcodes/SFShortcodeReferenceDialog.vue"
+    },
+    {
+      "id": "core.component.shared.sfshortcode_reference_node_view",
+      "contractVersion": "sforum.component.shared.sfshortcode_reference_node_view@1",
+      "kind": "component",
+      "owners": ["public"],
+      "state": "active",
+      "source": "apps/web/app/components/editor/shortcodes/SFShortcodeReferenceNodeView.vue"
+    },
+    {
+      "id": "core.component.shared.sfshortcode_protected_node_view",
+      "contractVersion": "sforum.component.shared.sfshortcode_protected_node_view@1",
+      "kind": "component",
+      "owners": ["public"],
+      "state": "active",
+      "source": "apps/web/app/components/editor/shortcodes/SFShortcodeProtectedNodeView.vue"
     },
     {
       "id": "core.component.shared.sfmobile_sidebar_content",
