@@ -11,6 +11,7 @@ import {
   type ForumCommentListQuery,
   type ForumCommentPage,
   type ForumContentInput,
+  type ForumEditableContentSource,
   type ForumTag,
   type ForumTopicAction,
   type ForumTopicActionKey,
@@ -59,6 +60,10 @@ export function useForumApi() {
     return request<ForumTopicDetail>(`/topics/${topicId}`, serverReadOptions)
   }
 
+  function getTopicEditSource(topicId: number) {
+    return request<ForumEditableContentSource>(`/topics/${topicId}/edit-source`, serverReadOptions)
+  }
+
   // 按 slug 查询主题：仅 "纯 slug" URL 模式使用，对应后端 GET /topics/by-slug/:slug。
   function getTopicBySlug(slug: string) {
     return request<ForumTopicDetail>(`/topics/by-slug/${encodeURIComponent(slug)}`, serverReadOptions)
@@ -87,6 +92,10 @@ export function useForumApi() {
       pathWithQuery(`/topics/${topicId}/comments`, buildForumCommentQuery(query)),
       serverReadOptions
     )
+  }
+
+  function getCommentEditSource(commentId: number) {
+    return request<ForumEditableContentSource>(`/comments/${commentId}/edit-source`, serverReadOptions)
   }
 
   // 反查 commentId 在 flat 视图分页下所属的页码；SSR 阶段调用以零闪屏定位 #comment-{id}。
@@ -207,9 +216,11 @@ export function useForumApi() {
     listTopics,
     searchTopics,
     getTopic,
+    getTopicEditSource,
     getTopicBySlug,
     listTopicContributionTimeline,
     listTopicComments,
+    getCommentEditSource,
     resolveCommentPage,
     createTopicComment,
     updateComment,

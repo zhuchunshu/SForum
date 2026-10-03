@@ -8,7 +8,7 @@ import {
   isForumTagSlug,
   normalizeForumTagSlugInput,
   type ForumCategoryGroup,
-  type ForumRenderedContent,
+  type ForumProtectedRenderedContent,
   type ForumTopicDetail,
   type ForumTopicTagSummary
 } from '~/utils/forum/forumTaxonomy'
@@ -23,7 +23,7 @@ type EditableTopic = {
   title: string
   categorySlug: string
   tags?: ForumTopicTagSummary[]
-  content: ForumRenderedContent
+  content: ForumProtectedRenderedContent
   currentRevision: number
 }
 

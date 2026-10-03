@@ -14,6 +14,7 @@ describe('app startup rendering', () => {
     expect(page.authRefreshStarted()).toBe(false)
     expect(page.guestInitialized()).toBe(true)
     expect(page.themeSkinRefreshStarted()).toBe(true)
+    expect(page.publicContentStylesRefreshStarted()).toBe(true)
   })
 
   test('restores auth during SSR when the request carries a session', async () => {
@@ -29,6 +30,7 @@ describe('app startup rendering', () => {
     expect(page.authRefreshStarted()).toBe(true)
     expect(page.guestInitialized()).toBe(false)
     expect(page.themeSkinRefreshStarted()).toBe(true)
+    expect(page.publicContentStylesRefreshStarted()).toBe(true)
   })
 
   test('does not block client setup while startup refresh is still pending', async () => {
@@ -51,6 +53,8 @@ describe('app startup rendering', () => {
     expect(page.authRefreshStarted()).toBe(true)
     expect(page.themeSkinRefreshStarted()).toBe(true)
     expect(page.themeSkinCleared()).toBe(false)
+    expect(page.publicContentStylesRefreshStarted()).toBe(true)
+    expect(page.publicContentStylesCleared()).toBe(false)
   })
 
   test('keeps public theme skin outside admin routes', async () => {
@@ -61,6 +65,8 @@ describe('app startup rendering', () => {
 
     expect(page.themeSkinRefreshStarted()).toBe(false)
     expect(page.themeSkinCleared()).toBe(true)
+    expect(page.publicContentStylesRefreshStarted()).toBe(false)
+    expect(page.publicContentStylesCleared()).toBe(true)
   })
 
   test('preserves page-resolved titles and only supplies the empty-title fallback', async () => {
@@ -95,6 +101,8 @@ function loadAppComponentForStartupTest(options: { server: boolean, routePath?: 
   let guestInitialized = false
   let themeSkinRefreshStarted = false
   let themeSkinCleared = false
+  let publicContentStylesRefreshStarted = false
+  let publicContentStylesCleared = false
   let appHeadFactory: (() => { titleTemplate?: (title?: string) => string }) | undefined
   const mountedCallbacks: Array<() => void | Promise<void>> = []
   const never = new Promise(() => {})
@@ -117,6 +125,7 @@ function loadAppComponentForStartupTest(options: { server: boolean, routePath?: 
     'useExternalAuthFeedback',
     'useAdminAppearancePreview',
     'useAppliedAppearance',
+    'usePublicContentStyles',
     'computed',
     'SFApiConnectionModal',
     executable
@@ -184,6 +193,15 @@ function loadAppComponentForStartupTest(options: { server: boolean, routePath?: 
       savedUserAppearance: ref(null),
       userAppearancePreview: ref(null)
     }),
+    () => ({
+      links: ref([]),
+      refresh: async () => {
+        publicContentStylesRefreshStarted = true
+      },
+      clear: () => {
+        publicContentStylesCleared = true
+      }
+    }),
     computed,
     {}
   )
@@ -196,6 +214,8 @@ function loadAppComponentForStartupTest(options: { server: boolean, routePath?: 
     guestInitialized: () => guestInitialized,
     themeSkinRefreshStarted: () => themeSkinRefreshStarted,
     themeSkinCleared: () => themeSkinCleared,
+    publicContentStylesRefreshStarted: () => publicContentStylesRefreshStarted,
+    publicContentStylesCleared: () => publicContentStylesCleared,
     resolveDocumentTitle: (title?: string) => {
       const template = appHeadFactory?.().titleTemplate
       if (!template) throw new Error('app title template was not registered')

@@ -18,7 +18,9 @@ import {
   normalizeForumTagSlugInput,
   parseForumTagPublicPagesOption,
   tagCloudSizeBucket,
-  tagHotThreshold
+  tagHotThreshold,
+  type ForumEditableContentSource,
+  type ForumRenderedContent
 } from '../../app/utils/forum/forumTaxonomy'
 
 describe('forum taxonomy helpers', () => {
@@ -53,13 +55,44 @@ describe('forum taxonomy helpers', () => {
     expect(editor).toContain("typeof initialContent === 'string' ? { contentType: 'markdown' as const }")
     expect(editPage).toContain('forumEditorInitialContent')
     expect(editPage).not.toContain('.content.rawContent')
-    expect(commentComposer).toContain('forumEditorInitialContent(comment.content)')
+    expect(editPage).toContain('forumApi.getTopicEditSource(topicId.value)')
+    expect(editPage).toContain('forumEditorInitialContent(editSource.value)')
+    expect(commentComposer).toContain('forumApi.getCommentEditSource(comment.id)')
+    expect(commentComposer).toContain('forumEditorInitialContent(source)')
     expect(showPage).toContain(':initial-content="composerInitialContent"')
     expect(commentComposer).not.toContain('comment.content.rawContent')
     expect(topicEditor).toContain('forumEditorInitialContent(props.topic.content)')
     expect(topicEditor).not.toContain('props.topic.content.rawContent')
     expect(adminComment).toContain('forumEditorInitialContent(props.comment.content)')
     expect(adminComment).not.toContain('props.comment.content.rawContent')
+  })
+
+  test('keeps canonical source out of Nuxt-serializable public topic payloads', () => {
+    const marker = 'M1_NUXT_HYDRATION_SOURCE_SECRET'
+    const source: ForumEditableContentSource = {
+      rawContent: marker,
+      sourceFormat: 'editor-document',
+      editorType: 'tiptap',
+      editorVersion: 'sf-editor-v1',
+      contentHash: 'source-only-hash',
+      attachmentIds: [7],
+      currentRevision: 2
+    }
+    const content = {
+      id: 11,
+      htmlContent: '<p>public placeholder</p>',
+      plainText: 'public placeholder',
+      excerpt: 'public placeholder',
+      renderVersion: 'sforum.editor-document@1'
+    } satisfies ForumRenderedContent
+    const hydrationPayload = JSON.stringify({ data: { topic: { id: 42, content } } })
+
+    expect(JSON.stringify(source)).toContain(marker)
+    expect(hydrationPayload).not.toContain(marker)
+    expect(hydrationPayload).not.toContain('rawContent')
+    expect(hydrationPayload).not.toContain('contentHash')
+    expect(hydrationPayload).not.toContain('sourceFormat')
+    expect(hydrationPayload).not.toContain('editorType')
   })
 
   test('formats list total with 约 only when totalApproximate', () => {

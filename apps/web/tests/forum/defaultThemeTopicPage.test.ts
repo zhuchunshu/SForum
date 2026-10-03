@@ -104,6 +104,8 @@ describe('default theme V32 topic page contract', () => {
     // 评论编辑：editor-document 经 initialContent 还原，提交走 forumContentFromEditorPayload
     expect(source).toContain('useTopicCommentComposerDrawer({')
     expect(commentComposer).toContain('forumEditorInitialContent')
+    expect(commentComposer).toContain('forumApi.getCommentEditSource(comment.id)')
+    expect(commentComposer).toContain('editingRevision.value = source.currentRevision')
     expect(commentComposer).toContain('editingInitialContent')
     expect(source).toContain(':initial-content="composerInitialContent"')
     expect(commentComposer).not.toContain('editingMarkdown.value = comment.content.rawContent')

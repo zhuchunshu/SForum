@@ -1,4 +1,4 @@
-import type { ForumRenderedContent, ForumTopicTagSummary, ForumUserSummary } from '~/utils/forum/forumTaxonomy'
+import type { ForumProtectedRenderedContent, ForumRenderedContent, ForumTopicTagSummary, ForumUserSummary } from '~/utils/forum/forumTaxonomy'
 
 export type AdminForumContentKind = 'topics' | 'comments'
 export type AdminForumContentTargetType = 'topic' | 'comment'
@@ -44,14 +44,14 @@ export type AdminForumTopicDetail = AdminForumContentRow & {
   title: string
   categorySlug: string
   tags: ForumTopicTagSummary[]
-  content: ForumRenderedContent
+  content: ForumProtectedRenderedContent
   slug: string
 }
 
 export type AdminForumCommentDetail = AdminForumContentRow & {
   targetType: 'comment'
   topicId: number
-  content: ForumRenderedContent
+  content: ForumProtectedRenderedContent
   rootCommentId: number
   pathKey: string
   depth: number
@@ -85,7 +85,7 @@ export type ForumRevisionSummary = {
 
 export type ForumRevisionDetail = ForumRevisionSummary & {
   rawContent: string
-  sourceFormat: ForumRenderedContent['sourceFormat']
+  sourceFormat: ForumProtectedRenderedContent['sourceFormat']
   editorType: string
   editorVersion?: string
   renderVersion: string

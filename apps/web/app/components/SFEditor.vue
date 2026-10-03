@@ -2,22 +2,50 @@
 import { useTrustedEditorCatalog } from '~/composables/editor/useTrustedEditorCatalog'
 import SFEditorToolbar, {
   type SFEditorBlockFormat,
+  type SFEditorExtensionTool,
   type SFEditorToolbarAction,
   type SFEditorViewMode
 } from '~/components/editor/SFEditorToolbar.vue'
 import SFEditorImageUploadModal from '~/components/editor/SFEditorImageUploadModal.vue'
 import SFEditorImageMenu from '~/components/editor/SFEditorImageMenu.vue'
-import { Editor, EditorContent } from '@tiptap/vue-3'
+import SFShortcodeReferenceDialog from '~/components/editor/shortcodes/SFShortcodeReferenceDialog.vue'
+import SFShortcodeReferenceNodeView from '~/components/editor/shortcodes/SFShortcodeReferenceNodeView.vue'
+import SFShortcodeProtectedNodeView from '~/components/editor/shortcodes/SFShortcodeProtectedNodeView.vue'
+import { Editor, EditorContent, VueNodeViewRenderer } from '@tiptap/vue-3'
 import type { AnyExtension } from '@tiptap/core'
+import type { AdmittedEditorCommand } from '~/runtime/editor-extensions/admit'
+import type {
+  EditorCatalogContribution,
+  EditorL2CommandContextV1,
+  EditorProtectedKind,
+  EditorProtectedSelectionV1,
+  EditorReferenceDialogResultV1,
+  EditorReferenceKind,
+  EditorReferenceSelectionV1,
+  EditorShortcodeKind,
+  EditorShortcodeSelectionV1
+} from '~/runtime/editor-extensions/types'
 import {
   collectEditorAttachmentIds,
   createSFEditorExtensions,
   escapeHtml,
+  isExternalEditorMarkdownUpdate,
   normalizeUserUrl,
   type SFEditorContentPayload,
   type TiptapContentReader
 } from '~/utils/sfEditor'
 import { imageFilesFromList, useEditorImageUpload } from '~/composables/editor/useEditorImageUpload'
+import {
+  inspectSForumShortcodeMarkdown,
+  inspectSForumShortcodeDocument,
+  prepareSForumShortcodeMarkdown,
+  SF_SHORTCODE_BLOCK_NODE,
+  SF_SHORTCODE_REF_NODE,
+  type SFShortcodeReferencePreview,
+  sforumProtectedNodeAttributes,
+  sforumReferenceNodeAttributes,
+  type SFShortcodeNodeViewHost
+} from '~/utils/editor/shortcodes'
 
 const props = withDefaults(defineProps<{
   modelValue?: string
@@ -80,6 +108,7 @@ const editorStateTick = ref(0)
 const lastEmittedMarkdown = ref('')
 const imageDialogOpen = ref(false)
 const imageInsertPosition = ref<number | null>(null)
+const toast = useToast()
 const { t } = useI18n()
 const { pendingUploadCount, uploadImages } = useEditorImageUpload({
   uploading: t('composer.imageUpload.uploading'),
@@ -160,6 +189,31 @@ const footerText = computed(() => {
 const shouldLoadTrustedCatalog = props.loadTrustedCatalog && props.preset === 'full'
 const catalogReady = ref(!shouldLoadTrustedCatalog)
 const admittedExtensions = shallowRef<unknown[]>(props.trustedExtensions || [])
+const admittedToolbars = shallowRef<EditorCatalogContribution[]>([])
+const admittedCommands = shallowRef<Record<string, AdmittedEditorCommand>>({})
+const shortcodeInlineError = ref('')
+const referenceCache = new Map<string, SFShortcodeReferencePreview | null>()
+const referenceDialog = reactive<{
+  open: boolean
+  resources: EditorShortcodeKind[]
+  selection?: EditorShortcodeSelectionV1
+  resolve?: (result: EditorReferenceDialogResultV1) => void
+  returnFocus?: HTMLElement
+}>({ open: false, resources: [] })
+
+const extensionTools = computed<SFEditorExtensionTool[]>(() => admittedToolbars.value
+  .filter(item => Boolean(item.commandId && admittedCommands.value[item.commandId]))
+  .map(item => ({
+    id: item.commandId || item.id,
+    label: item.artifact.extensionId === 'sforum-shortcodes'
+      ? t('composer.shortcodes.toolbar')
+      : (item.label || item.id),
+    icon: item.icon || 'i-lucide-blocks',
+    disabled: props.disabled
+  })))
+
+const shortcodeCommandID = computed(() => Object.entries(admittedCommands.value)
+  .find(([, command]) => command.declaration.artifact.extensionId === 'sforum-shortcodes')?.[0] || '')
 
 onMounted(async () => {
   let trusted = props.trustedExtensions || []
@@ -169,6 +223,8 @@ onMounted(async () => {
       const admitted = await loadAdmittedExtensions()
       // 父组件显式传入的扩展优先于 catalog 准入结果。
       trusted = [...admitted.extensions, ...trusted]
+      admittedToolbars.value = admitted.toolbars
+      admittedCommands.value = admitted.commands
     } catch {
       // fail-closed：catalog 失败时仅核心扩展
     }
@@ -176,9 +232,12 @@ onMounted(async () => {
   admittedExtensions.value = trusted
   catalogReady.value = true
   // object → Tiptap JSON 文档；string → Markdown。禁止把 editor-document 的 raw JSON 字符串当 Markdown。
-  const initialContent = props.initialContent !== undefined && props.initialContent !== null
+  const unpreparedInitialContent = props.initialContent !== undefined && props.initialContent !== null
     ? props.initialContent
     : (props.modelValue || '')
+  const initialContent = typeof unpreparedInitialContent === 'string'
+    ? prepareSForumShortcodeMarkdown(unpreparedInitialContent, props.imageSurface)
+    : unpreparedInitialContent
   let nextEditor: Editor
   nextEditor = new Editor({
     content: initialContent,
@@ -189,6 +248,12 @@ onMounted(async () => {
       maxCharacters: props.maxCharacters,
       preset: props.preset,
       trustedExtensions: trusted,
+      resourceKind: props.imageSurface,
+      ...(shortcodeCommandID.value ? {
+        shortcodeReferenceNodeView: VueNodeViewRenderer(SFShortcodeReferenceNodeView),
+        shortcodeProtectedNodeView: VueNodeViewRenderer(SFShortcodeProtectedNodeView),
+        shortcodeNodeViewHost: createShortcodeNodeViewHost()
+      } : {}),
       onImageDrop: (dropEditor, files, pos) => {
         void uploadImages(dropEditor, files, pos)
       }
@@ -209,7 +274,14 @@ onMounted(async () => {
       },
       handlePaste: (_view, event) => {
         const files = imageFilesFromList(event.clipboardData?.files)
-        if (files.length === 0) return false
+        if (files.length === 0) {
+          const markdown = event.clipboardData?.getData('text/plain') || ''
+          const inspection = inspectSForumShortcodeMarkdown(markdown, props.imageSurface)
+          if (!inspection.activated || !inspection.withinBudgets) return false
+
+          event.preventDefault()
+          return nextEditor.commands.insertContent(markdown, { contentType: 'markdown' })
+        }
 
         event.preventDefault()
         void uploadImages(nextEditor, files, nextEditor.state.selection.from)
@@ -243,15 +315,22 @@ watch(pendingUploadCount, () => {
 
 // 仅接受外部 Markdown 同步；跳过与自身 emit 相同的回写，以及与当前文档一致的值。
 watch(() => props.modelValue, value => {
-  const nextMarkdown = value || ''
+  const incomingMarkdown = value || ''
   const currentEditor = editor.value
 
   if (!currentEditor) {
     return
   }
-  if (nextMarkdown === lastEmittedMarkdown.value || nextMarkdown === currentPayload.value.markdown) {
+  if (!isExternalEditorMarkdownUpdate(
+    incomingMarkdown,
+    lastEmittedMarkdown.value,
+    currentPayload.value.markdown
+  )) {
     return
   }
+
+  const nextMarkdown = prepareSForumShortcodeMarkdown(incomingMarkdown, props.imageSurface)
+  if (nextMarkdown === currentPayload.value.markdown) return
 
   lastEmittedMarkdown.value = nextMarkdown
   currentEditor.commands.setContent(nextMarkdown, {
@@ -401,6 +480,233 @@ function runToolbarAction(action: SFEditorToolbarAction) {
   runEditorCommand(commands[action])
 }
 
+function createShortcodeNodeViewHost(): SFShortcodeNodeViewHost {
+  return {
+    disabled: () => props.disabled || !Boolean(shortcodeCommandID.value),
+    resolveReference,
+    editReference: selection => void runExtensionAction(shortcodeCommandID.value, selection),
+    deleteReference,
+    editProtected: selection => void runExtensionAction(shortcodeCommandID.value, selection),
+    deleteProtected,
+    unwrapProtected
+  }
+}
+
+async function resolveReference(kind: Exclude<EditorReferenceKind, 'friend-links'>, id: number) {
+  const key = `${kind}:${id}`
+  if (referenceCache.has(key)) return referenceCache.get(key) || null
+  const { request } = useApiClient()
+  const params = new URLSearchParams({ kind, selectedId: String(id), limit: '1' })
+  const result = await request<{ items: Array<{ id: number } & SFShortcodeReferencePreview> }>(
+    `/composer/references?${params}`
+  )
+  const item = result.items.find(candidate => candidate.id === id)
+  const resolved = item
+    ? {
+        label: item.label,
+        secondaryLabel: item.secondaryLabel,
+        avatar: item.avatar,
+        icon: item.icon,
+        iconColor: item.iconColor
+      }
+    : null
+  referenceCache.set(key, resolved)
+  return resolved
+}
+
+function openReferenceDialog(
+  resources: EditorShortcodeKind[],
+  selection?: EditorShortcodeSelectionV1
+) {
+  const allowed: EditorShortcodeKind[] = props.imageSurface === 'comment'
+    ? ['user', 'topic', 'comment', 'category', 'friend-links', 'login', 'reply', 'only-author']
+    : ['user', 'topic', 'comment', 'category', 'friend-links', 'login', 'reply']
+  const selectionAllowed: EditorShortcodeKind[] = selection && 'protected' in selection
+    ? allowed.filter(kind => kind === 'login' || kind === 'reply' || kind === 'only-author')
+    : selection
+      ? allowed.filter(kind => kind !== 'login' && kind !== 'reply' && kind !== 'only-author')
+      : allowed
+  const normalized = [...new Set(resources.filter(kind => selectionAllowed.includes(kind)))]
+  if (normalized.length === 0 || referenceDialog.open) {
+    return Promise.resolve<EditorReferenceDialogResultV1>({ action: 'cancel' })
+  }
+  referenceDialog.resources = normalized
+  referenceDialog.selection = selection
+  referenceDialog.returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined
+  referenceDialog.open = true
+  return new Promise<EditorReferenceDialogResultV1>(resolve => {
+    referenceDialog.resolve = resolve
+  })
+}
+
+function resolveReferenceDialog(result: EditorReferenceDialogResultV1) {
+  const resolve = referenceDialog.resolve
+  const returnFocus = referenceDialog.returnFocus
+  referenceDialog.open = false
+  referenceDialog.resolve = undefined
+  referenceDialog.returnFocus = undefined
+  resolve?.(result)
+  if (result.action === 'cancel') nextTick(() => returnFocus?.focus())
+}
+
+function onReferenceDialogOpenChange(open: boolean) {
+  referenceDialog.open = open
+}
+
+function upsertReference(
+  kind: EditorReferenceKind,
+  id: number | undefined,
+  selection?: EditorReferenceSelectionV1
+) {
+  const currentEditor = editor.value
+  const attrs = sforumReferenceNodeAttributes(kind, id)
+  if (!currentEditor || !attrs || props.disabled) return false
+  const content = { type: SF_SHORTCODE_REF_NODE, attrs }
+  const selectedNode = selection ? currentEditor.state.doc.nodeAt(selection.position) : null
+  const changed = selection && selectedNode?.type.name === SF_SHORTCODE_REF_NODE
+    ? currentEditor.chain().focus().insertContentAt({
+        from: selection.position,
+        to: selection.position + selectedNode.nodeSize
+      }, content).run()
+    : currentEditor.chain().focus().insertContent(content).run()
+  if (changed) {
+    referenceCache.delete(`${kind}:${id || 0}`)
+    toast.add({
+      color: 'success', icon: 'i-lucide-check',
+      title: t(selection ? 'composer.shortcodes.updated' : 'composer.shortcodes.inserted'), duration: 10000
+    })
+  }
+  return changed
+}
+
+function deleteReference(selection: EditorReferenceSelectionV1) {
+  const currentEditor = editor.value
+  if (!currentEditor || props.disabled) return
+  const node = currentEditor.state.doc.nodeAt(selection.position)
+  if (!node || node.type.name !== SF_SHORTCODE_REF_NODE) return
+  const changed = currentEditor.chain().focus().deleteRange({
+    from: selection.position,
+    to: selection.position + node.nodeSize
+  }).run()
+  if (changed) {
+    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('composer.shortcodes.deleted'), duration: 10000 })
+  }
+}
+
+function upsertProtected(kind: EditorProtectedKind, selection?: EditorShortcodeSelectionV1) {
+  const currentEditor = editor.value
+  const attrs = sforumProtectedNodeAttributes(kind, props.imageSurface)
+  if (!currentEditor || !attrs || props.disabled) return false
+  let invalid = false
+  const changed = currentEditor.commands.command(({ tr, dispatch }) => {
+    try {
+      if (selection && 'protected' in selection) {
+        const node = tr.doc.nodeAt(selection.position)
+        if (!node || node.type.name !== SF_SHORTCODE_BLOCK_NODE) return false
+        tr.setNodeMarkup(selection.position, undefined, attrs)
+      } else {
+        const currentSelection = tr.selection
+        let from = currentSelection.from
+        let to = currentSelection.to
+        let content = currentSelection.content().content
+        if (currentSelection.empty) {
+          const depth = currentSelection.$from.depth
+          if (depth < 1) return false
+          from = currentSelection.$from.before(depth)
+          to = currentSelection.$from.after(depth)
+          content = tr.doc.slice(from, to).content
+        }
+        const type = currentEditor.schema.nodes[SF_SHORTCODE_BLOCK_NODE]
+        if (!type || content.size === 0) return false
+        const protectedNode = type.create(attrs, content)
+        tr.replaceRangeWith(from, to, protectedNode)
+      }
+      if (!inspectSForumShortcodeDocument(tr.doc.toJSON(), props.imageSurface).valid) {
+        invalid = true
+        return false
+      }
+      dispatch?.(tr.scrollIntoView())
+      return true
+    } catch {
+      invalid = true
+      return false
+    }
+  })
+  if (!changed) {
+    shortcodeInlineError.value = t(invalid ? 'composer.shortcodes.invalidProtectedBody' : 'composer.shortcodes.selectProtectedBody')
+    return false
+  }
+  toast.add({
+    color: 'success', icon: 'i-lucide-check',
+    title: t(selection ? 'composer.shortcodes.updated' : 'composer.shortcodes.inserted'), duration: 10000
+  })
+  return true
+}
+
+function deleteProtected(selection: EditorProtectedSelectionV1) {
+  const currentEditor = editor.value
+  if (!currentEditor || props.disabled) return
+  const node = currentEditor.state.doc.nodeAt(selection.position)
+  if (!node || node.type.name !== SF_SHORTCODE_BLOCK_NODE) return
+  const changed = currentEditor.chain().focus().deleteRange({
+    from: selection.position,
+    to: selection.position + node.nodeSize
+  }).run()
+  if (changed) toast.add({ color: 'success', icon: 'i-lucide-check', title: t('composer.shortcodes.deleted'), duration: 10000 })
+}
+
+function unwrapProtected(selection: EditorProtectedSelectionV1) {
+  const currentEditor = editor.value
+  if (!currentEditor || props.disabled) return
+  const changed = currentEditor.commands.command(({ tr, dispatch }) => {
+    const node = tr.doc.nodeAt(selection.position)
+    if (!node || node.type.name !== SF_SHORTCODE_BLOCK_NODE) return false
+    tr.replaceWith(selection.position, selection.position + node.nodeSize, node.content)
+    dispatch?.(tr.scrollIntoView())
+    return true
+  })
+  if (changed) toast.add({ color: 'success', icon: 'i-lucide-unlock', title: t('composer.shortcodes.unwrapped'), duration: 10000 })
+}
+
+async function runExtensionAction(commandID: string, selection?: EditorShortcodeSelectionV1) {
+  const currentEditor = editor.value
+  const admitted = admittedCommands.value[commandID]
+  if (!currentEditor || !admitted || props.disabled) return
+  shortcodeInlineError.value = ''
+  const context: EditorL2CommandContextV1 = {
+    editor: currentEditor,
+    disabled: props.disabled,
+    resourceKind: props.imageSurface,
+    selection,
+    host: {
+      openReferenceDialog: resources => openReferenceDialog(resources, selection),
+      upsertReference: (kind, id) => upsertReference(
+        kind,
+        id,
+        selection && !('protected' in selection) ? selection : undefined
+      ),
+      upsertProtected: kind => upsertProtected(kind, selection),
+      deleteReference: () => {
+        if (!selection) return false
+        if ('protected' in selection) deleteProtected(selection)
+        else deleteReference(selection)
+        return true
+      },
+      unwrapProtected: () => {
+        if (!selection || !('protected' in selection)) return false
+        unwrapProtected(selection)
+        return true
+      },
+      focusEditor: () => currentEditor.commands.focus()
+    }
+  }
+  try {
+    await admitted.handler(context)
+  } catch {
+    shortcodeInlineError.value = t('composer.shortcodes.loadError')
+  }
+}
+
 function setBlockFormat(format: SFEditorBlockFormat) {
   runEditorCommand(currentEditor => {
     if (format === 'heading-2') return currentEditor.chain().focus().setHeading({ level: 2 }).run()
@@ -431,7 +737,9 @@ function submitContent() {
       :active="toolbarActive"
       :block-format="blockFormat"
       :view-mode="viewMode"
+      :extension-tools="extensionTools"
       @action="runToolbarAction"
+      @extension-action="runExtensionAction"
       @block-format="setBlockFormat"
       @view-mode="viewMode = $event"
     />
@@ -443,11 +751,40 @@ function submitContent() {
       @select="onImageFilesSelected"
     />
 
+    <SFShortcodeReferenceDialog
+      :open="referenceDialog.open"
+      :resources="referenceDialog.resources"
+      :selection="referenceDialog.selection"
+      :disabled="disabled"
+      @update:open="onReferenceDialogOpenChange"
+      @resolve="resolveReferenceDialog"
+    />
+
     <SFEditorImageMenu
       v-if="editor && preset === 'full'"
       :editor="editor"
       :disabled="disabled"
     />
+
+    <div
+      v-if="shortcodeInlineError"
+      class="mx-3 mt-3 flex items-start gap-2 rounded-md border border-error/30 bg-error/5 px-3 py-2 text-sm text-error"
+      role="alert"
+    >
+      <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+      <span>{{ shortcodeInlineError }}</span>
+      <UButton
+        type="button"
+        color="error"
+        variant="ghost"
+        size="xs"
+        icon="i-lucide-x"
+        class="ml-auto shrink-0"
+        :aria-label="t('common.close')"
+        :title="t('common.close')"
+        @click="() => { shortcodeInlineError = '' }"
+      />
+    </div>
 
     <div class="sf-editor__body">
       <ClientOnly>

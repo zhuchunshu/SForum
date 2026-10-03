@@ -23,7 +23,7 @@ describe('standalone topic edit page behavior contract', () => {
     expect(editPage).toContain('awaitingEditorBaseline.value = true')
     expect(editPage).toContain('baselineContentSignature.value = currentContentSignature.value')
     expect(editPage).toContain(
-      "next.id !== prev?.id || next.currentRevision !== prev?.currentRevision"
+      "nextTopic.id !== prevTopic?.id || nextSource.currentRevision !== prevSource?.currentRevision"
     )
   })
 
@@ -44,7 +44,7 @@ describe('standalone topic edit page behavior contract', () => {
   })
 
   test('keeps revision, author-reason, content, taxonomy and canonical-return contracts', () => {
-    expect(editPage).toContain('expectedRevision: topic.value.currentRevision')
+    expect(editPage).toContain('expectedRevision: editSource.value.currentRevision')
     expect(editPage).toContain('editingAnotherAuthor.value && !reason')
     expect(editPage).toContain('runeLength(reason) > editReasonMaxRunes')
     expect(editPage).toContain("t('composer.editReasonTooLong'")
@@ -85,11 +85,13 @@ describe('standalone topic edit page behavior contract', () => {
 
   test('loads editor-document via initialContent and never seeds v-model with raw JSON', () => {
     expect(editPage).toContain('forumEditorInitialContent')
+    expect(editPage).toContain('forumApi.getTopicEditSource(topicId.value)')
+    expect(editPage).toContain('forumEditorInitialContent(editSource.value)')
     expect(editPage).toContain(':initial-content="editorInitialContent"')
     expect(editPage).toContain("bodyMarkdown.value = ''")
     expect(editPage).not.toContain('bodyMarkdown.value = next.content.rawContent')
     expect(editPage).toContain('forumContentFromEditorPayload')
-    expect(editPage).toContain('`${topic?.id}-${topic?.currentRevision}`')
+    expect(editPage).toContain('`${topic?.id}-${editSource?.currentRevision}`')
   })
 
   test('treats image display-size changes as content edits even when Markdown is unchanged', () => {

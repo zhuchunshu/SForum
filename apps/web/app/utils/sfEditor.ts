@@ -13,12 +13,18 @@ import {
   type JSONContent
 } from '@tiptap/vue-3'
 import type { Editor } from '@tiptap/core'
+import type { NodeViewRenderer } from '@tiptap/core'
 import { createEditorImageUploadPlaceholderExtension } from '~/utils/editor/editorImageUpload'
 import {
   editorImageRenderAttributes,
   normalizeEditorImageDimension,
   normalizeEditorImageDisplaySize
 } from '~/utils/editor/editorImage'
+import {
+  createSForumShortcodeExtensions,
+  type SFShortcodeNodeViewHost,
+  type SFShortcodeResourceKind
+} from '~/utils/editor/shortcodes'
 
 export type SForumEmojiItem = {
   name: string
@@ -56,6 +62,14 @@ export type SFEditorContentPayload = {
 // native document when deciding whether an edit is semantically dirty.
 export function editorDocumentSignature(native: unknown) {
   return JSON.stringify(native ?? null)
+}
+
+export function isExternalEditorMarkdownUpdate(
+  incoming: string,
+  lastEmitted: string,
+  current: string
+) {
+  return incoming !== lastEmitted && incoming !== current
 }
 
 export const SForumImage = Image.extend({
@@ -194,6 +208,10 @@ export function createSFEditorExtensions(options: {
   // Failures must be filtered before calling this helper so core stays usable.
   trustedExtensions?: unknown[]
   onImageDrop?: (editor: Editor, files: File[], pos: number) => void
+  resourceKind?: SFShortcodeResourceKind
+  shortcodeReferenceNodeView?: NodeViewRenderer
+  shortcodeProtectedNodeView?: NodeViewRenderer
+  shortcodeNodeViewHost?: SFShortcodeNodeViewHost
 }) {
   const full = options.preset !== 'basic-field'
   const trusted = Array.isArray(options.trustedExtensions)
@@ -226,6 +244,12 @@ export function createSFEditorExtensions(options: {
       isAllowedUri: allowedLinkUri
     }),
     ...(full ? [
+      ...createSForumShortcodeExtensions(
+        options.resourceKind || 'topic',
+        options.shortcodeReferenceNodeView,
+        options.shortcodeProtectedNodeView,
+        options.shortcodeNodeViewHost
+      ),
       SForumImage.configure({
         allowBase64: false,
         HTMLAttributes: {

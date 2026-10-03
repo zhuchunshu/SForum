@@ -11,6 +11,7 @@ import {
   forumContentFromEditorPayload,
   forumEditorInitialContent,
   type ForumComment,
+  type ForumEditableContentSource,
   type ForumTopicDetail
 } from '~/utils/forum/forumTaxonomy'
 import type { SFEditorContentPayload } from '~/utils/sfEditor'
@@ -59,6 +60,8 @@ export function useTopicCommentComposerDrawer(options: TopicCommentComposerDrawe
   const editingMarkdown = ref('')
   // editor-document 的 rawContent 是 Tiptap JSON，只能经 initialContent 加载。
   const editingInitialContent = ref<string | Record<string, unknown>>('')
+  const editingRevision = ref(0)
+  const editingSourceLoading = ref(false)
   const editingSubmitting = ref(false)
   const editingError = ref('')
   const editingReason = ref('')
@@ -149,22 +152,37 @@ export function useTopicCommentComposerDrawer(options: TopicCommentComposerDrawe
     editingComment.value = null
     editingMarkdown.value = ''
     editingInitialContent.value = ''
+    editingRevision.value = 0
     editingError.value = ''
     editingReason.value = ''
     editingReasonError.value = ''
   }
 
-  function startEdit(comment: ForumComment) {
-    replyingTo.value = null
-    replyParentId.value = null
-    editingComment.value = comment
-    editingMarkdown.value = ''
-    editingInitialContent.value = forumEditorInitialContent(comment.content)
-    editingError.value = ''
-    editingReason.value = ''
-    editingReasonError.value = ''
-    mode.value = 'edit'
-    editorVersion.value += 1
+  async function startEdit(comment: ForumComment) {
+    if (editingSourceLoading.value) return
+    editingSourceLoading.value = true
+    try {
+      const source: ForumEditableContentSource = await forumApi.getCommentEditSource(comment.id)
+      replyingTo.value = null
+      replyParentId.value = null
+      editingComment.value = comment
+      editingMarkdown.value = ''
+      editingInitialContent.value = forumEditorInitialContent(source)
+      editingRevision.value = source.currentRevision
+      editingError.value = ''
+      editingReason.value = ''
+      editingReasonError.value = ''
+      mode.value = 'edit'
+      editorVersion.value += 1
+    } catch (cause) {
+      toast.add({
+        color: 'error',
+        icon: 'i-lucide-circle-alert',
+        title: apiErrorMessage(cause) || t('topicDetail.editFailed')
+      })
+    } finally {
+      editingSourceLoading.value = false
+    }
   }
 
   function startReply(comment: ForumComment, initialDraft = '') {
@@ -244,7 +262,7 @@ export function useTopicCommentComposerDrawer(options: TopicCommentComposerDrawe
           text,
           attachmentIds: payload.attachmentIds
         }),
-        comment.currentRevision,
+        editingRevision.value,
         reason || undefined
       )
       mode.value = null

@@ -273,6 +273,10 @@ function parseAssetReference(input: unknown): PublicFrontendAssetReference {
   }
 }
 
+export function parsePublicFrontendAssetReference(input: unknown): PublicFrontendAssetReference {
+  return parseAssetReference(input)
+}
+
 function validatePackageAssetPath(
   assetPath: string,
   extensionId: string,

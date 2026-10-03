@@ -8,6 +8,7 @@ import SFApiConnectionModal from '~/components/errors/SFApiConnectionModal.vue'
 import { useAdminTabs } from '~/composables/admin/useAdminTabs'
 import { useAdminAppearancePreview } from '~/composables/admin/settings/useAdminAppearancePreview'
 import { useAppliedAppearance } from '~/composables/appearance/useAppliedAppearance'
+import { usePublicContentStyles } from '~/composables/extensions/usePublicContentStyles'
 
 // no_prefix：中英共用 URL，不输出 hreflang 交替链接（同 URL 多语 SEO 无效）。
 // 仍保留 html lang/dir，供无障碍与浏览器语言提示。
@@ -34,6 +35,7 @@ const route = useRoute()
 const adminRoutes = useAdminRoutes()
 const { preview: adminAppearancePreview } = useAdminAppearancePreview()
 const themeSkin = useActiveThemeSkin()
+const publicContentStyles = usePublicContentStyles()
 const startupOptionsTimeout = import.meta.dev ? 800 : 2000
 const hasServerSession = import.meta.server
   && /(?:^|;\s*)sforum_session=/.test(useRequestHeaders(['cookie']).cookie || '')
@@ -77,6 +79,14 @@ async function syncThemeSkin() {
   await themeSkin.refresh()
 }
 
+async function syncPublicContentStyles() {
+  if (adminRoutes.routeId(route.path) !== null) {
+    publicContentStyles.clear()
+    return
+  }
+  await publicContentStyles.refresh()
+}
+
 if (import.meta.server) {
   // 无会话 Cookie 的请求可在 SSR 阶段确定为访客，避免公开 chrome 首屏留白。
   if (!hasServerSession) {
@@ -86,7 +96,8 @@ if (import.meta.server) {
   await useAsyncData('app-startup', async () => {
     await Promise.all([
       refreshStartupState({ restoreAuth: hasServerSession }),
-      syncThemeSkin()
+      syncThemeSkin(),
+      syncPublicContentStyles()
     ])
     return true
   })
@@ -94,12 +105,14 @@ if (import.meta.server) {
 
   watch(() => route.path, () => {
     void syncThemeSkin()
+    void syncPublicContentStyles()
   }, { flush: 'post' })
   // 浏览器挂载后再恢复会话，避免复用 SSR 的 app-startup payload 时跳过 auth 刷新。
   onMounted(() => {
     void refreshStartupState({ restoreAuth: true })
     // 公共主题 L0 皮肤不得进入独立的管理端样式边界。
     void syncThemeSkin()
+    void syncPublicContentStyles()
     void consumeExternalAuthFeedback()
   })
   watch(() => route.fullPath, () => {
@@ -135,10 +148,18 @@ useHead(() => {
     key: `sforum-theme-skin:${href}`,
     'data-sforum-theme-skin': '1'
   }))
+  const extensionStyleLinks = publicContentStyles.links.value.map(style => ({
+    rel: 'stylesheet',
+    href: style.href,
+    integrity: style.integrity,
+    crossorigin: 'anonymous' as const,
+    key: `sforum-extension-style:${style.handle}`,
+    'data-sforum-extension-style': style.handle
+  }))
 
   return {
     htmlAttrs,
-    link: [...(localeHead.value.link || []), ...brandLinks, ...themeLinks],
+    link: [...(localeHead.value.link || []), ...brandLinks, ...themeLinks, ...extensionStyleLinks],
     meta: localeHead.value.meta,
     // 公开页面的完整标题由 useSForumSeo/resolveSEO 负责；根组件只提供空标题回退。
     titleTemplate: title => title || siteName.value

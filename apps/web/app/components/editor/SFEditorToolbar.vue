@@ -15,6 +15,12 @@ export type SFEditorToolbarAction =
 
 export type SFEditorBlockFormat = 'paragraph' | 'heading-2' | 'heading-3'
 export type SFEditorViewMode = 'write' | 'preview'
+export type SFEditorExtensionTool = {
+  id: string
+  label: string
+  icon: string
+  disabled?: boolean
+}
 
 const props = defineProps<{
   preset: 'full' | 'basic-field'
@@ -24,12 +30,14 @@ const props = defineProps<{
   active: Partial<Record<SFEditorToolbarAction, boolean>>
   blockFormat: SFEditorBlockFormat
   viewMode: SFEditorViewMode
+  extensionTools?: SFEditorExtensionTool[]
 }>()
 
 const emit = defineEmits<{
   action: [action: SFEditorToolbarAction]
   'block-format': [format: SFEditorBlockFormat]
   'view-mode': [mode: SFEditorViewMode]
+  'extension-action': [id: string]
 }>()
 
 const full = computed(() => props.preset === 'full')
@@ -165,6 +173,19 @@ function selectBlockFormat(event: Event) {
           :disabled="disabled"
           @pointerdown.prevent
           @click="emit('action', item.action)"
+        >
+          <UIcon :name="item.icon" class="sf-editor__tool-icon" />
+        </button>
+        <button
+          v-for="item in extensionTools || []"
+          :key="item.id"
+          type="button"
+          class="sf-editor__tool"
+          :title="item.label"
+          :aria-label="item.label"
+          :disabled="disabled || item.disabled"
+          @pointerdown.prevent
+          @click="emit('extension-action', item.id)"
         >
           <UIcon :name="item.icon" class="sf-editor__tool-icon" />
         </button>

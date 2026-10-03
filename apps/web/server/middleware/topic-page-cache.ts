@@ -1,6 +1,7 @@
 /**
- * 主题详情包含实时评论与会话权限，不进入 Nitro 整页缓存。
- * 匿名响应允许浏览器/CDN保存，但每次必须向源站重验证；会话和编辑态完全禁止存储。
+ * 主题详情包含实时评论、会话权限与请求级 protected shortcode 组合。
+ * 中间件在 API 读取前无法判断某个主题是否含 protected block，因此所有主题
+ * HTML/payload 都必须禁止浏览器和共享缓存存储。
  */
 export default defineEventHandler((event) => {
   const url = getRequestURL(event)
@@ -11,13 +12,8 @@ export default defineEventHandler((event) => {
     return
   }
 
-  const hasEdit = url.searchParams.has('edit')
-  const cookie = getHeader(event, 'cookie') || ''
-  const hasSession = /(?:^|;\s*)sforum_session=/.test(cookie)
-  if (hasEdit || hasSession) {
-    setHeader(event, 'cache-control', 'private, no-store')
-    return
-  }
-
-  setHeader(event, 'cache-control', 'public, no-cache')
+  setHeader(event, 'cache-control', 'private, no-store')
+  appendHeader(event, 'vary', 'Cookie')
+  appendHeader(event, 'vary', 'Authorization')
+  appendHeader(event, 'vary', 'Accept-Language')
 })

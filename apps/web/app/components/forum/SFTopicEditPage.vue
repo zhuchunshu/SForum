@@ -25,6 +25,7 @@ import {
   forumEditorInitialContent,
   forumTopicPath,
   type ForumCategoryGroup,
+  type ForumEditableContentSource,
   type ForumTag,
   type ForumTopicDetail
 } from '~/utils/forum/forumTaxonomy'
@@ -65,6 +66,21 @@ const {
   { default: () => null as ForumTopicDetail | null, watch: [topicId] }
 )
 
+const {
+  data: editSource,
+  error: editSourceError,
+  status: editSourceStatus
+} = await useAsyncData(
+  () => `topic-edit-source:${topicId.value || 'missing'}`,
+  async () => {
+    if (!topicId.value) {
+      return null
+    }
+    return await forumApi.getTopicEditSource(topicId.value)
+  },
+  { default: () => null as ForumEditableContentSource | null, watch: [topicId] }
+)
+
 const { data: categoryGroups, pending: categoriesPending } = await useAsyncData(
   'topic-edit-category-groups',
   () => forumApi.listCategoryGroups(),
@@ -79,7 +95,13 @@ const { data: tagOptions, pending: tagsPending } = await useAsyncData(
   { default: () => [] as ForumTag[] }
 )
 
-const missingTopic = computed(() => !topicId.value || (!topic.value && topicStatus.value === 'success') || Boolean(topicError.value))
+const missingTopic = computed(() => (
+  !topicId.value
+  || (!topic.value && topicStatus.value === 'success')
+  || (!editSource.value && editSourceStatus.value === 'success')
+  || Boolean(topicError.value)
+  || Boolean(editSourceError.value)
+))
 const canEdit = computed(() => Boolean(topic.value && canEditTopic(topic.value)))
 // 跨作者编辑：API 强制要求审计原因（validateEditReason）。
 const editingAnotherAuthor = computed(() => Boolean(
@@ -136,8 +158,8 @@ const currentContentSignature = computed(() => JSON.stringify({
 }))
 const baselineContentSignature = ref('')
 
-function applyTopic(next: ForumTopicDetail | null) {
-  if (!next) {
+function applyTopic(next: ForumTopicDetail | null, source: ForumEditableContentSource | null) {
+  if (!next || !source) {
     return
   }
   title.value = next.title
@@ -157,10 +179,14 @@ function applyTopic(next: ForumTopicDetail | null) {
   baselineSignature.value = currentSignature.value
   baselineContentSignature.value = currentContentSignature.value
 }
-applyTopic(topic.value)
-watch(topic, (next, prev) => {
-  if (next && (next.id !== prev?.id || next.currentRevision !== prev?.currentRevision)) {
-    applyTopic(next)
+applyTopic(topic.value, editSource.value)
+watch([topic, editSource], ([nextTopic, nextSource], [prevTopic, prevSource]) => {
+  if (
+    nextTopic
+    && nextSource
+    && (nextTopic.id !== prevTopic?.id || nextSource.currentRevision !== prevSource?.currentRevision)
+  ) {
+    applyTopic(nextTopic, nextSource)
   }
 })
 
@@ -171,7 +197,7 @@ const hasContentChanges = computed(() => (
   submitState.value !== 'success' && currentContentSignature.value !== baselineContentSignature.value
 ))
 const editorInitialContent = computed(() => (
-  topic.value ? forumEditorInitialContent(topic.value.content) : ''
+  editSource.value ? forumEditorInitialContent(editSource.value) : ''
 ))
 
 useSForumSeo({
@@ -417,6 +443,7 @@ function focusComposerField(field: ComposerFocusField) {
 async function submit(payload?: Pick<SFEditorContentPayload, 'markdown' | 'native' | 'text' | 'attachmentIds' | 'pendingUploadCount'>) {
   if (
     !topic.value
+    || !editSource.value
     || !canEdit.value
     || submitState.value === 'submitting'
     || (payload?.pendingUploadCount ?? editorPayload.value?.pendingUploadCount ?? 0) > 0
@@ -485,7 +512,7 @@ async function submit(payload?: Pick<SFEditorContentPayload, 'markdown' | 'nativ
 
   try {
     const updated = await forumApi.updateTopic(topic.value.id, {
-      expectedRevision: topic.value.currentRevision,
+      expectedRevision: editSource.value.currentRevision,
       reason: reason || undefined,
       title: title.value.trim(),
       // 分类未改动时不提交，避免把非公开分类误改为默认分类。
@@ -761,7 +788,7 @@ onBeforeRouteLeave(() => {
                 </div>
                 <p class="sforum-topic-composer__hint">{{ bodyHint }}</p>
                 <LazySFEditor
-                  :key="`${topic?.id}-${topic?.currentRevision}`"
+                  :key="`${topic?.id}-${editSource?.currentRevision}`"
                   v-model="bodyMarkdown"
                   :initial-content="editorInitialContent"
                   :placeholder="t('composer.bodyPlaceholder')"

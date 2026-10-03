@@ -134,23 +134,31 @@ export type ForumTopicSummary = {
 
 export type ForumRenderedContent = {
   id: number
-  rawContent: string
   htmlContent: string
   plainText: string
   excerpt: string
+  renderVersion: string
+}
+
+export type ForumEditableContentSource = {
+  rawContent: string
   sourceFormat: 'markdown' | 'html' | 'editor-document'
   editorType: string
-  editorVersion?: string
-  renderVersion: string
+  editorVersion: string
   contentHash: string
+  attachmentIds: number[]
+  currentRevision: number
 }
+
+export type ForumProtectedRenderedContent = ForumRenderedContent
+  & Pick<ForumEditableContentSource, 'rawContent' | 'sourceFormat' | 'editorType' | 'editorVersion' | 'contentHash'>
 
 /**
  * 将 API 保存格式还原为 Tiptap 可接受的初始内容。
  * editor-document 必须按 JSON 文档加载，不能作为 Markdown 字符串显示或回存。
  */
 export function forumEditorInitialContent(
-  content: Pick<ForumRenderedContent, 'rawContent' | 'sourceFormat'>
+  content: Pick<ForumEditableContentSource, 'rawContent' | 'sourceFormat'>
 ): string | Record<string, unknown> {
   if (content.sourceFormat !== 'editor-document') {
     return content.rawContent

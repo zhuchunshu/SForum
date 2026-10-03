@@ -24,6 +24,7 @@ export function useTrustedEditorCatalog() {
       return {
         extensions: [],
         toolbars: [],
+        commands: {},
         quarantined: ['editor-catalog:load-failed'],
         catalog: null
       }

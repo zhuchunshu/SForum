@@ -15,6 +15,31 @@ function sha256Hex(value: string) {
 }
 
 describe('trusted editor L2 load path', () => {
+  it('ships the exact shortcode module as configuration over Host-owned capabilities', async () => {
+    const shortcodeModule = await import(new URL(
+      '../../../../extensions/builtin/plugins/sforum-shortcodes/frontend/editor/shortcodes.mjs',
+      import.meta.url
+    ).href)
+    const upserts: unknown[][] = []
+    const commands = await shortcodeModule.createCommands({})
+    const changed = await commands.openReferenceMenu({
+      disabled: false,
+      host: {
+        openReferenceDialog: async (resources: string[]) => {
+          expect(resources).toEqual(['user', 'topic', 'comment', 'category', 'friend-links', 'login', 'reply'])
+          return { action: 'upsert', kind: 'topic', id: 42 }
+        },
+        upsertReference: (...args: unknown[]) => { upserts.push(args); return true },
+        upsertProtected: () => false,
+        deleteReference: () => false,
+        unwrapProtected: () => false,
+        focusEditor: () => {}
+      }
+    })
+    expect(changed).toBe(true)
+    expect(upserts).toEqual([['topic', 42]])
+  })
+
   it('parses Host editor catalog and rejects digest-unbound asset paths', () => {
     const packageDigest = 'ab'.repeat(32)
     const moduleDigest = 'cd'.repeat(32)
@@ -200,6 +225,83 @@ describe('trusted editor L2 load path', () => {
         return hex.buffer.slice(hex.byteOffset, hex.byteOffset + hex.byteLength)
       }
     } as SubtleCrypto)).rejects.toBeInstanceOf(EditorL2ContractError)
+  })
+
+  it('admits only commands declared by the same verified module and binds its toolbar', async () => {
+    const packageDigest = '66'.repeat(32)
+    const moduleDigest = '77'.repeat(32)
+    const commandID = 'demo.editor.command.references'
+    const catalog = parseEditorCatalog({
+      schemaVersion: EDITOR_CATALOG_SCHEMA_VERSION,
+      revision: 3,
+      digest: '88'.repeat(32),
+      modules: [{
+        extensionId: 'demo.editor', extensionVersion: '1.0.0', packageDigest,
+        l2Module: 'frontend/editor/references.mjs', l2Digest: moduleDigest,
+        assetPath: `/_sforum/assets/extensions/demo.editor/${packageDigest}/frontend/editor/references.mjs`,
+        nodes: [], marks: [],
+        commands: [{
+          id: commandID, contractVersion: 'demo.editor.command.references@1', kind: 'command',
+          commandKey: 'openReferences',
+          artifact: { extensionId: 'demo.editor', extensionVersion: '1.0.0', packageDigest }
+        }],
+        toolbars: [{
+          id: 'demo.editor.toolbar.references', contractVersion: 'demo.editor.toolbar.references@1', kind: 'toolbar',
+          commandId: commandID, label: 'References',
+          artifact: { extensionId: 'demo.editor', extensionVersion: '1.0.0', packageDigest }
+        }]
+      }],
+      toolbars: []
+    })
+    const handler = () => true
+    const admitted = await admitEditorCatalogModules(catalog, 'http://localhost:8080', async module => ({
+      module: { apiVersion: 1 as const, createExtensions: () => [], createCommands: () => ({ openReferences: handler }) },
+      bridge: {
+        apiVersion: 1 as const, extensionId: module.extensionId, extensionVersion: module.extensionVersion,
+        packageDigest: module.packageDigest, modulePath: module.l2Module, moduleDigest: module.l2Digest
+      },
+      extensions: [], commands: { openReferences: handler }
+    }))
+    expect(admitted.commands[commandID]?.handler).toBe(handler)
+    expect(admitted.toolbars.map(item => item.commandId)).toEqual([commandID])
+
+    const quarantined = await admitEditorCatalogModules(catalog, 'http://localhost:8080', async module => ({
+      module: { apiVersion: 1 as const, createExtensions: () => [] },
+      bridge: {
+        apiVersion: 1 as const, extensionId: module.extensionId, extensionVersion: module.extensionVersion,
+        packageDigest: module.packageDigest, modulePath: module.l2Module, moduleDigest: module.l2Digest
+      },
+      extensions: [], commands: {}
+    }))
+    expect(quarantined.toolbars).toEqual([])
+    expect(quarantined.quarantined[0]).toContain('command handler is missing')
+  })
+
+  it('fails closed in Safe Mode before loading any L2 module', async () => {
+    const packageDigest = '99'.repeat(32)
+    const catalog = parseEditorCatalog({
+      schemaVersion: EDITOR_CATALOG_SCHEMA_VERSION,
+      revision: 4,
+      digest: 'aa'.repeat(32),
+      safeMode: true,
+      modules: [{
+        extensionId: 'demo.editor', extensionVersion: '1.0.0', packageDigest,
+        l2Module: 'frontend/editor/demo.mjs', l2Digest: 'bb'.repeat(32),
+        assetPath: `/_sforum/assets/extensions/demo.editor/${packageDigest}/frontend/editor/demo.mjs`,
+        nodes: [], marks: [], commands: [], toolbars: []
+      }],
+      toolbars: []
+    })
+    let loadCalls = 0
+    const admitted = await admitEditorCatalogModules(catalog, 'http://localhost:8080', async () => {
+      loadCalls += 1
+      throw new Error('must not load')
+    })
+    expect(loadCalls).toBe(0)
+    expect(admitted.extensions).toEqual([])
+    expect(admitted.commands).toEqual({})
+    expect(admitted.toolbars).toEqual([])
+    expect(admitted.quarantined).toEqual(['editor-catalog:safe-mode'])
   })
 })
 

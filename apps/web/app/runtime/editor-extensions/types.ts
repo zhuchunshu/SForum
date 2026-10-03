@@ -56,7 +56,49 @@ export type EditorCatalog = {
 export type EditorL2ModuleV1 = {
   apiVersion: typeof EDITOR_L2_MODULE_API_VERSION
   createExtensions: (bridge: EditorL2BridgeV1) => unknown[] | Promise<unknown[]>
+  createCommands?: (bridge: EditorL2BridgeV1) => Record<string, EditorL2CommandHandlerV1> | Promise<Record<string, EditorL2CommandHandlerV1>>
 }
+
+export type EditorReferenceKind = 'user' | 'topic' | 'comment' | 'category' | 'friend-links'
+export type EditorProtectedKind = 'login' | 'reply' | 'only-author'
+export type EditorShortcodeKind = EditorReferenceKind | EditorProtectedKind
+
+export type EditorReferenceSelectionV1 = {
+  id: string
+  contractVersion: string
+  arguments: Record<string, unknown>
+  position: number
+}
+
+export type EditorProtectedSelectionV1 = EditorReferenceSelectionV1 & {
+  protected: true
+}
+
+export type EditorShortcodeSelectionV1 = EditorReferenceSelectionV1 | EditorProtectedSelectionV1
+
+export type EditorReferenceDialogResultV1 =
+  | { action: 'cancel' }
+  | { action: 'delete' }
+  | { action: 'upsert', kind: EditorShortcodeKind, id?: number }
+
+export type EditorL2CommandContextV1 = Readonly<{
+  editor: unknown
+  disabled: boolean
+  resourceKind: 'topic' | 'comment'
+  selection?: EditorShortcodeSelectionV1
+  host: Readonly<{
+    openReferenceDialog: (resources: EditorShortcodeKind[]) => Promise<EditorReferenceDialogResultV1>
+    upsertReference: (kind: EditorReferenceKind, id?: number) => boolean
+    upsertProtected: (kind: EditorProtectedKind) => boolean
+    deleteReference: () => boolean
+    unwrapProtected: () => boolean
+    focusEditor: () => void
+  }>
+}>
+
+export type EditorL2CommandHandlerV1 = (
+  context: EditorL2CommandContextV1
+) => boolean | void | Promise<boolean | void>
 
 export type EditorL2BridgeV1 = Readonly<{
   apiVersion: typeof EDITOR_L2_MODULE_API_VERSION
@@ -142,6 +184,7 @@ export function isEditorL2Module(value: unknown): value is EditorL2ModuleV1 {
   return isRecord(value)
     && value.apiVersion === EDITOR_L2_MODULE_API_VERSION
     && typeof value.createExtensions === 'function'
+    && (value.createCommands === undefined || typeof value.createCommands === 'function')
 }
 
 function parseContribution(input: unknown, allowToolbar: boolean): EditorCatalogContribution {

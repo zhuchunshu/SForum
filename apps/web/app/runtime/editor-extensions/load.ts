@@ -4,6 +4,7 @@ import {
   isEditorL2Module,
   type EditorCatalogModule,
   type EditorL2BridgeV1,
+  type EditorL2CommandHandlerV1,
   type EditorL2ModuleV1
 } from './types'
 
@@ -21,6 +22,7 @@ export type LoadedEditorL2Module = {
   module: EditorL2ModuleV1
   bridge: EditorL2BridgeV1
   extensions: unknown[]
+  commands: Record<string, EditorL2CommandHandlerV1>
 }
 
 /**
@@ -69,7 +71,22 @@ export async function loadTrustedEditorL2Module(
   if (!Array.isArray(extensions)) {
     throw new EditorL2ContractError('editor createExtensions must return an array')
   }
-  return { module: loaded, bridge, extensions }
+  const commands = loaded.createCommands
+    ? await withTimeout(
+        Promise.resolve(loaded.createCommands(bridge)),
+        environment.timeoutMS,
+        'editor createCommands timed out'
+      )
+    : {}
+  if (!isCommandTable(commands)) {
+    throw new EditorL2ContractError('editor createCommands must return a command table')
+  }
+  return { module: loaded, bridge, extensions, commands }
+}
+
+function isCommandTable(value: unknown): value is Record<string, EditorL2CommandHandlerV1> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    && Object.values(value).every(handler => typeof handler === 'function')
 }
 
 export async function verifyDigest(bytes: ArrayBuffer, expected: string, subtle: SubtleCrypto) {
