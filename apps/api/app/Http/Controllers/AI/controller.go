@@ -45,6 +45,13 @@ type settingsResponse struct {
 	EncryptionEnabled bool `json:"encryptionEnabled"`
 	// CredentialStatus 按 profile id 报告密钥是否已配置。它不含密钥值。
 	CredentialStatus map[string]bool `json:"credentialStatus"`
+	// ReplyBot 是当前充当 AI 助手的账号；Configured=false 表示站内还没有机器人。
+	ReplyBot supportai.ReplyBotInfo `json:"replyBot"`
+	// DefaultSystemPrompt 是内置的回复提示词（不含安全尾注）。前端用它预填编辑器，
+	// 让运营者看得见默认值，而不是面对一个空框去猜。
+	DefaultSystemPrompt string `json:"defaultSystemPrompt"`
+	// SafetyAppendix 是始终附加在提示词末尾的防注入声明。它只读展示，不可配置。
+	SafetyAppendix string `json:"safetyAppendix"`
 }
 
 // profileCredentialRequest 是密钥录入的唯一载荷。密钥值只在这次请求里存在，
@@ -87,11 +94,18 @@ func (h *Controller) settingsPayload(c fiber.Ctx, actor identity.Actor, settings
 	if err != nil {
 		return mapAIError(err)
 	}
+	bot, err := h.service.ReplyBot(c.Context(), actor)
+	if err != nil {
+		return mapAIError(err)
+	}
 	return apphttp.OK(c, settingsResponse{
-		Settings:          settings,
-		Warnings:          settings.Warnings(),
-		EncryptionEnabled: h.encryptionEnabled(),
-		CredentialStatus:  status,
+		Settings:            settings,
+		Warnings:            settings.Warnings(),
+		EncryptionEnabled:   h.encryptionEnabled(),
+		CredentialStatus:    status,
+		ReplyBot:            bot,
+		DefaultSystemPrompt: supportai.DefaultReplySystemPrompt,
+		SafetyAppendix:      supportai.ReplyPromptSafetyAppendix,
 	})
 }
 

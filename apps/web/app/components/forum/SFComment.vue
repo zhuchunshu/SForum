@@ -8,6 +8,7 @@ export const COMMENT_EDITOR_RENDERER_KEY = 'sforum-comment-editor-renderer'
 
 <script setup lang="ts">
 import SFCommentUserPreview from '~/components/forum/SFCommentUserPreview.vue'
+import SFMentionContent from '~/components/forum/SFMentionContent.vue'
 import {
   forumAuthorName,
   type ForumComment
@@ -372,14 +373,14 @@ const InlineEditorHost = () => {
             <span>{{ t('topicDetail.commentDeletedDescription') }}</span>
           </span>
         </div>
-        <div
+        <SFMentionContent
           v-else-if="showHtml"
+          v-highlight
           class="sf-comment__content sf-prose"
           :data-sforum-image-gallery="`comment-${comment?.id || 'unknown'}`"
           data-selection-quote-source="comment"
           :data-selection-quote-comment-id="comment?.id"
-          v-highlight
-          v-html="sanitizeHtml(htmlContent)"
+          :html="sanitizeHtml(htmlContent)"
         />
         <p
           v-else

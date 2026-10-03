@@ -86,6 +86,17 @@ accepted revisions, lifecycle states, public read models, and forum policy.
   canonical `/u/:username` navigation inside the card.
 - Soft-deleted comments now render a localized, bordered deletion notice in the
   shared public comment component instead of an empty content block.
+- The flat comment stream is a chronological timeline: `view=flat` orders by
+  `created_at ASC, id ASC` (index `comments_topic_created_idx`), so a new
+  comment always appends at the bottom floor and existing floor numbers never
+  move because of someone else's reply. Reply relationships are carried by each
+  row's `replyTo` reference card (clickable, cross-page jumps reuse the
+  comment-page resolve endpoint), and the client lands the viewport on the new
+  comment after a successful publish (`useTopicCommentAnchor`). The keyset
+  cursor, `CountCommentsBefore`, `ResolveCommentPage`, and profile-activity
+  `commentPage` all share that single ordering key; `view=tree` keeps
+  `path_key` hierarchy for nested consumers. See
+  `../decisions/2026-10-03-comment-stream-chronological-order.md`.
 - Comment actions keep the full authorized set on desktop. At `640px` and
   below, reply and permalink stay inline while edit, delete, report, and
   extension actions move into an accessible menu beside the public floor
@@ -276,6 +287,13 @@ target comment is present in first-paint HTML and the browser scrolls natively.
 Slug/mode mismatches still 301/replace, but page-segment normalization is
 client-only.
 
+The deep-link highlight (`:target` / `.sf-comment--flash`) must never clip its
+comment. The sweep band animates an in-box `background-position` instead of a
+translated pseudo-element, so the rule keeps `overflow: visible` and the
+absolutely positioned author preview card inside that comment is not cut off at
+the comment's bottom edge — `:target` stays on the URL for the whole visit, so a
+`overflow: hidden` there is permanent, not a 3.2s flash.
+
 Public reads expose only active/locked topics. Locked topics remain readable
 but reject new comments. Viewer-aware deleted-comment tombstones never expose
 body fields or deleted-parent reply excerpts.
@@ -291,6 +309,18 @@ live in `../reports/` and
   keyset `after`; cursor wins over page. Responses return `hasMore` and
   `nextCursor` where applicable.
 - Topic keysets include pin state as the first ordering dimension.
+- Public list ordering is server-owned: `GET /topics?sort=latest|active|hot`
+  (created / last activity / `hot_score`), empty `sort` resolves to the site
+  option `forum.list.default_sort` (recommended default `active`, aligned with
+  `topics_public_activity_idx`), and the cursor is bound to the chosen sort.
+  Public labels are 最新 (`active`) / 最新帖子 (`latest`) / 热门 (`hot`).
+  The public feed must not re-sort loaded rows client-side — that would only
+  cover the loaded page and break pin-first ordering plus cursor continuation.
+  Homepage sort lives in the URL (`?sort=`) and in `forumHomeFeedKey`, so
+  switching it resets pagination and the cursor. The shared segmented control
+  (homepage feed, category directory, tag filters) is styled at the Core layer
+  in `apps/web/app/assets/css/sforum-sort-control.css`; every selector covers
+  both the Core fallback shell and `.sf-page.sf-theme--default`.
 - Tree comments page root comments and cap descendants per root using
   `forum.comments.tree_descendants_per_root` (default 50). Truncated roots set
   `hasMoreChildren` and load more through the replies endpoint.
@@ -346,7 +376,18 @@ visibility, and mention limits.
   only the direct parent author. Self and inactive recipients are skipped.
 - Topic and comment creates parse mentions from the stored, filtered source via
   goldmark. Inline/fenced code is ignored; case variants and duplicates collapse
-  per recipient while reply and mention remain distinct intents.
+  per recipient while reply and mention remain distinct intents. The token
+  grammar is `@` + letters/numbers/`_`/`-` up to 64 characters, so it matches
+  what `identity.UsernamePolicy` allows. `editor-document` archives store native
+  Tiptap JSON, so mention parsing runs on the Markdown restored by the
+  EditorDocument pipeline (`MentionedUsernamesFromSource`) instead of the raw
+  JSON; parse failures fall back to raw-source parsing.
+- Public rendering of mentions is a client-side contract: the backend HTML keeps
+  `@name` as plain text, and `v-mention` (`app/utils/forum/forumMentions.ts`)
+  linkifies visible text into `a.sf-mention` outside links and code blocks.
+  `SFMentionContent` hosts the decoration and click handling, and the page-level
+  `SFUserMentionPreview` renders one shared `SFCommentUserPreview` card anchored
+  to the clicked mention. Pages without that host keep ordinary link behavior.
 - Pending topic/comment approval loads stored source and target context inside
   the decision transaction, then writes moderation plus eligible reply/mention
   projections exactly once. Rejection writes only the author's moderation result.

@@ -109,7 +109,7 @@ func adminUserOrderBy(sortBy, sortOrder string) string {
 func (s *PostgresStore) GetAdminUser(ctx context.Context, userID int64) (AdminUserDetail, error) {
 	var detail AdminUserDetail
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, username, email, email_verified_at IS NOT NULL, display_name, locale, status, is_initial_super_admin, created_at, updated_at
+		SELECT id, username, email, email_verified_at IS NOT NULL, display_name, locale, status, is_initial_super_admin, created_at, updated_at, kind
 		FROM users
 		WHERE id = $1
 	`, userID).Scan(
@@ -123,6 +123,7 @@ func (s *PostgresStore) GetAdminUser(ctx context.Context, userID int64) (AdminUs
 		&detail.IsInitialSuperAdmin,
 		&detail.CreatedAt,
 		&detail.UpdatedAt,
+		&detail.Kind,
 	)
 	if err != nil {
 		return AdminUserDetail{}, fmt.Errorf("get admin user: %w", err)
@@ -358,7 +359,7 @@ func (s *PostgresStore) updateAdminUser(ctx context.Context, actorUserID int64, 
 	// 读取当前行作为合并基准，并做唯一性冲突检查。
 	var current AdminUserDetail
 	err = tx.QueryRow(ctx, `
-		SELECT id, username, email, email_verified_at IS NOT NULL, display_name, locale, status, is_initial_super_admin, created_at, updated_at
+		SELECT id, username, email, email_verified_at IS NOT NULL, display_name, locale, status, is_initial_super_admin, created_at, updated_at, kind
 		FROM users
 		WHERE id = $1
 		FOR UPDATE
@@ -373,6 +374,7 @@ func (s *PostgresStore) updateAdminUser(ctx context.Context, actorUserID int64, 
 		&current.IsInitialSuperAdmin,
 		&current.CreatedAt,
 		&current.UpdatedAt,
+		&current.Kind,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -397,8 +399,12 @@ func (s *PostgresStore) updateAdminUser(ctx context.Context, actorUserID int64, 
 	if input.Status != nil {
 		next.Status = *input.Status
 	}
+	if input.Kind != nil {
+		next.Kind = *input.Kind
+	}
 	statusChanged := next.Status != current.Status
 	emailChanged := next.Email != current.Email
+	kindChanged := next.Kind != current.Kind
 
 	// 用户名/邮箱变更时检查唯一性（排除自身）。
 	if next.Username != current.Username || next.Email != current.Email {
@@ -426,9 +432,10 @@ func (s *PostgresStore) updateAdminUser(ctx context.Context, actorUserID int64, 
 		    status = $6,
 		    current_token_version = current_token_version + CASE WHEN $7 THEN 1 ELSE 0 END,
 		    email_verified_at = CASE WHEN $8 THEN NULL ELSE email_verified_at END,
+		    kind = $9,
 		    updated_at = now()
 		WHERE id = $1
-	`, targetUserID, next.Username, next.Email, next.DisplayName, next.Locale, string(next.Status), statusChanged, emailChanged)
+	`, targetUserID, next.Username, next.Email, next.DisplayName, next.Locale, string(next.Status), statusChanged, emailChanged, string(next.Kind))
 	if err != nil {
 		return AdminUserDetail{}, fmt.Errorf("update admin user account: %w", err)
 	}
@@ -439,6 +446,17 @@ func (s *PostgresStore) updateAdminUser(ctx context.Context, actorUserID int64, 
 			WHERE user_id = $1 AND revoked_at IS NULL
 		`, targetUserID); err != nil {
 			return AdminUserDetail{}, fmt.Errorf("revoke sessions after admin status update: %w", err)
+		}
+	}
+	// 变成机器人时撤销其全部会话：可登录的机器人等于给所有人开了一个冒充 AI
+	// 的入口。恢复为人类后可以重新登录。
+	if kindChanged && next.Kind.IsBot() {
+		if _, err := tx.Exec(ctx, `
+			UPDATE user_sessions
+			SET revoked_at = transaction_timestamp(), revoke_reason = 'user_became_bot'
+			WHERE user_id = $1 AND revoked_at IS NULL
+		`, targetUserID); err != nil {
+			return AdminUserDetail{}, fmt.Errorf("revoke sessions after user became a bot: %w", err)
 		}
 	}
 

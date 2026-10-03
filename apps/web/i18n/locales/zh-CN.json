@@ -232,9 +232,12 @@
     },
     "filter": {
       "all": "全部",
-      "latest": "最新",
+      "latest": "最新帖子",
+      "active": "最新",
+      "hot": "热门",
       "mostReplies": "回复最多",
       "sortLabel": "讨论排序",
+      "sortedBy": "已按「{label}」排序",
       "openFilters": "筛选",
       "new": "新",
       "unread": "未读",
@@ -694,6 +697,16 @@
         "diagnose": "连通性测试",
         "observability": "用量与执行记录"
       },
+      "replyPrompt": {
+        "title": "回复提示词",
+        "intro": "AI 在社区里发言时遵循的系统指令。留空即使用内置默认；一键恢复会清空你的自定义内容。",
+        "customized": "已自定义",
+        "default": "使用默认",
+        "placeholder": "留空时使用内置默认提示词。",
+        "restore": "恢复默认",
+        "safetyTitle": "始终附加的防注入说明",
+        "safetyHint": "防注入说明会始终附加在提示词末尾，不随此处修改。"
+      },
       "diagnose": {
         "current": "当前配置",
         "provider": "提供商",
@@ -705,6 +718,10 @@
         "messagePlaceholder": "请只回复两个字：收到",
         "run": "开始测试",
         "notReady": "当前配置不完整，测试无法进行。请先在「供应商与闸门」里选择提供商并填写密钥。",
+        "replyBot": "AI 助手账号",
+        "replyBotReady": "已就绪",
+        "replyBotMissing": "还没有机器人账号",
+        "replyBotHint": "站内还没有机器人账号，AI 回复不会被触发。请到「用户管理」里新建或在现有账号上把账号类型改成机器人——机器人账号不能登录，只由系统驱动发言。",
         "success": "连接正常",
         "failure": "连接失败",
         "latency": "延迟",
@@ -2654,6 +2671,10 @@
       "statusDisabled": "停用",
       "statusBanned": "封禁",
       "initialSuperAdmin": "初始超级管理员",
+      "kind": "账号类型",
+      "kindHuman": "人类账号",
+      "kindBot": "机器人（AI 助手）",
+      "kindHint": "机器人账号由系统驱动发言：它不能登录，改为此类型时会撤销其全部会话。想让 AI 回复生效，站内需要这样一个账号。",
       "roleSection": "用户组",
       "roleSectionHelp": "用户有效权限会先继承所有启用用户组的权限。",
       "saveRoles": "保存用户组",
@@ -5046,7 +5067,8 @@
       "replies": "{count} 条回复",
       "viewProfile": "查看公开主页",
       "noBio": "这位用户还没有填写简介。",
-      "unavailable": "暂时无法加载资料简介。"
+      "unavailable": "暂时无法加载资料简介。",
+      "notFound": "没有找到这位用户。"
     },
     "emptyComments": {
       "title": "还没有评论",

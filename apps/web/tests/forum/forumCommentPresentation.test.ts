@@ -224,14 +224,30 @@ describe('SFComment responsive CSS contract', () => {
     const source = commentCss()
     const comment = commentComponent()
     const topic = readFileSync(new URL('../../app/components/forum/SFTopicShowPage.vue', import.meta.url), 'utf8')
+    const anchor = readFileSync(new URL('../../app/composables/forum/useTopicCommentAnchor.ts', import.meta.url), 'utf8')
 
     expect(source).toContain('.sf-comment-list > .sf-comment:target')
     expect(source).toContain('.sf-comment-list > .sf-comment.sf-comment--flash')
     expect(source).toContain('sf-comment-target-glow')
     expect(source).toContain('prefers-reduced-motion: reduce')
     expect(comment).toContain("'sf-comment--flash': flash")
-    expect(topic).toContain('flashTargetComment')
     expect(topic).toContain(':flash="flashCommentId === comment.id"')
-    expect(topic).toContain('COMMENT_FLASH_MS')
+    expect(anchor).toContain('flashTargetComment')
+    expect(anchor).toContain('COMMENT_FLASH_MS')
+  })
+
+  test('never clips the author preview card from the deep-link highlight', () => {
+    const source = commentCss()
+    const targetRule = source.match(
+      /\.sf-comment-list > \.sf-comment:target,\s*\.sf-comment-list > \.sf-comment\.sf-comment--flash \{([^}]*)\}/
+    )?.[1]
+
+    expect(targetRule).toBeDefined()
+    // 扫光改为盒内 background-position 动画后，定位评论不再需要裁剪：
+    // 一旦恢复 overflow: hidden，评论体内的 @作者资料卡又会在评论下沿被切断
+    // （:target 会随 hash 长期生效，不是只闪 3.2s）。
+    expect(targetRule).not.toContain('overflow')
+    expect(source).toContain('background-position: -66.7% 0')
+    expect(source).toContain('background-size: 40% 100%')
   })
 })

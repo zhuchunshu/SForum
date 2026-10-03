@@ -22,6 +22,8 @@ export type AdminAISettings = {
   profiles: AdminAIProfile[]
   costClassProfiles: Record<string, string>
   purposeFailurePosture: Record<string, string>
+  // reply.systemPrompt 为空表示使用内置默认提示词；一键恢复就是把这里清空。
+  reply: { systemPrompt: string }
   autoAction: { enabled: boolean, confidenceThreshold: number, allowedActions: string[] }
   gates: { rateLimitPerMinute: number, extensionDailyQuota: number, userDailyQuota: number, monthlyBudgetMicros: number }
   redaction: { enabled: boolean, redactEmail: boolean, redactPhone: boolean, redactIp: boolean }
@@ -29,11 +31,24 @@ export type AdminAISettings = {
   updatedAt?: string
 }
 
+// ReplyBotInfo 描述当前充当 AI 助手的账号。configured=false 表示站内还没有
+// 机器人账号，回复功能不会生效。
+export type AdminAIReplyBot = {
+  userId?: number
+  username?: string
+  configured: boolean
+}
+
 export type AdminAISettingsPayload = {
   settings: AdminAISettings
   warnings: string[]
   encryptionEnabled: boolean
   credentialStatus: Record<string, boolean>
+  replyBot: AdminAIReplyBot
+  /** 内置回复提示词（不含安全尾注）。编辑器用它预填，让默认值可见。 */
+  defaultSystemPrompt: string
+  /** 始终附加在提示词末尾的防注入声明，只读展示。 */
+  safetyAppendix: string
 }
 
 export type AdminAIUsageSnapshot = {
@@ -101,6 +116,7 @@ export function emptyAdminAISettings(): AdminAISettings {
     profiles: [],
     costClassProfiles: {},
     purposeFailurePosture: {},
+    reply: { systemPrompt: '' },
     autoAction: { enabled: false, confidenceThreshold: 0.9, allowedActions: [] },
     gates: { rateLimitPerMinute: 0, extensionDailyQuota: 0, userDailyQuota: 0, monthlyBudgetMicros: 0 },
     redaction: { enabled: true, redactEmail: true, redactPhone: true, redactIp: true },
@@ -128,6 +144,9 @@ export function useAdminAI() {
   const credentialStatus = computed(() => payload.data.value?.credentialStatus ?? {})
   const warnings = computed(() => payload.data.value?.warnings ?? [])
   const encryptionEnabled = computed(() => payload.data.value?.encryptionEnabled ?? false)
+  const replyBot = computed<AdminAIReplyBot>(() => payload.data.value?.replyBot ?? { configured: false })
+  const defaultSystemPrompt = computed(() => payload.data.value?.defaultSystemPrompt ?? '')
+  const safetyAppendix = computed(() => payload.data.value?.safetyAppendix ?? '')
   const loadFailed = computed(() => Boolean(payload.error.value))
   const loading = computed(() => payload.pending.value)
 
@@ -218,6 +237,9 @@ export function useAdminAI() {
     credentialStatus,
     warnings,
     encryptionEnabled,
+    replyBot,
+    defaultSystemPrompt,
+    safetyAppendix,
     loadFailed,
     loading,
     siteUsage,

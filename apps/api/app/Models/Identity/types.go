@@ -281,6 +281,9 @@ type AdminUserProfile struct {
 
 type AdminUserDetail struct {
 	AdminUserSummary
+	// Kind 区分人类与机器人账号。只在详情上暴露——按类型筛选用户是另一个话题，
+	// 不在这次改动范围内。
+	Kind                UserKind            `json:"kind"`
 	Permissions         []string            `json:"permissions"`
 	PermissionOverrides PermissionOverrides `json:"permissionOverrides"`
 	Profile             AdminUserProfile    `json:"profile"`
@@ -342,6 +345,8 @@ type AdminUpdateUserInput struct {
 	Signature   *string
 	Location    *string
 	WebsiteURL  *string
+	// Kind 允许管理员把一个账号标记为机器人，或把它恢复为人类。
+	Kind *UserKind
 }
 
 type UserListInput struct {

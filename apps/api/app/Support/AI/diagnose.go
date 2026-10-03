@@ -24,6 +24,15 @@ const (
 	DiagnoseReasonProviderFailed = "provider_failed"
 )
 
+// ReplyBotInfo 描述当前充当 AI 助手的账号。它让控制台能回答「到底用哪个账号
+// 发言」，而不是让运营者去猜。
+type ReplyBotInfo struct {
+	UserID   int64  `json:"userId,omitempty"`
+	Username string `json:"username,omitempty"`
+	// Configured 为 false 表示站内还没有机器人账号，回复功能不会生效。
+	Configured bool `json:"configured"`
+}
+
 // DiagnosePurpose 是探测调用的用途标识。它出现在执行记录里，让运维探测与
 // 真实业务调用在用量表中可区分。
 const DiagnosePurpose = "admin.connectivity_test"

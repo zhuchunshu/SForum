@@ -31,6 +31,11 @@ func (passwordResetFakeStore) WithBootstrapTx(_ context.Context, fn func(context
 	return fn(context.Background(), passwordResetTxStore{})
 }
 func (passwordResetFakeStore) AnyUserExists(context.Context) (bool, error) { return false, nil }
+
+// UserKindOf：这份 fake 只服务密码重置路径，那里不涉及机器人语义。
+func (passwordResetFakeStore) UserKindOf(context.Context, int64) (identity.UserKind, error) {
+	return identity.UserKindHuman, nil
+}
 func (passwordResetFakeStore) FindRegistrationConflicts(context.Context, string, string) (identity.RegistrationConflicts, error) {
 	return identity.RegistrationConflicts{}, nil
 }

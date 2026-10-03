@@ -217,8 +217,9 @@ func (s *Service) ResolveCommentPage(ctx context.Context, topicID int64, comment
 	}
 	// perPage 归一化与 ListComments 同源，保证页码边界一致。
 	_, perPage = resolveCommentPagination(1, 0, settings.CommentsPerPage)
-	// 排在目标之前、对该 viewer 可见的评论数；flat 排序为 path_key ASC, id ASC。
-	before, err := s.store.CountCommentsBefore(ctx, topicID, summary.PathKey, summary.ID, includeDeleted, deletedAuthorUserID)
+	// 排在目标之前、对该 viewer 可见的评论数；flat 排序为 created_at ASC, id ASC。
+	// 用发表时间做位置键：与时间流列表同口径，回复不再改变他人楼层。
+	before, err := s.store.CountCommentsBefore(ctx, topicID, summary.CreatedAt, summary.ID, includeDeleted, deletedAuthorUserID)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -546,61 +547,6 @@ func (s *Service) enforceTopicCreateLimitsForActor(ctx context.Context, actor id
 
 func (s *Service) enforceCommentCreateLimits(ctx context.Context, authorUserID int64, settings ForumSettings) error {
 	return s.enforceCommentCreateLimitsForActor(ctx, identity.Actor{ID: authorUserID}, settings)
-}
-
-func (s *Service) enforceCommentCreateLimitsForActor(ctx context.Context, actor identity.Actor, settings ForumSettings) error {
-	now := time.Now().UTC()
-	cooldown := settings.CommentCooldownSeconds
-	daily := settings.DailyCommentLimit
-	if trust := s.trustForActor(ctx, actor); trust.active {
-		if trust.commentCooldown > 0 && (cooldown <= 0 || trust.commentCooldown > cooldown) {
-			cooldown = trust.commentCooldown
-		}
-		if trust.dailyComment > 0 && (daily <= 0 || trust.dailyComment < daily) {
-			daily = trust.dailyComment
-		}
-	}
-	if cooldown > 0 {
-		lastAt, ok, err := s.store.LatestAuthorCommentCreatedAt(ctx, actor.ID)
-		if err != nil {
-			return err
-		}
-		if !cooldownElapsed(lastAt, ok, cooldown, now) {
-			return newCooldownError(ErrCommentCooldown, lastAt, cooldown)
-		}
-	}
-	if daily > 0 {
-		count, err := s.store.CountAuthorCommentsSince(ctx, actor.ID, dayStartUTC(now))
-		if err != nil {
-			return err
-		}
-		if count >= int64(daily) {
-			return ErrDailyCommentLimit
-		}
-	}
-	return nil
-}
-
-// trustLimits 是 forum 侧缓存的新人策略快照；由 SettingsResolver 扩展或 options 注入。
-// 当前从 ForumSettings 之外的 resolver 可选接口读取，缺省不启用新人限制。
-type trustLimits struct {
-	active          bool
-	topicCooldown   int
-	commentCooldown int
-	dailyTopic      int
-	dailyComment    int
-	forbidLinks     bool
-	forbidAttach    bool
-}
-
-// TrustPolicyResolver 可选：由 options 适配器实现，向 forum 注入新人阶梯。
-type TrustPolicyResolver interface {
-	NewUserTrustDays(ctx context.Context) (int, error)
-	NewUserTopicCooldownSeconds(ctx context.Context) (int, error)
-	NewUserCommentCooldownSeconds(ctx context.Context) (int, error)
-	NewUserDailyTopicLimit(ctx context.Context) (int, error)
-	NewUserDailyCommentLimit(ctx context.Context) (int, error)
-	NewUserForbidOutboundLinks(ctx context.Context) (bool, error)
 }
 
 func (s *Service) trustForActor(ctx context.Context, actor identity.Actor) trustLimits {

@@ -65,10 +65,12 @@ type Settings struct {
 	// 由配置决定实际使用哪个模型。
 	CostClassProfiles map[string]string `json:"costClassProfiles"`
 	// PurposeFailurePosture 覆盖单个用途的失败姿态；缺省为 fail_open。
-	PurposeFailurePosture map[string]string  `json:"purposeFailurePosture"`
-	AutoAction            AutoActionSettings `json:"autoAction"`
-	Gates                 GateSettings       `json:"gates"`
-	Redaction             RedactionSettings  `json:"redaction"`
+	PurposeFailurePosture map[string]string `json:"purposeFailurePosture"`
+	// Reply 是 AI 回复的可配置部分。零值即使用内置默认提示词。
+	Reply      ReplySettings      `json:"reply"`
+	AutoAction AutoActionSettings `json:"autoAction"`
+	Gates      GateSettings       `json:"gates"`
+	Redaction  RedactionSettings  `json:"redaction"`
 	// Revision 每次保存递增，用于在执行记录中快照生效配置版本。
 	Revision        int64     `json:"revision"`
 	UpdatedByUserID *int64    `json:"updatedByUserId,omitempty"`

@@ -540,7 +540,7 @@ useSeoMeta({ title: t('admin.forum.content.metaTitle') })
                     </div>
                     <section class="rounded-lg border border-slate-200 p-4 dark:border-zinc-800">
                       <h4 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">{{ t('admin.forum.content.history.previewTitle') }}</h4>
-                      <div v-if="revisionDetail.preview" class="sf-prose mt-3 max-w-none overflow-wrap-anywhere" v-highlight v-html="sanitizeHtml(revisionDetail.preview.htmlContent)" />
+                      <div v-if="revisionDetail.preview" class="sf-prose mt-3 max-w-none overflow-wrap-anywhere" v-highlight v-mention v-html="sanitizeHtml(revisionDetail.preview.htmlContent)" />
                       <p v-else class="mt-3 whitespace-pre-wrap break-words text-sm text-slate-700 dark:text-zinc-200">{{ revisionDetail.rawContent }}</p>
                     </section>
                     <SFAdminForumRevisionDiff v-if="currentRevisionDetail" :current-revision="currentRevisionDetail" :revision="revisionDetail" />

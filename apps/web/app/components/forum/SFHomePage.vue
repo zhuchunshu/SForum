@@ -26,13 +26,28 @@ import {
 } from '~/utils/forum/forumHome'
 import {
   forumTopicPath,
+  forumTopicSorts,
+  normalizeForumTopicSort,
   type ForumCategoryGroup,
   type ForumTag,
   type ForumTopicList,
+  type ForumTopicSort,
   type ForumTopicSummary
 } from '~/utils/forum/forumTaxonomy'
 
 const SEARCH_DEBOUNCE_MS = 300
+
+// 排序选项直接由契约枚举派生，UI 与服务端 sort 永不漂移。
+const FEED_SORT_LABEL_KEYS: Record<ForumTopicSort, string> = {
+  latest: 'home.filter.latest',
+  active: 'home.filter.active',
+  hot: 'home.filter.hot'
+}
+// 展示顺序 = 产品优先序：最新（活跃）在前，其次最新帖子，最后热门。
+const FEED_SORT_PRIORITY: Record<ForumTopicSort, number> = { active: 0, latest: 1, hot: 2 }
+const FEED_SORT_OPTIONS = [...forumTopicSorts]
+  .sort((left, right) => FEED_SORT_PRIORITY[left] - FEED_SORT_PRIORITY[right])
+  .map(key => ({ key, labelKey: FEED_SORT_LABEL_KEYS[key] }))
 
 const { t } = useI18n()
 const route = useRoute()
@@ -41,7 +56,7 @@ const localePath = useLocalePath()
 const isSearchPage = computed(() => route.path === localePath('/search'))
 const registryPage = computed(() => isSearchPage.value ? 'forum.search' : 'forum.home')
 const surfacePath = computed(() => isSearchPage.value ? localePath('/search') : localePath('/'))
-const { seoSettings } = useWebOptions()
+const { seoSettings, webOption } = useWebOptions()
 const forumApi = useForumApi()
 const { can } = usePermissions()
 // 主题 extension settings（后台「主题设置」自定义页）；非 core web_options
@@ -67,9 +82,20 @@ const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
 const { closeDrawer: closeMobileMenu } = usePublicSidebarDrawer()
 const renderedAt = useState<number>('forum-home-rendered-at', () => Date.now())
-const feedSort = ref<'latest' | 'replies'>('latest')
 const filterPanelOpen = ref(false)
+// 排序切换后的结果公告（无 URL 变更时屏幕阅读器也需要被告知）
+const sortAnnouncement = ref('')
 let feedGeneration = 0
+
+// 站点默认排序来自公开选项 forum.list.default_sort（latest|active|hot），
+// 推荐默认 active：URL 不带 sort 时列表就是它，高亮必须与实际排序一致。
+const siteDefaultSort = computed<ForumTopicSort>(
+  () => normalizeForumTopicSort(webOption('forum.list.default_sort', 'active')) || 'active'
+)
+// URL 未携带 sort 时列表就是站点默认排序，因此高亮取「URL > 站点默认」。
+const activeFeedSort = computed<ForumTopicSort>(() => committedFilters.value.sort || siteDefaultSort.value)
+// 关键词搜索端点没有 sort；搜索态不展示排序入口，避免对用户做出假承诺。
+const showFeedSort = computed(() => !isSearchPage.value && !committedFilters.value.query)
 
 const emptyTopicList = (): ForumTopicList => ({
   items: [],
@@ -111,18 +137,22 @@ function loadTopicPage(
   }
 
   // M5：有 nextCursor 时用 after keyset，避免深 OFFSET
+  // 排序始终交给服务端：游标与 sort 绑定，前端不得本地重排
+  const sort = filters.sort || undefined
   if (after) {
     return forumApi.listTopics({
       categorySlug: filters.categorySlug,
       tagSlug: filters.tagSlug,
-      after
+      after,
+      sort
     })
   }
 
   return forumApi.listTopics({
     categorySlug: filters.categorySlug,
     tagSlug: filters.tagSlug,
-    page
+    page,
+    sort
   })
 }
 
@@ -155,16 +185,9 @@ const loadMoreTrigger = ref<HTMLElement | null>(null)
 const hasLoadedAllPages = ref(false)
 
 const categories = computed(() => categoryGroups.value.flatMap((group) => group.categories || []))
+// 列表顺序完全由服务端排序决定（latest / active / hot）：本地重排只能作用于已加载页，
+// 还会破坏置顶优先与 cursor 续页语义，因此前端不做二次排序。
 const topics = computed(() => loadedTopics.value)
-const displayTopics = computed(() => {
-  if (feedSort.value === 'latest') {
-    return topics.value
-  }
-  return [...topics.value].sort((left, right) => {
-    const replies = right.commentCount - left.commentCount
-    return replies || right.id - left.id
-  })
-})
 const totalPages = computed(() => Math.ceil(loadedTopicTotal.value / Math.max(topicList.value.perPage, 1)) || 1)
 // hasMore 优先 API 字段 / nextCursor；否则用 total 近似（兼容旧响应）
 const hasMoreTopics = computed(() => {
@@ -431,10 +454,22 @@ function selectTag(slug: string) {
   return commitFilters({ ...committedFilters.value, tagSlug })
 }
 
+// 排序写进 URL：可分享、可刷新保持，并让 feedKey 变化触发分页与 cursor 重置。
+// 选中站点默认排序时清掉参数，保持链接干净且与默认态等价。
+function selectFeedSort(sort: ForumTopicSort) {
+  const nextSort = sort === siteDefaultSort.value ? '' : sort
+  if (nextSort === committedFilters.value.sort) {
+    return
+  }
+  sortAnnouncement.value = t('home.filter.sortedBy', { label: t(FEED_SORT_LABEL_KEYS[sort]) })
+  return commitFilters({ ...committedFilters.value, sort: nextSort })
+}
+
 function resetFilters() {
   clearSearchDebounce()
   searchDraft.value = ''
-  return commitFilters({ query: '', categorySlug: '', tagSlug: '' })
+  // 排序不是筛选项：清除筛选时保留用户已选的排序方式。
+  return commitFilters({ ...committedFilters.value, query: '', categorySlug: '', tagSlug: '' })
 }
 
 async function retryFirstPage() {
@@ -555,24 +590,22 @@ onBeforeUnmount(() => {
           variant="section"
         >
           <template #aside>
-            <div class="sforum-home__feed-tools" role="group" :aria-label="t('home.filter.sortLabel')">
+            <div
+              v-if="showFeedSort"
+              class="sforum-home__feed-tools"
+              role="group"
+              :aria-label="t('home.filter.sortLabel')"
+            >
               <button
+                v-for="option in FEED_SORT_OPTIONS"
+                :key="option.key"
                 type="button"
                 class="sforum-home__feed-sort"
-                :class="{ 'is-active': feedSort === 'latest' }"
-                :aria-pressed="feedSort === 'latest'"
-                @click="feedSort = 'latest'"
+                :class="{ 'is-active': activeFeedSort === option.key }"
+                :aria-pressed="activeFeedSort === option.key"
+                @click="selectFeedSort(option.key)"
               >
-                {{ t('home.filter.latest') }}
-              </button>
-              <button
-                type="button"
-                class="sforum-home__feed-sort max-[560px]:hidden"
-                :class="{ 'is-active': feedSort === 'replies' }"
-                :aria-pressed="feedSort === 'replies'"
-                @click="feedSort = 'replies'"
-              >
-                {{ t('home.filter.mostReplies') }}
+                {{ t(option.labelKey) }}
               </button>
               <button
                 type="button"
@@ -587,6 +620,7 @@ onBeforeUnmount(() => {
                 <UIcon name="i-lucide-sliders-horizontal" class="size-[19px]" aria-hidden="true" />
               </button>
             </div>
+            <p class="sr-only" aria-live="polite">{{ sortAnnouncement }}</p>
           </template>
         </SFPublicPageHeader>
 
@@ -669,7 +703,7 @@ onBeforeUnmount(() => {
 
           <template v-else-if="topics.length">
             <SFHomeTopicRow
-              v-for="topic in displayTopics"
+              v-for="topic in topics"
               :key="topic.id"
               :topic="topic"
               :to="localePath(forumTopicPath(topic, topicUrlMode))"

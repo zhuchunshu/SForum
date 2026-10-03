@@ -1,0 +1,185 @@
+/* 公开页排序控件（Core 基线，分段控件 / segmented control）。
+ *
+ * 三处同构控件共用一套几何与状态语言：首页 feed 排序
+ * （.sforum-home__feed-sort）、分类目录排序（.sforum-category-directory__sort）、
+ * 标签页筛选（.sforum-tags-page__filter）。
+ *
+ * 主题皮肤历史上把首页控件锁成「透明底 + 选中只换文字色」，该规则又被
+ * .sf-theme--default 限定，于是 Core fallback 渲染路径完全没有控件样式。
+ * 这里统一处理：
+ *   1. 同时声明 Core fallback 与 `.sf-page.sf-theme--default` 两条路径，
+ *      与 sforum-home-pinned.css 的「两条渲染路径表现一致」约定相同；
+ *   2. 几何、状态色全部走 --sf-sort-* 变量，主题可在 `.sf-page` 作用域整体接管；
+ *   3. 选中态用「抬起的胶囊」表达，不再依赖与容器同色的微弱底色。
+ *
+ * 本表必须在 sforum-home.css / sforum-taxonomy.css / sforum-tags.css 之后加载。
+ */
+
+:root {
+  --sf-sort-height: 36px;
+  --sf-sort-radius: 6px;
+  --sf-sort-padding: 3px;
+  --sf-sort-gap: 2px;
+  --sf-sort-option-radius: 4px;
+  --sf-sort-option-padding: 12px;
+  --sf-sort-option-font-size: 12.5px;
+  --sf-sort-option-font-weight: 650;
+  --sf-sort-option-height: calc(var(--sf-sort-height) - var(--sf-sort-padding) * 2 - 2px);
+  --sf-sort-container-bg: var(--sf-public-surface-muted);
+  --sf-sort-container-border: var(--sf-public-border);
+  --sf-sort-option-text: var(--sf-public-text-secondary);
+  --sf-sort-option-hover-bg: color-mix(in srgb, var(--sf-accent) 8%, var(--sf-public-surface-muted));
+  --sf-sort-option-active-bg: var(--sf-public-surface);
+  --sf-sort-option-active-text: var(--sf-accent);
+  --sf-sort-option-active-shadow: 0 1px 2px rgb(15 23 42 / 8%);
+}
+
+/* 夜间：亮色强调变体可读性更好，胶囊阴影需要足够分离度。 */
+.dark {
+  --sf-sort-option-active-text: var(--sf-accent-dark, var(--sf-accent));
+  --sf-sort-option-active-shadow: 0 1px 2px rgb(0 0 0 / 45%);
+}
+
+.sforum-home__feed-tools,
+.sf-page.sf-theme--default .sforum-home__feed-tools,
+.sforum-category-directory__sorts,
+.sf-page.sf-theme--default .sforum-category-directory__sorts,
+.sforum-tags-page__filters,
+.sf-page.sf-theme--default .sforum-tags-page__filters {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: var(--sf-sort-gap);
+  padding: var(--sf-sort-padding);
+  border: 1px solid var(--sf-sort-container-border);
+  border-radius: var(--sf-sort-radius);
+  background: var(--sf-sort-container-bg);
+}
+
+.sforum-home__feed-sort,
+.sf-page.sf-theme--default .sforum-home__feed-sort,
+.sforum-category-directory__sort,
+.sf-page.sf-theme--default .sforum-category-directory__sort,
+.sforum-tags-page__filter,
+.sf-page.sf-theme--default .sforum-tags-page__filter {
+  display: inline-flex;
+  height: var(--sf-sort-option-height);
+  min-height: var(--sf-sort-option-height);
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--sf-sort-option-radius);
+  padding: 0 var(--sf-sort-option-padding);
+  background: transparent;
+  color: var(--sf-sort-option-text);
+  font-size: var(--sf-sort-option-font-size);
+  font-weight: var(--sf-sort-option-font-weight);
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+
+/* 悬停在前、选中在后：选中项被悬停时保持「抬起」状态。 */
+.sforum-home__feed-sort:hover,
+.sf-page.sf-theme--default .sforum-home__feed-sort:hover,
+.sforum-category-directory__sort:hover,
+.sf-page.sf-theme--default .sforum-category-directory__sort:hover,
+.sforum-tags-page__filter:hover,
+.sf-page.sf-theme--default .sforum-tags-page__filter:hover {
+  background: var(--sf-sort-option-hover-bg);
+  color: var(--sf-sort-option-active-text);
+}
+
+.sforum-home__feed-sort.is-active,
+.sf-page.sf-theme--default .sforum-home__feed-sort.is-active,
+.sforum-category-directory__sort.is-active,
+.sf-page.sf-theme--default .sforum-category-directory__sort.is-active,
+.sforum-tags-page__filter.is-active,
+.sf-page.sf-theme--default .sforum-tags-page__filter.is-active {
+  background: var(--sf-sort-option-active-bg);
+  color: var(--sf-sort-option-active-text);
+  box-shadow: var(--sf-sort-option-active-shadow);
+}
+
+/* 筛选图标按钮：容器内的对等按钮，与选项同高，不再单独占用边距。 */
+.sforum-home__feed-filter-button,
+.sf-page.sf-theme--default .sforum-home__feed-filter-button {
+  display: inline-grid;
+  width: var(--sf-sort-option-height);
+  height: var(--sf-sort-option-height);
+  flex: 0 0 auto;
+  place-items: center;
+  margin-left: 0;
+  border: 0;
+  border-radius: var(--sf-sort-option-radius);
+  background: transparent;
+  color: var(--sf-sort-option-text);
+  cursor: pointer;
+  transition: background-color 0.16s ease, color 0.16s ease;
+}
+
+.sforum-home__feed-filter-button:hover,
+.sf-page.sf-theme--default .sforum-home__feed-filter-button:hover,
+.sforum-home__feed-filter-button.is-active,
+.sf-page.sf-theme--default .sforum-home__feed-filter-button.is-active {
+  background: var(--sf-sort-option-hover-bg);
+  color: var(--sf-sort-option-active-text);
+}
+
+/* 键盘用户必须能看出焦点落在哪个选项上。 */
+.sforum-home__feed-sort:focus-visible,
+.sf-page.sf-theme--default .sforum-home__feed-sort:focus-visible,
+.sforum-category-directory__sort:focus-visible,
+.sf-page.sf-theme--default .sforum-category-directory__sort:focus-visible,
+.sforum-tags-page__filter:focus-visible,
+.sf-page.sf-theme--default .sforum-tags-page__filter:focus-visible,
+.sforum-home__feed-filter-button:focus-visible,
+.sf-page.sf-theme--default .sforum-home__feed-filter-button:focus-visible {
+  outline: 2px solid var(--sf-accent);
+  outline-offset: 2px;
+}
+
+/* 窄屏：不隐藏任何排序项，改为横向可滑并加大触摸目标。 */
+@media (max-width: 560px) {
+  :root {
+    --sf-sort-height: 38px;
+    --sf-sort-padding: 2px;
+    --sf-sort-option-padding: 10px;
+  }
+
+  .sforum-home__feed-tools,
+  .sf-page.sf-theme--default .sforum-home__feed-tools,
+  .sforum-category-directory__sorts,
+  .sf-page.sf-theme--default .sforum-category-directory__sorts,
+  .sforum-tags-page__filters,
+  .sf-page.sf-theme--default .sforum-tags-page__filters {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .sforum-home__feed-tools::-webkit-scrollbar,
+  .sforum-category-directory__sorts::-webkit-scrollbar,
+  .sforum-tags-page__filters::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sforum-home__feed-sort,
+  .sf-page.sf-theme--default .sforum-home__feed-sort,
+  .sforum-category-directory__sort,
+  .sf-page.sf-theme--default .sforum-category-directory__sort,
+  .sforum-tags-page__filter,
+  .sf-page.sf-theme--default .sforum-tags-page__filter {
+    flex: 0 0 auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sforum-home__feed-sort,
+  .sforum-category-directory__sort,
+  .sforum-tags-page__filter,
+  .sforum-home__feed-filter-button {
+    transition: none;
+  }
+}

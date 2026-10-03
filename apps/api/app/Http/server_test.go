@@ -1592,6 +1592,11 @@ func (s *httpFakeStore) WithBootstrapTx(ctx context.Context, fn func(context.Con
 	return fn(ctx, s)
 }
 
+// UserKindOf：HTTP 层 fake 不涉及机器人语义，一律按人类处理。
+func (s *httpFakeStore) UserKindOf(context.Context, int64) (identity.UserKind, error) {
+	return identity.UserKindHuman, nil
+}
+
 func (s *httpFakeStore) AnyUserExists(context.Context) (bool, error) {
 	return len(s.users) > 0, nil
 }

@@ -66,11 +66,16 @@ describe('account security page contracts', () => {
     expect(payload.some(item => item.name === 'unrelated.option')).toBe(false)
   })
 
-  test('homepage exposes only the implemented latest feed filter', () => {
+  test('homepage exposes only server-backed feed sorts', () => {
     const source = homepage()
 
-    expect(source).toContain("t('home.filter.latest')")
-    expect(source).not.toContain("t('home.filter.hot')")
+    // 排序选项由契约枚举派生：GET /topics?sort=latest|active|hot，选项与枚举一一对应
+    expect(source).toContain('const FEED_SORT_OPTIONS = [...forumTopicSorts]')
+    expect(source).toContain("latest: 'home.filter.latest'")
+    expect(source).toContain("active: 'home.filter.active'")
+    expect(source).toContain("hot: 'home.filter.hot'")
+    // 未实现的服务端排序/过滤不得出现在 UI（禁止假入口）
+    expect(source).not.toContain("t('home.filter.mostReplies')")
     expect(source).not.toContain("t('home.filter.unread')")
     expect(source).not.toContain("t('home.filter.ranking')")
   })

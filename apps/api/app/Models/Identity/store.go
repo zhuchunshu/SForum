@@ -20,6 +20,9 @@ type Store interface {
 	ListPermissionMatrix(ctx context.Context) (PermissionMatrix, error)
 	ListUsers(ctx context.Context, input UserListInput) (AdminUserList, error)
 	GetAdminUser(ctx context.Context, userID int64) (AdminUserDetail, error)
+	// UserKindOf 返回账号类型，供「他是不是机器人」这类服务端判断使用：
+	// 登录拒绝、防循环、头像标识都问同一个问题。
+	UserKindOf(ctx context.Context, userID int64) (UserKind, error)
 	// UpdateAdminUser 更新用户账户字段与资料；input 中非空指针字段才会写入。
 	UpdateAdminUser(ctx context.Context, actorUserID int64, targetUserID int64, input AdminUpdateUserInput) (AdminUserDetail, error)
 	ListRoles(ctx context.Context) ([]Role, error)

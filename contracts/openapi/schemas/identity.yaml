@@ -701,7 +701,14 @@ AdminUserDetail:
     - activity
     - sessions
     - recentAuthEvents
+    - kind
     properties:
+      kind:
+        type: string
+        enum:
+        - human
+        - bot
+        description: Account kind. Bot accounts cannot sign in and never trigger AI replies themselves.
       permissions:
         type: array
         items:
@@ -881,6 +888,16 @@ AdminUpdateUserInput:
       - active
       - disabled
       - banned
+    kind:
+      type: string
+      enum:
+      - human
+      - bot
+      description: |
+        Marks the account as a bot (AI assistant, automation) or restores it to a
+        human account. Bot accounts cannot sign in interactively: marking one revokes
+        its sessions, and the login path rejects them. They otherwise remain ordinary
+        users — they occupy a seat, count as online, can be mentioned and reported.
     bio:
       type: string
       maxLength: 500

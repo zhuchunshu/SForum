@@ -136,6 +136,7 @@ export default defineNuxtConfig({
     '~/assets/css/main.css',
     '~/assets/css/sforum-components.css',
     '~/assets/css/sforum-content-semantics.css',
+    '~/assets/css/sforum-mention.css',
     '~/assets/css/sforum-altcha.css',
     '~/assets/css/sforum-theme.css',
     '~/assets/css/sforum-home.css',
@@ -145,6 +146,8 @@ export default defineNuxtConfig({
     '~/assets/css/sforum-taxonomy.css',
     '~/assets/css/sforum-tags.css',
     '~/assets/css/sforum-profile.css',
+    // 排序/分段控件基线必须在 home / taxonomy / tags 之后加载（同级声明后置覆盖）
+    '~/assets/css/sforum-sort-control.css',
     '~/assets/css/highlight-theme.css'
   ],
   // DevTools 会扩大开发期依赖扫描和常驻内存；需要调试时用 NUXT_DEVTOOLS=true 显式开启。

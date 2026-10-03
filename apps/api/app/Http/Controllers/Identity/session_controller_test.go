@@ -63,6 +63,11 @@ func (s *sessionTestStore) WithBootstrapTx(ctx context.Context, fn func(context.
 }
 
 func (s *sessionTestStore) AnyUserExists(context.Context) (bool, error) { return len(s.users) > 0, nil }
+
+// UserKindOf：会话路径的 fake 不涉及机器人语义，一律按人类处理。
+func (s *sessionTestStore) UserKindOf(context.Context, int64) (identity.UserKind, error) {
+	return identity.UserKindHuman, nil
+}
 func (s *sessionTestStore) FindRegistrationConflicts(_ context.Context, username, email string) (identity.RegistrationConflicts, error) {
 	return identity.RegistrationConflicts{
 		UsernameTaken: s.loginIndex[lower(username)] != 0,

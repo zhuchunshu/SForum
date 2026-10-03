@@ -69,7 +69,7 @@ async function decide(action: ModerationAction) {
             {{ context.lastEditIp }}
           </span>
         </div>
-        <div class="sf-prose max-w-none overflow-wrap-anywhere" v-highlight v-html="sanitizeHtml(context.html)" />
+        <div class="sf-prose max-w-none overflow-wrap-anywhere" v-highlight v-mention v-html="sanitizeHtml(context.html)" />
       </div>
       <aside class="border-t border-slate-200 pt-4 dark:border-zinc-800 lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0">
         <label class="text-xs font-semibold text-slate-700 dark:text-zinc-300">{{ t('moderation.workbench.reviewNote') }}</label>

@@ -670,8 +670,10 @@ userByID:
     summary: Update an admin user account and profile
     description: |
       Requires `user.manage`. Partial update for account fields (username, email,
-      displayName, locale, status) and public profile (bio, signature, location,
-      websiteUrl). Setting `status` to `banned` also requires `user.ban`.
+      displayName, locale, status, kind) and public profile (bio, signature,
+      location, websiteUrl). Setting `status` to `banned` also requires `user.ban`.
+      Setting `kind` to `bot` revokes the account's sessions and blocks interactive
+      login until it is restored to `human`.
       Operators cannot change their own status via this endpoint. Non-super-admin
       operators cannot edit super_admin accounts. Initial super admin status
       cannot be set to disabled/banned.

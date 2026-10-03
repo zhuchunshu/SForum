@@ -20,6 +20,16 @@ const advancedOpen = ref(false)
 
 watch(ai.settings, (next) => {
   form.value = JSON.parse(JSON.stringify(next)) as AdminAISettings
+  // 已保存的文档可能来自引入 reply 之前的版本，那时这个字段不存在。
+  // 先补全再绑定，否则任何 .trim() 都会炸在 undefined 上。
+  if (form.value && (typeof form.value.reply?.systemPrompt !== 'string')) {
+    form.value.reply = { systemPrompt: '' }
+  }
+  // 没有自定义时在编辑器里预填内置默认：运营者要能看见默认值是什么，
+  // 而不是面对一个空框去猜。「使用默认」的语义由保存时的归一化维持。
+  if (form.value && !form.value.reply.systemPrompt.trim()) {
+    form.value.reply.systemPrompt = ai.defaultSystemPrompt.value
+  }
   const active = next.profiles.find(profile => profile.enabled)
   selectedProviderId.value = next.enabled ? (active?.id ?? '') : ''
 }, { immediate: true })
@@ -47,9 +57,20 @@ const profileIncomplete = computed(() =>
   selectedProfile.value ? !isProfileComplete(selectedProfile.value) : false
 )
 
+// 与内置默认逐字相同的文本不算自定义。比较与保存都走这里，避免「预填了默认就被
+// 当成已修改」——那会让保存按钮一直亮着，也会把默认值固化成自定义内容。
+function normalizedForComparison(settings: AdminAISettings) {
+  const copy = JSON.parse(JSON.stringify(settings)) as AdminAISettings
+  const prompt = typeof copy.reply?.systemPrompt === 'string' ? copy.reply.systemPrompt : ''
+  if (prompt.trim() === (ai.defaultSystemPrompt.value || '').trim()) {
+    copy.reply = { systemPrompt: '' }
+  }
+  return copy
+}
+
 const dirty = computed(() => {
   if (!form.value) return false
-  return JSON.stringify(form.value) !== JSON.stringify(ai.settings.value)
+  return JSON.stringify(normalizedForComparison(form.value)) !== JSON.stringify(normalizedForComparison(ai.settings.value))
 })
 
 const localizedWarnings = computed(() => ai.warnings.value.map((warning) => {
@@ -113,7 +134,9 @@ function ensureCustomProfile() {
 async function save() {
   if (!form.value) return
   syncEnabledProfiles()
-  await ai.saveSettings(JSON.parse(JSON.stringify(form.value)) as AdminAISettings)
+  // 归一化后再提交：与默认逐字相同的内容以空值存库，保持「使用默认」语义，
+  // 这样以后升级内置提示词时这部分站点会跟着更新。
+  await ai.saveSettings(normalizedForComparison(form.value))
 }
 
 async function submitCredential(profileId: string) {
@@ -134,6 +157,18 @@ function setBudgetYuan(value: string | number) {
 
 function budgetYuan() {
   return form.value ? form.value.gates.monthlyBudgetMicros / MICRO_PER_UNIT : 0
+}
+
+// 提示词为空表示使用内置默认；一键恢复就是把自定义内容清空。
+const promptCustomized = computed(() => {
+  const current = (form.value?.reply?.systemPrompt || '').trim()
+  const fallback = ai.defaultSystemPrompt.value.trim()
+  return current !== '' && current !== fallback
+})
+
+function restoreDefaultPrompt() {
+  if (!form.value) return
+  form.value.reply = { systemPrompt: ai.defaultSystemPrompt.value }
 }
 
 function toggleAdvanced() {
@@ -312,6 +347,47 @@ function setMicro(field: 'inputPerMillionMicros' | 'outputPerMillionMicros', val
           <UInput :model-value="budgetYuan()" type="number" step="0.01" :disabled="!canManage" class="w-full"
             @update:model-value="setBudgetYuan" />
         </UFormField>
+      </div>
+    </section>
+
+    <section class="min-w-0 rounded-lg border border-slate-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="min-w-0">
+          <p class="text-sm font-semibold text-slate-900 dark:text-zinc-100">{{ t('admin.ai.replyPrompt.title') }}</p>
+          <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.ai.replyPrompt.intro') }}</p>
+        </div>
+        <UBadge :color="promptCustomized ? 'primary' : 'neutral'" variant="soft" size="sm">
+          {{ promptCustomized ? t('admin.ai.replyPrompt.customized') : t('admin.ai.replyPrompt.default') }}
+        </UBadge>
+      </div>
+      <div class="mt-3">
+        <LazySFEditor
+          v-model="form.reply.systemPrompt"
+          preset="basic-field"
+          :load-trusted-catalog="false"
+          :rows="10"
+          :max-characters="8000"
+          :disabled="!canManage"
+          :aria-label="t('admin.ai.replyPrompt.title')"
+          :placeholder="t('admin.ai.replyPrompt.placeholder')"
+        />
+      </div>
+      <div class="mt-3 flex flex-wrap items-center gap-2">
+        <UButton
+          icon="i-lucide-rotate-ccw"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          :disabled="!canManage || !promptCustomized"
+          @click="restoreDefaultPrompt"
+        >
+          {{ t('admin.ai.replyPrompt.restore') }}
+        </UButton>
+        <span class="text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.ai.replyPrompt.safetyHint') }}</span>
+      </div>
+      <div v-if="ai.safetyAppendix.value" class="mt-3 rounded-md bg-slate-50 p-3 dark:bg-zinc-950/60">
+        <p class="text-xs font-medium text-slate-600 dark:text-zinc-300">{{ t('admin.ai.replyPrompt.safetyTitle') }}</p>
+        <pre class="mt-1 whitespace-pre-wrap font-sans text-xs text-slate-500 dark:text-zinc-400">{{ ai.safetyAppendix.value }}</pre>
       </div>
     </section>
 

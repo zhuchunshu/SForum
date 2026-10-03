@@ -6,6 +6,12 @@ import SFAdminUserListToolbar from '~/components/admin/identity/users/SFAdminUse
 import SFAdminUserEmailVerificationControl from '~/components/admin/identity/users/SFAdminUserEmailVerificationControl.vue'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/admin/useAdminPage'
+import {
+  useAdminUserPreview,
+  PREVIEW_SESSION_PAGE_SIZE,
+  PREVIEW_AUTH_EVENT_PAGE_SIZE,
+  PREVIEW_PERMISSION_PAGE_SIZE
+} from '~/composables/admin/identity/useAdminUserPreview'
 import { paginateItems } from '~/utils/admin/adminExtensions'
 import type {
   AdminUserDetail, AdminUserList,
@@ -24,15 +30,19 @@ defineOptions({
 
 const DEFAULT_PER_PAGE = 20
 // 预览弹层内列表分页：会话卡片较占高，权限 chip 可更密。
-const PREVIEW_SESSION_PAGE_SIZE = 5
-const PREVIEW_AUTH_EVENT_PAGE_SIZE = 10
-const PREVIEW_PERMISSION_PAGE_SIZE = 24
 
 const { t } = useI18n()
 const { request } = useApiClient()
 const { permissionLabel, permissionDescription, permissionModuleLabel } = usePermissionText()
 const toast = useToast()
 const adminPage = useAdminPage('/users')
+// 预览面板的状态与操作由组合式函数持有；openUser 是函数声明，可安全前向引用。
+const {
+  previewUser, previewTargetId, previewOpen, previewPending,
+  previewSessionsPage, previewAuthEventsPage, previewPermissionsPage,
+  previewSessionsPageInfo, previewAuthEventsPageInfo, previewPermissionsPageInfo,
+  openUserPreview, closeUserPreview, manageFromPreview, displayOrDash, authActionLabel
+} = useAdminUserPreview({ openUser, showError })
 
 const search = ref('')
 const status = ref('')
@@ -46,13 +56,6 @@ const perPage = ref(DEFAULT_PER_PAGE)
 const roles = ref<Role[]>([])
 const permissions = ref<Permission[]>([])
 const selectedUser = ref<AdminUserDetail | null>(null)
-const previewUser = ref<AdminUserDetail | null>(null)
-const previewTargetId = ref<number | null>(null)
-const previewOpen = ref(false)
-const previewPending = ref(false)
-const previewSessionsPage = ref(1)
-const previewAuthEventsPage = ref(1)
-const previewPermissionsPage = ref(1)
 const selectedRoleKeys = ref<string[]>([])
 const allowOverrides = ref<string[]>([])
 const denyOverrides = ref<string[]>([])
@@ -63,6 +66,8 @@ const editEmail = ref('')
 const editDisplayName = ref('')
 const editLocale = ref('zh-CN')
 const editStatus = ref<UserStatus>('active')
+// 账号类型：human 参与论坛；bot 由系统驱动、不能登录，是 AI 助手的载体。
+const editKind = ref<'human' | 'bot'>('human')
 const editBio = ref('')
 const editSignature = ref('')
 const editLocation = ref('')
@@ -89,26 +94,8 @@ onMounted(() => {
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / Math.max(perPage.value, 1))))
 
-const previewSessionsPageInfo = computed(() =>
-  paginateItems(previewUser.value?.sessions || [], previewSessionsPage.value, PREVIEW_SESSION_PAGE_SIZE)
-)
-const previewAuthEventsPageInfo = computed(() =>
-  paginateItems(previewUser.value?.recentAuthEvents || [], previewAuthEventsPage.value, PREVIEW_AUTH_EVENT_PAGE_SIZE)
-)
-const previewPermissionsPageInfo = computed(() =>
-  paginateItems(previewUser.value?.permissions || [], previewPermissionsPage.value, PREVIEW_PERMISSION_PAGE_SIZE)
-)
 
 // 分页计算会夹紧页码；同步回 ref，避免删减数据后落在空页。
-watch(() => previewSessionsPageInfo.value.page, (next) => {
-  previewSessionsPage.value = next
-})
-watch(() => previewAuthEventsPageInfo.value.page, (next) => {
-  previewAuthEventsPage.value = next
-})
-watch(() => previewPermissionsPageInfo.value.page, (next) => {
-  previewPermissionsPage.value = next
-})
 
 const userSurfaceResources = computed(() => users.value.map(user => ({
   id: String(user.id),
@@ -310,6 +297,7 @@ function applyDetailToForm(detail: AdminUserDetail) {
   editDisplayName.value = detail.displayName
   editLocale.value = detail.locale || 'zh-CN'
   editStatus.value = detail.status
+  editKind.value = detail.kind === 'bot' ? 'bot' : 'human'
   editBio.value = detail.profile?.bio ?? ''
   editSignature.value = detail.profile?.signature ?? ''
   editLocation.value = detail.profile?.location ?? ''
@@ -333,62 +321,7 @@ async function openUser(user: AdminUserSummary) {
   }
 }
 
-function resetPreviewListPages() {
-  previewSessionsPage.value = 1
-  previewAuthEventsPage.value = 1
-  previewPermissionsPage.value = 1
-}
 
-async function openUserPreview(user: AdminUserSummary) {
-  previewPending.value = true
-  previewTargetId.value = user.id
-  previewOpen.value = true
-  previewUser.value = null
-  resetPreviewListPages()
-  errorMessage.value = ''
-  try {
-    previewUser.value = await request<AdminUserDetail>(`/users/${user.id}`)
-    // 加载完成后按实际条数夹紧页码（通常仍是第 1 页）。
-    resetPreviewListPages()
-  } catch (error) {
-    previewOpen.value = false
-    previewTargetId.value = null
-    resetPreviewListPages()
-    showError(apiErrorMessage(error) || t('admin.users.previewLoadFailed'))
-  } finally {
-    previewPending.value = false
-  }
-}
-
-function closeUserPreview() {
-  previewOpen.value = false
-  previewUser.value = null
-  previewTargetId.value = null
-  resetPreviewListPages()
-}
-
-async function manageFromPreview() {
-  const user = previewUser.value
-  closeUserPreview()
-  if (user) {
-    await openUser(user)
-  }
-}
-
-function displayOrDash(value?: string | null) {
-  const text = (value || '').trim()
-  return text || t('admin.users.previewEmptyValue')
-}
-
-function authActionLabel(action: string) {
-  if (action === 'auth.login.success') {
-    return t('admin.users.previewAuthLogin')
-  }
-  if (action === 'auth.register.success') {
-    return t('admin.users.previewAuthRegister')
-  }
-  return action
-}
 
 async function refreshSelectedUser() {
   if (!selectedUser.value) return
@@ -446,7 +379,8 @@ async function saveAccount() {
         email: editEmail.value.trim(),
         displayName: editDisplayName.value.trim(),
         locale: editLocale.value,
-        status: editStatus.value
+        status: editStatus.value,
+        kind: editKind.value
       }
     })
     applyDetailToForm(detail)
@@ -1327,6 +1261,18 @@ watch([status, roleKey, sortBy, sortOrder], () => {
               >
                 {{ t('admin.users.initialSuperAdmin') }}
               </span>
+            </label>
+            <label class="block space-y-1.5 text-sm sm:col-span-2">
+              <span class="font-medium text-slate-700 dark:text-zinc-300">{{ t('admin.users.kind') }}</span>
+              <select
+                v-model="editKind"
+                :disabled="selectedUser.isInitialSuperAdmin"
+                class="h-9 w-full max-w-xs rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200"
+              >
+                <option value="human">{{ t('admin.users.kindHuman') }}</option>
+                <option value="bot">{{ t('admin.users.kindBot') }}</option>
+              </select>
+              <span class="mt-1 block text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.users.kindHint') }}</span>
             </label>
           </div>
           <SFAdminUserEmailVerificationControl :user="selectedUser" @updated="applyDetailToForm" />

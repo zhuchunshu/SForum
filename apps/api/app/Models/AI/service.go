@@ -13,6 +13,11 @@ import (
 	supportai "github.com/zhuchunshu/sforum/apps/api/app/Support/AI"
 )
 
+// BotAccountReader 读取充当 AI 助手的机器人账号。
+type BotAccountReader interface {
+	ReplyBotAccount(ctx context.Context) (int64, string, bool, error)
+}
+
 // CredentialStore 是密钥写入与状态查询的最小面。它以接口声明，让服务层不必
 // 依赖 Secret Store 的具体实现。
 type CredentialStore interface {
@@ -28,6 +33,7 @@ type Service struct {
 	usage       supportai.UsageStore
 	traces      supportai.ExecutionStore
 	credentials CredentialStore
+	botAccounts BotAccountReader
 }
 
 // Config 汇总服务层依赖。除 Settings 外均可缺省，缺省时对应视图返回空结果
@@ -38,6 +44,7 @@ type Config struct {
 	Usage       supportai.UsageStore
 	Traces      supportai.ExecutionStore
 	Credentials CredentialStore
+	BotAccounts BotAccountReader
 }
 
 func NewService(cfg Config) *Service {
@@ -47,7 +54,27 @@ func NewService(cfg Config) *Service {
 		usage:       cfg.Usage,
 		traces:      cfg.Traces,
 		credentials: cfg.Credentials,
+		botAccounts: cfg.BotAccounts,
 	}
+}
+
+// ReplyBot 返回当前充当 AI 助手的账号，供控制台显示。没有机器人账号时返回
+// Configured=false——那意味着回复功能不会生效，而不是出错。
+func (s *Service) ReplyBot(ctx context.Context, actor identity.Actor) (supportai.ReplyBotInfo, error) {
+	if !actor.Can(identity.PermissionAIManage) {
+		return supportai.ReplyBotInfo{}, identity.ErrPermissionDenied
+	}
+	if s == nil || s.botAccounts == nil {
+		return supportai.ReplyBotInfo{}, nil
+	}
+	userID, username, ok, err := s.botAccounts.ReplyBotAccount(ctx)
+	if err != nil {
+		return supportai.ReplyBotInfo{}, err
+	}
+	if !ok {
+		return supportai.ReplyBotInfo{}, nil
+	}
+	return supportai.ReplyBotInfo{UserID: userID, Username: username, Configured: true}, nil
 }
 
 // Gateway 暴露底层网关，供 Core 用途（审核建议、摘要等）直接调用。它不经过
@@ -198,6 +225,19 @@ func (s *Service) Diagnose(ctx context.Context, actor identity.Actor, message st
 	result.InputTokens = completion.Usage.InputTokens
 	result.OutputTokens = completion.Usage.OutputTokens
 	return result, nil
+}
+
+// ReplySystemPrompt 返回当前生效的回复系统指令（自定义或内置默认，含固定安全尾注）。
+// 它实现 aireply.ReplyPromptSource：生成器在每次回复时读取，配置改完立即生效。
+func (s *Service) ReplySystemPrompt(ctx context.Context) (string, error) {
+	if s == nil || s.settings == nil {
+		return "", nil
+	}
+	settings, err := s.settings.GetSettings(ctx)
+	if err != nil {
+		return "", err
+	}
+	return settings.Reply.EffectiveSystemPrompt(), nil
 }
 
 // CredentialStatus 返回每个 profile 的密钥配置状态，供控制台显示「已配置」。

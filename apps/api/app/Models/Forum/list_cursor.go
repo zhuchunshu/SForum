@@ -26,11 +26,12 @@ type topicListCursor struct {
 	ID  int64  `json:"i"`
 }
 
-// commentListCursor flat 列表：path_key ASC, id ASC。
+// commentListCursor flat 列表：created_at ASC, id ASC。
+// Key 是发表时间（RFC3339Nano），与楼层/时间流顺序严格对齐；id 只做同刻并列的稳定次序。
 type commentListCursor struct {
-	V    int    `json:"v"`
-	Path string `json:"pk"`
-	ID   int64  `json:"i"`
+	V   int    `json:"v"`
+	Key string `json:"k"`
+	ID  int64  `json:"i"`
 }
 
 type revisionListCursor struct {
@@ -91,7 +92,7 @@ func decodeTopicListCursor(token string) (topicListCursor, error) {
 
 func encodeCommentListCursor(c commentListCursor) (string, error) {
 	c.V = listCursorVersion
-	if c.ID <= 0 || strings.TrimSpace(c.Path) == "" {
+	if c.ID <= 0 || strings.TrimSpace(c.Key) == "" {
 		return "", ErrInvalidCursor
 	}
 	raw, err := json.Marshal(c)
@@ -114,10 +115,27 @@ func decodeCommentListCursor(token string) (commentListCursor, error) {
 	if err := json.Unmarshal(raw, &c); err != nil {
 		return commentListCursor{}, ErrInvalidCursor
 	}
-	if c.V != listCursorVersion || c.ID <= 0 || strings.TrimSpace(c.Path) == "" {
+	if c.V != listCursorVersion || c.ID <= 0 || strings.TrimSpace(c.Key) == "" {
 		return commentListCursor{}, ErrInvalidCursor
 	}
 	return c, nil
+}
+
+// commentCursorKeyTime 解析游标里的发表时间键；旧格式（path_key）载荷在这里统一判为非法游标，
+// 由调用方回 ErrInvalidCursor，客户端重新从第一页取列表即可。
+func commentCursorKeyTime(c commentListCursor) (time.Time, error) {
+	ts, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(c.Key))
+	if err != nil {
+		// 兼容 RFC3339（无纳秒）
+		ts, err = time.Parse(time.RFC3339, strings.TrimSpace(c.Key))
+		if err != nil {
+			return time.Time{}, ErrInvalidCursor
+		}
+	}
+	if ts.IsZero() {
+		return time.Time{}, ErrInvalidCursor
+	}
+	return ts, nil
 }
 
 func encodeRevisionListCursor(c revisionListCursor) (string, error) {
@@ -284,8 +302,11 @@ func topicCursorSQLArgs(c topicListCursor) ([]any, error) {
 }
 
 func commentCursorFromItem(item Comment) (string, error) {
+	if item.CreatedAt.IsZero() {
+		return "", ErrInvalidCursor
+	}
 	return encodeCommentListCursor(commentListCursor{
-		Path: item.PathKey,
-		ID:   item.ID,
+		Key: item.CreatedAt.UTC().Format(time.RFC3339Nano),
+		ID:  item.ID,
 	})
 }

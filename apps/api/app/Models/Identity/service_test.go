@@ -804,6 +804,8 @@ type fakeStore struct {
 	rolePerms     map[int64][]string
 	userOverrides map[int64]PermissionOverrides
 	loginAudits   []LoginAudit
+	// kinds 只为机器人语义的用例准备；未声明的账号一律视为人类。
+	kinds         map[int64]UserKind
 	credentialErr error
 	loadAccessErr error
 	// 密码重置测试钩子。
@@ -891,6 +893,14 @@ func (s *fakeStore) userCount() int {
 
 func (s *fakeStore) AnyUserExists(context.Context) (bool, error) {
 	return len(s.users) > 0, nil
+}
+
+// UserKindOf 默认把账号当人类；需要验证机器人语义的用例通过 kinds 显式声明。
+func (s *fakeStore) UserKindOf(_ context.Context, userID int64) (UserKind, error) {
+	if kind, ok := s.kinds[userID]; ok {
+		return kind, nil
+	}
+	return UserKindHuman, nil
 }
 
 func (s *fakeStore) FindRegistrationConflicts(_ context.Context, username string, email string) (RegistrationConflicts, error) {
@@ -1577,4 +1587,66 @@ func cloneIntOverridesMap(input map[int64]PermissionOverrides) map[int64]Permiss
 		}
 	}
 	return output
+}
+
+// 机器人账号不允许交互式登录：它由系统驱动，可登录的机器人等于给所有人开了一个
+// 冒充 AI 的入口。恢复为人类后必须能重新登录，否则这是一个单向操作。
+func TestBotAccountCannotSignIn(t *testing.T) {
+	service, store := newTestService(t)
+	ctx := testContext(t)
+
+	user, err := service.Register(ctx, RegisterInput{
+		Username: "sforum_ai",
+		Email:    "ai@example.com",
+		Password: "correct horse battery staple",
+	})
+	if err != nil {
+		t.Fatalf("Register returned error: %v", err)
+	}
+	if _, err := service.Login(ctx, LoginInput{Login: "sforum_ai", Password: "correct horse battery staple"}); err != nil {
+		t.Fatalf("a human account should sign in: %v", err)
+	}
+
+	store.kinds = map[int64]UserKind{user.ID: UserKindBot}
+	if _, err := service.Login(ctx, LoginInput{Login: "sforum_ai", Password: "correct horse battery staple"}); !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("a bot account must not sign in, got %v", err)
+	}
+
+	store.kinds[user.ID] = UserKindHuman
+	if _, err := service.Login(ctx, LoginInput{Login: "sforum_ai", Password: "correct horse battery staple"}); err != nil {
+		t.Fatalf("restoring the account to human must restore sign-in: %v", err)
+	}
+}
+
+// normalize 必须把校验后的 kind 写进返回值。它的错误形态很隐蔽：校验函数返回
+// 的是新的结构，调用方从不读 input，所以写回 input 会让这次更新静默失效——
+// 保存返回 200，值却没变。这正是它被发现的方式。
+func TestNormalizeAdminUpdateUserInputCarriesKind(t *testing.T) {
+	service, _ := newTestService(t)
+	ctx := testContext(t)
+
+	bot := UserKindBot
+	out, err := service.normalizeAdminUpdateUserInput(ctx, AdminUpdateUserInput{Kind: &bot})
+	if err != nil {
+		t.Fatalf("normalize returned error: %v", err)
+	}
+	if out.Kind == nil || *out.Kind != UserKindBot {
+		t.Fatalf("normalized kind must survive into the result, got %+v", out.Kind)
+	}
+
+	// 非法值必须被拒绝，而不是静默忽略后当作未提交处理。
+	invalid := UserKind("robot")
+	if _, err := service.normalizeAdminUpdateUserInput(ctx, AdminUpdateUserInput{Kind: &invalid}); !errors.Is(err, ErrInvalidUserUpdate) {
+		t.Fatalf("an invalid kind must be rejected, got %v", err)
+	}
+
+	// 空白与大小写差异应当被规范化，而不是当成另一个值。
+	spaced := UserKind("  BOT  ")
+	normalized, err := service.normalizeAdminUpdateUserInput(ctx, AdminUpdateUserInput{Kind: &spaced})
+	if err != nil {
+		t.Fatalf("normalize returned error: %v", err)
+	}
+	if normalized.Kind == nil || *normalized.Kind != UserKindBot {
+		t.Fatalf("kind should be trimmed and lowercased by validation, got %+v", normalized.Kind)
+	}
 }

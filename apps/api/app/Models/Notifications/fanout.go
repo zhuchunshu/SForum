@@ -148,35 +148,35 @@ func (o *Outbox) NotifyModerationTx(ctx context.Context, tx pgx.Tx, event Modera
 func (o *Outbox) notifyApprovedContentTx(ctx context.Context, tx pgx.Tx, event ModerationEvent) error {
 	if event.TargetType == "topic" {
 		var authorID sql.NullInt64
-		var rawContent string
-		if err := tx.QueryRow(ctx, `SELECT topics.author_user_id, posts.raw_content FROM topics JOIN posts ON posts.id=topics.content_id WHERE topics.id=$1`, event.TargetID).Scan(&authorID, &rawContent); err != nil {
+		var rawContent, sourceFormat string
+		if err := tx.QueryRow(ctx, `SELECT topics.author_user_id, posts.raw_content, posts.source_format FROM topics JOIN posts ON posts.id=topics.content_id WHERE topics.id=$1`, event.TargetID).Scan(&authorID, &rawContent, &sourceFormat); err != nil {
 			return err
 		}
 		if !authorID.Valid {
 			return nil
 		}
-		return o.NotifyTopicTx(ctx, tx, TopicEvent{TopicID: event.TargetID, ActorUserID: authorID.Int64, MentionedUsernames: forum.MentionedUsernames(rawContent)})
+		return o.NotifyTopicTx(ctx, tx, TopicEvent{TopicID: event.TargetID, ActorUserID: authorID.Int64, MentionedUsernames: forum.MentionedUsernamesFromSource(rawContent, sourceFormat)})
 	}
 	if event.TargetType != "comment" {
 		return nil
 	}
 	var actorID sql.NullInt64
 	var topicID, topicAuthorID, parentAuthorID int64
-	var rawContent string
+	var rawContent, sourceFormat string
 	if err := tx.QueryRow(ctx, `
 		SELECT comments.author_user_id, comments.topic_id, COALESCE(topics.author_user_id, 0),
-			COALESCE(parent.author_user_id, 0), posts.raw_content
+			COALESCE(parent.author_user_id, 0), posts.raw_content, posts.source_format
 		FROM comments
 		JOIN topics ON topics.id=comments.topic_id
 		JOIN posts ON posts.id=comments.content_id
 		LEFT JOIN comments parent ON parent.id=comments.parent_comment_id
-		WHERE comments.id=$1`, event.TargetID).Scan(&actorID, &topicID, &topicAuthorID, &parentAuthorID, &rawContent); err != nil {
+		WHERE comments.id=$1`, event.TargetID).Scan(&actorID, &topicID, &topicAuthorID, &parentAuthorID, &rawContent, &sourceFormat); err != nil {
 		return err
 	}
 	if !actorID.Valid {
 		return nil
 	}
-	return o.NotifyCommentTx(ctx, tx, CommentEvent{CommentID: event.TargetID, TopicID: topicID, ActorUserID: actorID.Int64, TopicAuthorUserID: topicAuthorID, ParentAuthorUserID: parentAuthorID, MentionedUsernames: forum.MentionedUsernames(rawContent)})
+	return o.NotifyCommentTx(ctx, tx, CommentEvent{CommentID: event.TargetID, TopicID: topicID, ActorUserID: actorID.Int64, TopicAuthorUserID: topicAuthorID, ParentAuthorUserID: parentAuthorID, MentionedUsernames: forum.MentionedUsernamesFromSource(rawContent, sourceFormat)})
 }
 
 func (o *Outbox) NotifyCommentTx(ctx context.Context, tx pgx.Tx, event CommentEvent) error {

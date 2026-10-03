@@ -49,7 +49,24 @@ function runDiagnose() {
             </UBadge>
           </dd>
         </div>
+        <div class="min-w-0">
+          <dt class="text-xs text-slate-500">{{ t('admin.ai.diagnose.replyBot') }}</dt>
+          <dd class="mt-1 flex flex-wrap items-center gap-2">
+            <span v-if="ai.replyBot.value.configured" class="truncate text-sm font-medium text-slate-900 dark:text-zinc-100">
+              {{ ai.replyBot.value.username }}
+            </span>
+            <UBadge v-if="ai.replyBot.value.configured" color="success" variant="soft" size="sm">
+              {{ t('admin.ai.diagnose.replyBotReady') }}
+            </UBadge>
+            <UBadge v-else color="warning" variant="soft" size="sm">
+              {{ t('admin.ai.diagnose.replyBotMissing') }}
+            </UBadge>
+          </dd>
+        </div>
       </dl>
+      <p v-if="!ai.replyBot.value.configured" class="border-t border-slate-200 px-4 py-3 text-xs text-slate-500 dark:border-zinc-800 dark:text-zinc-400">
+        {{ t('admin.ai.diagnose.replyBotHint') }}
+      </p>
     </section>
 
     <UAlert

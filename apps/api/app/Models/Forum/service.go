@@ -611,7 +611,7 @@ func (s *Service) CreateTopic(ctx context.Context, actor identity.Actor, input C
 	}
 	var mentionNames []string
 	if settings.MentionsEnabled {
-		mentionNames = MentionedUsernames(content.RawContent)
+		mentionNames = MentionedUsernamesFromSource(content.RawContent, content.SourceFormat)
 		if settings.MentionsMaxPerPost > 0 && len(mentionNames) > settings.MentionsMaxPerPost {
 			return TopicDetail{}, ErrMentionsLimit
 		}
@@ -999,7 +999,7 @@ func (s *Service) CreateComment(ctx context.Context, actor identity.Actor, input
 	// max=0 表示不限制条数。
 	var mentionNames []string
 	if settings.MentionsEnabled {
-		mentionNames = MentionedUsernames(input.Content.RawContent)
+		mentionNames = MentionedUsernamesFromSource(input.Content.RawContent, input.Content.SourceFormat)
 		if settings.MentionsMaxPerPost > 0 && len(mentionNames) > settings.MentionsMaxPerPost {
 			return Comment{}, ErrMentionsLimit
 		}

@@ -83,6 +83,8 @@ export type AdminAuthEvent = {
 }
 
 export type AdminUserDetail = AdminUserSummary & {
+  /** 账号类型：human 参与论坛；bot 由系统驱动、不能登录。 */
+  kind: 'human' | 'bot'
   permissions: string[]
   permissionOverrides: PermissionOverrides
   profile: AdminUserProfile

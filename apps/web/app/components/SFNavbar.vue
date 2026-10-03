@@ -150,10 +150,12 @@ function submitSearch(query: string) {
   const normalizedQuery = query.trim()
   return navigateTo({
     path: localePath(normalizedQuery ? '/search' : '/'),
+    // 搜索端点没有 sort，回到首页也用站点默认排序；这里从不携带 sort 参数
     query: buildForumHomeQuery({
       query: normalizedQuery,
       categorySlug: '',
-      tagSlug: ''
+      tagSlug: '',
+      sort: ''
     })
   })
 }

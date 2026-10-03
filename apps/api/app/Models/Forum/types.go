@@ -680,7 +680,7 @@ type CommentListInput struct {
 	View    string
 	Page    int
 	PerPage int
-	// After 非空时 flat 走 path_key keyset，忽略 Page（cursor 优先）。
+	// After 非空时 flat 走 created_at + id keyset（时间流续页），忽略 Page（cursor 优先）。
 	After string
 	// TreeDescendantsPerRoot view=tree 时每个根下最多拉取的子孙数；0 时 store 用推荐默认 50。
 	TreeDescendantsPerRoot int

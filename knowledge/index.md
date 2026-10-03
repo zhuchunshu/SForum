@@ -127,6 +127,44 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- 论坛 @提及高亮与资料卡（2026-10-03）：正文里的 `@用户名` 现在在客户端被装饰成
+  `a.sf-mention`（跳过链接与代码块），点击弹出与「点评论头像」同一张公开资料卡；
+  后端 HTML 与存量内容不变（SSR 仍输出纯文本）。语法与通知口径对齐：
+  token 支持 `-`、上限 50 → 64，editor-document 存档先还原 Markdown 再解析提及
+  （代码块里的 @ 不再触发通知）。Web 943 测试、Go 相关包、typecheck、架构门禁通过；
+  渲染态 Browser QA 未做（本会话无 BrowserSkill CLI、桌面工具不可用）：
+  `sessions/2026-10-03-forum-mention-linkify-preview.md`，
+  `decisions/2026-10-03-forum-mention-rendering.md`
+- 深链评论资料卡被裁剪修复（2026-10-03）：`#comment-{id}` 命中的评论只要留在 URL 上
+  就一直带 `:target`，而扫光高亮规则给它加了 `overflow: hidden`（为了裁掉越界光带），
+  于是评论内绝对定位的 @作者资料卡在评论下沿被整块切断。现在光带改为盒内
+  `background-position` 动画（`-66.7% → 166.7%`），定位评论保持 `overflow: visible`，
+  动画时长与观感不变；headless Chrome 实测扫光仍逐帧推进、卡片 95px 溢出评论下沿也
+  完整绘制（桌面 1440×900 与 390×844 均验证），Web 939 测试、架构门禁通过。契约记录在
+  `modules/forum.md`。
+- 评论流时间流排序（2026-10-03）：flat 评论列表原本按 `path_key` 树序展开，回复被
+  插在被回复评论下面，且楼层号（列表序号）会因他人回复整体漂移。现在 flat 统一
+  `created_at ASC, id ASC`：新回复恒在最底楼、楼层稳定；位置口径（keyset 游标、
+  `CountCommentsBefore`、深链页码反查、个人主页 `commentPage`）全部对齐同一排序键，
+  新增 `comments_topic_created_idx (topic_id, created_at, id)` 迁移（本机已应用）；
+  回复关系继续由 `replyTo` 引用卡表达，并在发布成功后由
+  `useTopicCommentAnchor.focusCreatedComment` 把视口带到新楼层。Go 全量、真库集成
+  测试（含变异验证）、Web 923 测试、typecheck、架构与 OpenAPI 门禁通过；渲染态
+  Browser QA 未做（本会话无 BrowserSkill CLI、桌面工具不可用）：
+  `sessions/2026-10-03-comment-stream-chronological-order.md`，
+  `decisions/2026-10-03-comment-stream-chronological-order.md`
+
+- 公开列表排序（2026-10-03）：首页排序按钮此前只在主题皮肤里定义且被
+  `.sf-theme--default` 限定，Core fallback 路径（本实例全部公开页）下退化成纯文字。
+  新增 Core 样式表 `assets/css/sforum-sort-control.css`（首页 / 分类目录 / 标签页
+  统一分段控件，双渲染路径都覆盖），并把首页排序从「前端对已加载页重排」改为
+  服务端 `sort=active|latest|hot` + URL 状态（换 sort 自动重置分页与 cursor）。
+  公开文案：最新（最后活跃，默认）/ 最新帖子（发布时间）/ 热门；推荐默认排序由
+  `latest` 改为 `active`（对齐公开活动索引）。Web 922 测试、typecheck、Go 全量、
+  架构门禁通过；CDP 真实点击验证 URL / 请求 / 顺序一致：
+  `sessions/2026-10-03-public-feed-sort-control.md`，
+  `decisions/2026-10-03-public-list-default-sort-active.md`
+
 - 原生推送设备注册（2026-10-02）：Core 新增 `push_devices` 与自服务端点
   `GET/POST /api/v1/push/devices`、`DELETE /api/v1/push/devices/{deviceId}`；令牌按
   `(platform, token)` 唯一、重复注册改绑并撤销同 deviceId 旧令牌，落库只存 SHA-256

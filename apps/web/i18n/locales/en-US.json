@@ -192,9 +192,12 @@
     },
     "filter": {
       "all": "All",
-      "latest": "Latest",
+      "latest": "Newest posts",
+      "active": "Latest",
+      "hot": "Hot",
       "mostReplies": "Most replies",
       "sortLabel": "Discussion sorting",
+      "sortedBy": "Sorted by {label}",
       "openFilters": "Filter",
       "new": "New",
       "unread": "Unread",
@@ -654,6 +657,16 @@
         "diagnose": "Connectivity test",
         "observability": "Usage & executions"
       },
+      "replyPrompt": {
+        "title": "Reply prompt",
+        "intro": "The system instructions the AI follows when posting in your community. Blank uses the built-in default; restoring clears your custom text.",
+        "customized": "Customized",
+        "default": "Using default",
+        "placeholder": "Leave blank to use the built-in default prompt.",
+        "restore": "Restore default",
+        "safetyTitle": "Always appended injection note",
+        "safetyHint": "A prompt-injection note is always appended and is not affected by this field."
+      },
       "diagnose": {
         "current": "Current configuration",
         "provider": "Provider",
@@ -665,6 +678,10 @@
         "messagePlaceholder": "Reply with exactly: ok",
         "run": "Run test",
         "notReady": "The configuration is incomplete, so the test cannot run. Pick a provider and enter its key under Providers & gates first.",
+        "replyBot": "Assistant account",
+        "replyBotReady": "Ready",
+        "replyBotMissing": "No bot account yet",
+        "replyBotHint": "There is no bot account, so AI replies will never fire. Create one under Users, or switch an existing account's kind to bot — bot accounts cannot sign in and only speak when the system drives them.",
         "success": "Connection works",
         "failure": "Connection failed",
         "latency": "Latency",
@@ -2614,6 +2631,10 @@
       "statusDisabled": "Disabled",
       "statusBanned": "Banned",
       "initialSuperAdmin": "Initial super admin",
+      "kind": "Account kind",
+      "kindHuman": "Human",
+      "kindBot": "Bot (AI assistant)",
+      "kindHint": "Bot accounts are driven by the system: they cannot sign in, and switching to this kind revokes all their sessions. AI replies need one such account.",
       "roleSection": "User groups",
       "roleSectionHelp": "Effective permissions first inherit from all enabled user groups.",
       "saveRoles": "Save groups",
@@ -5006,7 +5027,8 @@
       "replies": "{count} replies",
       "viewProfile": "View public profile",
       "noBio": "This user has not added a bio yet.",
-      "unavailable": "Profile details are temporarily unavailable."
+      "unavailable": "Profile details are temporarily unavailable.",
+      "notFound": "No user was found with this name."
     },
     "emptyComments": {
       "title": "No comments yet",

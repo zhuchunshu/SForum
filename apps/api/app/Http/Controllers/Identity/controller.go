@@ -396,10 +396,12 @@ type updateUserRequest struct {
 	DisplayName *string `json:"displayName"`
 	Locale      *string `json:"locale"`
 	Status      *string `json:"status"`
-	Bio         *string `json:"bio"`
-	Signature   *string `json:"signature"`
-	Location    *string `json:"location"`
-	WebsiteURL  *string `json:"websiteUrl"`
+	// Kind 允许管理员把一个账号标记为机器人，或恢复为人类。
+	Kind       *string `json:"kind"`
+	Bio        *string `json:"bio"`
+	Signature  *string `json:"signature"`
+	Location   *string `json:"location"`
+	WebsiteURL *string `json:"websiteUrl"`
 }
 
 type setUserEmailVerificationRequest struct {

@@ -383,6 +383,26 @@ func (s *PostgresStore) LoadActor(ctx context.Context, userID int64) (Actor, err
 	}, nil
 }
 
+// ReplyBotAccount 返回充当 AI 助手的机器人账号。站点可以有多个机器人，这里
+// 取 id 最小的那个作为默认助手；其余机器人照常参与论坛，只是不会被自动回复。
+func (s *PostgresStore) ReplyBotAccount(ctx context.Context) (int64, string, bool, error) {
+	var userID int64
+	var username string
+	err := s.pool.QueryRow(ctx, `
+		SELECT id, username FROM users
+		WHERE kind = 'bot' AND status = 'active'
+		ORDER BY id
+		LIMIT 1
+	`).Scan(&userID, &username)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, "", false, nil
+	}
+	if err != nil {
+		return 0, "", false, fmt.Errorf("load reply bot account: %w", err)
+	}
+	return userID, username, true, nil
+}
+
 // UserKindOf 返回指定用户的账号类型。它供「这条内容的作者是不是机器人」这类
 // 服务端判断使用——防循环、头像标识、通知策略都要问同一个问题。
 func (s *PostgresStore) UserKindOf(ctx context.Context, userID int64) (UserKind, error) {

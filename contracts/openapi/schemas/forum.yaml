@@ -1522,6 +1522,9 @@ Comment:
       format: int64
     pathKey:
       type: string
+      description: >
+        Hierarchy path key. It defines tree-view parent/child structure and tree ordering;
+        the flat list is a time stream ordered by createdAt + id, not by this key.
     depth:
       type: integer
     replyCount:
@@ -1610,7 +1613,7 @@ CommentList:
     nextCursor:
       type: string
       description: |
-        Opaque forward cursor for view=flat (path_key + id). Pass as query `after`.
+        Opaque forward cursor for view=flat (created_at + id of the last row). Pass as query `after`.
         Omitted/empty when hasMore is false. Tree view may omit nextCursor (use page).
     extensionActions:
       type: array

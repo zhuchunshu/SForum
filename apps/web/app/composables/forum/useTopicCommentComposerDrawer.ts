@@ -32,6 +32,8 @@ type TopicCommentComposerDrawerOptions = {
   refreshComments: () => Promise<unknown>
   commentAuthorName: (comment: ForumComment) => string
   commentFloor: (comment: ForumComment) => string
+  /** 回复成功后定位到新评论（时间流末尾或跨页），由详情页实现。 */
+  focusCreatedComment?: (comment: ForumComment) => Promise<void> | void
 }
 
 export function useLegacyTopicCommentComposerParent() {
@@ -76,7 +78,8 @@ export function useTopicCommentComposerDrawer(options: TopicCommentComposerDrawe
     topic: options.topic,
     replyingTo,
     replyParentId,
-    refreshComments: options.refreshComments
+    refreshComments: options.refreshComments,
+    focusCreatedComment: options.focusCreatedComment
   })
 
   const open = computed(() => mode.value != null)

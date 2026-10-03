@@ -208,6 +208,39 @@ describe('default theme V32 topic page contract', () => {
     expect(source).toContain('copyCommentLink')
   })
 
+  // 评论流是时间流：新回复落在列表末尾，页面必须把视口带到新评论（必要时先跳到所在页），
+  // 否则用户在原来的阅读位置看不到自己的回复。
+  test('lands on the created comment because the flat stream is chronological', () => {
+    const source = topicPage()
+    const anchor = sourceFile('../../app/composables/forum/useTopicCommentAnchor.ts')
+    const submission = sourceFile('../../app/composables/forum/useTopicCommentSubmission.ts')
+    const drawer = sourceFile('../../app/composables/forum/useTopicCommentComposerDrawer.ts')
+    const quickReply = sourceFile('../../app/components/forum/SFTopicReplyComposer.vue')
+
+    // 页面声明时间流契约并把锚点/定位职责交给 composable。
+    expect(source).toContain('created_at ASC, id ASC')
+    expect(source).toContain('useTopicCommentAnchor({')
+    expect(source).toContain('focusCreatedComment')
+    expect(source).toContain(':focus-created-comment="focusCreatedComment"')
+    expect(source).toContain(':flash="flashCommentId === comment.id"')
+    // 定位实现：按服务端反查的页码跳页 + #comment-<id> 锚点滚动高亮。
+    expect(anchor).toContain('async function focusCreatedComment(comment: ForumComment)')
+    expect(anchor).toContain('await forumApi.resolveCommentPage(id, comment.id)')
+    expect(anchor).toContain('hash: `#comment-${comment.id}`')
+    // 定位只在发布成功后发生：待审回复不在列表里，不能跳。
+    expect(submission).toContain('await options.focusCreatedComment?.(created)')
+    const pendingStart = submission.indexOf("created.status === 'pending'")
+    const pendingBranch = submission.slice(
+      pendingStart,
+      submission.indexOf('} else {', pendingStart)
+    )
+    expect(pendingBranch).not.toContain('focusCreatedComment')
+    expect(pendingBranch).not.toContain('refreshComments')
+    // 高级回复抽屉与快速回复共用同一实现。
+    expect(drawer).toContain('focusCreatedComment: options.focusCreatedComment')
+    expect(quickReply).toContain('focusCreatedComment: comment => props.focusCreatedComment?.(comment)')
+  })
+
   test('uses API edit marks and the complete author lock policy', () => {
     const source = topicPage()
     const heading = themeFile('app/components/forum/SFTopicHeading.vue')

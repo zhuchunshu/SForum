@@ -14,6 +14,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/riverqueue/river"
 
+	aireplyjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/AIReply"
 	attachmentjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Attachments"
 	auditjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Audit"
 	forumjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Forum"
@@ -22,6 +23,7 @@ import (
 	queryregistryjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/QueryRegistry"
 	searchjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Search"
 	webhookjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Webhooks"
+	aireply "github.com/zhuchunshu/sforum/apps/api/app/Models/AIReply"
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
@@ -109,6 +111,13 @@ type workerRuntimeDeps struct {
 	// QueryInvalidation is worker-owned in both standalone and embedded modes.
 	// It must never reuse the API execution-cache client.
 	QueryInvalidation *productionQueryInvalidationRuntime
+	// AIReplyGenerator 由 embed 路径注入，复用 API 已装配的论坛服务与网关。
+	//
+	// 独立 worker 刻意不提供它：那边没有论坛装配，临时重建一份会得到独立的
+	// 设置与发布策略，导致同样一条评论在 API 侧要过审核、在 worker 侧不过。
+	// AI 回复因此只在 embed 模式下启用。
+	// 为 nil 时该能力整体关闭，不注册执行器。
+	AIReplyGenerator *aireply.Generator
 	// OwnsRuntime 为 true 时 Worker.Close 关闭 runtime（及自建的 Host API gateway）。
 	// 注入共享 runtime 时必须为 false，由 API shutdown 负责 Close。
 	OwnsRuntime bool
@@ -696,6 +705,8 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	registerIdentityCleanupWorker(registry, cfg, pool, logger)
 	registerForumAutoLockWorker(registry, cfg, pool, logger)
 	registerForumFlushViewCountsWorker(registry, pool, deps.HostCacheRedis, logger)
+	// AI 回复：只有 embed 路径会注入生成器，独立 worker 拿不到等价装配。
+	registerAIReplyWorker(registry, deps.AIReplyGenerator)
 	// F2.2：插件经 Host API 入队的 extension.plugin_job。
 	pluginJobEnqueuer := &hostapi.RiverJobEnqueuer{}
 	registry.Add(func(workers *river.Workers) error {
@@ -840,6 +851,17 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 // registerIdentityCleanupWorker 注册历史会话清理 worker。
 // keep_days 从 runtime option 读取（每次执行时实时解析，admin 改动即生效）。
 // 对应的 daily schedule 由 Schedule Registry 统一拥有，不在此返回 PeriodicJob。
+// registerAIReplyWorker 注册 AI 回复生成。它只在 embed 模式注入生成器时注册：
+// 生成器携带 API 的论坛服务与网关，独立 worker 拿不到等价装配。
+func registerAIReplyWorker(registry *supportjobs.Registry, generator *aireply.Generator) {
+	if registry == nil || generator == nil {
+		return
+	}
+	registry.Add(func(workers *river.Workers) error {
+		return river.AddWorkerSafely[aireplyjobs.GenerateReplyArgs](workers, aireplyjobs.NewGenerateReplyWorker(generator))
+	})
+}
+
 func registerIdentityCleanupWorker(registry *supportjobs.Registry, cfg config.Config, pool *pgxpool.Pool, logger *slog.Logger) {
 	optionStore := options.NewPostgresStore(pool)
 	optionsService := options.NewServiceWithDefaults(optionStore, optionsDefaultsFromConfig(cfg))

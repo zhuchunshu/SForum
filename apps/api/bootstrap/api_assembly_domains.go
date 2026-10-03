@@ -9,7 +9,9 @@ import (
 
 	httpserver "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	notificationscontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Notifications"
+	aireplyjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/AIReply"
 	attachmentjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Attachments"
+	aireply "github.com/zhuchunshu/sforum/apps/api/app/Models/AIReply"
 	apitokens "github.com/zhuchunshu/sforum/apps/api/app/Models/APITokens"
 	adminoverview "github.com/zhuchunshu/sforum/apps/api/app/Models/AdminOverview"
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
@@ -28,6 +30,7 @@ import (
 	providers "github.com/zhuchunshu/sforum/apps/api/app/Providers"
 	authsupport "github.com/zhuchunshu/sforum/apps/api/app/Support/Auth"
 	contentregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentRegistry"
+	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	health "github.com/zhuchunshu/sforum/apps/api/app/Support/Health"
 	idempotency "github.com/zhuchunshu/sforum/apps/api/app/Support/Idempotency"
@@ -155,7 +158,13 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	webhookService := webhooks.NewService(webhookStore, pool, jobDispatcher).
 		WithAllowHTTP(!strings.EqualFold(cfg.AppEnv, "production")).
 		WithCipher(optionCipher)
-	eventPublisher := webhooks.BridgePublisher{Inner: extensionRuntime, Fanout: webhookService}
+	// 发布者声明为接口：AI 回复要在这里包装它，好订阅 comment.created。
+	var eventPublisher appevents.Publisher = webhooks.BridgePublisher{Inner: extensionRuntime, Fanout: webhookService}
+	// AI 回复的触发来自事件而非论坛服务内部。包装必须发生在论坛服务创建之前，
+	// 否则论坛拿到的是未包装的发布者，事件不会到达判定。
+	aiReplyReader := aireply.NewPostgresReader(pool)
+	aiReplyTrigger := aireply.NewTrigger(providers.BotAccountAdapter{Store: identityStore}, aiReplyReader, aireplyjobs.NewEnqueuer(jobDispatcher))
+	eventPublisher = aireply.NewSubscriber(eventPublisher, aiReplyTrigger)
 	// 与 extensionService 共享同一 attachmentService 实例（禁用回落 + 候选目录 + 事件 + 存储 RPC）。
 	// MediaRegistry MIME 策略在已发布时叠加；无策略时 no-op。
 	_ = attachmentService.WithEvents(eventPublisher).

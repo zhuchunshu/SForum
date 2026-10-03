@@ -200,6 +200,20 @@ AISettingsUpdateRequest:
       "$ref": "#/AIGateSettings"
     redaction:
       "$ref": "#/AIRedactionSettings"
+    reply:
+      "$ref": "#/AIReplySettings"
+
+AIReplySettings:
+  type: object
+  description: |
+    Operator-configurable parts of AI replies. A blank systemPrompt selects the
+    built-in default; restoring the default clears the field. A prompt-injection
+    note is always appended to whatever prompt is in effect and cannot be
+    configured away.
+  properties:
+    systemPrompt:
+      type: string
+      description: Custom system instructions. Blank means the built-in default.
 
 AISettingsPayload:
   type: object

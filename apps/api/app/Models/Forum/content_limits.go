@@ -74,7 +74,9 @@ func defaultForumSettings() ForumSettings {
 		DailyCommentLimit:        RecommendedDailyCommentLimit,
 		ExcerptRuneLimit:         RecommendedExcerptRuneLimit,
 		GuestRead:                "public",
-		ListDefaultSort:          "latest",
+		// 推荐默认按最后活跃排序：与公开活动索引 (is_pinned, last_activity_at, id) 对齐，
+		// 也符合论坛「最新 = 最近有回复」的阅读习惯。
+		ListDefaultSort:          "active",
 		ListHotWindowDays:        7,
 		AllowAuthorCloseReplies:  true,
 		AllowAuthorDelete:        true,

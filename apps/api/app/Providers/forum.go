@@ -20,6 +20,7 @@ import (
 
 type ForumProvider struct {
 	controller *forumcontroller.Controller
+	service    *forum.Service
 }
 
 func NewForumProvider(store forum.Store, users identity.ActorStore, sessions *authsession.Manager) *ForumProvider {
@@ -31,13 +32,15 @@ func NewForumProviderWithEvents(store forum.Store, users identity.ActorStore, se
 }
 
 func NewForumProviderWithOptionsAndEvents(store forum.Store, optionsService *options.Service, users identity.ActorStore, sessions *authsession.Manager, publisher appevents.Publisher) *ForumProvider {
+	service := forum.NewService(forum.ServiceConfig{
+		Store:           store,
+		Settings:        ForumSettingsResolver{options: optionsService},
+		Publisher:       publisher,
+		TopicEventLinks: NewForumTopicEventLinkResolver(optionsService),
+	})
 	return &ForumProvider{
-		controller: forumcontroller.NewController(forum.NewService(forum.ServiceConfig{
-			Store:           store,
-			Settings:        ForumSettingsResolver{options: optionsService},
-			Publisher:       publisher,
-			TopicEventLinks: NewForumTopicEventLinkResolver(optionsService),
-		}), users, sessions),
+		controller: forumcontroller.NewController(service, users, sessions),
+		service:    service,
 	}
 }
 
@@ -87,6 +90,7 @@ func NewForumProviderWithPublicContributions(store forum.Store, optionsService *
 	})
 	return &ForumProvider{
 		controller: forumcontroller.NewControllerWithSearch(service, searchService, reindexer, users, sessions),
+		service:    service,
 	}
 }
 
@@ -353,6 +357,15 @@ func (p ExtensionComposerToolbarProvider) ComposerToolbarActions(ctx context.Con
 		})
 	}
 	return actions, nil
+}
+
+// Service 暴露论坛领域服务，供需要以受控身份写入评论的协作者使用（AI 回复）。
+// 它们必须复用同一个实例：另建一个 service 会得到独立的设置与事件装配。
+func (p *ForumProvider) Service() *forum.Service {
+	if p == nil {
+		return nil
+	}
+	return p.service
 }
 
 func (p *ForumProvider) RegisterRoutes(api fiber.Router) {

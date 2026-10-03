@@ -13,6 +13,9 @@ const (
 	QueueMail          = "mail"
 	QueueNotifications = "notifications"
 	QueueMaintenance   = "maintenance"
+	// QueueAI 承载 AI 生成任务。它单独成队是因为这类任务慢（秒级）且失败模式
+	// 与其它队列不同：放共享队列会占用工作槽，拖住邮件与通知投递。
+	QueueAI = "ai"
 )
 
 type EnqueueOptions struct {
