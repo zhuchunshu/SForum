@@ -28,6 +28,25 @@ const (
 	MaxModelLen     = 128
 	MaxLabelLen     = 64
 
+	// 工具声明上限。工具声明会随每次请求进入供应商输入，因此在契约层设死上限，
+	// 避免一个用途把整站上下文成本推高到无法解释。
+	MaxToolsPerRequest      = 16
+	MaxToolNameLen          = 64
+	MaxToolDescriptionBytes = 1_024
+	MaxToolSchemaBytes      = 8_192
+	MaxToolArgumentsBytes   = 16_384
+	MaxToolCallIDLen        = 128
+
+	// 单次回复允许的工具调用次数（步数预算）。默认 3 是「搜索后读帖再回答」这类
+	// 组合够用、成本又可控的折中；上限 5 是硬天花板，运营者不能越过。
+	DefaultToolCallsPerReply = 3
+	MaxToolCallsPerReply     = 5
+
+	// 工具结果进入提示词的体积上限：单条与单次回复累计。工具返回的是社区内容，
+	// 不设上限等于让一次搜索把整站塞进上下文。
+	MaxToolResultBytes    = 8_000
+	MaxToolResultRunBytes = 16_000
+
 	// 温度范围。
 	MinTemperature = 0.0
 	MaxTemperature = 2.0

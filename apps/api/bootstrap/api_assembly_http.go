@@ -33,7 +33,7 @@ func newEmbeddedAIReplyGenerator(core *apiCoreStack) *aireply.Generator {
 	if forumService == nil || gateway == nil {
 		return nil
 	}
-	return providers.NewAIReplyGenerator(core.pool, core.identityStore, forumService, gateway, core.aiProvider.Service())
+	return providers.NewAIReplyGenerator(core.pool, core.identityStore, forumService, gateway, core.aiOrchestrator, core.aiProvider.Service())
 }
 
 // finishAPIHTTP：Fiber 应用、主题 watcher、嵌入 worker 与 API 句柄。

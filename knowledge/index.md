@@ -85,13 +85,20 @@ load archived sessions or completed plans as current context.
 
 ### AI Assist Platform
 
-- Status: **ready**; the extension contracts for AI are approved and M0 may
-  start. Core owns the gateway (`ai.provider` slot, neutral
-  `ai.completion@1`, provider profiles, Secret Store credential references,
-  three cost gates, execution trace); vendor calls, purposes, and middleware
-  live in plugins. No production code has landed yet.
-- Plan: `plans/2026-10-02-ai-assist-platform.md`
-- Decision: `decisions/2026-10-02-ai-provider-gateway.md`
+- Status: **active**; the M0 gateway (neutral `ai.completion@1`, provider
+  profiles, Secret Store credential references, three cost gates, execution
+  trace), the M3 reply bot (mention/reply trigger, loop prevention, bot
+  identity), and **read-only chat tools** (contract `tools[]`/`toolCalls[]`,
+  both protocol adapters, Host-owned orchestration loop with a per-reply step
+  budget, five Core built-in read-only tools, admin settings) are in production
+  code. Remaining: rendered admin QA for the two new settings fields, M2
+  moderation assistant, M4 content purposes, and the plugin-facing `ai.tool`
+  manifest surface.
+- Plan: `plans/2026-10-02-ai-assist-platform.md`,
+  `plans/2026-10-03-ai-read-only-chat-tools.md`
+- Decision: `decisions/2026-10-02-ai-provider-gateway.md`,
+  `decisions/2026-10-03-ai-read-only-chat-tools.md`
+- Handoff: `sessions/2026-10-03-ai-read-only-tools-handoff.md`
 - Modules: `modules/extensions.md`, `modules/moderation.md`,
   `modules/notifications.md`
 - Excluded by operator decision: embeddings/vector retrieval and multimodal
@@ -104,6 +111,10 @@ load archived sessions or completed plans as current context.
 - **API:** Go Fiber v3, PostgreSQL, Redis, River, Goose, and sqlc.
 - **Forum:** taxonomy, topics/comments, moderation lifecycle, configurable
   policy, million-scale read-path work, and content revisions V1 are shipped.
+  The flat comment stream is live: `topics.comment_revision` (statement-level
+  triggers) + `GET /topics/{id}/comments/revision` + SSE
+  `GET /topics/{id}/comments/stream` drive no-refresh comment loading with REST
+  reconciliation and polling fallback.
 - **Identity:** Redis sessions, RBAC, permission overrides, first-user
   `super_admin`, and account-session management are shipped.
 - **Search:** protected PostgreSQL site search is the default; Meilisearch is an
@@ -122,11 +133,31 @@ load archived sessions or completed plans as current context.
   reference provider are shipped. The Navbar preview links to personal
   notification preferences, where Browser Notifications is a non-shrinking
   first-viewport device control.
+- **AI:** the gateway, the reply bot, and read-only chat tools are shipped:
+  `forum.reply` may call `forum.search`, `forum.topic.read`,
+  `forum.topic.list`, `user.profile.read`, and `time.now` through a
+  Host-owned loop (<= 3 tool calls per reply, per-step gates and traces, user
+  quota counted once per reply). The topic body now reaches the prompt, tool
+  results are treated as untrusted data, and citations carry links. See
+  `sessions/2026-10-03-ai-read-only-tools-handoff.md`.
 - **Dev:** Compose owns PostgreSQL, Redis, and Mailpit. The user owns the web
   dev server on port 3000; do not kill it.
 
 ## Latest Handoff
 
+- 评论区免刷新加载（2026-10-03）：flat 时间流新增「修订号 + SSE 信号 + REST 对账」
+  三层：`topics.comment_revision` 由 `comments` 语句级触发器维护并按主题
+  `pg_notify`，`GET /topics/{id}/comments/revision` 是不过缓存的事实来源，
+  `GET /topics/{id}/comments/stream` 只推修订号（10s 心跳 / 15s 对账 / 60s 寿命 /
+  进程级连接预算，超限 429 退化轮询）。前端抽出通用 revisionStream 运行时（通知流
+  同步收敛到它），新增 `useTopicCommentLive` 与 `SFCommentStreamNotice`：在最后一页
+  底部静默追加，上滑/跨页/编辑器打开只出胶囊，数量不变时静默 diff 后才提示。
+  Go 包测试 + 迁移触发器集成测试（真实 Postgres）+ Web 966 测试 + 架构/目录门禁通过；
+  浏览器 QA 已做（桌面 + 390x844 移动端：底部静默追加 / 上滑 sticky 胶囊 / 点击胶囊追平 /
+  多标签协同），并修掉三个只有浏览器才能暴露的缺陷（内层滚动容器下的阅读位置判定、SSE 游标
+  与对账版本混用同一个 ref、移动端底栏盖住胶囊）：
+  `sessions/2026-10-03-topic-comment-live-stream.md`,
+  `decisions/2026-10-03-topic-comment-live-stream.md`
 - 论坛 @提及高亮与资料卡（2026-10-03）：正文里的 `@用户名` 现在在客户端被装饰成
   `a.sf-mention`（跳过链接与代码块），点击弹出与「点评论头像」同一张公开资料卡；
   后端 HTML 与存量内容不变（SSR 仍输出纯文本）。语法与通知口径对齐：

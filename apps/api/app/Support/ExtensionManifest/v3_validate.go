@@ -426,7 +426,11 @@ func knownOrNamespacedContract(extensionID string, value string, known bool) boo
 }
 
 func validRoutePath(value string) bool {
-	if value == "/health" || value == "/ready" || value == "/api/v1/notifications/stream" {
+	// Host 独占的流式/实时通道：SSE 协议桥接与宿主连接预算相关，
+	// 插件不得声明这些路径（其余论坛读路由仍可被 Route Registry 认领）。
+	if value == "/health" || value == "/ready" ||
+		value == "/api/v1/notifications/stream" ||
+		value == "/api/v1/topics/:topicID/comments/stream" {
 		return false
 	}
 	return value != "" && strings.HasPrefix(value, "/") && !strings.HasPrefix(value, "//") && !strings.Contains(value, "://") && !strings.Contains(value, "..") && !strings.ContainsRune(value, '\x00')

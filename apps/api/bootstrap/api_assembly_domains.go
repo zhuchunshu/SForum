@@ -12,6 +12,7 @@ import (
 	aireplyjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/AIReply"
 	attachmentjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Attachments"
 	aireply "github.com/zhuchunshu/sforum/apps/api/app/Models/AIReply"
+	aitools "github.com/zhuchunshu/sforum/apps/api/app/Models/AITools"
 	apitokens "github.com/zhuchunshu/sforum/apps/api/app/Models/APITokens"
 	adminoverview "github.com/zhuchunshu/sforum/apps/api/app/Models/AdminOverview"
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
@@ -28,6 +29,7 @@ import (
 	systemupdates "github.com/zhuchunshu/sforum/apps/api/app/Models/SystemUpdates"
 	webhooks "github.com/zhuchunshu/sforum/apps/api/app/Models/Webhooks"
 	providers "github.com/zhuchunshu/sforum/apps/api/app/Providers"
+	supportai "github.com/zhuchunshu/sforum/apps/api/app/Support/AI"
 	authsupport "github.com/zhuchunshu/sforum/apps/api/app/Support/Auth"
 	contentregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentRegistry"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
@@ -302,6 +304,10 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	).WithRequiredReplayCipher(requiredReplayCipher)
 	// D3：公开详情浏览计数（与 worker 刷盘共用同一 Redis）。
 	topicViewCounter := forum.NewRedisTopicViewCounter(sharedRedisClient).WithLogger(logger)
+	// 评论区实时信号：修订号由 comments 触发器维护在 topics.comment_revision 上，
+	// 唤醒来源是本进程的 LISTEN hub。hub 随 ctx 结束释放专用连接，无需额外关停顺序。
+	commentLive := forum.NewCommentLiveService(forumCachedStore).
+		WithWakeHub(forum.NewCommentRevisionHub(ctx, pool))
 	forumProvider := providers.NewForumProviderWithPublicContributions(
 		forumCachedStore,
 		optionsService,
@@ -322,7 +328,8 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		Registry: lifecycleStack.EditorRegistry,
 	}).WithSearchProviderAdmin(searchProviderAdminAdapter{registry: searchProviders}).
 		WithEmailVerificationGate(emailVerificationService).
-		WithViewRecorder(topicViewCounter)
+		WithViewRecorder(topicViewCounter).
+		WithCommentLive(commentLive)
 	// 头像与附件管理共用带存储候选目录的服务实例。
 	avatarAttachmentService := attachmentService
 	profileProvider := providers.NewProfileProviderWithAvatarAndTabs(
@@ -392,6 +399,26 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	})
 	pageProfileService := profile.NewServiceWithAvatar(profileStore, avatarAttachmentService, optionsService).
 		WithProfileTabs(providers.NewExtensionProfileTabProvider(extensionService))
+	// AI 只读工具：登记表归 Core，白名单归用途（forum.reply 自己声明）。工具只
+	// 复用上面这些公开读取路径，因此「机器人能读到什么」与访客一致。
+	aiToolRegistry, err := aitools.NewBuiltinRegistry(aitools.Deps{
+		Search:   searchService,
+		Topics:   forumProvider.Service(),
+		Comments: forumProvider.Service(),
+		Lister:   forumProvider.Service(),
+		Profiles: pageProfileService,
+		SiteURL: func(ctx context.Context) string {
+			value, _ := optionsService.WebOption(ctx, "site.url")
+			return value
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create ai tool registry: %w", err)
+	}
+	aiOrchestrator := supportai.NewOrchestrator(supportai.OrchestratorConfig{
+		Gateway:  aiProvider.Gateway(),
+		Registry: aiToolRegistry,
+	})
 	pageModerationService := moderation.NewServiceWithWorkbench(
 		moderationStore, moderation.NewForumTargetValidator(forumStore), moderationStore, moderationStore,
 	)
@@ -540,6 +567,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	return &apiCoreStack{
 		adminOverviewProvider:     adminOverviewProvider,
 		aiProvider:                aiProvider,
+		aiOrchestrator:            aiOrchestrator,
 		systemUpdatesProvider:     systemUpdatesProvider,
 		apiTokenService:           apiTokenService,
 		attachmentsProvider:       attachmentsProvider,

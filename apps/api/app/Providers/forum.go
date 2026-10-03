@@ -142,6 +142,14 @@ func (p *ForumProvider) WithViewRecorder(recorder forum.TopicViewRecorder) *Foru
 	return p
 }
 
+// WithCommentLive 注入评论区实时信号（修订端点 + SSE）；nil 时两个端点返回 503。
+func (p *ForumProvider) WithCommentLive(live *forum.CommentLiveService) *ForumProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithCommentLive(live)
+	}
+	return p
+}
+
 // TrustPolicyAdapter 把 options.TrustPolicy 适配为 forum.TrustPolicyResolver。
 type TrustPolicyAdapter struct {
 	options *options.Service

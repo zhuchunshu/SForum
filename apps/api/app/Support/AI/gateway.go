@@ -249,6 +249,7 @@ func (g *Gateway) invoke(ctx context.Context, settings Settings, request Complet
 	return CompletionResult{
 		Text:       response.Text,
 		StopReason: response.StopReason,
+		ToolCalls:  response.ToolCalls,
 		Usage:      response.Usage,
 	}, nil
 }
@@ -314,6 +315,8 @@ func (g *Gateway) record(ctx context.Context, entry ExecutionRecord) {
 
 // CacheKey 把 purpose、调用方插件、profile、模型、提示词版本与请求正文一起
 // 摘要。任一维度不同都产生不同键，两个插件因此不可能读到对方的结果。
+// 工具声明与工具调用同样参与摘要：同一段对话在「有工具」和「没工具」下
+// 可能得到不同答案，缓存必须区分。
 func CacheKey(request CompletionRequest, profile Profile, revision int64) string {
 	hash := sha256.New()
 	write := func(parts ...string) {
@@ -322,11 +325,17 @@ func CacheKey(request CompletionRequest, profile Profile, revision int64) string
 			hash.Write([]byte{0})
 		}
 	}
-	write("ai.cache@1", request.Purpose, request.Metadata.CallerExtensionID, profile.ID,
-		profile.Model, request.PromptVersion, request.ResponseFormat,
+	write("ai.cache@2", request.Purpose, request.Metadata.CallerExtensionID, profile.ID,
+		profile.Model, request.PromptVersion, request.ResponseFormat, request.ToolChoice,
 		strconv.FormatInt(revision, 10), request.System)
+	for _, tool := range request.Tools {
+		write("tool", tool.Name, tool.Description, string(tool.Parameters))
+	}
 	for _, message := range request.Messages {
-		write(string(message.Role))
+		write(string(message.Role), message.ToolCallID)
+		for _, call := range message.ToolCalls {
+			write("call", call.ID, call.Name, call.Arguments)
+		}
 		for _, part := range message.Parts {
 			write(part.Text)
 		}

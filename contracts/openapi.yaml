@@ -115,6 +115,10 @@ paths:
     "$ref": "./openapi/paths/forum.yaml#/topicUnpin"
   "/topics/{topicID}/comments":
     "$ref": "./openapi/paths/forum.yaml#/topicComments"
+  "/topics/{topicID}/comments/revision":
+    "$ref": "./openapi/paths/forum.yaml#/topicCommentRevision"
+  "/topics/{topicID}/comments/stream":
+    "$ref": "./openapi/paths/forum.yaml#/topicCommentStream"
   "/topics/{topicID}/comments/{commentID}/page":
     "$ref": "./openapi/paths/forum.yaml#/topicCommentPage"
   "/comments/{commentID}/replies":

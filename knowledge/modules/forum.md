@@ -97,6 +97,24 @@ accepted revisions, lifecycle states, public read models, and forum policy.
   `commentPage` all share that single ordering key; `view=tree` keeps
   `path_key` hierarchy for nested consumers. See
   `../decisions/2026-10-03-comment-stream-chronological-order.md`.
+- The flat stream loads new comments without a reload: `topics.comment_revision`
+  is maintained by statement-level `comments` triggers (one bump per statement,
+  only for publicly visible changes) that also `pg_notify` the topic id;
+  `GET /topics/:topicID/comments/revision` reads that revision plus the tail
+  comment without touching the comment-list cache; and
+  `GET /topics/:topicID/comments/stream` pushes `event: revision` frames with a
+  10s heartbeat, a 15s reconcile tick, a 60s connection lifetime, and per-process
+  connection budgets (1024 total / 256 per topic / 8 per client IP, over-budget
+  connections get 429 and fall back to polling). Payloads carry only revision
+  facts; bodies, viewer-dependent tombstones, and permissions stay with
+  `ListComments`. The web client shares one EventSource per browser per topic
+  (BroadcastChannel + Web Locks), appends silently only when the reader is at
+  the bottom of the last page, and otherwise shows a notice pill
+  (`useTopicCommentLive`, `SFCommentStreamNotice`). The reader-position signal
+  measures the comment stream's viewport rect (the desktop center column is its
+  own scroll container) and the pill is sticky; the SSE resume cursor is kept
+  separate from the revision the page has actually reconciled. See
+  `../decisions/2026-10-03-topic-comment-live-stream.md`.
 - Comment actions keep the full authorized set on desktop. At `640px` and
   below, reply and permalink stay inline while edit, delete, report, and
   extension actions move into an accessible menu beside the public floor

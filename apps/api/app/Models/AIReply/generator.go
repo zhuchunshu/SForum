@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+
+	supportai "github.com/zhuchunshu/sforum/apps/api/app/Support/AI"
 )
 
 const (
@@ -13,11 +15,26 @@ const (
 	// 能把机器人开销和别的 AI 用途分开看。
 	ReplyPurpose = "forum.reply"
 	// ReplyPromptVersion 参与缓存键与执行记录。改动提示词时必须递增它，否则历史
-	// 记录无法对应到产出它的那版提示词。
-	ReplyPromptVersion = "forum-reply@1"
+	// 记录无法对应到产出它的那版提示词。forum-reply@3：默认提示词不再包含字面量
+	// 尖括号标签——富文本编辑器会把它剥离，导致面板把默认值误判成「已自定义」。
+	// forum-reply@2：主楼正文进入上下文、站内工具与引用要求写进系统指令。
+	ReplyPromptVersion = "forum-reply@3"
 	// ReplyMaxTokens 是单次回复的输出上限。
 	ReplyMaxTokens = 512
 )
+
+// ReplyToolAllowlist 是回复用途允许模型调用的工具白名单。
+//
+// 它是用途自己的声明：Host 的工具登记表决定「站内存在哪些工具」，这里决定
+// 「这次对话能用哪些」。允许清单之外的工具即使已登记也不会出现在请求里，
+// 因此审核类工具不会因为一次提示词注入而被回复机器人拿到。
+var ReplyToolAllowlist = []string{
+	"forum-search",
+	"forum-topic-read",
+	"forum-topic-list",
+	"user-profile-read",
+	"time-now",
+}
 
 var (
 	ErrGeneratorUnavailable = errors.New("aireply: generator is not wired")
@@ -75,6 +92,14 @@ func (g *Generator) Generate(ctx context.Context, input ReplyJobInput) error {
 		User:          user,
 		MaxTokens:     ReplyMaxTokens,
 		SubjectUserID: input.TriggerUserID,
+		Tools:         ReplyToolAllowlist,
+		// 工具以提问者视角取数：可见性判定用触发者身份，位置信息用于限定
+		// 「当前这栋楼」。
+		ToolContext: supportai.ToolContext{
+			ViewerUserID: input.TriggerUserID,
+			TopicID:      input.TopicID,
+			CommentID:    input.TriggerCommentID,
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("complete reply: %w", err)

@@ -13,9 +13,10 @@ import (
 
 // PostgresReader 从数据库读取生成所需的线程快照。
 //
-// 它只读 status='active' 的主题与评论：机器人不该因为「是系统调用的」而看到
-// 隐藏内容、待审内容或私密板块。可见性判断必须与访客看到的一致，否则机器人
-// 会把不该公开的东西复述出来。
+// 它只读公开可见的内容：status 为 active/locked 且分类可见性为 public 的主题，
+// 以及 status='active' 的评论。机器人不该因为「是系统调用的」而看到隐藏内容、
+// 待审内容或非公开分类——可见性判断必须与访客看到的一致，否则机器人会把不该
+// 公开的东西复述出来。
 type PostgresReader struct {
 	pool *pgxpool.Pool
 }
@@ -30,9 +31,15 @@ func (r *PostgresReader) ReplyContext(ctx context.Context, topicID int64, parent
 	}
 	var thread ReplyContext
 	err := r.pool.QueryRow(ctx, `
-		SELECT title FROM topics
-		WHERE id = $1 AND status IN ('active', 'locked')
-	`, topicID).Scan(&thread.TopicTitle)
+		SELECT topics.title, COALESCE(posts.plain_text, '')
+		FROM topics
+		JOIN categories ON categories.id = topics.category_id
+		JOIN posts ON posts.id = topics.content_id
+		WHERE topics.id = $1
+		  AND topics.status IN ('active', 'locked')
+		  AND topics.deleted_at IS NULL
+		  AND categories.visibility = 'public'
+	`, topicID).Scan(&thread.TopicTitle, &thread.TopicBody)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ReplyContext{}, fmt.Errorf("reply context: topic %d is not publicly visible", topicID)
 	}

@@ -42,7 +42,9 @@ func (r WireRequest) SafeHeaders() map[string]string {
 type WireResponse struct {
 	Text       string
 	StopReason string
-	Usage      Usage
+	// ToolCalls 非空表示模型要求先执行工具；两套协议都翻译到这个字段。
+	ToolCalls []ToolCall
+	Usage     Usage
 	// RawFinishReason 保留供应商原始值，便于排查映射偏差。
 	RawFinishReason string
 }

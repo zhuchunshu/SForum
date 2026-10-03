@@ -18,7 +18,10 @@ type ThreadComment struct {
 
 // ReplyContext 是一次回复生成所需的全部输入。
 type ReplyContext struct {
-	TopicTitle       string
+	TopicTitle string
+	// TopicBody 是主楼正文（纯文本）。没有它，机器人看不到帖子本身在讲什么，
+	// 只能凭标题猜——而「主楼里那段代码为什么报错」这类提问都落在正文里。
+	TopicBody        string
 	TopicAuthorName  string
 	ParentAuthorName string
 	// ParentContent 是被回复的那条评论；机器人要正面回应它。
@@ -65,6 +68,11 @@ type CompletionInput struct {
 	MaxTokens     int
 	// SubjectUserID 是触发者，用于按用户计量配额。
 	SubjectUserID int64
+	// Tools 是本次生成允许调用的工具白名单；空表示纯文本补全。白名单由用途
+	// 声明（这里是回复用途），工具是否存在由 Host 的登记表决定。
+	Tools []string
+	// ToolContext 是工具调用可以依赖的会话事实。
+	ToolContext supportai.ToolContext
 }
 
 type CompletionOutput struct {
@@ -72,8 +80,13 @@ type CompletionOutput struct {
 }
 
 // RecentCommentWindow 是提示词里包含的近期发言条数。更大的窗口意味着更贵的
-// 每次调用，而收益递减：机器人需要的是对话的最近上下文，不是整楼。
+// 每次调用，而收益递减：机器人需要的是对话的最近上下文，不是整楼。更早的内容
+// 由工具按需读取，而不是每次都塞进上下文。
 const RecentCommentWindow = 10
+
+// TopicBodyRuneLimit 是提示词里主楼正文的截断上限。正文通常是最相关的上下文，
+// 因此窗口比单条评论大；超出部分由 forum.topic.read 工具按需补读。
+const TopicBodyRuneLimit = 2_000
 
 // buildReplyPrompt 组装系统指令与用户内容。
 //
@@ -90,6 +103,9 @@ func buildReplyPrompt(thread ReplyContext, systemOverride string) (string, strin
 
 	var builder strings.Builder
 	builder.WriteString("主题：" + strings.TrimSpace(thread.TopicTitle) + "\n")
+	if body := strings.TrimSpace(thread.TopicBody); body != "" {
+		builder.WriteString("\n主楼正文：\n" + truncateForPrompt(body, TopicBodyRuneLimit) + "\n")
+	}
 	if len(thread.RecentComments) > 0 {
 		builder.WriteString("\n最近的讨论（按时间顺序）：\n")
 		for _, comment := range thread.RecentComments {

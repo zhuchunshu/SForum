@@ -25,6 +25,7 @@ import {
   type ForumTopicUpdateInput,
   forumTopicExtensionActionRequestPath
 } from '~/utils/forum/forumTaxonomy'
+import type { ForumCommentRevisionState } from '~/utils/forum/commentLiveDecision'
 
 export function useForumApi() {
   const { request } = useApiClient()
@@ -87,6 +88,12 @@ export function useForumApi() {
       pathWithQuery(`/topics/${topicId}/comments`, buildForumCommentQuery(query)),
       serverReadOptions
     )
+  }
+
+  // 评论区修订状态：SSE 信号的对账事实来源，同时是 SSE 不可用时的轮询降级端点。
+  // 与列表同口径（不可见主题 404），且不走评论列表缓存，因此不会返回过期修订号。
+  function getCommentRevision(topicId: number) {
+    return request<ForumCommentRevisionState>(`/topics/${topicId}/comments/revision`, serverReadOptions)
   }
 
   // 反查 commentId 在 flat 视图分页下所属的页码；SSR 阶段调用以零闪屏定位 #comment-{id}。
@@ -210,6 +217,7 @@ export function useForumApi() {
     getTopicBySlug,
     listTopicContributionTimeline,
     listTopicComments,
+    getCommentRevision,
     resolveCommentPage,
     createTopicComment,
     updateComment,

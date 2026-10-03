@@ -554,6 +554,12 @@ func (s *Service) trustForActor(ctx context.Context, actor identity.Actor) trust
 	if s.trust == nil || actor.CreatedAt.IsZero() {
 		return trustLimits{}
 	}
+	// 机器人不进入新人信任阶梯：它没有登录凭据、发言由 AI 配额与审核闸门约束，
+	// 而「新人禁止外链」会让它无法引用站内内容——那正是回复工具存在的意义。
+	// 这条规则来自 AI 辅助平台计划 M3（Bot Identity）的既有决定。
+	if actor.Kind.IsBot() {
+		return trustLimits{}
+	}
 	days, err := s.trust.NewUserTrustDays(ctx)
 	if err != nil || days <= 0 {
 		return trustLimits{}

@@ -14,6 +14,8 @@ export type AdminAIProfile = {
   enabled: boolean
   price: { inputPerMillionMicros: number, outputPerMillionMicros: number }
   defaults: { maxTokens: number, temperature?: number, timeoutMs: number }
+  // 端点是否支持工具调用。缺省（undefined）视为支持；只有明确不支持时才写 false。
+  supportsTools?: boolean
 }
 
 export type AdminAISettings = {
@@ -25,7 +27,7 @@ export type AdminAISettings = {
   // reply.systemPrompt 为空表示使用内置默认提示词；一键恢复就是把这里清空。
   reply: { systemPrompt: string }
   autoAction: { enabled: boolean, confidenceThreshold: number, allowedActions: string[] }
-  gates: { rateLimitPerMinute: number, extensionDailyQuota: number, userDailyQuota: number, monthlyBudgetMicros: number }
+  gates: { rateLimitPerMinute: number, extensionDailyQuota: number, userDailyQuota: number, monthlyBudgetMicros: number, toolCallsPerReply?: number }
   redaction: { enabled: boolean, redactEmail: boolean, redactPhone: boolean, redactIp: boolean }
   revision: number
   updatedAt?: string
@@ -118,7 +120,7 @@ export function emptyAdminAISettings(): AdminAISettings {
     purposeFailurePosture: {},
     reply: { systemPrompt: '' },
     autoAction: { enabled: false, confidenceThreshold: 0.9, allowedActions: [] },
-    gates: { rateLimitPerMinute: 0, extensionDailyQuota: 0, userDailyQuota: 0, monthlyBudgetMicros: 0 },
+    gates: { rateLimitPerMinute: 0, extensionDailyQuota: 0, userDailyQuota: 0, monthlyBudgetMicros: 0, toolCallsPerReply: 3 },
     redaction: { enabled: true, redactEmail: true, redactPhone: true, redactIp: true },
     revision: 0
   }

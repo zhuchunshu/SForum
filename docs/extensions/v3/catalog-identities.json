@@ -1970,6 +1970,18 @@
       "path": "/api/v1/topics/:topicID/comments/:commentID/page"
     },
     {
+      "id": "core.route.forum.topic_comment_revision",
+      "contractVersion": "sforum.route.forum.topic_comment_revision@1",
+      "method": "GET",
+      "path": "/api/v1/topics/:topicID/comments/revision"
+    },
+    {
+      "id": "core.route.forum.topic_comment_stream",
+      "contractVersion": "sforum.route.forum.topic_comment_stream@1",
+      "method": "GET",
+      "path": "/api/v1/topics/:topicID/comments/stream"
+    },
+    {
       "id": "core.route.forum.topic_contribution_timeline",
       "contractVersion": "sforum.route.forum.topic_contribution_timeline@1",
       "method": "GET",
@@ -5155,6 +5167,36 @@
       ],
       "state": "active",
       "source": "apps/web/app/pages/admin/ai.vue"
+    },
+    {
+      "id": "core.component.shared.sfmention_content",
+      "contractVersion": "sforum.component.shared.sfmention_content@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/forum/SFMentionContent.vue"
+    },
+    {
+      "id": "core.component.shared.sfuser_mention_preview",
+      "contractVersion": "sforum.component.shared.sfuser_mention_preview@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/forum/SFUserMentionPreview.vue"
+    },
+    {
+      "id": "core.component.shared.sfcomment_stream_notice",
+      "contractVersion": "sforum.component.shared.sfcomment_stream_notice@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/forum/SFCommentStreamNotice.vue"
     }
   ]
 }

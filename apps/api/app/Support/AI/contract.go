@@ -1,6 +1,7 @@
 package ai
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 	"unicode/utf8"
@@ -39,12 +40,13 @@ var (
 )
 
 // Role 是消息角色。system 是请求级字段，不出现在 Messages 中，避免适配器
-// 猜测各协议对 system 位置的约定。
+// 猜测各协议对 system 位置的约定。tool 是工具结果的角色，只在工具循环里出现。
 type Role string
 
 const (
 	RoleUser      Role = "user"
 	RoleAssistant Role = "assistant"
+	RoleTool      Role = "tool"
 )
 
 // PartType 目前只承认文本。多模态输入已由运营者决定排除。
@@ -57,9 +59,29 @@ type Part struct {
 	Text string   `json:"text,omitempty"`
 }
 
+// ToolDefinition 是给模型看的工具声明。Parameters 是 JSON Schema 对象，原样
+// 透传给供应商协议；Core 不解释它的语义，也不替工具校验参数。
+type ToolDefinition struct {
+	Name        string          `json:"name"`
+	Description string          `json:"description"`
+	Parameters  json.RawMessage `json:"parameters,omitempty"`
+}
+
+// ToolCall 是模型发起的一次工具调用。Arguments 保留原始 JSON 字符串，由工具
+// 实现自行解析——适配器不替它猜结构，解析失败由工具返回错误结果给模型。
+type ToolCall struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Arguments string `json:"arguments,omitempty"`
+}
+
 type Message struct {
 	Role  Role   `json:"role"`
-	Parts []Part `json:"parts"`
+	Parts []Part `json:"parts,omitempty"`
+	// ToolCallID 仅 role=tool 时有值，指向它所回应的那次调用。
+	ToolCallID string `json:"toolCallId,omitempty"`
+	// ToolCalls 仅 role=assistant 时有值：模型在这一步要求调用的工具。
+	ToolCalls []ToolCall `json:"toolCalls,omitempty"`
 }
 
 // Metadata 描述调用归属，用于记账、审计与 trace。用途不在这里：它只有
@@ -81,7 +103,11 @@ type CompletionRequest struct {
 	MaxTokens      int       `json:"maxTokens"`
 	Temperature    *float64  `json:"temperature,omitempty"`
 	ResponseFormat string    `json:"responseFormat,omitempty"`
-	Metadata       Metadata  `json:"metadata"`
+	// Tools 是本次调用可用的工具声明。为空表示纯文本补全，模型不应返回工具调用。
+	Tools []ToolDefinition `json:"tools,omitempty"`
+	// ToolChoice 控制工具使用策略：空（供应商默认，等同 auto）、auto、none、required。
+	ToolChoice string   `json:"toolChoice,omitempty"`
+	Metadata   Metadata `json:"metadata"`
 	// PromptVersion 由调用方声明，参与缓存键与执行 trace。修改提示词必须递增它，
 	// 否则历史决策无法与产出它的提示词对应。
 	PromptVersion string `json:"promptVersion,omitempty"`
@@ -110,18 +136,50 @@ func (u Usage) Total() int { return u.InputTokens + u.OutputTokens }
 // CompletionResult 是中立结果。PromptVersion 与 ConfigRevision 一并记录，
 // 使历史决策可解释、可回放；配置后续变更不得反推历史结论。
 type CompletionResult struct {
-	Text           string           `json:"text"`
-	StopReason     string           `json:"stopReason"`
-	Usage          Usage            `json:"usage"`
-	Provider       ProviderArtifact `json:"provider"`
-	PromptVersion  string           `json:"promptVersion,omitempty"`
-	ConfigRevision int64            `json:"configRevision,omitempty"`
-	LatencyMS      int64            `json:"latencyMs"`
-	CacheHit       bool             `json:"cacheHit,omitempty"`
+	Text       string           `json:"text"`
+	StopReason string           `json:"stopReason"`
+	Usage      Usage            `json:"usage"`
+	Provider   ProviderArtifact `json:"provider"`
+	// ToolCalls 非空时表示模型的这一步要求先执行工具，Text 通常为空。
+	ToolCalls      []ToolCall `json:"toolCalls,omitempty"`
+	PromptVersion  string     `json:"promptVersion,omitempty"`
+	ConfigRevision int64      `json:"configRevision,omitempty"`
+	LatencyMS      int64      `json:"latencyMs"`
+	CacheHit       bool       `json:"cacheHit,omitempty"`
 }
 
 func ValidRole(role Role) bool {
-	return role == RoleUser || role == RoleAssistant
+	return role == RoleUser || role == RoleAssistant || role == RoleTool
+}
+
+// ValidToolName 限定工具名的字符集：与供应商实际接受的模式保持一致
+// （`^[a-zA-Z0-9_-]{1,64}$`，OpenAI 与 Anthropic 都是这套约束）。点号刻意不在
+// 允许集合内——DeepSeek/OpenAI 会在请求层直接以 400 拒绝带点号的名字，用连字符
+// 表达命名空间（forum-topic-read）才是真正可用的写法。
+func ValidToolName(name string) bool {
+	if name == "" || len(name) > MaxToolNameLen {
+		return false
+	}
+	for _, r := range name {
+		switch {
+		case r >= 'a' && r <= 'z':
+		case r >= '0' && r <= '9':
+		case r == '_' || r == '-':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// ValidToolChoice 校验工具策略。空字符串表示交给供应商默认（等同 auto）。
+func ValidToolChoice(choice string) bool {
+	switch strings.TrimSpace(choice) {
+	case "", "auto", "none", "required":
+		return true
+	default:
+		return false
+	}
 }
 
 func ValidCostClass(class string) bool {
@@ -148,10 +206,21 @@ func (r CompletionRequest) Normalized() CompletionRequest {
 	r.Purpose = strings.TrimSpace(r.Purpose)
 	r.CostClass = strings.TrimSpace(r.CostClass)
 	r.ResponseFormat = strings.TrimSpace(r.ResponseFormat)
+	r.ToolChoice = strings.TrimSpace(r.ToolChoice)
 	r.Metadata.CallerExtensionID = strings.TrimSpace(r.Metadata.CallerExtensionID)
 	r.Metadata.ResourceType = strings.TrimSpace(r.Metadata.ResourceType)
 	r.Metadata.ResourceID = strings.TrimSpace(r.Metadata.ResourceID)
 	r.Metadata.Locale = strings.TrimSpace(r.Metadata.Locale)
+	for i := range r.Tools {
+		r.Tools[i].Name = strings.TrimSpace(r.Tools[i].Name)
+	}
+	for i := range r.Messages {
+		r.Messages[i].ToolCallID = strings.TrimSpace(r.Messages[i].ToolCallID)
+		for j := range r.Messages[i].ToolCalls {
+			r.Messages[i].ToolCalls[j].ID = strings.TrimSpace(r.Messages[i].ToolCalls[j].ID)
+			r.Messages[i].ToolCalls[j].Name = strings.TrimSpace(r.Messages[i].ToolCalls[j].Name)
+		}
+	}
 	return r
 }
 
@@ -167,6 +236,9 @@ func (r CompletionRequest) Validate() error {
 	if !ValidResponseFormat(r.ResponseFormat) {
 		return ErrRequestInvalid
 	}
+	if !ValidToolChoice(r.ToolChoice) {
+		return ErrRequestInvalid
+	}
 	if len(r.Messages) == 0 || len(r.Messages) > MaxMessages {
 		return ErrRequestInvalid
 	}
@@ -179,13 +251,61 @@ func (r CompletionRequest) Validate() error {
 	if r.Temperature != nil && (*r.Temperature < MinTemperature || *r.Temperature > MaxTemperature) {
 		return ErrRequestInvalid
 	}
+	if len(r.Tools) > MaxToolsPerRequest {
+		return ErrRequestInvalid
+	}
+	seenTools := make(map[string]bool, len(r.Tools))
 	total := len(r.System)
+	// 工具声明同样进入供应商输入，必须计入规模与配额。
+	for _, tool := range r.Tools {
+		if !ValidToolName(tool.Name) || seenTools[tool.Name] {
+			return ErrRequestInvalid
+		}
+		seenTools[tool.Name] = true
+		if len(tool.Description) > MaxToolDescriptionBytes {
+			return ErrRequestInvalid
+		}
+		if len(tool.Parameters) > MaxToolSchemaBytes {
+			return ErrRequestInvalid
+		}
+		if len(tool.Parameters) > 0 && !json.Valid(tool.Parameters) {
+			return ErrRequestInvalid
+		}
+		total += len(tool.Name) + len(tool.Description) + len(tool.Parameters)
+	}
 	for _, message := range r.Messages {
 		if !ValidRole(message.Role) {
 			return ErrRequestInvalid
 		}
-		if len(message.Parts) == 0 {
-			return ErrRequestInvalid
+		switch message.Role {
+		case RoleTool:
+			// 工具结果必须指向它所回应的那次调用；允许空正文（工具可能无话可说），
+			// 但绝不允许再携带工具调用。
+			if strings.TrimSpace(message.ToolCallID) == "" || len(message.ToolCallID) > MaxToolCallIDLen {
+				return ErrRequestInvalid
+			}
+			if len(message.ToolCalls) > 0 {
+				return ErrRequestInvalid
+			}
+		case RoleAssistant:
+			// 助手消息可以只带工具调用而没有正文——那正是「要求先执行工具」的形态。
+			if len(message.Parts) == 0 && len(message.ToolCalls) == 0 {
+				return ErrRequestInvalid
+			}
+		default:
+			// 用户消息是唯一允许承载社区内容的角色：必须有非空正文。
+			if len(message.Parts) == 0 || len(message.ToolCalls) > 0 || message.ToolCallID != "" {
+				return ErrRequestInvalid
+			}
+		}
+		for _, call := range message.ToolCalls {
+			if strings.TrimSpace(call.ID) == "" || len(call.ID) > MaxToolCallIDLen || !ValidToolName(call.Name) {
+				return ErrRequestInvalid
+			}
+			if len(call.Arguments) > MaxToolArgumentsBytes {
+				return ErrRequestInvalid
+			}
+			total += len(call.Name) + len(call.Arguments)
 		}
 		for _, part := range message.Parts {
 			if part.Type != PartText {
@@ -209,7 +329,14 @@ func (r CompletionRequest) Validate() error {
 // InputBytes 返回请求正文的 UTF-8 字节规模，供记账与 trace 使用。
 func (r CompletionRequest) InputBytes() int {
 	total := len(r.System)
+	for _, tool := range r.Tools {
+		total += len(tool.Name) + len(tool.Description) + len(tool.Parameters)
+	}
 	for _, message := range r.Messages {
+		total += len(message.ToolCallID)
+		for _, call := range message.ToolCalls {
+			total += len(call.Name) + len(call.Arguments)
+		}
 		for _, part := range message.Parts {
 			total += len(part.Text)
 		}

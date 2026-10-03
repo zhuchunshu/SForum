@@ -42,6 +42,9 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Post("/topics/:topicID/pin", h.pinTopic)
 	api.Post("/topics/:topicID/unpin", h.unpinTopic)
 	api.Get("/topics/:topicID/comments", h.comments)
+	// 评论区实时信号：修订状态供对账/轮询降级，stream 是 SSE 变更流（只推修订号，不推正文）。
+	api.Get("/topics/:topicID/comments/revision", h.topicCommentRevision)
+	api.Get("/topics/:topicID/comments/stream", h.topicCommentStream)
 	// 反查评论所在分页页码：供帖子详情页 #comment-{id} 锚点跨页定位（flat 视图）。
 	api.Get("/topics/:topicID/comments/:commentID/page", h.commentPage)
 	if idem != nil {

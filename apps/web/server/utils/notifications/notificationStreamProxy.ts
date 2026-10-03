@@ -17,6 +17,8 @@ const HOP_BY_HOP_RESPONSE_HEADERS = new Set([
   'upgrade'
 ])
 
+// Host SSE 裸管道代理：通知修订流与主题评论修订流共用（见 utils/apiStreamPath.ts）。
+// 与 sendProxy 的差别是不做任何缓冲/压缩改写，并把客户端断开直接映射为上游断开。
 export function proxyNotificationStream(event: H3Event, target: URL, requestOverride?: typeof httpRequest) {
   const request = requestOverride || (target.protocol === 'https:' ? httpsRequest : httpRequest)
   const headers = pluginRouteProxyHeaders(getProxyRequestHeaders(event))

@@ -32,6 +32,8 @@ type Controller struct {
 	// idempotency 可选：注入后对发帖/评论写路径启用 Idempotency-Key（F3.2）。
 	idempotency       *idempotency.Store
 	emailVerification EmailVerificationGate
+	// commentLive 可选：注入后启用评论区修订端点与 SSE 实时信号。
+	commentLive *forum.CommentLiveService
 }
 
 type EmailVerificationGate interface {
@@ -163,6 +165,15 @@ func (h *Controller) WithIdempotency(store *idempotency.Store) *Controller {
 func (h *Controller) WithEmailVerificationGate(gate EmailVerificationGate) *Controller {
 	if h != nil {
 		h.emailVerification = gate
+	}
+	return h
+}
+
+// WithCommentLive 注入评论实时信号协作者（修订端点 + SSE）。
+// 未注入时两个端点返回 503，不影响其余论坛路由。
+func (h *Controller) WithCommentLive(live *forum.CommentLiveService) *Controller {
+	if h != nil {
+		h.commentLive = live
 	}
 	return h
 }
@@ -844,6 +855,8 @@ func mapForumError(err error) error {
 		return fiber.NewError(fiber.StatusBadRequest, forum.CodeUseSearch)
 	case errors.Is(err, forum.ErrInvalidCursor):
 		return fiber.NewError(fiber.StatusBadRequest, forum.CodeInvalidCursor)
+	case errors.Is(err, forum.ErrCommentRevisionUnavailable):
+		return fiber.NewError(fiber.StatusServiceUnavailable, forum.CodeCommentStreamUnavailable)
 	default:
 		return err
 	}

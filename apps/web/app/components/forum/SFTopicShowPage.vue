@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { useSForumSeo } from '~/composables/seo/useSForumSeo'
-import { useModerationApi } from '~/composables/moderation/useModerationApi'
+import { useModerationReportDialog } from '~/composables/moderation/useModerationReportDialog'
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
 import { useAuthSession } from '~/composables/identity/useAuthSession'
 import { useForumApi } from '~/composables/forum/useForumApi'
 import { useLegacyTopicCommentComposerParent, useTopicCommentComposerDrawer } from '~/composables/forum/useTopicCommentComposerDrawer'
 import { useTopicCommentAnchor } from '~/composables/forum/useTopicCommentAnchor'
+import { useTopicCommentLive } from '~/composables/forum/useTopicCommentLive'
 import { useTopicSelectionQuoteReply } from '~/composables/forum/useTopicSelectionQuoteReply'
 import { useForumImageViewer } from '~/composables/forum/useForumImageViewer'
 import SFReportDialog from '~/components/moderation/SFReportDialog.vue'
@@ -18,6 +19,7 @@ import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
 import SFResponsivePublicSidebar from '~/components/forum/navigation/SFResponsivePublicSidebar.vue'
 import SFComment from '~/components/forum/SFComment.vue'
+import SFCommentStreamNotice from '~/components/forum/SFCommentStreamNotice.vue'
 import SFMentionContent from '~/components/forum/SFMentionContent.vue'
 import SFUserMentionPreview from '~/components/forum/SFUserMentionPreview.vue'
 import SFSelectionQuoteAction from '~/components/forum/SFSelectionQuoteAction.vue'
@@ -459,6 +461,20 @@ const {
   focusCreatedComment
 })
 
+// 评论区免刷新加载：SSE 只发修订信号，本 composable 对账后决定静默追加/出胶囊/静默对齐。
+// 锁定或未公开主题不会再有新评论，直接不订阅。
+const commentLive = useTopicCommentLive({
+  topicId: loadedTopicID,
+  list: commentData,
+  page: commentPage,
+  totalPages: commentTotalPages,
+  composerOpen,
+  currentUserId: computed(() => reportUser.value?.id),
+  refresh: refreshComments,
+  pageTo: commentPageTo,
+  enabled: computed(() => Boolean(topic.value && topic.value.status === 'active'))
+})
+
 function commentAuthorPath(comment: ForumComment) {
   if (!comment.author?.username) {
     return ''
@@ -725,22 +741,20 @@ async function loadMoreCommentReplies(comment: ForumComment) {
   }
 }
 
-// 举报对话框：支持举报主题或评论。同一时刻只展开一个。
-const reportingTarget = ref<{ type: 'topic' | 'comment'; id: number } | null>(null)
-const reportReason = ref<string>('')
-const reportBody = ref('')
-const reportSubmitting = ref(false)
-const reportError = ref('')
-const reportSuccess = ref(false)
-const moderationApi = useModerationApi()
-
-const reportReasonOptions = [
-  { label: t('moderation.reason.spam'), value: 'spam' },
-  { label: t('moderation.reason.abuse'), value: 'abuse' },
-  { label: t('moderation.reason.illegal'), value: 'illegal' },
-  { label: t('moderation.reason.off_topic'), value: 'off_topic' },
-  { label: t('moderation.reason.other'), value: 'other' }
-]
+// 举报对话框状态机（目标/原因/提交/错误）见 composables/moderation/useModerationReportDialog；
+// 这里保持原有短名解构，模板绑定与视觉契约不变。
+const {
+  target: reportingTarget,
+  reason: reportReason,
+  body: reportBody,
+  submitting: reportSubmitting,
+  error: reportError,
+  success: reportSuccess,
+  reasonOptions: reportReasonOptions,
+  open: openReportDialog,
+  close: closeReportDialog,
+  submit: submitReport
+} = useModerationReportDialog({ canReport: () => Boolean(reportUser.value) })
 
 const topicActionItems = computed(() => {
   if (!topic.value) {
@@ -838,42 +852,6 @@ async function shareTopic() {
   window.prompt(t('topicDetail.copyLinkHint'), url)
 }
 
-function openReportDialog(target: { type: 'topic' | 'comment'; id: number }) {
-  if (!reportUser.value) {
-    return
-  }
-  reportingTarget.value = target
-  reportReason.value = ''
-  reportBody.value = ''
-  reportError.value = ''
-  reportSuccess.value = false
-}
-
-function closeReportDialog() {
-  reportingTarget.value = null
-}
-
-async function submitReport() {
-  if (!reportingTarget.value || !reportReason.value || reportSubmitting.value) {
-    return
-  }
-  reportSubmitting.value = true
-  reportError.value = ''
-  try {
-    await moderationApi.createReport({
-      targetType: reportingTarget.value.type,
-      targetId: reportingTarget.value.id,
-      reasonCode: reportReason.value as 'spam' | 'abuse' | 'illegal' | 'off_topic' | 'other',
-      body: reportBody.value
-    })
-    reportSuccess.value = true
-    setTimeout(() => closeReportDialog(), 2000)
-  } catch (error) {
-    reportError.value = apiErrorMessage(error) || t('moderation.reportFailed')
-  } finally {
-    reportSubmitting.value = false
-  }
-}
 </script>
 
 <template>
@@ -1024,6 +1002,14 @@ async function submitReport() {
                         @load-more-replies="(c: ForumComment) => { void loadMoreCommentReplies(c) }"
                       />
                     </div>
+
+                    <SFCommentStreamNotice
+                      :notice="commentLive.notice"
+                      :new-count="commentLive.newCount"
+                      :jump-to-last-page="commentLive.jumpToLastPage"
+                      @apply="commentLive.apply()"
+                      @dismiss="commentLive.dismiss()"
+                    />
 
                     <div v-if="commentTotalPages > 1" class="flex justify-center pt-2">
                       <SFPagination

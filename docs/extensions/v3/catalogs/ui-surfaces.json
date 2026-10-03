@@ -1998,6 +1998,16 @@
     "targetRegistry": "P9 Component Registry"
   },
   {
+    "id": "core.component.shared.sfcomment_stream_notice",
+    "contractVersion": "sforum.component.shared.sfcomment_stream_notice@1",
+    "kind": "component",
+    "source": "apps/web/app/components/forum/SFCommentStreamNotice.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sfcomment_user_preview",
     "contractVersion": "sforum.component.shared.sfcomment_user_preview@1",
     "kind": "component",
@@ -2264,6 +2274,16 @@
     "contractVersion": "sforum.component.shared.sflogin_methods_settings_page@1",
     "kind": "component",
     "source": "apps/web/app/components/settings/SFLoginMethodsSettingsPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfmention_content",
+    "contractVersion": "sforum.component.shared.sfmention_content@1",
+    "kind": "component",
+    "source": "apps/web/app/components/forum/SFMentionContent.vue",
     "owners": [
       "public"
     ],
@@ -3044,6 +3064,16 @@
       "admin"
     ],
     "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
+    "id": "core.component.shared.sfuser_mention_preview",
+    "contractVersion": "sforum.component.shared.sfuser_mention_preview@1",
+    "kind": "component",
+    "source": "apps/web/app/components/forum/SFUserMentionPreview.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.sfweb_push_settings_section",

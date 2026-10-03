@@ -198,6 +198,7 @@ Manifest V3 component targets declare both `targetId` and `targetContractVersion
 | `core.component.shared.sfcategory_show_page` | `sforum.component.shared.sfcategory_show_page@1` | component | `public` | — | `apps/web/app/components/forum/SFCategoryShowPage.vue` | P9 Component Registry |
 | `core.component.shared.sfcomment` | `sforum.component.shared.sfcomment@1` | component | `public` | — | `apps/web/app/components/forum/SFComment.vue` | P9 Component Registry |
 | `core.component.shared.sfcomment_stream_controls` | `sforum.component.shared.sfcomment_stream_controls@1` | component | `public` | — | `apps/web/app/components/forum/SFCommentStreamControls.vue` | P9 Component Registry |
+| `core.component.shared.sfcomment_stream_notice` | `sforum.component.shared.sfcomment_stream_notice@1` | component | `public` | — | `apps/web/app/components/forum/SFCommentStreamNotice.vue` | P9 Component Registry |
 | `core.component.shared.sfcomment_user_preview` | `sforum.component.shared.sfcomment_user_preview@1` | component | `public` | — | `apps/web/app/components/forum/SFCommentUserPreview.vue` | P9 Component Registry |
 | `core.component.shared.sfcontent_column_footer` | `sforum.component.shared.sfcontent_column_footer@1` | component | `public` | — | `apps/web/app/components/forum/SFContentColumnFooter.vue` | P9 Component Registry |
 | `core.component.shared.sfeditor` | `sforum.component.shared.sfeditor@1` | component | `public` | — | `apps/web/app/components/SFEditor.vue` | P9 Component Registry |
@@ -225,6 +226,7 @@ Manifest V3 component targets declare both `targetId` and `targetContractVersion
 | `core.component.shared.sflocal_password_settings_page` | `sforum.component.shared.sflocal_password_settings_page@1` | component | `public` | — | `apps/web/app/components/settings/SFLocalPasswordSettingsPage.vue` | P9 Component Registry |
 | `core.component.shared.sflogin_form_page` | `sforum.component.shared.sflogin_form_page@1` | component | `public` | — | `apps/web/app/components/identity/SFLoginFormPage.vue` | P9 Component Registry |
 | `core.component.shared.sflogin_methods_settings_page` | `sforum.component.shared.sflogin_methods_settings_page@1` | component | `public` | — | `apps/web/app/components/settings/SFLoginMethodsSettingsPage.vue` | P9 Component Registry |
+| `core.component.shared.sfmention_content` | `sforum.component.shared.sfmention_content@1` | component | `public` | — | `apps/web/app/components/forum/SFMentionContent.vue` | P9 Component Registry |
 | `core.component.shared.sfmobile_sidebar_content` | `sforum.component.shared.sfmobile_sidebar_content@1` | component | `public` | — | `apps/web/app/components/forum/navigation/SFMobileSidebarContent.vue` | P9 Component Registry |
 | `core.component.shared.sfmoderation_review_page` | `sforum.component.shared.sfmoderation_review_page@1` | component | `public` | — | `apps/web/app/components/moderation/SFModerationReviewPage.vue` | P9 Component Registry |
 | `core.component.shared.sfnavbar` | `sforum.component.shared.sfnavbar@1` | component | `public` | — | `apps/web/app/components/SFNavbar.vue` | P9 Component Registry |
@@ -302,4 +304,5 @@ Manifest V3 component targets declare both `targetId` and `targetContractVersion
 | `core.component.shared.sftopic_show_page` | `sforum.component.shared.sftopic_show_page@1` | component | `public` | — | `apps/web/app/components/forum/SFTopicShowPage.vue` | P9 Component Registry |
 | `core.component.shared.sftopic_side_card` | `sforum.component.shared.sftopic_side_card@1` | component | `public` | — | `apps/web/app/components/forum/SFTopicSideCard.vue` | P9 Component Registry |
 | `core.component.admin.sftrusted_admin_page_component` | `sforum.component.admin.sftrusted_admin_page_component@1` | component | `admin` | — | `apps/web/app/components/extensions/admin/SFTrustedAdminPageComponent.vue` | P7/P9 Admin and Component Registries |
+| `core.component.shared.sfuser_mention_preview` | `sforum.component.shared.sfuser_mention_preview@1` | component | `public` | — | `apps/web/app/components/forum/SFUserMentionPreview.vue` | P9 Component Registry |
 | `core.component.shared.sfweb_push_settings_section` | `sforum.component.shared.sfweb_push_settings_section@1` | component | `public` | — | `apps/web/app/components/settings/SFWebPushSettingsSection.vue` | P9 Component Registry |

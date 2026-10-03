@@ -150,6 +150,9 @@ func TestProductionForumReadGuardPartitionsCatalogByProvablePolicy(t *testing.T)
 		"core.route.forum.topic_contribution_timeline": {method: "GET"},
 		"core.route.forum.topic_by_slug":               {method: "GET"},
 		"core.route.forum.comment_page":                {method: "GET"},
+		// 评论区实时信号：修订端点与 SSE 都按评论列表的 guest-read 策略裁决。
+		"core.route.forum.topic_comment_revision":      {method: "GET"},
+		"core.route.forum.topic_comment_stream":        {method: "GET"},
 	}
 	var catalog []routes.CoreRoute
 	for _, route := range routes.CoreRouteCatalog() {
@@ -250,8 +253,8 @@ func TestProductionForumReadPolicyClosesDynamicCatalogRoutes(t *testing.T) {
 		}
 		policy.guestRead = "public"
 	}
-	if covered != 11 {
-		t.Fatalf("dynamic forum read routes = %d, want 11", covered)
+	if covered != 13 {
+		t.Fatalf("dynamic forum read routes = %d, want 13", covered)
 	}
 }
 

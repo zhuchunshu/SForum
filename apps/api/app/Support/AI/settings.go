@@ -43,7 +43,22 @@ type GateSettings struct {
 	ExtensionDailyQuota int   `json:"extensionDailyQuota"`
 	UserDailyQuota      int   `json:"userDailyQuota"`
 	MonthlyBudgetMicros int64 `json:"monthlyBudgetMicros"`
+	// ToolCallsPerReply 是单次回复允许的工具调用次数（步数预算）。缺省（nil）表示
+	// 使用推荐默认值；显式 0 表示停用工具调用，回复退化为纯文本；上限由
+	// MaxToolCallsPerReply 约束。用指针而不是整数，是为了让「升级前保存的文档」
+	// 与「运营者明确关闭」是两种不同的状态——前者应当获得新能力，后者不该被覆盖。
+	ToolCallsPerReply *int `json:"toolCallsPerReply,omitempty"`
 }
+
+// ResolvedToolCallsPerReply 返回实际生效的工具步数预算。
+func (g GateSettings) ResolvedToolCallsPerReply() int {
+	if g.ToolCallsPerReply == nil {
+		return DefaultToolCallsPerReply
+	}
+	return *g.ToolCallsPerReply
+}
+
+func intPointer(value int) *int { return &value }
 
 // RedactionSettings 控制提交给供应商前的内容脱敏。
 type RedactionSettings struct {
@@ -100,6 +115,7 @@ func RecommendedSettings() Settings {
 			ExtensionDailyQuota: 500,
 			UserDailyQuota:      20,
 			MonthlyBudgetMicros: 20 * MicroPerUnit,
+			ToolCallsPerReply:   intPointer(DefaultToolCallsPerReply),
 		},
 		Redaction: RedactionSettings{
 			Enabled:     true,
@@ -226,6 +242,9 @@ func (g GateSettings) Validate() error {
 		return ErrSettingsInvalid
 	}
 	if g.MonthlyBudgetMicros < 0 || g.MonthlyBudgetMicros > MaxMonthlyBudgetMicros {
+		return ErrSettingsInvalid
+	}
+	if g.ToolCallsPerReply != nil && (*g.ToolCallsPerReply < 0 || *g.ToolCallsPerReply > MaxToolCallsPerReply) {
 		return ErrSettingsInvalid
 	}
 	return nil

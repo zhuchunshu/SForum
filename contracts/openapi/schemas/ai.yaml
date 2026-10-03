@@ -74,6 +74,11 @@ AIProfile:
       "$ref": "#/AIPrice"
     defaults:
       "$ref": "#/AIProfileDefaults"
+    supportsTools:
+      type: boolean
+      description: |
+        该端点是否支持工具调用。缺省视为支持（两套受支持协议都定义了工具调用）；
+        自托管模型或兼容网关不支持时显式设为 false，网关会跳过工具循环直接回答。
 
 AIAutoActionSettings:
   type: object
@@ -115,6 +120,16 @@ AIGateSettings:
       type: integer
       format: int64
       minimum: 0
+    toolCallsPerReply:
+      type: integer
+      nullable: true
+      minimum: 0
+      maximum: 5
+      description: |
+        单次回复允许的工具调用次数（步数预算）。缺省（null）表示使用推荐默认值 3；
+        显式 0 表示停用工具调用，回复退化为纯文本。每一步都是一次独立的模型调用，
+        各自过闸门并留下执行记录；用户配额按一次回复结算，工具步数只计入站点与
+        扩展口径。
 
 AIRedactionSettings:
   type: object

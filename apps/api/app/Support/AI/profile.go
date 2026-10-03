@@ -68,6 +68,16 @@ type Profile struct {
 	Enabled   bool            `json:"enabled"`
 	Price     Price           `json:"price"`
 	Defaults  ProfileDefaults `json:"defaults"`
+	// SupportsTools 为 nil 时按协议默认视为支持。两套受支持协议都定义了工具
+	// 调用，但自托管模型与部分兼容网关并不支持，运营者可显式关闭它。
+	SupportsTools *bool `json:"supportsTools,omitempty"`
+}
+
+// ToolsSupported 报告该 profile 能否承载工具调用。缺省为支持：若默认不支持，
+// 每个既有部署都必须先改配置才能用上新能力，而「不支持」应由事实而不是
+// 升级时机决定。
+func (p Profile) ToolsSupported() bool {
+	return p.SupportsTools == nil || *p.SupportsTools
 }
 
 func ValidProtocol(protocol string) bool {

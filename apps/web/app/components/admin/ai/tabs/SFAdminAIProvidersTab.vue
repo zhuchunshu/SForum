@@ -2,6 +2,7 @@
 import type { AdminAIProfile, AdminAISettings } from '~/composables/admin/useAdminAI'
 import { ADMIN_AI_KEY, MICRO_PER_UNIT } from '~/composables/admin/useAdminAI'
 import { useAuthSession } from '~/composables/identity/useAuthSession'
+import { normalizedAISettingsForComparison, promptUsesDefault } from '~/utils/admin/adminAI'
 
 const { t, te } = useI18n()
 const { can } = useAuthSession()
@@ -57,15 +58,11 @@ const profileIncomplete = computed(() =>
   selectedProfile.value ? !isProfileComplete(selectedProfile.value) : false
 )
 
-// 与内置默认逐字相同的文本不算自定义。比较与保存都走这里，避免「预填了默认就被
-// 当成已修改」——那会让保存按钮一直亮着，也会把默认值固化成自定义内容。
+// 与内置默认相同的文本不算自定义：空白差异（编辑器会重排 Markdown）与「空串 /
+// 字段被省略」两种写法都视为「使用默认」。比较与保存都走这里，避免「预填了默认
+// 就被当成已修改」——那会让保存按钮一直亮着，也会把默认值固化成自定义内容。
 function normalizedForComparison(settings: AdminAISettings) {
-  const copy = JSON.parse(JSON.stringify(settings)) as AdminAISettings
-  const prompt = typeof copy.reply?.systemPrompt === 'string' ? copy.reply.systemPrompt : ''
-  if (prompt.trim() === (ai.defaultSystemPrompt.value || '').trim()) {
-    copy.reply = { systemPrompt: '' }
-  }
-  return copy
+  return normalizedAISettingsForComparison(settings, ai.defaultSystemPrompt.value)
 }
 
 const dirty = computed(() => {
@@ -145,7 +142,7 @@ async function submitCredential(profileId: string) {
   if (await ai.saveCredential(profileId, apiKey)) credentials[profileId] = ''
 }
 
-function setNumber(path: 'rateLimitPerMinute' | 'extensionDailyQuota' | 'userDailyQuota', value: string | number) {
+function setNumber(path: 'rateLimitPerMinute' | 'extensionDailyQuota' | 'userDailyQuota' | 'toolCallsPerReply', value: string | number) {
   if (!form.value) return
   form.value.gates[path] = Math.max(0, Math.round(Number(value || 0)))
 }
@@ -160,11 +157,7 @@ function budgetYuan() {
 }
 
 // 提示词为空表示使用内置默认；一键恢复就是把自定义内容清空。
-const promptCustomized = computed(() => {
-  const current = (form.value?.reply?.systemPrompt || '').trim()
-  const fallback = ai.defaultSystemPrompt.value.trim()
-  return current !== '' && current !== fallback
-})
+const promptCustomized = computed(() => !promptUsesDefault(form.value?.reply?.systemPrompt, ai.defaultSystemPrompt.value))
 
 function restoreDefaultPrompt() {
   if (!form.value) return
@@ -179,6 +172,13 @@ function setMicro(field: 'inputPerMillionMicros' | 'outputPerMillionMicros', val
   const profile = selectedProfile.value
   if (!profile) return
   profile.price[field] = Math.round(Number(value || 0) * MICRO_PER_UNIT)
+}
+
+// 缺省（undefined）视为支持工具调用；只有明确关闭时才写 false。
+function setSupportsTools(value: boolean | 'indeterminate') {
+  const profile = selectedProfile.value
+  if (!profile) return
+  profile.supportsTools = value === true
 }
 </script>
 
@@ -303,6 +303,13 @@ function setMicro(field: 'inputPerMillionMicros' | 'outputPerMillionMicros', val
           <UFormField :label="t('admin.ai.timeoutMs')">
             <UInput v-model.number="selectedProfile.defaults.timeoutMs" type="number" :disabled="!canManage" class="w-full" />
           </UFormField>
+          <UFormField :label="t('admin.ai.supportsTools')" :help="t('admin.ai.supportsToolsHint')">
+            <UCheckbox
+              :model-value="selectedProfile?.supportsTools !== false"
+              :disabled="!canManage"
+              @update:model-value="setSupportsTools"
+            />
+          </UFormField>
           <UFormField :label="t('admin.ai.priceInput')" :help="t('admin.ai.priceHint')">
             <UInput
               :model-value="selectedProfile.price.inputPerMillionMicros / MICRO_PER_UNIT"
@@ -346,6 +353,10 @@ function setMicro(field: 'inputPerMillionMicros' | 'outputPerMillionMicros', val
         <UFormField :label="t('admin.ai.monthlyBudget')">
           <UInput :model-value="budgetYuan()" type="number" step="0.01" :disabled="!canManage" class="w-full"
             @update:model-value="setBudgetYuan" />
+        </UFormField>
+        <UFormField :label="t('admin.ai.toolCalls')" :help="t('admin.ai.toolCallsHint')">
+          <UInput :model-value="form.gates.toolCallsPerReply ?? 3" type="number" min="0" max="5" :disabled="!canManage" class="w-full"
+            @update:model-value="value => setNumber('toolCallsPerReply', value)" />
         </UFormField>
       </div>
     </section>
