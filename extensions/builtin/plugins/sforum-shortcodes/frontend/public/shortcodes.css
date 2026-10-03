@@ -1,0 +1,439 @@
+/* Built-in Shortcodes owns its visual presentation. Core only loads this
+ * exact-artifact stylesheet for the generic forum-content extension surface.
+ */
+
+.sf-prose .sf-shortcode {
+  --sforum-shortcode-accent: var(--sf-accent, #2468f2);
+  --sforum-shortcode-soft: color-mix(in srgb, var(--sforum-shortcode-accent) 9%, transparent);
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 4.75rem;
+  margin: 1.15rem 0;
+  padding: 1.25rem .875rem .75rem;
+  border: 1px solid var(--sf-shortcode-border, var(--border-default, #dfe4ea));
+  border-radius: .625rem;
+  background: var(--sf-shortcode-bg, var(--ui-bg-elevated, #fff));
+  color: var(--sf-shortcode-fg, var(--sf-fg, currentColor));
+  box-shadow: 0 1px 2px rgb(15 23 42 / 3%);
+  overflow-wrap: anywhere;
+}
+
+.sf-prose .sf-shortcode > :first-child { margin-top: 0; }
+.sf-prose .sf-shortcode > :last-child { margin-bottom: 0; }
+
+.sf-prose .sf-shortcode > article {
+  display: grid;
+  gap: .2rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.sf-prose .sf-shortcode--topic { --sforum-shortcode-accent: #2468f2; }
+.sf-prose .sf-shortcode--comment { --sforum-shortcode-accent: #0f9f8f; }
+.sf-prose .sf-shortcode--user { --sforum-shortcode-accent: #2f6fed; }
+.sf-prose .sf-shortcode--category { --sforum-shortcode-accent: #7c58d6; }
+.sf-prose .sf-shortcode--friend-links { --sforum-shortcode-accent: #d28018; }
+
+.sf-prose .sf-shortcode--topic > article > p:first-child,
+.sf-prose .sf-shortcode--comment > article > p:first-child,
+.sf-prose .sf-shortcode--user > p:last-child,
+.sf-prose .sf-shortcode--category > p:last-child,
+.sf-prose .sf-shortcode--friend-links > div > p:first-child {
+  position: absolute;
+  top: -.7rem;
+  left: .8rem;
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: calc(100% - 1.6rem);
+  margin: 0;
+  padding: .2rem .55rem;
+  border: 1px solid color-mix(in srgb, var(--sforum-shortcode-accent) 28%, var(--sf-shortcode-border, #dfe4ea));
+  border-radius: 999px;
+  background: var(--sf-shortcode-bg, var(--ui-bg-elevated, #fff));
+  color: var(--sforum-shortcode-accent);
+  font-size: .7rem;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.sf-prose .sf-shortcode h3 {
+  margin: 0;
+  color: var(--sf-shortcode-fg, var(--sf-fg, currentColor));
+  font-size: .9rem;
+  font-weight: 700;
+  line-height: 1.45;
+  letter-spacing: -.01em;
+}
+
+.sf-prose .sf-shortcode h3 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.sf-prose .sf-shortcode h3 a:hover {
+  color: var(--sforum-shortcode-accent);
+  text-decoration: none;
+}
+
+.sf-prose .sf-shortcode--topic > article > p:not(:first-child),
+.sf-prose .sf-shortcode--comment > article > p:not(:first-child) {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--sf-fg-secondary, #667085);
+  font-size: .75rem;
+  line-height: 1.6;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.sf-prose .sf-shortcode time {
+  display: block;
+  margin-top: .1rem;
+  color: var(--sf-fg-tertiary, var(--sf-fg-secondary, #8a94a3));
+  font-size: .6875rem;
+  line-height: 1.55;
+}
+
+.sf-prose .sf-shortcode--user,
+.sf-prose .sf-shortcode--category {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  align-items: center;
+  gap: .75rem;
+}
+
+.sf-prose .sf-shortcode--user::after,
+.sf-prose .sf-shortcode--category::after {
+  grid-column: 1;
+  grid-row: 1;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid color-mix(in srgb, var(--sforum-shortcode-accent) 22%, var(--sf-shortcode-border, #dfe4ea));
+  border-radius: .625rem;
+  background: var(--sforum-shortcode-soft);
+  color: var(--sforum-shortcode-accent);
+  font-size: .8125rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.sf-prose .sf-shortcode--user::after { content: "@"; border-radius: 50%; }
+.sf-prose .sf-shortcode--category::after { content: "#"; }
+
+.sf-prose .sf-shortcode--user > div,
+.sf-prose .sf-shortcode--category > div {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  line-height: 1.45;
+}
+
+.sf-prose .sf-shortcode--user > div > a,
+.sf-prose .sf-shortcode--category > div > a {
+  color: var(--sf-shortcode-fg, var(--sf-fg, currentColor));
+  font-size: .9rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.sf-prose .sf-shortcode--user > div > a:hover,
+.sf-prose .sf-shortcode--category > div > a:hover {
+  color: var(--sforum-shortcode-accent);
+  text-decoration: none;
+}
+
+.sf-prose .sf-shortcode--user > div > span,
+.sf-prose .sf-shortcode--category > div > span {
+  margin-left: 6px;
+  color: var(--sf-fg-secondary, #667085);
+  font-size: .75rem;
+}
+
+.sf-prose .sf-shortcode--user > p,
+.sf-prose .sf-shortcode--category > p {
+  margin: 0;
+}
+
+.sf-prose .sf-shortcode--friend-links ul {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sf-prose .sf-shortcode--friend-links li {
+  min-width: 0;
+  margin: 0;
+  padding: .5rem .625rem;
+  border-radius: .5rem;
+  background: color-mix(in srgb, var(--sforum-shortcode-accent) 6%, transparent);
+  color: var(--sf-fg-secondary, #667085);
+  font-size: .75rem;
+  line-height: 1.5;
+}
+
+.sf-prose .sf-shortcode--protected {
+  --sforum-shortcode-accent: #7557e8;
+  min-height: 4.75rem;
+  width: 100%;
+  padding: 1.5rem .875rem .875rem;
+  border-color: color-mix(in srgb, var(--sforum-shortcode-accent) 28%, var(--sf-shortcode-border, #dfe4ea));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--sforum-shortcode-accent) 7%, var(--ui-bg-elevated, #fff)), var(--ui-bg-elevated, #fff) 34%);
+  box-shadow: none;
+}
+
+.sf-prose .sf-shortcode--protected::before {
+  content: "受保护内容";
+  position: absolute;
+  top: -.7rem;
+  left: .8rem;
+  display: inline-flex;
+  align-items: center;
+  max-width: calc(100% - 1.6rem);
+  padding: .2rem .55rem .2rem 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--sforum-shortcode-accent) 28%, var(--sf-shortcode-border, #dfe4ea));
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at .7rem 50%, var(--sforum-shortcode-accent) 0 3px, transparent 3.5px),
+    var(--sf-shortcode-bg, var(--ui-bg-elevated, #fff));
+  color: var(--sforum-shortcode-accent);
+  font-size: .7rem;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.sf-prose .sf-shortcode--login::before { content: "登录可见"; }
+.sf-prose .sf-shortcode--reply::before { content: "回复可见"; }
+.sf-prose .sf-shortcode--only-author {
+  --sforum-shortcode-accent: #cc8213;
+}
+.sf-prose .sf-shortcode--only-author::before { content: "仅作者可见"; }
+
+:lang(en) .sf-prose .sf-shortcode--protected::before { content: "Protected content"; }
+:lang(en) .sf-prose .sf-shortcode--login::before { content: "Login required"; }
+:lang(en) .sf-prose .sf-shortcode--reply::before { content: "Reply required"; }
+:lang(en) .sf-prose .sf-shortcode--only-author::before { content: "Author only"; }
+
+.sf-prose .sf-shortcode--protected > p,
+.sf-prose .sf-shortcode--protected > .sf-editor-fallback {
+  display: block;
+  margin: 0;
+  padding: .125rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--sf-fg-secondary, #667085);
+  line-height: 1.7;
+}
+
+.sf-prose .sf-shortcode--fallback {
+  border-style: dashed;
+  color: var(--sf-fg-secondary, currentColor);
+}
+
+.sf-prose .sf-shortcode--reference.sf-shortcode--fallback {
+  min-height: 0;
+  padding: .75rem .875rem;
+}
+
+.sf-prose .sf-shortcode--reference.sf-shortcode--fallback > .sf-editor-fallback {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.sf-prose .sf-editor-fallback {
+  display: block;
+  margin: 1rem 0;
+  padding: .75rem .875rem;
+  border: 1px dashed var(--sf-shortcode-border, var(--border-default, #dfe4ea));
+  border-radius: .625rem;
+  background: var(--sf-shortcode-bg, var(--ui-bg-elevated, #fff));
+  color: var(--sf-fg-secondary, currentColor);
+  overflow-wrap: anywhere;
+}
+
+.dark .sf-prose .sf-shortcode {
+  border-color: var(--sf-shortcode-border, #3b4744);
+  background: var(--sf-shortcode-bg, var(--ui-bg-elevated, #151b1a));
+  box-shadow: 0 1px 2px rgb(0 0 0 / 14%);
+}
+
+.dark .sf-prose .sf-shortcode--protected {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--sforum-shortcode-accent) 13%, var(--ui-bg-elevated, #151b1a)), var(--ui-bg-elevated, #151b1a) 38%);
+}
+
+.dark .sf-prose .sf-editor-fallback {
+  border-color: var(--sf-shortcode-border, #3b4744);
+  background: var(--sf-shortcode-bg, var(--ui-bg-elevated, #151b1a));
+}
+
+.dark .sf-prose .sf-shortcode--protected > .sf-editor-fallback,
+.dark .sf-prose .sf-shortcode--reference.sf-shortcode--fallback > .sf-editor-fallback {
+  background: transparent;
+}
+
+/* Editor NodeViews */
+.sf-shortcode-node {
+  --sf-shortcode-accent: var(--ui-primary);
+  position: relative;
+  width: 100%;
+  min-height: 4.75rem;
+  margin: .875rem 0;
+  padding: 1.25rem .875rem .75rem;
+  border: 1px solid var(--ui-border);
+  border-radius: .625rem;
+  background: var(--ui-bg-elevated);
+  color: var(--ui-text);
+  outline: none;
+  transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
+}
+
+.sf-shortcode-node:hover,
+.sf-shortcode-node:focus-visible { border-color: color-mix(in srgb, var(--sf-shortcode-accent) 55%, var(--ui-border)); }
+.sf-shortcode-node--selected { border-color: var(--sf-shortcode-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sf-shortcode-accent) 16%, transparent); }
+.sf-shortcode-node--disabled { opacity: .68; }
+
+.sf-shortcode-node__label {
+  position: absolute;
+  top: -.7rem;
+  left: .8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: .375rem;
+  max-width: calc(100% - 1.6rem);
+  padding: .2rem .5rem .2rem .3rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 999px;
+  background: var(--ui-bg-elevated);
+  color: var(--ui-text-muted);
+}
+
+.sf-shortcode-node__label-mark {
+  display: grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--sf-shortcode-accent) 28%, var(--ui-border));
+  border-radius: .375rem;
+  color: var(--sf-shortcode-accent);
+  background: color-mix(in srgb, var(--sf-shortcode-accent) 10%, transparent);
+}
+
+.sf-shortcode-node__kind { font-size: .7rem; font-weight: 700; white-space: nowrap; }
+.sf-shortcode-node__contract { overflow: hidden; color: var(--ui-text-dimmed); font-size: .625rem; text-overflow: ellipsis; white-space: nowrap; }
+.sf-shortcode-node__preview { display: grid; grid-template-columns: 2.25rem minmax(0, 1fr); align-items: center; gap: .75rem; min-width: 0; }
+.sf-shortcode-node__icon { display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: .625rem; color: var(--sf-shortcode-accent); background: color-mix(in srgb, var(--sf-shortcode-accent) 10%, var(--ui-bg-accented)); }
+.sf-shortcode-node__avatar { width: 2.25rem; height: 2.25rem; }
+.sf-shortcode-node__content { min-width: 0; display: grid; gap: .125rem; }
+.sf-shortcode-node__label-text { overflow: hidden; font-size: .9rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.sf-shortcode-node__secondary,
+.sf-shortcode-node__status,
+.sf-shortcode-node__visual-meta { overflow: hidden; color: var(--ui-text-muted); font-size: .75rem; text-overflow: ellipsis; white-space: nowrap; }
+.sf-shortcode-node__visual-meta { font-size: .65rem; }
+.sf-shortcode-node__status--error { color: var(--ui-error); }
+
+.sf-protected-node {
+  --sf-protected-accent: #7557e8;
+  position: relative;
+  width: 100%;
+  margin: .875rem 0;
+  padding: 1.5rem .875rem .875rem;
+  border: 1px solid color-mix(in srgb, var(--sf-protected-accent) 28%, var(--ui-border));
+  border-radius: .625rem;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--sf-protected-accent) 8%, var(--ui-bg-elevated)), var(--ui-bg-elevated) 36%);
+  color: var(--ui-text);
+  outline: none;
+  transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
+}
+
+.sf-protected-node--author-only { --sf-protected-accent: #cc8213; }
+.sf-protected-node:hover,
+.sf-protected-node:focus-within { border-color: color-mix(in srgb, var(--sf-protected-accent) 60%, var(--ui-border)); }
+.sf-protected-node--selected { border-color: var(--sf-protected-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sf-protected-accent) 15%, transparent); }
+.sf-protected-node--disabled { opacity: .68; }
+
+.sf-protected-node__label {
+  position: absolute;
+  top: -.7rem;
+  left: .8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: .375rem;
+  max-width: calc(100% - 1.6rem);
+  padding: .2rem .5rem .2rem .3rem;
+  border: 1px solid color-mix(in srgb, var(--sf-protected-accent) 28%, var(--ui-border));
+  border-radius: 999px;
+  color: var(--sf-protected-accent);
+  background: var(--ui-bg-elevated);
+  font-size: .7rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.sf-protected-node__label-mark { display: grid; place-items: center; width: 1.25rem; height: 1.25rem; border-radius: .375rem; color: #fff; background: var(--sf-protected-accent); }
+.sf-protected-node__label code { overflow: hidden; color: var(--ui-text-dimmed); font-size: .625rem; font-weight: 500; text-overflow: ellipsis; }
+.sf-protected-node__content { min-height: 3.5rem; padding: .125rem .125rem 0; }
+
+/* Reference picker */
+.sf-shortcode-dialog { display: grid; max-height: min(42rem, calc(100dvh - 2rem)); overflow: hidden; }
+.sf-shortcode-dialog__header { display: flex; align-items: flex-start; gap: .5rem; padding: 1rem; border-bottom: 1px solid var(--ui-border); }
+.sf-shortcode-dialog__title { color: var(--ui-text-highlighted); font-size: 1rem; font-weight: 700; }
+.sf-shortcode-dialog__description { margin-top: .125rem; color: var(--ui-text-muted); font-size: .8125rem; }
+.sf-shortcode-dialog__resources,
+.sf-shortcode-dialog__picker { min-height: 15rem; overflow-y: auto; padding: .75rem; }
+.sf-shortcode-dialog__resources { display: grid; align-content: start; gap: .375rem; }
+.sf-shortcode-dialog__resource,
+.sf-shortcode-dialog__option { width: 100%; min-height: 2.75rem; display: flex; align-items: center; gap: .75rem; border-radius: .375rem; padding: .625rem .75rem; color: var(--ui-text); text-align: left; }
+.sf-shortcode-dialog__resource:hover,
+.sf-shortcode-dialog__resource:focus-visible,
+.sf-shortcode-dialog__option:hover,
+.sf-shortcode-dialog__option:focus-visible { background: var(--ui-bg-accented); outline: none; }
+.sf-shortcode-dialog__resource:focus-visible,
+.sf-shortcode-dialog__option:focus-visible { box-shadow: inset 0 0 0 2px var(--ui-primary); }
+.sf-shortcode-dialog__picker { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: .75rem; }
+.sf-shortcode-dialog__results { min-height: 11rem; overflow-y: auto; }
+.sf-shortcode-dialog__state { min-height: 8rem; display: flex; align-items: center; justify-content: center; gap: .5rem; color: var(--ui-text-muted); text-align: center; }
+.sf-shortcode-dialog__state--error { color: var(--ui-error); }
+.sf-shortcode-dialog__option + .sf-shortcode-dialog__option { margin-top: .25rem; }
+.sf-shortcode-dialog__option-icon { display: grid; place-items: center; width: 2rem; height: 2rem; flex: 0 0 2rem; border-radius: .5rem; background: color-mix(in srgb, currentColor 12%, var(--ui-bg-accented)); }
+.sf-shortcode-dialog__option-label,
+.sf-shortcode-dialog__option-secondary { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sf-shortcode-dialog__option-label { font-weight: 600; }
+.sf-shortcode-dialog__option-secondary { color: var(--ui-text-muted); font-size: .75rem; }
+.sf-shortcode-dialog__footer { display: flex; justify-content: flex-end; padding: .75rem 1rem; border-top: 1px solid var(--ui-border); }
+
+@media (max-width: 640px) {
+  .sf-prose .sf-shortcode { width: 100%; padding-right: 12px; padding-left: 12px; }
+  .sf-prose .sf-shortcode--friend-links ul { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .sf-shortcode-node,
+  .sf-protected-node { padding-right: .7rem; padding-left: .7rem; }
+  .sf-shortcode-node__contract,
+  .sf-protected-node__label code { display: none; }
+  .sf-shortcode-node__label { max-width: calc(100% - 1rem); }
+  .sf-shortcode-dialog { max-height: calc(100dvh - 1rem); }
+  .sf-shortcode-dialog__resources,
+  .sf-shortcode-dialog__picker { min-height: 18rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sf-shortcode-node,
+  .sf-protected-node { transition: none; }
+}

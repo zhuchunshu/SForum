@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "sforum-shortcodes.friend-links.schema@1",
+  "title": "SForum friend-links shortcode call value",
+  "description": "Strict value for a sforumShortcodeRef node calling sforum-shortcodes.friend-links@1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "attrs"],
+  "properties": {
+    "type": {
+      "const": "sforumShortcodeRef"
+    },
+    "attrs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "contractVersion", "arguments"],
+      "properties": {
+        "id": {
+          "const": "sforum-shortcodes.friend-links"
+        },
+        "contractVersion": {
+          "const": "sforum-shortcodes.friend-links@1"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 0
+        }
+      }
+    }
+  }
+}

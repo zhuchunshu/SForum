@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "sforum-shortcodes.only-author.schema@1",
+  "title": "SForum only-author protected shortcode node",
+  "description": "Strict comment-only accepted sforumShortcodeBlock node for sforum-shortcodes.only-author@1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "attrs", "content"],
+  "properties": {
+    "type": { "const": "sforumShortcodeBlock" },
+    "attrs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "contractVersion", "arguments"],
+      "properties": {
+        "id": { "const": "sforum-shortcodes.only-author" },
+        "contractVersion": { "const": "sforum-shortcodes.only-author@1" },
+        "arguments": { "type": "object", "additionalProperties": false, "maxProperties": 0 }
+      }
+    },
+    "content": { "type": "array", "minItems": 1, "items": { "type": "object" } }
+  }
+}

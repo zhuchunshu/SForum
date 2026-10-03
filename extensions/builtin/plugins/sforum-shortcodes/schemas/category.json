@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "sforum-shortcodes.category.schema@1",
+  "title": "SForum category shortcode call value",
+  "description": "Strict value for a sforumShortcodeRef node calling sforum-shortcodes.category@1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "attrs"],
+  "properties": {
+    "type": {
+      "const": "sforumShortcodeRef"
+    },
+    "attrs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "contractVersion", "arguments"],
+      "properties": {
+        "id": {
+          "const": "sforum-shortcodes.category"
+        },
+        "contractVersion": {
+          "const": "sforum-shortcodes.category@1"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["categoryId"],
+          "properties": {
+            "categoryId": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9223372036854775807
+            }
+          }
+        }
+      }
+    }
+  }
+}

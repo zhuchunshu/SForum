@@ -1,0 +1,196 @@
+{
+  "assets": [
+    {
+      "contractVersion": "sforum-shortcodes.asset.content-style@1",
+      "csp": [
+        "style-src 'self'"
+      ],
+      "digest": "dbf744ce03bbeaeb75a008cb963bd632719db6042972fb33ca0d91073040e441",
+      "handle": "sforum-shortcodes.asset.content-style",
+      "loading": "blocking",
+      "path": "frontend/public/shortcodes.css",
+      "scope": [
+        "core.surface.forum-content"
+      ],
+      "type": "style"
+    }
+  ],
+  "author": {
+    "name": "SForum",
+    "url": "https://github.com/zhuchunshu/sforum"
+  },
+  "backend": {
+    "digest": "d18eef715b8f58f99d65306a9a797c6b042e24ec84917de9fe1cc46a77c028a7",
+    "entry": "backend/plugin",
+    "hostApiVersion": "sforum.host@2",
+    "protocolVersion": 2,
+    "rpc": "hashicorp-go-plugin"
+  },
+  "capabilities": [
+    "host.api"
+  ],
+  "content": [
+    {
+      "contractVersion": "sforum-shortcodes.user@1",
+      "handler": "sforum-shortcodes.user",
+      "id": "sforum-shortcodes.user",
+      "kind": "shortcode",
+      "schema": "sforum-shortcodes.user.schema@1"
+    },
+    {
+      "contractVersion": "sforum-shortcodes.topic@1",
+      "handler": "sforum-shortcodes.topic",
+      "id": "sforum-shortcodes.topic",
+      "kind": "shortcode",
+      "schema": "sforum-shortcodes.topic.schema@1"
+    },
+    {
+      "contractVersion": "sforum-shortcodes.comment@1",
+      "handler": "sforum-shortcodes.comment",
+      "id": "sforum-shortcodes.comment",
+      "kind": "shortcode",
+      "schema": "sforum-shortcodes.comment.schema@1"
+    },
+    {
+      "contractVersion": "sforum-shortcodes.category@1",
+      "handler": "sforum-shortcodes.category",
+      "id": "sforum-shortcodes.category",
+      "kind": "shortcode",
+      "schema": "sforum-shortcodes.category.schema@1"
+    },
+    {
+      "contractVersion": "sforum-shortcodes.friend-links@1",
+      "handler": "sforum-shortcodes.friend-links",
+      "id": "sforum-shortcodes.friend-links",
+      "kind": "shortcode",
+      "schema": "sforum-shortcodes.friend-links.schema@1"
+    },
+    {
+      "contractVersion": "sforum-shortcodes.login@1",
+      "handler": "sforum-shortcodes.login",
+      "id": "sforum-shortcodes.login",
+      "kind": "shortcode",
+      "schema": "sforum-shortcodes.login.schema@1"
+    },
+    {
+      "contractVersion": "sforum-shortcodes.reply@1",
+      "handler": "sforum-shortcodes.reply",
+      "id": "sforum-shortcodes.reply",
+      "kind": "shortcode",
+      "schema": "sforum-shortcodes.reply.schema@1"
+    },
+    {
+      "contractVersion": "sforum-shortcodes.only-author@1",
+      "handler": "sforum-shortcodes.only-author",
+      "id": "sforum-shortcodes.only-author",
+      "kind": "shortcode",
+      "schema": "sforum-shortcodes.only-author.schema@1"
+    }
+  ],
+  "description": "Protected built-in runtime for structured forum shortcodes. Core owns nodes, validation, visibility, execution, and fallback; this package owns declarations, argument schemas, safe typed rendering, and localized labels.",
+  "editor": [
+    {
+      "commandKey": "openReferenceMenu",
+      "contractVersion": "sforum-shortcodes.editor.command.references@1",
+      "id": "sforum-shortcodes.editor.command.references",
+      "kind": "command",
+      "l2Digest": "134ce4a31ff8f47306015828408525e02e6608b10aecbaf6d0b8b0c51403dea2",
+      "l2Module": "frontend/editor/shortcodes.mjs"
+    },
+    {
+      "commandId": "sforum-shortcodes.editor.command.references",
+      "contractVersion": "sforum-shortcodes.editor.toolbar.references@1",
+      "group": "insert",
+      "icon": "i-lucide-brackets",
+      "id": "sforum-shortcodes.editor.toolbar.references",
+      "kind": "toolbar",
+      "label": "References",
+      "order": 60
+    }
+  ],
+  "id": "sforum-shortcodes",
+  "manifestVersion": 3,
+  "name": "Built-in Shortcodes",
+  "packageFiles": [
+    {
+      "digest": "d18eef715b8f58f99d65306a9a797c6b042e24ec84917de9fe1cc46a77c028a7",
+      "id": "sforum-shortcodes.file.backend",
+      "kind": "executable",
+      "path": "backend/plugin"
+    },
+    {
+      "digest": "e97f00e14878058a468cace83936eac45bfda4e2ce6bccab381a56df7da95d46",
+      "id": "sforum-shortcodes.schema.user",
+      "kind": "schema",
+      "path": "schemas/user.json",
+      "version": "1"
+    },
+    {
+      "digest": "4d374d486994a0ad33c4cf29544cfd4c9e2b50d1efc25ca2cc13101d10ca2294",
+      "id": "sforum-shortcodes.schema.topic",
+      "kind": "schema",
+      "path": "schemas/topic.json",
+      "version": "1"
+    },
+    {
+      "digest": "3927abb58b8815a36fd5a109254bf472061e644b75bb8412bf1515e2a3d184b3",
+      "id": "sforum-shortcodes.schema.comment",
+      "kind": "schema",
+      "path": "schemas/comment.json",
+      "version": "1"
+    },
+    {
+      "digest": "e597a375c018526f25c95af2517fe3327cfe18854a9b6606c8be1cd905353912",
+      "id": "sforum-shortcodes.schema.category",
+      "kind": "schema",
+      "path": "schemas/category.json",
+      "version": "1"
+    },
+    {
+      "digest": "bfde06ffe9fea6eb7236a5b68543988df4f1140799eb14ed484ab3cf3a2f82c1",
+      "id": "sforum-shortcodes.schema.friend-links",
+      "kind": "schema",
+      "path": "schemas/friend-links.json",
+      "version": "1"
+    },
+    {
+      "digest": "9f8ba83ee458bf2ea313e31a5252a5543af6170ff53113b7af47dd2e043e3e24",
+      "id": "sforum-shortcodes.schema.login",
+      "kind": "schema",
+      "path": "schemas/login.json",
+      "version": "1"
+    },
+    {
+      "digest": "6913d57f221db8f9f44f3d294391b937680a5c3c95fc50d748931c469c75e56a",
+      "id": "sforum-shortcodes.schema.reply",
+      "kind": "schema",
+      "path": "schemas/reply.json",
+      "version": "1"
+    },
+    {
+      "digest": "45a7f0db1722452bb5591f8f75b776cbf8f77e7cfbde99f84c6fa83ed5845f43",
+      "id": "sforum-shortcodes.schema.only-author",
+      "kind": "schema",
+      "path": "schemas/only-author.json",
+      "version": "1"
+    },
+    {
+      "digest": "134ce4a31ff8f47306015828408525e02e6608b10aecbaf6d0b8b0c51403dea2",
+      "id": "sforum-shortcodes.frontend.editor",
+      "kind": "frontend",
+      "path": "frontend/editor/shortcodes.mjs",
+      "version": "1"
+    },
+    {
+      "digest": "dbf744ce03bbeaeb75a008cb963bd632719db6042972fb33ca0d91073040e441",
+      "id": "sforum-shortcodes.asset.content-style",
+      "kind": "asset",
+      "path": "frontend/public/shortcodes.css",
+      "version": "1"
+    }
+  ],
+  "sforumVersion": "\u003e=0.1.0",
+  "type": "plugin",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "version": "1.3.4"
+}
