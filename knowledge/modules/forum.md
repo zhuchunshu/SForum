@@ -57,6 +57,63 @@ accepted revisions, lifecycle states, public read models, and forum policy.
   `../../tmp/demos/sforum-editor-sticker-directions-20260730/`. See
   `../plans/2026-07-30-image-sticker-platform.md` and
   `../decisions/2026-07-30-image-sticker-catalog.md`.
+- Built-in Shortcodes M0-M9 are complete and M10A (legacy conversion fixtures,
+  deterministic report, and bilingual user/operator/author documentation) is
+  complete; M10B remains the final lifecycle and release gate. The accepted V1
+  contract covers public `user`, `topic`,
+  `comment`, `category`, and `friend-links` references plus actor-sensitive
+  `login`, `reply`, and comment-only `only-author`. It freezes Host-owned
+  structured nodes, standalone block syntax, Markdown API conversion,
+  fail-closed projection/fallback, and exact version/limit rules. Host
+  validation, Goldmark/Tiptap import/paste, shared conformance fixtures, and
+  lifecycle-independent disabled fallback implement that substrate. Production
+  Forum post-body rendering now builds exact active `render_filter`/`sanitizer`
+  bindings by registry revision and dispatches Protocol V2 under an exact
+  artifact runtime lease. Host schema validation, permission recheck,
+  sanitization, budgets, quarantine, source-free traces, and deterministic Host
+  HTML fallback remain authoritative; plain/search/excerpt/hash never come from
+  plugin output. Core Query Registry now owns seven presentation-safe V1
+  projections for public users/topics/comments/categories, ordered enabled
+  friend links, author decisions, and reply eligibility. Public visibility and
+  actor decisions execute in Host SQL; opaque exact-runtime delegations keep
+  actor identity server-side and never grant raw DB/session/content authority.
+  ID batches are canonical, bounded to 32, and use one PostgreSQL array query;
+  empty content graphs still keep ordinary content unchanged. M5 added the
+  protected built-in `sforum-shortcodes` package with `user`, `category`
+  (frozen `topic-tag` import alias), and `friend-links`: strict schemas, typed
+  Protocol V2 render, one delegated query per reference call, localized labels,
+  and zero public output for empty friend links. Independent review added
+  parsed-DOM link/sanitizer coverage, strict path/URL/Unicode/empty-field/error
+  boundaries, and exact legacy lifecycle Content publication; fresh full Go,
+  staging/release, admin disable/enable/restart, cold Safe Mode, exact catalog,
+  and selected-theme Browser evidence are retained in the archived M5 handoff.
+  M6 added the production per-node dispatcher plus only the `topic` and
+  `comment` v1.1.0 declarations/typed handlers. Public topic and comment reads
+  compose safe SSR output after visibility-authorized base reads; plugin calls
+  receive the strict node value, never surrounding raw source, actor, session,
+  permissions, or private metadata. Resource-key stacks stop self/cyclic
+  references before plugin execution, while depth, total-reference, batch,
+  output, call-time, and total-time budgets bound the request. Duplicate IDs
+  resolve once, public source loading batches by resource type, comments
+  recheck owning-topic visibility through the frozen M4 projection, and
+  topic/comment/visibility cache generations advance on authoritative state
+  changes. Exact v1.1.0 runtime, disable, cold Safe Mode/recovery, raw SSR,
+  source-secrecy, desktop/mobile selected-theme, and full-gate evidence is in
+  `../sessions/archive/2026-08/2026-08-23-builtin-shortcodes-m6-handoff.md`.
+  M7 adds the authenticated `GET /api/v1/composer/references` contract for
+  ordinary topic/comment composers. It returns only minimal recognizable
+  labels for public users/topics/comments/categories, plus safe user avatar
+  views and category icon/color presentation metadata. User email never enters
+  the response; the server may use it only while deriving the existing safe
+  avatar view. The endpoint bounds query/limit/
+  selected-ID input, and applies Host-owned active/public/owning-topic
+  visibility in PostgreSQL. It neither exposes M4 Query Registry projections
+  nor sends delegation tokens to the browser. Topic 145 and comment 368 prove
+  five-node create, public render, authorized edit-source restore, update, and
+  reload through the real product workflow. See
+  `../sessions/2026-08-28-builtin-shortcodes-m7-handoff.md` and
+  `../decisions/2026-08-22-structured-shortcodes-public-source-secrecy.md` and
+  `../plans/2026-08-22-builtin-shortcodes.md`.
 - Topic and comment create cooldowns remain independently configurable. A
   cooldown rejection now returns HTTP `429` with standard `Retry-After` plus
   `retryAfterSeconds` / `retryAt`; topic creation and both comment composers
@@ -231,6 +288,49 @@ V1 boundaries:
   asset digest, while Core rendering will cap display at `128x128` CSS pixels
   on desktop/tablet and `96x96` on mobile. This contract is approved but not
   yet implemented.
+- Shortcode V1 uses Host nodes `sforumShortcodeRef` (block atom) and
+  `sforumShortcodeBlock` (nested block container), with exact `id`,
+  `contractVersion`, and typed `arguments` attributes. Canonical text syntax is
+  `sforum.shortcode-text@1`; `[friend-links]` is canonical,
+  `[friend_links]` remains literal, and `topic-tag` is the sole import alias.
+  A Markdown API submission containing an admitted standalone shortcode is
+  normalized to canonical `editor-document` source; malformed, unknown,
+  escaped, code/raw-HTML, placement-invalid, and over-budget input stays on the
+  literal Markdown path. Go and TypeScript consume
+  `contracts/fixtures/shortcode-text-v1.json` and, since M10A, the classified
+  `contracts/fixtures/shortcode-legacy-conversion-v1.json` report
+  (converted/literal/invalid/unsupported/over-limit plus structured
+  rejections, `topic-tag` alias, and deferred `password`). Structured nodes fail closed on
+  identity/version/attrs/arguments/placement/resource/count/depth/cycle input.
+  Disabled refs render bounded labels (friend links omit output), while
+  protected blocks emit one Host notice without traversing children into HTML,
+  plain text, excerpts, search, or mention fanout. Canonical normalized native
+  JSON owns the content hash and revision no-op identity.
+- Public shortcode semantics are Host-owned but their concrete presentation is
+  plugin-owned: after plugin HTML passes the execution sanitizer, the dispatcher
+  wraps each reference with fixed `sf-shortcode`/type classes, and Forum
+  protected composition wraps authorized or fallback blocks at the same final
+  boundary. The active exact `sforum-shortcodes` artifact supplies the CSS for
+  those wrappers through `core.surface.forum-content`; Core contains no
+  shortcode visual rules. Plugin-provided class/style/data attributes remain
+  disallowed. The wrapper is presentation-only and does not alter shortcode
+  cache keys, authorization, or source projections.
+- Composer reference previews may include the existing safe avatar view for a
+  user and the stored icon plus validated six-digit hex color for a category.
+  These fields are editor presentation metadata only; they do not expand the
+  public shortcode projection or expose raw email/attachment authority.
+- Public topic/comment bodies use `PublicRenderedContent` only: `id`, sanitized
+  `htmlContent`, `plainText`, derived `excerpt`, and `renderVersion`. Public SQL,
+  Redis JSON, HTTP responses, Page Registry models, and Nuxt payloads do not
+  contain canonical source, editor metadata, attachment IDs, or source-derived
+  hashes.
+- Canonical editor reloads use uncached `GET /topics/:topicID/edit-source` and
+  `GET /comments/:commentID/edit-source`. `EditableSourceService` applies the
+  same active actor, edit-own/edit-any, author-window, resource-state, and
+  owning-topic checks as mutation policy before loading source. Anonymous
+  callers receive 401; unrelated, hidden, and deleted resources collapse to
+  404. Existing authorized admin and revision projections retain full
+  `RenderedContent` and remain independently permissioned.
 
 ## Public URLs And Reads
 
@@ -279,6 +379,12 @@ client-only.
 Public reads expose only active/locked topics. Locked topics remain readable
 but reject new comments. Viewer-aware deleted-comment tombstones never expose
 body fields or deleted-parent reply excerpts.
+
+Shortcode public projections will exclude protected descendants before
+deriving HTML, `plain_text`, excerpt, search, SEO, events, or shared cache
+values. Stored placeholders use the site default locale; a later default-locale
+change requires re-render and search reindex. Personalized shortcode HTML is
+composed after the actor-independent cache and is `private, no-store`.
 
 ## Pagination, Cache, And Scale
 
@@ -391,6 +497,31 @@ visibility, and mention limits.
   no executable registration or remote media URL is required. Disable,
   upgrade, rollback, uninstall, and Safe Mode must leave accepted historical
   sticker content renderable.
+- The protected `sforum-shortcodes` plugin will own declarations, localization,
+  editor commands, and typed rendering only. Core owns node admission, public/
+  editable DTOs, actor/resource decisions, exact execution, search/cache/event
+  projection, and fallback. Sync `topic/comment.before_create/update` filters
+  remain trusted authoring processors; observe events/webhooks remain body-
+  free. See
+  `../reports/2026-08-22-builtin-shortcodes-m0-threat-inventory.md`.
+
+M8 protected reads load actor-independent store/cache data before an optional
+Host authorizer composes a request-only accepted child fragment. M9 supplies
+the Host policy projection and exact protected handlers: `login` is active
+actor-only, `reply` is topic-author or same-topic public accepted-comment
+eligible, and `only-author` is comment-only for comment/topic authors. Protected
+composition is internal `json:"-"` metadata and direct Forum responses use
+`private, no-store`; shared Redis/process/CDN/Nuxt/browser caches never receive
+viewer-sensitive output. The production reference dispatcher skips protected
+declarations until M9. Default-locale fallback copy is Host-owned, and
+moderation approval mention replay uses the public side-effect projection so
+protected descendants have no notification side effect. The write path still
+applies source size, attachment identity, sanitizer, dangerous-link, new-user
+outbound-link, and moderation/publication policy to the full accepted source.
+Only public mention text fans out; observe/webhook payloads remain body-free,
+and search enqueue carries only the topic ID. Real Redis tests prove that a
+shared base reused by denied and allowed viewers contains neither child source,
+viewer identity, nor authorized output.
 
 ## Important Paths
 
@@ -409,11 +540,15 @@ visibility, and mention limits.
 1. Keep comment composer behavior consolidated in
    `useTopicCommentComposerDrawer`; do not reintroduce page-local edit/reply
    state or a standalone advanced-reply editor.
-2. Complete the new editor product design before starting the custom image
+2. Built-in Shortcodes M10B parser conformance is reconciled and focused
+   security evidence is green, but the plan remains active/blocked until the
+   staged exact artifact is promoted through normal super_admin activation and
+   the full lifecycle/browser/secret-marker gate is rerun.
+3. Complete the new editor product design before starting the custom image
    sticker platform implementation.
-3. Preserve the accepted revision ledger, CAS, authorization, and redaction
+4. Preserve the accepted revision ledger, CAS, authorization, and redaction
    boundaries when sticker references enter topic/comment content.
-4. Keep OpenAPI, allowed/denied policy tests, module status, and Extension
+5. Keep OpenAPI, allowed/denied policy tests, module status, and Extension
    Surface Matrix synchronized at each milestone.
-5. Treat role-scoped category ACL and reactions/bookmarks as separate future
+6. Treat role-scoped category ACL and reactions/bookmarks as separate future
    tracks rather than sticker scope.

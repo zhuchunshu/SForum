@@ -6,6 +6,87 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
+### Extension Authoring Speed And Controlled Power
+
+- Status: **ready**; the ordered M0-M10 task book covers selected-theme public
+  page shells, page/middleware scaffolds, route-scoped custom authorization
+  guards, plugin-namespaced session state, typed request conveniences, and a
+  secure one-command development loop. Raw Fiber context, raw Core session
+  mutation, actor minting, and pre-plugin middleware remain closed.
+- Plan:
+  `plans/2026-08-22-extension-authoring-speed-and-controlled-power.md`
+- First step: M0 production call-chain inventory, ADR, threat model, and V3
+  residual ownership reconciliation. No implementation has started.
+- Modules: `modules/extensions.md`, `modules/frontend.md`,
+  `modules/identity.md`
+
+### Built-in Shortcodes
+
+- Status: **active / blocked, M0-M9 plus M10A complete; M10B parser review complete but release gate open**; the frozen Host shortcode ref/block nodes,
+  strict validation, Goldmark/Tiptap import/paste grammar, protected fallback,
+  shared conformance fixture, and deterministic native hash/no-op behavior are
+  joined by production exact-artifact Content Registry Protocol V2 dispatch,
+  runtime leases, Host validation/sanitization/budgets, bounded batch execution,
+  lifecycle recovery, and source-free traces. Seven sealed, bounded Query
+  Registry projections now keep public visibility and actor decisions in Host
+  SQL and give only the exact shortcode content runtime opaque one-use query
+  delegations. Public source remains raw-free and actor-authorized edit-source
+  APIs own editor reloads. M5 ships the protected built-in
+  `sforum-shortcodes` with `user`/`category`/`friend-links` declarations,
+  strict schemas, typed render segments, localized labels, real-subprocess
+  Host-chain integration tests, staging build, and release-baseline updates.
+  Independent M5 review patch-bumped the artifact to `1.0.1`, repaired
+  renderer/URL/Unicode/error boundaries and malformed raw-string links, removed
+  a stray package executable, and added exact Content Registry publication to
+  legacy enable/disable/restart. M6 adds the production per-node dispatcher and
+  only the `topic`/`comment` handlers, with resource-key recursion, depth/
+  reference/batch/execution budgets, duplicate-ID batching, owning-topic
+  visibility recheck, generation-tagged cache invalidation, and SSR-safe
+  fallbacks. M7 adds the ordinary-composer visibility-filtered reference
+  selector, one exact trusted L2 toolbar command, searchable five-reference
+  dialog, stable NodeViews, edit/replace/delete, canonical paste/alias handling,
+  i18n/Toast/focus/mobile states, and topic/comment re-edit restoration. The
+  active protected artifact is `sforum-shortcodes 1.2.0` at immutable digest
+  `70d43c0e...`; its L2 digest is `a3fe4c25...`. Topic 145 and comment 368 prove
+  five-node publish, public render, update, reload, and continued editing.
+  Focused/PostgreSQL/subprocess, fresh full Go, full Web, typecheck/build,
+  architecture, extension/release/catalog, normal admin activation, disable/
+  Safe Mode/L2 failure, source-secrecy, and exact 390x844 Browser checks pass.
+  M8 adds the protected-content substrate: default-locale Host placeholders,
+  actor-independent base reads followed by request-only authorization and
+  composition, private/no-store cache policy, non-cacheable protected execution
+  with Host delegation suppression, exact accepted-fragment boundaries, and
+  moderation mention replay fencing. M9 activates Host-authoritative `login`,
+  `reply`, and comment-only `only-author` policies and exact typed handlers;
+  M10A then adds the legacy conversion fixture
+  (`contracts/fixtures/shortcode-legacy-conversion-v1.json`: 35 classified
+  text cases + 15 structured rejections), Go/TypeScript parity conformance
+  tests, the deterministic conversion report, and the bilingual
+  user/operator/author documentation. M10B reconciled the four parser findings
+  and fixed TypeScript list-to-heading canonical export. Focused and race tests cover denied,
+  allowed, locale, cache, fragment, and concurrent viewer behavior. Real
+  PostgreSQL/Redis, browser DOM/hydration/SEO marker scans, full Web,
+  typecheck/build, architecture/OpenAPI, compat, and extension/release checks
+  pass. The final environment-loaded `./scripts/test.sh` run reached the Go
+  suite but surfaced unrelated existing PostgreSQL fixture/schema conflicts,
+  fake-provider configuration, migration isolation failures, and sandboxed
+  `ps`/Go-cache restrictions; these remain residuals and are not M9 failures.
+  All `/t/**` SSR responses are `private, no-store`. The development runtime's
+  separately selected optional Meilisearch provider currently returns 500;
+  Host PostgreSQL search and protected marker index/rebuild tests are green.
+  Runtime catalogs still point to active `sforum-shortcodes@1.2.0` while
+  SyncBuiltins stages `1.3.0`; normal super_admin activation is the current
+  blocker. See `reports/2026-08-28-builtin-shortcodes-m10b-final-gate.md`.
+- Plan: `plans/2026-08-22-builtin-shortcodes.md`
+- Handoff: `sessions/2026-08-28-builtin-shortcodes-m10b-handoff.md`
+- Decision:
+  `decisions/2026-08-22-structured-shortcodes-public-source-secrecy.md`
+- Report:
+  `reports/2026-08-22-builtin-shortcodes-m0-threat-inventory.md`,
+  `reports/2026-08-28-builtin-shortcodes-m10a-conversion-report.md`,
+  `reports/2026-08-28-builtin-shortcodes-m10b-final-gate.md`
+- Modules: `modules/forum.md`, `modules/extensions.md`, `modules/frontend.md`
+
 ### Custom Image Sticker Platform
 
 - Status: **active design**; Core/plugin/storage/rendering architecture is
@@ -112,6 +193,58 @@ load archived sessions or completed plans as current context.
   dev server on port 3000; do not kill it.
 
 ## Latest Handoff
+
+- 插件候选升级入口（2026-08-29）：后台扩展总览与插件管理已把模糊的“候选”改为
+  “待升级”，并明确当前版本仍继续运行；每个 staged 插件新增“升级”，工具栏新增
+  “全部升级（N）”。批量流程逐个执行，V2→V2 使用原生 upgrade ledger，legacy 或
+  可恢复停用来源使用既有 exact staged restart bridge；精确信任或能力审阅会暂停队列，
+  确认后继续，未新增绕过 Host 安全门的批量后端。完整 Web 947 项、typecheck、生产
+  build、架构与 staged contract 均通过；桌面及 390×844 Browser QA 覆盖 GitHub、
+  Meilisearch、紧凑工具栏、操作换行和无页面横向溢出。证据见：
+  `sessions/2026-08-29-extension-candidate-upgrade-ui.md`
+
+- Built-in Shortcodes editor preview（2026-08-29）：正式 NodeView 已采用确认的
+  B 方案——悬浮类型标签、安静的编辑器内预览主体和选中描边；节点内不再放置更换、
+  定位、解除保护或删除按钮。用户引用显示安全头像视图，分类引用显示已有 icon 与
+  六位十六进制颜色；选择对话框、缓存、Go API 和 OpenAPI 同步扩展，原始 email 不
+  会返回浏览器。短代码公开态、保护/fallback、编辑器 NodeView 与选择器 CSS 已全部
+  移出 Core，由 `sforum-shortcodes@1.3.3` exact style asset 持有；Core 仅提供通用、
+  失败关闭的 `core.surface.forum-content` 目录与 SRI 加载器。`SFEditor` 同时修复了直接
+  输入 `[` 被自身 Markdown 回写重新导入成 `&#91;` 的问题。发布态另修复了错误 DOM
+  选择器和保护 fallback 双层大卡片，现与编辑器共享悬浮标签、圆角、描边、渐变与
+  密度但保持只读。完整 Web、typecheck、production build、focused Go、架构和 OpenAPI
+  校验均通过。当前运行态仍是 v1.3.1，需要正常 super_admin 确认激活候选 v1.3.3 后
+  才会看到修正。证据见：
+  `sessions/2026-08-29-shortcode-editor-preview-handoff.md`
+
+- Built-in Shortcodes presentation hooks（2026-08-28）：公开短代码输出在 Host
+  消毒后由固定 `sf-shortcode` wrapper 提供主题可用的语义挂点；保护块的授权结果和
+  fallback 同样包装，写入时的 `sf-editor-fallback` 也补齐共享中性卡片样式。插件
+  仍不获得任意 class/style/data 属性，短代码声明、授权、缓存和源码投影均未改变。
+  Go focused、完整 Web 单测和架构边界检查通过。证据见：
+  `sessions/2026-08-28-shortcode-presentation-hooks.md`
+
+- Built-in Shortcodes M10A（2026-08-28）：新增
+  `contracts/fixtures/shortcode-legacy-conversion-v1.json`（8 个冻结声明表、
+  唯一 `topic-tag`→`category` 别名、`password` 明确 deferred、29 个文本用例按
+  converted(13)/literal(3)/invalid(10)/unsupported(1)/over-limit(1) 分类，
+  15 个结构化拒绝用例按 `authority: both|host` 标注）；Go 与 TypeScript 用同一
+  fixture 验证分类、canonical 输出与 fallback code 完全一致；用户/运营中英文文档
+  （`docs/{zh-CN,en-US}/usage/shortcodes.md`）与扩展作者 Reference 6 已交付。
+  未改任何运行时字节；记录 4 个既有 Go/TS parser 一致性发现，列为 M10B 启动前
+  必须解决项。证据：
+  `sessions/2026-08-28-builtin-shortcodes-m10a-handoff.md`、
+  `reports/2026-08-28-builtin-shortcodes-m10a-conversion-report.md`
+
+- Built-in Shortcodes M9（2026-08-28）：在 M8 protected substrate 基础上完成
+  Host-authoritative `login`、`reply`、comment-only `only-author` 策略、M4
+  projection 接线、严格 Protocol V2 typed handlers、编辑器创建/包裹/编辑/删除/
+  解包/预览/发布/重新编辑流程和 `sforum-shortcodes@1.3.0` exact artifact。
+  失败路径保持 closed fallback，protected 响应为 `private, no-store`，且无
+  source/secret-marker 泄漏。Focused/race Go、full Web、typecheck/build、
+  extension/release/catalog、PG/Redis 和 desktop/390x844 Browser 证据已通过。
+  `M10A/M10B` 未开始。证据见：
+  `sessions/2026-08-28-builtin-shortcodes-m9-handoff.md`
 
 - Web SDK Release 重试修复（2026-08-22）：Node 24.19.0/npm 11.17.0 会把与
   Node 23 首发包完全相同的文件集编码为不同 `.tgz` 字节，导致

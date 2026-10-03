@@ -791,6 +791,61 @@ Architecture sources:
 
 - `SFEditor` uses Tiptap while preserving Markdown `v-model` integration. It
   emits HTML, Markdown, native JSON, plain text, counts, and empty state.
+- Built-in Shortcodes M2 adds the Host-owned `sforumShortcodeRef` and
+  `sforumShortcodeBlock` Tiptap nodes through
+  `app/utils/editor/shortcodes.ts`. Initial Markdown and plain-text paste use
+  Tiptap Markdown tokenizers for the frozen standalone grammar; unknown,
+  malformed, escaped, inline, code/raw-HTML, scope-invalid, and over-budget
+  syntax stays literal. `SFEditor` derives `topic`/`comment` scope from its
+  existing `imageSurface` contract. Protected descendants remain available in
+  authorized native JSON/Markdown but are never included in client fallback
+  HTML.
+- Built-in Shortcodes M9 reuses the existing full `SFEditorToolbar` and trusted
+  Editor Registry L2 loader. The exact `sforum-shortcodes 1.2.0` module requests
+  the Host `openReferenceMenu` command; `SFEditor` retains the editor instance,
+  dialog, API calls, insertion/update/delete, focus, Toast, and preview
+  authority. One compact project-icon action opens searchable recognizable
+  user/topic/comment/category choices, while friend-links inserts directly.
+  Stable accessible NodeViews show inline loading/unavailable states. Their
+  selected state is expressed by the node outline rather than an embedded
+  action cluster: reference nodes reopen the existing edit flow on double-click
+  or Enter, while protected bodies remain directly editable. User references
+  render `SFAvatar`; category references reuse the category's validated icon and
+  six-digit hex color. Escape returns focus to the editor; dialog
+  errors remain inline, non-error feedback auto-dismisses, and zh-CN/en-US are
+  complete. Canonical paste/input and the `topic-tag` alias normalize into the
+  frozen nodes and Markdown export, with no source JSON/Markdown mode or syntax
+  teaching UI. Plugin disable, L2 quarantine/load failure, and Safe Mode leave
+  the Core editor usable with safe fallback. Real topic 145/comment 368 and
+  exact 390x844 Browser QA cover publish, edit, reload, keyboard focus, stable
+  dialog geometry, and zero horizontal overflow.
+  The M9 protected-block workflow extends this same menu for `login`, `reply`,
+  and comment-only `only-author`: selected content can be wrapped, an existing
+  block can change type, be deleted or unwrapped, and its accepted body remains
+  editable through the native editor document. The UI is presentation-only;
+  Host validation rejects empty bodies and topic `only-author` placement.
+- M10A adds the legacy conversion/report corpus
+  (`contracts/fixtures/shortcode-legacy-conversion-v1.json`) consumed by both
+  the Go and TypeScript conformance suites with identical classification,
+  canonical output, and fallback codes; client inspection of structured nodes
+  is verified only where the Host and client agree (`authority: both`), while
+  Host-only rejections are asserted by the Go conformance test. Bilingual
+  user/operator documentation lives in `docs/{zh-CN,en-US}/usage/shortcodes.md`.
+- M10B fixes TypeScript protected Markdown list-to-heading canonical newlines
+  to match Goldmark/Go byte-for-byte. Shared fixture and Web conformance tests
+  pass; final Browser completion waits for staged immutable artifact promotion.
+- `SFEditor` compares raw incoming Markdown with its last emitted value before
+  shortcode import preparation. This prevents Tiptap's normal `\[` Markdown
+  escape during direct typing from being re-imported as visible `&#91;` text.
+- M6 selected-theme Browser QA for the real evidence topic and comment resolves
+  `data-provider="sforum.default-theme"` with `data-template="1"`. The active
+  exact plugin renders safe `user`, `category`, `friend-links`, `topic`, and
+  `comment` output directly in raw SSR HTML; disable, Safe Mode, self/cycle, and
+  invisible-target paths use Host fallback. Public JSON, raw HTML, Nuxt
+  payload, DOM, plain text, and trace scans expose no raw content, content hash,
+  source shortcode syntax, actor/session/permission metadata, internal errors,
+  or plugin path. Desktop 1280x720 and mobile 390x844 have no horizontal
+  overflow.
 - Editor write, client preview, and formal `.sf-prose` output share
   `sforum-content-semantics.css` for paragraph, heading, list, quote, code,
   link, and horizontal-rule presentation. This file explicitly restores list
@@ -832,9 +887,12 @@ Architecture sources:
   added with the Host-owned catalog and immutable `sforumSticker` node rather
   than inserting a generic image or bundling a client-only pack.
 - **Edit load path:** `sourceFormat=editor-document` stores Tiptap native JSON in
-  `rawContent`. Callers must pass `forumEditorInitialContent(content)` as
-  `initialContent` (object → JSON doc; string → Markdown). Never assign
-  `content.rawContent` to the Markdown `v-model`.
+  canonical `rawContent`. Public topic/comment DTOs never carry this source.
+  Topic and comment edit entrypoints must first load the authorized
+  `/topics/:topicID/edit-source` or `/comments/:commentID/edit-source` response,
+  then pass `forumEditorInitialContent(source)` as `initialContent` (object →
+  JSON doc; string → Markdown). Never assign `rawContent` to the Markdown
+  `v-model` or recover it from a public SSR/Nuxt payload.
 - **Edit save path:** prefer `forumContentFromEditorPayload` so native JSON is
   re-submitted as `editor-document` (same as create/reply).
 - Client HTML is preview-only; the API regenerates and sanitizes stored output.
@@ -972,6 +1030,42 @@ real code-block client plugin and no-op `highlight.server.ts` with
 | `apps/web/app/plugins` | Client/server integrations and directives |
 | `apps/web/app/assets/css` | Host component/theme baselines |
 | `extensions/builtin/themes/sforum-default` | Protected default L0/L1 package |
+
+### Protected shortcode SSR/cache boundary
+
+M9 public topic/comment JSON and Page Registry view-models receive only the
+Host public projection. Any request-level protected composition is excluded
+from Nuxt payload reuse and is served with `private, no-store`; client code
+must not infer authorization from placeholder markup. Nitro middleware applies
+`private, no-store` and `Vary: Cookie, Authorization, Accept-Language` to every
+`/t/**` HTML/payload response because it cannot know whether the resolved topic
+contains protected slots before the API read. Browser evidence confirms the
+unique marker is absent from SSR HTML, hydrated DOM, `__NUXT_DATA__`, metadata,
+OpenGraph, and JSON-LD while the localized Host fallback remains visible.
+
+### Shortcode presentation hooks
+
+Core emits bounded semantic wrappers but owns no shortcode-specific CSS. The
+enabled and trusted `sforum-shortcodes` exact artifact declares
+`frontend/public/shortcodes.css` for `core.surface.forum-content`; that one
+plugin stylesheet owns published wrappers, protected/fallback states, editor
+NodeViews, and the reference dialog. `usePublicContentStyles` loads the generic
+Host catalog during public SSR/navigation with immutable URLs and SRI, and
+clears it on admin routes. Disable, Safe Mode, trust revocation, artifact drift,
+or catalog failure removes the plugin style instead of leaving Core-owned
+presentation behind. See
+`../decisions/2026-08-29-plugin-owned-forum-content-styles.md`.
+
+### Shortcode editor previews
+
+Reference and protected NodeViews use the approved editor-preview geometry:
+one quiet bordered surface with a floating type/contract label, compact content
+identity, and selection outline. They deliberately do not render replace,
+locate, unwrap, or delete buttons inside the node. Reference selection remains
+available through the existing dialog and keyboard/double-click editing flow;
+protected content remains a native `NodeViewContent` region. The dialog and
+reference cache preserve only presentation-safe avatar/category icon metadata
+returned by the composer reference endpoint.
 
 ## Verification
 

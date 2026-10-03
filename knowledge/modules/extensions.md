@@ -53,6 +53,95 @@ does not rebuild Nuxt.
   V3 will reference that catalog once rather than listing every image. See
   `../plans/2026-07-30-image-sticker-platform.md` and
   `../decisions/2026-07-30-image-sticker-catalog.md`.
+- Built-in Shortcodes M0-M9 are complete; after independent M5 review, the
+  protected `sforum-shortcodes` package (id `sforum-shortcodes`, version
+  1.3.0) now ships eight
+  `content.runtime@1` shortcode declarations
+  (`sforum-shortcodes.user@1`, `sforum-shortcodes.category@1`,
+  `sforum-shortcodes.friend-links@1`, `sforum-shortcodes.topic@1`,
+  `sforum-shortcodes.comment@1`, `sforum-shortcodes.login@1`,
+  `sforum-shortcodes.reply@1`, and `sforum-shortcodes.only-author@1`) with strict draft-07 schemas,
+  Protocol V2 typed render handlers, localized labels, and zero public output
+  for empty friend links. Each reference render does exactly one delegated
+  Host query; the M4 projections stay the only data surface. Real-subprocess
+  Host-chain integration tests, staging build (`build-builtin-plugins.sh`),
+  the 8-plugin release baseline, and live SyncBuiltins/admin/Safe Mode/catalog
+  evidence are in the M5 archive and current
+  `../sessions/archive/2026-08/2026-08-23-builtin-shortcodes-m6-handoff.md`. The accepted ADR freezes two Host nodes, eight
+  exact V1 declarations (including canonical `friend-links`), Markdown API
+  conversion, typed limits, authorization, versioning, locale, cache, trace,
+  and fallback boundaries. Core public Forum/Page Registry/Nuxt/cache
+  projections are raw-free, uncached edit-source reads require Host mutation-
+  equivalent authorization, and Core now owns both structured nodes, strict
+  grammar/validation, shared Go/TypeScript conformance, deterministic fallback,
+  and normalized hashes. Production now offers optional `content.runtime@1`,
+  dispatches the exact active manifest declaration through the exact artifact
+  runtime under a Host admission lease, and fails explicitly when invocation is
+  absent. Plugin-side DTOs live in `sdk/plugin/v2` without importing Host
+  Content Registry types. Lifecycle replay/remove covers disable, Safe Mode,
+  restart, upgrade, and rollback. Legacy plugins without `manifest.lifecycle`
+  now use the same exact Content Registry publication/quarantine boundary with
+  rollback compensation, so runtime process and catalog artifact cannot split
+  across compatibility enable/disable/restart. Forum fallback remains
+  Host-owned. The shared
+  SDK contract change patch-bumped all seven existing built-ins and refreshed
+  the release baseline. Query Registry now publishes the exact seven sealed V1
+  shortcode projections with a 32-ID bound and Host-owned visibility/actor
+  SQL. Only the exact `sforum-shortcodes` content runtime receives their opaque
+  one-use delegations; other content runtimes receive none, and RequestContext
+  still exposes neither actor nor raw authority. The SDK validates the frozen
+  seven-query set and supplies canonical ID filters through the existing
+  delegated query client. M6's production per-node dispatcher binds only the
+  five exact v1.1.0 declarations and fails closed across disable, crash,
+  timeout, Safe Mode, visibility denial, and resource-key recursion. Canonical
+  duplicates execute once in bounded batches; topic/comment cards reuse only
+  the frozen M4 public projections, comments recheck owning-topic visibility,
+  and generation-tagged reference caches are invalidated by authoritative
+  resource and visibility mutations. The live immutable artifact digest is
+  `70d43c0e81a515c22feb6477f3582d51b7d94fc3b1593587dfd4d17bdd3d00f8`.
+  M7 adds one `sforum-shortcodes.editor.command.references@1` command and one
+  `sforum-shortcodes.editor.toolbar.references@1` contribution through the
+  existing trusted Editor Registry L2 catalog. The immutable editor module
+  digest is `a3fe4c2594e7a5090fd90896b33d7c9fefe9c4461e49e2e2ba3f98c3864c15e5`;
+  public asset delivery remains exact-artifact and editor-only, and empty
+  `nodes`/`marks` serialize as canonical arrays so strict clients do not
+  quarantine command-only modules. Normal admin activation, disable, L2 load
+  failure, and Safe Mode fail closed without a second toolbar or untrusted
+  business UI. Its exact catalog, raw-SSR output, no-source/private-data scans,
+  and desktop/mobile evidence pass. See
+  `../sessions/2026-08-28-builtin-shortcodes-m7-handoff.md`,
+  `../decisions/2026-08-22-structured-shortcodes-public-source-secrecy.md` and
+  `../plans/2026-08-22-builtin-shortcodes.md`.
+- Forum-content presentation now follows the same plugin lifecycle. Manifest V3
+  accepts exact `style` assets scoped to `core.surface.forum-content`; the
+  provider-neutral `GET /extensions/runtime/content-styles` catalog publishes
+  only enabled, trusted, healthy, digest-bound, same-origin blocking CSS and
+  fails closed for Safe Mode, drift, invalid CSP, or script dependencies.
+  Public Nuxt pages load the catalog with SRI while admin routes clear it.
+  `sforum-shortcodes@1.3.3` owns its published, protected/fallback, editor
+  NodeView, and reference-dialog CSS in
+  `frontend/public/shortcodes.css`; Core owns no shortcode visual rules. See
+  `../decisions/2026-08-29-plugin-owned-forum-content-styles.md`.
+- M9 activates the three protected declarations through the Host Forum policy
+  facade: `login` requires a current active actor; `reply` requires the topic
+  author or a current public accepted comment on the same topic; and
+  `only-author` is comment-only and limited to the comment or topic author.
+  M4 `author_decisions` and `reply_eligibility` projections remain
+  authoritative, so inactive, banned, anonymous, unrelated, staff, and
+  super-admin viewers are denied on public pages. The exact
+  `sforum-shortcodes@1.3.0` artifact includes strict schemas and typed
+  Protocol V2 protected renderers that receive only an allowed decision and
+  accepted fragment. Editor L2 reuses the existing shortcode menu and
+  supports create, wrap, edit type, delete, unwrap, preview, publish, and
+  re-edit for topic/comment scope; empty bodies and topic `only-author` nodes
+  are rejected by Host validation. Protected timeout, crash, disable, Safe
+  Mode, invalid-output, cache, and secret-marker tests remain closed. M10A
+  (legacy conversion fixture `shortcode-legacy-conversion-v1.json`, the
+  deterministic converted/literal/invalid/unsupported/over-limit report, and
+  the bilingual user/operator plus Reference 6 authoring documentation) is
+  complete. M10B reconciled parser parity and reran focused lifecycle/security
+  gates, but live catalogs still expose active `1.2.0` while `1.3.0` is staged;
+  normal super_admin activation remains the release blocker.
 - Package installation accepts only Manifest V3. Executable packages accept
   only Protocol V2 with a valid Host API V2 declaration; V1 loaders, runtime
   adapters, SDK entry points, built-in artifacts, fixtures, and rollback paths
@@ -308,6 +397,13 @@ Decision: `../decisions/2026-07-22-external-extension-source-roots.md`.
 - Versioned registries cover routes, hooks, services, providers, jobs,
   schedules, commands, admin surfaces, queries, identity/permission/profile,
   media, navigation/regions, content, cache, assets, and packages.
+- Shortcode V1 uses Content Registry declarations but does not delegate storage
+  or authorization to them. The Host owns `sforumShortcodeRef` and
+  `sforumShortcodeBlock`, exact argument/placement validation, public-source
+  redaction, bounded batch planning, and closed protected fallbacks. Plugin
+  declarations own product schemas and typed output. The production Forum
+  bridge dispatches strict per-node calls through exact-artifact Protocol V2;
+  ordinary content remains unchanged when no active declaration is bound.
 - `/_sforum` is a Host-reserved resource namespace. Public package bytes use
   content-addressed `/_sforum/assets`; authenticated prebuilt admin assets use
   `/_sforum/private-assets`. Route Registry contributions cannot claim either.
@@ -577,6 +673,14 @@ Relevant plans:
   event log, extension points, Page Registry, lifecycle progress/recovery, and
   provider inspection. The App Store remains a local framework shell until a
   real marketplace consumer is production-wired.
+- Admin extension overview and plugin management label `stagedVersion` as a
+  pending upgrade rather than a generic candidate, while retaining the exact
+  current/staged version explanation. Each staged plugin has an Upgrade action;
+  the bulk action runs candidates sequentially and pauses on any required
+  exact-artifact or legacy capability review. Enabled Lifecycle V2 source and
+  target artifacts use the native upgrade ledger, while legacy or recoverably
+  disabled sources use the existing restart bridge. Every item keeps its own
+  idempotency key and Host preflight; bulk UI is not a bypass or batch backend.
 - List/detail runtime RSS is best-effort and attributes only owned backend
   plugin children of the current API or its PID-namespace-sharing Worker.
   Linux release images use procfs, including the production extension root
@@ -650,6 +754,19 @@ Relevant plans:
   or selected by discovery. Secret settings remain redacted and the Host-owned
   service worker cannot import provider code.
 
+M8 protected shortcode execution is a separate Host-only request path. M9
+production activates exact protected declarations only after Host policy
+authorization. Private executions emit
+no Content Registry cache key/tags and suppress Protocol V2 Host query
+delegations. Plugin input is limited to an allowed decision plus the exact
+accepted child fragment. It contains no session, actor identity, permission
+table, email, IP, moderation data, surrounding body, or database/query
+capability. Test and production bindings prove allowed rendering; disable,
+crash, timeout, invalid output, and Safe Mode return Host-owned closed
+fallback, and trace/error serialization contains neither fragment nor output.
+Production bootstrap wires the Host policy and the built-in manifest registers
+only the exact `login`, `reply`, and `only-author` handlers.
+
 ## Verification
 
 - Go: `cd apps/api && go test ./...`
@@ -668,17 +785,20 @@ Relevant plans:
 
 1. Complete the new editor product design before implementing the image sticker
    generated-catalog and lifecycle contract.
-2. Execute `../plans/2026-07-22-v3-production-rewire-honesty-remediation.md`
+2. Built-in Shortcodes M10B is active/blocked: complete normal super_admin
+   exact-artifact activation and the final lifecycle/browser/leakage matrix;
+   do not broaden the exact L2 or server-internal Query Registry boundaries.
+3. Execute `../plans/2026-07-22-v3-production-rewire-honesty-remediation.md`
    M0-M8 with production-path evidence.
-3. Execute public navigation M0 before extending `forum.nav.items`; prove and
+4. Execute public navigation M0 before extending `forum.nav.items`; prove and
    document its production bridge to Navigation Registry instead of adding
    another contribution stack.
-4. Keep APILTS compatibility shims until their removal gate, date, and live
+5. Keep APILTS compatibility shims until their removal gate, date, and live
    zero-use evidence all pass.
-5. Keep system error pages plugin-closed and L0/L1-only when adding future
+6. Keep system error pages plugin-closed and L0/L1-only when adding future
    status families or browser-facing producers.
-6. Keep sensitive Core workbenches plugin-closed unless behavior replacement is
+7. Keep sensitive Core workbenches plugin-closed unless behavior replacement is
    an explicit product decision; use `themeable` only for constrained Host-island
    presentation.
-7. Keep new product integrations on stable provider/registry contracts and
+8. Keep new product integrations on stable provider/registry contracts and
    regenerate the affected Extension Surface Matrix.

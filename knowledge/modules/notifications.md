@@ -236,5 +236,17 @@ historical user override remains stored. The shared settings mobile navigation
 constrains its category select to the content width to prevent horizontal
 overflow at `390x844`.
 
+M8 moderation approval replay re-reads `source_format` and projects editor
+documents through the Host public side-effect view before mention fanout.
+Protected descendants therefore do not produce mention notifications or leak
+through notification previews. Topic/comment write tests prove only public
+mentions enter transactional fanout; protected child markers, usernames, and
+URLs remain absent from observe envelopes and their webhook serialization.
+
 Digests, scheduled summaries, unsubscribe-link semantics, broadcast/marketing,
 and additional vendor channels remain deferred.
+
+M10B re-ran protected shortcode mention/notification leakage checks: only the
+public side-effect projection enters fanout, and protected descendants remain
+absent from notifications, observe events, and webhook projections. Release
+completion remains blocked by immutable artifact promotion.

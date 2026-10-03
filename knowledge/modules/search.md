@@ -105,6 +105,24 @@ Task book:
 3. Super-admin enable + trust
 4. Configure host/master key; select provider in Forum settings → Search; reindex
 
+## Protected shortcode indexing
+
+M8 keeps protected descendants out of `plainText`, `excerpt`, SEO summaries,
+search documents, and rebuild input. Search remains derived from the stored
+actor-independent public projection; no viewer-aware protected composition is
+indexed. Unique-marker tests run the Forum editor-document projection through
+the memory indexer twice (normal upsert plus rebuild), then prove the marker has
+zero hits while public text remains searchable and public results strip
+index-only `plainText`. The real PostgreSQL site-engine index/search/delete gate
+also passes. The current development API has the optional
+`sforum.search-meilisearch` provider selected and returns 500 for live queries;
+that provider runtime issue is not treated as Host marker-search evidence and
+remains an explicit operational residual.
+
+M10B re-ran the protected marker search suites successfully. The optional
+Meilisearch 500 remains unresolved operationally; the active shortcode runtime
+artifact mismatch is tracked in the M10B final-gate report.
+
 ## Document shape
 
 `TopicSearchDoc` (Host-owned): title, plainText, excerpt, category/tag slugs,

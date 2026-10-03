@@ -675,6 +675,131 @@ Related fixtures:
 - `sforum-contract-events` — events + `forum.topic.actions` contribution only
 - `sforum-contract-schedules` — documents that schedules stay host-owned
 
+## Reference 6 — shortcode declarations
+
+The protected built-in `extensions/builtin/plugins/sforum-shortcodes`
+(`sforum-shortcodes`) is the only shortcode runtime in V1. It ships eight
+Manifest V3 `content` declarations (`kind: shortcode`) with strict draft-07
+schema package files, Protocol V2 typed render handlers, and one trusted L2
+editor command. If you are authoring content plugins, this section is what you
+may and may not do around shortcodes.
+
+### Host-owned nodes and grammar
+
+- The Host owns exactly two Tiptap node types:
+  `sforumShortcodeRef` (block atom, no content) and `sforumShortcodeBlock`
+  (block container holding admitted block content, including nested
+  shortcodes up to level four).
+- Both nodes carry exactly three attributes: `id`, `contractVersion`, and
+  `arguments` (never omitted; client HTML, snapshots, authorization results,
+  rendered cards, or secrets are never attributes).
+- The textual grammar is `sforum.shortcode-text@1`: a tag must occupy a
+  standalone logical line (at most three spaces of indentation), opening and
+  closing tags are case-sensitive, references require an explicit matching
+  closing tag and an empty body, protected blocks require a body, canonical
+  arguments are `key="value"` (import also accepts an unquoted positive
+  integer), `\[name]` escapes, and code blocks, inline code, raw HTML blocks,
+  and tables are opaque. Unknown, malformed, mismatched, repeated-argument,
+  over-limit, and placement-invalid text stays literal.
+- Frozen limits: 32 shortcode nodes per document, nesting depth 4, 16
+  arguments per node, argument key ≤ 64 ASCII bytes, scalar string ≤ 512
+  Unicode code points, no arrays/nested objects, render recursion depth 4,
+  deterministic `(resource type, ID)` cycle detection.
+- Placement: block content only (complete document block or complete block
+  inside `sforumShortcodeBlock`); never inside a paragraph, heading, inline
+  mark, table cell, or list item text. `only-author` is comment-only.
+- A structured API document that falsely claims an identity, version, argument
+  schema, placement, or limit fails validation; it is not converted to text.
+- V1 admits only the eight frozen Host identities
+  (`sforum-shortcodes.user|topic|comment|category|friend-links|login|reply|only-author@1`).
+  A brand-new product shortcode requires a Host node/validation/declaration
+  change first — a plugin manifest entry alone cannot extend the accepted
+  identity set.
+
+### Manifest, Content Registry, and typed render boundaries
+
+- Declarations live under the manifest `content[]` entries with
+  `kind: shortcode`, an exact `contractVersion`, a `schema` package file, and
+  an exact `handler`; package files must be the current exact digests after
+  `extension digest --write` / `extension validate` / `extension test`.
+- Schemas are stricter than the Host generic scalar envelope: the four ID
+  references require exactly one positive int64, `friend-links` requires an
+  empty object, and the three protected blocks require an empty object with a
+  non-empty body enforced by Host node validation.
+- Renderers emit typed, bounded, sanitized segments through Protocol V2: the
+  plugin receives the strict node value (declared arguments), the minimal Host
+  projection, and — for an authorized protected render — the exact accepted
+  child fragment. It never receives the whole Forum `RenderedContent`,
+  raw document, actor, session, permission table, email, IP, moderation
+  state, or surrounding body.
+- The plugin cannot be an authorization or content authority: the Host owns
+  visibility, policy, cache, search projection, and fallback. Disabled,
+  uninstall, Safe Mode, stale-artifact, timeout, crash, and invalid-output
+  behavior must never depend on the plugin being present; Host fallback copy
+  stays available without the exact artifact.
+
+### Closed data surfaces
+
+A shortcode runtime must not:
+
+- read Core database tables or raw content outside the declared Host
+  projections;
+- receive or construct raw actor/session authority;
+- receive Query Registry delegation tokens beyond the exact frozen
+  `sforum-shortcodes` seven-query bundle (other content runtimes receive
+  none);
+- use loopback HTTP, client-side authorization, or client-provided object
+  snapshots as authority;
+- log or echo arguments, child text, rendered output, actor identity, raw
+  errors, or cache values (bounded identity/version/outcome/duration/counts
+  only).
+
+See `docs/extensions/host-api-v2.md` for the Host API contract and
+`extensions/builtin/plugins/sforum-shortcodes/backend/` for the reference
+implementation.
+
+### Fallback, schema, version, and alias rules
+
+- Fallback uses stable Host-owned reason codes
+  (`shortcode.user.unavailable`, `shortcode.topic.unavailable`,
+  `shortcode.comment.unavailable`, `shortcode.category.unavailable`,
+  `shortcode.friend_links.omitted`, `shortcode.protected.unavailable`,
+  `shortcode.login.required`, `shortcode.reply.required`,
+  `shortcode.only_author.private`). Public metadata exposes only these codes,
+  never runtime details. `friend-links` omits public output entirely.
+- A failed reference may link to a stable Core URL only after a current Host
+  public-visibility recheck; otherwise it is a non-interactive label.
+- A declaration version changes when its argument schema, placement,
+  authorization meaning, visible success semantics, or fallback secrecy
+  changes; copy-only localization does not change it. New declaration
+  versions must remain interpretable together with old accepted source.
+- Grammar changes require a new `sforum.shortcode-text` version plus paired
+  Go/TypeScript fixtures.
+- `topic-tag` is the only V1 legacy alias and imports as `category`
+  (`tag_id` → `categoryId`); it never survives canonical storage or export.
+  `friend_links` is not an alias and stays literal. `password` is explicitly
+  deferred/unsupported and must not be implemented as a conversion or
+  credential behavior.
+
+### How to add a fixture and conformance case
+
+- Grammar/import corpus: `contracts/fixtures/shortcode-text-v1.json`
+  (M2; cases assert `activated`, canonical Markdown, and node summaries for
+  topic/comment resources).
+- Legacy/conversion report corpus:
+  `contracts/fixtures/shortcode-legacy-conversion-v1.json` (M10A; cases carry
+  an `expected` classification — `converted`, `literal`, `invalid`,
+  `unsupported`, `over-limit` — plus optional canonical output and node
+  summaries; structured cases carry `authority: both|host`).
+- Add a case entry (valid JSON, classification present, converted cases need
+  `canonical` and `nodes`), then run both consumers:
+  - Go: `cd apps/api && go test ./app/Support/EditorDocument/`
+  - Web: `cd apps/web && bun test tests/framework/editorShortcodes.test.ts tests/framework/editorShortcodeLegacyConformance.test.ts`
+- The two consumers must produce identical classification and canonical
+  output. If they disagree, do not weaken the fixture: stop and reconcile the
+  parsers (or the frozen grammar) first, exactly as recorded for the M10A
+  conformance findings.
+
 ## Scenario map (which mechanism?)
 
 | I want to… | Use |
