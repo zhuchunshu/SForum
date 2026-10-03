@@ -15,6 +15,7 @@ const identityRoleApprovalsMigrationVersion = int64(202607160029)
 const identityRootPublicationsMigrationVersion = int64(202607160033)
 const identityOrphanTombstoneMigrationVersion = int64(202607210044)
 const extensionPermissionLocalizationMigrationVersion = int64(202607231001)
+const identityStaleRoleSuggestionRejectionMigrationVersion = int64(202607290077)
 
 func TestDurableStateToTombstonesRejectsIncompleteOrDuplicateState(t *testing.T) {
 	tip := DurableDeclarationTip{

@@ -246,7 +246,10 @@ func applyIdentityRegistryOwnershipMigration(ctx context.Context, db *sql.DB) er
 	if _, err = provider.ApplyVersion(ctx, identityOrphanTombstoneMigrationVersion, true); err != nil {
 		return err
 	}
-	_, err = provider.ApplyVersion(ctx, extensionPermissionLocalizationMigrationVersion, true)
+	if _, err = provider.ApplyVersion(ctx, extensionPermissionLocalizationMigrationVersion, true); err != nil {
+		return err
+	}
+	_, err = provider.ApplyVersion(ctx, identityStaleRoleSuggestionRejectionMigrationVersion, true)
 	return err
 }
 

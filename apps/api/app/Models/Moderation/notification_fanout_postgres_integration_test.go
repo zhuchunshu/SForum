@@ -356,8 +356,8 @@ func newNotificationPGFixture(t *testing.T) *notificationPGFixture {
 func (f *notificationPGFixture) insertUser(t *testing.T, username, status string) int64 {
 	t.Helper()
 	var id int64
-	err := f.pool.QueryRow(f.ctx, `INSERT INTO users (username, username_lower, email, status)
-		VALUES ($1, lower($1), lower($1) || '@example.test', $2) RETURNING id`, username, status).Scan(&id)
+	err := f.pool.QueryRow(f.ctx, `INSERT INTO users (username, username_lower, email, locale, display_name, status)
+		VALUES ($1, lower($1), lower($1) || '@example.test', 'en-US', $1, $2) RETURNING id`, username, status).Scan(&id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -494,6 +494,8 @@ CREATE TABLE users (
   username TEXT NOT NULL,
   username_lower TEXT NOT NULL UNIQUE,
   email TEXT NOT NULL,
+  locale TEXT NOT NULL DEFAULT '',
+  display_name TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'active'
 );
 CREATE TABLE categories (
@@ -531,7 +533,11 @@ CREATE TABLE categories (
 	  state TEXT NOT NULL,
 	  PRIMARY KEY (user_id,type,channel)
 	);
-	CREATE TABLE posts (id BIGSERIAL PRIMARY KEY, raw_content TEXT NOT NULL);
+	CREATE TABLE posts (
+	  id BIGSERIAL PRIMARY KEY,
+	  raw_content TEXT NOT NULL,
+	  source_format TEXT NOT NULL DEFAULT 'markdown'
+	);
 CREATE TABLE topics (
   id BIGSERIAL PRIMARY KEY,
   category_id BIGINT NOT NULL REFERENCES categories(id),

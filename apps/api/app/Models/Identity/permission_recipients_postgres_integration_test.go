@@ -14,7 +14,11 @@ func TestListActiveUserIDsWithPermissionTxHonorsEffectiveRBAC(t *testing.T) {
 	if _, err := fixture.pool.Exec(fixture.ctx, `
 		INSERT INTO role_permissions (role_id,permission_key)
 		SELECT id,$1 FROM roles WHERE key='identity_reviewer'
-		ON CONFLICT DO NOTHING;
+		ON CONFLICT DO NOTHING
+	`, permission); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fixture.pool.Exec(fixture.ctx, `
 		INSERT INTO user_permission_overrides (user_id,permission_key,effect)
 		VALUES ($2,$1,'allow'),($3,$1,'deny')
 		ON CONFLICT (user_id,permission_key) DO UPDATE SET effect=EXCLUDED.effect
@@ -38,10 +42,14 @@ func TestListActiveUserIDsWithPermissionTxHonorsEffectiveRBAC(t *testing.T) {
 
 	if _, err := tx.Exec(fixture.ctx, `
 		INSERT INTO user_permission_overrides (user_id,permission_key,effect)
-		VALUES ($1,$3,'deny')
-		ON CONFLICT (user_id,permission_key) DO UPDATE SET effect='deny';
-		UPDATE users SET status='disabled' WHERE id=$2
-	`, fixture.actorUserID, fixture.targetUserID, permission); err != nil {
+		VALUES ($1,$2,'deny')
+		ON CONFLICT (user_id,permission_key) DO UPDATE SET effect='deny'
+	`, fixture.actorUserID, permission); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tx.Exec(fixture.ctx, `
+		UPDATE users SET status='disabled' WHERE id=$1
+	`, fixture.targetUserID); err != nil {
 		t.Fatal(err)
 	}
 	got, err = NewPostgresStore(fixture.pool).ListActiveUserIDsWithPermissionTx(fixture.ctx, tx, permission)

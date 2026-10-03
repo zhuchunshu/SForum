@@ -12,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/pressly/goose/v3"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
@@ -22,6 +23,8 @@ import (
 const siteNavigationV1MigrationVersion = int64(202607280072)
 const siteNavigationSnapshotActorMigrationVersion = int64(202607280073)
 const siteNavigationMaterializedDefaultsMigrationVersion = int64(202607290074)
+const siteNavigationIconHiddenMigrationVersion = int64(202607290075)
+const siteNavigationDynamicMaxItemsMigrationVersion = int64(202607290076)
 const siteNavigationMobileCategoriesMigrationVersion = int64(202607310001)
 
 func TestSiteNavigationV1MigrationPreservesLegacyTopbarRows(t *testing.T) {
@@ -103,9 +106,7 @@ func TestSiteNavigationMaterializedDefaultsPreserveExplicitPlacements(t *testing
 	}
 	ctx := context.Background()
 	db, provider := openIsolatedLifecycleLeaseMigrationDB(t, ctx, databaseURL)
-	if _, err := provider.UpTo(ctx, siteNavigationSnapshotActorMigrationVersion); err != nil {
-		t.Fatalf("migrate site navigation schema: %v", err)
-	}
+	migrateSiteNavigationFixture(t, ctx, provider, siteNavigationSnapshotActorMigrationVersion)
 	if _, err := db.ExecContext(ctx, `
 		INSERT INTO site_navigation_placements
 		(source_key, location, position, enabled, visibility)
@@ -123,7 +124,7 @@ func TestSiteNavigationMaterializedDefaultsPreserveExplicitPlacements(t *testing
 		t.Fatalf("navigation revision=%d err=%v, want 2", revision, err)
 	}
 	for location, want := range map[string]int{
-		"public.topbar.primary":  3,
+		"public.topbar.primary":  4,
 		"public.sidebar.primary": 4,
 		"public.mobile.primary":  3,
 		"public.footer.primary":  0,
@@ -141,6 +142,15 @@ func TestSiteNavigationMaterializedDefaultsPreserveExplicitPlacements(t *testing
 		WHERE source_key = 'core.home' AND location = 'public.sidebar.primary'
 	`).Scan(&enabled, &position); err != nil || enabled || position != 77 {
 		t.Fatalf("explicit sidebar placement enabled=%t position=%d err=%v", enabled, position, err)
+	}
+	var searchKind string
+	if err := db.QueryRowContext(ctx, `
+		SELECT d.source_kind, p.enabled, p.position
+		FROM site_navigation_definitions d
+		JOIN site_navigation_placements p ON p.source_key = d.source_key
+		WHERE d.href = '/search' AND p.location = 'public.topbar.primary'
+	`).Scan(&searchKind, &enabled, &position); err != nil || searchKind != "operator" || !enabled || position != 30 {
+		t.Fatalf("legacy search placement kind=%q enabled=%t position=%d err=%v", searchKind, enabled, position, err)
 	}
 	var sourceKind, href, icon string
 	if err := db.QueryRowContext(ctx, `
@@ -161,9 +171,7 @@ func TestSiteNavigationMobileCategoriesMigrationPreservesExistingPlacement(t *te
 	}
 	ctx := context.Background()
 	db, provider := openIsolatedLifecycleLeaseMigrationDB(t, ctx, databaseURL)
-	if _, err := provider.UpTo(ctx, 202607290076); err != nil {
-		t.Fatalf("migrate dynamic navigation limit schema: %v", err)
-	}
+	migrateSiteNavigationFixture(t, ctx, provider, siteNavigationDynamicMaxItemsMigrationVersion)
 	if _, err := db.ExecContext(ctx, `
 		INSERT INTO site_navigation_placements
 		(source_key, location, position, enabled, visibility, max_items)
@@ -195,9 +203,7 @@ func TestSiteNavigationMobileCategoriesMigrationMaterializesDefault(t *testing.T
 	}
 	ctx := context.Background()
 	db, provider := openIsolatedLifecycleLeaseMigrationDB(t, ctx, databaseURL)
-	if _, err := provider.UpTo(ctx, 202607290076); err != nil {
-		t.Fatalf("migrate dynamic navigation limit schema: %v", err)
-	}
+	migrateSiteNavigationFixture(t, ctx, provider, siteNavigationDynamicMaxItemsMigrationVersion)
 
 	if _, err := provider.ApplyVersion(ctx, siteNavigationMobileCategoriesMigrationVersion, true); err != nil {
 		t.Fatalf("apply mobile category navigation migration: %v", err)
@@ -236,6 +242,12 @@ func TestSiteNavigationCommandsAreAtomicAndRetainSnapshots(t *testing.T) {
 	}
 	if _, err := provider.ApplyVersion(ctx, siteNavigationSnapshotActorMigrationVersion, true); err != nil {
 		t.Fatalf("apply navigation snapshot actor migration: %v", err)
+	}
+	if _, err := provider.ApplyVersion(ctx, siteNavigationIconHiddenMigrationVersion, true); err != nil {
+		t.Fatalf("apply navigation icon-hidden migration: %v", err)
+	}
+	if _, err := provider.ApplyVersion(ctx, siteNavigationDynamicMaxItemsMigrationVersion, true); err != nil {
+		t.Fatalf("apply navigation max-items migration: %v", err)
 	}
 	if _, err := db.ExecContext(ctx, `
 		INSERT INTO users (id, username, username_lower, email, email_lower, display_name)
@@ -385,5 +397,26 @@ func TestSiteNavigationCommandsAreAtomicAndRetainSnapshots(t *testing.T) {
 	snapshots, err = service.ListNavigationSnapshots(ctx, actor)
 	if err != nil || len(snapshots) != sitechrome.NavigationMaxSnapshots || snapshots[0].Operation != "snapshot_restore" {
 		t.Fatalf("restore snapshots=%#v err=%v", snapshots, err)
+	}
+}
+
+func migrateSiteNavigationFixture(t *testing.T, ctx context.Context, provider *goose.Provider, through int64) {
+	t.Helper()
+	if _, err := provider.UpTo(ctx, 202607120003); err != nil {
+		t.Fatalf("migrate legacy SiteChrome schema: %v", err)
+	}
+	for _, version := range []int64{
+		siteNavigationV1MigrationVersion,
+		siteNavigationSnapshotActorMigrationVersion,
+		siteNavigationMaterializedDefaultsMigrationVersion,
+		siteNavigationIconHiddenMigrationVersion,
+		siteNavigationDynamicMaxItemsMigrationVersion,
+	} {
+		if version > through {
+			break
+		}
+		if _, err := provider.ApplyVersion(ctx, version, true); err != nil {
+			t.Fatalf("apply site navigation fixture migration %d: %v", version, err)
+		}
 	}
 }

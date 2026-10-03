@@ -115,7 +115,7 @@ func TestPostgresProtocolV2DatabaseRuntimeExactTransactionsAndRevocation(t *test
 	executeResponse, err := service.Execute(hostapi.ContextWithProtocolV2RuntimeIdentity(ctx, identity), execute)
 	if err != nil || executeResponse.GetError() != nil || executeResponse.GetAffectedRows() != 1 ||
 		executeResponse.GetResult().GetValue().AsMap()["name"] != "created" {
-		t.Fatalf("execute exact operation: response=%#v err=%v", executeResponse, err)
+		t.Fatalf("execute exact operation: response=%v protocol_error=%v err=%v", executeResponse, executeResponse.GetError(), err)
 	}
 	if jobs := countDatabaseInvalidationJobs(t, ctx, pool, extensionID); jobs != 1 {
 		t.Fatalf("committed invalidation jobs = %d, want 1", jobs)
@@ -422,7 +422,9 @@ func cleanupDatabaseServiceArtifact(t *testing.T, pool *pgxpool.Pool, artifact e
 	exec("grants", `DELETE FROM extension_database_grants WHERE extension_id = $1`, artifact.ExtensionID)
 	exec("schema", `DROP SCHEMA IF EXISTS `+pgx.Identifier{identifiers.Schema}.Sanitize()+` CASCADE`)
 	exec("role membership", `REVOKE `+pgx.Identifier{identifiers.OwnerRole}.Sanitize()+` FROM `+pgx.Identifier{identifiers.RuntimeRole}.Sanitize())
+	exec("runtime role ownership", `DROP OWNED BY `+pgx.Identifier{identifiers.RuntimeRole}.Sanitize())
 	exec("runtime role", `DROP ROLE IF EXISTS `+pgx.Identifier{identifiers.RuntimeRole}.Sanitize())
+	exec("owner role ownership", `DROP OWNED BY `+pgx.Identifier{identifiers.OwnerRole}.Sanitize())
 	exec("owner role", `DROP ROLE IF EXISTS `+pgx.Identifier{identifiers.OwnerRole}.Sanitize())
 	exec("resources", `DELETE FROM extension_database_resources WHERE extension_id = $1`, artifact.ExtensionID)
 	exec("trust grants", `DELETE FROM extension_trust_grants WHERE extension_id = $1`, artifact.ExtensionID)

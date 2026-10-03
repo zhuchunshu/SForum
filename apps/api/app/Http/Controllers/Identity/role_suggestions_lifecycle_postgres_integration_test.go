@@ -61,7 +61,7 @@ func TestP7HostOwnedRoleMappingJoined(t *testing.T) {
 	repository := &p7RoleMappingPhaseRepository{ref: extensionsruntime.LifecycleRegistryPublicationRef{
 		OperationID: 701, StepID: "lifecycle.enable.05.host.enabled",
 		Mode: extensionsruntime.LifecycleBoundaryActivate, Attempt: 1,
-	}, phase: extensionsruntime.LifecycleRegistryPublicationSource}
+	}, phase: extensionsruntime.LifecycleRegistryPublicationSource, pool: fixture.pool}
 	store := identityregistry.NewPostgresStore(fixture.pool)
 	registry := identityregistry.New()
 	boundary := newP7RoleMappingBoundary(t, manager, registry, store, repository)
@@ -314,6 +314,7 @@ type p7RoleMappingPhaseRepository struct {
 	ref   extensionsruntime.LifecycleRegistryPublicationRef
 	phase extensionsruntime.LifecycleRegistryPublicationPhase
 	input extensionsruntime.PrepareLifecycleRegistryPublicationInput
+	pool  *pgxpool.Pool
 }
 
 func (r *p7RoleMappingPhaseRepository) PrepareLifecycleRegistryPublication(
@@ -363,6 +364,38 @@ func (r *p7RoleMappingPhaseRepository) MoveLifecycleRegistryPublication(
 		return fmt.Errorf("unexpected lifecycle registry ref")
 	}
 	if err := apply(); err != nil {
+		return err
+	}
+	r.mu.Lock()
+	r.phase = phase
+	r.mu.Unlock()
+	return nil
+}
+
+func (r *p7RoleMappingPhaseRepository) MoveLifecycleRegistryPublicationTx(
+	ctx context.Context,
+	ref extensionsruntime.LifecycleRegistryPublicationRef,
+	phase extensionsruntime.LifecycleRegistryPublicationPhase,
+	apply func(pgx.Tx) error,
+) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	r.mu.Lock()
+	valid := ref == r.ref && r.pool != nil
+	r.mu.Unlock()
+	if !valid {
+		return fmt.Errorf("unexpected lifecycle registry ref")
+	}
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if err := apply(tx); err != nil {
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
 	r.mu.Lock()
