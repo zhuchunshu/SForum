@@ -43,6 +43,8 @@ const (
 	protocolV2QueryRuntimeFeatureVersion    = "1"
 	protocolV2IdentityRuntimeFeatureName    = "identity.runtime"
 	protocolV2IdentityRuntimeFeatureVersion = "1"
+	protocolV2ContentRuntimeFeatureName     = "content.runtime"
+	protocolV2ContentRuntimeFeatureVersion  = "1"
 )
 
 // RuntimeTrustSource resolves the live exact-artifact grant before process
@@ -65,12 +67,14 @@ type protocolV2ClientConfig struct {
 	guards             []extensions.ManifestGuard
 	queries            []extensions.ManifestQuery
 	queryResultFilters []extensions.ManifestQueryResultFilter
+	content            []extensions.ManifestContent
 	manifestIdentity   *extensions.ManifestIdentity
 	lifecycle          *extensions.ManifestLifecycle
 	token              []byte
 	instance           string
 	hostAPI            ProtocolV2HostRegistrar
 	delegations        hostapi.ProtocolV2ActorDelegationBundleIssuer
+	shortcodeQueries   hostapi.ProtocolV2ShortcodeProjectionDelegationBundleIssuer
 	hostCommands       bool
 	hostBrokerID       uint32
 }
@@ -91,12 +95,14 @@ type protocolV2Client struct {
 	guards             []extensions.ManifestGuard
 	queries            []extensions.ManifestQuery
 	queryResultFilters []extensions.ManifestQueryResultFilter
+	content            []extensions.ManifestContent
 	manifestIdentity   *extensions.ManifestIdentity
 	lifecycle          *extensions.ManifestLifecycle
 	token              []byte
 	instance           string
 	hostBrokerID       uint32
 	delegations        hostapi.ProtocolV2ActorDelegationBundleIssuer
+	shortcodeQueries   hostapi.ProtocolV2ShortcodeProjectionDelegationBundleIssuer
 	hostCommands       bool
 	serviceMu          sync.RWMutex
 	services           []*protocolv2.ServiceDescriptor
@@ -134,10 +140,12 @@ func newProtocolV2Client(client pluginv2.PluginRuntimeServiceClient, config prot
 		guards:             cloneProtocolV2Guards(config.guards),
 		queries:            append([]extensions.ManifestQuery(nil), config.queries...),
 		queryResultFilters: append([]extensions.ManifestQueryResultFilter(nil), config.queryResultFilters...),
+		content:            append([]extensions.ManifestContent(nil), config.content...),
 		manifestIdentity:   cloneManifestIdentity(config.manifestIdentity),
 		lifecycle:          cloneManifestLifecycle(config.lifecycle),
 		token:              append([]byte(nil), config.token...), instance: config.instance, hostBrokerID: config.hostBrokerID,
-		delegations: config.delegations, hostCommands: config.hostCommands,
+		delegations: config.delegations, shortcodeQueries: config.shortcodeQueries,
+		hostCommands: config.hostCommands,
 	}
 }
 
@@ -255,12 +263,14 @@ func (s *ProtocolStarter) protocolV2ClientConfig(
 		guards:             cloneProtocolV2Guards(extension.Manifest.Guards),
 		queries:            append([]extensions.ManifestQuery(nil), extension.Manifest.Queries...),
 		queryResultFilters: append([]extensions.ManifestQueryResultFilter(nil), extension.Manifest.QueryResultFilters...),
+		content:            append([]extensions.ManifestContent(nil), extension.Manifest.Content...),
 		manifestIdentity:   cloneManifestIdentity(extension.Manifest.Identity),
 		lifecycle:          cloneManifestLifecycle(extension.Manifest.Lifecycle),
 		token:              token,
 		instance:           instanceID,
 		hostAPI:            protocolV2HostRegistrarFor(s.hostAPI),
 		delegations:        protocolV2ActorDelegationBundleIssuerFor(s.hostAPI),
+		shortcodeQueries:   protocolV2ShortcodeProjectionDelegationIssuerFor(s.hostAPI),
 		hostCommands:       extensionmanifest.HasDatabaseGrant(extension.Manifest.Database, extensionmanifest.DatabaseGrantHostCommands),
 	}, nil
 }
@@ -276,7 +286,7 @@ func newProtocolV2RuntimeInstanceID() (string, error) {
 func (c *protocolV2Client) Handshake(ctx context.Context) error {
 	ctx, cancel := protocolV2Deadline(ctx, DefaultProtocolV2HandshakeTimeout)
 	defer cancel()
-	hostFeatures := protocolV2HostFeatures(c.queries, c.queryResultFilters, c.manifestIdentity)
+	hostFeatures := protocolV2HostFeatures(c.queries, c.queryResultFilters, c.manifestIdentity, c.content)
 	response, err := c.client.Handshake(ctx, &protocolv2.HandshakeRequest{
 		Context: c.requestContext(ctx, "handshake"),
 		HostProtocols: []*protocolv2.ProtocolRange{{
@@ -336,32 +346,6 @@ func (c *protocolV2Client) Handshake(ctx context.Context) error {
 	c.services = cloneV2Services(response.GetServices())
 	c.serviceMu.Unlock()
 	return nil
-}
-
-// protocolV2HostFeatures only offers runtime families required by the frozen
-// Manifest declarations.
-func protocolV2HostFeatures(
-	queries []extensions.ManifestQuery,
-	filters []extensions.ManifestQueryResultFilter,
-	identity *extensions.ManifestIdentity,
-) []*protocolv2.ProtocolFeature {
-	features := []*protocolv2.ProtocolFeature{
-		{Name: "stream.routes", Version: "1"},
-		{Name: "stream.files", Version: "1"},
-		{Name: "stream.jobs", Version: "1"},
-		{Name: "service.discovery", Version: "1"},
-	}
-	if protocolV2RequiresQueryRuntime(queries, filters) {
-		features = append(features, &protocolv2.ProtocolFeature{
-			Name: protocolV2QueryRuntimeFeatureName, Version: protocolV2QueryRuntimeFeatureVersion, Required: true,
-		})
-	}
-	if protocolV2RequiresIdentityRuntime(identity) {
-		features = append(features, &protocolv2.ProtocolFeature{
-			Name: protocolV2IdentityRuntimeFeatureName, Version: protocolV2IdentityRuntimeFeatureVersion, Required: true,
-		})
-	}
-	return features
 }
 
 // validateProtocolV2SelectedFeatures rejects capabilities the plugin claims
@@ -444,14 +428,6 @@ func protocolV2HostRegistrarFor(registrar HostAPIRegistrar) ProtocolV2HostRegist
 		return nil
 	}
 	result, _ := registrar.(ProtocolV2HostRegistrar)
-	return result
-}
-
-func protocolV2ActorDelegationBundleIssuerFor(registrar HostAPIRegistrar) hostapi.ProtocolV2ActorDelegationBundleIssuer {
-	if registrar == nil {
-		return nil
-	}
-	result, _ := registrar.(hostapi.ProtocolV2ActorDelegationBundleIssuer)
 	return result
 }
 

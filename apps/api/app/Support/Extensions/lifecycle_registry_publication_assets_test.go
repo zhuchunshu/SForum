@@ -132,6 +132,31 @@ func TestLifecycleAssetRestartRestoresAssetOnlyGraphAndSafeModeKeepsOnlyCore(t *
 	}
 }
 
+func TestLifecycleAssetRestartRestoresEditorOnlyL2Publication(t *testing.T) {
+	extension := lifecycleEditorTestExtension(t, "1.0.0", strings.Repeat("31", 32), 601)
+	assets := assetregistry.New()
+	boundary := NewPostgresLifecycleBoundaryRegistries(LifecycleRegistryBoundaryConfig{
+		Assets: assets,
+		AssetAuthority: &staticAssetAuthority{restore: map[string]string{
+			extension.ID: strings.Repeat("a", 64),
+		}},
+		AssetAdmission: staticAssetAdmission{},
+	})
+	if err := boundary.restoreAssetPublications(t.Context(), []extensions.Extension{extension}, false); err != nil {
+		t.Fatal(err)
+	}
+	publication, found := assets.SnapshotPublication(extension.ID)
+	if !found || len(publication.Assets) != 1 ||
+		publication.Assets[0].Path != extension.Manifest.Editor[0].L2Module ||
+		len(publication.Assets[0].Scope) != 1 {
+		t.Fatalf("editor-only asset publication=%+v found=%t", publication, found)
+	}
+	plan, err := assets.Plan(assetregistry.PlanRequest{IncludeGlobal: true})
+	if err != nil || len(plan) != 0 {
+		t.Fatalf("editor-only asset leaked into global plan: plan=%+v err=%v", plan, err)
+	}
+}
+
 func TestLifecycleAssetRestoreUsesCapturedRevisionAndNeverOverwritesWatcher(t *testing.T) {
 	ctx := context.Background()
 	extension := lifecycleAssetTestExtension(t, "restore.cas.assets", nil)

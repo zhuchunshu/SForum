@@ -204,6 +204,7 @@ func legacyCacheServiceExtension(t *testing.T, status string) Extension {
 	item.Manifest.Lifecycle = nil
 	item.Manifest.Dependencies = nil
 	item.Manifest.Queries = nil
+	item.Manifest.Content = nil
 	item.Manifest.Cache = []ManifestCache{{
 		ID: item.ID + ".cache.results", ContractVersion: item.ID + ".cache.results@1",
 		Namespace: item.ID + ".results", Policy: "actor", Tags: []string{item.ID + ".cache.tag"},
@@ -220,6 +221,7 @@ func legacyQueryAndCacheServiceExtension(t *testing.T, status string) Extension 
 	item.ActiveVersionID = 41
 	item.Manifest.Lifecycle = nil
 	item.Manifest.Dependencies = nil
+	item.Manifest.Content = nil
 	refreshTrustPackageIdentity(t, &item)
 	return item
 }

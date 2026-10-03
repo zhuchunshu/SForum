@@ -777,12 +777,20 @@ func TestRecoverAuthoritativePluginRuntimePublicationUsesExactCommittedRevision(
 func runtimeManifestBody(t *testing.T, id, version, extensionType, backendEntry string) []byte {
 	t.Helper()
 	manifest := Manifest{
-		ID: id, Name: "Runtime Fixture", Description: "Runtime publication fixture.",
+		ManifestVersion: 3,
+		ID:              id, Name: "Runtime Fixture", Description: "Runtime publication fixture.",
 		URL: "https://example.com/runtime-fixture", Author: ManifestAuthor{Name: "SForum"},
 		Version: version, Type: extensionType, SForumVersion: "^1.0.0",
 	}
 	if backendEntry != "" {
-		manifest.Backend = ManifestBackend{Entry: backendEntry, RPC: "hashicorp-go-plugin"}
+		backendDigest := strings.Repeat("e", 64)
+		manifest.Backend = ManifestBackend{
+			Entry: backendEntry, RPC: "hashicorp-go-plugin", ProtocolVersion: 2,
+			Digest: backendDigest, HostAPIVersion: "sforum.host@2",
+		}
+		manifest.PackageFiles = []ManifestPackageFile{{
+			ID: id + ".file.backend", Kind: "executable", Path: backendEntry, Digest: backendDigest,
+		}}
 	}
 	body, err := json.Marshal(manifest)
 	if err != nil {

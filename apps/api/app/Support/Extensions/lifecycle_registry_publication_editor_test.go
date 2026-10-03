@@ -2,6 +2,7 @@ package extensionsruntime
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -137,6 +138,61 @@ func TestLifecycleEditorUpgradeDisableAndCAS(t *testing.T) {
 	}
 	if len(registry.List("")) != 0 {
 		t.Fatalf("after disable graph = %#v", registry.List(""))
+	}
+}
+
+func TestLegacyRuntimeEditorPublicationMovesForwardAndRollsBack(t *testing.T) {
+	ctx := t.Context()
+	registry := editorregistry.New()
+	boundary := NewPostgresLifecycleBoundaryRegistries(LifecycleRegistryBoundaryConfig{Editor: registry})
+	current := lifecycleEditorTestExtension(t, "1.0.0", strings.Repeat("31", 32), 601)
+	target := lifecycleEditorTestExtension(t, "2.0.0", strings.Repeat("32", 32), 602)
+
+	initial, err := boundary.PublishRuntimeEditor(ctx, current)
+	if err != nil || initial == nil {
+		t.Fatalf("publish current editor: mutation=%T err=%v", initial, err)
+	}
+	upgraded, err := boundary.PublishRuntimeEditor(ctx, target)
+	if err != nil || upgraded == nil {
+		t.Fatalf("publish target editor: mutation=%T err=%v", upgraded, err)
+	}
+	publication, found := registry.SnapshotPublication(current.ID)
+	if !found || publication.Artifact.VersionID != target.ActiveVersionID {
+		t.Fatalf("target editor publication=%+v found=%t", publication, found)
+	}
+	if err := upgraded.Rollback(); err != nil {
+		t.Fatal(err)
+	}
+	publication, found = registry.SnapshotPublication(current.ID)
+	if !found || publication.Artifact.VersionID != current.ActiveVersionID {
+		t.Fatalf("restored editor publication=%+v found=%t", publication, found)
+	}
+
+	quarantined, err := boundary.QuarantineRuntimeEditor(ctx, current)
+	if err != nil || quarantined == nil || len(registry.List("")) != 0 {
+		t.Fatalf("quarantine editor mutation=%T err=%v graph=%+v", quarantined, err, registry.List(""))
+	}
+	if err := quarantined.Rollback(); err != nil {
+		t.Fatal(err)
+	}
+	if publication, found = registry.SnapshotPublication(current.ID); !found || publication.Artifact.VersionID != current.ActiveVersionID {
+		t.Fatalf("quarantine rollback publication=%+v found=%t", publication, found)
+	}
+}
+
+func TestLegacyRuntimeEditorPublicationRejectsStaleArtifact(t *testing.T) {
+	registry := editorregistry.New()
+	boundary := NewPostgresLifecycleBoundaryRegistries(LifecycleRegistryBoundaryConfig{Editor: registry})
+	current := lifecycleEditorTestExtension(t, "2.0.0", strings.Repeat("41", 32), 702)
+	stale := lifecycleEditorTestExtension(t, "1.0.0", strings.Repeat("42", 32), 701)
+	if _, err := boundary.PublishRuntimeEditor(t.Context(), current); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := boundary.PublishRuntimeEditor(t.Context(), stale); !errors.Is(err, ErrLifecycleRegistryPublicationConflict) {
+		t.Fatalf("stale editor publish err=%v", err)
+	}
+	if _, err := boundary.QuarantineRuntimeEditor(t.Context(), stale); !errors.Is(err, ErrLifecycleRegistryPublicationConflict) {
+		t.Fatalf("stale editor quarantine err=%v", err)
 	}
 }
 

@@ -115,6 +115,12 @@ func newBuiltinPluginRuntimeSaveFixture(t *testing.T, label string) *pluginRunti
 		admin.Close()
 		t.Fatalf("apply plugin runtime publication migration: %v", err)
 	}
+	if _, err := provider.ApplyVersion(ctx, 202607270063, true); err != nil {
+		db.Close()
+		removeSchema()
+		admin.Close()
+		t.Fatalf("apply missing artifact removal migration: %v", err)
+	}
 	if _, err := provider.ApplyVersion(ctx, 202607300002, true); err != nil {
 		db.Close()
 		removeSchema()
@@ -150,12 +156,20 @@ func newBuiltinPluginRuntimeSaveFixture(t *testing.T, label string) *pluginRunti
 
 func builtinPluginManifest(id, version, backendEntry string) Manifest {
 	manifest := Manifest{
-		ID: id, Name: "Builtin Plugin", Description: "Builtin SaveBuiltin fixture.",
+		ManifestVersion: 3,
+		ID:              id, Name: "Builtin Plugin", Description: "Builtin SaveBuiltin fixture.",
 		URL: "https://example.com/builtin-plugin", Author: ManifestAuthor{Name: "SForum"},
 		Version: version, Type: TypePlugin, SForumVersion: "^1.0.0",
 	}
 	if backendEntry != "" {
-		manifest.Backend = ManifestBackend{Entry: backendEntry, RPC: "hashicorp-go-plugin"}
+		backendDigest := strings.Repeat("e", 64)
+		manifest.Backend = ManifestBackend{
+			Entry: backendEntry, RPC: "hashicorp-go-plugin", ProtocolVersion: 2,
+			Digest: backendDigest, HostAPIVersion: "sforum.host@2",
+		}
+		manifest.PackageFiles = []ManifestPackageFile{{
+			ID: id + ".file.backend", Kind: "executable", Path: backendEntry, Digest: backendDigest,
+		}}
 	}
 	return manifest
 }

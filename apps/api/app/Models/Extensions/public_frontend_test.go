@@ -1,6 +1,7 @@
 package extensions
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -12,6 +13,7 @@ import (
 	"testing"
 
 	assetregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/AssetRegistry"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
 )
 
@@ -893,6 +895,69 @@ func publicAssetOnlyFixture(t *testing.T, id string) Extension {
 		ID: manifest.ID, Name: manifest.Name, Version: manifest.Version, Type: manifest.Type,
 		Status: StatusEnabled, Source: SourceUploaded, IsDeletable: true, Manifest: manifest,
 		PackagePath: root, PackageDigest: packageDigest,
+	}
+}
+
+func TestEditorOnlyL2UsesExactPublicPackageAssetBoundary(t *testing.T) {
+	root := t.TempDir()
+	modulePath := "frontend/editor/shortcodes.mjs"
+	moduleBody := []byte("export const apiVersion = 1\n")
+	if err := os.MkdirAll(filepath.Dir(filepath.Join(root, modulePath)), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, modulePath), moduleBody, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	moduleDigest := bytesDigest(moduleBody)
+	extension := Extension{
+		ID: "demo.editor", Version: "1.0.0", Type: TypePlugin, Status: StatusEnabled,
+		Source: SourceBuiltin, IsSystem: true, IsDeletable: false, PackagePath: root,
+		Manifest: Manifest{
+			ManifestVersion: 3, ID: "demo.editor", Name: "Editor", Version: "1.0.0", Type: TypePlugin,
+			PackageFiles: []ManifestPackageFile{{
+				ID: "demo.editor.file.module", Kind: "frontend", Path: modulePath, Digest: moduleDigest,
+			}},
+			Editor: []extensionmanifest.ManifestEditor{
+				{ID: "demo.editor.node.reference", ContractVersion: "demo.editor.node.reference@1", Kind: "node", L2Module: modulePath, L2Digest: moduleDigest},
+				{ID: "demo.editor.command.reference", ContractVersion: "demo.editor.command.reference@1", Kind: "command", L2Module: modulePath, L2Digest: moduleDigest},
+			},
+		},
+	}
+	packageDigest, err := extensionpackage.DigestTree(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	extension.PackageDigest = packageDigest
+	reader := &fakeFrontendExtensionReader{item: extension}
+	trust := NewExecutableTrustService(reader, &memoryExecutableTrustStore{})
+	service := NewFrontendService(reader, &fakeFrontendTrustStore{}).
+		WithExecutableTrust(trust, true).
+		WithPublicL2(true)
+	identity, err := trust.RuntimeIdentity(t.Context(), extension)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publication, err := BuildPublicAssetPublication(extension, identity.ImpactDigest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(publication.Assets) != 1 || publication.Assets[0].Path != modulePath ||
+		len(publication.Assets[0].Scope) != 1 {
+		t.Fatalf("editor asset publication=%+v", publication.Assets)
+	}
+	if _, err := service.publicAssets.Publish(publication); err != nil {
+		t.Fatal(err)
+	}
+	asset, err := service.PublicPackageAsset(t.Context(), extension.ID, extension.PackageDigest, modulePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(asset.Body, moduleBody) || asset.Digest != moduleDigest {
+		t.Fatalf("editor package asset=%+v body=%q", asset, asset.Body)
+	}
+	plan, err := service.publicAssets.Plan(assetregistry.PlanRequest{IncludeGlobal: true})
+	if err != nil || len(plan) != 0 {
+		t.Fatalf("editor module leaked into global asset plan: plan=%+v err=%v", plan, err)
 	}
 }
 

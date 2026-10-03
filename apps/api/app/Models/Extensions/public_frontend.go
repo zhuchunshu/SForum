@@ -370,7 +370,8 @@ func publicManifestComponent(manifest Manifest, componentID string) (ManifestCom
 }
 
 // BuildPublicAssetPublication 构造 exact-artifact 资产发布物，供生命周期与启动恢复复用。
-// 允许 asset-only provider（仅 script/style 声明、无 L2 component）。
+// 允许 asset-only provider（仅 script/style 声明、无 L2 component）和
+// Editor Registry 已声明的 exact L2 module。
 // OwnerKind 只由 Extension.Type 推导；Host core publication 不经此构造器。
 func BuildPublicAssetPublication(
 	extension Extension,
@@ -382,8 +383,10 @@ func BuildPublicAssetPublication(
 	}
 	manifest := extensionmanifest.Normalize(extension.Manifest)
 	packageFiles := make(map[string]ManifestPackageFile, len(manifest.PackageFiles))
+	packagePaths := make(map[string]ManifestPackageFile, len(manifest.PackageFiles))
 	for _, file := range manifest.PackageFiles {
 		packageFiles[file.ID] = file
+		packagePaths[file.Path] = file
 	}
 	declarations := make([]assetregistry.Declaration, 0, maxPublicL2Assets)
 	for _, asset := range manifest.Assets {
@@ -420,6 +423,34 @@ func BuildPublicAssetPublication(
 			Handle: publicL2EntryHandle(component), ContractVersion: publicL2EntryContractVersion(component), Type: "script",
 			Path: entryFile.Path, Digest: entryFile.Digest, Dependencies: entryDependencies,
 			Scope: scopes, Module: true, Loading: "lazy",
+		})
+	}
+	editorModules := make(map[string]extensionmanifest.ManifestEditor)
+	for _, editor := range manifest.Editor {
+		if editor.L2Module == "" {
+			continue
+		}
+		current, exists := editorModules[editor.L2Module]
+		if !exists || editor.ID < current.ID {
+			editorModules[editor.L2Module] = editor
+		}
+	}
+	editorModulePaths := make([]string, 0, len(editorModules))
+	for modulePath := range editorModules {
+		editorModulePaths = append(editorModulePaths, modulePath)
+	}
+	sort.Strings(editorModulePaths)
+	for _, modulePath := range editorModulePaths {
+		editor := editorModules[modulePath]
+		moduleFile, ok := packagePaths[modulePath]
+		if !ok || moduleFile.Kind != "frontend" || moduleFile.Digest != editor.L2Digest ||
+			!validPublicAssetExtension("script", moduleFile.Path) {
+			return assetregistry.Publication{}, ErrPublicFrontendUnavailable
+		}
+		declarations = append(declarations, assetregistry.Declaration{
+			Handle: editor.ID, ContractVersion: editor.ContractVersion, Type: "script",
+			Path: moduleFile.Path, Digest: moduleFile.Digest, Scope: []string{editor.ID},
+			Module: true, Loading: "lazy",
 		})
 	}
 	if len(declarations) == 0 || len(declarations) > maxPublicL2Assets {
@@ -822,7 +853,16 @@ func normalizedPublicDigest(value string) string {
 }
 
 func hasPublicAssetPayload(manifest Manifest) bool {
-	return hasL2Components(manifest) || hasAssetRegistryDeclarations(manifest)
+	return hasL2Components(manifest) || hasAssetRegistryDeclarations(manifest) || hasEditorL2Modules(manifest)
+}
+
+func hasEditorL2Modules(manifest Manifest) bool {
+	for _, editor := range manifest.Editor {
+		if strings.TrimSpace(editor.L2Module) != "" && normalizedPublicDigest(editor.L2Digest) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func hasAssetRegistryDeclarations(manifest Manifest) bool {

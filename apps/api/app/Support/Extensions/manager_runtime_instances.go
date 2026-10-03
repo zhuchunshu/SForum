@@ -274,12 +274,18 @@ func (m *InstanceAdmission) InspectRuntimeInstance(identity RuntimeInstanceIdent
 		return RuntimeInstanceSnapshot{}, err
 	}
 	m.mu.RLock()
-	defer m.mu.RUnlock()
 	instance, err := m.runtimeInstanceLocked(identity)
 	if err != nil {
+		m.mu.RUnlock()
 		return RuntimeInstanceSnapshot{}, err
 	}
-	return m.runtimeInstanceSnapshotLocked(identity, instance), nil
+	snapshot := m.runtimeInstanceSnapshotLocked(identity, instance)
+	extension := instance.extension
+	m.mu.RUnlock()
+	if err := ensureManagedProtocolRuntimePresent(m.starter, identity, extension); err != nil {
+		return RuntimeInstanceSnapshot{}, err
+	}
+	return snapshot, nil
 }
 
 // RuntimeInstanceAvailable is the read-side visibility predicate used by
@@ -294,12 +300,15 @@ func (m *InstanceAdmission) RuntimeInstanceAvailable(identity RuntimeInstanceIde
 		return false
 	}
 	m.mu.RLock()
-	defer m.mu.RUnlock()
 	instance, err := m.runtimeInstanceLocked(identity)
 	if err != nil || instance.transitioning || m.activeInstances[identity.ExtensionID] != identity.InstanceID {
+		m.mu.RUnlock()
 		return false
 	}
-	return !instance.gate.Snapshot().Draining
+	extension := instance.extension
+	available := !instance.gate.Snapshot().Draining
+	m.mu.RUnlock()
+	return available && ensureManagedProtocolRuntimePresent(m.starter, identity, extension) == nil
 }
 
 func (m *InstanceAdmission) ActiveRuntimeInstance(extensionID string) (RuntimeInstanceSnapshot, error) {
@@ -308,17 +317,36 @@ func (m *InstanceAdmission) ActiveRuntimeInstance(extensionID string) (RuntimeIn
 		return RuntimeInstanceSnapshot{}, ErrRuntimeAdmissionInvalid
 	}
 	m.mu.RLock()
-	defer m.mu.RUnlock()
 	instanceID := m.activeInstances[extensionID]
 	if instanceID == "" {
+		m.mu.RUnlock()
 		return RuntimeInstanceSnapshot{}, fmt.Errorf("%w: %s", ErrRuntimeInstanceNotFound, extensionID)
 	}
 	identity := RuntimeInstanceIdentity{ExtensionID: extensionID, InstanceID: instanceID}
 	instance, err := m.runtimeInstanceLocked(identity)
 	if err != nil {
+		m.mu.RUnlock()
 		return RuntimeInstanceSnapshot{}, err
 	}
-	return m.runtimeInstanceSnapshotLocked(identity, instance), nil
+	snapshot := m.runtimeInstanceSnapshotLocked(identity, instance)
+	extension := instance.extension
+	m.mu.RUnlock()
+	if err := ensureManagedProtocolRuntimePresent(m.starter, identity, extension); err != nil {
+		return RuntimeInstanceSnapshot{}, err
+	}
+	return snapshot, nil
+}
+
+func ensureManagedProtocolRuntimePresent(starter Starter, identity RuntimeInstanceIdentity, extension extensions.Extension) error {
+	if extension.Manifest.Backend.ProtocolVersion != 2 {
+		return nil
+	}
+	staged, ok := starter.(StagedRuntimeStarter)
+	if !ok {
+		return nil
+	}
+	_, err := staged.InspectInstance(identity)
+	return err
 }
 
 // RemoveRuntimeInstance 只删除已停用且完全 idle 的精确实例；不会回退到当前活动实例。

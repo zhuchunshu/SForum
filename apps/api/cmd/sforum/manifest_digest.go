@@ -167,4 +167,12 @@ func syncInlineDeclarationDigests(manifest map[string]any, digests map[string]st
 			}
 		}
 	}
+	items, _ := manifest["editor"].([]any)
+	for _, raw := range items {
+		item, _ := raw.(map[string]any)
+		path, _ := item["l2Module"].(string)
+		if digests[path] != "" {
+			item["l2Digest"] = digests[path]
+		}
+	}
 }

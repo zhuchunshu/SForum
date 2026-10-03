@@ -326,6 +326,40 @@ func TestManagerExactStopAndDiscardNeverRemoveReplacement(t *testing.T) {
 	}
 }
 
+func TestManagerConvergesAfterExactProtocolProcessExit(t *testing.T) {
+	starter := newManagerStagedStarter()
+	manager := NewManager(ManagerConfig{Starter: starter})
+	extension := managerStagedExtension("crashed.staged", "1.0.0", "digest-1")
+	if err := manager.Start(t.Context(), extension); err != nil {
+		t.Fatal(err)
+	}
+	crashed, err := manager.ActiveRuntimeInstance(extension.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	starter.crash(crashed.Identity)
+
+	if _, err := manager.ActiveRuntimeInstance(extension.ID); !errors.Is(err, ErrRuntimeInstanceNotFound) {
+		t.Fatalf("dead exact runtime remained active: %v", err)
+	}
+	if status := manager.Status(t.Context(), extension); status.State != extensions.RuntimeFailed || status.LastError == "" {
+		t.Fatalf("dead exact runtime status = %#v", status)
+	}
+	if _, err := manager.BeginDrain(crashed.Identity); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.StopRuntimeInstance(t.Context(), crashed.Identity); err != nil {
+		t.Fatalf("already-exited runtime did not converge: %v", err)
+	}
+	if err := manager.Start(t.Context(), extension); err != nil {
+		t.Fatalf("restart after crash: %v", err)
+	}
+	restarted, err := manager.ActiveRuntimeInstance(extension.ID)
+	if err != nil || restarted.Identity == crashed.Identity {
+		t.Fatalf("restart did not publish a fresh exact runtime: %#v, %v", restarted, err)
+	}
+}
+
 func TestManagerStopsDrainedRuntimeAfterRegistryDeactivation(t *testing.T) {
 	starter := newManagerStagedStarter()
 	manager := NewManager(ManagerConfig{Starter: starter})
@@ -761,6 +795,15 @@ func (s *managerStagedStarter) activeIdentity(extensionID string) RuntimeInstanc
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.active[extensionID]
+}
+
+func (s *managerStagedStarter) crash(identity RuntimeInstanceIdentity) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.instances, identity)
+	if s.active[identity.ExtensionID] == identity {
+		delete(s.active, identity.ExtensionID)
+	}
 }
 
 func managerStagedExtension(id, version, digest string) extensions.Extension {

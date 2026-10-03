@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	pluginv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
 	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 	"google.golang.org/grpc/codes"
@@ -178,4 +180,212 @@ func mapProtocolV2IdentityCallError(ctx context.Context, err error) error {
 		return ctx.Err()
 	}
 	return err
+}
+
+// protocolV2HostFeatures only offers runtime families required by the frozen
+// Manifest declarations.
+func protocolV2HostFeatures(
+	queries []extensions.ManifestQuery,
+	filters []extensions.ManifestQueryResultFilter,
+	identity *extensions.ManifestIdentity,
+	content []extensions.ManifestContent,
+) []*protocolv2.ProtocolFeature {
+	features := []*protocolv2.ProtocolFeature{
+		{Name: "stream.routes", Version: "1"},
+		{Name: "stream.files", Version: "1"},
+		{Name: "stream.jobs", Version: "1"},
+		{Name: "service.discovery", Version: "1"},
+	}
+	if protocolV2RequiresQueryRuntime(queries, filters) {
+		features = append(features, &protocolv2.ProtocolFeature{
+			Name: protocolV2QueryRuntimeFeatureName, Version: protocolV2QueryRuntimeFeatureVersion, Required: true,
+		})
+	}
+	if protocolV2RequiresIdentityRuntime(identity) {
+		features = append(features, &protocolv2.ProtocolFeature{
+			Name: protocolV2IdentityRuntimeFeatureName, Version: protocolV2IdentityRuntimeFeatureVersion, Required: true,
+		})
+	}
+	if protocolV2RequiresContentRuntime(content) {
+		features = append(features, &protocolv2.ProtocolFeature{
+			Name: protocolV2ContentRuntimeFeatureName, Version: protocolV2ContentRuntimeFeatureVersion,
+		})
+	}
+	return features
+}
+
+func protocolV2RequiresContentRuntime(content []extensions.ManifestContent) bool {
+	for _, declaration := range content {
+		if strings.TrimSpace(declaration.Handler) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+var ErrProtocolV2ContentInvalid = errors.New("protocol v2 content invocation is invalid")
+
+const protocolV2ContentServerTimeSkew = 5 * time.Second
+
+func (c *protocolV2Client) InvokeContent(
+	parent context.Context,
+	input VersionedContentRequest,
+) (VersionedContentResponse, error) {
+	if c == nil || c.client == nil || c.identity == nil || parent == nil {
+		return VersionedContentResponse{}, extensions.ErrRuntimeUnavailable
+	}
+	if err := parent.Err(); err != nil {
+		return VersionedContentResponse{}, err
+	}
+	if !c.exactManifestContent(input) {
+		return VersionedContentResponse{}, fmt.Errorf("%w: declaration %q drifted", ErrProtocolV2ContentInvalid, input.DeclarationID)
+	}
+	if input.Timeout <= 0 || input.Timeout > DefaultProtocolV2RequestTimeout || !validProtocolV2ContentOperation(input.Operation) {
+		return VersionedContentResponse{}, fmt.Errorf("%w: operation or timeout", ErrProtocolV2ContentInvalid)
+	}
+	schemaID, schemaVersion, err := protocolV2SchemaRef(ProtocolV2ContentRequestSchema)
+	if err != nil {
+		return VersionedContentResponse{}, err
+	}
+	document, err := protocolV2Document(schemaID, schemaVersion, input.Input)
+	if err != nil {
+		return VersionedContentResponse{}, err
+	}
+	ctx, cancel := protocolV2Deadline(parent, input.Timeout)
+	defer cancel()
+	requestContext, err := c.contentRuntimeRequestContext(ctx, input.DeclarationID, input.ActorUserID, input.SuppressHostDelegations)
+	if err != nil {
+		return VersionedContentResponse{}, err
+	}
+	startedAt := time.Now().UTC()
+	response, err := c.client.ProviderCall(ctx, &pluginv2.ProviderCallRequest{
+		Context: requestContext, SlotId: ProtocolV2ContentProviderSlot,
+		DeclarationId: input.DeclarationID, ContractVersion: input.ContractVersion,
+		Operation: input.Operation, Input: document,
+	})
+	receivedAt := time.Now().UTC()
+	if err != nil {
+		switch status.Code(err) {
+		case codes.DeadlineExceeded:
+			return VersionedContentResponse{}, context.DeadlineExceeded
+		case codes.Canceled:
+			return VersionedContentResponse{}, context.Canceled
+		}
+		if ctx.Err() != nil {
+			return VersionedContentResponse{}, ctx.Err()
+		}
+		return VersionedContentResponse{}, err
+	}
+	if err := validateProtocolV2ContentResponseContext(response.GetContext(), requestContext, startedAt, receivedAt); err != nil {
+		return VersionedContentResponse{}, err
+	}
+	if err := protocolV2Error(response.GetError()); err != nil {
+		return VersionedContentResponse{}, err
+	}
+	if err := validateProtocolV2DocumentRef(response.GetOutput(), ProtocolV2ContentResponseSchema, "content output"); err != nil {
+		return VersionedContentResponse{}, fmt.Errorf("%w: %v", ErrProtocolV2ContentInvalid, err)
+	}
+	return VersionedContentResponse{Output: protocolV2Values(response.GetOutput())}, nil
+}
+
+func (c *protocolV2Client) exactManifestContent(input VersionedContentRequest) bool {
+	for _, declaration := range c.content {
+		if declaration.ID == input.DeclarationID && declaration.ContractVersion == input.ContractVersion &&
+			declaration.Kind == input.Kind && declaration.Handler == input.Handler && declaration.Schema == input.Schema &&
+			declaration.Renderer == input.Renderer && declaration.Migration == input.Migration &&
+			strings.TrimSpace(declaration.Handler) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *protocolV2Client) contentRuntimeRequestContext(
+	ctx context.Context,
+	declarationID string,
+	actorUserID int64,
+	suppressHostDelegations ...bool,
+) (*protocolv2.RequestContext, error) {
+	request := c.requestContext(ctx, declarationID)
+	request.Trace = nil
+	request.Actor = nil
+	request.GrantedAuthority = nil
+	request.IdempotencyKey = ""
+	request.HostCommandDelegations = nil
+	request.HostQueryDelegations = nil
+	if len(suppressHostDelegations) > 0 && suppressHostDelegations[0] {
+		return request, nil
+	}
+	if c.identity.GetExtensionId() != hostapi.ShortcodeProjectionExtensionID {
+		return request, nil
+	}
+	if c.shortcodeQueries == nil || actorUserID < 0 {
+		return nil, ErrProtocolV2ContentInvalid
+	}
+	grants, err := c.shortcodeQueries.IssueProtocolV2ShortcodeProjectionDelegations(
+		ctx,
+		hostapi.ProtocolV2ShortcodeProjectionDelegationRequest{
+			ActorUserID: actorUserID, Runtime: cloneV2Identity(c.identity), Locale: request.Locale, Scope: "content",
+		},
+	)
+	if err != nil {
+		return nil, errors.Join(ErrProtocolV2ContentInvalid, err)
+	}
+	request.HostQueryDelegations = make([]*protocolv2.HostQueryDelegation, 0, len(grants))
+	for _, grant := range grants {
+		request.HostQueryDelegations = append(request.HostQueryDelegations, &protocolv2.HostQueryDelegation{
+			QueryId: grant.QueryID, ContractVersion: grant.ContractVersion, PlanVersion: grant.PlanVersion,
+			ResultSchemaId: grant.ResultSchemaID, ResultSchemaVersion: grant.ResultSchemaVersion,
+			Scope: grant.Scope, Token: grant.Token,
+		})
+	}
+	return request, nil
+}
+
+func validateProtocolV2ContentResponseContext(
+	response *protocolv2.ResponseContext,
+	request *protocolv2.RequestContext,
+	startedAt, receivedAt time.Time,
+) error {
+	if response == nil || request == nil || response.GetRequestId() != request.GetRequestId() ||
+		!proto.Equal(response.GetTrace(), request.GetTrace()) || !proto.Equal(response.GetExtension(), request.GetExtension()) {
+		return fmt.Errorf("%w: response context does not match exact runtime", ErrProtocolV2ContentInvalid)
+	}
+	serverTime := response.GetServerTime()
+	if serverTime == nil || !serverTime.IsValid() {
+		return fmt.Errorf("%w: response server time", ErrProtocolV2ContentInvalid)
+	}
+	value := serverTime.AsTime()
+	if value.Before(startedAt.Add(-protocolV2ContentServerTimeSkew)) ||
+		value.After(receivedAt.Add(protocolV2ContentServerTimeSkew)) {
+		return fmt.Errorf("%w: response server time window", ErrProtocolV2ContentInvalid)
+	}
+	return nil
+}
+
+func validProtocolV2ContentOperation(value string) bool {
+	switch value {
+	case "editor", "validator", "serializer", "renderer", "filter":
+		return true
+	default:
+		return false
+	}
+}
+
+func protocolV2ActorDelegationBundleIssuerFor(registrar HostAPIRegistrar) hostapi.ProtocolV2ActorDelegationBundleIssuer {
+	if registrar == nil {
+		return nil
+	}
+	result, _ := registrar.(hostapi.ProtocolV2ActorDelegationBundleIssuer)
+	return result
+}
+
+func protocolV2ShortcodeProjectionDelegationIssuerFor(
+	registrar HostAPIRegistrar,
+) hostapi.ProtocolV2ShortcodeProjectionDelegationBundleIssuer {
+	if registrar == nil {
+		return nil
+	}
+	result, _ := registrar.(hostapi.ProtocolV2ShortcodeProjectionDelegationBundleIssuer)
+	return result
 }

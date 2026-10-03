@@ -202,11 +202,19 @@ func recoveryItemsContain(items []recoveryExtension, extensionID string) bool {
 }
 
 func insertRecoveryFixture(ctx context.Context, pool *pgxpool.Pool, id, source string, system bool) error {
+	backendDigest := strings.Repeat("e", 64)
 	manifest := extensions.Manifest{
-		ID: id, Name: id, Description: "CLI recovery PostgreSQL fixture.",
+		ManifestVersion: 3,
+		ID:              id, Name: id, Description: "CLI recovery PostgreSQL fixture.",
 		URL: "https://example.com/recovery-fixture", Author: extensions.ManifestAuthor{Name: "SForum"},
 		Version: "1.0.0", Type: extensions.TypePlugin, SForumVersion: "^1.0.0",
-		Backend: extensions.ManifestBackend{Entry: "backend/plugin", RPC: "hashicorp-go-plugin"},
+		Backend: extensions.ManifestBackend{
+			Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 2,
+			Digest: backendDigest, HostAPIVersion: "sforum.host@2",
+		},
+		PackageFiles: []extensions.ManifestPackageFile{{
+			ID: id + ".file.backend", Kind: "executable", Path: "backend/plugin", Digest: backendDigest,
+		}},
 	}
 	manifestJSON, err := json.Marshal(manifest)
 	if err != nil {

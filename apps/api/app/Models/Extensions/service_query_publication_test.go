@@ -178,6 +178,7 @@ func legacyQueryServiceExtension(t *testing.T, status string) Extension {
 	item.ActiveVersionID = 41
 	item.Manifest.Lifecycle = nil
 	item.Manifest.Dependencies = nil
+	item.Manifest.Content = nil
 	refreshTrustPackageIdentity(t, &item)
 	return item
 }

@@ -7,6 +7,7 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Get("/site/active-theme/settings", h.publicActiveThemeSettings)
 	// page-policy / *-catalog 必须在带 :extensionId 的 runtime 路由之前注册，避免被 path 参数吞掉。
 	api.Get("/extensions/runtime/page-policy", h.publicFrontendPagePolicy)
+	api.Get("/extensions/runtime/content-styles", h.publicContentStyles)
 	api.Get("/extensions/runtime/editor-catalog", h.publicEditorCatalog)
 	api.Get("/extensions/runtime/entity-catalog", h.publicEntityCatalog)
 	api.Get("/extensions/runtime/content-catalog", h.publicContentCatalog)

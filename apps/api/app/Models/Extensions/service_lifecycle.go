@@ -14,6 +14,11 @@ import (
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
+type LifecycleService struct {
+	*Service
+	editorPublications RuntimeEditorPublicationBoundary
+}
+
 func (s *serviceCore) restoreSettingsAfterRestartFailure(
 	ctx context.Context,
 	extensionID string,
@@ -301,8 +306,16 @@ func (s *LifecycleService) Enable(ctx context.Context, actor identity.Actor, id 
 	defer s.assetPublicationMu.Unlock()
 	hasRuntimeQuerySurfaces := hasRuntimeQueryPublication(extension.Manifest)
 	hasRuntimeCaches := len(extension.Manifest.Cache) > 0 && s.cachePublications != nil
+	hasRuntimeContent := hasRuntimeContentPublication(extension.Manifest)
+	hasRuntimeEditor := hasRuntimeEditorPublication(extension.Manifest)
 	if hasRuntimeQuerySurfaces && s.queryPublications == nil {
 		return Extension{}, ErrRuntimeQueryPublicationUnavailable
+	}
+	if hasRuntimeContent && s.contentPublications == nil {
+		return Extension{}, ErrRuntimeContentPublicationUnavailable
+	}
+	if hasRuntimeEditor && s.lifecycle.editorPublications == nil {
+		return Extension{}, ErrRuntimeEditorPublicationUnavailable
 	}
 	assetBefore := s.captureAssetPublicationSnapshot()
 	if err := s.validateExtensionAssetPublication(ctx, assetBefore, extension); err != nil {
@@ -418,30 +431,39 @@ func (s *LifecycleService) Enable(ctx context.Context, actor identity.Actor, id 
 			return Extension{}, errors.Join(ErrRuntimeFailed, fmt.Errorf("publish runtime caches: %w", failure))
 		}
 	}
-	// 插件 enable：注册页面贡献（add/replace 候选）；replace 仍需 super_admin 批准。
-	if enabled.Type == TypePlugin && s.pageRegistry != nil {
-		if err := s.pageRegistry.RegisterPluginPackage(ctx, enabled); err != nil {
-			// 页面贡献失败不静默：回滚 enable，避免半启用状态
+	var contentMutation RuntimeContentPublicationMutation
+	if hasRuntimeContent {
+		contentMutation, err = s.contentPublications.PublishRuntimeContent(ctx, enabled)
+		if err != nil || contentMutation == nil {
+			if err == nil {
+				err = ErrRuntimeContentPublicationUnavailable
+			}
 			if hasRuntimeCaches {
-				err = s.compensateLegacyCacheEnable(
-					ctx, enabled, assetMutation, queryMutation, cacheMutation, actor.ID, err,
-				)
+				err = s.compensateLegacyCacheEnable(ctx, enabled, assetMutation, queryMutation, cacheMutation, actor.ID, err)
 			} else if hasRuntimeQuerySurfaces {
 				err = s.compensateLegacyQueryEnable(ctx, enabled, assetMutation, queryMutation, actor.ID, err)
 			} else {
-				if s.runtime != nil {
-					_ = s.runtime.Stop(ctx, enabled)
-				}
-				if _, disableErr := s.disableLegacyPluginState(ctx, enabled, actor.ID); disableErr != nil {
-					err = errors.Join(
-						err,
-						fmt.Errorf("publish compensating plugin runtime disable: %w", disableErr),
-					)
-				}
-				if rollbackErr := s.rollbackExactAssetMutation(assetMutation); rollbackErr != nil {
-					err = errors.Join(err, fmt.Errorf("restore asset publication after page failure: %w", rollbackErr))
-				}
+				err = compensateLegacyContentEnable(s.serviceCore, ctx, enabled, assetMutation, contentMutation, actor.ID, err)
 			}
+			s.recordEnableFailure(ctx, actor, enabled.ID, err)
+			return Extension{}, errors.Join(ErrRuntimeFailed, err)
+		}
+	}
+	editorMutation, err := publishLegacyRuntimeEditor(
+		s, ctx, enabled, assetMutation, queryMutation, cacheMutation, contentMutation, actor.ID,
+	)
+	if err != nil {
+		s.recordEnableFailure(ctx, actor, enabled.ID, err)
+		return Extension{}, errors.Join(ErrRuntimeFailed, fmt.Errorf("publish runtime editor: %w", err))
+	}
+	// 插件 enable：注册页面贡献（add/replace 候选）；replace 仍需 super_admin 批准。
+	if enabled.Type == TypePlugin && s.pageRegistry != nil {
+		if err := s.pageRegistry.RegisterPluginPackage(ctx, enabled); err != nil {
+			// 页面贡献失败不静默：按声明发布的逆序回滚 enable。
+			err = compensateLegacyEditorEnable(
+				s.serviceCore, ctx, enabled, assetMutation, queryMutation, cacheMutation,
+				contentMutation, editorMutation, actor.ID, err,
+			)
 			s.pageRegistry.ClearExtension(enabled.ID)
 			s.recordEnableFailure(ctx, actor, enabled.ID, err)
 			return Extension{}, fmt.Errorf("%w: page contributions: %v", ErrPreflightFailed, err)
@@ -455,8 +477,9 @@ func (s *LifecycleService) Enable(ctx context.Context, actor identity.Actor, id 
 	}
 	auditEventID, _ := s.appendAuditReturningID(ctx, actor, audit.ActionExtensionEnable, auditMetadata)
 	if _, err := s.publishLegacyRuntimeIdentity(ctx, enabled, actor.ID, auditEventID); err != nil {
-		failure := s.compensateLegacyIdentityEnable(
-			ctx, enabled, assetMutation, queryMutation, cacheMutation, actor.ID, err,
+		failure := compensateLegacyEditorEnable(
+			s.serviceCore, ctx, enabled, assetMutation, queryMutation, cacheMutation,
+			contentMutation, editorMutation, actor.ID, err,
 		)
 		s.recordEnableFailure(ctx, actor, enabled.ID, failure)
 		return Extension{}, errors.Join(ErrRuntimeFailed, fmt.Errorf("publish runtime identity: %w", failure))
@@ -500,8 +523,16 @@ func (s *LifecycleService) DisableWithInput(ctx context.Context, actor identity.
 	defer s.assetPublicationMu.Unlock()
 	hasRuntimeQuerySurfaces := hasRuntimeQueryPublication(extension.Manifest)
 	hasRuntimeCaches := len(extension.Manifest.Cache) > 0 && s.cachePublications != nil
+	hasRuntimeContent := hasRuntimeContentPublication(extension.Manifest)
+	hasRuntimeEditor := hasRuntimeEditorPublication(extension.Manifest)
 	if hasRuntimeQuerySurfaces && s.queryPublications == nil {
 		return Extension{}, ErrRuntimeQueryPublicationUnavailable
+	}
+	if hasRuntimeContent && s.contentPublications == nil {
+		return Extension{}, ErrRuntimeContentPublicationUnavailable
+	}
+	if hasRuntimeEditor && s.lifecycle.editorPublications == nil {
+		return Extension{}, ErrRuntimeEditorPublicationUnavailable
 	}
 	assetBefore := s.captureAssetPublicationSnapshot()
 	assetMutation, err := s.quarantineExactAssetPublication(ctx, assetBefore, extension)
@@ -536,6 +567,33 @@ func (s *LifecycleService) DisableWithInput(ctx context.Context, actor identity.
 			)
 		}
 	}
+	var contentMutation RuntimeContentPublicationMutation
+	if hasRuntimeContent {
+		var quarantineErr error
+		contentMutation, quarantineErr = s.contentPublications.QuarantineRuntimeContent(ctx, extension)
+		if quarantineErr != nil || contentMutation == nil {
+			if quarantineErr == nil {
+				quarantineErr = ErrRuntimeContentPublicationUnavailable
+			}
+			if hasRuntimeCaches {
+				quarantineErr = s.compensateLegacyCacheDisable(
+					assetMutation, queryMutation, cacheMutation, nil, quarantineErr,
+				)
+			} else if hasRuntimeQuerySurfaces {
+				quarantineErr = s.compensateLegacyQueryDisable(assetMutation, queryMutation, nil, quarantineErr)
+			} else if restoreErr := s.rollbackExactAssetMutation(assetMutation); restoreErr != nil {
+				quarantineErr = errors.Join(quarantineErr, restoreErr)
+			}
+			return Extension{}, quarantineErr
+		}
+	}
+	editorMutation, err := quarantineLegacyRuntimeEditor(
+		s, ctx, extension, assetMutation, queryMutation, cacheMutation, contentMutation,
+		hasRuntimeCaches, hasRuntimeQuerySurfaces,
+	)
+	if err != nil {
+		return Extension{}, err
+	}
 	auditMetadata := map[string]any{
 		"extensionId": extension.ID,
 		"type":        extension.Type,
@@ -543,6 +601,8 @@ func (s *LifecycleService) DisableWithInput(ctx context.Context, actor identity.
 	auditEventID, _ := s.appendAuditReturningID(ctx, actor, audit.ActionExtensionDisable, auditMetadata)
 	identityMutation, err := s.quarantineLegacyRuntimeIdentity(ctx, extension, actor.ID, auditEventID)
 	if err != nil {
+		err = rollbackRuntimeEditorMutation(editorMutation, err)
+		err = rollbackRuntimeContentMutation(contentMutation, err)
 		return Extension{}, s.compensateLegacyIdentityDisable(
 			assetMutation, queryMutation, cacheMutation, nil, err,
 		)
@@ -552,15 +612,19 @@ func (s *LifecycleService) DisableWithInput(ctx context.Context, actor identity.
 			ctx, extension, assetMutation, queryMutation, cacheMutation, identityMutation, actor.ID,
 		)
 		if err != nil {
-			return Extension{}, err
+			err = rollbackRuntimeEditorMutation(editorMutation, err)
+			return Extension{}, rollbackRuntimeContentMutation(contentMutation, err)
 		}
 	} else if hasRuntimeQuerySurfaces {
 		disabled, err = s.disableLegacyQueryPlugin(ctx, extension, assetMutation, queryMutation, identityMutation, actor.ID)
 		if err != nil {
-			return Extension{}, err
+			err = rollbackRuntimeEditorMutation(editorMutation, err)
+			return Extension{}, rollbackRuntimeContentMutation(contentMutation, err)
 		}
 	} else if identityMutation != nil {
 		if err := s.clearPluginProviderSelections(ctx, extension.ID); err != nil {
+			err = rollbackRuntimeEditorMutation(editorMutation, err)
+			err = rollbackRuntimeContentMutation(contentMutation, err)
 			return Extension{}, s.compensateLegacyIdentityDisable(
 				assetMutation, nil, nil, identityMutation, err,
 			)
@@ -570,6 +634,8 @@ func (s *LifecycleService) DisableWithInput(ctx context.Context, actor identity.
 		}
 		disabled, err = s.disableLegacyPluginState(ctx, extension, actor.ID)
 		if err != nil {
+			err = rollbackRuntimeEditorMutation(editorMutation, err)
+			err = rollbackRuntimeContentMutation(contentMutation, err)
 			return Extension{}, s.compensateLegacyIdentityDisable(
 				assetMutation, nil, nil, identityMutation, err,
 			)
@@ -583,9 +649,15 @@ func (s *LifecycleService) DisableWithInput(ctx context.Context, actor identity.
 				})
 			}
 		}
+	} else if contentMutation != nil {
+		disabled, err = disableLegacyContentPlugin(s.serviceCore, ctx, extension, assetMutation, contentMutation, actor.ID)
+		if err != nil {
+			return Extension{}, rollbackRuntimeEditorMutation(editorMutation, err)
+		}
 	} else {
-		// F2.4：未绑定 Query/Cache publication 的 legacy 插件保留原有 drain 顺序。
+		// F2.4：未绑定运行时 Query/Cache/Content publication 的 legacy 插件保留原有 drain 顺序。
 		if err := s.drainPluginRuntime(ctx, extension); err != nil {
+			err = rollbackRuntimeEditorMutation(editorMutation, err)
 			if rollbackErr := s.rollbackExactAssetMutation(assetMutation); rollbackErr != nil {
 				return Extension{}, errors.Join(err, fmt.Errorf("restore asset publication after drain failure: %w", rollbackErr))
 			}
@@ -597,6 +669,7 @@ func (s *LifecycleService) DisableWithInput(ctx context.Context, actor identity.
 		}
 		disabled, err = s.disableLegacyPluginState(ctx, extension, actor.ID)
 		if err != nil {
+			err = rollbackRuntimeEditorMutation(editorMutation, err)
 			if restoreErr := s.rollbackExactAssetMutation(assetMutation); restoreErr != nil {
 				return Extension{}, errors.Join(err, fmt.Errorf("restore asset publication after disable failure: %w", restoreErr))
 			}

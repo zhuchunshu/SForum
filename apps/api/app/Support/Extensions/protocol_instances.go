@@ -189,7 +189,7 @@ func (s *ProtocolStarter) InspectInstance(identity RuntimeInstanceIdentity) (Pro
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	instance := s.runtimeInstanceLocked(identity)
-	if instance == nil {
+	if instance == nil || instance.client == nil || instance.client.Exited() {
 		return ProtocolRuntimeInstanceSnapshot{}, protocolInstanceNotFound(identity)
 	}
 	return protocolRuntimeSnapshot(instance), nil

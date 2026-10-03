@@ -88,6 +88,12 @@ func TestProductionQueryActorAuthorityRejectsInactiveMissingAndCancelledActors(t
 	if _, err := authority.ResolveProtocolV2QueryActor(context.Background(), 42); !errors.Is(err, hostapi.ErrProtocolV2QueryActorDenied) {
 		t.Fatalf("disabled actor error = %v", err)
 	}
+	store.actor.Status = identity.UserStatusBanned
+	if _, err := authority.AuthorizeProtocolV2QueryActor(
+		context.Background(), 42, queryregistry.PermissionClaim{PermissionPolicy: "sforum.shortcode.actor_decision"},
+	); !errors.Is(err, hostapi.ErrProtocolV2QueryActorDenied) {
+		t.Fatalf("banned actor error = %v", err)
+	}
 	store.actor = identity.Actor{ID: 7, Status: identity.UserStatusActive}
 	if _, err := authority.ResolveProtocolV2QueryActor(context.Background(), 42); !errors.Is(err, hostapi.ErrProtocolV2QueryActorDenied) {
 		t.Fatalf("mismatched actor error = %v", err)
@@ -100,6 +106,30 @@ func TestProductionQueryActorAuthorityRejectsInactiveMissingAndCancelledActors(t
 	cancel()
 	if _, err := authority.ResolveProtocolV2QueryActor(cancelled, 42); !errors.Is(err, context.Canceled) {
 		t.Fatalf("cancelled actor error = %v", err)
+	}
+}
+
+func TestProductionQueryActorAuthorityAllowsAnonymousOnlyForPublicAndShortcodeDecisions(t *testing.T) {
+	authority := &productionQueryActorAuthority{store: &productionQueryActorStoreStub{}}
+	resolved, err := authority.ResolveProtocolV2QueryActor(context.Background(), 0)
+	if err != nil || resolved.ActorUserID != 0 || resolved.Authenticated ||
+		resolved.ActorFingerprint != "anonymous" || resolved.PolicyFingerprint != "public" {
+		t.Fatalf("anonymous projection = %#v, %v", resolved, err)
+	}
+	for _, policy := range []string{queryregistry.PermissionPolicyPublic, "sforum.shortcode.actor_decision"} {
+		projection, authorizeErr := authority.AuthorizeProtocolV2QueryActor(
+			context.Background(), 0, queryregistry.PermissionClaim{PermissionPolicy: policy},
+		)
+		if authorizeErr != nil || projection != resolved {
+			t.Fatalf("anonymous policy %q projection=%#v err=%v", policy, projection, authorizeErr)
+		}
+	}
+	for _, policy := range []string{queryregistry.PermissionPolicyLogin, "forum.posts.edit_any"} {
+		if _, authorizeErr := authority.AuthorizeProtocolV2QueryActor(
+			context.Background(), 0, queryregistry.PermissionClaim{PermissionPolicy: policy},
+		); !errors.Is(authorizeErr, hostapi.ErrProtocolV2QueryActorDenied) {
+			t.Fatalf("anonymous policy %q error=%v", policy, authorizeErr)
+		}
 	}
 }
 

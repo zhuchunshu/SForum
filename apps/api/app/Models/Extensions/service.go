@@ -78,9 +78,9 @@ type serviceCore struct {
 	lifecycleFinalizer     LifecycleCleanupFinalizer
 	queryPublications      RuntimeQueryPublicationBoundary
 	cachePublications      RuntimeCachePublicationBoundary
+	contentPublications    RuntimeContentPublicationBoundary
 	identityPublications   RuntimeIdentityPublicationBoundary
-	// pluginMemorySampler 可选；测试注入固定 RSS 映射。nil 时用 OS 进程采样。
-	pluginMemorySampler func() map[string]uint64
+	pluginMemorySampler    func() map[string]uint64 // 测试可注入固定 RSS 映射；nil 时使用 OS 采样。
 	// settingsLifecycle 生产后台设置权威（保存/重置/导入/升级迁移）。
 	// 未注入时测试与旧路径仍走 store.ReplaceSettings。
 	settingsLifecycle SettingsLifecycleRuntime
@@ -100,7 +100,6 @@ type Service struct {
 }
 
 type CatalogService struct{ *Service }
-type LifecycleService struct{ *Service }
 
 type ThemeService struct {
 	*Service

@@ -12,12 +12,15 @@ import (
 	"strconv"
 	"strings"
 
+	publicstyles "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions/publicstyles"
 	assetregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/AssetRegistry"
 )
 
 const (
 	PublicFrontendPolicySchemaV1         = "sforum.public-frontend-policy@1"
 	PublicFrontendDocumentPolicySchemaV1 = "sforum.public-frontend-document-policy@1"
+	PublicContentStylesSchemaV1          = "sforum.public-content-styles@1"
+	PublicContentStyleScope              = "core.surface.forum-content"
 
 	maxPublicPagePolicyComponents     = 256
 	maxPublicPagePolicySources        = 256
@@ -755,6 +758,49 @@ func publicPagePolicyError(
 type PublicFrontendComponentRef struct {
 	ExtensionID string `json:"extensionId"`
 	ComponentID string `json:"componentId"`
+}
+
+// PublicContentStyleCatalog exposes exact plugin-owned CSS for the generic
+// forum content surface. Core owns loading and trust checks, not selectors.
+type PublicContentStyleCatalog struct {
+	SchemaVersion string                         `json:"schemaVersion"`
+	GraphDigest   string                         `json:"graphDigest"`
+	Styles        []PublicFrontendAssetReference `json:"styles"`
+}
+
+func (s *FrontendService) PublicContentStyles(ctx context.Context) (PublicContentStyleCatalog, error) {
+	if s == nil || ctx == nil || !s.publicL2 || s.safeMode || !s.v3TrustChallenges ||
+		s.extensions == nil || s.executableTrust == nil || s.publicAssets == nil {
+		return PublicContentStyleCatalog{}, ErrPublicFrontendUnavailable
+	}
+	snapshot := s.publicAssets.Snapshot()
+	publications, _, err := indexPublicPagePolicySnapshot(snapshot)
+	if err != nil {
+		return PublicContentStyleCatalog{}, ErrPublicFrontendUnavailable
+	}
+	plan, err := publicstyles.Plan(snapshot, PublicContentStyleScope)
+	if err != nil {
+		return PublicContentStyleCatalog{}, ErrPublicFrontendUnavailable
+	}
+	validated := make(map[string]assetregistry.Artifact)
+	extensionsByID := make(map[string]Extension)
+	styles := make([]PublicFrontendAssetReference, 0, len(plan))
+	for _, asset := range plan {
+		if err := s.validatePublicPagePolicyOwner(
+			ctx, asset.Artifact, publications, extensionsByID, validated,
+		); err != nil {
+			return PublicContentStyleCatalog{}, ErrPublicFrontendUnavailable
+		}
+		styles = append(styles, publicAssetReference(asset))
+	}
+	if current := s.publicAssets.Snapshot(); current.Digest != snapshot.Digest {
+		return PublicContentStyleCatalog{}, ErrPublicFrontendUnavailable
+	}
+	return PublicContentStyleCatalog{
+		SchemaVersion: PublicContentStylesSchemaV1,
+		GraphDigest:   snapshot.Digest,
+		Styles:        styles,
+	}, nil
 }
 
 // PublicPagePolicyForComponents expands soft component refs into exact tuples and

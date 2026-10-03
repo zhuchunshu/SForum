@@ -532,7 +532,7 @@ func (m *managerCore) removeManagedProtocolRuntimeSetLocked(ctx context.Context,
 	} else {
 		err = starter.StopInstance(ctx, identity)
 	}
-	if err != nil {
+	if err != nil && !errors.Is(err, ErrRuntimeInstanceNotFound) {
 		m.mu.Lock()
 		if current := m.runtimeInstances[identity.ExtensionID][identity.InstanceID]; current == instance {
 			current.transitioning = false

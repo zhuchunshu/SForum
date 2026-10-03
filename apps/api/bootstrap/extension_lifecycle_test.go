@@ -17,6 +17,7 @@ import (
 	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
 	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
 	componentcatalog "github.com/zhuchunshu/sforum/apps/api/app/Support/ComponentCatalog"
+	contentregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentRegistry"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
@@ -248,7 +249,9 @@ func TestProductionLifecycleStackConstructsEveryRequiredDependency(t *testing.T)
 		t.Fatalf("production core navigation snapshot = %#v", navigationSnapshot)
 	}
 	contentSnapshot := stack.ContentRegistry.Snapshot()
-	if contentSnapshot.SafeMode || len(contentSnapshot.Publications) != 0 {
+	if contentSnapshot.SafeMode || len(contentSnapshot.Publications) != 1 ||
+		!contentSnapshot.Publications[0].Artifact.Core || len(contentSnapshot.Content) != 1 ||
+		contentSnapshot.Content[0].ID != contentregistry.HostPostBodyTargetID {
 		t.Fatalf("production content registry snapshot = %#v", contentSnapshot)
 	}
 	mediaSnapshot := stack.MediaRegistry.Snapshot()
@@ -334,11 +337,12 @@ func TestProductionLifecycleStackPublishesSealedCoreQueryCatalog(t *testing.T) {
 		t.Fatalf("core artifact = %#v", artifact)
 	}
 	publication, found := stack.QueryRegistry.SnapshotPublication(hostapi.QueryRegistryCoreExtensionID)
-	if !found || publication.Artifact != artifact || len(publication.Queries) != 4 {
+	coreQueryCount := 4 + len(hostapi.ShortcodeProjectionQueryIDs())
+	if !found || publication.Artifact != artifact || len(publication.Queries) != coreQueryCount {
 		t.Fatalf("core publication = %#v found=%t", publication, found)
 	}
 	snapshot := stack.QueryRegistry.Snapshot()
-	if snapshot.Revision == 0 || snapshot.SafeMode || len(snapshot.Publications) != 1 || len(snapshot.Queries) != 4 {
+	if snapshot.Revision == 0 || snapshot.SafeMode || len(snapshot.Publications) != 1 || len(snapshot.Queries) != coreQueryCount {
 		t.Fatalf("startup query snapshot = %#v", snapshot)
 	}
 
@@ -350,13 +354,17 @@ func TestProductionLifecycleStackPublishesSealedCoreQueryCatalog(t *testing.T) {
 		"core.query.public_topic.by_id":             {pagination: queryregistry.PaginationNone},
 		"core.query.public_attachment.by_public_id": {pagination: queryregistry.PaginationNone},
 	}
+	for _, queryID := range hostapi.ShortcodeProjectionQueryIDs() {
+		want[queryID] = struct{ pagination string }{pagination: queryregistry.PaginationOffset}
+	}
 	for queryID, expect := range want {
 		resolved, err := stack.QueryRegistry.Resolve(queryID)
 		if err != nil {
 			t.Fatalf("resolve %s: %v", queryID, err)
 		}
 		if resolved.Artifact != artifact ||
-			resolved.PermissionPolicy != queryregistry.PermissionPolicyPublic ||
+			(resolved.PermissionPolicy != queryregistry.PermissionPolicyPublic &&
+				!hostapi.IsShortcodeProjectionActorPolicy(resolved.PermissionPolicy)) ||
 			resolved.Pagination != expect.pagination {
 			t.Fatalf("resolved %s = %#v", queryID, resolved)
 		}
@@ -425,7 +433,7 @@ func assertProductionLifecycleCoreQueryPreserved(
 ) {
 	t.Helper()
 	publication, found := stack.QueryRegistry.SnapshotPublication(hostapi.QueryRegistryCoreExtensionID)
-	if !found || publication.Artifact != wantArtifact || len(publication.Queries) != 4 {
+	if !found || publication.Artifact != wantArtifact || len(publication.Queries) != 4+len(hostapi.ShortcodeProjectionQueryIDs()) {
 		t.Fatalf("core query publication after restore = %#v found=%t want=%#v", publication, found, wantArtifact)
 	}
 	if stack.QueryCoreCatalog.Artifact() != wantArtifact {

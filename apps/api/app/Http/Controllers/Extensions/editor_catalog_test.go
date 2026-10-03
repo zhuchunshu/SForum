@@ -1,7 +1,9 @@
 package extensionscontroller
 
 import (
+	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -30,8 +32,12 @@ func TestPublicEditorCatalogEmptyWithoutRegistry(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d", resp.StatusCode)
 	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
 	var envelope testEnvelope[editorregistry.Catalog]
-	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+	if err := json.NewDecoder(bytes.NewReader(body)).Decode(&envelope); err != nil {
 		t.Fatal(err)
 	}
 	if envelope.Data.SchemaVersion != editorregistry.CatalogSchemaVersion {
@@ -40,6 +46,7 @@ func TestPublicEditorCatalogEmptyWithoutRegistry(t *testing.T) {
 	if len(envelope.Data.Modules) != 0 {
 		t.Fatalf("expected empty modules, got %#v", envelope.Data.Modules)
 	}
+	assertEditorCatalogArrays(t, body, 0)
 }
 
 func TestPublicEditorCatalogProjectsPublishedModules(t *testing.T) {
@@ -81,8 +88,12 @@ func TestPublicEditorCatalogProjectsPublishedModules(t *testing.T) {
 	if resp.Header.Get("X-SForum-Editor-Catalog-Digest") == "" {
 		t.Fatal("expected catalog digest header")
 	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
 	var envelope testEnvelope[editorregistry.Catalog]
-	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+	if err := json.NewDecoder(bytes.NewReader(body)).Decode(&envelope); err != nil {
 		t.Fatal(err)
 	}
 	if len(envelope.Data.Modules) != 1 {
@@ -93,5 +104,30 @@ func TestPublicEditorCatalogProjectsPublishedModules(t *testing.T) {
 		!strings.Contains(module.AssetPath, packageDigest) ||
 		module.L2Digest != moduleDigest {
 		t.Fatalf("module = %#v", module)
+	}
+	assertEditorCatalogArrays(t, body, 1)
+}
+
+func assertEditorCatalogArrays(t *testing.T, body []byte, moduleCount int) {
+	t.Helper()
+	var envelope struct {
+		Data struct {
+			Modules  []map[string]json.RawMessage `json:"modules"`
+			Toolbars json.RawMessage              `json:"toolbars"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		t.Fatal(err)
+	}
+	if len(envelope.Data.Modules) != moduleCount || len(envelope.Data.Toolbars) == 0 || envelope.Data.Toolbars[0] != '[' {
+		t.Fatalf("catalog arrays are not serialized canonically: %s", body)
+	}
+	for _, module := range envelope.Data.Modules {
+		for _, field := range []string{"nodes", "marks", "commands", "toolbars"} {
+			value := module[field]
+			if len(value) == 0 || value[0] != '[' {
+				t.Fatalf("module %s must be an array: %s", field, body)
+			}
+		}
 	}
 }

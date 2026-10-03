@@ -36,6 +36,9 @@ func (a *productionQueryActorAuthority) ResolveProtocolV2QueryActor(
 	ctx context.Context,
 	actorUserID int64,
 ) (hostapi.ProtocolV2QueryActorProjection, error) {
+	if actorUserID == 0 {
+		return productionAnonymousQueryActorProjection(), nil
+	}
 	actor, err := a.loadActiveActor(ctx, actorUserID)
 	if err != nil {
 		return hostapi.ProtocolV2QueryActorProjection{}, err
@@ -48,6 +51,13 @@ func (a *productionQueryActorAuthority) AuthorizeProtocolV2QueryActor(
 	actorUserID int64,
 	claim queryregistry.PermissionClaim,
 ) (hostapi.ProtocolV2QueryActorProjection, error) {
+	if actorUserID == 0 {
+		if claim.PermissionPolicy != queryregistry.PermissionPolicyPublic &&
+			!hostapi.IsShortcodeProjectionActorPolicy(claim.PermissionPolicy) {
+			return hostapi.ProtocolV2QueryActorProjection{}, hostapi.ErrProtocolV2QueryActorDenied
+		}
+		return productionAnonymousQueryActorProjection(), nil
+	}
 	actor, err := a.loadActiveActor(ctx, actorUserID)
 	if err != nil {
 		return hostapi.ProtocolV2QueryActorProjection{}, err
@@ -57,11 +67,18 @@ func (a *productionQueryActorAuthority) AuthorizeProtocolV2QueryActor(
 		// Delegated Query calls are authenticated. Reloading an active actor is
 		// the live Host authority check for the two built-in policies.
 	default:
-		if !actor.Can(claim.PermissionPolicy) {
+		if !hostapi.IsShortcodeProjectionActorPolicy(claim.PermissionPolicy) && !actor.Can(claim.PermissionPolicy) {
 			return hostapi.ProtocolV2QueryActorProjection{}, hostapi.ErrProtocolV2QueryActorDenied
 		}
 	}
 	return productionQueryActorProjection(actor)
+}
+
+func productionAnonymousQueryActorProjection() hostapi.ProtocolV2QueryActorProjection {
+	return hostapi.ProtocolV2QueryActorProjection{
+		ActorUserID: 0, Authenticated: false,
+		ActorFingerprint: "anonymous", PolicyFingerprint: "public",
+	}
 }
 
 func (a *productionQueryActorAuthority) loadActiveActor(ctx context.Context, actorUserID int64) (identity.Actor, error) {

@@ -203,6 +203,48 @@ func TestLifecycleContentStartupRestoreSafeModeCoreOnlyAndRevisionFence(t *testi
 	assertLifecycleContentArtifact(t, registry, expected)
 }
 
+func TestLegacyRuntimeContentPublishesQuarantinesAndRollsBackExactArtifact(t *testing.T) {
+	ctx := t.Context()
+	manager := NewManager(ManagerConfig{Starter: newManagerStagedStarter()})
+	registry := contentregistry.New()
+	extension := lifecycleContentTestExtension(t, "1.0.0", strings.Repeat("8", 64), 408)
+	if err := manager.Start(ctx, extension); err != nil {
+		t.Fatal(err)
+	}
+	boundary := NewPostgresLifecycleBoundaryRegistries(LifecycleRegistryBoundaryConfig{
+		Manager: manager, Content: registry,
+	})
+	published, err := boundary.PublishRuntimeContent(ctx, extension)
+	if err != nil || published == nil {
+		t.Fatalf("publish legacy runtime content: %v", err)
+	}
+	runtime, err := manager.ActiveRuntimeInstance(extension.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := contentregistry.Artifact{
+		ExtensionID: extension.ID, ExtensionVersion: extension.Version,
+		PackageDigest: extension.PackageDigest, VersionID: extension.ActiveVersionID,
+		RuntimeInstanceID: runtime.Identity.InstanceID,
+	}
+	assertLifecycleContentArtifact(t, registry, expected)
+
+	quarantined, err := boundary.QuarantineRuntimeContent(ctx, extension)
+	if err != nil || quarantined == nil {
+		t.Fatalf("quarantine legacy runtime content: %v", err)
+	}
+	if _, found := registry.SnapshotPublication(extension.ID); found || manager.RuntimeInstanceAvailable(runtime.Identity) {
+		t.Fatal("quarantine left content publication or runtime admission open")
+	}
+	if err := quarantined.Rollback(); err != nil {
+		t.Fatal(err)
+	}
+	assertLifecycleContentArtifact(t, registry, expected)
+	if !manager.RuntimeInstanceAvailable(runtime.Identity) {
+		t.Fatal("content rollback did not restore runtime admission")
+	}
+}
+
 func lifecycleContentTestExtension(t *testing.T, version, seed string, versionID int64) extensions.Extension {
 	t.Helper()
 	extension := lifecycleRegistryTestExtension(t, version, seed, versionID, "/content-"+strings.ReplaceAll(version, ".", "-"))

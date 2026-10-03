@@ -569,6 +569,8 @@ func newLifecycleStatePublicationTestPool(t *testing.T) *pgxpool.Pool {
 		202607160027,
 		202607160030,
 		202607160031,
+		202607270063,
+		202607300002,
 	} {
 		if _, err := provider.ApplyVersion(ctx, version, true); err != nil {
 			t.Fatalf("apply lifecycle state migration %d: %v", version, err)

@@ -369,6 +369,12 @@ func (m *RuntimeSupervisor) Status(_ context.Context, extension extensions.Exten
 			ProviderCount: len(extension.Manifest.Providers),
 		}
 	}
+	if status.State == extensions.RuntimeRunning || status.State == extensions.RuntimeDegraded {
+		if _, err := m.ActiveRuntimeInstance(extension.ID); err != nil {
+			status.State = extensions.RuntimeFailed
+			status.LastError = err.Error()
+		}
+	}
 	// F2.3：把闸门/熔断快照合并进状态，熔断打开时标 degraded。
 	return m.decorateStatus(extension.ID, status)
 }

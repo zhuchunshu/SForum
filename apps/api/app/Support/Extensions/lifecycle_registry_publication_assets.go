@@ -899,6 +899,11 @@ func extensionHasPublicAssets(extension extensions.Extension) bool {
 			return true
 		}
 	}
+	for _, editor := range manifest.Editor {
+		if strings.TrimSpace(editor.L2Module) != "" && strings.TrimSpace(editor.L2Digest) != "" {
+			return true
+		}
+	}
 	return false
 }
 

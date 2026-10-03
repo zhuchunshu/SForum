@@ -27,9 +27,11 @@ import (
 	webhooks "github.com/zhuchunshu/sforum/apps/api/app/Models/Webhooks"
 	providers "github.com/zhuchunshu/sforum/apps/api/app/Providers"
 	authsupport "github.com/zhuchunshu/sforum/apps/api/app/Support/Auth"
+	cache "github.com/zhuchunshu/sforum/apps/api/app/Support/Cache"
 	contentregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentRegistry"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	health "github.com/zhuchunshu/sforum/apps/api/app/Support/Health"
+	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	idempotency "github.com/zhuchunshu/sforum/apps/api/app/Support/Idempotency"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
@@ -290,6 +292,26 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	).WithRequiredReplayCipher(requiredReplayCipher)
 	// D3：公开详情浏览计数（与 worker 刷盘共用同一 Redis）。
 	topicViewCounter := forum.NewRedisTopicViewCounter(sharedRedisClient).WithLogger(logger)
+	contentProtocolRuntime, err := extensionsruntime.NewContentRegistryProtocolRuntime(lifecycleStack.RuntimeManager)
+	if err != nil {
+		return nil, fmt.Errorf("create Content Registry Protocol V2 runtime: %w", err)
+	}
+	forumContentFilter, err := contentregistry.NewProductionForumPostFilter(contentregistry.ForumPostFilterConfig{
+		Registry:  lifecycleStack.ContentRegistry,
+		Admission: hostapi.NewContentRegistryAdmission(contentProtocolRuntime),
+		Providers: contentProtocolRuntime,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create Forum Content Registry filter: %w", err)
+	}
+	forumShortcodes, err := contentregistry.NewForumShortcodeDispatcher(contentregistry.ForumShortcodeDispatcherConfig{
+		Registry: lifecycleStack.ContentRegistry, Admission: hostapi.NewContentRegistryAdmission(contentProtocolRuntime),
+		Providers: contentProtocolRuntime, Cache: cache.NewRedisCache(sharedRedisClient),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create Forum shortcode dispatcher: %w", err)
+	}
+	forumCachedStore = forum.WithReferenceRenderCacheInvalidator(forumCachedStore, forumShortcodes)
 	forumProvider := providers.NewForumProviderWithPublicContributions(
 		forumCachedStore,
 		optionsService,
@@ -305,10 +327,15 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		providers.NewExtensionComposerToolbarProvider(extensionService),
 		providers.NewModerationPublicationPolicy(moderationStore, optionsService),
 	).WithIdempotency(idempotencyStore).WithContentPostFilter(forum.ContentRegistryBridge{
-		Inner: contentregistry.NewForumPostFilter(lifecycleStack.ContentRegistry),
-	}).WithEditorDocumentSchema(forum.EditorRegistrySchemaBridge{
-		Registry: lifecycleStack.EditorRegistry,
-	}).WithSearchProviderAdmin(searchProviderAdminAdapter{registry: searchProviders}).
+		Inner: forumContentFilter,
+	}).WithPublicShortcodeDispatcher(forumShortcodes).
+		WithProtectedShortcodes(
+			forum.NewProtectedShortcodePolicy(identityStore, hostapi.NewPostgresShortcodePolicyProjection(pool)),
+			forumShortcodes,
+		).
+		WithEditorDocumentSchema(forum.EditorRegistrySchemaBridge{
+			Registry: lifecycleStack.EditorRegistry,
+		}).WithSearchProviderAdmin(searchProviderAdminAdapter{registry: searchProviders}).
 		WithEmailVerificationGate(emailVerificationService).
 		WithViewRecorder(topicViewCounter)
 	// 头像与附件管理共用带存储候选目录的服务实例。
@@ -399,7 +426,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	// 导航检查器复用 SiteChrome 内部 trace ring，保证合成与审计同源。
 	extensionsProvider.WithNavigationInspector(pageSiteChromeService.NavigationInspector())
 	corePageViews := pageviewmodels.NewCorePageViewModelSource(pageviewmodels.CorePageViewModelDependencies{
-		Forum: pageForumService, Profiles: pageProfileService, Notifications: notificationStore, NotificationTargets: notificationTargets,
+		Forum: forum.NewPublicReadService(pageForumService).WithShortcodeDispatcher(forumShortcodes), Profiles: pageProfileService, Notifications: notificationStore, NotificationTargets: notificationTargets,
 		Moderation: pageModerationService, Options: optionsService, Registration: pageIdentityService,
 		Sessions: identityStore, SiteChrome: pageSiteChromeService, Search: searchService,
 	})

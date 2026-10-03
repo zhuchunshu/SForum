@@ -260,6 +260,13 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 	}
 	// Content Registry：P10 声明图；Safe Mode 从首个 snapshot 起拒绝第三方。
 	contentRegistry := contentregistry.New()
+	forumPostBodyCore, err := contentregistry.ForumPostBodyCorePublication()
+	if err != nil {
+		return nil, fmt.Errorf("%w: create Forum post-body content target: %v", errProductionLifecycleDependency, err)
+	}
+	if _, err := contentRegistry.Publish(forumPostBodyCore); err != nil {
+		return nil, fmt.Errorf("%w: publish Forum post-body content target: %v", errProductionLifecycleDependency, err)
+	}
 	if config.SafeMode {
 		snapshot := contentRegistry.Snapshot()
 		if _, err := contentRegistry.ReplaceAllIfRevision(snapshot.Revision, snapshot.Publications, true); err != nil {
@@ -392,6 +399,8 @@ func (s *productionLifecycleStack) bindService(service *extensions.Service) erro
 	extensions.WithComponentRegistry(s.ComponentRegistry)(service)
 	service.BindRuntimeQueryPublications(s.Registries)
 	extensions.WithRuntimeCachePublications(s.Registries)(service)
+	extensions.WithRuntimeContentPublications(s.Registries)(service)
+	extensions.WithRuntimeEditorPublications(s.Registries)(service)
 	service.BindRuntimeIdentityPublications(s.Registries)
 	return nil
 }

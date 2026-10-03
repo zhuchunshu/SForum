@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	editorregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/EditorRegistry"
@@ -308,4 +309,143 @@ func wrapLifecycleEditorError(action string, err error) error {
 		return fmt.Errorf("%w: %s: %v", ErrLifecycleRegistryPublicationConflict, action, err)
 	}
 	return fmt.Errorf("%s: %w", action, err)
+}
+
+type runtimeEditorMutation struct {
+	mu       sync.Mutex
+	registry *editorregistry.Registry
+	before   *editorregistry.Publication
+	after    *editorregistry.Publication
+	done     bool
+}
+
+func (m *runtimeEditorMutation) Rollback() error {
+	if m == nil || m.registry == nil {
+		return extensions.ErrRuntimeEditorPublicationUnavailable
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.done {
+		return nil
+	}
+	var after *editorregistry.Artifact
+	if m.after != nil {
+		after = &m.after.Artifact
+	}
+	if _, err := restoreRuntimeEditorPublication(m.registry, after, m.before); err != nil {
+		return err
+	}
+	m.done = true
+	return nil
+}
+
+func (b *PostgresLifecycleBoundaryRegistries) PublishRuntimeEditor(
+	ctx context.Context,
+	extension extensions.Extension,
+) (extensions.RuntimeEditorPublicationMutation, error) {
+	if b == nil || b.editor == nil || ctx == nil || len(extension.Manifest.Editor) == 0 {
+		return nil, extensions.ErrRuntimeEditorPublicationUnavailable
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	desired, err := buildLifecycleEditorPublication(extension, extensions.LifecycleRuntimeBinding{
+		ExtensionID: extension.ID, ExtensionVersion: extension.Version,
+		PackageDigest: extension.PackageDigest, VersionID: extension.ActiveVersionID,
+	})
+	if err != nil || desired == nil {
+		return nil, errors.Join(extensions.ErrRuntimeEditorPublicationUnavailable, err)
+	}
+	mutation := &runtimeEditorMutation{registry: b.editor, after: desired}
+	current, found := b.editor.SnapshotPublication(extension.ID)
+	if found {
+		if !runtimeEditorArtifactCanMoveForward(current.Artifact, desired.Artifact) {
+			return nil, fmt.Errorf("%w: newer editor artifact is already active", ErrLifecycleRegistryPublicationConflict)
+		}
+		previous := current
+		mutation.before = &previous
+		if current.Artifact == desired.Artifact {
+			mutation.before = nil
+			_, err = b.editor.Publish(*desired)
+		} else {
+			_, err = b.editor.PublishIfArtifact(current.Artifact, *desired)
+		}
+	} else {
+		_, err = b.editor.Publish(*desired)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("publish exact runtime editor: %w", err)
+	}
+	return mutation, nil
+}
+
+func (b *PostgresLifecycleBoundaryRegistries) QuarantineRuntimeEditor(
+	ctx context.Context,
+	extension extensions.Extension,
+) (extensions.RuntimeEditorPublicationMutation, error) {
+	if b == nil || b.editor == nil || ctx == nil || len(extension.Manifest.Editor) == 0 {
+		return nil, extensions.ErrRuntimeEditorPublicationUnavailable
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	mutation := &runtimeEditorMutation{registry: b.editor}
+	current, found := b.editor.SnapshotPublication(extension.ID)
+	if !found {
+		return mutation, nil
+	}
+	if !runtimeEditorArtifactBelongsToExtension(current.Artifact, extension) {
+		return nil, fmt.Errorf("%w: stale disable cannot remove active editor artifact", ErrLifecycleRegistryPublicationConflict)
+	}
+	previous := current
+	mutation.before = &previous
+	if _, removed, err := b.editor.Remove(current.Artifact); err != nil || !removed {
+		_ = mutation.Rollback()
+		return nil, errors.Join(extensions.ErrRuntimeEditorPublicationUnavailable, err)
+	}
+	return mutation, nil
+}
+
+func runtimeEditorArtifactCanMoveForward(current, desired editorregistry.Artifact) bool {
+	if current.ExtensionID != desired.ExtensionID || current.Core || desired.Core || current.VersionID > desired.VersionID {
+		return false
+	}
+	return current.VersionID < desired.VersionID ||
+		(current.ExtensionVersion == desired.ExtensionVersion && current.PackageDigest == desired.PackageDigest)
+}
+
+func runtimeEditorArtifactBelongsToExtension(artifact editorregistry.Artifact, extension extensions.Extension) bool {
+	if artifact.Core || artifact.ExtensionID != extension.ID || artifact.VersionID > extension.ActiveVersionID {
+		return false
+	}
+	return artifact.VersionID < extension.ActiveVersionID ||
+		(artifact.ExtensionVersion == extension.Version && artifact.PackageDigest == extension.PackageDigest)
+}
+
+func restoreRuntimeEditorPublication(
+	registry *editorregistry.Registry,
+	after *editorregistry.Artifact,
+	before *editorregistry.Publication,
+) (bool, error) {
+	if before == nil {
+		if after == nil {
+			return false, nil
+		}
+		_, removed, err := registry.Remove(*after)
+		return removed, err
+	}
+	current, found := registry.SnapshotPublication(before.Artifact.ExtensionID)
+	if !found {
+		_, err := registry.Publish(*before)
+		return err == nil, err
+	}
+	if current.Artifact == before.Artifact {
+		_, err := registry.Publish(*before)
+		return false, err
+	}
+	if after != nil && current.Artifact == *after {
+		_, err := registry.PublishIfArtifact(*after, *before)
+		return err == nil, err
+	}
+	return false, editorregistry.ErrArtifactConflict
 }

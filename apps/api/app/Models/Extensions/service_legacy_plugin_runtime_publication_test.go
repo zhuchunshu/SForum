@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	audit "github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
 func TestLegacyServiceUsesAtomicPluginRuntimePublicationStore(t *testing.T) {
@@ -189,6 +190,115 @@ func TestLegacyServiceDesiredDisableFailureRestoresQuarantinedQuery(t *testing.T
 	}
 }
 
+func TestLegacyServicePublishesAndQuarantinesExactRuntimeContent(t *testing.T) {
+	item := legacyContentServiceFixture(t, StatusInstalled)
+	events := []string{}
+	base := &orderedQueryStore{fakeExtensionStore: newFakeExtensionStore(map[string]Extension{item.ID: item}), events: &events}
+	store := &recordingLegacyPluginRuntimeStore{orderedQueryStore: base, events: &events}
+	runtime := &orderedQueryRuntime{events: &events}
+	content := &recordingRuntimeContentPublicationBoundary{events: &events}
+	service := NewServiceWithOptions(store, t.TempDir(), "", runtime, WithRuntimeContentPublications(content))
+
+	enabled, err := service.Enable(t.Context(), extensionManager(), item.ID, EnableInput{ConfirmCapabilities: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if enabled.Status != StatusEnabled || !slices.Equal(events, []string{
+		"desired.enable", "store.enable", "runtime.start", "content.publish",
+	}) {
+		t.Fatalf("legacy content enable order=%v enabled=%+v", events, enabled)
+	}
+
+	events = events[:0]
+	disabled, err := service.Disable(t.Context(), extensionManager(), item.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if disabled.Status != StatusDisabled || !slices.Equal(events, []string{
+		"content.quarantine", "desired.disable", "store.disable", "runtime.stop",
+	}) {
+		t.Fatalf("legacy content disable order=%v disabled=%+v", events, disabled)
+	}
+}
+
+func TestLegacyContentDisableFailureRestoresPublicationAndRuntimeAdmission(t *testing.T) {
+	item := legacyContentServiceFixture(t, StatusEnabled)
+	events := []string{}
+	base := &orderedQueryStore{fakeExtensionStore: newFakeExtensionStore(map[string]Extension{item.ID: item}), events: &events}
+	store := &recordingLegacyPluginRuntimeStore{
+		orderedQueryStore: base, events: &events, disableErr: errors.New("desired disable failed"),
+	}
+	content := &recordingRuntimeContentPublicationBoundary{events: &events}
+	service := NewServiceWithOptions(
+		store, t.TempDir(), "", &orderedQueryRuntime{events: &events}, WithRuntimeContentPublications(content),
+	)
+
+	_, err := service.Disable(t.Context(), extensionManager(), item.ID)
+	if !errors.Is(err, store.disableErr) || !slices.Equal(events, []string{
+		"content.quarantine", "desired.disable", "content.rollback",
+	}) || content.rollbackCalls != 1 || store.items[item.ID].Status != StatusEnabled {
+		t.Fatalf("legacy content disable compensation err=%v events=%v content=%+v", err, events, content)
+	}
+}
+
+func TestLegacyServicePublishesAndQuarantinesExactRuntimeEditor(t *testing.T) {
+	item := legacyContentEditorServiceFixture(t, StatusInstalled)
+	events := []string{}
+	base := &orderedQueryStore{fakeExtensionStore: newFakeExtensionStore(map[string]Extension{item.ID: item}), events: &events}
+	store := &recordingLegacyPluginRuntimeStore{orderedQueryStore: base, events: &events}
+	content := &recordingRuntimeContentPublicationBoundary{events: &events}
+	editor := &recordingRuntimeEditorPublicationBoundary{events: &events}
+	service := NewServiceWithOptions(
+		store, t.TempDir(), "", &orderedQueryRuntime{events: &events},
+		WithRuntimeContentPublications(content), WithRuntimeEditorPublications(editor),
+	)
+
+	enabled, err := service.Enable(t.Context(), extensionManager(), item.ID, EnableInput{ConfirmCapabilities: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if enabled.Status != StatusEnabled || !slices.Equal(events, []string{
+		"desired.enable", "store.enable", "runtime.start", "content.publish", "editor.publish",
+	}) {
+		t.Fatalf("legacy editor enable order=%v enabled=%+v", events, enabled)
+	}
+
+	events = events[:0]
+	disabled, err := service.Disable(t.Context(), extensionManager(), item.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if disabled.Status != StatusDisabled || !slices.Equal(events, []string{
+		"content.quarantine", "editor.quarantine", "desired.disable", "store.disable", "runtime.stop",
+	}) {
+		t.Fatalf("legacy editor disable order=%v disabled=%+v", events, disabled)
+	}
+}
+
+func TestLegacyEditorPublishFailureRestoresContentAndDisablesRuntime(t *testing.T) {
+	item := legacyContentEditorServiceFixture(t, StatusInstalled)
+	events := []string{}
+	base := &orderedQueryStore{fakeExtensionStore: newFakeExtensionStore(map[string]Extension{item.ID: item}), events: &events}
+	store := &recordingLegacyPluginRuntimeStore{orderedQueryStore: base, events: &events}
+	content := &recordingRuntimeContentPublicationBoundary{events: &events}
+	editor := &recordingRuntimeEditorPublicationBoundary{events: &events, publishErr: errors.New("editor publish failed")}
+	service := NewServiceWithOptions(
+		store, t.TempDir(), "", &orderedQueryRuntime{events: &events},
+		WithRuntimeContentPublications(content), WithRuntimeEditorPublications(editor),
+	)
+
+	_, err := service.Enable(t.Context(), extensionManager(), item.ID, EnableInput{ConfirmCapabilities: true})
+	if !errors.Is(err, ErrRuntimeFailed) || !errors.Is(err, editor.publishErr) || !slices.Equal(events, []string{
+		"desired.enable", "store.enable", "runtime.start", "content.publish", "editor.publish",
+		"content.rollback", "runtime.stop", "desired.disable", "store.disable",
+	}) {
+		t.Fatalf("legacy editor publish compensation err=%v events=%v", err, events)
+	}
+	if content.rollbackCalls != 1 || store.items[item.ID].Status != StatusDisabled {
+		t.Fatalf("legacy editor publish compensation content=%+v status=%s", content, store.items[item.ID].Status)
+	}
+}
+
 func TestLegacyServiceStoreWithoutPublicationBoundaryPreservesV1(t *testing.T) {
 	item := legacyPluginRuntimeServiceFixture(t, StatusInstalled)
 	store := newFakeExtensionStore(map[string]Extension{item.ID: item})
@@ -212,6 +322,36 @@ func legacyPluginRuntimeServiceFixture(t *testing.T, status string) Extension {
 	item := legacyQueryServiceExtension(t, status)
 	item.Manifest.Queries = nil
 	item.Manifest.Cache = nil
+	refreshTrustPackageIdentity(t, &item)
+	return item
+}
+
+func legacyContentServiceFixture(t *testing.T, status string) Extension {
+	t.Helper()
+	item := completeV3TrustExtension(t, "demo.content")
+	item.Status = status
+	item.ActiveVersionID = 41
+	item.Manifest.Lifecycle = nil
+	item.Manifest.Dependencies = nil
+	item.Manifest.Queries = nil
+	item.Manifest.Cache = nil
+	refreshTrustPackageIdentity(t, &item)
+	return item
+}
+
+func legacyContentEditorServiceFixture(t *testing.T, status string) Extension {
+	t.Helper()
+	item := legacyContentServiceFixture(t, status)
+	item.Manifest.Editor = []extensionmanifest.ManifestEditor{
+		{
+			ID: item.ID + ".command.references", ContractVersion: item.ID + ".command.references@1",
+			Kind: "command", CommandKey: "openReferenceMenu",
+		},
+		{
+			ID: item.ID + ".toolbar.references", ContractVersion: item.ID + ".toolbar.references@1",
+			Kind: "toolbar", CommandID: item.ID + ".command.references", Label: "References",
+		},
+	}
 	refreshTrustPackageIdentity(t, &item)
 	return item
 }
@@ -262,6 +402,106 @@ func (s *recordingLegacyPluginRuntimeStore) DisableLegacyPluginRuntime(
 }
 
 var _ LegacyPluginRuntimePublicationStore = (*recordingLegacyPluginRuntimeStore)(nil)
+
+type recordingRuntimeContentPublicationMutation struct {
+	boundary *recordingRuntimeContentPublicationBoundary
+}
+
+func (m *recordingRuntimeContentPublicationMutation) Rollback() error {
+	m.boundary.rollbackCalls++
+	if m.boundary.events != nil {
+		*m.boundary.events = append(*m.boundary.events, "content.rollback")
+	}
+	return m.boundary.rollbackErr
+}
+
+type recordingRuntimeContentPublicationBoundary struct {
+	events          *[]string
+	publishCalls    int
+	quarantineCalls int
+	rollbackCalls   int
+	publishErr      error
+	quarantineErr   error
+	rollbackErr     error
+}
+
+type recordingRuntimeEditorPublicationMutation struct {
+	boundary *recordingRuntimeEditorPublicationBoundary
+}
+
+func (m *recordingRuntimeEditorPublicationMutation) Rollback() error {
+	m.boundary.rollbackCalls++
+	if m.boundary.events != nil {
+		*m.boundary.events = append(*m.boundary.events, "editor.rollback")
+	}
+	return m.boundary.rollbackErr
+}
+
+type recordingRuntimeEditorPublicationBoundary struct {
+	events          *[]string
+	publishCalls    int
+	quarantineCalls int
+	rollbackCalls   int
+	publishErr      error
+	quarantineErr   error
+	rollbackErr     error
+}
+
+func (b *recordingRuntimeEditorPublicationBoundary) PublishRuntimeEditor(
+	context.Context,
+	Extension,
+) (RuntimeEditorPublicationMutation, error) {
+	b.publishCalls++
+	if b.events != nil {
+		*b.events = append(*b.events, "editor.publish")
+	}
+	if b.publishErr != nil {
+		return nil, b.publishErr
+	}
+	return &recordingRuntimeEditorPublicationMutation{boundary: b}, nil
+}
+
+func (b *recordingRuntimeEditorPublicationBoundary) QuarantineRuntimeEditor(
+	context.Context,
+	Extension,
+) (RuntimeEditorPublicationMutation, error) {
+	b.quarantineCalls++
+	if b.events != nil {
+		*b.events = append(*b.events, "editor.quarantine")
+	}
+	if b.quarantineErr != nil {
+		return nil, b.quarantineErr
+	}
+	return &recordingRuntimeEditorPublicationMutation{boundary: b}, nil
+}
+
+func (b *recordingRuntimeContentPublicationBoundary) PublishRuntimeContent(
+	context.Context,
+	Extension,
+) (RuntimeContentPublicationMutation, error) {
+	b.publishCalls++
+	if b.events != nil {
+		*b.events = append(*b.events, "content.publish")
+	}
+	if b.publishErr != nil {
+		return nil, b.publishErr
+	}
+	return &recordingRuntimeContentPublicationMutation{boundary: b}, nil
+}
+
+func (b *recordingRuntimeContentPublicationBoundary) QuarantineRuntimeContent(
+	context.Context,
+	Extension,
+) (RuntimeContentPublicationMutation, error) {
+	b.quarantineCalls++
+	if b.events != nil {
+		*b.events = append(*b.events, "content.quarantine")
+	}
+	if b.quarantineErr != nil {
+		return nil, b.quarantineErr
+	}
+	return &recordingRuntimeContentPublicationMutation{boundary: b}, nil
+}
 
 type recordingRuntimeIdentityPublicationBoundary struct {
 	events                *[]string
