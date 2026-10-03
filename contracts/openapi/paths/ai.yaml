@@ -1,0 +1,99 @@
+adminAISettings:
+  get:
+    summary: Read AI gateway settings (requires ai.manage)
+    operationId: getAISettings
+    security: [{cookieAuth: []}]
+    responses:
+      '200': {description: AI gateway settings., content: {application/json: {schema: {$ref: "../schemas/ai.yaml#/ApiResponseAISettings"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+  put:
+    summary: Update AI gateway settings (requires ai.manage)
+    operationId: updateAISettings
+    security: [{cookieAuth: []}]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: "../schemas/ai.yaml#/AISettingsUpdateRequest"}
+    responses:
+      '200': {description: Saved settings., content: {application/json: {schema: {$ref: "../schemas/ai.yaml#/ApiResponseAISettings"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+      '422': {$ref: "../components/responses.yaml#/UnprocessableEntity"}
+
+adminAISettingsReset:
+  post:
+    summary: Restore recommended AI gateway defaults (requires ai.manage)
+    operationId: resetAISettings
+    security: [{cookieAuth: []}]
+    responses:
+      '200': {description: Restored settings., content: {application/json: {schema: {$ref: "../schemas/ai.yaml#/ApiResponseAISettings"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+
+adminAIUsage:
+  get:
+    summary: Read AI gateway usage for the current site (requires ai.manage)
+    operationId: getAIUsage
+    security: [{cookieAuth: []}]
+    responses:
+      '200': {description: Usage counters., content: {application/json: {schema: {$ref: "../schemas/ai.yaml#/ApiResponseAIUsage"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+
+adminAIProfileCredential:
+  put:
+    summary: Store a provider API key in the Host secret store (requires ai.manage)
+    operationId: saveAIProfileCredential
+    security: [{cookieAuth: []}]
+    parameters:
+    - name: profileId
+      in: path
+      required: true
+      schema:
+        type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: "../schemas/ai.yaml#/AIProfileCredentialRequest"}
+    responses:
+      '200': {description: Stored credential version., content: {application/json: {schema: {$ref: "../schemas/ai.yaml#/ApiResponseAIProfileCredential"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+      '404': {$ref: "../components/responses.yaml#/NotFound"}
+      '422': {$ref: "../components/responses.yaml#/UnprocessableEntity"}
+
+adminAIDiagnose:
+  post:
+    summary: Send one minimal live call to verify AI connectivity (requires ai.manage)
+    operationId: diagnoseAI
+    security: [{cookieAuth: []}]
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: {$ref: "../schemas/ai.yaml#/AIDiagnoseRequest"}
+    responses:
+      '200': {description: Diagnostic outcome., content: {application/json: {schema: {$ref: "../schemas/ai.yaml#/ApiResponseAIDiagnose"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+
+adminAIExecutions:
+  get:
+    summary: List recent AI executions for audit (requires ai.manage)
+    operationId: listAIExecutions
+    security: [{cookieAuth: []}]
+    parameters:
+    - name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+    responses:
+      '200': {description: Execution trace records., content: {application/json: {schema: {$ref: "../schemas/ai.yaml#/ApiResponseAIExecutions"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}

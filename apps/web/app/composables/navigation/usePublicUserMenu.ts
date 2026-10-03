@@ -1,5 +1,6 @@
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
 import { useAuthSession } from '~/composables/identity/useAuthSession'
+import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
 import { useApiClient } from '~/composables/useApiClient'
 import { normalizeEnabledOption, useWebOptions } from '~/composables/useWebOptions'
 
@@ -34,6 +35,7 @@ export function usePublicUserMenu() {
   const { can } = usePermissions()
   const { request } = useApiClient()
   const { webOption } = useWebOptions()
+  const adminRoutes = useAdminRoutes()
 
   const displayName = computed(() => user.value?.displayName || user.value?.username || '')
   const emailVerificationRequired = computed(() => normalizeEnabledOption(
@@ -44,6 +46,9 @@ export function usePublicUserMenu() {
     user.value && emailVerificationRequired.value && !user.value.emailVerified
   ))
   const canReviewContent = computed(() => can(FORUM_PERMISSIONS.moderationReview))
+  // 后台入口准入：super_admin 或持有 admin.access 的岗位角色（版主/运营/技术管理）。
+  // 这是 UX 辅助，后台路由与 API policy 仍是权威。
+  const canAccessAdmin = computed(() => can(FORUM_PERMISSIONS.adminAccess))
 
   const menuGroups = computed<PublicUserMenuEntry[][]>(() => {
     if (!user.value) return []
@@ -71,6 +76,15 @@ export function usePublicUserMenu() {
           icon: 'i-lucide-settings',
           to: localePath('/settings/profile')
         },
+        ...(canAccessAdmin.value
+          ? [{
+              key: 'admin',
+              label: t('nav.admin'),
+              description: t('nav.adminEntryHint'),
+              icon: 'i-lucide-layout-dashboard',
+              to: adminRoutes.path('/')
+            }]
+          : []),
         ...(canReviewContent.value
           ? [{
               key: 'moderation',

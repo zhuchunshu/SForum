@@ -156,6 +156,11 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		NameForumMentionsEnabled,
 		NameForumMentionsMaxPerPost:
 		return normalizeCommunityPolicyOption(name, value)
+	case NameClientMinimumVersion, NameClientRecommendedVersion:
+		// 客户端版本策略：空值合法（表示不限制）。
+		return normalizeClientVersion(value)
+	case NameClientUpdateNotice:
+		return normalizeClientUpdateNotice(value)
 	case NameIdentitySessionsMaxDevices:
 		// 限制在 1-20；非法值返回 false，上游保留默认值（beginner-friendly：配置错误不致功能失效）。
 		return normalizeBoundedInt(value, sessionsMaxDevicesMin, sessionsMaxDevicesMax)

@@ -1,0 +1,34 @@
+/*
+ * @提及（mention）正文令牌与预览卡片几何。
+ *
+ * 令牌样式只依赖主题 accent token，深浅色共用，落在正文语义层之外由主题覆盖；
+ * 预览层的定位由 composable 计算后作为内联样式写入，这里只声明 fixed 与层级。
+ * 卡片本体沿用 .sf-comment-user-preview，保证「点 @」与「点头像」看到同一张卡片。
+ */
+
+.sf-mention {
+  padding: 0 3px;
+  border-radius: 4px;
+  background: var(--sf-accent-soft, color-mix(in srgb, var(--sf-accent) 12%, transparent));
+  color: var(--sf-accent);
+  font-weight: 600;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.sf-mention:hover {
+  background: var(--sf-accent-soft-border, var(--sf-accent-soft, transparent));
+  text-decoration: underline;
+}
+
+.sf-mention:focus-visible {
+  background: var(--sf-accent-soft-border, var(--sf-accent-soft, transparent));
+  outline: 2px solid var(--sf-accent-focus, var(--sf-accent));
+  outline-offset: 1px;
+  text-decoration: underline;
+}
+
+.sf-mention-preview-layer {
+  position: fixed;
+  z-index: 60;
+}

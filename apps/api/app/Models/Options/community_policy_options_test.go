@@ -24,7 +24,7 @@ func TestCommunityPolicyDefaultsPresent(t *testing.T) {
 		NameTrustNewUserForbidOutboundLinks: enabledOptionValue(true),
 		NameSiteMaintenanceEnabled:          enabledOptionValue(false),
 		NameForumGuestRead:                  "public",
-		NameForumListDefaultSort:            "latest",
+		NameForumListDefaultSort:            "active",
 		NameForumMentionsEnabled:            enabledOptionValue(true),
 		NameForumMentionsMaxPerPost:         "10",
 	}

@@ -13,6 +13,7 @@ import {
   forumCategoryPath,
   forumTagPath,
   forumTagsIndexPath,
+  normalizeForumTopicSort,
   isCreatedWithinDays,
   isForumTagSlug,
   normalizeForumTagSlugInput,
@@ -166,6 +167,16 @@ describe('forum taxonomy helpers', () => {
       categorySlug: 'general',
       after: 'opaque-cursor-token'
     })
+  })
+
+  test('forwards server-side sort and omits the site default', () => {
+    // 排序是服务端契约（GET /topics?sort=latest|active|hot）；'' 表示跟随站点默认，不写参数
+    expect(buildForumTopicQuery({ sort: 'hot', page: 1 })).toEqual({ page: '1', sort: 'hot' })
+    expect(buildForumTopicQuery({ sort: 'active' })).toEqual({ sort: 'active' })
+    expect(buildForumTopicQuery({ sort: '' })).toEqual({})
+    expect(normalizeForumTopicSort('HOT')).toBe('hot')
+    expect(normalizeForumTopicSort('replies')).toBe('')
+    expect(normalizeForumTopicSort(undefined)).toBe('')
   })
 
   test('builds category and tag route paths', () => {

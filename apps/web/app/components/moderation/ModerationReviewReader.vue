@@ -63,7 +63,7 @@ const { format: formatDate } = useSiteDateTime()
         {{ t('moderation.workbench.parentTopic') }}: {{ context.parentTopic }}
       </p>
 
-      <div class="sf-prose sforum-moderation-reader__prose overflow-wrap-anywhere" v-highlight v-html="sanitizeHtml(context.html)" />
+      <div class="sf-prose sforum-moderation-reader__prose overflow-wrap-anywhere" v-highlight v-mention v-html="sanitizeHtml(context.html)" />
     </article>
   </div>
 </template>

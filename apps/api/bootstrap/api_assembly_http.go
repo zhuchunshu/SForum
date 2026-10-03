@@ -10,14 +10,31 @@ import (
 	"github.com/gofiber/fiber/v3"
 
 	httpserver "github.com/zhuchunshu/sforum/apps/api/app/Http"
+	aireply "github.com/zhuchunshu/sforum/apps/api/app/Models/AIReply"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
+	providers "github.com/zhuchunshu/sforum/apps/api/app/Providers"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	health "github.com/zhuchunshu/sforum/apps/api/app/Support/Health"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
+
+// newEmbeddedAIReplyGenerator 用 API 已装配的依赖构建回复生成器。任一依赖缺失
+// 时返回 nil，注册逻辑据此跳过：AI 回复是可选能力，缺装配时应整体关闭而不是
+// 退化成一份行为不一致的次品装配。
+func newEmbeddedAIReplyGenerator(core *apiCoreStack) *aireply.Generator {
+	if core == nil || core.aiProvider == nil || core.forumProvider == nil {
+		return nil
+	}
+	forumService := core.forumProvider.Service()
+	gateway := core.aiProvider.Gateway()
+	if forumService == nil || gateway == nil {
+		return nil
+	}
+	return providers.NewAIReplyGenerator(core.pool, core.identityStore, forumService, gateway, core.aiOrchestrator, core.aiProvider.Service())
+}
 
 // finishAPIHTTP：Fiber 应用、主题 watcher、嵌入 worker 与 API 句柄。
 func finishAPIHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, core *apiCoreStack) (*API, error) {
@@ -26,7 +43,7 @@ func finishAPIHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 	queryCacheOwnership := newQueryResultCacheStageHandoff(core.queryResultCache, logger)
 	defer queryCacheOwnership.CloseUnlessHandedOff()
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
-		RouteProviders:  []httpserver.RouteProvider{core.identityProvider, core.notificationsProvider, core.mailProvider, core.adminOverviewProvider, core.systemUpdatesProvider, core.forumProvider, core.profileProvider, core.moderationProvider, core.optionsProvider, core.siteChromeProvider, core.attachmentsProvider, core.seoProvider, core.databaseProvider, core.jobsProvider, core.extensionsProvider, core.webhooksProvider, core.entityMetaProvider, core.pagesProvider},
+		RouteProviders:  []httpserver.RouteProvider{core.identityProvider, core.notificationsProvider, core.mailProvider, core.adminOverviewProvider, core.systemUpdatesProvider, core.forumProvider, core.profileProvider, core.moderationProvider, core.optionsProvider, core.siteChromeProvider, core.attachmentsProvider, core.seoProvider, core.databaseProvider, core.jobsProvider, core.extensionsProvider, core.webhooksProvider, core.entityMetaProvider, core.pagesProvider, core.aiProvider},
 		RoutePlans:      core.lifecycleStack.RouteProviders,
 		RouteDispatcher: core.routeDispatcher,
 		RouteActors: func(c fiber.Ctx) (identity.Actor, error) {
@@ -95,6 +112,9 @@ func finishAPIHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 			// 与 API 共用 Redis：flush_view_counts 读 API 写入的 view delta。
 			HostCacheRedis: core.sharedRedisClient,
 			OwnsRuntime:    false,
+			// AI 回复复用 API 已装配的论坛服务与网关。worker 侧另建一份会得到
+			// 独立的设置与发布策略，让同样内容在两处走不同的审核判断。
+			AIReplyGenerator: newEmbeddedAIReplyGenerator(core),
 		})
 		if err != nil {
 			core.closeRouteFailureRecorder()

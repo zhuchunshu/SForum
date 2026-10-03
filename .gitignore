@@ -72,6 +72,11 @@ apps/web/node_modules/
 
 
 # Go build and test output
+# `go build ./...` 在每个扩展 backend / tests/compat 模块内生成的同名二进制
+extensions/builtin/plugins/*/backend/backend
+extensions/fixtures/plugins/*/backend/backend
+extensions/optional/plugins/*/backend/backend
+tests/compat/compat
 bin/
 *.test
 *.out

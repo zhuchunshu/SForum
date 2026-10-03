@@ -35,6 +35,7 @@ type Controller struct {
 	targets        notifications.TargetVisibilityResolver
 	previews       notifications.TargetPreviewResolver
 	subscriptions  webPushSubscriptionStore
+	pushDevices    notifications.PushDeviceStore
 	channels       ChannelRuntime
 	channelAuditor audit.IDWriter
 	outbox         *notifications.Outbox
@@ -50,7 +51,8 @@ func NewController(store notifications.Store, sessions *authsession.Manager, use
 	revisions, _ := store.(notifications.RecipientRevisionStore)
 	adminPolicy, _ := store.(notifications.AdminPolicyStore)
 	subscriptions, _ := store.(webPushSubscriptionStore)
-	return &Controller{store: store, preferences: preferences, revisions: revisions, adminPolicy: adminPolicy, subscriptions: subscriptions, sessions: sessions, users: users, creator: creator}
+	pushDevices, _ := store.(notifications.PushDeviceStore)
+	return &Controller{store: store, preferences: preferences, revisions: revisions, adminPolicy: adminPolicy, subscriptions: subscriptions, pushDevices: pushDevices, sessions: sessions, users: users, creator: creator}
 }
 
 func (h *Controller) WithAuditor(writer audit.Writer) *Controller {
@@ -94,6 +96,12 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	admin.Post("/channels/:channel/reset", h.resetChannel)
 	admin.Post("/channels/:channel/test", h.testChannel)
 	admin.Get("/deliveries", h.listChannelDeliveries)
+	// 原生推送设备注册（App / 桌面端）：自服务，只允许当前用户操作自己的设备。
+	pushDevices := api.Group("/push/devices")
+	pushDevices.Get("", h.listPushDevices)
+	pushDevices.Post("", h.registerPushDevice)
+	pushDevices.Delete("/:deviceId", h.revokePushDevice)
+
 	webPush := api.Group("/web-push")
 	webPush.Get("/config", h.webPushConfig)
 	webPush.Get("/subscriptions", h.listWebPushSubscriptions)

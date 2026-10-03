@@ -14,6 +14,11 @@ type TopicCommentSubmissionOptions = {
   /** 兼容旧高级回复链接：目标评论不在当前页时仍保留服务端 parentId。 */
   replyParentId?: Ref<number | null>
   refreshComments: () => Promise<unknown>
+  /**
+   * 回复成功后的定位回调。flat 评论流是时间流：新回复永远落在列表末尾，
+   * 不再插在被回复评论下面，所以必须由页面把视口带到新评论（跨页时先跳页）。
+   */
+  focusCreatedComment?: (comment: ForumComment) => Promise<void> | void
 }
 
 export type TopicCommentEditorContent = {
@@ -92,6 +97,13 @@ export function useTopicCommentSubmission(options: TopicCommentSubmissionOptions
       } else {
         await options.refreshComments()
         toast.add({ color: 'success', icon: 'i-lucide-check', title: t('topicDetail.replyPosted'), duration: 10000 })
+        // 时间流下新回复在列表末尾：滚动与跨页跳转由页面注入的 focusCreatedComment 承担。
+        // 定位只是 UX 增强，失败不能反过来把已成功的发布报成失败。
+        try {
+          await options.focusCreatedComment?.(created)
+        } catch {
+          // 忽略定位失败。
+        }
       }
       return created
     } catch (error) {

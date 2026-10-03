@@ -1645,6 +1645,9 @@ Comment:
       format: int64
     pathKey:
       type: string
+      description: >
+        Hierarchy path key. It defines tree-view parent/child structure and tree ordering;
+        the flat list is a time stream ordered by createdAt + id, not by this key.
     depth:
       type: integer
     replyCount:
@@ -1733,7 +1736,7 @@ CommentList:
     nextCursor:
       type: string
       description: |
-        Opaque forward cursor for view=flat (path_key + id). Pass as query `after`.
+        Opaque forward cursor for view=flat (created_at + id of the last row). Pass as query `after`.
         Omitted/empty when hasMore is false. Tree view may omit nextCursor (use page).
     extensionActions:
       type: array
@@ -2177,3 +2180,41 @@ ApiResponseCommentPage:
     code: {type: integer}
     message: {type: string}
     data: {$ref: "#/CommentPage"}
+CommentRevisionState:
+  type: object
+  description: |
+    公开评论区的修订状态（实时信号的事实来源）。
+
+    - `revision` 只表示「公开可见状态变了」，任何评论正文、作者、会话相关投影都不在其中，
+      因此可以安全地公开成 SSE 载荷与轮询降级端点。
+    - `commentCount` 与公开列表 `total` 同源（`topics.comment_count`），
+      客户端用 `commentCount - 已加载 total` 得到「有新评论」的数量。
+    - `lastCommentId` / `lastCommentCreatedAt` 是当前末尾评论，可直接作为 flat keyset
+      （`after`）的续页锚点。
+  required: [revision, commentCount]
+  properties:
+    revision:
+      type: integer
+      format: int64
+      minimum: 0
+      description: 单调递增修订号；仅作变更信号，不参与授权判断。
+    commentCount:
+      type: integer
+      format: int64
+      minimum: 0
+      description: 公开（active）评论总数，与列表 total 同口径。
+    lastCommentId:
+      type: integer
+      format: int64
+      description: 当前末尾评论 id；主题没有 active 评论时省略。
+    lastCommentCreatedAt:
+      type: string
+      format: date-time
+      description: 当前末尾评论的发表时间；与 lastCommentId 同时省略。
+ApiResponseCommentRevisionState:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data: {$ref: "#/CommentRevisionState"}

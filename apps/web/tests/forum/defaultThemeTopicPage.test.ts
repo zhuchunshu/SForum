@@ -210,6 +210,39 @@ describe('default theme V32 topic page contract', () => {
     expect(source).toContain('copyCommentLink')
   })
 
+  // 评论流是时间流：新回复落在列表末尾，页面必须把视口带到新评论（必要时先跳到所在页），
+  // 否则用户在原来的阅读位置看不到自己的回复。
+  test('lands on the created comment because the flat stream is chronological', () => {
+    const source = topicPage()
+    const anchor = sourceFile('../../app/composables/forum/useTopicCommentAnchor.ts')
+    const submission = sourceFile('../../app/composables/forum/useTopicCommentSubmission.ts')
+    const drawer = sourceFile('../../app/composables/forum/useTopicCommentComposerDrawer.ts')
+    const quickReply = sourceFile('../../app/components/forum/SFTopicReplyComposer.vue')
+
+    // 页面声明时间流契约并把锚点/定位职责交给 composable。
+    expect(source).toContain('created_at ASC, id ASC')
+    expect(source).toContain('useTopicCommentAnchor({')
+    expect(source).toContain('focusCreatedComment')
+    expect(source).toContain(':focus-created-comment="focusCreatedComment"')
+    expect(source).toContain(':flash="flashCommentId === comment.id"')
+    // 定位实现：按服务端反查的页码跳页 + #comment-<id> 锚点滚动高亮。
+    expect(anchor).toContain('async function focusCreatedComment(comment: ForumComment)')
+    expect(anchor).toContain('await forumApi.resolveCommentPage(id, comment.id)')
+    expect(anchor).toContain('hash: `#comment-${comment.id}`')
+    // 定位只在发布成功后发生：待审回复不在列表里，不能跳。
+    expect(submission).toContain('await options.focusCreatedComment?.(created)')
+    const pendingStart = submission.indexOf("created.status === 'pending'")
+    const pendingBranch = submission.slice(
+      pendingStart,
+      submission.indexOf('} else {', pendingStart)
+    )
+    expect(pendingBranch).not.toContain('focusCreatedComment')
+    expect(pendingBranch).not.toContain('refreshComments')
+    // 高级回复抽屉与快速回复共用同一实现。
+    expect(drawer).toContain('focusCreatedComment: options.focusCreatedComment')
+    expect(quickReply).toContain('focusCreatedComment: comment => props.focusCreatedComment?.(comment)')
+  })
+
   test('uses API edit marks and the complete author lock policy', () => {
     const source = topicPage()
     const heading = themeFile('app/components/forum/SFTopicHeading.vue')
@@ -239,7 +272,11 @@ describe('default theme V32 topic page contract', () => {
     expect(css).toContain('align-items: stretch')
     expect(css).toContain('.sforum-topic-page__sidebar')
     expect(css).toContain('.sforum-topic-page__post-card')
-    expect(css).toContain('padding: 0 18px;')
+    // 三栏左右内缩只由宿主壳 / 主题壳的 --sf-public-edge-inset 单一来源决定，
+    // 页面级 CSS 不得再硬编码 18px，否则 Core/Host chrome 回退路径会与顶栏轨道错位。
+    expect(css).not.toContain('padding: 0 18px;')
+    expect(css).toContain('border-right: 1px solid var(--sf-public-border)')
+    expect(css).toContain('border-left: 1px solid var(--sf-public-border)')
     expect(css).toContain('.sforum-topic-page .sf-topic-heading__title')
     expect(css).toContain('.sf-topic-side-card')
     expect(css).toContain('background: var(--sf-public-surface)')
@@ -247,9 +284,11 @@ describe('default theme V32 topic page contract', () => {
     expect(css).toContain('.sforum-topic-page__main {\n    position: sticky;\n    top: var(--sf-public-topbar-height);\n    height: calc(100vh - var(--sf-public-topbar-height));\n    min-height: 0;\n    overflow-y: auto;')
     expect(css).toContain('.sforum-topic-page__sidebar,\n  .sforum-topic-page__side {\n    position: relative;')
     expect(css).toContain('height: auto;\n    min-height: 0;\n    overflow: visible;')
+    // 列线由栏自身 1px 边框承担；旧的 ±12px 伪元素线在宿主壳路径被关闭。
     expect(css).toContain('.sforum-topic-page__sidebar::after')
-    expect(css).toContain('right: -12px')
-    expect(css).toContain('left: -12px')
+    expect(css).toContain('content: none')
+    expect(css).not.toContain('right: -12px')
+    expect(css).not.toContain('left: -12px')
     expect(css).toContain('@media (max-width: 1180px)')
     expect(css).toContain('@media (max-width: 960px)')
     expect(themePkgCss).toContain('.sforum-topic-page__layout--with-side')

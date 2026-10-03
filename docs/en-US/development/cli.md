@@ -334,16 +334,23 @@ set -a; . ../../.env; set +a   # adjust the path from apps/api as needed
 
 go run ./cmd/sforum seed:forum
 go run ./cmd/sforum seed:forum --count=100 --users=20 --comments-max=3
+go run ./cmd/sforum seed:forum --count=400 --users=60 --comments-max=8 --tags=16 --pinned=4
+go run ./cmd/sforum seed:forum --categories=0 --tags=0 --pinned=0   # users/topics/comments only
 go run ./cmd/sforum seed:forum --profile=perf-1m --dry-run
 go run ./cmd/sforum seed:forum --database-url 'postgres://…'
 ```
 
 | Feature | Notes |
 | --- | --- |
-| Writes | Append-only; repeatable |
+| Generates | Users and public profiles, category groups/categories, tags, topics (tags/pinned/views), nested comments |
+| Writes | Append-only; repeatable (existing categories/tags are skipped) |
 | Events | Does not trigger domain events |
 | Environment | **development/test only**, never against production |
 | Dependency | `DATABASE_URL` or `--database-url` |
+| Permissions | Categories/tags need a `super_admin`; on an empty database the first seeded user becomes one |
+
+Categories and tags come from a built-in catalog (site → tech → life). It exists
+only for fake data; operators can rename or delete it in the admin UI.
 
 Key `seed:forum` flags (see `--help` for the full list):
 
@@ -353,14 +360,20 @@ Key `seed:forum` flags (see `--help` for the full list):
 | `--count` | 1000 | Topic count (perf-1m default 1,000,000) |
 | `--users` | 50 | Fake users (perf-1m default 200) |
 | `--comments-max` | 5 | Max comments per regular topic (perf-1m default 0) |
-| `--categories` | 0 | perf-1m category count (default 20) |
+| `--categories` | 0 | small: first N built-in catalog categories (default 6, with groups); perf-1m: category count (default 20) |
+| `--tags` | 0 | small: built-in tags to create (default 12) |
+| `--pinned` | 0 | small: pinned topics (default 3, placed in the announcement category) |
+| `--views-max` | 0 | small: view-count ceiling for regular topics (default 500; pinned topics use `[max, 2*max)`) |
 | `--hot-comments` | 0 | perf-1m hot-thread comments (default 50000) |
 | `--hot-slug` | empty | perf-1m hot-thread slug (default `perf-hot-thread`) |
-| `--category-slug` | empty | small-mode category slug (default `general`) |
+| `--category-slug` | empty | small: pin every topic to this category (default: distributed across the catalog) |
 | `--batch` | 20 | Log/batch size (perf-1m default 5000) |
 | `--dry-run` | false | Print the plan only |
 | `--confirm-perf-db` | false | Required for non-dry-run perf-1m writes |
 | `--database-url` | env | Override `DATABASE_URL` |
+
+In the `small` profile, passing an explicit `0` for
+`--categories/--tags/--pinned/--views-max` disables that part of the dataset.
 
 `seed:perf` is an alias of `seed:forum --profile=perf-1m` with the same perf
 parameters (`--count` 1,000,000, `--users` 200, `--categories` 20,

@@ -517,6 +517,12 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (CurrentUser, err
 	if credential.Status != UserStatusActive {
 		return CurrentUser{}, ErrInvalidCredentials
 	}
+	// 机器人账号不允许交互式登录：它由系统驱动，可登录的机器人等于给所有人开了
+	// 一个冒充 AI 的入口。恢复为人类后即可正常登录。
+	if kind, kindErr := s.store.UserKindOf(ctx, credential.ID); kindErr == nil && kind.IsBot() {
+		_ = s.recordLoginFailure(ctx, loginKey, clientIP)
+		return CurrentUser{}, ErrInvalidCredentials
+	}
 	if required, err := s.loginRequiresVerification(ctx, loginKey); err != nil {
 		return CurrentUser{}, err
 	} else if required && !input.HumanVerified {
@@ -716,110 +722,6 @@ const (
 	maxAdminLocationLength    = 100
 	maxAdminWebsiteLength     = 200
 )
-
-func (s *Service) normalizeAdminUpdateUserInput(ctx context.Context, input AdminUpdateUserInput) (AdminUpdateUserInput, error) {
-	out := AdminUpdateUserInput{}
-	fields := FieldMessages{}
-
-	if input.Username != nil {
-		username := strings.TrimSpace(*input.Username)
-		usernamePolicy, err := s.resolveUsernamePolicy(ctx)
-		if err != nil {
-			return AdminUpdateUserInput{}, err
-		}
-		if username == "" {
-			addFieldMessage(fields, FieldUsername, MessageUsernameRequired)
-		} else if usernamePolicy.MinLength > 0 || usernamePolicy.MaxLength > 0 || usernamePolicy.Charset != "" || len(usernamePolicy.Reserved) > 0 {
-			if ok, reason := usernamePolicy.Validate(username); !ok {
-				addFieldMessage(fields, FieldUsername, reason)
-			}
-		}
-		out.Username = &username
-	}
-	if input.Email != nil {
-		email := strings.TrimSpace(*input.Email)
-		if email == "" {
-			addFieldMessage(fields, FieldEmail, MessageEmailRequired)
-		} else if !isValidEmail(email) {
-			addFieldMessage(fields, FieldEmail, MessageEmailInvalid)
-		}
-		out.Email = &email
-	}
-	if input.DisplayName != nil {
-		displayName := strings.TrimSpace(*input.DisplayName)
-		if displayName == "" {
-			return AdminUpdateUserInput{}, ErrInvalidUserUpdate
-		}
-		if len([]rune(displayName)) > maxAdminDisplayNameLength {
-			return AdminUpdateUserInput{}, ErrInvalidUserUpdate
-		}
-		out.DisplayName = &displayName
-	}
-	if input.Locale != nil {
-		locale := strings.TrimSpace(*input.Locale)
-		if locale == "" {
-			locale = "zh-CN"
-		}
-		// 仅接受当前产品支持的语言码，避免写入任意字符串。
-		if locale != "zh-CN" && locale != "en-US" {
-			return AdminUpdateUserInput{}, ErrInvalidUserUpdate
-		}
-		out.Locale = &locale
-	}
-	if input.Status != nil {
-		status := *input.Status
-		switch status {
-		case UserStatusActive, UserStatusDisabled, UserStatusBanned:
-			out.Status = &status
-		default:
-			return AdminUpdateUserInput{}, ErrInvalidUserUpdate
-		}
-	}
-	if input.Bio != nil {
-		bio := strings.TrimSpace(*input.Bio)
-		if len([]rune(bio)) > maxAdminBioLength {
-			return AdminUpdateUserInput{}, ErrInvalidUserUpdate
-		}
-		out.Bio = &bio
-	}
-	if input.Signature != nil {
-		signature := strings.TrimSpace(*input.Signature)
-		if len([]rune(signature)) > maxAdminSignatureLength {
-			return AdminUpdateUserInput{}, ErrInvalidUserUpdate
-		}
-		out.Signature = &signature
-	}
-	if input.Location != nil {
-		location := strings.TrimSpace(*input.Location)
-		if len([]rune(location)) > maxAdminLocationLength {
-			return AdminUpdateUserInput{}, ErrInvalidUserUpdate
-		}
-		out.Location = &location
-	}
-	if input.WebsiteURL != nil {
-		url := strings.TrimSpace(*input.WebsiteURL)
-		if len(url) > maxAdminWebsiteLength {
-			return AdminUpdateUserInput{}, ErrInvalidUserUpdate
-		}
-		if url != "" {
-			lower := strings.ToLower(url)
-			if !strings.HasPrefix(lower, "http://") && !strings.HasPrefix(lower, "https://") {
-				return AdminUpdateUserInput{}, ErrInvalidUserUpdate
-			}
-		}
-		out.WebsiteURL = &url
-	}
-
-	if len(fields) > 0 {
-		return AdminUpdateUserInput{}, NewRegisterInvalid(fields)
-	}
-	// 至少要改一个字段。
-	if out.Username == nil && out.Email == nil && out.DisplayName == nil && out.Locale == nil &&
-		out.Status == nil && out.Bio == nil && out.Signature == nil && out.Location == nil && out.WebsiteURL == nil {
-		return AdminUpdateUserInput{}, ErrInvalidUserUpdate
-	}
-	return out, nil
-}
 
 func (s *Service) CreateRole(ctx context.Context, actor Actor, input RoleInput) (Role, error) {
 	if !actor.Can(PermissionRoleManage) {

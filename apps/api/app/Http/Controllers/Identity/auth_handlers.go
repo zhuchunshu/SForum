@@ -91,6 +91,10 @@ func (h *Controller) login(c fiber.Ctx) error {
 	if err := c.Bind().Body(&req); err != nil {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
 	}
+	// 令牌请求的形状错误在签发会话前返回，避免半成功状态。
+	if err := h.validateLoginAPITokenRequest(req.IssueAPIToken); err != nil {
+		return err
+	}
 
 	loginInput := identity.LoginInput{
 		Login:    req.Login,
@@ -142,6 +146,15 @@ func (h *Controller) login(c fiber.Ctx) error {
 			c.Context(), current.ID, identity.SessionFingerprint(pendingSession.Info().SID),
 			"password", "",
 		)
+	}
+
+	// 原生/机器客户端可在同一次登录里拿到 PAT：省去 cookie 会话 + CSRF 的二次换取。
+	issued, err := h.issueLoginAPIToken(c, current.ID, req.IssueAPIToken)
+	if err != nil {
+		return err
+	}
+	if issued != nil {
+		return apphttp.OK(c, loginIssuedAPIToken{User: current, APIToken: *issued})
 	}
 
 	return apphttp.OK(c, current)

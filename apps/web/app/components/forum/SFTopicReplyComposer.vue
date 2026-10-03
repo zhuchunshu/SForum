@@ -14,6 +14,8 @@ const props = defineProps<{
   refreshComments: () => Promise<unknown>
   actorName?: string
   avatar?: AvatarView | null
+  /** 回复成功后定位到新评论（时间流末尾或跨页），与高级回复共用详情页实现。 */
+  focusCreatedComment?: (comment: ForumComment) => Promise<void> | void
 }>()
 
 const emit = defineEmits<{
@@ -33,7 +35,8 @@ const {
 } = useTopicCommentSubmission({
   topic: toRef(props, 'topic'),
   replyingTo,
-  refreshComments: props.refreshComments
+  refreshComments: props.refreshComments,
+  focusCreatedComment: comment => props.focusCreatedComment?.(comment)
 })
 
 function cancelReply() {

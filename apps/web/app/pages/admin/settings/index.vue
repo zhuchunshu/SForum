@@ -4,6 +4,7 @@ import type { AdminWebOption } from '~/composables/useWebOptions'
 import SFAdminFixedTabNav from '~/components/admin/settings/shared/SFAdminFixedTabNav.vue'
 import SFAdminSiteAccountSecurityTab from '~/components/admin/settings/site/tabs/SFAdminSiteAccountSecurityTab.vue'
 import SFAdminSiteBasicTab from '~/components/admin/settings/site/tabs/SFAdminSiteBasicTab.vue'
+import SFAdminSiteClientTab from '~/components/admin/settings/site/tabs/SFAdminSiteClientTab.vue'
 import SFAdminSiteMaintenanceTab from '~/components/admin/settings/site/tabs/SFAdminSiteMaintenanceTab.vue'
 import SFAdminSiteNewcomersTab from '~/components/admin/settings/site/tabs/SFAdminSiteNewcomersTab.vue'
 import SFAdminSiteRegistrationTab from '~/components/admin/settings/site/tabs/SFAdminSiteRegistrationTab.vue'
@@ -20,14 +21,14 @@ defineOptions({
   name: 'AdminSettings'
 })
 
-type SettingsTab = 'basic' | 'accountSecurity' | 'registration' | 'newcomers' | 'maintenance' | 'verification' | 'updates'
+type SettingsTab = 'basic' | 'accountSecurity' | 'registration' | 'newcomers' | 'maintenance' | 'client' | 'verification' | 'updates'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const { options, fetchAdminEnvelope } = useWebOptions()
 const adminPage = useAdminPage('/settings')
-const validTabs: SettingsTab[] = ['basic', 'accountSecurity', 'registration', 'newcomers', 'maintenance', 'verification', 'updates']
+const validTabs: SettingsTab[] = ['basic', 'accountSecurity', 'registration', 'newcomers', 'maintenance', 'client', 'verification', 'updates']
 const activeTab = ref<SettingsTab>(normalizeTab(route.query.tab))
 
 const tabs = computed(() => [
@@ -36,6 +37,7 @@ const tabs = computed(() => [
   { id: 'registration', label: t('admin.settings.tabs.registration'), icon: 'i-lucide-user-plus' },
   { id: 'newcomers', label: t('admin.settings.tabs.newcomers'), icon: 'i-lucide-sprout' },
   { id: 'maintenance', label: t('admin.settings.tabs.maintenance'), icon: 'i-lucide-construction' },
+  { id: 'client', label: t('admin.settings.tabs.client'), icon: 'i-lucide-smartphone' },
   { id: 'verification', label: t('admin.settings.tabs.verification'), icon: 'i-lucide-shield-check' },
   { id: 'updates', label: t('admin.settings.tabs.updates'), icon: 'i-lucide-refresh-cw' }
 ])
@@ -45,6 +47,7 @@ const tabComponents: Record<SettingsTab, Component> = {
   registration: SFAdminSiteRegistrationTab,
   newcomers: SFAdminSiteNewcomersTab,
   maintenance: SFAdminSiteMaintenanceTab,
+  client: SFAdminSiteClientTab,
   verification: SFAdminSiteVerificationTab,
   updates: SFAdminSiteUpdatesTab
 }

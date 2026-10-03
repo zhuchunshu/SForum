@@ -314,7 +314,7 @@ func (s *PostgresStore) ListActivityComments(ctx context.Context, userID int64, 
 		    SELECT count(*) FROM comments siblings
 		    WHERE siblings.topic_id = comments.topic_id
 		      AND siblings.status = 'active'
-		      AND ROW(siblings.path_key, siblings.id) < ROW(comments.path_key, comments.id)
+		      AND ROW(siblings.created_at, siblings.id) < ROW(comments.created_at, comments.id)
 		  ) AS active_before
 		FROM comments
 		JOIN posts comment_posts ON comment_posts.id = comments.content_id

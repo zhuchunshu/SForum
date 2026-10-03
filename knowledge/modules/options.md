@@ -9,6 +9,14 @@ runtime without rebuilding or restarting the application.
 
 Initial runtime option support is implemented.
 
+- **客户端版本策略（2026-10-02）：** 新增 `client.minimum_version`、
+  `client.recommended_version`、`client.update_notice` 三个 public 选项（管理权限
+  `settings.site.manage`），由 `client_version_options.go` 定义、归一化、脏数据回退与
+  校验，默认值全部为空即「不限制」。原生 App 冷启动读 `GET /web-options` 即可决定是否
+  展示强制升级页；服务端不代客户端判定升级，也不上报客户端版本。浏览器前台忽略这三
+  个键。后台入口为站点设置 → 客户端（`SFAdminSiteClientTab.vue`，含一键恢复推荐默认）。
+  决策：`decisions/2026-10-02-client-version-policy-via-public-options.md`。
+
 The 2026-07-28 architecture debt program moved option normalization into
 focused site, identity, forum, SEO, attachment, and avatar files while keeping
 `service_normalize.go` as the dispatcher. Fixed admin settings tabs own their

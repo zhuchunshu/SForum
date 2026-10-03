@@ -1,5 +1,35 @@
 [
   {
+    "id": "core.component.admin.sf_admin_ai_diagnose_tab",
+    "contractVersion": "sforum.component.admin.sf_admin_ai_diagnose_tab@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/ai/tabs/SFAdminAIDiagnoseTab.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
+    "id": "core.component.admin.sf_admin_ai_observability_tab",
+    "contractVersion": "sforum.component.admin.sf_admin_ai_observability_tab@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/ai/tabs/SFAdminAIObservabilityTab.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
+    "id": "core.component.admin.sf_admin_ai_providers_tab",
+    "contractVersion": "sforum.component.admin.sf_admin_ai_providers_tab@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/ai/tabs/SFAdminAIProvidersTab.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
     "id": "core.component.admin.sfadmin_attachment_compression_tab",
     "contractVersion": "sforum.component.admin.sfadmin_attachment_compression_tab@1",
     "kind": "component",
@@ -610,6 +640,16 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
+    "id": "core.component.admin.sf_admin_site_client_tab",
+    "contractVersion": "sforum.component.admin.sf_admin_site_client_tab@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/settings/site/tabs/SFAdminSiteClientTab.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
     "id": "core.component.admin.sfadmin_site_maintenance_tab",
     "contractVersion": "sforum.component.admin.sfadmin_site_maintenance_tab@1",
     "kind": "component",
@@ -815,6 +855,17 @@
     "kind": "page",
     "route": "/admin",
     "source": "apps/web/app/pages/admin/index.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7 Admin Surface Registry"
+  },
+  {
+    "id": "core.component.page.admin.ai",
+    "contractVersion": "sforum.component.page.admin.ai@1",
+    "kind": "page",
+    "route": "/admin/ai",
+    "source": "apps/web/app/pages/admin/ai.vue",
     "owners": [
       "admin"
     ],
@@ -1947,6 +1998,16 @@
     "targetRegistry": "P9 Component Registry"
   },
   {
+    "id": "core.component.shared.sfcomment_stream_notice",
+    "contractVersion": "sforum.component.shared.sfcomment_stream_notice@1",
+    "kind": "component",
+    "source": "apps/web/app/components/forum/SFCommentStreamNotice.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sfcomment_user_preview",
     "contractVersion": "sforum.component.shared.sfcomment_user_preview@1",
     "kind": "component",
@@ -2213,6 +2274,16 @@
     "contractVersion": "sforum.component.shared.sflogin_methods_settings_page@1",
     "kind": "component",
     "source": "apps/web/app/components/settings/SFLoginMethodsSettingsPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfmention_content",
+    "contractVersion": "sforum.component.shared.sfmention_content@1",
+    "kind": "component",
+    "source": "apps/web/app/components/forum/SFMentionContent.vue",
     "owners": [
       "public"
     ],
@@ -3023,6 +3094,16 @@
       "admin"
     ],
     "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
+    "id": "core.component.shared.sfuser_mention_preview",
+    "contractVersion": "sforum.component.shared.sfuser_mention_preview@1",
+    "kind": "component",
+    "source": "apps/web/app/components/forum/SFUserMentionPreview.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
   },
   {
     "id": "core.component.shared.sfweb_push_settings_section",

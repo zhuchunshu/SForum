@@ -45,6 +45,71 @@
    `api_token.cookie_required`；创建、删除等不安全操作使用 Cookie 会话时
    仍需 CSRF（详见下文），使用有效 PAT 时跳过 CSRF。
 
+### 3. 原生 App / 机器客户端：登录即换令牌
+
+App 不需要「登录拿 Cookie，再用 Cookie 换 Token」的两步舞，可以在登录请求中
+一次拿到 PAT：
+
+```http
+POST /api/v1/auth/login
+Content-Type: application/json
+
+{
+  "login": "alice",
+  "password": "……",
+  "issueApiToken": { "name": "SForum iOS", "scopes": ["topic.create", "post.create"] }
+}
+```
+
+- `issueApiToken` 为可选字段；省略时响应 `data` 保持 `CurrentUser` 形状（浏览器
+  路径不变）。
+- 携带时响应 `data` 为 `{ user, apiToken }`，其中 `apiToken.token` 是明文
+  `sft_…`，**只在该次响应出现一次**，客户端应立即写入 Keychain / Keystore。
+- 规则与 `POST /auth/tokens` 完全一致：`name` 必填、`scopes` 必须显式声明且是
+  当前账号权限的子集；`expiresAt` 为可选 RFC 3339 时间。越权 scope 返回
+  `422 api_token.invalid`。
+- 请求形状错误（缺 `name` → `api_token.name_required`，缺 `scopes` →
+  `api_token.scopes_required`）在会话签发前返回 `422`，不会留下半成功状态。
+- 拿到令牌后：后续请求只需 `Authorization: Bearer sft_…`，包括
+  `GET /auth/session`、通知与通知流；无需 Cookie、无需 CSRF 头。
+- 登录风控（`humanVerification`）与账号锁定策略同样作用于该路径：先按普通
+  登录处理，命中风控时补人机验证后重试同一请求即可。
+- 登出时在客户端清除本地令牌；服务端吊销仍走
+  `DELETE /auth/tokens/{tokenID}`（需浏览器会话，或用户在 `/settings/tokens`
+  页面操作）。
+
+- 客户端版本策略（`client.*`，站点设置 → 客户端）：`client.minimum_version` 低于它的
+  客户端应展示强制升级页，`client.recommended_version` 可提示升级，
+  `client.update_notice` 是升级文案；三者留空即不限制，版本比较由客户端自己完成。
+  维护状态同样在这里可读：`site.maintenance.enabled` / `site.maintenance.message`。
+
+### 4. 原生推送设备注册
+
+App 从 FCM / APNs 拿到令牌后，在登录态（或 `sft_` 令牌）下注册设备：
+
+```http
+POST /api/v1/push/devices
+Content-Type: application/json
+
+{
+  "deviceId": "0f0a1b2c-3d4e-5f60-7a8b-9c0d1e2f3a4b",
+  "platform": "ios",
+  "token": "<FCM registration token 或 APNs device token>",
+  "appVersion": "1.4.0",
+  "locale": "zh-CN",
+  "deviceName": "iPhone"
+}
+```
+
+- Core 只拥有归属与生命周期：令牌以 SHA-256 指纹（去重）+ Core 密钥密文落库，**任何响应都不回显令牌**。
+- 幂等：同一 `(platform, token)` 只保留一条记录；重复注册刷新 `lastSeenAt` 并把归属改绑到当前账号
+  （换账号登录、令牌轮换、卸载重装都走这条路径）。
+- 令牌轮换：同一 `deviceId` 上的旧令牌行会被自动撤销，避免向失效令牌投递。
+- 列出：`GET /api/v1/push/devices`（`includeRevoked=true` 含已撤销设备）。
+- 登出：`DELETE /api/v1/push/devices/{deviceId}`；返回 `404 notification.push_device_not_found`
+  表示设备不存在或不属于当前账号（不区分两者，避免暴露归属）。
+- 实际投递（FCM/APNs 发送）由通知通道 provider 插件负责，Core 不内置任何厂商 SDK。
+
 ## CSRF
 
 所有 `/api/v1` 下的不安全方法（POST/PUT/PATCH/DELETE）受 double-submit CSRF

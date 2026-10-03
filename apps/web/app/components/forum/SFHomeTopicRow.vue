@@ -61,7 +61,7 @@ const pillBase =
 <template>
   <article
     class="sf-home-topic-row min-w-0 border-b border-[var(--sf-border-light,#eef0f3)] px-3 py-3.5 transition-colors duration-100 last:border-b-0 hover:bg-[var(--sf-public-row-hover)] max-[720px]:border-0 max-[720px]:px-2 max-[720px]:py-3 max-[720px]:border-b max-[720px]:border-b-[var(--sf-public-border)]"
-    :class="topic.isPinned ? 'bg-[#f3f4f6] hover:bg-[#eceef1] dark:bg-slate-400/10 dark:hover:bg-slate-400/15' : ''"
+    :class="topic.isPinned ? 'sf-home-topic-row--pinned' : ''"
     data-sf-component="forum.topic_list_row"
   >
     <div class="sf-home-topic-row__copy min-w-0">
@@ -72,7 +72,7 @@ const pillBase =
         >
           <span
             v-if="topic.isPinned"
-            :class="[pillBase, 'bg-[#fff3bf] text-[#9a6700]']"
+            :class="[pillBase, 'sf-home-topic-row__pin-badge']"
           >
             <UIcon name="i-lucide-pin" class="size-3 shrink-0" aria-hidden="true" />
             {{ t('home.badge.pinned') }}

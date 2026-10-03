@@ -125,6 +125,7 @@ function routePolicy(route) {
   if (path === '/api/v1/admin/extensions/:id/page-bootstrap') return ['permission', 'extension.view for metadata pages; matching plugin/theme settings manage permission for declared settings views']
   if (path.startsWith('/api/v1/admin/extensions')) return ['permission', method === 'GET' ? 'extension.view or matching manage permission' : 'extension.plugin.manage or extension.theme.manage; operation-specific service policy']
   if (path.startsWith('/api/v1/admin/pages')) return ['permission', 'extension.view for inspection; theme/plugin manage and super_admin approval where required']
+  if (path.startsWith('/api/v1/admin/ai')) return ['permission', 'ai.manage']
   if (path.startsWith('/api/v1/admin/attachment-upload-policies/')) return ['permission', 'attachment.upload_policy.manage']
   if (path.startsWith('/api/v1/admin/attachment-settings') || path.startsWith('/api/v1/admin/attachment-compression-settings') || path.startsWith('/api/v1/admin/attachment-storage-instances') || path === '/api/v1/admin/attachments/compression-stats') return ['permission', 'attachment.settings.manage']
   if (path.startsWith('/api/v1/admin/attachments')) return ['permission', 'attachment.manage']
@@ -188,6 +189,7 @@ function routePolicy(route) {
   if (/^\/api\/v1\/auth\/(registration-status|register|login|password-reset)/.test(path)) return ['public', 'identity bootstrap, risk, rate-limit, and human-verification policy']
   if (path === '/api/v1/human-verification/challenge') return ['public', 'purpose allowlist and Redis rate/replay policy']
   if (path.startsWith('/api/v1/profile') && !path.startsWith('/api/v1/profiles')) return ['login', 'current active actor; attachment.upload for avatar upload']
+  if (path.startsWith('/api/v1/push/devices')) return ['login', 'current actor device ownership; ownership rechecked by service']
   if (path.startsWith('/api/v1/notifications')) return ['login', 'current recipient ownership']
   if (path.startsWith('/api/v1/notification-preferences')) return ['login', 'current recipient ownership']
   if (path === '/api/v1/moderation/reports') return ['login', 'active actor and report deduplication policy']
@@ -230,6 +232,7 @@ function routePolicy(route) {
 
 const reviewedGuardPolicies = new Map([
   ['admin.access', { kind: 'permission_any', permissions: ['admin.access'] }],
+  ['ai.manage', { kind: 'permission_any', permissions: ['ai.manage'] }],
   ['attachment.manage', { kind: 'permission_any', permissions: ['attachment.manage'] }],
   ['attachment.upload_policy.manage', { kind: 'permission_any', permissions: ['attachment.upload_policy.manage'] }],
   ['attachment.settings.manage', { kind: 'permission_any', permissions: ['attachment.settings.manage'] }],
@@ -292,6 +295,7 @@ const reviewedGuardPolicies = new Map([
   ['current active actor; attachment.upload for avatar upload', { kind: 'contextual', evaluatorId: 'core.guard.profile.self' }],
   ['current active actor; token/session ownership', { kind: 'contextual', evaluatorId: 'core.guard.identity.self_credentials' }],
   ['current active author ownership', { kind: 'contextual', evaluatorId: 'core.guard.forum.author_review' }],
+  ['current actor device ownership; ownership rechecked by service', { kind: 'login' }],
   ['current recipient ownership', { kind: 'contextual', evaluatorId: 'core.guard.notifications.recipient' }],
   ['active package containment, digest, MIME, and path policy', { kind: 'contextual', evaluatorId: 'core.guard.pages.theme_asset' }],
   ['forum public read policy; visibility rechecked by service', { kind: 'contextual', evaluatorId: 'core.guard.forum.read' }],

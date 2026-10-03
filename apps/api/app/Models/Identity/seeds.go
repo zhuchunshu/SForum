@@ -68,6 +68,10 @@ const (
 	// 见 plans/2026-07-27-github-social-login-builtin-plugin.md M3。
 	// 注：executable trust 仍为 super_admin-only，即便 provider 激活被委托。
 	PermissionIdentityProviderManage = "identity.provider.manage"
+	// PermissionAIManage 管理 AI 网关：供应商 profile、baseUrl 与密钥引用、
+	// 配额与预算、失败姿态与自动裁决开关，以及用量与执行 trace 的查看。
+	// 注：provider 密钥值本身只存在于 Secret Store，本权限不含读取明文。
+	PermissionAIManage = "ai.manage"
 )
 
 type SeedPermission struct {
@@ -124,6 +128,7 @@ var SeedPermissions = []SeedPermission{
 	{Key: PermissionJobsManage, Module: "jobs", Description: "Retry, cancel, pause, and resume background job processing."},
 	{Key: PermissionEntityMetaManage, Module: "admin", Description: "Manage entity custom field definitions and admin-visible meta values."},
 	{Key: PermissionIdentityProviderManage, Module: "identity", Description: "Activate, order, probe, and reset Host-owned external auth providers (login/registration/link). Executable trust remains super_admin-only."},
+	{Key: PermissionAIManage, Module: "ai", Description: "Manage the AI gateway: provider profiles, base URLs, credential references, quotas, budgets, failure posture, and usage audit."},
 }
 
 // SeedRoleTemplate 是内置角色模板的源码权威定义。
@@ -208,6 +213,7 @@ var SeedRoleTemplates = []SeedRoleTemplate{
 			PermissionSearchManage,
 			PermissionDatabaseManage,
 			PermissionAttachmentSettings,
+			PermissionAIManage,
 		},
 	},
 }

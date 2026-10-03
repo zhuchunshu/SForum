@@ -116,6 +116,10 @@ func (h *Controller) updateUser(c fiber.Ctx) error {
 		status := identity.UserStatus(strings.TrimSpace(*req.Status))
 		input.Status = &status
 	}
+	if req.Kind != nil {
+		kind := identity.UserKind(strings.TrimSpace(*req.Kind))
+		input.Kind = &kind
+	}
 
 	user, err := h.service.UpdateAdminUser(c.Context(), actor, userID, input)
 	if err != nil {

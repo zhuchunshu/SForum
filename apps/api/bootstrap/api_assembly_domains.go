@@ -9,7 +9,10 @@ import (
 
 	httpserver "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	notificationscontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Notifications"
+	aireplyjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/AIReply"
 	attachmentjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Attachments"
+	aireply "github.com/zhuchunshu/sforum/apps/api/app/Models/AIReply"
+	aitools "github.com/zhuchunshu/sforum/apps/api/app/Models/AITools"
 	apitokens "github.com/zhuchunshu/sforum/apps/api/app/Models/APITokens"
 	adminoverview "github.com/zhuchunshu/sforum/apps/api/app/Models/AdminOverview"
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
@@ -26,9 +29,11 @@ import (
 	systemupdates "github.com/zhuchunshu/sforum/apps/api/app/Models/SystemUpdates"
 	webhooks "github.com/zhuchunshu/sforum/apps/api/app/Models/Webhooks"
 	providers "github.com/zhuchunshu/sforum/apps/api/app/Providers"
+	supportai "github.com/zhuchunshu/sforum/apps/api/app/Support/AI"
 	authsupport "github.com/zhuchunshu/sforum/apps/api/app/Support/Auth"
 	cache "github.com/zhuchunshu/sforum/apps/api/app/Support/Cache"
 	contentregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentRegistry"
+	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	health "github.com/zhuchunshu/sforum/apps/api/app/Support/Health"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
@@ -37,6 +42,7 @@ import (
 	pages "github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 	search "github.com/zhuchunshu/sforum/apps/api/app/Support/Search"
+	secretstore "github.com/zhuchunshu/sforum/apps/api/app/Support/SecretStore"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
@@ -124,7 +130,9 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	pluginRuntimeStopTimeout := extensionPlatform.pluginRuntimeStopTimeout
 	stopPluginRuntimeCoordinator := extensionPlatform.stopPluginRuntimeCoordinator
 	closePluginRuntime := extensionPlatform.closePluginRuntime
-	notificationStore := notifications.NewPostgresStoreWithAvatar(pool, avatarOptionsAdapter{options: infrastructure.optionsService}).WithRevisionWakeups(ctx)
+	notificationStore := notifications.NewPostgresStoreWithAvatar(pool, avatarOptionsAdapter{options: infrastructure.optionsService}).
+		WithPushDeviceCipher(infrastructure.optionCipher).
+		WithRevisionWakeups(ctx)
 	closeNotificationStore := notificationStore.Close
 	mailOutbox := notifications.NewOutbox(pool, notificationStore, jobDispatcher, options.NewMailSettings(optionsService)).
 		WithDeliveryPolicyResolver(notificationStore).
@@ -154,7 +162,13 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	webhookService := webhooks.NewService(webhookStore, pool, jobDispatcher).
 		WithAllowHTTP(!strings.EqualFold(cfg.AppEnv, "production")).
 		WithCipher(optionCipher)
-	eventPublisher := webhooks.BridgePublisher{Inner: extensionRuntime, Fanout: webhookService}
+	// 发布者声明为接口：AI 回复要在这里包装它，好订阅 comment.created。
+	var eventPublisher appevents.Publisher = webhooks.BridgePublisher{Inner: extensionRuntime, Fanout: webhookService}
+	// AI 回复的触发来自事件而非论坛服务内部。包装必须发生在论坛服务创建之前，
+	// 否则论坛拿到的是未包装的发布者，事件不会到达判定。
+	aiReplyReader := aireply.NewPostgresReader(pool)
+	aiReplyTrigger := aireply.NewTrigger(providers.BotAccountAdapter{Store: identityStore}, aiReplyReader, aireplyjobs.NewEnqueuer(jobDispatcher))
+	eventPublisher = aireply.NewSubscriber(eventPublisher, aiReplyTrigger)
 	// 与 extensionService 共享同一 attachmentService 实例（禁用回落 + 候选目录 + 事件 + 存储 RPC）。
 	// MediaRegistry MIME 策略在已发布时叠加；无策略时 no-op。
 	_ = attachmentService.WithEvents(eventPublisher).
@@ -312,6 +326,10 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		return nil, fmt.Errorf("create Forum shortcode dispatcher: %w", err)
 	}
 	forumCachedStore = forum.WithReferenceRenderCacheInvalidator(forumCachedStore, forumShortcodes)
+	// 评论区实时信号：修订号由 comments 触发器维护在 topics.comment_revision 上，
+	// 唤醒来源是本进程的 LISTEN hub。hub 随 ctx 结束释放专用连接，无需额外关停顺序。
+	commentLive := forum.NewCommentLiveService(forumCachedStore).
+		WithWakeHub(forum.NewCommentRevisionHub(ctx, pool))
 	forumProvider := providers.NewForumProviderWithPublicContributions(
 		forumCachedStore,
 		optionsService,
@@ -337,7 +355,8 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 			Registry: lifecycleStack.EditorRegistry,
 		}).WithSearchProviderAdmin(searchProviderAdminAdapter{registry: searchProviders}).
 		WithEmailVerificationGate(emailVerificationService).
-		WithViewRecorder(topicViewCounter)
+		WithViewRecorder(topicViewCounter).
+		WithCommentLive(commentLive)
 	// 头像与附件管理共用带存储候选目录的服务实例。
 	avatarAttachmentService := attachmentService
 	profileProvider := providers.NewProfileProviderWithAvatarAndTabs(
@@ -350,6 +369,13 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	)
 	moderationReadModels, _ := forumCachedStore.(moderation.DecisionReadModelInvalidator)
 	moderationProvider := providers.NewModerationWorkbenchProviderWithIndexer(moderationStore, forumStore, identityStore, authSessions, searchIndexer, moderationReadModels)
+	// AI 网关：默认关闭，未启用前不产生任何出站调用。密钥只以 Secret Store
+	// 引用形式进入配置，因此这里传入的是 Host 的 Secret Store 服务。
+	var aiSecrets *secretstore.Service
+	if extensionPlatform.hostPlatform != nil {
+		aiSecrets = extensionPlatform.hostPlatform.Secrets
+	}
+	aiProvider := providers.NewAIProvider(pool, aiSecrets, identityStore, authSessions)
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
 	systemUpdatesProvider := providers.NewSystemUpdatesProvider(
 		systemupdates.NewService(options.NewSystemUpdatesSource(optionsService), systemupdates.WithLogger(logger)),
@@ -400,6 +426,26 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	})
 	pageProfileService := profile.NewServiceWithAvatar(profileStore, avatarAttachmentService, optionsService).
 		WithProfileTabs(providers.NewExtensionProfileTabProvider(extensionService))
+	// AI 只读工具：登记表归 Core，白名单归用途（forum.reply 自己声明）。工具只
+	// 复用上面这些公开读取路径，因此「机器人能读到什么」与访客一致。
+	aiToolRegistry, err := aitools.NewBuiltinRegistry(aitools.Deps{
+		Search:   searchService,
+		Topics:   forumProvider.Service(),
+		Comments: forumProvider.Service(),
+		Lister:   forumProvider.Service(),
+		Profiles: pageProfileService,
+		SiteURL: func(ctx context.Context) string {
+			value, _ := optionsService.WebOption(ctx, "site.url")
+			return value
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create ai tool registry: %w", err)
+	}
+	aiOrchestrator := supportai.NewOrchestrator(supportai.OrchestratorConfig{
+		Gateway:  aiProvider.Gateway(),
+		Registry: aiToolRegistry,
+	})
 	pageModerationService := moderation.NewServiceWithWorkbench(
 		moderationStore, moderation.NewForumTargetValidator(forumStore), moderationStore, moderationStore,
 	)
@@ -547,6 +593,8 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 
 	return &apiCoreStack{
 		adminOverviewProvider:     adminOverviewProvider,
+		aiProvider:                aiProvider,
+		aiOrchestrator:            aiOrchestrator,
 		systemUpdatesProvider:     systemUpdatesProvider,
 		apiTokenService:           apiTokenService,
 		attachmentsProvider:       attachmentsProvider,

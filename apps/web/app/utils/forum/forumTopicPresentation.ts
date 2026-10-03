@@ -135,3 +135,33 @@ export function buildCommentActionMenuItems(input: CommentActionMenuInput): Comm
   if (input.canReport) items.push({ label: input.labels.report, value: 'report', icon: 'i-lucide-flag' })
   return items.concat(input.extensions)
 }
+
+/** i18n 翻译函数签名：调用方传入 useI18n().t，保持文案表与菜单模型同层。 */
+export type PresentationTranslate = (key: string) => string
+
+export function buildTopicActionLabels(t: PresentationTranslate): TopicActionLabels {
+  return {
+    edit: t('topicDetail.edit'),
+    delete: t('topicDetail.delete'),
+    lock: t('topicDetail.lock'),
+    unlock: t('topicDetail.unlock'),
+    pin: t('topicDetail.pin'),
+    unpin: t('topicDetail.unpin'),
+    hide: t('topicDetail.hide'),
+    restore: t('topicDetail.restore'),
+    report: t('topicDetail.report')
+  }
+}
+
+export function buildCommentActionLabels(
+  t: PresentationTranslate,
+  state: { deleting?: boolean } = {}
+): CommentActionMenuInput['labels'] {
+  return {
+    reply: t('topicDetail.reply'),
+    link: t('topicDetail.commentLink'),
+    edit: t('topicDetail.edit'),
+    delete: state.deleting ? t('topicDetail.deleting') : t('topicDetail.delete'),
+    report: t('topicDetail.report')
+  }
+}

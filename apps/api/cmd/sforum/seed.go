@@ -9,8 +9,17 @@ import (
 
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	profile "github.com/zhuchunshu/sforum/apps/api/app/Models/Profile"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
 	"github.com/zhuchunshu/sforum/apps/api/config"
+)
+
+// small（默认）profile 的规模默认值：显式传 0 表示关闭该类数据。
+const (
+	defaultSmallCategoryCount = 6
+	defaultSmallTagCount      = 12
+	defaultSmallPinned        = 3
+	defaultSmallViewsMax      = 500
 )
 
 // newSeedCommand 构造 `sforum seed:forum` 子命令。
@@ -24,13 +33,20 @@ func newSeedCommand() *cobra.Command {
 	opts := seedOptions{Profile: seedProfileSmall}
 	cmd := &cobra.Command{
 		Use:   "seed:forum",
-		Short: "批量生成假论坛数据（用户、主题、评论）",
+		Short: "批量生成假论坛数据（用户、分类、标签、主题、评论）",
 		Long: `批量生成假论坛数据用于本地开发和测试。
 
 profiles:
-  small    默认。复用领域 Service 写入，适合百～千级主题。
+  small    默认。复用领域 Service 写入：用户 + 公开资料、分类分组/分类、
+           标签、主题（带标签、置顶、浏览数）与嵌套评论。适合百～千级主题。
   perf-1m  百万级读路径基线。bulk INSERT/COPY，默认约 1e6 主题、多分类、
            ≥1 帖 5e4 评论。追加生成、不触发 domain events。
+
+small 规模默认值（显式传 0 可关闭单项）:
+  --categories  ` + fmt.Sprint(defaultSmallCategoryCount) + `   内置分类目录前 N 个（含分组；公告/反馈优先）
+  --tags        ` + fmt.Sprint(defaultSmallTagCount) + `  内置标签目录前 N 个
+  --pinned      ` + fmt.Sprint(defaultSmallPinned) + `   置顶主题数（落在公告分类，使用公告文案）
+  --views-max   ` + fmt.Sprint(defaultSmallViewsMax) + ` 普通主题浏览数上限（置顶主题取 [max, 2*max)）
 
 磁盘/时间量级（perf-1m 全量）:
   ` + perfDiskOrderOfMagnitude + `
@@ -43,18 +59,26 @@ profiles:
 由于 config.Load() 只读环境变量、不读 .env，运行前需先把 .env 导入环境：
 
   set -a; . ./.env; set +a
-  go run ./cmd/sforum seed:forum --count=1000
+  go run ./cmd/sforum seed:forum --count=300 --users=60 --comments-max=8
+  go run ./cmd/sforum seed:forum --tags=0 --categories=0 --pinned=0   # 只要用户/主题/评论
   go run ./cmd/sforum seed:forum --profile=perf-1m --dry-run
   go run ./cmd/sforum seed:forum --profile=perf-1m --confirm-perf-db --database-url=...
+
+注意：分类/标签需要 super_admin 参与者；空库首次运行时第一个种子用户会成为
+super_admin，因此无需手工建管理员。
 
 或用 --database-url 显式覆盖连接串。
 
 注意：此命令面向开发/测试环境，请勿在生产数据库运行。`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// 记录哪些规模相关 flag 被显式设置，避免 perf 默认覆盖用户意图。
+			// 记录哪些规模相关 flag 被显式设置，避免默认值覆盖用户意图。
 			opts.countExplicit = cmd.Flags().Changed("count")
 			opts.usersExplicit = cmd.Flags().Changed("users")
 			opts.commentsMaxExplicit = cmd.Flags().Changed("comments-max")
+			opts.categoriesExplicit = cmd.Flags().Changed("categories")
+			opts.tagsExplicit = cmd.Flags().Changed("tags")
+			opts.pinnedExplicit = cmd.Flags().Changed("pinned")
+			opts.viewsExplicit = cmd.Flags().Changed("views-max")
 			return runSeedCommand(cmd.Context(), opts, cmd)
 		},
 	}
@@ -62,10 +86,13 @@ profiles:
 	cmd.Flags().IntVar(&opts.Count, "count", 1000, "生成的主题数量（perf-1m 默认 1000000，可覆盖为 proof seed）")
 	cmd.Flags().IntVar(&opts.Users, "users", 50, "预先创建的假用户数量（perf-1m 默认 200）")
 	cmd.Flags().IntVar(&opts.CommentsMax, "comments-max", 5, "每个普通主题最多评论数（0 表示不生成；perf-1m 默认 0）")
-	cmd.Flags().IntVar(&opts.CategoryCount, "categories", 0, "perf-1m 分类数（默认 20；small 忽略）")
+	cmd.Flags().IntVar(&opts.CategoryCount, "categories", 0, "small：创建的内置分类数（默认 6）；perf-1m：分类数（默认 20）")
+	cmd.Flags().IntVar(&opts.TagCount, "tags", 0, "small：创建的内置标签数（默认 12；0 表示不建标签）")
+	cmd.Flags().IntVar(&opts.Pinned, "pinned", 0, "small：置顶主题数（默认 3；0 表示不置顶）")
+	cmd.Flags().IntVar(&opts.ViewsMax, "views-max", 0, "small：普通主题浏览数上限（默认 500；0 表示不写浏览数）")
 	cmd.Flags().IntVar(&opts.HotComments, "hot-comments", 0, "perf-1m 热帖评论数（默认 50000）")
 	cmd.Flags().StringVar(&opts.HotSlug, "hot-slug", "", "perf-1m 热帖固定 slug（默认 perf-hot-thread）")
-	cmd.Flags().StringVar(&opts.CategorySlug, "category-slug", "", "small 模式：主题发布到的分类 slug（默认 general）")
+	cmd.Flags().StringVar(&opts.CategorySlug, "category-slug", "", "small 模式：主题固定发布到的分类 slug（默认按目录分布）")
 	cmd.Flags().StringVar(&opts.DatabaseURL, "database-url", "", "覆盖 DATABASE_URL；空则用环境变量")
 	cmd.Flags().IntVar(&opts.Batch, "batch", 20, "进度日志/批大小（small：每 N 条打日志；perf-1m：主题批大小，默认 5000）")
 	cmd.Flags().BoolVar(&opts.DryRun, "dry-run", false, "只打印计划，不写数据库")
@@ -110,6 +137,7 @@ func runSeedCommand(ctx context.Context, opts seedOptions, cmd *cobra.Command) e
 		opts.Profile = seedProfileSmall
 	}
 	applyPerfProfileDefaults(&opts, opts.countExplicit, opts.usersExplicit, opts.commentsMaxExplicit)
+	applySmallProfileDefaults(&opts, opts.categoriesExplicit, opts.tagsExplicit, opts.pinnedExplicit, opts.viewsExplicit)
 
 	if err := validateSeedOptions(&opts); err != nil {
 		return err
@@ -133,13 +161,14 @@ func runSeedCommand(ctx context.Context, opts seedOptions, cmd *cobra.Command) e
 		return runPerfSeedCommand(ctx, opts, plan, cmd)
 	}
 
-	// small：现有内存 dataset + Service 写入。
-	dataset, err := generateSeedDataset(opts, rng)
+	// small：内存 dataset + Service 写入。
+	taxonomy := resolveSeedTaxonomy(opts)
+	dataset, err := generateSeedDataset(opts, rng, taxonomy)
 	if err != nil {
 		return fmt.Errorf("generate seed dataset: %w", err)
 	}
 	if opts.DryRun {
-		printDryRun(cmd, opts, dataset)
+		printDryRun(cmd, opts, dataset, taxonomy)
 		return nil
 	}
 
@@ -158,14 +187,20 @@ func runSeedCommand(ctx context.Context, opts seedOptions, cmd *cobra.Command) e
 	defer pool.Close()
 
 	identityStore := identity.NewPostgresStore(pool)
-	forumStore := forum.NewPostgresStore(pool)
+	forumService := forum.NewService(forum.ServiceConfig{Store: forum.NewPostgresStore(pool)})
 	deps := seedDeps{
 		identityService: identity.NewService(identityStore),
-		forumService:    forum.NewService(forum.ServiceConfig{Store: forumStore}),
+		forumService:    forumService,
+		actors:          identityStore,
+		taxonomy:        forumService,
+		profiles:        profile.NewService(profile.NewPostgresStore(pool)),
+		staffActors:     newSeedStaffActorLoader(pool, identityStore),
+		postPass:        newSeedPostPass(pool),
 	}
 
-	cmd.Printf("seeding forum: %d topics, %d users, up to %d comments/topic\n", opts.Count, opts.Users, opts.CommentsMax)
-	result, err := runSeed(ctx, opts, dataset, deps, identityStore, cmd.Printf)
+	cmd.Printf("seeding forum: %d topics, %d users, up to %d comments/topic, %d categories, %d tags, %d pinned\n",
+		opts.Count, opts.Users, opts.CommentsMax, opts.CategoryCount, opts.TagCount, opts.Pinned)
+	result, err := runSeed(ctx, opts, dataset, buildSeedTaxonomyPlan(opts), deps, cmd.Printf)
 	if err != nil {
 		return err
 	}
@@ -208,6 +243,26 @@ func runPerfSeedCommand(ctx context.Context, opts seedOptions, plan perfSeedPlan
 	return nil
 }
 
+// applySmallProfileDefaults 在 profile=small 时填入默认规模。
+// 只有「用户没显式设置」的 flag 才会填默认值；显式传 0 表示关闭该项。
+func applySmallProfileDefaults(opts *seedOptions, categoriesExplicit, tagsExplicit, pinnedExplicit, viewsExplicit bool) {
+	if opts == nil || opts.Profile != seedProfileSmall {
+		return
+	}
+	if !categoriesExplicit {
+		opts.CategoryCount = defaultSmallCategoryCount
+	}
+	if !tagsExplicit {
+		opts.TagCount = defaultSmallTagCount
+	}
+	if !pinnedExplicit {
+		opts.Pinned = defaultSmallPinned
+	}
+	if !viewsExplicit {
+		opts.ViewsMax = defaultSmallViewsMax
+	}
+}
+
 // validateSeedOptions 规整并校验 flag，给出可读的边界错误。
 func validateSeedOptions(opts *seedOptions) error {
 	switch opts.Profile {
@@ -227,35 +282,64 @@ func validateSeedOptions(opts *seedOptions) error {
 	if opts.Batch < 0 {
 		return fmt.Errorf("--batch must be >= 0")
 	}
-	if opts.Profile == seedProfilePerf1m {
-		if opts.CategoryCount < 0 {
-			return fmt.Errorf("--categories must be >= 0")
-		}
-		if opts.HotComments < 0 {
-			return fmt.Errorf("--hot-comments must be >= 0")
-		}
+	if opts.CategoryCount < 0 {
+		return fmt.Errorf("--categories must be >= 0")
+	}
+	if opts.TagCount < 0 {
+		return fmt.Errorf("--tags must be >= 0")
+	}
+	if opts.Pinned < 0 {
+		return fmt.Errorf("--pinned must be >= 0")
+	}
+	if opts.ViewsMax < 0 {
+		return fmt.Errorf("--views-max must be >= 0")
+	}
+	if opts.Profile == seedProfilePerf1m && opts.HotComments < 0 {
+		return fmt.Errorf("--hot-comments must be >= 0")
 	}
 	return nil
 }
 
 // printDryRun 打印 small 模式内存计划的摘要，不连库也不写任何数据。
-func printDryRun(cmd *cobra.Command, opts seedOptions, dataset seedDataset) {
+func printDryRun(cmd *cobra.Command, opts seedOptions, dataset seedDataset, taxonomy seedTaxonomy) {
 	totalComments := 0
+	pinnedTopics := 0
+	taggedTopics := 0
 	for _, p := range dataset.Topics {
 		totalComments += len(p.Comments)
+		if p.Topic.Pinned {
+			pinnedTopics++
+		}
+		if len(p.Topic.TagSlugs) > 0 {
+			taggedTopics++
+		}
 	}
 	cmd.Printf("dry-run plan (no database writes)\n")
-	cmd.Printf("  profile:  %s\n", opts.Profile)
-	cmd.Printf("  users:    %d\n", len(dataset.Users))
-	cmd.Printf("  topics:   %d\n", len(dataset.Topics))
-	cmd.Printf("  comments: %d\n", totalComments)
+	cmd.Printf("  profile:       %s\n", opts.Profile)
+	cmd.Printf("  users:         %d (+公开资料)\n", len(dataset.Users))
+	cmd.Printf("  categories:    %d 个可发布分类（新建目录 %d 个）\n", len(taxonomy.Categories), opts.CategoryCount)
+	if len(taxonomy.Categories) > 0 {
+		cmd.Printf("    - %s\n", strings.Join(taxonomy.Categories, ", "))
+	}
+	cmd.Printf("  tags:          %d 个可用标签（新建目录 %d 个）\n", len(taxonomy.Tags), opts.TagCount)
+	if len(taxonomy.Tags) > 0 {
+		cmd.Printf("    - %s\n", strings.Join(taxonomy.Tags, ", "))
+	}
+	cmd.Printf("  topics:        %d（%d 带标签）\n", len(dataset.Topics), taggedTopics)
+	cmd.Printf("  comments:      %d (max %d/topic)\n", totalComments, opts.CommentsMax)
+	cmd.Printf("  pinned:        %d（浏览数 %d~%d）\n", pinnedTopics, opts.ViewsMax, opts.ViewsMax*2)
 	if len(dataset.Users) > 0 {
-		cmd.Printf("  sample user: %s <%s>\n", dataset.Users[0].Username, dataset.Users[0].Email)
+		cmd.Printf("  sample user:   %s <%s>\n", dataset.Users[0].Username, dataset.Users[0].Email)
 	}
 	if len(dataset.Topics) > 0 {
 		t := dataset.Topics[0].Topic
-		cmd.Printf("  sample topic: [user#%d] %s (%d body chars, %d comments)\n",
-			t.AuthorIndex, t.Title, len(t.Body), len(dataset.Topics[0].Comments))
+		cmd.Printf("  sample topic:  [user#%d] [%s] %s (%d body chars, tags=%v, %d comments, %d views)\n",
+			t.AuthorIndex, t.CategorySlug, t.Title, len(t.Body), t.TagSlugs, len(dataset.Topics[0].Comments), t.ViewCount)
+	}
+	if len(dataset.Topics) > 1 {
+		t := dataset.Topics[len(dataset.Topics)-1].Topic
+		cmd.Printf("  sample (tail): [user#%d] [%s] %s (tags=%v, %d views)\n",
+			t.AuthorIndex, t.CategorySlug, t.Title, t.TagSlugs, t.ViewCount)
 	}
 }
 

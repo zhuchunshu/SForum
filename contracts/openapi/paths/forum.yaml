@@ -1210,7 +1210,11 @@ topicComments:
       descendants per root (default 50). Truncated roots set hasMoreChildren; load more
       via listCommentReplies. Public list responses may be short-TTL Redis cached.
 
-      **分页（M5）：** view=flat 支持 keyset `after`（path_key + id）。
+      **排序：** view=flat 是时间流，按 `created_at ASC, id ASC` 返回；新评论恒在列表末尾
+      （最底楼），既有评论的位置不因他人回复而改变，回复关系由每行的 `replyTo` 引用表达。
+      view=tree 仍按 `path_key` 返回父子结构。
+
+      **分页（M5）：** view=flat 支持 keyset `after`（created_at + id）。
       **优先级：非空 `after` 优先于 `page`。** 响应含 `hasMore` / `nextCursor`。
       view=tree 根分页仍可用 page；cursor 主要用于 flat 深翻。
     parameters:
@@ -1235,8 +1239,8 @@ topicComments:
     - name: after
       in: query
       description: |
-        Forward keyset cursor for view=flat (opaque). Prefer for deep scroll.
-        Invalid cursor → 400 forum.cursor_invalid.
+        Forward keyset cursor for view=flat (opaque; created_at + id of the last row).
+        Prefer for deep scroll. Invalid cursor → 400 forum.cursor_invalid.
       schema:
         type: string
     - name: perPage
@@ -1552,3 +1556,71 @@ authorContentReview:
               "$ref": "../schemas/forum.yaml#/ApiResponseAuthorReviewList"
       '401':
         "$ref": "../components/responses.yaml#/Unauthorized"
+topicCommentRevision:
+  get:
+    summary: Read the public comment revision state
+    operationId: getTopicCommentRevision
+    description: |
+      评论区实时信号的事实来源：返回主题级修订号、公开评论总数与末尾评论。
+      客户端据此判断「有新评论」并决定补数范围，或在 SSE 不可用时降级为轮询。
+
+      只暴露修订事实（数字/时间/评论 id），不含正文、作者或任何会话相关投影。
+      与评论列表同口径：隐藏/删除主题或非公开分类统一 404，不泄漏存在性；
+      `forum.guest.read=login_required` 时未登录返回 401。
+    parameters:
+    - "$ref": "../components/parameters.yaml#/TopicID"
+    responses:
+      '200':
+        description: 当前公开评论修订状态。
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseCommentRevisionState"
+      '401':
+        description: 站点要求登录后才能浏览内容（forum.guest_login_required）。
+      '404':
+        description: 主题不存在、已隐藏/删除，或不在公开分类下。
+      '503':
+        description: 宿主未装配评论修订源（forum.comment_stream_unavailable）。
+topicCommentStream:
+  get:
+    summary: Stream topic comment revision changes (SSE)
+    operationId: streamTopicCommentRevision
+    description: |
+      以 `text/event-stream` 推送该主题的评论修订变化，实现评论区免刷新加载。
+
+      - 事件名 `revision`，`data` 是 `CommentRevisionState`，`id` 是修订号；
+        客户端可用 `Last-Event-ID` 或 `?revision=` 声明已知修订号，服务端只在变更后推送。
+      - 每 10s 发送 `: heartbeat` 注释帧；每 15s 对账一次持久修订号，
+        因此 LISTEN 通知丢失或合并都不会让客户端停在旧状态。
+      - 单连接寿命 60s，到期后服务端结束流，客户端按 EventSource 语义自动重连。
+      - 载荷只有修订事实，没有正文与身份信息；正文与权限始终由
+        `GET /topics/{topicID}/comments` 裁决。
+      - 连接预算耗尽返回 429，客户端应降级为轮询
+        `GET /topics/{topicID}/comments/revision`。
+    parameters:
+    - "$ref": "../components/parameters.yaml#/TopicID"
+    - name: revision
+      in: query
+      description: 客户端已知的修订号；与 Last-Event-ID 语义相同，显式值优先。
+      schema:
+        type: integer
+        format: int64
+        minimum: 0
+    responses:
+      '200':
+        description: |
+          SSE 流。`Content-Type: text/event-stream`，`Cache-Control: no-store, no-transform`
+          （禁止中间层缓冲或压缩改写）。
+        content:
+          text/event-stream:
+            schema:
+              type: string
+      '401':
+        description: 站点要求登录后才能浏览内容（forum.guest_login_required）。
+      '404':
+        description: 主题不存在、已隐藏/删除，或不在公开分类下。
+      '429':
+        description: 评论实时连接数已达上限（forum.comment_stream_limited）。
+      '503':
+        description: 宿主未装配评论修订源（forum.comment_stream_unavailable）。

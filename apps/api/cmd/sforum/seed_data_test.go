@@ -48,9 +48,10 @@ func TestGenerateSeedUserSuffixIsRandom(t *testing.T) {
 }
 
 func TestGenerateSeedDatasetShape(t *testing.T) {
-	opts := seedOptions{Count: 10, Users: 3, CommentsMax: 4, CategorySlug: "general"}
+	opts := seedOptions{Count: 10, Users: 3, CommentsMax: 4, CategorySlug: "general", Pinned: 2, TagCount: 4, ViewsMax: 100}
+	taxonomy := resolveSeedTaxonomy(opts)
 	rng := rand.New(rand.NewPCG(1, 2))
-	dataset, err := generateSeedDataset(opts, rng)
+	dataset, err := generateSeedDataset(opts, rng, taxonomy)
 	if err != nil {
 		t.Fatalf("generateSeedDataset returned error: %v", err)
 	}
@@ -62,6 +63,16 @@ func TestGenerateSeedDatasetShape(t *testing.T) {
 		t.Fatalf("expected 10 topics, got %d", len(dataset.Topics))
 	}
 
+	allowedCategories := map[string]bool{}
+	for _, slug := range taxonomy.Categories {
+		allowedCategories[slug] = true
+	}
+	allowedTags := map[string]bool{}
+	for _, slug := range taxonomy.Tags {
+		allowedTags[slug] = true
+	}
+	pinned := 0
+
 	// 每个主题字段必填，作者下标在合法范围。
 	for i, plan := range dataset.Topics {
 		if strings.TrimSpace(plan.Topic.Title) == "" {
@@ -72,6 +83,26 @@ func TestGenerateSeedDatasetShape(t *testing.T) {
 		}
 		if plan.Topic.AuthorIndex < 0 || plan.Topic.AuthorIndex >= opts.Users {
 			t.Fatalf("topic %d author index out of range: %d", i, plan.Topic.AuthorIndex)
+		}
+		if !allowedCategories[plan.Topic.CategorySlug] {
+			t.Fatalf("topic %d has unexpected category %q", i, plan.Topic.CategorySlug)
+		}
+		if plan.Topic.Pinned {
+			pinned++
+		}
+		// 标签必须来自目录、互不重复、且不超过每个主题的上限。
+		if len(plan.Topic.TagSlugs) > seedTagsPerTopicMax {
+			t.Fatalf("topic %d has %d tags, max %d", i, len(plan.Topic.TagSlugs), seedTagsPerTopicMax)
+		}
+		seenTags := map[string]bool{}
+		for _, slug := range plan.Topic.TagSlugs {
+			if !allowedTags[slug] {
+				t.Fatalf("topic %d has tag outside catalog: %q", i, slug)
+			}
+			if seenTags[slug] {
+				t.Fatalf("topic %d repeats tag %q", i, slug)
+			}
+			seenTags[slug] = true
 		}
 		// CommentsMax=4 → 评论数应在 [0,4]。
 		if len(plan.Comments) > opts.CommentsMax {
@@ -91,12 +122,64 @@ func TestGenerateSeedDatasetShape(t *testing.T) {
 			}
 		}
 	}
+
+	if pinned != opts.Pinned {
+		t.Fatalf("expected %d pinned topics, got %d", opts.Pinned, pinned)
+	}
+}
+
+func TestGenerateSeedDatasetDisabledTaxonomy(t *testing.T) {
+	// 显式传 0：不建分类/标签、不置顶、不写浏览数，全部落回 --category-slug。
+	opts := seedOptions{Count: 6, Users: 3, CommentsMax: 2, CategorySlug: "general", CategoryCount: 0, TagCount: 0, Pinned: 0, ViewsMax: 0}
+	taxonomy := resolveSeedTaxonomy(opts)
+	if len(taxonomy.Categories) != 1 || taxonomy.Categories[0] != "general" {
+		t.Fatalf("expected single general category, got %v", taxonomy.Categories)
+	}
+	if len(taxonomy.Tags) != 0 {
+		t.Fatalf("expected no tags, got %v", taxonomy.Tags)
+	}
+	dataset, err := generateSeedDataset(opts, rand.New(rand.NewPCG(3, 4)), taxonomy)
+	if err != nil {
+		t.Fatalf("generateSeedDataset returned error: %v", err)
+	}
+	for i, plan := range dataset.Topics {
+		if plan.Topic.CategorySlug != "general" {
+			t.Fatalf("topic %d category = %q, want general", i, plan.Topic.CategorySlug)
+		}
+		if len(plan.Topic.TagSlugs) != 0 {
+			t.Fatalf("topic %d should have no tags, got %v", i, plan.Topic.TagSlugs)
+		}
+		if plan.Topic.Pinned || plan.Topic.ViewCount != 0 {
+			t.Fatalf("topic %d should have no presentation fields, got pinned=%v views=%d", i, plan.Topic.Pinned, plan.Topic.ViewCount)
+		}
+	}
+}
+
+func TestGenerateSeedDatasetPinnedUsesAnnouncement(t *testing.T) {
+	opts := seedOptions{Count: 8, Users: 2, Pinned: defaultSmallPinned, CategoryCount: defaultSmallCategoryCount, TagCount: defaultSmallTagCount, ViewsMax: 100}
+	taxonomy := resolveSeedTaxonomy(opts)
+	dataset, err := generateSeedDataset(opts, rand.New(rand.NewPCG(5, 6)), taxonomy)
+	if err != nil {
+		t.Fatalf("generateSeedDataset returned error: %v", err)
+	}
+	for i := 0; i < defaultSmallPinned; i++ {
+		topic := dataset.Topics[i].Topic
+		if !topic.Pinned {
+			t.Fatalf("topic %d should be pinned", i)
+		}
+		if topic.CategorySlug != seedAnnouncementCategorySlug {
+			t.Fatalf("pinned topic %d category = %q, want %q", i, topic.CategorySlug, seedAnnouncementCategorySlug)
+		}
+		if topic.ViewCount < int64(opts.ViewsMax) {
+			t.Fatalf("pinned topic %d views = %d, want >= %d", i, topic.ViewCount, opts.ViewsMax)
+		}
+	}
 }
 
 func TestGenerateSeedDatasetNoCommentsWhenMaxZero(t *testing.T) {
 	opts := seedOptions{Count: 5, Users: 2, CommentsMax: 0}
 	rng := rand.New(rand.NewPCG(7, 9))
-	dataset, err := generateSeedDataset(opts, rng)
+	dataset, err := generateSeedDataset(opts, rng, resolveSeedTaxonomy(opts))
 	if err != nil {
 		t.Fatalf("generateSeedDataset returned error: %v", err)
 	}

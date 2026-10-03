@@ -107,6 +107,14 @@ authLogin:
   post:
     summary: Log in with username or email
     operationId: login
+    description: |
+      密码登录。默认只签发浏览器会话 cookie，`data` 为 `CurrentUser`。
+      携带 `issueApiToken` 时（原生 App / 机器客户端）在同一次请求内额外签发一枚
+      个人访问令牌（`sft_...`），`data` 变为 `LoginIssuedToken`（`user` + `apiToken`），
+      明文令牌只在该次响应出现一次。
+      令牌规则与 `POST /auth/tokens` 完全一致：`name` 必填、`scopes` 必须显式声明且
+      是当前账号权限的子集，签发后按 `scopes ∩ 当前权限` 收窄鉴权。
+      令牌请求的形状错误在会话签发前返回 422，不会留下半成功状态。
     requestBody:
       required: true
       content:
@@ -115,11 +123,13 @@ authLogin:
             "$ref": "../schemas/identity.yaml#/LoginRequest"
     responses:
       '200':
-        description: Session cookie issued.
+        description: |
+          登录成功。会话 cookie 签发；`data` 为 `CurrentUser`，
+          或携带 `issueApiToken` 时为 `LoginIssuedToken`。
         content:
           application/json:
             schema:
-              "$ref": "../schemas/identity.yaml#/ApiResponseCurrentUser"
+              "$ref": "../schemas/identity.yaml#/ApiResponseLogin"
       '401':
         "$ref": "../components/responses.yaml#/Unauthorized"
       '422':
@@ -660,8 +670,10 @@ userByID:
     summary: Update an admin user account and profile
     description: |
       Requires `user.manage`. Partial update for account fields (username, email,
-      displayName, locale, status) and public profile (bio, signature, location,
-      websiteUrl). Setting `status` to `banned` also requires `user.ban`.
+      displayName, locale, status, kind) and public profile (bio, signature,
+      location, websiteUrl). Setting `status` to `banned` also requires `user.ban`.
+      Setting `kind` to `bot` revokes the account's sessions and blocks interactive
+      login until it is restored to `human`.
       Operators cannot change their own status via this endpoint. Non-super-admin
       operators cannot edit super_admin accounts. Initial super admin status
       cannot be set to disabled/banned.

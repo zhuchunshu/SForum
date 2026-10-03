@@ -2,6 +2,66 @@
   "schemaVersion": 2,
   "routes": [
     {
+      "id": "core.route.notifications.list_push_devices",
+      "contractVersion": "sforum.route.notifications.list_push_devices@1",
+      "method": "GET",
+      "path": "/api/v1/push/devices"
+    },
+    {
+      "id": "core.route.notifications.register_push_device",
+      "contractVersion": "sforum.route.notifications.register_push_device@1",
+      "method": "POST",
+      "path": "/api/v1/push/devices"
+    },
+    {
+      "id": "core.route.notifications.revoke_push_device",
+      "contractVersion": "sforum.route.notifications.revoke_push_device@1",
+      "method": "DELETE",
+      "path": "/api/v1/push/devices/:deviceId"
+    },
+    {
+      "id": "core.route.ai.list_executions",
+      "contractVersion": "sforum.route.ai.list_executions@1",
+      "method": "GET",
+      "path": "/api/v1/admin/ai/executions"
+    },
+    {
+      "id": "core.route.ai.get_settings",
+      "contractVersion": "sforum.route.ai.get_settings@1",
+      "method": "GET",
+      "path": "/api/v1/admin/ai/settings"
+    },
+    {
+      "id": "core.route.ai.update_settings",
+      "contractVersion": "sforum.route.ai.update_settings@1",
+      "method": "PUT",
+      "path": "/api/v1/admin/ai/settings"
+    },
+    {
+      "id": "core.route.ai.reset_settings",
+      "contractVersion": "sforum.route.ai.reset_settings@1",
+      "method": "POST",
+      "path": "/api/v1/admin/ai/settings/reset"
+    },
+    {
+      "id": "core.route.ai.put_profile_credential",
+      "contractVersion": "sforum.route.ai.put_profile_credential@1",
+      "method": "PUT",
+      "path": "/api/v1/admin/ai/profiles/:profileId/credential"
+    },
+    {
+      "id": "core.route.ai.diagnose",
+      "contractVersion": "sforum.route.ai.diagnose@1",
+      "method": "POST",
+      "path": "/api/v1/admin/ai/diagnose"
+    },
+    {
+      "id": "core.route.ai.get_usage",
+      "contractVersion": "sforum.route.ai.get_usage@1",
+      "method": "GET",
+      "path": "/api/v1/admin/ai/usage"
+    },
+    {
       "id": "core.route.extensions.list_admin_surfaces",
       "contractVersion": "sforum.route.extensions.list_admin_surfaces@1",
       "method": "GET",
@@ -1934,6 +1994,18 @@
       "path": "/api/v1/topics/:topicID/comments/:commentID/page"
     },
     {
+      "id": "core.route.forum.topic_comment_revision",
+      "contractVersion": "sforum.route.forum.topic_comment_revision@1",
+      "method": "GET",
+      "path": "/api/v1/topics/:topicID/comments/revision"
+    },
+    {
+      "id": "core.route.forum.topic_comment_stream",
+      "contractVersion": "sforum.route.forum.topic_comment_stream@1",
+      "method": "GET",
+      "path": "/api/v1/topics/:topicID/comments/stream"
+    },
+    {
       "id": "core.route.forum.topic_contribution_timeline",
       "contractVersion": "sforum.route.forum.topic_contribution_timeline@1",
       "method": "GET",
@@ -2085,6 +2157,46 @@
     }
   ],
   "ui": [
+    {
+      "id": "core.component.admin.sf_admin_ai_diagnose_tab",
+      "contractVersion": "sforum.component.admin.sf_admin_ai_diagnose_tab@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/ai/tabs/SFAdminAIDiagnoseTab.vue"
+    },
+    {
+      "id": "core.component.admin.sf_admin_ai_observability_tab",
+      "contractVersion": "sforum.component.admin.sf_admin_ai_observability_tab@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/ai/tabs/SFAdminAIObservabilityTab.vue"
+    },
+    {
+      "id": "core.component.admin.sf_admin_ai_providers_tab",
+      "contractVersion": "sforum.component.admin.sf_admin_ai_providers_tab@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/ai/tabs/SFAdminAIProvidersTab.vue"
+    },
+    {
+      "id": "core.component.admin.sf_admin_site_client_tab",
+      "contractVersion": "sforum.component.admin.sf_admin_site_client_tab@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/settings/site/tabs/SFAdminSiteClientTab.vue"
+    },
     {
       "id": "core.component.admin.sf_admin_forum_comment_editor",
       "contractVersion": "sforum.component.admin.sf_admin_forum_comment_editor@1",
@@ -2379,7 +2491,9 @@
       "id": "core.component.admin.sfadmin_attachment_settings_tab",
       "contractVersion": "sforum.component.admin.sfadmin_attachment_settings_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/attachments/tabs/SFAdminAttachmentSettingsTab.vue"
     },
@@ -2387,7 +2501,9 @@
       "id": "core.component.admin.sfadmin_attachment_upload_policies_tab",
       "contractVersion": "sforum.component.admin.sfadmin_attachment_upload_policies_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/attachments/tabs/SFAdminAttachmentUploadPoliciesTab.vue"
     },
@@ -2395,7 +2511,9 @@
       "id": "core.component.admin.sfadmin_forum_tab_frame",
       "contractVersion": "sforum.component.admin.sfadmin_forum_tab_frame@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/forum/SFAdminForumTabFrame.vue"
     },
@@ -2403,7 +2521,9 @@
       "id": "core.component.admin.sfadmin_forum_behavior_tab",
       "contractVersion": "sforum.component.admin.sfadmin_forum_behavior_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/forum/tabs/SFAdminForumBehaviorTab.vue"
     },
@@ -2411,7 +2531,9 @@
       "id": "core.component.admin.sfadmin_forum_comments_tab",
       "contractVersion": "sforum.component.admin.sfadmin_forum_comments_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/forum/tabs/SFAdminForumCommentsTab.vue"
     },
@@ -2419,7 +2541,9 @@
       "id": "core.component.admin.sfadmin_forum_general_tab",
       "contractVersion": "sforum.component.admin.sfadmin_forum_general_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/forum/tabs/SFAdminForumGeneralTab.vue"
     },
@@ -2427,7 +2551,9 @@
       "id": "core.component.admin.sfadmin_forum_reading_tab",
       "contractVersion": "sforum.component.admin.sfadmin_forum_reading_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/forum/tabs/SFAdminForumReadingTab.vue"
     },
@@ -2435,7 +2561,9 @@
       "id": "core.component.admin.sfadmin_forum_search_tab",
       "contractVersion": "sforum.component.admin.sfadmin_forum_search_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/forum/tabs/SFAdminForumSearchTab.vue"
     },
@@ -2443,7 +2571,9 @@
       "id": "core.component.admin.sfadmin_forum_tags_tab",
       "contractVersion": "sforum.component.admin.sfadmin_forum_tags_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/forum/tabs/SFAdminForumTagsTab.vue"
     },
@@ -2451,7 +2581,9 @@
       "id": "core.component.admin.sfadmin_forum_topics_tab",
       "contractVersion": "sforum.component.admin.sfadmin_forum_topics_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/forum/tabs/SFAdminForumTopicsTab.vue"
     },
@@ -2459,7 +2591,9 @@
       "id": "core.component.admin.sfadmin_mail_deliveries_tab",
       "contractVersion": "sforum.component.admin.sfadmin_mail_deliveries_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/mail/tabs/SFAdminMailDeliveriesTab.vue"
     },
@@ -2467,7 +2601,9 @@
       "id": "core.component.admin.sfadmin_mail_notifications_tab",
       "contractVersion": "sforum.component.admin.sfadmin_mail_notifications_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/mail/tabs/SFAdminMailNotificationsTab.vue"
     },
@@ -2475,7 +2611,9 @@
       "id": "core.component.admin.sfadmin_mail_overview_tab",
       "contractVersion": "sforum.component.admin.sfadmin_mail_overview_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/mail/tabs/SFAdminMailOverviewTab.vue"
     },
@@ -2483,7 +2621,9 @@
       "id": "core.component.admin.sfadmin_mail_provider_tab",
       "contractVersion": "sforum.component.admin.sfadmin_mail_provider_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/mail/tabs/SFAdminMailProviderTab.vue"
     },
@@ -2491,7 +2631,9 @@
       "id": "core.component.admin.sfadmin_notification_policy_page",
       "contractVersion": "sforum.component.admin.sfadmin_notification_policy_page@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/notifications/SFAdminNotificationPolicyPage.vue"
     },
@@ -2499,7 +2641,9 @@
       "id": "core.component.admin.sfadmin_notification_channels",
       "contractVersion": "sforum.component.admin.sfadmin_notification_channels@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/notifications/SFAdminNotificationChannels.vue"
     },
@@ -2507,7 +2651,9 @@
       "id": "core.component.admin.sfadmin_personalization_announcements_tab",
       "contractVersion": "sforum.component.admin.sfadmin_personalization_announcements_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/personalization/tabs/SFAdminPersonalizationAnnouncementsTab.vue"
     },
@@ -2515,7 +2661,9 @@
       "id": "core.component.admin.sfadmin_personalization_appearance_tab",
       "contractVersion": "sforum.component.admin.sfadmin_personalization_appearance_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/personalization/tabs/SFAdminPersonalizationAppearanceTab.vue"
     },
@@ -2523,7 +2671,9 @@
       "id": "core.component.admin.sfadmin_personalization_brand_tab",
       "contractVersion": "sforum.component.admin.sfadmin_personalization_brand_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/personalization/tabs/SFAdminPersonalizationBrandTab.vue"
     },
@@ -2531,7 +2681,9 @@
       "id": "core.component.admin.sfadmin_personalization_friend_links_tab",
       "contractVersion": "sforum.component.admin.sfadmin_personalization_friend_links_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/personalization/tabs/SFAdminPersonalizationFriendLinksTab.vue"
     },
@@ -2539,7 +2691,9 @@
       "id": "core.component.admin.sfadmin_personalization_legal_tab",
       "contractVersion": "sforum.component.admin.sfadmin_personalization_legal_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/personalization/tabs/SFAdminPersonalizationLegalTab.vue"
     },
@@ -2547,7 +2701,9 @@
       "id": "core.component.admin.sfadmin_personalization_navigation_tab",
       "contractVersion": "sforum.component.admin.sfadmin_personalization_navigation_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/personalization/tabs/SFAdminPersonalizationNavigationTab.vue"
     },
@@ -2555,7 +2711,9 @@
       "id": "core.component.admin.sfadmin_seo_tab_frame",
       "contractVersion": "sforum.component.admin.sfadmin_seo_tab_frame@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/seo/SFAdminSeoTabFrame.vue"
     },
@@ -2563,7 +2721,9 @@
       "id": "core.component.admin.sfadmin_seo_content_tab",
       "contractVersion": "sforum.component.admin.sfadmin_seo_content_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/seo/tabs/SFAdminSeoContentTab.vue"
     },
@@ -2571,7 +2731,9 @@
       "id": "core.component.admin.sfadmin_seo_meta_tab",
       "contractVersion": "sforum.component.admin.sfadmin_seo_meta_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/seo/tabs/SFAdminSeoMetaTab.vue"
     },
@@ -2579,7 +2741,9 @@
       "id": "core.component.admin.sfadmin_seo_overview_tab",
       "contractVersion": "sforum.component.admin.sfadmin_seo_overview_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/seo/tabs/SFAdminSeoOverviewTab.vue"
     },
@@ -2587,7 +2751,9 @@
       "id": "core.component.admin.sfadmin_seo_permalinks_tab",
       "contractVersion": "sforum.component.admin.sfadmin_seo_permalinks_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/seo/tabs/SFAdminSeoPermalinksTab.vue"
     },
@@ -2595,7 +2761,9 @@
       "id": "core.component.admin.sfadmin_seo_robots_tab",
       "contractVersion": "sforum.component.admin.sfadmin_seo_robots_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/seo/tabs/SFAdminSeoRobotsTab.vue"
     },
@@ -2603,7 +2771,9 @@
       "id": "core.component.admin.sfadmin_seo_schema_tab",
       "contractVersion": "sforum.component.admin.sfadmin_seo_schema_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/seo/tabs/SFAdminSeoSchemaTab.vue"
     },
@@ -2611,7 +2781,9 @@
       "id": "core.component.admin.sfadmin_seo_search_tab",
       "contractVersion": "sforum.component.admin.sfadmin_seo_search_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/seo/tabs/SFAdminSeoSearchTab.vue"
     },
@@ -2619,7 +2791,9 @@
       "id": "core.component.admin.sfadmin_seo_sitemap_tab",
       "contractVersion": "sforum.component.admin.sfadmin_seo_sitemap_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/seo/tabs/SFAdminSeoSitemapTab.vue"
     },
@@ -2627,7 +2801,9 @@
       "id": "core.component.admin.sfadmin_seo_verification_tab",
       "contractVersion": "sforum.component.admin.sfadmin_seo_verification_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/seo/tabs/SFAdminSeoVerificationTab.vue"
     },
@@ -2635,7 +2811,9 @@
       "id": "core.component.admin.sfadmin_fixed_tab_nav",
       "contractVersion": "sforum.component.admin.sfadmin_fixed_tab_nav@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/shared/SFAdminFixedTabNav.vue"
     },
@@ -2643,7 +2821,9 @@
       "id": "core.component.admin.sfadmin_site_account_security_tab",
       "contractVersion": "sforum.component.admin.sfadmin_site_account_security_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/site/tabs/SFAdminSiteAccountSecurityTab.vue"
     },
@@ -2651,7 +2831,9 @@
       "id": "core.component.admin.sfadmin_site_basic_tab",
       "contractVersion": "sforum.component.admin.sfadmin_site_basic_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/site/tabs/SFAdminSiteBasicTab.vue"
     },
@@ -2659,7 +2841,9 @@
       "id": "core.component.admin.sfadmin_site_maintenance_tab",
       "contractVersion": "sforum.component.admin.sfadmin_site_maintenance_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/site/tabs/SFAdminSiteMaintenanceTab.vue"
     },
@@ -2667,7 +2851,9 @@
       "id": "core.component.admin.sfadmin_site_newcomers_tab",
       "contractVersion": "sforum.component.admin.sfadmin_site_newcomers_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/site/tabs/SFAdminSiteNewcomersTab.vue"
     },
@@ -2675,7 +2861,9 @@
       "id": "core.component.admin.sfadmin_site_registration_tab",
       "contractVersion": "sforum.component.admin.sfadmin_site_registration_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/site/tabs/SFAdminSiteRegistrationTab.vue"
     },
@@ -2683,7 +2871,9 @@
       "id": "core.component.admin.sfadmin_site_updates_tab",
       "contractVersion": "sforum.component.admin.sfadmin_site_updates_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/site/tabs/SFAdminSiteUpdatesTab.vue"
     },
@@ -2691,7 +2881,9 @@
       "id": "core.component.admin.sfadmin_site_verification_tab",
       "contractVersion": "sforum.component.admin.sfadmin_site_verification_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/site/tabs/SFAdminSiteVerificationTab.vue"
     },
@@ -3129,7 +3321,9 @@
       "id": "core.component.page.admin.settings.notifications",
       "contractVersion": "sforum.component.page.admin.settings.notifications@1",
       "kind": "page",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/pages/admin/settings/notifications.vue"
     },
@@ -3327,7 +3521,9 @@
       "id": "core.component.page.settings.notifications",
       "contractVersion": "sforum.component.page.settings.notifications@1",
       "kind": "page",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/pages/settings/notifications.vue"
     },
@@ -4236,7 +4432,9 @@
       "id": "core.component.shared.sfnotification_settings_page",
       "contractVersion": "sforum.component.shared.sfnotification_settings_page@1",
       "kind": "component",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/components/settings/SFNotificationSettingsPage.vue"
     },
@@ -4244,7 +4442,9 @@
       "id": "core.component.shared.sfweb_push_settings_section",
       "contractVersion": "sforum.component.shared.sfweb_push_settings_section@1",
       "kind": "component",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/components/settings/SFWebPushSettingsSection.vue"
     },
@@ -4566,7 +4766,9 @@
       "id": "core.component.admin.sfadmin_overview_runtime_card",
       "contractVersion": "sforum.component.admin.sfadmin_overview_runtime_card@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/SFAdminOverviewRuntimeCard.vue"
     },
@@ -4574,7 +4776,9 @@
       "id": "core.component.admin.sfresource_gauge",
       "contractVersion": "sforum.component.admin.sfresource_gauge@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/SFResourceGauge.vue"
     },
@@ -4582,7 +4786,9 @@
       "id": "core.component.admin.sfadmin_overview_resource_cards",
       "contractVersion": "sforum.component.admin.sfadmin_overview_resource_cards@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/SFAdminOverviewResourceCards.vue"
     },
@@ -4590,7 +4796,9 @@
       "id": "core.component.notifications.sf_notification_preview",
       "contractVersion": "sforum.component.notifications.sf_notification_preview@1",
       "kind": "component",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/components/notifications/SFNotificationPreview.vue"
     },
@@ -4598,7 +4806,9 @@
       "id": "core.component.forum.sf_public_sidebar_content",
       "contractVersion": "sforum.component.forum.sf_public_sidebar_content@1",
       "kind": "component",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/components/forum/navigation/SFPublicSidebarContent.vue"
     },
@@ -4606,7 +4816,9 @@
       "id": "core.component.forum.sf_responsive_public_sidebar",
       "contractVersion": "sforum.component.forum.sf_responsive_public_sidebar@1",
       "kind": "component",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/components/forum/navigation/SFResponsivePublicSidebar.vue"
     },
@@ -4614,7 +4826,9 @@
       "id": "core.component.forum.sf_selection_quote_action",
       "contractVersion": "sforum.component.forum.sf_selection_quote_action@1",
       "kind": "component",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/components/forum/SFSelectionQuoteAction.vue"
     },
@@ -4622,7 +4836,9 @@
       "id": "core.component.admin.sfadmin_role_approvals_tab",
       "contractVersion": "sforum.component.admin.sfadmin_role_approvals_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/identity/roles/tabs/SFAdminRoleApprovalsTab.vue"
     },
@@ -4630,7 +4846,9 @@
       "id": "core.component.admin.sfadmin_role_groups_tab",
       "contractVersion": "sforum.component.admin.sfadmin_role_groups_tab@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/identity/roles/tabs/SFAdminRoleGroupsTab.vue"
     },
@@ -4638,7 +4856,9 @@
       "id": "core.component.admin.sfadmin_user_list_toolbar",
       "contractVersion": "sforum.component.admin.sfadmin_user_list_toolbar@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/identity/users/SFAdminUserListToolbar.vue"
     },
@@ -4646,7 +4866,9 @@
       "id": "core.component.shared.sfcategory_navigation_block",
       "contractVersion": "sforum.component.shared.sfcategory_navigation_block@1",
       "kind": "component",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/components/forum/navigation/SFCategoryNavigationBlock.vue"
     },
@@ -4654,7 +4876,9 @@
       "id": "core.component.shared.sfeditor_image_menu",
       "contractVersion": "sforum.component.shared.sfeditor_image_menu@1",
       "kind": "component",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/components/editor/SFEditorImageMenu.vue"
     },
@@ -4662,7 +4886,9 @@
       "id": "core.component.shared.sfeditor_image_upload_modal",
       "contractVersion": "sforum.component.shared.sfeditor_image_upload_modal@1",
       "kind": "component",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/components/editor/SFEditorImageUploadModal.vue"
     },
@@ -4694,7 +4920,9 @@
       "id": "core.component.shared.sfmobile_sidebar_content",
       "contractVersion": "sforum.component.shared.sfmobile_sidebar_content@1",
       "kind": "component",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/components/forum/navigation/SFMobileSidebarContent.vue"
     },
@@ -4702,7 +4930,9 @@
       "id": "core.component.admin.sfadmin_brand_asset_field",
       "contractVersion": "sforum.component.admin.sfadmin_brand_asset_field@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/personalization/SFAdminBrandAssetField.vue"
     },
@@ -4710,7 +4940,9 @@
       "id": "core.component.admin.sfadmin_navigation_location_list",
       "contractVersion": "sforum.component.admin.sfadmin_navigation_location_list@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/personalization/SFAdminNavigationLocationList.vue"
     },
@@ -4718,7 +4950,9 @@
       "id": "core.component.admin.sfadmin_navigation_defaults_dialog",
       "contractVersion": "sforum.component.admin.sfadmin_navigation_defaults_dialog@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/personalization/navigation/SFAdminNavigationDefaultsDialog.vue"
     },
@@ -4726,7 +4960,9 @@
       "id": "core.component.admin.sfadmin_navigation_history",
       "contractVersion": "sforum.component.admin.sfadmin_navigation_history@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/personalization/navigation/SFAdminNavigationHistory.vue"
     },
@@ -4734,7 +4970,9 @@
       "id": "core.component.admin.sfadmin_navigation_import_dialog",
       "contractVersion": "sforum.component.admin.sfadmin_navigation_import_dialog@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/personalization/navigation/SFAdminNavigationImportDialog.vue"
     },
@@ -4742,7 +4980,9 @@
       "id": "core.component.admin.sfadmin_navigation_recovery_panel",
       "contractVersion": "sforum.component.admin.sfadmin_navigation_recovery_panel@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/settings/personalization/navigation/SFAdminNavigationRecoveryPanel.vue"
     },
@@ -4750,7 +4990,9 @@
       "id": "core.component.admin.sfadmin_system_update_prompt",
       "contractVersion": "sforum.component.admin.sfadmin_system_update_prompt@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/system/SFAdminSystemUpdatePrompt.vue"
     },
@@ -4758,7 +5000,9 @@
       "id": "core.component.shared.sfcomment_user_preview",
       "contractVersion": "sforum.component.shared.sfcomment_user_preview@1",
       "kind": "component",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/components/forum/SFCommentUserPreview.vue"
     },
@@ -4766,7 +5010,9 @@
       "id": "core.component.shared.sftopic_comment_composer_drawer",
       "contractVersion": "sforum.component.shared.sftopic_comment_composer_drawer@1",
       "kind": "component",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/components/forum/SFTopicCommentComposerDrawer.vue"
     },
@@ -4774,7 +5020,9 @@
       "id": "core.component.shared.sfauth_shell",
       "contractVersion": "sforum.component.shared.sfauth_shell@1",
       "kind": "component",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/components/identity/auth/SFAuthShell.vue"
     },
@@ -4782,7 +5030,9 @@
       "id": "core.component.shared.sfrecovery_shell",
       "contractVersion": "sforum.component.shared.sfrecovery_shell@1",
       "kind": "component",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/components/identity/recovery/SFRecoveryShell.vue"
     },
@@ -4790,7 +5040,9 @@
       "id": "core.component.shared.sfpublic_mobile_bottom_navigation",
       "contractVersion": "sforum.component.shared.sfpublic_mobile_bottom_navigation@1",
       "kind": "component",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/components/navigation/SFPublicMobileBottomNavigation.vue"
     },
@@ -4798,7 +5050,9 @@
       "id": "core.component.shared.sfpublic_mobile_navigation",
       "contractVersion": "sforum.component.shared.sfpublic_mobile_navigation@1",
       "kind": "component",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/components/navigation/SFPublicMobileNavigation.vue"
     },
@@ -4806,7 +5060,9 @@
       "id": "core.component.shared.sfpublic_mobile_search_bar",
       "contractVersion": "sforum.component.shared.sfpublic_mobile_search_bar@1",
       "kind": "component",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/components/navigation/SFPublicMobileSearchBar.vue"
     },
@@ -4814,7 +5070,9 @@
       "id": "core.component.shared.sfpublic_navigation_links",
       "contractVersion": "sforum.component.shared.sfpublic_navigation_links@1",
       "kind": "component",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/components/navigation/SFPublicNavigationLinks.vue"
     },
@@ -4822,7 +5080,9 @@
       "id": "core.component.shared.sfnotification_type_nav",
       "contractVersion": "sforum.component.shared.sfnotification_type_nav@1",
       "kind": "component",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/components/notifications/SFNotificationTypeNav.vue"
     },
@@ -4830,7 +5090,9 @@
       "id": "core.component.shared.sfpublic_page_header",
       "contractVersion": "sforum.component.shared.sfpublic_page_header@1",
       "kind": "component",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/components/public/SFPublicPageHeader.vue"
     },
@@ -4838,7 +5100,9 @@
       "id": "core.component.shared.sfappearance_settings_page",
       "contractVersion": "sforum.component.shared.sfappearance_settings_page@1",
       "kind": "component",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/components/settings/SFAppearanceSettingsPage.vue"
     },
@@ -4846,7 +5110,9 @@
       "id": "core.component.shared.sflocal_password_settings_page",
       "contractVersion": "sforum.component.shared.sflocal_password_settings_page@1",
       "kind": "component",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/components/settings/SFLocalPasswordSettingsPage.vue"
     },
@@ -4854,7 +5120,9 @@
       "id": "core.component.shared.sflogin_methods_settings_page",
       "contractVersion": "sforum.component.shared.sflogin_methods_settings_page@1",
       "kind": "component",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/components/settings/SFLoginMethodsSettingsPage.vue"
     },
@@ -4862,7 +5130,9 @@
       "id": "core.component.page.forum.settings.appearance",
       "contractVersion": "sforum.component.page.forum.settings.appearance@1",
       "kind": "page",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/pages/settings/appearance.vue"
     },
@@ -4870,7 +5140,9 @@
       "id": "core.component.page.forum.settings.login_methods",
       "contractVersion": "sforum.component.page.forum.settings.login_methods@1",
       "kind": "page",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/pages/settings/login-methods.vue"
     },
@@ -4878,7 +5150,9 @@
       "id": "core.component.page.forum.settings.password",
       "contractVersion": "sforum.component.page.forum.settings.password@1",
       "kind": "page",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/pages/settings/password.vue"
     },
@@ -4886,7 +5160,9 @@
       "id": "core.component.page.auth.email_verification",
       "contractVersion": "sforum.component.page.auth.email_verification@1",
       "kind": "page",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/pages/email-verification.vue"
     },
@@ -4894,7 +5170,9 @@
       "id": "core.component.shared.sfemail_verification_page",
       "contractVersion": "sforum.component.shared.sfemail_verification_page@1",
       "kind": "component",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/components/identity/SFEmailVerificationPage.vue"
     },
@@ -4902,7 +5180,9 @@
       "id": "core.component.admin.sfadmin_user_email_verification_control",
       "contractVersion": "sforum.component.admin.sfadmin_user_email_verification_control@1",
       "kind": "component",
-      "owners": ["admin"],
+      "owners": [
+        "admin"
+      ],
       "state": "active",
       "source": "apps/web/app/components/admin/identity/users/SFAdminUserEmailVerificationControl.vue"
     },
@@ -4910,7 +5190,9 @@
       "id": "core.component.shared.sfpublic_mobile_right_drawer_header",
       "contractVersion": "sforum.component.shared.sfpublic_mobile_right_drawer_header@1",
       "kind": "component",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/components/navigation/SFPublicMobileRightDrawerHeader.vue"
     },
@@ -4918,9 +5200,51 @@
       "id": "core.component.shared.sfpublic_mobile_user_menu",
       "contractVersion": "sforum.component.shared.sfpublic_mobile_user_menu@1",
       "kind": "component",
-      "owners": ["public"],
+      "owners": [
+        "public"
+      ],
       "state": "active",
       "source": "apps/web/app/components/navigation/SFPublicMobileUserMenu.vue"
+    },
+    {
+      "id": "core.component.page.admin.ai",
+      "contractVersion": "sforum.component.page.admin.ai@1",
+      "kind": "page",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/pages/admin/ai.vue"
+    },
+    {
+      "id": "core.component.shared.sfmention_content",
+      "contractVersion": "sforum.component.shared.sfmention_content@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/forum/SFMentionContent.vue"
+    },
+    {
+      "id": "core.component.shared.sfuser_mention_preview",
+      "contractVersion": "sforum.component.shared.sfuser_mention_preview@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/forum/SFUserMentionPreview.vue"
+    },
+    {
+      "id": "core.component.shared.sfcomment_stream_notice",
+      "contractVersion": "sforum.component.shared.sfcomment_stream_notice@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/forum/SFCommentStreamNotice.vue"
     }
   ]
 }

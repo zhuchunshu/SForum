@@ -10,34 +10,48 @@ import {
 describe('forum homepage query helpers', () => {
   test('normalizes scalar route query values and ignores arrays', () => {
     expect(parseForumHomeQuery({ q: '  nuxt  ', category: 'dev', tag: ['go'] }))
-      .toEqual({ query: 'nuxt', categorySlug: 'dev', tagSlug: '' })
+      .toEqual({ query: 'nuxt', categorySlug: 'dev', tagSlug: '', sort: '' })
   })
 
   test('normalizes null and array route query values to empty filters', () => {
     expect(parseForumHomeQuery({ q: null, category: ['dev'], tag: null }))
-      .toEqual({ query: '', categorySlug: '', tagSlug: '' })
+      .toEqual({ query: '', categorySlug: '', tagSlug: '', sort: '' })
   })
 
   test('omits empty filters when building route query', () => {
-    expect(buildForumHomeQuery({ query: '', categorySlug: 'dev', tagSlug: '' }))
+    expect(buildForumHomeQuery({ query: '', categorySlug: 'dev', tagSlug: '', sort: '' }))
       .toEqual({ category: 'dev' })
   })
 
   test('omits filters containing only whitespace', () => {
-    expect(buildForumHomeQuery({ query: '  ', categorySlug: '\n', tagSlug: ' \t ' }))
+    expect(buildForumHomeQuery({ query: '  ', categorySlug: '\n', tagSlug: ' \t ', sort: '' }))
       .toEqual({})
   })
 
   test('round-trips committed filters', () => {
-    const filters = { query: '搜索', categorySlug: '开发', tagSlug: 'nuxt' }
+    const filters = { query: '搜索', categorySlug: '开发', tagSlug: 'nuxt', sort: 'hot' as const }
     expect(parseForumHomeQuery(buildForumHomeQuery(filters))).toEqual(filters)
   })
 
+  test('keeps the default sort out of the URL and rejects unknown values', () => {
+    // '' = 站点默认排序：URL 不携带 sort，服务端按 forum.list.default_sort 决定
+    expect(buildForumHomeQuery({ query: '', categorySlug: '', tagSlug: '', sort: '' })).toEqual({})
+    expect(buildForumHomeQuery({ query: '', categorySlug: '', tagSlug: '', sort: 'active' }))
+      .toEqual({ sort: 'active' })
+    // 非法值不得进入请求（服务端虽然会回退，但前端不能把脏参数写进 URL）
+    expect(parseForumHomeQuery({ sort: 'replies' }).sort).toBe('')
+    expect(parseForumHomeQuery({ sort: ['hot'] }).sort).toBe('')
+    expect(parseForumHomeQuery({ sort: ' HOT ' }).sort).toBe('hot')
+  })
+
   test('changes the feed key when each committed filter changes', () => {
-    const filters = { query: 'nuxt', categorySlug: 'dev', tagSlug: 'vue' }
+    const filters = { query: 'nuxt', categorySlug: 'dev', tagSlug: 'vue', sort: 'latest' as const }
     expect(forumHomeFeedKey(filters)).not.toBe(forumHomeFeedKey({ ...filters, query: 'go' }))
     expect(forumHomeFeedKey(filters)).not.toBe(forumHomeFeedKey({ ...filters, categorySlug: 'support' }))
     expect(forumHomeFeedKey(filters)).not.toBe(forumHomeFeedKey({ ...filters, tagSlug: 'go' }))
+    // 排序必须参与 feedKey：换 sort 要重置分页与 cursor，而不是复用旧 feed
+    expect(forumHomeFeedKey(filters)).not.toBe(forumHomeFeedKey({ ...filters, sort: 'hot' }))
+    expect(forumHomeFeedKey(filters)).not.toBe(forumHomeFeedKey({ ...filters, sort: '' }))
   })
 
   test('rejects an old request when filters cycle from A to B and back to A', async () => {

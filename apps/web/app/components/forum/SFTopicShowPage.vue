@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { useSForumSeo } from '~/composables/seo/useSForumSeo'
-import { useModerationApi } from '~/composables/moderation/useModerationApi'
+import { useModerationReportDialog } from '~/composables/moderation/useModerationReportDialog'
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
 import { useAuthSession } from '~/composables/identity/useAuthSession'
 import { useForumApi } from '~/composables/forum/useForumApi'
 import { useLegacyTopicCommentComposerParent, useTopicCommentComposerDrawer } from '~/composables/forum/useTopicCommentComposerDrawer'
+import { useTopicCommentAnchor } from '~/composables/forum/useTopicCommentAnchor'
+import { useTopicCommentLive } from '~/composables/forum/useTopicCommentLive'
 import { useTopicSelectionQuoteReply } from '~/composables/forum/useTopicSelectionQuoteReply'
 import { useForumImageViewer } from '~/composables/forum/useForumImageViewer'
 import SFReportDialog from '~/components/moderation/SFReportDialog.vue'
@@ -17,6 +19,9 @@ import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
 import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
 import SFResponsivePublicSidebar from '~/components/forum/navigation/SFResponsivePublicSidebar.vue'
 import SFComment from '~/components/forum/SFComment.vue'
+import SFCommentStreamNotice from '~/components/forum/SFCommentStreamNotice.vue'
+import SFMentionContent from '~/components/forum/SFMentionContent.vue'
+import SFUserMentionPreview from '~/components/forum/SFUserMentionPreview.vue'
 import SFSelectionQuoteAction from '~/components/forum/SFSelectionQuoteAction.vue'
 import SFPublicMobileRightDrawerHeader from '~/components/navigation/SFPublicMobileRightDrawerHeader.vue'
 import SFPublicMobileUserMenu from '~/components/navigation/SFPublicMobileUserMenu.vue'
@@ -35,7 +40,7 @@ import {
   type ForumTopicDetail, type ForumTopicExtensionAction,
   type TopicPathLookup
 } from '~/utils/forum/forumTaxonomy'
-import { buildCommentActionMenuItems, buildTopicActionMenuItems } from '~/utils/forum/forumTopicPresentation'
+import { buildCommentActionLabels, buildCommentActionMenuItems, buildTopicActionLabels, buildTopicActionMenuItems } from '~/utils/forum/forumTopicPresentation'
 import { useForumContentTime } from '~/composables/forum/useForumContentTime'
 const route = useRoute()
 const router = useRouter()
@@ -136,6 +141,8 @@ const targetCommentId = computed(() => {
 })
 
 // 默认主题只提供连续时间流；回复关系由引用块表达，不再暴露树/平铺切换。
+// 服务端 flat 视图按 created_at ASC, id ASC 排序：新评论恒落在列表末尾（最底楼），
+// 既有评论的楼层号不因他人回复而漂移；回复目标靠每行 replyTo 引用块（可点击跳转）表达。
 const commentView = ref<'flat'>('flat')
 
 // 整页刷新兜底：fragment 不进 SSR，hydration 后 route.hash 可能为空；
@@ -335,92 +342,8 @@ watchEffect(() => {
   }
 })
 
-// 深链定位后的短暂强调高亮 id；与 CSS .sf-comment--flash / :target 动画时长对齐（约 3.2s）。
-const flashCommentId = ref(0)
-const COMMENT_FLASH_MS = 3200
-let flashCommentTimer: ReturnType<typeof setTimeout> | null = null
-
-function clearCommentFlashTimer() {
-  if (flashCommentTimer != null) {
-    clearTimeout(flashCommentTimer)
-    flashCommentTimer = null
-  }
-}
-
-function flashTargetComment(commentId: number) {
-  if (commentId <= 0) {
-    return
-  }
-  flashCommentId.value = commentId
-  clearCommentFlashTimer()
-  flashCommentTimer = setTimeout(() => {
-    if (flashCommentId.value === commentId) {
-      flashCommentId.value = 0
-    }
-    flashCommentTimer = null
-  }, COMMENT_FLASH_MS)
-}
-
-onBeforeUnmount(() => {
-  clearCommentFlashTimer()
-})
-
-// 锚点滚动：SSR 首屏含目标评论时浏览器原生定位已够；
-// 客户端导航（从列表点进带 hash 的帖子）或翻页后需兜底滚动到 #comment-{id}，并短暂高亮。
-// 每个锚点目标只定位一次：hash 整个访问期间留在 URL 里，不去重的话发回复/编辑/删除
-// 触发的 refreshComments 都会把视口重新拽回锚点评论并再次闪烁。
-const scrolledCommentId = ref(0)
-const topicPageMounted = ref(false)
-onMounted(() => { topicPageMounted.value = true })
-// 当前页找不到目标评论时的一次性兜底反查：显式页码深链（如个人主页动态）
-// 可能因软删占位、钳页或评论被删而指错页，向后端按当前 viewer 重新反查并跳转。
-const anchorFallbackTriedId = ref(0)
-
-async function resolveAnchorPageFallback() {
-  const commentId = targetCommentId.value
-  if (commentId <= 0 || anchorFallbackTriedId.value === commentId) {
-    return
-  }
-  // 列表加载中或还没有任何数据说明目标可能尚未到位，等后续 watch 再判断。
-  if (commentsPending.value || commentData.value.items.length === 0) {
-    return
-  }
-  const id = loadedTopicID.value
-  if (id <= 0) {
-    return
-  }
-  anchorFallbackTriedId.value = commentId
-  try {
-    const resolved = await forumApi.resolveCommentPage(id, commentId)
-    if (resolved.page > 0 && resolved.page !== commentPage.value) {
-      await navigateTo({ path: commentPageTo(resolved.page), hash: `#comment-${commentId}` }, { replace: true })
-    }
-  } catch {
-    // 评论不存在/对当前用户不可见：保持当前页，锚点静默失效。
-  }
-}
-
-watch(
-  [() => commentData.value, targetCommentId, topicPageMounted],
-  async () => {
-    if (import.meta.server || !topicPageMounted.value || targetCommentId.value <= 0) {
-      return
-    }
-    if (scrolledCommentId.value === targetCommentId.value) {
-      return
-    }
-    await nextTick()
-    const el = document.getElementById(`comment-${targetCommentId.value}`)
-    if (!el) {
-      await resolveAnchorPageFallback()
-      return
-    }
-    scrolledCommentId.value = targetCommentId.value
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    flashTargetComment(targetCommentId.value)
-  },
-  { flush: 'post', immediate: true }
-)
+// 锚点定位与「回复后落到新评论」由 useTopicCommentAnchor 承担（见下方调用），
+// 页面只负责把 URL/分页状态与列表数据接进去。
 
 // canonical 用当前 mode 的规范路径（含页码段，与规范化目标一致）。
 const canonicalTopicPath = computed(() => topic.value ? forumTopicPath(topic.value, topicUrlMode.value, commentPage.value) : route.path)
@@ -457,6 +380,16 @@ function commentPageTo(page: number) {
 
 // 已加载主题 id（动作/回复路径）；列表拉取优先 urlTopicID 以支持并行。
 const loadedTopicID = computed(() => topic.value?.id ?? topicID.value)
+
+// 评论锚点定位 + 回复后落到新评论（时间流末尾/跨页），实现见 composable。
+const { flashCommentId, focusCreatedComment } = useTopicCommentAnchor({
+  targetCommentId,
+  commentPage,
+  topicId: loadedTopicID,
+  commentList: commentData,
+  commentsPending,
+  pageTo: commentPageTo
+})
 
 const comments = computed(() => commentData.value.items)
 const commentTotal = computed(() => commentData.value.total)
@@ -524,7 +457,22 @@ const {
   legacyParentId: legacyComposerParentId,
   refreshComments,
   commentAuthorName,
-  commentFloor
+  commentFloor,
+  focusCreatedComment
+})
+
+// 评论区免刷新加载：SSE 只发修订信号，本 composable 对账后决定静默追加/出胶囊/静默对齐。
+// 锁定或未公开主题不会再有新评论，直接不订阅。
+const commentLive = useTopicCommentLive({
+  topicId: loadedTopicID,
+  list: commentData,
+  page: commentPage,
+  totalPages: commentTotalPages,
+  composerOpen,
+  currentUserId: computed(() => reportUser.value?.id),
+  refresh: refreshComments,
+  pageTo: commentPageTo,
+  enabled: computed(() => Boolean(topic.value && topic.value.status === 'active'))
 })
 
 function commentAuthorPath(comment: ForumComment) {
@@ -640,13 +588,7 @@ function commentActions(comment: ForumComment) {
     canEdit: isCommentEditable(comment),
     canDelete: isCommentDeletable(comment),
     canReport: canReportComment(),
-    labels: {
-      reply: t('topicDetail.reply'),
-      link: t('topicDetail.commentLink'),
-      edit: t('topicDetail.edit'),
-      delete: deletingCommentId.value === comment.id ? t('topicDetail.deleting') : t('topicDetail.delete'),
-      report: t('topicDetail.report')
-    },
+    labels: buildCommentActionLabels(t, { deleting: deletingCommentId.value === comment.id }),
     extensions: visibleCommentExtensionActions.value.map(action => ({
       label: forumTopicExtensionActionLabel(action, String(locale.value || 'zh-CN')),
       value: `extension:${action.extensionId}:${action.id}`,
@@ -799,23 +741,21 @@ async function loadMoreCommentReplies(comment: ForumComment) {
   }
 }
 
-// 举报对话框：支持举报主题或评论。同一时刻只展开一个。
-const reportingTarget = ref<{ type: 'topic' | 'comment'; id: number } | null>(null)
-const reportReason = ref<string>('')
-const reportBody = ref('')
-const reportSubmitting = ref(false)
-const reportError = ref('')
-const reportSuccess = ref(false)
-const moderationApi = useModerationApi()
-
-const reportReasonOptions = [
-  { label: t('moderation.reason.spam'), value: 'spam' },
-  { label: t('moderation.reason.abuse'), value: 'abuse' },
-  { label: t('moderation.reason.illegal'), value: 'illegal' },
-  { label: t('moderation.reason.off_topic'), value: 'off_topic' },
-  { label: t('moderation.reason.other'), value: 'other' }
-]
-
+// 举报对话框状态机（目标/原因/提交/错误）见 composables/moderation/useModerationReportDialog；
+// 这里保持原有短名解构，模板绑定与视觉契约不变。
+const {
+  target: reportingTarget,
+  reason: reportReason,
+  body: reportBody,
+  submitting: reportSubmitting,
+  error: reportError,
+  success: reportSuccess,
+  reasonOptions: reportReasonOptions,
+  open: openReportDialog,
+  close: closeReportDialog,
+  setReason: updateReportReason,
+  submit: submitReport
+} = useModerationReportDialog({ canReport: () => Boolean(reportUser.value) })
 const topicActionItems = computed(() => {
   if (!topic.value) {
     return []
@@ -830,17 +770,7 @@ const topicActionItems = computed(() => {
     locked: isLocked.value,
     pinned: isPinned.value,
     hidden: topic.value.status === 'hidden',
-    labels: {
-      edit: t('topicDetail.edit'),
-      delete: t('topicDetail.delete'),
-      lock: t('topicDetail.lock'),
-      unlock: t('topicDetail.unlock'),
-      pin: t('topicDetail.pin'),
-      unpin: t('topicDetail.unpin'),
-      hide: t('topicDetail.hide'),
-      restore: t('topicDetail.restore'),
-      report: t('topicDetail.report')
-    },
+    labels: buildTopicActionLabels(t),
     extensions: extensionActions.value.map(action => ({
       extensionId: action.extensionId,
       id: action.id,
@@ -922,42 +852,6 @@ async function shareTopic() {
   window.prompt(t('topicDetail.copyLinkHint'), url)
 }
 
-function openReportDialog(target: { type: 'topic' | 'comment'; id: number }) {
-  if (!reportUser.value) {
-    return
-  }
-  reportingTarget.value = target
-  reportReason.value = ''
-  reportBody.value = ''
-  reportError.value = ''
-  reportSuccess.value = false
-}
-
-function closeReportDialog() {
-  reportingTarget.value = null
-}
-
-async function submitReport() {
-  if (!reportingTarget.value || !reportReason.value || reportSubmitting.value) {
-    return
-  }
-  reportSubmitting.value = true
-  reportError.value = ''
-  try {
-    await moderationApi.createReport({
-      targetType: reportingTarget.value.type,
-      targetId: reportingTarget.value.id,
-      reasonCode: reportReason.value as 'spam' | 'abuse' | 'illegal' | 'off_topic' | 'other',
-      body: reportBody.value
-    })
-    reportSuccess.value = true
-    setTimeout(() => closeReportDialog(), 2000)
-  } catch (error) {
-    reportError.value = apiErrorMessage(error) || t('moderation.reportFailed')
-  } finally {
-    reportSubmitting.value = false
-  }
-}
 </script>
 
 <template>
@@ -1019,8 +913,8 @@ async function submitReport() {
                   </div>
 
                   <div class="sforum-topic-page__post-card">
-                    <!-- 正文（后端已 sanitize）；v-highlight 负责代码块语法高亮 -->
-                    <div class="sforum-topic-page__prose sf-prose" data-sforum-image-gallery="topic" data-selection-quote-source="topic" v-highlight v-html="sanitizeHtml(topic.content.htmlContent)" />
+                    <!-- 正文（后端已 sanitize）；v-highlight 高亮代码块，SFMentionContent 负责 @提及 链接化与预览 -->
+                    <SFMentionContent v-highlight class="sforum-topic-page__prose sf-prose" data-sforum-image-gallery="topic" data-selection-quote-source="topic" :html="sanitizeHtml(topic.content.htmlContent)" />
 
                     <div class="sforum-topic-page__actions">
                       <button type="button" class="sforum-topic-page__action-btn" @click="shareTopic">
@@ -1109,6 +1003,14 @@ async function submitReport() {
                       />
                     </div>
 
+                    <SFCommentStreamNotice
+                      :notice="commentLive.notice"
+                      :new-count="commentLive.newCount"
+                      :jump-to-last-page="commentLive.jumpToLastPage"
+                      @apply="commentLive.apply()"
+                      @dismiss="commentLive.dismiss()"
+                    />
+
                     <div v-if="commentTotalPages > 1" class="flex justify-center pt-2">
                       <SFPagination
                         :page="commentPage"
@@ -1130,6 +1032,7 @@ async function submitReport() {
                     :refresh-comments="refreshComments"
                     :actor-name="replyActorName"
                     :avatar="reportUser?.avatar"
+                    :focus-created-comment="focusCreatedComment"
                     @open="openAdvancedReply"
                   />
                   <div
@@ -1239,11 +1142,13 @@ async function submitReport() {
       :submitting="reportSubmitting"
       :error="reportError"
       :success="reportSuccess"
-      @update:reason="reportReason = $event"
+      @update:reason="updateReportReason"
       @update:body="reportBody = $event"
       @dismiss-error="reportError = ''"
       @close="closeReportDialog"
       @submit="submitReport"
     />
+
+    <SFUserMentionPreview />
   </main>
 </template>

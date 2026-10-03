@@ -1,6 +1,7 @@
 import { getQuery } from 'h3'
 
 import { proxyRouteRequest } from '../../../utils/pluginRouteProxy'
+import { isStreamingAPIPath } from '../../../utils/apiStreamPath'
 import { proxyNotificationStream } from '../../../utils/notifications/notificationStreamProxy'
 
 export default defineEventHandler((event) => {
@@ -23,7 +24,8 @@ export default defineEventHandler((event) => {
     }
   }
 
-  return path === 'notifications/stream'
+  // SSE 通道（通知修订流、主题评论修订流）走裸管道：sendProxy 会缓冲响应。
+  return isStreamingAPIPath(path)
     ? proxyNotificationStream(event, target)
     : proxyRouteRequest(event, target)
 })

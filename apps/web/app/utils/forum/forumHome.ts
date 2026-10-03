@@ -1,7 +1,11 @@
+import { normalizeForumTopicSort, type ForumTopicSort } from './forumTaxonomy'
+
 export type ForumHomeFilters = {
   query: string
   categorySlug: string
   tagSlug: string
+  /** '' = 站点默认排序（URL 不携带 sort，由服务端 forum.list.default_sort 决定） */
+  sort: ForumTopicSort | ''
 }
 
 export type ForumHomeRequestToken = {
@@ -30,19 +34,24 @@ const scalar = (value: unknown) => typeof value === 'string' ? value.trim() : ''
 export const parseForumHomeQuery = (query: RouteQuery): ForumHomeFilters => ({
   query: scalar(query.q),
   categorySlug: scalar(query.category),
-  tagSlug: scalar(query.tag)
+  tagSlug: scalar(query.tag),
+  sort: normalizeForumTopicSort(query.sort)
 })
 
 export const buildForumHomeQuery = (filters: ForumHomeFilters) => Object.fromEntries(
   [
     ['q', filters.query.trim()],
     ['category', filters.categorySlug.trim()],
-    ['tag', filters.tagSlug.trim()]
+    ['tag', filters.tagSlug.trim()],
+    ['sort', filters.sort]
   ].filter((entry): entry is [string, string] => Boolean(entry[1]))
 )
 
 export const forumHomeFeedKey = (filters: ForumHomeFilters) => JSON.stringify([
-  filters.query.trim(), filters.categorySlug.trim(), filters.tagSlug.trim()
+  filters.query.trim(),
+  filters.categorySlug.trim(),
+  filters.tagSlug.trim(),
+  filters.sort
 ])
 
 export function isForumHomeRequestCurrent(

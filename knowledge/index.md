@@ -164,6 +164,27 @@ load archived sessions or completed plans as current context.
 - Residual: remove legacy `/api/v1/...assets...` compatibility paths only with
   APILTS/deprecation evidence.
 
+### AI Assist Platform
+
+- Status: **active**; the M0 gateway (neutral `ai.completion@1`, provider
+  profiles, Secret Store credential references, three cost gates, execution
+  trace), the M3 reply bot (mention/reply trigger, loop prevention, bot
+  identity), and **read-only chat tools** (contract `tools[]`/`toolCalls[]`,
+  both protocol adapters, Host-owned orchestration loop with a per-reply step
+  budget, five Core built-in read-only tools, admin settings) are in production
+  code. Remaining: rendered admin QA for the two new settings fields, M2
+  moderation assistant, M4 content purposes, and the plugin-facing `ai.tool`
+  manifest surface.
+- Plan: `plans/2026-10-02-ai-assist-platform.md`,
+  `plans/2026-10-03-ai-read-only-chat-tools.md`
+- Decision: `decisions/2026-10-02-ai-provider-gateway.md`,
+  `decisions/2026-10-03-ai-read-only-chat-tools.md`
+- Handoff: `sessions/2026-10-03-ai-read-only-tools-handoff.md`
+- Modules: `modules/extensions.md`, `modules/moderation.md`,
+  `modules/notifications.md`
+- Excluded by operator decision: embeddings/vector retrieval and multimodal
+  input.
+
 ## Current Project State
 
 - **Web:** Nuxt 4, Vue 3, Nuxt UI 4, Bun, SSR-first, `zh-CN` default and
@@ -171,6 +192,10 @@ load archived sessions or completed plans as current context.
 - **API:** Go Fiber v3, PostgreSQL, Redis, River, Goose, and sqlc.
 - **Forum:** taxonomy, topics/comments, moderation lifecycle, configurable
   policy, million-scale read-path work, and content revisions V1 are shipped.
+  The flat comment stream is live: `topics.comment_revision` (statement-level
+  triggers) + `GET /topics/{id}/comments/revision` + SSE
+  `GET /topics/{id}/comments/stream` drive no-refresh comment loading with REST
+  reconciliation and polling fallback.
 - **Identity:** Redis sessions, RBAC, permission overrides, first-user
   `super_admin`, and account-session management are shipped.
 - **Search:** protected PostgreSQL site search is the default; Meilisearch is an
@@ -189,6 +214,13 @@ load archived sessions or completed plans as current context.
   reference provider are shipped. The Navbar preview links to personal
   notification preferences, where Browser Notifications is a non-shrinking
   first-viewport device control.
+- **AI:** the gateway, the reply bot, and read-only chat tools are shipped:
+  `forum.reply` may call `forum.search`, `forum.topic.read`,
+  `forum.topic.list`, `user.profile.read`, and `time.now` through a
+  Host-owned loop (<= 3 tool calls per reply, per-step gates and traces, user
+  quota counted once per reply). The topic body now reaches the prompt, tool
+  results are treated as untrusted data, and citations carry links. See
+  `sessions/2026-10-03-ai-read-only-tools-handoff.md`.
 - **Dev:** Compose owns PostgreSQL, Redis, and Mailpit. The user owns the web
   dev server on port 3000; do not kill it.
 
@@ -254,6 +286,144 @@ load archived sessions or completed plans as current context.
   精确 CI 工具链端到端复现及相关门禁通过；旧标签不可移动，需由新提交和新
   prerelease tag 验证完整 Release：
   `sessions/2026-08-22-web-sdk-release-retry-fix.md`
+=======
+- 评论区免刷新加载（2026-10-03）：flat 时间流新增「修订号 + SSE 信号 + REST 对账」
+  三层：`topics.comment_revision` 由 `comments` 语句级触发器维护并按主题
+  `pg_notify`，`GET /topics/{id}/comments/revision` 是不过缓存的事实来源，
+  `GET /topics/{id}/comments/stream` 只推修订号（10s 心跳 / 15s 对账 / 60s 寿命 /
+  进程级连接预算，超限 429 退化轮询）。前端抽出通用 revisionStream 运行时（通知流
+  同步收敛到它），新增 `useTopicCommentLive` 与 `SFCommentStreamNotice`：在最后一页
+  底部静默追加，上滑/跨页/编辑器打开只出胶囊，数量不变时静默 diff 后才提示。
+  Go 包测试 + 迁移触发器集成测试（真实 Postgres）+ Web 966 测试 + 架构/目录门禁通过；
+  浏览器 QA 已做（桌面 + 390x844 移动端：底部静默追加 / 上滑 sticky 胶囊 / 点击胶囊追平 /
+  多标签协同），并修掉三个只有浏览器才能暴露的缺陷（内层滚动容器下的阅读位置判定、SSE 游标
+  与对账版本混用同一个 ref、移动端底栏盖住胶囊）：
+  `sessions/2026-10-03-topic-comment-live-stream.md`,
+  `decisions/2026-10-03-topic-comment-live-stream.md`
+- 论坛 @提及高亮与资料卡（2026-10-03）：正文里的 `@用户名` 现在在客户端被装饰成
+  `a.sf-mention`（跳过链接与代码块），点击弹出与「点评论头像」同一张公开资料卡；
+  后端 HTML 与存量内容不变（SSR 仍输出纯文本）。语法与通知口径对齐：
+  token 支持 `-`、上限 50 → 64，editor-document 存档先还原 Markdown 再解析提及
+  （代码块里的 @ 不再触发通知）。Web 943 测试、Go 相关包、typecheck、架构门禁通过；
+  渲染态 Browser QA 未做（本会话无 BrowserSkill CLI、桌面工具不可用）：
+  `sessions/2026-10-03-forum-mention-linkify-preview.md`，
+  `decisions/2026-10-03-forum-mention-rendering.md`
+- 深链评论资料卡被裁剪修复（2026-10-03）：`#comment-{id}` 命中的评论只要留在 URL 上
+  就一直带 `:target`，而扫光高亮规则给它加了 `overflow: hidden`（为了裁掉越界光带），
+  于是评论内绝对定位的 @作者资料卡在评论下沿被整块切断。现在光带改为盒内
+  `background-position` 动画（`-66.7% → 166.7%`），定位评论保持 `overflow: visible`，
+  动画时长与观感不变；headless Chrome 实测扫光仍逐帧推进、卡片 95px 溢出评论下沿也
+  完整绘制（桌面 1440×900 与 390×844 均验证），Web 939 测试、架构门禁通过。契约记录在
+  `modules/forum.md`。
+- 评论流时间流排序（2026-10-03）：flat 评论列表原本按 `path_key` 树序展开，回复被
+  插在被回复评论下面，且楼层号（列表序号）会因他人回复整体漂移。现在 flat 统一
+  `created_at ASC, id ASC`：新回复恒在最底楼、楼层稳定；位置口径（keyset 游标、
+  `CountCommentsBefore`、深链页码反查、个人主页 `commentPage`）全部对齐同一排序键，
+  新增 `comments_topic_created_idx (topic_id, created_at, id)` 迁移（本机已应用）；
+  回复关系继续由 `replyTo` 引用卡表达，并在发布成功后由
+  `useTopicCommentAnchor.focusCreatedComment` 把视口带到新楼层。Go 全量、真库集成
+  测试（含变异验证）、Web 923 测试、typecheck、架构与 OpenAPI 门禁通过；渲染态
+  Browser QA 未做（本会话无 BrowserSkill CLI、桌面工具不可用）：
+  `sessions/2026-10-03-comment-stream-chronological-order.md`，
+  `decisions/2026-10-03-comment-stream-chronological-order.md`
+
+- 公开列表排序（2026-10-03）：首页排序按钮此前只在主题皮肤里定义且被
+  `.sf-theme--default` 限定，Core fallback 路径（本实例全部公开页）下退化成纯文字。
+  新增 Core 样式表 `assets/css/sforum-sort-control.css`（首页 / 分类目录 / 标签页
+  统一分段控件，双渲染路径都覆盖），并把首页排序从「前端对已加载页重排」改为
+  服务端 `sort=active|latest|hot` + URL 状态（换 sort 自动重置分页与 cursor）。
+  公开文案：最新（最后活跃，默认）/ 最新帖子（发布时间）/ 热门；推荐默认排序由
+  `latest` 改为 `active`（对齐公开活动索引）。Web 922 测试、typecheck、Go 全量、
+  架构门禁通过；CDP 真实点击验证 URL / 请求 / 顺序一致：
+  `sessions/2026-10-03-public-feed-sort-control.md`，
+  `decisions/2026-10-03-public-list-default-sort-active.md`
+
+- 原生推送设备注册（2026-10-02）：Core 新增 `push_devices` 与自服务端点
+  `GET/POST /api/v1/push/devices`、`DELETE /api/v1/push/devices/{deviceId}`；令牌按
+  `(platform, token)` 唯一、重复注册改绑并撤销同 deviceId 旧令牌，落库只存 SHA-256
+  指纹 + Core 密钥密文，响应永不回显。FCM/APNs 传输仍属 provider 插件，本轮未声明
+  `native_push` 通道键（通道 + provider 槽 + 参考插件一起落地）。迁移
+  `202610020004` 已在本机开发库应用（原 `202610020001` 与并发工作流重号）。
+  为让生成器可运行，代并发 AI 工作流按约定补了三条 UI 身份目录。
+  Go 全量、真库集成测试、目录 `--check`、架构/文档/OpenAPI 门禁通过：
+  `sessions/2026-10-02-native-push-device-registry.md`，
+  `decisions/2026-10-02-native-push-device-registry.md`
+
+- 客户端版本门禁（2026-10-02）：新增三个 public 选项 `client.minimum_version` /
+  `client.recommended_version` / `client.update_notice`（默认全空 = 不限制，
+  `settings.site.manage` 管理），App 冷启动读 `GET /web-options` 自行判定是否强制
+  升级；后台新增「站点设置 → 客户端」固定标签页并提供一键恢复推荐默认。服务端不代
+  判定升级、不记录客户端版本，也未引入 Deprecation/Sunset 头（无真实消费者）。
+  Go 选项测试、Web 920 测试、typecheck、生产构建、架构与文档门禁通过；为守住
+  `Models/Options/service.go` 的遗留大文件基线，把 Defaults 覆盖块抽到
+  `defaults_overrides.go` 并把该 cap 从 1119 下调到 1090。
+  **后台标签的渲染态 Browser QA 未做**（本会话无 BrowserSkill CLI，桌面工具不可用）：
+  `sessions/2026-10-02-client-version-policy.md`，
+  `decisions/2026-10-02-client-version-policy-via-public-options.md`
+
+- App / 机器客户端登录换令牌（2026-10-02）：`POST /auth/login` 新增可选
+  `issueApiToken`，一次密码登录同时签发 PAT（规则与 `POST /auth/tokens` 一致：
+  scopes 显式子集、明文只返回一次；未携带时响应仍是 `CurrentUser`），原生 App
+  从此不需要 cookie jar、CSRF double-submit 与两步换取；令牌管理端点继续只
+  接受 cookie 会话，App 登出仍只能清除本地令牌。契约新增
+  `ApiResponseLogin` / `LoginIssuedToken`，双语 API 文档补「登录即换令牌」章节，
+  Go 全量测试、OpenAPI 引用、文档与架构边界门禁通过：
+  `sessions/2026-10-02-app-client-login-token.md`，
+  `decisions/2026-10-02-app-client-login-token.md`
+
+- seed:forum 全量假数据（2026-10-02）：small profile 现生成用户公开资料、分类
+  分组/分类（站务 → 技术 → 生活目录）、标签、带标签/置顶/浏览数的主题与嵌套
+  评论；新增 `--tags/--pinned/--views-max`，`--categories` 在 small 生效，
+  显式 0 关闭单项。分类/标签走 `forum.Service`（super_admin），收尾批量回填
+  计数。开发库实跑 400 主题/1552 评论/16 标签，二次运行 taxonomy `+0/+0/+0`；
+  `go test ./...`、架构边界与文档门禁通过：
+  `sessions/2026-10-02-seed-forum-taxonomy-profiles-handoff.md`
+
+- AI 辅助平台 M0 内核（2026-10-02）：`app/Support/AI` 基础设施（中立补全契约、
+  provider profile、三层配置、三道闸门、双协议适配器、受控出站、Secret Store
+  凭证解析、Postgres 存储、网关编排）、`app/Models/AI` 权限感知服务层、
+  `Http/Controllers/AI` 五个管理端点、Provider 与 bootstrap 装配、OpenAPI 契约、
+  `ai.manage` 权限与本地化，以及两个已应用的迁移。`go test ./...` 121 包全绿、
+  Web 915 pass、目录与文档门禁通过，运行时探测确认新端点返回 401 而非 404，
+  并已用真实 DeepSeek key 打通端到端调用（含生产 SSRF 守卫）。执行路径为 Core
+  协议翻译 + Host 受控出站，`ai.provider` 槽位保留给非标准协议。
+  Admin 控制台（供应商与闸门、用量与执行记录，含密钥录入端点）亦已落地并通过
+  类型检查与生产构建。**剩余：渲染态浏览器 QA；M2 审核助手（purpose/middleware
+  扩展点据其提炼）**：
+  `sessions/2026-10-02-ai-assist-platform-design.md`，
+  `plans/2026-10-02-ai-assist-platform.md`，
+  `decisions/2026-10-02-ai-provider-gateway.md`
+
+- Dependabot 告警收敛（2026-10-02）：94 条 open 告警拆解为 3 个 grpc advisory
+  × 18 个 Go module（54 条）与 4 个废弃 PHP 分支遗留 `composer.lock`（40 条）。
+  18 个 module 的 grpc 统一升至 `v1.83.2`，删除 `v2`/`dev`/`php82`/
+  `zhuchunshu-patch-1` 并以 `archive/php-*-final` tag 归档，关闭 14 个被取代的
+  依赖 PR；Go 全量构建、`apps/api` 全量测试（ok=119, fail=0）与架构边界门禁
+  通过，Dependabot open 告警已归零（94 → 0，其中 40 条 composer 由分支清理
+  触发自动修复），7 个 builtin 插件按共享 SDK 规则递增补丁版本：
+  `sessions/2026-10-02-dependabot-alert-triage-handoff.md`
+
+- 容器镜像扫描修复（2026-10-02）：`sforum-web:ci` 镜像 Trivy 报出 6 个 HIGH。
+  `@tiptap/*` 12 个包 3.27.1 → 3.31.3，`devalue` 5.8.1 → 5.9.4、`sharp`
+  0.35.3 → 0.35.5 经 `overrides` 强制；同时收敛 `prosemirror-model`
+  1.25.12 与 `prosemirror-view` 1.42.6，消除 Tiptap 升级引起的双版本类型
+  不兼容。`bun run typecheck` 通过，`bun test` 904 pass / 1 fail（失败项
+  `pluginRouteProxy` retry-read 在升级前依赖上同样失败，属既有环境问题），
+  CI 五作业全绿：`sessions/2026-10-02-dependabot-alert-triage-handoff.md`
+
+- Topbar 头像菜单后台入口（2026-10-02）：`usePublicUserMenu` 新增 `admin`
+  条目，桌面下拉与移动右抽屉同源；准入复用 API 权威键 `admin.access`
+  （`super_admin` 角色绕过 + moderator/operator/tech_admin 模板，member 不含），
+  路径经 `useAdminRoutes` 跟随 `adminRoutePrefix`。新增身份矩阵回归与门控测试，
+  Web 全量 915 测试、类型检查、架构与身份/管理框架门禁通过：
+  `sessions/2026-10-02-topbar-admin-entry.md`
+
+- 首注册超管提示改到注册成功后（2026-10-02）：注册页删除公开 bootstrap
+  预告分支与 `auth.firstUserAdminNotice`，改为在 `POST /auth/register` 响应
+  报告 `isInitialSuperAdmin` 时提示 `auth.initialSuperAdminGranted`；公开
+  `registration-status` 仍恒定 `false`。聚焦回归、Web 全量 905 测试、类型
+  检查与架构门禁通过，渲染态 Browser QA 未做：
+  `sessions/2026-10-02-first-registration-super-admin-notice.md`
 
 - Code scanning 与 CI 整改（2026-08-20）：修复 CodeQL #24 的切片容量加法
   溢出与 #25 的 `int64` 到 `int` 未界定转换；Web Docker 构建补齐

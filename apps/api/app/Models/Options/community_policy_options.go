@@ -110,7 +110,8 @@ func communityPolicyRecommendedDefaults() map[string]string {
 		NameSiteMaintenanceEnabled:                        enabledOptionValue(false),
 		NameSiteMaintenanceMessage:                        "",
 		NameForumGuestRead:                                "public",
-		NameForumListDefaultSort:                          "latest",
+		// 推荐默认 = 最后活跃（active）：与公开活动索引对齐，公开列表「最新」即最新活动。
+		NameForumListDefaultSort:                          "active",
 		NameForumListHotWindowDays:                        "7",
 		NameForumTopicsAllowAuthorCloseReplies:            enabledOptionValue(true),
 		NameForumTopicsAllowAuthorDelete:                  enabledOptionValue(true),

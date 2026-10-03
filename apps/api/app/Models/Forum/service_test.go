@@ -2003,8 +2003,11 @@ type serviceFakeStore struct {
 	// 记录最近一次调用的软删可见范围参数，供 viewer 口径断言。
 	countCommentsBeforeIncludeDeleted bool
 	countCommentsBeforeAuthorID       int64
-	listTopicsInput                   TopicListInput
-	listTopicsResult                  TopicList
+	// 记录最近一次调用的位置键，供 flat 排序口径断言（必须是发表时间，不是 path_key）。
+	countCommentsBeforeCreatedAt time.Time
+	countCommentsBeforeID        int64
+	listTopicsInput              TopicListInput
+	listTopicsResult             TopicList
 	// ListCommentReplies 可配置返回值与调用记录，供回复可见性兜底测试断言。
 	listCommentRepliesResult []Comment
 	listCommentRepliesCalled bool
@@ -2291,10 +2294,12 @@ func (s *serviceFakeStore) GetCommentEditSource(context.Context, int64) (Editabl
 	return s.commentEditSource, nil
 }
 
-func (s *serviceFakeStore) CountCommentsBefore(_ context.Context, _ int64, _ string, _ int64, includeDeleted bool, deletedAuthorUserID int64) (int64, error) {
+func (s *serviceFakeStore) CountCommentsBefore(_ context.Context, _ int64, createdAt time.Time, id int64, includeDeleted bool, deletedAuthorUserID int64) (int64, error) {
 	s.countCommentsBeforeCalled = true
 	s.countCommentsBeforeIncludeDeleted = includeDeleted
 	s.countCommentsBeforeAuthorID = deletedAuthorUserID
+	s.countCommentsBeforeCreatedAt = createdAt
+	s.countCommentsBeforeID = id
 	return s.countCommentsBefore, s.countCommentsBeforeErr
 }
 
@@ -2952,7 +2957,11 @@ func TestServiceResolveCommentPage(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			store := newServiceFakeStore()
-			store.commentSummary = CommentSummary{ID: 99, TopicID: 10, Status: CommentStatusActive, PathKey: "000000000099"}
+			publishedAt := time.Date(2026, 10, 3, 9, 0, 0, 0, time.UTC)
+			store.commentSummary = CommentSummary{
+				ID: 99, TopicID: 10, Status: CommentStatusActive,
+				PathKey: "000000000099", CreatedAt: publishedAt,
+			}
 			store.countCommentsBefore = tc.before
 			service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: testForumSettings()}, Publisher: nil})
 
@@ -2968,6 +2977,11 @@ func TestServiceResolveCommentPage(t *testing.T) {
 			}
 			if !store.countCommentsBeforeCalled {
 				t.Fatal("expected store.CountCommentsBefore to be called")
+			}
+			// flat 位置键必须是发表时间：用 path_key 计数会让楼层随回复漂移。
+			if !store.countCommentsBeforeCreatedAt.Equal(publishedAt) || store.countCommentsBeforeID != 99 {
+				t.Fatalf("position key = (%s, %d), want (%s, 99)",
+					store.countCommentsBeforeCreatedAt, store.countCommentsBeforeID, publishedAt)
 			}
 			// 匿名 viewer：软删墓碑不占位，计数范围应为 active-only。
 			if store.countCommentsBeforeIncludeDeleted {

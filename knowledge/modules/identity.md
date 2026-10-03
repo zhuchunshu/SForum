@@ -10,6 +10,19 @@ helpers.
 
 Initial identity foundation is implemented.
 
+- **App / 机器客户端单请求登录换令牌（2026-10-02）：** `POST /auth/login` 新增可选
+  `issueApiToken`（形状与 `POST /auth/tokens` 完全一致：`name` 必填、`scopes`
+  显式且必须是当前账号权限子集、`expiresAt` 可选）。携带时在同一次请求内签发
+  一枚 PAT，`data` 变为 `LoginIssuedToken { user, apiToken }`，明文 `token` 只在
+  该响应出现一次；未携带时 `data` 仍是 `CurrentUser`，浏览器契约不变。请求形状
+  错误（`api_token.name_required` / `api_token.scopes_required` /
+  `api_token.invalid`）在会话签发前返回 422，不留半成功状态。令牌签发复用
+  `APITokens.Create`，因此 scopes ∩ 当前权限收窄、`super_admin` 剥离、审计与
+  过期规则与管理端点一致。令牌管理（列出/创建/轮换/吊销）仍要求 cookie 会话；
+  App 登出目前只能清除本地令牌，服务端自吊销需要把 bearer 令牌身份加入
+  `routes.DispatchRequest` 并放宽已评审的 guard 姿态，本轮未做。
+  决策：`decisions/2026-10-02-app-client-login-token.md`。
+
 - **邮箱验证 Page Registry 合同（2026-08-02）：** `/email-verification` 现在以
   `auth.email_verification` 纳入公共 Page Registry，并使用
   `sforum.page.email_verification@1` ViewModel 与
@@ -424,9 +437,12 @@ Initial identity foundation is implemented.
   apply the same packs when creating custom groups
   (`apps/web/app/config/roleTemplates.ts`, `admin.roleCatalog.*` i18n).
   Decision: `knowledge/decisions/2026-07-12-builtin-role-templates.md`.
-- API exposes `/api/v1/auth/registration-status` so the registration page can
-  show when the next successful registration will become the initial
-  `super_admin`.
+- API exposes `/api/v1/auth/registration-status` for registration availability
+  only: `nextUserIsInitialSuperAdmin` is always `false` on that public endpoint
+  so the bootstrap window stays hidden, while `registrationEnabled` carries the
+  bootstrap override. The "first registration becomes the initial `super_admin`"
+  fact is told only to the registrant who actually receives it, through the
+  `POST /auth/register` response.
 - Registration human verification is supported but disabled by default. When
   the admin CAPTCHA settings `human_verification.provider=altcha` and
   `human_verification.scenarios.register=enabled` are enabled,
@@ -684,8 +700,9 @@ Initial identity foundation is implemented.
   type/auto/display/worker/min-duration settings, and maps
   `human_verification.*`, `rate_limit.exceeded`, and `auth.session_unavailable`
   API error codes to localized messages. It also reads
-  `/api/v1/auth/registration-status`, shows a first-user super-admin notice
-  while no users exist, blocks repeated submit attempts while a request is in
+  `/api/v1/auth/registration-status` for availability, announces
+  `auth.initialSuperAdminGranted` after a registration whose response reports
+  `isInitialSuperAdmin`, blocks repeated submit attempts while a request is in
   flight, and resets the ALTCHA widget after verification failures.
 - Registration builds and loads the returned current-user access inside the
   bootstrap transaction so response construction failures roll back account

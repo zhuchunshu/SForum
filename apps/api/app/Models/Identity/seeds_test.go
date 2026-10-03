@@ -285,6 +285,7 @@ func TestSeedPermissionsCoverCurrentAdminAndForumSurfaces(t *testing.T) {
 		PermissionJobsManage,
 		PermissionEntityMetaManage,
 		PermissionIdentityProviderManage,
+		PermissionAIManage,
 	}
 
 	found := map[string]SeedPermission{}

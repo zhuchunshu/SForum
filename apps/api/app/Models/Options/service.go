@@ -783,6 +783,8 @@ func (s *Service) coerceValueSet(values map[string]string) map[string]string {
 	coerceSiteBrandOptions(coerced, defaults)
 	// Wave 1 社区策略：注册/新人/维护/论坛阅读与行为。
 	coerceCommunityPolicyOptions(coerced, defaults)
+	// 客户端版本策略：脏数据回退到「不限制」默认。
+	coerceClientVersionOptions(coerced, defaults)
 	coerceMailResendOptions(coerced, defaults)
 
 	if provider, ok := normalizeHumanVerificationProvider(coerced[NameHumanVerificationProvider]); ok {
@@ -1072,6 +1074,7 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 	}
 	mergeAttachmentDefaults(values)
 	mergeCommunityPolicyDefaults(values)
+	mergeClientVersionDefaults(values)
 	mergeMailResendDefaults(values)
 	mergeSiteBrandDefaults(values)
 	mergeFeatureFlagDefaults(values)
@@ -1081,39 +1084,7 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		values[name] = value
 	}
 
-	if value := strings.TrimSpace(defaults.SiteName); value != "" {
-		values[NameSiteName] = value
-	}
-	if value := strings.TrimSpace(defaults.SiteURL); isValidURL(value) {
-		values[NameSiteURL] = value
-	}
-	values[NameSiteDomain] = siteDomainFromURL(values[NameSiteURL])
-	if len(defaults.SupportedLocales) > 0 {
-		if locales := normalizeLocaleList(defaults.SupportedLocales); len(locales) > 0 {
-			values[NameSiteSupportedLocales] = strings.Join(locales, ",")
-		}
-	}
-	supported := parseStoredLocales(values[NameSiteSupportedLocales])
-	if value, ok := normalizeLocaleChoice(defaults.DefaultLocale, supported); ok {
-		values[NameSiteDefaultLocale] = value
-	} else if len(supported) > 0 {
-		values[NameSiteDefaultLocale] = supported[0]
-	}
-	if value, ok := normalizeHumanVerificationProvider(defaults.HumanVerificationProvider); ok {
-		values[NameHumanVerificationProvider] = value
-	}
-	if value := strings.TrimSpace(defaults.AltchaSecret); value != "" {
-		values[NameAltchaSecret] = value
-	}
-	if defaults.AltchaChallengeTTL > 0 {
-		values[NameAltchaChallengeTTL] = defaults.AltchaChallengeTTL.String()
-	}
-	if defaults.AltchaCost > 0 {
-		values[NameAltchaCost] = strconv.Itoa(defaults.AltchaCost)
-	}
-	if values[NameHumanVerificationProvider] == humanverify.ProviderAltcha && values[NameAltchaSecret] == "" {
-		values[NameHumanVerificationProvider] = humanverify.ProviderDisabled
-	}
+	applyDefaultsOverrides(values, defaults)
 
 	return values
 }

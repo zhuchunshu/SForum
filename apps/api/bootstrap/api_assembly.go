@@ -13,6 +13,7 @@ import (
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	providers "github.com/zhuchunshu/sforum/apps/api/app/Providers"
+	supportai "github.com/zhuchunshu/sforum/apps/api/app/Support/AI"
 	audit "github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
@@ -29,6 +30,8 @@ import (
 // 失败路径的资源关闭仍在 wireAPICoreStack 内联处理；成功后由 API.close 统一收尾。
 type apiCoreStack struct {
 	adminOverviewProvider        *providers.AdminOverviewProvider
+	aiProvider                   *providers.AIProvider
+	aiOrchestrator               *supportai.Orchestrator
 	systemUpdatesProvider        *providers.SystemUpdatesProvider
 	apiTokenService              *apitokens.Service
 	attachmentsProvider          *providers.AttachmentsProvider

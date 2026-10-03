@@ -2,9 +2,16 @@ webOptions:
   get:
     summary: List public runtime web options
     operationId: listWebOptions
+    description: |
+      公共运行时选项投影（单一权威，浏览器与原生客户端共用）。除站点标识、语言、
+      密码策略、内容限制外，还包含客户端版本策略三个键：
+      `client.minimum_version`（低于它的客户端应强制升级）、
+      `client.recommended_version`（可提示升级）、`client.update_notice`（升级文案）。
+      三者留空表示不限制；版本比较由客户端用自身版本号完成，服务端不代判定。
+      维护状态见 `site.maintenance.enabled` / `site.maintenance.message`。
     responses:
       '200':
-        description: Public runtime options used by the web frontend.
+        description: Public runtime options used by the web frontend and native clients.
         content:
           application/json:
             schema:

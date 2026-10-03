@@ -1,0 +1,54 @@
+/* 首页 / 分类 / 标签页话题列表的置顶帖呈现。
+ *
+ * 底色与左侧强调条跟随站点强调色：浅色用 --sf-accent，夜间用 --sf-accent-dark，
+ * 运营或主题可用 --sf-public-row-pinned-* 变量整体接管。
+ *
+ * 加载顺序必须在 sforum-home.css 之后：主题皮肤把列表行底色锁成
+ * transparent（.sf-page.sf-theme--default .sf-home-topic-row），这里用同级、后置的
+ * 声明覆盖，保证 Core fallback 与主题皮肤两条渲染路径表现一致。
+ */
+
+.sf-home-topic-row--pinned {
+  background-color: var(--sf-public-row-pinned-bg, color-mix(in srgb, var(--sf-accent) 6%, var(--sf-public-surface)));
+  box-shadow: inset 2px 0 0 0 var(--sf-public-row-pinned-accent, var(--sf-accent));
+}
+
+.sf-home-topic-row--pinned:hover,
+.sf-home-topic-row--pinned:focus-visible {
+  background-color: var(--sf-public-row-pinned-hover-bg, color-mix(in srgb, var(--sf-accent) 11%, var(--sf-public-surface)));
+}
+
+.sf-page.sf-theme--default .sf-home-topic-row--pinned {
+  background-color: var(--sf-public-row-pinned-bg, color-mix(in srgb, var(--sf-accent) 6%, var(--sf-public-surface)));
+  box-shadow: inset 2px 0 0 0 var(--sf-public-row-pinned-accent, var(--sf-accent));
+}
+
+.sf-page.sf-theme--default .sf-home-topic-row--pinned:hover,
+.sf-page.sf-theme--default .sf-home-topic-row--pinned:focus-visible {
+  background-color: var(--sf-public-row-pinned-hover-bg, color-mix(in srgb, var(--sf-accent) 11%, var(--sf-public-surface)));
+}
+
+/* 置顶徽标跟随强调色，不再与分类 pill 抢色。 */
+.sf-home-topic-row__pin-badge {
+  background: var(--sf-public-row-pinned-badge-bg, color-mix(in srgb, var(--sf-accent) 14%, var(--sf-public-surface)));
+  color: var(--sf-accent-hover, var(--sf-accent));
+}
+
+/* 夜间：亮色强调变体在深色表面上的可见度优于原强调色。 */
+.dark .sf-home-topic-row--pinned,
+.dark .sf-page.sf-theme--default .sf-home-topic-row--pinned {
+  background-color: var(--sf-public-row-pinned-bg, color-mix(in srgb, var(--sf-accent-dark, var(--sf-accent)) 12%, var(--sf-public-surface)));
+  box-shadow: inset 2px 0 0 0 var(--sf-public-row-pinned-accent, var(--sf-accent-dark, var(--sf-accent)));
+}
+
+.dark .sf-home-topic-row--pinned:hover,
+.dark .sf-home-topic-row--pinned:focus-visible,
+.dark .sf-page.sf-theme--default .sf-home-topic-row--pinned:hover,
+.dark .sf-page.sf-theme--default .sf-home-topic-row--pinned:focus-visible {
+  background-color: var(--sf-public-row-pinned-hover-bg, color-mix(in srgb, var(--sf-accent-dark, var(--sf-accent)) 18%, var(--sf-public-surface)));
+}
+
+.dark .sf-home-topic-row__pin-badge {
+  background: var(--sf-public-row-pinned-badge-bg, color-mix(in srgb, var(--sf-accent-dark, var(--sf-accent)) 24%, var(--sf-public-surface)));
+  color: var(--sf-accent-dark, var(--sf-accent));
+}

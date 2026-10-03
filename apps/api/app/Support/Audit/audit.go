@@ -31,6 +31,8 @@ const (
 	ActionNotificationChannelReset       = "notification.channel.reset"
 	ActionNotificationSubscriptionCreate = "notification.subscription.create"
 	ActionNotificationSubscriptionRevoke = "notification.subscription.revoke"
+	ActionPushDeviceRegister             = "notification.push_device.register"
+	ActionPushDeviceRevoke               = "notification.push_device.revoke"
 	ActionExtensionSettingsAction        = "extension.settings.action"
 	ActionExtensionEnable                = "extension.enable"
 	ActionExtensionDisable               = "extension.disable"

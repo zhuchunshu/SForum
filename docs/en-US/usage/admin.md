@@ -82,7 +82,7 @@ limits and oversized uploads get a specific 413 response.
 | Personalization (`/control-panel/personalization`) | Site name, logo, favicon (brand SVG upload is safely rasterized to PNG), appearance palettes |
 | Site chrome | Topbar, sidebar, mobile, and footer navigation configuration and ordering (revisioned) |
 | Announcements | Authoring (time windows, pinned) and display |
-| Site settings | Site URL, registration policy, account-security policy, etc. |
+| Site settings | Site URL, registration policy, account-security policy, client version policy, etc. |
 
 ## SEO
 

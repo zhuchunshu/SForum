@@ -26,6 +26,9 @@ type PostgresStore struct {
 	pool          *pgxpool.Pool
 	wakes         *RevisionHub
 	avatarBuilder *avatar.ViewBuilder
+	// pushDeviceCipher / pushDeviceNow 服务原生推送设备注册（见 devices.go）。
+	pushDeviceCipher PushDeviceCipher
+	pushDeviceNow    func() time.Time
 }
 
 func NewPostgresStore(pool *pgxpool.Pool) *PostgresStore {

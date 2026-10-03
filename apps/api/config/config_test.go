@@ -116,8 +116,8 @@ func TestLoadIncludesDefaultWorkerConfig(t *testing.T) {
 	if cfg.JobQueueMaintenanceWorkers != 2 {
 		t.Fatalf("expected maintenance workers 2, got %d", cfg.JobQueueMaintenanceWorkers)
 	}
-	if total := JobQueueWorkerTotal(cfg); total != 30 {
-		t.Fatalf("expected production-scale worker total 30 for non-development, got %d", total)
+	if total := JobQueueWorkerTotal(cfg); total != 32 {
+		t.Fatalf("expected production-scale worker total 32 for non-development, got %d", total)
 	}
 }
 
@@ -160,16 +160,18 @@ func TestLoadDevelopmentLeanJobQueueAndPoolDefaults(t *testing.T) {
 		cfg.JobQueueSearchWorkers != 1 ||
 		cfg.JobQueueMailWorkers != 1 ||
 		cfg.JobQueueNotificationsWorkers != 1 ||
-		cfg.JobQueueMaintenanceWorkers != 1 {
-		t.Fatalf("unexpected development job queue defaults: critical=%d default=%d search=%d mail=%d notifications=%d maintenance=%d",
+		cfg.JobQueueMaintenanceWorkers != 1 ||
+		cfg.JobQueueAIWorkers != 1 {
+		t.Fatalf("unexpected development job queue defaults: critical=%d default=%d search=%d mail=%d notifications=%d maintenance=%d ai=%d",
 			cfg.JobQueueCriticalWorkers, cfg.JobQueueDefaultWorkers, cfg.JobQueueSearchWorkers,
-			cfg.JobQueueMailWorkers, cfg.JobQueueNotificationsWorkers, cfg.JobQueueMaintenanceWorkers)
+			cfg.JobQueueMailWorkers, cfg.JobQueueNotificationsWorkers, cfg.JobQueueMaintenanceWorkers,
+			cfg.JobQueueAIWorkers)
 	}
-	if total := JobQueueWorkerTotal(cfg); total != 7 {
-		t.Fatalf("expected lean development worker total 7, got %d", total)
+	if total := JobQueueWorkerTotal(cfg); total != 8 {
+		t.Fatalf("expected lean development worker total 8, got %d", total)
 	}
-	if total := JobQueueWorkerTotal(cfg); total >= 30 {
-		t.Fatalf("development defaults must be leaner than production 30-slot profile, got %d", total)
+	if total := JobQueueWorkerTotal(cfg); total >= 32 {
+		t.Fatalf("development defaults must be leaner than production 32-slot profile, got %d", total)
 	}
 	if cfg.DatabaseMaxConns != 5 || cfg.DatabaseMinConns != 1 {
 		t.Fatalf("expected lean dev database pool 5/1, got %d/%d", cfg.DatabaseMaxConns, cfg.DatabaseMinConns)
@@ -185,8 +187,8 @@ func TestLoadProductionKeepsFullJobQueueDefaults(t *testing.T) {
 	clearJobQueueEnv(t)
 
 	cfg := Load()
-	if JobQueueWorkerTotal(cfg) != 30 {
-		t.Fatalf("production must keep 30-slot defaults, got %d", JobQueueWorkerTotal(cfg))
+	if JobQueueWorkerTotal(cfg) != 32 {
+		t.Fatalf("production must keep 32-slot defaults, got %d", JobQueueWorkerTotal(cfg))
 	}
 	if cfg.DatabaseMaxConns != 10 || cfg.RedisPoolSize != 20 {
 		t.Fatalf("production pools drifted: db=%d redis=%d", cfg.DatabaseMaxConns, cfg.RedisPoolSize)

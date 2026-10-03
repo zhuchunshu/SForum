@@ -191,10 +191,16 @@ responsibilities.
   `SFAvatar` instead of a panel icon. `usePublicUserMenu` is the shared action
   authority for the desktop avatar dropdown and the account section prepended
   to page-owned mobile right drawers; public profile, profile settings,
-  permission-aware moderation, email-verification resend, and logout therefore
-  cannot drift between viewports. The authenticated drawer heading is
-  “个人中心” rather than repeating the page-owned rail heading, and its account
-  actions are collapsed by default behind the accessible identity-row toggle.
+  permission-aware admin and moderation entries, email-verification resend, and
+  logout therefore cannot drift between viewports. The admin entry is gated on
+  `admin.access` — the same permission the API guards every `/admin/*` endpoint
+  with, so `super_admin` (via `can()`'s role bypass) plus the `moderator`,
+  `operator`, and `tech_admin` templates qualify while `member` does not — and
+  resolves its href through `useAdminRoutes` so it follows the operator's
+  `adminRoutePrefix` instead of a hardcoded `/control-panel`. The authenticated
+  drawer heading is "个人中心" rather than repeating the page-owned rail heading,
+  and its account actions are collapsed by default behind the accessible
+  identity-row toggle.
   Guests do not receive the page-owned right-rail entry or a synthetic avatar;
   mobile renders one login/registration action instead, reduced to login when
   registration is closed.
@@ -590,6 +596,12 @@ Plan: `../plans/2026-07-22-theme-defined-system-error-pages.md`
   column padding, sticky center-column scroll ownership, and document-scrolling
   side rails as the default theme.
   Runtime fallback may change ownership/content, not page geometry.
+- Page-level 3col CSS must not hard-code horizontal insets. `sforum-theme.css`
+  owns `--sf-public-edge-inset` for home/topic/notifications/settings/moderation
+  in the Core fallback path, so a fallback page cannot drift off the topbar
+  tracks. Left/right column dividers are the rails' own 1 px border; the legacy
+  ±12 px pseudo-element line shipped by an installed theme artifact is disabled
+  in `sforum-topic.css` until that theme package is rebuilt.
 - Public chrome islands such as `SFNavbar` and `SFFooter` must stay statically
   reachable from runtime theme templates so critical scoped CSS is present
   before browser back/forward restores the page.
@@ -786,6 +798,17 @@ Architecture sources:
   values, so later operator changes continue to flow through. `app.vue` and
   theme-defined `error.vue` documents share this same resolver rather than
   maintaining separate precedence branches.
+- Pinned rows in the homepage/category/tag topic list are presentation-only
+  state: `SFHomeTopicRow` adds `sf-home-topic-row--pinned` (plus
+  `sf-home-topic-row__pin-badge` on the badge) and
+  `assets/css/sforum-home-pinned.css` owns the tint, left accent bar, and hover
+  values. That stylesheet must load after `sforum-home.css` because the default
+  theme skin forces `.sf-home-topic-row` backgrounds to `transparent`; the
+  pinned rules use the same specificity but later order so Core fallback and
+  theme-skin rendering agree. Colors come from `--sf-accent` /
+  `--sf-accent-dark` with `--sf-public-row-pinned-*` override hooks instead of
+  hard-coded grays, and the 1000-line budget keeps `sforum-home.css` free of
+  new pinned-only rules.
 
 ## Editor And Content UI
 

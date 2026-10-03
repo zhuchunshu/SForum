@@ -81,6 +81,14 @@
 - **位置**：`apps/api/app/Http/Controllers/Identity/controller.go:148-154`；`app/Models/Identity/service.go:67-74`；路由 `routes.go:9`（无认证）。
 - **问题**：无认证返回 `nextUserIsInitialSuperAdmin: bool`，无用户时返回 `true`，暴露"系统处于首注册窗口、下个注册者成 super_admin"，是首用户劫持的信息面。
 - **修复方向**：未认证请求不返回 `nextUserIsInitialSuperAdmin`（无用户时统一返回 `false` 或 404）；或对该端点严格限流。
+- **替代实现（2026-10-02）**：采纳第一个方向，并且把"首注册者即超管"的告知
+  从**注册前预告**移到**注册成功后回告**。该事实本来就在
+  `POST /auth/register` 的 `CurrentUser` 响应里（`isInitialSuperAdmin`、
+  `roleKeys`），因此前端在注册成功后提示 `auth.initialSuperAdminGranted`，
+  信息只流向真正拿到权限的注册者。公开端点保持恒定 `false`；注册页不再持有
+  任何预告知分支（`isBootstrapRegistration` 与 `auth.firstUserAdminNotice`
+  已移除）。副作用：零用户站点仍可能展示第三方注册入口，由后端
+  `auth.external_bootstrap_required` 拒绝并经 `registerErrorMessage` 呈现文案。
 
 ### [x] M5. 数据库 `sslmode=disable` 硬编码
 - **位置**：`apps/api/config/config.go:103`（默认 `...?sslmode=disable`）；`compose.yaml:51,82`、`compose.dev.yaml:26,42,87`、`compose.prod.yaml:15`；`.env.production.example:18`。

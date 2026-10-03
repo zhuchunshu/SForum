@@ -2,6 +2,11 @@
 
 Status: **M5 measured** against the same dedicated DB class as M0–M4.
 
+> 历史口径提醒（2026-10-03）：本文的评论 keyset 数字是在 flat 排序为
+> `path_key ASC, id ASC` 时测得的。评论时间流改为 `created_at ASC, id ASC`
+> 后（见 `decisions/2026-10-03-comment-stream-chronological-order.md`），
+> 访问模式与索引形态相同，但本报告的绝对数字尚未按新排序键复测。
+
 Task book: `knowledge/plans/archive/2026-07/2026-07-21-million-scale-read-path.md` (M5).
 Prior: `perf-m4-topic-detail.md`.
 

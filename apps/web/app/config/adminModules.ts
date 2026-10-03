@@ -53,6 +53,13 @@ export const adminPageDefinitions = [
     closable: false
   },
   {
+    id: '/ai',
+    labelKey: 'admin.nav.ai',
+    icon: 'i-lucide-sparkles',
+    componentName: 'AdminAI',
+    requiredPermissions: ['ai.manage']
+  },
+  {
     id: '/users',
     labelKey: 'admin.nav.userManagement',
     icon: 'i-lucide-contact',
@@ -449,7 +456,8 @@ export const adminSidebarNavigation = [
         { type: 'page', pageId: '/entity-meta' },
         { type: 'page', pageId: '/personalization' },
         { type: 'page', pageId: '/seo' },
-        { type: 'page', pageId: '/search' }
+        { type: 'page', pageId: '/search' },
+        { type: 'page', pageId: '/ai' }
       ]
     },
     {

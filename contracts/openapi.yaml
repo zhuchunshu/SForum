@@ -119,6 +119,10 @@ paths:
     "$ref": "./openapi/paths/forum.yaml#/topicUnpin"
   "/topics/{topicID}/comments":
     "$ref": "./openapi/paths/forum.yaml#/topicComments"
+  "/topics/{topicID}/comments/revision":
+    "$ref": "./openapi/paths/forum.yaml#/topicCommentRevision"
+  "/topics/{topicID}/comments/stream":
+    "$ref": "./openapi/paths/forum.yaml#/topicCommentStream"
   "/topics/{topicID}/comments/{commentID}/page":
     "$ref": "./openapi/paths/forum.yaml#/topicCommentPage"
   "/comments/{commentID}/replies":
@@ -275,6 +279,22 @@ paths:
     "$ref": "./openapi/paths/notifications.yaml#/webPushSubscriptions"
   "/web-push/subscriptions/{id}":
     "$ref": "./openapi/paths/notifications.yaml#/webPushSubscriptionByID"
+  "/push/devices":
+    "$ref": "./openapi/paths/notifications.yaml#/pushDevices"
+  "/push/devices/{deviceId}":
+    "$ref": "./openapi/paths/notifications.yaml#/pushDeviceByDeviceID"
+  "/admin/ai/settings":
+    "$ref": "./openapi/paths/ai.yaml#/adminAISettings"
+  "/admin/ai/settings/reset":
+    "$ref": "./openapi/paths/ai.yaml#/adminAISettingsReset"
+  "/admin/ai/usage":
+    "$ref": "./openapi/paths/ai.yaml#/adminAIUsage"
+  "/admin/ai/executions":
+    "$ref": "./openapi/paths/ai.yaml#/adminAIExecutions"
+  "/admin/ai/profiles/{profileId}/credential":
+    "$ref": "./openapi/paths/ai.yaml#/adminAIProfileCredential"
+  "/admin/ai/diagnose":
+    "$ref": "./openapi/paths/ai.yaml#/adminAIDiagnose"
   "/moderation/reports":
     "$ref": "./openapi/paths/moderation.yaml#/moderationReports"
   "/me/content-review":

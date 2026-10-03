@@ -13,6 +13,9 @@ type Config struct {
 	MailWorkers          int
 	NotificationsWorkers int
 	MaintenanceWorkers   int
+	// AIWorkers 是 AI 生成队列的并发上限。调用慢且会命中供应商限流，
+	// 因此默认值远低于其它队列。
+	AIWorkers int
 }
 
 func FromAppConfig(cfg config.Config) Config {
@@ -23,6 +26,7 @@ func FromAppConfig(cfg config.Config) Config {
 		MailWorkers:          positiveOrDefault(cfg.JobQueueMailWorkers, 4),
 		NotificationsWorkers: positiveOrDefault(cfg.JobQueueNotificationsWorkers, 6),
 		MaintenanceWorkers:   positiveOrDefault(cfg.JobQueueMaintenanceWorkers, 2),
+		AIWorkers:            positiveOrDefault(cfg.JobQueueAIWorkers, 2),
 	}
 }
 
@@ -34,6 +38,7 @@ func (cfg Config) RiverQueues() map[string]river.QueueConfig {
 		QueueMail:          {MaxWorkers: cfg.MailWorkers},
 		QueueNotifications: {MaxWorkers: cfg.NotificationsWorkers},
 		QueueMaintenance:   {MaxWorkers: cfg.MaintenanceWorkers},
+		QueueAI:            {MaxWorkers: cfg.AIWorkers},
 	}
 }
 

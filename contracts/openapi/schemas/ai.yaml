@@ -1,0 +1,472 @@
+AIPrice:
+  type: object
+  description: 每百万 token 的计价，单位 micro（1 个货币单位 = 1,000,000 micro）。全 0 表示未配置单价。
+  properties:
+    inputPerMillionMicros:
+      type: integer
+      format: int64
+      minimum: 0
+    outputPerMillionMicros:
+      type: integer
+      format: int64
+      minimum: 0
+
+AIProfileDefaults:
+  type: object
+  properties:
+    maxTokens:
+      type: integer
+      minimum: 1
+      maximum: 32000
+    temperature:
+      type: number
+      format: double
+      minimum: 0
+      maximum: 2
+    timeoutMs:
+      type: integer
+      minimum: 1000
+      maximum: 120000
+
+AIProfile:
+  type: object
+  required:
+  - id
+  - label
+  - protocol
+  - baseUrl
+  - apiKeyRef
+  - model
+  - costClass
+  - enabled
+  properties:
+    id:
+      type: string
+      maxLength: 64
+      description: 小写字母、数字、连字符与下划线。
+    label:
+      type: string
+      maxLength: 64
+    protocol:
+      type: string
+      enum:
+      - openai-chat
+      - anthropic-messages
+      description: 按协议而非厂商寻址；DeepSeek、OpenAI 与兼容网关共用 openai-chat。
+    baseUrl:
+      type: string
+      description: API 根地址。禁止在 URL 中携带凭据，密钥只能通过 apiKeyRef 提供。
+    apiKeyRef:
+      type: string
+      description: Secret Store 引用，例如 sforum.secret://core/ai.deepseek.api_key。密钥值永不进入设置文档。
+    model:
+      type: string
+      maxLength: 128
+    costClass:
+      type: string
+      enum:
+      - economy
+      - standard
+      - premium
+    enabled:
+      type: boolean
+    price:
+      "$ref": "#/AIPrice"
+    defaults:
+      "$ref": "#/AIProfileDefaults"
+    supportsTools:
+      type: boolean
+      description: |
+        该端点是否支持工具调用。缺省视为支持（两套受支持协议都定义了工具调用）；
+        自托管模型或兼容网关不支持时显式设为 false，网关会跳过工具循环直接回答。
+
+AIAutoActionSettings:
+  type: object
+  description: 高置信度自动执行动作的开关。删除类动作永不在允许集合内。
+  properties:
+    enabled:
+      type: boolean
+    confidenceThreshold:
+      type: number
+      format: double
+      minimum: 0
+      maximum: 1
+    allowedActions:
+      type: array
+      items:
+        type: string
+        enum:
+        - hide
+        - tag
+        - reject
+
+AIGateSettings:
+  type: object
+  description: 三道成本闸门的站点级参数。0 表示该闸门停用。
+  properties:
+    rateLimitPerMinute:
+      type: integer
+      minimum: 0
+      maximum: 6000
+    extensionDailyQuota:
+      type: integer
+      minimum: 0
+      maximum: 1000000
+    userDailyQuota:
+      type: integer
+      minimum: 0
+      maximum: 10000
+    monthlyBudgetMicros:
+      type: integer
+      format: int64
+      minimum: 0
+    toolCallsPerReply:
+      type: integer
+      nullable: true
+      minimum: 0
+      maximum: 5
+      description: |
+        单次回复允许的工具调用次数（步数预算）。缺省（null）表示使用推荐默认值 3；
+        显式 0 表示停用工具调用，回复退化为纯文本。每一步都是一次独立的模型调用，
+        各自过闸门并留下执行记录；用户配额按一次回复结算，工具步数只计入站点与
+        扩展口径。
+
+AIRedactionSettings:
+  type: object
+  properties:
+    enabled:
+      type: boolean
+    redactEmail:
+      type: boolean
+    redactPhone:
+      type: boolean
+    redactIp:
+      type: boolean
+
+AISettings:
+  type: object
+  properties:
+    schemaVersion:
+      type: string
+    enabled:
+      type: boolean
+      description: 总开关。默认关闭，关闭时不产生任何出站调用。
+    profiles:
+      type: array
+      items:
+        "$ref": "#/AIProfile"
+    costClassProfiles:
+      type: object
+      additionalProperties:
+        type: string
+    purposeFailurePosture:
+      type: object
+      additionalProperties:
+        type: string
+        enum:
+        - fail_open
+        - fail_closed
+        - skip_ai
+    autoAction:
+      "$ref": "#/AIAutoActionSettings"
+    gates:
+      "$ref": "#/AIGateSettings"
+    redaction:
+      "$ref": "#/AIRedactionSettings"
+    revision:
+      type: integer
+      format: int64
+      description: 每次保存递增；执行记录会快照当时生效的版本。
+    updatedByUserId:
+      type: integer
+      format: int64
+    updatedAt:
+      type: string
+      format: date-time
+
+AISettingsUpdateRequest:
+  type: object
+  required:
+  - enabled
+  - profiles
+  - gates
+  properties:
+    enabled:
+      type: boolean
+    profiles:
+      type: array
+      items:
+        "$ref": "#/AIProfile"
+    costClassProfiles:
+      type: object
+      additionalProperties:
+        type: string
+    purposeFailurePosture:
+      type: object
+      additionalProperties:
+        type: string
+        enum:
+        - fail_open
+        - fail_closed
+        - skip_ai
+    autoAction:
+      "$ref": "#/AIAutoActionSettings"
+    gates:
+      "$ref": "#/AIGateSettings"
+    redaction:
+      "$ref": "#/AIRedactionSettings"
+    reply:
+      "$ref": "#/AIReplySettings"
+
+AIReplySettings:
+  type: object
+  description: |
+    Operator-configurable parts of AI replies. A blank systemPrompt selects the
+    built-in default; restoring the default clears the field. A prompt-injection
+    note is always appended to whatever prompt is in effect and cannot be
+    configured away.
+  properties:
+    systemPrompt:
+      type: string
+      description: Custom system instructions. Blank means the built-in default.
+
+AISettingsPayload:
+  type: object
+  properties:
+    settings:
+      "$ref": "#/AISettings"
+    warnings:
+      type: array
+      description: 非阻断提示，例如未配置单价导致预算闸门不生效。
+      items:
+        type: string
+    encryptionEnabled:
+      type: boolean
+      description: Secret Store 是否具备加密能力；为 false 时不应保存真实密钥。
+    credentialStatus:
+      type: object
+      description: 按 profile id 报告密钥是否已配置。永不含密钥值。
+      additionalProperties:
+        type: boolean
+
+AIUsageSnapshot:
+  type: object
+  properties:
+    minuteCalls:
+      type: integer
+      format: int64
+    dayCalls:
+      type: integer
+      format: int64
+    dayTokens:
+      type: integer
+      format: int64
+    monthSpendMicros:
+      type: integer
+      format: int64
+
+AIUsageByScope:
+  type: object
+  properties:
+    site:
+      "$ref": "#/AIUsageSnapshot"
+    extension:
+      "$ref": "#/AIUsageSnapshot"
+    user:
+      "$ref": "#/AIUsageSnapshot"
+
+AIUsagePayload:
+  type: object
+  properties:
+    usage:
+      "$ref": "#/AIUsageByScope"
+    budgetMicros:
+      type: integer
+      format: int64
+    warnings:
+      type: array
+      items:
+        type: string
+
+AIExecutionRecord:
+  type: object
+  description: 一次 AI 执行的归因。刻意不含提示词与响应正文。
+  properties:
+    id:
+      type: integer
+      format: int64
+    createdAt:
+      type: string
+      format: date-time
+    purpose:
+      type: string
+    costClass:
+      type: string
+    callerExtensionId:
+      type: string
+    profileId:
+      type: string
+    protocol:
+      type: string
+    model:
+      type: string
+    status:
+      type: string
+      enum:
+      - succeeded
+      - failed
+      - denied
+    gateReason:
+      type: string
+    gateScope:
+      type: string
+    promptVersion:
+      type: string
+    configRevision:
+      type: integer
+      format: int64
+    latencyMs:
+      type: integer
+    inputTokens:
+      type: integer
+    outputTokens:
+      type: integer
+    cachedTokens:
+      type: integer
+    spendMicros:
+      type: integer
+      format: int64
+    cacheHit:
+      type: boolean
+    errorSummary:
+      type: string
+
+AIExecutionsPayload:
+  type: object
+  properties:
+    items:
+      type: array
+      items:
+        "$ref": "#/AIExecutionRecord"
+
+AIProfileCredentialRequest:
+  type: object
+  required:
+  - apiKey
+  properties:
+    apiKey:
+      type: string
+      description: 供应商密钥明文。仅在本次请求中传输，写入 Host Secret Store 后立即丢弃，之后无法读取。
+
+AIProfileCredentialPayload:
+  type: object
+  properties:
+    profileId:
+      type: string
+    version:
+      type: integer
+      format: int64
+      description: Secret Store 中的版本号；同一 profile 每次写入都会递增。
+
+ApiResponseAIProfileCredential:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/AIProfileCredentialPayload"
+
+AIDiagnoseRequest:
+  type: object
+  properties:
+    message:
+      type: string
+      description: 自定义探测内容。留空则使用服务端默认消息。
+
+AIDiagnosePayload:
+  type: object
+  description: 一次连通性探测的结论。失败时带稳定原因码与可读说明。
+  properties:
+    ok:
+      type: boolean
+    providerId:
+      type: string
+    model:
+      type: string
+    protocol:
+      type: string
+    reply:
+      type: string
+    latencyMs:
+      type: integer
+      format: int64
+    inputTokens:
+      type: integer
+    outputTokens:
+      type: integer
+    reason:
+      type: string
+    error:
+      type: string
+
+ApiResponseAIDiagnose:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/AIDiagnosePayload"
+
+ApiResponseAISettings:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/AISettingsPayload"
+
+ApiResponseAIUsage:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/AIUsagePayload"
+
+ApiResponseAIExecutions:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/AIExecutionsPayload"

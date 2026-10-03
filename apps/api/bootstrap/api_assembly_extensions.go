@@ -33,6 +33,7 @@ type apiExtensionPlatform struct {
 	lifecycleStack               *productionLifecycleStack
 	productionSEO                *productionSEORegistry
 	identityReviewStore          identityregistry.Store
+	hostPlatform                 *productionHostPlatform
 	pluginRuntimeCoordinator     *pluginRuntimeCoordinatorRuntime
 	pluginRuntimeRecovery        *health.RecoveryRequirement
 	pluginRuntimeStopTimeout     time.Duration
@@ -433,6 +434,7 @@ func wireAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger *sl
 		lifecycleStack:               lifecycleStack,
 		productionSEO:                productionSEO,
 		identityReviewStore:          identityReviewStore,
+		hostPlatform:                 hostPlatform,
 		pluginRuntimeCoordinator:     runtimeState.pluginRuntimeCoordinator,
 		pluginRuntimeRecovery:        runtimeState.pluginRuntimeRecovery,
 		pluginRuntimeStopTimeout:     runtimeState.pluginRuntimeStopTimeout,

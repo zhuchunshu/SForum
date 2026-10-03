@@ -717,7 +717,6 @@
 @media (min-width: 981px) {
   .sforum-home__layout {
     gap: 12px;
-    padding: 0 18px;
     background: var(--sf-public-surface);
   }
 
@@ -738,16 +737,8 @@
     overflow: visible;
   }
 
-  /*
-   * Core/Host 回退页与默认主题三栏使用同一套轨道。
-   * 选择器必须晚于通用 homepage 基线，防止旧主题 L0 的全局规则把
-   * Host chrome 再次压回 18px 边距。
-   */
-  .sf-host-public-chrome--fullwidth-3col .sforum-home__layout {
-    padding-left: var(--sf-public-edge-inset, 24px);
-    padding-right: var(--sf-public-edge-inset, 24px);
-  }
-
+  /* Host 回退页的三栏轨道由宿主壳统一拥有（sforum-theme.css 的
+   * .sf-host-public-chrome--fullwidth-3col :is(...__layout) edge-inset 规则）。 */
   .sf-host-public-chrome--fullwidth-3col .sforum-home__sidebar {
     padding: 24px 24px 20px 28px;
   }

@@ -34,6 +34,9 @@ func isValidValueSet(values map[string]string) bool {
 	if !isValidCommunityPolicyOptions(values) {
 		return false
 	}
+	if !isValidClientVersionOptions(values) {
+		return false
+	}
 
 	provider, ok := normalizeHumanVerificationProvider(values[NameHumanVerificationProvider])
 	if !ok {

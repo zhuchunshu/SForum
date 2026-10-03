@@ -433,6 +433,19 @@ export function formatForumTopicListTotal(
   return t('home.feed.topicCountMeta', { count })
 }
 
+// 公开列表排序：与 GET /topics 的 sort 枚举一一对应
+// （contracts/openapi/paths/forum.yaml：latest=创建时间 / active=最后活跃 / hot=hot_score）。
+export type ForumTopicSort = 'latest' | 'active' | 'hot'
+
+export const forumTopicSorts: ForumTopicSort[] = ['latest', 'active', 'hot']
+
+// 归一化排序值；空值或非法值返回 ''，语义是「站点默认排序」：
+// 请求不携带 sort，由服务端 forum.list.default_sort 决定。
+export function normalizeForumTopicSort(value: unknown): ForumTopicSort | '' {
+  const raw = typeof value === 'string' ? value.trim().toLowerCase() : ''
+  return forumTopicSorts.find((sort) => sort === raw) || ''
+}
+
 export type ForumTopicFilters = {
   categorySlug?: string
   tagSlug?: string
@@ -441,6 +454,8 @@ export type ForumTopicFilters = {
   perPage?: number
   /** M5 keyset：非空时 API 忽略 page */
   after?: string
+  /** 服务端排序；'' / undefined = 站点默认（forum.list.default_sort） */
+  sort?: ForumTopicSort | ''
 }
 
 // 搜索输入：query 为关键词，必填；其余为可选过滤与分页。
@@ -476,7 +491,8 @@ export const recommendedForumSettings: ForumSettings = {
   dailyCommentLimit: 0,
   excerptRuneLimit: 180,
   guestRead: 'public',
-  listDefaultSort: 'latest',
+  // 推荐默认 = 最后活跃（active）；与公开活动索引对齐，公开列表「最新」即最新活动。
+  listDefaultSort: 'active',
   listHotWindowDays: 7,
   allowAuthorCloseReplies: true,
   allowAuthorDelete: true,
@@ -552,6 +568,8 @@ export function buildForumTopicQuery(filters: ForumTopicFilters = {}) {
     addPositiveNumberQuery(query, 'page', filters.page)
   }
   addPositiveNumberQuery(query, 'perPage', filters.perPage)
+  // 排序交给服务端：cursor 与 sort 绑定，前端不再本地重排
+  addStringQuery(query, 'sort', filters.sort)
   return query
 }
 

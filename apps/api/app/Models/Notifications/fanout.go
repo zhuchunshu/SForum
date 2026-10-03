@@ -148,8 +148,7 @@ func (o *Outbox) NotifyModerationTx(ctx context.Context, tx pgx.Tx, event Modera
 func (o *Outbox) notifyApprovedContentTx(ctx context.Context, tx pgx.Tx, event ModerationEvent) error {
 	if event.TargetType == "topic" {
 		var authorID sql.NullInt64
-		var rawContent string
-		var sourceFormat string
+		var rawContent, sourceFormat string
 		if err := tx.QueryRow(ctx, `SELECT topics.author_user_id, posts.raw_content, posts.source_format FROM topics JOIN posts ON posts.id=topics.content_id WHERE topics.id=$1`, event.TargetID).Scan(&authorID, &rawContent, &sourceFormat); err != nil {
 			return err
 		}
@@ -163,8 +162,7 @@ func (o *Outbox) notifyApprovedContentTx(ctx context.Context, tx pgx.Tx, event M
 	}
 	var actorID sql.NullInt64
 	var topicID, topicAuthorID, parentAuthorID int64
-	var rawContent string
-	var sourceFormat string
+	var rawContent, sourceFormat string
 	if err := tx.QueryRow(ctx, `
 		SELECT comments.author_user_id, comments.topic_id, COALESCE(topics.author_user_id, 0),
 			COALESCE(parent.author_user_id, 0), posts.raw_content, posts.source_format

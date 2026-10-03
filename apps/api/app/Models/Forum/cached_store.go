@@ -322,6 +322,16 @@ func (s *CachedStore) ListComments(ctx context.Context, input CommentListInput) 
 	return out, nil
 }
 
+// CommentRevisionState 透传底层 store：修订号是 SSE 对账的事实来源，
+// 一旦被 generation 缓存住就会持续发出「没有变化」的错误信号。
+func (s *CachedStore) CommentRevisionState(ctx context.Context, topicID int64) (CommentRevisionState, error) {
+	inner, ok := s.Store.(CommentRevisionStore)
+	if !ok {
+		return CommentRevisionState{}, ErrCommentRevisionUnavailable
+	}
+	return inner.CommentRevisionState(ctx, topicID)
+}
+
 // InvalidateModerationPublication closes the cache boundary for moderation,
 // whose approval transaction writes the forum tables directly. It runs only
 // after commit, so cache generations never advertise a rolled-back decision.
@@ -684,3 +694,5 @@ func (s *CachedStore) saveJSON(ctx context.Context, key string, value any, ttl t
 		slog.WarnContext(ctx, "forum cache: set failed", "key", key, "err", err)
 	}
 }
+
+var _ CommentRevisionStore = (*CachedStore)(nil)

@@ -113,7 +113,10 @@ type Config struct {
 	JobQueueMailWorkers          int
 	JobQueueNotificationsWorkers int
 	JobQueueMaintenanceWorkers   int
-	LogLevel                     slog.Level
+	// JobQueueAIWorkers 是 AI 生成队列的并发上限。它独立成队且默认很低：调用慢，
+	// 且同时打太多请求只会触发供应商限流。
+	JobQueueAIWorkers int
+	LogLevel          slog.Level
 }
 
 func Load() Config {
@@ -231,6 +234,7 @@ func Load() Config {
 		JobQueueMailWorkers:            envPositiveInt("JOB_QUEUE_MAIL_WORKERS", jobDefaults.Mail),
 		JobQueueNotificationsWorkers:   envPositiveInt("JOB_QUEUE_NOTIFICATIONS_WORKERS", jobDefaults.Notifications),
 		JobQueueMaintenanceWorkers:     envPositiveInt("JOB_QUEUE_MAINTENANCE_WORKERS", jobDefaults.Maintenance),
+		JobQueueAIWorkers:              envPositiveInt("JOB_QUEUE_AI_WORKERS", jobDefaults.AI),
 		LogLevel:                       parseLogLevel(env("LOG_LEVEL", "info")),
 	}
 	validateProductionSecrets(cfg)
@@ -329,30 +333,32 @@ type jobQueueDefaults struct {
 	Mail          int
 	Notifications int
 	Maintenance   int
+	AI            int
 }
 
 // productionJobQueueDefaults 合计 30 worker slots（历史生产档）。
 func productionJobQueueDefaults() jobQueueDefaults {
 	return jobQueueDefaults{
-		Critical: 4, Default: 8, Search: 6, Mail: 4, Notifications: 6, Maintenance: 2,
+		Critical: 4, Default: 8, Search: 6, Mail: 4, Notifications: 6, Maintenance: 2, AI: 2,
 	}
 }
 
 // developmentJobQueueDefaults 合计 7 worker slots，降低本地 embed worker 基线。
 func developmentJobQueueDefaults() jobQueueDefaults {
 	return jobQueueDefaults{
-		Critical: 1, Default: 2, Search: 1, Mail: 1, Notifications: 1, Maintenance: 1,
+		Critical: 1, Default: 2, Search: 1, Mail: 1, Notifications: 1, Maintenance: 1, AI: 1,
 	}
 }
 
-// JobQueueWorkerTotal 返回配置中六条队列 MaxWorkers 之和（测试与诊断用）。
+// JobQueueWorkerTotal 返回配置中各条队列 MaxWorkers 之和（测试与诊断用）。
 func JobQueueWorkerTotal(cfg Config) int {
 	return cfg.JobQueueCriticalWorkers +
 		cfg.JobQueueDefaultWorkers +
 		cfg.JobQueueSearchWorkers +
 		cfg.JobQueueMailWorkers +
 		cfg.JobQueueNotificationsWorkers +
-		cfg.JobQueueMaintenanceWorkers
+		cfg.JobQueueMaintenanceWorkers +
+		cfg.JobQueueAIWorkers
 }
 
 func env(key string, fallback string) string {

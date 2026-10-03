@@ -356,6 +356,9 @@ type loginRequest struct {
 	HumanVerification humanVerificationRequest `json:"humanVerification"`
 	// StepUpEvidence is Host-minted one-use session policy evidence.
 	StepUpEvidence string `json:"stepUpEvidence"`
+	// IssueAPIToken 可选：原生/机器客户端在密码登录成功后顺带签发一枚 PAT，
+	// 免去「cookie 会话 + CSRF 二次换取令牌」。载荷与 POST /auth/tokens 完全同形。
+	IssueAPIToken *createAPITokenRequest `json:"issueApiToken"`
 }
 
 type humanVerificationRequest struct {
@@ -393,10 +396,12 @@ type updateUserRequest struct {
 	DisplayName *string `json:"displayName"`
 	Locale      *string `json:"locale"`
 	Status      *string `json:"status"`
-	Bio         *string `json:"bio"`
-	Signature   *string `json:"signature"`
-	Location    *string `json:"location"`
-	WebsiteURL  *string `json:"websiteUrl"`
+	// Kind 允许管理员把一个账号标记为机器人，或恢复为人类。
+	Kind       *string `json:"kind"`
+	Bio        *string `json:"bio"`
+	Signature  *string `json:"signature"`
+	Location   *string `json:"location"`
+	WebsiteURL *string `json:"websiteUrl"`
 }
 
 type setUserEmailVerificationRequest struct {

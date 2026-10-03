@@ -371,4 +371,83 @@ describe('auth route support contracts', () => {
       wrapper.unmount()
     }
   })
+
+  test('announces super administrator access only to the registration that actually received it', async () => {
+    const toasts: Array<Record<string, unknown>> = []
+    const sessionUsers: Array<{ isInitialSuperAdmin?: boolean }> = []
+    let returnedFromAuth = false
+    const registerPayload = { id: 7, username: 'first-user', emailVerified: true, isInitialSuperAdmin: true }
+    Object.assign(globalThis, {
+      computed: mountVue.computed, ref: mountVue.ref, reactive: mountVue.reactive, watch: mountVue.watch,
+      useI18n: () => ({ locale: mountVue.ref('zh-CN'), t: (key: string) => key }),
+      useToast: () => ({ add: (toast: Record<string, unknown>) => toasts.push(toast) }),
+      useLocalePath: () => (path: string) => path,
+      useRoute: () => ({ path: '/register', query: {} }),
+      useRouter: () => ({ replace: async () => {} }),
+      useApiClient: () => ({
+        apiBaseUrl: 'http://api.test',
+        request: async (path: string) => {
+          if (path === '/auth/registration-status') return { nextUserIsInitialSuperAdmin: false, registrationEnabled: true }
+          if (path === '/auth/register') return registerPayload
+          throw new Error(`unexpected request ${path}`)
+        }
+      }),
+      useAuthSession: () => ({ setUser: (user: { isInitialSuperAdmin?: boolean }) => { sessionUsers.push(user) } }),
+      useAuthReturnNavigation: () => ({
+        returnFromAuth: async () => { returnedFromAuth = true },
+        authPageLink: (path: string) => path,
+        destination: mountVue.ref('/')
+      }),
+      useWebOptions: () => ({
+        siteName: mountVue.ref('SForum'), siteTagline: mountVue.ref(''),
+        webOption: (_name: string, fallback = '') => fallback,
+        humanVerificationEnabledFor: () => false,
+        altchaWidgetSettings: mountVue.ref({ hideLogo: true, hideFooter: true, minDuration: 0, type: 'checkbox', auto: 'off', display: 'default', workers: 1 }),
+        passwordPolicy: mountVue.ref({ minLength: 1, maxLength: 64 })
+      }),
+      useAuthProviders: () => ({ registrationProviders: mountVue.ref([]), redirectToProvider: async () => {} }),
+      useExternalAuthFeedback: () => ({ alertMessage: mountVue.ref(''), alertVariant: mountVue.ref('danger') }),
+      useAsyncData: async (_key: string, handler: () => Promise<unknown>) => ({ data: mountVue.ref(await handler()), pending: mountVue.ref(false) }),
+      useSeoMeta: () => {}, apiErrorFields: () => ({}), apiErrorMessage: () => '', apiErrorReason: () => '',
+      registerErrorMessage: () => '', passwordPolicyProgress: () => 100, passwordPolicyProgressLevel: () => 'strong', passwordPolicyRequirements: () => []
+    })
+    const wrapper = mount({ components: { SFRegisterFormPage }, template: '<Suspense><SFRegisterFormPage /></Suspense>' }, {
+      global: { stubs: { NuxtLink: { template: '<a><slot /></a>' }, UIcon: true, SFAlert: true, ClientOnly: true, 'altcha-widget': true, SFAuthProviderButtons } }
+    })
+    try {
+      await flushPromises()
+      await wrapper.get('#username-input').setValue('first-user')
+      await wrapper.get('#email-input').setValue('first@example.com')
+      await wrapper.get('#displayname-input').setValue('First User')
+      await wrapper.get('#reg-password-input').setValue('password')
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+
+      expect(sessionUsers).toHaveLength(1)
+      expect(returnedFromAuth).toBe(true)
+      expect(toasts.map(toast => toast.title)).toContain('auth.initialSuperAdminGranted')
+
+      toasts.length = 0
+      registerPayload.isInitialSuperAdmin = false
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+      expect(toasts.map(toast => toast.title)).not.toContain('auth.initialSuperAdminGranted')
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  test('no longer previews the bootstrap super administrator window to unauthenticated visitors', async () => {
+    expect(zhCN.auth.initialSuperAdminGranted).toBeTruthy()
+    expect(enUS.auth.initialSuperAdminGranted).toBeTruthy()
+    expect(zhCN.auth.firstUserAdminNotice).toBeUndefined()
+    expect(enUS.auth.firstUserAdminNotice).toBeUndefined()
+
+    const registerFormSource = await Bun.file(
+      new URL('../../app/components/identity/SFRegisterFormPage.vue', import.meta.url)
+    ).text()
+    expect(registerFormSource).not.toContain('firstUserAdminNotice')
+    expect(registerFormSource).not.toContain('isBootstrapRegistration')
+    expect(registerFormSource).toContain("t('auth.initialSuperAdminGranted')")
+  })
 })

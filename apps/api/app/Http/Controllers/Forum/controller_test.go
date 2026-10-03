@@ -1132,7 +1132,7 @@ func (s *controllerForumStore) GetCommentEditSource(context.Context, int64) (for
 	return s.commentEditSource, nil
 }
 
-func (s *controllerForumStore) CountCommentsBefore(context.Context, int64, string, int64, bool, int64) (int64, error) {
+func (s *controllerForumStore) CountCommentsBefore(context.Context, int64, time.Time, int64, bool, int64) (int64, error) {
 	return s.countCommentsBefore, nil
 }
 

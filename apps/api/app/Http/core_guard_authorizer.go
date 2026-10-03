@@ -707,7 +707,11 @@ func forumReadPolicyRoute(routeID string) bool {
 		// 公开贡献时间线与主题详情同 guest-read 策略。
 		"core.route.forum.topic_contribution_timeline",
 		// 评论页码反查与评论列表同 guest-read 策略。
-		"core.route.forum.comment_page":
+		"core.route.forum.comment_page",
+		// 评论区实时信号（修订状态 + SSE）与评论列表同 guest-read 策略；
+		// 载荷只有修订事实，正文与权限仍由 comments 路由裁决。
+		"core.route.forum.topic_comment_revision",
+		"core.route.forum.topic_comment_stream":
 		return true
 	default:
 		return false

@@ -11,6 +11,37 @@ ApiResponseCurrentUser:
       type: string
     data:
       "$ref": "#/CurrentUser"
+
+ApiResponseLogin:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      description: |
+        未携带 `issueApiToken` 时为 `CurrentUser`（浏览器会话路径不变）；
+        携带 `issueApiToken` 时为 `LoginIssuedToken`。
+      oneOf:
+      - "$ref": "#/CurrentUser"
+      - "$ref": "#/LoginIssuedToken"
+
+LoginIssuedToken:
+  type: object
+  required:
+  - user
+  - apiToken
+  properties:
+    user:
+      "$ref": "#/CurrentUser"
+    apiToken:
+      "$ref": "#/CreatedAPIToken"
+      description: One-time issued personal access token. The plaintext `token` field is returned only in this response.
 ApiResponseRegistrationStatus:
   type: object
   required:
@@ -465,6 +496,15 @@ LoginRequest:
     humanVerification:
       "$ref": "#/HumanVerification"
       description: Required only after the account-level risk threshold is reached and the password is correct.
+    issueApiToken:
+      "$ref": "#/CreateAPITokenRequest"
+      description: |
+        可选。原生 App / 机器客户端在登录成功的同时签发一枚个人访问令牌，
+        免去「cookie 会话 + CSRF 二次换取令牌」。规则与 `POST /auth/tokens` 相同；
+        为空时登录响应保持 `CurrentUser` 形状。
+    stepUpEvidence:
+      type: string
+      description: Host-minted one-use session policy evidence, when a session policy requires it.
 Role:
   type: object
   required:
@@ -661,7 +701,14 @@ AdminUserDetail:
     - activity
     - sessions
     - recentAuthEvents
+    - kind
     properties:
+      kind:
+        type: string
+        enum:
+        - human
+        - bot
+        description: Account kind. Bot accounts cannot sign in and never trigger AI replies themselves.
       permissions:
         type: array
         items:
@@ -841,6 +888,16 @@ AdminUpdateUserInput:
       - active
       - disabled
       - banned
+    kind:
+      type: string
+      enum:
+      - human
+      - bot
+      description: |
+        Marks the account as a bot (AI assistant, automation) or restores it to a
+        human account. Bot accounts cannot sign in interactively: marking one revokes
+        its sessions, and the login path rejects them. They otherwise remain ordinary
+        users — they occupy a seat, count as online, can be mentioned and reported.
     bio:
       type: string
       maxLength: 500

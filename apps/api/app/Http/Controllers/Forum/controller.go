@@ -35,6 +35,8 @@ type Controller struct {
 	// idempotency 可选：注入后对发帖/评论写路径启用 Idempotency-Key（F3.2）。
 	idempotency       *idempotency.Store
 	emailVerification EmailVerificationGate
+	// commentLive 可选：注入后启用评论区修订端点与 SSE 实时信号。
+	commentLive *forum.CommentLiveService
 }
 
 type EmailVerificationGate interface {
@@ -195,6 +197,15 @@ func (h *Controller) WithEmailVerificationGate(gate EmailVerificationGate) *Cont
 	return h
 }
 
+// WithCommentLive 注入评论实时信号协作者（修订端点 + SSE）。
+// 未注入时两个端点返回 503，不影响其余论坛路由。
+func (h *Controller) WithCommentLive(live *forum.CommentLiveService) *Controller {
+	if h != nil {
+		h.commentLive = live
+	}
+	return h
+}
+
 type createTopicRequest struct {
 	CategorySlug string             `json:"categorySlug"`
 	Title        string             `json:"title"`
@@ -267,23 +278,6 @@ func (h *Controller) composerToolbar(c fiber.Ctx) error {
 	}
 	if items == nil {
 		items = []forum.ComposerToolbarAction{}
-	}
-	return apphttp.OK(c, items)
-}
-
-func (h *Controller) composerReferences(c fiber.Ctx) error {
-	actor, err := h.actor(c)
-	if err != nil {
-		return err
-	}
-	items, err := h.referenceSelector.ListReferenceOptions(c.Context(), actor, forum.ReferenceSelectorInput{
-		Kind:       c.Query("kind"),
-		Query:      c.Query("query"),
-		SelectedID: int64(queryInt(c, "selectedId")),
-		Limit:      queryInt(c, "limit"),
-	})
-	if err != nil {
-		return mapForumError(err)
 	}
 	return apphttp.OK(c, items)
 }
@@ -421,18 +415,6 @@ func (h *Controller) topicBySlug(c fiber.Ctx) error {
 	}
 	h.service.RecordTopicView(c.Context(), topic.ID, h.topicVisitorKey(c))
 	return apphttp.OK(c, topic)
-}
-
-func (h *Controller) topicEditSource(c fiber.Ctx) error {
-	actor, err := h.actor(c)
-	if err != nil {
-		return err
-	}
-	source, err := h.editableSources.GetTopicEditSource(c.Context(), actor, int64(paramInt(c, "topicID")))
-	if err != nil {
-		return mapForumError(err)
-	}
-	return apphttp.OK(c, source)
 }
 
 func (h *Controller) topicRevisions(c fiber.Ctx) error {
@@ -721,23 +703,6 @@ func (h *Controller) replies(c fiber.Ctx) error {
 	return apphttp.OK(c, items)
 }
 
-func setProtectedContentResponse(c fiber.Ctx) {
-	c.Set(fiber.HeaderCacheControl, "private, no-store")
-	c.Vary(fiber.HeaderCookie, fiber.HeaderAuthorization, fiber.HeaderAcceptLanguage)
-}
-
-func (h *Controller) commentEditSource(c fiber.Ctx) error {
-	actor, err := h.actor(c)
-	if err != nil {
-		return err
-	}
-	source, err := h.editableSources.GetCommentEditSource(c.Context(), actor, int64(paramInt(c, "commentID")))
-	if err != nil {
-		return mapForumError(err)
-	}
-	return apphttp.OK(c, source)
-}
-
 func (h *Controller) commentRevisions(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {
@@ -950,6 +915,8 @@ func mapForumError(err error) error {
 		return fiber.NewError(fiber.StatusBadRequest, forum.CodeUseSearch)
 	case errors.Is(err, forum.ErrInvalidCursor):
 		return fiber.NewError(fiber.StatusBadRequest, forum.CodeInvalidCursor)
+	case errors.Is(err, forum.ErrCommentRevisionUnavailable):
+		return fiber.NewError(fiber.StatusServiceUnavailable, forum.CodeCommentStreamUnavailable)
 	default:
 		return err
 	}
