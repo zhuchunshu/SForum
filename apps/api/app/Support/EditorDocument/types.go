@@ -22,6 +22,7 @@ const (
 var (
 	ErrInvalid          = errors.New("editor document is invalid")
 	ErrUnsupportedNode  = errors.New("editor document contains an unsupported node or mark")
+	ErrInvalidShortcode = errors.New("editor document contains an invalid shortcode")
 	ErrStorageVersion   = errors.New("editor document storage version is unsupported")
 	ErrPipeline         = errors.New("editor document pipeline stage failed")
 	ErrDisabledFallback = errors.New("editor document fell back for disabled plugin content")
@@ -63,6 +64,16 @@ type NodeSpec struct {
 	FallbackHTML string
 	// AllowAttrs is an exact allowlist. Empty means no attributes.
 	AllowAttrs map[string]bool
+	// StrictAttrs rejects undeclared attributes instead of silently filtering
+	// them. Host shortcode nodes use this because their attrs are authoritative
+	// protocol input rather than presentation hints.
+	StrictAttrs bool
+	// BlockOnly restricts a node to the document root or an admitted shortcode
+	// block. It cannot be smuggled into inline/list/code contexts.
+	BlockOnly bool
+	// Protected prevents render/search traversal of descendants when no
+	// authorized runtime projection is present.
+	Protected bool
 }
 
 type MarkSpec struct {
@@ -91,6 +102,21 @@ type Input struct {
 	Markdown   string `json:"markdown,omitempty"`
 	// Schema is required for validate/normalize against admitted types.
 	Schema Schema `json:"-"`
+	// ResourceKind is "topic" or "comment" when the document belongs to Forum.
+	// It makes comment-only declarations fail closed on topic writes.
+	ResourceKind string `json:"-"`
+	// Locale selects Host-owned fallback copy for actor-independent stored
+	// projections. Empty uses the Host default locale.
+	Locale string `json:"-"`
+	// ReferencePath is the already-active render path. Admission rejects a
+	// repeated stable reference before a renderer can recurse into a cycle.
+	ReferencePath []ShortcodeReference `json:"-"`
 	// ExcerptLimit bounds excerpt runes (Host policy).
 	ExcerptLimit int `json:"excerptLimit,omitempty"`
+}
+
+// ShortcodeReference is the bounded identity used for cycle-input checks.
+type ShortcodeReference struct {
+	ID       string
+	StableID int64
 }

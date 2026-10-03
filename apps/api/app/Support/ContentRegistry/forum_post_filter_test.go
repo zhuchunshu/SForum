@@ -2,6 +2,7 @@ package contentregistry
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -9,7 +10,7 @@ import (
 func TestForumPostFilterEmptyRegistryIsIdentity(t *testing.T) {
 	t.Parallel()
 	filter := NewForumPostFilter(New())
-	html, plain, err := filter.AfterHostRender(context.Background(), "<p>host</p>", "host", "topic", "new")
+	html, plain, err := filter.AfterHostRender(context.Background(), "<p>host</p>", "host", "topic", "new", "public")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,9 +39,9 @@ func TestForumPostFilterWithFilterDeclarationsStillIdentityWithoutInvoker(t *tes
 	}
 	// 无 Protocol 调度时不得改写 Host HTML。
 	html, plain, err := filter.AfterHostRender(context.Background(),
-		`<p class="language-go">safe</p>`, "safe", "topic", "1")
-	if err != nil {
-		t.Fatal(err)
+		`<p class="language-go">safe</p>`, "safe", "topic", "1", "public")
+	if !errors.Is(err, ErrRuntimeUnavailable) {
+		t.Fatalf("missing production invoker must fail explicitly: %v", err)
 	}
 	if !strings.Contains(html, "language-go") || plain != "safe" {
 		t.Fatalf("must keep host HTML without invoker: %q %q", html, plain)
@@ -50,7 +51,7 @@ func TestForumPostFilterWithFilterDeclarationsStillIdentityWithoutInvoker(t *tes
 func TestForumPostFilterNilSafe(t *testing.T) {
 	t.Parallel()
 	var filter *ForumPostFilter
-	html, plain, err := filter.AfterHostRender(context.Background(), "<p>x</p>", "x", "topic", "new")
+	html, plain, err := filter.AfterHostRender(context.Background(), "<p>x</p>", "x", "topic", "new", "public")
 	if err != nil || html != "<p>x</p>" || plain != "x" {
 		t.Fatalf("nil filter: %v %q %q", err, html, plain)
 	}

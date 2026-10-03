@@ -32,6 +32,8 @@ type CoreForumViewReader interface {
 	ListTopics(context.Context, forum.TopicListInput) (forum.TopicList, error)
 	GetTopic(context.Context, int64) (forum.TopicDetail, error)
 	GetTopicBySlug(context.Context, string) (forum.TopicDetail, error)
+	GetTopicForViewer(context.Context, int64, identity.Actor) (forum.TopicDetail, error)
+	GetTopicBySlugForViewer(context.Context, string, identity.Actor) (forum.TopicDetail, error)
 	ListComments(context.Context, forum.CommentListInput) (forum.CommentList, error)
 }
 
@@ -481,7 +483,8 @@ func (s *CorePageViewModelSource) populateTopicDetail(ctx context.Context, reque
 	if s.deps.Forum == nil {
 		return ErrCorePageDataUnavailable
 	}
-	topic, err := s.resolveTopic(ctx, request.RouteParams["path"])
+	ctx = forum.WithPublicRenderLocale(ctx, request.Locale)
+	topic, err := s.resolveTopic(ctx, request.RouteParams["path"], input.Actor)
 	if err != nil {
 		if errors.Is(err, forum.ErrTopicNotFound) {
 			return fmt.Errorf("%w: topic", ErrCorePageDataNotFound)
@@ -730,15 +733,15 @@ func (s *CorePageViewModelSource) topicURLMode(ctx context.Context) string {
 	return value
 }
 
-func (s *CorePageViewModelSource) resolveTopic(ctx context.Context, rawPath string) (forum.TopicDetail, error) {
+func (s *CorePageViewModelSource) resolveTopic(ctx context.Context, rawPath string, viewer identity.Actor) (forum.TopicDetail, error) {
 	parts := strings.Split(strings.Trim(rawPath, "/"), "/")
 	if len(parts) == 0 || strings.TrimSpace(parts[0]) == "" {
 		return forum.TopicDetail{}, forum.ErrTopicNotFound
 	}
 	if id, err := strconv.ParseInt(parts[0], 10, 64); err == nil && id > 0 {
-		return s.deps.Forum.GetTopic(ctx, id)
+		return s.deps.Forum.GetTopicForViewer(ctx, id, viewer)
 	}
-	return s.deps.Forum.GetTopicBySlug(ctx, parts[0])
+	return s.deps.Forum.GetTopicBySlugForViewer(ctx, parts[0], viewer)
 }
 
 func paginationView(path string, query url.Values, page, perPage int, total int64) *themecompiler.PaginationView {

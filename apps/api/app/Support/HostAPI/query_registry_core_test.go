@@ -90,6 +90,13 @@ func TestQueryRegistryCoreCatalogSealsPublicationsBindingsAndSchemas(t *testing.
 			PermissionPolicy: queryregistry.PermissionPolicyPublic, Pagination: queryregistry.PaginationNone,
 		},
 	}
+	for _, definition := range shortcodeProjectionProtocolV2QueryDefinitions() {
+		mapping, ok := shortcodeProjectionCoreMapping(definition)
+		if !ok {
+			t.Fatalf("missing shortcode mapping for %s", definition.ID)
+		}
+		expected[definition.ID] = mapping
+	}
 	if len(expected) != len(definitions) {
 		t.Fatalf("explicit mapping table size=%d definitions=%d", len(expected), len(definitions))
 	}
@@ -490,13 +497,13 @@ func queryRegistryCoreFixtureRow(t *testing.T, definition protocolV2QueryDefinit
 	row := queryregistry.QueryRow{}
 	for _, field := range definition.Fields {
 		switch field.Name {
-		case "is_pinned":
+		case "is_pinned", "owning_topic_public", "authenticated", "is_resource_author", "is_topic_author", "eligible":
 			row[field.Name] = false
 		case "image_width", "image_height":
 			row[field.Name] = nil
-		case "reference_count":
+		case "reference_count", "position":
 			row[field.Name] = float64(1)
-		case "author_user_id", "owner_user_id":
+		case "author_user_id", "owner_user_id", "topic_id", "resource_id":
 			row[field.Name] = "1"
 		default:
 			// BIGINT/text/timestamp 在 Host 归一化后均为 string。

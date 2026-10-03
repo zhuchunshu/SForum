@@ -106,10 +106,11 @@ func normalizeTombstone(input Tombstone) (Tombstone, error) {
 	input.ContractVersion = strings.TrimSpace(input.ContractVersion)
 	input.OwnerExtensionID = strings.ToLower(strings.TrimSpace(input.OwnerExtensionID))
 	input.DefinitionDigest = normalizeDigest(input.DefinitionDigest)
+	hostPostBodyAlias := input.OwnerExtensionID == hostPostBodyCoreExtensionID && input.ID == HostPostBodyTargetID
 	if !idPattern.MatchString(input.ID) || len(input.ID) > maxIDLength ||
 		!contractPattern.MatchString(input.ContractVersion) || len(input.ContractVersion) > maxContractVersionLength ||
 		!idPattern.MatchString(input.OwnerExtensionID) || input.OwnerExtensionID == "core" ||
-		!strings.HasPrefix(input.ID, input.OwnerExtensionID+".") ||
+		(!strings.HasPrefix(input.ID, input.OwnerExtensionID+".") && !hostPostBodyAlias) ||
 		!digestPattern.MatchString(input.DefinitionDigest) {
 		return Tombstone{}, ErrInvalid
 	}
@@ -231,7 +232,8 @@ func normalizeDeclaration(artifact Artifact, input Declaration) (Declaration, er
 }
 
 func validContributionIdentity(artifact Artifact, id, contract string) bool {
-	return idPattern.MatchString(id) && strings.HasPrefix(id, artifact.ExtensionID+".") &&
+	hostPostBodyAlias := IsHostCoreArtifact(artifact) && artifact.ExtensionID == hostPostBodyCoreExtensionID && id == HostPostBodyTargetID
+	return idPattern.MatchString(id) && (strings.HasPrefix(id, artifact.ExtensionID+".") || hostPostBodyAlias) &&
 		contractPattern.MatchString(contract) &&
 		len(id) <= maxIDLength && len(contract) <= maxContractVersionLength
 }

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -219,11 +220,13 @@ func (e *Executor) Execute(ctx context.Context, raw ExecutionRequest) (Execution
 		FallbackUsed: fallbackUsed, SourcePreserved: sourcePreserved, Hidden: plan.hidden,
 	}
 	result.Attribution = executionAttribution(used)
-	result.CacheTags, err = e.executionCacheTags(request, used)
-	if err != nil {
-		return ExecutionResult{}, err
+	if !request.Private {
+		result.CacheTags, err = e.executionCacheTags(request, used)
+		if err != nil {
+			return ExecutionResult{}, err
+		}
+		result.CacheKey = e.executionCacheKey(plan, request, result, serialized)
 	}
-	result.CacheKey = e.executionCacheKey(plan, request, result, serialized)
 	if err := preflightExecutionResultJSON(result, e.limits); err != nil {
 		return ExecutionResult{}, err
 	}
@@ -234,6 +237,75 @@ func (e *Executor) Execute(ctx context.Context, raw ExecutionRequest) (Execution
 		return ExecutionResult{}, fmt.Errorf("release content result: %w", err)
 	}
 	return cloneExecutionResult(result), nil
+}
+
+// ExecuteBatch evaluates a bounded request page with stable input ordering.
+// The shared runtime/Host slot pools remain authoritative across the batch;
+// no request can create an unbounded goroutine fan-out.
+func (e *Executor) ExecuteBatch(ctx context.Context, requests []ExecutionRequest) ([]ExecutionResult, error) {
+	if e == nil || ctx == nil || len(requests) == 0 || len(requests) > e.limits.MaxBatchSize {
+		return nil, ErrExecutionInvalid
+	}
+	batchCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	results := make([]ExecutionResult, len(requests))
+	firstError := make(chan error, 1)
+	workers := e.limits.MaxConcurrentCalls
+	if workers > len(requests) {
+		workers = len(requests)
+	}
+	indices := make(chan int)
+	var wait sync.WaitGroup
+	wait.Add(workers)
+	for worker := 0; worker < workers; worker++ {
+		go func() {
+			defer wait.Done()
+			for index := range indices {
+				if batchCtx.Err() != nil {
+					return
+				}
+				result, err := e.Execute(batchCtx, requests[index])
+				if err != nil {
+					select {
+					case firstError <- err:
+					default:
+					}
+					cancel()
+					return
+				}
+				results[index] = result
+			}
+		}()
+	}
+	for index := range requests {
+		select {
+		case indices <- index:
+		case <-batchCtx.Done():
+			break
+		}
+		if batchCtx.Err() != nil {
+			break
+		}
+	}
+	close(indices)
+	wait.Wait()
+	select {
+	case err := <-firstError:
+		return nil, err
+	default:
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	total := 0
+	for _, result := range results {
+		encoded, err := json.Marshal(result)
+		if err != nil || len(encoded) > e.limits.MaxOutputBytes-total {
+			return nil, ErrExecutionLimit
+		}
+		total += len(encoded)
+	}
+	return results, nil
 }
 
 func (e *Executor) executeTerminal(
@@ -443,6 +515,7 @@ func (e *Executor) callRenderer(
 			Action: step.binding.Action, Document: cloneEditorDocument(document),
 			Serialized: cloneSerializedContent(serialized), Inner: cloneRenderSegments(inner),
 			ResourceID: request.ResourceID, Locale: request.Locale, Scope: request.Scope,
+			SuppressHostDelegations: request.SuppressHostDelegations,
 		}
 		return step.binding.Providers.Renderer.RenderContent(callCtx, input)
 	}, func(_ context.Context, candidate RenderSegments) (RenderSegments, error) {
@@ -614,8 +687,10 @@ func contentAdmissionRequest(plan executionPlan, step plannedBinding, operation 
 		TargetID: plan.target.ID, TargetContractVersion: plan.target.ContractVersion,
 		TargetSchema: plan.target.Schema, TargetArtifact: plan.target.Artifact,
 		ContentID: step.contribution.ID, ContractVersion: step.contribution.ContractVersion,
+		Kind: step.contribution.Kind, Schema: step.contribution.Schema,
 		HandlerReference: step.contribution.Handler, RendererReference: step.contribution.Renderer,
-		Action: step.binding.Action, Operation: operation, Artifact: step.contribution.Artifact,
+		MigrationReference: step.contribution.Migration,
+		Action:             step.binding.Action, Operation: operation, Artifact: step.contribution.Artifact,
 	}
 }
 

@@ -1098,7 +1098,7 @@ func topicListOrderBy(sort string) string {
 }
 
 func topicDetailSQL() string {
-	// 详情 SELECT：正文三字段 + 作者头像；excerpt 在 scan 时从 plain 派生。
+	// 详情 SELECT：只取公开正文投影 + 作者头像；excerpt 在 scan 时从 plain 派生。
 	// ContentEdited 基于有效 currentRevision > 1；混合迁移期只在当前行上用 revision 索引计数。
 	// 不拉 revision 正文，避免详情路径扫历史快照。
 	return `
@@ -1113,9 +1113,7 @@ func topicDetailSQL() string {
 		  ` + contentEditedSQL("posts") + `,
 		  ` + contentEditedAtSQL("posts") + `,
 		  topics.created_at, topics.updated_at, topics.last_activity_at,
-		  posts.id, posts.raw_content, posts.html_content, posts.plain_text,
-		  posts.source_format, posts.editor_type, posts.editor_version,
-		  posts.render_version, posts.content_hash
+		  posts.id, posts.html_content, posts.plain_text, posts.render_version
 		FROM topics
 		JOIN categories ON categories.id = topics.category_id
 		JOIN posts ON posts.id = topics.content_id
@@ -1326,14 +1324,9 @@ func scanTopicDetail(row RowScanner) (TopicDetail, error) {
 		&detail.UpdatedAt,
 		&detail.LastActivityAt,
 		&detail.Content.ID,
-		&detail.Content.RawContent,
 		&detail.Content.HTMLContent,
 		&detail.Content.PlainText,
-		&detail.Content.SourceFormat,
-		&detail.Content.EditorType,
-		&detail.Content.EditorVersion,
 		&detail.Content.RenderVersion,
-		&detail.Content.ContentHash,
 	); err != nil {
 		return TopicDetail{}, err
 	}
@@ -1387,14 +1380,9 @@ func scanTopicDetailWithAvatar(row RowScanner, builder *avatar.ViewBuilder) (Top
 		&detail.UpdatedAt,
 		&detail.LastActivityAt,
 		&detail.Content.ID,
-		&detail.Content.RawContent,
 		&detail.Content.HTMLContent,
 		&detail.Content.PlainText,
-		&detail.Content.SourceFormat,
-		&detail.Content.EditorType,
-		&detail.Content.EditorVersion,
 		&detail.Content.RenderVersion,
-		&detail.Content.ContentHash,
 	); err != nil {
 		return TopicDetail{}, err
 	}
@@ -1432,9 +1420,7 @@ func commentSelectSQL() string {
 		  author_attachments.content_type, author_attachments.status,
 		  comments.parent_comment_id, COALESCE(comments.root_comment_id, comments.id),
 		  comments.path_key, comments.depth, comments.reply_count, comments.status,
-		  posts.id, posts.raw_content, posts.html_content, posts.plain_text,
-		  posts.source_format, posts.editor_type, posts.editor_version,
-		  posts.render_version, posts.content_hash,
+		  posts.id, posts.html_content, posts.plain_text, posts.render_version,
 		  parent_comments.id,
 		  CASE WHEN parent_comments.status = 'deleted' THEN '' ELSE ` + plainTextPrefixSQL("parent_posts.plain_text") + ` END,
 		  parent_comments.depth,
@@ -1526,14 +1512,9 @@ func scanCommentWithAvatar(row RowScanner, builder *avatar.ViewBuilder) (Comment
 		&comment.ReplyCount,
 		&comment.Status,
 		&comment.Content.ID,
-		&comment.Content.RawContent,
 		&comment.Content.HTMLContent,
 		&comment.Content.PlainText,
-		&comment.Content.SourceFormat,
-		&comment.Content.EditorType,
-		&comment.Content.EditorVersion,
 		&comment.Content.RenderVersion,
-		&comment.Content.ContentHash,
 		&parentCommentID,
 		&parentPlainPrefix,
 		&parentDepth,

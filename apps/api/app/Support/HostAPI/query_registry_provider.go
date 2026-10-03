@@ -223,6 +223,8 @@ func queryRegistryProtocolV2FilterValue(definition protocolV2QueryFilterDefiniti
 			return nil, fmt.Errorf("%w: filter %q requires a canonical positive int64", queryregistry.ErrInvalid, definition.Field)
 		}
 		return parsed, nil
+	case shortcodeProjectionInt64ListFilterKind:
+		return parseShortcodeProjectionIDs(value)
 	case "text":
 		if value == "" || strings.TrimSpace(value) != value || len(value) > 200 {
 			return nil, fmt.Errorf("%w: filter %q requires bounded text", queryregistry.ErrInvalid, definition.Field)

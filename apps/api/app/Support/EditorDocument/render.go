@@ -11,14 +11,93 @@ import (
 
 // RenderHTML walks accepted native JSON into HTML before sanitization.
 func RenderHTML(doc Document, schema Schema) string {
+	return RenderHTMLForLocale(doc, schema, "")
+}
+
+// RenderHTMLForLocale renders Host-owned fallback copy in locale. Stored
+// public projections call this with the site's current default locale.
+func RenderHTMLForLocale(doc Document, schema Schema, locale string) string {
 	var builder strings.Builder
 	for _, node := range doc.Content {
-		renderNode(&builder, node, schema)
+		renderNode(&builder, node, schema, nil, 0, locale)
 	}
 	return builder.String()
 }
 
-func renderNode(builder *strings.Builder, node Node, schema Schema) {
+// ShortcodeRenderSlot is a public-safe render-plan entry. Reference nodes are
+// atoms, so the copied node can contain only the frozen identity and arguments.
+type ShortcodeRenderSlot struct {
+	Placeholder string
+	Node        Node
+	Depth       int
+}
+
+// ProtectedShortcodeFragment is request-only accepted source. It must never be
+// logged, traced, hashed, or stored in a shared cache.
+type ProtectedShortcodeFragment struct {
+	Placeholder     string
+	ID              string
+	ContractVersion string
+	Depth           int
+	Document        Document
+}
+
+type shortcodeRenderPlanState struct {
+	slots            []ShortcodeRenderSlot
+	protected        []ProtectedShortcodeFragment
+	includeProtected bool
+	locale           string
+}
+
+// RenderHTMLWithShortcodeSlots renders accepted Host nodes while replacing
+// public reference atoms with opaque server-side placeholders. Protected block
+// nodes keep their closed Host fallback until the actor-sensitive M8 pipeline.
+func RenderHTMLWithShortcodeSlots(doc Document, schema Schema) (string, []ShortcodeRenderSlot) {
+	var builder strings.Builder
+	state := &shortcodeRenderPlanState{}
+	for _, node := range doc.Content {
+		renderNode(&builder, node, schema, state, 0, "")
+	}
+	return builder.String(), append([]ShortcodeRenderSlot(nil), state.slots...)
+}
+
+// RenderHTMLWithAllShortcodeSlots produces a public-safe template and keeps
+// protected children in a separate request-only slice. Protected slot metadata
+// contains no child, arguments, actor, output, or source-derived hash.
+func RenderHTMLWithAllShortcodeSlots(doc Document, schema Schema, locale string) (string, []ShortcodeRenderSlot, []ProtectedShortcodeFragment) {
+	var builder strings.Builder
+	state := &shortcodeRenderPlanState{includeProtected: true, locale: locale}
+	for _, node := range doc.Content {
+		renderNode(&builder, node, schema, state, 0, locale)
+	}
+	return builder.String(), append([]ShortcodeRenderSlot(nil), state.slots...), append([]ProtectedShortcodeFragment(nil), state.protected...)
+}
+
+// RenderProtectedShortcodeFallbackHTML is lifecycle-independent Host output.
+// It never includes protected child content or declaration arguments.
+func RenderProtectedShortcodeFallbackHTML(locale string) string {
+	return RenderProtectedShortcodeFallbackHTMLForCode("shortcode.protected.unavailable", locale)
+}
+
+// RenderProtectedShortcodeFallbackHTMLForCode accepts only stable Host reason
+// codes. Unknown input is collapsed to the generic closed fallback.
+func RenderProtectedShortcodeFallbackHTMLForCode(code, locale string) string {
+	switch code {
+	case "shortcode.protected.unavailable", "shortcode.login.required", "shortcode.reply.required", "shortcode.only_author.private":
+	default:
+		code = "shortcode.protected.unavailable"
+	}
+	label := shortcodeFallbackLabel(code, locale)
+	return `<span class="sf-editor-fallback" data-fallback="` + html.EscapeString(code) + `">` + html.EscapeString(label) + `</span>`
+}
+
+// RenderShortcodeFallbackHTML renders one accepted node through the Host
+// fallback path. It is used only to close unresolved public reference slots.
+func RenderShortcodeFallbackHTML(node Node, schema Schema, locale string) string {
+	return RenderHTMLForLocale(Document{Type: "doc", Content: []Node{node}}, schema, locale)
+}
+
+func renderNode(builder *strings.Builder, node Node, schema Schema, plan *shortcodeRenderPlanState, shortcodeDepth int, locale string) {
 	switch node.Type {
 	case "paragraph":
 		builder.WriteString("<p>")
@@ -42,7 +121,7 @@ func renderNode(builder *strings.Builder, node Node, schema Schema) {
 	case "blockquote":
 		builder.WriteString("<blockquote>")
 		for _, child := range node.Content {
-			renderNode(builder, child, schema)
+			renderNode(builder, child, schema, plan, shortcodeDepth, locale)
 		}
 		builder.WriteString("</blockquote>")
 	case "codeBlock":
@@ -61,7 +140,7 @@ func renderNode(builder *strings.Builder, node Node, schema Schema) {
 	case "bulletList":
 		builder.WriteString("<ul>")
 		for _, child := range node.Content {
-			renderNode(builder, child, schema)
+			renderNode(builder, child, schema, plan, shortcodeDepth, locale)
 		}
 		builder.WriteString("</ul>")
 	case "orderedList":
@@ -75,13 +154,13 @@ func renderNode(builder *strings.Builder, node Node, schema Schema) {
 			builder.WriteString("<ol>")
 		}
 		for _, child := range node.Content {
-			renderNode(builder, child, schema)
+			renderNode(builder, child, schema, plan, shortcodeDepth, locale)
 		}
 		builder.WriteString("</ol>")
 	case "listItem":
 		builder.WriteString("<li>")
 		for _, child := range node.Content {
-			renderNode(builder, child, schema)
+			renderNode(builder, child, schema, plan, shortcodeDepth, locale)
 		}
 		builder.WriteString("</li>")
 	case "horizontalRule":
@@ -121,6 +200,44 @@ func renderNode(builder *strings.Builder, node Node, schema Schema) {
 		builder.WriteString(`<span class="sf-editor-emoji-node" data-sforum-emoji="` + html.EscapeString(name) +
 			`" data-label="` + html.EscapeString(label) + `" title="` + html.EscapeString(label) + `">` +
 			html.EscapeString(native) + `</span>`)
+	case ShortcodeRefNode:
+		if plan != nil {
+			placeholder := "<!--sforum-shortcode-slot:" + strconv.Itoa(len(plan.slots)) + "-->"
+			plan.slots = append(plan.slots, ShortcodeRenderSlot{
+				Placeholder: placeholder,
+				Node:        cloneShortcodeRenderNode(node),
+				Depth:       shortcodeDepth + 1,
+			})
+			builder.WriteString(placeholder)
+			return
+		}
+		code, label, omit := shortcodeFallbackForLocale(node, locale)
+		if omit {
+			return
+		}
+		builder.WriteString(`<span class="sf-editor-fallback" data-fallback="` + html.EscapeString(code) + `">`)
+		builder.WriteString(html.EscapeString(label))
+		builder.WriteString("</span>")
+	case ShortcodeBlockNode:
+		if plan != nil && plan.includeProtected {
+			placeholder := "<!--sforum-protected-slot:" + strconv.Itoa(len(plan.protected)) + "-->"
+			id, _ := node.Attrs["id"].(string)
+			version, _ := node.Attrs["contractVersion"].(string)
+			plan.protected = append(plan.protected, ProtectedShortcodeFragment{
+				Placeholder: placeholder, ID: id, ContractVersion: version,
+				Depth:    shortcodeDepth + 1,
+				Document: Document{Type: "doc", Content: cloneNodes(node.Content)},
+			})
+			builder.WriteString(placeholder)
+			return
+		}
+		code, label, omit := shortcodeFallbackForLocale(node, locale)
+		if omit {
+			return
+		}
+		builder.WriteString(`<span class="sf-editor-fallback" data-fallback="` + html.EscapeString(code) + `">`)
+		builder.WriteString(html.EscapeString(label))
+		builder.WriteString("</span>")
 	default:
 		if spec, ok := schema.Nodes[node.Type]; ok && spec.FallbackHTML != "" {
 			builder.WriteString(spec.FallbackHTML)
@@ -155,11 +272,11 @@ func renderInline(builder *strings.Builder, nodes []Node, schema Schema) {
 			continue
 		}
 		if node.Type == "sforumEmoji" || node.Type == "image" {
-			renderNode(builder, node, schema)
+			renderNode(builder, node, schema, nil, 0, "")
 			continue
 		}
 		if node.Type != "text" {
-			renderNode(builder, node, schema)
+			renderNode(builder, node, schema, nil, 0, "")
 			continue
 		}
 		text := html.EscapeString(node.Text)
@@ -188,6 +305,46 @@ func renderInline(builder *strings.Builder, nodes []Node, schema Schema) {
 	}
 }
 
+func cloneShortcodeRenderNode(node Node) Node {
+	clone := Node{Type: node.Type, Text: node.Text}
+	if node.Attrs != nil {
+		clone.Attrs = make(map[string]any, len(node.Attrs))
+		for key, value := range node.Attrs {
+			if arguments, ok := value.(map[string]any); ok {
+				copied := make(map[string]any, len(arguments))
+				for argument, scalar := range arguments {
+					copied[argument] = scalar
+				}
+				clone.Attrs[key] = copied
+				continue
+			}
+			clone.Attrs[key] = value
+		}
+	}
+	return clone
+}
+
+func cloneNodes(nodes []Node) []Node {
+	result := make([]Node, len(nodes))
+	for index, node := range nodes {
+		result[index] = cloneShortcodeRenderNode(node)
+		result[index].Content = cloneNodes(node.Content)
+		if node.Marks != nil {
+			result[index].Marks = make([]Mark, len(node.Marks))
+			for markIndex, mark := range node.Marks {
+				result[index].Marks[markIndex] = Mark{Type: mark.Type}
+				if mark.Attrs != nil {
+					result[index].Marks[markIndex].Attrs = make(map[string]any, len(mark.Attrs))
+					for key, value := range mark.Attrs {
+						result[index].Marks[markIndex].Attrs[key] = value
+					}
+				}
+			}
+		}
+	}
+	return result
+}
+
 // RenderMarkdown produces a lossy but readable Markdown export from accepted
 // native structure for audits and editable source fallback.
 func RenderMarkdown(doc Document) string {
@@ -201,10 +358,40 @@ func RenderMarkdown(doc Document) string {
 	return strings.TrimSpace(builder.String())
 }
 
+// RenderPublicSideEffectMarkdown preserves Markdown code/link semantics for
+// existing authoring analyzers while removing protected descendants first.
+// It is for write-time mentions/previews only, never for editable projection.
+func RenderPublicSideEffectMarkdown(doc Document) string {
+	return RenderMarkdown(Document{Type: "doc", Content: publicSideEffectNodes(doc.Content)})
+}
+
+func publicSideEffectNodes(nodes []Node) []Node {
+	result := make([]Node, 0, len(nodes))
+	for _, node := range nodes {
+		if node.Type == ShortcodeBlockNode {
+			_, label, _ := shortcodeFallback(node)
+			result = append(result, Node{Type: "paragraph", Content: []Node{{Type: "text", Text: label}}})
+			continue
+		}
+		if node.Type == ShortcodeRefNode {
+			_, label, omit := shortcodeFallback(node)
+			if !omit {
+				result = append(result, Node{Type: "paragraph", Content: []Node{{Type: "text", Text: label}}})
+			}
+			continue
+		}
+		node.Content = publicSideEffectNodes(node.Content)
+		result = append(result, node)
+	}
+	return result
+}
+
 func renderMarkdownNode(builder *strings.Builder, node Node) {
 	switch node.Type {
 	case "paragraph":
-		renderMarkdownInline(builder, node.Content)
+		var paragraph strings.Builder
+		renderMarkdownInline(&paragraph, node.Content)
+		builder.WriteString(escapeLiteralShortcodeOpening(paragraph.String()))
 	case "heading":
 		level := 2
 		if raw, ok := node.Attrs["level"].(float64); ok {
@@ -264,6 +451,22 @@ func renderMarkdownNode(builder *strings.Builder, node Node) {
 		builder.WriteString("](")
 		builder.WriteString(src)
 		builder.WriteString(")")
+	case ShortcodeRefNode:
+		if canonical, ok := shortcodeCanonicalMarkdown(node); ok {
+			builder.WriteString(canonical)
+		}
+	case ShortcodeBlockNode:
+		canonical, ok := shortcodeCanonicalMarkdown(node)
+		name, nameOK := shortcodeName(node)
+		if !ok || !nameOK {
+			return
+		}
+		builder.WriteString(canonical)
+		builder.WriteByte('\n')
+		builder.WriteString(RenderMarkdown(Document{Type: "doc", Content: node.Content}))
+		builder.WriteString("\n[/")
+		builder.WriteString(name)
+		builder.WriteByte(']')
 	default:
 		renderMarkdownInline(builder, node.Content)
 	}

@@ -132,7 +132,11 @@ func (e *postgresProtocolV2QueryExecutor) ExecuteProtocolV2Query(
 		return nil, err
 	}
 	defer tx.Rollback(ctx)
-	query, args := postgresProtocolV2Query(plan)
+	actorUserID, actorBound := shortcodeProjectionActorFromContext(ctx)
+	if plan.Definition.ActorScoped && !actorBound {
+		return nil, ErrShortcodeProjectionActorUnavailable
+	}
+	query, args := postgresProtocolV2Query(plan, actorUserID)
 	rows, err := tx.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -169,7 +173,7 @@ func (e *postgresProtocolV2QueryExecutor) ExecuteProtocolV2Query(
 	return result, nil
 }
 
-func postgresProtocolV2Query(plan protocolV2QueryPlan) (string, []any) {
+func postgresProtocolV2Query(plan protocolV2QueryPlan, actorUserID int64) (string, []any) {
 	selected := make([]string, 0, len(plan.Fields))
 	for _, field := range plan.Fields {
 		selected = append(selected, field.Expression+" AS "+pgx.Identifier{field.Name}.Sanitize())
@@ -178,8 +182,13 @@ func postgresProtocolV2Query(plan protocolV2QueryPlan) (string, []any) {
 	builder.WriteString("SELECT ")
 	builder.WriteString(strings.Join(selected, ", "))
 	builder.WriteString(" FROM ")
-	builder.WriteString(plan.Definition.From)
-	args := make([]any, 0, len(plan.Filters)+2)
+	from := plan.Definition.From
+	args := make([]any, 0, len(plan.Filters)+3)
+	if plan.Definition.ActorScoped {
+		args = append(args, actorUserID)
+		from = strings.ReplaceAll(from, shortcodeProjectionActorSQLToken, "$1")
+	}
+	builder.WriteString(from)
 	if len(plan.Filters) > 0 {
 		builder.WriteString(" WHERE ")
 		for index, filter := range plan.Filters {
@@ -188,8 +197,15 @@ func postgresProtocolV2Query(plan protocolV2QueryPlan) (string, []any) {
 			}
 			args = append(args, filter.Value)
 			builder.WriteString(filter.Definition.Expression)
-			builder.WriteString(" = $")
+			if filter.Definition.Kind == shortcodeProjectionInt64ListFilterKind {
+				builder.WriteString(" = ANY($")
+			} else {
+				builder.WriteString(" = $")
+			}
 			builder.WriteString(strconv.Itoa(len(args)))
+			if filter.Definition.Kind == shortcodeProjectionInt64ListFilterKind {
+				builder.WriteByte(')')
+			}
 		}
 	}
 	if len(plan.Sorts) > 0 {
@@ -287,7 +303,7 @@ func stableCoreProtocolV2QueryDefinitions() []protocolV2QueryDefinition {
 		{Field: "updated_at", Expression: "stable.updated_at"},
 		{Field: "last_activity_at", Expression: "stable.last_activity_at"},
 	}
-	return []protocolV2QueryDefinition{
+	definitions := []protocolV2QueryDefinition{
 		{
 			ID: QuerySafeUserByID, PlanVersion: QueryStableCorePlanVersion,
 			ResultSchemaID: QuerySafeUserResultSchemaID, ResultSchemaVersion: QueryStableCoreResultSchemaV1,
@@ -325,4 +341,5 @@ func stableCoreProtocolV2QueryDefinitions() []protocolV2QueryDefinition {
 			RequiredFilters: []string{"public_id"}, Single: true,
 		},
 	}
+	return append(definitions, shortcodeProjectionProtocolV2QueryDefinitions()...)
 }

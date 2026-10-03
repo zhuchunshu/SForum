@@ -11,7 +11,7 @@ import (
 // forum ContentPostFilter interface without importing ContentRegistry types
 // into every call site (provider injects a concrete adapter).
 type ContentRegistryPostFilter interface {
-	AfterHostRender(ctx context.Context, html, plain, resource, resourceID string) (nextHTML, nextPlain string, err error)
+	AfterHostRender(ctx context.Context, html, plain, resource, resourceID, scope string) (nextHTML, nextPlain string, err error)
 }
 
 // ContentRegistryBridge adapts ContentRegistryPostFilter → ContentPostFilter.
@@ -42,6 +42,7 @@ func (b ContentRegistryBridge) AfterHostRender(ctx context.Context, in ContentPo
 		in.Rendered.PlainText,
 		in.Resource,
 		in.ResourceID,
+		in.Scope,
 	)
 	if err != nil {
 		return RenderedContent{}, err

@@ -44,6 +44,10 @@ type protocolV2QueryDefinition struct {
 	Sorts               []protocolV2QuerySortDefinition
 	DefaultSorts        []protocolV2QuerySort
 	Single              bool
+	// ActorScoped marks sealed Host projections whose SQL may use the actor
+	// bound to an opaque Query Registry delegation. The actor never enters the
+	// plugin request, filter values, result rows, trace, or cache identity.
+	ActorScoped bool
 }
 
 type protocolV2QueryFilter struct {

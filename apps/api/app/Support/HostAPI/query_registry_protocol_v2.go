@@ -96,7 +96,7 @@ func (s *ProtocolV2QueryRegistryService) IssueProtocolV2QueryActorDelegation(
 	request ProtocolV2QueryActorDelegationRequest,
 ) (ProtocolV2QueryActorDelegationGrant, error) {
 	if s == nil || s.registry == nil || s.execution == nil || s.actors == nil ||
-		s.callerAdmission == nil || s.delegations == nil || ctx == nil || request.ActorUserID <= 0 {
+		s.callerAdmission == nil || s.delegations == nil || ctx == nil || request.ActorUserID < 0 {
 		return ProtocolV2QueryActorDelegationGrant{}, ErrProtocolV2QueryDelegationInvalid
 	}
 	if err := ctx.Err(); err != nil {
@@ -208,18 +208,15 @@ func (s *ProtocolV2QueryRegistryService) execute(
 		response.Error = queryRegistryProtocolV2Error(err)
 		return response
 	}
-	claims, err := s.delegations.parse(request.GetActorDelegation())
+	stored, err := s.delegations.lookup(request.GetActorDelegation())
 	if err != nil {
 		response.Error = queryRegistryProtocolV2Error(err)
 		return response
 	}
 	binding := protocolV2QueryDelegationBinding{
-		Actor: ProtocolV2QueryActorProjection{
-			ActorUserID: claims.ActorUserID, Authenticated: claims.Authenticated,
-			ActorFingerprint: claims.ActorFingerprint, PolicyFingerprint: claims.PolicyFingerprint,
-		},
+		Actor:   stored.Binding.Actor,
 		Runtime: runtime, Query: query, Registry: registryState,
-		Locale: request.GetContext().GetLocale(), Scope: request.GetScope(), MaxCost: claims.MaxCost,
+		Locale: request.GetContext().GetLocale(), Scope: request.GetScope(), MaxCost: stored.Binding.MaxCost,
 	}
 	delegation, err := s.delegations.verify(request.GetActorDelegation(), binding)
 	if err != nil {
@@ -237,7 +234,8 @@ func (s *ProtocolV2QueryRegistryService) execute(
 	planRequest.Scope = delegation.Binding.Scope
 	planRequest.MaxCost = delegation.Binding.MaxCost
 
-	result, err := s.execution.Execute(ctx, planRequest)
+	executionContext := contextWithShortcodeProjectionActor(ctx, delegation.Binding.Actor.ActorUserID)
+	result, err := s.execution.Execute(executionContext, planRequest)
 	if err != nil {
 		response.Error = queryRegistryProtocolV2Error(permissionRecheck.classify(err))
 		return response

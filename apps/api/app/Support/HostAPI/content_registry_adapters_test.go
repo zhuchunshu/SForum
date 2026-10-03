@@ -64,7 +64,8 @@ func TestContentRegistryAdmissionPreservesExactIdentity(t *testing.T) {
 		TargetID: "demo.content.block.card", TargetContractVersion: "demo.content.block.card@1",
 		TargetSchema: "demo.content.block.card.schema@1", TargetArtifact: artifact,
 		ContentID:       "demo.content.filter.safe",
-		ContractVersion: "demo.content.filter.safe@1", Action: contentregistry.ActionFilter,
+		ContractVersion: "demo.content.filter.safe@1", Kind: contentregistry.KindRenderFilter,
+		Schema: "demo.content.filter.safe.schema@1", Action: contentregistry.ActionFilter,
 		Operation: contentregistry.OperationFilter, HandlerReference: "filter.safe", Artifact: artifact,
 	})
 	if err != nil {
@@ -97,6 +98,7 @@ func TestContentRegistryAdmissionRejectsNonCanonicalTargetArtifact(t *testing.T)
 		TargetID: "demo.content.block.card", TargetContractVersion: "demo.content.block.card@1",
 		TargetSchema: "demo.content.block.card.schema@1", TargetArtifact: nonCanonicalTarget,
 		ContentID: "demo.content.block.card", ContractVersion: "demo.content.block.card@1",
+		Kind: contentregistry.KindBlock, Schema: "demo.content.block.card.schema@1",
 		HandlerReference: "card", Operation: contentregistry.OperationRenderer, Artifact: artifact,
 	}); !errors.Is(err, ErrContentRegistryAdmissionInvalid) {
 		t.Fatalf("non-canonical target artifact = %v", err)
@@ -115,6 +117,7 @@ func TestContentRegistryAdmissionReleasesRejectedBackendLease(t *testing.T) {
 		TargetID: "demo.content.block.card", TargetContractVersion: "demo.content.block.card@1",
 		TargetSchema: "demo.content.block.card.schema@1", TargetArtifact: artifact,
 		ContentID: "demo.content.block.card", ContractVersion: "demo.content.block.card@1",
+		Kind: contentregistry.KindBlock, Schema: "demo.content.block.card.schema@1",
 		HandlerReference: "card", Action: contentregistry.ActionAdd,
 		Operation: contentregistry.OperationRenderer, Artifact: artifact,
 	}
@@ -149,6 +152,7 @@ func TestContentRegistryAdmissionRejectsCancellationAndReleasesLateLeaseOnce(t *
 		TargetID: "demo.content.block.card", TargetContractVersion: "demo.content.block.card@1",
 		TargetSchema: "demo.content.block.card.schema@1", TargetArtifact: artifact,
 		ContentID: "demo.content.block.card", ContractVersion: "demo.content.block.card@1",
+		Kind: contentregistry.KindBlock, Schema: "demo.content.block.card.schema@1",
 		HandlerReference: "card", Action: contentregistry.ActionAdd,
 		Operation: contentregistry.OperationRenderer, Artifact: artifact,
 	}
@@ -213,6 +217,7 @@ func TestContentRegistryAdmissionLeaseReleaseIsIdempotent(t *testing.T) {
 		TargetID: "demo.content.block.card", TargetContractVersion: "demo.content.block.card@1",
 		TargetSchema: "demo.content.block.card.schema@1", TargetArtifact: artifact,
 		ContentID: "demo.content.block.card", ContractVersion: "demo.content.block.card@1",
+		Kind: contentregistry.KindBlock, Schema: "demo.content.block.card.schema@1",
 		HandlerReference: "card", Action: contentregistry.ActionAdd,
 		Operation: contentregistry.OperationRenderer, Artifact: artifact,
 	})
@@ -237,6 +242,7 @@ func TestContentRegistryAdmissionRejectsExecutableArtifactWithoutRuntimeInstance
 		TargetID: "demo.content.block.card", TargetContractVersion: "demo.content.block.card@1",
 		TargetSchema: "demo.content.block.card.schema@1", TargetArtifact: artifact,
 		ContentID: "demo.content.block.card", ContractVersion: "demo.content.block.card@1",
+		Kind: contentregistry.KindBlock, Schema: "demo.content.block.card.schema@1",
 		HandlerReference: "card", Action: contentregistry.ActionAdd,
 		Operation: contentregistry.OperationRenderer, Artifact: artifact,
 	}); !errors.Is(err, ErrContentRegistryAdmissionInvalid) {
@@ -257,6 +263,7 @@ func TestContentRegistryAdmissionRejectsForgedCoreArtifact(t *testing.T) {
 		TargetID: "core.forged.block.card", TargetContractVersion: "core.forged.block.card@1",
 		TargetSchema: "core.forged.schema@1", TargetArtifact: forged,
 		ContentID: "core.forged.block.card", ContractVersion: "core.forged.block.card@1",
+		Kind: contentregistry.KindBlock, Schema: "core.forged.schema@1",
 		HandlerReference: "card", Action: contentregistry.ActionAdd,
 		Operation: contentregistry.OperationRenderer, Artifact: forged,
 	}); !errors.Is(err, ErrContentRegistryAdmissionInvalid) {
@@ -270,6 +277,7 @@ func TestContentRegistryAdmissionRejectsForgedCoreArtifact(t *testing.T) {
 		TargetID: "core.content.block.card", TargetContractVersion: "core.content.block.card@1",
 		TargetSchema: "core.content.schema@1", TargetArtifact: trusted,
 		ContentID: "core.content.block.card", ContractVersion: "core.content.block.card@1",
+		Kind: contentregistry.KindBlock, Schema: "core.content.schema@1",
 		HandlerReference: "card", Action: contentregistry.ActionAdd,
 		Operation: contentregistry.OperationRenderer, Artifact: trusted,
 	})

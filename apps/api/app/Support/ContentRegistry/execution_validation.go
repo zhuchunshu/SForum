@@ -19,6 +19,7 @@ import (
 const (
 	defaultMaxInputBytes      = 1 << 20
 	defaultMaxOutputBytes     = 2 << 20
+	defaultMaxBatchSize       = 64
 	defaultMaxJSONDepth       = 32
 	defaultMaxJSONNodes       = 10_000
 	defaultMaxSegments        = 512
@@ -29,6 +30,7 @@ const (
 
 	hardMaxInputBytes      = 8 << 20
 	hardMaxOutputBytes     = 8 << 20
+	hardMaxBatchSize       = 256
 	hardMaxJSONDepth       = 64
 	hardMaxJSONNodes       = 100_000
 	hardMaxSegments        = 4096
@@ -50,21 +52,22 @@ var (
 func normalizeExecutionLimits(input ExecutionLimits) (ExecutionLimits, error) {
 	defaults := ExecutionLimits{
 		MaxInputBytes: defaultMaxInputBytes, MaxOutputBytes: defaultMaxOutputBytes,
+		MaxBatchSize: defaultMaxBatchSize,
 		MaxJSONDepth: defaultMaxJSONDepth, MaxJSONNodes: defaultMaxJSONNodes,
 		MaxSegments: defaultMaxSegments, MaxBindings: defaultMaxBindings,
 		MaxCacheTags: defaultMaxCacheTags, MaxConcurrentCalls: defaultMaxConcurrentCalls,
 		CallTimeout: defaultCallTimeout,
 	}
 	values := []*int{
-		&input.MaxInputBytes, &input.MaxOutputBytes, &input.MaxJSONDepth, &input.MaxJSONNodes,
+		&input.MaxInputBytes, &input.MaxOutputBytes, &input.MaxBatchSize, &input.MaxJSONDepth, &input.MaxJSONNodes,
 		&input.MaxSegments, &input.MaxBindings, &input.MaxCacheTags, &input.MaxConcurrentCalls,
 	}
 	defaultValues := []int{
-		defaults.MaxInputBytes, defaults.MaxOutputBytes, defaults.MaxJSONDepth, defaults.MaxJSONNodes,
+		defaults.MaxInputBytes, defaults.MaxOutputBytes, defaults.MaxBatchSize, defaults.MaxJSONDepth, defaults.MaxJSONNodes,
 		defaults.MaxSegments, defaults.MaxBindings, defaults.MaxCacheTags, defaults.MaxConcurrentCalls,
 	}
 	hardValues := []int{
-		hardMaxInputBytes, hardMaxOutputBytes, hardMaxJSONDepth, hardMaxJSONNodes,
+		hardMaxInputBytes, hardMaxOutputBytes, hardMaxBatchSize, hardMaxJSONDepth, hardMaxJSONNodes,
 		hardMaxSegments, hardMaxBindings, hardMaxCacheTags, hardMaxConcurrentCalls,
 	}
 	for index, value := range values {
@@ -379,6 +382,8 @@ func IsExactAdmissionRequest(input AdmissionRequest) bool {
 		input.TargetContractVersion != strings.TrimSpace(input.TargetContractVersion) ||
 		input.ContractVersion != strings.TrimSpace(input.ContractVersion) ||
 		input.TargetSchema != strings.TrimSpace(input.TargetSchema) || !validSchemaRef(input.TargetSchema) ||
+		input.Kind != strings.ToLower(strings.TrimSpace(input.Kind)) || !validKind(input.Kind) ||
+		input.Schema != strings.TrimSpace(input.Schema) || !validSchemaRef(input.Schema) ||
 		input.Action != strings.ToLower(strings.TrimSpace(input.Action)) || !validExecutionAction(input.Action) ||
 		input.Operation != strings.ToLower(strings.TrimSpace(input.Operation)) ||
 		!validExecutionOperation(input.Operation) || input.Operation == OperationSource {
@@ -388,6 +393,8 @@ func IsExactAdmissionRequest(input AdmissionRequest) bool {
 		input.RendererReference != strings.TrimSpace(input.RendererReference) ||
 		input.HandlerReference != "" && !validHandler(input.HandlerReference) ||
 		input.RendererReference != "" && !validOpaqueRef(input.RendererReference) ||
+		input.MigrationReference != strings.TrimSpace(input.MigrationReference) ||
+		input.MigrationReference != "" && !validOpaqueRef(input.MigrationReference) ||
 		input.HandlerReference == "" && input.RendererReference == "" ||
 		input.HandlerReference != "" && !input.Artifact.Core && input.Artifact.RuntimeInstanceID == "" {
 		return false

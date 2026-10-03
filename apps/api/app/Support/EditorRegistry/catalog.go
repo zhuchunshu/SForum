@@ -19,10 +19,10 @@ type CatalogModule struct {
 	L2Digest         string `json:"l2Digest"`
 	// AssetPath is the Host package-serve path under exact package digest.
 	AssetPath string         `json:"assetPath"`
-	Nodes     []Contribution `json:"nodes,omitempty"`
-	Marks     []Contribution `json:"marks,omitempty"`
-	Commands  []Contribution `json:"commands,omitempty"`
-	Toolbars  []Contribution `json:"toolbars,omitempty"`
+	Nodes     []Contribution `json:"nodes"`
+	Marks     []Contribution `json:"marks"`
+	Commands  []Contribution `json:"commands"`
+	Toolbars  []Contribution `json:"toolbars"`
 }
 
 // Catalog is the inspectable, deterministic editor surface for trusted L2 load.
@@ -39,11 +39,15 @@ type Catalog struct {
 // Safe Mode still returns core modules only (third-party already filtered).
 func (r *Registry) BuildCatalog() Catalog {
 	if r == nil {
-		return Catalog{SchemaVersion: CatalogSchemaVersion}
+		return Catalog{
+			SchemaVersion: CatalogSchemaVersion,
+			Modules:       []CatalogModule{},
+			Toolbars:      []Contribution{},
+		}
 	}
 	snapshot := r.Snapshot()
 	modules := map[string]*CatalogModule{}
-	var toolbars []Contribution
+	toolbars := make([]Contribution, 0)
 	for _, contribution := range snapshot.Editor {
 		switch contribution.Kind {
 		case KindToolbar:
@@ -66,6 +70,10 @@ func (r *Registry) BuildCatalog() Catalog {
 						ExtensionID:      contribution.Artifact.ExtensionID,
 						ExtensionVersion: contribution.Artifact.ExtensionVersion,
 						PackageDigest:    contribution.Artifact.PackageDigest,
+						Nodes:            []Contribution{},
+						Marks:            []Contribution{},
+						Commands:         []Contribution{},
+						Toolbars:         []Contribution{},
 					}
 					modules[key] = module
 				}
@@ -83,6 +91,10 @@ func (r *Registry) BuildCatalog() Catalog {
 				L2Module:         contribution.L2Module,
 				L2Digest:         contribution.L2Digest,
 				AssetPath:        editorPackageAssetPath(contribution.Artifact.ExtensionID, contribution.Artifact.PackageDigest, contribution.L2Module),
+				Nodes:            []Contribution{},
+				Marks:            []Contribution{},
+				Commands:         []Contribution{},
+				Toolbars:         []Contribution{},
 			}
 			modules[key] = module
 		}
@@ -126,6 +138,7 @@ func (r *Registry) BuildCatalog() Catalog {
 		Revision:      snapshot.Revision,
 		Digest:        snapshot.Digest,
 		SafeMode:      snapshot.SafeMode,
+		Modules:       make([]CatalogModule, 0, len(modules)),
 		Toolbars:      toolbars,
 	}
 	for _, module := range modules {

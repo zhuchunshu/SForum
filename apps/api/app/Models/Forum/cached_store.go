@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Cache"
+	contentregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentRegistry"
 )
 
 // CachedStore 通过嵌入 Store 接口装饰底层 store：
@@ -26,7 +27,8 @@ import (
 // cache 为 nil 时退化为透传（不缓存），方便测试和显式关闭。
 type CachedStore struct {
 	Store
-	cache cache.Cache
+	cache                cache.Cache
+	referenceInvalidator ReferenceRenderCacheInvalidator
 }
 
 // 生成 generation key 时使用的固定前缀。
@@ -75,6 +77,32 @@ func NewCachedStore(inner Store, cache cache.Cache) Store {
 		return inner
 	}
 	return &CachedStore{Store: inner, cache: cache}
+}
+
+func WithReferenceRenderCacheInvalidator(store Store, invalidator ReferenceRenderCacheInvalidator) Store {
+	if cached, ok := store.(*CachedStore); ok {
+		cached.referenceInvalidator = invalidator
+	}
+	return store
+}
+
+func (s *CachedStore) LoadPublicShortcodeSources(
+	ctx context.Context,
+	resources []contentregistry.ShortcodeResourceKey,
+) (map[contentregistry.ShortcodeResourceKey]PublicShortcodeSource, error) {
+	source, ok := s.Store.(PublicShortcodeSourceStore)
+	if !ok {
+		return nil, nil
+	}
+	return source.LoadPublicShortcodeSources(ctx, resources)
+}
+
+func (s *CachedStore) ListReferenceOptions(ctx context.Context, input ReferenceSelectorInput) ([]ReferenceOption, error) {
+	store, ok := s.Store.(ReferenceSelectorStore)
+	if !ok {
+		return nil, ErrInvalidReferenceSelector
+	}
+	return store.ListReferenceOptions(ctx, input)
 }
 
 // currentGen 读取 generation 当前值（不递增），用于构造读缓存 key。
@@ -164,6 +192,16 @@ func (s *CachedStore) GetTopic(ctx context.Context, topicID int64) (TopicDetail,
 	// 双写 id + slug，避免 id/slug 两种入口各 miss 一次。
 	s.saveTopicDetail(ctx, out)
 	return out, nil
+}
+
+// Editable source is intentionally never loaded from or written to the
+// actor-independent public cache.
+func (s *CachedStore) GetTopicEditSource(ctx context.Context, topicID int64) (EditableContentSource, error) {
+	return s.Store.GetTopicEditSource(ctx, topicID)
+}
+
+func (s *CachedStore) GetCommentEditSource(ctx context.Context, commentID int64) (EditableContentSource, error) {
+	return s.Store.GetCommentEditSource(ctx, commentID)
 }
 
 func (s *CachedStore) GetTopicEventSnapshot(ctx context.Context, topicID int64) (TopicSummary, error) {
@@ -297,6 +335,9 @@ func (s *CachedStore) InvalidateModerationPublication(ctx context.Context, topic
 	s.invalidateTaxonomy(ctx)
 	if targetType == "comment" {
 		s.invalidateComments(ctx, topicID)
+		s.invalidateReferenceTopicVisibility(ctx)
+	} else {
+		s.invalidateReferenceResource(ctx, "topic", topicID)
 	}
 }
 
@@ -314,6 +355,7 @@ func (s *CachedStore) CreateTopic(ctx context.Context, input CreateTopicRecord) 
 	s.invalidateTopicsScoped(ctx, topicListScopesFromDetail(out))
 	s.invalidateTaxonomy(ctx)
 	s.invalidateTopicBySlug(ctx, out.Slug)
+	s.invalidateReferenceResource(ctx, "topic", out.ID)
 	return out, nil
 }
 
@@ -328,6 +370,7 @@ func (s *CachedStore) UpdateTopic(ctx context.Context, input UpdateTopicRecord) 
 	s.invalidateTopicsScoped(ctx, mergeTopicListScopes(oldScopes, topicListScopesFromDetail(out)))
 	s.invalidateTaxonomy(ctx)
 	s.invalidateTopicBySlug(ctx, out.Slug)
+	s.invalidateReferenceResource(ctx, "topic", input.TopicID)
 	return out, nil
 }
 
@@ -350,6 +393,7 @@ func (s *CachedStore) DeleteTopic(ctx context.Context, topicID int64) (TopicDeta
 	s.invalidateTopicBySlug(ctx, out.Slug)
 	s.invalidateTopicsScoped(ctx, mergeTopicListScopes(scopes, topicListScopesFromDetail(out)))
 	s.invalidateTaxonomy(ctx)
+	s.invalidateReferenceResource(ctx, "topic", topicID)
 	return out, nil
 }
 
@@ -361,6 +405,7 @@ func (s *CachedStore) ApplyTopicAction(ctx context.Context, input TopicLifecycle
 	}
 	s.invalidateTopicDetail(ctx, input.TopicID)
 	s.invalidateTopicsScoped(ctx, scopes)
+	s.invalidateReferenceResource(ctx, "topic", input.TopicID)
 	return out, nil
 }
 
@@ -376,6 +421,7 @@ func (s *CachedStore) CreateComment(ctx context.Context, input CreateCommentReco
 	s.invalidateTopicsScoped(ctx, scopes)
 	s.invalidateTaxonomy(ctx)
 	s.invalidateComments(ctx, input.TopicID)
+	s.invalidateReferenceResource(ctx, "comment", out.ID)
 	return out, nil
 }
 
@@ -389,6 +435,7 @@ func (s *CachedStore) UpdateComment(ctx context.Context, input UpdateCommentReco
 		s.invalidateTopicDetail(ctx, out.TopicID)
 		s.invalidateComments(ctx, out.TopicID)
 	}
+	s.invalidateReferenceResource(ctx, "comment", out.ID)
 	return out, nil
 }
 
@@ -405,6 +452,7 @@ func (s *CachedStore) DeleteComment(ctx context.Context, commentID int64) (Comme
 		s.invalidateTaxonomy(ctx)
 		s.invalidateComments(ctx, out.TopicID)
 	}
+	s.invalidateReferenceResource(ctx, "comment", commentID)
 	return out, nil
 }
 
@@ -414,6 +462,7 @@ func (s *CachedStore) CreateCategory(ctx context.Context, input CreateCategoryIn
 		return out, err
 	}
 	s.invalidateTaxonomy(ctx)
+	s.invalidateReferenceTopicVisibility(ctx)
 	return out, nil
 }
 
@@ -423,7 +472,20 @@ func (s *CachedStore) UpdateCategory(ctx context.Context, input UpdateCategoryIn
 		return out, err
 	}
 	s.invalidateTaxonomy(ctx)
+	s.invalidateReferenceTopicVisibility(ctx)
 	return out, nil
+}
+
+func (s *CachedStore) invalidateReferenceResource(ctx context.Context, resourceType string, resourceID int64) {
+	if s != nil && s.referenceInvalidator != nil {
+		s.referenceInvalidator.InvalidateReferenceResource(ctx, resourceType, resourceID)
+	}
+}
+
+func (s *CachedStore) invalidateReferenceTopicVisibility(ctx context.Context) {
+	if s != nil && s.referenceInvalidator != nil {
+		s.referenceInvalidator.InvalidateTopicVisibility(ctx)
+	}
 }
 
 func (s *CachedStore) CreateCategoryGroup(ctx context.Context, input CreateCategoryGroupInput) (CategoryGroup, error) {
@@ -432,6 +494,7 @@ func (s *CachedStore) CreateCategoryGroup(ctx context.Context, input CreateCateg
 		return out, err
 	}
 	s.invalidateTaxonomy(ctx)
+	s.invalidateReferenceTopicVisibility(ctx)
 	return out, nil
 }
 
@@ -441,6 +504,7 @@ func (s *CachedStore) UpdateCategoryGroup(ctx context.Context, input UpdateCateg
 		return out, err
 	}
 	s.invalidateTaxonomy(ctx)
+	s.invalidateReferenceTopicVisibility(ctx)
 	return out, nil
 }
 

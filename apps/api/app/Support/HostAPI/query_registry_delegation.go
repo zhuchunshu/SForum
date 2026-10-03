@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"strconv"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -78,11 +78,6 @@ type protocolV2QueryDelegationBinding struct {
 }
 
 type protocolV2QueryDelegationClaims struct {
-	ActorUserID       int64  `json:"actor_user_id"`
-	Authenticated     bool   `json:"authenticated"`
-	ActorFingerprint  string `json:"actor_fingerprint"`
-	PolicyFingerprint string `json:"policy_fingerprint"`
-
 	ExtensionID      string `json:"extension_id"`
 	ExtensionVersion string `json:"extension_version"`
 	ArtifactDigest   string `json:"artifact_digest"`
@@ -126,6 +121,7 @@ type ProtocolV2QueryDelegationAuthority struct {
 
 	replayMu sync.Mutex
 	consumed map[string]time.Time
+	pending  map[string]protocolV2VerifiedQueryDelegation
 }
 
 func NewProtocolV2QueryDelegationAuthority() (*ProtocolV2QueryDelegationAuthority, error) {
@@ -145,7 +141,8 @@ func newProtocolV2QueryDelegationAuthority(
 		return nil, ErrProtocolV2QueryDelegationInvalid
 	}
 	return &ProtocolV2QueryDelegationAuthority{
-		key: append([]byte(nil), key...), now: now, ttl: ttl, consumed: make(map[string]time.Time),
+		key: append([]byte(nil), key...), now: now, ttl: ttl,
+		consumed: make(map[string]time.Time), pending: make(map[string]protocolV2VerifiedQueryDelegation),
 	}, nil
 }
 
@@ -170,8 +167,6 @@ func (a *ProtocolV2QueryDelegationAuthority) issue(
 	now := a.now().UTC().Truncate(time.Second)
 	queryArtifact := binding.Query.Artifact
 	claims := protocolV2QueryDelegationClaims{
-		ActorUserID: binding.Actor.ActorUserID, Authenticated: binding.Actor.Authenticated,
-		ActorFingerprint: binding.Actor.ActorFingerprint, PolicyFingerprint: binding.Actor.PolicyFingerprint,
 		ExtensionID: binding.Runtime.GetExtensionId(), ExtensionVersion: binding.Runtime.GetExtensionVersion(),
 		ArtifactDigest: binding.Runtime.GetArtifactDigest(), TrustGrantID: binding.Runtime.GetTrustGrantId(),
 		RuntimeEpoch: binding.Runtime.GetRuntimeEpoch(), InstanceID: binding.Runtime.GetInstanceId(),
@@ -185,7 +180,7 @@ func (a *ProtocolV2QueryDelegationAuthority) issue(
 		Locale: binding.Locale, Scope: binding.Scope, MaxCost: binding.MaxCost,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    protocolV2ActorDelegationIssuer,
-			Subject:   strconv.FormatInt(binding.Actor.ActorUserID, 10),
+			Subject:   "query-delegation",
 			Audience:  jwt.ClaimStrings{ProtocolV2QueryDelegationAudience},
 			ExpiresAt: jwt.NewNumericDate(now.Add(a.ttl)), NotBefore: jwt.NewNumericDate(now),
 			IssuedAt: jwt.NewNumericDate(now), ID: jti,
@@ -198,7 +193,52 @@ func (a *ProtocolV2QueryDelegationAuthority) issue(
 	if len(signed) > protocolV2QueryDelegationMaxBytes {
 		return "", ErrProtocolV2QueryDelegationInvalid
 	}
+	digest := sha256.Sum256([]byte(jti))
+	verified := protocolV2VerifiedQueryDelegation{
+		Binding: binding, DelegationIDDigest: hex.EncodeToString(digest[:]),
+		IssuedAt: now, NotBefore: now, ExpiresAt: now.Add(a.ttl),
+	}
+	if err := a.remember(verified); err != nil {
+		return "", err
+	}
 	return signed, nil
+}
+
+func (a *ProtocolV2QueryDelegationAuthority) remember(delegation protocolV2VerifiedQueryDelegation) error {
+	a.replayMu.Lock()
+	defer a.replayMu.Unlock()
+	now := a.now().UTC()
+	for digest, item := range a.pending {
+		if !item.ExpiresAt.After(now) {
+			delete(a.pending, digest)
+		}
+	}
+	for digest, expiresAt := range a.consumed {
+		if !expiresAt.After(now) {
+			delete(a.consumed, digest)
+		}
+	}
+	if len(a.pending) >= protocolV2QueryReplayMaximum {
+		return ErrProtocolV2QueryReplayUnavailable
+	}
+	a.pending[delegation.DelegationIDDigest] = delegation
+	return nil
+}
+
+func (a *ProtocolV2QueryDelegationAuthority) lookup(token string) (protocolV2VerifiedQueryDelegation, error) {
+	claims, err := a.parse(token)
+	if err != nil {
+		return protocolV2VerifiedQueryDelegation{}, err
+	}
+	digest := sha256.Sum256([]byte(claims.ID))
+	key := hex.EncodeToString(digest[:])
+	a.replayMu.Lock()
+	delegation, ok := a.pending[key]
+	a.replayMu.Unlock()
+	if !ok {
+		return protocolV2VerifiedQueryDelegation{}, ErrProtocolV2QueryDelegationInvalid
+	}
+	return delegation, nil
 }
 
 func (a *ProtocolV2QueryDelegationAuthority) verify(
@@ -207,6 +247,10 @@ func (a *ProtocolV2QueryDelegationAuthority) verify(
 ) (protocolV2VerifiedQueryDelegation, error) {
 	expected, err := normalizeProtocolV2QueryDelegationBinding(expected)
 	if err != nil {
+		return protocolV2VerifiedQueryDelegation{}, ErrProtocolV2QueryDelegationInvalid
+	}
+	stored, err := a.lookup(token)
+	if err != nil || !reflect.DeepEqual(stored.Binding, expected) {
 		return protocolV2VerifiedQueryDelegation{}, ErrProtocolV2QueryDelegationInvalid
 	}
 	claims, err := a.parse(token)
@@ -230,18 +274,12 @@ func (a *ProtocolV2QueryDelegationAuthority) consume(delegation protocolV2Verifi
 	}
 	a.replayMu.Lock()
 	defer a.replayMu.Unlock()
+	stored, pending := a.pending[delegation.DelegationIDDigest]
+	if !pending || !reflect.DeepEqual(stored.Binding, delegation.Binding) {
+		return ErrProtocolV2QueryDelegationInvalid
+	}
 	if _, exists := a.consumed[delegation.DelegationIDDigest]; exists {
 		return ErrProtocolV2QueryDelegationReplayed
-	}
-	if len(a.consumed) >= protocolV2QueryReplayMaximum {
-		for digest, expiresAt := range a.consumed {
-			if !expiresAt.After(now) {
-				delete(a.consumed, digest)
-			}
-		}
-		if len(a.consumed) >= protocolV2QueryReplayMaximum {
-			return ErrProtocolV2QueryReplayUnavailable
-		}
 	}
 	a.consumed[delegation.DelegationIDDigest] = delegation.ExpiresAt
 	return nil
@@ -321,7 +359,8 @@ func validProtocolV2QueryRuntimeBinding(runtime *protocolv2.ExtensionIdentity) b
 }
 
 func validProtocolV2QueryActorProjection(actor ProtocolV2QueryActorProjection) bool {
-	return actor.Authenticated && actor.ActorUserID > 0 &&
+	validIdentity := (actor.Authenticated && actor.ActorUserID > 0) || (!actor.Authenticated && actor.ActorUserID == 0)
+	return validIdentity &&
 		len(actor.ActorFingerprint) > 0 && len(actor.ActorFingerprint) <= protocolV2QueryFingerprintMax &&
 		len(actor.PolicyFingerprint) > 0 && len(actor.PolicyFingerprint) <= protocolV2QueryFingerprintMax &&
 		!containsProtocolV2Control(actor.ActorFingerprint) && !containsProtocolV2Control(actor.PolicyFingerprint)
@@ -351,9 +390,7 @@ func validateProtocolV2QueryDelegationClaims(
 ) error {
 	artifact := expected.Query.Artifact
 	if claims == nil || claims.IssuedAt == nil || claims.NotBefore == nil || claims.ExpiresAt == nil ||
-		claims.ActorUserID != expected.Actor.ActorUserID || claims.Subject != strconv.FormatInt(expected.Actor.ActorUserID, 10) ||
-		claims.Authenticated != expected.Actor.Authenticated || claims.ActorFingerprint != expected.Actor.ActorFingerprint ||
-		claims.PolicyFingerprint != expected.Actor.PolicyFingerprint ||
+		claims.Subject != "query-delegation" ||
 		claims.ExtensionID != expected.Runtime.GetExtensionId() || claims.ExtensionVersion != expected.Runtime.GetExtensionVersion() ||
 		claims.ArtifactDigest != expected.Runtime.GetArtifactDigest() || claims.TrustGrantID != expected.Runtime.GetTrustGrantId() ||
 		claims.RuntimeEpoch != expected.Runtime.GetRuntimeEpoch() || claims.InstanceID != expected.Runtime.GetInstanceId() ||

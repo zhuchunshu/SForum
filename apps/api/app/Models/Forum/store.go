@@ -40,8 +40,14 @@ type Store interface {
 	// GetTopicForAction 加载主题摘要（含 author/status），不做公开可见性过滤，
 	// 用于更新/删除/生命周期动作的权限判定。
 	GetTopicForAction(ctx context.Context, topicID int64) (TopicSummary, error)
+	// GetTopicEditSource bypasses actor-independent public caches. The editable
+	// source service must authorize the actor and resource state before calling it.
+	GetTopicEditSource(ctx context.Context, topicID int64) (EditableContentSource, error)
 	CreateComment(ctx context.Context, input CreateCommentRecord) (Comment, error)
 	GetCommentSummary(ctx context.Context, commentID int64) (CommentSummary, error)
+	// GetCommentEditSource has the same uncached, pre-authorized contract as the
+	// topic source read.
+	GetCommentEditSource(ctx context.Context, commentID int64) (EditableContentSource, error)
 	UpdateComment(ctx context.Context, input UpdateCommentRecord) (Comment, error)
 	DeleteComment(ctx context.Context, commentID int64) (Comment, error)
 	ListComments(ctx context.Context, input CommentListInput) (CommentList, error)

@@ -16,6 +16,7 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Get("/tags", h.tags)
 	// F4.3：composer 工具栏扩展动作（登录后使用；guest 可读但通常无意义）。
 	api.Get("/composer/toolbar", h.composerToolbar)
+	api.Get("/composer/references", h.composerReferences)
 	api.Get("/search", h.search)
 	api.Get("/me/content-review", h.authorReviewItems)
 	api.Get("/topics", h.topics)
@@ -32,6 +33,7 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Get("/topics/:topicID/revisions/:revisionNo", h.topicRevision)
 	api.Post("/topics/:topicID/revisions/:revisionNo/restore", h.restoreTopicRevision)
 	api.Post("/topics/:topicID/revisions/:revisionNo/redact", h.redactTopicRevision)
+	api.Get("/topics/:topicID/edit-source", h.topicEditSource)
 	api.Get("/topics/:topicID", h.topic)
 	api.Patch("/topics/:topicID", h.updateTopic)
 	api.Delete("/topics/:topicID", h.deleteTopic)
@@ -54,6 +56,7 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Get("/comments/:commentID/revisions/:revisionNo", h.commentRevision)
 	api.Post("/comments/:commentID/revisions/:revisionNo/restore", h.restoreCommentRevision)
 	api.Post("/comments/:commentID/revisions/:revisionNo/redact", h.redactCommentRevision)
+	api.Get("/comments/:commentID/edit-source", h.commentEditSource)
 	api.Patch("/comments/:commentID", h.updateComment)
 	api.Delete("/comments/:commentID", h.deleteComment)
 

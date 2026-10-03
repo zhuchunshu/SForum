@@ -195,21 +195,9 @@ type ContentInput struct {
 	SourceFormat  string `json:"sourceFormat"`
 	EditorType    string `json:"editorType"`
 	EditorVersion string `json:"editorVersion"`
+	Locale        string `json:"-"`
 	// AttachmentIDs nil 表示未提交该字段；显式空数组表示移除全部正文附件。
 	AttachmentIDs *[]int64 `json:"attachmentIds,omitempty"`
-}
-
-type RenderedContent struct {
-	ID            int64  `json:"id"`
-	RawContent    string `json:"rawContent"`
-	HTMLContent   string `json:"htmlContent"`
-	PlainText     string `json:"plainText"`
-	Excerpt       string `json:"excerpt"`
-	SourceFormat  string `json:"sourceFormat"`
-	EditorType    string `json:"editorType"`
-	EditorVersion string `json:"editorVersion"`
-	RenderVersion string `json:"renderVersion"`
-	ContentHash   string `json:"contentHash"`
 }
 
 type Category struct {
@@ -326,7 +314,7 @@ type TopicSummary struct {
 
 type TopicDetail struct {
 	TopicSummary
-	Content RenderedContent `json:"content"`
+	Content PublicRenderedContent `json:"content"`
 	// EditedAt 是当前已接受修订的提交时间；仅在编辑标记设置开启时对外保留。
 	EditedAt *time.Time `json:"editedAt,omitempty"`
 	// UpdateApplied 仅供写路径抑制 no-op 的事件、缓存和索引副作用，不进入 API。
@@ -340,6 +328,9 @@ type TopicDetail struct {
 	ExtensionActions []TopicExtensionAction      `json:"extensionActions,omitempty"`
 	ExtensionSidebar []TopicExtensionSidebarItem `json:"extensionSidebar,omitempty"`
 	ExtensionBadges  []TopicExtensionBadge       `json:"extensionBadges,omitempty"`
+	// ProtectedContent marks a request-only composition boundary. It is never
+	// serialized or persisted and only drives HTTP cache policy.
+	ProtectedContent bool `json:"-"`
 }
 
 // TopicContributionEvent 是公开安全的贡献时间线条目：无 reason、无正文、无 diff。
@@ -711,22 +702,24 @@ type CommentList struct {
 	NextCursor string `json:"nextCursor,omitempty"`
 	// ExtensionActions 列表级评论行扩展动作（E2.2）；不复制到每条 Comment。
 	ExtensionActions []CommentExtensionAction `json:"extensionActions,omitempty"`
+	// ProtectedContent is request-only HTTP cache-policy metadata.
+	ProtectedContent bool `json:"-"`
 }
 
 type Comment struct {
-	ID            int64           `json:"id"`
-	TopicID       int64           `json:"topicId"`
-	AuthorUserID  int64           `json:"authorUserId"`
-	Author        *UserSummary    `json:"author,omitempty"`
-	ParentID      *int64          `json:"parentId,omitempty"`
-	RootCommentID int64           `json:"rootCommentId"`
-	PathKey       string          `json:"pathKey"`
-	Depth         int             `json:"depth"`
-	ReplyCount    int64           `json:"replyCount"`
-	Status        string          `json:"status"`
-	Content       RenderedContent `json:"content"`
-	ReplyTo       *ReplyReference `json:"replyTo,omitempty"`
-	Children      []Comment       `json:"children,omitempty"`
+	ID            int64                 `json:"id"`
+	TopicID       int64                 `json:"topicId"`
+	AuthorUserID  int64                 `json:"authorUserId"`
+	Author        *UserSummary          `json:"author,omitempty"`
+	ParentID      *int64                `json:"parentId,omitempty"`
+	RootCommentID int64                 `json:"rootCommentId"`
+	PathKey       string                `json:"pathKey"`
+	Depth         int                   `json:"depth"`
+	ReplyCount    int64                 `json:"replyCount"`
+	Status        string                `json:"status"`
+	Content       PublicRenderedContent `json:"content"`
+	ReplyTo       *ReplyReference       `json:"replyTo,omitempty"`
+	Children      []Comment             `json:"children,omitempty"`
 	// HasMoreChildren tree 视图下子孙被 treeDescendantsPerRoot 截断时为 true；更多走 ListCommentReplies。
 	HasMoreChildren bool      `json:"hasMoreChildren,omitempty"`
 	CreatedAt       time.Time `json:"createdAt"`

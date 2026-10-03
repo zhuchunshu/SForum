@@ -2,12 +2,26 @@ package forum
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Cache"
 )
+
+type referenceInvalidatorSpy struct {
+	resources       []string
+	visibilityCalls int
+}
+
+func (s *referenceInvalidatorSpy) InvalidateReferenceResource(_ context.Context, resourceType string, resourceID int64) {
+	s.resources = append(s.resources, resourceType+":"+strconv.FormatInt(resourceID, 10))
+}
+
+func (s *referenceInvalidatorSpy) InvalidateTopicVisibility(context.Context) {
+	s.visibilityCalls++
+}
 
 // cacheTestStore 包装 serviceFakeStore，记录读方法调用次数并返回可区分数据。
 type cacheTestStore struct {
@@ -103,6 +117,23 @@ func TestCachedStoreReadsHitCacheAfterFirstLoad(t *testing.T) {
 	}
 }
 
+func TestCachedStoreCategoryGroupChangesInvalidateReferenceVisibility(t *testing.T) {
+	t.Parallel()
+	spy := &referenceInvalidatorSpy{}
+	cached := NewCachedStore(newCacheTestStore(), cache.NewMemoryCache()).(*CachedStore)
+	WithReferenceRenderCacheInvalidator(cached, spy)
+	if _, err := cached.CreateCategoryGroup(t.Context(), CreateCategoryGroupInput{Slug: "public", Name: "Public", Visibility: "public"}); err != nil {
+		t.Fatal(err)
+	}
+	visibility := "hidden"
+	if _, err := cached.UpdateCategoryGroup(t.Context(), UpdateCategoryGroupInput{ID: 1, Visibility: &visibility}); err != nil {
+		t.Fatal(err)
+	}
+	if spy.visibilityCalls != 2 {
+		t.Fatalf("category group visibility invalidations=%d", spy.visibilityCalls)
+	}
+}
+
 func TestCachedStoreGetTopicHitAndInvalidate(t *testing.T) {
 	ctx := context.Background()
 	inner := newCacheTestStore()
@@ -133,6 +164,42 @@ func TestCachedStoreGetTopicHitAndInvalidate(t *testing.T) {
 	}
 	if inner.topicCalls != 2 {
 		t.Fatalf("expected 2 store calls after invalidation, got %d", inner.topicCalls)
+	}
+}
+
+func TestCachedStoreNeverCachesEditableSource(t *testing.T) {
+	ctx := context.Background()
+	inner := newCacheTestStore()
+	base := inner.Store.(*serviceFakeStore)
+	base.topicEditSource = EditableContentSource{
+		RawContent: "M1_CACHE_SOURCE_SECRET", SourceFormat: SourceFormatEditorDocument,
+		ContentHash: "M1_CACHE_SOURCE_HASH", CurrentRevision: 2,
+	}
+	cacheStore := cache.NewMemoryCache()
+	cached := NewCachedStore(inner, cacheStore)
+
+	if _, err := cached.GetTopic(ctx, 42); err != nil {
+		t.Fatal(err)
+	}
+	value, ok, err := cacheStore.Get(ctx, prefixTopicDetail+"42")
+	if err != nil || !ok {
+		t.Fatalf("public topic cache missing: ok=%v err=%v", ok, err)
+	}
+	serialized := string(value)
+	for _, forbidden := range []string{"M1_CACHE_SOURCE_SECRET", "M1_CACHE_SOURCE_HASH", "rawContent", "contentHash", "sourceFormat", "editorType"} {
+		if strings.Contains(serialized, forbidden) {
+			t.Fatalf("public cache contains %q: %s", forbidden, serialized)
+		}
+	}
+
+	for range 2 {
+		source, err := cached.GetTopicEditSource(ctx, 42)
+		if err != nil || source.RawContent != "M1_CACHE_SOURCE_SECRET" {
+			t.Fatalf("source=%#v err=%v", source, err)
+		}
+	}
+	if base.topicSourceCalls != 2 {
+		t.Fatalf("edit source unexpectedly cached, store calls=%d", base.topicSourceCalls)
 	}
 }
 

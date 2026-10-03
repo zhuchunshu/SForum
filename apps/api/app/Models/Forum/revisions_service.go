@@ -29,7 +29,7 @@ func (s *Service) GetTopicRevision(ctx context.Context, actor identity.Actor, to
 	if err != nil {
 		return ForumRevisionDetail{}, err
 	}
-	return s.withRevisionPreview(ctx, detail)
+	return s.withRevisionPreview(ctx, detail, "topic")
 }
 
 func (s *Service) ListCommentRevisions(ctx context.Context, actor identity.Actor, commentID int64, input RevisionListInput) (RevisionList, error) {
@@ -47,20 +47,20 @@ func (s *Service) GetCommentRevision(ctx context.Context, actor identity.Actor, 
 	if err != nil {
 		return ForumRevisionDetail{}, err
 	}
-	return s.withRevisionPreview(ctx, detail)
+	return s.withRevisionPreview(ctx, detail, "comment")
 }
 
-func (s *Service) withRevisionPreview(ctx context.Context, detail ForumRevisionDetail) (ForumRevisionDetail, error) {
+func (s *Service) withRevisionPreview(ctx context.Context, detail ForumRevisionDetail, resourceKind string) (ForumRevisionDetail, error) {
 	settings, err := s.resolvedSettings(ctx)
 	if err != nil {
 		return ForumRevisionDetail{}, err
 	}
-	rendered, err := s.renderContent(ContentInput{
+	rendered, err := renderContentWithContext(s, ctx, ContentInput{
 		RawContent:    detail.RawContent,
 		SourceFormat:  detail.SourceFormat,
 		EditorType:    detail.EditorType,
 		EditorVersion: detail.EditorVersion,
-	}, settings.ExcerptRuneLimit)
+	}, settings.ExcerptRuneLimit, resourceKind)
 	if err != nil {
 		return ForumRevisionDetail{}, err
 	}

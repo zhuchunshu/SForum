@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"log/slog"
 	nethttp "net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,6 +21,7 @@ import (
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
+	contentregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentRegistry"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
@@ -68,6 +71,219 @@ func TestControllerListsPublicForumData(t *testing.T) {
 	resp = performForumRequest(t, app, nethttp.MethodGet, "/api/v1/topics", nil, nil)
 	if resp.StatusCode != nethttp.StatusOK {
 		t.Fatalf("expected 200 topics, got %d", resp.StatusCode)
+	}
+}
+
+func TestComposerReferenceSelectorRequiresLoginAndReturnsMinimalLabels(t *testing.T) {
+	app, _, store := newForumTestApp()
+	resp := performForumRequest(t, app, nethttp.MethodGet, "/api/v1/composer/references?kind=topic&query=release&limit=5", nil, nil)
+	resp.Body.Close()
+	if resp.StatusCode != nethttp.StatusUnauthorized {
+		t.Fatalf("anonymous status = %d", resp.StatusCode)
+	}
+
+	cookie := loginForumUser(t, app, 1)
+	resp = performForumRequest(t, app, nethttp.MethodGet, "/api/v1/composer/references?kind=topic&query=release&limit=5", nil, cookie)
+	defer resp.Body.Close()
+	if resp.StatusCode != nethttp.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("authenticated status=%d body=%s", resp.StatusCode, body)
+	}
+	var envelope forumTestEnvelope[forum.ReferenceOptionList]
+	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+		t.Fatal(err)
+	}
+	if len(envelope.Data.Items) != 1 || envelope.Data.Items[0].Label != "Release topic" {
+		t.Fatalf("response = %#v", envelope.Data)
+	}
+	if store.referenceInput.Kind != forum.ReferenceKindTopic || store.referenceInput.Query != "release" || store.referenceInput.Limit != 5 {
+		t.Fatalf("selector input = %#v", store.referenceInput)
+	}
+}
+
+func TestPublicForumJSONOmitsEditableSourceAndAuthorizedReadsStayDedicated(t *testing.T) {
+	app, _, store := newForumTestApp()
+	store.actionTopic = forum.TopicSummary{
+		ID: 10, AuthorUserID: 1, Status: forum.TopicStatusActive,
+		CurrentRevision: 3, CreatedAt: time.Now().UTC(),
+	}
+	store.topicEditSource = forum.EditableContentSource{
+		RawContent: "M1_TOPIC_HTTP_SOURCE_SECRET", SourceFormat: forum.SourceFormatEditorDocument,
+		EditorType: forum.EditorTypeTiptap, EditorVersion: "sf-editor-v1",
+		ContentHash: "M1_TOPIC_HTTP_SOURCE_HASH", AttachmentIDs: []int64{7}, CurrentRevision: 3,
+	}
+	store.commentEditSource = forum.EditableContentSource{
+		RawContent: "M1_COMMENT_HTTP_SOURCE_SECRET", SourceFormat: forum.SourceFormatMarkdown,
+		EditorType: forum.EditorTypeMarkdown, ContentHash: "M1_COMMENT_HTTP_SOURCE_HASH", CurrentRevision: 2,
+	}
+
+	for _, path := range []string{
+		"/api/v1/topics/10",
+		"/api/v1/topics/by-slug/topic",
+		"/api/v1/topics/10/comments?view=tree",
+		"/api/v1/topics/10/comments?view=flat",
+		"/api/v1/comments/20/replies",
+	} {
+		resp := performForumRequest(t, app, nethttp.MethodGet, path, nil, nil)
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil || resp.StatusCode != nethttp.StatusOK {
+			t.Fatalf("GET %s status=%d err=%v body=%s", path, resp.StatusCode, err, body)
+		}
+		serialized := string(body)
+		for _, forbidden := range []string{"rawContent", "contentHash", "sourceFormat", "editorType", "editorVersion", "M1_TOPIC_HTTP_SOURCE_SECRET", "M1_COMMENT_HTTP_SOURCE_SECRET"} {
+			if strings.Contains(serialized, forbidden) {
+				t.Fatalf("public GET %s contains %q: %s", path, forbidden, serialized)
+			}
+		}
+	}
+
+	resp := performForumRequest(t, app, nethttp.MethodGet, "/api/v1/topics/10/edit-source", nil, nil)
+	resp.Body.Close()
+	if resp.StatusCode != nethttp.StatusUnauthorized {
+		t.Fatalf("anonymous edit-source status=%d", resp.StatusCode)
+	}
+
+	strangerCookie := loginForumUser(t, app, 2)
+	resp = performForumRequest(t, app, nethttp.MethodGet, "/api/v1/topics/10/edit-source", nil, strangerCookie)
+	resp.Body.Close()
+	if resp.StatusCode != nethttp.StatusNotFound {
+		t.Fatalf("unrelated edit-source status=%d", resp.StatusCode)
+	}
+
+	ownerCookie := loginForumUser(t, app, 1)
+	for _, mutation := range []struct {
+		method     string
+		path       string
+		body       []byte
+		wantStatus int
+	}{
+		{method: nethttp.MethodPost, path: "/api/v1/topics", body: []byte(`{"categorySlug":"general","title":"M1 public response","content":{"rawContent":"ordinary visible body","sourceFormat":"markdown","editorType":"markdown"}}`), wantStatus: nethttp.StatusCreated},
+		{method: nethttp.MethodPatch, path: "/api/v1/topics/10", body: []byte(`{"expectedRevision":3,"content":{"rawContent":"ordinary updated body","sourceFormat":"markdown","editorType":"markdown"}}`), wantStatus: nethttp.StatusOK},
+		{method: nethttp.MethodPost, path: "/api/v1/topics/10/comments", body: []byte(`{"content":{"rawContent":"ordinary visible reply","sourceFormat":"markdown","editorType":"markdown"}}`), wantStatus: nethttp.StatusCreated},
+		{method: nethttp.MethodPatch, path: "/api/v1/comments/20", body: []byte(`{"expectedRevision":1,"content":{"rawContent":"ordinary updated reply","sourceFormat":"markdown","editorType":"markdown"}}`), wantStatus: nethttp.StatusOK},
+	} {
+		resp = performForumRequest(t, app, mutation.method, mutation.path, mutation.body, ownerCookie)
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil || resp.StatusCode != mutation.wantStatus {
+			t.Fatalf("%s %s status=%d err=%v body=%s", mutation.method, mutation.path, resp.StatusCode, err, body)
+		}
+		for _, forbidden := range []string{"\"rawContent\"", "\"contentHash\"", "\"sourceFormat\"", "\"editorType\"", "\"editorVersion\""} {
+			if strings.Contains(string(body), forbidden) {
+				t.Fatalf("mutation response %s %s contains %s: %s", mutation.method, mutation.path, forbidden, body)
+			}
+		}
+	}
+
+	for _, endpoint := range []struct {
+		path   string
+		marker string
+	}{
+		{path: "/api/v1/topics/10/edit-source", marker: "M1_TOPIC_HTTP_SOURCE_SECRET"},
+		{path: "/api/v1/comments/20/edit-source", marker: "M1_COMMENT_HTTP_SOURCE_SECRET"},
+	} {
+		resp = performForumRequest(t, app, nethttp.MethodGet, endpoint.path, nil, ownerCookie)
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil || resp.StatusCode != nethttp.StatusOK || !strings.Contains(string(body), endpoint.marker) {
+			t.Fatalf("authorized GET %s status=%d err=%v body=%s", endpoint.path, resp.StatusCode, err, body)
+		}
+	}
+
+	moderatorCookie := loginForumUser(t, app, 5)
+	resp = performForumRequest(t, app, nethttp.MethodGet, "/api/v1/topics/10/edit-source", nil, moderatorCookie)
+	resp.Body.Close()
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("edit-any topic source status=%d", resp.StatusCode)
+	}
+	resp = performForumRequest(t, app, nethttp.MethodGet, "/api/v1/comments/20/edit-source", nil, moderatorCookie)
+	resp.Body.Close()
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("edit-any comment source status=%d", resp.StatusCode)
+	}
+}
+
+type controllerProtectedShortcodeDispatcher struct {
+	calls int
+}
+
+func (d *controllerProtectedShortcodeDispatcher) RenderProtectedFragments(_ context.Context, requests []contentregistry.ForumProtectedShortcodeRenderRequest, _ string) ([]contentregistry.ForumProtectedShortcodeRenderResult, error) {
+	d.calls += len(requests)
+	results := make([]contentregistry.ForumProtectedShortcodeRenderResult, len(requests))
+	for index := range requests {
+		results[index] = contentregistry.ForumProtectedShortcodeRenderResult{HTML: "<p>TEST_ONLY_HTTP_ALLOWED</p>", Rendered: true}
+	}
+	return results, nil
+}
+
+func TestProtectedShortcodePublicHTTPIsPrivateAndMarkerFree(t *testing.T) {
+	const marker = "M8_HTTP_SECRET_MARKER_8C4A9B"
+	manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "protected-test-secret"})
+	users := controllerForumActors{actors: map[int64]identity.Actor{
+		1: {ID: 1, Status: identity.UserStatusActive},
+	}}
+	store := &controllerForumStore{protectedSource: `{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"public"}]},{"type":"sforumShortcodeBlock","attrs":{"id":"sforum-shortcodes.login","contractVersion":"sforum-shortcodes.login@1","arguments":{}},"content":[{"type":"paragraph","content":[{"type":"text","text":"` + marker + `"}]}]}]}`}
+	dispatcher := &controllerProtectedShortcodeDispatcher{}
+	controller := NewController(forum.NewService(forum.ServiceConfig{Store: store, Settings: store}), users, manager).
+		WithProtectedShortcodes(forum.ProtectedShortcodeAuthorizerFunc(func(_ context.Context, request forum.ProtectedShortcodeAuthorizationRequest) (forum.ProtectedShortcodeDecision, error) {
+			return forum.ProtectedShortcodeDecision{Allowed: request.Viewer.ID == 1}, nil
+		}), dispatcher)
+	loginProvider := forumRouteProviderFunc(func(api fiber.Router) {
+		api.Post("/test-login/:id", func(c fiber.Ctx) error {
+			userID, _ := strconv.ParseInt(c.Params("id"), 10, 64)
+			_, err := manager.Start(c, userID)
+			return err
+		})
+	})
+	app := apphttp.NewApp(config.Config{AppName: "SForum", AppEnv: "test", CSRFEnabled: false, AppLocale: "en-US", SupportedLocales: []string{"zh-CN", "en-US"}}, slog.Default(), apphttp.Dependencies{
+		RouteProviders: []apphttp.RouteProvider{controller, loginProvider},
+	})
+
+	paths := []string{
+		"/api/v1/topics/10",
+		"/api/v1/topics/by-slug/topic",
+		"/api/v1/topics/10/comments?view=tree",
+		"/api/v1/comments/20/replies",
+	}
+	for _, path := range paths {
+		resp := performForumRequest(t, app, nethttp.MethodGet, path, nil, nil)
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil || resp.StatusCode != nethttp.StatusOK {
+			t.Fatalf("anonymous GET %s status=%d err=%v body=%s", path, resp.StatusCode, err, body)
+		}
+		if cacheControl := resp.Header.Get("Cache-Control"); cacheControl != "private, no-store" {
+			t.Fatalf("anonymous GET %s cache-control=%q", path, cacheControl)
+		}
+		vary := resp.Header.Values("Vary")
+		varyText := strings.Join(vary, ",")
+		for _, required := range []string{"Cookie", "Authorization", "Accept-Language"} {
+			if !strings.Contains(varyText, required) {
+				t.Fatalf("anonymous GET %s vary=%q missing %s", path, varyText, required)
+			}
+		}
+		serialized := string(body)
+		for _, forbidden := range []string{marker, "TEST_ONLY_HTTP_ALLOWED", "rawContent", "contentHash", "sourceFormat"} {
+			if strings.Contains(serialized, forbidden) {
+				t.Fatalf("anonymous GET %s leaked %q: %s", path, forbidden, serialized)
+			}
+		}
+		if !strings.Contains(serialized, "Protected content unavailable") {
+			t.Fatalf("anonymous GET %s lacks Host fallback: %s", path, serialized)
+		}
+	}
+	if dispatcher.calls != 0 {
+		t.Fatalf("anonymous reads reached protected renderer: %d", dispatcher.calls)
+	}
+
+	allowedCookie := loginForumUser(t, app, 1)
+	resp := performForumRequest(t, app, nethttp.MethodGet, "/api/v1/topics/10", nil, allowedCookie)
+	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil || resp.StatusCode != nethttp.StatusOK || resp.Header.Get("Cache-Control") != "private, no-store" ||
+		!strings.Contains(string(body), "TEST_ONLY_HTTP_ALLOWED") || strings.Contains(string(body), marker) || dispatcher.calls != 1 {
+		t.Fatalf("allowed response status=%d cache=%q calls=%d err=%v body=%s", resp.StatusCode, resp.Header.Get("Cache-Control"), dispatcher.calls, err, body)
 	}
 }
 
@@ -608,6 +824,7 @@ func newForumTestApp() (*fiber.App, *authsession.Manager, *controllerForumStore)
 		5: {ID: 5, Status: identity.UserStatusActive, Permissions: map[string]bool{
 			identity.PermissionTopicEditAny:   true,
 			identity.PermissionTopicDeleteAny: true,
+			identity.PermissionPostEditAny:    true,
 			identity.PermissionTopicLock:      true,
 			identity.PermissionTopicPin:       true,
 		}},
@@ -713,6 +930,26 @@ type controllerForumStore struct {
 	commentRevisionCalls int
 	adminTopicCalls      int
 	adminCommentCalls    int
+	topicEditSource      forum.EditableContentSource
+	commentEditSource    forum.EditableContentSource
+	referenceInput       forum.ReferenceSelectorInput
+	protectedSource      string
+}
+
+func (s *controllerForumStore) LoadPublicShortcodeSources(_ context.Context, resources []contentregistry.ShortcodeResourceKey) (map[contentregistry.ShortcodeResourceKey]forum.PublicShortcodeSource, error) {
+	result := make(map[contentregistry.ShortcodeResourceKey]forum.PublicShortcodeSource, len(resources))
+	if strings.TrimSpace(s.protectedSource) == "" {
+		return result, nil
+	}
+	for _, resource := range resources {
+		result[resource] = forum.PublicShortcodeSource{Resource: resource, RawContent: s.protectedSource, SourceFormat: forum.SourceFormatEditorDocument}
+	}
+	return result, nil
+}
+
+func (s *controllerForumStore) ListReferenceOptions(_ context.Context, input forum.ReferenceSelectorInput) ([]forum.ReferenceOption, error) {
+	s.referenceInput = input
+	return []forum.ReferenceOption{{ID: 10, Label: "Release topic", SecondaryLabel: "General"}}, nil
 }
 
 func (s *controllerForumStore) ListCategories(context.Context) ([]forum.Category, error) {
@@ -809,11 +1046,15 @@ func (s *controllerForumStore) ListAllTopicIDs(context.Context) ([]int64, error)
 }
 
 func (s *controllerForumStore) GetTopic(context.Context, int64) (forum.TopicDetail, error) {
-	return forum.TopicDetail{TopicSummary: forum.TopicSummary{ID: 10, Title: "公开帖子", Slug: "topic", Status: forum.TopicStatusActive}}, nil
+	content := forum.PublicRenderedContent{}
+	if s.protectedSource != "" {
+		content = forum.PublicRenderedContent{HTMLContent: "<p>stored public fallback</p>", PlainText: "public Protected content unavailable", Excerpt: "public Protected content unavailable", RenderVersion: forum.RenderVersionEditorDocument}
+	}
+	return forum.TopicDetail{TopicSummary: forum.TopicSummary{ID: 10, Title: "公开帖子", Slug: "topic", Status: forum.TopicStatusActive}, Content: content}, nil
 }
 
 func (s *controllerForumStore) GetTopicBySlug(context.Context, string) (forum.TopicDetail, error) {
-	return forum.TopicDetail{TopicSummary: forum.TopicSummary{ID: 10, Title: "公开帖子", Slug: "topic", Status: forum.TopicStatusActive}}, nil
+	return s.GetTopic(context.Background(), 10)
 }
 
 func (s *controllerForumStore) TopicSlugExists(context.Context, string, int64) (bool, error) {
@@ -833,7 +1074,7 @@ func (s *controllerForumStore) CreateTopic(_ context.Context, input forum.Create
 	input.Content.ID = 100
 	return forum.TopicDetail{
 		TopicSummary: forum.TopicSummary{ID: 10, AuthorUserID: input.AuthorUserID, Title: input.Title, Slug: input.Slug, Status: forum.TopicStatusActive},
-		Content:      input.Content,
+		Content:      forum.ToPublicRenderedContent(input.Content),
 	}, nil
 }
 
@@ -875,12 +1116,20 @@ func (s *controllerForumStore) GetTopicForAction(context.Context, int64) (forum.
 	return s.actionTopic, nil
 }
 
+func (s *controllerForumStore) GetTopicEditSource(context.Context, int64) (forum.EditableContentSource, error) {
+	return s.topicEditSource, nil
+}
+
 func (s *controllerForumStore) CreateComment(_ context.Context, input forum.CreateCommentRecord) (forum.Comment, error) {
-	return forum.Comment{ID: 20, TopicID: input.TopicID, AuthorUserID: input.AuthorUserID, Content: input.Content, Status: forum.CommentStatusActive}, nil
+	return forum.Comment{ID: 20, TopicID: input.TopicID, AuthorUserID: input.AuthorUserID, Content: forum.ToPublicRenderedContent(input.Content), Status: forum.CommentStatusActive}, nil
 }
 
 func (s *controllerForumStore) GetCommentSummary(context.Context, int64) (forum.CommentSummary, error) {
-	return forum.CommentSummary{ID: 20, TopicID: 10, AuthorUserID: 1, Status: forum.CommentStatusActive, CurrentRevision: 1}, nil
+	return forum.CommentSummary{ID: 20, TopicID: 10, AuthorUserID: 1, Status: forum.CommentStatusActive, CurrentRevision: 1, CreatedAt: time.Now().UTC()}, nil
+}
+
+func (s *controllerForumStore) GetCommentEditSource(context.Context, int64) (forum.EditableContentSource, error) {
+	return s.commentEditSource, nil
 }
 
 func (s *controllerForumStore) CountCommentsBefore(context.Context, int64, string, int64, bool, int64) (int64, error) {
@@ -888,7 +1137,7 @@ func (s *controllerForumStore) CountCommentsBefore(context.Context, int64, strin
 }
 
 func (s *controllerForumStore) UpdateComment(_ context.Context, input forum.UpdateCommentRecord) (forum.Comment, error) {
-	return forum.Comment{ID: input.CommentID, AuthorUserID: 1, Content: input.Content, Status: forum.CommentStatusActive, CurrentRevision: input.ExpectedRevision + 1, UpdateApplied: true}, nil
+	return forum.Comment{ID: input.CommentID, AuthorUserID: 1, Content: forum.ToPublicRenderedContent(input.Content), Status: forum.CommentStatusActive, CurrentRevision: input.ExpectedRevision + 1, UpdateApplied: true}, nil
 }
 
 func (s *controllerForumStore) DeleteComment(context.Context, int64) (forum.Comment, error) {
@@ -898,8 +1147,12 @@ func (s *controllerForumStore) DeleteComment(context.Context, int64) (forum.Comm
 func (s *controllerForumStore) ListComments(_ context.Context, input forum.CommentListInput) (forum.CommentList, error) {
 	s.lastCommentView = input.View
 	childParent := int64(20)
-	root := forum.Comment{ID: 20, TopicID: input.TopicID, Status: forum.CommentStatusActive, Content: forum.RenderedContent{ID: 1, HTMLContent: "<p>root</p>"}}
-	child := forum.Comment{ID: 21, TopicID: input.TopicID, ParentID: &childParent, Status: forum.CommentStatusActive, Content: forum.RenderedContent{ID: 2, HTMLContent: "<p>child</p>"}}
+	renderVersion := ""
+	if s.protectedSource != "" {
+		renderVersion = forum.RenderVersionEditorDocument
+	}
+	root := forum.Comment{ID: 20, TopicID: input.TopicID, Status: forum.CommentStatusActive, Content: forum.PublicRenderedContent{ID: 1, HTMLContent: "<p>root</p>", RenderVersion: renderVersion}}
+	child := forum.Comment{ID: 21, TopicID: input.TopicID, ParentID: &childParent, Status: forum.CommentStatusActive, Content: forum.PublicRenderedContent{ID: 2, HTMLContent: "<p>child</p>", RenderVersion: renderVersion}}
 	items := []forum.Comment{root, child}
 	if input.View == "tree" {
 		root.Children = []forum.Comment{child}
@@ -909,7 +1162,11 @@ func (s *controllerForumStore) ListComments(_ context.Context, input forum.Comme
 }
 
 func (s *controllerForumStore) ListCommentReplies(context.Context, forum.CommentReplyListInput) ([]forum.Comment, error) {
-	return []forum.Comment{{ID: 21, TopicID: 10, Status: forum.CommentStatusActive}}, nil
+	renderVersion := ""
+	if s.protectedSource != "" {
+		renderVersion = forum.RenderVersionEditorDocument
+	}
+	return []forum.Comment{{ID: 21, TopicID: 10, Status: forum.CommentStatusActive, Content: forum.PublicRenderedContent{RenderVersion: renderVersion}}}, nil
 }
 
 func (s *controllerForumStore) ListTopicRevisions(_ context.Context, _ int64, input forum.RevisionListInput) (forum.RevisionList, error) {

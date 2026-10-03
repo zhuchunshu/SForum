@@ -40,6 +40,12 @@ func RenderContentWithExcerptLimit(input ContentInput, excerptLimit int) (Render
 // 使用调用方提供的 Schema（通常来自 EditorRegistry.DocumentSchema）。
 // 空 Schema 时 Accept 回退到 CoreSchema。
 func RenderContentWithExcerptLimitAndSchema(input ContentInput, excerptLimit int, schema editordocument.Schema) (RenderedContent, error) {
+	return RenderContentWithExcerptLimitAndSchemaForResource(input, excerptLimit, schema, "")
+}
+
+// RenderContentWithExcerptLimitAndSchemaForResource additionally supplies the
+// authoritative Forum resource kind for comment-only shortcode admission.
+func RenderContentWithExcerptLimitAndSchemaForResource(input ContentInput, excerptLimit int, schema editordocument.Schema, resourceKind string) (RenderedContent, error) {
 	raw := strings.TrimSpace(input.RawContent)
 	if raw == "" {
 		return RenderedContent{}, ErrInvalidContent
@@ -60,6 +66,8 @@ func RenderContentWithExcerptLimitAndSchema(input ContentInput, excerptLimit int
 			NativeJSON:   []byte(raw),
 			ExcerptLimit: excerptLimit,
 			Schema:       schema,
+			ResourceKind: resourceKind,
+			Locale:       input.Locale,
 		})
 		if err != nil {
 			return RenderedContent{}, ErrInvalidContent
@@ -67,28 +75,31 @@ func RenderContentWithExcerptLimitAndSchema(input ContentInput, excerptLimit int
 		if !hasMeaningfulEditorContent(accepted) {
 			return RenderedContent{}, ErrInvalidContent
 		}
-		// 持久化规范化后的 native JSON，保证再编辑与 content hash 稳定。
-		storedRaw, err := jsonMarshalDocument(accepted)
-		if err != nil {
-			return RenderedContent{}, err
-		}
-		return RenderedContent{
-			RawContent:    storedRaw,
-			HTMLContent:   accepted.HTMLSanitized,
-			PlainText:     accepted.PlainText,
-			Excerpt:       ExcerptFromPlain(accepted.PlainText, excerptLimit),
-			SourceFormat:  SourceFormatEditorDocument,
-			EditorType:    firstNonEmpty(editorType, EditorTypeTiptap),
-			EditorVersion: strings.TrimSpace(input.EditorVersion),
-			RenderVersion: RenderVersionEditorDocument,
-			ContentHash:   accepted.ContentHash,
-		}, nil
+		return renderedEditorDocument(accepted, input, editorType, excerptLimit)
 	}
 
 	var renderedHTML string
 	safeRaw := stripUnsafeHTMLBlocks(raw)
 	switch sourceFormat {
 	case SourceFormatMarkdown:
+		shortcodeDoc, activated, err := editordocument.ParseShortcodeMarkdown(raw, resourceKind)
+		if err != nil {
+			return RenderedContent{}, err
+		}
+		if activated {
+			nativeJSON, err := json.Marshal(shortcodeDoc)
+			if err != nil {
+				return RenderedContent{}, err
+			}
+			accepted, err := editordocument.Accept(editordocument.Input{
+				NativeJSON: nativeJSON, Schema: schema, ExcerptLimit: excerptLimit, ResourceKind: resourceKind,
+				Locale: input.Locale,
+			})
+			if err != nil || !hasMeaningfulEditorContent(accepted) {
+				return RenderedContent{}, ErrInvalidContent
+			}
+			return renderedEditorDocument(accepted, input, EditorTypeTiptap, excerptLimit)
+		}
 		var buffer bytes.Buffer
 		// 启用 GFM 扩展：表格、删除线、自动链接、任务列表。
 		// 与前端 Tiptap 编辑器的 gfm:true 保持一致，避免"编辑器预览 ≠ 发布结果"。
@@ -122,22 +133,41 @@ func RenderContentWithExcerptLimitAndSchema(input ContentInput, excerptLimit int
 	}, nil
 }
 
+func renderedEditorDocument(accepted editordocument.Accepted, input ContentInput, editorType string, excerptLimit int) (RenderedContent, error) {
+	storedRaw, err := jsonMarshalDocument(accepted)
+	if err != nil {
+		return RenderedContent{}, err
+	}
+	return RenderedContent{
+		RawContent:    storedRaw,
+		HTMLContent:   accepted.HTMLSanitized,
+		PlainText:     accepted.PlainText,
+		Excerpt:       ExcerptFromPlain(accepted.PlainText, excerptLimit),
+		SourceFormat:  SourceFormatEditorDocument,
+		EditorType:    firstNonEmpty(editorType, EditorTypeTiptap),
+		EditorVersion: strings.TrimSpace(input.EditorVersion),
+		RenderVersion: RenderVersionEditorDocument,
+		ContentHash:   accepted.ContentHash,
+	}, nil
+}
+
 // hasMeaningfulEditorContent 保持空结构无效，同时允许已验收的图片节点独立成文。
 func hasMeaningfulEditorContent(accepted editordocument.Accepted) bool {
 	if strings.TrimSpace(accepted.PlainText) != "" {
 		return true
 	}
 
-	var containsImage func([]editordocument.Node) bool
-	containsImage = func(nodes []editordocument.Node) bool {
+	var containsRenderableNode func([]editordocument.Node) bool
+	containsRenderableNode = func(nodes []editordocument.Node) bool {
 		for _, node := range nodes {
-			if node.Type == "image" || containsImage(node.Content) {
+			if node.Type == "image" || node.Type == editordocument.ShortcodeRefNode ||
+				node.Type == editordocument.ShortcodeBlockNode || containsRenderableNode(node.Content) {
 				return true
 			}
 		}
 		return false
 	}
-	return containsImage(accepted.Native.Content)
+	return containsRenderableNode(accepted.Native.Content)
 }
 
 func jsonMarshalDocument(accepted editordocument.Accepted) (string, error) {
@@ -147,6 +177,31 @@ func jsonMarshalDocument(accepted editordocument.Accepted) (string, error) {
 		return "", err
 	}
 	return string(body), nil
+}
+
+func contentMentionSource(content RenderedContent) string {
+	if content.SourceFormat != SourceFormatEditorDocument {
+		return content.RawContent
+	}
+	doc, err := editordocument.Parse(editordocument.Input{NativeJSON: []byte(content.RawContent)})
+	if err != nil {
+		return content.PlainText
+	}
+	return editordocument.RenderPublicSideEffectMarkdown(doc)
+}
+
+// PublicMentionSource reconstructs only the Host-approved side-effect view.
+// Protected descendants are replaced by stable fallback text and therefore
+// cannot create mention notifications during moderation replay.
+func PublicMentionSource(rawContent, sourceFormat string) string {
+	if strings.TrimSpace(sourceFormat) != SourceFormatEditorDocument {
+		return rawContent
+	}
+	doc, err := editordocument.Parse(editordocument.Input{NativeJSON: []byte(rawContent)})
+	if err != nil {
+		return ""
+	}
+	return editordocument.RenderPublicSideEffectMarkdown(doc)
 }
 
 func firstNonEmpty(values ...string) string {

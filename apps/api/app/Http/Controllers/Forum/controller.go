@@ -23,12 +23,15 @@ import (
 )
 
 type Controller struct {
-	service         *forum.Service
-	searchService   SearchService
-	reindexer       ReindexService
-	searchProviders SearchProviderAdmin
-	users           identity.ActorStore
-	sessions        *authsession.Manager
+	service           *forum.Service
+	publicReads       *forum.PublicReadService
+	editableSources   *forum.EditableSourceService
+	referenceSelector *forum.ReferenceSelector
+	searchService     SearchService
+	reindexer         ReindexService
+	searchProviders   SearchProviderAdmin
+	users             identity.ActorStore
+	sessions          *authsession.Manager
 	// idempotency 可选：注入后对发帖/评论写路径启用 Idempotency-Key（F3.2）。
 	idempotency       *idempotency.Store
 	emailVerification EmailVerificationGate
@@ -88,12 +91,20 @@ type SearchOutput struct {
 }
 
 func NewController(service *forum.Service, users identity.ActorStore, sessions *authsession.Manager) *Controller {
-	return &Controller{service: service, users: users, sessions: sessions}
+	return &Controller{
+		service: service, publicReads: forum.NewPublicReadService(service),
+		editableSources: forum.NewEditableSourceService(service), referenceSelector: forum.ReferenceSelectorFromService(service),
+		users: users, sessions: sessions,
+	}
 }
 
 // NewControllerWithSearch 注入搜索服务与索引重建服务。
 func NewControllerWithSearch(service *forum.Service, searchSvc SearchService, reindexer ReindexService, users identity.ActorStore, sessions *authsession.Manager) *Controller {
-	return &Controller{service: service, searchService: searchSvc, reindexer: reindexer, users: users, sessions: sessions}
+	return &Controller{
+		service: service, publicReads: forum.NewPublicReadService(service), editableSources: forum.NewEditableSourceService(service),
+		referenceSelector: forum.ReferenceSelectorFromService(service), searchService: searchSvc,
+		reindexer: reindexer, users: users, sessions: sessions,
+	}
 }
 
 // SearchProviderAdmin 抽象 search.provider 运营选择，避免 controller 依赖扩展存储细节。
@@ -141,6 +152,23 @@ func (h *Controller) WithViewRecorder(recorder forum.TopicViewRecorder) *Control
 func (h *Controller) WithContentPostFilter(filter forum.ContentPostFilter) *Controller {
 	if h != nil && h.service != nil {
 		h.service.WithContentPostFilter(filter)
+	}
+	return h
+}
+
+func (h *Controller) WithPublicShortcodeDispatcher(dispatcher forum.PublicShortcodeDispatcher) *Controller {
+	if h != nil && h.publicReads != nil {
+		h.publicReads.WithShortcodeDispatcher(dispatcher)
+	}
+	return h
+}
+
+// WithProtectedShortcodes wires the Host authorization authority and the
+// request-only renderer. M8 production assembly intentionally does not call it;
+// product policies and production protected declarations remain deferred.
+func (h *Controller) WithProtectedShortcodes(authorizer forum.ProtectedShortcodeAuthorizer, dispatcher forum.ProtectedShortcodeDispatcher) *Controller {
+	if h != nil && h.publicReads != nil {
+		h.publicReads.WithProtectedShortcodes(authorizer, dispatcher)
 	}
 	return h
 }
@@ -243,6 +271,23 @@ func (h *Controller) composerToolbar(c fiber.Ctx) error {
 	return apphttp.OK(c, items)
 }
 
+func (h *Controller) composerReferences(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	items, err := h.referenceSelector.ListReferenceOptions(c.Context(), actor, forum.ReferenceSelectorInput{
+		Kind:       c.Query("kind"),
+		Query:      c.Query("query"),
+		SelectedID: int64(queryInt(c, "selectedId")),
+		Limit:      queryInt(c, "limit"),
+	})
+	if err != nil {
+		return mapForumError(err)
+	}
+	return apphttp.OK(c, items)
+}
+
 func (h *Controller) tags(c fiber.Ctx) error {
 	if err := h.requireGuestRead(c); err != nil {
 		return err
@@ -339,9 +384,17 @@ func (h *Controller) topic(c fiber.Ctx) error {
 	if err := h.requireGuestRead(c); err != nil {
 		return err
 	}
-	topic, err := h.service.GetTopic(c.Context(), int64(paramInt(c, "topicID")))
+	viewer, err := apphttp.OptionalActor(c, h.sessions, h.users)
+	if err != nil {
+		return err
+	}
+	ctx := forum.WithPublicRenderLocale(c.Context(), apphttp.Locale(c))
+	topic, err := h.publicReads.GetTopicForViewer(ctx, int64(paramInt(c, "topicID")), viewer)
 	if err != nil {
 		return mapForumError(err)
+	}
+	if topic.ProtectedContent {
+		setProtectedContentResponse(c)
 	}
 	// D3：公开详情 GET 成功后计浏览（Redis 去重+增量）；不阻断响应。
 	h.service.RecordTopicView(c.Context(), topic.ID, h.topicVisitorKey(c))
@@ -354,12 +407,32 @@ func (h *Controller) topicBySlug(c fiber.Ctx) error {
 	if err := h.requireGuestRead(c); err != nil {
 		return err
 	}
-	topic, err := h.service.GetTopicBySlug(c.Context(), c.Params("slug"))
+	viewer, err := apphttp.OptionalActor(c, h.sessions, h.users)
+	if err != nil {
+		return err
+	}
+	ctx := forum.WithPublicRenderLocale(c.Context(), apphttp.Locale(c))
+	topic, err := h.publicReads.GetTopicBySlugForViewer(ctx, c.Params("slug"), viewer)
 	if err != nil {
 		return mapForumError(err)
 	}
+	if topic.ProtectedContent {
+		setProtectedContentResponse(c)
+	}
 	h.service.RecordTopicView(c.Context(), topic.ID, h.topicVisitorKey(c))
 	return apphttp.OK(c, topic)
+}
+
+func (h *Controller) topicEditSource(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	source, err := h.editableSources.GetTopicEditSource(c.Context(), actor, int64(paramInt(c, "topicID")))
+	if err != nil {
+		return mapForumError(err)
+	}
+	return apphttp.OK(c, source)
 }
 
 func (h *Controller) topicRevisions(c fiber.Ctx) error {
@@ -560,8 +633,12 @@ func (h *Controller) comments(c fiber.Ctx) error {
 		return err
 	}
 	// 可选 viewer：登录用户用于 softDeleteVisibility 墓碑判定；匿名为零值。
-	viewer, _ := apphttp.LoadActor(c, h.sessions, h.users)
-	list, err := h.service.ListComments(c.Context(), forum.CommentListInput{
+	viewer, err := apphttp.OptionalActor(c, h.sessions, h.users)
+	if err != nil {
+		return err
+	}
+	ctx := forum.WithPublicRenderLocale(c.Context(), apphttp.Locale(c))
+	list, err := h.publicReads.ListComments(ctx, forum.CommentListInput{
 		TopicID: int64(paramInt(c, "topicID")),
 		View:    c.Query("view", "tree"),
 		Page:    queryInt(c, "page"),
@@ -572,6 +649,9 @@ func (h *Controller) comments(c fiber.Ctx) error {
 	})
 	if err != nil {
 		return mapForumError(err)
+	}
+	if list.ProtectedContent {
+		setProtectedContentResponse(c)
 	}
 	return apphttp.OK(c, list)
 }
@@ -626,12 +706,36 @@ func (h *Controller) replies(c fiber.Ctx) error {
 	if err := h.requireGuestRead(c); err != nil {
 		return err
 	}
-	viewer, _ := apphttp.LoadActor(c, h.sessions, h.users)
-	items, err := h.service.ListCommentRepliesForViewer(c.Context(), int64(paramInt(c, "commentID")), viewer)
+	viewer, err := apphttp.OptionalActor(c, h.sessions, h.users)
+	if err != nil {
+		return err
+	}
+	ctx := forum.WithPublicRenderLocale(c.Context(), apphttp.Locale(c))
+	items, protected, err := h.publicReads.ListCommentRepliesForViewer(ctx, int64(paramInt(c, "commentID")), viewer)
 	if err != nil {
 		return mapForumError(err)
 	}
+	if protected {
+		setProtectedContentResponse(c)
+	}
 	return apphttp.OK(c, items)
+}
+
+func setProtectedContentResponse(c fiber.Ctx) {
+	c.Set(fiber.HeaderCacheControl, "private, no-store")
+	c.Vary(fiber.HeaderCookie, fiber.HeaderAuthorization, fiber.HeaderAcceptLanguage)
+}
+
+func (h *Controller) commentEditSource(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	source, err := h.editableSources.GetCommentEditSource(c.Context(), actor, int64(paramInt(c, "commentID")))
+	if err != nil {
+		return mapForumError(err)
+	}
+	return apphttp.OK(c, source)
 }
 
 func (h *Controller) commentRevisions(c fiber.Ctx) error {
@@ -788,6 +892,8 @@ func mapForumError(err error) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeInvalidSettings)
 	case errors.Is(err, forum.ErrInvalidAction):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeInvalidAction)
+	case errors.Is(err, forum.ErrInvalidReferenceSelector):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeReferenceSelectorInvalid)
 	case errors.Is(err, forum.ErrTitleTooShort):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeTitleTooShort)
 	case errors.Is(err, forum.ErrTitleTooLong):

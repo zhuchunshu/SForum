@@ -36,6 +36,14 @@ func CoreSchema() Schema {
 				},
 				FallbackHTML: `<span class="sf-editor-fallback" data-fallback="emoji">[emoji]</span>`,
 			},
+			ShortcodeRefNode: {
+				Atom: true, StrictAttrs: true, BlockOnly: true,
+				AllowAttrs: shortcodeNodeAttrs(),
+			},
+			ShortcodeBlockNode: {
+				StrictAttrs: true, BlockOnly: true, Protected: true,
+				AllowAttrs: shortcodeNodeAttrs(),
+			},
 		},
 		Marks: map[string]MarkSpec{
 			"bold":          {},

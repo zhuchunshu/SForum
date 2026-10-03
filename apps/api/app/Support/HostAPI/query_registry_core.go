@@ -351,6 +351,10 @@ func queryRegistryCoreMappingFor(definition protocolV2QueryDefinition) (queryReg
 			PermissionPolicy: queryregistry.PermissionPolicyPublic, Pagination: queryregistry.PaginationNone,
 		}
 	default:
+		if shortcode, ok := shortcodeProjectionCoreMapping(definition); ok {
+			mapping = shortcode
+			break
+		}
 		return queryRegistryCoreMapping{}, fmt.Errorf(
 			"%w: Host query %q has no explicit Query Registry mapping", ErrQueryRegistryCoreUnsupported, definition.ID,
 		)

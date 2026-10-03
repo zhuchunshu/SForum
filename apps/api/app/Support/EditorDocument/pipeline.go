@@ -5,9 +5,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -41,11 +43,11 @@ func Accept(input Input) (Accepted, error) {
 	if len(schema.Nodes) == 0 {
 		schema = CoreSchema()
 	}
-	normalized, fallbacks, err := ValidateAndNormalize(doc, schema)
+	normalized, fallbacks, err := validateAndNormalize(doc, schema, input)
 	if err != nil {
 		return Accepted{}, fmt.Errorf("%w: %v", ErrPipeline, err)
 	}
-	htmlRaw := RenderHTML(normalized, schema)
+	htmlRaw := RenderHTMLForLocale(normalized, schema, input.Locale)
 	htmlSanitized := SanitizeHTML(htmlRaw)
 	plain := normalizePlainText(htmlToPlain(htmlSanitized))
 	if plain == "" && len(normalized.Content) == 0 {
@@ -78,8 +80,17 @@ func Parse(input Input) (Document, error) {
 		return Document{}, ErrInvalid
 	}
 	if len(input.NativeJSON) > 0 {
+		if err := validateUniqueJSONKeys(input.NativeJSON); err != nil {
+			return Document{}, ErrInvalid
+		}
 		var doc Document
-		if err := json.Unmarshal(input.NativeJSON, &doc); err != nil {
+		decoder := json.NewDecoder(strings.NewReader(string(input.NativeJSON)))
+		decoder.UseNumber()
+		if err := decoder.Decode(&doc); err != nil {
+			return Document{}, ErrInvalid
+		}
+		var trailing any
+		if err := decoder.Decode(&trailing); err != io.EOF {
 			return Document{}, ErrInvalid
 		}
 		if strings.TrimSpace(doc.Type) == "" {
@@ -116,25 +127,30 @@ func Parse(input Input) (Document, error) {
 // replaces unknown nodes with stable fallbacks while preserving structure
 // metadata for later re-enable.
 func ValidateAndNormalize(doc Document, schema Schema) (Document, []string, error) {
+	return validateAndNormalize(doc, schema, Input{})
+}
+
+func validateAndNormalize(doc Document, schema Schema, input Input) (Document, []string, error) {
 	if doc.Type != "doc" {
 		return Document{}, nil, ErrInvalid
 	}
 	var fallbacks []string
 	var nodeCount int
-	content, err := normalizeNodes(doc.Content, schema, 1, &nodeCount, &fallbacks)
+	shortcodes := newShortcodeValidationState(input)
+	content, err := normalizeNodes(doc.Content, schema, "doc", 1, 0, &nodeCount, &fallbacks, shortcodes)
 	if err != nil {
 		return Document{}, nil, err
 	}
 	return Document{Type: "doc", Content: content}, uniqueSorted(fallbacks), nil
 }
 
-func normalizeNodes(nodes []Node, schema Schema, depth int, nodeCount *int, fallbacks *[]string) ([]Node, error) {
+func normalizeNodes(nodes []Node, schema Schema, parentType string, depth, shortcodeDepth int, nodeCount *int, fallbacks *[]string, shortcodes *shortcodeValidationState) ([]Node, error) {
 	if depth > maxDepth {
 		return nil, ErrInvalid
 	}
 	result := make([]Node, 0, len(nodes))
 	for _, node := range nodes {
-		*nodeCount++
+		*nodeCount = *nodeCount + 1
 		if *nodeCount > maxNodeCount {
 			return nil, ErrInvalid
 		}
@@ -151,6 +167,45 @@ func normalizeNodes(nodes []Node, schema Schema, depth int, nodeCount *int, fall
 				Attrs: map[string]any{"data-fallback-for": node.Type},
 			})
 			continue
+		}
+		if parentType == ShortcodeBlockNode && !shortcodeBlockChildType(node.Type) {
+			return nil, ErrInvalidShortcode
+		}
+		if node.Type == ShortcodeRefNode || node.Type == ShortcodeBlockNode {
+			nextShortcodeDepth := shortcodeDepth + 1
+			if nextShortcodeDepth > ShortcodeMaxDepth || node.Text != "" || len(node.Marks) != 0 {
+				return nil, ErrInvalidShortcode
+			}
+			normalized, fallback, err := normalizeShortcodeNode(node, parentType, shortcodes)
+			if err != nil {
+				return nil, err
+			}
+			if fallback != "" {
+				*fallbacks = append(*fallbacks, fallback)
+			}
+			if node.Type == ShortcodeRefNode {
+				if len(node.Content) != 0 {
+					return nil, ErrInvalidShortcode
+				}
+				result = append(result, normalized)
+				continue
+			}
+			if len(node.Content) == 0 {
+				return nil, ErrInvalidShortcode
+			}
+			children, err := normalizeNodes(node.Content, schema, ShortcodeBlockNode, depth+1, nextShortcodeDepth, nodeCount, fallbacks, shortcodes)
+			if err != nil {
+				return nil, err
+			}
+			if len(children) == 0 {
+				return nil, ErrInvalidShortcode
+			}
+			normalized.Content = children
+			result = append(result, normalized)
+			continue
+		}
+		if spec.StrictAttrs && hasUndeclaredAttrs(node.Attrs, spec.AllowAttrs) {
+			return nil, ErrInvalid
 		}
 		normalized := Node{
 			Type:  node.Type,
@@ -182,7 +237,7 @@ func normalizeNodes(nodes []Node, schema Schema, depth int, nodeCount *int, fall
 			normalized.Attrs = normalizeOrderedListAttrs(normalized.Attrs)
 		}
 		if !spec.Atom {
-			children, err := normalizeNodes(node.Content, schema, depth+1, nodeCount, fallbacks)
+			children, err := normalizeNodes(node.Content, schema, node.Type, depth+1, shortcodeDepth, nodeCount, fallbacks, shortcodes)
 			if err != nil {
 				return nil, err
 			}
@@ -196,6 +251,25 @@ func normalizeNodes(nodes []Node, schema Schema, depth int, nodeCount *int, fall
 		result = append(result, normalized)
 	}
 	return result, nil
+}
+
+func hasUndeclaredAttrs(attrs map[string]any, allow map[string]bool) bool {
+	for key := range attrs {
+		if !allow[key] {
+			return true
+		}
+	}
+	return false
+}
+
+func shortcodeBlockChildType(nodeType string) bool {
+	switch nodeType {
+	case "paragraph", "heading", "blockquote", "codeBlock", "bulletList", "orderedList",
+		"horizontalRule", "image", ShortcodeRefNode, ShortcodeBlockNode:
+		return true
+	default:
+		return false
+	}
 }
 
 func normalizeImageAttrs(attrs map[string]any) map[string]any {
@@ -229,6 +303,9 @@ func normalizedImageDimension(value any) (int, bool) {
 	case float64:
 		integer := int(typed)
 		return integer, typed == float64(integer) && integer > 0 && integer <= maxImageDimension
+	case json.Number:
+		integer, err := strconv.ParseInt(string(typed), 10, 64)
+		return int(integer), err == nil && integer > 0 && integer <= maxImageDimension
 	default:
 		return 0, false
 	}
@@ -254,6 +331,9 @@ func normalizedOrderedListStart(value any) (int, bool) {
 	case float64:
 		integer := int(typed)
 		return integer, typed == float64(integer)
+	case json.Number:
+		integer, err := strconv.ParseInt(string(typed), 10, 64)
+		return int(integer), err == nil
 	default:
 		return 0, false
 	}
@@ -303,6 +383,10 @@ func filterAttrs(input map[string]any, allow map[string]bool) map[string]any {
 			result[key] = typed
 		case float64:
 			result[key] = typed
+		case json.Number:
+			if numeric, err := typed.Float64(); err == nil {
+				result[key] = numeric
+			}
 		case bool:
 			result[key] = typed
 		case int:
@@ -402,6 +486,9 @@ func buildSearchText(plain string, doc Document) string {
 	var walk func([]Node)
 	walk = func(nodes []Node) {
 		for _, node := range nodes {
+			if node.Type == ShortcodeBlockNode {
+				continue
+			}
 			if node.Type == "sforumEmoji" {
 				if name, _ := node.Attrs["name"].(string); name != "" {
 					extra = append(extra, "emoji:"+name)

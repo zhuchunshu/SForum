@@ -31,8 +31,11 @@ type ContentRegistryRuntimeIdentity struct {
 	RuntimeInstanceID       string
 	ContentID               string
 	ContractVersion         string
+	Kind                    string
+	Schema                  string
 	HandlerReference        string
 	RendererReference       string
+	MigrationReference      string
 	Action                  string
 	Operation               string
 }
@@ -87,8 +90,9 @@ func (a *ContentRegistryAdmission) AcquireContentExecution(
 		ExtensionID:             request.Artifact.ExtensionID, ExtensionVersion: request.Artifact.ExtensionVersion,
 		PackageDigest: request.Artifact.PackageDigest, VersionID: request.Artifact.VersionID,
 		RuntimeInstanceID: request.Artifact.RuntimeInstanceID, ContentID: request.ContentID,
-		ContractVersion: request.ContractVersion, HandlerReference: request.HandlerReference,
-		RendererReference: request.RendererReference, Action: request.Action, Operation: request.Operation,
+		ContractVersion: request.ContractVersion, Kind: request.Kind, Schema: request.Schema,
+		HandlerReference: request.HandlerReference, RendererReference: request.RendererReference,
+		MigrationReference: request.MigrationReference, Action: request.Action, Operation: request.Operation,
 	})
 	if err != nil || lease == nil {
 		if lease != nil {

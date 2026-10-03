@@ -56,15 +56,20 @@ func TestProtocolV2QueryDelegationDerivesActorAndUniqueReplayIDs(t *testing.T) {
 		t.Fatal(err)
 	}
 	if first.Token == second.Token || firstClaims.ID == secondClaims.ID ||
-		firstClaims.ActorUserID != h.actors.projection.ActorUserID ||
-		firstClaims.ActorFingerprint != h.actors.projection.ActorFingerprint ||
-		firstClaims.PolicyFingerprint != h.actors.projection.PolicyFingerprint ||
 		firstClaims.QueryID != h.query.ID || firstClaims.ContractVersion != h.query.ContractVersion ||
 		firstClaims.PlanVersion != h.query.PlanVersion || firstClaims.QueryArtifact != h.query.Artifact.PackageDigest ||
 		firstClaims.ExtensionID != h.runtime.GetExtensionId() || firstClaims.InstanceID != h.runtime.GetInstanceId() ||
 		firstClaims.Issuer != protocolV2ActorDelegationIssuer || len(firstClaims.Audience) != 1 ||
 		firstClaims.Audience[0] != ProtocolV2QueryDelegationAudience {
 		t.Fatalf("first claims = %#v second claims = %#v", firstClaims, secondClaims)
+	}
+	if strings.Contains(first.Token, h.actors.projection.ActorFingerprint) ||
+		strings.Contains(first.Token, h.actors.projection.PolicyFingerprint) {
+		t.Fatal("query delegation token exposed actor authority material")
+	}
+	stored, err := h.service.delegations.lookup(first.Token)
+	if err != nil || stored.Binding.Actor != h.actors.projection {
+		t.Fatalf("server-side actor binding = %#v, %v", stored.Binding.Actor, err)
 	}
 
 	const workers = 32

@@ -601,7 +601,7 @@ func (s *Service) CreateTopic(ctx context.Context, actor identity.Actor, input C
 	if err != nil {
 		return TopicDetail{}, err
 	}
-	content, err := s.renderContent(input.Content, settings.ExcerptRuneLimit)
+	content, err := renderContentWithContext(s, ctx, input.Content, settings.ExcerptRuneLimit, "topic")
 	if err != nil {
 		return TopicDetail{}, err
 	}
@@ -611,7 +611,7 @@ func (s *Service) CreateTopic(ctx context.Context, actor identity.Actor, input C
 	}
 	var mentionNames []string
 	if settings.MentionsEnabled {
-		mentionNames = MentionedUsernames(content.RawContent)
+		mentionNames = MentionedUsernames(contentMentionSource(content))
 		if settings.MentionsMaxPerPost > 0 && len(mentionNames) > settings.MentionsMaxPerPost {
 			return TopicDetail{}, ErrMentionsLimit
 		}
@@ -761,7 +761,7 @@ func (s *Service) UpdateTopic(ctx context.Context, actor identity.Actor, input U
 		if trust := s.trustForActor(ctx, actor); trust.active && trust.forbidLinks && containsOutboundLink(input.Content.RawContent) {
 			return TopicDetail{}, ErrOutboundLinkForbidden
 		}
-		content, err := s.renderContent(*input.Content, settings.ExcerptRuneLimit)
+		content, err := renderContentWithContext(s, ctx, *input.Content, settings.ExcerptRuneLimit, "topic")
 		if err != nil {
 			return TopicDetail{}, err
 		}
@@ -866,7 +866,7 @@ func (s *Service) DeleteTopic(ctx context.Context, actor identity.Actor, topicID
 	s.emitTopicEvent(ctx, appevents.TopicDeleted, actor.ID, topicID, deletedPayload)
 	// 软删后从搜索索引移除，避免命中已删除主题。
 	s.deleteTopicIndex(ctx, topicID)
-	deleted.Content = RenderedContent{SourceFormat: deleted.Content.SourceFormat}
+	deleted.Content = PublicRenderedContent{}
 	deleted.Excerpt = ""
 	deleted.Edited = false
 	deleted.EditedAt = nil
@@ -995,16 +995,6 @@ func (s *Service) CreateComment(ctx context.Context, actor identity.Actor, input
 	if trust := s.trustForActor(ctx, actor); trust.active && trust.forbidLinks && containsOutboundLink(input.Content.RawContent) {
 		return Comment{}, ErrOutboundLinkForbidden
 	}
-	// MentionsEnabled=false：不解析提及、不发通知；@text 仅作正文。
-	// max=0 表示不限制条数。
-	var mentionNames []string
-	if settings.MentionsEnabled {
-		mentionNames = MentionedUsernames(input.Content.RawContent)
-		if settings.MentionsMaxPerPost > 0 && len(mentionNames) > settings.MentionsMaxPerPost {
-			return Comment{}, ErrMentionsLimit
-		}
-	}
-
 	var parent *CommentSummary
 	if input.ParentID != nil {
 		summary, err := s.store.GetCommentSummary(ctx, *input.ParentID)
@@ -1022,13 +1012,22 @@ func (s *Service) CreateComment(ctx context.Context, actor identity.Actor, input
 		return Comment{}, err
 	}
 
-	content, err := s.renderContent(input.Content, settings.ExcerptRuneLimit)
+	content, err := renderContentWithContext(s, ctx, input.Content, settings.ExcerptRuneLimit, "comment")
 	if err != nil {
 		return Comment{}, err
 	}
 	content, err = s.applyContentPostFilter(ctx, content, "comment", "new")
 	if err != nil {
 		return Comment{}, err
+	}
+	// 提及只读取 Host 公开安全投影；保护块子内容仍参加审核与外链校验，
+	// 但不会触发通知或成为内容存在性的旁路。
+	var mentionNames []string
+	if settings.MentionsEnabled {
+		mentionNames = MentionedUsernames(contentMentionSource(content))
+		if settings.MentionsMaxPerPost > 0 && len(mentionNames) > settings.MentionsMaxPerPost {
+			return Comment{}, ErrMentionsLimit
+		}
 	}
 	attachmentIDs, _, err := normalizeAndValidateContentAttachmentIDs(content, input.Content.AttachmentIDs)
 	if err != nil {

@@ -474,6 +474,10 @@ func (s *PostgresStore) GetAdminForumTopic(ctx context.Context, topicID int64) (
 		return AdminForumTopicDetail{}, err
 	}
 	topic.Tags = tags[topic.ID]
+	content, err := s.getProtectedRenderedContent(ctx, topic.Content.ID)
+	if err != nil {
+		return AdminForumTopicDetail{}, err
+	}
 	return AdminForumTopicDetail{
 		AdminForumContentRow: AdminForumContentRow{
 			TargetType:      "topic",
@@ -491,7 +495,7 @@ func (s *PostgresStore) GetAdminForumTopic(ctx context.Context, topicID int64) (
 			UpdatedAt:       topic.UpdatedAt,
 			Tags:            topic.Tags,
 		},
-		Content: topic.Content,
+		Content: content,
 		Slug:    topic.Slug,
 	}, nil
 }
@@ -510,6 +514,10 @@ func (s *PostgresStore) GetAdminForumComment(ctx context.Context, commentID int6
 	`, comment.TopicID).Scan(&topicTitle, &categorySlug); err != nil {
 		return AdminForumCommentDetail{}, fmt.Errorf("load admin comment topic context: %w", err)
 	}
+	content, err := s.getProtectedRenderedContent(ctx, comment.Content.ID)
+	if err != nil {
+		return AdminForumCommentDetail{}, err
+	}
 	return AdminForumCommentDetail{
 		AdminForumContentRow: AdminForumContentRow{
 			TargetType:      "comment",
@@ -525,11 +533,39 @@ func (s *PostgresStore) GetAdminForumComment(ctx context.Context, commentID int6
 			CreatedAt:       comment.CreatedAt,
 			UpdatedAt:       comment.UpdatedAt,
 		},
-		Content:       comment.Content,
+		Content:       content,
 		ParentID:      comment.ParentID,
 		RootCommentID: comment.RootCommentID,
 		PathKey:       comment.PathKey,
 		Depth:         comment.Depth,
 		ReplyCount:    comment.ReplyCount,
 	}, nil
+}
+
+func (s *PostgresStore) getProtectedRenderedContent(ctx context.Context, postID int64) (RenderedContent, error) {
+	var content RenderedContent
+	err := s.pool.QueryRow(ctx, `
+		SELECT id, raw_content, html_content, plain_text, source_format,
+		  editor_type, editor_version, render_version, content_hash
+		FROM posts
+		WHERE id = $1
+	`, postID).Scan(
+		&content.ID,
+		&content.RawContent,
+		&content.HTMLContent,
+		&content.PlainText,
+		&content.SourceFormat,
+		&content.EditorType,
+		&content.EditorVersion,
+		&content.RenderVersion,
+		&content.ContentHash,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return RenderedContent{}, ErrRevisionNotFound
+	}
+	if err != nil {
+		return RenderedContent{}, fmt.Errorf("get protected rendered content: %w", err)
+	}
+	content.Excerpt = ExcerptFromPlain(content.PlainText, defaultExcerptRuneLimit)
+	return content, nil
 }

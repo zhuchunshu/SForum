@@ -81,6 +81,10 @@ func queryRegistryCoreResultSchemaProperties(definition protocolV2QueryDefinitio
 			"updated_at":      schemaString(),
 		}
 	default:
+		if shortcode, ok := shortcodeProjectionSchemaProperties(definition.ResultSchemaID); ok {
+			properties = shortcode
+			break
+		}
 		return nil, fmt.Errorf(
 			"%w: no Host-aligned JSON result schema for %q",
 			ErrQueryRegistryCoreUnsupported, definition.ResultSchemaID,

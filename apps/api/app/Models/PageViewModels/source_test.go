@@ -2,6 +2,7 @@ package pageviewmodels
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/url"
 	"reflect"
@@ -28,6 +29,7 @@ type sourceForum struct {
 	lastTopicInput   forum.TopicListInput
 	lastCommentInput forum.CommentListInput
 	topicErr         error
+	lastTopicViewer  identity.Actor
 }
 
 func (s *sourceForum) ListCategoryGroups(context.Context) ([]forum.CategoryGroup, error) {
@@ -60,11 +62,21 @@ func (s *sourceForum) GetTopicBySlug(context.Context, string) (forum.TopicDetail
 	return sourceTopic(), nil
 }
 
+func (s *sourceForum) GetTopicForViewer(_ context.Context, _ int64, viewer identity.Actor) (forum.TopicDetail, error) {
+	s.lastTopicViewer = viewer
+	return s.GetTopic(context.Background(), 42)
+}
+
+func (s *sourceForum) GetTopicBySlugForViewer(_ context.Context, slug string, viewer identity.Actor) (forum.TopicDetail, error) {
+	s.lastTopicViewer = viewer
+	return s.GetTopicBySlug(context.Background(), slug)
+}
+
 func (s *sourceForum) ListComments(_ context.Context, input forum.CommentListInput) (forum.CommentList, error) {
 	s.lastCommentInput = input
 	return forum.CommentList{Items: []forum.Comment{{
 		ID: 91, TopicID: 42, AuthorUserID: 8, Author: sourceUser(),
-		Content: forum.RenderedContent{HTMLContent: "<p>Reply</p>"}, CreatedAt: sourceTestNow, UpdatedAt: sourceTestNow,
+		Content: forum.PublicRenderedContent{HTMLContent: "<p>Reply</p>"}, CreatedAt: sourceTestNow, UpdatedAt: sourceTestNow,
 	}}, Total: 1, Page: max(input.Page, 1), PerPage: 20, View: input.View}, nil
 }
 
@@ -245,6 +257,17 @@ func TestCorePageViewModelSourcePopulatesEveryCatalogContract(t *testing.T) {
 			if reflect.TypeOf(model) != test.typeOf {
 				t.Fatalf("type %T, want %v", model, test.typeOf)
 			}
+			if definition.ID == "forum.topic.show" {
+				payload, err := json.Marshal(populated)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, forbidden := range []string{"rawContent", "contentHash", "sourceFormat", "editorType", "editorVersion", "M1_PAGE_SOURCE_SECRET"} {
+					if strings.Contains(string(payload), forbidden) {
+						t.Fatalf("public Page Registry payload contains %q: %s", forbidden, payload)
+					}
+				}
+			}
 			if _, err := themecompiler.CorePageViewModelRegistry().Bind(definition.ID, definition.ContractVersion, string(make([]byte, 0)), model); !errors.Is(err, themecompiler.ErrViewModelTheme) {
 				t.Fatalf("expected only invalid test digest before schema validation, got %v", err)
 			}
@@ -256,6 +279,9 @@ func TestCorePageViewModelSourcePopulatesEveryCatalogContract(t *testing.T) {
 
 	if forumReader.lastCommentInput.Viewer.ID != actor.ID {
 		t.Fatalf("comment visibility lost authoritative actor: %#v", forumReader.lastCommentInput.Viewer)
+	}
+	if forumReader.lastTopicViewer.ID != actor.ID {
+		t.Fatalf("topic visibility lost authoritative actor: %#v", forumReader.lastTopicViewer)
 	}
 }
 
@@ -443,7 +469,7 @@ func sourceTopic() forum.TopicDetail {
 		AuthorUserID: 8, Author: sourceUser(), Title: "Hello", Slug: "hello", Status: forum.TopicStatusActive,
 		CommentCount: 1, Tags: []forum.TopicTagSummary{{ID: 20, Slug: "go", Name: "Go", Status: forum.TagStatusActive}},
 		Excerpt: "Hello excerpt", CreatedAt: sourceTestNow, UpdatedAt: sourceTestNow,
-	}, Content: forum.RenderedContent{HTMLContent: "<p>Hello body</p>", Excerpt: "Hello excerpt"}}
+	}, Content: forum.PublicRenderedContent{HTMLContent: "<p>Hello body</p>", Excerpt: "Hello excerpt"}}
 }
 
 func sourceUser() *forum.UserSummary {

@@ -338,6 +338,26 @@ func TestExecutorCacheIdentityIsActorAndPolicyIsolated(t *testing.T) {
 	}
 }
 
+func TestExecutorPrivateExecutionNeverProducesCacheIdentity(t *testing.T) {
+	registry, target := executionRegistry(t, false,
+		Declaration{ID: "private.content.block.card", ContractVersion: "private.content.block.card@1", Kind: KindBlock,
+			Handler: "card", Schema: "private.content.schema@1"},
+	)
+	binding := executionBinding(target, target.ID, ActionAdd, 0, ProviderSet{Renderer: staticExecutionRenderer("private")})
+	binding.ContractVersion, binding.Artifact = target.ContractVersion, target.Artifact
+	executor := newExecutionTestExecutor(t, registry, []ExecutionBinding{binding}, &executionTestAdmission{}, acceptingExecutionSchema, ExecutionLimits{})
+	request := executionRequest(target, "protected")
+	request.Private = true
+	request.SuppressHostDelegations = true
+	result, err := executor.Execute(t.Context(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.CacheKey != "" || len(result.CacheTags) != 0 {
+		t.Fatalf("private execution exposed cache identity: %#v", result)
+	}
+}
+
 func TestExecutorSafeModeUsesOnlyCoreBindings(t *testing.T) {
 	core := publication("core.safecontent", true, 'a')
 	core.Content = []Declaration{{

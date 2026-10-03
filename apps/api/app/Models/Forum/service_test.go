@@ -832,7 +832,7 @@ func TestServiceCreateCommentAppliesBeforeCreateFilterAndEmitsCreatedEvent(t *te
 	if err != nil {
 		t.Fatalf("CreateComment returned error: %v", err)
 	}
-	if comment.Content.RawContent != "插件改写后的回复" {
+	if comment.Content.PlainText != "插件改写后的回复" {
 		t.Fatalf("expected patched content, got %#v", comment.Content)
 	}
 	if store.createdComment.Content.RawContent != "插件改写后的回复" {
@@ -1014,6 +1014,95 @@ func TestServiceUpdateTopicRejectsUnauthorizedActor(t *testing.T) {
 	_, err := service.UpdateTopic(context.Background(), actor, UpdateTopicInput{TopicID: 7, ExpectedRevision: 1, Title: strPtr("x")})
 	if !errors.Is(err, identity.ErrPermissionDenied) {
 		t.Fatalf("expected permission denied, got %v", err)
+	}
+}
+
+func TestServiceTopicEditSourceAuthorizationAndState(t *testing.T) {
+	now := time.Now().UTC()
+	source := EditableContentSource{
+		RawContent: "M1_TOPIC_SOURCE_SECRET", SourceFormat: SourceFormatEditorDocument,
+		EditorType: EditorTypeTiptap, EditorVersion: "sf-editor-v1", ContentHash: "source-hash",
+		AttachmentIDs: []int64{3, 9}, CurrentRevision: 4,
+	}
+	settings := testForumSettings()
+	settings.TopicEditWindowMinutes = 30
+	tests := []struct {
+		name       string
+		actor      identity.Actor
+		status     string
+		createdAt  time.Time
+		wantErr    error
+		wantLoaded bool
+	}{
+		{name: "author", actor: identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicEditOwn: true}}, status: TopicStatusActive, createdAt: now, wantLoaded: true},
+		{name: "edit any outside window", actor: identity.Actor{ID: 20, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicEditAny: true}}, status: TopicStatusLocked, createdAt: now.Add(-24 * time.Hour), wantLoaded: true},
+		{name: "unrelated active", actor: identity.Actor{ID: 13, Status: identity.UserStatusActive}, status: TopicStatusActive, createdAt: now, wantErr: ErrTopicNotFound},
+		{name: "inactive author", actor: identity.Actor{ID: 12, Status: identity.UserStatusDisabled, Permissions: map[string]bool{identity.PermissionTopicEditOwn: true}}, status: TopicStatusActive, createdAt: now, wantErr: ErrTopicNotFound},
+		{name: "banned author", actor: identity.Actor{ID: 12, Status: identity.UserStatusBanned, Permissions: map[string]bool{identity.PermissionTopicEditOwn: true}}, status: TopicStatusActive, createdAt: now, wantErr: ErrTopicNotFound},
+		{name: "author outside window", actor: identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicEditOwn: true}}, status: TopicStatusActive, createdAt: now.Add(-31 * time.Minute), wantErr: ErrEditWindowExpired},
+		{name: "hidden", actor: identity.Actor{ID: 20, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicEditAny: true}}, status: TopicStatusHidden, createdAt: now, wantErr: ErrTopicNotFound},
+		{name: "deleted", actor: identity.Actor{ID: 20, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicEditAny: true}}, status: TopicStatusDeleted, createdAt: now, wantErr: ErrTopicNotFound},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			store := newServiceFakeStore()
+			store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: tc.status, CreatedAt: tc.createdAt, CurrentRevision: 4}
+			store.topicEditSource = source
+			service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: settings}})
+			got, err := NewEditableSourceService(service).GetTopicEditSource(context.Background(), tc.actor, 7)
+			if !errors.Is(err, tc.wantErr) {
+				t.Fatalf("error = %v, want %v", err, tc.wantErr)
+			}
+			if tc.wantLoaded && (got.RawContent != source.RawContent || store.topicSourceCalls != 1) {
+				t.Fatalf("source = %#v calls=%d", got, store.topicSourceCalls)
+			}
+			if !tc.wantLoaded && store.topicSourceCalls != 0 {
+				t.Fatalf("denied source read reached store: %d", store.topicSourceCalls)
+			}
+		})
+	}
+}
+
+func TestServiceCommentEditSourceAuthorizationAndOwningTopicState(t *testing.T) {
+	now := time.Now().UTC()
+	settings := testForumSettings()
+	settings.CommentEditWindowMinutes = 30
+	owner := identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionPostEditOwn: true}}
+	moderator := identity.Actor{ID: 20, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionPostEditAny: true}}
+	tests := []struct {
+		name        string
+		actor       identity.Actor
+		comment     CommentSummary
+		topicStatus string
+		wantErr     error
+		wantLoaded  bool
+	}{
+		{name: "author", actor: owner, comment: CommentSummary{ID: 9, TopicID: 7, AuthorUserID: 12, Status: CommentStatusActive, CreatedAt: now}, topicStatus: TopicStatusActive, wantLoaded: true},
+		{name: "edit any outside window", actor: moderator, comment: CommentSummary{ID: 9, TopicID: 7, AuthorUserID: 12, Status: CommentStatusPending, CreatedAt: now.Add(-24 * time.Hour)}, topicStatus: TopicStatusLocked, wantLoaded: true},
+		{name: "unrelated", actor: identity.Actor{ID: 99, Status: identity.UserStatusActive}, comment: CommentSummary{ID: 9, TopicID: 7, AuthorUserID: 12, Status: CommentStatusActive, CreatedAt: now}, topicStatus: TopicStatusActive, wantErr: ErrCommentNotFound},
+		{name: "outside window", actor: owner, comment: CommentSummary{ID: 9, TopicID: 7, AuthorUserID: 12, Status: CommentStatusActive, CreatedAt: now.Add(-31 * time.Minute)}, topicStatus: TopicStatusActive, wantErr: ErrEditWindowExpired},
+		{name: "hidden comment", actor: moderator, comment: CommentSummary{ID: 9, TopicID: 7, AuthorUserID: 12, Status: CommentStatusHidden, CreatedAt: now}, topicStatus: TopicStatusActive, wantErr: ErrCommentNotFound},
+		{name: "deleted comment", actor: moderator, comment: CommentSummary{ID: 9, TopicID: 7, AuthorUserID: 12, Status: CommentStatusDeleted, CreatedAt: now}, topicStatus: TopicStatusActive, wantErr: ErrCommentNotFound},
+		{name: "hidden topic", actor: moderator, comment: CommentSummary{ID: 9, TopicID: 7, AuthorUserID: 12, Status: CommentStatusActive, CreatedAt: now}, topicStatus: TopicStatusHidden, wantErr: ErrCommentNotFound},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			store := newServiceFakeStore()
+			store.commentSummary = tc.comment
+			store.actionTopic = TopicSummary{ID: 7, Status: tc.topicStatus}
+			store.commentEditSource = EditableContentSource{RawContent: "M1_COMMENT_SOURCE_SECRET", CurrentRevision: 3}
+			service := NewService(ServiceConfig{Store: store, Settings: fakeSettingsResolver{settings: settings}})
+			got, err := NewEditableSourceService(service).GetCommentEditSource(context.Background(), tc.actor, 9)
+			if !errors.Is(err, tc.wantErr) {
+				t.Fatalf("error = %v, want %v", err, tc.wantErr)
+			}
+			if tc.wantLoaded && (got.RawContent == "" || store.commentSourceCalls != 1) {
+				t.Fatalf("source = %#v calls=%d", got, store.commentSourceCalls)
+			}
+			if !tc.wantLoaded && store.commentSourceCalls != 0 {
+				t.Fatalf("denied source read reached store: %d", store.commentSourceCalls)
+			}
+		})
 	}
 }
 
@@ -1878,25 +1967,29 @@ func (p fakeCommentActionProvider) CommentExtensionActions(context.Context) ([]C
 }
 
 type serviceFakeStore struct {
-	nextID            int64
-	createdCategory   CreateCategoryInput
-	updatedCategory   UpdateCategoryInput
-	createdTag        CreateTagInput
-	updatedTag        UpdateTagInput
-	createdTopic      CreateTopicRecord
-	createdComment    CreateCommentRecord
-	topicForComment   TopicSummary
-	actionTopic       TopicSummary
-	updatedTopic      UpdateTopicRecord
-	updatedComment    UpdateCommentRecord
-	deletedTopicID    int64
-	appliedAction     string
-	commentSummary    CommentSummary
-	commentSummaryErr error
-	resolvedTags      []TopicTagSummary
-	resolveTagsErr    error
-	resolveTagsCalled bool
-	resolvedTagsInput ResolveTopicTagsInput
+	nextID             int64
+	createdCategory    CreateCategoryInput
+	updatedCategory    UpdateCategoryInput
+	createdTag         CreateTagInput
+	updatedTag         UpdateTagInput
+	createdTopic       CreateTopicRecord
+	createdComment     CreateCommentRecord
+	topicForComment    TopicSummary
+	actionTopic        TopicSummary
+	updatedTopic       UpdateTopicRecord
+	updatedComment     UpdateCommentRecord
+	deletedTopicID     int64
+	appliedAction      string
+	commentSummary     CommentSummary
+	commentSummaryErr  error
+	topicEditSource    EditableContentSource
+	commentEditSource  EditableContentSource
+	topicSourceCalls   int
+	commentSourceCalls int
+	resolvedTags       []TopicTagSummary
+	resolveTagsErr     error
+	resolveTagsCalled  bool
+	resolvedTagsInput  ResolveTopicTagsInput
 	// GetTopic 可配置返回错误，供评论可见性兜底测试模拟隐藏/不可见主题。
 	getTopicErr error
 	// ListComments 可配置返回值与调用记录，供分页/view 校验测试断言。
@@ -2073,7 +2166,7 @@ func (s *serviceFakeStore) CreateTopic(_ context.Context, input CreateTopicRecor
 			Status:       input.Status,
 			Tags:         tags,
 		},
-		Content: input.Content,
+		Content: ToPublicRenderedContent(input.Content),
 	}, nil
 }
 
@@ -2110,6 +2203,11 @@ func (s *serviceFakeStore) GetTopicForAction(context.Context, int64) (TopicSumma
 	return s.actionTopic, nil
 }
 
+func (s *serviceFakeStore) GetTopicEditSource(context.Context, int64) (EditableContentSource, error) {
+	s.topicSourceCalls++
+	return s.topicEditSource, nil
+}
+
 func (s *serviceFakeStore) UpdateTopic(_ context.Context, input UpdateTopicRecord) (TopicDetail, error) {
 	s.updatedTopic = input
 	title := input.Title
@@ -2122,7 +2220,7 @@ func (s *serviceFakeStore) UpdateTopic(_ context.Context, input UpdateTopicRecor
 	}
 	return TopicDetail{
 		TopicSummary:  TopicSummary{ID: input.TopicID, Title: title, Status: status, CurrentRevision: input.ExpectedRevision + 1},
-		Content:       input.Content,
+		Content:       ToPublicRenderedContent(input.Content),
 		UpdateApplied: true,
 	}, nil
 }
@@ -2131,7 +2229,7 @@ func (s *serviceFakeStore) DeleteTopic(_ context.Context, topicID int64) (TopicD
 	s.deletedTopicID = topicID
 	return TopicDetail{
 		TopicSummary: TopicSummary{ID: topicID, Status: TopicStatusDeleted, Excerpt: "secret"},
-		Content:      RenderedContent{RawContent: "secret", HTMLContent: "<p>secret</p>", PlainText: "secret", SourceFormat: SourceFormatMarkdown},
+		Content:      PublicRenderedContent{HTMLContent: "<p>secret</p>", PlainText: "secret"},
 	}, nil
 }
 
@@ -2167,7 +2265,7 @@ func (s *serviceFakeStore) CreateComment(_ context.Context, input CreateCommentR
 		PathKey:       position.PathKey,
 		Depth:         position.Depth,
 		Status:        input.Status,
-		Content:       input.Content,
+		Content:       ToPublicRenderedContent(input.Content),
 	}, nil
 }
 
@@ -2188,6 +2286,11 @@ func (s *serviceFakeStore) GetCommentSummary(context.Context, int64) (CommentSum
 	return s.commentSummary, s.commentSummaryErr
 }
 
+func (s *serviceFakeStore) GetCommentEditSource(context.Context, int64) (EditableContentSource, error) {
+	s.commentSourceCalls++
+	return s.commentEditSource, nil
+}
+
 func (s *serviceFakeStore) CountCommentsBefore(_ context.Context, _ int64, _ string, _ int64, includeDeleted bool, deletedAuthorUserID int64) (int64, error) {
 	s.countCommentsBeforeCalled = true
 	s.countCommentsBeforeIncludeDeleted = includeDeleted
@@ -2206,14 +2309,14 @@ func (s *serviceFakeStore) UpdateComment(_ context.Context, input UpdateCommentR
 		AuthorUserID:    s.commentSummary.AuthorUserID,
 		Status:          status,
 		CurrentRevision: input.ExpectedRevision + 1,
-		Content:         input.Content,
+		Content:         ToPublicRenderedContent(input.Content),
 		UpdateApplied:   true,
 	}, nil
 }
 
 func (s *serviceFakeStore) DeleteComment(context.Context, int64) (Comment, error) {
-	return Comment{Status: CommentStatusDeleted, Content: RenderedContent{
-		RawContent: "secret", HTMLContent: "<p>secret</p>", PlainText: "secret", SourceFormat: SourceFormatMarkdown,
+	return Comment{Status: CommentStatusDeleted, Content: PublicRenderedContent{
+		HTMLContent: "<p>secret</p>", PlainText: "secret",
 	}}, nil
 }
 
@@ -2598,7 +2701,7 @@ func TestServiceCreateCommentParsesMentionsWhenEnabled(t *testing.T) {
 func TestFilterSoftDeletedCommentsAuthorAndStaff(t *testing.T) {
 	deleted := Comment{
 		ID: 2, AuthorUserID: 5, Status: CommentStatusDeleted,
-		Content: RenderedContent{PlainText: "secret", HTMLContent: "<p>secret</p>", RawContent: "secret"},
+		Content: PublicRenderedContent{PlainText: "secret", HTMLContent: "<p>secret</p>"},
 	}
 	items := []Comment{{ID: 1, Status: CommentStatusActive}, deleted}
 	author := identity.Actor{ID: 5, Status: identity.UserStatusActive}
@@ -2606,7 +2709,7 @@ func TestFilterSoftDeletedCommentsAuthorAndStaff(t *testing.T) {
 	if len(got) != 2 {
 		t.Fatalf("author should see tombstone, got %d", len(got))
 	}
-	if got[1].Content.PlainText != "" || got[1].Content.HTMLContent != "" || got[1].Content.RawContent != "" {
+	if got[1].Content.PlainText != "" || got[1].Content.HTMLContent != "" {
 		t.Fatalf("tombstone must not leak content: %+v", got[1].Content)
 	}
 	stranger := identity.Actor{ID: 9, Status: identity.UserStatusActive}
@@ -2642,14 +2745,14 @@ func TestDeleteResponsesNeverReturnDeletedBody(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if deletedTopic.Excerpt != "" || deletedTopic.Content.RawContent != "" || deletedTopic.Content.HTMLContent != "" || deletedTopic.Content.PlainText != "" {
+	if deletedTopic.Excerpt != "" || deletedTopic.Content.HTMLContent != "" || deletedTopic.Content.PlainText != "" {
 		t.Fatalf("topic delete response leaked body: %#v", deletedTopic)
 	}
 	deletedComment, err := service.DeleteComment(context.Background(), moderator, 8)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if deletedComment.Content.RawContent != "" || deletedComment.Content.HTMLContent != "" || deletedComment.Content.PlainText != "" {
+	if deletedComment.Content.HTMLContent != "" || deletedComment.Content.PlainText != "" {
 		t.Fatalf("comment delete response leaked body: %#v", deletedComment)
 	}
 }
@@ -2657,7 +2760,7 @@ func TestDeleteResponsesNeverReturnDeletedBody(t *testing.T) {
 func TestListCommentsScopesDeletedRowsByViewer(t *testing.T) {
 	deleted := Comment{
 		ID: 2, AuthorUserID: 5, Status: CommentStatusDeleted,
-		Content: RenderedContent{RawContent: "secret", HTMLContent: "<p>secret</p>", PlainText: "secret"},
+		Content: PublicRenderedContent{HTMLContent: "<p>secret</p>", PlainText: "secret"},
 	}
 	tests := []struct {
 		name             string
@@ -2691,7 +2794,7 @@ func TestListCommentsScopesDeletedRowsByViewer(t *testing.T) {
 			if len(list.Items) != tc.wantItems {
 				t.Fatalf("items=%d want=%d", len(list.Items), tc.wantItems)
 			}
-			if len(list.Items) > 0 && (list.Items[0].Content.RawContent != "" || list.Items[0].Content.HTMLContent != "" || list.Items[0].Content.PlainText != "") {
+			if len(list.Items) > 0 && (list.Items[0].Content.HTMLContent != "" || list.Items[0].Content.PlainText != "") {
 				t.Fatalf("deleted body leaked: %#v", list.Items[0].Content)
 			}
 		})

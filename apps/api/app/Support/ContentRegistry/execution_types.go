@@ -74,6 +74,7 @@ var (
 type ExecutionLimits struct {
 	MaxInputBytes      int
 	MaxOutputBytes     int
+	MaxBatchSize       int
 	MaxJSONDepth       int
 	MaxJSONNodes       int
 	MaxSegments        int
@@ -204,8 +205,11 @@ type AdmissionRequest struct {
 	TargetArtifact        Artifact
 	ContentID             string
 	ContractVersion       string
+	Kind                  string
+	Schema                string
 	HandlerReference      string
 	RendererReference     string
+	MigrationReference    string
 	Action                string
 	Operation             string
 	Artifact              Artifact
@@ -294,6 +298,9 @@ type RendererProviderRequest struct {
 	ResourceID string
 	Locale     string
 	Scope      string
+	// SuppressHostDelegations is Host-internal. Protected rendering sets it
+	// after authorization so the renderer cannot query broader Host data.
+	SuppressHostDelegations bool
 }
 
 type RendererProvider interface {
@@ -368,6 +375,11 @@ type ExecutionRequest struct {
 	Locale          string
 	Scope           string
 	CacheTags       []string
+	// Private disables cache identity/tag production for request-only source.
+	Private bool
+	// SuppressHostDelegations prevents Protocol V2 adapters from minting Host
+	// query/command delegations for this execution.
+	SuppressHostDelegations bool
 }
 
 type Attribution struct {

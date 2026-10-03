@@ -114,6 +114,20 @@ func (p *ForumProvider) WithContentPostFilter(filter forum.ContentPostFilter) *F
 	return p
 }
 
+func (p *ForumProvider) WithPublicShortcodeDispatcher(dispatcher forum.PublicShortcodeDispatcher) *ForumProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithPublicShortcodeDispatcher(dispatcher)
+	}
+	return p
+}
+
+func (p *ForumProvider) WithProtectedShortcodes(authorizer forum.ProtectedShortcodeAuthorizer, dispatcher forum.ProtectedShortcodeDispatcher) *ForumProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithProtectedShortcodes(authorizer, dispatcher)
+	}
+	return p
+}
+
 // WithEditorDocumentSchema injects Editor Registry → editor-document Accept schema.
 func (p *ForumProvider) WithEditorDocumentSchema(provider forum.EditorDocumentSchemaProvider) *ForumProvider {
 	if p != nil && p.controller != nil {
@@ -471,6 +485,13 @@ func (r ForumSettingsResolver) ForumSettings(ctx context.Context) (forum.ForumSe
 		}
 	}
 	return settings, nil
+}
+
+func (r ForumSettingsResolver) DefaultLocale(ctx context.Context) (string, error) {
+	if r.options == nil {
+		return "zh-CN", nil
+	}
+	return r.options.WebOption(ctx, options.NameSiteDefaultLocale)
 }
 
 func (r ForumSettingsResolver) UpdateForumSettings(ctx context.Context, actor identity.Actor, input forum.UpdateForumSettingsInput) (forum.ForumSettings, error) {

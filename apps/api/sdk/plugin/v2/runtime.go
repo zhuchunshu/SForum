@@ -34,6 +34,7 @@ type Server struct {
 	providerRegistry *ProviderRegistry
 	identityRegistry *IdentityProviderRegistry
 	seoRegistry      *SEORegistry
+	contentRegistry  *ContentRegistry
 	commandRegistry  *CommandRegistry
 	jobRegistry      *JobRegistry
 	queryHandlers    QueryRuntimeHandlers
@@ -136,6 +137,17 @@ func (s *Server) WithSEORegistry(registry *SEORegistry) *Server {
 	s.mu.Lock()
 	if !s.started {
 		s.seoRegistry = registry
+	}
+	s.mu.Unlock()
+	return s
+}
+
+// WithContentRegistry enables exact typed dispatch for Manifest content
+// handlers through the reserved sforum.content namespace.
+func (s *Server) WithContentRegistry(registry *ContentRegistry) *Server {
+	s.mu.Lock()
+	if !s.started {
+		s.contentRegistry = registry
 	}
 	s.mu.Unlock()
 	return s
@@ -297,7 +309,9 @@ func (s *Server) ProviderCall(ctx context.Context, request *pluginwire.ProviderC
 	providerRegistry := s.providerRegistry
 	identityRegistry := s.identityRegistry
 	seoRegistry := s.seoRegistry
+	contentRegistry := s.contentRegistry
 	identityNegotiated := hasExactIdentityRuntimeFeature(s.selectedFeatures)
+	contentNegotiated := hasExactContentRuntimeFeature(s.selectedFeatures)
 	s.mu.RUnlock()
 	// Reserved families are resolved before the public provider namespace. A
 	// missing or unnegotiated identity registry must never fall through generic.
@@ -311,6 +325,17 @@ func (s *Server) ProviderCall(ctx context.Context, request *pluginwire.ProviderC
 			}, nil
 		}
 		return identityRegistry.ProviderCall(ctx, request)
+	}
+	if request.GetSlotId() == ContentRuntimeProviderSlot {
+		if contentRegistry == nil || !contentNegotiated {
+			return s.UnimplementedPluginRuntimeServiceServer.ProviderCall(ctx, request)
+		}
+		if detail := s.validateRuntimeContext(request.GetContext()); detail != nil {
+			return &pluginwire.ProviderCallResponse{
+				Context: responseContext(request.GetContext(), s.nowTime()), Error: detail,
+			}, nil
+		}
+		return contentRegistry.ProviderCall(ctx, request)
 	}
 	if detail := s.validateRuntimeContext(request.GetContext()); detail != nil {
 		return &pluginwire.ProviderCallResponse{

@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	queryregistryjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/QueryRegistry"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	hostv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2"
 	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
@@ -85,9 +86,9 @@ func (t *postgresProtocolV2DatabaseTx) ResolveScope(
 			false,
 		)
 	}
-	var authority, schemaName, roleName string
+	var schemaName, roleName string
 	grantQuery := `
-		SELECT grants.authority, resources.schema_name, resources.runtime_role_name
+		SELECT resources.schema_name, resources.runtime_role_name
 		FROM extension_database_grants AS grants
 		JOIN extension_database_resources AS resources
 		  ON resources.extension_id = grants.extension_id
@@ -103,20 +104,39 @@ func (t *postgresProtocolV2DatabaseTx) ResolveScope(
 		grantQuery += " FOR SHARE OF grants, resources"
 	}
 	err = t.tx.QueryRow(ctx, grantQuery, commandScope.ExtensionID, commandScope.ExtensionVersionID,
-		commandScope.ExtensionVersion, commandScope.PackageDigest).Scan(&authority, &schemaName, &roleName)
+		commandScope.ExtensionVersion, commandScope.PackageDigest).Scan(&schemaName, &roleName)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return protocolV2DatabaseScope{}, staleProtocolV2DatabaseIdentity()
 	}
 	if err != nil {
 		return protocolV2DatabaseScope{}, fmt.Errorf("resolve database grant: %w", err)
 	}
-	if authority != "own_schema" {
+	powerQuery := `
+		SELECT 1
+		FROM extension_database_grant_powers AS powers
+		JOIN extension_database_grants AS grants ON grants.id = powers.grant_id
+		WHERE grants.extension_id = $1
+		  AND grants.extension_version_id = $2
+		  AND grants.extension_version = $3
+		  AND grants.package_digest = $4
+		  AND powers.power = $5`
+	if !t.readOnly {
+		powerQuery += " FOR SHARE OF powers"
+	}
+	var ownSchemaPower int
+	err = t.tx.QueryRow(ctx, powerQuery, commandScope.ExtensionID, commandScope.ExtensionVersionID,
+		commandScope.ExtensionVersion, commandScope.PackageDigest,
+		extensionmanifest.DatabaseGrantOwnSchema).Scan(&ownSchemaPower)
+	if errors.Is(err, pgx.ErrNoRows) {
 		return protocolV2DatabaseScope{}, newProtocolV2DatabaseError(
 			protocolv2.ErrorCode_ERROR_CODE_PERMISSION_DENIED,
 			"host.database_authority_denied",
 			"The exact extension artifact has no authority for this database operation.",
 			false,
 		)
+	}
+	if err != nil {
+		return protocolV2DatabaseScope{}, fmt.Errorf("resolve database grant power: %w", err)
 	}
 	return protocolV2DatabaseScope{
 		ExtensionID: commandScope.ExtensionID, ExtensionVersionID: commandScope.ExtensionVersionID,

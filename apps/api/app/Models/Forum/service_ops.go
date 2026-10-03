@@ -260,7 +260,7 @@ func filterSoftDeletedComments(items []Comment, visibility string, viewer identi
 				continue
 			}
 			// 墓碑：不泄漏正文。
-			item.Content = RenderedContent{SourceFormat: item.Content.SourceFormat}
+			item.Content = PublicRenderedContent{}
 		}
 		if len(item.Children) > 0 {
 			item.Children = filterSoftDeletedComments(item.Children, visibility, viewer)
@@ -380,7 +380,7 @@ func (s *Service) UpdateComment(ctx context.Context, actor identity.Actor, input
 	if trust := s.trustForActor(ctx, actor); trust.active && trust.forbidLinks && containsOutboundLink(input.Content.RawContent) {
 		return Comment{}, ErrOutboundLinkForbidden
 	}
-	content, err := s.renderContent(input.Content, settings.ExcerptRuneLimit)
+	content, err := renderContentWithContext(s, ctx, input.Content, settings.ExcerptRuneLimit, "comment")
 	if err != nil {
 		return Comment{}, err
 	}
@@ -475,7 +475,7 @@ func (s *Service) DeleteComment(ctx context.Context, actor identity.Actor, comme
 	if err != nil {
 		return Comment{}, err
 	}
-	deleted.Content = RenderedContent{SourceFormat: deleted.Content.SourceFormat}
+	deleted.Content = PublicRenderedContent{}
 	deleted.Edited = false
 	deleted.EditedAt = nil
 	return deleted, nil

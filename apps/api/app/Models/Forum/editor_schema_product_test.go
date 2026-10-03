@@ -35,7 +35,7 @@ func TestServiceRenderContentAdmitsEditorRegistryPluginNode(t *testing.T) {
 	rendered, err := service.renderContent(ContentInput{
 		RawContent:   native,
 		SourceFormat: SourceFormatEditorDocument,
-	}, defaultExcerptRuneLimit)
+	}, defaultExcerptRuneLimit, "topic")
 	if err != nil {
 		t.Fatalf("renderContent: %v", err)
 	}
@@ -54,7 +54,7 @@ func TestServiceRenderContentWithoutSchemaFallsBackPluginNode(t *testing.T) {
 	rendered, err := service.renderContent(ContentInput{
 		RawContent:   native,
 		SourceFormat: SourceFormatEditorDocument,
-	}, defaultExcerptRuneLimit)
+	}, defaultExcerptRuneLimit, "topic")
 	if err != nil {
 		t.Fatalf("renderContent: %v", err)
 	}
