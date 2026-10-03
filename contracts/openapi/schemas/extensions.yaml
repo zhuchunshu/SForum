@@ -2648,6 +2648,35 @@ ApiResponsePublicFrontendComponent:
     message: { type: string }
     data:
       "$ref": "#/PublicFrontendComponent"
+PublicContentStyleCatalog:
+  type: object
+  additionalProperties: false
+  required: [schemaVersion, graphDigest, styles]
+  properties:
+    schemaVersion: { type: string, const: sforum.public-content-styles@1 }
+    graphDigest: { type: string, pattern: '^[0-9a-f]{64}$' }
+    styles:
+      type: array
+      maxItems: 64
+      items:
+        allOf:
+        - "$ref": "#/PublicFrontendAssetReference"
+        - type: object
+          properties:
+            type: { type: string, const: style }
+            module: { type: boolean, const: false }
+            loading: { type: string, const: blocking }
+            scope:
+              type: array
+              contains: { type: string, const: core.surface.forum-content }
+ApiResponsePublicContentStyleCatalog:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      "$ref": "#/PublicContentStyleCatalog"
 PublicFrontendPolicyDirective:
   type: object
   additionalProperties: false

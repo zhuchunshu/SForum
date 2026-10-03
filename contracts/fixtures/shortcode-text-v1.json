@@ -1,0 +1,137 @@
+{
+  "version": "sforum.shortcode-text@1",
+  "cases": [
+    {
+      "name": "reference-normalizes-leading-zeroes",
+      "resourceKind": "topic",
+      "markdown": "before\n\n[user user_id=\"0042\"][/user]\n\nafter",
+      "activated": true,
+      "canonical": "before\n\n[user user_id=\"42\"][/user]\n\nafter",
+      "nodes": [
+        { "type": "ref", "id": "sforum-shortcodes.user", "arguments": { "userId": 42 }, "depth": 1 }
+      ]
+    },
+    {
+      "name": "friend-links-empty-arguments",
+      "resourceKind": "topic",
+      "markdown": "[friend-links][/friend-links]",
+      "activated": true,
+      "canonical": "[friend-links][/friend-links]",
+      "nodes": [
+        { "type": "ref", "id": "sforum-shortcodes.friend-links", "arguments": {}, "depth": 1 }
+      ]
+    },
+    {
+      "name": "nested-protected-unicode-and-reference",
+      "resourceKind": "comment",
+      "markdown": "[login]\n你好，世界\n\n[reply]\n[comment comment_id=\"9\"][/comment]\n[/reply]\n[/login]",
+      "activated": true,
+      "canonical": "[login]\n你好，世界\n\n[reply]\n[comment comment_id=\"9\"][/comment]\n[/reply]\n[/login]",
+      "nodes": [
+        { "type": "block", "id": "sforum-shortcodes.login", "arguments": {}, "depth": 1 },
+        { "type": "block", "id": "sforum-shortcodes.reply", "arguments": {}, "depth": 2 },
+        { "type": "ref", "id": "sforum-shortcodes.comment", "arguments": { "commentId": 9 }, "depth": 3 }
+      ]
+    },
+    {
+      "name": "legacy-topic-tag-alias",
+      "resourceKind": "topic",
+      "markdown": "[topic-tag tag_id=007][/topic-tag]",
+      "activated": true,
+      "canonical": "[category category_id=\"7\"][/category]",
+      "nodes": [
+        { "type": "ref", "id": "sforum-shortcodes.category", "arguments": { "categoryId": 7 }, "depth": 1 }
+      ]
+    },
+    {
+      "name": "fenced-code-is-opaque-but-later-reference-activates",
+      "resourceKind": "topic",
+      "markdown": "```text\n[user user_id=\"1\"][/user]\n```\n\n[topic topic_id=2][/topic]",
+      "activated": true,
+      "canonical": "```text\n[user user_id=\"1\"][/user]\n```\n\n[topic topic_id=\"2\"][/topic]",
+      "nodes": [
+        { "type": "ref", "id": "sforum-shortcodes.topic", "arguments": { "topicId": 2 }, "depth": 1 }
+      ]
+    },
+    {
+      "name": "mismatched-nesting-remains-literal",
+      "resourceKind": "comment",
+      "markdown": "alpha\n\n[login]\nkeep one\n[reply]\nkeep two\n[/login]\n[/reply]\n\nomega",
+      "activated": false,
+      "nodes": []
+    },
+    {
+      "name": "duplicate-argument-remains-literal",
+      "resourceKind": "topic",
+      "markdown": "[user user_id=1 user_id=2][/user]",
+      "activated": false,
+      "nodes": []
+    },
+    {
+      "name": "escaped-opening-remains-literal",
+      "resourceKind": "topic",
+      "markdown": "\\[user user_id=\"42\"][/user]",
+      "activated": false,
+      "nodes": []
+    },
+    {
+      "name": "code-only-remains-literal",
+      "resourceKind": "topic",
+      "markdown": "    [user user_id=\"42\"][/user]\n\n```\n[login]\nsecret\n[/login]\n```",
+      "activated": false,
+      "nodes": []
+    },
+    {
+      "name": "inline-code-remains-literal",
+      "resourceKind": "topic",
+      "markdown": "`[user user_id=\"42\"][/user]`",
+      "activated": false,
+      "nodes": []
+    },
+    {
+      "name": "raw-html-block-is-opaque",
+      "resourceKind": "topic",
+      "markdown": "<pre>\n[user user_id=\"42\"][/user]\n</pre>",
+      "activated": false,
+      "nodes": []
+    },
+    {
+      "name": "unknown-and-friend-underscore-remain-literal",
+      "resourceKind": "topic",
+      "markdown": "[unknown id=1][/unknown]\n\n[friend_links][/friend_links]",
+      "activated": false,
+      "nodes": []
+    },
+    {
+      "name": "inline-placement-remains-literal",
+      "resourceKind": "topic",
+      "markdown": "prefix [user user_id=1][/user] suffix",
+      "activated": false,
+      "nodes": []
+    },
+    {
+      "name": "only-author-is-comment-only",
+      "resourceKind": "topic",
+      "markdown": "[only-author]\nprivate\n[/only-author]",
+      "activated": false,
+      "nodes": []
+    },
+    {
+      "name": "only-author-comment-import",
+      "resourceKind": "comment",
+      "markdown": "[only-author]\nprivate\n[/only-author]",
+      "activated": true,
+      "canonical": "[only-author]\nprivate\n[/only-author]",
+      "nodes": [
+        { "type": "block", "id": "sforum-shortcodes.only-author", "arguments": {}, "depth": 1 }
+      ]
+    },
+    {
+      "name": "over-thirty-two-nodes-remains-literal",
+      "resourceKind": "topic",
+      "markdown": "[user user_id=1][/user]\n\n[user user_id=2][/user]\n\n[user user_id=3][/user]\n\n[user user_id=4][/user]\n\n[user user_id=5][/user]\n\n[user user_id=6][/user]\n\n[user user_id=7][/user]\n\n[user user_id=8][/user]\n\n[user user_id=9][/user]\n\n[user user_id=10][/user]\n\n[user user_id=11][/user]\n\n[user user_id=12][/user]\n\n[user user_id=13][/user]\n\n[user user_id=14][/user]\n\n[user user_id=15][/user]\n\n[user user_id=16][/user]\n\n[user user_id=17][/user]\n\n[user user_id=18][/user]\n\n[user user_id=19][/user]\n\n[user user_id=20][/user]\n\n[user user_id=21][/user]\n\n[user user_id=22][/user]\n\n[user user_id=23][/user]\n\n[user user_id=24][/user]\n\n[user user_id=25][/user]\n\n[user user_id=26][/user]\n\n[user user_id=27][/user]\n\n[user user_id=28][/user]\n\n[user user_id=29][/user]\n\n[user user_id=30][/user]\n\n[user user_id=31][/user]\n\n[user user_id=32][/user]\n\n[user user_id=33][/user]",
+      "activated": false,
+      "nodes": []
+    }
+  ]
+}

@@ -349,6 +349,35 @@ publicExtensionPagePolicy:
       '503':
         "$ref": "../components/responses.yaml#/ServiceUnavailable"
 
+publicExtensionContentStyles:
+  get:
+    summary: Resolve trusted plugin styles for the forum content surface
+    operationId: getPublicExtensionContentStyles
+    tags: [Extensions]
+    description: >-
+      Returns a no-store catalog of exact-artifact, blocking CSS assets whose
+      manifest scope is `core.surface.forum-content`. The Host validates every
+      live owner and dependency, permits only same-origin style CSP, and emits
+      immutable package URLs. Shortcode-specific selectors and visual rules
+      remain in the owning plugin package rather than Core. Safe Mode, revoked
+      trust, stale bytes, executable dependencies, and invalid CSP fail closed.
+    responses:
+      '200':
+        description: Trusted exact-artifact forum content styles.
+        headers:
+          Cache-Control:
+            schema: { type: string, enum: [no-store] }
+          X-Content-Type-Options:
+            schema: { type: string, enum: [nosniff] }
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponsePublicContentStyleCatalog"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+
 publicExtensionComponent:
   get:
     summary: Resolve one trusted prebuilt public component

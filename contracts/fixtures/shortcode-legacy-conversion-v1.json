@@ -1,0 +1,815 @@
+{
+  "version": "sforum.shortcode-text@1",
+  "report": "sforum.legacy-shortcode-conversion@1",
+  "declarations": [
+    {
+      "name": "user",
+      "id": "sforum-shortcodes.user",
+      "contractVersion": "sforum-shortcodes.user@1",
+      "kind": "reference",
+      "canonicalArgument": "userId",
+      "bracketArgument": "user_id",
+      "commentOnly": false,
+      "fallbackCode": "shortcode.user.unavailable",
+      "legacySyntax": "[user user_id=\"42\"][/user]"
+    },
+    {
+      "name": "topic",
+      "id": "sforum-shortcodes.topic",
+      "contractVersion": "sforum-shortcodes.topic@1",
+      "kind": "reference",
+      "canonicalArgument": "topicId",
+      "bracketArgument": "topic_id",
+      "commentOnly": false,
+      "fallbackCode": "shortcode.topic.unavailable",
+      "legacySyntax": "[topic topic_id=\"123\"][/topic]"
+    },
+    {
+      "name": "comment",
+      "id": "sforum-shortcodes.comment",
+      "contractVersion": "sforum-shortcodes.comment@1",
+      "kind": "reference",
+      "canonicalArgument": "commentId",
+      "bracketArgument": "comment_id",
+      "commentOnly": false,
+      "fallbackCode": "shortcode.comment.unavailable",
+      "legacySyntax": "[comment comment_id=\"456\"][/comment]"
+    },
+    {
+      "name": "category",
+      "id": "sforum-shortcodes.category",
+      "contractVersion": "sforum-shortcodes.category@1",
+      "kind": "reference",
+      "canonicalArgument": "categoryId",
+      "bracketArgument": "category_id",
+      "commentOnly": false,
+      "fallbackCode": "shortcode.category.unavailable",
+      "legacySyntax": "[category category_id=\"7\"][/category]"
+    },
+    {
+      "name": "friend-links",
+      "id": "sforum-shortcodes.friend-links",
+      "contractVersion": "sforum-shortcodes.friend-links@1",
+      "kind": "reference",
+      "canonicalArgument": "",
+      "bracketArgument": "",
+      "commentOnly": false,
+      "fallbackCode": "shortcode.friend_links.omitted",
+      "legacySyntax": "[friend-links][/friend-links]"
+    },
+    {
+      "name": "login",
+      "id": "sforum-shortcodes.login",
+      "contractVersion": "sforum-shortcodes.login@1",
+      "kind": "protected",
+      "canonicalArgument": "",
+      "bracketArgument": "",
+      "commentOnly": false,
+      "fallbackCode": "shortcode.protected.unavailable",
+      "legacySyntax": "[login]body[/login]"
+    },
+    {
+      "name": "reply",
+      "id": "sforum-shortcodes.reply",
+      "contractVersion": "sforum-shortcodes.reply@1",
+      "kind": "protected",
+      "canonicalArgument": "",
+      "bracketArgument": "",
+      "commentOnly": false,
+      "fallbackCode": "shortcode.protected.unavailable",
+      "legacySyntax": "[reply]body[/reply]"
+    },
+    {
+      "name": "only-author",
+      "id": "sforum-shortcodes.only-author",
+      "contractVersion": "sforum-shortcodes.only-author@1",
+      "kind": "protected",
+      "canonicalArgument": "",
+      "bracketArgument": "",
+      "commentOnly": true,
+      "fallbackCode": "shortcode.protected.unavailable",
+      "legacySyntax": "[only-author]body[/only-author]"
+    }
+  ],
+  "legacyAliases": [
+    {
+      "name": "topic-tag",
+      "targetDeclaration": "sforum-shortcodes.category",
+      "bracketArgument": "tag_id",
+      "note": "Legacy taxonomy board reference. Imports as category and never survives canonical storage or export.",
+      "legacySyntax": "[topic-tag tag_id=\"7\"][/topic-tag]"
+    }
+  ],
+  "recognizedLegacyUnsupported": [
+    {
+      "name": "password",
+      "note": "Credential-gated content is deferred and never converts in V1. Input remains literal; no secret behavior is implemented.",
+      "legacySyntax": "[password password=\"...\"]body[/password]"
+    }
+  ],
+  "cases": [
+    {
+      "name": "legacy-login-block",
+      "resourceKind": "topic",
+      "legacy": "[login]\n登录后可见内容\n[/login]",
+      "expected": "converted",
+      "note": "Old SForum protected block converts to the canonical login node.",
+      "canonical": "[login]\n登录后可见内容\n[/login]",
+      "nodes": [
+        { "type": "block", "id": "sforum-shortcodes.login", "arguments": {}, "depth": 1 }
+      ]
+    },
+    {
+      "name": "legacy-reply-block",
+      "resourceKind": "topic",
+      "legacy": "[reply]\n回复后可见内容\n[/reply]",
+      "expected": "converted",
+      "note": "Old SForum reply-required block converts to the canonical reply node.",
+      "canonical": "[reply]\n回复后可见内容\n[/reply]",
+      "nodes": [
+        { "type": "block", "id": "sforum-shortcodes.reply", "arguments": {}, "depth": 1 }
+      ]
+    },
+    {
+      "name": "legacy-only-author-comment",
+      "resourceKind": "comment",
+      "legacy": "[only-author]\n仅作者可见\n[/only-author]",
+      "expected": "converted",
+      "note": "Old SForum comment-only private block converts inside comment documents.",
+      "canonical": "[only-author]\n仅作者可见\n[/only-author]",
+      "nodes": [
+        { "type": "block", "id": "sforum-shortcodes.only-author", "arguments": {}, "depth": 1 }
+      ]
+    },
+    {
+      "name": "legacy-user-quoted",
+      "resourceKind": "topic",
+      "legacy": "[user user_id=\"42\"][/user]",
+      "expected": "converted",
+      "note": "Legacy Thunder-style quoted user_id converts.",
+      "canonical": "[user user_id=\"42\"][/user]",
+      "nodes": [
+        { "type": "ref", "id": "sforum-shortcodes.user", "arguments": { "userId": 42 }, "depth": 1 }
+      ]
+    },
+    {
+      "name": "legacy-user-unquoted",
+      "resourceKind": "topic",
+      "legacy": "[user user_id=42][/user]",
+      "expected": "converted",
+      "note": "Legacy unquoted integer normalizes to the quoted canonical form.",
+      "canonical": "[user user_id=\"42\"][/user]",
+      "nodes": [
+        { "type": "ref", "id": "sforum-shortcodes.user", "arguments": { "userId": 42 }, "depth": 1 }
+      ]
+    },
+    {
+      "name": "legacy-topic-unquoted",
+      "resourceKind": "topic",
+      "legacy": "[topic topic_id=123][/topic]",
+      "expected": "converted",
+      "note": "Legacy topic reference converts and normalizes quoting.",
+      "canonical": "[topic topic_id=\"123\"][/topic]",
+      "nodes": [
+        { "type": "ref", "id": "sforum-shortcodes.topic", "arguments": { "topicId": 123 }, "depth": 1 }
+      ]
+    },
+    {
+      "name": "legacy-comment-quoted",
+      "resourceKind": "topic",
+      "legacy": "[comment comment_id=\"456\"][/comment]",
+      "expected": "converted",
+      "note": "Legacy comment reference converts.",
+      "canonical": "[comment comment_id=\"456\"][/comment]",
+      "nodes": [
+        { "type": "ref", "id": "sforum-shortcodes.comment", "arguments": { "commentId": 456 }, "depth": 1 }
+      ]
+    },
+    {
+      "name": "legacy-category-canonical",
+      "resourceKind": "topic",
+      "legacy": "[category category_id=\"7\"][/category]",
+      "expected": "converted",
+      "note": "Current canonical category spelling converts.",
+      "canonical": "[category category_id=\"7\"][/category]",
+      "nodes": [
+        { "type": "ref", "id": "sforum-shortcodes.category", "arguments": { "categoryId": 7 }, "depth": 1 }
+      ]
+    },
+    {
+      "name": "legacy-topic-tag-alias",
+      "resourceKind": "topic",
+      "legacy": "[topic-tag tag_id=7][/topic-tag]",
+      "expected": "converted",
+      "note": "The only V1 legacy alias converts to the category node; no tag node or second declaration exists.",
+      "canonical": "[category category_id=\"7\"][/category]",
+      "nodes": [
+        { "type": "ref", "id": "sforum-shortcodes.category", "arguments": { "categoryId": 7 }, "depth": 1 }
+      ]
+    },
+    {
+      "name": "legacy-friend-links-canonical",
+      "resourceKind": "topic",
+      "legacy": "[friend-links][/friend-links]",
+      "expected": "converted",
+      "note": "Canonical friend-links reference converts with an empty argument object.",
+      "canonical": "[friend-links][/friend-links]",
+      "nodes": [
+        { "type": "ref", "id": "sforum-shortcodes.friend-links", "arguments": {}, "depth": 1 }
+      ]
+    },
+    {
+      "name": "legacy-protected-nested-unicode-ref",
+      "resourceKind": "comment",
+      "legacy": "[reply]\n你好，世界 🌍\n\n[comment comment_id=\"9\"][/comment]\n[/reply]",
+      "expected": "converted",
+      "note": "Protected bodies admit nested rich blocks; Unicode content and a nested reference survive the round trip.",
+      "canonical": "[reply]\n你好，世界 🌍\n\n[comment comment_id=\"9\"][/comment]\n[/reply]",
+      "nodes": [
+        { "type": "block", "id": "sforum-shortcodes.reply", "arguments": {}, "depth": 1 },
+        { "type": "ref", "id": "sforum-shortcodes.comment", "arguments": { "commentId": 9 }, "depth": 2 }
+      ]
+    },
+    {
+      "name": "legacy-protected-body-code-fence",
+      "resourceKind": "topic",
+      "legacy": "[login]\npara one\n\n```text\n[user user_id=\"1\"][/user]\n```\n\npara two\n[/login]",
+      "expected": "converted",
+      "note": "A fenced code block inside a protected body stays opaque to shortcode parsing: one login block, no user node.",
+      "canonical": "[login]\npara one\n\n```text\n[user user_id=\"1\"][/user]\n```\n\npara two\n[/login]",
+      "nodes": [
+        { "type": "block", "id": "sforum-shortcodes.login", "arguments": {}, "depth": 1 }
+      ]
+    },
+    {
+      "name": "legacy-ref-inside-protected",
+      "resourceKind": "topic",
+      "legacy": "[login]\n[user user_id=\"42\"][/user]\n[/login]",
+      "expected": "converted",
+      "note": "A reference immediately before the protected closing tag remains a nested depth-2 node.",
+      "canonical": "[login]\n[user user_id=\"42\"][/user]\n[/login]",
+      "nodes": [
+        { "type": "block", "id": "sforum-shortcodes.login", "arguments": {}, "depth": 1 },
+        { "type": "ref", "id": "sforum-shortcodes.user", "arguments": { "userId": 42 }, "depth": 2 }
+      ]
+    },
+    {
+      "name": "legacy-friend-links-underscore-literal",
+      "resourceKind": "topic",
+      "legacy": "[friend_links][/friend_links]",
+      "expected": "literal",
+      "note": "The legacy underscore spelling is not an alias and stays literal; use [friend-links].",
+      "nodes": []
+    },
+    {
+      "name": "legacy-friend-links-closeless-literal",
+      "resourceKind": "topic",
+      "legacy": "[friend_links]",
+      "expected": "literal",
+      "note": "Old SForum also accepted a tag without a closing tag; V1 references require an explicit matching closing tag.",
+      "nodes": []
+    },
+    {
+      "name": "legacy-out-of-scope-media-literal",
+      "resourceKind": "topic",
+      "legacy": "[media website=\"bilibili\"]\n12345\n[/media]",
+      "expected": "literal",
+      "note": "Legacy media/chart/alert/carousel/invitation-code shortcodes are outside the V1 eight and stay literal.",
+      "nodes": []
+    },
+    {
+      "name": "legacy-user-wrong-argument-key",
+      "resourceKind": "topic",
+      "legacy": "[user id=\"42\"][/user]",
+      "expected": "invalid",
+      "note": "Legacy Thunder parameter name must be user_id; other keys keep the text literal.",
+      "nodes": []
+    },
+    {
+      "name": "legacy-user-zero-id",
+      "resourceKind": "topic",
+      "legacy": "[user user_id=0][/user]",
+      "expected": "invalid",
+      "note": "Zero is not a positive stable ID; the input stays literal.",
+      "nodes": []
+    },
+    {
+      "name": "legacy-user-negative-id",
+      "resourceKind": "topic",
+      "legacy": "[user user_id=\"-1\"][/user]",
+      "expected": "invalid",
+      "note": "Negative IDs are rejected and the input stays literal.",
+      "nodes": []
+    },
+    {
+      "name": "legacy-user-non-numeric-id",
+      "resourceKind": "topic",
+      "legacy": "[user user_id=abc][/user]",
+      "expected": "invalid",
+      "note": "Non-numeric IDs are rejected and the input stays literal.",
+      "nodes": []
+    },
+    {
+      "name": "legacy-user-overflow-id",
+      "resourceKind": "topic",
+      "legacy": "[user user_id=9223372036854775808][/user]",
+      "expected": "invalid",
+      "note": "Values beyond signed int64 are rejected; the input stays literal.",
+      "nodes": []
+    },
+    {
+      "name": "legacy-user-missing-closing",
+      "resourceKind": "topic",
+      "legacy": "[user user_id=\"42\"]",
+      "expected": "invalid",
+      "note": "A reference without its matching closing tag stays literal.",
+      "nodes": []
+    },
+    {
+      "name": "legacy-duplicate-argument",
+      "resourceKind": "topic",
+      "legacy": "[user user_id=\"1\" user_id=\"2\"][/user]",
+      "expected": "invalid",
+      "note": "Repeated arguments are invalid; the input stays literal.",
+      "nodes": []
+    },
+    {
+      "name": "legacy-mismatched-nesting",
+      "resourceKind": "comment",
+      "legacy": "[login]\nkeep one\n[reply]\nkeep two\n[/login]\n[/reply]",
+      "expected": "invalid",
+      "note": "Crossed protected closing tags are invalid; the input stays literal without dropping text.",
+      "nodes": []
+    },
+    {
+      "name": "legacy-only-author-topic",
+      "resourceKind": "topic",
+      "legacy": "[only-author]\nprivate\n[/only-author]",
+      "expected": "invalid",
+      "note": "only-author is comment-only; topic placement stays literal.",
+      "nodes": []
+    },
+    {
+      "name": "legacy-empty-protected-body",
+      "resourceKind": "topic",
+      "legacy": "[login]\n[/login]",
+      "expected": "invalid",
+      "note": "An empty protected body is invalid and stays literal.",
+      "nodes": []
+    },
+    {
+      "name": "legacy-escaped-opening-literal",
+      "resourceKind": "topic",
+      "legacy": "\\[user user_id=\"42\"][/user]",
+      "expected": "literal",
+      "note": "An escaped opening tag keeps the whole line literal even when a matching closing tag follows; export never re-activates it.",
+      "nodes": []
+    },
+    {
+      "name": "legacy-user-int64-safe-boundary",
+      "resourceKind": "topic",
+      "legacy": "[user user_id=9007199254740992][/user]",
+      "expected": "converted",
+      "note": "Positive signed-int64 IDs above JavaScript's safe integer range remain exact decimal text.",
+      "canonical": "[user user_id=\"9007199254740992\"][/user]",
+      "nodes": [
+        { "type": "ref", "id": "sforum-shortcodes.user", "arguments": { "userId": "9007199254740992" }, "depth": 1 }
+      ]
+    },
+    {
+      "name": "legacy-user-int64-max",
+      "resourceKind": "topic",
+      "legacy": "[user user_id=9223372036854775807][/user]",
+      "expected": "converted",
+      "note": "The signed-int64 maximum remains exact during conversion.",
+      "canonical": "[user user_id=\"9223372036854775807\"][/user]",
+      "nodes": [
+        { "type": "ref", "id": "sforum-shortcodes.user", "arguments": { "userId": "9223372036854775807" }, "depth": 1 }
+      ]
+    },
+    {
+      "name": "legacy-whitespace-only-protected-body",
+      "resourceKind": "topic",
+      "legacy": "[login]\n   \n[/login]",
+      "expected": "invalid",
+      "note": "Whitespace-only protected bodies remain literal.",
+      "nodes": []
+    },
+    {
+      "name": "legacy-list-closing-needs-blank-line",
+      "resourceKind": "topic",
+      "legacy": "[login]\n- item\n[/login]",
+      "expected": "invalid",
+      "note": "A closing tag immediately after a list is Goldmark lazy continuation and stays literal.",
+      "nodes": []
+    },
+    {
+      "name": "legacy-blockquote-closing-needs-blank-line",
+      "resourceKind": "topic",
+      "legacy": "[login]\n> quote\n[/login]",
+      "expected": "invalid",
+      "note": "A closing tag immediately after a blockquote is Goldmark lazy continuation and stays literal.",
+      "nodes": []
+    },
+    {
+      "name": "legacy-list-followed-by-heading-canonical",
+      "resourceKind": "topic",
+      "legacy": "[login]\n- item\n\n## heading\n[/login]",
+      "expected": "converted",
+      "note": "List and heading canonical newlines are shared across Host and editor export.",
+      "canonical": "[login]\n- item\n\n\n## heading\n[/login]",
+      "nodes": [
+        { "type": "block", "id": "sforum-shortcodes.login", "arguments": {}, "depth": 1 }
+      ]
+    },
+    {
+      "name": "legacy-password-deferred",
+      "resourceKind": "topic",
+      "legacy": "[password password=\"123\"]\nsecret\n[/password]",
+      "expected": "unsupported",
+      "note": "password is deferred: no V1 declaration, no conversion, no credential behavior. The input stays literal.",
+      "nodes": []
+    },
+    {
+      "name": "legacy-depth-five-nesting",
+      "resourceKind": "topic",
+      "legacy": "[login]\n[reply]\n[login]\n[reply]\n[login]\nbody\n[/login]\n[/reply]\n[/login]\n[/reply]\n[/login]",
+      "expected": "over-limit",
+      "note": "Nesting beyond the frozen depth 4 fails the budget and the whole input stays literal.",
+      "nodes": []
+    }
+  ],
+  "structuredCases": [
+    {
+      "name": "structured-unknown-identity",
+      "resourceKind": "topic",
+      "authority": "both",
+      "expected": "invalid",
+      "note": "A node claiming an undeclared identity is rejected by Host validation and by the client document inspection.",
+      "document": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "sforumShortcodeRef",
+            "attrs": {
+              "id": "sforum-shortcodes.unknown",
+              "contractVersion": "sforum-shortcodes.unknown@1",
+              "arguments": { "id": 1 }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "structured-password-identity",
+      "resourceKind": "topic",
+      "authority": "both",
+      "expected": "invalid",
+      "note": "No password declaration exists in V1; a structured password node is rejected, never silently converted.",
+      "document": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "sforumShortcodeBlock",
+            "attrs": {
+              "id": "sforum-shortcodes.password",
+              "contractVersion": "sforum-shortcodes.password@1",
+              "arguments": {}
+            },
+            "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "secret" }] }]
+          }
+        ]
+      }
+    },
+    {
+      "name": "structured-only-author-in-topic",
+      "resourceKind": "topic",
+      "authority": "both",
+      "expected": "invalid",
+      "note": "only-author is admitted only in comment documents.",
+      "document": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "sforumShortcodeBlock",
+            "attrs": {
+              "id": "sforum-shortcodes.only-author",
+              "contractVersion": "sforum-shortcodes.only-author@1",
+              "arguments": {}
+            },
+            "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "private" }] }]
+          }
+        ]
+      }
+    },
+    {
+      "name": "structured-empty-protected-body",
+      "resourceKind": "topic",
+      "authority": "both",
+      "expected": "invalid",
+      "note": "A protected block with no admitted body content is invalid.",
+      "document": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "sforumShortcodeBlock",
+            "attrs": {
+              "id": "sforum-shortcodes.login",
+              "contractVersion": "sforum-shortcodes.login@1",
+              "arguments": {}
+            },
+            "content": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "structured-reference-in-paragraph",
+      "resourceKind": "topic",
+      "authority": "both",
+      "expected": "invalid",
+      "note": "Both nodes are block nodes; an inline paragraph placement is invalid.",
+      "document": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "sforumShortcodeRef",
+                "attrs": {
+                  "id": "sforum-shortcodes.user",
+                  "contractVersion": "sforum-shortcodes.user@1",
+                  "arguments": { "userId": 42 }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "structured-reference-in-list-item",
+      "resourceKind": "topic",
+      "authority": "both",
+      "expected": "invalid",
+      "note": "List item text is not an admitted parent for shortcode nodes.",
+      "document": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "sforumShortcodeRef",
+                        "attrs": {
+                          "id": "sforum-shortcodes.user",
+                          "contractVersion": "sforum-shortcodes.user@1",
+                          "arguments": { "userId": 42 }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "structured-over-limit-nodes",
+      "resourceKind": "topic",
+      "authority": "both",
+      "expected": "over-limit",
+      "note": "More than 32 shortcode nodes fail the document budget. Thirty-three user references are listed.",
+      "document": {
+        "type": "doc",
+        "content": [
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 1 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 2 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 3 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 4 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 5 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 6 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 7 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 8 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 9 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 10 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 11 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 12 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 13 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 14 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 15 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 16 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 17 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 18 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 19 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 20 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 21 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 22 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 23 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 24 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 25 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 26 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 27 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 28 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 29 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 30 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 31 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 32 } } },
+          { "type": "sforumShortcodeRef", "attrs": { "id": "sforum-shortcodes.user", "contractVersion": "sforum-shortcodes.user@1", "arguments": { "userId": 33 } } }
+        ]
+      }
+    },
+    {
+      "name": "structured-over-limit-depth",
+      "resourceKind": "topic",
+      "authority": "both",
+      "expected": "over-limit",
+      "note": "Nesting five shortcode levels deep fails the frozen depth 4 budget.",
+      "document": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "sforumShortcodeBlock",
+            "attrs": { "id": "sforum-shortcodes.login", "contractVersion": "sforum-shortcodes.login@1", "arguments": {} },
+            "content": [
+              {
+                "type": "sforumShortcodeBlock",
+                "attrs": { "id": "sforum-shortcodes.reply", "contractVersion": "sforum-shortcodes.reply@1", "arguments": {} },
+                "content": [
+                  {
+                    "type": "sforumShortcodeBlock",
+                    "attrs": { "id": "sforum-shortcodes.login", "contractVersion": "sforum-shortcodes.login@1", "arguments": {} },
+                    "content": [
+                      {
+                        "type": "sforumShortcodeBlock",
+                        "attrs": { "id": "sforum-shortcodes.reply", "contractVersion": "sforum-shortcodes.reply@1", "arguments": {} },
+                        "content": [
+                          {
+                            "type": "sforumShortcodeBlock",
+                            "attrs": { "id": "sforum-shortcodes.login", "contractVersion": "sforum-shortcodes.login@1", "arguments": {} },
+                            "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "body" }] }]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "structured-wrong-contract-version",
+      "resourceKind": "topic",
+      "authority": "host",
+      "expected": "invalid",
+      "note": "Host validation requires an exact contract version; the client inspection is UX-only and is not an authority.",
+      "document": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "sforumShortcodeRef",
+            "attrs": {
+              "id": "sforum-shortcodes.user",
+              "contractVersion": "sforum-shortcodes.user@2",
+              "arguments": { "userId": 42 }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "structured-unknown-argument",
+      "resourceKind": "topic",
+      "authority": "host",
+      "expected": "invalid",
+      "note": "Undeclared argument keys are rejected by the strict schema.",
+      "document": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "sforumShortcodeRef",
+            "attrs": {
+              "id": "sforum-shortcodes.user",
+              "contractVersion": "sforum-shortcodes.user@1",
+              "arguments": { "userId": 42, "name": "alice" }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "structured-missing-argument",
+      "resourceKind": "topic",
+      "authority": "host",
+      "expected": "invalid",
+      "note": "An ID reference requires exactly its positive int64 argument.",
+      "document": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "sforumShortcodeRef",
+            "attrs": {
+              "id": "sforum-shortcodes.user",
+              "contractVersion": "sforum-shortcodes.user@1",
+              "arguments": {}
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "structured-float-argument",
+      "resourceKind": "topic",
+      "authority": "host",
+      "expected": "invalid",
+      "note": "Floating-point values are outside the frozen scalar envelope.",
+      "document": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "sforumShortcodeRef",
+            "attrs": {
+              "id": "sforum-shortcodes.user",
+              "contractVersion": "sforum-shortcodes.user@1",
+              "arguments": { "userId": 42.5 }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "structured-reference-with-body",
+      "resourceKind": "topic",
+      "authority": "host",
+      "expected": "invalid",
+      "note": "Reference nodes are atoms and must not carry content.",
+      "document": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "sforumShortcodeRef",
+            "attrs": {
+              "id": "sforum-shortcodes.user",
+              "contractVersion": "sforum-shortcodes.user@1",
+              "arguments": { "userId": 42 }
+            },
+            "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "unexpected" }] }]
+          }
+        ]
+      }
+    },
+    {
+      "name": "structured-protected-as-reference",
+      "resourceKind": "topic",
+      "authority": "host",
+      "expected": "invalid",
+      "note": "A protected declaration must use the block container node, never the reference atom.",
+      "document": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "sforumShortcodeRef",
+            "attrs": {
+              "id": "sforum-shortcodes.login",
+              "contractVersion": "sforum-shortcodes.login@1",
+              "arguments": {}
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "structured-extra-attribute",
+      "resourceKind": "topic",
+      "authority": "host",
+      "expected": "invalid",
+      "note": "Only id, contractVersion, and arguments are admitted on shortcode nodes.",
+      "document": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "sforumShortcodeRef",
+            "attrs": {
+              "id": "sforum-shortcodes.user",
+              "contractVersion": "sforum-shortcodes.user@1",
+              "arguments": { "userId": 42 },
+              "snapshot": "forbidden"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -83,6 +83,8 @@ paths:
     "$ref": "./openapi/paths/forum.yaml#/tags"
   "/composer/toolbar":
     "$ref": "./openapi/paths/forum.yaml#/composerToolbar"
+  "/composer/references":
+    "$ref": "./openapi/paths/forum.yaml#/composerReferences"
   "/search":
     "$ref": "./openapi/paths/forum.yaml#/search"
   "/topics":
@@ -91,6 +93,8 @@ paths:
     "$ref": "./openapi/paths/forum.yaml#/topicBySlug"
   "/topics/{topicID}":
     "$ref": "./openapi/paths/forum.yaml#/topicByID"
+  "/topics/{topicID}/edit-source":
+    "$ref": "./openapi/paths/forum.yaml#/topicEditSource"
   "/topics/{topicID}/contribution-timeline":
     "$ref": "./openapi/paths/forum.yaml#/topicContributionTimeline"
   "/topics/{topicID}/revisions":
@@ -129,6 +133,8 @@ paths:
     "$ref": "./openapi/paths/forum.yaml#/commentRevisionRedact"
   "/comments/{commentID}":
     "$ref": "./openapi/paths/forum.yaml#/commentByID"
+  "/comments/{commentID}/edit-source":
+    "$ref": "./openapi/paths/forum.yaml#/commentEditSource"
   "/auth/registration-status":
     "$ref": "./openapi/paths/identity.yaml#/authRegistrationStatus"
   "/profiles/{username}":
@@ -611,6 +617,8 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionEntityImportExportDryRun"
   "/extensions/runtime/page-policy":
     "$ref": "./openapi/paths/extensions.yaml#/publicExtensionPagePolicy"
+  "/extensions/runtime/content-styles":
+    "$ref": "./openapi/paths/extensions.yaml#/publicExtensionContentStyles"
   "/extensions/runtime/{extensionID}/components/{componentID}":
     "$ref": "./openapi/paths/extensions.yaml#/publicExtensionComponent"
   "/extensions/runtime/{extensionID}/assets/{packageDigest}/{digest}/{handle}":
@@ -789,6 +797,10 @@ components:
       "$ref": "./openapi/schemas/extensions.yaml#/ApiResponsePublicFrontendPolicy"
     PublicFrontendPolicy:
       "$ref": "./openapi/schemas/extensions.yaml#/PublicFrontendPolicy"
+    PublicContentStyleCatalog:
+      "$ref": "./openapi/schemas/extensions.yaml#/PublicContentStyleCatalog"
+    ApiResponsePublicContentStyleCatalog:
+      "$ref": "./openapi/schemas/extensions.yaml#/ApiResponsePublicContentStyleCatalog"
     PublicFrontendDocumentPolicy:
       "$ref": "./openapi/schemas/extensions.yaml#/PublicFrontendDocumentPolicy"
     ApiResponseDatabaseTableList:

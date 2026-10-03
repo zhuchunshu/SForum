@@ -51,6 +51,58 @@ composerToolbar:
               "$ref": "../schemas/forum.yaml#/ApiResponseComposerToolbarActionList"
       '401':
         description: Authentication required.
+composerReferences:
+  get:
+    summary: Search public-safe reference options for the composer
+    description: >
+      Requires an active authenticated user. Returns only a bounded public-safe
+      label projection. Users must be active; topics and comments must belong to
+      active or locked topics in public category groups; categories and their
+      groups must be public. This endpoint does not expose plugin Query Registry
+      projections or delegation credentials.
+    operationId: listComposerReferenceOptions
+    security:
+    - cookieAuth: []
+    - bearerAuth: []
+    parameters:
+    - name: kind
+      in: query
+      required: true
+      schema:
+        type: string
+        enum: [user, topic, comment, category]
+    - name: query
+      in: query
+      schema:
+        type: string
+        maxLength: 80
+    - name: selectedId
+      in: query
+      description: Optional currently selected public resource to prioritize when re-editing.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    - name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 20
+        default: 12
+    responses:
+      '200':
+        description: Bounded public-safe reference options.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseReferenceOptionList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
 search:
   get:
     summary: Search topics by keyword (search.provider engine)
@@ -818,6 +870,33 @@ topicByID:
         "$ref": "../components/responses.yaml#/Forbidden"
       '404':
         "$ref": "../components/responses.yaml#/NotFound"
+topicEditSource:
+  get:
+    summary: Get the current editable topic source
+    operationId: getTopicEditSource
+    description: |
+      Returns canonical source only after authoritative topic.edit_own/topic.edit_any,
+      resource-state, and author edit-window checks. Permission denials and hidden or
+      deleted resources return a non-enumerating 404. This response is never served
+      from the public topic cache.
+    security:
+    - cookieAuth: []
+    - bearerAuth: []
+    parameters:
+    - "$ref": "../components/parameters.yaml#/TopicID"
+    responses:
+      '200':
+        description: Authorized current topic source and revision token.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseEditableContentSource"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
 topicBySlug:
   get:
     summary: Get public topic detail by slug
@@ -1431,6 +1510,33 @@ commentByID:
         "$ref": "../components/responses.yaml#/Forbidden"
       '404':
         "$ref": "../components/responses.yaml#/NotFound"
+commentEditSource:
+  get:
+    summary: Get the current editable comment source
+    operationId: getCommentEditSource
+    description: |
+      Returns canonical source only after authoritative post.edit_own/post.edit_any,
+      owning-resource state, and author edit-window checks. Permission denials and
+      hidden or deleted resources return a non-enumerating 404. This response is
+      never served from public comment caches.
+    security:
+    - cookieAuth: []
+    - bearerAuth: []
+    parameters:
+    - "$ref": "../components/parameters.yaml#/CommentID"
+    responses:
+      '200':
+        description: Authorized current comment source and revision token.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseEditableContentSource"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
 authorContentReview:
   get:
     summary: List the current author's pending and rejected content

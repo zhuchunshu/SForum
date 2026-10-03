@@ -134,6 +134,19 @@ ApiResponseTopicDetail:
       type: string
     data:
       "$ref": "#/TopicDetail"
+ApiResponseEditableContentSource:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/EditableContentSource"
 ApiResponseComment:
   type: object
   required:
@@ -369,6 +382,59 @@ RenderedContent:
       type: string
     contentHash:
       type: string
+PublicRenderedContent:
+  type: object
+  description: Public-safe rendered content. Canonical source and source-derived hashes are intentionally absent.
+  required:
+  - id
+  - htmlContent
+  - plainText
+  - excerpt
+  - renderVersion
+  properties:
+    id:
+      type: integer
+      format: int64
+    htmlContent:
+      type: string
+    plainText:
+      type: string
+    excerpt:
+      type: string
+    renderVersion:
+      type: string
+EditableContentSource:
+  type: object
+  description: Current canonical source returned only by an authorized, uncached edit-source read.
+  required:
+  - rawContent
+  - sourceFormat
+  - editorType
+  - editorVersion
+  - contentHash
+  - attachmentIds
+  - currentRevision
+  properties:
+    rawContent:
+      type: string
+    sourceFormat:
+      "$ref": "#/SourceFormat"
+    editorType:
+      type: string
+    editorVersion:
+      type: string
+    contentHash:
+      type: string
+    attachmentIds:
+      type: array
+      items:
+        type: integer
+        format: int64
+        minimum: 1
+    currentRevision:
+      type: integer
+      format: int64
+      minimum: 1
 SourceFormat:
   type: string
   enum:
@@ -1112,7 +1178,7 @@ TopicDetail:
     - content
     properties:
       content:
-        "$ref": "#/RenderedContent"
+        "$ref": "#/PublicRenderedContent"
       editedAt:
         type: string
         format: date-time
@@ -1292,6 +1358,63 @@ ApiResponseComposerToolbarActionList:
       type: array
       items:
         "$ref": "#/ComposerToolbarAction"
+ReferenceOption:
+  type: object
+  description: Public-safe composer reference preview. Avatar, icon, and icon color are derived presentation metadata; no content source or internal state is returned.
+  required: [id, label]
+  properties:
+    id:
+      type: integer
+      format: int64
+      minimum: 1
+    label:
+      type: string
+    secondaryLabel:
+      type: string
+    avatar:
+      type: object
+      nullable: true
+      description: Safe avatar view for user references. URL is a public media/provider URL or empty when initials are used.
+      required: [kind, url, alt]
+      properties:
+        kind:
+          type: string
+          enum: [uploaded, initials, gravatar, static]
+        url:
+          type: string
+        attachmentId:
+          type: integer
+          format: int64
+          nullable: true
+        alt:
+          type: string
+    icon:
+      type: string
+      description: Validated Nuxt UI icon name for category references.
+    iconColor:
+      type: string
+      pattern: '^#[0-9a-f]{6}$'
+ReferenceOptionList:
+  type: object
+  required: [items, hasMore]
+  properties:
+    items:
+      type: array
+      maxItems: 20
+      items:
+        "$ref": "#/ReferenceOption"
+    hasMore:
+      type: boolean
+ApiResponseReferenceOptionList:
+  type: object
+  required: [code, message, data]
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/ReferenceOptionList"
 TopicList:
   type: object
   required:
@@ -1530,7 +1653,7 @@ Comment:
     status:
       "$ref": "#/CommentStatus"
     content:
-      "$ref": "#/RenderedContent"
+      "$ref": "#/PublicRenderedContent"
     replyTo:
       "$ref": "#/ReplyReference"
     children:
