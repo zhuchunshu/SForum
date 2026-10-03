@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
 import { useAdminExtensionsManager } from '~/composables/admin/useAdminExtensionsManager'
+import { useAdminExtensionUpgradeFlow } from '~/composables/admin/useAdminExtensionUpgradeFlow'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/admin/useAdminPage'
 import SFAdminExtensionEnableDialog from '~/components/admin/SFAdminExtensionEnableDialog.vue'
@@ -11,6 +12,7 @@ import SFAdminThemeActivateDialog from '~/components/admin/SFAdminThemeActivateD
 import {
   canRequestExtensionUninstall,
   canRestartPlugin,
+  canUpgradePlugin,
   capabilityCount,
   extensionEventPage,
   extensionLocalizedDisplay,
@@ -118,6 +120,25 @@ const {
   typeLabel,
   statusLabel
 } = await useAdminExtensionsManager()
+const {
+  upgradeCandidates,
+  upgradeConfirmOpen,
+  upgradeConfirmItem,
+  upgradeTrustMode,
+  upgradeTrustStatus,
+  upgradeTrustChallenge,
+  upgradeTrustError,
+  upgradeTrustBusy,
+  upgradeBusyId,
+  upgradeAllBusy,
+  upgradeAllCompleted,
+  upgradeAllTotal,
+  upgradeExtension,
+  upgradeAllExtensions,
+  issueUpgradeTrustChallenge,
+  confirmUpgradeExtension,
+  cancelUpgradeExtension
+} = useAdminExtensionUpgradeFlow({ extensions, refresh, isSuperAdmin })
 const selectedEventPageInfo = computed(() => extensionEventPage(selectedEvents.value, selectedEventPage.value))
 const missingArtifacts = computed(() => missingArtifactCleanupCandidates(extensions.value))
 const missingCleanupOpen = ref(false)
@@ -233,25 +254,62 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
     <template #left>
       <div class="flex min-w-0 items-center gap-2 text-sm text-slate-500 dark:text-zinc-400">
         <UIcon name="i-lucide-package" class="size-4" />
-        <span class="truncate">{{ t('admin.extensions.installedCount', { count: extensions.length }) }}</span>
+        <span class="hidden truncate sm:inline">{{ t('admin.extensions.installedCount', { count: extensions.length }) }}</span>
       </div>
       <input ref="fileInput" class="hidden" type="file" accept=".zip,application/zip" @change="uploadArchive">
     </template>
     <template #right>
       <UButton
+        v-if="upgradeCandidates.length"
+        icon="i-lucide-package-plus"
+        color="warning"
+        variant="subtle"
+        :loading="upgradeAllBusy"
+        :aria-label="upgradeAllBusy
+          ? t('admin.extensions.upgradeAllProgress', { completed: upgradeAllCompleted, total: upgradeAllTotal })
+          : t('admin.extensions.upgradeAll', { count: upgradeCandidates.length })"
+        :title="upgradeAllBusy
+          ? t('admin.extensions.upgradeAllProgress', { completed: upgradeAllCompleted, total: upgradeAllTotal })
+          : t('admin.extensions.upgradeAll', { count: upgradeCandidates.length })"
+        @click="upgradeAllExtensions"
+      >
+        <span class="hidden sm:inline">
+          {{ upgradeAllBusy
+            ? t('admin.extensions.upgradeAllProgress', { completed: upgradeAllCompleted, total: upgradeAllTotal })
+            : t('admin.extensions.upgradeAll', { count: upgradeCandidates.length }) }}
+        </span>
+      </UButton>
+      <UButton
         v-if="isSuperAdmin && missingArtifacts.length"
         icon="i-lucide-package-x"
         color="error"
         variant="subtle"
+        :aria-label="t('admin.extensions.missingCleanup.action', { count: missingArtifacts.length })"
+        :title="t('admin.extensions.missingCleanup.action', { count: missingArtifacts.length })"
         @click="openMissingCleanup()"
       >
-        {{ t('admin.extensions.missingCleanup.action', { count: missingArtifacts.length }) }}
+        <span class="hidden sm:inline">{{ t('admin.extensions.missingCleanup.action', { count: missingArtifacts.length }) }}</span>
       </UButton>
-      <UButton icon="i-lucide-rotate-cw" color="neutral" variant="subtle" :loading="pending" @click="refresh()">
-        {{ t('admin.extensions.refresh') }}
+      <UButton
+        icon="i-lucide-rotate-cw"
+        color="neutral"
+        variant="subtle"
+        :loading="pending"
+        :aria-label="t('admin.extensions.refresh')"
+        :title="t('admin.extensions.refresh')"
+        @click="refresh()"
+      >
+        <span class="hidden sm:inline">{{ t('admin.extensions.refresh') }}</span>
       </UButton>
-      <UButton icon="i-lucide-upload" color="primary" :loading="uploading" @click="openUpload">
-        {{ t('admin.extensions.upload') }}
+      <UButton
+        icon="i-lucide-upload"
+        color="primary"
+        :loading="uploading"
+        :aria-label="t('admin.extensions.upload')"
+        :title="t('admin.extensions.upload')"
+        @click="openUpload"
+      >
+        <span class="hidden sm:inline">{{ t('admin.extensions.upload') }}</span>
       </UButton>
     </template>
   </UDashboardToolbar>
@@ -348,7 +406,13 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
                   <UBadge color="neutral" variant="outline">
                     {{ typeLabel(item.type) }}
                   </UBadge>
-                  <UBadge v-if="item.stagedVersion" color="warning" variant="outline" icon="i-lucide-package-plus">
+                  <UBadge
+                    v-if="item.stagedVersion"
+                    color="warning"
+                    variant="outline"
+                    icon="i-lucide-package-plus"
+                    :title="t('admin.extensions.stagedVersionHint', { version: item.stagedVersion.version, current: item.version })"
+                  >
                     {{ t('admin.extensions.stagedVersionBadge', { version: item.stagedVersion.version }) }}
                   </UBadge>
                   <UBadge
@@ -391,7 +455,22 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
                 <span class="truncate">{{ t('admin.extensions.authorLinkLabel', { name: display.author.name }) }}</span>
               </span>
             </div>
-            <div class="flex items-center gap-2 md:justify-end">
+            <div class="flex flex-wrap items-center gap-2 [&>a]:shrink-0 [&>button]:shrink-0 md:justify-end">
+              <UButton
+                v-if="item.type === 'plugin' && item.stagedVersion"
+                size="sm"
+                color="warning"
+                variant="subtle"
+                icon="i-lucide-package-plus"
+                :disabled="upgradeAllBusy || !canUpgradePlugin(item)"
+                :loading="upgradeBusyId === item.id"
+                :title="canUpgradePlugin(item)
+                  ? t('admin.extensions.stagedVersionHint', { version: item.stagedVersion.version, current: item.version })
+                  : t('admin.extensions.upgradeUnavailable')"
+                @click="upgradeExtension(item)"
+              >
+                {{ t('admin.extensions.upgrade') }}
+              </UButton>
               <UButton
                 size="sm"
                 color="neutral"
@@ -519,7 +598,12 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
             <div v-if="selected.stagedVersion" class="flex justify-between gap-3">
               <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.stagedVersion') }}</dt>
               <dd>
-                <UBadge color="warning" variant="outline" icon="i-lucide-package-plus">
+                <UBadge
+                  color="warning"
+                  variant="outline"
+                  icon="i-lucide-package-plus"
+                  :title="t('admin.extensions.stagedVersionHint', { version: selected.stagedVersion.version, current: selected.version })"
+                >
                   v{{ selected.stagedVersion.version }}
                 </UBadge>
               </dd>
@@ -648,6 +732,21 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
       @cancel="cancelEnableExtension"
       @issue-challenge="issueEnableTrustChallenge"
       @confirm="confirmEnableExtension"
+    />
+
+    <SFAdminExtensionEnableDialog
+      v-model:open="upgradeConfirmOpen"
+      :extension="upgradeConfirmItem"
+      :mode="upgradeTrustMode"
+      :trust-status="upgradeTrustStatus"
+      :challenge="upgradeTrustChallenge"
+      :error="upgradeTrustError"
+      :busy="upgradeTrustBusy || Boolean(upgradeConfirmItem && upgradeBusyId === upgradeConfirmItem.id)"
+      :is-super-admin="isSuperAdmin"
+      purpose="upgrade"
+      @cancel="cancelUpgradeExtension"
+      @issue-challenge="issueUpgradeTrustChallenge"
+      @confirm="confirmUpgradeExtension"
     />
 
     <!-- L0/L1 与 trust_not_required：页面预览确认 Modal（替代原生 confirm）。 -->

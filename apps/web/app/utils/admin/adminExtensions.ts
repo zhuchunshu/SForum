@@ -794,6 +794,23 @@ export function canRestartPlugin(item: AdminExtension) {
   return item.type === 'plugin' && isExtensionArtifactAvailable(item) && recoverable && Boolean(item.runtime)
 }
 
+export function canUpgradePlugin(item: AdminExtension) {
+  return Boolean(item.stagedVersion) && canRestartPlugin(item)
+}
+
+export function extensionUpgradeLifecycleAction(item: AdminExtension): 'upgrade' | 'restart' {
+  const staged = item.stagedVersion
+  const stagedUsesLifecycleV2 = staged?.manifest.backend?.protocolVersion === 2
+    && Boolean(staged.manifest.lifecycle?.contractVersion?.trim())
+  return item.status === 'enabled' && isLifecycleV2Plugin(item) && stagedUsesLifecycleV2
+    ? 'upgrade'
+    : 'restart'
+}
+
+export function extensionUpgradeCandidates(items: AdminExtension[]) {
+  return items.filter(canUpgradePlugin)
+}
+
 export function mergeExtensionEvents(eventsByExtension: Record<string, AdminExtensionEvent[]>) {
   return Object.values(eventsByExtension)
     .flat()

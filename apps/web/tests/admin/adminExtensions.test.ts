@@ -5,6 +5,7 @@ import {
   activeTheme,
   canRequestExtensionUninstall,
   canRestartPlugin,
+  canUpgradePlugin,
   capabilityCount,
   extensionContributionLabel,
   extensionContributionPage,
@@ -21,6 +22,8 @@ import {
   extensionManageRoute,
   extensionSettingDeclarations,
   extensionStats,
+  extensionUpgradeCandidates,
+  extensionUpgradeLifecycleAction,
   filterExtensionsByType,
   findExtensionAdminPage,
   formatPluginMemoryBytes,
@@ -324,6 +327,59 @@ describe('admin extension helpers', () => {
 
     expect(canRestartPlugin(item)).toBe(true)
     expect(canRestartPlugin({ ...item, stagedVersion: undefined })).toBe(false)
+  })
+
+  test('selects native upgrade for V2 and the restart bridge for legacy or disabled candidates', () => {
+    const upgradeable = extension({
+      id: 'upgradeable.plugin',
+      name: 'Upgradeable Plugin',
+      type: 'plugin',
+      status: 'enabled',
+      manifest: {
+        backend: { entry: 'bin/plugin', protocolVersion: 2 },
+        lifecycle: { contractVersion: 'sforum.lifecycle@2' }
+      },
+      runtime: { state: 'running' },
+      stagedVersion: {
+        id: 2,
+        version: '2.0.0',
+        packageDigest: 'b'.repeat(64),
+        packagePath: 'storage/extensions/upgradeable/2.0.0',
+        installedAt: '2026-08-29T00:00:00Z',
+        manifest: {
+          id: 'upgradeable.plugin',
+          name: 'Upgradeable Plugin',
+          version: '2.0.0',
+          type: 'plugin',
+          sforumVersion: '^1.0.0',
+          backend: { entry: 'bin/plugin', protocolVersion: 2 },
+          lifecycle: { contractVersion: 'sforum.lifecycle@2' }
+        }
+      }
+    })
+    const disabled = extension({
+      ...upgradeable,
+      id: 'disabled.plugin',
+      status: 'disabled',
+      runtime: { state: 'stopped' }
+    })
+    const legacySource = extension({
+      ...upgradeable,
+      id: 'legacy-source.plugin',
+      manifest: { backend: { entry: 'bin/plugin', protocolVersion: 1 } },
+      runtime: { state: 'running' }
+    })
+    const installed = extension({ ...upgradeable, id: 'installed.plugin', status: 'installed' })
+
+    expect(canUpgradePlugin(upgradeable)).toBe(true)
+    expect(extensionUpgradeLifecycleAction(upgradeable)).toBe('upgrade')
+    expect(canUpgradePlugin(disabled)).toBe(true)
+    expect(extensionUpgradeLifecycleAction(disabled)).toBe('restart')
+    expect(canUpgradePlugin(legacySource)).toBe(true)
+    expect(extensionUpgradeLifecycleAction(legacySource)).toBe('restart')
+    expect(canUpgradePlugin(installed)).toBe(false)
+    expect(extensionUpgradeCandidates([disabled, installed, upgradeable, legacySource]).map(item => item.id))
+      .toEqual(['disabled.plugin', 'upgradeable.plugin', 'legacy-source.plugin'])
   })
 
   test('selects only deletable disabled uploads whose artifacts are missing', () => {

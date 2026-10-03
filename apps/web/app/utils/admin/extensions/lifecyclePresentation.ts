@@ -4,10 +4,10 @@ export type ExtensionLifecycleAction = 'enable' | 'disable' | 'restart' | 'upgra
 
 export function executableTrustPath(
   item: AdminExtension,
-  action: 'enable' | 'restart',
+  action: 'enable' | 'restart' | 'upgrade',
   challenge = false
 ) {
-  const target = action === 'restart' && item.stagedVersion ? '?target=staged' : ''
+  const target = (action === 'upgrade' || (action === 'restart' && item.stagedVersion)) ? '?target=staged' : ''
   return `/admin/extensions/${item.id}/trust${challenge ? '/challenge' : ''}${target}`
 }
 

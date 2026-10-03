@@ -15,8 +15,8 @@ const props = defineProps<{
   error: string
   busy: boolean
   isSuperAdmin: boolean
-  // 'activate' reuses the exact trust UI pattern for executable theme activation.
-  purpose?: 'enable' | 'activate'
+  // Theme activation and staged plugin upgrade reuse the exact trust review pattern.
+  purpose?: 'enable' | 'activate' | 'upgrade'
 }>()
 const emit = defineEmits<{ cancel: [], issueChallenge: [], confirm: [] }>()
 const open = defineModel<boolean>('open', { required: true })
@@ -24,6 +24,33 @@ const { t, locale } = useI18n()
 
 const purpose = computed(() => props.purpose || 'enable')
 const isActivatePurpose = computed(() => purpose.value === 'activate')
+const isUpgradePurpose = computed(() => purpose.value === 'upgrade')
+const titleKey = computed(() => props.mode !== 'exact'
+  ? 'admin.extensions.confirmEnableTitle'
+  : isActivatePurpose.value
+    ? 'admin.extensions.trust.titleActivate'
+    : isUpgradePurpose.value
+      ? 'admin.extensions.trust.titleUpgrade'
+      : 'admin.extensions.trust.title')
+const bodyKey = computed(() => props.mode !== 'exact'
+  ? 'admin.extensions.confirmEnableBody'
+  : isActivatePurpose.value
+    ? 'admin.extensions.trust.bodyActivate'
+    : isUpgradePurpose.value
+      ? 'admin.extensions.trust.bodyUpgrade'
+      : 'admin.extensions.trust.body')
+const blockingErrorKey = computed(() => isActivatePurpose.value
+  ? 'admin.extensions.trust.blockingErrorActivate'
+  : isUpgradePurpose.value
+    ? 'admin.extensions.trust.blockingErrorUpgrade'
+    : 'admin.extensions.trust.blockingError')
+const confirmKey = computed(() => props.mode !== 'exact'
+  ? 'admin.extensions.confirmEnableAction'
+  : isActivatePurpose.value
+    ? 'admin.extensions.trust.confirmActivate'
+    : isUpgradePurpose.value
+      ? 'admin.extensions.trust.confirmUpgrade'
+      : 'admin.extensions.trust.confirmEnable')
 
 const needsChallenge = computed(() => props.mode === 'exact'
   && props.trustStatus?.trustRequired === true
@@ -45,16 +72,10 @@ function cancel() {
           <div class="flex items-start justify-between gap-4">
             <div class="min-w-0">
               <h2 class="text-base font-semibold text-slate-900 dark:text-zinc-100">
-                {{ mode === 'exact'
-                  ? (isActivatePurpose ? t('admin.extensions.trust.titleActivate') : t('admin.extensions.trust.title'))
-                  : t('admin.extensions.confirmEnableTitle') }}
+                {{ t(titleKey) }}
               </h2>
               <p class="mt-1 text-sm leading-6 text-slate-600 dark:text-zinc-300">
-                {{ mode === 'exact'
-                  ? (isActivatePurpose
-                      ? t('admin.extensions.trust.bodyActivate', { name: extension?.name || '' })
-                      : t('admin.extensions.trust.body', { name: extension?.name || '' }))
-                  : t('admin.extensions.confirmEnableBody', { name: extension?.name || '' }) }}
+                {{ t(bodyKey, { name: extension?.name || '' }) }}
               </p>
             </div>
             <UButton icon="i-lucide-x" color="neutral" variant="ghost" :aria-label="t('admin.extensions.confirmEnableCancel')" @click="cancel" />
@@ -67,9 +88,7 @@ function cancel() {
             color="error"
             variant="subtle"
             icon="i-lucide-triangle-alert"
-            :title="isActivatePurpose
-              ? t('admin.extensions.trust.blockingErrorActivate')
-              : t('admin.extensions.trust.blockingError')"
+            :title="t(blockingErrorKey)"
             :description="error"
             role="alert"
           />
@@ -159,9 +178,7 @@ function cancel() {
             :disabled="!canConfirm"
             @click="emit('confirm')"
           >
-            {{ mode === 'exact'
-              ? (isActivatePurpose ? t('admin.extensions.trust.confirmActivate') : t('admin.extensions.trust.confirmEnable'))
-              : t('admin.extensions.confirmEnableAction') }}
+            {{ t(confirmKey) }}
           </UButton>
         </footer>
       </div>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
 import { useAdminExtensionsManager } from '~/composables/admin/useAdminExtensionsManager'
+import { useAdminExtensionUpgradeFlow } from '~/composables/admin/useAdminExtensionUpgradeFlow'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/admin/useAdminPage'
 import SFAdminExtensionEnableDialog from '~/components/admin/SFAdminExtensionEnableDialog.vue'
@@ -9,6 +10,7 @@ import SFAdminExtensionUninstallDialog from '~/components/admin/SFAdminExtension
 import SFAdminFrontendTrustPanel from '~/components/admin/SFAdminFrontendTrustPanel.vue'
 import {
   canRestartPlugin,
+  canUpgradePlugin,
   capabilityCount,
   extensionLocalizedDisplay,
   extensionManageRoute,
@@ -75,8 +77,38 @@ const {
   statusColor,
   statusLabel
 } = await useAdminExtensionsManager()
+const {
+  upgradeCandidates,
+  upgradeConfirmOpen,
+  upgradeConfirmItem,
+  upgradeTrustMode,
+  upgradeTrustStatus,
+  upgradeTrustChallenge,
+  upgradeTrustError,
+  upgradeTrustBusy,
+  upgradeBusyId,
+  upgradeAllBusy,
+  upgradeAllCompleted,
+  upgradeAllTotal,
+  upgradeExtension,
+  upgradeAllExtensions,
+  issueUpgradeTrustChallenge,
+  confirmUpgradeExtension,
+  cancelUpgradeExtension
+} = useAdminExtensionUpgradeFlow({ extensions, refresh, isSuperAdmin })
 
 const plugins = computed(() => filterExtensionsByType(extensions.value, 'plugin'))
+const inspectorMenuItems = computed(() => [[
+  { label: t('admin.nav.extensionRouteProviders'), icon: 'i-lucide-route', to: adminRoutes.path('/extensions/route-providers') },
+  { label: t('admin.nav.extensionRouteInspector'), icon: 'i-lucide-scan-search', to: adminRoutes.path('/extensions/route-inspector') },
+  { label: t('admin.nav.extensionCacheInspector'), icon: 'i-lucide-database-zap', to: adminRoutes.path('/extensions/cache-inspector') },
+  { label: t('admin.nav.extensionAssetInspector'), icon: 'i-lucide-package', to: adminRoutes.path('/extensions/asset-inspector') },
+  { label: t('admin.nav.extensionTemplateInspector'), icon: 'i-lucide-layout-template', to: adminRoutes.path('/extensions/template-inspector') },
+  { label: t('admin.nav.extensionComponentInspector'), icon: 'i-lucide-boxes', to: adminRoutes.path('/extensions/component-inspector') },
+  { label: t('admin.nav.extensionNavigationInspector'), icon: 'i-lucide-map', to: adminRoutes.path('/extensions/navigation-inspector') },
+  { label: t('admin.nav.extensionRegistryCatalogs'), icon: 'i-lucide-library', to: adminRoutes.path('/extensions/registry-catalogs') },
+  { label: t('admin.nav.extensionProviderSlots'), icon: 'i-lucide-waypoints', to: adminRoutes.path('/extensions/provider-slots') }
+]])
 // 与当前 UI 语言绑定，切换语言时列表文案会立刻重算。
 const pluginRows = computed(() => plugins.value.map((item) => ({
   item,
@@ -122,11 +154,42 @@ useSeoMeta({
     <template #left>
       <div class="flex min-w-0 items-center gap-2 text-sm">
         <UIcon name="i-lucide-plug" class="size-4" />
-        <span class="truncate">{{ t('admin.extensions.plugins.count', { count: plugins.length }) }}</span>
+        <span class="hidden truncate sm:inline">{{ t('admin.extensions.plugins.count', { count: plugins.length }) }}</span>
       </div>
     </template>
     <template #right>
       <UButton
+        v-if="upgradeCandidates.length"
+        icon="i-lucide-package-plus"
+        color="warning"
+        variant="subtle"
+        :loading="upgradeAllBusy"
+        :aria-label="upgradeAllBusy
+          ? t('admin.extensions.upgradeAllProgress', { completed: upgradeAllCompleted, total: upgradeAllTotal })
+          : t('admin.extensions.upgradeAll', { count: upgradeCandidates.length })"
+        :title="upgradeAllBusy
+          ? t('admin.extensions.upgradeAllProgress', { completed: upgradeAllCompleted, total: upgradeAllTotal })
+          : t('admin.extensions.upgradeAll', { count: upgradeCandidates.length })"
+        @click="upgradeAllExtensions"
+      >
+        <span class="hidden xl:inline">
+          {{ upgradeAllBusy
+            ? t('admin.extensions.upgradeAllProgress', { completed: upgradeAllCompleted, total: upgradeAllTotal })
+            : t('admin.extensions.upgradeAll', { count: upgradeCandidates.length }) }}
+        </span>
+      </UButton>
+      <UDropdownMenu :items="inspectorMenuItems" :content="{ align: 'end' }">
+        <UButton
+          class="xl:hidden"
+          icon="i-lucide-ellipsis"
+          color="neutral"
+          variant="subtle"
+          :aria-label="t('common.more')"
+          :title="t('common.more')"
+        />
+      </UDropdownMenu>
+      <UButton
+        class="hidden xl:inline-flex"
         icon="i-lucide-route"
         color="neutral"
         variant="subtle"
@@ -135,6 +198,7 @@ useSeoMeta({
         {{ t('admin.nav.extensionRouteProviders') }}
       </UButton>
       <UButton
+        class="hidden xl:inline-flex"
         icon="i-lucide-scan-search"
         color="neutral"
         variant="subtle"
@@ -143,6 +207,7 @@ useSeoMeta({
         {{ t('admin.nav.extensionRouteInspector') }}
       </UButton>
       <UButton
+        class="hidden xl:inline-flex"
         icon="i-lucide-database-zap"
         color="neutral"
         variant="subtle"
@@ -151,6 +216,7 @@ useSeoMeta({
         {{ t('admin.nav.extensionCacheInspector') }}
       </UButton>
       <UButton
+        class="hidden xl:inline-flex"
         icon="i-lucide-package"
         color="neutral"
         variant="subtle"
@@ -159,6 +225,7 @@ useSeoMeta({
         {{ t('admin.nav.extensionAssetInspector') }}
       </UButton>
       <UButton
+        class="hidden xl:inline-flex"
         icon="i-lucide-layout-template"
         color="neutral"
         variant="subtle"
@@ -167,6 +234,7 @@ useSeoMeta({
         {{ t('admin.nav.extensionTemplateInspector') }}
       </UButton>
       <UButton
+        class="hidden xl:inline-flex"
         icon="i-lucide-boxes"
         color="neutral"
         variant="subtle"
@@ -175,6 +243,7 @@ useSeoMeta({
         {{ t('admin.nav.extensionComponentInspector') }}
       </UButton>
       <UButton
+        class="hidden xl:inline-flex"
         icon="i-lucide-map"
         color="neutral"
         variant="subtle"
@@ -183,6 +252,7 @@ useSeoMeta({
         {{ t('admin.nav.extensionNavigationInspector') }}
       </UButton>
       <UButton
+        class="hidden xl:inline-flex"
         icon="i-lucide-library"
         color="neutral"
         variant="subtle"
@@ -191,6 +261,7 @@ useSeoMeta({
         {{ t('admin.nav.extensionRegistryCatalogs') }}
       </UButton>
       <UButton
+        class="hidden xl:inline-flex"
         icon="i-lucide-waypoints"
         color="neutral"
         variant="subtle"
@@ -198,8 +269,16 @@ useSeoMeta({
       >
         {{ t('admin.nav.extensionProviderSlots') }}
       </UButton>
-      <UButton icon="i-lucide-rotate-cw" color="neutral" variant="subtle" :loading="pending" @click="refresh()">
-        {{ t('admin.extensions.refresh') }}
+      <UButton
+        icon="i-lucide-rotate-cw"
+        color="neutral"
+        variant="subtle"
+        :loading="pending"
+        :aria-label="t('admin.extensions.refresh')"
+        :title="t('admin.extensions.refresh')"
+        @click="refresh()"
+      >
+        <span class="hidden xl:inline">{{ t('admin.extensions.refresh') }}</span>
       </UButton>
     </template>
   </UDashboardToolbar>
@@ -234,6 +313,15 @@ useSeoMeta({
             </UBadge>
             <UBadge :color="runtimeColor(item.runtime?.state)" variant="subtle">
               {{ t(runtimeStatusLabelKey(item)) }}
+            </UBadge>
+            <UBadge
+              v-if="item.stagedVersion"
+              color="warning"
+              variant="outline"
+              icon="i-lucide-package-plus"
+              :title="t('admin.extensions.stagedVersionHint', { version: item.stagedVersion.version, current: item.version })"
+            >
+              {{ t('admin.extensions.stagedVersionBadge', { version: item.stagedVersion.version }) }}
             </UBadge>
             <UBadge
               v-if="!isExtensionArtifactAvailable(item)"
@@ -335,7 +423,22 @@ useSeoMeta({
           </p>
           <SFAdminFrontendTrustPanel :extension="item" />
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2 [&>a]:shrink-0 [&>button]:shrink-0">
+          <UButton
+            v-if="item.stagedVersion"
+            size="sm"
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-package-plus"
+            :disabled="upgradeAllBusy || !canUpgradePlugin(item)"
+            :loading="upgradeBusyId === item.id"
+            :title="canUpgradePlugin(item)
+              ? t('admin.extensions.stagedVersionHint', { version: item.stagedVersion.version, current: item.version })
+              : t('admin.extensions.upgradeUnavailable')"
+            @click="upgradeExtension(item)"
+          >
+            {{ t('admin.extensions.upgrade') }}
+          </UButton>
           <UButton
             v-if="storageInstancesRoute(item)"
             size="sm"
@@ -430,6 +533,21 @@ useSeoMeta({
       @cancel="cancelEnableExtension"
       @issue-challenge="issueEnableTrustChallenge"
       @confirm="confirmEnableExtension"
+    />
+
+    <SFAdminExtensionEnableDialog
+      v-model:open="upgradeConfirmOpen"
+      :extension="upgradeConfirmItem"
+      :mode="upgradeTrustMode"
+      :trust-status="upgradeTrustStatus"
+      :challenge="upgradeTrustChallenge"
+      :error="upgradeTrustError"
+      :busy="upgradeTrustBusy || Boolean(upgradeConfirmItem && upgradeBusyId === upgradeConfirmItem.id)"
+      :is-super-admin="isSuperAdmin"
+      purpose="upgrade"
+      @cancel="cancelUpgradeExtension"
+      @issue-challenge="issueUpgradeTrustChallenge"
+      @confirm="confirmUpgradeExtension"
     />
 
     <SFAdminExtensionUninstallDialog

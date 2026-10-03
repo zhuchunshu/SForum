@@ -147,7 +147,7 @@ describe('V3 exact-artifact trust operator flow', () => {
     expect(themesPage).toContain('confirmThemeActivate')
     expect(themesPage).toContain('issueThemeActivateTrustChallenge')
     expect(themesPage).toContain('confirmThemePreviewActivate')
-    expect(dialog).toContain("purpose?: 'enable' | 'activate'")
+    expect(dialog).toContain("purpose?: 'enable' | 'activate' | 'upgrade'")
     expect(dialog).toContain('blockingErrorActivate')
     expect(dialog).not.toContain('challenge.token')
     expect(dialog).toContain('needsChallenge && !isSuperAdmin')
@@ -170,5 +170,9 @@ describe('V3 exact-artifact trust operator flow', () => {
       id: 'example.plugin',
       stagedVersion: { version: '2.0.0' }
     } as AdminExtension, 'restart')).toBe('/admin/extensions/example.plugin/trust?target=staged')
+    expect(executableTrustPath({
+      id: 'example.plugin',
+      stagedVersion: { version: '2.0.0' }
+    } as AdminExtension, 'upgrade')).toBe('/admin/extensions/example.plugin/trust?target=staged')
   })
 })
