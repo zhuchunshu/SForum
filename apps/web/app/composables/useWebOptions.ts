@@ -264,7 +264,7 @@ const fallbackOptions: Record<string, string> = {
   'forum.topics.daily_limit': '0',
   'forum.comments.min_runes': '1',
   'forum.comments.max_runes': '10000',
-  'forum.comments.max_nesting_depth': '5',
+  'forum.comments.max_nesting_depth': '20',
   'forum.comments.edit_window_minutes': '0',
   'forum.comments.cooldown_seconds': '0',
   'forum.comments.daily_limit': '0',

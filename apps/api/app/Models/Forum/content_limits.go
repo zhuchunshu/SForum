@@ -38,7 +38,7 @@ const (
 	RecommendedDailyTopicLimit        = 0
 	RecommendedCommentMinRunes        = 1
 	RecommendedCommentMaxRunes        = 10000
-	RecommendedCommentMaxNestingDepth = 5
+	RecommendedCommentMaxNestingDepth = 20
 	// RecommendedTreeDescendantsPerRoot D2：tree 视图每根默认最多 50 个子孙。
 	RecommendedTreeDescendantsPerRoot   = 50
 	RecommendedCommentEditWindowMinutes = 0

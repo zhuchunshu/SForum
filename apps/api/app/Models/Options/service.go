@@ -1023,7 +1023,7 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameForumDailyTopicLimit:                "0",
 		NameForumCommentMinRunes:                "1",
 		NameForumCommentMaxRunes:                "10000",
-		NameForumCommentMaxNestingDepth:         "5",
+		NameForumCommentMaxNestingDepth:         "20",
 		NameForumCommentsTreeDescendantsPerRoot: "50",
 		NameForumCommentEditWindowMinutes:       "0",
 		NameForumCommentCooldownSeconds:         "0",

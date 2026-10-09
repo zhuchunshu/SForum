@@ -928,7 +928,7 @@ func TestServiceForumOptionsDefaultsAndValidation(t *testing.T) {
 		NameForumTagMaxPerTopic:         "5",
 		NameForumTopicTitleMinRunes:     "2",
 		NameForumTopicTitleMaxRunes:     "100",
-		NameForumCommentMaxNestingDepth: "5",
+		NameForumCommentMaxNestingDepth: "20",
 		NameForumExcerptRuneLimit:       "180",
 	}
 	for name, want := range expected {
