@@ -21,6 +21,10 @@ import {
   normalizeEditorImageDisplaySize
 } from '~/utils/editor/editorImage'
 import {
+  createSForumMentionExtensions,
+  type SForumMentionOptions
+} from '~/utils/editor/mentions'
+import {
   createSForumShortcodeExtensions,
   type SFShortcodeNodeViewHost,
   type SFShortcodeResourceKind
@@ -212,6 +216,8 @@ export function createSFEditorExtensions(options: {
   shortcodeReferenceNodeView?: NodeViewRenderer
   shortcodeProtectedNodeView?: NodeViewRenderer
   shortcodeNodeViewHost?: SFShortcodeNodeViewHost
+  /** 论坛 @提及（候选 + 高亮）；不传则完全不注册，基础场景不受影响。 */
+  mentions?: SForumMentionOptions
 }) {
   const full = options.preset !== 'basic-field'
   const trusted = Array.isArray(options.trustedExtensions)
@@ -278,6 +284,7 @@ export function createSFEditorExtensions(options: {
         breaks: false
       }
     }),
+    ...(full && options.mentions ? createSForumMentionExtensions(options.mentions) : []),
     // Plugin L2 extensions append after Host core so core marks/nodes win on
     // name conflicts inside Tiptap's extension manager.
     ...(full ? trusted : [])

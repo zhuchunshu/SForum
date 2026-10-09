@@ -33,7 +33,9 @@ export function useForumContentLimits() {
       commentEditWindowMinutes: o['forum.comments.edit_window_minutes'],
       commentCooldownSeconds: o['forum.comments.cooldown_seconds'],
       dailyCommentLimit: o['forum.comments.daily_limit'],
-      excerptRuneLimit: o['forum.reading.excerpt_rune_limit']
+      excerptRuneLimit: o['forum.reading.excerpt_rune_limit'],
+      mentionsEnabled: o['forum.mentions.enabled'],
+      mentionsMaxPerPost: o['forum.mentions.max_per_post']
     })
   })
 

@@ -35,12 +35,14 @@ import {
   type TiptapContentReader
 } from '~/utils/sfEditor'
 import { imageFilesFromList, useEditorImageUpload } from '~/composables/editor/useEditorImageUpload'
+import { useMentionSuggestions } from '~/composables/editor/useMentionSuggestions'
 import {
+  buildSForumProtectedTransaction,
   inspectSForumShortcodeMarkdown,
-  inspectSForumShortcodeDocument,
   prepareSForumShortcodeMarkdown,
   SF_SHORTCODE_BLOCK_NODE,
   SF_SHORTCODE_REF_NODE,
+  type SFProtectedInsertResult,
   type SFShortcodeReferencePreview,
   sforumProtectedNodeAttributes,
   sforumReferenceNodeAttributes,
@@ -64,6 +66,8 @@ const props = withDefaults(defineProps<{
   compact?: boolean
   preset?: 'full' | 'basic-field'
   imageSurface?: 'topic' | 'comment'
+  /** 论坛 @提及（候选浮层 + 高亮）；仅论坛编辑宿主在 mentionsEnabled 设置开启时传入。 */
+  enableMentions?: boolean
   ariaLabel?: string
   cancelLabel?: string
   supportLabel?: string
@@ -86,6 +90,7 @@ const props = withDefaults(defineProps<{
   compact: false,
   preset: 'full',
   imageSurface: 'topic',
+  enableMentions: false,
   ariaLabel: '正文编辑器',
   cancelLabel: '',
   supportLabel: '支持 Markdown',
@@ -110,6 +115,7 @@ const imageDialogOpen = ref(false)
 const imageInsertPosition = ref<number | null>(null)
 const toast = useToast()
 const { t } = useI18n()
+const { fetchMentionSuggestions } = useMentionSuggestions()
 const { pendingUploadCount, uploadImages } = useEditorImageUpload({
   uploading: t('composer.imageUpload.uploading'),
   invalidType: t('composer.imageUpload.invalidType'),
@@ -249,6 +255,12 @@ onMounted(async () => {
       preset: props.preset,
       trustedExtensions: trusted,
       resourceKind: props.imageSurface,
+      ...(props.enableMentions ? {
+        mentions: {
+          fetch: fetchMentionSuggestions,
+          labels: { empty: t('composer.mention.empty') }
+        }
+      } : {}),
       ...(shortcodeCommandID.value ? {
         shortcodeReferenceNodeView: VueNodeViewRenderer(SFShortcodeReferenceNodeView),
         shortcodeProtectedNodeView: VueNodeViewRenderer(SFShortcodeProtectedNodeView),
@@ -593,49 +605,38 @@ function deleteReference(selection: EditorReferenceSelectionV1) {
   }
 }
 
+function protectedInsertFailureKey(outcome: SFProtectedInsertResult) {
+  if (outcome.status === 'selection') return 'composer.shortcodes.selectProtectedBody'
+  if (outcome.status === 'invalid') {
+    if (outcome.reasons.includes('empty')) return 'composer.shortcodes.invalidProtectedEmpty'
+    if (outcome.reasons.includes('placement')) {
+      return outcome.hadPlacementViolation
+        ? 'composer.shortcodes.invalidProtectedPlacementExisting'
+        : 'composer.shortcodes.invalidProtectedPlacement'
+    }
+    if (outcome.reasons.includes('commentOnly')) return 'composer.shortcodes.invalidProtectedCommentOnly'
+    if (outcome.reasons.includes('count')) return 'composer.shortcodes.invalidProtectedCount'
+    if (outcome.reasons.includes('depth')) return 'composer.shortcodes.invalidProtectedDepth'
+  }
+  return 'composer.shortcodes.invalidProtectedBody'
+}
+
 function upsertProtected(kind: EditorProtectedKind, selection?: EditorShortcodeSelectionV1) {
   const currentEditor = editor.value
   const attrs = sforumProtectedNodeAttributes(kind, props.imageSurface)
   if (!currentEditor || !attrs || props.disabled) return false
-  let invalid = false
-  const changed = currentEditor.commands.command(({ tr, dispatch }) => {
-    try {
-      if (selection && 'protected' in selection) {
-        const node = tr.doc.nodeAt(selection.position)
-        if (!node || node.type.name !== SF_SHORTCODE_BLOCK_NODE) return false
-        tr.setNodeMarkup(selection.position, undefined, attrs)
-      } else {
-        const currentSelection = tr.selection
-        let from = currentSelection.from
-        let to = currentSelection.to
-        let content = currentSelection.content().content
-        if (currentSelection.empty) {
-          const depth = currentSelection.$from.depth
-          if (depth < 1) return false
-          from = currentSelection.$from.before(depth)
-          to = currentSelection.$from.after(depth)
-          content = tr.doc.slice(from, to).content
-        }
-        const type = currentEditor.schema.nodes[SF_SHORTCODE_BLOCK_NODE]
-        if (!type || content.size === 0) return false
-        const protectedNode = type.create(attrs, content)
-        tr.replaceRangeWith(from, to, protectedNode)
-      }
-      if (!inspectSForumShortcodeDocument(tr.doc.toJSON(), props.imageSurface).valid) {
-        invalid = true
-        return false
-      }
-      dispatch?.(tr.scrollIntoView())
-      return true
-    } catch {
-      invalid = true
-      return false
-    }
+  // 候选事务只有 valid 才派发；任何失败路径都不触碰文档与 v-model。
+  const outcome = buildSForumProtectedTransaction({
+    state: currentEditor.state,
+    attrs,
+    resourceKind: props.imageSurface,
+    selection
   })
-  if (!changed) {
-    shortcodeInlineError.value = t(invalid ? 'composer.shortcodes.invalidProtectedBody' : 'composer.shortcodes.selectProtectedBody')
+  if (outcome.status !== 'ready') {
+    shortcodeInlineError.value = t(protectedInsertFailureKey(outcome))
     return false
   }
+  currentEditor.view.dispatch(outcome.tr.scrollIntoView())
   toast.add({
     color: 'success', icon: 'i-lucide-check',
     title: t(selection ? 'composer.shortcodes.updated' : 'composer.shortcodes.inserted'), duration: 10000

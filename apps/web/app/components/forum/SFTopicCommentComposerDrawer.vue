@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { topicCommentEditorContentIsMeaningful } from '~/composables/forum/useTopicCommentSubmission'
+import { useForumContentLimits } from '~/composables/forum/useForumContentLimits'
 import { editorDocumentSignature, type SFEditorContentPayload } from '~/utils/sfEditor'
 import type {
   TopicCommentComposerContext,
@@ -62,6 +63,7 @@ const baselineMarkdown = ref('')
 const baselineNativeSignature = ref('')
 const baselineCaptured = ref(false)
 const currentPayload = shallowRef<SFEditorContentPayload | null>(null)
+const { limits } = useForumContentLimits()
 const drawerHeight = ref<number | null>(null)
 const localContentError = ref('')
 const localReasonError = ref('')
@@ -372,6 +374,7 @@ onBeforeUnmount(() => {
         :disabled="submitting"
         :submit-disabled="submitDisabled"
         :error="error || localContentError"
+        :enable-mentions="limits.mentionsEnabled"
         @update:model-value="emit('update:modelValue', $event)"
         @content-change="onContentChange"
       />

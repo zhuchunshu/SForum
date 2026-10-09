@@ -226,6 +226,9 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- 论坛编辑器 @提及自动补全（2026-10-10）：`SFEditor` 新增 `enableMentions`，
+  复用 `/composer/references?kind=user` 做候选、纯文本 `@username ` 插入 +
+  装饰高亮；详见 `sessions/2026-10-10-editor-mention-autocomplete-handoff.md`。
 - 插件候选升级入口（2026-08-29）：后台扩展总览与插件管理已把模糊的“候选”改为
   “待升级”，并明确当前版本仍继续运行；每个 staged 插件新增“升级”，工具栏新增
   “全部升级（N）”。批量流程逐个执行，V2→V2 使用原生 upgrade ledger，legacy 或

@@ -32,3 +32,100 @@
   position: fixed;
   z-index: 60;
 }
+
+/*
+ * 编辑器内的提及体验：.sf-mention-inline 是 ProseMirror 内联装饰（仅视觉提示，
+ * 不影响序列化）；.sf-mention-menu 是 suggestion 候选浮层（原生 DOM 挂在 body）。
+ */
+
+.sf-mention-inline {
+  padding: 0 3px;
+  border-radius: 4px;
+  background: var(--sf-accent-soft, color-mix(in srgb, var(--sf-accent) 12%, transparent));
+  color: var(--sf-accent);
+}
+
+.sf-mention-menu {
+  position: fixed;
+  z-index: 80;
+  min-width: 210px;
+  max-width: 320px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid var(--sf-border, var(--border, #e5e7eb));
+  background: var(--sf-surface, var(--background, #fff));
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+}
+
+.sf-mention-menu__list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sf-mention-menu__option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sf-mention-menu__option[data-active='true'],
+.sf-mention-menu__option:hover {
+  background: var(--sf-accent-soft, color-mix(in srgb, var(--sf-accent) 12%, transparent));
+}
+
+.sf-mention-menu__avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: none;
+}
+
+.sf-mention-menu__avatar--initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sf-accent-soft, color-mix(in srgb, var(--sf-accent) 16%, transparent));
+  color: var(--sf-accent);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.sf-mention-menu__labels {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.sf-mention-menu__name {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sf-mention-menu__username {
+  font-size: 12px;
+  opacity: 0.7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sf-mention-menu__empty {
+  padding: 8px 10px;
+  font-size: 12px;
+  opacity: 0.7;
+}

@@ -798,6 +798,7 @@ onBeforeRouteLeave(() => {
                   :max-characters="limits.topicContentMaxRunes"
                   :error="fieldErrors.content?.join(', ')"
                   :rows="14"
+                  :enable-mentions="limits.mentionsEnabled"
                   @content-change="onEditorContentChange"
                   @submit="onEditorSubmit"
                 />

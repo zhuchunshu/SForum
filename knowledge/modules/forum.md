@@ -515,6 +515,17 @@ visibility, and mention limits.
 - Pending topic/comment approval loads stored source and target context inside
   the decision transaction, then writes moderation plus eligible reply/mention
   projections exactly once. Rejection writes only the author's moderation result.
+- Editor autocomplete for mentions (2026-10-10): `SFEditor` gains an
+  `enableMentions` prop; forum hosts (topic composer/edit, comment drawer)
+  forward `limits.mentionsEnabled` from the public `forum.mentions.enabled`
+  option. The editor extension lives in `app/utils/editor/mentions.ts`: a
+  Tiptap `Suggestion` (char `@`, `minQueryLength: 1`, debounce 150ms) opens a
+  vanilla-DOM candidate menu fed by the existing authenticated
+  `GET /composer/references?kind=user` endpoint (reuse, no new API), inserting
+  plain text `@username `; a separate decoration plugin highlights tokens with
+  `.sf-mention-inline` using `forumMentionTokens` so editor highlight matches
+  backend parsing exactly (code blocks/spans excluded). No storage-format or
+  backend changes: stayed with plain-text mentions on purpose.
 - New pending topics/comments and edits requeued by moderation transactionally
   notify every active effective `moderation.review` holder except the
   submitter/editor. Each row links to the protected pre-publication workbench;

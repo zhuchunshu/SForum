@@ -5093,6 +5093,9 @@
       "loadFailed": "The image could not be loaded."
     },
     "commentLink": "Link",
+    "copyShortcode": "Quote shortcode",
+    "shortcodeCopied": "Quote shortcode copied",
+    "copyShortcodeHint": "Copy quote shortcode",
     "commentMoreActions": "More reply actions",
     "commentLinkCopied": "Comment link copied",
     "replyFailed": "Reply failed, please try again.",
@@ -5272,6 +5275,9 @@
     "removeTag": "Remove tag",
     "bodyLabel": "Body",
     "bodyPlaceholder": "Write what you want to share...",
+    "mention": {
+      "empty": "No matching users"
+    },
     "imageUpload": {
       "uploading": "Uploading image",
       "dialogTitle": "Upload images",

@@ -334,6 +334,7 @@ defineExpose({ save })
             :submit-label="submitLabel"
             :disabled="submitState === 'submitting'"
             :submit-disabled="(editorPayload?.pendingUploadCount || 0) > 0"
+            :enable-mentions="limits.mentionsEnabled"
             @content-change="onEditorContentChange"
             @submit="onEditorSubmit"
           />
