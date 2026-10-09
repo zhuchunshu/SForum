@@ -5361,6 +5361,12 @@
       "deleted": "短代码已删除",
       "unwrapped": "内容保护已解除",
       "invalidProtectedBody": "保护块不能为空，且最多 32 个短代码、4 层嵌套。",
+      "invalidProtectedEmpty": "保护块不能为空：请先选中非空内容，或将光标放在有内容的段落中。",
+      "invalidProtectedPlacement": "保护块只能插在正文顶层，不能放在列表项或引用块内部。",
+      "invalidProtectedPlacementExisting": "文档中已有短代码位于列表或引用块内部，请先删除或移动它。",
+      "invalidProtectedCommentOnly": "「仅作者可见」只能在评论中使用。",
+      "invalidProtectedCount": "整篇最多包含 32 个短代码节点。",
+      "invalidProtectedDepth": "短代码最多嵌套 4 层。",
       "selectProtectedBody": "请先选中非空内容，或将光标放在有内容的段落中。",
       "disabled": "短代码插件当前不可用",
       "kinds": {

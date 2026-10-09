@@ -847,6 +847,19 @@ Architecture sources:
   block can change type, be deleted or unwrapped, and its accepted body remains
   editable through the native editor document. The UI is presentation-only;
   Host validation rejects empty bodies and topic `only-author` placement.
+- 2026-10-10 fix: protected-block insert/change runs on a candidate transaction
+  built by `buildSForumProtectedTransaction` (`app/utils/editor/shortcodes.ts`)
+  and is only dispatched when the Host document inspection passes — Tiptap
+  unconditionally dispatches non-chained `commands.command` transactions, so a
+  false return cannot roll a mutation back. `inspectSForumShortcodeDocument`
+  now reports grouped failure reasons (empty/placement/declaration/commentOnly/
+  count/depth) that map to actionable i18n messages; placement distinguishes new
+  violations from pre-existing misplaced nodes (e.g. a reference inserted
+  inside a list item poisoning the document). Regression coverage lives in
+  `tests/framework/editorShortcodes.test.ts` (builder suite asserting the
+  document stays byte-identical on failure) and `editorCanvas.test.ts`
+  (dispatch wiring). Decision:
+  `decisions/2026-10-10-editor-validation-candidate-transaction.md`.
 - M10A adds the legacy conversion/report corpus
   (`contracts/fixtures/shortcode-legacy-conversion-v1.json`) consumed by both
   the Go and TypeScript conformance suites with identical classification,

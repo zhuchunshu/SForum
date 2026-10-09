@@ -86,4 +86,13 @@ describe('Forum Canvas editor surface', () => {
     expect(contentSemantics).not.toContain('focus-within')
     expect(contentSemantics).not.toContain('ProseMirror-selectednode')
   })
+
+  it('dispatches protected shortcode inserts only for a valid candidate transaction', () => {
+    // Tiptap 对非链式 commands.command 无条件 view.dispatch(tr)，校验前置必须落在
+    // 独立事务上：upsertProtected 只在 buildSForumProtectedTransaction 返回 ready
+    // 后才允许 dispatch，任何失败分支都不触碰文档。
+    expect(editor).toContain('buildSForumProtectedTransaction')
+    expect(editor).toContain("outcome.status !== 'ready'")
+    expect(editor).toContain('view.dispatch(outcome.tr.scrollIntoView())')
+  })
 })

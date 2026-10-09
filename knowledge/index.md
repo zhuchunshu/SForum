@@ -6,6 +6,20 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
+### Achievements / Gamification
+
+- Status: **active, M0 complete**; the design draft, Core event inventory,
+  pre-M0 detail decisions, and the M0 Extension Surface Matrix are accepted.
+  Key M0 finding: Phase 1 needs zero new Core framework contracts — the badge
+  wall rides the existing `forum.profile.tabs` contribution point, events/
+  notification types/permissions/schedules/host-managed plugin database are
+  all manifest-declared. Plugin id `sforum.gamification`, permission key
+  `sforum.gamification.manage`, OpenAPI fragment in-package. M1 (persistence
+  + store) is next; no implementation has started.
+- Plan: `plans/2026-10-10-achievements-gamification.md`
+- Decision: `decisions/2026-10-10-achievements-badges-design-draft.md`
+- Report: `reports/2026-10-10-achievements-m0-surface-matrix.md`
+
 ### Extension Authoring Speed And Controlled Power
 
 - Status: **ready**; the ordered M0-M10 task book covers selected-theme public
@@ -226,6 +240,9 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- 受保护短代码插入修复（2026-10-10）：校验失败的插入不再改动文档，
+  五种失败原因拆分为六个可操作性文案；详见
+  `sessions/2026-10-10-shortcode-protected-insert-fix-handoff.md`。
 - 论坛编辑器 @提及自动补全（2026-10-10）：`SFEditor` 新增 `enableMentions`，
   复用 `/composer/references?kind=user` 做候选、纯文本 `@username ` 插入 +
   装饰高亮；详见 `sessions/2026-10-10-editor-mention-autocomplete-handoff.md`。

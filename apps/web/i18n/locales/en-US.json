@@ -5321,6 +5321,12 @@
       "deleted": "Shortcode deleted",
       "unwrapped": "Content protection removed",
       "invalidProtectedBody": "Protected blocks cannot be empty and are limited to 32 shortcodes and 4 nesting levels.",
+      "invalidProtectedEmpty": "Protected blocks cannot be empty: select non-empty content first, or place the cursor in a paragraph with content.",
+      "invalidProtectedPlacement": "Protected blocks can only be inserted at the top level of the body, not inside list items or quote blocks.",
+      "invalidProtectedPlacementExisting": "An existing shortcode sits inside a list item or quote block; delete or move it first.",
+      "invalidProtectedCommentOnly": "The author-only block is only available in comments.",
+      "invalidProtectedCount": "A document may contain at most 32 shortcode nodes.",
+      "invalidProtectedDepth": "Shortcodes may nest at most 4 levels deep.",
       "selectProtectedBody": "Select non-empty content or place the cursor in a paragraph with content.",
       "disabled": "The shortcode plugin is unavailable",
       "kinds": {

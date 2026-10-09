@@ -8,11 +8,13 @@ import {
   type MarkdownTokenizer
 } from '@tiptap/vue-3'
 import { nodeInputRule, nodePasteRule, type NodeViewRenderer } from '@tiptap/core'
+import type { EditorState, Transaction } from '@tiptap/pm/state'
 import type {
   EditorProtectedKind,
   EditorProtectedSelectionV1,
   EditorReferenceKind,
-  EditorReferenceSelectionV1
+  EditorReferenceSelectionV1,
+  EditorShortcodeSelectionV1
 } from '~/runtime/editor-extensions/types'
 
 export const SF_SHORTCODE_REF_NODE = 'sforumShortcodeRef'
@@ -307,10 +309,24 @@ export function sforumProtectedNodeAttributes(kind: EditorProtectedKind, resourc
   return shortcodeAttrs(declaration, {})
 }
 
+export type SFShortcodeDocumentFailure =
+  | 'declaration'
+  | 'commentOnly'
+  | 'placement'
+  | 'empty'
+  | 'count'
+  | 'depth'
+
 export function inspectSForumShortcodeDocument(document: JSONContent, resourceKind: SFShortcodeResourceKind) {
   let count = 0
   let maxDepth = 0
   let valid = true
+  // 失败按原因归组，便于调用方给出可操作的提示；去重保持有序。
+  const reasons: SFShortcodeDocumentFailure[] = []
+  const fail = (reason: SFShortcodeDocumentFailure) => {
+    valid = false
+    if (!reasons.includes(reason)) reasons.push(reason)
+  }
   const walk = (nodes: JSONContent[], depth: number, parentType: string) => {
     for (const node of nodes) {
       let nextDepth = depth
@@ -319,15 +335,18 @@ export function inspectSForumShortcodeDocument(document: JSONContent, resourceKi
         nextDepth += 1
         maxDepth = Math.max(maxDepth, nextDepth)
         const declaration = declarationsByID.get(String(node.attrs?.id || ''))
-        if (!declaration || (declaration.commentOnly && resourceKind !== 'comment')) valid = false
-        if (parentType !== 'doc' && parentType !== SF_SHORTCODE_BLOCK_NODE) valid = false
-        if (node.type === SF_SHORTCODE_BLOCK_NODE && !shortcodeBodyHasContent(node.content || [])) valid = false
+        if (!declaration) fail('declaration')
+        else if (declaration.commentOnly && resourceKind !== 'comment') fail('commentOnly')
+        if (parentType !== 'doc' && parentType !== SF_SHORTCODE_BLOCK_NODE) fail('placement')
+        if (node.type === SF_SHORTCODE_BLOCK_NODE && !shortcodeBodyHasContent(node.content || [])) fail('empty')
       }
       walk(node.content || [], nextDepth, node.type || '')
     }
   }
   walk(document.content || [], 0, 'doc')
-  return { valid: valid && count <= SF_SHORTCODE_MAX_NODES && maxDepth <= SF_SHORTCODE_MAX_DEPTH, count, maxDepth }
+  if (count > SF_SHORTCODE_MAX_NODES) fail('count')
+  if (maxDepth > SF_SHORTCODE_MAX_DEPTH) fail('depth')
+  return { valid, reasons, count, maxDepth }
 }
 
 function shortcodeBodyHasContent(nodes: JSONContent[]): boolean {
@@ -336,6 +355,62 @@ function shortcodeBodyHasContent(nodes: JSONContent[]): boolean {
     if (['image', 'horizontalRule', 'sforumEmoji', SF_SHORTCODE_REF_NODE].includes(node.type || '')) return true
     return shortcodeBodyHasContent(node.content || [])
   })
+}
+
+export type SFProtectedInsertResult =
+  | { status: 'ready', tr: Transaction }
+  // 选区无法定位可包裹内容（光标深度非法、空片段、失效的节点引用）。
+  | { status: 'selection' }
+  | { status: 'invalid', reasons: SFShortcodeDocumentFailure[], hadPlacementViolation: boolean }
+  | { status: 'exception' }
+
+// 构建「包裹/改型保护块」的候选事务，但不在此处派发：Tiptap 的
+// commands.command 对非链式命令无条件 view.dispatch(tr)，校验失败时
+// return false 也拦不住事务落库，非法块照样进文档。调用方必须把事务建在
+// 独立的 state.tr 上，只有返回 ready 才允许 dispatch。
+export function buildSForumProtectedTransaction(options: {
+  state: EditorState
+  attrs: Record<string, unknown>
+  resourceKind: SFShortcodeResourceKind
+  selection?: EditorShortcodeSelectionV1
+}): SFProtectedInsertResult {
+  const { state, attrs, resourceKind, selection } = options
+  const before = inspectSForumShortcodeDocument(state.doc.toJSON(), resourceKind)
+  const tr = state.tr
+  try {
+    if (selection && 'protected' in selection) {
+      const node = tr.doc.nodeAt(selection.position)
+      if (!node || node.type.name !== SF_SHORTCODE_BLOCK_NODE) return { status: 'selection' }
+      tr.setNodeMarkup(selection.position, undefined, attrs)
+    } else {
+      const currentSelection = tr.selection
+      let from = currentSelection.from
+      let to = currentSelection.to
+      let content = currentSelection.content().content
+      if (currentSelection.empty) {
+        const depth = currentSelection.$from.depth
+        if (depth < 1) return { status: 'selection' }
+        from = currentSelection.$from.before(depth)
+        to = currentSelection.$from.after(depth)
+        content = tr.doc.slice(from, to).content
+      }
+      const type = state.schema.nodes[SF_SHORTCODE_BLOCK_NODE]
+      if (!type || content.size === 0) return { status: 'selection' }
+      const protectedNode = type.create(attrs, content)
+      tr.replaceRangeWith(from, to, protectedNode)
+    }
+    const after = inspectSForumShortcodeDocument(tr.doc.toJSON(), resourceKind)
+    if (!after.valid) {
+      return {
+        status: 'invalid',
+        reasons: after.reasons,
+        hadPlacementViolation: !before.valid && before.reasons.includes('placement')
+      }
+    }
+    return { status: 'ready', tr }
+  } catch {
+    return { status: 'exception' }
+  }
 }
 
 function createSForumShortcodeBlockExtension(
@@ -461,6 +536,16 @@ function renderProtectedMarkdown(node: JSONContent, helpers: MarkdownRendererHel
     .replace(/(^|\n)((?:[-+*]|\d+[.)])\s+[^\n]*)\n\n(?=#{1,6}\s)/g, '$1$2\n\n\n')
     .trim()
   return `${canonicalOpening(declaration, node.attrs?.arguments)}\n${content}\n[/${declaration.name}]`
+}
+
+/**
+ * 评论引用 shortcode 的 canonical 文本：供评论区「复制引用 Shortcode」一键复制。
+ * 与编辑器粘贴/导出口径一致，粘贴后会被 referenceTokenizer 识别为 comment 引用节点。
+ */
+export function sforumCommentShortcodeText(commentId: number): string {
+  const declaration = declarationsByName.get('comment')
+  if (!declaration) return ''
+  return `${canonicalOpening(declaration, { commentId })}[/${declaration.name}]`
 }
 
 function canonicalOpening(declaration: SFShortcodeDeclaration, args: Record<string, unknown> = {}) {
