@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useTopicCommentSubmission } from '~/composables/forum/useTopicCommentSubmission'
+import { useForumContentLimits } from '~/composables/forum/useForumContentLimits'
 import type { ForumComment, ForumTopicDetail } from '~/utils/forum/forumTaxonomy'
 
 type AvatarView = {
@@ -23,6 +24,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { limits } = useForumContentLimits()
 const replyingTo = ref<ForumComment | null>(null)
 const {
   replyMarkdown,
@@ -70,6 +72,7 @@ function cancelReply() {
       :support-label="t('topicDetail.markdownSupported')"
       :disabled="replySubmitting"
       :submit-disabled="commentCooldownActive"
+      :enable-mentions="limits.mentionsEnabled"
       @cancel="cancelReply"
       @submit="submitReply"
     />
