@@ -26,6 +26,7 @@ import {
   type ForumTag
 } from '~/utils/forum/forumTaxonomy'
 import type { SFEditorContentPayload } from '~/utils/sfEditor'
+import { sforumDocumentPublishIssue, sforumPublishFailureKey } from '~/utils/editor/shortcodes'
 import { onBeforeRouteLeave } from 'vue-router'
 
 
@@ -394,7 +395,11 @@ async function submit(payload?: Pick<SFEditorContentPayload, 'markdown' | 'nativ
   }
   // 字数校验仍按 markdown/text 预估；最终权威在 Host Accept/Render。
   const bodyError = validateTopicBody(payload?.text || markdown)
-  if (bodyError === 'contentTooShort') {
+  // 空保护块在编辑期合法，但发布前必须有内容：比字数校验更具体，优先呈现。
+  const protectedIssue = sforumDocumentPublishIssue(payload?.native ?? editorPayload.value?.native, 'topic')
+  if (protectedIssue) {
+    nextErrors.content = [t(sforumPublishFailureKey(protectedIssue))]
+  } else if (bodyError === 'contentTooShort') {
     nextErrors.content = [t('composer.contentTooShort', { min: limits.value.topicContentMinRunes })]
   } else if (bodyError === 'contentTooLong') {
     nextErrors.content = [t('composer.contentTooLong', { max: limits.value.topicContentMaxRunes })]

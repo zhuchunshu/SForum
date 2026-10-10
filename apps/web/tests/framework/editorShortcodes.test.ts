@@ -11,7 +11,10 @@ import {
   inspectSForumShortcodeDocument,
   inspectSForumShortcodeMarkdown,
   prepareSForumShortcodeMarkdown,
+  sforumCanInsertReference,
   sforumCommentShortcodeText,
+  sforumDocumentPublishIssue,
+  sforumPublishFailureKey,
   SF_SHORTCODE_BLOCK_NODE,
   SF_SHORTCODE_REF_NODE,
   SF_SHORTCODE_TEXT_VERSION,
@@ -243,22 +246,95 @@ describe('protected insert transaction builder', () => {
     return outcome
   }
 
-  it('rejects an empty caret paragraph with the empty reason and leaves the document untouched', () => {
+  it('inserts an empty scaffold when the caret sits in an empty paragraph', () => {
     makeEditorForBuilder('<p>第一段</p><p></p>')
-    const beforeJson = editor!.getJSON()
     editor!.commands.setTextSelection(editor!.state.doc.content.size - 1)
-    const outcome = expectInvalid(build())
-    expect(outcome.reasons).toEqual(['empty'])
+    const beforeJson = editor!.getJSON()
+    const outcome = build()
+    // 构建期不动文档，插入由调用方在 ready 后派发。
     expect(editor!.getJSON()).toEqual(beforeJson)
+    expect(outcome.status).toBe('ready')
+    if (outcome.status !== 'ready') return
+    editor!.view.dispatch(outcome.tr.scrollIntoView())
+    const json = editor!.getJSON()
+    expect(json.content![1]!.type).toBe(SF_SHORTCODE_BLOCK_NODE)
+    expect(json.content![1]!.content).toEqual([{ type: 'paragraph' }])
+    // 编辑口径放行空脚手架，发布口径仍然拒绝。
+    expect(inspectSForumShortcodeDocument(json, 'topic', { allowEmptyProtectedBody: true }).valid).toBe(true)
+    expect(inspectSForumShortcodeDocument(json, 'topic').reasons).toEqual(['empty'])
+    // 光标落在脚手架内部，用户可以直接输入内容。
+    expect(editor!.state.selection.$from.depth).toBeGreaterThan(1)
   })
 
-  it('treats a paragraph holding only hard breaks as an empty body', () => {
+  it('treats a paragraph holding only hard breaks as an empty scaffold body', () => {
     makeEditorForBuilder('<p><br></p>')
-    const beforeJson = editor!.getJSON()
     editor!.commands.setTextSelection(1)
-    const outcome = expectInvalid(build())
-    expect(outcome.reasons).toEqual(['empty'])
-    expect(editor!.getJSON()).toEqual(beforeJson)
+    const outcome = build()
+    expect(outcome.status).toBe('ready')
+    if (outcome.status !== 'ready') return
+    editor!.view.dispatch(outcome.tr)
+    expect(inspectSForumShortcodeDocument(editor!.getJSON(), 'topic').reasons).toEqual(['empty'])
+  })
+
+  it('keeps later inserts working while an empty scaffold exists', () => {
+    makeEditorForBuilder('<p>第一段</p><p></p>')
+    editor!.commands.setTextSelection(editor!.state.doc.content.size - 1)
+    const scaffold = build()
+    if (scaffold.status !== 'ready') throw new Error(`expected ready, got ${scaffold.status}`)
+    editor!.view.dispatch(scaffold.tr)
+    // 空脚手架不得成为文档级失败原因，否则后续短代码操作会被它卡死。
+    let pos = -1
+    editor!.state.doc.descendants((node, position) => {
+      if (pos < 0 && node.isText && node.text?.includes('第一段')) pos = position + 1
+      return pos < 0
+    })
+    editor!.commands.setTextSelection(pos)
+    expect(build().status).toBe('ready')
+  })
+
+  it('keeps the empty scaffold out of the emitted markdown', () => {
+    makeEditorForBuilder({
+      type: 'doc',
+      content: [
+        { type: 'paragraph', content: [{ type: 'text', text: '正文' }] },
+        { type: SF_SHORTCODE_BLOCK_NODE, attrs: {
+          id: 'sforum-shortcodes.reply',
+          contractVersion: 'sforum-shortcodes.reply@1',
+          arguments: {}
+        }, content: [{ type: 'paragraph' }] }
+      ]
+    })
+    // 空保护体在 Markdown 里会退化成字面文本，所以空脚手架不进入发射结果。
+    expect(editor!.getMarkdown()).not.toContain('[reply]')
+    expect(editor!.getMarkdown()).toContain('正文')
+  })
+
+  it('exports the block syntax once the scaffold has content and round-trips it', () => {
+    makeEditorForBuilder({
+      type: 'doc',
+      content: [
+        { type: SF_SHORTCODE_BLOCK_NODE, attrs: {
+          id: 'sforum-shortcodes.reply',
+          contractVersion: 'sforum-shortcodes.reply@1',
+          arguments: {}
+        }, content: [{ type: 'paragraph', content: [{ type: 'text', text: '需要回复才能看' }] }] }
+      ]
+    })
+    const markdown = editor!.getMarkdown()
+    expect(markdown).toContain('[reply]')
+    // 这也是草稿保存/恢复的路径：有内容时必须能还原成保护块节点。
+    const reimported = new Editor({
+      extensions: createSFEditorExtensions({ placeholder: 'body', maxCharacters: 10000, resourceKind: 'topic' }),
+      content: markdown,
+      contentType: 'markdown'
+    })
+    try {
+      expect(summarizeShortcodes(reimported.getJSON().content || [], 0)).toEqual([
+        { type: 'block', id: 'sforum-shortcodes.reply', arguments: {}, depth: 1 }
+      ])
+    } finally {
+      reimported.destroy()
+    }
   })
 
   it('wraps a top-level paragraph caret into a ready transaction without touching the editor', () => {
@@ -276,16 +352,82 @@ describe('protected insert transaction builder', () => {
     }
   })
 
-  it('flags a blockquote caret as a new placement violation', () => {
+  it('wraps the whole blockquote when the caret sits inside it (top-level target)', () => {
     makeEditorForBuilder('<blockquote><p>引用内容</p></blockquote>')
     // 先设选区再快照：StarterKit TrailingNode 会在首次 dispatch 时给非 textblock
     // 结尾的文档补一个尾段落，把它纳入基线，才能断言 build 自身不动文档。
     caretInto(editor!, '引用')
     const beforeJson = editor!.getJSON()
-    const outcome = expectInvalid(build())
-    expect(outcome.reasons).toEqual(['placement'])
-    expect(outcome.hadPlacementViolation).toBe(false)
+    const outcome = build()
     expect(editor!.getJSON()).toEqual(beforeJson)
+    expect(outcome.status).toBe('ready')
+    if (outcome.status === 'ready') {
+      editor!.view.dispatch(outcome.tr)
+      const json = editor!.getJSON()
+      expect(json.content![0]!.type).toBe(SF_SHORTCODE_BLOCK_NODE)
+      expect(json.content![0]!.content![0]!.type).toBe('blockquote')
+    }
+  })
+
+  it('wraps the whole list when the caret sits inside a nested list item', () => {
+    makeEditorForBuilder('<ul><li><p>外层</p><ul><li><p>内层条目</p></li></ul></li></ul>')
+    caretInto(editor!, '内层')
+    const outcome = build()
+    expect(outcome.status).toBe('ready')
+    if (outcome.status === 'ready') {
+      editor!.view.dispatch(outcome.tr)
+      const json = editor!.getJSON()
+      expect(json.content![0]!.type).toBe(SF_SHORTCODE_BLOCK_NODE)
+      expect(json.content![0]!.content![0]!.type).toBe('bulletList')
+    }
+  })
+
+  it('expands a partial text selection to the whole top-level paragraph', () => {
+    makeEditorForBuilder('<p>这是要隐藏的正文内容</p>')
+    let from = -1
+    editor!.state.doc.descendants((node, pos) => {
+      if (from >= 0) return false
+      if (node.isText && node.text?.includes('隐藏')) {
+        from = pos + node.text.indexOf('隐藏')
+        return false
+      }
+      return true
+    })
+    editor!.commands.setTextSelection({ from, to: from + 2 })
+    const outcome = build()
+    expect(outcome.status).toBe('ready')
+    if (outcome.status === 'ready') {
+      editor!.view.dispatch(outcome.tr)
+      // getText 会把受保护块序列化为占位符，正文断言落在 JSON 里。
+      const wrappedParagraph = editor!.getJSON().content![0]!.content![0]!
+      expect(wrappedParagraph.type).toBe('paragraph')
+      expect(wrappedParagraph.content![0]!.text).toBe('这是要隐藏的正文内容')
+    }
+  })
+
+  it('nests the whole existing block when the caret sits inside it', () => {
+    makeEditorForBuilder({
+      type: 'doc',
+      content: [
+        { type: SF_SHORTCODE_BLOCK_NODE, attrs: {
+          id: 'sforum-shortcodes.login',
+          contractVersion: 'sforum-shortcodes.login@1',
+          arguments: {}
+        }, content: [
+          { type: 'paragraph', content: [{ type: 'text', text: '秘密' }] }
+        ] }
+      ]
+    })
+    caretInto(editor!, '秘密')
+    const outcome = build()
+    expect(outcome.status).toBe('ready')
+    if (outcome.status === 'ready') {
+      editor!.view.dispatch(outcome.tr)
+      expect(summarizeShortcodes(editor!.getJSON().content || [], 0)).toEqual([
+        { type: 'block', id: 'sforum-shortcodes.reply', arguments: {}, depth: 1 },
+        { type: 'block', id: 'sforum-shortcodes.login', arguments: {}, depth: 2 }
+      ])
+    }
   })
 
   it('distinguishes a pre-existing placement violation inside a poisoned document', () => {
@@ -397,5 +539,141 @@ describe('protected insert transaction builder', () => {
         { type: 'block', id: 'sforum-shortcodes.reply', arguments: {}, depth: 1 }
       ])
     }
+  })
+})
+
+// 引用节点插入的前置容器检查（与 inspector 的 placement 规则一致）：光标两端
+// 所在容器必须都是 doc 或保护块，否则 insertContent 会把引用拆进列表项/引用块
+// 内部，把整篇文档投毒成 invalid——之后所有保护块插入都会一起报错。
+describe('reference insertion placement preflight', () => {
+  function makeEditorForPlacement(content: string | JSONContent) {
+    editor = new Editor({
+      extensions: createSFEditorExtensions({ placeholder: 'body', maxCharacters: 10000, resourceKind: 'topic' }),
+      content: content as never
+    })
+    return editor
+  }
+
+  function placeCaretAt(editorInstance: Editor, needle: string) {
+    let found = -1
+    editorInstance.state.doc.descendants((node, pos) => {
+      if (found >= 0) return false
+      if (node.isText && node.text?.includes(needle)) {
+        found = pos + node.text.indexOf(needle)
+        return false
+      }
+      return true
+    })
+    editorInstance.commands.setTextSelection(found + 1)
+  }
+
+  it('allows a caret in a top-level paragraph', () => {
+    makeEditorForPlacement('<p>正文内容</p>')
+    placeCaretAt(editor!, '正文')
+    expect(sforumCanInsertReference(editor!.state)).toBe(true)
+  })
+
+  it('rejects a caret inside a list item', () => {
+    makeEditorForPlacement('<ul><li><p>列表项</p></li></ul>')
+    placeCaretAt(editor!, '列表项')
+    expect(sforumCanInsertReference(editor!.state)).toBe(false)
+  })
+
+  it('rejects a caret inside a blockquote', () => {
+    makeEditorForPlacement('<blockquote><p>引用内容</p></blockquote>')
+    placeCaretAt(editor!, '引用')
+    expect(sforumCanInsertReference(editor!.state)).toBe(false)
+  })
+
+  it('allows a caret inside a paragraph nested in a protected block', () => {
+    makeEditorForPlacement({
+      type: 'doc',
+      content: [
+        { type: SF_SHORTCODE_BLOCK_NODE, attrs: {
+          id: 'sforum-shortcodes.login',
+          contractVersion: 'sforum-shortcodes.login@1',
+          arguments: {}
+        }, content: [
+          { type: 'paragraph', content: [{ type: 'text', text: '秘密内容' }] }
+        ] }
+      ]
+    })
+    placeCaretAt(editor!, '秘密')
+    expect(sforumCanInsertReference(editor!.state)).toBe(true)
+  })
+
+  it('rejects a caret inside a list nested in a protected block', () => {
+    makeEditorForPlacement({
+      type: 'doc',
+      content: [
+        { type: SF_SHORTCODE_BLOCK_NODE, attrs: {
+          id: 'sforum-shortcodes.login',
+          contractVersion: 'sforum-shortcodes.login@1',
+          arguments: {}
+        }, content: [
+          { type: 'bulletList', content: [{ type: 'listItem', content: [
+            { type: 'paragraph', content: [{ type: 'text', text: '块内列表项' }] }
+          ] }] }
+        ] }
+      ]
+    })
+    placeCaretAt(editor!, '块内列表项')
+    expect(sforumCanInsertReference(editor!.state)).toBe(false)
+  })
+})
+
+// 发布门：编辑期允许空脚手架，提交前必须满足 Host 文档规则；这里锁定「哪一个
+// 原因优先呈现」与「键映射」，页面用同一对函数把错误放进字段级提示。
+describe('protected publish gate', () => {
+  const emptyScaffold = {
+    type: 'doc',
+    content: [{
+      type: SF_SHORTCODE_BLOCK_NODE,
+      attrs: { id: 'sforum-shortcodes.reply', contractVersion: 'sforum-shortcodes.reply@1', arguments: {} },
+      content: [{ type: 'paragraph' }]
+    }]
+  }
+
+  it('reports an empty scaffold as the publish issue', () => {
+    expect(sforumDocumentPublishIssue(emptyScaffold, 'topic')).toBe('empty')
+    expect(sforumPublishFailureKey('empty')).toBe('composer.shortcodes.invalidProtectedEmpty')
+    expect(sforumDocumentPublishIssue(undefined, 'topic')).toBeNull()
+    expect(sforumDocumentPublishIssue({ type: 'doc', content: [{ type: 'paragraph' }] }, 'topic')).toBeNull()
+  })
+
+  it('reports comment-only placement and budget reasons in priority order', () => {
+    expect(sforumDocumentPublishIssue({
+      type: 'doc',
+      content: [{
+        type: SF_SHORTCODE_BLOCK_NODE,
+        attrs: { id: 'sforum-shortcodes.only-author', contractVersion: 'sforum-shortcodes.only-author@1', arguments: {} },
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: '仅作者' }] }]
+      }]
+    }, 'topic')).toBe('commentOnly')
+
+    expect(sforumDocumentPublishIssue({
+      type: 'doc',
+      content: [
+        { type: 'bulletList', content: [{ type: 'listItem', content: [
+          { type: 'paragraph', content: [{ type: 'text', text: '列表' }] },
+          { type: SF_SHORTCODE_REF_NODE, attrs: {
+            id: 'sforum-shortcodes.topic',
+            contractVersion: 'sforum-shortcodes.topic@1',
+            arguments: { topicId: 2 }
+          } }
+        ] }] }
+      ]
+    }, 'topic')).toBe('placement')
+  })
+
+  it('lets a filled scaffold pass the gate', () => {
+    expect(sforumDocumentPublishIssue({
+      type: 'doc',
+      content: [{
+        type: SF_SHORTCODE_BLOCK_NODE,
+        attrs: { id: 'sforum-shortcodes.reply', contractVersion: 'sforum-shortcodes.reply@1', arguments: {} },
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: '需要回复才能看' }] }]
+      }]
+    }, 'topic')).toBeNull()
   })
 })

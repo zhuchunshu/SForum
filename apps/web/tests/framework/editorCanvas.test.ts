@@ -94,5 +94,8 @@ describe('Forum Canvas editor surface', () => {
     expect(editor).toContain('buildSForumProtectedTransaction')
     expect(editor).toContain("outcome.status !== 'ready'")
     expect(editor).toContain('view.dispatch(outcome.tr.scrollIntoView())')
+    // 新插入引用须经容器前置校验（改型既有节点除外），切断引用落进列表项的
+    // 投毒口。
+    expect(editor).toContain('sforumCanInsertReference(currentEditor.state)')
   })
 })

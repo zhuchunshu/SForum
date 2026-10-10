@@ -30,6 +30,7 @@ import {
   type ForumTopicDetail
 } from '~/utils/forum/forumTaxonomy'
 import { editorDocumentSignature, type SFEditorContentPayload } from '~/utils/sfEditor'
+import { sforumDocumentPublishIssue, sforumPublishFailureKey } from '~/utils/editor/shortcodes'
 import type { ComposerFocusField } from '~/components/forum/SFTopicComposerLeftRail.vue'
 import { onBeforeRouteLeave } from 'vue-router'
 
@@ -475,7 +476,11 @@ async function submit(payload?: Pick<SFEditorContentPayload, 'markdown' | 'nativ
     nextErrors.title = [t('composer.titleTooLong', { max: limits.value.topicTitleMaxRunes })]
   }
   const bodyError = validateTopicBody(payload?.text || markdown)
-  if (bodyError === 'contentTooShort') {
+  // 空保护块在编辑期合法，但发布前必须有内容：比字数校验更具体，优先呈现。
+  const protectedIssue = sforumDocumentPublishIssue(payload?.native ?? editorPayload.value?.native, 'topic')
+  if (protectedIssue) {
+    nextErrors.content = [t(sforumPublishFailureKey(protectedIssue))]
+  } else if (bodyError === 'contentTooShort') {
     nextErrors.content = [t('composer.contentTooShort', { min: limits.value.topicContentMinRunes })]
   } else if (bodyError === 'contentTooLong') {
     nextErrors.content = [t('composer.contentTooLong', { max: limits.value.topicContentMaxRunes })]

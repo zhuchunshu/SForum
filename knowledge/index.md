@@ -240,8 +240,10 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- 受保护短代码插入修复（2026-10-10）：校验失败的插入不再改动文档，
-  五种失败原因拆分为六个可操作性文案；详见
+- 受保护短代码插入修复（2026-10-10）：校验失败的插入不再改动文档，五种失败
+  原因拆分为可操作性文案；阶段二把包裹目标固定为顶层块并为引用插入加容器前置
+  校验；阶段三空行可直接插入空脚手架（块内占位、发布门拦截、空块不进
+  Markdown）；详见
   `sessions/2026-10-10-shortcode-protected-insert-fix-handoff.md`。
 - 论坛编辑器 @提及自动补全（2026-10-10）：`SFEditor` 新增 `enableMentions`，
   复用 `/composer/references?kind=user` 做候选、纯文本 `@username ` 插入 +

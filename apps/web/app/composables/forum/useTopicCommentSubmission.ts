@@ -7,6 +7,7 @@ import {
   type ForumComment,
   type ForumTopicDetail
 } from '~/utils/forum/forumTaxonomy'
+import { sforumDocumentPublishIssue, sforumPublishFailureKey } from '~/utils/editor/shortcodes'
 
 type TopicCommentSubmissionOptions = {
   topic: Ref<ForumTopicDetail | null | undefined>
@@ -72,6 +73,13 @@ export function useTopicCommentSubmission(options: TopicCommentSubmissionOptions
     ) return
     const markdown = payload?.markdown ?? replyMarkdown.value
     if (!topicCommentEditorContentIsMeaningful(payload, markdown)) return
+    // 空保护块在编辑期合法（脚手架），但发布前必须有内容：Host 会拒绝空保护体。
+    const protectedIssue = sforumDocumentPublishIssue(payload?.native, 'comment')
+    if (protectedIssue) {
+      replyError.value = t(sforumPublishFailureKey(protectedIssue))
+      showReplyError.value = true
+      return
+    }
 
     replySubmitting.value = true
     replyError.value = ''

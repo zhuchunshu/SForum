@@ -5,6 +5,7 @@ import {
   sforumReferenceKind,
   sforumReferenceNumericID,
   sforumReferenceSelection,
+  sforumProtectedBodyIsEmpty,
   sforumProtectedKind,
   sforumProtectedSelection,
   inspectSForumShortcodeDocument
@@ -39,6 +40,7 @@ const messages: Record<string, string> = {
   'composer.shortcodes.changeProtection': 'Change protection',
   'composer.shortcodes.unwrap': 'Unwrap',
   'composer.shortcodes.invalidProtectedBody': 'Protected content cannot be empty',
+  'composer.shortcodes.protectedBodyPlaceholder': 'Enter the protected content',
   'composer.shortcodes.selectProtectedBody': 'Select content first',
   'composer.shortcodes.inserted': 'Inserted',
   'composer.shortcodes.updated': 'Updated',
@@ -57,6 +59,7 @@ Object.assign(globalThis, {
   sforumReferenceKind,
   sforumReferenceNumericID,
     sforumReferenceSelection,
+  sforumProtectedBodyIsEmpty,
   sforumProtectedKind,
   sforumProtectedSelection,
   nodeViewProps: tiptapVue.nodeViewProps
@@ -269,6 +272,52 @@ describe('shortcode reference NodeView', () => {
 })
 
 describe('protected shortcode NodeView and document rules', () => {
+  test('shows the in-block placeholder only while the protected body is empty', async () => {
+    const NodeViewWrapper = testVue.defineComponent({ template: '<div><slot /></div>' })
+    Object.assign(globalThis, { NodeViewWrapper })
+    const NodeView = await compileVueSfc(fileURLToPath(new URL(
+      '../../app/components/editor/shortcodes/SFShortcodeProtectedNodeView.vue', import.meta.url
+    )), 'shortcode-protected-node-view-placeholder')
+    const host = { disabled: () => false }
+    const baseProps = {
+      extension: { options: { nodeViewHost: host } }, selected: false, getPos: () => 5,
+      editor: {}, view: {}, decorations: [], innerDecorations: {}, HTMLAttributes: {},
+      updateAttributes: () => {}, deleteNode: () => {}
+    }
+    const empty = mount(NodeView, {
+      props: {
+        ...baseProps,
+        node: {
+          attrs: { id: 'sforum-shortcodes.reply', contractVersion: 'sforum-shortcodes.reply@1', arguments: {} },
+          toJSON: () => ({ type: 'sforumShortcodeBlock', content: [{ type: 'paragraph' }] })
+        }
+      },
+      global: { stubs: { NodeViewWrapper, NodeViewContent: true, UIcon: true } }
+    })
+    const filled = mount(NodeView, {
+      props: {
+        ...baseProps,
+        node: {
+          attrs: { id: 'sforum-shortcodes.reply', contractVersion: 'sforum-shortcodes.reply@1', arguments: {} },
+          toJSON: () => ({
+            type: 'sforumShortcodeBlock',
+            content: [{ type: 'paragraph', content: [{ type: 'text', text: '需要回复才能看' }] }]
+          })
+        }
+      },
+      global: { stubs: { NodeViewWrapper, NodeViewContent: true, UIcon: true } }
+    })
+    try {
+      expect(empty.get('.sf-protected-node--empty').exists()).toBe(true)
+      expect(empty.text()).toContain('Enter the protected content')
+      expect(filled.find('.sf-protected-node--empty').exists()).toBe(false)
+      expect(filled.text()).not.toContain('Enter the protected content')
+    } finally {
+      empty.unmount()
+      filled.unmount()
+    }
+  })
+
   test('renders protected block chrome without inline action buttons', async () => {
     const NodeViewWrapper = testVue.defineComponent({ template: '<div><slot /></div>' })
     Object.assign(globalThis, { NodeViewWrapper })

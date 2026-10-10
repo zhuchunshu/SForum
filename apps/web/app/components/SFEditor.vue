@@ -42,6 +42,7 @@ import {
   prepareSForumShortcodeMarkdown,
   SF_SHORTCODE_BLOCK_NODE,
   SF_SHORTCODE_REF_NODE,
+  sforumCanInsertReference,
   type SFProtectedInsertResult,
   type SFShortcodeReferencePreview,
   sforumProtectedNodeAttributes,
@@ -575,6 +576,12 @@ function upsertReference(
   if (!currentEditor || !attrs || props.disabled) return false
   const content = { type: SF_SHORTCODE_REF_NODE, attrs }
   const selectedNode = selection ? currentEditor.state.doc.nodeAt(selection.position) : null
+  // 只拦新插入：改型既有节点不改变其位置，不会引入新的位置违规。
+  const isFreshInsert = !selection || selectedNode?.type.name !== SF_SHORTCODE_REF_NODE
+  if (isFreshInsert && !sforumCanInsertReference(currentEditor.state)) {
+    shortcodeInlineError.value = t('composer.shortcodes.invalidReferencePlacement')
+    return false
+  }
   const changed = selection && selectedNode?.type.name === SF_SHORTCODE_REF_NODE
     ? currentEditor.chain().focus().insertContentAt({
         from: selection.position,
@@ -608,7 +615,7 @@ function deleteReference(selection: EditorReferenceSelectionV1) {
 function protectedInsertFailureKey(outcome: SFProtectedInsertResult) {
   if (outcome.status === 'selection') return 'composer.shortcodes.selectProtectedBody'
   if (outcome.status === 'invalid') {
-    if (outcome.reasons.includes('empty')) return 'composer.shortcodes.invalidProtectedEmpty'
+    // 空体不再是插入期失败：插入允许空脚手架，改由发布门负责。
     if (outcome.reasons.includes('placement')) {
       return outcome.hadPlacementViolation
         ? 'composer.shortcodes.invalidProtectedPlacementExisting'

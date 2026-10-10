@@ -317,7 +317,11 @@ export type SFShortcodeDocumentFailure =
   | 'count'
   | 'depth'
 
-export function inspectSForumShortcodeDocument(document: JSONContent, resourceKind: SFShortcodeResourceKind) {
+export function inspectSForumShortcodeDocument(
+  document: JSONContent,
+  resourceKind: SFShortcodeResourceKind,
+  options: { allowEmptyProtectedBody?: boolean } = {}
+) {
   let count = 0
   let maxDepth = 0
   let valid = true
@@ -338,7 +342,9 @@ export function inspectSForumShortcodeDocument(document: JSONContent, resourceKi
         if (!declaration) fail('declaration')
         else if (declaration.commentOnly && resourceKind !== 'comment') fail('commentOnly')
         if (parentType !== 'doc' && parentType !== SF_SHORTCODE_BLOCK_NODE) fail('placement')
-        if (node.type === SF_SHORTCODE_BLOCK_NODE && !shortcodeBodyHasContent(node.content || [])) fail('empty')
+        if (!options.allowEmptyProtectedBody
+          && node.type === SF_SHORTCODE_BLOCK_NODE
+          && !shortcodeBodyHasContent(node.content || [])) fail('empty')
       }
       walk(node.content || [], nextDepth, node.type || '')
     }
@@ -357,9 +363,44 @@ function shortcodeBodyHasContent(nodes: JSONContent[]): boolean {
   })
 }
 
+// 空保护体的判断复用同一份正文规则（纯文本/图片/分隔线/表情/引用算有内容，
+// 仅换行或上传占位不算），NodeView 的空态提示与 Host 校验必须同源。
+export function sforumProtectedBodyIsEmpty(node: JSONContent) {
+  return !shortcodeBodyHasContent(node.content || [])
+}
+
+/**
+ * 发布门：编辑器允许空保护块脚手架（插入后可继续输入），但提交前必须满足
+ * Host 文档规则——Host 对空保护体返回 ErrInvalidShortcode，且 Markdown 导入
+ * 链路会把空体保持字面，所以空块绝不能流到发布路径。
+ */
+export function sforumDocumentPublishIssue(
+  native: unknown,
+  resourceKind: SFShortcodeResourceKind
+): SFShortcodeDocumentFailure | null {
+  if (!native || typeof native !== 'object') return null
+  const inspection = inspectSForumShortcodeDocument(native as JSONContent, resourceKind)
+  if (inspection.valid) return null
+  // 空体提示最具体，优先于预算/嵌套类原因。
+  const priority: SFShortcodeDocumentFailure[] = ['empty', 'commentOnly', 'placement', 'declaration', 'count', 'depth']
+  return priority.find(reason => inspection.reasons.includes(reason)) || null
+}
+
+/** 发布门的本地化键：插入期不再拦截空体，因此空体文案按发布口径书写。 */
+export function sforumPublishFailureKey(issue: SFShortcodeDocumentFailure) {
+  switch (issue) {
+    case 'empty': return 'composer.shortcodes.invalidProtectedEmpty'
+    case 'commentOnly': return 'composer.shortcodes.invalidProtectedCommentOnly'
+    case 'placement': return 'composer.shortcodes.invalidProtectedPlacementExisting'
+    case 'count': return 'composer.shortcodes.invalidProtectedCount'
+    case 'depth': return 'composer.shortcodes.invalidProtectedDepth'
+    default: return 'composer.shortcodes.invalidProtectedBody'
+  }
+}
+
 export type SFProtectedInsertResult =
   | { status: 'ready', tr: Transaction }
-  // 选区无法定位可包裹内容（光标深度非法、空片段、失效的节点引用）。
+  // 选区无法定位可包裹内容（选取了空范围、失效的节点引用）。
   | { status: 'selection' }
   | { status: 'invalid', reasons: SFShortcodeDocumentFailure[], hadPlacementViolation: boolean }
   | { status: 'exception' }
@@ -375,7 +416,9 @@ export function buildSForumProtectedTransaction(options: {
   selection?: EditorShortcodeSelectionV1
 }): SFProtectedInsertResult {
   const { state, attrs, resourceKind, selection } = options
-  const before = inspectSForumShortcodeDocument(state.doc.toJSON(), resourceKind)
+  // 插入/改型按编辑口径校验：空保护块是合法脚手架，不阻止后续短代码操作。
+  const relaxed = { allowEmptyProtectedBody: true }
+  const before = inspectSForumShortcodeDocument(state.doc.toJSON(), resourceKind, relaxed)
   const tr = state.tr
   try {
     if (selection && 'protected' in selection) {
@@ -384,22 +427,22 @@ export function buildSForumProtectedTransaction(options: {
       tr.setNodeMarkup(selection.position, undefined, attrs)
     } else {
       const currentSelection = tr.selection
-      let from = currentSelection.from
-      let to = currentSelection.to
-      let content = currentSelection.content().content
-      if (currentSelection.empty) {
-        const depth = currentSelection.$from.depth
-        if (depth < 1) return { status: 'selection' }
-        from = currentSelection.$from.before(depth)
-        to = currentSelection.$from.after(depth)
-        content = tr.doc.slice(from, to).content
-      }
+      // 包裹目标固定为选区覆盖的顶层块：光标落在列表项、引用块或已嵌套的保护
+      // 块里时整层包入新块，父节点恒为 doc，不再产生 placement 违规；也避开
+      // replaceRangeWith 在容器内提升时会拆毁列表结构的怪异行为。
+      const from = currentSelection.$from.depth >= 1
+        ? currentSelection.$from.before(1)
+        : currentSelection.from
+      const to = currentSelection.$to.depth >= 1
+        ? currentSelection.$to.after(1)
+        : currentSelection.to
+      const content = tr.doc.slice(from, to).content
       const type = state.schema.nodes[SF_SHORTCODE_BLOCK_NODE]
       if (!type || content.size === 0) return { status: 'selection' }
       const protectedNode = type.create(attrs, content)
       tr.replaceRangeWith(from, to, protectedNode)
     }
-    const after = inspectSForumShortcodeDocument(tr.doc.toJSON(), resourceKind)
+    const after = inspectSForumShortcodeDocument(tr.doc.toJSON(), resourceKind, relaxed)
     if (!after.valid) {
       return {
         status: 'invalid',
@@ -411,6 +454,17 @@ export function buildSForumProtectedTransaction(options: {
   } catch {
     return { status: 'exception' }
   }
+}
+
+// 引用节点只能落在 doc 或保护块内。Tiptap insertContent 把块级原子节点恰拆进
+// 深度 depth-1 的容器节点之后，故检查 $from/$to 所在容器即可在插入前阻断投毒
+//（引用落进列表项后整篇文档 invalid，之后所有保护块插入都会报错）。
+export function sforumCanInsertReference(state: EditorState) {
+  const { $from, $to } = state.selection
+  const containerOf = ($pos: typeof $from) =>
+    ($pos.depth >= 1 ? $pos.node($pos.depth - 1) : $pos.node(0)).type.name
+  const allowed = (name: string) => name === 'doc' || name === SF_SHORTCODE_BLOCK_NODE
+  return allowed(containerOf($from)) && allowed(containerOf($to))
 }
 
 function createSForumShortcodeBlockExtension(
@@ -529,6 +583,10 @@ function renderReferenceMarkdown(node: JSONContent) {
 function renderProtectedMarkdown(node: JSONContent, helpers: MarkdownRendererHelpers) {
   const declaration = declarationsByID.get(String(node.attrs?.id || ''))
   if (!declaration) return ''
+  // 空脚手架不进入 Markdown：冻结语法把空保护体判为非法并保持字面，一旦导出，
+  // 草稿保存/恢复就会把它退化成可见的 [reply] 文本。空块没有用户内容，导出为空
+  // 是无损的；用户填入内容后照常导出完整块语法。
+  if (sforumProtectedBodyIsEmpty(node)) return ''
   const content = helpers.renderChildren(node.content || [], '\n\n')
     // Goldmark's canonical block separation keeps a full blank line between
     // a list and a following heading. Tiptap emits the list/heading boundary

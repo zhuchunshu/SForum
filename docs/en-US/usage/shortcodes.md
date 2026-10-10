@@ -46,7 +46,18 @@ spelling is executable stored HTML.
 
 - The toolbar shortcode action opens a searchable picker for `user`/`topic`/
   `comment`/`category`; `friend-links` inserts directly; selected body content
-  can be wrapped as `login`/`reply`/`only-author` (comment scope).
+  or the top-level block under the caret can be wrapped as `login`/`reply`/
+  `only-author` (comment scope). References and protected blocks cannot be
+  placed inside list items or quote blocks — wrapping always targets the whole
+  top-level block, so a caret inside a list or quote wraps that entire
+  structure. When a rule is not met, the editor reports the specific reason
+  and leaves the content unchanged.
+- Inserting on an empty line creates an empty protected scaffold: the hint is
+  rendered inside the block, so you can type in place and the editor no longer
+  raises an insert-time message. The block must contain content before
+  publishing — an empty one produces a field-level message on submit (the Host
+  also rejects empty protected bodies, so an empty block never reaches the
+  published body).
 - Pasting or typing the canonical syntax converts into the corresponding
   nodes; protected blocks can change type, be deleted, or be unwrapped. No
   source mode is required or exposed.

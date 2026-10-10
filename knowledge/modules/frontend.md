@@ -855,10 +855,31 @@ Architecture sources:
   now reports grouped failure reasons (empty/placement/declaration/commentOnly/
   count/depth) that map to actionable i18n messages; placement distinguishes new
   violations from pre-existing misplaced nodes (e.g. a reference inserted
-  inside a list item poisoning the document). Regression coverage lives in
+  inside a list item poisoning the document). Same-day stage two (user
+  approved): the wrap target is fixed to the top-level blocks spanned by the
+  selection (a caret inside a list/quote wraps that whole structure, so new
+  placement violations can no longer occur), and fresh reference inserts are
+  preflighted by `sforumCanInsertReference` (`$from`/`$to` container must be
+  `doc` or a protected block; retyping an existing node is exempt), closing the
+  list-item poisoning hole. Stage three (user approved) splits editing validity
+  from publish validity: inserting on an empty line now yields an empty
+  protected scaffold (`allowEmptyProtectedBody` inspection for inserts, so an
+  empty block neither raises an insert-time message nor blocks later shortcode
+  operations), the `SFShortcodeProtectedNodeView` renders an in-block
+  placeholder from the same body rule as the Host, and the publish gate
+  (`sforumDocumentPublishIssue` + `sforumPublishFailureKey`) reports a
+  field-level message on every submit path (comment reply, comment edit, topic
+  composer, topic edit page, `SFTopicEditor`) while the Host
+  `ErrInvalidShortcode` stays authoritative. Empty scaffolds never enter
+  Markdown (`renderProtectedMarkdown` returns empty for an empty body) because
+  the frozen grammar keeps an empty protected body literal and a draft
+  round-trip would otherwise degrade it into visible `[reply]` text. Regression
+  coverage lives in
   `tests/framework/editorShortcodes.test.ts` (builder suite asserting the
-  document stays byte-identical on failure) and `editorCanvas.test.ts`
-  (dispatch wiring). Decision:
+  document stays byte-identical on failure, top-level wrap shapes, the
+  reference preflight matrix, empty-scaffold insert/emission and the publish
+  gate) and `editorCanvas.test.ts` (dispatch wiring).
+  Decision:
   `decisions/2026-10-10-editor-validation-candidate-transaction.md`.
 - M10A adds the legacy conversion/report corpus
   (`contracts/fixtures/shortcode-legacy-conversion-v1.json`) consumed by both

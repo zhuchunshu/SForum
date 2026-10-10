@@ -5,6 +5,7 @@ import {
   topicCommentEditorContentIsMeaningful,
   useTopicCommentSubmission
 } from '~/composables/forum/useTopicCommentSubmission'
+import { sforumDocumentPublishIssue, sforumPublishFailureKey } from '~/utils/editor/shortcodes'
 import {
   advancedReplyDraftStorageKey,
   flattenCommentTree,
@@ -252,6 +253,12 @@ export function useTopicCommentComposerDrawer(options: TopicCommentComposerDrawe
     const markdown = payload.markdown ?? editingMarkdown.value
     const text = payload.text ?? markdown
     if (!topicCommentEditorContentIsMeaningful(payload, markdown) || editingSubmitting.value) return
+    // 空保护块可以插入，但发布前必须有内容（Host 会拒绝空保护体）。
+    const protectedIssue = sforumDocumentPublishIssue(payload.native, 'comment')
+    if (protectedIssue) {
+      editingError.value = t(sforumPublishFailureKey(protectedIssue))
+      return
+    }
 
     editingSubmitting.value = true
     editingError.value = ''

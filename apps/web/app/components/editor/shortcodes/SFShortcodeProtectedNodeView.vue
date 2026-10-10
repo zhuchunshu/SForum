@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { nodeViewProps, NodeViewContent, NodeViewWrapper } from '@tiptap/vue-3'
+import type { JSONContent } from '@tiptap/core'
 import {
+  sforumProtectedBodyIsEmpty,
   sforumProtectedKind,
   type SFShortcodeNodeViewHost
 } from '~/utils/editor/shortcodes'
@@ -12,6 +14,12 @@ const { t } = useI18n()
 const host = computed(() => props.extension.options.nodeViewHost as SFShortcodeNodeViewHost | undefined)
 const kind = computed(() => sforumProtectedKind(props.node.attrs as Record<string, unknown>))
 const disabled = computed(() => host.value?.disabled() ?? true)
+// 空脚手架合法：占位提示渲染在块内部，用户就地输入即可，不再弹插入期提示。
+const bodyIsEmpty = computed(() => {
+  const node = props.node as unknown as { toJSON?: () => JSONContent }
+  if (typeof node.toJSON !== 'function') return false
+  return sforumProtectedBodyIsEmpty(node.toJSON())
+})
 const kindLabel = computed(() => kind.value ? t(`composer.shortcodes.kinds.${kind.value}`) : t('composer.shortcodes.unavailable'))
 const contractLabel = computed(() => {
   const id = String(props.node.attrs?.id || '').trim()
@@ -37,6 +45,7 @@ function iconFor(value: EditorProtectedKind | null) {
     :class="{
       'sf-protected-node--selected': selected,
       'sf-protected-node--disabled': disabled,
+      'sf-protected-node--empty': bodyIsEmpty,
       'sf-protected-node--author-only': kind === 'only-author'
     }"
     :data-shortcode-kind="kind || 'unavailable'"
@@ -48,6 +57,12 @@ function iconFor(value: EditorProtectedKind | null) {
       <span>{{ kindLabel }}</span>
       <code>{{ contractLabel }}</code>
     </div>
+    <span
+      v-if="bodyIsEmpty"
+      class="pointer-events-none absolute left-[.875rem] top-[1.5rem] select-none text-sm text-[color:var(--ui-text-dimmed)]"
+      contenteditable="false"
+      aria-hidden="true"
+    >{{ t('composer.shortcodes.protectedBodyPlaceholder') }}</span>
     <NodeViewContent class="sf-protected-node__content" />
   </NodeViewWrapper>
 </template>

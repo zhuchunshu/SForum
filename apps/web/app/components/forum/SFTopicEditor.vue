@@ -13,6 +13,7 @@ import {
   type ForumTopicTagSummary
 } from '~/utils/forum/forumTaxonomy'
 import type { SFEditorContentPayload } from '~/utils/sfEditor'
+import { sforumDocumentPublishIssue, sforumPublishFailureKey } from '~/utils/editor/shortcodes'
 
 // 主题编辑器组件：由编辑独立页（/topics/:id/edit）与后台内容管理复用，含字段校验。
 // 保存成功后 emit saved（含更新后的 topic），由宿主页面负责跳转/规范化；
@@ -175,7 +176,11 @@ async function save(payload?: Pick<SFEditorContentPayload, 'markdown' | 'native'
     nextErrors.title = [t('composer.titleTooLong', { max: limits.value.topicTitleMaxRunes })]
   }
   const bodyError = validateTopicBody(text)
-  if (bodyError === 'contentTooShort') {
+  // 空保护块在编辑期合法，但发布前必须有内容：比字数校验更具体，优先呈现。
+  const protectedIssue = sforumDocumentPublishIssue(currentPayload?.native, 'topic')
+  if (protectedIssue) {
+    nextErrors.content = [t(sforumPublishFailureKey(protectedIssue))]
+  } else if (bodyError === 'contentTooShort') {
     nextErrors.content = [t('composer.contentTooShort', { min: limits.value.topicContentMinRunes })]
   } else if (bodyError === 'contentTooLong') {
     nextErrors.content = [t('composer.contentTooLong', { max: limits.value.topicContentMaxRunes })]
